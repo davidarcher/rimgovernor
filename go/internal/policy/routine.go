@@ -70,6 +70,8 @@ func (p RoutinePolicy) Validate() error {
 // FoodDays is the accessible diet/rot-aware stock runway. FieldCoverage is the
 // separate native crop-capacity forecast; it never increases FoodDays.
 type RoutineFacts struct {
+	RecoverySafety      domain.Fact[RecoverySafety]
+	RecoveryWorkers     domain.Fact[[]RecoveryWorker]
 	DisasterConditions  domain.Fact[[]DisasterCondition]
 	RecoveryBuildings   domain.Fact[[]RecoveryBuilding]
 	Disaster            *DisasterHistory
@@ -536,11 +538,11 @@ func DetectRoutine(f RoutineFacts, previous RoutineLatches, p RoutinePolicy) (Ro
 		return RoutineNeeds{}, err
 	}
 	if r.Disaster != nil {
-		need := r.Disaster.Services[len(r.Disaster.Services)-1].Need
-		if r.Disaster.Phase == DisasterUnknown {
-			need = domain.NeedUnknown
-		}
+		need := RecoveryNeed(r.Disaster, f.RecoverySafety)
 		priority := r.Disaster.Promote(RecoverDisasterServices, 3)
+		if s, k := f.RecoverySafety.Value(); k && positive(s.RoofHazard) && r.Disaster.Phase != DisasterRestored {
+			priority = 2
+		}
 		r.Assessments = append(r.Assessments, RoutineAssessment{RecoverDisasterServices, priority, need})
 		if need != domain.NeedRecovered {
 			addGoal(RecoverDisasterServices, priority)

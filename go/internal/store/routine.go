@@ -22,6 +22,7 @@ type RoutineGoal struct {
 // RoutineReview is the durable review cursor and hysteresis history. Goal
 // bindings retain semantic needs while old executable plans keep their identity.
 type RoutineReview struct {
+	Recovery               *RoutineRecovery        `json:",omitempty"`
 	Disaster               *policy.DisasterHistory `json:",omitempty"`
 	Mood                   *RoutineMood            `json:",omitempty"`
 	MoodMethods            []RoutineMoodMethod     `json:",omitempty"`
@@ -86,6 +87,9 @@ func loadRoutine(ctx context.Context, tx *sql.Tx) (RoutineReview, error) {
 	if r.Disaster != nil && r.Disaster.Observed > r.Tick {
 		return RoutineReview{}, errors.New("future disaster history")
 	}
+	if err := validateRoutineRecovery(r); err != nil {
+		return RoutineReview{}, err
+	}
 	var proposals []RoutineMoodMethod
 	if r.Enabled {
 		proposals, err = moodProposals(r.moodHistory())
@@ -137,7 +141,7 @@ func loadRoutine(ctx context.Context, tx *sql.Tx) (RoutineReview, error) {
 	optional := map[domain.GoalID]bool{}
 	for _, n := range known.Assessments {
 		allowed[n.ID] = true
-		optional[n.ID] = n.Priority >= 3
+		optional[n.ID] = n.Priority >= 3 || n.ID == policy.RecoverDisasterServices
 	}
 	// Manual may retain historical bindings after a world change reset their
 	// observation history. Enabled bindings must match the current pawn history.
@@ -167,6 +171,9 @@ func loadRoutine(ctx context.Context, tx *sql.Tx) (RoutineReview, error) {
 		g, err := loadGoal(ctx, tx, binding.Goal)
 		if err != nil {
 			return RoutineReview{}, err
+		}
+		if r.Recovery != nil && r.Recovery.Goal == g.Goal.ID && r.Recovery.Epoch > g.Goal.Epoch {
+			return RoutineReview{}, errors.New("future recovery method epoch")
 		}
 		if g.Goal.Source != domain.AutopilotGoal || !strings.HasPrefix(string(binding.Goal), "routine-") || !strings.HasSuffix(string(binding.Goal), "-"+string(binding.Need)) {
 			return RoutineReview{}, errors.New("routine goal ownership mismatch")
@@ -407,6 +414,10 @@ func reviewRoutineTx(ctx context.Context, tx *sql.Tx, request RoutineReviewReque
 			return RoutineReviewResult{}, err
 		}
 		r.Development = developmentRecord(development)
+		r.Recovery, err = routineRecovery(ctx, tx, request.Facts, disaster, r.Goals, result.Goals, request.Tick)
+		if err != nil {
+			return RoutineReviewResult{}, err
+		}
 	}
 	data, err := json.Marshal(r)
 	if err != nil {

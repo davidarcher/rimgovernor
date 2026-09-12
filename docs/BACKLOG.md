@@ -824,7 +824,12 @@ expand these into another nested task tree; remove a row when its outcome is met
   history. Native compound-disaster acceptance and captured Go replay verify
   damaged wall/generator identities, ordinary repair/refuel needs, compound
   conditions, priority promotion, Manual and disabled restart.
-  Recovery job previews, safe-area method selection and action composition remain
+  Recovery method selection now produces at most eight durable native admission
+  candidates, prioritizing existing roofed refuges and preserving prior restrictions.
+  Available-worker guards, shared used-method history, state-sensitive identities,
+  cancellation and Manual prevent invented eligibility or silent retry. Captured
+  native replay verifies three refuge candidates and restart; live candidate
+  acceptance remains pending. Native job/area previews and action composition remain
   open alongside their action family.
 
 - [ ] **G01.07a — Finish defense and essential medical care.** Connect movement

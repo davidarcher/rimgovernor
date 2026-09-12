@@ -134,6 +134,7 @@ func observeRoutine(ctx context.Context, source RoutineSource, clock Clock, expe
 	reading.Projection.WorkPawns = bracket.work
 	reading.Projection.Facts.MedicalPawns = bracket.medical
 	reading.Projection.Facts.MoodPawns = bracket.mood
+	reading.Projection.Facts.RecoveryWorkers = recoveryWorkers(bracket.mood)
 	reading.Projection.Facts.Gear = routineGear(reading.Projection.Facts.Gear, bracket.emergency.Facts)
 	reading.Projection.Definitions = append(reading.Projection.Definitions, bracket.extraDefinitions...)
 	if temperature {

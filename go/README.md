@@ -241,7 +241,10 @@ ordered refuel/breakdown/repair needs and promotes affected service priorities.
 Unknown reads and expired conditions cannot certify recovery. Manual retains
 evidence; world replacement resets the episode. Native compound-disaster and
 captured replay acceptance cover planning, Manual and disabled restart; recovery
-action dispatch remains unavailable. See the
+action dispatch remains unavailable. `Recovery` retains typed proposal inputs and
+at most eight candidates for existing roofed areas or ordinary service work. Player
+restrictions, availability and used shared methods constrain selection; native
+admission is still required. Manual clears these candidates. See the
 [contract](../docs/developers/contracts/disaster-planning.md) and
 [acceptance commands](../docs/developers/testing/disaster-planning.md).
 

@@ -17,6 +17,14 @@ func colonyDisaster(v *o.ColonyFactsSnapshot, facts *policy.RoutineFacts) {
 	}
 	facts.DisasterTick = domain.Tick(v.Context.GetTick())
 	if recovery := v.GetRecovery().GetObserved(); recovery != nil {
+		safety := policy.RecoverySafety{RoofHazard: optional(recovery.RoofHazard)}
+		for _, area := range recovery.Areas {
+			safety.SafeAreas = append(safety.SafeAreas, area.GetId())
+		}
+		for _, restriction := range recovery.Restrictions {
+			safety.Restrictions = append(safety.Restrictions, policy.RecoveryRestriction{Pawn: policy.PawnID(restriction.Pawn.GetId()), Area: domain.Known(restriction.GetAreaId())})
+		}
+		facts.RecoverySafety = domain.Known(safety)
 		buildings := make([]policy.RecoveryBuilding, 0, len(recovery.Buildings))
 		for _, row := range recovery.Buildings {
 			s := row.Service
@@ -39,4 +47,16 @@ func colonyDisaster(v *o.ColonyFactsSnapshot, facts *policy.RoutineFacts) {
 		}
 		facts.RecoveryBuildings = domain.Known(buildings)
 	}
+}
+
+func recoveryWorkers(pawns domain.Fact[[]policy.MoodPawn]) domain.Fact[[]policy.RecoveryWorker] {
+	rows, known := pawns.Value()
+	if !known {
+		return domain.Unknown[[]policy.RecoveryWorker]()
+	}
+	workers := make([]policy.RecoveryWorker, 0, len(rows))
+	for _, p := range rows {
+		workers = append(workers, policy.RecoveryWorker{Pawn: p.ID, Dead: p.Dead, Downed: p.Downed, Drafted: p.Drafted, Mental: p.Mental, PlayerForced: p.PlayerForced})
+	}
+	return domain.Known(workers)
 }

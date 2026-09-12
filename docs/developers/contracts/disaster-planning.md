@@ -25,10 +25,33 @@ exclusion cannot clear previously tracked damage.
 The review records ordered refuel, breakdown and repair needs. It promotes affected
 service goals to priority 2, including wood when cooking or temperature is disrupted.
 Existing emergency priorities, player cancellation, resource reservations and
-admission checks still apply. `RecoverDisasterServices` records infrastructure need;
-its native job dispatch is unavailable until the shared action family is connected.
+admission checks still apply. A known roof-sensitive hazard independently keeps
+`RecoverDisasterServices` at priority 2, including when buildings are intact or
+another service is unknown.
 
-Manual invalidates pending work while retaining observation history. New player
+The durable `Recovery` review records at most eight native admission candidates.
+Available workers are ordered by exact pawn identity. During a roof-sensitive
+hazard, an observed restriction outside the known roofed areas produces refuge
+candidates first, using at most two existing areas per pawn. Each candidate retains
+the prior restriction; it never authorizes widening player access. Exhausted refuge
+methods do not fall through to exposed service work. Unknown restrictions, missing
+roster identities and unknown availability preserve explicit blockers.
+
+With exposure protection satisfied, candidate pairs use the ordered refuel,
+breakdown and repair needs. Method identities include pawn/target and observed
+hit points or fuel; refuge identities include the prior area and a 600-tick lease
+window. The shared goal epoch supplies used methods, including retired plans.
+Refreshing a proposal does not count as attempting it. Saved typed inputs reproduce
+the candidates on load, and cancelled or emergency-suspended goals receive no new
+proposals.
+
+Candidates require fresh native preview of pawn eligibility, reachability,
+reservations, supplies, area safety and non-widening restrictions. Native job and
+area-lease dispatch remain unavailable until the shared action family is connected.
+Proposals do not allocate resources, alter areas, issue jobs or prove recovery.
+
+Manual clears candidates and invalidates pending work while retaining observation
+history. New player
 direction retains the episode; colony/load/map replacement or tick rewind resets it.
 A restored episode stays closed through unrelated later shortages and a newly
 observed condition starts a fresh episode. Routine events make no model calls.

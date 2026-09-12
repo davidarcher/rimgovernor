@@ -455,7 +455,7 @@ async def run(root, output, binary, *, go_source, go_sha256, sleeping_methods=Fa
             report['upkeep_reference'] = audit_upkeep(outcome(work_colony, 'observed'), facts)
             if disaster_review:
                 from native_go_disaster_evidence import disaster_reference
-                report['disaster_reference'] = disaster_reference(outcome(work_colony, 'observed'), facts)
+                report['disaster_reference'] = disaster_reference(outcome(work_colony, 'observed'), facts, detailed['pawns'])
                 (output / 'disaster-reference.json').write_text(json.dumps({'setup': report['disaster_setup'], 'reference': report['disaster_reference']}), encoding='utf8')
             if mood_review:
                 from native_go_mood_evidence import mood_reference
@@ -531,6 +531,7 @@ async def run(root, output, binary, *, go_source, go_sha256, sleeping_methods=Fa
             if disaster_review:
                 from native_go_disaster_evidence import audit_disaster_review
                 report['disaster_review'] = audit_disaster_review(active, report['disaster_reference'], report['disaster_setup'])
+                report['recovery_methods'] = active['review']['Recovery']['Selection']
             if mood_review:
                 from native_go_mood_evidence import audit_mood_review, audit_mood_hold
                 report["mood_review"] = audit_mood_review(active, report["mood_reference"], report["mood_setup"])
@@ -627,6 +628,7 @@ async def run(root, output, binary, *, go_source, go_sha256, sleeping_methods=Fa
             report["manual_routine"] = routine_evidence(database, identity, enabled=False, expected_food_need=expected_food, allow_methods=bool(sleeping_methods or comfort_methods or expansion_methods or power_methods or temperature_methods))
             if disaster_review:
                 assert report['manual_routine']['review']['Disaster'] == report['disaster_review']
+                assert not report['manual_routine']['review'].get('Recovery'), 'Manual retained recovery proposals'
             if comfort_methods:
                 assert report['manual_routine']['review']['Comfort'] == report['comfort_recovered']['review']['Comfort']
             if mood_review:

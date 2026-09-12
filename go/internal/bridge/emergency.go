@@ -32,11 +32,26 @@ func (client *Client) ReadEmergency(ctx context.Context, id *c.Identity) (Emerge
 	case *o.StatusReply_Failure:
 		return empty, raw, failure(v.Failure, raw)
 	case *o.StatusReply_Observed:
-		result, err := emergencyStatus(v.Observed, id)
+		result, err := DecodeEmergencyStatus(v.Observed, id)
 		return result, raw, err
 	default:
 		return empty, raw, contract("emergency status outcome missing")
 	}
+}
+
+// DecodeEmergencyStatus shares live boundary validation with captured replay.
+// The returned facts carry no player authority or controller plan identity.
+func DecodeEmergencyStatus(v *o.StatusSnapshot, id *c.Identity) (EmergencyObservation, error) {
+	if err := ValidateIdentity(id); err != nil {
+		return EmergencyObservation{}, err
+	}
+	if v == nil {
+		return EmergencyObservation{}, contract("emergency status missing")
+	}
+	if err := buildingUnknown(v); err != nil {
+		return EmergencyObservation{}, err
+	}
+	return emergencyStatus(v, id)
 }
 func emergencyBool(v *bool) domain.Fact[bool] {
 	if v == nil {

@@ -1,6 +1,6 @@
 import pytest
 
-from native_go_disaster_evidence import disaster_reference
+from native_go_disaster_evidence import disaster_reference, recovery_candidates
 
 
 def disaster_pair():
@@ -36,3 +36,38 @@ def test_disaster_reference_rejects_mismatched_native_census(field):
         observed['context'] = {'tick': '11'}
     with pytest.raises(AssertionError):
         disaster_reference(colony, legacy)
+
+
+def recovery_pawn(identity, *, forced=False):
+    return {'pawn': {'id': identity}, 'dead': False, 'downed': False, 'drafted': False,
+            'job': {'playerForced': forced}, 'issues': [{'field': 'mental_state',
+             'unavailable': {'reason': 'UNAVAILABLE_REASON_NOT_APPLICABLE'}}]}
+
+
+def test_recovery_candidates_protect_existing_area_before_work():
+    colony, _ = disaster_pair()
+    colony['recovery']['observed']['restrictions'] = [{'pawn': {'id': 'pawn'}, 'areaId': 'player'}]
+    work = [{'Building': 'wall', 'Method': 'repair'}]
+    assert recovery_candidates(colony, [recovery_pawn('pawn')], work) == [
+        {'Kind': 'roofed_area', 'Pawn': 'pawn', 'Area': '1', 'PriorArea': 'player', 'Window': 0}]
+    colony['recovery']['observed']['restrictions'][0]['areaId'] = '1'
+    assert recovery_candidates(colony, [recovery_pawn('pawn')], work) == [
+        {'Kind': 'service_work', 'Pawn': 'pawn', 'Building': 'wall', 'Method': 'repair', 'PriorArea': '1'}]
+
+
+def test_recovery_candidates_refuse_no_refuge_and_player_work():
+    colony, _ = disaster_pair()
+    colony['recovery']['observed']['restrictions'] = [{'pawn': {'id': 'pawn'}}]
+    work = [{'Building': 'wall', 'Method': 'repair'}]
+    assert recovery_candidates(colony, [recovery_pawn('pawn', forced=True)], work) == []
+    colony['recovery']['observed']['areas'] = []
+    assert recovery_candidates(colony, [recovery_pawn('pawn')], work) == []
+
+
+def test_recovery_candidates_bound_worker_pairs():
+    colony, _ = disaster_pair()
+    colony['recovery']['observed']['roofHazard'] = False
+    pawns = [recovery_pawn(f'pawn{i:02}') for i in reversed(range(16))]
+    colony['recovery']['observed']['restrictions'] = [{'pawn': p['pawn']} for p in pawns]
+    candidates = recovery_candidates(colony, pawns, [{'Building': 'wall', 'Method': 'repair'}])
+    assert len(candidates) == 8 and candidates[0]['Pawn'] == 'pawn00' and candidates[-1]['Pawn'] == 'pawn07'
