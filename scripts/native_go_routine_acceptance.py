@@ -414,6 +414,8 @@ async def run(root, output, binary, *, go_source, go_sha256, sleeping_methods=Fa
                                 'work-status': report['initial_colony'], 'work-reference': report['initial_work']}.items():
                 (output / (name + '.json')).write_text(json.dumps(value), encoding='utf8')
             facts = payload(await evidence.call(bridge, "initial-food", "home/colony_facts", {"planning": False}))
+            from native_go_upkeep_evidence import audit_upkeep, audit_upkeep_review
+            report['upkeep_reference'] = audit_upkeep(outcome(work_colony, 'observed'), facts)
             if power_fixture:
                 recovery = payload(await evidence.call(bridge, 'power-recovery', 'home/recovery_state', {}))
                 assert recovery['success'] and int(recovery['tick']) == tick
@@ -470,6 +472,7 @@ async def run(root, output, binary, *, go_source, go_sha256, sleeping_methods=Fa
             report['work_need'] = active['goals']['EnsureWorkAssignments']['Need']
             assert report['work_need'] == ('recovered' if report['initial_work']['matches'] else 'deficit'), 'Native work readback did not reach routine need'
             report["active_routine"] = active
+            audit_upkeep_review(active, report['upkeep_reference'])
             report['development'] = audit_development(active['review'], len(report['initial_work']['assignments']))
             if comfort_methods:
                 unmet = {name: goal['Need'] for name, goal in active['goals'].items() if goal['Priority'] < 3 and goal['Need'] != 'recovered'}
@@ -566,6 +569,13 @@ async def run(root, output, binary, *, go_source, go_sha256, sleeping_methods=Fa
                 native = outcome(await wire(bridge, 'comfort-outcome', 'observations_read_colony_facts', {'scope': {'expectedIdentity': identity}, 'planning': False}), 'observed')
                 report['comfort_outcome'] = native
                 audit_comfort_use(report['comfort_recovered'], outcome(outcome(native['upkeep'], 'observed')['comfort'], 'observed'))
+                report['upkeep_fixture'] = payload(await evidence.call(bridge, 'upkeep-setup', 'test/upkeep_setup', {'fireSize': .5, 'repairCompetition': True}))
+                assert report['upkeep_fixture']['success']
+                upkeep_colony = await wire(bridge, 'populated-upkeep', 'observations_read_colony_facts', {'scope': {'expectedIdentity': identity}, 'planning': False})
+                upkeep_legacy = payload(await evidence.call(bridge, 'populated-upkeep-reference', 'home/colony_facts', {'planning': False}))
+                report['populated_upkeep_reference'] = audit_upkeep(outcome(upkeep_colony, 'observed'), upkeep_legacy)
+                assert all(v['need'] == 'deficit' for v in report['populated_upkeep_reference'].values())
+                (output / 'upkeep-replay.json').write_text(json.dumps({'colony': upkeep_colony, 'expected': report['populated_upkeep_reference']}), encoding='utf8')
             baseline = await capture(bridge, "restart-baseline")
         if supply_history:
             for phase, class_name in [('supplies-cleared', 'RimWorld.Designator_Unforbid'), ('supplies-reforbidden', 'RimWorld.Designator_Forbid')]:

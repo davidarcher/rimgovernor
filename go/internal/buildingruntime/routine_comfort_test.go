@@ -1,12 +1,51 @@
 package buildingruntime
 
 import (
+	"context"
+	"github.com/davidarcher/RimGovernor/go/internal/bridge"
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"github.com/davidarcher/RimGovernor/go/internal/observation"
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
 	"github.com/davidarcher/RimGovernor/go/internal/store"
 	"testing"
 )
+
+func TestComfortPlacementRejectsCrampedRecreationAndPreservesUnknown(t *testing.T) {
+	for _, test := range []struct {
+		name     string
+		access   []domain.Fact[bool]
+		reason   RoutineBuildingReason
+		previews int
+	}{
+		{"cramped then playable", []domain.Fact[bool]{domain.Known(false), domain.Known(true)}, "", 2},
+		{"cramped", []domain.Fact[bool]{domain.Known(false), domain.Known(false)}, BuildingMethodNoSpace, 2},
+		{"unavailable", []domain.Fact[bool]{domain.Unknown[bool](), domain.Known(false)}, BuildingMethodUnknown, 2},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			planner, _, session, _, native := sleepingFixture(t)
+			planner.goal, planner.definition, planner.environment = policy.EnsureComfort, "HorseshoesPin", policy.PlacementAnywhere
+			native.onPreview = func(_ context.Context, p *bridge.BuildingPreview) {
+				b, _ := p.Preview.Action.Building()
+				p.Preview.Footprint = domain.Known([]domain.Cell{b.Cell()})
+				p.Preview.WatchCellsAccessible = test.access[native.previews-1]
+			}
+			facts := observation.ColonyProjection{Bounds: policy.Bounds{Width: 10, Height: 10}, Center: domain.Cell{X: 2, Z: 2}, Identity: observation.Identity{Tick: domain.Tick(native.reply.GetObserved().Context.GetTick())}}
+			for _, c := range []domain.Cell{{X: 2, Z: 2}, {X: 3, Z: 2}} {
+				facts.Cells = append(facts.Cells, policy.SiteCell{Cell: c, Walkable: domain.Known(true), Occupied: domain.Known(false), Zone: domain.Known(false)})
+			}
+			selected, _, reason, err := planner.previewMethod(context.Background(), session.State().Snapshot, facts, nil, 1, func() error { return nil })
+			if err != nil || reason != test.reason || native.previews != test.previews {
+				t.Fatal(selected, reason, err, native.previews)
+			}
+			if reason == "" {
+				b, _ := selected[0].Action.Building()
+				if b.Cell() != (domain.Cell{X: 3, Z: 2}) {
+					t.Fatal("cramped site selected", b)
+				}
+			}
+		})
+	}
+}
 
 func TestComfortNativeUseBudgetRequiresOutcomeAndCurrentDirection(t *testing.T) {
 	for _, definition := range []string{"Table1x2c", "DiningChair", "HorseshoesPin", "Campfire"} {

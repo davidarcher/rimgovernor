@@ -11,6 +11,25 @@ namespace HomeBridge.BridgeTools
 {
     internal static class ComfortFacts
     {
+        internal static bool UsesWatchCells(ThingDef definition) => DefDatabase<JoyGiverDef>.AllDefsListForReading
+            .Any(d => d.thingDefs?.Contains(definition) == true && d.giverClass != null
+                && typeof(JoyGiver_WatchBuilding).IsAssignableFrom(d.giverClass));
+
+        private static bool WatchCellAccessible(Pawn pawn, IntVec3 cell) => !cell.IsForbidden(pawn)
+            && pawn.CanReach(cell, PathEndMode.OnCell, Danger.None);
+
+        internal static bool? WatchCellsAccessible(Map map, BuildableDef definition, IntVec3 center, Rot4 rotation)
+        {
+            if (!(definition is ThingDef thing) || !UsesWatchCells(thing)) return null;
+            // CalculateWatchCells supplies native stand distance, same-room and
+            // line-of-sight rules without spawning a hypothetical building.
+            var cells = WatchBuildingUtility.CalculateWatchCells(thing, center, rotation, map).Take(4097).ToList();
+            var people = map.mapPawns.FreeColonistsSpawned.Where(p => !p.Dead && !p.Downed
+                && p.health.capacities.CapableOf(PawnCapacityDefOf.Manipulation)).ToList();
+            if (cells.Count > 4096 || people.Count > 256) return null;
+            return people.Count > 0 && people.All(p => cells.Any(c => WatchCellAccessible(p, c)));
+        }
+
         internal static object Read(Map map)
         {
             var v = ReadProtocol(map);
@@ -63,9 +82,13 @@ namespace HomeBridge.BridgeTools
                 result.Dining.Add(row);
             }
             foreach (var b in play) {
+                var watchCells = UsesWatchCells(b.def)
+                    ? WatchBuildingUtility.CalculateWatchCells(b.def, b.Position, b.Rotation, map).Take(4097).ToList() : null;
+                if (watchCells?.Count > 4096) throw new InvalidOperationException("Recreation watch geometry exceeds bound.");
                 var row = new Obs.ComfortFacility { Id = Id(b.GetUniqueLoadID()), Kind = Id(b.def.building.joyKind.defName) };
                 row.AccessibleTo.Add(people.Where(p => !b.IsForbidden(p) && b.IsSociallyProper(p)
                     && p.CanReach(b, PathEndMode.Touch, Danger.None)
+                    && (watchCells == null || watchCells.Any(c => WatchCellAccessible(p, c)))
                     && (p.playerSettings?.AreaRestrictionInPawnCurrentMap == null || p.playerSettings.AreaRestrictionInPawnCurrentMap[b.Position]))
                     .Select(p => Id(p.GetUniqueLoadID())));
                 row.Users.Add(people.Where(p => p.CurJob?.def.joyKind != null && p.CurJob.targetA.Thing == b)

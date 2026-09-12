@@ -86,6 +86,10 @@ message PlacementRotation {
   // Evaluated rotation guarantees complete footprint and blocker scans.
   repeated rimgovernor.common.v1.Cell occupied_cells = 4;
   repeated PlacementBlocker blocking_things = 5;
+  // Native watch geometry and allowed-area/reachability checks for every eligible
+  // colonist. Absent is unavailable/not applicable; false is known unusable.
+  // Does not change normal-game placement legality or certify future pawn use.
+  optional bool watch_cells_accessible = 6;
 }
 message PlacementBlocker {
   optional string category = 1;

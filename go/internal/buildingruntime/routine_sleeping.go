@@ -362,6 +362,7 @@ func (r *RoutineBuildingPlanner) previewMethod(call context.Context, snapshot do
 		return nil, policy.StockObservation{}, "", err
 	}
 	var selected []policy.Preview
+	unknownWatch := false
 	usedCells := map[domain.Cell]bool{}
 	stock := policy.StockObservation{Snapshot: snapshot, Tick: facts.Identity.Tick}
 	for i, c := range search.Candidates() {
@@ -387,6 +388,13 @@ func (r *RoutineBuildingPlanner) previewMethod(call context.Context, snapshot do
 			return nil, policy.StockObservation{}, "", ErrControl
 		}
 		made, known := preview.Preview.MadeFromStuff.Value()
+		if r.goal == policy.EnsureComfort && r.definition == "HorseshoesPin" {
+			accessible, known := preview.Preview.WatchCellsAccessible.Value()
+			unknownWatch = unknownWatch || !known
+			if !known || !accessible {
+				continue
+			}
+		}
 		if !known || made != (r.stuff != "") {
 			return nil, policy.StockObservation{}, BuildingMethodUnknown, nil
 		}
@@ -417,6 +425,9 @@ func (r *RoutineBuildingPlanner) previewMethod(call context.Context, snapshot do
 		}
 	}
 	if int64(len(selected)) != missing {
+		if unknownWatch {
+			return nil, policy.StockObservation{}, BuildingMethodUnknown, nil
+		}
 		return nil, policy.StockObservation{}, BuildingMethodNoSpace, nil
 	}
 	return selected, stock, "", nil

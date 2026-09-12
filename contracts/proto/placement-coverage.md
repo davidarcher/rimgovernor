@@ -24,6 +24,14 @@ known empty. A failed or oversized scan fails the candidate rather than emitting
 an empty list. Limits are 256 costs, 4096 footprint cells and 4096 blockers per
 rotation; diagnostics do not replace exact facts.
 
+For native watch-building recreation, a rotation may also report
+`watch_cells_accessible`. It uses the native stand-distance, room and sight-line
+geometry plus allowed-area and safe reachability for every eligible colonist.
+Missing evidence is unknown/not applicable, distinct from known false. Comfort
+planning requires known true for horseshoes construction; ordinary placement
+legality remains unchanged. This is potential access, not a receipt or proof of
+actual recreation, and does not reserve land outside the building footprint.
+
 Materials selects `known` or `unavailable`. A known list covers every material
 definition relevant to that candidate without truncation (at most256 rows).
 Within a known definition row, absent available means its count is unknown and

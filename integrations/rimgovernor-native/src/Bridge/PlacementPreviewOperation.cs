@@ -103,6 +103,7 @@ namespace HomeBridge.BridgeTools
         public string rotation { get; internal set; } = "";
         public bool accepted { get; internal set; }
         public string reason { get; internal set; } = "";
+        public bool? watchCellsAccessible { get; internal set; }
         public List<PlacementCell> occupiedCells { get; } = new List<PlacementCell>();
         public List<PlacementBlocker> blockingThings { get; } = new List<PlacementBlocker>();
         internal CellRect Rect { get; set; }
@@ -230,6 +231,8 @@ namespace HomeBridge.BridgeTools
                 }
             }
             if (result.occupiedCells.Count == 0) throw new InvalidOperationException("Empty native footprint");
+            try { result.watchCellsAccessible = ComfortFacts.WatchCellsAccessible(map, definition, center, rotation); }
+            catch (Exception) { result.watchCellsAccessible = null; }
             return result;
         }
 

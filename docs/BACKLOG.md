@@ -732,9 +732,9 @@ expand these into another nested task tree; remove a row when its outcome is met
   table, adjacent chair and recreation construction through shared building plans.
   Ordinary use waits are bounded by observed construction in the current direction;
   construction receipts do not certify comfort recovery. Native acceptance verifies
-  construction and dining use, but recreation placement still needs native playing
-  clearance checks: reaching a horseshoes pin does not establish a playable site.
-  The complete construction/use sequence remains unaccepted.
+  construction and dining use. Recreation previews and observed capacity now
+  require native playing-cell clearance and safe access; acceptance of the complete
+  construction/use sequence remains open.
   Equipment policy now has typed census review, stable replacement selection and
   bounded production proposals with material preservation, shared budget inputs
   and existing-bill protection. Native gear projections feed the complete routine

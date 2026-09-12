@@ -53,6 +53,9 @@ func (caller *Client) PreviewBuilding(ctx context.Context, action domain.Action,
 	out := BuildingPreview{Preview: policy.Preview{Action: action, Snapshot: snapshot, Tick: tick}, Stock: policy.StockObservation{Snapshot: snapshot, Tick: tick}}
 	out.Preview.CanPlace = domain.Known(evaluation.GetCanPlace() && orientation.GetAccepted() && evaluation.GetResearchFinished() && evaluation.GetBuildableByPlayer())
 	out.Preview.MadeFromStuff = domain.Known(evaluation.GetMadeFromStuff())
+	if orientation.WatchCellsAccessible != nil {
+		out.Preview.WatchCellsAccessible = domain.Known(orientation.GetWatchCellsAccessible())
+	}
 	safe := true
 	for _, blocker := range orientation.BlockingThings {
 		if blocker.GetWouldBeWiped() || blocker.GetFrameWouldBeCancelled() || blocker.GetIsBlueprint() || blocker.GetIsFrame() {

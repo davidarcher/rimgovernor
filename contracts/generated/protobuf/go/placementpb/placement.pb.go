@@ -828,8 +828,12 @@ type PlacementRotation struct {
 	// Evaluated rotation guarantees complete footprint and blocker scans.
 	OccupiedCells  []*commonpb.Cell    `protobuf:"bytes,4,rep,name=occupied_cells,json=occupiedCells,proto3" json:"occupied_cells,omitempty"`
 	BlockingThings []*PlacementBlocker `protobuf:"bytes,5,rep,name=blocking_things,json=blockingThings,proto3" json:"blocking_things,omitempty"`
-	unknownFields  protoimpl.UnknownFields
-	sizeCache      protoimpl.SizeCache
+	// Native watch geometry and allowed-area/reachability checks for every eligible
+	// colonist. Absent is unavailable/not applicable; false is known unusable.
+	// Does not change normal-game placement legality or certify future pawn use.
+	WatchCellsAccessible *bool `protobuf:"varint,6,opt,name=watch_cells_accessible,json=watchCellsAccessible,proto3,oneof" json:"watch_cells_accessible,omitempty"`
+	unknownFields        protoimpl.UnknownFields
+	sizeCache            protoimpl.SizeCache
 }
 
 func (x *PlacementRotation) Reset() {
@@ -895,6 +899,13 @@ func (x *PlacementRotation) GetBlockingThings() []*PlacementBlocker {
 		return x.BlockingThings
 	}
 	return nil
+}
+
+func (x *PlacementRotation) GetWatchCellsAccessible() bool {
+	if x != nil && x.WatchCellsAccessible != nil {
+		return *x.WatchCellsAccessible
+	}
+	return false
 }
 
 type PlacementBlocker struct {
@@ -1039,16 +1050,18 @@ const file_placement_proto_rawDesc = "" +
 	"\tavailable\x18\x02 \x01(\x05H\x01R\tavailable\x88\x01\x01B\v\n" +
 	"\t_def_nameB\f\n" +
 	"\n" +
-	"_available\"\xd4\x02\n" +
+	"_available\"\xaa\x03\n" +
 	"\x11PlacementRotation\x12C\n" +
 	"\brotation\x18\x01 \x01(\x0e2\".rimgovernor.placement.v1.RotationH\x00R\brotation\x88\x01\x01\x12\x1f\n" +
 	"\baccepted\x18\x02 \x01(\bH\x01R\baccepted\x88\x01\x01\x12\x1b\n" +
 	"\x06reason\x18\x03 \x01(\tH\x02R\x06reason\x88\x01\x01\x12B\n" +
 	"\x0eoccupied_cells\x18\x04 \x03(\v2\x1b.rimgovernor.common.v1.CellR\roccupiedCells\x12S\n" +
-	"\x0fblocking_things\x18\x05 \x03(\v2*.rimgovernor.placement.v1.PlacementBlockerR\x0eblockingThingsB\v\n" +
+	"\x0fblocking_things\x18\x05 \x03(\v2*.rimgovernor.placement.v1.PlacementBlockerR\x0eblockingThings\x129\n" +
+	"\x16watch_cells_accessible\x18\x06 \x01(\bH\x03R\x14watchCellsAccessible\x88\x01\x01B\v\n" +
 	"\t_rotationB\v\n" +
 	"\t_acceptedB\t\n" +
-	"\a_reason\"\xbf\x02\n" +
+	"\a_reasonB\x19\n" +
+	"\x17_watch_cells_accessible\"\xbf\x02\n" +
 	"\x10PlacementBlocker\x12\x1f\n" +
 	"\bcategory\x18\x01 \x01(\tH\x00R\bcategory\x88\x01\x01\x12&\n" +
 	"\fis_blueprint\x18\x02 \x01(\bH\x01R\visBlueprint\x88\x01\x01\x12\x1e\n" +

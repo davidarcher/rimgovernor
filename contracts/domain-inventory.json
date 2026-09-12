@@ -8434,7 +8434,7 @@
         },
         {
           "path": "contracts/generated/protobuf/csharp/Placement.cs",
-          "source_sha256": "b564067af5c1487ac5d92bb9bdddbc85f93b3264b4d3f4f942e0c06f799ecac9"
+          "source_sha256": "cb4513f9c03e3d1e2c0897f81017ea5df7a36076694e64c740b18e9c4994a6d7"
         },
         {
           "path": "contracts/generated/protobuf/csharp/Presentation.cs",

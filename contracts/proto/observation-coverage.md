@@ -141,12 +141,12 @@ their own narrow typed receipts, without an import cycle.
   blocked pawns can still have equipment needs. Complete candidate and replacement
   lists belong to that exact loadout token. Planning read issues distinguish an
   unavailable gear census from a complete census with no eligible replacements.
-- The current colony upkeep projection includes independent complete item,
+- The current colony upkeep projection includes independent complete visible item,
   structure, fire and filth censuses, each bounded to 256 rows. A section issue
   requires no rows and prevents recovery; missing required row fields remain
   unknown. Item deterioration uses the native base rate, so covered items still
   need valid storage. Home flags limit fire, repair and cleaning needs. Native
-  playing clearance remains required before recreation capacity is accepted.
+  playing clearance is required before recreation capacity is accepted.
 
 ## External reads and deliberate projections
 

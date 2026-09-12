@@ -59,6 +59,7 @@ type Preview struct {
 	Snapshot                             domain.GenerationSnapshot
 	Tick                                 domain.Tick
 	CanPlace, SafeToPlace, MadeFromStuff domain.Fact[bool]
+	WatchCellsAccessible                 domain.Fact[bool]
 	Footprint                            domain.Fact[[]domain.Cell]
 	Costs                                domain.Fact[[]Amount]
 }

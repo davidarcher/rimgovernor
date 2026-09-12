@@ -14,7 +14,7 @@ namespace HomeBridge.BridgeTools
     {
         internal static void Populate(Map map, Obs.UpkeepFacts result)
         {
-            var things = map.listerThings.AllThings;
+            var things = map.listerThings.AllThings.Where(t => t.Spawned && !t.Position.Fogged(map)).ToList();
             Read("items", result, () => {
                 var rows = things.Where(t => t.def.category == ThingCategory.Item
                     && (t.Faction == null || t.Faction == Faction.OfPlayerSilentFail)).OrderBy(t => t.thingIDNumber).ToList();

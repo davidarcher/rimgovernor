@@ -298,6 +298,13 @@ uses a seeded naturally mild settlement and prepares hunger/recreation needs onc
 the three ordinary buildings exist. It never orders their use. Native use,
 one-time fixture activation, Manual history retention and disabled restart are
 separate assertions; inspect the retained report before claiming acceptance.
+Recreation previews require native playing-cell access, separate from placement
+legality. The variant also captures populated native fire, supply, repair and
+cleaning facts after Manual. Replay its `upkeep-replay.json` through the Go
+boundary and durable journal with `RIMBOT_NATIVE_UPKEEP_REPLAY=<absolute-path>`
+and `go test ./internal/observation -run TestNativeUpkeepReplay -count=1` from `go/`.
+The replay checks Python target ordering and metrics, all four maintained needs,
+Manual invalidation and retained needs after reopening the database.
 `--supply-history` additionally clears the original supplies through the native
 player Allow designator, reviews their recovery, and re-forbids the same supplies.
 Repeated same-database Go starts must preserve the empty cohort and issue no
