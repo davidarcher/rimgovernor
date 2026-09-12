@@ -8024,9 +8024,9 @@
         {
           "name": "test/configure_start",
           "path": "scripts/fixtures/ScenarioStartFixture.cs",
-          "line": 23,
-          "declaration": "[Tool(\"test/configure_start\", Description = \"Arm one ordinary scenario start from the main menu; test builds only. Does not edit saves or existing colonies.\")]\n        public async Task<object> Configure(IRimBridgeContext ctx, CancellationToken cancellationToken,\n            [ToolParameter(Description = \"Native ScenarioDef name; inspect the definitions returned by list.\")] string scenario,\n            [ToolParameter(Description = \"Native scenario editor count, 1 through 10.\")] int count,\n            [ToolParameter(Description = \"World generation seed.\")] string seed,\n            [ToolParameter(Description = \"Optional native BiomeDef for an ordinary valid settlement tile.\")] string biome = \"\",\n            [ToolParameter(Description = \"Native DifficultyDef, selected before colony generation.\")] string difficulty = \"Rough\",\n            [ToolParameter(Description = \"Minimum native seasonal temperature for the selected settlement tile.\")] float minTemperature = -100,\n            [ToolParameter(Description = \"Maximum native seasonal temperature for the selected settlement tile.\")] float maxTemperature = 100)",
-          "source_sha256": "c22ce8ed3d240809af5052c6a15d1c3ec7848bb56b4ae28dc834d465586b8c59"
+          "line": 24,
+          "declaration": "[Tool(\"test/configure_start\", Description = \"Arm one ordinary scenario start from the main menu; test builds only. Does not edit saves or existing colonies.\")]\n        public async Task<object> Configure(IRimBridgeContext ctx, CancellationToken cancellationToken,\n            [ToolParameter(Description = \"Native ScenarioDef name; inspect the definitions returned by list.\")] string scenario,\n            [ToolParameter(Description = \"Native scenario editor count, 1 through 10.\")] int count,\n            [ToolParameter(Description = \"World generation seed.\")] string seed,\n            [ToolParameter(Description = \"Optional native BiomeDef for an ordinary valid settlement tile.\")] string biome = \"\",\n            [ToolParameter(Description = \"Native DifficultyDef, selected before colony generation.\")] string difficulty = \"Rough\",\n            [ToolParameter(Description = \"Minimum native seasonal temperature for the selected settlement tile.\")] float minTemperature = -100,\n            [ToolParameter(Description = \"Maximum native seasonal temperature for the selected settlement tile.\")] float maxTemperature = 100,\n            [ToolParameter(Description = \"Native OverallTemperature world generation setting.\")] string worldTemperature = \"Normal\")",
+          "source_sha256": "a0e1899c83b3f2455902c0282cc24c1abf000bcbfc2c2e293a9834961a387fab"
         },
         {
           "name": "test/construction_ledger",
@@ -8206,9 +8206,9 @@
         {
           "name": "test/list_start_scenarios",
           "path": "scripts/fixtures/ScenarioStartFixture.cs",
-          "line": 70,
+          "line": 75,
           "declaration": "[Tool(\"test/list_start_scenarios\", Description = \"Read native scenario definitions and configurable pawn counts; test builds only.\")]\n        public async Task<object> List(IRimBridgeContext ctx, CancellationToken cancellationToken)",
-          "source_sha256": "c22ce8ed3d240809af5052c6a15d1c3ec7848bb56b4ae28dc834d465586b8c59"
+          "source_sha256": "a0e1899c83b3f2455902c0282cc24c1abf000bcbfc2c2e293a9834961a387fab"
         },
         {
           "name": "test/medical_management_change",

@@ -17,6 +17,7 @@ namespace HomeBridge.BridgeTools
         private static string worldSeed;
         private static string requestedBiome;
         private static DifficultyDef requestedDifficulty;
+        private static OverallTemperature requestedTemperature;
         private static float minimumTemperature, maximumTemperature;
         private static bool patched;
 
@@ -28,12 +29,15 @@ namespace HomeBridge.BridgeTools
             [ToolParameter(Description = "Optional native BiomeDef for an ordinary valid settlement tile.")] string biome = "",
             [ToolParameter(Description = "Native DifficultyDef, selected before colony generation.")] string difficulty = "Rough",
             [ToolParameter(Description = "Minimum native seasonal temperature for the selected settlement tile.")] float minTemperature = -100,
-            [ToolParameter(Description = "Maximum native seasonal temperature for the selected settlement tile.")] float maxTemperature = 100)
+            [ToolParameter(Description = "Maximum native seasonal temperature for the selected settlement tile.")] float maxTemperature = 100,
+            [ToolParameter(Description = "Native OverallTemperature world generation setting.")] string worldTemperature = "Normal")
         {
             return await ctx.MainThread.InvokeAsync<object>(() => {
                 if (Current.ProgramState != ProgramState.Entry || Find.CurrentMap != null || Current.Game != null)
                     throw new InvalidOperationException("Only a fresh main-menu process can configure a start.");
                 if (pending != null) throw new InvalidOperationException("A start is already armed.");
+                if (!Enum.TryParse(worldTemperature, out OverallTemperature temperature) || !Enum.IsDefined(typeof(OverallTemperature), temperature))
+                    throw new ArgumentException("Unknown native world temperature setting.");
                 if (count < 1 || count > 10 || string.IsNullOrWhiteSpace(seed))
                     throw new ArgumentException("Require 1..10 pawns and a nonempty world seed.");
                 if (float.IsNaN(minTemperature) || float.IsNaN(maxTemperature) || minTemperature < -100 || maxTemperature > 100 || minTemperature > maxTemperature)
@@ -58,12 +62,13 @@ namespace HomeBridge.BridgeTools
                 }
                 pending = copy; worldSeed = seed; requestedBiome = biome;
                 requestedDifficulty = difficultyDef;
+                requestedTemperature = temperature;
                 minimumTemperature = minTemperature; maximumTemperature = maxTemperature;
                 return new { success = true, armed = true, scenario, count, seed, biome,
                     minTemperature, maxTemperature,
                     storyteller = "Cassandra", difficulty, mapSize = 250,
                     cropYieldFactor = difficultyDef.cropYieldFactor,
-                    rainfall = "Normal", temperature = "Normal", population = "Normal" };
+                    rainfall = "Normal", temperature = temperature.ToString(), population = "Normal" };
             }, cancellationToken).ConfigureAwait(false);
         }
 
@@ -95,7 +100,7 @@ namespace HomeBridge.BridgeTools
             Find.Scenario.PreConfigure();
             Current.Game.storyteller = new Storyteller(StorytellerDefOf.Cassandra, requestedDifficulty);
             Current.Game.World = WorldGenerator.GenerateWorld(0.3f, worldSeed,
-                OverallRainfall.Normal, OverallTemperature.Normal, OverallPopulation.Normal, LandmarkDensity.Normal);
+                OverallRainfall.Normal, requestedTemperature, OverallPopulation.Normal, LandmarkDensity.Normal);
             Find.GameInitData.ChooseRandomStartingTile();
             if (!string.IsNullOrEmpty(requestedBiome) || minimumTemperature != -100 || maximumTemperature != 100)
             {

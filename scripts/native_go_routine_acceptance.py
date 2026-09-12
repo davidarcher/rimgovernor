@@ -364,6 +364,7 @@ async def run(root, output, binary, *, go_source, go_sha256, sleeping_methods=Fa
                 if comfort_methods or expansion_methods or power_methods or temperature_methods:
                     report['start_configuration'] = payload(await evidence.call(bridge, 'configure-start', 'test/configure_start', {
                         'scenario': 'Crashlanded', 'count': 3, 'seed': 'g01-05-comfort',
+                        'worldTemperature': 'VeryHot' if temperature_methods == 'hot' else 'Normal',
                         'minTemperature': 33 if temperature_methods == 'hot' else -100 if temperature_methods == 'cold' else 15, 'maxTemperature': 10 if temperature_methods == 'cold' else 100 if temperature_methods == 'hot' else 27}))
                     assert report['start_configuration']['success']
                 await evidence.call(bridge, "new-game", "rimworld/start_debug_game_ready", {"readiness": "visual", "pauseIfNeeded": True, "timeoutMs": 120000})
