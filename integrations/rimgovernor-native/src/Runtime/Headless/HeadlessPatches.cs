@@ -37,6 +37,9 @@ namespace HeadlessRim
             Patch(harmony, typeof(UIRoot_Play), "UIRootOnGUI", nameof(SkipPrefix));
             Patch(harmony, typeof(MapInterface), "MapInterfaceOnGUI_BeforeMainTabs", nameof(SkipPrefix));
             Patch(harmony, typeof(LongEventHandler), "LongEventsOnGUI", nameof(SkipPrefix));
+            // Pawn registration still updates the map normally. Refreshing open
+            // pawn-table windows only initializes GUI text/layout, absent in batch mode.
+            Patch(harmony, typeof(MainTabWindowUtility), "NotifyAllPawnTables_PawnsChanged", nameof(SkipPrefix));
             // World feature labels initialize GUI text; they never advance world simulation.
             Patch(harmony, typeof(WorldFeatures), "UpdateFeatures", nameof(SkipPrefix));
             // Synchronous events wait for their loading window's first repaint.

@@ -3571,7 +3571,7 @@
     },
     {
       "source": "integrations/rimgovernor-native/src/Runtime/Headless/HeadlessPatches.cs",
-      "source_sha256": "00fedcd6829a7364237b1b4e54942a39fa6c17814d8245909ded29f7759a60b0",
+      "source_sha256": "f3a4dd1f70c7e2a3a11826cda86712eecdd806c65f00d4502495d763726ebb8e",
       "compilation": "production-runtime",
       "owner": "N01.05 native runtime owner",
       "migration_status": "inventoried-unmigrated",
@@ -3579,16 +3579,16 @@
         11,
         14,
         30,
-        72,
-        82,
-        83,
-        90,
-        92
+        75,
+        85,
+        86,
+        93,
+        95
       ],
       "reflection_boundary_lines": [
-        64,
-        76,
-        86
+        67,
+        79,
+        89
       ],
       "patch_registration_lines": [
         2,
@@ -3605,23 +3605,23 @@
         37,
         38,
         39,
-        41,
-        45,
+        44,
         48,
-        49,
-        50,
         51,
         52,
         53,
         54,
         55,
+        56,
+        57,
         58,
-        59,
-        60,
         61,
-        66,
-        72,
-        77
+        62,
+        63,
+        64,
+        69,
+        75,
+        80
       ],
       "uncovered_acceptance": "Unified repeated startup/load, patch-failure health, lease cleanup and Windows/Linux normal/batch acceptance remain open."
     },

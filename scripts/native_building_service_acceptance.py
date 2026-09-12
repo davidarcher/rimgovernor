@@ -9,6 +9,7 @@ import json
 from pathlib import Path
 import shutil
 import sqlite3
+import traceback
 from urllib.parse import urlsplit
 
 import httpx
@@ -199,6 +200,10 @@ async def service(binary, gabs, configuration, profile, state, directory, report
                 assert bootstrap["mode"] == "explicit-player" and bootstrap["token"]
                 client.headers["X-RimGovernor-Player"] = bootstrap["token"]
                 yield http
+        except BaseException as error:
+            record['operation_error'] = repr(error)
+            record['operation_traceback'] = traceback.format_exc()
+            raise
         finally:
             try:
                 await joined_shutdown(process, record)
