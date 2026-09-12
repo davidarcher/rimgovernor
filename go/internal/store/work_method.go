@@ -1,0 +1,41 @@
+package store
+
+import (
+	"context"
+	"database/sql"
+	"github.com/davidarcher/RimGovernor/go/internal/domain"
+	"github.com/davidarcher/RimGovernor/go/internal/policy"
+)
+
+func admitWorkMethod(ctx context.Context, tx *sql.Tx, goal GoalState, plan domain.PlanSpec) error {
+	hasWork := false
+	for _, action := range plan.Actions() {
+		hasWork = hasWork || action.Kind() == domain.WorkAssignmentAction
+	}
+	if !hasWork {
+		return nil
+	}
+	review, err := loadRoutine(ctx, tx)
+	if err != nil {
+		return err
+	}
+	if !review.Enabled || review.Snapshot != goal.Goal.Snapshot || goal.Goal.Source != domain.AutopilotGoal || len(plan.Actions()) > 8 {
+		return ErrConflict
+	}
+	bound := false
+	for _, binding := range review.Goals {
+		bound = bound || binding.Need == policy.EnsureWorkAssignments && binding.Goal == goal.Goal.ID
+	}
+	if !bound {
+		return ErrConflict
+	}
+	pawns := map[domain.PawnID]bool{}
+	for _, action := range plan.Actions() {
+		w, ok := action.WorkAssignment()
+		if !ok || pawns[w.Pawn()] {
+			return ErrConflict
+		}
+		pawns[w.Pawn()] = true
+	}
+	return nil
+}

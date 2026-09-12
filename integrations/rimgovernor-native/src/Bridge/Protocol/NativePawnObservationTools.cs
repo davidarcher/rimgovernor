@@ -44,6 +44,11 @@ namespace HomeBridge.BridgeTools
                     var result = new Obs.PawnSnapshot { Context = context, Completeness = Complete(selected.Count, source.Count-selected.Count) };
                     foreach (var item in selected.OrderBy(p => p.Value.Pawn.Id, StringComparer.Ordinal)) {
                         NativePawnDetails.Apply(item.Key, item.Value, parsed.Details);
+                        if (item.Value.Settings != null) {
+                            item.Value.Settings.Snapshot = NativeWorkSettings.Snapshot(item.Key, context);
+                            if (item.Value.Settings.Snapshot != null)
+                                foreach (var issue in item.Value.Settings.Issues.Where(i => i.Field == "snapshot").ToArray()) item.Value.Settings.Issues.Remove(issue);
+                        }
                         result.Pawns.Add(item.Value);
                     }
                     return Encode(new Obs.ListPawnsReply { Observed = result });

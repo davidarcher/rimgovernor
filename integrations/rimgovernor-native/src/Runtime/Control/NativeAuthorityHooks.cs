@@ -34,7 +34,7 @@ namespace HomeBridge.BridgeTools
             internal readonly MethodInfo? Postfix;
         }
         private static readonly List<Target> Targets = new List<Target>();
-        private const int Required = 10;
+        private const int Required = 11;
         private static string installationFailure = "";
         static NativeAuthorityHooks()
         {
@@ -42,6 +42,7 @@ namespace HomeBridge.BridgeTools
             {
                 var harmony = new Harmony(Owner);
                 Add(harmony, AccessTools.Method(typeof(Pawn_JobTracker), "TryTakeOrderedJob", new[] { typeof(Job), typeof(JobTag?), typeof(bool) }), null, nameof(OrderedJob));
+                Add(harmony, AccessTools.Method(typeof(Pawn_WorkSettings), "SetPriority", new[] { typeof(WorkTypeDef), typeof(int) }), nameof(BeforeWork), nameof(AfterWork));
                 Add(harmony, AccessTools.PropertySetter(typeof(Pawn_DraftController), "Drafted"), nameof(BeforeDraft), nameof(AfterDraft));
                 Add(harmony, AccessTools.Method(typeof(GenConstruct), "PlaceBlueprintForBuild", new[] { typeof(BuildableDef), typeof(IntVec3), typeof(Map), typeof(Rot4), typeof(Faction), typeof(ThingDef), typeof(Precept_ThingStyle), typeof(ThingStyleDef), typeof(bool) }), null, nameof(Built));
                 Add(harmony, AccessTools.Method(typeof(GenConstruct), "PlaceBlueprintForInstall", new[] { typeof(MinifiedThing), typeof(IntVec3), typeof(Map), typeof(Rot4), typeof(Faction), typeof(bool) }), null, nameof(Installed));
@@ -105,6 +106,9 @@ namespace HomeBridge.BridgeTools
         }
         private static void OrderedJob(bool __result)
         { if (__result) Revoke(NativeControlRevocationReason.ExternalOrder); }
+        private static void BeforeWork(Pawn_WorkSettings __instance, WorkTypeDef __0, out int __state) => __state = __instance.Initialized ? __instance.GetPriority(__0) : -1;
+        private static void AfterWork(Pawn_WorkSettings __instance, WorkTypeDef __0, int __state)
+        { if (__instance.Initialized && __state != __instance.GetPriority(__0)) Revoke(NativeControlRevocationReason.PlayerControl); }
         private static void BeforeDraft(Pawn_DraftController __instance, out bool __state) => __state = __instance.Drafted;
         private static void AfterDraft(Pawn_DraftController __instance, bool __state)
         { if (__state != __instance.Drafted) Revoke(NativeControlRevocationReason.PlayerControl); }

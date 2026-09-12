@@ -79,3 +79,8 @@ namespace RimWorld
 }
 namespace HomeBridge.BridgeTools
 { public class ColonyIdentity { public string ColonyId = "colony"; public string LoadToken = "load"; } }
+
+namespace RimWorld {
+ public class WorkTypeDef {}
+ public class Pawn_WorkSettings { private int priority; public bool Initialized => true; [System.Runtime.CompilerServices.MethodImpl(System.Runtime.CompilerServices.MethodImplOptions.NoInlining)] public int GetPriority(WorkTypeDef w) => priority; [System.Runtime.CompilerServices.MethodImpl(System.Runtime.CompilerServices.MethodImplOptions.NoInlining)] public void SetPriority(WorkTypeDef w, int value) { priority = value; } }
+}

@@ -1,8 +1,10 @@
 package store
 
 import (
+	"bytes"
 	"context"
 	"database/sql"
+	"encoding/json"
 	"errors"
 
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
@@ -23,6 +25,12 @@ func insertAction(ctx context.Context, tx *sql.Tx, plan domain.PlanID, ordinal i
 		_, err = tx.ExecContext(ctx, "INSERT INTO actions(id,plan_id,ordinal,kind,pawn) VALUES(?,?,?,'owned_draft',?)", a.ID(), plan, ordinal, d.Pawn())
 	} else if m, ok := a.MeleeAttack(); ok {
 		_, err = tx.ExecContext(ctx, "INSERT INTO actions(id,plan_id,ordinal,kind,pawn,target,draft_action) VALUES(?,?,?,'melee_attack',?,?,?)", a.ID(), plan, ordinal, m.Pawn(), m.Target(), m.DraftAction())
+	} else if work, ok := a.WorkAssignment(); ok {
+		data, encodeErr := json.Marshal(workPayload{work.Manual(), work.Settings()})
+		if encodeErr != nil {
+			return encodeErr
+		}
+		_, err = tx.ExecContext(ctx, "INSERT INTO actions(id,plan_id,ordinal,kind,pawn,target,work_payload) VALUES(?,?,?,'work_assignment',?,?,?)", a.ID(), plan, ordinal, work.Pawn(), work.BeforeToken(), data)
 	} else if supply, ok := a.SupplyAllow(); ok {
 		_, err = tx.ExecContext(ctx, "INSERT INTO actions(id,plan_id,ordinal,kind,target,definition,x,z) VALUES(?,?,?,'supply_allow',?,?,?,?)", a.ID(), plan, ordinal, supply.Thing(), supply.Definition(), supply.Cell().X, supply.Cell().Z)
 	} else {
@@ -36,8 +44,28 @@ func scanAction(rows *sql.Rows) (domain.Action, int, error) {
 	var ordinal int
 	var def, rotation, stuff, pawn, target, draftAction sql.NullString
 	var x, z sql.NullInt64
-	if err := rows.Scan(&id, &kind, &def, &x, &z, &rotation, &stuff, &pawn, &target, &draftAction, &ordinal); err != nil {
+	var work []byte
+	if err := rows.Scan(&id, &kind, &def, &x, &z, &rotation, &stuff, &pawn, &target, &draftAction, &work, &ordinal); err != nil {
 		return domain.Action{}, 0, err
+	}
+	if kind == "work_assignment" && pawn.Valid && target.Valid && !draftAction.Valid && !def.Valid && !x.Valid && !z.Valid && !rotation.Valid && !stuff.Valid {
+		var payload workPayload
+		if len(work) > 32768 || json.Unmarshal(work, &payload) != nil {
+			return domain.Action{}, 0, errors.New("invalid work payload")
+		}
+		canonical, _ := json.Marshal(payload)
+		if !bytes.Equal(canonical, work) {
+			return domain.Action{}, 0, errors.New("noncanonical work payload")
+		}
+		w, err := domain.NewWorkAssignment(domain.PawnID(pawn.String), target.String, payload.Manual, payload.Settings)
+		if err != nil {
+			return domain.Action{}, 0, err
+		}
+		action, err := domain.NewWorkAssignmentAction(id, w)
+		return action, ordinal, err
+	}
+	if work != nil {
+		return domain.Action{}, 0, errors.New("mixed work action payload")
 	}
 	if kind == "owned_draft" && pawn.Valid && !target.Valid && !draftAction.Valid && !def.Valid && !x.Valid && !z.Valid && !rotation.Valid && !stuff.Valid {
 		d, e := domain.NewOwnedDraft(domain.PawnID(pawn.String))
@@ -72,4 +100,9 @@ func scanAction(rows *sql.Rows) (domain.Action, int, error) {
 		return a, ordinal, e
 	}
 	return domain.Action{}, 0, errors.New("invalid action payload")
+}
+
+type workPayload struct {
+	Manual   bool
+	Settings []domain.WorkSetting
 }

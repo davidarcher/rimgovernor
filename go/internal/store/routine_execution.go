@@ -67,7 +67,7 @@ func (s *Store) AuthorizeRoutinePlan(ctx context.Context, root, target domain.Ge
 		return ErrConflict
 	}
 	for _, action := range p.Spec.Actions() {
-		if action.Kind() != domain.BuildingAction && action.Kind() != domain.SupplyAllowAction {
+		if action.Kind() != domain.BuildingAction && action.Kind() != domain.SupplyAllowAction && action.Kind() != domain.WorkAssignmentAction {
 			return errors.New("routine execution requires supported routine methods")
 		}
 	}

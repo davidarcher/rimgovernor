@@ -30,6 +30,9 @@ func routineWork(colony *o.ColonyFactsSnapshot, emergency policy.EmergencyFacts,
 			w.Available = domain.Known(true)
 		}
 		if s := row.Settings; s != nil {
+			if s.Snapshot != nil {
+				w.SnapshotToken = domain.Known(s.Snapshot.GetToken())
+			}
 			w.Applies = optional(s.WorkApplies)
 			w.Manual = optional(s.ManualWorkPriorities)
 			if !hasIssue(s.Issues, "work") {

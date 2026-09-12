@@ -63,6 +63,7 @@ type Action struct {
 	draft    OwnedDraft
 	melee    MeleeAttack
 	supply   SupplyAllow
+	work     WorkAssignment
 }
 
 func NewBuildingAction(id ActionID, building Building) (Action, error) {
@@ -78,12 +79,12 @@ func (a Action) ID() ActionID               { return a.id }
 func (a Action) Kind() ActionKind           { return a.kind }
 func (a Action) Building() (Building, bool) { return a.building, a.kind == BuildingAction }
 func SupportedActionKinds() []ActionKind {
-	return []ActionKind{BuildingAction, OwnedDraftAction, MeleeAttackAction, SupplyAllowAction}
+	return []ActionKind{BuildingAction, OwnedDraftAction, MeleeAttackAction, SupplyAllowAction, WorkAssignmentAction}
 }
 func ValidateHandlerCoverage(kinds []ActionKind) error {
 	seen := make(map[ActionKind]bool)
 	for _, kind := range kinds {
-		if (kind != BuildingAction && kind != OwnedDraftAction && kind != MeleeAttackAction && kind != SupplyAllowAction) || seen[kind] {
+		if (kind != BuildingAction && kind != OwnedDraftAction && kind != MeleeAttackAction && kind != SupplyAllowAction && kind != WorkAssignmentAction) || seen[kind] {
 			return fmt.Errorf("unknown or duplicate action handler %q", kind)
 		}
 		seen[kind] = true
@@ -123,6 +124,8 @@ func NewPlan(id PlanID, revision PlanRevision, actions []Action, dependencies ..
 			canonical, err = NewOwnedDraftAction(a.id, a.draft)
 		case MeleeAttackAction:
 			canonical, err = NewMeleeAttackAction(a.id, a.melee)
+		case WorkAssignmentAction:
+			canonical, err = NewWorkAssignmentAction(a.id, a.work)
 		case SupplyAllowAction:
 			canonical, err = NewSupplyAllowAction(a.id, a.supply)
 		default:

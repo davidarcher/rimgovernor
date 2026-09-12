@@ -29,7 +29,7 @@ internal static class Program
     public static void Main()
     {
         _ = UnityData.IsInMainThread;
-        Assert(NativeAuthorityHooks.Health.Ready && NativeAuthorityHooks.Health.VerifiedTargets == 10, "all exact patches installed");
+        Assert(NativeAuthorityHooks.Health.Ready && NativeAuthorityHooks.Health.VerifiedTargets == 11, "all exact patches installed");
         Assert(NativeAuthorityHooks.InitializeForCurrentGame() == null, "no game initializes nothing");
         var game = new Game { CurrentMap = new Map { uniqueID = 1 } }; Current.Game = game;
         Assert(!NativeControlAuthority.TryGetForGame(game, out _), "setter allocated state");
@@ -39,6 +39,10 @@ internal static class Program
         Invalidates(() => jobs.TryTakeOrderedJob(new Job()), "successful job");
         Preserves(() => jobs.TryTakeOrderedJob(new Job { Accepted = false }), "failed job");
         var draft = new Pawn_DraftController();
+        var work = new Pawn_WorkSettings(); var workType = new WorkTypeDef();
+        Invalidates(() => work.SetPriority(workType, 1), "work priority change");
+        Preserves(() => work.SetPriority(workType, 1), "work priority noop");
+        Preserves(() => { using (State.Owned()) work.SetPriority(workType, 2); }, "owned work priority change");
         Invalidates(() => draft.Drafted = true, "draft change");
         Preserves(() => draft.Drafted = true, "draft noop");
         Invalidates(() => draft.Drafted = false, "undraft change");

@@ -20,6 +20,7 @@ type WorkPriority struct {
 	Disabled bool
 }
 type WorkPawn struct {
+	SnapshotToken                      domain.Fact[string]
 	ID                                 PawnID
 	Available, Applies, Manual, Ranged domain.Fact[bool]
 	Skills                             domain.Fact[[]WorkSkill]

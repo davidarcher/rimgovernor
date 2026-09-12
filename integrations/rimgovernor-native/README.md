@@ -68,6 +68,13 @@ exact launch/impact lineage; explosive and custom projectile paths remain unavai
 `ReleaseOwnedDraft` permits exact original-owner cleanup
 after Manual or lease expiry without acquiring new authority.
 
+Work-detail pawn reads provide work-only settings snapshots for eligible workers.
+`PatchPawn` accepts only bounded work-priority entries, using ordinary native
+`SetPriority` and the shared authority/attempt ledger. Snapshots bind the current
+work mode, all priorities and disabled work types. External priority changes revoke
+authority; owned changes do not. Readback verifies requested priorities, and a
+changed or unavailable pawn cannot authorize repeating a settings write.
+
 Supply reads provide Allow snapshots for eligible spawned items; held, fogged,
 foreign and unsupported items have no Allow snapshot. Tokens bind colony/load/map,
 exact identity, definition, position, quantity, forbidden state and faction.

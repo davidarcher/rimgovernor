@@ -13,6 +13,7 @@ import (
 )
 
 type SessionConfig struct {
+	Work           *WorkCapabilities
 	Supplies       *SupplyCapabilities
 	RoutineMethods bool
 	Control        ControlConfig
@@ -187,6 +188,17 @@ func NewSession(ctx context.Context, config SessionConfig, journal *store.Store,
 			return cleanup(ErrControl)
 		}
 		executionBoundary = &supplyBoundary{Boundary: boundary, supply: *config.Supplies}
+	}
+	if config.Work != nil {
+		if config.Work.Native == nil || config.Work.Writer == nil {
+			return cleanup(ErrControl)
+		}
+		work := &workBoundary{Boundary: boundary, work: *config.Work}
+		if supplies, ok := executionBoundary.(*supplyBoundary); ok {
+			executionBoundary = &workSupplyBoundary{supplyBoundary: supplies, workExecutor: work}
+		} else {
+			executionBoundary = work
+		}
 	}
 	var routine []executor.RoutineScope
 	if config.RoutineMethods {

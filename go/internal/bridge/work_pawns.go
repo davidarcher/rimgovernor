@@ -14,8 +14,11 @@ func ValidateRoutinePawnSnapshot(snapshot *o.PawnSnapshot, id *c.Identity, ids [
 	return validateDetailedPawnSnapshot(snapshot, id, ids, true)
 }
 func validateWorkSettings(s *o.PawnSettings) error {
-	if !proto.Equal(s, &o.PawnSettings{Work: s.Work, WorkApplies: s.WorkApplies, ManualWorkPriorities: s.ManualWorkPriorities, Issues: s.Issues}) || len(s.Work) > 256 {
+	if !proto.Equal(s, &o.PawnSettings{Snapshot: s.Snapshot, Work: s.Work, WorkApplies: s.WorkApplies, ManualWorkPriorities: s.ManualWorkPriorities, Issues: s.Issues}) || len(s.Work) > 256 {
 		return contract("unrequested work settings detail")
+	}
+	if s.Snapshot != nil && (validID(s.Snapshot.GetEntityId()) != nil || validID(s.Snapshot.GetToken()) != nil) {
+		return contract("invalid work snapshot")
 	}
 	if err := pawnsIssues(s.Issues, s.ProtoReflect()); err != nil {
 		return err

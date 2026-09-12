@@ -32,6 +32,7 @@ type ClockSchedulerConfig struct {
 	MaxAge  time.Duration
 	// Routine is reviewed only after owned clock obligations have drained.
 	Routine        *RoutineReviewer
+	Work           *RoutineWorkPlanner
 	Supplies       *RoutineSupplyPlanner
 	Sleeping       *RoutineBuildingPlanner
 	Cooking        *RoutineBuildingPlanner
@@ -45,6 +46,7 @@ type ClockSchedulerResult struct {
 	Attempt                      *store.ClockAttempt
 	Decision                     policy.ClockWindowDecision
 	Routine                      *store.RoutineReviewResult
+	Work                         *RoutineWorkResult
 	Supplies                     *RoutineSupplyResult
 	Sleeping                     *RoutineBuildingResult
 	Cooking                      *RoutineBuildingResult
@@ -71,6 +73,9 @@ func NewClockScheduler(player *Player, session *Session, native ClockWindowNativ
 		return nil, ErrControl
 	}
 	if config.Routine != nil && config.Routine.player != player {
+		return nil, ErrControl
+	}
+	if config.Work != nil && (config.Routine == nil || config.Work.reviewer != config.Routine) {
 		return nil, ErrControl
 	}
 	if config.Supplies != nil && (config.Routine == nil || config.Supplies.reviewer != config.Routine) {
@@ -249,6 +254,13 @@ func (s *ClockScheduler) Step(ctx context.Context) (ClockSchedulerResult, error)
 				}
 			}
 		}
+	}
+	if s.config.Work != nil {
+		method, err := s.config.Work.step(call, epoch)
+		if err != nil {
+			return out, err
+		}
+		out.Work = &method
 	}
 	if s.config.Supplies != nil {
 		method, err := s.config.Supplies.step(call, epoch)
@@ -435,7 +447,7 @@ func clockSchedulerWork(plan store.PlanState, current domain.GenerationSnapshot)
 			continue
 		}
 		// Allow is an immediate designation and needs no simulation window.
-		if p.Action().Kind() == domain.SupplyAllowAction {
+		if p.Action().Kind() == domain.SupplyAllowAction || p.Action().Kind() == domain.WorkAssignmentAction {
 			continue
 		}
 		// Only ordinary building work can justify this healthy-colony clock window.

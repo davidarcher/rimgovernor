@@ -54,7 +54,7 @@ Startup supply reviews retain the first known native forbidden-supply census.
 Fresh reads can shrink that cohort, but later player forbids cannot expand or
 revive it. Unknown reads preserve pending cells without proving recovery; Manual
 and direction changes preserve the cohort. World replacement and tick rewind
-initialize a new cohort. The current journal requires fresh schema-32 state.
+initialize a new cohort. The current journal requires fresh schema-33 state.
 `--routine-supply-plans` compiles at most eight exact native item snapshots from
 retained cells into a shared Allow plan. `--routine-methods` enables its Hands
 handler under the existing player direction; both switches default off. Each
@@ -63,6 +63,14 @@ claims prevent re-admission after cancellation or later player forbidding. Lost
 replies are observed without retry; receipts alone do not complete the action,
 and missing items remain unknown. Allow requires no game tick window. Native
 gameplay acceptance remains deferred to G01.12.
+
+`--routine-work-plans` compiles changed work priorities in batches of at most eight
+pawns, using saved overrides and required project skills. It requires routine reviews;
+`--routine-methods` enables execution. Each action retains the original work snapshot,
+so changed settings cannot be silently adopted on retry. Preference changes cancel
+pending methods; direct native work-tab edits revoke controller authority. Readback
+checks actual priorities as well as the correlated native outcome. Settings updates
+need no simulation ticks and do not certify that pawn production occurred.
 
 `RankDevelopment` preserves accepted shared-action commitments while ranking new
 projects by deficit, player preference, native-tick age and selection hysteresis.
