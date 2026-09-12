@@ -173,7 +173,7 @@ def audit_development(review, workers):
     rows = development['Rows'] or []
     assert len({r['Goal'] for r in rows}) == len(rows)
     for row in rows:
-        assert row['Goal'] in {'MaintainWood', 'EnsureBasicDefense', 'EnsureComfort'}
+        assert row['Goal'] in {'MaintainWood', 'EnsureBasicDefense', 'EnsureComfort', 'MaintainEquipment'}
         assert row['Deficit'] is None or 0 <= row['Deficit'] <= 1
         assert math.isfinite(row['Score']) and 0 <= row['WaitingSince'] <= review['Tick']
         if row['Selected']:
@@ -403,6 +403,9 @@ async def run(root, output, binary, *, go_source, go_sha256, sleeping_methods=Fa
                 assert overrides
             report['initial_work'] = work_reference(legacy_work['pawns'], minimum_construction, overrides)
             work_colony = await wire(bridge, "work-colony", "observations_read_colony_facts", {"scope": {"expectedIdentity": identity}, "planning": True})
+            from native_go_gear_evidence import audit_gear
+            gear_reference = payload(await evidence.call(bridge, 'initial-gear-reference', 'home/gear_upkeep', {'dryRun': True}))
+            report['gear_reference'] = audit_gear(outcome(work_colony, 'observed'), gear_reference)
             report['initial_supply_cells'] = outcome(work_colony, 'observed').get('forbiddenSupplies', [])
             if supply_history:
                 assert report['initial_supply_cells'], 'Supply-history acceptance requires original forbidden stock'

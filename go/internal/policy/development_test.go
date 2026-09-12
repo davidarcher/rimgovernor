@@ -63,6 +63,22 @@ func TestDevelopmentCapacityAndYield(t *testing.T) {
 		t.Fatal(s)
 	}
 }
+
+func TestUnavailableMethodDoesNotStarveExecutableDevelopment(t *testing.T) {
+	r := developmentFixture()
+	r.Goals[0].MethodUnavailable = true
+	s := rank(t, r)
+	requireSelected(t, s, "defense")
+	if s.Rows[0].Reason != DevelopmentMethodUnavailable || s.Rows[0].Deficit != domain.Known(1.0) {
+		t.Fatal(s)
+	}
+	r.Previous = s
+	r.Tick += 25000
+	s = rank(t, r)
+	requireSelected(t, s, "defense")
+	r.Goals[0].MethodUnavailable = false
+	requireSelected(t, rank(t, r), "storage")
+}
 func TestDevelopmentHolds(t *testing.T) {
 	for _, kind := range []string{"emergency", "unknown", "cancelled", "adviser", "blocked", "comfort"} {
 		t.Run(kind, func(t *testing.T) {

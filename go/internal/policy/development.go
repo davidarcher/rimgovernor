@@ -24,6 +24,7 @@ type DevelopmentGoal struct {
 	Priority                    int
 	Deficit                     domain.Fact[float64]
 	Cancelled, Blocked, Comfort bool
+	MethodUnavailable           bool
 }
 
 // Commitment refers to existing shared action progress, never a receipt-derived
@@ -171,6 +172,8 @@ func RankDevelopment(r DevelopmentRequest) (DevelopmentState, error) {
 			row.Reason = DevelopmentBlocked
 		case row.Committed:
 			row.Reason = DevelopmentCommitted
+		case g.MethodUnavailable:
+			row.Reason = DevelopmentMethodUnavailable
 		case !knownWorkers:
 			row.Reason = DevelopmentWorkersUnknown
 		case workers == 0:

@@ -2,6 +2,7 @@ package store
 
 import (
 	"context"
+	"errors"
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
 	"path/filepath"
@@ -39,14 +40,14 @@ func TestRoutineGearNeedsPersistUnknownRecoveryRenewalAndManual(t *testing.T) {
 		t.Fatal("native replacement did not reopen equipment need", g)
 	}
 	method := plan(t, "gear-pending", "gear-action")
-	if _, err := db.CommitGoalMethod(context.Background(), g.Goal.ID, g.Revision, "method", method); err != nil {
-		t.Fatal(err)
+	if _, err := db.CommitGoalMethod(context.Background(), g.Goal.ID, g.Revision, "method", method); !errors.Is(err, ErrConflict) {
+		t.Fatal("unavailable gear execution family admitted a method", err)
 	}
 	r.Enabled = false
 	reviewRoutine(t, db, &r)
-	pending, err := db.LoadPlan(context.Background(), method.ID())
-	if err != nil || pending.Progress[0].View().Stage != domain.Cancelled {
-		t.Fatal("Manual retained pending equipment method", pending, err)
+	invalidated, err := db.LoadGoal(context.Background(), g.Goal.ID)
+	if err != nil || invalidated.Goal.Status != domain.GoalInvalidated {
+		t.Fatal("Manual retained active equipment need", invalidated, err)
 	}
 	db.Close()
 	db = open(t, path)

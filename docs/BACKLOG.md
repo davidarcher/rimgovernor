@@ -741,7 +741,8 @@ expand these into another nested task tree; remove a row when its outcome is met
   deficits across restart and Manual cancellation. Production proposals retain
   typed work/skill requirements for shared allocation and player work preferences.
   Native workshop/work requirement projections and acceptance remain open; proposals are not
-  connected to execution yet.
+  connected to execution yet. Equipment remains visible as `method_unavailable`
+  without occupying a development slot until its execution family is available.
   Further need inputs, method selection and execution composition for
   additional routine methods remain open: equipment, comfort/expansion, the ten
   `colony_upkeep.CONTRACTS` needs, player resource targets, and policy-generated

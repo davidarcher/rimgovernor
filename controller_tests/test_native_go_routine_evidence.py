@@ -189,6 +189,9 @@ def test_development_audit_keeps_player_capacity_and_known_deficits():
             {'Goal': 'EnsureBasicDefense', 'Deficit': 1.0, 'Score': 100.0,
              'WaitingSince': 10, 'Selected': True, 'Committed': False, 'Reason': ''}]}}
     assert probe.audit_development(review, 3) == review['Development']
+    review['Development']['Rows'].append({'Goal': 'MaintainEquipment', 'Deficit': 1.0, 'Score': 100.0,
+        'WaitingSince': 10, 'Selected': False, 'Committed': False, 'Reason': 'method_unavailable'})
+    assert probe.audit_development(review, 3) == review['Development']
     for field, value in [('Workers', None), ('Committed', []), ('Capacity', 3)]:
         changed = copy.deepcopy(review)
         changed['Development'][field] = value
