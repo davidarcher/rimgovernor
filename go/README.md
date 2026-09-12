@@ -336,6 +336,13 @@ existing `UpkeepFixture` to remove one Home cell after normal shell construction
 Replay the captured native facts against its real journal backup with
 `RIMBOT_NATIVE_FACILITY_REPLAY=<absolute-output-directory>` and
 `go test ./internal/observation -run TestNativeFacilityUpkeepReplay -count=1`.
+The capture verifies 35 causally completed autonomous buildings, native Home
+geometry/exclusions and 31 flammable owned walls. Replay uses the real journal
+backup for durable needs, unknown preservation, Manual and reopen checks.
+For a same-colony scenario retry, stage the retained initial save as
+`profile/Saves/RimGovernor-tribal8-baseline.rws` and pass
+`--start-save RimGovernor-tribal8-baseline`; headless preparation copies that
+baseline into its private profile.
 Animal upkeep reviews retain containment risk and per-animal feed thresholds.
 Feed shares the observed diet/rot forecast with human consumers. Missing censuses
 remain unknown; a complete empty census clears animal needs. Release and slaughter

@@ -15,6 +15,7 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/store"
 	o "github.com/davidarcher/RimGovernor/go/internal/wire/observationspb"
 	"google.golang.org/protobuf/encoding/protojson"
+	"google.golang.org/protobuf/proto"
 )
 
 // Uses a backup of the real, joined service journal. Fixture IDs cannot supply
@@ -55,9 +56,10 @@ func TestNativeFacilityUpkeepReplay(t *testing.T) {
 	if err = bridge.ValidateConstructionBuildings(buildings.GetObserved(), colony.GetObserved().Context.Identity, fixture.IDs); err != nil {
 		t.Fatal(err)
 	}
-	observed, err := contextIdentity(buildings.GetObserved().GetContext())
-	if err != nil || !sameColonyBoundary(observed, identity) {
-		t.Fatal("ownership query outside colony tick", err)
+	// ObservationContext carries world, tick and generation. The scenario's
+	// lifecycle bracket establishes pause separately from these captured facts.
+	if !proto.Equal(buildings.GetObserved().Context, colony.GetObserved().Context) {
+		t.Fatal("ownership query outside colony context")
 	}
 	current, err := constructionBuildings(buildings.GetObserved(), fixture.IDs)
 	if err != nil {
@@ -79,6 +81,9 @@ func TestNativeFacilityUpkeepReplay(t *testing.T) {
 	retained, err := db.LoadRoutineReview(ctx)
 	if err != nil || retained.Enabled {
 		t.Fatal(retained, err)
+	}
+	if retained.Snapshot.Colony != identity.Colony || retained.Snapshot.Load != identity.Load || retained.Snapshot.Map != identity.Map || retained.Tick > identity.Tick {
+		t.Fatal("native replay does not match the retained journal world and time")
 	}
 	claims, err := db.ConstructionClaims(ctx, retained.Snapshot, identity.Tick)
 	if err != nil {
@@ -119,6 +124,10 @@ func TestNativeFacilityUpkeepReplay(t *testing.T) {
 	}
 	projection.Facts.CurrentConstruction = current
 	request := store.RoutineReviewRequest{Revision: retained.Revision, WorkPreferenceRevision: retained.WorkPreferenceRevision, Current: retained.Snapshot, Tick: identity.Tick, Enabled: true, Policy: policy.DefaultRoutinePolicy(), Facts: projection.Facts}
+	request.Current.Native, known = identity.NativeGeneration.Value()
+	if !known {
+		t.Fatal("native replay generation unavailable")
+	}
 	active, err := db.ReviewRoutine(ctx, request)
 	if err != nil {
 		t.Fatal(err)

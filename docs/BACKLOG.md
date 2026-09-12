@@ -772,8 +772,11 @@ expand these into another nested task tree; remove a row when its outcome is met
   unchanged geometry before durable Home coverage and stone-shell detection;
   caller claims, player placements and cancelled work cannot supply ownership.
   Native Home exclusions and structure flammability have typed projections.
-  Combined native ownership/Home/stone acceptance remains pending. Stockpile
-  ownership and Home/stone method composition await their shared action families.
+  Combined native acceptance verifies 35 completed autonomous buildings, ordinary
+  roofing, a player Home removal, 31 flammable owned walls, Manual and disabled
+  restart. Replay derives ownership from the real service journal and verifies
+  both durable needs, unknown preservation and reopened history. Stockpile ownership
+  and Home/stone method composition await their shared action families.
   Medical reserves now project observed medicine stacks and usable resources into
   a hysteretic maintained need. Captured native replay verifies stock caps and
   entry/recovery thresholds; durable tests cover unknowns, Manual, restart and
