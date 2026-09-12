@@ -174,7 +174,7 @@ def audit_development(review, workers, project_limit=2):
     assert len({r['Goal'] for r in rows}) == len(rows)
     for row in rows:
         assert row['Goal'] in {'MaintainWood', 'EnsureBasicDefense', 'EnsureComfort', 'EnsureExpansion', 'MaintainEquipment',
-                              'MaintainFireSafety', 'SecureSupplies', 'MaintainEssentialRepairs', 'MaintainCleanFacilities'}
+                              'MaintainFireSafety', 'SecureSupplies', 'MaintainEssentialRepairs', 'MaintainCleanFacilities', 'MaintainMedicalReserves'}
         assert row['Deficit'] is None or 0 <= row['Deficit'] <= 1
         assert math.isfinite(row['Score']) and 0 <= row['WaitingSince'] <= review['Tick']
         if row['Selected']:
@@ -291,7 +291,7 @@ async def run(root, output, binary, *, go_source, go_sha256, sleeping_methods=Fa
     assert Path("/.dockerenv").is_file(), "Use the isolated scenario launcher"
     output.mkdir(parents=True, exist_ok=False)
     report = {"passed": False, "source": go_source,
-              "scope": "Native core/emergency facts reach twenty-two durable Go needs; Manual invalidates them; disabled restart neither acquires authority nor reads routine facts. No routine method execution claim."}
+              "scope": "Native core/emergency facts reach twenty-three durable Go needs; Manual invalidates them; disabled restart neither acquires authority nor reads routine facts. No routine method execution claim."}
     if expansion_methods:
         assert not (sleeping_methods or cooking_methods or shelter_methods or comfort_methods or resource_rules or supply_history)
         report["scope"] = "Go expands an established foothold by one indoor sleeping place through shared Hands, observes capacity recovery, then verifies Manual and disabled restart. A separate paused fixture supplies populated bounded upkeep replay."
@@ -427,7 +427,7 @@ async def run(root, output, binary, *, go_source, go_sha256, sleeping_methods=Fa
                                 'work-status': report['initial_colony'], 'work-reference': report['initial_work']}.items():
                 (output / (name + '.json')).write_text(json.dumps(value), encoding='utf8')
             facts = payload(await evidence.call(bridge, "initial-food", "home/colony_facts", {"planning": False}))
-            from native_go_upkeep_evidence import audit_upkeep, audit_upkeep_review
+            from native_go_upkeep_evidence import audit_upkeep, audit_upkeep_review, medical_reserve_reference
             report['upkeep_reference'] = audit_upkeep(outcome(work_colony, 'observed'), facts)
             if power_fixture:
                 recovery = payload(await evidence.call(bridge, 'power-recovery', 'home/recovery_state', {}))
@@ -486,7 +486,7 @@ async def run(root, output, binary, *, go_source, go_sha256, sleeping_methods=Fa
             assert report['work_need'] == ('recovered' if report['initial_work']['matches'] else 'deficit'), 'Native work readback did not reach routine need'
             report["active_routine"] = active
             audit_upkeep_review(active, report['upkeep_reference'])
-            report['development'] = audit_development(active['review'], len(report['initial_work']['assignments']), 3 if expansion_methods else 2)
+            report['development'] = audit_development(active['review'], len(report['initial_work']['assignments']))
             if comfort_methods:
                 unmet = {name: goal['Need'] for name, goal in active['goals'].items() if goal['Priority'] < 3 and goal['Need'] != 'recovered'}
                 assert not unmet, f'Comfort foothold prerequisites are unmet: {unmet}'
@@ -520,6 +520,9 @@ async def run(root, output, binary, *, go_source, go_sha256, sleeping_methods=Fa
                 assert routine_evidence(database, identity, enabled=True, expected_food_need=expected_food)['goals']['EnsureWorkAssignments']['Need'] == 'deficit'
                 report['work_preference_clear_and_replay'] = True
             if expansion_methods:
+                rows = active['review']['Development']['Rows']
+                assert [r['Goal'] for r in rows if r['Selected']] == ['EnsureExpansion']
+                assert any(r['Goal'] == 'EnsureComfort' and r['Reason'] == 'method_unavailable' for r in rows)
                 report['expansion_plan'] = await wait_building_method(http, database, 'SleepingSpot', 1)
                 async with asyncio.timeout(120):
                     while True:
@@ -599,7 +602,7 @@ async def run(root, output, binary, *, go_source, go_sha256, sleeping_methods=Fa
                 upkeep_legacy = payload(await evidence.call(bridge, 'populated-upkeep-reference', 'home/colony_facts', {'planning': False}))
                 report['populated_upkeep_reference'] = audit_upkeep(outcome(upkeep_colony, 'observed'), upkeep_legacy)
                 assert all(v['need'] == 'deficit' for v in report['populated_upkeep_reference'].values())
-                (output / 'upkeep-replay.json').write_text(json.dumps({'colony': upkeep_colony, 'expected': report['populated_upkeep_reference']}), encoding='utf8')
+                (output / 'upkeep-replay.json').write_text(json.dumps({'colony': upkeep_colony, 'expected': report['populated_upkeep_reference'], 'medical': medical_reserve_reference(outcome(upkeep_colony, 'observed'), upkeep_legacy)}), encoding='utf8')
             if expansion_methods:
                 native = outcome(await wire(bridge, 'expansion-outcome', 'observations_read_colony_facts', {'scope': {'expectedIdentity': identity}, 'planning': False}), 'observed')
                 assert native['indoorSleepingCapacity'] >= native['colonistCount'] + 1

@@ -60,3 +60,32 @@ func TestExpansionDurableRenewalUnknownAndPlayerCapacity(t *testing.T) {
 		t.Fatal(g, recovered)
 	}
 }
+
+func TestRoutineCapabilitiesPreserveCommittedExpansion(t *testing.T) {
+	ctx := context.Background()
+	s := open(t, filepath.Join(t.TempDir(), "capabilities.db"))
+	defer s.Close()
+	r := routineRequest()
+	r.Policy.MaxDevelopmentProjects = 1
+	r.Facts.Colonists = domain.Known(int64(3))
+	r.Facts.BedCapacity = domain.Known(int64(3))
+	r.Facts.IndoorCapacity = domain.Known(int64(3))
+	r.Facts.AvailableMethods = domain.Known([]policy.GoalID{policy.EnsureExpansion})
+	out := reviewRoutine(t, s, &r)
+	g := routineGoal(t, out, policy.EnsureExpansion)
+	if !developmentRow(t, out.Review, policy.EnsureExpansion).Selected {
+		t.Fatal(out)
+	}
+	if _, err := s.CommitGoalMethod(ctx, g.Goal.ID, g.Revision, "expansion", plan(t, "expansion", "additional-place")); err != nil {
+		t.Fatal(err)
+	}
+	r.Facts.AvailableMethods = domain.Known([]policy.GoalID{})
+	out = reviewRoutine(t, s, &r)
+	row := developmentRow(t, out.Review, policy.EnsureExpansion)
+	if row.Selected || !row.Committed || row.Reason != policy.DevelopmentCommitted {
+		t.Fatal(row)
+	}
+	if got := routineGoal(t, out, policy.EnsureExpansion); got.Goal.Need != domain.NeedDeficit || len(got.Methods) != 1 {
+		t.Fatal(got)
+	}
+}

@@ -6,7 +6,7 @@ import pytest
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'scripts'))
 try:
-    from native_go_upkeep_evidence import audit_upkeep, audit_upkeep_review
+    from native_go_upkeep_evidence import audit_upkeep, audit_upkeep_review, medical_reserve_reference
 finally:
     sys.path.pop(0)
 
@@ -59,3 +59,16 @@ def test_upkeep_reference_rejects_incomplete_or_changed_native_facts(mutation):
     if mutation == 'unavailable': typed['upkeep']['observed']['issues'] = [{'field': 'items'}]
     with pytest.raises((AssertionError, KeyError)):
         audit_upkeep(typed, legacy)
+
+
+def test_medical_reserve_reference_preserves_entry_and_recovery_targets():
+    typed, legacy = fixture()
+    typed['colonistCount'] = legacy['colonists'] = 3
+    typed['resources'] = [{'defName': 'MedicineHerbal', 'units': '5'}]
+    legacy['resources'] = {'MedicineHerbal': 5}
+    reference = medical_reserve_reference(typed, legacy)
+    assert reference['initial'] == {'known': True, 'active': False, 'stock': 5, 'entry': 3, 'recovery': 9, 'replenish': 0}
+    assert reference['retained'] == {'known': True, 'active': True, 'stock': 5, 'entry': 3, 'recovery': 9, 'replenish': 4}
+    typed['resources'][0]['units'] = '6'
+    with pytest.raises(AssertionError):
+        medical_reserve_reference(typed, legacy)

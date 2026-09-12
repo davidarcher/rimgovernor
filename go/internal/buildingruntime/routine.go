@@ -14,15 +14,20 @@ import (
 // RoutineReviewer observes and journals needs under Player's existing gate.
 // It neither acquires authority nor creates methods or game orders.
 type RoutineReviewer struct {
-	player *Player
-	native observation.RoutineSource
-	clock  observation.Clock
-	policy policy.RoutinePolicy
-	maxAge time.Duration
-	rules  []policy.ResourceRule
+	methods domain.Fact[[]policy.GoalID]
+	player  *Player
+	native  observation.RoutineSource
+	clock   observation.Clock
+	policy  policy.RoutinePolicy
+	maxAge  time.Duration
+	rules   []policy.ResourceRule
 }
 
-func NewRoutineReviewer(player *Player, native observation.RoutineSource, clock observation.Clock, thresholds policy.RoutinePolicy, maxAge time.Duration) (*RoutineReviewer, error) {
+// RoutineCapabilities is the runtime's complete configured method set. Omitting
+// it leaves availability unspecified for callers that compose methods themselves.
+type RoutineCapabilities struct{ Methods []policy.GoalID }
+
+func NewRoutineReviewer(player *Player, native observation.RoutineSource, clock observation.Clock, thresholds policy.RoutinePolicy, maxAge time.Duration, capabilities ...RoutineCapabilities) (*RoutineReviewer, error) {
 	if player == nil || native == nil || clock == nil || thresholds.Validate() != nil || maxAge <= 0 || maxAge > time.Minute {
 		return nil, ErrControl
 	}
@@ -30,7 +35,17 @@ func NewRoutineReviewer(player *Player, native observation.RoutineSource, clock 
 	if err := policy.ValidateResourceRules(rules); err != nil {
 		return nil, err
 	}
-	return &RoutineReviewer{player: player, native: native, clock: clock, policy: thresholds, maxAge: maxAge, rules: append([]policy.ResourceRule(nil), rules...)}, nil
+	methods := domain.Unknown[[]policy.GoalID]()
+	if len(capabilities) > 1 {
+		return nil, ErrControl
+	}
+	if len(capabilities) == 1 {
+		methods = domain.Known(append([]policy.GoalID{}, capabilities[0].Methods...))
+		if _, err := policy.DetectRoutine(policy.RoutineFacts{AvailableMethods: methods}, policy.RoutineLatches{}, thresholds); err != nil {
+			return nil, err
+		}
+	}
+	return &RoutineReviewer{methods: methods, player: player, native: native, clock: clock, policy: thresholds, maxAge: maxAge, rules: append([]policy.ResourceRule(nil), rules...)}, nil
 }
 
 func (r *RoutineReviewer) Step(ctx context.Context) (store.RoutineReviewResult, error) {
@@ -122,6 +137,7 @@ func (r *RoutineReviewer) step(ctx, epoch context.Context) (store.RoutineReviewR
 	}
 	// Manual cancels ctx before waiting for this gate, then invalidates any
 	// completed review before returning. Never hold the local stop mutex for SQL.
+	reading.Projection.Facts.AvailableMethods = r.methods
 	return p.journal.ReviewRoutine(ctx, store.RoutineReviewRequest{Revision: previous.Revision, WorkPreferenceRevision: preferences.Revision, Current: state.Snapshot, Tick: reading.Projection.Identity.Tick, Enabled: true, Policy: r.policy, Facts: reading.Projection.Facts})
 }
 

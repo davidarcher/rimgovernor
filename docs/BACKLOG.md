@@ -703,6 +703,9 @@ expand these into another nested task tree; remove a row when its outcome is met
   accepted player's occupied slot, deficit ranking, Manual clearing and disabled
   restart. Fast checks cover aging/restart, unknowns, cancelled uncertain projects,
   corrupt history and player admission between review and method commit.
+  Service reviews now exclude disabled optional planners from selection while
+  preserving their needs and accepted commitments. Configured method availability
+  is separate from native evidence and cannot invent recovery.
   The starter shelter compiler now prefers existing indoor space, then admits a
   whole native-grounded wood wall-and-door shell with observed door dependencies.
   A bounded post-construction clock allowance waits for normal roofing; furnishing
@@ -757,7 +760,11 @@ expand these into another nested task tree; remove a row when its outcome is met
   progress metrics match the Python contracts. Populated native parity and Go
   replay verify all four target lists, metrics and durable needs, including Manual
   and restart. Bounded-read unknowns remain explicit. Method composition remains
-  open, alongside the other six upkeep contracts.
+  open, alongside the other five upkeep contracts.
+  Medical reserves now project observed medicine stacks and usable resources into
+  a hysteretic maintained need. Captured native replay verifies stock caps and
+  entry/recovery thresholds; durable tests cover unknowns, Manual, restart and
+  renewed deficits. Replenishment method composition remains open.
   Further need inputs, method selection and execution composition for
   additional routine methods remain open: equipment, comfort/expansion, the ten
   `colony_upkeep.CONTRACTS` needs, player resource targets, and policy-generated

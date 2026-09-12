@@ -64,3 +64,18 @@ def audit_upkeep_review(active, expected):
     for goal, reference in expected.items():
         actual = active['goals'][goal]
         assert actual['Need'] == reference['need'] and actual['Priority'] == reference['priority'], (goal, actual, reference)
+
+
+def medical_reserve_reference(colony, legacy):
+    from rimgovernor.medical_reserves import reserve_evidence
+    assert int(colony['context']['tick']) == legacy['tick']
+    assert colony['colonistCount'] == legacy['colonists']
+    assert {r['defName']: int(r['units']) for r in colony.get('resources', [])} == legacy['resources']
+    result = {}
+    for phase, active in [('initial', False), ('retained', True)]:
+        control = {'medical_reserve_active': active}
+        targets = reserve_evidence(legacy, control)
+        result[phase] = {'known': targets is not None, 'active': control['medical_reserve_active'],
+            **control.get('medical_reserve', {}),
+            'replenish': None if targets is None else targets[0]['count'] if targets else 0}
+    return result

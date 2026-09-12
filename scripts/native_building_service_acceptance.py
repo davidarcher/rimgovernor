@@ -157,8 +157,6 @@ async def service(binary, gabs, configuration, profile, state, directory, report
     assert not routine_shelter or routine_methods
     assert not routine_comfort or routine_methods
     assert not routine_expansion or routine_methods
-    if routine_expansion:
-        record["argv"].extend(["--routine-project-limit", "3"])
     if routine_cooking:
         assert routine_reviews
         record["argv"].append("--routine-cooking-plans")

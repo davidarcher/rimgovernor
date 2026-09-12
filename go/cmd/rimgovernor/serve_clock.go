@@ -56,7 +56,14 @@ func startServiceClock(ctx context.Context, player *buildingruntime.Player, sess
 		}
 		thresholds := policy.DefaultRoutinePolicy()
 		thresholds.MaxDevelopmentProjects = projectLimit
-		reviewer, err := buildingruntime.NewRoutineReviewer(player, native, wallClock{}, thresholds, config.MaxAge)
+		capabilities := buildingruntime.RoutineCapabilities{}
+		if comfort {
+			capabilities.Methods = append(capabilities.Methods, policy.EnsureComfort)
+		}
+		if expansion {
+			capabilities.Methods = append(capabilities.Methods, policy.EnsureExpansion)
+		}
+		reviewer, err := buildingruntime.NewRoutineReviewer(player, native, wallClock{}, thresholds, config.MaxAge, capabilities)
 		if err != nil {
 			return err
 		}

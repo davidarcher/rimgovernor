@@ -23,12 +23,14 @@ const (
 	EnsureBasicDefense      GoalID = "EnsureBasicDefense"
 	MaintainWood            GoalID = "MaintainWood"
 	MaintainMedicalCare     GoalID = "MaintainMedicalCare"
+	MaintainMedicalReserves GoalID = "MaintainMedicalReserves"
 	EnsureComfort           GoalID = "EnsureComfort"
 	EnsureExpansion         GoalID = "EnsureExpansion"
 	MaintainEquipment       GoalID = "MaintainEquipment"
 )
 
 type RoutinePolicy struct {
+	MedicalReserve                                MedicalReservePolicy
 	MaxDevelopmentProjects                        int
 	FoodMinDays, FoodTargetDays, FootholdFoodDays float64
 	ColdEnter, ColdExit, HotExit, HotEnter        float64
@@ -36,11 +38,14 @@ type RoutinePolicy struct {
 }
 
 func DefaultRoutinePolicy() RoutinePolicy {
-	return RoutinePolicy{MaxDevelopmentProjects: 2, FoodMinDays: 3, FoodTargetDays: 7, FootholdFoodDays: 3,
+	return RoutinePolicy{MedicalReserve: DefaultMedicalReservePolicy(), MaxDevelopmentProjects: 2, FoodMinDays: 3, FoodTargetDays: 7, FootholdFoodDays: 3,
 		ColdEnter: 12, ColdExit: 16, HotExit: 28, HotEnter: 32, WoodMin: 120, WoodTarget: 350, WoodMax: 500}
 }
 
 func (p RoutinePolicy) Validate() error {
+	if p.MedicalReserve.MinimumPerColonist < 0 || p.MedicalReserve.TargetPerColonist <= p.MedicalReserve.MinimumPerColonist {
+		return errors.New("invalid medicine reserve thresholds")
+	}
 	if p.MaxDevelopmentProjects < 1 || p.MaxDevelopmentProjects > 8 {
 		return errors.New("invalid development project limit")
 	}
@@ -61,6 +66,9 @@ func (p RoutinePolicy) Validate() error {
 // FoodDays is the accessible diet/rot-aware stock runway. FieldCoverage is the
 // separate native crop-capacity forecast; it never increases FoodDays.
 type RoutineFacts struct {
+	MedicalReserve MedicalReserveObservation
+	// AvailableMethods is supplied by the configured runtime, never native facts.
+	AvailableMethods                                                           domain.Fact[[]GoalID]
 	Upkeep                                                                     UpkeepObservation
 	UpkeepIssued                                                               map[GoalID]bool
 	Gear                                                                       domain.Fact[GearObservation]
@@ -94,6 +102,7 @@ func (g FootholdGates) Stable() bool {
 }
 
 type RoutineLatches struct {
+	MedicalReserve        bool
 	Food, Cold, Hot, Wood bool
 	Upkeep                UpkeepHistory
 }
@@ -168,6 +177,12 @@ func countCapacity(capacity, count domain.Fact[int64], multiplier int64) domain.
 // DetectRoutine ports colony_policy.criteria/priority_nodes for the common
 // survival goals. Family-specific needs join these same goals during review.
 func DetectRoutine(f RoutineFacts, previous RoutineLatches, p RoutinePolicy) (RoutineNeeds, error) {
+	medicineFacts := f.MedicalReserve
+	medicineFacts.Colonists = f.Colonists
+	medicine, err := ReviewMedicalReserve(medicineFacts, previous.MedicalReserve, p.MedicalReserve)
+	if err != nil {
+		return RoutineNeeds{}, err
+	}
 	upkeep, err := ReviewUpkeep(f.Upkeep, previous.Upkeep, f.UpkeepIssued)
 	if err != nil {
 		return RoutineNeeds{}, err
@@ -228,11 +243,12 @@ func DetectRoutine(f RoutineFacts, previous RoutineLatches, p RoutinePolicy) (Ro
 		wood = domain.Known(float64(n))
 	}
 	l := RoutineLatches{
-		Upkeep: upkeep.History,
-		Food:   latchValue(previous.Food, f.FoodDays, p.FoodMinDays, p.FoodTargetDays, false),
-		Cold:   latchValue(previous.Cold, fallback(f.SleepingMin, f.OutdoorTemperature), p.ColdEnter, p.ColdExit, false),
-		Hot:    latchValue(previous.Hot, fallback(f.SleepingMax, f.OutdoorTemperature), p.HotEnter, p.HotExit, true),
-		Wood:   latchValue(previous.Wood, wood, float64(p.WoodMin), float64(p.WoodTarget), false),
+		MedicalReserve: medicine.Active,
+		Upkeep:         upkeep.History,
+		Food:           latchValue(previous.Food, f.FoodDays, p.FoodMinDays, p.FoodTargetDays, false),
+		Cold:           latchValue(previous.Cold, fallback(f.SleepingMin, f.OutdoorTemperature), p.ColdEnter, p.ColdExit, false),
+		Hot:            latchValue(previous.Hot, fallback(f.SleepingMax, f.OutdoorTemperature), p.HotEnter, p.HotExit, true),
+		Wood:           latchValue(previous.Wood, wood, float64(p.WoodMin), float64(p.WoodTarget), false),
 	}
 	r := RoutineNeeds{Gates: g, Latches: l}
 	addGoal := func(id GoalID, priority int) {
@@ -368,6 +384,40 @@ func DetectRoutine(f RoutineFacts, previous RoutineLatches, p RoutinePolicy) (Ro
 			// Direct upkeep orders join the shared execution family in G01.07c.
 			// Keep observed risk visible without taking an optional project slot.
 			r.Goals[len(r.Goals)-1].MethodUnavailable = true
+		}
+	}
+	medicalReserveActive := medicine.Active || f.UpkeepIssued[MaintainMedicalReserves]
+	medicalReserveRecovered := domain.Unknown[bool]()
+	medicalReservePriority := 3
+	if _, known := medicine.Stock.Value(); known {
+		medicalReserveRecovered = domain.Known(!medicalReserveActive)
+	} else if !medicalReserveActive {
+		medicalReservePriority = 4
+	}
+	addAssessment(MaintainMedicalReserves, medicalReservePriority, medicalReserveRecovered)
+	if !positive(medicalReserveRecovered) {
+		addGoal(MaintainMedicalReserves, medicalReservePriority)
+		r.Goals[len(r.Goals)-1].MethodUnavailable = true
+	}
+	if methods, known := f.AvailableMethods.Value(); known {
+		available := map[GoalID]bool{}
+		recognized := map[GoalID]bool{}
+		for _, assessment := range r.Assessments {
+			recognized[assessment.ID] = true
+		}
+		if len(methods) > 32 {
+			return RoutineNeeds{}, errors.New("too many routine method capabilities")
+		}
+		for _, id := range methods {
+			if !recognized[id] || available[id] {
+				return RoutineNeeds{}, errors.New("invalid routine method capability")
+			}
+			available[id] = true
+		}
+		for i := range r.Goals {
+			if r.Goals[i].Priority >= 3 && !available[r.Goals[i].ID] {
+				r.Goals[i].MethodUnavailable = true
+			}
 		}
 	}
 	return r, nil

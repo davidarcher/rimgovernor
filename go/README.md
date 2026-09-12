@@ -44,11 +44,17 @@ through restart, Manual and direction changes; world replacement or a tick rewin
 resets them. The care need does not issue
 medical orders or authorize surgery; execution remains tracked in G01.07a.
 
+Medical reserves use a separate maintained need with one medicine per colonist as
+its entry threshold and three as its recovery target. Native usable resource counts
+are capped against observed unexpired, allowed medicine stacks. Unknown reads
+preserve the reserve latch; Manual preserves it, while world replacement or tick
+rewind resets it. Replenishment proposals and execution remain open in G01.05/G01.07d.
+
 Startup supply reviews retain the first known native forbidden-supply census.
 Fresh reads can shrink that cohort, but later player forbids cannot expand or
 revive it. Unknown reads preserve pending cells without proving recovery; Manual
 and direction changes preserve the cohort. World replacement and tick rewind
-initialize a new cohort. The current journal requires fresh schema-27 state.
+initialize a new cohort. The current journal requires fresh schema-28 state.
 These cells describe the startup need, not ownership or permission to issue an
 Allow order. That action family remains in G01.07b.
 
@@ -57,6 +63,10 @@ projects by deficit, player preference, native-tick age and selection hysteresis
 Unavailable methods can yield their slot within the same review. `StarterLayouts`
 proposes bounded shelter and disjoint crop patches while respecting observed
 geometry and player exclusions; proposals still require native preflight.
+The service supplies its configured method set to each review. Disabled optional
+planners retain their need assessments with `method_unavailable` and cannot occupy
+selection slots. Existing committed work still consumes capacity. Capability
+availability comes from runtime configuration, not a native observation.
 
 Routine reviews persist development scores, waiting age, known worker counts and
 selection history alongside need assessments. Current wood and defense deficits
@@ -303,7 +313,8 @@ legality. The variant also captures populated native fire, supply, repair and
 cleaning facts after Manual. Replay its `upkeep-replay.json` through the Go
 boundary and durable journal with `RIMBOT_NATIVE_UPKEEP_REPLAY=<absolute-path>`
 and `go test ./internal/observation -run TestNativeUpkeepReplay -count=1` from `go/`.
-The replay checks Python target ordering and metrics, all four maintained needs,
+The replay checks Python target ordering and metrics, all four direct upkeep needs,
+and, when captured, medical reserve entry/recovery policy and its maintained need. It checks
 Manual invalidation and retained needs after reopening the database.
 The `--expansion-methods` variant uses the same private fixtures to construct one
 spare indoor sleeping place, verify native capacity recovery and single-attempt

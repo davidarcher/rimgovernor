@@ -27,6 +27,10 @@ func TestNativeUpkeepReplay(t *testing.T) {
 		t.Fatal(err)
 	}
 	var fixture struct {
+		Medical map[string]struct {
+			Known, Active                     bool
+			Stock, Entry, Recovery, Replenish int64
+		}
 		Colony   json.RawMessage
 		Expected map[policy.GoalID]struct {
 			Need     domain.NeedState
@@ -49,6 +53,22 @@ func TestNativeUpkeepReplay(t *testing.T) {
 	projection, err := DecodeColony(&reply, identity)
 	if err != nil {
 		t.Fatal(err)
+	}
+	if fixture.Medical != nil {
+		if len(fixture.Medical) != 2 {
+			t.Fatal("incomplete medical reference")
+		}
+		for phase, previous := range map[string]bool{"initial": false, "retained": true} {
+			want, exists := fixture.Medical[phase]
+			got, err := policy.ReviewMedicalReserve(projection.Facts.MedicalReserve, previous, policy.DefaultMedicalReservePolicy())
+			stock, known := got.Stock.Value()
+			entry, _ := got.Entry.Value()
+			target, _ := got.Target.Value()
+			replenish, _ := got.Replenish.Value()
+			if err != nil || !exists || !want.Known || !known || got.Active != want.Active || stock != want.Stock || entry != want.Entry || target != want.Recovery || replenish != want.Replenish {
+				t.Fatal(phase, got, want, err)
+			}
+		}
 	}
 	upkeep, err := policy.ReviewUpkeep(projection.Facts.Upkeep, policy.UpkeepHistory{}, nil)
 	if err != nil {
@@ -81,10 +101,20 @@ func TestNativeUpkeepReplay(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(active.Goals) != 22 {
+	if len(active.Goals) != 23 {
 		t.Fatal("incomplete maintained goals")
 	}
+	medicalNeed := domain.NeedRecovered
+	if fixture.Medical != nil && fixture.Medical["initial"].Active {
+		medicalNeed = domain.NeedDeficit
+	}
 	for i, binding := range active.Review.Goals {
+		if fixture.Medical != nil && binding.Need == policy.MaintainMedicalReserves {
+			g, err := db.LoadGoal(ctx, binding.Goal)
+			if err != nil || g.Goal.Need != medicalNeed {
+				t.Fatal(g, err)
+			}
+		}
 		if want, ok := fixture.Expected[binding.Need]; ok {
 			g := active.Goals[i].Goal
 			if g.Need != want.Need || g.Priority != want.Priority {
@@ -110,6 +140,12 @@ func TestNativeUpkeepReplay(t *testing.T) {
 		t.Fatal(retained, err)
 	}
 	for _, binding := range retained.Goals {
+		if fixture.Medical != nil && binding.Need == policy.MaintainMedicalReserves {
+			g, err := db.LoadGoal(ctx, binding.Goal)
+			if err != nil || g.Goal.Need != medicalNeed {
+				t.Fatal(g, err)
+			}
+		}
 		if want, ok := fixture.Expected[binding.Need]; ok {
 			g, err := db.LoadGoal(ctx, binding.Goal)
 			if err != nil || g.Goal.Need != want.Need || g.Goal.Status != domain.GoalInvalidated {
