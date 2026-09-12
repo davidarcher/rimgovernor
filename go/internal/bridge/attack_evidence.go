@@ -55,7 +55,7 @@ func attackEvidence(evidence *r.EffectEvidence, expected AttackAttempt) (*r.JobE
 	if !proto.Equal(job, allowed) || !diagnostic(job.VerifiedReason) || job.Issued == nil || job.Verified == nil || job.Drafted == nil || job.ResultingSnapshotToken == nil {
 		return nil, contract("attack effect fields missing or unsupported")
 	}
-	if job.JobId == nil || job.JobDef == nil || job.GetJobId() < 0 || job.GetJobDef() != "AttackMelee" {
+	if job.JobId == nil || job.JobDef == nil || job.GetJobId() < 0 || job.GetJobDef() != attackJobDef(expected.Mode) {
 		return nil, contract("attack job mismatch")
 	}
 	for _, id := range []*string{job.DraftOwner, job.DraftClaimId, job.ResultingSnapshotToken} {

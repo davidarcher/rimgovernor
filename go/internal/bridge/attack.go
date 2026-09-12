@@ -12,6 +12,22 @@ import (
 func attackOperation(command *o.AttackTarget) *o.Operation {
 	return &o.Operation{Command: &o.Operation_AttackTarget{AttackTarget: command}}
 }
+
+// attackJobDef is the only native job def a given explicit attack mode may
+// report. Auto is not accepted here: this contract requires the caller to
+// have already chosen melee or ranged, matching squad composition's explicit
+// per-defender mode assignment and keeping explosive-verb selection outside
+// Go's control (native's own ranged attribution allowlist governs that).
+func attackJobDef(mode o.AttackMode) string {
+	switch mode {
+	case o.AttackMode_ATTACK_MODE_MELEE:
+		return "AttackMelee"
+	case o.AttackMode_ATTACK_MODE_RANGED:
+		return "AttackStatic"
+	default:
+		return ""
+	}
+}
 func attackCommand(command *o.AttackTarget) error {
 	if command == nil {
 		return contract("attack command missing")
@@ -25,8 +41,8 @@ func attackCommand(command *o.AttackTarget) error {
 	if err := draftEntity(command.Target); err != nil {
 		return err
 	}
-	if command.Pawn.GetEntityId() == command.Target.GetEntityId() || command.Mode == nil || command.GetMode() != o.AttackMode_ATTACK_MODE_MELEE || command.RequireHostile == nil || command.RequireStanding == nil || command.RequireCombatHealth == nil {
-		return contract("explicit melee guards and distinct targets required")
+	if command.Pawn.GetEntityId() == command.Target.GetEntityId() || command.Mode == nil || attackJobDef(command.GetMode()) == "" || command.RequireHostile == nil || command.RequireStanding == nil || command.RequireCombatHealth == nil {
+		return contract("explicit melee or ranged guards and distinct targets required")
 	}
 	return nil
 }
@@ -52,7 +68,7 @@ func attackAttempt(v AttackAttempt) (AttackAttempt, error) {
 	v.Identity = proto.Clone(v.Identity).(*c.Identity)
 	v.Attempt = proto.Clone(v.Attempt).(*c.AttemptKey)
 	v.Owner = proto.Clone(v.Owner).(*a.Owner)
-	if validID(v.TargetID) != nil || v.TargetID == v.PawnID || v.Mode != o.AttackMode_ATTACK_MODE_MELEE {
+	if validID(v.TargetID) != nil || v.TargetID == v.PawnID || attackJobDef(v.Mode) == "" {
 		return AttackAttempt{}, contract("invalid melee attempt target or mode")
 	}
 	return v, nil
@@ -92,7 +108,7 @@ func (client *Client) PreviewAttack(ctx context.Context, identity *c.Identity, c
 			err = contract("attack preview facts missing")
 			break
 		}
-		expected := &r.JobEffect{PawnId: proto.String(command.Pawn.GetEntityId()), JobDef: proto.String("AttackMelee"), TargetA: &r.JobTarget{Target: &r.JobTarget_ThingId{ThingId: command.Target.GetEntityId()}}, CanTry: proto.Bool(value.GetAccepted()), Issued: proto.Bool(false), Verified: proto.Bool(false)}
+		expected := &r.JobEffect{PawnId: proto.String(command.Pawn.GetEntityId()), JobDef: proto.String(attackJobDef(command.GetMode())), TargetA: &r.JobTarget{Target: &r.JobTarget_ThingId{ThingId: command.Target.GetEntityId()}}, CanTry: proto.Bool(value.GetAccepted()), Issued: proto.Bool(false), Verified: proto.Bool(false)}
 		if !proto.Equal(job, expected) {
 			err = contract("attack preview projection mismatch")
 		}

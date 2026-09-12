@@ -29,6 +29,7 @@ const (
 	BuildingMethodNoSpace      RoutineBuildingReason = "insufficient_verified_space"
 	BuildingMethodUsed         RoutineBuildingReason = "method_already_used"
 	BuildingMethodRefused      RoutineBuildingReason = "shared_admission_refused"
+	BuildingMethodExhausted    RoutineBuildingReason = "retry_bound_exhausted"
 	BuildingMethodAdmitted     RoutineBuildingReason = "admitted"
 )
 

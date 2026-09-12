@@ -110,6 +110,12 @@ type Executor struct {
 	acquisitionJournal AcquisitionJournal
 	supply             SupplyBoundary
 	supplyJournal      SupplyJournal
+	tend               TendBoundary
+	tendJournal        TendJournal
+	rescue             RescueBoundary
+	rescueJournal      RescueJournal
+	ranged             RangedBoundary
+	rangedJournal      RangedJournal
 	routineScope       RoutineScope
 	journal            Journal
 	draftJournal       DraftJournal
@@ -170,6 +176,22 @@ func New(journal Journal, boundary Boundary, clock Clock, limits Limits, routine
 			return nil, errors.New("work boundary requires typed journal")
 		}
 		e.work, e.workJournal = work, j
+	}
+	if tend, ok := boundary.(TendBoundary); ok {
+		j, complete := journal.(TendJournal)
+		if !complete {
+			cancel()
+			return nil, errors.New("tend boundary requires typed journal")
+		}
+		e.tend, e.tendJournal = tend, j
+	}
+	if rescue, ok := boundary.(RescueBoundary); ok {
+		j, complete := journal.(RescueJournal)
+		if !complete {
+			cancel()
+			return nil, errors.New("rescue boundary requires typed journal")
+		}
+		e.rescue, e.rescueJournal = rescue, j
 	}
 	if len(routine) == 1 {
 		e.routineScope = routine[0]
@@ -323,6 +345,15 @@ func (e *Executor) Run(ctx context.Context, plan domain.PlanID, actionID domain.
 	}
 	if action.Kind() == domain.SupplyAllowAction && e.supply != nil {
 		return e.runSupply(ctx, action, progress, authority, generation)
+	}
+	if action.Kind() == domain.TendAction && e.tend != nil {
+		return e.runTend(ctx, action, progress, authority, generation)
+	}
+	if action.Kind() == domain.RescueAction && e.rescue != nil {
+		return e.runRescue(ctx, action, progress, authority, generation)
+	}
+	if action.Kind() == domain.RangedAttackAction && e.ranged != nil {
+		return e.runRangedAttack(ctx, action, progress, authority, generation)
 	}
 	if action.Kind() == domain.MeleeAttackAction && e.melee != nil {
 		return e.runMelee(ctx, action, progress, authority, generation)

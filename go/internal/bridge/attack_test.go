@@ -72,6 +72,64 @@ func TestAttackFixedMeleeSDK(t *testing.T) {
 		t.Fatal(calls)
 	}
 }
+func rangedTestCommand() *o.AttackTarget {
+	return &o.AttackTarget{Pawn: draftTestPawn(), Target: &o.EntityPrecondition{EntityId: proto.String("enemy"), ExpectedSnapshotToken: proto.String("enemy-before")}, Mode: o.AttackMode_ATTACK_MODE_RANGED.Enum(), RequireHostile: proto.Bool(true), RequireStanding: proto.Bool(true), RequireCombatHealth: proto.Bool(true)}
+}
+func rangedTestAttempt() AttackAttempt {
+	d := draftTestAttempt()
+	return AttackAttempt{d.Identity, d.Attempt, d.NativeGeneration, d.Owner, d.PawnID, "enemy", o.AttackMode_ATTACK_MODE_RANGED, true, true, true}
+}
+func rangedTestReceipt() *r.Receipt {
+	v := draftTestReceipt()
+	j := draftObserved(v)
+	j.JobId = proto.Int32(42)
+	j.JobDef = proto.String("AttackStatic")
+	j.TargetA = &r.JobTarget{Target: &r.JobTarget_ThingId{ThingId: "enemy"}}
+	return v
+}
+func TestAttackFixedRangedSDK(t *testing.T) {
+	calls := 0
+	client := testClient(t, &testServer{schema: protoSchema, handler: func(_ context.Context, arg nativeArgument) (*mcp.CallToolResult, error) {
+		calls++
+		switch arg.Tool {
+		case "rimgovernor/operations_preview":
+			draftTestRequest(t, arg, &o.PreviewRequest{Identity: pbIdentity(), Operation: attackOperation(rangedTestCommand())})
+			return pbResult(&o.PreviewReply{Outcome: &o.PreviewReply_Evaluated{Evaluated: &o.PreviewEvaluation{Context: buildingAdmission().AdmittedContext, Accepted: proto.Bool(true), Projected: &r.EffectEvidence{Effect: &r.EffectEvidence_Job{Job: &r.JobEffect{PawnId: proto.String("pawn"), JobDef: proto.String("AttackStatic"), TargetA: &r.JobTarget{Target: &r.JobTarget_ThingId{ThingId: "enemy"}}, CanTry: proto.Bool(true), Issued: proto.Bool(false), Verified: proto.Bool(false)}}}}}}), nil
+		case "rimgovernor/operations_execute":
+			draftTestRequest(t, arg, &o.ExecuteRequest{Precondition: buildingPre(), Operation: attackOperation(rangedTestCommand())})
+			return pbResult(&o.ExecuteReply{Outcome: &o.ExecuteReply_Receipt{Receipt: rangedTestReceipt()}}), nil
+		case "rimgovernor/receipts_lookup":
+			draftTestRequest(t, arg, &r.LookupRequest{Identity: pbIdentity(), Attempt: buildingPre().Attempt})
+			return pbResult(&r.LookupReply{Outcome: &r.LookupReply_Receipt{Receipt: rangedTestReceipt()}}), nil
+		case "rimgovernor/receipts_observe_progress":
+			draftTestRequest(t, arg, &r.ProgressRequest{Identity: pbIdentity(), Attempt: buildingPre().Attempt})
+			progress := movementTestProgress(false)
+			j := proto.Clone(draftObserved(rangedTestReceipt())).(*r.JobEffect)
+			j.Issued = proto.Bool(false)
+			progress.GetCompleted().Evidence = &r.EffectEvidence{Effect: &r.EffectEvidence_Job{Job: j}}
+			return pbResult(&r.ProgressReply{Outcome: &r.ProgressReply_Progress{Progress: progress}}), nil
+		}
+		t.Fatal(arg.Tool)
+		return nil, nil
+	}}, time.Second)
+	if _, _, err := client.PreviewAttack(context.Background(), pbIdentity(), rangedTestCommand()); err != nil {
+		t.Fatal(err)
+	}
+	control, _ := NewAttackControl(client)
+	receipt, _, err := control.AttackTarget(context.Background(), buildingPre(), draftTestAttempt().Owner, rangedTestCommand())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, _, err = client.LookupAttackAttempt(context.Background(), rangedTestAttempt()); err != nil {
+		t.Fatal(err)
+	}
+	if _, _, err = client.ObserveAttackProgress(context.Background(), rangedTestAttempt(), receipt.GetReceipt()); err != nil {
+		t.Fatal(err)
+	}
+	if calls != 4 {
+		t.Fatal(calls)
+	}
+}
 func TestAttackCompletionAfterManualAndLostReadback(t *testing.T) {
 	for _, uncertain := range []bool{false, true} {
 		for _, changed := range []bool{false, true} {
@@ -101,7 +159,7 @@ func TestAttackGuardedInputsNeverCall(t *testing.T) {
 	calls := 0
 	client := testClient(t, &testServer{schema: protoSchema, handler: func(_ context.Context, _ nativeArgument) (*mcp.CallToolResult, error) { calls++; return nil, nil }}, time.Second)
 	control, _ := NewAttackControl(client)
-	for name, edit := range map[string]func(*o.AttackTarget){"auto": func(v *o.AttackTarget) { v.Mode = o.AttackMode_ATTACK_MODE_AUTO.Enum() }, "ranged": func(v *o.AttackTarget) { v.Mode = o.AttackMode_ATTACK_MODE_RANGED.Enum() }, "missing guard": func(v *o.AttackTarget) { v.RequireHostile = nil }, "same target": func(v *o.AttackTarget) { v.Target.EntityId = proto.String("pawn") }, "target CAS": func(v *o.AttackTarget) { v.Target.ExpectedSnapshotToken = nil }, "unknown field": func(v *o.AttackTarget) { v.ProtoReflect().SetUnknown([]byte{0xa0, 6, 1}) }} {
+	for name, edit := range map[string]func(*o.AttackTarget){"auto": func(v *o.AttackTarget) { v.Mode = o.AttackMode_ATTACK_MODE_AUTO.Enum() }, "unspecified": func(v *o.AttackTarget) { v.Mode = o.AttackMode_ATTACK_MODE_UNSPECIFIED.Enum() }, "missing guard": func(v *o.AttackTarget) { v.RequireHostile = nil }, "same target": func(v *o.AttackTarget) { v.Target.EntityId = proto.String("pawn") }, "target CAS": func(v *o.AttackTarget) { v.Target.ExpectedSnapshotToken = nil }, "unknown field": func(v *o.AttackTarget) { v.ProtoReflect().SetUnknown([]byte{0xa0, 6, 1}) }} {
 		t.Run(name, func(t *testing.T) {
 			v := attackTestCommand()
 			edit(v)

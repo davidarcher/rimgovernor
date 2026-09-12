@@ -21,7 +21,7 @@ import (
 	"modernc.org/sqlite"
 )
 
-const schemaVersion = 35
+const schemaVersion = 37
 const applicationID = 0x52474f31
 
 var ErrConflict = errors.New("plan or action identity already exists")
@@ -44,6 +44,9 @@ type PlanState struct {
 	AcquisitionAdmissions []ActionAcquisitionAdmission
 	SupplyAdmissions      []ActionSupplyAdmission
 	WorkAdmissions        []ActionWorkAdmission
+	TendAdmissions        []ActionTendAdmission
+	RescueAdmissions      []ActionRescueAdmission
+	RangedAdmissions      []ActionRangedAdmission
 }
 
 // Open accepts a filesystem path, never a caller-supplied SQLite connection URI.
@@ -123,7 +126,7 @@ func (s *Store) initialize(ctx context.Context) error {
 CREATE TABLE plans(id TEXT PRIMARY KEY, revision TEXT NOT NULL, retired INTEGER NOT NULL DEFAULT 0 CHECK(retired IN (0,1)));
 CREATE INDEX active_plans ON plans(id) WHERE retired=0;
 CREATE TABLE retirement_floors(colony TEXT NOT NULL, load_token TEXT NOT NULL, map_id INTEGER NOT NULL, tick INTEGER NOT NULL CHECK(tick>=0), PRIMARY KEY(colony,load_token,map_id)) STRICT;
-CREATE TABLE actions(id TEXT PRIMARY KEY, plan_id TEXT NOT NULL REFERENCES plans(id), ordinal INTEGER NOT NULL, kind TEXT NOT NULL CHECK(kind IN ('building','owned_draft','melee_attack','supply_allow','work_assignment','acquisition','zone_create')), definition TEXT, x INTEGER, z INTEGER, rotation TEXT, stuff TEXT, pawn TEXT, target TEXT, draft_action TEXT REFERENCES actions(id), work_payload BLOB, zone_payload BLOB, CHECK((kind='zone_create' AND zone_payload IS NOT NULL) OR (kind!='zone_create' AND zone_payload IS NULL)), CHECK((kind='work_assignment' AND work_payload IS NOT NULL) OR (kind!='work_assignment' AND work_payload IS NULL)), CHECK((kind='zone_create' AND definition IS NULL AND x IS NULL AND z IS NULL AND rotation IS NULL AND stuff IS NULL AND pawn IS NULL AND target IS NULL AND draft_action IS NULL) OR (kind='building' AND definition IS NOT NULL AND x IS NOT NULL AND z IS NOT NULL AND rotation IS NOT NULL AND stuff IS NOT NULL AND pawn IS NULL AND target IS NULL AND draft_action IS NULL) OR (kind='owned_draft' AND definition IS NULL AND x IS NULL AND z IS NULL AND rotation IS NULL AND stuff IS NULL AND pawn IS NOT NULL AND target IS NULL AND draft_action IS NULL) OR (kind='melee_attack' AND definition IS NULL AND x IS NULL AND z IS NULL AND rotation IS NULL AND stuff IS NULL AND pawn IS NOT NULL AND target IS NOT NULL AND draft_action IS NOT NULL) OR (kind IN ('supply_allow','acquisition') AND definition IS NOT NULL AND x IS NOT NULL AND z IS NOT NULL AND rotation IS NULL AND stuff IS NULL AND pawn IS NULL AND target IS NOT NULL AND draft_action IS NULL) OR (kind='work_assignment' AND definition IS NULL AND x IS NULL AND z IS NULL AND rotation IS NULL AND stuff IS NULL AND pawn IS NOT NULL AND target IS NOT NULL AND draft_action IS NULL)), UNIQUE(plan_id,ordinal)) STRICT;
+CREATE TABLE actions(id TEXT PRIMARY KEY, plan_id TEXT NOT NULL REFERENCES plans(id), ordinal INTEGER NOT NULL, kind TEXT NOT NULL CHECK(kind IN ('building','owned_draft','melee_attack','supply_allow','work_assignment','acquisition','zone_create','tend','rescue','ranged_attack')), definition TEXT, x INTEGER, z INTEGER, rotation TEXT, stuff TEXT, pawn TEXT, target TEXT, draft_action TEXT REFERENCES actions(id), work_payload BLOB, zone_payload BLOB, CHECK((kind='zone_create' AND zone_payload IS NOT NULL) OR (kind!='zone_create' AND zone_payload IS NULL)), CHECK((kind='work_assignment' AND work_payload IS NOT NULL) OR (kind!='work_assignment' AND work_payload IS NULL)), CHECK((kind='zone_create' AND definition IS NULL AND x IS NULL AND z IS NULL AND rotation IS NULL AND stuff IS NULL AND pawn IS NULL AND target IS NULL AND draft_action IS NULL) OR (kind='building' AND definition IS NOT NULL AND x IS NOT NULL AND z IS NOT NULL AND rotation IS NOT NULL AND stuff IS NOT NULL AND pawn IS NULL AND target IS NULL AND draft_action IS NULL) OR (kind='owned_draft' AND definition IS NULL AND x IS NULL AND z IS NULL AND rotation IS NULL AND stuff IS NULL AND pawn IS NOT NULL AND target IS NULL AND draft_action IS NULL) OR (kind IN ('melee_attack','ranged_attack') AND definition IS NULL AND x IS NULL AND z IS NULL AND rotation IS NULL AND stuff IS NULL AND pawn IS NOT NULL AND target IS NOT NULL AND draft_action IS NOT NULL) OR (kind IN ('supply_allow','acquisition') AND definition IS NOT NULL AND x IS NOT NULL AND z IS NOT NULL AND rotation IS NULL AND stuff IS NULL AND pawn IS NULL AND target IS NOT NULL AND draft_action IS NULL) OR (kind='work_assignment' AND definition IS NULL AND x IS NULL AND z IS NULL AND rotation IS NULL AND stuff IS NULL AND pawn IS NOT NULL AND target IS NOT NULL AND draft_action IS NULL) OR (kind IN ('tend','rescue') AND definition IS NULL AND x IS NULL AND z IS NULL AND rotation IS NULL AND stuff IS NULL AND pawn IS NOT NULL AND target IS NOT NULL AND draft_action IS NULL)), UNIQUE(plan_id,ordinal)) STRICT;
 CREATE TABLE transitions(sequence INTEGER PRIMARY KEY, action_id TEXT NOT NULL REFERENCES actions(id), payload BLOB NOT NULL);
 CREATE TABLE action_dependencies(plan_id TEXT NOT NULL REFERENCES plans(id), action_id TEXT NOT NULL REFERENCES actions(id), requires_id TEXT NOT NULL REFERENCES actions(id), PRIMARY KEY(plan_id,action_id,requires_id)) STRICT;
 CREATE TABLE admissions(action_id TEXT PRIMARY KEY REFERENCES actions(id), payload BLOB NOT NULL);
@@ -134,6 +137,9 @@ CREATE TABLE work_admissions(action_id TEXT PRIMARY KEY REFERENCES actions(id), 
 CREATE TABLE acquisition_admissions(action_id TEXT PRIMARY KEY REFERENCES actions(id), payload BLOB NOT NULL) STRICT;
 CREATE TABLE supply_admissions(action_id TEXT PRIMARY KEY REFERENCES actions(id), payload BLOB NOT NULL) STRICT;
 CREATE TABLE melee_admissions(action_id TEXT PRIMARY KEY REFERENCES actions(id), payload BLOB NOT NULL) STRICT;
+CREATE TABLE tend_admissions(action_id TEXT PRIMARY KEY REFERENCES actions(id), payload BLOB NOT NULL) STRICT;
+CREATE TABLE rescue_admissions(action_id TEXT PRIMARY KEY REFERENCES actions(id), payload BLOB NOT NULL) STRICT;
+CREATE TABLE ranged_admissions(action_id TEXT PRIMARY KEY REFERENCES actions(id), payload BLOB NOT NULL) STRICT;
 CREATE TABLE clock_attempts(request_id TEXT PRIMARY KEY, native_action_id TEXT NOT NULL UNIQUE, payload BLOB NOT NULL, phase TEXT NOT NULL CHECK(phase IN ('prepared','dispatched','uncertain','applied','refused')), reply BLOB, scope_context BLOB) STRICT;
 CREATE TABLE clock_epochs(start_request_id TEXT PRIMARY KEY REFERENCES clock_attempts(request_id), stage TEXT NOT NULL CHECK(stage IN ('required','pausing','uncertain','paused','retired','superseded')), sequence TEXT NOT NULL, context BLOB, status BLOB) STRICT;
 CREATE TABLE submissions(request_id TEXT PRIMARY KEY, kind TEXT NOT NULL CHECK(kind IN ('building','owned_draft')), colony TEXT NOT NULL, load_token TEXT NOT NULL, map_id INTEGER NOT NULL, plan_id TEXT NOT NULL UNIQUE REFERENCES plans(id), action_id TEXT NOT NULL UNIQUE REFERENCES actions(id), revision TEXT NOT NULL) STRICT;
@@ -179,7 +185,7 @@ CREATE TABLE work_preference_requests(request_id TEXT PRIMARY KEY, payload BLOB 
 	} else if version != schemaVersion || app != applicationID {
 		return fmt.Errorf("incompatible database application/version: %d/%d", app, version)
 	}
-	for _, query := range []string{"SELECT action_id,payload FROM draft_admissions LIMIT 0", "SELECT action_id,payload FROM melee_admissions LIMIT 0", "SELECT request_id,kind,colony,load_token,map_id,plan_id,action_id,revision FROM submissions LIMIT 0", "SELECT request_id,pawn FROM draft_submissions LIMIT 0"} {
+	for _, query := range []string{"SELECT action_id,payload FROM draft_admissions LIMIT 0", "SELECT action_id,payload FROM melee_admissions LIMIT 0", "SELECT action_id,payload FROM tend_admissions LIMIT 0", "SELECT action_id,payload FROM rescue_admissions LIMIT 0", "SELECT action_id,payload FROM ranged_admissions LIMIT 0", "SELECT request_id,kind,colony,load_token,map_id,plan_id,action_id,revision FROM submissions LIMIT 0", "SELECT request_id,pawn FROM draft_submissions LIMIT 0"} {
 		if version != 0 {
 			if _, err = tx.ExecContext(ctx, query); err != nil {
 				return err
@@ -487,9 +493,44 @@ func load(ctx context.Context, tx *sql.Tx, id domain.PlanID) (PlanState, error) 
 		if meleePresent {
 			state.MeleeAdmissions = append(state.MeleeAdmissions, ActionMeleeAdmission{Action: a.ID(), Admission: meleeAdmission})
 		}
+		tendAdmission, tendPresent, e := loadTendAdmission(ctx, tx, a, p)
+		if e != nil {
+			return PlanState{}, e
+		}
+		if a.Kind() == domain.TendAction && !tendPresent && (p.View().Stage == domain.Prepared || p.View().Attempt > 0) {
+			return PlanState{}, errors.New("tend progress lacks admission")
+		}
+		if tendPresent {
+			state.TendAdmissions = append(state.TendAdmissions, ActionTendAdmission{Action: a.ID(), Admission: tendAdmission})
+		}
+		rescueAdmission, rescuePresent, e := loadRescueAdmission(ctx, tx, a, p)
+		if e != nil {
+			return PlanState{}, e
+		}
+		if a.Kind() == domain.RescueAction && !rescuePresent && (p.View().Stage == domain.Prepared || p.View().Attempt > 0) {
+			return PlanState{}, errors.New("rescue progress lacks admission")
+		}
+		if rescuePresent {
+			state.RescueAdmissions = append(state.RescueAdmissions, ActionRescueAdmission{Action: a.ID(), Admission: rescueAdmission})
+		}
+		rangedAdmission, rangedPresent, e := loadRangedAdmission(ctx, tx, a, p)
+		if e != nil {
+			return PlanState{}, e
+		}
+		if a.Kind() == domain.RangedAttackAction && !rangedPresent && (p.View().Stage == domain.Prepared || p.View().Attempt > 0) {
+			return PlanState{}, errors.New("ranged attack progress lacks admission")
+		}
+		if rangedPresent {
+			state.RangedAdmissions = append(state.RangedAdmissions, ActionRangedAdmission{Action: a.ID(), Admission: rangedAdmission})
+		}
 	}
 	for _, record := range state.MeleeAdmissions {
 		if err := validateMeleePrerequisite(ctx, tx, state, record.Action, record.Admission, false); err != nil {
+			return PlanState{}, err
+		}
+	}
+	for _, record := range state.RangedAdmissions {
+		if err := validateRangedPrerequisite(ctx, tx, state, record.Action, record.Admission, false); err != nil {
 			return PlanState{}, err
 		}
 	}
@@ -669,6 +710,38 @@ func advanceInTransaction(ctx context.Context, tx *sql.Tx, plan domain.PlanID, a
 			}
 		}
 	}
+	if current.Action().Kind() == domain.TendAction {
+		if event.Kind == "prepare" {
+			return domain.Progress{}, errors.New("tend requires typed preparation")
+		}
+		if event.Kind == "dispatch" {
+			matched := false
+			for _, record := range state.TendAdmissions {
+				if record.Action == action && record.Admission.Snapshot == event.Snapshot && record.Admission.Tick <= event.Tick {
+					matched = true
+				}
+			}
+			if !matched {
+				return domain.Progress{}, errors.New("tend dispatch lacks current admission")
+			}
+		}
+	}
+	if current.Action().Kind() == domain.RescueAction {
+		if event.Kind == "prepare" {
+			return domain.Progress{}, errors.New("rescue requires typed preparation")
+		}
+		if event.Kind == "dispatch" {
+			matched := false
+			for _, record := range state.RescueAdmissions {
+				if record.Action == action && record.Admission.Snapshot == event.Snapshot && record.Admission.Tick <= event.Tick {
+					matched = true
+				}
+			}
+			if !matched {
+				return domain.Progress{}, errors.New("rescue dispatch lacks current admission")
+			}
+		}
+	}
 	for _, record := range state.Admissions {
 		if record.Action != action {
 			continue
@@ -684,6 +757,9 @@ func advanceInTransaction(ctx context.Context, tx *sql.Tx, plan domain.PlanID, a
 		return domain.Progress{}, err
 	}
 	if err = guardMeleeAdvance(ctx, tx, state, action, event); err != nil {
+		return domain.Progress{}, err
+	}
+	if err = guardRangedAdvance(ctx, tx, state, action, event); err != nil {
 		return domain.Progress{}, err
 	}
 	next, err := apply(current, event)

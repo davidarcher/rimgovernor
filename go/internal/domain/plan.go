@@ -21,6 +21,9 @@ type ActionKind string
 const BuildingAction ActionKind = "building"
 const OwnedDraftAction ActionKind = "owned_draft"
 const MeleeAttackAction ActionKind = "melee_attack"
+const TendAction ActionKind = "tend"
+const RescueAction ActionKind = "rescue"
+const RangedAttackAction ActionKind = "ranged_attack"
 
 // Building is one resolved placement. Native discovery owns definition existence,
 // footprint, map bounds, costs and placement legality; these are not inferred here.
@@ -66,6 +69,9 @@ type Action struct {
 	acquisition Acquisition
 	supply      SupplyAllow
 	work        WorkAssignment
+	tend        Tend
+	rescue      Rescue
+	ranged      RangedAttack
 }
 
 func NewBuildingAction(id ActionID, building Building) (Action, error) {
@@ -81,12 +87,12 @@ func (a Action) ID() ActionID               { return a.id }
 func (a Action) Kind() ActionKind           { return a.kind }
 func (a Action) Building() (Building, bool) { return a.building, a.kind == BuildingAction }
 func SupportedActionKinds() []ActionKind {
-	return []ActionKind{BuildingAction, OwnedDraftAction, MeleeAttackAction, SupplyAllowAction, WorkAssignmentAction, AcquisitionAction, ZoneCreateAction}
+	return []ActionKind{BuildingAction, OwnedDraftAction, MeleeAttackAction, SupplyAllowAction, WorkAssignmentAction, AcquisitionAction, ZoneCreateAction, TendAction, RescueAction, RangedAttackAction}
 }
 func ValidateHandlerCoverage(kinds []ActionKind) error {
 	seen := make(map[ActionKind]bool)
 	for _, kind := range kinds {
-		if (kind != BuildingAction && kind != OwnedDraftAction && kind != MeleeAttackAction && kind != SupplyAllowAction && kind != WorkAssignmentAction && kind != AcquisitionAction && kind != ZoneCreateAction) || seen[kind] {
+		if (kind != BuildingAction && kind != OwnedDraftAction && kind != MeleeAttackAction && kind != SupplyAllowAction && kind != WorkAssignmentAction && kind != AcquisitionAction && kind != ZoneCreateAction && kind != TendAction && kind != RescueAction && kind != RangedAttackAction) || seen[kind] {
 			return fmt.Errorf("unknown or duplicate action handler %q", kind)
 		}
 		seen[kind] = true
@@ -134,6 +140,12 @@ func NewPlan(id PlanID, revision PlanRevision, actions []Action, dependencies ..
 			canonical, err = NewAcquisitionAction(a.id, a.acquisition)
 		case SupplyAllowAction:
 			canonical, err = NewSupplyAllowAction(a.id, a.supply)
+		case TendAction:
+			canonical, err = NewTendAction(a.id, a.tend)
+		case RescueAction:
+			canonical, err = NewRescueAction(a.id, a.rescue)
+		case RangedAttackAction:
+			canonical, err = NewRangedAttackAction(a.id, a.ranged)
 		default:
 			return PlanSpec{}, errors.New("unsupported action variant")
 		}
@@ -150,6 +162,12 @@ func NewPlan(id PlanID, revision PlanRevision, actions []Action, dependencies ..
 			prerequisite, exists := seen[a.melee.draftAction]
 			if !exists || prerequisite.kind != OwnedDraftAction || prerequisite.draft.pawn != a.melee.pawn {
 				return PlanSpec{}, errors.New("melee attack requires its preceding owned draft for the same pawn")
+			}
+		}
+		if a.kind == RangedAttackAction {
+			prerequisite, exists := seen[a.ranged.draftAction]
+			if !exists || prerequisite.kind != OwnedDraftAction || prerequisite.draft.pawn != a.ranged.pawn {
+				return PlanSpec{}, errors.New("ranged attack requires its preceding owned draft for the same pawn")
 			}
 		}
 		seen[a.id] = a
@@ -191,11 +209,15 @@ func validateDependencies(actions map[ActionID]Action, dependencies []ActionDepe
 		}
 		graph[d.Action] = append(graph[d.Action], d.Requires)
 	}
-	// Melee already has a mandatory draft prerequisite. Include it in cycle
-	// detection without changing that family's exact owned-claim checks.
+	// Melee and ranged attacks already have a mandatory draft prerequisite.
+	// Include it in cycle detection without changing either family's exact
+	// owned-claim checks.
 	for id, a := range actions {
 		if melee, k := a.MeleeAttack(); k {
 			graph[id] = append(graph[id], melee.DraftAction())
+		}
+		if ranged, k := a.RangedAttack(); k {
+			graph[id] = append(graph[id], ranged.DraftAction())
 		}
 	}
 	visiting, done := map[ActionID]bool{}, map[ActionID]bool{}

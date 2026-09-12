@@ -6,8 +6,9 @@ import (
 	o "github.com/davidarcher/RimGovernor/go/internal/wire/operationspb"
 )
 
-// AttackAttempt retains the original guarded target and admission. Only explicit
-// melee is supported until ranged scope has a canonical native restriction.
+// AttackAttempt retains the original guarded target and admission. Only
+// explicit melee or ranged modes are supported (see attackJobDef); auto-mode
+// selection and explosive-verb attribution stay outside this contract.
 type AttackAttempt struct {
 	Identity                                             *c.Identity
 	Attempt                                              *c.AttemptKey
