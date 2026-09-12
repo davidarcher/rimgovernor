@@ -8094,23 +8094,23 @@
         {
           "name": "test/forecast_refuel",
           "path": "scripts/fixtures/ForecastFixture.cs",
-          "line": 169,
+          "line": 173,
           "declaration": "[Tool(\"test/forecast_refuel\", Description = \"Supply the disposable test generator; test builds only. Subsequent charging is native simulation.\")]\n        public async Task<object> Refuel(IRimBridgeContext ctx, CancellationToken cancellationToken)",
-          "source_sha256": "76c924bcbe1bf221e6d75e092c3d7fc49dd878ded3ce04bbdef942a1937d27af"
+          "source_sha256": "a5c2f376ee4ba30e4cbad3ccae19d41223303026d4f74943955ecf6ea1d610f9"
         },
         {
           "name": "test/forecast_setup",
           "path": "scripts/fixtures/ForecastFixture.cs",
-          "line": 103,
+          "line": 107,
           "declaration": "[Tool(\"test/forecast_setup\", Description = \"Create a disposable power/food forecast fixture. Test builds only; no construction acceptance.\")]\n        public async Task<object> Setup(IRimBridgeContext ctx, CancellationToken cancellationToken)",
-          "source_sha256": "76c924bcbe1bf221e6d75e092c3d7fc49dd878ded3ce04bbdef942a1937d27af"
+          "source_sha256": "a5c2f376ee4ba30e4cbad3ccae19d41223303026d4f74943955ecf6ea1d610f9"
         },
         {
           "name": "test/forecast_state",
           "path": "scripts/fixtures/ForecastFixture.cs",
-          "line": 158,
+          "line": 162,
           "declaration": "[Tool(\"test/forecast_state\", Description = \"Read retained fixture rot state even after native destruction. Test builds only.\")]\n        public async Task<object> State(IRimBridgeContext ctx, CancellationToken cancellationToken)",
-          "source_sha256": "76c924bcbe1bf221e6d75e092c3d7fc49dd878ded3ce04bbdef942a1937d27af"
+          "source_sha256": "a5c2f376ee4ba30e4cbad3ccae19d41223303026d4f74943955ecf6ea1d610f9"
         },
         {
           "name": "test/gear_fixture",
@@ -8291,15 +8291,15 @@
           "name": "test/routine_power_methods",
           "path": "scripts/fixtures/ForecastFixture.cs",
           "line": 18,
-          "declaration": "[Tool(\"test/routine_power_methods\", Description = \"UNSAFE FOR MODEL EXECUTION. Prepare a disposable consumer, optional distant unfueled generator, research, materials and qualified builder. Does not create conduits or execute construction/refueling jobs.\")]\n        public async Task<object> RoutinePowerMethods(IRimBridgeContext ctx, CancellationToken cancellationToken, bool connectExisting = false)",
-          "source_sha256": "76c924bcbe1bf221e6d75e092c3d7fc49dd878ded3ce04bbdef942a1937d27af"
+          "declaration": "[Tool(\"test/routine_power_methods\", Description = \"UNSAFE FOR MODEL EXECUTION. Prepare a bounded concrete test lane, consumer, optional distant unfueled generator, research, materials and qualified builder. Does not create conduits or execute construction/refueling jobs.\")]\n        public async Task<object> RoutinePowerMethods(IRimBridgeContext ctx, CancellationToken cancellationToken, bool connectExisting = false)",
+          "source_sha256": "a5c2f376ee4ba30e4cbad3ccae19d41223303026d4f74943955ecf6ea1d610f9"
         },
         {
           "name": "test/routine_power_setup",
           "path": "scripts/fixtures/ForecastFixture.cs",
-          "line": 75,
+          "line": 79,
           "declaration": "[Tool(\"test/routine_power_setup\", Description = \"Spawn an unfueled generator and electrical consumer in a disposable paused colony. Power observation only; no construction acceptance.\")]\n        public async Task<object> RoutinePower(IRimBridgeContext ctx, CancellationToken cancellationToken)",
-          "source_sha256": "76c924bcbe1bf221e6d75e092c3d7fc49dd878ded3ce04bbdef942a1937d27af"
+          "source_sha256": "a5c2f376ee4ba30e4cbad3ccae19d41223303026d4f74943955ecf6ea1d610f9"
         },
         {
           "name": "test/routine_production_prepare",

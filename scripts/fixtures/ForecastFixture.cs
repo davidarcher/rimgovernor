@@ -15,7 +15,7 @@ namespace HomeBridge.BridgeTools
         private static Thing battery;
         private static Thing rice;
 
-        [Tool("test/routine_power_methods", Description = "UNSAFE FOR MODEL EXECUTION. Prepare a disposable consumer, optional distant unfueled generator, research, materials and qualified builder. Does not create conduits or execute construction/refueling jobs.")]
+        [Tool("test/routine_power_methods", Description = "UNSAFE FOR MODEL EXECUTION. Prepare a bounded concrete test lane, consumer, optional distant unfueled generator, research, materials and qualified builder. Does not create conduits or execute construction/refueling jobs.")]
         public async Task<object> RoutinePowerMethods(IRimBridgeContext ctx, CancellationToken cancellationToken, bool connectExisting = false)
         {
             return await ctx.MainThread.InvokeAsync<object>(() => {
@@ -36,13 +36,17 @@ namespace HomeBridge.BridgeTools
                 builder.skills.GetSkill(SkillDefOf.Construction).Level = Math.Max(requiredConstruction, builder.skills.GetSkill(SkillDefOf.Construction).Level);
                 var sites = GenRadial.RadialCellsAround(center, 20, true).Where(c =>
                     CellRect.FromLimits(c, c + new IntVec3(16, 0, 6)).Cells.All(p => p.InBounds(map) && !p.Fogged(map)
-                        && Math.Abs(p.x - center.x) <= 20 && Math.Abs(p.z - center.z) <= 20 && p.Standable(map)
-                        && p.GetEdifice(map) == null && map.zoneManager.ZoneAt(p) == null
-                        && !p.GetThingList(map).Any(t => t is Pawn || t is Blueprint || t is Frame)
-                        && p.GetTerrain(map).affordances.Contains(TerrainAffordanceDefOf.Heavy))).Take(1).ToList();
+                        && Math.Abs(p.x - center.x) <= 20 && Math.Abs(p.z - center.z) <= 20
+                        && map.zoneManager.ZoneAt(p) == null
+                        && !p.GetThingList(map).Any(t => t is Pawn || t is Blueprint || t is Frame
+                            || t is Building && !t.def.building.isNaturalRock))).Take(1).ToList();
                 if (sites.Count != 1) throw new InvalidOperationException("No bounded power fixture site.");
                 var origin = sites[0];
-                foreach (var plant in CellRect.FromLimits(origin, origin + new IntVec3(16, 0, 6)).Cells.Select(c => c.GetPlant(map)).Where(p => p != null).ToList()) plant.Destroy();
+                var lane = CellRect.FromLimits(origin, origin + new IntVec3(16, 0, 6)).Cells.ToList();
+                foreach (var cell in lane) {
+                    foreach (var thing in cell.GetThingList(map).Where(t => t is Plant || t is Building && t.def.building.isNaturalRock).ToList()) thing.Destroy();
+                    map.terrainGrid.SetTerrain(cell, DefDatabase<TerrainDef>.GetNamed("Concrete"));
+                }
                 Func<string, int, int, Thing> spawn = (name, x, z) => {
                     var thing = ThingMaker.MakeThing(ThingDef.Named(name));
                     thing.SetFaction(Faction.OfPlayer);

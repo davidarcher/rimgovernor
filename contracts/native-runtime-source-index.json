@@ -3956,7 +3956,7 @@
     },
     {
       "source": "scripts/fixtures/ForecastFixture.cs",
-      "source_sha256": "76c924bcbe1bf221e6d75e092c3d7fc49dd878ded3ce04bbdef942a1937d27af",
+      "source_sha256": "a5c2f376ee4ba30e4cbad3ccae19d41223303026d4f74943955ecf6ea1d610f9",
       "compilation": "fixture-only",
       "owner": "N01.01 native packaging owner",
       "migration_status": "inventoried-unmigrated",
