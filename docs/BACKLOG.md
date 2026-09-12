@@ -558,382 +558,184 @@ each bounded method.
 ## G01 — Go controller rewrite
 
 **Done means:** Go owns the production controller from startup through shutdown,
-all existing controller responsibilities have a working Go replacement, and the
-production install/image needs neither Python nor a Python sidecar. Delete the
-replaced Python runtime, its entry points and runtime-only dependencies. Python
-may remain only for explicitly identified development/scenario tools.
+all existing implemented Python responsibilities have working Go replacements,
+and the production install/image needs neither Python nor a Python sidecar.
+Delete replaced runtime code, entry points and runtime-only dependencies. Python
+may remain for explicitly identified development/scenario tools.
 
-**Current starting point:** Go has transport, generated contracts, SQLite state,
-shared action execution, building and temporary-draft player controls, melee
-execution internals, local-model interpretation, dashboard observations and an
-opt-in supervised clock with interruption acknowledgement. It is still a partial
-controller; Python remains the production default. Reuse these implementations.
+**Current state:** partial controller, not a drop-in replacement. Shared goals,
+resources, cancellation, typed reads, building execution, owned drafting, melee
+internals and several construction planners exist. Most other routine features
+stop at needs or proposals. Production launchers still run Python. See the
+[source and evidence review](developers/go-migration-review.md) for the capability
+assessment, evidence limits and inspected revision. Completed work belongs there
+or in component docs/commits, not in this remaining-work list.
 
-Work serially. Port existing behavior; do not combine this with new gameplay,
-planner redesign, UI redesign or generalized hardening. State is disposable:
-no old-save/database migration, compatibility layer or rollback rehearsal.
-Keep normal game rules, one writer, Manual cancellation, uncertain-write recovery
-and observed pawn outcomes. Follow [AGENTS.md](../AGENTS.md) and the
-[test selection guide](developers/testing/choose-tests.md). Land verified commits
-in main by fast-forward, without pushes; reuse checks when relevant code is unchanged.
+**Delivery rule:** complete the workflows below through existing Python behavior:
+observation, decision, admitted shared method, Hands, observed result, interruption
+and renewed need. G01.05 and G01.07 are overlapping responsibilities in those same
+workflows, not sequential projects. Do not finish every planner before adding
+execution. Keep their IDs for references; count each deliverable once.
 
-### Remaining work
+Work serially and reuse existing code/native operations and applicable evidence.
+No new gameplay, planner/UI redesign, historical state migration, compatibility
+layer or generalized hardening campaign. State is disposable. Native changes need
+an actual missing consumer contract. Keep strict typed boundaries, normal game
+rules, one writer, player exclusions, unknown facts and uncertain-write recovery.
+Local commits are authorized. Land verified commits in main by fast-forward,
+without pushes, when the target checkout is safe; preserve other developers' work.
 
-The list is ordered for delivery: complete routine planning and action families,
-connect chat and player services, then switch and
-remove Python. Existing G01 IDs remain useful for inventory references. Do not
-expand these into another nested task tree; remove a row when its outcome is met.
+### Remaining gameplay workflows, in delivery order
 
-- [ ] **G01.05 — Complete routine planning.** Port deficit detection, method
-  selection, priorities, resource accounting, dependencies, hysteresis and spatial
-  planning from the current Python controller. Connect decisions to the existing
-  shared plans and Hands as their action families become available. Cover unknown
-  facts, competing projects, player priorities, renewed deficits and cancellation.
-  Routine events must make no model calls.
-  Go pure policy now covers common foothold gates, food/temperature/wood latches,
-  development ranking and bounded starter-site/fragmented-field proposals. General
-  placement search now ports the Python candidate order and checks whole
-  native footprints against indoor constraints and protected cells; selected actions
-  use the existing method admission contract. Shared
-  action progress retains committed capacity through uncertain cancellation.
-  Maintained goal/method records now link to shared plans in fresh Go SQLite state.
-  Reviews retain unknown effects, reopen recovered deficits and atomically cancel
-  linked actions on cancellation or context invalidation. Persisted dependencies
-  gate Hands on observed completion; building-method admission atomically reserves
-  whole-project costs and footprints against competing shared plans. Routine reviews
-  now persist explicit need assessments and latch history atomically with goal
-  updates, including Manual/context invalidation and cancellation preservation. Typed
-  native core/planning reads now feed Go projections; paused native parity covers
-  counts, stock, sleeping/temperature/storage, definitions and selected cells.
-  A paused Go read bracket requires matching ticks and known native generations
-  and rejects expired/cancelled reads before publishing facts.
-  The player-gated reviewer now commits native needs with authority rechecks;
-  its same-tick emergency census supplies medical/combat needs through shared
-  emergency rules, retaining unknowns for incomplete or conflicting evidence.
-  Manual and fresh acquisition invalidate routine work without native reads.
-  The clock scheduler can attach that reviewer at its paused pre-window boundary,
-  after cleanup obligations drain. `serve --routine-reviews` wires this path under
-  explicit player/clock control. Targeted live service acceptance covers native
-  core/emergency facts, fifteen persisted needs, unknown food forecast, Manual
-  invalidation, joined shutdown and disabled restart.
-  The deterministic food forecast now accounts for diet/access, holder-owned stock,
-  competing demand and rot deadlines. Typed native human food inputs have populated
-  stock parity and Go/Python forecast replay. The combined native census now feeds
-  routine FoodDays with animal competition; populated native replay reaches a durable
-  food deficit. Native crop definitions now provide harvest yield and diet-specific
-  human/animal demand. Routine reviews request planning facts and budget each crop's
-  growing cells against its growth cycle plus the configured food reserve; mixed
-  crop coverage stays separate from stored-food runway. Missing definitions or demand
-  preserve unknown coverage. Native parity and durable review tests cover this path;
-  further use of crop/patient forecast fields remains open. Complete native farm and cooking
-  censuses feed edible growing-cell capacity and usable, unsuspended food-bill needs.
-  Unknown counts or availability remain unknown. Populated native replay verifies
-  thirty growing rice cells and a cooking recovery in the durable Go review.
-  The native naming-window census now supplies naming deficits and explicit absence;
-  unavailable or obstructed observations remain unknown. Native dialog/replacement
-  acceptance and durable replay verify need changes without confirming names.
-  Routine reviews now bracket exact-ID equipment reads with the native colony and
-  emergency census to derive available armed capacity. Missing pawn rows, equipment
-  or conflicting counts/states remain unknown; stale ticks/generations reject the
-  review. Targeted native service acceptance verifies an observed equipment shortage
-  reaching the durable defense deficit, Manual invalidation and disabled restart.
-  Work proposals now port stable specialist selection, construction skill precedence,
-  labor sharing, numbered/checkbox semantics, requirements and explicit overrides.
-  Typed pawn work reads feed default assignment readback into routine work coverage;
-  missing availability, mode, skills or work data remain unknown. Native replay
-  matches Python's complete proposals; live service acceptance verifies the work
-  deficit, Manual and disabled restart. Open selected player buildings and admitted
-  shared projects now supply native construction-skill requirements. Supplementary
-  definitions stay inside the paused bracket; unknown requirements stay unknown,
-  and unresolved cancellation retains requirements until native effects settle.
-  Native HospitalBed acceptance and Go/Python replay verify a skill-eight project
-  deficit, Manual invalidation and disabled restart. Plan-scoped player work
-  preferences now persist with revision checks and authenticated replace/read APIs.
-  Updates invalidate old reviews and methods atomically; new reviews consume the
-  saved revision, reject stale inputs and preserve unknown native capabilities.
-  Native acceptance verifies preference updates, clear/replay, revisioned work
-  reviews, Manual and disabled restart; Go/Python native replay agrees. Requirements for
-  other action families remain open; settings execution belongs to its action family.
-  Superseded invalidated autopilot goals now retire from active capacity while
-  retaining immutable history; uncertain effects and cleanup prevent retirement.
-  Completion observed after cancellation now yields historic cost/geometry holds
-  to fresh native stock and placement facts without reviving cancelled intent.
-  Settled autopilot method plans now retire from active capacity with retained
-  exact history and per-world observation floors; stale admission/dispatch stays
-  blocked after restart. Current plans, unfinished dependencies, uncertain effects,
-  and cleanup remain pinned. Observed unsuccessful building methods now yield their
-  reservations to fresh native stock/placement and retire with the same durable
-  observation floors; unknown outcomes remain held.
-  A player-gated indoor-sleeping compiler now turns reviewed shelter deficits into
-  complete pending shared methods using native definition/room/placement facts,
-  protected admissions and stable epoch identities. Cleanup needs now derive from
-  the shared owned-draft journal. Opt-in `--routine-sleeping-plans` attaches compilation
-  to the paused service review boundary; startup stays disabled and preview failures
-  block new clock windows. `--routine-methods` connects eligible building methods to
-  shared Hands under the existing player direction, with journal rechecks and pending
-  player work taking priority. Targeted native acceptance verifies three indoor
-  sleeping spots completed through shared Hands with one attempt each, unchanged
-  player authority, Manual invalidation and disabled restart. The shared compiler
-  also selects a single campfire for known cooking deficits, waits for existing
-  facilities/projects, and respects player resource reservations. The opt-in cooking
-  service path has targeted native acceptance alongside sleeping construction:
-  one campfire completes with one attempt under shared player authority, while
-  cooking remains a deficit until a usable food bill exists. Native power-trader
-  censuses now feed per-consumer-network headroom, electrical demand and disabled
-  consumer recovery into routine power needs. Incomplete facts remain unknown;
-  unrelated networks cannot cover a consumer. Populated native power acceptance and
-  Go/Python replay verify a durable deficit, Manual invalidation and disabled restart.
-  Shared session resource rules now reach routine method admission and Hands;
-  repeatable service flags configure reserves and spending restrictions. Fast tests
-  cover blocked and unaffordable cooking methods. Native acceptance verifies a wood
-  stop rule leaves player work pending, admits no routine campfire and issues no
-  construction orders, with Manual invalidation and disabled restart. Pending
-  construction now records complete attempt-correlated inspection proof; later-tick
-  native net stock can replace its original cost hold while geometry remains pinned.
-  Unknown effects restore the conservative hold. Native acceptance verifies two
-  five-wood walls under a 290-wood reserve from 300 available wood: the second is
-  admitted while the first is unfinished, both complete with one attempt each,
-  and Manual/disabled restart preserve authority and accounting evidence.
-  Routine reviews now persist optional development ranking, known worker capacity,
-  deficit fractions, game-tick waiting age and selection history. Shared player
-  projects and unresolved optional methods consume capacity; method admission
-  rechecks current commitments atomically. Manual clears selection, and changed
-  direction/world or rewound ticks reset age. `--routine-project-limit` bounds new
-  optional projects. Native acceptance verifies observed worker capacity, the
-  accepted player's occupied slot, deficit ranking, Manual clearing and disabled
-  restart. Fast checks cover aging/restart, unknowns, cancelled uncertain projects,
-  corrupt history and player admission between review and method commit.
-  Service reviews now exclude disabled optional planners from selection while
-  preserving their needs and accepted commitments. Configured method availability
-  is separate from native evidence and cannot invent recovery.
-  The starter shelter compiler now prefers existing indoor space, then admits a
-  whole native-grounded wood wall-and-door shell with observed door dependencies.
-  A bounded post-construction clock allowance waits for normal roofing; furnishing
-  requires fresh roofed indoor facts. Targeted native acceptance verifies all 32
-  shell pieces and three sleeping spots completed with single attempts, native
-  indoor capacity recovery, a satisfied shelter goal, the complete operation trace,
-  Manual invalidation and disabled restart. A normal clock deadline reached during
-  renewal preflight preserves authority only after fresh matching completion proof.
-  Ongoing medical care now has a separate maintained priority-2 need using the
-  same bracketed native pawn census. Complete bad-condition/rest facts distinguish
-  chronic care from urgent tending. Durable tracked patients cannot recover through
-  disappearance, death, missing health or restart; Manual preserves that evidence,
-  while world replacement and tick rewind reset it. Medical order execution remains
-  in G01.07a. Native Python parity covers a colonist with permanent injuries and
-  missing parts who needs neither tending nor medical rest; the care deficit and
-  patient evidence survive Manual and disabled restart. Fast checks cover missing
-  health, disappearance, recovery/renewal, cancellation, restart and corrupt history.
-  Startup supplies now retain the first known native cohort across Manual,
-  direction changes and restart. Complete reads shrink it without adopting later
-  forbids or reviving released cells; unavailable reads preserve unresolved cells.
-  Native acceptance clears the original cohort through player Allow, then verifies
-  that re-forbidding the same supplies does not reopen the need or issue operations
-  across Manual and repeated same-database restarts. Fast checks cover unknowns,
-  an initially empty cohort, later cells, world/rewind reset and corrupt history.
-  Comfort planning now projects native dining surfaces, accessible seating and
-  recreation facilities, retains observed use across Manual/restart, and selects
-  table, adjacent chair and recreation construction through shared building plans.
-  Ordinary use waits are bounded by observed construction in the current direction;
-  construction receipts do not certify comfort recovery. Native acceptance verifies
-  all three buildings, dining and recreation use, and Manual history retention.
-  Recreation previews and observed capacity require native playing-cell clearance
-  and safe access. Disabled restart of this completed native sequence remains open.
-  Expansion maintains one spare indoor sleeping place beyond observed population,
-  using the shared indoor furnishing and whole-shell compiler. Existing housing
-  deficits block optional expansion; shared project capacity, reservations and
-  Manual invalidation still apply. Native acceptance verifies one additional indoor
-  place, single-attempt construction, capacity recovery and disabled restart.
-  Broader room-development methods remain open.
-  Equipment policy now has typed census review, stable replacement selection and
-  bounded production proposals with material preservation, shared budget inputs
-  and existing-bill protection. Native gear projections feed the complete routine
-  census and durable equipment need, preserving unknown evidence and renewed
-  deficits across restart and Manual cancellation. Production proposals retain
-  typed work/skill requirements for shared allocation and player work preferences.
-  Native workshop/work requirement projections and acceptance remain open; proposals are not
-  connected to execution yet. Equipment remains visible as `method_unavailable`
-  without occupying a development slot until its execution family is available.
-  Four direct upkeep contracts now project complete native item, structure, fire
-  and filth sections into durable needs. Repair censuses exclude native definitions
-  that do not use hit points. Missing sections preserve established risk;
-  an unknown first observation does not invent an emergency. Target ordering and
-  progress metrics match the Python contracts. Populated native parity and Go
-  replay verify all four target lists, metrics and durable needs, including Manual
-  and restart. Bounded-read unknowns remain explicit. Method composition remains
-  open. Animal containment and feed now have typed observations, independent needs
-  and retained feed hysteresis across Manual/restart. Populated native pen/feed
-  parity and Go replay verify containment, pet/pen distinctions, shared reserves
-  and durable needs. Sleeping upkeep now distinguishes upgrade, unsafe assignment
-  and unobserved use, with exact pawn/bed use history across Manual/restart.
-  Populated native floor-place parity and Go replay verify upgrade needs; real-bed
-  use acceptance and assignment/building method composition remain open, along with
-  animal method composition. Completed autonomous construction now retains native
-  identity across method retirement and Manual. Paused exact-ID queries verify
-  unchanged geometry before durable Home coverage and stone-shell detection;
-  caller claims, player placements and cancelled work cannot supply ownership.
-  Native Home exclusions and structure flammability have typed projections.
-  Combined native acceptance verifies 35 completed autonomous buildings, ordinary
-  roofing, a player Home removal, 31 flammable owned walls, Manual and disabled
-  restart. Replay derives ownership from the real service journal and verifies
-  both durable needs, unknown preservation and reopened history. Stockpile ownership
-  and Home/stone method composition await their shared action families.
-  Medical reserves now project observed medicine stacks and usable resources into
-  a hysteretic maintained need. Captured native replay verifies stock caps and
-  entry/recovery thresholds; durable tests cover unknowns, Manual, restart and
-  renewed deficits. Replenishment method composition remains open.
-  Further need inputs, method selection and execution composition for
-  additional routine methods remain open: equipment, comfort/expansion, the ten
-  `colony_upkeep.CONTRACTS` needs, player resource targets, and policy-generated
-  population, husbandry, waste and disaster-recovery needs.
-  Connect their planners to available action families; remaining action execution
-  stays in G01.07a–f.
+- [ ] **G01.05 — Routine planning integration across the workflows below.**
+  Use Python `ColonySkills.compile`, `priority_nodes`, the ten upkeep contracts
+  and their delegated modules as the finite reference. Port missing method
+  selection together with its executable action family. Finish remaining
+  crop/patient forecast use, workshop and other non-building work requirements,
+  retry/watchdog behavior and prerequisites where the corresponding Python
+  workflow consumes them. Preserve priority/age/hysteresis, whole-project resource
+  and spatial accounting, player work preferences, unknown observations, competing
+  projects, renewed deficits and cancellation. Routine events make no model calls.
+  Close this ID only when routine paths in G01.07a–e are composed; the evidence
+  belongs to those workflows, not a duplicate planning acceptance campaign.
 
-  Routine power method composition now selects network-local generation or a
-  bounded conduit route, checks native geometry and assigned construction skills,
-  and admits ordinary building actions under shared resources and Manual gates.
-  Targeted native acceptance verifies a new generator supplying its consumer after
-  ordinary refueling and eight conduits connecting an existing generator without
-  duplicate generation. Both cases cover Manual, disabled restart and captured
-  Go proposal/recovery replay.
+- [ ] **G01.07b — A colony can obtain food and sustain ordinary production.**
+  Implement startup Allow for the retained original supplies, work-priority writes
+  from existing assignments, safe wild harvest/tree acquisition and bounded hunting,
+  growing-zone creation/expansion, crop selection, cooking/butchering/preservation
+  bills and their prerequisites. Finish food stockpile creation/filtering and safe
+  hauling with G01.07c. Account for reserved stock, outstanding designations,
+  animal demand, spoilage and future harvest separately. Reuse forecasts, field
+  geometry, campfire construction and saved work preferences. Route safety,
+  emergency preemption and interrupted/renewed production remain required.
+  **Exit evidence:** Go assigns workers, acquires food/wood, creates or maintains
+  a field and meal bill, and observes harvested/cooked/stored output. Exercise a
+  renewed deficit and interruption without duplicate orders or overriding player work.
 
-  Opt-in temperature method composition now joins complete native indoor rooms to
-  eligible player beds and admits one campfire or passive cooler through shared
-  building plans. Native temperature, rather than construction, establishes recovery;
-  existing facilities and finite current-direction work budgets prevent repeated
-  construction or unbounded clock grants. Targeted native acceptance verifies
-  ordinary construction, refueling and actual sleeping-room heating/cooling while
-  outdoor conditions remain unsafe. Both cases cover Manual, disabled restart
-  and captured Go proposal/recovery replay.
+- [ ] **G01.07a — A colony can defend itself and care for injured pawns.**
+  Compose existing draft/melee execution into squad defense; add movement,
+  accessible-weapon equip and supported direct-bullet ranged attacks. Keep
+  explosives outside the supported ranged contract. Add native-approved doctor/
+  patient selection, tending, rescue/rest settings and medical monitoring,
+  including interrupted or repeated treatment. Connect existing emergency needs
+  and cleanup; reuse owned-draft lifecycle rather than replacing it.
+  **Exit evidence:** observed defense result, tended/resting patient, injury
+  interruption, player override and restart/stand-down cleanup through Go.
 
-  Go mood planning now reviews native pawn needs and thought targets, retains
-  per-pawn threshold/cause hysteresis, and selects bounded food/rest/recreation
-  relief proposals in the shared durable review. Missing/dead pawns, unknown reads,
-  Manual, world replacement and cancellation preserve explicit lifecycle rules.
-  Active or unverified mental breaks hold new clock windows until observed clearance.
-  Fast policy, projection, storage and scheduler checks pass. Targeted native food
-  and mental-break acceptance verifies measured proposals, emergency priority,
-  paused clock holds, Manual and disabled restart; captured Go replay matches the
-  Python policy reference. Relief execution belongs to G01.07e.
+- [ ] **G01.07c — A colony can store supplies and maintain its buildings.**
+  Complete player-room adoption/handoffs, storage zones and ownership, safe hauling,
+  bed assignment/upgrade and actual bed-use verification, Home coverage changes,
+  ordinary repairs/cleaning, safe fire response and staged stone-wall replacement.
+  Preserve structural supports, exclusions, quantity accounting, exact owned
+  identities and recovery after layout changes. Python sometimes waits for ordinary
+  cleaning/fire labor; do not invent forceable native jobs. Reuse shell/sleeping
+  construction, direct-upkeep targets, Home/stone ownership and sleeping history.
+  Finish the existing comfort lifecycle acceptance (construction/use evidence is
+  partial; disabled restart is not closed). Complete only room-development behavior
+  already implemented in Python.
+  **Exit evidence:** protected supplies reach valid storage, real beds are assigned
+  and used, Home exclusions survive, repairs/cleaning/fire outcomes are observed,
+  and a supported wall replacement preserves shelter and survives interruption.
 
-  Go disaster reviews now retain observed condition phases, affected services and
-  exact damaged-building history. Native recovery censuses supply repair,
-  breakdown and refuel needs; shared routine priorities promote observed service
-  deficits without replacing emergency, player or resource admission gates.
-  Unknown reads, missing buildings and condition expiry cannot establish restored
-  services. Manual retains evidence and invalidates work; world replacement resets
-  history. Native compound-disaster acceptance and captured Go replay verify
-  damaged wall/generator identities, ordinary repair/refuel needs, compound
-  conditions, priority promotion, Manual and disabled restart.
-  Recovery method selection now produces at most eight durable native admission
-  candidates, prioritizing existing roofed refuges and preserving prior restrictions.
-  Available-worker guards, shared used-method history, state-sensitive identities,
-  cancellation and Manual prevent invented eligibility or silent retry. Captured
-  native acceptance and replay verify three refuge candidates, Manual suspension
-  and disabled restart. Native job/area previews and action composition remain
-  open alongside their action family.
+- [ ] **G01.07d — A colony can develop equipment and replenish resources.**
+  Connect equipment replacement/equip/wear and production proposals to native
+  workshop recipes, skills, bills and ordinary output. Port research selection and
+  prerequisites, refrigeration/facility development, material extraction/mining and
+  player resource-target production. Add medical-reserve replenishment through
+  the same production path. Preserve existing bills, material preferences, scarce
+  resources and competing projects. Reuse accepted temperature/power/expansion
+  construction; these are not unimplemented families.
+  **Exit evidence:** finished/equipped gear, completed research, extracted/produced
+  stock and a renewed resource/reserve target through Go. Established power and
+  temperature evidence is reused unless affected code changes invalidate it.
 
-- [ ] **G01.07a — Finish defense and essential medical care.** Connect movement
-  and melee to complete defense plans using the existing owned-draft lifecycle;
-  verify target outcomes, injury interruption, player overrides and restart cleanup
-  through Go. Restrict supported ranged attacks explicitly to direct bullets
-  before enabling them; the native Ranged mode also permits explosives. Port
-  critical tending, interrupted/repeated treatment, patient rest settings and
-  medical monitoring with fresh doctor/patient facts and observed care outcomes.
-  Do not redo the accepted temporary-draft service implementation.
+- [ ] **G01.07e — A colony can carry out existing management policies.**
+  Connect mood relief, ongoing care and requested surgery, animal containment/feed,
+  herd configuration/training/slaughter policy, population decisions/integration,
+  waste containment and trade. Port their missing dynamic needs/policy state, not
+  just actions. Finish disaster recovery: native service-job and non-widening
+  existing-area admission, owned restriction cleanup, repair/refuel/breakdown work
+  and actual restoration. Reuse retained mood/patient/animal/disaster histories and
+  bounded recovery candidates. Preserve custody, player policy, care commitments
+  and emergency priority. Reuse food, medical, production and facility methods.
+  **Exit evidence:** actual need/health/containment/stock/custody/service outcomes
+  for supported Python workflows, including interruption, renewed needs and cleanup;
+  candidates or receipts alone do not close any of them.
 
-- [ ] **G01.07b — Port food and work allocation.** Food acquisition/production,
-  crops, cooking and work assignments must run through shared planning and Hands.
-  Preserve emergency preemption, route safety, recurring deficits and interrupted
-  production. Verify stock changes caused by ordinary pawn work.
+- [ ] **G01.07f — World progression works through Go.**
+  Port caravan packing/departure/routing/arrival/return/storage, quests and rewards,
+  settlement gifts, failure recovery and multiple active maps. Preserve supply and
+  home-staffing checks, expedition policies and stale-map rejection. Reuse existing
+  Python world-progression scenarios after dependent management paths work.
+  **Exit evidence:** native departure, arrival, reward/return storage and failure
+  recovery with Go owning the workflow and no wrong-map writes.
 
-- [ ] **G01.07c — Port shelter and upkeep.** Complete shelter/adoption, room and
-  footprint planning, spatial reservations, storage/hauling, beds, Home coverage,
-  repairs, fire response and staged wall upgrades. Reuse building execution.
-  Preserve player exclusions, structural supports, quantity accounting and
-  recovery after layout changes. Follow food/startup priorities.
+### Remaining player and production delivery
 
-- [ ] **G01.07d — Port colony development.** Temperature, power, facilities,
-  equipment, research, mining/material extraction and resource development.
-  Preserve prerequisites and scarce-resource competition; verify actual outputs,
-  equipped items and completed research rather than command receipts.
+- [ ] **G01.08 — Existing player commands and local-model chat work.**
+  Use `player_commands.py` as the command list: policies/goals/resources, research,
+  population/surgery/herds, trade/world commands, build/adopt/relocate/cancel,
+  zones, work priorities, bills/temperature and pawn draft/move/tend/rescue.
+  Reuse the local transport and building interpreter; finish typed interpretation,
+  consultation/scout/visual review, knowledge/memory/evidence retrieval, streaming,
+  deduplication, cancellation and explicit unsupported-command errors. Implement
+  naming confirmation and existing UI operations through the appropriate shared
+  control boundary. Accepted commands use the same plans/Hands as routine work.
+  **Exit evidence:** representative scripted invalid/cancelled replies and actual
+  configured LM Studio requests execute supported commands; advisers cannot mutate
+  the game and there is no paid-provider fallback.
 
-- [ ] **G01.07e — Port remaining colony management.** Mood, extended medicine and
-  surgery, animals, waste, population and trade policy. Preserve existing player
-  policies, recurring needs and care commitments. Verify goods, health, custody
-  and containment outcomes. Use the food, medical and facility paths above.
+- [ ] **G01.09 — Player controls, media and save/load replace Python services.**
+  Finish controls for the ported families, action hold/observation-failure reasons,
+  camera/input ownership, portraits, follow, video and recording/diagnostics.
+  Preserve drafts/last-good data, reconnect and competing-viewer behavior. Finish
+  trusted save/load against the attached game: drain writers/owned resources,
+  verify pause and reject stale direction or foreign instances before native
+  lifecycle operations. Reuse current read APIs and building/draft/clock controls.
+  **Exit evidence:** rendered/input outcomes and same-session save/load/reconnect
+  with no Python media/control service and no stale action reasons.
 
-- [ ] **G01.07f — Port world progression.** Caravans, quests and multiple active
-  maps: packing, departure, arrival, return/storage, rewards and failure recovery.
-  Preserve supply/home-staffing checks and stale-map rejection. Reuse existing
-  world-progression scenarios after the needed development/management paths work.
+- [ ] **G01.10 — Integrate the complete Go controller.**
+  Compose the above paths in one process with clock, recovery and diagnostics;
+  reconcile responsibilities against current Python source and domain/interface/
+  state inventories. Inventory labels alone are not evidence. Resolve the known
+  `TestClockWorkerTransportBlockedWriteRetainsOwner` stop/deadline synchronization
+  issue while preserving blocked-write ownership and joined shutdown assertions.
+  **Exit evidence:** fresh startup, ordinary colony work, player interruption,
+  world/load changes and restart with one Go writer and no per-operation Python
+  fallback. Reuse applicable family evidence; this is not another full migration.
 
-- [ ] **G01.08 — Connect local-model chat and player commands.** Use the existing
-  local transport, context budgeting and typed interpreter. Port the remaining
-  command families, consultation/scout/visual review and required knowledge,
-  memory and evidence retrieval; route accepted commands into the same plans and
-  Hands. Wire streaming, deduplication, cancellation and explicit unsupported-command
-  errors into the service. Use configured LM Studio models only. Verify scripted
-  invalid/cancelled replies and representative real-model player requests;
-  advisers have no native mutation capability.
+- [ ] **G01.11 — Produce runnable Windows and Docker Go packages.**
+  Replace production build/install/launch/configuration paths and scenario adapters;
+  include dashboard/assets/media dependencies, loopback access and private profiles.
+  **Exit evidence:** runnable install/image without production Python; identify
+  retained Python development/scenario tooling explicitly.
 
-- [ ] **G01.09 — Finish player services and presentation.** Expose current action
-  hold/observation-failure reasons from the worker through the API and dashboard,
-  scoped to action/world/direction and cleared when stale. Finish player controls
-  for the ported command families, camera/input ownership, portraits, follow and
-  video orchestration without a Python media service. Complete trusted save/load
-  admission against the attached game: drain writers and owned resources, verify
-  pause, reject stale direction/foreign instances, then use the existing native
-  lifecycle boundary. Preserve drafts/last-good data and verify reconnects,
-  competing viewers and actual rendered/input outcomes. Existing read endpoints,
-  observation panels and building/draft/clock controls do not need reimplementation.
+- [ ] **G01.12 — Accept and switch the production default.**
+  Run applicable automated checks and targeted combined native/model acceptance
+  after composition/packaging. Cover startup, ordinary pawn work, player/chat
+  controls, interruption and same-session restart; reuse unchanged evidence.
+  **Exit evidence:** the functional Go controller is the default in production
+  launchers and documentation. Historical byte parity, performance campaigns and
+  unfinished B-series features are not rewrite gates.
 
-- [ ] **G01.10 — Run the complete controller in Go.** Compose routine policy,
-  all supported action families, chat, dashboard, clock, recording/diagnostics and
-  session recovery in one production process. Resolve remaining responsibility
-  gaps against the current Python source and the
-  [domain](../contracts/domain-inventory.json),
-  [interface](../contracts/interface-inventory.json) and
-  [state](../contracts/state-inventory.json) inventories. Inventories are a coverage
-  aid, not proof their old status labels are current. Verify fresh startup,
-  ordinary colony work, player interruption, world/load changes and restart with
-  Go owning the entire path. No per-operation Python fallback or dual writer.
+- [ ] **G01.13 — Remove the replaced Python production runtime.**
+  Remove replaced `controller/rimgovernor` code, production entry points, duplicate
+  runtime implementations and runtime-only dependencies. Relocate required assets
+  first; retain notices, useful fixtures and explicitly named development tooling.
+  Update setup, architecture, source map, troubleshooting and CI.
+  **Exit evidence:** every supported production path starts and works without a
+  Python interpreter; launch/API/chat/media paths cannot silently invoke Python.
 
-- [ ] **G01.11 — Package and launch Go everywhere.** Update Windows and Docker
-  build/install/launch paths, configuration and scenario adapters to run the Go
-  service with the dashboard and required media components. Keep loopback access,
-  private profiles and one-writer ownership. Produce a runnable install/image
-  without production Python; identify any Python tools retained for development.
+### Verification discipline
 
-- [ ] **G01.12 — Accept Go and make it the default.** After integration and
-  packaging, run applicable automated checks and targeted native acceptance for
-  fresh startup, ordinary pawn work, player/chat controls, interruption and
-  same-session persistence/restart. Reuse existing valid evidence. Switch all
-  production defaults and documented launch paths to Go once the controller is
-  functional and operable. Historical byte parity, performance campaigns and
-  unimplemented new B-series gameplay are not rewrite gates.
-
-- [ ] **G01.13 — Delete the Python production controller.** Remove replaced code
-  under `controller/rimgovernor`, Python production entry points, duplicate runtime
-  implementations and runtime-only dependencies. Relocate any assets or utilities
-  still required by Go before removing their old directory. Preserve source/license
-  notices, useful fixtures and explicitly retained scenario/development tooling.
-  Update setup, architecture, source map, troubleshooting and CI. Verify the
-  production install starts and serves every supported path without a Python
-  interpreter, and no launcher, API, chat or media path silently invokes Python.
-
-### Scope and completion evidence
-
-Port existing implemented behavior. Unfinished B-series features remain their own
-backlog; they must not turn this rewrite into a new gameplay development campaign.
-For each delivered capability, keep checks and native/model scope in its commit
-and local artifacts, then remove its completed backlog entry. A schema, build or
-receipt alone does not establish working gameplay. Shared native implementation
-work remains in N01; change those boundaries only where a Go consumer needs it.
-
-- [ ] **Clock-worker stop test synchronization.** Make
-  `TestClockWorkerTransportBlockedWriteRetainsOwner` distinguish transport deadline
-  cancellation from completed local stop invalidation before asserting authority
-  state. Preserve the blocked-write ownership and joined-shutdown assertions.
+Use fast reference/replay tests for policy branches and one complete targeted
+native workflow when execution is connected. Verify native work, not receipts.
+Manual, cancellation, unknown outcomes and restart follow relevant changed code;
+reuse unchanged evidence instead of repeating a full campaign per planning record.
+Keep failed runs, exact source/binary identity and scope in generated artifacts
+and commits. Do not run local `go test -race`; ordinary Go uses `GOMAXPROCS=2`
+and `-p 1`. Use one bounded Docker worker.
 
 ## N01 — Unified RimGovernor native mod
 

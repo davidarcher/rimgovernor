@@ -19,6 +19,7 @@ its contracts and run the relevant checks.
 - [Testing](developers/testing/README.md) and [subsystem contracts](developers/contracts/README.md)
 - [Generated wire contracts](../contracts/schema-generation.md)
 - [Backlog](BACKLOG.md): unfinished features, migrations and acceptance
+- [Go migration review](developers/go-migration-review.md): source-based capability assessment and evidence limits
 
 Keep docs close to the reader's task. Explain current behavior, give the commands
 or contracts they need, and link to detail. Put unfinished work in the backlog
