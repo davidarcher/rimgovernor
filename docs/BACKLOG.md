@@ -599,6 +599,127 @@ without pushes, when the target checkout is safe; preserve other developers' wor
   Close this ID only when routine paths in G01.07a–e are composed; the evidence
   belongs to those workflows, not a duplicate planning acceptance campaign.
 
+  **Burndown plan.** Deliver serial vertical slices in the order below. One owner
+  carries each slice from reference behavior through Go composition and acceptance;
+  the same owner integrates its verified commit. These are substeps of G01.05 and
+  G01.07, not additional features or separate acceptance campaigns.
+
+  **Implementation first; native acceptance at the end.** Defer new in-game tests
+  until the Go rewrite's implementation, integration and packaging are code complete
+  through G01.11, including the replacement paths needed to retire Python. Use fast
+  unit, fixture, replay, contract and composed runtime tests to land implementation
+  slices on main. Code complete means typed actions, persistence, handlers and
+  service wiring exist and pass applicable automated checks; proposals alone do not
+  qualify. Keep incomplete capabilities gated and gameplay evidence explicitly open.
+  The native outcomes below are deferred G01.12 acceptance cases, not prerequisites
+  for starting the next slice or landing code. Reuse existing evidence at that final
+  gate, then fix failures with fast regressions and targeted native reruns. This
+  sequencing applies across G01 and its required N01 prerequisites, overriding their
+  per-feature native-test timing for this rewrite. It does not waive gameplay
+  acceptance before the production-default switch or final G01.05 closure.
+
+  - [ ] **05.1 — Bound reference coverage before the first implementation slice.**
+    Map every current `ColonySkills.compile` branch, `priority_nodes` producer and
+    the ten `colony_upkeep.CONTRACTS` entries to one G01.07a–e workflow, its existing
+    Go implementation, missing action/selection wiring and observed postcondition.
+    Include delegated dynamic goal producers, prerequisites and wait-only methods.
+    Keep unresolved rows here under their owning workflow; put completed evidence
+    in commits. Explicitly assign cross-cutting startup/worker cleanup prerequisites
+    to their first consumer. Naming confirmation remains G01.08; world progression
+    remains G01.07f. Neither is silently omitted from the reference accounting nor
+    added to this ID's closure gate. Audit current source rather than treating the
+    migration review's historical capability assessment as current test evidence.
+
+  - [ ] **05.2 — Food and production bootstrap (G01.07b, shared storage in c).**
+    First connect original-supply Allow and saved work assignments; then safe
+    harvest/wood acquisition and bounded hunting; then fields/crop choice and
+    cooking, butchering and preservation bills. Deliver each executable method
+    before expanding to its next alternative. Bring forward only the storage/haul
+    subset of c needed to observe protected food output, and count it once there.
+    Consume crop forecasts while keeping future yield, animal demand, reserved
+    stock and current edible stock distinct. Reuse accepted campfire and field
+    geometry. Gate on ordinary acquired, harvested, cooked and stored output plus
+    a renewed deficit, emergency interruption and preserved player assignments.
+
+  - [ ] **05.3 — Defense and urgent care (G01.07a).**
+    Compose squad selection with existing draft/melee and exact owned cleanup;
+    add movement, accessible equip and supported ranged actions as needed. Follow
+    with native-approved doctor/patient selection, tend, rescue/rest and monitoring.
+    Consume patient forecasts without treating predicted recovery as completion.
+    Gate on actual defense and patient outcomes, repeated/interrupted treatment,
+    player takeover and restart/stand-down cleanup. Preserve the current explosive
+    exclusion and fail closed on unsupported or unavailable native capabilities.
+
+  - [ ] **05.4 — Storage, shelter and direct upkeep (G01.07c).**
+    Finish room adoption and storage ownership after the food prerequisite subset;
+    then bed assignment/upgrade/use, Home coverage, repair/clean/fire selection and
+    staged stone replacement. Close the partial comfort lifecycle using existing
+    construction/use evidence where applicable and verify disabled restart.
+    Cover `SecureSupplies`, `MaintainSleeping`, `MaintainHomeCoverage`,
+    `MaintainEssentialRepairs`, `MaintainCleanFacilities`, `MaintainFireSafety`
+    and `MaintainStoneShell`. Preserve exact ownership, exclusions and temporary
+    structural support; wait for ordinary labor where Python does. Gate on storage,
+    bed use and upkeep outcomes, layout changes and interruption, not issued jobs.
+
+  - [ ] **05.5 — Equipment, research and replenishment (G01.07d).**
+    Connect gear replacement/equip/wear to workshop recipes, bills and output;
+    then research prerequisites, facility/refrigeration development, extraction
+    and maintained resource targets. Use this same production path for
+    `MaintainMedicalReserves`. Add missing non-building labor/ingredient forecasts
+    only at their consuming method. Preserve player bills, material preferences,
+    whole-project reservations and competition with food/medical work. Gate on
+    finished/equipped gear, research progress through completion, extracted stock
+    and replenishment after a renewed target. Reuse accepted power/temperature paths.
+
+  - [ ] **05.6 — Management and service recovery (G01.07e).**
+    Compose dynamic mood, ongoing care/surgery, population, herd, waste and trade
+    needs with their executable methods. Reuse b/d for `MaintainAnimalFeed` and
+    medical supplies; complete `MaintainAnimalContainment` with containment policy.
+    Connect disaster history and bounded candidates to service jobs, non-widening
+    existing-area admission and owned restriction cleanup. Implement each management
+    family's need/health/stock/custody/service postcondition and fixture coverage
+    before starting the next. Deferred native gates cover renewal, interruption and cleanup while preserving
+    emergency priority, care commitments and player policy.
+
+  - [ ] **05.7 — Close the routine integration coverage.**
+    Reconcile the 05.1 reference rows against composed a–e paths and their evidence.
+    No row may end at a need, proposal, unregistered action or unwired compiler.
+    Verify priority/age/hysteresis, competing projects, prerequisite failure,
+    retry-signature changes, no-progress holds and observed recovery through fast
+    composed tests. Include unknown observations, uncertain replies, renewed
+    deficits, cancellation, Manual, world replacement and disabled same-database
+    restart. Assert zero model calls for routine reviews/events. Reuse family
+    native evidence; add a combined scenario only for an uncovered interaction.
+    Close G01.05 only when all its routine a–e rows pass; this does not close the
+    player, world, packaging or production-switch items.
+
+  **Per-slice implementation and verification.** Policy owns deterministic needs
+  and method choice; domain/store own typed plans, durable progress and atomic
+  resource/spatial accounting; Hands owns dispatch and uncertain-write recovery;
+  runtime owns authority, review/clock composition and cancellation. Extend the
+  existing Go owners and service wiring rather than adding a second planner or
+  executor. Reuse native operations; coordinate with N01 only for a demonstrated
+  missing consumer contract. A prerequisite-only commit stays gated and does not
+  complete the slice.
+
+  Start each slice with its Python branch, owning contract, missing behavior and
+  smallest tests. Use policy fixtures/reference replay, store reopen/fault tests,
+  handler coverage and runtime composition tests during iteration. Follow
+  [test selection](developers/testing/choose-tests.md) and
+  [Go checks](../go/README.md) for the full affected automated suite once before
+  handoff; shared wire changes also use [generation checks](../contracts/schema-generation.md)
+  and applicable dashboard checks. Use `GOMAXPROCS=2` and `-p 1` for local Go;
+  reserve race checks for the supported Linux worker. During implementation, record
+  which pawn outcomes fixtures cannot prove and prepare the deferred cases. At
+  G01.12, extend the owning scenario through
+  `scripts/container_scenario.py`, with fresh artifacts and a task-specific image;
+  observe actual postconditions and reuse unchanged lifecycle evidence. Record
+  source/binary/input identity, commands, results and limitations in the commit
+  and `.rimgovernor/` reports. Add a fast regression for any acceptance failure
+  where feasible, then rerun only the affected scenario. Land each verified slice
+  on safe main by fast-forward without pushing; keep remaining gaps in its
+  existing workflow entry.
+
 - [ ] **G01.07b — A colony can obtain food and sustain ordinary production.**
   Implement startup Allow for the retained original supplies, work-priority writes
   from existing assignments, safe wild harvest/tree acquisition and bounded hunting,
