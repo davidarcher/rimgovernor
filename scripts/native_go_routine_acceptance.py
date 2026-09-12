@@ -39,6 +39,13 @@ def medical_need(reply):
     return "deficit" if needed else "recovered"
 
 
+def assert_construction_start(reply):
+    assert medical_need(reply) == 'recovered', 'Construction fixture requires healthy starting colonists'
+    threats = outcome(reply, 'observed')['threats']
+    census = threats['completeness']
+    assert census['page']['complete'] and all(int(census[k]) == 0 for k in ('matched', 'returned', 'filtered', 'unreadable')) and not threats.get('hostiles', []), 'Construction fixture requires no starting hostiles'
+
+
 def audit_routine(events, baseline, capabilities, *, restart):
     rows = sorted(events, key=lambda row: row["Sequence"])
     assert rows and [r["Sequence"] for r in rows] == list(range(baseline + 1, rows[-1]["Sequence"] + 1))
@@ -259,10 +266,7 @@ async def run(root, output, binary, *, go_source, go_sha256, sleeping_methods=Fa
             report["initial_colony"] = await wire(bridge, "initial-colony", "observations_read_status", {
                 "scope": {"expectedIdentity": identity}, "colonists": True, "threats": True, "colonistDetail": False, "page": {"limit": 256}})
             if sleeping_methods or resource_rules:
-                assert medical_need(report['initial_colony']) == 'recovered', 'Construction fixture requires healthy starting colonists'
-                threats = outcome(report['initial_colony'], 'observed')['threats']
-                census = threats['completeness']
-                assert census['page']['complete'] and all(int(census[k]) == 0 for k in ('matched', 'returned', 'filtered', 'unreadable')) and not threats['hostiles'], 'Construction fixture requires no starting hostiles'
+                assert_construction_start(report['initial_colony'])
             colonists = outcome(report["initial_colony"], "observed")["colonists"]["pawns"]
             pawn_ids = [p["pawn"]["id"] for p in colonists]
             detailed = outcome(await wire(bridge, "initial-equipment", "observations_list_pawns", {

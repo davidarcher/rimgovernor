@@ -60,6 +60,19 @@ def test_routine_medical_evidence_preserves_care_and_unknowns():
     assert probe.medical_need(reply) == "unknown"
 
 
+def test_construction_start_accepts_omitted_empty_protobuf_hostiles():
+    census = {'page': {'complete': True}, 'matched': '0', 'returned': '0', 'filtered': '0', 'unreadable': '0'}
+    reply = {'observed': {'colonists': {'pawns': [], 'completeness': copy.deepcopy(census)},
+                          'threats': {'completeness': copy.deepcopy(census)}}}
+    probe.assert_construction_start(reply)
+    for field in ('matched', 'returned', 'filtered', 'unreadable'):
+        changed = copy.deepcopy(reply)
+        changed['observed']['threats']['completeness'][field] = '1'
+        with pytest.raises(AssertionError): probe.assert_construction_start(changed)
+    reply['observed']['threats']['hostiles'] = [{'pawn': {}}]
+    with pytest.raises(AssertionError): probe.assert_construction_start(reply)
+
+
 def test_routine_trace_requires_attributed_native_reads():
     names = ["rimgovernor/observations_read_colony_facts", "rimgovernor/observations_read_status"]
     caps = {str(i): {name} for i, name in enumerate(names)}
