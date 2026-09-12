@@ -185,3 +185,21 @@ func TestRoutinePowerRejectsUnsafeIncompleteAndUnaffordableRoutes(t *testing.T) 
 		})
 	}
 }
+
+func TestRoutinePowerMissingNativeComponentsPreventsGeneration(t *testing.T) {
+	p, db, n, _ := powerFixture(t, false)
+	original := n.onPreview
+	n.onPreview = func(ctx context.Context, preview *bridge.BuildingPreview) {
+		original(ctx, preview)
+		preview.Preview.Costs = domain.Known([]policy.Amount{{Resource: "Steel", Count: 100}, {Resource: "ComponentIndustrial", Count: 2}})
+		preview.Stock.Values = append(preview.Stock.Values, policy.Stock{Resource: "ComponentIndustrial", Available: domain.Known(int64(0))})
+	}
+	result, err := p.Step(context.Background())
+	if err != nil || result.Reason != BuildingMethodRefused || result.Decision.Admitted || result.NativeWorkTicks != 0 {
+		t.Fatal(result, err)
+	}
+	plans, err := db.LoadPlans(context.Background(), 256)
+	if err != nil || len(plans) != 1 {
+		t.Fatal("unfunded generation was journaled", plans, err)
+	}
+}

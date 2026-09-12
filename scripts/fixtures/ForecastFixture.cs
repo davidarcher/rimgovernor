@@ -61,11 +61,17 @@ namespace HomeBridge.BridgeTools
                     var fuel = source.TryGetComp<CompRefuelable>();
                     fuel.ConsumeFuel(fuel.Fuel);
                 }
-                foreach (var name in new[] { "Steel", "WoodLog" }) {
-                    for (var i = 0; i < 4; i++) {
-                        var stack = ThingMaker.MakeThing(ThingDef.Named(name));
-                        stack.stackCount = Math.Min(stack.def.stackLimit, 75);
-                        GenSpawn.Spawn(stack, origin + new IntVec3(2 + i, 0, name == "Steel" ? 5 : 6), map);
+                var supplies = definitions.SelectMany(d => d.CostListAdjusted(null, false)).ToList();
+                supplies.Add(new ThingDefCountClass(ThingDefOf.WoodLog, 100));
+                var stockSlot = 0;
+                foreach (var cost in supplies.GroupBy(c => c.thingDef)) {
+                    var remaining = checked(cost.Sum(c => c.count) * 2);
+                    while (remaining > 0) {
+                        if (stockSlot >= 14) throw new InvalidOperationException("Power fixture materials exceed lane storage.");
+                        var stack = ThingMaker.MakeThing(cost.Key);
+                        stack.stackCount = Math.Min(stack.def.stackLimit, remaining);
+                        remaining -= stack.stackCount;
+                        GenSpawn.Spawn(stack, origin + new IntVec3(2 + stockSlot++, 0, 5), map);
                         stack.SetForbidden(false, false);
                     }
                 }
