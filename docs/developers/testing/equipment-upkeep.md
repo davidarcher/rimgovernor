@@ -29,3 +29,10 @@ The fixture prepares damaged garments, weapons, clothing research and a workshop
 in a disposable colony. Subsequent dressing, equipping and crafting use ordinary pawn work.
 These assertions establish bounded scripted outcomes, not model interpretation,
 arbitrary mod compatibility, optimal combat loadouts or long-term seasonal survival.
+
+The gated Go migration uses `native_go_routine_acceptance.py` to compare paused
+canonical gear facts with native upkeep and review `MaintainEquipment` through
+the shared durable goal system. `native_go_gear_evidence.py` checks exact pawn and
+loadout identities, known deficit flags, eligible candidates/gains and replacement
+needs. This evidence does not establish Go equipment or production execution;
+those action families remain tracked in the backlog.

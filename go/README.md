@@ -288,6 +288,16 @@ method selection and execution composition remain in G01.05.
 scenario launcher with the private construction fixture and verified Go binary,
 covers the live SDK read trace, seventeen durable goals, urgent and ongoing medical needs,
 unknown food forecast, Manual invalidation, joined shutdown and disabled restart.
+The paused gear read is compared against native upkeep for the exact pawn/loadout
+census, deficit flags, eligible candidate identities and gains, and replacement
+needs. `MaintainEquipment` remains visible as `method_unavailable` until its
+execution family is connected; it does not consume an optional development slot.
+The `--comfort-methods` variant needs private `GuardedConstructionFixture`,
+`RoutineSleepingFixture`, `UpkeepFixture` and `ScenarioStartFixture` builds. It
+uses a seeded naturally mild settlement and prepares hunger/recreation needs once
+the three ordinary buildings exist. It never orders their use. Native use,
+one-time fixture activation, Manual history retention and disabled restart are
+separate assertions; inspect the retained report before claiming acceptance.
 `--supply-history` additionally clears the original supplies through the native
 player Allow designator, reviews their recovery, and re-forbids the same supplies.
 Repeated same-database Go starts must preserve the empty cohort and issue no
