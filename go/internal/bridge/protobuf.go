@@ -159,7 +159,7 @@ func (caller *Client) PlacementPreviews(ctx context.Context, request *p.Placemen
 }
 func (caller *Client) protoRead(ctx context.Context, name string, request, reply proto.Message) (Result, error) {
 	switch name {
-	case "rimgovernor/observations_read_colony_facts", "rimgovernor/observations_list_buildings":
+	case "rimgovernor/observations_read_colony_facts", "rimgovernor/observations_list_buildings", "rimgovernor/observations_list_rooms":
 	case "rimgovernor/presentation_camera", "rimgovernor/presentation_selection", "rimgovernor/presentation_colonists", "rimgovernor/presentation_notifications":
 	case "rimgovernor/clock_read_events", "rimgovernor/clock_read_status", "rimgovernor/clock_read_attempt", "rimgovernor/operations_preview", "rimgovernor/observations_list_pawns", "rimgovernor/observations_get_cells", "rimgovernor/lifecycle_read_identity", "rimgovernor/observations_read_status", "rimgovernor/placement_preview", "rimgovernor/authority_read_status", "rimgovernor/receipts_lookup", "rimgovernor/receipts_observe_progress":
 	default:
@@ -172,7 +172,7 @@ func (caller *Client) protoRead(ctx context.Context, name string, request, reply
 // validate request semantics and apply their own read or explicit write capability.
 func (caller *Client) protoCall(ctx context.Context, name string, request, reply proto.Message) (Result, error) {
 	switch name {
-	case "rimgovernor/observations_read_colony_facts", "rimgovernor/observations_list_buildings":
+	case "rimgovernor/observations_read_colony_facts", "rimgovernor/observations_list_buildings", "rimgovernor/observations_list_rooms":
 	case "rimgovernor/presentation_camera", "rimgovernor/presentation_selection", "rimgovernor/presentation_colonists", "rimgovernor/presentation_notifications":
 	case "rimgovernor/clock_read_events", "rimgovernor/clock_read_status", "rimgovernor/clock_read_attempt", "rimgovernor/operations_preview", "rimgovernor/observations_list_pawns", "rimgovernor/observations_get_cells", "rimgovernor/lifecycle_read_identity", "rimgovernor/observations_read_status", "rimgovernor/placement_preview", "rimgovernor/authority_read_status", "rimgovernor/receipts_lookup", "rimgovernor/receipts_observe_progress", "rimgovernor/authority_control", "rimgovernor/operations_release_owned_draft", "rimgovernor/operations_execute", "rimgovernor/clock_start", "rimgovernor/clock_renew", "rimgovernor/clock_change_speed", "rimgovernor/clock_pause":
 	default:
@@ -241,6 +241,8 @@ func (caller *Client) protoCall(ctx context.Context, name string, request, reply
 		case *o.ListPawnsReply:
 			typedFailure = r.GetFailure() != nil
 		case *o.ListBuildingsReply:
+			typedFailure = r.GetFailure() != nil
+		case *o.ListRoomsReply:
 			typedFailure = r.GetFailure() != nil
 		case *o.ColonyFactsReply:
 			typedFailure = r.GetFailure() != nil

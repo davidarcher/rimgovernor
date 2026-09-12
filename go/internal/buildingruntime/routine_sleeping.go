@@ -53,6 +53,7 @@ type RoutineBuildingPlanner struct {
 	adjacent    []domain.Cell
 	shelter     bool
 	power       *policy.PowerProposal
+	temperature *policy.TemperatureProposal
 }
 
 func NewRoutineSleepingPlanner(reviewer *RoutineReviewer, native RoutineBuildingSource) (*RoutineBuildingPlanner, error) {
@@ -148,11 +149,17 @@ func (r *RoutineBuildingPlanner) step(call, epoch context.Context) (RoutineBuild
 	if r.goal == policy.EnsureBasicPower {
 		definitions = []string{"WoodFiredGenerator", "PowerConduit"}
 	}
+	if r.goal == policy.EnsureTemperatureSafety {
+		definitions = []string{"Campfire", "PassiveCooler"}
+	}
 	if r.shelter {
 		definitions = []string{"Wall", "Door"}
 	}
 	var reading observation.ColonyReading
-	if r.goal == policy.EnsureComfort || r.goal == policy.EnsureBasicPower {
+	if r.goal == policy.EnsureTemperatureSafety {
+		full, readErr := observation.ObserveRoutineTemperature(call, r.native.(observation.RoutineSource), r.reviewer.clock, expected, r.reviewer.maxAge, domain.Unknown[[]policy.ConstructionClaim](), definitions...)
+		reading, err = full.ColonyReading, readErr
+	} else if r.goal == policy.EnsureComfort || r.goal == policy.EnsureBasicPower {
 		full, readErr := observation.ObserveRoutine(call, r.native.(observation.RoutineSource), r.reviewer.clock, expected, r.reviewer.maxAge, definitions...)
 		reading, err = full.ColonyReading, readErr
 	} else {
@@ -162,10 +169,12 @@ func (r *RoutineBuildingPlanner) step(call, epoch context.Context) (RoutineBuild
 		return RoutineBuildingResult{}, err
 	}
 	facts := reading.Projection
-	if r.goal == policy.EnsureComfort || r.goal == policy.EnsureBasicPower {
+	if r.goal == policy.EnsureComfort || r.goal == policy.EnsureBasicPower || r.goal == policy.EnsureTemperatureSafety {
 		var resolved *RoutineBuildingPlanner
 		var reason RoutineBuildingReason
-		if r.goal == policy.EnsureBasicPower {
+		if r.goal == policy.EnsureTemperatureSafety {
+			resolved, reason, err = r.selectTemperature(facts, review.Latches)
+		} else if r.goal == policy.EnsureBasicPower {
 			resolved, reason, err = r.selectPower(facts)
 		} else {
 			resolved, reason, err = r.selectComfort(facts, review.Comfort)
@@ -175,8 +184,10 @@ func (r *RoutineBuildingPlanner) step(call, epoch context.Context) (RoutineBuild
 		}
 		if reason != "" {
 			result := RoutineBuildingResult{Reason: reason}
-			if reason == BuildingComfortWait || reason == RoutineBuildingReason(policy.PowerWaitOutput) {
-				if r.goal == policy.EnsureBasicPower {
+			if reason == BuildingComfortWait || reason == RoutineBuildingReason(policy.PowerWaitOutput) || reason == RoutineBuildingReason(policy.TemperatureWait) {
+				if r.goal == policy.EnsureTemperatureSafety {
+					result.NativeWorkTicks, err = temperatureOutputAllowance(call, p.journal, goal.Goal, state.Snapshot, facts.Identity.Tick)
+				} else if r.goal == policy.EnsureBasicPower {
 					result.NativeWorkTicks, err = powerOutputAllowance(call, p.journal, goal.Goal, state.Snapshot, facts.Identity.Tick)
 				} else {
 					result.NativeWorkTicks, err = comfortUseAllowance(call, p.journal, goal.Goal, state.Snapshot, facts.Identity.Tick)
@@ -213,7 +224,7 @@ func (r *RoutineBuildingPlanner) step(call, epoch context.Context) (RoutineBuild
 		return RoutineBuildingResult{Reason: reason}, nil
 	}
 	available := routineDefinitionsAvailable(facts, definitions, r.shelter)
-	if r.goal == policy.EnsureComfort || r.goal == policy.EnsureBasicPower {
+	if r.goal == policy.EnsureComfort || r.goal == policy.EnsureBasicPower || r.goal == policy.EnsureTemperatureSafety {
 		preferences, loadErr := p.journal.LoadWorkPreferences(call, state.Snapshot.Plan)
 		if loadErr != nil && !errors.Is(loadErr, store.ErrNotFound) {
 			return RoutineBuildingResult{}, loadErr
@@ -250,6 +261,9 @@ func (r *RoutineBuildingPlanner) step(call, epoch context.Context) (RoutineBuild
 	}
 	digest := sha256.Sum256([]byte(fmt.Sprintf("%s/%d/%s", goal.Goal.ID, goal.Goal.Epoch, method)))
 	prefix := "routine-sleep"
+	if r.goal == policy.EnsureTemperatureSafety {
+		prefix = "routine-temperature"
+	}
 	if r.goal == policy.EnsureCooking {
 		prefix = "routine-cook"
 	}
@@ -270,8 +284,14 @@ func (r *RoutineBuildingPlanner) step(call, epoch context.Context) (RoutineBuild
 	if err != nil {
 		return RoutineBuildingResult{}, err
 	}
-	if r.goal == policy.EnsureCooking || r.goal == policy.EnsureComfort || r.goal == policy.EnsureExpansion || r.goal == policy.EnsureBasicPower {
+	if r.goal == policy.EnsureCooking || r.goal == policy.EnsureComfort || r.goal == policy.EnsureExpansion || r.goal == policy.EnsureBasicPower || r.goal == policy.EnsureTemperatureSafety {
 		pending := func(progress domain.Progress) bool {
+			if r.goal == policy.EnsureTemperatureSafety {
+				if r.temperature.Method == policy.TemperatureHeat {
+					return pendingFacility(progress, "Campfire") || pendingFacility(progress, "Heater")
+				}
+				return pendingFacility(progress, "PassiveCooler") || pendingFacility(progress, "Cooler")
+			}
 			if r.goal == policy.EnsureBasicPower {
 				return pendingFacility(progress, "PowerConduit") || pendingFacility(progress, "WoodFiredGenerator")
 			}
@@ -374,7 +394,16 @@ func (r *RoutineBuildingPlanner) previewMethod(call context.Context, snapshot do
 	for _, c := range r.adjacent {
 		adjacent[c] = true
 	}
+	roomCells := map[domain.Cell]bool{}
+	if r.temperature != nil {
+		for _, c := range r.temperature.Cells {
+			roomCells[c] = true
+		}
+	}
 	for _, c := range facts.Cells {
+		if r.temperature != nil && !roomCells[c.Cell] {
+			continue
+		}
 		if r.definition == "DiningChair" && !adjacent[c.Cell] {
 			continue
 		}

@@ -19,15 +19,19 @@ type RoutineSource interface {
 
 type RoutineReading struct {
 	ColonyReading
-	Emergency         policy.EmergencyFacts
-	EmergencyReceipt  bridge.Result
-	PawnReceipt       bridge.Result
-	DefinitionReceipt bridge.Result
+	Emergency          policy.EmergencyFacts
+	EmergencyReceipt   bridge.Result
+	PawnReceipt        bridge.Result
+	DefinitionReceipt  bridge.Result
+	TemperatureReceipt bridge.Result
 }
 
 type routineBracket struct {
-	claims       domain.Fact[[]policy.ConstructionClaim]
-	construction domain.Fact[policy.CurrentConstruction]
+	temperatureEnabled bool
+	temperature        domain.Fact[policy.TemperatureObservation]
+	temperatureReceipt bridge.Result
+	claims             domain.Fact[[]policy.ConstructionClaim]
+	construction       domain.Fact[policy.CurrentConstruction]
 	RoutineSource
 	expected          Identity
 	emergency         bridge.EmergencyObservation
@@ -51,6 +55,9 @@ func (s *routineBracket) ReadColonyFacts(ctx context.Context, id *c.Identity, pl
 		return nil, receipt, err
 	}
 	if err := s.readProjectDefinitions(ctx, id, colony); err != nil {
+		return nil, receipt, err
+	}
+	if err := s.readTemperature(ctx, id, colony); err != nil {
 		return nil, receipt, err
 	}
 	s.emergency, s.receipt, err = s.ReadEmergency(ctx, id)
@@ -102,10 +109,18 @@ func ObserveRoutine(ctx context.Context, source RoutineSource, clock Clock, expe
 	return ObserveRoutineOwned(ctx, source, clock, expected, maxAge, domain.Unknown[[]policy.ConstructionClaim](), definitions...)
 }
 func ObserveRoutineOwned(ctx context.Context, source RoutineSource, clock Clock, expected Identity, maxAge time.Duration, claims domain.Fact[[]policy.ConstructionClaim], definitions ...string) (RoutineReading, error) {
+	return observeRoutine(ctx, source, clock, expected, maxAge, claims, false, definitions...)
+}
+
+func ObserveRoutineTemperature(ctx context.Context, source RoutineSource, clock Clock, expected Identity, maxAge time.Duration, claims domain.Fact[[]policy.ConstructionClaim], definitions ...string) (RoutineReading, error) {
+	return observeRoutine(ctx, source, clock, expected, maxAge, claims, true, definitions...)
+}
+
+func observeRoutine(ctx context.Context, source RoutineSource, clock Clock, expected Identity, maxAge time.Duration, claims domain.Fact[[]policy.ConstructionClaim], temperature bool, definitions ...string) (RoutineReading, error) {
 	if source == nil {
 		return RoutineReading{}, ErrContract
 	}
-	bracket := &routineBracket{claims: claims, RoutineSource: source, expected: expected, definitions: append([]string(nil), definitions...)}
+	bracket := &routineBracket{temperatureEnabled: temperature, claims: claims, RoutineSource: source, expected: expected, definitions: append([]string(nil), definitions...)}
 	reading, err := ObserveColony(ctx, bracket, clock, expected, maxAge, true, nil)
 	if err != nil {
 		return RoutineReading{}, err
@@ -116,7 +131,11 @@ func ObserveRoutineOwned(ctx context.Context, source RoutineSource, clock Clock,
 	reading.Projection.Facts.MedicalPawns = bracket.medical
 	reading.Projection.Facts.Gear = routineGear(reading.Projection.Facts.Gear, bracket.emergency.Facts)
 	reading.Projection.Definitions = append(reading.Projection.Definitions, bracket.extraDefinitions...)
-	return RoutineReading{ColonyReading: reading, Emergency: bracket.emergency.Facts, EmergencyReceipt: bracket.receipt, PawnReceipt: bracket.pawnReceipt, DefinitionReceipt: bracket.definitionReceipt}, nil
+	if temperature {
+		reading.Projection.TemperaturePlanning = bracket.temperature
+		reading.Projection.Facts.SleepingMin, reading.Projection.Facts.SleepingMax = policy.TemperatureRange(bracket.temperature)
+	}
+	return RoutineReading{ColonyReading: reading, Emergency: bracket.emergency.Facts, EmergencyReceipt: bracket.receipt, PawnReceipt: bracket.pawnReceipt, DefinitionReceipt: bracket.definitionReceipt, TemperatureReceipt: bracket.temperatureReceipt}, nil
 }
 
 // Request only project definitions absent from the default planning census. Both

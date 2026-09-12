@@ -796,6 +796,13 @@ expand these into another nested task tree; remove a row when its outcome is met
   duplicate generation. Both cases cover Manual, disabled restart and captured
   Go proposal/recovery replay.
 
+  Opt-in temperature method composition now joins complete native indoor rooms to
+  eligible player beds and admits one campfire or passive cooler through shared
+  building plans. Native temperature, rather than construction, establishes recovery;
+  existing facilities and finite current-direction work budgets prevent repeated
+  construction or unbounded clock grants. Cold/hot native acceptance and captured
+  Go replay remain pending.
+
 - [ ] **G01.07a — Finish defense and essential medical care.** Connect movement
   and melee to complete defense plans using the existing owned-draft lifecycle;
   verify target outcomes, injury interruption, player overrides and restart cleanup

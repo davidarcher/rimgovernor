@@ -19,19 +19,20 @@ type PlanningDefinition struct {
 	GrowDays, FertilityMin, FertilitySensitivity, HarvestNutrition, NutritionDemandPerDay domain.Fact[float64]
 }
 type ColonyProjection struct {
-	WorkPawns          domain.Fact[[]policy.WorkPawn]
-	FieldCrops         domain.Fact[[]policy.FieldCrop]
-	CookingBenches     domain.Fact[[]CookingBench]
-	PowerPlanning      domain.Fact[policy.PowerTopology]
-	Identity           Identity
-	Facts              policy.RoutineFacts
-	Workers            domain.Fact[int]
-	Bounds             policy.Bounds
-	Center             domain.Cell
-	Cells              []policy.SiteCell
-	Definitions        []PlanningDefinition
-	FoodSupply         domain.Fact[policy.FoodSupply]
-	CombinedFoodSupply domain.Fact[policy.FoodSupply]
+	WorkPawns           domain.Fact[[]policy.WorkPawn]
+	FieldCrops          domain.Fact[[]policy.FieldCrop]
+	CookingBenches      domain.Fact[[]CookingBench]
+	PowerPlanning       domain.Fact[policy.PowerTopology]
+	TemperaturePlanning domain.Fact[policy.TemperatureObservation]
+	Identity            Identity
+	Facts               policy.RoutineFacts
+	Workers             domain.Fact[int]
+	Bounds              policy.Bounds
+	Center              domain.Cell
+	Cells               []policy.SiteCell
+	Definitions         []PlanningDefinition
+	FoodSupply          domain.Fact[policy.FoodSupply]
+	CombinedFoodSupply  domain.Fact[policy.FoodSupply]
 }
 
 type CookingBench struct {

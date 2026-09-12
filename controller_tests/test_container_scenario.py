@@ -29,6 +29,9 @@ def test_standard_launcher_publishes_loopback_and_retains_url_and_cleanup(tmp_pa
     assert launcher.run(args)
     invocation = next(call for call in calls if call[1] == 'run')
     assert invocation[invocation.index('--publish')+1] == '127.0.0.1::8787'
+    assert invocation[invocation.index('--cpus')+1] == '2'
+    assert invocation[invocation.index('--memory')+1] == '4g'
+    assert invocation[invocation.index('--memory-swap')+1] == '4g'
     assert 'io.rimgovernor.colony.name=Winter campaign' in invocation
     assert json.loads((args.output/'dashboard.json').read_text())['dashboard_url'] == 'http://127.0.0.1:43210/scenario'
     assert calls[-1][1:3] == ['rm', '-f']
@@ -37,6 +40,12 @@ def test_standard_launcher_publishes_loopback_and_retains_url_and_cleanup(tmp_pa
 def test_old_images_fail_before_launch():
     with pytest.raises(ValueError, match='Rebuild'):
         launcher.require_dashboard_image(lambda *args, **kwargs: SimpleNamespace(stdout=''), 'old')
+
+
+@pytest.mark.parametrize('cpus,memory', [(0, '4g'), (float('inf'), '4g'), (2, '0'), (2, '')])
+def test_unbounded_resource_settings_fail_before_launch(cpus, memory):
+    with pytest.raises(ValueError, match='Positive CPU and memory'):
+        launcher.run(SimpleNamespace(cpus=cpus, memory=memory))
 
 
 @pytest.mark.parametrize('exit_code,export_ok', [(0, True), (1, True), (0, False)])

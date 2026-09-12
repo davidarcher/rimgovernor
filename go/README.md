@@ -207,6 +207,23 @@ consumer recovery, correlated construction, Manual and disabled restart. Replay
 uses `RIMGOVERNOR_NATIVE_POWER_METHODS_CAPTURE=<capture-directory> go test
 ./internal/observation -run TestNativePowerMethodsReplay`.
 
+`serve --routine-temperature-plans` adds complete indoor room reads to the paused
+routine bracket and compiles one ordinary campfire or passive cooler in an affected
+player sleeping room. It requires `--routine-reviews`; `--routine-methods` enables
+shared Hands execution. Eligible bed identities select rooms even when unsafe
+temperatures remove safe reachability. Complete room geometry constrains the whole
+native building footprint, while shared admission reserves only that footprint.
+Existing thermal facilities wait for native temperature change. Entry thresholds
+are 12/32 C and recovery thresholds are 16/28 C; unknown room evidence cannot prove
+recovery. Completed current-direction methods lend at most 10,000 ticks for ordinary
+refueling and heat exchange. Method identity follows the bed and thermal definition,
+so regenerated native room IDs cannot duplicate a method in the same goal epoch.
+The isolated acceptance variants are `native_go_routine_acceptance.py
+--temperature-methods cold` and `--temperature-methods hot`, with ForecastFixture,
+RoutineSleepingFixture and ScenarioStartFixture. Replay uses
+`RIMGOVERNOR_NATIVE_TEMPERATURE_CAPTURE=<capture-directory> go test
+./internal/observation -run TestNativeTemperatureMethodsReplay`.
+
 `ReadRoutinePawns` adds the work-only detail selection to the same exact-ID read.
 It preserves native work applicability and numbered/checkbox mode. `AssignWork`
 selects specialists with stable ties, construction skill precedence and shared labor,

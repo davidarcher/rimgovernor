@@ -32,6 +32,11 @@ func (r *RoutineBuildingPlanner) selection(facts observation.ColonyProjection) (
 		return 0, "", BuildingMethodUnknown
 	}
 	switch r.goal {
+	case policy.EnsureTemperatureSafety:
+		if r.temperature == nil {
+			return 0, "", BuildingMethodUnknown
+		}
+		return 1, r.temperature.Key, ""
 	case policy.EnsureBasicPower:
 		if r.power == nil {
 			return 0, "", BuildingMethodUnknown

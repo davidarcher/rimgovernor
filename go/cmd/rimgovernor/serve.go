@@ -27,22 +27,23 @@ type wallClock struct{}
 func (wallClock) Now() time.Time { return time.Now() }
 
 type serveConfig struct {
-	bridge                bridge.ProcessConfig
-	state, listen, assets string
-	profile               string
-	playerControl         bool
-	clockControl          bool
-	routineReviews        bool
-	routineSleepingPlans  bool
-	routineCookingPlans   bool
-	routineShelterPlans   bool
-	routineComfortPlans   bool
-	routineExpansionPlans bool
-	routinePowerPlans     bool
-	routineMethods        bool
-	routineProjectLimit   int
-	resourceRules         resourceRuleFlags
-	refresh               time.Duration
+	bridge                  bridge.ProcessConfig
+	state, listen, assets   string
+	profile                 string
+	playerControl           bool
+	clockControl            bool
+	routineReviews          bool
+	routineSleepingPlans    bool
+	routineCookingPlans     bool
+	routineShelterPlans     bool
+	routineComfortPlans     bool
+	routineExpansionPlans   bool
+	routinePowerPlans       bool
+	routineTemperaturePlans bool
+	routineMethods          bool
+	routineProjectLimit     int
+	resourceRules           resourceRuleFlags
+	refresh                 time.Duration
 }
 
 func parseServe(args []string, diagnostics io.Writer) (serveConfig, error) {
@@ -59,6 +60,7 @@ func parseServe(args []string, diagnostics io.Writer) (serveConfig, error) {
 	flags.BoolVar(&c.routineShelterPlans, "routine-shelter-plans", false, "compile indoor sleeping or a starter wall-and-door shell into shared plans")
 	flags.BoolVar(&c.routineComfortPlans, "routine-comfort-plans", false, "compile reviewed dining and recreation deficits into shared building plans")
 	flags.BoolVar(&c.routineExpansionPlans, "routine-expansion-plans", false, "compile one spare indoor sleeping place through shared building plans")
+	flags.BoolVar(&c.routineTemperaturePlans, "routine-temperature-plans", false, "compile sleeping-room heating and cooling through shared building plans")
 	flags.BoolVar(&c.routinePowerPlans, "routine-power-plans", false, "compile network generation and conduit deficits through shared building plans")
 	flags.BoolVar(&c.routineMethods, "routine-methods", false, "execute reviewed routine building methods under the current player direction")
 	flags.Var(&c.resourceRules, "resource-rule", "repeatable RESOURCE:allow|stop|defense_only:RESERVE for building admission and dispatch")
@@ -91,10 +93,10 @@ func parseServe(args []string, diagnostics io.Writer) (serveConfig, error) {
 	if c.routineReviews && !c.clockControl {
 		return c, errors.New("--routine-reviews requires --clock-control")
 	}
-	if (c.routineSleepingPlans || c.routineCookingPlans || c.routineShelterPlans || c.routineComfortPlans || c.routineExpansionPlans || c.routinePowerPlans) && !c.routineReviews {
+	if (c.routineSleepingPlans || c.routineCookingPlans || c.routineShelterPlans || c.routineComfortPlans || c.routineExpansionPlans || c.routinePowerPlans || c.routineTemperaturePlans) && !c.routineReviews {
 		return c, errors.New("routine building plans require --routine-reviews")
 	}
-	if c.routineMethods && !c.routineSleepingPlans && !c.routineCookingPlans && !c.routineShelterPlans && !c.routineComfortPlans && !c.routineExpansionPlans && !c.routinePowerPlans {
+	if c.routineMethods && !c.routineSleepingPlans && !c.routineCookingPlans && !c.routineShelterPlans && !c.routineComfortPlans && !c.routineExpansionPlans && !c.routinePowerPlans && !c.routineTemperaturePlans {
 		return c, errors.New("--routine-methods requires a routine building planner")
 	}
 	if c.playerControl && !filepath.IsAbs(c.profile) || !c.playerControl && c.profile != "" {

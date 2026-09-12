@@ -1,6 +1,8 @@
 """Standard native scenario launcher: isolated inputs, automatic dashboard port, owned cleanup."""
 import argparse
 import json
+import math
+import re
 from pathlib import Path
 import subprocess
 import uuid
@@ -23,6 +25,9 @@ def require_dashboard_image(call, image):
 
 
 def run(args):
+    cpus, memory = getattr(args, 'cpus', 2), getattr(args, 'memory', '4g')
+    if not math.isfinite(cpus) or cpus <= 0 or not re.fullmatch(r'[1-9][0-9]*[bkmg]?', memory, re.IGNORECASE):
+        raise ValueError('Positive CPU and memory limits are required')
     output = args.output.resolve()
     output.mkdir(parents=True, exist_ok=False)
     source = Path(__file__).resolve().parents[1]
@@ -30,7 +35,7 @@ def run(args):
     def call(*values, **kwargs):
         return subprocess.run([docker, *values], cwd=source, env=environment, **kwargs)
     name = 'rimgovernor-scenario-'+uuid.uuid4().hex[:12]
-    report = {'container': name, 'passed': False, 'scope': 'Scenario exit status; inspect its native assertions separately.'}
+    report = {'container': name, 'passed': False, 'resources': {'cpus': cpus, 'memory': memory}, 'scope': 'Scenario exit status; inspect its native assertions separately.'}
     launched = False
     try:
         if not args.no_build:
@@ -58,7 +63,7 @@ def run(args):
         if not command:
             raise ValueError('Provide a scenario command after --')
         launched = True  # A lost launch reply must still preserve possible worker evidence.
-        call('run', '-d', '--init', '--name', name, *dashboard_options(args.name or name, args.display),
+        call('run', '-d', '--init', '--name', name, '--cpus', str(cpus), '--memory', memory, '--memory-swap', memory, *dashboard_options(args.name or name, args.display),
              *mounts, image, '--display', args.display, '--unity-gc-time-slice', '0', '--', *command,
              capture_output=True, text=True, check=True, timeout=120)
         address = call('port', name, '8787/tcp', capture_output=True, text=True, check=True).stdout.strip()
@@ -106,5 +111,7 @@ if __name__ == '__main__':
     parser.add_argument('--name', help='Friendly name shown in the colony directory')
     parser.add_argument('--display', choices=['headless', 'xvfb'], default='headless')
     parser.add_argument('--timeout', type=int, default=3600)
+    parser.add_argument('--cpus', type=float, default=2, help='Worker CPU quota (default: 2)')
+    parser.add_argument('--memory', default='4g', help='Worker memory ceiling, without additional swap (default: 4g)')
     parser.add_argument('command', nargs=argparse.REMAINDER)
     raise SystemExit(0 if run(parser.parse_args()) else 1)

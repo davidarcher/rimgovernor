@@ -8,6 +8,10 @@ loopback dashboard port and removes only its own container when the command exit
 or times out. It preserves logs, the URL in `dashboard.json` and exit/cleanup evidence
 in `result.json`. Command success does not replace the scenario's native assertions.
 
+Workers default to a two-CPU quota and 4 GiB memory ceiling with no additional
+swap. `--cpus` and `--memory` configure these limits; zero/unbounded values are
+rejected. Run one native worker at a time during feature validation.
+
 The launcher reuses the content-addressed native input cache and keeps writable
 state on a private Linux volume. It exports evidence only after stopping the worker
 and checks every exported `.sqlite`/`.db` database. Successful runs release their

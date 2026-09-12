@@ -37,6 +37,7 @@ type ClockSchedulerConfig struct {
 	Comfort        *RoutineBuildingPlanner
 	Expansion      *RoutineBuildingPlanner
 	Power          *RoutineBuildingPlanner
+	Temperature    *RoutineBuildingPlanner
 	RoutineMethods bool
 }
 type ClockSchedulerResult struct {
@@ -48,6 +49,7 @@ type ClockSchedulerResult struct {
 	Comfort                      *RoutineBuildingResult
 	Expansion                    *RoutineBuildingResult
 	Power                        *RoutineBuildingResult
+	Temperature                  *RoutineBuildingResult
 	Running, Reconciled, Cleaned bool
 }
 type ClockScheduler struct {
@@ -82,6 +84,9 @@ func NewClockScheduler(player *Player, session *Session, native ClockWindowNativ
 		return nil, ErrControl
 	}
 	if config.Power != nil && (config.Routine == nil || config.Power.reviewer != config.Routine || config.Power.goal != policy.EnsureBasicPower) {
+		return nil, ErrControl
+	}
+	if config.Temperature != nil && (config.Routine == nil || config.Temperature.reviewer != config.Routine || config.Temperature.goal != policy.EnsureTemperatureSafety) {
 		return nil, ErrControl
 	}
 	if config.RoutineMethods && (config.Routine == nil || !session.routineMethods) {
@@ -247,6 +252,13 @@ func (s *ClockScheduler) Step(ctx context.Context) (ClockSchedulerResult, error)
 		}
 		out.Power = &method
 	}
+	if s.config.Temperature != nil {
+		method, err := s.config.Temperature.step(call, epoch)
+		if err != nil {
+			return out, err
+		}
+		out.Temperature = &method
+	}
 	if s.config.Cooking != nil {
 		method, methodErr := s.config.Cooking.step(call, epoch)
 		if methodErr != nil {
@@ -316,7 +328,7 @@ func (s *ClockScheduler) Step(ctx context.Context) (ClockSchedulerResult, error)
 	clockState := policy.ClockWindowState("")
 	start := s.config.Start
 	var nativeWorkTicks uint32
-	for _, result := range []*RoutineBuildingResult{out.Sleeping, out.Comfort, out.Expansion, out.Power} {
+	for _, result := range []*RoutineBuildingResult{out.Sleeping, out.Comfort, out.Expansion, out.Power, out.Temperature} {
 		if result != nil {
 			nativeWorkTicks = max(nativeWorkTicks, result.NativeWorkTicks)
 		}
