@@ -522,15 +522,11 @@ async def run(root, output, binary, *, go_source, go_sha256, sleeping_methods=Fa
             assert report['work_need'] == ('recovered' if report['initial_work']['matches'] else 'deficit'), 'Native work readback did not reach routine need'
             report["active_routine"] = active
             if mood_review:
-                from native_go_mood_evidence import audit_mood_review
+                from native_go_mood_evidence import audit_mood_review, audit_mood_hold
                 report["mood_review"] = audit_mood_review(active, report["mood_reference"], report["mood_setup"])
                 if mood_review == 'mental':
                     await asyncio.sleep(2)
-                    held = await state(http, paused=True)
-                    assert held['game']['tick'] == tick, 'Mental-break hold advanced native time'
-                    with sqlite3.connect(database.as_uri() + '?mode=ro', uri=True) as db:
-                        assert db.execute('SELECT count(*) FROM clock_attempts').fetchone()[0] == 0, 'Mental-break hold admitted a clock operation'
-                    report['mood_clock_hold'] = {'tick': tick, 'clock_attempts': 0}
+                    report['mood_clock_hold'] = await audit_mood_hold(http, database, tick)
             audit_upkeep_review(active, report['upkeep_reference'])
             report['development'] = audit_development(active['review'], len(report['initial_work']['assignments']))
             if comfort_methods:

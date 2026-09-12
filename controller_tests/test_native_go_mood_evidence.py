@@ -1,12 +1,14 @@
 from copy import deepcopy
+import asyncio
 from pathlib import Path
 import sys
+import sqlite3
 
 import pytest
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'scripts'))
 try:
-    from native_go_mood_evidence import audit_mood_review, mood_reference
+    from native_go_mood_evidence import audit_mood_review, mood_reference, audit_mood_hold
 finally:
     sys.path.pop(0)
 
@@ -44,3 +46,18 @@ def test_mood_review_rejects_false_recovery_and_unsafe_proposals(fault):
     if fault == 'guard': method['Need'] = 'food'
     with pytest.raises(AssertionError):
         audit_mood_review(active, reference, setup)
+
+
+@pytest.mark.parametrize('fault', [None, 'advanced', 'clock_operation'])
+def test_mood_hold_checks_paused_http_state_and_actual_clock_journal(tmp_path, fault):
+    database = tmp_path / 'clock.sqlite'
+    with sqlite3.connect(database) as db:
+        db.execute('CREATE TABLE clock_attempts(id)')
+        if fault == 'clock_operation': db.execute('INSERT INTO clock_attempts VALUES(1)')
+    async def http(method, path):
+        assert method == 'GET' and path == '/api/state'
+        return {'connected': True, 'game': {'stale': False, 'paused': True, 'tick': 8 if fault == 'advanced' else 7}}
+    if fault:
+        with pytest.raises(AssertionError): asyncio.run(audit_mood_hold(http, database, 7))
+    else:
+        assert asyncio.run(audit_mood_hold(http, database, 7)) == {'tick': 7, 'clock_attempts': 0}

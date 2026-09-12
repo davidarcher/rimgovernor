@@ -1,12 +1,22 @@
 """Compare durable mood planning with native inputs and the Python policy."""
 import hashlib
 import math
+import sqlite3
 
+from native_building_service_acceptance import poll
 from rimgovernor.mood_control import assess
 
 
 def mood_reference(people, forecasts):
     return {pawn: state for pawn, state in assess(people, forecasts, {}).items() if state['active']}
+
+
+async def audit_mood_hold(http, database, tick):
+    held = await poll(http, '/api/state', lambda v: v.get('connected') and not v.get('game', {}).get('stale', True) and v['game'].get('paused') is True)
+    assert held['game']['tick'] == tick, 'Mental-break hold advanced native time'
+    with sqlite3.connect(database.as_uri() + '?mode=ro', uri=True) as db:
+        assert db.execute('SELECT count(*) FROM clock_attempts').fetchone()[0] == 0, 'Mental-break hold admitted a clock operation'
+    return {'tick': tick, 'clock_attempts': 0}
 
 
 def audit_mood_review(active, reference, setup):
