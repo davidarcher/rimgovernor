@@ -8,6 +8,7 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/executor"
 	"github.com/davidarcher/RimGovernor/go/internal/store"
 	k "github.com/davidarcher/RimGovernor/go/internal/wire/clockpb"
+	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
 	"google.golang.org/protobuf/proto"
 )
 
@@ -163,11 +164,13 @@ func (s *ClockScheduler) RenewEpoch(ctx context.Context) (ClockRenewResult, erro
 	result, err := s.session.CommandClock(call, intent)
 	out.Attempt = &result
 	if err != nil || result.Phase != store.ClockApplied {
-		// The finite window can finish between our read and the coordinator's
-		// preflight. An undispatched renewal needs no lease invalidation when a
-		// fresh read proves that exact budget completed normally. Uncertain writes
-		// and real interruptions still take the conservative stop path.
-		if errors.Is(err, executor.ErrHeld) && result.Phase == store.ClockPrepared && result.Intent.RequestID == intent.RequestID && call.Err() == nil && s.session.State() == state {
+		// A finite window can finish before preflight or before native renewal.
+		// An undispatched request or explicit stopped-epoch refusal needs no lease
+		// invalidation when fresh native proof shows that exact budget completed.
+		// Uncertain writes and actual interruptions retain the conservative hold.
+		undispatched := errors.Is(err, executor.ErrHeld) && result.Phase == store.ClockPrepared
+		stoppedRefusal := errors.Is(err, bridge.ErrRefused) && result.Phase == store.ClockRefused && result.Reply.GetFailure().GetCode() == c.FailureCode_FAILURE_CODE_AUTHORITY_REQUIRED
+		if (undispatched || stoppedRefusal) && result.Intent.RequestID == intent.RequestID && call.Err() == nil && s.session.State() == state {
 			latest, _, readErr := s.native.ReadClockStatus(call, current.Identity)
 			observed := latest.GetStatus()
 			if readErr == nil && bridge.ValidateClockStatus(observed, current.Identity) == nil {

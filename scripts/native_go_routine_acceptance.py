@@ -757,6 +757,14 @@ async def run(root, output, binary, *, go_source, go_sha256, sleeping_methods=Fa
                                 'width': 9, 'height': 9, 'fields': 'roof,areas,things,designations'}))
                         except BaseException as diagnostic_error:
                             report['diagnostic_error'] = repr(diagnostic_error)
+                    if not report['passed'] and temperature_methods and 'temperature_setup' in report:
+                        try:
+                            await bridge.connect()
+                            report['failure_temperature_rooms'] = await wire(bridge, 'failure-temperature-rooms', 'observations_list_rooms', {'scope': {'expectedIdentity': identity}, 'includeCells': True, 'includeBoundary': False, 'includeOutdoors': False, 'page': {'limit': 256}})
+                            report['failure_temperature_colony'] = await wire(bridge, 'failure-temperature-colony', 'observations_read_colony_facts', {'scope': {'expectedIdentity': identity}, 'planning': True})
+                            report['failure_temperature_clock'] = await wire(bridge, 'failure-temperature-clock', 'clock_read_status', {'identity': identity})
+                        except BaseException as diagnostic_error:
+                            report['diagnostic_error'] = repr(diagnostic_error)
                     report["stop"] = (await bridge.core("games_stop", gameId=bridge.game_id)).model_dump(mode="json")
             except BaseException as error:
                 report.update(passed=False, cleanup_error=repr(error))

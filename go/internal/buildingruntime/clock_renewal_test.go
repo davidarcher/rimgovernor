@@ -135,11 +135,16 @@ type renewalWriter struct {
 	renews   int
 	lost     bool
 	original *k.Epoch
+	onRenew  func() (*k.ControlReply, error)
 }
 
 func (f *renewalWriter) Renew(ctx context.Context, r *k.RenewRequest, original *k.Epoch, owner *a.Owner) (*k.ControlReply, bridge.Result, error) {
 	f.renews++
 	f.original = proto.Clone(original).(*k.Epoch)
+	if f.onRenew != nil {
+		reply, err := f.onRenew()
+		return reply, bridge.Result{}, err
+	}
 	reply, raw, err := f.clockCoreFake.Renew(ctx, r, original, owner)
 	if reply != nil {
 		f.receipt = proto.Clone(reply.GetReceipt()).(*k.ControlReceipt)
@@ -148,6 +153,67 @@ func (f *renewalWriter) Renew(ctx context.Context, r *k.RenewRequest, original *
 		return nil, raw, errors.New("renew reply lost")
 	}
 	return reply, raw, err
+}
+
+func TestClockRenewalBudgetFinishesAfterDispatch(t *testing.T) {
+	for _, mode := range []string{"budget", "external_pause", "expired", "wrong_epoch", "unknown_boundary", "manual", "different_refusal", "lost_reply"} {
+		t.Run(mode, func(t *testing.T) {
+			s, n, w, start := renewalFixture(t)
+			epoch := proto.Clone(start.Reply.GetReceipt().GetApplied().GetStatus().GetRunning().Epoch).(*k.Epoch)
+			w.onRenew = func() (*k.ControlReply, error) {
+				epoch.LastTick = proto.Int64(epoch.GetTickDeadline())
+				epoch.LeaseRemainingMs = proto.Uint32(0)
+				reason := k.StopReason_STOP_REASON_TICK_BUDGET
+				if mode == "external_pause" {
+					reason = k.StopReason_STOP_REASON_EXTERNAL_PAUSE
+				}
+				if mode == "expired" {
+					reason = k.StopReason_STOP_REASON_LEASE_EXPIRED
+				}
+				if mode == "wrong_epoch" {
+					epoch.Owner.Epoch = proto.Int64(epoch.Owner.GetEpoch() + 1)
+				}
+				n.status.State = &k.Status_Stopped{Stopped: &k.Stopped{Epoch: epoch, Reason: reason.Enum(), StoppedAtUnixMs: proto.Int64(100), ActualPaused: proto.Bool(true), PauseRequested: proto.Bool(true), PauseVerified: proto.Bool(true)}}
+				n.status.ActualPaused = proto.Bool(true)
+				n.status.Context.Tick = proto.Int64(epoch.GetTickDeadline())
+				if mode == "unknown_boundary" {
+					n.status.NativeTickBoundary = proto.Bool(false)
+				}
+				if mode == "manual" {
+					if err := s.session.Disable(); err != nil {
+						t.Fatal(err)
+					}
+				}
+				if mode == "lost_reply" {
+					return nil, errors.New("renewal reply lost")
+				}
+				code := c.FailureCode_FAILURE_CODE_AUTHORITY_REQUIRED
+				if mode == "different_refusal" {
+					code = c.FailureCode_FAILURE_CODE_OWNER_CONFLICT
+				}
+				failure := &c.Failure{Code: code.Enum()}
+				return &k.ControlReply{Outcome: &k.ControlReply_Failure{Failure: failure}}, &bridge.NativeFailure{Value: failure}
+			}
+			result, err := s.RenewEpoch(context.Background())
+			safe := mode == "budget"
+			if (err == nil) != safe || s.session.State().Enabled != safe || w.renews != 1 || result.Renewed || result.Attempt == nil {
+				t.Fatal(mode, result, err, s.session.State(), w.renews)
+			}
+			if safe {
+				if result.Attempt.Phase != store.ClockRefused {
+					t.Fatal(result)
+				}
+				retained, err := s.player.journal.LookupClockAttempt(context.Background(), result.Attempt.Intent.RequestID)
+				if err != nil || retained.Phase != store.ClockRefused {
+					t.Fatal(retained, err)
+				}
+				cleaned, err := s.Step(context.Background())
+				if err != nil || !cleaned.Cleaned || !s.session.State().Enabled || w.renews != 1 {
+					t.Fatal(cleaned, err, s.session.State())
+				}
+			}
+		})
+	}
 }
 func renewalFixture(t *testing.T) (*ClockScheduler, *schedulerNative, *renewalWriter, store.ClockAttempt) {
 	t.Helper()
