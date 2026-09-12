@@ -1255,15 +1255,19 @@ main. Native package and Go production cutover remain independent.
   applicable. Close when every retained native field has a concrete runtime need
   and the controller is the sole owner of its bookkeeping.
 
-- [ ] **N01.07 — Use the unified package everywhere.** Integrator with launcher owner.
+- [x] **N01.07 — Use the unified package everywhere.** Integrator with launcher owner.
   Update setup/build scripts, private profiles, headless/container staging, artifact
   fingerprints and fixture/scenario launchers. Remove old source roots, duplicate
   builders and obsolete adapters. Reject mixed packages/stale artifacts. Never
   replace installed DLLs while a game runs. Accept fresh installation and isolated
   native runs on supported platforms; no copied-profile upgrade or rollback gate.
-  Can land with 01 while typed families continue, using current supported consumers.
   Unified build/staging, source paths and current consumers are implemented and
-  verified in Linux workers. Fresh installed Windows startup remains to verify.
+  verified in Linux workers. Fresh installed Windows startup is now verified: a
+  headless `test_install.ps1`/`install_smoke.py` run against the real installed
+  Windows RimWorld (with the real `Mods/RimGovernor` swapped for a fresh
+  `InstallFixture` build and restored after) admitted, dry-ran and completed a real
+  `home/install` operation end to end, then confirmed the original installed
+  package was restored intact with no leftover RimWorld/GABS process.
 
 - [ ] **N01.08 — Enforce the native standard.** Native integrator with DEV01. Expand
   compiler/nullability/boundary checks across migrated production code; record
