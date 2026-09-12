@@ -33,6 +33,16 @@ the original action and receipt remain retained. The current load, native tick,
 player direction and native ordered-job generations must match. Unknown write
 results and changed native player orders do not authorize retries.
 
+## Go planning
+
+The Go routine reviewer currently projects ongoing care into a separate priority-2
+maintained need. Its same-tick native census distinguishes chronic conditions from
+urgent tending. Tracked patient identities persist through Manual and restart;
+missing or dead patients and incomplete condition lists cannot certify recovery.
+World replacement and tick rewind clear that history. The shared goal retains
+cancellation and renewed-deficit semantics. Go care orders, detailed clinical
+evidence and monitoring composition remain in G01.07a/e.
+
 ## Surgery
 
 `home/medical_operations` discovers current patient recipes, body-part indices,

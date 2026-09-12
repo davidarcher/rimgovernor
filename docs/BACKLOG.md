@@ -614,7 +614,7 @@ expand these into another nested task tree; remove a row when its outcome is met
   The clock scheduler can attach that reviewer at its paused pre-window boundary,
   after cleanup obligations drain. `serve --routine-reviews` wires this path under
   explicit player/clock control. Targeted live service acceptance covers native
-  core/emergency facts, fourteen persisted needs, unknown food forecast, Manual
+  core/emergency facts, fifteen persisted needs, unknown food forecast, Manual
   invalidation, joined shutdown and disabled restart.
   The deterministic food forecast now accounts for diet/access, holder-owned stock,
   competing demand and rot deadlines. Typed native human food inputs have populated
@@ -716,9 +716,17 @@ expand these into another nested task tree; remove a row when its outcome is met
   chronic care from urgent tending. Durable tracked patients cannot recover through
   disappearance, death, missing health or restart; Manual preserves that evidence,
   while world replacement and tick rewind reset it. Medical order execution remains
-  in G01.07a. Native parity and final verification for this care projection remain open.
+  in G01.07a. Native Python parity covers a colonist with permanent injuries and
+  missing parts who needs neither tending nor medical rest; the care deficit and
+  patient evidence survive Manual and disabled restart. Fast checks cover missing
+  health, disappearance, recovery/renewal, cancellation, restart and corrupt history.
   Further need inputs, method selection and execution composition for
-  additional routine methods remain open.
+  additional routine methods remain open: equipment, comfort/expansion, the ten
+  `colony_upkeep.CONTRACTS` needs, player resource targets, and policy-generated
+  population, husbandry, mood, waste and disaster-recovery needs. Startup supply
+  claims must also retain the original cohort rather than adopt later player forbids.
+  Connect their planners to available action families; remaining action execution
+  stays in G01.07a–f.
 
 - [ ] **G01.07a — Finish defense and essential medical care.** Connect movement
   and melee to complete defense plans using the existing owned-draft lifecycle;

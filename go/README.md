@@ -267,7 +267,7 @@ include eligible routine work after the player plan settles. Remaining fact proj
 method selection and execution composition remain in G01.05.
 `scripts/native_go_routine_acceptance.py`, run through the documented container
 scenario launcher with the private construction fixture and verified Go binary,
-covers the live SDK read trace, fourteen durable goals, native medical need,
+covers the live SDK read trace, fifteen durable goals, urgent and ongoing medical needs,
 unknown food forecast, Manual invalidation, joined shutdown and disabled restart.
 Its `--sleeping-methods` variant also uses `RoutineSleepingFixture` to provide an
 empty roofed room and healthy starting colonists. It verifies one complete sleeping
