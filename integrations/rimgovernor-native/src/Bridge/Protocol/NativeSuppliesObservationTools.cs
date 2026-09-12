@@ -42,7 +42,19 @@ namespace HomeBridge.BridgeTools
                     var selected = groups.Where(g => Ownership(filter) == "all" || g.Any(e => e.Ours)).ToList();
                     Require(selected.Count <= Limit(parsed), "Matched definition collection exceeds page limit; frozen paging is unavailable.");
                     var snapshot = new Obs.SuppliesSnapshot { Context = context, Completeness = Complete(selected.Count, groups.Count - selected.Count) };
-                    foreach (var group in selected) snapshot.Stocks.Add(Project(group.ToList(), reserved, IncludeHeld(filter)));
+                    foreach (var group in selected)
+                    {
+                        var entriesForDefinition = group.ToList();
+                        var row = Project(entriesForDefinition, reserved, IncludeHeld(filter));
+                        for (var index = 0; index < entriesForDefinition.Count; index++)
+                        {
+                            var entry = entriesForDefinition[index];
+                            if (entry.Holder == null) row.Items[index].Snapshot = NativeSupplyAllow.Snapshot(entry.Thing, context);
+                        }
+                        if (row.Items.All(item => item.Snapshot != null))
+                            row.Issues.Remove(row.Issues.Single(issue => issue.Field == "items.snapshot"));
+                        snapshot.Stocks.Add(row);
+                    }
                     return Encode(new Obs.ListSuppliesReply { Observed = snapshot });
                 }
                 catch (ReadLimit limit) { return ProtoBoundary.Encode(new Obs.ListSuppliesReply { Unavailable = Unavailable(Common.UnavailableReason.LimitExceeded, limit.Message) }); }
@@ -229,7 +241,7 @@ namespace HomeBridge.BridgeTools
             row.ItemsCompleteness = Complete(row.Items.Count);
             row.HoldersCompleteness = includeHeld ? Complete(row.Holders.Count) : new Obs.Completeness { Page = new Common.PageInfo { Complete = false } };
             row.CorpsesCompleteness = Complete(row.Corpses.Count);
-            row.Issues.Add(Issue("items.snapshot", Common.UnavailableReason.Unsupported, "Exact entity CAS snapshots are not implemented."));
+            row.Issues.Add(Issue("items.snapshot", Common.UnavailableReason.Unsupported, "One or more items lack an Allow snapshot; only eligible loose supplies support Allow."));
             return row;
         }
 

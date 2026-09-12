@@ -49,7 +49,8 @@ initialize inactive authority; only the trusted host's explicit control path can
 acquire it. Model interpretation receives no control or execution capability.
 
 Operations implement `PlaceBuilding`, temporary `SetDrafted`, exact owned
-`MovePawn` and guarded `AttackTarget`. Other command variants return Unsupported.
+`MovePawn`, guarded `AttackTarget` and `DesignateThing` restricted to Allow on an
+exact visible loose supply item. Other command variants remain unsupported.
 Admission checks current identity, generation, lease and
 ordinary native placement rules on the game thread. One unsaved per-load ledger
 retains up to 4096 attempts without eviction. Exact retries return the original
@@ -66,6 +67,15 @@ target death or requested standing-target downing. Ordinary direct bullets retai
 exact launch/impact lineage; explosive and custom projectile paths remain unavailable.
 `ReleaseOwnedDraft` permits exact original-owner cleanup
 after Manual or lease expiry without acquiring new authority.
+
+Supply reads provide Allow snapshots for eligible spawned items; held, fogged,
+foreign and unsupported items have no Allow snapshot. Tokens bind colony/load/map,
+exact identity, definition, position, quantity, forbidden state and faction.
+Allow uses the ordinary Unforbid designator under the shared authority and attempt
+ledger. Separate progress reads require the exact item still allowed; disappearance
+remains unknown and re-forbidding reports an unsuccessful outcome. This boundary
+does not identify the original supply cohort or authorize automatic startup work;
+Go method/store/worker composition remains gated in G01.05.
 
 Status does not issue entity mutation snapshots. Cell reads support terrain,
 roof, visibility and traversal, with explicit Unsupported issues for other
