@@ -143,7 +143,7 @@ func (r *RoutineFieldPlanner) step(call, epoch context.Context) (RoutineFieldRes
 	if !known {
 		return RoutineFieldResult{Reason: BuildingMethodUnknown, NativeWorkTicks: wait}, nil
 	}
-	coverage := policy.FieldCoverage(projection.Facts.Colonists, projection.FieldCrops, r.reviewer.policy.FoodTargetDays)
+	coverage := policy.FieldCoverage(projection.Facts.Colonists, projection.FieldCapacityCrops, r.reviewer.policy.FoodTargetDays)
 	patches := policy.GrowthFields(projection.Bounds, projection.Center, projection.Cells, protected, crop, policy.FieldTarget(projection.Facts.Colonists, crop, r.reviewer.policy.FoodTargetDays), coverage)
 	if len(patches) == 0 {
 		return RoutineFieldResult{Reason: BuildingMethodUsed, NativeWorkTicks: wait}, nil

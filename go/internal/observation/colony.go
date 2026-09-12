@@ -29,6 +29,7 @@ type ColonyProjection struct {
 	PendingFoodNutrition, PendingWoodUnits domain.Fact[float64]
 	WorkPawns                              domain.Fact[[]policy.WorkPawn]
 	FieldCrops                             domain.Fact[[]policy.FieldCrop]
+	FieldCapacityCrops                     domain.Fact[[]policy.FieldCrop]
 	CookingBenches                         domain.Fact[[]CookingBench]
 	PowerPlanning                          domain.Fact[policy.PowerTopology]
 	TemperaturePlanning                    domain.Fact[policy.TemperatureObservation]
@@ -247,6 +248,7 @@ func DecodeColony(reply *o.ColonyFactsReply, expected Identity) (ColonyProjectio
 		}
 	}
 	r.FieldCrops = colonyFieldCrops(v, r.Definitions)
+	r.FieldCapacityCrops = colonyFieldCrops(v, r.Definitions, true)
 	r.Facts.Gear = colonyGear(v)
 	return r, nil
 }

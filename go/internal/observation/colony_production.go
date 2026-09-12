@@ -6,13 +6,16 @@ import (
 	o "github.com/davidarcher/RimGovernor/go/internal/wire/observationspb"
 )
 
-func colonyFieldCrops(v *o.ColonyFactsSnapshot, definitions []PlanningDefinition) domain.Fact[[]policy.FieldCrop] {
+func colonyFieldCrops(v *o.ColonyFactsSnapshot, definitions []PlanningDefinition, usable ...bool) domain.Fact[[]policy.FieldCrop] {
 	if hasIssue(v.Issues, "farms") {
 		return domain.Unknown[[]policy.FieldCrop]()
 	}
 	rows := make([]policy.FieldCrop, 0, len(v.Farms))
 	for _, farm := range v.Farms {
 		row := policy.FieldCrop{Edible: optional(farm.EdibleCrop), GrowingCells: countFact(farm.GrowingCells)}
+		if len(usable) == 1 && usable[0] {
+			row.GrowingCells = countFact(farm.UsableCells)
+		}
 		for _, definition := range definitions {
 			if farm.Crop != nil && definition.Name == farm.GetCrop() {
 				row.GrowDays = definition.GrowDays
