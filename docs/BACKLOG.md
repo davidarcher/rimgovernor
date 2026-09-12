@@ -738,8 +738,9 @@ expand these into another nested task tree; remove a row when its outcome is met
   Expansion maintains one spare indoor sleeping place beyond observed population,
   using the shared indoor furnishing and whole-shell compiler. Existing housing
   deficits block optional expansion; shared project capacity, reservations and
-  Manual invalidation still apply. Native expansion construction acceptance remains
-  open, along with broader room-development methods.
+  Manual invalidation still apply. Native acceptance verifies one additional indoor
+  place, single-attempt construction, capacity recovery and disabled restart.
+  Broader room-development methods remain open.
   Equipment policy now has typed census review, stable replacement selection and
   bounded production proposals with material preservation, shared budget inputs
   and existing-bill protection. Native gear projections feed the complete routine
@@ -753,10 +754,10 @@ expand these into another nested task tree; remove a row when its outcome is met
   and filth sections into durable needs. Repair censuses exclude native definitions
   that do not use hit points. Missing sections preserve established risk;
   an unknown first observation does not invent an emergency. Target ordering and
-  progress metrics match the Python contracts. Native parity covers repaired
-  structure eligibility, fire targets and bounded-read unknowns. Complete populated
-  item/filth parity still needs a bounded disposable fixture; method composition
-  remains open, alongside the other six upkeep contracts.
+  progress metrics match the Python contracts. Populated native parity and Go
+  replay verify all four target lists, metrics and durable needs, including Manual
+  and restart. Bounded-read unknowns remain explicit. Method composition remains
+  open, alongside the other six upkeep contracts.
   Further need inputs, method selection and execution composition for
   additional routine methods remain open: equipment, comfort/expansion, the ten
   `colony_upkeep.CONTRACTS` needs, player resource targets, and policy-generated

@@ -8306,7 +8306,7 @@
           "path": "scripts/fixtures/RoutineSleepingFixture.cs",
           "line": 58,
           "declaration": "[Tool(\"test/routine_sleeping_prepare\", Description = \"UNSAFE FOR MODEL EXECUTION. Disposable test setup: clear an outdoor starter site or create an empty roofed room near existing colonists; remove starting injuries and tendable conditions. Outdoor mode creates no buildings or roofs. Never creates sleeping spots or edits controller results.\")]\n        public async Task<object> Prepare(IRimBridgeContext ctx, CancellationToken cancellationToken, bool outdoorSite = false, bool captureHistory = false)",
-          "source_sha256": "f69fa4f38546b62e7485a77d59ac78db5ceb2b6573a54d01ea413ebfbc2d7d79"
+          "source_sha256": "16cf17c2f8b8cba7df71e615aeea5f19e351fca962f1e54ee42843eb460aed9a"
         },
         {
           "name": "test/settle_caravan",
@@ -8375,8 +8375,8 @@
           "name": "test/upkeep_setup",
           "path": "scripts/fixtures/UpkeepFixture.cs",
           "line": 14,
-          "declaration": "[Tool(\"test/upkeep_setup\", Description = \"Prepare disposable hauling, repair and cleaning targets. Test builds only.\")]\n        public async Task<object> Setup(IRimBridgeContext ctx, CancellationToken cancellationToken,\n            [ToolParameter(Description = \"Optional disposable fire size; zero omits fire.\", DefaultValue = 0f)] float fireSize = 0f,\n            [ToolParameter(Description = \"Include a pen animal, pet and stored feed.\", DefaultValue = false)] bool animals = false,\n            [ToolParameter(Description = \"Leave covered space unzoned for the storage method.\", DefaultValue = false)] bool storageMissing = false,\n            [ToolParameter(Description = \"Exclude fixture targets from workers' allowed area.\", DefaultValue = false)] bool restrictWorkers = false,\n            [ToolParameter(Description = \"Include a more damaged cosmetic repair target.\", DefaultValue = false)] bool repairCompetition = false)",
-          "source_sha256": "2c8b99cbb93db3f5dee81f102fc96d7828666613572e84f6195b76280d1df825"
+          "declaration": "[Tool(\"test/upkeep_setup\", Description = \"Prepare disposable hauling, repair and cleaning targets. Test builds only.\")]\n        public async Task<object> Setup(IRimBridgeContext ctx, CancellationToken cancellationToken,\n            [ToolParameter(Description = \"Optional disposable fire size; zero omits fire.\", DefaultValue = 0f)] float fireSize = 0f,\n            [ToolParameter(Description = \"Include a pen animal, pet and stored feed.\", DefaultValue = false)] bool animals = false,\n            [ToolParameter(Description = \"Leave covered space unzoned for the storage method.\", DefaultValue = false)] bool storageMissing = false,\n            [ToolParameter(Description = \"Exclude fixture targets from workers' allowed area.\", DefaultValue = false)] bool restrictWorkers = false,\n            [ToolParameter(Description = \"Include a more damaged cosmetic repair target.\", DefaultValue = false)] bool repairCompetition = false,\n            [ToolParameter(Description = \"Clear disposable loose items and filth before preparing bounded read censuses. Use only after gameplay assertions.\", DefaultValue = false)] bool boundedCensus = false)",
+          "source_sha256": "6d56e287b91d2009a80308bc47897f9be70e09ce0a803214431c0569fd3c7034"
         },
         {
           "name": "test/wall_enclosure",

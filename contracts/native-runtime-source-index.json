@@ -4174,7 +4174,7 @@
     {
       "source": "scripts/fixtures/RoutineSleepingFixture.cs",
       "compilation": "fixture-only",
-      "source_sha256": "f69fa4f38546b62e7485a77d59ac78db5ceb2b6573a54d01ea413ebfbc2d7d79",
+      "source_sha256": "16cf17c2f8b8cba7df71e615aeea5f19e351fca962f1e54ee42843eb460aed9a",
       "owner": "N01.01 native fixture isolation owner",
       "migration_status": "implemented-native-acceptance-pending",
       "uncovered_acceptance": "Verify private package discovery, fixture isolation and actual native ordinary-rule outcomes, invalidation and correlated progress for this source revision.",
@@ -4291,13 +4291,13 @@
     },
     {
       "source": "scripts/fixtures/UpkeepFixture.cs",
-      "source_sha256": "2c8b99cbb93db3f5dee81f102fc96d7828666613572e84f6195b76280d1df825",
+      "source_sha256": "6d56e287b91d2009a80308bc47897f9be70e09ce0a803214431c0569fd3c7034",
       "compilation": "fixture-only",
       "owner": "N01.01 native packaging owner",
       "migration_status": "inventoried-unmigrated",
       "static_token_lines": [],
       "reflection_boundary_lines": [
-        65
+        74
       ],
       "patch_registration_lines": [],
       "uncovered_acceptance": "Verify compile conditions, isolated fixture artifact identity and absence from production discovery."

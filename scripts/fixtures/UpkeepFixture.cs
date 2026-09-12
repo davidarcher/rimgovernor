@@ -17,11 +17,20 @@ namespace HomeBridge.BridgeTools
             [ToolParameter(Description = "Include a pen animal, pet and stored feed.", DefaultValue = false)] bool animals = false,
             [ToolParameter(Description = "Leave covered space unzoned for the storage method.", DefaultValue = false)] bool storageMissing = false,
             [ToolParameter(Description = "Exclude fixture targets from workers' allowed area.", DefaultValue = false)] bool restrictWorkers = false,
-            [ToolParameter(Description = "Include a more damaged cosmetic repair target.", DefaultValue = false)] bool repairCompetition = false)
+            [ToolParameter(Description = "Include a more damaged cosmetic repair target.", DefaultValue = false)] bool repairCompetition = false,
+            [ToolParameter(Description = "Clear disposable loose items and filth before preparing bounded read censuses. Use only after gameplay assertions.", DefaultValue = false)] bool boundedCensus = false)
         {
             return await ctx.MainThread.InvokeAsync<object>(() => {
                 try {
                 var map = Find.CurrentMap;
+                int clearedItems = 0, clearedFilth = 0;
+                if (boundedCensus) {
+                    foreach (var thing in map.listerThings.AllThings.Where(t => t.Spawned &&
+                        (t.def.category == ThingCategory.Item || t is Filth)).ToList()) {
+                        if (thing is Filth) clearedFilth++; else clearedItems++;
+                        thing.Destroy();
+                    }
+                }
                 var people = map.mapPawns.FreeColonistsSpawned.Where(p => !p.Downed && !p.Drafted && !p.InMentalState).ToList();
                 var origin = GenRadial.RadialCellsAround(people.First().Position, 35, true).First(c =>
                     CellRect.FromLimits(c, c + new IntVec3(8, 0, 8)).Cells.All(p => p.InBounds(map)
@@ -107,7 +116,7 @@ namespace HomeBridge.BridgeTools
                     }
                     foreach (var cell in new[] { medicine.Position, wall.Position, dirt.Position, storage }) area[cell] = false;
                 }
-                return new { success = true, medicine = medicine.GetUniqueLoadID(), wall = wall.GetUniqueLoadID(),
+                return new { success = true, clearedItems, clearedFilth, medicine = medicine.GetUniqueLoadID(), wall = wall.GetUniqueLoadID(),
                     cosmetic = cosmetic?.GetUniqueLoadID(),
                     filth = dirt.GetUniqueLoadID(), fire = fire?.GetUniqueLoadID(), storage = new { x = storage.x, z = storage.z },
                     penAnimal = penAnimal?.GetUniqueLoadID(), looseAnimal = looseAnimal?.GetUniqueLoadID(),

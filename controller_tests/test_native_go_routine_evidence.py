@@ -201,3 +201,14 @@ def test_development_audit_keeps_player_capacity_and_known_deficits():
     changed['Development']['Rows'][0]['Deficit'] = None
     with pytest.raises(AssertionError):
         probe.audit_development(changed, 3)
+
+
+def test_expansion_development_audit_uses_configured_capacity():
+    review = {'Snapshot': {'Plan': 'root'}, 'Tick': 10, 'Development': {
+        'Snapshot': {'Plan': 'root'}, 'Tick': 10, 'Workers': 3, 'Capacity': 3,
+        'Committed': ['player-project'], 'Rows': [
+            {'Goal': 'EnsureExpansion', 'Deficit': .25, 'Score': 25.0,
+             'WaitingSince': 10, 'Selected': True, 'Committed': False, 'Reason': ''}]}}
+    assert probe.audit_development(review, 3, project_limit=3) == review['Development']
+    with pytest.raises(AssertionError):
+        probe.audit_development(review, 3)

@@ -85,7 +85,7 @@ namespace HomeBridge.BridgeTools
                     if (!outdoorSite) map.roofGrid.SetRoof(cell, RoofDefOf.RoofConstructed);
                 }
                 foreach (var pawn in people)
-                    foreach (var condition in pawn.health.hediffSet.hediffs.Where(h => h is Hediff_Injury || h.TendableNow(false)).ToList()) pawn.health.RemoveHediff(condition);
+                    foreach (var condition in pawn.health.hediffSet.hediffs.Where(h => h is Hediff_Injury || h is Hediff_Pregnant || h.TendableNow(false)).ToList()) pawn.health.RemoveHediff(condition);
                 map.regionAndRoomUpdater.RebuildAllRegionsAndRooms();
                 return new { success = true, tick = Find.TickManager.TicksGame, colonists = people.Count,
                     center = new { x = room.CenterCell.x, z = room.CenterCell.z },

@@ -305,6 +305,12 @@ boundary and durable journal with `RIMBOT_NATIVE_UPKEEP_REPLAY=<absolute-path>`
 and `go test ./internal/observation -run TestNativeUpkeepReplay -count=1` from `go/`.
 The replay checks Python target ordering and metrics, all four maintained needs,
 Manual invalidation and retained needs after reopening the database.
+The `--expansion-methods` variant uses the same private fixtures to construct one
+spare indoor sleeping place, verify native capacity recovery and single-attempt
+shared admission, then check Manual and disabled restart. It also emits the upkeep
+replay. After gameplay assertions, the explicit bounded-census fixture clears
+disposable loose items and filth before spawning its targets; no ticks advance
+after that setup. Production census limits and game rules are unchanged.
 `--supply-history` additionally clears the original supplies through the native
 player Allow designator, reviews their recovery, and re-forbids the same supplies.
 Repeated same-database Go starts must preserve the empty cohort and issue no
@@ -534,4 +540,5 @@ active owners, dependencies and completion gates.
 the observed population. It requires routine reviews and uses the shared furnishing
 and whole-shell planner, project limits, resource reservations and player authority.
 Expansion waits until existing housing meets current needs and until pending beds
-finish. Native construction acceptance for expansion remains in G01.05.
+finish. Targeted native acceptance covers the additional indoor place; whole-shell
+fallback also uses the separately accepted starter-shell construction path.

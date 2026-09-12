@@ -35,18 +35,7 @@ func TestExpansionSelectionReusesFurnishingAndWholeShell(t *testing.T) {
 func TestExpansionAdmitsSparePlaceAndManualCancels(t *testing.T) {
 	base, db, _, request, n := sleepingFixture(t)
 	ctx := context.Background()
-	n.reply.GetObserved().ColonistCount = proto.Uint32(2)
-	n.reply.GetObserved().IndoorSleepingCapacity = proto.Uint32(2)
-	n.reply.GetObserved().BedCapacity = proto.Uint32(2)
-	review, err := db.LoadRoutineReview(ctx)
-	if err != nil {
-		t.Fatal(err)
-	}
-	facts := policy.RoutineFacts{Workers: domain.Known(3), Colonists: domain.Known(int64(2)), BedCapacity: domain.Known(int64(2)), IndoorCapacity: domain.Known(int64(2)), Hostiles: domain.Known(int64(0)), CriticalPatients: domain.Known(int64(0)), CleanupPawns: domain.Known(false), ColonyNaming: domain.Known(false), Wood: domain.Known(int64(500))}
-	_, err = db.ReviewRoutine(ctx, store.RoutineReviewRequest{Revision: review.Revision, Current: review.Snapshot, Tick: review.Tick, Enabled: true, Policy: policy.DefaultRoutinePolicy(), Facts: facts})
-	if err != nil {
-		t.Fatal(err)
-	}
+	prepareExpansionReview(t, db, n)
 	r, err := NewRoutineExpansionPlanner(base.reviewer, n)
 	if err != nil {
 		t.Fatal(err)
@@ -70,5 +59,41 @@ func TestExpansionAdmitsSparePlaceAndManualCancels(t *testing.T) {
 	plan, err = db.LoadPlan(ctx, plan.Spec.ID())
 	if err != nil || plan.Progress[0].View().Stage != domain.Cancelled {
 		t.Fatal(plan, err)
+	}
+}
+
+func prepareExpansionReview(t *testing.T, db *store.Store, n *sleepingNative) {
+	t.Helper()
+	ctx := context.Background()
+	n.reply.GetObserved().ColonistCount = proto.Uint32(2)
+	n.reply.GetObserved().IndoorSleepingCapacity = proto.Uint32(2)
+	n.reply.GetObserved().BedCapacity = proto.Uint32(2)
+	review, err := db.LoadRoutineReview(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	facts := policy.RoutineFacts{Workers: domain.Known(3), Colonists: domain.Known(int64(2)), BedCapacity: domain.Known(int64(2)), IndoorCapacity: domain.Known(int64(2)), Hostiles: domain.Known(int64(0)), CriticalPatients: domain.Known(int64(0)), CleanupPawns: domain.Known(false), ColonyNaming: domain.Known(false), Wood: domain.Known(int64(500))}
+	_, err = db.ReviewRoutine(ctx, store.RoutineReviewRequest{Revision: review.Revision, Current: review.Snapshot, Tick: review.Tick, Enabled: true, Policy: policy.DefaultRoutinePolicy(), Facts: facts})
+	if err != nil {
+		t.Fatal(err)
+	}
+}
+func TestExpansionAdmitsWholeShellWhenExistingRoomsAreFull(t *testing.T) {
+	base, db, n := shelterFixture(t)
+	prepareExpansionReview(t, db, n)
+	r, err := NewRoutineExpansionPlanner(base.reviewer, n)
+	if err != nil {
+		t.Fatal(err)
+	}
+	got, err := r.Step(context.Background())
+	if err != nil || got.Reason != BuildingMethodAdmitted {
+		t.Fatal(got, err)
+	}
+	plan, err := db.LoadPlan(context.Background(), got.Decision.Goal.Methods[0].Plan)
+	if err != nil || len(plan.Progress) != 32 || len(plan.Admissions) != 32 || len(plan.Spec.Dependencies()) != 31 {
+		t.Fatal(plan, err)
+	}
+	if again, err := r.Step(context.Background()); err != nil || again.Reason != BuildingMethodExistingWork {
+		t.Fatal(again, err)
 	}
 }
