@@ -45,6 +45,51 @@ def audit_starting_supplies(active, cells):
     assert active['goals']['AllowStartingSupplies']['Need'] == ('deficit' if cells else 'recovered')
 
 
+def audit_comfort_use(active, native):
+    goal = active['goals']['EnsureComfort']
+    assert goal['Need'] == 'recovered' and goal['Status'] == 'satisfied'
+    history = active['review']['Comfort']
+    people = set(native['people'])
+    assert people, 'Comfort acceptance requires actual eligible colonists'
+    for kind in ('Dining', 'Recreation'):
+        proof = history[kind]
+        assert proof['Facility'] and 0 < proof['Tick'] <= active['review']['Tick']
+        facilities = native[kind.lower()]
+        assert people <= {p for f in facilities for p in f.get('accessibleTo', [])}, 'Current comfort capacity lost'
+        assert any(f['id'] == proof['Facility'] and people & set(f.get('accessibleTo', [])) for f in facilities), 'Use proof no longer identifies an accessible native facility'
+    return history
+
+
+def audit_comfort_methods(report, database):
+    plans = report['comfort_plans']
+    assert set(plans) == {'Table1x2c', 'DiningChair', 'HorseshoesPin'}
+    root = report['active_routine']['review']['Snapshot']
+    footprints = {}
+    with sqlite3.connect(database.as_uri() + '?mode=ro', uri=True) as db:
+        for definition, plan in plans.items():
+            assert len(plan['actions']) == 1
+            action = plan['actions'][0]
+            progress = action['progress']
+            assert action['building']['defName'] == definition
+            assert progress['stage'] == progress['effect'] == 'completed' and progress['attempt'] == '1' and not progress['unresolved']
+            transitions = [json.loads(r[0]) for r in db.execute('SELECT payload FROM transitions WHERE action_id=? ORDER BY sequence', (action['id'],))]
+            dispatched = [r for r in transitions if r['Kind'] == 'dispatch']
+            assert len(dispatched) == 1
+            scope = dict(dispatched[0]['Snapshot'])
+            assert scope['Plan'] == plan['id']
+            scope['Plan'], scope['Revision'] = root['Plan'], root['Revision']
+            assert scope == root, 'Comfort method changed shared player authority'
+            admission = json.loads(db.execute('SELECT payload FROM admissions WHERE action_id=?', (action['id'],)).fetchone()[0])
+            footprints[definition] = {(c['X'], c['Z']) for c in admission['Footprint']}
+            assert admission['Costs'], 'Furniture construction bypassed material accounting'
+        assert db.execute('SELECT count(*) FROM goal_methods').fetchone()[0] == 3
+    interior = {(c['x'], c['z']) for c in report['sleeping_setup']['interior']}
+    assert footprints['Table1x2c'] <= interior and footprints['DiningChair'] <= interior
+    assert any(abs(x-a) + abs(z-b) == 1 for x,z in footprints['Table1x2c'] for a,b in footprints['DiningChair'])
+    assert report['traces']['operate'].count(EXECUTE) == 4
+    return {'completed_facilities': 3, 'shared_authority': True, 'single_attempts': True, 'native_use': True}
+
+
 def medical_need(reply):
     colony = outcome(reply, "observed")["colonists"]
     census = colony["completeness"]
@@ -68,7 +113,11 @@ def assert_construction_start(reply):
     assert medical_need(reply) == 'recovered', 'Construction fixture requires healthy starting colonists'
     threats = outcome(reply, 'observed')['threats']
     census = threats['completeness']
-    assert census['page']['complete'] and all(int(census[k]) == 0 for k in ('matched', 'returned', 'filtered', 'unreadable')) and not threats.get('hostiles', []), 'Construction fixture requires no starting hostiles'
+    groups = ('hostiles', 'huntingPredators', 'ignoredHunters', 'wildPredatorsNear', 'downedNear')
+    count = sum(len(threats.get(k, [])) for k in groups)
+    assert census['page']['complete'] and all(int(census[k]) == 0 for k in ('filtered', 'unreadable')) and all(int(census[k]) == count for k in ('matched', 'returned')), 'Construction fixture requires a complete threat census'
+    assert not threats.get('hostiles', []) and not threats.get('huntingPredators', []), 'Construction fixture requires no starting hostiles or hunting predators'
+    assert all(r.get('pawn', {}).get('hostile') is False for key in ('ignoredHunters', 'wildPredatorsNear', 'downedNear') for r in threats.get(key, [])), 'Construction fixture requires explicit non-hostile incidental observations'
 
 
 def audit_routine(events, baseline, capabilities, *, restart):
@@ -298,7 +347,7 @@ async def run(root, output, binary, *, go_source, go_sha256, sleeping_methods=Fa
                 report['comfort_setup'] = payload(await evidence.call(bridge, 'comfort-setup', 'test/comfort_foothold', report['sleeping_setup']['center']))
                 assert report['comfort_setup']['success']
                 from native_work_readback import work_reference
-                workers = payload(await evidence.call(bridge, 'comfort-workers-before', 'home/list_pawns', {'colonistsOnly': True, 'work': True, 'bio': True}))
+                workers = payload(await evidence.call(bridge, 'comfort-workers-before', 'home/list_pawns', {'colonistsOnly': True, 'work': True, 'bio': True, 'equipment': True, 'health': True}))
                 assignments = work_reference(workers['pawns'])['assignments']
                 for pawn, work in assignments.items():
                     configured = payload(await evidence.call(bridge, 'comfort-work-' + pawn, 'home/pawn_config', {'pawn': pawn, 'work': ','.join(f'{name}={priority}' for name, priority in work.items()), 'dryRun': False}))
@@ -405,6 +454,10 @@ async def run(root, output, binary, *, go_source, go_sha256, sleeping_methods=Fa
             assert report['work_need'] == ('recovered' if report['initial_work']['matches'] else 'deficit'), 'Native work readback did not reach routine need'
             report["active_routine"] = active
             report['development'] = audit_development(active['review'], len(report['initial_work']['assignments']))
+            if comfort_methods:
+                unmet = {name: goal['Need'] for name, goal in active['goals'].items() if goal['Priority'] < 3 and goal['Need'] != 'recovered'}
+                assert not unmet, f'Comfort foothold prerequisites are unmet: {unmet}'
+                assert any(r['Goal'] == 'EnsureComfort' and r['Selected'] for r in active['review']['Development']['Rows'])
             if resource_rules:
                 await wait_review(database, active['review']['Revision'])
                 active = routine_evidence(database, identity, enabled=True, expected_food_need=expected_food)
@@ -465,6 +518,8 @@ async def run(root, output, binary, *, go_source, go_sha256, sleeping_methods=Fa
             manual = await http("POST", "/api/player/control/manual", body={"requestId": "routine-manual", "expected": identity})
             assert manual["record"]["phase"] == "disabled" and not manual["state"]["enabled"]
             report["manual_routine"] = routine_evidence(database, identity, enabled=False, expected_food_need=expected_food, allow_methods=sleeping_methods or comfort_methods)
+            if comfort_methods:
+                assert report['manual_routine']['review']['Comfort'] == report['comfort_recovered']['review']['Comfort']
             assert not report['manual_routine']['review']['Development']['Rows']
             assert report['manual_routine']['review']['Development']['Workers'] is None
 
@@ -486,6 +541,10 @@ async def run(root, output, binary, *, go_source, go_sha256, sleeping_methods=Fa
                 native = outcome(await wire(bridge, 'shelter-outcome', 'observations_read_colony_facts', {'scope': {'expectedIdentity': identity}, 'planning': True}), 'observed')
                 assert int(native['indoorSleepingCapacity']) >= report['sleeping_setup']['colonists']
                 report['shelter_outcome'] = native
+            if comfort_methods:
+                native = outcome(await wire(bridge, 'comfort-outcome', 'observations_read_colony_facts', {'scope': {'expectedIdentity': identity}, 'planning': False}), 'observed')
+                report['comfort_outcome'] = native
+                audit_comfort_use(report['comfort_recovered'], outcome(outcome(native['upkeep'], 'observed')['comfort'], 'observed'))
             baseline = await capture(bridge, "restart-baseline")
         if supply_history:
             for phase, class_name in [('supplies-cleared', 'RimWorld.Designator_Unforbid'), ('supplies-reforbidden', 'RimWorld.Designator_Forbid')]:
@@ -550,6 +609,8 @@ async def run(root, output, binary, *, go_source, go_sha256, sleeping_methods=Fa
             assert after["paused"] and after["context"]["tick"] == final["context"]["tick"]
         if sleeping_methods:
             report["sleeping_audit"] = audit_sleeping(report, database)
+        if comfort_methods:
+            report['comfort_audit'] = audit_comfort_methods(report, database)
         report["passed"] = True
     except BaseException as error:
         report.update(error=repr(error), traceback=traceback.format_exc())
@@ -557,6 +618,12 @@ async def run(root, output, binary, *, go_source, go_sha256, sleeping_methods=Fa
         if launched and all(p.get("joined") for p in report.get("service_phases", [])):
             try:
                 async with bridge_session(gabs, configuration) as bridge:
+                    if not report['passed'] and comfort_methods:
+                        try:
+                            await bridge.connect()
+                            report['failure_colony'] = await wire(bridge, 'failure-comfort-colony', 'observations_read_colony_facts', {'scope': {'expectedIdentity': identity}, 'planning': True})
+                        except BaseException as diagnostic_error:
+                            report['diagnostic_error'] = repr(diagnostic_error)
                     if not report['passed'] and shelter_methods and 'shelter_plan' in report:
                         try:
                             await bridge.connect()

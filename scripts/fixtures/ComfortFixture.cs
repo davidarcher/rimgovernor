@@ -39,7 +39,9 @@ namespace HomeBridge.BridgeTools
                         pawn.equipment.AddEquipment(weapon);
                     }
                     var bed = ThingMaker.MakeThing(DefDatabase<ThingDef>.GetNamed("SleepingSpot"));
-                    bed.SetFaction(Faction.OfPlayer); GenSpawn.Spawn(bed, free[index++], map);
+                    var bedCell = free.First(c => GenAdj.OccupiedRect(c, Rot4.North, bed.def.size).All(free.Contains));
+                    bed.SetFaction(Faction.OfPlayer); GenSpawn.Spawn(bed, bedCell, map, Rot4.North);
+                    free.RemoveAll(c => bed.OccupiedRect().Contains(c));
                 }
                 var cooker = (Building_WorkTable)ThingMaker.MakeThing(DefDatabase<ThingDef>.GetNamed("Campfire"));
                 cooker.SetFaction(Faction.OfPlayer); GenSpawn.Spawn(cooker, free[index++], map);
@@ -51,7 +53,7 @@ namespace HomeBridge.BridgeTools
                 var zone = new Zone_Stockpile(StorageSettingsPreset.DefaultStockpile, map.zoneManager);
                 map.zoneManager.RegisterZone(zone); zone.GetStoreSettings().filter.SetDisallowAll();
                 zone.GetStoreSettings().filter.SetAllow(mealDef, true);
-                for (int i = 0; i < 8; i++) {
+                for (int i = 0; i < 9; i++) {
                     var cell = free[index++]; zone.AddCell(cell);
                     var meal = ThingMaker.MakeThing(mealDef); meal.stackCount = mealDef.stackLimit;
                     GenSpawn.Spawn(meal, cell, map); meal.SetForbidden(false, false);

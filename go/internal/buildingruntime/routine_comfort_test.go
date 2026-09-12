@@ -60,7 +60,7 @@ func TestComfortNativeUseBudgetRequiresOutcomeAndCurrentDirection(t *testing.T) 
 			for _, row := range []struct {
 				tick domain.Tick
 				want uint32
-			}{{99, 0}, {100, 10000}, {101, 9999}, {10099, 1}, {10100, 0}} {
+			}{{99, 0}, {100, 120}, {101, 120}, {10099, 1}, {10100, 0}} {
 				want := row.want
 				if definition == "Campfire" {
 					want = 0
@@ -74,6 +74,41 @@ func TestComfortNativeUseBudgetRequiresOutcomeAndCurrentDirection(t *testing.T) 
 				t.Fatal("new direction inherited time")
 			}
 		})
+	}
+}
+
+func TestComfortBuilderHonorsNativeSkillAndPlayerWorkPreferences(t *testing.T) {
+	pawn := policy.WorkPawn{ID: "builder", Available: domain.Known(true), Applies: domain.Known(true), Manual: domain.Known(true), Ranged: domain.Known(false)}
+	var skills []policy.WorkSkill
+	for _, name := range []string{"Construction", "Plants", "Cooking", "Medicine", "Shooting"} {
+		skills = append(skills, policy.WorkSkill{Name: name, Level: 4, Passion: "None"})
+	}
+	pawn.Skills = domain.Known(skills)
+	var priorities []policy.WorkPriority
+	for _, name := range []policy.WorkType{"Construction", "Growing", "Cooking", "Doctor", "PlantCutting", "Hunting", "Firefighter"} {
+		priorities = append(priorities, policy.WorkPriority{Work: name})
+	}
+	pawn.Work = domain.Known(priorities)
+	decision, err := policy.AssignWork([]policy.WorkPawn{pawn}, nil, nil)
+	if err != nil || len(decision.Assignments) != 1 {
+		t.Fatal(decision, err)
+	}
+	pawn.Work = domain.Known(decision.Assignments[0].Priorities)
+	facts := observation.ColonyProjection{WorkPawns: domain.Known([]policy.WorkPawn{pawn}), Definitions: []observation.PlanningDefinition{{Name: "DiningChair", Available: domain.Known(true), ConstructionSkill: domain.Known(int32(4))}}}
+	if !comfortBuilderAvailable(facts, "DiningChair", nil) {
+		t.Fatal("native skilled furniture rejected despite qualified assigned builder")
+	}
+	if comfortBuilderAvailable(facts, "DiningChair", []policy.WorkOverride{{Pawn: "builder", Work: "Construction", Priority: 0}}) {
+		t.Fatal("player disabled builder was ignored")
+	}
+	skills[0].Level = 3
+	if comfortBuilderAvailable(facts, "DiningChair", nil) {
+		t.Fatal("native construction prerequisite bypassed")
+	}
+	skills[0].Level = 4
+	facts.WorkPawns = domain.Unknown[[]policy.WorkPawn]()
+	if comfortBuilderAvailable(facts, "DiningChair", nil) {
+		t.Fatal("missing work census accepted")
 	}
 }
 

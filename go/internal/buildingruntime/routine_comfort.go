@@ -13,7 +13,32 @@ func NewRoutineComfortPlanner(reviewer *RoutineReviewer, native RoutineBuildingS
 	if reviewer == nil || native == nil {
 		return nil, ErrControl
 	}
+	if _, ok := native.(observation.RoutineSource); !ok {
+		return nil, ErrControl
+	}
 	return &RoutineBuildingPlanner{reviewer: reviewer, native: native, goal: policy.EnsureComfort}, nil
+}
+
+// Skilled furniture must have a qualified, assigned builder in the same native
+// observation bracket. This comparison never writes work settings.
+func comfortBuilderAvailable(facts observation.ColonyProjection, definition string, overrides []policy.WorkOverride) bool {
+	for _, d := range facts.Definitions {
+		if d.Name != definition {
+			continue
+		}
+		available, known := d.Available.Value()
+		minimum, skillKnown := d.ConstructionSkill.Value()
+		if !known || !available || !skillKnown || minimum < 0 {
+			return false
+		}
+		pawns, known := facts.WorkPawns.Value()
+		if !known {
+			return false
+		}
+		decision, err := policy.AssignWork(pawns, []policy.WorkRequirement{{Work: "Construction", Skill: "Construction", Minimum: int(minimum)}}, overrides)
+		return err == nil && decision.Capacity == domain.Known(true) && decision.Matches == domain.Known(true)
+	}
+	return false
 }
 
 func (r *RoutineBuildingPlanner) selectComfort(facts observation.ColonyProjection, history policy.ComfortHistory) (*RoutineBuildingPlanner, RoutineBuildingReason, error) {
@@ -75,5 +100,7 @@ func comfortNativeWorkTicks(plan store.PlanState, current domain.GenerationSnaps
 	if v.Stage != domain.Completed || v.Unresolved || !known || effect != domain.EffectCompleted || !v.Snapshot.Matches(current) || tick < v.Tick || tick-v.Tick >= 10000 {
 		return 0
 	}
-	return uint32(10000 - (tick - v.Tick))
+	// Dining jobs can finish inside a normal construction window. Observe use
+	// frequently while preserving the original, non-renewable completion deadline.
+	return min(uint32(120), uint32(10000-(tick-v.Tick)))
 }

@@ -61,3 +61,9 @@ player work takes priority. Routine building work can keep finite clock windows
 eligible after the selected player plan settles. Uncertain effects still reconcile
 after cancellation, while observed terminal building outcomes yield accounting to
 fresh native stock and placement facts.
+
+Comfort joins that shared path through native access and use observations. Its
+durable history distinguishes completed furniture from ordinary dining and
+recreation use. After construction, a bounded clock allowance lets pawns use the
+facilities; it expires from the original completion tick and cannot renew through
+polling or transfer to a new player direction.

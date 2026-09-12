@@ -160,7 +160,9 @@ func countCapacity(capacity, count domain.Fact[int64], multiplier int64) domain.
 // DetectRoutine ports colony_policy.criteria/priority_nodes for the common
 // survival goals. Family-specific needs join these same goals during review.
 func DetectRoutine(f RoutineFacts, previous RoutineLatches, p RoutinePolicy) (RoutineNeeds, error) {
-	if v, known := f.ComfortDeficit.Value(); known && (math.IsNaN(v) || math.IsInf(v, 0) || v < 0 || v > 1) { return RoutineNeeds{}, errors.New("invalid comfort deficit") }
+	if v, known := f.ComfortDeficit.Value(); known && (math.IsNaN(v) || math.IsInf(v, 0) || v < 0 || v > 1) {
+		return RoutineNeeds{}, errors.New("invalid comfort deficit")
+	}
 	if err := p.Validate(); err != nil {
 		return RoutineNeeds{}, err
 	}

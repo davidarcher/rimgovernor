@@ -3793,7 +3793,7 @@
     },
     {
       "source": "scripts/fixtures/ComfortFixture.cs",
-      "source_sha256": "62c401041aa8dc17947e18b02f657e874257bbc484ce1f0b93306bf8247770c6",
+      "source_sha256": "f8cda40550850e6e3856aa247224da3a291b1859e7271fbe8242b0869b397e11",
       "compilation": "fixture-only",
       "owner": "N01.01 native packaging owner",
       "migration_status": "inventoried-unmigrated",

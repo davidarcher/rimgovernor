@@ -267,7 +267,17 @@ the budget expires: roofed spot footprints alone do not prove a fully roofed roo
 Furnishing still requires observed roofed indoor space. Unfinished or cancelled
 shells grant no roofing budget. `--routine-methods` is also required to execute
 the method or advance its roofing wait. `--routine-cooking-plans` independently
-enables campfire compilation at the same boundary. Add `--routine-methods` to let the shared
+enables campfire compilation at the same boundary. `--routine-comfort-plans` enables
+table, adjacent dining chair and recreation furniture compilation after startup
+needs recover and development ranking selects comfort. Native observations retain
+facility-specific dining/recreation use through Manual and restart; replacement
+facilities require new use. After observed construction, at most 10,000 ticks in
+the same direction permit ordinary use, observed in windows of at most 120 ticks.
+Skilled furniture requires a qualified assigned builder from the same native
+observation bracket, honoring saved player work preferences.
+Unknown access, existing inaccessible
+facilities and exhausted waits cannot certify recovery or create duplicate furniture.
+Add `--routine-methods` to let the shared
 Hands worker execute reviewed building methods under the existing player direction.
 Each dispatch rechecks the journal binding, active known deficit, epoch, world and
 native generation. Pending player work takes priority; Manual stops routine writes
@@ -276,7 +286,7 @@ include eligible routine work after the player plan settles. Remaining fact proj
 method selection and execution composition remain in G01.05.
 `scripts/native_go_routine_acceptance.py`, run through the documented container
 scenario launcher with the private construction fixture and verified Go binary,
-covers the live SDK read trace, fifteen durable goals, urgent and ongoing medical needs,
+covers the live SDK read trace, sixteen durable goals, urgent and ongoing medical needs,
 unknown food forecast, Manual invalidation, joined shutdown and disabled restart.
 `--supply-history` additionally clears the original supplies through the native
 player Allow designator, reviews their recovery, and re-forbids the same supplies.

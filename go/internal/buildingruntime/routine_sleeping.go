@@ -147,7 +147,13 @@ func (r *RoutineBuildingPlanner) step(call, epoch context.Context) (RoutineBuild
 	if r.shelter {
 		definitions = []string{"Wall", "Door"}
 	}
-	reading, err := observation.ObserveColony(call, r.native, r.reviewer.clock, expected, r.reviewer.maxAge, true, definitions)
+	var reading observation.ColonyReading
+	if r.goal == policy.EnsureComfort {
+		full, readErr := observation.ObserveRoutine(call, r.native.(observation.RoutineSource), r.reviewer.clock, expected, r.reviewer.maxAge, definitions...)
+		reading, err = full.ColonyReading, readErr
+	} else {
+		reading, err = observation.ObserveColony(call, r.native, r.reviewer.clock, expected, r.reviewer.maxAge, true, definitions)
+	}
 	if err != nil {
 		return RoutineBuildingResult{}, err
 	}
@@ -195,7 +201,18 @@ func (r *RoutineBuildingPlanner) step(call, epoch context.Context) (RoutineBuild
 	if reason != "" {
 		return RoutineBuildingResult{Reason: reason}, nil
 	}
-	if !routineDefinitionsAvailable(facts, definitions, r.shelter) {
+	available := routineDefinitionsAvailable(facts, definitions, r.shelter)
+	if r.goal == policy.EnsureComfort {
+		preferences, loadErr := p.journal.LoadWorkPreferences(call, state.Snapshot.Plan)
+		if loadErr != nil && !errors.Is(loadErr, store.ErrNotFound) {
+			return RoutineBuildingResult{}, loadErr
+		}
+		if preferences.Revision != review.WorkPreferenceRevision {
+			return RoutineBuildingResult{}, ErrControl
+		}
+		available = comfortBuilderAvailable(facts, r.definition, preferences.Overrides)
+	}
+	if !available {
 		return RoutineBuildingResult{Reason: BuildingMethodUnknown}, nil
 	}
 	if existing, loadErr := p.journal.LoadGoalMethod(call, goal.Goal.ID, goal.Goal.Epoch, method); loadErr == nil {

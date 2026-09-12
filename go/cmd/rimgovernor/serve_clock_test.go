@@ -30,6 +30,18 @@ func TestClockServeRequiresPlayerControl(t *testing.T) {
 	}
 }
 
+func TestComfortServeRequiresReviewsAndCanOwnRoutineMethods(t *testing.T) {
+	dir := t.TempDir()
+	base := []string{"--gabs", filepath.Join(dir, "gabs"), "--config", dir, "--game", "game", "--state", filepath.Join(dir, "state.db"), "--clock-control", "--player-control", "--profile", dir, "--routine-comfort-plans"}
+	if _, err := parseServe(base, io.Discard); err == nil {
+		t.Fatal("comfort compiler accepted without reviews")
+	}
+	c, err := parseServe(append(base, "--routine-reviews", "--routine-methods"), io.Discard)
+	if err != nil || !c.routineComfortPlans || !c.routineMethods || c.routineSleepingPlans || c.routineShelterPlans {
+		t.Fatalf("comfort configuration: %+v %v", c, err)
+	}
+}
+
 type clockServiceFake struct {
 	buildingruntime.ClockNative
 	buildingruntime.ClockWriter

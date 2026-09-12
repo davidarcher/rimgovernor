@@ -41,6 +41,16 @@ direction changes and restart; unavailable reads leave it unresolved. A differen
 world or rewound tick starts a new cohort. This need history does not establish
 item ownership, reserve those cells, or authorize an Allow order.
 
+Go comfort reviews require a complete native census of eligible people, dining
+surfaces, seating and recreation access. Each kind needs capacity for every
+eligible person and observed use of a still-accessible facility. Use history
+survives Manual, direction changes and restart; world changes and tick rewinds
+reset it. Replacement furniture cannot inherit a previous facility's use.
+The opt-in compiler builds a table, an adjacent chair or recreation furniture
+through shared building admission after startup and development selection permit
+it. Existing inaccessible furniture blocks duplicate construction. A finite wait
+after observed construction allows ordinary use without asserting need recovery.
+
 Required food storage runs at startup survival priority, alongside cooking and
 shelter. It waits for verified indoor sleeping capacity before fitting the starter
 room, but does not wait for optional development slots held by interrupted gear.

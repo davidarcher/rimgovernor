@@ -43,6 +43,25 @@ def test_starting_supply_evidence_requires_exact_original_cells():
     with pytest.raises(AssertionError): probe.audit_starting_supplies(active, cells)
 
 
+def test_comfort_acceptance_requires_current_accessible_facilities_and_use_history():
+    active = {'review': {'Tick': 100, 'Comfort': {
+        'Dining': {'Facility': 'chair', 'Tick': 90}, 'Recreation': {'Facility': 'hoop', 'Tick': 100}}},
+        'goals': {'EnsureComfort': {'Need': 'recovered', 'Status': 'satisfied'}}}
+    native = {'people': ['pawn'], 'dining': [{'id': 'chair', 'accessibleTo': ['pawn']}],
+              'recreation': [{'id': 'hoop', 'accessibleTo': ['pawn']}]}
+    probe.audit_comfort_use(active, native)
+    for field, value in [('Facility', ''), ('Facility', 'replacement'), ('Tick', 0), ('Tick', 101)]:
+        changed = copy.deepcopy(active)
+        changed['review']['Comfort']['Dining'][field] = value
+        with pytest.raises(AssertionError): probe.audit_comfort_use(changed, native)
+    for kind in ('dining', 'recreation'):
+        changed = copy.deepcopy(native)
+        changed[kind][0]['accessibleTo'] = []
+        with pytest.raises(AssertionError): probe.audit_comfort_use(active, changed)
+    native['people'] = []
+    with pytest.raises(AssertionError): probe.audit_comfort_use(active, native)
+
+
 def test_shell_geometry_requires_complete_perimeter_and_south_door():
     plan = {'actions': [{'building': {'x': x, 'z': z, 'stuff': 'WoodLog',
                                       'defName': 'Door' if (x, z) == (14, 20) else 'Wall'}}
@@ -102,6 +121,20 @@ def test_construction_start_accepts_omitted_empty_protobuf_hostiles():
         changed['observed']['threats']['completeness'][field] = '1'
         with pytest.raises(AssertionError): probe.assert_construction_start(changed)
     reply['observed']['threats']['hostiles'] = [{'pawn': {}}]
+    with pytest.raises(AssertionError): probe.assert_construction_start(reply)
+
+
+def test_construction_start_distinguishes_nonhostile_wildlife_from_hunters():
+    census = {'page': {'complete': True}, 'matched': '0', 'returned': '0', 'filtered': '0', 'unreadable': '0'}
+    reply = {'observed': {'colonists': {'pawns': [], 'completeness': census}, 'threats': {
+        'completeness': census | {'matched': '1', 'returned': '1'},
+        'wildPredatorsNear': [{'pawn': {'hostile': False}}]}}}
+    probe.assert_construction_start(reply)
+    for hostile in (True, None):
+        changed = copy.deepcopy(reply)
+        changed['observed']['threats']['wildPredatorsNear'][0]['pawn']['hostile'] = hostile
+        with pytest.raises(AssertionError): probe.assert_construction_start(changed)
+    reply['observed']['threats']['huntingPredators'] = reply['observed']['threats'].pop('wildPredatorsNear')
     with pytest.raises(AssertionError): probe.assert_construction_start(reply)
 
 
