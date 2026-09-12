@@ -64,7 +64,9 @@ namespace HomeBridge.BridgeTools
                 var people = map.mapPawns.FreeColonistsSpawned.Where(p => !p.Dead).ToList();
                 if (people.Count < 1 || people.Count > 8) throw new InvalidOperationException("Require 1..8 colonists.");
                 var center = new IntVec3((int)people.Average(p => p.Position.x), 0, (int)people.Average(p => p.Position.z));
-                var candidates = GenRadial.RadialCellsAround(center, outdoorSite ? 18 : 14, true).Where(c => c.DistanceToSquared(center) >= 36);
+                // Both fixture footprints remain within the native 22-cell
+                // planning radius, including the outdoor shell's four-cell half width.
+                var candidates = GenRadial.RadialCellsAround(center, 18, true).Where(c => c.DistanceToSquared(center) >= 36);
                 var size = outdoorSite ? 9 : 7;
                 var room = candidates.Select(c => new CellRect(c.x - size / 2, c.z - size / 2, size, size)).FirstOrDefault(r => r.Cells.All(c =>
                     c.InBounds(map) && !c.Fogged(map) && (outdoorSite ? c.GetTerrain(map).passability != Traversability.Impassable : c.Standable(map)) && map.zoneManager.ZoneAt(c) == null &&
