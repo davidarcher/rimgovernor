@@ -38,16 +38,17 @@ namespace HomeBridge.BridgeTools
                     return Encode(new Obs.ResearchReply { Observed = Read(parsed, context, map, manager, player) });
                 }
                 catch (ReadLimit e) { return ProtoBoundary.Encode(new Obs.ResearchReply { Unavailable = Missing(Common.UnavailableReason.LimitExceeded, e.Message) }); }
+                catch (StaleCursor) { return ProtoBoundary.Encode(new Obs.ResearchReply { Unavailable = Missing(Common.UnavailableReason.LimitExceeded, "Research cursor is stale or does not match this query.") }); }
                 catch (Exception) { return ProtoBoundary.Encode(new Obs.ResearchReply { Unavailable = Missing(Common.UnavailableReason.ReadFailed, "Research state or required native eligibility facts could not be read completely.") }); }
             }, cancellationToken).ConfigureAwait(false);
         }
 
         internal static bool Validate(Obs.ResearchRequest request, out Common.Failure failure)
         {
-            failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Expected identity and page limit 1..256 required; frozen cursors unsupported.");
+            failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Expected identity and page limit 1..256 required; cursor must fit the caller's current filters.");
             return request?.Scope?.ExpectedIdentity != null
                 && (request.Page == null || (!request.Page.HasLimit || request.Page.Limit >= 1 && request.Page.Limit <= 256)
-                    && (!request.Page.HasCursor || request.Page.Cursor.Length == 0))
+                    && (!request.Page.HasCursor || request.Page.Cursor.Length <= 4096))
                 && (!request.HasNameContains || request.NameContains.Length == 0 || ProtoBoundary.IsIdentifier(request.NameContains));
         }
 
@@ -106,6 +107,7 @@ namespace HomeBridge.BridgeTools
             var definitions = DefDatabase<ResearchProjectDef>.AllDefsListForReading;
             if (definitions.Count > 65536) throw new ReadLimit("Research definition census exceeds 65536.");
             var filtered = 0;
+            var built = new List<Obs.ResearchProject>();
             foreach (var def in definitions.OrderBy(d => d.defName, StringComparer.Ordinal))
             {
                 var points = Progress(def, progress, knowledge, anomaly);
@@ -128,11 +130,26 @@ namespace HomeBridge.BridgeTools
                     }
                     row.UnlocksCompleteness = Complete(unlocks.Count, 0);
                 }
-                snapshot.Projects.Add(row);
+                built.Add(row);
             }
-            if (snapshot.Projects.Count > (request.Page?.HasLimit == true ? request.Page.Limit : 256)) throw new ReadLimit("Matched research projects exceed page limit; narrow filters.");
-            snapshot.Completeness = Complete(snapshot.Projects.Count, filtered);
+            var seed = QuerySeed(request);
+            var afterCursor = built;
+            if (request.Page != null && request.Page.HasCursor && request.Page.Cursor.Length != 0)
+            {
+                if (!NativeObservationSnapshot.Cursor.TryDecode(context.Identity, seed, request.Page.Cursor, out var after))
+                    throw new StaleCursor();
+                afterCursor = built.Where(p => string.CompareOrdinal(p.Project.DefName, after) > 0).ToList();
+            }
+            var limit = request.Page?.HasLimit == true ? (int)request.Page.Limit : 256;
+            var page = afterCursor.Take(limit).ToList();
+            if (page.Count > 256) throw new ReadLimit("Matched research projects exceed page limit; narrow filters.");
+            var truncated = afterCursor.Count > page.Count;
+            snapshot.Projects.Add(page);
+            snapshot.Completeness = Complete(page.Count, filtered);
+            snapshot.Completeness.Page.Complete = !truncated;
+            if (truncated) snapshot.Completeness.Page.NextCursor = NativeObservationSnapshot.Cursor.Encode(context.Identity, seed, page[page.Count-1].Project.DefName);
             if (request.IncludeCapability) Capability(snapshot, map);
+            snapshot.Snapshot = Token(context, snapshot);
             return snapshot;
         }
 
@@ -227,6 +244,18 @@ namespace HomeBridge.BridgeTools
         private static Common.Unavailable Missing(Common.UnavailableReason reason, string detail) => new Common.Unavailable { Reason = reason, Detail = detail };
         private static Obs.ReadIssue Issue(string field, string detail) => new Obs.ReadIssue { Field = field, Unavailable = Missing(Common.UnavailableReason.ReadFailed, detail) };
         private static Obs.Completeness Complete(int count, int filtered) => new Obs.Completeness { Page = new Common.PageInfo { Complete = true }, Matched = (ulong)count, Returned = (ulong)count, Filtered = (ulong)filtered, Unreadable = 0 };
+        private static string QuerySeed(Obs.ResearchRequest request) => string.Join("",
+            request.IncludeLocked, request.IncludeFinished, request.IncludeUnlocks, request.IncludeCapability, request.NameContains ?? "");
+        // Stateless hash over the fields this reply actually returned; recomputed
+        // fresh each call, same pattern as NativeObservationSnapshot's other tokens.
+        private static Obs.SnapshotRef Token(Common.ObservationContext context, Obs.ResearchSnapshot snapshot)
+            => NativeObservationSnapshot.Snapshot("research", context, "research-manager", w => {
+                w.Write(snapshot.AnomalyActive); w.Write(snapshot.PlayerTechLevel ?? "");
+                foreach (var slot in snapshot.Slots) { w.Write(slot.Category ?? ""); w.Write(slot.CurrentProject ?? ""); }
+                foreach (var project in snapshot.Projects.OrderBy(p => p.Project.DefName, StringComparer.Ordinal))
+                { w.Write(project.Project.DefName); w.Write(project.Progress); w.Write(project.Finished); w.Write(project.Current); }
+            });
         private sealed class ReadLimit : Exception { internal ReadLimit(string message) : base(message) { } }
+        private sealed class StaleCursor : Exception { }
     }
 }
