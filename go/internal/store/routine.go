@@ -77,6 +77,9 @@ func loadRoutine(ctx context.Context, tx *sql.Tx) (RoutineReview, error) {
 	if err := r.StartingSupplies.Validate(); err != nil {
 		return RoutineReview{}, err
 	}
+	if err := r.Latches.Animals.Validate(); err != nil {
+		return RoutineReview{}, err
+	}
 	if err := r.Sleeping.Validate(); err != nil {
 		return RoutineReview{}, err
 	}

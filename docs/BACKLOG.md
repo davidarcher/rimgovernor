@@ -764,9 +764,10 @@ expand these into another nested task tree; remove a row when its outcome is met
   and retained feed hysteresis across Manual/restart. Populated native pen/feed
   parity and Go replay verify containment, pet/pen distinctions, shared reserves
   and durable needs. Sleeping upkeep now distinguishes upgrade, unsafe assignment
-  and unobserved use, with exact pawn/bed use history across Manual/restart; native
-  projection parity and replay acceptance are pending. Home coverage and stone
-  shell needs remain open, along with sleeping and animal method composition.
+  and unobserved use, with exact pawn/bed use history across Manual/restart.
+  Populated native floor-place parity and Go replay verify upgrade needs; real-bed
+  use acceptance and assignment/building method composition remain open. Home
+  coverage and stone shell needs remain open, along with animal method composition.
   Medical reserves now project observed medicine stacks and usable resources into
   a hysteretic maintained need. Captured native replay verifies stock caps and
   entry/recovery thresholds; durable tests cover unknowns, Manual, restart and

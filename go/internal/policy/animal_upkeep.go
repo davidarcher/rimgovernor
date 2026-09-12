@@ -30,6 +30,21 @@ type AnimalUpkeepHistory struct {
 	Containment bool
 	Feed        []PawnID
 }
+
+func (h AnimalUpkeepHistory) Validate() error {
+	if len(h.Feed) > 256 {
+		return errors.New("animal feed history exceeds bound")
+	}
+	seen := map[PawnID]bool{}
+	for _, id := range h.Feed {
+		if !foodID(string(id)) || seen[id] {
+			return errors.New("invalid animal feed history")
+		}
+		seen[id] = true
+	}
+	return nil
+}
+
 type AnimalFeedTarget struct {
 	ID                                PawnID
 	RunwayDays, Nutrition, TargetDays float64
@@ -43,14 +58,14 @@ type AnimalUpkeepReview struct {
 func ReviewAnimalUpkeep(v AnimalUpkeepObservation, previous AnimalUpkeepHistory, p AnimalUpkeepPolicy) (AnimalUpkeepReview, error) {
 	r := AnimalUpkeepReview{History: AnimalUpkeepHistory{Containment: previous.Containment, Feed: append([]PawnID{}, previous.Feed...)}}
 	invalid := errors.New("invalid animal upkeep facts or history")
-	if !foodNumber(p.FeedMinimumDays) || !foodNumber(p.FeedTargetDays) || p.FeedTargetDays <= p.FeedMinimumDays || len(previous.Feed) > 256 || len(v.DirectedHerds) > 256 {
+	if !foodNumber(p.FeedMinimumDays) || !foodNumber(p.FeedTargetDays) || p.FeedTargetDays <= p.FeedMinimumDays || len(v.DirectedHerds) > 256 {
 		return r, invalid
+	}
+	if err := previous.Validate(); err != nil {
+		return r, err
 	}
 	active := map[PawnID]bool{}
 	for _, id := range previous.Feed {
-		if !foodID(string(id)) || active[id] {
-			return r, invalid
-		}
 		active[id] = true
 	}
 	directed := map[Resource]bool{}

@@ -2,6 +2,7 @@ package store
 
 import (
 	"context"
+	"encoding/json"
 	"path/filepath"
 	"testing"
 
@@ -70,5 +71,27 @@ func TestAnimalNeedsRetainRiskAcrossManualRestartAndUnknown(t *testing.T) {
 	out = reviewRoutine(t, s, &r)
 	if g := routineGoal(t, out, policy.MaintainAnimalFeed); g.Goal.Need != domain.NeedRecovered {
 		t.Fatal(g)
+	}
+}
+
+func TestDisabledRoutineRejectsInvalidAnimalHistory(t *testing.T) {
+	s := open(t, filepath.Join(t.TempDir(), "invalid-animals.db"))
+	defer s.Close()
+	r := routineRequest()
+	reviewRoutine(t, s, &r)
+	r.Enabled = false
+	out := reviewRoutine(t, s, &r)
+	for _, ids := range [][]policy.PawnID{{""}, {"animal", "animal"}} {
+		out.Review.Latches.Animals.Feed = ids
+		data, err := json.Marshal(out.Review)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if _, err = s.db.Exec("UPDATE routine_review SET payload=? WHERE singleton=1", data); err != nil {
+			t.Fatal(err)
+		}
+		if _, err = s.LoadRoutineReview(context.Background()); err == nil {
+			t.Fatal("invalid disabled animal history accepted", ids)
+		}
 	}
 }

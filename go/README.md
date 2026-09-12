@@ -320,7 +320,8 @@ Animal reference captures additionally check pen state, reachable feed, shared
 food competition and both reserve thresholds. Sleeping captures compare owners,
 users, access and comfort against native facts and retain exact pawn/bed use.
 A safe assignment still needs observed use; unsafe assignments remain deficits.
-Sleeping assignment/building methods are not connected yet.
+Native floor-place replay establishes upgrade detection; actual real-bed use
+acceptance and sleeping assignment/building methods remain open.
 Animal upkeep reviews retain containment risk and per-animal feed thresholds.
 Feed shares the observed diet/rot forecast with human consumers. Missing censuses
 remain unknown; a complete empty census clears animal needs. Release and slaughter
