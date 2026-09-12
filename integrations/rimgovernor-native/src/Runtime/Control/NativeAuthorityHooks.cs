@@ -5,6 +5,7 @@ using System.Linq;
 using System.Reflection;
 using HarmonyLib;
 using RimWorld;
+using UnityEngine;
 using Verse;
 using Verse.AI;
 
@@ -34,7 +35,7 @@ namespace HomeBridge.BridgeTools
             internal readonly MethodInfo? Postfix;
         }
         private static readonly List<Target> Targets = new List<Target>();
-        private const int Required = 16;
+        private const int Required = 21;
         private static string installationFailure = "";
         static NativeAuthorityHooks()
         {
@@ -57,6 +58,15 @@ namespace HomeBridge.BridgeTools
                 Add(harmony, AccessTools.PropertySetter(typeof(Current), "Game"), nameof(BeforeGame), nameof(AfterGame));
                 Add(harmony, AccessTools.PropertySetter(typeof(Game), "CurrentMap"), nameof(BeforeMap), nameof(AfterMap));
                 Add(harmony, AccessTools.Method(typeof(Game), "UpdatePlay", Type.EmptyTypes), nameof(Update), null);
+                // Bills: RimGovernor's own writes (NativeProductionBills.Execute) run inside authority.Owned(),
+                // which suppresses these; any other caller (player UI, home/bills) is treated as external.
+                Add(harmony, AccessTools.Method(typeof(BillStack), "AddBill", new[] { typeof(Bill) }), null, nameof(ExternalBillWrite));
+                Add(harmony, AccessTools.Method(typeof(BillStack), "Delete", new[] { typeof(Bill) }), null, nameof(ExternalBillWrite));
+                Add(harmony, AccessTools.Method(typeof(BillStack), "Reorder", new[] { typeof(Bill), typeof(int) }), null, nameof(ExternalBillWrite));
+                // Bill.suspended has no setter; DoInterface's row toggle is the only mutation point outside the config dialog.
+                Add(harmony, AccessTools.Method(typeof(Bill), "DoInterface", new[] { typeof(float), typeof(float), typeof(float), typeof(int) }), nameof(BeforeBillInterface), nameof(AfterBillInterface));
+                // Dialog_BillConfig writes every other Bill_Production field directly with no setters; snapshot-diff the whole config.
+                Add(harmony, AccessTools.Method(typeof(Dialog_BillConfig), "DoWindowContents", new[] { typeof(Rect) }), nameof(BeforeBillConfig), nameof(AfterBillConfig));
             }
             catch (Exception ex)
             {
@@ -172,5 +182,42 @@ namespace HomeBridge.BridgeTools
         {
             if (game != null && NativeControlAuthority.TryGetForGame(game, out var state)) state!.RequestContextInvalidation();
         }
+
+        private static void ExternalBillWrite() => Revoke(NativeControlRevocationReason.ExternalOrder);
+        private static void BeforeBillInterface(Bill __instance, out bool __state) => __state = __instance.suspended;
+        private static void AfterBillInterface(Bill __instance, bool __state)
+        { if (__state != __instance.suspended) Revoke(NativeControlRevocationReason.PlayerControl); }
+
+        private struct BillConfigSnapshot
+        {
+            internal string RepeatMode; internal int RepeatCount; internal int TargetCount; internal bool PauseWhenSatisfied;
+            internal int UnpauseWhenYouHave; internal bool IncludeEquipped; internal bool IncludeTainted; internal object? IncludeGroup;
+            internal float HpMin; internal float HpMax; internal int QualityMin; internal int QualityMax; internal bool LimitToAllowedStuff;
+            internal string StoreMode; internal object? StoreGroup; internal object? PawnRestriction;
+            internal bool SlavesOnly; internal bool MechsOnly; internal bool NonMechsOnly;
+            internal int SkillMin; internal int SkillMax; internal float SearchRadius; internal bool Suspended; internal string FilterSummary;
+        }
+        private static BillConfigSnapshot SnapshotBillConfig(Bill_Production bill) => new BillConfigSnapshot
+        {
+            RepeatMode = bill.repeatMode?.defName ?? "", RepeatCount = bill.repeatCount, TargetCount = bill.targetCount,
+            PauseWhenSatisfied = bill.pauseWhenSatisfied, UnpauseWhenYouHave = bill.unpauseWhenYouHave,
+            IncludeEquipped = bill.includeEquipped, IncludeTainted = bill.includeTainted, IncludeGroup = bill.GetIncludeSlotGroup(),
+            HpMin = bill.hpRange.min, HpMax = bill.hpRange.max, QualityMin = (int)bill.qualityRange.min, QualityMax = (int)bill.qualityRange.max,
+            LimitToAllowedStuff = bill.limitToAllowedStuff, StoreMode = bill.GetStoreMode()?.defName ?? "", StoreGroup = bill.GetSlotGroup(),
+            PawnRestriction = bill.PawnRestriction, SlavesOnly = bill.SlavesOnly, MechsOnly = bill.MechsOnly, NonMechsOnly = bill.NonMechsOnly,
+            SkillMin = bill.allowedSkillRange.min, SkillMax = bill.allowedSkillRange.max, SearchRadius = bill.ingredientSearchRadius,
+            Suspended = bill.suspended, FilterSummary = bill.ingredientFilter?.Summary ?? "",
+        };
+        private static bool BillConfigChanged(BillConfigSnapshot a, BillConfigSnapshot b) =>
+            a.RepeatMode != b.RepeatMode || a.RepeatCount != b.RepeatCount || a.TargetCount != b.TargetCount ||
+            a.PauseWhenSatisfied != b.PauseWhenSatisfied || a.UnpauseWhenYouHave != b.UnpauseWhenYouHave ||
+            a.IncludeEquipped != b.IncludeEquipped || a.IncludeTainted != b.IncludeTainted || !ReferenceEquals(a.IncludeGroup, b.IncludeGroup) ||
+            a.HpMin != b.HpMin || a.HpMax != b.HpMax || a.QualityMin != b.QualityMin || a.QualityMax != b.QualityMax ||
+            a.LimitToAllowedStuff != b.LimitToAllowedStuff || a.StoreMode != b.StoreMode || !ReferenceEquals(a.StoreGroup, b.StoreGroup) ||
+            !ReferenceEquals(a.PawnRestriction, b.PawnRestriction) || a.SlavesOnly != b.SlavesOnly || a.MechsOnly != b.MechsOnly || a.NonMechsOnly != b.NonMechsOnly ||
+            a.SkillMin != b.SkillMin || a.SkillMax != b.SkillMax || a.SearchRadius != b.SearchRadius || a.Suspended != b.Suspended || a.FilterSummary != b.FilterSummary;
+        private static void BeforeBillConfig(Bill_Production ___bill, out BillConfigSnapshot __state) => __state = SnapshotBillConfig(___bill);
+        private static void AfterBillConfig(Bill_Production ___bill, BillConfigSnapshot __state)
+        { if (BillConfigChanged(__state, SnapshotBillConfig(___bill))) Revoke(NativeControlRevocationReason.PlayerControl); }
     }
 }

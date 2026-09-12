@@ -29,7 +29,7 @@ internal static class Program
     public static void Main()
     {
         _ = UnityData.IsInMainThread;
-        Assert(NativeAuthorityHooks.Health.Ready && NativeAuthorityHooks.Health.VerifiedTargets == 16, "all exact patches installed");
+        Assert(NativeAuthorityHooks.Health.Ready && NativeAuthorityHooks.Health.VerifiedTargets == 21, "all exact patches installed");
         Assert(NativeAuthorityHooks.InitializeForCurrentGame() == null, "no game initializes nothing");
         var game = new Game { CurrentMap = new Map { uniqueID = 1 } }; Current.Game = game;
         Assert(!NativeControlAuthority.TryGetForGame(game, out _), "setter allocated state");
@@ -69,6 +69,30 @@ internal static class Program
         Preserves(() => cancel.DesignateSingleCell(default), "cancel empty cell");
         game.CurrentMap.designationManager.Thing.Add(new Designation());
         Invalidates(() => cancel.DesignateThing(new Thing()), "cancel thing designation");
+        var stack = new BillStack();
+        var billProd = new Bill_Production();
+        var dialog = new Dialog_BillConfig(billProd);
+        Invalidates(() => stack.AddBill(billProd), "bill added");
+        Preserves(() => { using (State.Owned()) stack.AddBill(new Bill_Production()); }, "owned bill added");
+        Invalidates(() => stack.Delete(billProd), "bill deleted");
+        Invalidates(() => stack.Reorder(billProd, 1), "bill reordered");
+        billProd.interfaceAction = () => billProd.suspended = !billProd.suspended;
+        Invalidates(() => billProd.DoInterface(0, 0, 0, 0), "bill suspend toggled via row");
+        billProd.interfaceAction = null;
+        Preserves(() => billProd.DoInterface(0, 0, 0, 0), "bill row noop");
+        dialog.editAction = () => billProd.repeatCount = 7;
+        Invalidates(() => dialog.DoWindowContents(default), "bill config repeat count changed");
+        dialog.editAction = () => billProd.targetCount = 12;
+        Invalidates(() => dialog.DoWindowContents(default), "bill config target count changed");
+        dialog.editAction = () => billProd.SetStoreMode(new BillStoreModeDef(), null);
+        Invalidates(() => dialog.DoWindowContents(default), "bill config store mode changed");
+        dialog.editAction = () => billProd.ingredientFilter.Summary = "changed";
+        Invalidates(() => dialog.DoWindowContents(default), "bill config ingredient filter changed");
+        dialog.editAction = null;
+        Preserves(() => dialog.DoWindowContents(default), "bill config noop");
+        dialog.editAction = () => billProd.repeatCount = 99;
+        Preserves(() => { using (State.Owned()) dialog.DoWindowContents(default); }, "owned bill config change");
+        dialog.editAction = null;
         Preserves(() => { using (State.Owned()) using (State.Owned()) { build(); jobs.TryTakeOrderedJob(new Job()); draft.Drafted = true; } }, "owned work");
         Invalidates(() => { try { using (State.Owned()) throw new Exception(); } catch { } build(); }, "exception disposes suppression");
         var map = game.CurrentMap;

@@ -24,7 +24,15 @@ type ProductionRecipe struct {
 	Available domain.Fact[bool]
 	Products  []ProductionProduct
 }
-type ExistingProductionBill struct{ Recipe string }
+
+// ExistingProductionBill's TargetCount/Forever describe the bill's own
+// configured target, not how much of it is already produced: a TargetCount
+// bill reserves that nutrition toward its buffer even while still filling it.
+type ExistingProductionBill struct {
+	Recipe      string
+	TargetCount domain.Fact[int32]
+	Forever     domain.Fact[bool]
+}
 type ProductionBench struct {
 	ID, Definition string
 	Token          domain.Fact[string]
@@ -56,6 +64,10 @@ func SelectProductionBill(purpose BillPurpose, benches domain.Fact[[]ProductionB
 		if !dk || !rk || !foodNumber(days) || !fieldPositive(risk) || days >= targetDays {
 			return BillSelection{}, false
 		}
+	}
+	reserved, ok := ReservedFoodNutrition(rows)
+	if !ok {
+		reserved = 0
 	}
 	var options []BillSelection
 	seen := map[string]bool{}
@@ -110,7 +122,11 @@ func SelectProductionBill(purpose BillPurpose, benches domain.Fact[[]ProductionB
 					if !pk || perish && (!sk || !fieldPositive(shelf) || shelf <= targetDays) || !dk || !fieldPositive(demand) {
 						continue
 					}
-					target := math.Ceil(demand * targetDays / nutrition)
+					needed := demand*targetDays - reserved
+					if needed <= 0 {
+						continue
+					}
+					target := math.Ceil(needed / nutrition)
 					if target < 1 || target > 10000 {
 						continue
 					}

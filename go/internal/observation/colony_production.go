@@ -6,6 +6,13 @@ import (
 	o "github.com/davidarcher/RimGovernor/go/internal/wire/observationspb"
 )
 
+func billForever(mode *string) domain.Fact[bool] {
+	if mode == nil {
+		return domain.Unknown[bool]()
+	}
+	return domain.Known(*mode == "Forever")
+}
+
 func colonyFieldCrops(v *o.ColonyFactsSnapshot, definitions []PlanningDefinition, usable ...bool) domain.Fact[[]policy.FieldCrop] {
 	if hasIssue(v.Issues, "farms") {
 		return domain.Unknown[[]policy.FieldCrop]()
@@ -115,7 +122,7 @@ func colonyProductionBenches(v *o.ColonyFactsSnapshot) domain.Fact[[]policy.Prod
 			row.Recipes = append(row.Recipes, recipe)
 		}
 		for _, b := range bills {
-			row.Bills = append(row.Bills, policy.ExistingProductionBill{Recipe: b.Recipe.GetDefName()})
+			row.Bills = append(row.Bills, policy.ExistingProductionBill{Recipe: b.Recipe.GetDefName(), TargetCount: optional(b.TargetCount), Forever: billForever(b.RepeatMode)})
 		}
 		rows = append(rows, row)
 	}

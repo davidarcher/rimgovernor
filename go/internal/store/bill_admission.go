@@ -158,7 +158,7 @@ func loadBillAdmission(ctx context.Context, tx *sql.Tx, a domain.Action, p domai
 	if (v.Stage == domain.Prepared || v.Attempt > 0) && !admission.Snapshot.Matches(v.Snapshot) {
 		return BillAdmission{}, false, errors.New("admission and progress authority disagree")
 	}
-	if v.Unresolved && admission.Tick > v.Tick {
+	if (v.Unresolved || v.Stage == domain.Completed || v.Stage == domain.Unsuccessful) && admission.Tick > v.Tick {
 		return BillAdmission{}, false, errors.New("admission is newer than dispatched progress")
 	}
 	return admission, true, nil

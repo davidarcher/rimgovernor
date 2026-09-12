@@ -155,6 +155,11 @@ func (b *billBoundary) ObserveBill(ctx context.Context, p executor.Placement, cu
 	case *r.Progress_Pending:
 		evidence = effect.Pending.GetEvidence()
 		out.Observation.Effect = domain.EffectPending
+	case *r.Progress_Absent:
+		if !out.Complete || effect.Absent == nil || !boundaryID(effect.Absent.GetInspectionToken()) {
+			return out, executor.ErrEvidence
+		}
+		out.Observation.Effect = domain.EffectAbsent
 	case *r.Progress_Unknown:
 	default:
 		return out, executor.ErrEvidence

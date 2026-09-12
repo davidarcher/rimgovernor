@@ -79,9 +79,12 @@ func (e *Executor) runBill(ctx context.Context, action domain.Action, p domain.P
 			if !evidence.Complete || evidence.Bill != bill || !known || (allowed && (evidence.Iterations == 0 || !evidence.OutputComplete || evidence.OutputCount != 0)) || o.UnsuccessfulReason != domain.OutcomeNotAchieved {
 				return result, ErrEvidence
 			}
+		case domain.EffectAbsent:
+			if !evidence.Complete || evidence.Bill != bill {
+				return result, ErrEvidence
+			}
 		case domain.EffectUnknown, domain.EffectPending:
 		default:
-			// Missing native bill or output cannot authorize a second production bill.
 			return result, ErrEvidence
 		}
 		next, err := e.journal.Observe(ctx, v.Plan, o, current)

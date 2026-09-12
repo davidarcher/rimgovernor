@@ -705,8 +705,15 @@ func advanceInTransaction(ctx context.Context, tx *sql.Tx, plan domain.PlanID, a
 			if !matched {
 				return domain.Progress{}, errors.New("bill dispatch lacks admission")
 			}
+		}
+		// A trusted refusal proves no bill was created, leaving the bench+recipe pair
+		// claimable again; only an accepted or uncertain write may have produced one.
+		if event.Kind == "receipt" && event.Receipt != domain.ReceiptRefused {
 			bill, _ := current.Action().ProductionBill()
-			if _, err := tx.ExecContext(ctx, "INSERT INTO bill_claims(colony,load_token,map_id,bench,recipe) VALUES(?,?,?,?,?)", event.Snapshot.Colony, event.Snapshot.Load, event.Snapshot.Map, bill.Bench(), bill.Recipe()); err != nil {
+			snapshot := current.View().Snapshot
+			// A reopened retry (e.g. an uncertain write later observed absent) claims the
+			// same bench+recipe again; that is not a real conflict.
+			if _, err := tx.ExecContext(ctx, "INSERT INTO bill_claims(colony,load_token,map_id,bench,recipe) VALUES(?,?,?,?,?) ON CONFLICT(colony,load_token,map_id,bench,recipe) DO NOTHING", snapshot.Colony, snapshot.Load, snapshot.Map, bill.Bench(), bill.Recipe()); err != nil {
 				return domain.Progress{}, conflict(err)
 			}
 		}

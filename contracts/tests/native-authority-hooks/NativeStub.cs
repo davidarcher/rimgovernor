@@ -106,3 +106,65 @@ namespace RimWorld {
  [MethodImpl(MethodImplOptions.NoInlining)] public void SetPlantDefToGrow(Verse.ThingDef crop){plantDefToGrow=crop;}
  }
 }
+
+namespace UnityEngine { public struct Rect { } }
+namespace Verse {
+ public class Pawn { }
+ public struct FloatRange { public float min; public float max; }
+ public struct IntRange { public int min; public int max; }
+ public class ThingFilter { public string Summary = ""; }
+}
+namespace RimWorld {
+ using Verse;
+ public class BillRepeatModeDef { public string defName = "Forever"; }
+ public class BillStoreModeDef { public string defName = "DropOnFloor"; }
+ public interface ISlotGroup { }
+ public class QualityRange { public int min; public int max; }
+ public class Bill {
+  public bool suspended;
+  public ThingFilter ingredientFilter = new();
+  public float ingredientSearchRadius = 999f;
+  public IntRange allowedSkillRange;
+  public Pawn? PawnRestriction;
+  public bool SlavesOnly;
+  public bool MechsOnly;
+  public bool NonMechsOnly;
+  // Simulates the real DoInterface's inline suspend-toggle click handler firing mid-call.
+  public Action? interfaceAction;
+  [MethodImpl(MethodImplOptions.NoInlining)] public virtual UnityEngine.Rect DoInterface(float x, float y, float width, int index) { interfaceAction?.Invoke(); return default; }
+ }
+ public class Bill_Production : Bill {
+  public BillRepeatModeDef? repeatMode = new();
+  public int repeatCount = 1;
+  public int targetCount = 1;
+  public bool pauseWhenSatisfied;
+  public int unpauseWhenYouHave;
+  public bool includeEquipped;
+  public bool includeTainted;
+  public FloatRange hpRange;
+  public QualityRange qualityRange = new();
+  public bool limitToAllowedStuff;
+  private ISlotGroup? includeGroup;
+  private BillStoreModeDef? storeMode;
+  private ISlotGroup? storeGroup;
+  public ISlotGroup? GetIncludeSlotGroup() => includeGroup;
+  public void SetIncludeGroup(ISlotGroup? group) => includeGroup = group;
+  public BillStoreModeDef? GetStoreMode() => storeMode;
+  public ISlotGroup? GetSlotGroup() => storeGroup;
+  public void SetStoreMode(BillStoreModeDef mode, ISlotGroup? group) { storeMode = mode; storeGroup = group; }
+ }
+ public class BillStack {
+  public readonly List<Bill> bills = new();
+  [MethodImpl(MethodImplOptions.NoInlining)] public void AddBill(Bill bill) => bills.Add(bill);
+  [MethodImpl(MethodImplOptions.NoInlining)] public void Delete(Bill bill) => bills.Remove(bill);
+  [MethodImpl(MethodImplOptions.NoInlining)] public void Reorder(Bill bill, int offset)
+  { var i = bills.IndexOf(bill); if (i < 0) return; bills.RemoveAt(i); var to = i + offset; if (to < 0) to = 0; if (to > bills.Count) to = bills.Count; bills.Insert(to, bill); }
+ }
+ public class Dialog_BillConfig {
+  protected Bill_Production bill;
+  // Simulates whatever field write the real config dialog would perform this frame.
+  public Action? editAction;
+  public Dialog_BillConfig(Bill_Production bill) { this.bill = bill; }
+  [MethodImpl(MethodImplOptions.NoInlining)] public void DoWindowContents(UnityEngine.Rect inRect) => editAction?.Invoke();
+ }
+}

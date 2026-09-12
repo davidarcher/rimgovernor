@@ -261,7 +261,13 @@ func commitGoalMethod(ctx context.Context, tx *sql.Tx, id domain.GoalID, revisio
 		return GoalState{}, err
 	}
 	if open {
-		return GoalState{}, errors.New("existing method requires observation")
+		exempt, err := acquisitionOpenWorkExempt(ctx, tx, state, plan)
+		if err != nil {
+			return GoalState{}, err
+		}
+		if !exempt {
+			return GoalState{}, errors.New("existing method requires observation")
+		}
 	}
 	m := domain.GoalMethod{Goal: id, Epoch: g.Epoch, Method: method, Plan: plan.ID()}
 	if err = m.Validate(); err != nil {
