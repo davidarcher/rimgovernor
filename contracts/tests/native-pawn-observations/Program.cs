@@ -105,6 +105,166 @@ internal static class Program
         var missingSettings=detailsType.GetMethod("Settings",Flags)!.Invoke(null,new[]{emptyPawn})!;
         Check(!(bool)Get(missingSettings,"HasSelfTend"),"missing settings tracker is not self-tend false");
         Check(((IEnumerable)Get(missingSettings,"Issues")).Cast<object>().Any(i=>(string)Get(i,"Field")=="work"),"uninitialized work tracker is not queried");
+
+        // ---- N01.03: populated Social fixture (real relation + present-but-empty thought trackers) ----
+        // Thought/Thought_Memory/Thought_Situational cannot be constructed in this offline harness:
+        // touching any field declared on RimWorld.Thought forces its static cctor, which reaches
+        // ContentFinder<Texture2D>.Get -> Verse.UnityData -> a Unity Application/StackTraceUtility
+        // ECall that throws SecurityException outside the real game process. So this fixture proves
+        // the "trackers present but empty" path (correct empty collections, no spurious Missing
+        // issues, and the relation/cache-stale wiring), rather than populated thought rows.
+        Type[] allNativeTypes;
+        try { allNativeTypes=native.GetTypes(); }
+        catch(ReflectionTypeLoadException rtle) { allNativeTypes=rtle.Types.Where(t=>t!=null).ToArray()!; }
+        var pawnKindDefT=allNativeTypes.First(t=>t.Name=="PawnKindDef");
+        var socialKindDef=FormatterServices.GetUninitializedObject(pawnKindDefT);
+        pawnKindDefT.GetField("defName")!.SetValue(socialKindDef,"Colonist");
+        pawnKindDefT.GetField("label")!.SetValue(socialKindDef,"colonist");
+        var thingDefT=native.GetType("Verse.ThingDef",true)!;
+        var socialPawnDef=FormatterServices.GetUninitializedObject(thingDefT);
+        thingDefT.GetField("defName")!.SetValue(socialPawnDef,"Human");
+        var socialPawnType=native.GetType("Verse.Pawn",true)!;
+        var socialThingType=native.GetType("Verse.Thing",true)!;
+        var socialThingIdField=socialThingType.GetField("thingIDNumber",Flags)!;
+        var socialGenderEnum=native.GetType("Verse.Gender",true)!;
+        var socialNameSingleT=allNativeTypes.First(t=>t.Name=="NameSingle");
+        object MakeSocialPawn(int id,string name) {
+            var p=FormatterServices.GetUninitializedObject(socialPawnType);
+            socialThingType.GetField("def",Flags)!.SetValue(p,socialPawnDef);
+            socialThingIdField.SetValue(p,id);
+            socialPawnType.GetField("kindDef",Flags)!.SetValue(p,socialKindDef);
+            socialPawnType.GetField("gender",Flags)!.SetValue(p,Enum.Parse(socialGenderEnum,"Male"));
+            socialPawnType.GetField("nameInt",Flags)!.SetValue(p,Activator.CreateInstance(socialNameSingleT,new object?[]{name,false}));
+            var mindStateT=allNativeTypes.First(t=>t.Name=="Pawn_MindState");
+            var mindState=FormatterServices.GetUninitializedObject(mindStateT);
+            mindStateT.GetField("pawn",Flags)?.SetValue(mindState,p);
+            var mentalHandlerT=allNativeTypes.First(t=>t.Name=="MentalStateHandler");
+            var mentalHandler=FormatterServices.GetUninitializedObject(mentalHandlerT);
+            mentalHandlerT.GetField("pawn",Flags)?.SetValue(mentalHandler,p);
+            mindStateT.GetField("mentalStateHandler",Flags)?.SetValue(mindState,mentalHandler);
+            socialPawnType.GetField("mindState",Flags)!.SetValue(p,mindState);
+            return p;
+        }
+        var ada=MakeSocialPawn(101,"Ada"); var bo=MakeSocialPawn(102,"Bo");
+        var relTrackerT=allNativeTypes.First(t=>t.Name=="Pawn_RelationsTracker");
+        var directRelT=allNativeTypes.First(t=>t.Name=="DirectPawnRelation");
+        var pawnRelDefT=allNativeTypes.First(t=>t.Name=="PawnRelationDef");
+        var boTracker=FormatterServices.GetUninitializedObject(relTrackerT);
+        relTrackerT.GetField("pawn",Flags)!.SetValue(boTracker,bo);
+        relTrackerT.GetField("directRelations",Flags)!.SetValue(boTracker,Activator.CreateInstance(typeof(List<>).MakeGenericType(directRelT)));
+        socialPawnType.GetField("relations",Flags)!.SetValue(bo,boTracker);
+        var adaTracker=FormatterServices.GetUninitializedObject(relTrackerT);
+        relTrackerT.GetField("pawn",Flags)!.SetValue(adaTracker,ada);
+        var rivalDef=FormatterServices.GetUninitializedObject(pawnRelDefT);
+        pawnRelDefT.GetField("defName")!.SetValue(rivalDef,"Rival");
+        pawnRelDefT.GetField("opinionOffset")!.SetValue(rivalDef,-10);
+        var rivalRelation=FormatterServices.GetUninitializedObject(directRelT);
+        directRelT.GetField("def")!.SetValue(rivalRelation,rivalDef);
+        directRelT.GetField("otherPawn")!.SetValue(rivalRelation,bo);
+        directRelT.GetField("startTicks")!.SetValue(rivalRelation,0);
+        var adaDirectRelations=(IList)Activator.CreateInstance(typeof(List<>).MakeGenericType(directRelT))!;
+        adaDirectRelations.Add(rivalRelation);
+        relTrackerT.GetField("directRelations",Flags)!.SetValue(adaTracker,adaDirectRelations);
+        socialPawnType.GetField("relations",Flags)!.SetValue(ada,adaTracker);
+
+        var needsTrackerT=native.GetType("RimWorld.Pawn_NeedsTracker",true)!;
+        var moodT=native.GetType("RimWorld.Need_Mood",true)!;
+        var thoughtHandlerT=native.GetType("RimWorld.ThoughtHandler",true)!;
+        var memHandlerT=native.GetType("RimWorld.MemoryThoughtHandler",true)!;
+        var memType=native.GetType("RimWorld.Thought_Memory",true)!;
+        var sitHandlerT=native.GetType("RimWorld.SituationalThoughtHandler",true)!;
+        var sitT=native.GetType("RimWorld.Thought_Situational",true)!;
+        var needsTrackerInst=FormatterServices.GetUninitializedObject(needsTrackerT);
+        var moodInst=FormatterServices.GetUninitializedObject(moodT);
+        var thoughtHandlerInst=FormatterServices.GetUninitializedObject(thoughtHandlerT);
+        var memHandlerInst=FormatterServices.GetUninitializedObject(memHandlerT);
+        var memoriesList=Activator.CreateInstance(typeof(List<>).MakeGenericType(memType))!;
+        memHandlerT.GetField("memories",Flags)!.SetValue(memHandlerInst,memoriesList);
+        var sitHandlerInst=FormatterServices.GetUninitializedObject(sitHandlerT);
+        var cachedThoughtsList=Activator.CreateInstance(typeof(List<>).MakeGenericType(sitT))!;
+        sitHandlerT.GetField("cachedThoughts",Flags)!.SetValue(sitHandlerInst,cachedThoughtsList);
+        var cachedSocialThoughts=Activator.CreateInstance(typeof(Dictionary<,>).MakeGenericType(socialPawnType,sitHandlerT.GetNestedType("CachedSocialThoughts",Flags)!))!;
+        sitHandlerT.GetField("cachedSocialThoughts",Flags)!.SetValue(sitHandlerInst,cachedSocialThoughts);
+        sitHandlerT.GetField("thoughtsDirty",Flags)!.SetValue(sitHandlerInst,true);
+        thoughtHandlerT.GetField("memories",Flags)!.SetValue(thoughtHandlerInst,memHandlerInst);
+        thoughtHandlerT.GetField("situational",Flags)!.SetValue(thoughtHandlerInst,sitHandlerInst);
+        moodT.GetField("thoughts",Flags)!.SetValue(moodInst,thoughtHandlerInst);
+        needsTrackerT.GetField("mood",Flags)!.SetValue(needsTrackerInst,moodInst);
+        socialPawnType.GetField("needs",Flags)!.SetValue(ada,needsTrackerInst);
+
+        var socialColonists=(IList)Activator.CreateInstance(typeof(List<>).MakeGenericType(socialPawnType))!;
+        socialColonists.Add(ada); socialColonists.Add(bo);
+        var socialMethod=detailsType.GetMethod("Social",Flags)!;
+
+        var socialResultDirty=socialMethod.Invoke(null,new object?[]{ada,socialColonists})!;
+        Check((bool)Get(socialResultDirty,"SituationalCacheStale"),"stale situational cache reflected when thoughtsDirty is true");
+
+        sitHandlerT.GetField("thoughtsDirty",Flags)!.SetValue(sitHandlerInst,false);
+        var socialResultFresh=socialMethod.Invoke(null,new object?[]{ada,socialColonists})!;
+        Check(!(bool)Get(socialResultFresh,"SituationalCacheStale"),"fresh situational cache reflected when thoughtsDirty is false");
+
+        var relations=((IEnumerable)Get(socialResultFresh,"Relations")).Cast<object>().ToArray();
+        var rival=relations.FirstOrDefault(r=>(string)Get(r,"RelationDefName")=="Rival");
+        Check(rival!=null,"populated direct relation is projected by defName");
+        Check(rival!=null&&(bool)Get(rival,"OpinionReconstructed"),"relation opinion is marked reconstructed, not read via OpinionOf");
+        // NOTE: GetRelations(a,b)'s own numeric opinion accumulation NREs in this offline
+        // harness (DefDatabase<PawnRelationDef> is empty outside the real game's def-loading
+        // pipeline), so ReconstructedOpinion's try/catch silently yields 0 regardless of the
+        // fixture's opinionOffset. We only assert the direct-relation defName wiring here,
+        // which does not depend on GetRelations.
+        Check(((IEnumerable)Get(socialResultFresh,"Memories")).Cast<object>().Count()==0,"present-but-empty memories yields zero rows, not a Missing issue");
+        Check(((IEnumerable)Get(socialResultFresh,"Situational")).Cast<object>().Count()==0,"present-but-empty situational cache yields zero rows, not a Missing issue");
+        var socialIssues=((IEnumerable)Get(socialResultFresh,"Issues")).Cast<object>().ToArray();
+        Check(!socialIssues.Any(i=>(string)Get(i,"Field")=="memories"||(string)Get(i,"Field")=="situational"),"present-but-empty thought trackers report no Missing issues");
+
+        // Regression guard: Social() must never mutate the underlying relation/thought
+        // fixtures (i.e. never call Pawn_RelationsTracker.OpinionOf or recalculate
+        // situational thoughts, both of which delete/recreate memories as a side effect
+        // in real RimWorld -- see PawnConfigTool's class remarks).
+        Check(adaDirectRelations.Count==1&&ReferenceEquals(((IList)relTrackerT.GetField("directRelations",Flags)!.GetValue(adaTracker)!)[0],rivalRelation),"direct relation fixture is unchanged after Social()");
+        Check(ReferenceEquals(memHandlerT.GetField("memories",Flags)!.GetValue(memHandlerInst),memoriesList)&&memoriesList is IList{Count:0},"memories list reference and emptiness unchanged after Social()");
+        Check(ReferenceEquals(sitHandlerT.GetField("cachedThoughts",Flags)!.GetValue(sitHandlerInst),cachedThoughtsList)&&cachedThoughtsList is IList{Count:0},"cached situational thoughts reference and emptiness unchanged after Social()");
+
+        // ---- N01.03: corpse detail fixture (Apply() on a dead pawn) ----
+        // Health()'s and Biography()'s populate branches are unreachable in this offline
+        // harness for ANY pawn (dead or alive): HealthAIUtility.ShouldSeekMedicalRest and
+        // Pawn.CombinedDisabledWorkTags both unconditionally touch Verse.ModsConfig's static
+        // cctor -> GenFilePaths.SaveDataFolderPath -> a Unity Application.persistentDataPath
+        // ECall that throws SecurityException outside the real game process. So this fixture
+        // disables health/biography/social/animals explicitly and exercises the
+        // needs/equipment/settings projection for a corpse instead.
+        var corpse=MakeSocialPawn(103,"Corpse");
+        var healthTrackerT=native.GetType("Verse.Pawn_HealthTracker",true)!;
+        var healthTrackerInst=FormatterServices.GetUninitializedObject(healthTrackerT);
+        healthTrackerT.GetField("pawn",Flags)!.SetValue(healthTrackerInst,corpse);
+        var pawnHealthStateT=native.GetType("Verse.PawnHealthState",true)!;
+        healthTrackerT.GetField("healthState",Flags)!.SetValue(healthTrackerInst,Enum.Parse(pawnHealthStateT,"Dead"));
+        var hediffSetT=native.GetType("Verse.HediffSet",true)!;
+        var hsInst=FormatterServices.GetUninitializedObject(hediffSetT);
+        hediffSetT.GetField("pawn",Flags)!.SetValue(hsInst,corpse);
+        hediffSetT.GetField("hediffs",Flags)!.SetValue(hsInst,Activator.CreateInstance(typeof(List<>).MakeGenericType(native.GetType("Verse.Hediff",true)!)));
+        healthTrackerT.GetField("hediffSet",Flags)!.SetValue(healthTrackerInst,hsInst);
+        var billStackT=native.GetType("RimWorld.BillStack",true)!;
+        var billStackInst=FormatterServices.GetUninitializedObject(billStackT);
+        billStackT.GetField("bills",Flags)!.SetValue(billStackInst,Activator.CreateInstance(typeof(List<>).MakeGenericType(native.GetType("RimWorld.Bill",true)!)));
+        healthTrackerT.GetField("surgeryBills",Flags)!.SetValue(healthTrackerInst,billStackInst);
+        socialPawnType.GetField("health",Flags)!.SetValue(corpse,healthTrackerInst);
+        var corpseColonists=(IList)Activator.CreateInstance(typeof(List<>).MakeGenericType(socialPawnType))!;
+        corpseColonists.Add(corpse);
+        var corpseRow=Wire("PawnState","{\"needs\":{\"mood\":0},\"health\":{\"summaryFraction\":1}}");
+        var corpseDetail=Wire("PawnDetails","{\"needs\":true,\"health\":false,\"equipment\":true,\"biography\":false,\"settings\":true,\"social\":false,\"animals\":false}");
+        detailsType.GetMethod("Apply",Flags)!.Invoke(null,new object?[]{corpse,corpseColonists,corpseRow,corpseDetail});
+        Check(Get(corpseRow,"Needs")!=null,"corpse needs projection still populates for a dead pawn");
+        Check(Get(corpseRow,"Equipment")!=null,"corpse equipment projection still populates for a dead pawn");
+        Check(Get(corpseRow,"Settings")!=null,"corpse settings projection still populates for a dead pawn");
+        Check(Get(corpseRow,"Health")==null&&Get(corpseRow,"Biography")==null,"corpse health/biography stay disabled (Blocker: ModsConfig static cctor)");
+        var corpseNeedsIssues=((IEnumerable)Get(Get(corpseRow,"Needs"),"Issues")).Cast<object>().ToArray();
+        foreach(var field in new[]{"food","hunger_category","rest","joy"})
+            Check(corpseNeedsIssues.Any(i=>(string)Get(i,"Field")==field&&Get(Get(i,"Unavailable"),"Reason").ToString()=="NativeComponentMissing"),"corpse without a needs tracker reports missing "+field);
+        var corpseIssues=((IEnumerable)Get(corpseRow,"Issues")).Cast<object>().ToArray();
+        foreach(var field in new[]{"health","biography","social","animal_state"})
+            Check(corpseIssues.Any(i=>(string)Get(i,"Field")==field&&Get(Get(i,"Unavailable"),"Reason").ToString()=="NotRequested"),"corpse detail explicitly disables blocked-path section "+field);
+
         var require=tools.GetMethod("Require",Flags)!;
         require.Invoke(null,new object[]{256,256});
         Check(Throws(()=>require.Invoke(null,new object[]{257,256}),"ReadLimit"),"collection overflow fails instead of sampling");
