@@ -761,8 +761,9 @@ expand these into another nested task tree; remove a row when its outcome is met
   replay verify all four target lists, metrics and durable needs, including Manual
   and restart. Bounded-read unknowns remain explicit. Method composition remains
   open. Animal containment and feed now have typed observations, independent needs
-  and retained feed hysteresis across Manual/restart. Native pen/feed parity and
-  replay acceptance are pending. Sleeping upgrades/use, Home coverage and stone
+  and retained feed hysteresis across Manual/restart. Populated native pen/feed
+  parity and Go replay verify containment, pet/pen distinctions, shared reserves
+  and durable needs. Sleeping upgrades/use, Home coverage and stone
   shell needs remain open, along with animal method composition.
   Medical reserves now project observed medicine stacks and usable resources into
   a hysteretic maintained need. Captured native replay verifies stock caps and
