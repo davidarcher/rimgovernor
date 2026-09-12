@@ -22,6 +22,7 @@ internal static class Program {
         Check(accepted ? failure == null : failure.Code == Common.FailureCode.InvalidRequest && value == null, name+" outcome");
     }
     static void Main(string[] args) {
+        CompactObservations();
         Case("empty identity syntax", "{}", true);
         Case("unknown field", "{\"unknown\":1}", false);
         Case("trailing junk", "{}x", false);
@@ -89,6 +90,34 @@ internal static class Program {
         Console.WriteLine("Boundary probe passed: "+checks+" checks; actual SDK binder plus journal/game seams; no journal integration or gameplay acceptance.");
     }
     static void RawTransport(object request=null) { }
+    static void CompactObservations() {
+        var cells = new RimGovernor.Protocol.Observations.CellsSnapshot();
+        for (int i = 0; i < 2025; i++) {
+            var cell = new RimGovernor.Protocol.Observations.CellState {
+                Cell = new Common.Cell { X = i % 45, Z = i / 45 },
+                Terrain = "2026-09-12T00:00:00Z", Roof = "spaces and \"quotes\" \\ \u00e9",
+                Fertility = .12345678901234567, TemperatureC = i % 2 == 0 ? double.Epsilon : double.MaxValue,
+                Fogged = false, Walkable = true, Occupied = false, Indoors = true
+            };
+            cells.Cells.Add(cell);
+        }
+        var compact = (string)ProtoBoundary.Encode(cells, compact: true)["payload"];
+        Check(RimGovernor.Protocol.Observations.CellsSnapshot.Parser.ParseJson(compact).Equals(cells),
+            "compact complete grid preserves strings, false presence, floating values and all cells");
+        Check(Encoding.UTF8.GetByteCount(compact) < Encoding.UTF8.GetByteCount(ProtoBoundary.Format(cells)),
+            "compact grid reduces envelope bytes");
+        bool refused = false;
+        try { ProtoBoundary.Encode(new Common.Identity { ColonyId = new string('x', ProtoBoundary.MaximumEnvelopeBytes) }, compact: true); }
+        catch (InvalidOperationException) { refused = true; }
+        Check(refused, "compact reply retains byte limit");
+        var capture = Environment.GetEnvironmentVariable("RIMGOVERNOR_NATIVE_COLONY_CAPTURE");
+        if (!string.IsNullOrEmpty(capture)) {
+            var original = RimGovernor.Protocol.Observations.ColonyFactsReply.Parser.ParseJson(System.IO.File.ReadAllText(capture));
+            var encoded = (string)ProtoBoundary.Encode(original, compact: true)["payload"];
+            Check(RimGovernor.Protocol.Observations.ColonyFactsReply.Parser.ParseJson(encoded).Equals(original), "native capture retains complete ProtoJSON values");
+            Console.WriteLine("Native colony payload bytes: " + Encoding.UTF8.GetByteCount(ProtoBoundary.Format(original)) + " -> " + Encoding.UTF8.GetByteCount(encoded));
+        }
+    }
     static void CheckSdkBinder(string serverPath) {
         var provider=Assembly.LoadFrom(serverPath).GetType("RimBridgeServer.AnnotatedExtensionCapabilityProvider",true);
         var binder=provider.GetMethod("BindArguments",BindingFlags.NonPublic|BindingFlags.Static);

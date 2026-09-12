@@ -1925,7 +1925,7 @@
     },
     {
       "source": "integrations/rimgovernor-native/src/Bridge/Protocol/NativeColonyObservationTools.cs",
-      "source_sha256": "da0fa6aa8074492b0f9933d19a188ff66c8743c44aada39e418f9b0cd496b950",
+      "source_sha256": "f97bfde54e7bd51a1f5df4249390866de98c4d37cc1ff9178de545595b068916",
       "compilation": "production-bridge",
       "owner": "N01.03 native observation owner",
       "migration_status": "typed-core-planning",
@@ -2642,17 +2642,18 @@
       "owner": "N01.02 native Protobuf/operation owner",
       "migration_status": "implemented-native-acceptance-pending",
       "uncovered_acceptance": "Verify fresh-game native behavior, load/manual invalidation and strict typed boundary; compiled checks are not gameplay acceptance.",
-      "source_sha256": "b0642c92007e0c24780a85be740ef5005da40296767189dbae3c815f9bbeab7f",
+      "source_sha256": "c269fefca0ee7934e9adde81b9d2c1ea1fe8e1e905ad00c2989a47b067f822f6",
       "static_token_lines": [
-        12,
-        15,
+        14,
         17,
-        72,
-        83,
-        91,
-        96,
-        103,
-        130
+        19,
+        74,
+        85,
+        101,
+        109,
+        114,
+        121,
+        148
       ],
       "reflection_boundary_lines": [],
       "patch_registration_lines": []

@@ -38,8 +38,8 @@ namespace HomeBridge.BridgeTools
                     return ProtoBoundary.Encode(new Obs.ColonyFactsReply { Failure = failure });
                 try {
                     var reply = new Obs.ColonyFactsReply { Observed = Read(map, parsed, context) };
-                    if (Encoding.UTF8.GetByteCount(JsonFormatter.Default.Format(reply)) > 1024 * 1024) throw new ReadLimit("Colony facts exceed1MiB.");
-                    return ProtoBoundary.Encode(reply);
+                    if (Encoding.UTF8.GetByteCount(ProtoBoundary.Format(reply, compact: true)) > ProtoBoundary.MaximumEnvelopeBytes) throw new ReadLimit("Colony facts exceed1MiB.");
+                    return ProtoBoundary.Encode(reply, compact: true);
                 }
                 catch (ReadLimit e) { return ProtoBoundary.Encode(new Obs.ColonyFactsReply { Unavailable = Unavailable(Common.UnavailableReason.LimitExceeded, e.Message) }); }
                 catch (Exception) { return ProtoBoundary.Encode(new Obs.ColonyFactsReply { Unavailable = Unavailable(Common.UnavailableReason.ReadFailed, "Native colony facts could not be read completely.") }); }

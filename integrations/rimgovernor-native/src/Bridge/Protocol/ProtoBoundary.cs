@@ -1,7 +1,9 @@
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Text;
 using Google.Protobuf;
+using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 using RimBridgeServer.Sdk;
 using Verse;
@@ -80,9 +82,25 @@ namespace HomeBridge.BridgeTools
         }
 
         // The SDK recognizes this concrete envelope; generated CLR properties are not its wire format.
-        internal static Dictionary<string, object> Encode(IMessage reply)
+        internal static string Format(IMessage reply, bool compact = false)
         {
             var payload = JsonFormatter.Default.Format(reply);
+            if (!compact) return payload;
+            // Keep official ProtoJSON values and field names; only omit formatting.
+            // Identifier strings must never be interpreted as dates.
+            using (var input = new StringReader(payload))
+            using (var reader = new JsonTextReader(input) { DateParseHandling = DateParseHandling.None })
+            using (var output = new StringWriter(System.Globalization.CultureInfo.InvariantCulture))
+            using (var writer = new JsonTextWriter(output) { Formatting = Formatting.None }) {
+                writer.WriteToken(reader);
+                writer.Flush();
+                return output.ToString();
+            }
+        }
+
+        internal static Dictionary<string, object> Encode(IMessage reply, bool compact = false)
+        {
+            var payload = Format(reply, compact);
             if (Utf8.GetByteCount(payload) > MaximumEnvelopeBytes)
                 throw new InvalidOperationException("Reply exceeds the one MiB control envelope limit.");
             return new Dictionary<string, object>(StringComparer.Ordinal) { ["payload"] = payload };
