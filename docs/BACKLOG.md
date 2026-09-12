@@ -784,7 +784,7 @@ expand these into another nested task tree; remove a row when its outcome is met
   Further need inputs, method selection and execution composition for
   additional routine methods remain open: equipment, comfort/expansion, the ten
   `colony_upkeep.CONTRACTS` needs, player resource targets, and policy-generated
-  population, husbandry, mood, waste and disaster-recovery needs.
+  population, husbandry, waste and disaster-recovery needs.
   Connect their planners to available action families; remaining action execution
   stays in G01.07a–f.
 
@@ -810,8 +810,10 @@ expand these into another nested task tree; remove a row when its outcome is met
   relief proposals in the shared durable review. Missing/dead pawns, unknown reads,
   Manual, world replacement and cancellation preserve explicit lifecycle rules.
   Active or unverified mental breaks hold new clock windows until observed clearance.
-  Fast policy, projection, storage and scheduler checks pass; native review/replay
-  acceptance remains pending. Relief execution belongs to G01.07e.
+  Fast policy, projection, storage and scheduler checks pass. Targeted native food
+  and mental-break acceptance verifies measured proposals, emergency priority,
+  paused clock holds, Manual and disabled restart; captured Go replay matches the
+  Python policy reference. Relief execution belongs to G01.07e.
 
 - [ ] **G01.07a — Finish defense and essential medical care.** Connect movement
   and melee to complete defense plans using the existing owned-draft lifecycle;

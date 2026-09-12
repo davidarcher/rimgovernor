@@ -2,6 +2,29 @@
 
 [Documentation](../../README.md) · [Mood contracts](../contracts/mood-control.md)
 
+## Go planning acceptance
+
+Use `scripts/container_scenario.py` with fresh private inputs, a task-specific
+image/output directory and the compiled Go binary in the GABS input directory.
+Run `scripts/native_go_routine_acceptance.py --root /worker/run
+--go-binary /inputs/gabs/rimgovernor-go --mood-review food`, then run the `mental`
+case in a separate output directory. These cases require `MoodFixture` alongside
+the routine acceptance fixtures. Keep workers sequential with two CPUs and 4 GB
+of memory.
+
+Require both the worker and `run/native-go-routine-acceptance/result.json` to pass.
+The assertions cover native per-pawn inputs, policy-reference agreement, bounded
+proposals, Manual and disabled restart. The mental case additionally requires a
+paused, unchanged tick and no clock attempts. This scope establishes planning and
+clock safety; actual relief execution and need recovery use the scenarios below.
+
+Set `RIMGOVERNOR_NATIVE_MOOD_CAPTURE` to the exported
+`run/native-go-routine-acceptance` directory and run
+`go -C go test -p 1 ./internal/observation -run '^TestNativeRoutineMoodReplay$' -count=1`
+for captured native projection, policy and durable-history replay.
+
+## Relief execution acceptance
+
 Prepare private [Linux game inputs](docker-inputs.md). Build the companion with
 `-p:MoodFixture=true` and the documented Linux reference paths, and copy its output
 into a fresh private mod snapshot. The fixture adds `test/mood_setup`, which is
