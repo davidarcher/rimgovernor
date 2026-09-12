@@ -727,6 +727,13 @@ expand these into another nested task tree; remove a row when its outcome is met
   that re-forbidding the same supplies does not reopen the need or issue operations
   across Manual and repeated same-database restarts. Fast checks cover unknowns,
   an initially empty cohort, later cells, world/rewind reset and corrupt history.
+  Comfort planning now projects native dining surfaces, accessible seating and
+  recreation facilities, retains observed use across Manual/restart, and selects
+  table, adjacent chair and recreation construction through shared building plans.
+  Ordinary use waits are bounded by observed construction in the current direction;
+  construction receipts do not certify comfort recovery. Targeted native acceptance
+  of the complete construction/use sequence and remaining compiler integration
+  checks are still in progress; comfort is not yet accepted as complete.
   Further need inputs, method selection and execution composition for
   additional routine methods remain open: equipment, comfort/expansion, the ten
   `colony_upkeep.CONTRACTS` needs, player resource targets, and policy-generated

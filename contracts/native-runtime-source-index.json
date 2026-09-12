@@ -424,13 +424,15 @@
     },
     {
       "source": "integrations/rimgovernor-native/src/Bridge/ComfortFacts.cs",
-      "source_sha256": "6d0ef5717e062d9270199803377e91e789e784c664212745e8510d4980c3abd3",
+      "source_sha256": "d5a2f2075c7abe8fd7a604b0aadc9e983d83622c9877956e772054d785a48807",
       "compilation": "production-bridge",
       "owner": "N01.02-N01.04 native contract/operation owner",
       "migration_status": "inventoried-unmigrated",
       "static_token_lines": [
         8,
-        10
+        12,
+        14,
+        27
       ],
       "reflection_boundary_lines": [],
       "patch_registration_lines": [],
@@ -1923,7 +1925,7 @@
     },
     {
       "source": "integrations/rimgovernor-native/src/Bridge/Protocol/NativeColonyObservationTools.cs",
-      "source_sha256": "78e12d4aee67876aa3e2cd4af35ed6670a4d20bbe58cb894825fa4dc75295030",
+      "source_sha256": "da0fa6aa8074492b0f9933d19a188ff66c8743c44aada39e418f9b0cd496b950",
       "compilation": "production-bridge",
       "owner": "N01.03 native observation owner",
       "migration_status": "typed-core-planning",
@@ -1932,22 +1934,21 @@
         49,
         61,
         133,
-        151,
-        188,
-        258,
-        259,
-        260,
-        261,
-        262,
-        292,
-        310,
-        311,
-        312,
-        313
+        143,
+        161,
+        198,
+        268,
+        269,
+        270,
+        271,
+        272,
+        302,
+        320,
+        321,
+        322,
+        323
       ],
-      "reflection_boundary_lines": [
-        156
-      ],
+      "reflection_boundary_lines": [],
       "patch_registration_lines": [],
       "uncovered_acceptance": "Diet/rot forecasts and remaining colony observation sections remain unported."
     },
@@ -3792,7 +3793,7 @@
     },
     {
       "source": "scripts/fixtures/ComfortFixture.cs",
-      "source_sha256": "e0495bcdd560ecbda9b45428bd6d67222511ded5747bc117a8bef49cdf274e02",
+      "source_sha256": "62c401041aa8dc17947e18b02f657e874257bbc484ce1f0b93306bf8247770c6",
       "compilation": "fixture-only",
       "owner": "N01.01 native packaging owner",
       "migration_status": "inventoried-unmigrated",
@@ -4134,7 +4135,7 @@
     {
       "source": "scripts/fixtures/RoutineSleepingFixture.cs",
       "compilation": "fixture-only",
-      "source_sha256": "f0f259658a4acbfb9df9307f5076fe2304c0f0b19cc329a4aee0bef59006f083",
+      "source_sha256": "b53e4feaaacbb574090701a82d3969695578121c55d516e02ec373e952883804",
       "owner": "N01.01 native fixture isolation owner",
       "migration_status": "implemented-native-acceptance-pending",
       "uncovered_acceptance": "Verify private package discovery, fixture isolation and actual native ordinary-rule outcomes, invalidation and correlated progress for this source revision.",

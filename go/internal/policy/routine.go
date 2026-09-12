@@ -23,6 +23,7 @@ const (
 	EnsureBasicDefense      GoalID = "EnsureBasicDefense"
 	MaintainWood            GoalID = "MaintainWood"
 	MaintainMedicalCare     GoalID = "MaintainMedicalCare"
+	EnsureComfort           GoalID = "EnsureComfort"
 )
 
 type RoutinePolicy struct {
@@ -58,6 +59,9 @@ func (p RoutinePolicy) Validate() error {
 // FoodDays is the accessible diet/rot-aware stock runway. FieldCoverage is the
 // separate native crop-capacity forecast; it never increases FoodDays.
 type RoutineFacts struct {
+	Comfort                                                                    domain.Fact[ComfortObservation]
+	ComfortRecovered                                                           domain.Fact[bool]
+	ComfortDeficit                                                             domain.Fact[float64]
 	StartingSupplyCells                                                        domain.Fact[[]domain.Cell]
 	MedicalPawns                                                               domain.Fact[[]CarePawn]
 	MedicalCareRecovered                                                       domain.Fact[bool]
@@ -156,6 +160,7 @@ func countCapacity(capacity, count domain.Fact[int64], multiplier int64) domain.
 // DetectRoutine ports colony_policy.criteria/priority_nodes for the common
 // survival goals. Family-specific needs join these same goals during review.
 func DetectRoutine(f RoutineFacts, previous RoutineLatches, p RoutinePolicy) (RoutineNeeds, error) {
+	if v, known := f.ComfortDeficit.Value(); known && (math.IsNaN(v) || math.IsInf(v, 0) || v < 0 || v > 1) { return RoutineNeeds{}, errors.New("invalid comfort deficit") }
 	if err := p.Validate(); err != nil {
 		return RoutineNeeds{}, err
 	}
@@ -273,6 +278,11 @@ func DetectRoutine(f RoutineFacts, previous RoutineLatches, p RoutinePolicy) (Ro
 	if !positive(f.MedicalCareRecovered) {
 		addGoal(MaintainMedicalCare, 2)
 	}
+	if !positive(f.ComfortRecovered) {
+		addGoal(EnsureComfort, 4)
+		r.Goals[len(r.Goals)-1].Comfort = true
+		r.Goals[len(r.Goals)-1].Deficit = f.ComfortDeficit
+	}
 	addAssessment := func(id GoalID, priority int, recovered domain.Fact[bool]) {
 		need := domain.NeedUnknown
 		if value, known := recovered.Value(); known {
@@ -309,5 +319,6 @@ func DetectRoutine(f RoutineFacts, previous RoutineLatches, p RoutinePolicy) (Ro
 	addAssessment(EnsureBasicDefense, 3, g.Defense)
 	addAssessment(MaintainWood, 3, latchRecovered(l.Wood, wood))
 	addAssessment(MaintainMedicalCare, 2, f.MedicalCareRecovered)
+	addAssessment(EnsureComfort, 4, f.ComfortRecovered)
 	return r, nil
 }

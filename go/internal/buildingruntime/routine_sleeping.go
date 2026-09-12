@@ -35,8 +35,8 @@ const (
 type RoutineBuildingResult struct {
 	Reason   RoutineBuildingReason
 	Decision store.BuildingMethodDecision
-	// NativeWorkTicks bounds ordinary roofing time after an observed shell.
-	// It neither asserts roof completion nor grants native authority.
+	// NativeWorkTicks bounds ordinary roofing or comfort use after observed construction.
+	// It neither asserts recovery nor grants native authority.
 	NativeWorkTicks uint32
 }
 
@@ -44,11 +44,14 @@ type RoutineBuildingResult struct {
 // existing reviewed player direction. It creates shared pending work, never
 // acquires a lease, dispatches an action or advances the game.
 type RoutineBuildingPlanner struct {
-	reviewer   *RoutineReviewer
-	native     RoutineBuildingSource
-	goal       policy.GoalID
-	definition string
-	shelter    bool
+	reviewer    *RoutineReviewer
+	native      RoutineBuildingSource
+	goal        policy.GoalID
+	definition  string
+	stuff       string
+	environment policy.PlacementEnvironment
+	adjacent    []domain.Cell
+	shelter     bool
 }
 
 func NewRoutineSleepingPlanner(reviewer *RoutineReviewer, native RoutineBuildingSource) (*RoutineBuildingPlanner, error) {
@@ -108,6 +111,15 @@ func (r *RoutineBuildingPlanner) step(call, epoch context.Context) (RoutineBuild
 	if goal.Goal.Status != domain.GoalActive || goal.Goal.Need != domain.NeedDeficit {
 		return RoutineBuildingResult{Reason: BuildingMethodNoDeficit}, nil
 	}
+	if r.goal == policy.EnsureComfort {
+		selected := false
+		for _, row := range review.Development.Rows {
+			selected = selected || row.Goal == r.goal && row.Selected
+		}
+		if !selected {
+			return RoutineBuildingResult{Reason: BuildingMethodRefused}, nil
+		}
+	}
 	for _, m := range goal.Methods {
 		plan, err := p.journal.LoadPlan(call, m.Plan)
 		if err != nil {
@@ -129,6 +141,9 @@ func (r *RoutineBuildingPlanner) step(call, epoch context.Context) (RoutineBuild
 		return RoutineBuildingResult{}, ErrControl
 	}
 	definitions := []string{r.definition}
+	if r.goal == policy.EnsureComfort {
+		definitions = []string{"Table1x2c", "DiningChair", "HorseshoesPin"}
+	}
 	if r.shelter {
 		definitions = []string{"Wall", "Door"}
 	}
@@ -137,6 +152,45 @@ func (r *RoutineBuildingPlanner) step(call, epoch context.Context) (RoutineBuild
 		return RoutineBuildingResult{}, err
 	}
 	facts := reading.Projection
+	if r.goal == policy.EnsureComfort {
+		resolved, reason, err := r.selectComfort(facts, review.Comfort)
+		if err != nil {
+			return RoutineBuildingResult{}, err
+		}
+		if reason != "" {
+			result := RoutineBuildingResult{Reason: reason}
+			if reason == BuildingComfortWait {
+				for _, method := range goal.Methods {
+					plan, err := p.journal.LoadPlan(call, method.Plan)
+					if err != nil {
+						return RoutineBuildingResult{}, err
+					}
+					result.NativeWorkTicks = max(result.NativeWorkTicks, comfortNativeWorkTicks(plan, state.Snapshot, facts.Identity.Tick))
+				}
+				if err := p.current(call, epoch); err != nil {
+					return RoutineBuildingResult{}, err
+				}
+				if p.session.State() != state {
+					return RoutineBuildingResult{}, ErrControl
+				}
+				last, _, err := r.native.Identity(call)
+				if err != nil {
+					return RoutineBuildingResult{}, err
+				}
+				actual, err := observation.DecodeIdentity(last)
+				if err != nil || !routineBuildingBoundary(actual, state.Snapshot, facts.Identity.Tick) {
+					return RoutineBuildingResult{}, ErrControl
+				}
+				now := r.reviewer.clock.Now()
+				if now.Before(reading.StartedAt) || now.Sub(reading.StartedAt) > r.reviewer.maxAge {
+					return RoutineBuildingResult{}, observation.ErrStale
+				}
+			}
+			return result, nil
+		}
+		r = resolved
+		definitions = []string{r.definition}
+	}
 	missing, method, reason := r.selection(facts)
 	if reason != "" {
 		return RoutineBuildingResult{Reason: reason}, nil
@@ -171,6 +225,9 @@ func (r *RoutineBuildingPlanner) step(call, epoch context.Context) (RoutineBuild
 	if r.goal == policy.EnsureCooking {
 		prefix = "routine-cook"
 	}
+	if r.goal == policy.EnsureComfort {
+		prefix = "routine-comfort"
+	}
 	if r.shelter {
 		prefix = "routine-shell"
 	}
@@ -182,18 +239,18 @@ func (r *RoutineBuildingPlanner) step(call, epoch context.Context) (RoutineBuild
 	if err != nil {
 		return RoutineBuildingResult{}, err
 	}
-	if r.goal == policy.EnsureCooking {
+	if r.goal == policy.EnsureCooking || r.goal == policy.EnsureComfort {
 		playerPlan, err := p.journal.LoadPlan(call, state.Snapshot.Plan)
 		if err != nil {
 			return RoutineBuildingResult{}, err
 		}
 		for _, progress := range playerPlan.Progress {
-			if pendingCampfire(progress) {
+			if pendingFacility(progress, r.definition) {
 				return RoutineBuildingResult{Reason: BuildingMethodExistingWork}, nil
 			}
 		}
 		for _, reservation := range held {
-			if pendingCampfire(reservation.Progress) {
+			if pendingFacility(reservation.Progress, r.definition) {
 				return RoutineBuildingResult{Reason: BuildingMethodExistingWork}, nil
 			}
 		}
@@ -270,12 +327,22 @@ func (r *RoutineBuildingPlanner) previewMethod(call context.Context, snapshot do
 		return r.previewShell(call, snapshot, facts, protected, check)
 	}
 	var cells []policy.SiteCell
+	adjacent := map[domain.Cell]bool{}
+	for _, c := range r.adjacent {
+		adjacent[c] = true
+	}
 	for _, c := range facts.Cells {
-		if roofed, known := c.Roofed.Value(); known && roofed {
+		if r.definition == "DiningChair" && !adjacent[c.Cell] {
+			continue
+		}
+		if roofed, known := c.Roofed.Value(); r.environment == policy.PlacementAnywhere || known && roofed {
 			cells = append(cells, c)
 		}
 	}
 	searchRequest := policy.PlacementSearchRequest{Snapshot: snapshot, Tick: facts.Identity.Tick, Bounds: facts.Bounds, Center: facts.Center, Cells: cells, Protected: protected, Environment: policy.PlacementIndoors, Radius: 22, Limit: 64}
+	if r.environment != "" {
+		searchRequest.Environment = r.environment
+	}
 	search, err := policy.NewPlacementSearch(searchRequest)
 	if err != nil {
 		return nil, policy.StockObservation{}, "", err
@@ -287,7 +354,7 @@ func (r *RoutineBuildingPlanner) previewMethod(call context.Context, snapshot do
 		if err = check(); err != nil {
 			return nil, policy.StockObservation{}, "", err
 		}
-		b, err := domain.NewBuilding(r.definition, c, domain.North, "")
+		b, err := domain.NewBuilding(r.definition, c, domain.North, r.stuff)
 		if err != nil {
 			return nil, policy.StockObservation{}, "", err
 		}
@@ -306,10 +373,10 @@ func (r *RoutineBuildingPlanner) previewMethod(call context.Context, snapshot do
 			return nil, policy.StockObservation{}, "", ErrControl
 		}
 		made, known := preview.Preview.MadeFromStuff.Value()
-		if !known || made {
+		if !known || made != (r.stuff != "") {
 			return nil, policy.StockObservation{}, BuildingMethodUnknown, nil
 		}
-		choice, ok, err := search.Select(r.definition, "", []policy.Preview{preview.Preview})
+		choice, ok, err := search.Select(r.definition, r.stuff, []policy.Preview{preview.Preview})
 		if err != nil {
 			return nil, policy.StockObservation{}, "", err
 		}

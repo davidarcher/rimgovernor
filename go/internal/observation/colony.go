@@ -113,6 +113,7 @@ func DecodeColony(reply *o.ColonyFactsReply, expected Identity) (ColonyProjectio
 		r.Facts.PowerRequired, r.Facts.PowerHeadroom, r.Facts.DisabledConsumers = policy.PowerCoverage(domain.Known(power))
 	}
 	colonyProduction(v, &r.Facts)
+	r.Facts.Comfort = colonyComfort(v)
 	if v.Naming != nil {
 		r.Facts.ColonyNaming = domain.Known(true)
 	} else {

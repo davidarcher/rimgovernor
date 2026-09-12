@@ -56,7 +56,7 @@ namespace HomeBridge.BridgeTools
         }
 
         [Tool("test/routine_sleeping_prepare", Description = "UNSAFE FOR MODEL EXECUTION. Disposable test setup: clear an outdoor starter site or create an empty roofed room near existing colonists; remove starting injuries and tendable conditions. Outdoor mode creates no buildings or roofs. Never creates sleeping spots or edits controller results.")]
-        public async Task<object> Prepare(IRimBridgeContext ctx, CancellationToken cancellationToken, bool outdoorSite = false)
+        public async Task<object> Prepare(IRimBridgeContext ctx, CancellationToken cancellationToken, bool outdoorSite = false, bool captureHistory = false)
         {
             return await ctx.MainThread.InvokeAsync<object>(() => {
                 var map = Find.CurrentMap;
@@ -71,7 +71,7 @@ namespace HomeBridge.BridgeTools
                     (!outdoorSite || c.GetRoof(map) == null && c.GetTerrain(map).affordances.Contains(TerrainAffordanceDefOf.Light)) &&
                     c.GetThingList(map).All(t => t is Plant || outdoorSite && (t is Pawn || t.def.category == ThingCategory.Item))));
                 if (room.Width != size) throw new InvalidOperationException("No clear bounded room site.");
-                if (outdoorSite) StartHistory();
+                if (outdoorSite || captureHistory) StartHistory();
                 foreach (var cell in room.Cells) {
                     foreach (var plant in cell.GetThingList(map).OfType<Plant>().ToList()) plant.Destroy(DestroyMode.Vanish);
                     if (!outdoorSite && (cell.x == room.minX || cell.x == room.maxX || cell.z == room.minZ || cell.z == room.maxZ)) {

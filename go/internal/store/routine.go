@@ -30,6 +30,7 @@ type RoutineReview struct {
 	Latches                policy.RoutineLatches
 	MedicalCare            policy.MedicalCareHistory
 	StartingSupplies       policy.StartingSupplies
+	Comfort                policy.ComfortHistory
 	Goals                  []RoutineGoal
 	Development            RoutineDevelopment
 }
@@ -74,6 +75,12 @@ func loadRoutine(ctx context.Context, tx *sql.Tx) (RoutineReview, error) {
 	}
 	if err := r.StartingSupplies.Validate(); err != nil {
 		return RoutineReview{}, err
+	}
+	if err := r.Comfort.Validate(); err != nil {
+		return RoutineReview{}, err
+	}
+	if r.Comfort.Dining.Tick > r.Tick || r.Comfort.Recreation.Tick > r.Tick {
+		return RoutineReview{}, errors.New("future comfort use history")
 	}
 	if r.Enabled {
 		if r.Development.Snapshot != r.Snapshot || r.Development.Tick != r.Tick || policy.ValidateDevelopmentState(r.Development.state()) != nil {
@@ -183,14 +190,22 @@ func reviewRoutineTx(ctx context.Context, tx *sql.Tx, request RoutineReviewReque
 	latches := previous.Latches
 	medical := previous.MedicalCare
 	supplies := previous.StartingSupplies
+	comfort := previous.Comfort
 	if reset {
 		latches = policy.RoutineLatches{}
 		medical = policy.MedicalCareHistory{}
 		supplies = policy.StartingSupplies{}
+		comfort = policy.ComfortHistory{}
 	}
 	needs := policy.RoutineNeeds{}
 	// Stopping routine work must not depend on a successful native observation.
 	if request.Enabled {
+		comfortReview, comfortErr := policy.ReviewComfort(request.Facts.Comfort, comfort, request.Tick)
+		if comfortErr != nil {
+			return RoutineReviewResult{}, comfortErr
+		}
+		comfort = comfortReview.History
+		request.Facts.ComfortRecovered, request.Facts.ComfortDeficit = comfortReview.Recovered(), comfortReview.Deficit()
 		supplies, request.Facts.ForbiddenSupplies, err = policy.ReviewStartingSupplies(request.Facts.StartingSupplyCells, supplies)
 		if err != nil {
 			return RoutineReviewResult{}, err
@@ -245,6 +260,7 @@ func reviewRoutineTx(ctx context.Context, tx *sql.Tx, request RoutineReviewReque
 	r := RoutineReview{Revision: previous.Revision + 1, WorkPreferenceRevision: request.WorkPreferenceRevision, Snapshot: b, Tick: request.Tick, Enabled: request.Enabled, Latches: needs.Latches}
 	r.MedicalCare = medical
 	r.StartingSupplies = supplies
+	r.Comfort = comfort
 	result := RoutineReviewResult{Needs: needs}
 	if !request.Enabled {
 		r.WorkPreferenceRevision = previous.WorkPreferenceRevision

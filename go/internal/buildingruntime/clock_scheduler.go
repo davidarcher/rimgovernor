@@ -34,6 +34,7 @@ type ClockSchedulerConfig struct {
 	Routine        *RoutineReviewer
 	Sleeping       *RoutineBuildingPlanner
 	Cooking        *RoutineBuildingPlanner
+	Comfort        *RoutineBuildingPlanner
 	RoutineMethods bool
 }
 type ClockSchedulerResult struct {
@@ -42,6 +43,7 @@ type ClockSchedulerResult struct {
 	Routine                      *store.RoutineReviewResult
 	Sleeping                     *RoutineBuildingResult
 	Cooking                      *RoutineBuildingResult
+	Comfort                      *RoutineBuildingResult
 	Running, Reconciled, Cleaned bool
 }
 type ClockScheduler struct {
@@ -67,6 +69,9 @@ func NewClockScheduler(player *Player, session *Session, native ClockWindowNativ
 		return nil, ErrControl
 	}
 	if config.Cooking != nil && (config.Routine == nil || config.Cooking.reviewer != config.Routine || config.Cooking.goal != policy.EnsureCooking) {
+		return nil, ErrControl
+	}
+	if config.Comfort != nil && (config.Routine == nil || config.Comfort.reviewer != config.Routine || config.Comfort.goal != policy.EnsureComfort) {
 		return nil, ErrControl
 	}
 	if config.RoutineMethods && (config.Routine == nil || !session.routineMethods) {
@@ -232,6 +237,13 @@ func (s *ClockScheduler) Step(ctx context.Context) (ClockSchedulerResult, error)
 		}
 		out.Cooking = &method
 	}
+	if s.config.Comfort != nil {
+		method, err := s.config.Comfort.step(call, epoch)
+		if err != nil {
+			return out, err
+		}
+		out.Comfort = &method
+	}
 	emergency, _, err := s.native.ReadEmergency(call, loaded.Context.Identity)
 	if err != nil {
 		return out, err
@@ -279,9 +291,15 @@ func (s *ClockScheduler) Step(ctx context.Context) (ClockSchedulerResult, error)
 	}
 	clockState := policy.ClockWindowState("")
 	start := s.config.Start
-	if !work && s.config.RoutineMethods && out.Sleeping != nil && out.Sleeping.NativeWorkTicks > 0 {
+	var nativeWorkTicks uint32
+	for _, result := range []*RoutineBuildingResult{out.Sleeping, out.Comfort} {
+		if result != nil {
+			nativeWorkTicks = max(nativeWorkTicks, result.NativeWorkTicks)
+		}
+	}
+	if !work && s.config.RoutineMethods && nativeWorkTicks > 0 {
 		work = true
-		start.MaxTicks = min(start.MaxTicks, out.Sleeping.NativeWorkTicks)
+		start.MaxTicks = min(start.MaxTicks, nativeWorkTicks)
 	}
 	if status.GetNeverStarted() != nil {
 		clockState = policy.ClockNeverStarted

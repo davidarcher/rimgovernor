@@ -48,7 +48,7 @@ Startup supply reviews retain the first known native forbidden-supply census.
 Fresh reads can shrink that cohort, but later player forbids cannot expand or
 revive it. Unknown reads preserve pending cells without proving recovery; Manual
 and direction changes preserve the cohort. World replacement and tick rewind
-initialize a new cohort. The current journal requires fresh schema-23 state.
+initialize a new cohort. The current journal requires fresh schema-24 state.
 These cells describe the startup need, not ownership or permission to issue an
 Allow order. That action family remains in G01.07b.
 

@@ -1,7 +1,11 @@
+#nullable enable
+using System;
 using System.Linq;
 using RimWorld;
 using Verse;
 using Verse.AI;
+using Obs = RimGovernor.Protocol.Observations;
+using static HomeBridge.BridgeTools.NativePawnObservationTools;
 
 namespace HomeBridge.BridgeTools
 {
@@ -9,9 +13,24 @@ namespace HomeBridge.BridgeTools
     {
         internal static object Read(Map map)
         {
+            var v = ReadProtocol(map);
+            return new {
+                people = v.People.ToList(),
+                surfaces = v.Surfaces.Select(s => new { id = s.Id,
+                    adjacent = s.Adjacent.Select(c => new { x = c.X, z = c.Z }).ToList() }).ToList(),
+                dining = v.Dining.Select(f => new { id = f.Id, accessibleTo = f.AccessibleTo.ToList(), users = f.Users.ToList() }).ToList(),
+                recreation = v.Recreation.Select(f => new { id = f.Id, kind = f.Kind,
+                    accessibleTo = f.AccessibleTo.ToList(), users = f.Users.ToList() }).ToList()
+            };
+        }
+
+        internal static Obs.ComfortFacts ReadProtocol(Map map)
+        {
             var people = map.mapPawns.FreeColonistsSpawned.Where(p => !p.Dead && !p.Downed
-                && p.health.capacities.CapableOf(PawnCapacityDefOf.Manipulation)).ToList();
-            var buildings = map.listerBuildings.allBuildingsColonist.ToList();
+                && p.health.capacities.CapableOf(PawnCapacityDefOf.Manipulation))
+                .OrderBy(p => p.GetUniqueLoadID(), StringComparer.Ordinal).ToList();
+            var buildings = map.listerBuildings.allBuildingsColonist
+                .OrderBy(b => b.GetUniqueLoadID(), StringComparer.Ordinal).ToList();
             bool Safe(Pawn p, Building b) => !b.IsForbidden(p) && !b.IsBurning() && b.IsSociallyProper(p)
                 && p.CanReach(b, PathEndMode.OnCell, Danger.None)
                 && (p.playerSettings?.AreaRestrictionInPawnCurrentMap == null
@@ -23,28 +42,37 @@ namespace HomeBridge.BridgeTools
                     && (c+d).GetEdifice(map)?.def.surfaceType == SurfaceType.Eat))).ToList();
             var play = buildings.Where(b => b.def.building.joyKind != null && !b.IsBurning()
                 && (b.TryGetComp<CompPowerTrader>() == null || b.TryGetComp<CompPowerTrader>().PowerOn)).ToList();
-            return new {
-                people = people.Select(p => p.GetUniqueLoadID()).ToList(),
-                surfaces = buildings.Where(b => b.def.surfaceType == SurfaceType.Eat && Indoors(b)).Select(b => new {
-                    id = b.GetUniqueLoadID(),
-                    adjacent = b.OccupiedRect().SelectMany(c => GenAdj.CardinalDirections.Select(d => c+d)).Distinct()
-                        .Where(c => c.InBounds(map) && c.Standable(map) && c.GetEdifice(map) == null)
-                        .Select(c => new { x = c.x, z = c.z }).ToList()
-                }).ToList(),
-                dining = seats.Select(b => new { id = b.GetUniqueLoadID(),
-                    accessibleTo = people.Where(p => Safe(p, b)).Select(p => p.GetUniqueLoadID()).ToList(),
-                    users = people.Where(p => p.CurJob?.def == JobDefOf.Ingest && b.OccupiedRect().Contains(p.Position))
-                        .Select(p => p.GetUniqueLoadID()).ToList()
-                }).ToList(),
-                recreation = play.Select(b => new { id = b.GetUniqueLoadID(), kind = b.def.building.joyKind.defName,
-                    accessibleTo = people.Where(p => !b.IsForbidden(p) && b.IsSociallyProper(p)
-                        && p.CanReach(b, PathEndMode.Touch, Danger.None)
-                        && (p.playerSettings?.AreaRestrictionInPawnCurrentMap == null || p.playerSettings.AreaRestrictionInPawnCurrentMap[b.Position]))
-                        .Select(p => p.GetUniqueLoadID()).ToList(),
-                    users = people.Where(p => p.CurJob?.def.joyKind != null && p.CurJob.targetA.Thing == b)
-                        .Select(p => p.GetUniqueLoadID()).ToList()
-                }).ToList()
-            };
+            var surfaces = buildings.Where(b => b.def.surfaceType == SurfaceType.Eat && Indoors(b)).ToList();
+            if (people.Count > 256 || seats.Count > 256 || play.Count > 256 || surfaces.Count > 256)
+                throw new InvalidOperationException("Comfort census exceeds its complete-read bound.");
+            var result = new Obs.ComfortFacts { Completeness = Complete(people.Count) };
+            result.People.Add(people.Select(p => Id(p.GetUniqueLoadID())));
+            foreach (var b in surfaces) {
+                var adjacent = b.OccupiedRect().SelectMany(c => GenAdj.CardinalDirections.Select(d => c+d)).Distinct()
+                    .Where(c => c.InBounds(map) && c.Standable(map) && c.GetEdifice(map) == null)
+                    .OrderBy(c => c.z).ThenBy(c => c.x).ToList();
+                if (adjacent.Count > 4096) throw new InvalidOperationException("Dining adjacency exceeds bound.");
+                var row = new Obs.ComfortSurface { Id = Id(b.GetUniqueLoadID()) };
+                row.Adjacent.Add(adjacent.Select(Cell)); result.Surfaces.Add(row);
+            }
+            foreach (var b in seats) {
+                var row = new Obs.ComfortFacility { Id = Id(b.GetUniqueLoadID()) };
+                row.AccessibleTo.Add(people.Where(p => Safe(p, b)).Select(p => Id(p.GetUniqueLoadID())));
+                row.Users.Add(people.Where(p => p.CurJob?.def == JobDefOf.Ingest && b.OccupiedRect().Contains(p.Position))
+                    .Select(p => Id(p.GetUniqueLoadID())));
+                result.Dining.Add(row);
+            }
+            foreach (var b in play) {
+                var row = new Obs.ComfortFacility { Id = Id(b.GetUniqueLoadID()), Kind = Id(b.def.building.joyKind.defName) };
+                row.AccessibleTo.Add(people.Where(p => !b.IsForbidden(p) && b.IsSociallyProper(p)
+                    && p.CanReach(b, PathEndMode.Touch, Danger.None)
+                    && (p.playerSettings?.AreaRestrictionInPawnCurrentMap == null || p.playerSettings.AreaRestrictionInPawnCurrentMap[b.Position]))
+                    .Select(p => Id(p.GetUniqueLoadID())));
+                row.Users.Add(people.Where(p => p.CurJob?.def.joyKind != null && p.CurJob.targetA.Thing == b)
+                    .Select(p => Id(p.GetUniqueLoadID())));
+                result.Recreation.Add(row);
+            }
+            return result;
         }
     }
 }

@@ -36,6 +36,7 @@ type serveConfig struct {
 	routineSleepingPlans  bool
 	routineCookingPlans   bool
 	routineShelterPlans   bool
+	routineComfortPlans   bool
 	routineMethods        bool
 	routineProjectLimit   int
 	resourceRules         resourceRuleFlags
@@ -54,6 +55,7 @@ func parseServe(args []string, diagnostics io.Writer) (serveConfig, error) {
 	flags.BoolVar(&c.routineSleepingPlans, "routine-sleeping-plans", false, "compile reviewed indoor sleeping needs into pending shared plans")
 	flags.BoolVar(&c.routineCookingPlans, "routine-cooking-plans", false, "compile reviewed cooking deficits into pending campfire plans")
 	flags.BoolVar(&c.routineShelterPlans, "routine-shelter-plans", false, "compile indoor sleeping or a starter wall-and-door shell into shared plans")
+	flags.BoolVar(&c.routineComfortPlans, "routine-comfort-plans", false, "compile reviewed dining and recreation deficits into shared building plans")
 	flags.BoolVar(&c.routineMethods, "routine-methods", false, "execute reviewed routine building methods under the current player direction")
 	flags.Var(&c.resourceRules, "resource-rule", "repeatable RESOURCE:allow|stop|defense_only:RESERVE for building admission and dispatch")
 	flags.StringVar(&c.profile, "profile", "", "absolute shared game profile directory for player control")
@@ -85,10 +87,10 @@ func parseServe(args []string, diagnostics io.Writer) (serveConfig, error) {
 	if c.routineReviews && !c.clockControl {
 		return c, errors.New("--routine-reviews requires --clock-control")
 	}
-	if (c.routineSleepingPlans || c.routineCookingPlans || c.routineShelterPlans) && !c.routineReviews {
+	if (c.routineSleepingPlans || c.routineCookingPlans || c.routineShelterPlans || c.routineComfortPlans) && !c.routineReviews {
 		return c, errors.New("routine building plans require --routine-reviews")
 	}
-	if c.routineMethods && !c.routineSleepingPlans && !c.routineCookingPlans && !c.routineShelterPlans {
+	if c.routineMethods && !c.routineSleepingPlans && !c.routineCookingPlans && !c.routineShelterPlans && !c.routineComfortPlans {
 		return c, errors.New("--routine-methods requires a routine building planner")
 	}
 	if c.playerControl && !filepath.IsAbs(c.profile) || !c.playerControl && c.profile != "" {

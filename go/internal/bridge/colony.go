@@ -173,10 +173,12 @@ func ValidateColonyFacts(v *o.ColonyFactsSnapshot, identity *c.Identity) error {
 	} else if err := validateUnavailable(v.GetForecast().GetUnavailable()); err != nil {
 		return err
 	}
-	for _, unavailable := range []*c.Unavailable{v.GetUpkeep().GetUnavailable()} {
-		if err := validateUnavailable(unavailable); err != nil {
+	if upkeep := v.GetUpkeep().GetObserved(); upkeep != nil {
+		if err := validateColonyUpkeep(upkeep, v.MapSize); err != nil {
 			return err
 		}
+	} else if err := validateUnavailable(v.GetUpkeep().GetUnavailable()); err != nil {
+		return err
 	}
 	if power := v.GetDevelopment().GetObserved(); power != nil {
 		if err := validateColonyPower(power, identity); err != nil {

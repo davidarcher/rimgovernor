@@ -97,7 +97,7 @@ namespace HomeBridge.BridgeTools
                     things.Where(t => t.def.category == ThingCategory.Item && t.def.IsNutritionGivingIngestible
                         && !t.def.IsDrug && t.IngestibleNow && (t.Faction == null || t.Faction.IsPlayer)).ToList())) },
                 Forecast = new Obs.ForecastSection { Observed = Forecast(ForecastFacts.Read(map, people, things)) },
-                Upkeep = new Obs.UpkeepSection { Unavailable = Unsupported("Upkeep facts are not yet projected.") },
+                Upkeep = ReadComfort(map),
                 Development = new Obs.DevelopmentSection { Observed = ReadPower(map, limit) }
             };
             if (demand > 0) result.FoodRunwayDays = Finite(nutrition / demand);
@@ -128,6 +128,16 @@ namespace HomeBridge.BridgeTools
             result.Planning = request.Planning ? new Obs.PlanningSection { Observed = Planning(map, center, request, context, limit) }
                 : new Obs.PlanningSection { Unavailable = Unavailable(Common.UnavailableReason.NotRequested, "Planning was not requested.") };
             return result;
+        }
+
+        private static Obs.UpkeepSection ReadComfort(Map map)
+        {
+            var result = new Obs.UpkeepFacts { Completeness = Complete(1) };
+            try { result.Comfort = new Obs.ComfortSection { Observed = ComfortFacts.ReadProtocol(map) }; }
+            catch (Exception) { result.Comfort = new Obs.ComfortSection { Unavailable = Unsupported("Complete comfort facts are unavailable.") }; }
+            foreach (var field in new[] { "construction", "items", "beds", "storage_cells", "storage_capacity", "structures", "fires", "filth", "protected_cells", "people", "feed_definitions", "animals", "hauling", "wall_removal", "home_coverage" })
+                result.Issues.Add(Issue(field, Common.UnavailableReason.Unsupported, "Upkeep section is not yet projected."));
+            return new Obs.UpkeepSection { Observed = result };
         }
 
         private static Obs.DevelopmentFacts ReadPower(Map map, int limit)

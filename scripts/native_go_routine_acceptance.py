@@ -124,7 +124,7 @@ def audit_development(review, workers):
     rows = development['Rows'] or []
     assert len({r['Goal'] for r in rows}) == len(rows)
     for row in rows:
-        assert row['Goal'] in {'MaintainWood', 'EnsureBasicDefense'}
+        assert row['Goal'] in {'MaintainWood', 'EnsureBasicDefense', 'EnsureComfort'}
         assert row['Deficit'] is None or 0 <= row['Deficit'] <= 1
         assert math.isfinite(row['Score']) and 0 <= row['WaitingSince'] <= review['Tick']
         if row['Selected']:
@@ -219,11 +219,14 @@ def audit_sleeping(report, database):
     return {"completed_spots": len(plan["actions"]), "completed_shell_pieces": len(shell['actions']) if shell else 0, "completed_cooking_buildings": len(report.get("cooking_plan", {}).get("actions", [])), "single_attempts": True, "indoor_footprints": True, "shared_player_authority": True}
 
 
-async def run(root, output, binary, *, go_source, go_sha256, sleeping_methods=False, cooking_methods=False, work_project=False, work_overrides=False, power_fixture=False, resource_rules=(), shelter_methods=False, start_save=None, supply_history=False):
+async def run(root, output, binary, *, go_source, go_sha256, sleeping_methods=False, cooking_methods=False, work_project=False, work_overrides=False, power_fixture=False, resource_rules=(), shelter_methods=False, start_save=None, supply_history=False, comfort_methods=False):
     assert Path("/.dockerenv").is_file(), "Use the isolated scenario launcher"
     output.mkdir(parents=True, exist_ok=False)
     report = {"passed": False, "source": go_source,
-              "scope": "Native core/emergency facts reach fifteen durable Go needs; Manual invalidates them; disabled restart neither acquires authority nor reads routine facts. No routine method execution claim."}
+              "scope": "Native core/emergency facts reach sixteen durable Go needs; Manual invalidates them; disabled restart neither acquires authority nor reads routine facts. No routine method execution claim."}
+    if comfort_methods:
+        assert not (sleeping_methods or cooking_methods or shelter_methods or work_project or work_overrides or power_fixture or resource_rules or supply_history)
+        report['scope'] = 'From an established disposable foothold without comfort furniture, Go constructs a dining table, chair and recreation facility through shared Hands and observes ordinary pawn use. Manual preserves use history and disabled restart grants no authority or time.'
     if sleeping_methods:
         report["scope"] = "Reviewed indoor sleeping deficit compiles and executes through shared Hands, with native completion, Manual invalidation and disabled restart. Private fixture supplies only an empty room and healthy starting colonists."
     if shelter_methods:
@@ -288,12 +291,21 @@ async def run(root, output, binary, *, go_source, go_sha256, sleeping_methods=Fa
             if power_fixture:
                 report['power_setup'] = payload(await evidence.call(bridge, 'power-setup', 'test/routine_power_setup', {}))
                 assert report['power_setup']['success']
-            if sleeping_methods or resource_rules:
-                report["sleeping_setup"] = payload(await evidence.call(bridge, "sleeping-setup", "test/routine_sleeping_prepare", {"outdoorSite": shelter_methods}))
+            if sleeping_methods or resource_rules or comfort_methods:
+                report["sleeping_setup"] = payload(await evidence.call(bridge, "sleeping-setup", "test/routine_sleeping_prepare", {"outdoorSite": shelter_methods, "captureHistory": comfort_methods}))
                 assert report["sleeping_setup"]["success"] and report["sleeping_setup"]["sleepingSpotsCreated"] == 0
+            if comfort_methods:
+                report['comfort_setup'] = payload(await evidence.call(bridge, 'comfort-setup', 'test/comfort_foothold', report['sleeping_setup']['center']))
+                assert report['comfort_setup']['success']
+                from native_work_readback import work_reference
+                workers = payload(await evidence.call(bridge, 'comfort-workers-before', 'home/list_pawns', {'colonistsOnly': True, 'work': True, 'bio': True}))
+                assignments = work_reference(workers['pawns'])['assignments']
+                for pawn, work in assignments.items():
+                    configured = payload(await evidence.call(bridge, 'comfort-work-' + pawn, 'home/pawn_config', {'pawn': pawn, 'work': ','.join(f'{name}={priority}' for name, priority in work.items()), 'dryRun': False}))
+                    assert configured['success']
             report["initial_colony"] = await wire(bridge, "initial-colony", "observations_read_status", {
                 "scope": {"expectedIdentity": identity}, "colonists": True, "threats": True, "colonistDetail": False, "page": {"limit": 256}})
-            if sleeping_methods or resource_rules:
+            if sleeping_methods or resource_rules or comfort_methods:
                 assert_construction_start(report['initial_colony'])
             colonists = outcome(report["initial_colony"], "observed")["colonists"]["pawns"]
             pawn_ids = [p["pawn"]["id"] for p in colonists]
@@ -351,6 +363,9 @@ async def run(root, output, binary, *, go_source, go_sha256, sleeping_methods=Fa
             food = food_forecast(facts['nativeForecastInputs']['combinedFoodSupply'], consumer_ids=[r['id'] for r in facts['foodSupply']['consumers']])
             report['initial_food_forecast'] = food
             expected_food = 'deficit' if food['readable'] and food['runwayDays'] is not None and food['runwayDays'] < 3 else 'unknown'
+            if comfort_methods:
+                expected_food = 'recovered'
+                assert report['initial_work']['matches'] and food['readable'] and food['runwayDays'] >= 7
             if shelter_methods:
                 saved = payload(await evidence.call(bridge, 'save-start', 'rimworld/save_game', {'saveName': 'RimGovernor-shelter-start'}))
                 assert saved['exists'] and Path(saved['path']).is_relative_to(profile)
@@ -358,7 +373,7 @@ async def run(root, output, binary, *, go_source, go_sha256, sleeping_methods=Fa
                 report['initial_save_sha256'] = hashlib.sha256((output / 'initial-save.rws').read_bytes()).hexdigest()
             baseline = await capture(bridge, "setup")
 
-        async with service(private, gabs, configuration, profile, database, output / "operate", report, clock_control=True, routine_reviews=True, routine_methods=sleeping_methods, routine_cooking=cooking_methods or bool(resource_rules), routine_shelter=shelter_methods, resource_rules=resource_rules) as http:
+        async with service(private, gabs, configuration, profile, database, output / "operate", report, clock_control=True, routine_reviews=True, routine_methods=sleeping_methods or comfort_methods, routine_comfort=comfort_methods, routine_cooking=cooking_methods or bool(resource_rules), routine_shelter=shelter_methods, resource_rules=resource_rules) as http:
             await poll(http, "/api/state", lambda v: v.get("connected") and not v.get("game", {}).get("stale", True))
             assert not (await http("GET", "/api/player/control"))["state"]["enabled"]
             building = http_building(prepared['sites'][0])
@@ -378,7 +393,7 @@ async def run(root, output, binary, *, go_source, go_sha256, sleeping_methods=Fa
                 "planId": submission["planId"], "revision": submission["revision"], "expectedDirection": "0"})
             assert granted["record"]["phase"] == "granted"
             await wait_review(database)
-            active = routine_evidence(database, identity, enabled=True, expected_food_need=expected_food, allow_methods=sleeping_methods)
+            active = routine_evidence(database, identity, enabled=True, expected_food_need=expected_food, allow_methods=sleeping_methods or comfort_methods)
             assert active["review"]["Tick"] == tick, "Review did not use the initial paused boundary"
             assert active["goals"]["CriticalMedical"]["Need"] == medical_need(report["initial_colony"])
             audit_medical_care(active, report['medical_care_reference'])
@@ -433,16 +448,30 @@ async def run(root, output, binary, *, go_source, go_sha256, sleeping_methods=Fa
                         await asyncio.sleep(.2)
             if cooking_methods:
                 report["cooking_plan"] = await wait_building_method(http, database, "Campfire", 1)
+            if comfort_methods:
+                report['comfort_plans'] = {}
+                for definition in ('Table1x2c', 'DiningChair', 'HorseshoesPin'):
+                    report['comfort_plans'][definition] = await wait_building_method(http, database, definition, 1)
+                async with asyncio.timeout(600):
+                    while True:
+                        recovered = routine_evidence(database, identity, enabled=True, allow_methods=True)
+                        if recovered['goals']['EnsureComfort']['Need'] == 'recovered':
+                            assert recovered['goals']['EnsureComfort']['Status'] == 'satisfied'
+                            history = recovered['review']['Comfort']
+                            assert all(history[k]['Facility'] and 0 < history[k]['Tick'] <= recovered['review']['Tick'] for k in ('Dining', 'Recreation'))
+                            report['comfort_recovered'] = recovered
+                            break
+                        await asyncio.sleep(.2)
             manual = await http("POST", "/api/player/control/manual", body={"requestId": "routine-manual", "expected": identity})
             assert manual["record"]["phase"] == "disabled" and not manual["state"]["enabled"]
-            report["manual_routine"] = routine_evidence(database, identity, enabled=False, expected_food_need=expected_food, allow_methods=sleeping_methods)
+            report["manual_routine"] = routine_evidence(database, identity, enabled=False, expected_food_need=expected_food, allow_methods=sleeping_methods or comfort_methods)
             assert not report['manual_routine']['review']['Development']['Rows']
             assert report['manual_routine']['review']['Development']['Workers'] is None
 
         async with bridge_session(gabs, configuration) as bridge:
             await bridge.connect()
             retained = []
-            if shelter_methods:
+            if shelter_methods or comfort_methods:
                 history_path = Path(report['sleeping_setup']['operationHistoryPath'])
                 assert history_path.is_relative_to(profile)
                 retained = read_operation_history(history_path, baseline)
@@ -503,11 +532,11 @@ async def run(root, output, binary, *, go_source, go_sha256, sleeping_methods=Fa
                     final = outcome(await wire(bridge, phase + '-identity', 'lifecycle_read_identity', {}), 'loaded')
                     assert final['paused'] and final['context']['tick'] == native['context']['tick']
                     baseline = await capture(bridge, phase + '-restart-baseline')
-        async with service(private, gabs, configuration, profile, database, output / "restart", report, clock_control=True, routine_reviews=True, routine_methods=sleeping_methods, routine_cooking=cooking_methods or bool(resource_rules), routine_shelter=shelter_methods, resource_rules=resource_rules) as http:
+        async with service(private, gabs, configuration, profile, database, output / "restart", report, clock_control=True, routine_reviews=True, routine_methods=sleeping_methods or comfort_methods, routine_comfort=comfort_methods, routine_cooking=cooking_methods or bool(resource_rules), routine_shelter=shelter_methods, resource_rules=resource_rules) as http:
             await poll(http, "/api/state", lambda v: v.get("connected") and not v.get("game", {}).get("stale", True))
             await asyncio.sleep(2)
             assert not (await http("GET", "/api/player/control"))["state"]["enabled"]
-            assert routine_evidence(database, identity, enabled=False, expected_food_need=expected_food, allow_methods=sleeping_methods) == report["manual_routine"]
+            assert routine_evidence(database, identity, enabled=False, expected_food_need=expected_food, allow_methods=sleeping_methods or comfort_methods) == report["manual_routine"]
             if work_overrides:
                 assert await http('GET', preference_path) == report['work_preferences']
                 stale = preference_request | {'requestId': 'stale-work'}
@@ -553,6 +582,7 @@ if __name__ == "__main__":
     parser.add_argument("--output", type=Path)
     parser.add_argument("--go-binary", type=Path, required=True)
     add_handoff_arguments(parser)
+    parser.add_argument("--comfort-methods", action="store_true")
     parser.add_argument("--sleeping-methods", action="store_true")
     parser.add_argument("--cooking-methods", action="store_true")
     parser.add_argument("--shelter-methods", action="store_true")
@@ -564,4 +594,4 @@ if __name__ == "__main__":
     parser.add_argument('--supply-history', action='store_true')
     args = parser.parse_args()
     raise SystemExit(0 if asyncio.run(run(args.root, args.output or args.root / "native-go-routine-acceptance", args.go_binary,
-        go_source=args.go_source, go_sha256=args.go_sha256, sleeping_methods=args.sleeping_methods or args.cooking_methods or args.shelter_methods, shelter_methods=args.shelter_methods, start_save=args.start_save, cooking_methods=args.cooking_methods, work_project=args.work_project, work_overrides=args.work_overrides, power_fixture=args.power_fixture, resource_rules=args.resource_rule, supply_history=args.supply_history)) else 1)
+        go_source=args.go_source, go_sha256=args.go_sha256, sleeping_methods=args.sleeping_methods or args.cooking_methods or args.shelter_methods, shelter_methods=args.shelter_methods, start_save=args.start_save, cooking_methods=args.cooking_methods, work_project=args.work_project, work_overrides=args.work_overrides, power_fixture=args.power_fixture, resource_rules=args.resource_rule, supply_history=args.supply_history, comfort_methods=args.comfort_methods)) else 1)

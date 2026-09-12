@@ -11,8 +11,12 @@ import (
 const BuildingExistingFacility RoutineBuildingReason = "existing_facility_needs_bill_or_upkeep"
 
 func pendingCampfire(progress domain.Progress) bool {
+	return pendingFacility(progress, "Campfire")
+}
+
+func pendingFacility(progress domain.Progress, definition string) bool {
 	building, ok := progress.Action().Building()
-	return ok && building.Definition() == "Campfire" && domain.GoalWorkOpen([]domain.Progress{progress})
+	return ok && building.Definition() == definition && domain.GoalWorkOpen([]domain.Progress{progress})
 }
 
 func NewRoutineCookingPlanner(reviewer *RoutineReviewer, native RoutineBuildingSource) (*RoutineBuildingPlanner, error) {
@@ -28,6 +32,8 @@ func (r *RoutineBuildingPlanner) selection(facts observation.ColonyProjection) (
 		return 0, "", BuildingMethodUnknown
 	}
 	switch r.goal {
+	case policy.EnsureComfort:
+		return 1, domain.MethodID("comfort-" + r.definition), ""
 	case policy.EnsureInitialShelter:
 		capacity, known := facts.Facts.IndoorCapacity.Value()
 		if !known {
