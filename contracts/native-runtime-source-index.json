@@ -4177,7 +4177,7 @@
     },
     {
       "source": "scripts/fixtures/ScenarioStartFixture.cs",
-      "source_sha256": "d99a8030827807cfb648b90f381118520f4e550feac5c1f1e2f999b8151a0d55",
+      "source_sha256": "c22ce8ed3d240809af5052c6a15d1c3ec7848bb56b4ae28dc834d465586b8c59",
       "compilation": "fixture-only",
       "owner": "N01.01 native packaging owner",
       "migration_status": "inventoried-unmigrated",
@@ -4187,15 +4187,16 @@
         18,
         19,
         20,
-        77
+        21,
+        84
       ],
       "reflection_boundary_lines": [
-        50
+        55
       ],
       "patch_registration_lines": [
         5,
-        49,
-        51
+        54,
+        56
       ],
       "uncovered_acceptance": "Verify compile conditions, isolated fixture artifact identity and absence from production discovery."
     },

@@ -17,6 +17,7 @@ namespace HomeBridge.BridgeTools
         private static string worldSeed;
         private static string requestedBiome;
         private static DifficultyDef requestedDifficulty;
+        private static float minimumTemperature, maximumTemperature;
         private static bool patched;
 
         [Tool("test/configure_start", Description = "Arm one ordinary scenario start from the main menu; test builds only. Does not edit saves or existing colonies.")]
@@ -25,7 +26,9 @@ namespace HomeBridge.BridgeTools
             [ToolParameter(Description = "Native scenario editor count, 1 through 10.")] int count,
             [ToolParameter(Description = "World generation seed.")] string seed,
             [ToolParameter(Description = "Optional native BiomeDef for an ordinary valid settlement tile.")] string biome = "",
-            [ToolParameter(Description = "Native DifficultyDef, selected before colony generation.")] string difficulty = "Rough")
+            [ToolParameter(Description = "Native DifficultyDef, selected before colony generation.")] string difficulty = "Rough",
+            [ToolParameter(Description = "Minimum native seasonal temperature for the selected settlement tile.")] float minTemperature = -100,
+            [ToolParameter(Description = "Maximum native seasonal temperature for the selected settlement tile.")] float maxTemperature = 100)
         {
             return await ctx.MainThread.InvokeAsync<object>(() => {
                 if (Current.ProgramState != ProgramState.Entry || Find.CurrentMap != null || Current.Game != null)
@@ -33,6 +36,8 @@ namespace HomeBridge.BridgeTools
                 if (pending != null) throw new InvalidOperationException("A start is already armed.");
                 if (count < 1 || count > 10 || string.IsNullOrWhiteSpace(seed))
                     throw new ArgumentException("Require 1..10 pawns and a nonempty world seed.");
+                if (float.IsNaN(minTemperature) || float.IsNaN(maxTemperature) || minTemperature < -100 || maxTemperature > 100 || minTemperature > maxTemperature)
+                    throw new ArgumentException("Require ordered finite seasonal temperatures within -100..100 C.");
                 var definition = DefDatabase<ScenarioDef>.GetNamedSilentFail(scenario);
                 if (definition == null) throw new ArgumentException("Unknown ScenarioDef.");
                 var difficultyDef = DefDatabase<DifficultyDef>.GetNamedSilentFail(difficulty);
@@ -53,7 +58,9 @@ namespace HomeBridge.BridgeTools
                 }
                 pending = copy; worldSeed = seed; requestedBiome = biome;
                 requestedDifficulty = difficultyDef;
+                minimumTemperature = minTemperature; maximumTemperature = maxTemperature;
                 return new { success = true, armed = true, scenario, count, seed, biome,
+                    minTemperature, maxTemperature,
                     storyteller = "Cassandra", difficulty, mapSize = 250,
                     cropYieldFactor = difficultyDef.cropYieldFactor,
                     rainfall = "Normal", temperature = "Normal", population = "Normal" };
@@ -90,13 +97,16 @@ namespace HomeBridge.BridgeTools
             Current.Game.World = WorldGenerator.GenerateWorld(0.3f, worldSeed,
                 OverallRainfall.Normal, OverallTemperature.Normal, OverallPopulation.Normal, LandmarkDensity.Normal);
             Find.GameInitData.ChooseRandomStartingTile();
-            if (!string.IsNullOrEmpty(requestedBiome))
+            if (!string.IsNullOrEmpty(requestedBiome) || minimumTemperature != -100 || maximumTemperature != 100)
             {
                 var surface = Find.WorldGrid.Surface;
                 var candidates = Enumerable.Range(0, surface.TilesCount).Select(i => surface[i])
-                    .Where(t => t.PrimaryBiome.defName == requestedBiome && TileFinder.IsValidTileForNewSettlement(t.tile))
+                    .Where(t => (string.IsNullOrEmpty(requestedBiome) || t.PrimaryBiome.defName == requestedBiome)
+                        && TileFinder.IsValidTileForNewSettlement(t.tile)
+                        && GenTemperature.MinTemperatureAtTile(t.tile) >= minimumTemperature
+                        && GenTemperature.MaxTemperatureAtTile(t.tile) <= maximumTemperature)
                     .Take(1).ToList();
-                if (candidates.Count == 0) throw new InvalidOperationException("No native valid settlement tile in requested biome");
+                if (candidates.Count == 0) throw new InvalidOperationException("No native valid settlement tile meets requested biome and seasonal temperatures.");
                 Find.GameInitData.startingTile = candidates[0].tile;
             }
             Find.GameInitData.mapSize = 250;

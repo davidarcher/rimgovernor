@@ -337,6 +337,11 @@ async def run(root, output, binary, *, go_source, go_sha256, sleeping_methods=Fa
                 assert shelter_methods and Path(start_save).name == start_save
                 await evidence.call(bridge, 'load-start', 'rimworld/load_game_ready', {'saveName': start_save, 'readiness': 'visual', 'timeoutMs': 120000})
             else:
+                if comfort_methods:
+                    report['start_configuration'] = payload(await evidence.call(bridge, 'configure-start', 'test/configure_start', {
+                        'scenario': 'Crashlanded', 'count': 3, 'seed': 'g01-05-comfort',
+                        'minTemperature': 15, 'maxTemperature': 27}))
+                    assert report['start_configuration']['success']
                 await evidence.call(bridge, "new-game", "rimworld/start_debug_game_ready", {"readiness": "visual", "pauseIfNeeded": True, "timeoutMs": 120000})
             await evidence.call(bridge, "pause", "rimworld/set_time_speed", {"speed": "Paused", "ultraSpeedBoost": False})
             initial = outcome(await wire(bridge, "before", "lifecycle_read_identity", {}), "loaded")
