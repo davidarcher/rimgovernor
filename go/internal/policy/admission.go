@@ -256,6 +256,15 @@ func ValidateResourceRules(rules []ResourceRule) error {
 }
 func validAction(a domain.Action, p domain.Progress) error {
 	b, ok := a.Building()
+	if zone, zoneOK := a.ZoneCreate(); zoneOK {
+		if _, err := domain.NewZoneCreateAction(a.ID(), zone); err != nil {
+			return err
+		}
+		if p.View().Action != a.ID() || p.View().Stage == "" {
+			return errors.New("unbound zone progress")
+		}
+		return nil
+	}
 	if !ok {
 		return errors.New("unsupported action family")
 	}
@@ -312,6 +321,14 @@ func footprint(cells []domain.Cell, a domain.Action, bounds Bounds) bool {
 		return false
 	}
 	building, _ := a.Building()
+	anchorCell := building.Cell()
+	zone, isZone := a.ZoneCreate()
+	if isZone {
+		anchorCell = zone.Cells()[0]
+		if len(cells) != len(zone.Cells()) {
+			return false
+		}
+	}
 	anchor := false
 	seen := map[domain.Cell]bool{}
 	for _, c := range cells {
@@ -319,7 +336,14 @@ func footprint(cells []domain.Cell, a domain.Action, bounds Bounds) bool {
 			return false
 		}
 		seen[c] = true
-		anchor = anchor || c == building.Cell()
+		anchor = anchor || c == anchorCell
+	}
+	if isZone {
+		for _, cell := range zone.Cells() {
+			if !seen[cell] {
+				return false
+			}
+		}
 	}
 	return anchor
 }
@@ -490,6 +514,9 @@ func assess(c Candidate, r Request, bounds Bounds, boundsKnown, stockFresh bool,
 	}
 	cells, cellsKnown := p.Footprint.Value()
 	costs, costsKnown := p.Costs.Value()
+	if c.Action.Kind() == domain.ZoneCreateAction && (made || len(costs) > 0) {
+		return UnknownFacts, ""
+	}
 	if !boundsKnown || !cellsKnown || !costsKnown {
 		return UnknownFacts, ""
 	}

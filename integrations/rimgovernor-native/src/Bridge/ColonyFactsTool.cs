@@ -21,7 +21,7 @@ namespace HomeBridge.BridgeTools
             return await ctx.MainThread.InvokeAsync<object>(() => Read(planning), cancellationToken).ConfigureAwait(false);
         }
 
-        private static int GrowingDaysRemaining(Map map)
+        internal static int GrowingDaysRemaining(Map map)
         {
             for (var days = 0; days < GenDate.DaysPerYear; days++)
             {

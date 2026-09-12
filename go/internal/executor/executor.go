@@ -104,6 +104,8 @@ type Result struct {
 type Executor struct {
 	work               WorkBoundary
 	workJournal        WorkJournal
+	zone               ZoneBoundary
+	zoneJournal        ZoneJournal
 	acquisition        AcquisitionBoundary
 	acquisitionJournal AcquisitionJournal
 	supply             SupplyBoundary
@@ -152,6 +154,14 @@ func New(journal Journal, boundary Boundary, clock Clock, limits Limits, routine
 			return nil, errors.New("supply boundary requires typed journal")
 		}
 		e.supply, e.supplyJournal = supply, j
+	}
+	if zone, ok := boundary.(ZoneBoundary); ok {
+		j, complete := journal.(ZoneJournal)
+		if !complete {
+			cancel()
+			return nil, errors.New("zone boundary requires typed journal")
+		}
+		e.zone, e.zoneJournal = zone, j
 	}
 	if work, ok := boundary.(WorkBoundary); ok {
 		j, complete := journal.(WorkJournal)
@@ -301,6 +311,9 @@ func (e *Executor) Run(ctx context.Context, plan domain.PlanID, actionID domain.
 	}
 	if action.Kind() == domain.OwnedDraftAction && e.draft != nil {
 		return e.runDraft(ctx, action, progress, authority, generation)
+	}
+	if action.Kind() == domain.ZoneCreateAction && e.zone != nil {
+		return e.runZone(ctx, action, progress, authority, generation)
 	}
 	if action.Kind() == domain.WorkAssignmentAction && e.work != nil {
 		return e.runWork(ctx, action, progress, authority, generation)

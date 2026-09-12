@@ -74,7 +74,7 @@ func (s *Store) AdmitBuildingMethod(ctx context.Context, r BuildingMethodRequest
 	}
 	var candidates []policy.Candidate
 	for _, a := range actions {
-		if a.Kind() != domain.BuildingAction {
+		if a.Kind() != domain.BuildingAction && a.Kind() != domain.ZoneCreateAction {
 			return BuildingMethodDecision{}, errors.New("unsupported method action family")
 		}
 		preview, exists := previews[a.ID()]
@@ -160,7 +160,7 @@ func buildingMethodHolds(ctx context.Context, tx *sql.Tx, current domain.Generat
 			records[a.Action] = a.Admission
 		}
 		for _, progress := range p.Progress {
-			if progress.Action().Kind() != domain.BuildingAction {
+			if progress.Action().Kind() != domain.BuildingAction && progress.Action().Kind() != domain.ZoneCreateAction {
 				continue
 			}
 			v := progress.View()

@@ -34,7 +34,7 @@ namespace HomeBridge.BridgeTools
             internal readonly MethodInfo? Postfix;
         }
         private static readonly List<Target> Targets = new List<Target>();
-        private const int Required = 11;
+        private const int Required = 16;
         private static string installationFailure = "";
         static NativeAuthorityHooks()
         {
@@ -43,6 +43,11 @@ namespace HomeBridge.BridgeTools
                 var harmony = new Harmony(Owner);
                 Add(harmony, AccessTools.Method(typeof(Pawn_JobTracker), "TryTakeOrderedJob", new[] { typeof(Job), typeof(JobTag?), typeof(bool) }), null, nameof(OrderedJob));
                 Add(harmony, AccessTools.Method(typeof(Pawn_WorkSettings), "SetPriority", new[] { typeof(WorkTypeDef), typeof(int) }), nameof(BeforeWork), nameof(AfterWork));
+                Add(harmony, AccessTools.Method(typeof(Zone_Growing), "SetPlantDefToGrow", new[] { typeof(ThingDef) }), nameof(BeforeCrop), nameof(AfterCrop));
+                Add(harmony, AccessTools.Method(typeof(Zone), "AddCell", new[] { typeof(IntVec3) }), nameof(BeforeZoneCell), nameof(AfterZoneCell));
+                Add(harmony, AccessTools.Method(typeof(Zone), "RemoveCell", new[] { typeof(IntVec3) }), nameof(BeforeZoneCell), nameof(AfterZoneCell));
+                Add(harmony, AccessTools.Method(typeof(ZoneManager), "DeregisterZone", new[] { typeof(Zone) }), nameof(BeforeZoneRemoval), nameof(AfterZoneRemoval));
+                Add(harmony, AccessTools.Method(typeof(Command_Toggle), "ProcessInput", new[] { AccessTools.TypeByName("UnityEngine.Event") ?? throw new TypeLoadException("UnityEngine.Event") }), null, nameof(PlayerToggle));
                 Add(harmony, AccessTools.PropertySetter(typeof(Pawn_DraftController), "Drafted"), nameof(BeforeDraft), nameof(AfterDraft));
                 Add(harmony, AccessTools.Method(typeof(GenConstruct), "PlaceBlueprintForBuild", new[] { typeof(BuildableDef), typeof(IntVec3), typeof(Map), typeof(Rot4), typeof(Faction), typeof(ThingDef), typeof(Precept_ThingStyle), typeof(ThingStyleDef), typeof(bool) }), null, nameof(Built));
                 Add(harmony, AccessTools.Method(typeof(GenConstruct), "PlaceBlueprintForInstall", new[] { typeof(MinifiedThing), typeof(IntVec3), typeof(Map), typeof(Rot4), typeof(Faction), typeof(bool) }), null, nameof(Installed));
@@ -109,6 +114,18 @@ namespace HomeBridge.BridgeTools
         private static void BeforeWork(Pawn_WorkSettings __instance, WorkTypeDef __0, out int __state) => __state = __instance.Initialized ? __instance.GetPriority(__0) : -1;
         private static void AfterWork(Pawn_WorkSettings __instance, WorkTypeDef __0, int __state)
         { if (__instance.Initialized && __state != __instance.GetPriority(__0)) Revoke(NativeControlRevocationReason.PlayerControl); }
+        // Gizmo toggles express player direction, including direct sow/cut field writes.
+        private static void PlayerToggle() => Revoke(NativeControlRevocationReason.PlayerControl);
+        private static readonly FieldInfo CropField = AccessTools.Field(typeof(Zone_Growing), "plantDefToGrow");
+        private static void BeforeCrop(Zone_Growing __instance, out object? __state) => __state = CropField.GetValue(__instance);
+        private static void AfterCrop(Zone_Growing __instance, object? __state)
+        { if (!ReferenceEquals(__state, CropField.GetValue(__instance))) Revoke(NativeControlRevocationReason.PlayerControl); }
+        private static void BeforeZoneCell(Zone __instance, IntVec3 __0, out bool __state) => __state = __instance.Cells.Contains(__0);
+        private static void AfterZoneCell(Zone __instance, IntVec3 __0, bool __state)
+        { if (__state != __instance.Cells.Contains(__0)) Revoke(NativeControlRevocationReason.PlayerControl); }
+        private static void BeforeZoneRemoval(ZoneManager __instance, Zone __0, out bool __state) => __state = __instance.AllZones.Contains(__0);
+        private static void AfterZoneRemoval(ZoneManager __instance, Zone __0, bool __state)
+        { if (__state && !__instance.AllZones.Contains(__0)) Revoke(NativeControlRevocationReason.PlayerControl); }
         private static void BeforeDraft(Pawn_DraftController __instance, out bool __state) => __state = __instance.Drafted;
         private static void AfterDraft(Pawn_DraftController __instance, bool __state)
         { if (__state != __instance.Drafted) Revoke(NativeControlRevocationReason.PlayerControl); }

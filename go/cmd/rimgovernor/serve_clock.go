@@ -43,10 +43,14 @@ func serviceClockConfig(profile string) buildingruntime.ClockSchedulerConfig {
 
 // Session owns the attached worker's drain, including failed startup cleanup.
 // Starting these loops does not enable Player or acquire native authority.
-func startServiceClock(ctx context.Context, player *buildingruntime.Player, session *buildingruntime.Session, reads serviceClockReads, profile string, timeout time.Duration, routine, sleeping, cooking, shelter, comfort, expansion, power, temperature bool, projectLimit int, supplies, work, acquisition bool) error {
+func startServiceClock(ctx context.Context, player *buildingruntime.Player, session *buildingruntime.Session, reads serviceClockReads, profile string, timeout time.Duration, routine, sleeping, cooking, shelter, comfort, expansion, power, temperature bool, projectLimit int, supplies, work, acquisition bool, fieldOptions ...bool) error {
 	config := serviceClockConfig(profile)
 	config.RoutineMethods = session.RoutineMethodsEnabled()
-	if (acquisition || work || supplies || sleeping || cooking || shelter || comfort || expansion || power || temperature) && !routine {
+	fields := len(fieldOptions) == 1 && fieldOptions[0]
+	if len(fieldOptions) > 1 {
+		return errors.New("invalid field option")
+	}
+	if (fields || acquisition || work || supplies || sleeping || cooking || shelter || comfort || expansion || power || temperature) && !routine {
 		return errors.New("building plans require routine reviews")
 	}
 	if routine {
@@ -57,8 +61,11 @@ func startServiceClock(ctx context.Context, player *buildingruntime.Player, sess
 		thresholds := policy.DefaultRoutinePolicy()
 		thresholds.MaxDevelopmentProjects = projectLimit
 		capabilities := buildingruntime.RoutineCapabilities{}
+		if acquisition || fields {
+			capabilities.Methods = append(capabilities.Methods, policy.EnsureFoodSupply)
+		}
 		if acquisition {
-			capabilities.Methods = append(capabilities.Methods, policy.MaintainWood, policy.EnsureFoodSupply)
+			capabilities.Methods = append(capabilities.Methods, policy.MaintainWood)
 		}
 		if temperature {
 			capabilities.Methods = append(capabilities.Methods, policy.EnsureTemperatureSafety)
@@ -77,6 +84,16 @@ func startServiceClock(ctx context.Context, player *buildingruntime.Player, sess
 			return err
 		}
 		config.Routine = reviewer
+		if fields {
+			fieldNative, ok := reads.(buildingruntime.FieldNative)
+			if !ok {
+				return errors.New("field planning requires typed preview")
+			}
+			config.Fields, err = buildingruntime.NewRoutineFieldPlanner(reviewer, fieldNative)
+			if err != nil {
+				return err
+			}
+		}
 		if acquisition {
 			config.FoodAcquisition, err = buildingruntime.NewRoutineAcquisitionPlanner(reviewer, policy.EnsureFoodSupply)
 			if err != nil {

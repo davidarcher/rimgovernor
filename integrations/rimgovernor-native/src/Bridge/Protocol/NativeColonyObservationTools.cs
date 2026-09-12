@@ -129,8 +129,12 @@ namespace HomeBridge.BridgeTools
             foreach (var condition in conditions)
                 result.Environment.Add(new Obs.EnvironmentCondition { Id = condition.uniqueID.ToString(System.Globalization.CultureInfo.InvariantCulture), DefName = condition.def.defName });
             result.Recovery = NativeRecoveryFacts.Read(map, context, limit);
-            foreach (var field in new[] { "policy_resources", "food_climate", "butchering", "food_corpses", "waste" })
+            foreach (var field in new[] { "policy_resources", "butchering", "food_corpses", "waste" })
                 result.Issues.Add(Issue(field, Common.UnavailableReason.Unsupported, "Section is not yet projected."));
+            try { result.FoodClimate = new Obs.FoodClimate { GrowingDaysRemaining = ColonyFactsTools.GrowingDaysRemaining(map),
+                SowingNow = new[] { "Plant_Rice", "Plant_Potato", "Plant_Corn" }.Select(DefDatabase<ThingDef>.GetNamedSilentFail).Any(d => d != null && PlantUtility.GrowthSeasonNow(map,d)),
+                GrowingDays = GenTemperature.TwelfthsInAverageTemperatureRange(map.Tile,Plant.DefaultMinOptimalGrowthTemperature,Plant.DefaultMaxOptimalGrowthTemperature).Count * GenDate.DaysPerTwelfth }; }
+            catch (Exception) { result.Issues.Add(Issue("food_climate", Common.UnavailableReason.ReadFailed, "Seasonal crop budget unavailable.")); }
             try { NativePlantAcquisition.Read(result, map, center, humanFood, limit); }
             catch (Exception) {
                 result.Acquisition.Clear(); result.ClearPendingFoodNutrition(); result.ClearPendingWoodUnits(); result.ClearPendingHunts();
@@ -222,6 +226,8 @@ namespace HomeBridge.BridgeTools
             var names = request.RequestedDefinitionNames.Count == 0 ? StarterDefinitions : request.RequestedDefinitionNames.ToArray();
             Bound(names.Length, limit);
             var result = new Obs.PlanningFacts { Completeness = Complete(names.Length) };
+            try { result.ZoneMapSnapshot = NativeZoneCreation.MapSnapshot(map,context); }
+            catch (Exception) { result.Issues.Add(Issue("zone_map_snapshot", Common.UnavailableReason.ReadFailed, "Zone occupancy snapshot unavailable.")); }
             try { result.Gear = NativeGearFacts.Read(map, context, limit); }
             catch (Exception) { result.Issues.Add(Issue("gear", Common.UnavailableReason.ReadFailed, "Complete native loadout upkeep is unavailable.")); }
             var people = map.mapPawns.FreeColonistsSpawned.Where(p => !p.Dead).ToList();

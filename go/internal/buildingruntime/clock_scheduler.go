@@ -27,6 +27,7 @@ type ClockWindowNative interface {
 	ReadEmergency(context.Context, *c.Identity) (bridge.EmergencyObservation, bridge.Result, error)
 }
 type ClockSchedulerConfig struct {
+	Fields  *RoutineFieldPlanner
 	Profile string
 	Start   bridge.ClockStart
 	MaxAge  time.Duration
@@ -44,6 +45,7 @@ type ClockSchedulerConfig struct {
 	RoutineMethods                   bool
 }
 type ClockSchedulerResult struct {
+	Fields                           *RoutineFieldResult
 	Attempt                          *store.ClockAttempt
 	Decision                         policy.ClockWindowDecision
 	Routine                          *store.RoutineReviewResult
@@ -75,6 +77,9 @@ func NewClockScheduler(player *Player, session *Session, native ClockWindowNativ
 		return nil, ErrControl
 	}
 	if config.Routine != nil && config.Routine.player != player {
+		return nil, ErrControl
+	}
+	if config.Fields != nil && (config.Routine == nil || config.Fields.reviewer != config.Routine) {
 		return nil, ErrControl
 	}
 	for _, planner := range []*RoutineAcquisitionPlanner{config.FoodAcquisition, config.WoodAcquisition} {
@@ -269,6 +274,13 @@ func (s *ClockScheduler) Step(ctx context.Context) (ClockSchedulerResult, error)
 		}
 		out.Work = &method
 	}
+	if s.config.Fields != nil {
+		method, err := s.config.Fields.step(call, epoch)
+		if err != nil {
+			return out, err
+		}
+		out.Fields = &method
+	}
 	if s.config.FoodAcquisition != nil {
 		method, err := s.config.FoodAcquisition.step(call, epoch)
 		if err != nil {
@@ -380,6 +392,9 @@ func (s *ClockScheduler) Step(ctx context.Context) (ClockSchedulerResult, error)
 	clockState := policy.ClockWindowState("")
 	start := s.config.Start
 	var nativeWorkTicks uint32
+	if out.Fields != nil {
+		nativeWorkTicks = out.Fields.NativeWorkTicks
+	}
 	for _, result := range []*RoutineBuildingResult{out.Sleeping, out.Comfort, out.Expansion, out.Power, out.Temperature} {
 		if result != nil {
 			nativeWorkTicks = max(nativeWorkTicks, result.NativeWorkTicks)
@@ -468,7 +483,7 @@ func clockSchedulerWork(plan store.PlanState, current domain.GenerationSnapshot)
 			continue
 		}
 		// Allow is an immediate designation and needs no simulation window.
-		if p.Action().Kind() == domain.SupplyAllowAction || p.Action().Kind() == domain.WorkAssignmentAction {
+		if p.Action().Kind() == domain.SupplyAllowAction || p.Action().Kind() == domain.WorkAssignmentAction || p.Action().Kind() == domain.ZoneCreateAction {
 			continue
 		}
 		// Construction and native plant labor use the healthy-colony clock window.

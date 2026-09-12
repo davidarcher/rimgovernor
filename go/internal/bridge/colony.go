@@ -2,6 +2,7 @@ package bridge
 
 import (
 	"context"
+	"fmt"
 	"math"
 
 	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
@@ -153,8 +154,23 @@ func ValidateColonyFacts(v *o.ColonyFactsSnapshot, identity *c.Identity) error {
 			}
 		}
 	}
-	if len(v.PolicyResources) != 0 || v.FoodClimate != nil || len(v.Butchering) != 0 || len(v.FoodCorpses) != 0 || v.Waste != nil {
+	if len(v.PolicyResources) != 0 || len(v.Butchering) != 0 || len(v.FoodCorpses) != 0 || v.Waste != nil {
 		return contract("unreviewed colony section")
+	}
+	if climate := v.FoodClimate; climate != nil {
+		if err := pawnsIssues(climate.Issues, climate.ProtoReflect()); err != nil {
+			return err
+		}
+		for _, number := range []*float64{climate.GrowingDays, climate.GrowingDaysRemaining} {
+			if !combatNumber(number, true) || number != nil && *number > 60 {
+				return contract("invalid seasonal crop budget")
+			}
+		}
+		for _, issue := range v.Issues {
+			if issue.GetField() == "food_climate" {
+				return contract("unavailable climate contains observations")
+			}
+		}
 	}
 	if err := validateColonyAcquisition(v); err != nil {
 		return err
@@ -218,6 +234,11 @@ func validateColonyPlanning(p *o.PlanningFacts, ctx *c.ObservationContext, size 
 	}
 	if err := pawnsIssues(p.Issues, p.ProtoReflect()); err != nil {
 		return err
+	}
+	if snapshot := p.ZoneMapSnapshot; snapshot != nil {
+		if !proto.Equal(snapshot.Context, ctx) || snapshot.GetEntityId() != fmt.Sprintf("map-%d", ctx.Identity.GetMapId()) || validID(snapshot.GetToken()) != nil {
+			return contract("zone map snapshot mismatch")
+		}
 	}
 	if p.Gear != nil {
 		if err := validateColonyGear(p.Gear, ctx, size); err != nil {

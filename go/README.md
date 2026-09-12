@@ -54,7 +54,7 @@ Startup supply reviews retain the first known native forbidden-supply census.
 Fresh reads can shrink that cohort, but later player forbids cannot expand or
 revive it. Unknown reads preserve pending cells without proving recovery; Manual
 and direction changes preserve the cohort. World replacement and tick rewind
-initialize a new cohort. The current journal requires fresh schema-34 state.
+initialize a new cohort. The current journal requires fresh schema-35 state.
 `--routine-supply-plans` compiles at most eight exact native item snapshots from
 retained cells into a shared Allow plan. `--routine-methods` enables its Hands
 handler under the existing player direction; both switches default off. Each
@@ -71,6 +71,17 @@ so changed settings cannot be silently adopted on retry. Preference changes canc
 pending methods; direct native work-tab edits revoke controller authority. Readback
 checks actual priorities as well as the correlated native outcome. Settings updates
 need no simulation ticks and do not certify that pawn production occurred.
+
+`--routine-field-plans` selects rice, potatoes or corn from native season, yield
+and soil facts, preferring a faster viable crop when stored food is short. It
+requires routine reviews; `--routine-methods` enables execution. Up to 32 connected
+patches share construction footprint reservations. Each creation refreshes the
+zone map CAS and ordinary native placement checks. Exact zone cells and crop
+settings must match on readback; an uncertain write is only observed. Player crop,
+zone and sow/cut edits revoke authority. Completed fields can support a bounded
+healthy-colony growth window from their durable completion tick, only while fresh
+readback still matches. Field capacity and expected harvest never increase edible
+stock. Native harvest/storage acceptance remains in G01.12.
 
 `--routine-acquisition-plans` compiles safe wild-plant food, bounded hunting and wood acquisition
 in batches of at most eight sources. It requires routine reviews; execution uses

@@ -270,6 +270,9 @@ func commitGoalMethod(ctx context.Context, tx *sql.Tx, id domain.GoalID, revisio
 	if len(state.Methods) >= 256 || state.Revision == ^uint64(0) {
 		return GoalState{}, ErrCapacity
 	}
+	if err = admitZoneMethod(ctx, tx, state, plan); err != nil {
+		return GoalState{}, err
+	}
 	if err = admitAcquisitionMethod(ctx, tx, state, plan); err != nil {
 		return GoalState{}, err
 	}

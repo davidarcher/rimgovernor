@@ -35,6 +35,7 @@ type serveConfig struct {
 	routineReviews          bool
 	routineSleepingPlans    bool
 	routineAcquisitionPlans bool
+	routineFieldPlans       bool
 	routineWorkPlans        bool
 	routineSupplyPlans      bool
 	routineCookingPlans     bool
@@ -59,6 +60,7 @@ func parseServe(args []string, diagnostics io.Writer) (serveConfig, error) {
 	flags.BoolVar(&c.routineReviews, "routine-reviews", false, "review routine needs at paused clock boundaries")
 	flags.IntVar(&c.routineProjectLimit, "routine-project-limit", 2, "maximum concurrent optional projects, also bounded by observed workers (1..8)")
 	flags.BoolVar(&c.routineSleepingPlans, "routine-sleeping-plans", false, "compile reviewed indoor sleeping needs into pending shared plans")
+	flags.BoolVar(&c.routineFieldPlans, "routine-field-plans", false, "compile native crop selection and protected growing patches into shared plans")
 	flags.BoolVar(&c.routineAcquisitionPlans, "routine-acquisition-plans", false, "compile safe food harvest and wood acquisition into shared plans")
 	flags.BoolVar(&c.routineWorkPlans, "routine-work-plans", false, "compile saved work preferences into shared pawn settings plans")
 	flags.BoolVar(&c.routineSupplyPlans, "routine-supply-plans", false, "compile original starting supplies into bounded shared Allow plans")
@@ -99,10 +101,10 @@ func parseServe(args []string, diagnostics io.Writer) (serveConfig, error) {
 	if c.routineReviews && !c.clockControl {
 		return c, errors.New("--routine-reviews requires --clock-control")
 	}
-	if (c.routineAcquisitionPlans || c.routineWorkPlans || c.routineSupplyPlans || c.routineSleepingPlans || c.routineCookingPlans || c.routineShelterPlans || c.routineComfortPlans || c.routineExpansionPlans || c.routinePowerPlans || c.routineTemperaturePlans) && !c.routineReviews {
+	if (c.routineFieldPlans || c.routineAcquisitionPlans || c.routineWorkPlans || c.routineSupplyPlans || c.routineSleepingPlans || c.routineCookingPlans || c.routineShelterPlans || c.routineComfortPlans || c.routineExpansionPlans || c.routinePowerPlans || c.routineTemperaturePlans) && !c.routineReviews {
 		return c, errors.New("routine building plans require --routine-reviews")
 	}
-	if c.routineMethods && !c.routineAcquisitionPlans && !c.routineWorkPlans && !c.routineSupplyPlans && !c.routineSleepingPlans && !c.routineCookingPlans && !c.routineShelterPlans && !c.routineComfortPlans && !c.routineExpansionPlans && !c.routinePowerPlans && !c.routineTemperaturePlans {
+	if c.routineMethods && !c.routineFieldPlans && !c.routineAcquisitionPlans && !c.routineWorkPlans && !c.routineSupplyPlans && !c.routineSleepingPlans && !c.routineCookingPlans && !c.routineShelterPlans && !c.routineComfortPlans && !c.routineExpansionPlans && !c.routinePowerPlans && !c.routineTemperaturePlans {
 		return c, errors.New("--routine-methods requires a routine building planner")
 	}
 	if c.playerControl && !filepath.IsAbs(c.profile) || !c.playerControl && c.profile != "" {

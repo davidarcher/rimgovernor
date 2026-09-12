@@ -11,6 +11,7 @@ import (
 
 type PlanningDefinition struct {
 	Name                                                                                  string
+	Edible                                                                                domain.Fact[bool]
 	Stuff                                                                                 domain.Fact[string]
 	Available                                                                             domain.Fact[bool]
 	ConstructionSkill                                                                     domain.Fact[int32]
@@ -19,6 +20,9 @@ type PlanningDefinition struct {
 	GrowDays, FertilityMin, FertilitySensitivity, HarvestNutrition, NutritionDemandPerDay domain.Fact[float64]
 }
 type ColonyProjection struct {
+	ZoneMapToken domain.Fact[string]
+	CropClimate  policy.CropClimate
+
 	PendingHunts domain.Fact[int]
 
 	Acquisition                            domain.Fact[[]policy.AcquisitionSource]
@@ -140,6 +144,9 @@ func DecodeColony(reply *o.ColonyFactsReply, expected Identity) (ColonyProjectio
 		}
 		r.Facts.PowerRequired, r.Facts.PowerHeadroom, r.Facts.DisabledConsumers = policy.PowerCoverage(domain.Known(power))
 	}
+	if climate := v.FoodClimate; climate != nil && !hasIssue(v.Issues, "food_climate") {
+		r.CropClimate = policy.CropClimate{Sowing: optional(climate.SowingNow), DaysRemaining: optional(climate.GrowingDaysRemaining)}
+	}
 	colonyAcquisition(v, &r)
 	colonyProduction(v, &r.Facts)
 	colonyDisaster(v, &r.Facts)
@@ -210,8 +217,11 @@ func DecodeColony(reply *o.ColonyFactsReply, expected Identity) (ColonyProjectio
 		r.Facts.StartingSupplyCells = domain.Known(cells)
 	}
 	if planning := v.GetPlanning().GetObserved(); planning != nil {
+		if planning.ZoneMapSnapshot != nil && !hasIssue(planning.Issues, "zone_map_snapshot") {
+			r.ZoneMapToken = domain.Known(planning.ZoneMapSnapshot.GetToken())
+		}
 		for _, row := range planning.Definitions {
-			d := PlanningDefinition{Name: row.Definition.GetDefName(), Stuff: optional(row.Stuff), Available: optional(row.Available), ConstructionSkill: optional(row.ConstructionSkill), GrowDays: optional(row.GrowDays), FertilityMin: optional(row.FertilityMin), FertilitySensitivity: optional(row.FertilitySensitivity), HarvestNutrition: optional(row.HarvestNutrition), NutritionDemandPerDay: optional(row.NutritionDemandPerDay)}
+			d := PlanningDefinition{Edible: optional(row.Edible), Name: row.Definition.GetDefName(), Stuff: optional(row.Stuff), Available: optional(row.Available), ConstructionSkill: optional(row.ConstructionSkill), GrowDays: optional(row.GrowDays), FertilityMin: optional(row.FertilityMin), FertilitySensitivity: optional(row.FertilitySensitivity), HarvestNutrition: optional(row.HarvestNutrition), NutritionDemandPerDay: optional(row.NutritionDemandPerDay)}
 			if row.Size != nil {
 				d.Size = domain.Known(policy.Bounds{Width: int32(row.Size.GetWidth()), Height: int32(row.Size.GetHeight())})
 			}

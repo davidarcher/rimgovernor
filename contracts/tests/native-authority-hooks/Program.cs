@@ -29,7 +29,7 @@ internal static class Program
     public static void Main()
     {
         _ = UnityData.IsInMainThread;
-        Assert(NativeAuthorityHooks.Health.Ready && NativeAuthorityHooks.Health.VerifiedTargets == 11, "all exact patches installed");
+        Assert(NativeAuthorityHooks.Health.Ready && NativeAuthorityHooks.Health.VerifiedTargets == 16, "all exact patches installed");
         Assert(NativeAuthorityHooks.InitializeForCurrentGame() == null, "no game initializes nothing");
         var game = new Game { CurrentMap = new Map { uniqueID = 1 } }; Current.Game = game;
         Assert(!NativeControlAuthority.TryGetForGame(game, out _), "setter allocated state");
@@ -43,6 +43,16 @@ internal static class Program
         Invalidates(() => work.SetPriority(workType, 1), "work priority change");
         Preserves(() => work.SetPriority(workType, 1), "work priority noop");
         Preserves(() => { using (State.Owned()) work.SetPriority(workType, 2); }, "owned work priority change");
+        var zone=new Zone_Growing(); var crop=new ThingDef();
+        Invalidates(()=>zone.SetPlantDefToGrow(crop),"crop change");
+        Preserves(()=>zone.SetPlantDefToGrow(crop),"crop noop");
+        Preserves(()=>{using(State.Owned())zone.SetPlantDefToGrow(new ThingDef());},"owned crop change");
+        Invalidates(()=>zone.AddCell(default),"zone cell added");
+        Preserves(()=>zone.AddCell(default),"zone cell noop");
+        Invalidates(()=>zone.RemoveCell(default),"zone cell removed");
+        var zones=new ZoneManager(); zones.AllZones.Add(zone);
+        Invalidates(()=>zones.DeregisterZone(zone),"zone removed");
+        Invalidates(()=>new Command_Toggle().ProcessInput(new UnityEngine.Event()),"player gizmo toggle");
         Invalidates(() => draft.Drafted = true, "draft change");
         Preserves(() => draft.Drafted = true, "draft noop");
         Invalidates(() => draft.Drafted = false, "undraft change");

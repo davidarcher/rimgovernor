@@ -26,6 +26,7 @@ type buildingServiceBridge struct {
 	authority   buildingruntime.NativeAuthority
 	writes      buildingruntime.BuildingWriter
 	acquisition *buildingruntime.AcquisitionCapabilities
+	zones       *buildingruntime.ZoneCapabilities
 	work        *buildingruntime.WorkCapabilities
 	supplies    *buildingruntime.SupplyCapabilities
 	draft       *buildingruntime.DraftCapabilities
@@ -63,6 +64,10 @@ func openBuildingService(ctx context.Context, config bridge.ProcessConfig) (buil
 	if err != nil {
 		return buildingServiceBridge{}, errors.Join(err, client.Close())
 	}
+	zones, err := bridge.NewZoneControl(client)
+	if err != nil {
+		return buildingServiceBridge{}, errors.Join(err, client.Close())
+	}
 	acquisition, err := bridge.NewAcquisitionControl(client)
 	if err != nil {
 		return buildingServiceBridge{}, errors.Join(err, client.Close())
@@ -76,6 +81,7 @@ func openBuildingService(ctx context.Context, config bridge.ProcessConfig) (buil
 		return buildingServiceBridge{}, errors.Join(err, client.Close())
 	}
 	return buildingServiceBridge{reads: client, native: client, authority: ownedAuthority{client, authority}, writes: writes,
+		zones:       &buildingruntime.ZoneCapabilities{Native: client, Writer: zones},
 		acquisition: &buildingruntime.AcquisitionCapabilities{Native: client, Writer: acquisition},
 		work:        &buildingruntime.WorkCapabilities{Native: client, Writer: work},
 		supplies:    &buildingruntime.SupplyCapabilities{Native: client, Writer: supplies},
@@ -200,6 +206,13 @@ func serveBuildingWithBridge(ctx context.Context, config serveConfig, out io.Wri
 		}
 		supplyCapabilities = client.supplies
 	}
+	var zoneCapabilities *buildingruntime.ZoneCapabilities
+	if config.routineFieldPlans {
+		if client.zones == nil {
+			return errors.New("field plans require typed capabilities")
+		}
+		zoneCapabilities = client.zones
+	}
 	var acquisitionCapabilities *buildingruntime.AcquisitionCapabilities
 	if config.routineAcquisitionPlans {
 		if client.acquisition == nil {
@@ -219,6 +232,7 @@ func serveBuildingWithBridge(ctx context.Context, config serveConfig, out io.Wri
 		Control:     buildingruntime.ControlConfig{ProfileDirectory: config.profile, LeaseDuration: 30 * time.Second, CallTimeout: callTimeout, Worlds: buildingWorldSource{client.reads}},
 		Executor:    executor.Limits{MaxAge: 5 * time.Second, RunTimeout: 8 * time.Second, JournalTimeout: 3 * time.Second},
 		Acquisition: acquisitionCapabilities,
+		Zones:       zoneCapabilities,
 		Work:        workCapabilities,
 		Supplies:    supplyCapabilities,
 		Draft:       client.draft,
@@ -242,7 +256,7 @@ func serveBuildingWithBridge(ctx context.Context, config serveConfig, out io.Wri
 	}
 	owner = player
 	if config.clockControl {
-		if err = startServiceClock(lifetime, player, session, client.clockReads, config.profile, callTimeout, config.routineReviews, config.routineSleepingPlans, config.routineCookingPlans, config.routineShelterPlans, config.routineComfortPlans, config.routineExpansionPlans, config.routinePowerPlans, config.routineTemperaturePlans, config.routineProjectLimit, config.routineSupplyPlans, config.routineWorkPlans, config.routineAcquisitionPlans); err != nil {
+		if err = startServiceClock(lifetime, player, session, client.clockReads, config.profile, callTimeout, config.routineReviews, config.routineSleepingPlans, config.routineCookingPlans, config.routineShelterPlans, config.routineComfortPlans, config.routineExpansionPlans, config.routinePowerPlans, config.routineTemperaturePlans, config.routineProjectLimit, config.routineSupplyPlans, config.routineWorkPlans, config.routineAcquisitionPlans, config.routineFieldPlans); err != nil {
 			return err
 		}
 	}

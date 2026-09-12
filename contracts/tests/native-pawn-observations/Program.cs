@@ -36,6 +36,7 @@ internal static class Program
         tools=bridge.GetType("HomeBridge.BridgeTools.NativePawnObservationTools",true)!;
         WorkSettingsProof.Run(bridge, Check);
         AcquisitionProof.Run(bridge, Check);
+        ZoneProof.Run(bridge, Check);
         const string scope="\"scope\":{\"expectedIdentity\":{\"colonyId\":\"colony\",\"loadToken\":\"load\",\"mapId\":0}}";
         Func<string,string> request=fields=>"{"+scope+(fields.Length==0?"":","+fields)+"}";
         Check(Valid(request("")),"defaults accepted");

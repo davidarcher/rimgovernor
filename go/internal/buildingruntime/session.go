@@ -13,6 +13,7 @@ import (
 )
 
 type SessionConfig struct {
+	Zones          *ZoneCapabilities
 	Work           *WorkCapabilities
 	Acquisition    *AcquisitionCapabilities
 	Supplies       *SupplyCapabilities
@@ -206,6 +207,12 @@ func NewSession(ctx context.Context, config SessionConfig, journal *store.Store,
 			return cleanup(ErrControl)
 		}
 		executionBoundary = withAcquisition(executionBoundary, &acquisitionBoundary{Boundary: boundary, acquisition: *config.Acquisition})
+	}
+	if config.Zones != nil {
+		if config.Zones.Native == nil || config.Zones.Writer == nil {
+			return cleanup(ErrControl)
+		}
+		executionBoundary = withZone(executionBoundary, &zoneBoundary{Boundary: boundary, zone: *config.Zones, journal: journal})
 	}
 	var routine []executor.RoutineScope
 	if config.RoutineMethods {

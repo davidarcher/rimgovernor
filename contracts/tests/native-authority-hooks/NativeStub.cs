@@ -84,3 +84,25 @@ namespace RimWorld {
  public class WorkTypeDef {}
  public class Pawn_WorkSettings { private int priority; public bool Initialized => true; [System.Runtime.CompilerServices.MethodImpl(System.Runtime.CompilerServices.MethodImplOptions.NoInlining)] public int GetPriority(WorkTypeDef w) => priority; [System.Runtime.CompilerServices.MethodImpl(System.Runtime.CompilerServices.MethodImplOptions.NoInlining)] public void SetPriority(WorkTypeDef w, int value) { priority = value; } }
 }
+
+namespace UnityEngine { public class Event {} }
+namespace Verse {
+ public class Zone {
+ public List<IntVec3> Cells = new();
+ [MethodImpl(MethodImplOptions.NoInlining)] public void AddCell(IntVec3 c) {if(!Cells.Contains(c))Cells.Add(c);}
+ [MethodImpl(MethodImplOptions.NoInlining)] public void RemoveCell(IntVec3 c) {Cells.Remove(c);}
+ }
+ public class ZoneManager {
+ public List<Zone> AllZones=new();
+ [MethodImpl(MethodImplOptions.NoInlining)] public void DeregisterZone(Zone zone) {AllZones.Remove(zone);}
+ }
+ public class Command_Toggle { public Action toggleAction=()=>{};
+ [MethodImpl(MethodImplOptions.NoInlining)] public void ProcessInput(UnityEngine.Event e){toggleAction();}
+ }
+}
+namespace RimWorld {
+ public class Zone_Growing : Verse.Zone {
+ private Verse.ThingDef? plantDefToGrow;
+ [MethodImpl(MethodImplOptions.NoInlining)] public void SetPlantDefToGrow(Verse.ThingDef crop){plantDefToGrow=crop;}
+ }
+}

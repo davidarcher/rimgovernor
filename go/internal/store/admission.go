@@ -52,8 +52,16 @@ func validateAdmission(a domain.Action, p domain.Progress, admission Admission) 
 		resources[cost.Definition] = true
 	}
 	building, ok := a.Building()
-	if !ok {
+	zone, isZone := a.ZoneCreate()
+	if !ok && !isZone {
 		return errors.New("unsupported admission action")
+	}
+	if isZone && (len(admission.Costs) != 0 || len(admission.Footprint) != len(zone.Cells())) {
+		return errors.New("zone admission footprint or costs mismatch")
+	}
+	anchorCell := building.Cell()
+	if isZone {
+		anchorCell = zone.Cells()[0]
 	}
 	if len(admission.Footprint) == 0 || len(admission.Footprint) > 4096 {
 		return errors.New("complete bounded admission footprint required")
@@ -65,7 +73,14 @@ func validateAdmission(a domain.Action, p domain.Progress, admission Admission) 
 			return errors.New("invalid or duplicate admission cell")
 		}
 		seen[cell] = true
-		anchor = anchor || cell == building.Cell()
+		anchor = anchor || cell == anchorCell
+	}
+	if isZone {
+		for _, cell := range zone.Cells() {
+			if !seen[cell] {
+				return errors.New("zone admission footprint differs")
+			}
+		}
 	}
 	if !anchor {
 		return errors.New("admission footprint does not contain action anchor")
@@ -107,6 +122,9 @@ func (s *Store) ReserveAndPrepare(ctx context.Context, plan domain.PlanID, actio
 	}
 	if !found {
 		return domain.Progress{}, ErrNotFound
+	}
+	if a.Kind() != domain.BuildingAction {
+		return domain.Progress{}, errors.New("typed zone preparation required")
 	}
 	if err = validateAdmission(a, p, admission); err != nil {
 		return domain.Progress{}, err
