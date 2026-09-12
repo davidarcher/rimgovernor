@@ -54,7 +54,7 @@ Startup supply reviews retain the first known native forbidden-supply census.
 Fresh reads can shrink that cohort, but later player forbids cannot expand or
 revive it. Unknown reads preserve pending cells without proving recovery; Manual
 and direction changes preserve the cohort. World replacement and tick rewind
-initialize a new cohort. The current journal requires fresh schema-33 state.
+initialize a new cohort. The current journal requires fresh schema-34 state.
 `--routine-supply-plans` compiles at most eight exact native item snapshots from
 retained cells into a shared Allow plan. `--routine-methods` enables its Hands
 handler under the existing player direction; both switches default off. Each
@@ -71,6 +71,19 @@ so changed settings cannot be silently adopted on retry. Preference changes canc
 pending methods; direct native work-tab edits revoke controller authority. Readback
 checks actual priorities as well as the correlated native outcome. Settings updates
 need no simulation ticks and do not certify that pawn production occurred.
+
+`--routine-acquisition-plans` compiles safe wild-plant food and wood acquisition
+in batches of at most eight sources. It requires routine reviews; execution uses
+`--routine-methods`. Native pending yield reduces new designations but never
+increases stock or food runway. Food selection uses the existing diet, rot and
+competing-consumer forecast. Wild plants in growing zones are excluded, outdoor
+writes hold during roof-collapse hazards, and native enabled workers and ordinary
+designators decide eligibility. Wood plans consume development capacity. Each
+write rechecks the exact source CAS; uncertain attempts only observe. Native
+harvest and placement callbacks account for actual produced stacks, including
+merges. Missing or consumed output remains unknown, and a completed designation
+alone is not production. Ordinary labor uses the shared healthy-colony clock.
+Gameplay acceptance of this path remains in G01.12.
 
 `RankDevelopment` preserves accepted shared-action commitments while ranking new
 projects by deficit, player preference, native-tick age and selection hysteresis.

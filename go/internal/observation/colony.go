@@ -19,20 +19,22 @@ type PlanningDefinition struct {
 	GrowDays, FertilityMin, FertilitySensitivity, HarvestNutrition, NutritionDemandPerDay domain.Fact[float64]
 }
 type ColonyProjection struct {
-	WorkPawns           domain.Fact[[]policy.WorkPawn]
-	FieldCrops          domain.Fact[[]policy.FieldCrop]
-	CookingBenches      domain.Fact[[]CookingBench]
-	PowerPlanning       domain.Fact[policy.PowerTopology]
-	TemperaturePlanning domain.Fact[policy.TemperatureObservation]
-	Identity            Identity
-	Facts               policy.RoutineFacts
-	Workers             domain.Fact[int]
-	Bounds              policy.Bounds
-	Center              domain.Cell
-	Cells               []policy.SiteCell
-	Definitions         []PlanningDefinition
-	FoodSupply          domain.Fact[policy.FoodSupply]
-	CombinedFoodSupply  domain.Fact[policy.FoodSupply]
+	Acquisition                            domain.Fact[[]policy.AcquisitionSource]
+	PendingFoodNutrition, PendingWoodUnits domain.Fact[float64]
+	WorkPawns                              domain.Fact[[]policy.WorkPawn]
+	FieldCrops                             domain.Fact[[]policy.FieldCrop]
+	CookingBenches                         domain.Fact[[]CookingBench]
+	PowerPlanning                          domain.Fact[policy.PowerTopology]
+	TemperaturePlanning                    domain.Fact[policy.TemperatureObservation]
+	Identity                               Identity
+	Facts                                  policy.RoutineFacts
+	Workers                                domain.Fact[int]
+	Bounds                                 policy.Bounds
+	Center                                 domain.Cell
+	Cells                                  []policy.SiteCell
+	Definitions                            []PlanningDefinition
+	FoodSupply                             domain.Fact[policy.FoodSupply]
+	CombinedFoodSupply                     domain.Fact[policy.FoodSupply]
 }
 
 type CookingBench struct {
@@ -136,6 +138,7 @@ func DecodeColony(reply *o.ColonyFactsReply, expected Identity) (ColonyProjectio
 		}
 		r.Facts.PowerRequired, r.Facts.PowerHeadroom, r.Facts.DisabledConsumers = policy.PowerCoverage(domain.Known(power))
 	}
+	colonyAcquisition(v, &r)
 	colonyProduction(v, &r.Facts)
 	colonyDisaster(v, &r.Facts)
 	r.Facts.Comfort = colonyComfort(v)

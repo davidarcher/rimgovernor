@@ -129,8 +129,14 @@ namespace HomeBridge.BridgeTools
             foreach (var condition in conditions)
                 result.Environment.Add(new Obs.EnvironmentCondition { Id = condition.uniqueID.ToString(System.Globalization.CultureInfo.InvariantCulture), DefName = condition.def.defName });
             result.Recovery = NativeRecoveryFacts.Read(map, context, limit);
-            foreach (var field in new[] { "policy_resources", "pending_food_nutrition", "food_climate", "acquisition", "butchering", "food_corpses", "waste" })
+            foreach (var field in new[] { "policy_resources", "food_climate", "butchering", "food_corpses", "waste" })
                 result.Issues.Add(Issue(field, Common.UnavailableReason.Unsupported, "Section is not yet projected."));
+            try { NativePlantAcquisition.Read(result, map, center, humanFood, limit); }
+            catch (Exception) {
+                result.Acquisition.Clear(); result.ClearPendingFoodNutrition(); result.ClearPendingWoodUnits();
+                foreach (var field in new[] { "acquisition", "pending_food_nutrition", "pending_wood_units" })
+                    result.Issues.Add(Issue(field, Common.UnavailableReason.ReadFailed, "Complete safe acquisition facts are unavailable."));
+            }
             result.Planning = request.Planning ? new Obs.PlanningSection { Observed = Planning(map, center, request, context, limit) }
                 : new Obs.PlanningSection { Unavailable = Unavailable(Common.UnavailableReason.NotRequested, "Planning was not requested.") };
             return result;

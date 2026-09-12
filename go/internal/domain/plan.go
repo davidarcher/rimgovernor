@@ -57,13 +57,14 @@ func nativeText(s string, allowEmpty bool) bool {
 
 // Action is a closed variant. New families require constructor and handler coverage.
 type Action struct {
-	id       ActionID
-	kind     ActionKind
-	building Building
-	draft    OwnedDraft
-	melee    MeleeAttack
-	supply   SupplyAllow
-	work     WorkAssignment
+	id          ActionID
+	kind        ActionKind
+	building    Building
+	draft       OwnedDraft
+	melee       MeleeAttack
+	acquisition Acquisition
+	supply      SupplyAllow
+	work        WorkAssignment
 }
 
 func NewBuildingAction(id ActionID, building Building) (Action, error) {
@@ -79,12 +80,12 @@ func (a Action) ID() ActionID               { return a.id }
 func (a Action) Kind() ActionKind           { return a.kind }
 func (a Action) Building() (Building, bool) { return a.building, a.kind == BuildingAction }
 func SupportedActionKinds() []ActionKind {
-	return []ActionKind{BuildingAction, OwnedDraftAction, MeleeAttackAction, SupplyAllowAction, WorkAssignmentAction}
+	return []ActionKind{BuildingAction, OwnedDraftAction, MeleeAttackAction, SupplyAllowAction, WorkAssignmentAction, AcquisitionAction}
 }
 func ValidateHandlerCoverage(kinds []ActionKind) error {
 	seen := make(map[ActionKind]bool)
 	for _, kind := range kinds {
-		if (kind != BuildingAction && kind != OwnedDraftAction && kind != MeleeAttackAction && kind != SupplyAllowAction && kind != WorkAssignmentAction) || seen[kind] {
+		if (kind != BuildingAction && kind != OwnedDraftAction && kind != MeleeAttackAction && kind != SupplyAllowAction && kind != WorkAssignmentAction && kind != AcquisitionAction) || seen[kind] {
 			return fmt.Errorf("unknown or duplicate action handler %q", kind)
 		}
 		seen[kind] = true
@@ -126,6 +127,8 @@ func NewPlan(id PlanID, revision PlanRevision, actions []Action, dependencies ..
 			canonical, err = NewMeleeAttackAction(a.id, a.melee)
 		case WorkAssignmentAction:
 			canonical, err = NewWorkAssignmentAction(a.id, a.work)
+		case AcquisitionAction:
+			canonical, err = NewAcquisitionAction(a.id, a.acquisition)
 		case SupplyAllowAction:
 			canonical, err = NewSupplyAllowAction(a.id, a.supply)
 		default:

@@ -22472,6 +22472,7 @@ type ColonyFactsSnapshot struct {
 	Waste                   *WasteReply                  `protobuf:"bytes,34,opt,name=waste,proto3" json:"waste,omitempty"`
 	Completeness            *Completeness                `protobuf:"bytes,35,opt,name=completeness,proto3" json:"completeness,omitempty"`
 	Issues                  []*ReadIssue                 `protobuf:"bytes,36,rep,name=issues,proto3" json:"issues,omitempty"`
+	PendingWoodUnits        *float64                     `protobuf:"fixed64,37,opt,name=pending_wood_units,json=pendingWoodUnits,proto3,oneof" json:"pending_wood_units,omitempty"`
 	unknownFields           protoimpl.UnknownFields
 	sizeCache               protoimpl.SizeCache
 }
@@ -22756,6 +22757,13 @@ func (x *ColonyFactsSnapshot) GetIssues() []*ReadIssue {
 		return x.Issues
 	}
 	return nil
+}
+
+func (x *ColonyFactsSnapshot) GetPendingWoodUnits() float64 {
+	if x != nil && x.PendingWoodUnits != nil {
+		return *x.PendingWoodUnits
+	}
+	return 0
 }
 
 type ColonyFactsRequest struct {
@@ -27545,7 +27553,7 @@ const file_observations_proto_rawDesc = "" +
 	"\rUpkeepSection\x12F\n" +
 	"\bobserved\x18\x01 \x01(\v2(.rimgovernor.observations.v1.UpkeepFactsH\x00R\bobserved\x12F\n" +
 	"\vunavailable\x18\x02 \x01(\v2\".rimgovernor.common.v1.UnavailableH\x00R\vunavailableB\t\n" +
-	"\aoutcome\"\xbd\x14\n" +
+	"\aoutcome\"\x87\x15\n" +
 	"\x13ColonyFactsSnapshot\x12C\n" +
 	"\acontext\x18\x01 \x01(\v2).rimgovernor.common.v1.ObservationContextR\acontext\x12A\n" +
 	"\x06naming\x18\x02 \x01(\v2).rimgovernor.observations.v1.ColonyNamingR\x06naming\x12*\n" +
@@ -27587,7 +27595,8 @@ const file_observations_proto_rawDesc = "" +
 	"\brecovery\x18! \x01(\v2*.rimgovernor.observations.v1.RecoveryReplyR\brecovery\x12=\n" +
 	"\x05waste\x18\" \x01(\v2'.rimgovernor.observations.v1.WasteReplyR\x05waste\x12M\n" +
 	"\fcompleteness\x18# \x01(\v2).rimgovernor.observations.v1.CompletenessR\fcompleteness\x12>\n" +
-	"\x06issues\x18$ \x03(\v2&.rimgovernor.observations.v1.ReadIssueR\x06issuesB\x11\n" +
+	"\x06issues\x18$ \x03(\v2&.rimgovernor.observations.v1.ReadIssueR\x06issues\x121\n" +
+	"\x12pending_wood_units\x18% \x01(\x01H\rR\x10pendingWoodUnits\x88\x01\x01B\x11\n" +
 	"\x0f_colonist_countB\x0f\n" +
 	"\r_worker_countB\b\n" +
 	"\x06_biomeB\x11\n" +
@@ -27600,7 +27609,8 @@ const file_observations_proto_rawDesc = "" +
 	"\x1b_sleeping_temperature_min_cB\x1d\n" +
 	"\x1b_sleeping_temperature_max_cB\x18\n" +
 	"\x16_outdoor_temperature_cB\x0f\n" +
-	"\r_food_storage\"\xf6\x01\n" +
+	"\r_food_storageB\x15\n" +
+	"\x13_pending_wood_units\"\xf6\x01\n" +
 	"\x12ColonyFactsRequest\x12<\n" +
 	"\x05scope\x18\x01 \x01(\v2&.rimgovernor.observations.v1.ReadScopeR\x05scope\x12\x1f\n" +
 	"\bplanning\x18\x02 \x01(\bH\x00R\bplanning\x88\x01\x01\x12<\n" +

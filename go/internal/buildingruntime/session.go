@@ -14,6 +14,7 @@ import (
 
 type SessionConfig struct {
 	Work           *WorkCapabilities
+	Acquisition    *AcquisitionCapabilities
 	Supplies       *SupplyCapabilities
 	RoutineMethods bool
 	Control        ControlConfig
@@ -199,6 +200,12 @@ func NewSession(ctx context.Context, config SessionConfig, journal *store.Store,
 		} else {
 			executionBoundary = work
 		}
+	}
+	if config.Acquisition != nil {
+		if config.Acquisition.Native == nil || config.Acquisition.Writer == nil {
+			return cleanup(ErrControl)
+		}
+		executionBoundary = withAcquisition(executionBoundary, &acquisitionBoundary{Boundary: boundary, acquisition: *config.Acquisition})
 	}
 	var routine []executor.RoutineScope
 	if config.RoutineMethods {

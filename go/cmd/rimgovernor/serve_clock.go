@@ -43,10 +43,10 @@ func serviceClockConfig(profile string) buildingruntime.ClockSchedulerConfig {
 
 // Session owns the attached worker's drain, including failed startup cleanup.
 // Starting these loops does not enable Player or acquire native authority.
-func startServiceClock(ctx context.Context, player *buildingruntime.Player, session *buildingruntime.Session, reads serviceClockReads, profile string, timeout time.Duration, routine, sleeping, cooking, shelter, comfort, expansion, power, temperature bool, projectLimit int, supplies, work bool) error {
+func startServiceClock(ctx context.Context, player *buildingruntime.Player, session *buildingruntime.Session, reads serviceClockReads, profile string, timeout time.Duration, routine, sleeping, cooking, shelter, comfort, expansion, power, temperature bool, projectLimit int, supplies, work, acquisition bool) error {
 	config := serviceClockConfig(profile)
 	config.RoutineMethods = session.RoutineMethodsEnabled()
-	if (work || supplies || sleeping || cooking || shelter || comfort || expansion || power || temperature) && !routine {
+	if (acquisition || work || supplies || sleeping || cooking || shelter || comfort || expansion || power || temperature) && !routine {
 		return errors.New("building plans require routine reviews")
 	}
 	if routine {
@@ -57,6 +57,9 @@ func startServiceClock(ctx context.Context, player *buildingruntime.Player, sess
 		thresholds := policy.DefaultRoutinePolicy()
 		thresholds.MaxDevelopmentProjects = projectLimit
 		capabilities := buildingruntime.RoutineCapabilities{}
+		if acquisition {
+			capabilities.Methods = append(capabilities.Methods, policy.MaintainWood, policy.EnsureFoodSupply)
+		}
 		if temperature {
 			capabilities.Methods = append(capabilities.Methods, policy.EnsureTemperatureSafety)
 		}
@@ -74,6 +77,16 @@ func startServiceClock(ctx context.Context, player *buildingruntime.Player, sess
 			return err
 		}
 		config.Routine = reviewer
+		if acquisition {
+			config.FoodAcquisition, err = buildingruntime.NewRoutineAcquisitionPlanner(reviewer, policy.EnsureFoodSupply)
+			if err != nil {
+				return err
+			}
+			config.WoodAcquisition, err = buildingruntime.NewRoutineAcquisitionPlanner(reviewer, policy.MaintainWood)
+			if err != nil {
+				return err
+			}
+		}
 		if work {
 			config.Work, err = buildingruntime.NewRoutineWorkPlanner(reviewer)
 			if err != nil {

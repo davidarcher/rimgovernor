@@ -31,30 +31,32 @@ type ClockSchedulerConfig struct {
 	Start   bridge.ClockStart
 	MaxAge  time.Duration
 	// Routine is reviewed only after owned clock obligations have drained.
-	Routine        *RoutineReviewer
-	Work           *RoutineWorkPlanner
-	Supplies       *RoutineSupplyPlanner
-	Sleeping       *RoutineBuildingPlanner
-	Cooking        *RoutineBuildingPlanner
-	Comfort        *RoutineBuildingPlanner
-	Expansion      *RoutineBuildingPlanner
-	Power          *RoutineBuildingPlanner
-	Temperature    *RoutineBuildingPlanner
-	RoutineMethods bool
+	Routine                          *RoutineReviewer
+	FoodAcquisition, WoodAcquisition *RoutineAcquisitionPlanner
+	Work                             *RoutineWorkPlanner
+	Supplies                         *RoutineSupplyPlanner
+	Sleeping                         *RoutineBuildingPlanner
+	Cooking                          *RoutineBuildingPlanner
+	Comfort                          *RoutineBuildingPlanner
+	Expansion                        *RoutineBuildingPlanner
+	Power                            *RoutineBuildingPlanner
+	Temperature                      *RoutineBuildingPlanner
+	RoutineMethods                   bool
 }
 type ClockSchedulerResult struct {
-	Attempt                      *store.ClockAttempt
-	Decision                     policy.ClockWindowDecision
-	Routine                      *store.RoutineReviewResult
-	Work                         *RoutineWorkResult
-	Supplies                     *RoutineSupplyResult
-	Sleeping                     *RoutineBuildingResult
-	Cooking                      *RoutineBuildingResult
-	Comfort                      *RoutineBuildingResult
-	Expansion                    *RoutineBuildingResult
-	Power                        *RoutineBuildingResult
-	Temperature                  *RoutineBuildingResult
-	Running, Reconciled, Cleaned bool
+	Attempt                          *store.ClockAttempt
+	Decision                         policy.ClockWindowDecision
+	Routine                          *store.RoutineReviewResult
+	FoodAcquisition, WoodAcquisition *RoutineAcquisitionResult
+	Work                             *RoutineWorkResult
+	Supplies                         *RoutineSupplyResult
+	Sleeping                         *RoutineBuildingResult
+	Cooking                          *RoutineBuildingResult
+	Comfort                          *RoutineBuildingResult
+	Expansion                        *RoutineBuildingResult
+	Power                            *RoutineBuildingResult
+	Temperature                      *RoutineBuildingResult
+	Running, Reconciled, Cleaned     bool
 }
 type ClockScheduler struct {
 	player              *Player
@@ -74,6 +76,11 @@ func NewClockScheduler(player *Player, session *Session, native ClockWindowNativ
 	}
 	if config.Routine != nil && config.Routine.player != player {
 		return nil, ErrControl
+	}
+	for _, planner := range []*RoutineAcquisitionPlanner{config.FoodAcquisition, config.WoodAcquisition} {
+		if planner != nil && (config.Routine == nil || planner.reviewer != config.Routine) {
+			return nil, ErrControl
+		}
 	}
 	if config.Work != nil && (config.Routine == nil || config.Work.reviewer != config.Routine) {
 		return nil, ErrControl
@@ -261,6 +268,20 @@ func (s *ClockScheduler) Step(ctx context.Context) (ClockSchedulerResult, error)
 			return out, err
 		}
 		out.Work = &method
+	}
+	if s.config.FoodAcquisition != nil {
+		method, err := s.config.FoodAcquisition.step(call, epoch)
+		if err != nil {
+			return out, err
+		}
+		out.FoodAcquisition = &method
+	}
+	if s.config.WoodAcquisition != nil {
+		method, err := s.config.WoodAcquisition.step(call, epoch)
+		if err != nil {
+			return out, err
+		}
+		out.WoodAcquisition = &method
 	}
 	if s.config.Supplies != nil {
 		method, err := s.config.Supplies.step(call, epoch)
@@ -450,8 +471,8 @@ func clockSchedulerWork(plan store.PlanState, current domain.GenerationSnapshot)
 		if p.Action().Kind() == domain.SupplyAllowAction || p.Action().Kind() == domain.WorkAssignmentAction {
 			continue
 		}
-		// Only ordinary building work can justify this healthy-colony clock window.
-		if _, ok := p.Action().Building(); !ok {
+		// Construction and native plant labor use the healthy-colony clock window.
+		if _, ok := p.Action().Building(); !ok && p.Action().Kind() != domain.AcquisitionAction {
 			return false, nil, executor.ErrHeld
 		}
 		work = true

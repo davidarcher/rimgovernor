@@ -492,6 +492,7 @@ message ColonyFactsSnapshot {
   repeated FoodCorpse food_corpses = 25; optional bool food_storage = 26; repeated rimgovernor.common.v1.Cell forbidden_supplies = 27;
   FoodSupplySection food_supply = 28; ForecastSection forecast = 29; UpkeepSection upkeep = 30; DevelopmentSection development = 31;
   PlanningSection planning = 32; RecoveryReply recovery = 33; WasteReply waste = 34; Completeness completeness = 35; repeated ReadIssue issues = 36;
+  optional double pending_wood_units = 37;
 }
 message ColonyFactsRequest { ReadScope scope = 1; optional bool planning = 2; repeated string requested_definition_names = 3; rimgovernor.common.v1.PageRequest page = 4; }
 message ColonyFactsReply { oneof outcome { ColonyFactsSnapshot observed = 1; rimgovernor.common.v1.Unavailable unavailable = 2; rimgovernor.common.v1.Failure failure = 3; } }

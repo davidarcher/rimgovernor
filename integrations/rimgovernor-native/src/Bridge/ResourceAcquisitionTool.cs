@@ -14,14 +14,14 @@ namespace HomeBridge.BridgeTools
     public sealed class ResourceAcquisitionTools
     {
         public ResourceAcquisitionTools() { MiningGuard.Install(); }
-        private static ThingDef Product(Thing t) => t is Plant p ? p.def.plant.harvestedThingDef : t is Mineable ? t.def.building.mineableThing : null;
-        private static bool Designated(Thing t) => t is Mineable
+        internal static ThingDef Product(Thing t) => t is Plant p ? p.def.plant.harvestedThingDef : t is Mineable ? t.def.building.mineableThing : null;
+        internal static bool Designated(Thing t) => t is Mineable
             ? t.Map.designationManager.DesignationAt(t.Position, DesignationDefOf.Mine) != null
             : t.Map.designationManager.DesignationOn(t, DesignationDefOf.HarvestPlant) != null
                 || t.Map.designationManager.DesignationOn(t, DesignationDefOf.CutPlant) != null;
-        private static Designator DesignatorFor(Thing t) => t is Mineable ? (Designator)new Designator_Mine() :
+        internal static Designator DesignatorFor(Thing t) => t is Mineable ? (Designator)new Designator_Mine() :
             t.def.plant.IsTree ? new Designator_PlantsHarvestWood() : new Designator_PlantsHarvest();
-        private static bool Eligible(Thing t, Map map)
+        internal static bool Eligible(Thing t, Map map)
         {
             if (!t.Spawned || t.Position.Fogged(map) || t.IsForbidden(Faction.OfPlayer) || Product(t) == null) return false;
             if (t is Plant plant && (!plant.HarvestableNow || map.zoneManager.ZoneAt(t.Position) is Zone_Growing)) return false;

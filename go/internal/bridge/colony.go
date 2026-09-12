@@ -116,7 +116,7 @@ func ValidateColonyFacts(v *o.ColonyFactsSnapshot, identity *c.Identity) error {
 	if v.WorkerCount != nil && v.ColonistCount != nil && v.GetWorkerCount() > v.GetColonistCount() || v.IndoorSleepingCapacity != nil && v.BedCapacity != nil && v.GetIndoorSleepingCapacity() > v.GetBedCapacity() {
 		return contract("inconsistent colony capacity")
 	}
-	for _, value := range []*float64{v.FoodNutrition, v.NutritionPerDay, v.FoodRunwayDays, v.PendingFoodNutrition} {
+	for _, value := range []*float64{v.FoodNutrition, v.NutritionPerDay, v.FoodRunwayDays, v.PendingFoodNutrition, v.PendingWoodUnits} {
 		if !combatNumber(value, true) {
 			return contract("invalid colony nutrition")
 		}
@@ -153,8 +153,11 @@ func ValidateColonyFacts(v *o.ColonyFactsSnapshot, identity *c.Identity) error {
 			}
 		}
 	}
-	if len(v.PolicyResources) != 0 || v.FoodClimate != nil || len(v.Acquisition) != 0 || len(v.Butchering) != 0 || len(v.FoodCorpses) != 0 || v.Waste != nil {
+	if len(v.PolicyResources) != 0 || v.FoodClimate != nil || len(v.Butchering) != 0 || len(v.FoodCorpses) != 0 || v.Waste != nil {
 		return contract("unreviewed colony section")
+	}
+	if err := validateColonyAcquisition(v); err != nil {
+		return err
 	}
 	if err := validateColonyEnvironment(v); err != nil {
 		return err
