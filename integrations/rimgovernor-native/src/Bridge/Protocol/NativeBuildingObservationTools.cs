@@ -37,14 +37,30 @@ namespace HomeBridge.BridgeTools
                         return ProtoBoundary.Encode(new Obs.ListBuildingsReply { Failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Region must be inside the current map.") });
                     var source = Source(map, parsed.HasCategory && parsed.Category == "all");
                     var matched = source.Where(t => Matches(t, parsed)).OrderBy(t => t.thingIDNumber).ToList();
-                    Require(matched.Count <= Limit(parsed), "Matched building collection exceeds page limit; frozen paging is unavailable.");
+                    var seed = QuerySeed(parsed);
+                    var afterCursor = matched;
+                    if (parsed.Page != null && parsed.Page.HasCursor && parsed.Page.Cursor.Length != 0)
+                    {
+                        if (!NativeObservationSnapshot.Cursor.TryDecode(context.Identity, seed, parsed.Page.Cursor, out var after))
+                            return ProtoBoundary.Encode(new Obs.ListBuildingsReply { Unavailable = Unavailable(Common.UnavailableReason.LimitExceeded, "Building cursor is stale or does not match this query.") });
+                        afterCursor = matched.Where(t => string.CompareOrdinal(Id(t.GetUniqueLoadID()), after) > 0).ToList();
+                    }
+                    var page = afterCursor.Take(Limit(parsed)).ToList();
+                    Require(page.Count <= 256, "Matched building collection exceeds page limit; narrow filters.");
+                    var truncated = afterCursor.Count > page.Count;
                     var snapshot = new Obs.BuildingsSnapshot { Context = context,
-                        Completeness = Complete(matched.Count, source.Count - matched.Count),
+                        Completeness = Complete(page.Count, source.Count - matched.Count),
                         NetworksCompleteness = new Obs.Completeness { Page = new Common.PageInfo { Complete = false } } };
+                    snapshot.Completeness.Page.Complete = !truncated;
+                    if (truncated) snapshot.Completeness.Page.NextCursor = NativeObservationSnapshot.Cursor.Encode(context.Identity, seed, Id(page[page.Count-1].GetUniqueLoadID()));
                     var cells = 0;
-                    foreach (var thing in matched)
+                    foreach (var thing in page)
                     {
                         var row = Project(thing);
+                        row.Snapshot = NativeObservationSnapshot.Snapshot("building", context, row.Building.Id, w => {
+                            w.Write(row.Status??""); w.Write(row.HitPoints); w.Write(row.Burning);
+                            if (row.Construction != null) { w.Write(row.Construction.PercentComplete); w.Write(row.Construction.ResourcesComplete); }
+                        });
                         cells = checked(cells + row.OccupiedCells.Count);
                         Require(cells <= 4096, "Complete building geometry exceeds 4096 cells.");
                         snapshot.Buildings.Add(row);
@@ -61,7 +77,7 @@ namespace HomeBridge.BridgeTools
             failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Identity scope, exact bounded identifiers, supported filters and page limit1..256 are required.");
             if (request == null || request.Scope?.ExpectedIdentity == null) return false;
             if (request.Page != null && (request.Page.HasLimit && (request.Page.Limit < 1 || request.Page.Limit > 256)
-                || request.Page.HasCursor && request.Page.Cursor.Length != 0)) return false;
+                || request.Page.HasCursor && request.Page.Cursor.Length > 4096)) return false;
             if (!Identifiers(request.Ids) || !Identifiers(request.DefNames) || request.Statuses.Count > 5
                 || request.Statuses.Distinct(StringComparer.Ordinal).Count() != request.Statuses.Count
                 || request.Statuses.Any(s => s != "all" && s != "built" && s != "blueprint" && s != "frame" && s != "pending")) return false;
@@ -143,7 +159,7 @@ namespace HomeBridge.BridgeTools
                 row.Construction = Construction(thing, buildDef, stuff);
             }
             else row.Issues.Add(Issue("construction", Common.UnavailableReason.NotApplicable, "Completed building is not a construction site."));
-            foreach (var field in new[] { "building.snapshot", "settings", "service", "thermal_sides", "bills" })
+            foreach (var field in new[] { "settings", "service", "thermal_sides", "bills" })
                 row.Issues.Add(Issue(field, Common.UnavailableReason.Unsupported, "Typed fact or exact CAS snapshot producer is not implemented."));
             row.Issues.Add(Issue("inspect_text", Common.UnavailableReason.NotRequested, "Inspect strings are not requested."));
             return row;
@@ -192,6 +208,12 @@ namespace HomeBridge.BridgeTools
             return row;
         }
 
+        private static string QuerySeed(Obs.ListBuildingsRequest request) => string.Join("",
+            request.PlayerOnly, request.Category??"", request.DamagedBelowFraction,
+            string.Join(",", request.Statuses.OrderBy(s=>s,StringComparer.Ordinal)),
+            string.Join(",", request.DefNames.OrderBy(s=>s,StringComparer.Ordinal)),
+            string.Join(",", request.Ids.OrderBy(s=>s,StringComparer.Ordinal)),
+            request.Region == null ? "" : request.Region.Minimum.X+","+request.Region.Minimum.Z+"-"+request.Region.Maximum.X+","+request.Region.Maximum.Z);
         private static bool Identifiers(IEnumerable<string> values) => values.Count() <= 256
             && values.All(ProtoBoundary.IsIdentifier) && values.Distinct(StringComparer.Ordinal).Count() == values.Count();
         private static bool CellPresent(Common.Cell? cell) => cell != null && cell.HasX && cell.HasZ;
