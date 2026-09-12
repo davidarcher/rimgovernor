@@ -65,6 +65,33 @@ namespace HomeBridge.BridgeTools
                 }).ToList();
                 result.Filth.AddRange(values);
             });
+            Read("people", result, () => {
+                var people = map.mapPawns.AllPawnsSpawned.Where(p => p.IsFreeColonist && !p.Dead).OrderBy(p => p.thingIDNumber).ToList();
+                Require(people.Count, 256);
+                var values = people.Select(p => new Obs.UpkeepPerson {
+                    Pawn = new Obs.PawnState { Pawn = Ref(p) }, OwnedBedId = p.ownership?.OwnedBed?.GetUniqueLoadID() ?? "",
+                    ComfortableMinC = Number(p.GetStatValue(StatDefOf.ComfyTemperatureMin)),
+                    ComfortableMaxC = Number(p.GetStatValue(StatDefOf.ComfyTemperatureMax)), TemperatureC = Number(p.AmbientTemperature)
+                }).ToList();
+                result.People.AddRange(values);
+            });
+            Read("beds", result, () => {
+                var beds = things.OfType<Building_Bed>().Where(b => b.Faction == Faction.OfPlayerSilentFail).OrderBy(b => b.thingIDNumber).ToList();
+                var people = map.mapPawns.AllPawnsSpawned.Where(p => p.IsFreeColonist && !p.Dead).OrderBy(p => p.thingIDNumber).ToList();
+                Require(beds.Count, 256); Require(people.Count, 256);
+                var values = beds.Select(b => {
+                    var row = new Obs.UpkeepBed { Bed = Ref(b), Slots = checked((uint)b.SleepingSlotsCount),
+                        Humanlike = b.def.building.bed_humanlike, RestEffectiveness = Number(b.GetStatValue(StatDefOf.BedRestEffectiveness)),
+                        Medical = b.Medical, Prisoners = b.ForPrisoners, Roofed = b.OccupiedRect().All(c => c.Roofed(map)),
+                        TemperatureC = Number(b.AmbientTemperature) };
+                    var owners = b.OwnersForReading.Select(p => Id(p.GetUniqueLoadID())).OrderBy(id => id, StringComparer.Ordinal).ToList();
+                    Require(owners.Count, 256); row.Owners.AddRange(owners);
+                    row.Users.AddRange(people.Where(p => p.CurrentBed() == b).Select(p => Id(p.GetUniqueLoadID())));
+                    row.AccessibleTo.AddRange(people.Where(p => !b.IsForbidden(p) && p.CanReach(b, PathEndMode.OnCell, Danger.None)).Select(p => Id(p.GetUniqueLoadID())));
+                    return row;
+                }).ToList();
+                result.Beds.AddRange(values);
+            });
             Read("animals", result, () => {
                 var animals = map.mapPawns.AllPawnsSpawned.Where(p => !p.Dead && p.RaceProps.Animal
                     && p.Faction == Faction.OfPlayerSilentFail).OrderBy(p => p.thingIDNumber).ToList();

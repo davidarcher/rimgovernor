@@ -7,7 +7,7 @@ import (
 )
 
 func validateDirectUpkeep(v *o.UpkeepFacts, size *o.MapSize, mapID int32) error {
-	counts := map[string]int{"items": len(v.Items), "structures": len(v.Structures), "fires": len(v.Fires), "filth": len(v.Filth), "animals": len(v.Animals)}
+	counts := map[string]int{"items": len(v.Items), "structures": len(v.Structures), "fires": len(v.Fires), "filth": len(v.Filth), "animals": len(v.Animals), "people": len(v.People), "beds": len(v.Beds)}
 	for _, n := range counts {
 		if n > 256 {
 			return contract("upkeep census exceeds bound")
@@ -54,6 +54,32 @@ func validateDirectUpkeep(v *o.UpkeepFacts, size *o.MapSize, mapID int32) error 
 	for _, row := range v.Filth {
 		if row == nil || !entity(row.Filth, seen) || row.RoomRole != nil && validID(row.GetRoomRole()) != nil || !proto.Equal(row, &o.FilthState{Filth: row.Filth, Home: row.Home, Thickness: row.Thickness, RoomRole: row.RoomRole}) {
 			return contract("invalid upkeep filth")
+		}
+	}
+	seen = map[string]bool{}
+	finite := func(p *float64) bool { return p == nil || !math.IsNaN(*p) && !math.IsInf(*p, 0) }
+	ids := func(values []string) bool {
+		if len(values) > 256 {
+			return false
+		}
+		found := map[string]bool{}
+		for _, id := range values {
+			if validID(id) != nil || found[id] {
+				return false
+			}
+			found[id] = true
+		}
+		return true
+	}
+	for _, row := range v.People {
+		if row == nil || row.Pawn == nil || !entity(row.Pawn.Pawn, seen) || !proto.Equal(row.Pawn, &o.PawnState{Pawn: row.Pawn.Pawn}) || row.OwnedBedId != nil && row.GetOwnedBedId() != "" && validID(row.GetOwnedBedId()) != nil || !finite(row.ComfortableMinC) || !finite(row.ComfortableMaxC) || !finite(row.TemperatureC) || row.ComfortableMinC != nil && row.ComfortableMaxC != nil && row.GetComfortableMinC() > row.GetComfortableMaxC() || !proto.Equal(row, &o.UpkeepPerson{Pawn: row.Pawn, OwnedBedId: row.OwnedBedId, ComfortableMinC: row.ComfortableMinC, ComfortableMaxC: row.ComfortableMaxC, TemperatureC: row.TemperatureC}) {
+			return contract("invalid sleeping person")
+		}
+	}
+	seen = map[string]bool{}
+	for _, row := range v.Beds {
+		if row == nil || !entity(row.Bed, seen) || row.Slots != nil && row.GetSlots() > 256 || !finite(row.RestEffectiveness) || !finite(row.TemperatureC) || !ids(row.Owners) || !ids(row.Users) || !ids(row.AccessibleTo) || !proto.Equal(row, &o.UpkeepBed{Bed: row.Bed, Slots: row.Slots, Humanlike: row.Humanlike, RestEffectiveness: row.RestEffectiveness, Medical: row.Medical, Prisoners: row.Prisoners, Roofed: row.Roofed, TemperatureC: row.TemperatureC, Owners: row.Owners, Users: row.Users, AccessibleTo: row.AccessibleTo}) {
+			return contract("invalid upkeep bed")
 		}
 	}
 	seen = map[string]bool{}

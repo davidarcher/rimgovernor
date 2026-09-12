@@ -1929,7 +1929,7 @@
     },
     {
       "source": "integrations/rimgovernor-native/src/Bridge/Protocol/NativeColonyObservationTools.cs",
-      "source_sha256": "128e740a9a1f7fbabb79fd3326021a1be3fb4e9d127b644e8272af292c72b738",
+      "source_sha256": "03d543e54913d3f5cc947cfa06455db620d9c8716ff1c356a67046b157422357",
       "compilation": "production-bridge",
       "owner": "N01.03 native observation owner",
       "migration_status": "typed-core-planning",
@@ -2637,7 +2637,7 @@
     },
     {
       "source": "integrations/rimgovernor-native/src/Bridge/Protocol/NativeUpkeepFacts.cs",
-      "source_sha256": "bc7d148e3658248f7c0ce14b0cdded49f1af1889dfd39500a768f2844d748b3d",
+      "source_sha256": "6d5bf9d8036c0c3a91a3c88b8068913c48a069ccb4204fdbbf16ce554364c1ce",
       "compilation": "production-bridge",
       "owner": "N01.03 native observation owner",
       "migration_status": "typed-upkeep-acceptance-pending",
@@ -2645,8 +2645,8 @@
         8,
         14,
         16,
-        110,
-        114
+        137,
+        141
       ],
       "reflection_boundary_lines": [],
       "patch_registration_lines": [],

@@ -6,7 +6,7 @@ import pytest
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'scripts'))
 try:
-    from native_go_upkeep_evidence import audit_upkeep, audit_upkeep_review, medical_reserve_reference, animal_upkeep_reference
+    from native_go_upkeep_evidence import audit_upkeep, audit_upkeep_review, medical_reserve_reference, animal_upkeep_reference, sleeping_upkeep_reference
 finally:
     sys.path.pop(0)
 
@@ -112,3 +112,43 @@ def test_animal_reference_rejects_changed_native_observations(mutation):
     if mutation == 'unknown': typed['upkeep']['observed']['issues'] = [{'field': 'animals'}]
     with pytest.raises((AssertionError, KeyError)):
         animal_upkeep_reference(typed, legacy)
+
+
+def sleeping_fixture():
+    typed, legacy = fixture()
+    typed['colonistCount'] = legacy['colonists'] = 1
+    legacy['upkeep']['people'] = [dict(id='pawn', ownedBed='bed', comfortableMin=10, comfortableMax=30, temperature=20)]
+    legacy['upkeep']['beds'] = [dict(id='bed', defName='Bed', x=3, z=4, slots=1, humanlike=True,
+        medical=False, prisoners=False, roofed=True, temperature=20, restEffectiveness=1,
+        owners=['pawn'], users=['pawn'], accessibleTo=['pawn'])]
+    typed['upkeep']['observed']['people'] = [{'pawn': {'pawn': {'id': 'pawn', 'mapId': 0}},
+        'ownedBedId': 'bed', 'comfortableMinC': 10, 'comfortableMaxC': 30, 'temperatureC': 20}]
+    typed['upkeep']['observed']['beds'] = [{'bed': {'id': 'bed', 'defName': 'Bed', 'mapId': 0, 'position': {'x': 3, 'z': 4}},
+        'slots': 1, 'humanlike': True, 'medical': False, 'prisoners': False, 'roofed': True,
+        'temperatureC': 20, 'restEffectiveness': 1, 'owners': ['pawn'], 'users': ['pawn'], 'accessibleTo': ['pawn']}]
+    return typed, legacy
+
+
+def test_sleeping_reference_requires_observed_use_and_safe_assignment():
+    typed, legacy = sleeping_fixture()
+    assert sleeping_upkeep_reference(typed, legacy) == {'targets': [], 'uses': [{'pawn': 'pawn', 'bed': 'bed', 'tick': 7}]}
+    typed['upkeep']['observed']['beds'][0]['users'] = legacy['upkeep']['beds'][0]['users'] = []
+    result = sleeping_upkeep_reference(typed, legacy)
+    assert result['targets'] == [{'pawn': 'pawn', 'kind': 'use', 'previousBed': 'bed', 'available': []}]
+    typed['upkeep']['observed']['beds'][0]['temperatureC'] = legacy['upkeep']['beds'][0]['temperature'] = 31
+    assert sleeping_upkeep_reference(typed, legacy)['targets'][0]['kind'] == 'unsafe'
+
+
+@pytest.mark.parametrize('mutation', ['missing', 'ownership', 'use', 'access', 'temperature', 'duplicate', 'unknown'])
+def test_sleeping_reference_rejects_changed_native_evidence(mutation):
+    typed, legacy = sleeping_fixture()
+    row = typed['upkeep']['observed']['beds'][0]
+    if mutation == 'missing': del typed['upkeep']['observed']['people'][0]['ownedBedId']
+    if mutation == 'ownership': row['owners'] = []
+    if mutation == 'use': row['users'] = []
+    if mutation == 'access': row['accessibleTo'] = []
+    if mutation == 'temperature': row['temperatureC'] = 22
+    if mutation == 'duplicate': typed['upkeep']['observed']['beds'].append(copy.deepcopy(row))
+    if mutation == 'unknown': typed['upkeep']['observed']['issues'] = [{'field': 'beds'}]
+    with pytest.raises((AssertionError, KeyError)):
+        sleeping_upkeep_reference(typed, legacy)

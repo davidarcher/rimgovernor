@@ -132,3 +132,46 @@ def animal_upkeep_reference(colony, legacy):
         assert targets is not None, 'Native animal feed forecast unavailable'
         result[phase] = [{'id': r['id'], 'runwayDays': r['runwayDays'], 'nutrition': r['count'], 'targetDays': r['targetDays']} for r in targets]
     return result
+
+
+def sleeping_upkeep_reference(colony, legacy):
+    from rimgovernor.sleeping_upkeep import sleeping_evidence
+    assert int(colony['context']['tick']) == legacy['tick']
+    raw, typed = legacy['upkeep'], colony['upkeep']['observed']
+    assert raw['version'] == 1 and raw['tick'] == legacy['tick']
+    assert colony['colonistCount'] == legacy['colonists']
+    for section, key in [('people', 'pawn'), ('beds', 'bed')]:
+        assert section not in raw.get('errors', {})
+        assert not any(r['field'] == section for r in typed.get('issues', []))
+        reference = {r['id']: r for r in raw[section]}
+        projected = typed.get(section, [])
+        assert len(projected) == len(reference) == len(raw[section]) <= 256
+        seen = set()
+        for row in projected:
+            entity = row['pawn']['pawn'] if section == 'people' else row['bed']
+            identity = entity['id']
+            assert identity in reference and identity not in seen
+            seen.add(identity)
+            old = reference[identity]
+            assert entity['mapId'] == colony['context']['identity']['mapId']
+            if section == 'people':
+                assert row['ownedBedId'] == (old['ownedBed'] or '')
+                for field, source in [('comfortableMinC', 'comfortableMin'), ('comfortableMaxC', 'comfortableMax'), ('temperatureC', 'temperature')]:
+                    assert math.isclose(row[field], old[source], rel_tol=1e-6, abs_tol=1e-7)
+            else:
+                assert entity['defName'] == old['defName'] and entity['position'] == {'x': old['x'], 'z': old['z']}
+                assert row['slots'] == old['slots']
+                for field in ('humanlike', 'medical', 'prisoners', 'roofed'):
+                    assert type(row[field]) is bool and row[field] == old[field]
+                for field in ('owners', 'users', 'accessibleTo'):
+                    assert len(row.get(field, [])) == len(set(row.get(field, [])))
+                    assert sorted(row.get(field, [])) == sorted(old[field])
+                assert math.isclose(row['restEffectiveness'], old['restEffectiveness'], rel_tol=1e-6, abs_tol=1e-7)
+                assert math.isclose(row['temperatureC'], old['temperature'], rel_tol=1e-6, abs_tol=1e-7)
+    control = {}
+    targets = sleeping_evidence(legacy, control)
+    assert targets is not None, 'Native sleeping eligibility unavailable'
+    return {'targets': [{'pawn': r['id'], 'kind': r['kind'], 'previousBed': r['previousBed'] or '',
+                        'available': sorted(b['id'] for b in r['available'])} for r in targets],
+            'uses': [{'pawn': pawn, 'bed': use['bed'], 'tick': use['tick']}
+                     for pawn, use in sorted(control.get('sleeping_use', {}).items())]}

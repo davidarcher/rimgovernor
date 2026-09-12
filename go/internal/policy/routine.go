@@ -70,8 +70,10 @@ func (p RoutinePolicy) Validate() error {
 // FoodDays is the accessible diet/rot-aware stock runway. FieldCoverage is the
 // separate native crop-capacity forecast; it never increases FoodDays.
 type RoutineFacts struct {
-	AnimalUpkeep   AnimalUpkeepObservation
-	MedicalReserve MedicalReserveObservation
+	Sleeping          domain.Fact[SleepingObservation]
+	SleepingRecovered domain.Fact[bool]
+	AnimalUpkeep      AnimalUpkeepObservation
+	MedicalReserve    MedicalReserveObservation
 	// AvailableMethods is supplied by the configured runtime, never native facts.
 	AvailableMethods                                                           domain.Fact[[]GoalID]
 	Upkeep                                                                     UpkeepObservation
@@ -107,6 +109,7 @@ func (g FootholdGates) Stable() bool {
 }
 
 type RoutineLatches struct {
+	Sleeping              bool
 	Animals               AnimalUpkeepHistory
 	MedicalReserve        bool
 	Food, Cold, Hot, Wood bool
@@ -252,7 +255,12 @@ func DetectRoutine(f RoutineFacts, previous RoutineLatches, p RoutinePolicy) (Ro
 	if n, k := f.Wood.Value(); k {
 		wood = domain.Known(float64(n))
 	}
+	sleepingActive := previous.Sleeping
+	if recovered, known := f.SleepingRecovered.Value(); known {
+		sleepingActive = !recovered
+	}
 	l := RoutineLatches{
+		Sleeping:       sleepingActive,
 		Animals:        animals.History,
 		MedicalReserve: medicine.Active,
 		Upkeep:         upkeep.History,
@@ -396,6 +404,19 @@ func DetectRoutine(f RoutineFacts, previous RoutineLatches, p RoutinePolicy) (Ro
 			// Keep observed risk visible without taking an optional project slot.
 			r.Goals[len(r.Goals)-1].MethodUnavailable = true
 		}
+	}
+	sleepingRecovered := f.SleepingRecovered
+	sleepingPriority := 3
+	if _, known := sleepingRecovered.Value(); !known && !sleepingActive && !f.UpkeepIssued[MaintainSleeping] {
+		sleepingPriority = 4
+	}
+	if f.UpkeepIssued[MaintainSleeping] {
+		sleepingRecovered = domain.Known(false)
+	}
+	addAssessment(MaintainSleeping, sleepingPriority, sleepingRecovered)
+	if !positive(sleepingRecovered) {
+		addGoal(MaintainSleeping, sleepingPriority)
+		r.Goals[len(r.Goals)-1].MethodUnavailable = true
 	}
 	medicalReserveActive := medicine.Active || f.UpkeepIssued[MaintainMedicalReserves]
 	medicalReserveRecovered := domain.Unknown[bool]()

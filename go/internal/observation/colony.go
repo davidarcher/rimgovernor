@@ -114,6 +114,7 @@ func DecodeColony(reply *o.ColonyFactsReply, expected Identity) (ColonyProjectio
 	}
 	colonyProduction(v, &r.Facts)
 	r.Facts.Comfort = colonyComfort(v)
+	r.Facts.Sleeping = colonySleeping(v)
 	r.Facts.AnimalUpkeep.Animals = colonyAnimals(v)
 	r.Facts.Upkeep = colonyUpkeep(v)
 	r.Facts.MedicalReserve = colonyMedicalReserve(v)

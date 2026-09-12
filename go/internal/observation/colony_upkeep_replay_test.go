@@ -28,6 +28,10 @@ func TestNativeUpkeepReplay(t *testing.T) {
 		t.Fatal(err)
 	}
 	var fixture struct {
+		Sleeping *struct {
+			Targets []policy.SleepingTarget
+			Uses    []policy.SleepingUse
+		}
 		Animals *struct {
 			Containment       []policy.PawnID
 			Initial, Retained []policy.AnimalFeedTarget
@@ -102,6 +106,13 @@ func TestNativeUpkeepReplay(t *testing.T) {
 			}
 		}
 	}
+	if fixture.Sleeping != nil {
+		got, err := policy.ReviewSleeping(projection.Facts.Sleeping, policy.SleepingHistory{}, identity.Tick)
+		targets, known := got.Targets.Value()
+		if err != nil || !known || !reflect.DeepEqual(targets, fixture.Sleeping.Targets) || !reflect.DeepEqual(got.History.Uses, fixture.Sleeping.Uses) {
+			t.Fatal(got, fixture.Sleeping, err)
+		}
+	}
 	upkeep, err := policy.ReviewUpkeep(projection.Facts.Upkeep, policy.UpkeepHistory{}, nil)
 	if err != nil {
 		t.Fatal(err)
@@ -133,7 +144,7 @@ func TestNativeUpkeepReplay(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(active.Goals) != 25 {
+	if len(active.Goals) != 26 {
 		t.Fatal("incomplete maintained goals")
 	}
 	medicalNeed := domain.NeedRecovered
@@ -141,6 +152,12 @@ func TestNativeUpkeepReplay(t *testing.T) {
 		medicalNeed = domain.NeedDeficit
 	}
 	animalNeeds := map[policy.GoalID]domain.NeedState{}
+	if fixture.Sleeping != nil {
+		animalNeeds[policy.MaintainSleeping] = domain.NeedRecovered
+		if len(fixture.Sleeping.Targets) > 0 {
+			animalNeeds[policy.MaintainSleeping] = domain.NeedDeficit
+		}
+	}
 	if fixture.Animals != nil {
 		animalNeeds[policy.MaintainAnimalContainment] = domain.NeedRecovered
 		animalNeeds[policy.MaintainAnimalFeed] = domain.NeedRecovered

@@ -54,7 +54,7 @@ Startup supply reviews retain the first known native forbidden-supply census.
 Fresh reads can shrink that cohort, but later player forbids cannot expand or
 revive it. Unknown reads preserve pending cells without proving recovery; Manual
 and direction changes preserve the cohort. World replacement and tick rewind
-initialize a new cohort. The current journal requires fresh schema-29 state.
+initialize a new cohort. The current journal requires fresh schema-30 state.
 These cells describe the startup need, not ownership or permission to issue an
 Allow order. That action family remains in G01.07b.
 
@@ -316,6 +316,16 @@ and `go test ./internal/observation -run TestNativeUpkeepReplay -count=1` from `
 The replay checks Python target ordering and metrics, all four direct upkeep needs,
 and, when captured, medical reserve entry/recovery policy and its maintained need. It checks
 Manual invalidation and retained needs after reopening the database.
+Animal reference captures additionally check pen state, reachable feed, shared
+food competition and both reserve thresholds. Sleeping captures compare owners,
+users, access and comfort against native facts and retain exact pawn/bed use.
+A safe assignment still needs observed use; unsafe assignments remain deficits.
+Sleeping assignment/building methods are not connected yet.
+Animal upkeep reviews retain containment risk and per-animal feed thresholds.
+Feed shares the observed diet/rot forecast with human consumers. Missing censuses
+remain unknown; a complete empty census clears animal needs. Release and slaughter
+directions suppress animal targets. The policy accepts player-directed herd
+exclusions; runtime herd-policy composition and animal execution remain pending.
 The `--expansion-methods` variant uses the same private fixtures to construct one
 spare indoor sleeping place, verify native capacity recovery and single-attempt
 shared admission, then check Manual and disabled restart. It also emits the upkeep
@@ -553,9 +563,3 @@ and whole-shell planner, project limits, resource reservations and player author
 Expansion waits until existing housing meets current needs and until pending beds
 finish. Targeted native acceptance covers the additional indoor place; whole-shell
 fallback also uses the separately accepted starter-shell construction path.
-
-Animal upkeep reviews retain containment risk and per-animal feed thresholds.
-Feed shares the observed diet/rot forecast with human consumers. Missing censuses
-remain unknown; a complete empty census clears animal needs. Release and slaughter
-directions suppress animal targets. The policy accepts player-directed herd
-exclusions; runtime herd-policy composition and animal execution remain pending.

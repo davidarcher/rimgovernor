@@ -22,6 +22,7 @@ type RoutineGoal struct {
 // RoutineReview is the durable review cursor and hysteresis history. Goal
 // bindings retain semantic needs while old executable plans keep their identity.
 type RoutineReview struct {
+	Sleeping               policy.SleepingHistory
 	Revision               uint64
 	WorkPreferenceRevision uint64
 	Snapshot               domain.GenerationSnapshot
@@ -75,6 +76,14 @@ func loadRoutine(ctx context.Context, tx *sql.Tx) (RoutineReview, error) {
 	}
 	if err := r.StartingSupplies.Validate(); err != nil {
 		return RoutineReview{}, err
+	}
+	if err := r.Sleeping.Validate(); err != nil {
+		return RoutineReview{}, err
+	}
+	for _, use := range r.Sleeping.Uses {
+		if use.Tick > r.Tick {
+			return RoutineReview{}, errors.New("future sleeping use history")
+		}
 	}
 	if err := r.Comfort.Validate(); err != nil {
 		return RoutineReview{}, err
@@ -190,12 +199,14 @@ func reviewRoutineTx(ctx context.Context, tx *sql.Tx, request RoutineReviewReque
 	latches := previous.Latches
 	medical := previous.MedicalCare
 	supplies := previous.StartingSupplies
+	sleeping := previous.Sleeping
 	comfort := previous.Comfort
 	if reset {
 		latches = policy.RoutineLatches{}
 		medical = policy.MedicalCareHistory{}
 		supplies = policy.StartingSupplies{}
 		comfort = policy.ComfortHistory{}
+		sleeping = policy.SleepingHistory{}
 	}
 	needs := policy.RoutineNeeds{}
 	// Stopping routine work must not depend on a successful native observation.
@@ -204,6 +215,12 @@ func reviewRoutineTx(ctx context.Context, tx *sql.Tx, request RoutineReviewReque
 		if err != nil {
 			return RoutineReviewResult{}, err
 		}
+		sleepingReview, sleepingErr := policy.ReviewSleeping(request.Facts.Sleeping, sleeping, request.Tick)
+		if sleepingErr != nil {
+			return RoutineReviewResult{}, sleepingErr
+		}
+		sleeping = sleepingReview.History
+		request.Facts.SleepingRecovered = sleepingReview.Recovered()
 		comfortReview, comfortErr := policy.ReviewComfort(request.Facts.Comfort, comfort, request.Tick)
 		if comfortErr != nil {
 			return RoutineReviewResult{}, comfortErr
@@ -265,6 +282,7 @@ func reviewRoutineTx(ctx context.Context, tx *sql.Tx, request RoutineReviewReque
 	r.MedicalCare = medical
 	r.StartingSupplies = supplies
 	r.Comfort = comfort
+	r.Sleeping = sleeping
 	result := RoutineReviewResult{Needs: needs}
 	if !request.Enabled {
 		r.WorkPreferenceRevision = previous.WorkPreferenceRevision
