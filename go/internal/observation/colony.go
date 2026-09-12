@@ -137,6 +137,7 @@ func DecodeColony(reply *o.ColonyFactsReply, expected Identity) (ColonyProjectio
 		r.Facts.PowerRequired, r.Facts.PowerHeadroom, r.Facts.DisabledConsumers = policy.PowerCoverage(domain.Known(power))
 	}
 	colonyProduction(v, &r.Facts)
+	colonyDisaster(v, &r.Facts)
 	r.Facts.Comfort = colonyComfort(v)
 	r.Facts.HomeCoverage = colonyHomeCoverage(v)
 	r.Facts.StoneStructures = colonyStoneStructures(v)

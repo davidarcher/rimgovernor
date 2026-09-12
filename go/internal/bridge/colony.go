@@ -153,10 +153,13 @@ func ValidateColonyFacts(v *o.ColonyFactsSnapshot, identity *c.Identity) error {
 			}
 		}
 	}
-	if len(v.PolicyResources) != 0 || v.FoodClimate != nil || len(v.Acquisition) != 0 || len(v.Butchering) != 0 || len(v.FoodCorpses) != 0 || v.Recovery != nil || v.Waste != nil {
+	if len(v.PolicyResources) != 0 || v.FoodClimate != nil || len(v.Acquisition) != 0 || len(v.Butchering) != 0 || len(v.FoodCorpses) != 0 || v.Waste != nil {
 		return contract("unreviewed colony section")
 	}
 	if err := validateColonyEnvironment(v); err != nil {
+		return err
+	}
+	if err := validateColonyRecovery(v); err != nil {
 		return err
 	}
 	if err := validateColonyProduction(v); err != nil {

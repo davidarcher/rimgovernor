@@ -128,7 +128,8 @@ namespace HomeBridge.BridgeTools
             Bound(conditions.Count, limit);
             foreach (var condition in conditions)
                 result.Environment.Add(new Obs.EnvironmentCondition { Id = condition.uniqueID.ToString(System.Globalization.CultureInfo.InvariantCulture), DefName = condition.def.defName });
-            foreach (var field in new[] { "policy_resources", "pending_food_nutrition", "food_climate", "acquisition", "butchering", "food_corpses", "recovery", "waste" })
+            result.Recovery = NativeRecoveryFacts.Read(map, context, limit);
+            foreach (var field in new[] { "policy_resources", "pending_food_nutrition", "food_climate", "acquisition", "butchering", "food_corpses", "waste" })
                 result.Issues.Add(Issue(field, Common.UnavailableReason.Unsupported, "Section is not yet projected."));
             result.Planning = request.Planning ? new Obs.PlanningSection { Observed = Planning(map, center, request, context, limit) }
                 : new Obs.PlanningSection { Unavailable = Unavailable(Common.UnavailableReason.NotRequested, "Planning was not requested.") };

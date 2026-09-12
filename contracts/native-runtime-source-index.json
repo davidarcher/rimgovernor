@@ -1929,7 +1929,7 @@
     },
     {
       "source": "integrations/rimgovernor-native/src/Bridge/Protocol/NativeColonyObservationTools.cs",
-      "source_sha256": "a5b6922b59a99c79e533f162c8d24802202928e087bda64cd0ffab5ff53e5ddd",
+      "source_sha256": "5b55b6c545f4096090fc9f7793d7ff7798b2a10f0c26ce7dc8979528f04ad250",
       "compilation": "production-bridge",
       "owner": "N01.03 native observation owner",
       "migration_status": "typed-core-planning",
@@ -1937,20 +1937,20 @@
         21,
         49,
         61,
-        138,
-        149,
-        176,
-        213,
-        285,
+        139,
+        150,
+        177,
+        214,
         286,
         287,
         288,
         289,
-        319,
-        337,
+        290,
+        320,
         338,
         339,
-        340
+        340,
+        341
       ],
       "reflection_boundary_lines": [],
       "patch_registration_lines": [],
@@ -2543,6 +2543,24 @@
         101,
         215
       ]
+    },
+    {
+      "source": "integrations/rimgovernor-native/src/Bridge/Protocol/NativeRecoveryFacts.cs",
+      "compilation": "production-bridge",
+      "owner": "N01.03 native observation owner",
+      "migration_status": "typed-recovery-acceptance-pending",
+      "uncovered_acceptance": "Compound-disaster typed census and Go planning acceptance pending.",
+      "static_token_lines": [
+        12,
+        15,
+        61,
+        62,
+        63,
+        64
+      ],
+      "reflection_boundary_lines": [],
+      "patch_registration_lines": [],
+      "source_sha256": "7423072981d9c8472661aa53c8d20a6d0cf210bf714380acbeb6a95b580c837c"
     },
     {
       "source": "integrations/rimgovernor-native/src/Bridge/Protocol/NativeResearchObservationTools.cs",

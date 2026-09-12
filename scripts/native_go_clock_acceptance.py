@@ -90,6 +90,8 @@ def routine_evidence(database, identity, *, enabled, expected_food_need=None, al
         assert len(mood) <= 256 and len({s['Pawn']['ID'] for s in mood}) == len(mood)
         expected |= {('EnsureMood-' + s['Pawn']['ID']) if len(s['Pawn']['ID'].encode()) <= 210 else
                      ('EnsureMoodHash-' + hashlib.sha256(s['Pawn']['ID'].encode()).hexdigest()[:32]) for s in mood}
+        if review.get('Disaster'):
+            expected.add('RecoverDisasterServices')
         assert len(bindings) == len(expected) and {v["Need"] for v in bindings} == expected
         goals = {}
         for binding in bindings:

@@ -22,8 +22,9 @@ type RoutineGoal struct {
 // RoutineReview is the durable review cursor and hysteresis history. Goal
 // bindings retain semantic needs while old executable plans keep their identity.
 type RoutineReview struct {
-	Mood                   *RoutineMood        `json:",omitempty"`
-	MoodMethods            []RoutineMoodMethod `json:",omitempty"`
+	Disaster               *policy.DisasterHistory `json:",omitempty"`
+	Mood                   *RoutineMood            `json:",omitempty"`
+	MoodMethods            []RoutineMoodMethod     `json:",omitempty"`
 	Sleeping               policy.SleepingHistory
 	Revision               uint64
 	WorkPreferenceRevision uint64
@@ -79,6 +80,12 @@ func loadRoutine(ctx context.Context, tx *sql.Tx) (RoutineReview, error) {
 	if err := r.moodHistory().Validate(); err != nil {
 		return RoutineReview{}, err
 	}
+	if err := r.Disaster.Validate(); err != nil {
+		return RoutineReview{}, err
+	}
+	if r.Disaster != nil && r.Disaster.Observed > r.Tick {
+		return RoutineReview{}, errors.New("future disaster history")
+	}
 	var proposals []RoutineMoodMethod
 	if r.Enabled {
 		proposals, err = moodProposals(r.moodHistory())
@@ -125,7 +132,7 @@ func loadRoutine(ctx context.Context, tx *sql.Tx) (RoutineReview, error) {
 			return RoutineReview{}, errors.New("disabled routine retains development selection")
 		}
 	}
-	known, _ := policy.DetectRoutine(policy.RoutineFacts{Mood: r.moodHistory()}, policy.RoutineLatches{}, policy.DefaultRoutinePolicy())
+	known, _ := policy.DetectRoutine(policy.RoutineFacts{Mood: r.moodHistory(), Disaster: r.Disaster, DisasterTick: r.Tick}, policy.RoutineLatches{}, policy.DefaultRoutinePolicy())
 	allowed := map[domain.GoalID]bool{}
 	optional := map[domain.GoalID]bool{}
 	for _, n := range known.Assessments {
@@ -136,7 +143,7 @@ func loadRoutine(ctx context.Context, tx *sql.Tx) (RoutineReview, error) {
 	// observation history. Enabled bindings must match the current pawn history.
 	if !r.Enabled {
 		for _, binding := range r.Goals {
-			if policy.IsMoodGoal(binding.Need) {
+			if policy.IsMoodGoal(binding.Need) || binding.Need == policy.RecoverDisasterServices {
 				allowed[binding.Need] = true
 			}
 		}
@@ -234,6 +241,7 @@ func reviewRoutineTx(ctx context.Context, tx *sql.Tx, request RoutineReviewReque
 	sleeping := previous.Sleeping
 	comfort := previous.Comfort
 	mood := previous.moodHistory()
+	disaster := previous.Disaster
 	if reset {
 		latches = policy.RoutineLatches{}
 		medical = policy.MedicalCareHistory{}
@@ -241,6 +249,7 @@ func reviewRoutineTx(ctx context.Context, tx *sql.Tx, request RoutineReviewReque
 		comfort = policy.ComfortHistory{}
 		sleeping = policy.SleepingHistory{}
 		mood = policy.MoodHistory{}
+		disaster = nil
 	}
 	needs := policy.RoutineNeeds{}
 	// Stopping routine work must not depend on a successful native observation.
@@ -281,10 +290,12 @@ func reviewRoutineTx(ctx context.Context, tx *sql.Tx, request RoutineReviewReque
 			return RoutineReviewResult{}, err
 		}
 		request.Facts.Mood = mood
+		request.Facts.Disaster, request.Facts.DisasterTick = disaster, request.Tick
 		needs, err = policy.DetectRoutine(request.Facts, latches, request.Policy)
 		if err != nil {
 			return RoutineReviewResult{}, err
 		}
+		disaster = needs.Disaster
 	}
 	old := map[domain.GoalID]GoalState{}
 	assessed := map[domain.GoalID]bool{}
@@ -333,6 +344,7 @@ func reviewRoutineTx(ctx context.Context, tx *sql.Tx, request RoutineReviewReque
 	r.Comfort = comfort
 	r.Sleeping = sleeping
 	r.Mood = moodRecord(mood)
+	r.Disaster = disaster
 	if request.Enabled {
 		r.MoodMethods, err = moodProposals(mood)
 		if err != nil {

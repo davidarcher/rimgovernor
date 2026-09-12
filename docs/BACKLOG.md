@@ -815,6 +815,16 @@ expand these into another nested task tree; remove a row when its outcome is met
   paused clock holds, Manual and disabled restart; captured Go replay matches the
   Python policy reference. Relief execution belongs to G01.07e.
 
+  Go disaster reviews now retain observed condition phases, affected services and
+  exact damaged-building history. Native recovery censuses supply repair,
+  breakdown and refuel needs; shared routine priorities promote observed service
+  deficits without replacing emergency, player or resource admission gates.
+  Unknown reads, missing buildings and condition expiry cannot establish restored
+  services. Manual retains evidence and invalidates work; world replacement resets
+  history. Native compound-disaster review/replay acceptance remains pending.
+  Recovery job previews, safe-area method selection and action composition remain
+  open alongside their action family.
+
 - [ ] **G01.07a — Finish defense and essential medical care.** Connect movement
   and melee to complete defense plans using the existing owned-draft lifecycle;
   verify target outcomes, injury interruption, player overrides and restart cleanup

@@ -70,6 +70,10 @@ func (p RoutinePolicy) Validate() error {
 // FoodDays is the accessible diet/rot-aware stock runway. FieldCoverage is the
 // separate native crop-capacity forecast; it never increases FoodDays.
 type RoutineFacts struct {
+	DisasterConditions  domain.Fact[[]DisasterCondition]
+	RecoveryBuildings   domain.Fact[[]RecoveryBuilding]
+	Disaster            *DisasterHistory
+	DisasterTick        domain.Tick
 	MoodPawns           domain.Fact[[]MoodPawn]
 	Mood                MoodHistory
 	HomeCoverage        domain.Fact[HomeCoverageObservation]
@@ -124,6 +128,7 @@ type RoutineLatches struct {
 	Upkeep                   UpkeepHistory
 }
 type RoutineNeeds struct {
+	Disaster    *DisasterHistory
 	Gates       FootholdGates
 	Latches     RoutineLatches
 	Goals       []DevelopmentGoal
@@ -524,6 +529,28 @@ func DetectRoutine(f RoutineFacts, previous RoutineLatches, p RoutinePolicy) (Ro
 		if state.Active {
 			addGoal(id, priority)
 			r.Goals[len(r.Goals)-1].MethodUnavailable = true
+		}
+	}
+	r.Disaster, err = ReviewDisaster(f.DisasterConditions, f.RecoveryBuildings, r.Gates, f.Disaster, f.DisasterTick)
+	if err != nil {
+		return RoutineNeeds{}, err
+	}
+	if r.Disaster != nil {
+		need := r.Disaster.Services[len(r.Disaster.Services)-1].Need
+		if r.Disaster.Phase == DisasterUnknown {
+			need = domain.NeedUnknown
+		}
+		priority := r.Disaster.Promote(RecoverDisasterServices, 3)
+		r.Assessments = append(r.Assessments, RoutineAssessment{RecoverDisasterServices, priority, need})
+		if need != domain.NeedRecovered {
+			addGoal(RecoverDisasterServices, priority)
+			r.Goals[len(r.Goals)-1].MethodUnavailable = true
+		}
+		for i := range r.Goals {
+			r.Goals[i].Priority = r.Disaster.Promote(r.Goals[i].ID, r.Goals[i].Priority)
+		}
+		for i := range r.Assessments {
+			r.Assessments[i].Priority = r.Disaster.Promote(r.Assessments[i].ID, r.Assessments[i].Priority)
 		}
 	}
 	if methods, known := f.AvailableMethods.Value(); known {
