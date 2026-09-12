@@ -50,7 +50,7 @@ func TestConstructionReadsStayInsidePausedRoutineBracket(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			row := &o.BuildingState{Building: &o.EntityRef{Id: proto.String("wall"), DefName: proto.String("Wall"), MapId: proto.Int32(base.GetObserved().Context.Identity.GetMapId()), Position: &c.Cell{X: proto.Int32(3), Z: proto.Int32(7)}}, Rotation: proto.String("north"), Status: proto.String("built"), Stuff: proto.String("WoodLog")}
+			row := &o.BuildingState{Building: &o.EntityRef{Id: proto.String("wall"), DefName: proto.String("Wall"), MapId: proto.Int32(base.GetObserved().Context.Identity.GetMapId()), Position: &c.Cell{X: proto.Int32(3), Z: proto.Int32(7)}}, Rotation: proto.String("North"), Status: proto.String("built"), Stuff: proto.String("WoodLog")}
 			snapshot := &o.BuildingsSnapshot{Context: proto.Clone(base.GetObserved().Context).(*c.ObservationContext), Buildings: []*o.BuildingState{row}, Completeness: &o.Completeness{Page: &c.PageInfo{Complete: proto.Bool(true)}, Matched: proto.Uint64(1), Returned: proto.Uint64(1), Filtered: proto.Uint64(0), Unreadable: proto.Uint64(0)}}
 			s := &constructionSource{projectSource: &projectSource{colonySource: &colonySource{source: &source{ids: []*l.IdentityReply{identity(), identity()}}, reply: base}}, buildings: &o.ListBuildingsReply{Outcome: &o.ListBuildingsReply_Observed{Observed: snapshot}}}
 			b, _ := domain.NewBuilding("Wall", domain.Cell{X: 3, Z: 7}, domain.North, "WoodLog")
@@ -101,7 +101,7 @@ func TestConstructionReadsStayInsidePausedRoutineBracket(t *testing.T) {
 			if len(s.requested) != 1 || s.requested[0] != "wall" {
 				t.Fatal(s.requested)
 			}
-			if known && (len(current.Requested) != 1 || len(current.Buildings) != 1 || current.Buildings[0].ID != "wall") {
+			if known && (len(current.Requested) != 1 || len(current.Buildings) != 1 || current.Buildings[0].ID != "wall" || current.Buildings[0].Building.Rotation() != domain.North) {
 				t.Fatal(current)
 			}
 		})

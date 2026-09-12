@@ -75,7 +75,7 @@ func ValidateConstructionBuildings(v *o.BuildingsSnapshot, identity *c.Identity,
 			return contract("invalid building identity or geometry")
 		}
 		switch row.GetRotation() {
-		case "north", "east", "south", "west":
+		case "North", "East", "South", "West":
 		default:
 			return contract("invalid building rotation")
 		}

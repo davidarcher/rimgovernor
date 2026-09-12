@@ -3,6 +3,7 @@ package bridge
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"testing"
 	"time"
 
@@ -14,7 +15,7 @@ import (
 )
 
 func constructionTestSnapshot() *o.BuildingsSnapshot {
-	return &o.BuildingsSnapshot{Context: authorityTestContext(7), Buildings: []*o.BuildingState{{Building: &o.EntityRef{Id: proto.String("wall"), DefName: proto.String("Wall"), MapId: proto.Int32(0), Position: &c.Cell{X: proto.Int32(3), Z: proto.Int32(7)}}, Status: proto.String("built"), Rotation: proto.String("north"), Stuff: proto.String("WoodLog")}}, Completeness: &o.Completeness{Page: &c.PageInfo{Complete: proto.Bool(true)}, Matched: proto.Uint64(1), Returned: proto.Uint64(1), Filtered: proto.Uint64(20), Unreadable: proto.Uint64(0)}}
+	return &o.BuildingsSnapshot{Context: authorityTestContext(7), Buildings: []*o.BuildingState{{Building: &o.EntityRef{Id: proto.String("wall"), DefName: proto.String("Wall"), MapId: proto.Int32(0), Position: &c.Cell{X: proto.Int32(3), Z: proto.Int32(7)}}, Status: proto.String("built"), Rotation: proto.String("North"), Stuff: proto.String("WoodLog")}}, Completeness: &o.Completeness{Page: &c.PageInfo{Complete: proto.Bool(true)}, Matched: proto.Uint64(1), Returned: proto.Uint64(1), Filtered: proto.Uint64(20), Unreadable: proto.Uint64(0)}}
 }
 
 func TestConstructionBuildingsExactQueryAndPartialMissingResult(t *testing.T) {
@@ -62,6 +63,7 @@ func TestConstructionBuildingsRejectMalformedEvidence(t *testing.T) {
 		"def":        func(v *o.BuildingsSnapshot) { v.Buildings[0].Building.DefName = nil },
 		"position":   func(v *o.BuildingsSnapshot) { v.Buildings[0].Building.Position = nil },
 		"rotation":   func(v *o.BuildingsSnapshot) { v.Buildings[0].Rotation = proto.String("up") },
+		"lowercase":  func(v *o.BuildingsSnapshot) { v.Buildings[0].Rotation = proto.String("north") },
 		"stuff":      func(v *o.BuildingsSnapshot) { v.Buildings[0].Stuff = proto.String("") },
 		"unreadable": func(v *o.BuildingsSnapshot) { v.Completeness.Unreadable = proto.Uint64(1) },
 		"page":       func(v *o.BuildingsSnapshot) { v.Completeness.Page.Complete = proto.Bool(false) },
@@ -76,5 +78,17 @@ func TestConstructionBuildingsRejectMalformedEvidence(t *testing.T) {
 				t.Fatal(v)
 			}
 		})
+	}
+}
+
+func TestConstructionBuildingsPreservesTypedRefusal(t *testing.T) {
+	client := testClient(t, &testServer{schema: protoSchema, handler: func(context.Context, nativeArgument) (*mcp.CallToolResult, error) {
+		result := pbResult(&o.ListBuildingsReply{Outcome: &o.ListBuildingsReply_Failure{Failure: &c.Failure{Code: c.FailureCode_FAILURE_CODE_INVALID_REQUEST.Enum()}}})
+		result.IsError = true
+		return result, nil
+	}}, time.Second)
+	reply, _, err := client.ReadConstructionBuildings(context.Background(), pbIdentity(), []string{"wall"})
+	if !errors.Is(err, ErrRefused) || reply == nil || reply.GetFailure() == nil {
+		t.Fatal(reply, err)
 	}
 }

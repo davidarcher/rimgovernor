@@ -23,7 +23,7 @@ def fixture():
     legacy = {'success': True, 'tick': 12, 'upkeep': old}
     geometry = {'defName': 'Wall', 'x': 3, 'z': 7, 'rotation': 'north', 'stuff': 'WoodLog'}
     claims = [{'current': 'wall', 'building': geometry}]
-    buildings = {'context': copy.deepcopy(context), 'buildings': [{'building': {'id': 'wall', 'defName': 'Wall', 'mapId': 0, 'position': cell}, 'status': 'built', 'rotation': 'north', 'stuff': 'WoodLog'}], 'completeness': {'page': {'complete': True}, 'matched': '1', 'returned': '1', 'unreadable': '0'}}
+    buildings = {'context': copy.deepcopy(context), 'buildings': [{'building': {'id': 'wall', 'defName': 'Wall', 'mapId': 0, 'position': cell}, 'status': 'built', 'rotation': 'North', 'stuff': 'WoodLog'}], 'completeness': {'page': {'complete': True}, 'matched': '1', 'returned': '1', 'unreadable': '0'}}
     return colony, legacy, buildings, claims
 
 

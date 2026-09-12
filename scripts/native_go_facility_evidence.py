@@ -41,7 +41,8 @@ def audit_facility_facts(colony, legacy, buildings, claims):
         row, expected = current[claim['current']], claim['building']
         assert row['status'] == 'built' and row['building']['defName'] == expected['defName']
         assert row['building']['position'] == {'x': expected['x'], 'z': expected['z']}
-        assert row['rotation'] == expected['rotation'] and row.get('stuff', '') == expected.get('stuff', '')
+        assert row['rotation'] in ('North', 'East', 'South', 'West')
+        assert row['rotation'].lower() == expected['rotation'] and row.get('stuff', '') == expected.get('stuff', '')
         assert row['building']['mapId'] == colony['context']['identity']['mapId']
     raw, typed = legacy['upkeep'], colony['upkeep']['observed']
     assert raw['version'] == 1 and raw['tick'] == legacy['tick']

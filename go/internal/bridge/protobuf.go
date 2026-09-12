@@ -240,6 +240,8 @@ func (caller *Client) protoCall(ctx context.Context, name string, request, reply
 			typedFailure = r.GetFailure() != nil
 		case *o.ListPawnsReply:
 			typedFailure = r.GetFailure() != nil
+		case *o.ListBuildingsReply:
+			typedFailure = r.GetFailure() != nil
 		case *o.ColonyFactsReply:
 			typedFailure = r.GetFailure() != nil
 		case *o.GetCellsReply:

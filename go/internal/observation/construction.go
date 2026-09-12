@@ -3,6 +3,7 @@ package observation
 import (
 	"context"
 	"sort"
+	"strings"
 
 	"github.com/davidarcher/RimGovernor/go/internal/bridge"
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
@@ -76,7 +77,7 @@ func constructionBuildings(v *o.BuildingsSnapshot, ids []string) (domain.Fact[po
 				return unknown, nil
 			}
 		}
-		b, err := domain.NewBuilding(row.Building.GetDefName(), domain.Cell{X: row.Building.Position.GetX(), Z: row.Building.Position.GetZ()}, domain.Rotation(row.GetRotation()), stuff)
+		b, err := domain.NewBuilding(row.Building.GetDefName(), domain.Cell{X: row.Building.Position.GetX(), Z: row.Building.Position.GetZ()}, domain.Rotation(strings.ToLower(row.GetRotation())), stuff)
 		if err != nil {
 			return unknown, err
 		}
