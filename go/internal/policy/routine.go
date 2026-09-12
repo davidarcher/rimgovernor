@@ -70,6 +70,8 @@ func (p RoutinePolicy) Validate() error {
 // FoodDays is the accessible diet/rot-aware stock runway. FieldCoverage is the
 // separate native crop-capacity forecast; it never increases FoodDays.
 type RoutineFacts struct {
+	MoodPawns           domain.Fact[[]MoodPawn]
+	Mood                MoodHistory
 	HomeCoverage        domain.Fact[HomeCoverageObservation]
 	StoneStructures     domain.Fact[[]StoneStructure]
 	OwnedStockpiles     domain.Fact[[]OwnedStockpile]
@@ -510,6 +512,17 @@ func DetectRoutine(f RoutineFacts, previous RoutineLatches, p RoutinePolicy) (Ro
 		addAssessment(animalNeed.id, priority, recovered)
 		if !positive(recovered) {
 			addGoal(animalNeed.id, priority)
+			r.Goals[len(r.Goals)-1].MethodUnavailable = true
+		}
+	}
+	if err := f.Mood.Validate(); err != nil {
+		return RoutineNeeds{}, err
+	}
+	for _, state := range f.Mood.States {
+		id, priority, need := MoodGoal(state.Pawn.ID), state.Priority(), state.Need()
+		r.Assessments = append(r.Assessments, RoutineAssessment{id, priority, need})
+		if state.Active {
+			addGoal(id, priority)
 			r.Goals[len(r.Goals)-1].MethodUnavailable = true
 		}
 	}

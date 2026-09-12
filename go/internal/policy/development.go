@@ -89,7 +89,7 @@ func validGoal(id GoalID, source GoalSource, priority int) bool {
 // RankDevelopment ports development_priorities.arbitrate. It grants selection
 // slots only; native admission, shared resource reservations and Hands still apply.
 func RankDevelopment(r DevelopmentRequest) (DevelopmentState, error) {
-	if r.Snapshot.Validate() != nil || r.Tick < 0 || r.Limit < 1 || r.Limit > 8 || len(r.Goals) > 256 || len(r.Commitments) > 4096 {
+	if r.Snapshot.Validate() != nil || r.Tick < 0 || r.Limit < 1 || r.Limit > 8 || len(r.Goals) > 512 || len(r.Commitments) > 4096 {
 		return DevelopmentState{}, errors.New("invalid development review")
 	}
 	workers, knownWorkers := r.Workers.Value()

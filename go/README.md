@@ -224,6 +224,17 @@ RoutineSleepingFixture and ScenarioStartFixture. Replay uses
 `RIMGOVERNOR_NATIVE_TEMPERATURE_CAPTURE=<capture-directory> go test
 ./internal/observation -run TestNativeTemperatureMethodsReplay`.
 
+Routine reviews also read native pawn needs and thought targets. Per-pawn mood
+goals retain break-threshold and food/rest/recreation hysteresis through Manual and
+restart; missing pawns and unknown reads cannot certify recovery. `MoodMethods`
+records one bounded relief proposal and its measured need benefit, preserving an
+unknown future mood benefit. Active or unverified mental breaks hold new clock
+windows until observed clearance. Player-forced work, draft and medical availability
+remain guards; relief action execution is not enabled. The isolated `--mood-review
+food|forced|mental` variants compare native inputs with Python and durable Go needs.
+Replay with `RIMGOVERNOR_NATIVE_MOOD_CAPTURE=<capture-directory> go test
+./internal/observation -run TestNativeRoutineMoodReplay`.
+
 `ReadRoutinePawns` adds the work-only detail selection to the same exact-ID read.
 It preserves native work applicability and numbered/checkbox mode. `AssignWork`
 selects specialists with stable ties, construction skill precedence and shared labor,

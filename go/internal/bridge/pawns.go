@@ -39,6 +39,7 @@ func (client *Client) readPawnDetails(ctx context.Context, identity *c.Identity,
 	request := &o.ListPawnsRequest{Scope: &o.ReadScope{ExpectedIdentity: proto.Clone(identity).(*c.Identity)}, Filter: &o.PawnFilter{Ids: copied, IncludeDead: proto.Bool(true)}, Details: &o.PawnDetails{Needs: proto.Bool(false), Health: proto.Bool(combat), Equipment: proto.Bool(combat), Biography: proto.Bool(combat), Settings: proto.Bool(false), Social: proto.Bool(false), Animals: proto.Bool(false)}, Page: &c.PageRequest{Limit: proto.Uint32(uint32(len(copied)))}}
 	if work {
 		request.Details.Work = proto.Bool(true)
+		request.Details.Needs = proto.Bool(true)
 	}
 	reply := &o.ListPawnsReply{}
 	raw, err := client.protoRead(ctx, "rimgovernor/observations_list_pawns", request, reply)
@@ -96,7 +97,7 @@ func pawnsSnapshotSelected(v *o.PawnSnapshot, id *c.Identity, requested map[stri
 		if err := pawnsEntity(row.Pawn, v.Context); err != nil {
 			return err
 		}
-		if row.Needs != nil || !combat && (row.Health != nil || row.Equipment != nil || row.Biography != nil) || !work && row.Settings != nil || row.Social != nil || row.AnimalState != nil {
+		if !work && row.Needs != nil || !combat && (row.Health != nil || row.Equipment != nil || row.Biography != nil) || !work && row.Settings != nil || row.Social != nil || row.AnimalState != nil {
 			return contract("unrequested pawn detail")
 		}
 		if combat {
@@ -106,6 +107,11 @@ func pawnsSnapshotSelected(v *o.PawnSnapshot, id *c.Identity, requested map[stri
 		}
 		if work && row.Settings != nil {
 			if err := validateWorkSettings(row.Settings); err != nil {
+				return err
+			}
+		}
+		if work && row.Needs != nil {
+			if err := validateMoodNeeds(row.Needs); err != nil {
 				return err
 			}
 		}

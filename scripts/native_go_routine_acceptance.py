@@ -287,7 +287,7 @@ def audit_expansion(report, database):
         'sleeping_setup': report['sleeping_setup'] | {'colonists': 1}}, database)
 
 
-async def run(root, output, binary, *, go_source, go_sha256, sleeping_methods=False, cooking_methods=False, work_project=False, work_overrides=False, power_fixture=False, resource_rules=(), shelter_methods=False, start_save=None, supply_history=False, comfort_methods=False, expansion_methods=False, facility_upkeep=False, power_methods=None, temperature_methods=None):
+async def run(root, output, binary, *, go_source, go_sha256, sleeping_methods=False, cooking_methods=False, work_project=False, work_overrides=False, power_fixture=False, resource_rules=(), shelter_methods=False, start_save=None, supply_history=False, comfort_methods=False, expansion_methods=False, facility_upkeep=False, power_methods=None, temperature_methods=None, mood_review=None):
     if facility_upkeep:
         assert shelter_methods, 'Facility upkeep requires actual autonomous shell completion'
     assert Path("/.dockerenv").is_file(), "Use the isolated scenario launcher"
@@ -397,6 +397,9 @@ async def run(root, output, binary, *, go_source, go_sha256, sleeping_methods=Fa
                 for pawn, work in assignments.items():
                     configured = payload(await evidence.call(bridge, 'comfort-work-' + pawn, 'home/pawn_config', {'pawn': pawn, 'work': ','.join(f'{name}={priority}' for name, priority in work.items()), 'dryRun': False}))
                     assert configured['success']
+            if mood_review:
+                report["mood_setup"] = payload(await evidence.call(bridge, "mood-setup", "test/mood_setup", {"scenario": mood_review}))
+                assert report["mood_setup"]["success"]
             report["initial_colony"] = await wire(bridge, "initial-colony", "observations_read_status", {
                 "scope": {"expectedIdentity": identity}, "colonists": True, "threats": True, "colonistDetail": False, "page": {"limit": 256}})
             if sleeping_methods or resource_rules or comfort_methods or expansion_methods or power_methods or temperature_methods:
@@ -405,7 +408,7 @@ async def run(root, output, binary, *, go_source, go_sha256, sleeping_methods=Fa
             pawn_ids = [p["pawn"]["id"] for p in colonists]
             detailed = outcome(await wire(bridge, "initial-equipment", "observations_list_pawns", {
                 "scope": {"expectedIdentity": identity}, "filter": {"ids": pawn_ids, "includeDead": True},
-                "details": {"needs": False, "health": True, "equipment": True, "biography": True,
+                "details": {"needs": bool(mood_review), "health": True, "equipment": True, "biography": True,
                             "settings": False, "social": False, "animals": False, "work": True}, "page": {"limit": len(pawn_ids)}}), "observed")
             assert detailed["context"] == outcome(report["initial_colony"], "observed")["context"]
             assert {p["pawn"]["id"] for p in detailed["pawns"]} == set(pawn_ids)
@@ -413,7 +416,7 @@ async def run(root, output, binary, *, go_source, go_sha256, sleeping_methods=Fa
                        and type(p.get("equipment", {}).get("armed")) is bool for p in detailed["pawns"])
             report["initial_armed"] = sum(not p["dead"] and not p["downed"] and p["equipment"]["armed"] for p in detailed["pawns"])
             from native_work_readback import work_reference
-            legacy_work = payload(await evidence.call(bridge, "initial-work", "home/list_pawns", {"colonistsOnly": True, "work": True, "bio": True, "equipment": True, "health": True}))
+            legacy_work = payload(await evidence.call(bridge, "initial-work", "home/list_pawns", {"colonistsOnly": True, "work": True, "bio": True, "equipment": True, "health": True, "needs": bool(mood_review)}))
             assert legacy_work['success'] and {p['thingId'] for p in legacy_work['pawns']} == set(pawn_ids)
             report['medical_care_reference'] = medical_care_reference(legacy_work['pawns'])
             minimum_construction = report['temperature_setup']['requiredConstruction'] if temperature_methods else report['power_setup']['requiredConstruction'] if power_methods else report['comfort_setup']['requiredConstruction'] if comfort_methods or expansion_methods else 0
@@ -447,6 +450,11 @@ async def run(root, output, binary, *, go_source, go_sha256, sleeping_methods=Fa
             facts = payload(await evidence.call(bridge, "initial-food", "home/colony_facts", {"planning": False}))
             from native_go_upkeep_evidence import audit_upkeep, audit_upkeep_review, medical_reserve_reference, animal_upkeep_reference, sleeping_upkeep_reference
             report['upkeep_reference'] = audit_upkeep(outcome(work_colony, 'observed'), facts)
+            if mood_review:
+                from native_go_mood_evidence import mood_reference
+                report['mood_reference'] = mood_reference(legacy_work['pawns'], facts['nativeForecastInputs']['patients'])
+                assert report['mood_setup']['pawn'] in report['mood_reference']
+                (output / 'mood-reference.json').write_text(json.dumps({'setup': report['mood_setup'], 'reference': report['mood_reference']}), encoding='utf8')
             if power_fixture:
                 recovery = payload(await evidence.call(bridge, 'power-recovery', 'home/recovery_state', {}))
                 assert recovery['success'] and int(recovery['tick']) == tick
@@ -513,6 +521,16 @@ async def run(root, output, binary, *, go_source, go_sha256, sleeping_methods=Fa
             report['work_need'] = active['goals']['EnsureWorkAssignments']['Need']
             assert report['work_need'] == ('recovered' if report['initial_work']['matches'] else 'deficit'), 'Native work readback did not reach routine need'
             report["active_routine"] = active
+            if mood_review:
+                from native_go_mood_evidence import audit_mood_review
+                report["mood_review"] = audit_mood_review(active, report["mood_reference"], report["mood_setup"])
+                if mood_review == 'mental':
+                    await asyncio.sleep(2)
+                    held = await state(http, paused=True)
+                    assert held['game']['tick'] == tick, 'Mental-break hold advanced native time'
+                    with sqlite3.connect(database.as_uri() + '?mode=ro', uri=True) as db:
+                        assert db.execute('SELECT count(*) FROM clock_attempts').fetchone()[0] == 0, 'Mental-break hold admitted a clock operation'
+                    report['mood_clock_hold'] = {'tick': tick, 'clock_attempts': 0}
             audit_upkeep_review(active, report['upkeep_reference'])
             report['development'] = audit_development(active['review'], len(report['initial_work']['assignments']))
             if comfort_methods:
@@ -603,6 +621,9 @@ async def run(root, output, binary, *, go_source, go_sha256, sleeping_methods=Fa
             report["manual_routine"] = routine_evidence(database, identity, enabled=False, expected_food_need=expected_food, allow_methods=bool(sleeping_methods or comfort_methods or expansion_methods or power_methods or temperature_methods))
             if comfort_methods:
                 assert report['manual_routine']['review']['Comfort'] == report['comfort_recovered']['review']['Comfort']
+            if mood_review:
+                assert not report['manual_routine']['review'].get('MoodMethods'), 'Manual retained executable mood proposals'
+                assert any(s['Pawn']['ID'] == report['mood_setup']['pawn'] and s['Active'] for s in report['manual_routine']['review']['Mood']['States'])
             assert not report['manual_routine']['review']['Development']['Rows']
             assert report['manual_routine']['review']['Development']['Workers'] is None
 
@@ -792,9 +813,10 @@ if __name__ == "__main__":
     parser.add_argument("--work-overrides", action="store_true")
     parser.add_argument("--power-fixture", action="store_true")
     parser.add_argument("--temperature-methods", choices=("cold", "hot"))
+    parser.add_argument("--mood-review", choices=("food", "forced", "mental"))
     parser.add_argument("--power-methods", choices=("generation", "conduit"))
     parser.add_argument("--resource-rule", action="append", default=[])
     parser.add_argument('--supply-history', action='store_true')
     args = parser.parse_args()
     raise SystemExit(0 if asyncio.run(run(args.root, args.output or args.root / "native-go-routine-acceptance", args.go_binary,
-        go_source=args.go_source, go_sha256=args.go_sha256, sleeping_methods=args.sleeping_methods or args.cooking_methods or args.shelter_methods, shelter_methods=args.shelter_methods, start_save=args.start_save, cooking_methods=args.cooking_methods, work_project=args.work_project, work_overrides=args.work_overrides, power_fixture=args.power_fixture, resource_rules=args.resource_rule, supply_history=args.supply_history, comfort_methods=args.comfort_methods, expansion_methods=args.expansion_methods, facility_upkeep=args.facility_upkeep, power_methods=args.power_methods, temperature_methods=args.temperature_methods)) else 1)
+        go_source=args.go_source, go_sha256=args.go_sha256, sleeping_methods=args.sleeping_methods or args.cooking_methods or args.shelter_methods, shelter_methods=args.shelter_methods, start_save=args.start_save, cooking_methods=args.cooking_methods, work_project=args.work_project, work_overrides=args.work_overrides, power_fixture=args.power_fixture, resource_rules=args.resource_rule, supply_history=args.supply_history, comfort_methods=args.comfort_methods, expansion_methods=args.expansion_methods, facility_upkeep=args.facility_upkeep, power_methods=args.power_methods, temperature_methods=args.temperature_methods, mood_review=args.mood_review)) else 1)

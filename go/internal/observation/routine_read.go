@@ -40,6 +40,7 @@ type routineBracket struct {
 	armed             domain.Fact[int64]
 	work              domain.Fact[[]policy.WorkPawn]
 	medical           domain.Fact[[]policy.CarePawn]
+	mood              domain.Fact[[]policy.MoodPawn]
 	definitions       []string
 	extraDefinitions  []PlanningDefinition
 	definitionReceipt bridge.Result
@@ -100,6 +101,9 @@ func (s *routineBracket) ReadColonyFacts(ctx context.Context, id *c.Identity, pl
 			s.armed = routineArmed(colony.GetObserved(), s.emergency.Facts, pawns.GetObserved())
 			s.work = routineWork(colony.GetObserved(), s.emergency.Facts, pawns.GetObserved())
 			s.medical = routineMedical(colony.GetObserved(), s.emergency.Facts, pawns.GetObserved())
+			s.mood = routineMood(colony.GetObserved(), s.emergency.Facts, pawns.GetObserved())
+		} else if colony.GetObserved().ColonistCount != nil && colony.GetObserved().GetColonistCount() == 0 {
+			s.mood = domain.Known([]policy.MoodPawn{})
 		}
 	}
 	return colony, receipt, nil
@@ -129,6 +133,7 @@ func observeRoutine(ctx context.Context, source RoutineSource, clock Clock, expe
 	reading.Projection.Facts.Armed = bracket.armed
 	reading.Projection.WorkPawns = bracket.work
 	reading.Projection.Facts.MedicalPawns = bracket.medical
+	reading.Projection.Facts.MoodPawns = bracket.mood
 	reading.Projection.Facts.Gear = routineGear(reading.Projection.Facts.Gear, bracket.emergency.Facts)
 	reading.Projection.Definitions = append(reading.Projection.Definitions, bracket.extraDefinitions...)
 	if temperature {

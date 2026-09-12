@@ -28,7 +28,7 @@ func retireRoutineGoals(ctx context.Context, tx *sql.Tx, retained map[domain.Goa
 	if err != nil {
 		return err
 	}
-	if len(ids) > 256 {
+	if len(ids) > maxActiveGoals {
 		return ErrCapacity
 	}
 	for _, id := range ids {

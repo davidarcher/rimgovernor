@@ -20,6 +20,8 @@ type GoalState struct {
 	Retired  bool
 }
 
+const maxActiveGoals = 512
+
 func initializeGoals(ctx context.Context, tx *sql.Tx) error {
 	_, err := tx.ExecContext(ctx, `CREATE TABLE goals(id TEXT PRIMARY KEY, revision TEXT NOT NULL, payload BLOB NOT NULL, retired INTEGER NOT NULL DEFAULT 0 CHECK(retired IN (0,1))) STRICT;
 CREATE INDEX active_goals ON goals(id) WHERE retired=0;
@@ -54,7 +56,7 @@ func createGoal(ctx context.Context, tx *sql.Tx, g domain.Goal) error {
 	if err := tx.QueryRowContext(ctx, "SELECT count(*) FROM goals WHERE retired=0").Scan(&count); err != nil {
 		return err
 	}
-	if count >= 256 {
+	if count >= maxActiveGoals {
 		return ErrCapacity
 	}
 	data, err := json.Marshal(g)

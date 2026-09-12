@@ -10,6 +10,13 @@ thresholds or need reads never certify recovery. Native thresholds incorporate
 individual traits and ideology; current thought pressure predicts neither a break
 probability nor its timing.
 
+The Go routine reviewer keeps the same semantic name for ordinary native pawn IDs;
+IDs longer than 210 bytes use `EnsureMoodHash-<digest>` with the exact pawn retained
+in the review. Typed nullable storage fields preserve unknown, zero and false.
+Manual clears current method proposals and invalidates shared work while retaining
+mood history; world replacement and tick rewind reset that history. Departed pawns
+with unresolved risk remain unknown, while departed recovered goals retire.
+
 The controller ranks measured food, rest and recreation deficits by their distance
 from a 0.5 recovery target. Entry is below 0.3. Each correction uses one pawn and
 existing native resources; future mood benefit and labor duration remain unknown.

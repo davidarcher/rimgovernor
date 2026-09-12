@@ -86,6 +86,10 @@ def routine_evidence(database, identity, *, enabled, expected_food_need=None, al
                     "EnsureWorkAssignments", "EnsureFoodSupply", "EnsureInitialShelter", "EnsureTemperatureSafety",
                     "EnsureCooking", "EnsureBasicPower", "EnsureFoodStorage", "EnsureBasicDefense", "MaintainWood", "MaintainMedicalCare", "EnsureComfort", "EnsureExpansion", "MaintainEquipment",
                     "MaintainFireSafety", "SecureSupplies", "MaintainEssentialRepairs", "MaintainCleanFacilities", "MaintainMedicalReserves", "MaintainAnimalContainment", "MaintainAnimalFeed", "MaintainSleeping", "MaintainHomeCoverage", "MaintainStoneShell"}
+        mood = (review.get('Mood') or {}).get('States') or []
+        assert len(mood) <= 256 and len({s['Pawn']['ID'] for s in mood}) == len(mood)
+        expected |= {('EnsureMood-' + s['Pawn']['ID']) if len(s['Pawn']['ID'].encode()) <= 210 else
+                     ('EnsureMoodHash-' + hashlib.sha256(s['Pawn']['ID'].encode()).hexdigest()[:32]) for s in mood}
         assert len(bindings) == len(expected) and {v["Need"] for v in bindings} == expected
         goals = {}
         for binding in bindings:

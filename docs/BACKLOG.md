@@ -805,6 +805,14 @@ expand these into another nested task tree; remove a row when its outcome is met
   outdoor conditions remain unsafe. Both cases cover Manual, disabled restart
   and captured Go proposal/recovery replay.
 
+  Go mood planning now reviews native pawn needs and thought targets, retains
+  per-pawn threshold/cause hysteresis, and selects bounded food/rest/recreation
+  relief proposals in the shared durable review. Missing/dead pawns, unknown reads,
+  Manual, world replacement and cancellation preserve explicit lifecycle rules.
+  Active or unverified mental breaks hold new clock windows until observed clearance.
+  Fast policy, projection, storage and scheduler checks pass; native review/replay
+  acceptance remains pending. Relief execution belongs to G01.07e.
+
 - [ ] **G01.07a — Finish defense and essential medical care.** Connect movement
   and melee to complete defense plans using the existing owned-draft lifecycle;
   verify target outcomes, injury interruption, player overrides and restart cleanup

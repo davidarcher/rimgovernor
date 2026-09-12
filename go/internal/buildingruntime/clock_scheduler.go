@@ -237,6 +237,13 @@ func (s *ClockScheduler) Step(ctx context.Context) (ClockSchedulerResult, error)
 			return out, reviewErr
 		}
 		out.Routine = &review
+		if review.Review.Mood != nil {
+			for _, state := range review.Review.Mood.States {
+				if state.Active && state.MentalRisk {
+					return out, executor.ErrHeld
+				}
+			}
+		}
 	}
 	if s.config.Sleeping != nil {
 		method, methodErr := s.config.Sleeping.step(call, epoch)

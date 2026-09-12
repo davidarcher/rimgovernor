@@ -22,6 +22,8 @@ type RoutineGoal struct {
 // RoutineReview is the durable review cursor and hysteresis history. Goal
 // bindings retain semantic needs while old executable plans keep their identity.
 type RoutineReview struct {
+	Mood                   *RoutineMood        `json:",omitempty"`
+	MoodMethods            []RoutineMoodMethod `json:",omitempty"`
 	Sleeping               policy.SleepingHistory
 	Revision               uint64
 	WorkPreferenceRevision uint64
@@ -61,18 +63,36 @@ func loadRoutine(ctx context.Context, tx *sql.Tx) (RoutineReview, error) {
 		return RoutineReview{}, err
 	}
 	var r RoutineReview
-	if len(data) > 65536 {
+	if len(data) > 512*1024 {
 		return r, ErrCapacity
 	}
 	if err := json.Unmarshal(data, &r); err != nil {
 		return r, err
 	}
 	canonical, err := json.Marshal(r)
-	if err != nil || !bytes.Equal(data, canonical) || r.Revision == 0 || r.Snapshot.Validate() != nil || r.Tick < 0 || len(r.Goals) > 32 {
+	if err != nil || !bytes.Equal(data, canonical) || r.Revision == 0 || r.Snapshot.Validate() != nil || r.Tick < 0 || len(r.Goals) > 288 {
 		return RoutineReview{}, errors.New("invalid routine review history")
 	}
 	if err := r.MedicalCare.Validate(); err != nil {
 		return RoutineReview{}, err
+	}
+	if err := r.moodHistory().Validate(); err != nil {
+		return RoutineReview{}, err
+	}
+	var proposals []RoutineMoodMethod
+	if r.Enabled {
+		proposals, err = moodProposals(r.moodHistory())
+		if err != nil {
+			return RoutineReview{}, err
+		}
+	}
+	if len(proposals) != len(r.MoodMethods) {
+		return RoutineReview{}, errors.New("invalid mood method review")
+	}
+	expectedProposals, _ := json.Marshal(proposals)
+	actualProposals, _ := json.Marshal(r.MoodMethods)
+	if !bytes.Equal(expectedProposals, actualProposals) {
+		return RoutineReview{}, errors.New("stale mood method proposal")
 	}
 	if err := r.StartingSupplies.Validate(); err != nil {
 		return RoutineReview{}, err
@@ -105,12 +125,21 @@ func loadRoutine(ctx context.Context, tx *sql.Tx) (RoutineReview, error) {
 			return RoutineReview{}, errors.New("disabled routine retains development selection")
 		}
 	}
-	known, _ := policy.DetectRoutine(policy.RoutineFacts{}, policy.RoutineLatches{}, policy.DefaultRoutinePolicy())
+	known, _ := policy.DetectRoutine(policy.RoutineFacts{Mood: r.moodHistory()}, policy.RoutineLatches{}, policy.DefaultRoutinePolicy())
 	allowed := map[domain.GoalID]bool{}
 	optional := map[domain.GoalID]bool{}
 	for _, n := range known.Assessments {
 		allowed[n.ID] = true
 		optional[n.ID] = n.Priority >= 3
+	}
+	// Manual may retain historical bindings after a world change reset their
+	// observation history. Enabled bindings must match the current pawn history.
+	if !r.Enabled {
+		for _, binding := range r.Goals {
+			if policy.IsMoodGoal(binding.Need) {
+				allowed[binding.Need] = true
+			}
+		}
 	}
 	for _, row := range r.Development.Rows {
 		if !optional[row.Goal] {
@@ -204,12 +233,14 @@ func reviewRoutineTx(ctx context.Context, tx *sql.Tx, request RoutineReviewReque
 	supplies := previous.StartingSupplies
 	sleeping := previous.Sleeping
 	comfort := previous.Comfort
+	mood := previous.moodHistory()
 	if reset {
 		latches = policy.RoutineLatches{}
 		medical = policy.MedicalCareHistory{}
 		supplies = policy.StartingSupplies{}
 		comfort = policy.ComfortHistory{}
 		sleeping = policy.SleepingHistory{}
+		mood = policy.MoodHistory{}
 	}
 	needs := policy.RoutineNeeds{}
 	// Stopping routine work must not depend on a successful native observation.
@@ -245,12 +276,21 @@ func reviewRoutineTx(ctx context.Context, tx *sql.Tx, request RoutineReviewReque
 			return RoutineReviewResult{}, err
 		}
 		request.Facts.MedicalCareRecovered = medical.Recovered()
+		mood, err = policy.ReviewMood(request.Facts.MoodPawns, mood)
+		if err != nil {
+			return RoutineReviewResult{}, err
+		}
+		request.Facts.Mood = mood
 		needs, err = policy.DetectRoutine(request.Facts, latches, request.Policy)
 		if err != nil {
 			return RoutineReviewResult{}, err
 		}
 	}
 	old := map[domain.GoalID]GoalState{}
+	assessed := map[domain.GoalID]bool{}
+	for _, n := range needs.Assessments {
+		assessed[n.ID] = true
+	}
 	if request.Enabled {
 		if err = retireRoutinePlans(ctx, tx, request.Current, request.Tick); err != nil {
 			return RoutineReviewResult{}, err
@@ -261,7 +301,7 @@ func reviewRoutineTx(ctx context.Context, tx *sql.Tx, request RoutineReviewReque
 		if err != nil {
 			return RoutineReviewResult{}, err
 		}
-		if changed || !request.Enabled {
+		if changed || !request.Enabled || !assessed[binding.Need] {
 			if g.Goal.Status != domain.GoalCancelled && g.Goal.Status != domain.GoalInvalidated {
 				if err = cancelGoalMethods(ctx, tx, g); err != nil {
 					return RoutineReviewResult{}, err
@@ -292,6 +332,13 @@ func reviewRoutineTx(ctx context.Context, tx *sql.Tx, request RoutineReviewReque
 	r.StartingSupplies = supplies
 	r.Comfort = comfort
 	r.Sleeping = sleeping
+	r.Mood = moodRecord(mood)
+	if request.Enabled {
+		r.MoodMethods, err = moodProposals(mood)
+		if err != nil {
+			return RoutineReviewResult{}, err
+		}
+	}
 	result := RoutineReviewResult{Needs: needs}
 	if !request.Enabled {
 		r.WorkPreferenceRevision = previous.WorkPreferenceRevision
@@ -352,6 +399,9 @@ func reviewRoutineTx(ctx context.Context, tx *sql.Tx, request RoutineReviewReque
 	data, err := json.Marshal(r)
 	if err != nil {
 		return RoutineReviewResult{}, err
+	}
+	if len(data) > 512*1024 {
+		return RoutineReviewResult{}, ErrCapacity
 	}
 	if _, err = tx.ExecContext(ctx, "INSERT INTO routine_review(singleton,payload) VALUES(1,?) ON CONFLICT(singleton) DO UPDATE SET payload=excluded.payload", data); err != nil {
 		return RoutineReviewResult{}, err
