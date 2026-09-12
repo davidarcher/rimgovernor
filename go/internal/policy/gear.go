@@ -122,6 +122,7 @@ type GearMethod struct {
 	Bench, Recipe   string
 	Costs           []Amount
 	Filter          []Resource
+	RequiredWork    []WorkRequirement
 }
 type GearBill struct {
 	Active   domain.Fact[bool]
@@ -132,6 +133,7 @@ type GearRecipe struct {
 	Products               []Resource
 	Available, AvailableOn domain.Fact[bool]
 	Ingredients            domain.Fact[[][]Amount]
+	RequiredWork           domain.Fact[[]WorkRequirement]
 }
 type GearBench struct {
 	ID      string
@@ -322,6 +324,10 @@ func SelectGearMethod(r GearPlanningRequest) (GearMethod, error) {
 				if !ak || !ok {
 					return GearMethod{Kind: GearUnknown}, nil
 				}
+				work, known := recipe.RequiredWork.Value()
+				if !known {
+					return GearMethod{Kind: GearUnknown}, nil
+				}
 				slots, known := recipe.Ingredients.Value()
 				if !known {
 					return GearMethod{Kind: GearUnknown}, nil
@@ -331,7 +337,7 @@ func SelectGearMethod(r GearPlanningRequest) (GearMethod, error) {
 					return GearMethod{Kind: GearUnknown}, nil
 				}
 				if ok {
-					return GearMethod{Kind: GearProduce, ID: id, Pawn: n.pawn.Pawn, Loadout: n.pawn.Loadout, Need: n.need, Bench: b.ID, Recipe: recipe.Definition, Costs: costs, Filter: filter}, nil
+					return GearMethod{Kind: GearProduce, ID: id, Pawn: n.pawn.Pawn, Loadout: n.pawn.Loadout, Need: n.need, Bench: b.ID, Recipe: recipe.Definition, Costs: costs, Filter: filter, RequiredWork: append([]WorkRequirement(nil), work...)}, nil
 				}
 			}
 		}
@@ -394,6 +400,11 @@ func validateGearProduction(benches []GearBench, r GearPlanningRequest) error {
 				return errors.New("invalid gear recipe")
 			}
 			names[recipe.Definition] = true
+			if work, known := recipe.RequiredWork.Value(); known {
+				if _, err := AssignWork(nil, work, nil); err != nil {
+					return err
+				}
+			}
 			slots, _ := recipe.Ingredients.Value()
 			if len(slots) > 256 {
 				return errors.New("recipe ingredients exceed bound")

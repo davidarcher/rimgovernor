@@ -9,7 +9,7 @@ import (
 
 func gearFixture() GearPlanningRequest {
 	p := GearPawn{Pawn: "pawn", Loadout: "native-loadout", Deficit: domain.Known(true), Candidates: domain.Known([]GearCandidate{}), Replacements: domain.Known([]GearReplacement{{Definition: "Parka", Stuff: "Cloth", Reason: "worn"}})}
-	recipe := GearRecipe{Definition: "Make_Parka", Products: []Resource{"Parka"}, Available: domain.Known(true), AvailableOn: domain.Known(true), Ingredients: domain.Known([][]Amount{{{"Cloth", 80}, {"Synthread", 60}}})}
+	recipe := GearRecipe{Definition: "Make_Parka", Products: []Resource{"Parka"}, Available: domain.Known(true), AvailableOn: domain.Known(true), Ingredients: domain.Known([][]Amount{{{"Cloth", 80}, {"Synthread", 60}}}), RequiredWork: domain.Known([]WorkRequirement{{Work: "Tailoring", Skill: "Crafting", Minimum: 6}})}
 	return GearPlanningRequest{Observation: domain.Known(GearObservation{Pawns: []GearPawn{p}}), Benches: domain.Known([]GearBench{{ID: "bench", Bills: domain.Known([]GearBill{}), Recipes: domain.Known([]GearRecipe{recipe})}}), Stock: []Stock{{"Cloth", domain.Known(int64(100))}, {"Synthread", domain.Known(int64(100))}, {"Parka", domain.Known(int64(3))}}}
 }
 
@@ -114,6 +114,43 @@ func TestGearProductionPreservesMaterialAndSharedBudget(t *testing.T) {
 	wait, err := SelectGearMethod(r)
 	if err != nil || wait.Kind != GearWait {
 		t.Fatal("duplicate production", wait, err)
+	}
+}
+
+func TestGearProductionRetainsRequiredWorkAndPlayerRefusals(t *testing.T) {
+	r := gearFixture()
+	m, err := SelectGearMethod(r)
+	if err != nil || !reflect.DeepEqual(m.RequiredWork, []WorkRequirement{{Work: "Tailoring", Skill: "Crafting", Minimum: 6}}) {
+		t.Fatal(m, err)
+	}
+	team := workTeam(true)
+	work, _ := team[0].Work.Value()
+	team[0].Work = domain.Known(append(append([]WorkPriority(nil), work...), WorkPriority{Work: "Tailoring"}))
+	skills, _ := team[0].Skills.Value()
+	team[0].Skills = domain.Known(append(append([]WorkSkill(nil), skills...), WorkSkill{Name: "Crafting", Level: 6}))
+	ready, err := AssignWork(team, m.RequiredWork, nil)
+	if err != nil || ready.Capacity != domain.Known(true) || workValue(t, ready, "builder", "Tailoring") != 1 {
+		t.Fatal(ready, err)
+	}
+	refused, err := AssignWork(team, m.RequiredWork, []WorkOverride{{Pawn: "builder", Work: "Tailoring", Priority: 0}})
+	if err != nil || refused.Capacity != domain.Known(false) {
+		t.Fatal("player refusal was lost", refused, err)
+	}
+	m.RequiredWork[0].Minimum = 0
+	again, err := SelectGearMethod(r)
+	if err != nil || again.RequiredWork[0].Minimum != 6 {
+		t.Fatal("proposal aliases native recipe requirements", again, err)
+	}
+	benches, _ := r.Benches.Value()
+	recipes, _ := benches[0].Recipes.Value()
+	recipes[0].RequiredWork = domain.Unknown[[]WorkRequirement]()
+	unknown, err := SelectGearMethod(r)
+	if err != nil || unknown.Kind != GearUnknown {
+		t.Fatal(unknown, err)
+	}
+	recipes[0].RequiredWork = domain.Known([]WorkRequirement{{Work: "Tailoring", Minimum: -1}})
+	if _, err := SelectGearMethod(r); err == nil {
+		t.Fatal("invalid native work requirement accepted")
 	}
 }
 
