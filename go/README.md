@@ -269,6 +269,9 @@ player authority through the shared worker. `--shelter-methods` instead starts w
 an outdoor site and requires a complete wall-and-door shell, normal roofing,
 indoor sleeping capacity and a satisfied shelter goal. Its retained native event
 history covers the whole construction run, including Manual and disabled restart.
+It requires healthy colonists and no initial hostiles, and retains `initial-save.rws`.
+Stage that file in the private profile's `Saves` directory and pass `--start-save`
+with its native save name to repeat the same starting colony.
 `--cooking-methods` adds campfire
 construction and verifies that cooking still needs a bill after the building
 completes. Its `--resource-rule WoodLog:stop:0` variant uses the same room fixture

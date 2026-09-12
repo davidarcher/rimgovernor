@@ -187,7 +187,7 @@ def audit_sleeping(report, database):
     return {"completed_spots": len(plan["actions"]), "completed_shell_pieces": len(shell['actions']) if shell else 0, "completed_cooking_buildings": len(report.get("cooking_plan", {}).get("actions", [])), "single_attempts": True, "indoor_footprints": True, "shared_player_authority": True}
 
 
-async def run(root, output, binary, *, go_source, go_sha256, sleeping_methods=False, cooking_methods=False, work_project=False, work_overrides=False, power_fixture=False, resource_rules=(), shelter_methods=False):
+async def run(root, output, binary, *, go_source, go_sha256, sleeping_methods=False, cooking_methods=False, work_project=False, work_overrides=False, power_fixture=False, resource_rules=(), shelter_methods=False, start_save=None):
     assert Path("/.dockerenv").is_file(), "Use the isolated scenario launcher"
     output.mkdir(parents=True, exist_ok=False)
     report = {"passed": False, "source": go_source,
@@ -238,7 +238,11 @@ async def run(root, output, binary, *, go_source, go_sha256, sleeping_methods=Fa
             await bridge.core("games_start", gameId=bridge.game_id)
             launched = True
             await bridge.connect()
-            await evidence.call(bridge, "new-game", "rimworld/start_debug_game_ready", {"readiness": "visual", "pauseIfNeeded": True, "timeoutMs": 120000})
+            if start_save:
+                assert shelter_methods and Path(start_save).name == start_save
+                await evidence.call(bridge, 'load-start', 'rimworld/load_game_ready', {'saveName': start_save, 'readiness': 'visual', 'timeoutMs': 120000})
+            else:
+                await evidence.call(bridge, "new-game", "rimworld/start_debug_game_ready", {"readiness": "visual", "pauseIfNeeded": True, "timeoutMs": 120000})
             await evidence.call(bridge, "pause", "rimworld/set_time_speed", {"speed": "Paused", "ultraSpeedBoost": False})
             initial = outcome(await wire(bridge, "before", "lifecycle_read_identity", {}), "loaded")
             identity, tick = initial["context"]["identity"], int(initial["context"]["tick"])
@@ -256,6 +260,9 @@ async def run(root, output, binary, *, go_source, go_sha256, sleeping_methods=Fa
                 "scope": {"expectedIdentity": identity}, "colonists": True, "threats": True, "colonistDetail": False, "page": {"limit": 256}})
             if sleeping_methods or resource_rules:
                 assert medical_need(report['initial_colony']) == 'recovered', 'Construction fixture requires healthy starting colonists'
+                threats = outcome(report['initial_colony'], 'observed')['threats']
+                census = threats['completeness']
+                assert census['page']['complete'] and all(int(census[k]) == 0 for k in ('matched', 'returned', 'filtered', 'unreadable')) and not threats['hostiles'], 'Construction fixture requires no starting hostiles'
             colonists = outcome(report["initial_colony"], "observed")["colonists"]["pawns"]
             pawn_ids = [p["pawn"]["id"] for p in colonists]
             detailed = outcome(await wire(bridge, "initial-equipment", "observations_list_pawns", {
@@ -308,6 +315,11 @@ async def run(root, output, binary, *, go_source, go_sha256, sleeping_methods=Fa
             food = food_forecast(facts['nativeForecastInputs']['combinedFoodSupply'], consumer_ids=[r['id'] for r in facts['foodSupply']['consumers']])
             report['initial_food_forecast'] = food
             expected_food = 'deficit' if food['readable'] and food['runwayDays'] is not None and food['runwayDays'] < 3 else 'unknown'
+            if shelter_methods:
+                saved = payload(await evidence.call(bridge, 'save-start', 'rimworld/save_game', {'saveName': 'RimGovernor-shelter-start'}))
+                assert saved['exists'] and Path(saved['path']).is_relative_to(profile)
+                shutil.copyfile(saved['path'], output / 'initial-save.rws')
+                report['initial_save_sha256'] = hashlib.sha256((output / 'initial-save.rws').read_bytes()).hexdigest()
             baseline = await capture(bridge, "setup")
 
         async with service(private, gabs, configuration, profile, database, output / "operate", report, clock_control=True, routine_reviews=True, routine_methods=sleeping_methods, routine_cooking=cooking_methods or bool(resource_rules), routine_shelter=shelter_methods, resource_rules=resource_rules) as http:
@@ -461,10 +473,11 @@ if __name__ == "__main__":
     parser.add_argument("--sleeping-methods", action="store_true")
     parser.add_argument("--cooking-methods", action="store_true")
     parser.add_argument("--shelter-methods", action="store_true")
+    parser.add_argument('--start-save', help='Repeat shelter acceptance from a retained initial save staged in the private profile')
     parser.add_argument("--work-project", action="store_true")
     parser.add_argument("--work-overrides", action="store_true")
     parser.add_argument("--power-fixture", action="store_true")
     parser.add_argument("--resource-rule", action="append", default=[])
     args = parser.parse_args()
     raise SystemExit(0 if asyncio.run(run(args.root, args.output or args.root / "native-go-routine-acceptance", args.go_binary,
-        go_source=args.go_source, go_sha256=args.go_sha256, sleeping_methods=args.sleeping_methods or args.cooking_methods or args.shelter_methods, shelter_methods=args.shelter_methods, cooking_methods=args.cooking_methods, work_project=args.work_project, work_overrides=args.work_overrides, power_fixture=args.power_fixture, resource_rules=args.resource_rule)) else 1)
+        go_source=args.go_source, go_sha256=args.go_sha256, sleeping_methods=args.sleeping_methods or args.cooking_methods or args.shelter_methods, shelter_methods=args.shelter_methods, start_save=args.start_save, cooking_methods=args.cooking_methods, work_project=args.work_project, work_overrides=args.work_overrides, power_fixture=args.power_fixture, resource_rules=args.resource_rule)) else 1)
