@@ -155,3 +155,19 @@ func TestRoutineRecoverySkipsSharedGoalMethodHistory(t *testing.T) {
 		t.Fatal(err)
 	}
 }
+
+func TestRoutineRecoveryEmergencySuspendsCandidatesUntilObservedClearance(t *testing.T) {
+	s := open(t, filepath.Join(t.TempDir(), "emergency.db"))
+	defer s.Close()
+	r := recoveryRequest()
+	r.Facts.Hostiles = domain.Known(int64(1))
+	out := reviewRoutine(t, s, &r)
+	if routineGoal(t, out, policy.RecoverDisasterServices).Goal.Status != domain.GoalSuspended || out.Review.Recovery != nil {
+		t.Fatal("emergency allowed recovery proposals", out.Review.Recovery)
+	}
+	r.Facts.Hostiles = domain.Known(int64(0))
+	out = reviewRoutine(t, s, &r)
+	if out.Review.Recovery == nil || out.Review.Recovery.Selection.Reason != policy.RecoveryAdmissionRequired {
+		t.Fatal("observed clearance did not restore planning")
+	}
+}

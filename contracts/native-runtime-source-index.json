@@ -3903,7 +3903,7 @@
     },
     {
       "source": "scripts/fixtures/DisasterFixture.cs",
-      "source_sha256": "b1db3553d4103b7b15f146a1e417e8da7661d09a4492064f544f82eac7320dfd",
+      "source_sha256": "eacdb81d473c929e31040cad402b6ed995a04cb705d153aa45053726416babac",
       "compilation": "fixture-only",
       "owner": "N01.01 native packaging owner",
       "migration_status": "inventoried-unmigrated",
@@ -3912,7 +3912,7 @@
         16
       ],
       "reflection_boundary_lines": [
-        70
+        78
       ],
       "patch_registration_lines": [],
       "uncovered_acceptance": "Verify compile conditions, isolated fixture artifact identity and absence from production discovery."

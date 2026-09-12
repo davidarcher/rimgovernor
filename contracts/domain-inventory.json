@@ -8057,22 +8057,22 @@
           "name": "test/disaster_compound",
           "path": "scripts/fixtures/DisasterFixture.cs",
           "line": 25,
-          "declaration": "[Tool(\"test/disaster_compound\", Description = \"Seed a disposable compound crop, fuel and infrastructure disruption. All subsequent repair/refuel/sowing work remains native.\")]\n        public async Task<object> Compound(IRimBridgeContext ctx, CancellationToken cancellationToken)",
-          "source_sha256": "b1db3553d4103b7b15f146a1e417e8da7661d09a4492064f544f82eac7320dfd"
+          "declaration": "[Tool(\"test/disaster_compound\", Description = \"Seed a disposable compound crop, fuel and infrastructure disruption. All subsequent repair/refuel/sowing work remains native.\")]\n        public async Task<object> Compound(IRimBridgeContext ctx, CancellationToken cancellationToken,\n            [ToolParameter(Description = \"Test-only positive planning case: remove non-player hostile starting pawns before preparing the disruption.\")] bool isolateThreats = false)",
+          "source_sha256": "eacdb81d473c929e31040cad402b6ed995a04cb705d153aa45053726416babac"
         },
         {
           "name": "test/disaster_setup",
           "path": "scripts/fixtures/DisasterFixture.cs",
-          "line": 98,
+          "line": 106,
           "declaration": "[Tool(\"test/disaster_setup\", Description = \"Seed a powerless stove and bounded solar flare in a disposable test colony.\")]\n        public async Task<object> Setup(IRimBridgeContext ctx, CancellationToken cancellationToken)",
-          "source_sha256": "b1db3553d4103b7b15f146a1e417e8da7661d09a4492064f544f82eac7320dfd"
+          "source_sha256": "eacdb81d473c929e31040cad402b6ed995a04cb705d153aa45053726416babac"
         },
         {
           "name": "test/disaster_supplies",
           "path": "scripts/fixtures/DisasterFixture.cs",
           "line": 18,
           "declaration": "[Tool(\"test/disaster_supplies\", Description = \"Change fixture-only fuel accessibility in the disposable acceptance colony.\")]\n        public async Task<object> Supplies(IRimBridgeContext ctx, CancellationToken cancellationToken, bool available)",
-          "source_sha256": "b1db3553d4103b7b15f146a1e417e8da7661d09a4492064f544f82eac7320dfd"
+          "source_sha256": "eacdb81d473c929e31040cad402b6ed995a04cb705d153aa45053726416babac"
         },
         {
           "name": "test/feed_setup",

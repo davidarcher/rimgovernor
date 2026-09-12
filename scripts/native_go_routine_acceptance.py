@@ -403,7 +403,7 @@ async def run(root, output, binary, *, go_source, go_sha256, sleeping_methods=Fa
                     configured = payload(await evidence.call(bridge, 'comfort-work-' + pawn, 'home/pawn_config', {'pawn': pawn, 'work': ','.join(f'{name}={priority}' for name, priority in work.items()), 'dryRun': False}))
                     assert configured['success']
             if disaster_review:
-                report['disaster_setup'] = payload(await evidence.call(bridge, 'disaster-setup', 'test/disaster_compound', {}))
+                report['disaster_setup'] = payload(await evidence.call(bridge, 'disaster-setup', 'test/disaster_compound', {'isolateThreats': True}))
                 assert report['disaster_setup']['success']
             if mood_review:
                 report["mood_setup"] = payload(await evidence.call(bridge, "mood-setup", "test/mood_setup", {"scenario": mood_review}))

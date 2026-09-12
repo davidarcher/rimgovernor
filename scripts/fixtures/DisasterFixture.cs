@@ -23,11 +23,19 @@ namespace HomeBridge.BridgeTools
             }, cancellationToken);
 
         [Tool("test/disaster_compound", Description = "Seed a disposable compound crop, fuel and infrastructure disruption. All subsequent repair/refuel/sowing work remains native.")]
-        public async Task<object> Compound(IRimBridgeContext ctx, CancellationToken cancellationToken)
+        public async Task<object> Compound(IRimBridgeContext ctx, CancellationToken cancellationToken,
+            [ToolParameter(Description = "Test-only positive planning case: remove non-player hostile starting pawns before preparing the disruption.")] bool isolateThreats = false)
             => await ctx.MainThread.InvokeAsync<object>(() => {
                 if (configured) throw new InvalidOperationException("Fixture already configured");
                 var map = Find.CurrentMap;
                 var pawn = map.mapPawns.FreeColonistsSpawned.First();
+                var isolated = new List<string>();
+                if (isolateThreats)
+                {
+                    var hostiles = map.mapPawns.AllPawnsSpawned.Where(p => p.Faction != Faction.OfPlayer && p.HostileTo(Faction.OfPlayer)).ToList();
+                    if (hostiles.Count > 64) throw new InvalidOperationException("Starting hostile fixture census exceeds bound.");
+                    foreach (var hostile in hostiles) { isolated.Add(hostile.GetUniqueLoadID()); hostile.Destroy(DestroyMode.Vanish); }
+                }
                 var origin = GenRadial.RadialCellsAround(pawn.Position, 70, true).First(c =>
                     new CellRect(c.x, c.z, 14, 10).Cells.All(p => p.InBounds(map) && !p.Fogged(map)
                         && p.Standable(map) && p.GetEdifice(map) == null && p.GetZone(map) == null
@@ -91,7 +99,7 @@ namespace HomeBridge.BridgeTools
                 configured = true;
                 return new { success = true, generator = generator.GetUniqueLoadID(), stove = stove.GetUniqueLoadID(),
                     campfire = fire.GetUniqueLoadID(), wall = damaged.GetUniqueLoadID(), wallBefore = hp, wallAfter = damaged.HitPoints,
-                    cropLoss = lost, zoneId = zone.ID, refuge = refuge.ID, pawn = pawn.GetUniqueLoadID(),
+                    cropLoss = lost, zoneId = zone.ID, refuge = refuge.ID, pawn = pawn.GetUniqueLoadID(), isolatedHostiles = isolated,
                     tick = Find.TickManager.TicksGame, setup = "Test-only shelter, two sheltered pawn positions, soil plot, compound damage and crop destruction; no repair, refuel, sowing or service restoration injected" };
             }, cancellationToken);
 
