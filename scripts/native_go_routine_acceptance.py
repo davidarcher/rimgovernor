@@ -192,8 +192,8 @@ async def wait_review(database, after_revision=0):
             await asyncio.sleep(.05)
 
 
-async def wait_building_method(http, database, definition, count, *, shell=False):
-    async with asyncio.timeout(600 if shell else 180):
+async def wait_building_method(http, database, definition, count, *, shell=False, timeout=180):
+    async with asyncio.timeout(600 if shell else timeout):
         while True:
             with sqlite3.connect(database.as_uri() + "?mode=ro", uri=True) as db:
                 rows = db.execute("SELECT DISTINCT m.plan_id FROM goal_methods m JOIN actions a ON a.plan_id=m.plan_id WHERE a.definition=?", (definition,)).fetchall()
@@ -504,7 +504,8 @@ async def run(root, output, binary, *, go_source, go_sha256, sleeping_methods=Fa
             if comfort_methods:
                 report['comfort_plans'] = {}
                 for definition in ('Table1x2c', 'DiningChair', 'HorseshoesPin'):
-                    report['comfort_plans'][definition] = await wait_building_method(http, database, definition, 1)
+                    # Native dining chairs require 8,000 work, unlike starter spots.
+                    report['comfort_plans'][definition] = await wait_building_method(http, database, definition, 1, timeout=600)
                 async with asyncio.timeout(600):
                     while True:
                         recovered = routine_evidence(database, identity, enabled=True, allow_methods=True)
@@ -622,6 +623,8 @@ async def run(root, output, binary, *, go_source, go_sha256, sleeping_methods=Fa
                         try:
                             await bridge.connect()
                             report['failure_colony'] = await wire(bridge, 'failure-comfort-colony', 'observations_read_colony_facts', {'scope': {'expectedIdentity': identity}, 'planning': True})
+                            report['failure_comfort_legacy'] = payload(await evidence.call(bridge, 'failure-comfort-legacy', 'home/colony_facts', {'planning': True}))
+                            report['failure_comfort_pawns'] = payload(await evidence.call(bridge, 'failure-comfort-pawns', 'home/list_pawns', {'colonistsOnly': True, 'work': True, 'bio': True, 'health': True, 'equipment': True, 'needs': True}))
                         except BaseException as diagnostic_error:
                             report['diagnostic_error'] = repr(diagnostic_error)
                     if not report['passed'] and shelter_methods and 'shelter_plan' in report:

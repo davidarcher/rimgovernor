@@ -1,6 +1,8 @@
 package buildingruntime
 
 import (
+	"context"
+	"errors"
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"github.com/davidarcher/RimGovernor/go/internal/observation"
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
@@ -8,6 +10,27 @@ import (
 )
 
 const BuildingComfortWait RoutineBuildingReason = "waiting_for_native_comfort_use"
+
+// Completed methods leave the active catalog but retain their bounded use budget.
+// Look up only this goal epoch's known comfort methods; old epochs cannot lend time.
+func comfortUseAllowance(ctx context.Context, journal *store.Store, goal domain.Goal, current domain.GenerationSnapshot, tick domain.Tick) (uint32, error) {
+	var ticks uint32
+	for _, definition := range []string{"Table1x2c", "DiningChair", "HorseshoesPin"} {
+		method, err := journal.LoadGoalMethod(ctx, goal.ID, goal.Epoch, domain.MethodID("comfort-"+definition))
+		if errors.Is(err, store.ErrNotFound) {
+			continue
+		}
+		if err != nil {
+			return 0, err
+		}
+		plan, err := journal.LoadPlan(ctx, method.Plan)
+		if err != nil {
+			return 0, err
+		}
+		ticks = max(ticks, comfortNativeWorkTicks(plan, current, tick))
+	}
+	return ticks, nil
+}
 
 func NewRoutineComfortPlanner(reviewer *RoutineReviewer, native RoutineBuildingSource) (*RoutineBuildingPlanner, error) {
 	if reviewer == nil || native == nil {

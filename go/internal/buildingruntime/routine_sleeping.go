@@ -166,12 +166,9 @@ func (r *RoutineBuildingPlanner) step(call, epoch context.Context) (RoutineBuild
 		if reason != "" {
 			result := RoutineBuildingResult{Reason: reason}
 			if reason == BuildingComfortWait {
-				for _, method := range goal.Methods {
-					plan, err := p.journal.LoadPlan(call, method.Plan)
-					if err != nil {
-						return RoutineBuildingResult{}, err
-					}
-					result.NativeWorkTicks = max(result.NativeWorkTicks, comfortNativeWorkTicks(plan, state.Snapshot, facts.Identity.Tick))
+				result.NativeWorkTicks, err = comfortUseAllowance(call, p.journal, goal.Goal, state.Snapshot, facts.Identity.Tick)
+				if err != nil {
+					return RoutineBuildingResult{}, err
 				}
 				if err := p.current(call, epoch); err != nil {
 					return RoutineBuildingResult{}, err

@@ -7997,14 +7997,14 @@
           "path": "scripts/fixtures/ComfortFixture.cs",
           "line": 14,
           "declaration": "[Tool(\"test/comfort_foothold\", Description = \"UNSAFE FOR MODEL EXECUTION. Prepare a disposable existing roofed room, ordinary sleeping/cooking/storage, food, rice field and healthy workers so optional comfort can be tested after startup. Does not create tables, chairs, recreation furniture or their use.\")]\n        public async Task<object> Foothold(IRimBridgeContext ctx, CancellationToken cancellationToken, int x, int z)",
-          "source_sha256": "f8cda40550850e6e3856aa247224da3a291b1859e7271fbe8242b0869b397e11"
+          "source_sha256": "56214f74f254163473ebd8f13011c01217ada1dafc0e8cb9598ed4af672b5659"
         },
         {
           "name": "test/comfort_inputs",
           "path": "scripts/fixtures/ComfortFixture.cs",
           "line": 83,
           "declaration": "[Tool(\"test/comfort_inputs\", Description = \"Supply disposable construction wood, or prepare hunger/recreation needs after furniture construction. Does not place furniture or order its use.\")]\n        public async Task<object> Inputs(IRimBridgeContext ctx, CancellationToken cancellationToken,\n            [ToolParameter(Description = \"Prepare needs only after ordinary furniture construction.\", DefaultValue = false)] bool needs = false)",
-          "source_sha256": "f8cda40550850e6e3856aa247224da3a291b1859e7271fbe8242b0869b397e11"
+          "source_sha256": "56214f74f254163473ebd8f13011c01217ada1dafc0e8cb9598ed4af672b5659"
         },
         {
           "name": "test/configure_start",

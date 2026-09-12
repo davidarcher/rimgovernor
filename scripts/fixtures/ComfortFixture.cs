@@ -29,7 +29,7 @@ namespace HomeBridge.BridgeTools
                 foreach (var pawn in people) {
                     foreach (var h in pawn.health.hediffSet.hediffs.Where(h => h.def.isBad).ToList()) pawn.health.RemoveHediff(h);
                     pawn.playerSettings.AreaRestrictionInPawnCurrentMap = null;
-                    pawn.needs.food.CurLevelPercentage = .5f;
+                    pawn.needs.food.CurLevelPercentage = .8f;
                     pawn.needs.rest.CurLevelPercentage = .95f;
                     pawn.needs.joy.CurLevelPercentage = .5f;
                     for (int hour = 0; hour < 24; hour++) pawn.timetable.SetAssignment(hour, TimeAssignmentDefOf.Anything);
