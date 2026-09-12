@@ -201,8 +201,16 @@ func ValidateColonyFacts(v *o.ColonyFactsSnapshot, identity *c.Identity) error {
 }
 
 func validateColonyPlanning(p *o.PlanningFacts, ctx *c.ObservationContext, size *o.MapSize) error {
-	if p == nil || p.Gear != nil {
+	if p == nil {
 		return contract("unsupported planning projection")
+	}
+	if err := pawnsIssues(p.Issues, p.ProtoReflect()); err != nil {
+		return err
+	}
+	if p.Gear != nil {
+		if err := validateColonyGear(p.Gear, ctx, size); err != nil {
+			return err
+		}
 	}
 	if err := colonyCounts(p.Completeness, len(p.Definitions), 256); err != nil {
 		return err

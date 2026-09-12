@@ -105,6 +105,7 @@ func ObserveRoutine(ctx context.Context, source RoutineSource, clock Clock, expe
 	reading.Projection.Facts.Armed = bracket.armed
 	reading.Projection.WorkPawns = bracket.work
 	reading.Projection.Facts.MedicalPawns = bracket.medical
+	reading.Projection.Facts.Gear = routineGear(reading.Projection.Facts.Gear, bracket.emergency.Facts)
 	reading.Projection.Definitions = append(reading.Projection.Definitions, bracket.extraDefinitions...)
 	return RoutineReading{ColonyReading: reading, Emergency: bracket.emergency.Facts, EmergencyReceipt: bracket.receipt, PawnReceipt: bracket.pawnReceipt, DefinitionReceipt: bracket.definitionReceipt}, nil
 }

@@ -14,8 +14,9 @@ import (
 // ownership, reachability and resource-policy checks. Proposals still require a
 // fresh native admission against the exact inspected loadout before dispatch.
 type GearCandidate struct {
-	Target string
-	Gain   float64
+	Target     string
+	Gain       float64
+	Definition Resource
 }
 type GearReplacement struct {
 	Definition Resource
@@ -52,7 +53,7 @@ func (v GearObservation) Validate() error {
 			}
 			targets := map[string]bool{}
 			for _, c := range candidates {
-				if !foodID(c.Target) || !foodNumber(c.Gain) || c.Gain <= 0 || targets[c.Target] {
+				if !foodID(c.Target) || !validResource(c.Definition) || !foodNumber(c.Gain) || c.Gain <= 0 || targets[c.Target] {
 					return errors.New("invalid gear candidate")
 				}
 				targets[c.Target] = true
@@ -192,6 +193,9 @@ func SelectGearMethod(r GearPlanningRequest) (GearMethod, error) {
 		seen[id] = true
 	}
 	v, _ := r.Observation.Value()
+	if err := validateGearProduction(nil, r); err != nil {
+		return GearMethod{}, err
+	}
 	type choice struct {
 		pawn      GearPawn
 		candidate GearCandidate
@@ -220,7 +224,14 @@ func SelectGearMethod(r GearPlanningRequest) (GearMethod, error) {
 	for _, c := range choices {
 		id := gearMethodID("replace", c.pawn, c.candidate.Target, GearReplacement{})
 		if !seen[id] {
-			return GearMethod{Kind: GearReplace, ID: id, Pawn: c.pawn.Pawn, Loadout: c.pawn.Loadout, Target: c.candidate.Target}, nil
+			costs, _, funded, unknown := gearIngredients([][]Amount{{{Resource: c.candidate.Definition, Count: 1}}}, "", r)
+			if unknown {
+				return GearMethod{Kind: GearUnknown}, nil
+			}
+			if !funded {
+				continue
+			}
+			return GearMethod{Kind: GearReplace, ID: id, Pawn: c.pawn.Pawn, Loadout: c.pawn.Loadout, Target: c.candidate.Target, Costs: costs}, nil
 		}
 	}
 	if existing {

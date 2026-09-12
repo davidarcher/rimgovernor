@@ -137,6 +137,10 @@ their own narrow typed receipts, without an import cycle.
 - BillStack, BuildingSettings, PawnSettings, ZoneState, GearLoadout, MedicalCatalog,
   ResearchSnapshot, TradeSheet and CaravanCatalog expose SnapshotRef for exact
   compare-and-set. Read tokens cannot revive authority or prove successful writes.
+- Gear loadouts carry an explicitly present native deficit and an optional blocker;
+  blocked pawns can still have equipment needs. Complete candidate and replacement
+  lists belong to that exact loadout token. Planning read issues distinguish an
+  unavailable gear census from a complete census with no eligible replacements.
 
 ## External reads and deliberate projections
 

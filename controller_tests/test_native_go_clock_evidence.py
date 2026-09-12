@@ -81,7 +81,7 @@ def test_routine_evidence_requires_native_scope_unknown_forecast_and_manual_reti
     path = tmp_path / "review.sqlite"
     needs = ["ConfirmColonyNames", "ActiveCombat", "CriticalMedical", "RestoreWorkers", "AllowStartingSupplies",
              "EnsureWorkAssignments", "EnsureFoodSupply", "EnsureInitialShelter", "EnsureTemperatureSafety",
-             "EnsureCooking", "EnsureBasicPower", "EnsureFoodStorage", "EnsureBasicDefense", "MaintainWood", "MaintainMedicalCare", "EnsureComfort"]
+             "EnsureCooking", "EnsureBasicPower", "EnsureFoodStorage", "EnsureBasicDefense", "MaintainWood", "MaintainMedicalCare", "EnsureComfort", "MaintainEquipment"]
     scope = {"Colony": "colony", "Load": "load", "Map": 0}
     review = {"Revision": 2, "Enabled": False, "Snapshot": scope, "Tick": 7,
               "Goals": [{"Need": name, "Goal": name} for name in needs]}
@@ -101,4 +101,4 @@ def test_routine_evidence_requires_native_scope_unknown_forecast_and_manual_reti
     if fault:
         with pytest.raises(AssertionError): probe.routine_evidence(path, identity, enabled=False, expected_food_need="unknown")
     else:
-        assert len(probe.routine_evidence(path, identity, enabled=False, expected_food_need="unknown")["goals"]) == 16
+        assert len(probe.routine_evidence(path, identity, enabled=False, expected_food_need="unknown")["goals"]) == 17

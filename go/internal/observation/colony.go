@@ -200,5 +200,6 @@ func DecodeColony(reply *o.ColonyFactsReply, expected Identity) (ColonyProjectio
 		}
 	}
 	r.FieldCrops = colonyFieldCrops(v, r.Definitions)
+	r.Facts.Gear = colonyGear(v)
 	return r, nil
 }

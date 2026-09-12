@@ -7015,6 +7015,10 @@
               "condition": ""
             },
             {
+              "path": "integrations/rimgovernor-native/src/Bridge/Protocol/NativeGearFacts.cs",
+              "condition": ""
+            },
+            {
               "path": "integrations/rimgovernor-native/src/Bridge/Protocol/NativeMovementOperations.cs",
               "condition": ""
             },
@@ -7491,9 +7495,9 @@
         {
           "name": "home/gear_upkeep",
           "path": "integrations/rimgovernor-native/src/Bridge/GearUpkeepTool.cs",
-          "line": 159,
+          "line": 174,
           "declaration": "[Tool(\"home/gear_upkeep\", Title = \"Inspect or maintain gear\",\n            Description = \"Inspect worn apparel, primary weapons and eligible replacements. Execution requires exact pawn, item and loadout signature; issues ordinary Wear or Equip work, preserves outfits, forced/locked apparel and player weapon assignments. A receipt is not a completed loadout.\")]\n        public async Task<object> Upkeep(IRimBridgeContext ctx, CancellationToken cancellationToken,\n            [ToolParameter(Description = \"Exact current-map pawn Thing ID; omit for inspection of all colonists.\")] string pawn = null,\n            [ToolParameter(Description = \"Exact observed replacement apparel or weapon Thing ID.\")] string target = null,\n            [ToolParameter(Description = \"Loadout signature from inspection, required with target.\")] string expectedLoadout = null,\n            [ToolParameter(Description = \"Inspect only.\", DefaultValue = true)] bool dryRun = true)",
-          "source_sha256": "970a9dbb02179309a765f508d98d3b5235e7c346dcecd77599b2c7d2926a8f26"
+          "source_sha256": "0f11b765192d764e034dce5687419007004a18e7da3fc6879b985e68bd2accb7"
         },
         {
           "name": "home/get_cells_plus",
@@ -7892,7 +7896,7 @@
           "path": "integrations/rimgovernor-native/src/Bridge/Protocol/NativeColonyObservationTools.cs",
           "line": 28,
           "declaration": "[Tool(ToolName, Title = \"Read typed routine colony facts\", Description = \"Native colony, accessible stock, sleeping capacity, temperature and storage facts. Optional bounded starter geometry/definitions. Raw food runway is not a diet/rot forecast. Unported sections are explicitly unavailable. Read-only; no authority or orders.\")]\n        [ToolResponse(\"payload\", \"string\", \"Official ColonyFactsReply ProtoJSON, bounded to1MiB.\", Always = true)]\n        public async Task<object> ReadColonyFacts(IRimBridgeContext ctx, CancellationToken cancellationToken,\n            [ToolParameter(Description = \"Raw ColonyFactsRequest ProtoJSON string.\")] object? request = null)",
-          "source_sha256": "f97bfde54e7bd51a1f5df4249390866de98c4d37cc1ff9178de545595b068916"
+          "source_sha256": "ea7f0043625ae8fba7996c93241dcd6bf1502fc58a27b8b1270852dbfba37324"
         },
         {
           "name": "rimgovernor/observations_read_research",
@@ -8411,7 +8415,7 @@
         },
         {
           "path": "contracts/generated/protobuf/csharp/Observations.cs",
-          "source_sha256": "2f4ed7862823c08dbed72d45ed17e2e9b7c347feded535932578963c82946584"
+          "source_sha256": "36dbf3edf1fe3bd7e31a24cc2ee55c11e7770ca31f34d0d618be031ae5104901"
         },
         {
           "path": "contracts/generated/protobuf/csharp/Operations.cs",

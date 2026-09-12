@@ -286,7 +286,7 @@ include eligible routine work after the player plan settles. Remaining fact proj
 method selection and execution composition remain in G01.05.
 `scripts/native_go_routine_acceptance.py`, run through the documented container
 scenario launcher with the private construction fixture and verified Go binary,
-covers the live SDK read trace, sixteen durable goals, urgent and ongoing medical needs,
+covers the live SDK read trace, seventeen durable goals, urgent and ongoing medical needs,
 unknown food forecast, Manual invalidation, joined shutdown and disabled restart.
 `--supply-history` additionally clears the original supplies through the native
 player Allow designator, reviews their recovery, and re-forbids the same supplies.

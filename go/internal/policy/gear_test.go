@@ -10,7 +10,7 @@ import (
 func gearFixture() GearPlanningRequest {
 	p := GearPawn{Pawn: "pawn", Loadout: "native-loadout", Deficit: domain.Known(true), Candidates: domain.Known([]GearCandidate{}), Replacements: domain.Known([]GearReplacement{{Definition: "Parka", Stuff: "Cloth", Reason: "worn"}})}
 	recipe := GearRecipe{Definition: "Make_Parka", Products: []Resource{"Parka"}, Available: domain.Known(true), AvailableOn: domain.Known(true), Ingredients: domain.Known([][]Amount{{{"Cloth", 80}, {"Synthread", 60}}})}
-	return GearPlanningRequest{Observation: domain.Known(GearObservation{Pawns: []GearPawn{p}}), Benches: domain.Known([]GearBench{{ID: "bench", Bills: domain.Known([]GearBill{}), Recipes: domain.Known([]GearRecipe{recipe})}}), Stock: []Stock{{"Cloth", domain.Known(int64(100))}, {"Synthread", domain.Known(int64(100))}}}
+	return GearPlanningRequest{Observation: domain.Known(GearObservation{Pawns: []GearPawn{p}}), Benches: domain.Known([]GearBench{{ID: "bench", Bills: domain.Known([]GearBill{}), Recipes: domain.Known([]GearRecipe{recipe})}}), Stock: []Stock{{"Cloth", domain.Known(int64(100))}, {"Synthread", domain.Known(int64(100))}, {"Parka", domain.Known(int64(3))}}}
 }
 
 func TestGearReviewRequiresCompleteCensus(t *testing.T) {
@@ -29,7 +29,7 @@ func TestGearReviewRequiresCompleteCensus(t *testing.T) {
 	if err != nil || review.Recovered != domain.Known(true) {
 		t.Fatal(review, err)
 	}
-	v.Pawns[1].Candidates = domain.Known([]GearCandidate{{"replacement", 1}})
+	v.Pawns[1].Candidates = domain.Known([]GearCandidate{{"replacement", 1, "Parka"}})
 	review, err = ReviewGear(domain.Known(v))
 	if err != nil || review.Deficit != domain.Known(.5) {
 		t.Fatal(review, err)
@@ -47,10 +47,10 @@ func TestGearReplacementOrderAndSeenLoadouts(t *testing.T) {
 	v, _ := r.Observation.Value()
 	p := v.Pawns[0]
 	p.Pawn = "z-pawn"
-	p.Candidates = domain.Known([]GearCandidate{{"z-item", 5}, {"a-item", 5}})
+	p.Candidates = domain.Known([]GearCandidate{{"z-item", 5, "Parka"}, {"a-item", 5, "Parka"}})
 	v.Pawns = []GearPawn{p}
 	p.Pawn = "a-pawn"
-	p.Candidates = domain.Known([]GearCandidate{{"b-item", 5}})
+	p.Candidates = domain.Known([]GearCandidate{{"b-item", 5, "Parka"}})
 	v.Pawns = append(v.Pawns, p)
 	r.Observation = domain.Known(v)
 	first, err := SelectGearMethod(r)
@@ -160,7 +160,7 @@ func TestGearRejectsMalformedCandidatesAndProduction(t *testing.T) {
 	for _, change := range []func(*GearPlanningRequest){
 		func(r *GearPlanningRequest) {
 			v, _ := r.Observation.Value()
-			v.Pawns[0].Candidates = domain.Known([]GearCandidate{{"item", math.NaN()}})
+			v.Pawns[0].Candidates = domain.Known([]GearCandidate{{"item", math.NaN(), "Parka"}})
 		},
 		func(r *GearPlanningRequest) {
 			v, _ := r.Observation.Value()
@@ -209,5 +209,28 @@ func TestGearProductionKeepsUnknownEvidenceUnknown(t *testing.T) {
 		if err != nil || m.Kind != GearUnknown {
 			t.Fatal(m, err)
 		}
+	}
+}
+
+func TestGearExistingItemsRespectGoReservationsAndUnknownStock(t *testing.T) {
+	r := gearFixture()
+	v, _ := r.Observation.Value()
+	v.Pawns[0].Candidates = domain.Known([]GearCandidate{{Target: "parka", Gain: 1, Definition: "Parka"}})
+	for _, change := range []func(*GearPlanningRequest){
+		func(r *GearPlanningRequest) { r.Rules = []ResourceRule{{"Parka", 3, Allow}} },
+		func(r *GearPlanningRequest) { r.Rules = []ResourceRule{{"Parka", 0, Stop}} },
+		func(r *GearPlanningRequest) { r.Holds = []Amount{{"Parka", 3}} },
+	} {
+		copy := r
+		change(&copy)
+		m, err := SelectGearMethod(copy)
+		if err != nil || m.Kind != GearBlocked {
+			t.Fatal("native eligibility bypassed Go budgets", m, err)
+		}
+	}
+	r.Stock[2].Available = domain.Unknown[int64]()
+	m, err := SelectGearMethod(r)
+	if err != nil || m.Kind != GearUnknown {
+		t.Fatal(m, err)
 	}
 }

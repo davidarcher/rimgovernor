@@ -119,18 +119,33 @@ namespace HomeBridge.BridgeTools
             return (1f + skill) * (1f + quality) * (weapon.def.useHitPoints ? (float)weapon.HitPoints / weapon.MaxHitPoints : 1f);
         }
 
-        internal static List<object> ProductionNeeds(Pawn p)
+        internal sealed class ProductionNeed
         {
-            var needs = new List<object>();
+            public string defName { get; set; }
+            public string stuff { get; set; }
+            public string reason { get; set; }
+        }
+
+        internal static bool Deficit(Pawn p) => p.apparel != null &&
+            (p.apparel.WornApparel.Any(a => a.def.useHitPoints && a.HitPoints <= a.MaxHitPoints * .5f)
+             || p.AmbientTemperature < p.GetStatValue(StatDefOf.ComfyTemperatureMin)
+             || p.AmbientTemperature > p.GetStatValue(StatDefOf.ComfyTemperatureMax)
+             || (p.equipment?.Primary == null && !p.WorkTagIsDisabled(WorkTags.Violent))
+             || (p.equipment?.Primary != null && p.equipment.Primary.def.useHitPoints
+                 && p.equipment.Primary.HitPoints <= p.equipment.Primary.MaxHitPoints * .5f));
+
+        internal static List<ProductionNeed> ProductionNeeds(Pawn p)
+        {
+            var needs = new List<ProductionNeed>();
             if (Available(p) != null) return needs;
             foreach (var a in p.apparel.WornApparel.Where(a => a.def.useHitPoints && a.HitPoints <= a.MaxHitPoints * .5f
                 && p.outfits.forcedHandler.AllowedToAutomaticallyDrop(a) && !p.apparel.IsLocked(a)
                 && p.outfits.CurrentApparelPolicy.filter.Allows(a.def)))
-                needs.Add(new { defName = a.def.defName, stuff = a.Stuff?.defName, reason = "wear" });
+                needs.Add(new ProductionNeed { defName = a.def.defName, stuff = a.Stuff?.defName, reason = "wear" });
             var primary = p.equipment?.Primary;
             if (primary != null && primary.def.useHitPoints && primary.HitPoints <= primary.MaxHitPoints * .5f
                 && GearOwnership.State().Weapons.TryGetValue(p.GetUniqueLoadID(), out var owned) && primary.GetUniqueLoadID() == owned)
-                needs.Add(new { defName = primary.def.defName, stuff = primary.Stuff?.defName, reason = "weapon wear" });
+                needs.Add(new ProductionNeed { defName = primary.def.defName, stuff = primary.Stuff?.defName, reason = "weapon wear" });
             var cold = p.AmbientTemperature < p.GetStatValue(StatDefOf.ComfyTemperatureMin);
             var hot = p.AmbientTemperature > p.GetStatValue(StatDefOf.ComfyTemperatureMax);
             if (cold || hot) {
@@ -150,7 +165,7 @@ namespace HomeBridge.BridgeTools
                     }
                 }
                 needs.AddRange(options.OrderByDescending(o => o.Item3).ThenBy(o => o.Item1.defName)
-                    .ThenBy(o => o.Item2?.defName).Take(8).Select(o => (object)new {
+                    .ThenBy(o => o.Item2?.defName).Take(8).Select(o => new ProductionNeed {
                         defName = o.Item1.defName, stuff = o.Item2?.defName, reason = cold ? "cold" : "heat" }));
             }
             return needs;
@@ -212,12 +227,7 @@ namespace HomeBridge.BridgeTools
                         if (WeaponEligible(p, weapon) == null)
                             candidates.Add(new { target = weapon.GetUniqueLoadID(), kind = "weapon", gain = WeaponGain(p, weapon), gear = Gear(weapon) });
                 rows.Add(new { pawn = p.GetUniqueLoadID(), loadout = Identity(p), blocker = refusal,
-                    deficit = p.apparel != null && (p.apparel.WornApparel.Any(a => a.def.useHitPoints && a.HitPoints <= a.MaxHitPoints * .5f)
-                        || p.AmbientTemperature < p.GetStatValue(StatDefOf.ComfyTemperatureMin)
-                        || p.AmbientTemperature > p.GetStatValue(StatDefOf.ComfyTemperatureMax)
-                        || (p.equipment?.Primary == null && !p.WorkTagIsDisabled(WorkTags.Violent))
-                        || (p.equipment?.Primary != null && p.equipment.Primary.def.useHitPoints
-                            && p.equipment.Primary.HitPoints <= p.equipment.Primary.MaxHitPoints * .5f)),
+                    deficit = Deficit(p),
                     worn = p.apparel?.WornApparel.Select(a => new { gear = Gear(a),
                         forced = !p.outfits.forcedHandler.AllowedToAutomaticallyDrop(a), locked = p.apparel.IsLocked(a) }).ToList(),
                     primary = p.equipment?.Primary == null ? null : Gear(p.equipment.Primary),

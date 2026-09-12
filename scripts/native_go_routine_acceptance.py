@@ -280,7 +280,7 @@ async def run(root, output, binary, *, go_source, go_sha256, sleeping_methods=Fa
     assert Path("/.dockerenv").is_file(), "Use the isolated scenario launcher"
     output.mkdir(parents=True, exist_ok=False)
     report = {"passed": False, "source": go_source,
-              "scope": "Native core/emergency facts reach sixteen durable Go needs; Manual invalidates them; disabled restart neither acquires authority nor reads routine facts. No routine method execution claim."}
+              "scope": "Native core/emergency facts reach seventeen durable Go needs; Manual invalidates them; disabled restart neither acquires authority nor reads routine facts. No routine method execution claim."}
     if comfort_methods:
         assert not (sleeping_methods or cooking_methods or shelter_methods or work_project or work_overrides or power_fixture or resource_rules or supply_history)
         report['scope'] = 'From an established disposable foothold without comfort furniture, Go constructs a dining table, chair and recreation facility through shared Hands and observes ordinary pawn use. Manual preserves use history and disabled restart grants no authority or time.'

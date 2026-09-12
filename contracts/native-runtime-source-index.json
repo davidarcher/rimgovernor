@@ -655,7 +655,7 @@
     },
     {
       "source": "integrations/rimgovernor-native/src/Bridge/GearUpkeepTool.cs",
-      "source_sha256": "970a9dbb02179309a765f508d98d3b5235e7c346dcecd77599b2c7d2926a8f26",
+      "source_sha256": "0f11b765192d764e034dce5687419007004a18e7da3fc6879b985e68bd2accb7",
       "compilation": "production-bridge",
       "owner": "N01.02-N01.04 native contract/operation owner",
       "migration_status": "inventoried-unmigrated",
@@ -668,8 +668,9 @@
         79,
         90,
         115,
-        122,
-        170
+        129,
+        137,
+        185
       ],
       "reflection_boundary_lines": [
         80
@@ -1925,7 +1926,7 @@
     },
     {
       "source": "integrations/rimgovernor-native/src/Bridge/Protocol/NativeColonyObservationTools.cs",
-      "source_sha256": "f97bfde54e7bd51a1f5df4249390866de98c4d37cc1ff9178de545595b068916",
+      "source_sha256": "ea7f0043625ae8fba7996c93241dcd6bf1502fc58a27b8b1270852dbfba37324",
       "compilation": "production-bridge",
       "owner": "N01.03 native observation owner",
       "migration_status": "typed-core-planning",
@@ -1937,16 +1938,16 @@
         143,
         161,
         198,
-        268,
-        269,
         270,
         271,
         272,
-        302,
-        320,
-        321,
+        273,
+        274,
+        304,
         322,
-        323
+        323,
+        324,
+        325
       ],
       "reflection_boundary_lines": [],
       "patch_registration_lines": [],
@@ -2252,6 +2253,23 @@
         74,
         138
       ]
+    },
+    {
+      "source": "integrations/rimgovernor-native/src/Bridge/Protocol/NativeGearFacts.cs",
+      "compilation": "production-bridge",
+      "owner": "N01.03 native observation owner",
+      "migration_status": "typed-gear-acceptance-pending",
+      "uncovered_acceptance": "Native candidate/loadout parity and routine equipment need acceptance remain open.",
+      "static_token_lines": [
+        6,
+        10,
+        12,
+        51,
+        78
+      ],
+      "reflection_boundary_lines": [],
+      "patch_registration_lines": [],
+      "source_sha256": "0ea78af731f840624e979a4167b06fdc1874c686ce76b434cc495b3feac31527"
     },
     {
       "source": "integrations/rimgovernor-native/src/Bridge/Protocol/NativeMovementOperations.cs",

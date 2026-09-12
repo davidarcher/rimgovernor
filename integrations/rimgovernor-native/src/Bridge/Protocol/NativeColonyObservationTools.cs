@@ -200,6 +200,8 @@ namespace HomeBridge.BridgeTools
             var names = request.RequestedDefinitionNames.Count == 0 ? StarterDefinitions : request.RequestedDefinitionNames.ToArray();
             Bound(names.Length, limit);
             var result = new Obs.PlanningFacts { Completeness = Complete(names.Length) };
+            try { result.Gear = NativeGearFacts.Read(map, context, limit); }
+            catch (Exception) { result.Issues.Add(Issue("gear", Common.UnavailableReason.ReadFailed, "Complete native loadout upkeep is unavailable.")); }
             var people = map.mapPawns.FreeColonistsSpawned.Where(p => !p.Dead).ToList();
             var demand = people.Sum(p => p.needs?.food == null ? 0f : p.needs.food.FoodFallPerTickAssumingCategory(HungerCategory.Fed, true) * 60000f);
             var animals = map.mapPawns.AllPawnsSpawned.Where(p => !p.Dead && p.RaceProps.Animal
