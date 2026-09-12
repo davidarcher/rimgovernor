@@ -36,6 +36,7 @@ type ClockSchedulerConfig struct {
 	Cooking        *RoutineBuildingPlanner
 	Comfort        *RoutineBuildingPlanner
 	Expansion      *RoutineBuildingPlanner
+	Power          *RoutineBuildingPlanner
 	RoutineMethods bool
 }
 type ClockSchedulerResult struct {
@@ -46,6 +47,7 @@ type ClockSchedulerResult struct {
 	Cooking                      *RoutineBuildingResult
 	Comfort                      *RoutineBuildingResult
 	Expansion                    *RoutineBuildingResult
+	Power                        *RoutineBuildingResult
 	Running, Reconciled, Cleaned bool
 }
 type ClockScheduler struct {
@@ -77,6 +79,9 @@ func NewClockScheduler(player *Player, session *Session, native ClockWindowNativ
 		return nil, ErrControl
 	}
 	if config.Expansion != nil && (config.Routine == nil || config.Expansion.reviewer != config.Routine || config.Expansion.goal != policy.EnsureExpansion) {
+		return nil, ErrControl
+	}
+	if config.Power != nil && (config.Routine == nil || config.Power.reviewer != config.Routine || config.Power.goal != policy.EnsureBasicPower) {
 		return nil, ErrControl
 	}
 	if config.RoutineMethods && (config.Routine == nil || !session.routineMethods) {
@@ -235,6 +240,13 @@ func (s *ClockScheduler) Step(ctx context.Context) (ClockSchedulerResult, error)
 		}
 		out.Sleeping = &method
 	}
+	if s.config.Power != nil {
+		method, err := s.config.Power.step(call, epoch)
+		if err != nil {
+			return out, err
+		}
+		out.Power = &method
+	}
 	if s.config.Cooking != nil {
 		method, methodErr := s.config.Cooking.step(call, epoch)
 		if methodErr != nil {
@@ -304,7 +316,7 @@ func (s *ClockScheduler) Step(ctx context.Context) (ClockSchedulerResult, error)
 	clockState := policy.ClockWindowState("")
 	start := s.config.Start
 	var nativeWorkTicks uint32
-	for _, result := range []*RoutineBuildingResult{out.Sleeping, out.Comfort, out.Expansion} {
+	for _, result := range []*RoutineBuildingResult{out.Sleeping, out.Comfort, out.Expansion, out.Power} {
 		if result != nil {
 			nativeWorkTicks = max(nativeWorkTicks, result.NativeWorkTicks)
 		}

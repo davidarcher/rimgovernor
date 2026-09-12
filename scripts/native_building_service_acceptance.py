@@ -140,7 +140,7 @@ async def joined_shutdown(process, record, timeout=30):
 
 
 @asynccontextmanager
-async def service(binary, gabs, configuration, profile, state, directory, report, *, clock_control=False, routine_reviews=False, routine_methods=False, routine_cooking=False, routine_shelter=False, routine_comfort=False, routine_expansion=False, resource_rules=()):
+async def service(binary, gabs, configuration, profile, state, directory, report, *, clock_control=False, routine_reviews=False, routine_methods=False, routine_cooking=False, routine_shelter=False, routine_comfort=False, routine_expansion=False, routine_power=False, resource_rules=()):
     directory.mkdir()
     record = {"phase": directory.name, "argv": service_argv(binary, gabs, configuration, profile, state), "joined": False}
     for rule in resource_rules:
@@ -152,11 +152,12 @@ async def service(binary, gabs, configuration, profile, state, directory, report
         record["argv"].append("--routine-reviews")
     if routine_methods:
         assert routine_reviews
-        planner = "--routine-expansion-plans" if routine_expansion else "--routine-comfort-plans" if routine_comfort else "--routine-shelter-plans" if routine_shelter else "--routine-sleeping-plans"
+        planner = "--routine-power-plans" if routine_power else "--routine-expansion-plans" if routine_expansion else "--routine-comfort-plans" if routine_comfort else "--routine-shelter-plans" if routine_shelter else "--routine-sleeping-plans"
         record["argv"].extend([planner, "--routine-methods"])
     assert not routine_shelter or routine_methods
     assert not routine_comfort or routine_methods
     assert not routine_expansion or routine_methods
+    assert not routine_power or routine_methods
     if routine_cooking:
         assert routine_reviews
         record["argv"].append("--routine-cooking-plans")

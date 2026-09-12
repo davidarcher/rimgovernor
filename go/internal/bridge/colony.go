@@ -153,8 +153,11 @@ func ValidateColonyFacts(v *o.ColonyFactsSnapshot, identity *c.Identity) error {
 			}
 		}
 	}
-	if len(v.PolicyResources) != 0 || len(v.Environment) != 0 || v.FoodClimate != nil || len(v.Acquisition) != 0 || len(v.Butchering) != 0 || len(v.FoodCorpses) != 0 || v.Recovery != nil || v.Waste != nil {
+	if len(v.PolicyResources) != 0 || v.FoodClimate != nil || len(v.Acquisition) != 0 || len(v.Butchering) != 0 || len(v.FoodCorpses) != 0 || v.Recovery != nil || v.Waste != nil {
 		return contract("unreviewed colony section")
+	}
+	if err := validateColonyEnvironment(v); err != nil {
+		return err
 	}
 	if err := validateColonyProduction(v); err != nil {
 		return err
@@ -184,7 +187,7 @@ func ValidateColonyFacts(v *o.ColonyFactsSnapshot, identity *c.Identity) error {
 		return err
 	}
 	if power := v.GetDevelopment().GetObserved(); power != nil {
-		if err := validateColonyPower(power, identity); err != nil {
+		if err := validateColonyPower(power, identity, v.MapSize); err != nil {
 			return err
 		}
 	} else if err := validateUnavailable(v.GetDevelopment().GetUnavailable()); err != nil {

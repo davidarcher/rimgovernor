@@ -7900,7 +7900,7 @@
           "path": "integrations/rimgovernor-native/src/Bridge/Protocol/NativeColonyObservationTools.cs",
           "line": 28,
           "declaration": "[Tool(ToolName, Title = \"Read typed routine colony facts\", Description = \"Native colony, accessible stock, sleeping capacity, temperature and storage facts. Optional bounded starter geometry/definitions. Raw food runway is not a diet/rot forecast. Unported sections are explicitly unavailable. Read-only; no authority or orders.\")]\n        [ToolResponse(\"payload\", \"string\", \"Official ColonyFactsReply ProtoJSON, bounded to1MiB.\", Always = true)]\n        public async Task<object> ReadColonyFacts(IRimBridgeContext ctx, CancellationToken cancellationToken,\n            [ToolParameter(Description = \"Raw ColonyFactsRequest ProtoJSON string.\")] object? request = null)",
-          "source_sha256": "a015f27cbe009739e4e5399cd0bad8f6d4f7d6277ab7038f8542ca66cfb95b9f"
+          "source_sha256": "a5b6922b59a99c79e533f162c8d24802202928e087bda64cd0ffab5ff53e5ddd"
         },
         {
           "name": "rimgovernor/observations_read_research",
@@ -8094,23 +8094,23 @@
         {
           "name": "test/forecast_refuel",
           "path": "scripts/fixtures/ForecastFixture.cs",
-          "line": 112,
+          "line": 169,
           "declaration": "[Tool(\"test/forecast_refuel\", Description = \"Supply the disposable test generator; test builds only. Subsequent charging is native simulation.\")]\n        public async Task<object> Refuel(IRimBridgeContext ctx, CancellationToken cancellationToken)",
-          "source_sha256": "46f2f00a2b123f4b9685d6da383580f07f0379269b26bb57530e2eda580c48ac"
+          "source_sha256": "76c924bcbe1bf221e6d75e092c3d7fc49dd878ded3ce04bbdef942a1937d27af"
         },
         {
           "name": "test/forecast_setup",
           "path": "scripts/fixtures/ForecastFixture.cs",
-          "line": 46,
+          "line": 103,
           "declaration": "[Tool(\"test/forecast_setup\", Description = \"Create a disposable power/food forecast fixture. Test builds only; no construction acceptance.\")]\n        public async Task<object> Setup(IRimBridgeContext ctx, CancellationToken cancellationToken)",
-          "source_sha256": "46f2f00a2b123f4b9685d6da383580f07f0379269b26bb57530e2eda580c48ac"
+          "source_sha256": "76c924bcbe1bf221e6d75e092c3d7fc49dd878ded3ce04bbdef942a1937d27af"
         },
         {
           "name": "test/forecast_state",
           "path": "scripts/fixtures/ForecastFixture.cs",
-          "line": 101,
+          "line": 158,
           "declaration": "[Tool(\"test/forecast_state\", Description = \"Read retained fixture rot state even after native destruction. Test builds only.\")]\n        public async Task<object> State(IRimBridgeContext ctx, CancellationToken cancellationToken)",
-          "source_sha256": "46f2f00a2b123f4b9685d6da383580f07f0379269b26bb57530e2eda580c48ac"
+          "source_sha256": "76c924bcbe1bf221e6d75e092c3d7fc49dd878ded3ce04bbdef942a1937d27af"
         },
         {
           "name": "test/gear_fixture",
@@ -8288,11 +8288,18 @@
           "source_sha256": "90db576521257d3f3dba9c29a0868860ea4a03d5d757fa6a86f5faa8b79c311c"
         },
         {
-          "name": "test/routine_power_setup",
+          "name": "test/routine_power_methods",
           "path": "scripts/fixtures/ForecastFixture.cs",
           "line": 18,
+          "declaration": "[Tool(\"test/routine_power_methods\", Description = \"UNSAFE FOR MODEL EXECUTION. Prepare a disposable consumer, optional distant unfueled generator, research, materials and qualified builder. Does not create conduits or execute construction/refueling jobs.\")]\n        public async Task<object> RoutinePowerMethods(IRimBridgeContext ctx, CancellationToken cancellationToken, bool connectExisting = false)",
+          "source_sha256": "76c924bcbe1bf221e6d75e092c3d7fc49dd878ded3ce04bbdef942a1937d27af"
+        },
+        {
+          "name": "test/routine_power_setup",
+          "path": "scripts/fixtures/ForecastFixture.cs",
+          "line": 75,
           "declaration": "[Tool(\"test/routine_power_setup\", Description = \"Spawn an unfueled generator and electrical consumer in a disposable paused colony. Power observation only; no construction acceptance.\")]\n        public async Task<object> RoutinePower(IRimBridgeContext ctx, CancellationToken cancellationToken)",
-          "source_sha256": "46f2f00a2b123f4b9685d6da383580f07f0379269b26bb57530e2eda580c48ac"
+          "source_sha256": "76c924bcbe1bf221e6d75e092c3d7fc49dd878ded3ce04bbdef942a1937d27af"
         },
         {
           "name": "test/routine_production_prepare",
@@ -10489,6 +10496,23 @@
         "status": "pending",
         "uncovered_acceptance": [
           "Verify exact populated active Anomaly backing-slot preservation; this fixture never initializes slots or writes research."
+        ]
+      },
+      {
+        "name": "test/routine_power_methods",
+        "domain_item_id": null,
+        "schema_owner_chunk": "G01.02",
+        "native_owner_chunk": "N01.07",
+        "build_role": "fixture",
+        "fixtures": [],
+        "native_scenarios": [
+          "scripts/native_go_routine_acceptance.py"
+        ],
+        "status": "pending",
+        "uncovered_acceptance": [
+          "Capture actual SDK discovery and representative replies for this build; declarations are source evidence only.",
+          "Audit every advertised/implemented argument variant, defaults, invalid values and refusal semantics; signatures retain advertised contracts but are not an exhaustive behavioral schema.",
+          "Verify isolated native outcomes and relevant interruption/load/player-override behavior; linked existing scenarios are candidates, not per-tool acceptance."
         ]
       },
       {

@@ -15,6 +15,63 @@ namespace HomeBridge.BridgeTools
         private static Thing battery;
         private static Thing rice;
 
+        [Tool("test/routine_power_methods", Description = "UNSAFE FOR MODEL EXECUTION. Prepare a disposable consumer, optional distant unfueled generator, research, materials and qualified builder. Does not create conduits or execute construction/refueling jobs.")]
+        public async Task<object> RoutinePowerMethods(IRimBridgeContext ctx, CancellationToken cancellationToken, bool connectExisting = false)
+        {
+            return await ctx.MainThread.InvokeAsync<object>(() => {
+                var map = Find.CurrentMap;
+                if (map == null || !Find.TickManager.Paused) throw new InvalidOperationException("Paused disposable colony required.");
+                if (map.listerBuildings.allBuildingsColonist.Any(b => b.TryGetComp<CompPowerTrader>() != null))
+                    throw new InvalidOperationException("Power method fixture requires no existing power traders.");
+                var people = map.mapPawns.FreeColonistsSpawned.Where(p => !p.Dead).ToList();
+                var center = new IntVec3((int)people.Average(p => p.Position.x), 0, (int)people.Average(p => p.Position.z));
+                var definitions = new[] { "WoodFiredGenerator", "PowerConduit", "StandingLamp" }.Select(ThingDef.Named).ToList();
+                foreach (var project in definitions.SelectMany(d => d.researchPrerequisites ?? Enumerable.Empty<ResearchProjectDef>()).Distinct())
+                    if (!project.IsFinished) Find.ResearchManager.FinishProject(project, false);
+                var requiredConstruction = definitions.Max(d => d.constructionSkillPrerequisite);
+                var construction = DefDatabase<WorkTypeDef>.GetNamed("Construction");
+                var builder = people.Where(p => !p.WorkTypeIsDisabled(construction) && !p.skills.GetSkill(SkillDefOf.Construction).TotallyDisabled)
+                    .OrderByDescending(p => p.skills.GetSkill(SkillDefOf.Construction).Level).FirstOrDefault();
+                if (builder == null) throw new InvalidOperationException("No capable fixture builder.");
+                builder.skills.GetSkill(SkillDefOf.Construction).Level = Math.Max(requiredConstruction, builder.skills.GetSkill(SkillDefOf.Construction).Level);
+                var sites = GenRadial.RadialCellsAround(center, 20, true).Where(c =>
+                    CellRect.FromLimits(c, c + new IntVec3(16, 0, 6)).Cells.All(p => p.InBounds(map) && !p.Fogged(map)
+                        && Math.Abs(p.x - center.x) <= 20 && Math.Abs(p.z - center.z) <= 20 && p.Standable(map)
+                        && p.GetEdifice(map) == null && map.zoneManager.ZoneAt(p) == null
+                        && !p.GetThingList(map).Any(t => t is Pawn || t is Blueprint || t is Frame)
+                        && p.GetTerrain(map).affordances.Contains(TerrainAffordanceDefOf.Heavy))).Take(1).ToList();
+                if (sites.Count != 1) throw new InvalidOperationException("No bounded power fixture site.");
+                var origin = sites[0];
+                foreach (var plant in CellRect.FromLimits(origin, origin + new IntVec3(16, 0, 6)).Cells.Select(c => c.GetPlant(map)).Where(p => p != null).ToList()) plant.Destroy();
+                Func<string, int, int, Thing> spawn = (name, x, z) => {
+                    var thing = ThingMaker.MakeThing(ThingDef.Named(name));
+                    thing.SetFaction(Faction.OfPlayer);
+                    GenSpawn.Spawn(thing, origin + new IntVec3(x, 0, z), map);
+                    thing.SetForbidden(false, false);
+                    return thing;
+                };
+                var lamp = spawn("StandingLamp", 2, 2);
+                Thing source = null;
+                if (connectExisting) {
+                    source = spawn("WoodFiredGenerator", 14, 2);
+                    var fuel = source.TryGetComp<CompRefuelable>();
+                    fuel.ConsumeFuel(fuel.Fuel);
+                }
+                foreach (var name in new[] { "Steel", "WoodLog" }) {
+                    for (var i = 0; i < 4; i++) {
+                        var stack = ThingMaker.MakeThing(ThingDef.Named(name));
+                        stack.stackCount = Math.Min(stack.def.stackLimit, 75);
+                        GenSpawn.Spawn(stack, origin + new IntVec3(2 + i, 0, name == "Steel" ? 5 : 6), map);
+                        stack.SetForbidden(false, false);
+                    }
+                }
+                return new { success = true, consumer = lamp.GetUniqueLoadID(), generator = source?.GetUniqueLoadID(),
+                    connectExisting, requiredConstruction, builder = builder.GetUniqueLoadID(),
+                    consumerCell = new { x = lamp.Position.x, z = lamp.Position.z },
+                    setupOnly = true };
+            }, cancellationToken);
+        }
+
         [Tool("test/routine_power_setup", Description = "Spawn an unfueled generator and electrical consumer in a disposable paused colony. Power observation only; no construction acceptance.")]
         public async Task<object> RoutinePower(IRimBridgeContext ctx, CancellationToken cancellationToken)
         {

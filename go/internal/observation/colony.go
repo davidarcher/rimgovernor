@@ -22,6 +22,7 @@ type ColonyProjection struct {
 	WorkPawns          domain.Fact[[]policy.WorkPawn]
 	FieldCrops         domain.Fact[[]policy.FieldCrop]
 	CookingBenches     domain.Fact[[]CookingBench]
+	PowerPlanning      domain.Fact[policy.PowerTopology]
 	Identity           Identity
 	Facts              policy.RoutineFacts
 	Workers            domain.Fact[int]
@@ -106,9 +107,31 @@ func DecodeColony(reply *o.ColonyFactsReply, expected Identity) (ColonyProjectio
 	r.Facts = policy.RoutineFacts{Colonists: countFact(v.ColonistCount), BedCapacity: countFact(v.BedCapacity), IndoorCapacity: countFact(v.IndoorSleepingCapacity), SleepingMin: optional(v.SleepingTemperatureMinC), SleepingMax: optional(v.SleepingTemperatureMaxC), OutdoorTemperature: optional(v.OutdoorTemperatureC), FoodStorage: optional(v.FoodStorage)}
 	if development := v.GetDevelopment().GetObserved(); development != nil {
 		power := make([]policy.PowerBuilding, 0, len(development.Power))
+		topology := policy.PowerTopology{}
+		geometryKnown := true
+		if !hasIssue(v.Issues, "environment") {
+			blackout := false
+			for _, condition := range v.Environment {
+				blackout = blackout || condition.GetDefName() == "SolarFlare"
+			}
+			topology.Blackout = domain.Known(blackout)
+		}
 		for _, row := range development.Power {
 			s := row.Building.Service
 			power = append(power, policy.PowerBuilding{BaseW: optional(row.BaseW), OutputW: optional(s.PowerOutputW), Powered: optional(s.PowerOn), Connected: optional(s.Connected), Network: optional(s.PowerNetId), Forbidden: optional(row.Building.Settings.Forbidden), SwitchedOn: optional(s.SwitchedOn)})
+			ref := row.Building.Building
+			geometryKnown = geometryKnown && ref.DefName != nil && ref.Position != nil && len(row.Building.OccupiedCells) > 0
+			site := policy.PowerSite{ID: ref.GetId(), Definition: ref.GetDefName(), Cell: domain.Cell{X: ref.GetPosition().GetX(), Z: ref.GetPosition().GetZ()}, PowerBuilding: power[len(power)-1]}
+			for _, c := range row.Building.OccupiedCells {
+				site.Occupied = append(site.Occupied, domain.Cell{X: c.GetX(), Z: c.GetZ()})
+			}
+			topology.Buildings = append(topology.Buildings, site)
+		}
+		for _, row := range development.Furniture {
+			topology.Conduits = append(topology.Conduits, domain.Cell{X: row.Building.Position.GetX(), Z: row.Building.Position.GetZ()})
+		}
+		if geometryKnown {
+			r.PowerPlanning = domain.Known(topology)
 		}
 		r.Facts.PowerRequired, r.Facts.PowerHeadroom, r.Facts.DisabledConsumers = policy.PowerCoverage(domain.Known(power))
 	}

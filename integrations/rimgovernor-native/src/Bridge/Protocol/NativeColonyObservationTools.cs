@@ -123,7 +123,12 @@ namespace HomeBridge.BridgeTools
             else if (Find.WindowStack == null || Find.WindowStack.Windows.OfType<Dialog_NamePlayerFactionAndSettlement>().Any())
                 result.Issues.Add(Issue("naming", Common.UnavailableReason.Unsupported, "Naming window census is unavailable or obstructed by another paused dialog."));
             else result.Issues.Add(Issue("naming", Common.UnavailableReason.NotApplicable, "No pending colony naming dialog."));
-            foreach (var field in new[] { "policy_resources", "pending_food_nutrition", "environment", "food_climate", "acquisition", "butchering", "food_corpses", "recovery", "waste" })
+            var conditions = new List<GameCondition>();
+            map.gameConditionManager.GetAllGameConditionsAffectingMap(map, conditions);
+            Bound(conditions.Count, limit);
+            foreach (var condition in conditions)
+                result.Environment.Add(new Obs.EnvironmentCondition { Id = condition.uniqueID.ToString(System.Globalization.CultureInfo.InvariantCulture), DefName = condition.def.defName });
+            foreach (var field in new[] { "policy_resources", "pending_food_nutrition", "food_climate", "acquisition", "butchering", "food_corpses", "recovery", "waste" })
                 result.Issues.Add(Issue(field, Common.UnavailableReason.Unsupported, "Section is not yet projected."));
             result.Planning = request.Planning ? new Obs.PlanningSection { Observed = Planning(map, center, request, context, limit) }
                 : new Obs.PlanningSection { Unavailable = Unavailable(Common.UnavailableReason.NotRequested, "Planning was not requested.") };
@@ -145,17 +150,26 @@ namespace HomeBridge.BridgeTools
         {
             var traders = map.listerBuildings.allBuildingsColonist.Select(b => b.TryGetComp<CompPowerTrader>())
                 .Where(p => p != null).OrderBy(p => p.parent.thingIDNumber).ToList();
-            Bound(traders.Count, limit);
-            var result = new Obs.DevelopmentFacts { Completeness = Complete(traders.Count) };
+            var conduits = map.listerBuildings.allBuildingsColonist.Where(b => b.def.defName == "PowerConduit")
+                .OrderBy(b => b.thingIDNumber).ToList();
+            Bound(traders.Count + conduits.Count, limit);
+            var result = new Obs.DevelopmentFacts { Completeness = Complete(traders.Count + conduits.Count) };
             foreach (var power in traders) {
                 var building = power.parent;
                 var service = new Obs.BuildingServiceState { Connected = power.PowerNet != null, PowerOn = power.PowerOn,
                     PowerOutputW = Finite(power.PowerOutput), SwitchedOn = building.TryGetComp<CompFlickable>()?.SwitchIsOn ?? true };
                 if (power.PowerNet != null) service.PowerNetId = power.PowerNet.GetHashCode().ToString(System.Globalization.CultureInfo.InvariantCulture);
-                result.Power.Add(new Obs.DevelopmentPower { BaseW = Finite(-power.Props.PowerConsumption),
-                    Building = new Obs.BuildingState { Building = new Obs.EntityRef { Id = building.GetUniqueLoadID(), MapId = map.uniqueID },
-                        Service = service, Settings = new Obs.BuildingSettings { Forbidden = building.IsForbidden(Faction.OfPlayer) } } });
+                var state = new Obs.BuildingState { Building = new Obs.EntityRef { Id = building.GetUniqueLoadID(), MapId = map.uniqueID,
+                        DefName = building.def.defName, Position = Cell(building.Position) },
+                    Service = service, Settings = new Obs.BuildingSettings { Forbidden = building.IsForbidden(Faction.OfPlayer) } };
+                var occupied = building.OccupiedRect().Cells.ToList();
+                Bound(occupied.Count, 4096);
+                foreach (var cell in occupied) state.OccupiedCells.Add(Cell(cell));
+                result.Power.Add(new Obs.DevelopmentPower { BaseW = Finite(-power.Props.PowerConsumption), Building = state });
             }
+            foreach (var conduit in conduits)
+                result.Furniture.Add(new Obs.DevelopmentFurniture { Building = new Obs.EntityRef { Id = conduit.GetUniqueLoadID(),
+                    MapId = map.uniqueID, DefName = conduit.def.defName, Position = Cell(conduit.Position) } });
             return result;
         }
 

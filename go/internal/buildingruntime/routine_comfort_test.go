@@ -47,9 +47,13 @@ func TestComfortPlacementRejectsCrampedRecreationAndPreservesUnknown(t *testing.
 	}
 }
 
-func TestComfortNativeUseBudgetRequiresOutcomeAndCurrentDirection(t *testing.T) {
-	for _, definition := range []string{"Table1x2c", "DiningChair", "HorseshoesPin", "Campfire"} {
+func TestRoutineBuildingNativeUseBudgetRequiresOutcomeAndCurrentDirection(t *testing.T) {
+	for _, definition := range []string{"Table1x2c", "DiningChair", "HorseshoesPin", "Campfire", "WoodFiredGenerator", "PowerConduit"} {
 		t.Run(definition, func(t *testing.T) {
+			budget := comfortNativeWorkTicks
+			if definition == "WoodFiredGenerator" || definition == "PowerConduit" {
+				budget = powerNativeWorkTicks
+			}
 			building, err := domain.NewBuilding(definition, domain.Cell{X: 2, Z: 2}, domain.North, "")
 			if err != nil {
 				t.Fatal(err)
@@ -72,7 +76,7 @@ func TestComfortNativeUseBudgetRequiresOutcomeAndCurrentDirection(t *testing.T) 
 			snapshot := current
 			snapshot.Plan, snapshot.Revision = spec.ID(), spec.Revision()
 			state := store.PlanState{Spec: spec, Progress: []domain.Progress{p}}
-			if comfortNativeWorkTicks(state, current, 7) != 0 {
+			if budget(state, current, 7) != 0 {
 				t.Fatal("pending furniture granted time")
 			}
 			p, err = p.Prepare(snapshot, 7)
@@ -88,7 +92,7 @@ func TestComfortNativeUseBudgetRequiresOutcomeAndCurrentDirection(t *testing.T) 
 				t.Fatal(err)
 			}
 			state.Progress[0] = p
-			if comfortNativeWorkTicks(state, current, 7) != 0 {
+			if budget(state, current, 7) != 0 {
 				t.Fatal("receipt granted time")
 			}
 			p, err = p.Observe(domain.Observation{Action: action.ID(), Attempt: 1, Snapshot: snapshot, Tick: 100, Effect: domain.EffectCompleted, Causality: domain.AfterDispatch}, snapshot)
@@ -104,12 +108,12 @@ func TestComfortNativeUseBudgetRequiresOutcomeAndCurrentDirection(t *testing.T) 
 				if definition == "Campfire" {
 					want = 0
 				}
-				if got := comfortNativeWorkTicks(state, current, row.tick); got != want {
+				if got := budget(state, current, row.tick); got != want {
 					t.Fatal(row, got, want)
 				}
 			}
 			current.Direction++
-			if comfortNativeWorkTicks(state, current, 100) != 0 {
+			if budget(state, current, 100) != 0 {
 				t.Fatal("new direction inherited time")
 			}
 		})

@@ -194,6 +194,15 @@ generation on unrelated networks does not cover a deficit. Disconnected or unpow
 consumers remain deficits, while no consumers means no electrical requirement.
 Enabled, unforbidden consumers without power also remain recovery targets. Missing
 census or service facts preserve unknown coverage. These reads issue no power orders.
+The same bounded census carries native trader footprints, conduit positions and
+active map conditions for power planning. `serve --routine-power-plans` compiles
+network-local generation or up to eight conduit cells through shared building
+admission; `--routine-methods` enables their existing Hands execution. Installed
+capacity waits for ordinary refueling/output. Solar flares and player-disabled
+equipment hold proposals. Completed methods lend at most 10,000 ticks for native
+power recovery, scoped to the current direction; native consumer power establishes
+recovery. Targeted gameplay acceptance uses `native_go_routine_acceptance.py
+--power-methods generation` or `--power-methods conduit` with ForecastFixture.
 
 `ReadRoutinePawns` adds the work-only detail selection to the same exact-ID read.
 It preserves native work applicability and numbered/checkbox mode. `AssignWork`

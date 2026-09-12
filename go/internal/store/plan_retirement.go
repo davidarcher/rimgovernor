@@ -146,3 +146,49 @@ func (s *Store) LoadGoalMethod(ctx context.Context, goal domain.GoalID, epoch ui
 	}
 	return m, nil
 }
+
+// LoadGoalMethods includes retired bindings for one epoch. The bounded history
+// is evidence only; it cannot restore retired work to execution or accounting.
+func (s *Store) LoadGoalMethods(ctx context.Context, goal domain.GoalID, epoch uint64) ([]domain.GoalMethod, error) {
+	tx, err := s.begin(ctx)
+	if err != nil {
+		return nil, err
+	}
+	defer tx.Rollback()
+	g, err := loadGoal(ctx, tx, goal)
+	if err != nil {
+		return nil, err
+	}
+	if epoch > g.Goal.Epoch {
+		return nil, errors.New("invalid historical method epoch")
+	}
+	rows, err := tx.QueryContext(ctx, "SELECT method_id,plan_id FROM goal_methods WHERE goal_id=? AND epoch=? ORDER BY method_id LIMIT 257", goal, strconv.FormatUint(epoch, 10))
+	if err != nil {
+		return nil, err
+	}
+	var result []domain.GoalMethod
+	for rows.Next() {
+		m := domain.GoalMethod{Goal: goal, Epoch: epoch}
+		if err = rows.Scan(&m.Method, &m.Plan); err != nil {
+			rows.Close()
+			return nil, err
+		}
+		if err = m.Validate(); err != nil {
+			rows.Close()
+			return nil, err
+		}
+		result = append(result, m)
+	}
+	err = rows.Err()
+	rows.Close()
+	if err != nil {
+		return nil, err
+	}
+	if len(result) > 256 {
+		return nil, errors.New("goal method history exceeds bound")
+	}
+	if err = tx.Commit(); err != nil {
+		return nil, err
+	}
+	return result, nil
+}

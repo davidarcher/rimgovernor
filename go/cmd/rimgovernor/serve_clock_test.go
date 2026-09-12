@@ -191,3 +191,15 @@ func TestExpansionServeRequiresReviewsAndCanOwnRoutineMethods(t *testing.T) {
 		t.Fatalf("expansion configuration: %+v %v", c, err)
 	}
 }
+
+func TestPowerServeRequiresReviewsAndCanOwnRoutineMethods(t *testing.T) {
+	dir := t.TempDir()
+	base := []string{"--gabs", filepath.Join(dir, "gabs"), "--config", dir, "--game", "game", "--state", filepath.Join(dir, "state.db"), "--clock-control", "--player-control", "--profile", dir, "--routine-power-plans"}
+	if _, err := parseServe(base, io.Discard); err == nil {
+		t.Fatal("power compiler accepted without reviews")
+	}
+	c, err := parseServe(append(base, "--routine-reviews", "--routine-methods"), io.Discard)
+	if err != nil || !c.routinePowerPlans || !c.routineMethods || c.routineSleepingPlans {
+		t.Fatal(c, err)
+	}
+}

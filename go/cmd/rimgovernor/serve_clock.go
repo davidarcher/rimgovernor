@@ -43,10 +43,10 @@ func serviceClockConfig(profile string) buildingruntime.ClockSchedulerConfig {
 
 // Session owns the attached worker's drain, including failed startup cleanup.
 // Starting these loops does not enable Player or acquire native authority.
-func startServiceClock(ctx context.Context, player *buildingruntime.Player, session *buildingruntime.Session, reads serviceClockReads, profile string, timeout time.Duration, routine, sleeping, cooking, shelter, comfort, expansion bool, projectLimit int) error {
+func startServiceClock(ctx context.Context, player *buildingruntime.Player, session *buildingruntime.Session, reads serviceClockReads, profile string, timeout time.Duration, routine, sleeping, cooking, shelter, comfort, expansion, power bool, projectLimit int) error {
 	config := serviceClockConfig(profile)
 	config.RoutineMethods = session.RoutineMethodsEnabled()
-	if (sleeping || cooking || shelter || comfort || expansion) && !routine {
+	if (sleeping || cooking || shelter || comfort || expansion || power) && !routine {
 		return errors.New("building plans require routine reviews")
 	}
 	if routine {
@@ -57,6 +57,9 @@ func startServiceClock(ctx context.Context, player *buildingruntime.Player, sess
 		thresholds := policy.DefaultRoutinePolicy()
 		thresholds.MaxDevelopmentProjects = projectLimit
 		capabilities := buildingruntime.RoutineCapabilities{}
+		if power {
+			capabilities.Methods = append(capabilities.Methods, policy.EnsureBasicPower)
+		}
 		if comfort {
 			capabilities.Methods = append(capabilities.Methods, policy.EnsureComfort)
 		}
@@ -68,7 +71,7 @@ func startServiceClock(ctx context.Context, player *buildingruntime.Player, sess
 			return err
 		}
 		config.Routine = reviewer
-		if sleeping || cooking || shelter || comfort || expansion {
+		if sleeping || cooking || shelter || comfort || expansion || power {
 			source, ok := reads.(buildingruntime.RoutineBuildingSource)
 			if !ok {
 				return errors.New("building plans require typed placement previews")
@@ -80,6 +83,12 @@ func startServiceClock(ctx context.Context, player *buildingruntime.Player, sess
 				}
 			} else if sleeping {
 				config.Sleeping, err = buildingruntime.NewRoutineSleepingPlanner(reviewer, source)
+				if err != nil {
+					return err
+				}
+			}
+			if power {
+				config.Power, err = buildingruntime.NewRoutinePowerPlanner(reviewer, source)
 				if err != nil {
 					return err
 				}

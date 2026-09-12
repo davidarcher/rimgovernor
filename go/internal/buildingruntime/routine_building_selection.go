@@ -32,6 +32,17 @@ func (r *RoutineBuildingPlanner) selection(facts observation.ColonyProjection) (
 		return 0, "", BuildingMethodUnknown
 	}
 	switch r.goal {
+	case policy.EnsureBasicPower:
+		if r.power == nil {
+			return 0, "", BuildingMethodUnknown
+		}
+		if r.power.Method == policy.PowerConnect {
+			return int64(len(r.power.Cells)), r.power.Key, ""
+		}
+		if r.power.Method == policy.PowerGenerate {
+			return 1, r.power.Key, ""
+		}
+		return 0, "", BuildingMethodUnknown
 	case policy.EnsureComfort:
 		return 1, domain.MethodID("comfort-" + r.definition), ""
 	case policy.EnsureInitialShelter, policy.EnsureExpansion:

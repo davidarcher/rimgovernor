@@ -52,6 +52,7 @@ type RoutineBuildingPlanner struct {
 	environment policy.PlacementEnvironment
 	adjacent    []domain.Cell
 	shelter     bool
+	power       *policy.PowerProposal
 }
 
 func NewRoutineSleepingPlanner(reviewer *RoutineReviewer, native RoutineBuildingSource) (*RoutineBuildingPlanner, error) {
@@ -144,11 +145,14 @@ func (r *RoutineBuildingPlanner) step(call, epoch context.Context) (RoutineBuild
 	if r.goal == policy.EnsureComfort {
 		definitions = []string{"Table1x2c", "DiningChair", "HorseshoesPin"}
 	}
+	if r.goal == policy.EnsureBasicPower {
+		definitions = []string{"WoodFiredGenerator", "PowerConduit"}
+	}
 	if r.shelter {
 		definitions = []string{"Wall", "Door"}
 	}
 	var reading observation.ColonyReading
-	if r.goal == policy.EnsureComfort {
+	if r.goal == policy.EnsureComfort || r.goal == policy.EnsureBasicPower {
 		full, readErr := observation.ObserveRoutine(call, r.native.(observation.RoutineSource), r.reviewer.clock, expected, r.reviewer.maxAge, definitions...)
 		reading, err = full.ColonyReading, readErr
 	} else {
@@ -158,15 +162,25 @@ func (r *RoutineBuildingPlanner) step(call, epoch context.Context) (RoutineBuild
 		return RoutineBuildingResult{}, err
 	}
 	facts := reading.Projection
-	if r.goal == policy.EnsureComfort {
-		resolved, reason, err := r.selectComfort(facts, review.Comfort)
+	if r.goal == policy.EnsureComfort || r.goal == policy.EnsureBasicPower {
+		var resolved *RoutineBuildingPlanner
+		var reason RoutineBuildingReason
+		if r.goal == policy.EnsureBasicPower {
+			resolved, reason, err = r.selectPower(facts)
+		} else {
+			resolved, reason, err = r.selectComfort(facts, review.Comfort)
+		}
 		if err != nil {
 			return RoutineBuildingResult{}, err
 		}
 		if reason != "" {
 			result := RoutineBuildingResult{Reason: reason}
-			if reason == BuildingComfortWait {
-				result.NativeWorkTicks, err = comfortUseAllowance(call, p.journal, goal.Goal, state.Snapshot, facts.Identity.Tick)
+			if reason == BuildingComfortWait || reason == RoutineBuildingReason(policy.PowerWaitOutput) {
+				if r.goal == policy.EnsureBasicPower {
+					result.NativeWorkTicks, err = powerOutputAllowance(call, p.journal, goal.Goal, state.Snapshot, facts.Identity.Tick)
+				} else {
+					result.NativeWorkTicks, err = comfortUseAllowance(call, p.journal, goal.Goal, state.Snapshot, facts.Identity.Tick)
+				}
 				if err != nil {
 					return RoutineBuildingResult{}, err
 				}
@@ -199,7 +213,7 @@ func (r *RoutineBuildingPlanner) step(call, epoch context.Context) (RoutineBuild
 		return RoutineBuildingResult{Reason: reason}, nil
 	}
 	available := routineDefinitionsAvailable(facts, definitions, r.shelter)
-	if r.goal == policy.EnsureComfort {
+	if r.goal == policy.EnsureComfort || r.goal == policy.EnsureBasicPower {
 		preferences, loadErr := p.journal.LoadWorkPreferences(call, state.Snapshot.Plan)
 		if loadErr != nil && !errors.Is(loadErr, store.ErrNotFound) {
 			return RoutineBuildingResult{}, loadErr
@@ -239,6 +253,9 @@ func (r *RoutineBuildingPlanner) step(call, epoch context.Context) (RoutineBuild
 	if r.goal == policy.EnsureCooking {
 		prefix = "routine-cook"
 	}
+	if r.goal == policy.EnsureBasicPower {
+		prefix = "routine-power"
+	}
 	if r.goal == policy.EnsureComfort {
 		prefix = "routine-comfort"
 	}
@@ -253,8 +270,11 @@ func (r *RoutineBuildingPlanner) step(call, epoch context.Context) (RoutineBuild
 	if err != nil {
 		return RoutineBuildingResult{}, err
 	}
-	if r.goal == policy.EnsureCooking || r.goal == policy.EnsureComfort || r.goal == policy.EnsureExpansion {
+	if r.goal == policy.EnsureCooking || r.goal == policy.EnsureComfort || r.goal == policy.EnsureExpansion || r.goal == policy.EnsureBasicPower {
 		pending := func(progress domain.Progress) bool {
+			if r.goal == policy.EnsureBasicPower {
+				return pendingFacility(progress, "PowerConduit") || pendingFacility(progress, "WoodFiredGenerator")
+			}
 			if r.goal == policy.EnsureExpansion {
 				return pendingFacility(progress, "SleepingSpot") || pendingFacility(progress, "Bed") || pendingFacility(progress, "DoubleBed") || pendingFacility(progress, "RoyalBed")
 			}
@@ -343,6 +363,9 @@ func (r *RoutineBuildingPlanner) step(call, epoch context.Context) (RoutineBuild
 }
 
 func (r *RoutineBuildingPlanner) previewMethod(call context.Context, snapshot domain.GenerationSnapshot, facts observation.ColonyProjection, protected []domain.Cell, missing int64, check func() error) ([]policy.Preview, policy.StockObservation, RoutineBuildingReason, error) {
+	if r.power != nil && r.power.Method == policy.PowerConnect {
+		return r.previewPowerRoute(call, snapshot, facts, protected, check)
+	}
 	if r.shelter {
 		return r.previewShell(call, snapshot, facts, protected, check)
 	}
@@ -360,6 +383,9 @@ func (r *RoutineBuildingPlanner) previewMethod(call context.Context, snapshot do
 		}
 	}
 	searchRequest := policy.PlacementSearchRequest{Snapshot: snapshot, Tick: facts.Identity.Tick, Bounds: facts.Bounds, Center: facts.Center, Cells: cells, Protected: protected, Environment: policy.PlacementIndoors, Radius: 22, Limit: 64}
+	if r.power != nil {
+		searchRequest.Center, searchRequest.Radius = r.power.Center, 6
+	}
 	if r.environment != "" {
 		searchRequest.Environment = r.environment
 	}

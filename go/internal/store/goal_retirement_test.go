@@ -84,6 +84,12 @@ func TestRoutineGoalRetirementWaitsForObservedEffects(t *testing.T) {
 	if method, err := s.LoadGoalMethod(ctx, g.Goal.ID, g.Goal.Epoch, "wood"); err != nil || method.Plan != "p" {
 		t.Fatal(method, err)
 	}
+	if methods, err := s.LoadGoalMethods(ctx, g.Goal.ID, g.Goal.Epoch); err != nil || len(methods) != 1 || methods[0].Plan != "p" {
+		t.Fatal("retired method evidence missing", methods, err)
+	}
+	if _, err := s.LoadGoalMethods(ctx, g.Goal.ID, g.Goal.Epoch+1); err == nil {
+		t.Fatal("future method epoch accepted")
+	}
 	p, err := s.LoadPlan(ctx, "p")
 	if err != nil || p.Progress[0].View().Unresolved {
 		t.Fatal(p, err)
