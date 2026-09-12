@@ -361,7 +361,12 @@ async def run(root, output, binary, *, go_source, go_sha256, sleeping_methods=Fa
                 assert shelter_methods and Path(start_save).name == start_save
                 await evidence.call(bridge, 'load-start', 'rimworld/load_game_ready', {'saveName': start_save, 'readiness': 'visual', 'timeoutMs': 120000})
             else:
-                if comfort_methods or expansion_methods or power_methods or temperature_methods:
+                if disaster_review:
+                    report['start_configuration'] = payload(await evidence.call(bridge, 'configure-start', 'test/configure_start', {
+                        'scenario': 'Crashlanded', 'count': 3, 'seed': 'g01-05-recovery', 'biome': 'Desert',
+                        'worldTemperature': 'Normal', 'minTemperature': -100, 'maxTemperature': 100}))
+                    assert report['start_configuration']['success']
+                elif comfort_methods or expansion_methods or power_methods or temperature_methods:
                     report['start_configuration'] = payload(await evidence.call(bridge, 'configure-start', 'test/configure_start', {
                         'scenario': 'Crashlanded', 'count': 3, 'seed': 'g01-05-comfort',
                         'worldTemperature': 'VeryHot' if temperature_methods == 'hot' else 'Normal',
