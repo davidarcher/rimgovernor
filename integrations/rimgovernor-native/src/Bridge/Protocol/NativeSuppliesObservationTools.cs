@@ -40,16 +40,34 @@ namespace HomeBridge.BridgeTools
                     var reserved = new HashSet<Thing>(map.reservationManager.AllReservedThings());
                     var groups = entries.GroupBy(e => Id(e.Thing.def.defName), StringComparer.Ordinal).OrderBy(g => g.Key, StringComparer.Ordinal).ToList();
                     var selected = groups.Where(g => Ownership(filter) == "all" || g.Any(e => e.Ours)).ToList();
-                    Require(selected.Count <= Limit(parsed), "Matched definition collection exceeds page limit; frozen paging is unavailable.");
-                    var snapshot = new Obs.SuppliesSnapshot { Context = context, Completeness = Complete(selected.Count, groups.Count - selected.Count) };
-                    foreach (var group in selected)
+                    var seed = QuerySeed(filter);
+                    var afterCursor = selected;
+                    string? lastKey = null;
+                    if (parsed.Page != null && parsed.Page.HasCursor && parsed.Page.Cursor.Length != 0)
+                    {
+                        if (!NativeObservationSnapshot.Cursor.TryDecode(context.Identity, seed, parsed.Page.Cursor, out var after))
+                            return ProtoBoundary.Encode(new Obs.ListSuppliesReply { Unavailable = Unavailable(Common.UnavailableReason.LimitExceeded, "Supplies cursor is stale or does not match this query.") });
+                        afterCursor = selected.Where(g => string.CompareOrdinal(g.Key, after) > 0).ToList();
+                    }
+                    var limit = Limit(parsed);
+                    var page = afterCursor.Take(limit).ToList();
+                    Require(page.Count <= 256, "Matched definition collection exceeds the maximum page row bound.");
+                    var truncated = afterCursor.Count > page.Count;
+                    if (page.Count > 0) lastKey = page[page.Count - 1].Key;
+                    var completeness = Complete(page.Count, groups.Count - selected.Count);
+                    completeness.Page.Complete = !truncated;
+                    if (truncated) completeness.Page.NextCursor = NativeObservationSnapshot.Cursor.Encode(context.Identity, seed, lastKey!);
+                    var snapshot = new Obs.SuppliesSnapshot { Context = context, Completeness = completeness };
+                    foreach (var group in page)
                     {
                         var entriesForDefinition = group.ToList();
                         var row = Project(entriesForDefinition, reserved, IncludeHeld(filter));
                         for (var index = 0; index < entriesForDefinition.Count; index++)
                         {
                             var entry = entriesForDefinition[index];
-                            if (entry.Holder == null) row.Items[index].Snapshot = NativeSupplyAllow.Snapshot(entry.Thing, context);
+                            row.Items[index].Snapshot = entry.Holder == null
+                                ? NativeSupplyAllow.Snapshot(entry.Thing, context)
+                                : HeldSnapshot(entry, context);
                         }
                         if (row.Items.All(item => item.Snapshot != null))
                             row.Issues.Remove(row.Issues.Single(issue => issue.Field == "items.snapshot"));
@@ -67,7 +85,7 @@ namespace HomeBridge.BridgeTools
             failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Identity, supported exact stock filters and page limit1..256 are required.");
             if (request == null || request.Scope?.ExpectedIdentity == null) return false;
             if (request.Page != null && (request.Page.HasLimit && (request.Page.Limit < 1 || request.Page.Limit > 256)
-                || request.Page.HasCursor && request.Page.Cursor.Length != 0)) return false;
+                || request.Page.HasCursor && request.Page.Cursor.Length > 4096)) return false;
             var filter = request.Filter;
             if (filter == null) return true;
             if (filter.DefNames.Count > 256 || filter.DefNames.Any(d => !ProtoBoundary.IsIdentifier(d))
@@ -244,6 +262,22 @@ namespace HomeBridge.BridgeTools
             row.Issues.Add(Issue("items.snapshot", Common.UnavailableReason.Unsupported, "One or more items lack an Allow snapshot; only eligible loose supplies support Allow."));
             return row;
         }
+
+        // Cursor is scoped to this exact query shape; a saved page cannot silently resume under a changed filter.
+        private static string QuerySeed(Obs.StockFilter filter) => string.Join("",
+            Category(filter), Ownership(filter), IncludeHeld(filter), filter.ForbiddenOnly, filter.ExcludeChunks, filter.Corpses,
+            string.Join(",", filter.DefNames.OrderBy(d => d, StringComparer.Ordinal)),
+            filter.Region == null ? "" : filter.Region.Minimum.X + "," + filter.Region.Minimum.Z + "-" + filter.Region.Maximum.X + "," + filter.Region.Maximum.Z);
+
+        // Held/container/corpse items have no Allow snapshot; give them a stateless CAS token
+        // over the same identity-bearing fields the row already exposes (holder + kind + position).
+        private static Obs.SnapshotRef HeldSnapshot(StockEntry entry, Common.ObservationContext context)
+            => NativeObservationSnapshot.Snapshot("held-item", context, entry.Thing.GetUniqueLoadID(), w =>
+            {
+                w.Write(entry.Thing.def.defName); w.Write(entry.Thing.stackCount);
+                w.Write(entry.Holder?.GetUniqueLoadID() ?? ""); w.Write(entry.HolderKind ?? "");
+                w.Write(entry.Position.x); w.Write(entry.Position.z);
+            });
 
         private static Obs.EntityRef Entity(Thing thing, IntVec3 position) => new Obs.EntityRef { Id = Id(thing.GetUniqueLoadID()),
             DefName = Id(thing.def.defName), Label = PlacementPreviewOperation.Diagnostic(thing.LabelCap),
