@@ -3,8 +3,6 @@ package buildingruntime
 import (
 	"context"
 	"errors"
-	"log"
-	"runtime/debug"
 	"strings"
 	"sync"
 	"time"
@@ -314,9 +312,6 @@ func (control *Control) shutdownTarget(ctx context.Context) error {
 }
 
 func (control *Control) invalidateLocked() error {
-	if control.lease != "" {
-		log.Printf("controller authority invalidated\n%s", debug.Stack())
-	}
 	control.cancelEpoch()
 	control.epoch, control.cancelEpoch = context.WithCancel(control.lifetime)
 	if control.timer != nil {

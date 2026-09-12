@@ -218,7 +218,10 @@ historical uncertainty cannot authorize or block renewal in a replacement scope.
 Renewal waits without extending the lease when event capture or review is behind;
 the poller invalidates permission for interruptions. A verified tick-budget stop
 defers to event review and scheduler cleanup, preserving permission for the next
-eligible window.
+eligible window. If the window finishes during renewal preflight, the renewal stays
+prepared and undispatched. A fresh, matching native observation of normal budget
+completion preserves authority for that same handoff; uncertainty or interruption
+does not.
 
 The session attaches one clock worker before its loops start. Close cancels and
 joins the loops and their cancellation handler before releasing native handles,

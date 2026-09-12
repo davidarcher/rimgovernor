@@ -102,11 +102,8 @@ func (s *ClockScheduler) RenewEpoch(ctx context.Context) (ClockRenewResult, erro
 	}
 	// A completed finite window needs event review and scheduler cleanup, not a
 	// renewal. Those paths retain the stop evidence before admitting another window.
-	if stopped := status.GetStopped(); stopped != nil && stopped.GetReason() == k.StopReason_STOP_REASON_TICK_BUDGET && status.GetActualPaused() && stopped.GetPauseVerified() {
-		actual := stopped.GetEpoch()
-		if clockCoordinatorSameEpoch(original, actual) && actual.GetRequestedSpeed() == original.GetRequestedSpeed() && actual.GetLastTick() == original.GetTickDeadline() && status.Context.GetTick() >= current.GetTick() && status.Context.GetTick() >= actual.GetLastTick() {
-			return out, nil
-		}
+	if clockBudgetFinished(status, original) && status.Context.GetTick() >= current.GetTick() {
+		return out, nil
 	}
 	actual := status.GetRunning().GetEpoch()
 	if actual == nil || !clockCoordinatorSameEpoch(original, actual) || actual.GetRequestedSpeed() != original.GetRequestedSpeed() || actual.GetLastTick() < original.GetLastTick() || status.Context.GetTick() < current.GetTick() {
@@ -166,8 +163,29 @@ func (s *ClockScheduler) RenewEpoch(ctx context.Context) (ClockRenewResult, erro
 	result, err := s.session.CommandClock(call, intent)
 	out.Attempt = &result
 	if err != nil || result.Phase != store.ClockApplied {
+		// The finite window can finish between our read and the coordinator's
+		// preflight. An undispatched renewal needs no lease invalidation when a
+		// fresh read proves that exact budget completed normally. Uncertain writes
+		// and real interruptions still take the conservative stop path.
+		if errors.Is(err, executor.ErrHeld) && result.Phase == store.ClockPrepared && result.Intent.RequestID == intent.RequestID && call.Err() == nil && s.session.State() == state {
+			latest, _, readErr := s.native.ReadClockStatus(call, current.Identity)
+			observed := latest.GetStatus()
+			if readErr == nil && bridge.ValidateClockStatus(observed, current.Identity) == nil {
+				_, scopeErr := boundaryContext(observed.Context, state.Snapshot)
+				if scopeErr == nil && clockBudgetFinished(observed, original) && observed.Context.GetTick() >= status.Context.GetTick() && call.Err() == nil && s.session.State() == state {
+					return out, nil
+				}
+			}
+		}
 		return out, s.renewalHold(errors.Join(err, executor.ErrHeld))
 	}
 	out.Renewed = true
 	return out, nil
+}
+
+func clockBudgetFinished(status *k.Status, original *k.Epoch) bool {
+	stopped := status.GetStopped()
+	actual := stopped.GetEpoch()
+	return stopped != nil && stopped.GetReason() == k.StopReason_STOP_REASON_TICK_BUDGET && status.GetActualPaused() && status.GetNativeTickBoundary() && stopped.GetPauseVerified() &&
+		clockCoordinatorSameEpoch(original, actual) && actual.GetRequestedSpeed() == original.GetRequestedSpeed() && actual.GetLastTick() == original.GetTickDeadline() && status.GetContext().GetTick() >= actual.GetLastTick()
 }

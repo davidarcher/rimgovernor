@@ -11,6 +11,7 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/store"
 	a "github.com/davidarcher/RimGovernor/go/internal/wire/authoritypb"
 	k "github.com/davidarcher/RimGovernor/go/internal/wire/clockpb"
+	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
 	"google.golang.org/protobuf/proto"
 )
 
@@ -40,6 +41,74 @@ func TestClockRenewalDefersCompletedBudgetToScheduler(t *testing.T) {
 			r, err := s.RenewEpoch(context.Background())
 			if w.renews != 0 || r.Renewed || (err != nil) != unsafe || s.session.State().Enabled == unsafe {
 				t.Fatal(r, err, w.renews, s.session.State())
+			}
+		})
+	}
+}
+
+type renewalBoundaryNative struct {
+	*schedulerNative
+	statusReads int
+	beforeRead  func(int) error
+}
+
+func (n *renewalBoundaryNative) ReadClockStatus(ctx context.Context, id *c.Identity) (*k.StatusReply, bridge.Result, error) {
+	n.statusReads++
+	if err := n.beforeRead(n.statusReads); err != nil {
+		return nil, bridge.Result{}, err
+	}
+	return n.schedulerNative.ReadClockStatus(ctx, id)
+}
+
+func TestClockRenewalBudgetFinishesDuringPreflight(t *testing.T) {
+	for _, reason := range []string{"budget", "interruption", "unknown_boundary", "read_error", "manual", "wrong_epoch"} {
+		t.Run(reason, func(t *testing.T) {
+			s, n, w, start := renewalFixture(t)
+			epoch := proto.Clone(start.Reply.GetReceipt().GetApplied().GetStatus().GetRunning().Epoch).(*k.Epoch)
+			native := &renewalBoundaryNative{schedulerNative: n}
+			native.beforeRead = func(read int) error {
+				if read == 2 {
+					epoch.LastTick = proto.Int64(epoch.GetTickDeadline())
+					epoch.LeaseRemainingMs = proto.Uint32(0)
+					stop := k.StopReason_STOP_REASON_TICK_BUDGET
+					if reason == "interruption" {
+						stop = k.StopReason_STOP_REASON_EXTERNAL_PAUSE
+					}
+					n.status.State = &k.Status_Stopped{Stopped: &k.Stopped{Epoch: epoch, Reason: stop.Enum(), StoppedAtUnixMs: proto.Int64(100), ActualPaused: proto.Bool(true), PauseRequested: proto.Bool(true), PauseVerified: proto.Bool(true)}}
+					n.status.ActualPaused = proto.Bool(true)
+					n.status.Context.Tick = proto.Int64(epoch.GetTickDeadline())
+					if reason == "unknown_boundary" {
+						n.status.NativeTickBoundary = proto.Bool(false)
+					}
+					if reason == "wrong_epoch" {
+						epoch.Owner.Epoch = proto.Int64(epoch.Owner.GetEpoch() + 1)
+					}
+				}
+				if read == 3 {
+					if reason == "read_error" {
+						return errors.New("native read unavailable")
+					}
+					if reason == "manual" {
+						return s.session.Disable()
+					}
+				}
+				return nil
+			}
+			s.native, s.session.clock.native = native, native
+			result, err := s.RenewEpoch(context.Background())
+			safe := reason == "budget"
+			if (err == nil) != safe || s.session.State().Enabled != safe || w.renews != 0 || result.Renewed || result.Attempt == nil || result.Attempt.Phase != store.ClockPrepared {
+				t.Fatal(result, err, s.session.State(), w.renews)
+			}
+			if safe {
+				retained, err := s.player.journal.LookupClockAttempt(context.Background(), result.Attempt.Intent.RequestID)
+				if err != nil || retained.Phase != store.ClockPrepared {
+					t.Fatal(retained, err)
+				}
+				cleaned, err := s.Step(context.Background())
+				if err != nil || !cleaned.Cleaned || !s.session.State().Enabled || w.renews != 0 {
+					t.Fatal(cleaned, err)
+				}
 			}
 		})
 	}
