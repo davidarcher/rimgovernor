@@ -7,8 +7,8 @@
 - Keep changes scoped to the task. Coordinate shared-file changes and integration;
   do not merge into an actively edited checkout without coordination.
 - Commit each completed iteration after relevant checks. Local checkpoint commits
-  are authorized; do not ask again. Report the branch and commit hash. Do not push
-  unless requested.
+  are authorized; do not ask again. Report the branch and commit hash. Landing on
+  main includes syncing and pushing origin/main; no separate push approval is needed.
 - Keep generated builds, logs, saves, databases and temporary scripts out of commits.
 
 ## Delivery speed and coordination
@@ -29,6 +29,14 @@
   teams or require a global quiet period.
   Check the target checkout and diff locally; coordinate only actual overlap or
   an actively edited target. Resolve routine integration locally.
+- Before each landing, fetch origin and pull origin/main into the clean main
+  checkout (`git pull --ff-only origin main`), then integrate the verified task
+  commits and push main (`git push origin main`). If main has diverged, merge
+  origin/main without discarding either side and check any resolved conflicts.
+  If the push loses a race, fetch and integrate the new remote commits, then retry.
+  Never force-push main. For an empty remote, the first landing uses
+  `git push -u origin main`. A landing is complete only when origin/main contains
+  the landed commits; report any authentication or network blocker.
 - Test evidence follows relevant code, dependencies, inputs and environment, not
   the main HEAD hash. Unrelated main commits, clean cherry-picks and rebases do
   not invalidate passing results. Rerun only checks affected by changed behavior,
