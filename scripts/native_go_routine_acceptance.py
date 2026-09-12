@@ -384,7 +384,7 @@ async def run(root, output, binary, *, go_source, go_sha256, sleeping_methods=Fa
             legacy_work = payload(await evidence.call(bridge, "initial-work", "home/list_pawns", {"colonistsOnly": True, "work": True, "bio": True, "equipment": True, "health": True}))
             assert legacy_work['success'] and {p['thingId'] for p in legacy_work['pawns']} == set(pawn_ids)
             report['medical_care_reference'] = medical_care_reference(legacy_work['pawns'])
-            minimum_construction = 0
+            minimum_construction = report['comfort_setup']['requiredConstruction'] if comfort_methods else 0
             if work_project:
                 project_facts = await wire(bridge, 'work-project-definition', 'observations_read_colony_facts', {
                     'scope': {'expectedIdentity': identity}, 'planning': True, 'requestedDefinitionNames': ['HospitalBed']})

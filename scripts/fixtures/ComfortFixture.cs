@@ -22,6 +22,13 @@ namespace HomeBridge.BridgeTools
                 if (room == null || !room.ProperRoom || room.OpenRoofCount != 0) throw new InvalidOperationException("Existing roofed fixture room required.");
                 var people = map.mapPawns.FreeColonistsSpawned.Where(p => !p.Dead).ToList();
                 if (people.Count < 1 || people.Count > 4) throw new InvalidOperationException("Require 1..4 fixture colonists.");
+                var requiredConstruction = new[] { "Table1x2c", "DiningChair", "HorseshoesPin" }
+                    .Select(d => DefDatabase<ThingDef>.GetNamed(d).constructionSkillPrerequisite).Max();
+                var construction = DefDatabase<WorkTypeDef>.GetNamed("Construction");
+                var builder = people.Where(p => !p.WorkTypeIsDisabled(construction) && !p.skills.GetSkill(SkillDefOf.Construction).TotallyDisabled)
+                    .OrderByDescending(p => p.skills.GetSkill(SkillDefOf.Construction).Level).FirstOrDefault();
+                if (builder == null) throw new InvalidOperationException("Fixture needs a construction-capable pawn.");
+                builder.skills.GetSkill(SkillDefOf.Construction).Level = Math.Max(requiredConstruction, builder.skills.GetSkill(SkillDefOf.Construction).Level);
                 var free = room.Cells.Where(c => c.Standable(map) && c.GetEdifice(map) == null && map.zoneManager.ZoneAt(c) == null)
                     .OrderByDescending(c => c.z).ThenBy(c => c.x).ToList();
                 if (free.Count < 20) throw new InvalidOperationException("Fixture room lacks service space.");
@@ -83,6 +90,7 @@ namespace HomeBridge.BridgeTools
                 }
                 fixture.Arm();
                 return new { success = true, tick = Find.TickManager.TicksGame, colonists = people.Count,
+                    requiredConstruction, builder = builder.GetUniqueLoadID(),
                     fieldCells = farmCells.Count, comfort = ComfortFacts.Read(map) };
             }, cancellationToken).ConfigureAwait(false);
         }
