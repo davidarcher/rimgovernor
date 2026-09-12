@@ -800,8 +800,10 @@ expand these into another nested task tree; remove a row when its outcome is met
   eligible player beds and admits one campfire or passive cooler through shared
   building plans. Native temperature, rather than construction, establishes recovery;
   existing facilities and finite current-direction work budgets prevent repeated
-  construction or unbounded clock grants. Cold/hot native acceptance and captured
-  Go replay remain pending.
+  construction or unbounded clock grants. Targeted native acceptance verifies
+  ordinary construction, refueling and actual sleeping-room heating/cooling while
+  outdoor conditions remain unsafe. Both cases cover Manual, disabled restart
+  and captured Go proposal/recovery replay.
 
 - [ ] **G01.07a — Finish defense and essential medical care.** Connect movement
   and melee to complete defense plans using the existing owned-draft lifecycle;
