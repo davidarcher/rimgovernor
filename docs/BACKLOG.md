@@ -618,7 +618,7 @@ without pushes, when the target checkout is safe; preserve other developers' wor
   per-feature native-test timing for this rewrite. It does not waive gameplay
   acceptance before the production-default switch or final G01.05 closure.
 
-  - [ ] **05.1 — Bound reference coverage before the first implementation slice.**
+  - [x] **05.1 — Bound reference coverage before the first implementation slice.**
     Map every current `ColonySkills.compile` branch, `priority_nodes` producer and
     the ten `colony_upkeep.CONTRACTS` entries to one G01.07a–e workflow, its existing
     Go implementation, missing action/selection wiring and observed postcondition.
@@ -782,6 +782,100 @@ without pushes, when the target checkout is safe; preserve other developers' wor
   **Exit evidence:** actual need/health/containment/stock/custody/service outcomes
   for supported Python workflows, including interruption, renewed needs and cleanup;
   candidates or receipts alone do not close any of them.
+
+### G01.05 reference coverage and remaining composition
+
+This is the finite 05.1 source inventory. Every row remains open for composition
+or deferred acceptance unless the existing Go path is explicitly identified.
+Python paths are under `controller/rimgovernor/`; Go paths under `go/internal/`.
+The shared executable Go variants are currently building, owned draft and melee
+(`domain/plan.go`). A need, forecast or proposal does not establish execution.
+Keep remaining work in these owning workflow rows; remove resolved gaps as slices land.
+
+**b — food/bootstrap (05.2).** `colony_policy.priority_nodes` produces these goals;
+`ColonySkills.compile` selects the listed alternatives.
+
+| Reference goal / alternatives | Existing Go | Missing composition and observed postcondition |
+| --- | --- | --- |
+| `AllowStartingSupplies`: discovered Unforbid, eight original cells, `supply_batches.supply_rectangles`, then wait | `policy/starting_supplies.go`, routine/store cohort history | Typed Allow action, journal, handler and service admission. Observe original cells allowed; later player forbidding never renews the cohort. First startup consumer: b. |
+| `EnsureWorkAssignments`: changed priorities/checkboxes, eight-pawn batches, saved overrides and handler skill | `policy/work_assignment.go`, `buildingruntime/routine_work_projects.go`, stored preferences | Typed pawn settings/readback. Preserve player overrides and required coverage; add non-building work requirements at b/d/e consumers. First settings consumer: b. |
+| `MaintainWood`: safe trees, subtract outstanding yield, bounded acquisition or wait | Routine wood need/resource bounds | Acquisition selection/action and stock recovery; pending yield is not stock. Hold outdoor work during roof hazard. |
+| `EnsureFoodSupply`: `food_forecast.acquisition_targets` safe harvest before alternatives | Food forecasts/routine need | Shared acquisition with reserved stock, rot, animal demand and protected uncertain targets. Observe accessible nutrition; regrowth may renew only resolved work. |
+| `EnsureFoodSupply`: `food_capacity.choose_crop`, starter fields, `capacity_growth.growth_fields`, no-crop fallback | Field capacity, starter geometry, routine field-budget projection | Zone/crop action and expansion outside player footprints. Zone readback and future capacity remain separate from harvested stock. |
+| `EnsureFoodSupply`: preservation bill; butcher spot/bill; `hunting.screen_prey`, at most two outstanding hunts | Building execution and food forecasts | Bills and safe hunt designations with exact prey tracking/prerequisites. Observe butchered/preserved output and renewed need. |
+| `EnsureCooking`: selected-room furnishing, campfire, bounded fallback, available recipe target-count bill | Shared routine cooking building planner | Room handoff and executable bill after usable bench, preserving existing bills. Observe cooked output. Protected storage is the c prerequisite below. |
+
+**a — defense/urgent care (05.3).** All four goals are fixed priority producers
+and `ColonySkills.compile` branches.
+
+| Reference goal / alternatives | Existing Go | Missing composition and observed postcondition |
+| --- | --- | --- |
+| `RestoreWorkers`: exact owned stand-down; wait during active threat | Routine cleanup need, draft journal/executor/session cleanup | First cleanup consumer: a, shared with medical/service shutdown. Compose routine release; observe exact claim release or positive supersession through restart/player takeover. |
+| `ActiveCombat`: `combat_method.squad_defense` | Emergency policy, draft and melee execution | Squad composition, movement/equip/supported ranged actions. Observe threat outcome and owned cleanup; retain explosive exclusion. |
+| `CriticalMedical`: native-approved `medical_triage.treatment_pairs`, repeated tend, active-tend/rest wait, owned doctor release only without threats | Emergency/patient needs and `policy/medical_care.go` | Tend/rescue/rest composition, refusal signatures, patient forecasts. Observe living patient tended/in bed separately from healing. Unknown threats cannot authorize release. |
+| `EnsureBasicDefense`: eligible unarmed pawn/accessibly stored weapon pairs, up to two defenders | Routine defense need/equipment facts | Equip action/selection shared with d. Observe exact weapon on selected pawn. |
+
+**c — storage/shelter/upkeep (05.2 storage prerequisite, then 05.4).** The first
+five rows originate in `priority_nodes` (comfort/expansion via
+`development.development_nodes`). The other seven are upkeep contracts.
+
+| Reference goal / alternatives | Existing Go | Missing composition and observed postcondition |
+| --- | --- | --- |
+| `EnsureInitialShelter`: `shelter_handoff` adoption, shell, sleeping furniture, large-colony partial furnishing / `capacity_growth.grow_shelter` | Shared shelter/sleeping building planners | Player-room handoff and population housing target; reconcile layout renewal. Observe roofed usable capacity, not walls alone. |
+| `EnsureFoodStorage`: selected-room or starter-room furnishing after sleeping capacity | Storage need, construction/ownership facts | First c consumer in 05.2: typed stockpile geometry/filter/ownership and safe haul. Observe protected food quantity delivered; share with `SecureSupplies`. |
+| `EnsureTemperatureSafety`: selected-room temperature, campfire/passive cooler, usable heat reuse and shelter wait | `policy/temperature_method.go`, shared thermal building path | Reconcile player-room handoff and hysteresis with existing path/evidence. Observe actual safe room temperature. |
+| `EnsureComfort`: `development_method` delegates `comfort_upkeep` | Comfort history, shared building/use clock path | Close functional use and disabled restart coverage; furniture alone is insufficient. |
+| `EnsureExpansion`: one spare indoor place through `grow_shelter` | Shared expansion/shelter planner | Reconcile prerequisites/competition with composed path; observe usable spare capacity and population renewal. |
+| `SecureSupplies`: safe haul, `upkeep_storage.covered_storage` then `supply_storeroom` | Direct vulnerable-stock targets | Storage/haul handler and selection, covered destination and exact quantity ledger. Missing/merged source is not delivery. |
+| `MaintainSleeping`: available-bed assignment, build bed, ordinary-use wait | Sleeping need and durable exact ownership/use history | Bed assignment/upgrade actions with player ownership guards. Observe safe real-bed use, not assignment alone. |
+| `MaintainHomeCoverage`: `home_coverage.method` | Facility upkeep and exact construction claims | Home action from owned structures preserving exclusions. Observe required coverage without widening excluded cells. |
+| `MaintainEssentialRepairs`: enabled worker and native-approved repair | Direct targets/metrics | Typed repair admission/handler/reconciliation; observe exact structure HP restored. Disappearance is not repair. |
+| `MaintainCleanFacilities`: clean job or ordinary-labor wait for non-orderable targets | Direct targets/metrics | Safe worker selection, supported action and explicit wait. Observe removed filth; preserve unknown census. |
+| `MaintainFireSafety`: bounded safe fires, reachable enabled firefighters, ordinary-labor wait | Fire need/unsafe-fire policy | Compose wait/hold without inventing forceable jobs. Observe extinguished fires; large/unknown fires retain hold. |
+| `MaintainStoneShell`: `wall_upgrade.method` support/build/deconstruct/reconcile | Stone targets/exact construction ownership | Staged replacement actions with temporary support. Observe stone replacement and retained shelter before support release. |
+
+**d — equipment/research/replenishment (05.5).** Equipment/power are fixed
+priority producers. `colony_controller.cycle` refreshes resource goals and delegates
+research to `research.refresh`. Medical reserves are the eighth upkeep contract.
+
+| Reference goal / alternatives | Existing Go | Missing composition and observed postcondition |
+| --- | --- | --- |
+| `MaintainEquipment`: `gear_upkeep.compile_method`, existing gear first, preserve active bill, bounded one-item recipe | `policy/gear.go` proposals | Equip/wear with a, workshop bills and ingredient/labor accounting. Observe exact equipped output; preserve material/forced-gear policy. |
+| `EnsureResearch`: active-goal unavailable ThingDef/RecipeDef prerequisites, bench then project, native-research wait | Definition availability/building execution | Typed queue, prerequisite selection, research action and service wiring. Observe native progress/completion; cancelled/adviser goals cannot request work. Later development-tuple branch in `compile` is shadowed by earlier research delegation. |
+| `EnsureBasicPower`: connect/generate, solar-flare wait | Power policy and shared power construction | Reconcile topology composition and simulation wait; observe powered service/capacity and reuse applicable evidence. |
+| `MaintainResource-*`: progress/prerequisite refresh, sources before recipes, material storage, pending work/existing bill wait | Resource rules/forecasts/building accounting | Dynamic targets, acquisition/mining and bills with exact excavation progress. Port delegated extraction/facility/refrigeration prerequisites at their consuming method. Observe replenished stock, not pending yield. |
+| `MaintainMedicalReserves`: `medical_reserves.reserve_method` delegates remaining herbal deficit | Medical reserve need/hysteresis | Same resource production path; better usable medicine reduces deficit. Observe usable reserve recovery without changing care policy. |
+
+**e — management/recovery (05.6).** Dynamic producers extend the fixed priority
+list. Containment/feed are the final two of the ten upkeep contracts.
+
+| Reference goal / producer / alternatives | Existing Go | Missing composition and observed postcondition |
+| --- | --- | --- |
+| `EnsureMood-*`: `mood_control.assess/priority_nodes/method`, bounded relief or wait | Mood history/proposal selection | Dynamic goal and relief action; observe actual need recovery and interruption, not forecast mood. |
+| `MaintainMedicalCare`: fixed priority producer, permitted Patient/PatientBedRest settings then monitor | Care history/need | Reuse b settings/a treatment, preserve NoCare/player overrides. Observe rest/health without claiming chronic conditions cured. Requested surgery shares e care but is player-created; verify exact patient/body-part health change separately from bill disappearance. |
+| `Population-*`: `population.refresh/compile_method`, rescue/capture/release/recruit then integration | No composed producer/method | Durable commitments/custody settings and capacity/native guards; reuse a/b/c/d prerequisites. Observe custody/recruitment and food/housing/work/equip integration. |
+| `MaintainHerd-*`: `husbandry.refresh_husbandry/husbandry_method`, configuration/training/slaughter and `update_feed_goal` | Animal observations/upkeep policy | Dynamic herd policy/actions, handler skills through b, owned feed goals through d. Observe herd/training/stock and cancellation; retain release/slaughter exclusions. |
+| `MaintainAnimalContainment`: suitable-pen handler wait, otherwise fence/gate then marker | Animal containment need | Bounded pen construction/handler prerequisite. Observe animals contained, not fence completion. |
+| `MaintainAnimalFeed`: discovered diet-compatible feed then resource production or wait | Feed forecast/hysteresis | d/b target production/staging; observe reachable rot-aware runway after competing eaters. Inaccessible stock cannot satisfy it. |
+| `MaintainWaste`: controller creates/refreshes from native waste; `waste_management.compile_method` | No composed method | Typed policy/need and exact containment action with storage/grave prerequisites. Observe later exact relocation/burial; absence/merging is not disposal. |
+| `RecoverDisasterServices`: `disaster_recovery.reconcile/prioritize`, `service_recovery.compile_method` | Disaster history/bounded recovery candidates | Service jobs, non-widening existing-area admission and owned cleanup; refuel/repair/breakdown restoration and changed-prerequisite retries. Observe actual restored service. |
+| Trade policy: explicit shared trade action, not a fixed priority/compile branch | No composed action | Guarded session/preview/accept and economic floors through Hands; observe exchange stock separately from delivery/storage. Do not invent a routine trade goal. |
+
+**Shared 05.7 checks.** Reconcile `colony_controller.cycle` priority/age arbitration,
+`spatial_program.stage_layout`, construction capability retries, medical refusal
+inputs, upkeep retry signatures/windows, resource/service prerequisite refresh and
+no-progress watchdog/recovery with Go review, goal/method store, shared reservations
+and worker lifecycle. Cover every wait above, competing projects, unknown facts,
+uncertain replies, renewed deficits, cancellation, Manual, world/direction changes
+and disabled same-database restart. Assert zero routine model calls. Existing
+building fixtures do not establish the other families or native pawn outcomes.
+
+**Outside a–e closure.** `ConfirmColonyNames` is a fixed priority/compile branch:
+confirm the exact observed window once, then wait; its action/readback is G01.08.
+Caravan, quest and settlement progression/dynamic work belong to G01.07f. Player
+surgery/trade are counted in e without pretending they are fixed routine producers.
+The unsupported-goal branch must fail closed. Startup Allow/settings are owned by
+b; exact worker cleanup by a, with reuse by their later consumers.
 
 - [ ] **G01.07f — World progression works through Go.**
   Port caravan packing/departure/routing/arrival/return/storage, quests and rewards,
