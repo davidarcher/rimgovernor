@@ -154,7 +154,7 @@ func ValidateColonyFacts(v *o.ColonyFactsSnapshot, identity *c.Identity) error {
 			}
 		}
 	}
-	if len(v.PolicyResources) != 0 || len(v.Butchering) != 0 || len(v.FoodCorpses) != 0 || v.Waste != nil {
+	if len(v.PolicyResources) != 0 || len(v.FoodCorpses) != 0 || v.Waste != nil {
 		return contract("unreviewed colony section")
 	}
 	if climate := v.FoodClimate; climate != nil {

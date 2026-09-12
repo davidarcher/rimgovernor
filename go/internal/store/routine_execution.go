@@ -47,7 +47,7 @@ func (s *Store) AuthorizeRoutinePlan(ctx context.Context, root, target domain.Ge
 	if err != nil {
 		return err
 	}
-	if g.Retired || g.Goal.Source != domain.AutopilotGoal || g.Goal.Status != domain.GoalActive || g.Goal.Need != domain.NeedDeficit || g.Goal.Snapshot != root {
+	if g.Retired || g.Goal.Source != domain.AutopilotGoal || g.Goal.Status != domain.GoalActive || g.Goal.Need == domain.NeedUnknown || g.Goal.Snapshot != root {
 		return ErrConflict
 	}
 	bound = false
@@ -66,8 +66,23 @@ func (s *Store) AuthorizeRoutinePlan(ctx context.Context, root, target domain.Ge
 	if p.Retired || p.Spec.Revision() != target.Revision {
 		return ErrConflict
 	}
+	if g.Goal.Need == domain.NeedRecovered {
+		// A configured bill has recovered setup, but its already-issued first output
+		// still needs ordinary pawn time. This never permits another setup write.
+		waiting := false
+		for _, progress := range p.Progress {
+			v := progress.View()
+			if progress.Action().Kind() != domain.ProductionBillAction || v.Attempt == 0 {
+				return ErrConflict
+			}
+			waiting = waiting || v.Unresolved
+		}
+		if !waiting {
+			return ErrConflict
+		}
+	}
 	for _, action := range p.Spec.Actions() {
-		if action.Kind() != domain.BuildingAction && action.Kind() != domain.SupplyAllowAction && action.Kind() != domain.WorkAssignmentAction && action.Kind() != domain.AcquisitionAction && action.Kind() != domain.ZoneCreateAction {
+		if action.Kind() != domain.BuildingAction && action.Kind() != domain.SupplyAllowAction && action.Kind() != domain.WorkAssignmentAction && action.Kind() != domain.AcquisitionAction && action.Kind() != domain.ZoneCreateAction && action.Kind() != domain.ProductionBillAction {
 			return errors.New("routine execution requires supported routine methods")
 		}
 	}

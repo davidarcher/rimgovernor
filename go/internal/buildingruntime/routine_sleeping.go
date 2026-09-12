@@ -160,7 +160,7 @@ func (r *RoutineBuildingPlanner) step(call, epoch context.Context) (RoutineBuild
 	if r.goal == policy.EnsureTemperatureSafety {
 		full, readErr := observation.ObserveRoutineTemperature(call, r.native.(observation.RoutineSource), r.reviewer.clock, expected, r.reviewer.maxAge, domain.Unknown[[]policy.ConstructionClaim](), definitions...)
 		reading, err = full.ColonyReading, readErr
-	} else if r.goal == policy.EnsureComfort || r.goal == policy.EnsureBasicPower {
+	} else if r.goal == policy.EnsureComfort || r.goal == policy.EnsureBasicPower || r.goal == policy.EnsureFoodSupply {
 		full, readErr := observation.ObserveRoutine(call, r.native.(observation.RoutineSource), r.reviewer.clock, expected, r.reviewer.maxAge, definitions...)
 		reading, err = full.ColonyReading, readErr
 	} else {
@@ -285,7 +285,7 @@ func (r *RoutineBuildingPlanner) step(call, epoch context.Context) (RoutineBuild
 	if err != nil {
 		return RoutineBuildingResult{}, err
 	}
-	if r.goal == policy.EnsureCooking || r.goal == policy.EnsureComfort || r.goal == policy.EnsureExpansion || r.goal == policy.EnsureBasicPower || r.goal == policy.EnsureTemperatureSafety {
+	if r.goal == policy.EnsureFoodSupply || r.goal == policy.EnsureCooking || r.goal == policy.EnsureComfort || r.goal == policy.EnsureExpansion || r.goal == policy.EnsureBasicPower || r.goal == policy.EnsureTemperatureSafety {
 		pending := func(progress domain.Progress) bool {
 			if r.goal == policy.EnsureTemperatureSafety {
 				if r.temperature.Method == policy.TemperatureHeat {

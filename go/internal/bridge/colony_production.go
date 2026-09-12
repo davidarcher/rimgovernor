@@ -8,11 +8,11 @@ import (
 )
 
 func validateColonyProduction(v *o.ColonyFactsSnapshot) error {
-	if len(v.Farms) > 256 || len(v.Cooking) > 256 {
+	if len(v.Farms) > 256 || len(v.Cooking) > 256 || len(v.Butchering) > 256 {
 		return contract("production census exceeds bound")
 	}
 	for _, issue := range v.Issues {
-		if issue.GetField() == "farms" && len(v.Farms) != 0 || issue.GetField() == "cooking" && len(v.Cooking) != 0 {
+		if issue.GetField() == "farms" && len(v.Farms) != 0 || issue.GetField() == "cooking" && len(v.Cooking) != 0 || issue.GetField() == "butchering" && len(v.Butchering) != 0 {
 			return contract("unavailable production census contains rows")
 		}
 	}
@@ -36,26 +36,68 @@ func validateColonyProduction(v *o.ColonyFactsSnapshot) error {
 			}
 		}
 	}
+	rows := append([]*o.CookingFacts(nil), v.Cooking...)
+	for _, b := range v.Butchering {
+		if b == nil {
+			return contract("nil butcher bench")
+		}
+		rows = append(rows, &o.CookingFacts{Bench: b.Bench, Usable: b.Usable, Bills: b.Bills, Recipes: b.Recipes})
+	}
 	benches := map[string]bool{}
-	definition := func(d *o.DefinitionRef) bool { return d != nil && validID(d.GetDefName()) == nil && d.Label == nil }
-	for _, bench := range v.Cooking {
-		if bench == nil || bench.Bench == nil || validID(bench.Bench.GetId()) != nil || validID(bench.Bench.GetDefName()) != nil || bench.Bench.MapId == nil || bench.Bench.GetMapId() != v.Context.Identity.GetMapId() || !colonyCell(bench.Bench.Position, v.MapSize) || benches[bench.Bench.GetId()] || bench.Bench.Label != nil || bench.Bench.Snapshot != nil {
-			return contract("invalid cooking bench")
+	for _, bench := range rows {
+		if bench == nil || bench.Bench == nil || validID(bench.Bench.GetId()) != nil || validID(bench.Bench.GetDefName()) != nil || bench.Bench.MapId == nil || bench.Bench.GetMapId() != v.Context.Identity.GetMapId() || !colonyCell(bench.Bench.Position, v.MapSize) || benches[bench.Bench.GetId()] || bench.Bench.Label != nil {
+			return contract("invalid production bench")
 		}
 		benches[bench.Bench.GetId()] = true
-		if len(bench.Recipes) > 256 || len(bench.Bills) > 256 || len(bench.Production) != 0 {
-			return contract("unsupported cooking details or excessive census")
+		if snapshot := bench.Bench.Snapshot; snapshot != nil {
+			if !proto.Equal(snapshot.Context, v.Context) || snapshot.GetEntityId() != bench.Bench.GetId() || validID(snapshot.GetToken()) != nil {
+				return contract("bill stack snapshot mismatch")
+			}
+		}
+		if len(bench.Recipes) > 256 || len(bench.Bills) > 15 || len(bench.Production) > 256 {
+			return contract("bill census exceeds bound")
 		}
 		recipes := map[string]bool{}
 		for _, recipe := range bench.Recipes {
-			if recipe == nil || !definition(recipe.Recipe) || recipes[recipe.Recipe.GetDefName()] || !proto.Equal(recipe, &o.RecipeState{Recipe: recipe.Recipe}) {
-				return contract("invalid cooking recipe")
+			if recipe == nil || recipe.Recipe == nil || validID(recipe.Recipe.GetDefName()) != nil || recipes[recipe.Recipe.GetDefName()] || !proto.Equal(recipe, &o.RecipeState{Recipe: recipe.Recipe, AvailableNow: recipe.AvailableNow, AvailableOnBench: recipe.AvailableOnBench}) {
+				return contract("invalid production recipe")
 			}
 			recipes[recipe.Recipe.GetDefName()] = true
 		}
-		for _, bill := range bench.Bills {
-			if bill == nil || !definition(bill.Recipe) || !proto.Equal(bill, &o.BillState{Recipe: bill.Recipe, Suspended: bill.Suspended}) {
-				return contract("invalid cooking bill")
+		ids := map[string]bool{}
+		for i, bill := range bench.Bills {
+			if bill == nil || bill.Recipe == nil || validID(bill.Recipe.GetDefName()) != nil || !proto.Equal(bill, &o.BillState{Id: bill.Id, Index: bill.Index, Recipe: bill.Recipe, Suspended: bill.Suspended, RepeatMode: bill.RepeatMode, RepeatCount: bill.RepeatCount, TargetCount: bill.TargetCount, UnpauseBelow: bill.UnpauseBelow, PauseWhenSatisfied: bill.PauseWhenSatisfied, Paused: bill.Paused, Finished: bill.Finished}) {
+				return contract("invalid production bill")
+			}
+			if bill.Id != nil {
+				if validID(bill.GetId()) != nil || ids[bill.GetId()] || bill.Index == nil || int(bill.GetIndex()) != i {
+					return contract("invalid bill identity")
+				}
+				ids[bill.GetId()] = true
+			}
+			for _, n := range []*int32{bill.RepeatCount, bill.TargetCount, bill.UnpauseBelow} {
+				if n != nil && *n < 0 {
+					return contract("negative bill setting")
+				}
+			}
+		}
+		produced := map[string]bool{}
+		for _, production := range bench.Production {
+			if production == nil || validID(production.GetRecipe()) != nil || !recipes[production.GetRecipe()] || produced[production.GetRecipe()] || production.Available == nil || len(production.Products) > 256 {
+				return contract("invalid food recipe output")
+			}
+			produced[production.GetRecipe()] = true
+			defs := map[string]bool{}
+			for _, product := range production.Products {
+				if product == nil || validID(product.GetDefName()) != nil || defs[product.GetDefName()] || product.Count == nil || product.GetCount() <= 0 || product.Edible == nil || product.Nutrition == nil || product.NutritionDemandPerDay == nil {
+					return contract("invalid food product")
+				}
+				defs[product.GetDefName()] = true
+				for _, n := range []*float64{product.Nutrition, product.NutritionDemandPerDay, product.RotDays} {
+					if n != nil && (math.IsNaN(*n) || math.IsInf(*n, 0) || *n < 0) {
+						return contract("invalid food product measure")
+					}
+				}
 			}
 		}
 	}

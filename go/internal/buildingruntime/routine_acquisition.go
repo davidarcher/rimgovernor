@@ -77,7 +77,7 @@ func (r *RoutineAcquisitionPlanner) step(call, epoch context.Context) (RoutineAc
 		if err != nil {
 			return RoutineAcquisitionResult{}, err
 		}
-		if domain.GoalWorkOpen(plan.Progress) {
+		if acquisitionBlockingWork(plan.Progress) {
 			return RoutineAcquisitionResult{Reason: BuildingMethodExistingWork}, nil
 		}
 	}
@@ -188,4 +188,14 @@ func (r *RoutineAcquisitionPlanner) step(call, epoch context.Context) (RoutineAc
 		return RoutineAcquisitionResult{}, err
 	}
 	return RoutineAcquisitionResult{Reason: BuildingMethodAdmitted, Plan: id}, nil
+}
+
+// A queued production bill may be waiting for ingredients acquired by this method.
+func acquisitionBlockingWork(progress []domain.Progress) bool {
+	for _, p := range progress {
+		if p.Action().Kind() != domain.ProductionBillAction && domain.GoalWorkOpen([]domain.Progress{p}) {
+			return true
+		}
+	}
+	return false
 }

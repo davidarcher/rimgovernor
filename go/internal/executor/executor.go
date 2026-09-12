@@ -102,6 +102,8 @@ type Result struct {
 }
 
 type Executor struct {
+	bill               BillBoundary
+	billJournal        BillJournal
 	work               WorkBoundary
 	workJournal        WorkJournal
 	zone               ZoneBoundary
@@ -160,6 +162,14 @@ func New(journal Journal, boundary Boundary, clock Clock, limits Limits, routine
 			return nil, errors.New("supply boundary requires typed journal")
 		}
 		e.supply, e.supplyJournal = supply, j
+	}
+	if bill, ok := boundary.(BillBoundary); ok {
+		j, complete := journal.(BillJournal)
+		if !complete {
+			cancel()
+			return nil, errors.New("bill boundary requires typed journal")
+		}
+		e.bill, e.billJournal = bill, j
 	}
 	if zone, ok := boundary.(ZoneBoundary); ok {
 		j, complete := journal.(ZoneJournal)
@@ -333,6 +343,9 @@ func (e *Executor) Run(ctx context.Context, plan domain.PlanID, actionID domain.
 	}
 	if action.Kind() == domain.OwnedDraftAction && e.draft != nil {
 		return e.runDraft(ctx, action, progress, authority, generation)
+	}
+	if action.Kind() == domain.ProductionBillAction && e.bill != nil {
+		return e.runBill(ctx, action, progress, authority, generation)
 	}
 	if action.Kind() == domain.ZoneCreateAction && e.zone != nil {
 		return e.runZone(ctx, action, progress, authority, generation)

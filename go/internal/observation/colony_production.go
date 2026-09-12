@@ -86,3 +86,44 @@ func colonyProduction(v *o.ColonyFactsSnapshot, facts *policy.RoutineFacts) {
 		}
 	}
 }
+
+func colonyProductionBenches(v *o.ColonyFactsSnapshot) domain.Fact[[]policy.ProductionBench] {
+	if hasIssue(v.Issues, "cooking") || hasIssue(v.Issues, "butchering") {
+		return domain.Unknown[[]policy.ProductionBench]()
+	}
+	var rows []policy.ProductionBench
+	add := func(entity *o.EntityRef, usable *bool, recipes []*o.RecipeState, bills []*o.BillState, production []*o.FoodProduction, butcher bool) {
+		row := policy.ProductionBench{ID: entity.GetId(), Definition: entity.GetDefName(), Usable: optional(usable), Butcher: butcher}
+		if entity.Snapshot != nil {
+			row.Token = optional(entity.Snapshot.Token)
+		}
+		for _, r := range recipes {
+			recipe := policy.ProductionRecipe{Name: r.Recipe.GetDefName()}
+			if r.AvailableNow != nil && r.AvailableOnBench != nil {
+				recipe.Available = domain.Known(r.GetAvailableNow() && r.GetAvailableOnBench())
+			}
+			for _, p := range production {
+				if p.GetRecipe() == recipe.Name {
+					if p.Available != nil {
+						recipe.Available = domain.Known(p.GetAvailable() && r.GetAvailableNow() && r.GetAvailableOnBench())
+					}
+					for _, product := range p.Products {
+						recipe.Products = append(recipe.Products, policy.ProductionProduct{Name: product.GetDefName(), Nutrition: optional(product.Nutrition), Demand: optional(product.NutritionDemandPerDay), RotDays: optional(product.RotDays), Edible: optional(product.Edible), Perishable: optional(product.Perishable)})
+					}
+				}
+			}
+			row.Recipes = append(row.Recipes, recipe)
+		}
+		for _, b := range bills {
+			row.Bills = append(row.Bills, policy.ExistingProductionBill{Recipe: b.Recipe.GetDefName()})
+		}
+		rows = append(rows, row)
+	}
+	for _, b := range v.Cooking {
+		add(b.Bench, b.Usable, b.Recipes, b.Bills, b.Production, false)
+	}
+	for _, b := range v.Butchering {
+		add(b.Bench, b.Usable, b.Recipes, b.Bills, nil, true)
+	}
+	return domain.Known(rows)
+}

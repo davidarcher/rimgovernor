@@ -26,12 +26,39 @@ func NewRoutineCookingPlanner(reviewer *RoutineReviewer, native RoutineBuildingS
 	return &RoutineBuildingPlanner{reviewer: reviewer, native: native, goal: policy.EnsureCooking, definition: "Campfire"}, nil
 }
 
+func NewRoutineButcherPlanner(reviewer *RoutineReviewer, native RoutineBuildingSource) (*RoutineBuildingPlanner, error) {
+	if reviewer == nil || native == nil {
+		return nil, ErrControl
+	}
+	if _, ok := native.(observation.RoutineSource); !ok {
+		return nil, ErrControl
+	}
+	return &RoutineBuildingPlanner{reviewer: reviewer, native: native, goal: policy.EnsureFoodSupply, definition: "ButcherSpot", environment: policy.PlacementAnywhere}, nil
+}
 func (r *RoutineBuildingPlanner) selection(facts observation.ColonyProjection) (int64, domain.MethodID, RoutineBuildingReason) {
 	count, known := facts.Facts.Colonists.Value()
 	if !known || count <= 0 {
 		return 0, "", BuildingMethodUnknown
 	}
 	switch r.goal {
+	case policy.EnsureFoodSupply:
+		if r.definition != "ButcherSpot" {
+			return 0, "", BuildingMethodUnknown
+		}
+		days, dk := facts.Facts.FoodDays.Value()
+		armed, ak := facts.Facts.Armed.Value()
+		if !dk || !ak || armed <= 0 || days >= r.reviewer.policy.FoodTargetDays {
+			return 0, "", BuildingMethodNoDeficit
+		}
+		benches, bk := facts.ButcheringBenches.Value()
+		if !bk {
+			return 0, "", BuildingMethodUnknown
+		}
+		if len(benches) > 0 {
+			return 0, "", BuildingExistingFacility
+		}
+		return 1, "butcher-spot", ""
+
 	case policy.EnsureTemperatureSafety:
 		if r.temperature == nil {
 			return 0, "", BuildingMethodUnknown

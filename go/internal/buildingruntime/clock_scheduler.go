@@ -27,10 +27,12 @@ type ClockWindowNative interface {
 	ReadEmergency(context.Context, *c.Identity) (bridge.EmergencyObservation, bridge.Result, error)
 }
 type ClockSchedulerConfig struct {
-	Fields  *RoutineFieldPlanner
-	Profile string
-	Start   bridge.ClockStart
-	MaxAge  time.Duration
+	CookingBills, PreservationBills, ButcherBills *RoutineBillPlanner
+	Butcher                                       *RoutineBuildingPlanner
+	Fields                                        *RoutineFieldPlanner
+	Profile                                       string
+	Start                                         bridge.ClockStart
+	MaxAge                                        time.Duration
 	// Routine is reviewed only after owned clock obligations have drained.
 	Routine                          *RoutineReviewer
 	FoodAcquisition, WoodAcquisition *RoutineAcquisitionPlanner
@@ -45,20 +47,22 @@ type ClockSchedulerConfig struct {
 	RoutineMethods                   bool
 }
 type ClockSchedulerResult struct {
-	Fields                           *RoutineFieldResult
-	Attempt                          *store.ClockAttempt
-	Decision                         policy.ClockWindowDecision
-	Routine                          *store.RoutineReviewResult
-	FoodAcquisition, WoodAcquisition *RoutineAcquisitionResult
-	Work                             *RoutineWorkResult
-	Supplies                         *RoutineSupplyResult
-	Sleeping                         *RoutineBuildingResult
-	Cooking                          *RoutineBuildingResult
-	Comfort                          *RoutineBuildingResult
-	Expansion                        *RoutineBuildingResult
-	Power                            *RoutineBuildingResult
-	Temperature                      *RoutineBuildingResult
-	Running, Reconciled, Cleaned     bool
+	CookingBills, PreservationBills, ButcherBills *RoutineBillResult
+	Butcher                                       *RoutineBuildingResult
+	Fields                                        *RoutineFieldResult
+	Attempt                                       *store.ClockAttempt
+	Decision                                      policy.ClockWindowDecision
+	Routine                                       *store.RoutineReviewResult
+	FoodAcquisition, WoodAcquisition              *RoutineAcquisitionResult
+	Work                                          *RoutineWorkResult
+	Supplies                                      *RoutineSupplyResult
+	Sleeping                                      *RoutineBuildingResult
+	Cooking                                       *RoutineBuildingResult
+	Comfort                                       *RoutineBuildingResult
+	Expansion                                     *RoutineBuildingResult
+	Power                                         *RoutineBuildingResult
+	Temperature                                   *RoutineBuildingResult
+	Running, Reconciled, Cleaned                  bool
 }
 type ClockScheduler struct {
 	player              *Player
@@ -77,6 +81,14 @@ func NewClockScheduler(player *Player, session *Session, native ClockWindowNativ
 		return nil, ErrControl
 	}
 	if config.Routine != nil && config.Routine.player != player {
+		return nil, ErrControl
+	}
+	for _, planner := range []*RoutineBillPlanner{config.CookingBills, config.PreservationBills, config.ButcherBills} {
+		if planner != nil && (config.Routine == nil || planner.reviewer != config.Routine) {
+			return nil, ErrControl
+		}
+	}
+	if config.Butcher != nil && (config.Routine == nil || config.Butcher.reviewer != config.Routine || config.Butcher.goal != policy.EnsureFoodSupply) {
 		return nil, ErrControl
 	}
 	if config.Fields != nil && (config.Routine == nil || config.Fields.reviewer != config.Routine) {
@@ -330,6 +342,25 @@ func (s *ClockScheduler) Step(ctx context.Context) (ClockSchedulerResult, error)
 		}
 		out.Cooking = &method
 	}
+	if s.config.Butcher != nil {
+		method, err := s.config.Butcher.step(call, epoch)
+		if err != nil {
+			return out, err
+		}
+		out.Butcher = &method
+	}
+	for _, entry := range []struct {
+		planner *RoutineBillPlanner
+		result  **RoutineBillResult
+	}{{s.config.CookingBills, &out.CookingBills}, {s.config.PreservationBills, &out.PreservationBills}, {s.config.ButcherBills, &out.ButcherBills}} {
+		if entry.planner != nil {
+			method, err := entry.planner.step(call, epoch)
+			if err != nil {
+				return out, err
+			}
+			*entry.result = &method
+		}
+	}
 	if s.config.Comfort != nil {
 		method, err := s.config.Comfort.step(call, epoch)
 		if err != nil {
@@ -487,7 +518,7 @@ func clockSchedulerWork(plan store.PlanState, current domain.GenerationSnapshot)
 			continue
 		}
 		// Construction and native plant labor use the healthy-colony clock window.
-		if _, ok := p.Action().Building(); !ok && p.Action().Kind() != domain.AcquisitionAction {
+		if _, ok := p.Action().Building(); !ok && p.Action().Kind() != domain.AcquisitionAction && p.Action().Kind() != domain.ProductionBillAction {
 			return false, nil, executor.ErrHeld
 		}
 		work = true

@@ -640,6 +640,12 @@ without pushes, when the target checkout is safe; preserve other developers' wor
     stock and current edible stock distinct. Reuse accepted campfire and field
     geometry. Gate on ordinary acquired, harvested, cooked and stored output plus
     a renewed deficit, emergency interruption and preserved player assignments.
+    Production bills remain unfinished on `codex/g01-05-bootstrap`: the typed
+    bill path, schema 36, planners and native output tracking need regression
+    coverage, player-edit invalidation and final native/protocol validation.
+    Compile-only Go checks are not completion evidence. Reserved-stock accounting
+    and protected storage/haul remain unimplemented; gameplay acceptance remains
+    tracked under G01.12.
 
   - [ ] **05.3 — Defense and urgent care (G01.07a).**
     Compose squad selection with existing draft/melee and exact owned cleanup;

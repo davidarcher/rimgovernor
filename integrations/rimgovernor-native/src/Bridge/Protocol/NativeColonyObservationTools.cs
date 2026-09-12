@@ -129,7 +129,7 @@ namespace HomeBridge.BridgeTools
             foreach (var condition in conditions)
                 result.Environment.Add(new Obs.EnvironmentCondition { Id = condition.uniqueID.ToString(System.Globalization.CultureInfo.InvariantCulture), DefName = condition.def.defName });
             result.Recovery = NativeRecoveryFacts.Read(map, context, limit);
-            foreach (var field in new[] { "policy_resources", "butchering", "food_corpses", "waste" })
+            foreach (var field in new[] { "policy_resources", "food_corpses", "waste" })
                 result.Issues.Add(Issue(field, Common.UnavailableReason.Unsupported, "Section is not yet projected."));
             try { result.FoodClimate = new Obs.FoodClimate { GrowingDaysRemaining = ColonyFactsTools.GrowingDaysRemaining(map),
                 SowingNow = new[] { "Plant_Rice", "Plant_Potato", "Plant_Corn" }.Select(DefDatabase<ThingDef>.GetNamedSilentFail).Any(d => d != null && PlantUtility.GrowthSeasonNow(map,d)),
@@ -210,15 +210,33 @@ namespace HomeBridge.BridgeTools
             Bound(benches.Count, limit);
             foreach (var bench in benches) {
                 var row = new Obs.CookingFacts { Bench = new Obs.EntityRef { Id = bench.GetUniqueLoadID(), DefName = bench.def.defName,
-                    MapId = map.uniqueID, Position = Cell(bench.Position) },
+                    MapId = map.uniqueID, Position = Cell(bench.Position), Snapshot = NativeProductionBills.Snapshot(bench,bench,result.Context) },
                     Usable = !bench.IsBurning() && (bench.TryGetComp<CompPowerTrader>() == null || bench.TryGetComp<CompPowerTrader>().PowerOn)
                         && (bench.TryGetComp<CompRefuelable>() == null || bench.TryGetComp<CompRefuelable>().HasFuel) };
                 var recipes = bench.def.AllRecipes.Where(r => r.products.Any(p => humanFood(p.thingDef))).OrderBy(r => r.defName).ToList();
                 Bound(recipes.Count, limit); Bound(bench.BillStack.Bills.Count, limit);
-                foreach (var recipe in recipes) row.Recipes.Add(new Obs.RecipeState { Recipe = new Obs.DefinitionRef { DefName = recipe.defName } });
-                foreach (var bill in bench.BillStack.Bills) row.Bills.Add(new Obs.BillState { Recipe = new Obs.DefinitionRef { DefName = bill.recipe.defName }, Suspended = bill.suspended });
+                foreach (var recipe in recipes) {
+                    row.Recipes.Add(NativeProductionBills.RecipeRow(bench,recipe));
+                    var production = new Obs.FoodProduction { Recipe = recipe.defName, Available = NativeProductionBills.Recipe(bench,recipe) };
+                    foreach(var product in recipe.products){
+                        var rot=product.thingDef.GetCompProperties<CompProperties_Rottable>();
+                        var food=new Obs.FoodProduct{DefName=product.thingDef.defName,Count=product.count,Edible=humanFood(product.thingDef),Nutrition=product.thingDef.GetStatValueAbstract(StatDefOf.Nutrition),NutritionDemandPerDay=result.NutritionPerDay,Perishable=rot!=null};
+                        if(rot!=null)food.RotDays=rot.daysToRotStart;
+                        production.Products.Add(food);
+                    }
+                    row.Production.Add(production);
+                }
+                for(var index=0;index<bench.BillStack.Count;index++)row.Bills.Add(NativeProductionBills.BillRow(bench.BillStack.Bills[index],index));
                 result.Cooking.Add(row);
             }
+            foreach(var bench in things.Where(t=>t.Faction==Faction.OfPlayer&&t is IBillGiver&&reachable(t)&&t.def.AllRecipes.Any(r=>r.defName=="ButcherCorpseFlesh")).OrderBy(t=>t.thingIDNumber)){
+                if(result.Butchering.Count>=limit)throw new ReadLimit("Butcher census bound.");var giver=(IBillGiver)bench;
+                var row=new Obs.ButcheringFacts{Bench=new Obs.EntityRef{Id=bench.GetUniqueLoadID(),DefName=bench.def.defName,MapId=map.uniqueID,Position=Cell(bench.Position),Snapshot=NativeProductionBills.Snapshot(bench,giver,result.Context)},Usable=NativeProductionBills.Usable(bench)};
+                foreach(var recipe in bench.def.AllRecipes.Where(r=>r.defName=="ButcherCorpseFlesh"))row.Recipes.Add(NativeProductionBills.RecipeRow(bench,recipe));
+                for(var index=0;index<giver.BillStack.Count;index++)row.Bills.Add(NativeProductionBills.BillRow(giver.BillStack.Bills[index],index));
+                result.Butchering.Add(row);
+            }
+
         }
 
         private static Obs.PlanningFacts Planning(Map map, IntVec3 center, Obs.ColonyFactsRequest request, Common.ObservationContext context, int limit)

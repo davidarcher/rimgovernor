@@ -20,8 +20,11 @@ type PlanningDefinition struct {
 	GrowDays, FertilityMin, FertilitySensitivity, HarvestNutrition, NutritionDemandPerDay domain.Fact[float64]
 }
 type ColonyProjection struct {
-	ZoneMapToken domain.Fact[string]
-	CropClimate  policy.CropClimate
+	ProductionBenches   domain.Fact[[]policy.ProductionBench]
+	ButcheringBenches   domain.Fact[[]CookingBench]
+	FoodAtRiskNutrition domain.Fact[float64]
+	ZoneMapToken        domain.Fact[string]
+	CropClimate         policy.CropClimate
 
 	PendingHunts domain.Fact[int]
 
@@ -150,6 +153,14 @@ func DecodeColony(reply *o.ColonyFactsReply, expected Identity) (ColonyProjectio
 	}
 	colonyAcquisition(v, &r)
 	colonyProduction(v, &r.Facts)
+	r.ProductionBenches = colonyProductionBenches(v)
+	if !hasIssue(v.Issues, "butchering") {
+		benches := []CookingBench{}
+		for _, b := range v.Butchering {
+			benches = append(benches, CookingBench{Definition: b.Bench.GetDefName(), Usable: optional(b.Usable)})
+		}
+		r.ButcheringBenches = domain.Known(benches)
+	}
 	colonyDisaster(v, &r.Facts)
 	r.Facts.Comfort = colonyComfort(v)
 	r.Facts.HomeCoverage = colonyHomeCoverage(v)
@@ -194,6 +205,7 @@ func DecodeColony(reply *o.ColonyFactsReply, expected Identity) (ColonyProjectio
 			}
 			if food, err := policy.ForecastFood(combined, selected); err == nil {
 				r.Facts.FoodDays = food.RunwayDays
+				r.FoodAtRiskNutrition = domain.Known(food.AtRiskNutrition)
 			}
 		}
 	}

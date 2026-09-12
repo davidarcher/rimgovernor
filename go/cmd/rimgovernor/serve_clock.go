@@ -46,11 +46,12 @@ func serviceClockConfig(profile string) buildingruntime.ClockSchedulerConfig {
 func startServiceClock(ctx context.Context, player *buildingruntime.Player, session *buildingruntime.Session, reads serviceClockReads, profile string, timeout time.Duration, routine, sleeping, cooking, shelter, comfort, expansion, power, temperature bool, projectLimit int, supplies, work, acquisition bool, fieldOptions ...bool) error {
 	config := serviceClockConfig(profile)
 	config.RoutineMethods = session.RoutineMethodsEnabled()
-	fields := len(fieldOptions) == 1 && fieldOptions[0]
-	if len(fieldOptions) > 1 {
+	fields := len(fieldOptions) >= 1 && fieldOptions[0]
+	bills := len(fieldOptions) == 2 && fieldOptions[1]
+	if len(fieldOptions) > 2 {
 		return errors.New("invalid field option")
 	}
-	if (fields || acquisition || work || supplies || sleeping || cooking || shelter || comfort || expansion || power || temperature) && !routine {
+	if (bills || fields || acquisition || work || supplies || sleeping || cooking || shelter || comfort || expansion || power || temperature) && !routine {
 		return errors.New("building plans require routine reviews")
 	}
 	if routine {
@@ -61,11 +62,14 @@ func startServiceClock(ctx context.Context, player *buildingruntime.Player, sess
 		thresholds := policy.DefaultRoutinePolicy()
 		thresholds.MaxDevelopmentProjects = projectLimit
 		capabilities := buildingruntime.RoutineCapabilities{}
-		if acquisition || fields {
+		if acquisition || fields || bills {
 			capabilities.Methods = append(capabilities.Methods, policy.EnsureFoodSupply)
 		}
 		if acquisition {
 			capabilities.Methods = append(capabilities.Methods, policy.MaintainWood)
+		}
+		if bills {
+			capabilities.Methods = append(capabilities.Methods, policy.EnsureCooking)
 		}
 		if temperature {
 			capabilities.Methods = append(capabilities.Methods, policy.EnsureTemperatureSafety)
@@ -84,6 +88,32 @@ func startServiceClock(ctx context.Context, player *buildingruntime.Player, sess
 			return err
 		}
 		config.Routine = reviewer
+		if bills {
+			nativeBills, ok := reads.(buildingruntime.BillPlannerNative)
+			if !ok {
+				return errors.New("bill plans require typed preview")
+			}
+			config.CookingBills, err = buildingruntime.NewRoutineBillPlanner(reviewer, nativeBills, policy.CookFood)
+			if err != nil {
+				return err
+			}
+			config.PreservationBills, err = buildingruntime.NewRoutineBillPlanner(reviewer, nativeBills, policy.PreserveFood)
+			if err != nil {
+				return err
+			}
+			config.ButcherBills, err = buildingruntime.NewRoutineBillPlanner(reviewer, nativeBills, policy.ButcherFood)
+			if err != nil {
+				return err
+			}
+			buildingNative, ok := reads.(buildingruntime.RoutineBuildingSource)
+			if !ok {
+				return errors.New("bill prerequisites require building observations")
+			}
+			config.Butcher, err = buildingruntime.NewRoutineButcherPlanner(reviewer, buildingNative)
+			if err != nil {
+				return err
+			}
+		}
 		if fields {
 			fieldNative, ok := reads.(buildingruntime.FieldNative)
 			if !ok {
@@ -148,7 +178,7 @@ func startServiceClock(ctx context.Context, player *buildingruntime.Player, sess
 					return err
 				}
 			}
-			if cooking {
+			if cooking || bills {
 				config.Cooking, err = buildingruntime.NewRoutineCookingPlanner(reviewer, source)
 				if err != nil {
 					return err

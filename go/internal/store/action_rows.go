@@ -19,7 +19,14 @@ func insertAction(ctx context.Context, tx *sql.Tx, plan domain.PlanID, ordinal i
 		return ErrConflict
 	}
 	var err error
-	if z, ok := a.ZoneCreate(); ok {
+	if b, ok := a.ProductionBill(); ok {
+		data, err := json.Marshal(billPayload{b.Bench(), b.Recipe(), b.BeforeToken(), b.Mode(), b.Target()})
+		if err != nil {
+			return err
+		}
+		_, err = tx.ExecContext(ctx, "INSERT INTO actions(id,plan_id,ordinal,kind,bill_payload) VALUES(?,?,?,'production_bill',?)", a.ID(), plan, ordinal, data)
+		return conflict(err)
+	} else if z, ok := a.ZoneCreate(); ok {
 		data, encodeErr := json.Marshal(zonePayload{z.Kind(), z.Crop(), z.Cells()})
 		if encodeErr != nil {
 			return encodeErr
@@ -58,9 +65,28 @@ func scanAction(rows *sql.Rows) (domain.Action, int, error) {
 	var ordinal int
 	var def, rotation, stuff, pawn, target, draftAction sql.NullString
 	var x, z sql.NullInt64
-	var work, zone []byte
-	if err := rows.Scan(&id, &kind, &def, &x, &z, &rotation, &stuff, &pawn, &target, &draftAction, &work, &zone, &ordinal); err != nil {
+	var work, zone, bill []byte
+	if err := rows.Scan(&id, &kind, &def, &x, &z, &rotation, &stuff, &pawn, &target, &draftAction, &work, &zone, &bill, &ordinal); err != nil {
 		return domain.Action{}, 0, err
+	}
+	if kind == "production_bill" && !pawn.Valid && !target.Valid && !draftAction.Valid && !def.Valid && !x.Valid && !z.Valid && !rotation.Valid && !stuff.Valid && work == nil && zone == nil {
+		var payload billPayload
+		if len(bill) > 32768 || json.Unmarshal(bill, &payload) != nil {
+			return domain.Action{}, 0, errors.New("invalid bill payload")
+		}
+		canonical, _ := json.Marshal(payload)
+		if !bytes.Equal(canonical, bill) {
+			return domain.Action{}, 0, errors.New("noncanonical bill payload")
+		}
+		value, err := domain.NewProductionBill(payload.Bench, payload.Recipe, payload.Token, payload.Mode, payload.Target)
+		if err != nil {
+			return domain.Action{}, 0, err
+		}
+		action, err := domain.NewProductionBillAction(id, value)
+		return action, ordinal, err
+	}
+	if bill != nil {
+		return domain.Action{}, 0, errors.New("mixed bill payload")
 	}
 	if kind == "zone_create" && !pawn.Valid && !target.Valid && !draftAction.Valid && !def.Valid && !x.Valid && !z.Valid && !rotation.Valid && !stuff.Valid && work == nil {
 		var payload zonePayload
@@ -176,4 +202,10 @@ type zonePayload struct {
 	Kind  domain.ZoneKind
 	Crop  string
 	Cells []domain.Cell
+}
+
+type billPayload struct {
+	Bench, Recipe, Token string
+	Mode                 domain.BillMode
+	Target               int32
 }
