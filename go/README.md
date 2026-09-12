@@ -202,7 +202,10 @@ capacity waits for ordinary refueling/output. Solar flares and player-disabled
 equipment hold proposals. Completed methods lend at most 10,000 ticks for native
 power recovery, scoped to the current direction; native consumer power establishes
 recovery. Targeted gameplay acceptance uses `native_go_routine_acceptance.py
---power-methods generation` or `--power-methods conduit` with ForecastFixture.
+--power-methods generation` or `--power-methods conduit` with ForecastFixture. Both scenarios verify native
+consumer recovery, correlated construction, Manual and disabled restart. Replay
+uses `RIMGOVERNOR_NATIVE_POWER_METHODS_CAPTURE=<capture-directory> go test
+./internal/observation -run TestNativePowerMethodsReplay`.
 
 `ReadRoutinePawns` adds the work-only detail selection to the same exact-ID read.
 It preserves native work applicability and numbered/checkbox mode. `AssignWork`

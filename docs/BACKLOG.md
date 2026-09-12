@@ -791,7 +791,10 @@ expand these into another nested task tree; remove a row when its outcome is met
   Routine power method composition now selects network-local generation or a
   bounded conduit route, checks native geometry and assigned construction skills,
   and admits ordinary building actions under shared resources and Manual gates.
-  Targeted generation/conduit gameplay acceptance remains pending.
+  Targeted native acceptance verifies a new generator supplying its consumer after
+  ordinary refueling and eight conduits connecting an existing generator without
+  duplicate generation. Both cases cover Manual, disabled restart and captured
+  Go proposal/recovery replay.
 
 - [ ] **G01.07a — Finish defense and essential medical care.** Connect movement
   and melee to complete defense plans using the existing owned-draft lifecycle;

@@ -15,7 +15,7 @@ func TestMedicalReserveRetainsHistoryAcrossManualUnknownAndRestart(t *testing.T)
 	r := routineRequest()
 	r.Facts.Colonists = domain.Known(int64(3))
 	set := func(n int64) {
-		r.Facts.MedicalReserve = policy.MedicalReserveObservation{Items: domain.Known([]policy.MedicineStack{{ID: "medicine", Definition: "MedicineHerbal", Count: n, Perishable: domain.Known(false)}}), Resources: domain.Known([]policy.Amount{{"MedicineHerbal", n}})}
+		r.Facts.MedicalReserve = policy.MedicalReserveObservation{Items: domain.Known([]policy.MedicineStack{{ID: "medicine", Definition: "MedicineHerbal", Count: n, Perishable: domain.Known(false)}}), Resources: domain.Known([]policy.Amount{{Resource: "MedicineHerbal", Count: n}})}
 	}
 	set(2)
 	out := reviewRoutine(t, s, &r)
