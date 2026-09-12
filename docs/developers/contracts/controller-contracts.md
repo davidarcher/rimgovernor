@@ -34,6 +34,13 @@ uses ordinary native need jobs and completes only from observed need recovery.
 
 ### Development admission
 
+Startup supplies use the first known native forbidden-supply census. Later
+observations can remove released cells but cannot add later player forbids or
+revive released cells. The Go reviewer persists that cohort through Manual,
+direction changes and restart; unavailable reads leave it unresolved. A different
+world or rewound tick starts a new cohort. This need history does not establish
+item ownership, reserve those cells, or authorize an Allow order.
+
 Required food storage runs at startup survival priority, alongside cooking and
 shelter. It waits for verified indoor sleeping capacity before fitting the starter
 room, but does not wait for optional development slots held by interrupted gear.

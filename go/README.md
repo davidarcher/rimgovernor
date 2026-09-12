@@ -278,6 +278,11 @@ method selection and execution composition remain in G01.05.
 scenario launcher with the private construction fixture and verified Go binary,
 covers the live SDK read trace, fifteen durable goals, urgent and ongoing medical needs,
 unknown food forecast, Manual invalidation, joined shutdown and disabled restart.
+`--supply-history` additionally clears the original supplies through the native
+player Allow designator, reviews their recovery, and re-forbids the same supplies.
+Repeated same-database Go starts must preserve the empty cohort and issue no
+operations during those reviews. Each player edit happens while Go is joined;
+the final disabled restart preserves history without advancing time.
 Its `--sleeping-methods` variant also uses `RoutineSleepingFixture` to provide an
 empty roofed room and healthy starting colonists. It verifies one complete sleeping
 method, native observed completion, single attempts, indoor footprints and unchanged

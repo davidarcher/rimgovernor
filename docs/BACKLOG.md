@@ -723,7 +723,10 @@ expand these into another nested task tree; remove a row when its outcome is met
   Startup supplies now retain the first known native cohort across Manual,
   direction changes and restart. Complete reads shrink it without adopting later
   forbids or reviving released cells; unavailable reads preserve unresolved cells.
-  Native acceptance and final automated verification for this history remain open.
+  Native acceptance clears the original cohort through player Allow, then verifies
+  that re-forbidding the same supplies does not reopen the need or issue operations
+  across Manual and repeated same-database restarts. Fast checks cover unknowns,
+  an initially empty cohort, later cells, world/rewind reset and corrupt history.
   Further need inputs, method selection and execution composition for
   additional routine methods remain open: equipment, comfort/expansion, the ten
   `colony_upkeep.CONTRACTS` needs, player resource targets, and policy-generated
