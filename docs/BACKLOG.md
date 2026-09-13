@@ -660,27 +660,35 @@ without pushes, when the target checkout is safe; preserve other developers' wor
     structural support; wait for ordinary labor where Python does. Gate on storage,
     bed use and upkeep outcomes, layout changes and interruption, not issued jobs.
 
-    `SecureSupplies`' ordinary haul-order path, `MaintainEssentialRepairs` and
-    `MaintainCleanFacilities` (each a full domain/policy/store/executor/
-    buildingruntime vertical) are closed and dispatchable via `Session.Run`;
-    none has routine-scheduler/CLI wiring yet (`serve.go`/`serve_building.go`/
-    `serve_clock.go`/`clock_scheduler.go` are owned by parallel 05.5/05.6 work
-    this round). `MaintainCleanFacilities` sources its filth CAS token via a
-    new `bridge.ReadFilthTarget` (`observations_get_cells`, exact-cell scan by
+    `SecureSupplies`, `MaintainEssentialRepairs` and `MaintainCleanFacilities`
+    (each a full domain/policy/store/executor/buildingruntime vertical) are
+    closed and dispatchable via `Session.Run`. `SecureSupplies` now also
+    covers `upkeep_storage.py`'s `covered_storage` fallback: once ordinary
+    haul retries for the selected vulnerable item exhaust their bound, the
+    routine planner searches for the nearest legal roofed 2x2 patch
+    (`policy.CoveredStorageSites`, keyed off the native `storage_empty` cell
+    fact) and proposes an allow-listed stockpile zone for that item's
+    definition, dry-run previewed and admitted the same way `EnsureFoodStorage`
+    creates its starter stockpile; capped at three such zones per goal episode
+    like the Python reference. `supply_storeroom`'s larger whole-room fallback
+    is not ported and remains open, alongside `MaintainStoneShell`.
+    `MaintainCleanFacilities` sources its filth CAS token via a new
+    `bridge.ReadFilthTarget` (`observations_get_cells`, exact-cell scan by
     entity ID), since filth has no exact-ID lookup RPC like `ListBuildings`;
     this doc already records elsewhere that native currently refuses
     `Fields.Things` on that RPC with `FAILURE_CODE_UNSUPPORTED`, so this path
     is Go-complete and unit-tested but blocked on that same pre-existing
     native gap until it lands. `MaintainFireSafety`'s decision logic
     (`policy.EvaluateFireSafety`) is ported but unwired (moot below
-    priority-3 development ranking). Still open: the `SecureSupplies`
-    covered-storage/supply-storeroom planner; `MaintainSleeping`/
-    `MaintainHomeCoverage` (review evidence exists, no plan-producing
-    vertical yet); `MaintainStoneShell` (untouched, largest remaining piece).
-    Native C# (`NativeHaulOperations.cs`) only implements `PawnOrderKind.Haul`
-    today, so Repair/Clean/Equip/Rescue/Tend/Work/Capture are refused at the
-    native boundary — tracked under G01.12, not specific to this slice. No
-    new Python acceptance tests added.
+    priority-3 development ranking). `MaintainEssentialRepairs` and
+    `MaintainCleanFacilities` have no routine-scheduler/CLI wiring yet
+    (`serve_clock.go` already wires `SecureSupplies`). Still open:
+    `MaintainSleeping`/`MaintainHomeCoverage` (review evidence exists, no
+    plan-producing vertical yet); `MaintainStoneShell` (untouched, largest
+    remaining piece). Native C# (`NativeHaulOperations.cs`) only implements
+    `PawnOrderKind.Haul` today, so Repair/Clean/Equip/Rescue/Tend/Work/Capture
+    are refused at the native boundary — tracked under G01.12, not specific
+    to this slice. No new Python acceptance tests added.
 
   - [ ] **05.5 — Equipment, research and replenishment (G01.07d).**
     Connect gear replacement/equip/wear to workshop recipes, bills and output;

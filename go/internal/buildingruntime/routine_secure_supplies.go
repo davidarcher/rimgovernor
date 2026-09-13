@@ -5,6 +5,7 @@ import (
 	"crypto/sha256"
 	"errors"
 	"fmt"
+	"time"
 
 	"github.com/davidarcher/RimGovernor/go/internal/bridge"
 	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/boundary"
@@ -14,6 +15,7 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/store"
 	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
 	n "github.com/davidarcher/RimGovernor/go/internal/wire/observationspb"
+	op "github.com/davidarcher/RimGovernor/go/internal/wire/operationspb"
 )
 
 // RoutineSecureSuppliesSource reuses the generic colony read for the vulnerable
@@ -25,7 +27,18 @@ type RoutineSecureSuppliesSource interface {
 	observation.ColonySource
 	ReadEmergency(context.Context, *c.Identity) (bridge.EmergencyObservation, bridge.Result, error)
 	ReadTendPawns(context.Context, *c.Identity, []string) (*n.ListPawnsReply, bridge.Result, error)
+	PreviewZone(context.Context, *c.Identity, bridge.ZoneTarget) (*op.PreviewReply, bridge.Result, error)
 }
+
+// maxSecureSuppliesZoneMethods bounds SecureSupplies' covered-storage fallback
+// to a handful of new zones per goal episode, mirroring upkeep_storage.py's
+// three-item SecureSupplies cap across covered_storage and supply_storeroom.
+// Once reached, ordinary haul attempts remain the only route until a new
+// episode begins.
+const maxSecureSuppliesZoneMethods = 3
+
+const secureSuppliesZonePrefix = "secure-supplies-zone-"
+
 type RoutineSecureSuppliesPlanner struct {
 	reviewer *RoutineReviewer
 	native   RoutineSecureSuppliesSource
@@ -111,7 +124,7 @@ func (r *RoutineSecureSuppliesPlanner) step(call, epoch context.Context) (Routin
 		return RoutineSecureSuppliesResult{}, ErrControl
 	}
 	started := r.reviewer.clock.Now()
-	reading, err := observation.ObserveColony(call, r.native, r.reviewer.clock, expected, r.reviewer.maxAge, false, nil)
+	reading, err := observation.ObserveColony(call, r.native, r.reviewer.clock, expected, r.reviewer.maxAge, true, nil)
 	if err != nil {
 		return RoutineSecureSuppliesResult{}, err
 	}
@@ -214,6 +227,13 @@ func (r *RoutineSecureSuppliesPlanner) step(call, epoch context.Context) (Routin
 	prefix := fmt.Sprintf("secure-supplies-%s-", item.ID)
 	attempt := medicalAttemptCount(goal.Methods, goal.Goal.Epoch, prefix)
 	if attempt >= maxMedicalAttemptsPerPatient {
+		fallback, err := r.coveredStorageFallback(call, epoch, state, goal, reading.Projection, item, started)
+		if err != nil {
+			return RoutineSecureSuppliesResult{}, err
+		}
+		if fallback.Reason != "" {
+			return fallback, nil
+		}
 		return RoutineSecureSuppliesResult{Reason: BuildingMethodExhausted}, nil
 	}
 	method := domain.MethodID(fmt.Sprintf("%s%d", prefix, attempt))
@@ -236,6 +256,102 @@ func (r *RoutineSecureSuppliesPlanner) step(call, epoch context.Context) (Routin
 	}
 	if _, err = p.journal.CommitGoalMethod(call, goal.Goal.ID, goal.Revision, method, plan); err != nil {
 		return RoutineSecureSuppliesResult{}, err
+	}
+	return RoutineSecureSuppliesResult{Reason: BuildingMethodAdmitted, Plan: id}, nil
+}
+
+// coveredStorageFallback ports upkeep_storage.py's covered_storage step: once
+// ordinary hauling for the selected vulnerable item has been retried to its
+// bound, propose a small allow-listed stockpile zone (native preset='nothing'
+// with an explicit definition allow-list) on the nearest legal roofed 2x2
+// patch instead, exactly as the Python reference's dry-run zone-create
+// fallback does. It is bounded to maxSecureSuppliesZoneMethods zones per goal
+// episode. A zero-value, empty-Reason result means the fallback did not apply
+// this step (no zone budget left, no legal site, or a stale read) and the
+// caller should report its own exhaustion reason instead.
+//
+// upkeep_storage.py's second-tier supply_storeroom fallback (building an
+// entirely new enclosed room when no covered patch exists) is not ported by
+// this slice; it remains open, tracked in docs/BACKLOG.md alongside
+// MaintainStoneShell.
+func (r *RoutineSecureSuppliesPlanner) coveredStorageFallback(call, epoch context.Context, state ControlState, goal store.GoalState, projection observation.ColonyProjection, item policy.UpkeepItem, started time.Time) (RoutineSecureSuppliesResult, error) {
+	p := r.reviewer.player
+	zoneAttempts := medicalAttemptCount(goal.Methods, goal.Goal.Epoch, secureSuppliesZonePrefix)
+	if zoneAttempts >= maxSecureSuppliesZoneMethods {
+		return RoutineSecureSuppliesResult{}, nil
+	}
+	token, known := projection.ZoneMapToken.Value()
+	if !known {
+		return RoutineSecureSuppliesResult{}, nil
+	}
+	held, err := p.journal.BuildingReservations(call, state.Snapshot)
+	if err != nil {
+		return RoutineSecureSuppliesResult{}, err
+	}
+	var protected []domain.Cell
+	for _, h := range held {
+		protected = append(protected, h.Footprint...)
+	}
+	sites, err := policy.CoveredStorageSites(policy.CoveredStorageRequest{Bounds: projection.Bounds, Anchor: projection.Center, Cells: projection.Cells, Protected: protected})
+	if err != nil {
+		return RoutineSecureSuppliesResult{}, err
+	}
+	if len(sites) == 0 {
+		return RoutineSecureSuppliesResult{}, nil
+	}
+	site := sites[0]
+	cells := make([]domain.Cell, 0, int(site.Width*site.Height))
+	for x := site.X; x < site.X+site.Width; x++ {
+		for z := site.Z; z < site.Z+site.Height; z++ {
+			cells = append(cells, domain.Cell{X: x, Z: z})
+		}
+	}
+	value, err := domain.NewAllowListStockpileZone(domain.ImportantPriority, []string{item.Definition}, cells)
+	if err != nil {
+		return RoutineSecureSuppliesResult{}, err
+	}
+	method := domain.MethodID(fmt.Sprintf("%s%d", secureSuppliesZonePrefix, zoneAttempts))
+	digest := sha256.Sum256([]byte(fmt.Sprintf("%s/%d/%s", goal.Goal.ID, goal.Goal.Epoch, method)))
+	id := domain.PlanID(fmt.Sprintf("routine-secure-supplies-zone-%x", digest[:16]))
+	snapshot := state.Snapshot
+	snapshot.Plan = id
+	snapshot.Revision = 1
+	action, err := domain.NewZoneCreateAction(domain.ActionID(fmt.Sprintf("%s-0", id)), value)
+	if err != nil {
+		return RoutineSecureSuppliesResult{}, err
+	}
+	reply, _, err := r.native.PreviewZone(call, boundary.Identity(snapshot), bridge.ZoneTarget{Zone: value, Token: token})
+	if err != nil {
+		return RoutineSecureSuppliesResult{}, err
+	}
+	v := reply.GetEvaluated()
+	if v == nil || !v.GetAccepted() {
+		return RoutineSecureSuppliesResult{Reason: BuildingMethodRefused}, nil
+	}
+	if _, err = boundary.Context(v.Context, snapshot); err != nil || domain.Tick(v.Context.GetTick()) != projection.Identity.Tick {
+		return RoutineSecureSuppliesResult{}, ErrControl
+	}
+	preview := policy.Preview{Action: action, Snapshot: snapshot, Tick: projection.Identity.Tick, CanPlace: domain.Known(true), SafeToPlace: domain.Known(true), MadeFromStuff: domain.Known(false), WatchCellsAccessible: domain.Known(true), Footprint: domain.Known(cells), Costs: domain.Known([]policy.Amount{})}
+	plan, err := domain.NewPlan(id, 1, []domain.Action{action})
+	if err != nil {
+		return RoutineSecureSuppliesResult{}, err
+	}
+	if err = p.current(call, epoch); err != nil {
+		return RoutineSecureSuppliesResult{}, err
+	}
+	if p.session.State() != state {
+		return RoutineSecureSuppliesResult{}, ErrControl
+	}
+	elapsed := r.reviewer.clock.Now().Sub(started)
+	if elapsed < 0 || elapsed > r.reviewer.maxAge {
+		return RoutineSecureSuppliesResult{}, ErrControl
+	}
+	decision, err := p.journal.AdmitBuildingMethod(call, store.BuildingMethodRequest{Goal: goal.Goal.ID, Revision: goal.Revision, Method: method, Plan: plan, Current: snapshot, Tick: projection.Identity.Tick, Bounds: domain.Known(projection.Bounds), Stock: policy.StockObservation{Snapshot: snapshot, Tick: projection.Identity.Tick}, Rules: r.reviewer.rules, Previews: []policy.Preview{preview}, Purpose: policy.Routine})
+	if err != nil {
+		return RoutineSecureSuppliesResult{}, err
+	}
+	if !decision.Admitted {
+		return RoutineSecureSuppliesResult{Reason: BuildingMethodRefused}, nil
 	}
 	return RoutineSecureSuppliesResult{Reason: BuildingMethodAdmitted, Plan: id}, nil
 }
