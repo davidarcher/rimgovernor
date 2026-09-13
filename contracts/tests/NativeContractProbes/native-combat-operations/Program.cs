@@ -33,7 +33,10 @@ internal static class NativeCombatOperationsProbe
             ("causal death before later Manual",true,false,true,false,true,false,true,false,"Completed"),
             ("causal downing standing objective",true,true,false,true,true,false,false,true,"Completed"),
             ("causal downing does not finish unrestricted attack",true,true,false,true,false,true,false,true,"Pending"),
-            ("ordinary live attack",true,true,false,false,true,true,false,false,"Pending")};
+            ("ordinary live attack",true,true,false,false,true,true,false,false,"Pending"),
+            ("causal downing before later Manual",true,false,false,false,true,false,false,true,"Completed"),
+            ("causal downing survives lost order correlation",false,true,false,false,true,true,false,true,"Completed"),
+            ("causal death survives lost order correlation",false,true,false,false,false,true,true,false,"Completed")};
         foreach(var test in cases) {
             var actual=Call("NativeCombatRecord","Classify",test.Item2,test.Item3,test.Item4,test.Item5,test.Item6,test.Item7,test.Rest.Item1,test.Rest.Item2).ToString();
             Check(actual==test.Rest.Item3,test.Item1);
@@ -71,6 +74,8 @@ internal static class NativeCombatOperationsProbe
         Check(!(bool)Call("NativeCombatRecord","CausalOrderAllows",4UL,4UL,false),"Unissued pre-order state cannot authorize a later impact");
         Check((bool)Call("NativeCombatRecord","CausalOrderAllows",4UL,4UL,true),"Synchronous native dispatch permits pre-postfix order state");
         Check(!(bool)Call("NativeCombatRecord","CausalOrderAllows",ulong.MaxValue,0UL,true),"Exhausted order revision cannot wrap into attribution");
+        Check((bool)Call("NativeCombatRecord","CausalOrderAllows",4UL,5UL,true),"Dispatch still in progress does not block a fully advanced order match");
+        Check(!(bool)Call("NativeCombatRecord","CausalOrderAllows",4UL,6UL,true),"Dispatch in progress cannot excuse a skipped order revision");
         foreach(var test in new[]{("Pending","Unknown"),("TargetDead","Unknown"),("Completed","Completed"),("Interrupted","Interrupted")}) {
             var phase=Enum.Parse(Native("NativeCombatPhase"),test.Item1);
             Check(Call("NativeCombatRecord","WithTrackingLoss",phase,true).ToString()==test.Item2,"Tracking loss preserves only prior terminal attribution or observed interruption: "+test.Item1);

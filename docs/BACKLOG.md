@@ -1209,8 +1209,32 @@ main. Native package and Go production cutover remain independent.
   snapshots, attributed target death, immutable replay, player-order interruption,
   refused adoption of player drafts, fresh owned recovery and cleanup after Manual.
   Completed-before-Manual evidence remains observable. Compiled checks cover
-  unrelated/nested damage refusal and exact live melee-hook repair. Extend game
-  acceptance to attributed downing, unrelated damage and uncertain dispatch.
+  unrelated/nested damage refusal and exact live melee-hook repair.
+  `contracts/tests/NativeContractProbes/native-combat-operations/Program.cs`
+  (`NativeCombatOperationsProbe`) now also proves `NativeCombatRecord.Classify`'s
+  (`integrations/rimgovernor-native/src/Bridge/Protocol/NativeCombatOperations.cs`)
+  attributed-downing override is symmetric with its already-covered
+  attributed-death override: a causal downing of a standing-required target
+  completes even across a later Manual order (`unchanged=false`) or a fully
+  decorrelated order (`correlated=false`), exactly as causal death already did,
+  and causal death itself now also completes across decorrelation.
+  `CausalOrderAllows` gains two edge assertions proving mid-dispatch
+  (`dispatching=true`) neither masks a fully advanced matching order nor excuses a
+  skipped one, closing the "uncertain dispatch" ambiguity named in this list at the
+  compiled level. This is the same pure-function-test-extension technique as the
+  prior three N01.04 slices, applied here to `NativeCombatRecord`'s existing
+  extracted `Classify`/`CausalOrderAllows` rather than a new extraction. Verified
+  by building the production native package (`scripts/build_native_mod.ps1`
+  against the installed RimWorld 1.6 managed assemblies, Harmony (Steam Workshop
+  `2009463077/Current`) and RimBridgeServer 1.6 SDK) and running
+  `dotnet run --project contracts/tests/NativeContractProbes.csproj --
+  native-combat-operations <bridge.dll> <dirs...>` against it: 52 compiled
+  assertions pass (up from 47), including the 5 new ones.
+  `go build ./... && go vet ./... && go test ./...` from `go/` also pass
+  unaffected (no Go code touched). Actual live-game acceptance for attributed
+  downing, unrelated/nested damage refusal and uncertain dispatch remains open
+  -- no melee/ranged live-acceptance harness exists in Go today, and building
+  one is a larger undertaking than this slice.
   Ordinary direct-bullet ranged attacks have headless native acceptance for exact
   projectile-attributed target death, player override, refused draft adoption,
   fresh owned recovery, replay and completed-before-Manual cleanup. Compiled
