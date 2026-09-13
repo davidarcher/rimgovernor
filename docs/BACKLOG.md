@@ -1528,12 +1528,6 @@ b; exact worker cleanup by a, with reuse by their later consumers.
   world/load changes and restart with one Go writer and no per-operation Python
   fallback. Reuse applicable family evidence; this is not another full migration.
 
-- [ ] **G01.11 — Produce runnable Windows and Docker Go packages.**
-  Replace production build/install/launch/configuration paths and scenario adapters;
-  include dashboard/assets/media dependencies, loopback access and private profiles.
-  **Exit evidence:** runnable install/image without production Python; identify
-  retained Python development/scenario tooling explicitly.
-
 - [ ] **G01.12 — Accept and switch the production default.**
   Run applicable automated checks and targeted combined native/model acceptance
   after composition/packaging. Cover startup, ordinary pawn work, player/chat

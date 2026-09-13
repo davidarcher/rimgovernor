@@ -2,9 +2,11 @@
 
 The module provides local observation and explicit player services, version/help
 and offline replay.
-Production launchers still use Python while the controller adapters
-are implemented. Go will start with fresh state; importing Python databases and
-matching historical save formats are not rewrite gates.
+`launch-go.ps1` and the `go-controller` Docker target (below) start this binary
+directly with no Python interpreter; the default `launch.ps1`/`build.ps1` paths
+and Docker image targets are unchanged and remain the production default until
+G01.12 accepts the switch. Go will start with fresh state; importing Python
+databases and matching historical save formats are not rewrite gates.
 
 Use Go **1.27.1** from `.go-version`. From this directory:
 
@@ -31,6 +33,73 @@ Module dependencies and checksums are pinned in `go.mod`/`go.sum`; see the
 [source notices](../THIRD_PARTY.md). The MCP and pure-Go SQLite adapters are
 exercised with real SDK sessions and temporary databases as their slices land.
 Media dependencies are selected with their actual presentation consumers.
+
+## Go-only launch and packaging (G01.11)
+
+`go/cmd/rimgovernor`'s `serve` command is a real standalone binary: it needs no
+Python interpreter, venv or `controller/` package. What it covers today is
+bounded by the closed executor action set (building, owned draft, melee) and
+the construction planners wired in `serve_clock.go` — see
+[the migration review](../docs/developers/go-migration-review.md) for the exact
+capability boundary. It does not do player chat, save/load, media/camera
+controls or world progression; those stay in Python until G01.08/G01.09/G01.07f
+land.
+
+**Windows**, from the repository root:
+
+```powershell
+.\launch-go.ps1 -NoBrowser          # read-only observation dashboard
+.\launch-go.ps1 -PlayerControl ...  # building/routine execution; add --routine-* flags after --
+```
+
+It builds the binary if missing, reuses the same dashboard build the Python
+launcher serves (`controller/rimgovernor/static`, built with `pnpm`, no
+Python), and requires the same prepared GABS/config/profile inputs as
+`launch.ps1` (`docs/players/setup.md`) — GABS is a native executable dependency
+of the controller itself, not a Python one.
+
+**Docker**: `containers/Dockerfile`'s `go-controller` target builds the Go
+binary and packages the same dashboard assets, with no Python runtime or
+`pip install` step:
+
+```powershell
+docker build -f containers/Dockerfile --target go-controller -t rimgovernor-go:local .
+docker run --rm rimgovernor-go:local version   # confirms the image without game files
+docker run --rm rimgovernor-go:local help
+```
+
+`containers/go-controller.compose.yaml` runs a real `serve --read-only`
+session with bind-mounted GABS/config/state inputs, following the
+`containers/compose.yaml` worker's bind-mount conventions. Because `--listen`
+only accepts a loopback address, it uses `network_mode: host` instead of
+bridge port publishing (the compose file's comments explain why and its
+Windows/macOS Docker Desktop caveat).
+
+**No licensed game files here**: without a real GABS build and prepared save,
+`serve` fails at the native bridge handshake (`bridge transport failure:
+initialize: ...`), the same boundary `docs/developers/testing/docker-checks.md`
+describes for other checks. That failure, `go build ./...`, `go vet ./...`,
+`go test ./cmd/...` and an image build/`docker run` reaching that same clean
+failure are compilation/protocol/wiring checks, not gameplay evidence — they
+confirm the packaging path is wired correctly, not that a colony runs.
+
+**Retained Python**, explicitly, after this item:
+- Player chat and local-model command interpretation (`player_commands.py`,
+  `interpreter/decode.go` only accepts building proposals) — G01.08.
+- Media/camera/portrait/video/recording and trusted save/load — G01.09.
+- World progression: caravans, quests, settlement gifts, multi-map — G01.07f.
+- Most routine workflows beyond construction: cooking/butcher bill execution,
+  care/tend/rescue/equip/gear/defense dispatch beyond compiled plans, and other
+  non-building executable actions — G01.05/G01.07a–e (many `--routine-*-plans`
+  flags compile shared plans today without an executable action family yet).
+- Development/scenario tooling stays Python by design, not as a gap: the
+  Docker controller/worker/colonies test targets, `scripts/container_checks.py`,
+  `scripts/container_scenario.py`, `scripts/prepare_bridge_trial.py` and
+  `controller_tests/` (see `AGENTS.md`: new native acceptance tooling is Go,
+  not Python — these are the existing, retained exception, not new tooling).
+- The production Python controller (`controller/rimgovernor`) remains the
+  default launch path; `launch.ps1`/`build.ps1`/the existing Docker targets are
+  unchanged. Switching the default is G01.12; removing Python is G01.13.
 
 ## Routine policy components
 

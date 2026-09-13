@@ -47,3 +47,30 @@ ENV PYTHONUNBUFFERED=1
 ENV RIMGOVERNOR_CONTAINER_SOURCE=1
 ENTRYPOINT ["python", "-m", "rimgovernor.container_worker"]
 CMD []
+
+# Go-only controller path (G01.11). Builds and packages the Go binary and the
+# same dashboard static assets with no Python runtime or dependencies. The
+# binary itself still starts the native GABS bridge as a subprocess (see
+# go/internal/bridge and go/cmd/rimgovernor/serve.go), so a real serve session
+# needs a Linux GABS build, a prepared profile/state path and, because
+# --listen only accepts a loopback address, host-style networking (`docker run
+# --network host` or compose `network_mode: host`) rather than bridge port
+# publishing. `version`/`help`/flag-validation exercise the image without any
+# of that: they are compilation/protocol checks, not gameplay evidence.
+FROM golang:1.27.1-bookworm AS go-builder
+WORKDIR /src
+COPY contracts/generated/protobuf/go/ contracts/generated/protobuf/go/
+COPY go/ go/
+WORKDIR /src/go
+RUN go mod download
+ENV CGO_ENABLED=0
+RUN go build -o /out/rimgovernor ./cmd/rimgovernor
+
+FROM debian:bookworm-slim AS go-controller
+RUN apt-get update && apt-get install -y --no-install-recommends ca-certificates && rm -rf /var/lib/apt/lists/*
+WORKDIR /app
+COPY --from=go-builder /out/rimgovernor ./rimgovernor
+COPY --from=dashboard /src/controller/rimgovernor/static/ ./dashboard/
+ENV RIMGOVERNOR_CONTAINER_SOURCE=1
+ENTRYPOINT ["./rimgovernor"]
+CMD ["version"]

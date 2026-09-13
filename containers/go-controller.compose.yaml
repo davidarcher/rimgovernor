@@ -1,0 +1,55 @@
+services:
+  go-controller:
+    build:
+      context: ..
+      dockerfile: containers/Dockerfile
+      target: go-controller
+    image: rimgovernor-go:local
+    # go/cmd/rimgovernor/serve.go requires --listen to be a loopback address, so
+    # ordinary bridge port publishing (`ports:`) cannot reach it: bridge-mode
+    # publishing forwards to the container's non-loopback interface, not to
+    # 127.0.0.1 inside the container's own network namespace. This service uses
+    # host networking so the container shares the host's loopback instead. That
+    # is a Linux Docker engine feature; Docker Desktop support varies by version
+    # (see its host-networking setting) and Windows/macOS hosts without it need
+    # `docker exec` into the container, or a native Linux Docker engine, to reach
+    # port 8787 directly.
+    network_mode: host
+    environment:
+      RIMGOVERNOR_GAME: ${RIMGOVERNOR_GAME:-rimgovernor}
+    volumes:
+      - type: bind
+        source: ${RIMGOVERNOR_LINUX_GABS:?Set RIMGOVERNOR_LINUX_GABS}
+        target: /inputs/gabs
+        read_only: true
+        bind:
+          create_host_path: false
+      - type: bind
+        source: ${RIMGOVERNOR_GO_CONFIG:?Set RIMGOVERNOR_GO_CONFIG}
+        target: /inputs/config
+        read_only: true
+        bind:
+          create_host_path: false
+      - type: bind
+        source: ${RIMGOVERNOR_GO_STATE_DIR:?Set a fresh RIMGOVERNOR_GO_STATE_DIR}
+        target: /state
+        bind:
+          create_host_path: false
+    # --read-only is the safe default: it never acquires or writes to the game.
+    # Override `command` for --player-control, additional --routine-* flags or a
+    # non-default --game ID; see go/cmd/rimgovernor's `help` output.
+    command:
+      - "serve"
+      - "--read-only"
+      - "--gabs"
+      - "/inputs/gabs/gabs"
+      - "--config"
+      - "/inputs/config"
+      - "--game"
+      - "${RIMGOVERNOR_GAME:-rimgovernor}"
+      - "--state"
+      - "/state/rimgovernor.sqlite"
+      - "--assets"
+      - "/app/dashboard"
+      - "--listen"
+      - "127.0.0.1:8787"

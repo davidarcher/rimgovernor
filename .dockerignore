@@ -13,6 +13,8 @@
 !integrations/**
 !dashboard/
 !dashboard/**
+!go/
+!go/**
 !docs/
 !docs/players/
 !docs/players/*.md
