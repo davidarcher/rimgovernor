@@ -702,7 +702,19 @@ without pushes, when the target checkout is safe; preserve other developers' wor
     blocked on that native gap for live acceptance. It also has no
     routine-scheduler/CLI wiring yet, matching the
     `MaintainEssentialRepairs`/`MaintainCleanFacilities` precedent. Still
-    open: `MaintainStoneShell` (untouched, largest remaining piece). Native
+    open: `MaintainStoneShell` (untouched). Investigation found it does not
+    fit the single-action typed-dispatch pattern the other verticals share:
+    `wall_upgrade.py` admits a multi-step staged bundle at once (backup
+    walls, guarded original demolition, permanent replacement, backup
+    removal) with a dependency-graph proof spanning the whole bundle,
+    reference resolution that must follow a construction slot through
+    archived/retired plan steps, and a retirement cascade that cancels
+    dependent steps when native invalidates a pending demolition. None of
+    that has an equivalent in the current domain/store admission model
+    (single action, single `GenerationSnapshot`-scoped admission record), so
+    it needs dedicated design work for multi-action bundle admission before
+    implementation, not a fourth repetition of the BedAssign template.
+    Native
     C# (`NativeHaulOperations.cs`) only implements
     `PawnOrderKind.Haul` today, so Repair/Clean/Equip/Rescue/Tend/Work/Capture
     are refused at the native boundary — tracked under G01.12, not specific
