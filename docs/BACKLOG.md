@@ -1746,19 +1746,24 @@ main. Native package and Go production cutover remain independent.
       usage) are themselves ported off it — tracked by the Combat/movement
       sub-item below, which is what actually blocks retirement now, not a
       missing live run.
-    - [ ] **Combat/movement — blocked on a newly discovered dependency.**
-      Unlike draft, `native_combat_acceptance.py` and
-      `native_movement_acceptance.py` both advance real game ticks while
-      unpaused and depend on `native_typed_clock_acceptance.py`'s
-      `TypedScenarioClock`/`ScenarioRuntime` plus
-      `rimgovernor.native_scenario.advance_game` — a tick-advancing scenario
-      supervisor with its own clock-event validation and authority-renewal
-      logic, not previously called out in this item. That framework has no Go
-      port yet and must land first (its own bounded slice) before
-      `cmd/combataccept`/`cmd/movementaccept` can follow `cmd/draftaccept`'s
-      pattern. `bridge/attack.go`/`movement.go` already cover the underlying
-      operation logic with unit tests, so the remaining work is the scenario
-      clock, not new domain logic.
+    - [ ] **Combat/movement — scenario-clock framework landed; binaries not
+      started.** `native_typed_clock_acceptance.py`'s
+      `TypedScenarioClock`/`ScenarioRuntime` and
+      `controller/rimgovernor/native_scenario.py`'s `advance_game` (the
+      tick-advancing scenario supervisor with its own clock-event validation
+      and authority-renewal logic) are now ported to Go as
+      `ScenarioClock`/`ScenarioRuntime`/`AdvanceGame` in
+      `go/internal/nativeaccept/scenario.go`, unit-tested against fake
+      wire/query doubles (no live bridge connection needed) in
+      `scenario_test.go`. `CombatScenarioClock`'s Python-inheritance override
+      is folded into the base `ScenarioClock` via a `CombatTargets []string`
+      field rather than subclassing. This unblocks, but does not complete,
+      `cmd/combataccept`/`cmd/movementaccept`: those binaries (porting
+      `native_combat_acceptance.py`/`native_movement_acceptance.py`'s `run()`
+      flows) and their live-verified runs are separate follow-on work, not yet
+      started. `bridge/attack.go`/`movement.go` already cover the underlying
+      operation logic with unit tests, so the remaining work is wiring the two
+      binaries to the new scenario clock, not new domain logic.
   - [ ] **Slice 3 — remaining `controller_tests/test_native_*` loaders.** 34
     files still load a `scripts/*_acceptance.py` by path (the legacy pattern
     in `test_native_pawn_acceptance.py` etc.). Convert each to a Go `_test.go`

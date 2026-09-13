@@ -1,0 +1,401 @@
+package nativeaccept
+
+import (
+	"context"
+	"strings"
+	"testing"
+)
+
+func scenarioIdentity() map[string]any {
+	return map[string]any{"colonyId": "colony", "loadToken": "load", "mapId": 0.0}
+}
+
+func scenarioContext(tick int) map[string]any {
+	return map[string]any{"identity": scenarioIdentity(), "tick": float64(tick)}
+}
+
+func scenarioEpoch(owner string, epochID, startTick, lastTick, tickDeadline int) map[string]any {
+	return map[string]any{
+		"origin":    scenarioContext(startTick),
+		"owner":     map[string]any{"controllerSessionId": owner, "epoch": float64(epochID)},
+		"startTick": float64(startTick), "lastTick": float64(lastTick), "tickDeadline": float64(tickDeadline),
+	}
+}
+
+func TestScenarioIntegerAcceptsNumberAndDecimalString(t *testing.T) {
+	if v, err := scenarioInteger(float64(42)); err != nil || v != 42 {
+		t.Fatalf("got %v, %v", v, err)
+	}
+	if v, err := scenarioInteger("42"); err != nil || v != 42 {
+		t.Fatalf("got %v, %v", v, err)
+	}
+	if _, err := scenarioInteger("not-a-number"); err == nil {
+		t.Fatal("expected an error for a non-numeric string")
+	}
+	if _, err := scenarioInteger(true); err == nil {
+		t.Fatal("expected an error for a non-numeric type")
+	}
+}
+
+func TestValidateScenarioContextRejectsMissingFields(t *testing.T) {
+	if err := validateScenarioContext(scenarioContext(5)); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	bad := scenarioContext(5)
+	bad["identity"].(map[string]any)["colonyId"] = ""
+	if err := validateScenarioContext(bad); err == nil {
+		t.Fatal("expected an error for an empty colonyId")
+	}
+}
+
+func runningStatus(owner string, epochID, startTick, lastTick, tickDeadline int, newestCursor int) map[string]any {
+	return map[string]any{
+		"context": scenarioContext(lastTick), "actualPaused": false, "nativeTickBoundary": true,
+		"newestCursor": float64(newestCursor),
+		"running":      map[string]any{"epoch": scenarioEpoch(owner, epochID, startTick, lastTick, tickDeadline)},
+	}
+}
+
+func stoppedStatus(owner string, epochID, startTick, lastTick, tickDeadline int, newestCursor int, reason string, paused bool) map[string]any {
+	return map[string]any{
+		"context": scenarioContext(lastTick), "actualPaused": paused, "nativeTickBoundary": true,
+		"newestCursor": float64(newestCursor),
+		"stopped": map[string]any{
+			"epoch":  scenarioEpoch(owner, epochID, startTick, lastTick, tickDeadline),
+			"reason": reason, "pauseVerified": true, "actualPaused": paused,
+		},
+	}
+}
+
+func TestProjectStatusRunning(t *testing.T) {
+	got, err := projectStatus(runningStatus("owner-1", 1, 0, 5, 100, 0))
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if got["active"] != true || got["owner"] != "owner-1" || got["epoch"] != uint64(1) {
+		t.Fatalf("unexpected projection: %#v", got)
+	}
+	if got["startTick"] != uint64(0) || got["lastTick"] != uint64(5) || got["tickDeadline"] != uint64(100) {
+		t.Fatalf("unexpected ticks: %#v", got)
+	}
+}
+
+func TestProjectStatusStoppedTickBudget(t *testing.T) {
+	got, err := projectStatus(stoppedStatus("owner-1", 1, 0, 100, 100, 5, "STOP_REASON_TICK_BUDGET", true))
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if got["active"] != false || got["stopReason"] != "tick_budget" || got["pauseVerified"] != true {
+		t.Fatalf("unexpected projection: %#v", got)
+	}
+}
+
+func TestProjectStatusRejectsBadTickOrdering(t *testing.T) {
+	status := runningStatus("owner-1", 1, 10, 5, 100, 0) // lastTick < startTick
+	if _, err := projectStatus(status); err == nil {
+		t.Fatal("expected an error for invalid tick ordering")
+	}
+}
+
+func TestProjectStatusRejectsUnspecifiedStopReason(t *testing.T) {
+	status := stoppedStatus("owner-1", 1, 0, 10, 100, 0, "STOP_REASON_UNSPECIFIED", true)
+	if _, err := projectStatus(status); err == nil {
+		t.Fatal("expected an error for an unspecified stop reason")
+	}
+}
+
+func eventPage(identity map[string]any, newest int, events []map[string]any) map[string]any {
+	return map[string]any{
+		"context": map[string]any{"identity": identity, "tick": float64(newest)},
+		"gap":     false, "lostCount": float64(0), "newestCursor": float64(newest), "nextCursor": float64(newest),
+		"events": toAnySlice(events),
+	}
+}
+
+func toAnySlice(rows []map[string]any) []any {
+	out := make([]any, len(rows))
+	for i, r := range rows {
+		out[i] = r
+	}
+	return out
+}
+
+func letterPauseEvent(cursor, epochID int, owner, letterID string) map[string]any {
+	return map[string]any{
+		"cursor": float64(cursor), "context": scenarioContext(cursor),
+		"owner":   map[string]any{"controllerSessionId": owner, "epoch": float64(epochID)},
+		"stopped": map[string]any{"reason": "STOP_REASON_LETTER_PAUSE", "pause": map[string]any{"letter": map[string]any{"id": letterID}}},
+	}
+}
+
+func TestProjectEventsAcceptsContiguousLetterPause(t *testing.T) {
+	identity := scenarioIdentity()
+	events := []map[string]any{letterPauseEvent(1, 1, "owner-1", "letter-1")}
+	page := eventPage(identity, 1, events)
+	page["nextCursor"] = float64(1)
+	got, err := projectEvents(page, 0)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	rows := AsSlice(got["events"])
+	if len(rows) != 1 {
+		t.Fatalf("expected one event row, got %#v", rows)
+	}
+	row, _ := AsMap(rows[0])
+	if AsString(row["kind"]) != "letter_pause" {
+		t.Fatalf("unexpected kind: %#v", row)
+	}
+	eventDetail, _ := AsMap(row["event"])
+	if AsString(eventDetail["letterId"]) != "letter-1" {
+		t.Fatalf("unexpected letter id: %#v", eventDetail)
+	}
+}
+
+func TestProjectEventsRejectsCursorGap(t *testing.T) {
+	identity := scenarioIdentity()
+	events := []map[string]any{letterPauseEvent(2, 1, "owner-1", "letter-1")} // should be cursor 1, not 2
+	page := eventPage(identity, 2, events)
+	if _, err := projectEvents(page, 0); err == nil {
+		t.Fatal("expected an error for a cursor discontinuity")
+	}
+}
+
+func TestProjectEventsRejectsReportedGap(t *testing.T) {
+	page := eventPage(scenarioIdentity(), 0, nil)
+	page["gap"] = true
+	if _, err := projectEvents(page, 0); err == nil {
+		t.Fatal("expected an error when the native reply reports a gap")
+	}
+}
+
+// fakeWire builds a ScenarioClock.Wire double from a queue of canned replies keyed
+// by method, so ScenarioClock method tests never need a live bridge connection.
+type fakeWire struct {
+	replies map[string][]map[string]any
+	calls   []string
+}
+
+func (f *fakeWire) wire(_ context.Context, _, method string, _ map[string]any) (map[string]any, error) {
+	f.calls = append(f.calls, method)
+	queue := f.replies[method]
+	if len(queue) == 0 {
+		panic("no canned reply for method " + method)
+	}
+	f.replies[method] = queue[1:]
+	return queue[0], nil
+}
+
+func grantedReply(generation int, leaseID, owner string) map[string]any {
+	return map[string]any{"granted": map[string]any{
+		"context": map[string]any{"nativeGeneration": float64(generation)},
+		"leaseId": leaseID, "owner": map[string]any{"controllerSessionId": owner},
+	}}
+}
+
+func TestScenarioClockAcquireCapturesGrant(t *testing.T) {
+	fw := &fakeWire{replies: map[string][]map[string]any{
+		"authority_read_status": {{"status": map[string]any{"context": map[string]any{"nativeGeneration": float64(1)}}}},
+		"authority_control":     {grantedReply(2, "lease-1", "owner-1")},
+	}}
+	clock := &ScenarioClock{Wire: fw.wire, Identity: scenarioIdentity(), Owner: "owner-1", Report: Report{}}
+	grant, err := clock.Acquire(context.Background(), "acquire")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if AsString(grant["leaseId"]) != "lease-1" {
+		t.Fatalf("unexpected grant: %#v", grant)
+	}
+	if clock.Grant["leaseId"] != "lease-1" {
+		t.Fatalf("grant not captured on clock: %#v", clock.Grant)
+	}
+}
+
+func controlReceiptReply(owner string, epochID, startTick, lastTick, tickDeadline int, attempt map[string]any) map[string]any {
+	return map[string]any{"receipt": map[string]any{
+		"attempt":          attempt,
+		"admittedContext":  map[string]any{"identity": scenarioIdentity()},
+		"authorizingOwner": map[string]any{"controllerSessionId": owner},
+		"applied":          map[string]any{"status": runningStatus(owner, epochID, startTick, lastTick, tickDeadline, 0)},
+	}}
+}
+
+func TestScenarioClockChangeStartsFreshProfile(t *testing.T) {
+	attempt := map[string]any{"controllerSessionId": "owner-1", "actionId": "typed-clock-1", "attemptId": "1"}
+	fw := &fakeWire{replies: map[string][]map[string]any{
+		"clock_read_status": {{"status": map[string]any{"context": scenarioContext(0), "neverStarted": map[string]any{}}}},
+		"clock_start":       {controlReceiptReply("owner-1", 1, 0, 0, 60, attempt)},
+	}}
+	clock := &ScenarioClock{
+		Wire: fw.wire, Identity: scenarioIdentity(), Owner: "owner-1", Report: Report{},
+		Grant: map[string]any{"context": map[string]any{"nativeGeneration": float64(1)}, "leaseId": "lease-1"},
+	}
+	status, err := clock.Change(context.Background(), "Superfast", 60)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if status["startTick"] != uint64(0) || status["tickDeadline"] != uint64(60) {
+		t.Fatalf("unexpected status: %#v", status)
+	}
+	if len(clock.Controls) != 1 || clock.Controls[0].Method != "start" {
+		t.Fatalf("expected one recorded start control, got %#v", clock.Controls)
+	}
+}
+
+func TestScenarioClockChangeRejectsUnsupportedSpeed(t *testing.T) {
+	clock := &ScenarioClock{Identity: scenarioIdentity(), Owner: "owner-1", Report: Report{}}
+	if _, err := clock.Change(context.Background(), "Ludicrous", 60); err == nil {
+		t.Fatal("expected an error for an unsupported speed")
+	}
+}
+
+func TestScenarioClockChangeRefusesUnderExternalHold(t *testing.T) {
+	clock := &ScenarioClock{Identity: scenarioIdentity(), Owner: "owner-1", Report: Report{}, Hold: "external_pause"}
+	if _, err := clock.Change(context.Background(), "Superfast", 60); err == nil {
+		t.Fatal("expected an error under an external clock hold")
+	}
+}
+
+func TestScenarioClockControlInjectsCombatPolicy(t *testing.T) {
+	attempt := map[string]any{"controllerSessionId": "owner-1", "actionId": "typed-clock-1", "attemptId": "1"}
+	fw := &fakeWire{replies: map[string][]map[string]any{
+		"clock_start": {controlReceiptReply("owner-1", 1, 0, 0, 60, attempt)},
+	}}
+	clock := &ScenarioClock{Wire: fw.wire, Identity: scenarioIdentity(), Owner: "owner-1", Report: Report{}, CombatTargets: []string{"raider-1", "raider-2"}}
+	request := map[string]any{"authority": map[string]any{"attempt": attempt}, "policy": map[string]any{"mode": "WATCH_MODE_COLONY"}}
+	if _, err := clock.Control(context.Background(), "start", request); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	sentPolicy, _ := AsMap(clock.Controls[0].Request["policy"])
+	if AsString(sentPolicy["mode"]) != "WATCH_MODE_COMBAT" {
+		t.Fatalf("expected combat policy override, got %#v", sentPolicy)
+	}
+	// The caller's original request map must not be mutated in place.
+	if AsString(request["policy"].(map[string]any)["mode"]) != "WATCH_MODE_COLONY" {
+		t.Fatalf("caller's request was mutated: %#v", request)
+	}
+}
+
+func TestScenarioClockCallDetectsHoldReason(t *testing.T) {
+	fw := &fakeWire{replies: map[string][]map[string]any{
+		"clock_read_status": {{"status": stoppedStatus("owner-1", 1, 0, 10, 60, 0, "STOP_REASON_EXTERNAL_PAUSE", true)}},
+	}}
+	clock := &ScenarioClock{Wire: fw.wire, Identity: scenarioIdentity(), Owner: "owner-1", Report: Report{}}
+	status, err := clock.Call(context.Background(), "status", nil)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if AsString(status["stopReason"]) != "external_pause" {
+		t.Fatalf("unexpected status: %#v", status)
+	}
+	if clock.Hold != "external_pause" {
+		t.Fatalf("expected Hold to be set, got %q", clock.Hold)
+	}
+}
+
+// fakeQuery builds a ScenarioRuntime.Query double keyed by tool name.
+type fakeQuery struct {
+	byTool map[string][]map[string]any
+}
+
+func (f *fakeQuery) query(_ context.Context, _, tool string, _ any) (map[string]any, error) {
+	queue := f.byTool[tool]
+	if len(queue) == 0 {
+		panic("no canned reply for tool " + tool)
+	}
+	f.byTool[tool] = queue[1:]
+	return queue[0], nil
+}
+
+func identityToolReply() map[string]any {
+	return map[string]any{"colonyId": "colony", "mapId": 0.0, "loadToken": "load"}
+}
+
+func TestAdvanceGameCompletesOnTickBudget(t *testing.T) {
+	attempt := map[string]any{"controllerSessionId": "owner-1", "actionId": "typed-clock-1", "attemptId": "1"}
+	fw := &fakeWire{replies: map[string][]map[string]any{
+		"clock_read_status": {{"status": map[string]any{"context": scenarioContext(0), "neverStarted": map[string]any{}}}},
+		"clock_start":       {controlReceiptReply("owner-1", 1, 0, 0, 60, attempt)},
+		"clock_read_events": {{"page": eventPage(scenarioIdentity(), 0, nil)}},
+	}}
+	fq := &fakeQuery{byTool: map[string][]map[string]any{
+		"home/colony_identity": {identityToolReply(), identityToolReply(), identityToolReply()},
+	}}
+	clock := &ScenarioClock{
+		Wire: fw.wire, Identity: scenarioIdentity(), Owner: "owner-1", Report: Report{},
+		Grant: map[string]any{"context": map[string]any{"nativeGeneration": float64(1)}, "leaseId": "lease-1"},
+	}
+	rt := &ScenarioRuntime{Query: fq.query, Clock: clock, Report: Report{}}
+
+	// The status poll loop asks clock_read_status repeatedly; queue a running
+	// reply once then a stopped/tick_budget reply.
+	fw.replies["clock_read_status"] = append(fw.replies["clock_read_status"],
+		map[string]any{"status": stoppedStatus("owner-1", 1, 0, 60, 60, 0, "STOP_REASON_TICK_BUDGET", true)})
+
+	final, err := AdvanceGame(context.Background(), rt, 60)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if AsString(final["stopReason"]) != "tick_budget" {
+		t.Fatalf("unexpected final status: %#v", final)
+	}
+	simulation := AsSlice(rt.Report["simulation"])
+	if len(simulation) != 1 {
+		t.Fatalf("expected one simulation record, got %#v", simulation)
+	}
+	entry, _ := AsMap(simulation[0])
+	if entry["completed"] != true {
+		t.Fatalf("expected simulation to record completion: %#v", entry)
+	}
+}
+
+func TestAdvanceGameRejectsOutOfRangeTicks(t *testing.T) {
+	rt := &ScenarioRuntime{Report: Report{}}
+	if _, err := AdvanceGame(context.Background(), rt, 0); err == nil {
+		t.Fatal("expected an error for zero ticks")
+	}
+	if _, err := AdvanceGame(context.Background(), rt, 1800001); err == nil {
+		t.Fatal("expected an error for a tick budget above the bound")
+	}
+}
+
+func TestAdvanceGameRejectsMismatchedCombatTargets(t *testing.T) {
+	rt := &ScenarioRuntime{Report: Report{}, CombatTargets: []string{"raider-1"}}
+	if _, err := AdvanceGame(context.Background(), rt, 60, WithCombatTargets("raider-2")); err == nil {
+		t.Fatal("expected an error for combat targets not matching the committed plan")
+	}
+}
+
+func TestAdvanceGameStopsOnIdentityDrift(t *testing.T) {
+	fq := &fakeQuery{byTool: map[string][]map[string]any{
+		"home/colony_identity": {
+			identityToolReply(),
+			{"colonyId": "different-colony", "mapId": 0.0, "loadToken": "load"},
+			{"colonyId": "different-colony", "mapId": 0.0, "loadToken": "load"},
+		},
+	}}
+	fw := &fakeWire{replies: map[string][]map[string]any{
+		"clock_read_status": {{"status": map[string]any{"context": scenarioContext(0), "neverStarted": map[string]any{}}}},
+		"clock_start":       {controlReceiptReply("owner-1", 1, 0, 0, 60, map[string]any{"controllerSessionId": "owner-1", "actionId": "typed-clock-1", "attemptId": "1"})},
+	}}
+	clock := &ScenarioClock{
+		Wire: fw.wire, Identity: scenarioIdentity(), Owner: "owner-1", Report: Report{},
+		Grant: map[string]any{"context": map[string]any{"nativeGeneration": float64(1)}, "leaseId": "lease-1"},
+	}
+	rt := &ScenarioRuntime{Query: fq.query, Clock: clock, Report: Report{}}
+	_, err := AdvanceGame(context.Background(), rt, 60)
+	if err == nil {
+		t.Fatal("expected an error for a drifted identity")
+	}
+	var interrupted *ScenarioInterrupted
+	if !isScenarioInterrupted(err, &interrupted) || !strings.Contains(interrupted.Reason, "identity") {
+		t.Fatalf("expected a ScenarioInterrupted identity-change error, got %v", err)
+	}
+}
+
+func isScenarioInterrupted(err error, out **ScenarioInterrupted) bool {
+	if v, ok := err.(*ScenarioInterrupted); ok {
+		*out = v
+		return true
+	}
+	return false
+}
