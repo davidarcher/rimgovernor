@@ -160,6 +160,69 @@ func (h *Harness) Discovery(ctx context.Context) ([]string, error) {
 	return nil, fmt.Errorf("discovery exceeded the bounded page limit")
 }
 
+// ValidateDiscovery asserts discovered names carry no duplicate registrations, cover
+// every required production export, cover every expectedFixture, and expose no
+// fixture-shaped export (a "test/" prefix, a name containing "fixture", or a name in
+// fixtures) beyond expectedFixtures. Mirrors native_compatibility_acceptance.py's
+// validate_discovery().
+func ValidateDiscovery(names []string, production, fixtures, expectedFixtures map[string]bool) error {
+	counts := map[string]int{}
+	for _, name := range names {
+		counts[name]++
+	}
+	var duplicates []string
+	for name, count := range counts {
+		if count != 1 {
+			duplicates = append(duplicates, name)
+		}
+	}
+	if len(duplicates) > 0 {
+		sort.Strings(duplicates)
+		return fmt.Errorf("duplicate discovery registrations: %v", duplicates)
+	}
+	found := map[string]bool{}
+	for _, name := range names {
+		found[name] = true
+	}
+	var missingProduction []string
+	for name := range production {
+		if !found[name] {
+			missingProduction = append(missingProduction, name)
+		}
+	}
+	if len(missingProduction) > 0 {
+		sort.Strings(missingProduction)
+		return fmt.Errorf("missing production exports: %v", missingProduction)
+	}
+	var missingFixtures []string
+	for name := range expectedFixtures {
+		if !found[name] {
+			missingFixtures = append(missingFixtures, name)
+		}
+	}
+	if len(missingFixtures) > 0 {
+		sort.Strings(missingFixtures)
+		return fmt.Errorf("missing expected fixtures: %v", missingFixtures)
+	}
+	fixtureNames := map[string]bool{}
+	for name := range found {
+		if fixtures[name] || strings.HasPrefix(name, "test/") || strings.Contains(strings.ToLower(name), "fixture") {
+			fixtureNames[name] = true
+		}
+	}
+	var unexpected []string
+	for name := range fixtureNames {
+		if !expectedFixtures[name] {
+			unexpected = append(unexpected, name)
+		}
+	}
+	if len(unexpected) > 0 {
+		sort.Strings(unexpected)
+		return fmt.Errorf("unexpected fixture exports: %v", unexpected)
+	}
+	return nil
+}
+
 // PackageFiles hashes the unified native mod's on-disk files, mirroring
 // native_package_acceptance.py's package_files() (used to record installed-artifact
 // evidence in the report; it does not re-run RequireNativePackage's checks).

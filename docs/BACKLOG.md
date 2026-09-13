@@ -1658,6 +1658,78 @@ main. Native package and Go production cutover remain independent.
   indefinitely; do not delete a Python module while another script or test still
   imports it.
 
+  **Sequencing.** Three Python modules are the load-bearing fan-in for the rest
+  of `scripts/` and must migrate before their dependents, or later slices
+  re-solve the same harness problem N times: `native_package_acceptance.py`
+  (14 dependents: GABS packaging, `bridge_session`, evidence helpers),
+  `native_protobuf_acceptance.py` (12: `proto()` wire helper),
+  `native_compatibility_acceptance.py` (11: `discovery()`). Most of the actual
+  domain logic these scripts exercise already exists and is unit-tested in
+  `go/internal/bridge/*.go` (draft, attack/combat, movement, food_supply, mood,
+  colony_upkeep, work_assignment, temperature_rooms, construction_buildings,
+  protobuf, ~50 files total) — the remaining work per slice is a shared Go
+  harness plus a live `cmd/*accept` binary per family, not new domain logic.
+
+  - [x] **Slice 1 — shared harness parity (blocks the rest).** Audit found
+    `go/internal/nativeaccept/harness.go` already carries the package/build
+    discovery, `Wire`/`proto()` encode-decode, paginated `Discovery`,
+    `PackageFiles` and `CheckStartupLog` helpers this slice originally called
+    for (landed with the pawn/research/rooms/supplies port). The one missing
+    piece, `native_compatibility_acceptance.py`'s `validate_discovery()`
+    (duplicate-registration/production/fixture-set checks), is now
+    `nativeaccept.ValidateDiscovery`, with unit tests in
+    `go/internal/nativeaccept/harness_test.go`. No behavior change; this only
+    removes the last piece of the Python import dependency for later slices.
+  - [ ] **Slice 2 — pawn-order family.** `native_draft_acceptance.py`/
+    `native_combat_acceptance.py`/`native_movement_acceptance.py` still import
+    `native_pawn_acceptance.py` directly.
+    - [x] **Draft.** Ported to `go/internal/nativeaccept/cmd/draftaccept` plus
+      reusable helpers in `go/internal/nativeaccept/draft.go` (`Owner`,
+      `PawnRow`, `Target`, `ExecuteRequest`, `ReleaseRequest`, `SameControl`,
+      `ActualOrder`, `OwnedEffect` — exported so combat/movement can reuse
+      them the way the Python scripts import from `native_draft_acceptance.py`),
+      with unit tests in `draft_test.go`. Builds, vets and unit-tests clean.
+      **Not yet retired:** `scripts/native_draft_acceptance.py` and
+      `controller_tests/test_native_pawn_acceptance.py`'s remaining dependents
+      stay in place until `cmd/draftaccept` has a live verified run against
+      real headless RimWorld (no game/GABS install was available in the
+      session that ported this) — do not delete the Python original from
+      compilation/unit-test evidence alone, per this backlog's completion rule.
+    - [ ] **Combat/movement — blocked on a newly discovered dependency.**
+      Unlike draft, `native_combat_acceptance.py` and
+      `native_movement_acceptance.py` both advance real game ticks while
+      unpaused and depend on `native_typed_clock_acceptance.py`'s
+      `TypedScenarioClock`/`ScenarioRuntime` plus
+      `rimgovernor.native_scenario.advance_game` — a tick-advancing scenario
+      supervisor with its own clock-event validation and authority-renewal
+      logic, not previously called out in this item. That framework has no Go
+      port yet and must land first (its own bounded slice) before
+      `cmd/combataccept`/`cmd/movementaccept` can follow `cmd/draftaccept`'s
+      pattern. `bridge/attack.go`/`movement.go` already cover the underlying
+      operation logic with unit tests, so the remaining work is the scenario
+      clock, not new domain logic.
+  - [ ] **Slice 3 — remaining `controller_tests/test_native_*` loaders.** 34
+    files still load a `scripts/*_acceptance.py` by path (the legacy pattern
+    in `test_native_pawn_acceptance.py` etc.). Convert each to a Go `_test.go`
+    beside its `bridge/*.go` domain file as that family's slice lands, rather
+    than as separate work.
+  - [ ] **Slice 4 — subsystem long tail (~70 remaining `scripts/*_acceptance.py`).**
+    Group by existing `bridge/*.go` domain and land as independent sub-slices:
+    construction/building; upkeep/comfort/gear/power (largest cluster); food/
+    hunting/husbandry; mood/medical/temperature; work/production/research;
+    presentation/clock/notifications. Confirm domain coverage, add a
+    `cmd/<domain>accept` binary, verify live, retire the Python script.
+  - [ ] **Slice 5 — Docker/container acceptance path (last; needs Linux).**
+    `scripts/container_scenario.py` + `scripts/container_*_acceptance.py` (11
+    files) drive the Linux Docker native runner, a different harness than
+    headless Windows GABS sessions. Defer until Slices 1-4 prove the Go
+    acceptance pattern; port `container_scenario.py`'s launcher last since the
+    rest of that family depends on it.
+  - **Non-goal:** `controller/rimgovernor/{colony_plan,hands,planner,
+    colony_controller,...}.py` is the production Python runtime, not
+    acceptance tooling — that belongs to the separate G01.x Go-composition
+    effort tracked elsewhere in this backlog, not N01.09.
+
 ### Verification
 
 Use [test selection](developers/testing/choose-tests.md): focused checks during
