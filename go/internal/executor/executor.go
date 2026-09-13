@@ -102,47 +102,49 @@ type Result struct {
 }
 
 type Executor struct {
-	bill               BillBoundary
-	billJournal        BillJournal
-	work               WorkBoundary
-	workJournal        WorkJournal
-	zone               ZoneBoundary
-	zoneJournal        ZoneJournal
-	acquisition        AcquisitionBoundary
-	acquisitionJournal AcquisitionJournal
-	supply             SupplyBoundary
-	supplyJournal      SupplyJournal
-	tend               TendBoundary
-	tendJournal        TendJournal
-	rescue             RescueBoundary
-	rescueJournal      RescueJournal
-	haul               HaulBoundary
-	haulJournal        HaulJournal
-	equip              EquipBoundary
-	equipJournal       EquipJournal
-	gearReplace        GearReplaceBoundary
-	gearReplaceJournal GearReplaceJournal
-	repair             RepairBoundary
-	repairJournal      RepairJournal
-	ranged             RangedBoundary
-	rangedJournal      RangedJournal
-	routineScope       RoutineScope
-	journal            Journal
-	draftJournal       DraftJournal
-	draft              DraftBoundary
-	meleeJournal       MeleeJournal
-	melee              MeleeBoundary
-	boundary           Boundary
-	clock              Clock
-	limits             Limits
-	writer             chan struct{}
-	mu                 sync.Mutex
-	authority          Authority
-	generation         context.Context
-	invalidate         context.CancelFunc
-	activeAction       domain.ActionID
-	activeCancel       context.CancelFunc
-	stopped            bool
+	bill                    BillBoundary
+	billJournal             BillJournal
+	work                    WorkBoundary
+	workJournal             WorkJournal
+	zone                    ZoneBoundary
+	zoneJournal             ZoneJournal
+	acquisition             AcquisitionBoundary
+	acquisitionJournal      AcquisitionJournal
+	supply                  SupplyBoundary
+	supplyJournal           SupplyJournal
+	tend                    TendBoundary
+	tendJournal             TendJournal
+	rescue                  RescueBoundary
+	rescueJournal           RescueJournal
+	haul                    HaulBoundary
+	haulJournal             HaulJournal
+	equip                   EquipBoundary
+	equipJournal            EquipJournal
+	gearReplace             GearReplaceBoundary
+	gearReplaceJournal      GearReplaceJournal
+	repair                  RepairBoundary
+	repairJournal           RepairJournal
+	caravanDeparture        CaravanDepartureBoundary
+	caravanDepartureJournal CaravanDepartureJournal
+	ranged                  RangedBoundary
+	rangedJournal           RangedJournal
+	routineScope            RoutineScope
+	journal                 Journal
+	draftJournal            DraftJournal
+	draft                   DraftBoundary
+	meleeJournal            MeleeJournal
+	melee                   MeleeBoundary
+	boundary                Boundary
+	clock                   Clock
+	limits                  Limits
+	writer                  chan struct{}
+	mu                      sync.Mutex
+	authority               Authority
+	generation              context.Context
+	invalidate              context.CancelFunc
+	activeAction            domain.ActionID
+	activeCancel            context.CancelFunc
+	stopped                 bool
 }
 
 func New(journal Journal, boundary Boundary, clock Clock, limits Limits, routine ...RoutineScope) (*Executor, error) {
@@ -331,6 +333,9 @@ func (e *Executor) Run(ctx context.Context, plan domain.PlanID, actionID domain.
 	}
 	if action.Kind() == domain.RepairAction && e.repair != nil {
 		return e.runRepair(ctx, action, progress, authority, generation)
+	}
+	if action.Kind() == domain.CaravanDepartureAction && e.caravanDeparture != nil {
+		return e.runCaravanDeparture(ctx, action, progress, authority, generation)
 	}
 	if action.Kind() == domain.MeleeAttackAction && e.melee != nil {
 		return e.runMelee(ctx, action, progress, authority, generation)

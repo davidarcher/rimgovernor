@@ -62,6 +62,12 @@ func insertAction(ctx context.Context, tx *sql.Tx, plan domain.PlanID, ordinal i
 		_, err = tx.ExecContext(ctx, "INSERT INTO actions(id,plan_id,ordinal,kind,pawn,target,definition) VALUES(?,?,?,'gear_replace',?,?,?)", a.ID(), plan, ordinal, replace.Pawn(), replace.Thing(), replace.Definition())
 	} else if repair, ok := a.Repair(); ok {
 		_, err = tx.ExecContext(ctx, "INSERT INTO actions(id,plan_id,ordinal,kind,pawn,target,x,z) VALUES(?,?,?,'repair',?,?,?,?)", a.ID(), plan, ordinal, repair.Pawn(), repair.Structure(), repair.Cell().X, repair.Cell().Z)
+	} else if departure, ok := a.CaravanDeparture(); ok {
+		data, encodeErr := json.Marshal(caravanPayload{departure.Crew(), departure.Cargo(), departure.DestinationTile()})
+		if encodeErr != nil {
+			return encodeErr
+		}
+		_, err = tx.ExecContext(ctx, "INSERT INTO actions(id,plan_id,ordinal,kind,caravan_payload) VALUES(?,?,?,'caravan_departure',?)", a.ID(), plan, ordinal, data)
 	} else {
 		return errors.New("unsupported persisted action")
 	}
@@ -73,8 +79,8 @@ func scanAction(rows *sql.Rows) (domain.Action, int, error) {
 	var ordinal int
 	var def, rotation, stuff, pawn, target, draftAction sql.NullString
 	var x, z sql.NullInt64
-	var work, zone, bill []byte
-	if err := rows.Scan(&id, &kind, &def, &x, &z, &rotation, &stuff, &pawn, &target, &draftAction, &work, &zone, &bill, &ordinal); err != nil {
+	var work, zone, bill, caravan []byte
+	if err := rows.Scan(&id, &kind, &def, &x, &z, &rotation, &stuff, &pawn, &target, &draftAction, &work, &zone, &bill, &caravan, &ordinal); err != nil {
 		return domain.Action{}, 0, err
 	}
 	if kind == "production_bill" && !pawn.Valid && !target.Valid && !draftAction.Valid && !def.Valid && !x.Valid && !z.Valid && !rotation.Valid && !stuff.Valid && work == nil && zone == nil {
@@ -147,6 +153,25 @@ func scanAction(rows *sql.Rows) (domain.Action, int, error) {
 	}
 	if work != nil {
 		return domain.Action{}, 0, errors.New("mixed work action payload")
+	}
+	if kind == "caravan_departure" && !pawn.Valid && !target.Valid && !draftAction.Valid && !def.Valid && !x.Valid && !z.Valid && !rotation.Valid && !stuff.Valid {
+		var payload caravanPayload
+		if len(caravan) > 32768 || json.Unmarshal(caravan, &payload) != nil {
+			return domain.Action{}, 0, errors.New("invalid caravan payload")
+		}
+		canonical, _ := json.Marshal(payload)
+		if !bytes.Equal(canonical, caravan) {
+			return domain.Action{}, 0, errors.New("noncanonical caravan payload")
+		}
+		c, err := domain.NewCaravanDeparture(payload.Crew, payload.Cargo, payload.DestinationTile)
+		if err != nil {
+			return domain.Action{}, 0, err
+		}
+		action, err := domain.NewCaravanDepartureAction(id, c)
+		return action, ordinal, err
+	}
+	if caravan != nil {
+		return domain.Action{}, 0, errors.New("mixed caravan payload")
 	}
 	if kind == "owned_draft" && pawn.Valid && !target.Valid && !draftAction.Valid && !def.Valid && !x.Valid && !z.Valid && !rotation.Valid && !stuff.Valid {
 		d, e := domain.NewOwnedDraft(domain.PawnID(pawn.String))
@@ -265,4 +290,10 @@ type billPayload struct {
 	Bench, Recipe, Token string
 	Mode                 domain.BillMode
 	Target               int32
+}
+
+type caravanPayload struct {
+	Crew            []domain.PawnID
+	Cargo           []domain.CargoItem
+	DestinationTile int32
 }
