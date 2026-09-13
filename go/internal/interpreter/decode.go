@@ -17,57 +17,84 @@ type modelBuilding struct {
 	Stuff    *string `json:"stuff"`
 }
 
-func decode(text string, limit int) ([]modelBuilding, error) {
+// modelCommand is the untrusted decoded shape of exactly one supported
+// command. Only the fields matching Command are populated.
+type modelCommand struct {
+	Command   string
+	Buildings []modelBuilding
+	Project   *string
+}
+
+func decode(text string, limit int) (modelCommand, error) {
 	if len(text) > 65536 || !utf8.ValidString(text) {
-		return nil, fail(InvalidCommand, "invalid or oversized JSON response")
+		return modelCommand{}, fail(InvalidCommand, "invalid or oversized JSON response")
 	}
 	decoder := json.NewDecoder(bytes.NewBufferString(text))
 	decoder.UseNumber()
 	if err := scan(decoder, 0); err != nil {
-		return nil, err
+		return modelCommand{}, err
 	}
 	if _, err := decoder.Token(); err != io.EOF {
-		return nil, fail(InvalidCommand, "trailing JSON")
+		return modelCommand{}, fail(InvalidCommand, "trailing JSON")
 	}
 	var fields map[string]json.RawMessage
 	if err := json.Unmarshal([]byte(text), &fields); err != nil || fields == nil {
-		return nil, fail(InvalidCommand, "expected command object")
+		return modelCommand{}, fail(InvalidCommand, "expected command object")
 	}
 	var command *string
 	if err := json.Unmarshal(fields["command"], &command); err != nil || command == nil {
-		return nil, fail(InvalidCommand, "missing command")
+		return modelCommand{}, fail(InvalidCommand, "missing command")
 	}
-	if *command != "build" {
-		return nil, fail(UnsupportedCommand, "only building proposals are supported")
+	switch *command {
+	case "build":
+		return decodeBuild(fields, limit)
+	case "research":
+		return decodeResearch(fields)
+	default:
+		return modelCommand{}, fail(UnsupportedCommand, "only building and research proposals are supported")
 	}
+}
+
+func decodeBuild(fields map[string]json.RawMessage, limit int) (modelCommand, error) {
 	if len(fields) != 2 || fields["buildings"] == nil {
-		return nil, fail(InvalidCommand, "unexpected command fields")
+		return modelCommand{}, fail(InvalidCommand, "unexpected command fields")
 	}
 	var buildings []json.RawMessage
 	if err := json.Unmarshal(fields["buildings"], &buildings); err != nil || len(buildings) == 0 || len(buildings) > limit {
-		return nil, fail(InvalidCommand, "expected bounded nonempty building list")
+		return modelCommand{}, fail(InvalidCommand, "expected bounded nonempty building list")
 	}
 	result := make([]modelBuilding, 0, len(buildings))
 	for _, raw := range buildings {
 		var fields map[string]json.RawMessage
 		if err := json.Unmarshal(raw, &fields); err != nil {
-			return nil, fail(InvalidCommand, "expected building object")
+			return modelCommand{}, fail(InvalidCommand, "expected building object")
 		}
 		if len(fields) != 5 {
-			return nil, fail(InvalidCommand, "building requires five exact fields")
+			return modelCommand{}, fail(InvalidCommand, "building requires five exact fields")
 		}
 		for _, key := range []string{"defName", "x", "z", "rotation", "stuff"} {
 			if fields[key] == nil || bytes.Equal(bytes.TrimSpace(fields[key]), []byte("null")) {
-				return nil, fail(InvalidCommand, "missing or null building field")
+				return modelCommand{}, fail(InvalidCommand, "missing or null building field")
 			}
 		}
 		var b modelBuilding
 		if err := json.Unmarshal(raw, &b); err != nil {
-			return nil, fail(InvalidCommand, "invalid building field type")
+			return modelCommand{}, fail(InvalidCommand, "invalid building field type")
 		}
 		result = append(result, b)
 	}
-	return result, nil
+	return modelCommand{Command: "build", Buildings: result}, nil
+}
+
+func decodeResearch(fields map[string]json.RawMessage) (modelCommand, error) {
+	if len(fields) != 2 || fields["project"] == nil || bytes.Equal(bytes.TrimSpace(fields["project"]), []byte("null")) {
+		return modelCommand{}, fail(InvalidCommand, "unexpected command fields")
+	}
+	var project string
+	if err := json.Unmarshal(fields["project"], &project); err != nil || project == "" {
+		return modelCommand{}, fail(InvalidCommand, "invalid project field")
+	}
+	return modelCommand{Command: "research", Project: &project}, nil
 }
 
 // Generic JSON token inspection is confined to this external text boundary.

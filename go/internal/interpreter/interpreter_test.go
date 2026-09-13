@@ -216,3 +216,57 @@ func TestActionCountAndExplicitDefaultMaterial(t *testing.T) {
 		t.Fatal(err)
 	}
 }
+
+func TestResearchProposal(t *testing.T) {
+	i := clientFixture(t, func(context.Context, model.Request) (model.Response, error) {
+		return model.Response{Text: `{"command":"research","project":"Electricity"}`, FinishReason: model.Stop}, nil
+	})
+	input := inputFixture()
+	input.Facts.ResearchProjects = []string{"Electricity"}
+	proposal, err := i.Interpret(context.Background(), input)
+	if err != nil {
+		t.Fatal(err)
+	}
+	actions := proposal.Plan.Actions()
+	if len(actions) != 1 || actions[0].ID() != "a1" {
+		t.Fatal("incorrect research action identity")
+	}
+	research, ok := actions[0].ResearchSelect()
+	if !ok || research.Project() != "Electricity" {
+		t.Fatal("incorrect typed research proposal")
+	}
+}
+
+func TestResearchRefusesUnknownProjectOrWrongActionCount(t *testing.T) {
+	response := func(context.Context, model.Request) (model.Response, error) {
+		return model.Response{Text: `{"command":"research","project":"Electricity"}`, FinishReason: model.Stop}, nil
+	}
+	i := clientFixture(t, response)
+	input := inputFixture()
+	// No selectable research facts supplied: the requested project is unknown.
+	_, err := i.Interpret(context.Background(), input)
+	assertKind(t, err, UnknownFacts)
+
+	input = inputFixture()
+	input.Facts.ResearchProjects = []string{"Electricity"}
+	input.ActionIDs = append(input.ActionIDs, "a2")
+	i = clientFixture(t, response)
+	_, err = i.Interpret(context.Background(), input)
+	assertKind(t, err, InvalidCommand)
+}
+
+func TestResearchProjectsValidatedAndBounded(t *testing.T) {
+	i := clientFixture(t, func(context.Context, model.Request) (model.Response, error) {
+		t.Fatal("model called")
+		return model.Response{}, nil
+	})
+	input := inputFixture()
+	input.Facts.ResearchProjects = []string{"Electricity", "Electricity"}
+	_, err := i.Interpret(context.Background(), input)
+	assertKind(t, err, InvalidInput)
+
+	input = inputFixture()
+	input.Facts.ResearchProjects = []string{""}
+	_, err = i.Interpret(context.Background(), input)
+	assertKind(t, err, InvalidInput)
+}

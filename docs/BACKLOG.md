@@ -1335,6 +1335,21 @@ b; exact worker cleanup by a, with reuse by their later consumers.
   **Exit evidence:** representative scripted invalid/cancelled replies and actual
   configured LM Studio requests execute supported commands; advisers cannot mutate
   the game and there is no paid-provider fallback.
+  The interpreter now decodes a second command kind end to end: `research`
+  selects one already-observed selectable project into the existing
+  `ResearchSelectAction`, reusing its unchanged store/policy/executor pipeline.
+  Remaining: every other `player_commands.py` command family (goals/resources,
+  population/surgery/herds, trade/world, adopt/relocate/cancel, zones, work
+  priorities, bills/temperature, draft/move/tend/rescue), consultation/scout/
+  visual review, knowledge/memory/evidence retrieval, streaming, deduplication
+  and explicit cancellation. Naming confirmation additionally needs new native
+  work: only the detection half exists (`policy.ConfirmColonyNames`,
+  `observation.Colony`'s `ColonyNaming` fact); nothing in Go calls
+  `home/confirm_colony_names` (an ad-hoc JSON-arg tool, not a typed
+  `operationspb.Operation`) or the presentation `PreviewNaming`/`Apply`
+  RPCs `contracts/proto/presentation.proto` already declares for it — no
+  Go calling convention exists yet for either shape, and confirm's own
+  native handler (`ColonyNamingTool.cs`) is unstarted from Go.
 
 - [ ] **G01.09 — Player controls, media and save/load replace Python services.**
   Finish controls for the ported families, action hold/observation-failure reasons,
