@@ -39,6 +39,9 @@ type modelCommand struct {
 	// Animal/Method/TrainableDef hold husbandry's target, train-or-slaughter
 	// choice, and (train only) trainable definition.
 	Animal, Method, TrainableDef *string
+	// Pawn/Thing/Service hold recover's pawn, service target thing, and
+	// repair/breakdown/refuel method (a distinct field from husbandry's Method).
+	Pawn, Thing, Service *string
 }
 
 func decode(text string, limit int) (modelCommand, error) {
@@ -76,8 +79,10 @@ func decode(text string, limit int) (modelCommand, error) {
 		return decodeCaravan(fields)
 	case "husbandry":
 		return decodeHusbandry(fields)
+	case "recover":
+		return decodeRecoveryService(fields)
 	default:
-		return modelCommand{}, fail(UnsupportedCommand, "only building, research, tend, rescue, draft, caravan and husbandry proposals are supported")
+		return modelCommand{}, fail(UnsupportedCommand, "only building, research, tend, rescue, draft, caravan, husbandry and recover proposals are supported")
 	}
 }
 
@@ -233,6 +238,40 @@ func decodeHusbandry(fields map[string]json.RawMessage) (modelCommand, error) {
 	default:
 		return modelCommand{}, fail(InvalidCommand, "invalid method field")
 	}
+}
+
+func decodeRecoveryService(fields map[string]json.RawMessage) (modelCommand, error) {
+	if len(fields) != 4 || fields["pawn"] == nil || fields["thing"] == nil || fields["method"] == nil {
+		return modelCommand{}, fail(InvalidCommand, "unexpected command fields")
+	}
+	decodeField := func(key string) (*string, error) {
+		if bytes.Equal(bytes.TrimSpace(fields[key]), []byte("null")) {
+			return nil, fail(InvalidCommand, "missing "+key)
+		}
+		var value string
+		if err := json.Unmarshal(fields[key], &value); err != nil || value == "" {
+			return nil, fail(InvalidCommand, "invalid "+key+" field")
+		}
+		return &value, nil
+	}
+	pawn, err := decodeField("pawn")
+	if err != nil {
+		return modelCommand{}, err
+	}
+	thing, err := decodeField("thing")
+	if err != nil {
+		return modelCommand{}, err
+	}
+	method, err := decodeField("method")
+	if err != nil {
+		return modelCommand{}, err
+	}
+	switch *method {
+	case "repair", "breakdown", "refuel":
+	default:
+		return modelCommand{}, fail(InvalidCommand, "invalid method field")
+	}
+	return modelCommand{Command: "recover", Pawn: pawn, Thing: thing, Service: method}, nil
 }
 
 // Generic JSON token inspection is confined to this external text boundary.

@@ -511,6 +511,67 @@ func TestTrainableDefinitionsValidatedAndBounded(t *testing.T) {
 	assertKind(t, err, InvalidInput)
 }
 
+func TestRecoveryServiceProposal(t *testing.T) {
+	i := clientFixture(t, func(context.Context, model.Request) (model.Response, error) {
+		return model.Response{Text: `{"command":"recover","pawn":"Thing_A","thing":"Thing_B","method":"repair"}`, FinishReason: model.Stop}, nil
+	})
+	input := inputFixture()
+	input.Facts.Pawns = []domain.PawnID{"Thing_A"}
+	input.Facts.ServiceTargets = []string{"Thing_B"}
+	proposal, err := i.Interpret(context.Background(), input)
+	if err != nil {
+		t.Fatal(err)
+	}
+	actions := proposal.Plan.Actions()
+	if len(actions) != 1 || actions[0].ID() != "a1" {
+		t.Fatal("incorrect recovery service action identity")
+	}
+	service, ok := actions[0].RecoveryService()
+	if !ok || service.Pawn() != "Thing_A" || service.Thing() != "Thing_B" || service.Method() != domain.RecoveryServiceRepair {
+		t.Fatal("incorrect typed recovery service proposal")
+	}
+}
+
+func TestRecoveryServiceRefusesUnknownFactsOrWrongActionCount(t *testing.T) {
+	text := `{"command":"recover","pawn":"Thing_A","thing":"Thing_B","method":"repair"}`
+	response := func(context.Context, model.Request) (model.Response, error) {
+		return model.Response{Text: text, FinishReason: model.Stop}, nil
+	}
+	for _, tc := range []struct {
+		name string
+		edit func(*Input)
+	}{
+		{"unknown pawn", func(in *Input) { in.Facts.ServiceTargets = []string{"Thing_B"} }},
+		{"unknown thing", func(in *Input) { in.Facts.Pawns = []domain.PawnID{"Thing_A"} }},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			input := inputFixture()
+			tc.edit(&input)
+			i := clientFixture(t, response)
+			_, err := i.Interpret(context.Background(), input)
+			assertKind(t, err, UnknownFacts)
+		})
+	}
+	input := inputFixture()
+	input.Facts.Pawns = []domain.PawnID{"Thing_A"}
+	input.Facts.ServiceTargets = []string{"Thing_B"}
+	input.ActionIDs = append(input.ActionIDs, "a2")
+	i := clientFixture(t, response)
+	_, err := i.Interpret(context.Background(), input)
+	assertKind(t, err, InvalidCommand)
+}
+
+func TestServiceTargetsValidatedAndBounded(t *testing.T) {
+	i := clientFixture(t, func(context.Context, model.Request) (model.Response, error) {
+		t.Fatal("model called")
+		return model.Response{}, nil
+	})
+	input := inputFixture()
+	input.Facts.ServiceTargets = []string{"Thing_B", "Thing_B"}
+	_, err := i.Interpret(context.Background(), input)
+	assertKind(t, err, InvalidInput)
+}
+
 func TestPawnFactsValidatedAndBounded(t *testing.T) {
 	i := clientFixture(t, func(context.Context, model.Request) (model.Response, error) {
 		t.Fatal("model called")

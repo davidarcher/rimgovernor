@@ -154,6 +154,30 @@ func TestModelHusbandryShape(t *testing.T) {
 	}
 }
 
+func TestModelRecoveryServiceShape(t *testing.T) {
+	result, err := decode(`{"command":"recover","pawn":"Thing_A","thing":"Thing_B","method":"repair"}`, 1)
+	if err != nil || result.Command != "recover" || result.Pawn == nil || *result.Pawn != "Thing_A" ||
+		result.Thing == nil || *result.Thing != "Thing_B" || result.Service == nil || *result.Service != "repair" {
+		t.Fatalf("recover shape: %v %v", result, err)
+	}
+	for _, text := range []string{
+		`{"command":"recover"}`,
+		`{"command":"recover","pawn":"Thing_A"}`,
+		`{"command":"recover","pawn":"Thing_A","thing":"Thing_B"}`,
+		`{"command":"recover","pawn":null,"thing":"Thing_B","method":"repair"}`,
+		`{"command":"recover","pawn":"","thing":"Thing_B","method":"repair"}`,
+		`{"command":"recover","pawn":"Thing_A","thing":"","method":"repair"}`,
+		`{"command":"recover","pawn":"Thing_A","thing":"Thing_B","method":""}`,
+		`{"command":"recover","pawn":"Thing_A","thing":"Thing_B","method":"reboot"}`,
+		`{"command":"recover","pawn":"Thing_A","thing":"Thing_B","method":"repair","dryRun":false}`,
+	} {
+		t.Run(text, func(t *testing.T) {
+			_, err := decode(text, 1)
+			assertKind(t, err, InvalidCommand)
+		})
+	}
+}
+
 func TestModelCaravanShape(t *testing.T) {
 	valid := `{"command":"caravan","crew":["Thing_A"],"cargo":[{"defName":"Silver","count":50}],"destinationTile":3}`
 	result, err := decode(valid, 1)

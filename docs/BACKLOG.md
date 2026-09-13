@@ -1335,7 +1335,7 @@ b; exact worker cleanup by a, with reuse by their later consumers.
   **Exit evidence:** representative scripted invalid/cancelled replies and actual
   configured LM Studio requests execute supported commands; advisers cannot mutate
   the game and there is no paid-provider fallback.
-  The interpreter now decodes seven command kinds end to end, each reusing its
+  The interpreter now decodes eight command kinds end to end, each reusing its
   unchanged existing store/policy/executor pipeline: `build` (variable count);
   `research` selects one already-observed selectable project into
   `ResearchSelectAction`; `tend` and `rescue` each select two distinct
@@ -1344,21 +1344,29 @@ b; exact worker cleanup by a, with reuse by their later consumers.
   `OwnedDraftAction`; `caravan` selects an already-observed crew, cargo and
   destination tile into `CaravanDepartureAction`; `husbandry` selects one
   already-observed animal plus a train (with trainable defName) or slaughter
-  method into `HusbandryAction` — its CAS tokens are read fresh by the
-  executor's own inspection at dispatch, not needed at construction, so unlike
-  `work_assignment` it required no new CAS plumbing. All but `build` and
-  `caravan` are exactly-one-action commands; `caravan` is still exactly one
-  action but with variable-count crew/cargo facts. `work_assignment` (work
-  priorities) was checked and deferred: unlike these, it needs a live CAS
-  `before` token from a fresh native read that the interpreter's
-  Input/Snapshot has no slot for yet — wiring that is a bigger, separate
-  slice, not a same-shape addition.
+  method into `HusbandryAction`; `recover` selects one already-observed pawn
+  and service target thing plus a repair/breakdown/refuel method into
+  `RecoveryServiceAction` (the same native operation the legacy
+  `home/recover_service` tool drove). Husbandry's and recovery's CAS tokens
+  are read fresh by the executor's own inspection at dispatch, not needed at
+  construction, so unlike `work_assignment` and `production_bill` (both carry
+  a `before`/`token` CAS field on the domain type itself) they required no new
+  CAS plumbing. All but `build` and `caravan` are exactly-one-action commands;
+  `caravan` is still exactly one action but with variable-count crew/cargo
+  facts. `work_assignment` (work priorities) and `production_bill`
+  (bills/temperature) were checked and deferred: both need a live CAS token
+  from a fresh native read that the interpreter's Input/Snapshot has no slot
+  for yet — wiring that is a bigger, separate slice, not a same-shape
+  addition. `acquisition`/`zone` were also checked and rejected: acquisition
+  is routine harvest/hunt selection driven by policy, not a natural direct
+  player command, and zone's constructors are narrowly closed to specific
+  routine-only preset variants.
   Remaining: every other `player_commands.py` command family (goals/resources,
-  population/surgery, trade/world, adopt/relocate/cancel, zones, work
-  priorities, bills/temperature, move/reposition), consultation/scout/
-  visual review, knowledge/memory/evidence retrieval, streaming, deduplication
-  and explicit cancellation. Naming confirmation additionally needs new native
-  work: only the detection half exists (`policy.ConfirmColonyNames`,
+  population/surgery, trade/world, adopt/relocate/cancel, move/reposition),
+  consultation/scout/visual review, knowledge/memory/evidence retrieval,
+  streaming, deduplication and explicit cancellation. Naming confirmation
+  additionally needs new native work: only the detection half exists
+  (`policy.ConfirmColonyNames`,
   `observation.Colony`'s `ColonyNaming` fact); nothing in Go calls
   `home/confirm_colony_names` (an ad-hoc JSON-arg tool, not a typed
   `operationspb.Operation`) or the presentation `PreviewNaming`/`Apply`
