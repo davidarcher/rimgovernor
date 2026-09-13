@@ -2195,6 +2195,19 @@ main. Native package and Go production cutover remain independent.
       itself stays in place (still imports `native_compatibility_acceptance`'s
       `discovery()`). `go build`/`vet`/`test ./...` clean; both Python test
       loaders are deleted.
+    - [x] **`native_go_gear_evidence.py` (1 file).** Its single pure function,
+      `audit_gear(colony, legacy)`, ported as `AuditGear` to a new
+      `nativeaccept/gear.go`: the typed gear census must exactly match the
+      native pawn set by id, each pawn's snapshot must carry the colony's
+      own context and the native loadout token, its deficit flag must be an
+      explicit boolean matching the native fact, its eligible candidates
+      (matched by item id) must reproduce the native set's defName/gain/
+      apparel-or-weapon kind exactly, and its replacement needs must match
+      the native set once normalized and sorted. No `run()` in this script —
+      unlike the disposable-worker GABS families, it's a standalone
+      comparison helper `native_go_routine_acceptance.py` imports, so that
+      script stays in place. `go build`/`vet`/`test ./...` clean; the Python
+      test loader is deleted.
   - [ ] **Slice 4 — subsystem long tail (~70 remaining `scripts/*_acceptance.py`).**
     Group by existing `bridge/*.go` domain and land as independent sub-slices:
     construction/building; upkeep/comfort/gear/power (largest cluster); food/
