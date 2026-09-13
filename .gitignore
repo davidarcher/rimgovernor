@@ -24,7 +24,7 @@ nul
 # Temporary test logs and artifacts
 tmp/
 experiments/
-work/
+/work/
 .venv/
 __pycache__/
 *.egg-info/

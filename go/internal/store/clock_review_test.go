@@ -35,18 +35,18 @@ func TestClockReviewCaptureReviewAckAndReplay(t *testing.T) {
 		t.Fatal(unread, err)
 	}
 	reviewed, err := s.ReviewClockEvents(ctx, profile, 0)
-	if err != nil || reviewed.Revision != 1 || reviewed.ReviewedCursor != 3 || !reflect.DeepEqual(reviewed.Holds, []ClockHold{{ClockGapHold, 1, 3}, {ClockInterruptionHold, 1, 1}}) {
+	if err != nil || reviewed.Revision != 1 || reviewed.ReviewedCursor != 3 || !reflect.DeepEqual(reviewed.Holds, []ClockHold{{Kind: ClockGapHold, FromCursor: 1, ThroughCursor: 3}, {Kind: ClockInterruptionHold, FromCursor: 1, ThroughCursor: 1}}) {
 		t.Fatal(reviewed, err)
 	}
 	if _, err = s.ReviewClockEvents(ctx, profile, 0); !errors.Is(err, ErrConflict) {
 		t.Fatal(err)
 	}
 	for _, cursor := range []int64{-1, 1, 4} {
-		if _, err = s.AcknowledgeClockEvents(ctx, profile, ClockAcknowledgement{"bad", 1, cursor}); !errors.Is(err, ErrConflict) {
+		if _, err = s.AcknowledgeClockEvents(ctx, profile, ClockAcknowledgement{RequestID: "bad", ExpectedRevision: 1, ThroughCursor: cursor}); !errors.Is(err, ErrConflict) {
 			t.Fatal(cursor, err)
 		}
 	}
-	ack := ClockAcknowledgement{"ack", 1, 3}
+	ack := ClockAcknowledgement{RequestID: "ack", ExpectedRevision: 1, ThroughCursor: 3}
 	acknowledged, err := s.AcknowledgeClockEvents(ctx, profile, ack)
 	if err != nil || acknowledged.Revision != 2 || acknowledged.AcknowledgedCursor != 3 || len(acknowledged.Holds) != 0 {
 		t.Fatal(acknowledged, err)
@@ -60,7 +60,7 @@ func TestClockReviewCaptureReviewAckAndReplay(t *testing.T) {
 	if err != nil || !reflect.DeepEqual(replay, acknowledged) {
 		t.Fatal(replay, err)
 	}
-	if _, err = s.AcknowledgeClockEvents(ctx, profile, ClockAcknowledgement{"ack", 3, 4}); !errors.Is(err, ErrConflict) {
+	if _, err = s.AcknowledgeClockEvents(ctx, profile, ClockAcknowledgement{RequestID: "ack", ExpectedRevision: 3, ThroughCursor: 4}); !errors.Is(err, ErrConflict) {
 		t.Fatal(err)
 	}
 	s.Close()
@@ -78,7 +78,7 @@ func TestClockReviewEmptyAckDoesNotCoverNewEvents(t *testing.T) {
 	t.Parallel()
 	ctx := context.Background()
 	s, _, profile := boundInbox(t)
-	ack := ClockAcknowledgement{"empty", 0, 0}
+	ack := ClockAcknowledgement{RequestID: "empty", ExpectedRevision: 0, ThroughCursor: 0}
 	initial, err := s.AcknowledgeClockEvents(ctx, profile, ack)
 	if err != nil || initial.Revision != 0 {
 		t.Fatal(initial, err)
@@ -170,7 +170,7 @@ func TestClockReviewConcurrentAckAndCapacity(t *testing.T) {
 	done := make(chan error, 2)
 	for _, db := range []*Store{s, other} {
 		go func(db *Store) {
-			_, err := db.AcknowledgeClockEvents(ctx, profile, ClockAcknowledgement{"shared", 0, 0})
+			_, err := db.AcknowledgeClockEvents(ctx, profile, ClockAcknowledgement{RequestID: "shared", ExpectedRevision: 0, ThroughCursor: 0})
 			done <- err
 		}(db)
 	}
@@ -196,10 +196,10 @@ func TestClockReviewConcurrentAckAndCapacity(t *testing.T) {
 	if err = tx.Commit(); err != nil {
 		t.Fatal(err)
 	}
-	if _, err = s.AcknowledgeClockEvents(ctx, profile, ClockAcknowledgement{"shared", 0, 0}); err != nil {
+	if _, err = s.AcknowledgeClockEvents(ctx, profile, ClockAcknowledgement{RequestID: "shared", ExpectedRevision: 0, ThroughCursor: 0}); err != nil {
 		t.Fatal(err)
 	}
-	if _, err = s.AcknowledgeClockEvents(ctx, profile, ClockAcknowledgement{"new", 0, 0}); !errors.Is(err, ErrCapacity) {
+	if _, err = s.AcknowledgeClockEvents(ctx, profile, ClockAcknowledgement{RequestID: "new", ExpectedRevision: 0, ThroughCursor: 0}); !errors.Is(err, ErrCapacity) {
 		t.Fatal(err)
 	}
 }

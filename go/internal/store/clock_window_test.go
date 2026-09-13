@@ -97,7 +97,7 @@ func TestClockWindowStoreDispatchReviewRaces(t *testing.T) {
 				}
 			}
 			if kind == "ack" {
-				if _, err := s.AcknowledgeClockEvents(ctx, profile, ClockAcknowledgement{"ack", 1, 1}); err != nil {
+				if _, err := s.AcknowledgeClockEvents(ctx, profile, ClockAcknowledgement{RequestID: "ack", ExpectedRevision: 1, ThroughCursor: 1}); err != nil {
 					t.Fatal(err)
 				}
 			}
