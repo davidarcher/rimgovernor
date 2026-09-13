@@ -13,8 +13,13 @@
 
 ## Delivery speed and coordination
 
-- Define a bounded completion criterion and the smallest sufficient checks. Once
-  they pass, commit and deliver; put unrelated discoveries in the backlog.
+- Define a completion criterion sized to a coherent milestone, not the smallest
+  possible increment. Game and acceptance checks are slow: batch the related
+  steps that share a milestone into one iteration so verification runs once
+  against meaningful progress, instead of once per trivial edit. Once checks
+  pass, commit and deliver; put unrelated discoveries in the backlog. Continue
+  to the next coherent milestone of an authorized task without waiting to be
+  re-prompted.
 - Default to one agent. Use requested teams for independent, bounded work. Agree
   once on file/component ownership, shared contracts and one integration owner,
   then work independently. Do not narrate edits to peers or ask for speculative
@@ -45,9 +50,10 @@
 
 ## Architecture and implementation
 
-- Follow the [development process](docs/developers/development-process.md): small verified
-  slices, strict typed contracts and explicit component ownership. Integrate features
-  through existing architecture; keep unstructured data at validated boundaries.
+- Follow the [development process](docs/developers/development-process.md): verified
+  slices sized to a milestone rather than the smallest possible step, strict typed
+  contracts and explicit component ownership. Integrate features through existing
+  architecture; keep unstructured data at validated boundaries.
 - Start with the [documentation map](docs/README.md), [system overview](docs/developers/architecture/overview.md),
   [backlog](docs/BACKLOG.md) and [test selection](docs/developers/testing/choose-tests.md).
   Read the component guide and contracts for the subsystem being changed;

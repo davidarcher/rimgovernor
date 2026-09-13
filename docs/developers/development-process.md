@@ -7,9 +7,12 @@
 Read the [architecture](architecture/overview.md), [source map](source-map.md),
 affected contracts and [backlog](../BACKLOG.md). Identify the outcome, owning
 component, changed contracts and acceptance cases. A few sentences suffice for
-a small fix. Define a bounded completion criterion and the smallest sufficient
-checks. Once they pass, commit and deliver. Keep incomplete capabilities gated and
-record unrelated discoveries and remaining work in the backlog.
+a small fix. Size the slice to a coherent milestone, not the smallest possible
+step: game and acceptance checks are slow, so batch the related work a milestone
+needs into one iteration rather than stopping after each small increment. Once
+checks pass, commit and deliver. Keep incomplete capabilities gated and record
+unrelated discoveries and remaining work in the backlog. When a task spans
+multiple milestones, continue to the next one instead of stopping to be re-prompted.
 
 Check Git status before editing. Use a separate task worktree and `codex/` branch
 when peers may be active. Coordinate shared interfaces and integration.
