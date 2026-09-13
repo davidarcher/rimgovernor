@@ -26,28 +26,29 @@ import (
 )
 
 type SessionConfig struct {
-	Bills           *bill.BillCapabilities
-	Zones           *zone.ZoneCapabilities
-	Work            *work.WorkCapabilities
-	Acquisition     *acquisition.AcquisitionCapabilities
-	Supplies        *supply.SupplyCapabilities
-	RoutineMethods  bool
-	Control         ControlConfig
-	Executor        executor.Limits
-	Rules           []policy.ResourceRule
-	Draft           *draft.DraftCapabilities
-	Clock           *ClockCapabilities
-	Melee           *melee.MeleeCapabilities
-	Haul            *haul.HaulCapabilities
-	Ranged          *ranged.RangedCapabilities
-	Tend            *tend.TendCapabilities
-	Rescue          *rescue.RescueCapabilities
-	Equip           *equip.EquipCapabilities
-	GearReplace     *GearReplaceCapabilities
-	Repair          *RepairCapabilities
-	Clean           *CleanCapabilities
-	RecoveryService *RecoveryServiceCapabilities
-	ResearchSelect  *ResearchSelectCapabilities
+	Bills            *bill.BillCapabilities
+	Zones            *zone.ZoneCapabilities
+	Work             *work.WorkCapabilities
+	Acquisition      *acquisition.AcquisitionCapabilities
+	Supplies         *supply.SupplyCapabilities
+	RoutineMethods   bool
+	Control          ControlConfig
+	Executor         executor.Limits
+	Rules            []policy.ResourceRule
+	Draft            *draft.DraftCapabilities
+	Clock            *ClockCapabilities
+	Melee            *melee.MeleeCapabilities
+	Haul             *haul.HaulCapabilities
+	Ranged           *ranged.RangedCapabilities
+	Tend             *tend.TendCapabilities
+	Rescue           *rescue.RescueCapabilities
+	Equip            *equip.EquipCapabilities
+	GearReplace      *GearReplaceCapabilities
+	Repair           *RepairCapabilities
+	Clean            *CleanCapabilities
+	RecoveryService  *RecoveryServiceCapabilities
+	ResearchSelect   *ResearchSelectCapabilities
+	CaravanDeparture *CaravanDepartureCapabilities
 }
 
 // Session binds the single profile owner to one journal and executor. Its caller
@@ -298,6 +299,9 @@ func NewSession(ctx context.Context, config SessionConfig, journal *store.Store,
 	if config.ResearchSelect != nil && (config.ResearchSelect.Native == nil || config.ResearchSelect.Writer == nil) {
 		return cleanup(ErrControl)
 	}
+	if config.CaravanDeparture != nil && (config.CaravanDeparture.Native == nil || config.CaravanDeparture.Writer == nil) {
+		return cleanup(ErrControl)
+	}
 	var routine []executor.RoutineScope
 	if config.RoutineMethods {
 		routine = append(routine, journal)
@@ -420,6 +424,15 @@ func NewSession(ctx context.Context, config SessionConfig, journal *store.Store,
 			return cleanup(err)
 		}
 		if err := worker.EnableRecoveryService(recoveryServiceBoundary); err != nil {
+			return cleanup(err)
+		}
+	}
+	if config.CaravanDeparture != nil {
+		caravanDepartureBoundary, err := NewCaravanDepartureBoundary(config.CaravanDeparture.Native, config.CaravanDeparture.Writer, sessionBuildingLeases{control, journal, config.RoutineMethods, config.Executor.JournalTimeout}, clock, string(namespace), config.CaravanDeparture.Policy)
+		if err != nil {
+			return cleanup(err)
+		}
+		if err := worker.EnableCaravanDeparture(caravanDepartureBoundary); err != nil {
 			return cleanup(err)
 		}
 	}
