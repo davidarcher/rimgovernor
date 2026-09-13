@@ -30,8 +30,10 @@ func NewPawnOrderControl(client *Client) (*PawnOrderControl, error) {
 
 // pawnOrderJobDefs lists the native job defs a given kind may report. Tend and
 // rescue are single fixed undrafted vanilla jobs; haul's storage search may
-// produce either a cell or container destination job. Explosives and drafted
-// combat stay on the AttackTarget contract.
+// produce either a cell or container destination job; equip is a single fixed
+// job available to a drafted or undrafted pawn (FloatMenuOptionProvider_Equip
+// applies no draft gate). Explosives and drafted combat stay on the
+// AttackTarget contract.
 func pawnOrderJobDefs(kind o.PawnOrderKind) []string {
 	switch kind {
 	case o.PawnOrderKind_PAWN_ORDER_KIND_TEND:
@@ -40,6 +42,8 @@ func pawnOrderJobDefs(kind o.PawnOrderKind) []string {
 		return []string{"Rescue"}
 	case o.PawnOrderKind_PAWN_ORDER_KIND_HAUL:
 		return []string{"HaulToCell", "HaulToContainer"}
+	case o.PawnOrderKind_PAWN_ORDER_KIND_EQUIP:
+		return []string{"Equip"}
 	default:
 		return nil
 	}

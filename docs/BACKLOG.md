@@ -730,14 +730,28 @@ without pushes, when the target checkout is safe; preserve other developers' wor
     `policy.SelectRecoveryMethods` (the `RecoveryAreaProposal`
     restriction half is still open, pending a native area-restriction
     admission operation). `MaintainAnimalFeed` is blocked on 05.5's
-    `MaintainResource-*` acquisition plumbing landing first.
-    `MaintainHerd-*`, `MaintainWaste`, trade and `Population-*`'s `equip`
-    sub-step still have no native dispatch; their `operationspb` messages
-    (`SetAnimalTraining`/`SlaughterAnimal`, `ManageWaste`,
-    `OpenTrade`/`SetTradeLines`/`AcceptTrade`/`EndTrade`) are already
-    generated, so only the native tool and Go bridge wrapper remain, not a
-    proto change. `MaintainMedicalCare`'s settings-write half and every
-    other e-row family's need/health/stock/custody/service composition
+    `MaintainResource-*` acquisition plumbing landing first. Native contracts
+    for `EnsureMood-*` relief (`Operations.RelieveNeed`,
+    `NativeMoodReliefOperations.cs`, `go/internal/bridge/mood_relief.go`) and
+    `RecoverDisasterServices`'s repair/breakdown/refuel service jobs
+    (`Operations.RecoverService`, `NativeRecoveryOperations.cs`,
+    `go/internal/bridge/disaster_recovery.go`) are now implemented end to
+    end, though disaster recovery's repair work still waits on 05.4's
+    `MaintainEssentialRepairs` landing per this item's reuse instruction.
+    `MaintainHerd-*` (`Operations.SetAnimalTraining`/`SlaughterAnimal`,
+    `NativeHusbandryOperations.cs`, `go/internal/bridge/husbandry.go`),
+    `MaintainWaste` (`Operations.ManageWaste`, `NativeWasteOperations.cs`,
+    `go/internal/bridge/waste.go`) and `Population-*`'s `equip` sub-step
+    (native `NativeEquipOperations.cs` added for
+    `PawnOrderKind_PAWN_ORDER_KIND_EQUIP`; Go side reused the existing
+    kind-agnostic `PawnOrderControl`) now have native dispatch end to end.
+    Trade (`OpenTrade`/`SetTradeLines`/`AcceptTrade`/`EndTrade`) still has no
+    native dispatch: its `operationspb`/`TradeEffect` messages are generated,
+    but the legacy `TradeTool.cs` it must port is a ~2,400-line stateful
+    `Dialog_Trade` UI session across four operations, sized for its own pass
+    rather than this one. `MaintainMedicalCare`'s settings-write half and
+    every other e-row family's need/health/stock/custody/service composition
+    remain unstarted. G01.12 gameplay acceptance gates the whole item.
     remain unstarted. G01.12 gameplay acceptance gates the whole item.
 
   - [ ] **05.7 — Close the routine integration coverage.**

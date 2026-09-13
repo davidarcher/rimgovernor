@@ -30,6 +30,9 @@ namespace HomeBridge.BridgeTools
         internal readonly Dictionary<Common.AttemptKey, NativeHaulRecord> Hauls = new Dictionary<Common.AttemptKey, NativeHaulRecord>();
         internal readonly Dictionary<Common.AttemptKey, NativeRecoveryServiceRecord> RecoveryServices = new Dictionary<Common.AttemptKey, NativeRecoveryServiceRecord>();
         internal readonly Dictionary<Common.AttemptKey, NativeMoodReliefRecord> MoodRelief = new Dictionary<Common.AttemptKey, NativeMoodReliefRecord>();
+        internal readonly Dictionary<Common.AttemptKey, NativeHusbandryRecord> Husbandry = new Dictionary<Common.AttemptKey, NativeHusbandryRecord>();
+        internal readonly Dictionary<Common.AttemptKey, NativeWasteRecord> Waste = new Dictionary<Common.AttemptKey, NativeWasteRecord>();
+        internal readonly Dictionary<Common.AttemptKey, NativeEquipRecord> Equips = new Dictionary<Common.AttemptKey, NativeEquipRecord>();
         private NativeOperationState(Common.Identity identity)
         { colony = identity.ColonyId; load = identity.LoadToken; Ledger = new NativeAttemptLedger(identity); }
         internal static bool TryGet(Common.Identity identity, out NativeOperationState state)
@@ -91,11 +94,18 @@ namespace HomeBridge.BridgeTools
             if (request.Operation.CommandCase == Operations.Operation.CommandOneofCase.AttackTarget)
                 return NativeCombatOperations.Execute(state, request, context);
             if (request.Operation.CommandCase == Operations.Operation.CommandOneofCase.PawnTargetOrder)
-                return NativeHaulOperations.Execute(state, request, context);
+                return request.Operation.PawnTargetOrder.Kind == Operations.PawnOrderKind.Equip
+                    ? NativeEquipOperations.Execute(state, request, context)
+                    : NativeHaulOperations.Execute(state, request, context);
             if (request.Operation.CommandCase == Operations.Operation.CommandOneofCase.RecoverService)
                 return NativeRecoveryOperations.Execute(state, request, context);
             if (request.Operation.CommandCase == Operations.Operation.CommandOneofCase.RelieveNeed)
                 return NativeMoodReliefOperations.Execute(state, request, context);
+            if (request.Operation.CommandCase == Operations.Operation.CommandOneofCase.SetAnimalTraining
+                || request.Operation.CommandCase == Operations.Operation.CommandOneofCase.SlaughterAnimal)
+                return NativeHusbandryOperations.Execute(state, request, context);
+            if (request.Operation.CommandCase == Operations.Operation.CommandOneofCase.ManageWaste)
+                return NativeWasteOperations.Execute(state, request, context);
             if (request.Operation.CommandCase != Operations.Operation.CommandOneofCase.PlaceBuilding)
                 return Refuse(Common.FailureCode.Unsupported, "This native adapter implements PlaceBuilding, temporary owned SetDrafted, exact owned MovePawn and melee, direct-bullet or supported injury-only explosive AttackTarget.");
             if (!NativeConstructionTracking.Ready)
@@ -176,11 +186,18 @@ namespace HomeBridge.BridgeTools
                 if (parsed.Operation?.CommandCase == Operations.Operation.CommandOneofCase.AttackTarget)
                     return ProtoBoundary.Encode(NativeCombatOperations.Preview(parsed.Operation.AttackTarget, context));
                 if (parsed.Operation?.CommandCase == Operations.Operation.CommandOneofCase.PawnTargetOrder)
-                    return ProtoBoundary.Encode(NativeHaulOperations.Preview(parsed.Operation.PawnTargetOrder, context));
+                    return ProtoBoundary.Encode(parsed.Operation.PawnTargetOrder.Kind == Operations.PawnOrderKind.Equip
+                        ? NativeEquipOperations.Preview(parsed.Operation.PawnTargetOrder, context)
+                        : NativeHaulOperations.Preview(parsed.Operation.PawnTargetOrder, context));
                 if (parsed.Operation?.CommandCase == Operations.Operation.CommandOneofCase.RecoverService)
                     return ProtoBoundary.Encode(NativeRecoveryOperations.Preview(parsed.Operation.RecoverService, context));
                 if (parsed.Operation?.CommandCase == Operations.Operation.CommandOneofCase.RelieveNeed)
                     return ProtoBoundary.Encode(NativeMoodReliefOperations.Preview(parsed.Operation.RelieveNeed, context));
+                if (parsed.Operation?.CommandCase == Operations.Operation.CommandOneofCase.SetAnimalTraining
+                    || parsed.Operation?.CommandCase == Operations.Operation.CommandOneofCase.SlaughterAnimal)
+                    return ProtoBoundary.Encode(NativeHusbandryOperations.Preview(parsed.Operation, context));
+                if (parsed.Operation?.CommandCase == Operations.Operation.CommandOneofCase.ManageWaste)
+                    return ProtoBoundary.Encode(NativeWasteOperations.Preview(parsed.Operation.ManageWaste, context));
                 if (parsed.Operation == null || parsed.Operation.CommandCase != Operations.Operation.CommandOneofCase.PlaceBuilding)
                     return ProtoBoundary.Encode(new Operations.PreviewReply { Failure = ProtoBoundary.Fail(Common.FailureCode.Unsupported, "Preview implements PlaceBuilding, temporary SetDrafted, exact owned MovePawn and melee, direct-bullet or supported injury-only explosive AttackTarget.") });
                 NativeConstructionPlan plan; RimGovernor.Protocol.Placement.PlacementEvaluated preview;
@@ -264,6 +281,15 @@ namespace HomeBridge.BridgeTools
                     NativeMoodReliefRecord relief;
                     if (state.MoodRelief.TryGetValue(parsed.Attempt, out relief))
                         return ProtoBoundary.Encode(NativeOperationEnvelope.Progress(new Receipts.ProgressReply { Progress = relief.Observe(parsed.Attempt, context) }));
+                    NativeHusbandryRecord husbandry;
+                    if (state.Husbandry.TryGetValue(parsed.Attempt, out husbandry))
+                        return ProtoBoundary.Encode(NativeOperationEnvelope.Progress(new Receipts.ProgressReply { Progress = NativeHusbandryOperations.Observe(parsed.Attempt, context, husbandry) }));
+                    NativeWasteRecord waste;
+                    if (state.Waste.TryGetValue(parsed.Attempt, out waste))
+                        return ProtoBoundary.Encode(NativeOperationEnvelope.Progress(new Receipts.ProgressReply { Progress = waste.Observe(parsed.Attempt, context) }));
+                    NativeEquipRecord equip;
+                    if (state.Equips.TryGetValue(parsed.Attempt, out equip))
+                        return ProtoBoundary.Encode(NativeOperationEnvelope.Progress(new Receipts.ProgressReply { Progress = equip.Observe(parsed.Attempt, context) }));
                 }
                 var progress = NativeOperationState.TryGet(context.Identity, out state) && state.Construction.TryGetValue(parsed.Attempt, out record)
                     ? record.Observe(parsed.Attempt, context)
