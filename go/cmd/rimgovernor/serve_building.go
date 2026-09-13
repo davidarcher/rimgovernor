@@ -41,31 +41,32 @@ import (
 var defaultCaravanDeparturePolicy = policy.CaravanDeparturePolicy{MinimumHomeColonists: 1, MinimumHomeFoodDays: 5, KeepHomeDoctor: true}
 
 type buildingServiceBridge struct {
-	bills            *bill.BillCapabilities
-	reads            serviceBridge
-	native           boundary.Native
-	authority        buildingruntime.NativeAuthority
-	writes           boundary.BuildingWriter
-	acquisition      *acquisition.AcquisitionCapabilities
-	zones            *zone.ZoneCapabilities
-	work             *work.WorkCapabilities
-	supplies         *supply.SupplyCapabilities
-	draft            *draft.DraftCapabilities
-	clock            *buildingruntime.ClockCapabilities
-	clockReads       serviceClockReads
-	melee            *melee.MeleeCapabilities
-	ranged           *ranged.RangedCapabilities
-	tend             *tend.TendCapabilities
-	rescue           *rescue.RescueCapabilities
-	equip            *equip.EquipCapabilities
-	haul             *haul.HaulCapabilities
-	gearReplace      *buildingruntime.GearReplaceCapabilities
-	recoveryService  *buildingruntime.RecoveryServiceCapabilities
-	husbandry        *buildingruntime.HusbandryCapabilities
-	research         *buildingruntime.ResearchSelectCapabilities
-	questAccept      *buildingruntime.QuestAcceptCapabilities
-	settlementGift   *buildingruntime.SettlementGiftCapabilities
-	caravanDeparture *buildingruntime.CaravanDepartureCapabilities
+	bills               *bill.BillCapabilities
+	reads               serviceBridge
+	native              boundary.Native
+	authority           buildingruntime.NativeAuthority
+	writes              boundary.BuildingWriter
+	acquisition         *acquisition.AcquisitionCapabilities
+	zones               *zone.ZoneCapabilities
+	work                *work.WorkCapabilities
+	supplies            *supply.SupplyCapabilities
+	draft               *draft.DraftCapabilities
+	clock               *buildingruntime.ClockCapabilities
+	clockReads          serviceClockReads
+	melee               *melee.MeleeCapabilities
+	ranged              *ranged.RangedCapabilities
+	tend                *tend.TendCapabilities
+	rescue              *rescue.RescueCapabilities
+	equip               *equip.EquipCapabilities
+	haul                *haul.HaulCapabilities
+	gearReplace         *buildingruntime.GearReplaceCapabilities
+	recoveryService     *buildingruntime.RecoveryServiceCapabilities
+	husbandry           *buildingruntime.HusbandryCapabilities
+	prisonerInteraction *buildingruntime.PrisonerInteractionCapabilities
+	research            *buildingruntime.ResearchSelectCapabilities
+	questAccept         *buildingruntime.QuestAcceptCapabilities
+	settlementGift      *buildingruntime.SettlementGiftCapabilities
+	caravanDeparture    *buildingruntime.CaravanDepartureCapabilities
 }
 type buildingServiceOpener func(context.Context, bridge.ProcessConfig) (buildingServiceBridge, error)
 type ownedAuthority struct {
@@ -138,6 +139,10 @@ func openBuildingService(ctx context.Context, config bridge.ProcessConfig) (buil
 	if err != nil {
 		return buildingServiceBridge{}, errors.Join(err, client.Close())
 	}
+	prisonerInteractionWriter, err := bridge.NewPrisonerInteractionWriter(client)
+	if err != nil {
+		return buildingServiceBridge{}, errors.Join(err, client.Close())
+	}
 	researchSelect, err := bridge.NewResearchSelectControl(client)
 	if err != nil {
 		return buildingServiceBridge{}, errors.Join(err, client.Close())
@@ -161,20 +166,21 @@ func openBuildingService(ctx context.Context, config bridge.ProcessConfig) (buil
 		work:        &work.WorkCapabilities{Native: client, Writer: workWriter},
 		supplies:    &supply.SupplyCapabilities{Native: client, Writer: supplies},
 		clock:       &buildingruntime.ClockCapabilities{Native: client, Writer: clock}, clockReads: client,
-		draft:            &draft.DraftCapabilities{Native: client, Writer: drafts, Cleanup: cleanup},
-		melee:            &melee.MeleeCapabilities{Native: client, Writer: attack},
-		ranged:           &ranged.RangedCapabilities{Native: client, Writer: attack},
-		tend:             &tend.TendCapabilities{Native: client, Writer: pawnOrder},
-		rescue:           &rescue.RescueCapabilities{Native: client, Writer: pawnOrder},
-		equip:            &equip.EquipCapabilities{Native: client, Writer: pawnOrder},
-		haul:             &haul.HaulCapabilities{Native: client, Writer: pawnOrder},
-		gearReplace:      &buildingruntime.GearReplaceCapabilities{Native: client, Writer: gearReplace},
-		recoveryService:  &buildingruntime.RecoveryServiceCapabilities{Native: client, Writer: recoveryService},
-		husbandry:        &buildingruntime.HusbandryCapabilities{Native: client, Writer: husbandryWriter},
-		research:         &buildingruntime.ResearchSelectCapabilities{Native: client, Writer: researchSelect},
-		questAccept:      &buildingruntime.QuestAcceptCapabilities{Native: client, Writer: questAccept},
-		settlementGift:   &buildingruntime.SettlementGiftCapabilities{Native: client, Writer: settlementGift},
-		caravanDeparture: &buildingruntime.CaravanDepartureCapabilities{Native: client, Writer: caravanDeparture, Policy: defaultCaravanDeparturePolicy}}, nil
+		draft:               &draft.DraftCapabilities{Native: client, Writer: drafts, Cleanup: cleanup},
+		melee:               &melee.MeleeCapabilities{Native: client, Writer: attack},
+		ranged:              &ranged.RangedCapabilities{Native: client, Writer: attack},
+		tend:                &tend.TendCapabilities{Native: client, Writer: pawnOrder},
+		rescue:              &rescue.RescueCapabilities{Native: client, Writer: pawnOrder},
+		equip:               &equip.EquipCapabilities{Native: client, Writer: pawnOrder},
+		haul:                &haul.HaulCapabilities{Native: client, Writer: pawnOrder},
+		gearReplace:         &buildingruntime.GearReplaceCapabilities{Native: client, Writer: gearReplace},
+		recoveryService:     &buildingruntime.RecoveryServiceCapabilities{Native: client, Writer: recoveryService},
+		husbandry:           &buildingruntime.HusbandryCapabilities{Native: client, Writer: husbandryWriter},
+		prisonerInteraction: &buildingruntime.PrisonerInteractionCapabilities{Native: client, Writer: prisonerInteractionWriter},
+		research:            &buildingruntime.ResearchSelectCapabilities{Native: client, Writer: researchSelect},
+		questAccept:         &buildingruntime.QuestAcceptCapabilities{Native: client, Writer: questAccept},
+		settlementGift:      &buildingruntime.SettlementGiftCapabilities{Native: client, Writer: settlementGift},
+		caravanDeparture:    &buildingruntime.CaravanDepartureCapabilities{Native: client, Writer: caravanDeparture, Policy: defaultCaravanDeparturePolicy}}, nil
 }
 
 type buildingWorldSource struct{ reads observation.Source }
@@ -385,6 +391,13 @@ func serveBuildingWithBridge(ctx context.Context, config serveConfig, out io.Wri
 		}
 		husbandryCapabilities = client.husbandry
 	}
+	var prisonerInteractionCapabilities *buildingruntime.PrisonerInteractionCapabilities
+	if config.routinePrisonerInteractionPlans {
+		if client.prisonerInteraction == nil {
+			return errors.New("prisoner interaction plans require typed capabilities")
+		}
+		prisonerInteractionCapabilities = client.prisonerInteraction
+	}
 	var researchSelectCapabilities *buildingruntime.ResearchSelectCapabilities
 	if config.routineResearchTarget != "" {
 		if client.research == nil {
@@ -393,29 +406,30 @@ func serveBuildingWithBridge(ctx context.Context, config serveConfig, out io.Wri
 		researchSelectCapabilities = client.research
 	}
 	session, err := buildingruntime.NewSession(lifetime, buildingruntime.SessionConfig{RoutineMethods: config.routineMethods,
-		Rules:            config.resourceRules,
-		Control:          buildingruntime.ControlConfig{ProfileDirectory: config.profile, LeaseDuration: 30 * time.Second, CallTimeout: callTimeout, Worlds: buildingWorldSource{client.reads}},
-		Executor:         executor.Limits{MaxAge: 5 * time.Second, RunTimeout: 8 * time.Second, JournalTimeout: 3 * time.Second},
-		Acquisition:      acquisitionCapabilities,
-		Zones:            zoneCapabilities,
-		Bills:            billCapabilities,
-		Work:             workCapabilities,
-		Supplies:         supplyCapabilities,
-		Draft:            client.draft,
-		Clock:            clockCapabilities,
-		Melee:            meleeCapabilities,
-		Ranged:           rangedCapabilities,
-		Tend:             tendCapabilities,
-		Rescue:           rescueCapabilities,
-		Equip:            equipCapabilities,
-		Haul:             haulCapabilities,
-		GearReplace:      gearReplaceCapabilities,
-		RecoveryService:  recoveryServiceCapabilities,
-		Husbandry:        husbandryCapabilities,
-		ResearchSelect:   researchSelectCapabilities,
-		QuestAccept:      client.questAccept,
-		SettlementGift:   client.settlementGift,
-		CaravanDeparture: client.caravanDeparture,
+		Rules:               config.resourceRules,
+		Control:             buildingruntime.ControlConfig{ProfileDirectory: config.profile, LeaseDuration: 30 * time.Second, CallTimeout: callTimeout, Worlds: buildingWorldSource{client.reads}},
+		Executor:            executor.Limits{MaxAge: 5 * time.Second, RunTimeout: 8 * time.Second, JournalTimeout: 3 * time.Second},
+		Acquisition:         acquisitionCapabilities,
+		Zones:               zoneCapabilities,
+		Bills:               billCapabilities,
+		Work:                workCapabilities,
+		Supplies:            supplyCapabilities,
+		Draft:               client.draft,
+		Clock:               clockCapabilities,
+		Melee:               meleeCapabilities,
+		Ranged:              rangedCapabilities,
+		Tend:                tendCapabilities,
+		Rescue:              rescueCapabilities,
+		Equip:               equipCapabilities,
+		Haul:                haulCapabilities,
+		GearReplace:         gearReplaceCapabilities,
+		RecoveryService:     recoveryServiceCapabilities,
+		Husbandry:           husbandryCapabilities,
+		PrisonerInteraction: prisonerInteractionCapabilities,
+		ResearchSelect:      researchSelectCapabilities,
+		QuestAccept:         client.questAccept,
+		SettlementGift:      client.settlementGift,
+		CaravanDeparture:    client.caravanDeparture,
 	}, database, client.native, client.authority, client.writes, wallClock{})
 	if err != nil {
 		return err
@@ -435,7 +449,7 @@ func serveBuildingWithBridge(ctx context.Context, config serveConfig, out io.Wri
 	}
 	owner = player
 	if config.clockControl {
-		if err = startServiceClock(lifetime, player, session, client.clockReads, database, config.profile, callTimeout, config.routineReviews, config.routineSleepingPlans, config.routineCookingPlans, config.routineShelterPlans, config.routineComfortPlans, config.routineExpansionPlans, config.routinePowerPlans, config.routineTemperaturePlans, config.routineProjectLimit, config.routineSupplyPlans, config.routineWorkPlans, config.routineAcquisitionPlans, config.routineDefensePlans, config.routineTendPlans, config.routineRescuePlans, config.routineEquipPlans, config.routineSecureSuppliesPlans, config.routineGearPlans, config.routineMedicalPlans, config.routineAnimalContainmentPlans, config.routineRecoveryPlans, config.routineHusbandryPlans, config.caravanJourneyTracking, config.routineResearchTarget, config.routineResourceTargets.Map(), config.routineFieldPlans, config.routineBillPlans, config.routineFoodStoragePlans); err != nil {
+		if err = startServiceClock(lifetime, player, session, client.clockReads, database, config.profile, callTimeout, config.routineReviews, config.routineSleepingPlans, config.routineCookingPlans, config.routineShelterPlans, config.routineComfortPlans, config.routineExpansionPlans, config.routinePowerPlans, config.routineTemperaturePlans, config.routineProjectLimit, config.routineSupplyPlans, config.routineWorkPlans, config.routineAcquisitionPlans, config.routineDefensePlans, config.routineTendPlans, config.routineRescuePlans, config.routineEquipPlans, config.routineSecureSuppliesPlans, config.routineGearPlans, config.routineMedicalPlans, config.routineAnimalContainmentPlans, config.routineRecoveryPlans, config.routineHusbandryPlans, config.caravanJourneyTracking, config.routineResearchTarget, config.routineResourceTargets.Map(), config.routineFieldPlans, config.routineBillPlans, config.routineFoodStoragePlans, config.routinePrisonerInteractionPlans); err != nil {
 			return err
 		}
 	}

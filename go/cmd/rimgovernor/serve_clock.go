@@ -59,11 +59,12 @@ func startServiceClock(ctx context.Context, player *buildingruntime.Player, sess
 	}
 	fields := len(fieldOptions) >= 1 && fieldOptions[0]
 	bills := len(fieldOptions) >= 2 && fieldOptions[1]
-	foodStorage := len(fieldOptions) == 3 && fieldOptions[2]
-	if len(fieldOptions) > 3 {
+	foodStorage := len(fieldOptions) >= 3 && fieldOptions[2]
+	prisonerInteraction := len(fieldOptions) == 4 && fieldOptions[3]
+	if len(fieldOptions) > 4 {
 		return errors.New("invalid field option")
 	}
-	if (bills || fields || foodStorage || acquisition || work || supplies || sleeping || cooking || shelter || comfort || expansion || power || temperature || defense || tend || rescue || equip || secureSupplies || gear || medical || animalContainment || recovery || husbandry || researchTarget != "" || len(resourceTargets) > 0) && !routine {
+	if (bills || fields || foodStorage || acquisition || work || supplies || sleeping || cooking || shelter || comfort || expansion || power || temperature || defense || tend || rescue || equip || secureSupplies || gear || medical || animalContainment || recovery || husbandry || prisonerInteraction || researchTarget != "" || len(resourceTargets) > 0) && !routine {
 		return errors.New("building plans require routine reviews")
 	}
 	if routine {
@@ -106,6 +107,9 @@ func startServiceClock(ctx context.Context, player *buildingruntime.Player, sess
 		}
 		if husbandry {
 			capabilities.Methods = append(capabilities.Methods, policy.MaintainHerd)
+		}
+		if prisonerInteraction {
+			capabilities.Methods = append(capabilities.Methods, policy.MaintainPopulation)
 		}
 		if researchTarget != "" {
 			thresholds.ResearchTarget = researchTarget
@@ -270,6 +274,12 @@ func startServiceClock(ctx context.Context, player *buildingruntime.Player, sess
 		}
 		if husbandry {
 			config.Husbandry, err = buildingruntime.NewRoutineHusbandryPlanner(reviewer)
+			if err != nil {
+				return err
+			}
+		}
+		if prisonerInteraction {
+			config.PrisonerInteraction, err = buildingruntime.NewRoutinePrisonerInteractionPlanner(reviewer)
 			if err != nil {
 				return err
 			}

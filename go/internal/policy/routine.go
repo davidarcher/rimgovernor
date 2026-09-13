@@ -141,6 +141,13 @@ type RoutineFacts struct {
 	SleepingRecovered   domain.Fact[bool]
 	AnimalUpkeep        AnimalUpkeepObservation
 	MedicalReserve      MedicalReserveObservation
+	// Prisoners carries Population-*'s recruit/maintain census: unlike
+	// AnimalUpkeep, this has no generic per-tick colony read to piggyback on
+	// (recruitable/current-interaction facts live only on the dedicated
+	// rimgovernor/observations_read_population census), so it is populated by
+	// a dedicated per-cycle RoutineSource read instead of ObserveColony's
+	// always-present projection.
+	Prisoners domain.Fact[[]PrisonerFacts]
 	// AvailableMethods is supplied by the configured runtime, never native facts.
 	AvailableMethods                                                           domain.Fact[[]GoalID]
 	Upkeep                                                                     UpkeepObservation
@@ -594,6 +601,15 @@ func DetectRoutine(f RoutineFacts, previous RoutineLatches, p RoutinePolicy) (Ro
 	addAssessment(MaintainHerd, 3, herdRecovered)
 	if !positive(herdRecovered) {
 		addGoal(MaintainHerd, 3)
+		r.Goals[len(r.Goals)-1].MethodUnavailable = true
+	}
+	populationRecovered := domain.Unknown[bool]()
+	if deficit, known := PrisonerRecruitDeficit(f.Prisoners).Value(); known {
+		populationRecovered = domain.Known(!deficit)
+	}
+	addAssessment(MaintainPopulation, 3, populationRecovered)
+	if !positive(populationRecovered) {
+		addGoal(MaintainPopulation, 3)
 		r.Goals[len(r.Goals)-1].MethodUnavailable = true
 	}
 	for _, animalNeed := range []struct {

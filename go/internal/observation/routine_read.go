@@ -15,6 +15,7 @@ type RoutineSource interface {
 	ColonySource
 	ReadEmergency(context.Context, *c.Identity) (bridge.EmergencyObservation, bridge.Result, error)
 	ReadRoutinePawns(context.Context, *c.Identity, []string) (*o.ListPawnsReply, bridge.Result, error)
+	ReadRoutinePopulation(context.Context, *c.Identity) (bridge.PrisonerCensus, bridge.Result, error)
 }
 
 type RoutineReading struct {
@@ -24,6 +25,7 @@ type RoutineReading struct {
 	PawnReceipt        bridge.Result
 	DefinitionReceipt  bridge.Result
 	TemperatureReceipt bridge.Result
+	PopulationReceipt  bridge.Result
 }
 
 type routineBracket struct {
@@ -37,6 +39,8 @@ type routineBracket struct {
 	emergency         bridge.EmergencyObservation
 	receipt           bridge.Result
 	pawnReceipt       bridge.Result
+	population        bridge.PrisonerCensus
+	populationReceipt bridge.Result
 	armed             domain.Fact[int64]
 	work              domain.Fact[[]policy.WorkPawn]
 	medical           domain.Fact[[]policy.CarePawn]
@@ -71,6 +75,18 @@ func (s *routineBracket) ReadColonyFacts(ctx context.Context, id *c.Identity, pl
 	}
 	identity.Paused = s.expected.Paused
 	if !sameColonyBoundary(identity, s.expected) {
+		return nil, receipt, ErrChanged
+	}
+	s.population, s.populationReceipt, err = s.ReadRoutinePopulation(ctx, id)
+	if err != nil {
+		return nil, receipt, err
+	}
+	populationIdentity, err := contextIdentity(s.population.Context)
+	if err != nil {
+		return nil, receipt, err
+	}
+	populationIdentity.Paused = s.expected.Paused
+	if !sameColonyBoundary(populationIdentity, s.expected) {
 		return nil, receipt, ErrChanged
 	}
 	if complete, known := s.emergency.Facts.ColonistsComplete.Value(); known && complete {
@@ -136,12 +152,13 @@ func observeRoutine(ctx context.Context, source RoutineSource, clock Clock, expe
 	reading.Projection.Facts.MoodPawns = bracket.mood
 	reading.Projection.Facts.RecoveryWorkers = recoveryWorkers(bracket.mood)
 	reading.Projection.Facts.Gear = routineGear(reading.Projection.Facts.Gear, bracket.emergency.Facts)
+	reading.Projection.Facts.Prisoners = bracket.population.Prisoners
 	reading.Projection.Definitions = append(reading.Projection.Definitions, bracket.extraDefinitions...)
 	if temperature {
 		reading.Projection.TemperaturePlanning = bracket.temperature
 		reading.Projection.Facts.SleepingMin, reading.Projection.Facts.SleepingMax = policy.TemperatureRange(bracket.temperature)
 	}
-	return RoutineReading{ColonyReading: reading, Emergency: bracket.emergency.Facts, EmergencyReceipt: bracket.receipt, PawnReceipt: bracket.pawnReceipt, DefinitionReceipt: bracket.definitionReceipt, TemperatureReceipt: bracket.temperatureReceipt}, nil
+	return RoutineReading{ColonyReading: reading, Emergency: bracket.emergency.Facts, EmergencyReceipt: bracket.receipt, PawnReceipt: bracket.pawnReceipt, DefinitionReceipt: bracket.definitionReceipt, TemperatureReceipt: bracket.temperatureReceipt, PopulationReceipt: bracket.populationReceipt}, nil
 }
 
 // Request only project definitions absent from the default planning census. Both

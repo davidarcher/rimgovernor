@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/davidarcher/RimGovernor/go/internal/bridge"
+	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
 	"github.com/davidarcher/RimGovernor/go/internal/testkit"
 	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
@@ -36,6 +37,9 @@ func (s *projectSource) ReadColonyFacts(ctx context.Context, id *c.Identity, pla
 }
 func (s *projectSource) ReadEmergency(context.Context, *c.Identity) (bridge.EmergencyObservation, bridge.Result, error) {
 	return bridge.EmergencyObservation{Context: s.reply.GetObserved().Context, Facts: policy.EmergencyFacts{}}, bridge.Result{}, nil
+}
+func (s *projectSource) ReadRoutinePopulation(context.Context, *c.Identity) (bridge.PrisonerCensus, bridge.Result, error) {
+	return bridge.PrisonerCensus{Context: s.reply.GetObserved().Context, Prisoners: domain.Known([]policy.PrisonerFacts{})}, bridge.Result{}, nil
 }
 func (s *projectSource) ReadRoutinePawns(context.Context, *c.Identity, []string) (*o.ListPawnsReply, bridge.Result, error) {
 	panic("unknown census must skip pawns")

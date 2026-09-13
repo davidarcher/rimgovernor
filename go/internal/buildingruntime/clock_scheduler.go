@@ -56,6 +56,7 @@ type ClockSchedulerConfig struct {
 	AnimalContainment                *RoutineAnimalContainmentPlanner
 	Recovery                         *RoutineRecoveryPlanner
 	Husbandry                        *RoutineHusbandryPlanner
+	PrisonerInteraction              *RoutinePrisonerInteractionPlanner
 	Research                         *RoutineResearchPlanner
 	Resource                         *RoutineResourcePlanner
 	CaravanJourney                   *CaravanJourneyTracker
@@ -88,6 +89,7 @@ type ClockSchedulerResult struct {
 	AnimalContainment                             *RoutineAnimalContainmentResult
 	Recovery                                      *RoutineRecoveryResult
 	Husbandry                                     *RoutineHusbandryResult
+	PrisonerInteraction                           *RoutinePrisonerInteractionResult
 	Research                                      *RoutineResearchResult
 	Resource                                      *RoutineResourceResult
 	CaravanJourney                                *CaravanJourneyResult
@@ -186,6 +188,9 @@ func NewClockScheduler(player *Player, session *Session, native ClockWindowNativ
 		return nil, ErrControl
 	}
 	if config.Husbandry != nil && (config.Routine == nil || config.Husbandry.reviewer != config.Routine) {
+		return nil, ErrControl
+	}
+	if config.PrisonerInteraction != nil && (config.Routine == nil || config.PrisonerInteraction.reviewer != config.Routine) {
 		return nil, ErrControl
 	}
 	if config.Research != nil && (config.Routine == nil || config.Research.reviewer != config.Routine) {
@@ -380,6 +385,13 @@ func (s *ClockScheduler) Step(ctx context.Context) (ClockSchedulerResult, error)
 			return out, err
 		}
 		out.Husbandry = &method
+	}
+	if s.config.PrisonerInteraction != nil {
+		method, err := s.config.PrisonerInteraction.step(call, epoch)
+		if err != nil {
+			return out, err
+		}
+		out.PrisonerInteraction = &method
 	}
 	if s.config.Research != nil {
 		method, err := s.config.Research.step(call, epoch)
@@ -707,7 +719,7 @@ func clockSchedulerWork(plan store.PlanState, current domain.GenerationSnapshot)
 			case domain.AcquisitionAction, domain.ProductionBillAction, domain.OwnedDraftAction,
 				domain.MeleeAttackAction, domain.RangedAttackAction, domain.TendAction, domain.RescueAction,
 				domain.HaulAction, domain.EquipAction, domain.GearReplaceAction, domain.RecoveryServiceAction,
-				domain.BedAssignAction, domain.HusbandryAction:
+				domain.BedAssignAction, domain.HusbandryAction, domain.PrisonerInteractionAction:
 			default:
 				return false, nil, executor.ErrHeld
 			}

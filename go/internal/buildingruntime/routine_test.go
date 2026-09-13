@@ -33,6 +33,10 @@ func (n *routineNative) ReadRoutinePawns(ctx context.Context, _ *c.Identity, _ [
 	return &o.ListPawnsReply{Outcome: &o.ListPawnsReply_Observed{Observed: &o.PawnSnapshot{Context: proto.Clone(n.reply.GetObserved().Context).(*c.ObservationContext), Completeness: &o.Completeness{Page: &c.PageInfo{Complete: proto.Bool(true)}, Matched: proto.Uint64(0), Returned: proto.Uint64(0), Filtered: proto.Uint64(0), Unreadable: proto.Uint64(0)}}}}, bridge.Result{}, ctx.Err()
 }
 
+func (n *routineNative) ReadRoutinePopulation(ctx context.Context, _ *c.Identity) (bridge.PrisonerCensus, bridge.Result, error) {
+	return bridge.PrisonerCensus{Context: proto.Clone(n.reply.GetObserved().Context).(*c.ObservationContext), Prisoners: domain.Known([]policy.PrisonerFacts{})}, bridge.Result{}, ctx.Err()
+}
+
 func (n *routineNative) ReadEmergency(ctx context.Context, _ *c.Identity) (bridge.EmergencyObservation, bridge.Result, error) {
 	return bridge.EmergencyObservation{Context: proto.Clone(n.reply.GetObserved().Context).(*c.ObservationContext), Facts: policy.EmergencyFacts{ColonistsComplete: domain.Known(true), ThreatsComplete: domain.Known(true)}}, bridge.Result{}, ctx.Err()
 }
@@ -128,7 +132,7 @@ func TestRoutineReviewerPersistsNeedsAndManualInvalidatesWithoutRead(t *testing.
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(got.Goals) != 31 || got.Review.Revision != 1 || !got.Review.Enabled {
+	if len(got.Goals) != 32 || got.Review.Revision != 1 || !got.Review.Enabled {
 		t.Fatal(got)
 	}
 	for _, binding := range got.Review.Goals {

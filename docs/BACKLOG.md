@@ -921,16 +921,24 @@ without pushes, when the target checkout is safe; preserve other developers' wor
     target, protected-id, breeding-reserve and feed-reservation richness has
     no player-configurable equivalent in Go yet, so slaughter stays a
     player-only order until that catches up. `Population-*`'s prisoner
-    recruit/maintain sub-step (below) does not yet have the same
-    routine-scheduler/CLI wiring: unlike husbandry, its deficit-relevant
-    facts (`recruitable`, current interaction) live only on the dedicated,
-    natively-unimplemented `rimgovernor/observations_read_population`
-    census, not on any field the routine review's existing per-cycle reads
-    already carry, so closing this gap also requires adding a new per-cycle
-    population read to the shared `RoutineSource`/routine-review pipeline
-    (`internal/observation/routine_read.go`) rather than a planner-only
-    addition — a materially larger, shared-file change than
-    `MaintainHerd-*`'s, deferred to a future pass rather than rushed.
+    recruit/maintain sub-step now has the same routine-scheduler/CLI wiring:
+    native `rimgovernor/observations_read_population`
+    (`NativePopulationObservation.cs`) is implemented, and the shared
+    `RoutineSource`/routine-review pipeline
+    (`internal/observation/routine_read.go`) carries a new per-cycle
+    population census (`RoutineFacts.Prisoners`) alongside the existing
+    reads. `policy.MaintainPopulation` deficit detection and
+    `policy.SelectPrisonerInteractionMethod` candidate selection
+    (`internal/policy/population_upkeep.go`) mirror `MaintainHerd`'s shape,
+    and `RoutinePrisonerInteractionPlanner` dispatches one recruit-interaction
+    write per cycle behind `--routine-prisoner-interaction-plans`, wired
+    through `serve.go`/`serve_building.go`/`serve_clock.go` and
+    `PrisonerInteractionAction` added to the three routine-dispatch
+    allowlists (`buildingruntime/worker.go`, `buildingruntime/clock_scheduler.go`,
+    `store/routine_execution.go`). Disclosed narrowing: only the Recruit
+    interaction is ever proposed, never release/execution/other player-only
+    orders — population.py has no autonomous equivalent to preserve beyond
+    this one safe direction.
     `MaintainWaste` (`Operations.ManageWaste`, `NativeWasteOperations.cs`,
     `go/internal/bridge/waste.go`) and `Population-*`'s `equip` sub-step
     (native `NativeEquipOperations.cs` added for
@@ -945,17 +953,16 @@ without pushes, when the target checkout is safe; preserve other developers' wor
     since Patient/PatientBedRest priorities are already the generic
     `policy.AssignWork` default and native AI self-tends without a
     dispatched order. `Population-*`'s prisoner recruit/maintain sub-step is
-    now its own code-complete typed vertical (`Operations.SetPrisonerInteraction`,
+    its own code-complete typed vertical (`Operations.SetPrisonerInteraction`,
     `NativePrisonerInteractionOperations.cs`, domain `PrisonerInteractionAction`
     with a recruit/maintain admission policy, store admission persistence and
     dispatch gating, an executor inspect/admit/dispatch/reconcile loop, and a
     `PrisonerInteractionBoundary`/`bridge.ReadPrisonerInteractionTarget`-backed
-    buildingruntime wiring), matching `MaintainHerd-*`'s vertical shape; native
-    `rimgovernor/observations_read_population` remains unimplemented (disclosed
-    gap, same as husbandry's census read), and it has no routine-scheduler/CLI
-    wiring yet. Population-*'s custody sub-steps (capture/rescue) and every
-    other e-row family's need/health/stock/custody/service composition remain
-    unstarted. G01.12 gameplay acceptance gates the whole item.
+    buildingruntime wiring), matching `MaintainHerd-*`'s vertical shape, and now
+    also has the routine-scheduler/CLI wiring described above. Population-*'s
+    custody sub-steps (capture/rescue) and every other e-row family's
+    need/health/stock/custody/service composition remain unstarted. G01.12
+    gameplay acceptance gates the whole item.
 
   - [ ] **05.7 — Close the routine integration coverage.**
     Reconcile the 05.1 reference rows against composed a–e paths and their evidence.

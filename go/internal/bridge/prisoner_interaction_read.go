@@ -3,6 +3,8 @@ package bridge
 import (
 	"context"
 
+	"github.com/davidarcher/RimGovernor/go/internal/domain"
+	"github.com/davidarcher/RimGovernor/go/internal/policy"
 	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
 	o "github.com/davidarcher/RimGovernor/go/internal/wire/observationspb"
 	"google.golang.org/protobuf/proto"
@@ -101,4 +103,80 @@ func (client *Client) ReadPrisonerInteractionTarget(ctx context.Context, identit
 		}
 	}
 	return out, raw, nil
+}
+
+// PrisonerCensus is one routine review cycle's whole prisoner census, read
+// once per cycle so RoutinePrisonerInteractionPlanner can detect
+// MaintainPopulation's deficit and select a candidate the same way the
+// always-present generic colony census lets RoutineHusbandryPlanner detect
+// and select from AnimalState. Unlike that generic census, prisoner facts
+// live only on this dedicated rimgovernor/observations_read_population read,
+// so a full-list read is issued here instead of piggybacking on ObserveColony.
+type PrisonerCensus struct {
+	Context   *c.ObservationContext
+	Prisoners domain.Fact[[]policy.PrisonerFacts]
+}
+
+// ReadRoutinePopulation reads the whole population census and extracts every
+// living-or-dead prisoner's recruit/maintain facts. It requires a single
+// complete page, like ReadPrisonerInteractionTarget; a paginated population
+// is deferred to whatever candidate search eventually needs one.
+func (client *Client) ReadRoutinePopulation(ctx context.Context, identity *c.Identity) (PrisonerCensus, Result, error) {
+	if err := ValidateIdentity(identity); err != nil {
+		return PrisonerCensus{}, Result{}, err
+	}
+	identity = proto.Clone(identity).(*c.Identity)
+	reply := &o.PopulationReply{}
+	raw, err := client.protoRead(ctx, "rimgovernor/observations_read_population", &o.PopulationRequest{Scope: &o.ReadScope{ExpectedIdentity: identity}}, reply)
+	if err != nil {
+		return PrisonerCensus{}, raw, err
+	}
+	if err = buildingUnknown(reply); err != nil {
+		return PrisonerCensus{}, raw, err
+	}
+	observed := reply.GetObserved()
+	if observed == nil {
+		return PrisonerCensus{}, raw, ErrUnavailable
+	}
+	counts := observed.Completeness
+	if counts == nil || counts.Page == nil || !counts.Page.GetComplete() || counts.Page.GetNextCursor() != "" {
+		return PrisonerCensus{}, raw, ErrUnavailable
+	}
+	seen := map[string]bool{}
+	rows := make([]policy.PrisonerFacts, 0, len(observed.Persons))
+	for _, person := range observed.Persons {
+		if person == nil || person.GetPawn().GetPawn() == nil {
+			return PrisonerCensus{}, raw, contract("population person missing pawn identity")
+		}
+		id := person.GetPawn().GetPawn().GetId()
+		if validID(id) != nil || seen[id] {
+			return PrisonerCensus{}, raw, contract("invalid or duplicate population person")
+		}
+		seen[id] = true
+		pawn := person.GetPawn()
+		if pawn.Prisoner == nil || !pawn.GetPrisoner() {
+			continue // MaintainPopulation only ever considers colony prisoners.
+		}
+		snapshotToken := pawn.GetSnapshot().GetToken()
+		if validID(snapshotToken) != nil {
+			return PrisonerCensus{}, raw, contract("population person CAS token unavailable")
+		}
+		f := policy.PrisonerFacts{Pawn: domain.PawnID(id), SnapshotToken: snapshotToken, Prisoner: domain.Known(true)}
+		if pawn.Dead != nil {
+			f.Dead = domain.Known(pawn.GetDead())
+		}
+		if person.Recruitable != nil {
+			f.Recruitable = domain.Known(person.GetRecruitable())
+		}
+		if person.Interaction != nil {
+			switch person.GetInteraction() {
+			case prisonerInteractionRecruitDefName:
+				f.CurrentInteraction = domain.Known(domain.PrisonerInteractionRecruit)
+			case prisonerInteractionMaintainDefName:
+				f.CurrentInteraction = domain.Known(domain.PrisonerInteractionMaintain)
+			}
+		}
+		rows = append(rows, f)
+	}
+	return PrisonerCensus{Context: observed.Context, Prisoners: domain.Known(rows)}, raw, nil
 }

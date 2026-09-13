@@ -66,6 +66,10 @@ func (f *clockServiceFake) ReadRoutinePawns(context.Context, *c.Identity, []stri
 	return nil, bridge.Result{}, errors.New("pawn read unavailable")
 }
 
+func (f *clockServiceFake) ReadRoutinePopulation(context.Context, *c.Identity) (bridge.PrisonerCensus, bridge.Result, error) {
+	return bridge.PrisonerCensus{}, bridge.Result{}, errors.New("population read unavailable")
+}
+
 func (f *clockServiceFake) Identity(ctx context.Context) (*l.IdentityReply, bridge.Result, error) {
 	return f.reads.Identity(ctx)
 }
