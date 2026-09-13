@@ -3934,19 +3934,6 @@
       "notes": "Development, setup, fixture, measurement or acceptance entry point; retained Python tooling is allowed. Audit direct Python runtime construction and subprocess launch before Go acceptance; port assertions or use explicit Go process adapter. This classification is not Go scenario coverage. Go parity and acceptance have not run."
     },
     {
-      "id": "interface:tooling-entry:scripts/native_tick_budget_acceptance.py",
-      "category": "tooling-launcher",
-      "source": {
-        "path": "scripts/native_tick_budget_acceptance.py"
-      },
-      "go_package": "go/internal/testkit",
-      "owner_chunk": "G01.11",
-      "fixtures": [],
-      "native_scenarios": [],
-      "status": "tooling-only-adapter-pending",
-      "notes": "Development, setup, fixture, measurement or acceptance entry point; retained Python tooling is allowed. Audit direct Python runtime construction and subprocess launch before Go acceptance; port assertions or use explicit Go process adapter. This classification is not Go scenario coverage. Go parity and acceptance have not run."
-    },
-    {
       "id": "interface:tooling-entry:scripts/native_trade_smoke.py",
       "category": "tooling-launcher",
       "source": {

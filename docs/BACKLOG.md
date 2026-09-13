@@ -2523,6 +2523,46 @@ main. Native package and Go production cutover remain independent.
     hunting/husbandry; mood/medical/temperature; work/production/research;
     presentation/clock/notifications. Confirm domain coverage, add a
     `cmd/<domain>accept` binary, verify live, retire the Python script.
+    - [x] **Scope discovery: most of this cluster is G01.x, not N01.09.**
+      Triaging the remaining files split them into two very different classes
+      the domain grouping above blurs together: a small handful of true
+      GABS-only scripts driving `bridge_session`/wire calls fairly directly,
+      versus the large non-`native_`-prefixed cluster (`comfort`, `mood`,
+      `husbandry`, `upkeep`, `research`, `production`, `storeroom`,
+      `construction_*`, `resource_*`, `spatial_*`, `disaster_*`, `session_
+      checkpoint`, `world_progression`, etc. — most of the ~70) that drive the
+      full production `rimgovernor.bridge_runtime.BridgeRuntime`/`Hands`/
+      `ColonyPlan`/`Controller.skills` stack to simulate real autonomous
+      gameplay decisions. That's G01.x's job (porting the production runtime),
+      not this migration's, per the Non-goal above. Confirmed by reading
+      `native_raid_acceptance.py` and grepping `native_visual_acceptance.py`,
+      `native_bed_use_acceptance.py`, `native_forecast_acceptance.py`,
+      `native_player_input_acceptance.py`, `native_autosave_acceptance.py`
+      and `native_interruption_acceptance.py` for the same
+      `BridgeRuntime` import. Each future sub-slice needs this same check
+      before being assumed in scope.
+    - [x] **`native_tick_budget_acceptance.py` → `cmd/tickbudgetaccept`.**
+      The first true GABS-only candidate found by the scope discovery above.
+      It drives a second, previously-unported native clock surface: the raw
+      op-based `home/supervised_play` tool (Python's `PlayClock` in
+      `controller/rimgovernor/clock_control.py`), distinct from the typed
+      `rimgovernor/clock_start` protobuf surface already covered by
+      `bridge/clock.go` and `nativeaccept/scenario.go`'s `ScenarioClock`.
+      Added `nativeaccept.SupervisedPlayClock`, a deliberately bounded port
+      covering only the `store=None`/`context=None` paths this caller
+      exercises (no durable cursor/epoch persistence, `pause_for_dialog`,
+      combat/hostile-ID/medical-rest monitoring, or the Paused-branch
+      owner/epoch race recovery — all unreachable or unused here), and
+      `cmd/tickbudgetaccept`, a full live driver reusing `session.go`'s
+      existing bootstrap helpers. Live-verified against real headless
+      RimWorld: all 9 speed(Normal/Fast/Superfast)×budget(1/37/600) tick-
+      boundary cases, both external-hold cases (`external_pause`,
+      `external_speed_changed`), lease expiry before the tick limit, and
+      clock retirement on session reload all passed. `go build`/`vet`/
+      `test ./...` clean; `scripts/native_tick_budget_acceptance.py` is
+      deleted, its manual entries in `contracts/domain-inventory.json` and
+      `contracts/interface-inventory.json` removed, and `docs/developers/
+      testing/native-clock.md` repointed at the new binary.
   - [ ] **Slice 5 — Docker/container acceptance path (last; needs Linux).**
     `scripts/container_scenario.py` + `scripts/container_*_acceptance.py` (11
     files) drive the Linux Docker native runner, a different harness than

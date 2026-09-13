@@ -74,12 +74,12 @@ outcomes and external pawn-order interruption remain native acceptance work.
 
 ## Exact tick budgets
 
-Run `scripts/native_tick_budget_acceptance.py --source-root <prepared-root> --output
-<new-directory>` with `controller` on `PYTHONPATH`. Each speed/budget case reloads the
-unchanged baseline. The native companion must independently pause at 1, 37 and 600 ticks
-at Normal, Fast and Superfast, retain its deadline across renewal, and remain paused
-afterward. The probe also checks external native speed/pause commands, lease expiry
-before the deadline and retirement on load changes. Add `--rendered` for a visible game.
+Run `go run ./internal/nativeaccept/cmd/tickbudgetaccept -root <prepared-root> -output
+<new-directory>` from `go/`. Each speed/budget case reloads the unchanged baseline. The
+native companion must independently pause at 1, 37 and 600 ticks at Normal, Fast and
+Superfast, retain its deadline across renewal, and remain paused afterward. The probe
+also checks external native speed/pause commands, lease expiry before the deadline and
+retirement on load changes. Add `-rendered` for a visible game.
 Native clock commands reproduce time-state transitions; they do not certify physical
 keyboard input, autosaves or every danger race. Keep all failed reports.
 
