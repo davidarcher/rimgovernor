@@ -685,9 +685,25 @@ without pushes, when the target checkout is safe; preserve other developers' wor
     (`serve_clock.go` already wires `SecureSupplies`). `MaintainSleeping` is
     now closed via a `BedAssign` typed-dispatch vertical (domain/policy/
     store/executor/buildingruntime, dispatchable through `Session.Run`).
-    Still open: `MaintainHomeCoverage` (review evidence exists, no
-    plan-producing vertical yet); `MaintainStoneShell` (untouched, largest
-    remaining piece). Native C# (`NativeHaulOperations.cs`) only implements
+    `MaintainHomeCoverage` is now closed via a `HomeCoverage` typed-dispatch
+    vertical (domain/policy/store/executor/buildingruntime, dispatchable
+    through `Session.Run`), mirroring `BedAssign`'s structure and preserving
+    `home_coverage.py`'s exact behavior: it re-validates the selected
+    target's shape/revision/missing/excluded counts fresh at admission time
+    (refusing on any geometry change or exclusion) and dispatches native's
+    `ExtendHome` operation. Home coverage has no per-target CAS token in
+    native (`HomeCoverageTool.cs`'s `Apply` uses only a computed shape hash
+    plus a global revision counter), and no exact-ID lookup RPC either, so
+    `bridge.ReadHomeCoverageTarget` re-reads the general colony upkeep census
+    and matches the target row instead. Like `MaintainEssentialRepairs`/
+    `MaintainCleanFacilities`/`MaintainSleeping`'s own native gaps, no
+    `NativeOperationTools.cs` adapter wires `Operation_ExtendHome` into typed
+    Preview/Execute dispatch yet, so this is Go-complete and unit-tested but
+    blocked on that native gap for live acceptance. It also has no
+    routine-scheduler/CLI wiring yet, matching the
+    `MaintainEssentialRepairs`/`MaintainCleanFacilities` precedent. Still
+    open: `MaintainStoneShell` (untouched, largest remaining piece). Native
+    C# (`NativeHaulOperations.cs`) only implements
     `PawnOrderKind.Haul` today, so Repair/Clean/Equip/Rescue/Tend/Work/Capture
     are refused at the native boundary — tracked under G01.12, not specific
     to this slice. No new Python acceptance tests added.
@@ -946,7 +962,7 @@ five rows originate in `priority_nodes` (comfort/expansion via
 | `EnsureExpansion`: one spare indoor place through `grow_shelter` | Shared expansion/shelter planner | Reconcile prerequisites/competition with composed path; observe usable spare capacity and population renewal. |
 | `SecureSupplies`: safe haul, `upkeep_storage.covered_storage` then `supply_storeroom` | Direct vulnerable-stock targets | Storage/haul handler and selection, covered destination and exact quantity ledger. Missing/merged source is not delivery. |
 | `MaintainSleeping`: available-bed assignment, build bed, ordinary-use wait | Sleeping need and durable exact ownership/use history | Bed assignment/upgrade actions with player ownership guards. Observe safe real-bed use, not assignment alone. |
-| `MaintainHomeCoverage`: `home_coverage.method` | Facility upkeep and exact construction claims | Home action from owned structures preserving exclusions. Observe required coverage without widening excluded cells. |
+| `MaintainHomeCoverage`: `home_coverage.method` | Closed: typed `HomeCoverage` action/admission/handler dispatching native `ExtendHome`, preserving exact ownership/exclusions with no widened claims (see 05.4 above) | Blocked on native `Operation_ExtendHome` adapter for live acceptance; no routine-scheduler/CLI wiring yet. |
 | `MaintainEssentialRepairs`: enabled worker and native-approved repair | Direct targets/metrics | Typed repair admission/handler/reconciliation; observe exact structure HP restored. Disappearance is not repair. |
 | `MaintainCleanFacilities`: clean job or ordinary-labor wait for non-orderable targets | Direct targets/metrics | Safe worker selection, supported action and explicit wait. Observe removed filth; preserve unknown census. |
 | `MaintainFireSafety`: bounded safe fires, reachable enabled firefighters, ordinary-labor wait | Fire need/unsafe-fire policy | Compose wait/hold without inventing forceable jobs. Observe extinguished fires; large/unknown fires retain hold. |
