@@ -103,6 +103,12 @@ func insertAction(ctx context.Context, tx *sql.Tx, plan domain.PlanID, ordinal i
 			return encodeErr
 		}
 		_, err = tx.ExecContext(ctx, "INSERT INTO actions(id,plan_id,ordinal,kind,settlement_gift_payload) VALUES(?,?,?,'settlement_gift',?)", a.ID(), plan, ordinal, data)
+	} else if fulfill, ok := a.QuestFulfill(); ok {
+		data, encodeErr := json.Marshal(questFulfillPayload{fulfill.Quest(), fulfill.Caravan(), fulfill.CrewIDs()})
+		if encodeErr != nil {
+			return encodeErr
+		}
+		_, err = tx.ExecContext(ctx, "INSERT INTO actions(id,plan_id,ordinal,kind,quest_fulfill_payload) VALUES(?,?,?,'quest_fulfill',?)", a.ID(), plan, ordinal, data)
 	} else {
 		return errors.New("unsupported persisted action")
 	}
@@ -114,8 +120,8 @@ func scanAction(rows *sql.Rows) (domain.Action, int, error) {
 	var ordinal int
 	var def, rotation, stuff, pawn, target, draftAction sql.NullString
 	var x, z sql.NullInt64
-	var work, zone, bill, caravan, settlementGiftBlob []byte
-	if err := rows.Scan(&id, &kind, &def, &x, &z, &rotation, &stuff, &pawn, &target, &draftAction, &work, &zone, &bill, &caravan, &settlementGiftBlob, &ordinal); err != nil {
+	var work, zone, bill, caravan, settlementGiftBlob, questFulfillBlob []byte
+	if err := rows.Scan(&id, &kind, &def, &x, &z, &rotation, &stuff, &pawn, &target, &draftAction, &work, &zone, &bill, &caravan, &settlementGiftBlob, &questFulfillBlob, &ordinal); err != nil {
 		return domain.Action{}, 0, err
 	}
 	if kind == "production_bill" && !pawn.Valid && !target.Valid && !draftAction.Valid && !def.Valid && !x.Valid && !z.Valid && !rotation.Valid && !stuff.Valid && work == nil && zone == nil {
@@ -226,6 +232,25 @@ func scanAction(rows *sql.Rows) (domain.Action, int, error) {
 	}
 	if settlementGiftBlob != nil {
 		return domain.Action{}, 0, errors.New("mixed settlement gift payload")
+	}
+	if kind == "quest_fulfill" && !pawn.Valid && !target.Valid && !draftAction.Valid && !def.Valid && !x.Valid && !z.Valid && !rotation.Valid && !stuff.Valid {
+		var payload questFulfillPayload
+		if len(questFulfillBlob) > 32768 || json.Unmarshal(questFulfillBlob, &payload) != nil {
+			return domain.Action{}, 0, errors.New("invalid quest fulfill payload")
+		}
+		canonical, _ := json.Marshal(payload)
+		if !bytes.Equal(canonical, questFulfillBlob) {
+			return domain.Action{}, 0, errors.New("noncanonical quest fulfill payload")
+		}
+		f, err := domain.NewQuestFulfill(payload.Quest, payload.Caravan, payload.CrewIDs)
+		if err != nil {
+			return domain.Action{}, 0, err
+		}
+		action, err := domain.NewQuestFulfillAction(id, f)
+		return action, ordinal, err
+	}
+	if questFulfillBlob != nil {
+		return domain.Action{}, 0, errors.New("mixed quest fulfill payload")
 	}
 	if kind == "owned_draft" && pawn.Valid && !target.Valid && !draftAction.Valid && !def.Valid && !x.Valid && !z.Valid && !rotation.Valid && !stuff.Valid {
 		d, e := domain.NewOwnedDraft(domain.PawnID(pawn.String))
@@ -444,4 +469,10 @@ type settlementGiftPayload struct {
 	Faction    domain.FactionID
 	CrewIDs    []domain.PawnID
 	Silver     int32
+}
+
+type questFulfillPayload struct {
+	Quest   domain.QuestID
+	Caravan domain.CaravanID
+	CrewIDs []domain.PawnID
 }

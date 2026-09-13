@@ -144,6 +144,8 @@ type Executor struct {
 	questAcceptJournal         QuestAcceptJournal
 	settlementGift             SettlementGiftBoundary
 	settlementGiftJournal      SettlementGiftJournal
+	questFulfill               QuestFulfillBoundary
+	questFulfillJournal        QuestFulfillJournal
 	ranged                     RangedBoundary
 	rangedJournal              RangedJournal
 	routineScope               RoutineScope
@@ -381,6 +383,9 @@ func (e *Executor) Run(ctx context.Context, plan domain.PlanID, actionID domain.
 	}
 	if action.Kind() == domain.SettlementGiftAction && e.settlementGift != nil {
 		return e.runSettlementGift(ctx, action, progress, authority, generation)
+	}
+	if action.Kind() == domain.QuestFulfillAction && e.questFulfill != nil {
+		return e.runQuestFulfill(ctx, action, progress, authority, generation)
 	}
 	if action.Kind() == domain.MeleeAttackAction && e.melee != nil {
 		return e.runMelee(ctx, action, progress, authority, generation)

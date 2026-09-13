@@ -66,6 +66,7 @@ type buildingServiceBridge struct {
 	research            *buildingruntime.ResearchSelectCapabilities
 	questAccept         *buildingruntime.QuestAcceptCapabilities
 	settlementGift      *buildingruntime.SettlementGiftCapabilities
+	questFulfill        *buildingruntime.QuestFulfillCapabilities
 	caravanDeparture    *buildingruntime.CaravanDepartureCapabilities
 }
 type buildingServiceOpener func(context.Context, bridge.ProcessConfig) (buildingServiceBridge, error)
@@ -155,6 +156,10 @@ func openBuildingService(ctx context.Context, config bridge.ProcessConfig) (buil
 	if err != nil {
 		return buildingServiceBridge{}, errors.Join(err, client.Close())
 	}
+	questFulfill, err := bridge.NewQuestFulfillWriter(client)
+	if err != nil {
+		return buildingServiceBridge{}, errors.Join(err, client.Close())
+	}
 	caravanDeparture, err := bridge.NewCaravanDepartureWriter(client)
 	if err != nil {
 		return buildingServiceBridge{}, errors.Join(err, client.Close())
@@ -180,6 +185,7 @@ func openBuildingService(ctx context.Context, config bridge.ProcessConfig) (buil
 		research:            &buildingruntime.ResearchSelectCapabilities{Native: client, Writer: researchSelect},
 		questAccept:         &buildingruntime.QuestAcceptCapabilities{Native: client, Writer: questAccept},
 		settlementGift:      &buildingruntime.SettlementGiftCapabilities{Native: client, Writer: settlementGift},
+		questFulfill:        &buildingruntime.QuestFulfillCapabilities{Native: client, Writer: questFulfill},
 		caravanDeparture:    &buildingruntime.CaravanDepartureCapabilities{Native: client, Writer: caravanDeparture, Policy: defaultCaravanDeparturePolicy}}, nil
 }
 
@@ -429,6 +435,7 @@ func serveBuildingWithBridge(ctx context.Context, config serveConfig, out io.Wri
 		ResearchSelect:      researchSelectCapabilities,
 		QuestAccept:         client.questAccept,
 		SettlementGift:      client.settlementGift,
+		QuestFulfill:        client.questFulfill,
 		CaravanDeparture:    client.caravanDeparture,
 	}, database, client.native, client.authority, client.writes, wallClock{})
 	if err != nil {

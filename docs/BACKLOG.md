@@ -1282,14 +1282,38 @@ b; exact worker cleanup by a, with reuse by their later consumers.
   `SessionConfig` now construct and wire `QuestAcceptCapabilities`
   unconditionally (native `client`, `bridge.NewQuestAcceptWriter`), the same
   way `Draft` is always present, so `EnableQuestAccept` actually runs in the
-  live server instead of only in tests. `FulfillQuest`
-  is deliberately out of scope this round: unlike acceptance it is not a direct
-  settings write — it requires a caravan currently at the exact quest
-  settlement (`CaravanVisitUtility.SettlementVisitedNow`), a `TradeRequestComp`,
-  and invoking a native `Command_Action` gizmo callback plus a
-  `Dialog_MessageBox` confirmation (`QuestFulfillmentTool.cs`), a separate,
-  larger native mechanism comparable in size to caravan departure itself.
-  Reward selection beyond a single pre-known choice index is likewise
+  live server instead of only in tests. `FulfillQuest` is now implemented
+  end to end. Native `NativeQuestFulfillOperations.cs` ports
+  `QuestFulfillmentTool.cs`'s mechanism (a caravan at the exact quest
+  settlement via `CaravanVisitUtility.SettlementVisitedNow`, a live
+  `TradeRequestComp` matching the quest's requested resource/count, and
+  invoking the native `Command_Action` gizmo callback plus its
+  `Dialog_MessageBox` confirmation directly, no UI/camera) behind the typed
+  boundary, wired into `NativeOperationTools.cs`'s Execute/Preview/
+  ObserveProgress dispatch. Go: `domain.QuestFulfill`/`QuestFulfillAction`
+  (crew stored as one separator-joined string, matching `SettlementGift`),
+  `policy.EvaluateQuestFulfill` (conservative — refuses on any unknown/stale
+  quest, caravan, crew, or native-eligibility fact, or a caravan not
+  stationary at the quest's trade destination tile), `store.QuestFulfillAdmission`
+  (schema version 52, `quest_fulfill_admissions` table, `quest_fulfill_payload`
+  blob column on `actions`), `bridge.ReadQuestFulfillTarget`/
+  `QuestFulfillWriter` (reusing `ReadWorldProgression`'s `Quests`/`Caravans`
+  rows and a new `QuestOffer.TradeDestinationTile` field), and
+  `executor`/`buildingruntime.QuestFulfillBoundary` wired via `session.go`'s
+  `EnableQuestFulfill`. `store.QuestFulfillSubmission`/
+  `Player.SubmitQuestFulfill` (`quest_fulfill_submissions` table) let one
+  explicit player command commit a one-action plan the same way
+  `SubmitSettlementGift` does, with an `/api/quest-fulfills` HTTP route, and
+  `cmd/rimgovernor serve`'s `openBuildingService`/`SessionConfig` construct
+  and wire `QuestFulfillCapabilities` unconditionally. The quest and caravan
+  CAS tokens are self-computed on both sides (`NativeQuestOperations.Token`,
+  reused from `AcceptQuest`, and a `"caravan-fulfill-"`-prefixed hash distinct
+  from `SettlementGift`'s own caravan token); native alone re-derives the
+  requested resource/count against the live `TradeRequestComp`, so no
+  resource facts cross the boundary. Not done: a live-game acceptance run
+  (`go build ./...` passes; no `questfulfillaccept` native-acceptance harness
+  was added this round — see the note at the end of this item for why) and
+  reward selection beyond a single pre-known choice index, which is likewise
   unstarted (`EvaluateQuestAccept` always refuses when a quest exposes more
   than one reward choice rather than guessing). Settlement gifts are now
   implemented end to end: native `GiftCaravanSilver` (execute+preview+observe,
@@ -1319,8 +1343,9 @@ b; exact worker cleanup by a, with reuse by their later consumers.
   construct and wire `SettlementGiftCapabilities` unconditionally (native
   `client`, `bridge.NewSettlementGiftWriter`), the same way `Draft` is always
   present, so `EnableSettlementGift` actually runs in the live server instead
-  of only in tests. `FulfillQuest` remains unstarted and still needs its own
-  native write handler plus a full Go vertical. Failure recovery across
+  of only in tests. `FulfillQuest`'s native write handler and full Go vertical
+  are described above; it has not yet been exercised against a live game
+  (see the note at the end of this item). Failure recovery across
   multiple active maps is now a deliberately conservative slice rather than
   full recovery: native's world-progression census already reports every
   map's spawned-pawn roster (`NativeWorldProgressionObservation.cs`'s
@@ -1341,7 +1366,14 @@ b; exact worker cleanup by a, with reuse by their later consumers.
   ./...` pass, including new bridge malformed-map-evidence tests, policy
   classifier tests for the foreign-map case, and store/tracker tests for
   stuck-record bookkeeping (idempotent SinceTick, threshold filtering,
-  clear-on-resolve, clear-on-recovery).
+  clear-on-resolve, clear-on-recovery). No existing `nativeaccept` command
+  targets world-progression content (quests, caravans, settlements) the way
+  `guardedconstructionaccept`/`movementaccept` target a single map's
+  construction/movement fixtures; building `questfulfillaccept` needs its own
+  save fixture (an ongoing quest with one `QuestPart_InitiateTradeRequest`,
+  a caravan positioned at that exact settlement with sufficient cargo) and
+  was judged large enough to risk delaying this vertical, so it was left for
+  a follow-up round rather than attempted here.
   **Exit evidence:** native departure, arrival, quest fulfillment/reward
   selection, and failure recovery with Go owning the workflow and no
   wrong-map writes.

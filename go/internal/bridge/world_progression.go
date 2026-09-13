@@ -48,8 +48,18 @@ type QuestOffer struct {
 	CanAccept        bool
 	ChoiceCount      int32
 	HasTradeRequest  bool
-	EligiblePawnIDs  []string
-	SnapshotToken    string
+	// TradeDestinationTile/TradeDestinationKnown are populated only when the
+	// quest carries exactly one native settlement trade objective
+	// (QuestPart_InitiateTradeRequest) with a known destination tile;
+	// FulfillQuest's boundary uses this to prove an already-visiting
+	// caravan sits at the exact requested settlement, the same "read what a
+	// boundary can validate and use" discipline as every other census field
+	// here. Two or more trade requests, or one with no destination, leaves
+	// it unknown -- never guessed.
+	TradeDestinationTile  int32
+	TradeDestinationKnown bool
+	EligiblePawnIDs       []string
+	SnapshotToken         string
 }
 
 // WorldMap is the validated subset of one WorldProgressionSnapshot.maps row
@@ -223,10 +233,14 @@ func worldProgressionSelected(v *o.WorldProgressionSnapshot, identity *c.Identit
 			seenPawns[pawn.GetId()] = true
 			pawnIDs[j] = pawn.GetId()
 		}
-		quests[i] = QuestOffer{
+		quest := QuestOffer{
 			ID: row.GetId(), State: row.GetState(), RequiresAccepter: row.GetRequiresAccepter(), CanAccept: row.GetCanAccept(),
 			ChoiceCount: int32(len(choices)), HasTradeRequest: len(row.TradeRequests) > 0, EligiblePawnIDs: pawnIDs, SnapshotToken: row.Snapshot.GetToken(),
 		}
+		if len(row.TradeRequests) == 1 && row.TradeRequests[0] != nil && row.TradeRequests[0].Destination != nil {
+			quest.TradeDestinationTile, quest.TradeDestinationKnown = row.TradeRequests[0].GetDestination(), true
+		}
+		quests[i] = quest
 	}
 	return WorldProgressionRead{Context: v.Context, Maps: maps, Caravans: rows, Quests: quests}, nil
 }

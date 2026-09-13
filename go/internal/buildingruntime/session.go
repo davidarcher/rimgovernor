@@ -55,6 +55,7 @@ type SessionConfig struct {
 	PrisonerInteraction *PrisonerInteractionCapabilities
 	QuestAccept         *QuestAcceptCapabilities
 	SettlementGift      *SettlementGiftCapabilities
+	QuestFulfill        *QuestFulfillCapabilities
 }
 
 // Session binds the single profile owner to one journal and executor. Its caller
@@ -326,6 +327,9 @@ func NewSession(ctx context.Context, config SessionConfig, journal *store.Store,
 	if config.SettlementGift != nil && (config.SettlementGift.Native == nil || config.SettlementGift.Writer == nil) {
 		return cleanup(ErrControl)
 	}
+	if config.QuestFulfill != nil && (config.QuestFulfill.Native == nil || config.QuestFulfill.Writer == nil) {
+		return cleanup(ErrControl)
+	}
 	var routine []executor.RoutineScope
 	if config.RoutineMethods {
 		routine = append(routine, journal)
@@ -511,6 +515,15 @@ func NewSession(ctx context.Context, config SessionConfig, journal *store.Store,
 			return cleanup(err)
 		}
 		if err := worker.EnableSettlementGift(settlementGiftBoundary); err != nil {
+			return cleanup(err)
+		}
+	}
+	if config.QuestFulfill != nil {
+		questFulfillBoundary, err := NewQuestFulfillBoundary(config.QuestFulfill.Native, config.QuestFulfill.Writer, sessionBuildingLeases{control, journal, config.RoutineMethods, config.Executor.JournalTimeout}, clock, string(namespace))
+		if err != nil {
+			return cleanup(err)
+		}
+		if err := worker.EnableQuestFulfill(questFulfillBoundary); err != nil {
 			return cleanup(err)
 		}
 	}

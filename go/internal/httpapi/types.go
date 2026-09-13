@@ -107,6 +107,11 @@ type SettlementGift struct {
 	CrewIDs    []domain.PawnID     `json:"crewIds"`
 	Silver     int32               `json:"silver"`
 }
+type QuestFulfill struct {
+	Quest   domain.QuestID   `json:"quest"`
+	Caravan domain.CaravanID `json:"caravan"`
+	CrewIDs []domain.PawnID  `json:"crewIds"`
+}
 type DraftCleanup struct {
 	Stage domain.DraftCleanupStage `json:"stage"`
 }

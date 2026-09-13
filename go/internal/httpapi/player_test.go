@@ -249,3 +249,7 @@ func (f *playerFixture) SubmitSettlementGift(ctx context.Context, q store.Settle
 	f.calls++
 	return f.journal.SubmitSettlementGift(ctx, q)
 }
+func (f *playerFixture) SubmitQuestFulfill(ctx context.Context, q store.QuestFulfillSubmissionRequest) (store.QuestFulfillSubmission, bool, error) {
+	f.calls++
+	return f.journal.SubmitQuestFulfill(ctx, q)
+}
