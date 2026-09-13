@@ -773,28 +773,92 @@ without pushes, when the target checkout is safe; preserve other developers' wor
     `ProductionBillAction` for it through the same generic
     `bridge.ReadGearBenches`/`ReadSupplyStock` census GearProduce/
     MaintainMedicalReserves already read, dispatched by a new
-    `RoutineResourcePlanner`. What remains unstarted: native mine/harvest
-    source acquisition (`policy.SelectResourceSources`, already a tested pure
-    primitive, is not wired to anything yet), the genuinely new
-    mining-designation native operation category the extraction path needs
-    (investigation this round found the wire contract already fully defined —
-    `ResourceSourcesSnapshot`/`ListResourceSources` in observations.proto,
-    covering sources/storage/drilling — but implemented on neither the Go
-    bridge nor the native C# side; native `AcquireResource` similarly exists
-    end-to-end for hunting/plant harvest via `NativeHuntAcquisition.cs`/
-    `NativePlantAcquisition.cs` but has no mining adapter), the acquisition
-    dispatch that would move extracted stock (`buildingruntime/acquisition`
-    is a real, working, fully generic vertical today, but only ever fed by
-    the food/wood-specific `policy.SelectAcquisition`, not arbitrary mined
-    resources), material-storage zoning, and the native
-    `SetProductionPolicy` floors/commitments push
-    (`production_policy.py`'s `sync_production_policy`) that the Python
-    reference runs every tick alongside goal dispatch — none of that has Go
-    wiring yet either. Landing the extraction/mining half is a materially
-    larger effort than this bench-production half was, and touches native
-    read surfaces (`ListResourceSources`) that 05.4's extraction-development
-    work may also need — coordinate before starting it. `EnsureBasicPower` is
-    done. `MaintainMedicalReserves` is now code-complete too, following
+    `RoutineResourcePlanner`. What remains unstarted, and a second round's
+    investigation into wiring it (see below) found each piece is a
+    materially larger lift than initially scoped, not a smaller one:
+
+    Native mine/harvest source acquisition (`policy.SelectResourceSources`,
+    already a tested pure primitive) is still not wired to anything.
+    Re-investigation found `buildingruntime/acquisition`'s existing generic
+    vertical (`domain.Acquisition`/`bridge.ReadAcquisition`/
+    `AcquisitionBoundary`/executor dispatch) cannot simply be fed arbitrary
+    mined resources by generalizing `policy.SelectAcquisition`'s
+    `row.Resource != "WoodLog"` hardcoding, as originally hoped: the wire
+    message it reads from, `AcquisitionFacts`
+    (`contracts/proto/observations.proto`), is structurally scoped to
+    `tree`/`food`/`hunt` flags only, with no generic mine-source shape at
+    all — a mined resource cannot appear in that census regardless of Go
+    changes. Reaching mined resources genuinely requires the still-fully
+    open `ResourceSourcesSnapshot`/`ListResourceSources` read (unimplemented
+    on both the Go bridge and native C#) plus a native mining adapter for
+    `AcquireResource` (only `NativeHuntAcquisition.cs`/
+    `NativePlantAcquisition.cs` exist today) — i.e. items 1 and 2 are one
+    combined native operation category, not two independently sequenceable
+    ones, and `ListResourceSources` is exactly the native read surface
+    05.4's extraction-development work was flagged as possibly also
+    needing — confirmed this round via a fresh fetch that 05.4's current
+    entry shows no sign of having started it, but re-check before either
+    side lands it.
+
+    The acquisition-dispatch idea above (move extracted stock through the
+    existing generic `buildingruntime/acquisition` vertical without new
+    native operations) turns out not to be independently tractable either,
+    for the same `AcquisitionFacts` reason: Python's own
+    `resource_method` dispatches mined sources through the identical
+    `home/acquire_resource` native call food/wood use, but only after first
+    reading `home/resource_sources` (`ListResourceSources`'s untyped
+    ancestor) for the source list — so this piece is gated on the same
+    native read surface as items 1/2 above, not free-standing.
+
+    Material-storage zoning (reusing `domain.ZoneCreateAction`/
+    `NewAllowListStockpileZone`, exactly like 05.4's `SecureSupplies`
+    covered-storage fallback) is well understood as a pattern —
+    `RoutineSecureSuppliesPlanner.coveredStorageFallback`
+    (`go/internal/buildingruntime/routine_secure_supplies.go`) is the
+    concrete template to copy: site selection, `NewAllowListStockpileZone`,
+    `PreviewZone`, then `AdmitBuildingMethod` (not `CommitGoalMethod`, since
+    zones carry footprint like buildings). But Python's trigger for it
+    (`resource_method`'s `storage` branch) only fires when a selected mine
+    source's `resource_sources` reply carries a `storage` payload
+    (`haulers`/`capacity`/`stackLimit`/`candidates`), so it is also gated on
+    the same unimplemented native read, not separately landable first.
+
+    The native `SetProductionPolicy` floors/commitments push
+    (`production_policy.py`'s `sync_production_policy`) was re-investigated
+    as a candidate independent of the above (no `ListResourceSources`
+    dependency), and the wire contract does already exist —
+    `contracts/proto/operations.proto`'s `SetProductionPolicy` message is a
+    case in the shared `Operation` oneof, and
+    `observations.proto`'s `ProductionPolicySnapshot`/`ReadProductionPolicy`
+    is a paired read — but neither has *any* native C# handler: not in
+    `NativeOperationTools.ExecuteNative`/`Preview`'s dispatch, and the only
+    working native implementation is the older untyped `home/production_policy`
+    MCP tool (`ProductionPolicyTool.cs`/`ProductionPolicyGuard`/
+    `ProductionPolicyState`, CSV-string arguments), which Go's `bridge.Client`
+    cannot call at all — `protoCall`/`protoRead`'s tool-name allowlist is a
+    deliberate closed transport seam admitting only reviewed typed
+    `rimgovernor/*` adapters. Wiring the typed `SetProductionPolicy` case
+    through the already-allowlisted `rimgovernor/operations_execute` name
+    is possible in principle, but production policy's write model (an
+    idempotent persistent budget, verified by reading it back, no
+    per-attempt progress to observe) doesn't fit the existing
+    attempt/lease/ledger `Execute` pattern every other operation handler
+    uses (see `NativeWorkSettings.Execute` for the shape: `EntityPrecondition`
+    + `NativeAttemptLedger.Admit` + authority-owned effect + `Receipts.Progress`
+    observation) — so this is a new native operation *shape*, not a copy of
+    an existing one, and a correspondingly sized effort, not the
+    smaller Go-only wiring task it was framed as. What is landed this round:
+    `policy.ProductionFloors` (`go/internal/policy/resource_production.go`),
+    a tested pure primitive porting `production_budgets`'s reserve/stopped
+    half only (the second half — outstanding unconfirmed construction-bundle
+    ingredient costs from Python's `plan.control['costs']` — has no Go
+    equivalent since it depends on the still-unported multi-step
+    staged-bundle admission model `MaintainStoneShell` above already needs),
+    plus new `RoutinePolicy.ResourceReserves`/`StoppedResources` config
+    fields it validates against. Like `SelectResourceSources`, it has no
+    caller yet.
+
+    `EnsureBasicPower` is done. `MaintainMedicalReserves` is now code-complete too, following
     `GearProduce`'s exact pattern: `policy.SelectMedicineMethod` matches the
     active reserve's single `MedicineHerbal` target against the same generic
     bench/recipe census `bridge.ReadGearBenches`/`bridge.ReadSupplyStock`

@@ -57,6 +57,15 @@ type RoutinePolicy struct {
 	// across these targets and issues no SetProductionPolicy push at all --
 	// see docs/BACKLOG.md 05.5 for what remains open.
 	ResourceTargets map[Resource]int64
+	// ResourceReserves and StoppedResources are operator-declared inputs to
+	// ProductionFloors, mirroring production_policy.py's plan.control
+	// resource_policy reserve/spending-stopped configuration. Unlike
+	// ResourceTargets (which drives MaintainResource's own goal/method
+	// selection), these have no dispatch vertical yet: ProductionFloors is a
+	// tested pure primitive with no caller, pending the native
+	// SetProductionPolicy operation category -- see docs/BACKLOG.md 05.5.
+	ResourceReserves map[Resource]int64
+	StoppedResources []Resource
 }
 
 func DefaultRoutinePolicy() RoutinePolicy {
@@ -88,6 +97,9 @@ func (p RoutinePolicy) Validate() error {
 		return errors.New("invalid research target")
 	}
 	if err := ValidateResourceTargets(p.ResourceTargets); err != nil {
+		return err
+	}
+	if _, _, err := ProductionFloors(p.ResourceReserves, p.StoppedResources); err != nil {
 		return err
 	}
 	return nil

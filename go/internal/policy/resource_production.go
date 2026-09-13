@@ -11,16 +11,17 @@ import (
 
 // MaintainResource-* pure primitives ported from
 // controller/rimgovernor/production_policy.py's
-// ingredient_deficits/observe_mining_progress/resource_method. See
-// docs/BACKLOG.md 05.5 for the dispatch vertical built on top of these
-// (buildingruntime.RoutineResourcePlanner): a single config-only
-// policy.MaintainResource goal, mirroring EnsureResearch's posture, whose
-// method is a generic bench/recipe StockTarget production bill exactly like
-// GearProduce/MaintainMedicalReserves dispatch through. Native mining-source
-// acquisition (SelectResourceSources below), material-storage zoning and the
-// native SetProductionPolicy floors/commitments push remain entirely
-// unstarted — see SelectResourceTarget and SelectResourceMethod's own doc
-// comments for what is and is not covered.
+// ingredient_deficits/observe_mining_progress/resource_method/
+// production_budgets. See docs/BACKLOG.md 05.5 for the dispatch vertical
+// built on top of these (buildingruntime.RoutineResourcePlanner): a single
+// config-only policy.MaintainResource goal, mirroring EnsureResearch's
+// posture, whose method is a generic bench/recipe StockTarget production
+// bill exactly like GearProduce/MaintainMedicalReserves dispatch through.
+// Native mining-source acquisition (SelectResourceSources below),
+// material-storage zoning and the native SetProductionPolicy floors/
+// commitments push (ProductionFloors below) remain entirely unwired to any
+// native call — see SelectResourceTarget, SelectResourceMethod and
+// ProductionFloors's own doc comments for what is and is not covered.
 
 // ResourceRequirement is one native recipe-ingredient alternative's exact
 // required quantity and the deficit against current stock.
@@ -100,6 +101,49 @@ func ResourceExtractionAdvanced(tick, lastProgressTick domain.Tick, mining, prio
 		}
 	}
 	return false
+}
+
+// ProductionFloors mirrors production_policy.py's production_budgets reserve
+// half only: given RoutinePolicy's operator-declared per-resource reserve
+// floors and stopped-spending set, it returns the exact floors map (zero
+// reserves omitted, matching Python's "if v" filter) and the stopped
+// definitions sorted for deterministic dispatch. Python's production_budgets
+// also folds in a second source of floors -- outstanding, unconfirmed
+// construction-bundle ingredient costs from plan.control['costs'] -- which
+// has no Go equivalent yet; that half depends on the still-unported
+// multi-step staged-bundle admission model MaintainStoneShell's own
+// docs/BACKLOG.md 05.4 entry already tracks as needing dedicated design work,
+// so it is not attempted here. This is a pure primitive: nothing yet calls
+// it, pending the native SetProductionPolicy operation category, which this
+// round's investigation found is not just missing Go wiring but has no
+// native Execute/Preview handler at all (contracts/proto/operations.proto's
+// SetProductionPolicy message and observations.proto's ReadProductionPolicy
+// RPC are both fully unimplemented on the native side) -- see
+// docs/BACKLOG.md 05.5.
+func ProductionFloors(reserves map[Resource]int64, stopped []Resource) (map[Resource]int64, []Resource, error) {
+	if len(reserves) > 4096 || len(stopped) > 4096 {
+		return nil, nil, errors.New("production policy input exceeds bound")
+	}
+	floors := map[Resource]int64{}
+	for resource, reserve := range reserves {
+		if !validResource(resource) || reserve < 0 || reserve > 10000 {
+			return nil, nil, errors.New("invalid resource reserve")
+		}
+		if reserve != 0 {
+			floors[resource] = reserve
+		}
+	}
+	seen := map[Resource]bool{}
+	stoppedOut := make([]Resource, 0, len(stopped))
+	for _, resource := range stopped {
+		if !validResource(resource) || seen[resource] {
+			return nil, nil, errors.New("invalid or duplicate stopped resource")
+		}
+		seen[resource] = true
+		stoppedOut = append(stoppedOut, resource)
+	}
+	sort.Slice(stoppedOut, func(i, j int) bool { return stoppedOut[i] < stoppedOut[j] })
+	return floors, stoppedOut, nil
 }
 
 // ResourceSourceMethod names how one native resource source is acquired.

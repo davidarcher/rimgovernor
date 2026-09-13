@@ -323,3 +323,48 @@ func TestSelectResourceMethodUnknownBenchesRefuseGuessing(t *testing.T) {
 		t.Fatalf("got %v %v", method, err)
 	}
 }
+
+func TestProductionFloorsOmitsZeroReserves(t *testing.T) {
+	floors, stopped, err := ProductionFloors(map[Resource]int64{"Steel": 50, "WoodLog": 0}, nil)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(floors) != 1 || floors["Steel"] != 50 {
+		t.Fatalf("got %v", floors)
+	}
+	if len(stopped) != 0 {
+		t.Fatalf("got %v", stopped)
+	}
+}
+
+func TestProductionFloorsSortsStopped(t *testing.T) {
+	_, stopped, err := ProductionFloors(nil, []Resource{"WoodLog", "Steel"})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(stopped) != 2 || stopped[0] != "Steel" || stopped[1] != "WoodLog" {
+		t.Fatalf("got %v", stopped)
+	}
+}
+
+func TestProductionFloorsRejectsDuplicateStopped(t *testing.T) {
+	if _, _, err := ProductionFloors(nil, []Resource{"Steel", "Steel"}); err == nil {
+		t.Fatalf("expected an error for duplicate stopped resource")
+	}
+}
+
+func TestProductionFloorsRejectsInvalidReserve(t *testing.T) {
+	if _, _, err := ProductionFloors(map[Resource]int64{"Steel": -1}, nil); err == nil {
+		t.Fatalf("expected an error for negative reserve")
+	}
+	if _, _, err := ProductionFloors(map[Resource]int64{"": 5}, nil); err == nil {
+		t.Fatalf("expected an error for invalid resource name")
+	}
+}
+
+func TestProductionFloorsEmptyInputsAreValid(t *testing.T) {
+	floors, stopped, err := ProductionFloors(nil, nil)
+	if err != nil || len(floors) != 0 || len(stopped) != 0 {
+		t.Fatalf("got %v %v %v", floors, stopped, err)
+	}
+}
