@@ -178,6 +178,27 @@ func TestModelRecoveryServiceShape(t *testing.T) {
 	}
 }
 
+func TestModelBedAssignShape(t *testing.T) {
+	result, err := decode(`{"command":"bed_assign","pawn":"Thing_A","bed":"Thing_Bed1"}`, 1)
+	if err != nil || result.Command != "bed_assign" || result.Pawn == nil || *result.Pawn != "Thing_A" ||
+		result.Bed == nil || *result.Bed != "Thing_Bed1" {
+		t.Fatalf("bed_assign shape: %v %v", result, err)
+	}
+	for _, text := range []string{
+		`{"command":"bed_assign"}`,
+		`{"command":"bed_assign","pawn":"Thing_A"}`,
+		`{"command":"bed_assign","pawn":null,"bed":"Thing_Bed1"}`,
+		`{"command":"bed_assign","pawn":"","bed":"Thing_Bed1"}`,
+		`{"command":"bed_assign","pawn":"Thing_A","bed":""}`,
+		`{"command":"bed_assign","pawn":"Thing_A","bed":"Thing_Bed1","dryRun":false}`,
+	} {
+		t.Run(text, func(t *testing.T) {
+			_, err := decode(text, 1)
+			assertKind(t, err, InvalidCommand)
+		})
+	}
+}
+
 func TestModelCaravanShape(t *testing.T) {
 	valid := `{"command":"caravan","crew":["Thing_A"],"cargo":[{"defName":"Silver","count":50}],"destinationTile":3}`
 	result, err := decode(valid, 1)

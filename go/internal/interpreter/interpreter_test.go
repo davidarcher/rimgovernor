@@ -572,6 +572,102 @@ func TestServiceTargetsValidatedAndBounded(t *testing.T) {
 	assertKind(t, err, InvalidInput)
 }
 
+func TestBedAssignProposal(t *testing.T) {
+	i := clientFixture(t, func(context.Context, model.Request) (model.Response, error) {
+		return model.Response{Text: `{"command":"bed_assign","pawn":"Thing_A","bed":"Thing_Bed1"}`, FinishReason: model.Stop}, nil
+	})
+	input := inputFixture()
+	input.Facts.Pawns = []domain.PawnID{"Thing_A"}
+	input.Facts.BedTargets = []string{"Thing_Bed1"}
+	input.Facts.PawnBeds = []PawnBed{{Pawn: "Thing_A", Bed: "Thing_Bed0"}}
+	proposal, err := i.Interpret(context.Background(), input)
+	if err != nil {
+		t.Fatal(err)
+	}
+	actions := proposal.Plan.Actions()
+	if len(actions) != 1 || actions[0].ID() != "a1" {
+		t.Fatal("incorrect bed_assign action identity")
+	}
+	assign, ok := actions[0].BedAssign()
+	if !ok || assign.Pawn() != "Thing_A" || assign.Bed() != "Thing_Bed1" || assign.PreviousBed().Clear() || assign.PreviousBed().ID() != "Thing_Bed0" {
+		t.Fatal("incorrect typed bed_assign proposal")
+	}
+
+	i = clientFixture(t, func(context.Context, model.Request) (model.Response, error) {
+		return model.Response{Text: `{"command":"bed_assign","pawn":"Thing_A","bed":"Thing_Bed1"}`, FinishReason: model.Stop}, nil
+	})
+	input = inputFixture()
+	input.Facts.Pawns = []domain.PawnID{"Thing_A"}
+	input.Facts.BedTargets = []string{"Thing_Bed1"}
+	input.Facts.PawnBeds = []PawnBed{{Pawn: "Thing_A", Bed: ""}}
+	proposal, err = i.Interpret(context.Background(), input)
+	if err != nil {
+		t.Fatal(err)
+	}
+	assign, ok = proposal.Plan.Actions()[0].BedAssign()
+	if !ok || !assign.PreviousBed().Clear() {
+		t.Fatal("incorrect typed bed_assign clear-previous proposal")
+	}
+}
+
+func TestBedAssignRefusesUnknownFactsOrWrongActionCount(t *testing.T) {
+	text := `{"command":"bed_assign","pawn":"Thing_A","bed":"Thing_Bed1"}`
+	response := func(context.Context, model.Request) (model.Response, error) {
+		return model.Response{Text: text, FinishReason: model.Stop}, nil
+	}
+	for _, tc := range []struct {
+		name string
+		edit func(*Input)
+	}{
+		{"unknown pawn", func(in *Input) { in.Facts.BedTargets = []string{"Thing_Bed1"} }},
+		{"unknown bed", func(in *Input) {
+			in.Facts.Pawns = []domain.PawnID{"Thing_A"}
+			in.Facts.PawnBeds = []PawnBed{{Pawn: "Thing_A", Bed: ""}}
+		}},
+		{"missing previous bed fact", func(in *Input) {
+			in.Facts.Pawns = []domain.PawnID{"Thing_A"}
+			in.Facts.BedTargets = []string{"Thing_Bed1"}
+		}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			input := inputFixture()
+			tc.edit(&input)
+			i := clientFixture(t, response)
+			_, err := i.Interpret(context.Background(), input)
+			assertKind(t, err, UnknownFacts)
+		})
+	}
+	input := inputFixture()
+	input.Facts.Pawns = []domain.PawnID{"Thing_A"}
+	input.Facts.BedTargets = []string{"Thing_Bed1"}
+	input.Facts.PawnBeds = []PawnBed{{Pawn: "Thing_A", Bed: ""}}
+	input.ActionIDs = append(input.ActionIDs, "a2")
+	i := clientFixture(t, response)
+	_, err := i.Interpret(context.Background(), input)
+	assertKind(t, err, InvalidCommand)
+}
+
+func TestBedFactsValidatedAndBounded(t *testing.T) {
+	i := clientFixture(t, func(context.Context, model.Request) (model.Response, error) {
+		t.Fatal("model called")
+		return model.Response{}, nil
+	})
+	input := inputFixture()
+	input.Facts.BedTargets = []string{"Thing_Bed1", "Thing_Bed1"}
+	_, err := i.Interpret(context.Background(), input)
+	assertKind(t, err, InvalidInput)
+
+	input = inputFixture()
+	input.Facts.PawnBeds = []PawnBed{{Pawn: "Thing_A", Bed: ""}, {Pawn: "Thing_A", Bed: ""}}
+	_, err = i.Interpret(context.Background(), input)
+	assertKind(t, err, InvalidInput)
+
+	input = inputFixture()
+	input.Facts.PawnBeds = []PawnBed{{Pawn: "Thing_A", Bed: "Thing_A"}}
+	_, err = i.Interpret(context.Background(), input)
+	assertKind(t, err, InvalidInput)
+}
+
 func TestPawnFactsValidatedAndBounded(t *testing.T) {
 	i := clientFixture(t, func(context.Context, model.Request) (model.Response, error) {
 		t.Fatal("model called")

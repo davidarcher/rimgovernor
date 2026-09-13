@@ -42,6 +42,8 @@ type modelCommand struct {
 	// Pawn/Thing/Service hold recover's pawn, service target thing, and
 	// repair/breakdown/refuel method (a distinct field from husbandry's Method).
 	Pawn, Thing, Service *string
+	// Bed holds bed_assign's target bed thing ID (Pawn is shared with recover).
+	Bed *string
 }
 
 func decode(text string, limit int) (modelCommand, error) {
@@ -81,8 +83,10 @@ func decode(text string, limit int) (modelCommand, error) {
 		return decodeHusbandry(fields)
 	case "recover":
 		return decodeRecoveryService(fields)
+	case "bed_assign":
+		return decodeBedAssign(fields)
 	default:
-		return modelCommand{}, fail(UnsupportedCommand, "only building, research, tend, rescue, draft, caravan, husbandry and recover proposals are supported")
+		return modelCommand{}, fail(UnsupportedCommand, "only building, research, tend, rescue, draft, caravan, husbandry, recover and bed_assign proposals are supported")
 	}
 }
 
@@ -272,6 +276,31 @@ func decodeRecoveryService(fields map[string]json.RawMessage) (modelCommand, err
 		return modelCommand{}, fail(InvalidCommand, "invalid method field")
 	}
 	return modelCommand{Command: "recover", Pawn: pawn, Thing: thing, Service: method}, nil
+}
+
+func decodeBedAssign(fields map[string]json.RawMessage) (modelCommand, error) {
+	if len(fields) != 3 || fields["pawn"] == nil || fields["bed"] == nil {
+		return modelCommand{}, fail(InvalidCommand, "unexpected command fields")
+	}
+	decodeField := func(key string) (*string, error) {
+		if bytes.Equal(bytes.TrimSpace(fields[key]), []byte("null")) {
+			return nil, fail(InvalidCommand, "missing "+key)
+		}
+		var value string
+		if err := json.Unmarshal(fields[key], &value); err != nil || value == "" {
+			return nil, fail(InvalidCommand, "invalid "+key+" field")
+		}
+		return &value, nil
+	}
+	pawn, err := decodeField("pawn")
+	if err != nil {
+		return modelCommand{}, err
+	}
+	bed, err := decodeField("bed")
+	if err != nil {
+		return modelCommand{}, err
+	}
+	return modelCommand{Command: "bed_assign", Pawn: pawn, Bed: bed}, nil
 }
 
 // Generic JSON token inspection is confined to this external text boundary.

@@ -1335,7 +1335,7 @@ b; exact worker cleanup by a, with reuse by their later consumers.
   **Exit evidence:** representative scripted invalid/cancelled replies and actual
   configured LM Studio requests execute supported commands; advisers cannot mutate
   the game and there is no paid-provider fallback.
-  The interpreter now decodes eight command kinds end to end, each reusing its
+  The interpreter now decodes nine command kinds end to end, each reusing its
   unchanged existing store/policy/executor pipeline: `build` (variable count);
   `research` selects one already-observed selectable project into
   `ResearchSelectAction`; `tend` and `rescue` each select two distinct
@@ -1347,8 +1347,13 @@ b; exact worker cleanup by a, with reuse by their later consumers.
   method into `HusbandryAction`; `recover` selects one already-observed pawn
   and service target thing plus a repair/breakdown/refuel method into
   `RecoveryServiceAction` (the same native operation the legacy
-  `home/recover_service` tool drove). Husbandry's and recovery's CAS tokens
-  are read fresh by the executor's own inspection at dispatch, not needed at
+  `home/recover_service` tool drove); `bed_assign` selects one already-
+  observed pawn and bed into `BedAssignAction` (the same native operation the
+  legacy `home/upkeep_bed` tool drove) — its previous-bed CAS expectation
+  comes entirely from a new `PawnBeds` fact the caller supplies (each pawn's
+  currently-known bed or none), never from the model, so it needed a new fact
+  slot but no live re-read. Husbandry's and recovery's CAS tokens are read
+  fresh by the executor's own inspection at dispatch, not needed at
   construction, so unlike `work_assignment` and `production_bill` (both carry
   a `before`/`token` CAS field on the domain type itself) they required no new
   CAS plumbing. All but `build` and `caravan` are exactly-one-action commands;
@@ -1361,12 +1366,22 @@ b; exact worker cleanup by a, with reuse by their later consumers.
   is routine harvest/hunt selection driven by policy, not a natural direct
   player command, and zone's constructors are narrowly closed to specific
   routine-only preset variants.
-  Remaining: every other `player_commands.py` command family (goals/resources,
-  population/surgery, trade/world, adopt/relocate/cancel, move/reposition),
-  consultation/scout/visual review, knowledge/memory/evidence retrieval,
-  streaming, deduplication and explicit cancellation. Naming confirmation
-  additionally needs new native work: only the detection half exists
-  (`policy.ConfirmColonyNames`,
+  Cross-checked against `player_commands.py`'s actual `COMMAND_TYPES`: most
+  remaining names (RequestSurgery, GiftToSettlement, FulfillQuest,
+  SetExpeditionPolicy, EvaluateWorld, HoldCaravan, RouteCaravan, AcceptQuest,
+  SetPopulationPolicy/Decision, TradeEconomy, CreateGoal,
+  ModifyResourcePolicy, SetResourceReserve, CancelGoal, CancelConstruction,
+  RelocateConstruction, AdoptRoom, BuildRoom, CreateZone, EditZone,
+  SetBuildingTemperature, MovePawn) have no existing domain.Action/executor
+  pipeline to reuse at all (no surgery, goal/policy-mutation, room, quest,
+  world-evaluation, temperature or movement action kind exists in Go) — these
+  need their own new native pipelines, not interpreter wiring, and are out of
+  this same-shape scope.
+  Remaining: consultation/scout/visual review, knowledge/memory/evidence
+  retrieval, streaming, deduplication and explicit cancellation, plus the
+  goal/policy/quest/room/temperature/movement command families above (bigger,
+  separate native slices). Naming confirmation additionally needs new native
+  work: only the detection half exists (`policy.ConfirmColonyNames`,
   `observation.Colony`'s `ColonyNaming` fact); nothing in Go calls
   `home/confirm_colony_names` (an ad-hoc JSON-arg tool, not a typed
   `operationspb.Operation`) or the presentation `PreviewNaming`/`Apply`
