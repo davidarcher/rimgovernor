@@ -122,6 +122,8 @@ type Executor struct {
 	equipJournal       EquipJournal
 	gearReplace        GearReplaceBoundary
 	gearReplaceJournal GearReplaceJournal
+	repair             RepairBoundary
+	repairJournal      RepairJournal
 	ranged             RangedBoundary
 	rangedJournal      RangedJournal
 	routineScope       RoutineScope
@@ -326,6 +328,9 @@ func (e *Executor) Run(ctx context.Context, plan domain.PlanID, actionID domain.
 	}
 	if action.Kind() == domain.GearReplaceAction && e.gearReplace != nil {
 		return e.runGearReplace(ctx, action, progress, authority, generation)
+	}
+	if action.Kind() == domain.RepairAction && e.repair != nil {
+		return e.runRepair(ctx, action, progress, authority, generation)
 	}
 	if action.Kind() == domain.MeleeAttackAction && e.melee != nil {
 		return e.runMelee(ctx, action, progress, authority, generation)
