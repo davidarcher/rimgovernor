@@ -370,6 +370,176 @@ func run(ctx context.Context, root, output, gameID string, headless bool, report
 		return fmt.Errorf("arrived snapshot nativeGeneration does not match the move receipt")
 	}
 
+	// Authority-lease expiry mid-flight: a short-lived lease must lapse under
+	// REVOCATION_REASON_LEASE_EXPIRED while a genuinely admitted Goto job it
+	// authorized is still current and not yet arrived (the game stays paused here,
+	// so no ticks run and the pawn cannot physically move during the wait),
+	// degrading that exact attempt's own observed progress to an explicit
+	// interrupted outcome. The owned draft claim itself is a different, longer-
+	// lived native state than the authority lease and must survive the expiry
+	// unowned by no one; the expired lease itself must no longer be able to issue
+	// orders (stale generation); and a fresh acquisition must recover full command
+	// under the same claim, with no redraft. Mirrors cmd/draftaccept's SetDrafted
+	// lease-expiry section, adapted for movement's genuinely in-flight effect.
+	// authority_control has exactly one active lease at a time (Acquire refuses
+	// OwnerConflict whenever one is already held, even by the same owner), so the
+	// scenario clock's still-active 30s lease from AdvanceGame is shrunk in place
+	// via Renew rather than freshly acquired, mirroring ScenarioClock.RenewAuthority
+	// but with a 1s duration so it expires quickly and deterministically.
+	shrinkReply, err := h.Wire(ctx, "expiry-shrink", "authority_control", map[string]any{"renew": map[string]any{
+		"identity": identity, "expectedGeneration": dig(grant, "context", "nativeGeneration"),
+		"controllerSessionId": na.AsString(na.Owner["controllerSessionId"]), "leaseId": grant["leaseId"], "leaseMs": 1000,
+	}})
+	if err != nil {
+		return err
+	}
+	_, expiring, err := na.Outcome(shrinkReply, "granted")
+	if err != nil {
+		return err
+	}
+	if na.DeepEqual(origin, destination) {
+		return fmt.Errorf("origin unexpectedly equals destination; cannot demonstrate an in-flight move")
+	}
+	// A later recovery move to the exact same cell as this one would be silently
+	// coalesced onto the still-current job by native job-ordering (no new job
+	// instance, so no fresh causal correlation), rather than genuinely redispatched.
+	// Use a third, distinct candidate cell for the expiry attempt so the recovery
+	// move below unambiguously issues its own new job.
+	var expiryDestination map[string]any
+	for _, cell := range candidateCells {
+		if !na.DeepEqual(cell, origin) && !na.DeepEqual(cell, destination) {
+			expiryDestination = cell
+			break
+		}
+	}
+	if expiryDestination == nil {
+		return fmt.Errorf("no candidate cell distinct from both origin and destination for the expiry move")
+	}
+	expiryRequest := moveRequest(identity, expiring, arrived, 20, expiryDestination)
+	expiryReceiptReply, err := h.Wire(ctx, "expiry-move", "operations_execute", expiryRequest)
+	if err != nil {
+		return err
+	}
+	_, expiryReceipt, err := na.Outcome(expiryReceiptReply, "receipt")
+	if err != nil {
+		return err
+	}
+	expiryMoving, err := read("expiry-moving", pawnID)
+	if err != nil {
+		return err
+	}
+	if _, err := jobEffect(expiryReceipt, expiryMoving, expiryDestination); err != nil {
+		return fmt.Errorf("expiry-move: %w", err)
+	}
+	expiryPrecondition, _ := na.AsMap(expiryRequest["precondition"])
+	expiryAttempt := map[string]any{"identity": identity, "attempt": expiryPrecondition["attempt"]}
+
+	time.Sleep(1200 * time.Millisecond)
+
+	expiryStatusReply, err := h.Wire(ctx, "expiry-status", "authority_read_status", map[string]any{"identity": identity})
+	if err != nil {
+		return err
+	}
+	_, expiryStatus, err := na.Outcome(expiryStatusReply, "status")
+	if err != nil {
+		return err
+	}
+	expiryInactive, _ := na.AsMap(expiryStatus["inactive"])
+	if na.AsString(expiryInactive["reason"]) != "REVOCATION_REASON_LEASE_EXPIRED" {
+		return fmt.Errorf("expiry-status: expected REVOCATION_REASON_LEASE_EXPIRED, got %#v", expiryStatus)
+	}
+
+	expiryInterruptedReply, err := h.Wire(ctx, "expiry-interrupted", "receipts_observe_progress", expiryAttempt)
+	if err != nil {
+		return err
+	}
+	_, expiryProgress, err := na.Outcome(expiryInterruptedReply, "progress")
+	if err != nil {
+		return err
+	}
+	expiryUnsuccessful, _ := na.AsMap(expiryProgress["unsuccessful"])
+	if na.AsString(expiryUnsuccessful["reason"]) != "UNSUCCESSFUL_REASON_INTERRUPTED" {
+		return fmt.Errorf("expiry-interrupted: expected UNSUCCESSFUL_REASON_INTERRUPTED, got %#v", expiryProgress)
+	}
+
+	postExpiryRow, err := read("post-expiry", pawnID)
+	if err != nil {
+		return err
+	}
+	if drafted, _ := postExpiryRow["drafted"].(bool); !drafted {
+		return fmt.Errorf("post-expiry: lease expiry alone unexpectedly undrafted the pawn")
+	}
+	arrivedClaim, _ := na.AsMap(arrived["draftClaim"])
+	arrivedOwned, _ := na.AsMap(arrivedClaim["owned"])
+	postExpiryClaim, _ := na.AsMap(postExpiryRow["draftClaim"])
+	postExpiryOwned, hasOwned := na.AsMap(postExpiryClaim["owned"])
+	if !hasOwned || na.AsString(postExpiryOwned["claimId"]) != na.AsString(arrivedOwned["claimId"]) ||
+		!na.DeepEqual(postExpiryOwned["owner"], arrivedOwned["owner"]) {
+		return fmt.Errorf("post-expiry: owned draft claim did not survive lease expiry unchanged: %#v", postExpiryClaim)
+	}
+
+	if code, err := failureCode(ctx, h, "expired-lease-refusal", moveRequest(identity, expiring, postExpiryRow, 21, origin)); err != nil {
+		return err
+	} else if code != "FAILURE_CODE_STALE_GENERATION" {
+		return fmt.Errorf("expired-lease-refusal: expected FAILURE_CODE_STALE_GENERATION, got %q", code)
+	}
+	refusalPreserved, err := read("expired-lease-preserved", pawnID)
+	if err != nil {
+		return err
+	}
+	if err := na.SameControl(postExpiryRow, refusalPreserved); err != nil {
+		return fmt.Errorf("expired-lease-preserved: %w", err)
+	}
+
+	recovered, err := acquire("recovery-acquire", 30000)
+	if err != nil {
+		return err
+	}
+	// A fourth distinct cell: the later return-order step below still targets
+	// origin directly, so this recovery move must target something else or its
+	// still-pending job (the game stays paused; nothing here ever actually
+	// arrives) would coalesce with that later order instead of being its own
+	// fresh dispatch.
+	var recoveryDestination map[string]any
+	for _, cell := range candidateCells {
+		if !na.DeepEqual(cell, origin) && !na.DeepEqual(cell, destination) && !na.DeepEqual(cell, expiryDestination) {
+			recoveryDestination = cell
+			break
+		}
+	}
+	if recoveryDestination == nil {
+		return fmt.Errorf("no candidate cell distinct from origin, destination and the expiry move for the recovery move")
+	}
+	recoveryReceiptReply, err := h.Wire(ctx, "recovery-move", "operations_execute", moveRequest(identity, recovered, refusalPreserved, 22, recoveryDestination))
+	if err != nil {
+		return err
+	}
+	_, recoveryReceipt, err := na.Outcome(recoveryReceiptReply, "receipt")
+	if err != nil {
+		return err
+	}
+	recoveredRow, err := read("recovered", pawnID)
+	if err != nil {
+		return err
+	}
+	if _, err := jobEffect(recoveryReceipt, recoveredRow, recoveryDestination); err != nil {
+		return fmt.Errorf("recovery-move: %w", err)
+	}
+	recoveredClaim, _ := na.AsMap(recoveredRow["draftClaim"])
+	recoveredOwned, _ := na.AsMap(recoveredClaim["owned"])
+	if na.AsString(recoveredOwned["claimId"]) != na.AsString(arrivedOwned["claimId"]) {
+		return fmt.Errorf("recovery-move: draft claim changed; expected recovery under the same claim without a redraft")
+	}
+	grant = recovered
+	// The rest of this scenario reuses arrived's row/token; keep it current so
+	// later steps see the post-recovery snapshot instead of a stale one.
+	arrived = recoveredRow
+	report["lease_expiry_recovery"] = map[string]any{
+		"expired_reason":       na.AsString(expiryInactive["reason"]),
+		"interrupted_reason":   na.AsString(expiryUnsuccessful["reason"]),
+		"refused_failure_code": "FAILURE_CODE_STALE_GENERATION",
+	}
+
 	noOpReply, err := h.Wire(ctx, "same-position", "operations_execute", moveRequest(identity, grant, arrived, 5, destination))
 	if err != nil {
 		return err

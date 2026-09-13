@@ -1239,9 +1239,33 @@ main. Native package and Go production cutover remain independent.
   objects) cannot exercise, and no live-acceptance path exists for it in Go today.
   Exact owned `MovePawn` has native acceptance for real arrival, correlated
   job/target progress, immutable replay, same-position NoChange and player-order
-  interruption. Queued orders remain pending. Cleanup attribution survives an
-  in-flight lease expiry without restoring write permission; fault-injected native
-  expiry and uncertain-order recovery still require game acceptance.
+  interruption, and now also fault-injected authority-lease expiry while a Goto
+  job is genuinely in flight: `cmd/movementaccept` shrinks its own active lease
+  to a short deadline via `authority_control renew` (mirroring
+  `ScenarioClock.RenewAuthority`'s exact request shape, since `Acquire` refuses
+  `OwnerConflict` on any already-active lease regardless of owner), lets it
+  expire mid-move, and confirms in a live game: `authority_read_status` reports
+  `REVOCATION_REASON_LEASE_EXPIRED`; `receipts_observe_progress` on the in-flight
+  attempt reports `UNSUCCESSFUL_REASON_INTERRUPTED`; the pawn's owned draft claim
+  (`claimId`/`owner`) is unchanged across the expiry, proving cleanup attribution
+  survives without restoring write permission; a further `operations_execute`
+  under the expired lease/generation is refused `FAILURE_CODE_STALE_GENERATION`
+  with control state still preserved; and a fresh `authority_control acquire`
+  recovers full control and successfully issues a new Goto under the same still-
+  owned claim, with no redraft. Verified live and reproducibly: two consecutive
+  green GABS runs (`.rimgovernor/native-runs/movementaccept-live-lease-6` and
+  `-lease-7`, each `passed: true`, no leftover RimWorld process afterward) plus
+  `go build ./... && go vet ./... && go test ./...` from `go/`. This closes the
+  gap the prior slice's audit note below left open once its shared-install
+  write-permission blocker was fixed by per-session isolated RimWorld working
+  directories (`f1f34f1`); each Goto destination in the new section is chosen
+  distinct from every prior attempt's destination in the same run, since
+  `Pawn_JobTracker.TryTakeOrderedJob` silently reuses/coalesces the existing job
+  instance when re-ordered to an unchanged target while the game stays paused,
+  which would otherwise break `NativeMovementRecord.Capture`'s exact-job-instance
+  correlation. MovePawn queued orders remains a confirmed dead end, not merely
+  open or unattempted (see the unchanged assessment below); no other MovePawn
+  gap was touched this pass.
   Guarded melee `AttackTarget` has native acceptance for exact animal target
   snapshots, attributed target death, immutable replay, player-order interruption,
   refused adoption of player drafts, fresh owned recovery and cleanup after Manual.
@@ -1430,9 +1454,9 @@ main. Native package and Go production cutover remain independent.
   reviewed way to simulate that held-key condition through GABS, or an explicit decision
   that this branch is native-UI-only and cannot be live-verified at all -- not another
   attempt at the same live run.
-  A concrete, bounded design was drafted this pass for the adjacent, more tractable
-  MovePawn gap -- fault-injected native authority-lease expiry while a Goto job is
-  genuinely in flight (admitted, current, not yet arrived), and confirming the
+  A concrete, bounded design was drafted in an earlier slice for the adjacent, more
+  tractable MovePawn gap -- fault-injected native authority-lease expiry while a Goto
+  job is genuinely in flight (admitted, current, not yet arrived), and confirming the
   still-owned draft claim recovers full control under a fresh lease without
   redrafting -- mirroring `cmd/draftaccept`'s already-proven SetDrafted lease-expiry/
   cleanup section and reusing `go/internal/nativeaccept`'s draft/order helpers exactly
@@ -1444,20 +1468,19 @@ main. Native package and Go production cutover remain independent.
   fixture tool this scenario and the existing Python movement/draft/combat scripts all
   depend on) is compiled in only by `scripts/build_native_mod.ps1 -Fixture
   EmergencyDevelopmentFixture`, not the plain production build already installed at the
-  shared RimWorld instance's `Mods/RimGovernor`. Completing the live run needs swapping
+  shared RimWorld instance's `Mods/RimGovernor`. Completing the live run needed swapping
   in a freshly built fixture package for the run and restoring the original afterward
   (the same backup/restore pattern `scripts/test_n0103_acceptance.ps1` already uses),
-  which requires writing into that shared installation path outside this repository;
-  this session's sandboxed permissions refused that write (and even a read-only
-  `Test-Path` probe of the same path once already-installed-package state needed
-  confirming), with no interactive channel available to request an exception mid-run.
-  Rather than land a live-acceptance binary that was never actually run green, the
-  drafted `movement.go`/`cmd/movementaccept` implementation was reverted from this
-  worktree; nothing under `go/` or `integrations/` changed as a result of this pass
-  (confirmed by a clean `git status`/`git diff` and `go build ./... && go vet ./...`
-  after reverting). A future session with permission to swap the shared install's
-  `Mods/RimGovernor` (or one that already has a fixture-enabled package installed) can
-  redo this design directly from this note without re-deriving it.
+  which required writing into that shared installation path outside this repository;
+  that slice's sandboxed permissions refused that write, so its drafted implementation
+  was reverted rather than landed unverified. That blocker is now fixed: per-session
+  isolated RimWorld working directories (junctioned read-only game/Data from the shared
+  Steam install, plus a private, non-junctioned per-worktree `Mods/RimGovernor`)
+  eliminate the shared-install write contention entirely (`f1f34f1`, N01.09 Slice 2).
+  A later slice re-derived this exact design against a freshly bootstrapped isolated
+  RimWorld+bridge environment built from that pattern, and it is now live-verified and
+  closed (see the MovePawn paragraph above for the evidence and the destination-
+  distinctness fix the live run required beyond the original draft).
   Fault-injected uncertain setters (draft) and native lost-reply fault injection beyond
   the envelope gate both remain blocked on the same missing capability: neither
   `scripts/fixtures/EmergencyDevelopmentFixture.cs` nor any other disposable fixture
