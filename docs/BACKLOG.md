@@ -1164,9 +1164,40 @@ without pushes, when the target checkout is safe; preserve other developers' wor
       passes across the whole module, including the new `policy` coverage.
     - Still open: `GearProduce`, `MaintainMedicalReserves`, and the entire
       `MaintainResource-*` vertical beyond the two primitives above, and
-      `EnsureResearch`'s own `needs()`/`refresh()`/`method()`/`selected()`/
-      `validate_dispatch()` state machine. All gameplay/native acceptance
+      `EnsureResearch`'s own `refresh()`/`method()`/`selected()`/
+      `validate_dispatch()` state machine (its `needs()` admission logic is
+      addressed separately below, slice 4). All gameplay/native acceptance
       remains gated on G01.12 per this doc's stated delivery rule.
+
+    **Claude handoff: 05.5 slice 4 (`EnsureResearch` — `needs()` aggregation primitive)**
+
+    - Continued `EnsureResearch` incrementally per slice 2's own note that
+      `research.py`'s `needs()` requires a Go-native design rather than a
+      literal port, since Go has no single `plan.colony_goals` registry to
+      scan generically the way Python does — each Go goal family owns its
+      own typed review/evidence instead. Added
+      `go/internal/policy/research_needs.go` (+ `research_needs_test.go`, 4
+      cases): `ResearchNeedSource` (one active goal's own observed
+      unavailable-ThingDef/research-blocked-RecipeDef evidence, supplied by
+      that goal's own caller once ported, in place of Python's generic scan)
+      and `ResearchNeeds` (deduplicates by (goal, requirement) and orders by
+      priority class then goal/requirement identity, mirroring `needs()`'s
+      `sorted(result, key=lambda item: (priority_class, item))`).
+    - This is deliberately an aggregation primitive only: no goal family in
+      Go yet populates a `ResearchNeedSource` (that requires each of
+      `MaintainResource-*`/`MaintainEquipment`/`intent-*`-equivalent goals to
+      exist and expose unavailable-ThingDef/blocked-RecipeDef evidence
+      first, which they do not yet), and `refresh()`/`method()`/`selected()`/
+      `validate_dispatch()` (the native `home/research`-equivalent
+      `SelectResearch`/`ResearchSnapshot` dispatch, laboratory-build
+      fallback, player-direction/token invalidation and `MethodID` replay
+      guard) remain entirely unstarted alongside the bridge/domain/store/
+      executor/buildingruntime wiring slice 2 already scoped out.
+    - Full `go build ./... && go vet ./... && GOMAXPROCS=2 go test -p 1 ./...`
+      passes across the whole module, including the new `policy` coverage.
+    - Still open: everything slice 2/3 already listed, minus `needs()`'s
+      aggregation shape. All gameplay/native acceptance remains gated on
+      G01.12 per this doc's stated delivery rule.
 
   - [ ] **05.6 — Management and service recovery (G01.07e).**
     Compose dynamic mood, ongoing care/surgery, population, herd, waste and trade
