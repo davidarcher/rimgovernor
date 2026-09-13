@@ -1,0 +1,153 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net472</TargetFramework>
+    <LangVersion>latest</LangVersion>
+    <Nullable>disable</Nullable>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    <RestorePackagesWithLockFile>true</RestorePackagesWithLockFile>
+    <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
+    <NativeSourceRoot Condition="'$(NativeSourceRoot)' == ''">$(MSBuildThisFileDirectory)../../integrations/rimgovernor-native/src</NativeSourceRoot>
+  </PropertyGroup>
+  <!-- Keep the Windows restore graph stable across SDK versions and preserve output paths. -->
+  <PropertyGroup Condition="$([MSBuild]::IsOSPlatform('Windows'))">
+    <UseRidGraph>true</UseRidGraph>
+  </PropertyGroup>
+
+  <!-- Dispatcher preprocessor symbols mirroring the Compile/Reference gates below, so the
+       dispatcher's switch can #if out cases whose probe class is excluded from this build. -->
+  <PropertyGroup Condition="'$(HarmonyAssembly)' != ''">
+    <DefineConstants>$(DefineConstants);HAVE_HARMONY</DefineConstants>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(HarmonyAssembly)' != '' AND '$(RimWorldManagedDir)' != ''">
+    <DefineConstants>$(DefineConstants);HAVE_HARMONY_AND_RIMWORLD</DefineConstants>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(RimBridgeSdkDir)' != '' AND '$(RimWorldManagedDir)' != ''">
+    <DefineConstants>$(DefineConstants);HAVE_RIMBRIDGE_SDK</DefineConstants>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.NETFramework.ReferenceAssemblies.net472" Version="1.0.3" PrivateAssets="all" />
+    <PackageReference Include="Google.Protobuf" Version="3.31.1" />
+    <PackageReference Include="Newtonsoft.Json" Version="13.0.4" />
+  </ItemGroup>
+
+  <!-- ==== Dispatcher ==== -->
+  <ItemGroup>
+    <Compile Include="NativeContractProbes/Program.cs" />
+  </ItemGroup>
+
+  <!-- ==== Shared fakes (Category 1/4: in-process, no real Assembly-CSharp.dll) ==== -->
+  <ItemGroup>
+    <Compile Include="NativeContractProbes/Shared/FakeVerseStub.cs" />
+    <Compile Include="NativeContractProbes/Shared/FakeSdkStub.cs" />
+  </ItemGroup>
+  <!-- Excluded whenever a real Harmony is referenced below: FakeHarmonyStub.cs would otherwise
+       collide with 0Harmony.dll's own HarmonyLib.Harmony, and FakeAuthorityHooksStub.cs's fake
+       HomeBridge.BridgeTools.NativeAuthorityHooks (flat Ready/Initializations) would collide with
+       the real class's Health.Ready/Health.VerifiedTargets shape compiled further below for
+       native-authority-hooks. native-authority-control's Program.cs assumes the fake's shape, so
+       it moves into this same gate. -->
+  <ItemGroup Condition="'$(HarmonyAssembly)' == ''">
+    <Compile Include="NativeContractProbes/Shared/FakeHarmonyStub.cs" />
+    <Compile Include="NativeContractProbes/Shared/FakeAuthorityHooksStub.cs" />
+    <Compile Include="NativeContractProbes/native-authority-control/Program.cs" />
+  </ItemGroup>
+
+  <!-- Generated protocol classes: pure C#, no Verse/Unity dependency, needed by nearly every probe. -->
+  <ItemGroup>
+    <Compile Include="../generated/protobuf/csharp/*.cs" />
+  </ItemGroup>
+
+  <!-- ==== Production sources (always buildable, no external inputs required) ==== -->
+  <ItemGroup>
+    <Compile Include="$(NativeSourceRoot)/Runtime/Persistence/NativeControlAuthority.cs" Link="Production/NativeControlAuthority.cs" />
+    <Compile Include="$(NativeSourceRoot)/Bridge/Protocol/NativeAuthorityTools.cs" Link="Production/NativeAuthorityTools.cs" />
+    <Compile Include="$(NativeSourceRoot)/Bridge/Protocol/NativeAuthorityControlTools.cs" Link="Production/NativeAuthorityControlTools.cs" />
+    <Compile Include="$(NativeSourceRoot)/Bridge/Protocol/ProtoBoundary.cs" Link="Production/ProtoBoundary.cs" />
+    <Compile Include="$(NativeSourceRoot)/Bridge/ClockEventJournal.cs" Link="Production/ClockEventJournal.cs" />
+    <Compile Include="$(NativeSourceRoot)/Bridge/Protocol/NativeAttemptLedger.cs" Link="Production/NativeAttemptLedger.cs" />
+    <Compile Include="$(NativeSourceRoot)/Bridge/Protocol/NativeClockEventProjection.cs" Link="Production/NativeClockEventProjection.cs" />
+    <Compile Include="$(NativeSourceRoot)/Bridge/Protocol/NativeClockRuntime.cs" Link="Production/NativeClockRuntime.cs" />
+    <Compile Include="$(NativeSourceRoot)/Bridge/Protocol/NativeClockTools.cs" Link="Production/NativeClockTools.cs" />
+    <Compile Include="$(NativeSourceRoot)/Bridge/Protocol/NativeConstructionCausality.cs" Link="Production/NativeConstructionCausality.cs" />
+  </ItemGroup>
+
+  <!-- Category 1/2 probes (in-process fake-Verse compile / pure logic). -->
+  <ItemGroup>
+    <Compile Include="NativeContractProbes/native-authority/Program.cs" />
+    <Compile Include="NativeContractProbes/native-authority-status/Program.cs" />
+    <Compile Include="NativeContractProbes/native-clock/Program.cs" />
+    <Compile Include="NativeContractProbes/native-attempt-ledger/Program.cs" />
+    <Compile Include="NativeContractProbes/native-attempt-ledger/ClockLedgerChecks.cs" />
+    <Compile Include="NativeContractProbes/native-construction-causality/Program.cs" />
+  </ItemGroup>
+
+  <!-- Category 4 (hybrid): reuses the same unified fake stub + real ProtoBoundary/NativeControlAuthority above. -->
+  <ItemGroup>
+    <Compile Include="NativeContractProbes/native-proto-boundary/Program.cs" />
+  </ItemGroup>
+
+  <!-- Category 3 (reflection-over-real-compiled-DLL): compile NO production source directly,
+       only their own Program.cs; all bridge/game types are resolved at runtime via
+       Assembly.LoadFrom(args[0]) + AssemblyResolve. No external inputs required to compile. -->
+  <ItemGroup>
+    <Compile Include="NativeContractProbes/native-combat-causality/Program.cs" />
+    <Compile Include="NativeContractProbes/native-combat-operations/Program.cs" />
+    <Compile Include="NativeContractProbes/native-draft-operations/Program.cs" />
+    <Compile Include="NativeContractProbes/native-movement-operations/Program.cs" />
+    <Compile Include="NativeContractProbes/native-pawn-control-state/Program.cs" />
+    <Compile Include="NativeContractProbes/native-pawn-observations/Program.cs" />
+    <Compile Include="NativeContractProbes/native-pawn-observations/AcquisitionProof.cs" />
+    <Compile Include="NativeContractProbes/native-pawn-observations/WorkSettingsProof.cs" />
+    <Compile Include="NativeContractProbes/native-pawn-observations/ZoneProof.cs" />
+    <Compile Include="NativeContractProbes/native-proto-buildings/Program.cs" />
+    <Compile Include="NativeContractProbes/native-proto-observations/Program.cs" />
+    <Compile Include="NativeContractProbes/native-proto-placement/Program.cs" />
+    <Compile Include="NativeContractProbes/native-proto-presentation/Program.cs" />
+    <Compile Include="NativeContractProbes/native-proto-research/Program.cs" />
+    <Compile Include="NativeContractProbes/native-proto-rooms/Program.cs" />
+    <Compile Include="NativeContractProbes/native-proto-supplies/Program.cs" />
+  </ItemGroup>
+
+  <!-- ==== Externally-gated probes (pre-existing constraint: these 5 could not
+       build standalone before the merge either, without a licensed RimWorld install / Harmony
+       assembly / RimBridgeServer SDK supplied by the caller). Gating their Compile/Reference
+       items keeps the default (no external inputs) build green for the other 20 probes. ==== -->
+
+  <!-- native-authority-hooks + native-operation-envelope: real Harmony reference; their own fake
+       Verse/RimWorld stubs (authority-hooks) or inline ProtoBoundary override (operation-envelope)
+       would otherwise conflict with the unified stub / real ProtoBoundary above - moot while gated. -->
+  <ItemGroup Condition="'$(HarmonyAssembly)' != ''">
+    <Reference Include="0Harmony"><HintPath>$(HarmonyAssembly)</HintPath><Private>false</Private></Reference>
+    <Compile Include="$(NativeSourceRoot)/Runtime/Control/NativeAuthorityHooks.cs" Link="Production/NativeAuthorityHooks.cs" />
+    <Compile Include="NativeContractProbes/native-authority-hooks/NativeStub.cs" />
+    <Compile Include="NativeContractProbes/native-authority-hooks/Program.cs" />
+    <Compile Include="$(NativeSourceRoot)/Bridge/Protocol/NativeConstructionHookSet.cs" Link="Production/NativeConstructionHookSet.cs" />
+    <Compile Include="$(NativeSourceRoot)/Bridge/Protocol/NativeOperationEnvelope.cs" Link="Production/NativeOperationEnvelope.cs" />
+    <Compile Include="NativeContractProbes/native-operation-envelope/Program.cs" />
+  </ItemGroup>
+
+  <!-- native-explosive-causality + native-ranged-causality: real Harmony AND real RimWorld
+       managed assemblies referenced at compile time (using Verse, RimWorld, HarmonyLib directly). -->
+  <ItemGroup Condition="'$(HarmonyAssembly)' != '' AND '$(RimWorldManagedDir)' != ''">
+    <Reference Include="Assembly-CSharp"><HintPath>$(RimWorldManagedDir)/Assembly-CSharp.dll</HintPath><Private>false</Private></Reference>
+    <Reference Include="UnityEngine.CoreModule"><HintPath>$(RimWorldManagedDir)/UnityEngine.CoreModule.dll</HintPath><Private>false</Private></Reference>
+    <Compile Include="NativeContractProbes/native-explosive-causality/Program.cs" />
+    <Compile Include="NativeContractProbes/native-ranged-causality/Program.cs" />
+  </ItemGroup>
+
+  <!-- native-journal-cache: compiles the REAL BridgeCommon.cs and REAL RimBridgeServer.Sdk against
+       a licensed RimBridgeSdkDir/RimWorldManagedDir, unlike every other probe here. Its real
+       IRimBridgeContext would conflict with the fake one in FakeSdkStub.cs if both were ever
+       compiled at once - gating keeps that latent conflict moot until a future caller actually
+       supplies RimBridgeSdkDir alongside the always-on probes above (see BACKLOG note in the
+       consolidation commit message / final report). -->
+  <ItemGroup Condition="'$(RimBridgeSdkDir)' != '' AND '$(RimWorldManagedDir)' != ''">
+    <Reference Include="RimBridgeServer.Sdk"><HintPath>$(RimBridgeSdkDir)/RimBridgeServer.Sdk.dll</HintPath></Reference>
+    <Reference Include="Assembly-CSharp"><HintPath>$(RimWorldManagedDir)/Assembly-CSharp.dll</HintPath></Reference>
+    <Reference Include="UnityEngine.CoreModule"><HintPath>$(RimWorldManagedDir)/UnityEngine.CoreModule.dll</HintPath></Reference>
+    <Compile Include="$(NativeSourceRoot)/Bridge/BridgeCommon.cs" Link="Production/BridgeCommon.cs" />
+    <Compile Include="NativeContractProbes/native-journal-cache/Program.cs" />
+  </ItemGroup>
+</Project>

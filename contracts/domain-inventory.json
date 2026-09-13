@@ -9282,9 +9282,9 @@
         "native_owner_chunk": "N01.05",
         "build_role": "production",
         "fixtures": [
-          "contracts/tests/native-authority-control/Program.cs",
-          "contracts/tests/native-authority-hooks/Program.cs",
-          "contracts/tests/native-authority/Program.cs"
+          "contracts/tests/NativeContractProbes/native-authority-control/Program.cs",
+          "contracts/tests/NativeContractProbes/native-authority-hooks/Program.cs",
+          "contracts/tests/NativeContractProbes/native-authority/Program.cs"
         ],
         "native_scenarios": [
           "scripts/native_guarded_construction_acceptance.py"
@@ -9304,7 +9304,7 @@
         "native_owner_chunk": "N01.05",
         "build_role": "production",
         "fixtures": [
-          "contracts/tests/native-proto-boundary/Program.cs"
+          "contracts/tests/NativeContractProbes/native-proto-boundary/Program.cs"
         ],
         "native_scenarios": [],
         "status": "pending",
@@ -9322,8 +9322,8 @@
         "native_owner_chunk": "N01.05",
         "build_role": "production",
         "fixtures": [
-          "contracts/tests/native-clock/Program.cs",
-          "contracts/tests/native-attempt-ledger/ClockLedgerChecks.cs"
+          "contracts/tests/NativeContractProbes/native-clock/Program.cs",
+          "contracts/tests/NativeContractProbes/native-attempt-ledger/ClockLedgerChecks.cs"
         ],
         "native_scenarios": [
           "scripts/native_typed_clock_acceptance.py"
@@ -9342,8 +9342,8 @@
         "native_owner_chunk": "N01.05",
         "build_role": "production",
         "fixtures": [
-          "contracts/tests/native-clock/Program.cs",
-          "contracts/tests/native-attempt-ledger/ClockLedgerChecks.cs"
+          "contracts/tests/NativeContractProbes/native-clock/Program.cs",
+          "contracts/tests/NativeContractProbes/native-attempt-ledger/ClockLedgerChecks.cs"
         ],
         "native_scenarios": [
           "scripts/native_typed_clock_acceptance.py"
@@ -9362,8 +9362,8 @@
         "native_owner_chunk": "N01.05",
         "build_role": "production",
         "fixtures": [
-          "contracts/tests/native-clock/Program.cs",
-          "contracts/tests/native-attempt-ledger/ClockLedgerChecks.cs"
+          "contracts/tests/NativeContractProbes/native-clock/Program.cs",
+          "contracts/tests/NativeContractProbes/native-attempt-ledger/ClockLedgerChecks.cs"
         ],
         "native_scenarios": [
           "scripts/native_typed_clock_acceptance.py"
@@ -9382,8 +9382,8 @@
         "native_owner_chunk": "N01.05",
         "build_role": "production",
         "fixtures": [
-          "contracts/tests/native-clock/Program.cs",
-          "contracts/tests/native-attempt-ledger/ClockLedgerChecks.cs"
+          "contracts/tests/NativeContractProbes/native-clock/Program.cs",
+          "contracts/tests/NativeContractProbes/native-attempt-ledger/ClockLedgerChecks.cs"
         ],
         "native_scenarios": [
           "scripts/native_typed_clock_acceptance.py"
@@ -9402,8 +9402,8 @@
         "native_owner_chunk": "N01.05",
         "build_role": "production",
         "fixtures": [
-          "contracts/tests/native-clock/Program.cs",
-          "contracts/tests/native-attempt-ledger/ClockLedgerChecks.cs"
+          "contracts/tests/NativeContractProbes/native-clock/Program.cs",
+          "contracts/tests/NativeContractProbes/native-attempt-ledger/ClockLedgerChecks.cs"
         ],
         "native_scenarios": [
           "scripts/native_typed_clock_acceptance.py"
@@ -9422,8 +9422,8 @@
         "native_owner_chunk": "N01.05",
         "build_role": "production",
         "fixtures": [
-          "contracts/tests/native-clock/Program.cs",
-          "contracts/tests/native-attempt-ledger/ClockLedgerChecks.cs"
+          "contracts/tests/NativeContractProbes/native-clock/Program.cs",
+          "contracts/tests/NativeContractProbes/native-attempt-ledger/ClockLedgerChecks.cs"
         ],
         "native_scenarios": [
           "scripts/native_typed_clock_acceptance.py"
@@ -9442,8 +9442,8 @@
         "native_owner_chunk": "N01.05",
         "build_role": "production",
         "fixtures": [
-          "contracts/tests/native-clock/Program.cs",
-          "contracts/tests/native-attempt-ledger/ClockLedgerChecks.cs"
+          "contracts/tests/NativeContractProbes/native-clock/Program.cs",
+          "contracts/tests/NativeContractProbes/native-attempt-ledger/ClockLedgerChecks.cs"
         ],
         "native_scenarios": [
           "scripts/native_typed_clock_acceptance.py"
@@ -9462,7 +9462,7 @@
         "native_owner_chunk": "N01.02",
         "build_role": "production",
         "fixtures": [
-          "contracts/tests/native-proto-boundary/Program.cs"
+          "contracts/tests/NativeContractProbes/native-proto-boundary/Program.cs"
         ],
         "native_scenarios": [],
         "status": "pending",
@@ -9480,7 +9480,7 @@
         "native_owner_chunk": "N01.03",
         "build_role": "production",
         "fixtures": [
-          "contracts/tests/native-proto-observations/Program.cs"
+          "contracts/tests/NativeContractProbes/native-proto-observations/Program.cs"
         ],
         "native_scenarios": [
           "scripts/native_guarded_construction_acceptance.py"
@@ -9500,7 +9500,7 @@
         "native_owner_chunk": "N01.03",
         "build_role": "production",
         "fixtures": [
-          "contracts/tests/native-proto-buildings/Program.cs"
+          "contracts/tests/NativeContractProbes/native-proto-buildings/Program.cs"
         ],
         "native_scenarios": [
           "scripts/native_guarded_construction_acceptance.py"
@@ -9520,8 +9520,8 @@
         "native_owner_chunk": "N01.03",
         "build_role": "production",
         "fixtures": [
-          "contracts/tests/native-pawn-observations/Program.cs",
-          "contracts/tests/native-proto-observations/Program.cs"
+          "contracts/tests/NativeContractProbes/native-pawn-observations/Program.cs",
+          "contracts/tests/NativeContractProbes/native-proto-observations/Program.cs"
         ],
         "native_scenarios": [
           "scripts/native_pawn_acceptance.py"
@@ -9540,7 +9540,7 @@
         "native_owner_chunk": "N01.03",
         "build_role": "production",
         "fixtures": [
-          "contracts/tests/native-proto-rooms/Program.cs"
+          "contracts/tests/NativeContractProbes/native-proto-rooms/Program.cs"
         ],
         "native_scenarios": [
           "scripts/native_rooms_acceptance.py"
@@ -9560,7 +9560,7 @@
         "native_owner_chunk": "N01.03",
         "build_role": "production",
         "fixtures": [
-          "contracts/tests/native-proto-supplies/Program.cs",
+          "contracts/tests/NativeContractProbes/native-proto-supplies/Program.cs",
           "controller_tests/test_native_supplies_acceptance.py"
         ],
         "native_scenarios": [
@@ -9604,7 +9604,7 @@
         "native_owner_chunk": "N01.03",
         "build_role": "production",
         "fixtures": [
-          "contracts/tests/native-proto-research/Program.cs"
+          "contracts/tests/NativeContractProbes/native-proto-research/Program.cs"
         ],
         "native_scenarios": [
           "scripts/native_research_acceptance.py"
@@ -9624,7 +9624,7 @@
         "native_owner_chunk": "N01.03",
         "build_role": "production",
         "fixtures": [
-          "contracts/tests/native-proto-observations/Program.cs"
+          "contracts/tests/NativeContractProbes/native-proto-observations/Program.cs"
         ],
         "native_scenarios": [
           "scripts/native_guarded_construction_acceptance.py"
@@ -9644,13 +9644,13 @@
         "native_owner_chunk": "N01.04",
         "build_role": "production",
         "fixtures": [
-          "contracts/tests/native-attempt-ledger/Program.cs",
-          "contracts/tests/native-construction-causality/Program.cs",
-          "contracts/tests/native-movement-operations/Program.cs",
-          "contracts/tests/native-combat-operations/Program.cs",
-          "contracts/tests/native-combat-causality/Program.cs",
-          "contracts/tests/native-ranged-causality/Program.cs",
-          "contracts/tests/native-explosive-causality/Program.cs"
+          "contracts/tests/NativeContractProbes/native-attempt-ledger/Program.cs",
+          "contracts/tests/NativeContractProbes/native-construction-causality/Program.cs",
+          "contracts/tests/NativeContractProbes/native-movement-operations/Program.cs",
+          "contracts/tests/NativeContractProbes/native-combat-operations/Program.cs",
+          "contracts/tests/NativeContractProbes/native-combat-causality/Program.cs",
+          "contracts/tests/NativeContractProbes/native-ranged-causality/Program.cs",
+          "contracts/tests/NativeContractProbes/native-explosive-causality/Program.cs"
         ],
         "native_scenarios": [
           "scripts/native_guarded_construction_acceptance.py",
@@ -9672,13 +9672,13 @@
         "native_owner_chunk": "N01.04",
         "build_role": "production",
         "fixtures": [
-          "contracts/tests/native-attempt-ledger/Program.cs",
-          "contracts/tests/native-construction-causality/Program.cs",
-          "contracts/tests/native-movement-operations/Program.cs",
-          "contracts/tests/native-combat-operations/Program.cs",
-          "contracts/tests/native-combat-causality/Program.cs",
-          "contracts/tests/native-ranged-causality/Program.cs",
-          "contracts/tests/native-explosive-causality/Program.cs"
+          "contracts/tests/NativeContractProbes/native-attempt-ledger/Program.cs",
+          "contracts/tests/NativeContractProbes/native-construction-causality/Program.cs",
+          "contracts/tests/NativeContractProbes/native-movement-operations/Program.cs",
+          "contracts/tests/NativeContractProbes/native-combat-operations/Program.cs",
+          "contracts/tests/NativeContractProbes/native-combat-causality/Program.cs",
+          "contracts/tests/NativeContractProbes/native-ranged-causality/Program.cs",
+          "contracts/tests/NativeContractProbes/native-explosive-causality/Program.cs"
         ],
         "native_scenarios": [
           "scripts/native_guarded_construction_acceptance.py",
@@ -9700,8 +9700,8 @@
         "native_owner_chunk": "N01.04",
         "build_role": "production",
         "fixtures": [
-          "contracts/tests/native-draft-operations/Program.cs",
-          "contracts/tests/native-pawn-control-state/Program.cs"
+          "contracts/tests/NativeContractProbes/native-draft-operations/Program.cs",
+          "contracts/tests/NativeContractProbes/native-pawn-control-state/Program.cs"
         ],
         "native_scenarios": [
           "scripts/native_draft_acceptance.py"
@@ -9720,7 +9720,7 @@
         "native_owner_chunk": "N01.02",
         "build_role": "production",
         "fixtures": [
-          "contracts/tests/native-proto-placement/Program.cs"
+          "contracts/tests/NativeContractProbes/native-proto-placement/Program.cs"
         ],
         "native_scenarios": [],
         "status": "pending",
@@ -9738,7 +9738,7 @@
         "native_owner_chunk": "N01.05",
         "build_role": "production",
         "fixtures": [
-          "contracts/tests/native-proto-presentation/Program.cs"
+          "contracts/tests/NativeContractProbes/native-proto-presentation/Program.cs"
         ],
         "native_scenarios": [
           "scripts/native_presentation_acceptance.py"
@@ -9757,7 +9757,7 @@
         "native_owner_chunk": "N01.05",
         "build_role": "production",
         "fixtures": [
-          "contracts/tests/native-proto-presentation/Program.cs"
+          "contracts/tests/NativeContractProbes/native-proto-presentation/Program.cs"
         ],
         "native_scenarios": [
           "scripts/native_presentation_acceptance.py"
@@ -9776,7 +9776,7 @@
         "native_owner_chunk": "N01.05",
         "build_role": "production",
         "fixtures": [
-          "contracts/tests/native-proto-presentation/Program.cs"
+          "contracts/tests/NativeContractProbes/native-proto-presentation/Program.cs"
         ],
         "native_scenarios": [
           "scripts/native_presentation_acceptance.py"
@@ -9795,8 +9795,8 @@
         "native_owner_chunk": "N01.04",
         "build_role": "production",
         "fixtures": [
-          "contracts/tests/native-attempt-ledger/Program.cs",
-          "contracts/tests/native-construction-causality/Program.cs"
+          "contracts/tests/NativeContractProbes/native-attempt-ledger/Program.cs",
+          "contracts/tests/NativeContractProbes/native-construction-causality/Program.cs"
         ],
         "native_scenarios": [
           "scripts/native_guarded_construction_acceptance.py"
@@ -9816,13 +9816,13 @@
         "native_owner_chunk": "N01.04",
         "build_role": "production",
         "fixtures": [
-          "contracts/tests/native-attempt-ledger/Program.cs",
-          "contracts/tests/native-construction-causality/Program.cs",
-          "contracts/tests/native-movement-operations/Program.cs",
-          "contracts/tests/native-combat-operations/Program.cs",
-          "contracts/tests/native-combat-causality/Program.cs",
-          "contracts/tests/native-ranged-causality/Program.cs",
-          "contracts/tests/native-explosive-causality/Program.cs"
+          "contracts/tests/NativeContractProbes/native-attempt-ledger/Program.cs",
+          "contracts/tests/NativeContractProbes/native-construction-causality/Program.cs",
+          "contracts/tests/NativeContractProbes/native-movement-operations/Program.cs",
+          "contracts/tests/NativeContractProbes/native-combat-operations/Program.cs",
+          "contracts/tests/NativeContractProbes/native-combat-causality/Program.cs",
+          "contracts/tests/NativeContractProbes/native-ranged-causality/Program.cs",
+          "contracts/tests/NativeContractProbes/native-explosive-causality/Program.cs"
         ],
         "native_scenarios": [
           "scripts/native_guarded_construction_acceptance.py",

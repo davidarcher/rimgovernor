@@ -114,9 +114,10 @@ Run `scripts/native_protobuf_acceptance.py` through
 `/worker/run`; add `--rendered` for Xvfb and optionally `--go-preview-smoke` with
 the official-wire Linux Go smoke executable. The smoke explicitly transfers its
 own scenario's GABS connection and returns it for final native read checks.
-The focused C# projects under `contracts/tests/native-proto-*` and
-`contracts/tests/native-authority*` test parsing, SDK binding and authority
-semantics separately from this game run.
+The focused `native-proto-*` and `native-authority*` probes in the consolidated
+`contracts/tests/NativeContractProbes.csproj` (run with `dotnet run --project
+contracts/tests/NativeContractProbes.csproj -- <probe-name>`) test parsing, SDK
+binding and authority semantics separately from this game run.
 
 Use `scripts/native_go_service_acceptance.py --root /worker/run --go-service
 /inputs/profile/rimgovernor-go` through the scenario launcher with a private

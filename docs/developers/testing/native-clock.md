@@ -18,9 +18,11 @@ cross-family attempt conflicts, then verifies authority revocation interrupts pl
 Raw ProtoJSON exchanges and immutable event history are retained under
 `native-typed-clock-acceptance/`; inspect `result.json` as well as launcher cleanup.
 
-`contracts/tests/native-clock` exercises the production typed runtime against
-controlled game/SDK seams. These checks cover fault cases without establishing
-actual Harmony hook behavior or native simulation acceptance.
+The `native-clock` probe in `contracts/tests/NativeContractProbes.csproj` (run
+with `dotnet run --project contracts/tests/NativeContractProbes.csproj --
+native-clock`) exercises the production typed runtime against controlled
+game/SDK seams. These checks cover fault cases without establishing actual
+Harmony hook behavior or native simulation acceptance.
 
 `scripts/native_player_input_acceptance.py --source-root <prepared-root> --output
 <fresh-directory>` runs a visible isolated game. After each `ready.json` update, send
