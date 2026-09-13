@@ -43,6 +43,12 @@ namespace HomeBridge.BridgeTools
                     FullMethodName = "rimgovernor.authority.v1.Authority/ReadStatus",
                     Support = Lifecycle.CapabilitySupport.Supported
                 });
+                loaded.Capabilities.Add(new Lifecycle.Capability
+                {
+                    FullMethodName = "rimgovernor.lifecycle.v1.Lifecycle/Save",
+                    Support = Lifecycle.CapabilitySupport.Supported,
+                    Detail = "Trusted pause-gated single checkpoint save with pre/post identity, tick and pause re-verification. No load, reconnect or media/control ownership yet."
+                });
                 foreach (var method in new[] {
                     "rimgovernor.authority.v1.Authority/Control",
                     "rimgovernor.observations.v1.Observations/ReadStatus",

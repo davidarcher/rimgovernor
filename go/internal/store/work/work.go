@@ -85,6 +85,9 @@ func LoadAdmission(ctx context.Context, tx *sql.Tx, a domain.Action, p domain.Pr
 	return admission, true, nil
 }
 
+// GuardDispatch reports whether a dispatch at snapshot/tick is covered by an
+// existing admission record for action, mirroring the per-family matched-loop
+// that store.advanceInTransaction runs for every action kind.
 func GuardDispatch(admissions []ActionAdmission, action domain.ActionID, snapshot domain.GenerationSnapshot, tick domain.Tick) bool {
 	for _, record := range admissions {
 		if record.Action == action && record.Admission.Snapshot == snapshot && record.Admission.Tick <= tick {
@@ -94,6 +97,8 @@ func GuardDispatch(admissions []ActionAdmission, action domain.ActionID, snapsho
 	return false
 }
 
+// Insert records the canonical admission payload, used by Store.PrepareWork
+// inside its own transaction.
 func Insert(ctx context.Context, tx *sql.Tx, action domain.ActionID, admission Admission) error {
 	data, err := json.Marshal(admission)
 	if err != nil {

@@ -1549,6 +1549,41 @@ b; exact worker cleanup by a, with reuse by their later consumers.
   **Exit evidence:** rendered/input outcomes and same-session save/load/reconnect
   with no Python media/control service and no stale action reasons.
 
+  A trusted single-shot save checkpoint (only the save/checkpoint slice of this
+  item) is implemented, replacing `session_checkpoint.py`'s `create_checkpoint`
+  native interaction (identity/pause verify, save, re-verify) minus its
+  SQLite/filesystem manifest bookkeeping, which stays Python-runtime-specific
+  and out of scope. `lifecycle.proto`'s previously-unimplemented `Lifecycle/Save`
+  RPC is now wired end to end: native `ProtoLifecycleSaveTools.cs`
+  (`rimgovernor/lifecycle_save`) validates identity/direction/tick against
+  current `ObservationContext`, requires `Find.TickManager.Paused` already true,
+  calls `GameDataSaveLoader.SaveGame`, and re-verifies identity/tick/pause
+  after saving, returning `SaveCompleted`/`SaveUncertain`/`Failure` accordingly;
+  its capability is advertised in `ProtoIdentityTools`'s `ReadIdentity` list.
+  `bridge.LifecycleSave.Save` (`go/internal/bridge/lifecycle_save.go`) is the
+  typed Go client, validating the request before dispatch and the reply's
+  echoed identity/tick/direction/pause after. `buildingruntime.Control.Checkpoint`
+  (`go/internal/buildingruntime/save_boundary.go`) drains owned writers under
+  the existing control gate (`CleanupWrites`), refuses a stale direction or
+  foreign colony/load/map against `Control`'s live snapshot, and reports any
+  `SaveUncertain` outcome or mismatch as `ErrCheckpoint` — never a silent
+  success. Authority is never revoked and the profile lock is never released;
+  play continues in Manual after a checkpoint. Covered by bridge contract-shape
+  tests (malformed/missing request and reply fields, uncertain/failure outcomes)
+  and buildingruntime tests against a fake `LifecycleSaver` (happy path, no live
+  authority, stale direction/foreign world, drain failure, native failure,
+  uncertain outcome leaves authority live). `dotnet build` passes against the
+  real installed RimWorld/RimBridgeServer assemblies in this sandbox; `go
+  build/vet/test ./...` pass (the `go vet` output carries ten pre-existing
+  unkeyed-struct-literal warnings in `clock_review_test.go`/`clock_window_test.go`,
+  unrelated to this slice and not touched here). **Not yet verified:** no
+  native-acceptance run exercised this against a live game (no game available
+  in this sandbox); only compile-time and Go-side contract-shape checks are
+  done. **Explicitly out of scope for this slice:** load/reconnect (`Lifecycle/
+  Load`/`ReadLoad`/`ReadSave` remain unimplemented), camera/input ownership,
+  portraits, follow, video/recording/diagnostics, and competing-viewer
+  arbitration.
+
 - [ ] **G01.10 — Integrate the complete Go controller.**
   Compose the above paths in one process with clock, recovery and diagnostics;
   reconcile responsibilities against current Python source and domain/interface/
