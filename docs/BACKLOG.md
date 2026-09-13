@@ -681,8 +681,24 @@ without pushes, when the target checkout is safe; preserve other developers' wor
     native gap until it lands. `MaintainFireSafety`'s decision logic
     (`policy.EvaluateFireSafety`) is ported but unwired (moot below
     priority-3 development ranking). `MaintainEssentialRepairs` and
-    `MaintainCleanFacilities` have no routine-scheduler/CLI wiring yet
-    (`serve_clock.go` already wires `SecureSupplies`). `MaintainSleeping` is
+    `MaintainCleanFacilities` now each have routine-scheduler/CLI wiring
+    matching `SecureSupplies`'s precedent: a `policy.SelectRepair`/
+    `policy.SelectClean` pawn-and-target selection primitive (mirroring
+    `policy.SelectSecureSupplies` exactly, gated on the native Construction/
+    Cleaning work-type settings the same way Python's `colony_upkeep.py`
+    does), a `RoutineRepairPlanner`/`RoutineCleanPlanner` in
+    `buildingruntime`, and `--routine-repair-plans`/`--routine-clean-plans`
+    CLI flags threaded through `serve.go`/`serve_building.go`/
+    `serve_clock.go`. `policy.UpkeepStructure`/`UpkeepFilth` gained a `Cell`
+    field (sourced from each row's native entity position, the same way
+    `UpkeepItem` already carried one for `Haul`) since dispatch needs a
+    concrete cell to re-scope a fresh CAS token, and
+    `policy.DetectRoutine`'s upkeep loop no longer forces these two goals'
+    `MethodUnavailable`, matching `SecureSupplies`'s carve-out. `RepairAction`/
+    `CleanAction` were also missing from the three action-kind allowlists
+    every routine-dispatch vertical needs (`buildingruntime/worker.go`,
+    `buildingruntime/clock_scheduler.go`, `store/routine_execution.go`); both
+    are now present in all three. `MaintainSleeping` is
     now closed via a `BedAssign` typed-dispatch vertical (domain/policy/
     store/executor/buildingruntime, dispatchable through `Session.Run`).
     `MaintainHomeCoverage` is now closed via a `HomeCoverage` typed-dispatch

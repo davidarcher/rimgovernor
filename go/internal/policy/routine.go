@@ -526,10 +526,11 @@ func DetectRoutine(f RoutineFacts, previous RoutineLatches, p RoutinePolicy) (Ro
 		addAssessment(n.Goal, n.Priority, recovered)
 		if !positive(recovered) {
 			addGoal(n.Goal, n.Priority)
-			// SecureSupplies now has a composed haul-order method (G01.07c 05.4);
-			// the rest of the direct upkeep orders remain visible-only until
-			// their own dispatch verticals land.
-			if n.Goal != SecureSupplies {
+			// SecureSupplies, MaintainEssentialRepairs and MaintainCleanFacilities
+			// now each have a composed dispatch method (G01.07c 05.4); the rest of
+			// the direct upkeep orders remain visible-only until their own
+			// dispatch verticals land.
+			if n.Goal != SecureSupplies && n.Goal != MaintainEssentialRepairs && n.Goal != MaintainCleanFacilities {
 				r.Goals[len(r.Goals)-1].MethodUnavailable = true
 			}
 		}

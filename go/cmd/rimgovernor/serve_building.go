@@ -59,6 +59,8 @@ type buildingServiceBridge struct {
 	rescue              *rescue.RescueCapabilities
 	equip               *equip.EquipCapabilities
 	haul                *haul.HaulCapabilities
+	repair              *buildingruntime.RepairCapabilities
+	clean               *buildingruntime.CleanCapabilities
 	gearReplace         *buildingruntime.GearReplaceCapabilities
 	recoveryService     *buildingruntime.RecoveryServiceCapabilities
 	husbandry           *buildingruntime.HusbandryCapabilities
@@ -178,6 +180,8 @@ func openBuildingService(ctx context.Context, config bridge.ProcessConfig) (buil
 		rescue:              &rescue.RescueCapabilities{Native: client, Writer: pawnOrder},
 		equip:               &equip.EquipCapabilities{Native: client, Writer: pawnOrder},
 		haul:                &haul.HaulCapabilities{Native: client, Writer: pawnOrder},
+		repair:              &buildingruntime.RepairCapabilities{Native: client, Writer: pawnOrder},
+		clean:               &buildingruntime.CleanCapabilities{Native: client, Writer: pawnOrder},
 		gearReplace:         &buildingruntime.GearReplaceCapabilities{Native: client, Writer: gearReplace},
 		recoveryService:     &buildingruntime.RecoveryServiceCapabilities{Native: client, Writer: recoveryService},
 		husbandry:           &buildingruntime.HusbandryCapabilities{Native: client, Writer: husbandryWriter},
@@ -376,6 +380,20 @@ func serveBuildingWithBridge(ctx context.Context, config serveConfig, out io.Wri
 		}
 		haulCapabilities = client.haul
 	}
+	var repairCapabilities *buildingruntime.RepairCapabilities
+	if config.routineRepairPlans {
+		if client.repair == nil {
+			return errors.New("repair plans require typed repair capabilities")
+		}
+		repairCapabilities = client.repair
+	}
+	var cleanCapabilities *buildingruntime.CleanCapabilities
+	if config.routineCleanPlans {
+		if client.clean == nil {
+			return errors.New("clean plans require typed clean capabilities")
+		}
+		cleanCapabilities = client.clean
+	}
 	var gearReplaceCapabilities *buildingruntime.GearReplaceCapabilities
 	if config.routineGearPlans {
 		if client.gearReplace == nil {
@@ -428,6 +446,8 @@ func serveBuildingWithBridge(ctx context.Context, config serveConfig, out io.Wri
 		Rescue:              rescueCapabilities,
 		Equip:               equipCapabilities,
 		Haul:                haulCapabilities,
+		Repair:              repairCapabilities,
+		Clean:               cleanCapabilities,
 		GearReplace:         gearReplaceCapabilities,
 		RecoveryService:     recoveryServiceCapabilities,
 		Husbandry:           husbandryCapabilities,
@@ -456,7 +476,7 @@ func serveBuildingWithBridge(ctx context.Context, config serveConfig, out io.Wri
 	}
 	owner = player
 	if config.clockControl {
-		if err = startServiceClock(lifetime, player, session, client.clockReads, database, config.profile, callTimeout, config.routineReviews, config.routineSleepingPlans, config.routineCookingPlans, config.routineShelterPlans, config.routineComfortPlans, config.routineExpansionPlans, config.routinePowerPlans, config.routineTemperaturePlans, config.routineProjectLimit, config.routineSupplyPlans, config.routineWorkPlans, config.routineAcquisitionPlans, config.routineDefensePlans, config.routineTendPlans, config.routineRescuePlans, config.routineEquipPlans, config.routineSecureSuppliesPlans, config.routineGearPlans, config.routineMedicalPlans, config.routineAnimalContainmentPlans, config.routineRecoveryPlans, config.routineHusbandryPlans, config.caravanJourneyTracking, config.routineResearchTarget, config.routineResourceTargets.Map(), config.routineFieldPlans, config.routineBillPlans, config.routineFoodStoragePlans, config.routinePrisonerInteractionPlans); err != nil {
+		if err = startServiceClock(lifetime, player, session, client.clockReads, database, config.profile, callTimeout, config.routineReviews, config.routineSleepingPlans, config.routineCookingPlans, config.routineShelterPlans, config.routineComfortPlans, config.routineExpansionPlans, config.routinePowerPlans, config.routineTemperaturePlans, config.routineProjectLimit, config.routineSupplyPlans, config.routineWorkPlans, config.routineAcquisitionPlans, config.routineDefensePlans, config.routineTendPlans, config.routineRescuePlans, config.routineEquipPlans, config.routineSecureSuppliesPlans, config.routineRepairPlans, config.routineCleanPlans, config.routineGearPlans, config.routineMedicalPlans, config.routineAnimalContainmentPlans, config.routineRecoveryPlans, config.routineHusbandryPlans, config.caravanJourneyTracking, config.routineResearchTarget, config.routineResourceTargets.Map(), config.routineFieldPlans, config.routineBillPlans, config.routineFoodStoragePlans, config.routinePrisonerInteractionPlans); err != nil {
 			return err
 		}
 	}

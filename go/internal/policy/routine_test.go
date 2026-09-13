@@ -158,3 +158,24 @@ func TestRoutineRejectsInvalidFactsAndPolicy(t *testing.T) {
 		t.Fatal("invalid thresholds accepted")
 	}
 }
+
+func TestRoutineRepairAndCleanDeficitsStayMethodAvailable(t *testing.T) {
+	f := stableRoutine()
+	f.Upkeep.Structures = domain.Known([]UpkeepStructure{{ID: "wall", Home: true, HitPoints: 1, MaxHitPoints: 2}})
+	f.Upkeep.Filth = domain.Known([]UpkeepFilth{{ID: "dirt", Home: true}})
+	r := needs(t, f, RoutineLatches{})
+	for _, id := range []GoalID{MaintainEssentialRepairs, MaintainCleanFacilities} {
+		found := false
+		for _, g := range r.Goals {
+			if g.ID == id {
+				found = true
+				if g.MethodUnavailable {
+					t.Fatal("expected method available for", id)
+				}
+			}
+		}
+		if !found {
+			t.Fatal("expected goal present for", id)
+		}
+	}
+}

@@ -35,7 +35,7 @@ func colonyUpkeep(v *o.ColonyFactsSnapshot) policy.UpkeepObservation {
 				known = false
 				break
 			}
-			rows = append(rows, policy.UpkeepStructure{ID: b.Building.GetId(), Home: item.GetHome(), HitPoints: int64(b.GetHitPoints()), MaxHitPoints: int64(b.GetMaxHitPoints()), Priority: int(item.GetRepairPriority())})
+			rows = append(rows, policy.UpkeepStructure{ID: b.Building.GetId(), Cell: domain.Cell{X: b.Building.GetPosition().GetX(), Z: b.Building.GetPosition().GetZ()}, Home: item.GetHome(), HitPoints: int64(b.GetHitPoints()), MaxHitPoints: int64(b.GetMaxHitPoints()), Priority: int(item.GetRepairPriority())})
 		}
 		if known {
 			r.Structures = domain.Known(rows)
@@ -63,7 +63,7 @@ func colonyUpkeep(v *o.ColonyFactsSnapshot) policy.UpkeepObservation {
 				known = false
 				break
 			}
-			rows = append(rows, policy.UpkeepFilth{ID: item.Filth.GetId(), Home: item.GetHome(), Room: item.GetRoomRole(), Thickness: item.GetThickness()})
+			rows = append(rows, policy.UpkeepFilth{ID: item.Filth.GetId(), Cell: domain.Cell{X: item.Filth.GetPosition().GetX(), Z: item.Filth.GetPosition().GetZ()}, Home: item.GetHome(), Room: item.GetRoomRole(), Thickness: item.GetThickness()})
 		}
 		if known {
 			r.Filth = domain.Known(rows)

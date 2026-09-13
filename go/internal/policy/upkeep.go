@@ -35,6 +35,7 @@ type UpkeepItem struct {
 }
 type UpkeepStructure struct {
 	ID                      string
+	Cell                    domain.Cell
 	Home                    bool
 	HitPoints, MaxHitPoints int64
 	Priority                int
@@ -46,6 +47,7 @@ type UpkeepFire struct {
 }
 type UpkeepFilth struct {
 	ID        string
+	Cell      domain.Cell
 	Home      bool
 	Room      string
 	Thickness uint32
@@ -171,7 +173,7 @@ func ReviewUpkeep(v UpkeepObservation, previous UpkeepHistory, issued map[GoalID
 		}
 		selected := []UpkeepStructure{}
 		for _, row := range rows {
-			if !valid(seen, row.ID) || row.HitPoints < 0 || row.MaxHitPoints < row.HitPoints || row.Priority < 0 || row.Priority > 2 {
+			if !valid(seen, row.ID) || row.HitPoints < 0 || row.MaxHitPoints < row.HitPoints || row.Priority < 0 || row.Priority > 2 || row.Cell.X < 0 || row.Cell.Z < 0 {
 				return r, errors.New("invalid upkeep structure")
 			}
 			if row.Home && row.MaxHitPoints > 0 && row.HitPoints < row.MaxHitPoints {
@@ -206,7 +208,7 @@ func ReviewUpkeep(v UpkeepObservation, previous UpkeepHistory, issued map[GoalID
 		}
 		selected := []UpkeepFilth{}
 		for _, row := range rows {
-			if !valid(seen, row.ID) || len(row.Room) > 256 {
+			if !valid(seen, row.ID) || len(row.Room) > 256 || row.Cell.X < 0 || row.Cell.Z < 0 {
 				return r, errors.New("invalid upkeep filth")
 			}
 			if row.Home {

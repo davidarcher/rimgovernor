@@ -51,6 +51,8 @@ type serveConfig struct {
 	routineRescuePlans              bool
 	routineEquipPlans               bool
 	routineSecureSuppliesPlans      bool
+	routineRepairPlans              bool
+	routineCleanPlans               bool
 	routineGearPlans                bool
 	routineMedicalPlans             bool
 	routineAnimalContainmentPlans   bool
@@ -94,6 +96,8 @@ func parseServe(args []string, diagnostics io.Writer) (serveConfig, error) {
 	flags.BoolVar(&c.routineRescuePlans, "routine-rescue-plans", false, "compile downed-colonist rescue selection into shared plans")
 	flags.BoolVar(&c.routineEquipPlans, "routine-equip-plans", false, "compile unarmed-colonist weapon equip selection into shared plans")
 	flags.BoolVar(&c.routineSecureSuppliesPlans, "routine-secure-supplies-plans", false, "compile a vulnerable-item haul selection into shared plans")
+	flags.BoolVar(&c.routineRepairPlans, "routine-repair-plans", false, "compile a damaged-structure repair selection into shared plans")
+	flags.BoolVar(&c.routineCleanPlans, "routine-clean-plans", false, "compile a filth cleaning selection into shared plans")
 	flags.BoolVar(&c.routineGearPlans, "routine-gear-plans", false, "compile existing-gear wear replacement selection into shared plans")
 	flags.BoolVar(&c.routineMedicalPlans, "routine-medical-plans", false, "compile medicine reserve replenishment bill selection into shared plans")
 	flags.BoolVar(&c.routineAnimalContainmentPlans, "routine-animal-containment-plans", false, "compile animal pen shell/marker containment method selection into shared plans")
@@ -138,18 +142,18 @@ func parseServe(args []string, diagnostics io.Writer) (serveConfig, error) {
 	if c.caravanJourneyTracking && !c.clockControl {
 		return c, errors.New("--caravan-journey-tracking requires --clock-control")
 	}
-	if (c.routineBillPlans || c.routineFieldPlans || c.routineFoodStoragePlans || c.routineAcquisitionPlans || c.routineWorkPlans || c.routineSupplyPlans || c.routineSleepingPlans || c.routineCookingPlans || c.routineShelterPlans || c.routineComfortPlans || c.routineExpansionPlans || c.routinePowerPlans || c.routineTemperaturePlans || c.routineDefensePlans || c.routineTendPlans || c.routineRescuePlans || c.routineEquipPlans || c.routineSecureSuppliesPlans || c.routineGearPlans || c.routineMedicalPlans || c.routineAnimalContainmentPlans || c.routineRecoveryPlans || c.routineHusbandryPlans || c.routinePrisonerInteractionPlans || c.routineResearchTarget != "" || c.routineResourcePlans) && !c.routineReviews {
+	if (c.routineBillPlans || c.routineFieldPlans || c.routineFoodStoragePlans || c.routineAcquisitionPlans || c.routineWorkPlans || c.routineSupplyPlans || c.routineSleepingPlans || c.routineCookingPlans || c.routineShelterPlans || c.routineComfortPlans || c.routineExpansionPlans || c.routinePowerPlans || c.routineTemperaturePlans || c.routineDefensePlans || c.routineTendPlans || c.routineRescuePlans || c.routineEquipPlans || c.routineSecureSuppliesPlans || c.routineRepairPlans || c.routineCleanPlans || c.routineGearPlans || c.routineMedicalPlans || c.routineAnimalContainmentPlans || c.routineRecoveryPlans || c.routineHusbandryPlans || c.routinePrisonerInteractionPlans || c.routineResearchTarget != "" || c.routineResourcePlans) && !c.routineReviews {
 		return c, errors.New("routine building plans require --routine-reviews")
 	}
-	if c.routineMethods && !c.routineBillPlans && !c.routineFieldPlans && !c.routineFoodStoragePlans && !c.routineAcquisitionPlans && !c.routineWorkPlans && !c.routineSupplyPlans && !c.routineSleepingPlans && !c.routineCookingPlans && !c.routineShelterPlans && !c.routineComfortPlans && !c.routineExpansionPlans && !c.routinePowerPlans && !c.routineTemperaturePlans && !c.routineDefensePlans && !c.routineTendPlans && !c.routineRescuePlans && !c.routineEquipPlans && !c.routineSecureSuppliesPlans && !c.routineGearPlans && !c.routineMedicalPlans && !c.routineAnimalContainmentPlans && !c.routineRecoveryPlans && !c.routineHusbandryPlans && !c.routinePrisonerInteractionPlans && c.routineResearchTarget == "" && !c.routineResourcePlans {
+	if c.routineMethods && !c.routineBillPlans && !c.routineFieldPlans && !c.routineFoodStoragePlans && !c.routineAcquisitionPlans && !c.routineWorkPlans && !c.routineSupplyPlans && !c.routineSleepingPlans && !c.routineCookingPlans && !c.routineShelterPlans && !c.routineComfortPlans && !c.routineExpansionPlans && !c.routinePowerPlans && !c.routineTemperaturePlans && !c.routineDefensePlans && !c.routineTendPlans && !c.routineRescuePlans && !c.routineEquipPlans && !c.routineSecureSuppliesPlans && !c.routineRepairPlans && !c.routineCleanPlans && !c.routineGearPlans && !c.routineMedicalPlans && !c.routineAnimalContainmentPlans && !c.routineRecoveryPlans && !c.routineHusbandryPlans && !c.routinePrisonerInteractionPlans && c.routineResearchTarget == "" && !c.routineResourcePlans {
 		return c, errors.New("--routine-methods requires a routine building planner")
 	}
-	// Defense/tend/rescue/equip/secure-supplies/gear/medical/animal-containment/recovery/husbandry/prisoner-interaction/research/resource
+	// Defense/tend/rescue/equip/secure-supplies/repair/clean/gear/medical/animal-containment/recovery/husbandry/prisoner-interaction/research/resource
 	// plans never become the literal current plan (see clockSchedulerWork); they
 	// can only run through the RoutineMethods concurrent-authorization path, so
 	// without it their committed plans would never be authorized or dispatched.
-	if (c.routineDefensePlans || c.routineTendPlans || c.routineRescuePlans || c.routineEquipPlans || c.routineSecureSuppliesPlans || c.routineGearPlans || c.routineMedicalPlans || c.routineAnimalContainmentPlans || c.routineRecoveryPlans || c.routineHusbandryPlans || c.routinePrisonerInteractionPlans || c.routineResearchTarget != "" || c.routineResourcePlans) && !c.routineMethods {
-		return c, errors.New("--routine-defense-plans, --routine-tend-plans, --routine-rescue-plans, --routine-equip-plans, --routine-secure-supplies-plans, --routine-gear-plans, --routine-medical-plans, --routine-animal-containment-plans, --routine-recovery-plans, --routine-husbandry-plans, --routine-prisoner-interaction-plans, --routine-research-target and --routine-resource-plans require --routine-methods")
+	if (c.routineDefensePlans || c.routineTendPlans || c.routineRescuePlans || c.routineEquipPlans || c.routineSecureSuppliesPlans || c.routineRepairPlans || c.routineCleanPlans || c.routineGearPlans || c.routineMedicalPlans || c.routineAnimalContainmentPlans || c.routineRecoveryPlans || c.routineHusbandryPlans || c.routinePrisonerInteractionPlans || c.routineResearchTarget != "" || c.routineResourcePlans) && !c.routineMethods {
+		return c, errors.New("--routine-defense-plans, --routine-tend-plans, --routine-rescue-plans, --routine-equip-plans, --routine-secure-supplies-plans, --routine-repair-plans, --routine-clean-plans, --routine-gear-plans, --routine-medical-plans, --routine-animal-containment-plans, --routine-recovery-plans, --routine-husbandry-plans, --routine-prisoner-interaction-plans, --routine-research-target and --routine-resource-plans require --routine-methods")
 	}
 	if len(c.routineResourceTargets) > 0 && !c.routineResourcePlans {
 		return c, errors.New("--routine-resource-target requires --routine-resource-plans")

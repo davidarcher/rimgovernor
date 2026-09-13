@@ -87,7 +87,7 @@ func (s *Store) AuthorizeRoutinePlan(ctx context.Context, root, target domain.Ge
 			domain.ZoneCreateAction, domain.ProductionBillAction, domain.OwnedDraftAction, domain.MeleeAttackAction,
 			domain.RangedAttackAction, domain.TendAction, domain.RescueAction, domain.HaulAction, domain.EquipAction,
 			domain.GearReplaceAction, domain.RecoveryServiceAction, domain.BedAssignAction, domain.HusbandryAction,
-			domain.PrisonerInteractionAction:
+			domain.PrisonerInteractionAction, domain.RepairAction, domain.CleanAction:
 		default:
 			return errors.New("routine execution requires supported routine methods")
 		}

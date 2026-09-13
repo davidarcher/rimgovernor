@@ -51,6 +51,8 @@ type ClockSchedulerConfig struct {
 	Rescue                           *RoutineRescuePlanner
 	Equip                            *RoutineEquipPlanner
 	SecureSupplies                   *RoutineSecureSuppliesPlanner
+	Repair                           *RoutineRepairPlanner
+	Clean                            *RoutineCleanPlanner
 	Gear                             *RoutineGearPlanner
 	Medical                          *RoutineMedicalPlanner
 	AnimalContainment                *RoutineAnimalContainmentPlanner
@@ -84,6 +86,8 @@ type ClockSchedulerResult struct {
 	Rescue                                        *RoutineRescueResult
 	Equip                                         *RoutineEquipResult
 	SecureSupplies                                *RoutineSecureSuppliesResult
+	Repair                                        *RoutineRepairResult
+	Clean                                         *RoutineCleanResult
 	Gear                                          *RoutineGearResult
 	Medical                                       *RoutineMedicalResult
 	AnimalContainment                             *RoutineAnimalContainmentResult
@@ -173,6 +177,12 @@ func NewClockScheduler(player *Player, session *Session, native ClockWindowNativ
 		return nil, ErrControl
 	}
 	if config.SecureSupplies != nil && (config.Routine == nil || config.SecureSupplies.reviewer != config.Routine) {
+		return nil, ErrControl
+	}
+	if config.Repair != nil && (config.Routine == nil || config.Repair.reviewer != config.Routine) {
+		return nil, ErrControl
+	}
+	if config.Clean != nil && (config.Routine == nil || config.Clean.reviewer != config.Routine) {
 		return nil, ErrControl
 	}
 	if config.AnimalContainment != nil && (config.Routine == nil || config.AnimalContainment.reviewer != config.Routine) {
@@ -350,6 +360,20 @@ func (s *ClockScheduler) Step(ctx context.Context) (ClockSchedulerResult, error)
 			return out, err
 		}
 		out.SecureSupplies = &method
+	}
+	if s.config.Repair != nil {
+		method, err := s.config.Repair.step(call, epoch)
+		if err != nil {
+			return out, err
+		}
+		out.Repair = &method
+	}
+	if s.config.Clean != nil {
+		method, err := s.config.Clean.step(call, epoch)
+		if err != nil {
+			return out, err
+		}
+		out.Clean = &method
 	}
 	if s.config.Gear != nil {
 		method, err := s.config.Gear.step(call, epoch)
@@ -719,7 +743,8 @@ func clockSchedulerWork(plan store.PlanState, current domain.GenerationSnapshot)
 			case domain.AcquisitionAction, domain.ProductionBillAction, domain.OwnedDraftAction,
 				domain.MeleeAttackAction, domain.RangedAttackAction, domain.TendAction, domain.RescueAction,
 				domain.HaulAction, domain.EquipAction, domain.GearReplaceAction, domain.RecoveryServiceAction,
-				domain.BedAssignAction, domain.HusbandryAction, domain.PrisonerInteractionAction:
+				domain.BedAssignAction, domain.HusbandryAction, domain.PrisonerInteractionAction,
+				domain.RepairAction, domain.CleanAction:
 			default:
 				return false, nil, executor.ErrHeld
 			}
