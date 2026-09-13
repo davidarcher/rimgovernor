@@ -1918,7 +1918,7 @@ main. Native package and Go production cutover remain independent.
     `nativeaccept.ValidateDiscovery`, with unit tests in
     `go/internal/nativeaccept/harness_test.go`. No behavior change; this only
     removes the last piece of the Python import dependency for later slices.
-  - [ ] **Slice 2 — pawn-order family.** `native_draft_acceptance.py`/
+  - [x] **Slice 2 — pawn-order family.** `native_draft_acceptance.py`/
     `native_combat_acceptance.py`/`native_movement_acceptance.py` still import
     `native_pawn_acceptance.py` directly.
     - [x] **Draft.** Ported to `go/internal/nativeaccept/cmd/draftaccept` plus
@@ -1944,24 +1944,50 @@ main. Native package and Go production cutover remain independent.
       usage) are themselves ported off it — tracked by the Combat/movement
       sub-item below, which is what actually blocks retirement now, not a
       missing live run.
-    - [ ] **Combat/movement — scenario-clock framework landed; binaries not
-      started.** `native_typed_clock_acceptance.py`'s
+    - [x] **Combat/movement.** `native_typed_clock_acceptance.py`'s
       `TypedScenarioClock`/`ScenarioRuntime` and
       `controller/rimgovernor/native_scenario.py`'s `advance_game` (the
       tick-advancing scenario supervisor with its own clock-event validation
-      and authority-renewal logic) are now ported to Go as
+      and authority-renewal logic) are ported to Go as
       `ScenarioClock`/`ScenarioRuntime`/`AdvanceGame` in
       `go/internal/nativeaccept/scenario.go`, unit-tested against fake
       wire/query doubles (no live bridge connection needed) in
       `scenario_test.go`. `CombatScenarioClock`'s Python-inheritance override
       is folded into the base `ScenarioClock` via a `CombatTargets []string`
-      field rather than subclassing. This unblocks, but does not complete,
-      `cmd/combataccept`/`cmd/movementaccept`: those binaries (porting
-      `native_combat_acceptance.py`/`native_movement_acceptance.py`'s `run()`
-      flows) and their live-verified runs are separate follow-on work, not yet
-      started. `bridge/attack.go`/`movement.go` already cover the underlying
-      operation logic with unit tests, so the remaining work is wiring the two
-      binaries to the new scenario clock, not new domain logic.
+      field rather than subclassing. `native_combat_acceptance.py`/
+      `native_movement_acceptance.py`'s `run()` flows are ported to
+      `go/internal/nativeaccept/cmd/combataccept`/`cmd/movementaccept`,
+      reusing `draftaccept`'s exported helpers and the new scenario clock.
+      Builds, vets and unit-tests clean.
+      **Live-verified:** both binaries ran against real headless RimWorld —
+      `.rimgovernor/native-runs/movementaccept-live-7/result.json` and
+      `.rimgovernor/native-runs/combataccept-live-2/result.json`, both
+      `passed: true` — the game-level acceptance bar this backlog's
+      completion rule requires is now met for both.
+      **Environment note, not a code defect:** getting a genuine passing run
+      required discovering that this machine's shared Steam
+      `Mods/RimGovernor` install had been overwritten by another concurrent
+      session's native build (a `production`-role build, missing the
+      `EmergencyDevelopmentFixture` dev fixture that `test/b04f_setup`
+      depends on) — every earlier live attempt (Go **and** the unmodified
+      Python originals) failed identically with `GABP error -31002: Tool
+      'test/b04f_setup' not found`, proving the port itself was never at
+      fault. Fixed by giving this repo an isolated RimWorld working
+      directory (`.rimgovernor/isolated-rimworld`: directory junctions to
+      the shared read-only game/`Data` files, plus a private
+      `Mods/RimGovernor` built from this repo's own fixture-role build) so
+      concurrent sessions on the same machine can no longer clobber each
+      other's installed native package. `config/config.json`'s
+      `games.rimgovernor-trial.target`/`workingDir` now point at that
+      isolated copy instead of the shared Steam install.
+      **`scripts/native_combat_acceptance.py`/`native_movement_acceptance.py`
+      still cannot be deleted**: `controller_tests/test_native_combat_acceptance.py`/
+      `test_native_movement_acceptance.py` still load them by path (the
+      Slice 3 loader pattern), and `native_draft_acceptance.py` likewise
+      stays in place for the same reason as before (`native_go_draft_acceptance.py`
+      and `controller_tests/test_native_draft_acceptance.py` still import
+      it). Retirement of all three is now blocked only on Slice 3's loader
+      conversion, not on any remaining Go/live-verification work.
   - [ ] **Slice 3 — remaining `controller_tests/test_native_*` loaders.** 34
     files still load a `scripts/*_acceptance.py` by path (the legacy pattern
     in `test_native_pawn_acceptance.py` etc.). Convert each to a Go `_test.go`

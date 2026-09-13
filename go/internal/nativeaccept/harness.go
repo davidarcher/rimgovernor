@@ -11,6 +11,7 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
+	"time"
 
 	"github.com/davidarcher/RimGovernor/go/internal/bridge"
 )
@@ -158,6 +159,51 @@ func (h *Harness) Discovery(ctx context.Context) ([]string, error) {
 		}
 	}
 	return nil, fmt.Errorf("discovery exceeded the bounded page limit")
+}
+
+// WaitForNativeTool polls games_tool_names until name is discoverable or timeout
+// elapses. Some fixture ("test/*") tools are briefly absent from the native catalog
+// immediately after a Superfast clock window stops (observed live: a games_call_tool
+// on such a tool right after AdvanceGame returns can refuse with "Tool ... not found"
+// even though the clock's own status already reports actualPaused/pauseVerified
+// true), so callers that call a fixture tool right after AdvanceGame should wait for
+// it here first rather than assume the catalog is already settled.
+func WaitForNativeTool(ctx context.Context, client *bridge.Client, name string, timeout time.Duration) error {
+	deadline := time.Now().Add(timeout)
+	var lastErr error
+	for {
+		result, err := client.NativeNames(ctx, "", name)
+		if err != nil {
+			lastErr = err
+		} else {
+			var page struct {
+				Tools []struct {
+					GABPName string `json:"gabpName"`
+				} `json:"tools"`
+			}
+			if err := json.Unmarshal(result.Structured, &page); err != nil {
+				lastErr = fmt.Errorf("invalid discovery page: %w", err)
+			} else {
+				lastErr = nil
+				for _, tool := range page.Tools {
+					if tool.GABPName == name {
+						return nil
+					}
+				}
+			}
+		}
+		if time.Now().After(deadline) {
+			if lastErr != nil {
+				return fmt.Errorf("tool %q not discoverable after %s: %w", name, timeout, lastErr)
+			}
+			return fmt.Errorf("tool %q not discoverable after %s", name, timeout)
+		}
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		case <-time.After(200 * time.Millisecond):
+		}
+	}
 }
 
 // ValidateDiscovery asserts discovered names carry no duplicate registrations, cover
