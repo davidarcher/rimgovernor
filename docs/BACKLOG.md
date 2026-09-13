@@ -2120,6 +2120,25 @@ main. Native package and Go production cutover remain independent.
       underlying `scripts/native_{research,rooms,supplies}_acceptance.py`
       modules stay in place per this backlog's import rule, tracked
       separately from this test-loader slice.
+    - [x] **`native_package_acceptance.py` (1 file).** One of the three
+      load-bearing shared-harness modules this backlog's sequencing note
+      flags (14 dependents). Its three functions already had exact Go
+      equivalents landed with Slice 1/2's harness work —
+      `nativeaccept.CheckStartupLog`, `nativeaccept.PackageFiles`, and
+      `nativeaccept.Outcome` (the oneof-exactness half of `protobuf_outcome`;
+      its outer payload-string/isError unwrapping is `Harness.Wire`'s job,
+      already exercised live by every `cmd/*accept` binary) — but carried no
+      direct unit-test coverage of their own. Added
+      `TestCheckStartupLogRequiresBatchPatchesAndPreservesGraphicalMode`,
+      `TestPackageFilesRequiresBothLoaderAssembliesAndRejectsMixedInstall`,
+      `TestOutcomeRequiresExactlyOneNamedCase` to `harness_test.go`, porting
+      `test_native_package_acceptance.py`'s exact fixtures/assertions
+      (batch-log markers, mixed-package-install rejection, oneof exactness).
+      No behavior gaps found — this sub-slice is pure test-coverage parity,
+      not a bug-fix pass. `go build`/`vet`/`test ./...` clean; the Python
+      test loader is deleted. `scripts/native_package_acceptance.py` itself
+      (and its 14 dependents) stay in place until they're each converted —
+      this only retires its own `controller_tests/` loader.
   - [ ] **Slice 4 — subsystem long tail (~70 remaining `scripts/*_acceptance.py`).**
     Group by existing `bridge/*.go` domain and land as independent sub-slices:
     construction/building; upkeep/comfort/gear/power (largest cluster); food/
