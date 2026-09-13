@@ -50,6 +50,7 @@ type SessionConfig struct {
 	BedAssign        *BedAssignCapabilities
 	ResearchSelect   *ResearchSelectCapabilities
 	CaravanDeparture *CaravanDepartureCapabilities
+	Husbandry        *HusbandryCapabilities
 }
 
 // Session binds the single profile owner to one journal and executor. Its caller
@@ -306,6 +307,9 @@ func NewSession(ctx context.Context, config SessionConfig, journal *store.Store,
 	if config.CaravanDeparture != nil && (config.CaravanDeparture.Native == nil || config.CaravanDeparture.Writer == nil) {
 		return cleanup(ErrControl)
 	}
+	if config.Husbandry != nil && (config.Husbandry.Native == nil || config.Husbandry.Writer == nil) {
+		return cleanup(ErrControl)
+	}
 	var routine []executor.RoutineScope
 	if config.RoutineMethods {
 		routine = append(routine, journal)
@@ -446,6 +450,15 @@ func NewSession(ctx context.Context, config SessionConfig, journal *store.Store,
 			return cleanup(err)
 		}
 		if err := worker.EnableCaravanDeparture(caravanDepartureBoundary); err != nil {
+			return cleanup(err)
+		}
+	}
+	if config.Husbandry != nil {
+		husbandryBoundary, err := NewHusbandryBoundary(config.Husbandry.Native, config.Husbandry.Writer, sessionBuildingLeases{control, journal, config.RoutineMethods, config.Executor.JournalTimeout}, clock, string(namespace))
+		if err != nil {
+			return cleanup(err)
+		}
+		if err := worker.EnableHusbandry(husbandryBoundary); err != nil {
 			return cleanup(err)
 		}
 	}
