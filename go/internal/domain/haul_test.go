@@ -6,8 +6,9 @@ import (
 )
 
 func TestHaulIntentAndClosedVariants(t *testing.T) {
-	intent, err := NewHaul("pawn", "thing", "MealSimple")
-	if err != nil || intent.Pawn() != "pawn" || intent.Thing() != "thing" || intent.Definition() != "MealSimple" {
+	cell := Cell{X: 1, Z: 1}
+	intent, err := NewHaul("pawn", "thing", "MealSimple", cell)
+	if err != nil || intent.Pawn() != "pawn" || intent.Thing() != "thing" || intent.Definition() != "MealSimple" || intent.Cell() != cell {
 		t.Fatal(intent, err)
 	}
 	action, err := NewHaulAction("haul", intent)
@@ -27,23 +28,26 @@ func TestHaulIntentAndClosedVariants(t *testing.T) {
 		t.Fatal("zero intent accepted")
 	}
 	for _, invalid := range []string{"", " ", "x\x00y", strings.Repeat("x", 257), string([]byte{0xff})} {
-		if _, err := NewHaul(PawnID(invalid), "thing", "MealSimple"); err == nil {
+		if _, err := NewHaul(PawnID(invalid), "thing", "MealSimple", cell); err == nil {
 			t.Fatal("invalid pawn accepted")
 		}
-		if _, err := NewHaul("pawn", invalid, "MealSimple"); err == nil {
+		if _, err := NewHaul("pawn", invalid, "MealSimple", cell); err == nil {
 			t.Fatal("invalid thing accepted")
 		}
-		if _, err := NewHaul("pawn", "thing", invalid); err == nil {
+		if _, err := NewHaul("pawn", "thing", invalid, cell); err == nil {
 			t.Fatal("invalid definition accepted")
 		}
 		if _, err := NewHaulAction(ActionID(invalid), intent); err == nil {
 			t.Fatal("invalid action accepted")
 		}
 	}
+	if _, err := NewHaul("pawn", "thing", "MealSimple", Cell{X: -1, Z: 0}); err == nil {
+		t.Fatal("negative cell accepted")
+	}
 }
 
 func TestHaulPlanDoesNotRequireADraftPrerequisite(t *testing.T) {
-	intent, _ := NewHaul("pawn", "thing", "MealSimple")
+	intent, _ := NewHaul("pawn", "thing", "MealSimple", Cell{X: 1, Z: 1})
 	action, _ := NewHaulAction("haul", intent)
 	plan, err := NewPlan("plan", 1, []Action{action})
 	if err != nil {
