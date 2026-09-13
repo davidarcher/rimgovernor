@@ -66,6 +66,7 @@ func completedFacility(t *testing.T, source domain.GoalSource, proof, cancelFirs
 }
 
 func TestConstructionClaimsRejectPlayerUnprovenFutureAndCancelledWork(t *testing.T) {
+	t.Parallel()
 	for _, kind := range []string{"player", "unproven", "future", "cancel-before", "cancel-after"} {
 		t.Run(kind, func(t *testing.T) {
 			source := domain.AutopilotGoal
@@ -95,6 +96,7 @@ func TestConstructionClaimsRejectPlayerUnprovenFutureAndCancelledWork(t *testing
 }
 
 func TestFacilityUpkeepDurableUnknownManualAndPlayerReplacement(t *testing.T) {
+	t.Parallel()
 	s, path, _, building := completedFacility(t, domain.AutopilotGoal, true, false)
 	r := routineRequest()
 	r.Tick = 12
@@ -133,6 +135,7 @@ func TestFacilityUpkeepDurableUnknownManualAndPlayerReplacement(t *testing.T) {
 }
 
 func TestRoutineReviewCannotInventConstructionOrZoneOwnership(t *testing.T) {
+	t.Parallel()
 	s, _, _ := goalFixture(t)
 	defer s.Close()
 	r := routineRequest()

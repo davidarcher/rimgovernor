@@ -28,6 +28,7 @@ func (n *fieldTestNative) PreviewZone(ctx context.Context, id *c.Identity, targe
 	return &op.PreviewReply{Outcome: &op.PreviewReply_Evaluated{Evaluated: &op.PreviewEvaluation{Context: proto.Clone(n.reply.GetObserved().Context).(*c.ObservationContext), Accepted: proto.Bool(true)}}}, bridge.Result{}, nil
 }
 func TestFieldPlannerReservationsCASAndManual(t *testing.T) {
+	t.Parallel()
 	ctx := context.Background()
 	base, db, session, request, n := sleepingFixture(t)
 	reviewer := base.reviewer

@@ -39,6 +39,7 @@ func cookingFixture(t *testing.T) (*RoutineBuildingPlanner, *store.Store, *sleep
 }
 
 func TestRoutineCookingAdmitsSingleCostedMethodWithoutCertifyingFood(t *testing.T) {
+	t.Parallel()
 	p, db, native := cookingFixture(t)
 	result, err := p.Step(context.Background())
 	if err != nil || result.Reason != BuildingMethodAdmitted || native.previews != 1 {
@@ -58,6 +59,7 @@ func TestRoutineCookingAdmitsSingleCostedMethodWithoutCertifyingFood(t *testing.
 }
 
 func TestRoutineCookingWaitsForExistingFacilitiesAndUnknownInputs(t *testing.T) {
+	t.Parallel()
 	for _, change := range []string{"usable", "campfire", "unknown", "stock", "definition"} {
 		t.Run(change, func(t *testing.T) {
 			p, _, native := cookingFixture(t)
@@ -95,6 +97,7 @@ func TestRoutineCookingWaitsForExistingFacilitiesAndUnknownInputs(t *testing.T) 
 }
 
 func TestRoutineCookingCannotSpendPlayerReservation(t *testing.T) {
+	t.Parallel()
 	p, db, _ := cookingFixture(t)
 	ctx := context.Background()
 	root := p.reviewer.player.State().Snapshot
@@ -114,6 +117,7 @@ func TestRoutineCookingCannotSpendPlayerReservation(t *testing.T) {
 }
 
 func TestRoutineCookingWaitsForOtherCommittedCampfire(t *testing.T) {
+	t.Parallel()
 	p, db, native := cookingFixture(t)
 	ctx := context.Background()
 	b, err := domain.NewBuilding("Campfire", domain.Cell{X: 30, Z: 30}, domain.North, "")

@@ -63,6 +63,7 @@ func prepare(t *testing.T, s *Store, action domain.ActionID) {
 }
 
 func TestReopenRetainsPlanAndAllProgress(t *testing.T) {
+	t.Parallel()
 	ctx := context.Background()
 	s, path := fixture(t)
 	prepare(t, s, "b")
@@ -113,6 +114,7 @@ func TestReopenRetainsPlanAndAllProgress(t *testing.T) {
 	}
 }
 func TestRetryAttemptsAndReceiptsSurviveRestart(t *testing.T) {
+	t.Parallel()
 	ctx := context.Background()
 	s, path := fixture(t)
 	prepare(t, s, "a")
@@ -170,6 +172,7 @@ func TestRetryAttemptsAndReceiptsSurviveRestart(t *testing.T) {
 	}
 }
 func TestAtomicCreateAndDispatchFailureRollback(t *testing.T) {
+	t.Parallel()
 	ctx := context.Background()
 	s, _ := fixture(t)
 	if err := s.CreatePlan(ctx, plan(t, "p", "new")); !errors.Is(err, ErrConflict) {
@@ -209,6 +212,7 @@ func TestAtomicCreateAndDispatchFailureRollback(t *testing.T) {
 	}
 }
 func TestConcurrentDispatchExactlyOneWins(t *testing.T) {
+	t.Parallel()
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 	s, path := fixture(t)
@@ -247,6 +251,7 @@ func TestConcurrentDispatchExactlyOneWins(t *testing.T) {
 	}
 }
 func TestContendedTransactionHonorsCancellation(t *testing.T) {
+	t.Parallel()
 	s, path := fixture(t)
 	other := open(t, path)
 	tx, err := s.begin(context.Background())
@@ -276,6 +281,7 @@ func TestContendedTransactionHonorsCancellation(t *testing.T) {
 	}
 }
 func TestRejectsIncompatibleAndCorruptStore(t *testing.T) {
+	t.Parallel()
 	for _, statement := range []string{"PRAGMA user_version=999", "PRAGMA application_id=12", "PRAGMA user_version=0; PRAGMA application_id=0"} {
 		t.Run(statement, func(t *testing.T) {
 			s, path := fixture(t)

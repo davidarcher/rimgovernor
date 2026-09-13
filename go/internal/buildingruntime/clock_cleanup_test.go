@@ -47,6 +47,7 @@ func clockCleanupStart(t *testing.T) (*ClockCoordinator, *store.Store, *clockCor
 	return q, db, f, intent
 }
 func TestClockCleanupAfterStopPausesOnce(t *testing.T) {
+	t.Parallel()
 	q, db, f, intent := clockCleanupStart(t)
 	if err := q.Stop(context.Background()); err != nil {
 		t.Fatal(err)
@@ -63,6 +64,7 @@ func TestClockCleanupAfterStopPausesOnce(t *testing.T) {
 	}
 }
 func TestClockCleanupLostPauseObservedBeforeRetry(t *testing.T) {
+	t.Parallel()
 	q, db, f, intent := clockCleanupStart(t)
 	f.pause = func(context.Context) error { return context.DeadlineExceeded }
 	if err := q.Cleanup(context.Background()); err == nil {
@@ -85,6 +87,7 @@ func TestClockCleanupLostPauseObservedBeforeRetry(t *testing.T) {
 	}
 }
 func TestClockCleanupWorldReplacementAndUnavailable(t *testing.T) {
+	t.Parallel()
 	q, db, f, intent := clockCleanupStart(t)
 	f.identityError = bridge.ErrUnavailable
 	if err := q.Cleanup(context.Background()); err == nil || f.pauses != 0 {
@@ -102,6 +105,7 @@ func TestClockCleanupWorldReplacementAndUnavailable(t *testing.T) {
 	}
 }
 func TestClockCleanupUnknownStartRecoveryAndRetirement(t *testing.T) {
+	t.Parallel()
 	for _, replace := range []bool{false, true} {
 		t.Run(map[bool]string{false: "recover", true: "replace"}[replace], func(t *testing.T) {
 			q, db, f, intent := clockCoreFixture(t)
@@ -134,6 +138,7 @@ func TestClockCleanupUnknownStartRecoveryAndRetirement(t *testing.T) {
 	}
 }
 func TestClockCleanupUnknownNeverAdoptsRunningStatus(t *testing.T) {
+	t.Parallel()
 	q, db, f, intent := clockCoreFixture(t)
 	_ = q.UpdateAuthority(executor.Authority{Snapshot: intent.Snapshot, Enabled: true})
 	f.lost = true
@@ -148,6 +153,7 @@ func TestClockCleanupUnknownNeverAdoptsRunningStatus(t *testing.T) {
 	}
 }
 func TestClockCleanupCancellationPersistsAndJoins(t *testing.T) {
+	t.Parallel()
 	q, db, f, intent := clockCleanupStart(t)
 	started := make(chan struct{})
 	release := make(chan struct{})
@@ -189,6 +195,7 @@ func (f clockCleanupFreshIdentity) Identity(ctx context.Context) (*l.IdentityRep
 	return reply, raw, err
 }
 func TestClockCleanupRejectsStatusGenerationBehindIdentity(t *testing.T) {
+	t.Parallel()
 	for _, missing := range []bool{false, true} {
 		t.Run(map[bool]string{false: "regressed", true: "unknown"}[missing], func(t *testing.T) {
 			q, db, f, intent := clockCleanupStart(t)

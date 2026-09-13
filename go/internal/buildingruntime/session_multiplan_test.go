@@ -15,6 +15,7 @@ import (
 )
 
 func TestSessionOtherStoredPlanHoldSurvivesManualAndRestart(t *testing.T) {
+	t.Parallel()
 	ctx := context.Background()
 	dir := t.TempDir()
 	path := filepath.Join(dir, "plans.sqlite")

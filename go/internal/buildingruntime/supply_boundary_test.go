@@ -53,6 +53,7 @@ func newSupplyBoundaryFixture(t *testing.T) (*supplyBoundary, *supplyBoundaryFix
 	return &supplyBoundary{Boundary: b, supply: SupplyCapabilities{Native: f, Writer: f}}, f
 }
 func TestSupplyBoundaryLeaseFreeReadbackAndExactPrecondition(t *testing.T) {
+	t.Parallel()
 	b, f := newSupplyBoundaryFixture(t)
 	ctx := context.Background()
 	p := f.placement
@@ -70,6 +71,7 @@ func TestSupplyBoundaryLeaseFreeReadbackAndExactPrecondition(t *testing.T) {
 	}
 }
 func TestSupplyBoundaryRejectsForeignAndIncompleteEvidence(t *testing.T) {
+	t.Parallel()
 	for _, kind := range []string{"item", "cell", "incomplete", "reason", "world"} {
 		t.Run(kind, func(t *testing.T) {
 			b, f := newSupplyBoundaryFixture(t)

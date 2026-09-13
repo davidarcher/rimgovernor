@@ -8,6 +8,7 @@ import (
 )
 
 func TestCausalTerminalOutcomesReplayAfterRestart(t *testing.T) {
+	t.Parallel()
 	ctx := context.Background()
 	for _, effect := range []domain.Effect{domain.EffectCompleted, domain.EffectUnsuccessful} {
 		t.Run(string(effect), func(t *testing.T) {

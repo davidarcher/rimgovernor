@@ -22,6 +22,7 @@ func comfortCensus(using bool) policy.ComfortObservation {
 }
 
 func TestRoutineComfortUseSurvivesRestartManualButNotReplacement(t *testing.T) {
+	t.Parallel()
 	path := filepath.Join(t.TempDir(), "comfort.db")
 	s := open(t, path)
 	r := routineRequest()
@@ -64,6 +65,7 @@ func TestRoutineComfortUseSurvivesRestartManualButNotReplacement(t *testing.T) {
 }
 
 func TestRoutineComfortWorldResetAndInvalidDisabledHistory(t *testing.T) {
+	t.Parallel()
 	for _, change := range []string{"world", "rewind"} {
 		t.Run(change, func(t *testing.T) {
 			s := open(t, filepath.Join(t.TempDir(), "comfort.db"))

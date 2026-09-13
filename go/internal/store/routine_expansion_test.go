@@ -9,6 +9,7 @@ import (
 )
 
 func TestExpansionDurableRenewalUnknownAndPlayerCapacity(t *testing.T) {
+	t.Parallel()
 	ctx := context.Background()
 	path := filepath.Join(t.TempDir(), "expansion.db")
 	s := open(t, path)
@@ -62,6 +63,7 @@ func TestExpansionDurableRenewalUnknownAndPlayerCapacity(t *testing.T) {
 }
 
 func TestRoutineCapabilitiesPreserveCommittedExpansion(t *testing.T) {
+	t.Parallel()
 	ctx := context.Background()
 	s := open(t, filepath.Join(t.TempDir(), "capabilities.db"))
 	defer s.Close()

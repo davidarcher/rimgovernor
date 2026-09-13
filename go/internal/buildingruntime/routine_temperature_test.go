@@ -24,6 +24,7 @@ type temperatureNative struct {
 }
 
 func TestTemperatureReadIsOptInAndBracketRejectsLateResults(t *testing.T) {
+	t.Parallel()
 	for _, mode := range []string{"disabled", "expired", "cancelled", "generation"} {
 		t.Run(mode, func(t *testing.T) {
 			p, db, n, _ := temperatureFixture(t, false)
@@ -63,6 +64,7 @@ func TestTemperatureReadIsOptInAndBracketRejectsLateResults(t *testing.T) {
 }
 
 func TestTemperatureNativeWorkBudgetRequiresCompletedCurrentDirection(t *testing.T) {
+	t.Parallel()
 	for _, definition := range []string{"Campfire", "PassiveCooler", "Wall"} {
 		building, _ := domain.NewBuilding(definition, domain.Cell{X: 1, Z: 1}, domain.North, "")
 		action, _ := domain.NewBuildingAction("thermal", building)
@@ -160,6 +162,7 @@ func temperatureFixture(t *testing.T, hot bool) (*RoutineBuildingPlanner, *store
 }
 
 func TestTemperatureSharedMethodPlacementAndManual(t *testing.T) {
+	t.Parallel()
 	for _, hot := range []bool{false, true} {
 		t.Run(map[bool]string{false: "cold", true: "hot"}[hot], func(t *testing.T) {
 			p, db, n, request := temperatureFixture(t, hot)
@@ -199,6 +202,7 @@ func TestTemperatureSharedMethodPlacementAndManual(t *testing.T) {
 }
 
 func TestTemperatureUnknownExistingFacilityAndRecoveredRoom(t *testing.T) {
+	t.Parallel()
 	for _, mode := range []string{"unavailable", "existing", "recovered", "stale", "skill", "spill", "stock"} {
 		t.Run(mode, func(t *testing.T) {
 			p, db, n, _ := temperatureFixture(t, false)

@@ -127,6 +127,7 @@ func controlFixture(t *testing.T, stop func(context.Context) error) (*Control, *
 	return control, n, sink, dir
 }
 func TestControlOwnsProfileAndExplicitLease(t *testing.T) {
+	t.Parallel()
 	control, n, sink, dir := controlFixture(t, nil)
 	if other, err := runtimeowner.Acquire(context.Background(), dir); err == nil {
 		other.Close()
@@ -176,6 +177,7 @@ func TestControlOwnsProfileAndExplicitLease(t *testing.T) {
 	other.Close()
 }
 func TestControlUncertainAcquireRequiresObservationAndNeverAdopts(t *testing.T) {
+	t.Parallel()
 	control, n, sink, _ := controlFixture(t, nil)
 	n.onGrant = func(context.Context, string, *a.ControlReply) error {
 		return &bridge.AuthorityUncertain{Cause: errors.New("reply lost")}
@@ -194,6 +196,7 @@ func TestControlUncertainAcquireRequiresObservationAndNeverAdopts(t *testing.T) 
 	}
 }
 func TestControlRejectsBadGrantsAndConservativeDeadline(t *testing.T) {
+	t.Parallel()
 	for _, kind := range []string{"owner", "generation", "expired"} {
 		t.Run(kind, func(t *testing.T) {
 			control, n, sink, _ := controlFixture(t, nil)
@@ -216,6 +219,7 @@ func TestControlRejectsBadGrantsAndConservativeDeadline(t *testing.T) {
 	}
 }
 func TestControlManualCancelsActiveAndQueuedRenew(t *testing.T) {
+	t.Parallel()
 	control, n, sink, _ := controlFixture(t, nil)
 	snapshot, err := control.Acquire(context.Background(), controlScope())
 	if err != nil {
@@ -257,6 +261,7 @@ func TestControlManualCancelsActiveAndQueuedRenew(t *testing.T) {
 	}
 }
 func TestControlCloseRetainsLockUntilWritersDrain(t *testing.T) {
+	t.Parallel()
 	var draining atomic.Bool
 	control, _, sink, dir := controlFixture(t, func(context.Context) error {
 		if !draining.Load() {
@@ -286,6 +291,7 @@ func TestControlCloseRetainsLockUntilWritersDrain(t *testing.T) {
 }
 
 func TestControlLeaseExpiryDisablesSinkWithoutNewCalls(t *testing.T) {
+	t.Parallel()
 	control, n, sink, _ := controlFixture(t, nil)
 	n.onGrant = func(_ context.Context, _ string, r *a.ControlReply) error {
 		r.GetGranted().Authority.RemainingLeaseMs = proto.Uint32(100)
@@ -323,6 +329,7 @@ acquired:
 }
 
 func TestControlCloseJoinsActiveRenew(t *testing.T) {
+	t.Parallel()
 	control, n, sink, _ := controlFixture(t, nil)
 	snapshot, err := control.Acquire(context.Background(), controlScope())
 	if err != nil {
@@ -359,6 +366,7 @@ func TestControlCloseJoinsActiveRenew(t *testing.T) {
 }
 
 func TestControlRefreshRetainsDisabledCurrentGeneration(t *testing.T) {
+	t.Parallel()
 	control, n, sink, _ := controlFixture(t, nil)
 	if _, err := control.Acquire(context.Background(), controlScope()); err != nil {
 		t.Fatal(err)
@@ -387,6 +395,7 @@ func TestControlRefreshRetainsDisabledCurrentGeneration(t *testing.T) {
 }
 
 func TestControlObserveTargetRestartsWithoutAcquiringOrAdopting(t *testing.T) {
+	t.Parallel()
 	control, n, sink, _ := controlFixture(t, nil)
 	n.mu.Lock()
 	n.generation = 7
@@ -427,6 +436,7 @@ func TestControlObserveTargetRestartsWithoutAcquiringOrAdopting(t *testing.T) {
 }
 
 func TestControlObserveTargetFailureDoesNotPublishRequestedGeneration(t *testing.T) {
+	t.Parallel()
 	control, n, sink, _ := controlFixture(t, nil)
 	n.onRead = func(context.Context) error { return errors.New("unavailable") }
 	requested := controlScope()
@@ -443,6 +453,7 @@ func TestControlObserveTargetFailureDoesNotPublishRequestedGeneration(t *testing
 }
 
 func TestControlFailedObservationClearsSeededTargetButRetainsCleanup(t *testing.T) {
+	t.Parallel()
 	for _, operation := range []string{"refresh", "retarget", "malformed", "timeout"} {
 		t.Run(operation, func(t *testing.T) {
 			control, native, sink, _ := controlFixture(t, nil)
@@ -500,6 +511,7 @@ func TestControlFailedObservationClearsSeededTargetButRetainsCleanup(t *testing.
 }
 
 func TestControlAcquireSupersedesBlockedObserveTarget(t *testing.T) {
+	t.Parallel()
 	control, n, sink, _ := controlFixture(t, nil)
 	entered := make(chan struct{})
 	var reads atomic.Int32

@@ -13,6 +13,7 @@ import (
 )
 
 func TestWorkPlannerAppliesSavedOverrideAndInvalidatesOnPreferenceChange(t *testing.T) {
+	t.Parallel()
 	r, db, session, _, n := routineFixture(t)
 	r.native = &healthyWorkNative{routineMedicalNative: &routineMedicalNative{routineNative: n}}
 	v := n.reply.GetObserved()

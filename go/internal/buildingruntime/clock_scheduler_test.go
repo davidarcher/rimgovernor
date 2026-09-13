@@ -42,6 +42,7 @@ func schedulerFixture(t *testing.T) (*ClockScheduler, *schedulerNative) {
 	return scheduler, native
 }
 func TestClockSchedulerStartsOnceAndLeavesRunningEpoch(t *testing.T) {
+	t.Parallel()
 	s, f := schedulerFixture(t)
 	got, err := s.Step(context.Background())
 	if err != nil || got.Attempt == nil || got.Attempt.Phase != store.ClockApplied || f.writes != 1 {
@@ -60,6 +61,7 @@ func TestClockSchedulerStartsOnceAndLeavesRunningEpoch(t *testing.T) {
 	}
 }
 func TestClockSchedulerUnknownRecoversExactRequest(t *testing.T) {
+	t.Parallel()
 	s, f := schedulerFixture(t)
 	f.lost = true
 	first, err := s.Step(context.Background())
@@ -72,6 +74,7 @@ func TestClockSchedulerUnknownRecoversExactRequest(t *testing.T) {
 	}
 }
 func TestClockSchedulerUnsafeAndUnreviewedNeverStart(t *testing.T) {
+	t.Parallel()
 	for _, kind := range []string{"unsafe", "unreviewed", "unknown", "disabled", "cancelled"} {
 		t.Run(kind, func(t *testing.T) {
 			s, f := schedulerFixture(t)
@@ -100,6 +103,7 @@ func TestClockSchedulerUnsafeAndUnreviewedNeverStart(t *testing.T) {
 	}
 }
 func TestClockSchedulerIdentityAndInertPrepared(t *testing.T) {
+	t.Parallel()
 	s, f := schedulerFixture(t)
 	// Prepare the exact prospective request without dispatch, then let native time
 	// advance. Undispatched history must not permanently prevent a new window.
@@ -133,6 +137,7 @@ func TestClockSchedulerIdentityAndInertPrepared(t *testing.T) {
 	}
 }
 func TestClockSchedulerRejectsProfileAndSuppression(t *testing.T) {
+	t.Parallel()
 	s, _ := schedulerFixture(t)
 	config := s.config
 	config.Profile = t.TempDir()
@@ -148,6 +153,7 @@ func TestClockSchedulerRejectsProfileAndSuppression(t *testing.T) {
 }
 
 func TestClockSchedulerCancelledWorkCannotAdvanceTime(t *testing.T) {
+	t.Parallel()
 	s, _ := schedulerFixture(t)
 	state, err := s.player.journal.LoadPlan(context.Background(), s.session.State().Snapshot.Plan)
 	if err != nil {
@@ -174,6 +180,7 @@ func TestClockSchedulerCancelledWorkCannotAdvanceTime(t *testing.T) {
 }
 
 func TestClockSchedulerUnknownStartWorldReplacement(t *testing.T) {
+	t.Parallel()
 	s, f := schedulerFixture(t)
 	f.lost = true
 	first, err := s.Step(context.Background())

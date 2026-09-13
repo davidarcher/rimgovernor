@@ -55,6 +55,7 @@ func shelterFixture(t *testing.T) (*RoutineBuildingPlanner, *store.Store, *sleep
 }
 
 func TestRoutineShelterAdmitsWholeShellWithObservedDoorDependency(t *testing.T) {
+	t.Parallel()
 	r, db, n := shelterFixture(t)
 	result, err := r.Step(context.Background())
 	if err != nil || result.Reason != BuildingMethodAdmitted || n.previews != 32 {
@@ -95,6 +96,7 @@ func TestRoutineShelterAdmitsWholeShellWithObservedDoorDependency(t *testing.T) 
 }
 
 func TestRoutineShelterNeverCommitsPartialOrUnknownShell(t *testing.T) {
+	t.Parallel()
 	for _, change := range []string{"late-refusal", "footprint", "stock-short", "stock-conflict", "stock-unknown", "definition", "room-unknown", "terrain", "zone", "protected", "stale", "direction", "reserve"} {
 		t.Run(change, func(t *testing.T) {
 			r, db, n := shelterFixture(t)
@@ -154,6 +156,7 @@ func TestRoutineShelterNeverCommitsPartialOrUnknownShell(t *testing.T) {
 }
 
 func TestRoutineShelterPrefersExistingRoom(t *testing.T) {
+	t.Parallel()
 	r, db, _, _, n := sleepingFixture(t)
 	planner, err := NewRoutineShelterPlanner(r.reviewer, n)
 	if err != nil {
@@ -176,6 +179,7 @@ func TestRoutineShelterPrefersExistingRoom(t *testing.T) {
 }
 
 func TestShelterRoofingBudgetRequiresObservedCompletionAndDoesNotRenew(t *testing.T) {
+	t.Parallel()
 	r, db, _ := shelterFixture(t)
 	result, err := r.Step(context.Background())
 	if err != nil || !result.Decision.Admitted {
@@ -231,6 +235,7 @@ func TestShelterRoofingBudgetRequiresObservedCompletionAndDoesNotRenew(t *testin
 }
 
 func TestRoutineShelterManualCancelsWholePendingShell(t *testing.T) {
+	t.Parallel()
 	r, db, n := shelterFixture(t)
 	// This case journals cancellation of 32 dependent actions under race detection.
 	r.reviewer.player.config.CallTimeout = 5 * time.Second
@@ -299,6 +304,7 @@ func completeRoutineBuildingMethod(t *testing.T, db *store.Store, result Routine
 }
 
 func TestShelterRoofingContinuesAfterFurnishingUntilNativeCapacityRecovers(t *testing.T) {
+	t.Parallel()
 	r, db, n := shelterFixture(t)
 	r.reviewer.player.config.CallTimeout = 5 * time.Second
 	ctx := context.Background()

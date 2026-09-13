@@ -9,6 +9,7 @@ import (
 )
 
 func TestMedicalReserveRetainsHistoryAcrossManualUnknownAndRestart(t *testing.T) {
+	t.Parallel()
 	ctx := context.Background()
 	path := filepath.Join(t.TempDir(), "medicine.db")
 	s := open(t, path)

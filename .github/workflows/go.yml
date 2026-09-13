@@ -38,7 +38,10 @@ jobs:
           go mod tidy -diff
           if ($LASTEXITCODE -ne 0) { throw 'Module graph needs tidy' }
       - run: go vet ./...
-      - run: go test ./...
+      - name: Test (fails if any single test exceeds 10s)
+        run: |
+          go test -json ./... | go run ./internal/testkit/cmd/checktesttimes -max 10s
+          if ($LASTEXITCODE -ne 0) { throw 'Tests failed or a test exceeded the 10s per-test budget' }
       - name: Build gated command
         run: go build -trimpath -o ../.rimgovernor/go/rimgovernor${{ runner.os == 'Windows' && '.exe' || '' }} ./cmd/rimgovernor
       - name: Linux race checks

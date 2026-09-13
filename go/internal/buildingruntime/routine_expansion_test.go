@@ -11,6 +11,7 @@ import (
 )
 
 func TestExpansionSelectionReusesFurnishingAndWholeShell(t *testing.T) {
+	t.Parallel()
 	r := &RoutineBuildingPlanner{goal: policy.EnsureExpansion}
 	f := observation.ColonyProjection{Facts: policy.RoutineFacts{Colonists: domain.Known(int64(3)), IndoorCapacity: domain.Known(int64(3)), HousingTarget: domain.Known(int64(20))}}
 	n, id, reason := r.selection(f)
@@ -33,6 +34,7 @@ func TestExpansionSelectionReusesFurnishingAndWholeShell(t *testing.T) {
 }
 
 func TestExpansionAdmitsSparePlaceAndManualCancels(t *testing.T) {
+	t.Parallel()
 	base, db, _, request, n := sleepingFixture(t)
 	ctx := context.Background()
 	prepareExpansionReview(t, db, n)
@@ -79,6 +81,7 @@ func prepareExpansionReview(t *testing.T, db *store.Store, n *sleepingNative) {
 	}
 }
 func TestExpansionAdmitsWholeShellWhenExistingRoomsAreFull(t *testing.T) {
+	t.Parallel()
 	base, db, n := shelterFixture(t)
 	prepareExpansionReview(t, db, n)
 	r, err := NewRoutineExpansionPlanner(base.reviewer, n)

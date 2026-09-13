@@ -107,6 +107,7 @@ func playerAcquire(t *testing.T, p *Player) store.ControlRequest {
 }
 
 func TestPlayerExactReplayAndChangedRequestConflict(t *testing.T) {
+	t.Parallel()
 	p, db, s, worlds := playerFixture(t)
 	q := playerAcquire(t, p)
 	record, err := p.Acquire(context.Background(), q)
@@ -140,6 +141,7 @@ func TestPlayerExactReplayAndChangedRequestConflict(t *testing.T) {
 }
 
 func TestPlayerManualStaleWorldStopsLocallyAndReplayDoesNotCleanAgain(t *testing.T) {
+	t.Parallel()
 	p, _, s, worlds := playerFixture(t)
 	q := playerAcquire(t, p)
 	if _, err := p.Acquire(context.Background(), q); err != nil {
@@ -164,6 +166,7 @@ func TestPlayerManualStaleWorldStopsLocallyAndReplayDoesNotCleanAgain(t *testing
 }
 
 func TestPlayerHistoricalReplayCannotChangeControlMethod(t *testing.T) {
+	t.Parallel()
 	p, _, session, _ := playerFixture(t)
 	acquire := playerAcquire(t, p)
 	if _, err := p.Acquire(context.Background(), acquire); err != nil {
@@ -196,6 +199,7 @@ func (c *queuedPlayerContext) Done() <-chan struct{} {
 	return c.done
 }
 func TestPlayerManualPreemptsActiveAndQueuedAcquire(t *testing.T) {
+	t.Parallel()
 	p, db, s, _ := playerFixture(t)
 	q := playerAcquire(t, p)
 	entered, release := make(chan struct{}), make(chan struct{})
@@ -260,6 +264,7 @@ func TestPlayerManualPreemptsActiveAndQueuedAcquire(t *testing.T) {
 }
 
 func TestPlayerDroppedContextFinishesAdmittedControl(t *testing.T) {
+	t.Parallel()
 	p, db, s, _ := playerFixture(t)
 	q := playerAcquire(t, p)
 	ctx, cancel := context.WithCancel(context.Background())
@@ -278,6 +283,7 @@ func TestPlayerDroppedContextFinishesAdmittedControl(t *testing.T) {
 }
 
 func TestPlayerWorldReplacementAfterIntentPreventsAcquire(t *testing.T) {
+	t.Parallel()
 	p, db, session, _ := playerFixture(t)
 	q := playerAcquire(t, p)
 	reads := 0
@@ -300,6 +306,7 @@ func TestPlayerWorldReplacementAfterIntentPreventsAcquire(t *testing.T) {
 }
 
 func TestPlayerRestartHistoricalPendingAndGrantedNeverEnable(t *testing.T) {
+	t.Parallel()
 	for _, phase := range []store.ControlPhase{store.PendingControl, store.GrantedControl} {
 		t.Run(string(phase), func(t *testing.T) {
 			ctx := context.Background()
@@ -347,6 +354,7 @@ func TestPlayerRestartHistoricalPendingAndGrantedNeverEnable(t *testing.T) {
 }
 
 func TestPlayerActualSessionCleansPriorOwnedLeaseAndRejectsForeignOwner(t *testing.T) {
+	t.Parallel()
 	ctx := context.Background()
 	dir := t.TempDir()
 	db, err := store.Open(ctx, filepath.Join(dir, "state.sqlite"))
@@ -406,6 +414,7 @@ func TestPlayerActualSessionCleansPriorOwnedLeaseAndRejectsForeignOwner(t *testi
 }
 
 func TestPlayerCloseDrainsBeforeSessionCloseAndRetriesFailure(t *testing.T) {
+	t.Parallel()
 	p, _, s, _ := playerFixture(t)
 	q := playerAcquire(t, p)
 	entered, release := make(chan struct{}), make(chan struct{})
@@ -439,6 +448,7 @@ func TestPlayerCloseDrainsBeforeSessionCloseAndRetriesFailure(t *testing.T) {
 }
 
 func TestPlayerCompletionJournalFailureDisablesGrantedLease(t *testing.T) {
+	t.Parallel()
 	ctx := context.Background()
 	path := filepath.Join(t.TempDir(), "state.sqlite")
 	db, err := store.Open(ctx, path)

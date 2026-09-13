@@ -12,6 +12,7 @@ import (
 )
 
 func TestClockSequenceWindowPreparedReplayAndLogicalMismatch(t *testing.T) {
+	t.Parallel()
 	for _, mismatch := range []bool{false, true} {
 		t.Run(map[bool]string{false: "exact", true: "mismatched-key"}[mismatch], func(t *testing.T) {
 			s, native := schedulerFixture(t)
@@ -54,6 +55,7 @@ func TestClockSequenceWindowPreparedReplayAndLogicalMismatch(t *testing.T) {
 	}
 }
 func TestClockSequenceRenewUsesGlobalAllocation(t *testing.T) {
+	t.Parallel()
 	s, _, _, start := renewalFixture(t)
 	// An unrelated inert command consumes the global sequence. Renewal must not
 	// derive a reusable identifier by counting only this epoch's renewal rows.
@@ -84,6 +86,7 @@ func (c *sequenceCompetingClock) Now() time.Time {
 	return (boundaryClock{}).Now()
 }
 func TestClockSequenceCASConflictWaitsForNextStep(t *testing.T) {
+	t.Parallel()
 	s, native := schedulerFixture(t)
 	s.session.clock.clock = &sequenceCompetingClock{before: func() {
 		inert := store.ClockIntent{RequestID: clockTestNextID(t, s.player.journal), Snapshot: s.session.State().Snapshot}

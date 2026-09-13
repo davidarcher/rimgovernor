@@ -39,6 +39,7 @@ func retirementHead(t *testing.T, s *Store) ClockSequenceState {
 	return v
 }
 func TestClockRetirementSparseUnknownAndRestart(t *testing.T) {
+	t.Parallel()
 	ctx := context.Background()
 	path := filepath.Join(t.TempDir(), "retirement.db")
 	s := open(t, path)
@@ -86,6 +87,7 @@ func TestClockRetirementSparseUnknownAndRestart(t *testing.T) {
 	}
 }
 func TestClockRetirementStartProvenanceAndAtomicRollback(t *testing.T) {
+	t.Parallel()
 	ctx := context.Background()
 	s := open(t, filepath.Join(t.TempDir(), "epochs.db"))
 	start := retirementPrepare(t, s)
@@ -146,6 +148,7 @@ func TestClockRetirementStartProvenanceAndAtomicRollback(t *testing.T) {
 }
 
 func TestClockRetirementKeepsLatestWindowAnchor(t *testing.T) {
+	t.Parallel()
 	ctx := context.Background()
 	s, _, _, intent := windowStoreFixture(t)
 	var latest string
@@ -181,6 +184,7 @@ func TestClockRetirementKeepsLatestWindowAnchor(t *testing.T) {
 	}
 }
 func TestClockRetirementPinnedCapacity(t *testing.T) {
+	t.Parallel()
 	ctx := context.Background()
 	s := open(t, filepath.Join(t.TempDir(), "capacity.db"))
 	tx, err := s.begin(ctx)

@@ -40,6 +40,7 @@ func schedulerRoutine(t *testing.T, s *ClockScheduler, f *schedulerNative) *rout
 }
 
 func TestClockSchedulerReviewsRoutineOnlyAtPausedBoundary(t *testing.T) {
+	t.Parallel()
 	s, f := schedulerFixture(t)
 	n := schedulerRoutine(t, s, f)
 	first, err := s.Step(context.Background())
@@ -60,6 +61,7 @@ func TestClockSchedulerReviewsRoutineOnlyAtPausedBoundary(t *testing.T) {
 }
 
 func TestClockSchedulerFailedRoutineReadCannotStartWindow(t *testing.T) {
+	t.Parallel()
 	s, f := schedulerFixture(t)
 	n := schedulerRoutine(t, s, f)
 	n.onRead = func(context.Context) { n.reply.GetObserved().ColonistCount = proto.Uint32(0) }
@@ -74,6 +76,7 @@ func TestClockSchedulerFailedRoutineReadCannotStartWindow(t *testing.T) {
 }
 
 func TestClockSchedulerRejectsDifferentRoutineOwner(t *testing.T) {
+	t.Parallel()
 	s, _ := schedulerFixture(t)
 	r, _, _, _, _ := routineFixture(t)
 	config := s.config

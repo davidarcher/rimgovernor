@@ -9,6 +9,7 @@ import (
 )
 
 func TestDraftScopeSupersessionReopensWithoutInventingEvidence(t *testing.T) {
+	t.Parallel()
 	for _, known := range []bool{false, true} {
 		name := "unknown"
 		if known {
@@ -60,6 +61,7 @@ func TestDraftScopeSupersessionReopensWithoutInventingEvidence(t *testing.T) {
 }
 
 func TestDraftScopeSupersessionRollbackAndInvalidEvidence(t *testing.T) {
+	t.Parallel()
 	ctx := context.Background()
 	s, _, v, a := draftFixture(t)
 	draftDispatch(t, s, v, a)
@@ -95,6 +97,7 @@ func TestDraftScopeSupersessionRollbackAndInvalidEvidence(t *testing.T) {
 }
 
 func TestDraftScopeEventRejectsCorruption(t *testing.T) {
+	t.Parallel()
 	for _, kind := range []string{"missing", "extra-arm", "wrong-origin", "unknown-field", "foreign-namespace"} {
 		t.Run(kind, func(t *testing.T) {
 			ctx := context.Background()

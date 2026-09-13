@@ -30,6 +30,7 @@ func (n *routineSupplyNative) ReadAllowSupplies(_ context.Context, _ *c.Identity
 	return out, bridge.Result{}, nil
 }
 func TestSupplyPlannerBoundsPendingWorkAndManualCancels(t *testing.T) {
+	t.Parallel()
 	ctx := context.Background()
 	reviewer, db, session, request, native := routineFixture(t)
 	native.reply.GetObserved().ForbiddenSupplies = []*c.Cell{{X: proto.Int32(1), Z: proto.Int32(2)}}
@@ -86,6 +87,7 @@ func TestSupplyPlannerBoundsPendingWorkAndManualCancels(t *testing.T) {
 	}
 }
 func TestSupplyPlannerRejectsChangedWorld(t *testing.T) {
+	t.Parallel()
 	reviewer, db, _, _, native := routineFixture(t)
 	native.reply.GetObserved().ForbiddenSupplies = []*c.Cell{{X: proto.Int32(1), Z: proto.Int32(2)}}
 	if _, err := reviewer.Step(context.Background()); err != nil {

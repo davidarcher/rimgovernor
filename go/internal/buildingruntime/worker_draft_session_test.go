@@ -27,6 +27,7 @@ func draftSessionWorker(t *testing.T, session *Session, journal *store.Store) *W
 }
 
 func TestWorkerActualDraftSessionReleasesDisabledStandalone(t *testing.T) {
+	t.Parallel()
 	session, native, journal, _ := draftSessionFixture(t, false)
 	worker := draftSessionWorker(t, session, journal)
 	if session.State().Enabled {
@@ -66,6 +67,7 @@ func TestWorkerActualDraftSessionReleasesDisabledStandalone(t *testing.T) {
 }
 
 func TestWorkerActualDraftSessionRecoversUnknownBeforeRelease(t *testing.T) {
+	t.Parallel()
 	session, native, journal, _ := draftSessionFixture(t, true)
 	worker := draftSessionWorker(t, session, journal)
 	now := time.Now()
@@ -103,6 +105,7 @@ func TestWorkerActualDraftSessionRecoversUnknownBeforeRelease(t *testing.T) {
 }
 
 func TestWorkerActualDraftSessionRetiresReplacementWorldWithoutRelease(t *testing.T) {
+	t.Parallel()
 	for _, unknown := range []bool{false, true} {
 		name := "known-claim"
 		if unknown {

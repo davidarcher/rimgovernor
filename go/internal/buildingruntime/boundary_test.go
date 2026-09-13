@@ -112,6 +112,7 @@ func (f *boundaryFixture) Holds(context.Context, domain.GenerationSnapshot) ([]p
 	return nil, f.holdErr
 }
 func TestBoundaryInspectionNativeContextAndCompleteHolds(t *testing.T) {
+	t.Parallel()
 	b, f := newBoundaryFixture(t)
 	out, err := b.Inspect(context.Background(), executor.Target{Action: f.placement.Action, Snapshot: f.placement.Snapshot})
 	if err != nil || !out.ExternalHoldsComplete || out.Tick != 11 {
@@ -130,6 +131,7 @@ func TestBoundaryInspectionNativeContextAndCompleteHolds(t *testing.T) {
 }
 
 func TestBoundaryEmergencyContextRefusals(t *testing.T) {
+	t.Parallel()
 	for name, change := range map[string]func(*boundaryFixture){
 		"colony":             func(f *boundaryFixture) { f.emergency.Context.Identity.ColonyId = proto.String("other") },
 		"map":                func(f *boundaryFixture) { f.emergency.Context.Identity.MapId = proto.Int32(2) },
@@ -157,6 +159,7 @@ type boundaryAdvancingClock struct{ now time.Time }
 
 func (c *boundaryAdvancingClock) Now() time.Time { return c.now }
 func TestBoundaryEmergencyGatesBothAdmissionsWithoutWrites(t *testing.T) {
+	t.Parallel()
 	for _, mode := range []string{"danger", "missing health", "unknown census", "second read danger", "delayed read"} {
 		t.Run(mode, func(t *testing.T) {
 			ctx := context.Background()
@@ -226,6 +229,7 @@ func TestBoundaryEmergencyGatesBothAdmissionsWithoutWrites(t *testing.T) {
 	}
 }
 func TestBoundaryPlacementLeaseAndFailureKinds(t *testing.T) {
+	t.Parallel()
 	b, f := newBoundaryFixture(t)
 	out, err := b.Place(context.Background(), f.placement)
 	if err != nil || out.Kind != domain.ReceiptUnknown || f.places != 1 || f.lastPre.GetLeaseId() != "lease" {
@@ -259,6 +263,7 @@ func TestBoundaryPlacementLeaseAndFailureKinds(t *testing.T) {
 	}
 }
 func TestBoundaryRestartReadsWithoutLeaseAndChecksCompletion(t *testing.T) {
+	t.Parallel()
 	b, f := newBoundaryFixture(t)
 	f.leaseErr = executor.ErrAuthority
 	current := f.placement.Snapshot
@@ -291,6 +296,7 @@ func TestBoundaryRestartReadsWithoutLeaseAndChecksCompletion(t *testing.T) {
 }
 
 func TestRepeatedPendingAndRestartKeepImmutableAdmissionTick(t *testing.T) {
+	t.Parallel()
 	b, f := newBoundaryFixture(t)
 	completed := proto.Clone(f.progress).(*r.Progress)
 	pending := proto.Clone(completed.GetCompleted().Evidence).(*r.EffectEvidence)
@@ -331,6 +337,7 @@ func TestRepeatedPendingAndRestartKeepImmutableAdmissionTick(t *testing.T) {
 }
 
 func TestAttemptConflictDoesNotProveNoEffect(t *testing.T) {
+	t.Parallel()
 	b, f := newBoundaryFixture(t)
 	f.placeErr = &bridge.NativeFailure{Value: &c.Failure{Code: c.FailureCode_FAILURE_CODE_ATTEMPT_CONFLICT.Enum()}}
 	out, err := b.Place(context.Background(), f.placement)

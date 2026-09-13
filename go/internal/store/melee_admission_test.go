@@ -39,6 +39,7 @@ func meleeStoreFixture(t *testing.T, completed bool) (*Store, string, MeleeAdmis
 }
 
 func TestMeleeAdmissionTerminalRejectsFutureEvidence(t *testing.T) {
+	t.Parallel()
 	for _, effect := range []domain.Effect{domain.EffectCompleted, domain.EffectUnsuccessful} {
 		t.Run(string(effect), func(t *testing.T) {
 			ctx := context.Background()
@@ -72,6 +73,7 @@ func TestMeleeAdmissionTerminalRejectsFutureEvidence(t *testing.T) {
 }
 
 func TestMeleeAdmissionPreparedRefreshThenCancelRetainsEvidence(t *testing.T) {
+	t.Parallel()
 	ctx := context.Background()
 	s, path, v := meleeStoreFixture(t, true)
 	if _, err := s.PrepareMelee(ctx, "plan", "attack", v); err != nil {
@@ -138,6 +140,7 @@ func meleeBeginRelease(t *testing.T, s *Store, v MeleeAdmission) domain.DraftRel
 }
 
 func TestMeleeAdmissionReopensAfterPrerequisiteReleased(t *testing.T) {
+	t.Parallel()
 	ctx := context.Background()
 	s, path, v := meleeStoreFixture(t, true)
 	if _, err := s.Prepare(ctx, "plan", "attack", v.Snapshot, v.Tick); err == nil {
@@ -172,6 +175,7 @@ func TestMeleeAdmissionReopensAfterPrerequisiteReleased(t *testing.T) {
 }
 
 func TestMeleeAdmissionRequiresVerifiedMatchingClaimAndFreshTokens(t *testing.T) {
+	t.Parallel()
 	ctx := context.Background()
 	s, _, v := meleeStoreFixture(t, false)
 	if _, err := s.PrepareMelee(ctx, "plan", "attack", v); err == nil {
@@ -210,6 +214,7 @@ func TestMeleeAdmissionRequiresVerifiedMatchingClaimAndFreshTokens(t *testing.T)
 }
 
 func TestMeleeAdmissionRefreshOnlyBeforeDispatch(t *testing.T) {
+	t.Parallel()
 	ctx := context.Background()
 	s, _, v := meleeStoreFixture(t, true)
 	if _, err := s.PrepareMelee(ctx, "plan", "attack", v); err != nil {
@@ -242,6 +247,7 @@ func TestMeleeAdmissionRefreshOnlyBeforeDispatch(t *testing.T) {
 }
 
 func TestMeleeAdmissionRollbackAndMalformedPersistedRecord(t *testing.T) {
+	t.Parallel()
 	ctx := context.Background()
 	s, _, v := meleeStoreFixture(t, true)
 	if _, err := s.db.Exec(`CREATE TRIGGER reject_melee_prepare BEFORE INSERT ON transitions WHEN NEW.action_id='attack' BEGIN SELECT RAISE(ABORT,'test'); END`); err != nil {

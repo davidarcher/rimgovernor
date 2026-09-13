@@ -16,6 +16,7 @@ func moodPerson() policy.MoodPawn {
 	return policy.MoodPawn{ID: "pawn", Mood: domain.Known(.2), Threshold: domain.Known(.3), Food: domain.Known(.1), Rest: domain.Known(.8), Joy: domain.Known(.8), Mental: domain.Known(false), Dead: domain.Known(false), Downed: domain.Known(false), Drafted: domain.Known(false), PlayerForced: domain.Known(false)}
 }
 func TestRoutineMoodDurableLifecycleAndRetirement(t *testing.T) {
+	t.Parallel()
 	ctx := context.Background()
 	path := filepath.Join(t.TempDir(), "mood.db")
 	s := open(t, path)
@@ -91,6 +92,7 @@ func TestRoutineMoodDurableLifecycleAndRetirement(t *testing.T) {
 }
 
 func TestRoutineMoodWorldResetWhileDisabled(t *testing.T) {
+	t.Parallel()
 	s := open(t, filepath.Join(t.TempDir(), "reset.db"))
 	r := routineRequest()
 	r.Facts.MoodPawns = domain.Known([]policy.MoodPawn{moodPerson()})
@@ -113,6 +115,7 @@ func TestRoutineMoodWorldResetWhileDisabled(t *testing.T) {
 }
 
 func TestRoutineMoodCompleteBoundedCohort(t *testing.T) {
+	t.Parallel()
 	s := open(t, filepath.Join(t.TempDir(), "cohort.db"))
 	r := routineRequest()
 	rows := make([]policy.MoodPawn, 256)
@@ -131,6 +134,7 @@ func TestRoutineMoodCompleteBoundedCohort(t *testing.T) {
 }
 
 func TestRoutineMoodRejectsCorruptHistoryAndProposals(t *testing.T) {
+	t.Parallel()
 	for _, change := range []string{"proposal", "duplicate", "inactive", "binding"} {
 		t.Run(change, func(t *testing.T) {
 			s := open(t, filepath.Join(t.TempDir(), "corrupt.db"))

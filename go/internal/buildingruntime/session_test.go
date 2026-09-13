@@ -30,6 +30,7 @@ func (f sessionNative) LookupBuildingAttempt(_ context.Context, id *c.Identity, 
 }
 
 func TestSessionOwnsDispatchAndManualReconciliation(t *testing.T) {
+	t.Parallel()
 	for _, restart := range []bool{false, true} {
 		t.Run(map[bool]string{false: "manual", true: "restart"}[restart], func(t *testing.T) {
 			ctx := context.Background()

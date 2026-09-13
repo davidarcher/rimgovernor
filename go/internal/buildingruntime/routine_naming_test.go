@@ -11,6 +11,7 @@ import (
 )
 
 func TestRoutineNamingRecoveryUnknownAndRenewedDialog(t *testing.T) {
+	t.Parallel()
 	r, db, _, _, n := routineFixture(t)
 	base := append([]*o.ReadIssue(nil), n.reply.GetObserved().Issues...)
 	var previous uint64

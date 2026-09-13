@@ -10,7 +10,10 @@ import (
 	"math"
 )
 
-const clockReviewCapacity = 4096
+// clockReviewCapacity is a var (not const) so capacity-boundary tests can
+// shrink it and exercise wraparound without paying the cost of filling a
+// production-scale ring buffer.
+var clockReviewCapacity = 4096
 
 type clockReviewHead struct {
 	Revision     uint64

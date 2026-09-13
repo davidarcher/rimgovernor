@@ -13,6 +13,7 @@ import (
 )
 
 func TestAcquisitionPlannerBoundsWoodAndPreservesManual(t *testing.T) {
+	t.Parallel()
 	ctx := context.Background()
 	reviewer, db, session, request, native := routineFixture(t)
 	rootPlan, err := db.LoadPlan(ctx, session.State().Snapshot.Plan)

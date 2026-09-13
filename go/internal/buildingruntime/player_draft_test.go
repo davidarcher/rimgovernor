@@ -14,6 +14,7 @@ func playerDraftRequest() store.DraftSubmissionRequest {
 	return store.DraftSubmissionRequest{RequestID: "draft-submit", World: playerSubmission().World, Draft: intent}
 }
 func TestPlayerDraftSubmissionReplayAndSharedFamilyNamespace(t *testing.T) {
+	t.Parallel()
 	p, db, s, worlds := playerFixture(t)
 	q := playerDraftRequest()
 	result, created, err := p.SubmitDraft(context.Background(), q)
@@ -57,6 +58,7 @@ func TestPlayerDraftSubmissionReplayAndSharedFamilyNamespace(t *testing.T) {
 	}
 }
 func TestPlayerDraftFreshWorldAndClosedPlayer(t *testing.T) {
+	t.Parallel()
 	p, db, _, worlds := playerFixture(t)
 	q := playerDraftRequest()
 	worlds.world.Load = "replacement"
@@ -75,6 +77,7 @@ func TestPlayerDraftFreshWorldAndClosedPlayer(t *testing.T) {
 	}
 }
 func TestPlayerManualPreemptsDraftSubmissionWorldRead(t *testing.T) {
+	t.Parallel()
 	p, db, s, _ := playerFixture(t)
 	q := playerDraftRequest()
 	entered := make(chan struct{})
@@ -105,6 +108,7 @@ func TestPlayerManualPreemptsDraftSubmissionWorldRead(t *testing.T) {
 	}
 }
 func TestPlayerDraftSubmissionRequiresSeparateExplicitAcquire(t *testing.T) {
+	t.Parallel()
 	p, _, s, _ := playerFixture(t)
 	q := playerDraftRequest()
 	submission, _, err := p.SubmitDraft(context.Background(), q)

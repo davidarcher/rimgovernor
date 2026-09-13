@@ -87,6 +87,7 @@ func workerPending(t *testing.T, w *Worker, id string, unresolved bool) domain.P
 	return v
 }
 func TestWorkerDisabledFairScanAndPausedBackoff(t *testing.T) {
+	t.Parallel()
 	w, f, db := workerFixture(t)
 	first := workerPending(t, w, "one", true)
 	second := workerPending(t, w, "two", true)
@@ -121,6 +122,7 @@ func TestWorkerDisabledFairScanAndPausedBackoff(t *testing.T) {
 	}
 }
 func TestWorkerActualPermissionAndWrongWorld(t *testing.T) {
+	t.Parallel()
 	w, f, _ := workerFixture(t)
 	v := workerPending(t, w, "pending", false)
 	f.run = func(context.Context, domain.PlanID, domain.ActionID) (executor.Result, error) {
@@ -150,6 +152,7 @@ func TestWorkerActualPermissionAndWrongWorld(t *testing.T) {
 	}
 }
 func TestWorkerRefusalRequiresNewExplicitDirection(t *testing.T) {
+	t.Parallel()
 	w, _, db := workerFixture(t)
 	v := workerPending(t, w, "refusal", true)
 	progress, err := db.RecordReceipt(context.Background(), v.Plan, v.Action, v.Attempt, domain.ReceiptRefused)
@@ -174,6 +177,7 @@ func TestWorkerRefusalRequiresNewExplicitDirection(t *testing.T) {
 	}
 }
 func TestWorkerManualCancelsRunAndRenewIsIndependent(t *testing.T) {
+	t.Parallel()
 	w, f, _ := workerFixture(t)
 	v := workerPending(t, w, "active", false)
 	f.mu.Lock()
@@ -215,6 +219,7 @@ func TestWorkerManualCancelsRunAndRenewIsIndependent(t *testing.T) {
 	}
 }
 func TestWorkerCloseTimeoutRetainsSessionAndCanRetry(t *testing.T) {
+	t.Parallel()
 	w, f, _ := workerFixture(t)
 	v := workerPending(t, w, "active", false)
 	f.mu.Lock()
@@ -250,6 +255,7 @@ func TestWorkerCloseTimeoutRetainsSessionAndCanRetry(t *testing.T) {
 }
 
 func TestWorkerRealSessionReopensUncertainAttemptWithoutAcquire(t *testing.T) {
+	t.Parallel()
 	ctx := context.Background()
 	dir := t.TempDir()
 	path := filepath.Join(dir, "worker.sqlite")
@@ -376,6 +382,7 @@ func TestWorkerRealSessionReopensUncertainAttemptWithoutAcquire(t *testing.T) {
 }
 
 func TestWorkerObserveTargetSerializesAcquireAndManualPreempts(t *testing.T) {
+	t.Parallel()
 	w, f, _ := workerFixture(t)
 	v := workerPending(t, w, "uncertain", true)
 	entered := make(chan struct{})
@@ -418,6 +425,7 @@ func TestWorkerObserveTargetSerializesAcquireAndManualPreempts(t *testing.T) {
 	}
 }
 func TestWorkerUnknownAndTerminalDoNotDispatch(t *testing.T) {
+	t.Parallel()
 	w, f, db := workerFixture(t)
 	v := workerPending(t, w, "unknown", true)
 	f.run = func(ctx context.Context, p domain.PlanID, _ domain.ActionID) (executor.Result, error) {
@@ -448,6 +456,7 @@ func TestWorkerUnknownAndTerminalDoNotDispatch(t *testing.T) {
 	}
 }
 func TestWorkerLifetimeCancellationStopsPlayer(t *testing.T) {
+	t.Parallel()
 	w, f, _ := workerFixture(t)
 	lifetime, cancel := context.WithCancel(context.Background())
 	running, err := newWorker(lifetime, w.config, w.player, f, time.Second)
@@ -469,6 +478,7 @@ func TestWorkerLifetimeCancellationStopsPlayer(t *testing.T) {
 }
 
 func TestWorkerIdentityLossImmediatelyDisablesDispatchAndRenewal(t *testing.T) {
+	t.Parallel()
 	cases := []struct {
 		name  string
 		world store.World

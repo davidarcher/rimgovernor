@@ -84,6 +84,7 @@ func clockPollPage(f *schedulerNative, after int64, kind string) *k.EventsPage {
 	return page
 }
 func TestClockPollPersistsAndReviewsWithoutPlayerGate(t *testing.T) {
+	t.Parallel()
 	s, f, _ := clockPollFixture(t)
 	if _, err := s.Step(context.Background()); err != nil {
 		t.Fatal(err)
@@ -101,6 +102,7 @@ func TestClockPollPersistsAndReviewsWithoutPlayerGate(t *testing.T) {
 }
 
 func TestClockPollDoesNotInvalidateAcquireDuringEventRead(t *testing.T) {
+	t.Parallel()
 	for _, freshPage := range []bool{false, true} {
 		t.Run(fmt.Sprint(freshPage), func(t *testing.T) {
 			s, f, _ := clockPollFixture(t)
@@ -133,6 +135,7 @@ func TestClockPollDoesNotInvalidateAcquireDuringEventRead(t *testing.T) {
 	}
 }
 func TestClockPollPersistenceFailuresAndReviewOrder(t *testing.T) {
+	t.Parallel()
 	for _, stage := range []string{"append", "review"} {
 		t.Run(stage, func(t *testing.T) {
 			s, f, db := clockPollFixture(t)
@@ -162,6 +165,7 @@ func TestClockPollPersistenceFailuresAndReviewOrder(t *testing.T) {
 	}
 }
 func TestClockPollGapExistingHoldEmptyAndDisabled(t *testing.T) {
+	t.Parallel()
 	s, f, _ := clockPollFixture(t)
 	result, err := s.PollEvents(context.Background(), &clockPollNative{page: clockPollPage(f, 0, "gap")}, 128)
 	if err == nil || !result.Interrupted || len(result.Review.Holds) != 1 {
@@ -187,6 +191,7 @@ func TestClockPollGapExistingHoldEmptyAndDisabled(t *testing.T) {
 	}
 }
 func TestClockPollReadFailureAndCancellationCleanup(t *testing.T) {
+	t.Parallel()
 	for _, kind := range []string{"read", "cancel", "stale generation", "backlog"} {
 		t.Run(kind, func(t *testing.T) {
 			s, f, _ := clockPollFixture(t)

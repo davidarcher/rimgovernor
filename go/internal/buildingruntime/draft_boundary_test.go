@@ -111,6 +111,7 @@ func draftKnownClaim(f *draftFixtureNative) domain.DraftClaim {
 }
 
 func TestDraftBoundaryInspectAndExactDispatch(t *testing.T) {
+	t.Parallel()
 	b, f := draftBoundaryFixture(t)
 	f.row.Drafted = proto.Bool(false)
 	f.row.DraftClaim = &n.DraftClaimObservation{State: &n.DraftClaimObservation_Unowned{Unowned: &n.NoOwnedDraftClaim{}}}
@@ -126,6 +127,7 @@ func TestDraftBoundaryInspectAndExactDispatch(t *testing.T) {
 	}
 }
 func TestDraftBoundaryOriginalAttemptAndFreshOwnerRequired(t *testing.T) {
+	t.Parallel()
 	for _, kind := range []string{"valid", "lost-receipt", "foreign-direction", "different-claim", "missing-row", "wrong-attempt", "unknown-progress", "missing-owner"} {
 		t.Run(kind, func(t *testing.T) {
 			b, f := draftBoundaryFixture(t)
@@ -170,6 +172,7 @@ func TestDraftBoundaryOriginalAttemptAndFreshOwnerRequired(t *testing.T) {
 	}
 }
 func TestDraftCleanupInspectionArms(t *testing.T) {
+	t.Parallel()
 	for _, kind := range []string{"release", "unowned", "foreign-owner", "world", "unknown", "missing-row", "unavailable"} {
 		t.Run(kind, func(t *testing.T) {
 			b, f := draftBoundaryFixture(t)
@@ -228,6 +231,7 @@ func TestDraftCleanupInspectionArms(t *testing.T) {
 	}
 }
 func TestDraftReleaseExactRequestAndNoRetry(t *testing.T) {
+	t.Parallel()
 	for _, kind := range []string{"released", "already", "lost", "wrong-token", "wrong-owner", "wrong-world", "old-generation"} {
 		t.Run(kind, func(t *testing.T) {
 			b, f := draftBoundaryFixture(t)
@@ -269,6 +273,7 @@ func TestDraftReleaseExactRequestAndNoRetry(t *testing.T) {
 	}
 }
 func TestDraftBoundaryCancelledBeforeWrites(t *testing.T) {
+	t.Parallel()
 	b, f := draftBoundaryFixture(t)
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
@@ -281,6 +286,7 @@ func TestDraftBoundaryCancelledBeforeWrites(t *testing.T) {
 }
 
 func TestDraftObservationUsesMovingInspectionTickWithOriginalReceipt(t *testing.T) {
+	t.Parallel()
 	b, f := draftBoundaryFixture(t)
 	// Admission remains tick 10 while persisted progress advances its lower bound.
 	f.p.Tick = 15
@@ -295,6 +301,7 @@ func TestDraftObservationUsesMovingInspectionTickWithOriginalReceipt(t *testing.
 }
 
 func TestDraftCleanupAfterRevocationAndLostRelease(t *testing.T) {
+	t.Parallel()
 	b, f := draftBoundaryFixture(t)
 	claim := draftKnownClaim(f)
 	f.context.NativeGeneration = proto.Uint64(3)
@@ -319,6 +326,7 @@ func TestDraftCleanupAfterRevocationAndLostRelease(t *testing.T) {
 }
 
 func TestDraftReceiptRefusalDoesNotClaimOwnership(t *testing.T) {
+	t.Parallel()
 	for _, conflict := range []bool{false, true} {
 		b, f := draftBoundaryFixture(t)
 		code := c.FailureCode_FAILURE_CODE_INVALID_REQUEST

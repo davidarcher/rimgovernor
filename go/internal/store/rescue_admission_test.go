@@ -29,6 +29,7 @@ func rescueStoreFixture(t *testing.T) (*Store, string, RescueAdmission) {
 }
 
 func TestRescueAdmissionPrepareAndLoad(t *testing.T) {
+	t.Parallel()
 	ctx := context.Background()
 	s, _, v := rescueStoreFixture(t)
 	if _, err := s.PrepareRescue(ctx, "plan", "rescue", v); err != nil {
@@ -44,6 +45,7 @@ func TestRescueAdmissionPrepareAndLoad(t *testing.T) {
 }
 
 func TestRescueDispatchRequiresCurrentAdmission(t *testing.T) {
+	t.Parallel()
 	ctx := context.Background()
 	s, _, v := rescueStoreFixture(t)
 	if _, err := s.Dispatch(ctx, "plan", "rescue", v.Snapshot, v.Tick); err == nil {
@@ -55,6 +57,7 @@ func TestRescueDispatchRequiresCurrentAdmission(t *testing.T) {
 }
 
 func TestRescueAdmissionTerminalRejectsFutureEvidence(t *testing.T) {
+	t.Parallel()
 	for _, effect := range []domain.Effect{domain.EffectCompleted, domain.EffectUnsuccessful} {
 		t.Run(string(effect), func(t *testing.T) {
 			ctx := context.Background()
@@ -88,6 +91,7 @@ func TestRescueAdmissionTerminalRejectsFutureEvidence(t *testing.T) {
 }
 
 func TestRescueAdmissionPreparedRefreshThenCancelRetainsEvidence(t *testing.T) {
+	t.Parallel()
 	ctx := context.Background()
 	s, path, v := rescueStoreFixture(t)
 	if _, err := s.PrepareRescue(ctx, "plan", "rescue", v); err != nil {

@@ -12,6 +12,7 @@ import (
 )
 
 func TestRoutineWorkReadbackRecoversInBothModesAndPreservesUnknown(t *testing.T) {
+	t.Parallel()
 	r, _, _, _, n := routineFixture(t)
 	r.native = &routineMedicalNative{routineNative: n}
 	v := n.reply.GetObserved()

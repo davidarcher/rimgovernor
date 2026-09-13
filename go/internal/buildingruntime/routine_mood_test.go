@@ -43,6 +43,7 @@ func (n *moodRoutineNative) ReadRoutinePawns(ctx context.Context, id *c.Identity
 }
 
 func TestRoutineMoodMentalHoldRequiresObservedClearance(t *testing.T) {
+	t.Parallel()
 	s, f := schedulerFixture(t)
 	base := schedulerRoutine(t, s, f)
 	n := &moodRoutineNative{routineNative: base, mode: "mental"}

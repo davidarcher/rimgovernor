@@ -9,6 +9,7 @@ import (
 )
 
 func TestRoutineUpkeepRetainsEmergencyAcrossUnknownManualAndRestart(t *testing.T) {
+	t.Parallel()
 	path := filepath.Join(t.TempDir(), "upkeep.db")
 	db := open(t, path)
 	r := routineRequest()
@@ -55,6 +56,7 @@ func TestRoutineUpkeepRetainsEmergencyAcrossUnknownManualAndRestart(t *testing.T
 }
 
 func TestRoutineUpkeepIssuedWorkCannotRecoverFromTargetDisappearance(t *testing.T) {
+	t.Parallel()
 	db := open(t, filepath.Join(t.TempDir(), "issued.db"))
 	ctx := context.Background()
 	r := routineRequest()

@@ -12,6 +12,7 @@ import (
 )
 
 func TestWorkPreferencesReplayCASRestartAndClear(t *testing.T) {
+	t.Parallel()
 	ctx := context.Background()
 	path := filepath.Join(t.TempDir(), "work.db")
 	s := open(t, path)
@@ -63,6 +64,7 @@ func TestWorkPreferencesReplayCASRestartAndClear(t *testing.T) {
 }
 
 func TestWorkPreferencesInvalidateReviewAndRejectStaleInputs(t *testing.T) {
+	t.Parallel()
 	ctx := context.Background()
 	s := open(t, filepath.Join(t.TempDir(), "work.db"))
 	sub, _, err := s.SubmitBuilding(ctx, submissionRequest(t, "building"))
@@ -108,6 +110,7 @@ func TestWorkPreferencesInvalidateReviewAndRejectStaleInputs(t *testing.T) {
 }
 
 func TestWorkPreferencesRejectMalformedOverrides(t *testing.T) {
+	t.Parallel()
 	q := WorkPreferenceRequest{RequestID: "work", Plan: "plan", World: World{Colony: "colony", Load: "load"}, Overrides: []policy.WorkOverride{}}
 	for _, values := range [][]policy.WorkOverride{nil, {{Pawn: "pawn", Work: "Cooking", Priority: 5}}, {{Pawn: "pawn", Work: "Cooking"}, {Pawn: "pawn", Work: "Cooking"}}, {{Pawn: "", Work: "Cooking"}}} {
 		q.Overrides = values
@@ -118,6 +121,7 @@ func TestWorkPreferencesRejectMalformedOverrides(t *testing.T) {
 }
 
 func TestWorkPreferencesRollbackWhenReviewInvalidationFails(t *testing.T) {
+	t.Parallel()
 	ctx := context.Background()
 	s := open(t, filepath.Join(t.TempDir(), "work.db"))
 	sub, _, err := s.SubmitBuilding(ctx, submissionRequest(t, "building"))

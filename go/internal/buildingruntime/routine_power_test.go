@@ -11,6 +11,7 @@ import (
 )
 
 func TestRoutinePowerCensusReachesDurableNeed(t *testing.T) {
+	t.Parallel()
 	r, _, _, _, native := routineFixture(t)
 	v := native.reply.GetObserved()
 	for _, phase := range []string{"no-consumers", "disconnected", "powered", "unknown"} {

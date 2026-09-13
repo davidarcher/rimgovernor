@@ -12,6 +12,7 @@ import (
 )
 
 func TestRoutinePlanRetirementRepeatedMethodsAndHistory(t *testing.T) {
+	t.Parallel()
 	ctx := context.Background()
 	path := filepath.Join(t.TempDir(), "history.db")
 	s := open(t, path)
@@ -69,6 +70,7 @@ func TestRoutinePlanRetirementRepeatedMethodsAndHistory(t *testing.T) {
 }
 
 func TestRoutinePlanRetirementTerminalFloorAndRestart(t *testing.T) {
+	t.Parallel()
 	for _, effect := range []domain.Effect{domain.EffectCompleted, domain.EffectUnsuccessful} {
 		for _, cancelled := range []bool{false, true} {
 			t.Run(fmt.Sprintf("%s/%v", effect, cancelled), func(t *testing.T) {
@@ -179,6 +181,7 @@ func TestRoutinePlanRetirementTerminalFloorAndRestart(t *testing.T) {
 }
 
 func TestRoutinePlanRetirementPinsCurrentAndRollsBack(t *testing.T) {
+	t.Parallel()
 	ctx := context.Background()
 	s := open(t, filepath.Join(t.TempDir(), "history.db"))
 	r := routineRequest()
@@ -208,6 +211,7 @@ func TestRoutinePlanRetirementPinsCurrentAndRollsBack(t *testing.T) {
 }
 
 func TestRoutinePlanRetirementPinsUnfinishedAndPlayerMethods(t *testing.T) {
+	t.Parallel()
 	for _, kind := range []string{"dependency", "unknown", "player"} {
 		t.Run(kind, func(t *testing.T) {
 			ctx := context.Background()

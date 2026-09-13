@@ -11,6 +11,7 @@ import (
 )
 
 func TestCatalogEmptyBoundsCancellationAndOrderedRecords(t *testing.T) {
+	t.Parallel()
 	ctx := context.Background()
 	s := open(t, filepath.Join(t.TempDir(), "catalog.db"))
 	empty, err := s.LoadPlans(ctx, 1)
@@ -57,6 +58,7 @@ func TestCatalogEmptyBoundsCancellationAndOrderedRecords(t *testing.T) {
 }
 
 func TestCatalogDoesNotObserveConcurrentUncommittedAdmission(t *testing.T) {
+	t.Parallel()
 	ctx := context.Background()
 	s, path := fixture(t)
 	reader := open(t, path)
@@ -88,6 +90,7 @@ func TestCatalogDoesNotObserveConcurrentUncommittedAdmission(t *testing.T) {
 }
 
 func TestCatalogCorruptionNeverReturnsEarlierPlans(t *testing.T) {
+	t.Parallel()
 	ctx := context.Background()
 	s, _ := fixture(t)
 	if err := s.CreatePlan(ctx, plan(t, "a-first", "new-action")); err != nil {

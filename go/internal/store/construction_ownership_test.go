@@ -10,6 +10,7 @@ import (
 )
 
 func TestAutonomousConstructionClaimsSurviveRetirementAndManual(t *testing.T) {
+	t.Parallel()
 	ctx := context.Background()
 	path := filepath.Join(t.TempDir(), "ownership.db")
 	s := open(t, path)

@@ -11,6 +11,7 @@ import (
 )
 
 func TestRoutineDefenseRequiresConsistentCompletePawnDetails(t *testing.T) {
+	t.Parallel()
 	for _, change := range []string{"armed", "unarmed", "unknown-equipment", "missing-pawn", "colony-count", "conflicting-downed", "stale-tick", "stale-native"} {
 		t.Run(change, func(t *testing.T) {
 			r, db, _, _, n := routineFixture(t)

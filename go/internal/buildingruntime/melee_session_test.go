@@ -23,6 +23,7 @@ func (f meleeSessionNative) ReadEmergency(context.Context, *c.Identity) (bridge.
 }
 
 func TestMeleeSessionCompositionAndWorkerDraftRetention(t *testing.T) {
+	t.Parallel()
 	ctx := context.Background()
 	dir := t.TempDir()
 	journal, err := store.Open(ctx, filepath.Join(dir, "state.db"))
@@ -107,6 +108,7 @@ func TestMeleeSessionCompositionAndWorkerDraftRetention(t *testing.T) {
 }
 
 func TestMeleeSessionRejectsIncompleteCapabilitiesBeforeOwnership(t *testing.T) {
+	t.Parallel()
 	ctx := context.Background()
 	dir := t.TempDir()
 	journal, err := store.Open(ctx, filepath.Join(dir, "state.db"))
@@ -141,6 +143,7 @@ func TestMeleeSessionRejectsIncompleteCapabilitiesBeforeOwnership(t *testing.T) 
 }
 
 func TestMeleeWorkerDisabledOnlyReconcilesOriginalWorld(t *testing.T) {
+	t.Parallel()
 	_, native, dispatch := meleeFixtureBoundary(t)
 	draft, _ := domain.NewOwnedDraft("pawn")
 	d, _ := domain.NewOwnedDraftAction("action", draft)

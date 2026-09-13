@@ -35,6 +35,7 @@ func (c *clockWindowDispatchClock) Now() time.Time {
 }
 
 func TestClockWindowRejectsWeakenedWatchBeforePreparation(t *testing.T) {
+	t.Parallel()
 	mutations := []func(*k.WatchPolicy){
 		func(p *k.WatchPolicy) { p.Mode = k.WatchMode_WATCH_MODE_COMBAT.Enum() },
 		func(p *k.WatchPolicy) { p.AcknowledgedHostileIds = []string{"pawn"} },
@@ -57,6 +58,7 @@ func TestClockWindowRejectsWeakenedWatchBeforePreparation(t *testing.T) {
 }
 
 func TestClockWindowFinalClockReadCannotSurviveManual(t *testing.T) {
+	t.Parallel()
 	q, db, f, clock, request := clockWindowFixture(t)
 	q.clock = &clockWindowDispatchClock{clock: clock, beforeWrite: func() {
 		if err := q.UpdateAuthority(executor.Authority{Snapshot: request.Intent.Snapshot}); err != nil {
@@ -73,6 +75,7 @@ func TestClockWindowFinalClockReadCannotSurviveManual(t *testing.T) {
 }
 
 func TestClockWindowExpiryAfterDispatchRetainsUncertainty(t *testing.T) {
+	t.Parallel()
 	q, db, f, clock, request := clockWindowFixture(t)
 	q.clock = &clockWindowDispatchClock{clock: clock}
 	result, err := q.CommandWindow(context.Background(), request)
@@ -107,6 +110,7 @@ func clockWindowFixture(t *testing.T) (*ClockCoordinator, *store.Store, *clockCo
 }
 
 func TestClockWindowCommandRequiresExactPolicyAdmission(t *testing.T) {
+	t.Parallel()
 	q, _, f, _, request := clockWindowFixture(t)
 	if _, err := q.Command(context.Background(), request.Intent); err == nil {
 		t.Fatal("generic freshness bypass")
@@ -133,6 +137,7 @@ func TestClockWindowCommandRequiresExactPolicyAdmission(t *testing.T) {
 }
 
 func TestClockWindowExpiresInQueueAndLeaseLookup(t *testing.T) {
+	t.Parallel()
 	for _, where := range []string{"queue", "lease"} {
 		t.Run(where, func(t *testing.T) {
 			q, db, f, clock, request := clockWindowFixture(t)
@@ -163,6 +168,7 @@ func TestClockWindowExpiresInQueueAndLeaseLookup(t *testing.T) {
 }
 
 func TestClockWindowRechecksNativeStatus(t *testing.T) {
+	t.Parallel()
 	for _, field := range []string{"tick", "cursor", "paused", "boundary", "durability"} {
 		t.Run(field, func(t *testing.T) {
 			q, _, f, _, request := clockWindowFixture(t)
@@ -186,6 +192,7 @@ func TestClockWindowRechecksNativeStatus(t *testing.T) {
 }
 
 func TestClockWindowInterveningEventAndManualPreventDispatch(t *testing.T) {
+	t.Parallel()
 	for _, kind := range []string{"event", "manual"} {
 		t.Run(kind, func(t *testing.T) {
 			q, db, f, _, request := clockWindowFixture(t)

@@ -30,6 +30,7 @@ func supplyPlan(t *testing.T, id string, count int, cell domain.Cell) domain.Pla
 	return plan
 }
 func TestSupplyMethodRequiresOriginalCohortAndBoundedBatch(t *testing.T) {
+	t.Parallel()
 	for _, kind := range []string{"valid", "later", "oversized", "other-goal", "manual"} {
 		t.Run(kind, func(t *testing.T) {
 			s := open(t, filepath.Join(t.TempDir(), "s.db"))
@@ -67,6 +68,7 @@ func TestSupplyMethodRequiresOriginalCohortAndBoundedBatch(t *testing.T) {
 	}
 }
 func TestSupplyClaimSurvivesCancellationRestartAndDirectionChange(t *testing.T) {
+	t.Parallel()
 	ctx := context.Background()
 	path := filepath.Join(t.TempDir(), "s.db")
 	s := open(t, path)

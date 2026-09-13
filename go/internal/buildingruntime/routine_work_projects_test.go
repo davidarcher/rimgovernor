@@ -11,6 +11,7 @@ import (
 )
 
 func TestRoutineProjectWorkTracksSharedLifecycleAndWorld(t *testing.T) {
+	t.Parallel()
 	current := domain.GenerationSnapshot{Colony: "colony", Load: "load", Map: 0, Plan: "selected", Revision: 1, Native: 1, Direction: 1}
 	makePlan := func(id domain.PlanID, name string, admitted bool) store.PlanState {
 		b, _ := domain.NewBuilding(name, domain.Cell{X: 1, Z: 1}, domain.North, "")
@@ -70,6 +71,7 @@ func TestRoutineProjectWorkTracksSharedLifecycleAndWorld(t *testing.T) {
 }
 
 func TestRoutineProjectSkillRequirementsUseMaximumAndPreserveUnknown(t *testing.T) {
+	t.Parallel()
 	defs := []observation.PlanningDefinition{{Name: "Wall", ConstructionSkill: domain.Known(int32(0))}, {Name: "HospitalBed", ConstructionSkill: domain.Known(int32(8))}}
 	got, known := routineProjectWork([]string{"Wall", "HospitalBed"}, defs).Value()
 	if !known || !reflect.DeepEqual(got, []policy.WorkRequirement{{Work: "Construction", Skill: "Construction", Minimum: 8}}) {

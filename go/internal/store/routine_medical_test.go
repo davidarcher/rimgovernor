@@ -16,6 +16,7 @@ func medicalPawn(bad bool) policy.CarePawn {
 }
 
 func TestRoutineMedicalRestartRecoveryRenewalAndCancellation(t *testing.T) {
+	t.Parallel()
 	ctx := context.Background()
 	path := filepath.Join(t.TempDir(), "medical.db")
 	s := open(t, path)
@@ -72,6 +73,7 @@ func TestRoutineMedicalRestartRecoveryRenewalAndCancellation(t *testing.T) {
 }
 
 func TestRoutineMedicalWorldAndRewindResetHistory(t *testing.T) {
+	t.Parallel()
 	for _, change := range []struct {
 		name  string
 		apply func(*RoutineReviewRequest)
@@ -95,6 +97,7 @@ func TestRoutineMedicalWorldAndRewindResetHistory(t *testing.T) {
 }
 
 func TestRoutineMedicalCorruptHistoryRejectedWhileDisabled(t *testing.T) {
+	t.Parallel()
 	s := open(t, filepath.Join(t.TempDir(), "corrupt.db"))
 	r := routineRequest()
 	r.Facts.MedicalPawns = domain.Known([]policy.CarePawn{medicalPawn(true)})

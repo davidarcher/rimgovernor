@@ -74,6 +74,7 @@ func draftSessionFixture(t *testing.T, unknown bool) (*Session, *draftFixtureNat
 }
 
 func TestDraftSessionCloseDrainsTerminalAndLostReceipt(t *testing.T) {
+	t.Parallel()
 	for _, unknown := range []bool{false, true} {
 		t.Run(map[bool]string{false: "terminal", true: "lost receipt"}[unknown], func(t *testing.T) {
 			session, native, journal, dir := draftSessionFixture(t, unknown)
@@ -100,6 +101,7 @@ func TestDraftSessionCloseDrainsTerminalAndLostReceipt(t *testing.T) {
 	}
 }
 func TestDraftSessionUncertainCloseRetainsOwnerAndRetriesOnlyOnNextCall(t *testing.T) {
+	t.Parallel()
 	session, native, journal, dir := draftSessionFixture(t, false)
 	native.releaseErr = context.DeadlineExceeded
 	if err := session.Close(context.Background()); err == nil {
@@ -126,6 +128,7 @@ func TestDraftSessionUncertainCloseRetainsOwnerAndRetriesOnlyOnNextCall(t *testi
 	}
 }
 func TestDraftSessionManualDrainsWithoutPermanentlyStopping(t *testing.T) {
+	t.Parallel()
 	session, native, _, _ := draftSessionFixture(t, true)
 	if err := session.Manual(context.Background()); err != nil {
 		t.Fatal(err)
@@ -138,6 +141,7 @@ func TestDraftSessionManualDrainsWithoutPermanentlyStopping(t *testing.T) {
 	}
 }
 func TestDraftSessionRejectsPartialCapabilitiesBeforeOwnership(t *testing.T) {
+	t.Parallel()
 	ctx := context.Background()
 	dir := t.TempDir()
 	journal, err := store.Open(ctx, filepath.Join(dir, "state.sqlite"))
@@ -159,6 +163,7 @@ func TestDraftSessionRejectsPartialCapabilitiesBeforeOwnership(t *testing.T) {
 }
 
 func TestDraftSessionConcurrentSweepsDoNotRepeatRelease(t *testing.T) {
+	t.Parallel()
 	session, native, _, _ := draftSessionFixture(t, false)
 	var joined sync.WaitGroup
 	errorsCh := make(chan error, 2)
@@ -179,6 +184,7 @@ func TestDraftSessionConcurrentSweepsDoNotRepeatRelease(t *testing.T) {
 }
 
 func TestCancelledSessionAttachmentDoesNotStrandOwnerOnExistingDraft(t *testing.T) {
+	t.Parallel()
 	session, native, journal, _ := draftSessionFixture(t, true)
 	native.readErr = errors.New("native unavailable during construction")
 	dir := t.TempDir()

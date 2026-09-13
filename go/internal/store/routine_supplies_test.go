@@ -11,6 +11,7 @@ import (
 )
 
 func TestRoutineSuppliesRestartManualAndLaterForbids(t *testing.T) {
+	t.Parallel()
 	ctx := context.Background()
 	path := filepath.Join(t.TempDir(), "supplies.db")
 	s := open(t, path)
@@ -65,6 +66,7 @@ func TestRoutineSuppliesRestartManualAndLaterForbids(t *testing.T) {
 }
 
 func TestRoutineSuppliesResetAndCorruptHistory(t *testing.T) {
+	t.Parallel()
 	for _, test := range []struct {
 		name   string
 		change func(*RoutineReviewRequest)

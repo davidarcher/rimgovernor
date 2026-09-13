@@ -102,6 +102,7 @@ func (f *meleeFixture) ObserveAttackProgress(ctx context.Context, attempt bridge
 	return &r.ProgressReply{Outcome: &r.ProgressReply_Progress{Progress: proto.Clone(f.progress).(*r.Progress)}}, bridge.Result{}, f.readErr
 }
 func TestMeleeBoundaryInspectAndExactDispatch(t *testing.T) {
+	t.Parallel()
 	b, f, d := meleeFixtureBoundary(t)
 	v, err := b.InspectMelee(context.Background(), executor.Target{Action: d.Attempt.Action, Snapshot: d.Attempt.Snapshot}, d.Admission.DraftClaim)
 	if err != nil || !reflect.DeepEqual(f.ids, []string{"pawn", "target"}) || v.Facts.Pawn.SnapshotToken != "cas" || v.Facts.Target.SnapshotToken != "target-cas" || v.Facts.Pawn.HealthFraction != domain.Known(float64(1)) || v.Facts.Pawn.ViolenceCapable != domain.Known(true) || v.Facts.Pawn.EquipmentKnown != domain.Known(true) {
@@ -117,6 +118,7 @@ func TestMeleeBoundaryInspectAndExactDispatch(t *testing.T) {
 	}
 }
 func TestMeleeBoundaryRejectsNegativeAdmissionTick(t *testing.T) {
+	t.Parallel()
 	b, f, d := meleeFixtureBoundary(t)
 	d.Admission.Tick = -1
 	if _, err := b.AttackMelee(context.Background(), d); err == nil || f.leases != 0 || f.writes != 0 {
@@ -125,6 +127,7 @@ func TestMeleeBoundaryRejectsNegativeAdmissionTick(t *testing.T) {
 }
 
 func TestMeleeBoundaryInspectMissingAndChangedFacts(t *testing.T) {
+	t.Parallel()
 	for _, kind := range []string{"generation", "pawn CAS", "target CAS", "preview past", "emergency past", "claim direction", "violent", "missing health", "missing equipment"} {
 		t.Run(kind, func(t *testing.T) {
 			b, f, d := meleeFixtureBoundary(t)
@@ -187,6 +190,7 @@ func TestMeleeBoundaryInspectMissingAndChangedFacts(t *testing.T) {
 	}
 }
 func TestMeleeBoundaryWriteRefusalAndUncertainty(t *testing.T) {
+	t.Parallel()
 	for _, code := range []c.FailureCode{c.FailureCode_FAILURE_CODE_INVALID_REQUEST, c.FailureCode_FAILURE_CODE_ATTEMPT_CONFLICT} {
 		b, f, d := meleeFixtureBoundary(t)
 		f.writeErr = &bridge.NativeFailure{Value: &c.Failure{Code: code.Enum()}}
@@ -206,6 +210,7 @@ func TestMeleeBoundaryWriteRefusalAndUncertainty(t *testing.T) {
 	}
 }
 func TestMeleeBoundaryRecoveryAfterManualAndUnknownReceipt(t *testing.T) {
+	t.Parallel()
 	for _, uncertain := range []bool{false, true} {
 		b, f, d := meleeFixtureBoundary(t)
 		if uncertain {
@@ -226,6 +231,7 @@ func TestMeleeBoundaryRecoveryAfterManualAndUnknownReceipt(t *testing.T) {
 	}
 }
 func TestMeleeBoundaryRejectsUncorrelatedRecovery(t *testing.T) {
+	t.Parallel()
 	for _, kind := range []string{"claim", "owner direction", "job", "target", "unknown lookup"} {
 		t.Run(kind, func(t *testing.T) {
 			b, f, d := meleeFixtureBoundary(t)
@@ -251,6 +257,7 @@ func TestMeleeBoundaryRejectsUncorrelatedRecovery(t *testing.T) {
 	}
 }
 func TestMeleeBoundaryTargetDeadIsUnsuccessful(t *testing.T) {
+	t.Parallel()
 	b, f, d := meleeFixtureBoundary(t)
 	evidence := f.progress.GetCompleted().Evidence
 	evidence.GetJob().Verified = proto.Bool(false)

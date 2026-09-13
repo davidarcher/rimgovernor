@@ -10,6 +10,7 @@ import (
 )
 
 func TestRoutineGoalRetirementSurvivesRepeatedDirectionsAndRestart(t *testing.T) {
+	t.Parallel()
 	ctx := context.Background()
 	path := filepath.Join(t.TempDir(), "routine.db")
 	s := open(t, path)
@@ -52,6 +53,7 @@ func TestRoutineGoalRetirementSurvivesRepeatedDirectionsAndRestart(t *testing.T)
 }
 
 func TestRoutineGoalRetirementWaitsForObservedEffects(t *testing.T) {
+	t.Parallel()
 	ctx := context.Background()
 	s := open(t, filepath.Join(t.TempDir(), "routine.db"))
 	r := routineRequest()
@@ -100,6 +102,7 @@ func TestRoutineGoalRetirementWaitsForObservedEffects(t *testing.T) {
 }
 
 func TestRoutineGoalRetirementRollsBackWithReview(t *testing.T) {
+	t.Parallel()
 	ctx := context.Background()
 	s := open(t, filepath.Join(t.TempDir(), "routine.db"))
 	r := routineRequest()
@@ -120,6 +123,7 @@ func TestRoutineGoalRetirementRollsBackWithReview(t *testing.T) {
 }
 
 func TestRoutineGoalRetirementRetainsCompletedOwnedDraft(t *testing.T) {
+	t.Parallel()
 	ctx := context.Background()
 	s := open(t, filepath.Join(t.TempDir(), "routine.db"))
 	r := routineRequest()

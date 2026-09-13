@@ -29,6 +29,7 @@ func billStoreFixture(t *testing.T) (*Store, string, BillAdmission) {
 }
 
 func TestBillAdmissionPrepareAndLoad(t *testing.T) {
+	t.Parallel()
 	ctx := context.Background()
 	s, _, v := billStoreFixture(t)
 	if _, err := s.PrepareBill(ctx, "plan", "bill", v); err != nil {
@@ -44,6 +45,7 @@ func TestBillAdmissionPrepareAndLoad(t *testing.T) {
 }
 
 func TestBillDispatchRequiresCurrentAdmission(t *testing.T) {
+	t.Parallel()
 	ctx := context.Background()
 	s, _, v := billStoreFixture(t)
 	if _, err := s.Dispatch(ctx, "plan", "bill", v.Snapshot, v.Tick); err == nil {
@@ -58,6 +60,7 @@ func TestBillDispatchRequiresCurrentAdmission(t *testing.T) {
 // action must reject an admission record claiming to be newer than the
 // progress it terminated with, the same way an unresolved action already did.
 func TestBillAdmissionTerminalRejectsFutureEvidence(t *testing.T) {
+	t.Parallel()
 	for _, effect := range []domain.Effect{domain.EffectCompleted, domain.EffectUnsuccessful} {
 		t.Run(string(effect), func(t *testing.T) {
 			ctx := context.Background()
@@ -97,6 +100,7 @@ func TestBillAdmissionTerminalRejectsFutureEvidence(t *testing.T) {
 // no bill was created, so the bench+recipe pair must remain claimable for a
 // retry rather than being permanently locked out at dispatch time.
 func TestBillClaimNotRecordedOnRefusal(t *testing.T) {
+	t.Parallel()
 	ctx := context.Background()
 	s, _, v := billStoreFixture(t)
 	if _, err := s.PrepareBill(ctx, "plan", "bill", v); err != nil {
@@ -125,6 +129,7 @@ func TestBillClaimNotRecordedOnRefusal(t *testing.T) {
 // An accepted (or uncertain) receipt may have actually created the bill, so the
 // claim must be recorded once the outcome is no longer a trusted refusal.
 func TestBillClaimRecordedOnAcceptedOrUncertain(t *testing.T) {
+	t.Parallel()
 	for _, receipt := range []domain.Receipt{domain.ReceiptAccepted, domain.ReceiptUnknown} {
 		t.Run(string(receipt), func(t *testing.T) {
 			ctx := context.Background()
@@ -152,6 +157,7 @@ func TestBillClaimRecordedOnAcceptedOrUncertain(t *testing.T) {
 // A bill later observed absent (the uncertain write in fact never landed) reopens
 // to Pending; retrying and claiming the same bench+recipe again must not conflict.
 func TestBillClaimReclaimAfterUncertainThenAbsentDoesNotConflict(t *testing.T) {
+	t.Parallel()
 	ctx := context.Background()
 	s, _, v := billStoreFixture(t)
 	if _, err := s.PrepareBill(ctx, "plan", "bill", v); err != nil {

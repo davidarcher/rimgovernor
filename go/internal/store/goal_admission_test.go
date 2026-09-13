@@ -57,6 +57,7 @@ func anotherGoal(t *testing.T, s *Store, id domain.GoalID) GoalState {
 	return v
 }
 func TestBuildingMethodAdmissionAllOrNothing(t *testing.T) {
+	t.Parallel()
 	ctx := context.Background()
 	s, _, g := goalFixture(t)
 	r := methodRequest(t, g, "method", 60, 60)
@@ -83,6 +84,7 @@ func TestBuildingMethodAdmissionAllOrNothing(t *testing.T) {
 	}
 }
 func TestBuildingMethodReservesDependenciesBeforeTheyAreReady(t *testing.T) {
+	t.Parallel()
 	ctx := context.Background()
 	s, path, g := goalFixture(t)
 	r := methodRequest(t, g, "method", 40, 40)
@@ -115,6 +117,7 @@ func TestBuildingMethodReservesDependenciesBeforeTheyAreReady(t *testing.T) {
 	}
 }
 func TestBuildingMethodRejectsUnknownCostsFloorsAndGeometry(t *testing.T) {
+	t.Parallel()
 	for _, change := range []string{"cost", "stock", "floor", "stopped", "overlap", "direction"} {
 		t.Run(change, func(t *testing.T) {
 			s, _, g := goalFixture(t)
@@ -144,6 +147,7 @@ func TestBuildingMethodRejectsUnknownCostsFloorsAndGeometry(t *testing.T) {
 	}
 }
 func TestConcurrentMethodsCannotDoubleSpendObservedStock(t *testing.T) {
+	t.Parallel()
 	ctx := context.Background()
 	s, path, g := goalFixture(t)
 	other := anotherGoal(t, s, "second")
@@ -172,6 +176,7 @@ func TestConcurrentMethodsCannotDoubleSpendObservedStock(t *testing.T) {
 	}
 }
 func TestMethodCostsAndGoalRollbackTogether(t *testing.T) {
+	t.Parallel()
 	ctx := context.Background()
 	s, _, g := goalFixture(t)
 	r := methodRequest(t, g, "method", 40)
@@ -191,6 +196,7 @@ func TestMethodCostsAndGoalRollbackTogether(t *testing.T) {
 }
 
 func TestMethodAdmissionReadAfterRestartHasCompleteReservations(t *testing.T) {
+	t.Parallel()
 	ctx := context.Background()
 	path := filepath.Join(t.TempDir(), "method.db")
 	s := open(t, path)

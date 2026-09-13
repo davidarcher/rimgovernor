@@ -14,6 +14,7 @@ import (
 )
 
 func TestControlStateDisablePreservesReadScopeWithoutNativeCall(t *testing.T) {
+	t.Parallel()
 	control, native, sink, _ := controlFixture(t, nil)
 	if got := control.State(); got != (ControlState{}) {
 		t.Fatal(got)
@@ -45,6 +46,7 @@ func TestControlStateDisablePreservesReadScopeWithoutNativeCall(t *testing.T) {
 }
 
 func TestControlStateChecksExpiryAndHidesUnknownTarget(t *testing.T) {
+	t.Parallel()
 	control, native, sink, _ := controlFixture(t, nil)
 	snapshot, err := control.Acquire(context.Background(), controlScope())
 	if err != nil {
@@ -72,6 +74,7 @@ func TestControlStateChecksExpiryAndHidesUnknownTarget(t *testing.T) {
 }
 
 func TestControlDisableInvalidatesBlockedAcquireGrant(t *testing.T) {
+	t.Parallel()
 	control, native, sink, _ := controlFixture(t, nil)
 	entered, release := make(chan struct{}), make(chan struct{})
 	native.onGrant = func(context.Context, string, *a.ControlReply) error { close(entered); <-release; return nil }
@@ -96,6 +99,7 @@ func TestControlDisableInvalidatesBlockedAcquireGrant(t *testing.T) {
 }
 
 func TestControlStateAndDisableAfterClose(t *testing.T) {
+	t.Parallel()
 	control, _, _, _ := controlFixture(t, nil)
 	if err := control.ObserveTarget(context.Background(), controlScope()); err != nil {
 		t.Fatal(err)
@@ -126,6 +130,7 @@ func (stateBlockedInspection) Observe(context.Context, executor.Placement, domai
 }
 
 func TestSessionDisableSynchronouslyInvalidatesBlockedRun(t *testing.T) {
+	t.Parallel()
 	ctx := context.Background()
 	dir := t.TempDir()
 	journal, err := store.Open(ctx, filepath.Join(dir, "state.sqlite"))

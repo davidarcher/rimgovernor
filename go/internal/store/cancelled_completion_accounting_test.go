@@ -8,6 +8,7 @@ import (
 )
 
 func TestCancelledMethodCompletionReleasesFreshBudgetAfterRestart(t *testing.T) {
+	t.Parallel()
 	ctx := context.Background()
 	s, path, g := goalFixture(t)
 	r := methodRequest(t, g, "old", 100)

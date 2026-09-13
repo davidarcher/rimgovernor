@@ -8,6 +8,7 @@ import (
 )
 
 func TestPendingConstructionAccountingRequiresExactCompleteNativeEvidence(t *testing.T) {
+	t.Parallel()
 	for _, fault := range []string{"", "partial", "building", "absent", "failed", "identity", "origin"} {
 		t.Run(fault, func(t *testing.T) {
 			b, f := newBoundaryFixture(t)

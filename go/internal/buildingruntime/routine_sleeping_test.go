@@ -62,6 +62,7 @@ func sleepingFixture(t *testing.T) (*RoutineBuildingPlanner, *store.Store, *play
 }
 
 func TestRoutineSleepingAdmitsWholePendingMethodAndManualInvalidates(t *testing.T) {
+	t.Parallel()
 	r, db, session, request, n := sleepingFixture(t)
 	before := session.acquires.Load()
 	result, err := r.Step(context.Background())
@@ -104,6 +105,7 @@ func TestRoutineSleepingAdmitsWholePendingMethodAndManualInvalidates(t *testing.
 }
 
 func TestRoutineSleepingRejectsIncompleteAndChangedEvidence(t *testing.T) {
+	t.Parallel()
 	for _, change := range []string{"space", "unsafe", "stock", "direction", "tick", "age", "prerequisite", "unknown-room"} {
 		t.Run(change, func(t *testing.T) {
 			r, db, session, _, n := sleepingFixture(t)
@@ -150,6 +152,7 @@ func TestRoutineSleepingRejectsIncompleteAndChangedEvidence(t *testing.T) {
 }
 
 func TestRoutineSleepingRetainsMethodIdentityUntilObservedRecovery(t *testing.T) {
+	t.Parallel()
 	r, db, _, _, n := sleepingFixture(t)
 	first, err := r.Step(context.Background())
 	if err != nil || first.Reason != BuildingMethodAdmitted {
@@ -185,6 +188,7 @@ func TestRoutineSleepingRetainsMethodIdentityUntilObservedRecovery(t *testing.T)
 }
 
 func TestRoutineSleepingProtectsOtherAdmittedFootprints(t *testing.T) {
+	t.Parallel()
 	r, db, session, _, _ := sleepingFixture(t)
 	ctx := context.Background()
 	snapshot := session.State().Snapshot
@@ -239,6 +243,7 @@ func TestRoutineSleepingProtectsOtherAdmittedFootprints(t *testing.T) {
 }
 
 func TestRoutineReviewDerivesCleanupFromSharedDraftJournal(t *testing.T) {
+	t.Parallel()
 	r, db, session, _, _ := routineFixture(t)
 	draft, err := domain.NewOwnedDraft("pawn")
 	if err != nil {
@@ -289,6 +294,7 @@ func TestRoutineReviewDerivesCleanupFromSharedDraftJournal(t *testing.T) {
 }
 
 func TestRoutineSleepingManualCancelsBlockedPreview(t *testing.T) {
+	t.Parallel()
 	r, db, session, request, n := sleepingFixture(t)
 	entered := make(chan struct{})
 	n.onPreview = func(ctx context.Context, _ *bridge.BuildingPreview) { close(entered); <-ctx.Done() }

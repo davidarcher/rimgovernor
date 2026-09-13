@@ -11,6 +11,7 @@ import (
 )
 
 func TestComfortPlacementRejectsCrampedRecreationAndPreservesUnknown(t *testing.T) {
+	t.Parallel()
 	for _, test := range []struct {
 		name     string
 		access   []domain.Fact[bool]
@@ -48,6 +49,7 @@ func TestComfortPlacementRejectsCrampedRecreationAndPreservesUnknown(t *testing.
 }
 
 func TestRoutineBuildingNativeUseBudgetRequiresOutcomeAndCurrentDirection(t *testing.T) {
+	t.Parallel()
 	for _, definition := range []string{"Table1x2c", "DiningChair", "HorseshoesPin", "Campfire", "WoodFiredGenerator", "PowerConduit"} {
 		t.Run(definition, func(t *testing.T) {
 			budget := comfortNativeWorkTicks
@@ -121,6 +123,7 @@ func TestRoutineBuildingNativeUseBudgetRequiresOutcomeAndCurrentDirection(t *tes
 }
 
 func TestComfortBuilderHonorsNativeSkillAndPlayerWorkPreferences(t *testing.T) {
+	t.Parallel()
 	pawn := policy.WorkPawn{ID: "builder", Available: domain.Known(true), Applies: domain.Known(true), Manual: domain.Known(true), Ranged: domain.Known(false)}
 	var skills []policy.WorkSkill
 	for _, name := range []string{"Construction", "Plants", "Cooking", "Medicine", "Shooting"} {
@@ -156,6 +159,7 @@ func TestComfortBuilderHonorsNativeSkillAndPlayerWorkPreferences(t *testing.T) {
 }
 
 func TestComfortCompilerResolvesNativeMaterialAndDiningAdjacency(t *testing.T) {
+	t.Parallel()
 	planner := &RoutineBuildingPlanner{goal: policy.EnsureComfort}
 	people := []policy.PawnID{"pawn"}
 	census := policy.ComfortObservation{People: people}

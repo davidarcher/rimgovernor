@@ -16,6 +16,7 @@ import (
 )
 
 func TestClockRenewalSafetyReviewMustCatchUp(t *testing.T) {
+	t.Parallel()
 	s, n, w, _ := renewalFixture(t)
 	n.status.NewestCursor = proto.Int64(1)
 	if _, err := s.RenewEpoch(context.Background()); err == nil || w.renews != 0 || !s.session.State().Enabled {
@@ -24,6 +25,7 @@ func TestClockRenewalSafetyReviewMustCatchUp(t *testing.T) {
 }
 
 func TestClockRenewalDefersCompletedBudgetToScheduler(t *testing.T) {
+	t.Parallel()
 	for _, unsafe := range []bool{false, true} {
 		t.Run(map[bool]string{false: "budget", true: "interruption"}[unsafe], func(t *testing.T) {
 			s, n, w, start := renewalFixture(t)
@@ -61,6 +63,7 @@ func (n *renewalBoundaryNative) ReadClockStatus(ctx context.Context, id *c.Ident
 }
 
 func TestClockRenewalBudgetFinishesDuringPreflight(t *testing.T) {
+	t.Parallel()
 	for _, reason := range []string{"budget", "interruption", "unknown_boundary", "read_error", "manual", "wrong_epoch"} {
 		t.Run(reason, func(t *testing.T) {
 			s, n, w, start := renewalFixture(t)
@@ -115,6 +118,7 @@ func TestClockRenewalBudgetFinishesDuringPreflight(t *testing.T) {
 }
 
 func TestClockRenewalRecoversThenValidatesCurrentRunningEpoch(t *testing.T) {
+	t.Parallel()
 	s, _, w, start := renewalFixture(t)
 	original := start.Reply.GetReceipt().GetApplied().GetStatus().GetRunning().Epoch
 	id := clockTestNextID(t, s.player.journal)
@@ -156,6 +160,7 @@ func (f *renewalWriter) Renew(ctx context.Context, r *k.RenewRequest, original *
 }
 
 func TestClockRenewalBudgetFinishesAfterDispatch(t *testing.T) {
+	t.Parallel()
 	for _, mode := range []string{"budget", "external_pause", "expired", "wrong_epoch", "unknown_boundary", "manual", "different_refusal", "lost_reply"} {
 		t.Run(mode, func(t *testing.T) {
 			s, n, w, start := renewalFixture(t)
@@ -228,6 +233,7 @@ func renewalFixture(t *testing.T) (*ClockScheduler, *schedulerNative, *renewalWr
 }
 
 func TestClockRenewalOriginalDeadlineAndIndependentPlayerGate(t *testing.T) {
+	t.Parallel()
 	s, n, w, start := renewalFixture(t)
 	original := start.Reply.GetReceipt().GetApplied().GetStatus().GetRunning().Epoch
 	n.status.Context.Tick = proto.Int64(20)
@@ -246,6 +252,7 @@ func TestClockRenewalOriginalDeadlineAndIndependentPlayerGate(t *testing.T) {
 }
 
 func TestClockRenewalReusesPreparedDespiteFreshTick(t *testing.T) {
+	t.Parallel()
 	s, n, w, start := renewalFixture(t)
 	original := start.Reply.GetReceipt().GetApplied().GetStatus().GetRunning().Epoch
 	id := clockTestNextID(t, s.player.journal)
@@ -263,6 +270,7 @@ func TestClockRenewalReusesPreparedDespiteFreshTick(t *testing.T) {
 }
 
 func TestClockRenewalTerminalUnknownIsIdleWhileDisabled(t *testing.T) {
+	t.Parallel()
 	s, _, w, _ := renewalFixture(t)
 	w.lost = true
 	first, err := s.RenewEpoch(context.Background())
@@ -286,6 +294,7 @@ func TestClockRenewalTerminalUnknownIsIdleWhileDisabled(t *testing.T) {
 }
 
 func TestClockRenewalOldTerminalUncertaintyDoesNotBlockNewEpoch(t *testing.T) {
+	t.Parallel()
 	s, n, w, start := renewalFixture(t)
 	w.lost = true
 	old, err := s.RenewEpoch(context.Background())
@@ -317,6 +326,7 @@ func TestClockRenewalOldTerminalUncertaintyDoesNotBlockNewEpoch(t *testing.T) {
 }
 
 func TestClockRenewalDisabledOrReplacementNeverRenews(t *testing.T) {
+	t.Parallel()
 	for _, reason := range []string{"disabled", "owner", "world", "deadline", "speed"} {
 		t.Run(reason, func(t *testing.T) {
 			s, n, w, _ := renewalFixture(t)
@@ -348,6 +358,7 @@ func TestClockRenewalDisabledOrReplacementNeverRenews(t *testing.T) {
 }
 
 func TestClockRenewalConcurrentCallsHaveDistinctDurableIdentities(t *testing.T) {
+	t.Parallel()
 	s, _, w, _ := renewalFixture(t)
 	results := make(chan ClockRenewResult, 2)
 	errs := make(chan error, 2)

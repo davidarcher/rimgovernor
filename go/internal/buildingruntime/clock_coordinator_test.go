@@ -92,6 +92,7 @@ func clockCoreFixture(t *testing.T) (*ClockCoordinator, *store.Store, *clockCore
 	return q, db, fake, intent
 }
 func TestClockCoordinatorDisabledAndExactReplay(t *testing.T) {
+	t.Parallel()
 	q, db, f, intent := clockCoreFixture(t)
 	if _, err := q.Command(context.Background(), intent); !errors.Is(err, executor.ErrAuthority) {
 		t.Fatal(err)
@@ -119,6 +120,7 @@ func TestClockCoordinatorDisabledAndExactReplay(t *testing.T) {
 	}
 }
 func TestClockCoordinatorLostStartRecoveryDisabled(t *testing.T) {
+	t.Parallel()
 	q, db, f, intent := clockCoreFixture(t)
 	_ = q.UpdateAuthority(executor.Authority{Snapshot: intent.Snapshot, Enabled: true})
 	f.lost = true
@@ -147,6 +149,7 @@ func TestClockCoordinatorLostStartRecoveryDisabled(t *testing.T) {
 	}
 }
 func TestClockCoordinatorUnknownDoesNotAdoptStatus(t *testing.T) {
+	t.Parallel()
 	q, db, f, intent := clockCoreFixture(t)
 	_ = q.UpdateAuthority(executor.Authority{Snapshot: intent.Snapshot, Enabled: true})
 	f.lost = true
@@ -167,6 +170,7 @@ func TestClockCoordinatorUnknownDoesNotAdoptStatus(t *testing.T) {
 	}
 }
 func TestClockCoordinatorRenewRequiresOriginalProofAndFreshSpeed(t *testing.T) {
+	t.Parallel()
 	q, db, f, intent := clockCoreFixture(t)
 	_ = q.UpdateAuthority(executor.Authority{Snapshot: intent.Snapshot, Enabled: true})
 	_, err := q.Command(context.Background(), intent)
@@ -188,6 +192,7 @@ func TestClockCoordinatorRenewRequiresOriginalProofAndFreshSpeed(t *testing.T) {
 	}
 }
 func TestClockCoordinatorInvalidationBeforeWrite(t *testing.T) {
+	t.Parallel()
 	q, _, f, intent := clockCoreFixture(t)
 	_ = q.UpdateAuthority(executor.Authority{Snapshot: intent.Snapshot, Enabled: true})
 	q.leases = clockCoreLease{func(domain.GenerationSnapshot) (string, error) {
@@ -199,6 +204,7 @@ func TestClockCoordinatorInvalidationBeforeWrite(t *testing.T) {
 	}
 }
 func TestClockCoordinatorStopJoinsUncertainWrite(t *testing.T) {
+	t.Parallel()
 	q, db, f, intent := clockCoreFixture(t)
 	_ = q.UpdateAuthority(executor.Authority{Snapshot: intent.Snapshot, Enabled: true})
 	entered := make(chan struct{})
@@ -227,6 +233,7 @@ func TestClockCoordinatorStopJoinsUncertainWrite(t *testing.T) {
 }
 
 func TestClockCoordinatorRejectsChangedDirectionForOwnedEpoch(t *testing.T) {
+	t.Parallel()
 	q, db, f, intent := clockCoreFixture(t)
 	_ = q.UpdateAuthority(executor.Authority{Snapshot: intent.Snapshot, Enabled: true})
 	if _, err := q.Command(context.Background(), intent); err != nil {
@@ -242,6 +249,7 @@ func TestClockCoordinatorRejectsChangedDirectionForOwnedEpoch(t *testing.T) {
 }
 
 func TestClockCoordinatorRejectsChangedPlanForOwnedEpoch(t *testing.T) {
+	t.Parallel()
 	q, db, f, intent := clockCoreFixture(t)
 	_ = q.UpdateAuthority(executor.Authority{Snapshot: intent.Snapshot, Enabled: true})
 	if _, err := q.Command(context.Background(), intent); err != nil {

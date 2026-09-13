@@ -10,6 +10,7 @@ import (
 )
 
 func TestRoutineGearNeedsPersistUnknownRecoveryRenewalAndManual(t *testing.T) {
+	t.Parallel()
 	path := filepath.Join(t.TempDir(), "gear.db")
 	db := open(t, path)
 	r := routineRequest()

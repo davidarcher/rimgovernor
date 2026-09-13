@@ -11,6 +11,7 @@ import (
 )
 
 func TestPlayerWorkPreferenceReplayDoesNotReadOrEnableNativeControl(t *testing.T) {
+	t.Parallel()
 	p, _, session, worlds := playerFixture(t)
 	sub, _, err := p.Submit(context.Background(), playerSubmission())
 	if err != nil {

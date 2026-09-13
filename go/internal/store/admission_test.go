@@ -13,6 +13,7 @@ func evidence(tick domain.Tick, count int64) Admission {
 	return Admission{Snapshot: scope(), Tick: tick, Costs: []MaterialCost{{Definition: "Steel", Count: count}}, Footprint: []domain.Cell{{X: 3, Z: 7}, {X: 4, Z: 7}}}
 }
 func TestAdmissionReopenAndDefensiveRecords(t *testing.T) {
+	t.Parallel()
 	ctx := context.Background()
 	s, path := fixture(t)
 	for _, id := range []domain.ActionID{"a", "b", "c"} {
@@ -57,6 +58,7 @@ func TestAdmissionReopenAndDefensiveRecords(t *testing.T) {
 	}
 }
 func TestAdmissionAtomicRollbackAndPreparedReplacement(t *testing.T) {
+	t.Parallel()
 	ctx := context.Background()
 	s, _ := fixture(t)
 	if _, err := s.db.Exec(`CREATE TRIGGER fail_prepare BEFORE INSERT ON transitions BEGIN SELECT RAISE(ABORT,'prepare failed'); END`); err != nil {
@@ -109,6 +111,7 @@ func TestAdmissionAtomicRollbackAndPreparedReplacement(t *testing.T) {
 	}
 }
 func TestAdmissionCannotEraseUnknownAndCanReplaceAfterAbsence(t *testing.T) {
+	t.Parallel()
 	ctx := context.Background()
 	s, path := fixture(t)
 	if _, err := s.ReserveAndPrepare(ctx, "p", "a", evidence(10, 40)); err != nil {
@@ -151,6 +154,7 @@ func TestAdmissionCannotEraseUnknownAndCanReplaceAfterAbsence(t *testing.T) {
 	}
 }
 func TestAdmissionValidationAndCorruption(t *testing.T) {
+	t.Parallel()
 	ctx := context.Background()
 	for _, change := range []func(*Admission){func(a *Admission) { a.Costs = nil }, func(a *Admission) { a.Costs[0].Count = -1 }, func(a *Admission) { a.Costs = append(a.Costs, a.Costs[0]) }, func(a *Admission) { a.Footprint = nil }, func(a *Admission) { a.Footprint = append(a.Footprint, a.Footprint[0]) }, func(a *Admission) { a.Footprint = []domain.Cell{{X: 0, Z: 0}} }, func(a *Admission) { a.Snapshot.Plan = "different" }} {
 		s, _ := fixture(t)

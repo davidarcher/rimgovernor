@@ -9,6 +9,7 @@ import (
 )
 
 func TestControlCloseRetiresOnlyPositivelyReplacedWorld(t *testing.T) {
+	t.Parallel()
 	for _, field := range []string{"colony", "map", "load"} {
 		t.Run(field, func(t *testing.T) {
 			drained := false
@@ -53,6 +54,7 @@ func TestControlCloseRetiresOnlyPositivelyReplacedWorld(t *testing.T) {
 	}
 }
 func TestControlCloseWorldFailureRetainsOwnershipForRetry(t *testing.T) {
+	t.Parallel()
 	for _, kind := range []string{"unavailable", "invalid", "cancelled"} {
 		t.Run(kind, func(t *testing.T) {
 			control, n, sink, dir := controlFixture(t, nil)
@@ -99,6 +101,7 @@ func TestControlCloseWorldFailureRetainsOwnershipForRetry(t *testing.T) {
 	}
 }
 func TestControlCloseSameWorldStillRevokes(t *testing.T) {
+	t.Parallel()
 	control, n, _, _ := controlFixture(t, nil)
 	original, err := control.Acquire(context.Background(), controlScope())
 	if err != nil {
@@ -114,6 +117,7 @@ func TestControlCloseSameWorldStillRevokes(t *testing.T) {
 	}
 }
 func TestControlCloseDoesNotReadWorldBeforeSuccessfulDrain(t *testing.T) {
+	t.Parallel()
 	blocked := true
 	control, n, _, _ := controlFixture(t, func(context.Context) error {
 		if blocked {

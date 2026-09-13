@@ -10,6 +10,7 @@ import (
 )
 
 func TestIdentityPersistentAndDatabaseScoped(t *testing.T) {
+	t.Parallel()
 	ctx := context.Background()
 	s, path := fixture(t)
 	id, err := s.Identity(ctx)
@@ -37,6 +38,7 @@ func TestIdentityPersistentAndDatabaseScoped(t *testing.T) {
 	}
 }
 func TestConcurrentInitializationSharesIdentity(t *testing.T) {
+	t.Parallel()
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 	path := filepath.Join(t.TempDir(), "concurrent.db")
@@ -86,6 +88,7 @@ func TestConcurrentInitializationSharesIdentity(t *testing.T) {
 	}
 }
 func TestIdentityCorruptionFailsWithoutRepair(t *testing.T) {
+	t.Parallel()
 	for _, sql := range []string{
 		"DELETE FROM metadata", "UPDATE metadata SET controller_session_id='broken'", "UPDATE metadata SET controller_session_id=upper(controller_session_id)",
 		"DROP TABLE metadata", "PRAGMA user_version=1",
@@ -111,6 +114,7 @@ func TestIdentityCorruptionFailsWithoutRepair(t *testing.T) {
 	}
 }
 func TestCancelledIdentityInitializationCanReopen(t *testing.T) {
+	t.Parallel()
 	path := filepath.Join(t.TempDir(), "cancelled.db")
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()

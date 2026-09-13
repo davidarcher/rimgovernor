@@ -10,6 +10,7 @@ import (
 )
 
 func TestSleepingUseSurvivesManualRestartAndResetsWithWorld(t *testing.T) {
+	t.Parallel()
 	path := filepath.Join(t.TempDir(), "sleep.db")
 	s := open(t, path)
 	r := routineRequest()

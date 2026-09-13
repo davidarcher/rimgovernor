@@ -67,6 +67,7 @@ func (n *routineNative) ReadColonyFacts(ctx context.Context, _ *c.Identity, plan
 }
 
 func TestRoutineReviewerUsesConfiguredFieldReserve(t *testing.T) {
+	t.Parallel()
 	r, db, _, _, n := routineFixture(t)
 	v := n.reply.GetObserved()
 	v.Issues = v.Issues[1:] // Complete native farm census replaces its unavailable issue.
@@ -121,6 +122,7 @@ func routineFixture(t *testing.T) (*RoutineReviewer, *store.Store, *playerFakeSe
 }
 
 func TestRoutineReviewerPersistsNeedsAndManualInvalidatesWithoutRead(t *testing.T) {
+	t.Parallel()
 	r, db, session, request, n := routineFixture(t)
 	got, err := r.Step(context.Background())
 	if err != nil {
@@ -157,6 +159,7 @@ func TestRoutineReviewerPersistsNeedsAndManualInvalidatesWithoutRead(t *testing.
 }
 
 func TestRoutineReviewerRejectsAuthorityChangesDuringRead(t *testing.T) {
+	t.Parallel()
 	for _, change := range []string{"direction", "disabled", "native", "load"} {
 		t.Run(change, func(t *testing.T) {
 			r, db, session, _, n := routineFixture(t)
@@ -186,6 +189,7 @@ func TestRoutineReviewerRejectsAuthorityChangesDuringRead(t *testing.T) {
 }
 
 func TestRoutineReviewerManualCancelsBlockedNativeRead(t *testing.T) {
+	t.Parallel()
 	r, db, session, request, n := routineFixture(t)
 	entered := make(chan struct{})
 	n.onRead = func(ctx context.Context) { close(entered); <-ctx.Done() }
@@ -211,6 +215,7 @@ func TestRoutineReviewerManualCancelsBlockedNativeRead(t *testing.T) {
 }
 
 func TestRoutineReviewerDisabledStepRetiresReviewWithoutReacquiring(t *testing.T) {
+	t.Parallel()
 	r, db, session, _, n := routineFixture(t)
 	if _, err := r.Step(context.Background()); err != nil {
 		t.Fatal(err)
@@ -251,6 +256,7 @@ func (n *routineMedicalNative) ReadEmergency(ctx context.Context, id *c.Identity
 	return v, receipt, err
 }
 func TestRoutineReviewerUsesSameTickMedicalCensus(t *testing.T) {
+	t.Parallel()
 	for _, kind := range []string{"needs_tend", "unknown", "stale"} {
 		t.Run(kind, func(t *testing.T) {
 			r, db, _, _, n := routineFixture(t)

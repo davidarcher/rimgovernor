@@ -33,6 +33,7 @@ func boundInbox(t *testing.T) (*Store, string, string) {
 	return s, path, profile
 }
 func TestClockInboxReplayWorldLossAndIsolation(t *testing.T) {
+	t.Parallel()
 	ctx := context.Background()
 	s, path, profile := boundInbox(t)
 	r, p := inboxPage(0, 1, 2)
@@ -84,6 +85,7 @@ func TestClockInboxReplayWorldLossAndIsolation(t *testing.T) {
 	}
 }
 func TestClockInboxAtomicRollbackAndCorruption(t *testing.T) {
+	t.Parallel()
 	ctx := context.Background()
 	t.Run("transaction rollback", func(t *testing.T) {
 		s, _, profile := boundInbox(t)
@@ -121,6 +123,7 @@ func TestClockInboxAtomicRollbackAndCorruption(t *testing.T) {
 	}
 }
 func TestClockInboxEventAndByteCapacity(t *testing.T) {
+	t.Parallel()
 	for _, large := range []bool{false, true} {
 		t.Run(map[bool]string{false: "events", true: "bytes"}[large], func(t *testing.T) {
 			ctx := context.Background()
@@ -157,6 +160,7 @@ func TestClockInboxEventAndByteCapacity(t *testing.T) {
 	}
 }
 func TestClockInboxPageCapacity(t *testing.T) {
+	t.Parallel()
 	ctx := context.Background()
 	s, _, profile := boundInbox(t)
 	tx, err := s.begin(ctx)
@@ -185,6 +189,7 @@ func TestClockInboxPageCapacity(t *testing.T) {
 }
 
 func TestClockInboxNeverRepairsOrphanedProfileHistory(t *testing.T) {
+	t.Parallel()
 	ctx := context.Background()
 	s, _, profile := boundInbox(t)
 	r, p := inboxPage(0, 1, 0)

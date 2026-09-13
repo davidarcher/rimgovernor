@@ -40,6 +40,7 @@ func acquisitionPlan(t *testing.T, id domain.PlanID, thing string) domain.PlanSp
 // acquisition method for the same goal, since the bill may be waiting on
 // exactly the ingredient the acquisition will fetch.
 func TestCommitAcquisitionMethodExemptFromBillOpenWork(t *testing.T) {
+	t.Parallel()
 	ctx := context.Background()
 	s := open(t, filepath.Join(t.TempDir(), "routine.db"))
 	r := foodDeficitRoutineRequest()
@@ -88,6 +89,7 @@ func TestCommitAcquisitionMethodExemptFromBillOpenWork(t *testing.T) {
 // acquisition action, must still block committing a further acquisition
 // method, exactly like it blocks every other family.
 func TestCommitAcquisitionMethodNotExemptFromNonBillOpenWork(t *testing.T) {
+	t.Parallel()
 	ctx := context.Background()
 	s := open(t, filepath.Join(t.TempDir(), "routine.db"))
 	r := foodDeficitRoutineRequest()

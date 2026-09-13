@@ -30,6 +30,7 @@ func (clockWorkerEventUnavailable) ReadClockEvents(context.Context, *k.EventsReq
 	return nil, bridge.Result{}, errors.New("unavailable")
 }
 func TestClockWorkerConstructorRejectsInvalidAndCancelledWithoutAttachment(t *testing.T) {
+	t.Parallel()
 	s, _ := schedulerFixture(t)
 	cfg := ClockWorkerConfig{PollInterval: 10 * time.Millisecond, RenewInterval: 10 * time.Millisecond, StepInterval: 10 * time.Millisecond, MaxBackoff: time.Second, CallTimeout: 20 * time.Millisecond, PageLimit: 128}
 	ctx, cancel := context.WithCancel(context.Background())
@@ -54,6 +55,7 @@ func TestClockWorkerConstructorRejectsInvalidAndCancelledWithoutAttachment(t *te
 	}
 }
 func TestClockWorkerPollBarrierAndIndependentLoops(t *testing.T) {
+	t.Parallel()
 	w := clockLoopFixture(t)
 	var polls, renews, steps atomic.Int32
 	allowPoll := make(chan struct{})
@@ -93,6 +95,7 @@ func TestClockWorkerPollBarrierAndIndependentLoops(t *testing.T) {
 	}
 }
 func TestClockWorkerStopJoinsBeforeRetryableCleanup(t *testing.T) {
+	t.Parallel()
 	w := clockLoopFixture(t)
 	entered, release := make(chan struct{}), make(chan struct{})
 	var disabled, cleanups atomic.Int32
@@ -125,6 +128,7 @@ func TestClockWorkerStopJoinsBeforeRetryableCleanup(t *testing.T) {
 	}
 }
 func TestClockWorkerUnchangedDecisionBacksOff(t *testing.T) {
+	t.Parallel()
 	w := clockLoopFixture(t)
 	var steps atomic.Int32
 	w.step = func(context.Context) (ClockSchedulerResult, error) { steps.Add(1); return ClockSchedulerResult{}, nil }
@@ -136,6 +140,7 @@ func TestClockWorkerUnchangedDecisionBacksOff(t *testing.T) {
 }
 
 func TestClockWorkerConcurrentStopCachesSuccessfulCleanup(t *testing.T) {
+	t.Parallel()
 	w := clockLoopFixture(t)
 	entered, release := make(chan struct{}), make(chan struct{})
 	var calls atomic.Int32

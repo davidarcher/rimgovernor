@@ -25,7 +25,18 @@ func appendReviewedBenign(t *testing.T, s *Store, profile string) ClockReviewSta
 	return review
 }
 
+// TestClockCompactionRepeatedWindowsAndAcknowledgementReplay exercises the
+// review-log wraparound at capacity, so it shrinks clockReviewCapacity to
+// keep the boundary coverage without paying for 4096 real transactions.
+// It must not run in parallel with any other test in this package: it
+// mutates shared package state for its duration and restores it on cleanup.
 func TestClockCompactionRepeatedWindowsAndAcknowledgementReplay(t *testing.T) {
+	const capacity = 256
+	const window = capacity / 64
+	original := clockReviewCapacity
+	clockReviewCapacity = capacity
+	t.Cleanup(func() { clockReviewCapacity = original })
+
 	ctx := context.Background()
 	s, path, profile := boundInbox(t)
 	reviewAppend(t, s, profile, 0, 2)
@@ -34,13 +45,13 @@ func TestClockCompactionRepeatedWindowsAndAcknowledgementReplay(t *testing.T) {
 		t.Fatal(err)
 	}
 	ack := ClockAcknowledgement{RequestID: "inspected", ExpectedRevision: review.Revision, ThroughCursor: review.ReviewedCursor}
-	original, err := s.AcknowledgeClockEvents(ctx, profile, ack)
+	originalAck, err := s.AcknowledgeClockEvents(ctx, profile, ack)
 	if err != nil {
 		t.Fatal(err)
 	}
 	for i := range clockReviewCapacity + 16 {
 		review = appendReviewedBenign(t, s, profile)
-		if i%64 == 63 {
+		if i%window == window-1 {
 			if _, err = s.CompactClockHistory(ctx, profile); err != nil {
 				t.Fatal(i, err)
 			}
@@ -53,12 +64,12 @@ func TestClockCompactionRepeatedWindowsAndAcknowledgementReplay(t *testing.T) {
 		t.Fatal(current, review, err)
 	}
 	state, err := s.ReadClockInbox(ctx, profile)
-	if err != nil || state.Cursor != clockReviewCapacity+19 || state.LostCount != 2 || !state.Gap || state.PageCount >= 128 {
+	if err != nil || state.Cursor != int64(clockReviewCapacity)+19 || state.LostCount != 2 || !state.Gap || state.PageCount >= 128 {
 		t.Fatal(state, err)
 	}
 	replayed, err := s.AcknowledgeClockEvents(ctx, profile, ack)
-	if err != nil || !reflect.DeepEqual(replayed, original) {
-		t.Fatal(replayed, original, err)
+	if err != nil || !reflect.DeepEqual(replayed, originalAck) {
+		t.Fatal(replayed, originalAck, err)
 	}
 	ack.ThroughCursor = current.ReviewedCursor
 	if _, err = s.AcknowledgeClockEvents(ctx, profile, ack); !errors.Is(err, ErrConflict) {
@@ -78,6 +89,7 @@ func TestClockCompactionRepeatedWindowsAndAcknowledgementReplay(t *testing.T) {
 }
 
 func TestClockCompactionPreservesUnreviewedAndUnacknowledged(t *testing.T) {
+	t.Parallel()
 	for _, kind := range []string{"unreviewed", "interruption", "gap"} {
 		t.Run(kind, func(t *testing.T) {
 			ctx := context.Background()
@@ -125,6 +137,7 @@ func TestClockCompactionPreservesUnreviewedAndUnacknowledged(t *testing.T) {
 }
 
 func TestClockCompactionPinsEarlyHoldUntilExplicitAcknowledgement(t *testing.T) {
+	t.Parallel()
 	ctx := context.Background()
 	s, _, profile := boundInbox(t)
 	reviewAppend(t, s, profile, 0, 2)
@@ -162,6 +175,7 @@ func TestClockCompactionPinsEarlyHoldUntilExplicitAcknowledgement(t *testing.T) 
 }
 
 func TestClockCompactionRollbackAndCheckpointValidation(t *testing.T) {
+	t.Parallel()
 	ctx := context.Background()
 	s, _, profile := boundInbox(t)
 	for range 128 {

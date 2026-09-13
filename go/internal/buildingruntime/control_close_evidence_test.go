@@ -20,6 +20,7 @@ func requireProfileHeld(t *testing.T, dir string) {
 }
 
 func TestCloseRetainsProfileUntilAuthorityReadRecovers(t *testing.T) {
+	t.Parallel()
 	control, native, sink, dir := controlFixture(t, nil)
 	if _, err := control.Acquire(context.Background(), controlScope()); err != nil {
 		t.Fatal(err)
@@ -63,6 +64,7 @@ func (n lostCloseReplyNative) Revoke(ctx context.Context, request *a.Revoke) (*a
 }
 
 func TestCloseObservesLostRevokeReplyBeforeReleasingProfile(t *testing.T) {
+	t.Parallel()
 	control, native, sink, dir := controlFixture(t, nil)
 	if _, err := control.Acquire(context.Background(), controlScope()); err != nil {
 		t.Fatal(err)

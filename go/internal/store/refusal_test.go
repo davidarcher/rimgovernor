@@ -7,6 +7,7 @@ import (
 )
 
 func TestTrustedRefusalSurvivesReopen(t *testing.T) {
+	t.Parallel()
 	ctx := context.Background()
 	s, path := fixture(t)
 	prepare(t, s, "a")

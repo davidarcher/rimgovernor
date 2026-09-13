@@ -21,6 +21,7 @@ func recoveryRequest() RoutineReviewRequest {
 	return r
 }
 func TestRoutineRecoveryProposalRestartManualAndCancellation(t *testing.T) {
+	t.Parallel()
 	ctx := context.Background()
 	path := filepath.Join(t.TempDir(), "recovery.db")
 	s := open(t, path)
@@ -77,6 +78,7 @@ func TestRoutineRecoveryProposalRestartManualAndCancellation(t *testing.T) {
 	}
 }
 func TestRoutineRecoveryUnknownWorkerDoesNotBecomeAvailableAfterRestart(t *testing.T) {
+	t.Parallel()
 	ctx := context.Background()
 	path := filepath.Join(t.TempDir(), "unknown.db")
 	s := open(t, path)
@@ -97,6 +99,7 @@ func TestRoutineRecoveryUnknownWorkerDoesNotBecomeAvailableAfterRestart(t *testi
 	}
 }
 func TestRoutineRecoveryRejectsCorruptProposalInputs(t *testing.T) {
+	t.Parallel()
 	for _, name := range []string{"target", "worker", "restriction", "epoch", "goal", "disabled", "used"} {
 		t.Run(name, func(t *testing.T) {
 			s := open(t, filepath.Join(t.TempDir(), "corrupt.db"))
@@ -137,6 +140,7 @@ func TestRoutineRecoveryRejectsCorruptProposalInputs(t *testing.T) {
 }
 
 func TestRoutineRecoverySkipsSharedGoalMethodHistory(t *testing.T) {
+	t.Parallel()
 	ctx := context.Background()
 	s := open(t, filepath.Join(t.TempDir(), "methods.db"))
 	defer s.Close()
@@ -157,6 +161,7 @@ func TestRoutineRecoverySkipsSharedGoalMethodHistory(t *testing.T) {
 }
 
 func TestRoutineRecoveryEmergencySuspendsCandidatesUntilObservedClearance(t *testing.T) {
+	t.Parallel()
 	s := open(t, filepath.Join(t.TempDir(), "emergency.db"))
 	defer s.Close()
 	r := recoveryRequest()

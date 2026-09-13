@@ -18,6 +18,7 @@ func controlRequest(t *testing.T, s *Store) ControlRequest {
 	return ControlRequest{RequestID: "acquire", Kind: AcquireControl, World: v.Request.World, Plan: v.Plan, Revision: v.Revision}
 }
 func TestControlReplayRestartAndHistoricalCompletion(t *testing.T) {
+	t.Parallel()
 	ctx := context.Background()
 	path := filepath.Join(t.TempDir(), "c.db")
 	s := open(t, path)
@@ -66,6 +67,7 @@ func TestControlReplayRestartAndHistoricalCompletion(t *testing.T) {
 	}
 }
 func TestControlConcurrentCASAndRollback(t *testing.T) {
+	t.Parallel()
 	ctx := context.Background()
 	path := filepath.Join(t.TempDir(), "c.db")
 	a := open(t, path)
@@ -114,6 +116,7 @@ func TestControlConcurrentCASAndRollback(t *testing.T) {
 	}
 }
 func TestControlValidationCapacityOverflowAndCorruption(t *testing.T) {
+	t.Parallel()
 	ctx := context.Background()
 	s := open(t, filepath.Join(t.TempDir(), "c.db"))
 	q := controlRequest(t, s)
@@ -173,6 +176,7 @@ func TestControlValidationCapacityOverflowAndCorruption(t *testing.T) {
 	}
 }
 func TestControlRejectSchemaFour(t *testing.T) {
+	t.Parallel()
 	path := filepath.Join(t.TempDir(), "old.db")
 	s := open(t, path)
 	if _, e := s.db.Exec("PRAGMA user_version=4"); e != nil {

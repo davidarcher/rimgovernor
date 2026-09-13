@@ -24,6 +24,7 @@ func windowStoreFixture(t *testing.T) (*Store, string, string, ClockIntent) {
 	return s, path, profile, intent
 }
 func TestClockWindowStoreReplayCloneAndReopen(t *testing.T) {
+	t.Parallel()
 	ctx := context.Background()
 	s, path, profile, input := windowStoreFixture(t)
 	saved, created, err := s.PrepareClock(ctx, input)
@@ -62,6 +63,7 @@ func TestClockWindowStoreReplayCloneAndReopen(t *testing.T) {
 	}
 }
 func TestClockWindowStoreDispatchReviewRaces(t *testing.T) {
+	t.Parallel()
 	ctx := context.Background()
 	for _, kind := range []string{"append", "ack", "hold", "unreviewed"} {
 		t.Run(kind, func(t *testing.T) {
@@ -109,6 +111,7 @@ func TestClockWindowStoreDispatchReviewRaces(t *testing.T) {
 	}
 }
 func TestClockWindowStoreInvalidAdmission(t *testing.T) {
+	t.Parallel()
 	cases := map[string]func(*ClockIntent){
 		"snapshot": func(v *ClockIntent) { v.Window.Snapshot.Direction++ }, "negative tick": func(v *ClockIntent) { v.Window.Tick = -1 }, "overflow": func(v *ClockIntent) { v.Window.Tick = domain.Tick(math.MaxInt64) }, "budget mismatch": func(v *ClockIntent) { v.Window.MaxTicks++ }, "zero budget": func(v *ClockIntent) { v.Window.MaxTicks = 0 }, "excess": func(v *ClockIntent) { v.Window.MaxTicks = 1800001 }, "negative cursor": func(v *ClockIntent) { v.Window.CapturedCursor = -1 }, "relative profile": func(v *ClockIntent) { v.Window.Profile = "relative" }, "foreign profile": func(v *ClockIntent) { v.Window.Profile = t.TempDir() }, "profile NUL": func(v *ClockIntent) { v.Window.Profile += "\x00" }, "profile long": func(v *ClockIntent) { v.Window.Profile += strings.Repeat("x", 4096) }, "not start": func(v *ClockIntent) { v.Command = bridge.ClockCommand{Renew: &bridge.ClockRenew{}} },
 	}
@@ -127,6 +130,7 @@ func TestClockWindowStoreInvalidAdmission(t *testing.T) {
 	}
 }
 func TestClockWindowStoreCorruptionAndRollback(t *testing.T) {
+	t.Parallel()
 	ctx := context.Background()
 	t.Run("atomic dispatch", func(t *testing.T) {
 		s, _, _, input := windowStoreFixture(t)
@@ -191,6 +195,7 @@ func TestClockWindowStoreCorruptionAndRollback(t *testing.T) {
 	}
 }
 func TestClockWindowStorePlainStartStillExplicit(t *testing.T) {
+	t.Parallel()
 	s, _, _, _ := windowStoreFixture(t)
 	ctx := context.Background()
 	if _, _, err := s.PrepareClock(ctx, clockIntent(clockTestID(t, s, "explicit"))); err != nil {

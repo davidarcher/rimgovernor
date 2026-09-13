@@ -44,6 +44,7 @@ func clockTestID(t *testing.T, s *Store, label string) string {
 }
 
 func TestClockSequenceAllocationReplayAndReopen(t *testing.T) {
+	t.Parallel()
 	ctx := context.Background()
 	s, path := fixture(t)
 	state, err := s.ReadClockSequence(ctx)
@@ -106,6 +107,7 @@ func TestClockSequenceAllocationReplayAndReopen(t *testing.T) {
 	}
 }
 func TestClockSequenceConcurrentCASAndRollback(t *testing.T) {
+	t.Parallel()
 	ctx := context.Background()
 	s, path := fixture(t)
 	other := open(t, path)
@@ -153,6 +155,7 @@ func TestClockSequenceConcurrentCASAndRollback(t *testing.T) {
 	}
 }
 func TestClockSequenceRetirementAndCorruption(t *testing.T) {
+	t.Parallel()
 	for _, kind := range []string{"retired", "missing-pinned", "missing-live", "extra-row", "noncanonical"} {
 		t.Run(kind, func(t *testing.T) {
 			ctx := context.Background()

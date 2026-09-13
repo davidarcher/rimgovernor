@@ -35,6 +35,7 @@ func newClockSessionTest(t *testing.T, db *store.Store, fake *clockCoreFake) (*S
 }
 
 func TestClockSessionManualJoinsCancelledStartAndAllowsFreshAcquire(t *testing.T) {
+	t.Parallel()
 	_, db, fake, intent := clockCoreFixture(t)
 	s, authority, _ := newClockSessionTest(t, db, fake)
 	if _, err := s.CommandClock(context.Background(), intent); !errors.Is(err, executor.ErrAuthority) {
@@ -70,6 +71,7 @@ func TestClockSessionManualJoinsCancelledStartAndAllowsFreshAcquire(t *testing.T
 }
 
 func TestClockSessionCloseRetainsOwnerUntilPauseConfirmed(t *testing.T) {
+	t.Parallel()
 	_, db, fake, intent := clockCoreFixture(t)
 	s, _, dir := newClockSessionTest(t, db, fake)
 	current, err := s.Acquire(context.Background(), intent.Snapshot)
@@ -103,6 +105,7 @@ func TestClockSessionCloseRetainsOwnerUntilPauseConfirmed(t *testing.T) {
 }
 
 func TestClockSessionRestartRecoversWithoutAcquiringPermission(t *testing.T) {
+	t.Parallel()
 	q, db, fake, intent := clockCoreFixture(t)
 	if err := q.UpdateAuthority(executor.Authority{Snapshot: intent.Snapshot, Enabled: true}); err != nil {
 		t.Fatal(err)
@@ -132,6 +135,7 @@ func TestClockSessionRestartRecoversWithoutAcquiringPermission(t *testing.T) {
 }
 
 func TestControlCleanupFailurePreventsReacquire(t *testing.T) {
+	t.Parallel()
 	control, native, _, _ := controlFixture(t, nil)
 	snapshot := domain.GenerationSnapshot{Colony: "colony", Map: 0, Load: "load", Direction: 1, Plan: "plan", Revision: 1, Native: 1}
 	if _, err := control.Acquire(context.Background(), snapshot); err != nil {

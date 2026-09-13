@@ -39,6 +39,7 @@ func epochStopped(status *k.Status, verified bool) *k.Status {
 	return v
 }
 func TestClockEpochAtomicCreationAndReopen(t *testing.T) {
+	t.Parallel()
 	ctx := context.Background()
 	s, path, status := epochStoreFixture(t)
 	initial, err := s.LookupClockEpoch(ctx, clockTestID(t, s, "start"))
@@ -68,6 +69,7 @@ func TestClockEpochAtomicCreationAndReopen(t *testing.T) {
 	}
 }
 func TestClockEpochObligationInsertFailureRollsBackAppliedReceipt(t *testing.T) {
+	t.Parallel()
 	ctx := context.Background()
 	s := open(t, filepath.Join(t.TempDir(), "epoch.db"))
 	attempt, _, err := s.PrepareClock(ctx, clockIntent(clockTestID(t, s, "start")))
@@ -92,6 +94,7 @@ func TestClockEpochObligationInsertFailureRollsBackAppliedReceipt(t *testing.T) 
 	}
 }
 func TestClockEpochPauseSequenceRequiresFreshObservation(t *testing.T) {
+	t.Parallel()
 	ctx := context.Background()
 	s, _, status := epochStoreFixture(t)
 	first, err := s.BeginClockPause(ctx, clockTestID(t, s, "start"), 0)
@@ -140,6 +143,7 @@ func TestClockEpochPauseSequenceRequiresFreshObservation(t *testing.T) {
 	}
 }
 func TestClockEpochImmutableMismatchAndPositiveRetirement(t *testing.T) {
+	t.Parallel()
 	for _, kind := range []string{"policy", "deadline", "epoch", "world", "inactive"} {
 		t.Run(kind, func(t *testing.T) {
 			ctx := context.Background()
@@ -176,6 +180,7 @@ func TestClockEpochImmutableMismatchAndPositiveRetirement(t *testing.T) {
 	}
 }
 func TestClockEpochUnknownStatesNeverAcquireOrRetireOwnership(t *testing.T) {
+	t.Parallel()
 	for _, kind := range []string{"never", "unavailable", "stopping"} {
 		t.Run(kind, func(t *testing.T) {
 			ctx := context.Background()
@@ -196,6 +201,7 @@ func TestClockEpochUnknownStatesNeverAcquireOrRetireOwnership(t *testing.T) {
 	}
 }
 func TestClockEpochNeverAdoptsUncertainStatusAndMissingAppliedRowIsCorrupt(t *testing.T) {
+	t.Parallel()
 	ctx := context.Background()
 	s := open(t, filepath.Join(t.TempDir(), "epoch.db"))
 	attempt, _, err := s.PrepareClock(ctx, clockIntent(clockTestID(t, s, "start")))
@@ -229,6 +235,7 @@ func TestClockEpochNeverAdoptsUncertainStatusAndMissingAppliedRowIsCorrupt(t *te
 }
 
 func TestClockEpochPauseRetainsObservationWatermarkAcrossRestart(t *testing.T) {
+	t.Parallel()
 	ctx := context.Background()
 	s, path, status := epochStoreFixture(t)
 	status.Context.Tick = proto.Int64(50)
@@ -270,6 +277,7 @@ func TestClockEpochPauseRetainsObservationWatermarkAcrossRestart(t *testing.T) {
 }
 
 func TestClockEpochRetainsGenerationWatermarkAcrossPauseAndRestart(t *testing.T) {
+	t.Parallel()
 	ctx := context.Background()
 	s, path, status := epochStoreFixture(t)
 	for _, generation := range []*uint64{nil, proto.Uint64(6)} {

@@ -11,6 +11,7 @@ import (
 )
 
 func TestDependencyPersistenceAndGuardedExecution(t *testing.T) {
+	t.Parallel()
 	ctx := context.Background()
 	path := filepath.Join(t.TempDir(), "dependencies.db")
 	s := open(t, path)
@@ -58,6 +59,7 @@ func TestDependencyPersistenceAndGuardedExecution(t *testing.T) {
 }
 
 func TestDependencyDispatchRechecksAfterPreparation(t *testing.T) {
+	t.Parallel()
 	ctx := context.Background()
 	s, _ := fixture(t)
 	prepare(t, s, "b")
@@ -75,6 +77,7 @@ func TestDependencyDispatchRechecksAfterPreparation(t *testing.T) {
 }
 
 func TestDependencyCorruptCrossPlanRefusedOnLoad(t *testing.T) {
+	t.Parallel()
 	ctx := context.Background()
 	s, _ := fixture(t)
 	if e := s.CreatePlan(ctx, plan(t, "other", "outside")); e != nil {

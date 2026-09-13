@@ -35,6 +35,7 @@ func schedulerSleeping(t *testing.T, s *ClockScheduler, f *schedulerNative) *sle
 }
 
 func TestSchedulerCompilesSleepingOnlyAtPausedReviewBoundary(t *testing.T) {
+	t.Parallel()
 	s, f := schedulerFixture(t)
 	n := schedulerSleeping(t, s, f)
 	result, err := s.Step(context.Background())
@@ -58,6 +59,7 @@ func TestSchedulerCompilesSleepingOnlyAtPausedReviewBoundary(t *testing.T) {
 }
 
 func TestSchedulerFailedSleepingPreviewCannotStartClock(t *testing.T) {
+	t.Parallel()
 	s, f := schedulerFixture(t)
 	n := schedulerSleeping(t, s, f)
 	n.onPreview = func(_ context.Context, p *bridge.BuildingPreview) { p.Preview.Tick-- }
@@ -68,6 +70,7 @@ func TestSchedulerFailedSleepingPreviewCannotStartClock(t *testing.T) {
 }
 
 func TestSchedulerRejectsSleepingWithoutMatchingReviewer(t *testing.T) {
+	t.Parallel()
 	s, f := schedulerFixture(t)
 	other, _, _, _, _ := sleepingFixture(t)
 	config := s.config
@@ -84,6 +87,7 @@ func TestSchedulerRejectsSleepingWithoutMatchingReviewer(t *testing.T) {
 }
 
 func TestSchedulerCompilesCookingAtPausedBoundary(t *testing.T) {
+	t.Parallel()
 	s, f := schedulerFixture(t)
 	n := schedulerSleeping(t, s, f)
 	v := n.reply.GetObserved()

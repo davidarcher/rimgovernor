@@ -29,6 +29,7 @@ func tendStoreFixture(t *testing.T) (*Store, string, TendAdmission) {
 }
 
 func TestTendAdmissionPrepareAndLoad(t *testing.T) {
+	t.Parallel()
 	ctx := context.Background()
 	s, _, v := tendStoreFixture(t)
 	if _, err := s.PrepareTend(ctx, "plan", "tend", v); err != nil {
@@ -44,6 +45,7 @@ func TestTendAdmissionPrepareAndLoad(t *testing.T) {
 }
 
 func TestTendDispatchRequiresCurrentAdmission(t *testing.T) {
+	t.Parallel()
 	ctx := context.Background()
 	s, _, v := tendStoreFixture(t)
 	if _, err := s.Dispatch(ctx, "plan", "tend", v.Snapshot, v.Tick); err == nil {
@@ -55,6 +57,7 @@ func TestTendDispatchRequiresCurrentAdmission(t *testing.T) {
 }
 
 func TestTendAdmissionTerminalRejectsFutureEvidence(t *testing.T) {
+	t.Parallel()
 	for _, effect := range []domain.Effect{domain.EffectCompleted, domain.EffectUnsuccessful} {
 		t.Run(string(effect), func(t *testing.T) {
 			ctx := context.Background()
@@ -88,6 +91,7 @@ func TestTendAdmissionTerminalRejectsFutureEvidence(t *testing.T) {
 }
 
 func TestTendAdmissionPreparedRefreshThenCancelRetainsEvidence(t *testing.T) {
+	t.Parallel()
 	ctx := context.Background()
 	s, path, v := tendStoreFixture(t)
 	if _, err := s.PrepareTend(ctx, "plan", "tend", v); err != nil {

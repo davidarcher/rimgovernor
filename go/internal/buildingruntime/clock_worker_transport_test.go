@@ -78,6 +78,7 @@ func clockTransportFixture(t *testing.T, blockStart bool) (*ClockScheduler, *blo
 	return s, native, worker
 }
 func TestClockWorkerTransportBlockedWriteRetainsOwner(t *testing.T) {
+	t.Parallel()
 	for _, kind := range []string{"start", "renew"} {
 		for _, stop := range []string{"manual", "interruption", "stop"} {
 			t.Run(kind+"/"+stop, func(t *testing.T) {
@@ -170,6 +171,7 @@ func TestClockWorkerTransportBlockedWriteRetainsOwner(t *testing.T) {
 	}
 }
 func TestClockWorkerTransportRenewalBypassesPlayerGate(t *testing.T) {
+	t.Parallel()
 	s, native, _ := clockTransportFixture(t, false)
 	clockTransportWait(t, native.started, "start")
 	select {

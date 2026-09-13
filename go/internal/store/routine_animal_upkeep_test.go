@@ -11,6 +11,7 @@ import (
 )
 
 func TestAnimalNeedsRetainRiskAcrossManualRestartAndUnknown(t *testing.T) {
+	t.Parallel()
 	path := filepath.Join(t.TempDir(), "animals.db")
 	s := open(t, path)
 	r := routineRequest()
@@ -75,6 +76,7 @@ func TestAnimalNeedsRetainRiskAcrossManualRestartAndUnknown(t *testing.T) {
 }
 
 func TestDisabledRoutineRejectsInvalidAnimalHistory(t *testing.T) {
+	t.Parallel()
 	s := open(t, filepath.Join(t.TempDir(), "invalid-animals.db"))
 	defer s.Close()
 	r := routineRequest()

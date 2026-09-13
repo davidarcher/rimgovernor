@@ -9,6 +9,7 @@ import (
 )
 
 func TestDraftWorldReadUsesFreshIdentityWithoutAuthority(t *testing.T) {
+	t.Parallel()
 	boundary, native := draftBoundaryFixture(t)
 	first, err := boundary.ReadWorld(context.Background())
 	if err != nil || first.Load != "load" {

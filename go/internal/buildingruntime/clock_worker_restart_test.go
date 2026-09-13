@@ -18,6 +18,7 @@ import (
 )
 
 func TestClockWorkerDisabledRestart(t *testing.T) {
+	t.Parallel()
 	for _, scenario := range []string{"applied", "lost-start-reply", "historical-unknown-renew"} {
 		t.Run(scenario, func(t *testing.T) {
 			ctx := context.Background()

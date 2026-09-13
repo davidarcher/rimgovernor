@@ -34,6 +34,7 @@ func clockApplied(v ClockAttempt) *k.ControlReply {
 	return &k.ControlReply{Outcome: &k.ControlReply_Receipt{Receipt: &k.ControlReceipt{Attempt: e.Attempt, AdmittedContext: ctx, AuthorizingOwner: e.Owner, Outcome: &k.ControlReceipt_Applied{Applied: &k.AppliedControl{Status: status}}}}}
 }
 func TestClockJournalReopenAndImmutableEvidence(t *testing.T) {
+	t.Parallel()
 	ctx := context.Background()
 	path := filepath.Join(t.TempDir(), "clock.db")
 	s := open(t, path)
@@ -91,6 +92,7 @@ func TestClockJournalReopenAndImmutableEvidence(t *testing.T) {
 	}
 }
 func TestClockReplyClassificationAndOriginalEpoch(t *testing.T) {
+	t.Parallel()
 	ctx := context.Background()
 	s := open(t, filepath.Join(t.TempDir(), "clock.db"))
 	for _, test := range []struct {
@@ -145,6 +147,7 @@ func TestClockReplyClassificationAndOriginalEpoch(t *testing.T) {
 	}
 }
 func TestClockNamespaceBoundsAndRollback(t *testing.T) {
+	t.Parallel()
 	ctx := context.Background()
 	s, _ := fixture(t)
 	v, _, err := s.PrepareClock(ctx, clockIntent(clockTestID(t, s, "z")))
@@ -187,6 +190,7 @@ func TestClockNamespaceBoundsAndRollback(t *testing.T) {
 	}
 }
 func TestClockMalformedPersistedEvidenceAndCancelledContention(t *testing.T) {
+	t.Parallel()
 	ctx := context.Background()
 	s, path := fixture(t)
 	if _, _, err := s.PrepareClock(ctx, clockIntent(clockTestID(t, s, "one"))); err != nil {
@@ -216,6 +220,7 @@ func TestClockMalformedPersistedEvidenceAndCancelledContention(t *testing.T) {
 }
 
 func TestClockAdmissionEvidenceSurvivesLaterFailures(t *testing.T) {
+	t.Parallel()
 	ctx := context.Background()
 	s, _ := fixture(t)
 	v, _, err := s.PrepareClock(ctx, clockIntent(clockTestID(t, s, "admitted")))
@@ -268,6 +273,7 @@ func TestClockAdmissionEvidenceSurvivesLaterFailures(t *testing.T) {
 }
 
 func TestClockAttemptCapacityPreservesReplay(t *testing.T) {
+	t.Parallel()
 	ctx := context.Background()
 	s, _ := fixture(t)
 	v, _, err := s.PrepareClock(ctx, clockIntent(clockTestID(t, s, "first")))
@@ -313,6 +319,7 @@ func TestClockAttemptCapacityPreservesReplay(t *testing.T) {
 }
 
 func TestClockAttemptConflictRequiresReceiptResolution(t *testing.T) {
+	t.Parallel()
 	ctx := context.Background()
 	s, _ := fixture(t)
 	v, _, err := s.PrepareClock(ctx, clockIntent(clockTestID(t, s, "conflict")))

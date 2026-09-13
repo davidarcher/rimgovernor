@@ -100,6 +100,7 @@ func (f *joinedClockNative) ReadClockEvents(ctx context.Context, request *k.Even
 	return &k.EventsReply{Outcome: &k.EventsReply_Page{Page: page}}, bridge.Result{}, ctx.Err()
 }
 func TestClockWorkerActualSessionInterruptionAndJoinedClose(t *testing.T) {
+	t.Parallel()
 	s, source := schedulerFixture(t)
 	native := &joinedClockNative{source: source, started: make(chan struct{}), paused: make(chan struct{}), captured: make(chan struct{})}
 	s.native = native

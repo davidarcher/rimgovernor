@@ -12,6 +12,7 @@ func (s *playerFakeSession) ResourceRules() []policy.ResourceRule {
 }
 
 func TestRoutineMethodHonorsConfiguredResourceRules(t *testing.T) {
+	t.Parallel()
 	for _, phase := range []string{"allow", "stop", "defense", "reserve"} {
 		t.Run(phase, func(t *testing.T) {
 			planner, _, native := cookingFixture(t)

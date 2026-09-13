@@ -12,6 +12,7 @@ import (
 )
 
 func TestComfortUseAllowanceRetainsRetiredMethodAndExpires(t *testing.T) {
+	t.Parallel()
 	ctx := context.Background()
 	planner, db, session, _, _ := sleepingFixture(t)
 	current := session.State().Snapshot
@@ -90,6 +91,7 @@ func TestComfortUseAllowanceRetainsRetiredMethodAndExpires(t *testing.T) {
 }
 
 func TestNativeComfortCompletionBudgetCapture(t *testing.T) {
+	t.Parallel()
 	source := os.Getenv("RIMGOVERNOR_COMFORT_DB")
 	if source == "" {
 		t.Skip("native comfort database not supplied")

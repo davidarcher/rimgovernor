@@ -19,6 +19,7 @@ func submissionRequest(t *testing.T, id string) SubmissionRequest {
 	return SubmissionRequest{RequestID: id, World: World{Colony: "colony", Load: "load", Map: 0}, Building: b}
 }
 func TestSubmissionReplayConflictAndReopen(t *testing.T) {
+	t.Parallel()
 	ctx := context.Background()
 	path := filepath.Join(t.TempDir(), "submission.db")
 	s := open(t, path)
@@ -64,6 +65,7 @@ func TestSubmissionReplayConflictAndReopen(t *testing.T) {
 	}
 }
 func TestSubmissionAtomicFailure(t *testing.T) {
+	t.Parallel()
 	s := open(t, filepath.Join(t.TempDir(), "atomic.db"))
 	ctx := context.Background()
 	if _, err := s.db.Exec("CREATE TRIGGER fail_submission BEFORE INSERT ON building_submissions BEGIN SELECT RAISE(ABORT,'fixture failure'); END"); err != nil {
@@ -86,6 +88,7 @@ func TestSubmissionAtomicFailure(t *testing.T) {
 	}
 }
 func TestConcurrentSubmissionAcrossConnections(t *testing.T) {
+	t.Parallel()
 	path := filepath.Join(t.TempDir(), "concurrent.db")
 	one := open(t, path)
 	two := open(t, path)
@@ -132,6 +135,7 @@ func TestConcurrentSubmissionAcrossConnections(t *testing.T) {
 	}
 }
 func TestSubmissionCapacityPreservesReplay(t *testing.T) {
+	t.Parallel()
 	ctx := context.Background()
 	s := open(t, filepath.Join(t.TempDir(), "capacity.db"))
 	request := submissionRequest(t, "retained")
@@ -165,6 +169,7 @@ func TestSubmissionCapacityPreservesReplay(t *testing.T) {
 	}
 }
 func TestSubmissionValidationAndOldSchemaRejected(t *testing.T) {
+	t.Parallel()
 	s := open(t, filepath.Join(t.TempDir(), "validation.db"))
 	ctx := context.Background()
 	for _, change := range []func(*SubmissionRequest){func(v *SubmissionRequest) { v.RequestID = "bad\x00id" }, func(v *SubmissionRequest) { v.World.Map = -1 }, func(v *SubmissionRequest) { v.World.Load = "" }, func(v *SubmissionRequest) { v.Building = domain.Building{} }} {

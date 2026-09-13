@@ -10,6 +10,7 @@ import (
 )
 
 func TestRoutineExecutionRequiresCurrentReviewedMethod(t *testing.T) {
+	t.Parallel()
 	for _, change := range []string{"valid", "direction", "native", "load", "revision", "unbound", "disabled", "cancelled", "unknown"} {
 		t.Run(change, func(t *testing.T) {
 			ctx := context.Background()
@@ -58,6 +59,7 @@ func TestRoutineExecutionRequiresCurrentReviewedMethod(t *testing.T) {
 // output, since that pending pawn time is what the recovered gate reflects.
 // It must never permit a fresh setup write once the gate has recovered.
 func TestRoutineExecutionRecoveredBillNeedPermitsPendingOutputOnly(t *testing.T) {
+	t.Parallel()
 	ctx := context.Background()
 	s := open(t, filepath.Join(t.TempDir(), "routine.db"))
 	r := routineRequest()
@@ -108,6 +110,7 @@ func TestRoutineExecutionRecoveredBillNeedPermitsPendingOutputOnly(t *testing.T)
 // leaves nothing pending: the goal settles to Satisfied rather than staying
 // Active, and authorization must refuse it like any other satisfied goal.
 func TestRoutineExecutionRecoveredBillNeedRefusesOnceResolved(t *testing.T) {
+	t.Parallel()
 	ctx := context.Background()
 	s := open(t, filepath.Join(t.TempDir(), "routine.db"))
 	r := routineRequest()
@@ -162,6 +165,7 @@ func TestRoutineExecutionRecoveredBillNeedRefusesOnceResolved(t *testing.T) {
 // the bound plan was never dispatched, authorization must refuse the whole
 // plan even though a sibling action still has genuinely pending output.
 func TestRoutineExecutionRecoveredBillNeedRefusesUndispatchedSibling(t *testing.T) {
+	t.Parallel()
 	ctx := context.Background()
 	s := open(t, filepath.Join(t.TempDir(), "routine.db"))
 	r := routineRequest()

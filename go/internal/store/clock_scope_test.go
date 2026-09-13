@@ -18,6 +18,7 @@ func clockScopeProof(v ClockAttempt) *c.ObservationContext {
 }
 
 func TestClockScopeRetirementPersistsWithoutChangingOutcome(t *testing.T) {
+	t.Parallel()
 	ctx := context.Background()
 	path := filepath.Join(t.TempDir(), "clock.db")
 	s := open(t, path)
@@ -74,6 +75,7 @@ func TestClockScopeRetirementPersistsWithoutChangingOutcome(t *testing.T) {
 }
 
 func TestClockScopeRequiresPositiveReplacementAndUnresolvedStart(t *testing.T) {
+	t.Parallel()
 	ctx := context.Background()
 	s := open(t, filepath.Join(t.TempDir(), "clock.db"))
 	v, _, err := s.PrepareClock(ctx, clockIntent(clockTestID(t, s, "start")))
@@ -119,6 +121,7 @@ func TestClockScopeRequiresPositiveReplacementAndUnresolvedStart(t *testing.T) {
 }
 
 func TestClockScopeRollbackAndCorruptEvidence(t *testing.T) {
+	t.Parallel()
 	ctx := context.Background()
 	s := open(t, filepath.Join(t.TempDir(), "clock.db"))
 	v, _, err := s.PrepareClock(ctx, clockIntent(clockTestID(t, s, "start")))

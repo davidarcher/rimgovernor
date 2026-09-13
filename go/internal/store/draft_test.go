@@ -49,6 +49,7 @@ func draftProgress(t *testing.T, s *Store, v DraftSubmission) domain.Progress {
 	return state.Progress[0]
 }
 func TestDraftSubmissionSharedNamespaceAndControl(t *testing.T) {
+	t.Parallel()
 	s, path, v, _ := draftFixture(t)
 	ctx := context.Background()
 	if got, created, e := s.SubmitDraft(ctx, v.Request); e != nil || created || got != v {
@@ -87,6 +88,7 @@ func TestDraftSubmissionSharedNamespaceAndControl(t *testing.T) {
 	}
 }
 func TestDraftCleanupReopenPreservesExactRequestAndSequence(t *testing.T) {
+	t.Parallel()
 	ctx := context.Background()
 	s, path, v, a := draftFixture(t)
 	claim := draftDispatch(t, s, v, a)
@@ -154,6 +156,7 @@ func TestDraftCleanupReopenPreservesExactRequestAndSequence(t *testing.T) {
 	}
 }
 func TestDraftAtomicClaimAndAdmissionGuards(t *testing.T) {
+	t.Parallel()
 	ctx := context.Background()
 	s, _, v, a := draftFixture(t)
 	if _, e := s.Prepare(ctx, v.Plan, v.Action, a.Snapshot, 10); e == nil {
@@ -195,6 +198,7 @@ func TestDraftAtomicClaimAndAdmissionGuards(t *testing.T) {
 	}
 }
 func TestDraftCanonicalEventCorruption(t *testing.T) {
+	t.Parallel()
 	for _, kind := range []string{"zero-sequence", "claim-session", "extra-arm", "unknown-field", "oversized"} {
 		t.Run(kind, func(t *testing.T) {
 			ctx := context.Background()
@@ -240,6 +244,7 @@ func TestDraftCanonicalEventCorruption(t *testing.T) {
 	}
 }
 func TestDraftSchemaFiveRejected(t *testing.T) {
+	t.Parallel()
 	s, path, _, _ := draftFixture(t)
 	if _, e := s.db.Exec("PRAGMA user_version=5"); e != nil {
 		t.Fatal(e)
@@ -252,6 +257,7 @@ func TestDraftSchemaFiveRejected(t *testing.T) {
 }
 
 func TestDraftPreparedAdmissionRefreshAndCancellation(t *testing.T) {
+	t.Parallel()
 	ctx := context.Background()
 	s, path, v, a := draftFixture(t)
 	if _, e := s.PrepareDraft(ctx, v.Plan, v.Action, a); e != nil {
@@ -301,6 +307,7 @@ func TestDraftPreparedAdmissionRefreshAndCancellation(t *testing.T) {
 }
 
 func TestDraftSubmissionAndPreparationRollback(t *testing.T) {
+	t.Parallel()
 	ctx := context.Background()
 	s, _, v, a := draftFixture(t)
 	if _, e := s.db.Exec("CREATE TRIGGER fail_prepare BEFORE INSERT ON transitions BEGIN SELECT RAISE(ABORT,'injected'); END"); e != nil {
@@ -333,6 +340,7 @@ func TestDraftSubmissionAndPreparationRollback(t *testing.T) {
 }
 
 func TestDraftSubmissionConcurrentConnections(t *testing.T) {
+	t.Parallel()
 	s, path, v, _ := draftFixture(t)
 	other := open(t, path)
 	q := v.Request
@@ -368,6 +376,7 @@ func TestDraftSubmissionConcurrentConnections(t *testing.T) {
 }
 
 func TestDraftCorruptAdmissionAndSubmissionHeader(t *testing.T) {
+	t.Parallel()
 	for _, kind := range []string{"admission-field", "missing-admission", "header-revision", "action-kind"} {
 		t.Run(kind, func(t *testing.T) {
 			s, _, v, a := draftFixture(t)

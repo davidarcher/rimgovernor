@@ -83,6 +83,7 @@ func workerDraftResult(db *store.Store, ctx context.Context, plan domain.PlanID,
 }
 
 func TestWorkerDraftLiveAndCleanupEligibility(t *testing.T) {
+	t.Parallel()
 	for _, kind := range []string{"pending", "completed", "cancelled", "failed", "disabled", "direction", "world", "plan", "multi-active", "multi-failed"} {
 		t.Run(kind, func(t *testing.T) {
 			w, f, db := workerFixture(t)
@@ -145,6 +146,7 @@ func TestWorkerDraftLiveAndCleanupEligibility(t *testing.T) {
 }
 
 func TestWorkerCleanupFairnessAndTerminalPruning(t *testing.T) {
+	t.Parallel()
 	w, f, db := workerFixture(t)
 	a := workerDraft(t, db, "a", domain.Dispatched, false)
 	b := workerDraft(t, db, "b", domain.Completed, false)
@@ -185,6 +187,7 @@ func TestWorkerCleanupFairnessAndTerminalPruning(t *testing.T) {
 }
 
 func TestWorkerRunToCleanupResetsCooldown(t *testing.T) {
+	t.Parallel()
 	w, f, db := workerFixture(t)
 	v := workerDraft(t, db, "draft", domain.Dispatched, false)
 	f.state = ControlState{Enabled: true, ObservationKnown: true, Snapshot: v.Snapshot}
@@ -211,6 +214,7 @@ func TestWorkerRunToCleanupResetsCooldown(t *testing.T) {
 }
 
 func TestWorkerFailedWorldReadStillAttemptsIndependentCleanup(t *testing.T) {
+	t.Parallel()
 	for _, cleanupFails := range []bool{false, true} {
 		name := "fresh-cleanup-world"
 		if cleanupFails {
@@ -254,6 +258,7 @@ func TestWorkerFailedWorldReadStillAttemptsIndependentCleanup(t *testing.T) {
 }
 
 func TestWorkerUnavailableCleanupDoesNotStarveCurrentBuilding(t *testing.T) {
+	t.Parallel()
 	w, f, db := workerFixture(t)
 	workerDraft(t, db, "old-draft", domain.Completed, false)
 	current := workerPending(t, w, "current-building", false)

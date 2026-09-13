@@ -29,6 +29,7 @@ func goalFixture(t *testing.T) (*Store, string, GoalState) {
 	return s, path, state
 }
 func TestGoalMethodAtomicCommitReopenAndDuplicate(t *testing.T) {
+	t.Parallel()
 	ctx := context.Background()
 	s, path, g := goalFixture(t)
 	p := plan(t, "method-plan", "method-action")
@@ -56,6 +57,7 @@ func TestGoalMethodAtomicCommitReopenAndDuplicate(t *testing.T) {
 	}
 }
 func TestGoalCancellationRetainsIssuedUncertainty(t *testing.T) {
+	t.Parallel()
 	ctx := context.Background()
 	s, _, g := goalFixture(t)
 	p := plan(t, "p", "issued", "waiting")
@@ -88,6 +90,7 @@ func TestGoalCancellationRetainsIssuedUncertainty(t *testing.T) {
 	}
 }
 func TestGoalSuspensionGuardsPreparedDispatchAndCanResume(t *testing.T) {
+	t.Parallel()
 	ctx := context.Background()
 	s, _, g := goalFixture(t)
 	g, e := s.CommitGoalMethod(ctx, g.Goal.ID, g.Revision, "shell", plan(t, "p", "a"))
@@ -113,6 +116,7 @@ func TestGoalSuspensionGuardsPreparedDispatchAndCanResume(t *testing.T) {
 	}
 }
 func TestGoalObservedRecoveryThenRenewalKeepsOldPlan(t *testing.T) {
+	t.Parallel()
 	ctx := context.Background()
 	s, _, g := goalFixture(t)
 	g, e := s.CommitGoalMethod(ctx, g.Goal.ID, g.Revision, "shell", plan(t, "p", "a"))
@@ -154,6 +158,7 @@ func TestGoalObservedRecoveryThenRenewalKeepsOldPlan(t *testing.T) {
 	}
 }
 func TestGoalDirectionInvalidationCancelsPendingPlan(t *testing.T) {
+	t.Parallel()
 	ctx := context.Background()
 	s, _, g := goalFixture(t)
 	g, e := s.CommitGoalMethod(ctx, g.Goal.ID, g.Revision, "shell", plan(t, "p", "a"))
@@ -173,6 +178,7 @@ func TestGoalDirectionInvalidationCancelsPendingPlan(t *testing.T) {
 }
 
 func TestGoalDuplicateMethodRollsBackPlanAfterTerminalWork(t *testing.T) {
+	t.Parallel()
 	ctx := context.Background()
 	s, _, g := goalFixture(t)
 	g, e := s.CommitGoalMethod(ctx, g.Goal.ID, g.Revision, "shell", plan(t, "p", "a"))
@@ -195,6 +201,7 @@ func TestGoalDuplicateMethodRollsBackPlanAfterTerminalWork(t *testing.T) {
 }
 
 func TestGoalCancellationRollbackDoesNotPartiallyCancelActions(t *testing.T) {
+	t.Parallel()
 	ctx := context.Background()
 	s, _, g := goalFixture(t)
 	g, e := s.CommitGoalMethod(ctx, g.Goal.ID, g.Revision, "shell", plan(t, "p", "a", "b"))
@@ -224,6 +231,7 @@ func TestGoalCancellationRollbackDoesNotPartiallyCancelActions(t *testing.T) {
 }
 
 func TestGoalCorruptPayloadNeverAdmitsMethods(t *testing.T) {
+	t.Parallel()
 	ctx := context.Background()
 	s, _, g := goalFixture(t)
 	if _, e := s.db.ExecContext(ctx, "UPDATE goals SET payload=? WHERE id=?", []byte(`{"ID":"shelter"}`), g.Goal.ID); e != nil {
@@ -238,6 +246,7 @@ func TestGoalCorruptPayloadNeverAdmitsMethods(t *testing.T) {
 }
 
 func TestGoalUnknownReviewGuardsEveryPreparationPath(t *testing.T) {
+	t.Parallel()
 	ctx := context.Background()
 	s, _, g := goalFixture(t)
 	g, e := s.CommitGoalMethod(ctx, g.Goal.ID, g.Revision, "shell", plan(t, "p", "a"))
@@ -261,6 +270,7 @@ func TestGoalUnknownReviewGuardsEveryPreparationPath(t *testing.T) {
 }
 
 func TestGoalRecoveredNeedFinishesAcceptedMethodWithoutStartingAnother(t *testing.T) {
+	t.Parallel()
 	ctx := context.Background()
 	s, _, g := goalFixture(t)
 	g, e := s.CommitGoalMethod(ctx, g.Goal.ID, g.Revision, "shell", plan(t, "p", "a"))

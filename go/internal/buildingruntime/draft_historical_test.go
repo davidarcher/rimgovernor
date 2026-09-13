@@ -11,6 +11,7 @@ import (
 )
 
 func TestLostDraftReplyThenPlayerReplacementRecoversOnlyHistoricalClaim(t *testing.T) {
+	t.Parallel()
 	for _, kind := range []string{"undrafted", "replacement-owned", "unsuccessful", "no-change"} {
 		t.Run(kind, func(t *testing.T) {
 			b, f := draftBoundaryFixture(t)
@@ -58,6 +59,7 @@ func TestLostDraftReplyThenPlayerReplacementRecoversOnlyHistoricalClaim(t *testi
 }
 
 func TestHistoricalClaimRejectsMissingOrContradictoryProof(t *testing.T) {
+	t.Parallel()
 	for _, kind := range []string{"unavailable", "uncertain", "unverified", "no-token", "wrong-owner", "wrong-attempt", "wrong-generation", "future-receipt", "missing-cas", "incomplete-replacement-owner"} {
 		t.Run(kind, func(t *testing.T) {
 			b, f := draftBoundaryFixture(t)

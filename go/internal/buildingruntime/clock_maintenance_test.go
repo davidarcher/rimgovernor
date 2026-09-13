@@ -11,6 +11,7 @@ import (
 )
 
 func TestClockPollMaintainsAttemptsWithoutPlayerGate(t *testing.T) {
+	t.Parallel()
 	s, f, _ := clockPollFixture(t)
 	ctx := context.Background()
 	_, _, _, intent := clockCoreFixture(t)
@@ -65,6 +66,7 @@ func TestClockPollMaintainsAttemptsWithoutPlayerGate(t *testing.T) {
 }
 
 func TestClockMaintenanceFailureDisablesAndRollsBack(t *testing.T) {
+	t.Parallel()
 	s, f, db := clockPollFixture(t)
 	ctx := context.Background()
 	_, _, _, intent := clockCoreFixture(t)
@@ -89,6 +91,7 @@ func TestClockMaintenanceFailureDisablesAndRollsBack(t *testing.T) {
 }
 
 func TestClockPollCompactsReviewedEventsAndFailsClosed(t *testing.T) {
+	t.Parallel()
 	s, f, db := clockPollFixture(t)
 	ctx := context.Background()
 	for i := range 130 {

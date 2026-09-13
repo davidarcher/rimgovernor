@@ -12,6 +12,7 @@ type clockStopFunc func(context.Context) error
 func (f clockStopFunc) Stop(ctx context.Context) error { return f(ctx) }
 
 func TestClockWorkerSessionRetainsOwnerUntilJoinedCleanup(t *testing.T) {
+	t.Parallel()
 	_, db, native, _ := clockCoreFixture(t)
 	s, _, dir := newClockSessionTest(t, db, native)
 	calls := 0

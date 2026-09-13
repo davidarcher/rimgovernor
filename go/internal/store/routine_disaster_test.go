@@ -11,6 +11,7 @@ import (
 )
 
 func TestRoutineDisasterDurableManualAndContext(t *testing.T) {
+	t.Parallel()
 	ctx := context.Background()
 	path := filepath.Join(t.TempDir(), "disaster.db")
 	s := open(t, path)

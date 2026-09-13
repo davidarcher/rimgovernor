@@ -7,6 +7,7 @@ import (
 )
 
 func TestMedicalAttemptCountScopesToPrefixAndEpoch(t *testing.T) {
+	t.Parallel()
 	methods := []domain.GoalMethod{
 		{Goal: "CriticalMedical", Epoch: 1, Method: "tend-alice-0", Plan: "p0"},
 		{Goal: "CriticalMedical", Epoch: 1, Method: "tend-alice-1", Plan: "p1"},
@@ -36,6 +37,7 @@ func TestMedicalAttemptCountScopesToPrefixAndEpoch(t *testing.T) {
 }
 
 func TestMaxMedicalAttemptsPerPatientIsPositiveAndBounded(t *testing.T) {
+	t.Parallel()
 	if maxMedicalAttemptsPerPatient <= 0 || maxMedicalAttemptsPerPatient > 256 {
 		t.Fatal(maxMedicalAttemptsPerPatient)
 	}

@@ -22,6 +22,7 @@ func developmentRow(t *testing.T, r RoutineReview, id domain.GoalID) RoutineDeve
 	return RoutineDevelopmentRow{}
 }
 func TestRoutineDevelopmentPersistsAgeAndRechecksPlayerCapacity(t *testing.T) {
+	t.Parallel()
 	ctx := context.Background()
 	path := filepath.Join(t.TempDir(), "development.db")
 	s := open(t, path)
@@ -79,6 +80,7 @@ func TestRoutineDevelopmentPersistsAgeAndRechecksPlayerCapacity(t *testing.T) {
 }
 
 func TestRoutineDevelopmentUnknownWorkersAndDirectionReset(t *testing.T) {
+	t.Parallel()
 	s := open(t, filepath.Join(t.TempDir(), "development.db"))
 	defer s.Close()
 	r := routineRequest()
@@ -100,6 +102,7 @@ func TestRoutineDevelopmentUnknownWorkersAndDirectionReset(t *testing.T) {
 }
 
 func TestRoutineDevelopmentRejectsCorruptDurableSelections(t *testing.T) {
+	t.Parallel()
 	for _, fault := range []string{"workers", "capacity", "unknown-deficit", "goal", "scope"} {
 		t.Run(fault, func(t *testing.T) {
 			s := open(t, filepath.Join(t.TempDir(), "development.db"))
@@ -135,6 +138,7 @@ func TestRoutineDevelopmentRejectsCorruptDurableSelections(t *testing.T) {
 }
 
 func TestRoutineDevelopmentCountsCancelledUncertainPlayerWork(t *testing.T) {
+	t.Parallel()
 	ctx := context.Background()
 	s := open(t, filepath.Join(t.TempDir(), "development.db"))
 	defer s.Close()

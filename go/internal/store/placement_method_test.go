@@ -9,6 +9,7 @@ import (
 )
 
 func TestSelectedPlacementUsesSharedMethodAccounting(t *testing.T) {
+	t.Parallel()
 	ctx := context.Background()
 	s, _, g := goalFixture(t)
 	other := anotherGoal(t, s, "other")

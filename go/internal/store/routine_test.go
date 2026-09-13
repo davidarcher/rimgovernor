@@ -36,6 +36,7 @@ func reviewRoutine(t *testing.T, s *Store, r *RoutineReviewRequest) RoutineRevie
 }
 
 func TestRoutineReviewRestartUnknownRecoveryAndRenewal(t *testing.T) {
+	t.Parallel()
 	ctx := context.Background()
 	path := filepath.Join(t.TempDir(), "routine.db")
 	s := open(t, path)
@@ -79,6 +80,7 @@ func TestRoutineReviewRestartUnknownRecoveryAndRenewal(t *testing.T) {
 }
 
 func TestRoutineReviewInvalidatesLinkedWorkAndPreservesCancellation(t *testing.T) {
+	t.Parallel()
 	for _, change := range []string{"manual", "direction", "load", "map", "rewind"} {
 		t.Run(change, func(t *testing.T) {
 			ctx := context.Background()
@@ -137,6 +139,7 @@ func TestRoutineReviewInvalidatesLinkedWorkAndPreservesCancellation(t *testing.T
 }
 
 func TestRoutineReviewTransactionRollbackAndStaleCursor(t *testing.T) {
+	t.Parallel()
 	ctx := context.Background()
 	s := open(t, filepath.Join(t.TempDir(), "routine.db"))
 	r := routineRequest()
@@ -166,6 +169,7 @@ func TestRoutineReviewTransactionRollbackAndStaleCursor(t *testing.T) {
 }
 
 func TestRoutineEmergencyHoldsSharedMethodUntilObservedRecovery(t *testing.T) {
+	t.Parallel()
 	ctx := context.Background()
 	s := open(t, filepath.Join(t.TempDir(), "routine.db"))
 	r := routineRequest()
@@ -190,6 +194,7 @@ func TestRoutineEmergencyHoldsSharedMethodUntilObservedRecovery(t *testing.T) {
 }
 
 func TestRoutineDirectionAndManualDoNotEraseRecoveryTarget(t *testing.T) {
+	t.Parallel()
 	s := open(t, filepath.Join(t.TempDir(), "routine.db"))
 	r := routineRequest()
 	reviewRoutine(t, s, &r)

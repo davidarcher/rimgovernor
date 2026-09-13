@@ -15,6 +15,7 @@ import (
 )
 
 func TestDraftRestartPreservesPlayerReplacementThroughRealJournalAndExecutor(t *testing.T) {
+	t.Parallel()
 	for _, terminal := range []bool{false, true} {
 		for _, replacement := range []string{"unowned", "new-claim"} {
 			name := replacement

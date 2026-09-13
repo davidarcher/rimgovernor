@@ -20,6 +20,7 @@ func reviewAppend(t *testing.T, s *Store, profile string, after int64, lost uint
 	}
 }
 func TestClockReviewCaptureReviewAckAndReplay(t *testing.T) {
+	t.Parallel()
 	ctx := context.Background()
 	s, path, profile := boundInbox(t)
 	empty, err := s.ReviewClockEvents(ctx, profile, 0)
@@ -72,6 +73,7 @@ func TestClockReviewCaptureReviewAckAndReplay(t *testing.T) {
 	}
 }
 func TestClockReviewEmptyAckDoesNotCoverNewEvents(t *testing.T) {
+	t.Parallel()
 	ctx := context.Background()
 	s, _, profile := boundInbox(t)
 	ack := ClockAcknowledgement{"empty", 0, 0}
@@ -90,6 +92,7 @@ func TestClockReviewEmptyAckDoesNotCoverNewEvents(t *testing.T) {
 	}
 }
 func TestClockReviewEventClassification(t *testing.T) {
+	t.Parallel()
 	benign := []*k.Event{{Event: &k.Event_Started{}}, {Event: &k.Event_SpeedChanged{}}, {Event: &k.Event_HostilesCleared{}}, {Event: &k.Event_ForcePauseCleared{}}}
 	for _, event := range benign {
 		if clockEventInterrupts(event) {
@@ -114,6 +117,7 @@ func TestClockReviewEventClassification(t *testing.T) {
 	}
 }
 func TestClockReviewRollbackAndCorruptProvenance(t *testing.T) {
+	t.Parallel()
 	ctx := context.Background()
 	t.Run("rollback", func(t *testing.T) {
 		s, _, profile := boundInbox(t)
@@ -157,6 +161,7 @@ func TestClockReviewRollbackAndCorruptProvenance(t *testing.T) {
 	}
 }
 func TestClockReviewConcurrentAckAndCapacity(t *testing.T) {
+	t.Parallel()
 	ctx := context.Background()
 	s, path, profile := boundInbox(t)
 	other := open(t, path)

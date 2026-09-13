@@ -10,6 +10,7 @@ import (
 )
 
 func TestRoutineWorkerPreservesPlayerPriorityAndCancellation(t *testing.T) {
+	t.Parallel()
 	planner, db, base, _, _ := sleepingFixture(t)
 	ctx := context.Background()
 	method, err := planner.Step(ctx)
@@ -55,6 +56,7 @@ func TestRoutineWorkerPreservesPlayerPriorityAndCancellation(t *testing.T) {
 }
 
 func TestRoutineClockIncludesMethodsAfterPlayerPlanSettles(t *testing.T) {
+	t.Parallel()
 	s, f := schedulerFixture(t)
 	schedulerSleeping(t, s, f)
 	s.session.routineMethods = true

@@ -32,6 +32,7 @@ func (n *blockedSessionObservation) ObserveBuildingProgress(ctx context.Context,
 }
 
 func TestSessionFailedRefreshCancelsDisabledReconciliationUntilFreshObservation(t *testing.T) {
+	t.Parallel()
 	ctx := context.Background()
 	dir := t.TempDir()
 	journal, err := store.Open(ctx, filepath.Join(dir, "state.sqlite"))

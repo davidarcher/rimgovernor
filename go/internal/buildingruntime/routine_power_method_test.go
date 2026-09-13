@@ -92,6 +92,7 @@ func powerFixture(t *testing.T, conduit bool) (*RoutineBuildingPlanner, *store.S
 }
 
 func TestRoutinePowerAdmitsSharedWorkAndManualCancels(t *testing.T) {
+	t.Parallel()
 	for _, conduit := range []bool{false, true} {
 		t.Run(map[bool]string{false: "generation", true: "conduit"}[conduit], func(t *testing.T) {
 			p, db, n, request := powerFixture(t, conduit)
@@ -143,6 +144,7 @@ func TestRoutinePowerAdmitsSharedWorkAndManualCancels(t *testing.T) {
 }
 
 func TestRoutinePowerRejectsUnsafeIncompleteAndUnaffordableRoutes(t *testing.T) {
+	t.Parallel()
 	for _, phase := range []string{"unsafe", "geometry", "unknown", "stock", "skill", "switched", "flare", "cancelled"} {
 		t.Run(phase, func(t *testing.T) {
 			p, db, n, _ := powerFixture(t, true)
@@ -187,6 +189,7 @@ func TestRoutinePowerRejectsUnsafeIncompleteAndUnaffordableRoutes(t *testing.T) 
 }
 
 func TestRoutinePowerMissingNativeComponentsPreventsGeneration(t *testing.T) {
+	t.Parallel()
 	p, db, n, _ := powerFixture(t, false)
 	original := n.onPreview
 	n.onPreview = func(ctx context.Context, preview *bridge.BuildingPreview) {

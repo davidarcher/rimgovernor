@@ -70,6 +70,7 @@ func rangedBeginRelease(t *testing.T, s *Store, v MeleeAdmission) domain.DraftRe
 }
 
 func TestRangedAdmissionRequiresVerifiedMatchingClaimAndFreshTokens(t *testing.T) {
+	t.Parallel()
 	ctx := context.Background()
 	s, _, v := rangedStoreFixture(t, false)
 	if _, err := s.PrepareRangedAttack(ctx, "plan", "attack", v); err == nil {
@@ -108,6 +109,7 @@ func TestRangedAdmissionRequiresVerifiedMatchingClaimAndFreshTokens(t *testing.T
 }
 
 func TestRangedAdmissionReopensAfterPrerequisiteReleased(t *testing.T) {
+	t.Parallel()
 	ctx := context.Background()
 	s, path, v := rangedStoreFixture(t, true)
 	if _, err := s.Prepare(ctx, "plan", "attack", v.Snapshot, v.Tick); err == nil {
