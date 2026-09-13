@@ -1291,6 +1291,44 @@ main. Native package and Go production cutover remain independent.
   (default, no external properties) still succeeds with 0 warnings/errors.
   `go build ./... && go vet ./... && go test ./...` from `go/` also pass
   unaffected (no Go code touched).
+  `contracts/tests/NativeContractProbes/native-ranged-causality/Program.cs`
+  now also directly exercises `NativeRangedCausality.Supports(Verb,Pawn,Pawn)`
+  (`integrations/rimgovernor-native/src/Bridge/Protocol/NativeRangedCausality.cs`)
+  -- the pure eligibility predicate `PrepareLaunch`/`Track` rely on to admit only
+  ordinary direct-fire bullet verbs (or, via `SupportedExplosive`, supported
+  explosive projectiles) into causal tracking. Before this slice only the probe
+  fixture's own always-valid `Verb_Shoot` happy path was ever exercised; every
+  refusal branch of its `&&`-chain was untested. 15 new assertions construct
+  distinct `Verb_Shoot`/`Pawn`/`ThingDef` combinations proving each guard
+  independently forces refusal -- null verb, null attacker, null target, a
+  caster not matching the passed attacker, a verb type that is neither
+  `Verb_Shoot` nor `Verb_LaunchProjectile`, `ai_IsWeapon=false`, a
+  melee-classified `verbClass`, a missing equipment source, a missing/null
+  `defaultProjectile` or its `ProjectileProperties`, `flyOverhead`, a non-bullet
+  non-explosive `thingClass`, and a bullet-classed projectile with a nonzero
+  `explosionRadius` -- plus one positive assertion proving a projectile that
+  independently qualifies as a supported explosive (via `SupportedExplosive`)
+  is also admitted through this same gate. This is the same
+  pure-function-branch-extension technique as the prior five N01.04 slices,
+  applied to the ranged-causality counterpart of the explosive predicate this
+  list already names. Verified by building the production native package
+  (`scripts/build_native_mod.ps1` against the installed RimWorld 1.6 managed
+  assemblies, Harmony (Steam Workshop `2009463077/Current`) and the installed
+  RimBridgeServer 1.6 SDK Mod) and running the rebuilt `native-ranged-causality`
+  probe against it through the same kind of standalone verification project
+  (referencing the probe's `Program.cs` directly) the prior slice used for the
+  same pre-existing `native-ranged-causality`/`native-explosive-causality` vs.
+  `native-authority-hooks`/`native-operation-envelope` csproj gating conflict:
+  201 compiled assertions pass, up from 186 on the unmodified baseline
+  (confirmed by running the identical probe source from `git show HEAD` through
+  the same standalone harness) -- exactly the 15 new assertions.
+  `dotnet build contracts/tests/NativeContractProbes.csproj` (default, no
+  external properties) still succeeds with 0 warnings/errors.
+  `go build ./... && go vet ./... && go test ./...` from `go/` also pass
+  unaffected (no Go code touched); a `buildingruntime` clock-worker-transport
+  subtest failed once under full-suite load and passed cleanly on an isolated
+  rerun and a full-suite rerun, consistent with pre-existing timing flakiness
+  unrelated to this change.
   Native lost-reply fault injection,
   instant/replacement construction cases and remaining operation families are open.
 

@@ -185,6 +185,37 @@ internal static class NativeRangedCausalityProgram
             f.Hit();Check(f.Observed,"positive actual wrapper works after partial repair "+item[2]+" depth="+Producer.GetField("damageDepth",F)!.GetValue(null));
         }
         Check(Ready&&(int)Producer.GetField("damageDepth",F)!.GetValue(null)! ==0,"final live hooks and damage depth remain valid");
+        // Supports(Verb,Pawn,Pawn) is the pure eligibility predicate PrepareLaunch/Track rely on
+        // to admit only ordinary direct-fire bullet verbs (or supported explosive projectiles,
+        // NativeExplosiveCausality.SupportedExplosive) into causal tracking. Only the fixture's own
+        // always-valid Verb_Shoot happy path was ever exercised; every refusal branch of its
+        // &&-chain was untested, mirroring the prior slice's SupportedExplosive branch coverage.
+        (Verb_Shoot verb,Pawn attacker,Pawn target,ThingDef projectileDef) ValidSupportsCase()
+        {
+            var supportsAttacker=Raw<Pawn>();var supportsTarget=Raw<Pawn>();
+            var supportsVerb=Raw<Verb_Shoot>();Set(supportsVerb,"caster",supportsAttacker);
+            var equipComp=Raw<CompEquippable>();var equipment=Raw<ThingWithComps>();equipComp.parent=equipment;
+            var tracker=Raw<VerbTracker>();Set(tracker,"directOwner",equipComp);Set(supportsVerb,"verbTracker",tracker);
+            var def=Raw<ThingDef>();def.defName="Bullet_SupportsCase";def.thingClass=typeof(Bullet);def.projectile=new ProjectileProperties();
+            supportsVerb.verbProps=new VerbProperties{verbClass=typeof(Verb_Shoot),ai_IsWeapon=true,defaultProjectile=def};
+            return (supportsVerb,supportsAttacker,supportsTarget,def);
+        }
+        bool Supported(object? v,object? a,object? t)=>(bool)Call(Producer,null,"Supports",v,a,t)!;
+        {var (v,a,t,_)=ValidSupportsCase();Check(Supported(v,a,t),"baseline direct-fire verb/attacker/target combination is supported");}
+        {var (v,a,t,_)=ValidSupportsCase();Check(!Supported(null,a,t),"null verb refuses support");}
+        {var (v,a,t,_)=ValidSupportsCase();Check(!Supported(v,null,t),"null attacker refuses support");}
+        {var (v,a,t,_)=ValidSupportsCase();Check(!Supported(v,a,null),"null target refuses support");}
+        {var (v,a,t,_)=ValidSupportsCase();var differentCaster=Raw<Pawn>();Set(v,"caster",differentCaster);Check(!Supported(v,a,t),"caster mismatched with attacker refuses support");}
+        {var (v,a,t,_)=ValidSupportsCase();var wrongType=Raw<Verb_LaunchProjectileStatic>();Set(wrongType,"caster",a);Check(!Supported(wrongType,a,t),"neither Verb_Shoot nor Verb_LaunchProjectile refuses support");}
+        {var (v,a,t,_)=ValidSupportsCase();v.verbProps.ai_IsWeapon=false;Check(!Supported(v,a,t),"non-weapon verb refuses support");}
+        {var (v,a,t,_)=ValidSupportsCase();v.verbProps.verbClass=typeof(Verb_MeleeAttack);Check(!Supported(v,a,t),"melee-classified verb refuses support");}
+        {var (v,a,t,_)=ValidSupportsCase();Set(v,"verbTracker",Raw<VerbTracker>());Check(!Supported(v,a,t),"missing equipment source refuses support");}
+        {var (v,a,t,def)=ValidSupportsCase();def.projectile=null;Check(!Supported(v,a,t),"missing projectile properties refuses support");}
+        {var (v,a,t,def)=ValidSupportsCase();v.verbProps.defaultProjectile=null;Check(!Supported(v,a,t),"missing default projectile refuses support");}
+        {var (v,a,t,def)=ValidSupportsCase();def.projectile.flyOverhead=true;Check(!Supported(v,a,t),"overhead projectile refuses support");}
+        {var (v,a,t,def)=ValidSupportsCase();def.thingClass=typeof(ThingWithComps);Check(!Supported(v,a,t),"non-bullet non-explosive projectile class refuses support");}
+        {var (v,a,t,def)=ValidSupportsCase();def.projectile.explosionRadius=5f;Check(!Supported(v,a,t),"bullet-classed projectile with nonzero explosion radius refuses support");}
+        {var (v,a,t,def)=ValidSupportsCase();def.thingClass=typeof(Projectile_Explosive);var workerDamage=Raw<DamageDef>();workerDamage.workerClass=typeof(DamageWorker_AddInjury);def.projectile=new ProjectileProperties{explosionRadius=3.25f,explosionDelay=0,damageDef=workerDamage};Check(Supported(v,a,t),"supported explosive projectile definition is also admitted");}
         var melee=bridge.GetType("HomeBridge.BridgeTools.NativeCombatCausality",true)!;
         Call(melee,null,"Initialize");
         MethodInfo MeleeMethod(string field)=>(MethodInfo)melee.GetField(field,F)!.GetValue(null)!;
