@@ -1650,6 +1650,71 @@ b; exact worker cleanup by a, with reuse by their later consumers.
   `Lifecycle/ReadSave`, camera/input ownership, portraits, follow, and
   video/recording/diagnostics.
 
+  Direct HTTP control for caravan departure (the first "finish controls for
+  the ported families" clause) is already covered: `2da71a68` wired
+  `POST/GET /api/caravan-departures/plans|submission` (alongside quest-accept
+  and settlement-gift) under G01.07f before this item reached it.
+
+  Building-family emergency-hold reasons (the "action hold" half of the
+  second clause, for one family) are now implemented. `policy.Refusal`
+  produced by `Executor.inspect`'s emergency-hold branch (unsafe threat,
+  critical medical, stale facts, unknown facts) was previously computed and
+  then discarded before dispatch was ever attempted; it is now durably
+  recorded. `domain.HeldReason`/`domain.HoldEvidence`
+  (`go/internal/domain/progress.go`) mirror `UnsuccessfulReason`'s existing
+  shape: a domain-owned enum (not `policy.Reason` directly, to avoid a
+  domain->policy import cycle) behind a new `ProgressView.HeldReason
+  Fact[HoldEvidence]` field, set via a new `Progress.Hold(reasons, tick)`
+  transition restricted to Pending/Prepared, non-`Unresolved` progress.
+  `HoldEvidence` packs its reasons as a comparable bitmask (a `[]HeldReason`
+  field would have made `ProgressView` non-comparable, breaking existing `==`
+  comparisons elsewhere), decoded back to a canonical `[]HeldReason` via
+  `HoldEvidence.Reasons()`. Staleness is solved two ways: every other
+  successful transition (`Prepare`, `MarkDispatched`, `RecordReceipt`,
+  `Cancel`) explicitly clears `HeldReason`, so a hold can never survive a
+  later re-admission/dispatch/resolution; and `ProgressView.FreshHeldReason()`
+  re-verifies the stored evidence's plan/revision/tick against the view
+  carrying it before returning anything, so even an unforeseen gap in the
+  clearing discipline could not serve a mismatched reason — every consumer
+  (executor result, httpapi projection) goes through this method, never the
+  raw `Fact`. Persistence reuses the store's existing event-sourced replay
+  exactly: a new `"hold"` transition kind (`go/internal/store/store.go`)
+  folds through `apply` like every other transition, so `Store.Hold`
+  (wrapping `advance`) gets the same transactional replay-and-validate
+  guarantees as `Prepare`/`Dispatch`/`Observe` for free, with no schema/DDL
+  change needed. `Executor`'s `Journal` interface gained `Hold`; `inspect`'s
+  emergency-hold branch now calls it with the deduplicated reasons and the
+  inspection tick before returning `ErrHeld` (best-effort: a journal write
+  failure here still returns `ErrHeld` with the refusals, never masking the
+  hold itself). `go/internal/httpapi/server.go`'s `plan()` projects
+  `view.FreshHeldReason()` into a new `Progress.HeldReasons
+  []domain.HeldReason` field (`json:"heldReasons,omitempty"`) in
+  `go/internal/httpapi/types.go`. Covered by
+  `go/internal/domain/held_reason_test.go` (recording, invalid/duplicate/stale
+  rejection, clearing on every successful transition, `FreshHeldReason`
+  rejecting plan/revision/stage/unresolved mismatches),
+  `go/internal/executor/emergency_test.go` (a real unsafe-threat +
+  critical-medical hold persisted through `Journal.Hold` and read back via
+  `LoadPlan`, and proof a resolved dispatch never re-serves the earlier
+  reason), `go/internal/store/held_reason_test.go` (persistence across
+  restart, clearing once the action advances past the hold, rejection of
+  unresolved/dispatched/stale/invalid/nonexistent-action holds), and
+  `go/internal/httpapi/server_test.go` (`/api/plan` surfacing `heldReasons`
+  for a held building action and never resurfacing it once the action
+  prepares past the hold). `go build/vet/test ./...` pass (same ten
+  pre-existing unrelated `go vet` warnings as the Save/Load/caravan-departure
+  slices). **Explicitly out of scope for this slice:** admission-decision
+  refusal reasons (`policy.InsufficientStock`, `GeometryBlocked`,
+  `DependencyBlocked`, `MaterialRequired`, `SpendingBlocked`, `InvalidHeld`,
+  `ArithmeticOverflow`, `UnsafePlacement`, `NotReady`, `AlreadyReserved`, and
+  the per-family reason constants across haul/tend/husbandry/melee/
+  bed-assign/gear/repair/research-select/recovery-service/clean/
+  caravan-departure) are not wired to this mechanism; non-emergency holds
+  (`!inspection.ExternalHoldsComplete`, ordinary `AlreadyReserved` queueing)
+  are untouched; and every action family besides building remains unaddressed
+  — observation-failure reasons (`UnsuccessfulReason`) were already done
+  before this slice.
+
 - [ ] **G01.10 — Integrate the complete Go controller.**
   Compose the above paths in one process with clock, recovery and diagnostics;
   reconcile responsibilities against current Python source and domain/interface/

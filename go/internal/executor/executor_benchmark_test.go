@@ -113,6 +113,16 @@ func (j *schedulingJournal) Cancel(ctx context.Context, plan domain.PlanID, acti
 	}
 	return p, err
 }
+func (j *schedulingJournal) Hold(ctx context.Context, plan domain.PlanID, action domain.ActionID, reasons []domain.HeldReason, tick domain.Tick) (domain.Progress, error) {
+	if err := j.check(ctx, plan, action); err != nil {
+		return domain.Progress{}, err
+	}
+	p, err := j.progress.Hold(reasons, tick)
+	if err == nil {
+		j.progress = p
+	}
+	return p, err
+}
 
 func BenchmarkExecutorScheduling(b *testing.B) {
 	for _, scenario := range []string{"HeldInsufficientStock", "DispatchAccepted", "ReconcilePending", "ReconcileCompleted"} {

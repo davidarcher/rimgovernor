@@ -71,6 +71,20 @@ func TestEmergencyGatePreservesPreparedReservation(t *testing.T) {
 			if state.Progress[0].View().Attempt != 0 || state.Progress[0].View().Unresolved {
 				t.Fatal("hold dispatched", state.Progress[0].View())
 			}
+			held, ok := state.Progress[0].View().FreshHeldReason()
+			if !ok {
+				t.Fatal("emergency hold was not persisted as a held reason")
+			}
+			gotReasons := map[domain.HeldReason]bool{}
+			for _, r := range held {
+				gotReasons[r] = true
+			}
+			if !gotReasons[domain.HeldCriticalMedical] || !gotReasons[domain.HeldUnsafeThreat] || len(gotReasons) != 2 {
+				t.Fatal("wrong persisted hold reasons", held)
+			}
+			if _, ok := result.Progress.View().FreshHeldReason(); !ok {
+				t.Fatal("Run result did not carry the persisted hold reason")
+			}
 			if inspections, placements, _ := f.env.counts(); inspections != dangerAt || placements != 0 {
 				t.Fatal(inspections, placements)
 			}
@@ -148,9 +162,18 @@ func TestEmergencyPreparedRestartRequiresFreshClearance(t *testing.T) {
 	if result, err := f.run(); !errors.Is(err, ErrHeld) || result.NativeCalled || f.progress(t).Stage != domain.Prepared {
 		t.Fatal(result, err)
 	}
+	// A stale/missing emergency snapshot is itself a held reason (StaleFacts),
+	// so it must still be freshly reported at the current tick/revision.
+	if _, ok := f.progress(t).FreshHeldReason(); !ok {
+		t.Fatal("missing emergency snapshot was not reported as a held reason")
+	}
 	f.env.onInspect = nil
 	if result, err := f.run(); err != nil || !result.NativeCalled || !result.Progress.View().Unresolved {
 		t.Fatal(result, err)
+	}
+	// Once dispatch succeeds, the earlier hold reason must never be served again.
+	if _, ok := f.progress(t).FreshHeldReason(); ok {
+		t.Fatal("resolved dispatch still served a stale hold reason")
 	}
 }
 func TestEmergencyDoesNotBlockIssuedAttemptReconciliation(t *testing.T) {

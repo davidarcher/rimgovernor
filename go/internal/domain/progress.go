@@ -60,6 +60,74 @@ func (r UnsuccessfulReason) valid() bool {
 	return false
 }
 
+// HeldReason explains why a not-yet-dispatched action is currently stuck,
+// mirroring (not importing, to avoid a domain->policy cycle) the emergency
+// subset of policy.Reason. Admission-decision refusal reasons are out of
+// scope for this mechanism.
+type HeldReason string
+
+const (
+	HeldUnsafeThreat    HeldReason = "unsafe_threat"
+	HeldCriticalMedical HeldReason = "critical_medical"
+	HeldStaleFacts      HeldReason = "stale_facts"
+	HeldUnknownFacts    HeldReason = "unknown_facts"
+)
+
+func (r HeldReason) valid() bool {
+	switch r {
+	case HeldUnsafeThreat, HeldCriticalMedical, HeldStaleFacts, HeldUnknownFacts:
+		return true
+	}
+	return false
+}
+
+// heldReasonBits packs the small, fixed set of hold reasons into a comparable
+// value so ProgressView (compared by == elsewhere) stays comparable; a slice
+// field could not. bit is the single source of truth for the encoding.
+type heldReasonBits uint8
+
+func (r HeldReason) bit() heldReasonBits {
+	switch r {
+	case HeldUnsafeThreat:
+		return 1 << 0
+	case HeldCriticalMedical:
+		return 1 << 1
+	case HeldStaleFacts:
+		return 1 << 2
+	case HeldUnknownFacts:
+		return 1 << 3
+	default:
+		return 0
+	}
+}
+
+// orderedHeldReasons lists every reason in the fixed, deterministic order
+// HoldEvidence.Reasons() decodes them in.
+var orderedHeldReasons = []HeldReason{HeldUnsafeThreat, HeldCriticalMedical, HeldStaleFacts, HeldUnknownFacts}
+
+// HoldEvidence ties held-action reasons to the exact plan/revision and tick
+// they were observed under. A projection must re-verify this tie before
+// surfacing the reasons, so a stale reason can never survive a subsequent
+// re-admission, resolution, or plan/action progression.
+type HoldEvidence struct {
+	reasons  heldReasonBits
+	Plan     PlanID
+	Revision PlanRevision
+	Tick     Tick
+}
+
+// Reasons decodes the packed bits back into their canonical, deduplicated,
+// deterministically ordered form.
+func (e HoldEvidence) Reasons() []HeldReason {
+	var result []HeldReason
+	for _, r := range orderedHeldReasons {
+		if e.reasons&r.bit() != 0 {
+			result = append(result, r)
+		}
+	}
+	return result
+}
+
 // ConstructionIdentity comes from a complete attempt-correlated native
 // completion inspection. It proves identity, not authority for later upkeep.
 type ConstructionIdentity struct{ Origin, Current string }
@@ -95,6 +163,7 @@ type ProgressView struct {
 	Receipt            Fact[Receipt]
 	Effect             Fact[Effect]
 	UnsuccessfulReason Fact[UnsuccessfulReason]
+	HeldReason         Fact[HoldEvidence]
 	DraftCleanup       Fact[DraftCleanup]
 	// Earliest complete correlated inspection in the current run of known pending
 	// evidence. A later game tick can safely replace historic cost with net stock.
@@ -130,7 +199,55 @@ func (p Progress) Prepare(snapshot GenerationSnapshot, tick Tick) (Progress, err
 		return p, errors.New("stale plan or tick")
 	}
 	p.view.Stage, p.view.Snapshot, p.view.Tick = Prepared, snapshot, tick
+	p.view.HeldReason = Unknown[HoldEvidence]()
 	return p, nil
+}
+
+// Hold records why a Pending/Prepared, non-dispatched action is currently
+// stuck, without changing Stage. The evidence is pinned to this exact plan
+// revision and tick; any later successful transition (Prepare, dispatch,
+// receipt, observation, cancellation) clears it, so a hold can never outlive
+// the exact admission attempt it was computed against.
+func (p Progress) Hold(reasons []HeldReason, tick Tick) (Progress, error) {
+	if p.view.Stage != Pending && p.view.Stage != Prepared {
+		return p, errors.New("hold requires a not-yet-dispatched action")
+	}
+	if p.view.Unresolved {
+		return p, errors.New("hold requires no outstanding dispatch")
+	}
+	if tick < p.view.Tick {
+		return p, errors.New("stale hold tick")
+	}
+	if len(reasons) == 0 || len(reasons) > len(orderedHeldReasons) {
+		return p, errors.New("invalid hold reasons")
+	}
+	var bits heldReasonBits
+	for _, r := range reasons {
+		if !r.valid() {
+			return p, errors.New("invalid hold reason")
+		}
+		bit := r.bit()
+		if bits&bit != 0 {
+			return p, errors.New("duplicate hold reason")
+		}
+		bits |= bit
+	}
+	p.view.HeldReason = Known(HoldEvidence{reasons: bits, Plan: p.view.Plan, Revision: p.view.Revision, Tick: tick})
+	return p, nil
+}
+
+// FreshHeldReason re-verifies HeldReason evidence against the view carrying
+// it, rather than trusting the stored Fact alone. Any DTO projection must go
+// through this instead of reading HeldReason directly.
+func (v ProgressView) FreshHeldReason() ([]HeldReason, bool) {
+	if v.Stage != Pending && v.Stage != Prepared || v.Unresolved {
+		return nil, false
+	}
+	evidence, known := v.HeldReason.Value()
+	if !known || evidence.Plan != v.Plan || evidence.Revision != v.Revision || evidence.Tick < v.Tick {
+		return nil, false
+	}
+	return evidence.Reasons(), true
 }
 func (p Progress) MarkDispatched(current GenerationSnapshot, tick Tick) (Progress, error) {
 	if p.view.Stage != Prepared || !p.view.Snapshot.Matches(current) || tick < p.view.Tick {
@@ -149,6 +266,7 @@ func (p Progress) MarkDispatched(current GenerationSnapshot, tick Tick) (Progres
 	p.view.Stage, p.view.Unresolved, p.view.Tick = Dispatched, true, tick
 	p.view.Receipt, p.view.Effect = Unknown[Receipt](), Unknown[Effect]()
 	p.view.UnsuccessfulReason = Unknown[UnsuccessfulReason]()
+	p.view.HeldReason = Unknown[HoldEvidence]()
 	p.view.Construction = Unknown[ConstructionIdentity]()
 	p.view.ConstructionObserved = Unknown[Tick]()
 	if p.action.kind == OwnedDraftAction {
@@ -178,6 +296,7 @@ func (p Progress) recordReceipt(attempt AttemptID, receipt Receipt) (Progress, e
 		return p, errors.New("receipt already recorded")
 	}
 	p.view.Receipt = Known(receipt)
+	p.view.HeldReason = Unknown[HoldEvidence]()
 	if receipt == ReceiptRefused {
 		p.view.Unresolved = false
 		p.view.Effect = Known(EffectAbsent)
@@ -196,6 +315,7 @@ func (p Progress) Cancel() (Progress, error) {
 		return p, errors.New("cannot cancel this action")
 	}
 	p.view.Stage = Cancelled
+	p.view.HeldReason = Unknown[HoldEvidence]()
 	return p, nil
 }
 

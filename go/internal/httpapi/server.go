@@ -301,7 +301,8 @@ func plan(stored store.PlanState) (Plan, error) {
 		if view.Action != action.ID() || view.Plan != stored.Spec.ID() || view.Revision != stored.Spec.Revision() || view.Stage == "" {
 			return Plan{}, errors.New("mismatched plan progress")
 		}
-		projected := Action{ID: action.ID(), Kind: action.Kind(), Progress: Progress{Stage: view.Stage, Attempt: view.Attempt, Tick: view.Tick, Unresolved: view.Unresolved, Receipt: value(view.Receipt), Effect: value(view.Effect), UnsuccessfulReason: value(view.UnsuccessfulReason)}}
+		heldReasons, _ := view.FreshHeldReason()
+		projected := Action{ID: action.ID(), Kind: action.Kind(), Progress: Progress{Stage: view.Stage, Attempt: view.Attempt, Tick: view.Tick, Unresolved: view.Unresolved, Receipt: value(view.Receipt), Effect: value(view.Effect), UnsuccessfulReason: value(view.UnsuccessfulReason), HeldReasons: heldReasons}}
 		if stored.Progress[n].Action() != action {
 			return Plan{}, errors.New("mismatched action progress")
 		}

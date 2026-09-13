@@ -787,6 +787,7 @@ type transition struct {
 	Attempt                domain.AttemptID
 	Receipt                domain.Receipt
 	Observation            domain.Observation
+	HeldReasons            []domain.HeldReason             `json:",omitempty"`
 	DraftReceipt           *draftReceiptEvent              `json:",omitempty"`
 	DraftObserve           *draftObserveEvent              `json:",omitempty"`
 	DraftBegin             *domain.DraftRelease            `json:",omitempty"`
@@ -836,6 +837,8 @@ func apply(p domain.Progress, e transition) (domain.Progress, error) {
 		return p.RecordReceipt(e.Attempt, e.Receipt)
 	case "observe":
 		return p.Observe(e.Observation, e.Snapshot)
+	case "hold":
+		return p.Hold(e.HeldReasons, e.Tick)
 	case "cancel":
 		return p.Cancel()
 	default:
@@ -1282,4 +1285,12 @@ func (s *Store) ObserveCaravanDeparture(ctx context.Context, plan domain.PlanID,
 }
 func (s *Store) Cancel(ctx context.Context, plan domain.PlanID, action domain.ActionID) (domain.Progress, error) {
 	return s.advance(ctx, plan, action, transition{Kind: "cancel"})
+}
+
+// Hold durably records why a not-yet-dispatched action is currently stuck.
+// It reuses the same transaction-guarded replay as every other transition, so
+// a concurrent transition committed first makes this one observe (and get
+// rejected against) the up-to-date Progress, never a stale one.
+func (s *Store) Hold(ctx context.Context, plan domain.PlanID, action domain.ActionID, reasons []domain.HeldReason, tick domain.Tick) (domain.Progress, error) {
+	return s.advance(ctx, plan, action, transition{Kind: "hold", Tick: tick, HeldReasons: reasons})
 }

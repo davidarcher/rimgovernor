@@ -28,6 +28,7 @@ type Journal interface {
 	RecordReceipt(context.Context, domain.PlanID, domain.ActionID, domain.AttemptID, domain.Receipt) (domain.Progress, error)
 	Observe(context.Context, domain.PlanID, domain.Observation, domain.GenerationSnapshot) (domain.Progress, error)
 	Cancel(context.Context, domain.PlanID, domain.ActionID) (domain.Progress, error)
+	Hold(context.Context, domain.PlanID, domain.ActionID, []domain.HeldReason, domain.Tick) (domain.Progress, error)
 }
 type Clock interface{ Now() time.Time }
 type RoutineScope interface {
@@ -429,9 +430,10 @@ func (e *Executor) Run(ctx context.Context, plan domain.PlanID, actionID domain.
 	if err = e.guard(ctx, expected, generation); err != nil {
 		return result, err
 	}
-	inspection, refusals, err := e.inspect(ctx, Target{action, expected}, progress, generation)
+	inspection, refusals, held, err := e.inspect(ctx, Target{action, expected}, progress, generation)
 	result.Refused = refusals
 	if err != nil {
+		result.Progress = held
 		return result, err
 	}
 	progress, err = e.journal.ReserveAndPrepare(ctx, plan, actionID, inspection.admission)
@@ -441,9 +443,10 @@ func (e *Executor) Run(ctx context.Context, plan domain.PlanID, actionID domain.
 	result.Progress = progress
 	// Refresh after durable preparation: resources and native safety may have
 	// changed while journaling. Prepared restart follows the same fresh admission.
-	inspection, refusals, err = e.inspect(ctx, Target{action, expected}, progress, generation)
+	inspection, refusals, held, err = e.inspect(ctx, Target{action, expected}, progress, generation)
 	result.Refused = refusals
 	if err != nil {
+		result.Progress = held
 		return result, err
 	}
 	if err = e.guard(ctx, expected, generation); err != nil {
@@ -491,70 +494,80 @@ func (e *Executor) Run(ctx context.Context, plan domain.PlanID, actionID domain.
 	return e.record(result, plan, placement, kind, errors.Join(callErr, ctx.Err()))
 }
 
-func (e *Executor) inspect(ctx context.Context, target Target, progress domain.Progress, generation context.Context) (Inspection, []policy.Refusal, error) {
+func (e *Executor) inspect(ctx context.Context, target Target, progress domain.Progress, generation context.Context) (Inspection, []policy.Refusal, domain.Progress, error) {
 	inspection, err := e.boundary.Inspect(ctx, target)
 	if err != nil {
-		return inspection, nil, err
+		return inspection, nil, progress, err
 	}
 	if err = e.guard(ctx, target.Snapshot, generation); err != nil {
-		return inspection, nil, err
+		return inspection, nil, progress, err
 	}
 	if !inspection.Current.Matches(target.Snapshot) || !e.fresh(inspection.StartedAt, inspection.ObservedAt) {
-		return inspection, nil, ErrHeld
+		return inspection, nil, progress, ErrHeld
 	}
 
 	emergency := policy.EvaluateEmergency(inspection.Emergency, inspection.Current, inspection.Tick)
 	if !emergency.Clear {
 		seen := map[policy.Reason]bool{}
 		refused := []policy.Refusal{}
+		var holdReasons []domain.HeldReason
 		for _, hold := range emergency.Holds {
 			reason := policy.UnknownFacts
+			held := domain.HeldUnknownFacts
 			switch hold.Reason {
 			case policy.EmergencyUnsafeThreat:
-				reason = policy.UnsafeThreat
+				reason, held = policy.UnsafeThreat, domain.HeldUnsafeThreat
 			case policy.EmergencyCriticalMedical:
-				reason = policy.CriticalMedical
+				reason, held = policy.CriticalMedical, domain.HeldCriticalMedical
 			case policy.EmergencyStaleFacts:
-				reason = policy.StaleFacts
+				reason, held = policy.StaleFacts, domain.HeldStaleFacts
 			}
 			if !seen[reason] {
 				seen[reason] = true
 				refused = append(refused, policy.Refusal{Action: target.Action.ID(), Reason: reason})
+				holdReasons = append(holdReasons, held)
 			}
 		}
-		return inspection, refused, ErrHeld
+		// Best-effort: a durable-write failure here must not mask the emergency
+		// hold itself. The action stays Pending/Prepared regardless, so the next
+		// inspection recomputes and retries recording the reason.
+		next, holdErr := e.journal.Hold(ctx, target.Snapshot.Plan, target.Action.ID(), holdReasons, inspection.Tick)
+		if holdErr == nil {
+			progress = next
+		}
+		return inspection, refused, progress, ErrHeld
 	}
 	if !inspection.ExternalHoldsComplete {
-		return inspection, nil, ErrHeld
+		return inspection, nil, progress, ErrHeld
 	}
 	state, err := e.journal.LoadPlan(ctx, target.Snapshot.Plan)
 	if err != nil {
-		return inspection, nil, err
+		return inspection, nil, progress, err
 	}
-	held, err := persistentHolds(state, target.Action.ID(), progress)
+	reservations, err := persistentHolds(state, target.Action.ID(), progress)
 	if err != nil {
-		return inspection, nil, err
+		return inspection, nil, progress, err
 	}
 	for _, external := range inspection.Held {
 		if external.Progress.View().Plan == state.Spec.ID() {
-			return inspection, nil, fmt.Errorf("%w: current-plan holds must come from the journal", ErrEvidence)
+			return inspection, nil, progress, fmt.Errorf("%w: current-plan holds must come from the journal", ErrEvidence)
 		}
-		held = append(held, external)
+		reservations = append(reservations, external)
 	}
-	input, err := policy.NewInput(policy.Request{Current: inspection.Current, CurrentTick: inspection.Tick, Bounds: inspection.Bounds, Stock: inspection.Stock, Held: held, Rules: inspection.Rules, Candidates: []policy.Candidate{{Action: target.Action, Progress: progress, Purpose: policy.Routine, Preview: inspection.Preview}}})
+	input, err := policy.NewInput(policy.Request{Current: inspection.Current, CurrentTick: inspection.Tick, Bounds: inspection.Bounds, Stock: inspection.Stock, Held: reservations, Rules: inspection.Rules, Candidates: []policy.Candidate{{Action: target.Action, Progress: progress, Purpose: policy.Routine, Preview: inspection.Preview}}})
 	if err != nil {
-		return inspection, nil, fmt.Errorf("%w: %v", ErrEvidence, err)
+		return inspection, nil, progress, fmt.Errorf("%w: %v", ErrEvidence, err)
 	}
 	decision := policy.Admit(input)
 	if len(decision.Admitted) != 1 || decision.Admitted[0].Action != target.Action {
-		return inspection, decision.Refused, ErrHeld
+		return inspection, decision.Refused, progress, ErrHeld
 	}
 	accepted := decision.Admitted[0]
 	inspection.admission = store.Admission{Snapshot: accepted.Snapshot, Tick: inspection.Tick, Footprint: append([]domain.Cell(nil), accepted.Footprint...), Costs: make([]store.MaterialCost, len(accepted.Costs))}
 	for i, cost := range accepted.Costs {
 		inspection.admission.Costs[i] = store.MaterialCost{Definition: string(cost.Resource), Count: cost.Count}
 	}
-	return inspection, nil, nil
+	return inspection, nil, progress, nil
 }
 func (e *Executor) fresh(start, end time.Time) bool {
 	now := e.clock.Now()

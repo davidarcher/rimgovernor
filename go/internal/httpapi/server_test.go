@@ -136,6 +136,35 @@ func TestPlanReadsRealFreshStore(t *testing.T) {
 	if !strings.Contains(string(body), `"revision":"1152921504606846976"`) || !strings.Contains(string(body), `"attempt":"1"`) {
 		t.Fatalf("numeric identity changed: %s", body)
 	}
+	held, _ := domain.NewBuildingAction("held", building)
+	spec2, _ := domain.NewPlan("plan-held", domain.PlanRevision(1), []domain.Action{held})
+	if err := database.CreatePlan(ctx, spec2); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := database.Hold(ctx, spec2.ID(), held.ID(), []domain.HeldReason{domain.HeldUnsafeThreat}, 5); err != nil {
+		t.Fatal(err)
+	}
+	status, body = get(t, server.URL+"/api/plan?id=plan-held")
+	var heldPlan Plan
+	if err := json.Unmarshal(body, &heldPlan); err != nil {
+		t.Fatal(err)
+	}
+	if status != 200 || len(heldPlan.Actions[0].Progress.HeldReasons) != 1 || heldPlan.Actions[0].Progress.HeldReasons[0] != domain.HeldUnsafeThreat || !strings.Contains(string(body), `"heldReasons":["unsafe_threat"]`) {
+		t.Fatalf("held reason not surfaced: %s", body)
+	}
+	// Once the action advances past the hold (here: prepares), the plan read
+	// must never again surface the earlier, now-stale hold reason.
+	if _, err := database.Prepare(ctx, spec2.ID(), held.ID(), domain.GenerationSnapshot{Colony: "colony", Map: 0, Load: "load", Plan: spec2.ID(), Revision: spec2.Revision()}, 5); err != nil {
+		t.Fatal(err)
+	}
+	status, body = get(t, server.URL+"/api/plan?id=plan-held")
+	heldPlan = Plan{}
+	if err := json.Unmarshal(body, &heldPlan); err != nil {
+		t.Fatal(err)
+	}
+	if status != 200 || len(heldPlan.Actions[0].Progress.HeldReasons) != 0 || strings.Contains(string(body), "heldReasons") {
+		t.Fatalf("stale held reason resurfaced: %s", body)
+	}
 	status, _ = get(t, server.URL+"/api/plan?id=missing")
 	if status != 404 {
 		t.Fatal(status)

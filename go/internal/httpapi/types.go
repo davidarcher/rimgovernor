@@ -131,6 +131,7 @@ type Progress struct {
 	Receipt            *domain.Receipt            `json:"receipt"`
 	Effect             *domain.Effect             `json:"effect"`
 	UnsuccessfulReason *domain.UnsuccessfulReason `json:"unsuccessfulReason"`
+	HeldReasons        []domain.HeldReason        `json:"heldReasons,omitempty"`
 }
 type Failure struct {
 	Code   string `json:"code"`
