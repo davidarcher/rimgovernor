@@ -170,7 +170,7 @@ namespace HomeBridge.BridgeTools
             return rows;
         }
 
-        private static List<Obs.QuestState> Quests()
+        private static List<Obs.QuestState> Quests(Common.ObservationContext context)
         {
             var rows = new List<Obs.QuestState>();
             foreach (var q in Find.QuestManager.QuestsListForReading.Where(q => !q.hidden && !q.hiddenInUI))
@@ -181,6 +181,9 @@ namespace HomeBridge.BridgeTools
                     State = q.State.ToString(), AcceptedTick = q.acceptanceTick, ExpiresInTicks = q.TicksUntilExpiry,
                     RequiresAccepter = q.RequiresAccepter,
                     CanAccept = q.State == QuestState.NotYetAccepted && QuestUtility.CanAcceptQuest(q).Accepted,
+                    // NativeQuestOperations.Execute (AcceptQuest) re-checks this exact
+                    // token as its acceptance CAS; a stale read cannot admit a stale write.
+                    Snapshot = new Obs.SnapshotRef { Context = context.Clone(), EntityId = q.GetUniqueLoadID(), Token = NativeQuestOperations.Token(q) },
                 };
                 row.EligiblePawns.Add(Find.Maps.SelectMany(m => m.mapPawns.FreeColonistsSpawned)
                     .Where(p => QuestUtility.CanPawnAcceptQuest(p, q)).Select(p => PawnEntity(p, p.MapHeld?.uniqueID)));
@@ -197,7 +200,7 @@ namespace HomeBridge.BridgeTools
             var factions = Factions();
             var caravans = Caravans(context);
             var assemblies = Assemblies();
-            var quests = Quests();
+            var quests = Quests(context);
             var snapshot = new Obs.WorldProgressionSnapshot
             {
                 Context = context.Clone(),

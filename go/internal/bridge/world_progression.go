@@ -25,16 +25,38 @@ type CaravanJourney struct {
 	PawnIDs []string
 }
 
+// QuestOffer is the validated subset of one WorldProgressionSnapshot.quests
+// row (NativeWorldProgressionObservation.cs's Quests()) that the quest-accept
+// boundary needs: identity, native settled state, whether an accepter pawn is
+// required and which of the currently eligible colonists may supply it,
+// native's own CanAcceptQuest verdict, the exact count of options in the
+// quest's single native reward-choice part (0 when it carries none, so a
+// caller never has to guess), and whether it also carries a settlement trade
+// objective (FulfillQuest territory, out of scope for acceptance). It does
+// not surface reward item contents or trade destination; nothing here picks
+// a quest or a reward, it only proves facts about one already-selected quest.
+type QuestOffer struct {
+	ID               string
+	State            string
+	RequiresAccepter bool
+	CanAccept        bool
+	ChoiceCount      int32
+	HasTradeRequest  bool
+	EligiblePawnIDs  []string
+	SnapshotToken    string
+}
+
 // WorldProgressionRead is the validated subset of one rimgovernor/
 // observations_read_world_progression census this round's caravan-journey
-// tracking needs. It does not surface WorldProgressionSnapshot.maps,
-// factions, assemblies or quests; those remain unread until a later slice
-// (settlement gifts, quests/rewards, multi-map recovery) needs them, the same
-// "read only what a boundary can validate and use" discipline as
+// tracking and quest-accept boundary need. It does not surface
+// WorldProgressionSnapshot.maps, factions or assemblies; those remain unread
+// until a later slice (settlement gifts, multi-map recovery) needs them, the
+// same "read only what a boundary can validate and use" discipline as
 // CaravanCatalogRead.
 type WorldProgressionRead struct {
 	Context  *c.ObservationContext
 	Caravans []CaravanJourney
+	Quests   []QuestOffer
 }
 
 // ReadWorldProgression reads native's world progression census. As of this
@@ -105,5 +127,39 @@ func worldProgressionSelected(v *o.WorldProgressionSnapshot, identity *c.Identit
 		}
 		rows[i] = CaravanJourney{ID: row.Caravan.GetId(), Tile: row.GetTile(), Moving: row.GetMoving(), PawnIDs: pawnIDs}
 	}
-	return WorldProgressionRead{Context: v.Context, Caravans: rows}, nil
+	if len(v.Quests) > 256 {
+		return WorldProgressionRead{}, contract("world progression quests exceed bound")
+	}
+	seenQuests := map[string]bool{}
+	quests := make([]QuestOffer, len(v.Quests))
+	for i, row := range v.Quests {
+		if row == nil || validID(row.GetId()) != nil || seenQuests[row.GetId()] || row.State == nil || row.RequiresAccepter == nil || row.CanAccept == nil || len(row.EligiblePawns) > 64 || len(row.Rewards) > 256 || len(row.TradeRequests) > 16 {
+			return WorldProgressionRead{}, contract("invalid or duplicate world progression quest")
+		}
+		seenQuests[row.GetId()] = true
+		if row.Snapshot == nil || row.Snapshot.GetEntityId() != row.GetId() || validID(row.Snapshot.GetToken()) != nil {
+			return WorldProgressionRead{}, contract("world progression quest CAS token unavailable")
+		}
+		choices := map[uint32]bool{}
+		for _, reward := range row.Rewards {
+			if reward == nil {
+				return WorldProgressionRead{}, contract("invalid world progression quest reward")
+			}
+			choices[reward.GetChoiceIndex()] = true
+		}
+		pawnIDs := make([]string, len(row.EligiblePawns))
+		seenPawns := map[string]bool{}
+		for j, pawn := range row.EligiblePawns {
+			if pawn == nil || validID(pawn.GetId()) != nil || seenPawns[pawn.GetId()] {
+				return WorldProgressionRead{}, contract("invalid or duplicate world progression quest accepter")
+			}
+			seenPawns[pawn.GetId()] = true
+			pawnIDs[j] = pawn.GetId()
+		}
+		quests[i] = QuestOffer{
+			ID: row.GetId(), State: row.GetState(), RequiresAccepter: row.GetRequiresAccepter(), CanAccept: row.GetCanAccept(),
+			ChoiceCount: int32(len(choices)), HasTradeRequest: len(row.TradeRequests) > 0, EligiblePawnIDs: pawnIDs, SnapshotToken: row.Snapshot.GetToken(),
+		}
+	}
+	return WorldProgressionRead{Context: v.Context, Caravans: rows, Quests: quests}, nil
 }

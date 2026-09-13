@@ -6,6 +6,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"errors"
+	"strconv"
 
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 )
@@ -90,6 +91,12 @@ func insertAction(ctx context.Context, tx *sql.Tx, plan domain.PlanID, ordinal i
 		_, err = tx.ExecContext(ctx, "INSERT INTO actions(id,plan_id,ordinal,kind,target,definition,stuff) VALUES(?,?,?,'husbandry',?,?,?)", a.ID(), plan, ordinal, husbandry.Animal(), string(husbandry.Method()), trainableDef)
 	} else if interaction, ok := a.PrisonerInteraction(); ok {
 		_, err = tx.ExecContext(ctx, "INSERT INTO actions(id,plan_id,ordinal,kind,target,definition) VALUES(?,?,?,'prisoner_interaction',?,?)", a.ID(), plan, ordinal, interaction.Pawn(), string(interaction.Interaction()))
+	} else if accept, ok := a.QuestAccept(); ok {
+		var accepter sql.NullString
+		if accept.AccepterPawn() != "" {
+			accepter = sql.NullString{String: string(accept.AccepterPawn()), Valid: true}
+		}
+		_, err = tx.ExecContext(ctx, "INSERT INTO actions(id,plan_id,ordinal,kind,target,definition,pawn) VALUES(?,?,?,'quest_accept',?,?,?)", a.ID(), plan, ordinal, accept.Quest(), strconv.FormatInt(int64(accept.RewardChoice()), 10), accepter)
 	} else {
 		return errors.New("unsupported persisted action")
 	}
@@ -351,6 +358,22 @@ func scanAction(rows *sql.Rows) (domain.Action, int, error) {
 			return domain.Action{}, 0, err
 		}
 		a, err := domain.NewPrisonerInteractionAction(id, interaction)
+		return a, ordinal, err
+	}
+	if kind == "quest_accept" && target.Valid && def.Valid && !x.Valid && !z.Valid && !rotation.Valid && !stuff.Valid && !draftAction.Valid {
+		rewardChoice, convErr := strconv.ParseInt(def.String, 10, 32)
+		if convErr != nil {
+			return domain.Action{}, 0, convErr
+		}
+		accepter := domain.PawnID("")
+		if pawn.Valid {
+			accepter = domain.PawnID(pawn.String)
+		}
+		accept, err := domain.NewQuestAccept(domain.QuestID(target.String), accepter, int32(rewardChoice))
+		if err != nil {
+			return domain.Action{}, 0, err
+		}
+		a, err := domain.NewQuestAcceptAction(id, accept)
 		return a, ordinal, err
 	}
 	if kind == "building" && !pawn.Valid && !target.Valid && !draftAction.Valid && def.Valid && x.Valid && z.Valid && rotation.Valid && stuff.Valid && x.Int64 >= 0 && x.Int64 <= 2147483647 && z.Int64 >= 0 && z.Int64 <= 2147483647 {

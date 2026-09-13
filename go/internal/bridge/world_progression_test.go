@@ -22,6 +22,13 @@ func worldProgressionFixture() *o.WorldProgressionSnapshot {
 			Tile:    proto.Int32(42), Moving: proto.Bool(true),
 			Pawns: []*o.PawnState{{Pawn: &o.EntityRef{Id: proto.String("pawn-1")}}},
 		}},
+		Quests: []*o.QuestState{{
+			Id: proto.String("quest-1"), State: proto.String("NotYetAccepted"),
+			RequiresAccepter: proto.Bool(true), CanAccept: proto.Bool(true),
+			EligiblePawns: []*o.EntityRef{{Id: proto.String("pawn-1")}},
+			Rewards:       []*o.QuestReward{{ChoiceIndex: proto.Uint32(0)}},
+			Snapshot:      &o.SnapshotRef{Context: pbContext(), EntityId: proto.String("quest-1"), Token: proto.String("quest-cas")},
+		}},
 	}
 }
 func TestReadWorldProgressionAcceptsValidObservation(t *testing.T) {
@@ -50,6 +57,15 @@ func TestReadWorldProgressionAcceptsValidObservation(t *testing.T) {
 		out.Caravans[0].Tile != 42 || !out.Caravans[0].Moving || len(out.Caravans[0].PawnIDs) != 1 || out.Caravans[0].PawnIDs[0] != "pawn-1" {
 		t.Fatal(out, err)
 	}
+	if len(out.Quests) != 1 {
+		t.Fatal(out.Quests)
+	}
+	quest := out.Quests[0]
+	if quest.ID != "quest-1" || quest.State != "NotYetAccepted" || !quest.RequiresAccepter || !quest.CanAccept ||
+		quest.ChoiceCount != 1 || quest.HasTradeRequest || len(quest.EligiblePawnIDs) != 1 || quest.EligiblePawnIDs[0] != "pawn-1" ||
+		quest.SnapshotToken != "quest-cas" {
+		t.Fatal(quest)
+	}
 }
 func TestReadWorldProgressionRejectsInvalidInputs(t *testing.T) {
 	client := testClient(t, &testServer{schema: protoSchema, handler: func(context.Context, nativeArgument) (*mcp.CallToolResult, error) {
@@ -69,6 +85,28 @@ func TestReadWorldProgressionMalformedEvidence(t *testing.T) {
 		"negative tile":       func(v *o.WorldProgressionSnapshot) { v.Caravans[0].Tile = proto.Int32(-1) },
 		"missing pawn id":     func(v *o.WorldProgressionSnapshot) { v.Caravans[0].Pawns[0].Pawn.Id = nil },
 		"duplicate pawn":      func(v *o.WorldProgressionSnapshot) { v.Caravans[0].Pawns = append(v.Caravans[0].Pawns, v.Caravans[0].Pawns[0]) },
+		"missing quest id":    func(v *o.WorldProgressionSnapshot) { v.Quests[0].Id = nil },
+		"duplicate quest":     func(v *o.WorldProgressionSnapshot) { v.Quests = append(v.Quests, v.Quests[0]) },
+		"missing quest state": func(v *o.WorldProgressionSnapshot) { v.Quests[0].State = nil },
+		"missing requires accepter": func(v *o.WorldProgressionSnapshot) {
+			v.Quests[0].RequiresAccepter = nil
+		},
+		"missing can accept": func(v *o.WorldProgressionSnapshot) { v.Quests[0].CanAccept = nil },
+		"missing quest snapshot": func(v *o.WorldProgressionSnapshot) {
+			v.Quests[0].Snapshot = nil
+		},
+		"quest snapshot entity mismatch": func(v *o.WorldProgressionSnapshot) {
+			v.Quests[0].Snapshot.EntityId = proto.String("other-quest")
+		},
+		"invalid quest snapshot token": func(v *o.WorldProgressionSnapshot) {
+			v.Quests[0].Snapshot.Token = proto.String("")
+		},
+		"missing eligible quest pawn id": func(v *o.WorldProgressionSnapshot) {
+			v.Quests[0].EligiblePawns[0].Id = nil
+		},
+		"duplicate eligible quest pawn": func(v *o.WorldProgressionSnapshot) {
+			v.Quests[0].EligiblePawns = append(v.Quests[0].EligiblePawns, v.Quests[0].EligiblePawns[0])
+		},
 	}
 	for name, edit := range edits {
 		t.Run(name, func(t *testing.T) {

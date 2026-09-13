@@ -1111,19 +1111,36 @@ b; exact worker cleanup by a, with reuse by their later consumers.
   against a live game (requires the private Linux game/mods/GABS inputs
   `docker-native.md`/`world-progression.md` describe, not available in this
   sandbox); only compile-time and Go-side contract/unit checks are done.
-  Quests and rewards remain unstarted beyond the native census
-  (`NativeWorldProgressionObservation.cs`'s `Quests()`) and the already-defined
-  `AcceptQuest`/`FulfillQuest` operations proto (`operations.proto`); no native
-  `Execute` handler exists for either, and there is no Go read/policy/store/
-  executor. Settlement gifts are similarly proto-only (`GiftCaravanSilver` in
-  `operations.proto`, no native `Execute` handler, no Go consumer). Failure
-  recovery across multiple active maps is unstarted. None of these three were
-  attempted this round: each needs its own native write handler plus a full
-  Go domain/policy/store/executor/session vertical, comparable in size to the
-  caravan-departure work already landed, not a slice that fits alongside the
-  CLI-wiring fix above.
-  **Exit evidence:** native departure, arrival, reward/return storage and failure
-  recovery with Go owning the workflow and no wrong-map writes.
+  Quest acceptance is now implemented: native `AcceptQuest` (execute+preview+
+  observe, `NativeQuestOperations.cs`, ported from the legacy `home/accept_quest`
+  JSON tool's `QuestTools.Accept` eligibility checks) is wired into
+  `NativeOperationTools.cs`'s `Execute`/`Preview`/`ObserveProgress` dispatch, and
+  `NativeWorldProgressionObservation.cs`'s `Quests()` now populates a CAS
+  `Snapshot` token per quest that `AcceptQuest` re-checks. The full Go vertical
+  is in place: `domain.QuestAccept`/`QuestAcceptAction`, `policy.EvaluateQuestAccept`
+  (conservative — refuses rather than guesses on any reward-choice ambiguity,
+  wrong accepter, or unknown/stale fact), `store.QuestAcceptAdmission` (schema
+  version 48, `quest_accept_admissions` table), `bridge.ReadQuestAcceptTarget`/
+  `QuestAcceptWriter` (reusing `ReadWorldProgression`'s new `Quests` rows), and
+  `executor`/`buildingruntime.QuestAcceptBoundary` wired via `session.go`'s
+  `EnableQuestAccept`. No CLI wiring in `cmd/rimgovernor` yet. `FulfillQuest`
+  is deliberately out of scope this round: unlike acceptance it is not a direct
+  settings write — it requires a caravan currently at the exact quest
+  settlement (`CaravanVisitUtility.SettlementVisitedNow`), a `TradeRequestComp`,
+  and invoking a native `Command_Action` gizmo callback plus a
+  `Dialog_MessageBox` confirmation (`QuestFulfillmentTool.cs`), a separate,
+  larger native mechanism comparable in size to caravan departure itself.
+  Reward selection beyond a single pre-known choice index is likewise
+  unstarted (`EvaluateQuestAccept` always refuses when a quest exposes more
+  than one reward choice rather than guessing). Settlement gifts are similarly
+  proto-only (`GiftCaravanSilver` in `operations.proto`, no native `Execute`
+  handler, no Go consumer). Failure recovery across multiple active maps is
+  unstarted. None of these were attempted this round: each needs its own
+  native write handler plus a full Go domain/policy/store/executor/session
+  vertical, comparable in size to the caravan-departure work already landed.
+  **Exit evidence:** native departure, arrival, quest fulfillment/reward
+  selection, settlement gifts, and failure recovery with Go owning the
+  workflow and no wrong-map writes.
 
 ### Remaining player and production delivery
 

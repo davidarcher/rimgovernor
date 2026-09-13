@@ -140,6 +140,8 @@ type Executor struct {
 	homeCoverageJournal        HomeCoverageJournal
 	prisonerInteraction        PrisonerInteractionBoundary
 	prisonerInteractionJournal PrisonerInteractionJournal
+	questAccept                QuestAcceptBoundary
+	questAcceptJournal         QuestAcceptJournal
 	ranged                     RangedBoundary
 	rangedJournal              RangedJournal
 	routineScope               RoutineScope
@@ -371,6 +373,9 @@ func (e *Executor) Run(ctx context.Context, plan domain.PlanID, actionID domain.
 	}
 	if action.Kind() == domain.PrisonerInteractionAction && e.prisonerInteraction != nil {
 		return e.runPrisonerInteraction(ctx, action, progress, authority, generation)
+	}
+	if action.Kind() == domain.QuestAcceptAction && e.questAccept != nil {
+		return e.runQuestAccept(ctx, action, progress, authority, generation)
 	}
 	if action.Kind() == domain.MeleeAttackAction && e.melee != nil {
 		return e.runMelee(ctx, action, progress, authority, generation)
