@@ -1576,10 +1576,14 @@ b; exact worker cleanup by a, with reuse by their later consumers.
   real installed RimWorld/RimBridgeServer assemblies in this sandbox; `go
   build/vet/test ./...` pass (the `go vet` output carries ten pre-existing
   unkeyed-struct-literal warnings in `clock_review_test.go`/`clock_window_test.go`,
-  unrelated to this slice and not touched here). **Not yet verified:** no
-  native-acceptance run exercised this against a live game (no game available
-  in this sandbox); only compile-time and Go-side contract-shape checks are
-  done. **Explicitly out of scope for this slice:** load/reconnect (`Lifecycle/
+  unrelated to this slice and not touched here). Native-verified: `checkpointaccept`
+  (`go/internal/nativeaccept/cmd/checkpointaccept`) ran `rimgovernor/lifecycle_save`
+  against the real isolated RimWorld instance and passed — a paused happy-path
+  save completed with identity/tick/direction/pause echoed back exactly as
+  requested; an attempt while not paused was refused (`Failure`,
+  `FAILURE_CODE_INVALID_REQUEST`); an attempt with a deliberately wrong
+  `expected_tick` returned `SaveUncertain`, never a completed save.
+  **Explicitly out of scope for this slice:** load/reconnect (`Lifecycle/
   Load`/`ReadLoad`/`ReadSave` remain unimplemented), camera/input ownership,
   portraits, follow, video/recording/diagnostics, and competing-viewer
   arbitration.
