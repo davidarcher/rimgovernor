@@ -324,6 +324,43 @@ func TestTendRescueRefusesUnknownPawnOrWrongActionCount(t *testing.T) {
 	assertKind(t, err, InvalidCommand)
 }
 
+func TestDraftProposal(t *testing.T) {
+	i := clientFixture(t, func(context.Context, model.Request) (model.Response, error) {
+		return model.Response{Text: `{"command":"draft","pawn":"Thing_A"}`, FinishReason: model.Stop}, nil
+	})
+	input := inputFixture()
+	input.Facts.Pawns = []domain.PawnID{"Thing_A"}
+	proposal, err := i.Interpret(context.Background(), input)
+	if err != nil {
+		t.Fatal(err)
+	}
+	actions := proposal.Plan.Actions()
+	if len(actions) != 1 || actions[0].ID() != "a1" {
+		t.Fatal("incorrect draft action identity")
+	}
+	draft, ok := actions[0].OwnedDraft()
+	if !ok || draft.Pawn() != "Thing_A" {
+		t.Fatal("incorrect typed draft proposal")
+	}
+}
+
+func TestDraftRefusesUnknownPawnOrWrongActionCount(t *testing.T) {
+	response := func(context.Context, model.Request) (model.Response, error) {
+		return model.Response{Text: `{"command":"draft","pawn":"Thing_A"}`, FinishReason: model.Stop}, nil
+	}
+	i := clientFixture(t, response)
+	input := inputFixture()
+	_, err := i.Interpret(context.Background(), input)
+	assertKind(t, err, UnknownFacts)
+
+	input = inputFixture()
+	input.Facts.Pawns = []domain.PawnID{"Thing_A"}
+	input.ActionIDs = append(input.ActionIDs, "a2")
+	i = clientFixture(t, response)
+	_, err = i.Interpret(context.Background(), input)
+	assertKind(t, err, InvalidCommand)
+}
+
 func TestPawnFactsValidatedAndBounded(t *testing.T) {
 	i := clientFixture(t, func(context.Context, model.Request) (model.Response, error) {
 		t.Fatal("model called")

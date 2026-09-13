@@ -58,8 +58,10 @@ func decode(text string, limit int) (modelCommand, error) {
 		return decodeTwoPawns(fields, "tend", "doctor", "patient")
 	case "rescue":
 		return decodeTwoPawns(fields, "rescue", "rescuer", "patient")
+	case "draft":
+		return decodeOnePawn(fields, "draft", "pawn")
 	default:
-		return modelCommand{}, fail(UnsupportedCommand, "only building, research, tend and rescue proposals are supported")
+		return modelCommand{}, fail(UnsupportedCommand, "only building, research, tend, rescue and draft proposals are supported")
 	}
 }
 
@@ -128,6 +130,17 @@ func decodeTwoPawns(fields map[string]json.RawMessage, command, firstKey, second
 		return modelCommand{}, err
 	}
 	return modelCommand{Command: command, First: first, Second: second}, nil
+}
+
+func decodeOnePawn(fields map[string]json.RawMessage, command, key string) (modelCommand, error) {
+	if len(fields) != 2 || fields[key] == nil || bytes.Equal(bytes.TrimSpace(fields[key]), []byte("null")) {
+		return modelCommand{}, fail(InvalidCommand, "unexpected command fields")
+	}
+	var value string
+	if err := json.Unmarshal(fields[key], &value); err != nil || value == "" {
+		return modelCommand{}, fail(InvalidCommand, "invalid "+key+" field")
+	}
+	return modelCommand{Command: command, First: &value}, nil
 }
 
 // Generic JSON token inspection is confined to this external text boundary.

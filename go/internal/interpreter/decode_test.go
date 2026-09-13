@@ -104,3 +104,22 @@ func TestModelTendAndRescueShape(t *testing.T) {
 		})
 	}
 }
+
+func TestModelDraftShape(t *testing.T) {
+	result, err := decode(`{"command":"draft","pawn":"Thing_A"}`, 1)
+	if err != nil || result.Command != "draft" || result.First == nil || *result.First != "Thing_A" {
+		t.Fatalf("draft shape: %v %v", result, err)
+	}
+	for _, text := range []string{
+		`{"command":"draft"}`,
+		`{"command":"draft","pawn":null}`,
+		`{"command":"draft","pawn":""}`,
+		`{"command":"draft","pawn":2}`,
+		`{"command":"draft","pawn":"Thing_A","dryRun":false}`,
+	} {
+		t.Run(text, func(t *testing.T) {
+			_, err := decode(text, 1)
+			assertKind(t, err, InvalidCommand)
+		})
+	}
+}
