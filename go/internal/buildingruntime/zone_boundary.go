@@ -93,26 +93,18 @@ func (b *zoneBoundary) zoneAttempt(ctx context.Context, p executor.Placement) (b
 }
 func (b *zoneBoundary) CreateZone(ctx context.Context, request executor.ZoneDispatch) (executor.Receipt, error) {
 	p := request.Attempt
-	out := executor.Receipt{Action: p.Action.ID(), Attempt: p.Attempt, Snapshot: p.Snapshot, Kind: domain.ReceiptUnknown}
 	zone, ok := p.Action.ZoneCreate()
-	if !ok {
-		return out, executor.ErrEvidence
-	}
-	lease, err := b.leases.Lease(p.Snapshot)
-	if err != nil {
-		return out, err
-	}
-	reply, _, err := b.zone.Writer.CreateZone(ctx, &a.WritePrecondition{Identity: boundaryIdentity(p.Snapshot), Attempt: b.attempt(p), LeaseId: proto.String(lease), ExpectedGeneration: proto.Uint64(uint64(p.Snapshot.Native))}, bridge.ZoneTarget{Zone: zone, Token: request.SnapshotToken})
-	if err != nil {
-		return out, err
-	} // Refusals remain uncertain until correlated inspection.
-	if err = boundaryAdmission(reply.GetReceipt(), p, b.session); err != nil {
-		return out, err
-	}
-	if reply.GetReceipt().GetApplied() != nil {
-		out.Kind = domain.ReceiptAccepted
-	}
-	return out, nil
+	return b.dispatchWrite(ctx, p,
+		func() error {
+			if !ok {
+				return executor.ErrEvidence
+			}
+			return nil
+		},
+		func(pre *a.WritePrecondition) (*op.ExecuteReply, bridge.Result, error) {
+			return b.zone.Writer.CreateZone(ctx, pre, bridge.ZoneTarget{Zone: zone, Token: request.SnapshotToken})
+		},
+	)
 }
 func (b *zoneBoundary) ObserveZone(ctx context.Context, p executor.Placement, current domain.GenerationSnapshot) (executor.ZoneEvidence, error) {
 	out := executor.ZoneEvidence{StartedAt: b.clock.Now(), Observation: domain.Observation{Action: p.Action.ID(), Attempt: p.Attempt, Snapshot: current, Effect: domain.EffectUnknown}}

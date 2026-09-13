@@ -85,26 +85,18 @@ func (b *billBoundary) billAttempt(p executor.Placement) bridge.BillAttempt {
 }
 func (b *billBoundary) AddBill(ctx context.Context, request executor.BillDispatch) (executor.Receipt, error) {
 	p := request.Attempt
-	out := executor.Receipt{Action: p.Action.ID(), Attempt: p.Attempt, Snapshot: p.Snapshot, Kind: domain.ReceiptUnknown}
 	bill, ok := p.Action.ProductionBill()
-	if !ok || request.SnapshotToken != bill.BeforeToken() {
-		return out, executor.ErrEvidence
-	}
-	lease, err := b.leases.Lease(p.Snapshot)
-	if err != nil {
-		return out, err
-	}
-	reply, _, err := b.bill.Writer.AddBill(ctx, &a.WritePrecondition{Identity: boundaryIdentity(p.Snapshot), Attempt: b.attempt(p), LeaseId: proto.String(lease), ExpectedGeneration: proto.Uint64(uint64(p.Snapshot.Native))}, bill)
-	if err != nil {
-		return out, err
-	} // Refusals remain uncertain until correlated inspection.
-	if err = boundaryAdmission(reply.GetReceipt(), p, b.session); err != nil {
-		return out, err
-	}
-	if reply.GetReceipt().GetApplied() != nil {
-		out.Kind = domain.ReceiptAccepted
-	}
-	return out, nil
+	return b.dispatchWrite(ctx, p,
+		func() error {
+			if !ok || request.SnapshotToken != bill.BeforeToken() {
+				return executor.ErrEvidence
+			}
+			return nil
+		},
+		func(pre *a.WritePrecondition) (*op.ExecuteReply, bridge.Result, error) {
+			return b.bill.Writer.AddBill(ctx, pre, bill)
+		},
+	)
 }
 func (b *billBoundary) ObserveBill(ctx context.Context, p executor.Placement, current domain.GenerationSnapshot) (executor.BillEvidence, error) {
 	out := executor.BillEvidence{StartedAt: b.clock.Now(), Observation: domain.Observation{Action: p.Action.ID(), Attempt: p.Attempt, Snapshot: current, Effect: domain.EffectUnknown}}

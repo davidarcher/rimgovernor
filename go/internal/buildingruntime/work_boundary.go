@@ -99,26 +99,18 @@ func (b *workBoundary) workAttempt(p executor.Placement) bridge.WorkAttempt {
 }
 func (b *workBoundary) AssignWork(ctx context.Context, d executor.WorkDispatch) (executor.Receipt, error) {
 	p := d.Attempt
-	out := executor.Receipt{Action: p.Action.ID(), Attempt: p.Attempt, Snapshot: p.Snapshot, Kind: domain.ReceiptUnknown}
 	w, ok := p.Action.WorkAssignment()
-	if !ok || d.SnapshotToken != w.BeforeToken() {
-		return out, executor.ErrEvidence
-	}
-	lease, err := b.leases.Lease(p.Snapshot)
-	if err != nil {
-		return out, err
-	}
-	reply, _, err := b.work.Writer.AssignWork(ctx, &a.WritePrecondition{Identity: boundaryIdentity(p.Snapshot), Attempt: b.attempt(p), LeaseId: proto.String(lease), ExpectedGeneration: proto.Uint64(uint64(p.Snapshot.Native))}, w)
-	if err != nil {
-		return out, err
-	}
-	if err = boundaryAdmission(reply.GetReceipt(), p, b.session); err != nil {
-		return out, err
-	}
-	if reply.GetReceipt().GetApplied() != nil {
-		out.Kind = domain.ReceiptAccepted
-	}
-	return out, nil
+	return b.dispatchWrite(ctx, p,
+		func() error {
+			if !ok || d.SnapshotToken != w.BeforeToken() {
+				return executor.ErrEvidence
+			}
+			return nil
+		},
+		func(pre *a.WritePrecondition) (*op.ExecuteReply, bridge.Result, error) {
+			return b.work.Writer.AssignWork(ctx, pre, w)
+		},
+	)
 }
 func (b *workBoundary) ObserveWork(ctx context.Context, p executor.Placement, current domain.GenerationSnapshot) (executor.WorkEvidence, error) {
 	out := executor.WorkEvidence{StartedAt: b.clock.Now(), Observation: domain.Observation{Action: p.Action.ID(), Attempt: p.Attempt, Snapshot: current, Effect: domain.EffectUnknown}}

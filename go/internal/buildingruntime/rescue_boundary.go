@@ -183,44 +183,13 @@ func rescueJob(job *r.JobEffect, dispatch executor.RescueDispatch) error {
 }
 
 func (b *RescueBoundary) RescuePatient(ctx context.Context, dispatch executor.RescueDispatch) (executor.Receipt, error) {
-	p := dispatch.Attempt
-	out := executor.Receipt{Action: p.Action.ID(), Attempt: p.Attempt, Snapshot: p.Snapshot, Kind: domain.ReceiptUnknown}
-	attempt, err := b.attempt(dispatch)
-	if err != nil {
-		return out, err
-	}
-	lease, err := b.leases.Lease(p.Snapshot)
-	if err != nil {
-		return out, err
-	}
-	if !boundaryID(lease) {
-		return out, executor.ErrAuthority
-	}
-	if err = ctx.Err(); err != nil {
-		return out, err
-	}
-	pre := &a.WritePrecondition{Identity: attempt.Identity, Attempt: attempt.Attempt, ExpectedGeneration: proto.Uint64(attempt.NativeGeneration), LeaseId: proto.String(lease)}
-	reply, _, err := b.writer.OrderPawn(ctx, pre, attempt.Owner, rescueCommand(attempt.PawnID, attempt.TargetID, dispatch.Admission.RescuerSnapshotToken, dispatch.Admission.PatientSnapshotToken))
-	var refused *bridge.NativeFailure
-	if errors.As(err, &refused) && refused.Value != nil && refused.Value.GetCode() != c.FailureCode_FAILURE_CODE_ATTEMPT_CONFLICT {
-		out.Kind = domain.ReceiptRefused
-		return out, nil
-	}
-	if err != nil {
-		return out, err
-	}
-	receipt := reply.GetReceipt()
-	if err = b.checkReceipt(receipt, dispatch); err != nil {
-		return out, err
-	}
-	switch receipt.Outcome.(type) {
-	case *r.Receipt_Applied:
-		out.Kind = domain.ReceiptAccepted
-	case *r.Receipt_Uncertain:
-	default:
-		return out, executor.ErrEvidence
-	}
-	return out, ctx.Err()
+	return dispatchPawnOrder(ctx, b.leases, b.writer, dispatch.Attempt,
+		func() (bridge.PawnOrderAttempt, error) { return b.attempt(dispatch) },
+		func(attempt bridge.PawnOrderAttempt) *o.PawnTargetOrder {
+			return rescueCommand(attempt.PawnID, attempt.TargetID, dispatch.Admission.RescuerSnapshotToken, dispatch.Admission.PatientSnapshotToken)
+		},
+		func(receipt *r.Receipt) error { return b.checkReceipt(receipt, dispatch) },
+	)
 }
 
 func (b *RescueBoundary) checkReceipt(receipt *r.Receipt, dispatch executor.RescueDispatch) error {
