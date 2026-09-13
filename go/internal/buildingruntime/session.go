@@ -26,26 +26,27 @@ import (
 )
 
 type SessionConfig struct {
-	Bills          *bill.BillCapabilities
-	Zones          *zone.ZoneCapabilities
-	Work           *work.WorkCapabilities
-	Acquisition    *acquisition.AcquisitionCapabilities
-	Supplies       *supply.SupplyCapabilities
-	RoutineMethods bool
-	Control        ControlConfig
-	Executor       executor.Limits
-	Rules          []policy.ResourceRule
-	Draft          *draft.DraftCapabilities
-	Clock          *ClockCapabilities
-	Melee          *melee.MeleeCapabilities
-	Haul           *haul.HaulCapabilities
-	Ranged         *ranged.RangedCapabilities
-	Tend           *tend.TendCapabilities
-	Rescue         *rescue.RescueCapabilities
-	Equip          *equip.EquipCapabilities
-	GearReplace    *GearReplaceCapabilities
-	Repair         *RepairCapabilities
-	Clean          *CleanCapabilities
+	Bills           *bill.BillCapabilities
+	Zones           *zone.ZoneCapabilities
+	Work            *work.WorkCapabilities
+	Acquisition     *acquisition.AcquisitionCapabilities
+	Supplies        *supply.SupplyCapabilities
+	RoutineMethods  bool
+	Control         ControlConfig
+	Executor        executor.Limits
+	Rules           []policy.ResourceRule
+	Draft           *draft.DraftCapabilities
+	Clock           *ClockCapabilities
+	Melee           *melee.MeleeCapabilities
+	Haul            *haul.HaulCapabilities
+	Ranged          *ranged.RangedCapabilities
+	Tend            *tend.TendCapabilities
+	Rescue          *rescue.RescueCapabilities
+	Equip           *equip.EquipCapabilities
+	GearReplace     *GearReplaceCapabilities
+	Repair          *RepairCapabilities
+	Clean           *CleanCapabilities
+	RecoveryService *RecoveryServiceCapabilities
 }
 
 // Session binds the single profile owner to one journal and executor. Its caller
@@ -290,6 +291,9 @@ func NewSession(ctx context.Context, config SessionConfig, journal *store.Store,
 	if config.Clean != nil && (config.Clean.Native == nil || config.Clean.Writer == nil) {
 		return cleanup(ErrControl)
 	}
+	if config.RecoveryService != nil && (config.RecoveryService.Native == nil || config.RecoveryService.Writer == nil) {
+		return cleanup(ErrControl)
+	}
 	var routine []executor.RoutineScope
 	if config.RoutineMethods {
 		routine = append(routine, journal)
@@ -398,6 +402,15 @@ func NewSession(ctx context.Context, config SessionConfig, journal *store.Store,
 			return cleanup(err)
 		}
 		if err := worker.EnableClean(cleanBoundary); err != nil {
+			return cleanup(err)
+		}
+	}
+	if config.RecoveryService != nil {
+		recoveryServiceBoundary, err := NewRecoveryServiceBoundary(config.RecoveryService.Native, config.RecoveryService.Writer, sessionBuildingLeases{control, journal, config.RoutineMethods, config.Executor.JournalTimeout}, clock, string(namespace))
+		if err != nil {
+			return cleanup(err)
+		}
+		if err := worker.EnableRecoveryService(recoveryServiceBoundary); err != nil {
 			return cleanup(err)
 		}
 	}

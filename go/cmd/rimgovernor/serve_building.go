@@ -34,25 +34,26 @@ import (
 )
 
 type buildingServiceBridge struct {
-	bills       *bill.BillCapabilities
-	reads       serviceBridge
-	native      boundary.Native
-	authority   buildingruntime.NativeAuthority
-	writes      boundary.BuildingWriter
-	acquisition *acquisition.AcquisitionCapabilities
-	zones       *zone.ZoneCapabilities
-	work        *work.WorkCapabilities
-	supplies    *supply.SupplyCapabilities
-	draft       *draft.DraftCapabilities
-	clock       *buildingruntime.ClockCapabilities
-	clockReads  serviceClockReads
-	melee       *melee.MeleeCapabilities
-	ranged      *ranged.RangedCapabilities
-	tend        *tend.TendCapabilities
-	rescue      *rescue.RescueCapabilities
-	equip       *equip.EquipCapabilities
-	haul        *haul.HaulCapabilities
-	gearReplace *buildingruntime.GearReplaceCapabilities
+	bills           *bill.BillCapabilities
+	reads           serviceBridge
+	native          boundary.Native
+	authority       buildingruntime.NativeAuthority
+	writes          boundary.BuildingWriter
+	acquisition     *acquisition.AcquisitionCapabilities
+	zones           *zone.ZoneCapabilities
+	work            *work.WorkCapabilities
+	supplies        *supply.SupplyCapabilities
+	draft           *draft.DraftCapabilities
+	clock           *buildingruntime.ClockCapabilities
+	clockReads      serviceClockReads
+	melee           *melee.MeleeCapabilities
+	ranged          *ranged.RangedCapabilities
+	tend            *tend.TendCapabilities
+	rescue          *rescue.RescueCapabilities
+	equip           *equip.EquipCapabilities
+	haul            *haul.HaulCapabilities
+	gearReplace     *buildingruntime.GearReplaceCapabilities
+	recoveryService *buildingruntime.RecoveryServiceCapabilities
 }
 type buildingServiceOpener func(context.Context, bridge.ProcessConfig) (buildingServiceBridge, error)
 type ownedAuthority struct {
@@ -117,6 +118,10 @@ func openBuildingService(ctx context.Context, config bridge.ProcessConfig) (buil
 	if err != nil {
 		return buildingServiceBridge{}, errors.Join(err, client.Close())
 	}
+	recoveryService, err := bridge.NewRecoveryServiceWriter(client)
+	if err != nil {
+		return buildingServiceBridge{}, errors.Join(err, client.Close())
+	}
 	return buildingServiceBridge{reads: client, native: client, authority: ownedAuthority{client, authority}, writes: writes,
 		bills:       &bill.BillCapabilities{Native: client, Writer: bills},
 		zones:       &zone.ZoneCapabilities{Native: client, Writer: zones},
@@ -124,14 +129,15 @@ func openBuildingService(ctx context.Context, config bridge.ProcessConfig) (buil
 		work:        &work.WorkCapabilities{Native: client, Writer: workWriter},
 		supplies:    &supply.SupplyCapabilities{Native: client, Writer: supplies},
 		clock:       &buildingruntime.ClockCapabilities{Native: client, Writer: clock}, clockReads: client,
-		draft:       &draft.DraftCapabilities{Native: client, Writer: drafts, Cleanup: cleanup},
-		melee:       &melee.MeleeCapabilities{Native: client, Writer: attack},
-		ranged:      &ranged.RangedCapabilities{Native: client, Writer: attack},
-		tend:        &tend.TendCapabilities{Native: client, Writer: pawnOrder},
-		rescue:      &rescue.RescueCapabilities{Native: client, Writer: pawnOrder},
-		equip:       &equip.EquipCapabilities{Native: client, Writer: pawnOrder},
-		haul:        &haul.HaulCapabilities{Native: client, Writer: pawnOrder},
-		gearReplace: &buildingruntime.GearReplaceCapabilities{Native: client, Writer: gearReplace}}, nil
+		draft:           &draft.DraftCapabilities{Native: client, Writer: drafts, Cleanup: cleanup},
+		melee:           &melee.MeleeCapabilities{Native: client, Writer: attack},
+		ranged:          &ranged.RangedCapabilities{Native: client, Writer: attack},
+		tend:            &tend.TendCapabilities{Native: client, Writer: pawnOrder},
+		rescue:          &rescue.RescueCapabilities{Native: client, Writer: pawnOrder},
+		equip:           &equip.EquipCapabilities{Native: client, Writer: pawnOrder},
+		haul:            &haul.HaulCapabilities{Native: client, Writer: pawnOrder},
+		gearReplace:     &buildingruntime.GearReplaceCapabilities{Native: client, Writer: gearReplace},
+		recoveryService: &buildingruntime.RecoveryServiceCapabilities{Native: client, Writer: recoveryService}}, nil
 }
 
 type buildingWorldSource struct{ reads observation.Source }
@@ -322,24 +328,32 @@ func serveBuildingWithBridge(ctx context.Context, config serveConfig, out io.Wri
 		}
 		gearReplaceCapabilities = client.gearReplace
 	}
+	var recoveryServiceCapabilities *buildingruntime.RecoveryServiceCapabilities
+	if config.routineRecoveryPlans {
+		if client.recoveryService == nil {
+			return errors.New("recovery plans require typed capabilities")
+		}
+		recoveryServiceCapabilities = client.recoveryService
+	}
 	session, err := buildingruntime.NewSession(lifetime, buildingruntime.SessionConfig{RoutineMethods: config.routineMethods,
-		Rules:       config.resourceRules,
-		Control:     buildingruntime.ControlConfig{ProfileDirectory: config.profile, LeaseDuration: 30 * time.Second, CallTimeout: callTimeout, Worlds: buildingWorldSource{client.reads}},
-		Executor:    executor.Limits{MaxAge: 5 * time.Second, RunTimeout: 8 * time.Second, JournalTimeout: 3 * time.Second},
-		Acquisition: acquisitionCapabilities,
-		Zones:       zoneCapabilities,
-		Bills:       billCapabilities,
-		Work:        workCapabilities,
-		Supplies:    supplyCapabilities,
-		Draft:       client.draft,
-		Clock:       clockCapabilities,
-		Melee:       meleeCapabilities,
-		Ranged:      rangedCapabilities,
-		Tend:        tendCapabilities,
-		Rescue:      rescueCapabilities,
-		Equip:       equipCapabilities,
-		Haul:        haulCapabilities,
-		GearReplace: gearReplaceCapabilities,
+		Rules:           config.resourceRules,
+		Control:         buildingruntime.ControlConfig{ProfileDirectory: config.profile, LeaseDuration: 30 * time.Second, CallTimeout: callTimeout, Worlds: buildingWorldSource{client.reads}},
+		Executor:        executor.Limits{MaxAge: 5 * time.Second, RunTimeout: 8 * time.Second, JournalTimeout: 3 * time.Second},
+		Acquisition:     acquisitionCapabilities,
+		Zones:           zoneCapabilities,
+		Bills:           billCapabilities,
+		Work:            workCapabilities,
+		Supplies:        supplyCapabilities,
+		Draft:           client.draft,
+		Clock:           clockCapabilities,
+		Melee:           meleeCapabilities,
+		Ranged:          rangedCapabilities,
+		Tend:            tendCapabilities,
+		Rescue:          rescueCapabilities,
+		Equip:           equipCapabilities,
+		Haul:            haulCapabilities,
+		GearReplace:     gearReplaceCapabilities,
+		RecoveryService: recoveryServiceCapabilities,
 	}, database, client.native, client.authority, client.writes, wallClock{})
 	if err != nil {
 		return err
@@ -359,7 +373,7 @@ func serveBuildingWithBridge(ctx context.Context, config serveConfig, out io.Wri
 	}
 	owner = player
 	if config.clockControl {
-		if err = startServiceClock(lifetime, player, session, client.clockReads, config.profile, callTimeout, config.routineReviews, config.routineSleepingPlans, config.routineCookingPlans, config.routineShelterPlans, config.routineComfortPlans, config.routineExpansionPlans, config.routinePowerPlans, config.routineTemperaturePlans, config.routineProjectLimit, config.routineSupplyPlans, config.routineWorkPlans, config.routineAcquisitionPlans, config.routineDefensePlans, config.routineTendPlans, config.routineRescuePlans, config.routineEquipPlans, config.routineSecureSuppliesPlans, config.routineGearPlans, config.routineAnimalContainmentPlans, config.routineFieldPlans, config.routineBillPlans, config.routineFoodStoragePlans); err != nil {
+		if err = startServiceClock(lifetime, player, session, client.clockReads, config.profile, callTimeout, config.routineReviews, config.routineSleepingPlans, config.routineCookingPlans, config.routineShelterPlans, config.routineComfortPlans, config.routineExpansionPlans, config.routinePowerPlans, config.routineTemperaturePlans, config.routineProjectLimit, config.routineSupplyPlans, config.routineWorkPlans, config.routineAcquisitionPlans, config.routineDefensePlans, config.routineTendPlans, config.routineRescuePlans, config.routineEquipPlans, config.routineSecureSuppliesPlans, config.routineGearPlans, config.routineAnimalContainmentPlans, config.routineRecoveryPlans, config.routineFieldPlans, config.routineBillPlans, config.routineFoodStoragePlans); err != nil {
 			return err
 		}
 	}
