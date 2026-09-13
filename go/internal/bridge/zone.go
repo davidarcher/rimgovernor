@@ -78,8 +78,18 @@ func stockpileSettings(zone domain.ZoneCreate) *op.StockpileSettings {
 	switch zone.Preset() {
 	case domain.FoodPreset:
 		preset = op.FilterPreset_FILTER_PRESET_FOOD
+	case domain.NothingPreset:
+		preset = op.FilterPreset_FILTER_PRESET_NOTHING
 	}
-	return &op.StockpileSettings{Priority: priority.Enum(), Preset: preset.Enum()}
+	settings := &op.StockpileSettings{Priority: priority.Enum(), Preset: preset.Enum()}
+	if zone.Preset() == domain.NothingPreset {
+		var allow []*op.FilterSelector
+		for _, name := range zone.Allow() {
+			allow = append(allow, &op.FilterSelector{Definition: &op.FilterSelector_ThingDef{ThingDef: name}})
+		}
+		settings.Filter = &op.FilterPatch{Allow: allow}
+	}
+	return settings
 }
 func ZoneConfigurationToken(zone domain.ZoneCreate) string {
 	data, _ := (proto.MarshalOptions{Deterministic: true}).Marshal(ZoneConfiguration(zone))

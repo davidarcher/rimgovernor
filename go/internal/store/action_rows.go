@@ -27,7 +27,7 @@ func insertAction(ctx context.Context, tx *sql.Tx, plan domain.PlanID, ordinal i
 		_, err = tx.ExecContext(ctx, "INSERT INTO actions(id,plan_id,ordinal,kind,bill_payload) VALUES(?,?,?,'production_bill',?)", a.ID(), plan, ordinal, data)
 		return conflict(err)
 	} else if z, ok := a.ZoneCreate(); ok {
-		data, encodeErr := json.Marshal(zonePayload{z.Kind(), z.Crop(), z.Preset(), z.Priority(), z.Cells()})
+		data, encodeErr := json.Marshal(zonePayload{z.Kind(), z.Crop(), z.Preset(), z.Priority(), z.Cells(), z.Allow()})
 		if encodeErr != nil {
 			return encodeErr
 		}
@@ -109,7 +109,12 @@ func scanAction(rows *sql.Rows) (domain.Action, int, error) {
 		case domain.GrowingZone:
 			value, valueErr = domain.NewZoneCreate(payload.Kind, payload.Crop, payload.Cells)
 		case domain.StockpileZone:
-			value, valueErr = domain.NewStockpileZone(payload.Preset, payload.Priority, payload.Cells)
+			switch payload.Preset {
+			case domain.NothingPreset:
+				value, valueErr = domain.NewAllowListStockpileZone(payload.Priority, payload.Allow, payload.Cells)
+			default:
+				value, valueErr = domain.NewStockpileZone(payload.Preset, payload.Priority, payload.Cells)
+			}
 		default:
 			valueErr = errors.New("unsupported zone kind")
 		}
@@ -243,6 +248,7 @@ type zonePayload struct {
 	Preset   domain.StockpilePreset
 	Priority domain.StockpilePriority
 	Cells    []domain.Cell
+	Allow    []string `json:",omitempty"`
 }
 
 type billPayload struct {

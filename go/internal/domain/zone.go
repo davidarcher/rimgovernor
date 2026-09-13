@@ -15,25 +15,36 @@ const (
 	StockpileZone ZoneKind = "stockpile"
 )
 
-// StockpilePreset and StockpilePriority are closed to the single food-storage
-// configuration this slice dispatches; broader presets/priorities are a 05.4
-// extension once the recurring SecureSupplies upkeep contract needs them.
+// StockpilePreset and StockpilePriority are closed to the food-storage and
+// allow-listed covered-supplies configurations this slice dispatches; broader
+// presets/priorities remain a future extension once a recurring contract
+// needs them.
 type StockpilePreset string
 
-const FoodPreset StockpilePreset = "food"
+const (
+	FoodPreset StockpilePreset = "food"
+	// NothingPreset is the allow-list-only filter SecureSupplies' covered
+	// storage/supply storeroom fallback uses when no ordinary haul
+	// destination exists: everything is disallowed except the explicit
+	// definitions named in Allow(), mirroring upkeep_storage.py's
+	// preset='nothing', allow=definitions native zone request.
+	NothingPreset StockpilePreset = "nothing"
+)
 
 type StockpilePriority string
 
 const ImportantPriority StockpilePriority = "important"
 
 // ZoneCreate owns one bounded connected footprint. Settings are closed variants:
-// an explicitly sown crop, or a typed stockpile filter preset and priority.
+// an explicitly sown crop, or a typed stockpile filter preset/priority, the
+// latter optionally paired with a canonical allow-list of definitions.
 type ZoneCreate struct {
 	kind     ZoneKind
 	crop     string
 	preset   StockpilePreset
 	priority StockpilePriority
 	cells    string
+	allow    string
 }
 
 func canonicalConnectedCells(cells []Cell) (string, error) {
@@ -69,6 +80,27 @@ func canonicalConnectedCells(cells []Cell) (string, error) {
 	return string(data), nil
 }
 
+// canonicalAllowList sorts, deduplicates and bounds an allow-list of
+// definitions, mirroring canonicalConnectedCells' role for zone footprints.
+// Python's covered_storage caps the same list at 32 sorted, deduplicated
+// definitions before ever reaching the native call.
+func canonicalAllowList(definitions []string) (string, error) {
+	if len(definitions) == 0 || len(definitions) > 32 {
+		return "", errors.New("invalid stockpile allow-list")
+	}
+	rows := append([]string(nil), definitions...)
+	sort.Strings(rows)
+	seen := map[string]bool{}
+	for _, name := range rows {
+		if !validID(name) || seen[name] {
+			return "", errors.New("invalid stockpile allow-list definition")
+		}
+		seen[name] = true
+	}
+	data, _ := json.Marshal(rows)
+	return string(data), nil
+}
+
 func NewZoneCreate(kind ZoneKind, crop string, cells []Cell) (ZoneCreate, error) {
 	if kind != GrowingZone || !validID(crop) {
 		return ZoneCreate{}, errors.New("invalid zone configuration")
@@ -91,6 +123,25 @@ func NewStockpileZone(preset StockpilePreset, priority StockpilePriority, cells 
 	return ZoneCreate{kind: StockpileZone, preset: preset, priority: priority, cells: data}, nil
 }
 
+// NewAllowListStockpileZone builds the NothingPreset covered-storage/supply
+// storeroom fallback variant: an "everything disallowed except this explicit
+// definition list" filter, exactly as upkeep_storage.py's covered_storage and
+// supply_storeroom request from the native zone-cells/CreateZone operation.
+func NewAllowListStockpileZone(priority StockpilePriority, allow []string, cells []Cell) (ZoneCreate, error) {
+	if priority != ImportantPriority {
+		return ZoneCreate{}, errors.New("invalid stockpile zone configuration")
+	}
+	allowData, err := canonicalAllowList(allow)
+	if err != nil {
+		return ZoneCreate{}, err
+	}
+	cellData, err := canonicalConnectedCells(cells)
+	if err != nil {
+		return ZoneCreate{}, err
+	}
+	return ZoneCreate{kind: StockpileZone, preset: NothingPreset, priority: priority, cells: cellData, allow: allowData}, nil
+}
+
 // ReconstructZone rebuilds a canonical ZoneCreate from a value of unknown
 // provenance (a persisted row, a wire readback) by dispatching on its kind to
 // the family-specific constructor, exactly like every other closed Action
@@ -100,7 +151,14 @@ func ReconstructZone(z ZoneCreate) (ZoneCreate, error) {
 	case GrowingZone:
 		return NewZoneCreate(z.kind, z.crop, z.Cells())
 	case StockpileZone:
-		return NewStockpileZone(z.preset, z.priority, z.Cells())
+		switch z.preset {
+		case FoodPreset:
+			return NewStockpileZone(z.preset, z.priority, z.Cells())
+		case NothingPreset:
+			return NewAllowListStockpileZone(z.priority, z.Allow(), z.Cells())
+		default:
+			return ZoneCreate{}, errors.New("unsupported stockpile preset")
+		}
 	default:
 		return ZoneCreate{}, errors.New("unsupported zone kind")
 	}
@@ -115,11 +173,20 @@ func (z ZoneCreate) Cells() []Cell {
 	_ = json.Unmarshal([]byte(z.cells), &cells)
 	return cells
 }
+func (z ZoneCreate) Allow() []string {
+	var names []string
+	_ = json.Unmarshal([]byte(z.allow), &names)
+	return names
+}
 func (z ZoneCreate) Label() string {
-	if z.kind == StockpileZone {
+	switch {
+	case z.kind == StockpileZone && z.preset == NothingPreset:
+		return "RimGovernor supplies storage"
+	case z.kind == StockpileZone:
 		return "RimGovernor food storage"
+	default:
+		return "RimGovernor crops"
 	}
-	return "RimGovernor crops"
 }
 func NewZoneCreateAction(id ActionID, z ZoneCreate) (Action, error) {
 	if !validID(string(id)) {

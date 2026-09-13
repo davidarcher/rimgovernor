@@ -58,7 +58,11 @@ func TestReconstructZoneRoundTripsBothKinds(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	for _, z := range []ZoneCreate{growing, stockpile} {
+	allowList, err := NewAllowListStockpileZone(ImportantPriority, []string{"MealSimple"}, cells)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, z := range []ZoneCreate{growing, stockpile, allowList} {
 		got, err := ReconstructZone(z)
 		if err != nil || got != z {
 			t.Fatal("reconstruct mismatch", z, got, err)
@@ -66,6 +70,46 @@ func TestReconstructZoneRoundTripsBothKinds(t *testing.T) {
 	}
 	if _, err := ReconstructZone(ZoneCreate{kind: "bogus"}); err == nil {
 		t.Fatal("expected unsupported zone kind error")
+	}
+	if _, err := ReconstructZone(ZoneCreate{kind: StockpileZone, preset: "bogus"}); err == nil {
+		t.Fatal("expected unsupported stockpile preset error")
+	}
+}
+
+func TestAllowListStockpileZoneCanonicalAndBounded(t *testing.T) {
+	cells := []Cell{{X: 2, Z: 1}, {X: 1, Z: 1}}
+	names := []string{"MealSimple", "MealFine"}
+	z, err := NewAllowListStockpileZone(ImportantPriority, names, cells)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if z.Kind() != StockpileZone || z.Preset() != NothingPreset || z.Priority() != ImportantPriority {
+		t.Fatal("unexpected allow-list zone fields", z)
+	}
+	if z.Label() != "RimGovernor supplies storage" {
+		t.Fatal("unexpected label", z.Label())
+	}
+	names[0] = "Tampered"
+	if got := z.Allow(); len(got) != 2 || got[0] != "MealFine" || got[1] != "MealSimple" {
+		t.Fatal("allow-list not canonical/immutable", got)
+	}
+	same, err := NewAllowListStockpileZone(ImportantPriority, []string{"MealFine", "MealSimple"}, []Cell{{X: 1, Z: 1}, {X: 2, Z: 1}})
+	if err != nil || z != same {
+		t.Fatal("mutable/canonical", z, same, err)
+	}
+	for _, bad := range []struct {
+		priority StockpilePriority
+		allow    []string
+	}{
+		{"normal", names},
+		{ImportantPriority, nil},
+		{ImportantPriority, []string{"a", "a"}},
+		{ImportantPriority, []string{""}},
+		{ImportantPriority, make([]string, 33)},
+	} {
+		if _, err := NewAllowListStockpileZone(bad.priority, bad.allow, cells); err == nil {
+			t.Fatal(bad)
+		}
 	}
 }
 

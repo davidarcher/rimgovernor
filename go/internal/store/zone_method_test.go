@@ -99,6 +99,44 @@ func TestCommitZoneMethodRejectsKindGoalMismatch(t *testing.T) {
 	}
 }
 
+// The allow-list (NothingPreset) stockpile variant persists and reloads its
+// definition allow-list exactly, exercising insertAction/scanAction's new
+// zonePayload.Allow field the same way the food-preset plans above exercise
+// the rest of zonePayload.
+func TestCommitAllowListStockpileZoneMethodRoundTrips(t *testing.T) {
+	ctx := context.Background()
+	s := open(t, filepath.Join(t.TempDir(), "routine.db"))
+	r := foodStorageDeficitRoutineRequest()
+	out := reviewRoutine(t, s, &r)
+	g := routineGoal(t, out, policy.EnsureFoodStorage)
+	zone, err := domain.NewAllowListStockpileZone(domain.ImportantPriority, []string{"MealSimple", "MealFine"}, []domain.Cell{{X: 4, Z: 6}, {X: 5, Z: 6}, {X: 6, Z: 6}, {X: 4, Z: 7}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	action, err := domain.NewZoneCreateAction("storage-plan-a", zone)
+	if err != nil {
+		t.Fatal(err)
+	}
+	plan, err := domain.NewPlan("storage-plan", 1, []domain.Action{action})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := s.CommitGoalMethod(ctx, g.Goal.ID, g.Revision, "food-storage", plan); err != nil {
+		t.Fatal(err)
+	}
+	loaded, err := s.LoadPlan(ctx, "storage-plan")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(loaded.Spec.Actions()) != 1 {
+		t.Fatal("expected one reloaded action", loaded.Spec)
+	}
+	got, ok := loaded.Spec.Actions()[0].ZoneCreate()
+	if !ok || got != zone {
+		t.Fatal("allow-list zone did not round-trip", got, zone)
+	}
+}
+
 func TestCommitStockpileZoneMethodRejectsOverlappingCells(t *testing.T) {
 	ctx := context.Background()
 	s := open(t, filepath.Join(t.TempDir(), "routine.db"))
