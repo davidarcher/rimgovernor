@@ -5,6 +5,7 @@ import (
 	"errors"
 
 	"github.com/davidarcher/RimGovernor/go/internal/bridge"
+	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/boundary"
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"github.com/davidarcher/RimGovernor/go/internal/executor"
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
@@ -55,13 +56,13 @@ type RecoveryServiceCapabilities struct {
 type RecoveryServiceBoundary struct {
 	native  RecoveryServiceNative
 	writer  RecoveryServiceWriter
-	leases  LeaseSource
+	leases  boundary.LeaseSource
 	clock   executor.Clock
 	session string
 }
 
-func NewRecoveryServiceBoundary(native RecoveryServiceNative, writer RecoveryServiceWriter, leases LeaseSource, clock executor.Clock, session string) (*RecoveryServiceBoundary, error) {
-	if native == nil || writer == nil || leases == nil || clock == nil || !boundaryID(session) {
+func NewRecoveryServiceBoundary(native RecoveryServiceNative, writer RecoveryServiceWriter, leases boundary.LeaseSource, clock executor.Clock, session string) (*RecoveryServiceBoundary, error) {
+	if native == nil || writer == nil || leases == nil || clock == nil || !boundary.ValidID(session) {
 		return nil, errors.New("invalid recovery service boundary dependencies")
 	}
 	return &RecoveryServiceBoundary{native, writer, leases, clock, session}, nil
@@ -73,7 +74,7 @@ func (b *RecoveryServiceBoundary) InspectRecoveryService(ctx context.Context, ta
 	if !ok {
 		return out, executor.ErrEvidence
 	}
-	reply, _, err := b.native.ReadPawns(ctx, boundaryIdentity(target.Snapshot), []string{string(service.Pawn())})
+	reply, _, err := b.native.ReadPawns(ctx, boundary.Identity(target.Snapshot), []string{string(service.Pawn())})
 	if err != nil {
 		return out, err
 	}
@@ -81,7 +82,7 @@ func (b *RecoveryServiceBoundary) InspectRecoveryService(ctx context.Context, ta
 	if observed == nil {
 		return out, executor.ErrHeld
 	}
-	current, err := boundaryContext(observed.Context, target.Snapshot)
+	current, err := boundary.Context(observed.Context, target.Snapshot)
 	if err != nil {
 		return out, err
 	}
@@ -93,22 +94,22 @@ func (b *RecoveryServiceBoundary) InspectRecoveryService(ctx context.Context, ta
 	if row == nil || row.Pawn == nil || row.Pawn.GetId() != string(service.Pawn()) {
 		return out, executor.ErrEvidence
 	}
-	pawnToken, err := draftToken(row, observed.Context)
+	pawnToken, err := boundary.PawnToken(row, observed.Context)
 	if err != nil {
 		return out, err
 	}
-	building, _, err := b.native.ReadRepairTarget(ctx, boundaryIdentity(current), service.Thing())
+	building, _, err := b.native.ReadRepairTarget(ctx, boundary.Identity(current), service.Thing())
 	if err != nil {
 		return out, err
 	}
-	if _, err = boundaryContext(building.Context, current); err != nil {
+	if _, err = boundary.Context(building.Context, current); err != nil {
 		return out, err
 	}
 	if building.Context.GetTick() < observed.Context.GetTick() {
 		return out, executor.ErrEvidence
 	}
 	method := recoveryServiceMethodWire(service.Method())
-	preview, _, err := b.native.PreviewRecoveryService(ctx, boundaryIdentity(current), string(service.Pawn()), pawnToken, service.Thing(), building.Token, method)
+	preview, _, err := b.native.PreviewRecoveryService(ctx, boundary.Identity(current), string(service.Pawn()), pawnToken, service.Thing(), building.Token, method)
 	if err != nil {
 		return out, err
 	}
@@ -116,23 +117,23 @@ func (b *RecoveryServiceBoundary) InspectRecoveryService(ctx context.Context, ta
 	if evaluated == nil {
 		return out, executor.ErrHeld
 	}
-	if _, err = boundaryContext(evaluated.Context, current); err != nil {
+	if _, err = boundary.Context(evaluated.Context, current); err != nil {
 		return out, err
 	}
 	job := evaluated.GetProjected().GetJob()
 	if evaluated.Context.GetTick() < building.Context.GetTick() || evaluated.Accepted == nil || job == nil || job.GetPawnId() != string(service.Pawn()) || job.GetTargetA().GetThingId() != service.Thing() || job.CanTry == nil || job.GetCanTry() != evaluated.GetAccepted() {
 		return out, executor.ErrEvidence
 	}
-	facts := policy.RecoveryServiceFacts{Snapshot: current, PawnTick: domain.Tick(building.Context.GetTick()), PreviewTick: domain.Tick(evaluated.Context.GetTick()), ThingSnapshotToken: building.Token, NativeCanTry: draftBool(job.CanTry)}
+	facts := policy.RecoveryServiceFacts{Snapshot: current, PawnTick: domain.Tick(building.Context.GetTick()), PreviewTick: domain.Tick(evaluated.Context.GetTick()), ThingSnapshotToken: building.Token, NativeCanTry: boundary.FactBool(job.CanTry)}
 	facts.Pawn = recoveryServicePawnFacts(service.Pawn(), row, pawnToken)
 	out.Facts, out.ObservedAt = facts, b.clock.Now()
 	return out, ctx.Err()
 }
 
 func recoveryServicePawnFacts(pawn domain.PawnID, row *n.PawnState, token string) policy.RecoveryServicePawnFacts {
-	facts := policy.RecoveryServicePawnFacts{Pawn: pawn, SnapshotToken: token, Dead: draftBool(row.Dead), Downed: draftBool(row.Downed), Drafted: draftBool(row.Drafted), MentalState: draftPresence(row.MentalState, row.Issues, "mental_state")}
-	if row.Job != nil && !tendIssue(row.Job.Issues, "player_forced") && !tendIssue(row.Job.Issues, "queued_jobs") && !tendIssue(row.Job.Issues, "def_name") {
-		facts.PlayerForced, facts.QueuedJobs = draftBool(row.Job.PlayerForced), draftUint(row.Job.QueuedJobs)
+	facts := policy.RecoveryServicePawnFacts{Pawn: pawn, SnapshotToken: token, Dead: boundary.FactBool(row.Dead), Downed: boundary.FactBool(row.Downed), Drafted: boundary.FactBool(row.Drafted), MentalState: boundary.FactPresence(row.MentalState, row.Issues, "mental_state")}
+	if row.Job != nil && !boundary.IssueField(row.Job.Issues, "player_forced") && !boundary.IssueField(row.Job.Issues, "queued_jobs") && !boundary.IssueField(row.Job.Issues, "def_name") {
+		facts.PlayerForced, facts.QueuedJobs = boundary.FactBool(row.Job.PlayerForced), boundary.FactUint(row.Job.QueuedJobs)
 		if row.Job.DefName != nil {
 			facts.ExistingJobDef = domain.Known(row.Job.GetDefName())
 		}
@@ -143,10 +144,10 @@ func recoveryServicePawnFacts(pawn domain.PawnID, row *n.PawnState, token string
 func (b *RecoveryServiceBoundary) attempt(dispatch executor.RecoveryServiceDispatch) (bridge.RecoveryServiceAttempt, error) {
 	p, admission := dispatch.Attempt, dispatch.Admission
 	service, ok := p.Action.RecoveryService()
-	if !ok || p.Attempt == 0 || p.Tick < 0 || admission.Snapshot != p.Snapshot || admission.Pawn != service.Pawn() || admission.Thing != service.Thing() || admission.Method != service.Method() || admission.Tick > p.Tick || !boundaryID(admission.PawnSnapshotToken) || !boundaryID(admission.ThingSnapshotToken) {
+	if !ok || p.Attempt == 0 || p.Tick < 0 || admission.Snapshot != p.Snapshot || admission.Pawn != service.Pawn() || admission.Thing != service.Thing() || admission.Method != service.Method() || admission.Tick > p.Tick || !boundary.ValidID(admission.PawnSnapshotToken) || !boundary.ValidID(admission.ThingSnapshotToken) {
 		return bridge.RecoveryServiceAttempt{}, executor.ErrEvidence
 	}
-	return bridge.RecoveryServiceAttempt{Identity: boundaryIdentity(p.Snapshot), Attempt: &c.AttemptKey{ControllerSessionId: proto.String(b.session), ActionId: proto.String(string(p.Action.ID())), AttemptId: proto.Uint64(uint64(p.Attempt))}, Owner: &a.Owner{ControllerSessionId: proto.String(b.session), PlayerDirection: proto.Uint64(uint64(p.Snapshot.Direction))}, Generation: uint64(p.Snapshot.Native), Pawn: string(service.Pawn()), Thing: service.Thing(), PawnToken: admission.PawnSnapshotToken, ThingToken: admission.ThingSnapshotToken, Method: recoveryServiceMethodWire(admission.Method)}, nil
+	return bridge.RecoveryServiceAttempt{Identity: boundary.Identity(p.Snapshot), Attempt: &c.AttemptKey{ControllerSessionId: proto.String(b.session), ActionId: proto.String(string(p.Action.ID())), AttemptId: proto.Uint64(uint64(p.Attempt))}, Owner: &a.Owner{ControllerSessionId: proto.String(b.session), PlayerDirection: proto.Uint64(uint64(p.Snapshot.Direction))}, Generation: uint64(p.Snapshot.Native), Pawn: string(service.Pawn()), Thing: service.Thing(), PawnToken: admission.PawnSnapshotToken, ThingToken: admission.ThingSnapshotToken, Method: recoveryServiceMethodWire(admission.Method)}, nil
 }
 
 func recoveryServiceJob(job *r.JobEffect, dispatch executor.RecoveryServiceDispatch) error {
@@ -174,7 +175,7 @@ func (b *RecoveryServiceBoundary) RecoveryServicePawn(ctx context.Context, dispa
 	if err != nil {
 		return out, err
 	}
-	if !boundaryID(lease) {
+	if !boundary.ValidID(lease) {
 		return out, executor.ErrAuthority
 	}
 	if err = ctx.Err(); err != nil {
@@ -206,13 +207,13 @@ func (b *RecoveryServiceBoundary) RecoveryServicePawn(ctx context.Context, dispa
 
 func (b *RecoveryServiceBoundary) checkReceipt(receipt *r.Receipt, dispatch executor.RecoveryServiceDispatch) error {
 	p := dispatch.Attempt
-	if err := boundaryAdmission(receipt, p, b.session); err != nil {
+	if err := boundary.Admission(receipt, p, b.session); err != nil {
 		return err
 	}
 	if receipt.AdmittedContext.GetTick() < int64(dispatch.Admission.Tick) {
 		return executor.ErrEvidence
 	}
-	job := draftReceiptJob(receipt)
+	job := boundary.ReceiptJob(receipt)
 	return recoveryServiceJob(job, dispatch)
 }
 
@@ -229,7 +230,7 @@ func (b *RecoveryServiceBoundary) ObserveRecoveryService(ctx context.Context, di
 	p := dispatch.Attempt
 	switch v := reply.Outcome.(type) {
 	case *r.LookupReply_Unknown:
-		if _, err = boundaryContext(v.Unknown.GetContext(), current); err != nil {
+		if _, err = boundary.Context(v.Unknown.GetContext(), current); err != nil {
 			return out, err
 		}
 		out.Observation = domain.Observation{Action: p.Action.ID(), Attempt: p.Attempt, Snapshot: current, Tick: domain.Tick(v.Unknown.GetContext().GetTick()), Effect: domain.EffectUnknown, Causality: domain.AfterDispatch}
@@ -239,7 +240,7 @@ func (b *RecoveryServiceBoundary) ObserveRecoveryService(ctx context.Context, di
 		if v.InFlight == nil || !proto.Equal(v.InFlight.Attempt, attempt.Attempt) {
 			return out, executor.ErrEvidence
 		}
-		if err = boundaryAdmission(&r.Receipt{Attempt: v.InFlight.Attempt, AdmittedContext: v.InFlight.AdmittedContext, AuthorizingOwner: attempt.Owner}, p, b.session); err != nil {
+		if err = boundary.Admission(&r.Receipt{Attempt: v.InFlight.Attempt, AdmittedContext: v.InFlight.AdmittedContext, AuthorizingOwner: attempt.Owner}, p, b.session); err != nil {
 			return out, err
 		}
 	case *r.LookupReply_Receipt:
@@ -260,7 +261,7 @@ func (b *RecoveryServiceBoundary) ObserveRecoveryService(ctx context.Context, di
 	if !proto.Equal(prog.Attempt, attempt.Attempt) {
 		return out, executor.ErrEvidence
 	}
-	tickCtx, err := boundaryContext(prog.Context, current)
+	tickCtx, err := boundary.Context(prog.Context, current)
 	if err != nil {
 		return out, err
 	}
