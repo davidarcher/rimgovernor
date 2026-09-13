@@ -2139,6 +2139,36 @@ main. Native package and Go production cutover remain independent.
       test loader is deleted. `scripts/native_package_acceptance.py` itself
       (and its 14 dependents) stay in place until they're each converted —
       this only retires its own `controller_tests/` loader.
+    - [x] **`native_compatibility_acceptance.py` (1 file).** The last of the
+      three load-bearing shared-harness modules the sequencing note flags (11
+      dependents, notably `native_presentation_acceptance.py`'s `discovery()`
+      import). Ported its four standalone pure functions to a new
+      `nativeaccept/compatibility.go`: `PageNames` (malformed-page rejection:
+      missing tools list, row missing `gabpName`, non-string cursor),
+      `VerifyReload` (colony identity/map preserved, load token rotates,
+      reload advances at most one load-boundary tick, reloaded clock paused
+      at the reported tick), `ComponentCensus` (parses a save's XML to count
+      each native `HomeBridge.*` component exactly once per game/map scope,
+      rejecting duplicates or missing components — needed extending
+      `xmltree.go` with `findAll`/`children`/`attr` methods for the
+      traversal), and `BinderObservation` (classifies a legacy `home/*`
+      binder's reply to an unknown-argument probe without ever claiming
+      strict validation is proven, since a silent drop looks identical to
+      never receiving the key). Left uncovered, matching existing
+      convention: `validate_discovery` (already `nativeaccept.ValidateDiscovery`
+      from Slice 1) and `discovery`'s pagination (already covered by
+      `nativeaccept.Harness.Discovery`, live-verified through every
+      `cmd/*accept` binary — no mock-based unit test exists anywhere in this
+      codebase for paginated network interactions); `Evidence.record`'s
+      error-capture (matches `Harness.Call`'s already-live-verified
+      equivalent). `run()` — the full save/checkpoint/reload/restart
+      lifecycle test against the production `rimgovernor.bridge_runtime`
+      stack — was **not** ported; it's out of scope for this bounded slice
+      and would require reimplementing `BridgeRuntime`/`session_checkpoint`
+      semantics in Go. `go build`/`vet`/`test ./...` clean; the Python test
+      loader is deleted. `scripts/native_compatibility_acceptance.py` itself
+      stays in place — `native_presentation_acceptance.py`'s `run()` still
+      imports its `discovery()` function.
   - [ ] **Slice 4 — subsystem long tail (~70 remaining `scripts/*_acceptance.py`).**
     Group by existing `bridge/*.go` domain and land as independent sub-slices:
     construction/building; upkeep/comfort/gear/power (largest cluster); food/
