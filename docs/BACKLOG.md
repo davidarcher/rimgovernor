@@ -644,7 +644,9 @@ without pushes, when the target checkout is safe; preserve other developers' wor
     bill path, schema 36, planners and native output tracking need regression
     coverage, player-edit invalidation and final native/protocol validation.
     Compile-only Go checks are not completion evidence. Reserved-stock accounting
-    and protected storage/haul remain unimplemented; gameplay acceptance remains
+    remains unimplemented. Protected storage/haul (completion-order item 5, below)
+    is now implemented and verified via a live native haul dispatch acceptance
+    run (see commit `5fce80f`); gameplay acceptance for the rest of 05.2 remains
     tracked under G01.12.
 
     **Claude handoff: unfinished 05.2**
@@ -657,8 +659,12 @@ without pushes, when the target checkout is safe; preserve other developers' wor
       Local worktree: `C:\Users\darch\code\davidarcher\RimBot\.worktrees\g01-05-bootstrap`.
       Keep 05.3 work separate and integrate current `origin/main` when landing.
     - Already landed: original-supply Allow, saved work assignments, wild
-      plant/wood acquisition, bounded hunting, fields/crop selection and unsown
-      field-capacity accounting. These do not close the whole 05.2 item.
+      plant/wood acquisition, bounded hunting, fields/crop selection, unsown
+      field-capacity accounting, and (completion-order item 5) the typed food
+      stockpile zone (geometry/filter/priority/ownership) plus native haul
+      dispatch with exact issued-job/quantity-ledger verification — confirmed
+      end-to-end via a live `haulsmoke` acceptance run. These do not close the
+      whole 05.2 item.
 
     | Unfinished component | Source locations and current scope |
     | --- | --- |
@@ -693,10 +699,16 @@ without pushes, when the target checkout is safe; preserve other developers' wor
        normal `DropOnFloor` behavior for placement observation.
     4. Implement reserved production-stock accounting separately from available
        edible stock, animal demand and future crop yield. This is not in the WIP.
-    5. Implement only the shared c storage prerequisite: protected food stockpile
-       geometry, filters, ownership and safe haul. Observe actual protected
-       quantity delivered, preserve player storage and avoid treating a missing
-       source stack as successful delivery. This is not in the WIP.
+    5. **Done.** The shared c storage prerequisite (protected food stockpile
+       geometry, filters, ownership, and safe haul with exact-quantity-ledger
+       verification) is implemented on this branch (`go/internal/domain/zone.go`,
+       `bridge/zone.go`, `store/zone_method.go`, `store/zone_ownership.go`,
+       `buildingruntime/haul_boundary.go` and related executor/policy files;
+       native in `NativeZoneCreation.cs`, `NativeHaulOperations.cs`,
+       `WorkGiverDispatch.cs`) and confirmed via a live `haulsmoke` dispatch
+       acceptance run (`5fce80f` fixed the last blocking bug: native boundary
+       code was treating a pawn's `nil` MentalState as unknown instead of
+       consulting `Issues` for a `NOT_APPLICABLE` confirmation).
     6. Update architecture/flag/schema documentation, run the affected automated
        suites, and retain the G01.12 gameplay gate for ordinary output, renewed
        deficit, emergency interruption and preserved player assignments. Keep
