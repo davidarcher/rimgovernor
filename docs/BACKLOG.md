@@ -1016,15 +1016,40 @@ b; exact worker cleanup by a, with reuse by their later consumers.
   the C# output shapes were hand-matched field-for-field against the existing
   strict Go bridge validators (`caravanDepartureEvidence`, `caravanCatalogSelected`,
   `PreviewCaravanDeparture`'s projection checks), which still pass unchanged.
-  **Not yet verified:** no headless/native-acceptance run exercised this code
-  path against a live game (that requires the private Linux game/mods/GABS
-  inputs `docker-native.md`/`world-progression.md` describe, not available in
-  this sandbox); only compile-time and Go-side contract-shape checks are done.
-  Native FormCaravan's execute+observe covers formation+departure only — no
-  in-flight tick tracking beyond "still exists and is player-controlled" and no
-  arrival/disbanding detection. Still missing: travel/arrival/return storage,
-  quests and rewards, settlement gifts, and failure recovery across multiple
-  active maps, plus a real native-acceptance run of the new handlers.
+  Native now also implements `ReadWorldProgression`
+  (`NativeWorldProgressionObservationTools`/`NativeWorldProgressionObservation.cs`,
+  tool `rimgovernor/observations_read_world_progression`), porting the legacy
+  `home/world_progression` JSON tool's full census (maps, factions, caravans,
+  assemblies, quests) behind `observations.proto`'s already-defined
+  `WorldProgressionRequest`/`Reply` — that proto existed with no native handler
+  before this round (confirmed by source search) and none of it was read from Go.
+  A new `bridge.ReadWorldProgression` reads the validated subset travel/arrival
+  tracking needs so far (per-caravan id/tile/moving/crew via `CaravanJourney`;
+  maps/factions/assemblies/quests are parsed by native but not yet surfaced to
+  Go). A new pure `policy.ClassifyCaravanJourney` decides InFlight/Stopped/
+  ReturnedHome from a world-progression caravan lookup plus the
+  `ReadHomeColonists` roster, treating any pawn found in neither census as
+  Unknown rather than presumed lost or home — no wrong-map custody claim is
+  possible from it. `dotnet build` and `go build/vet/test ./...` pass, including
+  new bridge contract-shape tests (malformed-evidence table like
+  `caravanCatalogSelected`'s) and policy unit tests for the classifier.
+  **Not yet verified:** no headless/native-acceptance run exercised any of this
+  against a live game (that requires the private Linux game/mods/GABS inputs
+  `docker-native.md`/`world-progression.md` describe, not available in this
+  sandbox); only compile-time and Go-side contract-shape checks are done.
+  Native FormCaravan's own execute+observe still covers formation+departure
+  only — no in-flight tick tracking beyond "still exists and is
+  player-controlled" and no arrival/disbanding detection; that gap is now
+  answerable via `ReadWorldProgression`, but nothing wires
+  `ClassifyCaravanJourney` into a running boundary/routine yet: there is no
+  store record of "caravans currently away", no session/clock scheduling that
+  polls `ReadWorldProgression` for tracked caravans, and no reconciliation of
+  returned crew/cargo into home colony bookkeeping or the existing haul/storage
+  routines once `CaravanJourneyReturnedHome` fires. Still missing: that
+  routine/store wiring, reward/gift storage reconciliation, quests and rewards
+  (native census exists; no Go read/policy/store/executor), settlement gifts,
+  and failure recovery across multiple active maps, plus a real
+  native-acceptance run of all of the above.
   **Exit evidence:** native departure, arrival, reward/return storage and failure
   recovery with Go owning the workflow and no wrong-map writes.
 
