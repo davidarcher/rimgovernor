@@ -708,6 +708,50 @@ without pushes, when the target checkout is safe; preserve other developers' wor
     `MaintainMedicalReserves` is entirely unstarted. G01.12 gameplay
     acceptance gates the whole item.
 
+    **Claude handoff: 05.5 slice 5 (`GearProduce` — revisited the `IngredientRequirement` blocker)**
+
+    - Re-examined the previously documented blocker fresh, as asked: is
+      "`IngredientRequirement` exposes only one Required/Available/Missing
+      triple per slot, not per-alternative amounts" actually blocking? Only
+      half true. `gearIngredients` (`policy/gear.go`) never reads a
+      recipe's own reported `Available`/`Missing` at all — funding is
+      decided separately against `GearPlanningRequest.Stock` — so only each
+      alternative's *required* Resource/Count needs to come from the native
+      recipe, and `IngredientRequirement.Required` does carry that, per
+      slot. Added `go/internal/bridge/gear_recipe_ingredients.go` (+ 9 unit
+      tests): `GearRecipeIngredients([]*observationspb.IngredientRequirement)
+      domain.Fact[[][]policy.Amount]` maps a slot to one `Amount` when the
+      native row is `Complete` and resolved to exactly one allowed
+      material with a whole, positive `Required` count.
+    - What genuinely still cannot be recovered from one static
+      `IngredientRequirement` row: a *different* required count per allowed
+      alternative. RimWorld's stuff-adjustable cost scaling
+      (`CostStuffCount`) can make an ingredient's needed count depend on
+      which permitted material is chosen (common for weapon/apparel
+      recipes, which is most of what `GearProduce` cares about), and this
+      bridge has no per-material recipe-cost preview the way building
+      placement previews per stuff — the same class of unverified-native-
+      contract gap already flagged elsewhere in this doc for lack of native
+      C# mod source. A slot naming more than one allowed material is
+      reported `Unknown` rather than guessed at, so `SelectGearMethod` will
+      safely fall back to `GearUnknown`/skip that recipe instead of ever
+      proposing a wrong cost — never a guess, matching this doc's stated
+      posture throughout.
+    - This narrows, but does not close, the `GearProduce` blocker: no
+      bridge census anywhere yet requests populated `RecipeState.Ingredients`
+      for gear/workshop benches at all — `bridge/colony_production.go`'s
+      `validateColonyProduction` explicitly requires `Ingredients` to be
+      nil on the cooking/butchering `RecipeState` rows the shared planning
+      census currently reads. Wiring `GearProduce` still needs: (1) a new or
+      extended bridge read that actually requests ingredient rows for gear
+      benches, (2) threading the result into `GearPlanningRequest.Benches`
+      (currently always `domain.Unknown[[]policy.GearBench]()` per slice 1's
+      handoff), and (3) the domain/store/executor/buildingruntime dispatch
+      vertical, none of which exist. Not attempted this pass — each is a
+      substantial unit of its own.
+    - Full `go build ./... && go vet ./... && GOMAXPROCS=2 go test -p 1 ./...`
+      passes across the whole module, including the new `bridge` coverage.
+
   - [ ] **05.6 — Management and service recovery (G01.07e).**
     Compose dynamic mood, ongoing care/surgery, population, herd, waste and trade
     needs with their executable methods. Reuse b/d for `MaintainAnimalFeed` and
