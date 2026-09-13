@@ -1437,9 +1437,9 @@ main. Native package and Go production cutover remain independent.
   in-flight write whose actual native reply is lost mid-transport, as opposed
   to a reply the gate itself refuses to encode) still needs a live
   `Pawn`/`Map`/GABS acceptance path that does not exist in Go today.
-  Instant/replacement construction cases and remaining operation families
-  (settings/bills/zones, resources/upkeep, medical, animals/population,
-  trade/world, explicit player operations) are open.
+  Instant/replacement construction cases are now closed (see below); remaining
+  operation families (settings/bills/zones, resources/upkeep, medical,
+  animals/population, trade/world, explicit player operations) are open.
   This pass surveyed every remaining item above against current source (not just this
   list's prose) to find the next tractable increment, including candidates larger than
   the prior seven test-extension slices, per explicit direction to push into harder
@@ -1551,6 +1551,62 @@ main. Native package and Go production cutover remain independent.
   succeeds with 0 warnings/errors from a clean `bin`/`obj`. `go build ./...` and
   `go vet ./...` from `go/` also pass unaffected (no Go code touched; the full
   `go test ./...` suite was not rerun since nothing under `go/` changed).
+  Instant/replacement construction cases are now closed with a new live-game
+  acceptance binary, `go/internal/nativeaccept/cmd/constructionaccept`, proving
+  two `NativeConstructionPlan`/`NativeConstructionRecord`
+  (`integrations/rimgovernor-native/src/Bridge/Protocol/NativeConstruction.cs`)
+  code paths that had no live acceptance before (only ordinary pawn-built walls
+  did): an Instant building (`PartySpot`, `WorkToBuild==0`) whose very first
+  admitted `PlaceBuilding` observes a completed `Building` immediately -- no
+  intervening Blueprint/Frame stage, no pawn labor, no ticks -- with an
+  idempotent replay proving the identical receipt; and a genuinely in-flight
+  Frame (an ordinary WoodLog `Wall`, built up to Frame by real colony AI over
+  real ticks) legitimately replaced by a second admitted `PlaceBuilding` of a
+  *different* def sharing the Wall's own `replaceTags` (`Fence`, not another
+  `Wall` -- `GenConstruct.CanPlaceBlueprintAt` refuses an identical thing at an
+  occupied cell before the replaceTags-driven Frame-cancel loop ever runs, so
+  the replacement must be a distinct def to actually exercise cancellation),
+  whose own original attempt then correctly reports
+  `UNSUCCESSFUL_REASON_CANCELLED` with `CONSTRUCTION_STAGE_CANCELLED` evidence
+  rather than an ambiguous unknown or fabricated absence, while the
+  replacement's own attempt reports pending/present as expected. The dry-run
+  preview is also asserted to predict the cancellation in advance
+  (`PlacementBlocker.frame_would_be_cancelled`) before the replacing attempt is
+  ever admitted. Two real bugs were found and fixed only via live-run evidence
+  during this slice, both instructive beyond this one binary: (1)
+  `observations_get_cells` only implements terrain/roof/visibility/traversal
+  cell fields today, not `things` (declared in `contracts/proto/
+  observations.proto`'s `CellFields` but refused server-side with
+  `FAILURE_CODE_UNSUPPORTED`) -- occupancy must instead be left to
+  `operations_preview`, which already evaluates real placement legality
+  including blocking things; and (2) `NativeControlAuthority`'s lease is
+  real-time bounded (`leaseMs`, capped at 30000ms), not tick-bounded, so a
+  lease acquired early and reused across several genuine native round-trips
+  (fixture prepare, candidate-cell search, preview calls) can expire from
+  ordinary wall-clock/transport latency alone while the game stays paused at
+  the same tick, silently advancing `nativeGeneration` on the next authority
+  check (`NativeControlAuthority.Invalidate`/`Advance` on `LeaseExpired`) and
+  refusing any request still carrying the older `expectedGeneration` with
+  `FAILURE_CODE_STALE_GENERATION` -- fixed by acquiring authority as late as
+  possible (immediately before each `operations_execute`, not once at the
+  start) and falling back from `Renew` to a fresh `Acquire` whenever the prior
+  lease has already lapsed, since a lapsed lease is exactly the condition
+  under which the server-side lease is already nil and a fresh `Acquire` is
+  legal again. Verified live and reproducibly: two consecutive green GABS runs
+  in an isolated per-worktree RimWorld+bridge environment
+  (`.rimgovernor/native-runs/constructionaccept-5` and `-6`, each
+  `passed: true`, no leftover RimWorld process afterward), plus
+  `go build ./... && go vet ./... && go test ./...` from `go/`.
+  Remaining-open items in this family are unchanged by this slice: persistent
+  draft policy remains new feature work needing a scoped design (no code
+  exists); fault-injected uncertain setters (draft) and native lost-reply
+  fault injection beyond the shared envelope gate both still need a new
+  disposable fixture design that can force a live native setter/transport path
+  itself to fail or lose a reply, which no fixture in this repo can do today;
+  MovePawn queued orders remains a confirmed dead end (no physical keyboard
+  state in headless GABS); and settings/bills/zones, resources/upkeep,
+  medical, animals/population, trade/world and explicit player operations
+  remain wholly unstarted operation families.
 
 - [ ] **N01.05 — Runtime and presentation ownership.** Native runtime owner.
   Recover partial draft-hook initialization without requiring a game restart;
