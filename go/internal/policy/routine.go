@@ -575,6 +575,15 @@ func DetectRoutine(f RoutineFacts, previous RoutineLatches, p RoutinePolicy) (Ro
 	if targets, known := animals.Feed.Value(); known {
 		animalFeed = domain.Known(len(targets) == 0)
 	}
+	herdRecovered := domain.Unknown[bool]()
+	if deficit, known := AnimalHerdDeficit(f.AnimalUpkeep.Animals).Value(); known {
+		herdRecovered = domain.Known(!deficit)
+	}
+	addAssessment(MaintainHerd, 3, herdRecovered)
+	if !positive(herdRecovered) {
+		addGoal(MaintainHerd, 3)
+		r.Goals[len(r.Goals)-1].MethodUnavailable = true
+	}
 	for _, animalNeed := range []struct {
 		id        GoalID
 		recovered domain.Fact[bool]

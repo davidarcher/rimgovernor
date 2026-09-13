@@ -838,15 +838,35 @@ without pushes, when the target checkout is safe; preserve other developers' wor
     `go/internal/bridge/disaster_recovery.go`) are now implemented end to
     end, though disaster recovery's repair work still waits on 05.4's
     `MaintainEssentialRepairs` landing per this item's reuse instruction.
-    `MaintainHerd-*` is now code-complete as its own typed vertical too
+    `MaintainHerd-*` is now code-complete as its own typed vertical
     (`Operations.SetAnimalTraining`/`SlaughterAnimal`,
     `NativeHusbandryOperations.cs`, domain `HusbandryAction` with a
     train/slaughter admission policy, store admission persistence and
     dispatch gating, an executor inspect/admit/dispatch/reconcile loop, and
     a `husbandryBoundary`/`bridge.ReadHusbandryTarget`-backed buildingruntime
     wiring), matching the same vertical shape as `AnimalContainment` and
-    `RecoveryService` above rather than relying on generic dispatch; it has
-    no routine-scheduler/CLI wiring yet.
+    `RecoveryService` above rather than relying on generic dispatch, and now
+    also has routine-scheduler/CLI wiring: `policy.MaintainHerd` deficit
+    detection and `policy.SelectHusbandryMethod` candidate selection reuse
+    the training/safe-to-slaughter fields the generic per-tick animal census
+    already carries (`AnimalState.training`/`safe_to_slaughter`, no
+    dedicated native read needed for detection), and
+    `RoutineHusbandryPlanner` dispatches one training write per cycle behind
+    `--routine-husbandry-plans`. Disclosed narrowing: only training is ever
+    proposed, never autonomous slaughter — Python's per-race population
+    target, protected-id, breeding-reserve and feed-reservation richness has
+    no player-configurable equivalent in Go yet, so slaughter stays a
+    player-only order until that catches up. `Population-*`'s prisoner
+    recruit/maintain sub-step (below) does not yet have the same
+    routine-scheduler/CLI wiring: unlike husbandry, its deficit-relevant
+    facts (`recruitable`, current interaction) live only on the dedicated,
+    natively-unimplemented `rimgovernor/observations_read_population`
+    census, not on any field the routine review's existing per-cycle reads
+    already carry, so closing this gap also requires adding a new per-cycle
+    population read to the shared `RoutineSource`/routine-review pipeline
+    (`internal/observation/routine_read.go`) rather than a planner-only
+    addition — a materially larger, shared-file change than
+    `MaintainHerd-*`'s, deferred to a future pass rather than rushed.
     `MaintainWaste` (`Operations.ManageWaste`, `NativeWasteOperations.cs`,
     `go/internal/bridge/waste.go`) and `Population-*`'s `equip` sub-step
     (native `NativeEquipOperations.cs` added for

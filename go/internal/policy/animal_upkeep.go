@@ -16,6 +16,19 @@ type UpkeepAnimal struct {
 	Definition                                 Resource
 	RequiresPen, Contained, Release, Slaughter domain.Fact[bool]
 	Pen, SuitablePen                           domain.Fact[string]
+	// SafeToSlaughter and Training carry MaintainHerd-*'s husbandry
+	// eligibility straight from the same generic census read that already
+	// decodes containment/feed facts (AnimalState already exposes both), so
+	// no dedicated per-cycle husbandry read is needed to detect the deficit.
+	SafeToSlaughter domain.Fact[bool]
+	Training        []HusbandryTrainable
+}
+
+// HusbandryTrainable is one trainable definition's recursive-training
+// eligibility for one animal, ported from AnimalState.TrainingEntry.
+type HusbandryTrainable struct {
+	Def              string
+	Available, Learned domain.Fact[bool]
 }
 type AnimalUpkeepObservation struct {
 	Animals       domain.Fact[[]UpkeepAnimal]

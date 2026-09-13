@@ -43,7 +43,7 @@ func serviceClockConfig(profile string) buildingruntime.ClockSchedulerConfig {
 
 // Session owns the attached worker's drain, including failed startup cleanup.
 // Starting these loops does not enable Player or acquire native authority.
-func startServiceClock(ctx context.Context, player *buildingruntime.Player, session *buildingruntime.Session, reads serviceClockReads, journal *store.Store, profile string, timeout time.Duration, routine, sleeping, cooking, shelter, comfort, expansion, power, temperature bool, projectLimit int, supplies, work, acquisition, defense, tend, rescue, equip, secureSupplies, gear, medical, animalContainment, recovery, caravanJourneyTracking bool, researchTarget string, resourceTargets map[policy.Resource]int64, fieldOptions ...bool) error {
+func startServiceClock(ctx context.Context, player *buildingruntime.Player, session *buildingruntime.Session, reads serviceClockReads, journal *store.Store, profile string, timeout time.Duration, routine, sleeping, cooking, shelter, comfort, expansion, power, temperature bool, projectLimit int, supplies, work, acquisition, defense, tend, rescue, equip, secureSupplies, gear, medical, animalContainment, recovery, husbandry, caravanJourneyTracking bool, researchTarget string, resourceTargets map[policy.Resource]int64, fieldOptions ...bool) error {
 	config := serviceClockConfig(profile)
 	config.RoutineMethods = session.RoutineMethodsEnabled()
 	if caravanJourneyTracking {
@@ -63,7 +63,7 @@ func startServiceClock(ctx context.Context, player *buildingruntime.Player, sess
 	if len(fieldOptions) > 3 {
 		return errors.New("invalid field option")
 	}
-	if (bills || fields || foodStorage || acquisition || work || supplies || sleeping || cooking || shelter || comfort || expansion || power || temperature || defense || tend || rescue || equip || secureSupplies || gear || medical || animalContainment || recovery || researchTarget != "" || len(resourceTargets) > 0) && !routine {
+	if (bills || fields || foodStorage || acquisition || work || supplies || sleeping || cooking || shelter || comfort || expansion || power || temperature || defense || tend || rescue || equip || secureSupplies || gear || medical || animalContainment || recovery || husbandry || researchTarget != "" || len(resourceTargets) > 0) && !routine {
 		return errors.New("building plans require routine reviews")
 	}
 	if routine {
@@ -103,6 +103,9 @@ func startServiceClock(ctx context.Context, player *buildingruntime.Player, sess
 		}
 		if recovery {
 			capabilities.Methods = append(capabilities.Methods, policy.RecoverDisasterServices)
+		}
+		if husbandry {
+			capabilities.Methods = append(capabilities.Methods, policy.MaintainHerd)
 		}
 		if researchTarget != "" {
 			thresholds.ResearchTarget = researchTarget
@@ -261,6 +264,12 @@ func startServiceClock(ctx context.Context, player *buildingruntime.Player, sess
 		}
 		if recovery {
 			config.Recovery, err = buildingruntime.NewRoutineRecoveryPlanner(reviewer)
+			if err != nil {
+				return err
+			}
+		}
+		if husbandry {
+			config.Husbandry, err = buildingruntime.NewRoutineHusbandryPlanner(reviewer)
 			if err != nil {
 				return err
 			}
