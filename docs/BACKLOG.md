@@ -1233,6 +1233,75 @@ main. Native package and Go production cutover remain independent.
   Depends on relevant typed status/clock contracts; fix independently reproducible
   defects as bounded prerequisites.
 
+  A session audited every gap named above against the actual source under
+  `src/Runtime/` and `src/Bridge/` (and `contracts/tests/native-proto-presentation`,
+  `scripts/native_presentation_acceptance.py`, `contracts/proto/presentation-coverage.md`)
+  looking for the smallest slice matching the "compiled/native checks already cover
+  X; extend acceptance to Y" shape used to close N01.03/N01.04 slices. None qualified:
+  - **Draft-hook init recovery without restart** — `NativeAuthorityHooks.cs` (the sole
+    file under `src/Runtime/Control`) has no partial-recovery path to extend; this is
+    new lifecycle logic, not an acceptance extension.
+  - **Game-level load/map transitions, disconnect integration, remaining
+    lifecycle/presentation owners** — no existing native code partially covers these;
+    each needs new runtime/lifecycle design, explicitly out of scope for a single
+    bounded slice per this item's own preference.
+  - **Additional native load/map replacement, hook/journal fault injection and
+    injury/presentation cases** — the typed clock's existing fault coverage (same-thread
+    revoke/reacquire refusal, failed pause, missing hooks, corrupt journal rows, in
+    `contracts/tests/native-clock`) has no injury/presentation counterpart to extend;
+    adding one means new fault-injection scaffolding, not a test-only change.
+  - **Multi-map rosters** — `presentation_colonists` already supports `currentMapOnly`
+    and iterates `Find.Maps` (`NativePresentationReadTools.cs:94`), but
+    `native_presentation_acceptance.py` only ever has one loaded map (its own scope
+    note says so) and the only in-repo path to a genuine second map is
+    `test/settle_caravan` (`scripts/fixtures/InterruptionFixture.cs:17`), which needs a
+    caravan formed and travelled across real world tiles over multiple game days
+    before it can settle — a multi-day scenario, not a bounded extension of the
+    existing single-map acceptance run.
+  - **Zone/Plan selection** — `NativePresentationReadTools.Selected()`
+    (`src/Bridge/Protocol/NativePresentationReadTools.cs:128-153`) already type-switches
+    on `Zone` and `Plan` alongside `Thing`, so the native/typed side is written. But the
+    only selection command available through the SDK, `rimworld/select_pawn`, accepts
+    only a pawn ID (confirmed against `controller/rimgovernor/dashboard_controls.py`,
+    `controller/rimgovernor/player_action_verification.py` and the coverage table in
+    `contracts/proto/presentation-coverage.md:24`) — there is no native/SDK command to
+    select a zone or plan in a live game today, so there is no acceptance path to
+    extend without first adding a new selection command, which is new behavior, not a
+    test extension.
+  - **Native overflow cases** (`Selection` > 4096 objects, `Colonists` roster > 256) —
+    both caps are enforced in real Unity/Verse code reachable only from a running game
+    (`Find.Selector`, `mapPawns.FreeColonistsSpawned`); reaching either bound live means
+    calling the single-object `select_pawn` SDK command thousands of times in real time
+    or spawning 257+ colonists, both impractical within this session and not a
+    "compiled" alternative either, since `Selected()`/roster iteration cannot run
+    outside a live `Map`/`Selector`.
+  - **Remaining presentation methods** — `contracts/proto/presentation-coverage.md`'s
+    own "Hard gaps before adapter completion" section (lines 150-178) already
+    enumerates these in more detail than this backlog item: heterogeneous
+    `UiLayoutSurfaceSnapshot.SemanticDetails` with no audited typed variant graph,
+    12-item SDK selected-object detail truncation, mismatched map/native ID schemes,
+    a missing `InputStateRead` endpoint and unenforced ceiling/overflow tests. Each
+    needs its own adapter-level design decision; none is a same-shape extension of
+    already-compiled logic.
+  - **Save/Load admission** (identical-content overwrite, failed publication, replay,
+    timeout, supersession, instance-lifetime request lookup across map replacement) —
+    this whole item is explicitly Go/GABS-session-owner scoped, and a repo-wide search
+    of `go/` found no existing save/load-admission implementation of any kind to
+    extend (only draft/event-scope code under `go/internal/store`,
+    `go/internal/executor`, `go/internal/domain`, `go/internal/buildingruntime`, which
+    is a different concern). Landing any one of the six named sub-gaps means building
+    the admission feature from scratch, not extending existing coverage.
+
+  **No code slice was landed this session.** Every named gap above either requires new
+  runtime/lifecycle/adapter logic with no existing partial implementation to extend, or
+  (multi-map rosters, overflow cases) needs a live scenario disproportionate to a single
+  session's bounded-slice budget. This audit is the landed deliverable. The most
+  promising next slice is **Zone/Plan selection**: the native `Selected()` branches
+  already exist and only need one new, narrowly-scoped native selection command (a
+  `Zone`/`Plan` counterpart to `select_pawn`) plus one extension of
+  `native_presentation_acceptance.py` to exercise it — a two-file, single-behavior
+  addition, scoped explicitly up front before starting.
+
 - [ ] **N01.06 — Single persistence owner.** Native state owner with G01 store/Hands.
   Move controller metadata to SQLite by family and delete obsolete native writers,
   serialization and components. No legacy importers or old-format readers. Preserve
