@@ -1689,12 +1689,23 @@ main. Native package and Go production cutover remain independent.
       `ActualOrder`, `OwnedEffect` — exported so combat/movement can reuse
       them the way the Python scripts import from `native_draft_acceptance.py`),
       with unit tests in `draft_test.go`. Builds, vets and unit-tests clean.
-      **Not yet retired:** `scripts/native_draft_acceptance.py` and
-      `controller_tests/test_native_pawn_acceptance.py`'s remaining dependents
-      stay in place until `cmd/draftaccept` has a live verified run against
-      real headless RimWorld (no game/GABS install was available in the
-      session that ported this) — do not delete the Python original from
-      compilation/unit-test evidence alone, per this backlog's completion rule.
+      **Live-verified:** `cmd/draftaccept` ran against real headless RimWorld
+      (`.rimgovernor/native-runs/draftaccept-live/result.json`, `passed: true`,
+      ledger exhausted at attempt 4092 of the 4096-slot capacity, clean game
+      stop) — the game-level acceptance bar this backlog's completion rule
+      requires is now met.
+      **`scripts/native_draft_acceptance.py` still cannot be deleted**, though:
+      `native_combat_acceptance.py`, `native_movement_acceptance.py`, and
+      `native_go_draft_acceptance.py` all still import its `OWNER`/`pawn_row`/
+      `target`/`execute_request`/`release_request`/`same_control`/
+      `owned_effect`/`actual_order` helpers, and
+      `controller_tests/test_native_draft_acceptance.py` still unit-tests them
+      directly. Per this backlog's rule against deleting a module while another
+      script still imports it, the Python original stays in place as a shared
+      library until combat/movement (and `native_go_draft_acceptance.py`'s
+      usage) are themselves ported off it — tracked by the Combat/movement
+      sub-item below, which is what actually blocks retirement now, not a
+      missing live run.
     - [ ] **Combat/movement — blocked on a newly discovered dependency.**
       Unlike draft, `native_combat_acceptance.py` and
       `native_movement_acceptance.py` both advance real game ticks while
