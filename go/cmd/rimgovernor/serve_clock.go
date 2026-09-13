@@ -47,11 +47,12 @@ func startServiceClock(ctx context.Context, player *buildingruntime.Player, sess
 	config := serviceClockConfig(profile)
 	config.RoutineMethods = session.RoutineMethodsEnabled()
 	fields := len(fieldOptions) >= 1 && fieldOptions[0]
-	bills := len(fieldOptions) == 2 && fieldOptions[1]
-	if len(fieldOptions) > 2 {
+	bills := len(fieldOptions) >= 2 && fieldOptions[1]
+	foodStorage := len(fieldOptions) == 3 && fieldOptions[2]
+	if len(fieldOptions) > 3 {
 		return errors.New("invalid field option")
 	}
-	if (bills || fields || acquisition || work || supplies || sleeping || cooking || shelter || comfort || expansion || power || temperature) && !routine {
+	if (bills || fields || foodStorage || acquisition || work || supplies || sleeping || cooking || shelter || comfort || expansion || power || temperature) && !routine {
 		return errors.New("building plans require routine reviews")
 	}
 	if routine {
@@ -64,6 +65,9 @@ func startServiceClock(ctx context.Context, player *buildingruntime.Player, sess
 		capabilities := buildingruntime.RoutineCapabilities{}
 		if acquisition || fields || bills {
 			capabilities.Methods = append(capabilities.Methods, policy.EnsureFoodSupply)
+		}
+		if foodStorage {
+			capabilities.Methods = append(capabilities.Methods, policy.EnsureFoodStorage)
 		}
 		if acquisition {
 			capabilities.Methods = append(capabilities.Methods, policy.MaintainWood)
@@ -120,6 +124,16 @@ func startServiceClock(ctx context.Context, player *buildingruntime.Player, sess
 				return errors.New("field planning requires typed preview")
 			}
 			config.Fields, err = buildingruntime.NewRoutineFieldPlanner(reviewer, fieldNative)
+			if err != nil {
+				return err
+			}
+		}
+		if foodStorage {
+			fieldNative, ok := reads.(buildingruntime.FieldNative)
+			if !ok {
+				return errors.New("food storage planning requires typed preview")
+			}
+			config.FoodStorage, err = buildingruntime.NewRoutineFoodStoragePlanner(reviewer, fieldNative)
 			if err != nil {
 				return err
 			}

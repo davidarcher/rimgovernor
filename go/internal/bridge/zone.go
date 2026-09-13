@@ -37,7 +37,11 @@ func NewZoneControl(client *Client) (*ZoneControl, error) {
 	return &ZoneControl{client}, nil
 }
 func (client *Client) ReadZoneTarget(ctx context.Context, identity *c.Identity, zone domain.ZoneCreate) (ZoneRead, Result, error) {
-	reply, raw, err := client.ReadColonyFacts(ctx, identity, true, []string{zone.Crop()})
+	var requested []string
+	if zone.Kind() == domain.GrowingZone {
+		requested = []string{zone.Crop()}
+	}
+	reply, raw, err := client.ReadColonyFacts(ctx, identity, true, requested)
 	if err != nil {
 		return ZoneRead{}, raw, err
 	}
@@ -53,7 +57,29 @@ func ZoneConfiguration(zone domain.ZoneCreate) *op.CreateZone {
 	for _, cell := range zone.Cells() {
 		cells.Cells = append(cells.Cells, &c.Cell{X: proto.Int32(cell.X), Z: proto.Int32(cell.Z)})
 	}
-	return &op.CreateZone{Type: op.ZoneType_ZONE_TYPE_GROWING.Enum(), Label: proto.String(zone.Label()), Cells: &op.Cells{Selection: &op.Cells_ExplicitCells{ExplicitCells: cells}}, Growing: &op.GrowingSettings{PlantDef: proto.String(zone.Crop()), AllowSow: proto.Bool(true), AllowCut: proto.Bool(true)}}
+	command := &op.CreateZone{Label: proto.String(zone.Label()), Cells: &op.Cells{Selection: &op.Cells_ExplicitCells{ExplicitCells: cells}}}
+	switch zone.Kind() {
+	case domain.StockpileZone:
+		command.Type = op.ZoneType_ZONE_TYPE_STOCKPILE.Enum()
+		command.Stockpile = stockpileSettings(zone)
+	default:
+		command.Type = op.ZoneType_ZONE_TYPE_GROWING.Enum()
+		command.Growing = &op.GrowingSettings{PlantDef: proto.String(zone.Crop()), AllowSow: proto.Bool(true), AllowCut: proto.Bool(true)}
+	}
+	return command
+}
+func stockpileSettings(zone domain.ZoneCreate) *op.StockpileSettings {
+	var priority op.StoragePriority
+	switch zone.Priority() {
+	case domain.ImportantPriority:
+		priority = op.StoragePriority_STORAGE_PRIORITY_IMPORTANT
+	}
+	var preset op.FilterPreset
+	switch zone.Preset() {
+	case domain.FoodPreset:
+		preset = op.FilterPreset_FILTER_PRESET_FOOD
+	}
+	return &op.StockpileSettings{Priority: priority.Enum(), Preset: preset.Enum()}
 }
 func ZoneConfigurationToken(zone domain.ZoneCreate) string {
 	data, _ := (proto.MarshalOptions{Deterministic: true}).Marshal(ZoneConfiguration(zone))
@@ -66,7 +92,7 @@ func zoneOperation(target ZoneTarget) *op.Operation {
 	return &op.Operation{Command: &op.Operation_CreateZone{CreateZone: command}}
 }
 func validZone(target ZoneTarget) error {
-	if _, err := domain.NewZoneCreate(target.Zone.Kind(), target.Zone.Crop(), target.Zone.Cells()); err != nil {
+	if _, err := domain.ReconstructZone(target.Zone); err != nil {
 		return err
 	}
 	return validID(target.Token)

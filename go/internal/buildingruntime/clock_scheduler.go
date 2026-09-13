@@ -30,6 +30,7 @@ type ClockSchedulerConfig struct {
 	CookingBills, PreservationBills, ButcherBills *RoutineBillPlanner
 	Butcher                                       *RoutineBuildingPlanner
 	Fields                                        *RoutineFieldPlanner
+	FoodStorage                                   *RoutineFoodStoragePlanner
 	Profile                                       string
 	Start                                         bridge.ClockStart
 	MaxAge                                        time.Duration
@@ -50,6 +51,7 @@ type ClockSchedulerResult struct {
 	CookingBills, PreservationBills, ButcherBills *RoutineBillResult
 	Butcher                                       *RoutineBuildingResult
 	Fields                                        *RoutineFieldResult
+	FoodStorage                                   *RoutineFoodStorageResult
 	Attempt                                       *store.ClockAttempt
 	Decision                                      policy.ClockWindowDecision
 	Routine                                       *store.RoutineReviewResult
@@ -92,6 +94,9 @@ func NewClockScheduler(player *Player, session *Session, native ClockWindowNativ
 		return nil, ErrControl
 	}
 	if config.Fields != nil && (config.Routine == nil || config.Fields.reviewer != config.Routine) {
+		return nil, ErrControl
+	}
+	if config.FoodStorage != nil && (config.Routine == nil || config.FoodStorage.reviewer != config.Routine) {
 		return nil, ErrControl
 	}
 	for _, planner := range []*RoutineAcquisitionPlanner{config.FoodAcquisition, config.WoodAcquisition} {
@@ -292,6 +297,13 @@ func (s *ClockScheduler) Step(ctx context.Context) (ClockSchedulerResult, error)
 			return out, err
 		}
 		out.Fields = &method
+	}
+	if s.config.FoodStorage != nil {
+		method, err := s.config.FoodStorage.step(call, epoch)
+		if err != nil {
+			return out, err
+		}
+		out.FoodStorage = &method
 	}
 	if s.config.FoodAcquisition != nil {
 		method, err := s.config.FoodAcquisition.step(call, epoch)

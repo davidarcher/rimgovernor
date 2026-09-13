@@ -36,6 +36,7 @@ type serveConfig struct {
 	routineSleepingPlans    bool
 	routineAcquisitionPlans bool
 	routineFieldPlans       bool
+	routineFoodStoragePlans bool
 	routineBillPlans        bool
 	routineWorkPlans        bool
 	routineSupplyPlans      bool
@@ -63,6 +64,7 @@ func parseServe(args []string, diagnostics io.Writer) (serveConfig, error) {
 	flags.BoolVar(&c.routineSleepingPlans, "routine-sleeping-plans", false, "compile reviewed indoor sleeping needs into pending shared plans")
 	flags.BoolVar(&c.routineBillPlans, "routine-bill-plans", false, "compile ordinary cooking, preservation and butcher bills with bench prerequisites")
 	flags.BoolVar(&c.routineFieldPlans, "routine-field-plans", false, "compile native crop selection and protected growing patches into shared plans")
+	flags.BoolVar(&c.routineFoodStoragePlans, "routine-food-storage-plans", false, "compile a protected food stockpile zone into the completed starter shell through shared plans")
 	flags.BoolVar(&c.routineAcquisitionPlans, "routine-acquisition-plans", false, "compile safe food harvest and wood acquisition into shared plans")
 	flags.BoolVar(&c.routineWorkPlans, "routine-work-plans", false, "compile saved work preferences into shared pawn settings plans")
 	flags.BoolVar(&c.routineSupplyPlans, "routine-supply-plans", false, "compile original starting supplies into bounded shared Allow plans")
@@ -103,10 +105,10 @@ func parseServe(args []string, diagnostics io.Writer) (serveConfig, error) {
 	if c.routineReviews && !c.clockControl {
 		return c, errors.New("--routine-reviews requires --clock-control")
 	}
-	if (c.routineBillPlans || c.routineFieldPlans || c.routineAcquisitionPlans || c.routineWorkPlans || c.routineSupplyPlans || c.routineSleepingPlans || c.routineCookingPlans || c.routineShelterPlans || c.routineComfortPlans || c.routineExpansionPlans || c.routinePowerPlans || c.routineTemperaturePlans) && !c.routineReviews {
+	if (c.routineBillPlans || c.routineFieldPlans || c.routineFoodStoragePlans || c.routineAcquisitionPlans || c.routineWorkPlans || c.routineSupplyPlans || c.routineSleepingPlans || c.routineCookingPlans || c.routineShelterPlans || c.routineComfortPlans || c.routineExpansionPlans || c.routinePowerPlans || c.routineTemperaturePlans) && !c.routineReviews {
 		return c, errors.New("routine building plans require --routine-reviews")
 	}
-	if c.routineMethods && !c.routineBillPlans && !c.routineFieldPlans && !c.routineAcquisitionPlans && !c.routineWorkPlans && !c.routineSupplyPlans && !c.routineSleepingPlans && !c.routineCookingPlans && !c.routineShelterPlans && !c.routineComfortPlans && !c.routineExpansionPlans && !c.routinePowerPlans && !c.routineTemperaturePlans {
+	if c.routineMethods && !c.routineBillPlans && !c.routineFieldPlans && !c.routineFoodStoragePlans && !c.routineAcquisitionPlans && !c.routineWorkPlans && !c.routineSupplyPlans && !c.routineSleepingPlans && !c.routineCookingPlans && !c.routineShelterPlans && !c.routineComfortPlans && !c.routineExpansionPlans && !c.routinePowerPlans && !c.routineTemperaturePlans {
 		return c, errors.New("--routine-methods requires a routine building planner")
 	}
 	if c.playerControl && !filepath.IsAbs(c.profile) || !c.playerControl && c.profile != "" {

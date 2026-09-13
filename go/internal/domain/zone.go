@@ -10,25 +10,42 @@ const ZoneCreateAction ActionKind = "zone_create"
 
 type ZoneKind string
 
-const GrowingZone ZoneKind = "growing"
+const (
+	GrowingZone   ZoneKind = "growing"
+	StockpileZone ZoneKind = "stockpile"
+)
+
+// StockpilePreset and StockpilePriority are closed to the single food-storage
+// configuration this slice dispatches; broader presets/priorities are a 05.4
+// extension once the recurring SecureSupplies upkeep contract needs them.
+type StockpilePreset string
+
+const FoodPreset StockpilePreset = "food"
+
+type StockpilePriority string
+
+const ImportantPriority StockpilePriority = "important"
 
 // ZoneCreate owns one bounded connected footprint. Settings are closed variants:
-// an explicitly sown crop.
+// an explicitly sown crop, or a typed stockpile filter preset and priority.
 type ZoneCreate struct {
-	kind        ZoneKind
-	crop, cells string
+	kind     ZoneKind
+	crop     string
+	preset   StockpilePreset
+	priority StockpilePriority
+	cells    string
 }
 
-func NewZoneCreate(kind ZoneKind, crop string, cells []Cell) (ZoneCreate, error) {
-	if kind != GrowingZone || !validID(crop) || len(cells) == 0 || len(cells) > 256 {
-		return ZoneCreate{}, errors.New("invalid zone configuration")
+func canonicalConnectedCells(cells []Cell) (string, error) {
+	if len(cells) == 0 || len(cells) > 256 {
+		return "", errors.New("invalid zone configuration")
 	}
 	rows := append([]Cell(nil), cells...)
 	sort.Slice(rows, func(i, j int) bool { return rows[i].X < rows[j].X || rows[i].X == rows[j].X && rows[i].Z < rows[j].Z })
 	seen := map[Cell]bool{}
 	for _, cell := range rows {
 		if cell.X < 0 || cell.Z < 0 || seen[cell] {
-			return ZoneCreate{}, errors.New("invalid zone cell")
+			return "", errors.New("invalid zone cell")
 		}
 		seen[cell] = true
 	}
@@ -46,24 +63,69 @@ func NewZoneCreate(kind ZoneKind, crop string, cells []Cell) (ZoneCreate, error)
 		}
 	}
 	if len(reached) != len(rows) {
-		return ZoneCreate{}, errors.New("zone footprint disconnected")
+		return "", errors.New("zone footprint disconnected")
 	}
 	data, _ := json.Marshal(rows)
-	return ZoneCreate{kind, crop, string(data)}, nil
+	return string(data), nil
 }
-func (z ZoneCreate) Kind() ZoneKind { return z.kind }
-func (z ZoneCreate) Crop() string   { return z.crop }
+
+func NewZoneCreate(kind ZoneKind, crop string, cells []Cell) (ZoneCreate, error) {
+	if kind != GrowingZone || !validID(crop) {
+		return ZoneCreate{}, errors.New("invalid zone configuration")
+	}
+	data, err := canonicalConnectedCells(cells)
+	if err != nil {
+		return ZoneCreate{}, err
+	}
+	return ZoneCreate{kind: kind, crop: crop, cells: data}, nil
+}
+
+func NewStockpileZone(preset StockpilePreset, priority StockpilePriority, cells []Cell) (ZoneCreate, error) {
+	if preset != FoodPreset || priority != ImportantPriority {
+		return ZoneCreate{}, errors.New("invalid stockpile zone configuration")
+	}
+	data, err := canonicalConnectedCells(cells)
+	if err != nil {
+		return ZoneCreate{}, err
+	}
+	return ZoneCreate{kind: StockpileZone, preset: preset, priority: priority, cells: data}, nil
+}
+
+// ReconstructZone rebuilds a canonical ZoneCreate from a value of unknown
+// provenance (a persisted row, a wire readback) by dispatching on its kind to
+// the family-specific constructor, exactly like every other closed Action
+// variant's canonical-equality check.
+func ReconstructZone(z ZoneCreate) (ZoneCreate, error) {
+	switch z.kind {
+	case GrowingZone:
+		return NewZoneCreate(z.kind, z.crop, z.Cells())
+	case StockpileZone:
+		return NewStockpileZone(z.preset, z.priority, z.Cells())
+	default:
+		return ZoneCreate{}, errors.New("unsupported zone kind")
+	}
+}
+
+func (z ZoneCreate) Kind() ZoneKind                 { return z.kind }
+func (z ZoneCreate) Crop() string                   { return z.crop }
+func (z ZoneCreate) Preset() StockpilePreset        { return z.preset }
+func (z ZoneCreate) Priority() StockpilePriority    { return z.priority }
 func (z ZoneCreate) Cells() []Cell {
 	var cells []Cell
 	_ = json.Unmarshal([]byte(z.cells), &cells)
 	return cells
 }
-func (z ZoneCreate) Label() string { return "RimGovernor crops" }
+func (z ZoneCreate) Label() string {
+	if z.kind == StockpileZone {
+		return "RimGovernor food storage"
+	}
+	return "RimGovernor crops"
+}
 func NewZoneCreateAction(id ActionID, z ZoneCreate) (Action, error) {
 	if !validID(string(id)) {
 		return Action{}, errors.New("invalid action identity")
 	}
-	canonical, err := NewZoneCreate(z.kind, z.crop, z.Cells())
+	canonical, err := ReconstructZone(z)
 	if err != nil || canonical != z {
 		return Action{}, errors.New("invalid zone value")
 	}

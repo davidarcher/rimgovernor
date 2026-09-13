@@ -220,9 +220,9 @@ func serveBuildingWithBridge(ctx context.Context, config serveConfig, out io.Wri
 		billCapabilities = client.bills
 	}
 	var zoneCapabilities *buildingruntime.ZoneCapabilities
-	if config.routineFieldPlans {
+	if config.routineFieldPlans || config.routineFoodStoragePlans {
 		if client.zones == nil {
-			return errors.New("field plans require typed capabilities")
+			return errors.New("field and food storage plans require typed capabilities")
 		}
 		zoneCapabilities = client.zones
 	}
@@ -270,7 +270,7 @@ func serveBuildingWithBridge(ctx context.Context, config serveConfig, out io.Wri
 	}
 	owner = player
 	if config.clockControl {
-		if err = startServiceClock(lifetime, player, session, client.clockReads, config.profile, callTimeout, config.routineReviews, config.routineSleepingPlans, config.routineCookingPlans, config.routineShelterPlans, config.routineComfortPlans, config.routineExpansionPlans, config.routinePowerPlans, config.routineTemperaturePlans, config.routineProjectLimit, config.routineSupplyPlans, config.routineWorkPlans, config.routineAcquisitionPlans, config.routineFieldPlans, config.routineBillPlans); err != nil {
+		if err = startServiceClock(lifetime, player, session, client.clockReads, config.profile, callTimeout, config.routineReviews, config.routineSleepingPlans, config.routineCookingPlans, config.routineShelterPlans, config.routineComfortPlans, config.routineExpansionPlans, config.routinePowerPlans, config.routineTemperaturePlans, config.routineProjectLimit, config.routineSupplyPlans, config.routineWorkPlans, config.routineAcquisitionPlans, config.routineFieldPlans, config.routineBillPlans, config.routineFoodStoragePlans); err != nil {
 			return err
 		}
 	}

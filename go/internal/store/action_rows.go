@@ -27,7 +27,7 @@ func insertAction(ctx context.Context, tx *sql.Tx, plan domain.PlanID, ordinal i
 		_, err = tx.ExecContext(ctx, "INSERT INTO actions(id,plan_id,ordinal,kind,bill_payload) VALUES(?,?,?,'production_bill',?)", a.ID(), plan, ordinal, data)
 		return conflict(err)
 	} else if z, ok := a.ZoneCreate(); ok {
-		data, encodeErr := json.Marshal(zonePayload{z.Kind(), z.Crop(), z.Cells()})
+		data, encodeErr := json.Marshal(zonePayload{z.Kind(), z.Crop(), z.Preset(), z.Priority(), z.Cells()})
 		if encodeErr != nil {
 			return encodeErr
 		}
@@ -97,9 +97,18 @@ func scanAction(rows *sql.Rows) (domain.Action, int, error) {
 		if !bytes.Equal(canonical, zone) {
 			return domain.Action{}, 0, errors.New("noncanonical zone payload")
 		}
-		value, err := domain.NewZoneCreate(payload.Kind, payload.Crop, payload.Cells)
-		if err != nil {
-			return domain.Action{}, 0, err
+		var value domain.ZoneCreate
+		var valueErr error
+		switch payload.Kind {
+		case domain.GrowingZone:
+			value, valueErr = domain.NewZoneCreate(payload.Kind, payload.Crop, payload.Cells)
+		case domain.StockpileZone:
+			value, valueErr = domain.NewStockpileZone(payload.Preset, payload.Priority, payload.Cells)
+		default:
+			valueErr = errors.New("unsupported zone kind")
+		}
+		if valueErr != nil {
+			return domain.Action{}, 0, valueErr
 		}
 		action, err := domain.NewZoneCreateAction(id, value)
 		return action, ordinal, err
@@ -199,9 +208,11 @@ type workPayload struct {
 }
 
 type zonePayload struct {
-	Kind  domain.ZoneKind
-	Crop  string
-	Cells []domain.Cell
+	Kind     domain.ZoneKind
+	Crop     string
+	Preset   domain.StockpilePreset
+	Priority domain.StockpilePriority
+	Cells    []domain.Cell
 }
 
 type billPayload struct {

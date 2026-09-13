@@ -1,5 +1,6 @@
 #nullable enable
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Text;
@@ -17,10 +18,10 @@ namespace HomeBridge.BridgeTools
 {
     internal sealed class NativeZoneRecord
     {
-        internal readonly Zone_Growing Zone;
+        internal readonly Zone Zone;
         internal readonly Map Map;
         internal readonly Operations.CreateZone Desired;
-        internal NativeZoneRecord(Zone_Growing zone, Map map, Operations.CreateZone desired) { Zone = zone; Map = map; Desired = desired.Clone(); }
+        internal NativeZoneRecord(Zone zone, Map map, Operations.CreateZone desired) { Zone = zone; Map = map; Desired = desired.Clone(); }
         internal Receipts.ZoneEffect Evidence()
         {
             var present = Map.zoneManager.AllZones.Contains(Zone);
@@ -31,10 +32,23 @@ namespace HomeBridge.BridgeTools
                 PhantomCellCount = cells.Count(c => Map.zoneManager.ZoneAt(c) != Zone),
                 Snapshot = new Receipts.SnapshotEvidence { EntityId = Zone.GetUniqueLoadID(), BeforeToken = Desired.ExpectedMapSnapshotToken } };
             foreach (var c in cells) result.Cells.Add(new Receipts.CellResult { Cell = new Common.Cell { X = c.x, Z = c.z }, Accepted = Map.zoneManager.ZoneAt(c) == Zone });
-            var crop = BridgeCommon.PrivateInstanceField(typeof(Zone_Growing), "plantDefToGrow").GetValue(Zone) as ThingDef;
-            if (crop != null) result.Snapshot.AfterToken = NativeZoneCreation.ConfigurationToken(new Operations.CreateZone {
-                Type = Operations.ZoneType.Growing, Label = Zone.label, Cells = new Operations.Cells { ExplicitCells = new Operations.CellList() },
-                Growing = new Operations.GrowingSettings { PlantDef = crop.defName, AllowSow = Zone.allowSow, AllowCut = Zone.allowCut } }, cells);
+            if (Zone is Zone_Growing growing)
+            {
+                var crop = BridgeCommon.PrivateInstanceField(typeof(Zone_Growing), "plantDefToGrow").GetValue(growing) as ThingDef;
+                if (crop != null) result.Snapshot.AfterToken = NativeZoneCreation.ConfigurationToken(new Operations.CreateZone {
+                    Type = Operations.ZoneType.Growing, Label = Zone.label, Cells = new Operations.Cells { ExplicitCells = new Operations.CellList() },
+                    Growing = new Operations.GrowingSettings { PlantDef = crop.defName, AllowSow = growing.allowSow, AllowCut = growing.allowCut } }, cells);
+            }
+            else if (Zone is Zone_Stockpile stockpile)
+            {
+                var universe = StockpileFilter.StorableDefs(stockpile);
+                var priority = NativeZoneCreation.ToWirePriority(BridgeCommon.TryN(() => stockpile.settings.Priority));
+                var filter = BridgeCommon.Try(() => stockpile.settings.filter, (ThingFilter?)null);
+                var matchesFood = priority.HasValue && NativeZoneCreation.MatchesFoodPreset(filter, universe);
+                if (matchesFood) result.Snapshot.AfterToken = NativeZoneCreation.ConfigurationToken(new Operations.CreateZone {
+                    Type = Operations.ZoneType.Stockpile, Label = Zone.label, Cells = new Operations.Cells { ExplicitCells = new Operations.CellList() },
+                    Stockpile = new Operations.StockpileSettings { Priority = priority!.Value, Preset = Operations.FilterPreset.Food } }, cells);
+            }
             return result;
         }
         internal Receipts.Progress Observe(Common.AttemptKey attempt, Common.ObservationContext context)
@@ -46,7 +60,7 @@ namespace HomeBridge.BridgeTools
                 && evidence.Snapshot.AfterToken == NativeZoneCreation.ConfigurationToken(Desired);
             if (matches) result.Completed = new Receipts.CompletedEffect { Evidence = new Receipts.EffectEvidence { Zone = evidence } };
             else result.Unsuccessful = new Receipts.UnsuccessfulEffect { Reason = Receipts.UnsuccessfulReason.OutcomeNotAchieved,
-                Evidence = new Receipts.EffectEvidence { Zone = evidence }, Detail = "Zone cells or crop settings differ from the admitted configuration." };
+                Evidence = new Receipts.EffectEvidence { Zone = evidence }, Detail = "Zone cells or settings differ from the admitted configuration." };
             return result;
         }
     }
@@ -76,40 +90,95 @@ namespace HomeBridge.BridgeTools
             foreach (var cell in cells.OrderBy(c => c.x).ThenBy(c => c.z)) copy.Cells.ExplicitCells.Cells.Add(new Common.Cell { X = cell.x, Z = cell.z });
             return Hash(copy.ToByteArray());
         }
+        // RimWorld.StoragePriority is a plain int enum (Unstored=0, Low..Critical);
+        // the wire enum mirrors it one-for-one except Unstored has no wire member.
+        internal static RimWorld.StoragePriority? ToNativePriority(Operations.StoragePriority priority)
+        {
+            switch (priority)
+            {
+                case Operations.StoragePriority.Low: return RimWorld.StoragePriority.Low;
+                case Operations.StoragePriority.Normal: return RimWorld.StoragePriority.Normal;
+                case Operations.StoragePriority.Preferred: return RimWorld.StoragePriority.Preferred;
+                case Operations.StoragePriority.Important: return RimWorld.StoragePriority.Important;
+                case Operations.StoragePriority.Critical: return RimWorld.StoragePriority.Critical;
+                default: return null;
+            }
+        }
+        internal static Operations.StoragePriority? ToWirePriority(RimWorld.StoragePriority? priority)
+        {
+            if (!priority.HasValue) return null;
+            switch (priority.Value)
+            {
+                case RimWorld.StoragePriority.Low: return Operations.StoragePriority.Low;
+                case RimWorld.StoragePriority.Normal: return Operations.StoragePriority.Normal;
+                case RimWorld.StoragePriority.Preferred: return Operations.StoragePriority.Preferred;
+                case RimWorld.StoragePriority.Important: return Operations.StoragePriority.Important;
+                case RimWorld.StoragePriority.Critical: return Operations.StoragePriority.Critical;
+                default: return null;
+            }
+        }
+        // True only when the live filter's allowed set exactly equals the food
+        // preset's def set over the same universe -- a partial or player-edited
+        // filter must never be reported as matching a preset it does not equal.
+        internal static bool MatchesFoodPreset(ThingFilter? filter, List<ThingDef> universe)
+        {
+            if (filter == null) return false;
+            var expected = new HashSet<ThingDef>(StockpileFilter.PresetDefs("food", universe));
+            var actual = StockpileFilter.AllowedSet(filter);
+            return expected.SetEquals(actual);
+        }
         internal static bool Valid(Operations.CreateZone? command)
         {
             if (command == null || !command.HasExpectedMapSnapshotToken || !ProtoBoundary.IsIdentifier(command.ExpectedMapSnapshotToken)
-                || command.Type != Operations.ZoneType.Growing || command.Label != "RimGovernor crops" || command.Stockpile != null
-                || command.RequireCoveredEmpty || command.Growing == null || !command.Growing.HasPlantDef || !ProtoBoundary.IsIdentifier(command.Growing.PlantDef)
-                || !command.Growing.HasAllowSow || !command.Growing.AllowSow || !command.Growing.HasAllowCut || !command.Growing.AllowCut
                 || command.Cells?.ExplicitCells == null || command.Cells.ExplicitCells.Cells.Count == 0 || command.Cells.ExplicitCells.Cells.Count > 256) return false;
             var cells = command.Cells.ExplicitCells.Cells;
-            return cells.All(c => c.HasX && c.HasZ && c.X >= 0 && c.Z >= 0) && cells.Select(c => Tuple.Create(c.X,c.Z)).Distinct().Count() == cells.Count;
+            if (!cells.All(c => c.HasX && c.HasZ && c.X >= 0 && c.Z >= 0) || cells.Select(c => Tuple.Create(c.X, c.Z)).Distinct().Count() != cells.Count) return false;
+            if (command.Type == Operations.ZoneType.Growing)
+                return command.Label == "RimGovernor crops" && command.Stockpile == null && !command.RequireCoveredEmpty
+                    && command.Growing != null && command.Growing.HasPlantDef && ProtoBoundary.IsIdentifier(command.Growing.PlantDef)
+                    && command.Growing.HasAllowSow && command.Growing.AllowSow && command.Growing.HasAllowCut && command.Growing.AllowCut;
+            if (command.Type == Operations.ZoneType.Stockpile)
+                return command.Label == "RimGovernor food storage" && command.Growing == null && !command.RequireCoveredEmpty
+                    && command.Stockpile != null && command.Stockpile.HasPriority && command.Stockpile.Priority == Operations.StoragePriority.Important
+                    && command.Stockpile.HasPreset && command.Stockpile.Preset == Operations.FilterPreset.Food && command.Stockpile.Filter == null;
+            return false;
         }
         private static bool Prepare(Operations.CreateZone command, Common.ObservationContext context, out ThingDef? crop, out Common.Failure failure)
         {
-            crop = null; failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Growing zone requires fresh free soil, an available crop and an exact map snapshot.");
+            crop = null; failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Zone creation requires fresh free ground, an available configuration and an exact map snapshot.");
             if (!Valid(command)) return false;
             var map = Find.CurrentMap;
-            if (MapSnapshot(map,context).Token != command.ExpectedMapSnapshotToken) return false;
-            crop = DefDatabase<ThingDef>.GetNamedSilentFail(command.Growing.PlantDef);
-            if (crop?.plant == null || !crop.plant.Sowable || crop.plant.harvestedThingDef?.IsNutritionGivingIngestible != true
-                || crop.researchPrerequisites?.Any(r => !r.IsFinished) == true || !PlantUtility.GrowthSeasonNow(map,crop)) return false;
-            var cells = command.Cells.ExplicitCells.Cells.Select(c => new IntVec3(c.X,0,c.Z)).ToArray();
-            var selected = new System.Collections.Generic.HashSet<IntVec3>(cells);
-            var reached = new System.Collections.Generic.HashSet<IntVec3> { cells[0] }; var queue = new System.Collections.Generic.Queue<IntVec3>(); queue.Enqueue(cells[0]);
+            if (MapSnapshot(map, context).Token != command.ExpectedMapSnapshotToken) return false;
+            var cells = command.Cells.ExplicitCells.Cells.Select(c => new IntVec3(c.X, 0, c.Z)).ToArray();
+            var selected = new HashSet<IntVec3>(cells);
+            var reached = new HashSet<IntVec3> { cells[0] };
+            var queue = new Queue<IntVec3>();
+            queue.Enqueue(cells[0]);
             while (queue.Count > 0) { var c = queue.Dequeue(); foreach (var offset in GenAdj.CardinalDirections) { var next = c + offset; if (selected.Contains(next) && reached.Add(next)) queue.Enqueue(next); } }
             if (reached.Count != selected.Count) return false;
-            var designator = new Designator_ZoneAdd_Growing();
-            var wanted = crop;
-            return cells.All(c => c.InBounds(map) && !c.Fogged(map) && c.Walkable(map) && !c.Roofed(map)
-                && c.GetEdifice(map) == null && !c.GetThingList(map).Any(t => t is Blueprint || t is Frame) && map.zoneManager.ZoneAt(c) == null && !map.zoneManager.AllZones.Any(z => z.Cells.Contains(c))
-                && !map.roofCollapseBuffer.IsMarkedToCollapse(c) && map.fertilityGrid.FertilityAt(c) >= wanted.plant.fertilityMin
-                && designator.CanDesignateCell(c).Accepted);
+            if (command.Type == Operations.ZoneType.Growing)
+            {
+                crop = DefDatabase<ThingDef>.GetNamedSilentFail(command.Growing.PlantDef);
+                if (crop?.plant == null || !crop.plant.Sowable || crop.plant.harvestedThingDef?.IsNutritionGivingIngestible != true
+                    || crop.researchPrerequisites?.Any(r => !r.IsFinished) == true || !PlantUtility.GrowthSeasonNow(map, crop)) return false;
+                var designator = new Designator_ZoneAdd_Growing();
+                var wanted = crop;
+                return cells.All(c => c.InBounds(map) && !c.Fogged(map) && c.Walkable(map) && !c.Roofed(map)
+                    && c.GetEdifice(map) == null && !c.GetThingList(map).Any(t => t is Blueprint || t is Frame) && map.zoneManager.ZoneAt(c) == null && !map.zoneManager.AllZones.Any(z => z.Cells.Contains(c))
+                    && !map.roofCollapseBuffer.IsMarkedToCollapse(c) && map.fertilityGrid.FertilityAt(c) >= wanted.plant.fertilityMin
+                    && designator.CanDesignateCell(c).Accepted);
+            }
+            // A protected food store needs a roof and clear, empty, walkable floor;
+            // the caller (a verified room) is responsible for the roof already
+            // existing -- this only refuses ground that is not actually safe.
+            return cells.All(c => c.InBounds(map) && !c.Fogged(map) && c.Walkable(map) && c.Roofed(map)
+                && c.GetEdifice(map) == null && c.GetThingList(map).Count == 0
+                && map.zoneManager.ZoneAt(c) == null && !map.zoneManager.AllZones.Any(z => z.Cells.Contains(c))
+                && !map.roofCollapseBuffer.IsMarkedToCollapse(c));
         }
         internal static Operations.PreviewReply Preview(Operations.CreateZone command, Common.ObservationContext context)
         {
-            if (!Prepare(command,context,out _,out var failure)) return new Operations.PreviewReply { Failure = failure };
+            if (!Prepare(command, context, out _, out var failure)) return new Operations.PreviewReply { Failure = failure };
             return new Operations.PreviewReply { Evaluated = new Operations.PreviewEvaluation { Context = context.Clone(), Accepted = true } };
         }
         internal static Operations.ExecuteReply Execute(NativeOperationState state, Operations.ExecuteRequest request, Common.ObservationContext context)
@@ -117,26 +186,42 @@ namespace HomeBridge.BridgeTools
             NativeAttemptLedger.Admission? handle = null; Authority.Owner? owner = null; Receipts.EffectEvidence? evidence = null;
             var pre = request.Precondition; var command = request.Operation.CreateZone;
             try {
-                if (!Prepare(command,context,out var crop,out var failure)) return new Operations.ExecuteReply { Failure = failure };
-                if (!NativeControlAuthority.TryGetForGame(Current.Game,out var authority) || authority == null) return new Operations.ExecuteReply { Failure = ProtoBoundary.Fail(Common.FailureCode.AuthorityRequired,"Native authority required.") };
-                var guard = authority.Check(pre.ExpectedGeneration,pre.LeaseId,pre.Attempt.ControllerSessionId); context.NativeGeneration = guard.Snapshot.Generation;
-                if (!guard.Success) return new Operations.ExecuteReply { Failure = NativeAuthorityControlTools.Refusal(guard.Error,context) };
+                if (!Prepare(command, context, out var crop, out var failure)) return new Operations.ExecuteReply { Failure = failure };
+                if (!NativeControlAuthority.TryGetForGame(Current.Game, out var authority) || authority == null) return new Operations.ExecuteReply { Failure = ProtoBoundary.Fail(Common.FailureCode.AuthorityRequired, "Native authority required.") };
+                var guard = authority.Check(pre.ExpectedGeneration, pre.LeaseId, pre.Attempt.ControllerSessionId); context.NativeGeneration = guard.Snapshot.Generation;
+                if (!guard.Success) return new Operations.ExecuteReply { Failure = NativeAuthorityControlTools.Refusal(guard.Error, context) };
                 owner = new Authority.Owner { ControllerSessionId = guard.Snapshot.Lease!.ControllerSessionId, PlayerDirection = guard.Snapshot.Lease.PlayerDirection };
-                var admitted = state.Ledger.Admit("rimgovernor.operations.v1.Operations/Execute",request,context,owner);
+                var admitted = state.Ledger.Admit("rimgovernor.operations.v1.Operations/Execute", request, context, owner);
                 if (admitted.Kind != NativeAttemptLedger.DecisionKind.Admitted) return admitted.Reply!; handle = admitted.Handle;
                 using (authority.Owned()) {
-                    if (!authority.Check(pre.ExpectedGeneration,pre.LeaseId,pre.Attempt.ControllerSessionId).Success || !Prepare(command,context,out crop,out failure)) throw new InvalidOperationException("Zone scope changed before creation.");
-                    var map = Find.CurrentMap; var zone = new Zone_Growing(map.zoneManager); var record = new NativeZoneRecord(zone,map,command);
-                    state.Zones.Add(pre.Attempt.Clone(),record); map.zoneManager.RegisterZone(zone); zone.label = command.Label;
-                    foreach (var c in command.Cells.ExplicitCells.Cells) zone.AddCell(new IntVec3(c.X,0,c.Z));
-                    zone.SetPlantDefToGrow(crop!); zone.allowSow = true; zone.allowCut = true;
+                    if (!authority.Check(pre.ExpectedGeneration, pre.LeaseId, pre.Attempt.ControllerSessionId).Success || !Prepare(command, context, out crop, out failure)) throw new InvalidOperationException("Zone scope changed before creation.");
+                    var map = Find.CurrentMap;
+                    NativeZoneRecord record;
+                    if (command.Type == Operations.ZoneType.Growing) {
+                        var growing = new Zone_Growing(map.zoneManager);
+                        record = new NativeZoneRecord(growing, map, command);
+                        state.Zones.Add(pre.Attempt.Clone(), record);
+                        map.zoneManager.RegisterZone(growing); growing.label = command.Label;
+                        foreach (var c in command.Cells.ExplicitCells.Cells) growing.AddCell(new IntVec3(c.X, 0, c.Z));
+                        growing.SetPlantDefToGrow(crop!); growing.allowSow = true; growing.allowCut = true;
+                    } else {
+                        var stockpile = new Zone_Stockpile(StorageSettingsPreset.DefaultStockpile, map.zoneManager);
+                        record = new NativeZoneRecord(stockpile, map, command);
+                        state.Zones.Add(pre.Attempt.Clone(), record);
+                        map.zoneManager.RegisterZone(stockpile); stockpile.label = command.Label;
+                        foreach (var c in command.Cells.ExplicitCells.Cells) stockpile.AddCell(new IntVec3(c.X, 0, c.Z));
+                        var priority = ToNativePriority(command.Stockpile.Priority);
+                        if (priority.HasValue) stockpile.settings.Priority = priority.Value;
+                        var universe = StockpileFilter.StorableDefs(stockpile);
+                        StockpileFilter.Apply(stockpile.settings.filter, "food", new StockpileFilter.Resolved(), new StockpileFilter.Resolved(), StockpileFilter.ParentFilter(stockpile), universe, null);
+                    }
                     evidence = new Receipts.EffectEvidence { Zone = record.Evidence() };
                 }
-                return new Operations.ExecuteReply { Receipt = NativeOperationEnvelope.Applied(state.Ledger,handle,pre.Attempt,context,owner,evidence) };
+                return new Operations.ExecuteReply { Receipt = NativeOperationEnvelope.Applied(state.Ledger, handle, pre.Attempt, context, owner, evidence) };
             }
             catch (Exception error) {
-                return handle == null ? new Operations.ExecuteReply { Failure = ProtoBoundary.Fail(Common.FailureCode.NativeFailure,"Zone admission failed: " + error.GetType().Name) }
-                    : new Operations.ExecuteReply { Receipt = NativeOperationEnvelope.Uncertain(state.Ledger,handle,pre.Attempt,context,owner!,evidence!,"Created zone requires inspection: " + error.GetType().Name) };
+                return handle == null ? new Operations.ExecuteReply { Failure = ProtoBoundary.Fail(Common.FailureCode.NativeFailure, "Zone admission failed: " + error.GetType().Name) }
+                    : new Operations.ExecuteReply { Receipt = NativeOperationEnvelope.Uncertain(state.Ledger, handle, pre.Attempt, context, owner!, evidence!, "Created zone requires inspection: " + error.GetType().Name) };
             }
         }
     }
