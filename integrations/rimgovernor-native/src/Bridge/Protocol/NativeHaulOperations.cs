@@ -1,9 +1,6 @@
 #nullable enable
 using System;
-using System.IO;
 using System.Linq;
-using System.Security.Cryptography;
-using System.Text;
 using RimWorld;
 using Verse;
 using Verse.AI;
@@ -14,11 +11,12 @@ using Receipts = RimGovernor.Protocol.Receipts;
 
 namespace HomeBridge.BridgeTools
 {
-    // A haul target's CAS token is domain-prefixed like every other native
-    // Thing snapshot (NativeSupplyAllow's "allow-", NativePlantAcquisition's
-    // "plant-"): the same underlying observed fields, but scoped to this
-    // command family so a stale snapshot from a different operation is never
-    // silently accepted here.
+    // A haul target's CAS token reuses NativeSupplyAllow's "allow-" domain
+    // rather than a haul-specific one: observations_list_supplies (the only
+    // read path that discovers loose haul targets, via
+    // NativeSuppliesObservationTools) already emits that token for every
+    // loose item, so validating against anything else would make every
+    // legitimately observed target unusable here.
     internal sealed class NativeHaulRecord
     {
         private readonly Pawn pawn;
@@ -102,30 +100,13 @@ namespace HomeBridge.BridgeTools
             && thing.Map == Find.CurrentMap && thing.def.EverHaulable && thing.def.category == ThingCategory.Item
             && !thing.Position.Fogged(thing.Map);
 
-        internal static string Token(Common.Identity identity, string id, string definition, int x, int z, int count)
-        {
-            using (var bytes = new MemoryStream())
-            {
-                using (var writer = new BinaryWriter(bytes, Encoding.UTF8, true))
-                {
-                    writer.Write(identity.ColonyId); writer.Write(identity.LoadToken); writer.Write(identity.MapId);
-                    writer.Write(id); writer.Write(definition); writer.Write(x); writer.Write(z); writer.Write(count);
-                }
-                using (var hash = SHA256.Create())
-                    return "haul-" + BitConverter.ToString(hash.ComputeHash(bytes.ToArray())).Replace("-", "").ToLowerInvariant();
-            }
-        }
-
-        internal static string? Snapshot(Thing thing, Common.Identity identity) => !Eligible(thing) ? null
-            : Token(identity, thing.GetUniqueLoadID(), thing.def.defName, thing.Position.x, thing.Position.z, thing.stackCount);
-
         private static bool Recheck(NativeControlIdentity identity, Pawn pawn, Operations.PawnTargetOrder command, Thing thing,
             Common.ObservationContext context, out NativePawnSnapshot? snapshot)
         {
             if (NativePawnControlState.Check(identity, pawn, command.Pawn.ExpectedSnapshotToken, out snapshot) != NativePawnControlResult.Ready
                 || snapshot == null || snapshot.Drafted || !snapshot.Eligible)
                 return false;
-            return Eligible(thing) && Snapshot(thing, context.Identity) == command.Target.ExpectedSnapshotToken;
+            return Eligible(thing) && NativeSupplyAllow.Snapshot(thing, context)?.Token == command.Target.ExpectedSnapshotToken;
         }
 
         private static bool Prepare(Operations.PawnTargetOrder command, Common.ObservationContext context, out NativeControlIdentity identity,
@@ -143,7 +124,7 @@ namespace HomeBridge.BridgeTools
             { failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Haul requires an eligible undrafted pawn."); return false; }
             thing = Find.CurrentMap.listerThings.AllThings.SingleOrDefault(t => t.GetUniqueLoadID() == command.Target.EntityId);
             if (thing == null || !Eligible(thing)) { failure = ProtoBoundary.Fail(Common.FailureCode.NotFound, "Exact haulable thing is unavailable."); return false; }
-            if (Snapshot(thing, context.Identity) != command.Target.ExpectedSnapshotToken)
+            if (NativeSupplyAllow.Snapshot(thing, context)?.Token != command.Target.ExpectedSnapshotToken)
             { failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Haul target snapshot changed; observe before new admission."); return false; }
             return true;
         }

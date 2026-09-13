@@ -132,10 +132,7 @@ func (b *HaulBoundary) InspectHaul(ctx context.Context, target executor.Target) 
 }
 
 func haulPawnFacts(pawn domain.PawnID, row *n.PawnState, token string) policy.HaulPawnFacts {
-	facts := policy.HaulPawnFacts{Pawn: pawn, SnapshotToken: token, Dead: draftBool(row.Dead), Downed: draftBool(row.Downed), Drafted: draftBool(row.Drafted)}
-	if row.MentalState != nil {
-		facts.MentalState = domain.Known(row.GetMentalState() != "")
-	}
+	facts := policy.HaulPawnFacts{Pawn: pawn, SnapshotToken: token, Dead: draftBool(row.Dead), Downed: draftBool(row.Downed), Drafted: draftBool(row.Drafted), MentalState: draftPresence(row.MentalState, row.Issues, "mental_state")}
 	if row.Job != nil && !tendIssue(row.Job.Issues, "player_forced") && !tendIssue(row.Job.Issues, "queued_jobs") && !tendIssue(row.Job.Issues, "def_name") {
 		facts.PlayerForced, facts.QueuedJobs = draftBool(row.Job.PlayerForced), draftUint(row.Job.QueuedJobs)
 		if row.Job.DefName != nil {

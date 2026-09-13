@@ -42,10 +42,7 @@ func squadThreatFacts(row *n.PawnState) policy.SquadThreatFacts {
 }
 
 func squadDefenderFacts(row *n.PawnState) policy.SquadDefenderFacts {
-	facts := policy.SquadDefenderFacts{ID: domain.PawnID(row.Pawn.GetId()), Dead: draftBool(row.Dead), Downed: draftBool(row.Downed), Drafted: draftBool(row.Drafted)}
-	if row.MentalState != nil {
-		facts.MentalState = domain.Known(row.GetMentalState() != "")
-	}
+	facts := policy.SquadDefenderFacts{ID: domain.PawnID(row.Pawn.GetId()), Dead: draftBool(row.Dead), Downed: draftBool(row.Downed), Drafted: draftBool(row.Drafted), MentalState: draftPresence(row.MentalState, row.Issues, "mental_state")}
 	if row.Job != nil && !tendIssue(row.Job.Issues, "player_forced") && !tendIssue(row.Job.Issues, "queued_jobs") {
 		facts.PlayerForced, facts.QueuedJobs = draftBool(row.Job.PlayerForced), draftUint(row.Job.QueuedJobs)
 	}

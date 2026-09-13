@@ -75,6 +75,23 @@ func draftUint(v *uint32) domain.Fact[uint32] {
 	return domain.Known(*v)
 }
 
+// draftPresence handles fields (like MentalState) that native leaves unset,
+// rather than reporting a false-ish value, when the fact is genuinely known
+// to not apply (e.g. a pawn with no mental state). A nil value is only
+// actually unknown when no matching NOT_APPLICABLE issue confirms the
+// omission; otherwise treat the field as known-absent.
+func draftPresence(v *string, issues []*n.ReadIssue, field string) domain.Fact[bool] {
+	if v != nil {
+		return domain.Known(true)
+	}
+	for _, issue := range issues {
+		if issue.GetField() == field && issue.GetUnavailable().GetReason() == c.UnavailableReason_UNAVAILABLE_REASON_NOT_APPLICABLE {
+			return domain.Known(false)
+		}
+	}
+	return domain.Unknown[bool]()
+}
+
 // pawnRead requires the requested whole-query result; no row is not absence proof.
 func (b *DraftBoundary) pawnRead(ctx context.Context, pawn string, current domain.GenerationSnapshot) (*n.PawnState, *c.ObservationContext, error) {
 	reply, _, err := b.native.ReadPawns(ctx, boundaryIdentity(current), []string{pawn})
