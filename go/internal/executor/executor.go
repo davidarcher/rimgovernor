@@ -130,6 +130,8 @@ type Executor struct {
 	cleanJournal            CleanJournal
 	recoveryService         RecoveryServiceBoundary
 	recoveryServiceJournal  RecoveryServiceJournal
+	bedAssign               BedAssignBoundary
+	bedAssignJournal        BedAssignJournal
 	researchSelect          ResearchSelectBoundary
 	researchSelectJournal   ResearchSelectJournal
 	ranged                  RangedBoundary
@@ -348,6 +350,9 @@ func (e *Executor) Run(ctx context.Context, plan domain.PlanID, actionID domain.
 	}
 	if action.Kind() == domain.RecoveryServiceAction && e.recoveryService != nil {
 		return e.runRecoveryService(ctx, action, progress, authority, generation)
+	}
+	if action.Kind() == domain.BedAssignAction && e.bedAssign != nil {
+		return e.runBedAssign(ctx, action, progress, authority, generation)
 	}
 	if action.Kind() == domain.ResearchSelectAction && e.researchSelect != nil {
 		return e.runResearchSelect(ctx, action, progress, authority, generation)

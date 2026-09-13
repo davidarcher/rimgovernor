@@ -72,6 +72,12 @@ func insertAction(ctx context.Context, tx *sql.Tx, plan domain.PlanID, ordinal i
 		_, err = tx.ExecContext(ctx, "INSERT INTO actions(id,plan_id,ordinal,kind,pawn,target,x,z) VALUES(?,?,?,'clean',?,?,?,?)", a.ID(), plan, ordinal, clean.Pawn(), clean.Filth(), clean.Cell().X, clean.Cell().Z)
 	} else if service, ok := a.RecoveryService(); ok {
 		_, err = tx.ExecContext(ctx, "INSERT INTO actions(id,plan_id,ordinal,kind,pawn,target,definition) VALUES(?,?,?,'recovery_service',?,?,?)", a.ID(), plan, ordinal, service.Pawn(), service.Thing(), string(service.Method()))
+	} else if assign, ok := a.BedAssign(); ok {
+		def := ""
+		if !assign.PreviousBed().Clear() {
+			def = assign.PreviousBed().ID()
+		}
+		_, err = tx.ExecContext(ctx, "INSERT INTO actions(id,plan_id,ordinal,kind,pawn,target,definition) VALUES(?,?,?,'bed_assign',?,?,?)", a.ID(), plan, ordinal, assign.Pawn(), assign.Bed(), def)
 	} else if research, ok := a.ResearchSelect(); ok {
 		_, err = tx.ExecContext(ctx, "INSERT INTO actions(id,plan_id,ordinal,kind,definition) VALUES(?,?,?,'research_select',?)", a.ID(), plan, ordinal, research.Project())
 	} else {
@@ -281,6 +287,24 @@ func scanAction(rows *sql.Rows) (domain.Action, int, error) {
 			return domain.Action{}, 0, err
 		}
 		a, err := domain.NewRecoveryServiceAction(id, rs)
+		return a, ordinal, err
+	}
+	if kind == "bed_assign" && pawn.Valid && target.Valid && def.Valid && !x.Valid && !z.Valid && !draftAction.Valid && !rotation.Valid && !stuff.Valid {
+		var previous domain.PreviousBed
+		var err error
+		if def.String == "" {
+			previous = domain.ClearPreviousBed()
+		} else {
+			previous, err = domain.KnownPreviousBed(def.String)
+			if err != nil {
+				return domain.Action{}, 0, err
+			}
+		}
+		assign, err := domain.NewBedAssign(domain.PawnID(pawn.String), target.String, previous)
+		if err != nil {
+			return domain.Action{}, 0, err
+		}
+		a, err := domain.NewBedAssignAction(id, assign)
 		return a, ordinal, err
 	}
 	if kind == "research_select" && def.Valid && !pawn.Valid && !target.Valid && !draftAction.Valid && !x.Valid && !z.Valid && !rotation.Valid && !stuff.Valid && work == nil && zone == nil && bill == nil {

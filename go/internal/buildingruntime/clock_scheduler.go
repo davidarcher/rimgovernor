@@ -658,7 +658,8 @@ func clockSchedulerWork(plan store.PlanState, current domain.GenerationSnapshot)
 			switch p.Action().Kind() {
 			case domain.AcquisitionAction, domain.ProductionBillAction, domain.OwnedDraftAction,
 				domain.MeleeAttackAction, domain.RangedAttackAction, domain.TendAction, domain.RescueAction,
-				domain.HaulAction, domain.EquipAction, domain.GearReplaceAction, domain.RecoveryServiceAction:
+				domain.HaulAction, domain.EquipAction, domain.GearReplaceAction, domain.RecoveryServiceAction,
+				domain.BedAssignAction:
 			default:
 				return false, nil, executor.ErrHeld
 			}

@@ -47,6 +47,7 @@ type SessionConfig struct {
 	Repair           *RepairCapabilities
 	Clean            *CleanCapabilities
 	RecoveryService  *RecoveryServiceCapabilities
+	BedAssign        *BedAssignCapabilities
 	ResearchSelect   *ResearchSelectCapabilities
 	CaravanDeparture *CaravanDepartureCapabilities
 }
@@ -296,6 +297,9 @@ func NewSession(ctx context.Context, config SessionConfig, journal *store.Store,
 	if config.RecoveryService != nil && (config.RecoveryService.Native == nil || config.RecoveryService.Writer == nil) {
 		return cleanup(ErrControl)
 	}
+	if config.BedAssign != nil && (config.BedAssign.Native == nil || config.BedAssign.Writer == nil) {
+		return cleanup(ErrControl)
+	}
 	if config.ResearchSelect != nil && (config.ResearchSelect.Native == nil || config.ResearchSelect.Writer == nil) {
 		return cleanup(ErrControl)
 	}
@@ -424,6 +428,15 @@ func NewSession(ctx context.Context, config SessionConfig, journal *store.Store,
 			return cleanup(err)
 		}
 		if err := worker.EnableRecoveryService(recoveryServiceBoundary); err != nil {
+			return cleanup(err)
+		}
+	}
+	if config.BedAssign != nil {
+		bedAssignBoundary, err := NewBedAssignBoundary(config.BedAssign.Native, config.BedAssign.Writer, sessionBuildingLeases{control, journal, config.RoutineMethods, config.Executor.JournalTimeout}, clock, string(namespace))
+		if err != nil {
+			return cleanup(err)
+		}
+		if err := worker.EnableBedAssign(bedAssignBoundary); err != nil {
 			return cleanup(err)
 		}
 	}
