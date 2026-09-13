@@ -932,10 +932,11 @@ The unsupported-goal branch must fail closed. Startup Allow/settings are owned b
 b; exact worker cleanup by a, with reuse by their later consumers.
 
 - [ ] **G01.07f — World progression works through Go.**
-  Port caravan packing/departure/routing/arrival/return/storage, quests and rewards,
-  settlement gifts, failure recovery and multiple active maps. Preserve supply and
-  home-staffing checks, expedition policies and stale-map rejection. Reuse existing
-  Python world-progression scenarios after dependent management paths work.
+  Caravan departure (domain/policy/store/executor/bridge onto native FormCaravan)
+  is implemented and tested. Still missing: buildingruntime wiring and how
+  departure actions get planned (player-command-driven, unlike the a–e routine
+  families), travel/arrival/return/storage, quests and rewards, settlement gifts,
+  and failure recovery across multiple active maps.
   **Exit evidence:** native departure, arrival, reward/return storage and failure
   recovery with Go owning the workflow and no wrong-map writes.
 
