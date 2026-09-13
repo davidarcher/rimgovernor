@@ -660,19 +660,22 @@ without pushes, when the target checkout is safe; preserve other developers' wor
     structural support; wait for ordinary labor where Python does. Gate on storage,
     bed use and upkeep outcomes, layout changes and interruption, not issued jobs.
 
-    `SecureSupplies`' ordinary haul-order dispatch is code-complete and
-    wired behind `--routine-secure-supplies-plans` (policy selection, native
-    haul, planner, CLI). `MaintainFireSafety`'s wait/blocked decision logic
-    is ported (`policy.EvaluateFireSafety`) but not yet dispatched — it is
-    filtered out below priority 3 in `policy.RankDevelopment`, so flipping
-    its `MethodUnavailable` flag as-is would be inert; needs that ranking
-    gap addressed first. The allow-list stockpile preset for
-    `SecureSupplies`' covered-storage fallback is threaded through
-    domain/bridge. Remaining, each a full new vertical: wiring
-    `MaintainFireSafety`'s dispatch, `MaintainEssentialRepairs`,
-    `MaintainCleanFacilities`, `MaintainSleeping`, `MaintainHomeCoverage`,
-    and `MaintainStoneShell` (the largest, staged wall replacement with
-    temporary support). G01.12 gameplay acceptance gates the whole item.
+    `SecureSupplies` (ordinary haul dispatch, allow-list covered-storage
+    preset) and `MaintainEssentialRepairs` (full domain/policy/store/
+    executor/bridge/buildingruntime vertical) are code-complete; the former
+    is wired behind `--routine-secure-supplies-plans`, the latter has no
+    routine auto-selector or CLI flag yet (no existing pawn-selection logic
+    to port, unlike `SecureSupplies`). `MaintainFireSafety`'s wait/blocked
+    decision logic is ported (`policy.EvaluateFireSafety`) but not
+    dispatched — it's filtered out below priority 3 in
+    `policy.RankDevelopment`, so flipping its `MethodUnavailable` flag as-is
+    would be inert; that ranking gap needs addressing first. Remaining, each
+    a full new vertical: `MaintainCleanFacilities`, `MaintainSleeping`,
+    `MaintainHomeCoverage`, and `MaintainStoneShell` (largest: staged wall
+    replacement with temporary support). Separately noted: the native mod
+    only implements `PawnOrderKind.Haul` today, so Repair/Equip/Rescue/Tend
+    would be refused by a live game — a pre-existing G01.12 gap, not
+    specific to this item. G01.12 gameplay acceptance gates the whole item.
 
   - [ ] **05.5 — Equipment, research and replenishment (G01.07d).**
     Connect gear replacement/equip/wear to workshop recipes, bills and output;
@@ -684,318 +687,21 @@ without pushes, when the target checkout is safe; preserve other developers' wor
     finished/equipped gear, research progress through completion, extracted stock
     and replenishment after a renewed target. Reuse accepted power/temperature paths.
 
-    **Claude handoff: 05.5 status (partial — MaintainEquipment wear/replace only)**
-
-    - Scoped down to the smallest ready sub-case: `policy/gear.go`
-      (`SelectGearMethod`, `EvaluateGearReplace` is new) already proposes
-      existing-gear replacement (`GearReplace`) before ever touching
-      workshop benches/recipes, and safely returns `GearUnknown` — never a
-      wrong method — while `Benches` stays
-      `domain.Unknown[[]policy.GearBench]()`. That let this session close
-      the wear-existing-item half of `MaintainEquipment` end to end without
-      touching the workshop-bill half or any of `EnsureResearch`/
-      `EnsureBasicPower`/`MaintainResource-*`/`MaintainMedicalReserves`,
-      which remain entirely unstarted.
-    - Added the full `GearReplace` action vertical, modeled directly on
-      05.3's Equip family (both are one-shot pawn/thing orders with no
-      draft prerequisite): domain (`go/internal/domain/gear_replace.go`,
-      `gear_replace_test.go`, wired into `plan.go`'s closed-variant
-      registry); policy (`go/internal/policy/gear_replace_admit.go`,
-      `gear_replace_admit_test.go`: `EvaluateGearReplace` mirrors
-      `EvaluateEquip`'s refusal ordering, admitting one already-selected
-      pawn/item/loadout triple); store/admission
-      (`go/internal/store/gear_replace_admission.go`,
-      `gear_replace_admission_test.go`, schema 41, `actions`/
-      `gear_replace_admissions` wiring in `store.go`/`action_rows.go`);
-      executor state machine (`go/internal/executor/gear_replace.go`,
-      `gear_replace_types.go`, `gear_replace_test.go`, wired into
-      `executor.go`'s boundary composition and dispatch switch); bridge
-      (`go/internal/bridge/gear_replace.go`, `gear_replace_read.go` plus
-      their tests: `PreviewGearReplace`/`ApplyGearReplace`/
-      `LookupGearReplace`/`ObserveGearReplaceProgress` drive the existing
-      wire-level `Operation_ImproveGear`, reusing the generic
-      `EffectEvidence_Job`/`JobEffect` shape the same way Draft/Attack/Equip
-      do — no native protobuf gap exists for this path; `ReadGearReplacement`
-      reuses the generic `ReadColonyFacts(planning=true)` census, whose
-      `PlanningFacts.Gear` bridge already validates internally
-      (`validateColonyGear`), to refresh the pawn/item/outfit CAS tokens
-      immediately before dispatch); and the native boundary
-      (`go/internal/buildingruntime/gear_replace_boundary.go`:
-      `InspectGearReplace`/`GearReplacePawn`/`ObserveGearReplace`, modeled on
-      `equip_boundary.go`). Added the non-combinatorial `withGearReplace`
-      composer (`tend_rescue_equip_composition.go`) and
-      `RoutineGearPlanner` (`routine_gear.go`, binds to
-      `policy.MaintainEquipment`, decodes its own fresh gear census the same
-      way `RoutineEquipPlanner` rereads combat pawns rather than reusing the
-      review's cached facts). Extended both routine-dispatch allowlists 05.3
-      called out as the actual structural gap for this kind of family
-      (`routineExecutableKind` in `worker.go`, `clockSchedulerWork` in
-      `clock_scheduler.go`) to include `GearReplaceAction`. Wired
-      `GearReplace`/`RoutineGearPlanner` into `cmd/rimgovernor` (`serve.go`
-      flag `--routine-gear-plans`, requiring `--routine-methods`, in the same
-      groups as `--routine-equip-plans`; `serve_building.go` constructs
-      `bridge.NewGearReplaceWriter` and the matching `buildingruntime`
-      capability; `serve_clock.go` builds `RoutineGearPlanner` and attaches
-      it to `ClockSchedulerConfig`). Full
-      `go build ./... && go vet ./... && go test -p 1 ./...` passes across
-      the whole module, including new `domain`/`policy`/`bridge`/`executor`/
-      `store` gear-replace coverage.
-    - The native job name `gear_replace.go`'s `gearReplaceJobDef = "Wear"`
-      dispatches under is an unverified assumption — no native C# mod source
-      is present in this repo to confirm the exact `JobDef` string
-      `ImproveGear` issues (same limitation 05.3 hit for combat JobDefs it
-      could not verify). Flagged in code and left as an open native
-      acceptance item for G01.12, matching how 05.3 handled similar
-      native-contract assumptions. `buildingruntime` has no dedicated
-      boundary-level test file for `GearReplace` either (no
-      `equip_boundary_test.go` precedent to mirror, same as 05.3's Equip).
-    - Still open, explicitly deferred: the `GearProduce` workshop-bill half
-      of `MaintainEquipment` — `IngredientRequirement` (observationspb)
-      exposes only one `Required`/`Available`/`Missing` triple per slot, not
-      per-alternative amounts, which does not cleanly map to
-      `policy.GearRecipe.Ingredients domain.Fact[[][]Amount]`'s
-      per-alternative cost model, and needs further design before it can be
-      wired. Separately — and this also currently limits the replace half
-      just shipped — `SelectGearMethod`'s own funding check
-      (`gearIngredients`) requires a real `policy.Stock` entry for a
-      candidate's resource to prove it is "funded" before proposing
-      `GearReplace`; `RoutineGearPlanner` does not yet supply `Stock` (no
-      resource-stock plumbing into any planning request exists anywhere in
-      `buildingruntime` yet, not just for gear), so `SelectGearMethod`
-      currently and safely returns `GearUnknown` rather than ever
-      proposing a wrong method — `RoutineGearPlanner` is wired and will
-      dispatch correctly once that stock plumbing lands, but does not yet
-      actively propose replacements. `EnsureBasicPower`, `MaintainResource-*`
-      and `MaintainMedicalReserves` are entirely unstarted. All
-      gameplay/native acceptance remains gated on G01.12 per this doc's
-      stated delivery rule.
-
-    **Claude handoff: 05.5 slice 2 (`EnsureResearch` — policy primitives only)**
-
-    - Surveyed the native surface first: `contracts/proto/{operations,
-      observations,receipts}.proto` already define `SelectResearch`,
-      `ResearchSnapshot`/`ResearchProject`/`ResearchBench`/`Researcher`/
-      `ResearchReply` and `ResearchEffect`, and the generated
-      `operationspb`/`observationspb`/`receiptspb` Go types exist — unlike
-      `GearProduce`, there is no protobuf-shape gap here. But nothing in
-      `go/internal/bridge` or `go/internal/buildingruntime` calls any of it
-      yet (confirmed by grep; the only consumer of
-      `observations_read_research` in the whole Go tree is the read-only
-      native-acceptance harness `go/internal/nativeaccept/cmd/researchaccept`,
-      which calls the raw gabs tool directly, not through a typed bridge
-      method) — so a full vertical (bridge read/select + domain plan + policy
-      admission + store admission + executor state machine + buildingruntime
-      boundary/RoutinePlanner + CLI flag) is a same-sized effort to
-      `GearReplace`'s slice, not something to rush in the same pass as
-      surveying it.
-    - Scoped this pass down to the smallest ready sub-case, matching the
-      `GearReplace` opening precedent: ported `controller/rimgovernor/
-      research.py`'s three pure, native-shape-preserving helpers as new
-      `go/internal/policy/research.go` (+ `research_test.go`, 14 cases) —
-      `ResearchPrerequisiteQueue` (topological native-prerequisite ordering
-      with cycle/incompleteness rejection and the `MAX_QUEUE`/`MAX_VISITS`
-      bounds `research.py` enforces), `UsableResearchLaboratories` (native
-      bench power/building/facility matching), and `EligibleResearchers`
-      (incapacitation/`Applies`/work-priority/override filtering, reusing the
-      existing `WorkType`/`WorkPriority`/`WorkOverride`/`PawnID` types from
-      `policy/work_assignment.go` rather than inventing parallel ones). These
-      are pure functions with no domain/store/executor/bridge/buildingruntime
-      wiring — they only make `research.py`'s deterministic selection logic
-      available and independently testable ahead of that wiring, the same
-      posture 05.5 slice 1 opened `GearReplace` from.
-    - `research.py`'s `needs()` (which decides *when* `EnsureResearch` should
-      be active by scanning `plan.colony_goals`/`plan.spec.steps` for
-      unavailable ThingDef/RecipeDef requirements) was deliberately left
-      unported: Go has no equivalent single `plan.colony_goals` registry to
-      scan generically — each Go goal family carries its own typed need/review
-      functions — so this needs a Go-native admission design (likely modeled
-      after `policy.ReviewMedicalCare`'s or `policy.GearReview`'s hysteresis
-      shape) rather than a literal transliteration, and is left for the next
-      session alongside the bridge/domain/store/executor/buildingruntime
-      wiring. `refresh()`/`method()`/`selected()`/`validate_dispatch()` (state
-      machine, native dispatch, player-direction/token invalidation) are
-      likewise entirely unstarted.
-    - Full `go build ./... && go vet ./... && GOMAXPROCS=2 go test -p 1 ./...`
-      passes across the whole module, including the new `policy` coverage.
-    - Still open, unchanged from slice 1: `MaintainMedicalReserves` is
-      entirely unstarted. `EnsureBasicPower` and `MaintainResource-*` are
-      addressed separately below (slice 3). All gameplay/native acceptance
-      remains gated on G01.12 per this doc's stated delivery rule.
-
-    **Claude handoff: 05.5 slice 3 (`EnsureBasicPower` verified done; `MaintainResource-*` primitives)**
-
-    - Before writing anything, audited this doc's own claim that
-      `EnsureBasicPower` is missing "topology composition and simulation
-      wait." It is not: `policy/power_method.go`'s `SelectPowerMethod` already
-      implements the complete network-local capacity/route decision
-      (blackout wait, player-disabled wait, output-capacity wait, bounded BFS
-      conduit routing, generator placement, replay-safe method keys), and
-      `buildingruntime/routine_power.go` (`NewRoutinePowerPlanner`,
-      `selectPower`, `previewPowerRoute`, `powerOutputAllowance`/
-      `powerNativeWorkTicks`) plus `routine_building_selection.go`'s
-      `EnsureBasicPower` case, `routine_sleeping.go`'s composition, and
-      `clock_scheduler.go`'s `config.Power` validation are all wired and
-      exercised by `routine_power_test.go`/`routine_power_method_test.go`
-      (including `TestRoutinePowerCensusReachesDurableNeed`, which asserts
-      the exact `NeedDeficit`/`NeedRecovered`/`NeedUnknown` postcondition
-      transitions this backlog row asks to observe). `cmd/rimgovernor/
-      serve_clock.go` wires `--routine-power-plans` the same way as every
-      other routine building planner. This table row is stale — landed
-      previously (likely alongside shelter/comfort/temperature under an
-      earlier 05.x slice) but never checked off in the 05.5 table text.
-      Corrected the table row below instead of duplicating already-shipped
-      work; no code changes were needed or made for `EnsureBasicPower`.
-    - Surveyed `MaintainResource-*` next: Python's `resource_method` (in
-      `controller/rimgovernor/production_policy.py`, not a separate
-      `resources.py`) is a single large function covering dynamic
-      stock/target/deficit computation, `home/resource_sources` acquisition
-      selection (mining vs. surface/haul sources, distance ordering, a
-      one-excavation-identity-per-method rule), material-storage zone sizing
-      and creation, deep-extraction development delegation, and — when no
-      source covers the deficit — production-bill discovery/creation with
-      per-alternative ingredient costing, plus a separate
-      `refresh_resource_prerequisite` re-check path. Confirmed by grep that
-      **no** Go code anywhere (`bridge`, `policy`, `domain`,
-      `buildingruntime`) references resource sources, mining, drilling or
-      `MaintainResource` at all — this is a same-sized-or-larger vertical
-      than `GearReplace`/`EnsureResearch`, not a small reconciliation, and
-      was not rushed into a full (and likely broken) implementation this
-      pass.
-    - Scoped this pass down to two further pure, native-shape-preserving
-      primitives, added to new `go/internal/policy/resource_production.go`
-      (+ `resource_production_test.go`, 9 cases): `ResourceRecipeDeficits`
-      (ports `ingredient_deficits` — per-alternative native ingredient
-      cost/deficit against current stock, refusing an Unknown ingredients
-      fact rather than guessing; deliberately reuses `GearRecipe.Ingredients`'s
-      existing `domain.Fact[[][]Amount]` shape so gear and resource
-      production bills share one recipe representation once `GearProduce`
-      is unblocked) and `ResourceExtractionAdvanced` (ports
-      `observe_mining_progress`'s advance detection — decreasing mine hit
-      points or increasing drill progress since a previous observation,
-      rejecting stale/prior ticks). Both are pure functions with no
-      domain/store/executor/bridge/buildingruntime wiring; `resource_method`'s
-      own dynamic-target selection, acquisition/mining dispatch,
-      material-storage zoning, bill placement and the prerequisite-refresh
-      path remain entirely unstarted, matching the posture the `EnsureResearch`
-      slice used for its own oversized vertical.
-    - Full `go build ./... && go vet ./... && GOMAXPROCS=2 go test -p 1 ./...`
-      passes across the whole module, including the new `policy` coverage.
-    - Still open: `GearProduce`, `MaintainMedicalReserves`, and the entire
-      `MaintainResource-*` vertical beyond the two primitives above, and
-      `EnsureResearch`'s own `refresh()`/`method()`/`selected()`/
-      `validate_dispatch()` state machine (its `needs()` admission logic is
-      addressed separately below, slice 4). All gameplay/native acceptance
-      remains gated on G01.12 per this doc's stated delivery rule.
-
-    **Claude handoff: 05.5 slice 4 (`EnsureResearch` — `needs()` aggregation primitive)**
-
-    - Continued `EnsureResearch` incrementally per slice 2's own note that
-      `research.py`'s `needs()` requires a Go-native design rather than a
-      literal port, since Go has no single `plan.colony_goals` registry to
-      scan generically the way Python does — each Go goal family owns its
-      own typed review/evidence instead. Added
-      `go/internal/policy/research_needs.go` (+ `research_needs_test.go`, 4
-      cases): `ResearchNeedSource` (one active goal's own observed
-      unavailable-ThingDef/research-blocked-RecipeDef evidence, supplied by
-      that goal's own caller once ported, in place of Python's generic scan)
-      and `ResearchNeeds` (deduplicates by (goal, requirement) and orders by
-      priority class then goal/requirement identity, mirroring `needs()`'s
-      `sorted(result, key=lambda item: (priority_class, item))`).
-    - This is deliberately an aggregation primitive only: no goal family in
-      Go yet populates a `ResearchNeedSource` (that requires each of
-      `MaintainResource-*`/`MaintainEquipment`/`intent-*`-equivalent goals to
-      exist and expose unavailable-ThingDef/blocked-RecipeDef evidence
-      first, which they do not yet), and `refresh()`/`method()`/`selected()`/
-      `validate_dispatch()` (the native `home/research`-equivalent
-      `SelectResearch`/`ResearchSnapshot` dispatch, laboratory-build
-      fallback, player-direction/token invalidation and `MethodID` replay
-      guard) remain entirely unstarted alongside the bridge/domain/store/
-      executor/buildingruntime wiring slice 2 already scoped out.
-    - Full `go build ./... && go vet ./... && GOMAXPROCS=2 go test -p 1 ./...`
-      passes across the whole module, including the new `policy` coverage.
-    - Still open: everything slice 2/3 already listed, minus `needs()`'s
-      aggregation shape. All gameplay/native acceptance remains gated on
-      G01.12 per this doc's stated delivery rule.
-
-    **Claude handoff: 05.5 slice 5 (`GearProduce` — revisited the `IngredientRequirement` blocker)**
-
-    - Re-examined the previously documented blocker fresh, as asked: is
-      "`IngredientRequirement` exposes only one Required/Available/Missing
-      triple per slot, not per-alternative amounts" actually blocking? Only
-      half true. `gearIngredients` (`policy/gear.go`) never reads a
-      recipe's own reported `Available`/`Missing` at all — funding is
-      decided separately against `GearPlanningRequest.Stock` — so only each
-      alternative's *required* Resource/Count needs to come from the native
-      recipe, and `IngredientRequirement.Required` does carry that, per
-      slot. Added `go/internal/bridge/gear_recipe_ingredients.go` (+ 9 unit
-      tests): `GearRecipeIngredients([]*observationspb.IngredientRequirement)
-      domain.Fact[[][]policy.Amount]` maps a slot to one `Amount` when the
-      native row is `Complete` and resolved to exactly one allowed
-      material with a whole, positive `Required` count.
-    - What genuinely still cannot be recovered from one static
-      `IngredientRequirement` row: a *different* required count per allowed
-      alternative. RimWorld's stuff-adjustable cost scaling
-      (`CostStuffCount`) can make an ingredient's needed count depend on
-      which permitted material is chosen (common for weapon/apparel
-      recipes, which is most of what `GearProduce` cares about), and this
-      bridge has no per-material recipe-cost preview the way building
-      placement previews per stuff — the same class of unverified-native-
-      contract gap already flagged elsewhere in this doc for lack of native
-      C# mod source. A slot naming more than one allowed material is
-      reported `Unknown` rather than guessed at, so `SelectGearMethod` will
-      safely fall back to `GearUnknown`/skip that recipe instead of ever
-      proposing a wrong cost — never a guess, matching this doc's stated
-      posture throughout.
-    - This narrows, but does not close, the `GearProduce` blocker: no
-      bridge census anywhere yet requests populated `RecipeState.Ingredients`
-      for gear/workshop benches at all — `bridge/colony_production.go`'s
-      `validateColonyProduction` explicitly requires `Ingredients` to be
-      nil on the cooking/butchering `RecipeState` rows the shared planning
-      census currently reads. Wiring `GearProduce` still needs: (1) a new or
-      extended bridge read that actually requests ingredient rows for gear
-      benches, (2) threading the result into `GearPlanningRequest.Benches`
-      (currently always `domain.Unknown[[]policy.GearBench]()` per slice 1's
-      handoff), and (3) the domain/store/executor/buildingruntime dispatch
-      vertical, none of which exist. Not attempted this pass — each is a
-      substantial unit of its own.
-    - Full `go build ./... && go vet ./... && GOMAXPROCS=2 go test -p 1 ./...`
-      passes across the whole module, including the new `bridge` coverage.
-
-    **Claude handoff: 05.5 slice 6 (`MaintainResource-*` — source-selection method choice)**
-
-    - `GearProduce` still isn't closeable this pass (needs a new bridge
-      census plus the full dispatch vertical, per slice 5), so continued
-      `MaintainResource-*` instead, per the assessment that a full vertical
-      (domain/store/executor/buildingruntime dispatch) remains oversized for
-      one pass but a further well-tested policy-level method-selection step
-      is exactly right-sized — the same category of unit `SelectGearMethod`/
-      `SelectPowerMethod` are.
-    - Added `SelectResourceSources` to `go/internal/policy/
-      resource_production.go` (+ 9 more unit tests, 24 total in that file):
-      ports `resource_method`'s acquisition-source selection loop —
-      nearest-first ordering, skipping designated/zero-yield sources, a
-      "mine" source usable only with native `open_surface` safety
-      confirmation (an older companion cannot certify excavation geometry
-      otherwise), at most one mine source ever selected per call and never
-      after any other source has already been selected (`if method=='mine'
-      and selected: break` in the Python — a real subtlety a first draft
-      test got backwards until the port caught it), and the native 8-source
-      cap. This is real method-selection logic, not a data primitive, but is
-      still deliberately scoped to just the acquisition-source half of
-      `resource_method`: the storage-zone sizing, bill discovery/creation
-      (now buildable on top of `ResourceRecipeDeficits` from slice 3), and
-      deep-extraction delegation branches remain unported, and none of this
-      is wired into domain/store/executor/buildingruntime yet.
-    - Full `go build ./... && go vet ./... && GOMAXPROCS=2 go test -p 1 ./...`
-      passes across the whole module.
-    - Still open: the rest of `resource_method` (storage zoning, bill
-      selection, deep-extraction delegation, the `refresh_resource_prerequisite`
-      re-check path) and the entire dispatch vertical for
-      `MaintainResource-*`; `GearProduce`'s missing bridge census and
-      dispatch vertical; `MaintainMedicalReserves`; `EnsureResearch`'s
-      `refresh()`/`method()`/`selected()`/`validate_dispatch()` state machine
-      and its own dispatch vertical. All gameplay/native acceptance remains
-      gated on G01.12 per this doc's stated delivery rule.
+    `MaintainEquipment`'s wear/replace half (`GearReplace`) is a complete,
+    wired vertical behind `--routine-gear-plans`. `EnsureBasicPower` was
+    already fully implemented and wired (a stale claim in this doc was
+    corrected, not new work). `EnsureResearch` and `MaintainResource-*` each
+    have ported, tested policy-level primitives (prerequisite ordering,
+    eligible-researcher/lab selection, need aggregation, recipe-deficit
+    costing, mining-advance detection, source selection) but neither has a
+    dispatch vertical yet — each is a same-sized-or-larger effort to
+    `GearReplace`. `GearProduce` (the workshop-bill half of
+    `MaintainEquipment`) is narrowed but not unblocked: single-material
+    ingredient costing works, but no bridge census requests populated
+    `RecipeState.Ingredients` for gear benches, so `GearPlanningRequest.Benches`
+    stays `Unknown` and the whole dispatch vertical is still missing.
+    `MaintainMedicalReserves` is entirely unstarted. G01.12 gameplay
+    acceptance gates the whole item.
 
   - [ ] **05.6 — Management and service recovery (G01.07e).**
     Compose dynamic mood, ongoing care/surgery, population, herd, waste and trade
@@ -1007,85 +713,18 @@ without pushes, when the target checkout is safe; preserve other developers' wor
     before starting the next. Deferred native gates cover renewal, interruption and cleanup while preserving
     emergency priority, care commitments and player policy.
 
-    **Claude handoff: 05.6 status**
-
-    - Surveyed every e-row family against the current Go bridge/native surface
-      before writing anything, since the per-slice process requires reusing
-      native operations rather than inventing new ones. Result: `EnsureMood-*`
-      (`home/relieve_need`), `MaintainHerd-*` (`home/husbandry_facts`,
-      `home/husbandry_config`), `MaintainWaste` (`home/waste_state`,
-      `home/manage_waste`), trade (session/preview/accept) and
-      `RecoverDisasterServices`'s service jobs all call native tools that have
-      **no Go bridge method and no `operationspb`/`observationspb` surface at
-      all** (confirmed by grep across `go/internal/bridge`,
-      `go/internal/wire/operationspb`) — every one of these needs a new native
-      contract before Go can dispatch anything, which is out of scope for a
-      single family slice per this doc's own coordination rule ("coordinate
-      with N01 only for a demonstrated missing consumer contract"). Population
-      (`home/order` actions `capture`/`rescue`, `home/population` interaction
-      settings) is the same story except for its `equip` sub-step, which is
-      too narrow a sliver to close alone.
-    - `MaintainAnimalContainment` is the one e-row goal whose action
-      (`RoomShell`/`PenMarker` in Python, i.e. fence/gate + marker placement)
-      is a plain `domain.BuildingAction` — already fully wired end to end
-      (native preview/dispatch, admission, journal) and needs no new native
-      contract. Its execution path, however, runs through
-      `buildingruntime.RoutineBuildingPlanner`
-      (`routine_sleeping.go`/`routine_building_selection.go`/
-      `routine_shelter.go`), a single ~500-line shared switch already driving
-      Cooking/Butcher/Shelter/Expansion/Comfort/Power/Temperature/Sleeping —
-      squarely the kind of shared, actively-contended file the 05.4/05.5
-      worktrees are also editing this session. Deliberately did not extend it
-      here to avoid a merge collision on core building composition; a
-      dedicated, self-contained containment planner (reusing the existing
-      `RoutineBuildingSource` native interface directly, the way
-      `RoutineTendPlanner` is self-contained rather than folded into the
-      switch) is the safer follow-up and is left open below.
-    - Closed this session: the containment **method decision** itself —
-      `policy.SelectAnimalContainmentMethod`
-      (`go/internal/policy/animal_upkeep.go`), ported directly from
-      `animal_upkeep.containment_method`. Given the herd rows already surfaced
-      by the existing `ReviewAnimalUpkeep`/`UpkeepAnimal` facts (native
-      `SuitablePenId`, contained/release/slaughter), it decides, in order:
-      no uncontained animal (`ContainmentNoDeficit`); every uncontained animal
-      already has a suitable native pen, so wait for an enabled Handling
-      worker (`ContainmentWaitingHandler`) and then for native delivery
-      (`ContainmentWaitingNativePen`) — construction is never proposed once
-      native already has somewhere to put the animal; a starting herd over the
-      bounded admission of 8 refuses construction (`ContainmentExceedsBound`,
-      matching Python's explicit `SkillBlocked` at that size); otherwise the
-      durable shell-then-marker staging (`ContainmentBuildShell` →
-      `ContainmentAwaitingShell` while the shell is unresolved →
-      `ContainmentPlaceMarker` once complete → `ContainmentMarkerExhausted` if
-      a marker was already attempted with no observed suitable enclosure yet),
-      never duplicating a completed shell or replaying an exhausted marker.
-      All animal/pen/handler facts are typed `domain.Fact` inputs (unknown
-      pen requirement, containment state or handler availability is a hard
-      error, not a guess) with full fixture coverage in the new
-      `go/internal/policy/animal_containment_method_test.go` (no-deficit
-      variants, handler-then-native waiting, the >8/=8 admission boundary,
-      all four shell stages, and invalid/duplicate/unknown-fact rejection).
-      `go build ./... && go vet ./... && go test -p 1 ./...` passes across the
-      whole module (`GOMAXPROCS=2`).
-    - Still open, in priority order: (1) a self-contained
-      `RoutineAnimalContainmentPlanner` that reads the `MaintainAnimalContainment`
-      goal binding (mirroring `RoutineTendPlanner`'s binding lookup), calls
-      `SelectAnimalContainmentMethod`, and on `ContainmentBuildShell`/
-      `ContainmentPlaceMarker` previews/commits Fence/FenceGate/PenMarker
-      `BuildingAction`s without touching the shared shelter switch — the
-      actual dispatch composition (need/health/stock/custody/service
-      postcondition) for this goal is not yet closed, only its method choice;
-      (2) `MaintainAnimalFeed` reusing the b/d resource-acquisition path per
-      this item's own instruction — not started, blocked on nothing technical,
-      just sequencing; (3) every other e-row family (`EnsureMood-*`,
-      `MaintainMedicalCare`'s settings-write half, `Population-*`,
-      `MaintainHerd-*`, `MaintainWaste`, trade,
-      `RecoverDisasterServices`) remains unstarted pending the missing native
-      contracts identified above, or (for disaster recovery's repair/refuel
-      work specifically) pending 05.4's `MaintainEssentialRepairs` landing
-      first since this item is explicitly told to reuse it rather than
-      duplicate it. Full native/gameplay acceptance for all of G01.07e remains
-      gated on G01.12 per this doc's stated delivery rule regardless.
+    `MaintainAnimalContainment` is code-complete: method decision
+    (`policy.SelectAnimalContainmentMethod`) plus a self-contained
+    `RoutineAnimalContainmentPlanner` (deliberately independent of the
+    shared shelter/sleeping switch to avoid colliding with 05.4/05.5) wired
+    behind `--routine-animal-containment-plans`. `MaintainAnimalFeed` is
+    blocked on 05.5's `MaintainResource-*` acquisition plumbing landing
+    first. Every other e-row family (`EnsureMood-*`, `MaintainMedicalCare`'s
+    settings-write half, `Population-*`, `MaintainHerd-*`, `MaintainWaste`,
+    trade, `RecoverDisasterServices`) calls native tools with no Go bridge
+    method or protobuf surface at all — each needs a new native contract
+    before any Go dispatch work can start. G01.12 gameplay acceptance gates
+    the whole item.
 
   - [ ] **05.7 — Close the routine integration coverage.**
     Reconcile the 05.1 reference rows against composed a–e paths and their evidence.
