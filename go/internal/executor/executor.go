@@ -134,6 +134,8 @@ type Executor struct {
 	bedAssignJournal        BedAssignJournal
 	researchSelect          ResearchSelectBoundary
 	researchSelectJournal   ResearchSelectJournal
+	husbandry               HusbandryBoundary
+	husbandryJournal        HusbandryJournal
 	ranged                  RangedBoundary
 	rangedJournal           RangedJournal
 	routineScope            RoutineScope
@@ -356,6 +358,9 @@ func (e *Executor) Run(ctx context.Context, plan domain.PlanID, actionID domain.
 	}
 	if action.Kind() == domain.ResearchSelectAction && e.researchSelect != nil {
 		return e.runResearchSelect(ctx, action, progress, authority, generation)
+	}
+	if action.Kind() == domain.HusbandryAction && e.husbandry != nil {
+		return e.runHusbandry(ctx, action, progress, authority, generation)
 	}
 	if action.Kind() == domain.MeleeAttackAction && e.melee != nil {
 		return e.runMelee(ctx, action, progress, authority, generation)

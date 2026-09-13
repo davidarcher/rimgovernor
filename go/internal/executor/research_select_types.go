@@ -29,7 +29,7 @@ type ResearchSelectEvidence struct {
 	StartedAt, ObservedAt time.Time
 	Complete              bool
 	Project               string
-	Matches                domain.Fact[bool]
+	Matches               domain.Fact[bool]
 }
 
 // ResearchSelectBoundary is optionally composed, like WorkBoundary: the
