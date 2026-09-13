@@ -7,6 +7,7 @@ import (
 	"fmt"
 
 	"github.com/davidarcher/RimGovernor/go/internal/bridge"
+	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/boundary"
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
 	"github.com/davidarcher/RimGovernor/go/internal/store"
@@ -95,12 +96,12 @@ func (r *RoutineResearchPlanner) step(call, epoch context.Context) (RoutineResea
 			return RoutineResearchResult{Reason: BuildingMethodExistingWork}, nil
 		}
 	}
-	identity := boundaryIdentity(state.Snapshot)
+	identity := boundary.Identity(state.Snapshot)
 	read, _, err := r.native.ReadResearch(call, identity)
 	if err != nil {
 		return RoutineResearchResult{}, err
 	}
-	if _, err = boundaryContext(read.Context, state.Snapshot); err != nil || read.Context.GetTick() < int64(review.Tick) {
+	if _, err = boundary.Context(read.Context, state.Snapshot); err != nil || read.Context.GetTick() < int64(review.Tick) {
 		return RoutineResearchResult{}, ErrControl
 	}
 	if read.CurrentProject != "" {

@@ -347,7 +347,7 @@ func NewSession(ctx context.Context, config SessionConfig, journal *store.Store,
 		}
 	}
 	if config.ResearchSelect != nil {
-		if err := worker.EnableResearchSelect(&researchSelectBoundary{Boundary: boundary, research: *config.ResearchSelect}); err != nil {
+		if err := worker.EnableResearchSelect(&researchSelectBoundary{Boundary: place, research: *config.ResearchSelect}); err != nil {
 			return cleanup(err)
 		}
 	}

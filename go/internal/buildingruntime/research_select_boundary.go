@@ -4,6 +4,7 @@ import (
 	"context"
 
 	"github.com/davidarcher/RimGovernor/go/internal/bridge"
+	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/boundary"
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"github.com/davidarcher/RimGovernor/go/internal/executor"
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
@@ -31,7 +32,7 @@ type ResearchSelectCapabilities struct {
 	Writer ResearchSelectWriter
 }
 type researchSelectBoundary struct {
-	*Boundary
+	*boundary.Boundary
 	research ResearchSelectCapabilities
 }
 
@@ -42,20 +43,20 @@ type researchSelectBoundary struct {
 // routine step. See ResearchRead's doc comment for the disclosed Hidden-field
 // approximation this inspection inherits.
 func (b *researchSelectBoundary) InspectResearchSelect(ctx context.Context, target executor.Target) (executor.ResearchSelectInspection, error) {
-	out := executor.ResearchSelectInspection{StartedAt: b.clock.Now()}
+	out := executor.ResearchSelectInspection{StartedAt: b.Clock.Now()}
 	value, ok := target.Action.ResearchSelect()
 	if !ok {
 		return out, executor.ErrEvidence
 	}
-	read, _, err := b.research.Native.ReadResearch(ctx, boundaryIdentity(target.Snapshot))
+	read, _, err := b.research.Native.ReadResearch(ctx, boundary.Identity(target.Snapshot))
 	if err != nil {
 		return out, err
 	}
-	current, err := boundaryContext(read.Context, target.Snapshot)
+	current, err := boundary.Context(read.Context, target.Snapshot)
 	if err != nil {
 		return out, err
 	}
-	preview, _, err := b.research.Native.PreviewResearchSelect(ctx, boundaryIdentity(current), value.Project(), read.SnapshotToken)
+	preview, _, err := b.research.Native.PreviewResearchSelect(ctx, boundary.Identity(current), value.Project(), read.SnapshotToken)
 	if err != nil {
 		return out, err
 	}
@@ -63,7 +64,7 @@ func (b *researchSelectBoundary) InspectResearchSelect(ctx context.Context, targ
 	if v == nil || !v.GetAccepted() || v.Projected != nil {
 		return out, executor.ErrHeld
 	}
-	if _, err = boundaryContext(v.Context, current); err != nil {
+	if _, err = boundary.Context(v.Context, current); err != nil {
 		return out, err
 	}
 	if read.Context.GetTick() != v.Context.GetTick() {
@@ -71,16 +72,16 @@ func (b *researchSelectBoundary) InspectResearchSelect(ctx context.Context, targ
 	}
 	out.Facts = policy.ResearchSelectFacts{Snapshot: current, Tick: domain.Tick(v.Context.GetTick()), Current: domain.Known(read.CurrentProject)}
 	out.Token = read.SnapshotToken
-	out.ObservedAt = b.clock.Now()
+	out.ObservedAt = b.Clock.Now()
 	return out, nil
 }
 func (b *researchSelectBoundary) researchAttempt(p executor.Placement, project string) bridge.ResearchSelectAttempt {
-	return bridge.ResearchSelectAttempt{Identity: boundaryIdentity(p.Snapshot), Attempt: b.attempt(p), Owner: &a.Owner{ControllerSessionId: proto.String(b.session), PlayerDirection: proto.Uint64(uint64(p.Snapshot.Direction))}, Generation: uint64(p.Snapshot.Native), Project: project, Token: project}
+	return bridge.ResearchSelectAttempt{Identity: boundary.Identity(p.Snapshot), Attempt: b.Attempt(p), Owner: &a.Owner{ControllerSessionId: proto.String(b.Session), PlayerDirection: proto.Uint64(uint64(p.Snapshot.Direction))}, Generation: uint64(p.Snapshot.Native), Project: project, Token: project}
 }
 func (b *researchSelectBoundary) SelectResearch(ctx context.Context, d executor.ResearchSelectDispatch) (executor.Receipt, error) {
 	p := d.Attempt
 	_, ok := p.Action.ResearchSelect()
-	return b.dispatchWrite(ctx, p,
+	return b.DispatchWrite(ctx, p,
 		func() error {
 			if !ok {
 				return executor.ErrEvidence
@@ -93,8 +94,8 @@ func (b *researchSelectBoundary) SelectResearch(ctx context.Context, d executor.
 	)
 }
 func (b *researchSelectBoundary) ObserveResearchSelect(ctx context.Context, p executor.Placement, current domain.GenerationSnapshot) (executor.ResearchSelectEvidence, error) {
-	out := executor.ResearchSelectEvidence{StartedAt: b.clock.Now(), Observation: domain.Observation{Action: p.Action.ID(), Attempt: p.Attempt, Snapshot: current, Effect: domain.EffectUnknown}}
-	if !boundaryWorld(current, p.Snapshot) {
+	out := executor.ResearchSelectEvidence{StartedAt: b.Clock.Now(), Observation: domain.Observation{Action: p.Action.ID(), Attempt: p.Attempt, Snapshot: current, Effect: domain.EffectUnknown}}
+	if !boundary.World(current, p.Snapshot) {
 		return out, executor.ErrAuthority
 	}
 	value, ok := p.Action.ResearchSelect()
@@ -110,7 +111,7 @@ func (b *researchSelectBoundary) ObserveResearchSelect(ctx context.Context, p ex
 	if admitted == nil {
 		return out, executor.ErrHeld
 	}
-	if err = boundaryAdmission(admitted, p, b.session); err != nil {
+	if err = boundary.Admission(admitted, p, b.Session); err != nil {
 		return out, err
 	}
 	reply, _, err := b.research.Native.ObserveResearchSelectProgress(ctx, w, admitted)
@@ -121,7 +122,7 @@ func (b *researchSelectBoundary) ObserveResearchSelect(ctx context.Context, p ex
 	if v == nil || !proto.Equal(v.Attempt, w.Attempt) {
 		return out, executor.ErrEvidence
 	}
-	out.Observation.Snapshot, err = boundaryContext(v.Context, current)
+	out.Observation.Snapshot, err = boundary.Context(v.Context, current)
 	if err != nil {
 		return out, err
 	}
@@ -154,6 +155,6 @@ func (b *researchSelectBoundary) ObserveResearchSelect(ctx context.Context, p ex
 	default:
 		return out, executor.ErrEvidence
 	}
-	out.ObservedAt = b.clock.Now()
+	out.ObservedAt = b.Clock.Now()
 	return out, nil
 }
