@@ -146,7 +146,7 @@ func run(ctx context.Context, root, output, gameID string, headless bool, report
 	loadReply, err := h.Wire(ctx, "load-start", "lifecycle_load", map[string]any{
 		"requestId": loadRequestID,
 		"saveName":  setupSaveName,
-		"readiness": "map",
+		"readiness": "READINESS_MAP",
 		"expectedPlayer": map[string]any{
 			"identity":        identity,
 			"playerDirection": 1,

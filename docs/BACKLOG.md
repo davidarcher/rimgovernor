@@ -1635,16 +1635,15 @@ b; exact worker cleanup by a, with reuse by their later consumers.
   deadline-exceeded, invalid request shape). `dotnet build` passes against the
   real installed RimWorld/RimBridgeServer assemblies in this sandbox; `go
   build/vet/test ./...` pass (same ten pre-existing unrelated `go vet`
-  warnings as the Save slice). **Native acceptance was not attempted in this
-  session**: `go/internal/nativeaccept/cmd/loadaccept` was written (mirroring
-  `checkpointaccept`'s structure — setup checkpoint via `lifecycle_save`,
-  happy-path load polled to `LoadCompleted` with matching colony id and a
-  fresh load token, and an unknown-`request_id` `ReadLoad` rejection) and
-  compiles, but the live build/install/launch/verify/restore cycle against
-  the isolated RimWorld instance was not run; this is a time-budget decision
-  for this session, not a known blocker in the load API itself. Running it
-  (or reviewing/adjusting `loadaccept` first) is the immediate next step
-  before this slice can be called native-verified.
+  warnings as the Save slice). Native-verified: `loadaccept`
+  (`go/internal/nativeaccept/cmd/loadaccept`) ran `rimgovernor/lifecycle_load`
+  and `rimgovernor/lifecycle_read_load` against the real isolated RimWorld
+  instance and passed — a setup `lifecycle_save` checkpoint, then a load of
+  that save polled through 7 `ReadLoad` calls to `LoadCompleted` with
+  `map_ready` true, the same colony id observed before and after, and a
+  freshly issued load token (`37493cf8…` before, `f56da1db…` after); a
+  `ReadLoad` for an unknown `request_id` returned `Failure`,
+  `FAILURE_CODE_NOT_FOUND`, never pending-forever or completed.
   **Explicitly out of scope for this slice:** visual-readiness detection
   (`READINESS_VISUAL` is accepted but never actually distinguished),
   reconnect-after-disconnect session semantics, competing-viewer arbitration,
