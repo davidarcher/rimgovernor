@@ -17,16 +17,25 @@ type modelBuilding struct {
 	Stuff    *string `json:"stuff"`
 }
 
+// modelCargo is one untrusted requested caravan cargo line.
+type modelCargo struct {
+	Definition *string `json:"defName"`
+	Count      *uint64 `json:"count"`
+}
+
 // modelCommand is the untrusted decoded shape of exactly one supported
 // command. Only the fields matching Command are populated.
 type modelCommand struct {
 	Command   string
 	Buildings []modelBuilding
 	Project   *string
-	// First/Second hold tend's doctor/patient or rescue's rescuer/patient, in
-	// that role order; the field names are shared since both commands are the
-	// same two-distinct-pawn shape.
-	First, Second *string
+	// First/Second hold tend's doctor/patient, rescue's rescuer/patient, or
+	// draft's sole pawn, in that role order; the field names are shared
+	// since these are the same one/two-distinct-pawn shapes.
+	First, Second   *string
+	Crew            []string
+	Cargo           []modelCargo
+	DestinationTile *int32
 }
 
 func decode(text string, limit int) (modelCommand, error) {
@@ -60,8 +69,10 @@ func decode(text string, limit int) (modelCommand, error) {
 		return decodeTwoPawns(fields, "rescue", "rescuer", "patient")
 	case "draft":
 		return decodeOnePawn(fields, "draft", "pawn")
+	case "caravan":
+		return decodeCaravan(fields)
 	default:
-		return modelCommand{}, fail(UnsupportedCommand, "only building, research, tend, rescue and draft proposals are supported")
+		return modelCommand{}, fail(UnsupportedCommand, "only building, research, tend, rescue, draft and caravan proposals are supported")
 	}
 }
 
@@ -141,6 +152,50 @@ func decodeOnePawn(fields map[string]json.RawMessage, command, key string) (mode
 		return modelCommand{}, fail(InvalidCommand, "invalid "+key+" field")
 	}
 	return modelCommand{Command: command, First: &value}, nil
+}
+
+func decodeCaravan(fields map[string]json.RawMessage) (modelCommand, error) {
+	if len(fields) != 4 || fields["crew"] == nil || fields["cargo"] == nil || fields["destinationTile"] == nil {
+		return modelCommand{}, fail(InvalidCommand, "unexpected command fields")
+	}
+	var crew []string
+	if err := json.Unmarshal(fields["crew"], &crew); err != nil || len(crew) == 0 || len(crew) > 64 {
+		return modelCommand{}, fail(InvalidCommand, "expected bounded nonempty crew list")
+	}
+	for _, pawn := range crew {
+		if pawn == "" {
+			return modelCommand{}, fail(InvalidCommand, "empty crew pawn")
+		}
+	}
+	var rawCargo []json.RawMessage
+	if err := json.Unmarshal(fields["cargo"], &rawCargo); err != nil || len(rawCargo) == 0 || len(rawCargo) > 256 {
+		return modelCommand{}, fail(InvalidCommand, "expected bounded nonempty cargo list")
+	}
+	cargo := make([]modelCargo, 0, len(rawCargo))
+	for _, raw := range rawCargo {
+		var itemFields map[string]json.RawMessage
+		if err := json.Unmarshal(raw, &itemFields); err != nil {
+			return modelCommand{}, fail(InvalidCommand, "expected cargo object")
+		}
+		if len(itemFields) != 2 {
+			return modelCommand{}, fail(InvalidCommand, "cargo requires two exact fields")
+		}
+		for _, key := range []string{"defName", "count"} {
+			if itemFields[key] == nil || bytes.Equal(bytes.TrimSpace(itemFields[key]), []byte("null")) {
+				return modelCommand{}, fail(InvalidCommand, "missing or null cargo field")
+			}
+		}
+		var item modelCargo
+		if err := json.Unmarshal(raw, &item); err != nil || *item.Definition == "" || *item.Count == 0 {
+			return modelCommand{}, fail(InvalidCommand, "invalid cargo field")
+		}
+		cargo = append(cargo, item)
+	}
+	var tile int32
+	if err := json.Unmarshal(fields["destinationTile"], &tile); err != nil || tile < 0 {
+		return modelCommand{}, fail(InvalidCommand, "invalid destinationTile field")
+	}
+	return modelCommand{Command: "caravan", Crew: crew, Cargo: cargo, DestinationTile: &tile}, nil
 }
 
 // Generic JSON token inspection is confined to this external text boundary.

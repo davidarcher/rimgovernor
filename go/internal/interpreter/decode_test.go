@@ -123,3 +123,29 @@ func TestModelDraftShape(t *testing.T) {
 		})
 	}
 }
+
+func TestModelCaravanShape(t *testing.T) {
+	valid := `{"command":"caravan","crew":["Thing_A"],"cargo":[{"defName":"Silver","count":50}],"destinationTile":3}`
+	result, err := decode(valid, 1)
+	if err != nil || result.Command != "caravan" || len(result.Crew) != 1 || result.Crew[0] != "Thing_A" ||
+		len(result.Cargo) != 1 || *result.Cargo[0].Definition != "Silver" || *result.Cargo[0].Count != 50 ||
+		result.DestinationTile == nil || *result.DestinationTile != 3 {
+		t.Fatalf("caravan shape: %v %v", result, err)
+	}
+	for _, text := range []string{
+		`{"command":"caravan","crew":[],"cargo":[{"defName":"Silver","count":50}],"destinationTile":3}`,
+		`{"command":"caravan","crew":["Thing_A"],"cargo":[],"destinationTile":3}`,
+		`{"command":"caravan","crew":["Thing_A"],"cargo":[{"defName":"Silver","count":50}]}`,
+		`{"command":"caravan","crew":["Thing_A"],"cargo":[{"defName":"Silver","count":50}],"destinationTile":-1}`,
+		`{"command":"caravan","crew":["Thing_A"],"cargo":[{"defName":"Silver","count":0}],"destinationTile":3}`,
+		`{"command":"caravan","crew":["Thing_A"],"cargo":[{"defName":"","count":50}],"destinationTile":3}`,
+		`{"command":"caravan","crew":[""],"cargo":[{"defName":"Silver","count":50}],"destinationTile":3}`,
+		`{"command":"caravan","crew":["Thing_A"],"cargo":[{"defName":"Silver","count":-1}],"destinationTile":3}`,
+		`{"command":"caravan","crew":["Thing_A"],"cargo":[{"defName":"Silver","count":50}],"destinationTile":3,"dryRun":false}`,
+	} {
+		t.Run(text, func(t *testing.T) {
+			_, err := decode(text, 1)
+			assertKind(t, err, InvalidCommand)
+		})
+	}
+}

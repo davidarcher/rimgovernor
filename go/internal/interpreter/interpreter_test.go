@@ -361,6 +361,81 @@ func TestDraftRefusesUnknownPawnOrWrongActionCount(t *testing.T) {
 	assertKind(t, err, InvalidCommand)
 }
 
+func TestCaravanProposal(t *testing.T) {
+	i := clientFixture(t, func(context.Context, model.Request) (model.Response, error) {
+		return model.Response{Text: `{"command":"caravan","crew":["Thing_A"],"cargo":[{"defName":"Silver","count":50}],"destinationTile":3}`, FinishReason: model.Stop}, nil
+	})
+	input := inputFixture()
+	input.Facts.Pawns = []domain.PawnID{"Thing_A"}
+	input.Facts.CargoDefinitions = []string{"Silver"}
+	input.Facts.DestinationTiles = []int32{3}
+	proposal, err := i.Interpret(context.Background(), input)
+	if err != nil {
+		t.Fatal(err)
+	}
+	actions := proposal.Plan.Actions()
+	if len(actions) != 1 || actions[0].ID() != "a1" {
+		t.Fatal("incorrect caravan action identity")
+	}
+	departure, ok := actions[0].CaravanDeparture()
+	if !ok || len(departure.Crew()) != 1 || departure.Crew()[0] != "Thing_A" || departure.DestinationTile() != 3 ||
+		len(departure.Cargo()) != 1 || departure.Cargo()[0].Definition != "Silver" || departure.Cargo()[0].Count != 50 {
+		t.Fatal("incorrect typed caravan proposal")
+	}
+}
+
+func TestCaravanRefusesUnknownFactsOrWrongActionCount(t *testing.T) {
+	text := `{"command":"caravan","crew":["Thing_A"],"cargo":[{"defName":"Silver","count":50}],"destinationTile":3}`
+	response := func(context.Context, model.Request) (model.Response, error) {
+		return model.Response{Text: text, FinishReason: model.Stop}, nil
+	}
+	for _, tc := range []struct {
+		name string
+		edit func(*Input)
+	}{
+		{"unknown crew", func(in *Input) { in.Facts.CargoDefinitions = []string{"Silver"}; in.Facts.DestinationTiles = []int32{3} }},
+		{"unknown cargo", func(in *Input) { in.Facts.Pawns = []domain.PawnID{"Thing_A"}; in.Facts.DestinationTiles = []int32{3} }},
+		{"unknown destination", func(in *Input) { in.Facts.Pawns = []domain.PawnID{"Thing_A"}; in.Facts.CargoDefinitions = []string{"Silver"} }},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			input := inputFixture()
+			tc.edit(&input)
+			i := clientFixture(t, response)
+			_, err := i.Interpret(context.Background(), input)
+			assertKind(t, err, UnknownFacts)
+		})
+	}
+	input := inputFixture()
+	input.Facts.Pawns = []domain.PawnID{"Thing_A"}
+	input.Facts.CargoDefinitions = []string{"Silver"}
+	input.Facts.DestinationTiles = []int32{3}
+	input.ActionIDs = append(input.ActionIDs, "a2")
+	i := clientFixture(t, response)
+	_, err := i.Interpret(context.Background(), input)
+	assertKind(t, err, InvalidCommand)
+}
+
+func TestCargoAndDestinationFactsValidatedAndBounded(t *testing.T) {
+	i := clientFixture(t, func(context.Context, model.Request) (model.Response, error) {
+		t.Fatal("model called")
+		return model.Response{}, nil
+	})
+	input := inputFixture()
+	input.Facts.CargoDefinitions = []string{"Silver", "Silver"}
+	_, err := i.Interpret(context.Background(), input)
+	assertKind(t, err, InvalidInput)
+
+	input = inputFixture()
+	input.Facts.DestinationTiles = []int32{3, 3}
+	_, err = i.Interpret(context.Background(), input)
+	assertKind(t, err, InvalidInput)
+
+	input = inputFixture()
+	input.Facts.DestinationTiles = []int32{-1}
+	_, err = i.Interpret(context.Background(), input)
+	assertKind(t, err, InvalidInput)
+}
+
 func TestPawnFactsValidatedAndBounded(t *testing.T) {
 	i := clientFixture(t, func(context.Context, model.Request) (model.Response, error) {
 		t.Fatal("model called")
