@@ -37,6 +37,7 @@ type RoutineResourceSource interface {
 	ReadGearBenches(context.Context, *c.Identity) ([]bridge.GearBenchRead, bridge.Result, error)
 	ReadSupplyStock(context.Context, *c.Identity, []string) ([]policy.Stock, bridge.Result, error)
 	PreviewBill(context.Context, *c.Identity, domain.ProductionBill) (*op.PreviewReply, bridge.Result, error)
+	ReadResourceSources(context.Context, *c.Identity, string) ([]bridge.ResourceSourceRow, bridge.Result, error)
 }
 type RoutineResourcePlanner struct {
 	reviewer *RoutineReviewer
@@ -45,6 +46,17 @@ type RoutineResourcePlanner struct {
 type RoutineResourceResult struct {
 	Reason RoutineBuildingReason
 	Plan   domain.PlanID
+	// Sources is populated, for observability only, whenever the bench/recipe
+	// production path (policy.SelectResourceMethod) could not fund the
+	// dynamically-selected resource and a fresh native
+	// ListResourceSources/ReadResourceSources read plus
+	// policy.SelectResourceSources found undesignated mine/harvest sources
+	// that could cover the outstanding deficit. Nothing dispatches
+	// AcquireResource against these sources yet -- see docs/BACKLOG.md 05.5 --
+	// so this never changes Reason/Plan; a native read failure here is
+	// swallowed rather than propagated, since the bench/recipe outcome above
+	// already stands on its own.
+	Sources []policy.ResourceSource
 }
 
 func NewRoutineResourcePlanner(reviewer *RoutineReviewer, native RoutineResourceSource) (*RoutineResourcePlanner, error) {
@@ -192,7 +204,7 @@ func (r *RoutineResourcePlanner) step(call, epoch context.Context) (RoutineResou
 		return RoutineResourceResult{}, err
 	}
 	if choice.Kind != policy.ResourceMethodProduce {
-		return RoutineResourceResult{Reason: BuildingMethodUsed}, nil
+		return RoutineResourceResult{Reason: BuildingMethodUsed, Sources: r.sourcesForDeficit(call, identity, resource, target, stock)}, nil
 	}
 	token, ok := tokens[choice.Bench]
 	if !ok {
@@ -238,4 +250,31 @@ func (r *RoutineResourcePlanner) step(call, epoch context.Context) (RoutineResou
 		return RoutineResourceResult{}, err
 	}
 	return RoutineResourceResult{Reason: BuildingMethodAdmitted, Plan: id}, nil
+}
+
+// sourcesForDeficit reads the resource's fresh native mine/harvest sources
+// and applies policy.SelectResourceSources against the outstanding deficit,
+// mirroring the first half of production_policy.py's resource_method (its
+// bill-listing fallback, which SelectResourceMethod above already covers, is
+// only reached once this source loop finds nothing to select). Nothing here
+// dispatches AcquireResource -- see RoutineResourceResult.Sources -- so a
+// native read failure is deliberately swallowed rather than surfaced,
+// preserving the bench/recipe outcome the caller already computed.
+func (r *RoutineResourcePlanner) sourcesForDeficit(ctx context.Context, identity *c.Identity, resource policy.Resource, target int64, stock domain.Fact[[]policy.Amount]) []policy.ResourceSource {
+	rows, known := stock.Value()
+	if !known {
+		return nil
+	}
+	var have int64
+	for _, row := range rows {
+		if row.Resource == resource {
+			have = row.Count
+			break
+		}
+	}
+	sources, _, err := r.native.ReadResourceSources(ctx, identity, string(resource))
+	if err != nil {
+		return nil
+	}
+	return policy.SelectResourceSources(sources, target, have, 0)
 }

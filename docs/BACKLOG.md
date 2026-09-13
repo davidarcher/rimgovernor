@@ -777,38 +777,54 @@ without pushes, when the target checkout is safe; preserve other developers' wor
     investigation into wiring it (see below) found each piece is a
     materially larger lift than initially scoped, not a smaller one:
 
-    Native mine/harvest source acquisition (`policy.SelectResourceSources`,
-    already a tested pure primitive) is still not wired to anything.
-    Re-investigation found `buildingruntime/acquisition`'s existing generic
-    vertical (`domain.Acquisition`/`bridge.ReadAcquisition`/
-    `AcquisitionBoundary`/executor dispatch) cannot simply be fed arbitrary
-    mined resources by generalizing `policy.SelectAcquisition`'s
-    `row.Resource != "WoodLog"` hardcoding, as originally hoped: the wire
-    message it reads from, `AcquisitionFacts`
-    (`contracts/proto/observations.proto`), is structurally scoped to
-    `tree`/`food`/`hunt` flags only, with no generic mine-source shape at
-    all — a mined resource cannot appear in that census regardless of Go
-    changes. Reaching mined resources genuinely requires the still-fully
-    open `ResourceSourcesSnapshot`/`ListResourceSources` read (unimplemented
-    on both the Go bridge and native C#) plus a native mining adapter for
-    `AcquireResource` (only `NativeHuntAcquisition.cs`/
-    `NativePlantAcquisition.cs` exist today) — i.e. items 1 and 2 are one
-    combined native operation category, not two independently sequenceable
-    ones, and `ListResourceSources` is exactly the native read surface
-    05.4's extraction-development work was flagged as possibly also
-    needing — confirmed this round via a fresh fetch that 05.4's current
-    entry shows no sign of having started it, but re-check before either
-    side lands it.
+    Native mine/harvest source acquisition's read half is now closed. The
+    previously-fully-open `ResourceSourcesSnapshot`/`ListResourceSources`
+    read has a native C# handler (`NativeResourceSourcesTool.cs`, reusing
+    `ResourceAcquisitionTools`'s exact eligibility/designation/safety logic
+    the legacy untyped `home/resource_sources` tool already relies on, so
+    both surfaces agree on what counts as a reachable, safe source) and a Go
+    bridge method (`bridge.ReadResourceSources`, added to the
+    `protoRead`/`protoCall` allowlist as a reviewed adapter, not a disclosed
+    gap). `RoutineResourcePlanner` now calls it: whenever
+    `policy.SelectResourceMethod`'s bench/recipe path cannot fund the
+    dynamically-selected resource, the planner reads fresh sources for it and
+    runs the already-tested `policy.SelectResourceSources` primitive against
+    the outstanding deficit, surfacing the selection on
+    `RoutineResourceResult.Sources` for observability. Disclosed narrowing:
+    this is a read-only slice. The native read adapter reports only the
+    bounded `sources` rows (no `storage`/`development` detail yet, and
+    `include_development=true` is refused as `Unsupported`); it emits no
+    per-source CAS snapshot token, since nothing dispatches `AcquireResource`
+    against a mined source yet; and `sourcesForDeficit` swallows a native
+    read failure rather than propagating it, so this addition cannot turn an
+    already-working bench/recipe outcome into a new failure mode. Verified
+    with a native `dotnet build` in addition to `go build/vet/test ./...`.
 
-    The acquisition-dispatch idea above (move extracted stock through the
-    existing generic `buildingruntime/acquisition` vertical without new
-    native operations) turns out not to be independently tractable either,
-    for the same `AcquisitionFacts` reason: Python's own
-    `resource_method` dispatches mined sources through the identical
-    `home/acquire_resource` native call food/wood use, but only after first
-    reading `home/resource_sources` (`ListResourceSources`'s untyped
-    ancestor) for the source list — so this piece is gated on the same
-    native read surface as items 1/2 above, not free-standing.
+    Still open: actually dispatching `AcquireResource` against a selected
+    mine source. `NativeHuntAcquisition.cs`/`NativePlantAcquisition.cs` are
+    the only existing adapters for that operation; a mining counterpart
+    (designating a `Mineable` through `Designator_Mine`, tracked via the
+    same `NativeAttemptLedger`/`Receipts.AcquisitionEffect` shape those two
+    already use, dispatched from `NativePlantAcquisition.Execute`/`Preview`
+    the same way it already delegates to `NativeHuntAcquisition` when
+    `IsHunt`) does not exist yet. Re-investigation also confirmed
+    `buildingruntime/acquisition`'s existing generic vertical
+    (`domain.Acquisition`/`bridge.ReadAcquisition`/`AcquisitionBoundary`/
+    executor dispatch) still cannot simply be fed arbitrary mined resources
+    by generalizing `policy.SelectAcquisition`'s `row.Resource != "WoodLog"`
+    hardcoding: the wire message it reads from, `AcquisitionFacts`
+    (`contracts/proto/observations.proto`), remains structurally scoped to
+    `tree`/`food`/`hunt` flags only, with no generic mine-source shape at
+    all, so a mined resource cannot appear in that census regardless of Go
+    changes — reaching it has to go through the new `ResourceSourcesSnapshot`
+    read above, either by extending `AcquisitionFacts` and its dispatch path
+    or by building a resource-source-specific parallel dispatch, matching
+    Python's own `resource_method`, which reads `home/resource_sources` and
+    dispatches the identical `home/acquire_resource` call food/wood use.
+    `ListResourceSources` was also exactly the native read surface 05.4's
+    extraction-development work was flagged as possibly also needing —
+    confirmed this round via a fresh fetch that 05.4's current entry still
+    shows no sign of having touched it.
 
     Material-storage zoning (reusing `domain.ZoneCreateAction`/
     `NewAllowListStockpileZone`, exactly like 05.4's `SecureSupplies`
@@ -820,8 +836,10 @@ without pushes, when the target checkout is safe; preserve other developers' wor
     zones carry footprint like buildings). But Python's trigger for it
     (`resource_method`'s `storage` branch) only fires when a selected mine
     source's `resource_sources` reply carries a `storage` payload
-    (`haulers`/`capacity`/`stackLimit`/`candidates`), so it is also gated on
-    the same unimplemented native read, not separately landable first.
+    (`haulers`/`capacity`/`stackLimit`/`candidates`), and the new native
+    `ListResourceSources` handler does not populate `StorageCapacity` yet
+    (an explicit narrowing above), so this remains gated on extending that
+    same read, not separately landable first.
 
     The native `SetProductionPolicy` floors/commitments push
     (`production_policy.py`'s `sync_production_policy`) was re-investigated
