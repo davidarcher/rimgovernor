@@ -715,12 +715,31 @@ without pushes, when the target checkout is safe; preserve other developers' wor
     `policy.ResearchNeeds` expects), and laboratory/researcher usability
     (`UsableResearchLaboratories`/`EligibleResearchers`) is left to the
     native `SelectResearch` preview rather than re-derived in the planner.
-    `GearProduce` (workshop-bill half) has ingredient-cost mapping for
-    fixed-material recipes (`bridge.GearRecipeIngredients`) but still needs
-    a bridge census for gear-bench recipes and its full dispatch vertical.
-    `MaintainResource-*` has ingredient-deficit, extraction-progress and
-    acquisition-source-selection policy primitives but no dispatch vertical.
-    `EnsureBasicPower` is done. `MaintainMedicalReserves` is unstarted.
+    `GearProduce` (workshop-bill half) is now code-complete: it dispatches
+    through the existing generic `ProductionBillAction` vertical rather than
+    a bespoke one, via a new `domain.StockTarget` bill mode (FoodTarget's
+    pause-when-satisfied settings, generalized past its food-recipe
+    exclusion) plus a fresh bench/recipe census (`bridge.ReadGearBenches`,
+    built on the generic `ReadBills`/`ReadRecipes` RPCs since no
+    `ColonyFactsSnapshot` field lists arbitrary crafting benches) and
+    ingredient stock funding (`bridge.ReadSupplyStock`) wired into
+    `RoutineGearPlanner` (still behind the existing `--routine-gear-plans`
+    flag, no new flag needed). Disclosed narrowing: native
+    ingredient-filter/material-preference selection is left at its default
+    (`SelectGearMethod`'s `Filter` output goes unused) and there is no
+    cross-goal ingredient reservation yet — native bill pausing is the only
+    thing preventing overcommitment across concurrent bills.
+    `MaintainResource-*` still has only its ingredient-deficit,
+    extraction-progress and acquisition-source-selection policy primitives
+    (`policy/resource_production.go`) with no dispatch vertical; its own
+    comment calls this "a same-sized effort to GearReplace/EnsureResearch" —
+    dynamic-target selection, mining-designation dispatch (a new native
+    operation category, not a bill), acquisition dispatch and
+    material-storage zoning are all still unstarted. `EnsureBasicPower` is
+    done. `MaintainMedicalReserves` is unstarted; per this item's own text it
+    should reuse `ProductionBillAction`/`domain.StockTarget` the same way
+    `GearProduce` now does, once a medical-recipe/bench census analogous to
+    `bridge.ReadGearBenches` exists.
 
   - [ ] **05.6 — Management and service recovery (G01.07e).**
     Compose dynamic mood, ongoing care/surgery, population, herd, waste and trade
