@@ -290,150 +290,8 @@ func (s *ClockScheduler) Step(ctx context.Context) (ClockSchedulerResult, error)
 	if err = s.player.current(call, epoch); err != nil {
 		return out, err
 	}
-	if s.config.Routine != nil {
-		review, reviewErr := s.config.Routine.step(call, epoch)
-		if reviewErr != nil {
-			return out, reviewErr
-		}
-		out.Routine = &review
-		if review.Review.Mood != nil {
-			for _, state := range review.Review.Mood.States {
-				if state.Active && state.MentalRisk {
-					return out, executor.ErrHeld
-				}
-			}
-		}
-	}
-	if s.config.Work != nil {
-		method, err := s.config.Work.step(call, epoch)
-		if err != nil {
-			return out, err
-		}
-		out.Work = &method
-	}
-	if s.config.Fields != nil {
-		method, err := s.config.Fields.step(call, epoch)
-		if err != nil {
-			return out, err
-		}
-		out.Fields = &method
-	}
-	if s.config.FoodStorage != nil {
-		method, err := s.config.FoodStorage.step(call, epoch)
-		if err != nil {
-			return out, err
-		}
-		out.FoodStorage = &method
-	}
-	if s.config.FoodAcquisition != nil {
-		method, err := s.config.FoodAcquisition.step(call, epoch)
-		if err != nil {
-			return out, err
-		}
-		out.FoodAcquisition = &method
-	}
-	if s.config.WoodAcquisition != nil {
-		method, err := s.config.WoodAcquisition.step(call, epoch)
-		if err != nil {
-			return out, err
-		}
-		out.WoodAcquisition = &method
-	}
-	if s.config.Supplies != nil {
-		method, err := s.config.Supplies.step(call, epoch)
-		if err != nil {
-			return out, err
-		}
-		out.Supplies = &method
-	}
-	if s.config.Sleeping != nil {
-		method, methodErr := s.config.Sleeping.step(call, epoch)
-		if methodErr != nil {
-			return out, methodErr
-		}
-		out.Sleeping = &method
-	}
-	if s.config.Power != nil {
-		method, err := s.config.Power.step(call, epoch)
-		if err != nil {
-			return out, err
-		}
-		out.Power = &method
-	}
-	if s.config.Temperature != nil {
-		method, err := s.config.Temperature.step(call, epoch)
-		if err != nil {
-			return out, err
-		}
-		out.Temperature = &method
-	}
-	if s.config.Cooking != nil {
-		method, methodErr := s.config.Cooking.step(call, epoch)
-		if methodErr != nil {
-			return out, methodErr
-		}
-		out.Cooking = &method
-	}
-	if s.config.Butcher != nil {
-		method, err := s.config.Butcher.step(call, epoch)
-		if err != nil {
-			return out, err
-		}
-		out.Butcher = &method
-	}
-	for _, entry := range []struct {
-		planner *RoutineBillPlanner
-		result  **RoutineBillResult
-	}{{s.config.CookingBills, &out.CookingBills}, {s.config.PreservationBills, &out.PreservationBills}, {s.config.ButcherBills, &out.ButcherBills}} {
-		if entry.planner != nil {
-			method, err := entry.planner.step(call, epoch)
-			if err != nil {
-				return out, err
-			}
-			*entry.result = &method
-		}
-	}
-	if s.config.Comfort != nil {
-		method, err := s.config.Comfort.step(call, epoch)
-		if err != nil {
-			return out, err
-		}
-		out.Comfort = &method
-	}
-	if s.config.Expansion != nil {
-		method, err := s.config.Expansion.step(call, epoch)
-		if err != nil {
-			return out, err
-		}
-		out.Expansion = &method
-	}
-	if s.config.Defense != nil {
-		method, err := s.config.Defense.step(call, epoch)
-		if err != nil {
-			return out, err
-		}
-		out.Defense = &method
-	}
-	if s.config.Tend != nil {
-		method, err := s.config.Tend.step(call, epoch)
-		if err != nil {
-			return out, err
-		}
-		out.Tend = &method
-	}
-	if s.config.Rescue != nil {
-		method, err := s.config.Rescue.step(call, epoch)
-		if err != nil {
-			return out, err
-		}
-		out.Rescue = &method
-	}
-	if s.config.Equip != nil {
-		method, err := s.config.Equip.step(call, epoch)
-		if err != nil {
-			return out, err
-		}
-		out.Equip = &method
+	if err = s.stepPlanners(call, epoch, &out); err != nil {
+		return out, err
 	}
 	emergency, _, err := s.native.ReadEmergency(call, loaded.Context.Identity)
 	if err != nil {
@@ -551,6 +409,161 @@ func (s *ClockScheduler) Step(ctx context.Context) (ClockSchedulerResult, error)
 		return out, errors.Join(executor.ErrHeld, err)
 	}
 	return out, err
+}
+
+// stepPlanners runs the routine reviewer and every configured routine planner
+// in turn, writing each result into out as it completes. A planner left nil
+// in config is simply skipped, matching how Step selected planners inline
+// before this was extracted. The first planner error (or a mental-risk
+// refusal from the reviewer) stops the sequence; out keeps whatever earlier
+// planners already recorded, exactly as Step's inline version did.
+func (s *ClockScheduler) stepPlanners(call, epoch context.Context, out *ClockSchedulerResult) error {
+	if s.config.Routine != nil {
+		review, err := s.config.Routine.step(call, epoch)
+		if err != nil {
+			return err
+		}
+		out.Routine = &review
+		if review.Review.Mood != nil {
+			for _, state := range review.Review.Mood.States {
+				if state.Active && state.MentalRisk {
+					return executor.ErrHeld
+				}
+			}
+		}
+	}
+	if s.config.Work != nil {
+		method, err := s.config.Work.step(call, epoch)
+		if err != nil {
+			return err
+		}
+		out.Work = &method
+	}
+	if s.config.Fields != nil {
+		method, err := s.config.Fields.step(call, epoch)
+		if err != nil {
+			return err
+		}
+		out.Fields = &method
+	}
+	if s.config.FoodStorage != nil {
+		method, err := s.config.FoodStorage.step(call, epoch)
+		if err != nil {
+			return err
+		}
+		out.FoodStorage = &method
+	}
+	if s.config.FoodAcquisition != nil {
+		method, err := s.config.FoodAcquisition.step(call, epoch)
+		if err != nil {
+			return err
+		}
+		out.FoodAcquisition = &method
+	}
+	if s.config.WoodAcquisition != nil {
+		method, err := s.config.WoodAcquisition.step(call, epoch)
+		if err != nil {
+			return err
+		}
+		out.WoodAcquisition = &method
+	}
+	if s.config.Supplies != nil {
+		method, err := s.config.Supplies.step(call, epoch)
+		if err != nil {
+			return err
+		}
+		out.Supplies = &method
+	}
+	if s.config.Sleeping != nil {
+		method, err := s.config.Sleeping.step(call, epoch)
+		if err != nil {
+			return err
+		}
+		out.Sleeping = &method
+	}
+	if s.config.Power != nil {
+		method, err := s.config.Power.step(call, epoch)
+		if err != nil {
+			return err
+		}
+		out.Power = &method
+	}
+	if s.config.Temperature != nil {
+		method, err := s.config.Temperature.step(call, epoch)
+		if err != nil {
+			return err
+		}
+		out.Temperature = &method
+	}
+	if s.config.Cooking != nil {
+		method, err := s.config.Cooking.step(call, epoch)
+		if err != nil {
+			return err
+		}
+		out.Cooking = &method
+	}
+	if s.config.Butcher != nil {
+		method, err := s.config.Butcher.step(call, epoch)
+		if err != nil {
+			return err
+		}
+		out.Butcher = &method
+	}
+	for _, entry := range []struct {
+		planner *RoutineBillPlanner
+		result  **RoutineBillResult
+	}{{s.config.CookingBills, &out.CookingBills}, {s.config.PreservationBills, &out.PreservationBills}, {s.config.ButcherBills, &out.ButcherBills}} {
+		if entry.planner != nil {
+			method, err := entry.planner.step(call, epoch)
+			if err != nil {
+				return err
+			}
+			*entry.result = &method
+		}
+	}
+	if s.config.Comfort != nil {
+		method, err := s.config.Comfort.step(call, epoch)
+		if err != nil {
+			return err
+		}
+		out.Comfort = &method
+	}
+	if s.config.Expansion != nil {
+		method, err := s.config.Expansion.step(call, epoch)
+		if err != nil {
+			return err
+		}
+		out.Expansion = &method
+	}
+	if s.config.Defense != nil {
+		method, err := s.config.Defense.step(call, epoch)
+		if err != nil {
+			return err
+		}
+		out.Defense = &method
+	}
+	if s.config.Tend != nil {
+		method, err := s.config.Tend.step(call, epoch)
+		if err != nil {
+			return err
+		}
+		out.Tend = &method
+	}
+	if s.config.Rescue != nil {
+		method, err := s.config.Rescue.step(call, epoch)
+		if err != nil {
+			return err
+		}
+		out.Rescue = &method
+	}
+	if s.config.Equip != nil {
+		method, err := s.config.Equip.step(call, epoch)
+		if err != nil {
+			return err
+		}
+		out.Equip = &method
+	}
+	return nil
 }
 
 type clockWorkItem struct {
