@@ -90,7 +90,9 @@ async def run(root: Path, output: Path, *, headless=True):
     output.mkdir(parents=True, exist_ok=False)
     evidence = Evidence(output)
     report = {"passed": False, "headless": headless,
-        "scope": "Paused real native draft CAS, owned claims, replay/no-op, Manual cleanup and player override refusal. Capacity is covered by compiled ledger tests, not injected native outcomes."}
+        "scope": "Paused real native draft CAS, owned claims, replay/no-op, Manual cleanup and player override refusal, "
+            "plus real ordinary-ledger exhaustion and owned-cleanup-beyond-exhaustion. Capacity refusal's own boundary "
+            "remains covered by compiled ledger tests, not injected native outcomes."}
     try:
         configuration = prepare(root) if headless else prepare_rendered(root)
         game = json.loads((configuration / "config.json").read_text())["games"]["rimgovernor-trial"]
@@ -103,7 +105,7 @@ async def run(root: Path, output: Path, *, headless=True):
                 return proto(await call(label, "rimgovernor/" + method, {"request": json.dumps(request)}))
 
             try:
-                async with asyncio.timeout(900):
+                async with asyncio.timeout(1800):  # Ledger exhaustion adds ~4k bounded round trips.
                     await bridge.core("games_start", gameId=bridge.game_id)
                     await bridge.connect()
                     await call("new-game", "rimworld/start_debug_game_ready", {"readiness": "visual", "pauseIfNeeded": True, "timeoutMs": 120000})
@@ -210,6 +212,67 @@ async def run(root: Path, output: Path, *, headless=True):
                     grant = await acquire("unowned-acquire")
                     assert outcome(await wire("refuse-adoption", "operations_execute", execute_request(identity, grant, player, 5)), "failure")["code"] == "FAILURE_CODE_OWNER_CONFLICT"
                     same_control(player, await read("unowned-preserved", pawn_id))
+
+                    # Ordinary ledger exhaustion. Capacity refusal itself is proven by
+                    # compiled reflection tests (contracts/tests/native-attempt-ledger's
+                    # CapacityCheck); this proves the design invariant that exact owned
+                    # draft cleanup remains possible after real admission capacity is
+                    # exhausted, not merely simulated at the ledger's own boundary.
+                    LEDGER_CAPACITY = 4096
+
+                    async def raw_wire(method, request):
+                        result = await bridge.call("rimgovernor/" + method, request=json.dumps(request))
+                        return proto(payload(result))
+
+                    reclaim = await call("ledger-undraft", "test/b04f_setup", {"op": "external-draft", "pawn": pawn_id, "drafted": False})
+                    assert reclaim["success"] is True and reclaim["after"] is False
+                    ledger_before = await read("ledger-before", pawn_id)
+                    ledger_grant = await acquire("ledger-acquire")
+                    ledger_request = execute_request(identity, ledger_grant, ledger_before, 7)
+                    ledger_receipt = outcome(await wire("ledger-draft", "operations_execute", ledger_request), "receipt")
+                    ledger_owned = await read("ledger-owned", pawn_id)
+                    owned_effect(ledger_receipt, ledger_owned)
+
+                    def fill_request(n):
+                        # Each fill reuses the post-draft (already-owned) snapshot token, matching
+                        # the same-pawn no-change path exercised once above by "owned-no-op": a
+                        # stale pre-draft token would be refused as owner conflict, not admitted.
+                        return execute_request(identity, ledger_grant, ledger_owned, 1000 + n)
+
+                    async def renew_ledger_lease():
+                        nonlocal ledger_grant
+                        ledger_grant = outcome(await wire("ledger-renew", "authority_control", {"renew": {
+                            "identity": identity, "expectedGeneration": ledger_grant["context"]["nativeGeneration"],
+                            "controllerSessionId": OWNER["controllerSessionId"], "leaseId": ledger_grant["leaseId"],
+                            "leaseMs": 30000}}), "granted")
+
+                    exhausted_at = None
+                    for n in range(1, LEDGER_CAPACITY + 16):
+                        if n % 25 == 0:
+                            await renew_ledger_lease()
+                        reply = await raw_wire("operations_execute", fill_request(n))
+                        if set(reply) == {"failure"}:
+                            assert reply["failure"]["code"] == "FAILURE_CODE_CAPACITY_EXHAUSTED", reply
+                            exhausted_at = n
+                            break
+                        assert set(reply) == {"receipt"}, reply
+                    assert exhausted_at is not None, "Ordinary ledger never reported capacity exhaustion"
+                    assert 4000 <= exhausted_at < LEDGER_CAPACITY, f"Unexpected real exhaustion point {exhausted_at}"
+                    still_full = await raw_wire("operations_execute", fill_request(exhausted_at + 1))
+                    assert still_full["failure"]["code"] == "FAILURE_CODE_CAPACITY_EXHAUSTED"
+                    ledger_fresh = await read("ledger-owned-after-fill", pawn_id)
+                    same_control(ledger_owned, ledger_fresh)
+                    ledger_cleanup = release_request(identity, ledger_fresh)
+                    ledger_released = outcome(await wire("ledger-cleanup", "operations_release_owned_draft", ledger_cleanup), "released")
+                    assert ledger_released["request"] == ledger_cleanup
+                    assert ledger_released["observed"]["drafted"] is False and ledger_released["observed"]["verified"] is True
+                    assert ledger_released["observed"]["issued"] is True
+                    ledger_undrafted = await read("ledger-after-cleanup", pawn_id)
+                    assert ledger_undrafted["drafted"] is False and ledger_undrafted["draftClaim"] == {"unowned": {}}
+                    still_exhausted = await raw_wire("operations_execute", fill_request(exhausted_at + 2))
+                    assert still_exhausted["failure"]["code"] == "FAILURE_CODE_CAPACITY_EXHAUSTED"
+                    report["ledger_exhausted_at"] = exhausted_at
+
                     final = outcome(await wire("identity-after", "lifecycle_read_identity", {}), "loaded")
                     assert final["paused"] is True and final["context"]["identity"] == identity
                     assert final["context"]["tick"] == initial["context"]["tick"]

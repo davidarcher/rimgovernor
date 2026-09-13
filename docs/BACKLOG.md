@@ -1144,9 +1144,22 @@ main. Native package and Go production cutover remain independent.
   for causal claims, immutable replay, already-owned NoChange, stale CAS refusal,
   cleanup after Manual and confirmed lease expiry, and exact cleanup replay.
   Successful player orders invalidate claims; refused cleanup preserves the observed
-  player job. Unowned player drafts cannot be adopted. Other pawn orders,
-  persistent draft policy, fault-injected uncertain setters, context replacement
-  and actual-game cleanup with an exhausted ordinary ledger remain open.
+  player job. Unowned player drafts cannot be adopted.
+  `scripts/native_draft_acceptance.py` now also proves actual-game cleanup with an
+  exhausted ordinary ledger: after the exact owned claim, it fills
+  `NativeAttemptLedger` (capacity 4096, `integrations/rimgovernor-native/src/Bridge/
+  Protocol/NativeAttemptLedger.cs`) with real distinct admitted no-change
+  `SetDrafted` attempts against the same live owned pawn (renewing the lease every
+  25 fills to stay inside its 30s bound), confirms `FAILURE_CODE_CAPACITY_EXHAUSTED`
+  on the next attempt (observed exhausting at attempt 4092 against a fresh disposable
+  colony), then confirms `ReleaseOwnedDraft` still succeeds (`issued`/`verified`
+  both true, pawn undrafted) while the ledger stays exhausted for new attempts
+  immediately after. This is a genuine live-game run (headless RimWorld via GABS,
+  `.rimgovernor/bridge`), not only the existing compiled ledger-capacity check in
+  `contracts/tests/native-attempt-ledger` (`CapacityCheck`), confirming the C# code's
+  own comment that no ordinary attempt slot or active lease is required for cleanup.
+  Other pawn orders, persistent draft policy, fault-injected uncertain setters and
+  context replacement remain open.
   Exact owned `MovePawn` has native acceptance for real arrival, correlated
   job/target progress, immutable replay, same-position NoChange and player-order
   interruption. Queued orders remain pending. Cleanup attribution survives an
