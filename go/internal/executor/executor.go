@@ -116,6 +116,8 @@ type Executor struct {
 	tendJournal        TendJournal
 	rescue             RescueBoundary
 	rescueJournal      RescueJournal
+	haul               HaulBoundary
+	haulJournal        HaulJournal
 	ranged             RangedBoundary
 	rangedJournal      RangedJournal
 	routineScope       RoutineScope
@@ -202,6 +204,14 @@ func New(journal Journal, boundary Boundary, clock Clock, limits Limits, routine
 			return nil, errors.New("rescue boundary requires typed journal")
 		}
 		e.rescue, e.rescueJournal = rescue, j
+	}
+	if haul, ok := boundary.(HaulBoundary); ok {
+		j, complete := journal.(HaulJournal)
+		if !complete {
+			cancel()
+			return nil, errors.New("haul boundary requires typed journal")
+		}
+		e.haul, e.haulJournal = haul, j
 	}
 	if len(routine) == 1 {
 		e.routineScope = routine[0]
@@ -367,6 +377,9 @@ func (e *Executor) Run(ctx context.Context, plan domain.PlanID, actionID domain.
 	}
 	if action.Kind() == domain.RangedAttackAction && e.ranged != nil {
 		return e.runRangedAttack(ctx, action, progress, authority, generation)
+	}
+	if action.Kind() == domain.HaulAction && e.haul != nil {
+		return e.runHaul(ctx, action, progress, authority, generation)
 	}
 	if action.Kind() == domain.MeleeAttackAction && e.melee != nil {
 		return e.runMelee(ctx, action, progress, authority, generation)
