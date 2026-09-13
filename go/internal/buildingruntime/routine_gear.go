@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/sha256"
 	"fmt"
+	"sort"
 
 	"github.com/davidarcher/RimGovernor/go/internal/bridge"
 	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/boundary"
@@ -12,6 +13,7 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/store"
 	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
 	o "github.com/davidarcher/RimGovernor/go/internal/wire/observationspb"
+	op "github.com/davidarcher/RimGovernor/go/internal/wire/operationspb"
 )
 
 // RoutineGearSource reads the same generic colony census (with planning
@@ -19,9 +21,18 @@ import (
 // (bridge.ReadColonyFacts runs validateColonyGear on it internally); no
 // dedicated gear read is needed to plan a method, only to refresh CAS tokens
 // immediately before dispatch (see bridge.ReadGearReplacement, used by
-// GearReplaceBoundary).
+// GearReplaceBoundary). ReadGearBenches and ReadSupplyStock feed the
+// workshop-bill half (GearProduce): a fresh bench/recipe census and the
+// ingredient stock funding it, respectively, gathered only when no
+// replace-candidate is already pending (SelectGearMethod always prefers
+// wearing an existing item over crafting a new one). PreviewBill re-checks
+// one already-selected bench/recipe bill immediately before dispatch, the
+// same acceptance-not-authority preview RoutineBillPlanner uses for food.
 type RoutineGearSource interface {
 	ReadColonyFacts(context.Context, *c.Identity, bool, []string) (*o.ColonyFactsReply, bridge.Result, error)
+	ReadGearBenches(context.Context, *c.Identity) ([]bridge.GearBenchRead, bridge.Result, error)
+	ReadSupplyStock(context.Context, *c.Identity, []string) ([]policy.Stock, bridge.Result, error)
+	PreviewBill(context.Context, *c.Identity, domain.ProductionBill) (*op.PreviewReply, bridge.Result, error)
 }
 type RoutineGearPlanner struct {
 	reviewer *RoutineReviewer
@@ -158,32 +169,107 @@ func (r *RoutineGearPlanner) step(call, epoch context.Context) (RoutineGearResul
 	for _, method := range goal.Methods {
 		seen = append(seen, method.Method)
 	}
-	// Benches deliberately unknown: SelectGearMethod checks existing-gear
-	// replace candidates first and never reaches bench/recipe selection while
-	// any are pending, so this proposes only the wear-existing-item half of
-	// MaintainEquipment (GearReplace); the workshop-bill half (GearProduce)
-	// safely stays inert (GearUnknown) until resource-stock funding and the
-	// IngredientRequirement per-alternative wire shape are wired (open item).
-	choice, err := policy.SelectGearMethod(policy.GearPlanningRequest{Observation: domain.Known(observation), Seen: seen, Benches: domain.Unknown[[]policy.GearBench]()})
-	if err != nil {
-		return RoutineGearResult{}, err
+	// SelectGearMethod always prefers wearing an already-observed replacement
+	// candidate over crafting a new one and never reaches bench/recipe
+	// selection while any candidate is pending, so the bench/stock census
+	// (extra native round trips) is only worth gathering once none exist.
+	hasCandidates := false
+	for _, pawn := range observation.Pawns {
+		if candidates, known := pawn.Candidates.Value(); known && len(candidates) > 0 {
+			hasCandidates = true
+		}
 	}
-	if choice.Kind != policy.GearReplace {
-		return RoutineGearResult{Reason: BuildingMethodUsed}, nil
+	benchesFact := domain.Unknown[[]policy.GearBench]()
+	tokens := map[string]string{}
+	var stock []policy.Stock
+	if !hasCandidates {
+		census, _, err := r.native.ReadGearBenches(call, identity)
+		if err != nil {
+			return RoutineGearResult{}, err
+		}
+		if len(census) > 256 {
+			return RoutineGearResult{}, ErrControl
+		}
+		benches := make([]policy.GearBench, 0, len(census))
+		ingredients := map[string]bool{}
+		for _, row := range census {
+			benches = append(benches, row.Bench)
+			tokens[row.Bench.ID] = row.Token
+			if recipes, known := row.Bench.Recipes.Value(); known {
+				for _, recipe := range recipes {
+					if slots, known := recipe.Ingredients.Value(); known {
+						for _, slot := range slots {
+							for _, alt := range slot {
+								ingredients[string(alt.Resource)] = true
+							}
+						}
+					}
+				}
+			}
+		}
+		names := make([]string, 0, len(ingredients))
+		for name := range ingredients {
+			names = append(names, name)
+		}
+		sort.Strings(names)
+		if len(names) > 0 {
+			stock, _, err = r.native.ReadSupplyStock(call, identity, names)
+			if err != nil {
+				return RoutineGearResult{}, err
+			}
+		}
+		benchesFact = domain.Known(benches)
 	}
-	definition, ok := gearCandidateDefinition(observation, choice.Pawn, choice.Target)
-	if !ok {
-		return RoutineGearResult{}, ErrControl
-	}
-	replace, err := domain.NewGearReplace(domain.PawnID(choice.Pawn), choice.Target, definition)
+	choice, err := policy.SelectGearMethod(policy.GearPlanningRequest{Observation: domain.Known(observation), Seen: seen, Benches: benchesFact, Stock: stock})
 	if err != nil {
 		return RoutineGearResult{}, err
 	}
 	digest := sha256.Sum256([]byte(fmt.Sprintf("%s/%d/%s", goal.Goal.ID, goal.Goal.Epoch, choice.ID)))
 	id := domain.PlanID(fmt.Sprintf("routine-gear-%x", digest[:16]))
-	action, err := domain.NewGearReplaceAction(domain.ActionID(fmt.Sprintf("%s-0", id)), replace)
-	if err != nil {
-		return RoutineGearResult{}, err
+	var action domain.Action
+	switch choice.Kind {
+	case policy.GearReplace:
+		definition, ok := gearCandidateDefinition(observation, choice.Pawn, choice.Target)
+		if !ok {
+			return RoutineGearResult{}, ErrControl
+		}
+		replace, err := domain.NewGearReplace(domain.PawnID(choice.Pawn), choice.Target, definition)
+		if err != nil {
+			return RoutineGearResult{}, err
+		}
+		if action, err = domain.NewGearReplaceAction(domain.ActionID(fmt.Sprintf("%s-0", id)), replace); err != nil {
+			return RoutineGearResult{}, err
+		}
+	case policy.GearProduce:
+		token, ok := tokens[choice.Bench]
+		if !ok {
+			return RoutineGearResult{}, ErrControl
+		}
+		// Target 1: pause-when-satisfied maintains a standing buffer of the
+		// needed replacement rather than crafting a single unit once. Native
+		// ingredient-filter/material-preference selection is left at its
+		// default (no FilterPatch override) — SelectGearMethod's Filter
+		// output goes unused here, an open, disclosed narrowing.
+		bill, err := domain.NewProductionBill(choice.Bench, choice.Recipe, token, domain.StockTarget, 1)
+		if err != nil {
+			return RoutineGearResult{}, err
+		}
+		preview, _, err := r.native.PreviewBill(call, boundary.Identity(state.Snapshot), bill)
+		if err != nil {
+			return RoutineGearResult{}, err
+		}
+		evaluated := preview.GetEvaluated()
+		if evaluated == nil || !evaluated.GetAccepted() {
+			return RoutineGearResult{Reason: BuildingMethodRefused}, nil
+		}
+		if _, err = boundary.Context(evaluated.Context, state.Snapshot); err != nil {
+			return RoutineGearResult{}, ErrControl
+		}
+		if action, err = domain.NewProductionBillAction(domain.ActionID(fmt.Sprintf("%s-0", id)), bill); err != nil {
+			return RoutineGearResult{}, err
+		}
+	default:
+		return RoutineGearResult{Reason: BuildingMethodUsed}, nil
 	}
 	plan, err := domain.NewPlan(id, 1, []domain.Action{action})
 	if err != nil {

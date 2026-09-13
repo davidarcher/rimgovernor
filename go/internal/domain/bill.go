@@ -9,6 +9,12 @@ type BillMode string
 const (
 	FoodTarget     BillMode = "food_target"
 	ButcherForever BillMode = "butcher_forever"
+	// StockTarget is the generic "keep at least Target units of this recipe's
+	// output in stock" bill, the same pause-when-satisfied/unpause-below-half
+	// shape FoodTarget uses, reused as-is by GearProduce, MaintainResource-*
+	// and MaintainMedicalReserves rather than inventing a mode per consumer.
+	// Unlike FoodTarget it carries no food-specific recipe exclusion.
+	StockTarget BillMode = "stock_target"
 )
 
 // ProductionBill adds one native bill without editing or replacing existing bills.
@@ -19,7 +25,7 @@ type ProductionBill struct {
 }
 
 func NewProductionBill(bench, recipe, token string, mode BillMode, target int32) (ProductionBill, error) {
-	if !validID(bench) || !validID(recipe) || !validID(token) || (mode != FoodTarget && mode != ButcherForever) || mode == FoodTarget && (target < 1 || target > 10000 || recipe == "ButcherCorpseFlesh") || mode == ButcherForever && (recipe != "ButcherCorpseFlesh" || target != 0) {
+	if !validID(bench) || !validID(recipe) || !validID(token) || (mode != FoodTarget && mode != ButcherForever && mode != StockTarget) || mode == FoodTarget && (target < 1 || target > 10000 || recipe == "ButcherCorpseFlesh") || mode == ButcherForever && (recipe != "ButcherCorpseFlesh" || target != 0) || mode == StockTarget && (target < 1 || target > 10000) {
 		return ProductionBill{}, errors.New("invalid production bill")
 	}
 	return ProductionBill{bench, recipe, token, mode, target}, nil

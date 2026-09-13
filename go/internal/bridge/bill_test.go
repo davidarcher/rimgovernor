@@ -76,6 +76,20 @@ func TestBillOperationSettingsByMode(t *testing.T) {
 	if fAdd.Settings.GetRepeatMode() != op.RepeatMode_REPEAT_MODE_FOREVER || fAdd.Settings.TargetCount != nil {
 		t.Fatal("unexpected butcher-forever settings", fAdd.Settings)
 	}
+	// StockTarget (GearProduce, MaintainResource-* and MaintainMedicalReserves'
+	// shared "keep at least Target in stock" mode) reuses FoodTarget's
+	// pause-when-satisfied settings shape.
+	stock, err := domain.NewProductionBill("tailor", "MakeParka", "before-token", domain.StockTarget, 1)
+	if err != nil {
+		t.Fatal(err)
+	}
+	sAdd := BillOperation(stock).GetAddBill()
+	if sAdd.Settings.GetRepeatMode() != op.RepeatMode_REPEAT_MODE_TARGET || sAdd.Settings.GetTargetCount() != 1 || sAdd.Settings.GetUnpauseThreshold() != 1 || !sAdd.Settings.GetPauseWhenSatisfied() {
+		t.Fatal("unexpected stock-target settings", sAdd.Settings)
+	}
+	if _, err := domain.NewProductionBill("tailor", "MakeParka", "before-token", domain.StockTarget, 0); err == nil {
+		t.Fatal("expected zero stock target to be rejected")
+	}
 }
 
 func TestPreviewBillAcceptedAndRejections(t *testing.T) {
