@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"github.com/davidarcher/RimGovernor/go/internal/bridge"
+	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/boundary"
 	"github.com/davidarcher/RimGovernor/go/internal/executor"
 	"github.com/davidarcher/RimGovernor/go/internal/store"
 	k "github.com/davidarcher/RimGovernor/go/internal/wire/clockpb"
@@ -92,7 +93,7 @@ func (q *ClockCoordinator) cleanupStart(ctx context.Context, v store.ClockAttemp
 	if err != nil {
 		return err
 	}
-	if !proto.Equal(current.Identity, boundaryIdentity(v.Intent.Snapshot)) {
+	if !proto.Equal(current.Identity, boundary.Identity(v.Intent.Snapshot)) {
 		_, err = q.journal.MarkClockScopeSuperseded(ctx, v.Intent.RequestID, current)
 		return err
 	}

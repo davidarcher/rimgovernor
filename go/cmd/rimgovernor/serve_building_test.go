@@ -14,6 +14,8 @@ import (
 
 	"github.com/davidarcher/RimGovernor/go/internal/bridge"
 	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime"
+	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/boundary"
+	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/draft"
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"github.com/davidarcher/RimGovernor/go/internal/httpapi"
 	"github.com/davidarcher/RimGovernor/go/internal/observation"
@@ -64,20 +66,20 @@ func (f *buildingReadFake) Identity(ctx context.Context) (*lifecyclepb.IdentityR
 
 // Any native control/placement call panics. Startup and submission must only read.
 type unusedBuildingCapabilities struct {
-	buildingruntime.Native
+	boundary.Native
 	buildingruntime.NativeAuthority
-	buildingruntime.BuildingWriter
+	boundary.BuildingWriter
 }
 
 type unusedDraftCapabilities struct {
-	buildingruntime.DraftNative
-	buildingruntime.DraftWriter
-	buildingruntime.DraftCleanupWriter
+	draft.DraftNative
+	draft.DraftWriter
+	draft.DraftCleanupWriter
 }
 
-func unusedDrafts() *buildingruntime.DraftCapabilities {
+func unusedDrafts() *draft.DraftCapabilities {
 	caps := unusedDraftCapabilities{}
-	return &buildingruntime.DraftCapabilities{Native: caps, Writer: caps, Cleanup: caps}
+	return &draft.DraftCapabilities{Native: caps, Writer: caps, Cleanup: caps}
 }
 
 func TestBuildingServiceSubmissionDoesNotAcquireAndShutdownJoins(t *testing.T) {

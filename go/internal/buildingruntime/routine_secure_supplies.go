@@ -7,6 +7,7 @@ import (
 	"fmt"
 
 	"github.com/davidarcher/RimGovernor/go/internal/bridge"
+	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/boundary"
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"github.com/davidarcher/RimGovernor/go/internal/observation"
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
@@ -142,12 +143,12 @@ func (r *RoutineSecureSuppliesPlanner) step(call, epoch context.Context) (Routin
 	if len(items) > 8 {
 		items = items[:8]
 	}
-	identityRef := boundaryIdentity(state.Snapshot)
+	identityRef := boundary.Identity(state.Snapshot)
 	emergency, _, err := r.native.ReadEmergency(call, identityRef)
 	if err != nil {
 		return RoutineSecureSuppliesResult{}, err
 	}
-	if _, err = boundaryContext(emergency.Context, state.Snapshot); err != nil || emergency.Context.GetTick() < int64(review.Tick) {
+	if _, err = boundary.Context(emergency.Context, state.Snapshot); err != nil || emergency.Context.GetTick() < int64(review.Tick) {
 		return RoutineSecureSuppliesResult{}, ErrControl
 	}
 	complete, known := emergency.Facts.ColonistsComplete.Value()
@@ -166,7 +167,7 @@ func (r *RoutineSecureSuppliesPlanner) step(call, epoch context.Context) (Routin
 	if observed == nil {
 		return RoutineSecureSuppliesResult{}, ErrControl
 	}
-	if _, err = boundaryContext(observed.Context, state.Snapshot); err != nil {
+	if _, err = boundary.Context(observed.Context, state.Snapshot); err != nil {
 		return RoutineSecureSuppliesResult{}, ErrControl
 	}
 	counts := observed.Completeness
@@ -240,14 +241,14 @@ func (r *RoutineSecureSuppliesPlanner) step(call, epoch context.Context) (Routin
 }
 
 func secureSuppliesHaulerFacts(pawn domain.PawnID, row *n.PawnState) policy.SecureSuppliesHaulerFacts {
-	facts := policy.SecureSuppliesHaulerFacts{Pawn: pawn, Dead: draftBool(row.Dead), Downed: draftBool(row.Downed), Drafted: draftBool(row.Drafted), MentalState: draftPresence(row.MentalState, row.Issues, "mental_state")}
-	if row.Job != nil && !tendIssue(row.Job.Issues, "player_forced") {
-		facts.PlayerForced = draftBool(row.Job.PlayerForced)
+	facts := policy.SecureSuppliesHaulerFacts{Pawn: pawn, Dead: boundary.FactBool(row.Dead), Downed: boundary.FactBool(row.Downed), Drafted: boundary.FactBool(row.Drafted), MentalState: boundary.FactPresence(row.MentalState, row.Issues, "mental_state")}
+	if row.Job != nil && !boundary.IssueField(row.Job.Issues, "player_forced") {
+		facts.PlayerForced = boundary.FactBool(row.Job.PlayerForced)
 	}
-	if health := row.Health; health != nil && !tendIssue(health.Issues, "health") {
-		facts.NeedsTend, facts.Bleeding = draftBool(health.NeedsTend), draftBool(health.Bleeding)
+	if health := row.Health; health != nil && !boundary.IssueField(health.Issues, "health") {
+		facts.NeedsTend, facts.Bleeding = boundary.FactBool(health.NeedsTend), boundary.FactBool(health.Bleeding)
 	}
-	if settings := row.Settings; settings != nil && !tendIssue(settings.Issues, "work") {
+	if settings := row.Settings; settings != nil && !boundary.IssueField(settings.Issues, "work") {
 		facts.HaulingEnabled = haulingWorkEnabled(settings.Work)
 	}
 	return facts

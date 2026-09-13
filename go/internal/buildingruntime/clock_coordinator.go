@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"github.com/davidarcher/RimGovernor/go/internal/bridge"
+	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/boundary"
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"github.com/davidarcher/RimGovernor/go/internal/executor"
 	"github.com/davidarcher/RimGovernor/go/internal/store"
@@ -34,7 +35,7 @@ type ClockCoordinator struct {
 	journal    *store.Store
 	native     ClockNative
 	writer     ClockWriter
-	leases     LeaseSource
+	leases     boundary.LeaseSource
 	clock      executor.Clock
 	config     ClockCoordinatorConfig
 	authority  executor.Authority
@@ -43,7 +44,7 @@ type ClockCoordinator struct {
 	stopped    bool
 }
 
-func NewClockCoordinator(journal *store.Store, native ClockNative, writer ClockWriter, leases LeaseSource, clock executor.Clock, config ClockCoordinatorConfig) (*ClockCoordinator, error) {
+func NewClockCoordinator(journal *store.Store, native ClockNative, writer ClockWriter, leases boundary.LeaseSource, clock executor.Clock, config ClockCoordinatorConfig) (*ClockCoordinator, error) {
 	if journal == nil || native == nil || writer == nil || leases == nil || clock == nil || config.CallTimeout <= 0 || config.CallTimeout > time.Minute || config.JournalTimeout <= 0 || config.JournalTimeout > time.Minute {
 		return nil, errors.New("invalid clock coordinator dependencies")
 	}
@@ -127,7 +128,7 @@ func (q *ClockCoordinator) Stop(ctx context.Context) error {
 }
 func clockCoordinatorExpectation(v store.ClockAttempt) bridge.ClockExpectation {
 	s := v.Intent.Snapshot
-	return bridge.ClockExpectation{Identity: boundaryIdentity(s), Attempt: v.NativeAttempt, Owner: &a.Owner{ControllerSessionId: proto.String(v.NativeAttempt.GetControllerSessionId()), PlayerDirection: proto.Uint64(uint64(s.Direction))}, NativeGeneration: uint64(s.Native), Command: v.Intent.Command}
+	return bridge.ClockExpectation{Identity: boundary.Identity(s), Attempt: v.NativeAttempt, Owner: &a.Owner{ControllerSessionId: proto.String(v.NativeAttempt.GetControllerSessionId()), PlayerDirection: proto.Uint64(uint64(s.Direction))}, NativeGeneration: uint64(s.Native), Command: v.Intent.Command}
 }
 func clockCoordinatorTerminal(stage store.ClockEpochStage) bool {
 	return stage == store.ClockEpochPaused || stage == store.ClockEpochRetired || stage == store.ClockEpochSuperseded
@@ -189,7 +190,7 @@ func (q *ClockCoordinator) inspect(ctx context.Context, v store.ClockAttempt) er
 			return executor.ErrHeld
 		}
 	}
-	identity := boundaryIdentity(v.Intent.Snapshot)
+	identity := boundary.Identity(v.Intent.Snapshot)
 	reply, _, err := q.native.ReadClockStatus(ctx, identity)
 	if err != nil {
 		return err
@@ -283,7 +284,7 @@ func (q *ClockCoordinator) command(ctx context.Context, intent store.ClockIntent
 	if err != nil {
 		return v, err
 	}
-	if !boundaryID(lease) {
+	if !boundary.ValidID(lease) {
 		return v, executor.ErrAuthority
 	}
 	if err = q.guard(call, generation, v.Intent.Snapshot); err != nil {
@@ -344,7 +345,7 @@ func (q *ClockCoordinator) reconcileLocked(call context.Context, id string) (sto
 	if v.SupersededAt != nil || v.Phase != store.ClockDispatched && v.Phase != store.ClockUncertain {
 		return v, nil
 	}
-	reply, _, err := q.native.ReadClockAttempt(call, &k.AttemptRequest{Identity: boundaryIdentity(v.Intent.Snapshot), Attempt: v.NativeAttempt})
+	reply, _, err := q.native.ReadClockAttempt(call, &k.AttemptRequest{Identity: boundary.Identity(v.Intent.Snapshot), Attempt: v.NativeAttempt})
 	if err != nil || reply.GetReceipt() == nil {
 		return q.uncertain(v, errors.Join(err, call.Err(), executor.ErrHeld))
 	}

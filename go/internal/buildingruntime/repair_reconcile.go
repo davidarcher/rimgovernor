@@ -3,6 +3,7 @@ package buildingruntime
 import (
 	"context"
 
+	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/boundary"
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"github.com/davidarcher/RimGovernor/go/internal/executor"
 	r "github.com/davidarcher/RimGovernor/go/internal/wire/receiptspb"
@@ -16,7 +17,7 @@ func (b *RepairBoundary) ObserveRepair(ctx context.Context, dispatch executor.Re
 	if err != nil {
 		return out, err
 	}
-	if current.Validate() != nil || current.Native == 0 || !boundaryWorld(current, p.Snapshot) {
+	if current.Validate() != nil || current.Native == 0 || !boundary.World(current, p.Snapshot) {
 		return out, executor.ErrAuthority
 	}
 	lookup, _, err := b.native.LookupPawnOrderAttempt(ctx, attempt)
@@ -37,7 +38,7 @@ func (b *RepairBoundary) ObserveRepair(ctx context.Context, dispatch executor.Re
 	if progress == nil || !proto.Equal(progress.Attempt, attempt.Attempt) {
 		return out, executor.ErrEvidence
 	}
-	actual, err := boundaryContext(progress.Context, current)
+	actual, err := boundary.Context(progress.Context, current)
 	if err != nil {
 		return out, err
 	}
@@ -71,7 +72,7 @@ func (b *RepairBoundary) ObserveRepair(ctx context.Context, dispatch executor.Re
 		}
 		out.Observation.Effect = domain.EffectCompleted
 	case *r.Progress_Absent:
-		if !out.Complete || v.Absent == nil || !boundaryID(v.Absent.GetInspectionToken()) {
+		if !out.Complete || v.Absent == nil || !boundary.ValidID(v.Absent.GetInspectionToken()) {
 			return out, executor.ErrEvidence
 		}
 		out.Observation.Effect = domain.EffectAbsent
@@ -98,7 +99,7 @@ func (b *RepairBoundary) ObserveRepair(ctx context.Context, dispatch executor.Re
 		if job.Issued == nil || job.GetIssued() {
 			return out, executor.ErrEvidence
 		}
-		if original := draftReceiptJob(receipt); original != nil && (original.JobId != nil && original.GetJobId() != job.GetJobId() || original.JobDef != nil && original.GetJobDef() != job.GetJobDef()) {
+		if original := boundary.ReceiptJob(receipt); original != nil && (original.JobId != nil && original.GetJobId() != job.GetJobId() || original.JobDef != nil && original.GetJobDef() != job.GetJobDef()) {
 			return out, executor.ErrEvidence
 		}
 	}

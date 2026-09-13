@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/davidarcher/RimGovernor/go/internal/bridge"
+	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/boundary"
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
 	"github.com/davidarcher/RimGovernor/go/internal/store"
@@ -53,7 +54,7 @@ func clockPollFixture(t *testing.T) (*ClockScheduler, *schedulerNative, *sql.DB)
 		t.Fatal(err)
 	}
 	native := &schedulerNative{fake, policy.EmergencyFacts{ColonistsComplete: domain.Known(true), ThreatsComplete: domain.Known(true)}}
-	scheduler, err := NewClockScheduler(player, session, native, ClockSchedulerConfig{Profile: profile, Start: *intent.Command.Start, MaxAge: time.Second}, boundaryClock{})
+	scheduler, err := NewClockScheduler(player, session, native, ClockSchedulerConfig{Profile: profile, Start: *intent.Command.Start, MaxAge: time.Second}, boundary.FixedClock{})
 	if err != nil {
 		t.Fatal(err)
 	}

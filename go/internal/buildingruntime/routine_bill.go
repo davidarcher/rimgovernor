@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/davidarcher/RimGovernor/go/internal/bridge"
+	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/boundary"
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"github.com/davidarcher/RimGovernor/go/internal/observation"
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
@@ -155,7 +156,7 @@ func (r *RoutineBillPlanner) step(call, epoch context.Context) (RoutineBillResul
 	if err != nil {
 		return RoutineBillResult{}, err
 	}
-	preview, _, err := r.native.PreviewBill(call, boundaryIdentity(state.Snapshot), value)
+	preview, _, err := r.native.PreviewBill(call, boundary.Identity(state.Snapshot), value)
 	if err != nil {
 		return RoutineBillResult{}, err
 	}
@@ -163,7 +164,7 @@ func (r *RoutineBillPlanner) step(call, epoch context.Context) (RoutineBillResul
 	if v == nil || !v.GetAccepted() {
 		return RoutineBillResult{Reason: BuildingMethodRefused}, nil
 	}
-	if _, err = boundaryContext(v.Context, state.Snapshot); err != nil || domain.Tick(v.Context.GetTick()) != projection.Identity.Tick {
+	if _, err = boundary.Context(v.Context, state.Snapshot); err != nil || domain.Tick(v.Context.GetTick()) != projection.Identity.Tick {
 		return RoutineBillResult{}, ErrControl
 	}
 	actions := []domain.Action{action}

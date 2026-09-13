@@ -3,6 +3,7 @@ package buildingruntime
 import (
 	"context"
 	"errors"
+	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/boundary"
 	"path/filepath"
 	"testing"
 	"time"
@@ -40,16 +41,16 @@ func TestSessionFailedRefreshCancelsDisabledReconciliationUntilFreshObservation(
 		t.Fatal(err)
 	}
 	defer journal.Close()
-	_, fixture := newBoundaryFixture(t)
-	plan, err := domain.NewPlan("plan", 1, []domain.Action{fixture.placement.Action})
+	_, fixture := boundary.NewFixture(t)
+	plan, err := domain.NewPlan("plan", 1, []domain.Action{fixture.Placement.Action})
 	if err != nil {
 		t.Fatal(err)
 	}
 	if err = journal.CreatePlan(ctx, plan); err != nil {
 		t.Fatal(err)
 	}
-	snapshot := fixture.placement.Snapshot
-	building, _ := fixture.placement.Action.Building()
+	snapshot := fixture.Placement.Snapshot
+	building, _ := fixture.Placement.Action.Building()
 	admission := store.Admission{Snapshot: snapshot, Tick: 10, Costs: []store.MaterialCost{{Definition: "WoodLog", Count: 1}}, Footprint: []domain.Cell{building.Cell()}}
 	if _, err = journal.ReserveAndPrepare(ctx, "plan", "action", admission); err != nil {
 		t.Fatal(err)
@@ -64,13 +65,13 @@ func TestSessionFailedRefreshCancelsDisabledReconciliationUntilFreshObservation(
 	if err != nil {
 		t.Fatal(err)
 	}
-	fixture.receipt.Attempt.ControllerSessionId = proto.String(string(namespace))
-	fixture.receipt.AuthorizingOwner.ControllerSessionId = proto.String(string(namespace))
-	fixture.progress.Attempt = proto.Clone(fixture.receipt).(*r.Receipt).Attempt
+	fixture.Receipt.Attempt.ControllerSessionId = proto.String(string(namespace))
+	fixture.Receipt.AuthorizingOwner.ControllerSessionId = proto.String(string(namespace))
+	fixture.Progress.Attempt = proto.Clone(fixture.Receipt).(*r.Receipt).Attempt
 	native := &blockedSessionObservation{sessionNative: sessionNative{fixture}, entered: make(chan struct{}), block: true}
 	authority := &controlNative{generation: 1}
 	config := SessionConfig{Control: ControlConfig{ProfileDirectory: dir, LeaseDuration: time.Second, CallTimeout: time.Second}, Executor: executor.Limits{MaxAge: time.Second, RunTimeout: 5 * time.Second, JournalTimeout: time.Second}}
-	session, err := NewSession(ctx, config, journal, native, authority, native, boundaryClock{})
+	session, err := NewSession(ctx, config, journal, native, authority, native, boundary.FixedClock{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -98,15 +99,15 @@ func TestSessionFailedRefreshCancelsDisabledReconciliationUntilFreshObservation(
 	case <-time.After(time.Second):
 		t.Fatal("disabled reconciliation retained stale target")
 	}
-	before := fixture.lookups
-	if _, err = session.Run(ctx, "plan", "action"); !errors.Is(err, executor.ErrAuthority) || fixture.lookups != before {
-		t.Fatal("new stale observation admitted", err, fixture.lookups)
+	before := fixture.Lookups
+	if _, err = session.Run(ctx, "plan", "action"); !errors.Is(err, executor.ErrAuthority) || fixture.Lookups != before {
+		t.Fatal("new stale observation admitted", err, fixture.Lookups)
 	}
 	// A later ordinary invalidation must not republish the private cleanup target.
 	if err = session.Manual(ctx); !errors.Is(err, readFailure) {
 		t.Fatal(err)
 	}
-	if _, err = session.Run(ctx, "plan", "action"); !errors.Is(err, executor.ErrAuthority) || fixture.lookups != before {
+	if _, err = session.Run(ctx, "plan", "action"); !errors.Is(err, executor.ErrAuthority) || fixture.Lookups != before {
 		t.Fatal("manual resurrected stale target", err)
 	}
 	state, err := journal.LoadPlan(ctx, "plan")
@@ -119,7 +120,7 @@ func TestSessionFailedRefreshCancelsDisabledReconciliationUntilFreshObservation(
 		t.Fatal("fresh retry lost cleanup target", err)
 	}
 	result, err := session.Run(ctx, "plan", "action")
-	if err != nil || result.Progress.View().Stage != domain.Completed || result.NativeCalled || fixture.places != 0 {
+	if err != nil || result.Progress.View().Stage != domain.Completed || result.NativeCalled || fixture.Places != 0 {
 		t.Fatal(result, err)
 	}
 	if authority.acquires.Load() != 0 || authority.renews.Load() != 0 {

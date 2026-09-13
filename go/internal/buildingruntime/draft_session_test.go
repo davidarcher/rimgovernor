@@ -3,6 +3,8 @@ package buildingruntime
 import (
 	"context"
 	"errors"
+	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/boundary"
+	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/draft"
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"github.com/davidarcher/RimGovernor/go/internal/executor"
 	"github.com/davidarcher/RimGovernor/go/internal/runtimeowner"
@@ -14,7 +16,7 @@ import (
 	"time"
 )
 
-func draftSessionFixture(t *testing.T, unknown bool) (*Session, *draftFixtureNative, *store.Store, string) {
+func draftSessionFixture(t *testing.T, unknown bool) (*Session, *draft.Fixture, *store.Store, string) {
 	t.Helper()
 	ctx := context.Background()
 	dir := t.TempDir()
@@ -23,50 +25,50 @@ func draftSessionFixture(t *testing.T, unknown bool) (*Session, *draftFixtureNat
 		t.Fatal(err)
 	}
 	t.Cleanup(func() { _ = journal.Close() })
-	_, native := draftBoundaryFixture(t)
+	_, native := draft.NewFixture(t)
 	namespace, err := journal.Identity(ctx)
 	if err != nil {
 		t.Fatal(err)
 	}
-	native.receipt.Attempt.ControllerSessionId = proto.String(string(namespace))
-	native.receipt.AuthorizingOwner.ControllerSessionId = proto.String(string(namespace))
-	native.row.DraftClaim.GetOwned().Owner.ControllerSessionId = proto.String(string(namespace))
-	native.progress.Attempt.ControllerSessionId = proto.String(string(namespace))
-	draftReceiptJob(native.receipt).DraftOwner = proto.String(string(namespace))
-	native.progress.GetCompleted().GetEvidence().GetJob().DraftOwner = proto.String(string(namespace))
-	plan, err := domain.NewPlan("plan", 1, []domain.Action{native.p.Action})
+	native.Receipt.Attempt.ControllerSessionId = proto.String(string(namespace))
+	native.Receipt.AuthorizingOwner.ControllerSessionId = proto.String(string(namespace))
+	native.Row.DraftClaim.GetOwned().Owner.ControllerSessionId = proto.String(string(namespace))
+	native.Progress.Attempt.ControllerSessionId = proto.String(string(namespace))
+	boundary.ReceiptJob(native.Receipt).DraftOwner = proto.String(string(namespace))
+	native.Progress.GetCompleted().GetEvidence().GetJob().DraftOwner = proto.String(string(namespace))
+	plan, err := domain.NewPlan("plan", 1, []domain.Action{native.P.Action})
 	if err != nil {
 		t.Fatal(err)
 	}
 	if err = journal.CreatePlan(ctx, plan); err != nil {
 		t.Fatal(err)
 	}
-	if _, err = journal.PrepareDraft(ctx, plan.ID(), native.p.Action.ID(), store.DraftAdmission{Snapshot: native.p.Snapshot, Tick: 10, Pawn: "pawn", PawnSnapshotToken: "cas"}); err != nil {
+	if _, err = journal.PrepareDraft(ctx, plan.ID(), native.P.Action.ID(), store.DraftAdmission{Snapshot: native.P.Snapshot, Tick: 10, Pawn: "pawn", PawnSnapshotToken: "cas"}); err != nil {
 		t.Fatal(err)
 	}
-	if _, err = journal.Dispatch(ctx, plan.ID(), native.p.Action.ID(), native.p.Snapshot, 10); err != nil {
+	if _, err = journal.Dispatch(ctx, plan.ID(), native.P.Action.ID(), native.P.Snapshot, 10); err != nil {
 		t.Fatal(err)
 	}
-	claim := draftKnownClaim(native)
+	claim := draft.KnownClaim(native)
 	claim.Session = domain.ControllerSessionID(namespace)
 	if unknown {
-		_, err = journal.RecordDraftReceipt(ctx, plan.ID(), native.p.Action.ID(), 1, domain.ReceiptUnknown, domain.Unknown[domain.DraftClaim]())
+		_, err = journal.RecordDraftReceipt(ctx, plan.ID(), native.P.Action.ID(), 1, domain.ReceiptUnknown, domain.Unknown[domain.DraftClaim]())
 	} else {
-		_, err = journal.RecordDraftReceipt(ctx, plan.ID(), native.p.Action.ID(), 1, domain.ReceiptAccepted, domain.Known(claim))
+		_, err = journal.RecordDraftReceipt(ctx, plan.ID(), native.P.Action.ID(), 1, domain.ReceiptAccepted, domain.Known(claim))
 		if err == nil {
-			_, err = journal.ObserveDraft(ctx, plan.ID(), domain.Observation{Action: native.p.Action.ID(), Attempt: 1, Snapshot: native.p.Snapshot, Tick: 10, Effect: domain.EffectCompleted, Causality: domain.AfterDispatch}, native.p.Snapshot, domain.Known(claim))
+			_, err = journal.ObserveDraft(ctx, plan.ID(), domain.Observation{Action: native.P.Action.ID(), Attempt: 1, Snapshot: native.P.Snapshot, Tick: 10, Effect: domain.EffectCompleted, Causality: domain.AfterDispatch}, native.P.Snapshot, domain.Known(claim))
 		}
 	}
 	if err != nil {
 		t.Fatal(err)
 	}
-	_, building := newBoundaryFixture(t)
-	config := SessionConfig{Control: ControlConfig{ProfileDirectory: dir, LeaseDuration: time.Second, CallTimeout: time.Second}, Executor: executor.Limits{MaxAge: time.Second, RunTimeout: time.Second, JournalTimeout: time.Second}, Draft: &DraftCapabilities{Native: native, Writer: native, Cleanup: native}}
-	session, err := NewSession(ctx, config, journal, sessionNative{building}, &controlNative{generation: 2}, sessionNative{building}, boundaryClock{})
+	_, building := boundary.NewFixture(t)
+	config := SessionConfig{Control: ControlConfig{ProfileDirectory: dir, LeaseDuration: time.Second, CallTimeout: time.Second}, Executor: executor.Limits{MaxAge: time.Second, RunTimeout: time.Second, JournalTimeout: time.Second}, Draft: &draft.DraftCapabilities{Native: native, Writer: native, Cleanup: native}}
+	session, err := NewSession(ctx, config, journal, sessionNative{building}, &controlNative{generation: 2}, sessionNative{building}, boundary.FixedClock{})
 	if err != nil {
 		t.Fatal(err)
 	}
-	t.Cleanup(func() { native.readErr = nil; native.releaseErr = nil; _ = session.Close(context.Background()) })
+	t.Cleanup(func() { native.ReadErr = nil; native.ReleaseErr = nil; _ = session.Close(context.Background()) })
 	if session.control.config.Worlds == nil {
 		t.Fatal("missing independent shutdown world source")
 	}
@@ -81,8 +83,8 @@ func TestDraftSessionCloseDrainsTerminalAndLostReceipt(t *testing.T) {
 			if err := session.Close(context.Background()); err != nil {
 				t.Fatal(err)
 			}
-			if native.releases != 1 || native.writes != 0 {
-				t.Fatal(native.releases, native.writes)
+			if native.Releases != 1 || native.Writes != 0 {
+				t.Fatal(native.Releases, native.Writes)
 			}
 			state, err := journal.LoadPlan(context.Background(), "plan")
 			if err != nil {
@@ -103,12 +105,12 @@ func TestDraftSessionCloseDrainsTerminalAndLostReceipt(t *testing.T) {
 func TestDraftSessionUncertainCloseRetainsOwnerAndRetriesOnlyOnNextCall(t *testing.T) {
 	t.Parallel()
 	session, native, journal, dir := draftSessionFixture(t, false)
-	native.releaseErr = context.DeadlineExceeded
+	native.ReleaseErr = context.DeadlineExceeded
 	if err := session.Close(context.Background()); err == nil {
 		t.Fatal("uncertainty closed")
 	}
-	if native.releases != 1 {
-		t.Fatal("retried within sweep", native.releases)
+	if native.Releases != 1 {
+		t.Fatal("retried within sweep", native.Releases)
 	}
 	if owner, err := runtimeowner.Acquire(context.Background(), dir); err == nil {
 		_ = owner.Close()
@@ -119,12 +121,12 @@ func TestDraftSessionUncertainCloseRetainsOwnerAndRetriesOnlyOnNextCall(t *testi
 	if cleanup.Stage != domain.DraftCleanupUncertain {
 		t.Fatal(cleanup)
 	}
-	native.releaseErr = nil
+	native.ReleaseErr = nil
 	if err := session.Close(context.Background()); err != nil {
 		t.Fatal(err)
 	}
-	if native.releases != 2 {
-		t.Fatal(native.releases)
+	if native.Releases != 2 {
+		t.Fatal(native.Releases)
 	}
 }
 func TestDraftSessionManualDrainsWithoutPermanentlyStopping(t *testing.T) {
@@ -133,8 +135,8 @@ func TestDraftSessionManualDrainsWithoutPermanentlyStopping(t *testing.T) {
 	if err := session.Manual(context.Background()); err != nil {
 		t.Fatal(err)
 	}
-	if native.releases != 1 {
-		t.Fatal(native.releases)
+	if native.Releases != 1 {
+		t.Fatal(native.Releases)
 	}
 	if _, err := session.Run(context.Background(), "plan", "action"); errors.Is(err, executor.ErrStopped) {
 		t.Fatal("Manual permanently stopped executor")
@@ -149,10 +151,10 @@ func TestDraftSessionRejectsPartialCapabilitiesBeforeOwnership(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer journal.Close()
-	_, f := newBoundaryFixture(t)
+	_, f := boundary.NewFixture(t)
 	native := sessionNative{f}
-	config := SessionConfig{Control: ControlConfig{ProfileDirectory: dir, LeaseDuration: time.Second, CallTimeout: time.Second}, Executor: executor.Limits{MaxAge: time.Second, RunTimeout: time.Second, JournalTimeout: time.Second}, Draft: &DraftCapabilities{}}
-	if _, err = NewSession(ctx, config, journal, native, &controlNative{generation: 1}, native, boundaryClock{}); err == nil {
+	config := SessionConfig{Control: ControlConfig{ProfileDirectory: dir, LeaseDuration: time.Second, CallTimeout: time.Second}, Executor: executor.Limits{MaxAge: time.Second, RunTimeout: time.Second, JournalTimeout: time.Second}, Draft: &draft.DraftCapabilities{}}
+	if _, err = NewSession(ctx, config, journal, native, &controlNative{generation: 1}, native, boundary.FixedClock{}); err == nil {
 		t.Fatal("partial capabilities accepted")
 	}
 	owner, err := runtimeowner.Acquire(ctx, dir)
@@ -178,15 +180,15 @@ func TestDraftSessionConcurrentSweepsDoNotRepeatRelease(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
-	if native.releases != 1 {
-		t.Fatal(native.releases)
+	if native.Releases != 1 {
+		t.Fatal(native.Releases)
 	}
 }
 
 func TestCancelledSessionAttachmentDoesNotStrandOwnerOnExistingDraft(t *testing.T) {
 	t.Parallel()
 	session, native, journal, _ := draftSessionFixture(t, true)
-	native.readErr = errors.New("native unavailable during construction")
+	native.ReadErr = errors.New("native unavailable during construction")
 	dir := t.TempDir()
 	sink := &sessionSink{}
 	control, err := NewControl(context.Background(), ControlConfig{ProfileDirectory: dir, LeaseDuration: time.Second, CallTimeout: time.Second, StopWrites: sink.stop}, journal, &controlNative{generation: 2}, sink)
@@ -211,7 +213,7 @@ func TestCancelledSessionAttachmentDoesNotStrandOwnerOnExistingDraft(t *testing.
 		t.Fatal(err)
 	}
 	cleanup, _ := state.Progress[0].View().DraftCleanup.Value()
-	if cleanup.Stage != domain.DraftAwaitingClaim || native.identities != 0 || native.releases != 0 {
+	if cleanup.Stage != domain.DraftAwaitingClaim || native.Identities != 0 || native.Releases != 0 {
 		t.Fatal("construction drained existing work", cleanup)
 	}
 }

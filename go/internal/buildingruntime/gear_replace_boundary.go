@@ -5,6 +5,7 @@ import (
 	"errors"
 
 	"github.com/davidarcher/RimGovernor/go/internal/bridge"
+	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/boundary"
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"github.com/davidarcher/RimGovernor/go/internal/executor"
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
@@ -37,13 +38,13 @@ type GearReplaceCapabilities struct {
 type GearReplaceBoundary struct {
 	native  GearReplaceNative
 	writer  GearReplaceWriter
-	leases  LeaseSource
+	leases  boundary.LeaseSource
 	clock   executor.Clock
 	session string
 }
 
-func NewGearReplaceBoundary(native GearReplaceNative, writer GearReplaceWriter, leases LeaseSource, clock executor.Clock, session string) (*GearReplaceBoundary, error) {
-	if native == nil || writer == nil || leases == nil || clock == nil || !boundaryID(session) {
+func NewGearReplaceBoundary(native GearReplaceNative, writer GearReplaceWriter, leases boundary.LeaseSource, clock executor.Clock, session string) (*GearReplaceBoundary, error) {
+	if native == nil || writer == nil || leases == nil || clock == nil || !boundary.ValidID(session) {
 		return nil, errors.New("invalid gear replace boundary dependencies")
 	}
 	return &GearReplaceBoundary{native, writer, leases, clock, session}, nil
@@ -55,7 +56,7 @@ func (b *GearReplaceBoundary) InspectGearReplace(ctx context.Context, target exe
 	if !ok {
 		return out, executor.ErrEvidence
 	}
-	reply, _, err := b.native.ReadPawns(ctx, boundaryIdentity(target.Snapshot), []string{string(replace.Pawn())})
+	reply, _, err := b.native.ReadPawns(ctx, boundary.Identity(target.Snapshot), []string{string(replace.Pawn())})
 	if err != nil {
 		return out, err
 	}
@@ -63,7 +64,7 @@ func (b *GearReplaceBoundary) InspectGearReplace(ctx context.Context, target exe
 	if observed == nil {
 		return out, executor.ErrHeld
 	}
-	current, err := boundaryContext(observed.Context, target.Snapshot)
+	current, err := boundary.Context(observed.Context, target.Snapshot)
 	if err != nil {
 		return out, err
 	}
@@ -75,15 +76,15 @@ func (b *GearReplaceBoundary) InspectGearReplace(ctx context.Context, target exe
 	if row == nil || row.Pawn == nil || row.Pawn.GetId() != string(replace.Pawn()) {
 		return out, executor.ErrEvidence
 	}
-	pawnToken, err := draftToken(row, observed.Context)
+	pawnToken, err := boundary.PawnToken(row, observed.Context)
 	if err != nil {
 		return out, err
 	}
-	gear, _, err := b.native.ReadGearReplacement(ctx, boundaryIdentity(current), string(replace.Pawn()), replace.Thing())
+	gear, _, err := b.native.ReadGearReplacement(ctx, boundary.Identity(current), string(replace.Pawn()), replace.Thing())
 	if err != nil {
 		return out, err
 	}
-	if _, err = boundaryContext(gear.Context, current); err != nil {
+	if _, err = boundary.Context(gear.Context, current); err != nil {
 		return out, err
 	}
 	if gear.Context.GetTick() < observed.Context.GetTick() {
@@ -95,7 +96,7 @@ func (b *GearReplaceBoundary) InspectGearReplace(ctx context.Context, target exe
 	if gear.PawnToken != pawnToken {
 		return out, executor.ErrHeld
 	}
-	preview, _, err := b.native.PreviewGearReplace(ctx, boundaryIdentity(current), string(replace.Pawn()), pawnToken, replace.Thing(), gear.ThingToken, gear.LoadoutToken)
+	preview, _, err := b.native.PreviewGearReplace(ctx, boundary.Identity(current), string(replace.Pawn()), pawnToken, replace.Thing(), gear.ThingToken, gear.LoadoutToken)
 	if err != nil {
 		return out, err
 	}
@@ -103,23 +104,23 @@ func (b *GearReplaceBoundary) InspectGearReplace(ctx context.Context, target exe
 	if evaluated == nil {
 		return out, executor.ErrHeld
 	}
-	if _, err = boundaryContext(evaluated.Context, current); err != nil {
+	if _, err = boundary.Context(evaluated.Context, current); err != nil {
 		return out, err
 	}
 	job := evaluated.GetProjected().GetJob()
 	if evaluated.Context.GetTick() < gear.Context.GetTick() || evaluated.Accepted == nil || job == nil || job.GetPawnId() != string(replace.Pawn()) || job.GetTargetA().GetThingId() != replace.Thing() || job.CanTry == nil || job.GetCanTry() != evaluated.GetAccepted() {
 		return out, executor.ErrEvidence
 	}
-	facts := policy.GearReplaceFacts{Snapshot: current, PawnTick: domain.Tick(gear.Context.GetTick()), PreviewTick: domain.Tick(evaluated.Context.GetTick()), ThingSnapshotToken: gear.ThingToken, LoadoutToken: gear.LoadoutToken, NativeCanTry: draftBool(job.CanTry)}
+	facts := policy.GearReplaceFacts{Snapshot: current, PawnTick: domain.Tick(gear.Context.GetTick()), PreviewTick: domain.Tick(evaluated.Context.GetTick()), ThingSnapshotToken: gear.ThingToken, LoadoutToken: gear.LoadoutToken, NativeCanTry: boundary.FactBool(job.CanTry)}
 	facts.Pawn = gearReplacePawnFacts(replace.Pawn(), row, pawnToken)
 	out.Facts, out.ObservedAt = facts, b.clock.Now()
 	return out, ctx.Err()
 }
 
 func gearReplacePawnFacts(pawn domain.PawnID, row *n.PawnState, token string) policy.GearReplacePawnFacts {
-	facts := policy.GearReplacePawnFacts{Pawn: pawn, SnapshotToken: token, Dead: draftBool(row.Dead), Downed: draftBool(row.Downed), Drafted: draftBool(row.Drafted), MentalState: draftPresence(row.MentalState, row.Issues, "mental_state")}
-	if row.Job != nil && !tendIssue(row.Job.Issues, "player_forced") && !tendIssue(row.Job.Issues, "queued_jobs") && !tendIssue(row.Job.Issues, "def_name") {
-		facts.PlayerForced, facts.QueuedJobs = draftBool(row.Job.PlayerForced), draftUint(row.Job.QueuedJobs)
+	facts := policy.GearReplacePawnFacts{Pawn: pawn, SnapshotToken: token, Dead: boundary.FactBool(row.Dead), Downed: boundary.FactBool(row.Downed), Drafted: boundary.FactBool(row.Drafted), MentalState: boundary.FactPresence(row.MentalState, row.Issues, "mental_state")}
+	if row.Job != nil && !boundary.IssueField(row.Job.Issues, "player_forced") && !boundary.IssueField(row.Job.Issues, "queued_jobs") && !boundary.IssueField(row.Job.Issues, "def_name") {
+		facts.PlayerForced, facts.QueuedJobs = boundary.FactBool(row.Job.PlayerForced), boundary.FactUint(row.Job.QueuedJobs)
 		if row.Job.DefName != nil {
 			facts.ExistingJobDef = domain.Known(row.Job.GetDefName())
 		}
@@ -130,10 +131,10 @@ func gearReplacePawnFacts(pawn domain.PawnID, row *n.PawnState, token string) po
 func (b *GearReplaceBoundary) attempt(dispatch executor.GearReplaceDispatch) (bridge.GearReplaceAttempt, error) {
 	p, admission := dispatch.Attempt, dispatch.Admission
 	replace, ok := p.Action.GearReplace()
-	if !ok || p.Attempt == 0 || p.Tick < 0 || admission.Snapshot != p.Snapshot || admission.Pawn != replace.Pawn() || admission.Thing != replace.Thing() || admission.Definition != replace.Definition() || admission.Tick > p.Tick || !boundaryID(admission.PawnSnapshotToken) || !boundaryID(admission.ThingSnapshotToken) || !boundaryID(admission.LoadoutToken) {
+	if !ok || p.Attempt == 0 || p.Tick < 0 || admission.Snapshot != p.Snapshot || admission.Pawn != replace.Pawn() || admission.Thing != replace.Thing() || admission.Definition != replace.Definition() || admission.Tick > p.Tick || !boundary.ValidID(admission.PawnSnapshotToken) || !boundary.ValidID(admission.ThingSnapshotToken) || !boundary.ValidID(admission.LoadoutToken) {
 		return bridge.GearReplaceAttempt{}, executor.ErrEvidence
 	}
-	return bridge.GearReplaceAttempt{Identity: boundaryIdentity(p.Snapshot), Attempt: &c.AttemptKey{ControllerSessionId: proto.String(b.session), ActionId: proto.String(string(p.Action.ID())), AttemptId: proto.Uint64(uint64(p.Attempt))}, Owner: &a.Owner{ControllerSessionId: proto.String(b.session), PlayerDirection: proto.Uint64(uint64(p.Snapshot.Direction))}, Generation: uint64(p.Snapshot.Native), Pawn: string(replace.Pawn()), Thing: replace.Thing(), PawnToken: admission.PawnSnapshotToken, ThingToken: admission.ThingSnapshotToken, LoadoutToken: admission.LoadoutToken}, nil
+	return bridge.GearReplaceAttempt{Identity: boundary.Identity(p.Snapshot), Attempt: &c.AttemptKey{ControllerSessionId: proto.String(b.session), ActionId: proto.String(string(p.Action.ID())), AttemptId: proto.Uint64(uint64(p.Attempt))}, Owner: &a.Owner{ControllerSessionId: proto.String(b.session), PlayerDirection: proto.Uint64(uint64(p.Snapshot.Direction))}, Generation: uint64(p.Snapshot.Native), Pawn: string(replace.Pawn()), Thing: replace.Thing(), PawnToken: admission.PawnSnapshotToken, ThingToken: admission.ThingSnapshotToken, LoadoutToken: admission.LoadoutToken}, nil
 }
 
 func gearReplaceJob(job *r.JobEffect, dispatch executor.GearReplaceDispatch) error {
@@ -161,7 +162,7 @@ func (b *GearReplaceBoundary) GearReplacePawn(ctx context.Context, dispatch exec
 	if err != nil {
 		return out, err
 	}
-	if !boundaryID(lease) {
+	if !boundary.ValidID(lease) {
 		return out, executor.ErrAuthority
 	}
 	if err = ctx.Err(); err != nil {
@@ -193,13 +194,13 @@ func (b *GearReplaceBoundary) GearReplacePawn(ctx context.Context, dispatch exec
 
 func (b *GearReplaceBoundary) checkReceipt(receipt *r.Receipt, dispatch executor.GearReplaceDispatch) error {
 	p := dispatch.Attempt
-	if err := boundaryAdmission(receipt, p, b.session); err != nil {
+	if err := boundary.Admission(receipt, p, b.session); err != nil {
 		return err
 	}
 	if receipt.AdmittedContext.GetTick() < int64(dispatch.Admission.Tick) {
 		return executor.ErrEvidence
 	}
-	job := draftReceiptJob(receipt)
+	job := boundary.ReceiptJob(receipt)
 	return gearReplaceJob(job, dispatch)
 }
 
@@ -216,7 +217,7 @@ func (b *GearReplaceBoundary) ObserveGearReplace(ctx context.Context, dispatch e
 	p := dispatch.Attempt
 	switch v := reply.Outcome.(type) {
 	case *r.LookupReply_Unknown:
-		if _, err = boundaryContext(v.Unknown.GetContext(), current); err != nil {
+		if _, err = boundary.Context(v.Unknown.GetContext(), current); err != nil {
 			return out, err
 		}
 		out.Observation = domain.Observation{Action: p.Action.ID(), Attempt: p.Attempt, Snapshot: current, Tick: domain.Tick(v.Unknown.GetContext().GetTick()), Effect: domain.EffectUnknown, Causality: domain.AfterDispatch}
@@ -226,7 +227,7 @@ func (b *GearReplaceBoundary) ObserveGearReplace(ctx context.Context, dispatch e
 		if v.InFlight == nil || !proto.Equal(v.InFlight.Attempt, attempt.Attempt) {
 			return out, executor.ErrEvidence
 		}
-		if err = boundaryAdmission(&r.Receipt{Attempt: v.InFlight.Attempt, AdmittedContext: v.InFlight.AdmittedContext, AuthorizingOwner: attempt.Owner}, p, b.session); err != nil {
+		if err = boundary.Admission(&r.Receipt{Attempt: v.InFlight.Attempt, AdmittedContext: v.InFlight.AdmittedContext, AuthorizingOwner: attempt.Owner}, p, b.session); err != nil {
 			return out, err
 		}
 	case *r.LookupReply_Receipt:
@@ -247,7 +248,7 @@ func (b *GearReplaceBoundary) ObserveGearReplace(ctx context.Context, dispatch e
 	if !proto.Equal(prog.Attempt, attempt.Attempt) {
 		return out, executor.ErrEvidence
 	}
-	tickCtx, err := boundaryContext(prog.Context, current)
+	tickCtx, err := boundary.Context(prog.Context, current)
 	if err != nil {
 		return out, err
 	}

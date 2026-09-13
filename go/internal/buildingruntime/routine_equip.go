@@ -6,6 +6,7 @@ import (
 	"fmt"
 
 	"github.com/davidarcher/RimGovernor/go/internal/bridge"
+	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/boundary"
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
 	"github.com/davidarcher/RimGovernor/go/internal/store"
@@ -89,12 +90,12 @@ func (r *RoutineEquipPlanner) step(call, epoch context.Context) (RoutineEquipRes
 		}
 	}
 	started := r.reviewer.clock.Now()
-	identity := boundaryIdentity(state.Snapshot)
+	identity := boundary.Identity(state.Snapshot)
 	emergency, _, err := r.native.ReadEmergency(call, identity)
 	if err != nil {
 		return RoutineEquipResult{}, err
 	}
-	if _, err = boundaryContext(emergency.Context, state.Snapshot); err != nil || emergency.Context.GetTick() < int64(review.Tick) {
+	if _, err = boundary.Context(emergency.Context, state.Snapshot); err != nil || emergency.Context.GetTick() < int64(review.Tick) {
 		return RoutineEquipResult{}, ErrControl
 	}
 	complete, known := emergency.Facts.ColonistsComplete.Value()
@@ -113,7 +114,7 @@ func (r *RoutineEquipPlanner) step(call, epoch context.Context) (RoutineEquipRes
 	if observed == nil {
 		return RoutineEquipResult{}, ErrControl
 	}
-	if _, err = boundaryContext(observed.Context, state.Snapshot); err != nil {
+	if _, err = boundary.Context(observed.Context, state.Snapshot); err != nil {
 		return RoutineEquipResult{}, ErrControl
 	}
 	counts := observed.Completeness
@@ -133,14 +134,14 @@ func (r *RoutineEquipPlanner) step(call, epoch context.Context) (RoutineEquipRes
 	if err != nil {
 		return RoutineEquipResult{}, err
 	}
-	if _, err = boundaryContext(bounds.Context, state.Snapshot); err != nil || bounds.Bounds.Width <= 0 || bounds.Bounds.Height <= 0 {
+	if _, err = boundary.Context(bounds.Context, state.Snapshot); err != nil || bounds.Bounds.Width <= 0 || bounds.Bounds.Height <= 0 {
 		return RoutineEquipResult{}, ErrControl
 	}
 	weapons, _, err := r.native.ReadEquipWeapons(call, identity, domain.Cell{X: 0, Z: 0}, domain.Cell{X: bounds.Bounds.Width - 1, Z: bounds.Bounds.Height - 1})
 	if err != nil {
 		return RoutineEquipResult{}, err
 	}
-	if _, err = boundaryContext(weapons.Context, state.Snapshot); err != nil {
+	if _, err = boundary.Context(weapons.Context, state.Snapshot); err != nil {
 		return RoutineEquipResult{}, ErrControl
 	}
 	var candidates []policy.EquipCandidateWeapon
@@ -187,8 +188,8 @@ func (r *RoutineEquipPlanner) step(call, epoch context.Context) (RoutineEquipRes
 }
 
 func equipCandidatePawnFacts(row *n.PawnState) policy.EquipCandidatePawn {
-	facts := policy.EquipCandidatePawn{Pawn: domain.PawnID(row.Pawn.GetId()), Dead: draftBool(row.Dead), Downed: draftBool(row.Downed), Drafted: draftBool(row.Drafted), MentalState: draftPresence(row.MentalState, row.Issues, "mental_state")}
-	if biography := row.Biography; biography != nil && !meleeIssue(biography.Issues, "disabled_work_tags") {
+	facts := policy.EquipCandidatePawn{Pawn: domain.PawnID(row.Pawn.GetId()), Dead: boundary.FactBool(row.Dead), Downed: boundary.FactBool(row.Downed), Drafted: boundary.FactBool(row.Drafted), MentalState: boundary.FactPresence(row.MentalState, row.Issues, "mental_state")}
+	if biography := row.Biography; biography != nil && !boundary.IssueField(biography.Issues, "disabled_work_tags") {
 		capable := true
 		for _, tag := range biography.DisabledWorkTags {
 			if tag == "Violent" {
@@ -197,7 +198,7 @@ func equipCandidatePawnFacts(row *n.PawnState) policy.EquipCandidatePawn {
 		}
 		facts.IncapableOfViolence = domain.Known(!capable)
 	}
-	if equipment := row.Equipment; equipment != nil && equipment.Armed != nil && !meleeIssue(equipment.Issues, "armed") {
+	if equipment := row.Equipment; equipment != nil && equipment.Armed != nil && !boundary.IssueField(equipment.Issues, "armed") {
 		facts.Armed = domain.Known(equipment.GetArmed())
 	}
 	return facts

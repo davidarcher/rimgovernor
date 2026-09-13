@@ -3,6 +3,7 @@ package buildingruntime
 import (
 	"context"
 	"errors"
+	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/boundary"
 	"testing"
 	"time"
 
@@ -83,7 +84,7 @@ func (c *sequenceCompetingClock) Now() time.Time {
 		c.before = nil
 		f()
 	}
-	return (boundaryClock{}).Now()
+	return (boundary.FixedClock{}).Now()
 }
 func TestClockSequenceCASConflictWaitsForNextStep(t *testing.T) {
 	t.Parallel()

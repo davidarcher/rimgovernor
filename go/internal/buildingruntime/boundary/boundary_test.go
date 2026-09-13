@@ -1,0 +1,253 @@
+package boundary
+
+import (
+	"context"
+	"errors"
+	"path/filepath"
+	"testing"
+	"time"
+
+	"github.com/davidarcher/RimGovernor/go/internal/bridge"
+	"github.com/davidarcher/RimGovernor/go/internal/domain"
+	"github.com/davidarcher/RimGovernor/go/internal/executor"
+	"github.com/davidarcher/RimGovernor/go/internal/policy"
+	"github.com/davidarcher/RimGovernor/go/internal/store"
+	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
+	r "github.com/davidarcher/RimGovernor/go/internal/wire/receiptspb"
+	"google.golang.org/protobuf/proto"
+)
+
+func TestBoundaryInspectionNativeContextAndCompleteHolds(t *testing.T) {
+	t.Parallel()
+	b, f := NewFixture(t)
+	out, err := b.Inspect(context.Background(), executor.Target{Action: f.Placement.Action, Snapshot: f.Placement.Snapshot})
+	if err != nil || !out.ExternalHoldsComplete || out.Tick != 11 {
+		t.Fatal(err)
+	}
+	if !policy.EvaluateEmergency(out.Emergency, out.Current, out.Tick).Clear || f.Emergencies != 1 {
+		t.Fatal("newer native emergency tick did not bind to preview")
+	}
+	for _, change := range []func(*Fixture){func(f *Fixture) { f.Bounds.Context.Identity.LoadToken = proto.String("other") }, func(f *Fixture) { f.Bounds.Context.NativeGeneration = nil }, func(f *Fixture) { f.Bounds.Context.Tick = proto.Int64(12) }, func(f *Fixture) { f.Preview.Stock.Tick = 12 }, func(f *Fixture) { f.HoldErr = errors.New("incomplete catalog") }} {
+		b, f := NewFixture(t)
+		change(f)
+		if out, err := b.Inspect(context.Background(), executor.Target{Action: f.Placement.Action, Snapshot: f.Placement.Snapshot}); err == nil || out.ExternalHoldsComplete {
+			t.Fatal("unsafe inspection marked complete")
+		}
+	}
+}
+
+func TestBoundaryEmergencyContextRefusals(t *testing.T) {
+	t.Parallel()
+	for name, change := range map[string]func(*Fixture){
+		"colony":             func(f *Fixture) { f.Emergency.Context.Identity.ColonyId = proto.String("other") },
+		"map":                func(f *Fixture) { f.Emergency.Context.Identity.MapId = proto.Int32(2) },
+		"load":               func(f *Fixture) { f.Emergency.Context.Identity.LoadToken = proto.String("other") },
+		"missing generation": func(f *Fixture) { f.Emergency.Context.NativeGeneration = nil },
+		"changed generation": func(f *Fixture) { f.Emergency.Context.NativeGeneration = proto.Uint64(2) },
+		"missing tick":       func(f *Fixture) { f.Emergency.Context.Tick = nil },
+		"regressed tick":     func(f *Fixture) { f.Emergency.Context.Tick = proto.Int64(10) },
+		"missing context":    func(f *Fixture) { f.Emergency.Context = nil },
+		"unavailable":        func(f *Fixture) { f.EmergencyErr = bridge.ErrUnavailable },
+		"malformed facts":    func(f *Fixture) { f.Emergency.Facts.Colonists[0].ID = "" },
+	} {
+		t.Run(name, func(t *testing.T) {
+			b, f := NewFixture(t)
+			change(f)
+			out, err := b.Inspect(context.Background(), executor.Target{Action: f.Placement.Action, Snapshot: f.Placement.Snapshot})
+			if err == nil || out.ExternalHoldsComplete || f.Places != 0 {
+				t.Fatal("invalid emergency context authorized inspection", err)
+			}
+		})
+	}
+}
+
+type boundaryAdvancingClock struct{ now time.Time }
+
+func (c *boundaryAdvancingClock) Now() time.Time { return c.now }
+func TestBoundaryEmergencyGatesBothAdmissionsWithoutWrites(t *testing.T) {
+	t.Parallel()
+	for _, mode := range []string{"danger", "missing health", "unknown census", "second read danger", "delayed read"} {
+		t.Run(mode, func(t *testing.T) {
+			ctx := context.Background()
+			b, f := NewFixture(t)
+			clock := &boundaryAdvancingClock{now: time.Unix(100, 0)}
+			b.Clock = clock
+			db, err := store.Open(ctx, filepath.Join(t.TempDir(), "state.sqlite"))
+			if err != nil {
+				t.Fatal(err)
+			}
+			defer db.Close()
+			plan, err := domain.NewPlan("plan", 1, []domain.Action{f.Placement.Action})
+			if err != nil {
+				t.Fatal(err)
+			}
+			if err = db.CreatePlan(ctx, plan); err != nil {
+				t.Fatal(err)
+			}
+			f.Preview.Preview.CanPlace = domain.Known(true)
+			f.Preview.Preview.SafeToPlace = domain.Known(true)
+			f.Preview.Preview.MadeFromStuff = domain.Known(false)
+			f.Preview.Preview.Costs = domain.Known([]policy.Amount{})
+			f.Preview.Preview.Footprint = domain.Known([]domain.Cell{{X: 1, Z: 2}})
+			danger := func() {
+				f.Emergency.Facts.Threats = []policy.EmergencyThreat{{ID: "raider", Kind: policy.Hostile, Dead: domain.Known(false), Downed: domain.Known(false)}}
+			}
+			switch mode {
+			case "danger":
+				danger()
+			case "missing health":
+				f.Emergency.Facts.Colonists[0].NeedsTend = domain.Unknown[bool]()
+			case "unknown census":
+				f.Emergency.Facts.ThreatsComplete = domain.Unknown[bool]()
+			case "second read danger":
+				f.EmergencyHook = func() {
+					if f.Emergencies == 2 {
+						danger()
+					}
+				}
+			case "delayed read":
+				f.EmergencyHook = func() { clock.now = clock.now.Add(2 * time.Second) }
+			}
+			e, err := executor.New(db, b, clock, executor.Limits{MaxAge: time.Second, RunTimeout: time.Second, JournalTimeout: time.Second})
+			if err != nil {
+				t.Fatal(err)
+			}
+			defer e.Stop(ctx)
+			if err = e.UpdateAuthority(executor.Authority{Snapshot: f.Placement.Snapshot, Enabled: true}); err != nil {
+				t.Fatal(err)
+			}
+			result, err := e.Run(ctx, "plan", "action")
+			if !errors.Is(err, executor.ErrHeld) || result.NativeCalled || f.Places != 0 {
+				t.Fatal("emergency admitted write", result, err)
+			}
+			state, err := db.LoadPlan(ctx, "plan")
+			if err != nil {
+				t.Fatal(err)
+			}
+			if mode == "second read danger" {
+				if f.Emergencies != 2 || len(state.Admissions) != 1 {
+					t.Fatal("prepared reservation was not retained", f.Emergencies, state)
+				}
+			} else if len(state.Admissions) != 0 {
+				t.Fatal("held work was prepared")
+			}
+		})
+	}
+}
+func TestBoundaryPlacementLeaseAndFailureKinds(t *testing.T) {
+	t.Parallel()
+	b, f := NewFixture(t)
+	out, err := b.Place(context.Background(), f.Placement)
+	if err != nil || out.Kind != domain.ReceiptUnknown || f.Places != 1 || f.LastPre.GetLeaseId() != "lease" {
+		t.Fatal(err)
+	}
+	b, f = NewFixture(t)
+	f.LeaseErr = executor.ErrAuthority
+	if out, err = b.Place(context.Background(), f.Placement); err == nil || out.Kind != domain.ReceiptUnknown || f.Places != 0 {
+		t.Fatal("lease error dispatched")
+	}
+	b, f = NewFixture(t)
+	f.PlaceErr = &bridge.NativeFailure{Value: &c.Failure{Code: c.FailureCode_FAILURE_CODE_AUTHORITY_REQUIRED.Enum()}}
+	if out, err = b.Place(context.Background(), f.Placement); err != nil || out.Kind != domain.ReceiptRefused {
+		t.Fatal(err)
+	}
+	b, f = NewFixture(t)
+	f.PlaceErr = &bridge.Refusal{}
+	if out, err = b.Place(context.Background(), f.Placement); err == nil || out.Kind != domain.ReceiptUnknown {
+		t.Fatal("SDK refusal inferred no effect")
+	}
+	b, f = NewFixture(t)
+	f.Receipt.AuthorizingOwner.PlayerDirection = proto.Uint64(2)
+	if out, err = b.Place(context.Background(), f.Placement); err == nil || out.Kind != domain.ReceiptUnknown {
+		t.Fatal("wrong direction accepted")
+	}
+	b, f = NewFixture(t)
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+	if _, err = b.Place(ctx, f.Placement); !errors.Is(err, context.Canceled) || f.Places != 0 {
+		t.Fatal("cancelled placement dispatched")
+	}
+}
+func TestBoundaryRestartReadsWithoutLeaseAndChecksCompletion(t *testing.T) {
+	t.Parallel()
+	b, f := NewFixture(t)
+	f.LeaseErr = executor.ErrAuthority
+	current := f.Placement.Snapshot
+	current.Direction = 2
+	current.Native = 2
+	f.Progress.Context.NativeGeneration = proto.Uint64(2)
+	out, err := b.Observe(context.Background(), f.Placement, current)
+	if err != nil || out.Observation.Effect != domain.EffectCompleted || !out.Complete || out.Observation.Causality != domain.AfterDispatch || f.Leases != 0 || f.Places != 0 || f.Lookups != 1 || f.Observes != 1 {
+		t.Fatal("restart reconciliation failed", err)
+	}
+	nativeIdentity := f.Progress.GetCompleted().Evidence.GetConstruction()
+	if out.Observation.Construction == nil || out.Observation.Construction.Origin != nativeIdentity.GetOriginThingId() || out.Observation.Construction.Current != nativeIdentity.GetCurrentThingId() {
+		t.Fatal("native completion identities discarded", out.Observation)
+	}
+	b, f = NewFixture(t)
+	f.Unknown = true
+	out, err = b.Observe(context.Background(), f.Placement, f.Placement.Snapshot)
+	if err == nil || out.Observation.Effect != domain.EffectUnknown || f.Places != 0 || f.Observes != 0 {
+		t.Fatal("unknown lookup retried/inferredabsence")
+	}
+	for _, change := range []func(*Fixture){func(f *Fixture) { f.Progress.CompleteInspection = nil }, func(f *Fixture) { f.Progress.Context.Tick = proto.Int64(9) }, func(f *Fixture) { f.Progress.Context.NativeGeneration = nil }, func(f *Fixture) { f.Progress.Attempt.AttemptId = proto.Uint64(2) }, func(f *Fixture) {
+		f.Progress.GetCompleted().Evidence.GetConstruction().DefName = proto.String("Door")
+	}, func(f *Fixture) { f.Receipt.AuthorizingOwner.PlayerDirection = proto.Uint64(2) }} {
+		b, f := NewFixture(t)
+		change(f)
+		if _, err := b.Observe(context.Background(), f.Placement, f.Placement.Snapshot); err == nil {
+			t.Fatal("unsafe completion accepted")
+		}
+	}
+}
+
+func TestRepeatedPendingAndRestartKeepImmutableAdmissionTick(t *testing.T) {
+	t.Parallel()
+	b, f := NewFixture(t)
+	completed := proto.Clone(f.Progress).(*r.Progress)
+	pending := proto.Clone(completed.GetCompleted().Evidence).(*r.EffectEvidence)
+	pending.GetConstruction().Stage = r.ConstructionStage_CONSTRUCTION_STAGE_FRAME.Enum()
+	f.Progress.Effect = &r.Progress_Pending{Pending: &r.PendingEffect{Evidence: pending}}
+	f.Progress.Context.Tick = proto.Int64(11)
+	first, err := b.Observe(context.Background(), f.Placement, f.Placement.Snapshot)
+	if err != nil || first.Observation.Effect != domain.EffectPending || !first.Observation.ConstructionObserved {
+		t.Fatal(err)
+	}
+	f.Placement.Tick = first.Observation.Tick
+	f.Progress.Context.Tick = proto.Int64(12)
+	second, err := b.Observe(context.Background(), f.Placement, f.Placement.Snapshot)
+	if err != nil || second.Observation.Effect != domain.EffectPending {
+		t.Fatal("second pending lost admission", err)
+	}
+	// Recreate the boundary, as after restart, with only the journal's latest tick.
+	f.Placement.Tick = second.Observation.Tick
+	b, err = NewBoundary(f, f, f, f, FixedClock{}, "session", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	f.Progress = completed
+	f.Progress.Context.Tick = proto.Int64(13)
+	final, err := b.Observe(context.Background(), f.Placement, f.Placement.Snapshot)
+	if err != nil || final.Observation.Effect != domain.EffectCompleted || f.Receipt.AdmittedContext.GetTick() != 10 {
+		t.Fatal("restart completion lost immutable receipt", err)
+	}
+	f.Progress.Context.Tick = proto.Int64(11)
+	if _, err = b.Observe(context.Background(), f.Placement, f.Placement.Snapshot); err == nil {
+		t.Fatal("regressing observation accepted")
+	}
+	// Initial dispatch still cannot accept an admission predating its inspection.
+	f.Placement.Tick = 11
+	if _, err = b.Place(context.Background(), f.Placement); err == nil {
+		t.Fatal("old admission accepted for initial placement")
+	}
+}
+
+func TestAttemptConflictDoesNotProveNoEffect(t *testing.T) {
+	t.Parallel()
+	b, f := NewFixture(t)
+	f.PlaceErr = &bridge.NativeFailure{Value: &c.Failure{Code: c.FailureCode_FAILURE_CODE_ATTEMPT_CONFLICT.Enum()}}
+	out, err := b.Place(context.Background(), f.Placement)
+	if err == nil || out.Kind != domain.ReceiptUnknown {
+		t.Fatal("existing attempt conflict released uncertainty", err)
+	}
+}

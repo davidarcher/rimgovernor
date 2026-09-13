@@ -12,6 +12,19 @@ import (
 
 	"github.com/davidarcher/RimGovernor/go/internal/bridge"
 	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime"
+	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/acquisition"
+	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/bill"
+	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/boundary"
+	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/draft"
+	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/equip"
+	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/haul"
+	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/melee"
+	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/ranged"
+	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/rescue"
+	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/supply"
+	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/tend"
+	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/work"
+	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/zone"
 	"github.com/davidarcher/RimGovernor/go/internal/controller"
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"github.com/davidarcher/RimGovernor/go/internal/executor"
@@ -21,24 +34,24 @@ import (
 )
 
 type buildingServiceBridge struct {
-	bills       *buildingruntime.BillCapabilities
+	bills       *bill.BillCapabilities
 	reads       serviceBridge
-	native      buildingruntime.Native
+	native      boundary.Native
 	authority   buildingruntime.NativeAuthority
-	writes      buildingruntime.BuildingWriter
-	acquisition *buildingruntime.AcquisitionCapabilities
-	zones       *buildingruntime.ZoneCapabilities
-	work        *buildingruntime.WorkCapabilities
-	supplies    *buildingruntime.SupplyCapabilities
-	draft       *buildingruntime.DraftCapabilities
+	writes      boundary.BuildingWriter
+	acquisition *acquisition.AcquisitionCapabilities
+	zones       *zone.ZoneCapabilities
+	work        *work.WorkCapabilities
+	supplies    *supply.SupplyCapabilities
+	draft       *draft.DraftCapabilities
 	clock       *buildingruntime.ClockCapabilities
 	clockReads  serviceClockReads
-	melee       *buildingruntime.MeleeCapabilities
-	ranged      *buildingruntime.RangedCapabilities
-	tend        *buildingruntime.TendCapabilities
-	rescue      *buildingruntime.RescueCapabilities
-	equip       *buildingruntime.EquipCapabilities
-	haul        *buildingruntime.HaulCapabilities
+	melee       *melee.MeleeCapabilities
+	ranged      *ranged.RangedCapabilities
+	tend        *tend.TendCapabilities
+	rescue      *rescue.RescueCapabilities
+	equip       *equip.EquipCapabilities
+	haul        *haul.HaulCapabilities
 	gearReplace *buildingruntime.GearReplaceCapabilities
 }
 type buildingServiceOpener func(context.Context, bridge.ProcessConfig) (buildingServiceBridge, error)
@@ -80,11 +93,11 @@ func openBuildingService(ctx context.Context, config bridge.ProcessConfig) (buil
 	if err != nil {
 		return buildingServiceBridge{}, errors.Join(err, client.Close())
 	}
-	acquisition, err := bridge.NewAcquisitionControl(client)
+	acquisitionWriter, err := bridge.NewAcquisitionControl(client)
 	if err != nil {
 		return buildingServiceBridge{}, errors.Join(err, client.Close())
 	}
-	work, err := bridge.NewWorkControl(client)
+	workWriter, err := bridge.NewWorkControl(client)
 	if err != nil {
 		return buildingServiceBridge{}, errors.Join(err, client.Close())
 	}
@@ -105,19 +118,19 @@ func openBuildingService(ctx context.Context, config bridge.ProcessConfig) (buil
 		return buildingServiceBridge{}, errors.Join(err, client.Close())
 	}
 	return buildingServiceBridge{reads: client, native: client, authority: ownedAuthority{client, authority}, writes: writes,
-		bills:       &buildingruntime.BillCapabilities{Native: client, Writer: bills},
-		zones:       &buildingruntime.ZoneCapabilities{Native: client, Writer: zones},
-		acquisition: &buildingruntime.AcquisitionCapabilities{Native: client, Writer: acquisition},
-		work:        &buildingruntime.WorkCapabilities{Native: client, Writer: work},
-		supplies:    &buildingruntime.SupplyCapabilities{Native: client, Writer: supplies},
+		bills:       &bill.BillCapabilities{Native: client, Writer: bills},
+		zones:       &zone.ZoneCapabilities{Native: client, Writer: zones},
+		acquisition: &acquisition.AcquisitionCapabilities{Native: client, Writer: acquisitionWriter},
+		work:        &work.WorkCapabilities{Native: client, Writer: workWriter},
+		supplies:    &supply.SupplyCapabilities{Native: client, Writer: supplies},
 		clock:       &buildingruntime.ClockCapabilities{Native: client, Writer: clock}, clockReads: client,
-		draft:       &buildingruntime.DraftCapabilities{Native: client, Writer: drafts, Cleanup: cleanup},
-		melee:       &buildingruntime.MeleeCapabilities{Native: client, Writer: attack},
-		ranged:      &buildingruntime.RangedCapabilities{Native: client, Writer: attack},
-		tend:        &buildingruntime.TendCapabilities{Native: client, Writer: pawnOrder},
-		rescue:      &buildingruntime.RescueCapabilities{Native: client, Writer: pawnOrder},
-		equip:       &buildingruntime.EquipCapabilities{Native: client, Writer: pawnOrder},
-		haul:        &buildingruntime.HaulCapabilities{Native: client, Writer: pawnOrder},
+		draft:       &draft.DraftCapabilities{Native: client, Writer: drafts, Cleanup: cleanup},
+		melee:       &melee.MeleeCapabilities{Native: client, Writer: attack},
+		ranged:      &ranged.RangedCapabilities{Native: client, Writer: attack},
+		tend:        &tend.TendCapabilities{Native: client, Writer: pawnOrder},
+		rescue:      &rescue.RescueCapabilities{Native: client, Writer: pawnOrder},
+		equip:       &equip.EquipCapabilities{Native: client, Writer: pawnOrder},
+		haul:        &haul.HaulCapabilities{Native: client, Writer: pawnOrder},
 		gearReplace: &buildingruntime.GearReplaceCapabilities{Native: client, Writer: gearReplace}}, nil
 }
 
@@ -231,71 +244,71 @@ func serveBuildingWithBridge(ctx context.Context, config serveConfig, out io.Wri
 		clockCapabilities = client.clock
 		callTimeout = min(callTimeout, 5*time.Second)
 	}
-	var supplyCapabilities *buildingruntime.SupplyCapabilities
+	var supplyCapabilities *supply.SupplyCapabilities
 	if config.routineSupplyPlans {
 		if client.supplies == nil {
 			return errors.New("supply plans require typed supply capabilities")
 		}
 		supplyCapabilities = client.supplies
 	}
-	var billCapabilities *buildingruntime.BillCapabilities
+	var billCapabilities *bill.BillCapabilities
 	if config.routineBillPlans {
 		if client.bills == nil {
 			return errors.New("bill plans require typed capabilities")
 		}
 		billCapabilities = client.bills
 	}
-	var zoneCapabilities *buildingruntime.ZoneCapabilities
+	var zoneCapabilities *zone.ZoneCapabilities
 	if config.routineFieldPlans || config.routineFoodStoragePlans {
 		if client.zones == nil {
 			return errors.New("field and food storage plans require typed capabilities")
 		}
 		zoneCapabilities = client.zones
 	}
-	var acquisitionCapabilities *buildingruntime.AcquisitionCapabilities
+	var acquisitionCapabilities *acquisition.AcquisitionCapabilities
 	if config.routineAcquisitionPlans {
 		if client.acquisition == nil {
 			return errors.New("acquisition plans require typed capabilities")
 		}
 		acquisitionCapabilities = client.acquisition
 	}
-	var workCapabilities *buildingruntime.WorkCapabilities
+	var workCapabilities *work.WorkCapabilities
 	if config.routineWorkPlans {
 		if client.work == nil {
 			return errors.New("work plans require typed settings capabilities")
 		}
 		workCapabilities = client.work
 	}
-	var meleeCapabilities *buildingruntime.MeleeCapabilities
-	var rangedCapabilities *buildingruntime.RangedCapabilities
+	var meleeCapabilities *melee.MeleeCapabilities
+	var rangedCapabilities *ranged.RangedCapabilities
 	if config.routineDefensePlans {
 		if client.melee == nil || client.ranged == nil {
 			return errors.New("defense plans require typed melee and ranged capabilities")
 		}
 		meleeCapabilities, rangedCapabilities = client.melee, client.ranged
 	}
-	var tendCapabilities *buildingruntime.TendCapabilities
+	var tendCapabilities *tend.TendCapabilities
 	if config.routineTendPlans {
 		if client.tend == nil {
 			return errors.New("tend plans require typed capabilities")
 		}
 		tendCapabilities = client.tend
 	}
-	var rescueCapabilities *buildingruntime.RescueCapabilities
+	var rescueCapabilities *rescue.RescueCapabilities
 	if config.routineRescuePlans {
 		if client.rescue == nil {
 			return errors.New("rescue plans require typed capabilities")
 		}
 		rescueCapabilities = client.rescue
 	}
-	var equipCapabilities *buildingruntime.EquipCapabilities
+	var equipCapabilities *equip.EquipCapabilities
 	if config.routineEquipPlans {
 		if client.equip == nil {
 			return errors.New("equip plans require typed capabilities")
 		}
 		equipCapabilities = client.equip
 	}
-	var haulCapabilities *buildingruntime.HaulCapabilities
+	var haulCapabilities *haul.HaulCapabilities
 	if config.routineSecureSuppliesPlans {
 		if client.haul == nil {
 			return errors.New("secure supplies plans require typed haul capabilities")

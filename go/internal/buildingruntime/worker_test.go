@@ -3,6 +3,7 @@ package buildingruntime
 import (
 	"context"
 	"errors"
+	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/boundary"
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
 	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
 	"google.golang.org/protobuf/proto"
@@ -264,11 +265,11 @@ func TestWorkerRealSessionReopensUncertainAttemptWithoutAcquire(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer func() { db.Close() }()
-	_, fixture := newBoundaryFixture(t)
+	_, fixture := boundary.NewFixture(t)
 	native := sessionNative{fixture}
 	authority := &controlNative{generation: 1}
 	config := SessionConfig{Control: ControlConfig{ProfileDirectory: dir, LeaseDuration: time.Second, CallTimeout: time.Second}, Executor: executor.Limits{MaxAge: time.Second, RunTimeout: time.Second, JournalTimeout: time.Second}}
-	session, err := NewSession(ctx, config, db, native, authority, native, boundaryClock{})
+	session, err := NewSession(ctx, config, db, native, authority, native, boundary.FixedClock{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -293,33 +294,33 @@ func TestWorkerRealSessionReopensUncertainAttemptWithoutAcquire(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	fixture.preview.Preview.Action = action
-	fixture.preview.Preview.Snapshot = current
-	fixture.preview.Stock.Snapshot = current
-	fixture.preview.Preview.CanPlace = domain.Known(true)
-	fixture.preview.Preview.SafeToPlace = domain.Known(true)
-	fixture.preview.Preview.MadeFromStuff = domain.Known(true)
-	fixture.preview.Preview.Costs = domain.Known([]policy.Amount{{Resource: "WoodLog", Count: 1}})
-	fixture.preview.Preview.Footprint = domain.Known([]domain.Cell{building.Cell()})
-	fixture.preview.Stock.Values = []policy.Stock{{Resource: "WoodLog", Available: domain.Known(int64(5))}}
-	fixture.bounds.Context.NativeGeneration = proto.Uint64(uint64(current.Native))
-	fixture.emergency.Context.NativeGeneration = proto.Uint64(uint64(current.Native))
-	fixture.receipt.AdmittedContext.NativeGeneration = proto.Uint64(uint64(current.Native))
-	fixture.receipt.AdmittedContext.Tick = proto.Int64(11)
-	fixture.receipt.Attempt.ControllerSessionId = proto.String(string(namespace))
-	fixture.receipt.Attempt.ActionId = proto.String(string(action.ID()))
-	fixture.receipt.AuthorizingOwner.ControllerSessionId = proto.String(string(namespace))
-	fixture.progress.Attempt = proto.Clone(fixture.receipt.Attempt).(*c.AttemptKey)
+	fixture.Preview.Preview.Action = action
+	fixture.Preview.Preview.Snapshot = current
+	fixture.Preview.Stock.Snapshot = current
+	fixture.Preview.Preview.CanPlace = domain.Known(true)
+	fixture.Preview.Preview.SafeToPlace = domain.Known(true)
+	fixture.Preview.Preview.MadeFromStuff = domain.Known(true)
+	fixture.Preview.Preview.Costs = domain.Known([]policy.Amount{{Resource: "WoodLog", Count: 1}})
+	fixture.Preview.Preview.Footprint = domain.Known([]domain.Cell{building.Cell()})
+	fixture.Preview.Stock.Values = []policy.Stock{{Resource: "WoodLog", Available: domain.Known(int64(5))}}
+	fixture.Bounds.Context.NativeGeneration = proto.Uint64(uint64(current.Native))
+	fixture.Emergency.Context.NativeGeneration = proto.Uint64(uint64(current.Native))
+	fixture.Receipt.AdmittedContext.NativeGeneration = proto.Uint64(uint64(current.Native))
+	fixture.Receipt.AdmittedContext.Tick = proto.Int64(11)
+	fixture.Receipt.Attempt.ControllerSessionId = proto.String(string(namespace))
+	fixture.Receipt.Attempt.ActionId = proto.String(string(action.ID()))
+	fixture.Receipt.AuthorizingOwner.ControllerSessionId = proto.String(string(namespace))
+	fixture.Progress.Attempt = proto.Clone(fixture.Receipt.Attempt).(*c.AttemptKey)
 	w := &Worker{player: player, session: session, config: WorkerConfig{StepInterval: time.Millisecond, MaxBackoff: time.Second, StepTimeout: time.Second}, waits: make(map[domain.ActionID]workerWait)}
-	fixture.placeErr = &bridge.NativeFailure{Value: &c.Failure{Code: c.FailureCode_FAILURE_CODE_AUTHORITY_REQUIRED.Enum()}}
+	fixture.PlaceErr = &bridge.NativeFailure{Value: &c.Failure{Code: c.FailureCode_FAILURE_CODE_AUTHORITY_REQUIRED.Enum()}}
 	if err = w.step(ctx, time.Now()); err != nil {
 		t.Fatal(err)
 	}
 	if err = w.step(ctx, time.Now().Add(time.Second)); err != nil {
 		t.Fatal(err)
 	}
-	if fixture.places != 1 {
-		t.Fatal("same activation retried known refusal", fixture.places)
+	if fixture.Places != 1 {
+		t.Fatal("same activation retried known refusal", fixture.Places)
 	}
 	request.RequestID = "acquire-again"
 	request.ExpectedDirection = current.Direction
@@ -327,20 +328,20 @@ func TestWorkerRealSessionReopensUncertainAttemptWithoutAcquire(t *testing.T) {
 		t.Fatal(err)
 	}
 	current = session.State().Snapshot
-	fixture.preview.Preview.Snapshot = current
-	fixture.preview.Stock.Snapshot = current
-	fixture.bounds.Context.NativeGeneration = proto.Uint64(uint64(current.Native))
-	fixture.emergency.Context.NativeGeneration = proto.Uint64(uint64(current.Native))
-	fixture.receipt.AdmittedContext.NativeGeneration = proto.Uint64(uint64(current.Native))
-	fixture.receipt.Attempt.AttemptId = proto.Uint64(2)
-	fixture.receipt.AuthorizingOwner.PlayerDirection = proto.Uint64(uint64(current.Direction))
-	fixture.progress.Attempt = proto.Clone(fixture.receipt.Attempt).(*c.AttemptKey)
-	fixture.placeErr = nil
+	fixture.Preview.Preview.Snapshot = current
+	fixture.Preview.Stock.Snapshot = current
+	fixture.Bounds.Context.NativeGeneration = proto.Uint64(uint64(current.Native))
+	fixture.Emergency.Context.NativeGeneration = proto.Uint64(uint64(current.Native))
+	fixture.Receipt.AdmittedContext.NativeGeneration = proto.Uint64(uint64(current.Native))
+	fixture.Receipt.Attempt.AttemptId = proto.Uint64(2)
+	fixture.Receipt.AuthorizingOwner.PlayerDirection = proto.Uint64(uint64(current.Direction))
+	fixture.Progress.Attempt = proto.Clone(fixture.Receipt.Attempt).(*c.AttemptKey)
+	fixture.PlaceErr = nil
 	if err = w.step(ctx, time.Now().Add(2*time.Second)); err != nil {
 		t.Fatal(err)
 	}
-	if fixture.places != 2 {
-		t.Fatal("new explicit direction did not permit one retry", fixture.places)
+	if fixture.Places != 2 {
+		t.Fatal("new explicit direction did not permit one retry", fixture.Places)
 	}
 	if err = player.Close(ctx); err != nil {
 		t.Fatal(err)
@@ -352,7 +353,7 @@ func TestWorkerRealSessionReopensUncertainAttemptWithoutAcquire(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	session, err = NewSession(ctx, config, db, native, authority, native, boundaryClock{})
+	session, err = NewSession(ctx, config, db, native, authority, native, boundary.FixedClock{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -366,8 +367,8 @@ func TestWorkerRealSessionReopensUncertainAttemptWithoutAcquire(t *testing.T) {
 	if err != nil || record.Phase != store.GrantedControl || player.State().Enabled {
 		t.Fatal(record, err)
 	}
-	fixture.progress.Context.NativeGeneration = proto.Uint64(uint64(current.Native) + 1)
-	fixture.progress.Context.Tick = proto.Int64(12)
+	fixture.Progress.Context.NativeGeneration = proto.Uint64(uint64(current.Native) + 1)
+	fixture.Progress.Context.Tick = proto.Int64(12)
 	w.player, w.session = player, session
 	if err = w.step(ctx, time.Now().Add(time.Second)); err != nil {
 		t.Fatal(err)
@@ -376,8 +377,8 @@ func TestWorkerRealSessionReopensUncertainAttemptWithoutAcquire(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if plan.Progress[0].View().Stage != domain.Completed || fixture.places != 2 || authority.acquires.Load() != 2 {
-		t.Fatal(plan.Progress[0].View(), fixture.places, authority.acquires.Load())
+	if plan.Progress[0].View().Stage != domain.Completed || fixture.Places != 2 || authority.acquires.Load() != 2 {
+		t.Fatal(plan.Progress[0].View(), fixture.Places, authority.acquires.Load())
 	}
 }
 

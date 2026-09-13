@@ -3,6 +3,7 @@ package buildingruntime
 import (
 	"context"
 	"errors"
+	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/boundary"
 	"path/filepath"
 	"testing"
 	"time"
@@ -138,16 +139,16 @@ func TestSessionDisableSynchronouslyInvalidatesBlockedRun(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer journal.Close()
-	_, fixture := newBoundaryFixture(t)
-	plan, err := domain.NewPlan("plan", 1, []domain.Action{fixture.placement.Action})
+	_, fixture := boundary.NewFixture(t)
+	plan, err := domain.NewPlan("plan", 1, []domain.Action{fixture.Placement.Action})
 	if err != nil {
 		t.Fatal(err)
 	}
 	if err = journal.CreatePlan(ctx, plan); err != nil {
 		t.Fatal(err)
 	}
-	boundary := stateBlockedInspection{entered: make(chan struct{})}
-	worker, err := executor.New(journal, boundary, boundaryClock{}, executor.Limits{MaxAge: time.Second, RunTimeout: 5 * time.Second, JournalTimeout: time.Second})
+	blocked := stateBlockedInspection{entered: make(chan struct{})}
+	worker, err := executor.New(journal, blocked, boundary.FixedClock{}, executor.Limits{MaxAge: time.Second, RunTimeout: 5 * time.Second, JournalTimeout: time.Second})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -164,7 +165,7 @@ func TestSessionDisableSynchronouslyInvalidatesBlockedRun(t *testing.T) {
 	}
 	done := make(chan error, 1)
 	go func() { _, err := session.Run(ctx, "plan", "action"); done <- err }()
-	<-boundary.entered
+	<-blocked.entered
 	if err = session.Disable(); err != nil {
 		t.Fatal(err)
 	}

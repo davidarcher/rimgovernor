@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/boundary"
 	"path/filepath"
 	"sync"
 	"sync/atomic"
@@ -362,9 +363,9 @@ func TestPlayerActualSessionCleansPriorOwnedLeaseAndRejectsForeignOwner(t *testi
 		t.Fatal(err)
 	}
 	defer db.Close()
-	_, native := newBoundaryFixture(t)
+	_, native := boundary.NewFixture(t)
 	authority := &controlNative{generation: 1}
-	session, err := NewSession(ctx, SessionConfig{Control: ControlConfig{ProfileDirectory: dir, LeaseDuration: time.Second, CallTimeout: time.Second}, Executor: executor.Limits{MaxAge: time.Second, RunTimeout: time.Second, JournalTimeout: time.Second}}, db, native, authority, native, boundaryClock{})
+	session, err := NewSession(ctx, SessionConfig{Control: ControlConfig{ProfileDirectory: dir, LeaseDuration: time.Second, CallTimeout: time.Second}, Executor: executor.Limits{MaxAge: time.Second, RunTimeout: time.Second, JournalTimeout: time.Second}}, db, native, authority, native, boundary.FixedClock{})
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime"
+	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/boundary"
 	"github.com/davidarcher/RimGovernor/go/internal/executor"
 	"github.com/davidarcher/RimGovernor/go/internal/store"
 	"path/filepath"
@@ -13,11 +14,11 @@ import (
 )
 
 // Any accidental native call panics: submission must use only fresh world and journal.
-type draftUnusedNative struct{ buildingruntime.Native }
+type draftUnusedNative struct{ boundary.Native }
 type draftUnusedAuthority struct {
 	buildingruntime.NativeAuthority
 }
-type draftUnusedWriter struct{ buildingruntime.BuildingWriter }
+type draftUnusedWriter struct{ boundary.BuildingWriter }
 type draftHTTPClock struct{}
 
 func (draftHTTPClock) Now() time.Time { return time.Now() }

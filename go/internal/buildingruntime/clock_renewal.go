@@ -5,6 +5,7 @@ import (
 	"errors"
 
 	"github.com/davidarcher/RimGovernor/go/internal/bridge"
+	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/boundary"
 	"github.com/davidarcher/RimGovernor/go/internal/executor"
 	"github.com/davidarcher/RimGovernor/go/internal/store"
 	k "github.com/davidarcher/RimGovernor/go/internal/wire/clockpb"
@@ -73,7 +74,7 @@ func (s *ClockScheduler) RenewEpoch(ctx context.Context) (ClockRenewResult, erro
 		return out, s.renewalHold(err)
 	}
 	current := identity.GetLoaded().GetContext()
-	if _, err = boundaryContext(current, state.Snapshot); err != nil {
+	if _, err = boundary.Context(current, state.Snapshot); err != nil {
 		return out, s.renewalHold(err)
 	}
 	// Only the currently retained nonterminal epoch can block renewal recovery.
@@ -98,7 +99,7 @@ func (s *ClockScheduler) RenewEpoch(ctx context.Context) (ClockRenewResult, erro
 	if err = bridge.ValidateClockStatus(status, current.Identity); err != nil {
 		return out, s.renewalHold(err)
 	}
-	if _, err = boundaryContext(status.Context, state.Snapshot); err != nil {
+	if _, err = boundary.Context(status.Context, state.Snapshot); err != nil {
 		return out, s.renewalHold(err)
 	}
 	// A completed finite window needs event review and scheduler cleanup, not a
@@ -174,7 +175,7 @@ func (s *ClockScheduler) RenewEpoch(ctx context.Context) (ClockRenewResult, erro
 			latest, _, readErr := s.native.ReadClockStatus(call, current.Identity)
 			observed := latest.GetStatus()
 			if readErr == nil && bridge.ValidateClockStatus(observed, current.Identity) == nil {
-				_, scopeErr := boundaryContext(observed.Context, state.Snapshot)
+				_, scopeErr := boundary.Context(observed.Context, state.Snapshot)
 				if scopeErr == nil && clockBudgetFinished(observed, original) && observed.Context.GetTick() >= status.Context.GetTick() && call.Err() == nil && s.session.State() == state {
 					return out, nil
 				}

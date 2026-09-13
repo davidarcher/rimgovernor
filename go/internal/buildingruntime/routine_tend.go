@@ -6,6 +6,8 @@ import (
 	"fmt"
 
 	"github.com/davidarcher/RimGovernor/go/internal/bridge"
+	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/boundary"
+	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/tend"
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
 	"github.com/davidarcher/RimGovernor/go/internal/store"
@@ -81,12 +83,12 @@ func (r *RoutineTendPlanner) step(call, epoch context.Context) (RoutineTendResul
 		}
 	}
 	started := r.reviewer.clock.Now()
-	identity := boundaryIdentity(state.Snapshot)
+	identity := boundary.Identity(state.Snapshot)
 	emergency, _, err := r.native.ReadEmergency(call, identity)
 	if err != nil {
 		return RoutineTendResult{}, err
 	}
-	if _, err = boundaryContext(emergency.Context, state.Snapshot); err != nil || emergency.Context.GetTick() < int64(review.Tick) {
+	if _, err = boundary.Context(emergency.Context, state.Snapshot); err != nil || emergency.Context.GetTick() < int64(review.Tick) {
 		return RoutineTendResult{}, ErrControl
 	}
 	complete, known := emergency.Facts.ColonistsComplete.Value()
@@ -105,7 +107,7 @@ func (r *RoutineTendPlanner) step(call, epoch context.Context) (RoutineTendResul
 	if observed == nil {
 		return RoutineTendResult{}, ErrControl
 	}
-	if _, err = boundaryContext(observed.Context, state.Snapshot); err != nil {
+	if _, err = boundary.Context(observed.Context, state.Snapshot); err != nil {
 		return RoutineTendResult{}, ErrControl
 	}
 	counts := observed.Completeness
@@ -121,8 +123,8 @@ func (r *RoutineTendPlanner) step(call, epoch context.Context) (RoutineTendResul
 		}
 		seen[row.Pawn.GetId()] = true
 		pawn := domain.PawnID(row.Pawn.GetId())
-		doctors = append(doctors, tendDoctorFacts(pawn, row, ""))
-		patients = append(patients, tendPatientFacts(pawn, row, ""))
+		doctors = append(doctors, tend.NewTendDoctorFacts(pawn, row, ""))
+		patients = append(patients, tend.NewTendPatientFacts(pawn, row, ""))
 	}
 	doctor, patient, ok := policy.SelectTend(doctors, patients)
 	if !ok {

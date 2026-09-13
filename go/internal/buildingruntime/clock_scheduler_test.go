@@ -2,6 +2,7 @@ package buildingruntime
 
 import (
 	"context"
+	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/boundary"
 	"testing"
 	"time"
 
@@ -35,7 +36,7 @@ func schedulerFixture(t *testing.T) (*ClockScheduler, *schedulerNative) {
 		t.Fatal(err)
 	}
 	native := &schedulerNative{f, policy.EmergencyFacts{ColonistsComplete: domain.Known(true), ThreatsComplete: domain.Known(true)}}
-	scheduler, err := NewClockScheduler(p, s, native, ClockSchedulerConfig{Profile: profile, Start: *intent.Command.Start, MaxAge: time.Second}, boundaryClock{})
+	scheduler, err := NewClockScheduler(p, s, native, ClockSchedulerConfig{Profile: profile, Start: *intent.Command.Start, MaxAge: time.Second}, boundary.FixedClock{})
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -6,6 +6,19 @@ import (
 	"sync"
 	"time"
 
+	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/acquisition"
+	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/bill"
+	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/boundary"
+	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/draft"
+	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/equip"
+	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/haul"
+	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/melee"
+	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/ranged"
+	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/rescue"
+	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/supply"
+	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/tend"
+	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/work"
+	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/zone"
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"github.com/davidarcher/RimGovernor/go/internal/executor"
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
@@ -13,23 +26,23 @@ import (
 )
 
 type SessionConfig struct {
-	Bills          *BillCapabilities
-	Zones          *ZoneCapabilities
-	Work           *WorkCapabilities
-	Acquisition    *AcquisitionCapabilities
-	Supplies       *SupplyCapabilities
+	Bills          *bill.BillCapabilities
+	Zones          *zone.ZoneCapabilities
+	Work           *work.WorkCapabilities
+	Acquisition    *acquisition.AcquisitionCapabilities
+	Supplies       *supply.SupplyCapabilities
 	RoutineMethods bool
 	Control        ControlConfig
 	Executor       executor.Limits
 	Rules          []policy.ResourceRule
-	Draft          *DraftCapabilities
+	Draft          *draft.DraftCapabilities
 	Clock          *ClockCapabilities
-	Melee          *MeleeCapabilities
-	Haul           *HaulCapabilities
-	Ranged         *RangedCapabilities
-	Tend           *TendCapabilities
-	Rescue         *RescueCapabilities
-	Equip          *EquipCapabilities
+	Melee          *melee.MeleeCapabilities
+	Haul           *haul.HaulCapabilities
+	Ranged         *ranged.RangedCapabilities
+	Tend           *tend.TendCapabilities
+	Rescue         *rescue.RescueCapabilities
+	Equip          *equip.EquipCapabilities
 	GearReplace    *GearReplaceCapabilities
 	Repair         *RepairCapabilities
 }
@@ -165,7 +178,7 @@ func (s sessionHolds) Holds(ctx context.Context, current domain.GenerationSnapsh
 	return executor.ExternalHolds(ctx, s.journal, current)
 }
 
-func NewSession(ctx context.Context, config SessionConfig, journal *store.Store, native Native, authority NativeAuthority, writer BuildingWriter, clock executor.Clock) (*Session, error) {
+func NewSession(ctx context.Context, config SessionConfig, journal *store.Store, native boundary.Native, authority NativeAuthority, writer boundary.BuildingWriter, clock executor.Clock) (*Session, error) {
 	if journal == nil || native == nil || authority == nil || writer == nil || clock == nil {
 		return nil, errors.New("building session dependencies required")
 	}
@@ -191,14 +204,14 @@ func NewSession(ctx context.Context, config SessionConfig, journal *store.Store,
 	if err != nil {
 		return nil, err
 	}
-	var draft *DraftBoundary
+	var draftBoundary *draft.DraftBoundary
 	if config.Draft != nil {
-		draft, err = NewDraftBoundary(config.Draft.Native, config.Draft.Writer, config.Draft.Cleanup, lazyRoutineLeases{sink, journal, config.RoutineMethods, config.Executor.JournalTimeout}, clock, string(namespace))
+		draftBoundary, err = draft.NewDraftBoundary(config.Draft.Native, config.Draft.Writer, config.Draft.Cleanup, lazyRoutineLeases{sink, journal, config.RoutineMethods, config.Executor.JournalTimeout}, clock, string(namespace))
 		if err != nil {
 			return nil, err
 		}
 		if config.Control.Worlds == nil {
-			config.Control.Worlds = draft
+			config.Control.Worlds = draftBoundary
 		}
 	}
 	config.Control.StopWrites = sink.stop
@@ -218,23 +231,23 @@ func NewSession(ctx context.Context, config SessionConfig, journal *store.Store,
 	sink.mu.Lock()
 	sink.control = control
 	sink.mu.Unlock()
-	boundary, err := NewBoundary(native, writer, sessionBuildingLeases{control, journal, config.RoutineMethods, config.Executor.JournalTimeout}, sessionHolds{journal}, clock, string(namespace), config.Rules)
+	place, err := boundary.NewBoundary(native, writer, sessionBuildingLeases{control, journal, config.RoutineMethods, config.Executor.JournalTimeout}, sessionHolds{journal}, clock, string(namespace), config.Rules)
 	if err != nil {
 		return cleanup(err)
 	}
-	var melee *MeleeBoundary
+	var meleeBoundary *melee.MeleeBoundary
 	if config.Melee != nil {
-		melee, err = NewMeleeBoundary(config.Melee.Native, config.Melee.Writer, sessionBuildingLeases{control, journal, config.RoutineMethods, config.Executor.JournalTimeout}, clock, string(namespace))
+		meleeBoundary, err = melee.NewMeleeBoundary(config.Melee.Native, config.Melee.Writer, sessionBuildingLeases{control, journal, config.RoutineMethods, config.Executor.JournalTimeout}, clock, string(namespace))
 		if err != nil {
 			return cleanup(err)
 		}
 	}
-	var ranged *RangedAttackBoundary
+	var rangedBoundary *ranged.RangedAttackBoundary
 	if config.Ranged != nil {
 		if config.Ranged.Native == nil || config.Ranged.Writer == nil {
 			return cleanup(ErrControl)
 		}
-		ranged, err = NewRangedBoundary(config.Ranged.Native, config.Ranged.Writer, sessionBuildingLeases{control, journal, config.RoutineMethods, config.Executor.JournalTimeout}, clock, string(namespace))
+		rangedBoundary, err = ranged.NewRangedBoundary(config.Ranged.Native, config.Ranged.Writer, sessionBuildingLeases{control, journal, config.RoutineMethods, config.Executor.JournalTimeout}, clock, string(namespace))
 		if err != nil {
 			return cleanup(err)
 		}
@@ -278,16 +291,16 @@ func NewSession(ctx context.Context, config SessionConfig, journal *store.Store,
 		routine = append(routine, journal)
 	}
 	switch {
-	case melee != nil && ranged != nil:
-		worker, err = executor.NewWithMeleeAndRanged(journal, boundary, draft, melee, ranged, clock, config.Executor, routine...)
-	case melee != nil:
-		worker, err = executor.NewWithMelee(journal, boundary, draft, melee, clock, config.Executor, routine...)
-	case ranged != nil:
-		worker, err = executor.NewWithRanged(journal, boundary, draft, ranged, clock, config.Executor, routine...)
-	case draft != nil:
-		worker, err = executor.NewWithDraft(journal, boundary, draft, clock, config.Executor, routine...)
+	case meleeBoundary != nil && rangedBoundary != nil:
+		worker, err = executor.NewWithMeleeAndRanged(journal, place, draftBoundary, meleeBoundary, rangedBoundary, clock, config.Executor, routine...)
+	case meleeBoundary != nil:
+		worker, err = executor.NewWithMelee(journal, place, draftBoundary, meleeBoundary, clock, config.Executor, routine...)
+	case rangedBoundary != nil:
+		worker, err = executor.NewWithRanged(journal, place, draftBoundary, rangedBoundary, clock, config.Executor, routine...)
+	case draftBoundary != nil:
+		worker, err = executor.NewWithDraft(journal, place, draftBoundary, clock, config.Executor, routine...)
 	default:
-		worker, err = executor.New(journal, boundary, clock, config.Executor, routine...)
+		worker, err = executor.New(journal, place, clock, config.Executor, routine...)
 	}
 	if err != nil {
 		return cleanup(err)
@@ -297,32 +310,32 @@ func NewSession(ctx context.Context, config SessionConfig, journal *store.Store,
 	// executor.New to discover by type assertion — see executor.EnableAcquisition
 	// for why the composed-value approach was unsafe.
 	if config.Supplies != nil {
-		if err := worker.EnableSupply(&supplyBoundary{Boundary: boundary, supply: *config.Supplies}); err != nil {
+		if err := worker.EnableSupply(supply.NewSupplyBoundary(place, *config.Supplies)); err != nil {
 			return cleanup(err)
 		}
 	}
 	if config.Work != nil {
-		if err := worker.EnableWork(&workBoundary{Boundary: boundary, work: *config.Work}); err != nil {
+		if err := worker.EnableWork(work.NewWorkBoundary(place, *config.Work)); err != nil {
 			return cleanup(err)
 		}
 	}
 	if config.Acquisition != nil {
-		if err := worker.EnableAcquisition(&acquisitionBoundary{Boundary: boundary, acquisition: *config.Acquisition}); err != nil {
+		if err := worker.EnableAcquisition(acquisition.NewAcquisitionBoundary(place, *config.Acquisition)); err != nil {
 			return cleanup(err)
 		}
 	}
 	if config.Zones != nil {
-		if err := worker.EnableZone(&zoneBoundary{Boundary: boundary, zone: *config.Zones, journal: journal}); err != nil {
+		if err := worker.EnableZone(zone.NewZoneBoundary(place, *config.Zones, journal)); err != nil {
 			return cleanup(err)
 		}
 	}
 	if config.Bills != nil {
-		if err := worker.EnableBill(&billBoundary{Boundary: boundary, bill: *config.Bills}); err != nil {
+		if err := worker.EnableBill(bill.NewBillBoundary(place, *config.Bills)); err != nil {
 			return cleanup(err)
 		}
 	}
 	if config.Haul != nil {
-		haulBoundary, err := NewHaulBoundary(config.Haul.Native, config.Haul.Writer, sessionBuildingLeases{control, journal, config.RoutineMethods, config.Executor.JournalTimeout}, clock, string(namespace))
+		haulBoundary, err := haul.NewHaulBoundary(config.Haul.Native, config.Haul.Writer, sessionBuildingLeases{control, journal, config.RoutineMethods, config.Executor.JournalTimeout}, clock, string(namespace))
 		if err != nil {
 			return cleanup(err)
 		}
@@ -331,7 +344,7 @@ func NewSession(ctx context.Context, config SessionConfig, journal *store.Store,
 		}
 	}
 	if config.Tend != nil {
-		tendBoundary, err := NewTendBoundary(config.Tend.Native, config.Tend.Writer, sessionBuildingLeases{control, journal, config.RoutineMethods, config.Executor.JournalTimeout}, clock, string(namespace))
+		tendBoundary, err := tend.NewTendBoundary(config.Tend.Native, config.Tend.Writer, sessionBuildingLeases{control, journal, config.RoutineMethods, config.Executor.JournalTimeout}, clock, string(namespace))
 		if err != nil {
 			return cleanup(err)
 		}
@@ -340,7 +353,7 @@ func NewSession(ctx context.Context, config SessionConfig, journal *store.Store,
 		}
 	}
 	if config.Rescue != nil {
-		rescueBoundary, err := NewRescueBoundary(config.Rescue.Native, config.Rescue.Writer, sessionBuildingLeases{control, journal, config.RoutineMethods, config.Executor.JournalTimeout}, clock, string(namespace))
+		rescueBoundary, err := rescue.NewRescueBoundary(config.Rescue.Native, config.Rescue.Writer, sessionBuildingLeases{control, journal, config.RoutineMethods, config.Executor.JournalTimeout}, clock, string(namespace))
 		if err != nil {
 			return cleanup(err)
 		}
@@ -349,7 +362,7 @@ func NewSession(ctx context.Context, config SessionConfig, journal *store.Store,
 		}
 	}
 	if config.Equip != nil {
-		equipBoundary, err := NewEquipBoundary(config.Equip.Native, config.Equip.Writer, sessionBuildingLeases{control, journal, config.RoutineMethods, config.Executor.JournalTimeout}, clock, string(namespace))
+		equipBoundary, err := equip.NewEquipBoundary(config.Equip.Native, config.Equip.Writer, sessionBuildingLeases{control, journal, config.RoutineMethods, config.Executor.JournalTimeout}, clock, string(namespace))
 		if err != nil {
 			return cleanup(err)
 		}
@@ -376,7 +389,7 @@ func NewSession(ctx context.Context, config SessionConfig, journal *store.Store,
 		}
 	}
 	var drafts *draftSweep
-	if draft != nil {
+	if draftBoundary != nil {
 		drafts = &draftSweep{journal: journal, executor: worker, gate: make(chan struct{}, 1), timeout: config.Control.CallTimeout}
 	}
 	var coordinator *ClockCoordinator

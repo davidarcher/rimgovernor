@@ -7,6 +7,7 @@ import (
 	"sort"
 
 	"github.com/davidarcher/RimGovernor/go/internal/bridge"
+	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/boundary"
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
 	"github.com/davidarcher/RimGovernor/go/internal/store"
@@ -82,12 +83,12 @@ func (r *RoutineDefensePlanner) step(call, epoch context.Context) (RoutineDefens
 		}
 	}
 	started := r.reviewer.clock.Now()
-	identity := boundaryIdentity(state.Snapshot)
+	identity := boundary.Identity(state.Snapshot)
 	emergency, _, err := r.native.ReadEmergency(call, identity)
 	if err != nil {
 		return RoutineDefenseResult{}, err
 	}
-	if _, err = boundaryContext(emergency.Context, state.Snapshot); err != nil || emergency.Context.GetTick() < int64(review.Tick) {
+	if _, err = boundary.Context(emergency.Context, state.Snapshot); err != nil || emergency.Context.GetTick() < int64(review.Tick) {
 		return RoutineDefenseResult{}, ErrControl
 	}
 	colonistsComplete, ck := emergency.Facts.ColonistsComplete.Value()
@@ -126,7 +127,7 @@ func (r *RoutineDefensePlanner) step(call, epoch context.Context) (RoutineDefens
 	if observed == nil {
 		return RoutineDefenseResult{}, ErrControl
 	}
-	if _, err = boundaryContext(observed.Context, state.Snapshot); err != nil {
+	if _, err = boundary.Context(observed.Context, state.Snapshot); err != nil {
 		return RoutineDefenseResult{}, ErrControl
 	}
 	counts := observed.Completeness

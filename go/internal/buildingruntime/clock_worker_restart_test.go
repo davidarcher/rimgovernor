@@ -3,6 +3,7 @@ package buildingruntime
 import (
 	"context"
 	"errors"
+	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/boundary"
 	"path/filepath"
 	"testing"
 	"time"
@@ -32,7 +33,7 @@ func TestClockWorkerDisabledRestart(t *testing.T) {
 			var lostRenewID string
 			// Seed through the real command journal before acquiring any Session
 			// profile owner. Stopping this core joins calls but does not erase debt.
-			core, err := NewClockCoordinator(db, fake, fake, fixture.leases, boundaryClock{}, fixture.config)
+			core, err := NewClockCoordinator(db, fake, fake, fixture.leases, boundary.FixedClock{}, fixture.config)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -90,7 +91,7 @@ func TestClockWorkerDisabledRestart(t *testing.T) {
 			t.Cleanup(func() { _ = player.Close(context.Background()) })
 			source := &schedulerNative{fake, policy.EmergencyFacts{ColonistsComplete: domain.Known(true), ThreatsComplete: domain.Known(true)}}
 			native := &joinedClockNative{source: source, started: make(chan struct{}), paused: make(chan struct{}), captured: make(chan struct{})}
-			scheduler, err := NewClockScheduler(player, session, native, ClockSchedulerConfig{Profile: profile, Start: *intent.Command.Start, MaxAge: time.Second}, boundaryClock{})
+			scheduler, err := NewClockScheduler(player, session, native, ClockSchedulerConfig{Profile: profile, Start: *intent.Command.Start, MaxAge: time.Second}, boundary.FixedClock{})
 			if err != nil {
 				t.Fatal(err)
 			}

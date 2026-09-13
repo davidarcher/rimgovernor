@@ -8,6 +8,7 @@ import (
 	"sort"
 
 	"github.com/davidarcher/RimGovernor/go/internal/bridge"
+	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/boundary"
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"github.com/davidarcher/RimGovernor/go/internal/observation"
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
@@ -157,7 +158,7 @@ func (r *RoutineFoodStoragePlanner) step(call, epoch context.Context) (RoutineFo
 	if err != nil {
 		return RoutineFoodStorageResult{}, err
 	}
-	reply, _, err := r.native.PreviewZone(call, boundaryIdentity(snapshot), bridge.ZoneTarget{Zone: value, Token: token})
+	reply, _, err := r.native.PreviewZone(call, boundary.Identity(snapshot), bridge.ZoneTarget{Zone: value, Token: token})
 	if err != nil {
 		return RoutineFoodStorageResult{}, err
 	}
@@ -165,7 +166,7 @@ func (r *RoutineFoodStoragePlanner) step(call, epoch context.Context) (RoutineFo
 	if v == nil || !v.GetAccepted() {
 		return RoutineFoodStorageResult{Reason: BuildingMethodRefused}, nil
 	}
-	if _, err = boundaryContext(v.Context, snapshot); err != nil || domain.Tick(v.Context.GetTick()) != projection.Identity.Tick {
+	if _, err = boundary.Context(v.Context, snapshot); err != nil || domain.Tick(v.Context.GetTick()) != projection.Identity.Tick {
 		return RoutineFoodStorageResult{}, ErrControl
 	}
 	preview := policy.Preview{Action: action, Snapshot: snapshot, Tick: projection.Identity.Tick, CanPlace: domain.Known(true), SafeToPlace: domain.Known(true), MadeFromStuff: domain.Known(false), WatchCellsAccessible: domain.Known(true), Footprint: domain.Known(cells), Costs: domain.Known([]policy.Amount{})}

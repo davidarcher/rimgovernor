@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/davidarcher/RimGovernor/go/internal/bridge"
+	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/boundary"
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"github.com/davidarcher/RimGovernor/go/internal/observation"
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
@@ -178,7 +179,7 @@ func (r *RoutineFieldPlanner) step(call, epoch context.Context) (RoutineFieldRes
 		if err != nil {
 			return RoutineFieldResult{}, err
 		}
-		reply, _, err := r.native.PreviewZone(call, boundaryIdentity(snapshot), bridge.ZoneTarget{Zone: value, Token: token})
+		reply, _, err := r.native.PreviewZone(call, boundary.Identity(snapshot), bridge.ZoneTarget{Zone: value, Token: token})
 		if err != nil {
 			return RoutineFieldResult{}, err
 		}
@@ -186,7 +187,7 @@ func (r *RoutineFieldPlanner) step(call, epoch context.Context) (RoutineFieldRes
 		if v == nil || !v.GetAccepted() {
 			return RoutineFieldResult{Reason: BuildingMethodRefused}, nil
 		}
-		if _, err = boundaryContext(v.Context, snapshot); err != nil || domain.Tick(v.Context.GetTick()) != projection.Identity.Tick {
+		if _, err = boundary.Context(v.Context, snapshot); err != nil || domain.Tick(v.Context.GetTick()) != projection.Identity.Tick {
 			return RoutineFieldResult{}, ErrControl
 		}
 		actions = append(actions, action)
@@ -290,7 +291,7 @@ func (r *RoutineFieldPlanner) fieldAllowance(ctx context.Context, goal domain.Go
 			if token == "" {
 				continue
 			}
-			attempt := bridge.ZoneAttempt{Identity: boundaryIdentity(snapshot), Attempt: &c.AttemptKey{ControllerSessionId: proto.String(string(namespace)), ActionId: proto.String(string(v.Action)), AttemptId: proto.Uint64(uint64(v.Attempt))}, Owner: &a.Owner{ControllerSessionId: proto.String(string(namespace)), PlayerDirection: proto.Uint64(uint64(snapshot.Direction))}, Generation: uint64(snapshot.Native), Token: token, Zone: zone}
+			attempt := bridge.ZoneAttempt{Identity: boundary.Identity(snapshot), Attempt: &c.AttemptKey{ControllerSessionId: proto.String(string(namespace)), ActionId: proto.String(string(v.Action)), AttemptId: proto.Uint64(uint64(v.Attempt))}, Owner: &a.Owner{ControllerSessionId: proto.String(string(namespace)), PlayerDirection: proto.Uint64(uint64(snapshot.Direction))}, Generation: uint64(snapshot.Native), Token: token, Zone: zone}
 			lookup, _, err := native.LookupZone(ctx, attempt)
 			if err != nil {
 				return 0, err

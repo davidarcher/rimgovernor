@@ -3,6 +3,7 @@ package buildingruntime
 import (
 	"context"
 	"errors"
+	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/boundary"
 	"testing"
 	"time"
 
@@ -14,8 +15,8 @@ import (
 
 func newClockSessionTest(t *testing.T, db *store.Store, fake *clockCoreFake) (*Session, *controlNative, string) {
 	t.Helper()
-	_, fixture := newBoundaryFixture(t)
-	plan, err := domain.NewPlan("plan", 1, []domain.Action{fixture.placement.Action})
+	_, fixture := boundary.NewFixture(t)
+	plan, err := domain.NewPlan("plan", 1, []domain.Action{fixture.Placement.Action})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -26,7 +27,7 @@ func newClockSessionTest(t *testing.T, db *store.Store, fake *clockCoreFake) (*S
 	config := SessionConfig{Control: ControlConfig{ProfileDirectory: dir, LeaseDuration: time.Second, CallTimeout: time.Second}, Executor: executor.Limits{MaxAge: time.Second, RunTimeout: time.Second, JournalTimeout: time.Second}, Clock: &ClockCapabilities{Native: fake, Writer: fake}}
 	native := sessionNative{fixture}
 	authority := &controlNative{generation: 6}
-	s, err := NewSession(context.Background(), config, db, native, authority, native, boundaryClock{})
+	s, err := NewSession(context.Background(), config, db, native, authority, native, boundary.FixedClock{})
 	if err != nil {
 		t.Fatal(err)
 	}

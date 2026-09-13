@@ -17,6 +17,7 @@ import (
 
 	"github.com/davidarcher/RimGovernor/go/internal/bridge"
 	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime"
+	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/haul"
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"github.com/davidarcher/RimGovernor/go/internal/executor"
 	"github.com/davidarcher/RimGovernor/go/internal/observation"
@@ -333,7 +334,7 @@ func perform(opts options, out *report) (err error) {
 	}
 	native := &recordingNative{Client: client, AuthorityControl: authority, writer: pawnOrderWriter, records: &out.Calls}
 	owner, err = buildingruntime.NewSession(ctx, buildingruntime.SessionConfig{
-		Haul:     &buildingruntime.HaulCapabilities{Native: native, Writer: native},
+		Haul:     &haul.HaulCapabilities{Native: native, Writer: native},
 		Control:  buildingruntime.ControlConfig{ProfileDirectory: opts.profile, LeaseDuration: 30 * time.Second, CallTimeout: 20 * time.Second},
 		Executor: executor.Limits{MaxAge: 20 * time.Second, RunTimeout: 60 * time.Second, JournalTimeout: 5 * time.Second},
 	}, journal, native, native, buildingWriter, realClock{})

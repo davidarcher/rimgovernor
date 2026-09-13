@@ -49,15 +49,15 @@ func TestWorkerActualDraftSessionReleasesDisabledStandalone(t *testing.T) {
 		t.Fatal(err)
 	}
 	cleanup, _ := after.Progress[0].View().DraftCleanup.Value()
-	if cleanup.Stage != domain.DraftReleased || native.releases != 1 || native.writes != 0 || after.Progress[0].View().Attempt != 1 {
-		t.Fatal(cleanup, native.releases, native.writes)
+	if cleanup.Stage != domain.DraftReleased || native.Releases != 1 || native.Writes != 0 || after.Progress[0].View().Attempt != 1 {
+		t.Fatal(cleanup, native.Releases, native.Writes)
 	}
 	for i := 1; i <= 3; i++ {
 		if err = worker.step(context.Background(), now.Add(time.Duration(i)*time.Second)); err != nil {
 			t.Fatal(err)
 		}
 	}
-	if native.releases != 1 || len(worker.waits) != 0 {
+	if native.Releases != 1 || len(worker.waits) != 0 {
 		t.Fatal("terminal cleanup polled again")
 	}
 	authority := session.control.native.(*controlNative)
@@ -80,8 +80,8 @@ func TestWorkerActualDraftSessionRecoversUnknownBeforeRelease(t *testing.T) {
 	}
 	cleanup, _ := state.Progress[0].View().DraftCleanup.Value()
 	claim, known := cleanup.Claim.Value()
-	if !known || claim.Attempt != 1 || cleanup.Stage != domain.DraftCleanupRequired || native.releases != 0 || native.lookups != 1 {
-		t.Fatal("release preceded durable reconciliation", cleanup, native.releases, native.lookups)
+	if !known || claim.Attempt != 1 || cleanup.Stage != domain.DraftCleanupRequired || native.Releases != 0 || native.Lookups != 1 {
+		t.Fatal("release preceded durable reconciliation", cleanup, native.Releases, native.Lookups)
 	}
 	if err = worker.step(context.Background(), now.Add(worker.config.StepInterval)); err != nil {
 		t.Fatal(err)
@@ -92,14 +92,14 @@ func TestWorkerActualDraftSessionRecoversUnknownBeforeRelease(t *testing.T) {
 	}
 	cleanup, _ = state.Progress[0].View().DraftCleanup.Value()
 	retained, _ := cleanup.Claim.Value()
-	if cleanup.Stage != domain.DraftReleased || retained != claim || native.releases != 1 || native.writes != 0 {
-		t.Fatal(cleanup, native.releases, native.writes)
+	if cleanup.Stage != domain.DraftReleased || retained != claim || native.Releases != 1 || native.Writes != 0 {
+		t.Fatal(cleanup, native.Releases, native.Writes)
 	}
 	if err = worker.step(context.Background(), now.Add(time.Second)); err != nil {
 		t.Fatal(err)
 	}
 	authority := session.control.native.(*controlNative)
-	if native.releases != 1 || authority.acquires.Load() != 0 || authority.renews.Load() != 0 || authority.revokes.Load() != 0 || session.State().ObservationKnown {
+	if native.Releases != 1 || authority.acquires.Load() != 0 || authority.renews.Load() != 0 || authority.revokes.Load() != 0 || session.State().ObservationKnown {
 		t.Fatal("cleanup entered control target or reacquired")
 	}
 }
@@ -120,9 +120,9 @@ func TestWorkerActualDraftSessionRetiresReplacementWorldWithoutRelease(t *testin
 			}
 			original := before.Progress[0].View()
 			oldCleanup, _ := original.DraftCleanup.Value()
-			native.context.Identity.LoadToken = proto.String("replacement-load")
-			native.context.Tick = proto.Int64(0)
-			native.context.NativeGeneration = nil
+			native.Ctx.Identity.LoadToken = proto.String("replacement-load")
+			native.Ctx.Tick = proto.Int64(0)
+			native.Ctx.NativeGeneration = nil
 			if err = worker.step(context.Background(), time.Now()); err != nil {
 				t.Fatal(err)
 			}
@@ -139,8 +139,8 @@ func TestWorkerActualDraftSessionRetiresReplacementWorldWithoutRelease(t *testin
 			if v != original {
 				t.Fatal("original progress evidence changed")
 			}
-			if native.releases != 0 || native.writes != 0 || native.reads != 0 || native.lookups != 0 {
-				t.Fatal("called original world", native.releases, native.writes, native.reads, native.lookups)
+			if native.Releases != 0 || native.Writes != 0 || native.Reads != 0 || native.Lookups != 0 {
+				t.Fatal("called original world", native.Releases, native.Writes, native.Reads, native.Lookups)
 			}
 			authority := session.control.native.(*controlNative)
 			if authority.acquires.Load() != 0 || authority.renews.Load() != 0 || authority.revokes.Load() != 0 || session.State().Enabled || session.State().ObservationKnown {

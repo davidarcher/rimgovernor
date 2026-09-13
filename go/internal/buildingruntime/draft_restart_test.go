@@ -2,6 +2,8 @@ package buildingruntime
 
 import (
 	"context"
+	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/boundary"
+	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/draft"
 	"path/filepath"
 	"testing"
 	"time"
@@ -30,27 +32,30 @@ func TestDraftRestartPreservesPlayerReplacementThroughRealJournalAndExecutor(t *
 					t.Fatal(err)
 				}
 				defer func() { db.Close() }()
-				boundary, native := draftBoundaryFixture(t)
+				_, native := draft.NewFixture(t)
 				identity, err := db.Identity(ctx)
 				if err != nil {
 					t.Fatal(err)
 				}
 				session := string(identity)
-				boundary.session = session
-				native.receipt.Attempt.ControllerSessionId = proto.String(session)
-				native.receipt.AuthorizingOwner.ControllerSessionId = proto.String(session)
-				draftReceiptJob(native.receipt).DraftOwner = proto.String(session)
-				native.progress.Attempt.ControllerSessionId = proto.String(session)
-				native.progress.GetCompleted().GetEvidence().GetJob().DraftOwner = proto.String(session)
-				native.row.DraftClaim.GetOwned().Owner.ControllerSessionId = proto.String(session)
-				if replacement == "unowned" {
-					native.row.Drafted = proto.Bool(false)
-					native.row.DraftClaim = &n.DraftClaimObservation{State: &n.DraftClaimObservation_Unowned{Unowned: &n.NoOwnedDraftClaim{}}}
-				} else {
-					native.row.DraftClaim.GetOwned().ClaimId = proto.String("replacement-claim")
+				bound, err := draft.NewDraftBoundary(native, native, native, native, boundary.FixedClock{}, session)
+				if err != nil {
+					t.Fatal(err)
 				}
-				playerState := proto.Clone(native.row)
-				p := native.p
+				native.Receipt.Attempt.ControllerSessionId = proto.String(session)
+				native.Receipt.AuthorizingOwner.ControllerSessionId = proto.String(session)
+				boundary.ReceiptJob(native.Receipt).DraftOwner = proto.String(session)
+				native.Progress.Attempt.ControllerSessionId = proto.String(session)
+				native.Progress.GetCompleted().GetEvidence().GetJob().DraftOwner = proto.String(session)
+				native.Row.DraftClaim.GetOwned().Owner.ControllerSessionId = proto.String(session)
+				if replacement == "unowned" {
+					native.Row.Drafted = proto.Bool(false)
+					native.Row.DraftClaim = &n.DraftClaimObservation{State: &n.DraftClaimObservation_Unowned{Unowned: &n.NoOwnedDraftClaim{}}}
+				} else {
+					native.Row.DraftClaim.GetOwned().ClaimId = proto.String("replacement-claim")
+				}
+				playerState := proto.Clone(native.Row)
+				p := native.P
 				plan, err := domain.NewPlan(p.Snapshot.Plan, p.Snapshot.Revision, []domain.Action{p.Action})
 				if err != nil {
 					t.Fatal(err)
@@ -73,7 +78,7 @@ func TestDraftRestartPreservesPlayerReplacementThroughRealJournalAndExecutor(t *
 					if err != nil {
 						t.Fatal(err)
 					}
-					native.progress.Effect = &r.Progress_Unsuccessful{Unsuccessful: &r.UnsuccessfulEffect{Reason: r.UnsuccessfulReason_UNSUCCESSFUL_REASON_CANCELLED.Enum()}}
+					native.Progress.Effect = &r.Progress_Unsuccessful{Unsuccessful: &r.UnsuccessfulEffect{Reason: r.UnsuccessfulReason_UNSUCCESSFUL_REASON_CANCELLED.Enum()}}
 				}
 				before := progress.View()
 				if err = db.Close(); err != nil {
@@ -83,8 +88,8 @@ func TestDraftRestartPreservesPlayerReplacementThroughRealJournalAndExecutor(t *
 				if err != nil {
 					t.Fatal(err)
 				}
-				building, _ := newBoundaryFixture(t)
-				hands, err := executor.NewWithDraft(db, building, boundary, boundaryClock{}, executor.Limits{MaxAge: time.Second, RunTimeout: time.Second, JournalTimeout: time.Second})
+				building, _ := boundary.NewFixture(t)
+				hands, err := executor.NewWithDraft(db, building, bound, boundary.FixedClock{}, executor.Limits{MaxAge: time.Second, RunTimeout: time.Second, JournalTimeout: time.Second})
 				if err != nil {
 					t.Fatal(err)
 				}
@@ -109,7 +114,7 @@ func TestDraftRestartPreservesPlayerReplacementThroughRealJournalAndExecutor(t *
 				if terminal && after.Effect != before.Effect {
 					t.Fatal("terminal effect changed")
 				}
-				if native.writes != 0 || native.releases != 0 || native.leases != 0 || !proto.Equal(playerState, native.row) {
+				if native.Writes != 0 || native.Releases != 0 || native.Leases != 0 || !proto.Equal(playerState, native.Row) {
 					t.Fatal("restart cleanup changed player state or acquired permission")
 				}
 			})

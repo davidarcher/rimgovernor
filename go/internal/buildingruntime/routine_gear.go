@@ -6,6 +6,7 @@ import (
 	"fmt"
 
 	"github.com/davidarcher/RimGovernor/go/internal/bridge"
+	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/boundary"
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
 	"github.com/davidarcher/RimGovernor/go/internal/store"
@@ -136,7 +137,7 @@ func (r *RoutineGearPlanner) step(call, epoch context.Context) (RoutineGearResul
 		}
 	}
 	started := r.reviewer.clock.Now()
-	identity := boundaryIdentity(state.Snapshot)
+	identity := boundary.Identity(state.Snapshot)
 	reply, _, err := r.native.ReadColonyFacts(call, identity, true, nil)
 	if err != nil {
 		return RoutineGearResult{}, err
@@ -145,7 +146,7 @@ func (r *RoutineGearPlanner) step(call, epoch context.Context) (RoutineGearResul
 	if observed == nil {
 		return RoutineGearResult{}, ErrControl
 	}
-	if _, err = boundaryContext(observed.Context, state.Snapshot); err != nil || observed.Context.GetTick() < int64(review.Tick) {
+	if _, err = boundary.Context(observed.Context, state.Snapshot); err != nil || observed.Context.GetTick() < int64(review.Tick) {
 		return RoutineGearResult{}, ErrControl
 	}
 	gear := observed.GetPlanning().GetObserved().GetGear()

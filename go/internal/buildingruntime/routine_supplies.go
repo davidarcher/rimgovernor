@@ -5,6 +5,7 @@ import (
 	"crypto/sha256"
 	"fmt"
 	"github.com/davidarcher/RimGovernor/go/internal/bridge"
+	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/boundary"
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
 	"github.com/davidarcher/RimGovernor/go/internal/store"
@@ -83,11 +84,11 @@ func (r *RoutineSupplyPlanner) step(call, epoch context.Context) (RoutineSupplyR
 	started := r.reviewer.clock.Now()
 	var targets []domain.SupplyAllow
 	for _, cell := range review.StartingSupplies.Pending {
-		read, _, err := r.native.ReadAllowSupplies(call, boundaryIdentity(state.Snapshot), cell)
+		read, _, err := r.native.ReadAllowSupplies(call, boundary.Identity(state.Snapshot), cell)
 		if err != nil {
 			return RoutineSupplyResult{}, err
 		}
-		if _, err = boundaryContext(read.Context, state.Snapshot); err != nil || read.Context.GetTick() < int64(review.Tick) {
+		if _, err = boundary.Context(read.Context, state.Snapshot); err != nil || read.Context.GetTick() < int64(review.Tick) {
 			return RoutineSupplyResult{}, ErrControl
 		}
 		for _, target := range read.Targets {

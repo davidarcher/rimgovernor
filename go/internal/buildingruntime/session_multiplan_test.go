@@ -3,6 +3,7 @@ package buildingruntime
 import (
 	"context"
 	"errors"
+	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/boundary"
 	"path/filepath"
 	"testing"
 	"time"
@@ -24,8 +25,8 @@ func TestSessionOtherStoredPlanHoldSurvivesManualAndRestart(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer func() { journal.Close() }()
-	_, fixture := newBoundaryFixture(t)
-	planA, err := domain.NewPlan("plan", 1, []domain.Action{fixture.placement.Action})
+	_, fixture := boundary.NewFixture(t)
+	planA, err := domain.NewPlan("plan", 1, []domain.Action{fixture.Placement.Action})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -49,17 +50,17 @@ func TestSessionOtherStoredPlanHoldSurvivesManualAndRestart(t *testing.T) {
 	native := sessionNative{fixture}
 	authority := &controlNative{generation: 1}
 	config := SessionConfig{Control: ControlConfig{ProfileDirectory: dir, LeaseDuration: time.Second, CallTimeout: time.Second}, Executor: executor.Limits{MaxAge: time.Second, RunTimeout: time.Second, JournalTimeout: time.Second}}
-	session, err := NewSession(ctx, config, journal, native, authority, native, boundaryClock{})
+	session, err := NewSession(ctx, config, journal, native, authority, native, boundary.FixedClock{})
 	if err != nil {
 		t.Fatal(err)
 	}
 	defer func() { session.Close(ctx) }()
-	currentA, err := session.Acquire(ctx, fixture.placement.Snapshot)
+	currentA, err := session.Acquire(ctx, fixture.Placement.Snapshot)
 	if err != nil {
 		t.Fatal(err)
 	}
 	// A competing session cannot own the same profile while this lease is live.
-	competing, err := NewSession(ctx, config, journal, native, authority, native, boundaryClock{})
+	competing, err := NewSession(ctx, config, journal, native, authority, native, boundary.FixedClock{})
 	if err == nil {
 		competing.Close(ctx)
 		t.Fatal("concurrent runtime ownership allowed")
@@ -70,25 +71,25 @@ func TestSessionOtherStoredPlanHoldSurvivesManualAndRestart(t *testing.T) {
 	}
 	setPreview := func(action domain.Action, snapshot domain.GenerationSnapshot, cost int64) {
 		building, _ := action.Building()
-		fixture.preview.Preview.Action = action
-		fixture.preview.Preview.Snapshot = snapshot
-		fixture.preview.Stock.Snapshot = snapshot
-		fixture.preview.Preview.CanPlace = domain.Known(true)
-		fixture.preview.Preview.SafeToPlace = domain.Known(true)
-		fixture.preview.Preview.MadeFromStuff = domain.Known(true)
-		fixture.preview.Preview.Costs = domain.Known([]policy.Amount{{Resource: "WoodLog", Count: cost}})
-		fixture.preview.Preview.Footprint = domain.Known([]domain.Cell{building.Cell()})
-		fixture.preview.Stock.Values = []policy.Stock{{Resource: "WoodLog", Available: domain.Known(int64(5))}}
-		fixture.bounds.Context.NativeGeneration = proto.Uint64(uint64(snapshot.Native))
-		fixture.emergency.Context.NativeGeneration = proto.Uint64(uint64(snapshot.Native))
+		fixture.Preview.Preview.Action = action
+		fixture.Preview.Preview.Snapshot = snapshot
+		fixture.Preview.Stock.Snapshot = snapshot
+		fixture.Preview.Preview.CanPlace = domain.Known(true)
+		fixture.Preview.Preview.SafeToPlace = domain.Known(true)
+		fixture.Preview.Preview.MadeFromStuff = domain.Known(true)
+		fixture.Preview.Preview.Costs = domain.Known([]policy.Amount{{Resource: "WoodLog", Count: cost}})
+		fixture.Preview.Preview.Footprint = domain.Known([]domain.Cell{building.Cell()})
+		fixture.Preview.Stock.Values = []policy.Stock{{Resource: "WoodLog", Available: domain.Known(int64(5))}}
+		fixture.Bounds.Context.NativeGeneration = proto.Uint64(uint64(snapshot.Native))
+		fixture.Emergency.Context.NativeGeneration = proto.Uint64(uint64(snapshot.Native))
 	}
-	setPreview(fixture.placement.Action, currentA, 4)
-	fixture.receipt.AdmittedContext.NativeGeneration = proto.Uint64(uint64(currentA.Native))
-	fixture.receipt.AdmittedContext.Tick = proto.Int64(11)
-	fixture.receipt.Attempt.ControllerSessionId = proto.String(string(namespace))
-	fixture.receipt.AuthorizingOwner.ControllerSessionId = proto.String(string(namespace))
-	result, err := session.Run(ctx, planA.ID(), fixture.placement.Action.ID())
-	if err != nil || !result.NativeCalled || !result.Progress.View().Unresolved || fixture.places != 1 {
+	setPreview(fixture.Placement.Action, currentA, 4)
+	fixture.Receipt.AdmittedContext.NativeGeneration = proto.Uint64(uint64(currentA.Native))
+	fixture.Receipt.AdmittedContext.Tick = proto.Int64(11)
+	fixture.Receipt.Attempt.ControllerSessionId = proto.String(string(namespace))
+	fixture.Receipt.AuthorizingOwner.ControllerSessionId = proto.String(string(namespace))
+	result, err := session.Run(ctx, planA.ID(), fixture.Placement.Action.ID())
+	if err != nil || !result.NativeCalled || !result.Progress.View().Unresolved || fixture.Places != 1 {
 		t.Fatalf("A dispatch: %+v %v", result, err)
 	}
 	if err = session.Manual(ctx); err != nil {
@@ -114,7 +115,7 @@ func TestSessionOtherStoredPlanHoldSurvivesManualAndRestart(t *testing.T) {
 	if err != nil || restoredNamespace != namespace {
 		t.Fatal("restart changed journal namespace", err)
 	}
-	session, err = NewSession(ctx, config, journal, native, authority, native, boundaryClock{})
+	session, err = NewSession(ctx, config, journal, native, authority, native, boundary.FixedClock{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -130,7 +131,7 @@ func TestSessionOtherStoredPlanHoldSurvivesManualAndRestart(t *testing.T) {
 	}
 	setPreview(actionB, currentB, 2)
 	result, err = session.Run(ctx, planB.ID(), actionB.ID())
-	if !errors.Is(err, executor.ErrHeld) || result.NativeCalled || fixture.places != 1 {
+	if !errors.Is(err, executor.ErrHeld) || result.NativeCalled || fixture.Places != 1 {
 		t.Fatalf("B overspent durable A hold: %+v %v", result, err)
 	}
 	if len(result.Refused) != 1 || result.Refused[0].Reason != policy.InsufficientStock {
@@ -140,7 +141,7 @@ func TestSessionOtherStoredPlanHoldSurvivesManualAndRestart(t *testing.T) {
 		t.Fatal("unexpected authority sequence")
 	}
 	// No lookup or observation released A's uncertain effect during B admission.
-	if fixture.lookups != 0 || fixture.observes != 0 {
+	if fixture.Lookups != 0 || fixture.Observes != 0 {
 		t.Fatal("other plan was implicitly reconciled")
 	}
 	stateA, err := journal.LoadPlan(ctx, planA.ID())
