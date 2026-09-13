@@ -151,7 +151,12 @@ func (e *Executor) reconcileCaravanDeparture(ctx context.Context, result Result,
 	default:
 		return result, ErrEvidence
 	}
-	next, err := e.journal.Observe(ctx, v.Plan, o, current)
+	// A completed FormCaravan is the only point this vertical treats a
+	// crew as "away": ObserveCaravanDeparture records that completion and
+	// begins world-progression tracking in one commit, so no crash window
+	// can leave a completed departure with no tracking record for
+	// CaravanJourneyTracker to eventually reconcile.
+	next, err := e.caravanDepartureJournal.ObserveCaravanDeparture(ctx, v.Plan, o, current, evidence.CaravanID, evidence.Crew)
 	if err == nil {
 		result.Progress = next
 	}

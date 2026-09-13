@@ -13,6 +13,13 @@ import (
 type CaravanDepartureJournal interface {
 	Journal
 	PrepareCaravanDeparture(context.Context, domain.PlanID, domain.ActionID, store.CaravanDepartureAdmission) (domain.Progress, error)
+	// ObserveCaravanDeparture is Journal.Observe plus, atomically in the
+	// same commit, starting world-progression tracking for caravanID when
+	// the observation is a confirmed FormCaravan completion (caravanID ==
+	// "" for every other outcome, so no tracking is started). See
+	// buildingruntime.CaravanJourneyTracker for the polling/reconciliation
+	// side of this tracking.
+	ObserveCaravanDeparture(context.Context, domain.PlanID, domain.Observation, domain.GenerationSnapshot, string, []domain.PawnID) (domain.Progress, error)
 }
 
 type CaravanDepartureInspection struct {

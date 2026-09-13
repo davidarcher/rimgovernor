@@ -209,6 +209,9 @@ CREATE TABLE work_preference_requests(request_id TEXT PRIMARY KEY, payload BLOB 
 		if err = clock.InitializeCheckpoint(ctx, tx); err != nil {
 			return err
 		}
+		if err = initializeCaravanTracking(ctx, tx); err != nil {
+			return err
+		}
 		var entropy [32]byte
 		if _, err = tx.ExecContext(ctx, `CREATE TABLE control_intents(request_id TEXT PRIMARY KEY, kind TEXT NOT NULL, colony TEXT NOT NULL, load_token TEXT NOT NULL, map_id INTEGER NOT NULL, plan_id TEXT NOT NULL, revision TEXT NOT NULL, expected_direction TEXT NOT NULL, direction TEXT NOT NULL UNIQUE, phase TEXT NOT NULL, native_generation TEXT NOT NULL) STRICT`); err != nil {
 			return err
@@ -245,6 +248,9 @@ CREATE TABLE work_preference_requests(request_id TEXT PRIMARY KEY, payload BLOB 
 		return err
 	}
 	if err = clock.CheckCheckpointSchema(ctx, tx); err != nil {
+		return err
+	}
+	if err = checkCaravanTrackingSchema(ctx, tx); err != nil {
 		return err
 	}
 	// A matching version marker alone does not establish the expected tables.
@@ -1051,6 +1057,35 @@ func (s *Store) RecordReceipt(ctx context.Context, plan domain.PlanID, action do
 }
 func (s *Store) Observe(ctx context.Context, plan domain.PlanID, observation domain.Observation, current domain.GenerationSnapshot) (domain.Progress, error) {
 	return s.advance(ctx, plan, observation.Action, transition{Kind: "observe", Snapshot: current, Observation: observation})
+}
+
+// ObserveCaravanDeparture is Observe plus, atomically in the same
+// transaction, starting caravan-journey tracking when the observation is a
+// confirmed FormCaravan completion. Recording the completed departure and
+// beginning its return tracking in one commit means no crash window can
+// leave a completed departure with no tracking record, which a plain
+// Observe followed by a separate StartCaravanTracking call could not
+// guarantee (the action's progress moves to a terminal stage on Observe
+// alone, so a later failure to start tracking would never be retried).
+func (s *Store) ObserveCaravanDeparture(ctx context.Context, plan domain.PlanID, observation domain.Observation, current domain.GenerationSnapshot, caravanID string, crew []domain.PawnID) (domain.Progress, error) {
+	tx, err := s.begin(ctx)
+	if err != nil {
+		return domain.Progress{}, err
+	}
+	defer tx.Rollback()
+	next, err := advanceInTransaction(ctx, tx, plan, observation.Action, transition{Kind: "observe", Snapshot: current, Observation: observation})
+	if err != nil {
+		return domain.Progress{}, err
+	}
+	if observation.Effect == domain.EffectCompleted && caravanID != "" {
+		if err = startCaravanTrackingInTransaction(ctx, tx, caravanID, crew); err != nil {
+			return domain.Progress{}, err
+		}
+	}
+	if err = tx.Commit(); err != nil {
+		return domain.Progress{}, err
+	}
+	return next, nil
 }
 func (s *Store) Cancel(ctx context.Context, plan domain.PlanID, action domain.ActionID) (domain.Progress, error) {
 	return s.advance(ctx, plan, action, transition{Kind: "cancel"})

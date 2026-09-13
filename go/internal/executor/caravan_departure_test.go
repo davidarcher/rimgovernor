@@ -104,6 +104,12 @@ func TestCaravanDepartureAdmitsAndDispatches(t *testing.T) {
 	if err != nil || result.Progress.View().Stage != domain.Completed || n.dispatched != 1 {
 		t.Fatal(result, err, n.dispatched)
 	}
+	// A completed FormCaravan must begin caravan-journey tracking in the same
+	// commit as the completion observation; see store.ObserveCaravanDeparture.
+	active, err := f.store.ListActiveCaravanTracking(context.Background())
+	if err != nil || len(active) != 1 || active[0].CaravanID != "caravan-1" || len(active[0].Crew) != 2 {
+		t.Fatal(active, err)
+	}
 }
 
 func TestCaravanDepartureUnknownReplyReopensAndObservesAfterManual(t *testing.T) {

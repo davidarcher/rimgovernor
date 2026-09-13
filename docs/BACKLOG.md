@@ -1061,23 +1061,40 @@ b; exact worker cleanup by a, with reuse by their later consumers.
   possible from it. `dotnet build` and `go build/vet/test ./...` pass, including
   new bridge contract-shape tests (malformed-evidence table like
   `caravanCatalogSelected`'s) and policy unit tests for the classifier.
-  **Not yet verified:** no headless/native-acceptance run exercised any of this
-  against a live game (that requires the private Linux game/mods/GABS inputs
+  `ClassifyCaravanJourney` is now wired into a running tracker.
+  `store.CaravanTracking` (`caravan_tracking` table, schema version 47) records
+  one caravan RimGovernor confirmed departed; `Store.ObserveCaravanDeparture`
+  starts it atomically in the same commit as the `CaravanDeparture` action's
+  `EffectCompleted` observation (replacing the executor's plain `Observe` for
+  that boundary), so no crash window can complete a departure without also
+  starting its tracking. `buildingruntime.CaravanJourneyTracker` is a new
+  clock-scheduled planner (`ClockSchedulerConfig.CaravanJourney`, stepped
+  alongside `Recovery`/`Research` in `ClockScheduler.Step`) that reads
+  `ReadWorldProgression` + `ReadHomeColonists` each tick, classifies every
+  tracked caravan via `policy.ClassifyCaravanJourney`, and resolves
+  (`store.ResolveCaravanTracking`) only the ones it can prove
+  `CaravanJourneyReturnedHome`; `InFlight`/`Stopped`/`Unknown` are left
+  tracked and untouched. Reconciliation is deliberately just "mark resolved":
+  there is no separate crew claim to release (a departed crew already leaves
+  every home-scoped read on its own, and `ReadHomeColonists` picks it back up
+  automatically once returned), and returned cargo is ordinary home-map
+  inventory the existing haul/storage routines already scan for. The tracker
+  never calls a native write operation, so "no wrong-map writes" holds by
+  construction here, not by a runtime check. `go build/vet/test -p 1 ./...`
+  pass, including new store tests (idempotent/conflicting `StartCaravanTracking`,
+  `ResolveCaravanTracking` requiring an active record) and buildingruntime
+  tracker tests for the InFlight/Unknown/ReturnedHome cases.
+  **Not yet done:** `CaravanJourneyTracker` is not yet constructed/exposed by
+  any `cmd/rimgovernor` CLI flag (every other routine planner in that binary is
+  wired through `serve_clock.go`; this one is not yet), so nothing runs it
+  outside tests today. No headless/native-acceptance run exercised any of this
+  against a live game (requires the private Linux game/mods/GABS inputs
   `docker-native.md`/`world-progression.md` describe, not available in this
-  sandbox); only compile-time and Go-side contract-shape checks are done.
-  Native FormCaravan's own execute+observe still covers formation+departure
-  only — no in-flight tick tracking beyond "still exists and is
-  player-controlled" and no arrival/disbanding detection; that gap is now
-  answerable via `ReadWorldProgression`, but nothing wires
-  `ClassifyCaravanJourney` into a running boundary/routine yet: there is no
-  store record of "caravans currently away", no session/clock scheduling that
-  polls `ReadWorldProgression` for tracked caravans, and no reconciliation of
-  returned crew/cargo into home colony bookkeeping or the existing haul/storage
-  routines once `CaravanJourneyReturnedHome` fires. Still missing: that
-  routine/store wiring, reward/gift storage reconciliation, quests and rewards
-  (native census exists; no Go read/policy/store/executor), settlement gifts,
-  and failure recovery across multiple active maps, plus a real
-  native-acceptance run of all of the above.
+  sandbox); only compile-time and Go-side contract/unit checks are done.
+  Still missing: quests and rewards (native census exists; no Go
+  read/policy/store/executor), settlement gifts, and failure recovery across
+  multiple active maps, plus the `cmd/rimgovernor` wiring and native-acceptance
+  run above.
   **Exit evidence:** native departure, arrival, reward/return storage and failure
   recovery with Go owning the workflow and no wrong-map writes.
 

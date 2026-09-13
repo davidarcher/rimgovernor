@@ -55,6 +55,7 @@ type ClockSchedulerConfig struct {
 	AnimalContainment                *RoutineAnimalContainmentPlanner
 	Recovery                         *RoutineRecoveryPlanner
 	Research                         *RoutineResearchPlanner
+	CaravanJourney                   *CaravanJourneyTracker
 	RoutineMethods                   bool
 }
 type ClockSchedulerResult struct {
@@ -83,6 +84,7 @@ type ClockSchedulerResult struct {
 	AnimalContainment                             *RoutineAnimalContainmentResult
 	Recovery                                      *RoutineRecoveryResult
 	Research                                      *RoutineResearchResult
+	CaravanJourney                                *CaravanJourneyResult
 	Running, Reconciled, Cleaned                  bool
 }
 type ClockScheduler struct {
@@ -102,6 +104,9 @@ func NewClockScheduler(player *Player, session *Session, native ClockWindowNativ
 		return nil, ErrControl
 	}
 	if config.Routine != nil && config.Routine.player != player {
+		return nil, ErrControl
+	}
+	if config.CaravanJourney != nil && config.CaravanJourney.player != player {
 		return nil, ErrControl
 	}
 	for _, planner := range []*RoutineBillPlanner{config.CookingBills, config.PreservationBills, config.ButcherBills} {
@@ -353,6 +358,13 @@ func (s *ClockScheduler) Step(ctx context.Context) (ClockSchedulerResult, error)
 			return out, err
 		}
 		out.Research = &method
+	}
+	if s.config.CaravanJourney != nil {
+		method, err := s.config.CaravanJourney.step(call, epoch)
+		if err != nil {
+			return out, err
+		}
+		out.CaravanJourney = &method
 	}
 	emergency, _, err := s.native.ReadEmergency(call, loaded.Context.Identity)
 	if err != nil {
