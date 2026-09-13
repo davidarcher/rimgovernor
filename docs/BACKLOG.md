@@ -2087,6 +2087,39 @@ main. Native package and Go production cutover remain independent.
       import rule (still imported by each other and by
       `native_go_draft_acceptance.py`), tracked separately from this test-
       loader slice.
+    - [x] **Research/rooms/supplies family (3 files).** Converted
+      `test_native_research_evidence.py`, `test_native_rooms_evidence.py`,
+      `test_native_supplies_acceptance.py` to
+      `cmd/{researchaccept,roomsaccept,suppliesaccept}/main_test.go`,
+      porting each Python fixture's exact assertions. This caught real gaps
+      the earlier Go ports had silently dropped, now fixed: `researchaccept`'s
+      `compareCapability` checked only the `disabled` researcher field (of
+      five: `intellectual`/`priority`/`disabled`/`everWork`/`active`) and
+      never checked bench `defName` correspondence or `capability["count"]`;
+      `compareProjects` never checked that a finished project reports
+      `canStart=false`/`available=false`, and only checked the typed read for
+      missing *available/locked* legacy entries, never missing *finished*
+      ones (so a legacy finished project the typed read silently dropped
+      passed unnoticed) — both restored, plus `fingerprintState` now asserts
+      the fixture's `success=true` and each declared field's presence instead
+      of silently keying a possibly-absent field. `roomsaccept`'s
+      `compareRoom` never checked a room's `center` against its own returned
+      cells, never checked `cellsCompleteness`'s matched/returned counts, and
+      never checked native `cellsNotListed`/typed-vs-native cell coordinate
+      equality — restored (`roomCoordinates`/`equalCoordSets`/`containsCoord`/
+      `roomExtent` helpers). `suppliesaccept`'s `checkStock` never checked
+      `row["definition"]["defName"] == legacy["defName"]`, and used the loose
+      `AsNumber` (accepts negative/float/leading-zero/non-ASCII-digit
+      strings, defaulting unparseable input to `-1` rather than rejecting it)
+      for every native quantity field instead of a strict canonical-string
+      validator — added a local `count()` mirroring
+      `native_supplies_acceptance.py`'s `count()` (ASCII decimal only, no
+      sign, no leading zero except `"0"` itself, ≤ int64 max) and rewired the
+      typed-side quantity comparisons through it. `go build`/`vet`/
+      `test ./...` clean. The three Python loaders are deleted; the
+      underlying `scripts/native_{research,rooms,supplies}_acceptance.py`
+      modules stay in place per this backlog's import rule, tracked
+      separately from this test-loader slice.
   - [ ] **Slice 4 — subsystem long tail (~70 remaining `scripts/*_acceptance.py`).**
     Group by existing `bridge/*.go` domain and land as independent sub-slices:
     construction/building; upkeep/comfort/gear/power (largest cluster); food/

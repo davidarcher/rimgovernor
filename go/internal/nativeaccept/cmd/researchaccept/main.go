@@ -9,6 +9,7 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"sort"
 	"time"
 
 	na "github.com/davidarcher/RimGovernor/go/internal/nativeaccept"
@@ -295,7 +296,15 @@ func run(ctx context.Context, root, output, gameID string, headless bool, report
 	if err != nil {
 		return err
 	}
-	if !na.DeepEqual(fingerprintState(fingerprintBefore), fingerprintState(fingerprintAfter)) {
+	fpBefore, err := fingerprintState(fingerprintBefore)
+	if err != nil {
+		return fmt.Errorf("fingerprint-before: %w", err)
+	}
+	fpAfter, err := fingerprintState(fingerprintAfter)
+	if err != nil {
+		return fmt.Errorf("fingerprint-after: %w", err)
+	}
+	if !na.DeepEqual(fpBefore, fpAfter) {
 		return fmt.Errorf("typed research read mutated saved research state")
 	}
 	report["saved_state_unchanged"] = true
@@ -347,12 +356,19 @@ func run(ctx context.Context, root, output, gameID string, headless bool, report
 	return nil
 }
 
-func fingerprintState(v map[string]any) map[string]any {
+func fingerprintState(v map[string]any) (map[string]any, error) {
+	if success, ok := na.AsBool(v["success"]); !ok || !success {
+		return nil, fmt.Errorf("fixture did not report success=true: %#v", v["success"])
+	}
 	out := map[string]any{}
 	for _, field := range []string{"current", "progress", "knowledge", "slots", "techprints", "tick", "paused"} {
-		out[field] = v[field]
+		val, present := v[field]
+		if !present {
+			return nil, fmt.Errorf("fixture missing declared field %q", field)
+		}
+		out[field] = val
 	}
-	return out
+	return out, nil
 }
 
 func compareProjects(observed map[string]any, legacy map[string]any) error {
@@ -382,6 +398,11 @@ func compareProjects(observed map[string]any, legacy map[string]any) error {
 			return fmt.Errorf("project %s finished mismatch", name)
 		}
 		if isFinished {
+			canStart, _ := na.AsBool(row["canStart"])
+			available, _ := na.AsBool(row["available"])
+			if canStart || available {
+				return fmt.Errorf("finished project %s must report canStart=false and available=false", name)
+			}
 			continue
 		}
 		source, ok := native[name]
@@ -393,9 +414,17 @@ func compareProjects(observed map[string]any, legacy map[string]any) error {
 			return fmt.Errorf("project %s canStart mismatch", name)
 		}
 	}
+	// The typed project set must exactly account for every legacy available/locked
+	// and finished defName -- not merely a subset -- so a finished project the typed
+	// read silently dropped (or a phantom typed entry) cannot pass unnoticed.
 	for name := range native {
-		if !seen[name] && !finished[name] {
+		if !seen[name] {
 			return fmt.Errorf("legacy project %s missing from typed read", name)
+		}
+	}
+	for name := range finished {
+		if !seen[name] {
+			return fmt.Errorf("legacy finished project %s missing from typed read", name)
 		}
 	}
 	return nil
@@ -411,8 +440,26 @@ func compareCapability(observed map[string]any, legacy map[string]any) error {
 	}
 	benches := na.AsSlice(observed["benches"])
 	nativeBenches := na.AsSlice(capability["benches"])
-	if len(benches) != len(nativeBenches) {
-		return fmt.Errorf("bench count mismatch: typed=%d legacy=%d", len(benches), len(nativeBenches))
+	count := na.AsNumber(capability["count"])
+	if len(benches) != len(nativeBenches) || float64(len(benches)) != count {
+		return fmt.Errorf("bench count mismatch: typed=%d legacy=%d capability.count=%v", len(benches), len(nativeBenches), capability["count"])
+	}
+	benchNames := make([]string, 0, len(benches))
+	for _, raw := range benches {
+		row, _ := na.AsMap(raw)
+		building, _ := na.AsMap(row["building"])
+		def, _ := na.AsMap(building["building"])
+		benchNames = append(benchNames, na.AsString(def["defName"]))
+	}
+	nativeBenchNames := make([]string, 0, len(nativeBenches))
+	for _, raw := range nativeBenches {
+		row, _ := na.AsMap(raw)
+		nativeBenchNames = append(nativeBenchNames, na.AsString(row["defName"]))
+	}
+	sort.Strings(benchNames)
+	sort.Strings(nativeBenchNames)
+	if !na.DeepEqual(benchNames, nativeBenchNames) {
+		return fmt.Errorf("bench defName sets differ: typed=%v legacy=%v", benchNames, nativeBenchNames)
 	}
 	researchers := na.AsSlice(observed["researchers"])
 	nativeResearchers := na.AsSlice(capability["researchers"])
@@ -433,9 +480,13 @@ func compareCapability(observed map[string]any, legacy map[string]any) error {
 		if !ok {
 			return fmt.Errorf("researcher %s missing from typed read", id)
 		}
-		disabled, _ := na.AsBool(row["disabled"])
-		if nativeDisabled, _ := na.AsBool(native["disabled"]); disabled != nativeDisabled {
-			return fmt.Errorf("researcher %s disabled mismatch", id)
+		for _, field := range []string{"intellectual", "priority", "disabled", "everWork", "active"} {
+			if _, present := row[field]; !present {
+				return fmt.Errorf("researcher %s missing typed field %q", id, field)
+			}
+			if !na.DeepEqual(row[field], native[field]) {
+				return fmt.Errorf("researcher %s field %q mismatch: typed=%#v legacy=%#v", id, field, row[field], native[field])
+			}
 		}
 	}
 	return nil

@@ -8,6 +8,7 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"strconv"
 	"time"
 
 	na "github.com/davidarcher/RimGovernor/go/internal/nativeaccept"
@@ -265,6 +266,10 @@ func run(ctx context.Context, root, output, gameID string, headless bool, report
 // predated that and asserted its absence ("snapshot" not in item), which this port
 // corrects rather than preserves.
 func checkStock(row, legacy map[string]any, identity map[string]any, includeHeld bool) error {
+	definition, _ := na.AsMap(row["definition"])
+	if na.AsString(definition["defName"]) != na.AsString(legacy["defName"]) {
+		return fmt.Errorf("definition defName mismatch: typed=%v legacy=%v", definition["defName"], legacy["defName"])
+	}
 	mapping := map[string]string{
 		"units": "total", "stacks": "stacks", "ours": "ours", "oursUnforbidden": "oursUnforbidden",
 		"forbidden": "forbidden", "otherFaction": "otherFaction", "fogged": "fogged", "reserved": "reserved",
@@ -280,22 +285,42 @@ func checkStock(row, legacy map[string]any, identity map[string]any, includeHeld
 		if legacyVal < 0 {
 			return fmt.Errorf("legacy %s must be a non-negative integer", legacyKey)
 		}
-		if na.AsNumber(row[typedKey]) != legacyVal {
+		typedVal, err := count(row[typedKey])
+		if err != nil {
+			return fmt.Errorf("native stock %v.%s: %w", row["definition"], typedKey, err)
+		}
+		if typedVal != int64(legacyVal) {
 			return fmt.Errorf("native stock mismatch %v.%s: typed=%v legacy=%v", row["definition"], typedKey, row[typedKey], legacyVal)
 		}
 	}
-	held := 0.0
+	held := int64(0)
 	if includeHeld {
-		held = na.AsNumber(legacy["carried"]) + na.AsNumber(legacy["inContainer"])
+		held = int64(na.AsNumber(legacy["carried"])) + int64(na.AsNumber(legacy["inContainer"]))
 	}
-	if na.AsNumber(row["spawned"])+held != na.AsNumber(row["units"]) {
+	spawned, err := count(row["spawned"])
+	if err != nil {
+		return fmt.Errorf("spawned for %v: %w", row["definition"], err)
+	}
+	units, err := count(row["units"])
+	if err != nil {
+		return fmt.Errorf("units for %v: %w", row["definition"], err)
+	}
+	if spawned+held != units {
 		return fmt.Errorf("spawned+held does not equal units for %v", row["definition"])
 	}
-	if na.AsNumber(row["playerFaction"]) > na.AsNumber(row["units"]) {
+	playerFaction, err := count(row["playerFaction"])
+	if err != nil {
+		return fmt.Errorf("playerFaction for %v: %w", row["definition"], err)
+	}
+	if playerFaction > units {
 		return fmt.Errorf("playerFaction exceeds units for %v", row["definition"])
 	}
+	stacks, err := count(row["stacks"])
+	if err != nil {
+		return fmt.Errorf("stacks for %v: %w", row["definition"], err)
+	}
 	items := na.AsSlice(row["items"])
-	if len(items) != int(na.AsNumber(row["stacks"])) {
+	if int64(len(items)) != stacks {
 		return fmt.Errorf("item count does not match stacks for %v", row["definition"])
 	}
 	// Not every loose supply item supports a CAS snapshot: NativeSupplyAllow.Snapshot
@@ -336,10 +361,13 @@ func checkStock(row, legacy map[string]any, identity map[string]any, includeHeld
 		if err := na.CheckCompleteness(row["holdersCompleteness"], len(holders)); err != nil {
 			return fmt.Errorf("holders completeness for %v: %w", row["definition"], err)
 		}
-		total := 0.0
+		total := int64(0)
 		for _, raw := range holders {
 			holder, _ := na.AsMap(raw)
-			units := na.AsNumber(holder["units"])
+			units, err := count(holder["units"])
+			if err != nil {
+				return fmt.Errorf("holder units for %v: %w", row["definition"], err)
+			}
 			if units <= 0 {
 				return fmt.Errorf("holder with non-positive units for %v", row["definition"])
 			}
@@ -373,6 +401,36 @@ func checkStock(row, legacy map[string]any, identity map[string]any, includeHeld
 		}
 	}
 	return na.CheckCompleteness(row["corpsesCompleteness"], len(na.AsSlice(row["corpses"])))
+}
+
+// count asserts value is a canonical ProtoJSON int64 quantity string -- ASCII decimal
+// digits only, no leading zero (except the literal "0"), no sign, and within int64
+// range -- mirroring native_supplies_acceptance.py's count(). A missing/absent
+// quantity (nil, a bare number, or a malformed string) must never be read as zero.
+func count(v any) (int64, error) {
+	s, ok := v.(string)
+	if !ok {
+		return 0, fmt.Errorf("missing/noncanonical ProtoJSON quantity: %#v", v)
+	}
+	if s == "" {
+		return 0, fmt.Errorf("missing/noncanonical ProtoJSON quantity: %q", s)
+	}
+	for _, r := range s {
+		if r < '0' || r > '9' {
+			return 0, fmt.Errorf("missing/noncanonical ProtoJSON quantity: %q", s)
+		}
+	}
+	if s != "0" && s[0] == '0' {
+		return 0, fmt.Errorf("noncanonical leading zero: %q", s)
+	}
+	n, err := strconv.ParseUint(s, 10, 64)
+	if err != nil {
+		return 0, fmt.Errorf("quantity is not a valid uint64: %q", s)
+	}
+	if n > 9223372036854775807 {
+		return 0, fmt.Errorf("quantity exceeds int64 max: %q", s)
+	}
+	return int64(n), nil
 }
 
 func dedupSorted(values []string) []string {

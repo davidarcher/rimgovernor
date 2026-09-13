@@ -374,9 +374,34 @@ func compareRoom(row, native map[string]any, cells bool) error {
 		if complete, _ := na.AsBool(native["cellsComplete"]); !complete {
 			return fmt.Errorf("room %v native cellsComplete must be true for a comparable read", row["id"])
 		}
+		if na.AsNumber(native["cellsNotListed"]) != 0 {
+			return fmt.Errorf("room %v native cellsNotListed must be zero for a comparable read", row["id"])
+		}
 		actual := na.AsSlice(row["cells"])
+		actualCoords := roomCoordinates(actual)
 		if len(actual) != int(na.AsNumber(row["cellCount"])) {
 			return fmt.Errorf("room %v returned cell count does not match cellCount", row["id"])
+		}
+		if !equalCoordSets(actualCoords, roomCoordinates(na.AsSlice(native["cells"]))) {
+			return fmt.Errorf("room %v typed cells do not match native cells", row["id"])
+		}
+		if len(actualCoords) != len(dedupeCoords(actualCoords)) {
+			return fmt.Errorf("room %v returned cells contain a duplicate coordinate", row["id"])
+		}
+		center, _ := na.AsMap(row["center"])
+		centerCoord := [2]float64{na.AsNumber(center["x"]), na.AsNumber(center["z"])}
+		if !containsCoord(actualCoords, centerCoord) {
+			return fmt.Errorf("room %v center is not among the room's own cells", row["id"])
+		}
+		minX, minZ, maxX, maxZ := roomExtent(actualCoords)
+		extents, _ := na.AsMap(row["extents"])
+		minimum, _ := na.AsMap(extents["minimum"])
+		maximum, _ := na.AsMap(extents["maximum"])
+		if na.AsNumber(minimum["x"]) != minX || na.AsNumber(minimum["z"]) != minZ || na.AsNumber(maximum["x"]) != maxX || na.AsNumber(maximum["z"]) != maxZ {
+			return fmt.Errorf("room %v extents do not match the room's own cells", row["id"])
+		}
+		if err := na.CheckCompleteness(row["cellsCompleteness"], len(actual)); err != nil {
+			return fmt.Errorf("room %v cells completeness: %w", row["id"], err)
 		}
 	} else {
 		if len(na.AsSlice(row["cells"])) != 0 {
@@ -392,6 +417,83 @@ func compareRoom(row, native map[string]any, cells bool) error {
 		}
 	}
 	return nil
+}
+
+func roomCoordinates(cells []any) [][2]float64 {
+	out := make([][2]float64, 0, len(cells))
+	for _, raw := range cells {
+		cell, _ := na.AsMap(raw)
+		out = append(out, [2]float64{na.AsNumber(cell["x"]), na.AsNumber(cell["z"])})
+	}
+	return out
+}
+
+func dedupeCoords(coords [][2]float64) [][2]float64 {
+	seen := map[[2]float64]bool{}
+	out := make([][2]float64, 0, len(coords))
+	for _, c := range coords {
+		if seen[c] {
+			continue
+		}
+		seen[c] = true
+		out = append(out, c)
+	}
+	return out
+}
+
+func containsCoord(coords [][2]float64, want [2]float64) bool {
+	for _, c := range coords {
+		if c == want {
+			return true
+		}
+	}
+	return false
+}
+
+func equalCoordSets(a, b [][2]float64) bool {
+	if len(a) != len(b) {
+		return false
+	}
+	sortCoords := func(s [][2]float64) [][2]float64 {
+		out := append([][2]float64{}, s...)
+		sort.Slice(out, func(i, j int) bool {
+			if out[i][0] != out[j][0] {
+				return out[i][0] < out[j][0]
+			}
+			return out[i][1] < out[j][1]
+		})
+		return out
+	}
+	sa, sb := sortCoords(a), sortCoords(b)
+	for i := range sa {
+		if sa[i] != sb[i] {
+			return false
+		}
+	}
+	return true
+}
+
+func roomExtent(coords [][2]float64) (minX, minZ, maxX, maxZ float64) {
+	if len(coords) == 0 {
+		return 0, 0, 0, 0
+	}
+	minX, minZ = coords[0][0], coords[0][1]
+	maxX, maxZ = coords[0][0], coords[0][1]
+	for _, c := range coords[1:] {
+		if c[0] < minX {
+			minX = c[0]
+		}
+		if c[1] < minZ {
+			minZ = c[1]
+		}
+		if c[0] > maxX {
+			maxX = c[0]
+		}
+		if c[1] > maxZ {
+			maxZ = c[1]
+		}
+	}
+	return minX, minZ, maxX, maxZ
 }
 
 func equalLoose(a, b any) bool {
