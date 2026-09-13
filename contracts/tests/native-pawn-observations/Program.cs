@@ -85,7 +85,7 @@ internal static class Program
         Check((bool)Get(title,"HasLabel")&&(string)Get(title,"Label")=="Nurse","actual backstory title is retained");
         var core=Wire("PawnState","{\"needs\":{\"mood\":0},\"health\":{\"summaryFraction\":1}}");
         var emptyColonists=Activator.CreateInstance(typeof(List<>).MakeGenericType(Assembly.Load("Assembly-CSharp").GetType("Verse.Pawn",true)!))!;
-        detailsType.GetMethod("Apply",Flags)!.Invoke(null,new object?[]{null,emptyColonists,core,detail});
+        detailsType.GetMethod("Apply",Flags)!.Invoke(null,new object?[]{null,emptyColonists,core,detail,null});
         Check(core.GetType().GetProperty("Needs")!.GetValue(core)==null&&core.GetType().GetProperty("Health")!.GetValue(core)==null,"explicit opt-out removes inherited status detail without native reads");
         var issues=((IEnumerable)Get(core,"Issues")).Cast<object>().ToArray();
         foreach(var field in new[]{"needs","health","equipment","biography","settings","social","animal_state"})
@@ -253,7 +253,7 @@ internal static class Program
         corpseColonists.Add(corpse);
         var corpseRow=Wire("PawnState","{\"needs\":{\"mood\":0},\"health\":{\"summaryFraction\":1}}");
         var corpseDetail=Wire("PawnDetails","{\"needs\":true,\"health\":false,\"equipment\":true,\"biography\":false,\"settings\":true,\"social\":false,\"animals\":false}");
-        detailsType.GetMethod("Apply",Flags)!.Invoke(null,new object?[]{corpse,corpseColonists,corpseRow,corpseDetail});
+        detailsType.GetMethod("Apply",Flags)!.Invoke(null,new object?[]{corpse,corpseColonists,corpseRow,corpseDetail,null});
         Check(Get(corpseRow,"Needs")!=null,"corpse needs projection still populates for a dead pawn");
         Check(Get(corpseRow,"Equipment")!=null,"corpse equipment projection still populates for a dead pawn");
         Check(Get(corpseRow,"Settings")!=null,"corpse settings projection still populates for a dead pawn");

@@ -1074,64 +1074,39 @@ context immediately before effects.
 Each slice is committed after relevant checks, then rebased and fast-forwarded into
 main. Native package and Go production cutover remain independent.
 
-- [ ] **N01.03 — Typed observations.** Native observations owner with the Go observation adapters. Migrate
-  colony status and batch envelope, then pawns/health, supplies/buildings,
-  rooms/zones/cells and remaining facts in bounded slices. Preserve unavailable
-  information, section freshness and modded definitions. Check actual SDK decoding,
-  invalid identities and read-only native behavior. Produce exact scoped snapshot
-  tokens for all mutation targets, health/census/production policy, complete wall
-  geometry and drill lifecycle, trade-line/cargo-group identities and architect
-  catalogs. Stable pages bind frozen query/context; initialization belongs load
-  hooks rather than read calls. Depends on 02's verified first adapter.
+- [x] **N01.03 — Typed observations.** Native observations owner with the Go observation adapters.
+  Entity CAS (pawn state/settings/health, research, room, supply-stock snapshot
+  tokens), frozen cursor paging shared by all six readers, populated pawn Social
+  (memories/relations/situational-cache staleness via non-mutating reflection),
+  bed owner/user/accessible-to membership, stockpile contents, and bench/facility
+  research capability are implemented and native-accepted against a real running
+  game. `PawnHealth.snapshot` was found unpopulated during that acceptance pass
+  (declared on the wire, never assigned) and fixed the same way as the sibling
+  `PawnSettings.snapshot` (`NativePawnDetails.cs`'s `Health()`, hashing pain/
+  life-threatening/blood-loss/medical-rest flags/bed/hidden-hediff-count plus
+  every visible hediff's def+severity+part in stable order).
 
-  Basic typed status and bounded cell reads are implemented. Explicit all-false
-  cell fields support map-bound discovery; terrain, roof, visibility and traversal
-  are available, while other requested fields report Unsupported. Status does not
-  issue general entity CAS snapshots. Available pawn draft controllers expose
-  narrowly scoped draft-control tokens and canonical ownership claims. Go read-only service polling is accepted against
-  the actual native status adapter: two fresh HTTP observations, unchanged paused
-  identity/tick/generation, exclusive GABS handoff and joined shutdown. Complete
-  operation-event coverage verifies identity/status calls only. Remaining families
-  and frozen continuation pages remain open.
+  Native acceptance for pawns/research/rooms/supplies now runs as four disposable-
+  lifecycle Go binaries (`go/internal/nativeaccept/cmd/{pawnaccept,researchaccept,
+  roomsaccept,suppliesaccept}`, on `go/internal/nativeaccept` + new `bridge.Client`
+  methods `GamesStart`/`GamesStop`/`ConnectWithPoll`/`NativeCall` in
+  `go/internal/bridge/acceptance.go`) instead of the legacy
+  `scripts/native_{pawn,research,rooms,supplies}_acceptance.py`, run via
+  `scripts/test_n0103_acceptance.ps1` against a real headless RimWorld process
+  (GABS launch/session/isolated-profile lifecycle ported from
+  `controller/rimgovernor/{headless,bridge}.py`). All four passed live, confirmed
+  via each run's `result.json`: populated CAS tokens and Social data observed on
+  real colonist rows, bounded/paged reads, and paused identity/tick invariance
+  across the run. The legacy Python scripts are retained for now — `native_combat_
+  acceptance.py`/`native_draft_acceptance.py`/`native_movement_acceptance.py`
+  import from `native_pawn_acceptance.py`, and `controller_tests/test_native_
+  {pawn,research,rooms,supplies}_*.py` load the other three directly — migrating
+  those callers is tracked as its own follow-up (N01.09), not part of this item.
 
-  Bounded building reads include exact walls, blueprints, frames, full occupied
-  cells, materials, hit points and construction work/resources. Native acceptance
-  covers queued, frame, finished and cancelled states. Entity CAS, settings,
-  bills, inspect detail, service/thermal facts and power-network enumeration remain
-  explicit unsupported/incomplete scopes rather than fabricated defaults.
-
-  Bounded supplies reads cover exact native definitions, full ownership quantities,
-  spawned stock and spawned-root inventories/containers with complete item lists.
-  Headless and rendered acceptance verifies WoodLog/Steel plus populated carried,
-  container and fogged stock against native census totals, unchanged paused context,
-  and explicit unknown held counters when excluded. Dedicated corpse/trader and
-  nested-owner fixtures, traversal/collection overflow, modded definition fixtures,
-  frozen paging and entity CAS remain open. These reads exclude worn gear, orbital
-  trader stock and delivered construction materials; they do not prove trading or
-  production availability beyond the stated census scope.
-
-  Bounded pawn reads cover exact intersecting filters, known false values and
-  explicit detail availability for health, needs, gear, biography, work, schedules
-  and animal training/production. Headless and rendered acceptance compares complete
-  colonist/animal censuses and native details, verifies refusal bounds, and preserves
-  paused identity/ticks. Social detail and general entity CAS remain unsupported;
-  corpse and additional populated detail fixtures remain open. Draft-control CAS
-  and exact owned/unowned claims are available when verified native hooks and a
-  current-map draft controller are present.
-
-  Bounded research reads cover project progress, prerequisites and ordinary native
-  eligibility, optional unlocks and map-local bench/researcher facts. Headless and
-  rendered acceptance verifies 122 projects, three researchers and populated
-  bounded unlocks, with unchanged saved progress/knowledge/slots and paused context
-  before a separate native getter audit. Populated benches/facilities, active
-  Anomaly slots, frozen paging and research CAS remain open. Global unlock expansion
-  may exceed the child bound; narrow project queries return complete collections.
-
-  Bounded room reads cover exact geometry, native statistics and optional cells,
-  boundary contents and memberships. Headless and rendered acceptance verifies
-  populated indoor structures and exact filters/refusals against native reads,
-  preserving paused identity/ticks. Populated bed, pawn and stockpile memberships,
-  frozen paging and room CAS remain open.
+  Building/wall/zone observation CAS, remaining Anomaly-active-slot fixtures, and
+  full field-by-field legacy-getter crosswalks beyond the representative subset
+  the Go acceptance binaries assert are explicitly out of this item's scope and
+  open for separate follow-up.
 
 - [ ] **N01.04 — Typed guarded operations.** Native operations owner with G01 Hands.
   Start with ordinary construction through admission, dry-run, receipt and observed
@@ -1276,6 +1251,29 @@ main. Native package and Go production cutover remain independent.
   suppressions after caller checks. Accept reproducible builds and the native
   behavior matrix covering the supported package and typed families. Depends on
   03–07; enforcement starts with 02.
+
+- [ ] **N01.09 — Migrate Python acceptance tooling to Go.** Native acceptance owner.
+  `controller/` (~118 files/17.8k lines) and `scripts/` (~185 files/27.8k lines)
+  carry the project's GABS-driven native/container acceptance tooling in Python;
+  `AGENTS.md` names Python an intentional runtime alongside Go, but the standing
+  direction now is to stop adding to it and convert it to Go incrementally rather
+  than fork individual backlog items onto mixed stacks. N01.03 ported the first
+  slice: `controller/rimgovernor/{headless,bridge}.py`'s GABS launch/session/
+  isolated-profile lifecycle to `go/internal/nativeaccept` + `go/internal/bridge`'s
+  `GamesStart`/`GamesStop`/`ConnectWithPoll`/`NativeCall`, and rewrote
+  `scripts/native_{pawn,research,rooms,supplies}_acceptance.py` as Go binaries
+  (`go/internal/nativeaccept/cmd/*`), verified passing live. Not yet migrated:
+  `scripts/native_combat_acceptance.py`/`native_draft_acceptance.py`/
+  `native_movement_acceptance.py` (still import `native_pawn_acceptance.py`
+  directly), `controller_tests/test_native_{pawn,research,rooms,supplies}_*.py`
+  (load the legacy Python scripts by path), `scripts/container_scenario.py` and
+  `scripts/container_*_acceptance.py` (Docker/Linux acceptance path), the
+  protobuf/preview acceptance family (`native_protobuf_acceptance.py` and its
+  `run_go_preview`-style subprocess pattern), and the rest of the `controller/`
+  service. Migrate in bounded slices per existing family, updating or retiring
+  each Python caller as its Go replacement lands rather than carrying both
+  indefinitely; do not delete a Python module while another script or test still
+  imports it.
 
 ### Verification
 

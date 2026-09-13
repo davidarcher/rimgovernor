@@ -56,7 +56,7 @@ namespace HomeBridge.BridgeTools
                     result.Completeness.Page.Complete = !truncated;
                     if (truncated) result.Completeness.Page.NextCursor = NativeObservationSnapshot.Cursor.Encode(context.Identity, seed, page[page.Count-1].Value.Pawn.Id);
                     foreach (var item in page) {
-                        NativePawnDetails.Apply(item.Key, colonists, item.Value, parsed.Details);
+                        NativePawnDetails.Apply(item.Key, colonists, item.Value, parsed.Details, context);
                         if (item.Value.Settings != null) {
                             item.Value.Settings.Snapshot = NativeWorkSettings.Snapshot(item.Key, context);
                             if (item.Value.Settings.Snapshot != null)

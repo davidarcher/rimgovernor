@@ -21,7 +21,7 @@ namespace HomeBridge.BridgeTools
             Animals=source==null || !source.HasAnimals || source.Animals,
             VisibleHediffsOnly=source?.VisibleHediffsOnly==true, Work=source?.Work==true };
 
-        internal static void Apply(Pawn pawn,System.Collections.Generic.List<Pawn> colonists,Obs.PawnState row,Obs.PawnDetails? requested)
+        internal static void Apply(Pawn pawn,System.Collections.Generic.List<Pawn> colonists,Obs.PawnState row,Obs.PawnDetails? requested,Common.ObservationContext context)
         {
             var d=Defaults(requested);
             if(d.Needs) {
@@ -31,7 +31,7 @@ namespace HomeBridge.BridgeTools
                 if(pawn.needs?.rest!=null) needs.Rest=Number(pawn.needs.rest.CurLevelPercentage); else needs.Issues.Add(Missing("rest"));
                 if(pawn.needs?.joy!=null) needs.Joy=Number(pawn.needs.joy.CurLevelPercentage); else needs.Issues.Add(Missing("joy"));
             } else {row.Needs=null;row.Issues.Add(Skipped("needs"));}
-            if(d.Health && row.Health!=null) Health(pawn,row.Health,d.VisibleHediffsOnly);
+            if(d.Health && row.Health!=null) Health(pawn,row.Health,d.VisibleHediffsOnly,context);
             else if(!d.Health) {
                 row.Health=null;
                 foreach(var issue in row.Issues.Where(i=>i.Field=="health").ToArray()) row.Issues.Remove(issue);
@@ -49,7 +49,7 @@ namespace HomeBridge.BridgeTools
             else row.AnimalState=Animal(pawn);
         }
 
-        private static void Health(Pawn pawn,Obs.PawnHealth row,bool visibleOnly)
+        private static void Health(Pawn pawn,Obs.PawnHealth row,bool visibleOnly,Common.ObservationContext context)
         {
             row.Issues.Clear();
             var set=pawn.health.hediffSet;
@@ -109,7 +109,16 @@ namespace HomeBridge.BridgeTools
                     row.SurgeryBills.Add(b);
                 }
             }
-            row.Issues.Add(Unsupported("snapshot","This read does not issue health CAS tokens."));
+            row.Snapshot=NativeObservationSnapshot.Snapshot("pawn-health",context,pawn.GetUniqueLoadID(),w => {
+                w.Write(row.Pain);w.Write(row.LifeThreatening);w.Write(row.BloodLoss);
+                w.Write(row.ShouldSeekMedicalRest);w.Write(row.UrgentMedicalRest);w.Write(row.BedId??"");
+                w.Write(row.HiddenHediffs);
+                foreach(var h in visible.OrderBy(h=>h.def.defName,StringComparer.Ordinal)
+                    .ThenBy(h=>h.Part!=null?pawn.RaceProps.body.AllParts.IndexOf(h.Part):-1)) {
+                    w.Write(h.def.defName);w.Write((double)h.Severity);
+                    w.Write(h.Part!=null?pawn.RaceProps.body.AllParts.IndexOf(h.Part):-1);
+                }
+            });
         }
 
         private static Obs.PawnEquipment Equipment(Pawn pawn)
