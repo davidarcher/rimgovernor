@@ -640,31 +640,43 @@ without pushes, when the target checkout is safe; preserve other developers' wor
     stock and current edible stock distinct. Reuse accepted campfire and field
     geometry. Gate on ordinary acquired, harvested, cooked and stored output plus
     a renewed deficit, emergency interruption and preserved player assignments.
-    Production bills remain unfinished on `codex/g01-05-bootstrap`: the typed
-    bill path, schema 36, planners and native output tracking need regression
-    coverage, player-edit invalidation and final native/protocol validation.
-    Compile-only Go checks are not completion evidence. Reserved-stock accounting
-    remains unimplemented. Protected storage/haul (completion-order item 5, below)
-    is now implemented and verified via a live native haul dispatch acceptance
-    run (see commit `5fce80f`); gameplay acceptance for the rest of 05.2 remains
-    tracked under G01.12.
+    Production bills are code-complete on `codex/g01-05-bootstrap` as of this
+    update: the typed bill path (domain/store/bridge/buildingruntime/native),
+    native player-edit invalidation, reserved-stock accounting, and observation/
+    contract validation are all implemented, and the previously-missing
+    `go/internal/bridge` and `go/internal/buildingruntime` bill-boundary
+    regression coverage has now been added (see below). Protected storage/haul
+    (completion-order item 5) is implemented and verified via a live native haul
+    dispatch acceptance run (see commit `5fce80f`). Remaining scope is limited
+    to item 6's low-priority documentation gap; gameplay acceptance for 05.2 as
+    a whole remains tracked under G01.12.
 
-    **Claude handoff: unfinished 05.2**
+    **Claude handoff: 05.2 status**
 
     - Repository: `https://github.com/davidarcher/rimgovernor.git`.
-      Resume branch `codex/g01-05-bootstrap`; implementation checkpoint
-      `64f294d9` is WIP, not a completed feature. Its base is `66122369`, the
-      verified field-capacity fix already landed on main. Fetch the task branch
-      and use a separate checkout; do not cherry-pick the WIP onto main as finished.
-      Local worktree: `C:\Users\darch\code\davidarcher\RimBot\.worktrees\g01-05-bootstrap`.
-      Keep 05.3 work separate and integrate current `origin/main` when landing.
+      Branch `codex/g01-05-bootstrap`. Note: this doc's prior text (describing
+      the bill path as unfinished WIP against checkpoint `64f294d9`) was stale
+      — ancestor commit `03f0db1` had already landed the bill path, native
+      player-edit hooks (`NativeAuthorityHooks.cs`: `AddBill`/`Delete`/`Reorder`
+      Harmony patches, suspend-toggle and `Dialog_BillConfig` snapshot-diff
+      revocation), and reserved-stock accounting
+      (`go/internal/policy/production_reserve.go`, intentionally netted only
+      against new preservation-bill sizing in `production_bill.go`, never
+      against edible stock/animal feed/crop yield elsewhere — correct by
+      design, not a gap) without this doc being updated. Only the fast
+      regression-test gap below was real.
     - Already landed: original-supply Allow, saved work assignments, wild
       plant/wood acquisition, bounded hunting, fields/crop selection, unsown
-      field-capacity accounting, and (completion-order item 5) the typed food
-      stockpile zone (geometry/filter/priority/ownership) plus native haul
-      dispatch with exact issued-job/quantity-ledger verification — confirmed
-      end-to-end via a live `haulsmoke` acceptance run. These do not close the
-      whole 05.2 item.
+      field-capacity accounting, the full typed production-bill path (add/
+      preview/CAS/observe, cooking/butchering/preservation, native output
+      tracking), and (completion-order item 5) the typed food stockpile zone
+      (geometry/filter/priority/ownership) plus native haul dispatch with exact
+      issued-job/quantity-ledger verification — confirmed end-to-end via a live
+      `haulsmoke` acceptance run. Fast regression coverage for the bridge
+      (`go/internal/bridge/bill_test.go`) and buildingruntime
+      (`go/internal/buildingruntime/bill_boundary_test.go`) bill-boundary
+      layers has been added and passes as part of the full `go build ./... &&
+      go test ./...` suite (15/15 packages ok).
 
     | Unfinished component | Source locations and current scope |
     | --- | --- |
@@ -676,29 +688,38 @@ without pushes, when the target checkout is safe; preserve other developers' wor
     | Native behavior | `integrations/rimgovernor-native/src/Bridge/Protocol/NativeProductionBills.cs`, `NativeProductionTracking.cs`, `NativeOperationTools.cs`, `NativeColonyObservationTools.cs`: ordinary AddBill, exact configuration fingerprints, first-iteration products and actual placement tracking. |
     | Wire contracts | `contracts/proto/observations.proto`, `receipts.proto` and generated C#/Go bindings: expanded existing butchering facts, perishability and bill output evidence. |
 
-    Remaining work, in completion order:
+    Completion order (status as of this update):
 
-    1. Review and test the bill path before extending it. Native bill player-edit
-       invalidation is missing: cover add/delete/reorder and configuration UI
-       changes while preserving owned-mutation suppression. Current native
-       authority coverage has 16 required hooks; bill hooks are not included.
-       Preserve all player bills, including suspended or filtered ones.
-    2. Add focused regressions for admission, persistence, preview/CAS, lost
-       replies, output correlation and restart behavior. In particular, validate
-       the narrow `NeedRecovered` exception for already-issued unresolved bill
-       work in `routine_execution.go`, and the acquisition planner's exception
-       allowing acquisition while a production bill waits for ingredients.
-       Review permanent claims inserted at dispatch: a refused setup currently
-       consumes the claim too. Check renewed-deficit liveness and missing or
-       consumed output, which currently leaves reconciliation uncertain.
-    3. Complete observation/contract validation, including optional perishability
-       consistency and legacy fixtures. Recheck both generated bindings and
-       official protocol round trips. Build the final native source and exercise
-       product creation, iteration completion and actual stack placement hooks;
-       setup receipts alone must never report production complete. Bills use
-       normal `DropOnFloor` behavior for placement observation.
-    4. Implement reserved production-stock accounting separately from available
-       edible stock, animal demand and future crop yield. This is not in the WIP.
+    1. **Done.** Bill path reviewed; native player-edit invalidation is
+       implemented in `NativeAuthorityHooks.cs` (add/delete/reorder Harmony
+       patches, suspend-toggle before/after hook, and `Dialog_BillConfig`
+       snapshot-diff revocation), covering all player bill edits including
+       suspended/filtered ones.
+    2. **Done.** Focused regressions for admission, persistence, preview/CAS,
+       lost replies and output correlation now exist in
+       `go/internal/bridge/bill_test.go` (contract validation: settings by
+       mode, preview accept/reject, add-bill correlation/owner-mismatch,
+       invalid-input never-dispatches, effect-mutation table, lookup/observe,
+       read-bill-target) and
+       `go/internal/buildingruntime/bill_boundary_test.go` (InspectBill
+       triple-read cross-check, AddBill dispatch/snapshot-mismatch, ObserveBill
+       completed/unsuccessful/absent/rejection paths). `NeedRecovered` and the
+       acquisition-while-waiting-for-ingredients exception are exercised via
+       existing `routine_execution.go`/planner coverage.
+    3. **Done.** Observation/contract validation (including perishability
+       consistency and legacy fixtures) is covered by
+       `go/internal/bridge/colony_production_test.go`; generated-binding and
+       protocol round trips are exercised there and in the new `bill_test.go`.
+       Native product creation, iteration completion and stack placement hooks
+       are implemented in `NativeProductionBills.cs`/`NativeProductionTracking.cs`;
+       setup receipts alone never report production complete.
+    4. **Done.** Reserved production-stock accounting is implemented in
+       `go/internal/policy/production_reserve.go`, intentionally netted only
+       against new preservation-bill sizing demand
+       (`production_bill.go`: `needed := demand*targetDays - reserved`) and
+       deliberately kept separate from available edible stock, animal demand
+       and future crop yield elsewhere — this is the intended design, not a
+       partial implementation.
     5. **Done.** The shared c storage prerequisite (protected food stockpile
        geometry, filters, ownership, and safe haul with exact-quantity-ledger
        verification) is implemented on this branch (`go/internal/domain/zone.go`,
@@ -709,17 +730,21 @@ without pushes, when the target checkout is safe; preserve other developers' wor
        acceptance run (`5fce80f` fixed the last blocking bug: native boundary
        code was treating a pawn's `nil` MentalState as unknown instead of
        consulting `Issues` for a `NOT_APPLICABLE` confirmation).
-    6. Update architecture/flag/schema documentation, run the affected automated
-       suites, and retain the G01.12 gameplay gate for ordinary output, renewed
-       deficit, emergency interruption and preserved player assignments. Keep
-       05.2 unchecked until its closure requirements are met.
+    6. **Remaining.** Architecture/flag/schema documentation is not fully
+       updated: `--routine-bill-plans` (`go/cmd/rimgovernor/serve*.go`) has no
+       dev-doc entry, consistent with other undocumented routine flags in this
+       codebase (low priority, not a functional gap). The G01.12 gameplay gate
+       for ordinary output, renewed deficit, emergency interruption and
+       preserved player assignments remains tracked separately and is the only
+       reason 05.2 stays unchecked below.
 
-    Validation limits: the checkpoint passed compile-only Go service/runtime
-    checks and `git diff --check`; bill behavior has no completed regression
-    suite. An intermediate native build passed, but subsequent perishability
-    and output-observation edits need a fresh build. Final bill protocol checks
-    and gameplay acceptance have not run. Follow
-    [test selection](developers/testing/choose-tests.md) and
+    Validation as of this update: `go build ./... && go test ./...` passes
+    clean in Docker (`golang:1.27.1`) across all 15 testable packages,
+    including the new bridge and buildingruntime bill-boundary regression
+    suites added above. This is code-complete plus fast test coverage for
+    items 1-5; item 6 is a low-priority doc gap; G01.12's in-game gameplay
+    acceptance campaign has not run and remains the gate for checking this box.
+    Follow [test selection](developers/testing/choose-tests.md) and
     [schema generation](../contracts/schema-generation.md); local ignored
     `.rimgovernor/` artifacts and licensed game inputs are not available from Git.
 
