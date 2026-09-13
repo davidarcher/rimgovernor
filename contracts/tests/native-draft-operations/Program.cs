@@ -25,13 +25,13 @@ internal static class Program
     private static object Call(Type type,string name,params object?[] args)=>type.GetMethod(name,Flags)!.Invoke(null,args)!;
     private static object Instance(object value,string method,params object?[] args)=>value.GetType().GetMethod(method,Flags)!.Invoke(value,args)!;
     private static object Construct(string type,params object?[] args)=>Activator.CreateInstance(Native(type),Flags,null,args,null)!;
-    private static object Snapshot(bool drafted,object? owner=null) {
+    private static object Snapshot(bool drafted,object? owner=null,string claimId="claim-1",string token="native-token") {
         var facts=Construct("NativePawnFacts");
         Field(facts,"PawnId","Human1");Field(facts,"Drafted",drafted);Field(facts,"Spawned",true);Field(facts,"PlayerControlled",true);
         Field(facts,"Drafter",System.Runtime.Serialization.FormatterServices.GetUninitializedObject(
             AppDomain.CurrentDomain.GetAssemblies().Single(a=>a.GetName().Name=="Assembly-CSharp").GetType("RimWorld.Pawn_DraftController",true)!));
-        var claim=owner==null?null:Construct("NativeDraftClaim","claim-1",owner);
-        return Construct("NativePawnSnapshot","native-token",facts,claim);
+        var claim=owner==null?null:Construct("NativeDraftClaim",claimId,owner);
+        return Construct("NativePawnSnapshot",token,facts,claim);
     }
     private static string Draft(bool value,string extra="")=>"{\"pawn\":"+Pawn+",\"drafted\":"+(value?"true":"false")+extra+"}";
     private static string Request(int id,string extra="")=>"{\"precondition\":{\"identity\":"+Identity+",\"expectedGeneration\":\"1\",\"leaseId\":\"lease\",\"attempt\":{\"controllerSessionId\":\"owner\",\"actionId\":\"draft\",\"attemptId\":\""+id+"\"}},\"operation\":{\"setDrafted\":"+Draft(true,extra)+"}}";
@@ -108,6 +108,23 @@ internal static class Program
         var replacedLoadContext=Wire("Common.ObservationContext","{\"identity\":{\"colonyId\":\"colony\",\"loadToken\":\"load-replaced\",\"mapId\":0},\"tick\":\"10\",\"nativeGeneration\":\"1\"}");
         var replacedLoad=Instance(confirmedRecord,"Observe",attempt,replacedLoadContext);
         Check(Get(replacedLoad,"EffectCase").ToString()=="Unknown"&&!(bool)Get(replacedLoad,"CompleteInspection"),"a confirmed draft outcome cannot be reported once the observation load token is replaced");
+        // Other pawn orders: NativeDraftRecord.Matches isolates the exact claim/token
+        // agreement that Observe requires once the identity/tick guard and native
+        // readback both succeed. A later draft setter or any other pawn order that
+        // redrafts or releases the pawn between admission and readback produces a
+        // different claim ID/owner (or, on release, a different token) even though
+        // the boolean Drafted state can coincidentally match -- proving a bare bool
+        // comparison could not attribute the observed state to this operation alone.
+        var matches=Native("NativeDraftRecord").GetMethod("Matches",Flags)!;
+        Func<bool,object,object,bool> matched=(wanted,verified,current)=>(bool)matches.Invoke(null,new object?[]{wanted,verified,current})!;
+        Check(matched(true,Snapshot(true,owner),Snapshot(true,owner)),"same claim ID and owner still held is a match");
+        Check(!matched(true,Snapshot(true,owner),Snapshot(true,owner,claimId:"claim-2")),"a later draft setter or other order granting a new claim ID is not this operation's outcome");
+        Check(!matched(true,Snapshot(true,owner),Snapshot(true,foreign)),"a new claim under a different controller is not this operation's outcome");
+        Check(!matched(true,Snapshot(true,owner),Snapshot(false)),"an intervening release leaves no drafted state to match");
+        Check(!matched(true,Snapshot(true,owner),Snapshot(true)),"a drafted pawn with no current claim cannot match a claimed outcome");
+        Check(matched(false,Snapshot(true,owner),Snapshot(false,null,token:"native-token")),"exact token after release still matches");
+        Check(!matched(false,Snapshot(true,owner),Snapshot(false,null,token:"after-other-order")),"a different resulting token after another pawn order is not this release's outcome");
+        Check(!matched(false,Snapshot(true,owner),Snapshot(true,owner)),"a later re-draft by another order leaves the release unmatched");
         var server=Assembly.LoadFrom(directories.Select(d=>Path.Combine(d,"RimBridgeServer.dll")).First(File.Exists));
         var binder=server.GetType("RimBridgeServer.AnnotatedExtensionCapabilityProvider",true)!.GetMethod("BindArguments",Flags)!;
         foreach(var name in new[]{"Execute","Preview","ReleaseOwnedDraft"}) foreach(var value in new object?[]{"{}",new Dictionary<string,object>(),null,17,true}) {

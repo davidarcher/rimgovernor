@@ -1170,8 +1170,33 @@ main. Native package and Go production cutover remain independent.
   1.6 SDK) and running the rebuilt `NativeDraftOperations.exe` against it: 4151
   compiled assertions pass (up from the pre-change baseline), including the three
   new ones. `go build ./... && go vet ./... && go test ./...` from `go/` also pass
-  unaffected (this slice touches no Go code). Other pawn orders, persistent draft
-  policy and fault-injected uncertain setters remain open; the latter needs a real
+  unaffected (this slice touches no Go code).
+  Other pawn orders are now covered: `NativeDraftRecord`'s inline claim/token
+  comparison inside `Observe` (`integrations/rimgovernor-native/src/Bridge/
+  Protocol/NativeDraftOperations.cs`) is extracted into a standalone
+  `internal static bool Matches(bool wanted, NativePawnSnapshot verified,
+  NativePawnSnapshot current)`, so the exact agreement `Observe` requires --
+  same claim ID and owner when drafted, same resulting token when released --
+  can be exercised directly with synthetically constructed `NativePawnSnapshot`/
+  `NativeDraftClaim` values, without any live `Pawn`/`Map`/native hook (mirroring
+  `NativeMovementRecord.Classify`'s existing testable-pure-function pattern).
+  `contracts/tests/native-draft-operations/Program.cs` adds 8 assertions proving
+  a later draft setter or any other pawn order that redrafts the pawn under a
+  different claim ID, a different claim owner, an intervening release, or (on
+  the release side) leaves a different resulting token or re-drafts the pawn
+  again, is correctly reported as not matching this operation's verified
+  outcome -- attributing "the current pawn state no longer matches" to the
+  actual other-order case, not merely to an unconfirmed record or a replaced
+  observation identity. Verified by the same native package rebuild and
+  `NativeDraftOperations.exe` run: 4159 compiled assertions pass (up from 4151),
+  and `go build ./... && go vet ./... && go test ./...` from `go/` pass
+  unaffected (no Go code touched).
+  Persistent draft policy and fault-injected uncertain setters remain open;
+  persistent draft policy is refused as explicit `Unsupported` at validation
+  (`NativeDraftProtocol.Validate`, already covered by existing compiled checks)
+  but no actual persistent-policy feature is implemented -- that is new feature
+  work, not a test-coverage gap, and needs a scoped design before any slice
+  attempts it. Fault-injected uncertain setters needs a real
   `Pawn`/`Map`/`NativeControlAuthority` to reach `NativeDraftOperations.Apply`'s
   setter-fault path, which this compiled-only harness (constructs no live game
   objects) cannot exercise, and no live-acceptance path exists for it in Go today.

@@ -31,11 +31,7 @@ namespace HomeBridge.BridgeTools
                 result.Unknown=new Receipts.UnknownEffect {Reason="Current pawn/claim could not be inspected: "+read};return result;
             }
             result.CompleteInspection=true;
-            // A later draft setter/order invalidates the claim. Matching a bool alone
-            // cannot attribute a replacement draft to the original operation.
-            bool matches=wanted ? current.Drafted && current.Claim!=null && verified.Claim!=null
-                && current.Claim.ClaimId==verified.Claim.ClaimId && current.Claim.Owner.Equals(verified.Claim.Owner)
-                : !current.Drafted && current.Claim==null && current.Token==verified.Token;
+            bool matches=Matches(wanted,verified,current);
             var correlated=matches ? (wanted?current.Claim:releasedClaim) : null;
             var effect=NativeDraftProtocol.Effect(current.PawnId,current.Drafted,current.Token,false,matches,correlated?.ClaimId,correlated?.Owner);
             if(matches) result.Completed=new Receipts.CompletedEffect {Evidence=new Receipts.EffectEvidence {Job=effect}};
@@ -43,6 +39,15 @@ namespace HomeBridge.BridgeTools
                 Evidence=new Receipts.EffectEvidence {Job=effect},Detail="The current pawn state no longer matches the verified owned draft outcome."};
             return result;
         }
+        // A later draft setter/order invalidates the claim. Matching a bool alone
+        // cannot attribute a replacement draft to the original operation: the exact
+        // claim ID and owner (or, on release, the exact token) must still agree with
+        // what this operation verified, so any other pawn order that redrafts or
+        // releases the pawn in between is reported Interrupted, not Completed.
+        internal static bool Matches(bool wanted,NativePawnSnapshot verified,NativePawnSnapshot current) =>
+            wanted ? current.Drafted && current.Claim!=null && verified.Claim!=null
+                && current.Claim.ClaimId==verified.Claim.ClaimId && current.Claim.Owner.Equals(verified.Claim.Owner)
+                : !current.Drafted && current.Claim==null && current.Token==verified.Token;
     }
 
     internal static class NativeDraftOperations
