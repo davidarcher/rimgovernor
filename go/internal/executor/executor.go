@@ -126,6 +126,8 @@ type Executor struct {
 	repairJournal           RepairJournal
 	caravanDeparture        CaravanDepartureBoundary
 	caravanDepartureJournal CaravanDepartureJournal
+	clean                   CleanBoundary
+	cleanJournal            CleanJournal
 	ranged                  RangedBoundary
 	rangedJournal           RangedJournal
 	routineScope            RoutineScope
@@ -336,6 +338,9 @@ func (e *Executor) Run(ctx context.Context, plan domain.PlanID, actionID domain.
 	}
 	if action.Kind() == domain.CaravanDepartureAction && e.caravanDeparture != nil {
 		return e.runCaravanDeparture(ctx, action, progress, authority, generation)
+	}
+	if action.Kind() == domain.CleanAction && e.clean != nil {
+		return e.runClean(ctx, action, progress, authority, generation)
 	}
 	if action.Kind() == domain.MeleeAttackAction && e.melee != nil {
 		return e.runMelee(ctx, action, progress, authority, generation)
