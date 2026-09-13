@@ -755,9 +755,11 @@ without pushes, when the target checkout is safe; preserve other developers' wor
     native dispatch: its `operationspb`/`TradeEffect` messages are generated,
     but the legacy `TradeTool.cs` it must port is a ~2,400-line stateful
     `Dialog_Trade` UI session across four operations, sized for its own pass
-    rather than this one. `MaintainMedicalCare`'s settings-write half and
+    rather than this one. `MaintainMedicalCare` is closed: deliberately
+    monitoring-only, since Patient/PatientBedRest priorities are already
+    the generic `policy.AssignWork` default and native AI self-tends
+    without a dispatched order. `Population-*`'s own producer/method and
     every other e-row family's need/health/stock/custody/service composition
-    remain unstarted. G01.12 gameplay acceptance gates the whole item.
     remain unstarted. G01.12 gameplay acceptance gates the whole item.
 
   - [ ] **05.7 — Close the routine integration coverage.**
@@ -931,7 +933,7 @@ list. Containment/feed are the final two of the ten upkeep contracts.
 | Reference goal / producer / alternatives | Existing Go | Missing composition and observed postcondition |
 | --- | --- | --- |
 | `EnsureMood-*`: `mood_control.assess/priority_nodes/method`, bounded relief or wait | Mood history/proposal selection | Dynamic goal and relief action; observe actual need recovery and interruption, not forecast mood. |
-| `MaintainMedicalCare`: fixed priority producer, permitted Patient/PatientBedRest settings then monitor | Care history/need (`policy.ReviewMedicalCare`), generic Patient/PatientBedRest priorities already default-enabled by `policy.AssignWork`, and the goal is now marked `MethodUnavailable` (monitoring only, no dispatched action) | Reuse a treatment (composed) and b settings-write dispatch once that shared work-priority write action exists; preserve NoCare/player overrides. Observe rest/health without claiming chronic conditions cured. Requested surgery shares e care but is player-created; verify exact patient/body-part health change separately from bill disappearance. |
+| `MaintainMedicalCare`: fixed priority producer, permitted Patient/PatientBedRest settings then monitor | Care history/need (`policy.ReviewMedicalCare`) | **Closed** — deliberately monitoring-only: `MaintainMedicalCare` is `MethodUnavailable` by design in `policy.routine.go` since Patient/PatientBedRest priorities are already the generic `policy.AssignWork` default and native AI rests/self-tends without a dispatched order; no settings-write action is ever produced or needed. |
 | `Population-*`: `population.refresh/compile_method`, rescue/capture/release/recruit then integration | No composed producer/method | Durable commitments/custody settings and capacity/native guards; reuse a/b/c/d prerequisites. Observe custody/recruitment and food/housing/work/equip integration. |
 | `MaintainHerd-*`: `husbandry.refresh_husbandry/husbandry_method`, configuration/training/slaughter and `update_feed_goal` | Animal observations/upkeep policy | Dynamic herd policy/actions, handler skills through b, owned feed goals through d. Observe herd/training/stock and cancellation; retain release/slaughter exclusions. |
 | `MaintainAnimalContainment`: suitable-pen handler wait, otherwise fence/gate then marker | Animal containment need | Bounded pen construction/handler prerequisite. Observe animals contained, not fence completion. |
