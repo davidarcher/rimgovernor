@@ -1597,16 +1597,57 @@ main. Native package and Go production cutover remain independent.
   (`.rimgovernor/native-runs/constructionaccept-5` and `-6`, each
   `passed: true`, no leftover RimWorld process afterward), plus
   `go build ./... && go vet ./... && go test ./...` from `go/`.
-  Remaining-open items in this family are unchanged by this slice: persistent
-  draft policy remains new feature work needing a scoped design (no code
-  exists); fault-injected uncertain setters (draft) and native lost-reply
-  fault injection beyond the shared envelope gate both still need a new
-  disposable fixture design that can force a live native setter/transport path
-  itself to fail or lose a reply, which no fixture in this repo can do today;
-  MovePawn queued orders remains a confirmed dead end (no physical keyboard
-  state in headless GABS); and settings/bills/zones, resources/upkeep,
-  medical, animals/population, trade/world and explicit player operations
-  remain wholly unstarted operation families.
+  Fault-injected uncertain setters (draft) are now closed: the missing
+  capability blocking this and native lost-reply fault injection was a
+  disposable way to force the *live* `Pawn_DraftController.Drafted` setter
+  itself to fail, rather than only ever refusing before any native effect
+  runs. `scripts/fixtures/DraftFaultFixture.cs` (compiled in only via
+  `-Fixture DraftFaultFixture`, never in production) adds this by following
+  `DraftOwnership.cs`'s own already-established pattern exactly: a second,
+  independently owned Harmony prefix on the very same
+  `Pawn_DraftController.Drafted` setter `NativeAuthorityHooks` already
+  patches, keyed by controller instance (no new production hook, no change to
+  any admission/refusal logic). `test/draft_fault_arm`/`test/draft_fault_disarm`
+  arm/clear it for one exact colonist; the armed prefix throws
+  `DraftFaultInjectedException` before the real field write fires, then
+  immediately self-clears, so the fault can never fire twice or leak into a
+  later attempt. A new live-game acceptance binary,
+  `go/internal/nativeaccept/cmd/draftfaultaccept`, proves
+  `NativeDraftOperations.Apply`'s setter-fault path
+  (`integrations/rimgovernor-native/src/Bridge/Protocol/NativeDraftOperations.cs:113-138`):
+  an admitted `SetDrafted(true)` whose armed live setter throws reports an
+  `uncertain` receipt (not `applied`/`noChange`) whose detail attributes
+  `DraftFaultInjectedException` and whose `lastObserved.job` shows
+  `issued=true, verified=false, drafted=false`; the pawn's real drafted state
+  and draft claim are untouched (its CAS snapshot token still legitimately
+  rotates -- any attempted native draft interaction advances the pawn's own
+  draft revision whether or not the attempt later fails, exactly as an
+  uncertain lease-expiry outcome elsewhere in this family also rotates the
+  token without changing drafted/ownership facts); `receipts_observe_progress`
+  on that same attempt reports an incomplete inspection with an `unknown`
+  outcome ("No causally verified draft outcome is available in this
+  observation context"), not a fabricated completion or silent absence; and a
+  fresh legitimate `SetDrafted(true)` attempt against the same pawn
+  immediately afterward succeeds normally (`applied`, verified), proving the
+  injected fault left no lingering damage to the operation, the ledger, or the
+  pawn. Verified live and reproducibly in a freshly bootstrapped isolated
+  per-worktree RimWorld+bridge environment (junctioned read-only game/Data
+  from the shared Steam install, a private non-junctioned `Mods/RimGovernor`
+  built with `-Fixture EmergencyDevelopmentFixture,DraftFaultFixture`): two
+  consecutive green runs (`.rimgovernor/native-runs/draftfaultaccept-2` and
+  `-3`, each `passed: true`, no leftover RimWorld process afterward), plus
+  `go build ./... && go vet ./... && go test ./...` from `go/`.
+  Native lost-reply fault injection beyond the shared envelope gate remains
+  open: this slice's fixture forces the native *setter* to fail before its
+  effect, not the reply transport itself to be dropped or corrupted after a
+  real effect lands, which is a distinct injection point (likely nearer
+  `NativeOperationEnvelope`'s reply-encoding path or the GABS transport
+  itself) not attempted here. Remaining-open items otherwise unchanged by this
+  slice: persistent draft policy remains new feature work needing a scoped
+  design (no code exists); MovePawn queued orders remains a confirmed dead
+  end (no physical keyboard state in headless GABS); and settings/bills/zones,
+  resources/upkeep, medical, animals/population, trade/world and explicit
+  player operations remain wholly unstarted operation families.
 
 - [ ] **N01.05 — Runtime and presentation ownership.** Native runtime owner.
   Recover partial draft-hook initialization without requiring a game restart;
