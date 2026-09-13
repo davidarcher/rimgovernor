@@ -164,10 +164,10 @@ func ReconstructZone(z ZoneCreate) (ZoneCreate, error) {
 	}
 }
 
-func (z ZoneCreate) Kind() ZoneKind                 { return z.kind }
-func (z ZoneCreate) Crop() string                   { return z.crop }
-func (z ZoneCreate) Preset() StockpilePreset        { return z.preset }
-func (z ZoneCreate) Priority() StockpilePriority    { return z.priority }
+func (z ZoneCreate) Kind() ZoneKind              { return z.kind }
+func (z ZoneCreate) Crop() string                { return z.crop }
+func (z ZoneCreate) Preset() StockpilePreset     { return z.preset }
+func (z ZoneCreate) Priority() StockpilePriority { return z.priority }
 func (z ZoneCreate) Cells() []Cell {
 	var cells []Cell
 	_ = json.Unmarshal([]byte(z.cells), &cells)
