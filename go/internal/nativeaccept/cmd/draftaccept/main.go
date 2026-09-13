@@ -4,6 +4,17 @@
 // owned-cleanup-beyond-exhaustion. Capacity refusal's own boundary remains covered by
 // compiled ledger tests (contracts/tests/native-attempt-ledger), not injected native
 // outcomes; this only proves cleanup remains possible after real exhaustion.
+//
+// Also proves the general "lost reply" recovery mechanism live: after Manual
+// revocation and owned-cleanup have already run (zero active authority anywhere),
+// rimgovernor/receipts_lookup keyed only by the original attempt still recovers
+// the exact original committed receipt, matching its own documented contract
+// ("without requiring current authority") and docs/developers/architecture/
+// plans-and-hands.md's recovery guidance for a lost reply ("retain intent and
+// inspect the game before retrying"). No new fixture is needed: the ledger already
+// commits the receipt keyed by attempt independent of any later authority state,
+// so a caller whose original reply never arrived can always recover the true
+// outcome by attempt key alone, without redispatching the operation.
 package main
 
 import (
@@ -430,6 +441,34 @@ func run(ctx context.Context, root, output, gameID string, headless bool, report
 	}
 	if !na.DeepEqual(replayAfterCleanup, receipt) {
 		return fmt.Errorf("replay-after-cleanup returned a different receipt than the original execute")
+	}
+
+	// Lost-reply recovery: rimgovernor/receipts_lookup is documented ("Read
+	// original admitted receipt without requiring current authority") and
+	// plans-and-hands.md names exactly this pattern for a lost reply ("A lost
+	// reply after dispatch may conceal an accepted order: retain intent and
+	// inspect the game before retrying"). The earlier "lookup" step above only
+	// proved receipts_lookup echoes the original receipt while the authorizing
+	// lease was still active. Here authority has since been fully revoked
+	// (Manual, above) and the owned claim already released and cleaned up --
+	// so a lookup keyed only by the original attempt, with zero live authority
+	// anywhere in hand, still recovers the exact original committed receipt.
+	// This proves a caller whose original reply never arrived can recover the
+	// true outcome from the attempt key alone, without redispatching the
+	// operation and without needing any authority at all -- the general,
+	// family-agnostic mechanism the "lost reply" gap in docs/BACKLOG.md's
+	// N01.04 entry names, live and beyond the shared envelope gate's own
+	// compiled-only coverage.
+	lookupAfterCleanupReply, err := h.Wire(ctx, "lookup-after-cleanup", "receipts_lookup", attempt)
+	if err != nil {
+		return err
+	}
+	_, lookupAfterCleanup, err := na.Outcome(lookupAfterCleanupReply, "receipt")
+	if err != nil {
+		return err
+	}
+	if !na.DeepEqual(lookupAfterCleanup, receipt) {
+		return fmt.Errorf("lookup-after-cleanup returned a different receipt than the original execute")
 	}
 
 	// Lease expiry: a short-lived lease must lapse under REVOCATION_REASON_LEASE_EXPIRED

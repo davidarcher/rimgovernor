@@ -1739,17 +1739,58 @@ main. Native package and Go production cutover remain independent.
   consecutive green runs (`.rimgovernor/native-runs/draftfaultaccept-2` and
   `-3`, each `passed: true`, no leftover RimWorld process afterward), plus
   `go build ./... && go vet ./... && go test ./...` from `go/`.
-  Native lost-reply fault injection beyond the shared envelope gate remains
-  open: this slice's fixture forces the native *setter* to fail before its
-  effect, not the reply transport itself to be dropped or corrupted after a
-  real effect lands, which is a distinct injection point (likely nearer
-  `NativeOperationEnvelope`'s reply-encoding path or the GABS transport
-  itself) not attempted here. Remaining-open items otherwise unchanged by this
-  slice: persistent draft policy remains new feature work needing a scoped
-  design (no code exists); MovePawn queued orders remains a confirmed dead
-  end (no physical keyboard state in headless GABS); and settings/bills/zones,
-  resources/upkeep, medical, animals/population, trade/world and explicit
-  player operations remain wholly unstarted operation families.
+  Native lost-reply fault injection beyond the shared envelope gate is now
+  closed, and closed without any new fixture. Investigation found "lost
+  reply" is already a general, family-agnostic recovery mechanism this
+  codebase names explicitly outside N01.04's own prose --
+  `docs/developers/architecture/plans-and-hands.md`: "A lost reply after
+  dispatch may conceal an accepted order: retain intent and inspect the game
+  before retrying" -- and already implements: `NativeAttemptLedger.cs` commits
+  an immutable `Receipt` keyed only by `AttemptKey`, independent of whether
+  the caller's original `ExecuteReply` ever arrived, and the dedicated
+  `rimgovernor/receipts_lookup` RPC (`NativeOperationTools.cs`) reads it back
+  ("Read original admitted receipt without requiring current authority").
+  Literally dropping the wire bytes of one specific GABS reply after a real
+  native effect commits would need transport-layer fault injection in GABS
+  itself, genuinely out of this repo's native/Go scope (confirmed, not
+  assumed, by reading `NativeOperationEnvelope.cs`: its `Fits`/`Uncertain`/
+  `Progress` gate only ever decides whether a reply the *native process
+  itself* is about to encode fits the envelope -- a different, already-
+  covered concern from a reply lost after leaving the process). But
+  `go/internal/nativeaccept/cmd/draftaccept` already proved the substance
+  of this exact recovery path piecemeal (replay via a redispatched
+  `operations_execute` returning the identical cached receipt, including
+  after Manual revoke and owned-claim cleanup; and a `receipts_lookup` call
+  matching the original receipt) without ever proving `receipts_lookup`
+  itself -- the one call genuinely documented as authority-free, the
+  literal shape a caller whose reply never arrived would use -- works with
+  *zero* live authority anywhere, which is the whole point of the "lost
+  reply" guarantee. That was the real, narrow, previously-unclosed gap: not
+  missing recovery logic, but missing live proof that the caller does not
+  need to still hold (or reacquire) authority to recover the true outcome.
+  `draftaccept` now adds exactly that: after its existing Manual revoke and
+  `operations_release_owned_draft` cleanup (so the owning grant is gone and
+  the claim itself is released), a fresh `receipts_lookup` keyed only by the
+  original attempt still returns the exact original `applied` receipt
+  (`drafted: true`, the original `draftClaimId`, `resultingSnapshotToken`
+  unchanged) -- proving a caller can recover the true committed outcome of
+  an attempt whose reply it never saw, using only the attempt key, without
+  redispatching the operation and without any authority in hand. Verified
+  live and reproducibly in a freshly bootstrapped isolated per-worktree
+  RimWorld+bridge environment (junctioned read-only game data from the
+  shared Steam install, a private freshly built `Mods/RimGovernor` via
+  `scripts/build_native_mod.ps1 -Fixture EmergencyDevelopmentFixture`): two
+  consecutive green `cmd/draftaccept` runs, each `passed: true`, no leftover
+  RimWorld process afterward, plus `go build ./... && go vet ./... && go
+  test ./...` from `go/`.
+  N01.04's remaining-open scope is now down to exactly two real categories
+  besides the wholly-unstarted operation families: **persistent draft
+  policy** (new feature work needing a scoped design; no code exists) and
+  the **wholly-unstarted operation families themselves**
+  (settings/bills/zones, resources/upkeep, medical, animals/population,
+  trade/world, explicit player operations). MovePawn queued orders remains a
+  separately-named confirmed dead end (no physical keyboard state in
+  headless GABS), not an open gap awaiting a fix.
 
 - [ ] **N01.05 — Runtime and presentation ownership.** Native runtime owner.
   Recover partial draft-hook initialization without requiring a game restart;
