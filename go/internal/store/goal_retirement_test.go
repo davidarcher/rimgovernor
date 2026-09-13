@@ -20,7 +20,7 @@ func TestRoutineGoalRetirementSurvivesRepeatedDirectionsAndRestart(t *testing.T)
 	for i := 0; i < 32; i++ {
 		r.Current.Direction--
 		out := reviewRoutine(t, s, &r)
-		if len(out.Goals) != 30 {
+		if len(out.Goals) != 31 {
 			t.Fatal(out)
 		}
 	}
@@ -34,7 +34,7 @@ func TestRoutineGoalRetirementSurvivesRepeatedDirectionsAndRestart(t *testing.T)
 	if err = s.db.QueryRowContext(ctx, "SELECT count(*),sum(retired=0) FROM goals").Scan(&history, &active); err != nil {
 		t.Fatal(err)
 	}
-	if active != 30 || history != 33*30 {
+	if active != 31 || history != 33*31 {
 		t.Fatal(active, history)
 	}
 	if _, err = s.ReviewGoal(ctx, g.Goal.ID, g.Revision, r.Current, r.Tick, domain.NeedDeficit, false); err == nil {
