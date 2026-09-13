@@ -1251,6 +1251,46 @@ main. Native package and Go production cutover remain independent.
   arguments disable supported attribution. Extend native acceptance to in-flight
   interruption and those refusal cases. Overhead, beam, fire/gas/spawn payloads and
   custom projectile/damage-worker paths remain unsupported.
+  `contracts/tests/NativeContractProbes/native-explosive-causality/Program.cs`
+  now also directly exercises `NativeExplosiveCausality.SupportedExplosive(ThingDef)`
+  (`integrations/rimgovernor-native/src/Bridge/Protocol/NativeExplosiveCausality.cs`)
+  -- the pure eligibility predicate `Supports()`/the production `Legal()`/`Track()`
+  admission path relies on to accept only ordinary injury-only explosive projectile
+  defs. Before this slice only its all-true happy path (the probe fixture's own
+  always-valid `BulletDef`) was ever exercised; every refusal branch of its
+  `&&`-chain was untested. 21 new assertions construct distinct `ThingDef`/
+  `ProjectileProperties` combinations proving each guard independently forces
+  refusal -- wrong `thingClass`, missing `projectile` properties, `flyOverhead`,
+  non-positive/infinite `explosionRadius`, negative `explosionDelay`, missing or
+  non-`DamageWorker_AddInjury` `damageDef`, any of the six pre/post-explosion
+  spawn-thing fields set, a non-null `postExplosionGasType`, non-zero
+  `explosionChanceToStartFire`, a `filth` def, `explosionSpawnsSingleFilth`, and a
+  non-empty `extraDamages` list -- plus one boundary assertion proving an empty
+  (not null) `extraDamages` list is still accepted (`NullOrEmpty` semantics), on
+  top of the existing baseline positive assertion. This is the same
+  pure-function-branch-extension technique as the prior four N01.04 slices,
+  applied to a predicate that gates admission rather than an outcome/order
+  classifier. Verified by building the production native package
+  (`scripts/build_native_mod.ps1` against the installed RimWorld 1.6 managed
+  assemblies, Harmony (Steam Workshop `2009463077/Current`) and the installed
+  RimBridgeServer 1.6 SDK Mod) and running the rebuilt
+  `native-explosive-causality` probe against it (via a standalone verification
+  project referencing the probe's `Program.cs` directly, since the merged
+  `contracts/tests/NativeContractProbes.csproj` cannot compile
+  `native-explosive-causality`/`native-ranged-causality` together with
+  `native-authority-hooks`/`native-operation-envelope` in the same build --
+  supplying `$(RimWorldManagedDir)` alongside `$(HarmonyAssembly)` activates both
+  gated item groups at once, and `NativeAuthorityHooks.cs` then fails with
+  `CS0104` ambiguous-`WorkTypeDef`-reference errors between the always-on fake
+  Verse stub and the real `Assembly-CSharp.dll`; this pre-existing gating
+  conflict in the consolidated csproj is otherwise unrelated to this slice and is
+  left for a dedicated build-tooling fix): 352 compiled assertions pass, up from
+  331 on the unmodified baseline (confirmed by running the identical probe
+  source from `git show HEAD` through the same standalone harness) -- exactly
+  the 21 new assertions. `dotnet build contracts/tests/NativeContractProbes.csproj`
+  (default, no external properties) still succeeds with 0 warnings/errors.
+  `go build ./... && go vet ./... && go test ./...` from `go/` also pass
+  unaffected (no Go code touched).
   Native lost-reply fault injection,
   instant/replacement construction cases and remaining operation families are open.
 

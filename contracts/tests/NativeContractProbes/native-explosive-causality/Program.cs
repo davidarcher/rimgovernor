@@ -233,6 +233,39 @@ internal static class NativeExplosiveCausalityProgram
             changed=original.Select(row=>new CodeInstruction(row)).ToList();var call=changed.First(row=>Equals(row.operand,Method(pair[2])));call.blocks.Add(new ExceptionBlock(ExceptionBlockType.BeginExceptionBlock));output=Rewrite(pair[0],changed);Check(Calls(output,Method(pair[3]))==0,"exception-boundary explosion call fails closed");Rewrite(pair[0],original);
             changed=original.Select(row=>new CodeInstruction(row)).ToList();call=changed.First(row=>Equals(row.operand,Method(pair[2])));var labelGenerator=new DynamicMethod("LabelFixture",typeof(void),Type.EmptyTypes).GetILGenerator();Label label;do{label=labelGenerator.DefineLabel();}while(changed.Any(row=>row.labels.Contains(label)));call.labels.Add(label);output=Rewrite(pair[0],changed);Check(output.Count(row=>row.labels.Contains(label))==1,"explosion rewrite preserves branch label once");
         }
+        // SupportedExplosive is the pure eligibility predicate NativeRangedCausality.Supports()
+        // and the production Legal()/Track() admission path rely on to accept only ordinary
+        // injury-only explosive projectiles. Previously only its all-true happy path (the
+        // fixture's own BulletDef) was ever exercised; every refusal branch below was untested.
+        ThingDef ValidExplosiveDef()
+        {
+            var workerDamage=Raw<DamageDef>();workerDamage.workerClass=typeof(DamageWorker_AddInjury);
+            var def=Raw<ThingDef>();def.thingClass=typeof(Projectile_Explosive);
+            def.projectile=new ProjectileProperties{explosionRadius=3.25f,explosionDelay=0,damageDef=workerDamage};
+            return def;
+        }
+        bool Supported(ThingDef def)=>(bool)Producer.GetMethod("SupportedExplosive",F)!.Invoke(null,new object?[]{def})!;
+        Check(Supported(ValidExplosiveDef()),"baseline ordinary injury-only explosive definition is supported");
+        {var def=ValidExplosiveDef();def.thingClass=typeof(Bullet);Check(!Supported(def),"non-explosive thingClass refuses support");}
+        {var def=ValidExplosiveDef();def.projectile=null;Check(!Supported(def),"missing projectile properties refuses support");}
+        {var def=ValidExplosiveDef();def.projectile.flyOverhead=true;Check(!Supported(def),"overhead explosive projectile refuses support");}
+        {var def=ValidExplosiveDef();def.projectile.explosionRadius=0;Check(!Supported(def),"zero explosion radius refuses support");}
+        {var def=ValidExplosiveDef();def.projectile.explosionRadius=-1;Check(!Supported(def),"negative explosion radius refuses support");}
+        {var def=ValidExplosiveDef();def.projectile.explosionRadius=float.PositiveInfinity;Check(!Supported(def),"infinite explosion radius refuses support");}
+        {var def=ValidExplosiveDef();def.projectile.explosionDelay=-1;Check(!Supported(def),"negative explosion delay refuses support");}
+        {var def=ValidExplosiveDef();def.projectile.damageDef=null;Check(!Supported(def),"missing damage definition refuses support");}
+        {var def=ValidExplosiveDef();var other=Raw<DamageDef>();other.workerClass=typeof(DamageWorker);def.projectile.damageDef=other;Check(!Supported(def),"non-injury damage worker refuses support");}
+        {var def=ValidExplosiveDef();def.projectile.preExplosionSpawnThingDef=Raw<ThingDef>();Check(!Supported(def),"pre-explosion spawn thing refuses support");}
+        {var def=ValidExplosiveDef();def.projectile.postExplosionSpawnThingDef=Raw<ThingDef>();Check(!Supported(def),"post-explosion spawn thing refuses support");}
+        {var def=ValidExplosiveDef();def.projectile.postExplosionSpawnThingDefWater=Raw<ThingDef>();Check(!Supported(def),"post-explosion water spawn thing refuses support");}
+        {var def=ValidExplosiveDef();def.projectile.preExplosionSpawnSingleThingDef=Raw<ThingDef>();Check(!Supported(def),"pre-explosion single spawn thing refuses support");}
+        {var def=ValidExplosiveDef();def.projectile.postExplosionSpawnSingleThingDef=Raw<ThingDef>();Check(!Supported(def),"post-explosion single spawn thing refuses support");}
+        {var def=ValidExplosiveDef();def.projectile.postExplosionGasType=(GasType)1;Check(!Supported(def),"post-explosion gas payload refuses support");}
+        {var def=ValidExplosiveDef();def.projectile.explosionChanceToStartFire=0.01f;Check(!Supported(def),"fire-starting chance refuses support");}
+        {var def=ValidExplosiveDef();def.projectile.filth=Raw<ThingDef>();Check(!Supported(def),"filth payload refuses support");}
+        {var def=ValidExplosiveDef();def.projectile.explosionSpawnsSingleFilth=true;Check(!Supported(def),"single-filth spawn flag refuses support");}
+        {var def=ValidExplosiveDef();def.projectile.extraDamages=new List<ExtraDamage>{Raw<ExtraDamage>()};Check(!Supported(def),"non-empty extra damage payload refuses support");}
+        {var def=ValidExplosiveDef();def.projectile.extraDamages=new List<ExtraDamage>();Check(Supported(def),"empty (not null) extra damage list remains supported");}
         Check((bool)Producer.GetProperty("ExplosiveIsReady",F)!.GetValue(null)!,"final explosion IL and hook health valid");
         Console.WriteLine(checks+" actual-assembly explosion checks passed; synthetic forwarding sinks, not gameplay damage acceptance.");
     }
