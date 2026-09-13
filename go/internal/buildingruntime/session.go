@@ -25,6 +25,7 @@ type SessionConfig struct {
 	Draft          *DraftCapabilities
 	Clock          *ClockCapabilities
 	Melee          *MeleeCapabilities
+	Haul           *HaulCapabilities
 }
 
 // Session binds the single profile owner to one journal and executor. Its caller
@@ -220,6 +221,16 @@ func NewSession(ctx context.Context, config SessionConfig, journal *store.Store,
 			return cleanup(ErrControl)
 		}
 		executionBoundary = withBill(executionBoundary, &billBoundary{Boundary: boundary, bill: *config.Bills})
+	}
+	if config.Haul != nil {
+		if config.Haul.Native == nil || config.Haul.Writer == nil {
+			return cleanup(ErrControl)
+		}
+		haulBoundary, err := NewHaulBoundary(config.Haul.Native, config.Haul.Writer, sessionBuildingLeases{control, journal, config.RoutineMethods, config.Executor.JournalTimeout}, clock, string(namespace))
+		if err != nil {
+			return cleanup(err)
+		}
+		executionBoundary = withHaul(executionBoundary, haulBoundary)
 	}
 	var routine []executor.RoutineScope
 	if config.RoutineMethods {
