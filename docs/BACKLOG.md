@@ -1132,15 +1132,30 @@ b; exact worker cleanup by a, with reuse by their later consumers.
   larger native mechanism comparable in size to caravan departure itself.
   Reward selection beyond a single pre-known choice index is likewise
   unstarted (`EvaluateQuestAccept` always refuses when a quest exposes more
-  than one reward choice rather than guessing). Settlement gifts are similarly
-  proto-only (`GiftCaravanSilver` in `operations.proto`, no native `Execute`
-  handler, no Go consumer). Failure recovery across multiple active maps is
-  unstarted. None of these were attempted this round: each needs its own
-  native write handler plus a full Go domain/policy/store/executor/session
-  vertical, comparable in size to the caravan-departure work already landed.
+  than one reward choice rather than guessing). Settlement gifts are now
+  implemented end to end: native `GiftCaravanSilver` (execute+preview+observe,
+  `NativeSettlementGiftOperations.cs`) is wired into `NativeOperationTools.cs`'s
+  dispatch, and `NativeWorldObservation.cs` adds the previously proto-only,
+  unimplemented `ReadWorld` (tool `rimgovernor/observations_read_world`,
+  settlement rows with self-computed CAS `Snapshot`/`FactionSnapshot` tokens
+  `GiftCaravanSilver`'s `Execute` re-checks). Go: `domain.SettlementGift`/
+  `SettlementGiftAction` (crew roster stored as one separator-joined string,
+  not a slice, so `Action` stays comparable), `policy.EvaluateSettlementGift`
+  (conservative — refuses on unknown/stale caravan, faction, crew, goodwill,
+  silver, or native-eligibility facts), `store.SettlementGiftAdmission`
+  (schema version 49, `settlement_gift_admissions` table) and a
+  `settlement_gift_payload` JSON blob column on `actions` (mirroring
+  `caravan_departure`'s payload-column pattern, since the crew slice does not
+  fit scalar columns), `bridge.ReadSettlementGiftTarget` (composes
+  `ReadWorldProgression` and the new `ReadWorld` to find the exact settlement
+  at a stationary caravan's tile) and `SettlementGiftWriter`, and
+  `executor`/`buildingruntime.SettlementGiftBoundary` wired via `session.go`'s
+  `EnableSettlementGift`. No CLI wiring in `cmd/rimgovernor` yet. `FulfillQuest`
+  and failure recovery across multiple active maps remain unstarted; each
+  still needs its own native write handler plus a full Go vertical.
   **Exit evidence:** native departure, arrival, quest fulfillment/reward
-  selection, settlement gifts, and failure recovery with Go owning the
-  workflow and no wrong-map writes.
+  selection, and failure recovery with Go owning the workflow and no
+  wrong-map writes.
 
 ### Remaining player and production delivery
 

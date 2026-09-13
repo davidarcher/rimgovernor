@@ -54,6 +54,7 @@ type SessionConfig struct {
 	HomeCoverage        *HomeCoverageCapabilities
 	PrisonerInteraction *PrisonerInteractionCapabilities
 	QuestAccept         *QuestAcceptCapabilities
+	SettlementGift      *SettlementGiftCapabilities
 }
 
 // Session binds the single profile owner to one journal and executor. Its caller
@@ -322,6 +323,9 @@ func NewSession(ctx context.Context, config SessionConfig, journal *store.Store,
 	if config.QuestAccept != nil && (config.QuestAccept.Native == nil || config.QuestAccept.Writer == nil) {
 		return cleanup(ErrControl)
 	}
+	if config.SettlementGift != nil && (config.SettlementGift.Native == nil || config.SettlementGift.Writer == nil) {
+		return cleanup(ErrControl)
+	}
 	var routine []executor.RoutineScope
 	if config.RoutineMethods {
 		routine = append(routine, journal)
@@ -498,6 +502,15 @@ func NewSession(ctx context.Context, config SessionConfig, journal *store.Store,
 			return cleanup(err)
 		}
 		if err := worker.EnableQuestAccept(questAcceptBoundary); err != nil {
+			return cleanup(err)
+		}
+	}
+	if config.SettlementGift != nil {
+		settlementGiftBoundary, err := NewSettlementGiftBoundary(config.SettlementGift.Native, config.SettlementGift.Writer, sessionBuildingLeases{control, journal, config.RoutineMethods, config.Executor.JournalTimeout}, clock, string(namespace))
+		if err != nil {
+			return cleanup(err)
+		}
+		if err := worker.EnableSettlementGift(settlementGiftBoundary); err != nil {
 			return cleanup(err)
 		}
 	}

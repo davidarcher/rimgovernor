@@ -2,6 +2,7 @@ package bridge
 
 import (
 	"context"
+	"math"
 
 	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
 	o "github.com/davidarcher/RimGovernor/go/internal/wire/observationspb"
@@ -16,13 +17,18 @@ import (
 // on FormCaravan's own attempt/receipt machinery, which only ever reports
 // "did native form and start this caravan" (see NativeCaravanRecord's doc
 // comment). This type does not surface CaravanState.pawns' full PawnState,
-// inventory, home_routes, mass or food fields; a future slice adds those once
-// Go's return-storage/failure-recovery workflow needs them.
+// home_routes or mass/food fields; a future slice adds those once Go's
+// return-storage/failure-recovery workflow needs them. Silver is the one
+// inventory quantity settlement-gift admission needs (a conservative reserve
+// check, not a full cargo manifest); native always populates the full
+// inventory census (Inventory() has no failure path), so an absent Silver
+// row is a known zero, not unknown.
 type CaravanJourney struct {
 	ID      string
 	Tile    int32
 	Moving  bool
 	PawnIDs []string
+	Silver  int32
 }
 
 // QuestOffer is the validated subset of one WorldProgressionSnapshot.quests
@@ -125,7 +131,24 @@ func worldProgressionSelected(v *o.WorldProgressionSnapshot, identity *c.Identit
 			seenPawns[pawn.Pawn.GetId()] = true
 			pawnIDs[j] = pawn.Pawn.GetId()
 		}
-		rows[i] = CaravanJourney{ID: row.Caravan.GetId(), Tile: row.GetTile(), Moving: row.GetMoving(), PawnIDs: pawnIDs}
+		if len(row.Inventory) > 4096 {
+			return WorldProgressionRead{}, contract("world progression caravan inventory exceeds bound")
+		}
+		var silver int32
+		seenDefs := map[string]bool{}
+		for _, item := range row.Inventory {
+			if item == nil || item.DefName == nil || seenDefs[item.GetDefName()] {
+				return WorldProgressionRead{}, contract("invalid or duplicate world progression caravan inventory row")
+			}
+			seenDefs[item.GetDefName()] = true
+			if item.GetDefName() == "Silver" {
+				if item.Units == nil || item.GetUnits() < 0 || item.GetUnits() > math.MaxInt32 {
+					return WorldProgressionRead{}, contract("invalid world progression caravan silver")
+				}
+				silver = int32(item.GetUnits())
+			}
+		}
+		rows[i] = CaravanJourney{ID: row.Caravan.GetId(), Tile: row.GetTile(), Moving: row.GetMoving(), PawnIDs: pawnIDs, Silver: silver}
 	}
 	if len(v.Quests) > 256 {
 		return WorldProgressionRead{}, contract("world progression quests exceed bound")
