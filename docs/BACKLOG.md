@@ -1047,7 +1047,59 @@ without pushes, when the target checkout is safe; preserve other developers' wor
       currently and safely returns `GearUnknown` rather than ever
       proposing a wrong method — `RoutineGearPlanner` is wired and will
       dispatch correctly once that stock plumbing lands, but does not yet
-      actively propose replacements. `EnsureResearch`, `EnsureBasicPower`,
+      actively propose replacements. `EnsureBasicPower`, `MaintainResource-*`
+      and `MaintainMedicalReserves` are entirely unstarted. All
+      gameplay/native acceptance remains gated on G01.12 per this doc's
+      stated delivery rule.
+
+    **Claude handoff: 05.5 slice 2 (`EnsureResearch` — policy primitives only)**
+
+    - Surveyed the native surface first: `contracts/proto/{operations,
+      observations,receipts}.proto` already define `SelectResearch`,
+      `ResearchSnapshot`/`ResearchProject`/`ResearchBench`/`Researcher`/
+      `ResearchReply` and `ResearchEffect`, and the generated
+      `operationspb`/`observationspb`/`receiptspb` Go types exist — unlike
+      `GearProduce`, there is no protobuf-shape gap here. But nothing in
+      `go/internal/bridge` or `go/internal/buildingruntime` calls any of it
+      yet (confirmed by grep; the only consumer of
+      `observations_read_research` in the whole Go tree is the read-only
+      native-acceptance harness `go/internal/nativeaccept/cmd/researchaccept`,
+      which calls the raw gabs tool directly, not through a typed bridge
+      method) — so a full vertical (bridge read/select + domain plan + policy
+      admission + store admission + executor state machine + buildingruntime
+      boundary/RoutinePlanner + CLI flag) is a same-sized effort to
+      `GearReplace`'s slice, not something to rush in the same pass as
+      surveying it.
+    - Scoped this pass down to the smallest ready sub-case, matching the
+      `GearReplace` opening precedent: ported `controller/rimgovernor/
+      research.py`'s three pure, native-shape-preserving helpers as new
+      `go/internal/policy/research.go` (+ `research_test.go`, 14 cases) —
+      `ResearchPrerequisiteQueue` (topological native-prerequisite ordering
+      with cycle/incompleteness rejection and the `MAX_QUEUE`/`MAX_VISITS`
+      bounds `research.py` enforces), `UsableResearchLaboratories` (native
+      bench power/building/facility matching), and `EligibleResearchers`
+      (incapacitation/`Applies`/work-priority/override filtering, reusing the
+      existing `WorkType`/`WorkPriority`/`WorkOverride`/`PawnID` types from
+      `policy/work_assignment.go` rather than inventing parallel ones). These
+      are pure functions with no domain/store/executor/bridge/buildingruntime
+      wiring — they only make `research.py`'s deterministic selection logic
+      available and independently testable ahead of that wiring, the same
+      posture 05.5 slice 1 opened `GearReplace` from.
+    - `research.py`'s `needs()` (which decides *when* `EnsureResearch` should
+      be active by scanning `plan.colony_goals`/`plan.spec.steps` for
+      unavailable ThingDef/RecipeDef requirements) was deliberately left
+      unported: Go has no equivalent single `plan.colony_goals` registry to
+      scan generically — each Go goal family carries its own typed need/review
+      functions — so this needs a Go-native admission design (likely modeled
+      after `policy.ReviewMedicalCare`'s or `policy.GearReview`'s hysteresis
+      shape) rather than a literal transliteration, and is left for the next
+      session alongside the bridge/domain/store/executor/buildingruntime
+      wiring. `refresh()`/`method()`/`selected()`/`validate_dispatch()` (state
+      machine, native dispatch, player-direction/token invalidation) are
+      likewise entirely unstarted.
+    - Full `go build ./... && go vet ./... && GOMAXPROCS=2 go test -p 1 ./...`
+      passes across the whole module, including the new `policy` coverage.
+    - Still open, unchanged from slice 1: `EnsureBasicPower`,
       `MaintainResource-*` and `MaintainMedicalReserves` are entirely
       unstarted. All gameplay/native acceptance remains gated on G01.12 per
       this doc's stated delivery rule.
