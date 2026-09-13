@@ -2026,10 +2026,44 @@ main. Native package and Go production cutover remain independent.
       it). Retirement of all three is now blocked only on Slice 3's loader
       conversion, not on any remaining Go/live-verification work.
   - [ ] **Slice 3 — remaining `controller_tests/test_native_*` loaders.** 34
-    files still load a `scripts/*_acceptance.py` by path (the legacy pattern
-    in `test_native_pawn_acceptance.py` etc.). Convert each to a Go `_test.go`
+    files load a `scripts/*_acceptance.py` by path (the legacy pattern in
+    `test_native_pawn_acceptance.py` etc.). Convert each to a Go `_test.go`
     beside its `bridge/*.go` domain file as that family's slice lands, rather
     than as separate work.
+    - [x] **Pawn-order + scenario-clock family (5 files).** The family Slices
+      1-2 already landed in Go had five loaders left:
+      `test_native_draft_acceptance.py`, `test_native_pawn_acceptance.py`,
+      `test_native_combat_acceptance.py`, `test_native_movement_acceptance.py`,
+      `test_native_typed_clock_acceptance.py`. Converted their fabrication/
+      replay-rejection coverage to Go: `draft_test.go` (readback fabrication,
+      replay-check, no-change, actual-order cases), new
+      `cmd/pawnaccept/main_test.go`, `cmd/combataccept/main_test.go`,
+      `cmd/movementaccept/main_test.go` (the pure `draftControl`/`compareCore`/
+      `healthyCandidates`/`attackRequest`/`terminal`/`overriddenAttack`/
+      `candidates`/`jobEffect`/`arrival`/`moveRequest` helpers, previously
+      untested in Go); `scenario_test.go`'s existing coverage already carried
+      the typed-clock family's core cases. Porting the Python fixtures over
+      literally caught four real gaps the earlier Go port had silently
+      dropped, now fixed: `PawnRow` never checked completeness
+      matched/returned/unreadable counts; `pawnaccept.compareCore` coerced a
+      non-boolean field (e.g. `drafted: 0`) to `false` instead of rejecting
+      the type mismatch, and never checked the legacy→typed pawn set for
+      symmetry; `movementaccept.moveRequest` aliased the caller's destination
+      map instead of copying it (mirroring `native_movement_acceptance.py`'s
+      `deepcopy(destination)`); and `pawnaccept.draftControl` dropped
+      `native_pawn_acceptance.py`'s `draft_control()` cross-checks entirely
+      (snapshot `entityId`/`context` against the row/read context, owned
+      claim's `pawnSnapshot` equality and `drafted=True` requirement, and the
+      live-current-map-animal-cannot-be-blanket-`NOT_APPLICABLE` rule) —
+      restored, plus a new shared `nativeaccept.RequireIdentifier` (mirroring
+      `identifier()`: non-whitespace, no null byte, ≤256 UTF-8 bytes) so
+      `RequireSnapshot` no longer accepts a whitespace-only token/entityId.
+      `go build`/`vet`/`test ./...` clean. The five Python loaders are
+      deleted; the underlying `scripts/native_{draft,pawn,combat,movement,
+      typed_clock}_acceptance.py` modules stay in place per this backlog's
+      import rule (still imported by each other and by
+      `native_go_draft_acceptance.py`), tracked separately from this test-
+      loader slice.
   - [ ] **Slice 4 — subsystem long tail (~70 remaining `scripts/*_acceptance.py`).**
     Group by existing `bridge/*.go` domain and land as independent sub-slices:
     construction/building; upkeep/comfort/gear/power (largest cluster); food/

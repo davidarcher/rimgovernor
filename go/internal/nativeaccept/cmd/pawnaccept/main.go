@@ -133,7 +133,7 @@ func run(ctx context.Context, root, output, gameID string, headless bool, report
 		}
 		for _, raw := range rows {
 			row, _ := nativeaccept.AsMap(raw)
-			if err := draftControl(row); err != nil {
+			if err := draftControl(row, observed["context"]); err != nil {
 				return nil, nil, fmt.Errorf("%s: %w", label, err)
 			}
 		}
@@ -419,10 +419,10 @@ func run(ctx context.Context, root, output, gameID string, headless bool, report
 // observations.proto PawnHealth.snapshot=19, PawnSettings.snapshot=1), and social is
 // now a populated PawnSocial block: earlier acceptance runs predated both and
 // asserted their absence, which this port corrects rather than preserves.
-func draftControl(row map[string]any) error {
+func draftControl(row map[string]any, context any) error {
 	pawn, _ := nativeaccept.AsMap(row["pawn"])
-	if nativeaccept.AsString(pawn["id"]) == "" {
-		return fmt.Errorf("pawn row missing id")
+	if err := nativeaccept.RequireIdentifier(pawn["id"]); err != nil {
+		return fmt.Errorf("pawn id: %w", err)
 	}
 	claim, _ := nativeaccept.AsMap(row["draftClaim"])
 	if len(claim) != 1 {
@@ -436,20 +436,41 @@ func draftControl(row map[string]any) error {
 		if reason != "UNAVAILABLE_REASON_NOT_APPLICABLE" && reason != "UNAVAILABLE_REASON_NATIVE_COMPONENT_MISSING" {
 			return fmt.Errorf("unexpected draft-claim unavailable reason %q", reason)
 		}
+		contextMap, _ := nativeaccept.AsMap(context)
+		identity, _ := nativeaccept.AsMap(contextMap["identity"])
+		dead, _ := nativeaccept.AsBool(row["dead"])
+		animal, _ := nativeaccept.AsBool(row["animal"])
+		onCurrentMap := nativeaccept.AsNumber(pawn["mapId"]) == nativeaccept.AsNumber(identity["mapId"])
+		if animal && !dead && onCurrentMap && reason != "UNAVAILABLE_REASON_NATIVE_COMPONENT_MISSING" {
+			return fmt.Errorf("a live current-map animal cannot be blanket %q", reason)
+		}
 		if !nativeaccept.RequireIssueReason(nativeaccept.AsSlice(row["issues"]), "pawn.snapshot", reason) {
 			return fmt.Errorf("missing matching pawn.snapshot issue for unavailable draft claim")
 		}
 	} else {
-		if err := RequireSnapshotStrict(pawn["snapshot"]); err != nil {
+		snapshot, _ := nativeaccept.AsMap(pawn["snapshot"])
+		if err := RequireSnapshotStrict(snapshot); err != nil {
 			return fmt.Errorf("draftable pawn missing a populated snapshot: %w", err)
 		}
+		if nativeaccept.AsString(snapshot["entityId"]) != nativeaccept.AsString(pawn["id"]) {
+			return fmt.Errorf("snapshot entityId does not match the row's pawn id")
+		}
+		if !nativeaccept.DeepEqual(snapshot["context"], context) {
+			return fmt.Errorf("snapshot context does not match the read context")
+		}
 		if owned, ok := nativeaccept.AsMap(claim["owned"]); ok {
-			if nativeaccept.AsString(owned["claimId"]) == "" {
-				return fmt.Errorf("owned draft claim missing claimId")
+			if err := nativeaccept.RequireIdentifier(owned["claimId"]); err != nil {
+				return fmt.Errorf("owned draft claim id: %w", err)
 			}
 			owner, _ := nativeaccept.AsMap(owned["owner"])
-			if nativeaccept.AsString(owner["controllerSessionId"]) == "" {
-				return fmt.Errorf("owned draft claim missing owner.controllerSessionId")
+			if err := nativeaccept.RequireIdentifier(owner["controllerSessionId"]); err != nil {
+				return fmt.Errorf("owned draft claim owner: %w", err)
+			}
+			if !nativeaccept.DeepEqual(owned["pawnSnapshot"], snapshot) {
+				return fmt.Errorf("owned draft claim's pawnSnapshot does not match the row's snapshot")
+			}
+			if drafted, _ := nativeaccept.AsBool(row["drafted"]); !drafted {
+				return fmt.Errorf("owned draft claim requires drafted=true")
 			}
 		} else if _, ok := claim["unowned"]; !ok {
 			return fmt.Errorf("draft claim is neither owned nor unowned: %#v", claim)
@@ -486,6 +507,15 @@ func compareCore(typed []any, legacy []any) error {
 		row, _ := nativeaccept.AsMap(raw)
 		byThingID[nativeaccept.AsString(row["thingId"])] = row
 	}
+	seen := map[string]bool{}
+	for _, raw := range typed {
+		row, _ := nativeaccept.AsMap(raw)
+		pawn, _ := nativeaccept.AsMap(row["pawn"])
+		seen[nativeaccept.AsString(pawn["id"])] = true
+	}
+	if len(seen) != len(byThingID) {
+		return fmt.Errorf("typed pawn set does not exactly match legacy home/list_pawns: typed=%d legacy=%d", len(seen), len(byThingID))
+	}
 	for _, raw := range typed {
 		row, _ := nativeaccept.AsMap(raw)
 		pawn, _ := nativeaccept.AsMap(row["pawn"])
@@ -501,10 +531,13 @@ func compareCore(typed []any, legacy []any) error {
 			pairs[key] = key
 		}
 		for newKey, oldKey := range pairs {
-			newVal, _ := nativeaccept.AsBool(row[newKey])
-			oldVal, _ := nativeaccept.AsBool(old[oldKey])
-			if newVal != oldVal {
-				return fmt.Errorf("%s mismatch for pawn %s: typed=%v legacy=%v", newKey, pawn["id"], newVal, oldVal)
+			newVal, newOK := nativeaccept.AsBool(row[newKey])
+			oldVal, oldOK := nativeaccept.AsBool(old[oldKey])
+			if !newOK {
+				return fmt.Errorf("%s must be an explicit boolean for pawn %s, found %#v", newKey, pawn["id"], row[newKey])
+			}
+			if !oldOK || newVal != oldVal {
+				return fmt.Errorf("%s mismatch for pawn %s: typed=%v legacy=%#v", newKey, pawn["id"], newVal, old[oldKey])
 			}
 		}
 	}

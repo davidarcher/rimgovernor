@@ -28,6 +28,10 @@ func PawnRow(reply map[string]any, identity map[string]any, pawnID string) (map[
 		return nil, fmt.Errorf("expected a single complete page, found %#v", page)
 	}
 	rows := AsSlice(observed["pawns"])
+	matched, returned, unreadable := AsNumber(completeness["matched"]), AsNumber(completeness["returned"]), AsNumber(completeness["unreadable"])
+	if matched != returned || int(returned) != len(rows) || unreadable != 0 {
+		return nil, fmt.Errorf("completeness does not exactly account for the returned rows: %#v", completeness)
+	}
 	if pawnID != "" {
 		if len(rows) != 1 {
 			return nil, fmt.Errorf("expected exactly one pawn for id %q, found %d", pawnID, len(rows))

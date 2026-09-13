@@ -1,6 +1,9 @@
 package nativeaccept
 
-import "fmt"
+import (
+	"fmt"
+	"strings"
+)
 
 // Small dynamic-JSON navigation helpers shared by the four acceptance binaries. The
 // native reply shape is a decoded ProtoJSON document (map[string]any/[]any/etc.), so
@@ -36,6 +39,29 @@ func AsNumber(v any) float64 {
 	}
 }
 
+// RequireIdentifier asserts value is a populated, non-whitespace-only identifier
+// string with no embedded null byte and at most 256 UTF-8 bytes, mirroring
+// native_pawn_acceptance.py's identifier(). A whitespace-only or oversized string
+// must never pass as a genuine native id/token, even though a bare Go string
+// equality/length check against "" alone would let one through.
+func RequireIdentifier(v any) error {
+	s, ok := v.(string)
+	if !ok {
+		return fmt.Errorf("expected an identifier string, found %#v", v)
+	}
+	trimmed := strings.TrimSpace(s)
+	if trimmed == "" {
+		return fmt.Errorf("identifier is empty or whitespace-only: %q", s)
+	}
+	if strings.ContainsRune(s, 0) {
+		return fmt.Errorf("identifier contains a null byte: %q", s)
+	}
+	if len(s) > 256 {
+		return fmt.Errorf("identifier exceeds 256 UTF-8 bytes: %q", s)
+	}
+	return nil
+}
+
 // RequireSnapshot asserts value is a populated SnapshotRef{context,entityId,token}: a
 // non-empty CAS token proving the row can be used as an operation EntityPrecondition.
 // It intentionally does not require an exact context match against a caller-supplied
@@ -49,11 +75,11 @@ func RequireSnapshot(v any) error {
 	if _, ok := snapshot["context"].(map[string]any); !ok {
 		return fmt.Errorf("snapshot missing context: %#v", snapshot)
 	}
-	if id := AsString(snapshot["entityId"]); id == "" {
-		return fmt.Errorf("snapshot missing entityId: %#v", snapshot)
+	if err := RequireIdentifier(snapshot["entityId"]); err != nil {
+		return fmt.Errorf("snapshot entityId: %w", err)
 	}
-	if token := AsString(snapshot["token"]); token == "" {
-		return fmt.Errorf("snapshot missing a non-empty CAS token: %#v", snapshot)
+	if err := RequireIdentifier(snapshot["token"]); err != nil {
+		return fmt.Errorf("snapshot token: %w", err)
 	}
 	return nil
 }

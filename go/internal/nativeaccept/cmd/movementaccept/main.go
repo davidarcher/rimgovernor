@@ -5,6 +5,7 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"flag"
 	"fmt"
 	"os"
@@ -505,8 +506,15 @@ func run(ctx context.Context, root, output, gameID string, headless bool, report
 // mirroring native_movement_acceptance.py's move_request().
 func moveRequest(identity, grant, row map[string]any, number int, destination map[string]any) map[string]any {
 	request := na.ExecuteRequest(identity, grant, row, number)
-	request["operation"] = map[string]any{"movePawn": map[string]any{"pawn": na.Target(row), "destination": destination}}
+	request["operation"] = map[string]any{"movePawn": map[string]any{"pawn": na.Target(row), "destination": deepCopyMap(destination)}}
 	return request
+}
+
+func deepCopyMap(m map[string]any) map[string]any {
+	data, _ := json.Marshal(m)
+	var out map[string]any
+	_ = json.Unmarshal(data, &out)
+	return out
 }
 
 // candidates filters and orders an observations_get_cells reply's cells to the exact
