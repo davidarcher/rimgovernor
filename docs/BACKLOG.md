@@ -759,16 +759,17 @@ without pushes, when the target checkout is safe; preserve other developers' wor
     (native `NativeEquipOperations.cs` added for
     `PawnOrderKind_PAWN_ORDER_KIND_EQUIP`; Go side reused the existing
     kind-agnostic `PawnOrderControl`) now have native dispatch end to end.
-    Trade (`OpenTrade`/`SetTradeLines`/`AcceptTrade`/`EndTrade`) still has no
-    native dispatch: its `operationspb`/`TradeEffect` messages are generated,
-    but the legacy `TradeTool.cs` it must port is a ~2,400-line stateful
-    `Dialog_Trade` UI session across four operations, sized for its own pass
-    rather than this one. `MaintainMedicalCare` is closed: deliberately
-    monitoring-only, since Patient/PatientBedRest priorities are already
-    the generic `policy.AssignWork` default and native AI self-tends
-    without a dispatched order. `Population-*`'s own producer/method and
-    every other e-row family's need/health/stock/custody/service composition
-    remain unstarted. G01.12 gameplay acceptance gates the whole item.
+    Trade (`OpenTrade`/`SetTradeLines`/`AcceptTrade`/`EndTrade`,
+    `NativeTradeOperations.cs`, `go/internal/bridge/trade.go`) now also has
+    native dispatch end to end, ported from `TradeTool.cs`'s stateful
+    `Dialog_Trade` session onto a single static session (RimWorld allows
+    only one at a time) with self-computed session/deal-signature CAS
+    tokens. `MaintainMedicalCare` is closed: deliberately monitoring-only,
+    since Patient/PatientBedRest priorities are already the generic
+    `policy.AssignWork` default and native AI self-tends without a
+    dispatched order. `Population-*`'s own producer/method and every other
+    e-row family's need/health/stock/custody/service composition remain
+    unstarted. G01.12 gameplay acceptance gates the whole item.
 
   - [ ] **05.7 — Close the routine integration coverage.**
     Reconcile the 05.1 reference rows against composed a–e paths and their evidence.
