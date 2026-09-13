@@ -33,7 +33,7 @@ func lookupSubmissionHeader(ctx context.Context, tx *sql.Tx, id, kind string) (s
 	if revision != "1" {
 		return h, errors.New("invalid submitted revision")
 	}
-	if h.Kind != "building" && h.Kind != "owned_draft" {
+	if h.Kind != "building" && h.Kind != "owned_draft" && h.Kind != "caravan_departure" {
 		return h, errors.New("invalid submission kind")
 	}
 	if kind != "" && h.Kind != kind {
@@ -49,9 +49,12 @@ func lookupAnySubmission(ctx context.Context, tx *sql.Tx, id string) (submission
 	if err != nil {
 		return h, err
 	}
-	if h.Kind == "building" {
+	switch h.Kind {
+	case "building":
 		_, err = lookupSubmission(ctx, tx, id)
-	} else {
+	case "caravan_departure":
+		_, err = lookupCaravanDepartureSubmission(ctx, tx, id)
+	default:
 		_, err = lookupDraftSubmission(ctx, tx, id)
 	}
 	return h, err

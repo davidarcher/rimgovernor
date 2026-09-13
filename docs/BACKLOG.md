@@ -938,10 +938,15 @@ b; exact worker cleanup by a, with reuse by their later consumers.
 
 - [ ] **G01.07f — World progression works through Go.**
   Caravan departure (domain/policy/store/executor/bridge onto native FormCaravan)
-  is implemented and tested. Still missing: buildingruntime wiring and how
-  departure actions get planned (player-command-driven, unlike the a–e routine
-  families), travel/arrival/return/storage, quests and rewards, settlement gifts,
-  and failure recovery across multiple active maps.
+  is implemented and tested. Player-command submission/planning is now wired:
+  `store.SubmitCaravanDeparture`/`Player.SubmitCaravanDeparture` commit one
+  already-selected crew/cargo/destination as a one-action plan, mirroring
+  `SubmitBuilding`/`SubmitDraft` (this family has no fixed-priority routine
+  planner). Still missing: the native `CaravanDepartureBoundary`
+  (Inspect/Depart/Observe) and its `session.go` `EnableCaravanDeparture` wiring
+  — native `CaravanCatalog`/`WorldProgression`/`Quest` protobuf already exists
+  and is unused by Go — plus travel/arrival/return storage, quests and rewards,
+  settlement gifts, and failure recovery across multiple active maps.
   **Exit evidence:** native departure, arrival, reward/return storage and failure
   recovery with Go owning the workflow and no wrong-map writes.
 
