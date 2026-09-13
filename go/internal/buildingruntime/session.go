@@ -47,6 +47,7 @@ type SessionConfig struct {
 	Repair          *RepairCapabilities
 	Clean           *CleanCapabilities
 	RecoveryService *RecoveryServiceCapabilities
+	ResearchSelect  *ResearchSelectCapabilities
 }
 
 // Session binds the single profile owner to one journal and executor. Its caller
@@ -294,6 +295,9 @@ func NewSession(ctx context.Context, config SessionConfig, journal *store.Store,
 	if config.RecoveryService != nil && (config.RecoveryService.Native == nil || config.RecoveryService.Writer == nil) {
 		return cleanup(ErrControl)
 	}
+	if config.ResearchSelect != nil && (config.ResearchSelect.Native == nil || config.ResearchSelect.Writer == nil) {
+		return cleanup(ErrControl)
+	}
 	var routine []executor.RoutineScope
 	if config.RoutineMethods {
 		routine = append(routine, journal)
@@ -339,6 +343,11 @@ func NewSession(ctx context.Context, config SessionConfig, journal *store.Store,
 	}
 	if config.Bills != nil {
 		if err := worker.EnableBill(bill.NewBillBoundary(place, *config.Bills)); err != nil {
+			return cleanup(err)
+		}
+	}
+	if config.ResearchSelect != nil {
+		if err := worker.EnableResearchSelect(&researchSelectBoundary{Boundary: boundary, research: *config.ResearchSelect}); err != nil {
 			return cleanup(err)
 		}
 	}

@@ -27,6 +27,7 @@ const (
 	EnsureComfort           GoalID = "EnsureComfort"
 	EnsureExpansion         GoalID = "EnsureExpansion"
 	MaintainEquipment       GoalID = "MaintainEquipment"
+	EnsureResearch          GoalID = "EnsureResearch"
 )
 
 type RoutinePolicy struct {
@@ -36,6 +37,14 @@ type RoutinePolicy struct {
 	FoodMinDays, FoodTargetDays, FootholdFoodDays float64
 	ColdEnter, ColdExit, HotExit, HotEnter        float64
 	WoodMin, WoodTarget, WoodMax                  int64
+	// ResearchTarget is an operator-declared desired native ResearchProjectDef
+	// name; empty disables EnsureResearch's routine dispatch. Unlike
+	// research.py's needs(), which derives targets from every other active
+	// goal's own observed capability gaps, this only supports one explicit
+	// target -- deriving targets from other goals' evidence generically
+	// remains an open gap (no Go goal family yet records the
+	// UnavailableThings/BlockedRecipes evidence ResearchNeeds expects).
+	ResearchTarget string
 }
 
 func DefaultRoutinePolicy() RoutinePolicy {
@@ -62,6 +71,9 @@ func (p RoutinePolicy) Validate() error {
 		p.ColdEnter >= p.ColdExit || p.ColdExit >= p.HotExit || p.HotExit >= p.HotEnter ||
 		p.WoodMin < 0 || p.WoodTarget <= p.WoodMin || p.WoodMax < p.WoodTarget {
 		return errors.New("unordered routine thresholds")
+	}
+	if p.ResearchTarget != "" && !validResource(Resource(p.ResearchTarget)) {
+		return errors.New("invalid research target")
 	}
 	return nil
 }
@@ -433,6 +445,19 @@ func DetectRoutine(f RoutineFacts, previous RoutineLatches, p RoutinePolicy) (Ro
 	addAssessment(EnsureComfort, 4, f.ComfortRecovered)
 	addAssessment(EnsureExpansion, 4, expansion)
 	addAssessment(MaintainEquipment, 3, gear.Recovered)
+	// EnsureResearch stays config-only: unlike every other goal above, its
+	// recovered/deficit state is not derived from a review-time native
+	// census (no RoutineFacts field records the current research project),
+	// only from whether an operator declared a ResearchTarget at all. The
+	// routine planner performs its own fresh native read to decide whether
+	// a project is already selected before ever proposing a method; see
+	// RoutinePolicy.ResearchTarget's doc comment for the disclosed gap this
+	// narrows around (no cross-goal needs-driven target derivation).
+	researchRecovered := domain.Known(p.ResearchTarget == "")
+	if !positive(researchRecovered) {
+		addGoal(EnsureResearch, 4)
+	}
+	addAssessment(EnsureResearch, 4, researchRecovered)
 	for _, n := range upkeep.Needs {
 		recovered := domain.Unknown[bool]()
 		if _, known := n.Targets.Value(); known {

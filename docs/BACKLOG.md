@@ -693,14 +693,26 @@ without pushes, when the target checkout is safe; preserve other developers' wor
     and replenishment after a renewed target. Reuse accepted power/temperature paths.
 
     Status: `MaintainEquipment`'s wear/replace half is done (`GearReplace`
-    vertical). `GearProduce` (workshop-bill half) has ingredient-cost mapping
-    for fixed-material recipes (`bridge.GearRecipeIngredients`) but still
-    needs a bridge census for gear-bench recipes and its full dispatch
-    vertical. `EnsureResearch` has prerequisite/lab/researcher/needs policy
-    primitives but no dispatch vertical. `MaintainResource-*` has
-    ingredient-deficit, extraction-progress and acquisition-source-selection
-    policy primitives but no dispatch vertical. `EnsureBasicPower` is done.
-    `MaintainMedicalReserves` is unstarted.
+    vertical). `EnsureResearch` now has its full dispatch vertical (domain
+    `ResearchSelectAction`, `policy.EvaluateResearchSelect`, store admission,
+    executor state machine, `bridge.ReadResearch`/`ResearchSelectControl`,
+    the `researchSelectBoundary`/`RoutineResearchPlanner` buildingruntime
+    wiring and a `--routine-research-target` CLI flag), gated by disclosed
+    gaps: the wire `ResearchProject` message has no `hidden` field (every
+    project is treated as not-hidden, an open native-acceptance item), the
+    routine planner walks `ResearchPrerequisiteQueue` toward one
+    operator-declared `RoutinePolicy.ResearchTarget` rather than Python's
+    full needs-driven multi-goal capability mapping (no Go goal family yet
+    records the `UnavailableThings`/`BlockedRecipes` evidence
+    `policy.ResearchNeeds` expects), and laboratory/researcher usability
+    (`UsableResearchLaboratories`/`EligibleResearchers`) is left to the
+    native `SelectResearch` preview rather than re-derived in the planner.
+    `GearProduce` (workshop-bill half) has ingredient-cost mapping for
+    fixed-material recipes (`bridge.GearRecipeIngredients`) but still needs
+    a bridge census for gear-bench recipes and its full dispatch vertical.
+    `MaintainResource-*` has ingredient-deficit, extraction-progress and
+    acquisition-source-selection policy primitives but no dispatch vertical.
+    `EnsureBasicPower` is done. `MaintainMedicalReserves` is unstarted.
 
   - [ ] **05.6 — Management and service recovery (G01.07e).**
     Compose dynamic mood, ongoing care/surgery, population, herd, waste and trade

@@ -54,6 +54,7 @@ type buildingServiceBridge struct {
 	haul            *haul.HaulCapabilities
 	gearReplace     *buildingruntime.GearReplaceCapabilities
 	recoveryService *buildingruntime.RecoveryServiceCapabilities
+	research        *buildingruntime.ResearchSelectCapabilities
 }
 type buildingServiceOpener func(context.Context, bridge.ProcessConfig) (buildingServiceBridge, error)
 type ownedAuthority struct {
@@ -122,6 +123,10 @@ func openBuildingService(ctx context.Context, config bridge.ProcessConfig) (buil
 	if err != nil {
 		return buildingServiceBridge{}, errors.Join(err, client.Close())
 	}
+	researchSelect, err := bridge.NewResearchSelectControl(client)
+	if err != nil {
+		return buildingServiceBridge{}, errors.Join(err, client.Close())
+	}
 	return buildingServiceBridge{reads: client, native: client, authority: ownedAuthority{client, authority}, writes: writes,
 		bills:       &bill.BillCapabilities{Native: client, Writer: bills},
 		zones:       &zone.ZoneCapabilities{Native: client, Writer: zones},
@@ -137,7 +142,8 @@ func openBuildingService(ctx context.Context, config bridge.ProcessConfig) (buil
 		equip:           &equip.EquipCapabilities{Native: client, Writer: pawnOrder},
 		haul:            &haul.HaulCapabilities{Native: client, Writer: pawnOrder},
 		gearReplace:     &buildingruntime.GearReplaceCapabilities{Native: client, Writer: gearReplace},
-		recoveryService: &buildingruntime.RecoveryServiceCapabilities{Native: client, Writer: recoveryService}}, nil
+		recoveryService: &buildingruntime.RecoveryServiceCapabilities{Native: client, Writer: recoveryService},
+		research:        &buildingruntime.ResearchSelectCapabilities{Native: client, Writer: researchSelect}}, nil
 }
 
 type buildingWorldSource struct{ reads observation.Source }
@@ -335,6 +341,13 @@ func serveBuildingWithBridge(ctx context.Context, config serveConfig, out io.Wri
 		}
 		recoveryServiceCapabilities = client.recoveryService
 	}
+	var researchSelectCapabilities *buildingruntime.ResearchSelectCapabilities
+	if config.routineResearchTarget != "" {
+		if client.research == nil {
+			return errors.New("research plans require typed capabilities")
+		}
+		researchSelectCapabilities = client.research
+	}
 	session, err := buildingruntime.NewSession(lifetime, buildingruntime.SessionConfig{RoutineMethods: config.routineMethods,
 		Rules:           config.resourceRules,
 		Control:         buildingruntime.ControlConfig{ProfileDirectory: config.profile, LeaseDuration: 30 * time.Second, CallTimeout: callTimeout, Worlds: buildingWorldSource{client.reads}},
@@ -354,6 +367,7 @@ func serveBuildingWithBridge(ctx context.Context, config serveConfig, out io.Wri
 		Haul:            haulCapabilities,
 		GearReplace:     gearReplaceCapabilities,
 		RecoveryService: recoveryServiceCapabilities,
+		ResearchSelect:  researchSelectCapabilities,
 	}, database, client.native, client.authority, client.writes, wallClock{})
 	if err != nil {
 		return err
@@ -373,7 +387,7 @@ func serveBuildingWithBridge(ctx context.Context, config serveConfig, out io.Wri
 	}
 	owner = player
 	if config.clockControl {
-		if err = startServiceClock(lifetime, player, session, client.clockReads, config.profile, callTimeout, config.routineReviews, config.routineSleepingPlans, config.routineCookingPlans, config.routineShelterPlans, config.routineComfortPlans, config.routineExpansionPlans, config.routinePowerPlans, config.routineTemperaturePlans, config.routineProjectLimit, config.routineSupplyPlans, config.routineWorkPlans, config.routineAcquisitionPlans, config.routineDefensePlans, config.routineTendPlans, config.routineRescuePlans, config.routineEquipPlans, config.routineSecureSuppliesPlans, config.routineGearPlans, config.routineAnimalContainmentPlans, config.routineRecoveryPlans, config.routineFieldPlans, config.routineBillPlans, config.routineFoodStoragePlans); err != nil {
+		if err = startServiceClock(lifetime, player, session, client.clockReads, config.profile, callTimeout, config.routineReviews, config.routineSleepingPlans, config.routineCookingPlans, config.routineShelterPlans, config.routineComfortPlans, config.routineExpansionPlans, config.routinePowerPlans, config.routineTemperaturePlans, config.routineProjectLimit, config.routineSupplyPlans, config.routineWorkPlans, config.routineAcquisitionPlans, config.routineDefensePlans, config.routineTendPlans, config.routineRescuePlans, config.routineEquipPlans, config.routineSecureSuppliesPlans, config.routineGearPlans, config.routineAnimalContainmentPlans, config.routineRecoveryPlans, config.routineResearchTarget, config.routineFieldPlans, config.routineBillPlans, config.routineFoodStoragePlans); err != nil {
 			return err
 		}
 	}
