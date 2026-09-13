@@ -978,17 +978,25 @@ b; exact worker cleanup by a, with reuse by their later consumers.
   `ReadColonyFacts`; `HomeDoctorAvailable` from a new `bridge.ReadHomeColonists`
   roster read (Doctor work-setting over non-crew colonists); crew eligibility
   reuses `ReadPawns`; `CatalogToken`/`RouteReachable`/cargo-group resolution use a
-  new `bridge.ReadCaravanCatalog`. All of this is real against native **except**
-  FormCaravan and CaravanCatalog: exhaustive search of the C# mod
-  (`NativeOperationTools.cs`'s `Execute`/`Preview` dispatch, and the whole
-  `Protocol/` directory) confirms neither has a handler — only the legacy
-  `home/caravan`/`home/world_progression` JSON tools exist. Dispatch is reachable
-  end-to-end at the Go layer but returns `Unsupported` against real native today,
-  the same state already accepted for GearReplace/ImproveGear. Still missing:
-  the native FormCaravan (execute+preview+observe-progress tracking) and
-  CaravanCatalog observation handlers, then travel/arrival/return storage,
+  new `bridge.ReadCaravanCatalog`. Native `FormCaravan` (execute+preview+observe,
+  `NativeCaravanOperations.cs`) and `CaravanCatalog`
+  (`NativeCaravanObservationTools.cs`/`NativeCaravanCatalog.cs`) handlers are now
+  implemented and wired into `NativeOperationTools.cs`'s `Execute`/`Preview`/
+  `ObserveProgress` dispatch, porting the legacy `home/caravan` JSON tool's
+  `Dialog_FormCaravan` calculation (no UI, no camera) behind the typed boundary.
+  `dotnet build` passes against the real installed RimWorld/Assembly-CSharp, and
+  the C# output shapes were hand-matched field-for-field against the existing
+  strict Go bridge validators (`caravanDepartureEvidence`, `caravanCatalogSelected`,
+  `PreviewCaravanDeparture`'s projection checks), which still pass unchanged.
+  **Not yet verified:** no headless/native-acceptance run exercised this code
+  path against a live game (that requires the private Linux game/mods/GABS
+  inputs `docker-native.md`/`world-progression.md` describe, not available in
+  this sandbox); only compile-time and Go-side contract-shape checks are done.
+  Native FormCaravan's execute+observe covers formation+departure only — no
+  in-flight tick tracking beyond "still exists and is player-controlled" and no
+  arrival/disbanding detection. Still missing: travel/arrival/return storage,
   quests and rewards, settlement gifts, and failure recovery across multiple
-  active maps.
+  active maps, plus a real native-acceptance run of the new handlers.
   **Exit evidence:** native departure, arrival, reward/return storage and failure
   recovery with Go owning the workflow and no wrong-map writes.
 
