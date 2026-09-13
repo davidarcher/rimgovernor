@@ -2864,6 +2864,7 @@ type PawnState struct {
 	Issues                  []*ReadIssue           `protobuf:"bytes,33,rep,name=issues,proto3" json:"issues,omitempty"`
 	DraftClaim              *DraftClaimObservation `protobuf:"bytes,34,opt,name=draft_claim,json=draftClaim,proto3" json:"draft_claim,omitempty"`
 	OwnedBedId              *string                `protobuf:"bytes,35,opt,name=owned_bed_id,json=ownedBedId,proto3,oneof" json:"owned_bed_id,omitempty"`
+	Snapshot                *SnapshotRef           `protobuf:"bytes,36,opt,name=snapshot,proto3" json:"snapshot,omitempty"`
 	unknownFields           protoimpl.UnknownFields
 	sizeCache               protoimpl.SizeCache
 }
@@ -3141,6 +3142,13 @@ func (x *PawnState) GetOwnedBedId() string {
 		return *x.OwnedBedId
 	}
 	return ""
+}
+
+func (x *PawnState) GetSnapshot() *SnapshotRef {
+	if x != nil {
+		return x.Snapshot
+	}
+	return nil
 }
 
 type NoOwnedDraftClaim struct {
@@ -3989,6 +3997,7 @@ type ResourceStock struct {
 	HoldersCompleteness *Completeness          `protobuf:"bytes,21,opt,name=holders_completeness,json=holdersCompleteness,proto3" json:"holders_completeness,omitempty"`
 	CorpsesCompleteness *Completeness          `protobuf:"bytes,22,opt,name=corpses_completeness,json=corpsesCompleteness,proto3" json:"corpses_completeness,omitempty"`
 	Issues              []*ReadIssue           `protobuf:"bytes,23,rep,name=issues,proto3" json:"issues,omitempty"`
+	Snapshot            *SnapshotRef           `protobuf:"bytes,24,opt,name=snapshot,proto3" json:"snapshot,omitempty"`
 	unknownFields       protoimpl.UnknownFields
 	sizeCache           protoimpl.SizeCache
 }
@@ -4180,6 +4189,13 @@ func (x *ResourceStock) GetCorpsesCompleteness() *Completeness {
 func (x *ResourceStock) GetIssues() []*ReadIssue {
 	if x != nil {
 		return x.Issues
+	}
+	return nil
+}
+
+func (x *ResourceStock) GetSnapshot() *SnapshotRef {
+	if x != nil {
+		return x.Snapshot
 	}
 	return nil
 }
@@ -5875,6 +5891,7 @@ type BuildingState struct {
 	Burning          *bool                  `protobuf:"varint,17,opt,name=burning,proto3,oneof" json:"burning,omitempty"`
 	UsesHitPoints    *bool                  `protobuf:"varint,18,opt,name=uses_hit_points,json=usesHitPoints,proto3,oneof" json:"uses_hit_points,omitempty"`
 	Issues           []*ReadIssue           `protobuf:"bytes,19,rep,name=issues,proto3" json:"issues,omitempty"`
+	Snapshot         *SnapshotRef           `protobuf:"bytes,20,opt,name=snapshot,proto3" json:"snapshot,omitempty"`
 	unknownFields    protoimpl.UnknownFields
 	sizeCache        protoimpl.SizeCache
 }
@@ -6038,6 +6055,13 @@ func (x *BuildingState) GetUsesHitPoints() bool {
 func (x *BuildingState) GetIssues() []*ReadIssue {
 	if x != nil {
 		return x.Issues
+	}
+	return nil
+}
+
+func (x *BuildingState) GetSnapshot() *SnapshotRef {
+	if x != nil {
+		return x.Snapshot
 	}
 	return nil
 }
@@ -6588,6 +6612,134 @@ func (x *RoomStat) GetUnavailable() *commonpb.Unavailable {
 	return nil
 }
 
+type RoomBedMembership struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Building      *BuildingState         `protobuf:"bytes,1,opt,name=building,proto3" json:"building,omitempty"`
+	Owners        []*EntityRef           `protobuf:"bytes,2,rep,name=owners,proto3" json:"owners,omitempty"`
+	Users         []*EntityRef           `protobuf:"bytes,3,rep,name=users,proto3" json:"users,omitempty"`
+	AccessibleTo  []*EntityRef           `protobuf:"bytes,4,rep,name=accessible_to,json=accessibleTo,proto3" json:"accessible_to,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *RoomBedMembership) Reset() {
+	*x = RoomBedMembership{}
+	mi := &file_observations_proto_msgTypes[65]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *RoomBedMembership) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RoomBedMembership) ProtoMessage() {}
+
+func (x *RoomBedMembership) ProtoReflect() protoreflect.Message {
+	mi := &file_observations_proto_msgTypes[65]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use RoomBedMembership.ProtoReflect.Descriptor instead.
+func (*RoomBedMembership) Descriptor() ([]byte, []int) {
+	return file_observations_proto_rawDescGZIP(), []int{65}
+}
+
+func (x *RoomBedMembership) GetBuilding() *BuildingState {
+	if x != nil {
+		return x.Building
+	}
+	return nil
+}
+
+func (x *RoomBedMembership) GetOwners() []*EntityRef {
+	if x != nil {
+		return x.Owners
+	}
+	return nil
+}
+
+func (x *RoomBedMembership) GetUsers() []*EntityRef {
+	if x != nil {
+		return x.Users
+	}
+	return nil
+}
+
+func (x *RoomBedMembership) GetAccessibleTo() []*EntityRef {
+	if x != nil {
+		return x.AccessibleTo
+	}
+	return nil
+}
+
+type StockpileMembership struct {
+	state                protoimpl.MessageState `protogen:"open.v1"`
+	ZoneId               *string                `protobuf:"bytes,1,opt,name=zone_id,json=zoneId,proto3,oneof" json:"zone_id,omitempty"`
+	Contents             []*ResourceStock       `protobuf:"bytes,2,rep,name=contents,proto3" json:"contents,omitempty"`
+	ContentsCompleteness *Completeness          `protobuf:"bytes,3,opt,name=contents_completeness,json=contentsCompleteness,proto3" json:"contents_completeness,omitempty"`
+	unknownFields        protoimpl.UnknownFields
+	sizeCache            protoimpl.SizeCache
+}
+
+func (x *StockpileMembership) Reset() {
+	*x = StockpileMembership{}
+	mi := &file_observations_proto_msgTypes[66]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *StockpileMembership) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*StockpileMembership) ProtoMessage() {}
+
+func (x *StockpileMembership) ProtoReflect() protoreflect.Message {
+	mi := &file_observations_proto_msgTypes[66]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use StockpileMembership.ProtoReflect.Descriptor instead.
+func (*StockpileMembership) Descriptor() ([]byte, []int) {
+	return file_observations_proto_rawDescGZIP(), []int{66}
+}
+
+func (x *StockpileMembership) GetZoneId() string {
+	if x != nil && x.ZoneId != nil {
+		return *x.ZoneId
+	}
+	return ""
+}
+
+func (x *StockpileMembership) GetContents() []*ResourceStock {
+	if x != nil {
+		return x.Contents
+	}
+	return nil
+}
+
+func (x *StockpileMembership) GetContentsCompleteness() *Completeness {
+	if x != nil {
+		return x.ContentsCompleteness
+	}
+	return nil
+}
+
 type RoomState struct {
 	state                   protoimpl.MessageState `protogen:"open.v1"`
 	Id                      *string                `protobuf:"bytes,1,opt,name=id,proto3,oneof" json:"id,omitempty"`
@@ -6613,13 +6765,16 @@ type RoomState struct {
 	Contents                []*Quantity            `protobuf:"bytes,21,rep,name=contents,proto3" json:"contents,omitempty"`
 	ContentsCompleteness    *Completeness          `protobuf:"bytes,22,opt,name=contents_completeness,json=contentsCompleteness,proto3" json:"contents_completeness,omitempty"`
 	Issues                  []*ReadIssue           `protobuf:"bytes,23,rep,name=issues,proto3" json:"issues,omitempty"`
+	Snapshot                *SnapshotRef           `protobuf:"bytes,24,opt,name=snapshot,proto3" json:"snapshot,omitempty"`
+	BedMemberships          []*RoomBedMembership   `protobuf:"bytes,25,rep,name=bed_memberships,json=bedMemberships,proto3" json:"bed_memberships,omitempty"`
+	StockpileMemberships    []*StockpileMembership `protobuf:"bytes,26,rep,name=stockpile_memberships,json=stockpileMemberships,proto3" json:"stockpile_memberships,omitempty"`
 	unknownFields           protoimpl.UnknownFields
 	sizeCache               protoimpl.SizeCache
 }
 
 func (x *RoomState) Reset() {
 	*x = RoomState{}
-	mi := &file_observations_proto_msgTypes[65]
+	mi := &file_observations_proto_msgTypes[67]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -6631,7 +6786,7 @@ func (x *RoomState) String() string {
 func (*RoomState) ProtoMessage() {}
 
 func (x *RoomState) ProtoReflect() protoreflect.Message {
-	mi := &file_observations_proto_msgTypes[65]
+	mi := &file_observations_proto_msgTypes[67]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -6644,7 +6799,7 @@ func (x *RoomState) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RoomState.ProtoReflect.Descriptor instead.
 func (*RoomState) Descriptor() ([]byte, []int) {
-	return file_observations_proto_rawDescGZIP(), []int{65}
+	return file_observations_proto_rawDescGZIP(), []int{67}
 }
 
 func (x *RoomState) GetId() string {
@@ -6808,6 +6963,27 @@ func (x *RoomState) GetIssues() []*ReadIssue {
 	return nil
 }
 
+func (x *RoomState) GetSnapshot() *SnapshotRef {
+	if x != nil {
+		return x.Snapshot
+	}
+	return nil
+}
+
+func (x *RoomState) GetBedMemberships() []*RoomBedMembership {
+	if x != nil {
+		return x.BedMemberships
+	}
+	return nil
+}
+
+func (x *RoomState) GetStockpileMemberships() []*StockpileMembership {
+	if x != nil {
+		return x.StockpileMemberships
+	}
+	return nil
+}
+
 type RoomsSnapshot struct {
 	state         protoimpl.MessageState       `protogen:"open.v1"`
 	Context       *commonpb.ObservationContext `protobuf:"bytes,1,opt,name=context,proto3" json:"context,omitempty"`
@@ -6819,7 +6995,7 @@ type RoomsSnapshot struct {
 
 func (x *RoomsSnapshot) Reset() {
 	*x = RoomsSnapshot{}
-	mi := &file_observations_proto_msgTypes[66]
+	mi := &file_observations_proto_msgTypes[68]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -6831,7 +7007,7 @@ func (x *RoomsSnapshot) String() string {
 func (*RoomsSnapshot) ProtoMessage() {}
 
 func (x *RoomsSnapshot) ProtoReflect() protoreflect.Message {
-	mi := &file_observations_proto_msgTypes[66]
+	mi := &file_observations_proto_msgTypes[68]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -6844,7 +7020,7 @@ func (x *RoomsSnapshot) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RoomsSnapshot.ProtoReflect.Descriptor instead.
 func (*RoomsSnapshot) Descriptor() ([]byte, []int) {
-	return file_observations_proto_rawDescGZIP(), []int{66}
+	return file_observations_proto_rawDescGZIP(), []int{68}
 }
 
 func (x *RoomsSnapshot) GetContext() *commonpb.ObservationContext {
@@ -6883,7 +7059,7 @@ type ListRoomsRequest struct {
 
 func (x *ListRoomsRequest) Reset() {
 	*x = ListRoomsRequest{}
-	mi := &file_observations_proto_msgTypes[67]
+	mi := &file_observations_proto_msgTypes[69]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -6895,7 +7071,7 @@ func (x *ListRoomsRequest) String() string {
 func (*ListRoomsRequest) ProtoMessage() {}
 
 func (x *ListRoomsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_observations_proto_msgTypes[67]
+	mi := &file_observations_proto_msgTypes[69]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -6908,7 +7084,7 @@ func (x *ListRoomsRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListRoomsRequest.ProtoReflect.Descriptor instead.
 func (*ListRoomsRequest) Descriptor() ([]byte, []int) {
-	return file_observations_proto_rawDescGZIP(), []int{67}
+	return file_observations_proto_rawDescGZIP(), []int{69}
 }
 
 func (x *ListRoomsRequest) GetScope() *ReadScope {
@@ -6974,7 +7150,7 @@ type ListRoomsReply struct {
 
 func (x *ListRoomsReply) Reset() {
 	*x = ListRoomsReply{}
-	mi := &file_observations_proto_msgTypes[68]
+	mi := &file_observations_proto_msgTypes[70]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -6986,7 +7162,7 @@ func (x *ListRoomsReply) String() string {
 func (*ListRoomsReply) ProtoMessage() {}
 
 func (x *ListRoomsReply) ProtoReflect() protoreflect.Message {
-	mi := &file_observations_proto_msgTypes[68]
+	mi := &file_observations_proto_msgTypes[70]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -6999,7 +7175,7 @@ func (x *ListRoomsReply) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListRoomsReply.ProtoReflect.Descriptor instead.
 func (*ListRoomsReply) Descriptor() ([]byte, []int) {
-	return file_observations_proto_rawDescGZIP(), []int{68}
+	return file_observations_proto_rawDescGZIP(), []int{70}
 }
 
 func (x *ListRoomsReply) GetOutcome() isListRoomsReply_Outcome {
@@ -7070,7 +7246,7 @@ type ZoneAnomaly struct {
 
 func (x *ZoneAnomaly) Reset() {
 	*x = ZoneAnomaly{}
-	mi := &file_observations_proto_msgTypes[69]
+	mi := &file_observations_proto_msgTypes[71]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -7082,7 +7258,7 @@ func (x *ZoneAnomaly) String() string {
 func (*ZoneAnomaly) ProtoMessage() {}
 
 func (x *ZoneAnomaly) ProtoReflect() protoreflect.Message {
-	mi := &file_observations_proto_msgTypes[69]
+	mi := &file_observations_proto_msgTypes[71]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -7095,7 +7271,7 @@ func (x *ZoneAnomaly) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ZoneAnomaly.ProtoReflect.Descriptor instead.
 func (*ZoneAnomaly) Descriptor() ([]byte, []int) {
-	return file_observations_proto_rawDescGZIP(), []int{69}
+	return file_observations_proto_rawDescGZIP(), []int{71}
 }
 
 func (x *ZoneAnomaly) GetKind() string {
@@ -7161,7 +7337,7 @@ type ZoneState struct {
 
 func (x *ZoneState) Reset() {
 	*x = ZoneState{}
-	mi := &file_observations_proto_msgTypes[70]
+	mi := &file_observations_proto_msgTypes[72]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -7173,7 +7349,7 @@ func (x *ZoneState) String() string {
 func (*ZoneState) ProtoMessage() {}
 
 func (x *ZoneState) ProtoReflect() protoreflect.Message {
-	mi := &file_observations_proto_msgTypes[70]
+	mi := &file_observations_proto_msgTypes[72]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -7186,7 +7362,7 @@ func (x *ZoneState) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ZoneState.ProtoReflect.Descriptor instead.
 func (*ZoneState) Descriptor() ([]byte, []int) {
-	return file_observations_proto_rawDescGZIP(), []int{70}
+	return file_observations_proto_rawDescGZIP(), []int{72}
 }
 
 func (x *ZoneState) GetSnapshot() *SnapshotRef {
@@ -7389,7 +7565,7 @@ type ZonesSnapshot struct {
 
 func (x *ZonesSnapshot) Reset() {
 	*x = ZonesSnapshot{}
-	mi := &file_observations_proto_msgTypes[71]
+	mi := &file_observations_proto_msgTypes[73]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -7401,7 +7577,7 @@ func (x *ZonesSnapshot) String() string {
 func (*ZonesSnapshot) ProtoMessage() {}
 
 func (x *ZonesSnapshot) ProtoReflect() protoreflect.Message {
-	mi := &file_observations_proto_msgTypes[71]
+	mi := &file_observations_proto_msgTypes[73]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -7414,7 +7590,7 @@ func (x *ZonesSnapshot) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ZonesSnapshot.ProtoReflect.Descriptor instead.
 func (*ZonesSnapshot) Descriptor() ([]byte, []int) {
-	return file_observations_proto_rawDescGZIP(), []int{71}
+	return file_observations_proto_rawDescGZIP(), []int{73}
 }
 
 func (x *ZonesSnapshot) GetContext() *commonpb.ObservationContext {
@@ -7454,7 +7630,7 @@ type ListZonesRequest struct {
 
 func (x *ListZonesRequest) Reset() {
 	*x = ListZonesRequest{}
-	mi := &file_observations_proto_msgTypes[72]
+	mi := &file_observations_proto_msgTypes[74]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -7466,7 +7642,7 @@ func (x *ListZonesRequest) String() string {
 func (*ListZonesRequest) ProtoMessage() {}
 
 func (x *ListZonesRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_observations_proto_msgTypes[72]
+	mi := &file_observations_proto_msgTypes[74]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -7479,7 +7655,7 @@ func (x *ListZonesRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListZonesRequest.ProtoReflect.Descriptor instead.
 func (*ListZonesRequest) Descriptor() ([]byte, []int) {
-	return file_observations_proto_rawDescGZIP(), []int{72}
+	return file_observations_proto_rawDescGZIP(), []int{74}
 }
 
 func (x *ListZonesRequest) GetScope() *ReadScope {
@@ -7552,7 +7728,7 @@ type ListZonesReply struct {
 
 func (x *ListZonesReply) Reset() {
 	*x = ListZonesReply{}
-	mi := &file_observations_proto_msgTypes[73]
+	mi := &file_observations_proto_msgTypes[75]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -7564,7 +7740,7 @@ func (x *ListZonesReply) String() string {
 func (*ListZonesReply) ProtoMessage() {}
 
 func (x *ListZonesReply) ProtoReflect() protoreflect.Message {
-	mi := &file_observations_proto_msgTypes[73]
+	mi := &file_observations_proto_msgTypes[75]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -7577,7 +7753,7 @@ func (x *ListZonesReply) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListZonesReply.ProtoReflect.Descriptor instead.
 func (*ListZonesReply) Descriptor() ([]byte, []int) {
-	return file_observations_proto_rawDescGZIP(), []int{73}
+	return file_observations_proto_rawDescGZIP(), []int{75}
 }
 
 func (x *ListZonesReply) GetOutcome() isListZonesReply_Outcome {
@@ -7646,7 +7822,7 @@ type DesignationState struct {
 
 func (x *DesignationState) Reset() {
 	*x = DesignationState{}
-	mi := &file_observations_proto_msgTypes[74]
+	mi := &file_observations_proto_msgTypes[76]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -7658,7 +7834,7 @@ func (x *DesignationState) String() string {
 func (*DesignationState) ProtoMessage() {}
 
 func (x *DesignationState) ProtoReflect() protoreflect.Message {
-	mi := &file_observations_proto_msgTypes[74]
+	mi := &file_observations_proto_msgTypes[76]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -7671,7 +7847,7 @@ func (x *DesignationState) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DesignationState.ProtoReflect.Descriptor instead.
 func (*DesignationState) Descriptor() ([]byte, []int) {
-	return file_observations_proto_rawDescGZIP(), []int{74}
+	return file_observations_proto_rawDescGZIP(), []int{76}
 }
 
 func (x *DesignationState) GetDefName() string {
@@ -7709,7 +7885,7 @@ type CellThing struct {
 
 func (x *CellThing) Reset() {
 	*x = CellThing{}
-	mi := &file_observations_proto_msgTypes[75]
+	mi := &file_observations_proto_msgTypes[77]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -7721,7 +7897,7 @@ func (x *CellThing) String() string {
 func (*CellThing) ProtoMessage() {}
 
 func (x *CellThing) ProtoReflect() protoreflect.Message {
-	mi := &file_observations_proto_msgTypes[75]
+	mi := &file_observations_proto_msgTypes[77]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -7734,7 +7910,7 @@ func (x *CellThing) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CellThing.ProtoReflect.Descriptor instead.
 func (*CellThing) Descriptor() ([]byte, []int) {
-	return file_observations_proto_rawDescGZIP(), []int{75}
+	return file_observations_proto_rawDescGZIP(), []int{77}
 }
 
 func (x *CellThing) GetThing() *EntityRef {
@@ -7854,7 +8030,7 @@ type CellState struct {
 
 func (x *CellState) Reset() {
 	*x = CellState{}
-	mi := &file_observations_proto_msgTypes[76]
+	mi := &file_observations_proto_msgTypes[78]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -7866,7 +8042,7 @@ func (x *CellState) String() string {
 func (*CellState) ProtoMessage() {}
 
 func (x *CellState) ProtoReflect() protoreflect.Message {
-	mi := &file_observations_proto_msgTypes[76]
+	mi := &file_observations_proto_msgTypes[78]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -7879,7 +8055,7 @@ func (x *CellState) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CellState.ProtoReflect.Descriptor instead.
 func (*CellState) Descriptor() ([]byte, []int) {
-	return file_observations_proto_rawDescGZIP(), []int{76}
+	return file_observations_proto_rawDescGZIP(), []int{78}
 }
 
 func (x *CellState) GetCell() *commonpb.Cell {
@@ -8026,7 +8202,7 @@ type CellFields struct {
 
 func (x *CellFields) Reset() {
 	*x = CellFields{}
-	mi := &file_observations_proto_msgTypes[77]
+	mi := &file_observations_proto_msgTypes[79]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -8038,7 +8214,7 @@ func (x *CellFields) String() string {
 func (*CellFields) ProtoMessage() {}
 
 func (x *CellFields) ProtoReflect() protoreflect.Message {
-	mi := &file_observations_proto_msgTypes[77]
+	mi := &file_observations_proto_msgTypes[79]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -8051,7 +8227,7 @@ func (x *CellFields) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CellFields.ProtoReflect.Descriptor instead.
 func (*CellFields) Descriptor() ([]byte, []int) {
-	return file_observations_proto_rawDescGZIP(), []int{77}
+	return file_observations_proto_rawDescGZIP(), []int{79}
 }
 
 func (x *CellFields) GetTerrain() bool {
@@ -8139,7 +8315,7 @@ type CellsSnapshot struct {
 
 func (x *CellsSnapshot) Reset() {
 	*x = CellsSnapshot{}
-	mi := &file_observations_proto_msgTypes[78]
+	mi := &file_observations_proto_msgTypes[80]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -8151,7 +8327,7 @@ func (x *CellsSnapshot) String() string {
 func (*CellsSnapshot) ProtoMessage() {}
 
 func (x *CellsSnapshot) ProtoReflect() protoreflect.Message {
-	mi := &file_observations_proto_msgTypes[78]
+	mi := &file_observations_proto_msgTypes[80]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -8164,7 +8340,7 @@ func (x *CellsSnapshot) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CellsSnapshot.ProtoReflect.Descriptor instead.
 func (*CellsSnapshot) Descriptor() ([]byte, []int) {
-	return file_observations_proto_rawDescGZIP(), []int{78}
+	return file_observations_proto_rawDescGZIP(), []int{80}
 }
 
 func (x *CellsSnapshot) GetContext() *commonpb.ObservationContext {
@@ -8232,7 +8408,7 @@ type GetCellsRequest struct {
 
 func (x *GetCellsRequest) Reset() {
 	*x = GetCellsRequest{}
-	mi := &file_observations_proto_msgTypes[79]
+	mi := &file_observations_proto_msgTypes[81]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -8244,7 +8420,7 @@ func (x *GetCellsRequest) String() string {
 func (*GetCellsRequest) ProtoMessage() {}
 
 func (x *GetCellsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_observations_proto_msgTypes[79]
+	mi := &file_observations_proto_msgTypes[81]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -8257,7 +8433,7 @@ func (x *GetCellsRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetCellsRequest.ProtoReflect.Descriptor instead.
 func (*GetCellsRequest) Descriptor() ([]byte, []int) {
-	return file_observations_proto_rawDescGZIP(), []int{79}
+	return file_observations_proto_rawDescGZIP(), []int{81}
 }
 
 func (x *GetCellsRequest) GetScope() *ReadScope {
@@ -8331,7 +8507,7 @@ type CellSelection struct {
 
 func (x *CellSelection) Reset() {
 	*x = CellSelection{}
-	mi := &file_observations_proto_msgTypes[80]
+	mi := &file_observations_proto_msgTypes[82]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -8343,7 +8519,7 @@ func (x *CellSelection) String() string {
 func (*CellSelection) ProtoMessage() {}
 
 func (x *CellSelection) ProtoReflect() protoreflect.Message {
-	mi := &file_observations_proto_msgTypes[80]
+	mi := &file_observations_proto_msgTypes[82]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -8356,7 +8532,7 @@ func (x *CellSelection) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CellSelection.ProtoReflect.Descriptor instead.
 func (*CellSelection) Descriptor() ([]byte, []int) {
-	return file_observations_proto_rawDescGZIP(), []int{80}
+	return file_observations_proto_rawDescGZIP(), []int{82}
 }
 
 func (x *CellSelection) GetCells() []*commonpb.Cell {
@@ -8380,7 +8556,7 @@ type GetCellsReply struct {
 
 func (x *GetCellsReply) Reset() {
 	*x = GetCellsReply{}
-	mi := &file_observations_proto_msgTypes[81]
+	mi := &file_observations_proto_msgTypes[83]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -8392,7 +8568,7 @@ func (x *GetCellsReply) String() string {
 func (*GetCellsReply) ProtoMessage() {}
 
 func (x *GetCellsReply) ProtoReflect() protoreflect.Message {
-	mi := &file_observations_proto_msgTypes[81]
+	mi := &file_observations_proto_msgTypes[83]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -8405,7 +8581,7 @@ func (x *GetCellsReply) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetCellsReply.ProtoReflect.Descriptor instead.
 func (*GetCellsReply) Descriptor() ([]byte, []int) {
-	return file_observations_proto_rawDescGZIP(), []int{81}
+	return file_observations_proto_rawDescGZIP(), []int{83}
 }
 
 func (x *GetCellsReply) GetOutcome() isGetCellsReply_Outcome {
@@ -8475,7 +8651,7 @@ type ResearchUnlock struct {
 
 func (x *ResearchUnlock) Reset() {
 	*x = ResearchUnlock{}
-	mi := &file_observations_proto_msgTypes[82]
+	mi := &file_observations_proto_msgTypes[84]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -8487,7 +8663,7 @@ func (x *ResearchUnlock) String() string {
 func (*ResearchUnlock) ProtoMessage() {}
 
 func (x *ResearchUnlock) ProtoReflect() protoreflect.Message {
-	mi := &file_observations_proto_msgTypes[82]
+	mi := &file_observations_proto_msgTypes[84]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -8500,7 +8676,7 @@ func (x *ResearchUnlock) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ResearchUnlock.ProtoReflect.Descriptor instead.
 func (*ResearchUnlock) Descriptor() ([]byte, []int) {
-	return file_observations_proto_rawDescGZIP(), []int{82}
+	return file_observations_proto_rawDescGZIP(), []int{84}
 }
 
 func (x *ResearchUnlock) GetDefName() string {
@@ -8556,7 +8732,7 @@ type ResearchProject struct {
 
 func (x *ResearchProject) Reset() {
 	*x = ResearchProject{}
-	mi := &file_observations_proto_msgTypes[83]
+	mi := &file_observations_proto_msgTypes[85]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -8568,7 +8744,7 @@ func (x *ResearchProject) String() string {
 func (*ResearchProject) ProtoMessage() {}
 
 func (x *ResearchProject) ProtoReflect() protoreflect.Message {
-	mi := &file_observations_proto_msgTypes[83]
+	mi := &file_observations_proto_msgTypes[85]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -8581,7 +8757,7 @@ func (x *ResearchProject) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ResearchProject.ProtoReflect.Descriptor instead.
 func (*ResearchProject) Descriptor() ([]byte, []int) {
-	return file_observations_proto_rawDescGZIP(), []int{83}
+	return file_observations_proto_rawDescGZIP(), []int{85}
 }
 
 func (x *ResearchProject) GetProject() *DefinitionRef {
@@ -8766,7 +8942,7 @@ type Researcher struct {
 
 func (x *Researcher) Reset() {
 	*x = Researcher{}
-	mi := &file_observations_proto_msgTypes[84]
+	mi := &file_observations_proto_msgTypes[86]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -8778,7 +8954,7 @@ func (x *Researcher) String() string {
 func (*Researcher) ProtoMessage() {}
 
 func (x *Researcher) ProtoReflect() protoreflect.Message {
-	mi := &file_observations_proto_msgTypes[84]
+	mi := &file_observations_proto_msgTypes[86]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -8791,7 +8967,7 @@ func (x *Researcher) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Researcher.ProtoReflect.Descriptor instead.
 func (*Researcher) Descriptor() ([]byte, []int) {
-	return file_observations_proto_rawDescGZIP(), []int{84}
+	return file_observations_proto_rawDescGZIP(), []int{86}
 }
 
 func (x *Researcher) GetPawn() *EntityRef {
@@ -8846,7 +9022,7 @@ type ResearchFacility struct {
 
 func (x *ResearchFacility) Reset() {
 	*x = ResearchFacility{}
-	mi := &file_observations_proto_msgTypes[85]
+	mi := &file_observations_proto_msgTypes[87]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -8858,7 +9034,7 @@ func (x *ResearchFacility) String() string {
 func (*ResearchFacility) ProtoMessage() {}
 
 func (x *ResearchFacility) ProtoReflect() protoreflect.Message {
-	mi := &file_observations_proto_msgTypes[85]
+	mi := &file_observations_proto_msgTypes[87]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -8871,7 +9047,7 @@ func (x *ResearchFacility) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ResearchFacility.ProtoReflect.Descriptor instead.
 func (*ResearchFacility) Descriptor() ([]byte, []int) {
-	return file_observations_proto_rawDescGZIP(), []int{85}
+	return file_observations_proto_rawDescGZIP(), []int{87}
 }
 
 func (x *ResearchFacility) GetDefinition() *DefinitionRef {
@@ -8899,7 +9075,7 @@ type ResearchBench struct {
 
 func (x *ResearchBench) Reset() {
 	*x = ResearchBench{}
-	mi := &file_observations_proto_msgTypes[86]
+	mi := &file_observations_proto_msgTypes[88]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -8911,7 +9087,7 @@ func (x *ResearchBench) String() string {
 func (*ResearchBench) ProtoMessage() {}
 
 func (x *ResearchBench) ProtoReflect() protoreflect.Message {
-	mi := &file_observations_proto_msgTypes[86]
+	mi := &file_observations_proto_msgTypes[88]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -8924,7 +9100,7 @@ func (x *ResearchBench) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ResearchBench.ProtoReflect.Descriptor instead.
 func (*ResearchBench) Descriptor() ([]byte, []int) {
-	return file_observations_proto_rawDescGZIP(), []int{86}
+	return file_observations_proto_rawDescGZIP(), []int{88}
 }
 
 func (x *ResearchBench) GetBuilding() *BuildingState {
@@ -8958,7 +9134,7 @@ type ResearchSlot struct {
 
 func (x *ResearchSlot) Reset() {
 	*x = ResearchSlot{}
-	mi := &file_observations_proto_msgTypes[87]
+	mi := &file_observations_proto_msgTypes[89]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -8970,7 +9146,7 @@ func (x *ResearchSlot) String() string {
 func (*ResearchSlot) ProtoMessage() {}
 
 func (x *ResearchSlot) ProtoReflect() protoreflect.Message {
-	mi := &file_observations_proto_msgTypes[87]
+	mi := &file_observations_proto_msgTypes[89]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -8983,7 +9159,7 @@ func (x *ResearchSlot) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ResearchSlot.ProtoReflect.Descriptor instead.
 func (*ResearchSlot) Descriptor() ([]byte, []int) {
-	return file_observations_proto_rawDescGZIP(), []int{87}
+	return file_observations_proto_rawDescGZIP(), []int{89}
 }
 
 func (x *ResearchSlot) GetCategory() string {
@@ -9017,7 +9193,7 @@ type ResearchSnapshot struct {
 
 func (x *ResearchSnapshot) Reset() {
 	*x = ResearchSnapshot{}
-	mi := &file_observations_proto_msgTypes[88]
+	mi := &file_observations_proto_msgTypes[90]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -9029,7 +9205,7 @@ func (x *ResearchSnapshot) String() string {
 func (*ResearchSnapshot) ProtoMessage() {}
 
 func (x *ResearchSnapshot) ProtoReflect() protoreflect.Message {
-	mi := &file_observations_proto_msgTypes[88]
+	mi := &file_observations_proto_msgTypes[90]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -9042,7 +9218,7 @@ func (x *ResearchSnapshot) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ResearchSnapshot.ProtoReflect.Descriptor instead.
 func (*ResearchSnapshot) Descriptor() ([]byte, []int) {
-	return file_observations_proto_rawDescGZIP(), []int{88}
+	return file_observations_proto_rawDescGZIP(), []int{90}
 }
 
 func (x *ResearchSnapshot) GetContext() *commonpb.ObservationContext {
@@ -9123,7 +9299,7 @@ type ResearchRequest struct {
 
 func (x *ResearchRequest) Reset() {
 	*x = ResearchRequest{}
-	mi := &file_observations_proto_msgTypes[89]
+	mi := &file_observations_proto_msgTypes[91]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -9135,7 +9311,7 @@ func (x *ResearchRequest) String() string {
 func (*ResearchRequest) ProtoMessage() {}
 
 func (x *ResearchRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_observations_proto_msgTypes[89]
+	mi := &file_observations_proto_msgTypes[91]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -9148,7 +9324,7 @@ func (x *ResearchRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ResearchRequest.ProtoReflect.Descriptor instead.
 func (*ResearchRequest) Descriptor() ([]byte, []int) {
-	return file_observations_proto_rawDescGZIP(), []int{89}
+	return file_observations_proto_rawDescGZIP(), []int{91}
 }
 
 func (x *ResearchRequest) GetScope() *ReadScope {
@@ -9214,7 +9390,7 @@ type ResearchReply struct {
 
 func (x *ResearchReply) Reset() {
 	*x = ResearchReply{}
-	mi := &file_observations_proto_msgTypes[90]
+	mi := &file_observations_proto_msgTypes[92]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -9226,7 +9402,7 @@ func (x *ResearchReply) String() string {
 func (*ResearchReply) ProtoMessage() {}
 
 func (x *ResearchReply) ProtoReflect() protoreflect.Message {
-	mi := &file_observations_proto_msgTypes[90]
+	mi := &file_observations_proto_msgTypes[92]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -9239,7 +9415,7 @@ func (x *ResearchReply) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ResearchReply.ProtoReflect.Descriptor instead.
 func (*ResearchReply) Descriptor() ([]byte, []int) {
-	return file_observations_proto_rawDescGZIP(), []int{90}
+	return file_observations_proto_rawDescGZIP(), []int{92}
 }
 
 func (x *ResearchReply) GetOutcome() isResearchReply_Outcome {
@@ -9310,7 +9486,7 @@ type AccessTarget struct {
 
 func (x *AccessTarget) Reset() {
 	*x = AccessTarget{}
-	mi := &file_observations_proto_msgTypes[91]
+	mi := &file_observations_proto_msgTypes[93]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -9322,7 +9498,7 @@ func (x *AccessTarget) String() string {
 func (*AccessTarget) ProtoMessage() {}
 
 func (x *AccessTarget) ProtoReflect() protoreflect.Message {
-	mi := &file_observations_proto_msgTypes[91]
+	mi := &file_observations_proto_msgTypes[93]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -9335,7 +9511,7 @@ func (x *AccessTarget) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use AccessTarget.ProtoReflect.Descriptor instead.
 func (*AccessTarget) Descriptor() ([]byte, []int) {
-	return file_observations_proto_rawDescGZIP(), []int{91}
+	return file_observations_proto_rawDescGZIP(), []int{93}
 }
 
 func (x *AccessTarget) GetCell() *commonpb.Cell {
@@ -9383,7 +9559,7 @@ type PawnAccess struct {
 
 func (x *PawnAccess) Reset() {
 	*x = PawnAccess{}
-	mi := &file_observations_proto_msgTypes[92]
+	mi := &file_observations_proto_msgTypes[94]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -9395,7 +9571,7 @@ func (x *PawnAccess) String() string {
 func (*PawnAccess) ProtoMessage() {}
 
 func (x *PawnAccess) ProtoReflect() protoreflect.Message {
-	mi := &file_observations_proto_msgTypes[92]
+	mi := &file_observations_proto_msgTypes[94]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -9408,7 +9584,7 @@ func (x *PawnAccess) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PawnAccess.ProtoReflect.Descriptor instead.
 func (*PawnAccess) Descriptor() ([]byte, []int) {
-	return file_observations_proto_rawDescGZIP(), []int{92}
+	return file_observations_proto_rawDescGZIP(), []int{94}
 }
 
 func (x *PawnAccess) GetPawn() *EntityRef {
@@ -9487,7 +9663,7 @@ type SpatialAccessSnapshot struct {
 
 func (x *SpatialAccessSnapshot) Reset() {
 	*x = SpatialAccessSnapshot{}
-	mi := &file_observations_proto_msgTypes[93]
+	mi := &file_observations_proto_msgTypes[95]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -9499,7 +9675,7 @@ func (x *SpatialAccessSnapshot) String() string {
 func (*SpatialAccessSnapshot) ProtoMessage() {}
 
 func (x *SpatialAccessSnapshot) ProtoReflect() protoreflect.Message {
-	mi := &file_observations_proto_msgTypes[93]
+	mi := &file_observations_proto_msgTypes[95]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -9512,7 +9688,7 @@ func (x *SpatialAccessSnapshot) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SpatialAccessSnapshot.ProtoReflect.Descriptor instead.
 func (*SpatialAccessSnapshot) Descriptor() ([]byte, []int) {
-	return file_observations_proto_rawDescGZIP(), []int{93}
+	return file_observations_proto_rawDescGZIP(), []int{95}
 }
 
 func (x *SpatialAccessSnapshot) GetContext() *commonpb.ObservationContext {
@@ -9562,7 +9738,7 @@ type SpatialAccessRequest struct {
 
 func (x *SpatialAccessRequest) Reset() {
 	*x = SpatialAccessRequest{}
-	mi := &file_observations_proto_msgTypes[94]
+	mi := &file_observations_proto_msgTypes[96]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -9574,7 +9750,7 @@ func (x *SpatialAccessRequest) String() string {
 func (*SpatialAccessRequest) ProtoMessage() {}
 
 func (x *SpatialAccessRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_observations_proto_msgTypes[94]
+	mi := &file_observations_proto_msgTypes[96]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -9587,7 +9763,7 @@ func (x *SpatialAccessRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SpatialAccessRequest.ProtoReflect.Descriptor instead.
 func (*SpatialAccessRequest) Descriptor() ([]byte, []int) {
-	return file_observations_proto_rawDescGZIP(), []int{94}
+	return file_observations_proto_rawDescGZIP(), []int{96}
 }
 
 func (x *SpatialAccessRequest) GetScope() *ReadScope {
@@ -9632,7 +9808,7 @@ type SpatialAccessReply struct {
 
 func (x *SpatialAccessReply) Reset() {
 	*x = SpatialAccessReply{}
-	mi := &file_observations_proto_msgTypes[95]
+	mi := &file_observations_proto_msgTypes[97]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -9644,7 +9820,7 @@ func (x *SpatialAccessReply) String() string {
 func (*SpatialAccessReply) ProtoMessage() {}
 
 func (x *SpatialAccessReply) ProtoReflect() protoreflect.Message {
-	mi := &file_observations_proto_msgTypes[95]
+	mi := &file_observations_proto_msgTypes[97]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -9657,7 +9833,7 @@ func (x *SpatialAccessReply) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SpatialAccessReply.ProtoReflect.Descriptor instead.
 func (*SpatialAccessReply) Descriptor() ([]byte, []int) {
-	return file_observations_proto_rawDescGZIP(), []int{95}
+	return file_observations_proto_rawDescGZIP(), []int{97}
 }
 
 func (x *SpatialAccessReply) GetOutcome() isSpatialAccessReply_Outcome {
@@ -9728,7 +9904,7 @@ type RoofSupportCell struct {
 
 func (x *RoofSupportCell) Reset() {
 	*x = RoofSupportCell{}
-	mi := &file_observations_proto_msgTypes[96]
+	mi := &file_observations_proto_msgTypes[98]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -9740,7 +9916,7 @@ func (x *RoofSupportCell) String() string {
 func (*RoofSupportCell) ProtoMessage() {}
 
 func (x *RoofSupportCell) ProtoReflect() protoreflect.Message {
-	mi := &file_observations_proto_msgTypes[96]
+	mi := &file_observations_proto_msgTypes[98]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -9753,7 +9929,7 @@ func (x *RoofSupportCell) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RoofSupportCell.ProtoReflect.Descriptor instead.
 func (*RoofSupportCell) Descriptor() ([]byte, []int) {
-	return file_observations_proto_rawDescGZIP(), []int{96}
+	return file_observations_proto_rawDescGZIP(), []int{98}
 }
 
 func (x *RoofSupportCell) GetCell() *commonpb.Cell {
@@ -9796,7 +9972,7 @@ type RoofSupportSnapshot struct {
 
 func (x *RoofSupportSnapshot) Reset() {
 	*x = RoofSupportSnapshot{}
-	mi := &file_observations_proto_msgTypes[97]
+	mi := &file_observations_proto_msgTypes[99]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -9808,7 +9984,7 @@ func (x *RoofSupportSnapshot) String() string {
 func (*RoofSupportSnapshot) ProtoMessage() {}
 
 func (x *RoofSupportSnapshot) ProtoReflect() protoreflect.Message {
-	mi := &file_observations_proto_msgTypes[97]
+	mi := &file_observations_proto_msgTypes[99]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -9821,7 +9997,7 @@ func (x *RoofSupportSnapshot) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RoofSupportSnapshot.ProtoReflect.Descriptor instead.
 func (*RoofSupportSnapshot) Descriptor() ([]byte, []int) {
-	return file_observations_proto_rawDescGZIP(), []int{97}
+	return file_observations_proto_rawDescGZIP(), []int{99}
 }
 
 func (x *RoofSupportSnapshot) GetContext() *commonpb.ObservationContext {
@@ -9862,7 +10038,7 @@ type RoofSupportRequest struct {
 
 func (x *RoofSupportRequest) Reset() {
 	*x = RoofSupportRequest{}
-	mi := &file_observations_proto_msgTypes[98]
+	mi := &file_observations_proto_msgTypes[100]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -9874,7 +10050,7 @@ func (x *RoofSupportRequest) String() string {
 func (*RoofSupportRequest) ProtoMessage() {}
 
 func (x *RoofSupportRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_observations_proto_msgTypes[98]
+	mi := &file_observations_proto_msgTypes[100]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -9887,7 +10063,7 @@ func (x *RoofSupportRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RoofSupportRequest.ProtoReflect.Descriptor instead.
 func (*RoofSupportRequest) Descriptor() ([]byte, []int) {
-	return file_observations_proto_rawDescGZIP(), []int{98}
+	return file_observations_proto_rawDescGZIP(), []int{100}
 }
 
 func (x *RoofSupportRequest) GetScope() *ReadScope {
@@ -9918,7 +10094,7 @@ type RoofSupportReply struct {
 
 func (x *RoofSupportReply) Reset() {
 	*x = RoofSupportReply{}
-	mi := &file_observations_proto_msgTypes[99]
+	mi := &file_observations_proto_msgTypes[101]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -9930,7 +10106,7 @@ func (x *RoofSupportReply) String() string {
 func (*RoofSupportReply) ProtoMessage() {}
 
 func (x *RoofSupportReply) ProtoReflect() protoreflect.Message {
-	mi := &file_observations_proto_msgTypes[99]
+	mi := &file_observations_proto_msgTypes[101]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -9943,7 +10119,7 @@ func (x *RoofSupportReply) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RoofSupportReply.ProtoReflect.Descriptor instead.
 func (*RoofSupportReply) Descriptor() ([]byte, []int) {
-	return file_observations_proto_rawDescGZIP(), []int{99}
+	return file_observations_proto_rawDescGZIP(), []int{101}
 }
 
 func (x *RoofSupportReply) GetOutcome() isRoofSupportReply_Outcome {
@@ -10012,7 +10188,7 @@ type WallMaterialOption struct {
 
 func (x *WallMaterialOption) Reset() {
 	*x = WallMaterialOption{}
-	mi := &file_observations_proto_msgTypes[100]
+	mi := &file_observations_proto_msgTypes[102]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -10024,7 +10200,7 @@ func (x *WallMaterialOption) String() string {
 func (*WallMaterialOption) ProtoMessage() {}
 
 func (x *WallMaterialOption) ProtoReflect() protoreflect.Message {
-	mi := &file_observations_proto_msgTypes[100]
+	mi := &file_observations_proto_msgTypes[102]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -10037,7 +10213,7 @@ func (x *WallMaterialOption) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use WallMaterialOption.ProtoReflect.Descriptor instead.
 func (*WallMaterialOption) Descriptor() ([]byte, []int) {
-	return file_observations_proto_rawDescGZIP(), []int{100}
+	return file_observations_proto_rawDescGZIP(), []int{102}
 }
 
 func (x *WallMaterialOption) GetStuff() string {
@@ -10083,7 +10259,7 @@ type WallUpgradeSite struct {
 
 func (x *WallUpgradeSite) Reset() {
 	*x = WallUpgradeSite{}
-	mi := &file_observations_proto_msgTypes[101]
+	mi := &file_observations_proto_msgTypes[103]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -10095,7 +10271,7 @@ func (x *WallUpgradeSite) String() string {
 func (*WallUpgradeSite) ProtoMessage() {}
 
 func (x *WallUpgradeSite) ProtoReflect() protoreflect.Message {
-	mi := &file_observations_proto_msgTypes[101]
+	mi := &file_observations_proto_msgTypes[103]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -10108,7 +10284,7 @@ func (x *WallUpgradeSite) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use WallUpgradeSite.ProtoReflect.Descriptor instead.
 func (*WallUpgradeSite) Descriptor() ([]byte, []int) {
-	return file_observations_proto_rawDescGZIP(), []int{101}
+	return file_observations_proto_rawDescGZIP(), []int{103}
 }
 
 func (x *WallUpgradeSite) GetTarget() *EntityRef {
@@ -10269,7 +10445,7 @@ type WallUpgradeSnapshot struct {
 
 func (x *WallUpgradeSnapshot) Reset() {
 	*x = WallUpgradeSnapshot{}
-	mi := &file_observations_proto_msgTypes[102]
+	mi := &file_observations_proto_msgTypes[104]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -10281,7 +10457,7 @@ func (x *WallUpgradeSnapshot) String() string {
 func (*WallUpgradeSnapshot) ProtoMessage() {}
 
 func (x *WallUpgradeSnapshot) ProtoReflect() protoreflect.Message {
-	mi := &file_observations_proto_msgTypes[102]
+	mi := &file_observations_proto_msgTypes[104]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -10294,7 +10470,7 @@ func (x *WallUpgradeSnapshot) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use WallUpgradeSnapshot.ProtoReflect.Descriptor instead.
 func (*WallUpgradeSnapshot) Descriptor() ([]byte, []int) {
-	return file_observations_proto_rawDescGZIP(), []int{102}
+	return file_observations_proto_rawDescGZIP(), []int{104}
 }
 
 func (x *WallUpgradeSnapshot) GetContext() *commonpb.ObservationContext {
@@ -10329,7 +10505,7 @@ type WallUpgradeSitesRequest struct {
 
 func (x *WallUpgradeSitesRequest) Reset() {
 	*x = WallUpgradeSitesRequest{}
-	mi := &file_observations_proto_msgTypes[103]
+	mi := &file_observations_proto_msgTypes[105]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -10341,7 +10517,7 @@ func (x *WallUpgradeSitesRequest) String() string {
 func (*WallUpgradeSitesRequest) ProtoMessage() {}
 
 func (x *WallUpgradeSitesRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_observations_proto_msgTypes[103]
+	mi := &file_observations_proto_msgTypes[105]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -10354,7 +10530,7 @@ func (x *WallUpgradeSitesRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use WallUpgradeSitesRequest.ProtoReflect.Descriptor instead.
 func (*WallUpgradeSitesRequest) Descriptor() ([]byte, []int) {
-	return file_observations_proto_rawDescGZIP(), []int{103}
+	return file_observations_proto_rawDescGZIP(), []int{105}
 }
 
 func (x *WallUpgradeSitesRequest) GetScope() *ReadScope {
@@ -10392,7 +10568,7 @@ type WallUpgradeSitesReply struct {
 
 func (x *WallUpgradeSitesReply) Reset() {
 	*x = WallUpgradeSitesReply{}
-	mi := &file_observations_proto_msgTypes[104]
+	mi := &file_observations_proto_msgTypes[106]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -10404,7 +10580,7 @@ func (x *WallUpgradeSitesReply) String() string {
 func (*WallUpgradeSitesReply) ProtoMessage() {}
 
 func (x *WallUpgradeSitesReply) ProtoReflect() protoreflect.Message {
-	mi := &file_observations_proto_msgTypes[104]
+	mi := &file_observations_proto_msgTypes[106]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -10417,7 +10593,7 @@ func (x *WallUpgradeSitesReply) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use WallUpgradeSitesReply.ProtoReflect.Descriptor instead.
 func (*WallUpgradeSitesReply) Descriptor() ([]byte, []int) {
-	return file_observations_proto_rawDescGZIP(), []int{104}
+	return file_observations_proto_rawDescGZIP(), []int{106}
 }
 
 func (x *WallUpgradeSitesReply) GetOutcome() isWallUpgradeSitesReply_Outcome {
@@ -10496,7 +10672,7 @@ type ResourceSource struct {
 
 func (x *ResourceSource) Reset() {
 	*x = ResourceSource{}
-	mi := &file_observations_proto_msgTypes[105]
+	mi := &file_observations_proto_msgTypes[107]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -10508,7 +10684,7 @@ func (x *ResourceSource) String() string {
 func (*ResourceSource) ProtoMessage() {}
 
 func (x *ResourceSource) ProtoReflect() protoreflect.Message {
-	mi := &file_observations_proto_msgTypes[105]
+	mi := &file_observations_proto_msgTypes[107]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -10521,7 +10697,7 @@ func (x *ResourceSource) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ResourceSource.ProtoReflect.Descriptor instead.
 func (*ResourceSource) Descriptor() ([]byte, []int) {
-	return file_observations_proto_rawDescGZIP(), []int{105}
+	return file_observations_proto_rawDescGZIP(), []int{107}
 }
 
 func (x *ResourceSource) GetSource() *EntityRef {
@@ -10623,7 +10799,7 @@ type StorageCapacity struct {
 
 func (x *StorageCapacity) Reset() {
 	*x = StorageCapacity{}
-	mi := &file_observations_proto_msgTypes[106]
+	mi := &file_observations_proto_msgTypes[108]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -10635,7 +10811,7 @@ func (x *StorageCapacity) String() string {
 func (*StorageCapacity) ProtoMessage() {}
 
 func (x *StorageCapacity) ProtoReflect() protoreflect.Message {
-	mi := &file_observations_proto_msgTypes[106]
+	mi := &file_observations_proto_msgTypes[108]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -10648,7 +10824,7 @@ func (x *StorageCapacity) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use StorageCapacity.ProtoReflect.Descriptor instead.
 func (*StorageCapacity) Descriptor() ([]byte, []int) {
-	return file_observations_proto_rawDescGZIP(), []int{106}
+	return file_observations_proto_rawDescGZIP(), []int{108}
 }
 
 func (x *StorageCapacity) GetResource() string {
@@ -10710,7 +10886,7 @@ type ExtractionWorkType struct {
 
 func (x *ExtractionWorkType) Reset() {
 	*x = ExtractionWorkType{}
-	mi := &file_observations_proto_msgTypes[107]
+	mi := &file_observations_proto_msgTypes[109]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -10722,7 +10898,7 @@ func (x *ExtractionWorkType) String() string {
 func (*ExtractionWorkType) ProtoMessage() {}
 
 func (x *ExtractionWorkType) ProtoReflect() protoreflect.Message {
-	mi := &file_observations_proto_msgTypes[107]
+	mi := &file_observations_proto_msgTypes[109]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -10735,7 +10911,7 @@ func (x *ExtractionWorkType) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ExtractionWorkType.ProtoReflect.Descriptor instead.
 func (*ExtractionWorkType) Descriptor() ([]byte, []int) {
-	return file_observations_proto_rawDescGZIP(), []int{107}
+	return file_observations_proto_rawDescGZIP(), []int{109}
 }
 
 func (x *ExtractionWorkType) GetDefinition() *DefinitionRef {
@@ -10769,7 +10945,7 @@ type ExtractionSite struct {
 
 func (x *ExtractionSite) Reset() {
 	*x = ExtractionSite{}
-	mi := &file_observations_proto_msgTypes[108]
+	mi := &file_observations_proto_msgTypes[110]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -10781,7 +10957,7 @@ func (x *ExtractionSite) String() string {
 func (*ExtractionSite) ProtoMessage() {}
 
 func (x *ExtractionSite) ProtoReflect() protoreflect.Message {
-	mi := &file_observations_proto_msgTypes[108]
+	mi := &file_observations_proto_msgTypes[110]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -10794,7 +10970,7 @@ func (x *ExtractionSite) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ExtractionSite.ProtoReflect.Descriptor instead.
 func (*ExtractionSite) Descriptor() ([]byte, []int) {
-	return file_observations_proto_rawDescGZIP(), []int{108}
+	return file_observations_proto_rawDescGZIP(), []int{110}
 }
 
 func (x *ExtractionSite) GetSnapshot() *SnapshotRef {
@@ -10878,7 +11054,7 @@ type OwnedDrill struct {
 
 func (x *OwnedDrill) Reset() {
 	*x = OwnedDrill{}
-	mi := &file_observations_proto_msgTypes[109]
+	mi := &file_observations_proto_msgTypes[111]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -10890,7 +11066,7 @@ func (x *OwnedDrill) String() string {
 func (*OwnedDrill) ProtoMessage() {}
 
 func (x *OwnedDrill) ProtoReflect() protoreflect.Message {
-	mi := &file_observations_proto_msgTypes[109]
+	mi := &file_observations_proto_msgTypes[111]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -10903,7 +11079,7 @@ func (x *OwnedDrill) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use OwnedDrill.ProtoReflect.Descriptor instead.
 func (*OwnedDrill) Descriptor() ([]byte, []int) {
-	return file_observations_proto_rawDescGZIP(), []int{109}
+	return file_observations_proto_rawDescGZIP(), []int{111}
 }
 
 func (x *OwnedDrill) GetSnapshot() *SnapshotRef {
@@ -10990,7 +11166,7 @@ type DrillObservation struct {
 
 func (x *DrillObservation) Reset() {
 	*x = DrillObservation{}
-	mi := &file_observations_proto_msgTypes[110]
+	mi := &file_observations_proto_msgTypes[112]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -11002,7 +11178,7 @@ func (x *DrillObservation) String() string {
 func (*DrillObservation) ProtoMessage() {}
 
 func (x *DrillObservation) ProtoReflect() protoreflect.Message {
-	mi := &file_observations_proto_msgTypes[110]
+	mi := &file_observations_proto_msgTypes[112]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -11015,7 +11191,7 @@ func (x *DrillObservation) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DrillObservation.ProtoReflect.Descriptor instead.
 func (*DrillObservation) Descriptor() ([]byte, []int) {
-	return file_observations_proto_rawDescGZIP(), []int{110}
+	return file_observations_proto_rawDescGZIP(), []int{112}
 }
 
 func (x *DrillObservation) GetBuilding() *BuildingState {
@@ -11080,7 +11256,7 @@ type ExtractionDevelopment struct {
 
 func (x *ExtractionDevelopment) Reset() {
 	*x = ExtractionDevelopment{}
-	mi := &file_observations_proto_msgTypes[111]
+	mi := &file_observations_proto_msgTypes[113]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -11092,7 +11268,7 @@ func (x *ExtractionDevelopment) String() string {
 func (*ExtractionDevelopment) ProtoMessage() {}
 
 func (x *ExtractionDevelopment) ProtoReflect() protoreflect.Message {
-	mi := &file_observations_proto_msgTypes[111]
+	mi := &file_observations_proto_msgTypes[113]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -11105,7 +11281,7 @@ func (x *ExtractionDevelopment) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ExtractionDevelopment.ProtoReflect.Descriptor instead.
 func (*ExtractionDevelopment) Descriptor() ([]byte, []int) {
-	return file_observations_proto_rawDescGZIP(), []int{111}
+	return file_observations_proto_rawDescGZIP(), []int{113}
 }
 
 func (x *ExtractionDevelopment) GetScanners() []*BuildingState {
@@ -11206,7 +11382,7 @@ type ResourceSourcesSnapshot struct {
 
 func (x *ResourceSourcesSnapshot) Reset() {
 	*x = ResourceSourcesSnapshot{}
-	mi := &file_observations_proto_msgTypes[112]
+	mi := &file_observations_proto_msgTypes[114]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -11218,7 +11394,7 @@ func (x *ResourceSourcesSnapshot) String() string {
 func (*ResourceSourcesSnapshot) ProtoMessage() {}
 
 func (x *ResourceSourcesSnapshot) ProtoReflect() protoreflect.Message {
-	mi := &file_observations_proto_msgTypes[112]
+	mi := &file_observations_proto_msgTypes[114]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -11231,7 +11407,7 @@ func (x *ResourceSourcesSnapshot) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ResourceSourcesSnapshot.ProtoReflect.Descriptor instead.
 func (*ResourceSourcesSnapshot) Descriptor() ([]byte, []int) {
-	return file_observations_proto_rawDescGZIP(), []int{112}
+	return file_observations_proto_rawDescGZIP(), []int{114}
 }
 
 func (x *ResourceSourcesSnapshot) GetContext() *commonpb.ObservationContext {
@@ -11288,7 +11464,7 @@ type ResourceSourcesRequest struct {
 
 func (x *ResourceSourcesRequest) Reset() {
 	*x = ResourceSourcesRequest{}
-	mi := &file_observations_proto_msgTypes[113]
+	mi := &file_observations_proto_msgTypes[115]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -11300,7 +11476,7 @@ func (x *ResourceSourcesRequest) String() string {
 func (*ResourceSourcesRequest) ProtoMessage() {}
 
 func (x *ResourceSourcesRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_observations_proto_msgTypes[113]
+	mi := &file_observations_proto_msgTypes[115]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -11313,7 +11489,7 @@ func (x *ResourceSourcesRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ResourceSourcesRequest.ProtoReflect.Descriptor instead.
 func (*ResourceSourcesRequest) Descriptor() ([]byte, []int) {
-	return file_observations_proto_rawDescGZIP(), []int{113}
+	return file_observations_proto_rawDescGZIP(), []int{115}
 }
 
 func (x *ResourceSourcesRequest) GetScope() *ReadScope {
@@ -11358,7 +11534,7 @@ type ResourceSourcesReply struct {
 
 func (x *ResourceSourcesReply) Reset() {
 	*x = ResourceSourcesReply{}
-	mi := &file_observations_proto_msgTypes[114]
+	mi := &file_observations_proto_msgTypes[116]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -11370,7 +11546,7 @@ func (x *ResourceSourcesReply) String() string {
 func (*ResourceSourcesReply) ProtoMessage() {}
 
 func (x *ResourceSourcesReply) ProtoReflect() protoreflect.Message {
-	mi := &file_observations_proto_msgTypes[114]
+	mi := &file_observations_proto_msgTypes[116]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -11383,7 +11559,7 @@ func (x *ResourceSourcesReply) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ResourceSourcesReply.ProtoReflect.Descriptor instead.
 func (*ResourceSourcesReply) Descriptor() ([]byte, []int) {
-	return file_observations_proto_rawDescGZIP(), []int{114}
+	return file_observations_proto_rawDescGZIP(), []int{116}
 }
 
 func (x *ResourceSourcesReply) GetOutcome() isResourceSourcesReply_Outcome {
@@ -11455,7 +11631,7 @@ type HandlerState struct {
 
 func (x *HandlerState) Reset() {
 	*x = HandlerState{}
-	mi := &file_observations_proto_msgTypes[115]
+	mi := &file_observations_proto_msgTypes[117]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -11467,7 +11643,7 @@ func (x *HandlerState) String() string {
 func (*HandlerState) ProtoMessage() {}
 
 func (x *HandlerState) ProtoReflect() protoreflect.Message {
-	mi := &file_observations_proto_msgTypes[115]
+	mi := &file_observations_proto_msgTypes[117]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -11480,7 +11656,7 @@ func (x *HandlerState) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use HandlerState.ProtoReflect.Descriptor instead.
 func (*HandlerState) Descriptor() ([]byte, []int) {
-	return file_observations_proto_rawDescGZIP(), []int{115}
+	return file_observations_proto_rawDescGZIP(), []int{117}
 }
 
 func (x *HandlerState) GetPawn() *EntityRef {
@@ -11531,7 +11707,7 @@ type HusbandryAnimal struct {
 
 func (x *HusbandryAnimal) Reset() {
 	*x = HusbandryAnimal{}
-	mi := &file_observations_proto_msgTypes[116]
+	mi := &file_observations_proto_msgTypes[118]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -11543,7 +11719,7 @@ func (x *HusbandryAnimal) String() string {
 func (*HusbandryAnimal) ProtoMessage() {}
 
 func (x *HusbandryAnimal) ProtoReflect() protoreflect.Message {
-	mi := &file_observations_proto_msgTypes[116]
+	mi := &file_observations_proto_msgTypes[118]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -11556,7 +11732,7 @@ func (x *HusbandryAnimal) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use HusbandryAnimal.ProtoReflect.Descriptor instead.
 func (*HusbandryAnimal) Descriptor() ([]byte, []int) {
-	return file_observations_proto_rawDescGZIP(), []int{116}
+	return file_observations_proto_rawDescGZIP(), []int{118}
 }
 
 func (x *HusbandryAnimal) GetPawn() *PawnState {
@@ -11606,7 +11782,7 @@ type HusbandrySnapshot struct {
 
 func (x *HusbandrySnapshot) Reset() {
 	*x = HusbandrySnapshot{}
-	mi := &file_observations_proto_msgTypes[117]
+	mi := &file_observations_proto_msgTypes[119]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -11618,7 +11794,7 @@ func (x *HusbandrySnapshot) String() string {
 func (*HusbandrySnapshot) ProtoMessage() {}
 
 func (x *HusbandrySnapshot) ProtoReflect() protoreflect.Message {
-	mi := &file_observations_proto_msgTypes[117]
+	mi := &file_observations_proto_msgTypes[119]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -11631,7 +11807,7 @@ func (x *HusbandrySnapshot) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use HusbandrySnapshot.ProtoReflect.Descriptor instead.
 func (*HusbandrySnapshot) Descriptor() ([]byte, []int) {
-	return file_observations_proto_rawDescGZIP(), []int{117}
+	return file_observations_proto_rawDescGZIP(), []int{119}
 }
 
 func (x *HusbandrySnapshot) GetContext() *commonpb.ObservationContext {
@@ -11672,7 +11848,7 @@ type HusbandryRequest struct {
 
 func (x *HusbandryRequest) Reset() {
 	*x = HusbandryRequest{}
-	mi := &file_observations_proto_msgTypes[118]
+	mi := &file_observations_proto_msgTypes[120]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -11684,7 +11860,7 @@ func (x *HusbandryRequest) String() string {
 func (*HusbandryRequest) ProtoMessage() {}
 
 func (x *HusbandryRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_observations_proto_msgTypes[118]
+	mi := &file_observations_proto_msgTypes[120]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -11697,7 +11873,7 @@ func (x *HusbandryRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use HusbandryRequest.ProtoReflect.Descriptor instead.
 func (*HusbandryRequest) Descriptor() ([]byte, []int) {
-	return file_observations_proto_rawDescGZIP(), []int{118}
+	return file_observations_proto_rawDescGZIP(), []int{120}
 }
 
 func (x *HusbandryRequest) GetScope() *ReadScope {
@@ -11728,7 +11904,7 @@ type HusbandryReply struct {
 
 func (x *HusbandryReply) Reset() {
 	*x = HusbandryReply{}
-	mi := &file_observations_proto_msgTypes[119]
+	mi := &file_observations_proto_msgTypes[121]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -11740,7 +11916,7 @@ func (x *HusbandryReply) String() string {
 func (*HusbandryReply) ProtoMessage() {}
 
 func (x *HusbandryReply) ProtoReflect() protoreflect.Message {
-	mi := &file_observations_proto_msgTypes[119]
+	mi := &file_observations_proto_msgTypes[121]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -11753,7 +11929,7 @@ func (x *HusbandryReply) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use HusbandryReply.ProtoReflect.Descriptor instead.
 func (*HusbandryReply) Descriptor() ([]byte, []int) {
-	return file_observations_proto_rawDescGZIP(), []int{119}
+	return file_observations_proto_rawDescGZIP(), []int{121}
 }
 
 func (x *HusbandryReply) GetOutcome() isHusbandryReply_Outcome {
@@ -11829,7 +12005,7 @@ type WasteItem struct {
 
 func (x *WasteItem) Reset() {
 	*x = WasteItem{}
-	mi := &file_observations_proto_msgTypes[120]
+	mi := &file_observations_proto_msgTypes[122]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -11841,7 +12017,7 @@ func (x *WasteItem) String() string {
 func (*WasteItem) ProtoMessage() {}
 
 func (x *WasteItem) ProtoReflect() protoreflect.Message {
-	mi := &file_observations_proto_msgTypes[120]
+	mi := &file_observations_proto_msgTypes[122]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -11854,7 +12030,7 @@ func (x *WasteItem) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use WasteItem.ProtoReflect.Descriptor instead.
 func (*WasteItem) Descriptor() ([]byte, []int) {
-	return file_observations_proto_rawDescGZIP(), []int{120}
+	return file_observations_proto_rawDescGZIP(), []int{122}
 }
 
 func (x *WasteItem) GetThing() *EntityRef {
@@ -11931,7 +12107,7 @@ type WasteSnapshot struct {
 
 func (x *WasteSnapshot) Reset() {
 	*x = WasteSnapshot{}
-	mi := &file_observations_proto_msgTypes[121]
+	mi := &file_observations_proto_msgTypes[123]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -11943,7 +12119,7 @@ func (x *WasteSnapshot) String() string {
 func (*WasteSnapshot) ProtoMessage() {}
 
 func (x *WasteSnapshot) ProtoReflect() protoreflect.Message {
-	mi := &file_observations_proto_msgTypes[121]
+	mi := &file_observations_proto_msgTypes[123]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -11956,7 +12132,7 @@ func (x *WasteSnapshot) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use WasteSnapshot.ProtoReflect.Descriptor instead.
 func (*WasteSnapshot) Descriptor() ([]byte, []int) {
-	return file_observations_proto_rawDescGZIP(), []int{121}
+	return file_observations_proto_rawDescGZIP(), []int{123}
 }
 
 func (x *WasteSnapshot) GetContext() *commonpb.ObservationContext {
@@ -11992,7 +12168,7 @@ type WasteRequest struct {
 
 func (x *WasteRequest) Reset() {
 	*x = WasteRequest{}
-	mi := &file_observations_proto_msgTypes[122]
+	mi := &file_observations_proto_msgTypes[124]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -12004,7 +12180,7 @@ func (x *WasteRequest) String() string {
 func (*WasteRequest) ProtoMessage() {}
 
 func (x *WasteRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_observations_proto_msgTypes[122]
+	mi := &file_observations_proto_msgTypes[124]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -12017,7 +12193,7 @@ func (x *WasteRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use WasteRequest.ProtoReflect.Descriptor instead.
 func (*WasteRequest) Descriptor() ([]byte, []int) {
-	return file_observations_proto_rawDescGZIP(), []int{122}
+	return file_observations_proto_rawDescGZIP(), []int{124}
 }
 
 func (x *WasteRequest) GetScope() *ReadScope {
@@ -12062,7 +12238,7 @@ type WasteReply struct {
 
 func (x *WasteReply) Reset() {
 	*x = WasteReply{}
-	mi := &file_observations_proto_msgTypes[123]
+	mi := &file_observations_proto_msgTypes[125]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -12074,7 +12250,7 @@ func (x *WasteReply) String() string {
 func (*WasteReply) ProtoMessage() {}
 
 func (x *WasteReply) ProtoReflect() protoreflect.Message {
-	mi := &file_observations_proto_msgTypes[123]
+	mi := &file_observations_proto_msgTypes[125]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -12087,7 +12263,7 @@ func (x *WasteReply) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use WasteReply.ProtoReflect.Descriptor instead.
 func (*WasteReply) Descriptor() ([]byte, []int) {
-	return file_observations_proto_rawDescGZIP(), []int{123}
+	return file_observations_proto_rawDescGZIP(), []int{125}
 }
 
 func (x *WasteReply) GetOutcome() isWasteReply_Outcome {
@@ -12158,7 +12334,7 @@ type RecoveryRestriction struct {
 
 func (x *RecoveryRestriction) Reset() {
 	*x = RecoveryRestriction{}
-	mi := &file_observations_proto_msgTypes[124]
+	mi := &file_observations_proto_msgTypes[126]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -12170,7 +12346,7 @@ func (x *RecoveryRestriction) String() string {
 func (*RecoveryRestriction) ProtoMessage() {}
 
 func (x *RecoveryRestriction) ProtoReflect() protoreflect.Message {
-	mi := &file_observations_proto_msgTypes[124]
+	mi := &file_observations_proto_msgTypes[126]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -12183,7 +12359,7 @@ func (x *RecoveryRestriction) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RecoveryRestriction.ProtoReflect.Descriptor instead.
 func (*RecoveryRestriction) Descriptor() ([]byte, []int) {
-	return file_observations_proto_rawDescGZIP(), []int{124}
+	return file_observations_proto_rawDescGZIP(), []int{126}
 }
 
 func (x *RecoveryRestriction) GetPawn() *EntityRef {
@@ -12227,7 +12403,7 @@ type RecoveryArea struct {
 
 func (x *RecoveryArea) Reset() {
 	*x = RecoveryArea{}
-	mi := &file_observations_proto_msgTypes[125]
+	mi := &file_observations_proto_msgTypes[127]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -12239,7 +12415,7 @@ func (x *RecoveryArea) String() string {
 func (*RecoveryArea) ProtoMessage() {}
 
 func (x *RecoveryArea) ProtoReflect() protoreflect.Message {
-	mi := &file_observations_proto_msgTypes[125]
+	mi := &file_observations_proto_msgTypes[127]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -12252,7 +12428,7 @@ func (x *RecoveryArea) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RecoveryArea.ProtoReflect.Descriptor instead.
 func (*RecoveryArea) Descriptor() ([]byte, []int) {
-	return file_observations_proto_rawDescGZIP(), []int{125}
+	return file_observations_proto_rawDescGZIP(), []int{127}
 }
 
 func (x *RecoveryArea) GetId() string {
@@ -12304,7 +12480,7 @@ type RecoverySnapshot struct {
 
 func (x *RecoverySnapshot) Reset() {
 	*x = RecoverySnapshot{}
-	mi := &file_observations_proto_msgTypes[126]
+	mi := &file_observations_proto_msgTypes[128]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -12316,7 +12492,7 @@ func (x *RecoverySnapshot) String() string {
 func (*RecoverySnapshot) ProtoMessage() {}
 
 func (x *RecoverySnapshot) ProtoReflect() protoreflect.Message {
-	mi := &file_observations_proto_msgTypes[126]
+	mi := &file_observations_proto_msgTypes[128]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -12329,7 +12505,7 @@ func (x *RecoverySnapshot) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RecoverySnapshot.ProtoReflect.Descriptor instead.
 func (*RecoverySnapshot) Descriptor() ([]byte, []int) {
-	return file_observations_proto_rawDescGZIP(), []int{126}
+	return file_observations_proto_rawDescGZIP(), []int{128}
 }
 
 func (x *RecoverySnapshot) GetContext() *commonpb.ObservationContext {
@@ -12384,7 +12560,7 @@ type RecoveryRequest struct {
 
 func (x *RecoveryRequest) Reset() {
 	*x = RecoveryRequest{}
-	mi := &file_observations_proto_msgTypes[127]
+	mi := &file_observations_proto_msgTypes[129]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -12396,7 +12572,7 @@ func (x *RecoveryRequest) String() string {
 func (*RecoveryRequest) ProtoMessage() {}
 
 func (x *RecoveryRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_observations_proto_msgTypes[127]
+	mi := &file_observations_proto_msgTypes[129]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -12409,7 +12585,7 @@ func (x *RecoveryRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RecoveryRequest.ProtoReflect.Descriptor instead.
 func (*RecoveryRequest) Descriptor() ([]byte, []int) {
-	return file_observations_proto_rawDescGZIP(), []int{127}
+	return file_observations_proto_rawDescGZIP(), []int{129}
 }
 
 func (x *RecoveryRequest) GetScope() *ReadScope {
@@ -12440,7 +12616,7 @@ type RecoveryReply struct {
 
 func (x *RecoveryReply) Reset() {
 	*x = RecoveryReply{}
-	mi := &file_observations_proto_msgTypes[128]
+	mi := &file_observations_proto_msgTypes[130]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -12452,7 +12628,7 @@ func (x *RecoveryReply) String() string {
 func (*RecoveryReply) ProtoMessage() {}
 
 func (x *RecoveryReply) ProtoReflect() protoreflect.Message {
-	mi := &file_observations_proto_msgTypes[128]
+	mi := &file_observations_proto_msgTypes[130]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -12465,7 +12641,7 @@ func (x *RecoveryReply) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RecoveryReply.ProtoReflect.Descriptor instead.
 func (*RecoveryReply) Descriptor() ([]byte, []int) {
-	return file_observations_proto_rawDescGZIP(), []int{128}
+	return file_observations_proto_rawDescGZIP(), []int{130}
 }
 
 func (x *RecoveryReply) GetOutcome() isRecoveryReply_Outcome {
@@ -12540,7 +12716,7 @@ type PopulationPerson struct {
 
 func (x *PopulationPerson) Reset() {
 	*x = PopulationPerson{}
-	mi := &file_observations_proto_msgTypes[129]
+	mi := &file_observations_proto_msgTypes[131]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -12552,7 +12728,7 @@ func (x *PopulationPerson) String() string {
 func (*PopulationPerson) ProtoMessage() {}
 
 func (x *PopulationPerson) ProtoReflect() protoreflect.Message {
-	mi := &file_observations_proto_msgTypes[129]
+	mi := &file_observations_proto_msgTypes[131]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -12565,7 +12741,7 @@ func (x *PopulationPerson) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PopulationPerson.ProtoReflect.Descriptor instead.
 func (*PopulationPerson) Descriptor() ([]byte, []int) {
-	return file_observations_proto_rawDescGZIP(), []int{129}
+	return file_observations_proto_rawDescGZIP(), []int{131}
 }
 
 func (x *PopulationPerson) GetPawn() *PawnState {
@@ -12636,7 +12812,7 @@ type PopulationSnapshot struct {
 
 func (x *PopulationSnapshot) Reset() {
 	*x = PopulationSnapshot{}
-	mi := &file_observations_proto_msgTypes[130]
+	mi := &file_observations_proto_msgTypes[132]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -12648,7 +12824,7 @@ func (x *PopulationSnapshot) String() string {
 func (*PopulationSnapshot) ProtoMessage() {}
 
 func (x *PopulationSnapshot) ProtoReflect() protoreflect.Message {
-	mi := &file_observations_proto_msgTypes[130]
+	mi := &file_observations_proto_msgTypes[132]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -12661,7 +12837,7 @@ func (x *PopulationSnapshot) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PopulationSnapshot.ProtoReflect.Descriptor instead.
 func (*PopulationSnapshot) Descriptor() ([]byte, []int) {
-	return file_observations_proto_rawDescGZIP(), []int{130}
+	return file_observations_proto_rawDescGZIP(), []int{132}
 }
 
 func (x *PopulationSnapshot) GetContext() *commonpb.ObservationContext {
@@ -12702,7 +12878,7 @@ type PopulationRequest struct {
 
 func (x *PopulationRequest) Reset() {
 	*x = PopulationRequest{}
-	mi := &file_observations_proto_msgTypes[131]
+	mi := &file_observations_proto_msgTypes[133]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -12714,7 +12890,7 @@ func (x *PopulationRequest) String() string {
 func (*PopulationRequest) ProtoMessage() {}
 
 func (x *PopulationRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_observations_proto_msgTypes[131]
+	mi := &file_observations_proto_msgTypes[133]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -12727,7 +12903,7 @@ func (x *PopulationRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PopulationRequest.ProtoReflect.Descriptor instead.
 func (*PopulationRequest) Descriptor() ([]byte, []int) {
-	return file_observations_proto_rawDescGZIP(), []int{131}
+	return file_observations_proto_rawDescGZIP(), []int{133}
 }
 
 func (x *PopulationRequest) GetScope() *ReadScope {
@@ -12758,7 +12934,7 @@ type PopulationReply struct {
 
 func (x *PopulationReply) Reset() {
 	*x = PopulationReply{}
-	mi := &file_observations_proto_msgTypes[132]
+	mi := &file_observations_proto_msgTypes[134]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -12770,7 +12946,7 @@ func (x *PopulationReply) String() string {
 func (*PopulationReply) ProtoMessage() {}
 
 func (x *PopulationReply) ProtoReflect() protoreflect.Message {
-	mi := &file_observations_proto_msgTypes[132]
+	mi := &file_observations_proto_msgTypes[134]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -12783,7 +12959,7 @@ func (x *PopulationReply) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PopulationReply.ProtoReflect.Descriptor instead.
 func (*PopulationReply) Descriptor() ([]byte, []int) {
-	return file_observations_proto_rawDescGZIP(), []int{132}
+	return file_observations_proto_rawDescGZIP(), []int{134}
 }
 
 func (x *PopulationReply) GetOutcome() isPopulationReply_Outcome {
@@ -12861,7 +13037,7 @@ type Settlement struct {
 
 func (x *Settlement) Reset() {
 	*x = Settlement{}
-	mi := &file_observations_proto_msgTypes[133]
+	mi := &file_observations_proto_msgTypes[135]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -12873,7 +13049,7 @@ func (x *Settlement) String() string {
 func (*Settlement) ProtoMessage() {}
 
 func (x *Settlement) ProtoReflect() protoreflect.Message {
-	mi := &file_observations_proto_msgTypes[133]
+	mi := &file_observations_proto_msgTypes[135]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -12886,7 +13062,7 @@ func (x *Settlement) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Settlement.ProtoReflect.Descriptor instead.
 func (*Settlement) Descriptor() ([]byte, []int) {
-	return file_observations_proto_rawDescGZIP(), []int{133}
+	return file_observations_proto_rawDescGZIP(), []int{135}
 }
 
 func (x *Settlement) GetId() string {
@@ -12991,7 +13167,7 @@ type WorldTile struct {
 
 func (x *WorldTile) Reset() {
 	*x = WorldTile{}
-	mi := &file_observations_proto_msgTypes[134]
+	mi := &file_observations_proto_msgTypes[136]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -13003,7 +13179,7 @@ func (x *WorldTile) String() string {
 func (*WorldTile) ProtoMessage() {}
 
 func (x *WorldTile) ProtoReflect() protoreflect.Message {
-	mi := &file_observations_proto_msgTypes[134]
+	mi := &file_observations_proto_msgTypes[136]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -13016,7 +13192,7 @@ func (x *WorldTile) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use WorldTile.ProtoReflect.Descriptor instead.
 func (*WorldTile) Descriptor() ([]byte, []int) {
-	return file_observations_proto_rawDescGZIP(), []int{134}
+	return file_observations_proto_rawDescGZIP(), []int{136}
 }
 
 func (x *WorldTile) GetTile() int32 {
@@ -13150,7 +13326,7 @@ type WorldSnapshot struct {
 
 func (x *WorldSnapshot) Reset() {
 	*x = WorldSnapshot{}
-	mi := &file_observations_proto_msgTypes[135]
+	mi := &file_observations_proto_msgTypes[137]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -13162,7 +13338,7 @@ func (x *WorldSnapshot) String() string {
 func (*WorldSnapshot) ProtoMessage() {}
 
 func (x *WorldSnapshot) ProtoReflect() protoreflect.Message {
-	mi := &file_observations_proto_msgTypes[135]
+	mi := &file_observations_proto_msgTypes[137]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -13175,7 +13351,7 @@ func (x *WorldSnapshot) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use WorldSnapshot.ProtoReflect.Descriptor instead.
 func (*WorldSnapshot) Descriptor() ([]byte, []int) {
-	return file_observations_proto_rawDescGZIP(), []int{135}
+	return file_observations_proto_rawDescGZIP(), []int{137}
 }
 
 func (x *WorldSnapshot) GetContext() *commonpb.ObservationContext {
@@ -13218,7 +13394,7 @@ type WorldRequest struct {
 
 func (x *WorldRequest) Reset() {
 	*x = WorldRequest{}
-	mi := &file_observations_proto_msgTypes[136]
+	mi := &file_observations_proto_msgTypes[138]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -13230,7 +13406,7 @@ func (x *WorldRequest) String() string {
 func (*WorldRequest) ProtoMessage() {}
 
 func (x *WorldRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_observations_proto_msgTypes[136]
+	mi := &file_observations_proto_msgTypes[138]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -13243,7 +13419,7 @@ func (x *WorldRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use WorldRequest.ProtoReflect.Descriptor instead.
 func (*WorldRequest) Descriptor() ([]byte, []int) {
-	return file_observations_proto_rawDescGZIP(), []int{136}
+	return file_observations_proto_rawDescGZIP(), []int{138}
 }
 
 func (x *WorldRequest) GetScope() *ReadScope {
@@ -13288,7 +13464,7 @@ type WorldReply struct {
 
 func (x *WorldReply) Reset() {
 	*x = WorldReply{}
-	mi := &file_observations_proto_msgTypes[137]
+	mi := &file_observations_proto_msgTypes[139]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -13300,7 +13476,7 @@ func (x *WorldReply) String() string {
 func (*WorldReply) ProtoMessage() {}
 
 func (x *WorldReply) ProtoReflect() protoreflect.Message {
-	mi := &file_observations_proto_msgTypes[137]
+	mi := &file_observations_proto_msgTypes[139]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -13313,7 +13489,7 @@ func (x *WorldReply) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use WorldReply.ProtoReflect.Descriptor instead.
 func (*WorldReply) Descriptor() ([]byte, []int) {
-	return file_observations_proto_rawDescGZIP(), []int{137}
+	return file_observations_proto_rawDescGZIP(), []int{139}
 }
 
 func (x *WorldReply) GetOutcome() isWorldReply_Outcome {
@@ -13385,7 +13561,7 @@ type WorldRoute struct {
 
 func (x *WorldRoute) Reset() {
 	*x = WorldRoute{}
-	mi := &file_observations_proto_msgTypes[138]
+	mi := &file_observations_proto_msgTypes[140]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -13397,7 +13573,7 @@ func (x *WorldRoute) String() string {
 func (*WorldRoute) ProtoMessage() {}
 
 func (x *WorldRoute) ProtoReflect() protoreflect.Message {
-	mi := &file_observations_proto_msgTypes[138]
+	mi := &file_observations_proto_msgTypes[140]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -13410,7 +13586,7 @@ func (x *WorldRoute) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use WorldRoute.ProtoReflect.Descriptor instead.
 func (*WorldRoute) Descriptor() ([]byte, []int) {
-	return file_observations_proto_rawDescGZIP(), []int{138}
+	return file_observations_proto_rawDescGZIP(), []int{140}
 }
 
 func (x *WorldRoute) GetSettlementId() string {
@@ -13470,7 +13646,7 @@ type CaravanState struct {
 
 func (x *CaravanState) Reset() {
 	*x = CaravanState{}
-	mi := &file_observations_proto_msgTypes[139]
+	mi := &file_observations_proto_msgTypes[141]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -13482,7 +13658,7 @@ func (x *CaravanState) String() string {
 func (*CaravanState) ProtoMessage() {}
 
 func (x *CaravanState) ProtoReflect() protoreflect.Message {
-	mi := &file_observations_proto_msgTypes[139]
+	mi := &file_observations_proto_msgTypes[141]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -13495,7 +13671,7 @@ func (x *CaravanState) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CaravanState.ProtoReflect.Descriptor instead.
 func (*CaravanState) Descriptor() ([]byte, []int) {
-	return file_observations_proto_rawDescGZIP(), []int{139}
+	return file_observations_proto_rawDescGZIP(), []int{141}
 }
 
 func (x *CaravanState) GetCaravan() *EntityRef {
@@ -13607,7 +13783,7 @@ type QuestTradeRequest struct {
 
 func (x *QuestTradeRequest) Reset() {
 	*x = QuestTradeRequest{}
-	mi := &file_observations_proto_msgTypes[140]
+	mi := &file_observations_proto_msgTypes[142]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -13619,7 +13795,7 @@ func (x *QuestTradeRequest) String() string {
 func (*QuestTradeRequest) ProtoMessage() {}
 
 func (x *QuestTradeRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_observations_proto_msgTypes[140]
+	mi := &file_observations_proto_msgTypes[142]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -13632,7 +13808,7 @@ func (x *QuestTradeRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use QuestTradeRequest.ProtoReflect.Descriptor instead.
 func (*QuestTradeRequest) Descriptor() ([]byte, []int) {
-	return file_observations_proto_rawDescGZIP(), []int{140}
+	return file_observations_proto_rawDescGZIP(), []int{142}
 }
 
 func (x *QuestTradeRequest) GetResource() string {
@@ -13668,7 +13844,7 @@ type QuestReward struct {
 
 func (x *QuestReward) Reset() {
 	*x = QuestReward{}
-	mi := &file_observations_proto_msgTypes[141]
+	mi := &file_observations_proto_msgTypes[143]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -13680,7 +13856,7 @@ func (x *QuestReward) String() string {
 func (*QuestReward) ProtoMessage() {}
 
 func (x *QuestReward) ProtoReflect() protoreflect.Message {
-	mi := &file_observations_proto_msgTypes[141]
+	mi := &file_observations_proto_msgTypes[143]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -13693,7 +13869,7 @@ func (x *QuestReward) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use QuestReward.ProtoReflect.Descriptor instead.
 func (*QuestReward) Descriptor() ([]byte, []int) {
-	return file_observations_proto_rawDescGZIP(), []int{141}
+	return file_observations_proto_rawDescGZIP(), []int{143}
 }
 
 func (x *QuestReward) GetChoiceIndex() uint32 {
@@ -13745,7 +13921,7 @@ type QuestState struct {
 
 func (x *QuestState) Reset() {
 	*x = QuestState{}
-	mi := &file_observations_proto_msgTypes[142]
+	mi := &file_observations_proto_msgTypes[144]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -13757,7 +13933,7 @@ func (x *QuestState) String() string {
 func (*QuestState) ProtoMessage() {}
 
 func (x *QuestState) ProtoReflect() protoreflect.Message {
-	mi := &file_observations_proto_msgTypes[142]
+	mi := &file_observations_proto_msgTypes[144]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -13770,7 +13946,7 @@ func (x *QuestState) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use QuestState.ProtoReflect.Descriptor instead.
 func (*QuestState) Descriptor() ([]byte, []int) {
-	return file_observations_proto_rawDescGZIP(), []int{142}
+	return file_observations_proto_rawDescGZIP(), []int{144}
 }
 
 func (x *QuestState) GetId() string {
@@ -13879,7 +14055,7 @@ type FactionState struct {
 
 func (x *FactionState) Reset() {
 	*x = FactionState{}
-	mi := &file_observations_proto_msgTypes[143]
+	mi := &file_observations_proto_msgTypes[145]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -13891,7 +14067,7 @@ func (x *FactionState) String() string {
 func (*FactionState) ProtoMessage() {}
 
 func (x *FactionState) ProtoReflect() protoreflect.Message {
-	mi := &file_observations_proto_msgTypes[143]
+	mi := &file_observations_proto_msgTypes[145]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -13904,7 +14080,7 @@ func (x *FactionState) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use FactionState.ProtoReflect.Descriptor instead.
 func (*FactionState) Descriptor() ([]byte, []int) {
-	return file_observations_proto_rawDescGZIP(), []int{143}
+	return file_observations_proto_rawDescGZIP(), []int{145}
 }
 
 func (x *FactionState) GetId() string {
@@ -13971,7 +14147,7 @@ type WorldMap struct {
 
 func (x *WorldMap) Reset() {
 	*x = WorldMap{}
-	mi := &file_observations_proto_msgTypes[144]
+	mi := &file_observations_proto_msgTypes[146]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -13983,7 +14159,7 @@ func (x *WorldMap) String() string {
 func (*WorldMap) ProtoMessage() {}
 
 func (x *WorldMap) ProtoReflect() protoreflect.Message {
-	mi := &file_observations_proto_msgTypes[144]
+	mi := &file_observations_proto_msgTypes[146]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -13996,7 +14172,7 @@ func (x *WorldMap) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use WorldMap.ProtoReflect.Descriptor instead.
 func (*WorldMap) Descriptor() ([]byte, []int) {
-	return file_observations_proto_rawDescGZIP(), []int{144}
+	return file_observations_proto_rawDescGZIP(), []int{146}
 }
 
 func (x *WorldMap) GetId() int32 {
@@ -14061,7 +14237,7 @@ type CaravanAssembly struct {
 
 func (x *CaravanAssembly) Reset() {
 	*x = CaravanAssembly{}
-	mi := &file_observations_proto_msgTypes[145]
+	mi := &file_observations_proto_msgTypes[147]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -14073,7 +14249,7 @@ func (x *CaravanAssembly) String() string {
 func (*CaravanAssembly) ProtoMessage() {}
 
 func (x *CaravanAssembly) ProtoReflect() protoreflect.Message {
-	mi := &file_observations_proto_msgTypes[145]
+	mi := &file_observations_proto_msgTypes[147]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -14086,7 +14262,7 @@ func (x *CaravanAssembly) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CaravanAssembly.ProtoReflect.Descriptor instead.
 func (*CaravanAssembly) Descriptor() ([]byte, []int) {
-	return file_observations_proto_rawDescGZIP(), []int{145}
+	return file_observations_proto_rawDescGZIP(), []int{147}
 }
 
 func (x *CaravanAssembly) GetId() string {
@@ -14139,7 +14315,7 @@ type WorldProgressionSnapshot struct {
 
 func (x *WorldProgressionSnapshot) Reset() {
 	*x = WorldProgressionSnapshot{}
-	mi := &file_observations_proto_msgTypes[146]
+	mi := &file_observations_proto_msgTypes[148]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -14151,7 +14327,7 @@ func (x *WorldProgressionSnapshot) String() string {
 func (*WorldProgressionSnapshot) ProtoMessage() {}
 
 func (x *WorldProgressionSnapshot) ProtoReflect() protoreflect.Message {
-	mi := &file_observations_proto_msgTypes[146]
+	mi := &file_observations_proto_msgTypes[148]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -14164,7 +14340,7 @@ func (x *WorldProgressionSnapshot) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use WorldProgressionSnapshot.ProtoReflect.Descriptor instead.
 func (*WorldProgressionSnapshot) Descriptor() ([]byte, []int) {
-	return file_observations_proto_rawDescGZIP(), []int{146}
+	return file_observations_proto_rawDescGZIP(), []int{148}
 }
 
 func (x *WorldProgressionSnapshot) GetContext() *commonpb.ObservationContext {
@@ -14227,7 +14403,7 @@ type WorldProgressionRequest struct {
 
 func (x *WorldProgressionRequest) Reset() {
 	*x = WorldProgressionRequest{}
-	mi := &file_observations_proto_msgTypes[147]
+	mi := &file_observations_proto_msgTypes[149]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -14239,7 +14415,7 @@ func (x *WorldProgressionRequest) String() string {
 func (*WorldProgressionRequest) ProtoMessage() {}
 
 func (x *WorldProgressionRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_observations_proto_msgTypes[147]
+	mi := &file_observations_proto_msgTypes[149]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -14252,7 +14428,7 @@ func (x *WorldProgressionRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use WorldProgressionRequest.ProtoReflect.Descriptor instead.
 func (*WorldProgressionRequest) Descriptor() ([]byte, []int) {
-	return file_observations_proto_rawDescGZIP(), []int{147}
+	return file_observations_proto_rawDescGZIP(), []int{149}
 }
 
 func (x *WorldProgressionRequest) GetScope() *ReadScope {
@@ -14290,7 +14466,7 @@ type WorldProgressionReply struct {
 
 func (x *WorldProgressionReply) Reset() {
 	*x = WorldProgressionReply{}
-	mi := &file_observations_proto_msgTypes[148]
+	mi := &file_observations_proto_msgTypes[150]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -14302,7 +14478,7 @@ func (x *WorldProgressionReply) String() string {
 func (*WorldProgressionReply) ProtoMessage() {}
 
 func (x *WorldProgressionReply) ProtoReflect() protoreflect.Message {
-	mi := &file_observations_proto_msgTypes[148]
+	mi := &file_observations_proto_msgTypes[150]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -14315,7 +14491,7 @@ func (x *WorldProgressionReply) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use WorldProgressionReply.ProtoReflect.Descriptor instead.
 func (*WorldProgressionReply) Descriptor() ([]byte, []int) {
-	return file_observations_proto_rawDescGZIP(), []int{148}
+	return file_observations_proto_rawDescGZIP(), []int{150}
 }
 
 func (x *WorldProgressionReply) GetOutcome() isWorldProgressionReply_Outcome {
@@ -14386,7 +14562,7 @@ type BillsSnapshot struct {
 
 func (x *BillsSnapshot) Reset() {
 	*x = BillsSnapshot{}
-	mi := &file_observations_proto_msgTypes[149]
+	mi := &file_observations_proto_msgTypes[151]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -14398,7 +14574,7 @@ func (x *BillsSnapshot) String() string {
 func (*BillsSnapshot) ProtoMessage() {}
 
 func (x *BillsSnapshot) ProtoReflect() protoreflect.Message {
-	mi := &file_observations_proto_msgTypes[149]
+	mi := &file_observations_proto_msgTypes[151]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -14411,7 +14587,7 @@ func (x *BillsSnapshot) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use BillsSnapshot.ProtoReflect.Descriptor instead.
 func (*BillsSnapshot) Descriptor() ([]byte, []int) {
-	return file_observations_proto_rawDescGZIP(), []int{149}
+	return file_observations_proto_rawDescGZIP(), []int{151}
 }
 
 func (x *BillsSnapshot) GetContext() *commonpb.ObservationContext {
@@ -14447,7 +14623,7 @@ type BillsRequest struct {
 
 func (x *BillsRequest) Reset() {
 	*x = BillsRequest{}
-	mi := &file_observations_proto_msgTypes[150]
+	mi := &file_observations_proto_msgTypes[152]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -14459,7 +14635,7 @@ func (x *BillsRequest) String() string {
 func (*BillsRequest) ProtoMessage() {}
 
 func (x *BillsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_observations_proto_msgTypes[150]
+	mi := &file_observations_proto_msgTypes[152]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -14472,7 +14648,7 @@ func (x *BillsRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use BillsRequest.ProtoReflect.Descriptor instead.
 func (*BillsRequest) Descriptor() ([]byte, []int) {
-	return file_observations_proto_rawDescGZIP(), []int{150}
+	return file_observations_proto_rawDescGZIP(), []int{152}
 }
 
 func (x *BillsRequest) GetScope() *ReadScope {
@@ -14517,7 +14693,7 @@ type BillsReply struct {
 
 func (x *BillsReply) Reset() {
 	*x = BillsReply{}
-	mi := &file_observations_proto_msgTypes[151]
+	mi := &file_observations_proto_msgTypes[153]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -14529,7 +14705,7 @@ func (x *BillsReply) String() string {
 func (*BillsReply) ProtoMessage() {}
 
 func (x *BillsReply) ProtoReflect() protoreflect.Message {
-	mi := &file_observations_proto_msgTypes[151]
+	mi := &file_observations_proto_msgTypes[153]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -14542,7 +14718,7 @@ func (x *BillsReply) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use BillsReply.ProtoReflect.Descriptor instead.
 func (*BillsReply) Descriptor() ([]byte, []int) {
-	return file_observations_proto_rawDescGZIP(), []int{151}
+	return file_observations_proto_rawDescGZIP(), []int{153}
 }
 
 func (x *BillsReply) GetOutcome() isBillsReply_Outcome {
@@ -14613,7 +14789,7 @@ type RecipesSnapshot struct {
 
 func (x *RecipesSnapshot) Reset() {
 	*x = RecipesSnapshot{}
-	mi := &file_observations_proto_msgTypes[152]
+	mi := &file_observations_proto_msgTypes[154]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -14625,7 +14801,7 @@ func (x *RecipesSnapshot) String() string {
 func (*RecipesSnapshot) ProtoMessage() {}
 
 func (x *RecipesSnapshot) ProtoReflect() protoreflect.Message {
-	mi := &file_observations_proto_msgTypes[152]
+	mi := &file_observations_proto_msgTypes[154]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -14638,7 +14814,7 @@ func (x *RecipesSnapshot) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RecipesSnapshot.ProtoReflect.Descriptor instead.
 func (*RecipesSnapshot) Descriptor() ([]byte, []int) {
-	return file_observations_proto_rawDescGZIP(), []int{152}
+	return file_observations_proto_rawDescGZIP(), []int{154}
 }
 
 func (x *RecipesSnapshot) GetContext() *commonpb.ObservationContext {
@@ -14680,7 +14856,7 @@ type RecipesRequest struct {
 
 func (x *RecipesRequest) Reset() {
 	*x = RecipesRequest{}
-	mi := &file_observations_proto_msgTypes[153]
+	mi := &file_observations_proto_msgTypes[155]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -14692,7 +14868,7 @@ func (x *RecipesRequest) String() string {
 func (*RecipesRequest) ProtoMessage() {}
 
 func (x *RecipesRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_observations_proto_msgTypes[153]
+	mi := &file_observations_proto_msgTypes[155]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -14705,7 +14881,7 @@ func (x *RecipesRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RecipesRequest.ProtoReflect.Descriptor instead.
 func (*RecipesRequest) Descriptor() ([]byte, []int) {
-	return file_observations_proto_rawDescGZIP(), []int{153}
+	return file_observations_proto_rawDescGZIP(), []int{155}
 }
 
 func (x *RecipesRequest) GetScope() *ReadScope {
@@ -14743,7 +14919,7 @@ type RecipesReply struct {
 
 func (x *RecipesReply) Reset() {
 	*x = RecipesReply{}
-	mi := &file_observations_proto_msgTypes[154]
+	mi := &file_observations_proto_msgTypes[156]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -14755,7 +14931,7 @@ func (x *RecipesReply) String() string {
 func (*RecipesReply) ProtoMessage() {}
 
 func (x *RecipesReply) ProtoReflect() protoreflect.Message {
-	mi := &file_observations_proto_msgTypes[154]
+	mi := &file_observations_proto_msgTypes[156]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -14768,7 +14944,7 @@ func (x *RecipesReply) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RecipesReply.ProtoReflect.Descriptor instead.
 func (*RecipesReply) Descriptor() ([]byte, []int) {
-	return file_observations_proto_rawDescGZIP(), []int{154}
+	return file_observations_proto_rawDescGZIP(), []int{156}
 }
 
 func (x *RecipesReply) GetOutcome() isRecipesReply_Outcome {
@@ -14837,7 +15013,7 @@ type BuildingSettingsRequest struct {
 
 func (x *BuildingSettingsRequest) Reset() {
 	*x = BuildingSettingsRequest{}
-	mi := &file_observations_proto_msgTypes[155]
+	mi := &file_observations_proto_msgTypes[157]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -14849,7 +15025,7 @@ func (x *BuildingSettingsRequest) String() string {
 func (*BuildingSettingsRequest) ProtoMessage() {}
 
 func (x *BuildingSettingsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_observations_proto_msgTypes[155]
+	mi := &file_observations_proto_msgTypes[157]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -14862,7 +15038,7 @@ func (x *BuildingSettingsRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use BuildingSettingsRequest.ProtoReflect.Descriptor instead.
 func (*BuildingSettingsRequest) Descriptor() ([]byte, []int) {
-	return file_observations_proto_rawDescGZIP(), []int{155}
+	return file_observations_proto_rawDescGZIP(), []int{157}
 }
 
 func (x *BuildingSettingsRequest) GetScope() *ReadScope {
@@ -14893,7 +15069,7 @@ type BuildingSettingsReply struct {
 
 func (x *BuildingSettingsReply) Reset() {
 	*x = BuildingSettingsReply{}
-	mi := &file_observations_proto_msgTypes[156]
+	mi := &file_observations_proto_msgTypes[158]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -14905,7 +15081,7 @@ func (x *BuildingSettingsReply) String() string {
 func (*BuildingSettingsReply) ProtoMessage() {}
 
 func (x *BuildingSettingsReply) ProtoReflect() protoreflect.Message {
-	mi := &file_observations_proto_msgTypes[156]
+	mi := &file_observations_proto_msgTypes[158]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -14918,7 +15094,7 @@ func (x *BuildingSettingsReply) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use BuildingSettingsReply.ProtoReflect.Descriptor instead.
 func (*BuildingSettingsReply) Descriptor() ([]byte, []int) {
-	return file_observations_proto_rawDescGZIP(), []int{156}
+	return file_observations_proto_rawDescGZIP(), []int{158}
 }
 
 func (x *BuildingSettingsReply) GetOutcome() isBuildingSettingsReply_Outcome {
@@ -14987,7 +15163,7 @@ type PawnSettingsRequest struct {
 
 func (x *PawnSettingsRequest) Reset() {
 	*x = PawnSettingsRequest{}
-	mi := &file_observations_proto_msgTypes[157]
+	mi := &file_observations_proto_msgTypes[159]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -14999,7 +15175,7 @@ func (x *PawnSettingsRequest) String() string {
 func (*PawnSettingsRequest) ProtoMessage() {}
 
 func (x *PawnSettingsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_observations_proto_msgTypes[157]
+	mi := &file_observations_proto_msgTypes[159]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -15012,7 +15188,7 @@ func (x *PawnSettingsRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PawnSettingsRequest.ProtoReflect.Descriptor instead.
 func (*PawnSettingsRequest) Descriptor() ([]byte, []int) {
-	return file_observations_proto_rawDescGZIP(), []int{157}
+	return file_observations_proto_rawDescGZIP(), []int{159}
 }
 
 func (x *PawnSettingsRequest) GetScope() *ReadScope {
@@ -15043,7 +15219,7 @@ type PawnSettingsReply struct {
 
 func (x *PawnSettingsReply) Reset() {
 	*x = PawnSettingsReply{}
-	mi := &file_observations_proto_msgTypes[158]
+	mi := &file_observations_proto_msgTypes[160]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -15055,7 +15231,7 @@ func (x *PawnSettingsReply) String() string {
 func (*PawnSettingsReply) ProtoMessage() {}
 
 func (x *PawnSettingsReply) ProtoReflect() protoreflect.Message {
-	mi := &file_observations_proto_msgTypes[158]
+	mi := &file_observations_proto_msgTypes[160]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -15068,7 +15244,7 @@ func (x *PawnSettingsReply) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PawnSettingsReply.ProtoReflect.Descriptor instead.
 func (*PawnSettingsReply) Descriptor() ([]byte, []int) {
-	return file_observations_proto_rawDescGZIP(), []int{158}
+	return file_observations_proto_rawDescGZIP(), []int{160}
 }
 
 func (x *PawnSettingsReply) GetOutcome() isPawnSettingsReply_Outcome {
@@ -15139,7 +15315,7 @@ type ResolveTargetSnapshot struct {
 
 func (x *ResolveTargetSnapshot) Reset() {
 	*x = ResolveTargetSnapshot{}
-	mi := &file_observations_proto_msgTypes[159]
+	mi := &file_observations_proto_msgTypes[161]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -15151,7 +15327,7 @@ func (x *ResolveTargetSnapshot) String() string {
 func (*ResolveTargetSnapshot) ProtoMessage() {}
 
 func (x *ResolveTargetSnapshot) ProtoReflect() protoreflect.Message {
-	mi := &file_observations_proto_msgTypes[159]
+	mi := &file_observations_proto_msgTypes[161]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -15164,7 +15340,7 @@ func (x *ResolveTargetSnapshot) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ResolveTargetSnapshot.ProtoReflect.Descriptor instead.
 func (*ResolveTargetSnapshot) Descriptor() ([]byte, []int) {
-	return file_observations_proto_rawDescGZIP(), []int{159}
+	return file_observations_proto_rawDescGZIP(), []int{161}
 }
 
 func (x *ResolveTargetSnapshot) GetContext() *commonpb.ObservationContext {
@@ -15210,7 +15386,7 @@ type ResolveTargetRequest struct {
 
 func (x *ResolveTargetRequest) Reset() {
 	*x = ResolveTargetRequest{}
-	mi := &file_observations_proto_msgTypes[160]
+	mi := &file_observations_proto_msgTypes[162]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -15222,7 +15398,7 @@ func (x *ResolveTargetRequest) String() string {
 func (*ResolveTargetRequest) ProtoMessage() {}
 
 func (x *ResolveTargetRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_observations_proto_msgTypes[160]
+	mi := &file_observations_proto_msgTypes[162]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -15235,7 +15411,7 @@ func (x *ResolveTargetRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ResolveTargetRequest.ProtoReflect.Descriptor instead.
 func (*ResolveTargetRequest) Descriptor() ([]byte, []int) {
-	return file_observations_proto_rawDescGZIP(), []int{160}
+	return file_observations_proto_rawDescGZIP(), []int{162}
 }
 
 func (x *ResolveTargetRequest) GetScope() *ReadScope {
@@ -15315,7 +15491,7 @@ type ResolveTargetReply struct {
 
 func (x *ResolveTargetReply) Reset() {
 	*x = ResolveTargetReply{}
-	mi := &file_observations_proto_msgTypes[161]
+	mi := &file_observations_proto_msgTypes[163]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -15327,7 +15503,7 @@ func (x *ResolveTargetReply) String() string {
 func (*ResolveTargetReply) ProtoMessage() {}
 
 func (x *ResolveTargetReply) ProtoReflect() protoreflect.Message {
-	mi := &file_observations_proto_msgTypes[161]
+	mi := &file_observations_proto_msgTypes[163]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -15340,7 +15516,7 @@ func (x *ResolveTargetReply) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ResolveTargetReply.ProtoReflect.Descriptor instead.
 func (*ResolveTargetReply) Descriptor() ([]byte, []int) {
-	return file_observations_proto_rawDescGZIP(), []int{161}
+	return file_observations_proto_rawDescGZIP(), []int{163}
 }
 
 func (x *ResolveTargetReply) GetOutcome() isResolveTargetReply_Outcome {
@@ -15419,7 +15595,7 @@ type PackedFurnitureState struct {
 
 func (x *PackedFurnitureState) Reset() {
 	*x = PackedFurnitureState{}
-	mi := &file_observations_proto_msgTypes[162]
+	mi := &file_observations_proto_msgTypes[164]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -15431,7 +15607,7 @@ func (x *PackedFurnitureState) String() string {
 func (*PackedFurnitureState) ProtoMessage() {}
 
 func (x *PackedFurnitureState) ProtoReflect() protoreflect.Message {
-	mi := &file_observations_proto_msgTypes[162]
+	mi := &file_observations_proto_msgTypes[164]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -15444,7 +15620,7 @@ func (x *PackedFurnitureState) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PackedFurnitureState.ProtoReflect.Descriptor instead.
 func (*PackedFurnitureState) Descriptor() ([]byte, []int) {
-	return file_observations_proto_rawDescGZIP(), []int{162}
+	return file_observations_proto_rawDescGZIP(), []int{164}
 }
 
 func (x *PackedFurnitureState) GetContext() *commonpb.ObservationContext {
@@ -15541,7 +15717,7 @@ type InstallStatusRequest struct {
 
 func (x *InstallStatusRequest) Reset() {
 	*x = InstallStatusRequest{}
-	mi := &file_observations_proto_msgTypes[163]
+	mi := &file_observations_proto_msgTypes[165]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -15553,7 +15729,7 @@ func (x *InstallStatusRequest) String() string {
 func (*InstallStatusRequest) ProtoMessage() {}
 
 func (x *InstallStatusRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_observations_proto_msgTypes[163]
+	mi := &file_observations_proto_msgTypes[165]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -15566,7 +15742,7 @@ func (x *InstallStatusRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use InstallStatusRequest.ProtoReflect.Descriptor instead.
 func (*InstallStatusRequest) Descriptor() ([]byte, []int) {
-	return file_observations_proto_rawDescGZIP(), []int{163}
+	return file_observations_proto_rawDescGZIP(), []int{165}
 }
 
 func (x *InstallStatusRequest) GetScope() *ReadScope {
@@ -15597,7 +15773,7 @@ type InstallStatusReply struct {
 
 func (x *InstallStatusReply) Reset() {
 	*x = InstallStatusReply{}
-	mi := &file_observations_proto_msgTypes[164]
+	mi := &file_observations_proto_msgTypes[166]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -15609,7 +15785,7 @@ func (x *InstallStatusReply) String() string {
 func (*InstallStatusReply) ProtoMessage() {}
 
 func (x *InstallStatusReply) ProtoReflect() protoreflect.Message {
-	mi := &file_observations_proto_msgTypes[164]
+	mi := &file_observations_proto_msgTypes[166]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -15622,7 +15798,7 @@ func (x *InstallStatusReply) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use InstallStatusReply.ProtoReflect.Descriptor instead.
 func (*InstallStatusReply) Descriptor() ([]byte, []int) {
-	return file_observations_proto_rawDescGZIP(), []int{164}
+	return file_observations_proto_rawDescGZIP(), []int{166}
 }
 
 func (x *InstallStatusReply) GetOutcome() isInstallStatusReply_Outcome {
@@ -15693,7 +15869,7 @@ type GearCandidate struct {
 
 func (x *GearCandidate) Reset() {
 	*x = GearCandidate{}
-	mi := &file_observations_proto_msgTypes[165]
+	mi := &file_observations_proto_msgTypes[167]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -15705,7 +15881,7 @@ func (x *GearCandidate) String() string {
 func (*GearCandidate) ProtoMessage() {}
 
 func (x *GearCandidate) ProtoReflect() protoreflect.Message {
-	mi := &file_observations_proto_msgTypes[165]
+	mi := &file_observations_proto_msgTypes[167]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -15718,7 +15894,7 @@ func (x *GearCandidate) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GearCandidate.ProtoReflect.Descriptor instead.
 func (*GearCandidate) Descriptor() ([]byte, []int) {
-	return file_observations_proto_rawDescGZIP(), []int{165}
+	return file_observations_proto_rawDescGZIP(), []int{167}
 }
 
 func (x *GearCandidate) GetItem() *GearItem {
@@ -15761,7 +15937,7 @@ type GearReplacementNeed struct {
 
 func (x *GearReplacementNeed) Reset() {
 	*x = GearReplacementNeed{}
-	mi := &file_observations_proto_msgTypes[166]
+	mi := &file_observations_proto_msgTypes[168]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -15773,7 +15949,7 @@ func (x *GearReplacementNeed) String() string {
 func (*GearReplacementNeed) ProtoMessage() {}
 
 func (x *GearReplacementNeed) ProtoReflect() protoreflect.Message {
-	mi := &file_observations_proto_msgTypes[166]
+	mi := &file_observations_proto_msgTypes[168]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -15786,7 +15962,7 @@ func (x *GearReplacementNeed) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GearReplacementNeed.ProtoReflect.Descriptor instead.
 func (*GearReplacementNeed) Descriptor() ([]byte, []int) {
-	return file_observations_proto_rawDescGZIP(), []int{166}
+	return file_observations_proto_rawDescGZIP(), []int{168}
 }
 
 func (x *GearReplacementNeed) GetDefName() string {
@@ -15835,7 +16011,7 @@ type GearLoadout struct {
 
 func (x *GearLoadout) Reset() {
 	*x = GearLoadout{}
-	mi := &file_observations_proto_msgTypes[167]
+	mi := &file_observations_proto_msgTypes[169]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -15847,7 +16023,7 @@ func (x *GearLoadout) String() string {
 func (*GearLoadout) ProtoMessage() {}
 
 func (x *GearLoadout) ProtoReflect() protoreflect.Message {
-	mi := &file_observations_proto_msgTypes[167]
+	mi := &file_observations_proto_msgTypes[169]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -15860,7 +16036,7 @@ func (x *GearLoadout) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GearLoadout.ProtoReflect.Descriptor instead.
 func (*GearLoadout) Descriptor() ([]byte, []int) {
-	return file_observations_proto_rawDescGZIP(), []int{167}
+	return file_observations_proto_rawDescGZIP(), []int{169}
 }
 
 func (x *GearLoadout) GetSnapshot() *SnapshotRef {
@@ -15944,7 +16120,7 @@ type GearSnapshot struct {
 
 func (x *GearSnapshot) Reset() {
 	*x = GearSnapshot{}
-	mi := &file_observations_proto_msgTypes[168]
+	mi := &file_observations_proto_msgTypes[170]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -15956,7 +16132,7 @@ func (x *GearSnapshot) String() string {
 func (*GearSnapshot) ProtoMessage() {}
 
 func (x *GearSnapshot) ProtoReflect() protoreflect.Message {
-	mi := &file_observations_proto_msgTypes[168]
+	mi := &file_observations_proto_msgTypes[170]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -15969,7 +16145,7 @@ func (x *GearSnapshot) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GearSnapshot.ProtoReflect.Descriptor instead.
 func (*GearSnapshot) Descriptor() ([]byte, []int) {
-	return file_observations_proto_rawDescGZIP(), []int{168}
+	return file_observations_proto_rawDescGZIP(), []int{170}
 }
 
 func (x *GearSnapshot) GetContext() *commonpb.ObservationContext {
@@ -16004,7 +16180,7 @@ type GearRequest struct {
 
 func (x *GearRequest) Reset() {
 	*x = GearRequest{}
-	mi := &file_observations_proto_msgTypes[169]
+	mi := &file_observations_proto_msgTypes[171]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -16016,7 +16192,7 @@ func (x *GearRequest) String() string {
 func (*GearRequest) ProtoMessage() {}
 
 func (x *GearRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_observations_proto_msgTypes[169]
+	mi := &file_observations_proto_msgTypes[171]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -16029,7 +16205,7 @@ func (x *GearRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GearRequest.ProtoReflect.Descriptor instead.
 func (*GearRequest) Descriptor() ([]byte, []int) {
-	return file_observations_proto_rawDescGZIP(), []int{169}
+	return file_observations_proto_rawDescGZIP(), []int{171}
 }
 
 func (x *GearRequest) GetScope() *ReadScope {
@@ -16067,7 +16243,7 @@ type GearReply struct {
 
 func (x *GearReply) Reset() {
 	*x = GearReply{}
-	mi := &file_observations_proto_msgTypes[170]
+	mi := &file_observations_proto_msgTypes[172]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -16079,7 +16255,7 @@ func (x *GearReply) String() string {
 func (*GearReply) ProtoMessage() {}
 
 func (x *GearReply) ProtoReflect() protoreflect.Message {
-	mi := &file_observations_proto_msgTypes[170]
+	mi := &file_observations_proto_msgTypes[172]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -16092,7 +16268,7 @@ func (x *GearReply) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GearReply.ProtoReflect.Descriptor instead.
 func (*GearReply) Descriptor() ([]byte, []int) {
-	return file_observations_proto_rawDescGZIP(), []int{170}
+	return file_observations_proto_rawDescGZIP(), []int{172}
 }
 
 func (x *GearReply) GetOutcome() isGearReply_Outcome {
@@ -16172,7 +16348,7 @@ type MedicalRecipe struct {
 
 func (x *MedicalRecipe) Reset() {
 	*x = MedicalRecipe{}
-	mi := &file_observations_proto_msgTypes[171]
+	mi := &file_observations_proto_msgTypes[173]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -16184,7 +16360,7 @@ func (x *MedicalRecipe) String() string {
 func (*MedicalRecipe) ProtoMessage() {}
 
 func (x *MedicalRecipe) ProtoReflect() protoreflect.Message {
-	mi := &file_observations_proto_msgTypes[171]
+	mi := &file_observations_proto_msgTypes[173]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -16197,7 +16373,7 @@ func (x *MedicalRecipe) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use MedicalRecipe.ProtoReflect.Descriptor instead.
 func (*MedicalRecipe) Descriptor() ([]byte, []int) {
-	return file_observations_proto_rawDescGZIP(), []int{171}
+	return file_observations_proto_rawDescGZIP(), []int{173}
 }
 
 func (x *MedicalRecipe) GetRecipe() *DefinitionRef {
@@ -16305,7 +16481,7 @@ type MedicalCatalog struct {
 
 func (x *MedicalCatalog) Reset() {
 	*x = MedicalCatalog{}
-	mi := &file_observations_proto_msgTypes[172]
+	mi := &file_observations_proto_msgTypes[174]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -16317,7 +16493,7 @@ func (x *MedicalCatalog) String() string {
 func (*MedicalCatalog) ProtoMessage() {}
 
 func (x *MedicalCatalog) ProtoReflect() protoreflect.Message {
-	mi := &file_observations_proto_msgTypes[172]
+	mi := &file_observations_proto_msgTypes[174]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -16330,7 +16506,7 @@ func (x *MedicalCatalog) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use MedicalCatalog.ProtoReflect.Descriptor instead.
 func (*MedicalCatalog) Descriptor() ([]byte, []int) {
-	return file_observations_proto_rawDescGZIP(), []int{172}
+	return file_observations_proto_rawDescGZIP(), []int{174}
 }
 
 func (x *MedicalCatalog) GetSnapshot() *SnapshotRef {
@@ -16386,7 +16562,7 @@ type MedicalCatalogRequest struct {
 
 func (x *MedicalCatalogRequest) Reset() {
 	*x = MedicalCatalogRequest{}
-	mi := &file_observations_proto_msgTypes[173]
+	mi := &file_observations_proto_msgTypes[175]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -16398,7 +16574,7 @@ func (x *MedicalCatalogRequest) String() string {
 func (*MedicalCatalogRequest) ProtoMessage() {}
 
 func (x *MedicalCatalogRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_observations_proto_msgTypes[173]
+	mi := &file_observations_proto_msgTypes[175]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -16411,7 +16587,7 @@ func (x *MedicalCatalogRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use MedicalCatalogRequest.ProtoReflect.Descriptor instead.
 func (*MedicalCatalogRequest) Descriptor() ([]byte, []int) {
-	return file_observations_proto_rawDescGZIP(), []int{173}
+	return file_observations_proto_rawDescGZIP(), []int{175}
 }
 
 func (x *MedicalCatalogRequest) GetScope() *ReadScope {
@@ -16449,7 +16625,7 @@ type MedicalCatalogReply struct {
 
 func (x *MedicalCatalogReply) Reset() {
 	*x = MedicalCatalogReply{}
-	mi := &file_observations_proto_msgTypes[174]
+	mi := &file_observations_proto_msgTypes[176]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -16461,7 +16637,7 @@ func (x *MedicalCatalogReply) String() string {
 func (*MedicalCatalogReply) ProtoMessage() {}
 
 func (x *MedicalCatalogReply) ProtoReflect() protoreflect.Message {
-	mi := &file_observations_proto_msgTypes[174]
+	mi := &file_observations_proto_msgTypes[176]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -16474,7 +16650,7 @@ func (x *MedicalCatalogReply) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use MedicalCatalogReply.ProtoReflect.Descriptor instead.
 func (*MedicalCatalogReply) Descriptor() ([]byte, []int) {
-	return file_observations_proto_rawDescGZIP(), []int{174}
+	return file_observations_proto_rawDescGZIP(), []int{176}
 }
 
 func (x *MedicalCatalogReply) GetOutcome() isMedicalCatalogReply_Outcome {
@@ -16549,7 +16725,7 @@ type Trader struct {
 
 func (x *Trader) Reset() {
 	*x = Trader{}
-	mi := &file_observations_proto_msgTypes[175]
+	mi := &file_observations_proto_msgTypes[177]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -16561,7 +16737,7 @@ func (x *Trader) String() string {
 func (*Trader) ProtoMessage() {}
 
 func (x *Trader) ProtoReflect() protoreflect.Message {
-	mi := &file_observations_proto_msgTypes[175]
+	mi := &file_observations_proto_msgTypes[177]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -16574,7 +16750,7 @@ func (x *Trader) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Trader.ProtoReflect.Descriptor instead.
 func (*Trader) Descriptor() ([]byte, []int) {
-	return file_observations_proto_rawDescGZIP(), []int{175}
+	return file_observations_proto_rawDescGZIP(), []int{177}
 }
 
 func (x *Trader) GetTrader() *EntityRef {
@@ -16646,7 +16822,7 @@ type TradersSnapshot struct {
 
 func (x *TradersSnapshot) Reset() {
 	*x = TradersSnapshot{}
-	mi := &file_observations_proto_msgTypes[176]
+	mi := &file_observations_proto_msgTypes[178]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -16658,7 +16834,7 @@ func (x *TradersSnapshot) String() string {
 func (*TradersSnapshot) ProtoMessage() {}
 
 func (x *TradersSnapshot) ProtoReflect() protoreflect.Message {
-	mi := &file_observations_proto_msgTypes[176]
+	mi := &file_observations_proto_msgTypes[178]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -16671,7 +16847,7 @@ func (x *TradersSnapshot) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use TradersSnapshot.ProtoReflect.Descriptor instead.
 func (*TradersSnapshot) Descriptor() ([]byte, []int) {
-	return file_observations_proto_rawDescGZIP(), []int{176}
+	return file_observations_proto_rawDescGZIP(), []int{178}
 }
 
 func (x *TradersSnapshot) GetContext() *commonpb.ObservationContext {
@@ -16719,7 +16895,7 @@ type TradersRequest struct {
 
 func (x *TradersRequest) Reset() {
 	*x = TradersRequest{}
-	mi := &file_observations_proto_msgTypes[177]
+	mi := &file_observations_proto_msgTypes[179]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -16731,7 +16907,7 @@ func (x *TradersRequest) String() string {
 func (*TradersRequest) ProtoMessage() {}
 
 func (x *TradersRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_observations_proto_msgTypes[177]
+	mi := &file_observations_proto_msgTypes[179]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -16744,7 +16920,7 @@ func (x *TradersRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use TradersRequest.ProtoReflect.Descriptor instead.
 func (*TradersRequest) Descriptor() ([]byte, []int) {
-	return file_observations_proto_rawDescGZIP(), []int{177}
+	return file_observations_proto_rawDescGZIP(), []int{179}
 }
 
 func (x *TradersRequest) GetScope() *ReadScope {
@@ -16775,7 +16951,7 @@ type TradersReply struct {
 
 func (x *TradersReply) Reset() {
 	*x = TradersReply{}
-	mi := &file_observations_proto_msgTypes[178]
+	mi := &file_observations_proto_msgTypes[180]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -16787,7 +16963,7 @@ func (x *TradersReply) String() string {
 func (*TradersReply) ProtoMessage() {}
 
 func (x *TradersReply) ProtoReflect() protoreflect.Message {
-	mi := &file_observations_proto_msgTypes[178]
+	mi := &file_observations_proto_msgTypes[180]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -16800,7 +16976,7 @@ func (x *TradersReply) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use TradersReply.ProtoReflect.Descriptor instead.
 func (*TradersReply) Descriptor() ([]byte, []int) {
-	return file_observations_proto_rawDescGZIP(), []int{178}
+	return file_observations_proto_rawDescGZIP(), []int{180}
 }
 
 func (x *TradersReply) GetOutcome() isTradersReply_Outcome {
@@ -16888,7 +17064,7 @@ type TradeLine struct {
 
 func (x *TradeLine) Reset() {
 	*x = TradeLine{}
-	mi := &file_observations_proto_msgTypes[179]
+	mi := &file_observations_proto_msgTypes[181]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -16900,7 +17076,7 @@ func (x *TradeLine) String() string {
 func (*TradeLine) ProtoMessage() {}
 
 func (x *TradeLine) ProtoReflect() protoreflect.Message {
-	mi := &file_observations_proto_msgTypes[179]
+	mi := &file_observations_proto_msgTypes[181]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -16913,7 +17089,7 @@ func (x *TradeLine) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use TradeLine.ProtoReflect.Descriptor instead.
 func (*TradeLine) Descriptor() ([]byte, []int) {
-	return file_observations_proto_rawDescGZIP(), []int{179}
+	return file_observations_proto_rawDescGZIP(), []int{181}
 }
 
 func (x *TradeLine) GetIndex() uint32 {
@@ -17084,7 +17260,7 @@ type TradeSheet struct {
 
 func (x *TradeSheet) Reset() {
 	*x = TradeSheet{}
-	mi := &file_observations_proto_msgTypes[180]
+	mi := &file_observations_proto_msgTypes[182]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -17096,7 +17272,7 @@ func (x *TradeSheet) String() string {
 func (*TradeSheet) ProtoMessage() {}
 
 func (x *TradeSheet) ProtoReflect() protoreflect.Message {
-	mi := &file_observations_proto_msgTypes[180]
+	mi := &file_observations_proto_msgTypes[182]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -17109,7 +17285,7 @@ func (x *TradeSheet) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use TradeSheet.ProtoReflect.Descriptor instead.
 func (*TradeSheet) Descriptor() ([]byte, []int) {
-	return file_observations_proto_rawDescGZIP(), []int{180}
+	return file_observations_proto_rawDescGZIP(), []int{182}
 }
 
 func (x *TradeSheet) GetSnapshot() *SnapshotRef {
@@ -17217,7 +17393,7 @@ type TradeSheetRequest struct {
 
 func (x *TradeSheetRequest) Reset() {
 	*x = TradeSheetRequest{}
-	mi := &file_observations_proto_msgTypes[181]
+	mi := &file_observations_proto_msgTypes[183]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -17229,7 +17405,7 @@ func (x *TradeSheetRequest) String() string {
 func (*TradeSheetRequest) ProtoMessage() {}
 
 func (x *TradeSheetRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_observations_proto_msgTypes[181]
+	mi := &file_observations_proto_msgTypes[183]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -17242,7 +17418,7 @@ func (x *TradeSheetRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use TradeSheetRequest.ProtoReflect.Descriptor instead.
 func (*TradeSheetRequest) Descriptor() ([]byte, []int) {
-	return file_observations_proto_rawDescGZIP(), []int{181}
+	return file_observations_proto_rawDescGZIP(), []int{183}
 }
 
 func (x *TradeSheetRequest) GetScope() *ReadScope {
@@ -17301,7 +17477,7 @@ type TradeSheetReply struct {
 
 func (x *TradeSheetReply) Reset() {
 	*x = TradeSheetReply{}
-	mi := &file_observations_proto_msgTypes[182]
+	mi := &file_observations_proto_msgTypes[184]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -17313,7 +17489,7 @@ func (x *TradeSheetReply) String() string {
 func (*TradeSheetReply) ProtoMessage() {}
 
 func (x *TradeSheetReply) ProtoReflect() protoreflect.Message {
-	mi := &file_observations_proto_msgTypes[182]
+	mi := &file_observations_proto_msgTypes[184]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -17326,7 +17502,7 @@ func (x *TradeSheetReply) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use TradeSheetReply.ProtoReflect.Descriptor instead.
 func (*TradeSheetReply) Descriptor() ([]byte, []int) {
-	return file_observations_proto_rawDescGZIP(), []int{182}
+	return file_observations_proto_rawDescGZIP(), []int{184}
 }
 
 func (x *TradeSheetReply) GetOutcome() isTradeSheetReply_Outcome {
@@ -17400,7 +17576,7 @@ type TradeStatus struct {
 
 func (x *TradeStatus) Reset() {
 	*x = TradeStatus{}
-	mi := &file_observations_proto_msgTypes[183]
+	mi := &file_observations_proto_msgTypes[185]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -17412,7 +17588,7 @@ func (x *TradeStatus) String() string {
 func (*TradeStatus) ProtoMessage() {}
 
 func (x *TradeStatus) ProtoReflect() protoreflect.Message {
-	mi := &file_observations_proto_msgTypes[183]
+	mi := &file_observations_proto_msgTypes[185]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -17425,7 +17601,7 @@ func (x *TradeStatus) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use TradeStatus.ProtoReflect.Descriptor instead.
 func (*TradeStatus) Descriptor() ([]byte, []int) {
-	return file_observations_proto_rawDescGZIP(), []int{183}
+	return file_observations_proto_rawDescGZIP(), []int{185}
 }
 
 func (x *TradeStatus) GetContext() *commonpb.ObservationContext {
@@ -17487,7 +17663,7 @@ type TradeStatusRequest struct {
 
 func (x *TradeStatusRequest) Reset() {
 	*x = TradeStatusRequest{}
-	mi := &file_observations_proto_msgTypes[184]
+	mi := &file_observations_proto_msgTypes[186]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -17499,7 +17675,7 @@ func (x *TradeStatusRequest) String() string {
 func (*TradeStatusRequest) ProtoMessage() {}
 
 func (x *TradeStatusRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_observations_proto_msgTypes[184]
+	mi := &file_observations_proto_msgTypes[186]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -17512,7 +17688,7 @@ func (x *TradeStatusRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use TradeStatusRequest.ProtoReflect.Descriptor instead.
 func (*TradeStatusRequest) Descriptor() ([]byte, []int) {
-	return file_observations_proto_rawDescGZIP(), []int{184}
+	return file_observations_proto_rawDescGZIP(), []int{186}
 }
 
 func (x *TradeStatusRequest) GetScope() *ReadScope {
@@ -17543,7 +17719,7 @@ type TradeStatusReply struct {
 
 func (x *TradeStatusReply) Reset() {
 	*x = TradeStatusReply{}
-	mi := &file_observations_proto_msgTypes[185]
+	mi := &file_observations_proto_msgTypes[187]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -17555,7 +17731,7 @@ func (x *TradeStatusReply) String() string {
 func (*TradeStatusReply) ProtoMessage() {}
 
 func (x *TradeStatusReply) ProtoReflect() protoreflect.Message {
-	mi := &file_observations_proto_msgTypes[185]
+	mi := &file_observations_proto_msgTypes[187]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -17568,7 +17744,7 @@ func (x *TradeStatusReply) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use TradeStatusReply.ProtoReflect.Descriptor instead.
 func (*TradeStatusReply) Descriptor() ([]byte, []int) {
-	return file_observations_proto_rawDescGZIP(), []int{185}
+	return file_observations_proto_rawDescGZIP(), []int{187}
 }
 
 func (x *TradeStatusReply) GetOutcome() isTradeStatusReply_Outcome {
@@ -17638,7 +17814,7 @@ type CaravanPawnEligibility struct {
 
 func (x *CaravanPawnEligibility) Reset() {
 	*x = CaravanPawnEligibility{}
-	mi := &file_observations_proto_msgTypes[186]
+	mi := &file_observations_proto_msgTypes[188]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -17650,7 +17826,7 @@ func (x *CaravanPawnEligibility) String() string {
 func (*CaravanPawnEligibility) ProtoMessage() {}
 
 func (x *CaravanPawnEligibility) ProtoReflect() protoreflect.Message {
-	mi := &file_observations_proto_msgTypes[186]
+	mi := &file_observations_proto_msgTypes[188]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -17663,7 +17839,7 @@ func (x *CaravanPawnEligibility) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CaravanPawnEligibility.ProtoReflect.Descriptor instead.
 func (*CaravanPawnEligibility) Descriptor() ([]byte, []int) {
-	return file_observations_proto_rawDescGZIP(), []int{186}
+	return file_observations_proto_rawDescGZIP(), []int{188}
 }
 
 func (x *CaravanPawnEligibility) GetPawn() *PawnState {
@@ -17700,7 +17876,7 @@ type CargoGroup struct {
 
 func (x *CargoGroup) Reset() {
 	*x = CargoGroup{}
-	mi := &file_observations_proto_msgTypes[187]
+	mi := &file_observations_proto_msgTypes[189]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -17712,7 +17888,7 @@ func (x *CargoGroup) String() string {
 func (*CargoGroup) ProtoMessage() {}
 
 func (x *CargoGroup) ProtoReflect() protoreflect.Message {
-	mi := &file_observations_proto_msgTypes[187]
+	mi := &file_observations_proto_msgTypes[189]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -17725,7 +17901,7 @@ func (x *CargoGroup) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CargoGroup.ProtoReflect.Descriptor instead.
 func (*CargoGroup) Descriptor() ([]byte, []int) {
-	return file_observations_proto_rawDescGZIP(), []int{187}
+	return file_observations_proto_rawDescGZIP(), []int{189}
 }
 
 func (x *CargoGroup) GetGroupId() string {
@@ -17780,7 +17956,7 @@ type CaravanCatalog struct {
 
 func (x *CaravanCatalog) Reset() {
 	*x = CaravanCatalog{}
-	mi := &file_observations_proto_msgTypes[188]
+	mi := &file_observations_proto_msgTypes[190]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -17792,7 +17968,7 @@ func (x *CaravanCatalog) String() string {
 func (*CaravanCatalog) ProtoMessage() {}
 
 func (x *CaravanCatalog) ProtoReflect() protoreflect.Message {
-	mi := &file_observations_proto_msgTypes[188]
+	mi := &file_observations_proto_msgTypes[190]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -17805,7 +17981,7 @@ func (x *CaravanCatalog) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CaravanCatalog.ProtoReflect.Descriptor instead.
 func (*CaravanCatalog) Descriptor() ([]byte, []int) {
-	return file_observations_proto_rawDescGZIP(), []int{188}
+	return file_observations_proto_rawDescGZIP(), []int{190}
 }
 
 func (x *CaravanCatalog) GetSnapshot() *SnapshotRef {
@@ -17882,7 +18058,7 @@ type CaravanCatalogRequest struct {
 
 func (x *CaravanCatalogRequest) Reset() {
 	*x = CaravanCatalogRequest{}
-	mi := &file_observations_proto_msgTypes[189]
+	mi := &file_observations_proto_msgTypes[191]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -17894,7 +18070,7 @@ func (x *CaravanCatalogRequest) String() string {
 func (*CaravanCatalogRequest) ProtoMessage() {}
 
 func (x *CaravanCatalogRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_observations_proto_msgTypes[189]
+	mi := &file_observations_proto_msgTypes[191]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -17907,7 +18083,7 @@ func (x *CaravanCatalogRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CaravanCatalogRequest.ProtoReflect.Descriptor instead.
 func (*CaravanCatalogRequest) Descriptor() ([]byte, []int) {
-	return file_observations_proto_rawDescGZIP(), []int{189}
+	return file_observations_proto_rawDescGZIP(), []int{191}
 }
 
 func (x *CaravanCatalogRequest) GetScope() *ReadScope {
@@ -17945,7 +18121,7 @@ type CaravanCatalogReply struct {
 
 func (x *CaravanCatalogReply) Reset() {
 	*x = CaravanCatalogReply{}
-	mi := &file_observations_proto_msgTypes[190]
+	mi := &file_observations_proto_msgTypes[192]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -17957,7 +18133,7 @@ func (x *CaravanCatalogReply) String() string {
 func (*CaravanCatalogReply) ProtoMessage() {}
 
 func (x *CaravanCatalogReply) ProtoReflect() protoreflect.Message {
-	mi := &file_observations_proto_msgTypes[190]
+	mi := &file_observations_proto_msgTypes[192]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -17970,7 +18146,7 @@ func (x *CaravanCatalogReply) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CaravanCatalogReply.ProtoReflect.Descriptor instead.
 func (*CaravanCatalogReply) Descriptor() ([]byte, []int) {
-	return file_observations_proto_rawDescGZIP(), []int{190}
+	return file_observations_proto_rawDescGZIP(), []int{192}
 }
 
 func (x *CaravanCatalogReply) GetOutcome() isCaravanCatalogReply_Outcome {
@@ -18039,7 +18215,7 @@ type FoodConsumer struct {
 
 func (x *FoodConsumer) Reset() {
 	*x = FoodConsumer{}
-	mi := &file_observations_proto_msgTypes[191]
+	mi := &file_observations_proto_msgTypes[193]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -18051,7 +18227,7 @@ func (x *FoodConsumer) String() string {
 func (*FoodConsumer) ProtoMessage() {}
 
 func (x *FoodConsumer) ProtoReflect() protoreflect.Message {
-	mi := &file_observations_proto_msgTypes[191]
+	mi := &file_observations_proto_msgTypes[193]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -18064,7 +18240,7 @@ func (x *FoodConsumer) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use FoodConsumer.ProtoReflect.Descriptor instead.
 func (*FoodConsumer) Descriptor() ([]byte, []int) {
-	return file_observations_proto_rawDescGZIP(), []int{191}
+	return file_observations_proto_rawDescGZIP(), []int{193}
 }
 
 func (x *FoodConsumer) GetPawnId() string {
@@ -18098,7 +18274,7 @@ type FoodStock struct {
 
 func (x *FoodStock) Reset() {
 	*x = FoodStock{}
-	mi := &file_observations_proto_msgTypes[192]
+	mi := &file_observations_proto_msgTypes[194]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -18110,7 +18286,7 @@ func (x *FoodStock) String() string {
 func (*FoodStock) ProtoMessage() {}
 
 func (x *FoodStock) ProtoReflect() protoreflect.Message {
-	mi := &file_observations_proto_msgTypes[192]
+	mi := &file_observations_proto_msgTypes[194]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -18123,7 +18299,7 @@ func (x *FoodStock) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use FoodStock.ProtoReflect.Descriptor instead.
 func (*FoodStock) Descriptor() ([]byte, []int) {
-	return file_observations_proto_rawDescGZIP(), []int{192}
+	return file_observations_proto_rawDescGZIP(), []int{194}
 }
 
 func (x *FoodStock) GetItem() *EntityRef {
@@ -18200,7 +18376,7 @@ type FoodSupplyFacts struct {
 
 func (x *FoodSupplyFacts) Reset() {
 	*x = FoodSupplyFacts{}
-	mi := &file_observations_proto_msgTypes[193]
+	mi := &file_observations_proto_msgTypes[195]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -18212,7 +18388,7 @@ func (x *FoodSupplyFacts) String() string {
 func (*FoodSupplyFacts) ProtoMessage() {}
 
 func (x *FoodSupplyFacts) ProtoReflect() protoreflect.Message {
-	mi := &file_observations_proto_msgTypes[193]
+	mi := &file_observations_proto_msgTypes[195]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -18225,7 +18401,7 @@ func (x *FoodSupplyFacts) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use FoodSupplyFacts.ProtoReflect.Descriptor instead.
 func (*FoodSupplyFacts) Descriptor() ([]byte, []int) {
-	return file_observations_proto_rawDescGZIP(), []int{193}
+	return file_observations_proto_rawDescGZIP(), []int{195}
 }
 
 func (x *FoodSupplyFacts) GetConsumers() []*FoodConsumer {
@@ -18266,7 +18442,7 @@ type CropForecast struct {
 
 func (x *CropForecast) Reset() {
 	*x = CropForecast{}
-	mi := &file_observations_proto_msgTypes[194]
+	mi := &file_observations_proto_msgTypes[196]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -18278,7 +18454,7 @@ func (x *CropForecast) String() string {
 func (*CropForecast) ProtoMessage() {}
 
 func (x *CropForecast) ProtoReflect() protoreflect.Message {
-	mi := &file_observations_proto_msgTypes[194]
+	mi := &file_observations_proto_msgTypes[196]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -18291,7 +18467,7 @@ func (x *CropForecast) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CropForecast.ProtoReflect.Descriptor instead.
 func (*CropForecast) Descriptor() ([]byte, []int) {
-	return file_observations_proto_rawDescGZIP(), []int{194}
+	return file_observations_proto_rawDescGZIP(), []int{196}
 }
 
 func (x *CropForecast) GetZoneId() string {
@@ -18374,7 +18550,7 @@ type PatientForecast struct {
 
 func (x *PatientForecast) Reset() {
 	*x = PatientForecast{}
-	mi := &file_observations_proto_msgTypes[195]
+	mi := &file_observations_proto_msgTypes[197]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -18386,7 +18562,7 @@ func (x *PatientForecast) String() string {
 func (*PatientForecast) ProtoMessage() {}
 
 func (x *PatientForecast) ProtoReflect() protoreflect.Message {
-	mi := &file_observations_proto_msgTypes[195]
+	mi := &file_observations_proto_msgTypes[197]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -18399,7 +18575,7 @@ func (x *PatientForecast) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PatientForecast.ProtoReflect.Descriptor instead.
 func (*PatientForecast) Descriptor() ([]byte, []int) {
-	return file_observations_proto_rawDescGZIP(), []int{195}
+	return file_observations_proto_rawDescGZIP(), []int{197}
 }
 
 func (x *PatientForecast) GetPawnId() string {
@@ -18478,7 +18654,7 @@ type ForecastFacts struct {
 
 func (x *ForecastFacts) Reset() {
 	*x = ForecastFacts{}
-	mi := &file_observations_proto_msgTypes[196]
+	mi := &file_observations_proto_msgTypes[198]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -18490,7 +18666,7 @@ func (x *ForecastFacts) String() string {
 func (*ForecastFacts) ProtoMessage() {}
 
 func (x *ForecastFacts) ProtoReflect() protoreflect.Message {
-	mi := &file_observations_proto_msgTypes[196]
+	mi := &file_observations_proto_msgTypes[198]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -18503,7 +18679,7 @@ func (x *ForecastFacts) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ForecastFacts.ProtoReflect.Descriptor instead.
 func (*ForecastFacts) Descriptor() ([]byte, []int) {
-	return file_observations_proto_rawDescGZIP(), []int{196}
+	return file_observations_proto_rawDescGZIP(), []int{198}
 }
 
 func (x *ForecastFacts) GetAnimalIds() []string {
@@ -18551,7 +18727,7 @@ type ComfortSurface struct {
 
 func (x *ComfortSurface) Reset() {
 	*x = ComfortSurface{}
-	mi := &file_observations_proto_msgTypes[197]
+	mi := &file_observations_proto_msgTypes[199]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -18563,7 +18739,7 @@ func (x *ComfortSurface) String() string {
 func (*ComfortSurface) ProtoMessage() {}
 
 func (x *ComfortSurface) ProtoReflect() protoreflect.Message {
-	mi := &file_observations_proto_msgTypes[197]
+	mi := &file_observations_proto_msgTypes[199]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -18576,7 +18752,7 @@ func (x *ComfortSurface) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ComfortSurface.ProtoReflect.Descriptor instead.
 func (*ComfortSurface) Descriptor() ([]byte, []int) {
-	return file_observations_proto_rawDescGZIP(), []int{197}
+	return file_observations_proto_rawDescGZIP(), []int{199}
 }
 
 func (x *ComfortSurface) GetId() string {
@@ -18605,7 +18781,7 @@ type ComfortFacility struct {
 
 func (x *ComfortFacility) Reset() {
 	*x = ComfortFacility{}
-	mi := &file_observations_proto_msgTypes[198]
+	mi := &file_observations_proto_msgTypes[200]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -18617,7 +18793,7 @@ func (x *ComfortFacility) String() string {
 func (*ComfortFacility) ProtoMessage() {}
 
 func (x *ComfortFacility) ProtoReflect() protoreflect.Message {
-	mi := &file_observations_proto_msgTypes[198]
+	mi := &file_observations_proto_msgTypes[200]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -18630,7 +18806,7 @@ func (x *ComfortFacility) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ComfortFacility.ProtoReflect.Descriptor instead.
 func (*ComfortFacility) Descriptor() ([]byte, []int) {
-	return file_observations_proto_rawDescGZIP(), []int{198}
+	return file_observations_proto_rawDescGZIP(), []int{200}
 }
 
 func (x *ComfortFacility) GetId() string {
@@ -18674,7 +18850,7 @@ type ComfortFacts struct {
 
 func (x *ComfortFacts) Reset() {
 	*x = ComfortFacts{}
-	mi := &file_observations_proto_msgTypes[199]
+	mi := &file_observations_proto_msgTypes[201]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -18686,7 +18862,7 @@ func (x *ComfortFacts) String() string {
 func (*ComfortFacts) ProtoMessage() {}
 
 func (x *ComfortFacts) ProtoReflect() protoreflect.Message {
-	mi := &file_observations_proto_msgTypes[199]
+	mi := &file_observations_proto_msgTypes[201]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -18699,7 +18875,7 @@ func (x *ComfortFacts) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ComfortFacts.ProtoReflect.Descriptor instead.
 func (*ComfortFacts) Descriptor() ([]byte, []int) {
-	return file_observations_proto_rawDescGZIP(), []int{199}
+	return file_observations_proto_rawDescGZIP(), []int{201}
 }
 
 func (x *ComfortFacts) GetPeople() []string {
@@ -18760,7 +18936,7 @@ type UpkeepItem struct {
 
 func (x *UpkeepItem) Reset() {
 	*x = UpkeepItem{}
-	mi := &file_observations_proto_msgTypes[200]
+	mi := &file_observations_proto_msgTypes[202]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -18772,7 +18948,7 @@ func (x *UpkeepItem) String() string {
 func (*UpkeepItem) ProtoMessage() {}
 
 func (x *UpkeepItem) ProtoReflect() protoreflect.Message {
-	mi := &file_observations_proto_msgTypes[200]
+	mi := &file_observations_proto_msgTypes[202]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -18785,7 +18961,7 @@ func (x *UpkeepItem) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use UpkeepItem.ProtoReflect.Descriptor instead.
 func (*UpkeepItem) Descriptor() ([]byte, []int) {
-	return file_observations_proto_rawDescGZIP(), []int{200}
+	return file_observations_proto_rawDescGZIP(), []int{202}
 }
 
 func (x *UpkeepItem) GetItem() *EntityRef {
@@ -18912,7 +19088,7 @@ type UpkeepBed struct {
 
 func (x *UpkeepBed) Reset() {
 	*x = UpkeepBed{}
-	mi := &file_observations_proto_msgTypes[201]
+	mi := &file_observations_proto_msgTypes[203]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -18924,7 +19100,7 @@ func (x *UpkeepBed) String() string {
 func (*UpkeepBed) ProtoMessage() {}
 
 func (x *UpkeepBed) ProtoReflect() protoreflect.Message {
-	mi := &file_observations_proto_msgTypes[201]
+	mi := &file_observations_proto_msgTypes[203]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -18937,7 +19113,7 @@ func (x *UpkeepBed) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use UpkeepBed.ProtoReflect.Descriptor instead.
 func (*UpkeepBed) Descriptor() ([]byte, []int) {
-	return file_observations_proto_rawDescGZIP(), []int{201}
+	return file_observations_proto_rawDescGZIP(), []int{203}
 }
 
 func (x *UpkeepBed) GetBed() *EntityRef {
@@ -19028,7 +19204,7 @@ type StorageCell struct {
 
 func (x *StorageCell) Reset() {
 	*x = StorageCell{}
-	mi := &file_observations_proto_msgTypes[202]
+	mi := &file_observations_proto_msgTypes[204]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -19040,7 +19216,7 @@ func (x *StorageCell) String() string {
 func (*StorageCell) ProtoMessage() {}
 
 func (x *StorageCell) ProtoReflect() protoreflect.Message {
-	mi := &file_observations_proto_msgTypes[202]
+	mi := &file_observations_proto_msgTypes[204]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -19053,7 +19229,7 @@ func (x *StorageCell) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use StorageCell.ProtoReflect.Descriptor instead.
 func (*StorageCell) Descriptor() ([]byte, []int) {
-	return file_observations_proto_rawDescGZIP(), []int{202}
+	return file_observations_proto_rawDescGZIP(), []int{204}
 }
 
 func (x *StorageCell) GetCell() *commonpb.Cell {
@@ -19088,7 +19264,7 @@ type ItemStorageCapacity struct {
 
 func (x *ItemStorageCapacity) Reset() {
 	*x = ItemStorageCapacity{}
-	mi := &file_observations_proto_msgTypes[203]
+	mi := &file_observations_proto_msgTypes[205]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -19100,7 +19276,7 @@ func (x *ItemStorageCapacity) String() string {
 func (*ItemStorageCapacity) ProtoMessage() {}
 
 func (x *ItemStorageCapacity) ProtoReflect() protoreflect.Message {
-	mi := &file_observations_proto_msgTypes[203]
+	mi := &file_observations_proto_msgTypes[205]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -19113,7 +19289,7 @@ func (x *ItemStorageCapacity) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ItemStorageCapacity.ProtoReflect.Descriptor instead.
 func (*ItemStorageCapacity) Descriptor() ([]byte, []int) {
-	return file_observations_proto_rawDescGZIP(), []int{203}
+	return file_observations_proto_rawDescGZIP(), []int{205}
 }
 
 func (x *ItemStorageCapacity) GetItemId() string {
@@ -19151,7 +19327,7 @@ type UpkeepStructure struct {
 
 func (x *UpkeepStructure) Reset() {
 	*x = UpkeepStructure{}
-	mi := &file_observations_proto_msgTypes[204]
+	mi := &file_observations_proto_msgTypes[206]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -19163,7 +19339,7 @@ func (x *UpkeepStructure) String() string {
 func (*UpkeepStructure) ProtoMessage() {}
 
 func (x *UpkeepStructure) ProtoReflect() protoreflect.Message {
-	mi := &file_observations_proto_msgTypes[204]
+	mi := &file_observations_proto_msgTypes[206]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -19176,7 +19352,7 @@ func (x *UpkeepStructure) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use UpkeepStructure.ProtoReflect.Descriptor instead.
 func (*UpkeepStructure) Descriptor() ([]byte, []int) {
-	return file_observations_proto_rawDescGZIP(), []int{204}
+	return file_observations_proto_rawDescGZIP(), []int{206}
 }
 
 func (x *UpkeepStructure) GetBuilding() *BuildingState {
@@ -19233,7 +19409,7 @@ type FireState struct {
 
 func (x *FireState) Reset() {
 	*x = FireState{}
-	mi := &file_observations_proto_msgTypes[205]
+	mi := &file_observations_proto_msgTypes[207]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -19245,7 +19421,7 @@ func (x *FireState) String() string {
 func (*FireState) ProtoMessage() {}
 
 func (x *FireState) ProtoReflect() protoreflect.Message {
-	mi := &file_observations_proto_msgTypes[205]
+	mi := &file_observations_proto_msgTypes[207]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -19258,7 +19434,7 @@ func (x *FireState) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use FireState.ProtoReflect.Descriptor instead.
 func (*FireState) Descriptor() ([]byte, []int) {
-	return file_observations_proto_rawDescGZIP(), []int{205}
+	return file_observations_proto_rawDescGZIP(), []int{207}
 }
 
 func (x *FireState) GetFire() *EntityRef {
@@ -19302,7 +19478,7 @@ type FilthState struct {
 
 func (x *FilthState) Reset() {
 	*x = FilthState{}
-	mi := &file_observations_proto_msgTypes[206]
+	mi := &file_observations_proto_msgTypes[208]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -19314,7 +19490,7 @@ func (x *FilthState) String() string {
 func (*FilthState) ProtoMessage() {}
 
 func (x *FilthState) ProtoReflect() protoreflect.Message {
-	mi := &file_observations_proto_msgTypes[206]
+	mi := &file_observations_proto_msgTypes[208]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -19327,7 +19503,7 @@ func (x *FilthState) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use FilthState.ProtoReflect.Descriptor instead.
 func (*FilthState) Descriptor() ([]byte, []int) {
-	return file_observations_proto_rawDescGZIP(), []int{206}
+	return file_observations_proto_rawDescGZIP(), []int{208}
 }
 
 func (x *FilthState) GetFilth() *EntityRef {
@@ -19376,7 +19552,7 @@ type ProtectedCell struct {
 
 func (x *ProtectedCell) Reset() {
 	*x = ProtectedCell{}
-	mi := &file_observations_proto_msgTypes[207]
+	mi := &file_observations_proto_msgTypes[209]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -19388,7 +19564,7 @@ func (x *ProtectedCell) String() string {
 func (*ProtectedCell) ProtoMessage() {}
 
 func (x *ProtectedCell) ProtoReflect() protoreflect.Message {
-	mi := &file_observations_proto_msgTypes[207]
+	mi := &file_observations_proto_msgTypes[209]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -19401,7 +19577,7 @@ func (x *ProtectedCell) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ProtectedCell.ProtoReflect.Descriptor instead.
 func (*ProtectedCell) Descriptor() ([]byte, []int) {
-	return file_observations_proto_rawDescGZIP(), []int{207}
+	return file_observations_proto_rawDescGZIP(), []int{209}
 }
 
 func (x *ProtectedCell) GetCell() *commonpb.Cell {
@@ -19438,7 +19614,7 @@ type UpkeepPerson struct {
 
 func (x *UpkeepPerson) Reset() {
 	*x = UpkeepPerson{}
-	mi := &file_observations_proto_msgTypes[208]
+	mi := &file_observations_proto_msgTypes[210]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -19450,7 +19626,7 @@ func (x *UpkeepPerson) String() string {
 func (*UpkeepPerson) ProtoMessage() {}
 
 func (x *UpkeepPerson) ProtoReflect() protoreflect.Message {
-	mi := &file_observations_proto_msgTypes[208]
+	mi := &file_observations_proto_msgTypes[210]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -19463,7 +19639,7 @@ func (x *UpkeepPerson) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use UpkeepPerson.ProtoReflect.Descriptor instead.
 func (*UpkeepPerson) Descriptor() ([]byte, []int) {
-	return file_observations_proto_rawDescGZIP(), []int{208}
+	return file_observations_proto_rawDescGZIP(), []int{210}
 }
 
 func (x *UpkeepPerson) GetPawn() *PawnState {
@@ -19512,7 +19688,7 @@ type FeedDefinition struct {
 
 func (x *FeedDefinition) Reset() {
 	*x = FeedDefinition{}
-	mi := &file_observations_proto_msgTypes[209]
+	mi := &file_observations_proto_msgTypes[211]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -19524,7 +19700,7 @@ func (x *FeedDefinition) String() string {
 func (*FeedDefinition) ProtoMessage() {}
 
 func (x *FeedDefinition) ProtoReflect() protoreflect.Message {
-	mi := &file_observations_proto_msgTypes[209]
+	mi := &file_observations_proto_msgTypes[211]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -19537,7 +19713,7 @@ func (x *FeedDefinition) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use FeedDefinition.ProtoReflect.Descriptor instead.
 func (*FeedDefinition) Descriptor() ([]byte, []int) {
-	return file_observations_proto_rawDescGZIP(), []int{209}
+	return file_observations_proto_rawDescGZIP(), []int{211}
 }
 
 func (x *FeedDefinition) GetDefName() string {
@@ -19574,7 +19750,7 @@ type AnimalFeed struct {
 
 func (x *AnimalFeed) Reset() {
 	*x = AnimalFeed{}
-	mi := &file_observations_proto_msgTypes[210]
+	mi := &file_observations_proto_msgTypes[212]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -19586,7 +19762,7 @@ func (x *AnimalFeed) String() string {
 func (*AnimalFeed) ProtoMessage() {}
 
 func (x *AnimalFeed) ProtoReflect() protoreflect.Message {
-	mi := &file_observations_proto_msgTypes[210]
+	mi := &file_observations_proto_msgTypes[212]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -19599,7 +19775,7 @@ func (x *AnimalFeed) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use AnimalFeed.ProtoReflect.Descriptor instead.
 func (*AnimalFeed) Descriptor() ([]byte, []int) {
-	return file_observations_proto_rawDescGZIP(), []int{210}
+	return file_observations_proto_rawDescGZIP(), []int{212}
 }
 
 func (x *AnimalFeed) GetPawn() *PawnState {
@@ -19647,7 +19823,7 @@ type DevelopmentPower struct {
 
 func (x *DevelopmentPower) Reset() {
 	*x = DevelopmentPower{}
-	mi := &file_observations_proto_msgTypes[211]
+	mi := &file_observations_proto_msgTypes[213]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -19659,7 +19835,7 @@ func (x *DevelopmentPower) String() string {
 func (*DevelopmentPower) ProtoMessage() {}
 
 func (x *DevelopmentPower) ProtoReflect() protoreflect.Message {
-	mi := &file_observations_proto_msgTypes[211]
+	mi := &file_observations_proto_msgTypes[213]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -19672,7 +19848,7 @@ func (x *DevelopmentPower) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DevelopmentPower.ProtoReflect.Descriptor instead.
 func (*DevelopmentPower) Descriptor() ([]byte, []int) {
-	return file_observations_proto_rawDescGZIP(), []int{211}
+	return file_observations_proto_rawDescGZIP(), []int{213}
 }
 
 func (x *DevelopmentPower) GetBuilding() *BuildingState {
@@ -19700,7 +19876,7 @@ type DevelopmentFurniture struct {
 
 func (x *DevelopmentFurniture) Reset() {
 	*x = DevelopmentFurniture{}
-	mi := &file_observations_proto_msgTypes[212]
+	mi := &file_observations_proto_msgTypes[214]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -19712,7 +19888,7 @@ func (x *DevelopmentFurniture) String() string {
 func (*DevelopmentFurniture) ProtoMessage() {}
 
 func (x *DevelopmentFurniture) ProtoReflect() protoreflect.Message {
-	mi := &file_observations_proto_msgTypes[212]
+	mi := &file_observations_proto_msgTypes[214]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -19725,7 +19901,7 @@ func (x *DevelopmentFurniture) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DevelopmentFurniture.ProtoReflect.Descriptor instead.
 func (*DevelopmentFurniture) Descriptor() ([]byte, []int) {
-	return file_observations_proto_rawDescGZIP(), []int{212}
+	return file_observations_proto_rawDescGZIP(), []int{214}
 }
 
 func (x *DevelopmentFurniture) GetBuilding() *EntityRef {
@@ -19761,7 +19937,7 @@ type DevelopmentFacts struct {
 
 func (x *DevelopmentFacts) Reset() {
 	*x = DevelopmentFacts{}
-	mi := &file_observations_proto_msgTypes[213]
+	mi := &file_observations_proto_msgTypes[215]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -19773,7 +19949,7 @@ func (x *DevelopmentFacts) String() string {
 func (*DevelopmentFacts) ProtoMessage() {}
 
 func (x *DevelopmentFacts) ProtoReflect() protoreflect.Message {
-	mi := &file_observations_proto_msgTypes[213]
+	mi := &file_observations_proto_msgTypes[215]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -19786,7 +19962,7 @@ func (x *DevelopmentFacts) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DevelopmentFacts.ProtoReflect.Descriptor instead.
 func (*DevelopmentFacts) Descriptor() ([]byte, []int) {
-	return file_observations_proto_rawDescGZIP(), []int{213}
+	return file_observations_proto_rawDescGZIP(), []int{215}
 }
 
 func (x *DevelopmentFacts) GetPower() []*DevelopmentPower {
@@ -19831,7 +20007,7 @@ type EnvironmentCondition struct {
 
 func (x *EnvironmentCondition) Reset() {
 	*x = EnvironmentCondition{}
-	mi := &file_observations_proto_msgTypes[214]
+	mi := &file_observations_proto_msgTypes[216]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -19843,7 +20019,7 @@ func (x *EnvironmentCondition) String() string {
 func (*EnvironmentCondition) ProtoMessage() {}
 
 func (x *EnvironmentCondition) ProtoReflect() protoreflect.Message {
-	mi := &file_observations_proto_msgTypes[214]
+	mi := &file_observations_proto_msgTypes[216]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -19856,7 +20032,7 @@ func (x *EnvironmentCondition) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use EnvironmentCondition.ProtoReflect.Descriptor instead.
 func (*EnvironmentCondition) Descriptor() ([]byte, []int) {
-	return file_observations_proto_rawDescGZIP(), []int{214}
+	return file_observations_proto_rawDescGZIP(), []int{216}
 }
 
 func (x *EnvironmentCondition) GetId() string {
@@ -19913,7 +20089,7 @@ type FoodClimate struct {
 
 func (x *FoodClimate) Reset() {
 	*x = FoodClimate{}
-	mi := &file_observations_proto_msgTypes[215]
+	mi := &file_observations_proto_msgTypes[217]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -19925,7 +20101,7 @@ func (x *FoodClimate) String() string {
 func (*FoodClimate) ProtoMessage() {}
 
 func (x *FoodClimate) ProtoReflect() protoreflect.Message {
-	mi := &file_observations_proto_msgTypes[215]
+	mi := &file_observations_proto_msgTypes[217]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -19938,7 +20114,7 @@ func (x *FoodClimate) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use FoodClimate.ProtoReflect.Descriptor instead.
 func (*FoodClimate) Descriptor() ([]byte, []int) {
-	return file_observations_proto_rawDescGZIP(), []int{215}
+	return file_observations_proto_rawDescGZIP(), []int{217}
 }
 
 func (x *FoodClimate) GetGrowingDays() float64 {
@@ -19986,7 +20162,7 @@ type FarmFacts struct {
 
 func (x *FarmFacts) Reset() {
 	*x = FarmFacts{}
-	mi := &file_observations_proto_msgTypes[216]
+	mi := &file_observations_proto_msgTypes[218]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -19998,7 +20174,7 @@ func (x *FarmFacts) String() string {
 func (*FarmFacts) ProtoMessage() {}
 
 func (x *FarmFacts) ProtoReflect() protoreflect.Message {
-	mi := &file_observations_proto_msgTypes[216]
+	mi := &file_observations_proto_msgTypes[218]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -20011,7 +20187,7 @@ func (x *FarmFacts) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use FarmFacts.ProtoReflect.Descriptor instead.
 func (*FarmFacts) Descriptor() ([]byte, []int) {
-	return file_observations_proto_rawDescGZIP(), []int{216}
+	return file_observations_proto_rawDescGZIP(), []int{218}
 }
 
 func (x *FarmFacts) GetZoneId() string {
@@ -20100,7 +20276,7 @@ type PlanningDefinition struct {
 
 func (x *PlanningDefinition) Reset() {
 	*x = PlanningDefinition{}
-	mi := &file_observations_proto_msgTypes[217]
+	mi := &file_observations_proto_msgTypes[219]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -20112,7 +20288,7 @@ func (x *PlanningDefinition) String() string {
 func (*PlanningDefinition) ProtoMessage() {}
 
 func (x *PlanningDefinition) ProtoReflect() protoreflect.Message {
-	mi := &file_observations_proto_msgTypes[217]
+	mi := &file_observations_proto_msgTypes[219]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -20125,7 +20301,7 @@ func (x *PlanningDefinition) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PlanningDefinition.ProtoReflect.Descriptor instead.
 func (*PlanningDefinition) Descriptor() ([]byte, []int) {
-	return file_observations_proto_rawDescGZIP(), []int{217}
+	return file_observations_proto_rawDescGZIP(), []int{219}
 }
 
 func (x *PlanningDefinition) GetDefinition() *DefinitionRef {
@@ -20247,7 +20423,7 @@ type PlanningFacts struct {
 
 func (x *PlanningFacts) Reset() {
 	*x = PlanningFacts{}
-	mi := &file_observations_proto_msgTypes[218]
+	mi := &file_observations_proto_msgTypes[220]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -20259,7 +20435,7 @@ func (x *PlanningFacts) String() string {
 func (*PlanningFacts) ProtoMessage() {}
 
 func (x *PlanningFacts) ProtoReflect() protoreflect.Message {
-	mi := &file_observations_proto_msgTypes[218]
+	mi := &file_observations_proto_msgTypes[220]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -20272,7 +20448,7 @@ func (x *PlanningFacts) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PlanningFacts.ProtoReflect.Descriptor instead.
 func (*PlanningFacts) Descriptor() ([]byte, []int) {
-	return file_observations_proto_rawDescGZIP(), []int{218}
+	return file_observations_proto_rawDescGZIP(), []int{220}
 }
 
 func (x *PlanningFacts) GetDefinitions() []*PlanningDefinition {
@@ -20332,7 +20508,7 @@ type FoodProduct struct {
 
 func (x *FoodProduct) Reset() {
 	*x = FoodProduct{}
-	mi := &file_observations_proto_msgTypes[219]
+	mi := &file_observations_proto_msgTypes[221]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -20344,7 +20520,7 @@ func (x *FoodProduct) String() string {
 func (*FoodProduct) ProtoMessage() {}
 
 func (x *FoodProduct) ProtoReflect() protoreflect.Message {
-	mi := &file_observations_proto_msgTypes[219]
+	mi := &file_observations_proto_msgTypes[221]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -20357,7 +20533,7 @@ func (x *FoodProduct) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use FoodProduct.ProtoReflect.Descriptor instead.
 func (*FoodProduct) Descriptor() ([]byte, []int) {
-	return file_observations_proto_rawDescGZIP(), []int{219}
+	return file_observations_proto_rawDescGZIP(), []int{221}
 }
 
 func (x *FoodProduct) GetDefName() string {
@@ -20420,7 +20596,7 @@ type FoodProduction struct {
 
 func (x *FoodProduction) Reset() {
 	*x = FoodProduction{}
-	mi := &file_observations_proto_msgTypes[220]
+	mi := &file_observations_proto_msgTypes[222]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -20432,7 +20608,7 @@ func (x *FoodProduction) String() string {
 func (*FoodProduction) ProtoMessage() {}
 
 func (x *FoodProduction) ProtoReflect() protoreflect.Message {
-	mi := &file_observations_proto_msgTypes[220]
+	mi := &file_observations_proto_msgTypes[222]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -20445,7 +20621,7 @@ func (x *FoodProduction) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use FoodProduction.ProtoReflect.Descriptor instead.
 func (*FoodProduction) Descriptor() ([]byte, []int) {
-	return file_observations_proto_rawDescGZIP(), []int{220}
+	return file_observations_proto_rawDescGZIP(), []int{222}
 }
 
 func (x *FoodProduction) GetRecipe() string {
@@ -20482,7 +20658,7 @@ type CookingFacts struct {
 
 func (x *CookingFacts) Reset() {
 	*x = CookingFacts{}
-	mi := &file_observations_proto_msgTypes[221]
+	mi := &file_observations_proto_msgTypes[223]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -20494,7 +20670,7 @@ func (x *CookingFacts) String() string {
 func (*CookingFacts) ProtoMessage() {}
 
 func (x *CookingFacts) ProtoReflect() protoreflect.Message {
-	mi := &file_observations_proto_msgTypes[221]
+	mi := &file_observations_proto_msgTypes[223]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -20507,7 +20683,7 @@ func (x *CookingFacts) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CookingFacts.ProtoReflect.Descriptor instead.
 func (*CookingFacts) Descriptor() ([]byte, []int) {
-	return file_observations_proto_rawDescGZIP(), []int{221}
+	return file_observations_proto_rawDescGZIP(), []int{223}
 }
 
 func (x *CookingFacts) GetBench() *EntityRef {
@@ -20561,7 +20737,7 @@ type AcquisitionFacts struct {
 
 func (x *AcquisitionFacts) Reset() {
 	*x = AcquisitionFacts{}
-	mi := &file_observations_proto_msgTypes[222]
+	mi := &file_observations_proto_msgTypes[224]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -20573,7 +20749,7 @@ func (x *AcquisitionFacts) String() string {
 func (*AcquisitionFacts) ProtoMessage() {}
 
 func (x *AcquisitionFacts) ProtoReflect() protoreflect.Message {
-	mi := &file_observations_proto_msgTypes[222]
+	mi := &file_observations_proto_msgTypes[224]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -20586,7 +20762,7 @@ func (x *AcquisitionFacts) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use AcquisitionFacts.ProtoReflect.Descriptor instead.
 func (*AcquisitionFacts) Descriptor() ([]byte, []int) {
-	return file_observations_proto_rawDescGZIP(), []int{222}
+	return file_observations_proto_rawDescGZIP(), []int{224}
 }
 
 func (x *AcquisitionFacts) GetSource() *EntityRef {
@@ -20657,7 +20833,7 @@ type ButcheringFacts struct {
 
 func (x *ButcheringFacts) Reset() {
 	*x = ButcheringFacts{}
-	mi := &file_observations_proto_msgTypes[223]
+	mi := &file_observations_proto_msgTypes[225]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -20669,7 +20845,7 @@ func (x *ButcheringFacts) String() string {
 func (*ButcheringFacts) ProtoMessage() {}
 
 func (x *ButcheringFacts) ProtoReflect() protoreflect.Message {
-	mi := &file_observations_proto_msgTypes[223]
+	mi := &file_observations_proto_msgTypes[225]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -20682,7 +20858,7 @@ func (x *ButcheringFacts) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ButcheringFacts.ProtoReflect.Descriptor instead.
 func (*ButcheringFacts) Descriptor() ([]byte, []int) {
-	return file_observations_proto_rawDescGZIP(), []int{223}
+	return file_observations_proto_rawDescGZIP(), []int{225}
 }
 
 func (x *ButcheringFacts) GetBench() *EntityRef {
@@ -20726,7 +20902,7 @@ type FoodCorpse struct {
 
 func (x *FoodCorpse) Reset() {
 	*x = FoodCorpse{}
-	mi := &file_observations_proto_msgTypes[224]
+	mi := &file_observations_proto_msgTypes[226]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -20738,7 +20914,7 @@ func (x *FoodCorpse) String() string {
 func (*FoodCorpse) ProtoMessage() {}
 
 func (x *FoodCorpse) ProtoReflect() protoreflect.Message {
-	mi := &file_observations_proto_msgTypes[224]
+	mi := &file_observations_proto_msgTypes[226]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -20751,7 +20927,7 @@ func (x *FoodCorpse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use FoodCorpse.ProtoReflect.Descriptor instead.
 func (*FoodCorpse) Descriptor() ([]byte, []int) {
-	return file_observations_proto_rawDescGZIP(), []int{224}
+	return file_observations_proto_rawDescGZIP(), []int{226}
 }
 
 func (x *FoodCorpse) GetCorpse() *CorpseState {
@@ -20801,7 +20977,7 @@ type ColonyNaming struct {
 
 func (x *ColonyNaming) Reset() {
 	*x = ColonyNaming{}
-	mi := &file_observations_proto_msgTypes[225]
+	mi := &file_observations_proto_msgTypes[227]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -20813,7 +20989,7 @@ func (x *ColonyNaming) String() string {
 func (*ColonyNaming) ProtoMessage() {}
 
 func (x *ColonyNaming) ProtoReflect() protoreflect.Message {
-	mi := &file_observations_proto_msgTypes[225]
+	mi := &file_observations_proto_msgTypes[227]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -20826,7 +21002,7 @@ func (x *ColonyNaming) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ColonyNaming.ProtoReflect.Descriptor instead.
 func (*ColonyNaming) Descriptor() ([]byte, []int) {
-	return file_observations_proto_rawDescGZIP(), []int{225}
+	return file_observations_proto_rawDescGZIP(), []int{227}
 }
 
 func (x *ColonyNaming) GetWindowId() int32 {
@@ -20868,7 +21044,7 @@ type ConstructionFacts struct {
 
 func (x *ConstructionFacts) Reset() {
 	*x = ConstructionFacts{}
-	mi := &file_observations_proto_msgTypes[226]
+	mi := &file_observations_proto_msgTypes[228]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -20880,7 +21056,7 @@ func (x *ConstructionFacts) String() string {
 func (*ConstructionFacts) ProtoMessage() {}
 
 func (x *ConstructionFacts) ProtoReflect() protoreflect.Message {
-	mi := &file_observations_proto_msgTypes[226]
+	mi := &file_observations_proto_msgTypes[228]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -20893,7 +21069,7 @@ func (x *ConstructionFacts) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ConstructionFacts.ProtoReflect.Descriptor instead.
 func (*ConstructionFacts) Descriptor() ([]byte, []int) {
-	return file_observations_proto_rawDescGZIP(), []int{226}
+	return file_observations_proto_rawDescGZIP(), []int{228}
 }
 
 func (x *ConstructionFacts) GetRecords() []*ConstructionLineage {
@@ -20923,7 +21099,7 @@ type ConstructionSection struct {
 
 func (x *ConstructionSection) Reset() {
 	*x = ConstructionSection{}
-	mi := &file_observations_proto_msgTypes[227]
+	mi := &file_observations_proto_msgTypes[229]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -20935,7 +21111,7 @@ func (x *ConstructionSection) String() string {
 func (*ConstructionSection) ProtoMessage() {}
 
 func (x *ConstructionSection) ProtoReflect() protoreflect.Message {
-	mi := &file_observations_proto_msgTypes[227]
+	mi := &file_observations_proto_msgTypes[229]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -20948,7 +21124,7 @@ func (x *ConstructionSection) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ConstructionSection.ProtoReflect.Descriptor instead.
 func (*ConstructionSection) Descriptor() ([]byte, []int) {
-	return file_observations_proto_rawDescGZIP(), []int{227}
+	return file_observations_proto_rawDescGZIP(), []int{229}
 }
 
 func (x *ConstructionSection) GetOutcome() isConstructionSection_Outcome {
@@ -21005,7 +21181,7 @@ type ComfortSection struct {
 
 func (x *ComfortSection) Reset() {
 	*x = ComfortSection{}
-	mi := &file_observations_proto_msgTypes[228]
+	mi := &file_observations_proto_msgTypes[230]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -21017,7 +21193,7 @@ func (x *ComfortSection) String() string {
 func (*ComfortSection) ProtoMessage() {}
 
 func (x *ComfortSection) ProtoReflect() protoreflect.Message {
-	mi := &file_observations_proto_msgTypes[228]
+	mi := &file_observations_proto_msgTypes[230]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -21030,7 +21206,7 @@ func (x *ComfortSection) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ComfortSection.ProtoReflect.Descriptor instead.
 func (*ComfortSection) Descriptor() ([]byte, []int) {
-	return file_observations_proto_rawDescGZIP(), []int{228}
+	return file_observations_proto_rawDescGZIP(), []int{230}
 }
 
 func (x *ComfortSection) GetOutcome() isComfortSection_Outcome {
@@ -21087,7 +21263,7 @@ type FoodSupplySection struct {
 
 func (x *FoodSupplySection) Reset() {
 	*x = FoodSupplySection{}
-	mi := &file_observations_proto_msgTypes[229]
+	mi := &file_observations_proto_msgTypes[231]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -21099,7 +21275,7 @@ func (x *FoodSupplySection) String() string {
 func (*FoodSupplySection) ProtoMessage() {}
 
 func (x *FoodSupplySection) ProtoReflect() protoreflect.Message {
-	mi := &file_observations_proto_msgTypes[229]
+	mi := &file_observations_proto_msgTypes[231]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -21112,7 +21288,7 @@ func (x *FoodSupplySection) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use FoodSupplySection.ProtoReflect.Descriptor instead.
 func (*FoodSupplySection) Descriptor() ([]byte, []int) {
-	return file_observations_proto_rawDescGZIP(), []int{229}
+	return file_observations_proto_rawDescGZIP(), []int{231}
 }
 
 func (x *FoodSupplySection) GetOutcome() isFoodSupplySection_Outcome {
@@ -21169,7 +21345,7 @@ type ForecastSection struct {
 
 func (x *ForecastSection) Reset() {
 	*x = ForecastSection{}
-	mi := &file_observations_proto_msgTypes[230]
+	mi := &file_observations_proto_msgTypes[232]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -21181,7 +21357,7 @@ func (x *ForecastSection) String() string {
 func (*ForecastSection) ProtoMessage() {}
 
 func (x *ForecastSection) ProtoReflect() protoreflect.Message {
-	mi := &file_observations_proto_msgTypes[230]
+	mi := &file_observations_proto_msgTypes[232]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -21194,7 +21370,7 @@ func (x *ForecastSection) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ForecastSection.ProtoReflect.Descriptor instead.
 func (*ForecastSection) Descriptor() ([]byte, []int) {
-	return file_observations_proto_rawDescGZIP(), []int{230}
+	return file_observations_proto_rawDescGZIP(), []int{232}
 }
 
 func (x *ForecastSection) GetOutcome() isForecastSection_Outcome {
@@ -21251,7 +21427,7 @@ type DevelopmentSection struct {
 
 func (x *DevelopmentSection) Reset() {
 	*x = DevelopmentSection{}
-	mi := &file_observations_proto_msgTypes[231]
+	mi := &file_observations_proto_msgTypes[233]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -21263,7 +21439,7 @@ func (x *DevelopmentSection) String() string {
 func (*DevelopmentSection) ProtoMessage() {}
 
 func (x *DevelopmentSection) ProtoReflect() protoreflect.Message {
-	mi := &file_observations_proto_msgTypes[231]
+	mi := &file_observations_proto_msgTypes[233]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -21276,7 +21452,7 @@ func (x *DevelopmentSection) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DevelopmentSection.ProtoReflect.Descriptor instead.
 func (*DevelopmentSection) Descriptor() ([]byte, []int) {
-	return file_observations_proto_rawDescGZIP(), []int{231}
+	return file_observations_proto_rawDescGZIP(), []int{233}
 }
 
 func (x *DevelopmentSection) GetOutcome() isDevelopmentSection_Outcome {
@@ -21333,7 +21509,7 @@ type PlanningSection struct {
 
 func (x *PlanningSection) Reset() {
 	*x = PlanningSection{}
-	mi := &file_observations_proto_msgTypes[232]
+	mi := &file_observations_proto_msgTypes[234]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -21345,7 +21521,7 @@ func (x *PlanningSection) String() string {
 func (*PlanningSection) ProtoMessage() {}
 
 func (x *PlanningSection) ProtoReflect() protoreflect.Message {
-	mi := &file_observations_proto_msgTypes[232]
+	mi := &file_observations_proto_msgTypes[234]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -21358,7 +21534,7 @@ func (x *PlanningSection) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PlanningSection.ProtoReflect.Descriptor instead.
 func (*PlanningSection) Descriptor() ([]byte, []int) {
-	return file_observations_proto_rawDescGZIP(), []int{232}
+	return file_observations_proto_rawDescGZIP(), []int{234}
 }
 
 func (x *PlanningSection) GetOutcome() isPlanningSection_Outcome {
@@ -21413,7 +21589,7 @@ type HaulPortion struct {
 
 func (x *HaulPortion) Reset() {
 	*x = HaulPortion{}
-	mi := &file_observations_proto_msgTypes[233]
+	mi := &file_observations_proto_msgTypes[235]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -21425,7 +21601,7 @@ func (x *HaulPortion) String() string {
 func (*HaulPortion) ProtoMessage() {}
 
 func (x *HaulPortion) ProtoReflect() protoreflect.Message {
-	mi := &file_observations_proto_msgTypes[233]
+	mi := &file_observations_proto_msgTypes[235]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -21438,7 +21614,7 @@ func (x *HaulPortion) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use HaulPortion.ProtoReflect.Descriptor instead.
 func (*HaulPortion) Descriptor() ([]byte, []int) {
-	return file_observations_proto_rawDescGZIP(), []int{233}
+	return file_observations_proto_rawDescGZIP(), []int{235}
 }
 
 func (x *HaulPortion) GetId() string {
@@ -21482,7 +21658,7 @@ type HaulRecord struct {
 
 func (x *HaulRecord) Reset() {
 	*x = HaulRecord{}
-	mi := &file_observations_proto_msgTypes[234]
+	mi := &file_observations_proto_msgTypes[236]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -21494,7 +21670,7 @@ func (x *HaulRecord) String() string {
 func (*HaulRecord) ProtoMessage() {}
 
 func (x *HaulRecord) ProtoReflect() protoreflect.Message {
-	mi := &file_observations_proto_msgTypes[234]
+	mi := &file_observations_proto_msgTypes[236]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -21507,7 +21683,7 @@ func (x *HaulRecord) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use HaulRecord.ProtoReflect.Descriptor instead.
 func (*HaulRecord) Descriptor() ([]byte, []int) {
-	return file_observations_proto_rawDescGZIP(), []int{234}
+	return file_observations_proto_rawDescGZIP(), []int{236}
 }
 
 func (x *HaulRecord) GetId() string {
@@ -21604,7 +21780,7 @@ type HaulingFacts struct {
 
 func (x *HaulingFacts) Reset() {
 	*x = HaulingFacts{}
-	mi := &file_observations_proto_msgTypes[235]
+	mi := &file_observations_proto_msgTypes[237]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -21616,7 +21792,7 @@ func (x *HaulingFacts) String() string {
 func (*HaulingFacts) ProtoMessage() {}
 
 func (x *HaulingFacts) ProtoReflect() protoreflect.Message {
-	mi := &file_observations_proto_msgTypes[235]
+	mi := &file_observations_proto_msgTypes[237]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -21629,7 +21805,7 @@ func (x *HaulingFacts) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use HaulingFacts.ProtoReflect.Descriptor instead.
 func (*HaulingFacts) Descriptor() ([]byte, []int) {
-	return file_observations_proto_rawDescGZIP(), []int{235}
+	return file_observations_proto_rawDescGZIP(), []int{237}
 }
 
 func (x *HaulingFacts) GetRecords() []*HaulRecord {
@@ -21659,7 +21835,7 @@ type HaulingSection struct {
 
 func (x *HaulingSection) Reset() {
 	*x = HaulingSection{}
-	mi := &file_observations_proto_msgTypes[236]
+	mi := &file_observations_proto_msgTypes[238]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -21671,7 +21847,7 @@ func (x *HaulingSection) String() string {
 func (*HaulingSection) ProtoMessage() {}
 
 func (x *HaulingSection) ProtoReflect() protoreflect.Message {
-	mi := &file_observations_proto_msgTypes[236]
+	mi := &file_observations_proto_msgTypes[238]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -21684,7 +21860,7 @@ func (x *HaulingSection) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use HaulingSection.ProtoReflect.Descriptor instead.
 func (*HaulingSection) Descriptor() ([]byte, []int) {
-	return file_observations_proto_rawDescGZIP(), []int{236}
+	return file_observations_proto_rawDescGZIP(), []int{238}
 }
 
 func (x *HaulingSection) GetOutcome() isHaulingSection_Outcome {
@@ -21745,7 +21921,7 @@ type WallRemovalRecord struct {
 
 func (x *WallRemovalRecord) Reset() {
 	*x = WallRemovalRecord{}
-	mi := &file_observations_proto_msgTypes[237]
+	mi := &file_observations_proto_msgTypes[239]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -21757,7 +21933,7 @@ func (x *WallRemovalRecord) String() string {
 func (*WallRemovalRecord) ProtoMessage() {}
 
 func (x *WallRemovalRecord) ProtoReflect() protoreflect.Message {
-	mi := &file_observations_proto_msgTypes[237]
+	mi := &file_observations_proto_msgTypes[239]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -21770,7 +21946,7 @@ func (x *WallRemovalRecord) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use WallRemovalRecord.ProtoReflect.Descriptor instead.
 func (*WallRemovalRecord) Descriptor() ([]byte, []int) {
-	return file_observations_proto_rawDescGZIP(), []int{237}
+	return file_observations_proto_rawDescGZIP(), []int{239}
 }
 
 func (x *WallRemovalRecord) GetId() string {
@@ -21847,7 +22023,7 @@ type WallRemovalFacts struct {
 
 func (x *WallRemovalFacts) Reset() {
 	*x = WallRemovalFacts{}
-	mi := &file_observations_proto_msgTypes[238]
+	mi := &file_observations_proto_msgTypes[240]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -21859,7 +22035,7 @@ func (x *WallRemovalFacts) String() string {
 func (*WallRemovalFacts) ProtoMessage() {}
 
 func (x *WallRemovalFacts) ProtoReflect() protoreflect.Message {
-	mi := &file_observations_proto_msgTypes[238]
+	mi := &file_observations_proto_msgTypes[240]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -21872,7 +22048,7 @@ func (x *WallRemovalFacts) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use WallRemovalFacts.ProtoReflect.Descriptor instead.
 func (*WallRemovalFacts) Descriptor() ([]byte, []int) {
-	return file_observations_proto_rawDescGZIP(), []int{238}
+	return file_observations_proto_rawDescGZIP(), []int{240}
 }
 
 func (x *WallRemovalFacts) GetRecords() []*WallRemovalRecord {
@@ -21909,7 +22085,7 @@ type WallRemovalSection struct {
 
 func (x *WallRemovalSection) Reset() {
 	*x = WallRemovalSection{}
-	mi := &file_observations_proto_msgTypes[239]
+	mi := &file_observations_proto_msgTypes[241]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -21921,7 +22097,7 @@ func (x *WallRemovalSection) String() string {
 func (*WallRemovalSection) ProtoMessage() {}
 
 func (x *WallRemovalSection) ProtoReflect() protoreflect.Message {
-	mi := &file_observations_proto_msgTypes[239]
+	mi := &file_observations_proto_msgTypes[241]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -21934,7 +22110,7 @@ func (x *WallRemovalSection) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use WallRemovalSection.ProtoReflect.Descriptor instead.
 func (*WallRemovalSection) Descriptor() ([]byte, []int) {
-	return file_observations_proto_rawDescGZIP(), []int{239}
+	return file_observations_proto_rawDescGZIP(), []int{241}
 }
 
 func (x *WallRemovalSection) GetOutcome() isWallRemovalSection_Outcome {
@@ -21993,7 +22169,7 @@ type HomeCoverageTarget struct {
 
 func (x *HomeCoverageTarget) Reset() {
 	*x = HomeCoverageTarget{}
-	mi := &file_observations_proto_msgTypes[240]
+	mi := &file_observations_proto_msgTypes[242]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -22005,7 +22181,7 @@ func (x *HomeCoverageTarget) String() string {
 func (*HomeCoverageTarget) ProtoMessage() {}
 
 func (x *HomeCoverageTarget) ProtoReflect() protoreflect.Message {
-	mi := &file_observations_proto_msgTypes[240]
+	mi := &file_observations_proto_msgTypes[242]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -22018,7 +22194,7 @@ func (x *HomeCoverageTarget) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use HomeCoverageTarget.ProtoReflect.Descriptor instead.
 func (*HomeCoverageTarget) Descriptor() ([]byte, []int) {
-	return file_observations_proto_rawDescGZIP(), []int{240}
+	return file_observations_proto_rawDescGZIP(), []int{242}
 }
 
 func (x *HomeCoverageTarget) GetId() string {
@@ -22081,7 +22257,7 @@ type HomeCoverageFacts struct {
 
 func (x *HomeCoverageFacts) Reset() {
 	*x = HomeCoverageFacts{}
-	mi := &file_observations_proto_msgTypes[241]
+	mi := &file_observations_proto_msgTypes[243]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -22093,7 +22269,7 @@ func (x *HomeCoverageFacts) String() string {
 func (*HomeCoverageFacts) ProtoMessage() {}
 
 func (x *HomeCoverageFacts) ProtoReflect() protoreflect.Message {
-	mi := &file_observations_proto_msgTypes[241]
+	mi := &file_observations_proto_msgTypes[243]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -22106,7 +22282,7 @@ func (x *HomeCoverageFacts) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use HomeCoverageFacts.ProtoReflect.Descriptor instead.
 func (*HomeCoverageFacts) Descriptor() ([]byte, []int) {
-	return file_observations_proto_rawDescGZIP(), []int{241}
+	return file_observations_proto_rawDescGZIP(), []int{243}
 }
 
 func (x *HomeCoverageFacts) GetRevision() int64 {
@@ -22143,7 +22319,7 @@ type HomeCoverageSection struct {
 
 func (x *HomeCoverageSection) Reset() {
 	*x = HomeCoverageSection{}
-	mi := &file_observations_proto_msgTypes[242]
+	mi := &file_observations_proto_msgTypes[244]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -22155,7 +22331,7 @@ func (x *HomeCoverageSection) String() string {
 func (*HomeCoverageSection) ProtoMessage() {}
 
 func (x *HomeCoverageSection) ProtoReflect() protoreflect.Message {
-	mi := &file_observations_proto_msgTypes[242]
+	mi := &file_observations_proto_msgTypes[244]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -22168,7 +22344,7 @@ func (x *HomeCoverageSection) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use HomeCoverageSection.ProtoReflect.Descriptor instead.
 func (*HomeCoverageSection) Descriptor() ([]byte, []int) {
-	return file_observations_proto_rawDescGZIP(), []int{242}
+	return file_observations_proto_rawDescGZIP(), []int{244}
 }
 
 func (x *HomeCoverageSection) GetOutcome() isHomeCoverageSection_Outcome {
@@ -22238,7 +22414,7 @@ type UpkeepFacts struct {
 
 func (x *UpkeepFacts) Reset() {
 	*x = UpkeepFacts{}
-	mi := &file_observations_proto_msgTypes[243]
+	mi := &file_observations_proto_msgTypes[245]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -22250,7 +22426,7 @@ func (x *UpkeepFacts) String() string {
 func (*UpkeepFacts) ProtoMessage() {}
 
 func (x *UpkeepFacts) ProtoReflect() protoreflect.Message {
-	mi := &file_observations_proto_msgTypes[243]
+	mi := &file_observations_proto_msgTypes[245]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -22263,7 +22439,7 @@ func (x *UpkeepFacts) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use UpkeepFacts.ProtoReflect.Descriptor instead.
 func (*UpkeepFacts) Descriptor() ([]byte, []int) {
-	return file_observations_proto_rawDescGZIP(), []int{243}
+	return file_observations_proto_rawDescGZIP(), []int{245}
 }
 
 func (x *UpkeepFacts) GetComfort() *ComfortSection {
@@ -22405,7 +22581,7 @@ type UpkeepSection struct {
 
 func (x *UpkeepSection) Reset() {
 	*x = UpkeepSection{}
-	mi := &file_observations_proto_msgTypes[244]
+	mi := &file_observations_proto_msgTypes[246]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -22417,7 +22593,7 @@ func (x *UpkeepSection) String() string {
 func (*UpkeepSection) ProtoMessage() {}
 
 func (x *UpkeepSection) ProtoReflect() protoreflect.Message {
-	mi := &file_observations_proto_msgTypes[244]
+	mi := &file_observations_proto_msgTypes[246]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -22430,7 +22606,7 @@ func (x *UpkeepSection) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use UpkeepSection.ProtoReflect.Descriptor instead.
 func (*UpkeepSection) Descriptor() ([]byte, []int) {
-	return file_observations_proto_rawDescGZIP(), []int{244}
+	return file_observations_proto_rawDescGZIP(), []int{246}
 }
 
 func (x *UpkeepSection) GetOutcome() isUpkeepSection_Outcome {
@@ -22520,7 +22696,7 @@ type ColonyFactsSnapshot struct {
 
 func (x *ColonyFactsSnapshot) Reset() {
 	*x = ColonyFactsSnapshot{}
-	mi := &file_observations_proto_msgTypes[245]
+	mi := &file_observations_proto_msgTypes[247]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -22532,7 +22708,7 @@ func (x *ColonyFactsSnapshot) String() string {
 func (*ColonyFactsSnapshot) ProtoMessage() {}
 
 func (x *ColonyFactsSnapshot) ProtoReflect() protoreflect.Message {
-	mi := &file_observations_proto_msgTypes[245]
+	mi := &file_observations_proto_msgTypes[247]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -22545,7 +22721,7 @@ func (x *ColonyFactsSnapshot) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ColonyFactsSnapshot.ProtoReflect.Descriptor instead.
 func (*ColonyFactsSnapshot) Descriptor() ([]byte, []int) {
-	return file_observations_proto_rawDescGZIP(), []int{245}
+	return file_observations_proto_rawDescGZIP(), []int{247}
 }
 
 func (x *ColonyFactsSnapshot) GetContext() *commonpb.ObservationContext {
@@ -22826,7 +23002,7 @@ type ColonyFactsRequest struct {
 
 func (x *ColonyFactsRequest) Reset() {
 	*x = ColonyFactsRequest{}
-	mi := &file_observations_proto_msgTypes[246]
+	mi := &file_observations_proto_msgTypes[248]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -22838,7 +23014,7 @@ func (x *ColonyFactsRequest) String() string {
 func (*ColonyFactsRequest) ProtoMessage() {}
 
 func (x *ColonyFactsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_observations_proto_msgTypes[246]
+	mi := &file_observations_proto_msgTypes[248]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -22851,7 +23027,7 @@ func (x *ColonyFactsRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ColonyFactsRequest.ProtoReflect.Descriptor instead.
 func (*ColonyFactsRequest) Descriptor() ([]byte, []int) {
-	return file_observations_proto_rawDescGZIP(), []int{246}
+	return file_observations_proto_rawDescGZIP(), []int{248}
 }
 
 func (x *ColonyFactsRequest) GetScope() *ReadScope {
@@ -22896,7 +23072,7 @@ type ColonyFactsReply struct {
 
 func (x *ColonyFactsReply) Reset() {
 	*x = ColonyFactsReply{}
-	mi := &file_observations_proto_msgTypes[247]
+	mi := &file_observations_proto_msgTypes[249]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -22908,7 +23084,7 @@ func (x *ColonyFactsReply) String() string {
 func (*ColonyFactsReply) ProtoMessage() {}
 
 func (x *ColonyFactsReply) ProtoReflect() protoreflect.Message {
-	mi := &file_observations_proto_msgTypes[247]
+	mi := &file_observations_proto_msgTypes[249]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -22921,7 +23097,7 @@ func (x *ColonyFactsReply) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ColonyFactsReply.ProtoReflect.Descriptor instead.
 func (*ColonyFactsReply) Descriptor() ([]byte, []int) {
-	return file_observations_proto_rawDescGZIP(), []int{247}
+	return file_observations_proto_rawDescGZIP(), []int{249}
 }
 
 func (x *ColonyFactsReply) GetOutcome() isColonyFactsReply_Outcome {
@@ -22994,7 +23170,7 @@ type ThreatPawn struct {
 
 func (x *ThreatPawn) Reset() {
 	*x = ThreatPawn{}
-	mi := &file_observations_proto_msgTypes[248]
+	mi := &file_observations_proto_msgTypes[250]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -23006,7 +23182,7 @@ func (x *ThreatPawn) String() string {
 func (*ThreatPawn) ProtoMessage() {}
 
 func (x *ThreatPawn) ProtoReflect() protoreflect.Message {
-	mi := &file_observations_proto_msgTypes[248]
+	mi := &file_observations_proto_msgTypes[250]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -23019,7 +23195,7 @@ func (x *ThreatPawn) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ThreatPawn.ProtoReflect.Descriptor instead.
 func (*ThreatPawn) Descriptor() ([]byte, []int) {
-	return file_observations_proto_rawDescGZIP(), []int{248}
+	return file_observations_proto_rawDescGZIP(), []int{250}
 }
 
 func (x *ThreatPawn) GetPawn() *PawnState {
@@ -23071,7 +23247,7 @@ type ThreatsSnapshot struct {
 
 func (x *ThreatsSnapshot) Reset() {
 	*x = ThreatsSnapshot{}
-	mi := &file_observations_proto_msgTypes[249]
+	mi := &file_observations_proto_msgTypes[251]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -23083,7 +23259,7 @@ func (x *ThreatsSnapshot) String() string {
 func (*ThreatsSnapshot) ProtoMessage() {}
 
 func (x *ThreatsSnapshot) ProtoReflect() protoreflect.Message {
-	mi := &file_observations_proto_msgTypes[249]
+	mi := &file_observations_proto_msgTypes[251]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -23096,7 +23272,7 @@ func (x *ThreatsSnapshot) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ThreatsSnapshot.ProtoReflect.Descriptor instead.
 func (*ThreatsSnapshot) Descriptor() ([]byte, []int) {
-	return file_observations_proto_rawDescGZIP(), []int{249}
+	return file_observations_proto_rawDescGZIP(), []int{251}
 }
 
 func (x *ThreatsSnapshot) GetHostiles() []*ThreatPawn {
@@ -23153,7 +23329,7 @@ type StatusSnapshot struct {
 
 func (x *StatusSnapshot) Reset() {
 	*x = StatusSnapshot{}
-	mi := &file_observations_proto_msgTypes[250]
+	mi := &file_observations_proto_msgTypes[252]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -23165,7 +23341,7 @@ func (x *StatusSnapshot) String() string {
 func (*StatusSnapshot) ProtoMessage() {}
 
 func (x *StatusSnapshot) ProtoReflect() protoreflect.Message {
-	mi := &file_observations_proto_msgTypes[250]
+	mi := &file_observations_proto_msgTypes[252]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -23178,7 +23354,7 @@ func (x *StatusSnapshot) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use StatusSnapshot.ProtoReflect.Descriptor instead.
 func (*StatusSnapshot) Descriptor() ([]byte, []int) {
-	return file_observations_proto_rawDescGZIP(), []int{250}
+	return file_observations_proto_rawDescGZIP(), []int{252}
 }
 
 func (x *StatusSnapshot) GetContext() *commonpb.ObservationContext {
@@ -23223,7 +23399,7 @@ type StatusRequest struct {
 
 func (x *StatusRequest) Reset() {
 	*x = StatusRequest{}
-	mi := &file_observations_proto_msgTypes[251]
+	mi := &file_observations_proto_msgTypes[253]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -23235,7 +23411,7 @@ func (x *StatusRequest) String() string {
 func (*StatusRequest) ProtoMessage() {}
 
 func (x *StatusRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_observations_proto_msgTypes[251]
+	mi := &file_observations_proto_msgTypes[253]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -23248,7 +23424,7 @@ func (x *StatusRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use StatusRequest.ProtoReflect.Descriptor instead.
 func (*StatusRequest) Descriptor() ([]byte, []int) {
-	return file_observations_proto_rawDescGZIP(), []int{251}
+	return file_observations_proto_rawDescGZIP(), []int{253}
 }
 
 func (x *StatusRequest) GetScope() *ReadScope {
@@ -23307,7 +23483,7 @@ type StatusReply struct {
 
 func (x *StatusReply) Reset() {
 	*x = StatusReply{}
-	mi := &file_observations_proto_msgTypes[252]
+	mi := &file_observations_proto_msgTypes[254]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -23319,7 +23495,7 @@ func (x *StatusReply) String() string {
 func (*StatusReply) ProtoMessage() {}
 
 func (x *StatusReply) ProtoReflect() protoreflect.Message {
-	mi := &file_observations_proto_msgTypes[252]
+	mi := &file_observations_proto_msgTypes[254]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -23332,7 +23508,7 @@ func (x *StatusReply) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use StatusReply.ProtoReflect.Descriptor instead.
 func (*StatusReply) Descriptor() ([]byte, []int) {
-	return file_observations_proto_rawDescGZIP(), []int{252}
+	return file_observations_proto_rawDescGZIP(), []int{254}
 }
 
 func (x *StatusReply) GetOutcome() isStatusReply_Outcome {
@@ -23408,7 +23584,7 @@ type ObservationBatchSnapshot struct {
 
 func (x *ObservationBatchSnapshot) Reset() {
 	*x = ObservationBatchSnapshot{}
-	mi := &file_observations_proto_msgTypes[253]
+	mi := &file_observations_proto_msgTypes[255]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -23420,7 +23596,7 @@ func (x *ObservationBatchSnapshot) String() string {
 func (*ObservationBatchSnapshot) ProtoMessage() {}
 
 func (x *ObservationBatchSnapshot) ProtoReflect() protoreflect.Message {
-	mi := &file_observations_proto_msgTypes[253]
+	mi := &file_observations_proto_msgTypes[255]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -23433,7 +23609,7 @@ func (x *ObservationBatchSnapshot) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ObservationBatchSnapshot.ProtoReflect.Descriptor instead.
 func (*ObservationBatchSnapshot) Descriptor() ([]byte, []int) {
-	return file_observations_proto_rawDescGZIP(), []int{253}
+	return file_observations_proto_rawDescGZIP(), []int{255}
 }
 
 func (x *ObservationBatchSnapshot) GetStartContext() *commonpb.ObservationContext {
@@ -23514,7 +23690,7 @@ type ObservationBatchRequest struct {
 
 func (x *ObservationBatchRequest) Reset() {
 	*x = ObservationBatchRequest{}
-	mi := &file_observations_proto_msgTypes[254]
+	mi := &file_observations_proto_msgTypes[256]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -23526,7 +23702,7 @@ func (x *ObservationBatchRequest) String() string {
 func (*ObservationBatchRequest) ProtoMessage() {}
 
 func (x *ObservationBatchRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_observations_proto_msgTypes[254]
+	mi := &file_observations_proto_msgTypes[256]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -23539,7 +23715,7 @@ func (x *ObservationBatchRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ObservationBatchRequest.ProtoReflect.Descriptor instead.
 func (*ObservationBatchRequest) Descriptor() ([]byte, []int) {
-	return file_observations_proto_rawDescGZIP(), []int{254}
+	return file_observations_proto_rawDescGZIP(), []int{256}
 }
 
 func (x *ObservationBatchRequest) GetScope() *ReadScope {
@@ -23605,7 +23781,7 @@ type ObservationBatchReply struct {
 
 func (x *ObservationBatchReply) Reset() {
 	*x = ObservationBatchReply{}
-	mi := &file_observations_proto_msgTypes[255]
+	mi := &file_observations_proto_msgTypes[257]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -23617,7 +23793,7 @@ func (x *ObservationBatchReply) String() string {
 func (*ObservationBatchReply) ProtoMessage() {}
 
 func (x *ObservationBatchReply) ProtoReflect() protoreflect.Message {
-	mi := &file_observations_proto_msgTypes[255]
+	mi := &file_observations_proto_msgTypes[257]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -23630,7 +23806,7 @@ func (x *ObservationBatchReply) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ObservationBatchReply.ProtoReflect.Descriptor instead.
 func (*ObservationBatchReply) Descriptor() ([]byte, []int) {
-	return file_observations_proto_rawDescGZIP(), []int{255}
+	return file_observations_proto_rawDescGZIP(), []int{257}
 }
 
 func (x *ObservationBatchReply) GetOutcome() isObservationBatchReply_Outcome {
@@ -23705,7 +23881,7 @@ type ProductionPolicySnapshot struct {
 
 func (x *ProductionPolicySnapshot) Reset() {
 	*x = ProductionPolicySnapshot{}
-	mi := &file_observations_proto_msgTypes[256]
+	mi := &file_observations_proto_msgTypes[258]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -23717,7 +23893,7 @@ func (x *ProductionPolicySnapshot) String() string {
 func (*ProductionPolicySnapshot) ProtoMessage() {}
 
 func (x *ProductionPolicySnapshot) ProtoReflect() protoreflect.Message {
-	mi := &file_observations_proto_msgTypes[256]
+	mi := &file_observations_proto_msgTypes[258]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -23730,7 +23906,7 @@ func (x *ProductionPolicySnapshot) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ProductionPolicySnapshot.ProtoReflect.Descriptor instead.
 func (*ProductionPolicySnapshot) Descriptor() ([]byte, []int) {
-	return file_observations_proto_rawDescGZIP(), []int{256}
+	return file_observations_proto_rawDescGZIP(), []int{258}
 }
 
 func (x *ProductionPolicySnapshot) GetSnapshot() *SnapshotRef {
@@ -23792,7 +23968,7 @@ type ProductionPolicyRequest struct {
 
 func (x *ProductionPolicyRequest) Reset() {
 	*x = ProductionPolicyRequest{}
-	mi := &file_observations_proto_msgTypes[257]
+	mi := &file_observations_proto_msgTypes[259]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -23804,7 +23980,7 @@ func (x *ProductionPolicyRequest) String() string {
 func (*ProductionPolicyRequest) ProtoMessage() {}
 
 func (x *ProductionPolicyRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_observations_proto_msgTypes[257]
+	mi := &file_observations_proto_msgTypes[259]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -23817,7 +23993,7 @@ func (x *ProductionPolicyRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ProductionPolicyRequest.ProtoReflect.Descriptor instead.
 func (*ProductionPolicyRequest) Descriptor() ([]byte, []int) {
-	return file_observations_proto_rawDescGZIP(), []int{257}
+	return file_observations_proto_rawDescGZIP(), []int{259}
 }
 
 func (x *ProductionPolicyRequest) GetScope() *ReadScope {
@@ -23848,7 +24024,7 @@ type ProductionPolicyReply struct {
 
 func (x *ProductionPolicyReply) Reset() {
 	*x = ProductionPolicyReply{}
-	mi := &file_observations_proto_msgTypes[258]
+	mi := &file_observations_proto_msgTypes[260]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -23860,7 +24036,7 @@ func (x *ProductionPolicyReply) String() string {
 func (*ProductionPolicyReply) ProtoMessage() {}
 
 func (x *ProductionPolicyReply) ProtoReflect() protoreflect.Message {
-	mi := &file_observations_proto_msgTypes[258]
+	mi := &file_observations_proto_msgTypes[260]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -23873,7 +24049,7 @@ func (x *ProductionPolicyReply) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ProductionPolicyReply.ProtoReflect.Descriptor instead.
 func (*ProductionPolicyReply) Descriptor() ([]byte, []int) {
-	return file_observations_proto_rawDescGZIP(), []int{258}
+	return file_observations_proto_rawDescGZIP(), []int{260}
 }
 
 func (x *ProductionPolicyReply) GetOutcome() isProductionPolicyReply_Outcome {
@@ -23945,7 +24121,7 @@ type ArchitectCategory struct {
 
 func (x *ArchitectCategory) Reset() {
 	*x = ArchitectCategory{}
-	mi := &file_observations_proto_msgTypes[259]
+	mi := &file_observations_proto_msgTypes[261]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -23957,7 +24133,7 @@ func (x *ArchitectCategory) String() string {
 func (*ArchitectCategory) ProtoMessage() {}
 
 func (x *ArchitectCategory) ProtoReflect() protoreflect.Message {
-	mi := &file_observations_proto_msgTypes[259]
+	mi := &file_observations_proto_msgTypes[261]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -23970,7 +24146,7 @@ func (x *ArchitectCategory) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ArchitectCategory.ProtoReflect.Descriptor instead.
 func (*ArchitectCategory) Descriptor() ([]byte, []int) {
-	return file_observations_proto_rawDescGZIP(), []int{259}
+	return file_observations_proto_rawDescGZIP(), []int{261}
 }
 
 func (x *ArchitectCategory) GetId() string {
@@ -24027,7 +24203,7 @@ type ArchitectDesignator struct {
 
 func (x *ArchitectDesignator) Reset() {
 	*x = ArchitectDesignator{}
-	mi := &file_observations_proto_msgTypes[260]
+	mi := &file_observations_proto_msgTypes[262]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -24039,7 +24215,7 @@ func (x *ArchitectDesignator) String() string {
 func (*ArchitectDesignator) ProtoMessage() {}
 
 func (x *ArchitectDesignator) ProtoReflect() protoreflect.Message {
-	mi := &file_observations_proto_msgTypes[260]
+	mi := &file_observations_proto_msgTypes[262]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -24052,7 +24228,7 @@ func (x *ArchitectDesignator) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ArchitectDesignator.ProtoReflect.Descriptor instead.
 func (*ArchitectDesignator) Descriptor() ([]byte, []int) {
-	return file_observations_proto_rawDescGZIP(), []int{260}
+	return file_observations_proto_rawDescGZIP(), []int{262}
 }
 
 func (x *ArchitectDesignator) GetId() string {
@@ -24143,7 +24319,7 @@ type ArchitectCategoriesSnapshot struct {
 
 func (x *ArchitectCategoriesSnapshot) Reset() {
 	*x = ArchitectCategoriesSnapshot{}
-	mi := &file_observations_proto_msgTypes[261]
+	mi := &file_observations_proto_msgTypes[263]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -24155,7 +24331,7 @@ func (x *ArchitectCategoriesSnapshot) String() string {
 func (*ArchitectCategoriesSnapshot) ProtoMessage() {}
 
 func (x *ArchitectCategoriesSnapshot) ProtoReflect() protoreflect.Message {
-	mi := &file_observations_proto_msgTypes[261]
+	mi := &file_observations_proto_msgTypes[263]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -24168,7 +24344,7 @@ func (x *ArchitectCategoriesSnapshot) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ArchitectCategoriesSnapshot.ProtoReflect.Descriptor instead.
 func (*ArchitectCategoriesSnapshot) Descriptor() ([]byte, []int) {
-	return file_observations_proto_rawDescGZIP(), []int{261}
+	return file_observations_proto_rawDescGZIP(), []int{263}
 }
 
 func (x *ArchitectCategoriesSnapshot) GetContext() *commonpb.ObservationContext {
@@ -24204,7 +24380,7 @@ type ArchitectCategoriesRequest struct {
 
 func (x *ArchitectCategoriesRequest) Reset() {
 	*x = ArchitectCategoriesRequest{}
-	mi := &file_observations_proto_msgTypes[262]
+	mi := &file_observations_proto_msgTypes[264]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -24216,7 +24392,7 @@ func (x *ArchitectCategoriesRequest) String() string {
 func (*ArchitectCategoriesRequest) ProtoMessage() {}
 
 func (x *ArchitectCategoriesRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_observations_proto_msgTypes[262]
+	mi := &file_observations_proto_msgTypes[264]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -24229,7 +24405,7 @@ func (x *ArchitectCategoriesRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ArchitectCategoriesRequest.ProtoReflect.Descriptor instead.
 func (*ArchitectCategoriesRequest) Descriptor() ([]byte, []int) {
-	return file_observations_proto_rawDescGZIP(), []int{262}
+	return file_observations_proto_rawDescGZIP(), []int{264}
 }
 
 func (x *ArchitectCategoriesRequest) GetScope() *ReadScope {
@@ -24274,7 +24450,7 @@ type ArchitectCategoriesReply struct {
 
 func (x *ArchitectCategoriesReply) Reset() {
 	*x = ArchitectCategoriesReply{}
-	mi := &file_observations_proto_msgTypes[263]
+	mi := &file_observations_proto_msgTypes[265]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -24286,7 +24462,7 @@ func (x *ArchitectCategoriesReply) String() string {
 func (*ArchitectCategoriesReply) ProtoMessage() {}
 
 func (x *ArchitectCategoriesReply) ProtoReflect() protoreflect.Message {
-	mi := &file_observations_proto_msgTypes[263]
+	mi := &file_observations_proto_msgTypes[265]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -24299,7 +24475,7 @@ func (x *ArchitectCategoriesReply) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ArchitectCategoriesReply.ProtoReflect.Descriptor instead.
 func (*ArchitectCategoriesReply) Descriptor() ([]byte, []int) {
-	return file_observations_proto_rawDescGZIP(), []int{263}
+	return file_observations_proto_rawDescGZIP(), []int{265}
 }
 
 func (x *ArchitectCategoriesReply) GetOutcome() isArchitectCategoriesReply_Outcome {
@@ -24369,7 +24545,7 @@ type ArchitectDesignatorsSnapshot struct {
 
 func (x *ArchitectDesignatorsSnapshot) Reset() {
 	*x = ArchitectDesignatorsSnapshot{}
-	mi := &file_observations_proto_msgTypes[264]
+	mi := &file_observations_proto_msgTypes[266]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -24381,7 +24557,7 @@ func (x *ArchitectDesignatorsSnapshot) String() string {
 func (*ArchitectDesignatorsSnapshot) ProtoMessage() {}
 
 func (x *ArchitectDesignatorsSnapshot) ProtoReflect() protoreflect.Message {
-	mi := &file_observations_proto_msgTypes[264]
+	mi := &file_observations_proto_msgTypes[266]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -24394,7 +24570,7 @@ func (x *ArchitectDesignatorsSnapshot) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ArchitectDesignatorsSnapshot.ProtoReflect.Descriptor instead.
 func (*ArchitectDesignatorsSnapshot) Descriptor() ([]byte, []int) {
-	return file_observations_proto_rawDescGZIP(), []int{264}
+	return file_observations_proto_rawDescGZIP(), []int{266}
 }
 
 func (x *ArchitectDesignatorsSnapshot) GetContext() *commonpb.ObservationContext {
@@ -24430,7 +24606,7 @@ type ArchitectDesignatorsRequest struct {
 
 func (x *ArchitectDesignatorsRequest) Reset() {
 	*x = ArchitectDesignatorsRequest{}
-	mi := &file_observations_proto_msgTypes[265]
+	mi := &file_observations_proto_msgTypes[267]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -24442,7 +24618,7 @@ func (x *ArchitectDesignatorsRequest) String() string {
 func (*ArchitectDesignatorsRequest) ProtoMessage() {}
 
 func (x *ArchitectDesignatorsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_observations_proto_msgTypes[265]
+	mi := &file_observations_proto_msgTypes[267]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -24455,7 +24631,7 @@ func (x *ArchitectDesignatorsRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ArchitectDesignatorsRequest.ProtoReflect.Descriptor instead.
 func (*ArchitectDesignatorsRequest) Descriptor() ([]byte, []int) {
-	return file_observations_proto_rawDescGZIP(), []int{265}
+	return file_observations_proto_rawDescGZIP(), []int{267}
 }
 
 func (x *ArchitectDesignatorsRequest) GetScope() *ReadScope {
@@ -24500,7 +24676,7 @@ type ArchitectDesignatorsReply struct {
 
 func (x *ArchitectDesignatorsReply) Reset() {
 	*x = ArchitectDesignatorsReply{}
-	mi := &file_observations_proto_msgTypes[266]
+	mi := &file_observations_proto_msgTypes[268]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -24512,7 +24688,7 @@ func (x *ArchitectDesignatorsReply) String() string {
 func (*ArchitectDesignatorsReply) ProtoMessage() {}
 
 func (x *ArchitectDesignatorsReply) ProtoReflect() protoreflect.Message {
-	mi := &file_observations_proto_msgTypes[266]
+	mi := &file_observations_proto_msgTypes[268]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -24525,7 +24701,7 @@ func (x *ArchitectDesignatorsReply) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ArchitectDesignatorsReply.ProtoReflect.Descriptor instead.
 func (*ArchitectDesignatorsReply) Descriptor() ([]byte, []int) {
-	return file_observations_proto_rawDescGZIP(), []int{266}
+	return file_observations_proto_rawDescGZIP(), []int{268}
 }
 
 func (x *ArchitectDesignatorsReply) GetOutcome() isArchitectDesignatorsReply_Outcome {
@@ -25021,7 +25197,7 @@ const file_observations_proto_rawDesc = "" +
 	"\n" +
 	"_slaughterB\x14\n" +
 	"\x12_safe_to_slaughterB\x19\n" +
-	"\x17_minimum_handling_skill\"\xff\x0f\n" +
+	"\x17_minimum_handling_skill\"\xc5\x10\n" +
 	"\tPawnState\x12:\n" +
 	"\x04pawn\x18\x01 \x01(\v2&.rimgovernor.observations.v1.EntityRefR\x04pawn\x12'\n" +
 	"\rkind_def_name\x18\x02 \x01(\tH\x00R\vkindDefName\x88\x01\x01\x12\"\n" +
@@ -25062,7 +25238,8 @@ const file_observations_proto_rawDesc = "" +
 	"\vdraft_claim\x18\" \x01(\v22.rimgovernor.observations.v1.DraftClaimObservationR\n" +
 	"draftClaim\x12%\n" +
 	"\fowned_bed_id\x18# \x01(\tH\x16R\n" +
-	"ownedBedId\x88\x01\x01B\x10\n" +
+	"ownedBedId\x88\x01\x01\x12D\n" +
+	"\bsnapshot\x18$ \x01(\v2(.rimgovernor.observations.v1.SnapshotRefR\bsnapshotB\x10\n" +
 	"\x0e_kind_def_nameB\r\n" +
 	"\v_faction_idB\v\n" +
 	"\t_colonistB\x10\n" +
@@ -25193,8 +25370,7 @@ const file_observations_proto_rawDesc = "" +
 	"_humanlikeB\x0f\n" +
 	"\r_was_colonistB\f\n" +
 	"\n" +
-	"_rot_stage\"\xe4\n" +
-	"\n" +
+	"_rot_stage\"\xaa\v\n" +
 	"\rResourceStock\x12J\n" +
 	"\n" +
 	"definition\x18\x01 \x01(\v2*.rimgovernor.observations.v1.DefinitionRefR\n" +
@@ -25223,7 +25399,8 @@ const file_observations_proto_rawDesc = "" +
 	"\x12items_completeness\x18\x14 \x01(\v2).rimgovernor.observations.v1.CompletenessR\x11itemsCompleteness\x12\\\n" +
 	"\x14holders_completeness\x18\x15 \x01(\v2).rimgovernor.observations.v1.CompletenessR\x13holdersCompleteness\x12\\\n" +
 	"\x14corpses_completeness\x18\x16 \x01(\v2).rimgovernor.observations.v1.CompletenessR\x13corpsesCompleteness\x12>\n" +
-	"\x06issues\x18\x17 \x03(\v2&.rimgovernor.observations.v1.ReadIssueR\x06issuesB\b\n" +
+	"\x06issues\x18\x17 \x03(\v2&.rimgovernor.observations.v1.ReadIssueR\x06issues\x12D\n" +
+	"\bsnapshot\x18\x18 \x01(\v2(.rimgovernor.observations.v1.SnapshotRefR\bsnapshotB\b\n" +
 	"\x06_unitsB\t\n" +
 	"\a_stacksB\n" +
 	"\n" +
@@ -25524,7 +25701,7 @@ const file_observations_proto_rawDesc = "" +
 	"\f_target_fuelB\x0e\n" +
 	"\f_out_of_fuelB\x0e\n" +
 	"\f_broken_downB\x0f\n" +
-	"\r_power_net_id\"\x9e\t\n" +
+	"\r_power_net_id\"\xe4\t\n" +
 	"\rBuildingState\x12B\n" +
 	"\bbuilding\x18\x01 \x01(\v2&.rimgovernor.observations.v1.EntityRefR\bbuilding\x12\x1f\n" +
 	"\brotation\x18\x02 \x01(\tH\x00R\brotation\x88\x01\x01\x12\x19\n" +
@@ -25548,7 +25725,8 @@ const file_observations_proto_rawDesc = "" +
 	"\aburning\x18\x11 \x01(\bH\tR\aburning\x88\x01\x01\x12+\n" +
 	"\x0fuses_hit_points\x18\x12 \x01(\bH\n" +
 	"R\rusesHitPoints\x88\x01\x01\x12>\n" +
-	"\x06issues\x18\x13 \x03(\v2&.rimgovernor.observations.v1.ReadIssueR\x06issuesB\v\n" +
+	"\x06issues\x18\x13 \x03(\v2&.rimgovernor.observations.v1.ReadIssueR\x06issues\x12D\n" +
+	"\bsnapshot\x18\x14 \x01(\v2(.rimgovernor.observations.v1.SnapshotRefR\bsnapshotB\v\n" +
 	"\t_rotationB\b\n" +
 	"\x06_stuffB\r\n" +
 	"\v_faction_idB\t\n" +
@@ -25643,8 +25821,18 @@ const file_observations_proto_rawDesc = "" +
 	"\n" +
 	"\b_displayB\a\n" +
 	"\x05_unitB\a\n" +
-	"\x05_cost\"\xc6\n" +
+	"\x05_cost\"\xa6\x02\n" +
+	"\x11RoomBedMembership\x12F\n" +
+	"\bbuilding\x18\x01 \x01(\v2*.rimgovernor.observations.v1.BuildingStateR\bbuilding\x12>\n" +
+	"\x06owners\x18\x02 \x03(\v2&.rimgovernor.observations.v1.EntityRefR\x06owners\x12<\n" +
+	"\x05users\x18\x03 \x03(\v2&.rimgovernor.observations.v1.EntityRefR\x05users\x12K\n" +
+	"\raccessible_to\x18\x04 \x03(\v2&.rimgovernor.observations.v1.EntityRefR\faccessibleTo\"\xe7\x01\n" +
+	"\x13StockpileMembership\x12\x1c\n" +
+	"\azone_id\x18\x01 \x01(\tH\x00R\x06zoneId\x88\x01\x01\x12F\n" +
+	"\bcontents\x18\x02 \x03(\v2*.rimgovernor.observations.v1.ResourceStockR\bcontents\x12^\n" +
+	"\x15contents_completeness\x18\x03 \x01(\v2).rimgovernor.observations.v1.CompletenessR\x14contentsCompletenessB\n" +
 	"\n" +
+	"\b_zone_id\"\xcc\f\n" +
 	"\tRoomState\x12\x13\n" +
 	"\x02id\x18\x01 \x01(\tH\x00R\x02id\x88\x01\x01\x12\x17\n" +
 	"\x04role\x18\x02 \x01(\tH\x01R\x04role\x88\x01\x01\x12\x19\n" +
@@ -25672,7 +25860,10 @@ const file_observations_proto_rawDesc = "" +
 	"\x12stockpile_zone_ids\x18\x14 \x03(\tR\x10stockpileZoneIds\x12A\n" +
 	"\bcontents\x18\x15 \x03(\v2%.rimgovernor.observations.v1.QuantityR\bcontents\x12^\n" +
 	"\x15contents_completeness\x18\x16 \x01(\v2).rimgovernor.observations.v1.CompletenessR\x14contentsCompleteness\x12>\n" +
-	"\x06issues\x18\x17 \x03(\v2&.rimgovernor.observations.v1.ReadIssueR\x06issuesB\x05\n" +
+	"\x06issues\x18\x17 \x03(\v2&.rimgovernor.observations.v1.ReadIssueR\x06issues\x12D\n" +
+	"\bsnapshot\x18\x18 \x01(\v2(.rimgovernor.observations.v1.SnapshotRefR\bsnapshot\x12W\n" +
+	"\x0fbed_memberships\x18\x19 \x03(\v2..rimgovernor.observations.v1.RoomBedMembershipR\x0ebedMemberships\x12e\n" +
+	"\x15stockpile_memberships\x18\x1a \x03(\v20.rimgovernor.observations.v1.StockpileMembershipR\x14stockpileMembershipsB\x05\n" +
 	"\x03_idB\a\n" +
 	"\x05_roleB\b\n" +
 	"\x06_labelB\x0e\n" +
@@ -27897,7 +28088,7 @@ func file_observations_proto_rawDescGZIP() []byte {
 }
 
 var file_observations_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
-var file_observations_proto_msgTypes = make([]protoimpl.MessageInfo, 267)
+var file_observations_proto_msgTypes = make([]protoimpl.MessageInfo, 269)
 var file_observations_proto_goTypes = []any{
 	(WasteLocation)(0),                   // 0: rimgovernor.observations.v1.WasteLocation
 	(*ReadScope)(nil),                    // 1: rimgovernor.observations.v1.ReadScope
@@ -27965,234 +28156,236 @@ var file_observations_proto_goTypes = []any{
 	(*ListBuildingsRequest)(nil),         // 63: rimgovernor.observations.v1.ListBuildingsRequest
 	(*ListBuildingsReply)(nil),           // 64: rimgovernor.observations.v1.ListBuildingsReply
 	(*RoomStat)(nil),                     // 65: rimgovernor.observations.v1.RoomStat
-	(*RoomState)(nil),                    // 66: rimgovernor.observations.v1.RoomState
-	(*RoomsSnapshot)(nil),                // 67: rimgovernor.observations.v1.RoomsSnapshot
-	(*ListRoomsRequest)(nil),             // 68: rimgovernor.observations.v1.ListRoomsRequest
-	(*ListRoomsReply)(nil),               // 69: rimgovernor.observations.v1.ListRoomsReply
-	(*ZoneAnomaly)(nil),                  // 70: rimgovernor.observations.v1.ZoneAnomaly
-	(*ZoneState)(nil),                    // 71: rimgovernor.observations.v1.ZoneState
-	(*ZonesSnapshot)(nil),                // 72: rimgovernor.observations.v1.ZonesSnapshot
-	(*ListZonesRequest)(nil),             // 73: rimgovernor.observations.v1.ListZonesRequest
-	(*ListZonesReply)(nil),               // 74: rimgovernor.observations.v1.ListZonesReply
-	(*DesignationState)(nil),             // 75: rimgovernor.observations.v1.DesignationState
-	(*CellThing)(nil),                    // 76: rimgovernor.observations.v1.CellThing
-	(*CellState)(nil),                    // 77: rimgovernor.observations.v1.CellState
-	(*CellFields)(nil),                   // 78: rimgovernor.observations.v1.CellFields
-	(*CellsSnapshot)(nil),                // 79: rimgovernor.observations.v1.CellsSnapshot
-	(*GetCellsRequest)(nil),              // 80: rimgovernor.observations.v1.GetCellsRequest
-	(*CellSelection)(nil),                // 81: rimgovernor.observations.v1.CellSelection
-	(*GetCellsReply)(nil),                // 82: rimgovernor.observations.v1.GetCellsReply
-	(*ResearchUnlock)(nil),               // 83: rimgovernor.observations.v1.ResearchUnlock
-	(*ResearchProject)(nil),              // 84: rimgovernor.observations.v1.ResearchProject
-	(*Researcher)(nil),                   // 85: rimgovernor.observations.v1.Researcher
-	(*ResearchFacility)(nil),             // 86: rimgovernor.observations.v1.ResearchFacility
-	(*ResearchBench)(nil),                // 87: rimgovernor.observations.v1.ResearchBench
-	(*ResearchSlot)(nil),                 // 88: rimgovernor.observations.v1.ResearchSlot
-	(*ResearchSnapshot)(nil),             // 89: rimgovernor.observations.v1.ResearchSnapshot
-	(*ResearchRequest)(nil),              // 90: rimgovernor.observations.v1.ResearchRequest
-	(*ResearchReply)(nil),                // 91: rimgovernor.observations.v1.ResearchReply
-	(*AccessTarget)(nil),                 // 92: rimgovernor.observations.v1.AccessTarget
-	(*PawnAccess)(nil),                   // 93: rimgovernor.observations.v1.PawnAccess
-	(*SpatialAccessSnapshot)(nil),        // 94: rimgovernor.observations.v1.SpatialAccessSnapshot
-	(*SpatialAccessRequest)(nil),         // 95: rimgovernor.observations.v1.SpatialAccessRequest
-	(*SpatialAccessReply)(nil),           // 96: rimgovernor.observations.v1.SpatialAccessReply
-	(*RoofSupportCell)(nil),              // 97: rimgovernor.observations.v1.RoofSupportCell
-	(*RoofSupportSnapshot)(nil),          // 98: rimgovernor.observations.v1.RoofSupportSnapshot
-	(*RoofSupportRequest)(nil),           // 99: rimgovernor.observations.v1.RoofSupportRequest
-	(*RoofSupportReply)(nil),             // 100: rimgovernor.observations.v1.RoofSupportReply
-	(*WallMaterialOption)(nil),           // 101: rimgovernor.observations.v1.WallMaterialOption
-	(*WallUpgradeSite)(nil),              // 102: rimgovernor.observations.v1.WallUpgradeSite
-	(*WallUpgradeSnapshot)(nil),          // 103: rimgovernor.observations.v1.WallUpgradeSnapshot
-	(*WallUpgradeSitesRequest)(nil),      // 104: rimgovernor.observations.v1.WallUpgradeSitesRequest
-	(*WallUpgradeSitesReply)(nil),        // 105: rimgovernor.observations.v1.WallUpgradeSitesReply
-	(*ResourceSource)(nil),               // 106: rimgovernor.observations.v1.ResourceSource
-	(*StorageCapacity)(nil),              // 107: rimgovernor.observations.v1.StorageCapacity
-	(*ExtractionWorkType)(nil),           // 108: rimgovernor.observations.v1.ExtractionWorkType
-	(*ExtractionSite)(nil),               // 109: rimgovernor.observations.v1.ExtractionSite
-	(*OwnedDrill)(nil),                   // 110: rimgovernor.observations.v1.OwnedDrill
-	(*DrillObservation)(nil),             // 111: rimgovernor.observations.v1.DrillObservation
-	(*ExtractionDevelopment)(nil),        // 112: rimgovernor.observations.v1.ExtractionDevelopment
-	(*ResourceSourcesSnapshot)(nil),      // 113: rimgovernor.observations.v1.ResourceSourcesSnapshot
-	(*ResourceSourcesRequest)(nil),       // 114: rimgovernor.observations.v1.ResourceSourcesRequest
-	(*ResourceSourcesReply)(nil),         // 115: rimgovernor.observations.v1.ResourceSourcesReply
-	(*HandlerState)(nil),                 // 116: rimgovernor.observations.v1.HandlerState
-	(*HusbandryAnimal)(nil),              // 117: rimgovernor.observations.v1.HusbandryAnimal
-	(*HusbandrySnapshot)(nil),            // 118: rimgovernor.observations.v1.HusbandrySnapshot
-	(*HusbandryRequest)(nil),             // 119: rimgovernor.observations.v1.HusbandryRequest
-	(*HusbandryReply)(nil),               // 120: rimgovernor.observations.v1.HusbandryReply
-	(*WasteItem)(nil),                    // 121: rimgovernor.observations.v1.WasteItem
-	(*WasteSnapshot)(nil),                // 122: rimgovernor.observations.v1.WasteSnapshot
-	(*WasteRequest)(nil),                 // 123: rimgovernor.observations.v1.WasteRequest
-	(*WasteReply)(nil),                   // 124: rimgovernor.observations.v1.WasteReply
-	(*RecoveryRestriction)(nil),          // 125: rimgovernor.observations.v1.RecoveryRestriction
-	(*RecoveryArea)(nil),                 // 126: rimgovernor.observations.v1.RecoveryArea
-	(*RecoverySnapshot)(nil),             // 127: rimgovernor.observations.v1.RecoverySnapshot
-	(*RecoveryRequest)(nil),              // 128: rimgovernor.observations.v1.RecoveryRequest
-	(*RecoveryReply)(nil),                // 129: rimgovernor.observations.v1.RecoveryReply
-	(*PopulationPerson)(nil),             // 130: rimgovernor.observations.v1.PopulationPerson
-	(*PopulationSnapshot)(nil),           // 131: rimgovernor.observations.v1.PopulationSnapshot
-	(*PopulationRequest)(nil),            // 132: rimgovernor.observations.v1.PopulationRequest
-	(*PopulationReply)(nil),              // 133: rimgovernor.observations.v1.PopulationReply
-	(*Settlement)(nil),                   // 134: rimgovernor.observations.v1.Settlement
-	(*WorldTile)(nil),                    // 135: rimgovernor.observations.v1.WorldTile
-	(*WorldSnapshot)(nil),                // 136: rimgovernor.observations.v1.WorldSnapshot
-	(*WorldRequest)(nil),                 // 137: rimgovernor.observations.v1.WorldRequest
-	(*WorldReply)(nil),                   // 138: rimgovernor.observations.v1.WorldReply
-	(*WorldRoute)(nil),                   // 139: rimgovernor.observations.v1.WorldRoute
-	(*CaravanState)(nil),                 // 140: rimgovernor.observations.v1.CaravanState
-	(*QuestTradeRequest)(nil),            // 141: rimgovernor.observations.v1.QuestTradeRequest
-	(*QuestReward)(nil),                  // 142: rimgovernor.observations.v1.QuestReward
-	(*QuestState)(nil),                   // 143: rimgovernor.observations.v1.QuestState
-	(*FactionState)(nil),                 // 144: rimgovernor.observations.v1.FactionState
-	(*WorldMap)(nil),                     // 145: rimgovernor.observations.v1.WorldMap
-	(*CaravanAssembly)(nil),              // 146: rimgovernor.observations.v1.CaravanAssembly
-	(*WorldProgressionSnapshot)(nil),     // 147: rimgovernor.observations.v1.WorldProgressionSnapshot
-	(*WorldProgressionRequest)(nil),      // 148: rimgovernor.observations.v1.WorldProgressionRequest
-	(*WorldProgressionReply)(nil),        // 149: rimgovernor.observations.v1.WorldProgressionReply
-	(*BillsSnapshot)(nil),                // 150: rimgovernor.observations.v1.BillsSnapshot
-	(*BillsRequest)(nil),                 // 151: rimgovernor.observations.v1.BillsRequest
-	(*BillsReply)(nil),                   // 152: rimgovernor.observations.v1.BillsReply
-	(*RecipesSnapshot)(nil),              // 153: rimgovernor.observations.v1.RecipesSnapshot
-	(*RecipesRequest)(nil),               // 154: rimgovernor.observations.v1.RecipesRequest
-	(*RecipesReply)(nil),                 // 155: rimgovernor.observations.v1.RecipesReply
-	(*BuildingSettingsRequest)(nil),      // 156: rimgovernor.observations.v1.BuildingSettingsRequest
-	(*BuildingSettingsReply)(nil),        // 157: rimgovernor.observations.v1.BuildingSettingsReply
-	(*PawnSettingsRequest)(nil),          // 158: rimgovernor.observations.v1.PawnSettingsRequest
-	(*PawnSettingsReply)(nil),            // 159: rimgovernor.observations.v1.PawnSettingsReply
-	(*ResolveTargetSnapshot)(nil),        // 160: rimgovernor.observations.v1.ResolveTargetSnapshot
-	(*ResolveTargetRequest)(nil),         // 161: rimgovernor.observations.v1.ResolveTargetRequest
-	(*ResolveTargetReply)(nil),           // 162: rimgovernor.observations.v1.ResolveTargetReply
-	(*PackedFurnitureState)(nil),         // 163: rimgovernor.observations.v1.PackedFurnitureState
-	(*InstallStatusRequest)(nil),         // 164: rimgovernor.observations.v1.InstallStatusRequest
-	(*InstallStatusReply)(nil),           // 165: rimgovernor.observations.v1.InstallStatusReply
-	(*GearCandidate)(nil),                // 166: rimgovernor.observations.v1.GearCandidate
-	(*GearReplacementNeed)(nil),          // 167: rimgovernor.observations.v1.GearReplacementNeed
-	(*GearLoadout)(nil),                  // 168: rimgovernor.observations.v1.GearLoadout
-	(*GearSnapshot)(nil),                 // 169: rimgovernor.observations.v1.GearSnapshot
-	(*GearRequest)(nil),                  // 170: rimgovernor.observations.v1.GearRequest
-	(*GearReply)(nil),                    // 171: rimgovernor.observations.v1.GearReply
-	(*MedicalRecipe)(nil),                // 172: rimgovernor.observations.v1.MedicalRecipe
-	(*MedicalCatalog)(nil),               // 173: rimgovernor.observations.v1.MedicalCatalog
-	(*MedicalCatalogRequest)(nil),        // 174: rimgovernor.observations.v1.MedicalCatalogRequest
-	(*MedicalCatalogReply)(nil),          // 175: rimgovernor.observations.v1.MedicalCatalogReply
-	(*Trader)(nil),                       // 176: rimgovernor.observations.v1.Trader
-	(*TradersSnapshot)(nil),              // 177: rimgovernor.observations.v1.TradersSnapshot
-	(*TradersRequest)(nil),               // 178: rimgovernor.observations.v1.TradersRequest
-	(*TradersReply)(nil),                 // 179: rimgovernor.observations.v1.TradersReply
-	(*TradeLine)(nil),                    // 180: rimgovernor.observations.v1.TradeLine
-	(*TradeSheet)(nil),                   // 181: rimgovernor.observations.v1.TradeSheet
-	(*TradeSheetRequest)(nil),            // 182: rimgovernor.observations.v1.TradeSheetRequest
-	(*TradeSheetReply)(nil),              // 183: rimgovernor.observations.v1.TradeSheetReply
-	(*TradeStatus)(nil),                  // 184: rimgovernor.observations.v1.TradeStatus
-	(*TradeStatusRequest)(nil),           // 185: rimgovernor.observations.v1.TradeStatusRequest
-	(*TradeStatusReply)(nil),             // 186: rimgovernor.observations.v1.TradeStatusReply
-	(*CaravanPawnEligibility)(nil),       // 187: rimgovernor.observations.v1.CaravanPawnEligibility
-	(*CargoGroup)(nil),                   // 188: rimgovernor.observations.v1.CargoGroup
-	(*CaravanCatalog)(nil),               // 189: rimgovernor.observations.v1.CaravanCatalog
-	(*CaravanCatalogRequest)(nil),        // 190: rimgovernor.observations.v1.CaravanCatalogRequest
-	(*CaravanCatalogReply)(nil),          // 191: rimgovernor.observations.v1.CaravanCatalogReply
-	(*FoodConsumer)(nil),                 // 192: rimgovernor.observations.v1.FoodConsumer
-	(*FoodStock)(nil),                    // 193: rimgovernor.observations.v1.FoodStock
-	(*FoodSupplyFacts)(nil),              // 194: rimgovernor.observations.v1.FoodSupplyFacts
-	(*CropForecast)(nil),                 // 195: rimgovernor.observations.v1.CropForecast
-	(*PatientForecast)(nil),              // 196: rimgovernor.observations.v1.PatientForecast
-	(*ForecastFacts)(nil),                // 197: rimgovernor.observations.v1.ForecastFacts
-	(*ComfortSurface)(nil),               // 198: rimgovernor.observations.v1.ComfortSurface
-	(*ComfortFacility)(nil),              // 199: rimgovernor.observations.v1.ComfortFacility
-	(*ComfortFacts)(nil),                 // 200: rimgovernor.observations.v1.ComfortFacts
-	(*UpkeepItem)(nil),                   // 201: rimgovernor.observations.v1.UpkeepItem
-	(*UpkeepBed)(nil),                    // 202: rimgovernor.observations.v1.UpkeepBed
-	(*StorageCell)(nil),                  // 203: rimgovernor.observations.v1.StorageCell
-	(*ItemStorageCapacity)(nil),          // 204: rimgovernor.observations.v1.ItemStorageCapacity
-	(*UpkeepStructure)(nil),              // 205: rimgovernor.observations.v1.UpkeepStructure
-	(*FireState)(nil),                    // 206: rimgovernor.observations.v1.FireState
-	(*FilthState)(nil),                   // 207: rimgovernor.observations.v1.FilthState
-	(*ProtectedCell)(nil),                // 208: rimgovernor.observations.v1.ProtectedCell
-	(*UpkeepPerson)(nil),                 // 209: rimgovernor.observations.v1.UpkeepPerson
-	(*FeedDefinition)(nil),               // 210: rimgovernor.observations.v1.FeedDefinition
-	(*AnimalFeed)(nil),                   // 211: rimgovernor.observations.v1.AnimalFeed
-	(*DevelopmentPower)(nil),             // 212: rimgovernor.observations.v1.DevelopmentPower
-	(*DevelopmentFurniture)(nil),         // 213: rimgovernor.observations.v1.DevelopmentFurniture
-	(*DevelopmentFacts)(nil),             // 214: rimgovernor.observations.v1.DevelopmentFacts
-	(*EnvironmentCondition)(nil),         // 215: rimgovernor.observations.v1.EnvironmentCondition
-	(*FoodClimate)(nil),                  // 216: rimgovernor.observations.v1.FoodClimate
-	(*FarmFacts)(nil),                    // 217: rimgovernor.observations.v1.FarmFacts
-	(*PlanningDefinition)(nil),           // 218: rimgovernor.observations.v1.PlanningDefinition
-	(*PlanningFacts)(nil),                // 219: rimgovernor.observations.v1.PlanningFacts
-	(*FoodProduct)(nil),                  // 220: rimgovernor.observations.v1.FoodProduct
-	(*FoodProduction)(nil),               // 221: rimgovernor.observations.v1.FoodProduction
-	(*CookingFacts)(nil),                 // 222: rimgovernor.observations.v1.CookingFacts
-	(*AcquisitionFacts)(nil),             // 223: rimgovernor.observations.v1.AcquisitionFacts
-	(*ButcheringFacts)(nil),              // 224: rimgovernor.observations.v1.ButcheringFacts
-	(*FoodCorpse)(nil),                   // 225: rimgovernor.observations.v1.FoodCorpse
-	(*ColonyNaming)(nil),                 // 226: rimgovernor.observations.v1.ColonyNaming
-	(*ConstructionFacts)(nil),            // 227: rimgovernor.observations.v1.ConstructionFacts
-	(*ConstructionSection)(nil),          // 228: rimgovernor.observations.v1.ConstructionSection
-	(*ComfortSection)(nil),               // 229: rimgovernor.observations.v1.ComfortSection
-	(*FoodSupplySection)(nil),            // 230: rimgovernor.observations.v1.FoodSupplySection
-	(*ForecastSection)(nil),              // 231: rimgovernor.observations.v1.ForecastSection
-	(*DevelopmentSection)(nil),           // 232: rimgovernor.observations.v1.DevelopmentSection
-	(*PlanningSection)(nil),              // 233: rimgovernor.observations.v1.PlanningSection
-	(*HaulPortion)(nil),                  // 234: rimgovernor.observations.v1.HaulPortion
-	(*HaulRecord)(nil),                   // 235: rimgovernor.observations.v1.HaulRecord
-	(*HaulingFacts)(nil),                 // 236: rimgovernor.observations.v1.HaulingFacts
-	(*HaulingSection)(nil),               // 237: rimgovernor.observations.v1.HaulingSection
-	(*WallRemovalRecord)(nil),            // 238: rimgovernor.observations.v1.WallRemovalRecord
-	(*WallRemovalFacts)(nil),             // 239: rimgovernor.observations.v1.WallRemovalFacts
-	(*WallRemovalSection)(nil),           // 240: rimgovernor.observations.v1.WallRemovalSection
-	(*HomeCoverageTarget)(nil),           // 241: rimgovernor.observations.v1.HomeCoverageTarget
-	(*HomeCoverageFacts)(nil),            // 242: rimgovernor.observations.v1.HomeCoverageFacts
-	(*HomeCoverageSection)(nil),          // 243: rimgovernor.observations.v1.HomeCoverageSection
-	(*UpkeepFacts)(nil),                  // 244: rimgovernor.observations.v1.UpkeepFacts
-	(*UpkeepSection)(nil),                // 245: rimgovernor.observations.v1.UpkeepSection
-	(*ColonyFactsSnapshot)(nil),          // 246: rimgovernor.observations.v1.ColonyFactsSnapshot
-	(*ColonyFactsRequest)(nil),           // 247: rimgovernor.observations.v1.ColonyFactsRequest
-	(*ColonyFactsReply)(nil),             // 248: rimgovernor.observations.v1.ColonyFactsReply
-	(*ThreatPawn)(nil),                   // 249: rimgovernor.observations.v1.ThreatPawn
-	(*ThreatsSnapshot)(nil),              // 250: rimgovernor.observations.v1.ThreatsSnapshot
-	(*StatusSnapshot)(nil),               // 251: rimgovernor.observations.v1.StatusSnapshot
-	(*StatusRequest)(nil),                // 252: rimgovernor.observations.v1.StatusRequest
-	(*StatusReply)(nil),                  // 253: rimgovernor.observations.v1.StatusReply
-	(*ObservationBatchSnapshot)(nil),     // 254: rimgovernor.observations.v1.ObservationBatchSnapshot
-	(*ObservationBatchRequest)(nil),      // 255: rimgovernor.observations.v1.ObservationBatchRequest
-	(*ObservationBatchReply)(nil),        // 256: rimgovernor.observations.v1.ObservationBatchReply
-	(*ProductionPolicySnapshot)(nil),     // 257: rimgovernor.observations.v1.ProductionPolicySnapshot
-	(*ProductionPolicyRequest)(nil),      // 258: rimgovernor.observations.v1.ProductionPolicyRequest
-	(*ProductionPolicyReply)(nil),        // 259: rimgovernor.observations.v1.ProductionPolicyReply
-	(*ArchitectCategory)(nil),            // 260: rimgovernor.observations.v1.ArchitectCategory
-	(*ArchitectDesignator)(nil),          // 261: rimgovernor.observations.v1.ArchitectDesignator
-	(*ArchitectCategoriesSnapshot)(nil),  // 262: rimgovernor.observations.v1.ArchitectCategoriesSnapshot
-	(*ArchitectCategoriesRequest)(nil),   // 263: rimgovernor.observations.v1.ArchitectCategoriesRequest
-	(*ArchitectCategoriesReply)(nil),     // 264: rimgovernor.observations.v1.ArchitectCategoriesReply
-	(*ArchitectDesignatorsSnapshot)(nil), // 265: rimgovernor.observations.v1.ArchitectDesignatorsSnapshot
-	(*ArchitectDesignatorsRequest)(nil),  // 266: rimgovernor.observations.v1.ArchitectDesignatorsRequest
-	(*ArchitectDesignatorsReply)(nil),    // 267: rimgovernor.observations.v1.ArchitectDesignatorsReply
-	(*commonpb.Identity)(nil),            // 268: rimgovernor.common.v1.Identity
-	(*commonpb.ObservationContext)(nil),  // 269: rimgovernor.common.v1.ObservationContext
-	(*commonpb.PageInfo)(nil),            // 270: rimgovernor.common.v1.PageInfo
-	(*commonpb.Unavailable)(nil),         // 271: rimgovernor.common.v1.Unavailable
-	(*commonpb.Cell)(nil),                // 272: rimgovernor.common.v1.Cell
-	(*authoritypb.Owner)(nil),            // 273: rimgovernor.authority.v1.Owner
-	(*commonpb.PageRequest)(nil),         // 274: rimgovernor.common.v1.PageRequest
-	(*commonpb.Failure)(nil),             // 275: rimgovernor.common.v1.Failure
+	(*RoomBedMembership)(nil),            // 66: rimgovernor.observations.v1.RoomBedMembership
+	(*StockpileMembership)(nil),          // 67: rimgovernor.observations.v1.StockpileMembership
+	(*RoomState)(nil),                    // 68: rimgovernor.observations.v1.RoomState
+	(*RoomsSnapshot)(nil),                // 69: rimgovernor.observations.v1.RoomsSnapshot
+	(*ListRoomsRequest)(nil),             // 70: rimgovernor.observations.v1.ListRoomsRequest
+	(*ListRoomsReply)(nil),               // 71: rimgovernor.observations.v1.ListRoomsReply
+	(*ZoneAnomaly)(nil),                  // 72: rimgovernor.observations.v1.ZoneAnomaly
+	(*ZoneState)(nil),                    // 73: rimgovernor.observations.v1.ZoneState
+	(*ZonesSnapshot)(nil),                // 74: rimgovernor.observations.v1.ZonesSnapshot
+	(*ListZonesRequest)(nil),             // 75: rimgovernor.observations.v1.ListZonesRequest
+	(*ListZonesReply)(nil),               // 76: rimgovernor.observations.v1.ListZonesReply
+	(*DesignationState)(nil),             // 77: rimgovernor.observations.v1.DesignationState
+	(*CellThing)(nil),                    // 78: rimgovernor.observations.v1.CellThing
+	(*CellState)(nil),                    // 79: rimgovernor.observations.v1.CellState
+	(*CellFields)(nil),                   // 80: rimgovernor.observations.v1.CellFields
+	(*CellsSnapshot)(nil),                // 81: rimgovernor.observations.v1.CellsSnapshot
+	(*GetCellsRequest)(nil),              // 82: rimgovernor.observations.v1.GetCellsRequest
+	(*CellSelection)(nil),                // 83: rimgovernor.observations.v1.CellSelection
+	(*GetCellsReply)(nil),                // 84: rimgovernor.observations.v1.GetCellsReply
+	(*ResearchUnlock)(nil),               // 85: rimgovernor.observations.v1.ResearchUnlock
+	(*ResearchProject)(nil),              // 86: rimgovernor.observations.v1.ResearchProject
+	(*Researcher)(nil),                   // 87: rimgovernor.observations.v1.Researcher
+	(*ResearchFacility)(nil),             // 88: rimgovernor.observations.v1.ResearchFacility
+	(*ResearchBench)(nil),                // 89: rimgovernor.observations.v1.ResearchBench
+	(*ResearchSlot)(nil),                 // 90: rimgovernor.observations.v1.ResearchSlot
+	(*ResearchSnapshot)(nil),             // 91: rimgovernor.observations.v1.ResearchSnapshot
+	(*ResearchRequest)(nil),              // 92: rimgovernor.observations.v1.ResearchRequest
+	(*ResearchReply)(nil),                // 93: rimgovernor.observations.v1.ResearchReply
+	(*AccessTarget)(nil),                 // 94: rimgovernor.observations.v1.AccessTarget
+	(*PawnAccess)(nil),                   // 95: rimgovernor.observations.v1.PawnAccess
+	(*SpatialAccessSnapshot)(nil),        // 96: rimgovernor.observations.v1.SpatialAccessSnapshot
+	(*SpatialAccessRequest)(nil),         // 97: rimgovernor.observations.v1.SpatialAccessRequest
+	(*SpatialAccessReply)(nil),           // 98: rimgovernor.observations.v1.SpatialAccessReply
+	(*RoofSupportCell)(nil),              // 99: rimgovernor.observations.v1.RoofSupportCell
+	(*RoofSupportSnapshot)(nil),          // 100: rimgovernor.observations.v1.RoofSupportSnapshot
+	(*RoofSupportRequest)(nil),           // 101: rimgovernor.observations.v1.RoofSupportRequest
+	(*RoofSupportReply)(nil),             // 102: rimgovernor.observations.v1.RoofSupportReply
+	(*WallMaterialOption)(nil),           // 103: rimgovernor.observations.v1.WallMaterialOption
+	(*WallUpgradeSite)(nil),              // 104: rimgovernor.observations.v1.WallUpgradeSite
+	(*WallUpgradeSnapshot)(nil),          // 105: rimgovernor.observations.v1.WallUpgradeSnapshot
+	(*WallUpgradeSitesRequest)(nil),      // 106: rimgovernor.observations.v1.WallUpgradeSitesRequest
+	(*WallUpgradeSitesReply)(nil),        // 107: rimgovernor.observations.v1.WallUpgradeSitesReply
+	(*ResourceSource)(nil),               // 108: rimgovernor.observations.v1.ResourceSource
+	(*StorageCapacity)(nil),              // 109: rimgovernor.observations.v1.StorageCapacity
+	(*ExtractionWorkType)(nil),           // 110: rimgovernor.observations.v1.ExtractionWorkType
+	(*ExtractionSite)(nil),               // 111: rimgovernor.observations.v1.ExtractionSite
+	(*OwnedDrill)(nil),                   // 112: rimgovernor.observations.v1.OwnedDrill
+	(*DrillObservation)(nil),             // 113: rimgovernor.observations.v1.DrillObservation
+	(*ExtractionDevelopment)(nil),        // 114: rimgovernor.observations.v1.ExtractionDevelopment
+	(*ResourceSourcesSnapshot)(nil),      // 115: rimgovernor.observations.v1.ResourceSourcesSnapshot
+	(*ResourceSourcesRequest)(nil),       // 116: rimgovernor.observations.v1.ResourceSourcesRequest
+	(*ResourceSourcesReply)(nil),         // 117: rimgovernor.observations.v1.ResourceSourcesReply
+	(*HandlerState)(nil),                 // 118: rimgovernor.observations.v1.HandlerState
+	(*HusbandryAnimal)(nil),              // 119: rimgovernor.observations.v1.HusbandryAnimal
+	(*HusbandrySnapshot)(nil),            // 120: rimgovernor.observations.v1.HusbandrySnapshot
+	(*HusbandryRequest)(nil),             // 121: rimgovernor.observations.v1.HusbandryRequest
+	(*HusbandryReply)(nil),               // 122: rimgovernor.observations.v1.HusbandryReply
+	(*WasteItem)(nil),                    // 123: rimgovernor.observations.v1.WasteItem
+	(*WasteSnapshot)(nil),                // 124: rimgovernor.observations.v1.WasteSnapshot
+	(*WasteRequest)(nil),                 // 125: rimgovernor.observations.v1.WasteRequest
+	(*WasteReply)(nil),                   // 126: rimgovernor.observations.v1.WasteReply
+	(*RecoveryRestriction)(nil),          // 127: rimgovernor.observations.v1.RecoveryRestriction
+	(*RecoveryArea)(nil),                 // 128: rimgovernor.observations.v1.RecoveryArea
+	(*RecoverySnapshot)(nil),             // 129: rimgovernor.observations.v1.RecoverySnapshot
+	(*RecoveryRequest)(nil),              // 130: rimgovernor.observations.v1.RecoveryRequest
+	(*RecoveryReply)(nil),                // 131: rimgovernor.observations.v1.RecoveryReply
+	(*PopulationPerson)(nil),             // 132: rimgovernor.observations.v1.PopulationPerson
+	(*PopulationSnapshot)(nil),           // 133: rimgovernor.observations.v1.PopulationSnapshot
+	(*PopulationRequest)(nil),            // 134: rimgovernor.observations.v1.PopulationRequest
+	(*PopulationReply)(nil),              // 135: rimgovernor.observations.v1.PopulationReply
+	(*Settlement)(nil),                   // 136: rimgovernor.observations.v1.Settlement
+	(*WorldTile)(nil),                    // 137: rimgovernor.observations.v1.WorldTile
+	(*WorldSnapshot)(nil),                // 138: rimgovernor.observations.v1.WorldSnapshot
+	(*WorldRequest)(nil),                 // 139: rimgovernor.observations.v1.WorldRequest
+	(*WorldReply)(nil),                   // 140: rimgovernor.observations.v1.WorldReply
+	(*WorldRoute)(nil),                   // 141: rimgovernor.observations.v1.WorldRoute
+	(*CaravanState)(nil),                 // 142: rimgovernor.observations.v1.CaravanState
+	(*QuestTradeRequest)(nil),            // 143: rimgovernor.observations.v1.QuestTradeRequest
+	(*QuestReward)(nil),                  // 144: rimgovernor.observations.v1.QuestReward
+	(*QuestState)(nil),                   // 145: rimgovernor.observations.v1.QuestState
+	(*FactionState)(nil),                 // 146: rimgovernor.observations.v1.FactionState
+	(*WorldMap)(nil),                     // 147: rimgovernor.observations.v1.WorldMap
+	(*CaravanAssembly)(nil),              // 148: rimgovernor.observations.v1.CaravanAssembly
+	(*WorldProgressionSnapshot)(nil),     // 149: rimgovernor.observations.v1.WorldProgressionSnapshot
+	(*WorldProgressionRequest)(nil),      // 150: rimgovernor.observations.v1.WorldProgressionRequest
+	(*WorldProgressionReply)(nil),        // 151: rimgovernor.observations.v1.WorldProgressionReply
+	(*BillsSnapshot)(nil),                // 152: rimgovernor.observations.v1.BillsSnapshot
+	(*BillsRequest)(nil),                 // 153: rimgovernor.observations.v1.BillsRequest
+	(*BillsReply)(nil),                   // 154: rimgovernor.observations.v1.BillsReply
+	(*RecipesSnapshot)(nil),              // 155: rimgovernor.observations.v1.RecipesSnapshot
+	(*RecipesRequest)(nil),               // 156: rimgovernor.observations.v1.RecipesRequest
+	(*RecipesReply)(nil),                 // 157: rimgovernor.observations.v1.RecipesReply
+	(*BuildingSettingsRequest)(nil),      // 158: rimgovernor.observations.v1.BuildingSettingsRequest
+	(*BuildingSettingsReply)(nil),        // 159: rimgovernor.observations.v1.BuildingSettingsReply
+	(*PawnSettingsRequest)(nil),          // 160: rimgovernor.observations.v1.PawnSettingsRequest
+	(*PawnSettingsReply)(nil),            // 161: rimgovernor.observations.v1.PawnSettingsReply
+	(*ResolveTargetSnapshot)(nil),        // 162: rimgovernor.observations.v1.ResolveTargetSnapshot
+	(*ResolveTargetRequest)(nil),         // 163: rimgovernor.observations.v1.ResolveTargetRequest
+	(*ResolveTargetReply)(nil),           // 164: rimgovernor.observations.v1.ResolveTargetReply
+	(*PackedFurnitureState)(nil),         // 165: rimgovernor.observations.v1.PackedFurnitureState
+	(*InstallStatusRequest)(nil),         // 166: rimgovernor.observations.v1.InstallStatusRequest
+	(*InstallStatusReply)(nil),           // 167: rimgovernor.observations.v1.InstallStatusReply
+	(*GearCandidate)(nil),                // 168: rimgovernor.observations.v1.GearCandidate
+	(*GearReplacementNeed)(nil),          // 169: rimgovernor.observations.v1.GearReplacementNeed
+	(*GearLoadout)(nil),                  // 170: rimgovernor.observations.v1.GearLoadout
+	(*GearSnapshot)(nil),                 // 171: rimgovernor.observations.v1.GearSnapshot
+	(*GearRequest)(nil),                  // 172: rimgovernor.observations.v1.GearRequest
+	(*GearReply)(nil),                    // 173: rimgovernor.observations.v1.GearReply
+	(*MedicalRecipe)(nil),                // 174: rimgovernor.observations.v1.MedicalRecipe
+	(*MedicalCatalog)(nil),               // 175: rimgovernor.observations.v1.MedicalCatalog
+	(*MedicalCatalogRequest)(nil),        // 176: rimgovernor.observations.v1.MedicalCatalogRequest
+	(*MedicalCatalogReply)(nil),          // 177: rimgovernor.observations.v1.MedicalCatalogReply
+	(*Trader)(nil),                       // 178: rimgovernor.observations.v1.Trader
+	(*TradersSnapshot)(nil),              // 179: rimgovernor.observations.v1.TradersSnapshot
+	(*TradersRequest)(nil),               // 180: rimgovernor.observations.v1.TradersRequest
+	(*TradersReply)(nil),                 // 181: rimgovernor.observations.v1.TradersReply
+	(*TradeLine)(nil),                    // 182: rimgovernor.observations.v1.TradeLine
+	(*TradeSheet)(nil),                   // 183: rimgovernor.observations.v1.TradeSheet
+	(*TradeSheetRequest)(nil),            // 184: rimgovernor.observations.v1.TradeSheetRequest
+	(*TradeSheetReply)(nil),              // 185: rimgovernor.observations.v1.TradeSheetReply
+	(*TradeStatus)(nil),                  // 186: rimgovernor.observations.v1.TradeStatus
+	(*TradeStatusRequest)(nil),           // 187: rimgovernor.observations.v1.TradeStatusRequest
+	(*TradeStatusReply)(nil),             // 188: rimgovernor.observations.v1.TradeStatusReply
+	(*CaravanPawnEligibility)(nil),       // 189: rimgovernor.observations.v1.CaravanPawnEligibility
+	(*CargoGroup)(nil),                   // 190: rimgovernor.observations.v1.CargoGroup
+	(*CaravanCatalog)(nil),               // 191: rimgovernor.observations.v1.CaravanCatalog
+	(*CaravanCatalogRequest)(nil),        // 192: rimgovernor.observations.v1.CaravanCatalogRequest
+	(*CaravanCatalogReply)(nil),          // 193: rimgovernor.observations.v1.CaravanCatalogReply
+	(*FoodConsumer)(nil),                 // 194: rimgovernor.observations.v1.FoodConsumer
+	(*FoodStock)(nil),                    // 195: rimgovernor.observations.v1.FoodStock
+	(*FoodSupplyFacts)(nil),              // 196: rimgovernor.observations.v1.FoodSupplyFacts
+	(*CropForecast)(nil),                 // 197: rimgovernor.observations.v1.CropForecast
+	(*PatientForecast)(nil),              // 198: rimgovernor.observations.v1.PatientForecast
+	(*ForecastFacts)(nil),                // 199: rimgovernor.observations.v1.ForecastFacts
+	(*ComfortSurface)(nil),               // 200: rimgovernor.observations.v1.ComfortSurface
+	(*ComfortFacility)(nil),              // 201: rimgovernor.observations.v1.ComfortFacility
+	(*ComfortFacts)(nil),                 // 202: rimgovernor.observations.v1.ComfortFacts
+	(*UpkeepItem)(nil),                   // 203: rimgovernor.observations.v1.UpkeepItem
+	(*UpkeepBed)(nil),                    // 204: rimgovernor.observations.v1.UpkeepBed
+	(*StorageCell)(nil),                  // 205: rimgovernor.observations.v1.StorageCell
+	(*ItemStorageCapacity)(nil),          // 206: rimgovernor.observations.v1.ItemStorageCapacity
+	(*UpkeepStructure)(nil),              // 207: rimgovernor.observations.v1.UpkeepStructure
+	(*FireState)(nil),                    // 208: rimgovernor.observations.v1.FireState
+	(*FilthState)(nil),                   // 209: rimgovernor.observations.v1.FilthState
+	(*ProtectedCell)(nil),                // 210: rimgovernor.observations.v1.ProtectedCell
+	(*UpkeepPerson)(nil),                 // 211: rimgovernor.observations.v1.UpkeepPerson
+	(*FeedDefinition)(nil),               // 212: rimgovernor.observations.v1.FeedDefinition
+	(*AnimalFeed)(nil),                   // 213: rimgovernor.observations.v1.AnimalFeed
+	(*DevelopmentPower)(nil),             // 214: rimgovernor.observations.v1.DevelopmentPower
+	(*DevelopmentFurniture)(nil),         // 215: rimgovernor.observations.v1.DevelopmentFurniture
+	(*DevelopmentFacts)(nil),             // 216: rimgovernor.observations.v1.DevelopmentFacts
+	(*EnvironmentCondition)(nil),         // 217: rimgovernor.observations.v1.EnvironmentCondition
+	(*FoodClimate)(nil),                  // 218: rimgovernor.observations.v1.FoodClimate
+	(*FarmFacts)(nil),                    // 219: rimgovernor.observations.v1.FarmFacts
+	(*PlanningDefinition)(nil),           // 220: rimgovernor.observations.v1.PlanningDefinition
+	(*PlanningFacts)(nil),                // 221: rimgovernor.observations.v1.PlanningFacts
+	(*FoodProduct)(nil),                  // 222: rimgovernor.observations.v1.FoodProduct
+	(*FoodProduction)(nil),               // 223: rimgovernor.observations.v1.FoodProduction
+	(*CookingFacts)(nil),                 // 224: rimgovernor.observations.v1.CookingFacts
+	(*AcquisitionFacts)(nil),             // 225: rimgovernor.observations.v1.AcquisitionFacts
+	(*ButcheringFacts)(nil),              // 226: rimgovernor.observations.v1.ButcheringFacts
+	(*FoodCorpse)(nil),                   // 227: rimgovernor.observations.v1.FoodCorpse
+	(*ColonyNaming)(nil),                 // 228: rimgovernor.observations.v1.ColonyNaming
+	(*ConstructionFacts)(nil),            // 229: rimgovernor.observations.v1.ConstructionFacts
+	(*ConstructionSection)(nil),          // 230: rimgovernor.observations.v1.ConstructionSection
+	(*ComfortSection)(nil),               // 231: rimgovernor.observations.v1.ComfortSection
+	(*FoodSupplySection)(nil),            // 232: rimgovernor.observations.v1.FoodSupplySection
+	(*ForecastSection)(nil),              // 233: rimgovernor.observations.v1.ForecastSection
+	(*DevelopmentSection)(nil),           // 234: rimgovernor.observations.v1.DevelopmentSection
+	(*PlanningSection)(nil),              // 235: rimgovernor.observations.v1.PlanningSection
+	(*HaulPortion)(nil),                  // 236: rimgovernor.observations.v1.HaulPortion
+	(*HaulRecord)(nil),                   // 237: rimgovernor.observations.v1.HaulRecord
+	(*HaulingFacts)(nil),                 // 238: rimgovernor.observations.v1.HaulingFacts
+	(*HaulingSection)(nil),               // 239: rimgovernor.observations.v1.HaulingSection
+	(*WallRemovalRecord)(nil),            // 240: rimgovernor.observations.v1.WallRemovalRecord
+	(*WallRemovalFacts)(nil),             // 241: rimgovernor.observations.v1.WallRemovalFacts
+	(*WallRemovalSection)(nil),           // 242: rimgovernor.observations.v1.WallRemovalSection
+	(*HomeCoverageTarget)(nil),           // 243: rimgovernor.observations.v1.HomeCoverageTarget
+	(*HomeCoverageFacts)(nil),            // 244: rimgovernor.observations.v1.HomeCoverageFacts
+	(*HomeCoverageSection)(nil),          // 245: rimgovernor.observations.v1.HomeCoverageSection
+	(*UpkeepFacts)(nil),                  // 246: rimgovernor.observations.v1.UpkeepFacts
+	(*UpkeepSection)(nil),                // 247: rimgovernor.observations.v1.UpkeepSection
+	(*ColonyFactsSnapshot)(nil),          // 248: rimgovernor.observations.v1.ColonyFactsSnapshot
+	(*ColonyFactsRequest)(nil),           // 249: rimgovernor.observations.v1.ColonyFactsRequest
+	(*ColonyFactsReply)(nil),             // 250: rimgovernor.observations.v1.ColonyFactsReply
+	(*ThreatPawn)(nil),                   // 251: rimgovernor.observations.v1.ThreatPawn
+	(*ThreatsSnapshot)(nil),              // 252: rimgovernor.observations.v1.ThreatsSnapshot
+	(*StatusSnapshot)(nil),               // 253: rimgovernor.observations.v1.StatusSnapshot
+	(*StatusRequest)(nil),                // 254: rimgovernor.observations.v1.StatusRequest
+	(*StatusReply)(nil),                  // 255: rimgovernor.observations.v1.StatusReply
+	(*ObservationBatchSnapshot)(nil),     // 256: rimgovernor.observations.v1.ObservationBatchSnapshot
+	(*ObservationBatchRequest)(nil),      // 257: rimgovernor.observations.v1.ObservationBatchRequest
+	(*ObservationBatchReply)(nil),        // 258: rimgovernor.observations.v1.ObservationBatchReply
+	(*ProductionPolicySnapshot)(nil),     // 259: rimgovernor.observations.v1.ProductionPolicySnapshot
+	(*ProductionPolicyRequest)(nil),      // 260: rimgovernor.observations.v1.ProductionPolicyRequest
+	(*ProductionPolicyReply)(nil),        // 261: rimgovernor.observations.v1.ProductionPolicyReply
+	(*ArchitectCategory)(nil),            // 262: rimgovernor.observations.v1.ArchitectCategory
+	(*ArchitectDesignator)(nil),          // 263: rimgovernor.observations.v1.ArchitectDesignator
+	(*ArchitectCategoriesSnapshot)(nil),  // 264: rimgovernor.observations.v1.ArchitectCategoriesSnapshot
+	(*ArchitectCategoriesRequest)(nil),   // 265: rimgovernor.observations.v1.ArchitectCategoriesRequest
+	(*ArchitectCategoriesReply)(nil),     // 266: rimgovernor.observations.v1.ArchitectCategoriesReply
+	(*ArchitectDesignatorsSnapshot)(nil), // 267: rimgovernor.observations.v1.ArchitectDesignatorsSnapshot
+	(*ArchitectDesignatorsRequest)(nil),  // 268: rimgovernor.observations.v1.ArchitectDesignatorsRequest
+	(*ArchitectDesignatorsReply)(nil),    // 269: rimgovernor.observations.v1.ArchitectDesignatorsReply
+	(*commonpb.Identity)(nil),            // 270: rimgovernor.common.v1.Identity
+	(*commonpb.ObservationContext)(nil),  // 271: rimgovernor.common.v1.ObservationContext
+	(*commonpb.PageInfo)(nil),            // 272: rimgovernor.common.v1.PageInfo
+	(*commonpb.Unavailable)(nil),         // 273: rimgovernor.common.v1.Unavailable
+	(*commonpb.Cell)(nil),                // 274: rimgovernor.common.v1.Cell
+	(*authoritypb.Owner)(nil),            // 275: rimgovernor.authority.v1.Owner
+	(*commonpb.PageRequest)(nil),         // 276: rimgovernor.common.v1.PageRequest
+	(*commonpb.Failure)(nil),             // 277: rimgovernor.common.v1.Failure
 }
 var file_observations_proto_depIdxs = []int32{
-	268, // 0: rimgovernor.observations.v1.ReadScope.expected_identity:type_name -> rimgovernor.common.v1.Identity
-	269, // 1: rimgovernor.observations.v1.SnapshotRef.context:type_name -> rimgovernor.common.v1.ObservationContext
-	270, // 2: rimgovernor.observations.v1.Completeness.page:type_name -> rimgovernor.common.v1.PageInfo
-	271, // 3: rimgovernor.observations.v1.ReadIssue.unavailable:type_name -> rimgovernor.common.v1.Unavailable
-	272, // 4: rimgovernor.observations.v1.Rectangle.minimum:type_name -> rimgovernor.common.v1.Cell
-	272, // 5: rimgovernor.observations.v1.Rectangle.maximum:type_name -> rimgovernor.common.v1.Cell
-	272, // 6: rimgovernor.observations.v1.EntityRef.position:type_name -> rimgovernor.common.v1.Cell
+	270, // 0: rimgovernor.observations.v1.ReadScope.expected_identity:type_name -> rimgovernor.common.v1.Identity
+	271, // 1: rimgovernor.observations.v1.SnapshotRef.context:type_name -> rimgovernor.common.v1.ObservationContext
+	272, // 2: rimgovernor.observations.v1.Completeness.page:type_name -> rimgovernor.common.v1.PageInfo
+	273, // 3: rimgovernor.observations.v1.ReadIssue.unavailable:type_name -> rimgovernor.common.v1.Unavailable
+	274, // 4: rimgovernor.observations.v1.Rectangle.minimum:type_name -> rimgovernor.common.v1.Cell
+	274, // 5: rimgovernor.observations.v1.Rectangle.maximum:type_name -> rimgovernor.common.v1.Cell
+	274, // 6: rimgovernor.observations.v1.EntityRef.position:type_name -> rimgovernor.common.v1.Cell
 	2,   // 7: rimgovernor.observations.v1.EntityRef.snapshot:type_name -> rimgovernor.observations.v1.SnapshotRef
 	8,   // 8: rimgovernor.observations.v1.TargetRef.entity:type_name -> rimgovernor.observations.v1.EntityRef
-	272, // 9: rimgovernor.observations.v1.TargetRef.cell:type_name -> rimgovernor.common.v1.Cell
-	271, // 10: rimgovernor.observations.v1.TargetRef.unavailable:type_name -> rimgovernor.common.v1.Unavailable
+	274, // 9: rimgovernor.observations.v1.TargetRef.cell:type_name -> rimgovernor.common.v1.Cell
+	273, // 10: rimgovernor.observations.v1.TargetRef.unavailable:type_name -> rimgovernor.common.v1.Unavailable
 	9,   // 11: rimgovernor.observations.v1.JobEvidence.target_a:type_name -> rimgovernor.observations.v1.TargetRef
 	4,   // 12: rimgovernor.observations.v1.JobEvidence.issues:type_name -> rimgovernor.observations.v1.ReadIssue
 	4,   // 13: rimgovernor.observations.v1.PawnNeeds.issues:type_name -> rimgovernor.observations.v1.ReadIssue
 	7,   // 14: rimgovernor.observations.v1.Hediff.definition:type_name -> rimgovernor.observations.v1.DefinitionRef
-	271, // 15: rimgovernor.observations.v1.Capacity.unavailable:type_name -> rimgovernor.common.v1.Unavailable
+	273, // 15: rimgovernor.observations.v1.Capacity.unavailable:type_name -> rimgovernor.common.v1.Unavailable
 	16,  // 16: rimgovernor.observations.v1.PawnHealth.capacities:type_name -> rimgovernor.observations.v1.Capacity
 	15,  // 17: rimgovernor.observations.v1.PawnHealth.hediffs:type_name -> rimgovernor.observations.v1.Hediff
 	3,   // 18: rimgovernor.observations.v1.PawnHealth.hediff_completeness:type_name -> rimgovernor.observations.v1.Completeness
@@ -28234,723 +28427,735 @@ var file_observations_proto_depIdxs = []int32{
 	8,   // 54: rimgovernor.observations.v1.PawnState.nearest_colonist:type_name -> rimgovernor.observations.v1.EntityRef
 	4,   // 55: rimgovernor.observations.v1.PawnState.issues:type_name -> rimgovernor.observations.v1.ReadIssue
 	35,  // 56: rimgovernor.observations.v1.PawnState.draft_claim:type_name -> rimgovernor.observations.v1.DraftClaimObservation
-	273, // 57: rimgovernor.observations.v1.OwnedDraftClaim.owner:type_name -> rimgovernor.authority.v1.Owner
-	2,   // 58: rimgovernor.observations.v1.OwnedDraftClaim.pawn_snapshot:type_name -> rimgovernor.observations.v1.SnapshotRef
-	34,  // 59: rimgovernor.observations.v1.DraftClaimObservation.owned:type_name -> rimgovernor.observations.v1.OwnedDraftClaim
-	33,  // 60: rimgovernor.observations.v1.DraftClaimObservation.unowned:type_name -> rimgovernor.observations.v1.NoOwnedDraftClaim
-	271, // 61: rimgovernor.observations.v1.DraftClaimObservation.unavailable:type_name -> rimgovernor.common.v1.Unavailable
-	269, // 62: rimgovernor.observations.v1.PawnSnapshot.context:type_name -> rimgovernor.common.v1.ObservationContext
-	32,  // 63: rimgovernor.observations.v1.PawnSnapshot.pawns:type_name -> rimgovernor.observations.v1.PawnState
-	3,   // 64: rimgovernor.observations.v1.PawnSnapshot.completeness:type_name -> rimgovernor.observations.v1.Completeness
-	1,   // 65: rimgovernor.observations.v1.ListPawnsRequest.scope:type_name -> rimgovernor.observations.v1.ReadScope
-	36,  // 66: rimgovernor.observations.v1.ListPawnsRequest.filter:type_name -> rimgovernor.observations.v1.PawnFilter
-	37,  // 67: rimgovernor.observations.v1.ListPawnsRequest.details:type_name -> rimgovernor.observations.v1.PawnDetails
-	274, // 68: rimgovernor.observations.v1.ListPawnsRequest.page:type_name -> rimgovernor.common.v1.PageRequest
-	38,  // 69: rimgovernor.observations.v1.ListPawnsReply.observed:type_name -> rimgovernor.observations.v1.PawnSnapshot
-	271, // 70: rimgovernor.observations.v1.ListPawnsReply.unavailable:type_name -> rimgovernor.common.v1.Unavailable
-	275, // 71: rimgovernor.observations.v1.ListPawnsReply.failure:type_name -> rimgovernor.common.v1.Failure
-	8,   // 72: rimgovernor.observations.v1.HeldStock.holder:type_name -> rimgovernor.observations.v1.EntityRef
-	8,   // 73: rimgovernor.observations.v1.CorpseState.corpse:type_name -> rimgovernor.observations.v1.EntityRef
-	8,   // 74: rimgovernor.observations.v1.CorpseState.inner_pawn:type_name -> rimgovernor.observations.v1.EntityRef
-	7,   // 75: rimgovernor.observations.v1.ResourceStock.definition:type_name -> rimgovernor.observations.v1.DefinitionRef
-	8,   // 76: rimgovernor.observations.v1.ResourceStock.items:type_name -> rimgovernor.observations.v1.EntityRef
-	41,  // 77: rimgovernor.observations.v1.ResourceStock.holders:type_name -> rimgovernor.observations.v1.HeldStock
-	42,  // 78: rimgovernor.observations.v1.ResourceStock.corpses:type_name -> rimgovernor.observations.v1.CorpseState
-	3,   // 79: rimgovernor.observations.v1.ResourceStock.items_completeness:type_name -> rimgovernor.observations.v1.Completeness
-	3,   // 80: rimgovernor.observations.v1.ResourceStock.holders_completeness:type_name -> rimgovernor.observations.v1.Completeness
-	3,   // 81: rimgovernor.observations.v1.ResourceStock.corpses_completeness:type_name -> rimgovernor.observations.v1.Completeness
-	4,   // 82: rimgovernor.observations.v1.ResourceStock.issues:type_name -> rimgovernor.observations.v1.ReadIssue
-	5,   // 83: rimgovernor.observations.v1.StockFilter.region:type_name -> rimgovernor.observations.v1.Rectangle
-	269, // 84: rimgovernor.observations.v1.SuppliesSnapshot.context:type_name -> rimgovernor.common.v1.ObservationContext
-	43,  // 85: rimgovernor.observations.v1.SuppliesSnapshot.stocks:type_name -> rimgovernor.observations.v1.ResourceStock
-	3,   // 86: rimgovernor.observations.v1.SuppliesSnapshot.completeness:type_name -> rimgovernor.observations.v1.Completeness
-	1,   // 87: rimgovernor.observations.v1.ListSuppliesRequest.scope:type_name -> rimgovernor.observations.v1.ReadScope
-	44,  // 88: rimgovernor.observations.v1.ListSuppliesRequest.filter:type_name -> rimgovernor.observations.v1.StockFilter
-	274, // 89: rimgovernor.observations.v1.ListSuppliesRequest.page:type_name -> rimgovernor.common.v1.PageRequest
-	45,  // 90: rimgovernor.observations.v1.ListSuppliesReply.observed:type_name -> rimgovernor.observations.v1.SuppliesSnapshot
-	271, // 91: rimgovernor.observations.v1.ListSuppliesReply.unavailable:type_name -> rimgovernor.common.v1.Unavailable
-	275, // 92: rimgovernor.observations.v1.ListSuppliesReply.failure:type_name -> rimgovernor.common.v1.Failure
-	4,   // 93: rimgovernor.observations.v1.IngredientRequirement.issues:type_name -> rimgovernor.observations.v1.ReadIssue
-	49,  // 94: rimgovernor.observations.v1.StockpileFilter.special_rules:type_name -> rimgovernor.observations.v1.FilterSpecialRule
-	3,   // 95: rimgovernor.observations.v1.StockpileFilter.completeness:type_name -> rimgovernor.observations.v1.Completeness
-	7,   // 96: rimgovernor.observations.v1.BillState.recipe:type_name -> rimgovernor.observations.v1.DefinitionRef
-	50,  // 97: rimgovernor.observations.v1.BillState.ingredient_filter:type_name -> rimgovernor.observations.v1.StockpileFilter
-	48,  // 98: rimgovernor.observations.v1.BillState.ingredients:type_name -> rimgovernor.observations.v1.IngredientRequirement
-	4,   // 99: rimgovernor.observations.v1.BillState.issues:type_name -> rimgovernor.observations.v1.ReadIssue
-	2,   // 100: rimgovernor.observations.v1.BillStack.snapshot:type_name -> rimgovernor.observations.v1.SnapshotRef
-	8,   // 101: rimgovernor.observations.v1.BillStack.bench:type_name -> rimgovernor.observations.v1.EntityRef
-	51,  // 102: rimgovernor.observations.v1.BillStack.bills:type_name -> rimgovernor.observations.v1.BillState
-	3,   // 103: rimgovernor.observations.v1.BillStack.completeness:type_name -> rimgovernor.observations.v1.Completeness
-	7,   // 104: rimgovernor.observations.v1.RecipeState.recipe:type_name -> rimgovernor.observations.v1.DefinitionRef
-	12,  // 105: rimgovernor.observations.v1.RecipeState.skills:type_name -> rimgovernor.observations.v1.SkillRequirement
-	48,  // 106: rimgovernor.observations.v1.RecipeState.ingredients:type_name -> rimgovernor.observations.v1.IngredientRequirement
-	10,  // 107: rimgovernor.observations.v1.RecipeState.products:type_name -> rimgovernor.observations.v1.Quantity
-	50,  // 108: rimgovernor.observations.v1.RecipeState.default_filter:type_name -> rimgovernor.observations.v1.StockpileFilter
-	2,   // 109: rimgovernor.observations.v1.BuildingSettings.snapshot:type_name -> rimgovernor.observations.v1.SnapshotRef
-	8,   // 110: rimgovernor.observations.v1.BuildingSettings.assigning_candidates:type_name -> rimgovernor.observations.v1.EntityRef
-	4,   // 111: rimgovernor.observations.v1.BuildingSettings.issues:type_name -> rimgovernor.observations.v1.ReadIssue
-	55,  // 112: rimgovernor.observations.v1.ConstructionState.resources:type_name -> rimgovernor.observations.v1.MaterialDeficit
-	4,   // 113: rimgovernor.observations.v1.ConstructionState.issues:type_name -> rimgovernor.observations.v1.ReadIssue
-	272, // 114: rimgovernor.observations.v1.ConstructionLineage.anchor:type_name -> rimgovernor.common.v1.Cell
-	272, // 115: rimgovernor.observations.v1.ThermalSide.position:type_name -> rimgovernor.common.v1.Cell
-	4,   // 116: rimgovernor.observations.v1.ThermalSide.issues:type_name -> rimgovernor.observations.v1.ReadIssue
-	4,   // 117: rimgovernor.observations.v1.BuildingServiceState.issues:type_name -> rimgovernor.observations.v1.ReadIssue
-	8,   // 118: rimgovernor.observations.v1.BuildingState.building:type_name -> rimgovernor.observations.v1.EntityRef
-	272, // 119: rimgovernor.observations.v1.BuildingState.occupied_cells:type_name -> rimgovernor.common.v1.Cell
-	56,  // 120: rimgovernor.observations.v1.BuildingState.construction:type_name -> rimgovernor.observations.v1.ConstructionState
-	59,  // 121: rimgovernor.observations.v1.BuildingState.service:type_name -> rimgovernor.observations.v1.BuildingServiceState
-	54,  // 122: rimgovernor.observations.v1.BuildingState.settings:type_name -> rimgovernor.observations.v1.BuildingSettings
-	58,  // 123: rimgovernor.observations.v1.BuildingState.thermal_sides:type_name -> rimgovernor.observations.v1.ThermalSide
-	52,  // 124: rimgovernor.observations.v1.BuildingState.bills:type_name -> rimgovernor.observations.v1.BillStack
-	4,   // 125: rimgovernor.observations.v1.BuildingState.issues:type_name -> rimgovernor.observations.v1.ReadIssue
-	3,   // 126: rimgovernor.observations.v1.PowerNetwork.completeness:type_name -> rimgovernor.observations.v1.Completeness
-	269, // 127: rimgovernor.observations.v1.BuildingsSnapshot.context:type_name -> rimgovernor.common.v1.ObservationContext
-	60,  // 128: rimgovernor.observations.v1.BuildingsSnapshot.buildings:type_name -> rimgovernor.observations.v1.BuildingState
-	61,  // 129: rimgovernor.observations.v1.BuildingsSnapshot.power_networks:type_name -> rimgovernor.observations.v1.PowerNetwork
-	3,   // 130: rimgovernor.observations.v1.BuildingsSnapshot.completeness:type_name -> rimgovernor.observations.v1.Completeness
-	3,   // 131: rimgovernor.observations.v1.BuildingsSnapshot.networks_completeness:type_name -> rimgovernor.observations.v1.Completeness
-	1,   // 132: rimgovernor.observations.v1.ListBuildingsRequest.scope:type_name -> rimgovernor.observations.v1.ReadScope
-	5,   // 133: rimgovernor.observations.v1.ListBuildingsRequest.region:type_name -> rimgovernor.observations.v1.Rectangle
-	274, // 134: rimgovernor.observations.v1.ListBuildingsRequest.page:type_name -> rimgovernor.common.v1.PageRequest
-	62,  // 135: rimgovernor.observations.v1.ListBuildingsReply.observed:type_name -> rimgovernor.observations.v1.BuildingsSnapshot
-	271, // 136: rimgovernor.observations.v1.ListBuildingsReply.unavailable:type_name -> rimgovernor.common.v1.Unavailable
-	275, // 137: rimgovernor.observations.v1.ListBuildingsReply.failure:type_name -> rimgovernor.common.v1.Failure
-	271, // 138: rimgovernor.observations.v1.RoomStat.unavailable:type_name -> rimgovernor.common.v1.Unavailable
-	5,   // 139: rimgovernor.observations.v1.RoomState.extents:type_name -> rimgovernor.observations.v1.Rectangle
-	272, // 140: rimgovernor.observations.v1.RoomState.center:type_name -> rimgovernor.common.v1.Cell
-	272, // 141: rimgovernor.observations.v1.RoomState.cells:type_name -> rimgovernor.common.v1.Cell
-	3,   // 142: rimgovernor.observations.v1.RoomState.cells_completeness:type_name -> rimgovernor.observations.v1.Completeness
-	65,  // 143: rimgovernor.observations.v1.RoomState.stats:type_name -> rimgovernor.observations.v1.RoomStat
-	8,   // 144: rimgovernor.observations.v1.RoomState.pawns:type_name -> rimgovernor.observations.v1.EntityRef
-	60,  // 145: rimgovernor.observations.v1.RoomState.beds:type_name -> rimgovernor.observations.v1.BuildingState
-	10,  // 146: rimgovernor.observations.v1.RoomState.contents:type_name -> rimgovernor.observations.v1.Quantity
-	3,   // 147: rimgovernor.observations.v1.RoomState.contents_completeness:type_name -> rimgovernor.observations.v1.Completeness
-	4,   // 148: rimgovernor.observations.v1.RoomState.issues:type_name -> rimgovernor.observations.v1.ReadIssue
-	269, // 149: rimgovernor.observations.v1.RoomsSnapshot.context:type_name -> rimgovernor.common.v1.ObservationContext
-	66,  // 150: rimgovernor.observations.v1.RoomsSnapshot.rooms:type_name -> rimgovernor.observations.v1.RoomState
-	3,   // 151: rimgovernor.observations.v1.RoomsSnapshot.completeness:type_name -> rimgovernor.observations.v1.Completeness
-	1,   // 152: rimgovernor.observations.v1.ListRoomsRequest.scope:type_name -> rimgovernor.observations.v1.ReadScope
-	5,   // 153: rimgovernor.observations.v1.ListRoomsRequest.region:type_name -> rimgovernor.observations.v1.Rectangle
-	274, // 154: rimgovernor.observations.v1.ListRoomsRequest.page:type_name -> rimgovernor.common.v1.PageRequest
-	67,  // 155: rimgovernor.observations.v1.ListRoomsReply.observed:type_name -> rimgovernor.observations.v1.RoomsSnapshot
-	271, // 156: rimgovernor.observations.v1.ListRoomsReply.unavailable:type_name -> rimgovernor.common.v1.Unavailable
-	275, // 157: rimgovernor.observations.v1.ListRoomsReply.failure:type_name -> rimgovernor.common.v1.Failure
-	272, // 158: rimgovernor.observations.v1.ZoneAnomaly.cell:type_name -> rimgovernor.common.v1.Cell
-	2,   // 159: rimgovernor.observations.v1.ZoneState.snapshot:type_name -> rimgovernor.observations.v1.SnapshotRef
-	5,   // 160: rimgovernor.observations.v1.ZoneState.bounds:type_name -> rimgovernor.observations.v1.Rectangle
-	50,  // 161: rimgovernor.observations.v1.ZoneState.filter:type_name -> rimgovernor.observations.v1.StockpileFilter
-	272, // 162: rimgovernor.observations.v1.ZoneState.listed_cells:type_name -> rimgovernor.common.v1.Cell
-	272, // 163: rimgovernor.observations.v1.ZoneState.grid_cells:type_name -> rimgovernor.common.v1.Cell
-	70,  // 164: rimgovernor.observations.v1.ZoneState.anomalies:type_name -> rimgovernor.observations.v1.ZoneAnomaly
-	10,  // 165: rimgovernor.observations.v1.ZoneState.contents:type_name -> rimgovernor.observations.v1.Quantity
-	3,   // 166: rimgovernor.observations.v1.ZoneState.cells_completeness:type_name -> rimgovernor.observations.v1.Completeness
-	3,   // 167: rimgovernor.observations.v1.ZoneState.contents_completeness:type_name -> rimgovernor.observations.v1.Completeness
-	4,   // 168: rimgovernor.observations.v1.ZoneState.issues:type_name -> rimgovernor.observations.v1.ReadIssue
-	269, // 169: rimgovernor.observations.v1.ZonesSnapshot.context:type_name -> rimgovernor.common.v1.ObservationContext
-	71,  // 170: rimgovernor.observations.v1.ZonesSnapshot.zones:type_name -> rimgovernor.observations.v1.ZoneState
-	3,   // 171: rimgovernor.observations.v1.ZonesSnapshot.completeness:type_name -> rimgovernor.observations.v1.Completeness
-	1,   // 172: rimgovernor.observations.v1.ListZonesRequest.scope:type_name -> rimgovernor.observations.v1.ReadScope
-	5,   // 173: rimgovernor.observations.v1.ListZonesRequest.region:type_name -> rimgovernor.observations.v1.Rectangle
-	274, // 174: rimgovernor.observations.v1.ListZonesRequest.page:type_name -> rimgovernor.common.v1.PageRequest
-	72,  // 175: rimgovernor.observations.v1.ListZonesReply.observed:type_name -> rimgovernor.observations.v1.ZonesSnapshot
-	271, // 176: rimgovernor.observations.v1.ListZonesReply.unavailable:type_name -> rimgovernor.common.v1.Unavailable
-	275, // 177: rimgovernor.observations.v1.ListZonesReply.failure:type_name -> rimgovernor.common.v1.Failure
-	9,   // 178: rimgovernor.observations.v1.DesignationState.target:type_name -> rimgovernor.observations.v1.TargetRef
-	8,   // 179: rimgovernor.observations.v1.CellThing.thing:type_name -> rimgovernor.observations.v1.EntityRef
-	272, // 180: rimgovernor.observations.v1.CellState.cell:type_name -> rimgovernor.common.v1.Cell
-	76,  // 181: rimgovernor.observations.v1.CellState.things:type_name -> rimgovernor.observations.v1.CellThing
-	75,  // 182: rimgovernor.observations.v1.CellState.designations:type_name -> rimgovernor.observations.v1.DesignationState
-	4,   // 183: rimgovernor.observations.v1.CellState.issues:type_name -> rimgovernor.observations.v1.ReadIssue
-	269, // 184: rimgovernor.observations.v1.CellsSnapshot.context:type_name -> rimgovernor.common.v1.ObservationContext
-	6,   // 185: rimgovernor.observations.v1.CellsSnapshot.map_size:type_name -> rimgovernor.observations.v1.MapSize
-	5,   // 186: rimgovernor.observations.v1.CellsSnapshot.region:type_name -> rimgovernor.observations.v1.Rectangle
-	77,  // 187: rimgovernor.observations.v1.CellsSnapshot.cells:type_name -> rimgovernor.observations.v1.CellState
-	3,   // 188: rimgovernor.observations.v1.CellsSnapshot.completeness:type_name -> rimgovernor.observations.v1.Completeness
-	78,  // 189: rimgovernor.observations.v1.CellsSnapshot.applied_fields:type_name -> rimgovernor.observations.v1.CellFields
-	2,   // 190: rimgovernor.observations.v1.CellsSnapshot.map_snapshot:type_name -> rimgovernor.observations.v1.SnapshotRef
-	1,   // 191: rimgovernor.observations.v1.GetCellsRequest.scope:type_name -> rimgovernor.observations.v1.ReadScope
-	5,   // 192: rimgovernor.observations.v1.GetCellsRequest.rectangle:type_name -> rimgovernor.observations.v1.Rectangle
-	81,  // 193: rimgovernor.observations.v1.GetCellsRequest.exact_cells:type_name -> rimgovernor.observations.v1.CellSelection
-	78,  // 194: rimgovernor.observations.v1.GetCellsRequest.fields:type_name -> rimgovernor.observations.v1.CellFields
-	274, // 195: rimgovernor.observations.v1.GetCellsRequest.page:type_name -> rimgovernor.common.v1.PageRequest
-	272, // 196: rimgovernor.observations.v1.CellSelection.cells:type_name -> rimgovernor.common.v1.Cell
-	79,  // 197: rimgovernor.observations.v1.GetCellsReply.observed:type_name -> rimgovernor.observations.v1.CellsSnapshot
-	271, // 198: rimgovernor.observations.v1.GetCellsReply.unavailable:type_name -> rimgovernor.common.v1.Unavailable
-	275, // 199: rimgovernor.observations.v1.GetCellsReply.failure:type_name -> rimgovernor.common.v1.Failure
-	7,   // 200: rimgovernor.observations.v1.ResearchProject.project:type_name -> rimgovernor.observations.v1.DefinitionRef
-	83,  // 201: rimgovernor.observations.v1.ResearchProject.unlocks:type_name -> rimgovernor.observations.v1.ResearchUnlock
-	3,   // 202: rimgovernor.observations.v1.ResearchProject.unlocks_completeness:type_name -> rimgovernor.observations.v1.Completeness
-	4,   // 203: rimgovernor.observations.v1.ResearchProject.issues:type_name -> rimgovernor.observations.v1.ReadIssue
-	8,   // 204: rimgovernor.observations.v1.Researcher.pawn:type_name -> rimgovernor.observations.v1.EntityRef
-	7,   // 205: rimgovernor.observations.v1.ResearchFacility.definition:type_name -> rimgovernor.observations.v1.DefinitionRef
-	60,  // 206: rimgovernor.observations.v1.ResearchBench.building:type_name -> rimgovernor.observations.v1.BuildingState
-	86,  // 207: rimgovernor.observations.v1.ResearchBench.facilities:type_name -> rimgovernor.observations.v1.ResearchFacility
-	4,   // 208: rimgovernor.observations.v1.ResearchBench.issues:type_name -> rimgovernor.observations.v1.ReadIssue
-	269, // 209: rimgovernor.observations.v1.ResearchSnapshot.context:type_name -> rimgovernor.common.v1.ObservationContext
-	2,   // 210: rimgovernor.observations.v1.ResearchSnapshot.snapshot:type_name -> rimgovernor.observations.v1.SnapshotRef
-	88,  // 211: rimgovernor.observations.v1.ResearchSnapshot.slots:type_name -> rimgovernor.observations.v1.ResearchSlot
-	84,  // 212: rimgovernor.observations.v1.ResearchSnapshot.projects:type_name -> rimgovernor.observations.v1.ResearchProject
-	87,  // 213: rimgovernor.observations.v1.ResearchSnapshot.benches:type_name -> rimgovernor.observations.v1.ResearchBench
-	85,  // 214: rimgovernor.observations.v1.ResearchSnapshot.researchers:type_name -> rimgovernor.observations.v1.Researcher
-	3,   // 215: rimgovernor.observations.v1.ResearchSnapshot.completeness:type_name -> rimgovernor.observations.v1.Completeness
-	1,   // 216: rimgovernor.observations.v1.ResearchRequest.scope:type_name -> rimgovernor.observations.v1.ReadScope
-	274, // 217: rimgovernor.observations.v1.ResearchRequest.page:type_name -> rimgovernor.common.v1.PageRequest
-	89,  // 218: rimgovernor.observations.v1.ResearchReply.observed:type_name -> rimgovernor.observations.v1.ResearchSnapshot
-	271, // 219: rimgovernor.observations.v1.ResearchReply.unavailable:type_name -> rimgovernor.common.v1.Unavailable
-	275, // 220: rimgovernor.observations.v1.ResearchReply.failure:type_name -> rimgovernor.common.v1.Failure
-	272, // 221: rimgovernor.observations.v1.AccessTarget.cell:type_name -> rimgovernor.common.v1.Cell
-	8,   // 222: rimgovernor.observations.v1.PawnAccess.pawn:type_name -> rimgovernor.observations.v1.EntityRef
-	272, // 223: rimgovernor.observations.v1.PawnAccess.lost_cells:type_name -> rimgovernor.common.v1.Cell
-	92,  // 224: rimgovernor.observations.v1.PawnAccess.targets:type_name -> rimgovernor.observations.v1.AccessTarget
-	272, // 225: rimgovernor.observations.v1.PawnAccess.projected_origin:type_name -> rimgovernor.common.v1.Cell
-	3,   // 226: rimgovernor.observations.v1.PawnAccess.completeness:type_name -> rimgovernor.observations.v1.Completeness
-	269, // 227: rimgovernor.observations.v1.SpatialAccessSnapshot.context:type_name -> rimgovernor.common.v1.ObservationContext
-	93,  // 228: rimgovernor.observations.v1.SpatialAccessSnapshot.pawns:type_name -> rimgovernor.observations.v1.PawnAccess
-	3,   // 229: rimgovernor.observations.v1.SpatialAccessSnapshot.completeness:type_name -> rimgovernor.observations.v1.Completeness
-	1,   // 230: rimgovernor.observations.v1.SpatialAccessRequest.scope:type_name -> rimgovernor.observations.v1.ReadScope
-	272, // 231: rimgovernor.observations.v1.SpatialAccessRequest.blocked_cells:type_name -> rimgovernor.common.v1.Cell
-	272, // 232: rimgovernor.observations.v1.SpatialAccessRequest.target_cells:type_name -> rimgovernor.common.v1.Cell
-	94,  // 233: rimgovernor.observations.v1.SpatialAccessReply.observed:type_name -> rimgovernor.observations.v1.SpatialAccessSnapshot
-	271, // 234: rimgovernor.observations.v1.SpatialAccessReply.unavailable:type_name -> rimgovernor.common.v1.Unavailable
-	275, // 235: rimgovernor.observations.v1.SpatialAccessReply.failure:type_name -> rimgovernor.common.v1.Failure
-	272, // 236: rimgovernor.observations.v1.RoofSupportCell.cell:type_name -> rimgovernor.common.v1.Cell
-	269, // 237: rimgovernor.observations.v1.RoofSupportSnapshot.context:type_name -> rimgovernor.common.v1.ObservationContext
-	8,   // 238: rimgovernor.observations.v1.RoofSupportSnapshot.target:type_name -> rimgovernor.observations.v1.EntityRef
-	97,  // 239: rimgovernor.observations.v1.RoofSupportSnapshot.roofs:type_name -> rimgovernor.observations.v1.RoofSupportCell
-	3,   // 240: rimgovernor.observations.v1.RoofSupportSnapshot.completeness:type_name -> rimgovernor.observations.v1.Completeness
-	1,   // 241: rimgovernor.observations.v1.RoofSupportRequest.scope:type_name -> rimgovernor.observations.v1.ReadScope
-	98,  // 242: rimgovernor.observations.v1.RoofSupportReply.observed:type_name -> rimgovernor.observations.v1.RoofSupportSnapshot
-	271, // 243: rimgovernor.observations.v1.RoofSupportReply.unavailable:type_name -> rimgovernor.common.v1.Unavailable
-	275, // 244: rimgovernor.observations.v1.RoofSupportReply.failure:type_name -> rimgovernor.common.v1.Failure
-	10,  // 245: rimgovernor.observations.v1.WallMaterialOption.costs:type_name -> rimgovernor.observations.v1.Quantity
-	8,   // 246: rimgovernor.observations.v1.WallUpgradeSite.target:type_name -> rimgovernor.observations.v1.EntityRef
-	272, // 247: rimgovernor.observations.v1.WallUpgradeSite.backup_cells:type_name -> rimgovernor.common.v1.Cell
-	10,  // 248: rimgovernor.observations.v1.WallUpgradeSite.costs:type_name -> rimgovernor.observations.v1.Quantity
-	43,  // 249: rimgovernor.observations.v1.WallUpgradeSite.materials:type_name -> rimgovernor.observations.v1.ResourceStock
-	8,   // 250: rimgovernor.observations.v1.WallUpgradeSite.workers:type_name -> rimgovernor.observations.v1.EntityRef
-	2,   // 251: rimgovernor.observations.v1.WallUpgradeSite.snapshot:type_name -> rimgovernor.observations.v1.SnapshotRef
-	272, // 252: rimgovernor.observations.v1.WallUpgradeSite.normal:type_name -> rimgovernor.common.v1.Cell
-	60,  // 253: rimgovernor.observations.v1.WallUpgradeSite.original:type_name -> rimgovernor.observations.v1.BuildingState
-	60,  // 254: rimgovernor.observations.v1.WallUpgradeSite.left_support:type_name -> rimgovernor.observations.v1.BuildingState
-	60,  // 255: rimgovernor.observations.v1.WallUpgradeSite.right_support:type_name -> rimgovernor.observations.v1.BuildingState
-	60,  // 256: rimgovernor.observations.v1.WallUpgradeSite.completed_backups:type_name -> rimgovernor.observations.v1.BuildingState
-	60,  // 257: rimgovernor.observations.v1.WallUpgradeSite.replacement:type_name -> rimgovernor.observations.v1.BuildingState
-	101, // 258: rimgovernor.observations.v1.WallUpgradeSite.replacement_materials:type_name -> rimgovernor.observations.v1.WallMaterialOption
-	79,  // 259: rimgovernor.observations.v1.WallUpgradeSite.geometry:type_name -> rimgovernor.observations.v1.CellsSnapshot
-	98,  // 260: rimgovernor.observations.v1.WallUpgradeSite.roof_support:type_name -> rimgovernor.observations.v1.RoofSupportSnapshot
-	269, // 261: rimgovernor.observations.v1.WallUpgradeSnapshot.context:type_name -> rimgovernor.common.v1.ObservationContext
-	102, // 262: rimgovernor.observations.v1.WallUpgradeSnapshot.sites:type_name -> rimgovernor.observations.v1.WallUpgradeSite
-	3,   // 263: rimgovernor.observations.v1.WallUpgradeSnapshot.completeness:type_name -> rimgovernor.observations.v1.Completeness
-	1,   // 264: rimgovernor.observations.v1.WallUpgradeSitesRequest.scope:type_name -> rimgovernor.observations.v1.ReadScope
-	274, // 265: rimgovernor.observations.v1.WallUpgradeSitesRequest.page:type_name -> rimgovernor.common.v1.PageRequest
-	103, // 266: rimgovernor.observations.v1.WallUpgradeSitesReply.observed:type_name -> rimgovernor.observations.v1.WallUpgradeSnapshot
-	271, // 267: rimgovernor.observations.v1.WallUpgradeSitesReply.unavailable:type_name -> rimgovernor.common.v1.Unavailable
-	275, // 268: rimgovernor.observations.v1.WallUpgradeSitesReply.failure:type_name -> rimgovernor.common.v1.Failure
-	8,   // 269: rimgovernor.observations.v1.ResourceSource.source:type_name -> rimgovernor.observations.v1.EntityRef
-	8,   // 270: rimgovernor.observations.v1.StorageCapacity.haulers:type_name -> rimgovernor.observations.v1.EntityRef
-	4,   // 271: rimgovernor.observations.v1.StorageCapacity.issues:type_name -> rimgovernor.observations.v1.ReadIssue
-	7,   // 272: rimgovernor.observations.v1.ExtractionWorkType.definition:type_name -> rimgovernor.observations.v1.DefinitionRef
-	7,   // 273: rimgovernor.observations.v1.ExtractionWorkType.work_givers:type_name -> rimgovernor.observations.v1.DefinitionRef
-	2,   // 274: rimgovernor.observations.v1.ExtractionSite.snapshot:type_name -> rimgovernor.observations.v1.SnapshotRef
-	272, // 275: rimgovernor.observations.v1.ExtractionSite.cell:type_name -> rimgovernor.common.v1.Cell
-	108, // 276: rimgovernor.observations.v1.ExtractionSite.work_types:type_name -> rimgovernor.observations.v1.ExtractionWorkType
-	2,   // 277: rimgovernor.observations.v1.OwnedDrill.snapshot:type_name -> rimgovernor.observations.v1.SnapshotRef
-	272, // 278: rimgovernor.observations.v1.OwnedDrill.cell:type_name -> rimgovernor.common.v1.Cell
-	60,  // 279: rimgovernor.observations.v1.DrillObservation.building:type_name -> rimgovernor.observations.v1.BuildingState
-	60,  // 280: rimgovernor.observations.v1.ExtractionDevelopment.scanners:type_name -> rimgovernor.observations.v1.BuildingState
-	60,  // 281: rimgovernor.observations.v1.ExtractionDevelopment.drills:type_name -> rimgovernor.observations.v1.BuildingState
-	106, // 282: rimgovernor.observations.v1.ExtractionDevelopment.deposits:type_name -> rimgovernor.observations.v1.ResourceSource
-	7,   // 283: rimgovernor.observations.v1.ExtractionDevelopment.definitions:type_name -> rimgovernor.observations.v1.DefinitionRef
-	10,  // 284: rimgovernor.observations.v1.ExtractionDevelopment.costs:type_name -> rimgovernor.observations.v1.Quantity
-	3,   // 285: rimgovernor.observations.v1.ExtractionDevelopment.completeness:type_name -> rimgovernor.observations.v1.Completeness
-	109, // 286: rimgovernor.observations.v1.ExtractionDevelopment.sites:type_name -> rimgovernor.observations.v1.ExtractionSite
-	110, // 287: rimgovernor.observations.v1.ExtractionDevelopment.owned:type_name -> rimgovernor.observations.v1.OwnedDrill
-	111, // 288: rimgovernor.observations.v1.ExtractionDevelopment.drill_state:type_name -> rimgovernor.observations.v1.DrillObservation
-	108, // 289: rimgovernor.observations.v1.ExtractionDevelopment.flick_work_type:type_name -> rimgovernor.observations.v1.ExtractionWorkType
-	269, // 290: rimgovernor.observations.v1.ResourceSourcesSnapshot.context:type_name -> rimgovernor.common.v1.ObservationContext
-	106, // 291: rimgovernor.observations.v1.ResourceSourcesSnapshot.sources:type_name -> rimgovernor.observations.v1.ResourceSource
-	107, // 292: rimgovernor.observations.v1.ResourceSourcesSnapshot.storage:type_name -> rimgovernor.observations.v1.StorageCapacity
-	112, // 293: rimgovernor.observations.v1.ResourceSourcesSnapshot.development:type_name -> rimgovernor.observations.v1.ExtractionDevelopment
-	3,   // 294: rimgovernor.observations.v1.ResourceSourcesSnapshot.completeness:type_name -> rimgovernor.observations.v1.Completeness
-	1,   // 295: rimgovernor.observations.v1.ResourceSourcesRequest.scope:type_name -> rimgovernor.observations.v1.ReadScope
-	274, // 296: rimgovernor.observations.v1.ResourceSourcesRequest.page:type_name -> rimgovernor.common.v1.PageRequest
-	113, // 297: rimgovernor.observations.v1.ResourceSourcesReply.observed:type_name -> rimgovernor.observations.v1.ResourceSourcesSnapshot
-	271, // 298: rimgovernor.observations.v1.ResourceSourcesReply.unavailable:type_name -> rimgovernor.common.v1.Unavailable
-	275, // 299: rimgovernor.observations.v1.ResourceSourcesReply.failure:type_name -> rimgovernor.common.v1.Failure
-	8,   // 300: rimgovernor.observations.v1.HandlerState.pawn:type_name -> rimgovernor.observations.v1.EntityRef
-	32,  // 301: rimgovernor.observations.v1.HusbandryAnimal.pawn:type_name -> rimgovernor.observations.v1.PawnState
-	2,   // 302: rimgovernor.observations.v1.HusbandryAnimal.settings_snapshot:type_name -> rimgovernor.observations.v1.SnapshotRef
-	31,  // 303: rimgovernor.observations.v1.HusbandryAnimal.animal:type_name -> rimgovernor.observations.v1.AnimalState
-	116, // 304: rimgovernor.observations.v1.HusbandryAnimal.handlers:type_name -> rimgovernor.observations.v1.HandlerState
-	2,   // 305: rimgovernor.observations.v1.HusbandryAnimal.census_snapshot:type_name -> rimgovernor.observations.v1.SnapshotRef
-	269, // 306: rimgovernor.observations.v1.HusbandrySnapshot.context:type_name -> rimgovernor.common.v1.ObservationContext
-	2,   // 307: rimgovernor.observations.v1.HusbandrySnapshot.census:type_name -> rimgovernor.observations.v1.SnapshotRef
-	117, // 308: rimgovernor.observations.v1.HusbandrySnapshot.animals:type_name -> rimgovernor.observations.v1.HusbandryAnimal
-	3,   // 309: rimgovernor.observations.v1.HusbandrySnapshot.completeness:type_name -> rimgovernor.observations.v1.Completeness
-	1,   // 310: rimgovernor.observations.v1.HusbandryRequest.scope:type_name -> rimgovernor.observations.v1.ReadScope
-	274, // 311: rimgovernor.observations.v1.HusbandryRequest.page:type_name -> rimgovernor.common.v1.PageRequest
-	118, // 312: rimgovernor.observations.v1.HusbandryReply.observed:type_name -> rimgovernor.observations.v1.HusbandrySnapshot
-	271, // 313: rimgovernor.observations.v1.HusbandryReply.unavailable:type_name -> rimgovernor.common.v1.Unavailable
-	275, // 314: rimgovernor.observations.v1.HusbandryReply.failure:type_name -> rimgovernor.common.v1.Failure
-	8,   // 315: rimgovernor.observations.v1.WasteItem.thing:type_name -> rimgovernor.observations.v1.EntityRef
-	0,   // 316: rimgovernor.observations.v1.WasteItem.state:type_name -> rimgovernor.observations.v1.WasteLocation
-	269, // 317: rimgovernor.observations.v1.WasteSnapshot.context:type_name -> rimgovernor.common.v1.ObservationContext
-	121, // 318: rimgovernor.observations.v1.WasteSnapshot.items:type_name -> rimgovernor.observations.v1.WasteItem
-	3,   // 319: rimgovernor.observations.v1.WasteSnapshot.completeness:type_name -> rimgovernor.observations.v1.Completeness
-	1,   // 320: rimgovernor.observations.v1.WasteRequest.scope:type_name -> rimgovernor.observations.v1.ReadScope
-	274, // 321: rimgovernor.observations.v1.WasteRequest.page:type_name -> rimgovernor.common.v1.PageRequest
-	122, // 322: rimgovernor.observations.v1.WasteReply.observed:type_name -> rimgovernor.observations.v1.WasteSnapshot
-	271, // 323: rimgovernor.observations.v1.WasteReply.unavailable:type_name -> rimgovernor.common.v1.Unavailable
-	275, // 324: rimgovernor.observations.v1.WasteReply.failure:type_name -> rimgovernor.common.v1.Failure
-	8,   // 325: rimgovernor.observations.v1.RecoveryRestriction.pawn:type_name -> rimgovernor.observations.v1.EntityRef
-	272, // 326: rimgovernor.observations.v1.RecoveryArea.cells:type_name -> rimgovernor.common.v1.Cell
-	3,   // 327: rimgovernor.observations.v1.RecoveryArea.completeness:type_name -> rimgovernor.observations.v1.Completeness
-	2,   // 328: rimgovernor.observations.v1.RecoveryArea.snapshot:type_name -> rimgovernor.observations.v1.SnapshotRef
-	269, // 329: rimgovernor.observations.v1.RecoverySnapshot.context:type_name -> rimgovernor.common.v1.ObservationContext
-	126, // 330: rimgovernor.observations.v1.RecoverySnapshot.areas:type_name -> rimgovernor.observations.v1.RecoveryArea
-	125, // 331: rimgovernor.observations.v1.RecoverySnapshot.restrictions:type_name -> rimgovernor.observations.v1.RecoveryRestriction
-	60,  // 332: rimgovernor.observations.v1.RecoverySnapshot.buildings:type_name -> rimgovernor.observations.v1.BuildingState
-	3,   // 333: rimgovernor.observations.v1.RecoverySnapshot.completeness:type_name -> rimgovernor.observations.v1.Completeness
-	1,   // 334: rimgovernor.observations.v1.RecoveryRequest.scope:type_name -> rimgovernor.observations.v1.ReadScope
-	274, // 335: rimgovernor.observations.v1.RecoveryRequest.page:type_name -> rimgovernor.common.v1.PageRequest
-	127, // 336: rimgovernor.observations.v1.RecoveryReply.observed:type_name -> rimgovernor.observations.v1.RecoverySnapshot
-	271, // 337: rimgovernor.observations.v1.RecoveryReply.unavailable:type_name -> rimgovernor.common.v1.Unavailable
-	275, // 338: rimgovernor.observations.v1.RecoveryReply.failure:type_name -> rimgovernor.common.v1.Failure
-	32,  // 339: rimgovernor.observations.v1.PopulationPerson.pawn:type_name -> rimgovernor.observations.v1.PawnState
-	60,  // 340: rimgovernor.observations.v1.PopulationPerson.owned_bed:type_name -> rimgovernor.observations.v1.BuildingState
-	269, // 341: rimgovernor.observations.v1.PopulationSnapshot.context:type_name -> rimgovernor.common.v1.ObservationContext
-	130, // 342: rimgovernor.observations.v1.PopulationSnapshot.persons:type_name -> rimgovernor.observations.v1.PopulationPerson
-	7,   // 343: rimgovernor.observations.v1.PopulationSnapshot.supported_interactions:type_name -> rimgovernor.observations.v1.DefinitionRef
-	3,   // 344: rimgovernor.observations.v1.PopulationSnapshot.completeness:type_name -> rimgovernor.observations.v1.Completeness
-	1,   // 345: rimgovernor.observations.v1.PopulationRequest.scope:type_name -> rimgovernor.observations.v1.ReadScope
-	274, // 346: rimgovernor.observations.v1.PopulationRequest.page:type_name -> rimgovernor.common.v1.PageRequest
-	131, // 347: rimgovernor.observations.v1.PopulationReply.observed:type_name -> rimgovernor.observations.v1.PopulationSnapshot
-	271, // 348: rimgovernor.observations.v1.PopulationReply.unavailable:type_name -> rimgovernor.common.v1.Unavailable
-	275, // 349: rimgovernor.observations.v1.PopulationReply.failure:type_name -> rimgovernor.common.v1.Failure
-	2,   // 350: rimgovernor.observations.v1.Settlement.snapshot:type_name -> rimgovernor.observations.v1.SnapshotRef
-	2,   // 351: rimgovernor.observations.v1.Settlement.faction_snapshot:type_name -> rimgovernor.observations.v1.SnapshotRef
-	7,   // 352: rimgovernor.observations.v1.WorldTile.biome:type_name -> rimgovernor.observations.v1.DefinitionRef
-	4,   // 353: rimgovernor.observations.v1.WorldTile.issues:type_name -> rimgovernor.observations.v1.ReadIssue
-	269, // 354: rimgovernor.observations.v1.WorldSnapshot.context:type_name -> rimgovernor.common.v1.ObservationContext
-	135, // 355: rimgovernor.observations.v1.WorldSnapshot.tile:type_name -> rimgovernor.observations.v1.WorldTile
-	134, // 356: rimgovernor.observations.v1.WorldSnapshot.settlements:type_name -> rimgovernor.observations.v1.Settlement
-	3,   // 357: rimgovernor.observations.v1.WorldSnapshot.completeness:type_name -> rimgovernor.observations.v1.Completeness
-	1,   // 358: rimgovernor.observations.v1.WorldRequest.scope:type_name -> rimgovernor.observations.v1.ReadScope
-	274, // 359: rimgovernor.observations.v1.WorldRequest.page:type_name -> rimgovernor.common.v1.PageRequest
-	136, // 360: rimgovernor.observations.v1.WorldReply.observed:type_name -> rimgovernor.observations.v1.WorldSnapshot
-	271, // 361: rimgovernor.observations.v1.WorldReply.unavailable:type_name -> rimgovernor.common.v1.Unavailable
-	275, // 362: rimgovernor.observations.v1.WorldReply.failure:type_name -> rimgovernor.common.v1.Failure
-	8,   // 363: rimgovernor.observations.v1.CaravanState.caravan:type_name -> rimgovernor.observations.v1.EntityRef
-	32,  // 364: rimgovernor.observations.v1.CaravanState.pawns:type_name -> rimgovernor.observations.v1.PawnState
-	139, // 365: rimgovernor.observations.v1.CaravanState.home_routes:type_name -> rimgovernor.observations.v1.WorldRoute
-	10,  // 366: rimgovernor.observations.v1.CaravanState.inventory:type_name -> rimgovernor.observations.v1.Quantity
-	3,   // 367: rimgovernor.observations.v1.CaravanState.completeness:type_name -> rimgovernor.observations.v1.Completeness
-	10,  // 368: rimgovernor.observations.v1.QuestReward.items:type_name -> rimgovernor.observations.v1.Quantity
-	8,   // 369: rimgovernor.observations.v1.QuestState.eligible_pawns:type_name -> rimgovernor.observations.v1.EntityRef
-	141, // 370: rimgovernor.observations.v1.QuestState.trade_requests:type_name -> rimgovernor.observations.v1.QuestTradeRequest
-	142, // 371: rimgovernor.observations.v1.QuestState.rewards:type_name -> rimgovernor.observations.v1.QuestReward
-	4,   // 372: rimgovernor.observations.v1.QuestState.issues:type_name -> rimgovernor.observations.v1.ReadIssue
-	2,   // 373: rimgovernor.observations.v1.QuestState.snapshot:type_name -> rimgovernor.observations.v1.SnapshotRef
-	2,   // 374: rimgovernor.observations.v1.FactionState.snapshot:type_name -> rimgovernor.observations.v1.SnapshotRef
-	32,  // 375: rimgovernor.observations.v1.WorldMap.pawns:type_name -> rimgovernor.observations.v1.PawnState
-	43,  // 376: rimgovernor.observations.v1.WorldMap.stored_items:type_name -> rimgovernor.observations.v1.ResourceStock
-	3,   // 377: rimgovernor.observations.v1.WorldMap.completeness:type_name -> rimgovernor.observations.v1.Completeness
-	8,   // 378: rimgovernor.observations.v1.CaravanAssembly.pawns:type_name -> rimgovernor.observations.v1.EntityRef
-	269, // 379: rimgovernor.observations.v1.WorldProgressionSnapshot.context:type_name -> rimgovernor.common.v1.ObservationContext
-	145, // 380: rimgovernor.observations.v1.WorldProgressionSnapshot.maps:type_name -> rimgovernor.observations.v1.WorldMap
-	144, // 381: rimgovernor.observations.v1.WorldProgressionSnapshot.factions:type_name -> rimgovernor.observations.v1.FactionState
-	140, // 382: rimgovernor.observations.v1.WorldProgressionSnapshot.caravans:type_name -> rimgovernor.observations.v1.CaravanState
-	146, // 383: rimgovernor.observations.v1.WorldProgressionSnapshot.assemblies:type_name -> rimgovernor.observations.v1.CaravanAssembly
-	143, // 384: rimgovernor.observations.v1.WorldProgressionSnapshot.quests:type_name -> rimgovernor.observations.v1.QuestState
-	3,   // 385: rimgovernor.observations.v1.WorldProgressionSnapshot.completeness:type_name -> rimgovernor.observations.v1.Completeness
-	1,   // 386: rimgovernor.observations.v1.WorldProgressionRequest.scope:type_name -> rimgovernor.observations.v1.ReadScope
-	274, // 387: rimgovernor.observations.v1.WorldProgressionRequest.page:type_name -> rimgovernor.common.v1.PageRequest
-	147, // 388: rimgovernor.observations.v1.WorldProgressionReply.observed:type_name -> rimgovernor.observations.v1.WorldProgressionSnapshot
-	271, // 389: rimgovernor.observations.v1.WorldProgressionReply.unavailable:type_name -> rimgovernor.common.v1.Unavailable
-	275, // 390: rimgovernor.observations.v1.WorldProgressionReply.failure:type_name -> rimgovernor.common.v1.Failure
-	269, // 391: rimgovernor.observations.v1.BillsSnapshot.context:type_name -> rimgovernor.common.v1.ObservationContext
-	52,  // 392: rimgovernor.observations.v1.BillsSnapshot.benches:type_name -> rimgovernor.observations.v1.BillStack
-	3,   // 393: rimgovernor.observations.v1.BillsSnapshot.completeness:type_name -> rimgovernor.observations.v1.Completeness
-	1,   // 394: rimgovernor.observations.v1.BillsRequest.scope:type_name -> rimgovernor.observations.v1.ReadScope
-	274, // 395: rimgovernor.observations.v1.BillsRequest.page:type_name -> rimgovernor.common.v1.PageRequest
-	150, // 396: rimgovernor.observations.v1.BillsReply.observed:type_name -> rimgovernor.observations.v1.BillsSnapshot
-	271, // 397: rimgovernor.observations.v1.BillsReply.unavailable:type_name -> rimgovernor.common.v1.Unavailable
-	275, // 398: rimgovernor.observations.v1.BillsReply.failure:type_name -> rimgovernor.common.v1.Failure
-	269, // 399: rimgovernor.observations.v1.RecipesSnapshot.context:type_name -> rimgovernor.common.v1.ObservationContext
-	2,   // 400: rimgovernor.observations.v1.RecipesSnapshot.snapshot:type_name -> rimgovernor.observations.v1.SnapshotRef
-	53,  // 401: rimgovernor.observations.v1.RecipesSnapshot.recipes:type_name -> rimgovernor.observations.v1.RecipeState
-	3,   // 402: rimgovernor.observations.v1.RecipesSnapshot.completeness:type_name -> rimgovernor.observations.v1.Completeness
-	1,   // 403: rimgovernor.observations.v1.RecipesRequest.scope:type_name -> rimgovernor.observations.v1.ReadScope
-	274, // 404: rimgovernor.observations.v1.RecipesRequest.page:type_name -> rimgovernor.common.v1.PageRequest
-	153, // 405: rimgovernor.observations.v1.RecipesReply.observed:type_name -> rimgovernor.observations.v1.RecipesSnapshot
-	271, // 406: rimgovernor.observations.v1.RecipesReply.unavailable:type_name -> rimgovernor.common.v1.Unavailable
-	275, // 407: rimgovernor.observations.v1.RecipesReply.failure:type_name -> rimgovernor.common.v1.Failure
-	1,   // 408: rimgovernor.observations.v1.BuildingSettingsRequest.scope:type_name -> rimgovernor.observations.v1.ReadScope
-	54,  // 409: rimgovernor.observations.v1.BuildingSettingsReply.observed:type_name -> rimgovernor.observations.v1.BuildingSettings
-	271, // 410: rimgovernor.observations.v1.BuildingSettingsReply.unavailable:type_name -> rimgovernor.common.v1.Unavailable
-	275, // 411: rimgovernor.observations.v1.BuildingSettingsReply.failure:type_name -> rimgovernor.common.v1.Failure
-	1,   // 412: rimgovernor.observations.v1.PawnSettingsRequest.scope:type_name -> rimgovernor.observations.v1.ReadScope
-	29,  // 413: rimgovernor.observations.v1.PawnSettingsReply.observed:type_name -> rimgovernor.observations.v1.PawnSettings
-	271, // 414: rimgovernor.observations.v1.PawnSettingsReply.unavailable:type_name -> rimgovernor.common.v1.Unavailable
-	275, // 415: rimgovernor.observations.v1.PawnSettingsReply.failure:type_name -> rimgovernor.common.v1.Failure
-	269, // 416: rimgovernor.observations.v1.ResolveTargetSnapshot.context:type_name -> rimgovernor.common.v1.ObservationContext
-	9,   // 417: rimgovernor.observations.v1.ResolveTargetSnapshot.candidates:type_name -> rimgovernor.observations.v1.TargetRef
-	3,   // 418: rimgovernor.observations.v1.ResolveTargetSnapshot.completeness:type_name -> rimgovernor.observations.v1.Completeness
-	1,   // 419: rimgovernor.observations.v1.ResolveTargetRequest.scope:type_name -> rimgovernor.observations.v1.ReadScope
-	272, // 420: rimgovernor.observations.v1.ResolveTargetRequest.cell:type_name -> rimgovernor.common.v1.Cell
-	160, // 421: rimgovernor.observations.v1.ResolveTargetReply.observed:type_name -> rimgovernor.observations.v1.ResolveTargetSnapshot
-	271, // 422: rimgovernor.observations.v1.ResolveTargetReply.unavailable:type_name -> rimgovernor.common.v1.Unavailable
-	275, // 423: rimgovernor.observations.v1.ResolveTargetReply.failure:type_name -> rimgovernor.common.v1.Failure
-	269, // 424: rimgovernor.observations.v1.PackedFurnitureState.context:type_name -> rimgovernor.common.v1.ObservationContext
-	272, // 425: rimgovernor.observations.v1.PackedFurnitureState.position:type_name -> rimgovernor.common.v1.Cell
-	8,   // 426: rimgovernor.observations.v1.PackedFurnitureState.install_blueprint:type_name -> rimgovernor.observations.v1.EntityRef
-	2,   // 427: rimgovernor.observations.v1.PackedFurnitureState.inner_snapshot:type_name -> rimgovernor.observations.v1.SnapshotRef
-	2,   // 428: rimgovernor.observations.v1.PackedFurnitureState.packed_snapshot:type_name -> rimgovernor.observations.v1.SnapshotRef
-	1,   // 429: rimgovernor.observations.v1.InstallStatusRequest.scope:type_name -> rimgovernor.observations.v1.ReadScope
-	163, // 430: rimgovernor.observations.v1.InstallStatusReply.observed:type_name -> rimgovernor.observations.v1.PackedFurnitureState
-	271, // 431: rimgovernor.observations.v1.InstallStatusReply.unavailable:type_name -> rimgovernor.common.v1.Unavailable
-	275, // 432: rimgovernor.observations.v1.InstallStatusReply.failure:type_name -> rimgovernor.common.v1.Failure
-	19,  // 433: rimgovernor.observations.v1.GearCandidate.item:type_name -> rimgovernor.observations.v1.GearItem
-	2,   // 434: rimgovernor.observations.v1.GearLoadout.snapshot:type_name -> rimgovernor.observations.v1.SnapshotRef
-	8,   // 435: rimgovernor.observations.v1.GearLoadout.pawn:type_name -> rimgovernor.observations.v1.EntityRef
-	20,  // 436: rimgovernor.observations.v1.GearLoadout.equipment:type_name -> rimgovernor.observations.v1.PawnEquipment
-	166, // 437: rimgovernor.observations.v1.GearLoadout.candidates:type_name -> rimgovernor.observations.v1.GearCandidate
-	167, // 438: rimgovernor.observations.v1.GearLoadout.replacement_needs:type_name -> rimgovernor.observations.v1.GearReplacementNeed
-	3,   // 439: rimgovernor.observations.v1.GearLoadout.completeness:type_name -> rimgovernor.observations.v1.Completeness
-	269, // 440: rimgovernor.observations.v1.GearSnapshot.context:type_name -> rimgovernor.common.v1.ObservationContext
-	168, // 441: rimgovernor.observations.v1.GearSnapshot.pawns:type_name -> rimgovernor.observations.v1.GearLoadout
-	3,   // 442: rimgovernor.observations.v1.GearSnapshot.completeness:type_name -> rimgovernor.observations.v1.Completeness
-	1,   // 443: rimgovernor.observations.v1.GearRequest.scope:type_name -> rimgovernor.observations.v1.ReadScope
-	274, // 444: rimgovernor.observations.v1.GearRequest.page:type_name -> rimgovernor.common.v1.PageRequest
-	169, // 445: rimgovernor.observations.v1.GearReply.observed:type_name -> rimgovernor.observations.v1.GearSnapshot
-	271, // 446: rimgovernor.observations.v1.GearReply.unavailable:type_name -> rimgovernor.common.v1.Unavailable
-	275, // 447: rimgovernor.observations.v1.GearReply.failure:type_name -> rimgovernor.common.v1.Failure
-	7,   // 448: rimgovernor.observations.v1.MedicalRecipe.recipe:type_name -> rimgovernor.observations.v1.DefinitionRef
-	8,   // 449: rimgovernor.observations.v1.MedicalRecipe.practitioners:type_name -> rimgovernor.observations.v1.EntityRef
-	48,  // 450: rimgovernor.observations.v1.MedicalRecipe.ingredients:type_name -> rimgovernor.observations.v1.IngredientRequirement
-	12,  // 451: rimgovernor.observations.v1.MedicalRecipe.skills:type_name -> rimgovernor.observations.v1.SkillRequirement
-	2,   // 452: rimgovernor.observations.v1.MedicalCatalog.snapshot:type_name -> rimgovernor.observations.v1.SnapshotRef
-	8,   // 453: rimgovernor.observations.v1.MedicalCatalog.patient:type_name -> rimgovernor.observations.v1.EntityRef
-	172, // 454: rimgovernor.observations.v1.MedicalCatalog.recipes:type_name -> rimgovernor.observations.v1.MedicalRecipe
-	43,  // 455: rimgovernor.observations.v1.MedicalCatalog.permitted_medicine:type_name -> rimgovernor.observations.v1.ResourceStock
-	3,   // 456: rimgovernor.observations.v1.MedicalCatalog.completeness:type_name -> rimgovernor.observations.v1.Completeness
-	1,   // 457: rimgovernor.observations.v1.MedicalCatalogRequest.scope:type_name -> rimgovernor.observations.v1.ReadScope
-	274, // 458: rimgovernor.observations.v1.MedicalCatalogRequest.page:type_name -> rimgovernor.common.v1.PageRequest
-	173, // 459: rimgovernor.observations.v1.MedicalCatalogReply.observed:type_name -> rimgovernor.observations.v1.MedicalCatalog
-	271, // 460: rimgovernor.observations.v1.MedicalCatalogReply.unavailable:type_name -> rimgovernor.common.v1.Unavailable
-	275, // 461: rimgovernor.observations.v1.MedicalCatalogReply.failure:type_name -> rimgovernor.common.v1.Failure
-	8,   // 462: rimgovernor.observations.v1.Trader.trader:type_name -> rimgovernor.observations.v1.EntityRef
-	269, // 463: rimgovernor.observations.v1.TradersSnapshot.context:type_name -> rimgovernor.common.v1.ObservationContext
-	176, // 464: rimgovernor.observations.v1.TradersSnapshot.traders:type_name -> rimgovernor.observations.v1.Trader
-	8,   // 465: rimgovernor.observations.v1.TradersSnapshot.negotiators:type_name -> rimgovernor.observations.v1.EntityRef
-	60,  // 466: rimgovernor.observations.v1.TradersSnapshot.comms_consoles:type_name -> rimgovernor.observations.v1.BuildingState
-	3,   // 467: rimgovernor.observations.v1.TradersSnapshot.completeness:type_name -> rimgovernor.observations.v1.Completeness
-	1,   // 468: rimgovernor.observations.v1.TradersRequest.scope:type_name -> rimgovernor.observations.v1.ReadScope
-	274, // 469: rimgovernor.observations.v1.TradersRequest.page:type_name -> rimgovernor.common.v1.PageRequest
-	177, // 470: rimgovernor.observations.v1.TradersReply.observed:type_name -> rimgovernor.observations.v1.TradersSnapshot
-	271, // 471: rimgovernor.observations.v1.TradersReply.unavailable:type_name -> rimgovernor.common.v1.Unavailable
-	275, // 472: rimgovernor.observations.v1.TradersReply.failure:type_name -> rimgovernor.common.v1.Failure
-	7,   // 473: rimgovernor.observations.v1.TradeLine.definition:type_name -> rimgovernor.observations.v1.DefinitionRef
-	2,   // 474: rimgovernor.observations.v1.TradeSheet.snapshot:type_name -> rimgovernor.observations.v1.SnapshotRef
-	8,   // 475: rimgovernor.observations.v1.TradeSheet.trader:type_name -> rimgovernor.observations.v1.EntityRef
-	8,   // 476: rimgovernor.observations.v1.TradeSheet.negotiator:type_name -> rimgovernor.observations.v1.EntityRef
-	180, // 477: rimgovernor.observations.v1.TradeSheet.lines:type_name -> rimgovernor.observations.v1.TradeLine
-	3,   // 478: rimgovernor.observations.v1.TradeSheet.completeness:type_name -> rimgovernor.observations.v1.Completeness
-	1,   // 479: rimgovernor.observations.v1.TradeSheetRequest.scope:type_name -> rimgovernor.observations.v1.ReadScope
-	274, // 480: rimgovernor.observations.v1.TradeSheetRequest.page:type_name -> rimgovernor.common.v1.PageRequest
-	181, // 481: rimgovernor.observations.v1.TradeSheetReply.observed:type_name -> rimgovernor.observations.v1.TradeSheet
-	271, // 482: rimgovernor.observations.v1.TradeSheetReply.unavailable:type_name -> rimgovernor.common.v1.Unavailable
-	275, // 483: rimgovernor.observations.v1.TradeSheetReply.failure:type_name -> rimgovernor.common.v1.Failure
-	269, // 484: rimgovernor.observations.v1.TradeStatus.context:type_name -> rimgovernor.common.v1.ObservationContext
-	2,   // 485: rimgovernor.observations.v1.TradeStatus.snapshot:type_name -> rimgovernor.observations.v1.SnapshotRef
-	1,   // 486: rimgovernor.observations.v1.TradeStatusRequest.scope:type_name -> rimgovernor.observations.v1.ReadScope
-	184, // 487: rimgovernor.observations.v1.TradeStatusReply.observed:type_name -> rimgovernor.observations.v1.TradeStatus
-	271, // 488: rimgovernor.observations.v1.TradeStatusReply.unavailable:type_name -> rimgovernor.common.v1.Unavailable
-	275, // 489: rimgovernor.observations.v1.TradeStatusReply.failure:type_name -> rimgovernor.common.v1.Failure
-	32,  // 490: rimgovernor.observations.v1.CaravanPawnEligibility.pawn:type_name -> rimgovernor.observations.v1.PawnState
-	8,   // 491: rimgovernor.observations.v1.CargoGroup.items:type_name -> rimgovernor.observations.v1.EntityRef
-	2,   // 492: rimgovernor.observations.v1.CaravanCatalog.snapshot:type_name -> rimgovernor.observations.v1.SnapshotRef
-	187, // 493: rimgovernor.observations.v1.CaravanCatalog.pawns:type_name -> rimgovernor.observations.v1.CaravanPawnEligibility
-	43,  // 494: rimgovernor.observations.v1.CaravanCatalog.cargo:type_name -> rimgovernor.observations.v1.ResourceStock
-	139, // 495: rimgovernor.observations.v1.CaravanCatalog.routes:type_name -> rimgovernor.observations.v1.WorldRoute
-	134, // 496: rimgovernor.observations.v1.CaravanCatalog.settlements:type_name -> rimgovernor.observations.v1.Settlement
-	107, // 497: rimgovernor.observations.v1.CaravanCatalog.return_storage:type_name -> rimgovernor.observations.v1.StorageCapacity
-	3,   // 498: rimgovernor.observations.v1.CaravanCatalog.completeness:type_name -> rimgovernor.observations.v1.Completeness
-	188, // 499: rimgovernor.observations.v1.CaravanCatalog.cargo_groups:type_name -> rimgovernor.observations.v1.CargoGroup
-	2,   // 500: rimgovernor.observations.v1.CaravanCatalog.return_storage_snapshot:type_name -> rimgovernor.observations.v1.SnapshotRef
-	1,   // 501: rimgovernor.observations.v1.CaravanCatalogRequest.scope:type_name -> rimgovernor.observations.v1.ReadScope
-	274, // 502: rimgovernor.observations.v1.CaravanCatalogRequest.page:type_name -> rimgovernor.common.v1.PageRequest
-	189, // 503: rimgovernor.observations.v1.CaravanCatalogReply.observed:type_name -> rimgovernor.observations.v1.CaravanCatalog
-	271, // 504: rimgovernor.observations.v1.CaravanCatalogReply.unavailable:type_name -> rimgovernor.common.v1.Unavailable
-	275, // 505: rimgovernor.observations.v1.CaravanCatalogReply.failure:type_name -> rimgovernor.common.v1.Failure
-	8,   // 506: rimgovernor.observations.v1.FoodStock.item:type_name -> rimgovernor.observations.v1.EntityRef
-	192, // 507: rimgovernor.observations.v1.FoodSupplyFacts.consumers:type_name -> rimgovernor.observations.v1.FoodConsumer
-	193, // 508: rimgovernor.observations.v1.FoodSupplyFacts.stocks:type_name -> rimgovernor.observations.v1.FoodStock
-	3,   // 509: rimgovernor.observations.v1.FoodSupplyFacts.completeness:type_name -> rimgovernor.observations.v1.Completeness
-	4,   // 510: rimgovernor.observations.v1.CropForecast.issues:type_name -> rimgovernor.observations.v1.ReadIssue
-	4,   // 511: rimgovernor.observations.v1.PatientForecast.issues:type_name -> rimgovernor.observations.v1.ReadIssue
-	194, // 512: rimgovernor.observations.v1.ForecastFacts.combined_food_supply:type_name -> rimgovernor.observations.v1.FoodSupplyFacts
-	195, // 513: rimgovernor.observations.v1.ForecastFacts.crops:type_name -> rimgovernor.observations.v1.CropForecast
-	196, // 514: rimgovernor.observations.v1.ForecastFacts.patients:type_name -> rimgovernor.observations.v1.PatientForecast
-	3,   // 515: rimgovernor.observations.v1.ForecastFacts.completeness:type_name -> rimgovernor.observations.v1.Completeness
-	272, // 516: rimgovernor.observations.v1.ComfortSurface.adjacent:type_name -> rimgovernor.common.v1.Cell
-	198, // 517: rimgovernor.observations.v1.ComfortFacts.surfaces:type_name -> rimgovernor.observations.v1.ComfortSurface
-	199, // 518: rimgovernor.observations.v1.ComfortFacts.dining:type_name -> rimgovernor.observations.v1.ComfortFacility
-	199, // 519: rimgovernor.observations.v1.ComfortFacts.recreation:type_name -> rimgovernor.observations.v1.ComfortFacility
-	3,   // 520: rimgovernor.observations.v1.ComfortFacts.completeness:type_name -> rimgovernor.observations.v1.Completeness
-	8,   // 521: rimgovernor.observations.v1.UpkeepItem.item:type_name -> rimgovernor.observations.v1.EntityRef
-	8,   // 522: rimgovernor.observations.v1.UpkeepBed.bed:type_name -> rimgovernor.observations.v1.EntityRef
-	272, // 523: rimgovernor.observations.v1.StorageCell.cell:type_name -> rimgovernor.common.v1.Cell
-	60,  // 524: rimgovernor.observations.v1.UpkeepStructure.building:type_name -> rimgovernor.observations.v1.BuildingState
-	8,   // 525: rimgovernor.observations.v1.FireState.fire:type_name -> rimgovernor.observations.v1.EntityRef
-	8,   // 526: rimgovernor.observations.v1.FilthState.filth:type_name -> rimgovernor.observations.v1.EntityRef
-	272, // 527: rimgovernor.observations.v1.ProtectedCell.cell:type_name -> rimgovernor.common.v1.Cell
-	32,  // 528: rimgovernor.observations.v1.UpkeepPerson.pawn:type_name -> rimgovernor.observations.v1.PawnState
-	32,  // 529: rimgovernor.observations.v1.AnimalFeed.pawn:type_name -> rimgovernor.observations.v1.PawnState
-	193, // 530: rimgovernor.observations.v1.AnimalFeed.reachable_stored_feed:type_name -> rimgovernor.observations.v1.FoodStock
-	60,  // 531: rimgovernor.observations.v1.DevelopmentPower.building:type_name -> rimgovernor.observations.v1.BuildingState
-	8,   // 532: rimgovernor.observations.v1.DevelopmentFurniture.building:type_name -> rimgovernor.observations.v1.EntityRef
-	212, // 533: rimgovernor.observations.v1.DevelopmentFacts.power:type_name -> rimgovernor.observations.v1.DevelopmentPower
-	213, // 534: rimgovernor.observations.v1.DevelopmentFacts.furniture:type_name -> rimgovernor.observations.v1.DevelopmentFurniture
-	89,  // 535: rimgovernor.observations.v1.DevelopmentFacts.research:type_name -> rimgovernor.observations.v1.ResearchSnapshot
-	3,   // 536: rimgovernor.observations.v1.DevelopmentFacts.completeness:type_name -> rimgovernor.observations.v1.Completeness
-	4,   // 537: rimgovernor.observations.v1.FoodClimate.issues:type_name -> rimgovernor.observations.v1.ReadIssue
-	7,   // 538: rimgovernor.observations.v1.PlanningDefinition.definition:type_name -> rimgovernor.observations.v1.DefinitionRef
-	6,   // 539: rimgovernor.observations.v1.PlanningDefinition.size:type_name -> rimgovernor.observations.v1.MapSize
-	10,  // 540: rimgovernor.observations.v1.PlanningDefinition.costs:type_name -> rimgovernor.observations.v1.Quantity
-	4,   // 541: rimgovernor.observations.v1.PlanningDefinition.issues:type_name -> rimgovernor.observations.v1.ReadIssue
-	218, // 542: rimgovernor.observations.v1.PlanningFacts.definitions:type_name -> rimgovernor.observations.v1.PlanningDefinition
-	79,  // 543: rimgovernor.observations.v1.PlanningFacts.cells:type_name -> rimgovernor.observations.v1.CellsSnapshot
-	169, // 544: rimgovernor.observations.v1.PlanningFacts.gear:type_name -> rimgovernor.observations.v1.GearSnapshot
-	3,   // 545: rimgovernor.observations.v1.PlanningFacts.completeness:type_name -> rimgovernor.observations.v1.Completeness
-	4,   // 546: rimgovernor.observations.v1.PlanningFacts.issues:type_name -> rimgovernor.observations.v1.ReadIssue
-	2,   // 547: rimgovernor.observations.v1.PlanningFacts.zone_map_snapshot:type_name -> rimgovernor.observations.v1.SnapshotRef
-	220, // 548: rimgovernor.observations.v1.FoodProduction.products:type_name -> rimgovernor.observations.v1.FoodProduct
-	8,   // 549: rimgovernor.observations.v1.CookingFacts.bench:type_name -> rimgovernor.observations.v1.EntityRef
-	53,  // 550: rimgovernor.observations.v1.CookingFacts.recipes:type_name -> rimgovernor.observations.v1.RecipeState
-	51,  // 551: rimgovernor.observations.v1.CookingFacts.bills:type_name -> rimgovernor.observations.v1.BillState
-	221, // 552: rimgovernor.observations.v1.CookingFacts.production:type_name -> rimgovernor.observations.v1.FoodProduction
-	8,   // 553: rimgovernor.observations.v1.AcquisitionFacts.source:type_name -> rimgovernor.observations.v1.EntityRef
-	8,   // 554: rimgovernor.observations.v1.ButcheringFacts.bench:type_name -> rimgovernor.observations.v1.EntityRef
-	51,  // 555: rimgovernor.observations.v1.ButcheringFacts.bills:type_name -> rimgovernor.observations.v1.BillState
-	53,  // 556: rimgovernor.observations.v1.ButcheringFacts.recipes:type_name -> rimgovernor.observations.v1.RecipeState
-	42,  // 557: rimgovernor.observations.v1.FoodCorpse.corpse:type_name -> rimgovernor.observations.v1.CorpseState
-	4,   // 558: rimgovernor.observations.v1.ColonyNaming.issues:type_name -> rimgovernor.observations.v1.ReadIssue
-	57,  // 559: rimgovernor.observations.v1.ConstructionFacts.records:type_name -> rimgovernor.observations.v1.ConstructionLineage
-	3,   // 560: rimgovernor.observations.v1.ConstructionFacts.completeness:type_name -> rimgovernor.observations.v1.Completeness
-	227, // 561: rimgovernor.observations.v1.ConstructionSection.observed:type_name -> rimgovernor.observations.v1.ConstructionFacts
-	271, // 562: rimgovernor.observations.v1.ConstructionSection.unavailable:type_name -> rimgovernor.common.v1.Unavailable
-	200, // 563: rimgovernor.observations.v1.ComfortSection.observed:type_name -> rimgovernor.observations.v1.ComfortFacts
-	271, // 564: rimgovernor.observations.v1.ComfortSection.unavailable:type_name -> rimgovernor.common.v1.Unavailable
-	194, // 565: rimgovernor.observations.v1.FoodSupplySection.observed:type_name -> rimgovernor.observations.v1.FoodSupplyFacts
-	271, // 566: rimgovernor.observations.v1.FoodSupplySection.unavailable:type_name -> rimgovernor.common.v1.Unavailable
-	197, // 567: rimgovernor.observations.v1.ForecastSection.observed:type_name -> rimgovernor.observations.v1.ForecastFacts
-	271, // 568: rimgovernor.observations.v1.ForecastSection.unavailable:type_name -> rimgovernor.common.v1.Unavailable
-	214, // 569: rimgovernor.observations.v1.DevelopmentSection.observed:type_name -> rimgovernor.observations.v1.DevelopmentFacts
-	271, // 570: rimgovernor.observations.v1.DevelopmentSection.unavailable:type_name -> rimgovernor.common.v1.Unavailable
-	219, // 571: rimgovernor.observations.v1.PlanningSection.observed:type_name -> rimgovernor.observations.v1.PlanningFacts
-	271, // 572: rimgovernor.observations.v1.PlanningSection.unavailable:type_name -> rimgovernor.common.v1.Unavailable
-	234, // 573: rimgovernor.observations.v1.HaulRecord.portions:type_name -> rimgovernor.observations.v1.HaulPortion
-	235, // 574: rimgovernor.observations.v1.HaulingFacts.records:type_name -> rimgovernor.observations.v1.HaulRecord
-	3,   // 575: rimgovernor.observations.v1.HaulingFacts.completeness:type_name -> rimgovernor.observations.v1.Completeness
-	236, // 576: rimgovernor.observations.v1.HaulingSection.observed:type_name -> rimgovernor.observations.v1.HaulingFacts
-	271, // 577: rimgovernor.observations.v1.HaulingSection.unavailable:type_name -> rimgovernor.common.v1.Unavailable
-	238, // 578: rimgovernor.observations.v1.WallRemovalFacts.records:type_name -> rimgovernor.observations.v1.WallRemovalRecord
-	3,   // 579: rimgovernor.observations.v1.WallRemovalFacts.completeness:type_name -> rimgovernor.observations.v1.Completeness
-	2,   // 580: rimgovernor.observations.v1.WallRemovalFacts.snapshot:type_name -> rimgovernor.observations.v1.SnapshotRef
-	239, // 581: rimgovernor.observations.v1.WallRemovalSection.observed:type_name -> rimgovernor.observations.v1.WallRemovalFacts
-	271, // 582: rimgovernor.observations.v1.WallRemovalSection.unavailable:type_name -> rimgovernor.common.v1.Unavailable
-	272, // 583: rimgovernor.observations.v1.HomeCoverageTarget.cells:type_name -> rimgovernor.common.v1.Cell
-	2,   // 584: rimgovernor.observations.v1.HomeCoverageTarget.snapshot:type_name -> rimgovernor.observations.v1.SnapshotRef
-	241, // 585: rimgovernor.observations.v1.HomeCoverageFacts.targets:type_name -> rimgovernor.observations.v1.HomeCoverageTarget
-	3,   // 586: rimgovernor.observations.v1.HomeCoverageFacts.completeness:type_name -> rimgovernor.observations.v1.Completeness
-	242, // 587: rimgovernor.observations.v1.HomeCoverageSection.observed:type_name -> rimgovernor.observations.v1.HomeCoverageFacts
-	271, // 588: rimgovernor.observations.v1.HomeCoverageSection.unavailable:type_name -> rimgovernor.common.v1.Unavailable
-	229, // 589: rimgovernor.observations.v1.UpkeepFacts.comfort:type_name -> rimgovernor.observations.v1.ComfortSection
-	228, // 590: rimgovernor.observations.v1.UpkeepFacts.construction:type_name -> rimgovernor.observations.v1.ConstructionSection
-	201, // 591: rimgovernor.observations.v1.UpkeepFacts.items:type_name -> rimgovernor.observations.v1.UpkeepItem
-	202, // 592: rimgovernor.observations.v1.UpkeepFacts.beds:type_name -> rimgovernor.observations.v1.UpkeepBed
-	203, // 593: rimgovernor.observations.v1.UpkeepFacts.storage_cells:type_name -> rimgovernor.observations.v1.StorageCell
-	204, // 594: rimgovernor.observations.v1.UpkeepFacts.storage_capacity:type_name -> rimgovernor.observations.v1.ItemStorageCapacity
-	205, // 595: rimgovernor.observations.v1.UpkeepFacts.structures:type_name -> rimgovernor.observations.v1.UpkeepStructure
-	206, // 596: rimgovernor.observations.v1.UpkeepFacts.fires:type_name -> rimgovernor.observations.v1.FireState
-	207, // 597: rimgovernor.observations.v1.UpkeepFacts.filth:type_name -> rimgovernor.observations.v1.FilthState
-	208, // 598: rimgovernor.observations.v1.UpkeepFacts.protected_cells:type_name -> rimgovernor.observations.v1.ProtectedCell
-	209, // 599: rimgovernor.observations.v1.UpkeepFacts.people:type_name -> rimgovernor.observations.v1.UpkeepPerson
-	210, // 600: rimgovernor.observations.v1.UpkeepFacts.feed_definitions:type_name -> rimgovernor.observations.v1.FeedDefinition
-	211, // 601: rimgovernor.observations.v1.UpkeepFacts.animals:type_name -> rimgovernor.observations.v1.AnimalFeed
-	3,   // 602: rimgovernor.observations.v1.UpkeepFacts.completeness:type_name -> rimgovernor.observations.v1.Completeness
-	4,   // 603: rimgovernor.observations.v1.UpkeepFacts.issues:type_name -> rimgovernor.observations.v1.ReadIssue
-	237, // 604: rimgovernor.observations.v1.UpkeepFacts.hauling:type_name -> rimgovernor.observations.v1.HaulingSection
-	240, // 605: rimgovernor.observations.v1.UpkeepFacts.wall_removal:type_name -> rimgovernor.observations.v1.WallRemovalSection
-	243, // 606: rimgovernor.observations.v1.UpkeepFacts.home_coverage:type_name -> rimgovernor.observations.v1.HomeCoverageSection
-	244, // 607: rimgovernor.observations.v1.UpkeepSection.observed:type_name -> rimgovernor.observations.v1.UpkeepFacts
-	271, // 608: rimgovernor.observations.v1.UpkeepSection.unavailable:type_name -> rimgovernor.common.v1.Unavailable
-	269, // 609: rimgovernor.observations.v1.ColonyFactsSnapshot.context:type_name -> rimgovernor.common.v1.ObservationContext
-	226, // 610: rimgovernor.observations.v1.ColonyFactsSnapshot.naming:type_name -> rimgovernor.observations.v1.ColonyNaming
-	272, // 611: rimgovernor.observations.v1.ColonyFactsSnapshot.center:type_name -> rimgovernor.common.v1.Cell
-	6,   // 612: rimgovernor.observations.v1.ColonyFactsSnapshot.map_size:type_name -> rimgovernor.observations.v1.MapSize
-	10,  // 613: rimgovernor.observations.v1.ColonyFactsSnapshot.resources:type_name -> rimgovernor.observations.v1.Quantity
-	7,   // 614: rimgovernor.observations.v1.ColonyFactsSnapshot.policy_resources:type_name -> rimgovernor.observations.v1.DefinitionRef
-	215, // 615: rimgovernor.observations.v1.ColonyFactsSnapshot.environment:type_name -> rimgovernor.observations.v1.EnvironmentCondition
-	216, // 616: rimgovernor.observations.v1.ColonyFactsSnapshot.food_climate:type_name -> rimgovernor.observations.v1.FoodClimate
-	217, // 617: rimgovernor.observations.v1.ColonyFactsSnapshot.farms:type_name -> rimgovernor.observations.v1.FarmFacts
-	222, // 618: rimgovernor.observations.v1.ColonyFactsSnapshot.cooking:type_name -> rimgovernor.observations.v1.CookingFacts
-	223, // 619: rimgovernor.observations.v1.ColonyFactsSnapshot.acquisition:type_name -> rimgovernor.observations.v1.AcquisitionFacts
-	224, // 620: rimgovernor.observations.v1.ColonyFactsSnapshot.butchering:type_name -> rimgovernor.observations.v1.ButcheringFacts
-	225, // 621: rimgovernor.observations.v1.ColonyFactsSnapshot.food_corpses:type_name -> rimgovernor.observations.v1.FoodCorpse
-	272, // 622: rimgovernor.observations.v1.ColonyFactsSnapshot.forbidden_supplies:type_name -> rimgovernor.common.v1.Cell
-	230, // 623: rimgovernor.observations.v1.ColonyFactsSnapshot.food_supply:type_name -> rimgovernor.observations.v1.FoodSupplySection
-	231, // 624: rimgovernor.observations.v1.ColonyFactsSnapshot.forecast:type_name -> rimgovernor.observations.v1.ForecastSection
-	245, // 625: rimgovernor.observations.v1.ColonyFactsSnapshot.upkeep:type_name -> rimgovernor.observations.v1.UpkeepSection
-	232, // 626: rimgovernor.observations.v1.ColonyFactsSnapshot.development:type_name -> rimgovernor.observations.v1.DevelopmentSection
-	233, // 627: rimgovernor.observations.v1.ColonyFactsSnapshot.planning:type_name -> rimgovernor.observations.v1.PlanningSection
-	129, // 628: rimgovernor.observations.v1.ColonyFactsSnapshot.recovery:type_name -> rimgovernor.observations.v1.RecoveryReply
-	124, // 629: rimgovernor.observations.v1.ColonyFactsSnapshot.waste:type_name -> rimgovernor.observations.v1.WasteReply
-	3,   // 630: rimgovernor.observations.v1.ColonyFactsSnapshot.completeness:type_name -> rimgovernor.observations.v1.Completeness
-	4,   // 631: rimgovernor.observations.v1.ColonyFactsSnapshot.issues:type_name -> rimgovernor.observations.v1.ReadIssue
-	1,   // 632: rimgovernor.observations.v1.ColonyFactsRequest.scope:type_name -> rimgovernor.observations.v1.ReadScope
-	274, // 633: rimgovernor.observations.v1.ColonyFactsRequest.page:type_name -> rimgovernor.common.v1.PageRequest
-	246, // 634: rimgovernor.observations.v1.ColonyFactsReply.observed:type_name -> rimgovernor.observations.v1.ColonyFactsSnapshot
-	271, // 635: rimgovernor.observations.v1.ColonyFactsReply.unavailable:type_name -> rimgovernor.common.v1.Unavailable
-	275, // 636: rimgovernor.observations.v1.ColonyFactsReply.failure:type_name -> rimgovernor.common.v1.Failure
-	32,  // 637: rimgovernor.observations.v1.ThreatPawn.pawn:type_name -> rimgovernor.observations.v1.PawnState
-	8,   // 638: rimgovernor.observations.v1.ThreatPawn.prey:type_name -> rimgovernor.observations.v1.EntityRef
-	249, // 639: rimgovernor.observations.v1.ThreatsSnapshot.hostiles:type_name -> rimgovernor.observations.v1.ThreatPawn
-	249, // 640: rimgovernor.observations.v1.ThreatsSnapshot.hunting_predators:type_name -> rimgovernor.observations.v1.ThreatPawn
-	249, // 641: rimgovernor.observations.v1.ThreatsSnapshot.ignored_hunters:type_name -> rimgovernor.observations.v1.ThreatPawn
-	249, // 642: rimgovernor.observations.v1.ThreatsSnapshot.wild_predators_near:type_name -> rimgovernor.observations.v1.ThreatPawn
-	249, // 643: rimgovernor.observations.v1.ThreatsSnapshot.downed_near:type_name -> rimgovernor.observations.v1.ThreatPawn
-	3,   // 644: rimgovernor.observations.v1.ThreatsSnapshot.completeness:type_name -> rimgovernor.observations.v1.Completeness
-	269, // 645: rimgovernor.observations.v1.StatusSnapshot.context:type_name -> rimgovernor.common.v1.ObservationContext
-	38,  // 646: rimgovernor.observations.v1.StatusSnapshot.colonists:type_name -> rimgovernor.observations.v1.PawnSnapshot
-	250, // 647: rimgovernor.observations.v1.StatusSnapshot.threats:type_name -> rimgovernor.observations.v1.ThreatsSnapshot
-	4,   // 648: rimgovernor.observations.v1.StatusSnapshot.issues:type_name -> rimgovernor.observations.v1.ReadIssue
-	1,   // 649: rimgovernor.observations.v1.StatusRequest.scope:type_name -> rimgovernor.observations.v1.ReadScope
-	274, // 650: rimgovernor.observations.v1.StatusRequest.page:type_name -> rimgovernor.common.v1.PageRequest
-	251, // 651: rimgovernor.observations.v1.StatusReply.observed:type_name -> rimgovernor.observations.v1.StatusSnapshot
-	271, // 652: rimgovernor.observations.v1.StatusReply.unavailable:type_name -> rimgovernor.common.v1.Unavailable
-	275, // 653: rimgovernor.observations.v1.StatusReply.failure:type_name -> rimgovernor.common.v1.Failure
-	269, // 654: rimgovernor.observations.v1.ObservationBatchSnapshot.start_context:type_name -> rimgovernor.common.v1.ObservationContext
-	269, // 655: rimgovernor.observations.v1.ObservationBatchSnapshot.end_context:type_name -> rimgovernor.common.v1.ObservationContext
-	253, // 656: rimgovernor.observations.v1.ObservationBatchSnapshot.status_before:type_name -> rimgovernor.observations.v1.StatusReply
-	40,  // 657: rimgovernor.observations.v1.ObservationBatchSnapshot.pawns:type_name -> rimgovernor.observations.v1.ListPawnsReply
-	47,  // 658: rimgovernor.observations.v1.ObservationBatchSnapshot.supplies:type_name -> rimgovernor.observations.v1.ListSuppliesReply
-	64,  // 659: rimgovernor.observations.v1.ObservationBatchSnapshot.buildings:type_name -> rimgovernor.observations.v1.ListBuildingsReply
-	69,  // 660: rimgovernor.observations.v1.ObservationBatchSnapshot.rooms:type_name -> rimgovernor.observations.v1.ListRoomsReply
-	74,  // 661: rimgovernor.observations.v1.ObservationBatchSnapshot.zones:type_name -> rimgovernor.observations.v1.ListZonesReply
-	253, // 662: rimgovernor.observations.v1.ObservationBatchSnapshot.status_after:type_name -> rimgovernor.observations.v1.StatusReply
-	1,   // 663: rimgovernor.observations.v1.ObservationBatchRequest.scope:type_name -> rimgovernor.observations.v1.ReadScope
-	252, // 664: rimgovernor.observations.v1.ObservationBatchRequest.status:type_name -> rimgovernor.observations.v1.StatusRequest
-	39,  // 665: rimgovernor.observations.v1.ObservationBatchRequest.pawns:type_name -> rimgovernor.observations.v1.ListPawnsRequest
-	46,  // 666: rimgovernor.observations.v1.ObservationBatchRequest.supplies:type_name -> rimgovernor.observations.v1.ListSuppliesRequest
-	63,  // 667: rimgovernor.observations.v1.ObservationBatchRequest.buildings:type_name -> rimgovernor.observations.v1.ListBuildingsRequest
-	68,  // 668: rimgovernor.observations.v1.ObservationBatchRequest.rooms:type_name -> rimgovernor.observations.v1.ListRoomsRequest
-	73,  // 669: rimgovernor.observations.v1.ObservationBatchRequest.zones:type_name -> rimgovernor.observations.v1.ListZonesRequest
-	254, // 670: rimgovernor.observations.v1.ObservationBatchReply.observed:type_name -> rimgovernor.observations.v1.ObservationBatchSnapshot
-	271, // 671: rimgovernor.observations.v1.ObservationBatchReply.unavailable:type_name -> rimgovernor.common.v1.Unavailable
-	275, // 672: rimgovernor.observations.v1.ObservationBatchReply.failure:type_name -> rimgovernor.common.v1.Failure
-	2,   // 673: rimgovernor.observations.v1.ProductionPolicySnapshot.snapshot:type_name -> rimgovernor.observations.v1.SnapshotRef
-	10,  // 674: rimgovernor.observations.v1.ProductionPolicySnapshot.floors:type_name -> rimgovernor.observations.v1.Quantity
-	10,  // 675: rimgovernor.observations.v1.ProductionPolicySnapshot.commitments:type_name -> rimgovernor.observations.v1.Quantity
-	110, // 676: rimgovernor.observations.v1.ProductionPolicySnapshot.drills:type_name -> rimgovernor.observations.v1.OwnedDrill
-	3,   // 677: rimgovernor.observations.v1.ProductionPolicySnapshot.completeness:type_name -> rimgovernor.observations.v1.Completeness
-	1,   // 678: rimgovernor.observations.v1.ProductionPolicyRequest.scope:type_name -> rimgovernor.observations.v1.ReadScope
-	274, // 679: rimgovernor.observations.v1.ProductionPolicyRequest.page:type_name -> rimgovernor.common.v1.PageRequest
-	257, // 680: rimgovernor.observations.v1.ProductionPolicyReply.observed:type_name -> rimgovernor.observations.v1.ProductionPolicySnapshot
-	271, // 681: rimgovernor.observations.v1.ProductionPolicyReply.unavailable:type_name -> rimgovernor.common.v1.Unavailable
-	275, // 682: rimgovernor.observations.v1.ProductionPolicyReply.failure:type_name -> rimgovernor.common.v1.Failure
-	269, // 683: rimgovernor.observations.v1.ArchitectCategoriesSnapshot.context:type_name -> rimgovernor.common.v1.ObservationContext
-	260, // 684: rimgovernor.observations.v1.ArchitectCategoriesSnapshot.categories:type_name -> rimgovernor.observations.v1.ArchitectCategory
-	3,   // 685: rimgovernor.observations.v1.ArchitectCategoriesSnapshot.completeness:type_name -> rimgovernor.observations.v1.Completeness
-	1,   // 686: rimgovernor.observations.v1.ArchitectCategoriesRequest.scope:type_name -> rimgovernor.observations.v1.ReadScope
-	274, // 687: rimgovernor.observations.v1.ArchitectCategoriesRequest.page:type_name -> rimgovernor.common.v1.PageRequest
-	262, // 688: rimgovernor.observations.v1.ArchitectCategoriesReply.observed:type_name -> rimgovernor.observations.v1.ArchitectCategoriesSnapshot
-	271, // 689: rimgovernor.observations.v1.ArchitectCategoriesReply.unavailable:type_name -> rimgovernor.common.v1.Unavailable
-	275, // 690: rimgovernor.observations.v1.ArchitectCategoriesReply.failure:type_name -> rimgovernor.common.v1.Failure
-	269, // 691: rimgovernor.observations.v1.ArchitectDesignatorsSnapshot.context:type_name -> rimgovernor.common.v1.ObservationContext
-	261, // 692: rimgovernor.observations.v1.ArchitectDesignatorsSnapshot.designators:type_name -> rimgovernor.observations.v1.ArchitectDesignator
-	3,   // 693: rimgovernor.observations.v1.ArchitectDesignatorsSnapshot.completeness:type_name -> rimgovernor.observations.v1.Completeness
-	1,   // 694: rimgovernor.observations.v1.ArchitectDesignatorsRequest.scope:type_name -> rimgovernor.observations.v1.ReadScope
-	274, // 695: rimgovernor.observations.v1.ArchitectDesignatorsRequest.page:type_name -> rimgovernor.common.v1.PageRequest
-	265, // 696: rimgovernor.observations.v1.ArchitectDesignatorsReply.observed:type_name -> rimgovernor.observations.v1.ArchitectDesignatorsSnapshot
-	271, // 697: rimgovernor.observations.v1.ArchitectDesignatorsReply.unavailable:type_name -> rimgovernor.common.v1.Unavailable
-	275, // 698: rimgovernor.observations.v1.ArchitectDesignatorsReply.failure:type_name -> rimgovernor.common.v1.Failure
-	258, // 699: rimgovernor.observations.v1.Observations.ReadProductionPolicy:input_type -> rimgovernor.observations.v1.ProductionPolicyRequest
-	263, // 700: rimgovernor.observations.v1.Observations.ListArchitectCategories:input_type -> rimgovernor.observations.v1.ArchitectCategoriesRequest
-	266, // 701: rimgovernor.observations.v1.Observations.ListArchitectDesignators:input_type -> rimgovernor.observations.v1.ArchitectDesignatorsRequest
-	252, // 702: rimgovernor.observations.v1.Observations.ReadStatus:input_type -> rimgovernor.observations.v1.StatusRequest
-	255, // 703: rimgovernor.observations.v1.Observations.ReadObservationBatch:input_type -> rimgovernor.observations.v1.ObservationBatchRequest
-	39,  // 704: rimgovernor.observations.v1.Observations.ListPawns:input_type -> rimgovernor.observations.v1.ListPawnsRequest
-	46,  // 705: rimgovernor.observations.v1.Observations.ListSupplies:input_type -> rimgovernor.observations.v1.ListSuppliesRequest
-	63,  // 706: rimgovernor.observations.v1.Observations.ListBuildings:input_type -> rimgovernor.observations.v1.ListBuildingsRequest
-	68,  // 707: rimgovernor.observations.v1.Observations.ListRooms:input_type -> rimgovernor.observations.v1.ListRoomsRequest
-	73,  // 708: rimgovernor.observations.v1.Observations.ListZones:input_type -> rimgovernor.observations.v1.ListZonesRequest
-	80,  // 709: rimgovernor.observations.v1.Observations.GetCells:input_type -> rimgovernor.observations.v1.GetCellsRequest
-	90,  // 710: rimgovernor.observations.v1.Observations.ReadResearch:input_type -> rimgovernor.observations.v1.ResearchRequest
-	247, // 711: rimgovernor.observations.v1.Observations.ReadColonyFacts:input_type -> rimgovernor.observations.v1.ColonyFactsRequest
-	95,  // 712: rimgovernor.observations.v1.Observations.ReadSpatialAccess:input_type -> rimgovernor.observations.v1.SpatialAccessRequest
-	99,  // 713: rimgovernor.observations.v1.Observations.ReadRoofSupport:input_type -> rimgovernor.observations.v1.RoofSupportRequest
-	104, // 714: rimgovernor.observations.v1.Observations.ListWallUpgradeSites:input_type -> rimgovernor.observations.v1.WallUpgradeSitesRequest
-	114, // 715: rimgovernor.observations.v1.Observations.ListResourceSources:input_type -> rimgovernor.observations.v1.ResourceSourcesRequest
-	119, // 716: rimgovernor.observations.v1.Observations.ReadHusbandry:input_type -> rimgovernor.observations.v1.HusbandryRequest
-	123, // 717: rimgovernor.observations.v1.Observations.ReadWaste:input_type -> rimgovernor.observations.v1.WasteRequest
-	128, // 718: rimgovernor.observations.v1.Observations.ReadRecovery:input_type -> rimgovernor.observations.v1.RecoveryRequest
-	132, // 719: rimgovernor.observations.v1.Observations.ReadPopulation:input_type -> rimgovernor.observations.v1.PopulationRequest
-	137, // 720: rimgovernor.observations.v1.Observations.ReadWorld:input_type -> rimgovernor.observations.v1.WorldRequest
-	148, // 721: rimgovernor.observations.v1.Observations.ReadWorldProgression:input_type -> rimgovernor.observations.v1.WorldProgressionRequest
-	151, // 722: rimgovernor.observations.v1.Observations.ReadBills:input_type -> rimgovernor.observations.v1.BillsRequest
-	154, // 723: rimgovernor.observations.v1.Observations.ReadRecipes:input_type -> rimgovernor.observations.v1.RecipesRequest
-	156, // 724: rimgovernor.observations.v1.Observations.ReadBuildingSettings:input_type -> rimgovernor.observations.v1.BuildingSettingsRequest
-	158, // 725: rimgovernor.observations.v1.Observations.ReadPawnSettings:input_type -> rimgovernor.observations.v1.PawnSettingsRequest
-	161, // 726: rimgovernor.observations.v1.Observations.ResolveTarget:input_type -> rimgovernor.observations.v1.ResolveTargetRequest
-	164, // 727: rimgovernor.observations.v1.Observations.ReadInstallStatus:input_type -> rimgovernor.observations.v1.InstallStatusRequest
-	170, // 728: rimgovernor.observations.v1.Observations.ReadGear:input_type -> rimgovernor.observations.v1.GearRequest
-	174, // 729: rimgovernor.observations.v1.Observations.ReadMedicalCatalog:input_type -> rimgovernor.observations.v1.MedicalCatalogRequest
-	178, // 730: rimgovernor.observations.v1.Observations.ListTraders:input_type -> rimgovernor.observations.v1.TradersRequest
-	182, // 731: rimgovernor.observations.v1.Observations.ReadTradeSheet:input_type -> rimgovernor.observations.v1.TradeSheetRequest
-	185, // 732: rimgovernor.observations.v1.Observations.ReadTradeStatus:input_type -> rimgovernor.observations.v1.TradeStatusRequest
-	190, // 733: rimgovernor.observations.v1.Observations.ReadCaravanCatalog:input_type -> rimgovernor.observations.v1.CaravanCatalogRequest
-	259, // 734: rimgovernor.observations.v1.Observations.ReadProductionPolicy:output_type -> rimgovernor.observations.v1.ProductionPolicyReply
-	264, // 735: rimgovernor.observations.v1.Observations.ListArchitectCategories:output_type -> rimgovernor.observations.v1.ArchitectCategoriesReply
-	267, // 736: rimgovernor.observations.v1.Observations.ListArchitectDesignators:output_type -> rimgovernor.observations.v1.ArchitectDesignatorsReply
-	253, // 737: rimgovernor.observations.v1.Observations.ReadStatus:output_type -> rimgovernor.observations.v1.StatusReply
-	256, // 738: rimgovernor.observations.v1.Observations.ReadObservationBatch:output_type -> rimgovernor.observations.v1.ObservationBatchReply
-	40,  // 739: rimgovernor.observations.v1.Observations.ListPawns:output_type -> rimgovernor.observations.v1.ListPawnsReply
-	47,  // 740: rimgovernor.observations.v1.Observations.ListSupplies:output_type -> rimgovernor.observations.v1.ListSuppliesReply
-	64,  // 741: rimgovernor.observations.v1.Observations.ListBuildings:output_type -> rimgovernor.observations.v1.ListBuildingsReply
-	69,  // 742: rimgovernor.observations.v1.Observations.ListRooms:output_type -> rimgovernor.observations.v1.ListRoomsReply
-	74,  // 743: rimgovernor.observations.v1.Observations.ListZones:output_type -> rimgovernor.observations.v1.ListZonesReply
-	82,  // 744: rimgovernor.observations.v1.Observations.GetCells:output_type -> rimgovernor.observations.v1.GetCellsReply
-	91,  // 745: rimgovernor.observations.v1.Observations.ReadResearch:output_type -> rimgovernor.observations.v1.ResearchReply
-	248, // 746: rimgovernor.observations.v1.Observations.ReadColonyFacts:output_type -> rimgovernor.observations.v1.ColonyFactsReply
-	96,  // 747: rimgovernor.observations.v1.Observations.ReadSpatialAccess:output_type -> rimgovernor.observations.v1.SpatialAccessReply
-	100, // 748: rimgovernor.observations.v1.Observations.ReadRoofSupport:output_type -> rimgovernor.observations.v1.RoofSupportReply
-	105, // 749: rimgovernor.observations.v1.Observations.ListWallUpgradeSites:output_type -> rimgovernor.observations.v1.WallUpgradeSitesReply
-	115, // 750: rimgovernor.observations.v1.Observations.ListResourceSources:output_type -> rimgovernor.observations.v1.ResourceSourcesReply
-	120, // 751: rimgovernor.observations.v1.Observations.ReadHusbandry:output_type -> rimgovernor.observations.v1.HusbandryReply
-	124, // 752: rimgovernor.observations.v1.Observations.ReadWaste:output_type -> rimgovernor.observations.v1.WasteReply
-	129, // 753: rimgovernor.observations.v1.Observations.ReadRecovery:output_type -> rimgovernor.observations.v1.RecoveryReply
-	133, // 754: rimgovernor.observations.v1.Observations.ReadPopulation:output_type -> rimgovernor.observations.v1.PopulationReply
-	138, // 755: rimgovernor.observations.v1.Observations.ReadWorld:output_type -> rimgovernor.observations.v1.WorldReply
-	149, // 756: rimgovernor.observations.v1.Observations.ReadWorldProgression:output_type -> rimgovernor.observations.v1.WorldProgressionReply
-	152, // 757: rimgovernor.observations.v1.Observations.ReadBills:output_type -> rimgovernor.observations.v1.BillsReply
-	155, // 758: rimgovernor.observations.v1.Observations.ReadRecipes:output_type -> rimgovernor.observations.v1.RecipesReply
-	157, // 759: rimgovernor.observations.v1.Observations.ReadBuildingSettings:output_type -> rimgovernor.observations.v1.BuildingSettingsReply
-	159, // 760: rimgovernor.observations.v1.Observations.ReadPawnSettings:output_type -> rimgovernor.observations.v1.PawnSettingsReply
-	162, // 761: rimgovernor.observations.v1.Observations.ResolveTarget:output_type -> rimgovernor.observations.v1.ResolveTargetReply
-	165, // 762: rimgovernor.observations.v1.Observations.ReadInstallStatus:output_type -> rimgovernor.observations.v1.InstallStatusReply
-	171, // 763: rimgovernor.observations.v1.Observations.ReadGear:output_type -> rimgovernor.observations.v1.GearReply
-	175, // 764: rimgovernor.observations.v1.Observations.ReadMedicalCatalog:output_type -> rimgovernor.observations.v1.MedicalCatalogReply
-	179, // 765: rimgovernor.observations.v1.Observations.ListTraders:output_type -> rimgovernor.observations.v1.TradersReply
-	183, // 766: rimgovernor.observations.v1.Observations.ReadTradeSheet:output_type -> rimgovernor.observations.v1.TradeSheetReply
-	186, // 767: rimgovernor.observations.v1.Observations.ReadTradeStatus:output_type -> rimgovernor.observations.v1.TradeStatusReply
-	191, // 768: rimgovernor.observations.v1.Observations.ReadCaravanCatalog:output_type -> rimgovernor.observations.v1.CaravanCatalogReply
-	734, // [734:769] is the sub-list for method output_type
-	699, // [699:734] is the sub-list for method input_type
-	699, // [699:699] is the sub-list for extension type_name
-	699, // [699:699] is the sub-list for extension extendee
-	0,   // [0:699] is the sub-list for field type_name
+	2,   // 57: rimgovernor.observations.v1.PawnState.snapshot:type_name -> rimgovernor.observations.v1.SnapshotRef
+	275, // 58: rimgovernor.observations.v1.OwnedDraftClaim.owner:type_name -> rimgovernor.authority.v1.Owner
+	2,   // 59: rimgovernor.observations.v1.OwnedDraftClaim.pawn_snapshot:type_name -> rimgovernor.observations.v1.SnapshotRef
+	34,  // 60: rimgovernor.observations.v1.DraftClaimObservation.owned:type_name -> rimgovernor.observations.v1.OwnedDraftClaim
+	33,  // 61: rimgovernor.observations.v1.DraftClaimObservation.unowned:type_name -> rimgovernor.observations.v1.NoOwnedDraftClaim
+	273, // 62: rimgovernor.observations.v1.DraftClaimObservation.unavailable:type_name -> rimgovernor.common.v1.Unavailable
+	271, // 63: rimgovernor.observations.v1.PawnSnapshot.context:type_name -> rimgovernor.common.v1.ObservationContext
+	32,  // 64: rimgovernor.observations.v1.PawnSnapshot.pawns:type_name -> rimgovernor.observations.v1.PawnState
+	3,   // 65: rimgovernor.observations.v1.PawnSnapshot.completeness:type_name -> rimgovernor.observations.v1.Completeness
+	1,   // 66: rimgovernor.observations.v1.ListPawnsRequest.scope:type_name -> rimgovernor.observations.v1.ReadScope
+	36,  // 67: rimgovernor.observations.v1.ListPawnsRequest.filter:type_name -> rimgovernor.observations.v1.PawnFilter
+	37,  // 68: rimgovernor.observations.v1.ListPawnsRequest.details:type_name -> rimgovernor.observations.v1.PawnDetails
+	276, // 69: rimgovernor.observations.v1.ListPawnsRequest.page:type_name -> rimgovernor.common.v1.PageRequest
+	38,  // 70: rimgovernor.observations.v1.ListPawnsReply.observed:type_name -> rimgovernor.observations.v1.PawnSnapshot
+	273, // 71: rimgovernor.observations.v1.ListPawnsReply.unavailable:type_name -> rimgovernor.common.v1.Unavailable
+	277, // 72: rimgovernor.observations.v1.ListPawnsReply.failure:type_name -> rimgovernor.common.v1.Failure
+	8,   // 73: rimgovernor.observations.v1.HeldStock.holder:type_name -> rimgovernor.observations.v1.EntityRef
+	8,   // 74: rimgovernor.observations.v1.CorpseState.corpse:type_name -> rimgovernor.observations.v1.EntityRef
+	8,   // 75: rimgovernor.observations.v1.CorpseState.inner_pawn:type_name -> rimgovernor.observations.v1.EntityRef
+	7,   // 76: rimgovernor.observations.v1.ResourceStock.definition:type_name -> rimgovernor.observations.v1.DefinitionRef
+	8,   // 77: rimgovernor.observations.v1.ResourceStock.items:type_name -> rimgovernor.observations.v1.EntityRef
+	41,  // 78: rimgovernor.observations.v1.ResourceStock.holders:type_name -> rimgovernor.observations.v1.HeldStock
+	42,  // 79: rimgovernor.observations.v1.ResourceStock.corpses:type_name -> rimgovernor.observations.v1.CorpseState
+	3,   // 80: rimgovernor.observations.v1.ResourceStock.items_completeness:type_name -> rimgovernor.observations.v1.Completeness
+	3,   // 81: rimgovernor.observations.v1.ResourceStock.holders_completeness:type_name -> rimgovernor.observations.v1.Completeness
+	3,   // 82: rimgovernor.observations.v1.ResourceStock.corpses_completeness:type_name -> rimgovernor.observations.v1.Completeness
+	4,   // 83: rimgovernor.observations.v1.ResourceStock.issues:type_name -> rimgovernor.observations.v1.ReadIssue
+	2,   // 84: rimgovernor.observations.v1.ResourceStock.snapshot:type_name -> rimgovernor.observations.v1.SnapshotRef
+	5,   // 85: rimgovernor.observations.v1.StockFilter.region:type_name -> rimgovernor.observations.v1.Rectangle
+	271, // 86: rimgovernor.observations.v1.SuppliesSnapshot.context:type_name -> rimgovernor.common.v1.ObservationContext
+	43,  // 87: rimgovernor.observations.v1.SuppliesSnapshot.stocks:type_name -> rimgovernor.observations.v1.ResourceStock
+	3,   // 88: rimgovernor.observations.v1.SuppliesSnapshot.completeness:type_name -> rimgovernor.observations.v1.Completeness
+	1,   // 89: rimgovernor.observations.v1.ListSuppliesRequest.scope:type_name -> rimgovernor.observations.v1.ReadScope
+	44,  // 90: rimgovernor.observations.v1.ListSuppliesRequest.filter:type_name -> rimgovernor.observations.v1.StockFilter
+	276, // 91: rimgovernor.observations.v1.ListSuppliesRequest.page:type_name -> rimgovernor.common.v1.PageRequest
+	45,  // 92: rimgovernor.observations.v1.ListSuppliesReply.observed:type_name -> rimgovernor.observations.v1.SuppliesSnapshot
+	273, // 93: rimgovernor.observations.v1.ListSuppliesReply.unavailable:type_name -> rimgovernor.common.v1.Unavailable
+	277, // 94: rimgovernor.observations.v1.ListSuppliesReply.failure:type_name -> rimgovernor.common.v1.Failure
+	4,   // 95: rimgovernor.observations.v1.IngredientRequirement.issues:type_name -> rimgovernor.observations.v1.ReadIssue
+	49,  // 96: rimgovernor.observations.v1.StockpileFilter.special_rules:type_name -> rimgovernor.observations.v1.FilterSpecialRule
+	3,   // 97: rimgovernor.observations.v1.StockpileFilter.completeness:type_name -> rimgovernor.observations.v1.Completeness
+	7,   // 98: rimgovernor.observations.v1.BillState.recipe:type_name -> rimgovernor.observations.v1.DefinitionRef
+	50,  // 99: rimgovernor.observations.v1.BillState.ingredient_filter:type_name -> rimgovernor.observations.v1.StockpileFilter
+	48,  // 100: rimgovernor.observations.v1.BillState.ingredients:type_name -> rimgovernor.observations.v1.IngredientRequirement
+	4,   // 101: rimgovernor.observations.v1.BillState.issues:type_name -> rimgovernor.observations.v1.ReadIssue
+	2,   // 102: rimgovernor.observations.v1.BillStack.snapshot:type_name -> rimgovernor.observations.v1.SnapshotRef
+	8,   // 103: rimgovernor.observations.v1.BillStack.bench:type_name -> rimgovernor.observations.v1.EntityRef
+	51,  // 104: rimgovernor.observations.v1.BillStack.bills:type_name -> rimgovernor.observations.v1.BillState
+	3,   // 105: rimgovernor.observations.v1.BillStack.completeness:type_name -> rimgovernor.observations.v1.Completeness
+	7,   // 106: rimgovernor.observations.v1.RecipeState.recipe:type_name -> rimgovernor.observations.v1.DefinitionRef
+	12,  // 107: rimgovernor.observations.v1.RecipeState.skills:type_name -> rimgovernor.observations.v1.SkillRequirement
+	48,  // 108: rimgovernor.observations.v1.RecipeState.ingredients:type_name -> rimgovernor.observations.v1.IngredientRequirement
+	10,  // 109: rimgovernor.observations.v1.RecipeState.products:type_name -> rimgovernor.observations.v1.Quantity
+	50,  // 110: rimgovernor.observations.v1.RecipeState.default_filter:type_name -> rimgovernor.observations.v1.StockpileFilter
+	2,   // 111: rimgovernor.observations.v1.BuildingSettings.snapshot:type_name -> rimgovernor.observations.v1.SnapshotRef
+	8,   // 112: rimgovernor.observations.v1.BuildingSettings.assigning_candidates:type_name -> rimgovernor.observations.v1.EntityRef
+	4,   // 113: rimgovernor.observations.v1.BuildingSettings.issues:type_name -> rimgovernor.observations.v1.ReadIssue
+	55,  // 114: rimgovernor.observations.v1.ConstructionState.resources:type_name -> rimgovernor.observations.v1.MaterialDeficit
+	4,   // 115: rimgovernor.observations.v1.ConstructionState.issues:type_name -> rimgovernor.observations.v1.ReadIssue
+	274, // 116: rimgovernor.observations.v1.ConstructionLineage.anchor:type_name -> rimgovernor.common.v1.Cell
+	274, // 117: rimgovernor.observations.v1.ThermalSide.position:type_name -> rimgovernor.common.v1.Cell
+	4,   // 118: rimgovernor.observations.v1.ThermalSide.issues:type_name -> rimgovernor.observations.v1.ReadIssue
+	4,   // 119: rimgovernor.observations.v1.BuildingServiceState.issues:type_name -> rimgovernor.observations.v1.ReadIssue
+	8,   // 120: rimgovernor.observations.v1.BuildingState.building:type_name -> rimgovernor.observations.v1.EntityRef
+	274, // 121: rimgovernor.observations.v1.BuildingState.occupied_cells:type_name -> rimgovernor.common.v1.Cell
+	56,  // 122: rimgovernor.observations.v1.BuildingState.construction:type_name -> rimgovernor.observations.v1.ConstructionState
+	59,  // 123: rimgovernor.observations.v1.BuildingState.service:type_name -> rimgovernor.observations.v1.BuildingServiceState
+	54,  // 124: rimgovernor.observations.v1.BuildingState.settings:type_name -> rimgovernor.observations.v1.BuildingSettings
+	58,  // 125: rimgovernor.observations.v1.BuildingState.thermal_sides:type_name -> rimgovernor.observations.v1.ThermalSide
+	52,  // 126: rimgovernor.observations.v1.BuildingState.bills:type_name -> rimgovernor.observations.v1.BillStack
+	4,   // 127: rimgovernor.observations.v1.BuildingState.issues:type_name -> rimgovernor.observations.v1.ReadIssue
+	2,   // 128: rimgovernor.observations.v1.BuildingState.snapshot:type_name -> rimgovernor.observations.v1.SnapshotRef
+	3,   // 129: rimgovernor.observations.v1.PowerNetwork.completeness:type_name -> rimgovernor.observations.v1.Completeness
+	271, // 130: rimgovernor.observations.v1.BuildingsSnapshot.context:type_name -> rimgovernor.common.v1.ObservationContext
+	60,  // 131: rimgovernor.observations.v1.BuildingsSnapshot.buildings:type_name -> rimgovernor.observations.v1.BuildingState
+	61,  // 132: rimgovernor.observations.v1.BuildingsSnapshot.power_networks:type_name -> rimgovernor.observations.v1.PowerNetwork
+	3,   // 133: rimgovernor.observations.v1.BuildingsSnapshot.completeness:type_name -> rimgovernor.observations.v1.Completeness
+	3,   // 134: rimgovernor.observations.v1.BuildingsSnapshot.networks_completeness:type_name -> rimgovernor.observations.v1.Completeness
+	1,   // 135: rimgovernor.observations.v1.ListBuildingsRequest.scope:type_name -> rimgovernor.observations.v1.ReadScope
+	5,   // 136: rimgovernor.observations.v1.ListBuildingsRequest.region:type_name -> rimgovernor.observations.v1.Rectangle
+	276, // 137: rimgovernor.observations.v1.ListBuildingsRequest.page:type_name -> rimgovernor.common.v1.PageRequest
+	62,  // 138: rimgovernor.observations.v1.ListBuildingsReply.observed:type_name -> rimgovernor.observations.v1.BuildingsSnapshot
+	273, // 139: rimgovernor.observations.v1.ListBuildingsReply.unavailable:type_name -> rimgovernor.common.v1.Unavailable
+	277, // 140: rimgovernor.observations.v1.ListBuildingsReply.failure:type_name -> rimgovernor.common.v1.Failure
+	273, // 141: rimgovernor.observations.v1.RoomStat.unavailable:type_name -> rimgovernor.common.v1.Unavailable
+	60,  // 142: rimgovernor.observations.v1.RoomBedMembership.building:type_name -> rimgovernor.observations.v1.BuildingState
+	8,   // 143: rimgovernor.observations.v1.RoomBedMembership.owners:type_name -> rimgovernor.observations.v1.EntityRef
+	8,   // 144: rimgovernor.observations.v1.RoomBedMembership.users:type_name -> rimgovernor.observations.v1.EntityRef
+	8,   // 145: rimgovernor.observations.v1.RoomBedMembership.accessible_to:type_name -> rimgovernor.observations.v1.EntityRef
+	43,  // 146: rimgovernor.observations.v1.StockpileMembership.contents:type_name -> rimgovernor.observations.v1.ResourceStock
+	3,   // 147: rimgovernor.observations.v1.StockpileMembership.contents_completeness:type_name -> rimgovernor.observations.v1.Completeness
+	5,   // 148: rimgovernor.observations.v1.RoomState.extents:type_name -> rimgovernor.observations.v1.Rectangle
+	274, // 149: rimgovernor.observations.v1.RoomState.center:type_name -> rimgovernor.common.v1.Cell
+	274, // 150: rimgovernor.observations.v1.RoomState.cells:type_name -> rimgovernor.common.v1.Cell
+	3,   // 151: rimgovernor.observations.v1.RoomState.cells_completeness:type_name -> rimgovernor.observations.v1.Completeness
+	65,  // 152: rimgovernor.observations.v1.RoomState.stats:type_name -> rimgovernor.observations.v1.RoomStat
+	8,   // 153: rimgovernor.observations.v1.RoomState.pawns:type_name -> rimgovernor.observations.v1.EntityRef
+	60,  // 154: rimgovernor.observations.v1.RoomState.beds:type_name -> rimgovernor.observations.v1.BuildingState
+	10,  // 155: rimgovernor.observations.v1.RoomState.contents:type_name -> rimgovernor.observations.v1.Quantity
+	3,   // 156: rimgovernor.observations.v1.RoomState.contents_completeness:type_name -> rimgovernor.observations.v1.Completeness
+	4,   // 157: rimgovernor.observations.v1.RoomState.issues:type_name -> rimgovernor.observations.v1.ReadIssue
+	2,   // 158: rimgovernor.observations.v1.RoomState.snapshot:type_name -> rimgovernor.observations.v1.SnapshotRef
+	66,  // 159: rimgovernor.observations.v1.RoomState.bed_memberships:type_name -> rimgovernor.observations.v1.RoomBedMembership
+	67,  // 160: rimgovernor.observations.v1.RoomState.stockpile_memberships:type_name -> rimgovernor.observations.v1.StockpileMembership
+	271, // 161: rimgovernor.observations.v1.RoomsSnapshot.context:type_name -> rimgovernor.common.v1.ObservationContext
+	68,  // 162: rimgovernor.observations.v1.RoomsSnapshot.rooms:type_name -> rimgovernor.observations.v1.RoomState
+	3,   // 163: rimgovernor.observations.v1.RoomsSnapshot.completeness:type_name -> rimgovernor.observations.v1.Completeness
+	1,   // 164: rimgovernor.observations.v1.ListRoomsRequest.scope:type_name -> rimgovernor.observations.v1.ReadScope
+	5,   // 165: rimgovernor.observations.v1.ListRoomsRequest.region:type_name -> rimgovernor.observations.v1.Rectangle
+	276, // 166: rimgovernor.observations.v1.ListRoomsRequest.page:type_name -> rimgovernor.common.v1.PageRequest
+	69,  // 167: rimgovernor.observations.v1.ListRoomsReply.observed:type_name -> rimgovernor.observations.v1.RoomsSnapshot
+	273, // 168: rimgovernor.observations.v1.ListRoomsReply.unavailable:type_name -> rimgovernor.common.v1.Unavailable
+	277, // 169: rimgovernor.observations.v1.ListRoomsReply.failure:type_name -> rimgovernor.common.v1.Failure
+	274, // 170: rimgovernor.observations.v1.ZoneAnomaly.cell:type_name -> rimgovernor.common.v1.Cell
+	2,   // 171: rimgovernor.observations.v1.ZoneState.snapshot:type_name -> rimgovernor.observations.v1.SnapshotRef
+	5,   // 172: rimgovernor.observations.v1.ZoneState.bounds:type_name -> rimgovernor.observations.v1.Rectangle
+	50,  // 173: rimgovernor.observations.v1.ZoneState.filter:type_name -> rimgovernor.observations.v1.StockpileFilter
+	274, // 174: rimgovernor.observations.v1.ZoneState.listed_cells:type_name -> rimgovernor.common.v1.Cell
+	274, // 175: rimgovernor.observations.v1.ZoneState.grid_cells:type_name -> rimgovernor.common.v1.Cell
+	72,  // 176: rimgovernor.observations.v1.ZoneState.anomalies:type_name -> rimgovernor.observations.v1.ZoneAnomaly
+	10,  // 177: rimgovernor.observations.v1.ZoneState.contents:type_name -> rimgovernor.observations.v1.Quantity
+	3,   // 178: rimgovernor.observations.v1.ZoneState.cells_completeness:type_name -> rimgovernor.observations.v1.Completeness
+	3,   // 179: rimgovernor.observations.v1.ZoneState.contents_completeness:type_name -> rimgovernor.observations.v1.Completeness
+	4,   // 180: rimgovernor.observations.v1.ZoneState.issues:type_name -> rimgovernor.observations.v1.ReadIssue
+	271, // 181: rimgovernor.observations.v1.ZonesSnapshot.context:type_name -> rimgovernor.common.v1.ObservationContext
+	73,  // 182: rimgovernor.observations.v1.ZonesSnapshot.zones:type_name -> rimgovernor.observations.v1.ZoneState
+	3,   // 183: rimgovernor.observations.v1.ZonesSnapshot.completeness:type_name -> rimgovernor.observations.v1.Completeness
+	1,   // 184: rimgovernor.observations.v1.ListZonesRequest.scope:type_name -> rimgovernor.observations.v1.ReadScope
+	5,   // 185: rimgovernor.observations.v1.ListZonesRequest.region:type_name -> rimgovernor.observations.v1.Rectangle
+	276, // 186: rimgovernor.observations.v1.ListZonesRequest.page:type_name -> rimgovernor.common.v1.PageRequest
+	74,  // 187: rimgovernor.observations.v1.ListZonesReply.observed:type_name -> rimgovernor.observations.v1.ZonesSnapshot
+	273, // 188: rimgovernor.observations.v1.ListZonesReply.unavailable:type_name -> rimgovernor.common.v1.Unavailable
+	277, // 189: rimgovernor.observations.v1.ListZonesReply.failure:type_name -> rimgovernor.common.v1.Failure
+	9,   // 190: rimgovernor.observations.v1.DesignationState.target:type_name -> rimgovernor.observations.v1.TargetRef
+	8,   // 191: rimgovernor.observations.v1.CellThing.thing:type_name -> rimgovernor.observations.v1.EntityRef
+	274, // 192: rimgovernor.observations.v1.CellState.cell:type_name -> rimgovernor.common.v1.Cell
+	78,  // 193: rimgovernor.observations.v1.CellState.things:type_name -> rimgovernor.observations.v1.CellThing
+	77,  // 194: rimgovernor.observations.v1.CellState.designations:type_name -> rimgovernor.observations.v1.DesignationState
+	4,   // 195: rimgovernor.observations.v1.CellState.issues:type_name -> rimgovernor.observations.v1.ReadIssue
+	271, // 196: rimgovernor.observations.v1.CellsSnapshot.context:type_name -> rimgovernor.common.v1.ObservationContext
+	6,   // 197: rimgovernor.observations.v1.CellsSnapshot.map_size:type_name -> rimgovernor.observations.v1.MapSize
+	5,   // 198: rimgovernor.observations.v1.CellsSnapshot.region:type_name -> rimgovernor.observations.v1.Rectangle
+	79,  // 199: rimgovernor.observations.v1.CellsSnapshot.cells:type_name -> rimgovernor.observations.v1.CellState
+	3,   // 200: rimgovernor.observations.v1.CellsSnapshot.completeness:type_name -> rimgovernor.observations.v1.Completeness
+	80,  // 201: rimgovernor.observations.v1.CellsSnapshot.applied_fields:type_name -> rimgovernor.observations.v1.CellFields
+	2,   // 202: rimgovernor.observations.v1.CellsSnapshot.map_snapshot:type_name -> rimgovernor.observations.v1.SnapshotRef
+	1,   // 203: rimgovernor.observations.v1.GetCellsRequest.scope:type_name -> rimgovernor.observations.v1.ReadScope
+	5,   // 204: rimgovernor.observations.v1.GetCellsRequest.rectangle:type_name -> rimgovernor.observations.v1.Rectangle
+	83,  // 205: rimgovernor.observations.v1.GetCellsRequest.exact_cells:type_name -> rimgovernor.observations.v1.CellSelection
+	80,  // 206: rimgovernor.observations.v1.GetCellsRequest.fields:type_name -> rimgovernor.observations.v1.CellFields
+	276, // 207: rimgovernor.observations.v1.GetCellsRequest.page:type_name -> rimgovernor.common.v1.PageRequest
+	274, // 208: rimgovernor.observations.v1.CellSelection.cells:type_name -> rimgovernor.common.v1.Cell
+	81,  // 209: rimgovernor.observations.v1.GetCellsReply.observed:type_name -> rimgovernor.observations.v1.CellsSnapshot
+	273, // 210: rimgovernor.observations.v1.GetCellsReply.unavailable:type_name -> rimgovernor.common.v1.Unavailable
+	277, // 211: rimgovernor.observations.v1.GetCellsReply.failure:type_name -> rimgovernor.common.v1.Failure
+	7,   // 212: rimgovernor.observations.v1.ResearchProject.project:type_name -> rimgovernor.observations.v1.DefinitionRef
+	85,  // 213: rimgovernor.observations.v1.ResearchProject.unlocks:type_name -> rimgovernor.observations.v1.ResearchUnlock
+	3,   // 214: rimgovernor.observations.v1.ResearchProject.unlocks_completeness:type_name -> rimgovernor.observations.v1.Completeness
+	4,   // 215: rimgovernor.observations.v1.ResearchProject.issues:type_name -> rimgovernor.observations.v1.ReadIssue
+	8,   // 216: rimgovernor.observations.v1.Researcher.pawn:type_name -> rimgovernor.observations.v1.EntityRef
+	7,   // 217: rimgovernor.observations.v1.ResearchFacility.definition:type_name -> rimgovernor.observations.v1.DefinitionRef
+	60,  // 218: rimgovernor.observations.v1.ResearchBench.building:type_name -> rimgovernor.observations.v1.BuildingState
+	88,  // 219: rimgovernor.observations.v1.ResearchBench.facilities:type_name -> rimgovernor.observations.v1.ResearchFacility
+	4,   // 220: rimgovernor.observations.v1.ResearchBench.issues:type_name -> rimgovernor.observations.v1.ReadIssue
+	271, // 221: rimgovernor.observations.v1.ResearchSnapshot.context:type_name -> rimgovernor.common.v1.ObservationContext
+	2,   // 222: rimgovernor.observations.v1.ResearchSnapshot.snapshot:type_name -> rimgovernor.observations.v1.SnapshotRef
+	90,  // 223: rimgovernor.observations.v1.ResearchSnapshot.slots:type_name -> rimgovernor.observations.v1.ResearchSlot
+	86,  // 224: rimgovernor.observations.v1.ResearchSnapshot.projects:type_name -> rimgovernor.observations.v1.ResearchProject
+	89,  // 225: rimgovernor.observations.v1.ResearchSnapshot.benches:type_name -> rimgovernor.observations.v1.ResearchBench
+	87,  // 226: rimgovernor.observations.v1.ResearchSnapshot.researchers:type_name -> rimgovernor.observations.v1.Researcher
+	3,   // 227: rimgovernor.observations.v1.ResearchSnapshot.completeness:type_name -> rimgovernor.observations.v1.Completeness
+	1,   // 228: rimgovernor.observations.v1.ResearchRequest.scope:type_name -> rimgovernor.observations.v1.ReadScope
+	276, // 229: rimgovernor.observations.v1.ResearchRequest.page:type_name -> rimgovernor.common.v1.PageRequest
+	91,  // 230: rimgovernor.observations.v1.ResearchReply.observed:type_name -> rimgovernor.observations.v1.ResearchSnapshot
+	273, // 231: rimgovernor.observations.v1.ResearchReply.unavailable:type_name -> rimgovernor.common.v1.Unavailable
+	277, // 232: rimgovernor.observations.v1.ResearchReply.failure:type_name -> rimgovernor.common.v1.Failure
+	274, // 233: rimgovernor.observations.v1.AccessTarget.cell:type_name -> rimgovernor.common.v1.Cell
+	8,   // 234: rimgovernor.observations.v1.PawnAccess.pawn:type_name -> rimgovernor.observations.v1.EntityRef
+	274, // 235: rimgovernor.observations.v1.PawnAccess.lost_cells:type_name -> rimgovernor.common.v1.Cell
+	94,  // 236: rimgovernor.observations.v1.PawnAccess.targets:type_name -> rimgovernor.observations.v1.AccessTarget
+	274, // 237: rimgovernor.observations.v1.PawnAccess.projected_origin:type_name -> rimgovernor.common.v1.Cell
+	3,   // 238: rimgovernor.observations.v1.PawnAccess.completeness:type_name -> rimgovernor.observations.v1.Completeness
+	271, // 239: rimgovernor.observations.v1.SpatialAccessSnapshot.context:type_name -> rimgovernor.common.v1.ObservationContext
+	95,  // 240: rimgovernor.observations.v1.SpatialAccessSnapshot.pawns:type_name -> rimgovernor.observations.v1.PawnAccess
+	3,   // 241: rimgovernor.observations.v1.SpatialAccessSnapshot.completeness:type_name -> rimgovernor.observations.v1.Completeness
+	1,   // 242: rimgovernor.observations.v1.SpatialAccessRequest.scope:type_name -> rimgovernor.observations.v1.ReadScope
+	274, // 243: rimgovernor.observations.v1.SpatialAccessRequest.blocked_cells:type_name -> rimgovernor.common.v1.Cell
+	274, // 244: rimgovernor.observations.v1.SpatialAccessRequest.target_cells:type_name -> rimgovernor.common.v1.Cell
+	96,  // 245: rimgovernor.observations.v1.SpatialAccessReply.observed:type_name -> rimgovernor.observations.v1.SpatialAccessSnapshot
+	273, // 246: rimgovernor.observations.v1.SpatialAccessReply.unavailable:type_name -> rimgovernor.common.v1.Unavailable
+	277, // 247: rimgovernor.observations.v1.SpatialAccessReply.failure:type_name -> rimgovernor.common.v1.Failure
+	274, // 248: rimgovernor.observations.v1.RoofSupportCell.cell:type_name -> rimgovernor.common.v1.Cell
+	271, // 249: rimgovernor.observations.v1.RoofSupportSnapshot.context:type_name -> rimgovernor.common.v1.ObservationContext
+	8,   // 250: rimgovernor.observations.v1.RoofSupportSnapshot.target:type_name -> rimgovernor.observations.v1.EntityRef
+	99,  // 251: rimgovernor.observations.v1.RoofSupportSnapshot.roofs:type_name -> rimgovernor.observations.v1.RoofSupportCell
+	3,   // 252: rimgovernor.observations.v1.RoofSupportSnapshot.completeness:type_name -> rimgovernor.observations.v1.Completeness
+	1,   // 253: rimgovernor.observations.v1.RoofSupportRequest.scope:type_name -> rimgovernor.observations.v1.ReadScope
+	100, // 254: rimgovernor.observations.v1.RoofSupportReply.observed:type_name -> rimgovernor.observations.v1.RoofSupportSnapshot
+	273, // 255: rimgovernor.observations.v1.RoofSupportReply.unavailable:type_name -> rimgovernor.common.v1.Unavailable
+	277, // 256: rimgovernor.observations.v1.RoofSupportReply.failure:type_name -> rimgovernor.common.v1.Failure
+	10,  // 257: rimgovernor.observations.v1.WallMaterialOption.costs:type_name -> rimgovernor.observations.v1.Quantity
+	8,   // 258: rimgovernor.observations.v1.WallUpgradeSite.target:type_name -> rimgovernor.observations.v1.EntityRef
+	274, // 259: rimgovernor.observations.v1.WallUpgradeSite.backup_cells:type_name -> rimgovernor.common.v1.Cell
+	10,  // 260: rimgovernor.observations.v1.WallUpgradeSite.costs:type_name -> rimgovernor.observations.v1.Quantity
+	43,  // 261: rimgovernor.observations.v1.WallUpgradeSite.materials:type_name -> rimgovernor.observations.v1.ResourceStock
+	8,   // 262: rimgovernor.observations.v1.WallUpgradeSite.workers:type_name -> rimgovernor.observations.v1.EntityRef
+	2,   // 263: rimgovernor.observations.v1.WallUpgradeSite.snapshot:type_name -> rimgovernor.observations.v1.SnapshotRef
+	274, // 264: rimgovernor.observations.v1.WallUpgradeSite.normal:type_name -> rimgovernor.common.v1.Cell
+	60,  // 265: rimgovernor.observations.v1.WallUpgradeSite.original:type_name -> rimgovernor.observations.v1.BuildingState
+	60,  // 266: rimgovernor.observations.v1.WallUpgradeSite.left_support:type_name -> rimgovernor.observations.v1.BuildingState
+	60,  // 267: rimgovernor.observations.v1.WallUpgradeSite.right_support:type_name -> rimgovernor.observations.v1.BuildingState
+	60,  // 268: rimgovernor.observations.v1.WallUpgradeSite.completed_backups:type_name -> rimgovernor.observations.v1.BuildingState
+	60,  // 269: rimgovernor.observations.v1.WallUpgradeSite.replacement:type_name -> rimgovernor.observations.v1.BuildingState
+	103, // 270: rimgovernor.observations.v1.WallUpgradeSite.replacement_materials:type_name -> rimgovernor.observations.v1.WallMaterialOption
+	81,  // 271: rimgovernor.observations.v1.WallUpgradeSite.geometry:type_name -> rimgovernor.observations.v1.CellsSnapshot
+	100, // 272: rimgovernor.observations.v1.WallUpgradeSite.roof_support:type_name -> rimgovernor.observations.v1.RoofSupportSnapshot
+	271, // 273: rimgovernor.observations.v1.WallUpgradeSnapshot.context:type_name -> rimgovernor.common.v1.ObservationContext
+	104, // 274: rimgovernor.observations.v1.WallUpgradeSnapshot.sites:type_name -> rimgovernor.observations.v1.WallUpgradeSite
+	3,   // 275: rimgovernor.observations.v1.WallUpgradeSnapshot.completeness:type_name -> rimgovernor.observations.v1.Completeness
+	1,   // 276: rimgovernor.observations.v1.WallUpgradeSitesRequest.scope:type_name -> rimgovernor.observations.v1.ReadScope
+	276, // 277: rimgovernor.observations.v1.WallUpgradeSitesRequest.page:type_name -> rimgovernor.common.v1.PageRequest
+	105, // 278: rimgovernor.observations.v1.WallUpgradeSitesReply.observed:type_name -> rimgovernor.observations.v1.WallUpgradeSnapshot
+	273, // 279: rimgovernor.observations.v1.WallUpgradeSitesReply.unavailable:type_name -> rimgovernor.common.v1.Unavailable
+	277, // 280: rimgovernor.observations.v1.WallUpgradeSitesReply.failure:type_name -> rimgovernor.common.v1.Failure
+	8,   // 281: rimgovernor.observations.v1.ResourceSource.source:type_name -> rimgovernor.observations.v1.EntityRef
+	8,   // 282: rimgovernor.observations.v1.StorageCapacity.haulers:type_name -> rimgovernor.observations.v1.EntityRef
+	4,   // 283: rimgovernor.observations.v1.StorageCapacity.issues:type_name -> rimgovernor.observations.v1.ReadIssue
+	7,   // 284: rimgovernor.observations.v1.ExtractionWorkType.definition:type_name -> rimgovernor.observations.v1.DefinitionRef
+	7,   // 285: rimgovernor.observations.v1.ExtractionWorkType.work_givers:type_name -> rimgovernor.observations.v1.DefinitionRef
+	2,   // 286: rimgovernor.observations.v1.ExtractionSite.snapshot:type_name -> rimgovernor.observations.v1.SnapshotRef
+	274, // 287: rimgovernor.observations.v1.ExtractionSite.cell:type_name -> rimgovernor.common.v1.Cell
+	110, // 288: rimgovernor.observations.v1.ExtractionSite.work_types:type_name -> rimgovernor.observations.v1.ExtractionWorkType
+	2,   // 289: rimgovernor.observations.v1.OwnedDrill.snapshot:type_name -> rimgovernor.observations.v1.SnapshotRef
+	274, // 290: rimgovernor.observations.v1.OwnedDrill.cell:type_name -> rimgovernor.common.v1.Cell
+	60,  // 291: rimgovernor.observations.v1.DrillObservation.building:type_name -> rimgovernor.observations.v1.BuildingState
+	60,  // 292: rimgovernor.observations.v1.ExtractionDevelopment.scanners:type_name -> rimgovernor.observations.v1.BuildingState
+	60,  // 293: rimgovernor.observations.v1.ExtractionDevelopment.drills:type_name -> rimgovernor.observations.v1.BuildingState
+	108, // 294: rimgovernor.observations.v1.ExtractionDevelopment.deposits:type_name -> rimgovernor.observations.v1.ResourceSource
+	7,   // 295: rimgovernor.observations.v1.ExtractionDevelopment.definitions:type_name -> rimgovernor.observations.v1.DefinitionRef
+	10,  // 296: rimgovernor.observations.v1.ExtractionDevelopment.costs:type_name -> rimgovernor.observations.v1.Quantity
+	3,   // 297: rimgovernor.observations.v1.ExtractionDevelopment.completeness:type_name -> rimgovernor.observations.v1.Completeness
+	111, // 298: rimgovernor.observations.v1.ExtractionDevelopment.sites:type_name -> rimgovernor.observations.v1.ExtractionSite
+	112, // 299: rimgovernor.observations.v1.ExtractionDevelopment.owned:type_name -> rimgovernor.observations.v1.OwnedDrill
+	113, // 300: rimgovernor.observations.v1.ExtractionDevelopment.drill_state:type_name -> rimgovernor.observations.v1.DrillObservation
+	110, // 301: rimgovernor.observations.v1.ExtractionDevelopment.flick_work_type:type_name -> rimgovernor.observations.v1.ExtractionWorkType
+	271, // 302: rimgovernor.observations.v1.ResourceSourcesSnapshot.context:type_name -> rimgovernor.common.v1.ObservationContext
+	108, // 303: rimgovernor.observations.v1.ResourceSourcesSnapshot.sources:type_name -> rimgovernor.observations.v1.ResourceSource
+	109, // 304: rimgovernor.observations.v1.ResourceSourcesSnapshot.storage:type_name -> rimgovernor.observations.v1.StorageCapacity
+	114, // 305: rimgovernor.observations.v1.ResourceSourcesSnapshot.development:type_name -> rimgovernor.observations.v1.ExtractionDevelopment
+	3,   // 306: rimgovernor.observations.v1.ResourceSourcesSnapshot.completeness:type_name -> rimgovernor.observations.v1.Completeness
+	1,   // 307: rimgovernor.observations.v1.ResourceSourcesRequest.scope:type_name -> rimgovernor.observations.v1.ReadScope
+	276, // 308: rimgovernor.observations.v1.ResourceSourcesRequest.page:type_name -> rimgovernor.common.v1.PageRequest
+	115, // 309: rimgovernor.observations.v1.ResourceSourcesReply.observed:type_name -> rimgovernor.observations.v1.ResourceSourcesSnapshot
+	273, // 310: rimgovernor.observations.v1.ResourceSourcesReply.unavailable:type_name -> rimgovernor.common.v1.Unavailable
+	277, // 311: rimgovernor.observations.v1.ResourceSourcesReply.failure:type_name -> rimgovernor.common.v1.Failure
+	8,   // 312: rimgovernor.observations.v1.HandlerState.pawn:type_name -> rimgovernor.observations.v1.EntityRef
+	32,  // 313: rimgovernor.observations.v1.HusbandryAnimal.pawn:type_name -> rimgovernor.observations.v1.PawnState
+	2,   // 314: rimgovernor.observations.v1.HusbandryAnimal.settings_snapshot:type_name -> rimgovernor.observations.v1.SnapshotRef
+	31,  // 315: rimgovernor.observations.v1.HusbandryAnimal.animal:type_name -> rimgovernor.observations.v1.AnimalState
+	118, // 316: rimgovernor.observations.v1.HusbandryAnimal.handlers:type_name -> rimgovernor.observations.v1.HandlerState
+	2,   // 317: rimgovernor.observations.v1.HusbandryAnimal.census_snapshot:type_name -> rimgovernor.observations.v1.SnapshotRef
+	271, // 318: rimgovernor.observations.v1.HusbandrySnapshot.context:type_name -> rimgovernor.common.v1.ObservationContext
+	2,   // 319: rimgovernor.observations.v1.HusbandrySnapshot.census:type_name -> rimgovernor.observations.v1.SnapshotRef
+	119, // 320: rimgovernor.observations.v1.HusbandrySnapshot.animals:type_name -> rimgovernor.observations.v1.HusbandryAnimal
+	3,   // 321: rimgovernor.observations.v1.HusbandrySnapshot.completeness:type_name -> rimgovernor.observations.v1.Completeness
+	1,   // 322: rimgovernor.observations.v1.HusbandryRequest.scope:type_name -> rimgovernor.observations.v1.ReadScope
+	276, // 323: rimgovernor.observations.v1.HusbandryRequest.page:type_name -> rimgovernor.common.v1.PageRequest
+	120, // 324: rimgovernor.observations.v1.HusbandryReply.observed:type_name -> rimgovernor.observations.v1.HusbandrySnapshot
+	273, // 325: rimgovernor.observations.v1.HusbandryReply.unavailable:type_name -> rimgovernor.common.v1.Unavailable
+	277, // 326: rimgovernor.observations.v1.HusbandryReply.failure:type_name -> rimgovernor.common.v1.Failure
+	8,   // 327: rimgovernor.observations.v1.WasteItem.thing:type_name -> rimgovernor.observations.v1.EntityRef
+	0,   // 328: rimgovernor.observations.v1.WasteItem.state:type_name -> rimgovernor.observations.v1.WasteLocation
+	271, // 329: rimgovernor.observations.v1.WasteSnapshot.context:type_name -> rimgovernor.common.v1.ObservationContext
+	123, // 330: rimgovernor.observations.v1.WasteSnapshot.items:type_name -> rimgovernor.observations.v1.WasteItem
+	3,   // 331: rimgovernor.observations.v1.WasteSnapshot.completeness:type_name -> rimgovernor.observations.v1.Completeness
+	1,   // 332: rimgovernor.observations.v1.WasteRequest.scope:type_name -> rimgovernor.observations.v1.ReadScope
+	276, // 333: rimgovernor.observations.v1.WasteRequest.page:type_name -> rimgovernor.common.v1.PageRequest
+	124, // 334: rimgovernor.observations.v1.WasteReply.observed:type_name -> rimgovernor.observations.v1.WasteSnapshot
+	273, // 335: rimgovernor.observations.v1.WasteReply.unavailable:type_name -> rimgovernor.common.v1.Unavailable
+	277, // 336: rimgovernor.observations.v1.WasteReply.failure:type_name -> rimgovernor.common.v1.Failure
+	8,   // 337: rimgovernor.observations.v1.RecoveryRestriction.pawn:type_name -> rimgovernor.observations.v1.EntityRef
+	274, // 338: rimgovernor.observations.v1.RecoveryArea.cells:type_name -> rimgovernor.common.v1.Cell
+	3,   // 339: rimgovernor.observations.v1.RecoveryArea.completeness:type_name -> rimgovernor.observations.v1.Completeness
+	2,   // 340: rimgovernor.observations.v1.RecoveryArea.snapshot:type_name -> rimgovernor.observations.v1.SnapshotRef
+	271, // 341: rimgovernor.observations.v1.RecoverySnapshot.context:type_name -> rimgovernor.common.v1.ObservationContext
+	128, // 342: rimgovernor.observations.v1.RecoverySnapshot.areas:type_name -> rimgovernor.observations.v1.RecoveryArea
+	127, // 343: rimgovernor.observations.v1.RecoverySnapshot.restrictions:type_name -> rimgovernor.observations.v1.RecoveryRestriction
+	60,  // 344: rimgovernor.observations.v1.RecoverySnapshot.buildings:type_name -> rimgovernor.observations.v1.BuildingState
+	3,   // 345: rimgovernor.observations.v1.RecoverySnapshot.completeness:type_name -> rimgovernor.observations.v1.Completeness
+	1,   // 346: rimgovernor.observations.v1.RecoveryRequest.scope:type_name -> rimgovernor.observations.v1.ReadScope
+	276, // 347: rimgovernor.observations.v1.RecoveryRequest.page:type_name -> rimgovernor.common.v1.PageRequest
+	129, // 348: rimgovernor.observations.v1.RecoveryReply.observed:type_name -> rimgovernor.observations.v1.RecoverySnapshot
+	273, // 349: rimgovernor.observations.v1.RecoveryReply.unavailable:type_name -> rimgovernor.common.v1.Unavailable
+	277, // 350: rimgovernor.observations.v1.RecoveryReply.failure:type_name -> rimgovernor.common.v1.Failure
+	32,  // 351: rimgovernor.observations.v1.PopulationPerson.pawn:type_name -> rimgovernor.observations.v1.PawnState
+	60,  // 352: rimgovernor.observations.v1.PopulationPerson.owned_bed:type_name -> rimgovernor.observations.v1.BuildingState
+	271, // 353: rimgovernor.observations.v1.PopulationSnapshot.context:type_name -> rimgovernor.common.v1.ObservationContext
+	132, // 354: rimgovernor.observations.v1.PopulationSnapshot.persons:type_name -> rimgovernor.observations.v1.PopulationPerson
+	7,   // 355: rimgovernor.observations.v1.PopulationSnapshot.supported_interactions:type_name -> rimgovernor.observations.v1.DefinitionRef
+	3,   // 356: rimgovernor.observations.v1.PopulationSnapshot.completeness:type_name -> rimgovernor.observations.v1.Completeness
+	1,   // 357: rimgovernor.observations.v1.PopulationRequest.scope:type_name -> rimgovernor.observations.v1.ReadScope
+	276, // 358: rimgovernor.observations.v1.PopulationRequest.page:type_name -> rimgovernor.common.v1.PageRequest
+	133, // 359: rimgovernor.observations.v1.PopulationReply.observed:type_name -> rimgovernor.observations.v1.PopulationSnapshot
+	273, // 360: rimgovernor.observations.v1.PopulationReply.unavailable:type_name -> rimgovernor.common.v1.Unavailable
+	277, // 361: rimgovernor.observations.v1.PopulationReply.failure:type_name -> rimgovernor.common.v1.Failure
+	2,   // 362: rimgovernor.observations.v1.Settlement.snapshot:type_name -> rimgovernor.observations.v1.SnapshotRef
+	2,   // 363: rimgovernor.observations.v1.Settlement.faction_snapshot:type_name -> rimgovernor.observations.v1.SnapshotRef
+	7,   // 364: rimgovernor.observations.v1.WorldTile.biome:type_name -> rimgovernor.observations.v1.DefinitionRef
+	4,   // 365: rimgovernor.observations.v1.WorldTile.issues:type_name -> rimgovernor.observations.v1.ReadIssue
+	271, // 366: rimgovernor.observations.v1.WorldSnapshot.context:type_name -> rimgovernor.common.v1.ObservationContext
+	137, // 367: rimgovernor.observations.v1.WorldSnapshot.tile:type_name -> rimgovernor.observations.v1.WorldTile
+	136, // 368: rimgovernor.observations.v1.WorldSnapshot.settlements:type_name -> rimgovernor.observations.v1.Settlement
+	3,   // 369: rimgovernor.observations.v1.WorldSnapshot.completeness:type_name -> rimgovernor.observations.v1.Completeness
+	1,   // 370: rimgovernor.observations.v1.WorldRequest.scope:type_name -> rimgovernor.observations.v1.ReadScope
+	276, // 371: rimgovernor.observations.v1.WorldRequest.page:type_name -> rimgovernor.common.v1.PageRequest
+	138, // 372: rimgovernor.observations.v1.WorldReply.observed:type_name -> rimgovernor.observations.v1.WorldSnapshot
+	273, // 373: rimgovernor.observations.v1.WorldReply.unavailable:type_name -> rimgovernor.common.v1.Unavailable
+	277, // 374: rimgovernor.observations.v1.WorldReply.failure:type_name -> rimgovernor.common.v1.Failure
+	8,   // 375: rimgovernor.observations.v1.CaravanState.caravan:type_name -> rimgovernor.observations.v1.EntityRef
+	32,  // 376: rimgovernor.observations.v1.CaravanState.pawns:type_name -> rimgovernor.observations.v1.PawnState
+	141, // 377: rimgovernor.observations.v1.CaravanState.home_routes:type_name -> rimgovernor.observations.v1.WorldRoute
+	10,  // 378: rimgovernor.observations.v1.CaravanState.inventory:type_name -> rimgovernor.observations.v1.Quantity
+	3,   // 379: rimgovernor.observations.v1.CaravanState.completeness:type_name -> rimgovernor.observations.v1.Completeness
+	10,  // 380: rimgovernor.observations.v1.QuestReward.items:type_name -> rimgovernor.observations.v1.Quantity
+	8,   // 381: rimgovernor.observations.v1.QuestState.eligible_pawns:type_name -> rimgovernor.observations.v1.EntityRef
+	143, // 382: rimgovernor.observations.v1.QuestState.trade_requests:type_name -> rimgovernor.observations.v1.QuestTradeRequest
+	144, // 383: rimgovernor.observations.v1.QuestState.rewards:type_name -> rimgovernor.observations.v1.QuestReward
+	4,   // 384: rimgovernor.observations.v1.QuestState.issues:type_name -> rimgovernor.observations.v1.ReadIssue
+	2,   // 385: rimgovernor.observations.v1.QuestState.snapshot:type_name -> rimgovernor.observations.v1.SnapshotRef
+	2,   // 386: rimgovernor.observations.v1.FactionState.snapshot:type_name -> rimgovernor.observations.v1.SnapshotRef
+	32,  // 387: rimgovernor.observations.v1.WorldMap.pawns:type_name -> rimgovernor.observations.v1.PawnState
+	43,  // 388: rimgovernor.observations.v1.WorldMap.stored_items:type_name -> rimgovernor.observations.v1.ResourceStock
+	3,   // 389: rimgovernor.observations.v1.WorldMap.completeness:type_name -> rimgovernor.observations.v1.Completeness
+	8,   // 390: rimgovernor.observations.v1.CaravanAssembly.pawns:type_name -> rimgovernor.observations.v1.EntityRef
+	271, // 391: rimgovernor.observations.v1.WorldProgressionSnapshot.context:type_name -> rimgovernor.common.v1.ObservationContext
+	147, // 392: rimgovernor.observations.v1.WorldProgressionSnapshot.maps:type_name -> rimgovernor.observations.v1.WorldMap
+	146, // 393: rimgovernor.observations.v1.WorldProgressionSnapshot.factions:type_name -> rimgovernor.observations.v1.FactionState
+	142, // 394: rimgovernor.observations.v1.WorldProgressionSnapshot.caravans:type_name -> rimgovernor.observations.v1.CaravanState
+	148, // 395: rimgovernor.observations.v1.WorldProgressionSnapshot.assemblies:type_name -> rimgovernor.observations.v1.CaravanAssembly
+	145, // 396: rimgovernor.observations.v1.WorldProgressionSnapshot.quests:type_name -> rimgovernor.observations.v1.QuestState
+	3,   // 397: rimgovernor.observations.v1.WorldProgressionSnapshot.completeness:type_name -> rimgovernor.observations.v1.Completeness
+	1,   // 398: rimgovernor.observations.v1.WorldProgressionRequest.scope:type_name -> rimgovernor.observations.v1.ReadScope
+	276, // 399: rimgovernor.observations.v1.WorldProgressionRequest.page:type_name -> rimgovernor.common.v1.PageRequest
+	149, // 400: rimgovernor.observations.v1.WorldProgressionReply.observed:type_name -> rimgovernor.observations.v1.WorldProgressionSnapshot
+	273, // 401: rimgovernor.observations.v1.WorldProgressionReply.unavailable:type_name -> rimgovernor.common.v1.Unavailable
+	277, // 402: rimgovernor.observations.v1.WorldProgressionReply.failure:type_name -> rimgovernor.common.v1.Failure
+	271, // 403: rimgovernor.observations.v1.BillsSnapshot.context:type_name -> rimgovernor.common.v1.ObservationContext
+	52,  // 404: rimgovernor.observations.v1.BillsSnapshot.benches:type_name -> rimgovernor.observations.v1.BillStack
+	3,   // 405: rimgovernor.observations.v1.BillsSnapshot.completeness:type_name -> rimgovernor.observations.v1.Completeness
+	1,   // 406: rimgovernor.observations.v1.BillsRequest.scope:type_name -> rimgovernor.observations.v1.ReadScope
+	276, // 407: rimgovernor.observations.v1.BillsRequest.page:type_name -> rimgovernor.common.v1.PageRequest
+	152, // 408: rimgovernor.observations.v1.BillsReply.observed:type_name -> rimgovernor.observations.v1.BillsSnapshot
+	273, // 409: rimgovernor.observations.v1.BillsReply.unavailable:type_name -> rimgovernor.common.v1.Unavailable
+	277, // 410: rimgovernor.observations.v1.BillsReply.failure:type_name -> rimgovernor.common.v1.Failure
+	271, // 411: rimgovernor.observations.v1.RecipesSnapshot.context:type_name -> rimgovernor.common.v1.ObservationContext
+	2,   // 412: rimgovernor.observations.v1.RecipesSnapshot.snapshot:type_name -> rimgovernor.observations.v1.SnapshotRef
+	53,  // 413: rimgovernor.observations.v1.RecipesSnapshot.recipes:type_name -> rimgovernor.observations.v1.RecipeState
+	3,   // 414: rimgovernor.observations.v1.RecipesSnapshot.completeness:type_name -> rimgovernor.observations.v1.Completeness
+	1,   // 415: rimgovernor.observations.v1.RecipesRequest.scope:type_name -> rimgovernor.observations.v1.ReadScope
+	276, // 416: rimgovernor.observations.v1.RecipesRequest.page:type_name -> rimgovernor.common.v1.PageRequest
+	155, // 417: rimgovernor.observations.v1.RecipesReply.observed:type_name -> rimgovernor.observations.v1.RecipesSnapshot
+	273, // 418: rimgovernor.observations.v1.RecipesReply.unavailable:type_name -> rimgovernor.common.v1.Unavailable
+	277, // 419: rimgovernor.observations.v1.RecipesReply.failure:type_name -> rimgovernor.common.v1.Failure
+	1,   // 420: rimgovernor.observations.v1.BuildingSettingsRequest.scope:type_name -> rimgovernor.observations.v1.ReadScope
+	54,  // 421: rimgovernor.observations.v1.BuildingSettingsReply.observed:type_name -> rimgovernor.observations.v1.BuildingSettings
+	273, // 422: rimgovernor.observations.v1.BuildingSettingsReply.unavailable:type_name -> rimgovernor.common.v1.Unavailable
+	277, // 423: rimgovernor.observations.v1.BuildingSettingsReply.failure:type_name -> rimgovernor.common.v1.Failure
+	1,   // 424: rimgovernor.observations.v1.PawnSettingsRequest.scope:type_name -> rimgovernor.observations.v1.ReadScope
+	29,  // 425: rimgovernor.observations.v1.PawnSettingsReply.observed:type_name -> rimgovernor.observations.v1.PawnSettings
+	273, // 426: rimgovernor.observations.v1.PawnSettingsReply.unavailable:type_name -> rimgovernor.common.v1.Unavailable
+	277, // 427: rimgovernor.observations.v1.PawnSettingsReply.failure:type_name -> rimgovernor.common.v1.Failure
+	271, // 428: rimgovernor.observations.v1.ResolveTargetSnapshot.context:type_name -> rimgovernor.common.v1.ObservationContext
+	9,   // 429: rimgovernor.observations.v1.ResolveTargetSnapshot.candidates:type_name -> rimgovernor.observations.v1.TargetRef
+	3,   // 430: rimgovernor.observations.v1.ResolveTargetSnapshot.completeness:type_name -> rimgovernor.observations.v1.Completeness
+	1,   // 431: rimgovernor.observations.v1.ResolveTargetRequest.scope:type_name -> rimgovernor.observations.v1.ReadScope
+	274, // 432: rimgovernor.observations.v1.ResolveTargetRequest.cell:type_name -> rimgovernor.common.v1.Cell
+	162, // 433: rimgovernor.observations.v1.ResolveTargetReply.observed:type_name -> rimgovernor.observations.v1.ResolveTargetSnapshot
+	273, // 434: rimgovernor.observations.v1.ResolveTargetReply.unavailable:type_name -> rimgovernor.common.v1.Unavailable
+	277, // 435: rimgovernor.observations.v1.ResolveTargetReply.failure:type_name -> rimgovernor.common.v1.Failure
+	271, // 436: rimgovernor.observations.v1.PackedFurnitureState.context:type_name -> rimgovernor.common.v1.ObservationContext
+	274, // 437: rimgovernor.observations.v1.PackedFurnitureState.position:type_name -> rimgovernor.common.v1.Cell
+	8,   // 438: rimgovernor.observations.v1.PackedFurnitureState.install_blueprint:type_name -> rimgovernor.observations.v1.EntityRef
+	2,   // 439: rimgovernor.observations.v1.PackedFurnitureState.inner_snapshot:type_name -> rimgovernor.observations.v1.SnapshotRef
+	2,   // 440: rimgovernor.observations.v1.PackedFurnitureState.packed_snapshot:type_name -> rimgovernor.observations.v1.SnapshotRef
+	1,   // 441: rimgovernor.observations.v1.InstallStatusRequest.scope:type_name -> rimgovernor.observations.v1.ReadScope
+	165, // 442: rimgovernor.observations.v1.InstallStatusReply.observed:type_name -> rimgovernor.observations.v1.PackedFurnitureState
+	273, // 443: rimgovernor.observations.v1.InstallStatusReply.unavailable:type_name -> rimgovernor.common.v1.Unavailable
+	277, // 444: rimgovernor.observations.v1.InstallStatusReply.failure:type_name -> rimgovernor.common.v1.Failure
+	19,  // 445: rimgovernor.observations.v1.GearCandidate.item:type_name -> rimgovernor.observations.v1.GearItem
+	2,   // 446: rimgovernor.observations.v1.GearLoadout.snapshot:type_name -> rimgovernor.observations.v1.SnapshotRef
+	8,   // 447: rimgovernor.observations.v1.GearLoadout.pawn:type_name -> rimgovernor.observations.v1.EntityRef
+	20,  // 448: rimgovernor.observations.v1.GearLoadout.equipment:type_name -> rimgovernor.observations.v1.PawnEquipment
+	168, // 449: rimgovernor.observations.v1.GearLoadout.candidates:type_name -> rimgovernor.observations.v1.GearCandidate
+	169, // 450: rimgovernor.observations.v1.GearLoadout.replacement_needs:type_name -> rimgovernor.observations.v1.GearReplacementNeed
+	3,   // 451: rimgovernor.observations.v1.GearLoadout.completeness:type_name -> rimgovernor.observations.v1.Completeness
+	271, // 452: rimgovernor.observations.v1.GearSnapshot.context:type_name -> rimgovernor.common.v1.ObservationContext
+	170, // 453: rimgovernor.observations.v1.GearSnapshot.pawns:type_name -> rimgovernor.observations.v1.GearLoadout
+	3,   // 454: rimgovernor.observations.v1.GearSnapshot.completeness:type_name -> rimgovernor.observations.v1.Completeness
+	1,   // 455: rimgovernor.observations.v1.GearRequest.scope:type_name -> rimgovernor.observations.v1.ReadScope
+	276, // 456: rimgovernor.observations.v1.GearRequest.page:type_name -> rimgovernor.common.v1.PageRequest
+	171, // 457: rimgovernor.observations.v1.GearReply.observed:type_name -> rimgovernor.observations.v1.GearSnapshot
+	273, // 458: rimgovernor.observations.v1.GearReply.unavailable:type_name -> rimgovernor.common.v1.Unavailable
+	277, // 459: rimgovernor.observations.v1.GearReply.failure:type_name -> rimgovernor.common.v1.Failure
+	7,   // 460: rimgovernor.observations.v1.MedicalRecipe.recipe:type_name -> rimgovernor.observations.v1.DefinitionRef
+	8,   // 461: rimgovernor.observations.v1.MedicalRecipe.practitioners:type_name -> rimgovernor.observations.v1.EntityRef
+	48,  // 462: rimgovernor.observations.v1.MedicalRecipe.ingredients:type_name -> rimgovernor.observations.v1.IngredientRequirement
+	12,  // 463: rimgovernor.observations.v1.MedicalRecipe.skills:type_name -> rimgovernor.observations.v1.SkillRequirement
+	2,   // 464: rimgovernor.observations.v1.MedicalCatalog.snapshot:type_name -> rimgovernor.observations.v1.SnapshotRef
+	8,   // 465: rimgovernor.observations.v1.MedicalCatalog.patient:type_name -> rimgovernor.observations.v1.EntityRef
+	174, // 466: rimgovernor.observations.v1.MedicalCatalog.recipes:type_name -> rimgovernor.observations.v1.MedicalRecipe
+	43,  // 467: rimgovernor.observations.v1.MedicalCatalog.permitted_medicine:type_name -> rimgovernor.observations.v1.ResourceStock
+	3,   // 468: rimgovernor.observations.v1.MedicalCatalog.completeness:type_name -> rimgovernor.observations.v1.Completeness
+	1,   // 469: rimgovernor.observations.v1.MedicalCatalogRequest.scope:type_name -> rimgovernor.observations.v1.ReadScope
+	276, // 470: rimgovernor.observations.v1.MedicalCatalogRequest.page:type_name -> rimgovernor.common.v1.PageRequest
+	175, // 471: rimgovernor.observations.v1.MedicalCatalogReply.observed:type_name -> rimgovernor.observations.v1.MedicalCatalog
+	273, // 472: rimgovernor.observations.v1.MedicalCatalogReply.unavailable:type_name -> rimgovernor.common.v1.Unavailable
+	277, // 473: rimgovernor.observations.v1.MedicalCatalogReply.failure:type_name -> rimgovernor.common.v1.Failure
+	8,   // 474: rimgovernor.observations.v1.Trader.trader:type_name -> rimgovernor.observations.v1.EntityRef
+	271, // 475: rimgovernor.observations.v1.TradersSnapshot.context:type_name -> rimgovernor.common.v1.ObservationContext
+	178, // 476: rimgovernor.observations.v1.TradersSnapshot.traders:type_name -> rimgovernor.observations.v1.Trader
+	8,   // 477: rimgovernor.observations.v1.TradersSnapshot.negotiators:type_name -> rimgovernor.observations.v1.EntityRef
+	60,  // 478: rimgovernor.observations.v1.TradersSnapshot.comms_consoles:type_name -> rimgovernor.observations.v1.BuildingState
+	3,   // 479: rimgovernor.observations.v1.TradersSnapshot.completeness:type_name -> rimgovernor.observations.v1.Completeness
+	1,   // 480: rimgovernor.observations.v1.TradersRequest.scope:type_name -> rimgovernor.observations.v1.ReadScope
+	276, // 481: rimgovernor.observations.v1.TradersRequest.page:type_name -> rimgovernor.common.v1.PageRequest
+	179, // 482: rimgovernor.observations.v1.TradersReply.observed:type_name -> rimgovernor.observations.v1.TradersSnapshot
+	273, // 483: rimgovernor.observations.v1.TradersReply.unavailable:type_name -> rimgovernor.common.v1.Unavailable
+	277, // 484: rimgovernor.observations.v1.TradersReply.failure:type_name -> rimgovernor.common.v1.Failure
+	7,   // 485: rimgovernor.observations.v1.TradeLine.definition:type_name -> rimgovernor.observations.v1.DefinitionRef
+	2,   // 486: rimgovernor.observations.v1.TradeSheet.snapshot:type_name -> rimgovernor.observations.v1.SnapshotRef
+	8,   // 487: rimgovernor.observations.v1.TradeSheet.trader:type_name -> rimgovernor.observations.v1.EntityRef
+	8,   // 488: rimgovernor.observations.v1.TradeSheet.negotiator:type_name -> rimgovernor.observations.v1.EntityRef
+	182, // 489: rimgovernor.observations.v1.TradeSheet.lines:type_name -> rimgovernor.observations.v1.TradeLine
+	3,   // 490: rimgovernor.observations.v1.TradeSheet.completeness:type_name -> rimgovernor.observations.v1.Completeness
+	1,   // 491: rimgovernor.observations.v1.TradeSheetRequest.scope:type_name -> rimgovernor.observations.v1.ReadScope
+	276, // 492: rimgovernor.observations.v1.TradeSheetRequest.page:type_name -> rimgovernor.common.v1.PageRequest
+	183, // 493: rimgovernor.observations.v1.TradeSheetReply.observed:type_name -> rimgovernor.observations.v1.TradeSheet
+	273, // 494: rimgovernor.observations.v1.TradeSheetReply.unavailable:type_name -> rimgovernor.common.v1.Unavailable
+	277, // 495: rimgovernor.observations.v1.TradeSheetReply.failure:type_name -> rimgovernor.common.v1.Failure
+	271, // 496: rimgovernor.observations.v1.TradeStatus.context:type_name -> rimgovernor.common.v1.ObservationContext
+	2,   // 497: rimgovernor.observations.v1.TradeStatus.snapshot:type_name -> rimgovernor.observations.v1.SnapshotRef
+	1,   // 498: rimgovernor.observations.v1.TradeStatusRequest.scope:type_name -> rimgovernor.observations.v1.ReadScope
+	186, // 499: rimgovernor.observations.v1.TradeStatusReply.observed:type_name -> rimgovernor.observations.v1.TradeStatus
+	273, // 500: rimgovernor.observations.v1.TradeStatusReply.unavailable:type_name -> rimgovernor.common.v1.Unavailable
+	277, // 501: rimgovernor.observations.v1.TradeStatusReply.failure:type_name -> rimgovernor.common.v1.Failure
+	32,  // 502: rimgovernor.observations.v1.CaravanPawnEligibility.pawn:type_name -> rimgovernor.observations.v1.PawnState
+	8,   // 503: rimgovernor.observations.v1.CargoGroup.items:type_name -> rimgovernor.observations.v1.EntityRef
+	2,   // 504: rimgovernor.observations.v1.CaravanCatalog.snapshot:type_name -> rimgovernor.observations.v1.SnapshotRef
+	189, // 505: rimgovernor.observations.v1.CaravanCatalog.pawns:type_name -> rimgovernor.observations.v1.CaravanPawnEligibility
+	43,  // 506: rimgovernor.observations.v1.CaravanCatalog.cargo:type_name -> rimgovernor.observations.v1.ResourceStock
+	141, // 507: rimgovernor.observations.v1.CaravanCatalog.routes:type_name -> rimgovernor.observations.v1.WorldRoute
+	136, // 508: rimgovernor.observations.v1.CaravanCatalog.settlements:type_name -> rimgovernor.observations.v1.Settlement
+	109, // 509: rimgovernor.observations.v1.CaravanCatalog.return_storage:type_name -> rimgovernor.observations.v1.StorageCapacity
+	3,   // 510: rimgovernor.observations.v1.CaravanCatalog.completeness:type_name -> rimgovernor.observations.v1.Completeness
+	190, // 511: rimgovernor.observations.v1.CaravanCatalog.cargo_groups:type_name -> rimgovernor.observations.v1.CargoGroup
+	2,   // 512: rimgovernor.observations.v1.CaravanCatalog.return_storage_snapshot:type_name -> rimgovernor.observations.v1.SnapshotRef
+	1,   // 513: rimgovernor.observations.v1.CaravanCatalogRequest.scope:type_name -> rimgovernor.observations.v1.ReadScope
+	276, // 514: rimgovernor.observations.v1.CaravanCatalogRequest.page:type_name -> rimgovernor.common.v1.PageRequest
+	191, // 515: rimgovernor.observations.v1.CaravanCatalogReply.observed:type_name -> rimgovernor.observations.v1.CaravanCatalog
+	273, // 516: rimgovernor.observations.v1.CaravanCatalogReply.unavailable:type_name -> rimgovernor.common.v1.Unavailable
+	277, // 517: rimgovernor.observations.v1.CaravanCatalogReply.failure:type_name -> rimgovernor.common.v1.Failure
+	8,   // 518: rimgovernor.observations.v1.FoodStock.item:type_name -> rimgovernor.observations.v1.EntityRef
+	194, // 519: rimgovernor.observations.v1.FoodSupplyFacts.consumers:type_name -> rimgovernor.observations.v1.FoodConsumer
+	195, // 520: rimgovernor.observations.v1.FoodSupplyFacts.stocks:type_name -> rimgovernor.observations.v1.FoodStock
+	3,   // 521: rimgovernor.observations.v1.FoodSupplyFacts.completeness:type_name -> rimgovernor.observations.v1.Completeness
+	4,   // 522: rimgovernor.observations.v1.CropForecast.issues:type_name -> rimgovernor.observations.v1.ReadIssue
+	4,   // 523: rimgovernor.observations.v1.PatientForecast.issues:type_name -> rimgovernor.observations.v1.ReadIssue
+	196, // 524: rimgovernor.observations.v1.ForecastFacts.combined_food_supply:type_name -> rimgovernor.observations.v1.FoodSupplyFacts
+	197, // 525: rimgovernor.observations.v1.ForecastFacts.crops:type_name -> rimgovernor.observations.v1.CropForecast
+	198, // 526: rimgovernor.observations.v1.ForecastFacts.patients:type_name -> rimgovernor.observations.v1.PatientForecast
+	3,   // 527: rimgovernor.observations.v1.ForecastFacts.completeness:type_name -> rimgovernor.observations.v1.Completeness
+	274, // 528: rimgovernor.observations.v1.ComfortSurface.adjacent:type_name -> rimgovernor.common.v1.Cell
+	200, // 529: rimgovernor.observations.v1.ComfortFacts.surfaces:type_name -> rimgovernor.observations.v1.ComfortSurface
+	201, // 530: rimgovernor.observations.v1.ComfortFacts.dining:type_name -> rimgovernor.observations.v1.ComfortFacility
+	201, // 531: rimgovernor.observations.v1.ComfortFacts.recreation:type_name -> rimgovernor.observations.v1.ComfortFacility
+	3,   // 532: rimgovernor.observations.v1.ComfortFacts.completeness:type_name -> rimgovernor.observations.v1.Completeness
+	8,   // 533: rimgovernor.observations.v1.UpkeepItem.item:type_name -> rimgovernor.observations.v1.EntityRef
+	8,   // 534: rimgovernor.observations.v1.UpkeepBed.bed:type_name -> rimgovernor.observations.v1.EntityRef
+	274, // 535: rimgovernor.observations.v1.StorageCell.cell:type_name -> rimgovernor.common.v1.Cell
+	60,  // 536: rimgovernor.observations.v1.UpkeepStructure.building:type_name -> rimgovernor.observations.v1.BuildingState
+	8,   // 537: rimgovernor.observations.v1.FireState.fire:type_name -> rimgovernor.observations.v1.EntityRef
+	8,   // 538: rimgovernor.observations.v1.FilthState.filth:type_name -> rimgovernor.observations.v1.EntityRef
+	274, // 539: rimgovernor.observations.v1.ProtectedCell.cell:type_name -> rimgovernor.common.v1.Cell
+	32,  // 540: rimgovernor.observations.v1.UpkeepPerson.pawn:type_name -> rimgovernor.observations.v1.PawnState
+	32,  // 541: rimgovernor.observations.v1.AnimalFeed.pawn:type_name -> rimgovernor.observations.v1.PawnState
+	195, // 542: rimgovernor.observations.v1.AnimalFeed.reachable_stored_feed:type_name -> rimgovernor.observations.v1.FoodStock
+	60,  // 543: rimgovernor.observations.v1.DevelopmentPower.building:type_name -> rimgovernor.observations.v1.BuildingState
+	8,   // 544: rimgovernor.observations.v1.DevelopmentFurniture.building:type_name -> rimgovernor.observations.v1.EntityRef
+	214, // 545: rimgovernor.observations.v1.DevelopmentFacts.power:type_name -> rimgovernor.observations.v1.DevelopmentPower
+	215, // 546: rimgovernor.observations.v1.DevelopmentFacts.furniture:type_name -> rimgovernor.observations.v1.DevelopmentFurniture
+	91,  // 547: rimgovernor.observations.v1.DevelopmentFacts.research:type_name -> rimgovernor.observations.v1.ResearchSnapshot
+	3,   // 548: rimgovernor.observations.v1.DevelopmentFacts.completeness:type_name -> rimgovernor.observations.v1.Completeness
+	4,   // 549: rimgovernor.observations.v1.FoodClimate.issues:type_name -> rimgovernor.observations.v1.ReadIssue
+	7,   // 550: rimgovernor.observations.v1.PlanningDefinition.definition:type_name -> rimgovernor.observations.v1.DefinitionRef
+	6,   // 551: rimgovernor.observations.v1.PlanningDefinition.size:type_name -> rimgovernor.observations.v1.MapSize
+	10,  // 552: rimgovernor.observations.v1.PlanningDefinition.costs:type_name -> rimgovernor.observations.v1.Quantity
+	4,   // 553: rimgovernor.observations.v1.PlanningDefinition.issues:type_name -> rimgovernor.observations.v1.ReadIssue
+	220, // 554: rimgovernor.observations.v1.PlanningFacts.definitions:type_name -> rimgovernor.observations.v1.PlanningDefinition
+	81,  // 555: rimgovernor.observations.v1.PlanningFacts.cells:type_name -> rimgovernor.observations.v1.CellsSnapshot
+	171, // 556: rimgovernor.observations.v1.PlanningFacts.gear:type_name -> rimgovernor.observations.v1.GearSnapshot
+	3,   // 557: rimgovernor.observations.v1.PlanningFacts.completeness:type_name -> rimgovernor.observations.v1.Completeness
+	4,   // 558: rimgovernor.observations.v1.PlanningFacts.issues:type_name -> rimgovernor.observations.v1.ReadIssue
+	2,   // 559: rimgovernor.observations.v1.PlanningFacts.zone_map_snapshot:type_name -> rimgovernor.observations.v1.SnapshotRef
+	222, // 560: rimgovernor.observations.v1.FoodProduction.products:type_name -> rimgovernor.observations.v1.FoodProduct
+	8,   // 561: rimgovernor.observations.v1.CookingFacts.bench:type_name -> rimgovernor.observations.v1.EntityRef
+	53,  // 562: rimgovernor.observations.v1.CookingFacts.recipes:type_name -> rimgovernor.observations.v1.RecipeState
+	51,  // 563: rimgovernor.observations.v1.CookingFacts.bills:type_name -> rimgovernor.observations.v1.BillState
+	223, // 564: rimgovernor.observations.v1.CookingFacts.production:type_name -> rimgovernor.observations.v1.FoodProduction
+	8,   // 565: rimgovernor.observations.v1.AcquisitionFacts.source:type_name -> rimgovernor.observations.v1.EntityRef
+	8,   // 566: rimgovernor.observations.v1.ButcheringFacts.bench:type_name -> rimgovernor.observations.v1.EntityRef
+	51,  // 567: rimgovernor.observations.v1.ButcheringFacts.bills:type_name -> rimgovernor.observations.v1.BillState
+	53,  // 568: rimgovernor.observations.v1.ButcheringFacts.recipes:type_name -> rimgovernor.observations.v1.RecipeState
+	42,  // 569: rimgovernor.observations.v1.FoodCorpse.corpse:type_name -> rimgovernor.observations.v1.CorpseState
+	4,   // 570: rimgovernor.observations.v1.ColonyNaming.issues:type_name -> rimgovernor.observations.v1.ReadIssue
+	57,  // 571: rimgovernor.observations.v1.ConstructionFacts.records:type_name -> rimgovernor.observations.v1.ConstructionLineage
+	3,   // 572: rimgovernor.observations.v1.ConstructionFacts.completeness:type_name -> rimgovernor.observations.v1.Completeness
+	229, // 573: rimgovernor.observations.v1.ConstructionSection.observed:type_name -> rimgovernor.observations.v1.ConstructionFacts
+	273, // 574: rimgovernor.observations.v1.ConstructionSection.unavailable:type_name -> rimgovernor.common.v1.Unavailable
+	202, // 575: rimgovernor.observations.v1.ComfortSection.observed:type_name -> rimgovernor.observations.v1.ComfortFacts
+	273, // 576: rimgovernor.observations.v1.ComfortSection.unavailable:type_name -> rimgovernor.common.v1.Unavailable
+	196, // 577: rimgovernor.observations.v1.FoodSupplySection.observed:type_name -> rimgovernor.observations.v1.FoodSupplyFacts
+	273, // 578: rimgovernor.observations.v1.FoodSupplySection.unavailable:type_name -> rimgovernor.common.v1.Unavailable
+	199, // 579: rimgovernor.observations.v1.ForecastSection.observed:type_name -> rimgovernor.observations.v1.ForecastFacts
+	273, // 580: rimgovernor.observations.v1.ForecastSection.unavailable:type_name -> rimgovernor.common.v1.Unavailable
+	216, // 581: rimgovernor.observations.v1.DevelopmentSection.observed:type_name -> rimgovernor.observations.v1.DevelopmentFacts
+	273, // 582: rimgovernor.observations.v1.DevelopmentSection.unavailable:type_name -> rimgovernor.common.v1.Unavailable
+	221, // 583: rimgovernor.observations.v1.PlanningSection.observed:type_name -> rimgovernor.observations.v1.PlanningFacts
+	273, // 584: rimgovernor.observations.v1.PlanningSection.unavailable:type_name -> rimgovernor.common.v1.Unavailable
+	236, // 585: rimgovernor.observations.v1.HaulRecord.portions:type_name -> rimgovernor.observations.v1.HaulPortion
+	237, // 586: rimgovernor.observations.v1.HaulingFacts.records:type_name -> rimgovernor.observations.v1.HaulRecord
+	3,   // 587: rimgovernor.observations.v1.HaulingFacts.completeness:type_name -> rimgovernor.observations.v1.Completeness
+	238, // 588: rimgovernor.observations.v1.HaulingSection.observed:type_name -> rimgovernor.observations.v1.HaulingFacts
+	273, // 589: rimgovernor.observations.v1.HaulingSection.unavailable:type_name -> rimgovernor.common.v1.Unavailable
+	240, // 590: rimgovernor.observations.v1.WallRemovalFacts.records:type_name -> rimgovernor.observations.v1.WallRemovalRecord
+	3,   // 591: rimgovernor.observations.v1.WallRemovalFacts.completeness:type_name -> rimgovernor.observations.v1.Completeness
+	2,   // 592: rimgovernor.observations.v1.WallRemovalFacts.snapshot:type_name -> rimgovernor.observations.v1.SnapshotRef
+	241, // 593: rimgovernor.observations.v1.WallRemovalSection.observed:type_name -> rimgovernor.observations.v1.WallRemovalFacts
+	273, // 594: rimgovernor.observations.v1.WallRemovalSection.unavailable:type_name -> rimgovernor.common.v1.Unavailable
+	274, // 595: rimgovernor.observations.v1.HomeCoverageTarget.cells:type_name -> rimgovernor.common.v1.Cell
+	2,   // 596: rimgovernor.observations.v1.HomeCoverageTarget.snapshot:type_name -> rimgovernor.observations.v1.SnapshotRef
+	243, // 597: rimgovernor.observations.v1.HomeCoverageFacts.targets:type_name -> rimgovernor.observations.v1.HomeCoverageTarget
+	3,   // 598: rimgovernor.observations.v1.HomeCoverageFacts.completeness:type_name -> rimgovernor.observations.v1.Completeness
+	244, // 599: rimgovernor.observations.v1.HomeCoverageSection.observed:type_name -> rimgovernor.observations.v1.HomeCoverageFacts
+	273, // 600: rimgovernor.observations.v1.HomeCoverageSection.unavailable:type_name -> rimgovernor.common.v1.Unavailable
+	231, // 601: rimgovernor.observations.v1.UpkeepFacts.comfort:type_name -> rimgovernor.observations.v1.ComfortSection
+	230, // 602: rimgovernor.observations.v1.UpkeepFacts.construction:type_name -> rimgovernor.observations.v1.ConstructionSection
+	203, // 603: rimgovernor.observations.v1.UpkeepFacts.items:type_name -> rimgovernor.observations.v1.UpkeepItem
+	204, // 604: rimgovernor.observations.v1.UpkeepFacts.beds:type_name -> rimgovernor.observations.v1.UpkeepBed
+	205, // 605: rimgovernor.observations.v1.UpkeepFacts.storage_cells:type_name -> rimgovernor.observations.v1.StorageCell
+	206, // 606: rimgovernor.observations.v1.UpkeepFacts.storage_capacity:type_name -> rimgovernor.observations.v1.ItemStorageCapacity
+	207, // 607: rimgovernor.observations.v1.UpkeepFacts.structures:type_name -> rimgovernor.observations.v1.UpkeepStructure
+	208, // 608: rimgovernor.observations.v1.UpkeepFacts.fires:type_name -> rimgovernor.observations.v1.FireState
+	209, // 609: rimgovernor.observations.v1.UpkeepFacts.filth:type_name -> rimgovernor.observations.v1.FilthState
+	210, // 610: rimgovernor.observations.v1.UpkeepFacts.protected_cells:type_name -> rimgovernor.observations.v1.ProtectedCell
+	211, // 611: rimgovernor.observations.v1.UpkeepFacts.people:type_name -> rimgovernor.observations.v1.UpkeepPerson
+	212, // 612: rimgovernor.observations.v1.UpkeepFacts.feed_definitions:type_name -> rimgovernor.observations.v1.FeedDefinition
+	213, // 613: rimgovernor.observations.v1.UpkeepFacts.animals:type_name -> rimgovernor.observations.v1.AnimalFeed
+	3,   // 614: rimgovernor.observations.v1.UpkeepFacts.completeness:type_name -> rimgovernor.observations.v1.Completeness
+	4,   // 615: rimgovernor.observations.v1.UpkeepFacts.issues:type_name -> rimgovernor.observations.v1.ReadIssue
+	239, // 616: rimgovernor.observations.v1.UpkeepFacts.hauling:type_name -> rimgovernor.observations.v1.HaulingSection
+	242, // 617: rimgovernor.observations.v1.UpkeepFacts.wall_removal:type_name -> rimgovernor.observations.v1.WallRemovalSection
+	245, // 618: rimgovernor.observations.v1.UpkeepFacts.home_coverage:type_name -> rimgovernor.observations.v1.HomeCoverageSection
+	246, // 619: rimgovernor.observations.v1.UpkeepSection.observed:type_name -> rimgovernor.observations.v1.UpkeepFacts
+	273, // 620: rimgovernor.observations.v1.UpkeepSection.unavailable:type_name -> rimgovernor.common.v1.Unavailable
+	271, // 621: rimgovernor.observations.v1.ColonyFactsSnapshot.context:type_name -> rimgovernor.common.v1.ObservationContext
+	228, // 622: rimgovernor.observations.v1.ColonyFactsSnapshot.naming:type_name -> rimgovernor.observations.v1.ColonyNaming
+	274, // 623: rimgovernor.observations.v1.ColonyFactsSnapshot.center:type_name -> rimgovernor.common.v1.Cell
+	6,   // 624: rimgovernor.observations.v1.ColonyFactsSnapshot.map_size:type_name -> rimgovernor.observations.v1.MapSize
+	10,  // 625: rimgovernor.observations.v1.ColonyFactsSnapshot.resources:type_name -> rimgovernor.observations.v1.Quantity
+	7,   // 626: rimgovernor.observations.v1.ColonyFactsSnapshot.policy_resources:type_name -> rimgovernor.observations.v1.DefinitionRef
+	217, // 627: rimgovernor.observations.v1.ColonyFactsSnapshot.environment:type_name -> rimgovernor.observations.v1.EnvironmentCondition
+	218, // 628: rimgovernor.observations.v1.ColonyFactsSnapshot.food_climate:type_name -> rimgovernor.observations.v1.FoodClimate
+	219, // 629: rimgovernor.observations.v1.ColonyFactsSnapshot.farms:type_name -> rimgovernor.observations.v1.FarmFacts
+	224, // 630: rimgovernor.observations.v1.ColonyFactsSnapshot.cooking:type_name -> rimgovernor.observations.v1.CookingFacts
+	225, // 631: rimgovernor.observations.v1.ColonyFactsSnapshot.acquisition:type_name -> rimgovernor.observations.v1.AcquisitionFacts
+	226, // 632: rimgovernor.observations.v1.ColonyFactsSnapshot.butchering:type_name -> rimgovernor.observations.v1.ButcheringFacts
+	227, // 633: rimgovernor.observations.v1.ColonyFactsSnapshot.food_corpses:type_name -> rimgovernor.observations.v1.FoodCorpse
+	274, // 634: rimgovernor.observations.v1.ColonyFactsSnapshot.forbidden_supplies:type_name -> rimgovernor.common.v1.Cell
+	232, // 635: rimgovernor.observations.v1.ColonyFactsSnapshot.food_supply:type_name -> rimgovernor.observations.v1.FoodSupplySection
+	233, // 636: rimgovernor.observations.v1.ColonyFactsSnapshot.forecast:type_name -> rimgovernor.observations.v1.ForecastSection
+	247, // 637: rimgovernor.observations.v1.ColonyFactsSnapshot.upkeep:type_name -> rimgovernor.observations.v1.UpkeepSection
+	234, // 638: rimgovernor.observations.v1.ColonyFactsSnapshot.development:type_name -> rimgovernor.observations.v1.DevelopmentSection
+	235, // 639: rimgovernor.observations.v1.ColonyFactsSnapshot.planning:type_name -> rimgovernor.observations.v1.PlanningSection
+	131, // 640: rimgovernor.observations.v1.ColonyFactsSnapshot.recovery:type_name -> rimgovernor.observations.v1.RecoveryReply
+	126, // 641: rimgovernor.observations.v1.ColonyFactsSnapshot.waste:type_name -> rimgovernor.observations.v1.WasteReply
+	3,   // 642: rimgovernor.observations.v1.ColonyFactsSnapshot.completeness:type_name -> rimgovernor.observations.v1.Completeness
+	4,   // 643: rimgovernor.observations.v1.ColonyFactsSnapshot.issues:type_name -> rimgovernor.observations.v1.ReadIssue
+	1,   // 644: rimgovernor.observations.v1.ColonyFactsRequest.scope:type_name -> rimgovernor.observations.v1.ReadScope
+	276, // 645: rimgovernor.observations.v1.ColonyFactsRequest.page:type_name -> rimgovernor.common.v1.PageRequest
+	248, // 646: rimgovernor.observations.v1.ColonyFactsReply.observed:type_name -> rimgovernor.observations.v1.ColonyFactsSnapshot
+	273, // 647: rimgovernor.observations.v1.ColonyFactsReply.unavailable:type_name -> rimgovernor.common.v1.Unavailable
+	277, // 648: rimgovernor.observations.v1.ColonyFactsReply.failure:type_name -> rimgovernor.common.v1.Failure
+	32,  // 649: rimgovernor.observations.v1.ThreatPawn.pawn:type_name -> rimgovernor.observations.v1.PawnState
+	8,   // 650: rimgovernor.observations.v1.ThreatPawn.prey:type_name -> rimgovernor.observations.v1.EntityRef
+	251, // 651: rimgovernor.observations.v1.ThreatsSnapshot.hostiles:type_name -> rimgovernor.observations.v1.ThreatPawn
+	251, // 652: rimgovernor.observations.v1.ThreatsSnapshot.hunting_predators:type_name -> rimgovernor.observations.v1.ThreatPawn
+	251, // 653: rimgovernor.observations.v1.ThreatsSnapshot.ignored_hunters:type_name -> rimgovernor.observations.v1.ThreatPawn
+	251, // 654: rimgovernor.observations.v1.ThreatsSnapshot.wild_predators_near:type_name -> rimgovernor.observations.v1.ThreatPawn
+	251, // 655: rimgovernor.observations.v1.ThreatsSnapshot.downed_near:type_name -> rimgovernor.observations.v1.ThreatPawn
+	3,   // 656: rimgovernor.observations.v1.ThreatsSnapshot.completeness:type_name -> rimgovernor.observations.v1.Completeness
+	271, // 657: rimgovernor.observations.v1.StatusSnapshot.context:type_name -> rimgovernor.common.v1.ObservationContext
+	38,  // 658: rimgovernor.observations.v1.StatusSnapshot.colonists:type_name -> rimgovernor.observations.v1.PawnSnapshot
+	252, // 659: rimgovernor.observations.v1.StatusSnapshot.threats:type_name -> rimgovernor.observations.v1.ThreatsSnapshot
+	4,   // 660: rimgovernor.observations.v1.StatusSnapshot.issues:type_name -> rimgovernor.observations.v1.ReadIssue
+	1,   // 661: rimgovernor.observations.v1.StatusRequest.scope:type_name -> rimgovernor.observations.v1.ReadScope
+	276, // 662: rimgovernor.observations.v1.StatusRequest.page:type_name -> rimgovernor.common.v1.PageRequest
+	253, // 663: rimgovernor.observations.v1.StatusReply.observed:type_name -> rimgovernor.observations.v1.StatusSnapshot
+	273, // 664: rimgovernor.observations.v1.StatusReply.unavailable:type_name -> rimgovernor.common.v1.Unavailable
+	277, // 665: rimgovernor.observations.v1.StatusReply.failure:type_name -> rimgovernor.common.v1.Failure
+	271, // 666: rimgovernor.observations.v1.ObservationBatchSnapshot.start_context:type_name -> rimgovernor.common.v1.ObservationContext
+	271, // 667: rimgovernor.observations.v1.ObservationBatchSnapshot.end_context:type_name -> rimgovernor.common.v1.ObservationContext
+	255, // 668: rimgovernor.observations.v1.ObservationBatchSnapshot.status_before:type_name -> rimgovernor.observations.v1.StatusReply
+	40,  // 669: rimgovernor.observations.v1.ObservationBatchSnapshot.pawns:type_name -> rimgovernor.observations.v1.ListPawnsReply
+	47,  // 670: rimgovernor.observations.v1.ObservationBatchSnapshot.supplies:type_name -> rimgovernor.observations.v1.ListSuppliesReply
+	64,  // 671: rimgovernor.observations.v1.ObservationBatchSnapshot.buildings:type_name -> rimgovernor.observations.v1.ListBuildingsReply
+	71,  // 672: rimgovernor.observations.v1.ObservationBatchSnapshot.rooms:type_name -> rimgovernor.observations.v1.ListRoomsReply
+	76,  // 673: rimgovernor.observations.v1.ObservationBatchSnapshot.zones:type_name -> rimgovernor.observations.v1.ListZonesReply
+	255, // 674: rimgovernor.observations.v1.ObservationBatchSnapshot.status_after:type_name -> rimgovernor.observations.v1.StatusReply
+	1,   // 675: rimgovernor.observations.v1.ObservationBatchRequest.scope:type_name -> rimgovernor.observations.v1.ReadScope
+	254, // 676: rimgovernor.observations.v1.ObservationBatchRequest.status:type_name -> rimgovernor.observations.v1.StatusRequest
+	39,  // 677: rimgovernor.observations.v1.ObservationBatchRequest.pawns:type_name -> rimgovernor.observations.v1.ListPawnsRequest
+	46,  // 678: rimgovernor.observations.v1.ObservationBatchRequest.supplies:type_name -> rimgovernor.observations.v1.ListSuppliesRequest
+	63,  // 679: rimgovernor.observations.v1.ObservationBatchRequest.buildings:type_name -> rimgovernor.observations.v1.ListBuildingsRequest
+	70,  // 680: rimgovernor.observations.v1.ObservationBatchRequest.rooms:type_name -> rimgovernor.observations.v1.ListRoomsRequest
+	75,  // 681: rimgovernor.observations.v1.ObservationBatchRequest.zones:type_name -> rimgovernor.observations.v1.ListZonesRequest
+	256, // 682: rimgovernor.observations.v1.ObservationBatchReply.observed:type_name -> rimgovernor.observations.v1.ObservationBatchSnapshot
+	273, // 683: rimgovernor.observations.v1.ObservationBatchReply.unavailable:type_name -> rimgovernor.common.v1.Unavailable
+	277, // 684: rimgovernor.observations.v1.ObservationBatchReply.failure:type_name -> rimgovernor.common.v1.Failure
+	2,   // 685: rimgovernor.observations.v1.ProductionPolicySnapshot.snapshot:type_name -> rimgovernor.observations.v1.SnapshotRef
+	10,  // 686: rimgovernor.observations.v1.ProductionPolicySnapshot.floors:type_name -> rimgovernor.observations.v1.Quantity
+	10,  // 687: rimgovernor.observations.v1.ProductionPolicySnapshot.commitments:type_name -> rimgovernor.observations.v1.Quantity
+	112, // 688: rimgovernor.observations.v1.ProductionPolicySnapshot.drills:type_name -> rimgovernor.observations.v1.OwnedDrill
+	3,   // 689: rimgovernor.observations.v1.ProductionPolicySnapshot.completeness:type_name -> rimgovernor.observations.v1.Completeness
+	1,   // 690: rimgovernor.observations.v1.ProductionPolicyRequest.scope:type_name -> rimgovernor.observations.v1.ReadScope
+	276, // 691: rimgovernor.observations.v1.ProductionPolicyRequest.page:type_name -> rimgovernor.common.v1.PageRequest
+	259, // 692: rimgovernor.observations.v1.ProductionPolicyReply.observed:type_name -> rimgovernor.observations.v1.ProductionPolicySnapshot
+	273, // 693: rimgovernor.observations.v1.ProductionPolicyReply.unavailable:type_name -> rimgovernor.common.v1.Unavailable
+	277, // 694: rimgovernor.observations.v1.ProductionPolicyReply.failure:type_name -> rimgovernor.common.v1.Failure
+	271, // 695: rimgovernor.observations.v1.ArchitectCategoriesSnapshot.context:type_name -> rimgovernor.common.v1.ObservationContext
+	262, // 696: rimgovernor.observations.v1.ArchitectCategoriesSnapshot.categories:type_name -> rimgovernor.observations.v1.ArchitectCategory
+	3,   // 697: rimgovernor.observations.v1.ArchitectCategoriesSnapshot.completeness:type_name -> rimgovernor.observations.v1.Completeness
+	1,   // 698: rimgovernor.observations.v1.ArchitectCategoriesRequest.scope:type_name -> rimgovernor.observations.v1.ReadScope
+	276, // 699: rimgovernor.observations.v1.ArchitectCategoriesRequest.page:type_name -> rimgovernor.common.v1.PageRequest
+	264, // 700: rimgovernor.observations.v1.ArchitectCategoriesReply.observed:type_name -> rimgovernor.observations.v1.ArchitectCategoriesSnapshot
+	273, // 701: rimgovernor.observations.v1.ArchitectCategoriesReply.unavailable:type_name -> rimgovernor.common.v1.Unavailable
+	277, // 702: rimgovernor.observations.v1.ArchitectCategoriesReply.failure:type_name -> rimgovernor.common.v1.Failure
+	271, // 703: rimgovernor.observations.v1.ArchitectDesignatorsSnapshot.context:type_name -> rimgovernor.common.v1.ObservationContext
+	263, // 704: rimgovernor.observations.v1.ArchitectDesignatorsSnapshot.designators:type_name -> rimgovernor.observations.v1.ArchitectDesignator
+	3,   // 705: rimgovernor.observations.v1.ArchitectDesignatorsSnapshot.completeness:type_name -> rimgovernor.observations.v1.Completeness
+	1,   // 706: rimgovernor.observations.v1.ArchitectDesignatorsRequest.scope:type_name -> rimgovernor.observations.v1.ReadScope
+	276, // 707: rimgovernor.observations.v1.ArchitectDesignatorsRequest.page:type_name -> rimgovernor.common.v1.PageRequest
+	267, // 708: rimgovernor.observations.v1.ArchitectDesignatorsReply.observed:type_name -> rimgovernor.observations.v1.ArchitectDesignatorsSnapshot
+	273, // 709: rimgovernor.observations.v1.ArchitectDesignatorsReply.unavailable:type_name -> rimgovernor.common.v1.Unavailable
+	277, // 710: rimgovernor.observations.v1.ArchitectDesignatorsReply.failure:type_name -> rimgovernor.common.v1.Failure
+	260, // 711: rimgovernor.observations.v1.Observations.ReadProductionPolicy:input_type -> rimgovernor.observations.v1.ProductionPolicyRequest
+	265, // 712: rimgovernor.observations.v1.Observations.ListArchitectCategories:input_type -> rimgovernor.observations.v1.ArchitectCategoriesRequest
+	268, // 713: rimgovernor.observations.v1.Observations.ListArchitectDesignators:input_type -> rimgovernor.observations.v1.ArchitectDesignatorsRequest
+	254, // 714: rimgovernor.observations.v1.Observations.ReadStatus:input_type -> rimgovernor.observations.v1.StatusRequest
+	257, // 715: rimgovernor.observations.v1.Observations.ReadObservationBatch:input_type -> rimgovernor.observations.v1.ObservationBatchRequest
+	39,  // 716: rimgovernor.observations.v1.Observations.ListPawns:input_type -> rimgovernor.observations.v1.ListPawnsRequest
+	46,  // 717: rimgovernor.observations.v1.Observations.ListSupplies:input_type -> rimgovernor.observations.v1.ListSuppliesRequest
+	63,  // 718: rimgovernor.observations.v1.Observations.ListBuildings:input_type -> rimgovernor.observations.v1.ListBuildingsRequest
+	70,  // 719: rimgovernor.observations.v1.Observations.ListRooms:input_type -> rimgovernor.observations.v1.ListRoomsRequest
+	75,  // 720: rimgovernor.observations.v1.Observations.ListZones:input_type -> rimgovernor.observations.v1.ListZonesRequest
+	82,  // 721: rimgovernor.observations.v1.Observations.GetCells:input_type -> rimgovernor.observations.v1.GetCellsRequest
+	92,  // 722: rimgovernor.observations.v1.Observations.ReadResearch:input_type -> rimgovernor.observations.v1.ResearchRequest
+	249, // 723: rimgovernor.observations.v1.Observations.ReadColonyFacts:input_type -> rimgovernor.observations.v1.ColonyFactsRequest
+	97,  // 724: rimgovernor.observations.v1.Observations.ReadSpatialAccess:input_type -> rimgovernor.observations.v1.SpatialAccessRequest
+	101, // 725: rimgovernor.observations.v1.Observations.ReadRoofSupport:input_type -> rimgovernor.observations.v1.RoofSupportRequest
+	106, // 726: rimgovernor.observations.v1.Observations.ListWallUpgradeSites:input_type -> rimgovernor.observations.v1.WallUpgradeSitesRequest
+	116, // 727: rimgovernor.observations.v1.Observations.ListResourceSources:input_type -> rimgovernor.observations.v1.ResourceSourcesRequest
+	121, // 728: rimgovernor.observations.v1.Observations.ReadHusbandry:input_type -> rimgovernor.observations.v1.HusbandryRequest
+	125, // 729: rimgovernor.observations.v1.Observations.ReadWaste:input_type -> rimgovernor.observations.v1.WasteRequest
+	130, // 730: rimgovernor.observations.v1.Observations.ReadRecovery:input_type -> rimgovernor.observations.v1.RecoveryRequest
+	134, // 731: rimgovernor.observations.v1.Observations.ReadPopulation:input_type -> rimgovernor.observations.v1.PopulationRequest
+	139, // 732: rimgovernor.observations.v1.Observations.ReadWorld:input_type -> rimgovernor.observations.v1.WorldRequest
+	150, // 733: rimgovernor.observations.v1.Observations.ReadWorldProgression:input_type -> rimgovernor.observations.v1.WorldProgressionRequest
+	153, // 734: rimgovernor.observations.v1.Observations.ReadBills:input_type -> rimgovernor.observations.v1.BillsRequest
+	156, // 735: rimgovernor.observations.v1.Observations.ReadRecipes:input_type -> rimgovernor.observations.v1.RecipesRequest
+	158, // 736: rimgovernor.observations.v1.Observations.ReadBuildingSettings:input_type -> rimgovernor.observations.v1.BuildingSettingsRequest
+	160, // 737: rimgovernor.observations.v1.Observations.ReadPawnSettings:input_type -> rimgovernor.observations.v1.PawnSettingsRequest
+	163, // 738: rimgovernor.observations.v1.Observations.ResolveTarget:input_type -> rimgovernor.observations.v1.ResolveTargetRequest
+	166, // 739: rimgovernor.observations.v1.Observations.ReadInstallStatus:input_type -> rimgovernor.observations.v1.InstallStatusRequest
+	172, // 740: rimgovernor.observations.v1.Observations.ReadGear:input_type -> rimgovernor.observations.v1.GearRequest
+	176, // 741: rimgovernor.observations.v1.Observations.ReadMedicalCatalog:input_type -> rimgovernor.observations.v1.MedicalCatalogRequest
+	180, // 742: rimgovernor.observations.v1.Observations.ListTraders:input_type -> rimgovernor.observations.v1.TradersRequest
+	184, // 743: rimgovernor.observations.v1.Observations.ReadTradeSheet:input_type -> rimgovernor.observations.v1.TradeSheetRequest
+	187, // 744: rimgovernor.observations.v1.Observations.ReadTradeStatus:input_type -> rimgovernor.observations.v1.TradeStatusRequest
+	192, // 745: rimgovernor.observations.v1.Observations.ReadCaravanCatalog:input_type -> rimgovernor.observations.v1.CaravanCatalogRequest
+	261, // 746: rimgovernor.observations.v1.Observations.ReadProductionPolicy:output_type -> rimgovernor.observations.v1.ProductionPolicyReply
+	266, // 747: rimgovernor.observations.v1.Observations.ListArchitectCategories:output_type -> rimgovernor.observations.v1.ArchitectCategoriesReply
+	269, // 748: rimgovernor.observations.v1.Observations.ListArchitectDesignators:output_type -> rimgovernor.observations.v1.ArchitectDesignatorsReply
+	255, // 749: rimgovernor.observations.v1.Observations.ReadStatus:output_type -> rimgovernor.observations.v1.StatusReply
+	258, // 750: rimgovernor.observations.v1.Observations.ReadObservationBatch:output_type -> rimgovernor.observations.v1.ObservationBatchReply
+	40,  // 751: rimgovernor.observations.v1.Observations.ListPawns:output_type -> rimgovernor.observations.v1.ListPawnsReply
+	47,  // 752: rimgovernor.observations.v1.Observations.ListSupplies:output_type -> rimgovernor.observations.v1.ListSuppliesReply
+	64,  // 753: rimgovernor.observations.v1.Observations.ListBuildings:output_type -> rimgovernor.observations.v1.ListBuildingsReply
+	71,  // 754: rimgovernor.observations.v1.Observations.ListRooms:output_type -> rimgovernor.observations.v1.ListRoomsReply
+	76,  // 755: rimgovernor.observations.v1.Observations.ListZones:output_type -> rimgovernor.observations.v1.ListZonesReply
+	84,  // 756: rimgovernor.observations.v1.Observations.GetCells:output_type -> rimgovernor.observations.v1.GetCellsReply
+	93,  // 757: rimgovernor.observations.v1.Observations.ReadResearch:output_type -> rimgovernor.observations.v1.ResearchReply
+	250, // 758: rimgovernor.observations.v1.Observations.ReadColonyFacts:output_type -> rimgovernor.observations.v1.ColonyFactsReply
+	98,  // 759: rimgovernor.observations.v1.Observations.ReadSpatialAccess:output_type -> rimgovernor.observations.v1.SpatialAccessReply
+	102, // 760: rimgovernor.observations.v1.Observations.ReadRoofSupport:output_type -> rimgovernor.observations.v1.RoofSupportReply
+	107, // 761: rimgovernor.observations.v1.Observations.ListWallUpgradeSites:output_type -> rimgovernor.observations.v1.WallUpgradeSitesReply
+	117, // 762: rimgovernor.observations.v1.Observations.ListResourceSources:output_type -> rimgovernor.observations.v1.ResourceSourcesReply
+	122, // 763: rimgovernor.observations.v1.Observations.ReadHusbandry:output_type -> rimgovernor.observations.v1.HusbandryReply
+	126, // 764: rimgovernor.observations.v1.Observations.ReadWaste:output_type -> rimgovernor.observations.v1.WasteReply
+	131, // 765: rimgovernor.observations.v1.Observations.ReadRecovery:output_type -> rimgovernor.observations.v1.RecoveryReply
+	135, // 766: rimgovernor.observations.v1.Observations.ReadPopulation:output_type -> rimgovernor.observations.v1.PopulationReply
+	140, // 767: rimgovernor.observations.v1.Observations.ReadWorld:output_type -> rimgovernor.observations.v1.WorldReply
+	151, // 768: rimgovernor.observations.v1.Observations.ReadWorldProgression:output_type -> rimgovernor.observations.v1.WorldProgressionReply
+	154, // 769: rimgovernor.observations.v1.Observations.ReadBills:output_type -> rimgovernor.observations.v1.BillsReply
+	157, // 770: rimgovernor.observations.v1.Observations.ReadRecipes:output_type -> rimgovernor.observations.v1.RecipesReply
+	159, // 771: rimgovernor.observations.v1.Observations.ReadBuildingSettings:output_type -> rimgovernor.observations.v1.BuildingSettingsReply
+	161, // 772: rimgovernor.observations.v1.Observations.ReadPawnSettings:output_type -> rimgovernor.observations.v1.PawnSettingsReply
+	164, // 773: rimgovernor.observations.v1.Observations.ResolveTarget:output_type -> rimgovernor.observations.v1.ResolveTargetReply
+	167, // 774: rimgovernor.observations.v1.Observations.ReadInstallStatus:output_type -> rimgovernor.observations.v1.InstallStatusReply
+	173, // 775: rimgovernor.observations.v1.Observations.ReadGear:output_type -> rimgovernor.observations.v1.GearReply
+	177, // 776: rimgovernor.observations.v1.Observations.ReadMedicalCatalog:output_type -> rimgovernor.observations.v1.MedicalCatalogReply
+	181, // 777: rimgovernor.observations.v1.Observations.ListTraders:output_type -> rimgovernor.observations.v1.TradersReply
+	185, // 778: rimgovernor.observations.v1.Observations.ReadTradeSheet:output_type -> rimgovernor.observations.v1.TradeSheetReply
+	188, // 779: rimgovernor.observations.v1.Observations.ReadTradeStatus:output_type -> rimgovernor.observations.v1.TradeStatusReply
+	193, // 780: rimgovernor.observations.v1.Observations.ReadCaravanCatalog:output_type -> rimgovernor.observations.v1.CaravanCatalogReply
+	746, // [746:781] is the sub-list for method output_type
+	711, // [711:746] is the sub-list for method input_type
+	711, // [711:711] is the sub-list for extension type_name
+	711, // [711:711] is the sub-list for extension extendee
+	0,   // [0:711] is the sub-list for field type_name
 }
 
 func init() { file_observations_proto_init() }
@@ -29035,226 +29240,225 @@ func file_observations_proto_init() {
 		(*ListBuildingsReply_Failure)(nil),
 	}
 	file_observations_proto_msgTypes[64].OneofWrappers = []any{}
-	file_observations_proto_msgTypes[65].OneofWrappers = []any{}
+	file_observations_proto_msgTypes[66].OneofWrappers = []any{}
 	file_observations_proto_msgTypes[67].OneofWrappers = []any{}
-	file_observations_proto_msgTypes[68].OneofWrappers = []any{
+	file_observations_proto_msgTypes[69].OneofWrappers = []any{}
+	file_observations_proto_msgTypes[70].OneofWrappers = []any{
 		(*ListRoomsReply_Observed)(nil),
 		(*ListRoomsReply_Unavailable)(nil),
 		(*ListRoomsReply_Failure)(nil),
 	}
-	file_observations_proto_msgTypes[69].OneofWrappers = []any{}
-	file_observations_proto_msgTypes[70].OneofWrappers = []any{}
+	file_observations_proto_msgTypes[71].OneofWrappers = []any{}
 	file_observations_proto_msgTypes[72].OneofWrappers = []any{}
-	file_observations_proto_msgTypes[73].OneofWrappers = []any{
+	file_observations_proto_msgTypes[74].OneofWrappers = []any{}
+	file_observations_proto_msgTypes[75].OneofWrappers = []any{
 		(*ListZonesReply_Observed)(nil),
 		(*ListZonesReply_Unavailable)(nil),
 		(*ListZonesReply_Failure)(nil),
 	}
-	file_observations_proto_msgTypes[74].OneofWrappers = []any{}
-	file_observations_proto_msgTypes[75].OneofWrappers = []any{}
 	file_observations_proto_msgTypes[76].OneofWrappers = []any{}
 	file_observations_proto_msgTypes[77].OneofWrappers = []any{}
-	file_observations_proto_msgTypes[79].OneofWrappers = []any{
+	file_observations_proto_msgTypes[78].OneofWrappers = []any{}
+	file_observations_proto_msgTypes[79].OneofWrappers = []any{}
+	file_observations_proto_msgTypes[81].OneofWrappers = []any{
 		(*GetCellsRequest_Rectangle)(nil),
 		(*GetCellsRequest_ExactCells)(nil),
 	}
-	file_observations_proto_msgTypes[81].OneofWrappers = []any{
+	file_observations_proto_msgTypes[83].OneofWrappers = []any{
 		(*GetCellsReply_Observed)(nil),
 		(*GetCellsReply_Unavailable)(nil),
 		(*GetCellsReply_Failure)(nil),
 	}
-	file_observations_proto_msgTypes[82].OneofWrappers = []any{}
-	file_observations_proto_msgTypes[83].OneofWrappers = []any{}
 	file_observations_proto_msgTypes[84].OneofWrappers = []any{}
 	file_observations_proto_msgTypes[85].OneofWrappers = []any{}
+	file_observations_proto_msgTypes[86].OneofWrappers = []any{}
 	file_observations_proto_msgTypes[87].OneofWrappers = []any{}
-	file_observations_proto_msgTypes[88].OneofWrappers = []any{}
 	file_observations_proto_msgTypes[89].OneofWrappers = []any{}
-	file_observations_proto_msgTypes[90].OneofWrappers = []any{
+	file_observations_proto_msgTypes[90].OneofWrappers = []any{}
+	file_observations_proto_msgTypes[91].OneofWrappers = []any{}
+	file_observations_proto_msgTypes[92].OneofWrappers = []any{
 		(*ResearchReply_Observed)(nil),
 		(*ResearchReply_Unavailable)(nil),
 		(*ResearchReply_Failure)(nil),
 	}
-	file_observations_proto_msgTypes[91].OneofWrappers = []any{}
-	file_observations_proto_msgTypes[92].OneofWrappers = []any{}
 	file_observations_proto_msgTypes[93].OneofWrappers = []any{}
-	file_observations_proto_msgTypes[95].OneofWrappers = []any{
+	file_observations_proto_msgTypes[94].OneofWrappers = []any{}
+	file_observations_proto_msgTypes[95].OneofWrappers = []any{}
+	file_observations_proto_msgTypes[97].OneofWrappers = []any{
 		(*SpatialAccessReply_Observed)(nil),
 		(*SpatialAccessReply_Unavailable)(nil),
 		(*SpatialAccessReply_Failure)(nil),
 	}
-	file_observations_proto_msgTypes[96].OneofWrappers = []any{}
 	file_observations_proto_msgTypes[98].OneofWrappers = []any{}
-	file_observations_proto_msgTypes[99].OneofWrappers = []any{
+	file_observations_proto_msgTypes[100].OneofWrappers = []any{}
+	file_observations_proto_msgTypes[101].OneofWrappers = []any{
 		(*RoofSupportReply_Observed)(nil),
 		(*RoofSupportReply_Unavailable)(nil),
 		(*RoofSupportReply_Failure)(nil),
 	}
-	file_observations_proto_msgTypes[100].OneofWrappers = []any{}
-	file_observations_proto_msgTypes[101].OneofWrappers = []any{}
+	file_observations_proto_msgTypes[102].OneofWrappers = []any{}
 	file_observations_proto_msgTypes[103].OneofWrappers = []any{}
-	file_observations_proto_msgTypes[104].OneofWrappers = []any{
+	file_observations_proto_msgTypes[105].OneofWrappers = []any{}
+	file_observations_proto_msgTypes[106].OneofWrappers = []any{
 		(*WallUpgradeSitesReply_Observed)(nil),
 		(*WallUpgradeSitesReply_Unavailable)(nil),
 		(*WallUpgradeSitesReply_Failure)(nil),
 	}
-	file_observations_proto_msgTypes[105].OneofWrappers = []any{}
-	file_observations_proto_msgTypes[106].OneofWrappers = []any{}
+	file_observations_proto_msgTypes[107].OneofWrappers = []any{}
 	file_observations_proto_msgTypes[108].OneofWrappers = []any{}
-	file_observations_proto_msgTypes[109].OneofWrappers = []any{}
 	file_observations_proto_msgTypes[110].OneofWrappers = []any{}
 	file_observations_proto_msgTypes[111].OneofWrappers = []any{}
 	file_observations_proto_msgTypes[112].OneofWrappers = []any{}
 	file_observations_proto_msgTypes[113].OneofWrappers = []any{}
-	file_observations_proto_msgTypes[114].OneofWrappers = []any{
+	file_observations_proto_msgTypes[114].OneofWrappers = []any{}
+	file_observations_proto_msgTypes[115].OneofWrappers = []any{}
+	file_observations_proto_msgTypes[116].OneofWrappers = []any{
 		(*ResourceSourcesReply_Observed)(nil),
 		(*ResourceSourcesReply_Unavailable)(nil),
 		(*ResourceSourcesReply_Failure)(nil),
 	}
-	file_observations_proto_msgTypes[115].OneofWrappers = []any{}
-	file_observations_proto_msgTypes[119].OneofWrappers = []any{
+	file_observations_proto_msgTypes[117].OneofWrappers = []any{}
+	file_observations_proto_msgTypes[121].OneofWrappers = []any{
 		(*HusbandryReply_Observed)(nil),
 		(*HusbandryReply_Unavailable)(nil),
 		(*HusbandryReply_Failure)(nil),
 	}
-	file_observations_proto_msgTypes[120].OneofWrappers = []any{}
-	file_observations_proto_msgTypes[123].OneofWrappers = []any{
+	file_observations_proto_msgTypes[122].OneofWrappers = []any{}
+	file_observations_proto_msgTypes[125].OneofWrappers = []any{
 		(*WasteReply_Observed)(nil),
 		(*WasteReply_Unavailable)(nil),
 		(*WasteReply_Failure)(nil),
 	}
-	file_observations_proto_msgTypes[124].OneofWrappers = []any{}
-	file_observations_proto_msgTypes[125].OneofWrappers = []any{}
 	file_observations_proto_msgTypes[126].OneofWrappers = []any{}
-	file_observations_proto_msgTypes[128].OneofWrappers = []any{
+	file_observations_proto_msgTypes[127].OneofWrappers = []any{}
+	file_observations_proto_msgTypes[128].OneofWrappers = []any{}
+	file_observations_proto_msgTypes[130].OneofWrappers = []any{
 		(*RecoveryReply_Observed)(nil),
 		(*RecoveryReply_Unavailable)(nil),
 		(*RecoveryReply_Failure)(nil),
 	}
-	file_observations_proto_msgTypes[129].OneofWrappers = []any{}
-	file_observations_proto_msgTypes[132].OneofWrappers = []any{
+	file_observations_proto_msgTypes[131].OneofWrappers = []any{}
+	file_observations_proto_msgTypes[134].OneofWrappers = []any{
 		(*PopulationReply_Observed)(nil),
 		(*PopulationReply_Unavailable)(nil),
 		(*PopulationReply_Failure)(nil),
 	}
-	file_observations_proto_msgTypes[133].OneofWrappers = []any{}
-	file_observations_proto_msgTypes[134].OneofWrappers = []any{}
+	file_observations_proto_msgTypes[135].OneofWrappers = []any{}
 	file_observations_proto_msgTypes[136].OneofWrappers = []any{}
-	file_observations_proto_msgTypes[137].OneofWrappers = []any{
+	file_observations_proto_msgTypes[138].OneofWrappers = []any{}
+	file_observations_proto_msgTypes[139].OneofWrappers = []any{
 		(*WorldReply_Observed)(nil),
 		(*WorldReply_Unavailable)(nil),
 		(*WorldReply_Failure)(nil),
 	}
-	file_observations_proto_msgTypes[138].OneofWrappers = []any{}
-	file_observations_proto_msgTypes[139].OneofWrappers = []any{}
 	file_observations_proto_msgTypes[140].OneofWrappers = []any{}
 	file_observations_proto_msgTypes[141].OneofWrappers = []any{}
 	file_observations_proto_msgTypes[142].OneofWrappers = []any{}
 	file_observations_proto_msgTypes[143].OneofWrappers = []any{}
 	file_observations_proto_msgTypes[144].OneofWrappers = []any{}
 	file_observations_proto_msgTypes[145].OneofWrappers = []any{}
+	file_observations_proto_msgTypes[146].OneofWrappers = []any{}
 	file_observations_proto_msgTypes[147].OneofWrappers = []any{}
-	file_observations_proto_msgTypes[148].OneofWrappers = []any{
+	file_observations_proto_msgTypes[149].OneofWrappers = []any{}
+	file_observations_proto_msgTypes[150].OneofWrappers = []any{
 		(*WorldProgressionReply_Observed)(nil),
 		(*WorldProgressionReply_Unavailable)(nil),
 		(*WorldProgressionReply_Failure)(nil),
 	}
-	file_observations_proto_msgTypes[150].OneofWrappers = []any{}
-	file_observations_proto_msgTypes[151].OneofWrappers = []any{
+	file_observations_proto_msgTypes[152].OneofWrappers = []any{}
+	file_observations_proto_msgTypes[153].OneofWrappers = []any{
 		(*BillsReply_Observed)(nil),
 		(*BillsReply_Unavailable)(nil),
 		(*BillsReply_Failure)(nil),
 	}
-	file_observations_proto_msgTypes[153].OneofWrappers = []any{}
-	file_observations_proto_msgTypes[154].OneofWrappers = []any{
+	file_observations_proto_msgTypes[155].OneofWrappers = []any{}
+	file_observations_proto_msgTypes[156].OneofWrappers = []any{
 		(*RecipesReply_Observed)(nil),
 		(*RecipesReply_Unavailable)(nil),
 		(*RecipesReply_Failure)(nil),
 	}
-	file_observations_proto_msgTypes[155].OneofWrappers = []any{}
-	file_observations_proto_msgTypes[156].OneofWrappers = []any{
+	file_observations_proto_msgTypes[157].OneofWrappers = []any{}
+	file_observations_proto_msgTypes[158].OneofWrappers = []any{
 		(*BuildingSettingsReply_Observed)(nil),
 		(*BuildingSettingsReply_Unavailable)(nil),
 		(*BuildingSettingsReply_Failure)(nil),
 	}
-	file_observations_proto_msgTypes[157].OneofWrappers = []any{}
-	file_observations_proto_msgTypes[158].OneofWrappers = []any{
+	file_observations_proto_msgTypes[159].OneofWrappers = []any{}
+	file_observations_proto_msgTypes[160].OneofWrappers = []any{
 		(*PawnSettingsReply_Observed)(nil),
 		(*PawnSettingsReply_Unavailable)(nil),
 		(*PawnSettingsReply_Failure)(nil),
 	}
-	file_observations_proto_msgTypes[159].OneofWrappers = []any{}
-	file_observations_proto_msgTypes[160].OneofWrappers = []any{
+	file_observations_proto_msgTypes[161].OneofWrappers = []any{}
+	file_observations_proto_msgTypes[162].OneofWrappers = []any{
 		(*ResolveTargetRequest_EntityId)(nil),
 		(*ResolveTargetRequest_ExactName)(nil),
 		(*ResolveTargetRequest_Cell)(nil),
 	}
-	file_observations_proto_msgTypes[161].OneofWrappers = []any{
+	file_observations_proto_msgTypes[163].OneofWrappers = []any{
 		(*ResolveTargetReply_Observed)(nil),
 		(*ResolveTargetReply_Unavailable)(nil),
 		(*ResolveTargetReply_Failure)(nil),
 	}
-	file_observations_proto_msgTypes[162].OneofWrappers = []any{}
-	file_observations_proto_msgTypes[163].OneofWrappers = []any{}
-	file_observations_proto_msgTypes[164].OneofWrappers = []any{
+	file_observations_proto_msgTypes[164].OneofWrappers = []any{}
+	file_observations_proto_msgTypes[165].OneofWrappers = []any{}
+	file_observations_proto_msgTypes[166].OneofWrappers = []any{
 		(*InstallStatusReply_Observed)(nil),
 		(*InstallStatusReply_Unavailable)(nil),
 		(*InstallStatusReply_Failure)(nil),
 	}
-	file_observations_proto_msgTypes[165].OneofWrappers = []any{}
-	file_observations_proto_msgTypes[166].OneofWrappers = []any{}
 	file_observations_proto_msgTypes[167].OneofWrappers = []any{}
+	file_observations_proto_msgTypes[168].OneofWrappers = []any{}
 	file_observations_proto_msgTypes[169].OneofWrappers = []any{}
-	file_observations_proto_msgTypes[170].OneofWrappers = []any{
+	file_observations_proto_msgTypes[171].OneofWrappers = []any{}
+	file_observations_proto_msgTypes[172].OneofWrappers = []any{
 		(*GearReply_Observed)(nil),
 		(*GearReply_Unavailable)(nil),
 		(*GearReply_Failure)(nil),
 	}
-	file_observations_proto_msgTypes[171].OneofWrappers = []any{}
-	file_observations_proto_msgTypes[172].OneofWrappers = []any{}
 	file_observations_proto_msgTypes[173].OneofWrappers = []any{}
-	file_observations_proto_msgTypes[174].OneofWrappers = []any{
+	file_observations_proto_msgTypes[174].OneofWrappers = []any{}
+	file_observations_proto_msgTypes[175].OneofWrappers = []any{}
+	file_observations_proto_msgTypes[176].OneofWrappers = []any{
 		(*MedicalCatalogReply_Observed)(nil),
 		(*MedicalCatalogReply_Unavailable)(nil),
 		(*MedicalCatalogReply_Failure)(nil),
 	}
-	file_observations_proto_msgTypes[175].OneofWrappers = []any{}
-	file_observations_proto_msgTypes[178].OneofWrappers = []any{
+	file_observations_proto_msgTypes[177].OneofWrappers = []any{}
+	file_observations_proto_msgTypes[180].OneofWrappers = []any{
 		(*TradersReply_Observed)(nil),
 		(*TradersReply_Unavailable)(nil),
 		(*TradersReply_Failure)(nil),
 	}
-	file_observations_proto_msgTypes[179].OneofWrappers = []any{}
-	file_observations_proto_msgTypes[180].OneofWrappers = []any{}
 	file_observations_proto_msgTypes[181].OneofWrappers = []any{}
-	file_observations_proto_msgTypes[182].OneofWrappers = []any{
+	file_observations_proto_msgTypes[182].OneofWrappers = []any{}
+	file_observations_proto_msgTypes[183].OneofWrappers = []any{}
+	file_observations_proto_msgTypes[184].OneofWrappers = []any{
 		(*TradeSheetReply_Observed)(nil),
 		(*TradeSheetReply_Unavailable)(nil),
 		(*TradeSheetReply_Failure)(nil),
 	}
-	file_observations_proto_msgTypes[183].OneofWrappers = []any{}
-	file_observations_proto_msgTypes[184].OneofWrappers = []any{}
-	file_observations_proto_msgTypes[185].OneofWrappers = []any{
+	file_observations_proto_msgTypes[185].OneofWrappers = []any{}
+	file_observations_proto_msgTypes[186].OneofWrappers = []any{}
+	file_observations_proto_msgTypes[187].OneofWrappers = []any{
 		(*TradeStatusReply_Observed)(nil),
 		(*TradeStatusReply_Unavailable)(nil),
 		(*TradeStatusReply_Failure)(nil),
 	}
-	file_observations_proto_msgTypes[186].OneofWrappers = []any{}
-	file_observations_proto_msgTypes[187].OneofWrappers = []any{}
+	file_observations_proto_msgTypes[188].OneofWrappers = []any{}
 	file_observations_proto_msgTypes[189].OneofWrappers = []any{}
-	file_observations_proto_msgTypes[190].OneofWrappers = []any{
+	file_observations_proto_msgTypes[191].OneofWrappers = []any{}
+	file_observations_proto_msgTypes[192].OneofWrappers = []any{
 		(*CaravanCatalogReply_Observed)(nil),
 		(*CaravanCatalogReply_Unavailable)(nil),
 		(*CaravanCatalogReply_Failure)(nil),
 	}
-	file_observations_proto_msgTypes[191].OneofWrappers = []any{}
-	file_observations_proto_msgTypes[192].OneofWrappers = []any{}
+	file_observations_proto_msgTypes[193].OneofWrappers = []any{}
 	file_observations_proto_msgTypes[194].OneofWrappers = []any{}
-	file_observations_proto_msgTypes[195].OneofWrappers = []any{}
+	file_observations_proto_msgTypes[196].OneofWrappers = []any{}
 	file_observations_proto_msgTypes[197].OneofWrappers = []any{}
-	file_observations_proto_msgTypes[198].OneofWrappers = []any{}
+	file_observations_proto_msgTypes[199].OneofWrappers = []any{}
 	file_observations_proto_msgTypes[200].OneofWrappers = []any{}
-	file_observations_proto_msgTypes[201].OneofWrappers = []any{}
 	file_observations_proto_msgTypes[202].OneofWrappers = []any{}
 	file_observations_proto_msgTypes[203].OneofWrappers = []any{}
 	file_observations_proto_msgTypes[204].OneofWrappers = []any{}
@@ -29266,97 +29470,99 @@ func file_observations_proto_init() {
 	file_observations_proto_msgTypes[210].OneofWrappers = []any{}
 	file_observations_proto_msgTypes[211].OneofWrappers = []any{}
 	file_observations_proto_msgTypes[212].OneofWrappers = []any{}
+	file_observations_proto_msgTypes[213].OneofWrappers = []any{}
 	file_observations_proto_msgTypes[214].OneofWrappers = []any{}
-	file_observations_proto_msgTypes[215].OneofWrappers = []any{}
 	file_observations_proto_msgTypes[216].OneofWrappers = []any{}
 	file_observations_proto_msgTypes[217].OneofWrappers = []any{}
+	file_observations_proto_msgTypes[218].OneofWrappers = []any{}
 	file_observations_proto_msgTypes[219].OneofWrappers = []any{}
-	file_observations_proto_msgTypes[220].OneofWrappers = []any{}
 	file_observations_proto_msgTypes[221].OneofWrappers = []any{}
 	file_observations_proto_msgTypes[222].OneofWrappers = []any{}
 	file_observations_proto_msgTypes[223].OneofWrappers = []any{}
 	file_observations_proto_msgTypes[224].OneofWrappers = []any{}
 	file_observations_proto_msgTypes[225].OneofWrappers = []any{}
-	file_observations_proto_msgTypes[227].OneofWrappers = []any{
+	file_observations_proto_msgTypes[226].OneofWrappers = []any{}
+	file_observations_proto_msgTypes[227].OneofWrappers = []any{}
+	file_observations_proto_msgTypes[229].OneofWrappers = []any{
 		(*ConstructionSection_Observed)(nil),
 		(*ConstructionSection_Unavailable)(nil),
 	}
-	file_observations_proto_msgTypes[228].OneofWrappers = []any{
+	file_observations_proto_msgTypes[230].OneofWrappers = []any{
 		(*ComfortSection_Observed)(nil),
 		(*ComfortSection_Unavailable)(nil),
 	}
-	file_observations_proto_msgTypes[229].OneofWrappers = []any{
+	file_observations_proto_msgTypes[231].OneofWrappers = []any{
 		(*FoodSupplySection_Observed)(nil),
 		(*FoodSupplySection_Unavailable)(nil),
 	}
-	file_observations_proto_msgTypes[230].OneofWrappers = []any{
+	file_observations_proto_msgTypes[232].OneofWrappers = []any{
 		(*ForecastSection_Observed)(nil),
 		(*ForecastSection_Unavailable)(nil),
 	}
-	file_observations_proto_msgTypes[231].OneofWrappers = []any{
+	file_observations_proto_msgTypes[233].OneofWrappers = []any{
 		(*DevelopmentSection_Observed)(nil),
 		(*DevelopmentSection_Unavailable)(nil),
 	}
-	file_observations_proto_msgTypes[232].OneofWrappers = []any{
+	file_observations_proto_msgTypes[234].OneofWrappers = []any{
 		(*PlanningSection_Observed)(nil),
 		(*PlanningSection_Unavailable)(nil),
 	}
-	file_observations_proto_msgTypes[233].OneofWrappers = []any{}
-	file_observations_proto_msgTypes[234].OneofWrappers = []any{}
-	file_observations_proto_msgTypes[236].OneofWrappers = []any{
+	file_observations_proto_msgTypes[235].OneofWrappers = []any{}
+	file_observations_proto_msgTypes[236].OneofWrappers = []any{}
+	file_observations_proto_msgTypes[238].OneofWrappers = []any{
 		(*HaulingSection_Observed)(nil),
 		(*HaulingSection_Unavailable)(nil),
 	}
-	file_observations_proto_msgTypes[237].OneofWrappers = []any{}
-	file_observations_proto_msgTypes[239].OneofWrappers = []any{
+	file_observations_proto_msgTypes[239].OneofWrappers = []any{}
+	file_observations_proto_msgTypes[241].OneofWrappers = []any{
 		(*WallRemovalSection_Observed)(nil),
 		(*WallRemovalSection_Unavailable)(nil),
 	}
-	file_observations_proto_msgTypes[240].OneofWrappers = []any{}
-	file_observations_proto_msgTypes[241].OneofWrappers = []any{}
-	file_observations_proto_msgTypes[242].OneofWrappers = []any{
+	file_observations_proto_msgTypes[242].OneofWrappers = []any{}
+	file_observations_proto_msgTypes[243].OneofWrappers = []any{}
+	file_observations_proto_msgTypes[244].OneofWrappers = []any{
 		(*HomeCoverageSection_Observed)(nil),
 		(*HomeCoverageSection_Unavailable)(nil),
 	}
-	file_observations_proto_msgTypes[244].OneofWrappers = []any{
+	file_observations_proto_msgTypes[246].OneofWrappers = []any{
 		(*UpkeepSection_Observed)(nil),
 		(*UpkeepSection_Unavailable)(nil),
 	}
-	file_observations_proto_msgTypes[245].OneofWrappers = []any{}
-	file_observations_proto_msgTypes[246].OneofWrappers = []any{}
-	file_observations_proto_msgTypes[247].OneofWrappers = []any{
+	file_observations_proto_msgTypes[247].OneofWrappers = []any{}
+	file_observations_proto_msgTypes[248].OneofWrappers = []any{}
+	file_observations_proto_msgTypes[249].OneofWrappers = []any{
 		(*ColonyFactsReply_Observed)(nil),
 		(*ColonyFactsReply_Unavailable)(nil),
 		(*ColonyFactsReply_Failure)(nil),
 	}
-	file_observations_proto_msgTypes[248].OneofWrappers = []any{}
-	file_observations_proto_msgTypes[251].OneofWrappers = []any{}
-	file_observations_proto_msgTypes[252].OneofWrappers = []any{
+	file_observations_proto_msgTypes[250].OneofWrappers = []any{}
+	file_observations_proto_msgTypes[253].OneofWrappers = []any{}
+	file_observations_proto_msgTypes[254].OneofWrappers = []any{
 		(*StatusReply_Observed)(nil),
 		(*StatusReply_Unavailable)(nil),
 		(*StatusReply_Failure)(nil),
 	}
-	file_observations_proto_msgTypes[255].OneofWrappers = []any{
+	file_observations_proto_msgTypes[257].OneofWrappers = []any{
 		(*ObservationBatchReply_Observed)(nil),
 		(*ObservationBatchReply_Unavailable)(nil),
 		(*ObservationBatchReply_Failure)(nil),
 	}
-	file_observations_proto_msgTypes[256].OneofWrappers = []any{}
-	file_observations_proto_msgTypes[258].OneofWrappers = []any{
+	file_observations_proto_msgTypes[258].OneofWrappers = []any{}
+	file_observations_proto_msgTypes[260].OneofWrappers = []any{
 		(*ProductionPolicyReply_Observed)(nil),
 		(*ProductionPolicyReply_Unavailable)(nil),
 		(*ProductionPolicyReply_Failure)(nil),
 	}
-	file_observations_proto_msgTypes[259].OneofWrappers = []any{}
-	file_observations_proto_msgTypes[260].OneofWrappers = []any{}
+	file_observations_proto_msgTypes[261].OneofWrappers = []any{}
 	file_observations_proto_msgTypes[262].OneofWrappers = []any{}
-	file_observations_proto_msgTypes[263].OneofWrappers = []any{
+	file_observations_proto_msgTypes[264].OneofWrappers = []any{}
+	file_observations_proto_msgTypes[265].OneofWrappers = []any{
 		(*ArchitectCategoriesReply_Observed)(nil),
 		(*ArchitectCategoriesReply_Unavailable)(nil),
 		(*ArchitectCategoriesReply_Failure)(nil),
 	}
-	file_observations_proto_msgTypes[265].OneofWrappers = []any{}
-	file_observations_proto_msgTypes[266].OneofWrappers = []any{
+	file_observations_proto_msgTypes[267].OneofWrappers = []any{}
+	file_observations_proto_msgTypes[268].OneofWrappers = []any{
 		(*ArchitectDesignatorsReply_Observed)(nil),
 		(*ArchitectDesignatorsReply_Unavailable)(nil),
 		(*ArchitectDesignatorsReply_Failure)(nil),
@@ -29367,7 +29573,7 @@ func file_observations_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_observations_proto_rawDesc), len(file_observations_proto_rawDesc)),
 			NumEnums:      1,
-			NumMessages:   267,
+			NumMessages:   269,
 			NumExtensions: 0,
 			NumServices:   1,
 		},
