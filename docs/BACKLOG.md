@@ -2169,6 +2169,32 @@ main. Native package and Go production cutover remain independent.
       loader is deleted. `scripts/native_compatibility_acceptance.py` itself
       stays in place — `native_presentation_acceptance.py`'s `run()` still
       imports its `discovery()` function.
+    - [x] **`native_presentation_acceptance.py` and `native_service_evidence.py`
+      (2 files).** Presentation's four pure comparison functions ported to a
+      new `nativeaccept/presentation.go`: `Listing` (exact totalCount/
+      returnedCount/complete/truncated match), `CameraMatches` (finite typed
+      root/zoom sizes and map position within tolerance of native, exact
+      zoom-range/extension flags, signed non-zero-filtered viewport bounds),
+      `RosterMatches` (typed colonist set matches the native roster exactly
+      by pawnId, each spawned with its exact name/non-zero-filtered position/
+      single loaded map), and `SelectionMatches` (the one typed selected
+      object matches its native counterpart's kind/type/label/defName/
+      position, and never leaks `fingerprint`/`visibleGizmoCount`/
+      `inspectText`/`inspectLabel`). `AsNumber` gained an `int` case (added
+      alongside its existing `float64`/`string` cases) since these tests'
+      literal fixtures use Go `int`, unlike the `float64` a live ProtoJSON
+      decode always produces — no production call site's behavior changes.
+      Service evidence's single `trace()` ported as `ServiceTrace` to a new
+      `nativeaccept/service.go`: asserts a native operation-event history is
+      gapless from baseline, every non-diagnostic event attributes to a known
+      read capability (never a write one), and the resulting read-operation
+      tally meets the fixed cadence (≥2 `observations_read_status`, ≥4
+      `lifecycle_read_identity`). Both scripts' `run()` — the disposable-
+      worker GABS session driving real gameplay — stay unported, matching
+      every prior family's convention; `native_presentation_acceptance.py`
+      itself stays in place (still imports `native_compatibility_acceptance`'s
+      `discovery()`). `go build`/`vet`/`test ./...` clean; both Python test
+      loaders are deleted.
   - [ ] **Slice 4 — subsystem long tail (~70 remaining `scripts/*_acceptance.py`).**
     Group by existing `bridge/*.go` domain and land as independent sub-slices:
     construction/building; upkeep/comfort/gear/power (largest cluster); food/

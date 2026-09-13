@@ -30,6 +30,8 @@ func AsNumber(v any) float64 {
 	switch n := v.(type) {
 	case float64:
 		return n
+	case int:
+		return float64(n)
 	case string:
 		var f float64
 		fmt.Sscanf(n, "%f", &f)
