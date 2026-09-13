@@ -49,6 +49,18 @@ namespace HomeBridge.BridgeTools
                     Support = Lifecycle.CapabilitySupport.Supported,
                     Detail = "Trusted pause-gated single checkpoint save with pre/post identity, tick and pause re-verification. No load, reconnect or media/control ownership yet."
                 });
+                loaded.Capabilities.Add(new Lifecycle.Capability
+                {
+                    FullMethodName = "rimgovernor.lifecycle.v1.Lifecycle/Load",
+                    Support = Lifecycle.CapabilitySupport.Supported,
+                    Detail = "Async native load of a named save into the running process; returns LoadPending, poll ReadLoad for MAP readiness. VISUAL readiness is accepted but not distinguished from MAP. No reconnect-after-disconnect or competing-viewer arbitration yet."
+                });
+                loaded.Capabilities.Add(new Lifecycle.Capability
+                {
+                    FullMethodName = "rimgovernor.lifecycle.v1.Lifecycle/ReadLoad",
+                    Support = Lifecycle.CapabilitySupport.Supported,
+                    Detail = "Polls a rimgovernor/lifecycle_load request_id for LoadCompleted/LoadPending/LoadSuperseded/Failure."
+                });
                 foreach (var method in new[] {
                     "rimgovernor.authority.v1.Authority/Control",
                     "rimgovernor.observations.v1.Observations/ReadStatus",

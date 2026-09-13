@@ -1588,6 +1588,69 @@ b; exact worker cleanup by a, with reuse by their later consumers.
   portraits, follow, video/recording/diagnostics, and competing-viewer
   arbitration.
 
+  A trusted async native load (MAP-readiness only) is now also implemented,
+  replacing `session_checkpoint.py`'s stop-and-relaunch load path with an
+  in-process reload of the already-running, already-connected game (matching
+  what the legacy GABS `rimworld/load_game_ready` tool does, but calling
+  `GameDataSaveLoader.LoadGame` directly, not wrapping that tool).
+  `lifecycle.proto`'s `Lifecycle/Load` and `Lifecycle/ReadLoad` RPCs are wired
+  end to end. Native `ProtoLifecycleLoadTools.cs` (`rimgovernor/lifecycle_load`,
+  `rimgovernor/lifecycle_read_load`) starts `GameDataSaveLoader.LoadGame` and
+  returns `LoadPending` immediately (a load is not a single blocking call: it
+  runs across subsequent frames under `LongEventHandler.QueueLongEvent`, so
+  the tool never busy-waits inside one `MainThread.InvokeAsync`); a static
+  lock-guarded, bounded (32-entry) request table records each request's
+  expected pre-load colony identity (when replacing a live map) and answers
+  `ReadLoad` polls by checking `LongEventHandler.AnyEventNowOrWaiting` and then
+  `ProtoBoundary.TryReadContext` for a freshly loaded map. Map readiness is a
+  live `Find.CurrentMap` with a valid identity; `READINESS_VISUAL` is accepted
+  but not distinguished from MAP — `visual_ready` is always false, and this is
+  not real render-completion detection. Colony ids persist across a load of
+  the same save while the load token is always freshly issued (confirmed from
+  `ColonyIdentity`'s own persistence: `ColonyId` is `Scribe`-serialized,
+  `LoadToken` is not), so a completed load whose colony id doesn't match the
+  pre-load identity a live-map replacement requested is reported as
+  `LoadSuperseded` with the observed context, not silently accepted; a second
+  `Load` call for a different `request_id` while one is still pending
+  supersedes the older one the same way. An unknown/expired `request_id`
+  passed to `ReadLoad` is refused (`Failure`, `FAILURE_CODE_NOT_FOUND`), never
+  treated as pending-forever or completed. Both capabilities are advertised in
+  `ProtoIdentityTools`'s `ReadIdentity` list. `bridge.LifecycleLoad`
+  (`go/internal/bridge/lifecycle_load.go`) is the typed Go client for both
+  RPCs, validating the request before dispatch and the reply's echoed
+  request id/save name/readiness after, with typed `LoadPending`/
+  `LoadSuperseded` refusals mirroring `SaveUncertain`'s design.
+  `buildingruntime.LoadBoundary` (`go/internal/buildingruntime/load_boundary.go`)
+  issues one `Load` and polls `ReadLoad` with a fixed interval (default
+  200ms, configurable) up to a caller-supplied deadline, validating the
+  post-load colony id against an optional `ExpectedColony` before accepting a
+  result. It is deliberately **not** a `Control` method: unlike `Checkpoint`,
+  a load has no existing colony/writer authority to hold a gate or lease over
+  before a map exists, so `Control`'s CAS/lease/gate machinery does not fit
+  and `LoadBoundary` is a standalone, stateless-between-calls type instead.
+  Covered by bridge contract-shape tests (malformed/missing request and reply
+  fields, pending/completed/superseded/failure outcomes) and `LoadBoundary`
+  tests against a scripted fake `LifecycleLoader` (immediate completion,
+  polling-then-completion, superseded, colony mismatch, native failure,
+  deadline-exceeded, invalid request shape). `dotnet build` passes against the
+  real installed RimWorld/RimBridgeServer assemblies in this sandbox; `go
+  build/vet/test ./...` pass (same ten pre-existing unrelated `go vet`
+  warnings as the Save slice). **Native acceptance was not attempted in this
+  session**: `go/internal/nativeaccept/cmd/loadaccept` was written (mirroring
+  `checkpointaccept`'s structure — setup checkpoint via `lifecycle_save`,
+  happy-path load polled to `LoadCompleted` with matching colony id and a
+  fresh load token, and an unknown-`request_id` `ReadLoad` rejection) and
+  compiles, but the live build/install/launch/verify/restore cycle against
+  the isolated RimWorld instance was not run; this is a time-budget decision
+  for this session, not a known blocker in the load API itself. Running it
+  (or reviewing/adjusting `loadaccept` first) is the immediate next step
+  before this slice can be called native-verified.
+  **Explicitly out of scope for this slice:** visual-readiness detection
+  (`READINESS_VISUAL` is accepted but never actually distinguished),
+  reconnect-after-disconnect session semantics, competing-viewer arbitration,
+  `Lifecycle/ReadSave`, camera/input ownership, portraits, follow, and
+  video/recording/diagnostics.
+
 - [ ] **G01.10 — Integrate the complete Go controller.**
   Compose the above paths in one process with clock, recovery and diagnostics;
   reconcile responsibilities against current Python source and domain/interface/
