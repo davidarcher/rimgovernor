@@ -870,6 +870,92 @@ without pushes, when the target checkout is safe; preserve other developers' wor
     structural support; wait for ordinary labor where Python does. Gate on storage,
     bed use and upkeep outcomes, layout changes and interruption, not issued jobs.
 
+    **Claude handoff: 05.4 status**
+
+    - `SecureSupplies`' ordinary haul-order path is now code-complete end to
+      end, composed entirely from 05.2/05.3 building blocks that existed but
+      were never invoked by any planner: `domain.Haul`/`NewHaulAction`,
+      `policy.EvaluateHaul` and `buildingruntime.HaulBoundary` all predate
+      this slice untouched. Added `policy.SelectSecureSupplies`
+      (`go/internal/policy/secure_supplies.go`): deterministic top-item
+      (pre-sorted by `ReviewUpkeep`: medicine, then soonest rot, then stable
+      ID) paired with the lowest-`PawnID` eligible hauler, mirroring
+      `SelectEquip`/`SelectTend`'s shape; eligibility reuses the same
+      dead/downed/drafted/mental-state/player-forced/needs-tend/bleeding
+      checks as the other routine selectors plus an enabled non-zero-priority
+      Hauling work-type filter, sourced from `bridge.ReadTendPawns` (already
+      requests `combat=true, work=true, care=true`) — no new native call
+      needed. Added `RoutineSecureSuppliesPlanner`
+      (`go/internal/buildingruntime/routine_secure_supplies.go`): loads the
+      `SecureSupplies` goal binding, gates priority>=3 admission on
+      `review.Development.Rows[...].Selected` (the same bounded
+      concurrent-project capacity competition `EnsureComfort`/
+      `EnsureExpansion` already compete in), checks for existing open work,
+      observes the colony upkeep census via `observation.ObserveColony`,
+      re-derives `policy.ReviewUpkeep`'s sorted target order, maps to raw
+      items (capped at 8), applies work-preference overrides, and commits an
+      attempt-bounded Haul method via the existing generic
+      `medicalAttemptCount`/`maxMedicalAttemptsPerPatient`-style retry
+      pattern (keyed by item identity, not by which hauler was tried).
+      Threaded `Definition`/`Cell` onto `policy.UpkeepItem` and through
+      `observation/colony_upkeep.go` — the wire-level `EntityRef.Position`/
+      `DefName` fields were already required by `bridge.validateDirectUpkeep`,
+      so no bridge/proto changes were needed. Wired the new planner into
+      `buildingruntime/clock_scheduler.go` (Config/Result fields, reviewer
+      validation, step dispatch, placed after the existing `Equip` block) and
+      into `cmd/rimgovernor` (`serve.go` flag
+      `--routine-secure-supplies-plans`, requiring `--routine-reviews`;
+      `serve_building.go` constructs `buildingruntime.HaulCapabilities` and
+      passes it through `SessionConfig`; `serve_clock.go`'s
+      `startServiceClock` gained a `secureSupplies bool` parameter and
+      construction block). Flipped `policy.routine.go`'s
+      `MethodUnavailable` off for `SecureSupplies` only — this is the single
+      change that lets the goal compete for a development capacity slot and
+      actually get dispatched; `MaintainFireSafety`/`MaintainEssentialRepairs`/
+      `MaintainCleanFacilities` remain marked unavailable (visible-only)
+      since their own dispatch is not composed yet (see below). No native C#
+      or protobuf changes were needed — the `home/order` `action='haul'` path
+      and `PawnOrderKind_PAWN_ORDER_KIND_HAUL` already existed. Full
+      `go build ./... && go vet ./... && go test -p 1 ./...` passes across
+      the whole module, including new `policy`/`buildingruntime` coverage
+      (`policy/secure_supplies_test.go`: top-item/lowest-eligible-pawn
+      selection, an eligibility mutation table over all 8 booleans including
+      an "Unknown"-fact case, and empty-input guards).
+    - Still open, in the order the Python reference and a prior research
+      pass recommend tackling them next: `SecureSupplies`' own
+      `covered_storage`/`supply_storeroom` fallback (`upkeep_storage.py`) for
+      when no ordinary haul destination exists — this needs a new
+      `StockpilePreset` beyond the closed `FoodPreset`/`ImportantPriority`
+      pair `domain/zone.go` currently supports, and threading the
+      already-defined-but-unused wire-level `FilterPreset_FILTER_PRESET_NOTHING`
+      and `StockpileSettings.Filter`/`FilterPatch.Allow` fields
+      (`contracts/generated/protobuf/go/operationspb`) up through
+      `bridge.stockpileSettings` and `domain.ZoneCreate` — the wire schema
+      already anticipates this, but no Go code above it uses the allow-list
+      path yet. `MaintainFireSafety` needs no new dispatch vertical (native
+      has no orderable firefighting job kind; it is purely an
+      eligibility/wait-tracking gate mirroring Python's
+      `waiting_for_native_fire`) but is not yet composed. `MaintainEssentialRepairs`
+      and `MaintainCleanFacilities` each need a full new domain
+      action/policy evaluator/store admission/executor state
+      machine/buildingruntime boundary vertical, patterned on Haul/Tend, atop
+      the already-defined wire-level `PawnOrderKind_PAWN_ORDER_KIND_REPAIR`(7)/
+      `_CLEAN`(8) enum values — currently zero Go code exists above the wire
+      layer for either. `MaintainSleeping` (bed assignment/upgrade with
+      player-ownership guards) and `MaintainHomeCoverage` (Home designation
+      from owned structures preserving exclusions) each need the same shape
+      of new vertical; `policy.ReviewSleeping`/`ReviewHomeCoverage` evidence
+      already exists but nothing consumes it into a plan yet.
+      `MaintainStoneShell` is untouched and is the largest remaining piece —
+      staged wall replacement with temporary structural support, reusing
+      `production_policy.resource_method`'s dependency on production policy
+      per `wall_upgrade.py`. All gameplay/native acceptance remains gated on
+      G01.12 per this doc's stated delivery rule; no new Python acceptance
+      tests were added for any of this (native/acceptance tooling stays
+      Go-only per project convention). Full
+      `go build ./... && go vet ./... && go test -p 1 ./...` passes across
+      the whole module.
+
   - [ ] **05.5 — Equipment, research and replenishment (G01.07d).**
     Connect gear replacement/equip/wear to workshop recipes, bills and output;
     then research prerequisites, facility/refrigeration development, extraction
