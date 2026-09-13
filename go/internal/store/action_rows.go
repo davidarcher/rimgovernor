@@ -80,6 +80,12 @@ func insertAction(ctx context.Context, tx *sql.Tx, plan domain.PlanID, ordinal i
 		_, err = tx.ExecContext(ctx, "INSERT INTO actions(id,plan_id,ordinal,kind,pawn,target,definition) VALUES(?,?,?,'bed_assign',?,?,?)", a.ID(), plan, ordinal, assign.Pawn(), assign.Bed(), def)
 	} else if research, ok := a.ResearchSelect(); ok {
 		_, err = tx.ExecContext(ctx, "INSERT INTO actions(id,plan_id,ordinal,kind,definition) VALUES(?,?,?,'research_select',?)", a.ID(), plan, ordinal, research.Project())
+	} else if husbandry, ok := a.Husbandry(); ok {
+		var trainableDef sql.NullString
+		if husbandry.TrainableDef() != "" {
+			trainableDef = sql.NullString{String: husbandry.TrainableDef(), Valid: true}
+		}
+		_, err = tx.ExecContext(ctx, "INSERT INTO actions(id,plan_id,ordinal,kind,target,definition,stuff) VALUES(?,?,?,'husbandry',?,?,?)", a.ID(), plan, ordinal, husbandry.Animal(), string(husbandry.Method()), trainableDef)
 	} else {
 		return errors.New("unsupported persisted action")
 	}
@@ -313,6 +319,18 @@ func scanAction(rows *sql.Rows) (domain.Action, int, error) {
 			return domain.Action{}, 0, err
 		}
 		a, err := domain.NewResearchSelectAction(id, v)
+		return a, ordinal, err
+	}
+	if kind == "husbandry" && target.Valid && def.Valid && !pawn.Valid && !x.Valid && !z.Valid && !rotation.Valid && !draftAction.Valid {
+		trainableDef := ""
+		if stuff.Valid {
+			trainableDef = stuff.String
+		}
+		h, err := domain.NewHusbandry(domain.PawnID(target.String), domain.HusbandryMethod(def.String), trainableDef)
+		if err != nil {
+			return domain.Action{}, 0, err
+		}
+		a, err := domain.NewHusbandryAction(id, h)
 		return a, ordinal, err
 	}
 	if kind == "building" && !pawn.Valid && !target.Valid && !draftAction.Valid && def.Valid && x.Valid && z.Valid && rotation.Valid && stuff.Valid && x.Int64 >= 0 && x.Int64 <= 2147483647 && z.Int64 >= 0 && z.Int64 <= 2147483647 {
