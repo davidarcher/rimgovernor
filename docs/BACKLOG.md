@@ -682,8 +682,10 @@ without pushes, when the target checkout is safe; preserve other developers' wor
     (`policy.EvaluateFireSafety`) is ported but unwired (moot below
     priority-3 development ranking). `MaintainEssentialRepairs` and
     `MaintainCleanFacilities` have no routine-scheduler/CLI wiring yet
-    (`serve_clock.go` already wires `SecureSupplies`). Still open:
-    `MaintainSleeping`/`MaintainHomeCoverage` (review evidence exists, no
+    (`serve_clock.go` already wires `SecureSupplies`). `MaintainSleeping` is
+    now closed via a `BedAssign` typed-dispatch vertical (domain/policy/
+    store/executor/buildingruntime, dispatchable through `Session.Run`).
+    Still open: `MaintainHomeCoverage` (review evidence exists, no
     plan-producing vertical yet); `MaintainStoneShell` (untouched, largest
     remaining piece). Native C# (`NativeHaulOperations.cs`) only implements
     `PawnOrderKind.Haul` today, so Repair/Clean/Equip/Rescue/Tend/Work/Capture
@@ -771,8 +773,15 @@ without pushes, when the target checkout is safe; preserve other developers' wor
     `go/internal/bridge/disaster_recovery.go`) are now implemented end to
     end, though disaster recovery's repair work still waits on 05.4's
     `MaintainEssentialRepairs` landing per this item's reuse instruction.
-    `MaintainHerd-*` (`Operations.SetAnimalTraining`/`SlaughterAnimal`,
-    `NativeHusbandryOperations.cs`, `go/internal/bridge/husbandry.go`),
+    `MaintainHerd-*` is now code-complete as its own typed vertical too
+    (`Operations.SetAnimalTraining`/`SlaughterAnimal`,
+    `NativeHusbandryOperations.cs`, domain `HusbandryAction` with a
+    train/slaughter admission policy, store admission persistence and
+    dispatch gating, an executor inspect/admit/dispatch/reconcile loop, and
+    a `husbandryBoundary`/`bridge.ReadHusbandryTarget`-backed buildingruntime
+    wiring), matching the same vertical shape as `AnimalContainment` and
+    `RecoveryService` above rather than relying on generic dispatch; it has
+    no routine-scheduler/CLI wiring yet.
     `MaintainWaste` (`Operations.ManageWaste`, `NativeWasteOperations.cs`,
     `go/internal/bridge/waste.go`) and `Population-*`'s `equip` sub-step
     (native `NativeEquipOperations.cs` added for
