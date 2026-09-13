@@ -33,6 +33,8 @@ const CleanAction ActionKind = "clean"
 const RecoveryServiceAction ActionKind = "recovery_service"
 
 // HusbandryAction is declared in husbandry.go alongside its Husbandry payload.
+// PrisonerInteractionAction is declared in prisoner_interaction.go alongside
+// its PrisonerInteraction payload.
 
 // Building is one resolved placement. Native discovery owns definition existence,
 // footprint, map bounds, costs and placement legality; these are not inferred here.
@@ -69,30 +71,31 @@ func nativeText(s string, allowEmpty bool) bool {
 
 // Action is a closed variant. New families require constructor and handler coverage.
 type Action struct {
-	id               ActionID
-	kind             ActionKind
-	building         Building
-	draft            OwnedDraft
-	melee            MeleeAttack
-	zone             ZoneCreate
-	bill             ProductionBill
-	acquisition      Acquisition
-	supply           SupplyAllow
-	work             WorkAssignment
-	tend             Tend
-	rescue           Rescue
-	ranged           RangedAttack
-	haul             Haul
-	equip            Equip
-	gearReplace      GearReplace
-	repair           Repair
-	caravanDeparture CaravanDeparture
-	clean            Clean
-	recoveryService  RecoveryService
-	bedAssign        BedAssign
-	researchSelect   ResearchSelect
-	husbandry        Husbandry
-	homeCoverage     HomeCoverage
+	id                  ActionID
+	kind                ActionKind
+	building            Building
+	draft               OwnedDraft
+	melee               MeleeAttack
+	zone                ZoneCreate
+	bill                ProductionBill
+	acquisition         Acquisition
+	supply              SupplyAllow
+	work                WorkAssignment
+	tend                Tend
+	rescue              Rescue
+	ranged              RangedAttack
+	haul                Haul
+	equip               Equip
+	gearReplace         GearReplace
+	repair              Repair
+	caravanDeparture    CaravanDeparture
+	clean               Clean
+	recoveryService     RecoveryService
+	bedAssign           BedAssign
+	researchSelect      ResearchSelect
+	husbandry           Husbandry
+	homeCoverage        HomeCoverage
+	prisonerInteraction PrisonerInteraction
 }
 
 func NewBuildingAction(id ActionID, building Building) (Action, error) {
@@ -108,12 +111,12 @@ func (a Action) ID() ActionID               { return a.id }
 func (a Action) Kind() ActionKind           { return a.kind }
 func (a Action) Building() (Building, bool) { return a.building, a.kind == BuildingAction }
 func SupportedActionKinds() []ActionKind {
-	return []ActionKind{BuildingAction, OwnedDraftAction, MeleeAttackAction, SupplyAllowAction, WorkAssignmentAction, AcquisitionAction, ZoneCreateAction, TendAction, RescueAction, RangedAttackAction, ProductionBillAction, HaulAction, EquipAction, GearReplaceAction, RepairAction, CaravanDepartureAction, CleanAction, RecoveryServiceAction, BedAssignAction, ResearchSelectAction, HusbandryAction, HomeCoverageAction}
+	return []ActionKind{BuildingAction, OwnedDraftAction, MeleeAttackAction, SupplyAllowAction, WorkAssignmentAction, AcquisitionAction, ZoneCreateAction, TendAction, RescueAction, RangedAttackAction, ProductionBillAction, HaulAction, EquipAction, GearReplaceAction, RepairAction, CaravanDepartureAction, CleanAction, RecoveryServiceAction, BedAssignAction, ResearchSelectAction, HusbandryAction, HomeCoverageAction, PrisonerInteractionAction}
 }
 func ValidateHandlerCoverage(kinds []ActionKind) error {
 	seen := make(map[ActionKind]bool)
 	for _, kind := range kinds {
-		if (kind != BuildingAction && kind != OwnedDraftAction && kind != MeleeAttackAction && kind != SupplyAllowAction && kind != WorkAssignmentAction && kind != AcquisitionAction && kind != ZoneCreateAction && kind != TendAction && kind != RescueAction && kind != RangedAttackAction && kind != ProductionBillAction && kind != HaulAction && kind != EquipAction && kind != GearReplaceAction && kind != RepairAction && kind != CaravanDepartureAction && kind != CleanAction && kind != RecoveryServiceAction && kind != BedAssignAction && kind != ResearchSelectAction && kind != HusbandryAction && kind != HomeCoverageAction) || seen[kind] {
+		if (kind != BuildingAction && kind != OwnedDraftAction && kind != MeleeAttackAction && kind != SupplyAllowAction && kind != WorkAssignmentAction && kind != AcquisitionAction && kind != ZoneCreateAction && kind != TendAction && kind != RescueAction && kind != RangedAttackAction && kind != ProductionBillAction && kind != HaulAction && kind != EquipAction && kind != GearReplaceAction && kind != RepairAction && kind != CaravanDepartureAction && kind != CleanAction && kind != RecoveryServiceAction && kind != BedAssignAction && kind != ResearchSelectAction && kind != HusbandryAction && kind != HomeCoverageAction && kind != PrisonerInteractionAction) || seen[kind] {
 			return fmt.Errorf("unknown or duplicate action handler %q", kind)
 		}
 		seen[kind] = true
@@ -191,6 +194,8 @@ func NewPlan(id PlanID, revision PlanRevision, actions []Action, dependencies ..
 			canonical, err = NewHusbandryAction(a.id, a.husbandry)
 		case HomeCoverageAction:
 			canonical, err = NewHomeCoverageAction(a.id, a.homeCoverage)
+		case PrisonerInteractionAction:
+			canonical, err = NewPrisonerInteractionAction(a.id, a.prisonerInteraction)
 		default:
 			return PlanSpec{}, errors.New("unsupported action variant")
 		}

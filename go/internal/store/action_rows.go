@@ -88,6 +88,8 @@ func insertAction(ctx context.Context, tx *sql.Tx, plan domain.PlanID, ordinal i
 			trainableDef = sql.NullString{String: husbandry.TrainableDef(), Valid: true}
 		}
 		_, err = tx.ExecContext(ctx, "INSERT INTO actions(id,plan_id,ordinal,kind,target,definition,stuff) VALUES(?,?,?,'husbandry',?,?,?)", a.ID(), plan, ordinal, husbandry.Animal(), string(husbandry.Method()), trainableDef)
+	} else if interaction, ok := a.PrisonerInteraction(); ok {
+		_, err = tx.ExecContext(ctx, "INSERT INTO actions(id,plan_id,ordinal,kind,target,definition) VALUES(?,?,?,'prisoner_interaction',?,?)", a.ID(), plan, ordinal, interaction.Pawn(), string(interaction.Interaction()))
 	} else {
 		return errors.New("unsupported persisted action")
 	}
@@ -341,6 +343,14 @@ func scanAction(rows *sql.Rows) (domain.Action, int, error) {
 			return domain.Action{}, 0, err
 		}
 		a, err := domain.NewHusbandryAction(id, h)
+		return a, ordinal, err
+	}
+	if kind == "prisoner_interaction" && target.Valid && def.Valid && !pawn.Valid && !x.Valid && !z.Valid && !rotation.Valid && !stuff.Valid && !draftAction.Valid {
+		interaction, err := domain.NewPrisonerInteraction(domain.PawnID(target.String), domain.PrisonerInteractionMode(def.String))
+		if err != nil {
+			return domain.Action{}, 0, err
+		}
+		a, err := domain.NewPrisonerInteractionAction(id, interaction)
 		return a, ordinal, err
 	}
 	if kind == "building" && !pawn.Valid && !target.Valid && !draftAction.Valid && def.Valid && x.Valid && z.Valid && rotation.Valid && stuff.Valid && x.Int64 >= 0 && x.Int64 <= 2147483647 && z.Int64 >= 0 && z.Int64 <= 2147483647 {

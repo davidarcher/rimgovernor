@@ -823,8 +823,17 @@ without pushes, when the target checkout is safe; preserve other developers' wor
     tokens. `MaintainMedicalCare` is closed: deliberately monitoring-only,
     since Patient/PatientBedRest priorities are already the generic
     `policy.AssignWork` default and native AI self-tends without a
-    dispatched order. `Population-*`'s own producer/method and every other
-    e-row family's need/health/stock/custody/service composition remain
+    dispatched order. `Population-*`'s prisoner recruit/maintain sub-step is
+    now its own code-complete typed vertical (`Operations.SetPrisonerInteraction`,
+    `NativePrisonerInteractionOperations.cs`, domain `PrisonerInteractionAction`
+    with a recruit/maintain admission policy, store admission persistence and
+    dispatch gating, an executor inspect/admit/dispatch/reconcile loop, and a
+    `PrisonerInteractionBoundary`/`bridge.ReadPrisonerInteractionTarget`-backed
+    buildingruntime wiring), matching `MaintainHerd-*`'s vertical shape; native
+    `rimgovernor/observations_read_population` remains unimplemented (disclosed
+    gap, same as husbandry's census read), and it has no routine-scheduler/CLI
+    wiring yet. Population-*'s custody sub-steps (capture/rescue) and every
+    other e-row family's need/health/stock/custody/service composition remain
     unstarted. G01.12 gameplay acceptance gates the whole item.
 
   - [ ] **05.7 — Close the routine integration coverage.**
