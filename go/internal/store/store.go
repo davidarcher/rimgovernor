@@ -68,7 +68,8 @@ func Open(ctx context.Context, path string) (*Store, error) {
 	q.Set("_txlock", "immediate")
 	q.Set("_busy_timeout", "25")
 	q.Add("_pragma", "foreign_keys(1)")
-	q.Add("_pragma", "synchronous(FULL)")
+	q.Add("_pragma", "journal_mode(WAL)")
+	q.Add("_pragma", "synchronous(NORMAL)")
 	u.RawQuery = q.Encode()
 	db, err := sql.Open("sqlite", u.String())
 	if err != nil {
