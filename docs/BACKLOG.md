@@ -1431,6 +1431,66 @@ main. Native package and Go production cutover remain independent.
   Persistent draft policy remains new feature work needing a scoped design (no code
   exists), and instant/replacement construction remains deferred as too heavy for a
   compiled-only technique, both unchanged from the prior slice's assessment.
+  This pass re-surveyed the remaining-open list under the same live-game-conflict
+  restriction (no GABS/RimWorld session, `.rimgovernor/bridge` or `rimgovernor-trial`
+  slot touched) and re-checked the two items this list already named as previously
+  deferred, per explicit direction not to assume without re-checking:
+  - **Instant/replacement construction cases** — `NativeConstructionRecord.Matches`/
+    `.Observe` (`NativeConstruction.cs:123-173`) and `NativeConstructionTracking`'s
+    Harmony transitions genuinely need real `Thing`/`Blueprint`/`Frame`/
+    `Blueprint_Build`/`Faction`/`Map` behavior (`Spawned`, `Position`, `Rotation`,
+    `Faction`, `Stuff`, `entityDefToBuild`), which the shared compiled-only
+    `FakeVerseStub` (`contracts/tests/NativeContractProbes/Shared/FakeVerseStub.cs`)
+    used by the no-Assembly-CSharp probes does not model and was never meant to;
+    faking that hierarchy correctly would be new fixture design shared by several
+    probes, not a bounded test extension, and risks regressing every probe that
+    already depends on the existing stub. Confirmed still deferred, unchanged from
+    the prior slice's assessment.
+  - **Fault-injected uncertain setters (draft)** — confirmed unchanged: still needs a
+    live `Pawn`/`Map`/`NativeControlAuthority` to reach `NativeDraftOperations.Apply`'s
+    setter-fault path itself failing or losing a reply (not merely refusing
+    validation before any native effect runs), which no disposable fixture in this
+    repo can force today; this is the same missing capability already named against
+    native lost-reply fault injection beyond the envelope gate, not something this
+    pass's live-game restriction alone blocks.
+  Also swept `contracts/tests/NativeContractProbes/native-construction-causality`
+  and `native-attempt-ledger` for gaps the prior six test-extension slices might
+  have missed, per explicit direction to check adjacent already-touched families:
+  `NativeConstructionCausality.TryComplete`'s full `&&`-chain (previous destruction,
+  no error, no replacement, exactly one created object, exactly one spawned object)
+  already has an independent assertion forcing each guard false and one exercising
+  every guard true; `NativeAttemptLedger`'s probe already exhaustively covers guard
+  failure/admission/replay/conflict/capacity/cross-thread/cross-map/cross-load
+  paths. Neither had an open branch.
+  This pass closed one real, previously-unnoticed gap instead: `NativeCombatOperations
+  .CombatHealthAllows(float[] health,bool[] downed)` (`NativeCombatOperations.cs:127`,
+  the pure colony-combat-health-census guard `Legal()` calls through `Health(Map)`
+  before admitting a ranged/melee attack requiring standing colonists) already had
+  compiled coverage for an empty census, each individual invalid health value (zero,
+  the exact 0.5005 boundary, NaN, negative infinity), a valid census and a downed
+  colonist -- but never for its own `health.Length==downed.Length` guard, the first
+  condition in its `&&`-chain and the one that keeps its subsequent indexed
+  `downed[index]` lookup safe. `contracts/tests/NativeContractProbes/
+  native-combat-operations/Program.cs` adds two assertions constructing mismatched-
+  length `health`/`downed` arrays in both directions, proving each is refused rather
+  than only ever exercising equal-length arrays. This is the same pure-function-
+  branch-extension technique as the prior seven N01.04 slices, applied to a
+  previously-untouched admission guard inside a family (`native-combat-operations`)
+  a prior slice already extended for a different function (`Classify`/
+  `CausalOrderAllows`) in this same file, confirming an "already closed" family can
+  still hold an open branch on an adjacent pure helper. Verified by building the
+  production native package (`scripts/build_native_mod.ps1` against the installed
+  RimWorld 1.6 managed assemblies, Harmony (Steam Workshop `2009463077/Current`) and
+  the installed RimBridgeServer 1.6 SDK Mod, from a genuinely clean rebuild with
+  `bin`/`obj` wiped first) and running `dotnet run --project
+  contracts/tests/NativeContractProbes.csproj -- native-combat-operations <bridge.dll>
+  <dirs...>` against it: 54 compiled assertions pass, up from 52 on the unmodified
+  baseline (confirmed by running the identical probe source from `git show HEAD`
+  through the same rebuilt package) -- exactly the 2 new assertions. `dotnet build
+  contracts/tests/NativeContractProbes.csproj` (default, no external properties)
+  succeeds with 0 warnings/errors from a clean `bin`/`obj`. `go build ./...` and
+  `go vet ./...` from `go/` also pass unaffected (no Go code touched; the full
+  `go test ./...` suite was not rerun since nothing under `go/` changed).
 
 - [ ] **N01.05 — Runtime and presentation ownership.** Native runtime owner.
   Recover partial draft-hook initialization without requiring a game restart;

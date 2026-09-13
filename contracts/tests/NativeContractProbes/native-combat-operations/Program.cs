@@ -46,6 +46,8 @@ internal static class NativeCombatOperationsProbe
             Check(!(bool)Call("NativeCombatOperations","CombatHealthAllows",new[]{1f,invalid},new[]{false,false}),"Every colonist must exceed native health threshold");
         Check((bool)Call("NativeCombatOperations","CombatHealthAllows",new[]{.501f,1f},new[]{false,false}),"Conscious healthy census accepted");
         Check(!(bool)Call("NativeCombatOperations","CombatHealthAllows",new[]{1f,1f},new[]{false,true}),"A downed colonist holds combat");
+        Check(!(bool)Call("NativeCombatOperations","CombatHealthAllows",new[]{1f,1f},new[]{false}),"Mismatched health/downed census cannot be evaluated");
+        Check(!(bool)Call("NativeCombatOperations","CombatHealthAllows",new[]{1f},new[]{false,false}),"Mismatched downed/health census cannot be evaluated");
         var absent=Wire("{"+entities+",\"mode\":2}");var explicitFalse=Wire("{"+entities+",\"mode\":2,\"requireHostile\":false}");
         var presence=absent.GetType().GetProperty("HasRequireHostile")!;
         Check(!(bool)presence.GetValue(absent)! && (bool)presence.GetValue(explicitFalse)!,"Optional guard absence remains distinct in generated presence");
