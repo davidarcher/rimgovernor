@@ -97,6 +97,17 @@ internal static class Program
         var attempt=Get(Get(first,"Precondition"),"Attempt");
         var progress=Instance(unknownRecord,"Observe",attempt,context);
         Check(Get(progress,"EffectCase").ToString()=="Unknown"&&!(bool)Get(progress,"CompleteInspection"),"unverified draft cannot infer completion from missing state");
+        // Context replacement: even a fully confirmed draft record must not report
+        // completion once later observed under a different colony/load identity --
+        // matching a reload/colony swap between admission and readback.
+        var confirmedRecord=Construct("NativeDraftRecord",null,null,context,true);
+        Instance(confirmedRecord,"Confirm",Snapshot(true,owner),null);
+        var replacedIdentityContext=Wire("Common.ObservationContext","{\"identity\":{\"colonyId\":\"colony-replaced\",\"loadToken\":\"load\",\"mapId\":0},\"tick\":\"10\",\"nativeGeneration\":\"1\"}");
+        var replacedIdentity=Instance(confirmedRecord,"Observe",attempt,replacedIdentityContext);
+        Check(Get(replacedIdentity,"EffectCase").ToString()=="Unknown"&&!(bool)Get(replacedIdentity,"CompleteInspection"),"a confirmed draft outcome cannot be reported once the observation colony identity is replaced");
+        var replacedLoadContext=Wire("Common.ObservationContext","{\"identity\":{\"colonyId\":\"colony\",\"loadToken\":\"load-replaced\",\"mapId\":0},\"tick\":\"10\",\"nativeGeneration\":\"1\"}");
+        var replacedLoad=Instance(confirmedRecord,"Observe",attempt,replacedLoadContext);
+        Check(Get(replacedLoad,"EffectCase").ToString()=="Unknown"&&!(bool)Get(replacedLoad,"CompleteInspection"),"a confirmed draft outcome cannot be reported once the observation load token is replaced");
         var server=Assembly.LoadFrom(directories.Select(d=>Path.Combine(d,"RimBridgeServer.dll")).First(File.Exists));
         var binder=server.GetType("RimBridgeServer.AnnotatedExtensionCapabilityProvider",true)!.GetMethod("BindArguments",Flags)!;
         foreach(var name in new[]{"Execute","Preview","ReleaseOwnedDraft"}) foreach(var value in new object?[]{"{}",new Dictionary<string,object>(),null,17,true}) {

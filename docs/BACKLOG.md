@@ -1158,8 +1158,23 @@ main. Native package and Go production cutover remain independent.
   `.rimgovernor/bridge`), not only the existing compiled ledger-capacity check in
   `contracts/tests/native-attempt-ledger` (`CapacityCheck`), confirming the C# code's
   own comment that no ordinary attempt slot or active lease is required for cleanup.
-  Other pawn orders, persistent draft policy, fault-injected uncertain setters and
-  context replacement remain open.
+  Context replacement is now covered: `contracts/tests/native-draft-operations`
+  (`Program.cs`) confirms a fully confirmed `NativeDraftRecord` (post-`Confirm`,
+  carrying a verified owned snapshot) still reports `Unknown`/incomplete on
+  `Observe` once the passed observation context's colony ID or load token differs
+  from the admitted context, proving `NativeDraftOperations.cs`'s identity guard
+  (`context.Identity.Equals(admitted.Identity)`) -- not merely an unconfirmed
+  record -- is what blocks a stale readback across a colony/load swap. Verified by
+  building the production native package (`scripts/build_native_mod.ps1` against
+  the installed RimWorld 1.6 managed assemblies, Harmony 2.3.3 and RimBridgeServer
+  1.6 SDK) and running the rebuilt `NativeDraftOperations.exe` against it: 4151
+  compiled assertions pass (up from the pre-change baseline), including the three
+  new ones. `go build ./... && go vet ./... && go test ./...` from `go/` also pass
+  unaffected (this slice touches no Go code). Other pawn orders, persistent draft
+  policy and fault-injected uncertain setters remain open; the latter needs a real
+  `Pawn`/`Map`/`NativeControlAuthority` to reach `NativeDraftOperations.Apply`'s
+  setter-fault path, which this compiled-only harness (constructs no live game
+  objects) cannot exercise, and no live-acceptance path exists for it in Go today.
   Exact owned `MovePawn` has native acceptance for real arrival, correlated
   job/target progress, immutable replay, same-position NoChange and player-order
   interruption. Queued orders remain pending. Cleanup attribution survives an
