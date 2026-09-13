@@ -162,3 +162,116 @@ func ReviewAnimalUpkeep(v AnimalUpkeepObservation, previous AnimalUpkeepHistory,
 	r.History.Feed = next
 	return r, nil
 }
+
+type AnimalContainmentReason string
+
+const (
+	// ContainmentNoDeficit mirrors an empty animal_upkeep.containment_method row set.
+	ContainmentNoDeficit AnimalContainmentReason = "no_uncontained_animal"
+	// ContainmentWaitingHandler ports the enabled-Handling-worker prerequisite:
+	// every uncontained animal already has a suitable pen, so nothing is built,
+	// but native delivery still needs an available handler to walk it there.
+	ContainmentWaitingHandler AnimalContainmentReason = "no_enabled_available_handler"
+	// ContainmentWaitingNativePen is the ordinary wait once a handler exists;
+	// native AI, not the controller, delivers an already-suitable-penned animal.
+	ContainmentWaitingNativePen AnimalContainmentReason = "waiting_for_native_pen_delivery"
+	// ContainmentExceedsBound ports the explicit >8 bounded admission refusal.
+	ContainmentExceedsBound  AnimalContainmentReason = "herd_exceeds_bounded_pen_admission"
+	ContainmentBuildShell    AnimalContainmentReason = "build_pen_shell"
+	ContainmentAwaitingShell AnimalContainmentReason = "awaiting_shell_completion"
+	ContainmentPlaceMarker   AnimalContainmentReason = "place_pen_marker"
+	// ContainmentMarkerExhausted mirrors the Python SkillBlocked once a marker
+	// method was already attempted with no observed suitable enclosure yet.
+	ContainmentMarkerExhausted AnimalContainmentReason = "marker_placed_awaiting_native_pen"
+)
+
+// AnimalContainmentShellStage retains the durable shell staging animal_upkeep.
+// containment_method reads off prior plan steps: nothing attempted yet, a shell
+// proposed but not yet observed complete, or one already completed. Only a
+// completed shell may ever receive a marker, and only once per shell.
+type AnimalContainmentShellStage int
+
+const (
+	ContainmentShellNone AnimalContainmentShellStage = iota
+	ContainmentShellPending
+	ContainmentShellComplete
+)
+
+type AnimalContainmentMethod struct {
+	Reason  AnimalContainmentReason
+	Animals []PawnID
+}
+
+const maxAnimalContainmentHerd = 8
+
+// SelectAnimalContainmentMethod ports animal_upkeep.containment_method: an
+// already-suitable herd only ever waits for an enabled Handling worker and
+// then native delivery; construction is bounded to a small starting herd and
+// proceeds shell-then-marker, never duplicating a completed shell or retrying
+// an attempted marker without a fresh observation. Native pen eligibility,
+// footprint legality and construction admission remain the building family's.
+func SelectAnimalContainmentMethod(animals []UpkeepAnimal, handlerAvailable domain.Fact[bool], shell AnimalContainmentShellStage, markerAttempted bool) (AnimalContainmentMethod, error) {
+	if len(animals) > 256 {
+		return AnimalContainmentMethod{}, errors.New("animal containment census exceeds bound")
+	}
+	seen := map[PawnID]bool{}
+	var rows []UpkeepAnimal
+	allSuitable := true
+	for _, a := range animals {
+		if !foodID(string(a.ID)) || seen[a.ID] {
+			return AnimalContainmentMethod{}, errors.New("invalid animal containment census")
+		}
+		seen[a.ID] = true
+		pen, pk := a.RequiresPen.Value()
+		if !pk {
+			return AnimalContainmentMethod{}, errors.New("animal pen requirement unknown")
+		}
+		if !pen {
+			continue
+		}
+		contained, ck := a.Contained.Value()
+		release, rk := a.Release.Value()
+		slaughter, sk := a.Slaughter.Value()
+		if !ck || !rk || !sk {
+			return AnimalContainmentMethod{}, errors.New("animal containment state unknown")
+		}
+		if contained || release || slaughter {
+			continue
+		}
+		rows = append(rows, a)
+		if suitable, known := a.SuitablePen.Value(); !known || suitable == "" {
+			allSuitable = false
+		}
+	}
+	sort.Slice(rows, func(i, j int) bool { return rows[i].ID < rows[j].ID })
+	ids := make([]PawnID, len(rows))
+	for i, a := range rows {
+		ids[i] = a.ID
+	}
+	if len(rows) == 0 {
+		return AnimalContainmentMethod{Reason: ContainmentNoDeficit}, nil
+	}
+	if allSuitable {
+		available, known := handlerAvailable.Value()
+		if !known {
+			return AnimalContainmentMethod{}, errors.New("handler availability unknown")
+		}
+		if !available {
+			return AnimalContainmentMethod{Reason: ContainmentWaitingHandler, Animals: ids}, nil
+		}
+		return AnimalContainmentMethod{Reason: ContainmentWaitingNativePen, Animals: ids}, nil
+	}
+	if len(rows) > maxAnimalContainmentHerd {
+		return AnimalContainmentMethod{Reason: ContainmentExceedsBound, Animals: ids}, nil
+	}
+	switch shell {
+	case ContainmentShellNone:
+		return AnimalContainmentMethod{Reason: ContainmentBuildShell, Animals: ids}, nil
+	case ContainmentShellPending:
+		return AnimalContainmentMethod{Reason: ContainmentAwaitingShell, Animals: ids}, nil
+	}
+	if markerAttempted {
+		return AnimalContainmentMethod{Reason: ContainmentMarkerExhausted, Animals: ids}, nil
+	}
+	return AnimalContainmentMethod{Reason: ContainmentPlaceMarker, Animals: ids}, nil
+}

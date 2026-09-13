@@ -890,6 +890,86 @@ without pushes, when the target checkout is safe; preserve other developers' wor
     before starting the next. Deferred native gates cover renewal, interruption and cleanup while preserving
     emergency priority, care commitments and player policy.
 
+    **Claude handoff: 05.6 status**
+
+    - Surveyed every e-row family against the current Go bridge/native surface
+      before writing anything, since the per-slice process requires reusing
+      native operations rather than inventing new ones. Result: `EnsureMood-*`
+      (`home/relieve_need`), `MaintainHerd-*` (`home/husbandry_facts`,
+      `home/husbandry_config`), `MaintainWaste` (`home/waste_state`,
+      `home/manage_waste`), trade (session/preview/accept) and
+      `RecoverDisasterServices`'s service jobs all call native tools that have
+      **no Go bridge method and no `operationspb`/`observationspb` surface at
+      all** (confirmed by grep across `go/internal/bridge`,
+      `go/internal/wire/operationspb`) — every one of these needs a new native
+      contract before Go can dispatch anything, which is out of scope for a
+      single family slice per this doc's own coordination rule ("coordinate
+      with N01 only for a demonstrated missing consumer contract"). Population
+      (`home/order` actions `capture`/`rescue`, `home/population` interaction
+      settings) is the same story except for its `equip` sub-step, which is
+      too narrow a sliver to close alone.
+    - `MaintainAnimalContainment` is the one e-row goal whose action
+      (`RoomShell`/`PenMarker` in Python, i.e. fence/gate + marker placement)
+      is a plain `domain.BuildingAction` — already fully wired end to end
+      (native preview/dispatch, admission, journal) and needs no new native
+      contract. Its execution path, however, runs through
+      `buildingruntime.RoutineBuildingPlanner`
+      (`routine_sleeping.go`/`routine_building_selection.go`/
+      `routine_shelter.go`), a single ~500-line shared switch already driving
+      Cooking/Butcher/Shelter/Expansion/Comfort/Power/Temperature/Sleeping —
+      squarely the kind of shared, actively-contended file the 05.4/05.5
+      worktrees are also editing this session. Deliberately did not extend it
+      here to avoid a merge collision on core building composition; a
+      dedicated, self-contained containment planner (reusing the existing
+      `RoutineBuildingSource` native interface directly, the way
+      `RoutineTendPlanner` is self-contained rather than folded into the
+      switch) is the safer follow-up and is left open below.
+    - Closed this session: the containment **method decision** itself —
+      `policy.SelectAnimalContainmentMethod`
+      (`go/internal/policy/animal_upkeep.go`), ported directly from
+      `animal_upkeep.containment_method`. Given the herd rows already surfaced
+      by the existing `ReviewAnimalUpkeep`/`UpkeepAnimal` facts (native
+      `SuitablePenId`, contained/release/slaughter), it decides, in order:
+      no uncontained animal (`ContainmentNoDeficit`); every uncontained animal
+      already has a suitable native pen, so wait for an enabled Handling
+      worker (`ContainmentWaitingHandler`) and then for native delivery
+      (`ContainmentWaitingNativePen`) — construction is never proposed once
+      native already has somewhere to put the animal; a starting herd over the
+      bounded admission of 8 refuses construction (`ContainmentExceedsBound`,
+      matching Python's explicit `SkillBlocked` at that size); otherwise the
+      durable shell-then-marker staging (`ContainmentBuildShell` →
+      `ContainmentAwaitingShell` while the shell is unresolved →
+      `ContainmentPlaceMarker` once complete → `ContainmentMarkerExhausted` if
+      a marker was already attempted with no observed suitable enclosure yet),
+      never duplicating a completed shell or replaying an exhausted marker.
+      All animal/pen/handler facts are typed `domain.Fact` inputs (unknown
+      pen requirement, containment state or handler availability is a hard
+      error, not a guess) with full fixture coverage in the new
+      `go/internal/policy/animal_containment_method_test.go` (no-deficit
+      variants, handler-then-native waiting, the >8/=8 admission boundary,
+      all four shell stages, and invalid/duplicate/unknown-fact rejection).
+      `go build ./... && go vet ./... && go test -p 1 ./...` passes across the
+      whole module (`GOMAXPROCS=2`).
+    - Still open, in priority order: (1) a self-contained
+      `RoutineAnimalContainmentPlanner` that reads the `MaintainAnimalContainment`
+      goal binding (mirroring `RoutineTendPlanner`'s binding lookup), calls
+      `SelectAnimalContainmentMethod`, and on `ContainmentBuildShell`/
+      `ContainmentPlaceMarker` previews/commits Fence/FenceGate/PenMarker
+      `BuildingAction`s without touching the shared shelter switch — the
+      actual dispatch composition (need/health/stock/custody/service
+      postcondition) for this goal is not yet closed, only its method choice;
+      (2) `MaintainAnimalFeed` reusing the b/d resource-acquisition path per
+      this item's own instruction — not started, blocked on nothing technical,
+      just sequencing; (3) every other e-row family (`EnsureMood-*`,
+      `MaintainMedicalCare`'s settings-write half, `Population-*`,
+      `MaintainHerd-*`, `MaintainWaste`, trade,
+      `RecoverDisasterServices`) remains unstarted pending the missing native
+      contracts identified above, or (for disaster recovery's repair/refuel
+      work specifically) pending 05.4's `MaintainEssentialRepairs` landing
+      first since this item is explicitly told to reuse it rather than
+      duplicate it. Full native/gameplay acceptance for all of G01.07e remains
+      gated on G01.12 per this doc's stated delivery rule regardless.
+
   - [ ] **05.7 — Close the routine integration coverage.**
     Reconcile the 05.1 reference rows against composed a–e paths and their evidence.
     No row may end at a need, proposal, unregistered action or unwired compiler.
