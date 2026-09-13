@@ -40,6 +40,28 @@ type AcquisitionBoundary interface {
 	ObserveAcquisition(context.Context, Placement, domain.GenerationSnapshot) (AcquisitionEvidence, error)
 }
 
+// EnableAcquisition activates the acquisition capability on an already
+// constructed Executor. Capabilities are wired this way, one call per
+// capability with its own typed boundary value, rather than inferred by
+// type-asserting a single composed Boundary: composing several optional
+// capabilities into one value so a type assertion can "discover" them is
+// indistinguishable, from the assertion's perspective, between a capability
+// that was deliberately configured and one merely embedded as a nil
+// interface to satisfy an unrelated capability's composition — the latter
+// reports present and panics on first use. Explicit Enable* calls make an
+// unconfigured capability simply absent instead.
+func (e *Executor) EnableAcquisition(acquisition AcquisitionBoundary) error {
+	if acquisition == nil {
+		return errors.New("acquisition boundary required")
+	}
+	j, ok := e.journal.(AcquisitionJournal)
+	if !ok {
+		return errors.New("acquisition boundary requires typed journal")
+	}
+	e.acquisition, e.acquisitionJournal = acquisition, j
+	return nil
+}
+
 func (e *Executor) runAcquisition(ctx context.Context, action domain.Action, p domain.Progress, authority Authority, generation context.Context) (Result, error) {
 	result := Result{Progress: p}
 	v := p.View()

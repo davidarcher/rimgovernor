@@ -135,6 +135,9 @@ func TestFieldPlannerReservationsCASAndManual(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	if err = worker.EnableZone(boundary); err != nil {
+		t.Fatal(err)
+	}
 	if err = worker.UpdateAuthority(executor.Authority{Snapshot: snapshot, Enabled: true}); err != nil {
 		t.Fatal(err)
 	}

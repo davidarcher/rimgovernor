@@ -85,6 +85,9 @@ func tendFixture(t *testing.T) (*fixture, *tendEnvironment) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	if err := e.EnableTend(n); err != nil {
+		t.Fatal(err)
+	}
 	f.executor, f.plan, f.action = e, plan, action
 	f.authority.Snapshot.Plan = plan.ID()
 	if err = e.UpdateAuthority(f.authority); err != nil {

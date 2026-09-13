@@ -39,6 +39,21 @@ type SupplyBoundary interface {
 	ObserveSupply(context.Context, Placement, domain.GenerationSnapshot) (SupplyEvidence, error)
 }
 
+// EnableSupply activates the supply capability; see EnableAcquisition for
+// why capabilities are wired this way instead of inferred from a composed
+// Boundary.
+func (e *Executor) EnableSupply(supply SupplyBoundary) error {
+	if supply == nil {
+		return errors.New("supply boundary required")
+	}
+	j, ok := e.journal.(SupplyJournal)
+	if !ok {
+		return errors.New("supply boundary requires typed journal")
+	}
+	e.supply, e.supplyJournal = supply, j
+	return nil
+}
+
 func (e *Executor) runSupply(ctx context.Context, action domain.Action, p domain.Progress, authority Authority, generation context.Context) (Result, error) {
 	result := Result{Progress: p}
 	v := p.View()

@@ -39,6 +39,21 @@ type ZoneBoundary interface {
 	ObserveZone(context.Context, Placement, domain.GenerationSnapshot) (ZoneEvidence, error)
 }
 
+// EnableZone activates the zone capability; see EnableAcquisition for why
+// capabilities are wired this way instead of inferred from a composed
+// Boundary.
+func (e *Executor) EnableZone(zone ZoneBoundary) error {
+	if zone == nil {
+		return errors.New("zone boundary required")
+	}
+	j, ok := e.journal.(ZoneJournal)
+	if !ok {
+		return errors.New("zone boundary requires typed journal")
+	}
+	e.zone, e.zoneJournal = zone, j
+	return nil
+}
+
 func (e *Executor) runZone(ctx context.Context, action domain.Action, p domain.Progress, authority Authority, generation context.Context) (Result, error) {
 	result := Result{Progress: p}
 	v := p.View()

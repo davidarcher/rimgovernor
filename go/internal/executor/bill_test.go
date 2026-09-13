@@ -94,6 +94,9 @@ func billFixture(t *testing.T) (*fixture, *billEnvironment) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	if err := e.EnableBill(n); err != nil {
+		t.Fatal(err)
+	}
 	f.executor, f.plan, f.action = e, plan, action
 	f.authority.Snapshot.Plan = plan.ID()
 	if err = e.UpdateAuthority(f.authority); err != nil {
@@ -254,6 +257,9 @@ func TestBillLostReplySurvivesRestart(t *testing.T) {
 	n.attemptOutcome = nil
 	e, err := New(f.store, n, f.clock, Limits{MaxAge: time.Second, RunTimeout: time.Second, JournalTimeout: time.Second})
 	if err != nil {
+		t.Fatal(err)
+	}
+	if err := e.EnableBill(n); err != nil {
 		t.Fatal(err)
 	}
 	f.executor = e

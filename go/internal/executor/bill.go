@@ -42,6 +42,21 @@ type BillBoundary interface {
 	ObserveBill(context.Context, Placement, domain.GenerationSnapshot) (BillEvidence, error)
 }
 
+// EnableBill activates the bill capability; see EnableAcquisition for why
+// capabilities are wired this way instead of inferred from a composed
+// Boundary.
+func (e *Executor) EnableBill(bill BillBoundary) error {
+	if bill == nil {
+		return errors.New("bill boundary required")
+	}
+	j, ok := e.journal.(BillJournal)
+	if !ok {
+		return errors.New("bill boundary requires typed journal")
+	}
+	e.bill, e.billJournal = bill, j
+	return nil
+}
+
 func (e *Executor) runBill(ctx context.Context, action domain.Action, p domain.Progress, authority Authority, generation context.Context) (Result, error) {
 	result := Result{Progress: p}
 	v := p.View()

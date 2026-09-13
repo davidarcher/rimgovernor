@@ -39,6 +39,21 @@ type WorkBoundary interface {
 	ObserveWork(context.Context, Placement, domain.GenerationSnapshot) (WorkEvidence, error)
 }
 
+// EnableWork activates the work capability; see EnableAcquisition for why
+// capabilities are wired this way instead of inferred from a composed
+// Boundary.
+func (e *Executor) EnableWork(work WorkBoundary) error {
+	if work == nil {
+		return errors.New("work boundary required")
+	}
+	j, ok := e.journal.(WorkJournal)
+	if !ok {
+		return errors.New("work boundary requires typed journal")
+	}
+	e.work, e.workJournal = work, j
+	return nil
+}
+
 func (e *Executor) runWork(ctx context.Context, action domain.Action, p domain.Progress, authority Authority, generation context.Context) (Result, error) {
 	result := Result{Progress: p}
 	v := p.View()

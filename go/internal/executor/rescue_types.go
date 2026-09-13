@@ -2,6 +2,7 @@ package executor
 
 import (
 	"context"
+	"errors"
 	"time"
 
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
@@ -38,4 +39,19 @@ type RescueBoundary interface {
 	InspectRescue(context.Context, Target) (RescueInspection, error)
 	RescuePatient(context.Context, RescueDispatch) (Receipt, error)
 	ObserveRescue(context.Context, RescueDispatch, domain.GenerationSnapshot) (RescueEvidence, error)
+}
+
+// EnableRescue activates the rescue capability; see EnableAcquisition (in
+// acquisition.go) for why capabilities are wired this way instead of
+// inferred from a composed Boundary.
+func (e *Executor) EnableRescue(rescue RescueBoundary) error {
+	if rescue == nil {
+		return errors.New("rescue boundary required")
+	}
+	j, ok := e.journal.(RescueJournal)
+	if !ok {
+		return errors.New("rescue boundary requires typed journal")
+	}
+	e.rescue, e.rescueJournal = rescue, j
+	return nil
 }

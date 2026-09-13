@@ -2,6 +2,7 @@ package executor
 
 import (
 	"context"
+	"errors"
 	"time"
 
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
@@ -39,4 +40,19 @@ type EquipBoundary interface {
 	InspectEquip(context.Context, Target) (EquipInspection, error)
 	EquipPawn(context.Context, EquipDispatch) (Receipt, error)
 	ObserveEquip(context.Context, EquipDispatch, domain.GenerationSnapshot) (EquipEvidence, error)
+}
+
+// EnableEquip activates the equip capability; see EnableAcquisition (in
+// acquisition.go) for why capabilities are wired this way instead of
+// inferred from a composed Boundary.
+func (e *Executor) EnableEquip(equip EquipBoundary) error {
+	if equip == nil {
+		return errors.New("equip boundary required")
+	}
+	j, ok := e.journal.(EquipJournal)
+	if !ok {
+		return errors.New("equip boundary requires typed journal")
+	}
+	e.equip, e.equipJournal = equip, j
+	return nil
 }

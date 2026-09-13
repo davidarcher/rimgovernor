@@ -67,6 +67,9 @@ func workFixture(t *testing.T) (*fixture, *workEnvironment) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	if err := e.EnableWork(n); err != nil {
+		t.Fatal(err)
+	}
 	f.executor, f.plan, f.action = e, plan, action
 	f.authority.Snapshot.Plan = plan.ID()
 	if err = e.UpdateAuthority(f.authority); err != nil {

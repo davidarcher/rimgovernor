@@ -238,81 +238,32 @@ func NewSession(ctx context.Context, config SessionConfig, journal *store.Store,
 		}
 	}
 	var worker *executor.Executor
-	var executionBoundary executor.Boundary = boundary
-	if config.Supplies != nil {
-		if config.Supplies.Native == nil || config.Supplies.Writer == nil {
-			return cleanup(ErrControl)
-		}
-		executionBoundary = &supplyBoundary{Boundary: boundary, supply: *config.Supplies}
+	if config.Supplies != nil && (config.Supplies.Native == nil || config.Supplies.Writer == nil) {
+		return cleanup(ErrControl)
 	}
-	if config.Work != nil {
-		if config.Work.Native == nil || config.Work.Writer == nil {
-			return cleanup(ErrControl)
-		}
-		work := &workBoundary{Boundary: boundary, work: *config.Work}
-		if supplies, ok := executionBoundary.(*supplyBoundary); ok {
-			executionBoundary = &workSupplyBoundary{supplyBoundary: supplies, workExecutor: work}
-		} else {
-			executionBoundary = work
-		}
+	if config.Work != nil && (config.Work.Native == nil || config.Work.Writer == nil) {
+		return cleanup(ErrControl)
 	}
-	if config.Acquisition != nil {
-		if config.Acquisition.Native == nil || config.Acquisition.Writer == nil {
-			return cleanup(ErrControl)
-		}
-		executionBoundary = withAcquisition(executionBoundary, &acquisitionBoundary{Boundary: boundary, acquisition: *config.Acquisition})
+	if config.Acquisition != nil && (config.Acquisition.Native == nil || config.Acquisition.Writer == nil) {
+		return cleanup(ErrControl)
 	}
-	if config.Zones != nil {
-		if config.Zones.Native == nil || config.Zones.Writer == nil {
-			return cleanup(ErrControl)
-		}
-		executionBoundary = withZone(executionBoundary, &zoneBoundary{Boundary: boundary, zone: *config.Zones, journal: journal})
+	if config.Zones != nil && (config.Zones.Native == nil || config.Zones.Writer == nil) {
+		return cleanup(ErrControl)
 	}
-	if config.Bills != nil {
-		if config.Bills.Native == nil || config.Bills.Writer == nil {
-			return cleanup(ErrControl)
-		}
-		executionBoundary = withBill(executionBoundary, &billBoundary{Boundary: boundary, bill: *config.Bills})
+	if config.Bills != nil && (config.Bills.Native == nil || config.Bills.Writer == nil) {
+		return cleanup(ErrControl)
 	}
-	if config.Haul != nil {
-		if config.Haul.Native == nil || config.Haul.Writer == nil {
-			return cleanup(ErrControl)
-		}
-		haulBoundary, err := NewHaulBoundary(config.Haul.Native, config.Haul.Writer, sessionBuildingLeases{control, journal, config.RoutineMethods, config.Executor.JournalTimeout}, clock, string(namespace))
-		if err != nil {
-			return cleanup(err)
-		}
-		executionBoundary = withHaul(executionBoundary, haulBoundary)
+	if config.Haul != nil && (config.Haul.Native == nil || config.Haul.Writer == nil) {
+		return cleanup(ErrControl)
 	}
-	if config.Tend != nil {
-		if config.Tend.Native == nil || config.Tend.Writer == nil {
-			return cleanup(ErrControl)
-		}
-		tendBoundary, err := NewTendBoundary(config.Tend.Native, config.Tend.Writer, sessionBuildingLeases{control, journal, config.RoutineMethods, config.Executor.JournalTimeout}, clock, string(namespace))
-		if err != nil {
-			return cleanup(err)
-		}
-		executionBoundary = withTend(executionBoundary, tendBoundary)
+	if config.Tend != nil && (config.Tend.Native == nil || config.Tend.Writer == nil) {
+		return cleanup(ErrControl)
 	}
-	if config.Rescue != nil {
-		if config.Rescue.Native == nil || config.Rescue.Writer == nil {
-			return cleanup(ErrControl)
-		}
-		rescueBoundary, err := NewRescueBoundary(config.Rescue.Native, config.Rescue.Writer, sessionBuildingLeases{control, journal, config.RoutineMethods, config.Executor.JournalTimeout}, clock, string(namespace))
-		if err != nil {
-			return cleanup(err)
-		}
-		executionBoundary = withRescue(executionBoundary, rescueBoundary)
+	if config.Rescue != nil && (config.Rescue.Native == nil || config.Rescue.Writer == nil) {
+		return cleanup(ErrControl)
 	}
-	if config.Equip != nil {
-		if config.Equip.Native == nil || config.Equip.Writer == nil {
-			return cleanup(ErrControl)
-		}
-		equipBoundary, err := NewEquipBoundary(config.Equip.Native, config.Equip.Writer, sessionBuildingLeases{control, journal, config.RoutineMethods, config.Executor.JournalTimeout}, clock, string(namespace))
-		if err != nil {
-			return cleanup(err)
-		}
-		executionBoundary = withEquip(executionBoundary, equipBoundary)
+	if config.Equip != nil && (config.Equip.Native == nil || config.Equip.Writer == nil) {
+		return cleanup(ErrControl)
 	}
 	var routine []executor.RoutineScope
 	if config.RoutineMethods {
@@ -320,18 +271,83 @@ func NewSession(ctx context.Context, config SessionConfig, journal *store.Store,
 	}
 	switch {
 	case melee != nil && ranged != nil:
-		worker, err = executor.NewWithMeleeAndRanged(journal, executionBoundary, draft, melee, ranged, clock, config.Executor, routine...)
+		worker, err = executor.NewWithMeleeAndRanged(journal, boundary, draft, melee, ranged, clock, config.Executor, routine...)
 	case melee != nil:
-		worker, err = executor.NewWithMelee(journal, executionBoundary, draft, melee, clock, config.Executor, routine...)
+		worker, err = executor.NewWithMelee(journal, boundary, draft, melee, clock, config.Executor, routine...)
 	case ranged != nil:
-		worker, err = executor.NewWithRanged(journal, executionBoundary, draft, ranged, clock, config.Executor, routine...)
+		worker, err = executor.NewWithRanged(journal, boundary, draft, ranged, clock, config.Executor, routine...)
 	case draft != nil:
-		worker, err = executor.NewWithDraft(journal, executionBoundary, draft, clock, config.Executor, routine...)
+		worker, err = executor.NewWithDraft(journal, boundary, draft, clock, config.Executor, routine...)
 	default:
-		worker, err = executor.New(journal, executionBoundary, clock, config.Executor, routine...)
+		worker, err = executor.New(journal, boundary, clock, config.Executor, routine...)
 	}
 	if err != nil {
 		return cleanup(err)
+	}
+	// Each optional capability is wired directly onto worker with its own
+	// typed boundary value, rather than composed into a single value for
+	// executor.New to discover by type assertion — see executor.EnableAcquisition
+	// for why the composed-value approach was unsafe.
+	if config.Supplies != nil {
+		if err := worker.EnableSupply(&supplyBoundary{Boundary: boundary, supply: *config.Supplies}); err != nil {
+			return cleanup(err)
+		}
+	}
+	if config.Work != nil {
+		if err := worker.EnableWork(&workBoundary{Boundary: boundary, work: *config.Work}); err != nil {
+			return cleanup(err)
+		}
+	}
+	if config.Acquisition != nil {
+		if err := worker.EnableAcquisition(&acquisitionBoundary{Boundary: boundary, acquisition: *config.Acquisition}); err != nil {
+			return cleanup(err)
+		}
+	}
+	if config.Zones != nil {
+		if err := worker.EnableZone(&zoneBoundary{Boundary: boundary, zone: *config.Zones, journal: journal}); err != nil {
+			return cleanup(err)
+		}
+	}
+	if config.Bills != nil {
+		if err := worker.EnableBill(&billBoundary{Boundary: boundary, bill: *config.Bills}); err != nil {
+			return cleanup(err)
+		}
+	}
+	if config.Haul != nil {
+		haulBoundary, err := NewHaulBoundary(config.Haul.Native, config.Haul.Writer, sessionBuildingLeases{control, journal, config.RoutineMethods, config.Executor.JournalTimeout}, clock, string(namespace))
+		if err != nil {
+			return cleanup(err)
+		}
+		if err := worker.EnableHaul(haulBoundary); err != nil {
+			return cleanup(err)
+		}
+	}
+	if config.Tend != nil {
+		tendBoundary, err := NewTendBoundary(config.Tend.Native, config.Tend.Writer, sessionBuildingLeases{control, journal, config.RoutineMethods, config.Executor.JournalTimeout}, clock, string(namespace))
+		if err != nil {
+			return cleanup(err)
+		}
+		if err := worker.EnableTend(tendBoundary); err != nil {
+			return cleanup(err)
+		}
+	}
+	if config.Rescue != nil {
+		rescueBoundary, err := NewRescueBoundary(config.Rescue.Native, config.Rescue.Writer, sessionBuildingLeases{control, journal, config.RoutineMethods, config.Executor.JournalTimeout}, clock, string(namespace))
+		if err != nil {
+			return cleanup(err)
+		}
+		if err := worker.EnableRescue(rescueBoundary); err != nil {
+			return cleanup(err)
+		}
+	}
+	if config.Equip != nil {
+		equipBoundary, err := NewEquipBoundary(config.Equip.Native, config.Equip.Writer, sessionBuildingLeases{control, journal, config.RoutineMethods, config.Executor.JournalTimeout}, clock, string(namespace))
+		if err != nil {
+			return cleanup(err)
+		}
+		if err := worker.EnableEquip(equipBoundary); err != nil {
+			return cleanup(err)
+		}
 	}
 	var drafts *draftSweep
 	if draft != nil {

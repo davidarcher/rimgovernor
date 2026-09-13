@@ -180,38 +180,3 @@ func (b *acquisitionBoundary) ObserveAcquisition(ctx context.Context, p executor
 	out.ObservedAt = b.clock.Now()
 	return out, nil
 }
-
-// Composition preserves only the capabilities actually configured for this session.
-type acquisitionExecutionBoundary struct {
-	executor.Boundary
-	executor.AcquisitionBoundary
-}
-type acquisitionSupplyBoundary struct {
-	*acquisitionExecutionBoundary
-	executor.SupplyBoundary
-}
-type acquisitionWorkBoundary struct {
-	*acquisitionExecutionBoundary
-	executor.WorkBoundary
-}
-type acquisitionWorkSupplyBoundary struct {
-	*acquisitionExecutionBoundary
-	executor.WorkBoundary
-	executor.SupplyBoundary
-}
-
-func withAcquisition(base executor.Boundary, acquisition executor.AcquisitionBoundary) executor.Boundary {
-	b := &acquisitionExecutionBoundary{base, acquisition}
-	supply, hasSupply := base.(executor.SupplyBoundary)
-	work, hasWork := base.(executor.WorkBoundary)
-	if hasSupply && hasWork {
-		return &acquisitionWorkSupplyBoundary{b, work, supply}
-	}
-	if hasSupply {
-		return &acquisitionSupplyBoundary{b, supply}
-	}
-	if hasWork {
-		return &acquisitionWorkBoundary{b, work}
-	}
-	return b
-}

@@ -65,6 +65,9 @@ func equipFixture(t *testing.T) (*fixture, *equipEnvironment) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	if err := e.EnableEquip(n); err != nil {
+		t.Fatal(err)
+	}
 	f.executor, f.plan, f.action = e, plan, action
 	f.authority.Snapshot.Plan = plan.ID()
 	if err = e.UpdateAuthority(f.authority); err != nil {

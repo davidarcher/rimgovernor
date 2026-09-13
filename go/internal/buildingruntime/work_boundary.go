@@ -32,20 +32,6 @@ type workBoundary struct {
 	*Boundary
 	work WorkCapabilities
 }
-type workSupplyBoundary struct {
-	*supplyBoundary
-	workExecutor executor.WorkBoundary
-}
-
-func (b *workSupplyBoundary) InspectWork(ctx context.Context, t executor.Target) (executor.WorkInspection, error) {
-	return b.workExecutor.InspectWork(ctx, t)
-}
-func (b *workSupplyBoundary) AssignWork(ctx context.Context, d executor.WorkDispatch) (executor.Receipt, error) {
-	return b.workExecutor.AssignWork(ctx, d)
-}
-func (b *workSupplyBoundary) ObserveWork(ctx context.Context, p executor.Placement, s domain.GenerationSnapshot) (executor.WorkEvidence, error) {
-	return b.workExecutor.ObserveWork(ctx, p, s)
-}
 
 func (b *workBoundary) readWork(ctx context.Context, w domain.WorkAssignment, s domain.GenerationSnapshot) (*o.PawnSettings, domain.Tick, error) {
 	reply, _, err := b.work.Native.ReadRoutinePawns(ctx, boundaryIdentity(s), []string{string(w.Pawn())})
