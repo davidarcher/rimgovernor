@@ -1102,17 +1102,26 @@ b; exact worker cleanup by a, with reuse by their later consumers.
   pass, including new store tests (idempotent/conflicting `StartCaravanTracking`,
   `ResolveCaravanTracking` requiring an active record) and buildingruntime
   tracker tests for the InFlight/Unknown/ReturnedHome cases.
-  **Not yet done:** `CaravanJourneyTracker` is not yet constructed/exposed by
-  any `cmd/rimgovernor` CLI flag (every other routine planner in that binary is
-  wired through `serve_clock.go`; this one is not yet), so nothing runs it
-  outside tests today. No headless/native-acceptance run exercised any of this
+  `cmd/rimgovernor serve` now exposes `--caravan-journey-tracking` (requires
+  `--clock-control`, gated the same way `--routine-reviews` is), which
+  constructs `CaravanJourneyTracker` in `serve_clock.go`'s `startServiceClock`
+  the same way every other clock-scheduled planner is wired and sets
+  `ClockSchedulerConfig.CaravanJourney`, so it now actually runs outside tests.
+  **Not yet done:** no headless/native-acceptance run exercised any of this
   against a live game (requires the private Linux game/mods/GABS inputs
   `docker-native.md`/`world-progression.md` describe, not available in this
   sandbox); only compile-time and Go-side contract/unit checks are done.
-  Still missing: quests and rewards (native census exists; no Go
-  read/policy/store/executor), settlement gifts, and failure recovery across
-  multiple active maps, plus the `cmd/rimgovernor` wiring and native-acceptance
-  run above.
+  Quests and rewards remain unstarted beyond the native census
+  (`NativeWorldProgressionObservation.cs`'s `Quests()`) and the already-defined
+  `AcceptQuest`/`FulfillQuest` operations proto (`operations.proto`); no native
+  `Execute` handler exists for either, and there is no Go read/policy/store/
+  executor. Settlement gifts are similarly proto-only (`GiftCaravanSilver` in
+  `operations.proto`, no native `Execute` handler, no Go consumer). Failure
+  recovery across multiple active maps is unstarted. None of these three were
+  attempted this round: each needs its own native write handler plus a full
+  Go domain/policy/store/executor/session vertical, comparable in size to the
+  caravan-departure work already landed, not a slice that fits alongside the
+  CLI-wiring fix above.
   **Exit evidence:** native departure, arrival, reward/return storage and failure
   recovery with Go owning the workflow and no wrong-map writes.
 
