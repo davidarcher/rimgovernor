@@ -28,16 +28,33 @@ func NewPawnOrderControl(client *Client) (*PawnOrderControl, error) {
 	return &PawnOrderControl{client: client}, nil
 }
 
-// pawnOrderJobDef is the only native job def a given kind may report. Both
-// tend and rescue are undrafted vanilla jobs; explosives and drafted combat
-// stay on the AttackTarget contract.
-func pawnOrderJobDef(kind o.PawnOrderKind) string {
+// pawnOrderJobDefs lists the native job defs a given kind may report. Tend and
+// rescue are single fixed undrafted vanilla jobs; haul's storage search may
+// produce either a cell or container destination job. Explosives and drafted
+// combat stay on the AttackTarget contract.
+func pawnOrderJobDefs(kind o.PawnOrderKind) []string {
 	switch kind {
 	case o.PawnOrderKind_PAWN_ORDER_KIND_TEND:
-		return "TendPatient"
+		return []string{"TendPatient"}
 	case o.PawnOrderKind_PAWN_ORDER_KIND_RESCUE:
-		return "Rescue"
+		return []string{"Rescue"}
+	case o.PawnOrderKind_PAWN_ORDER_KIND_HAUL:
+		return []string{"HaulToCell", "HaulToContainer"}
 	default:
-		return ""
+		return nil
 	}
+}
+func pawnOrderJobDefAllowed(kind o.PawnOrderKind, jobDef string) bool {
+	for _, allowed := range pawnOrderJobDefs(kind) {
+		if allowed == jobDef {
+			return true
+		}
+	}
+	return false
+}
+
+// pawnOrderRequiresSafeStorage is true only for haul, whose exact-quantity
+// ledger the native side gates on this flag; tend/rescue carry no ledger.
+func pawnOrderRequiresSafeStorage(kind o.PawnOrderKind) bool {
+	return kind == o.PawnOrderKind_PAWN_ORDER_KIND_HAUL
 }

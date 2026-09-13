@@ -20,7 +20,7 @@ func pawnOrderEvidence(evidence *r.EffectEvidence, expected PawnOrderAttempt) (*
 	if job.Drafted != nil && job.GetDrafted() || job.DraftClaimId != nil || job.DraftOwner != nil {
 		return nil, contract("undrafted pawn order cannot carry draft claim facts")
 	}
-	if job.JobId == nil || job.JobDef == nil || job.GetJobId() < 0 || job.GetJobDef() != pawnOrderJobDef(expected.Kind) {
+	if job.JobId == nil || job.JobDef == nil || job.GetJobId() < 0 || !pawnOrderJobDefAllowed(expected.Kind, job.GetJobDef()) {
 		return nil, contract("pawn order job mismatch")
 	}
 	if err := validID(job.GetResultingSnapshotToken()); err != nil {

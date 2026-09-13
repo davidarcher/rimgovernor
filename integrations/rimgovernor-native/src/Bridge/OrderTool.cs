@@ -1383,97 +1383,14 @@ namespace HomeBridge.BridgeTools
         /// </summary>
         private static bool TryWorkGiverJob(Plan plan, Func<WorkGiverDef, bool> accept, out string failReason)
         {
-            failReason = null;
-            var pawn = plan.Pawn;
-            var thing = plan.Target;
-
-            List<WorkTypeDef> types;
-            try { types = DefDatabase<WorkTypeDef>.AllDefsListForReading.ToList(); }
-            catch { types = new List<WorkTypeDef>(); }
-
-            Pawn previous = null;
-            var swapped = false;
-            try
-            {
-                try
-                {
-                    previous = FloatMenuMakerMap.makingFor;
-                    FloatMenuMakerMap.makingFor = pawn;
-                    swapped = true;
-                }
-                catch { swapped = false; }
-
-                try { JobFailReason.Clear(); } catch { }
-
-                foreach (var type in types)
-                {
-                    if (type == null)
-                        continue;
-                    List<WorkGiverDef> givers;
-                    try { givers = type.workGiversByPriority; }
-                    catch { givers = null; }
-                    if (givers == null)
-                        continue;
-
-                    for (var i = 0; i < givers.Count; i++)
-                    {
-                        var giver = givers[i];
-                        if (giver == null || !accept(giver))
-                            continue;
-                        if (!BridgeCommon.Try(() => giver.directOrderable, false))
-                            continue;
-
-                        var scanner = BridgeCommon.Try<WorkGiver_Scanner>(() => giver.Worker as WorkGiver_Scanner, null);
-                        if (scanner == null)
-                            continue;
-                        if (ScannerShouldSkip(pawn, scanner, thing))
-                            continue;
-
-                        var job = BridgeCommon.Try<Job>(
-                            () => scanner.HasJobOnThing(pawn, thing, true) ? scanner.JobOnThing(pawn, thing, true) : null,
-                            null);
-                        if (job == null)
-                            continue;
-
-                        try { job.workGiverDef = scanner.def; } catch { }
-                        plan.PreparedJob = job;
-                        plan.Scanner = scanner;
-                        plan.GiverDef = giver;
-                        plan.WorkType = type;
-                        return true;
-                    }
-                }
-
-                failReason = BridgeCommon.Try(() => JobFailReason.HaveReason, false)
-                    ? BridgeCommon.SafeString(() => JobFailReason.Reason)
-                    : null;
+            var result = WorkGiverDispatch.TryJob(plan.Pawn, plan.Target, accept, out failReason);
+            if (result == null)
                 return false;
-            }
-            finally
-            {
-                if (swapped)
-                {
-                    try { FloatMenuMakerMap.makingFor = previous; } catch { }
-                }
-                try { JobFailReason.Clear(); } catch { }
-            }
-        }
-
-        /// <summary>`FloatMenuOptionProvider_WorkGivers.ScannerShouldSkip`,
-        /// verbatim: a giver that does not even claim the thing is skipped
-        /// before it is asked for a job.</summary>
-        private static bool ScannerShouldSkip(Pawn pawn, WorkGiver_Scanner scanner, Thing t)
-        {
-            return !BridgeCommon.Try(() =>
-            {
-                var accepts = scanner.PotentialWorkThingRequest.Accepts(t);
-                if (!accepts)
-                {
-                    var global = scanner.PotentialWorkThingsGlobal(pawn);
-                    accepts = global != null && global.Contains(t);
-                }
-                return accepts && !scanner.ShouldSkip(pawn, true);
-            }, false);
+            plan.PreparedJob = result.Job;
+            plan.Scanner = result.Scanner;
+            plan.GiverDef = result.Giver;
+            plan.WorkType = result.WorkType;
+            return true;
         }
 
         /// <summary>Is there anywhere better to put this thing at all? Only

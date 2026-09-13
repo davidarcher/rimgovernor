@@ -24,6 +24,7 @@ const MeleeAttackAction ActionKind = "melee_attack"
 const TendAction ActionKind = "tend"
 const RescueAction ActionKind = "rescue"
 const RangedAttackAction ActionKind = "ranged_attack"
+const HaulAction ActionKind = "haul"
 
 // Building is one resolved placement. Native discovery owns definition existence,
 // footprint, map bounds, costs and placement legality; these are not inferred here.
@@ -73,6 +74,7 @@ type Action struct {
 	tend        Tend
 	rescue      Rescue
 	ranged      RangedAttack
+	haul        Haul
 }
 
 func NewBuildingAction(id ActionID, building Building) (Action, error) {
@@ -88,12 +90,12 @@ func (a Action) ID() ActionID               { return a.id }
 func (a Action) Kind() ActionKind           { return a.kind }
 func (a Action) Building() (Building, bool) { return a.building, a.kind == BuildingAction }
 func SupportedActionKinds() []ActionKind {
-	return []ActionKind{BuildingAction, OwnedDraftAction, MeleeAttackAction, SupplyAllowAction, WorkAssignmentAction, AcquisitionAction, ZoneCreateAction, TendAction, RescueAction, RangedAttackAction, ProductionBillAction}
+	return []ActionKind{BuildingAction, OwnedDraftAction, MeleeAttackAction, SupplyAllowAction, WorkAssignmentAction, AcquisitionAction, ZoneCreateAction, TendAction, RescueAction, RangedAttackAction, ProductionBillAction, HaulAction}
 }
 func ValidateHandlerCoverage(kinds []ActionKind) error {
 	seen := make(map[ActionKind]bool)
 	for _, kind := range kinds {
-		if (kind != BuildingAction && kind != OwnedDraftAction && kind != MeleeAttackAction && kind != SupplyAllowAction && kind != WorkAssignmentAction && kind != AcquisitionAction && kind != ZoneCreateAction && kind != TendAction && kind != RescueAction && kind != RangedAttackAction && kind != ProductionBillAction) || seen[kind] {
+		if (kind != BuildingAction && kind != OwnedDraftAction && kind != MeleeAttackAction && kind != SupplyAllowAction && kind != WorkAssignmentAction && kind != AcquisitionAction && kind != ZoneCreateAction && kind != TendAction && kind != RescueAction && kind != RangedAttackAction && kind != ProductionBillAction && kind != HaulAction) || seen[kind] {
 			return fmt.Errorf("unknown or duplicate action handler %q", kind)
 		}
 		seen[kind] = true
@@ -149,6 +151,8 @@ func NewPlan(id PlanID, revision PlanRevision, actions []Action, dependencies ..
 			canonical, err = NewRescueAction(a.id, a.rescue)
 		case RangedAttackAction:
 			canonical, err = NewRangedAttackAction(a.id, a.ranged)
+		case HaulAction:
+			canonical, err = NewHaulAction(a.id, a.haul)
 		default:
 			return PlanSpec{}, errors.New("unsupported action variant")
 		}

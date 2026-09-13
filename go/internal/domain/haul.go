@@ -1,0 +1,35 @@
+package domain
+
+import "errors"
+
+// Haul is explicit intent to move one already-observed loose thing. The pawn is
+// not drafted; native storage search picks the destination, and current
+// eligibility and job availability are established at inspection, not here.
+type Haul struct {
+	pawn       PawnID
+	thing      string
+	definition string
+}
+
+func NewHaul(pawn PawnID, thing, definition string) (Haul, error) {
+	if !validID(string(pawn)) || !validID(thing) || !validID(definition) {
+		return Haul{}, errors.New("haul requires a valid pawn, thing and definition identity")
+	}
+	return Haul{pawn: pawn, thing: thing, definition: definition}, nil
+}
+
+func (h Haul) Pawn() PawnID       { return h.pawn }
+func (h Haul) Thing() string      { return h.thing }
+func (h Haul) Definition() string { return h.definition }
+
+func NewHaulAction(id ActionID, haul Haul) (Action, error) {
+	if !validID(string(id)) {
+		return Action{}, errors.New("invalid action identity")
+	}
+	if _, err := NewHaul(haul.pawn, haul.thing, haul.definition); err != nil {
+		return Action{}, err
+	}
+	return Action{id: id, kind: HaulAction, haul: haul}, nil
+}
+
+func (a Action) Haul() (Haul, bool) { return a.haul, a.kind == HaulAction }

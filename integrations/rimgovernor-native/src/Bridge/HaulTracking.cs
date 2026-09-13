@@ -58,6 +58,7 @@ namespace HomeBridge.BridgeTools
             record.Portions.Add(Portion(source)); state.Records.Add(record);
             return record.Id;
         }
+        internal static HaulRecord Lookup(string id) => id == null ? null : State()?.Records.FirstOrDefault(r => r.Id == id);
         internal static void Accept(string id, bool accepted)
         {
             var record = State()?.Records.FirstOrDefault(r => r.Id == id);
