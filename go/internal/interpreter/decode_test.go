@@ -124,6 +124,36 @@ func TestModelDraftShape(t *testing.T) {
 	}
 }
 
+func TestModelHusbandryShape(t *testing.T) {
+	result, err := decode(`{"command":"husbandry","animal":"Thing_A","method":"train","trainableDef":"Sit"}`, 1)
+	if err != nil || result.Command != "husbandry" || result.Animal == nil || *result.Animal != "Thing_A" ||
+		result.Method == nil || *result.Method != "train" || result.TrainableDef == nil || *result.TrainableDef != "Sit" {
+		t.Fatalf("husbandry train shape: %v %v", result, err)
+	}
+	result, err = decode(`{"command":"husbandry","animal":"Thing_A","method":"slaughter"}`, 1)
+	if err != nil || result.Command != "husbandry" || result.Animal == nil || *result.Animal != "Thing_A" ||
+		result.Method == nil || *result.Method != "slaughter" || result.TrainableDef != nil {
+		t.Fatalf("husbandry slaughter shape: %v %v", result, err)
+	}
+	for _, text := range []string{
+		`{"command":"husbandry"}`,
+		`{"command":"husbandry","animal":"Thing_A"}`,
+		`{"command":"husbandry","animal":"","method":"train","trainableDef":"Sit"}`,
+		`{"command":"husbandry","animal":null,"method":"train","trainableDef":"Sit"}`,
+		`{"command":"husbandry","animal":"Thing_A","method":"train"}`,
+		`{"command":"husbandry","animal":"Thing_A","method":"train","trainableDef":null}`,
+		`{"command":"husbandry","animal":"Thing_A","method":"train","trainableDef":""}`,
+		`{"command":"husbandry","animal":"Thing_A","method":"slaughter","trainableDef":"Sit"}`,
+		`{"command":"husbandry","animal":"Thing_A","method":"tame"}`,
+		`{"command":"husbandry","animal":"Thing_A","method":"slaughter","dryRun":false}`,
+	} {
+		t.Run(text, func(t *testing.T) {
+			_, err := decode(text, 1)
+			assertKind(t, err, InvalidCommand)
+		})
+	}
+}
+
 func TestModelCaravanShape(t *testing.T) {
 	valid := `{"command":"caravan","crew":["Thing_A"],"cargo":[{"defName":"Silver","count":50}],"destinationTile":3}`
 	result, err := decode(valid, 1)

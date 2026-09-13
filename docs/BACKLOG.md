@@ -1335,14 +1335,18 @@ b; exact worker cleanup by a, with reuse by their later consumers.
   **Exit evidence:** representative scripted invalid/cancelled replies and actual
   configured LM Studio requests execute supported commands; advisers cannot mutate
   the game and there is no paid-provider fallback.
-  The interpreter now decodes six command kinds end to end, each reusing its
+  The interpreter now decodes seven command kinds end to end, each reusing its
   unchanged existing store/policy/executor pipeline: `build` (variable count);
   `research` selects one already-observed selectable project into
   `ResearchSelectAction`; `tend` and `rescue` each select two distinct
   already-observed pawns (doctor/patient, rescuer/patient) into
   `TendAction`/`RescueAction`; `draft` selects one already-observed pawn into
   `OwnedDraftAction`; `caravan` selects an already-observed crew, cargo and
-  destination tile into `CaravanDepartureAction`. All but `build` and
+  destination tile into `CaravanDepartureAction`; `husbandry` selects one
+  already-observed animal plus a train (with trainable defName) or slaughter
+  method into `HusbandryAction` — its CAS tokens are read fresh by the
+  executor's own inspection at dispatch, not needed at construction, so unlike
+  `work_assignment` it required no new CAS plumbing. All but `build` and
   `caravan` are exactly-one-action commands; `caravan` is still exactly one
   action but with variable-count crew/cargo facts. `work_assignment` (work
   priorities) was checked and deferred: unlike these, it needs a live CAS
@@ -1350,7 +1354,7 @@ b; exact worker cleanup by a, with reuse by their later consumers.
   Input/Snapshot has no slot for yet — wiring that is a bigger, separate
   slice, not a same-shape addition.
   Remaining: every other `player_commands.py` command family (goals/resources,
-  population/surgery/herds, trade/world, adopt/relocate/cancel, zones, work
+  population/surgery, trade/world, adopt/relocate/cancel, zones, work
   priorities, bills/temperature, move/reposition), consultation/scout/
   visual review, knowledge/memory/evidence retrieval, streaming, deduplication
   and explicit cancellation. Naming confirmation additionally needs new native

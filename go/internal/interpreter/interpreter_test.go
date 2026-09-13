@@ -436,6 +436,81 @@ func TestCargoAndDestinationFactsValidatedAndBounded(t *testing.T) {
 	assertKind(t, err, InvalidInput)
 }
 
+func TestHusbandryProposal(t *testing.T) {
+	i := clientFixture(t, func(context.Context, model.Request) (model.Response, error) {
+		return model.Response{Text: `{"command":"husbandry","animal":"Thing_A","method":"train","trainableDef":"Sit"}`, FinishReason: model.Stop}, nil
+	})
+	input := inputFixture()
+	input.Facts.Pawns = []domain.PawnID{"Thing_A"}
+	input.Facts.TrainableDefinitions = []string{"Sit"}
+	proposal, err := i.Interpret(context.Background(), input)
+	if err != nil {
+		t.Fatal(err)
+	}
+	actions := proposal.Plan.Actions()
+	if len(actions) != 1 || actions[0].ID() != "a1" {
+		t.Fatal("incorrect husbandry action identity")
+	}
+	husbandry, ok := actions[0].Husbandry()
+	if !ok || husbandry.Animal() != "Thing_A" || husbandry.Method() != domain.HusbandryTrain || husbandry.TrainableDef() != "Sit" {
+		t.Fatal("incorrect typed husbandry proposal")
+	}
+
+	i = clientFixture(t, func(context.Context, model.Request) (model.Response, error) {
+		return model.Response{Text: `{"command":"husbandry","animal":"Thing_A","method":"slaughter"}`, FinishReason: model.Stop}, nil
+	})
+	input = inputFixture()
+	input.Facts.Pawns = []domain.PawnID{"Thing_A"}
+	proposal, err = i.Interpret(context.Background(), input)
+	if err != nil {
+		t.Fatal(err)
+	}
+	husbandry, ok = proposal.Plan.Actions()[0].Husbandry()
+	if !ok || husbandry.Animal() != "Thing_A" || husbandry.Method() != domain.HusbandrySlaughter || husbandry.TrainableDef() != "" {
+		t.Fatal("incorrect typed husbandry slaughter proposal")
+	}
+}
+
+func TestHusbandryRefusesUnknownFactsOrWrongActionCount(t *testing.T) {
+	text := `{"command":"husbandry","animal":"Thing_A","method":"train","trainableDef":"Sit"}`
+	response := func(context.Context, model.Request) (model.Response, error) {
+		return model.Response{Text: text, FinishReason: model.Stop}, nil
+	}
+	for _, tc := range []struct {
+		name string
+		edit func(*Input)
+	}{
+		{"unknown animal", func(in *Input) { in.Facts.TrainableDefinitions = []string{"Sit"} }},
+		{"unknown trainable def", func(in *Input) { in.Facts.Pawns = []domain.PawnID{"Thing_A"} }},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			input := inputFixture()
+			tc.edit(&input)
+			i := clientFixture(t, response)
+			_, err := i.Interpret(context.Background(), input)
+			assertKind(t, err, UnknownFacts)
+		})
+	}
+	input := inputFixture()
+	input.Facts.Pawns = []domain.PawnID{"Thing_A"}
+	input.Facts.TrainableDefinitions = []string{"Sit"}
+	input.ActionIDs = append(input.ActionIDs, "a2")
+	i := clientFixture(t, response)
+	_, err := i.Interpret(context.Background(), input)
+	assertKind(t, err, InvalidCommand)
+}
+
+func TestTrainableDefinitionsValidatedAndBounded(t *testing.T) {
+	i := clientFixture(t, func(context.Context, model.Request) (model.Response, error) {
+		t.Fatal("model called")
+		return model.Response{}, nil
+	})
+	input := inputFixture()
+	input.Facts.TrainableDefinitions = []string{"Sit", "Sit"}
+	_, err := i.Interpret(context.Background(), input)
+	assertKind(t, err, InvalidInput)
+}
+
 func TestPawnFactsValidatedAndBounded(t *testing.T) {
 	i := clientFixture(t, func(context.Context, model.Request) (model.Response, error) {
 		t.Fatal("model called")

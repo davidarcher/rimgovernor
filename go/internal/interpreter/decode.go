@@ -36,6 +36,9 @@ type modelCommand struct {
 	Crew            []string
 	Cargo           []modelCargo
 	DestinationTile *int32
+	// Animal/Method/TrainableDef hold husbandry's target, train-or-slaughter
+	// choice, and (train only) trainable definition.
+	Animal, Method, TrainableDef *string
 }
 
 func decode(text string, limit int) (modelCommand, error) {
@@ -71,8 +74,10 @@ func decode(text string, limit int) (modelCommand, error) {
 		return decodeOnePawn(fields, "draft", "pawn")
 	case "caravan":
 		return decodeCaravan(fields)
+	case "husbandry":
+		return decodeHusbandry(fields)
 	default:
-		return modelCommand{}, fail(UnsupportedCommand, "only building, research, tend, rescue, draft and caravan proposals are supported")
+		return modelCommand{}, fail(UnsupportedCommand, "only building, research, tend, rescue, draft, caravan and husbandry proposals are supported")
 	}
 }
 
@@ -196,6 +201,38 @@ func decodeCaravan(fields map[string]json.RawMessage) (modelCommand, error) {
 		return modelCommand{}, fail(InvalidCommand, "invalid destinationTile field")
 	}
 	return modelCommand{Command: "caravan", Crew: crew, Cargo: cargo, DestinationTile: &tile}, nil
+}
+
+func decodeHusbandry(fields map[string]json.RawMessage) (modelCommand, error) {
+	if fields["animal"] == nil || fields["method"] == nil {
+		return modelCommand{}, fail(InvalidCommand, "unexpected command fields")
+	}
+	var animal string
+	if err := json.Unmarshal(fields["animal"], &animal); err != nil || animal == "" {
+		return modelCommand{}, fail(InvalidCommand, "invalid animal field")
+	}
+	var method string
+	if err := json.Unmarshal(fields["method"], &method); err != nil {
+		return modelCommand{}, fail(InvalidCommand, "invalid method field")
+	}
+	switch method {
+	case "train":
+		if len(fields) != 4 || fields["trainableDef"] == nil || bytes.Equal(bytes.TrimSpace(fields["trainableDef"]), []byte("null")) {
+			return modelCommand{}, fail(InvalidCommand, "unexpected command fields")
+		}
+		var def string
+		if err := json.Unmarshal(fields["trainableDef"], &def); err != nil || def == "" {
+			return modelCommand{}, fail(InvalidCommand, "invalid trainableDef field")
+		}
+		return modelCommand{Command: "husbandry", Animal: &animal, Method: &method, TrainableDef: &def}, nil
+	case "slaughter":
+		if len(fields) != 3 {
+			return modelCommand{}, fail(InvalidCommand, "unexpected command fields")
+		}
+		return modelCommand{Command: "husbandry", Animal: &animal, Method: &method}, nil
+	default:
+		return modelCommand{}, fail(InvalidCommand, "invalid method field")
+	}
 }
 
 // Generic JSON token inspection is confined to this external text boundary.
