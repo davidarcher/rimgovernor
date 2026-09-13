@@ -766,10 +766,19 @@ without pushes, when the target checkout is safe; preserve other developers' wor
     dynamic-target selection, mining-designation dispatch (a new native
     operation category, not a bill), acquisition dispatch and
     material-storage zoning are all still unstarted. `EnsureBasicPower` is
-    done. `MaintainMedicalReserves` is unstarted; per this item's own text it
-    should reuse `ProductionBillAction`/`domain.StockTarget` the same way
-    `GearProduce` now does, once a medical-recipe/bench census analogous to
-    `bridge.ReadGearBenches` exists.
+    done. `MaintainMedicalReserves` is now code-complete too, following
+    `GearProduce`'s exact pattern: `policy.SelectMedicineMethod` matches the
+    active reserve's single `MedicineHerbal` target against the same generic
+    bench/recipe census `bridge.ReadGearBenches`/`bridge.ReadSupplyStock`
+    already read for gear (both RPCs are fully generic, not gear-specific,
+    so no separate medical census type was needed), dispatching a
+    `domain.StockTarget` `ProductionBillAction` sized to the reviewed
+    recovery target through a new `RoutineMedicalPlanner` behind a
+    `--routine-medical-plans` flag. Disclosed narrowing: the resource name is
+    hardcoded to `MedicineHerbal` (matching `medical_reserves.py`) since Go
+    has no decode of native `policyResources` yet to confirm the definition
+    exists, and the same no-cross-goal-ingredient-reservation gap `GearProduce`
+    discloses applies here too.
 
   - [ ] **05.6 — Management and service recovery (G01.07e).**
     Compose dynamic mood, ongoing care/surgery, population, herd, waste and trade

@@ -1,9 +1,13 @@
 package policy
 
 import (
+	"crypto/sha256"
+	"encoding/json"
 	"errors"
+	"fmt"
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"math"
+	"sort"
 )
 
 // MedicineStack is an observed medicine stack, not a recipe or promised output.
@@ -102,4 +106,158 @@ func ReviewMedicalReserve(v MedicalReserveObservation, active bool, p MedicalRes
 	}
 	r.Replenish = domain.Known(replenishment)
 	return r, nil
+}
+
+type MedicineMethodKind string
+
+const (
+	MedicineUnknown   MedicineMethodKind = "unknown"
+	MedicineRecovered MedicineMethodKind = "recovered"
+	MedicineProduce   MedicineMethodKind = "produce"
+	MedicineWait      MedicineMethodKind = "wait_for_existing_work"
+	MedicineBlocked   MedicineMethodKind = "no_eligible_method"
+)
+
+type MedicineMethod struct {
+	Kind          MedicineMethodKind
+	ID            domain.MethodID
+	Bench, Recipe string
+	Resource      Resource
+	Target        int64
+	Costs         []Amount
+	Filter        []Resource
+	RequiredWork  []WorkRequirement
+}
+
+// MedicinePlanningRequest names the one resource MaintainMedicalReserves
+// replenishes (MedicineHerbal, per medical_reserves.py's reserve_method,
+// which refuses to run without native confirmation that definition exists)
+// and reuses the exact bench/recipe census shape GearProduce established
+// (policy.GearBench/GearRecipe): bridge.ReadGearBenches/ReadSupplyStock are
+// fully generic native reads, not specific to gear-crafting benches, so no
+// separate medical bench census type is needed.
+type MedicinePlanningRequest struct {
+	Review   MedicalReserveReview
+	Resource Resource
+	Seen     []domain.MethodID
+	Benches  domain.Fact[[]GearBench]
+	Stock    []Stock
+	Rules    []ResourceRule
+	Holds    []Amount
+}
+
+func medicineMethodID(resource Resource, bench, recipe string) domain.MethodID {
+	value := struct {
+		Resource      Resource
+		Bench, Recipe string
+	}{resource, bench, recipe}
+	data, _ := json.Marshal(value)
+	sum := sha256.Sum256(data)
+	return domain.MethodID(fmt.Sprintf("medicine-produce-%x", sum[:16]))
+}
+
+// SelectMedicineMethod proposes one repeat-count StockTarget bill that keeps
+// at least the reviewed recovery Target units of Resource in stock, the same
+// pause-when-satisfied bill GearProduce dispatches through
+// ProductionBillAction/domain.StockTarget. It issues no game orders and does
+// not reserve resources; the shared method admission must recheck these
+// costs against concurrent plans before committing. Unlike GearProduce there
+// is no per-pawn candidate to prefer over crafting: with the reserve active,
+// the single Resource target is either already covered by an observed
+// active bill (MedicineWait), fundable at some bench/recipe (MedicineProduce)
+// or blocked.
+func SelectMedicineMethod(r MedicinePlanningRequest) (MedicineMethod, error) {
+	if !r.Review.Active {
+		return MedicineMethod{Kind: MedicineRecovered}, nil
+	}
+	target, known := r.Review.Target.Value()
+	if !known || !validResource(r.Resource) {
+		return MedicineMethod{Kind: MedicineUnknown}, nil
+	}
+	if target <= 0 {
+		return MedicineMethod{Kind: MedicineRecovered}, nil
+	}
+	if target > 10000 {
+		return MedicineMethod{Kind: MedicineBlocked}, nil
+	}
+	if len(r.Seen) > 4096 {
+		return MedicineMethod{}, errors.New("medicine method history exceeds bound")
+	}
+	seen := map[domain.MethodID]bool{}
+	for _, id := range r.Seen {
+		if !foodID(string(id)) || seen[id] {
+			return MedicineMethod{}, errors.New("invalid medicine method history")
+		}
+		seen[id] = true
+	}
+	benches, known := r.Benches.Value()
+	if !known {
+		return MedicineMethod{Kind: MedicineUnknown}, nil
+	}
+	gearRequest := GearPlanningRequest{Stock: r.Stock, Rules: r.Rules, Holds: r.Holds}
+	if err := validateGearProduction(benches, gearRequest); err != nil {
+		return MedicineMethod{}, err
+	}
+	benches = append([]GearBench(nil), benches...)
+	sort.Slice(benches, func(i, j int) bool { return benches[i].ID < benches[j].ID })
+	for _, b := range benches {
+		bills, known := b.Bills.Value()
+		if !known {
+			return MedicineMethod{Kind: MedicineUnknown}, nil
+		}
+		for _, bill := range bills {
+			if !containsResource(bill.Products, r.Resource) {
+				continue
+			}
+			active, known := bill.Active.Value()
+			if !known {
+				return MedicineMethod{Kind: MedicineUnknown}, nil
+			}
+			if active {
+				return MedicineMethod{Kind: MedicineWait}, nil
+			}
+		}
+	}
+	for _, b := range benches {
+		recipes, known := b.Recipes.Value()
+		if !known {
+			return MedicineMethod{Kind: MedicineUnknown}, nil
+		}
+		recipes = append([]GearRecipe(nil), recipes...)
+		sort.Slice(recipes, func(i, j int) bool { return recipes[i].Definition < recipes[j].Definition })
+		for _, recipe := range recipes {
+			if !containsResource(recipe.Products, r.Resource) {
+				continue
+			}
+			available, ak := recipe.Available.Value()
+			on, ok := recipe.AvailableOn.Value()
+			if ak && !available || ok && !on {
+				continue
+			}
+			if !ak || !ok {
+				return MedicineMethod{Kind: MedicineUnknown}, nil
+			}
+			work, known := recipe.RequiredWork.Value()
+			if !known {
+				return MedicineMethod{Kind: MedicineUnknown}, nil
+			}
+			slots, known := recipe.Ingredients.Value()
+			if !known {
+				return MedicineMethod{Kind: MedicineUnknown}, nil
+			}
+			costs, filter, funded, unknown := gearIngredients(slots, "", gearRequest)
+			if unknown {
+				return MedicineMethod{Kind: MedicineUnknown}, nil
+			}
+			if !funded {
+				continue
+			}
+			id := medicineMethodID(r.Resource, b.ID, recipe.Definition)
+			if seen[id] {
+				return MedicineMethod{Kind: MedicineWait, ID: id}, nil
+			}
+			return MedicineMethod{Kind: MedicineProduce, ID: id, Bench: b.ID, Recipe: recipe.Definition, Resource: r.Resource, Target: target, Costs: costs, Filter: filter, RequiredWork: append([]WorkRequirement(nil), work...)}, nil
+		}
+	}
+	return MedicineMethod{Kind: MedicineBlocked}, nil
 }
