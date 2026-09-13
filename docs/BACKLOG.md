@@ -692,101 +692,15 @@ without pushes, when the target checkout is safe; preserve other developers' wor
     finished/equipped gear, research progress through completion, extracted stock
     and replenishment after a renewed target. Reuse accepted power/temperature paths.
 
-    `MaintainEquipment`'s wear/replace half (`GearReplace`) is a complete,
-    wired vertical behind `--routine-gear-plans`. `EnsureBasicPower` was
-    already fully implemented and wired (a stale claim in this doc was
-    corrected, not new work). `EnsureResearch` and `MaintainResource-*` each
-    have ported, tested policy-level primitives (prerequisite ordering,
-    eligible-researcher/lab selection, need aggregation, recipe-deficit
-    costing, mining-advance detection, source selection) but neither has a
-    dispatch vertical yet — each is a same-sized-or-larger effort to
-    `GearReplace`. `GearProduce` (the workshop-bill half of
-    `MaintainEquipment`) is narrowed but not unblocked: single-material
-    ingredient costing works, but no bridge census requests populated
-    `RecipeState.Ingredients` for gear benches, so `GearPlanningRequest.Benches`
-    stays `Unknown` and the whole dispatch vertical is still missing.
-    `MaintainMedicalReserves` is entirely unstarted. G01.12 gameplay
-    acceptance gates the whole item.
-
-    **Claude handoff: 05.5 slice 5 (`GearProduce` — revisited the `IngredientRequirement` blocker)**
-
-    - Re-examined the previously documented blocker fresh, as asked: is
-      "`IngredientRequirement` exposes only one Required/Available/Missing
-      triple per slot, not per-alternative amounts" actually blocking? Only
-      half true. `gearIngredients` (`policy/gear.go`) never reads a
-      recipe's own reported `Available`/`Missing` at all — funding is
-      decided separately against `GearPlanningRequest.Stock` — so only each
-      alternative's *required* Resource/Count needs to come from the native
-      recipe, and `IngredientRequirement.Required` does carry that, per
-      slot. Added `go/internal/bridge/gear_recipe_ingredients.go` (+ 9 unit
-      tests): `GearRecipeIngredients([]*observationspb.IngredientRequirement)
-      domain.Fact[[][]policy.Amount]` maps a slot to one `Amount` when the
-      native row is `Complete` and resolved to exactly one allowed
-      material with a whole, positive `Required` count.
-    - What genuinely still cannot be recovered from one static
-      `IngredientRequirement` row: a *different* required count per allowed
-      alternative. RimWorld's stuff-adjustable cost scaling
-      (`CostStuffCount`) can make an ingredient's needed count depend on
-      which permitted material is chosen (common for weapon/apparel
-      recipes, which is most of what `GearProduce` cares about), and this
-      bridge has no per-material recipe-cost preview the way building
-      placement previews per stuff — the same class of unverified-native-
-      contract gap already flagged elsewhere in this doc for lack of native
-      C# mod source. A slot naming more than one allowed material is
-      reported `Unknown` rather than guessed at, so `SelectGearMethod` will
-      safely fall back to `GearUnknown`/skip that recipe instead of ever
-      proposing a wrong cost — never a guess, matching this doc's stated
-      posture throughout.
-    - This narrows, but does not close, the `GearProduce` blocker: no
-      bridge census anywhere yet requests populated `RecipeState.Ingredients`
-      for gear/workshop benches at all — `bridge/colony_production.go`'s
-      `validateColonyProduction` explicitly requires `Ingredients` to be
-      nil on the cooking/butchering `RecipeState` rows the shared planning
-      census currently reads. Wiring `GearProduce` still needs: (1) a new or
-      extended bridge read that actually requests ingredient rows for gear
-      benches, (2) threading the result into `GearPlanningRequest.Benches`
-      (currently always `domain.Unknown[[]policy.GearBench]()` per slice 1's
-      handoff), and (3) the domain/store/executor/buildingruntime dispatch
-      vertical, none of which exist. Not attempted this pass — each is a
-      substantial unit of its own.
-    - Full `go build ./... && go vet ./... && GOMAXPROCS=2 go test -p 1 ./...`
-      passes across the whole module, including the new `bridge` coverage.
-
-    **Claude handoff: 05.5 slice 6 (`MaintainResource-*` — source-selection method choice)**
-
-    - `GearProduce` still isn't closeable this pass (needs a new bridge
-      census plus the full dispatch vertical, per slice 5), so continued
-      `MaintainResource-*` instead, per the assessment that a full vertical
-      (domain/store/executor/buildingruntime dispatch) remains oversized for
-      one pass but a further well-tested policy-level method-selection step
-      is exactly right-sized — the same category of unit `SelectGearMethod`/
-      `SelectPowerMethod` are.
-    - Added `SelectResourceSources` to `go/internal/policy/
-      resource_production.go` (+ 9 more unit tests, 24 total in that file):
-      ports `resource_method`'s acquisition-source selection loop —
-      nearest-first ordering, skipping designated/zero-yield sources, a
-      "mine" source usable only with native `open_surface` safety
-      confirmation (an older companion cannot certify excavation geometry
-      otherwise), at most one mine source ever selected per call and never
-      after any other source has already been selected (`if method=='mine'
-      and selected: break` in the Python — a real subtlety a first draft
-      test got backwards until the port caught it), and the native 8-source
-      cap. This is real method-selection logic, not a data primitive, but is
-      still deliberately scoped to just the acquisition-source half of
-      `resource_method`: the storage-zone sizing, bill discovery/creation
-      (now buildable on top of `ResourceRecipeDeficits` from slice 3), and
-      deep-extraction delegation branches remain unported, and none of this
-      is wired into domain/store/executor/buildingruntime yet.
-    - Full `go build ./... && go vet ./... && GOMAXPROCS=2 go test -p 1 ./...`
-      passes across the whole module.
-    - Still open: the rest of `resource_method` (storage zoning, bill
-      selection, deep-extraction delegation, the `refresh_resource_prerequisite`
-      re-check path) and the entire dispatch vertical for
-      `MaintainResource-*`; `GearProduce`'s missing bridge census and
-      dispatch vertical; `MaintainMedicalReserves`; `EnsureResearch`'s
-      `refresh()`/`method()`/`selected()`/`validate_dispatch()` state machine
-      and its own dispatch vertical. All gameplay/native acceptance remains
-      gated on G01.12 per this doc's stated delivery rule.
+    Status: `MaintainEquipment`'s wear/replace half is done (`GearReplace`
+    vertical). `GearProduce` (workshop-bill half) has ingredient-cost mapping
+    for fixed-material recipes (`bridge.GearRecipeIngredients`) but still
+    needs a bridge census for gear-bench recipes and its full dispatch
+    vertical. `EnsureResearch` has prerequisite/lab/researcher/needs policy
+    primitives but no dispatch vertical. `MaintainResource-*` has
+    ingredient-deficit, extraction-progress and acquisition-source-selection
+    policy primitives but no dispatch vertical. `EnsureBasicPower` is done.
+    `MaintainMedicalReserves` is unstarted.
 
   - [ ] **05.6 — Management and service recovery (G01.07e).**
     Compose dynamic mood, ongoing care/surgery, population, herd, waste and trade
@@ -995,7 +909,7 @@ research to `research.refresh`. Medical reserves are the eighth upkeep contract.
 | --- | --- | --- |
 | `MaintainEquipment`: `gear_upkeep.compile_method`, existing gear first, preserve active bill, bounded one-item recipe | `policy/gear.go` proposals | Equip/wear with a, workshop bills and ingredient/labor accounting. Observe exact equipped output; preserve material/forced-gear policy. |
 | `EnsureResearch`: active-goal unavailable ThingDef/RecipeDef prerequisites, bench then project, native-research wait | Definition availability/building execution | Typed queue, prerequisite selection, research action and service wiring. Observe native progress/completion; cancelled/adviser goals cannot request work. Later development-tuple branch in `compile` is shadowed by earlier research delegation. |
-| `EnsureBasicPower`: connect/generate, solar-flare wait | Power policy and shared power construction | **Closed** — `policy.SelectPowerMethod` plus `buildingruntime`'s `RoutinePowerPlanner`/composition/CLI wiring already reconcile topology composition and simulation wait and observe powered service/capacity (see 05.5 slice 3 handoff). |
+| `EnsureBasicPower`: connect/generate, solar-flare wait | Power policy and shared power construction | **Closed** — `policy.SelectPowerMethod` plus `buildingruntime`'s `RoutinePowerPlanner`/composition/CLI wiring already reconcile topology composition and simulation wait and observe powered service/capacity. |
 | `MaintainResource-*`: progress/prerequisite refresh, sources before recipes, material storage, pending work/existing bill wait | Resource rules/forecasts/building accounting | Dynamic targets, acquisition/mining and bills with exact excavation progress. Port delegated extraction/facility/refrigeration prerequisites at their consuming method. Observe replenished stock, not pending yield. |
 | `MaintainMedicalReserves`: `medical_reserves.reserve_method` delegates remaining herbal deficit | Medical reserve need/hysteresis | Same resource production path; better usable medicine reduces deficit. Observe usable reserve recovery without changing care policy. |
 
