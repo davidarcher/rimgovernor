@@ -504,6 +504,7 @@ func (s *ScenarioClock) Change(ctx context.Context, speed string, maxTicks uint6
 		return nil, fmt.Errorf("pre-start status identity mismatch: %#v", beforeStatus)
 	}
 	var watermark uint64
+	var freshEpoch bool
 	if cursor, ok := beforeStatus["newestCursor"]; ok {
 		watermark, err = scenarioInteger(cursor)
 		if err != nil {
@@ -513,6 +514,7 @@ func (s *ScenarioClock) Change(ctx context.Context, speed string, maxTicks uint6
 		if _, fresh := beforeStatus["neverStarted"]; !fresh || len(s.Controls) != 0 {
 			return nil, fmt.Errorf("expected a fresh profile with no owned epoch: %#v", beforeStatus)
 		}
+		freshEpoch = true
 	}
 	status, err := s.Control(ctx, "start", map[string]any{
 		"authority": s.precondition(),
@@ -536,6 +538,15 @@ func (s *ScenarioClock) Change(ctx context.Context, speed string, maxTicks uint6
 		}
 	}
 	status["newestCursor"] = watermark
+	// freshEpoch marks a window whose pre-start status reported neverStarted
+	// (durableEvents=false is a legitimate, native-acknowledged state in that
+	// case, mirroring go/internal/policy/clock_window.go's own admission check).
+	// AdvanceGame must not poll clock_read_events for such a window: with no
+	// prior owned epoch, cursor 0 can still land on retained events from
+	// unrelated activity (e.g. authority acquire/revoke churn) that the native
+	// clock reader refuses as lacking canonical ownership, rather than an empty
+	// page.
+	status["freshEpoch"] = freshEpoch
 	return status, nil
 }
 
@@ -773,6 +784,18 @@ func AdvanceGame(ctx context.Context, rt *ScenarioRuntime, ticks uint64, opts ..
 				return err
 			}
 			cursor, _ := started["newestCursor"].(uint64)
+			// Poll (only reachable below via the tick_budget completion path) reads
+			// from supervisor.cursor, which starts at zero; without this, a
+			// supervisor whose owned epoch began after other activity already wrote
+			// retained events (e.g. authority acquire/revoke churn before the clock
+			// ever started) would poll from before those events and be refused with
+			// FAILURE_CODE_UNAVAILABLE ("retained legacy event lacks canonical
+			// ownership"). watermark/newestCursor is exactly the exclusive
+			// pre-dispatch cursor Start already computed to exclude that noise, so
+			// seed supervisor.cursor with it (monotonically, never regressing).
+			if cursor > supervisor.cursor {
+				supervisor.cursor = cursor
+			}
 			for {
 				state, err = supervisor.Call(ctx, "status", nil)
 				if err != nil {
@@ -816,12 +839,14 @@ func AdvanceGame(ctx context.Context, rt *ScenarioRuntime, ticks uint64, opts ..
 				if err := require(remaining == 0, "Native tick budget ended early"); err != nil {
 					return err
 				}
-				events, err := supervisor.Poll(ctx)
-				if err != nil {
-					return err
+				if fresh, _ := started["freshEpoch"].(bool); !fresh {
+					events, err := supervisor.Poll(ctx)
+					if err != nil {
+						return err
+					}
+					rt.clockEvents = append(rt.clockEvents, events...)
+					rt.receiveClockEvents()
 				}
-				rt.clockEvents = append(rt.clockEvents, events...)
-				rt.receiveClockEvents()
 				if err := require(supervisor.Hold == "", "External clock hold"); err != nil {
 					return err
 				}

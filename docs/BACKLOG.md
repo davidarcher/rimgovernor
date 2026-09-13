@@ -2815,6 +2815,43 @@ main. Native package and Go production cutover remain independent.
       deleted, its manual entries in `contracts/domain-inventory.json` and
       `contracts/interface-inventory.json` removed, and `docs/developers/
       testing/native-clock.md` repointed at the new binary.
+    - [x] **`native_guarded_construction_acceptance.py` → `cmd/guardedconstructionaccept`
+      (Go binary live-verified; Python retirement deferred — see below).**
+      Disposable ordinary WoodLog Wall construction under guarded authority:
+      external-authority-revocation semantics (manual/external-order/player-
+      control/lease-expiry), attempt-conflict and replay idempotency, and Go
+      durable restart reconciliation (`cmd/buildingsmoke` place then observe
+      against the same on-disk plan/state). This script had never actually
+      been run against live native runtime before this port, and doing so
+      surfaced four real defects along the way, none of them Go-porting
+      mistakes: (1) the Python source's own assumption about `observations_
+      list_buildings`' `building.snapshot` field shape was wrong — the native
+      mod returns a row-level CAS `snapshot` handle, not a `building.snapshot`
+      issue; (2) the construction-wait loop needs its authority grant
+      re-acquired immediately before starting (the lease-expiry test and the
+      Go place subprocess both elapse it); (3) `nativeaccept.ScenarioClock`'s
+      event-cursor bookkeeping — shared by every accept binary that uses
+      `AdvanceGame`, in `scenario.go`, not scoped to this binary — starts
+      polling from cursor 0 unconditionally, which a busy session (lots of
+      authority churn before the clock's first start) can turn into a hard
+      refusal (`FAILURE_CODE_UNAVAILABLE`, "retained legacy event lacks
+      canonical ownership"); fixed by seeding the cursor from each window's
+      own start watermark and skipping the poll entirely on a fresh
+      (never-started) epoch, matching `policy/clock_window.go`'s own
+      admission rule that `durableEvents=false` is expected exactly then; (4)
+      Go observe's `ObserveTarget` only admits a target whose native writer
+      authority is inactive or already owned by its own session, so the
+      harness must explicitly revoke its own held authority before invoking
+      the observe phase, or every observe attempt fails with `ErrControl`
+      ("writer authority unavailable"). `go build`/`vet`/`test ./...` clean;
+      live-verified end to end (place, 13-window tick-advancing construction
+      wait, observe, final identity/pause check). **Not yet retired**:
+      `scripts/native_building_service_acceptance.py` and `scripts/native_go_
+      draft_acceptance.py` both `import ScenarioClock`/`outcome` from this
+      file as shared test infrastructure, so deleting it would break two
+      still-Python acceptance scripts outside this sub-slice's scope. Leave
+      the Python file in place until whichever future sub-slice ports one of
+      those two callers also extracts (or reimplements) that shared helper.
   - [ ] **Slice 5 — Docker/container acceptance path (last; needs Linux).**
     `scripts/container_scenario.py` + `scripts/container_*_acceptance.py` (11
     files) drive the Linux Docker native runner, a different harness than
