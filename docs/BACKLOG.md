@@ -1243,6 +1243,42 @@ without pushes, when the target checkout is safe; preserve other developers' wor
     - Full `go build ./... && go vet ./... && GOMAXPROCS=2 go test -p 1 ./...`
       passes across the whole module, including the new `bridge` coverage.
 
+    **Claude handoff: 05.5 slice 6 (`MaintainResource-*` — source-selection method choice)**
+
+    - `GearProduce` still isn't closeable this pass (needs a new bridge
+      census plus the full dispatch vertical, per slice 5), so continued
+      `MaintainResource-*` instead, per the assessment that a full vertical
+      (domain/store/executor/buildingruntime dispatch) remains oversized for
+      one pass but a further well-tested policy-level method-selection step
+      is exactly right-sized — the same category of unit `SelectGearMethod`/
+      `SelectPowerMethod` are.
+    - Added `SelectResourceSources` to `go/internal/policy/
+      resource_production.go` (+ 9 more unit tests, 24 total in that file):
+      ports `resource_method`'s acquisition-source selection loop —
+      nearest-first ordering, skipping designated/zero-yield sources, a
+      "mine" source usable only with native `open_surface` safety
+      confirmation (an older companion cannot certify excavation geometry
+      otherwise), at most one mine source ever selected per call and never
+      after any other source has already been selected (`if method=='mine'
+      and selected: break` in the Python — a real subtlety a first draft
+      test got backwards until the port caught it), and the native 8-source
+      cap. This is real method-selection logic, not a data primitive, but is
+      still deliberately scoped to just the acquisition-source half of
+      `resource_method`: the storage-zone sizing, bill discovery/creation
+      (now buildable on top of `ResourceRecipeDeficits` from slice 3), and
+      deep-extraction delegation branches remain unported, and none of this
+      is wired into domain/store/executor/buildingruntime yet.
+    - Full `go build ./... && go vet ./... && GOMAXPROCS=2 go test -p 1 ./...`
+      passes across the whole module.
+    - Still open: the rest of `resource_method` (storage zoning, bill
+      selection, deep-extraction delegation, the `refresh_resource_prerequisite`
+      re-check path) and the entire dispatch vertical for
+      `MaintainResource-*`; `GearProduce`'s missing bridge census and
+      dispatch vertical; `MaintainMedicalReserves`; `EnsureResearch`'s
+      `refresh()`/`method()`/`selected()`/`validate_dispatch()` state machine
+      and its own dispatch vertical. All gameplay/native acceptance remains
+      gated on G01.12 per this doc's stated delivery rule.
+
   - [ ] **05.6 — Management and service recovery (G01.07e).**
     Compose dynamic mood, ongoing care/surgery, population, herd, waste and trade
     needs with their executable methods. Reuse b/d for `MaintainAnimalFeed` and

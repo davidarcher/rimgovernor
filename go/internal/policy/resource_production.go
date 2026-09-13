@@ -2,6 +2,7 @@ package policy
 
 import (
 	"errors"
+	"sort"
 
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 )
@@ -95,4 +96,74 @@ func ResourceExtractionAdvanced(tick, lastProgressTick domain.Tick, mining, prio
 		}
 	}
 	return false
+}
+
+// ResourceSourceMethod names how one native resource source is acquired.
+// "mine" sources need excavation and are subject to the one-per-selection
+// and safety rules below; any other value (harvest, haul, etc.) is treated
+// as an ordinary, freely combinable source.
+type ResourceSourceMethod string
+
+const ResourceSourceMine ResourceSourceMethod = "mine"
+
+// ResourceSource mirrors one native home/resource_sources row.
+type ResourceSource struct {
+	ThingID    string
+	Yield      int64
+	Distance   float64
+	Method     ResourceSourceMethod
+	Designated bool
+	// Safety gates a "mine" source only: an older companion cannot certify
+	// excavation geometry, so a mine source is usable only when native
+	// reports "open_surface".
+	Safety    string
+	WorkTypes []WorkType
+}
+
+// SelectResourceSources chooses, nearest first, the undesignated sources
+// whose combined yield covers the outstanding deficit (target minus current
+// stock minus already-pending acquisition), mirroring
+// production_policy.py's resource_method acquisition loop. At most one
+// "mine" source is ever selected per call — one excavation identity per
+// method preserves cancellation across a changing stock target without
+// retaining an unbounded second source ledger — and it is the last source
+// selected. A "mine" source lacking native "open_surface" safety
+// confirmation can never be selected. The result is capped at 8 sources,
+// matching the native selection this ports.
+func SelectResourceSources(sources []ResourceSource, target, stock, pending int64) []ResourceSource {
+	needed := target - stock - pending
+	if needed <= 0 {
+		return nil
+	}
+	usable := make([]ResourceSource, 0, len(sources))
+	for _, s := range sources {
+		if s.Method == ResourceSourceMine && s.Safety != "open_surface" {
+			continue
+		}
+		usable = append(usable, s)
+	}
+	sort.SliceStable(usable, func(i, j int) bool {
+		if usable[i].Distance != usable[j].Distance {
+			return usable[i].Distance < usable[j].Distance
+		}
+		return usable[i].ThingID < usable[j].ThingID
+	})
+	var selected []ResourceSource
+	for _, s := range usable {
+		if needed <= 0 || len(selected) == 8 {
+			break
+		}
+		if s.Designated || s.Yield <= 0 {
+			continue
+		}
+		if s.Method == ResourceSourceMine && len(selected) > 0 {
+			break
+		}
+		selected = append(selected, s)
+		needed -= s.Yield
+		if s.Method == ResourceSourceMine {
+			break
+		}
+	}
+	return selected
 }

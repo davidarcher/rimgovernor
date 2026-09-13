@@ -99,3 +99,102 @@ func TestResourceExtractionAdvancedUnseenIdentityIsNotProgress(t *testing.T) {
 		t.Fatalf("expected a newly observed identity with no prior baseline to not count as progress")
 	}
 }
+
+func TestSelectResourceSourcesNoDeficitSelectsNothing(t *testing.T) {
+	sources := []ResourceSource{{ThingID: "a", Yield: 50, Distance: 1}}
+	if got := SelectResourceSources(sources, 100, 100, 0); got != nil {
+		t.Fatalf("got %v", got)
+	}
+}
+
+func TestSelectResourceSourcesAccountsForStockAndPending(t *testing.T) {
+	sources := []ResourceSource{{ThingID: "a", Yield: 10, Distance: 1}}
+	// target 100, stock 95, pending 5 -> needed 0
+	if got := SelectResourceSources(sources, 100, 95, 5); got != nil {
+		t.Fatalf("got %v", got)
+	}
+}
+
+func TestSelectResourceSourcesOrdersByDistanceThenThingID(t *testing.T) {
+	sources := []ResourceSource{
+		{ThingID: "far", Yield: 100, Distance: 10},
+		{ThingID: "near", Yield: 100, Distance: 1},
+	}
+	got := SelectResourceSources(sources, 50, 0, 0)
+	if len(got) != 1 || got[0].ThingID != "near" {
+		t.Fatalf("got %v", got)
+	}
+}
+
+func TestSelectResourceSourcesSkipsDesignatedAndZeroYield(t *testing.T) {
+	sources := []ResourceSource{
+		{ThingID: "designated", Yield: 100, Distance: 1, Designated: true},
+		{ThingID: "empty", Yield: 0, Distance: 2},
+		{ThingID: "usable", Yield: 100, Distance: 3},
+	}
+	got := SelectResourceSources(sources, 50, 0, 0)
+	if len(got) != 1 || got[0].ThingID != "usable" {
+		t.Fatalf("got %v", got)
+	}
+}
+
+func TestSelectResourceSourcesCombinesMultipleUntilCovered(t *testing.T) {
+	sources := []ResourceSource{
+		{ThingID: "a", Yield: 30, Distance: 1},
+		{ThingID: "b", Yield: 30, Distance: 2},
+		{ThingID: "c", Yield: 30, Distance: 3},
+	}
+	got := SelectResourceSources(sources, 50, 0, 0)
+	if len(got) != 2 || got[0].ThingID != "a" || got[1].ThingID != "b" {
+		t.Fatalf("got %v", got)
+	}
+}
+
+func TestSelectResourceSourcesMineRequiresOpenSurfaceSafety(t *testing.T) {
+	sources := []ResourceSource{
+		{ThingID: "unsafe", Yield: 100, Distance: 1, Method: ResourceSourceMine, Safety: "unknown"},
+		{ThingID: "safe", Yield: 100, Distance: 2, Method: ResourceSourceMine, Safety: "open_surface"},
+	}
+	got := SelectResourceSources(sources, 50, 0, 0)
+	if len(got) != 1 || got[0].ThingID != "safe" {
+		t.Fatalf("got %v", got)
+	}
+}
+
+func TestSelectResourceSourcesAtMostOneMinePerCall(t *testing.T) {
+	sources := []ResourceSource{
+		{ThingID: "mine1", Yield: 10, Distance: 1, Method: ResourceSourceMine, Safety: "open_surface"},
+		{ThingID: "mine2", Yield: 10, Distance: 2, Method: ResourceSourceMine, Safety: "open_surface"},
+		{ThingID: "surface", Yield: 100, Distance: 3},
+	}
+	got := SelectResourceSources(sources, 50, 0, 0)
+	if len(got) != 1 || got[0].ThingID != "mine1" {
+		t.Fatalf("expected only the nearest mine source and nothing after it, got %v", got)
+	}
+}
+
+func TestSelectResourceSourcesMineNeverFollowsAnyPriorSelection(t *testing.T) {
+	// A mine source is only ever added when nothing has been selected yet --
+	// ordinary sources selected first stop the loop before a later mine
+	// source is reached, matching production_policy.py's
+	// "if method == 'mine' and selected: break".
+	sources := []ResourceSource{
+		{ThingID: "surface", Yield: 10, Distance: 1},
+		{ThingID: "mine1", Yield: 100, Distance: 2, Method: ResourceSourceMine, Safety: "open_surface"},
+	}
+	got := SelectResourceSources(sources, 50, 0, 0)
+	if len(got) != 1 || got[0].ThingID != "surface" {
+		t.Fatalf("got %v", got)
+	}
+}
+
+func TestSelectResourceSourcesCapAtEight(t *testing.T) {
+	var sources []ResourceSource
+	for i := 0; i < 12; i++ {
+		sources = append(sources, ResourceSource{ThingID: string(rune('a' + i)), Yield: 1, Distance: float64(i)})
+	}
+	got := SelectResourceSources(sources, 1000, 0, 0)
+	if len(got) != 8 {
+		t.Fatalf("got %d sources", len(got))
+	}
+}
