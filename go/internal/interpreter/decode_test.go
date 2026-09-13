@@ -78,3 +78,29 @@ func TestModelResearchShape(t *testing.T) {
 		})
 	}
 }
+
+func TestModelTendAndRescueShape(t *testing.T) {
+	result, err := decode(`{"command":"tend","doctor":"Thing_Doc","patient":"Thing_Pat"}`, 1)
+	if err != nil || result.Command != "tend" || result.First == nil || *result.First != "Thing_Doc" || result.Second == nil || *result.Second != "Thing_Pat" {
+		t.Fatalf("tend shape: %v %v", result, err)
+	}
+	result, err = decode(`{"command":"rescue","rescuer":"Thing_Res","patient":"Thing_Pat"}`, 1)
+	if err != nil || result.Command != "rescue" || result.First == nil || *result.First != "Thing_Res" || result.Second == nil || *result.Second != "Thing_Pat" {
+		t.Fatalf("rescue shape: %v %v", result, err)
+	}
+	for _, text := range []string{
+		`{"command":"tend"}`,
+		`{"command":"tend","doctor":"Thing_Doc"}`,
+		`{"command":"tend","doctor":null,"patient":"Thing_Pat"}`,
+		`{"command":"tend","doctor":"","patient":"Thing_Pat"}`,
+		`{"command":"tend","doctor":2,"patient":"Thing_Pat"}`,
+		`{"command":"tend","doctor":"Thing_Doc","patient":"Thing_Pat","dryRun":false}`,
+		`{"command":"rescue","doctor":"Thing_Doc","patient":"Thing_Pat"}`,
+		`{"command":"rescue","rescuer":"Thing_Res"}`,
+	} {
+		t.Run(text, func(t *testing.T) {
+			_, err := decode(text, 1)
+			assertKind(t, err, InvalidCommand)
+		})
+	}
+}

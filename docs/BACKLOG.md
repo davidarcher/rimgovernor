@@ -1335,12 +1335,15 @@ b; exact worker cleanup by a, with reuse by their later consumers.
   **Exit evidence:** representative scripted invalid/cancelled replies and actual
   configured LM Studio requests execute supported commands; advisers cannot mutate
   the game and there is no paid-provider fallback.
-  The interpreter now decodes a second command kind end to end: `research`
-  selects one already-observed selectable project into the existing
-  `ResearchSelectAction`, reusing its unchanged store/policy/executor pipeline.
+  The interpreter now decodes three command kinds end to end, each reusing its
+  unchanged existing store/policy/executor pipeline: `research` selects one
+  already-observed selectable project into `ResearchSelectAction`; `tend` and
+  `rescue` each select two distinct already-observed pawns (doctor/patient,
+  rescuer/patient) into `TendAction`/`RescueAction`. All three are single-
+  target (exactly one allocated action ID), unlike `build`'s variable count.
   Remaining: every other `player_commands.py` command family (goals/resources,
   population/surgery/herds, trade/world, adopt/relocate/cancel, zones, work
-  priorities, bills/temperature, draft/move/tend/rescue), consultation/scout/
+  priorities, bills/temperature, draft/move), consultation/scout/
   visual review, knowledge/memory/evidence retrieval, streaming, deduplication
   and explicit cancellation. Naming confirmation additionally needs new native
   work: only the detection half exists (`policy.ConfirmColonyNames`,

@@ -270,3 +270,72 @@ func TestResearchProjectsValidatedAndBounded(t *testing.T) {
 	_, err = i.Interpret(context.Background(), input)
 	assertKind(t, err, InvalidInput)
 }
+
+func TestTendAndRescueProposals(t *testing.T) {
+	for _, tc := range []struct {
+		command, roleA, roleB string
+	}{{"tend", "doctor", "patient"}, {"rescue", "rescuer", "patient"}} {
+		t.Run(tc.command, func(t *testing.T) {
+			text := `{"command":"` + tc.command + `","` + tc.roleA + `":"Thing_A","` + tc.roleB + `":"Thing_B"}`
+			i := clientFixture(t, func(context.Context, model.Request) (model.Response, error) {
+				return model.Response{Text: text, FinishReason: model.Stop}, nil
+			})
+			input := inputFixture()
+			input.Facts.Pawns = []domain.PawnID{"Thing_A", "Thing_B"}
+			proposal, err := i.Interpret(context.Background(), input)
+			if err != nil {
+				t.Fatal(err)
+			}
+			actions := proposal.Plan.Actions()
+			if len(actions) != 1 || actions[0].ID() != "a1" {
+				t.Fatal("incorrect action identity")
+			}
+			switch tc.command {
+			case "tend":
+				tend, ok := actions[0].Tend()
+				if !ok || tend.Doctor() != "Thing_A" || tend.Patient() != "Thing_B" {
+					t.Fatal("incorrect typed tend proposal")
+				}
+			case "rescue":
+				rescue, ok := actions[0].Rescue()
+				if !ok || rescue.Rescuer() != "Thing_A" || rescue.Patient() != "Thing_B" {
+					t.Fatal("incorrect typed rescue proposal")
+				}
+			}
+		})
+	}
+}
+
+func TestTendRescueRefusesUnknownPawnOrWrongActionCount(t *testing.T) {
+	response := func(context.Context, model.Request) (model.Response, error) {
+		return model.Response{Text: `{"command":"tend","doctor":"Thing_A","patient":"Thing_B"}`, FinishReason: model.Stop}, nil
+	}
+	i := clientFixture(t, response)
+	input := inputFixture()
+	// Neither pawn is in the observed facts.
+	_, err := i.Interpret(context.Background(), input)
+	assertKind(t, err, UnknownFacts)
+
+	input = inputFixture()
+	input.Facts.Pawns = []domain.PawnID{"Thing_A", "Thing_B"}
+	input.ActionIDs = append(input.ActionIDs, "a2")
+	i = clientFixture(t, response)
+	_, err = i.Interpret(context.Background(), input)
+	assertKind(t, err, InvalidCommand)
+}
+
+func TestPawnFactsValidatedAndBounded(t *testing.T) {
+	i := clientFixture(t, func(context.Context, model.Request) (model.Response, error) {
+		t.Fatal("model called")
+		return model.Response{}, nil
+	})
+	input := inputFixture()
+	input.Facts.Pawns = []domain.PawnID{"Thing_A", "Thing_A"}
+	_, err := i.Interpret(context.Background(), input)
+	assertKind(t, err, InvalidInput)
+
+	input = inputFixture()
+	input.Facts.Pawns = []domain.PawnID{""}
+	_, err = i.Interpret(context.Background(), input)
+	assertKind(t, err, InvalidInput)
+}

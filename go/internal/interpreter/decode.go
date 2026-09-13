@@ -23,6 +23,10 @@ type modelCommand struct {
 	Command   string
 	Buildings []modelBuilding
 	Project   *string
+	// First/Second hold tend's doctor/patient or rescue's rescuer/patient, in
+	// that role order; the field names are shared since both commands are the
+	// same two-distinct-pawn shape.
+	First, Second *string
 }
 
 func decode(text string, limit int) (modelCommand, error) {
@@ -50,8 +54,12 @@ func decode(text string, limit int) (modelCommand, error) {
 		return decodeBuild(fields, limit)
 	case "research":
 		return decodeResearch(fields)
+	case "tend":
+		return decodeTwoPawns(fields, "tend", "doctor", "patient")
+	case "rescue":
+		return decodeTwoPawns(fields, "rescue", "rescuer", "patient")
 	default:
-		return modelCommand{}, fail(UnsupportedCommand, "only building and research proposals are supported")
+		return modelCommand{}, fail(UnsupportedCommand, "only building, research, tend and rescue proposals are supported")
 	}
 }
 
@@ -95,6 +103,31 @@ func decodeResearch(fields map[string]json.RawMessage) (modelCommand, error) {
 		return modelCommand{}, fail(InvalidCommand, "invalid project field")
 	}
 	return modelCommand{Command: "research", Project: &project}, nil
+}
+
+func decodeTwoPawns(fields map[string]json.RawMessage, command, firstKey, secondKey string) (modelCommand, error) {
+	if len(fields) != 3 || fields[firstKey] == nil || fields[secondKey] == nil {
+		return modelCommand{}, fail(InvalidCommand, "unexpected command fields")
+	}
+	decodeField := func(key string) (*string, error) {
+		if bytes.Equal(bytes.TrimSpace(fields[key]), []byte("null")) {
+			return nil, fail(InvalidCommand, "missing "+key)
+		}
+		var value string
+		if err := json.Unmarshal(fields[key], &value); err != nil || value == "" {
+			return nil, fail(InvalidCommand, "invalid "+key+" field")
+		}
+		return &value, nil
+	}
+	first, err := decodeField(firstKey)
+	if err != nil {
+		return modelCommand{}, err
+	}
+	second, err := decodeField(secondKey)
+	if err != nil {
+		return modelCommand{}, err
+	}
+	return modelCommand{Command: command, First: first, Second: second}, nil
 }
 
 // Generic JSON token inspection is confined to this external text boundary.
