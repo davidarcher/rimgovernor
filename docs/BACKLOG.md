@@ -966,6 +966,92 @@ without pushes, when the target checkout is safe; preserve other developers' wor
     finished/equipped gear, research progress through completion, extracted stock
     and replenishment after a renewed target. Reuse accepted power/temperature paths.
 
+    **Claude handoff: 05.5 status (partial — MaintainEquipment wear/replace only)**
+
+    - Scoped down to the smallest ready sub-case: `policy/gear.go`
+      (`SelectGearMethod`, `EvaluateGearReplace` is new) already proposes
+      existing-gear replacement (`GearReplace`) before ever touching
+      workshop benches/recipes, and safely returns `GearUnknown` — never a
+      wrong method — while `Benches` stays
+      `domain.Unknown[[]policy.GearBench]()`. That let this session close
+      the wear-existing-item half of `MaintainEquipment` end to end without
+      touching the workshop-bill half or any of `EnsureResearch`/
+      `EnsureBasicPower`/`MaintainResource-*`/`MaintainMedicalReserves`,
+      which remain entirely unstarted.
+    - Added the full `GearReplace` action vertical, modeled directly on
+      05.3's Equip family (both are one-shot pawn/thing orders with no
+      draft prerequisite): domain (`go/internal/domain/gear_replace.go`,
+      `gear_replace_test.go`, wired into `plan.go`'s closed-variant
+      registry); policy (`go/internal/policy/gear_replace_admit.go`,
+      `gear_replace_admit_test.go`: `EvaluateGearReplace` mirrors
+      `EvaluateEquip`'s refusal ordering, admitting one already-selected
+      pawn/item/loadout triple); store/admission
+      (`go/internal/store/gear_replace_admission.go`,
+      `gear_replace_admission_test.go`, schema 41, `actions`/
+      `gear_replace_admissions` wiring in `store.go`/`action_rows.go`);
+      executor state machine (`go/internal/executor/gear_replace.go`,
+      `gear_replace_types.go`, `gear_replace_test.go`, wired into
+      `executor.go`'s boundary composition and dispatch switch); bridge
+      (`go/internal/bridge/gear_replace.go`, `gear_replace_read.go` plus
+      their tests: `PreviewGearReplace`/`ApplyGearReplace`/
+      `LookupGearReplace`/`ObserveGearReplaceProgress` drive the existing
+      wire-level `Operation_ImproveGear`, reusing the generic
+      `EffectEvidence_Job`/`JobEffect` shape the same way Draft/Attack/Equip
+      do — no native protobuf gap exists for this path; `ReadGearReplacement`
+      reuses the generic `ReadColonyFacts(planning=true)` census, whose
+      `PlanningFacts.Gear` bridge already validates internally
+      (`validateColonyGear`), to refresh the pawn/item/outfit CAS tokens
+      immediately before dispatch); and the native boundary
+      (`go/internal/buildingruntime/gear_replace_boundary.go`:
+      `InspectGearReplace`/`GearReplacePawn`/`ObserveGearReplace`, modeled on
+      `equip_boundary.go`). Added the non-combinatorial `withGearReplace`
+      composer (`tend_rescue_equip_composition.go`) and
+      `RoutineGearPlanner` (`routine_gear.go`, binds to
+      `policy.MaintainEquipment`, decodes its own fresh gear census the same
+      way `RoutineEquipPlanner` rereads combat pawns rather than reusing the
+      review's cached facts). Extended both routine-dispatch allowlists 05.3
+      called out as the actual structural gap for this kind of family
+      (`routineExecutableKind` in `worker.go`, `clockSchedulerWork` in
+      `clock_scheduler.go`) to include `GearReplaceAction`. Wired
+      `GearReplace`/`RoutineGearPlanner` into `cmd/rimgovernor` (`serve.go`
+      flag `--routine-gear-plans`, requiring `--routine-methods`, in the same
+      groups as `--routine-equip-plans`; `serve_building.go` constructs
+      `bridge.NewGearReplaceWriter` and the matching `buildingruntime`
+      capability; `serve_clock.go` builds `RoutineGearPlanner` and attaches
+      it to `ClockSchedulerConfig`). Full
+      `go build ./... && go vet ./... && go test -p 1 ./...` passes across
+      the whole module, including new `domain`/`policy`/`bridge`/`executor`/
+      `store` gear-replace coverage.
+    - The native job name `gear_replace.go`'s `gearReplaceJobDef = "Wear"`
+      dispatches under is an unverified assumption — no native C# mod source
+      is present in this repo to confirm the exact `JobDef` string
+      `ImproveGear` issues (same limitation 05.3 hit for combat JobDefs it
+      could not verify). Flagged in code and left as an open native
+      acceptance item for G01.12, matching how 05.3 handled similar
+      native-contract assumptions. `buildingruntime` has no dedicated
+      boundary-level test file for `GearReplace` either (no
+      `equip_boundary_test.go` precedent to mirror, same as 05.3's Equip).
+    - Still open, explicitly deferred: the `GearProduce` workshop-bill half
+      of `MaintainEquipment` — `IngredientRequirement` (observationspb)
+      exposes only one `Required`/`Available`/`Missing` triple per slot, not
+      per-alternative amounts, which does not cleanly map to
+      `policy.GearRecipe.Ingredients domain.Fact[[][]Amount]`'s
+      per-alternative cost model, and needs further design before it can be
+      wired. Separately — and this also currently limits the replace half
+      just shipped — `SelectGearMethod`'s own funding check
+      (`gearIngredients`) requires a real `policy.Stock` entry for a
+      candidate's resource to prove it is "funded" before proposing
+      `GearReplace`; `RoutineGearPlanner` does not yet supply `Stock` (no
+      resource-stock plumbing into any planning request exists anywhere in
+      `buildingruntime` yet, not just for gear), so `SelectGearMethod`
+      currently and safely returns `GearUnknown` rather than ever
+      proposing a wrong method — `RoutineGearPlanner` is wired and will
+      dispatch correctly once that stock plumbing lands, but does not yet
+      actively propose replacements. `EnsureResearch`, `EnsureBasicPower`,
+      `MaintainResource-*` and `MaintainMedicalReserves` are entirely
+      unstarted. All gameplay/native acceptance remains gated on G01.12 per
+      this doc's stated delivery rule.
+
   - [ ] **05.6 — Management and service recovery (G01.07e).**
     Compose dynamic mood, ongoing care/surgery, population, herd, waste and trade
     needs with their executable methods. Reuse b/d for `MaintainAnimalFeed` and

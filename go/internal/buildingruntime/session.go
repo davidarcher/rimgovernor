@@ -30,6 +30,7 @@ type SessionConfig struct {
 	Tend           *TendCapabilities
 	Rescue         *RescueCapabilities
 	Equip          *EquipCapabilities
+	GearReplace    *GearReplaceCapabilities
 }
 
 // Session binds the single profile owner to one journal and executor. Its caller
@@ -265,6 +266,9 @@ func NewSession(ctx context.Context, config SessionConfig, journal *store.Store,
 	if config.Equip != nil && (config.Equip.Native == nil || config.Equip.Writer == nil) {
 		return cleanup(ErrControl)
 	}
+	if config.GearReplace != nil && (config.GearReplace.Native == nil || config.GearReplace.Writer == nil) {
+		return cleanup(ErrControl)
+	}
 	var routine []executor.RoutineScope
 	if config.RoutineMethods {
 		routine = append(routine, journal)
@@ -346,6 +350,15 @@ func NewSession(ctx context.Context, config SessionConfig, journal *store.Store,
 			return cleanup(err)
 		}
 		if err := worker.EnableEquip(equipBoundary); err != nil {
+			return cleanup(err)
+		}
+	}
+	if config.GearReplace != nil {
+		gearReplaceBoundary, err := NewGearReplaceBoundary(config.GearReplace.Native, config.GearReplace.Writer, sessionBuildingLeases{control, journal, config.RoutineMethods, config.Executor.JournalTimeout}, clock, string(namespace))
+		if err != nil {
+			return cleanup(err)
+		}
+		if err := worker.EnableGearReplace(gearReplaceBoundary); err != nil {
 			return cleanup(err)
 		}
 	}

@@ -50,6 +50,7 @@ type ClockSchedulerConfig struct {
 	Rescue                           *RoutineRescuePlanner
 	Equip                            *RoutineEquipPlanner
 	SecureSupplies                   *RoutineSecureSuppliesPlanner
+	Gear                             *RoutineGearPlanner
 	RoutineMethods                   bool
 }
 type ClockSchedulerResult struct {
@@ -74,6 +75,7 @@ type ClockSchedulerResult struct {
 	Rescue                                        *RoutineRescueResult
 	Equip                                         *RoutineEquipResult
 	SecureSupplies                                *RoutineSecureSuppliesResult
+	Gear                                          *RoutineGearResult
 	Running, Reconciled, Cleaned                  bool
 }
 type ClockScheduler struct {
@@ -151,6 +153,9 @@ func NewClockScheduler(player *Player, session *Session, native ClockWindowNativ
 		return nil, ErrControl
 	}
 	if config.SecureSupplies != nil && (config.Routine == nil || config.SecureSupplies.reviewer != config.Routine) {
+		return nil, ErrControl
+	}
+	if config.Gear != nil && (config.Routine == nil || config.Gear.reviewer != config.Routine) {
 		return nil, ErrControl
 	}
 	if config.RoutineMethods && (config.Routine == nil || !session.routineMethods) {
@@ -304,6 +309,13 @@ func (s *ClockScheduler) Step(ctx context.Context) (ClockSchedulerResult, error)
 			return out, err
 		}
 		out.SecureSupplies = &method
+	}
+	if s.config.Gear != nil {
+		method, err := s.config.Gear.step(call, epoch)
+		if err != nil {
+			return out, err
+		}
+		out.Gear = &method
 	}
 	emergency, _, err := s.native.ReadEmergency(call, loaded.Context.Identity)
 	if err != nil {
@@ -609,7 +621,7 @@ func clockSchedulerWork(plan store.PlanState, current domain.GenerationSnapshot)
 			switch p.Action().Kind() {
 			case domain.AcquisitionAction, domain.ProductionBillAction, domain.OwnedDraftAction,
 				domain.MeleeAttackAction, domain.RangedAttackAction, domain.TendAction, domain.RescueAction,
-				domain.HaulAction, domain.EquipAction:
+				domain.HaulAction, domain.EquipAction, domain.GearReplaceAction:
 			default:
 				return false, nil, executor.ErrHeld
 			}

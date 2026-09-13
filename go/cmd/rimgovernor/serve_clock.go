@@ -43,7 +43,7 @@ func serviceClockConfig(profile string) buildingruntime.ClockSchedulerConfig {
 
 // Session owns the attached worker's drain, including failed startup cleanup.
 // Starting these loops does not enable Player or acquire native authority.
-func startServiceClock(ctx context.Context, player *buildingruntime.Player, session *buildingruntime.Session, reads serviceClockReads, profile string, timeout time.Duration, routine, sleeping, cooking, shelter, comfort, expansion, power, temperature bool, projectLimit int, supplies, work, acquisition, defense, tend, rescue, equip, secureSupplies bool, fieldOptions ...bool) error {
+func startServiceClock(ctx context.Context, player *buildingruntime.Player, session *buildingruntime.Session, reads serviceClockReads, profile string, timeout time.Duration, routine, sleeping, cooking, shelter, comfort, expansion, power, temperature bool, projectLimit int, supplies, work, acquisition, defense, tend, rescue, equip, secureSupplies, gear bool, fieldOptions ...bool) error {
 	config := serviceClockConfig(profile)
 	config.RoutineMethods = session.RoutineMethodsEnabled()
 	fields := len(fieldOptions) >= 1 && fieldOptions[0]
@@ -52,7 +52,7 @@ func startServiceClock(ctx context.Context, player *buildingruntime.Player, sess
 	if len(fieldOptions) > 3 {
 		return errors.New("invalid field option")
 	}
-	if (bills || fields || foodStorage || acquisition || work || supplies || sleeping || cooking || shelter || comfort || expansion || power || temperature || defense || tend || rescue || equip || secureSupplies) && !routine {
+	if (bills || fields || foodStorage || acquisition || work || supplies || sleeping || cooking || shelter || comfort || expansion || power || temperature || defense || tend || rescue || equip || secureSupplies || gear) && !routine {
 		return errors.New("building plans require routine reviews")
 	}
 	if routine {
@@ -200,6 +200,16 @@ func startServiceClock(ctx context.Context, player *buildingruntime.Player, sess
 				return errors.New("secure supplies plans require typed colony and tend observations")
 			}
 			config.SecureSupplies, err = buildingruntime.NewRoutineSecureSuppliesPlanner(reviewer, secureSuppliesNative)
+			if err != nil {
+				return err
+			}
+		}
+		if gear {
+			gearNative, ok := reads.(buildingruntime.RoutineGearSource)
+			if !ok {
+				return errors.New("gear plans require typed colony observations")
+			}
+			config.Gear, err = buildingruntime.NewRoutineGearPlanner(reviewer, gearNative)
 			if err != nil {
 				return err
 			}

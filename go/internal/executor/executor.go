@@ -120,6 +120,8 @@ type Executor struct {
 	haulJournal        HaulJournal
 	equip              EquipBoundary
 	equipJournal       EquipJournal
+	gearReplace        GearReplaceBoundary
+	gearReplaceJournal GearReplaceJournal
 	ranged             RangedBoundary
 	rangedJournal      RangedJournal
 	routineScope       RoutineScope
@@ -321,6 +323,9 @@ func (e *Executor) Run(ctx context.Context, plan domain.PlanID, actionID domain.
 	}
 	if action.Kind() == domain.EquipAction && e.equip != nil {
 		return e.runEquip(ctx, action, progress, authority, generation)
+	}
+	if action.Kind() == domain.GearReplaceAction && e.gearReplace != nil {
+		return e.runGearReplace(ctx, action, progress, authority, generation)
 	}
 	if action.Kind() == domain.MeleeAttackAction && e.melee != nil {
 		return e.runMelee(ctx, action, progress, authority, generation)
