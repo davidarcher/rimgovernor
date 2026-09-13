@@ -722,21 +722,21 @@ without pushes, when the target checkout is safe; preserve other developers' wor
     (`policy.SelectAnimalContainmentMethod`) plus a self-contained
     `RoutineAnimalContainmentPlanner` (deliberately independent of the
     shared shelter/sleeping switch to avoid colliding with 05.4/05.5) wired
-    behind `--routine-animal-containment-plans`. `MaintainAnimalFeed` is
-    blocked on 05.5's `MaintainResource-*` acquisition plumbing landing
-    first. Native contracts for `EnsureMood-*` relief
-    (`Operations.RelieveNeed`, `NativeMoodReliefOperations.cs`,
-    `go/internal/bridge/mood_relief.go`) and `RecoverDisasterServices`'s
-    repair/breakdown/refuel service jobs (`Operations.RecoverService`,
-    `NativeRecoveryOperations.cs`, `go/internal/bridge/disaster_recovery.go`)
-    are now implemented end to end, though disaster recovery's repair work
-    still waits on 05.4's `MaintainEssentialRepairs` landing per this item's
-    reuse instruction. `MaintainHerd-*`, `MaintainWaste`, trade and
-    `Population-*`'s `equip` sub-step still have no native dispatch; their
-    `operationspb` messages (`SetAnimalTraining`/`SlaughterAnimal`,
-    `ManageWaste`, `OpenTrade`/`SetTradeLines`/`AcceptTrade`/`EndTrade`) are
-    already generated, so only the native tool and Go bridge wrapper remain,
-    not a proto change. `MaintainMedicalCare`'s settings-write half and every
+    behind `--routine-animal-containment-plans`. `RecoverDisasterServices`'s
+    repair/breakdown/refuel service-job dispatch is now code-complete too:
+    domain/policy/store/executor/buildingruntime vertical plus
+    `RoutineRecoveryPlanner` behind `--routine-recovery-plans`, dispatching
+    only `RecoveryServiceProposal` candidates from
+    `policy.SelectRecoveryMethods` (the `RecoveryAreaProposal`
+    restriction half is still open, pending a native area-restriction
+    admission operation). `MaintainAnimalFeed` is blocked on 05.5's
+    `MaintainResource-*` acquisition plumbing landing first.
+    `MaintainHerd-*`, `MaintainWaste`, trade and `Population-*`'s `equip`
+    sub-step still have no native dispatch; their `operationspb` messages
+    (`SetAnimalTraining`/`SlaughterAnimal`, `ManageWaste`,
+    `OpenTrade`/`SetTradeLines`/`AcceptTrade`/`EndTrade`) are already
+    generated, so only the native tool and Go bridge wrapper remain, not a
+    proto change. `MaintainMedicalCare`'s settings-write half and every
     other e-row family's need/health/stock/custody/service composition
     remain unstarted. G01.12 gameplay acceptance gates the whole item.
 
