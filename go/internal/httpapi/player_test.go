@@ -237,3 +237,15 @@ func (f *playerFixture) SubmitDraft(ctx context.Context, q store.DraftSubmission
 	f.calls++
 	return f.journal.SubmitDraft(ctx, q)
 }
+func (f *playerFixture) SubmitCaravanDeparture(ctx context.Context, q store.CaravanDepartureSubmissionRequest) (store.CaravanDepartureSubmission, bool, error) {
+	f.calls++
+	return f.journal.SubmitCaravanDeparture(ctx, q)
+}
+func (f *playerFixture) SubmitQuestAccept(ctx context.Context, q store.QuestAcceptSubmissionRequest) (store.QuestAcceptSubmission, bool, error) {
+	f.calls++
+	return f.journal.SubmitQuestAccept(ctx, q)
+}
+func (f *playerFixture) SubmitSettlementGift(ctx context.Context, q store.SettlementGiftSubmissionRequest) (store.SettlementGiftSubmission, bool, error) {
+	f.calls++
+	return f.journal.SubmitSettlementGift(ctx, q)
+}

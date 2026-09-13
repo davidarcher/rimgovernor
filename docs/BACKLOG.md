@@ -1155,6 +1155,20 @@ b; exact worker cleanup by a, with reuse by their later consumers.
   constructs `CaravanJourneyTracker` in `serve_clock.go`'s `startServiceClock`
   the same way every other clock-scheduled planner is wired and sets
   `ClockSchedulerConfig.CaravanJourney`, so it now actually runs outside tests.
+  `cmd/rimgovernor serve`'s `openBuildingService`/`SessionConfig` now also
+  construct and wire `CaravanDepartureCapabilities` unconditionally (native
+  `client`, `bridge.NewCaravanDepartureWriter`, a fixed
+  `defaultCaravanDeparturePolicy` not yet operator-configurable), the same
+  way `Draft`/`QuestAccept`/`SettlementGift` are always present; previously
+  `SessionConfig.CaravanDeparture` was left nil there, so `EnableCaravanDeparture`
+  never ran outside tests despite the rest of the vertical being wired. HTTP
+  routes now submit all three player-command verticals: `POST`/`GET`
+  `/api/caravan-departures/plans`\|`/submission`, `/api/quest-accepts/plans`\|
+  `/submission`, `/api/settlement-gifts/plans`\|`/submission`
+  (`go/internal/httpapi/caravan_departure.go`, `quest_accept.go`,
+  `settlement_gift.go`), matching `SubmitBuilding`/`SubmitDraft`'s existing
+  decode/project/submit/lookup shape and player-token auth; `PlayerBuildings`/
+  `ControlReader` grew the corresponding `Submit*`/`Lookup*Submission` methods.
   **Not yet done:** no headless/native-acceptance run exercised any of this
   against a live game (requires the private Linux game/mods/GABS inputs
   `docker-native.md`/`world-progression.md` describe, not available in this
@@ -1179,8 +1193,7 @@ b; exact worker cleanup by a, with reuse by their later consumers.
   `SessionConfig` now construct and wire `QuestAcceptCapabilities`
   unconditionally (native `client`, `bridge.NewQuestAcceptWriter`), the same
   way `Draft` is always present, so `EnableQuestAccept` actually runs in the
-  live server instead of only in tests. No HTTP route submits it yet — neither
-  does `SubmitCaravanDeparture`. `FulfillQuest`
+  live server instead of only in tests. `FulfillQuest`
   is deliberately out of scope this round: unlike acceptance it is not a direct
   settings write — it requires a caravan currently at the exact quest
   settlement (`CaravanVisitUtility.SettlementVisitedNow`), a `TradeRequestComp`,
@@ -1217,8 +1230,7 @@ b; exact worker cleanup by a, with reuse by their later consumers.
   construct and wire `SettlementGiftCapabilities` unconditionally (native
   `client`, `bridge.NewSettlementGiftWriter`), the same way `Draft` is always
   present, so `EnableSettlementGift` actually runs in the live server instead
-  of only in tests. No HTTP route submits it yet — neither does
-  `SubmitCaravanDeparture`. `FulfillQuest`
+  of only in tests. `FulfillQuest`
   and failure recovery across multiple active maps remain unstarted; each
   still needs its own native write handler plus a full Go vertical.
   **Exit evidence:** native departure, arrival, quest fulfillment/reward

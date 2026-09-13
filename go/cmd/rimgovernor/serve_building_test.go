@@ -102,6 +102,16 @@ func unusedSettlementGift() *buildingruntime.SettlementGiftCapabilities {
 	return &buildingruntime.SettlementGiftCapabilities{Native: caps, Writer: caps}
 }
 
+type unusedCaravanDepartureCapabilities struct {
+	buildingruntime.CaravanDepartureNative
+	buildingruntime.CaravanDepartureWriter
+}
+
+func unusedCaravanDeparture() *buildingruntime.CaravanDepartureCapabilities {
+	caps := unusedCaravanDepartureCapabilities{}
+	return &buildingruntime.CaravanDepartureCapabilities{Native: caps, Writer: caps, Policy: defaultCaravanDeparturePolicy}
+}
+
 func TestBuildingServiceSubmissionDoesNotAcquireAndShutdownJoins(t *testing.T) {
 	dir := t.TempDir()
 	fake := &buildingReadFake{serviceFake: serviceFake{entered: make(chan struct{}, 2)}}
@@ -113,7 +123,7 @@ func TestBuildingServiceSubmissionDoesNotAcquireAndShutdownJoins(t *testing.T) {
 	done := make(chan error, 1)
 	go func() {
 		done <- serveBuildingWithBridge(ctx, config, addresses, func(context.Context, bridge.ProcessConfig) (buildingServiceBridge, error) {
-			return buildingServiceBridge{reads: fake, native: caps, authority: caps, writes: caps, draft: unusedDrafts(), questAccept: unusedQuestAccept(), settlementGift: unusedSettlementGift()}, nil
+			return buildingServiceBridge{reads: fake, native: caps, authority: caps, writes: caps, draft: unusedDrafts(), questAccept: unusedQuestAccept(), settlementGift: unusedSettlementGift(), caravanDeparture: unusedCaravanDeparture()}, nil
 		})
 	}()
 	var address string

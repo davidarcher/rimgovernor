@@ -86,6 +86,27 @@ type Action struct {
 type Draft struct {
 	PawnID domain.PawnID `json:"pawnId"`
 }
+type CargoItem struct {
+	Definition string `json:"definition"`
+	Count      uint64 `json:"count,string"`
+}
+type CaravanDeparture struct {
+	Crew            []domain.PawnID `json:"crew"`
+	Cargo           []CargoItem     `json:"cargo"`
+	DestinationTile int32           `json:"destinationTile"`
+}
+type QuestAccept struct {
+	Quest        domain.QuestID `json:"quest"`
+	AccepterPawn domain.PawnID  `json:"accepterPawn"`
+	RewardChoice int32          `json:"rewardChoice"`
+}
+type SettlementGift struct {
+	Caravan    domain.CaravanID    `json:"caravan"`
+	Settlement domain.SettlementID `json:"settlement"`
+	Faction    domain.FactionID    `json:"faction"`
+	CrewIDs    []domain.PawnID     `json:"crewIds"`
+	Silver     int32               `json:"silver"`
+}
 type DraftCleanup struct {
 	Stage domain.DraftCleanupStage `json:"stage"`
 }

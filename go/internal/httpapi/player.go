@@ -19,6 +19,9 @@ import (
 type PlayerBuildings interface {
 	SubmitDraft(context.Context, store.DraftSubmissionRequest) (store.DraftSubmission, bool, error)
 	Submit(context.Context, store.SubmissionRequest) (store.Submission, bool, error)
+	SubmitCaravanDeparture(context.Context, store.CaravanDepartureSubmissionRequest) (store.CaravanDepartureSubmission, bool, error)
+	SubmitQuestAccept(context.Context, store.QuestAcceptSubmissionRequest) (store.QuestAcceptSubmission, bool, error)
+	SubmitSettlementGift(context.Context, store.SettlementGiftSubmissionRequest) (store.SettlementGiftSubmission, bool, error)
 	Acquire(context.Context, store.ControlRequest) (store.ControlRecord, error)
 	Manual(context.Context, store.ControlRequest) (store.ControlRecord, error)
 	State() buildingruntime.ControlState
@@ -28,6 +31,9 @@ type ControlReader interface {
 	CurrentControl(context.Context) (store.ControlRecord, error)
 	LookupControl(context.Context, string) (store.ControlRecord, error)
 	LookupSubmission(context.Context, string) (store.Submission, error)
+	LookupCaravanDepartureSubmission(context.Context, string) (store.CaravanDepartureSubmission, error)
+	LookupQuestAcceptSubmission(context.Context, string) (store.QuestAcceptSubmission, error)
+	LookupSettlementGiftSubmission(context.Context, string) (store.SettlementGiftSubmission, error)
 }
 
 // NewWithPlayer explicitly enables authenticated player intent. Dependencies and
@@ -190,8 +196,8 @@ func (s *Server) handlePlayer(w http.ResponseWriter, r *http.Request) bool {
 		return false
 	}
 	path := r.URL.Path
-	read := path == "/api/player/session" || path == "/api/player/control" || (path == "/api/buildings/submission" || path == "/api/drafts/submission") || path == "/api/player/clock" || path == "/api/player/work-preferences"
-	write := path == "/api/drafts/plans" || path == "/api/buildings/plans" || path == "/api/player/control/acquire" || path == "/api/player/control/manual" || path == "/api/player/clock/acknowledge" || path == "/api/player/work-preferences/replace"
+	read := path == "/api/player/session" || path == "/api/player/control" || (path == "/api/buildings/submission" || path == "/api/drafts/submission") || path == "/api/player/clock" || path == "/api/player/work-preferences" || path == "/api/caravan-departures/submission" || path == "/api/quest-accepts/submission" || path == "/api/settlement-gifts/submission"
+	write := path == "/api/drafts/plans" || path == "/api/buildings/plans" || path == "/api/player/control/acquire" || path == "/api/player/control/manual" || path == "/api/player/clock/acknowledge" || path == "/api/player/work-preferences/replace" || path == "/api/caravan-departures/plans" || path == "/api/quest-accepts/plans" || path == "/api/settlement-gifts/plans"
 	if !read && !write {
 		return false
 	}
@@ -283,6 +289,18 @@ func (s *Server) handlePlayer(w http.ResponseWriter, r *http.Request) bool {
 			s.write(w, r, status, dto)
 			return true
 		}
+		if path == "/api/caravan-departures/plans" {
+			s.submitCaravanDeparture(w, r, ctx)
+			return true
+		}
+		if path == "/api/quest-accepts/plans" {
+			s.submitQuestAccept(w, r, ctx)
+			return true
+		}
+		if path == "/api/settlement-gifts/plans" {
+			s.submitSettlementGift(w, r, ctx)
+			return true
+		}
 		var q store.ControlRequest
 		var err error
 		if strings.HasSuffix(path, "/acquire") {
@@ -322,12 +340,25 @@ func (s *Server) handlePlayer(w http.ResponseWriter, r *http.Request) bool {
 		return true
 	}
 	ids := query["requestId"]
-	if (len(query) != 0 && (len(query) != 1 || len(ids) != 1 || buildingRequestID(ids[0]) != nil)) || ((path == "/api/buildings/submission" || path == "/api/drafts/submission") && len(ids) != 1) {
+	submissionLookup := path == "/api/buildings/submission" || path == "/api/drafts/submission" || path == "/api/caravan-departures/submission" || path == "/api/quest-accepts/submission" || path == "/api/settlement-gifts/submission"
+	if (len(query) != 0 && (len(query) != 1 || len(ids) != 1 || buildingRequestID(ids[0]) != nil)) || (submissionLookup && len(ids) != 1) {
 		s.failure(w, r, 400, "invalid_query", "One requestId is required")
 		return true
 	}
 	if path == "/api/drafts/submission" {
 		s.lookupDraft(w, r, ctx, ids[0])
+		return true
+	}
+	if path == "/api/caravan-departures/submission" {
+		s.lookupCaravanDeparture(w, r, ctx, ids[0])
+		return true
+	}
+	if path == "/api/quest-accepts/submission" {
+		s.lookupQuestAccept(w, r, ctx, ids[0])
+		return true
+	}
+	if path == "/api/settlement-gifts/submission" {
+		s.lookupSettlementGift(w, r, ctx, ids[0])
 		return true
 	}
 	if path == "/api/buildings/submission" {
