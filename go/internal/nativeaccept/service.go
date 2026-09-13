@@ -31,6 +31,7 @@ func ServiceTrace(events []map[string]any, baseline int, capabilities map[string
 		}
 	}
 	operations := map[string]string{}
+	var operationOrder []string
 	for _, row := range ordered {
 		identifier := AsString(row["CapabilityId"])
 		if identifier == "" {
@@ -65,11 +66,13 @@ func ServiceTrace(events []map[string]any, baseline int, capabilities map[string
 			}
 		} else {
 			operations[operation] = readAlias
+			operationOrder = append(operationOrder, operation)
 		}
 	}
-	names := make([]string, 0, len(operations))
+	names := make([]string, 0, len(operationOrder))
 	statusCount, identityCount := 0, 0
-	for _, name := range operations {
+	for _, operation := range operationOrder {
+		name := operations[operation]
 		names = append(names, name)
 		switch name {
 		case "rimgovernor/observations_read_status":

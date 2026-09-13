@@ -2305,6 +2305,41 @@ main. Native package and Go production cutover remain independent.
       comparison helper `native_go_routine_acceptance.py` imports, so that
       script stays in place. `go build`/`vet`/`test ./...` clean; the Python
       test loader is deleted.
+    - [x] **`native_go_clock_acceptance.py` + `native_go_routine_acceptance.py`
+      (2 files).** Ported to new `nativeaccept/clock.go` and `nativeaccept/
+      routine.go`: `ClockAudit` (native operation-event history is gapless
+      from baseline, every attributed event belongs to the allowed capability
+      set for the Go-owned supervised clock, a disabled restart never exposes
+      a write capability, a running trace shows both `clock_start`/
+      `clock_pause` plus at least one `operations_execute`, and a routine-
+      review session shows `observations_read_colony_facts`);
+      `InterruptedByLetter` (exactly one real `LetterStack` interruption
+      stop for the scheduled letter); `RequireHealthyColonists` (colonist
+      census is complete and every colonist is explicitly alive/undowned/
+      unbleeding/untended); `RoutineEvidence` (reads the durable SQLite
+      `routine_review`/`goals`/`goal_methods` tables via `modernc.org/sqlite`
+      and reproduces the native original scope/tick/enabled/goal-set/
+      unknown-forecast/manual-retirement checks); `AssertRoutineRunning`;
+      `AuditMedicalCare`; `AuditStartingSupplies`; `AuditComfortUse`;
+      `ShellGeometry`; `AppendOperationHistory`/`ReadOperationHistory`;
+      `MedicalNeed`; `AssertConstructionStart`; `AuditRoutine`;
+      `AuditResourceRules`; `AuditDevelopment`. `medical_care_reference()` is
+      NOT ported: it calls `rimgovernor.medical_management.care_state()`,
+      genuine production medical-triage logic (not a comparison helper), so
+      it stays out of scope (G01.x territory); `AuditMedicalCare`'s test uses
+      the Python test's own known-correct reference value as a hardcoded Go
+      fixture instead. Discovered and fixed a real order-preservation bug
+      while porting `AuditRoutine`: Go's `map[string]string` doesn't preserve
+      insertion order the way Python's `dict` does, so `ClockAudit` and the
+      already-committed `ServiceTrace` both silently lost operation-name
+      order-fidelity — fixed all three by tracking a separate
+      `operationOrder []string` populated only on first insertion, verified
+      against every existing and new test with no regressions. Neither
+      script's `run()` — the disposable-worker GABS session driver — is
+      ported, matching every prior family; both `scripts/native_go_clock_
+      acceptance.py` and `scripts/native_go_routine_acceptance.py` stay in
+      place. `go build`/`vet`/`test ./...` clean; both Python test loaders
+      are deleted.
   - [ ] **Slice 4 — subsystem long tail (~70 remaining `scripts/*_acceptance.py`).**
     Group by existing `bridge/*.go` domain and land as independent sub-slices:
     construction/building; upkeep/comfort/gear/power (largest cluster); food/
