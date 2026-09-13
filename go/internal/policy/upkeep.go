@@ -25,6 +25,8 @@ type UpkeepObservation struct {
 }
 type UpkeepItem struct {
 	ID                           string
+	Definition                   string
+	Cell                         domain.Cell
 	Roofed, InStorage, Forbidden bool
 	Deterioration                float64
 	Medicine                     bool
@@ -130,7 +132,7 @@ func ReviewUpkeep(v UpkeepObservation, previous UpkeepHistory, issued map[GoalID
 		selected := []UpkeepItem{}
 		for _, row := range rows {
 			rot, known := row.RotTicks.Value()
-			if !valid(seen, row.ID) || !foodNumber(row.Deterioration) || row.Deterioration < 0 || row.Count < 0 || known && rot < 0 {
+			if !valid(seen, row.ID) || !foodID(row.Definition) || row.Cell.X < 0 || row.Cell.Z < 0 || !foodNumber(row.Deterioration) || row.Deterioration < 0 || row.Count < 0 || known && rot < 0 {
 				return r, errors.New("invalid upkeep item")
 			}
 			if row.Deterioration > 0 && (!row.Roofed || !row.InStorage) && !row.Forbidden {

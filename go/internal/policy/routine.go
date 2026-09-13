@@ -441,9 +441,12 @@ func DetectRoutine(f RoutineFacts, previous RoutineLatches, p RoutinePolicy) (Ro
 		addAssessment(n.Goal, n.Priority, recovered)
 		if !positive(recovered) {
 			addGoal(n.Goal, n.Priority)
-			// Direct upkeep orders join the shared execution family in G01.07c.
-			// Keep observed risk visible without taking an optional project slot.
-			r.Goals[len(r.Goals)-1].MethodUnavailable = true
+			// SecureSupplies now has a composed haul-order method (G01.07c 05.4);
+			// the rest of the direct upkeep orders remain visible-only until
+			// their own dispatch verticals land.
+			if n.Goal != SecureSupplies {
+				r.Goals[len(r.Goals)-1].MethodUnavailable = true
+			}
 		}
 	}
 	homeRecovered, stoneRecovered := domain.Unknown[bool](), domain.Unknown[bool]()

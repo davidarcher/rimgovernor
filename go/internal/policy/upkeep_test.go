@@ -14,12 +14,12 @@ func emptyUpkeep() UpkeepObservation {
 func TestUpkeepNativeTargetOrderAndMetrics(t *testing.T) {
 	v := emptyUpkeep()
 	v.Items = domain.Known([]UpkeepItem{
-		{ID: "wood", Deterioration: 1, Count: 30},
-		{ID: "meal", Deterioration: 1, RotTicks: domain.Known(int64(10)), Count: 2},
-		{ID: "medicine", Deterioration: 1, Medicine: true, Count: 5},
-		{ID: "forbidden", Deterioration: 1, Forbidden: true, Count: 50},
-		{ID: "safe", Deterioration: 1, Roofed: true, InStorage: true, Count: 50},
-		{ID: "steel", Count: 50},
+		{ID: "wood", Definition: "WoodLog", Deterioration: 1, Count: 30},
+		{ID: "meal", Definition: "MealSimple", Deterioration: 1, RotTicks: domain.Known(int64(10)), Count: 2},
+		{ID: "medicine", Definition: "MedicineHerbal", Deterioration: 1, Medicine: true, Count: 5},
+		{ID: "forbidden", Definition: "Steel", Deterioration: 1, Forbidden: true, Count: 50},
+		{ID: "safe", Definition: "Steel", Deterioration: 1, Roofed: true, InStorage: true, Count: 50},
+		{ID: "steel", Definition: "Steel", Count: 50},
 	})
 	v.Structures = domain.Known([]UpkeepStructure{
 		{ID: "wall", Home: true, HitPoints: 2, MaxHitPoints: 100, Priority: 1},

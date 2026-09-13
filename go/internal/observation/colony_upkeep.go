@@ -20,7 +20,7 @@ func colonyUpkeep(v *o.ColonyFactsSnapshot) policy.UpkeepObservation {
 				known = false
 				break
 			}
-			rows = append(rows, policy.UpkeepItem{ID: item.Item.GetId(), Roofed: item.GetRoofed(), InStorage: item.GetInStorage(), Forbidden: item.GetForbidden(), Deterioration: item.GetBaseDeteriorationRate(), Medicine: item.GetMedicine(), Count: item.GetCount(), RotTicks: optional(item.RotTicks)})
+			rows = append(rows, policy.UpkeepItem{ID: item.Item.GetId(), Definition: item.Item.GetDefName(), Cell: domain.Cell{X: item.Item.GetPosition().GetX(), Z: item.Item.GetPosition().GetZ()}, Roofed: item.GetRoofed(), InStorage: item.GetInStorage(), Forbidden: item.GetForbidden(), Deterioration: item.GetBaseDeteriorationRate(), Medicine: item.GetMedicine(), Count: item.GetCount(), RotTicks: optional(item.RotTicks)})
 		}
 		if known {
 			r.Items = domain.Known(rows)

@@ -49,6 +49,7 @@ type ClockSchedulerConfig struct {
 	Tend                             *RoutineTendPlanner
 	Rescue                           *RoutineRescuePlanner
 	Equip                            *RoutineEquipPlanner
+	SecureSupplies                   *RoutineSecureSuppliesPlanner
 	RoutineMethods                   bool
 }
 type ClockSchedulerResult struct {
@@ -72,6 +73,7 @@ type ClockSchedulerResult struct {
 	Tend                                          *RoutineTendResult
 	Rescue                                        *RoutineRescueResult
 	Equip                                         *RoutineEquipResult
+	SecureSupplies                                *RoutineSecureSuppliesResult
 	Running, Reconciled, Cleaned                  bool
 }
 type ClockScheduler struct {
@@ -146,6 +148,9 @@ func NewClockScheduler(player *Player, session *Session, native ClockWindowNativ
 		return nil, ErrControl
 	}
 	if config.Equip != nil && (config.Routine == nil || config.Equip.reviewer != config.Routine) {
+		return nil, ErrControl
+	}
+	if config.SecureSupplies != nil && (config.Routine == nil || config.SecureSupplies.reviewer != config.Routine) {
 		return nil, ErrControl
 	}
 	if config.RoutineMethods && (config.Routine == nil || !session.routineMethods) {
@@ -292,6 +297,13 @@ func (s *ClockScheduler) Step(ctx context.Context) (ClockSchedulerResult, error)
 	}
 	if err = s.stepPlanners(call, epoch, &out); err != nil {
 		return out, err
+	}
+	if s.config.SecureSupplies != nil {
+		method, err := s.config.SecureSupplies.step(call, epoch)
+		if err != nil {
+			return out, err
+		}
+		out.SecureSupplies = &method
 	}
 	emergency, _, err := s.native.ReadEmergency(call, loaded.Context.Identity)
 	if err != nil {
