@@ -1379,6 +1379,58 @@ main. Native package and Go production cutover remain independent.
   Instant/replacement construction cases and remaining operation families
   (settings/bills/zones, resources/upkeep, medical, animals/population,
   trade/world, explicit player operations) are open.
+  This pass surveyed every remaining item above against current source (not just this
+  list's prose) to find the next tractable increment, including candidates larger than
+  the prior seven test-extension slices, per explicit direction to push into harder
+  work once those were exhausted. None closed this pass; each concrete blocker found
+  is recorded here so a future session does not re-investigate from scratch.
+  MovePawn queued orders is now understood to be effectively unreachable through
+  headless GABS acceptance, not merely unattempted: `Pawn_JobTracker.TryTakeOrderedJob`
+  only queues a new order behind the current one when `KeyBindingDefOf.QueueOrder`
+  is physically held (`integrations/rimgovernor-native/src/Bridge/OrderTool.cs`'s own
+  `JobNote` documents this exact vanilla behavior), and a headless/batchmode process
+  has no physical keyboard state to hold. Closing this needs either a documented,
+  reviewed way to simulate that held-key condition through GABS, or an explicit decision
+  that this branch is native-UI-only and cannot be live-verified at all -- not another
+  attempt at the same live run.
+  A concrete, bounded design was drafted this pass for the adjacent, more tractable
+  MovePawn gap -- fault-injected native authority-lease expiry while a Goto job is
+  genuinely in flight (admitted, current, not yet arrived), and confirming the
+  still-owned draft claim recovers full control under a fresh lease without
+  redrafting -- mirroring `cmd/draftaccept`'s already-proven SetDrafted lease-expiry/
+  cleanup section and reusing `go/internal/nativeaccept`'s draft/order helpers exactly
+  as `native_movement_acceptance.py` already reuses `native_draft_acceptance.py`'s. A
+  `cmd/movementaccept` binary implementing it built and `go vet`ed cleanly and, against
+  the currently-installed production native package, correctly executed game start,
+  pause and identity/pawn reads before failing for an environmental reason unrelated to
+  the design: `test/b04f_setup` (the disposable idle-pawn/external-order/external-draft
+  fixture tool this scenario and the existing Python movement/draft/combat scripts all
+  depend on) is compiled in only by `scripts/build_native_mod.ps1 -Fixture
+  EmergencyDevelopmentFixture`, not the plain production build already installed at the
+  shared RimWorld instance's `Mods/RimGovernor`. Completing the live run needs swapping
+  in a freshly built fixture package for the run and restoring the original afterward
+  (the same backup/restore pattern `scripts/test_n0103_acceptance.ps1` already uses),
+  which requires writing into that shared installation path outside this repository;
+  this session's sandboxed permissions refused that write (and even a read-only
+  `Test-Path` probe of the same path once already-installed-package state needed
+  confirming), with no interactive channel available to request an exception mid-run.
+  Rather than land a live-acceptance binary that was never actually run green, the
+  drafted `movement.go`/`cmd/movementaccept` implementation was reverted from this
+  worktree; nothing under `go/` or `integrations/` changed as a result of this pass
+  (confirmed by a clean `git status`/`git diff` and `go build ./... && go vet ./...`
+  after reverting). A future session with permission to swap the shared install's
+  `Mods/RimGovernor` (or one that already has a fixture-enabled package installed) can
+  redo this design directly from this note without re-deriving it.
+  Fault-injected uncertain setters (draft) and native lost-reply fault injection beyond
+  the envelope gate both remain blocked on the same missing capability: neither
+  `scripts/fixtures/EmergencyDevelopmentFixture.cs` nor any other disposable fixture
+  tool can currently force the live native setter/transport path itself to fail or lose
+  a reply (as opposed to failing validation before any native effect runs); adding that
+  needs a new disposable fixture design, not a test extension, and was not attempted
+  this pass to avoid guessing at an injection mechanism without reviewing one first.
+  Persistent draft policy remains new feature work needing a scoped design (no code
+  exists), and instant/replacement construction remains deferred as too heavy for a
+  compiled-only technique, both unchanged from the prior slice's assessment.
 
 - [ ] **N01.05 — Runtime and presentation ownership.** Native runtime owner.
   Recover partial draft-hook initialization without requiring a game restart;
