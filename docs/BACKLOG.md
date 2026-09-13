@@ -1230,6 +1230,112 @@ main. Native package and Go production cutover remain independent.
   applicable. Close when every retained native field has a concrete runtime need
   and the controller is the sole owner of its bookkeeping.
 
+  A full audit of the nine `Scribe_`/`ExposeData`/`IExposable` files under
+  `src/Runtime/Persistence` (confirmed exhaustive by re-grepping the runtime tree;
+  `NativeControlAuthority.cs` lives in the same folder but persists nothing) found
+  every one is currently a live, actively-read guard or transition-evidence
+  mechanism, not orphaned bookkeeping with an unwired or superseded Go equivalent:
+  - `ColonyIdentity.cs` (`ColonyId`/`LoadToken`) — the save's own identity anchor;
+    read by nearly every Bridge tool and by `RecoveryAreas`/`ProductionPolicyTool`
+    for exact colony/load/map admission checks. Native-owned by definition, not
+    controller bookkeeping. **Keep.**
+  - `ConstructionLineageState.cs` — per-record blueprint/frame/building identity
+    lineage (origin/current/stage/failures) maintained through Harmony hooks on
+    `MakeSolidThing`/`CompleteConstruction`/`FailConstruction`/`GenSpawn.Spawn`,
+    read by `ConstructionLineage.Read`. This *is* the "transition evidence for
+    ... construction changes" the item text names directly. **Keep.**
+  - `HaulTrackingState.cs` — live stack-conservation tracking through
+    `TryAbsorbStack`/`SplitOff`/`Destroy`/`GenSpawn.Spawn`, read by
+    `HaulTracking.Read`. Same category as construction lineage, for hauled
+    stacks. **Keep.**
+  - `HomeCoverageState.cs` (per-map `BoolGrid Excluded` + `Revision`) — a
+    live spatial overlay over map cells recording player exclusions from Home
+    that can't be reconstructed from `Area_Home` alone, plus a CAS-style
+    revision counter `HomeCoverageTool.Apply` uses for staleness detection. Tied
+    1:1 to live map cells; not controller bookkeeping. **Keep.**
+  - `MiningState.cs` (`Records`, `Drills`) — in-flight mining-target rebind
+    evidence across the native mineable-recreates-with-fresh-IDs load behavior
+    (`FinalizeInit`), plus deep-drill facility ownership/lineage through
+    blueprint→frame→building transitions (`DrillingGuard.cs`). Directly matches
+    "disconnected running jobs" and "construction changes" evidence. **Keep.**
+  - `ProductionPolicyState.cs` (`Floors`, `Stopped`; `Commitments` is declared
+    but deliberately never `Scribe`'d — see tool description "not saved in
+    native game") — map-scoped resource floors/stops enforced by Harmony
+    patches on bill ingredient selection. Conceptually this is a policy
+    decision (the target-ownership section's "SQLite owns ... action history"
+    bucket), but there is no native→Go synchronous read path anywhere in this
+    codebase today (Go calls native tools; native never calls back into
+    `go/internal/store`), so migrating it would mean either inventing that path
+    or changing `ProductionPolicyTool`'s contract so Go resends the full policy
+    on every call — a cross-cutting protocol change, not a bounded slice.
+    **Flagged migrate-to-SQLite, open** — see recommendation below.
+  - `RecoveryAreas.cs` — bounded (600-tick), self-expiring area-restriction
+    leases during toxic fallout, invalidated by `ColonyIdentity.LoadToken`
+    mismatch on load and by player override (`RecoveryAreaOwnership.cs`
+    patching the `AreaRestrictionInPawnCurrentMap` setter). This is exactly the
+    "player override" and "invalidation on load" behavior the item asks to
+    verify, already implemented natively. **Keep.**
+  - `WallRemovalState.cs` — demolition lineage (target/backup identities,
+    stone material, permanent-wall linkage, UI-revision invalidation,
+    player-designation-override detection). Checked every field
+    (`Permanent`/`Material`/`Backup`/`UiRevision`/`PlayerOwned`/`Retired`/
+    `CompletedTick`/`Blocker`) against `WallUpgradeTool.cs`; all are read.
+    **Keep.**
+  - `GearOwnership.cs` (`Weapons: Dictionary<pawnId, weaponId>`) — records
+    which weapon the controller last assigned a pawn, used only to distinguish
+    an autopilot-managed weapon (safe to replace on wear/quality grounds) from
+    a player-equipped one (must be preserved). An initial pass in this session
+    concluded this was dormant (no `go/internal` caller of `home/gear_upkeep`
+    by name) and drafted converting it to a stateless caller-supplied
+    `ownedWeapons` CSV parameter, deleting the `GameComponent`. That was wrong:
+    `NativeGearFacts.cs` (feeding `ColonyFactsSnapshot.Planning.Observed.Gear`,
+    the real input to Go's `internal/observation/colony_gear.go` →
+    `internal/policy/gear.go`'s `SelectGearMethod`) and
+    `ColonyFactsTool.cs`'s `["gearUpkeep"]` key both call
+    `GearUpkeepTools.WeaponEligible`/`ProductionNeeds` directly, with no
+    parameter to supply prior ownership. Stripping native persistence without
+    also plumbing a replacement all the way through those two call sites (and,
+    to preserve current behavior, through a new protobuf field on the
+    `ColonyFactsSnapshot`/gear request contracts) would have permanently
+    excluded any pawn holding a weapon from ever receiving a new weapon
+    candidate or wear-replacement need again — a real regression, caught before
+    landing and reverted (`git status` confirmed a clean tree after revert).
+    **Flagged migrate-to-SQLite, open** — same shape of work as
+    `ProductionPolicyState`, below.
+
+  **Disposition: keep-as-native-guard for 7 of 9 files** (`ColonyIdentity`,
+  `ConstructionLineageState`, `HaulTrackingState`, `HomeCoverageState`,
+  `MiningState`, `RecoveryAreas`, `WallRemovalState`) — each is presently the
+  sole holder of live-simulation-linked guard, cleanup or transition-evidence
+  state with an active native reader, matching this item's own preservation
+  clause. **2 of 9 files flagged for a future slice**
+  (`ProductionPolicyState.Floors`/`Stopped`, `GearOwnership.Weapons`) as
+  genuine "ownership intent"/"policy" bookkeeping that belongs in SQLite per
+  the target-ownership rules, but neither has a bounded migration path today:
+  both would need (a) a new Go store table (following `construction_ownership.go`'s
+  pattern — Go already durably records committed `GearReplace` methods'
+  pawn/target pairs in `goal_methods`, which is the natural source of truth for
+  `GearOwnership`), and (b) a new field threaded through the existing
+  `ColonyFactsSnapshot`/`GearSnapshot` protobuf contracts (regenerated, not a
+  second schema tree) and `NativeGearFacts.cs`/`ColonyFactsTool.cs`/
+  `ProductionPolicyTool.cs` so native stops persisting them locally. That is
+  real, valuable follow-up work but is a multi-file, protobuf-touching change,
+  not this item's "smallest bounded slice."
+
+  **No code slice was landed this session.** Given the ground rule "don't
+  delete a native field/writer if you can't confirm nothing depends on it,"
+  and that every other file in the audit is an active guard matching the
+  item's own preservation clause, forcing a slice here would have meant either
+  re-attempting the `GearOwnership`/`ProductionPolicyState` cross-cutting
+  protobuf change under this session's remaining budget (real regression risk,
+  as demonstrated above) or deleting something still load-bearing. This audit
+  and its per-file disposition is the landed deliverable; the next slice should
+  pick up `GearOwnership` (smaller of the two flagged files, and Go already has
+  the durable `GearReplace` method commits to source ownership from) with the
+  protobuf/store/native three-sided change scoped explicitly up front. Save
+  compatibility is unaffected since nothing changed; the "no legacy importers"
+  clause applies once that follow-up slice lands.
+
 - [x] **N01.07 — Use the unified package everywhere.** Integrator with launcher owner.
   Update setup/build scripts, private profiles, headless/container staging, artifact
   fingerprints and fixture/scenario launchers. Remove old source roots, duplicate
