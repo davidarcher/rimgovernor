@@ -45,6 +45,10 @@ type ClockSchedulerConfig struct {
 	Expansion                        *RoutineBuildingPlanner
 	Power                            *RoutineBuildingPlanner
 	Temperature                      *RoutineBuildingPlanner
+	Defense                          *RoutineDefensePlanner
+	Tend                             *RoutineTendPlanner
+	Rescue                           *RoutineRescuePlanner
+	Equip                            *RoutineEquipPlanner
 	RoutineMethods                   bool
 }
 type ClockSchedulerResult struct {
@@ -64,6 +68,10 @@ type ClockSchedulerResult struct {
 	Expansion                                     *RoutineBuildingResult
 	Power                                         *RoutineBuildingResult
 	Temperature                                   *RoutineBuildingResult
+	Defense                                       *RoutineDefenseResult
+	Tend                                          *RoutineTendResult
+	Rescue                                        *RoutineRescueResult
+	Equip                                         *RoutineEquipResult
 	Running, Reconciled, Cleaned                  bool
 }
 type ClockScheduler struct {
@@ -126,6 +134,18 @@ func NewClockScheduler(player *Player, session *Session, native ClockWindowNativ
 		return nil, ErrControl
 	}
 	if config.Temperature != nil && (config.Routine == nil || config.Temperature.reviewer != config.Routine || config.Temperature.goal != policy.EnsureTemperatureSafety) {
+		return nil, ErrControl
+	}
+	if config.Defense != nil && (config.Routine == nil || config.Defense.reviewer != config.Routine) {
+		return nil, ErrControl
+	}
+	if config.Tend != nil && (config.Routine == nil || config.Tend.reviewer != config.Routine) {
+		return nil, ErrControl
+	}
+	if config.Rescue != nil && (config.Routine == nil || config.Rescue.reviewer != config.Routine) {
+		return nil, ErrControl
+	}
+	if config.Equip != nil && (config.Routine == nil || config.Equip.reviewer != config.Routine) {
 		return nil, ErrControl
 	}
 	if config.RoutineMethods && (config.Routine == nil || !session.routineMethods) {
@@ -387,6 +407,34 @@ func (s *ClockScheduler) Step(ctx context.Context) (ClockSchedulerResult, error)
 		}
 		out.Expansion = &method
 	}
+	if s.config.Defense != nil {
+		method, err := s.config.Defense.step(call, epoch)
+		if err != nil {
+			return out, err
+		}
+		out.Defense = &method
+	}
+	if s.config.Tend != nil {
+		method, err := s.config.Tend.step(call, epoch)
+		if err != nil {
+			return out, err
+		}
+		out.Tend = &method
+	}
+	if s.config.Rescue != nil {
+		method, err := s.config.Rescue.step(call, epoch)
+		if err != nil {
+			return out, err
+		}
+		out.Rescue = &method
+	}
+	if s.config.Equip != nil {
+		method, err := s.config.Equip.step(call, epoch)
+		if err != nil {
+			return out, err
+		}
+		out.Equip = &method
+	}
 	emergency, _, err := s.native.ReadEmergency(call, loaded.Context.Identity)
 	if err != nil {
 		return out, err
@@ -529,9 +577,17 @@ func clockSchedulerWork(plan store.PlanState, current domain.GenerationSnapshot)
 		if p.Action().Kind() == domain.SupplyAllowAction || p.Action().Kind() == domain.WorkAssignmentAction || p.Action().Kind() == domain.ZoneCreateAction {
 			continue
 		}
-		// Construction and native plant labor use the healthy-colony clock window.
-		if _, ok := p.Action().Building(); !ok && p.Action().Kind() != domain.AcquisitionAction && p.Action().Kind() != domain.ProductionBillAction {
-			return false, nil, executor.ErrHeld
+		// Construction, native plant labor, and the routine-dispatched action
+		// families (defense, medical, haul, equip — see routineExecutableKind)
+		// all use the healthy-colony clock window; anything else is unsupported.
+		if _, ok := p.Action().Building(); !ok {
+			switch p.Action().Kind() {
+			case domain.AcquisitionAction, domain.ProductionBillAction, domain.OwnedDraftAction,
+				domain.MeleeAttackAction, domain.RangedAttackAction, domain.TendAction, domain.RescueAction,
+				domain.HaulAction, domain.EquipAction:
+			default:
+				return false, nil, executor.ErrHeld
+			}
 		}
 		work = true
 	}

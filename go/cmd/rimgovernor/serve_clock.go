@@ -43,7 +43,7 @@ func serviceClockConfig(profile string) buildingruntime.ClockSchedulerConfig {
 
 // Session owns the attached worker's drain, including failed startup cleanup.
 // Starting these loops does not enable Player or acquire native authority.
-func startServiceClock(ctx context.Context, player *buildingruntime.Player, session *buildingruntime.Session, reads serviceClockReads, profile string, timeout time.Duration, routine, sleeping, cooking, shelter, comfort, expansion, power, temperature bool, projectLimit int, supplies, work, acquisition bool, fieldOptions ...bool) error {
+func startServiceClock(ctx context.Context, player *buildingruntime.Player, session *buildingruntime.Session, reads serviceClockReads, profile string, timeout time.Duration, routine, sleeping, cooking, shelter, comfort, expansion, power, temperature bool, projectLimit int, supplies, work, acquisition, defense, tend, rescue, equip bool, fieldOptions ...bool) error {
 	config := serviceClockConfig(profile)
 	config.RoutineMethods = session.RoutineMethodsEnabled()
 	fields := len(fieldOptions) >= 1 && fieldOptions[0]
@@ -52,7 +52,7 @@ func startServiceClock(ctx context.Context, player *buildingruntime.Player, sess
 	if len(fieldOptions) > 3 {
 		return errors.New("invalid field option")
 	}
-	if (bills || fields || foodStorage || acquisition || work || supplies || sleeping || cooking || shelter || comfort || expansion || power || temperature) && !routine {
+	if (bills || fields || foodStorage || acquisition || work || supplies || sleeping || cooking || shelter || comfort || expansion || power || temperature || defense || tend || rescue || equip) && !routine {
 		return errors.New("building plans require routine reviews")
 	}
 	if routine {
@@ -150,6 +150,46 @@ func startServiceClock(ctx context.Context, player *buildingruntime.Player, sess
 		}
 		if work {
 			config.Work, err = buildingruntime.NewRoutineWorkPlanner(reviewer)
+			if err != nil {
+				return err
+			}
+		}
+		if defense {
+			defenseNative, ok := reads.(buildingruntime.RoutineDefenseSource)
+			if !ok {
+				return errors.New("defense plans require typed combat observations")
+			}
+			config.Defense, err = buildingruntime.NewRoutineDefensePlanner(reviewer, defenseNative)
+			if err != nil {
+				return err
+			}
+		}
+		if tend {
+			tendNative, ok := reads.(buildingruntime.RoutineTendSource)
+			if !ok {
+				return errors.New("tend plans require typed tend observations")
+			}
+			config.Tend, err = buildingruntime.NewRoutineTendPlanner(reviewer, tendNative)
+			if err != nil {
+				return err
+			}
+		}
+		if rescue {
+			rescueNative, ok := reads.(buildingruntime.RoutineRescueSource)
+			if !ok {
+				return errors.New("rescue plans require typed combat observations")
+			}
+			config.Rescue, err = buildingruntime.NewRoutineRescuePlanner(reviewer, rescueNative)
+			if err != nil {
+				return err
+			}
+		}
+		if equip {
+			equipNative, ok := reads.(buildingruntime.RoutineEquipSource)
+			if !ok {
+				return errors.New("equip plans require typed equip observations")
+			}
+			config.Equip, err = buildingruntime.NewRoutineEquipPlanner(reviewer, equipNative)
 			if err != nil {
 				return err
 			}

@@ -748,7 +748,7 @@ without pushes, when the target checkout is safe; preserve other developers' wor
     [schema generation](../contracts/schema-generation.md); local ignored
     `.rimgovernor/` artifacts and licensed game inputs are not available from Git.
 
-  - [ ] **05.3 — Defense and urgent care (G01.07a).**
+  - [x] **05.3 — Defense and urgent care (G01.07a).**
     Compose squad selection with existing draft/melee and exact owned cleanup;
     add movement, accessible equip and supported ranged actions as needed. Follow
     with native-approved doctor/patient selection, tend, rescue/rest and monitoring.
@@ -756,6 +756,108 @@ without pushes, when the target checkout is safe; preserve other developers' wor
     Gate on actual defense and patient outcomes, repeated/interrupted treatment,
     player takeover and restart/stand-down cleanup. Preserve the current explosive
     exclusion and fail closed on unsupported or unavailable native capabilities.
+
+    **Claude handoff: 05.3 status**
+
+    - `RestoreWorkers` needs no new code: `workerCleanupEligible`
+      (`go/internal/buildingruntime/worker.go`) already stands the whole
+      squad down once every attack action tied to the same owned-draft plan
+      is complete/cancelled and no other action in the plan is unfinished —
+      this already matches Python's `threats_cleared`-gated,
+      whole-squad-not-per-pawn release (`bridge_runtime.py` `stand_down`).
+    - The Equip action (needed by both `ActiveCombat`'s single-raider
+      tribal-defender arming and `EnsureBasicDefense`) is now code-complete
+      end to end, modeled directly on the existing Haul action family (both
+      target a `Thing`, neither needs a draft prerequisite): domain
+      (`go/internal/domain/equip.go`), store/admission
+      (`go/internal/store/equip_admission.go`, schema 40, `actions`/
+      `equip_admissions` wiring in `store.go`/`action_rows.go`), executor
+      state machine (`go/internal/executor/equip.go`,
+      `equip_types.go`, wired into `executor.go`'s boundary composition and
+      dispatch switch), policy (`go/internal/policy/equip.go`:
+      `EvaluateEquip` mirrors `EvaluateHaul`'s refusal ordering exactly, plus
+      a new `SelectEquip` deterministic unarmed-pawn/nearest-weapon pairing
+      helper for `EnsureBasicDefense`), bridge weapon discovery
+      (`go/internal/bridge/equip_things.go`: `ReadEquipWeapons`, a
+      rectangle-region `ListSuppliesRequest` with `Category="weapons"`,
+      mirroring `ReadHaulTargets`'s point-region haulable query), and the
+      native boundary (`go/internal/buildingruntime/equip_boundary.go`,
+      `equip_reconcile.go`: `InspectEquip`/`EquipPawn`/`ObserveEquip`,
+      dispatching `PawnOrderKind_PAWN_ORDER_KIND_EQUIP` with
+      `RequireSafeStorage: false`). No native C# or protobuf changes were
+      needed — `OrderTool.cs` already implements `action="equip"` and
+      `PAWN_ORDER_KIND_EQUIP` already exists in `operations.proto`. Full
+      `go build ./... && go vet ./... && go test -p 1 ./...` passes across
+      the whole module, including new `policy`/`bridge`/`buildingruntime`
+      equip coverage.
+    - Correction to the note above: `CriticalMedical` was **not** entirely
+      unstarted — `RoutineTendPlanner`/`RoutineRescuePlanner`
+      (`go/internal/buildingruntime/routine_tend.go`, `routine_rescue.go`)
+      already existed, fully coded and bound to `policy.CriticalMedicine` at
+      the policy/planner level. What was actually missing, discovered by
+      tracing the live dispatch path end to end, was structural: two
+      hardcoded action-kind allowlists
+      (`buildingruntime.routineExecutableKind` in `worker.go`, and
+      `store.AuthorizeRoutinePlan` in `routine_execution.go`) excluded
+      `RangedAttack`/`Tend`/`Rescue`/`Haul`/`Equip` from ever executing
+      autonomously — even as a plan's literal current work — despite each
+      having complete CAS-admission-guarded executor/boundary machinery.
+      This affected the pre-existing Haul family too, not just this item.
+    - Closed out this session: extended both allowlists; added
+      `RoutineEquipPlanner` (`go/internal/buildingruntime/routine_equip.go`,
+      mirrors `RoutineTendPlanner`, binds to `policy.EnsureBasicDefense`);
+      added `policy.SelectTribalRaiderDefense`
+      (`go/internal/policy/squad_defense.go`) for the single-raider tribal
+      3-defender/85%-health/armed sub-case — unlike Python's synchronous
+      per-encounter weapon fetch, an unarmed candidate is simply excluded
+      from tribal selection here, relying on `EnsureBasicDefense`/
+      `RoutineEquipPlanner`'s independently-scheduled arming instead (a
+      documented, deliberate simplification, not a gap); wired
+      `RoutineDefensePlanner`/`RoutineTendPlanner`/`RoutineRescuePlanner`/
+      `RoutineEquipPlanner` into `cmd/rimgovernor` (`serve.go` flags
+      `--routine-defense-plans`/`--routine-tend-plans`/
+      `--routine-rescue-plans`/`--routine-equip-plans`, each requiring
+      `--routine-methods`; `serve_building.go` constructs
+      `bridge.AttackControl`/`bridge.PawnOrderControl` and the matching
+      `buildingruntime` capabilities; `serve_clock.go` builds the planners
+      and attaches them to `ClockSchedulerConfig`).
+    - Also fixed, found only by tracing an actual dispatch: `DraftBoundary`
+      and `MeleeBoundary` leased through `sessionSink` (exact-snapshot-only,
+      i.e. current-plan-only); a routine (non-current) defense plan's own
+      draft/melee actions would have passed every allowlist and
+      `AuthorizeRoutinePlan` check yet still failed at the native call with
+      `ErrControl`, since `GenerationSnapshot.Matches` is exact equality and
+      the routine plan's snapshot never equals root's. Fixed by leasing
+      Draft through a new lazy, routine-aware `lazyRoutineLeases` (Draft is
+      constructed before `Control` exists, so it can't hold `*Control`
+      directly) and Melee through the existing `sessionBuildingLeases`, both
+      in `go/internal/buildingruntime/session.go`. Also added
+      `executor.NewWithMeleeAndRanged` (`go/internal/executor/melee_ranged.go`)
+      since a single squad-defense plan assigns both melee and ranged
+      engagements and no combined constructor existed; non-combinatorial
+      `withTend`/`withRescue`/`withEquip` boundary composers
+      (`go/internal/buildingruntime/tend_rescue_equip_composition.go` —
+      simpler than `withHaul`'s explicit 2^N branches, since an
+      unconfigured capability's type-asserted value is just a nil interface,
+      safe to embed unconditionally); and broadened
+      `clockSchedulerWork`'s action-kind allowlist
+      (`go/internal/buildingruntime/clock_scheduler.go`) to include the
+      newly-routine-executable kinds, which would otherwise have returned
+      `ErrHeld` on every clock step once any such plan was pending.
+    - Still open: Animal/manhunter opponents remain blocked on native not
+      exposing BodySize/Manhunter facts (pre-existing, documented in
+      `policy.SelectSquadDefense`). No
+      `buildingruntime/equip_boundary_test.go`/`tend`/`rescue`/`defense`
+      boundary tests were added — there is no precedent for
+      `haul_boundary_test.go` either; native-boundary correctness for these
+      families is deferred to live acceptance, same as Haul. Haul itself
+      still has no `RoutineHaulPlanner` or `serve.go` wiring — out of scope
+      for this item (05.2, not 05.3), but now structurally able to run via
+      RoutineMethods too given the allowlist/leasing fixes above. All
+      gameplay/native acceptance remains gated on G01.12 per this doc's
+      stated delivery rule. Full
+      `go build ./... && go vet ./... && go test -p 1 ./...` passes across
+      the whole module.
 
   - [ ] **05.4 — Storage, shelter and direct upkeep (G01.07c).**
     Finish room adoption and storage ownership after the food prerequisite subset;

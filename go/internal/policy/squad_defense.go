@@ -27,7 +27,7 @@ type SquadDefenderFacts struct {
 	QueuedJobs                                       domain.Fact[uint32]
 	ViolenceCapable, NeedsTend                       domain.Fact[bool]
 	HealthFraction                                   domain.Fact[float64]
-	RangedEquipped, MeleeEquipped                    domain.Fact[bool]
+	RangedEquipped, MeleeEquipped, Armed             domain.Fact[bool]
 }
 
 type SquadMode uint8
@@ -176,4 +176,68 @@ func SelectSquadDefense(threats []SquadThreatFacts, defenders []SquadDefenderFac
 		}
 	}
 	return assignments, len(assignments) > 0
+}
+
+// SelectTribalRaiderDefense mirrors single_raider_defense's tribal branch: a
+// lone humanlike, non-ranged opponent is bounded tighter than the general
+// N-opponent case above — three healthy (>=85%, not needing tend) already-
+// armed defenders instead of two. Unlike Python's synchronous per-encounter
+// weapon fetch, an unarmed candidate is simply excluded here rather than
+// equipped inline: EnsureBasicDefense arms colonists on its own
+// independently-scheduled goal (see RoutineEquipPlanner), so this method
+// just holds — via the caller falling back to SelectSquadDefense's general,
+// unarmed-tolerant bound — until enough defenders are already armed.
+func SelectTribalRaiderDefense(threat SquadThreatFacts, defenders []SquadDefenderFacts) ([]SquadAssignment, bool) {
+	dead, dk := threat.Dead.Value()
+	downed, wk := threat.Downed.Value()
+	humanlike, hk := threat.Humanlike.Value()
+	ranged, rk := threat.RangedEquipped.Value()
+	if !dk || !wk || !hk || !rk || dead || downed || !humanlike || ranged {
+		return nil, false
+	}
+	eligible := func(d SquadDefenderFacts) bool {
+		dead, dk := d.Dead.Value()
+		downed, wk := d.Downed.Value()
+		drafted, tk := d.Drafted.Value()
+		mental, mk := d.MentalState.Value()
+		forced, fk := d.PlayerForced.Value()
+		queued, qk := d.QueuedJobs.Value()
+		violent, vk := d.ViolenceCapable.Value()
+		needsTend, nk := d.NeedsTend.Value()
+		health, hk2 := d.HealthFraction.Value()
+		armed, ak := d.Armed.Value()
+		if !dk || !wk || !tk || !mk || !fk || !qk || !vk || !nk || !hk2 || !ak {
+			return false
+		}
+		if dead || downed || drafted || mental || forced || queued != 0 || !violent || needsTend || !armed {
+			return false
+		}
+		return health >= 0.85
+	}
+	var pool []SquadDefenderFacts
+	for _, d := range defenders {
+		if eligible(d) {
+			pool = append(pool, d)
+		}
+	}
+	sort.Slice(pool, func(i, j int) bool {
+		iRanged, _ := pool[i].RangedEquipped.Value()
+		jRanged, _ := pool[j].RangedEquipped.Value()
+		if iRanged != jRanged {
+			return iRanged
+		}
+		return pool[i].ID < pool[j].ID
+	})
+	if len(pool) < 3 {
+		return nil, false
+	}
+	var assignments []SquadAssignment
+	for _, d := range pool[:3] {
+		mode := SquadMelee
+		if ranged, _ := d.RangedEquipped.Value(); ranged {
+			mode = SquadRanged
+		}
+		assignments = append(assignments, SquadAssignment{Defender: d.ID, Target: threat.ID, Mode: mode})
+	}
+	return assignments, true
 }

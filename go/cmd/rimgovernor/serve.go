@@ -46,6 +46,10 @@ type serveConfig struct {
 	routineExpansionPlans   bool
 	routinePowerPlans       bool
 	routineTemperaturePlans bool
+	routineDefensePlans     bool
+	routineTendPlans        bool
+	routineRescuePlans      bool
+	routineEquipPlans       bool
 	routineMethods          bool
 	routineProjectLimit     int
 	resourceRules           resourceRuleFlags
@@ -74,6 +78,10 @@ func parseServe(args []string, diagnostics io.Writer) (serveConfig, error) {
 	flags.BoolVar(&c.routineExpansionPlans, "routine-expansion-plans", false, "compile one spare indoor sleeping place through shared building plans")
 	flags.BoolVar(&c.routineTemperaturePlans, "routine-temperature-plans", false, "compile sleeping-room heating and cooling through shared building plans")
 	flags.BoolVar(&c.routinePowerPlans, "routine-power-plans", false, "compile network generation and conduit deficits through shared building plans")
+	flags.BoolVar(&c.routineDefensePlans, "routine-defense-plans", false, "compile bounded squad defense against observed hostiles into shared plans")
+	flags.BoolVar(&c.routineTendPlans, "routine-tend-plans", false, "compile native-approved doctor/patient tend selection into shared plans")
+	flags.BoolVar(&c.routineRescuePlans, "routine-rescue-plans", false, "compile downed-colonist rescue selection into shared plans")
+	flags.BoolVar(&c.routineEquipPlans, "routine-equip-plans", false, "compile unarmed-colonist weapon equip selection into shared plans")
 	flags.BoolVar(&c.routineMethods, "routine-methods", false, "execute reviewed routine building methods under the current player direction")
 	flags.Var(&c.resourceRules, "resource-rule", "repeatable RESOURCE:allow|stop|defense_only:RESERVE for building admission and dispatch")
 	flags.StringVar(&c.profile, "profile", "", "absolute shared game profile directory for player control")
@@ -105,11 +113,18 @@ func parseServe(args []string, diagnostics io.Writer) (serveConfig, error) {
 	if c.routineReviews && !c.clockControl {
 		return c, errors.New("--routine-reviews requires --clock-control")
 	}
-	if (c.routineBillPlans || c.routineFieldPlans || c.routineFoodStoragePlans || c.routineAcquisitionPlans || c.routineWorkPlans || c.routineSupplyPlans || c.routineSleepingPlans || c.routineCookingPlans || c.routineShelterPlans || c.routineComfortPlans || c.routineExpansionPlans || c.routinePowerPlans || c.routineTemperaturePlans) && !c.routineReviews {
+	if (c.routineBillPlans || c.routineFieldPlans || c.routineFoodStoragePlans || c.routineAcquisitionPlans || c.routineWorkPlans || c.routineSupplyPlans || c.routineSleepingPlans || c.routineCookingPlans || c.routineShelterPlans || c.routineComfortPlans || c.routineExpansionPlans || c.routinePowerPlans || c.routineTemperaturePlans || c.routineDefensePlans || c.routineTendPlans || c.routineRescuePlans || c.routineEquipPlans) && !c.routineReviews {
 		return c, errors.New("routine building plans require --routine-reviews")
 	}
-	if c.routineMethods && !c.routineBillPlans && !c.routineFieldPlans && !c.routineFoodStoragePlans && !c.routineAcquisitionPlans && !c.routineWorkPlans && !c.routineSupplyPlans && !c.routineSleepingPlans && !c.routineCookingPlans && !c.routineShelterPlans && !c.routineComfortPlans && !c.routineExpansionPlans && !c.routinePowerPlans && !c.routineTemperaturePlans {
+	if c.routineMethods && !c.routineBillPlans && !c.routineFieldPlans && !c.routineFoodStoragePlans && !c.routineAcquisitionPlans && !c.routineWorkPlans && !c.routineSupplyPlans && !c.routineSleepingPlans && !c.routineCookingPlans && !c.routineShelterPlans && !c.routineComfortPlans && !c.routineExpansionPlans && !c.routinePowerPlans && !c.routineTemperaturePlans && !c.routineDefensePlans && !c.routineTendPlans && !c.routineRescuePlans && !c.routineEquipPlans {
 		return c, errors.New("--routine-methods requires a routine building planner")
+	}
+	// Defense/tend/rescue/equip plans never become the literal current plan
+	// (see clockSchedulerWork); they can only run through the RoutineMethods
+	// concurrent-authorization path, so without it their committed plans
+	// would never be authorized or dispatched.
+	if (c.routineDefensePlans || c.routineTendPlans || c.routineRescuePlans || c.routineEquipPlans) && !c.routineMethods {
+		return c, errors.New("--routine-defense-plans, --routine-tend-plans, --routine-rescue-plans and --routine-equip-plans require --routine-methods")
 	}
 	if c.playerControl && !filepath.IsAbs(c.profile) || !c.playerControl && c.profile != "" {
 		return c, errors.New("--player-control requires an absolute --profile; read-only mode takes no profile")

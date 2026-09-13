@@ -10,7 +10,7 @@ func squadThreat(id PawnID, ranged bool) SquadThreatFacts {
 	return SquadThreatFacts{ID: id, Dead: domain.Known(false), Downed: domain.Known(false), Humanlike: domain.Known(true), Animal: domain.Known(false), RangedEquipped: domain.Known(ranged)}
 }
 func squadDefender(id domain.PawnID, ranged bool) SquadDefenderFacts {
-	return SquadDefenderFacts{ID: id, Dead: domain.Known(false), Downed: domain.Known(false), Drafted: domain.Known(false), MentalState: domain.Known(false), PlayerForced: domain.Known(false), QueuedJobs: domain.Known(uint32(0)), ViolenceCapable: domain.Known(true), NeedsTend: domain.Known(false), HealthFraction: domain.Known(1.0), RangedEquipped: domain.Known(ranged), MeleeEquipped: domain.Known(true)}
+	return SquadDefenderFacts{ID: id, Dead: domain.Known(false), Downed: domain.Known(false), Drafted: domain.Known(false), MentalState: domain.Known(false), PlayerForced: domain.Known(false), QueuedJobs: domain.Known(uint32(0)), ViolenceCapable: domain.Known(true), NeedsTend: domain.Known(false), HealthFraction: domain.Known(1.0), RangedEquipped: domain.Known(ranged), MeleeEquipped: domain.Known(true), Armed: domain.Known(true)}
 }
 
 func TestSelectSquadDefenseAssignsTwoPerMeleeOpponent(t *testing.T) {
@@ -106,5 +106,47 @@ func TestSelectSquadDefenseNoEligibleThreatOrDefender(t *testing.T) {
 	}
 	if _, ok := SelectSquadDefense([]SquadThreatFacts{squadThreat("raider", false)}, nil); ok {
 		t.Fatal("selected with no defenders")
+	}
+}
+
+func TestSelectTribalRaiderDefenseRequiresThreeArmedHealthyDefenders(t *testing.T) {
+	threat := squadThreat("raider", false)
+	defenders := []SquadDefenderFacts{squadDefender("a", false), squadDefender("b", false)}
+	if _, ok := SelectTribalRaiderDefense(threat, defenders); ok {
+		t.Fatal("selected with only two defenders")
+	}
+	defenders = append(defenders, squadDefender("c", true))
+	assignments, ok := SelectTribalRaiderDefense(threat, defenders)
+	if !ok || len(assignments) != 3 {
+		t.Fatal(assignments, ok)
+	}
+	for _, a := range assignments {
+		if a.Target != "raider" {
+			t.Fatal(a)
+		}
+	}
+	// The already-ranged defender sorts first (prefer ranged, per the sort
+	// key), so it is assigned SquadRanged; melee-only ones get SquadMelee.
+	modes := map[SquadMode]int{}
+	for _, a := range assignments {
+		modes[a.Mode]++
+	}
+	if modes[SquadRanged] != 1 || modes[SquadMelee] != 2 {
+		t.Fatal(modes)
+	}
+}
+
+func TestSelectTribalRaiderDefenseExcludesUnarmedUnhealthyOrRangedThreat(t *testing.T) {
+	defenders := []SquadDefenderFacts{squadDefender("a", false), squadDefender("b", false), squadDefender("c", false)}
+	if _, ok := SelectTribalRaiderDefense(squadThreat("shooter", true), defenders); ok {
+		t.Fatal("selected a ranged threat")
+	}
+	unarmed := squadDefender("unarmed", false)
+	unarmed.Armed = domain.Known(false)
+	wounded := squadDefender("wounded", false)
+	wounded.HealthFraction = domain.Known(0.5)
+	pool := []SquadDefenderFacts{unarmed, wounded, squadDefender("fine", false)}
+	if _, ok := SelectTribalRaiderDefense(squadThreat("raider", false), pool); ok {
+		t.Fatal("selected with only one eligible defender")
 	}
 }

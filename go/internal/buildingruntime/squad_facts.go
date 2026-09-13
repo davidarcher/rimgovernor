@@ -63,5 +63,8 @@ func squadDefenderFacts(row *n.PawnState) policy.SquadDefenderFacts {
 	}
 	facts.RangedEquipped = rangedWeaponEquipped(row.Equipment)
 	facts.MeleeEquipped = meleeCapable(row.Equipment)
+	if equipment := row.Equipment; equipment != nil && equipment.Armed != nil && !meleeIssue(equipment.Issues, "armed") {
+		facts.Armed = domain.Known(equipment.GetArmed())
+	}
 	return facts
 }

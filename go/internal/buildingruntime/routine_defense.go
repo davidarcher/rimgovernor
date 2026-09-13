@@ -156,7 +156,14 @@ func (r *RoutineDefensePlanner) step(call, epoch context.Context) (RoutineDefens
 		}
 		threats = append(threats, squadThreatFacts(row))
 	}
-	assignments, ok := policy.SelectSquadDefense(threats, defenders)
+	var assignments []policy.SquadAssignment
+	var ok bool
+	if len(threats) == 1 {
+		assignments, ok = policy.SelectTribalRaiderDefense(threats[0], defenders)
+	}
+	if !ok {
+		assignments, ok = policy.SelectSquadDefense(threats, defenders)
+	}
 	if !ok {
 		return RoutineDefenseResult{Reason: BuildingMethodUsed}, nil
 	}

@@ -26,6 +26,10 @@ type SessionConfig struct {
 	Clock          *ClockCapabilities
 	Melee          *MeleeCapabilities
 	Haul           *HaulCapabilities
+	Ranged         *RangedCapabilities
+	Tend           *TendCapabilities
+	Rescue         *RescueCapabilities
+	Equip          *EquipCapabilities
 }
 
 // Session binds the single profile owner to one journal and executor. Its caller
@@ -120,6 +124,41 @@ func (s sessionBuildingLeases) Lease(target domain.GenerationSnapshot) (string, 
 	return s.control.Lease(root.Snapshot)
 }
 
+// lazyRoutineLeases mirrors sessionBuildingLeases, but reads Control lazily
+// through sink instead of holding a *Control directly. DraftBoundary must be
+// constructed before Control exists (Control's own world source can be the
+// draft boundary itself), so at construction time no *Control is available
+// yet; by the time Lease is actually called (during dispatch), sink.control
+// has been published.
+type lazyRoutineLeases struct {
+	sink    *sessionSink
+	journal *store.Store
+	routine bool
+	timeout time.Duration
+}
+
+func (l lazyRoutineLeases) Lease(target domain.GenerationSnapshot) (string, error) {
+	l.sink.mu.Lock()
+	control := l.sink.control
+	l.sink.mu.Unlock()
+	if control == nil {
+		return "", ErrControl
+	}
+	root := control.State()
+	if root.Snapshot == target {
+		return control.Lease(target)
+	}
+	if !l.routine || !root.Enabled || !root.ObservationKnown {
+		return "", ErrControl
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), l.timeout)
+	defer cancel()
+	if err := l.journal.AuthorizeRoutinePlan(ctx, root.Snapshot, target); err != nil {
+		return "", err
+	}
+	return control.Lease(root.Snapshot)
+}
+
 func (s sessionHolds) Holds(ctx context.Context, current domain.GenerationSnapshot) ([]policy.Reservation, error) {
 	return executor.ExternalHolds(ctx, s.journal, current)
 }
@@ -133,6 +172,9 @@ func NewSession(ctx context.Context, config SessionConfig, journal *store.Store,
 	}
 	if config.Melee != nil && (config.Melee.Native == nil || config.Melee.Writer == nil || config.Draft == nil) {
 		return nil, errors.New("complete melee and draft capabilities required")
+	}
+	if config.Ranged != nil && (config.Ranged.Native == nil || config.Ranged.Writer == nil || config.Draft == nil) {
+		return nil, errors.New("complete ranged and draft capabilities required")
 	}
 	if config.Clock != nil && (config.Clock.Native == nil || config.Clock.Writer == nil) {
 		return nil, errors.New("complete clock capabilities required")
@@ -149,7 +191,7 @@ func NewSession(ctx context.Context, config SessionConfig, journal *store.Store,
 	}
 	var draft *DraftBoundary
 	if config.Draft != nil {
-		draft, err = NewDraftBoundary(config.Draft.Native, config.Draft.Writer, config.Draft.Cleanup, sink, clock, string(namespace))
+		draft, err = NewDraftBoundary(config.Draft.Native, config.Draft.Writer, config.Draft.Cleanup, lazyRoutineLeases{sink, journal, config.RoutineMethods, config.Executor.JournalTimeout}, clock, string(namespace))
 		if err != nil {
 			return nil, err
 		}
@@ -180,7 +222,17 @@ func NewSession(ctx context.Context, config SessionConfig, journal *store.Store,
 	}
 	var melee *MeleeBoundary
 	if config.Melee != nil {
-		melee, err = NewMeleeBoundary(config.Melee.Native, config.Melee.Writer, sink, clock, string(namespace))
+		melee, err = NewMeleeBoundary(config.Melee.Native, config.Melee.Writer, sessionBuildingLeases{control, journal, config.RoutineMethods, config.Executor.JournalTimeout}, clock, string(namespace))
+		if err != nil {
+			return cleanup(err)
+		}
+	}
+	var ranged *RangedAttackBoundary
+	if config.Ranged != nil {
+		if config.Ranged.Native == nil || config.Ranged.Writer == nil {
+			return cleanup(ErrControl)
+		}
+		ranged, err = NewRangedBoundary(config.Ranged.Native, config.Ranged.Writer, sessionBuildingLeases{control, journal, config.RoutineMethods, config.Executor.JournalTimeout}, clock, string(namespace))
 		if err != nil {
 			return cleanup(err)
 		}
@@ -232,15 +284,50 @@ func NewSession(ctx context.Context, config SessionConfig, journal *store.Store,
 		}
 		executionBoundary = withHaul(executionBoundary, haulBoundary)
 	}
+	if config.Tend != nil {
+		if config.Tend.Native == nil || config.Tend.Writer == nil {
+			return cleanup(ErrControl)
+		}
+		tendBoundary, err := NewTendBoundary(config.Tend.Native, config.Tend.Writer, sessionBuildingLeases{control, journal, config.RoutineMethods, config.Executor.JournalTimeout}, clock, string(namespace))
+		if err != nil {
+			return cleanup(err)
+		}
+		executionBoundary = withTend(executionBoundary, tendBoundary)
+	}
+	if config.Rescue != nil {
+		if config.Rescue.Native == nil || config.Rescue.Writer == nil {
+			return cleanup(ErrControl)
+		}
+		rescueBoundary, err := NewRescueBoundary(config.Rescue.Native, config.Rescue.Writer, sessionBuildingLeases{control, journal, config.RoutineMethods, config.Executor.JournalTimeout}, clock, string(namespace))
+		if err != nil {
+			return cleanup(err)
+		}
+		executionBoundary = withRescue(executionBoundary, rescueBoundary)
+	}
+	if config.Equip != nil {
+		if config.Equip.Native == nil || config.Equip.Writer == nil {
+			return cleanup(ErrControl)
+		}
+		equipBoundary, err := NewEquipBoundary(config.Equip.Native, config.Equip.Writer, sessionBuildingLeases{control, journal, config.RoutineMethods, config.Executor.JournalTimeout}, clock, string(namespace))
+		if err != nil {
+			return cleanup(err)
+		}
+		executionBoundary = withEquip(executionBoundary, equipBoundary)
+	}
 	var routine []executor.RoutineScope
 	if config.RoutineMethods {
 		routine = append(routine, journal)
 	}
-	if melee != nil {
+	switch {
+	case melee != nil && ranged != nil:
+		worker, err = executor.NewWithMeleeAndRanged(journal, executionBoundary, draft, melee, ranged, clock, config.Executor, routine...)
+	case melee != nil:
 		worker, err = executor.NewWithMelee(journal, executionBoundary, draft, melee, clock, config.Executor, routine...)
-	} else if draft != nil {
+	case ranged != nil:
+		worker, err = executor.NewWithRanged(journal, executionBoundary, draft, ranged, clock, config.Executor, routine...)
+	case draft != nil:
 		worker, err = executor.NewWithDraft(journal, executionBoundary, draft, clock, config.Executor, routine...)
-	} else {
+	default:
 		worker, err = executor.New(journal, executionBoundary, clock, config.Executor, routine...)
 	}
 	if err != nil {
