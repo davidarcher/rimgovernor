@@ -63,9 +63,16 @@ internal static class NativeOperationEnvelopeProbe
         next = Request(3); admitted = ledger.Admit("rimgovernor.operations.v1.Operations/Execute", next, Context, Owner);
         var applied = NativeOperationEnvelope.Applied(ledger, admitted.Handle, next.Precondition.Attempt, Context, Owner, small);
         Check(applied.Applied.Observed.Equals(small), "bounded applied evidence is preserved");
+        next = Request(4); admitted = ledger.Admit("rimgovernor.operations.v1.Operations/Execute", next, Context, Owner);
+        var uncertainSmall = NativeOperationEnvelope.Uncertain(ledger, admitted.Handle, next.Precondition.Attempt, Context, Owner, small, "Partial write, still observable");
+        Check(uncertainSmall.Uncertain.LastObserved != null && uncertainSmall.Uncertain.LastObserved.Equals(small) && uncertainSmall.Uncertain.Detail == "Partial write, still observable", "bounded uncertain evidence is preserved, not dropped like the oversized case");
         var progress = NativeOperationEnvelope.Progress(new Receipts.ProgressReply { Progress = new Receipts.Progress
             { Context = Context, Attempt = request.Precondition.Attempt, CompleteInspection = true, Completed = new Receipts.CompletedEffect { Evidence = oversized } } });
         Check(progress.Failure?.Code == Common.FailureCode.CapacityExhausted && NativeOperationEnvelope.Fits(progress), "oversized progress cannot claim truncated completion");
+        var boundedProgressReply = new Receipts.ProgressReply { Progress = new Receipts.Progress
+            { Context = Context, Attempt = request.Precondition.Attempt, CompleteInspection = true, Completed = new Receipts.CompletedEffect { Evidence = small } } };
+        var boundedProgress = NativeOperationEnvelope.Progress(boundedProgressReply);
+        Check(ReferenceEquals(boundedProgress, boundedProgressReply) && boundedProgress.Failure == null, "bounded progress reply passes through unchanged, proving the refusal above is conditional on size, not unconditional");
         HookChecks();
         var inherited = AccessTools.Method(typeof(InheritsDestroy), nameof(DeclaresDestroy.Destroy));
         var declared = AccessTools.DeclaredMethod(typeof(DeclaresDestroy), nameof(DeclaresDestroy.Destroy));

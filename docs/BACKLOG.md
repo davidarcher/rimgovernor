@@ -1329,8 +1329,56 @@ main. Native package and Go production cutover remain independent.
   subtest failed once under full-suite load and passed cleanly on an isolated
   rerun and a full-suite rerun, consistent with pre-existing timing flakiness
   unrelated to this change.
-  Native lost-reply fault injection,
-  instant/replacement construction cases and remaining operation families are open.
+  `contracts/tests/NativeContractProbes/native-operation-envelope/Program.cs`
+  now also exercises the two branches of `NativeOperationEnvelope.Uncertain`/
+  `.Progress` (`integrations/rimgovernor-native/src/Bridge/Protocol/
+  NativeOperationEnvelope.cs`) that were never reached: this file is the
+  general, cross-cutting reply/envelope gate shared by every migrated
+  family's write path (draft, movement, combat, hunt, plant, zone, work
+  settings, supply-allow and production bills all call `.Applied`/`.Uncertain`;
+  every observation call goes through `.Progress`) that degrades a reply
+  the caller can never fully receive into an explicit uncertain/refused
+  outcome instead of silently dropping or fabricating evidence -- the shared
+  mechanism behind this list's "lost reply" gap. Only the oversized/refusal
+  half of `.Uncertain` and `.Progress` was ever exercised (proving a reply that
+  cannot fit degrades correctly); the other half -- that a *bounded* reply is
+  passed through with its evidence intact, rather than the degradation being
+  unconditional -- was never proven. Without it, nothing distinguished "this
+  degrades only when necessary" from "this always drops evidence." Two new
+  assertions construct a small `EffectEvidence` and confirm `.Uncertain` keeps
+  it (`LastObserved`/`Detail` both preserved, not dropped like the existing
+  oversized case) and confirm `.Progress` returns the exact same `ProgressReply`
+  instance unchanged when it already fits, alongside the existing oversized-
+  refusal assertion for each. This is the same pure-function-branch-extension
+  technique as the prior six N01.04 slices, applied to the shared envelope
+  gate rather than a family-specific classifier or eligibility predicate.
+  Verified with a standalone verification project (referencing
+  `native-operation-envelope/Program.cs`, `NativeAttemptLedger.cs`,
+  `NativeConstructionHookSet.cs` and `NativeOperationEnvelope.cs` directly,
+  plus a real Harmony 2.3.3 assembly reference) since this probe needs no
+  installed-RimWorld managed assemblies or built bridge.dll -- unlike
+  `native-explosive-causality`/`native-ranged-causality` it recompiles the
+  production source in-process rather than reflecting into a built native
+  package, so `scripts/build_native_mod.ps1` adds no additional verification
+  here; it also sits in the same pre-existing gated `ItemGroup` as
+  `native-authority-hooks` in the merged `NativeContractProbes.csproj`, whose
+  own fake Verse-like stub collides with the always-on shared `FakeVerseStub`
+  the moment `$(HarmonyAssembly)` is supplied (a distinct manifestation of the
+  same pre-existing, unrelated gating conflict already named in this list),
+  hence the standalone harness rather than the merged csproj: 29 compiled
+  assertions pass, up from 27 on the unmodified baseline (confirmed by running
+  the identical probe source from `git show HEAD` through the same standalone
+  harness) -- exactly the 2 new ones. `dotnet build
+  contracts/tests/NativeContractProbes.csproj` (default, no external
+  properties) still succeeds with 0 warnings/errors. `go build ./... && go vet
+  ./... && go test ./...` from `go/` were not rerun (no Go code touched).
+  Native lost-reply fault injection beyond this shared envelope gate (a real
+  in-flight write whose actual native reply is lost mid-transport, as opposed
+  to a reply the gate itself refuses to encode) still needs a live
+  `Pawn`/`Map`/GABS acceptance path that does not exist in Go today.
+  Instant/replacement construction cases and remaining operation families
+  (settings/bills/zones, resources/upkeep, medical, animals/population,
+  trade/world, explicit player operations) are open.
 
 - [ ] **N01.05 — Runtime and presentation ownership.** Native runtime owner.
   Recover partial draft-hook initialization without requiring a game restart;
