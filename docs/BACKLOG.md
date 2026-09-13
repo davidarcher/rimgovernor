@@ -1099,10 +1099,74 @@ without pushes, when the target checkout is safe; preserve other developers' wor
       likewise entirely unstarted.
     - Full `go build ./... && go vet ./... && GOMAXPROCS=2 go test -p 1 ./...`
       passes across the whole module, including the new `policy` coverage.
-    - Still open, unchanged from slice 1: `EnsureBasicPower`,
-      `MaintainResource-*` and `MaintainMedicalReserves` are entirely
-      unstarted. All gameplay/native acceptance remains gated on G01.12 per
-      this doc's stated delivery rule.
+    - Still open, unchanged from slice 1: `MaintainMedicalReserves` is
+      entirely unstarted. `EnsureBasicPower` and `MaintainResource-*` are
+      addressed separately below (slice 3). All gameplay/native acceptance
+      remains gated on G01.12 per this doc's stated delivery rule.
+
+    **Claude handoff: 05.5 slice 3 (`EnsureBasicPower` verified done; `MaintainResource-*` primitives)**
+
+    - Before writing anything, audited this doc's own claim that
+      `EnsureBasicPower` is missing "topology composition and simulation
+      wait." It is not: `policy/power_method.go`'s `SelectPowerMethod` already
+      implements the complete network-local capacity/route decision
+      (blackout wait, player-disabled wait, output-capacity wait, bounded BFS
+      conduit routing, generator placement, replay-safe method keys), and
+      `buildingruntime/routine_power.go` (`NewRoutinePowerPlanner`,
+      `selectPower`, `previewPowerRoute`, `powerOutputAllowance`/
+      `powerNativeWorkTicks`) plus `routine_building_selection.go`'s
+      `EnsureBasicPower` case, `routine_sleeping.go`'s composition, and
+      `clock_scheduler.go`'s `config.Power` validation are all wired and
+      exercised by `routine_power_test.go`/`routine_power_method_test.go`
+      (including `TestRoutinePowerCensusReachesDurableNeed`, which asserts
+      the exact `NeedDeficit`/`NeedRecovered`/`NeedUnknown` postcondition
+      transitions this backlog row asks to observe). `cmd/rimgovernor/
+      serve_clock.go` wires `--routine-power-plans` the same way as every
+      other routine building planner. This table row is stale — landed
+      previously (likely alongside shelter/comfort/temperature under an
+      earlier 05.x slice) but never checked off in the 05.5 table text.
+      Corrected the table row below instead of duplicating already-shipped
+      work; no code changes were needed or made for `EnsureBasicPower`.
+    - Surveyed `MaintainResource-*` next: Python's `resource_method` (in
+      `controller/rimgovernor/production_policy.py`, not a separate
+      `resources.py`) is a single large function covering dynamic
+      stock/target/deficit computation, `home/resource_sources` acquisition
+      selection (mining vs. surface/haul sources, distance ordering, a
+      one-excavation-identity-per-method rule), material-storage zone sizing
+      and creation, deep-extraction development delegation, and — when no
+      source covers the deficit — production-bill discovery/creation with
+      per-alternative ingredient costing, plus a separate
+      `refresh_resource_prerequisite` re-check path. Confirmed by grep that
+      **no** Go code anywhere (`bridge`, `policy`, `domain`,
+      `buildingruntime`) references resource sources, mining, drilling or
+      `MaintainResource` at all — this is a same-sized-or-larger vertical
+      than `GearReplace`/`EnsureResearch`, not a small reconciliation, and
+      was not rushed into a full (and likely broken) implementation this
+      pass.
+    - Scoped this pass down to two further pure, native-shape-preserving
+      primitives, added to new `go/internal/policy/resource_production.go`
+      (+ `resource_production_test.go`, 9 cases): `ResourceRecipeDeficits`
+      (ports `ingredient_deficits` — per-alternative native ingredient
+      cost/deficit against current stock, refusing an Unknown ingredients
+      fact rather than guessing; deliberately reuses `GearRecipe.Ingredients`'s
+      existing `domain.Fact[[][]Amount]` shape so gear and resource
+      production bills share one recipe representation once `GearProduce`
+      is unblocked) and `ResourceExtractionAdvanced` (ports
+      `observe_mining_progress`'s advance detection — decreasing mine hit
+      points or increasing drill progress since a previous observation,
+      rejecting stale/prior ticks). Both are pure functions with no
+      domain/store/executor/bridge/buildingruntime wiring; `resource_method`'s
+      own dynamic-target selection, acquisition/mining dispatch,
+      material-storage zoning, bill placement and the prerequisite-refresh
+      path remain entirely unstarted, matching the posture the `EnsureResearch`
+      slice used for its own oversized vertical.
+    - Full `go build ./... && go vet ./... && GOMAXPROCS=2 go test -p 1 ./...`
+      passes across the whole module, including the new `policy` coverage.
+    - Still open: `GearProduce`, `MaintainMedicalReserves`, and the entire
+      `MaintainResource-*` vertical beyond the two primitives above, and
+      `EnsureResearch`'s own `needs()`/`refresh()`/`method()`/`selected()`/
+      `validate_dispatch()` state machine. All gameplay/native acceptance
+      remains gated on G01.12 per this doc's stated delivery rule.
 
   - [ ] **05.6 — Management and service recovery (G01.07e).**
     Compose dynamic mood, ongoing care/surgery, population, herd, waste and trade
@@ -1355,7 +1419,7 @@ research to `research.refresh`. Medical reserves are the eighth upkeep contract.
 | --- | --- | --- |
 | `MaintainEquipment`: `gear_upkeep.compile_method`, existing gear first, preserve active bill, bounded one-item recipe | `policy/gear.go` proposals | Equip/wear with a, workshop bills and ingredient/labor accounting. Observe exact equipped output; preserve material/forced-gear policy. |
 | `EnsureResearch`: active-goal unavailable ThingDef/RecipeDef prerequisites, bench then project, native-research wait | Definition availability/building execution | Typed queue, prerequisite selection, research action and service wiring. Observe native progress/completion; cancelled/adviser goals cannot request work. Later development-tuple branch in `compile` is shadowed by earlier research delegation. |
-| `EnsureBasicPower`: connect/generate, solar-flare wait | Power policy and shared power construction | Reconcile topology composition and simulation wait; observe powered service/capacity and reuse applicable evidence. |
+| `EnsureBasicPower`: connect/generate, solar-flare wait | Power policy and shared power construction | **Closed** — `policy.SelectPowerMethod` plus `buildingruntime`'s `RoutinePowerPlanner`/composition/CLI wiring already reconcile topology composition and simulation wait and observe powered service/capacity (see 05.5 slice 3 handoff). |
 | `MaintainResource-*`: progress/prerequisite refresh, sources before recipes, material storage, pending work/existing bill wait | Resource rules/forecasts/building accounting | Dynamic targets, acquisition/mining and bills with exact excavation progress. Port delegated extraction/facility/refrigeration prerequisites at their consuming method. Observe replenished stock, not pending yield. |
 | `MaintainMedicalReserves`: `medical_reserves.reserve_method` delegates remaining herbal deficit | Medical reserve need/hysteresis | Same resource production path; better usable medicine reduces deficit. Observe usable reserve recovery without changing care policy. |
 
