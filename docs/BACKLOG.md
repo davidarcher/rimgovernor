@@ -1230,9 +1230,29 @@ b; exact worker cleanup by a, with reuse by their later consumers.
   construct and wire `SettlementGiftCapabilities` unconditionally (native
   `client`, `bridge.NewSettlementGiftWriter`), the same way `Draft` is always
   present, so `EnableSettlementGift` actually runs in the live server instead
-  of only in tests. `FulfillQuest`
-  and failure recovery across multiple active maps remain unstarted; each
-  still needs its own native write handler plus a full Go vertical.
+  of only in tests. `FulfillQuest` remains unstarted and still needs its own
+  native write handler plus a full Go vertical. Failure recovery across
+  multiple active maps is now a deliberately conservative slice rather than
+  full recovery: native's world-progression census already reports every
+  map's spawned-pawn roster (`NativeWorldProgressionObservation.cs`'s
+  `Maps()`, no native change needed), so `bridge.ReadWorldProgression` now
+  also surfaces it (`bridge.WorldMap`: home flag and pawn IDs only, no
+  tile/label/stored-items), and `policy.ClassifyCaravanJourney` gained
+  `CaravanJourneyOnForeignMap` for a caravan whose world object is gone but
+  whose crew is visible on some non-home map (most likely an
+  ambush/encounter map) -- still never reconciled into home custody, only
+  distinguished from true Unknown. `buildingruntime.CaravanJourneyTracker`
+  now records every Stopped/OnForeignMap/Unknown caravan in a new
+  `caravan_stuck` table (schema version 51; `store.MarkCaravanStuck`/
+  `ClearCaravanStuck`/`ListStuckCaravanTracking`, `SinceTick` fixed at first
+  observation, cleared on recovery to InFlight or on resolve) for a future
+  round or operator to inspect; no native write, resolution or guess is
+  attempted on a stuck caravan -- native cannot say why a caravan stopped or
+  when it will move again, so nothing here tries to. `go build/vet/test -p 1
+  ./...` pass, including new bridge malformed-map-evidence tests, policy
+  classifier tests for the foreign-map case, and store/tracker tests for
+  stuck-record bookkeeping (idempotent SinceTick, threshold filtering,
+  clear-on-resolve, clear-on-recovery).
   **Exit evidence:** native departure, arrival, quest fulfillment/reward
   selection, and failure recovery with Go owning the workflow and no
   wrong-map writes.

@@ -17,6 +17,10 @@ func worldProgressionFixture() *o.WorldProgressionSnapshot {
 	return &o.WorldProgressionSnapshot{
 		Context:      pbContext(),
 		Completeness: &o.Completeness{Page: &c.PageInfo{Complete: proto.Bool(true)}},
+		Maps: []*o.WorldMap{
+			{Id: proto.Int32(1), Home: proto.Bool(true), Pawns: []*o.PawnState{{Pawn: &o.EntityRef{Id: proto.String("pawn-1")}}}},
+			{Id: proto.Int32(2), Home: proto.Bool(false), Pawns: []*o.PawnState{{Pawn: &o.EntityRef{Id: proto.String("pawn-2")}}}},
+		},
 		Caravans: []*o.CaravanState{{
 			Caravan: &o.EntityRef{Id: proto.String("caravan-1")},
 			Tile:    proto.Int32(42), Moving: proto.Bool(true),
@@ -57,6 +61,16 @@ func TestReadWorldProgressionAcceptsValidObservation(t *testing.T) {
 		out.Caravans[0].Tile != 42 || !out.Caravans[0].Moving || len(out.Caravans[0].PawnIDs) != 1 || out.Caravans[0].PawnIDs[0] != "pawn-1" {
 		t.Fatal(out, err)
 	}
+	if len(out.Maps) != 2 {
+		t.Fatal(out.Maps)
+	}
+	home, foreign := out.Maps[0], out.Maps[1]
+	if home.ID != 1 || !home.Home || len(home.PawnIDs) != 1 || home.PawnIDs[0] != "pawn-1" {
+		t.Fatal(home)
+	}
+	if foreign.ID != 2 || foreign.Home || len(foreign.PawnIDs) != 1 || foreign.PawnIDs[0] != "pawn-2" {
+		t.Fatal(foreign)
+	}
 	if len(out.Quests) != 1 {
 		t.Fatal(out.Quests)
 	}
@@ -80,6 +94,13 @@ func TestReadWorldProgressionMalformedEvidence(t *testing.T) {
 	edits := map[string]func(*o.WorldProgressionSnapshot){
 		"world":               func(v *o.WorldProgressionSnapshot) { v.Context.Identity.LoadToken = proto.String("other") },
 		"partial page":        func(v *o.WorldProgressionSnapshot) { v.Completeness.Page.Complete = proto.Bool(false) },
+		"missing map id":      func(v *o.WorldProgressionSnapshot) { v.Maps[0].Id = nil },
+		"missing map home":    func(v *o.WorldProgressionSnapshot) { v.Maps[0].Home = nil },
+		"missing map pawn id": func(v *o.WorldProgressionSnapshot) { v.Maps[0].Pawns[0].Pawn.Id = nil },
+		"duplicate map pawn":  func(v *o.WorldProgressionSnapshot) { v.Maps[0].Pawns = append(v.Maps[0].Pawns, v.Maps[0].Pawns[0]) },
+		"pawn on two maps": func(v *o.WorldProgressionSnapshot) {
+			v.Maps[1].Pawns = append(v.Maps[1].Pawns, v.Maps[0].Pawns[0])
+		},
 		"missing caravan id":  func(v *o.WorldProgressionSnapshot) { v.Caravans[0].Caravan.Id = nil },
 		"duplicate caravan":   func(v *o.WorldProgressionSnapshot) { v.Caravans = append(v.Caravans, v.Caravans[0]) },
 		"negative tile":       func(v *o.WorldProgressionSnapshot) { v.Caravans[0].Tile = proto.Int32(-1) },

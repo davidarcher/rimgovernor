@@ -79,6 +79,115 @@ func TestCaravanTrackingResolveRequiresActiveRecord(t *testing.T) {
 	}
 }
 
+func TestCaravanStuckMarkIsIdempotentOnSinceTick(t *testing.T) {
+	t.Parallel()
+	db := caravanTrackingFixture(t)
+	ctx := context.Background()
+	if err := db.StartCaravanTracking(ctx, "caravan-1", []domain.PawnID{"alpha"}); err != nil {
+		t.Fatal(err)
+	}
+	if err := db.MarkCaravanStuck(ctx, "caravan-1", 100, StuckCaravanStopped); err != nil {
+		t.Fatal(err)
+	}
+	// A later observation at a different tick and status must not move
+	// SinceTick backward or forward: it always reflects the first time the
+	// caravan was seen stuck.
+	if err := db.MarkCaravanStuck(ctx, "caravan-1", 250, StuckCaravanUnknown); err != nil {
+		t.Fatal(err)
+	}
+	stuck, err := db.ListStuckCaravanTracking(ctx, 250, 0)
+	if err != nil || len(stuck) != 1 {
+		t.Fatal(stuck, err)
+	}
+	if stuck[0].CaravanID != "caravan-1" || stuck[0].SinceTick != 100 || stuck[0].Status != StuckCaravanUnknown {
+		t.Fatal(stuck[0])
+	}
+}
+
+func TestCaravanStuckThresholdFiltersRecentlyStuck(t *testing.T) {
+	t.Parallel()
+	db := caravanTrackingFixture(t)
+	ctx := context.Background()
+	if err := db.StartCaravanTracking(ctx, "caravan-1", []domain.PawnID{"alpha"}); err != nil {
+		t.Fatal(err)
+	}
+	if err := db.MarkCaravanStuck(ctx, "caravan-1", 1000, StuckCaravanStopped); err != nil {
+		t.Fatal(err)
+	}
+	if stuck, err := db.ListStuckCaravanTracking(ctx, 1050, 100); err != nil || len(stuck) != 0 {
+		t.Fatal(stuck, err)
+	}
+	if stuck, err := db.ListStuckCaravanTracking(ctx, 1100, 100); err != nil || len(stuck) != 1 {
+		t.Fatal(stuck, err)
+	}
+}
+
+func TestCaravanStuckClearRemovesRecord(t *testing.T) {
+	t.Parallel()
+	db := caravanTrackingFixture(t)
+	ctx := context.Background()
+	if err := db.StartCaravanTracking(ctx, "caravan-1", []domain.PawnID{"alpha"}); err != nil {
+		t.Fatal(err)
+	}
+	if err := db.MarkCaravanStuck(ctx, "caravan-1", 10, StuckCaravanStopped); err != nil {
+		t.Fatal(err)
+	}
+	if err := db.ClearCaravanStuck(ctx, "caravan-1"); err != nil {
+		t.Fatal(err)
+	}
+	if stuck, err := db.ListStuckCaravanTracking(ctx, 10, 0); err != nil || len(stuck) != 0 {
+		t.Fatal(stuck, err)
+	}
+	// Clearing when nothing is recorded is a no-op, not an error.
+	if err := db.ClearCaravanStuck(ctx, "caravan-1"); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestCaravanStuckClearedOnResolve(t *testing.T) {
+	t.Parallel()
+	db := caravanTrackingFixture(t)
+	ctx := context.Background()
+	if err := db.StartCaravanTracking(ctx, "caravan-1", []domain.PawnID{"alpha"}); err != nil {
+		t.Fatal(err)
+	}
+	if err := db.MarkCaravanStuck(ctx, "caravan-1", 10, StuckCaravanStopped); err != nil {
+		t.Fatal(err)
+	}
+	if err := db.ResolveCaravanTracking(ctx, "caravan-1"); err != nil {
+		t.Fatal(err)
+	}
+	if stuck, err := db.ListStuckCaravanTracking(ctx, 10, 0); err != nil || len(stuck) != 0 {
+		t.Fatal(stuck, err)
+	}
+}
+
+func TestCaravanStuckRejectsInvalidInputs(t *testing.T) {
+	t.Parallel()
+	db := caravanTrackingFixture(t)
+	ctx := context.Background()
+	if err := db.StartCaravanTracking(ctx, "caravan-1", []domain.PawnID{"alpha"}); err != nil {
+		t.Fatal(err)
+	}
+	if err := db.MarkCaravanStuck(ctx, "caravan-1", -1, StuckCaravanStopped); err == nil {
+		t.Fatal("accepted negative tick")
+	}
+	if err := db.MarkCaravanStuck(ctx, "caravan-1", 1, StuckCaravanStatus("bogus")); err == nil {
+		t.Fatal("accepted invalid status")
+	}
+	// A caravan_id with no matching caravan_tracking row violates the
+	// foreign key and must be rejected.
+	if err := db.MarkCaravanStuck(ctx, "missing", 1, StuckCaravanStopped); err == nil {
+		t.Fatal("accepted stuck record for untracked caravan")
+	}
+	if _, err := db.ListStuckCaravanTracking(ctx, -1, 0); err == nil {
+		t.Fatal("accepted negative current tick")
+	}
+	if _, err := db.ListStuckCaravanTracking(ctx, 0, -1); err == nil {
+		t.Fatal("accepted negative threshold")
+	}
+}
+
 func TestCaravanTrackingListOrdersDeterministically(t *testing.T) {
 	t.Parallel()
 	db := caravanTrackingFixture(t)

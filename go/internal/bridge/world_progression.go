@@ -52,15 +52,32 @@ type QuestOffer struct {
 	SnapshotToken    string
 }
 
+// WorldMap is the validated subset of one WorldProgressionSnapshot.maps row
+// that failure-recovery classification needs: which map this is (native
+// uniqueID) and whether native marks it a player home map, plus the pawn
+// IDs native reports currently spawned there. It does not surface tile,
+// label or stored items; nothing here reads or writes anything on a
+// foreign map, it only lets a caller tell "this pawn is alive and visible
+// on some live map" from "absent from every census we can read".
+type WorldMap struct {
+	ID      int32
+	Home    bool
+	PawnIDs []string
+}
+
 // WorldProgressionRead is the validated subset of one rimgovernor/
 // observations_read_world_progression census this round's caravan-journey
 // tracking and quest-accept boundary need. It does not surface
-// WorldProgressionSnapshot.maps, factions or assemblies; those remain unread
-// until a later slice (settlement gifts, multi-map recovery) needs them, the
-// same "read only what a boundary can validate and use" discipline as
-// CaravanCatalogRead.
+// WorldProgressionSnapshot.factions or assemblies; those remain unread
+// until a later slice needs them, the same "read only what a boundary can
+// validate and use" discipline as CaravanCatalogRead. Maps is read only for
+// its pawn rosters (see WorldMap): a caravan whose world object has
+// disappeared but whose crew is visible on some non-home map is known to be
+// on a live map (an encounter/ambush map, most likely), not lost -- without
+// ever claiming custody of that map's pawns or issuing any write to it.
 type WorldProgressionRead struct {
 	Context  *c.ObservationContext
+	Maps     []WorldMap
 	Caravans []CaravanJourney
 	Quests   []QuestOffer
 }
@@ -108,6 +125,33 @@ func worldProgressionSelected(v *o.WorldProgressionSnapshot, identity *c.Identit
 	counts := v.Completeness
 	if counts == nil || counts.Page == nil || !counts.Page.GetComplete() || counts.Page.GetNextCursor() != "" {
 		return WorldProgressionRead{}, contract("incomplete world progression page")
+	}
+	if len(v.Maps) > 256 {
+		return WorldProgressionRead{}, contract("world progression maps exceed bound")
+	}
+	maps := make([]WorldMap, len(v.Maps))
+	seenMapPawns := map[string]bool{}
+	for i, row := range v.Maps {
+		if row == nil || row.Id == nil || row.Home == nil || len(row.Pawns) > 256 {
+			return WorldProgressionRead{}, contract("invalid world progression map")
+		}
+		pawnIDs := make([]string, len(row.Pawns))
+		seen := map[string]bool{}
+		for j, pawn := range row.Pawns {
+			if pawn == nil || pawn.Pawn == nil || validID(pawn.Pawn.GetId()) != nil || seen[pawn.Pawn.GetId()] {
+				return WorldProgressionRead{}, contract("invalid or duplicate world progression map pawn")
+			}
+			seen[pawn.Pawn.GetId()] = true
+			// A pawn spawned on two maps at once is not a real game state;
+			// treat it as evidence the census cannot be trusted rather than
+			// picking one map to believe.
+			if seenMapPawns[pawn.Pawn.GetId()] {
+				return WorldProgressionRead{}, contract("world progression pawn present on multiple maps")
+			}
+			seenMapPawns[pawn.Pawn.GetId()] = true
+			pawnIDs[j] = pawn.Pawn.GetId()
+		}
+		maps[i] = WorldMap{ID: row.GetId(), Home: row.GetHome(), PawnIDs: pawnIDs}
 	}
 	if len(v.Caravans) > 256 {
 		return WorldProgressionRead{}, contract("world progression caravans exceed bound")
@@ -184,5 +228,5 @@ func worldProgressionSelected(v *o.WorldProgressionSnapshot, identity *c.Identit
 			ChoiceCount: int32(len(choices)), HasTradeRequest: len(row.TradeRequests) > 0, EligiblePawnIDs: pawnIDs, SnapshotToken: row.Snapshot.GetToken(),
 		}
 	}
-	return WorldProgressionRead{Context: v.Context, Caravans: rows, Quests: quests}, nil
+	return WorldProgressionRead{Context: v.Context, Maps: maps, Caravans: rows, Quests: quests}, nil
 }

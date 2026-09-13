@@ -37,7 +37,7 @@ import (
 	"modernc.org/sqlite"
 )
 
-const schemaVersion = 50
+const schemaVersion = 51
 const applicationID = 0x52474f31
 
 var ErrConflict = core.ErrConflict

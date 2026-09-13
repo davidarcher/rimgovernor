@@ -34,6 +34,8 @@ type CaravanJourneyNative interface {
 type CaravanJourneyJournal interface {
 	ListActiveCaravanTracking(context.Context) ([]store.CaravanTracking, error)
 	ResolveCaravanTracking(context.Context, string) error
+	MarkCaravanStuck(ctx context.Context, caravanID string, tick int64, status store.StuckCaravanStatus) error
+	ClearCaravanStuck(ctx context.Context, caravanID string) error
 }
 
 // CaravanJourneyCapabilities gates the caravan-journey tracking capability;
@@ -73,11 +75,25 @@ const (
 // caravan store.CaravanTracking still lists as away, and reconciles the
 // ones it can safely prove home. It is deliberately not a
 // RoutineBuildingPlanner: it dispatches nothing, competes with no goal for
-// a plan slot, and its only durable effect is store.ResolveCaravanTracking,
-// a local bookkeeping write, never a native call. This is what makes the
+// a plan slot, and its only durable effects are store.ResolveCaravanTracking
+// and the store.MarkCaravanStuck/ClearCaravanStuck bookkeeping described
+// below, all local writes, never a native call. This is what makes the
 // exit evidence's "no wrong-map writes" true here: the tracker cannot write
 // to native at all, home or foreign map, so there is no wrong map to write
 // to.
+//
+// A caravan classified Stopped, OnForeignMap or Unknown is recorded via
+// store.MarkCaravanStuck (SinceTick set once, on first observation) and
+// cleared via store.ClearCaravanStuck the moment it is next seen InFlight
+// or resolved home. This is the honest ceiling on "failure recovery"
+// available today: native's world-progression census can say a caravan's
+// crew is visible on some other live map (see policy.CaravanJourneyOnForeignMap)
+// but cannot say why a caravan stopped, whether it was ambushed, or when
+// (if ever) it will move again, so RimGovernor does not guess. Instead it
+// gives an operator or a future slice an inspectable, tick-stamped record
+// (store.ListStuckCaravanTracking) of exactly which caravans have gone
+// how long without resolving, with no reconciliation or write attempted on
+// any of them.
 //
 // Reconciliation is deliberately minimal: mark the tracking record
 // resolved. There is no separate "claim" or reservation on a departed
@@ -179,14 +195,33 @@ func (t *CaravanJourneyTracker) step(call, epoch context.Context) (CaravanJourne
 	for _, journey := range world.Caravans {
 		byID[journey.ID] = journey
 	}
+	foreign := make(map[domain.PawnID]bool)
+	for _, m := range world.Maps {
+		if m.Home {
+			continue
+		}
+		for _, pawn := range m.PawnIDs {
+			foreign[domain.PawnID(pawn)] = true
+		}
+	}
+	tick := world.Context.GetTick()
 	result := CaravanJourneyResult{Reason: CaravanJourneyPolled}
 	var resolve []string
 	for _, tracked := range active {
 		journey, found := byID[tracked.CaravanID]
-		status := policy.ClassifyCaravanJourney(tracked.Crew, found, journey.Moving, roster)
+		status := policy.ClassifyCaravanJourney(tracked.Crew, found, journey.Moving, roster, foreign)
 		result.Outcomes = append(result.Outcomes, CaravanJourneyOutcome{CaravanID: tracked.CaravanID, Status: status})
-		if status == policy.CaravanJourneyReturnedHome {
+		switch status {
+		case policy.CaravanJourneyReturnedHome:
 			resolve = append(resolve, tracked.CaravanID)
+		case policy.CaravanJourneyInFlight:
+			if err = t.journal.ClearCaravanStuck(call, tracked.CaravanID); err != nil {
+				return CaravanJourneyResult{}, err
+			}
+		case policy.CaravanJourneyStopped, policy.CaravanJourneyOnForeignMap, policy.CaravanJourneyUnknown:
+			if err = t.journal.MarkCaravanStuck(call, tracked.CaravanID, tick, stuckStatus(status)); err != nil {
+				return CaravanJourneyResult{}, err
+			}
 		}
 	}
 	if len(resolve) == 0 {
@@ -206,4 +241,22 @@ func (t *CaravanJourneyTracker) step(call, epoch context.Context) (CaravanJourne
 		result.Resolved = append(result.Resolved, id)
 	}
 	return result, nil
+}
+
+// stuckStatus maps every non-InFlight, non-ReturnedHome
+// policy.CaravanJourneyStatus onto its store.StuckCaravanStatus text.
+// Panicking on an unmapped status is deliberate: step's switch only calls
+// this for the three statuses listed here, so an unmapped value means a new
+// policy.CaravanJourneyStatus was added without updating this tracker.
+func stuckStatus(status policy.CaravanJourneyStatus) store.StuckCaravanStatus {
+	switch status {
+	case policy.CaravanJourneyStopped:
+		return store.StuckCaravanStopped
+	case policy.CaravanJourneyOnForeignMap:
+		return store.StuckCaravanOnForeignMap
+	case policy.CaravanJourneyUnknown:
+		return store.StuckCaravanUnknown
+	default:
+		panic("stuckStatus: unmapped caravan journey status")
+	}
 }
