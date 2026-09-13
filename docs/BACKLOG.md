@@ -1502,6 +1502,90 @@ main. Native package and Go production cutover remain independent.
   behavior matrix covering the supported package and typed families. Depends on
   03–07; enforcement starts with 02.
 
+  **Audit pass (this session), no safe slice closed.** Enumerated every named
+  sub-item and checked each against the actual project/CI config rather than
+  backlog prose:
+  - *Compiler warnings-as-errors*: already project-wide.
+    `RimGovernor.Runtime.csproj`/`RimGovernor.Bridge.csproj` both set
+    `TreatWarningsAsErrors=true`; `dotnet build` of both (Release, real
+    RimWorld/Harmony/RimBridgeServer.Sdk inputs) is clean, 0 warnings/0 errors.
+    Nothing to expand here; already enforced.
+  - *Nullability*: ratcheted per file via `#nullable enable` pragmas (37 of 131
+    tracked `.cs` files), matching the architecture doc's "ratchet ... as each
+    surface migrates," not a project-wide `<Nullable>`. Cross-checked this
+    session's N01.03/N01.04 diffs (`f6c7d60`, `d7eb0e2`, `ee8499f`): every
+    production file they touched already carries the pragma; no regression to
+    fix and no newly-migrated file lacks it yet.
+  - *Generation drift*: already enforced, not a gap. `scripts/generate_protobuf.py
+    --check` and `scripts/generate_protobuf_go.py --check` both exist and run in
+    `.github/workflows/protobuf.yml` on every push/PR (Linux + Windows), failing
+    the job on drift between checked-in generated C#/Go and a fresh `protoc` run.
+  - *Registration coverage*: enforcement exists (`scripts/check_native_inventory.py`,
+    wired through `scripts/check_go_coverage.py` in `.github/workflows/controller.yml`)
+    but **is currently red**: `python scripts/check_native_inventory.py --check
+    --self-test` reports 14 errors against the tracked worktree (same content as
+    `main` at `ee8499f`). Root cause, confirmed programmatically rather than
+    guessed: `contracts/domain-inventory.json`'s `native_surface.source_baseline`
+    and `contracts/native-runtime-source-index.json` were last refreshed at
+    `2826c6d1`, ~30 commits before this session (spanning nearly all of N01.03's
+    CAS/cursor/observation work: `PawnConfigTool.cs` +162 lines,
+    `NativeColonyObservationTools.cs` +374, `NativeRoomObservationTools.cs` +99,
+    `NativeAuthorityHooks.cs` +70, plus `NativeBuildingObservationTools.cs`,
+    `NativeOperationTools.cs`, `NativePawnDetails.cs`,
+    `NativePawnObservationTools.cs`, `NativeResearchObservationTools.cs`,
+    `NativeSuppliesObservationTools.cs`, `ResourceAcquisitionTool.cs`,
+    `ColonyFactsTool.cs` with smaller diffs). No tool export was added or removed
+    (144/144 names match by set; only 3 declaration-text diffs, on
+    `operations_preview`/`operations_execute`/`receipts_observe_progress`) — this
+    is stale audit metadata, not a scope or contract regression. The
+    `source_baseline` half (hashes + extracted `[Tool]` declarations) is fully
+    and safely re-derivable by re-running the checker's own `source_baseline()`
+    function, verified byte-for-byte against the current tree. The
+    `native-runtime-source-index.json` half is not: its
+    `static_token_lines`/`reflection_boundary_lines`/`patch_registration_lines`
+    per file require a human/agent to actually read each substantial diff and
+    reclassify lines per the file's stated policy ("static matches include
+    methods and constructors, reflection matches include helper use and
+    interop") — the checker only validates that recorded line numbers are
+    structurally in range, so a blind hash refresh would make the check pass
+    while silently freezing stale or wrong classifications into a
+    supposedly-reviewed audit trail. That is the "inspect changes before
+    refreshing" the check's own error message demands, and doing it honestly
+    for ~12 files (several 70-370 line diffs) is real, multi-file review work,
+    not a bounded single-session slice. Left unfixed rather than forced.
+  - *Invalid payload/result variants*: contract test suites already carry
+    negative/boundary cases per family (`contracts/tests/native-proto-*`,
+    `native-pawn-observations`, `native-proto-boundary`); no family was found
+    conspicuously missing this coverage during a spot check, though
+    `native-proto-buildings/Program.cs` is noticeably thinner (82 lines, 1
+    invalid-variant assertion) than its siblings (99-259 lines, 4-9 assertions)
+    and may be worth a closer look in a future pass — not confirmed as an actual
+    gap this session, just flagged.
+  - *Unused helpers/suppressions*: none exist to remove — zero hits for
+    `pragma warning disable`, `[SuppressMessage]`, `NoWarn` or `#nullable
+    disable` across `integrations/rimgovernor-native/src`.
+  - *Reproducible builds*: confirmed this session (see above); the native
+    behavior matrix across the supported package and typed families is
+    unstarted and depends on N01.03-06 landing further (those are still open
+    per their own entries), so it's out of scope until they progress.
+
+  **Why no slice landed:** the one concrete, currently-failing, N01.08-scoped
+  enforcement gap found (`check_native_inventory.py`'s registration-coverage
+  check) splits into a safe mechanical half and an unsafe manual half that
+  can't be separated without leaving the check red anyway (the runtime-index
+  hash mismatches alone fail `check()`). Refreshing only the safe half would
+  not close the check or prove anything; refreshing the unsafe half by rote
+  would corrupt the audit trail it exists to protect. Every other named
+  sub-item is either already enforced (generation drift, warnings-as-errors)
+  or has nothing outstanding to act on (suppressions) or is correctly gated on
+  N01.03-06 finishing (nullability ratchet expansion, behavior matrix). No
+  native or Go file was changed this session; `git status` is clean except this
+  `docs/BACKLOG.md` update. Next N01.08 pass: do the file-by-file
+  `native-runtime-source-index.json` reclassification for the 12 drifted files
+  above, then re-derive and commit both halves of
+  `check_native_inventory.py`'s baseline together so the check goes green for a
+  real reason.
+
 - [ ] **N01.09 — Migrate Python acceptance tooling to Go.** Native acceptance owner.
   `controller/` (~118 files/17.8k lines) and `scripts/` (~185 files/27.8k lines)
   carry the project's GABS-driven native/container acceptance tooling in Python;
