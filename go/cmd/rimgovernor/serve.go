@@ -58,6 +58,7 @@ type serveConfig struct {
 	routineResearchTarget         string
 	routineMethods                bool
 	routineProjectLimit           int
+	caravanJourneyTracking        bool
 	resourceRules                 resourceRuleFlags
 	refresh                       time.Duration
 }
@@ -95,6 +96,7 @@ func parseServe(args []string, diagnostics io.Writer) (serveConfig, error) {
 	flags.BoolVar(&c.routineRecoveryPlans, "routine-recovery-plans", false, "compile disaster-recovery repair/breakdown/refuel service selection into shared plans")
 	flags.StringVar(&c.routineResearchTarget, "routine-research-target", "", "operator-declared native ResearchProjectDef name EnsureResearch's routine planner selects prerequisite-ordered toward, once no research project is already current")
 	flags.BoolVar(&c.routineMethods, "routine-methods", false, "execute reviewed routine building methods under the current player direction")
+	flags.BoolVar(&c.caravanJourneyTracking, "caravan-journey-tracking", false, "poll world progression each clock step and resolve tracked caravans that have returned home")
 	flags.Var(&c.resourceRules, "resource-rule", "repeatable RESOURCE:allow|stop|defense_only:RESERVE for building admission and dispatch")
 	flags.StringVar(&c.profile, "profile", "", "absolute shared game profile directory for player control")
 	flags.StringVar(&c.bridge.Executable, "gabs", "", "absolute GABS executable")
@@ -124,6 +126,9 @@ func parseServe(args []string, diagnostics io.Writer) (serveConfig, error) {
 	}
 	if c.routineReviews && !c.clockControl {
 		return c, errors.New("--routine-reviews requires --clock-control")
+	}
+	if c.caravanJourneyTracking && !c.clockControl {
+		return c, errors.New("--caravan-journey-tracking requires --clock-control")
 	}
 	if (c.routineBillPlans || c.routineFieldPlans || c.routineFoodStoragePlans || c.routineAcquisitionPlans || c.routineWorkPlans || c.routineSupplyPlans || c.routineSleepingPlans || c.routineCookingPlans || c.routineShelterPlans || c.routineComfortPlans || c.routineExpansionPlans || c.routinePowerPlans || c.routineTemperaturePlans || c.routineDefensePlans || c.routineTendPlans || c.routineRescuePlans || c.routineEquipPlans || c.routineSecureSuppliesPlans || c.routineGearPlans || c.routineMedicalPlans || c.routineAnimalContainmentPlans || c.routineRecoveryPlans || c.routineResearchTarget != "") && !c.routineReviews {
 		return c, errors.New("routine building plans require --routine-reviews")

@@ -43,9 +43,20 @@ func serviceClockConfig(profile string) buildingruntime.ClockSchedulerConfig {
 
 // Session owns the attached worker's drain, including failed startup cleanup.
 // Starting these loops does not enable Player or acquire native authority.
-func startServiceClock(ctx context.Context, player *buildingruntime.Player, session *buildingruntime.Session, reads serviceClockReads, profile string, timeout time.Duration, routine, sleeping, cooking, shelter, comfort, expansion, power, temperature bool, projectLimit int, supplies, work, acquisition, defense, tend, rescue, equip, secureSupplies, gear, medical, animalContainment, recovery bool, researchTarget string, fieldOptions ...bool) error {
+func startServiceClock(ctx context.Context, player *buildingruntime.Player, session *buildingruntime.Session, reads serviceClockReads, journal *store.Store, profile string, timeout time.Duration, routine, sleeping, cooking, shelter, comfort, expansion, power, temperature bool, projectLimit int, supplies, work, acquisition, defense, tend, rescue, equip, secureSupplies, gear, medical, animalContainment, recovery, caravanJourneyTracking bool, researchTarget string, fieldOptions ...bool) error {
 	config := serviceClockConfig(profile)
 	config.RoutineMethods = session.RoutineMethodsEnabled()
+	if caravanJourneyTracking {
+		native, ok := reads.(buildingruntime.CaravanJourneyNative)
+		if !ok {
+			return errors.New("caravan journey tracking requires typed world progression and home colonist observations")
+		}
+		tracker, err := buildingruntime.NewCaravanJourneyTracker(player, native, journal, wallClock{}, config.MaxAge)
+		if err != nil {
+			return err
+		}
+		config.CaravanJourney = tracker
+	}
 	fields := len(fieldOptions) >= 1 && fieldOptions[0]
 	bills := len(fieldOptions) >= 2 && fieldOptions[1]
 	foodStorage := len(fieldOptions) == 3 && fieldOptions[2]

@@ -204,6 +204,81 @@ func TestPowerServeRequiresReviewsAndCanOwnRoutineMethods(t *testing.T) {
 	}
 }
 
+func TestCaravanJourneyTrackingRequiresClockControl(t *testing.T) {
+	dir := t.TempDir()
+	base := []string{"--gabs", filepath.Join(dir, "gabs"), "--config", dir, "--game", "game", "--state", filepath.Join(dir, "state.db"), "--player-control", "--profile", dir, "--caravan-journey-tracking"}
+	if _, err := parseServe(base, io.Discard); err == nil {
+		t.Fatal("caravan journey tracking accepted without clock control")
+	}
+	config, err := parseServe(append(base, "--clock-control"), io.Discard)
+	if err != nil || !config.caravanJourneyTracking {
+		t.Fatal(config, err)
+	}
+}
+
+// caravanJourneyClockFake extends clockServiceFake with the world-progression
+// and home-colonist reads CaravanJourneyTracker needs, so it satisfies
+// buildingruntime.CaravanJourneyNative via the same reads value startup
+// passes as serviceClockReads.
+type caravanJourneyClockFake struct {
+	*clockServiceFake
+}
+
+func (f caravanJourneyClockFake) ReadWorldProgression(context.Context, *c.Identity, bool) (bridge.WorldProgressionRead, bridge.Result, error) {
+	return bridge.WorldProgressionRead{}, bridge.Result{}, errors.New("world progression unavailable")
+}
+
+func (f caravanJourneyClockFake) ReadHomeColonists(context.Context, *c.Identity) (*o.ListPawnsReply, bridge.Result, error) {
+	return nil, bridge.Result{}, errors.New("home colonists unavailable")
+}
+
+func TestCaravanJourneyTrackingRequiresTypedReads(t *testing.T) {
+	dir := t.TempDir()
+	reads := &buildingReadFake{serviceFake: serviceFake{entered: make(chan struct{}, 2)}}
+	clock := &clockServiceFake{reads: reads, polled: make(chan struct{}, 1)}
+	caps := unusedBuildingCapabilities{}
+	config := serveConfig{playerControl: true, clockControl: true, caravanJourneyTracking: true, profile: dir, state: filepath.Join(dir, "state.db"), listen: "127.0.0.1:0", refresh: time.Second, bridge: bridge.ProcessConfig{Timeout: time.Second}}
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	addresses := make(buildingAddressWriter, 1)
+	err := serveBuildingWithBridge(ctx, config, addresses, func(context.Context, bridge.ProcessConfig) (buildingServiceBridge, error) {
+		return buildingServiceBridge{reads: reads, native: caps, authority: caps, writes: caps, draft: unusedDrafts(), clock: &buildingruntime.ClockCapabilities{Native: clock, Writer: clock}, clockReads: clock}, nil
+	})
+	if err == nil {
+		t.Fatal("untyped reads accepted for caravan journey tracking")
+	}
+}
+
+func TestCaravanJourneyTrackingStartsPolling(t *testing.T) {
+	dir := t.TempDir()
+	reads := &buildingReadFake{serviceFake: serviceFake{entered: make(chan struct{}, 2)}}
+	clock := caravanJourneyClockFake{&clockServiceFake{reads: reads, polled: make(chan struct{}, 1)}}
+	caps := unusedBuildingCapabilities{}
+	config := serveConfig{playerControl: true, clockControl: true, caravanJourneyTracking: true, profile: dir, state: filepath.Join(dir, "state.db"), listen: "127.0.0.1:0", refresh: time.Second, bridge: bridge.ProcessConfig{Timeout: time.Second}}
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	addresses := make(buildingAddressWriter, 1)
+	done := make(chan error, 1)
+	go func() {
+		done <- serveBuildingWithBridge(ctx, config, addresses, func(context.Context, bridge.ProcessConfig) (buildingServiceBridge, error) {
+			return buildingServiceBridge{reads: reads, native: caps, authority: caps, writes: caps, draft: unusedDrafts(), clock: &buildingruntime.ClockCapabilities{Native: clock, Writer: clock}, clockReads: clock}, nil
+		})
+	}()
+	select {
+	case <-clock.polled:
+	case err := <-done:
+		t.Fatalf("startup: %v", err)
+	case <-time.After(5 * time.Second):
+		t.Fatal("clock polling did not start")
+	}
+	cancel()
+	select {
+	case <-done:
+	case <-time.After(5 * time.Second):
+		t.Fatal("clock service did not join")
+	}
+}
+
 func TestTemperatureServeRequiresReviewsAndCanOwnRoutineMethods(t *testing.T) {
 	dir := t.TempDir()
 	base := []string{"--gabs", filepath.Join(dir, "gabs"), "--config", dir, "--game", "game", "--state", filepath.Join(dir, "state.db"), "--clock-control", "--player-control", "--profile", dir, "--routine-temperature-plans"}
