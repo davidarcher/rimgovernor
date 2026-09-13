@@ -816,27 +816,58 @@ without pushes, when the target checkout is safe; preserve other developers' wor
     already-working bench/recipe outcome into a new failure mode. Verified
     with a native `dotnet build` in addition to `go build/vet/test ./...`.
 
+    The native mining `AcquireResource` adapter is now closed: a new
+    `NativeMineAcquisition.cs` mirrors `NativeHuntAcquisition.cs`'s shape
+    (`NativeMineRecord`/`INativeAcquisitionRecord`, `NativeAttemptLedger`
+    admission, `Receipts.AcquisitionEffect` evidence), designating a
+    `Mineable` through `Designator_Mine` and wired into
+    `NativePlantAcquisition.Preview`/`Execute` via the exact same delegation
+    pattern used for `IsHunt` (`NativeMineAcquisition.IsMine`). Because a
+    `Mineable` has no back-reference to its eventual output the way a hunted
+    pawn's `Corpse` does, evidence is polled like Hunt's (has the source gone;
+    did matching resource stacks appear nearby) rather than tracked through
+    Harmony hooks the way ordinary plant-harvest evidence is: a baseline of
+    pre-existing nearby resource stacks is captured at admission time and
+    subtracted from what's found after, so stock already sitting near the
+    deposit before the attempt started is never misattributed as this
+    attempt's output — a disclosed narrowing, not exact spawn tracking.
+    `NativeResourceSourcesTool.Project` now also populates a per-source CAS
+    snapshot token (`EntityRef.Snapshot`, via a new
+    `NativeMineAcquisition.Snapshot`/`Token`, hashed over hit points instead
+    of plant growth) for `Mineable` rows only, closing the previously-flagged
+    gap of `ListResourceSources` reporting no token at all. On the Go side,
+    `policy.ResourceSource` gained `Cell`/`Token` fields and
+    `bridge.ReadResourceSources` now decodes and requires them for any `mine`
+    row (harvest/hunt rows still carry neither, unchanged). Verified with a
+    native `dotnet build` and `go build/vet/test ./...`.
+
     Still open: actually dispatching `AcquireResource` against a selected
-    mine source. `NativeHuntAcquisition.cs`/`NativePlantAcquisition.cs` are
-    the only existing adapters for that operation; a mining counterpart
-    (designating a `Mineable` through `Designator_Mine`, tracked via the
-    same `NativeAttemptLedger`/`Receipts.AcquisitionEffect` shape those two
-    already use, dispatched from `NativePlantAcquisition.Execute`/`Preview`
-    the same way it already delegates to `NativeHuntAcquisition` when
-    `IsHunt`) does not exist yet. Re-investigation also confirmed
-    `buildingruntime/acquisition`'s existing generic vertical
-    (`domain.Acquisition`/`bridge.ReadAcquisition`/`AcquisitionBoundary`/
-    executor dispatch) still cannot simply be fed arbitrary mined resources
-    by generalizing `policy.SelectAcquisition`'s `row.Resource != "WoodLog"`
-    hardcoding: the wire message it reads from, `AcquisitionFacts`
-    (`contracts/proto/observations.proto`), remains structurally scoped to
-    `tree`/`food`/`hunt` flags only, with no generic mine-source shape at
-    all, so a mined resource cannot appear in that census regardless of Go
-    changes — reaching it has to go through the new `ResourceSourcesSnapshot`
-    read above, either by extending `AcquisitionFacts` and its dispatch path
-    or by building a resource-source-specific parallel dispatch, matching
-    Python's own `resource_method`, which reads `home/resource_sources` and
-    dispatches the identical `home/acquire_resource` call food/wood use.
+    mine source from Go. Re-investigation this round settled the dispatch
+    shape question the prior round left open: `buildingruntime/acquisition`'s
+    existing generic vertical (`domain.Acquisition`/`bridge.ReadAcquisition`/
+    `AcquisitionBoundary`/executor dispatch) is registered exactly once per
+    session, globally keyed by `domain.AcquisitionAction`
+    (`buildingruntime/session.go`'s `worker.EnableAcquisition`), and its
+    `AcquisitionBoundary.InspectAcquisition` step re-validates freshness by
+    re-reading the `AcquisitionFacts` census (via `AcquisitionNative.
+    ReadAcquisition`) and matching the target row by cell — a mined resource
+    can never appear there regardless of how it was constructed, so simply
+    building a `domain.Acquisition` for a mine source and committing it as a
+    plan would stall forever at `Inspect` (`ErrHeld`, no matching row).
+    Making mining dispatch actually run therefore needs either (a)
+    extending `AcquisitionFacts`/`policy.SelectAcquisition`'s census-shape
+    hardcoding as previously scoped, or (b) a second `AcquisitionNative`
+    implementation whose `ReadAcquisition` is backed by
+    `bridge.ReadResourceSources` instead of the census, registered as an
+    independent, separately-keyed vertical (new `ActionKind`, store rows,
+    executor branch, buildingruntime wiring) alongside the existing one
+    rather than sharing its single global registration — matching Python's
+    own `resource_method`, which reads `home/resource_sources` and dispatches
+    the identical `home/acquire_resource` operation food/wood use, but
+    requires its own dispatch plumbing on the Go side since the existing
+    generic vertical cannot be parameterized per-goal. Neither is landed yet;
+    `policy.SelectResourceSources` still has no caller beyond
+    `RoutineResourcePlanner.sourcesForDeficit`'s observability-only read.
     `ListResourceSources` was also exactly the native read surface 05.4's
     extraction-development work was flagged as possibly also needing —
     confirmed this round via a fresh fetch that 05.4's current entry still

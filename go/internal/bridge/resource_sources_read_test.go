@@ -21,9 +21,11 @@ func TestReadResourceSourcesDecodesAndOrdersByDistance(t *testing.T) {
 		Context:  resourceSourcesContext(),
 		Resource: proto.String("Steel"),
 		Sources: []*o.ResourceSource{
-			{Source: &o.EntityRef{Id: proto.String("rock2")}, Method: proto.String("mine"), Yield: proto.Float64(20),
+			{Source: &o.EntityRef{Id: proto.String("rock2"), Position: &c.Cell{X: proto.Int32(5), Z: proto.Int32(6)},
+				Snapshot: &o.SnapshotRef{Token: proto.String("mine-tok2")}}, Method: proto.String("mine"), Yield: proto.Float64(20),
 				Distance: proto.Float64(9), Designated: proto.Bool(false), Safety: proto.String("open_surface")},
-			{Source: &o.EntityRef{Id: proto.String("rock1")}, Method: proto.String("mine"), Yield: proto.Float64(15),
+			{Source: &o.EntityRef{Id: proto.String("rock1"), Position: &c.Cell{X: proto.Int32(1), Z: proto.Int32(2)},
+				Snapshot: &o.SnapshotRef{Token: proto.String("mine-tok1")}}, Method: proto.String("mine"), Yield: proto.Float64(15),
 				Distance: proto.Float64(3), Designated: proto.Bool(false), Safety: proto.String("open_surface")},
 		},
 		Completeness: &o.Completeness{Page: &c.PageInfo{Complete: proto.Bool(true)}},
@@ -43,6 +45,30 @@ func TestReadResourceSourcesDecodesAndOrdersByDistance(t *testing.T) {
 	}
 	if rows[0].Method != policy.ResourceSourceMine || rows[0].Safety != "open_surface" {
 		t.Fatal(rows[0])
+	}
+	if rows[0].Cell.X != 1 || rows[0].Cell.Z != 2 || rows[0].Token != "mine-tok1" {
+		t.Fatal(rows[0])
+	}
+	if rows[1].Cell.X != 5 || rows[1].Cell.Z != 6 || rows[1].Token != "mine-tok2" {
+		t.Fatal(rows[1])
+	}
+}
+
+func TestReadResourceSourcesRejectsMineSourceMissingSnapshot(t *testing.T) {
+	reply := &o.ResourceSourcesReply{Outcome: &o.ResourceSourcesReply_Observed{Observed: &o.ResourceSourcesSnapshot{
+		Context:  resourceSourcesContext(),
+		Resource: proto.String("Steel"),
+		Sources: []*o.ResourceSource{
+			{Source: &o.EntityRef{Id: proto.String("rock1")}, Method: proto.String("mine"), Yield: proto.Float64(15),
+				Distance: proto.Float64(3), Designated: proto.Bool(false), Safety: proto.String("open_surface")},
+		},
+		Completeness: &o.Completeness{Page: &c.PageInfo{Complete: proto.Bool(true)}},
+	}}}
+	client := testClient(t, &testServer{schema: protoSchema, handler: func(_ context.Context, arg nativeArgument) (*mcp.CallToolResult, error) {
+		return pbResult(reply), nil
+	}}, time.Second)
+	if _, _, err := client.ReadResourceSources(context.Background(), pbIdentity(), "Steel"); err == nil {
+		t.Fatal("expected missing mine snapshot rejection")
 	}
 }
 

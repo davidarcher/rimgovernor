@@ -56,7 +56,7 @@ namespace HomeBridge.BridgeTools
                     var snapshot = new Obs.ResourceSourcesSnapshot { Context = context, Resource = parsed.Resource,
                         Completeness = new Obs.Completeness { Page = new Common.PageInfo { Complete = true },
                             Matched = (ulong)ordered.Count, Returned = (ulong)ordered.Count, Filtered = (ulong)(deposits.Count - eligible.Count) } };
-                    foreach (var thing in ordered) snapshot.Sources.Add(Project(thing, map, Distance(thing)));
+                    foreach (var thing in ordered) snapshot.Sources.Add(Project(thing, map, Distance(thing), context));
                     return Encode(new Obs.ResourceSourcesReply { Observed = snapshot });
                 }
                 catch (ReadLimit errorLimit) { return ProtoBoundary.Encode(new Obs.ResourceSourcesReply { Unavailable = Unavailable(Common.UnavailableReason.LimitExceeded, errorLimit.Message) }); }
@@ -82,13 +82,20 @@ namespace HomeBridge.BridgeTools
             return true;
         }
 
-        private static Obs.ResourceSource Project(Thing thing, Map map, double distance)
+        private static Obs.ResourceSource Project(Thing thing, Map map, double distance, Common.ObservationContext context)
         {
             var mineable = thing is Mineable;
+            var entity = new Obs.EntityRef { Id = thing.GetUniqueLoadID(), DefName = thing.def.defName, MapId = map.uniqueID,
+                Position = new Common.Cell { X = thing.Position.x, Z = thing.Position.z } };
+            // Only mine sources carry a snapshot token: AcquireResource can now
+            // dispatch against a mined source (NativeMineAcquisition), but
+            // harvest/hunt sources are still reached only through the
+            // AcquisitionFacts census path, which already carries its own
+            // token. See docs/BACKLOG.md 05.5.
+            if (thing is Mineable rock) entity.Snapshot = NativeMineAcquisition.Snapshot(rock, context);
             var row = new Obs.ResourceSource
             {
-                Source = new Obs.EntityRef { Id = thing.GetUniqueLoadID(), DefName = thing.def.defName, MapId = map.uniqueID,
-                    Position = new Common.Cell { X = thing.Position.x, Z = thing.Position.z } },
+                Source = entity,
                 Method = mineable ? "mine" : thing.def.plant.IsTree ? "cut" : "harvest",
                 Yield = thing is Plant plant ? plant.YieldNow() : thing.def.building.mineableYield,
                 Reachable = true,

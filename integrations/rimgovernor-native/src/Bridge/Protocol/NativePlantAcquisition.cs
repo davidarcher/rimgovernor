@@ -77,6 +77,7 @@ namespace HomeBridge.BridgeTools
             try
             {
                 if (NativeHuntAcquisition.IsHunt(command)) return NativeHuntAcquisition.Preview(command, context);
+                if (NativeMineAcquisition.IsMine(command)) return NativeMineAcquisition.Preview(command, context);
                 if (!Prepare(command, context, out _, out var failure)) return new Operations.PreviewReply { Failure = failure };
                 return new Operations.PreviewReply { Evaluated = new Operations.PreviewEvaluation { Context = context.Clone(), Accepted = true } };
             }
@@ -85,6 +86,7 @@ namespace HomeBridge.BridgeTools
         internal static Operations.ExecuteReply Execute(NativeOperationState state, Operations.ExecuteRequest request, Common.ObservationContext context)
         {
             if (NativeHuntAcquisition.IsHunt(request.Operation.AcquireResource)) return NativeHuntAcquisition.Execute(state, request, context);
+            if (NativeMineAcquisition.IsMine(request.Operation.AcquireResource)) return NativeMineAcquisition.Execute(state, request, context);
             NativeAttemptLedger.Admission? handle = null; Authority.Owner? owner = null; Receipts.EffectEvidence? evidence = null;
             var pre = request.Precondition; var command = request.Operation.AcquireResource;
             try

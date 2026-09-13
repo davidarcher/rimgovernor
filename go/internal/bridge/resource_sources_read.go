@@ -4,6 +4,7 @@ import (
 	"context"
 	"sort"
 
+	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
 	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
 	o "github.com/davidarcher/RimGovernor/go/internal/wire/observationspb"
@@ -13,13 +14,16 @@ import (
 const resourceSourceLimit = 64
 
 // ResourceSourceRow is one native ResourceSource row exactly as
-// policy.SelectResourceSources needs it. There is no per-source CAS snapshot
-// token yet -- the typed NativeResourceSourcesTool read adapter this reads
-// does not populate EntityRef.Snapshot, since nothing dispatches
-// AcquireResource against a mined source yet (see docs/BACKLOG.md 05.5). A
-// caller that later needs to dispatch acquisition against a selected source
-// must re-read and re-validate it immediately before admission, the same
-// "read then dispatch in one step" discipline ReadGearBenches documents.
+// policy.SelectResourceSources needs it. A "mine" row now carries its exact
+// Cell and a CAS snapshot Token (NativeResourceSourcesTool.Project populates
+// EntityRef.Snapshot for Mineable rows only, via NativeMineAcquisition),
+// since AcquireResource can dispatch against a mined source
+// (NativeMineAcquisition.Execute). Harvest/hunt rows still carry neither --
+// they remain reachable only through the AcquisitionFacts census path. A
+// caller dispatching acquisition against a selected source must still
+// re-read and re-validate it immediately before admission, the same
+// "read then dispatch in one step" discipline ReadGearBenches documents,
+// since native recomputes the token fresh from live state at admission time.
 type ResourceSourceRow = policy.ResourceSource
 
 // ReadResourceSources is a fresh, uncached read of one resource definition's
@@ -92,8 +96,18 @@ func (client *Client) ReadResourceSources(ctx context.Context, identity *c.Ident
 			return nil, raw, contract("resource source designation unavailable")
 		}
 		method := policy.ResourceSourceMethod(row.GetMethod())
-		if method == policy.ResourceSourceMine && validID(row.GetSafety()) != nil {
-			return nil, raw, contract("mine source safety unavailable")
+		var cell domain.Cell
+		var token string
+		if method == policy.ResourceSourceMine {
+			if validID(row.GetSafety()) != nil {
+				return nil, raw, contract("mine source safety unavailable")
+			}
+			position := row.Source.GetPosition()
+			snapshotToken := row.Source.GetSnapshot().GetToken()
+			if position == nil || position.X == nil || position.Z == nil || position.GetX() < 0 || position.GetZ() < 0 || validID(snapshotToken) != nil {
+				return nil, raw, contract("mine source snapshot unavailable")
+			}
+			cell, token = domain.Cell{X: position.GetX(), Z: position.GetZ()}, snapshotToken
 		}
 		seen[row.Source.GetId()] = true
 		out = append(out, ResourceSourceRow{
@@ -103,6 +117,8 @@ func (client *Client) ReadResourceSources(ctx context.Context, identity *c.Ident
 			Method:     method,
 			Designated: row.GetDesignated(),
 			Safety:     row.GetSafety(),
+			Cell:       cell,
+			Token:      token,
 		})
 	}
 	sort.SliceStable(out, func(i, j int) bool {
