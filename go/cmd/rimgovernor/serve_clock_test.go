@@ -94,7 +94,7 @@ func TestClockServiceDisabledStartupPollsAndJoins(t *testing.T) {
 	done := make(chan error, 1)
 	go func() {
 		done <- serveBuildingWithBridge(ctx, config, addresses, func(context.Context, bridge.ProcessConfig) (buildingServiceBridge, error) {
-			return buildingServiceBridge{reads: reads, native: caps, authority: caps, writes: caps, draft: unusedDrafts(), clock: &buildingruntime.ClockCapabilities{Native: clock, Writer: clock}, clockReads: clock}, nil
+			return buildingServiceBridge{reads: reads, native: caps, authority: caps, writes: caps, draft: unusedDrafts(), questAccept: unusedQuestAccept(), settlementGift: unusedSettlementGift(), clock: &buildingruntime.ClockCapabilities{Native: clock, Writer: clock}, clockReads: clock}, nil
 		})
 	}()
 	select {
@@ -242,7 +242,7 @@ func TestCaravanJourneyTrackingRequiresTypedReads(t *testing.T) {
 	defer cancel()
 	addresses := make(buildingAddressWriter, 1)
 	err := serveBuildingWithBridge(ctx, config, addresses, func(context.Context, bridge.ProcessConfig) (buildingServiceBridge, error) {
-		return buildingServiceBridge{reads: reads, native: caps, authority: caps, writes: caps, draft: unusedDrafts(), clock: &buildingruntime.ClockCapabilities{Native: clock, Writer: clock}, clockReads: clock}, nil
+		return buildingServiceBridge{reads: reads, native: caps, authority: caps, writes: caps, draft: unusedDrafts(), questAccept: unusedQuestAccept(), settlementGift: unusedSettlementGift(), clock: &buildingruntime.ClockCapabilities{Native: clock, Writer: clock}, clockReads: clock}, nil
 	})
 	if err == nil {
 		t.Fatal("untyped reads accepted for caravan journey tracking")
@@ -261,7 +261,7 @@ func TestCaravanJourneyTrackingStartsPolling(t *testing.T) {
 	done := make(chan error, 1)
 	go func() {
 		done <- serveBuildingWithBridge(ctx, config, addresses, func(context.Context, bridge.ProcessConfig) (buildingServiceBridge, error) {
-			return buildingServiceBridge{reads: reads, native: caps, authority: caps, writes: caps, draft: unusedDrafts(), clock: &buildingruntime.ClockCapabilities{Native: clock, Writer: clock}, clockReads: clock}, nil
+			return buildingServiceBridge{reads: reads, native: caps, authority: caps, writes: caps, draft: unusedDrafts(), questAccept: unusedQuestAccept(), settlementGift: unusedSettlementGift(), clock: &buildingruntime.ClockCapabilities{Native: clock, Writer: clock}, clockReads: clock}, nil
 		})
 	}()
 	select {

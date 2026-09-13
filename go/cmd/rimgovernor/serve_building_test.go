@@ -82,6 +82,26 @@ func unusedDrafts() *draft.DraftCapabilities {
 	return &draft.DraftCapabilities{Native: caps, Writer: caps, Cleanup: caps}
 }
 
+type unusedQuestAcceptCapabilities struct {
+	buildingruntime.QuestAcceptNative
+	buildingruntime.QuestAcceptWriter
+}
+
+func unusedQuestAccept() *buildingruntime.QuestAcceptCapabilities {
+	caps := unusedQuestAcceptCapabilities{}
+	return &buildingruntime.QuestAcceptCapabilities{Native: caps, Writer: caps}
+}
+
+type unusedSettlementGiftCapabilities struct {
+	buildingruntime.SettlementGiftNative
+	buildingruntime.SettlementGiftWriter
+}
+
+func unusedSettlementGift() *buildingruntime.SettlementGiftCapabilities {
+	caps := unusedSettlementGiftCapabilities{}
+	return &buildingruntime.SettlementGiftCapabilities{Native: caps, Writer: caps}
+}
+
 func TestBuildingServiceSubmissionDoesNotAcquireAndShutdownJoins(t *testing.T) {
 	dir := t.TempDir()
 	fake := &buildingReadFake{serviceFake: serviceFake{entered: make(chan struct{}, 2)}}
@@ -93,7 +113,7 @@ func TestBuildingServiceSubmissionDoesNotAcquireAndShutdownJoins(t *testing.T) {
 	done := make(chan error, 1)
 	go func() {
 		done <- serveBuildingWithBridge(ctx, config, addresses, func(context.Context, bridge.ProcessConfig) (buildingServiceBridge, error) {
-			return buildingServiceBridge{reads: fake, native: caps, authority: caps, writes: caps, draft: unusedDrafts()}, nil
+			return buildingServiceBridge{reads: fake, native: caps, authority: caps, writes: caps, draft: unusedDrafts(), questAccept: unusedQuestAccept(), settlementGift: unusedSettlementGift()}, nil
 		})
 	}()
 	var address string

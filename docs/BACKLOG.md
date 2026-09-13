@@ -1151,7 +1151,16 @@ b; exact worker cleanup by a, with reuse by their later consumers.
   version 48, `quest_accept_admissions` table), `bridge.ReadQuestAcceptTarget`/
   `QuestAcceptWriter` (reusing `ReadWorldProgression`'s new `Quests` rows), and
   `executor`/`buildingruntime.QuestAcceptBoundary` wired via `session.go`'s
-  `EnableQuestAccept`. No CLI wiring in `cmd/rimgovernor` yet. `FulfillQuest`
+  `EnableQuestAccept`. `store.QuestAcceptSubmission`/`Player.SubmitQuestAccept`
+  (schema version 50, `quest_accept_submissions` table) now let one explicit
+  player command commit a one-action plan, the same shape
+  `SubmitCaravanDeparture` uses (quest acceptance is never routine-planner-
+  produced), and `cmd/rimgovernor serve`'s `openBuildingService`/
+  `SessionConfig` now construct and wire `QuestAcceptCapabilities`
+  unconditionally (native `client`, `bridge.NewQuestAcceptWriter`), the same
+  way `Draft` is always present, so `EnableQuestAccept` actually runs in the
+  live server instead of only in tests. No HTTP route submits it yet — neither
+  does `SubmitCaravanDeparture`. `FulfillQuest`
   is deliberately out of scope this round: unlike acceptance it is not a direct
   settings write — it requires a caravan currently at the exact quest
   settlement (`CaravanVisitUtility.SettlementVisitedNow`), a `TradeRequestComp`,
@@ -1178,7 +1187,18 @@ b; exact worker cleanup by a, with reuse by their later consumers.
   `ReadWorldProgression` and the new `ReadWorld` to find the exact settlement
   at a stationary caravan's tile) and `SettlementGiftWriter`, and
   `executor`/`buildingruntime.SettlementGiftBoundary` wired via `session.go`'s
-  `EnableSettlementGift`. No CLI wiring in `cmd/rimgovernor` yet. `FulfillQuest`
+  `EnableSettlementGift`. `store.SettlementGiftSubmission`/
+  `Player.SubmitSettlementGift` (schema version 50,
+  `settlement_gift_submissions` table, reusing the existing
+  `settlementGiftPayload` JSON shape) now let one explicit player command
+  commit a one-action plan, the same shape `SubmitCaravanDeparture` uses
+  (settlement gifting is never routine-planner-produced), and
+  `cmd/rimgovernor serve`'s `openBuildingService`/`SessionConfig` now
+  construct and wire `SettlementGiftCapabilities` unconditionally (native
+  `client`, `bridge.NewSettlementGiftWriter`), the same way `Draft` is always
+  present, so `EnableSettlementGift` actually runs in the live server instead
+  of only in tests. No HTTP route submits it yet — neither does
+  `SubmitCaravanDeparture`. `FulfillQuest`
   and failure recovery across multiple active maps remain unstarted; each
   still needs its own native write handler plus a full Go vertical.
   **Exit evidence:** native departure, arrival, quest fulfillment/reward

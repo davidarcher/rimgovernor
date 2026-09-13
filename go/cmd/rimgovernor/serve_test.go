@@ -270,7 +270,7 @@ func TestServePresentationUsesOptionalAttachedClient(t *testing.T) {
 					if building {
 						caps := unusedBuildingCapabilities{}
 						done <- serveBuildingWithBridge(ctx, config, address, func(context.Context, bridge.ProcessConfig) (buildingServiceBridge, error) {
-							return buildingServiceBridge{reads: reads, native: caps, authority: caps, writes: caps, draft: unusedDrafts()}, nil
+							return buildingServiceBridge{reads: reads, native: caps, authority: caps, writes: caps, draft: unusedDrafts(), questAccept: unusedQuestAccept(), settlementGift: unusedSettlementGift()}, nil
 						})
 					} else {
 						done <- serveWithBridge(ctx, config, address, func(context.Context, bridge.ProcessConfig) (serviceBridge, error) { return reads, nil })

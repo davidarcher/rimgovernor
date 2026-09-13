@@ -55,6 +55,8 @@ type buildingServiceBridge struct {
 	gearReplace     *buildingruntime.GearReplaceCapabilities
 	recoveryService *buildingruntime.RecoveryServiceCapabilities
 	research        *buildingruntime.ResearchSelectCapabilities
+	questAccept     *buildingruntime.QuestAcceptCapabilities
+	settlementGift  *buildingruntime.SettlementGiftCapabilities
 }
 type buildingServiceOpener func(context.Context, bridge.ProcessConfig) (buildingServiceBridge, error)
 type ownedAuthority struct {
@@ -127,6 +129,14 @@ func openBuildingService(ctx context.Context, config bridge.ProcessConfig) (buil
 	if err != nil {
 		return buildingServiceBridge{}, errors.Join(err, client.Close())
 	}
+	questAccept, err := bridge.NewQuestAcceptWriter(client)
+	if err != nil {
+		return buildingServiceBridge{}, errors.Join(err, client.Close())
+	}
+	settlementGift, err := bridge.NewSettlementGiftWriter(client)
+	if err != nil {
+		return buildingServiceBridge{}, errors.Join(err, client.Close())
+	}
 	return buildingServiceBridge{reads: client, native: client, authority: ownedAuthority{client, authority}, writes: writes,
 		bills:       &bill.BillCapabilities{Native: client, Writer: bills},
 		zones:       &zone.ZoneCapabilities{Native: client, Writer: zones},
@@ -143,7 +153,9 @@ func openBuildingService(ctx context.Context, config bridge.ProcessConfig) (buil
 		haul:            &haul.HaulCapabilities{Native: client, Writer: pawnOrder},
 		gearReplace:     &buildingruntime.GearReplaceCapabilities{Native: client, Writer: gearReplace},
 		recoveryService: &buildingruntime.RecoveryServiceCapabilities{Native: client, Writer: recoveryService},
-		research:        &buildingruntime.ResearchSelectCapabilities{Native: client, Writer: researchSelect}}, nil
+		research:        &buildingruntime.ResearchSelectCapabilities{Native: client, Writer: researchSelect},
+		questAccept:     &buildingruntime.QuestAcceptCapabilities{Native: client, Writer: questAccept},
+		settlementGift:  &buildingruntime.SettlementGiftCapabilities{Native: client, Writer: settlementGift}}, nil
 }
 
 type buildingWorldSource struct{ reads observation.Source }
@@ -238,6 +250,9 @@ func serveBuildingWithBridge(ctx context.Context, config serveConfig, out io.Wri
 	defer func() { result = errors.Join(result, client.reads.Close()) }()
 	if client.native == nil || client.authority == nil || client.writes == nil || client.draft == nil || client.draft.Native == nil || client.draft.Writer == nil || client.draft.Cleanup == nil {
 		return errors.New("player service requires complete building and draft capabilities")
+	}
+	if client.questAccept == nil || client.questAccept.Native == nil || client.questAccept.Writer == nil || client.settlementGift == nil || client.settlementGift.Native == nil || client.settlementGift.Writer == nil {
+		return errors.New("player service requires complete quest accept and settlement gift capabilities")
 	}
 	if _, err = client.reads.ConnectGame(lifetime); err != nil {
 		return err
@@ -368,6 +383,8 @@ func serveBuildingWithBridge(ctx context.Context, config serveConfig, out io.Wri
 		GearReplace:     gearReplaceCapabilities,
 		RecoveryService: recoveryServiceCapabilities,
 		ResearchSelect:  researchSelectCapabilities,
+		QuestAccept:     client.questAccept,
+		SettlementGift:  client.settlementGift,
 	}, database, client.native, client.authority, client.writes, wallClock{})
 	if err != nil {
 		return err
