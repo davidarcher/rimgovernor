@@ -1418,6 +1418,53 @@ main. Native package and Go production cutover remain independent.
   compatibility is unaffected since nothing changed; the "no legacy importers"
   clause applies once that follow-up slice lands.
 
+  **Follow-up audit (this session): the "Go already durably records
+  `GearReplace` in `goal_methods`" premise above is wrong, so the `GearOwnership`
+  follow-up slice is not bounded-safe today either.** Traced the intended
+  mirror of `construction_ownership.go` (`go/internal/policy/construction_ownership.go`
+  + `go/internal/store/construction_ownership.go`, which reads *completed* plan
+  progress — `Action().Building()`, `Effect == EffectCompleted` — off
+  `goal_methods`/`goals`/plans joined by `domain.AutopilotGoal`) against the
+  actual gear path (`go/internal/policy/gear.go`'s `SelectGearMethod`,
+  `go/internal/observation/colony_gear.go`, `go/internal/bridge/colony_gear.go`,
+  `go/internal/policy/routine.go`). Findings:
+  - `domain.SupportedActionKinds()` (`go/internal/domain/plan.go:91`) lists
+    `Building, OwnedDraft, MeleeAttack, SupplyAllow, WorkAssignment,
+    Acquisition, ZoneCreate, Tend, Rescue, RangedAttack, ProductionBill` —
+    there is no gear/equip `ActionKind`. Nothing in the executor/plan layer
+    can ever produce a completed gear action to read back.
+  - `SelectGearMethod` is called only from `go/internal/policy/gear_test.go`
+    (unit tests); no production caller ever turns its `GearMethod{Kind:
+    GearReplace, Pawn, Target, ...}` result into a plan, a goal-method commit,
+    or a native tool call.
+  - `go/internal/policy/routine.go`'s `MaintainEquipment` goal is raised with
+    `MethodUnavailable = true` (line ~395), with the comment "Gear execution
+    remains gated in G01.07d. Keep the need visible without reserving optional
+    capacity for an action family that cannot run yet." G01.07d ("A colony can
+    develop equipment and replenish resources", `docs/BACKLOG.md` line ~831)
+    is the separate, still-open backlog item that would have to land gear
+    execution first.
+  - Net: there is no `goal_methods` row for `GearReplace` today, durable or
+    otherwise — the pawn/target commitment this item's prior session pointed
+    to as the "natural ownership-intent source" does not exist yet. Adding
+    the proto field and native/Go read side now would have nothing real to
+    populate it from; it would either sit dead (same dormant-state problem
+    this item exists to close) or require standing up G01.07d's execution
+    wiring first, which is a second cross-cutting, unbounded change, not part
+    of this slice.
+
+  **Corrected disposition: `GearOwnership.Weapons` stays native for now,
+  same as `ProductionPolicyState.Floors`/`Stopped`.** Both remain flagged
+  "migrate to SQLite, open," and both are now understood to share the same
+  blocker: neither has a durable Go-side source of ownership/policy intent to
+  read from without first landing separate, larger work (G01.07d for gear
+  execution; an equivalent native-to-Go synchronous read path or resend-on-
+  every-call contract change for production policy). No native file was
+  touched this session; `git status` is clean. The next N01.06 slice should
+  pick whichever of G01.07d or the production-policy protocol change lands
+  first, then revisit `GearOwnership`/`ProductionPolicyState` once one of
+  those durable sources actually exists.
+
 - [x] **N01.07 — Use the unified package everywhere.** Integrator with launcher owner.
   Update setup/build scripts, private profiles, headless/container staging, artifact
   fingerprints and fixture/scenario launchers. Remove old source roots, duplicate
