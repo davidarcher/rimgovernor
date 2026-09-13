@@ -29,6 +29,7 @@ namespace HomeBridge.BridgeTools
         internal readonly Dictionary<Common.AttemptKey, Receipts.DesignationEffect> AllowedSupplies = new Dictionary<Common.AttemptKey, Receipts.DesignationEffect>();
         internal readonly Dictionary<Common.AttemptKey, NativeHaulRecord> Hauls = new Dictionary<Common.AttemptKey, NativeHaulRecord>();
         internal readonly Dictionary<Common.AttemptKey, NativeRecoveryServiceRecord> RecoveryServices = new Dictionary<Common.AttemptKey, NativeRecoveryServiceRecord>();
+        internal readonly Dictionary<Common.AttemptKey, NativeMoodReliefRecord> MoodRelief = new Dictionary<Common.AttemptKey, NativeMoodReliefRecord>();
         private NativeOperationState(Common.Identity identity)
         { colony = identity.ColonyId; load = identity.LoadToken; Ledger = new NativeAttemptLedger(identity); }
         internal static bool TryGet(Common.Identity identity, out NativeOperationState state)
@@ -93,6 +94,8 @@ namespace HomeBridge.BridgeTools
                 return NativeHaulOperations.Execute(state, request, context);
             if (request.Operation.CommandCase == Operations.Operation.CommandOneofCase.RecoverService)
                 return NativeRecoveryOperations.Execute(state, request, context);
+            if (request.Operation.CommandCase == Operations.Operation.CommandOneofCase.RelieveNeed)
+                return NativeMoodReliefOperations.Execute(state, request, context);
             if (request.Operation.CommandCase != Operations.Operation.CommandOneofCase.PlaceBuilding)
                 return Refuse(Common.FailureCode.Unsupported, "This native adapter implements PlaceBuilding, temporary owned SetDrafted, exact owned MovePawn and melee, direct-bullet or supported injury-only explosive AttackTarget.");
             if (!NativeConstructionTracking.Ready)
@@ -176,6 +179,8 @@ namespace HomeBridge.BridgeTools
                     return ProtoBoundary.Encode(NativeHaulOperations.Preview(parsed.Operation.PawnTargetOrder, context));
                 if (parsed.Operation?.CommandCase == Operations.Operation.CommandOneofCase.RecoverService)
                     return ProtoBoundary.Encode(NativeRecoveryOperations.Preview(parsed.Operation.RecoverService, context));
+                if (parsed.Operation?.CommandCase == Operations.Operation.CommandOneofCase.RelieveNeed)
+                    return ProtoBoundary.Encode(NativeMoodReliefOperations.Preview(parsed.Operation.RelieveNeed, context));
                 if (parsed.Operation == null || parsed.Operation.CommandCase != Operations.Operation.CommandOneofCase.PlaceBuilding)
                     return ProtoBoundary.Encode(new Operations.PreviewReply { Failure = ProtoBoundary.Fail(Common.FailureCode.Unsupported, "Preview implements PlaceBuilding, temporary SetDrafted, exact owned MovePawn and melee, direct-bullet or supported injury-only explosive AttackTarget.") });
                 NativeConstructionPlan plan; RimGovernor.Protocol.Placement.PlacementEvaluated preview;
@@ -256,6 +261,9 @@ namespace HomeBridge.BridgeTools
                     NativeRecoveryServiceRecord recovery;
                     if (state.RecoveryServices.TryGetValue(parsed.Attempt, out recovery))
                         return ProtoBoundary.Encode(NativeOperationEnvelope.Progress(new Receipts.ProgressReply { Progress = recovery.Observe(parsed.Attempt, context) }));
+                    NativeMoodReliefRecord relief;
+                    if (state.MoodRelief.TryGetValue(parsed.Attempt, out relief))
+                        return ProtoBoundary.Encode(NativeOperationEnvelope.Progress(new Receipts.ProgressReply { Progress = relief.Observe(parsed.Attempt, context) }));
                 }
                 var progress = NativeOperationState.TryGet(context.Identity, out state) && state.Construction.TryGetValue(parsed.Attempt, out record)
                     ? record.Observe(parsed.Attempt, context)
