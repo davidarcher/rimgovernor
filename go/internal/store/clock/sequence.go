@@ -1,4 +1,4 @@
-package store
+package clock
 
 import (
 	"bytes"
@@ -25,7 +25,7 @@ func ClockRequestID(namespace ControllerSessionID, sequence uint64) (string, err
 	}
 	return "clock-" + string(namespace) + "-" + strconv.FormatUint(sequence, 10), nil
 }
-func (s ClockSequenceState) NextRequestID() (string, error) {
+func (s SequenceState) NextRequestID() (string, error) {
 	if s.RetiredThrough > s.LastAllocated || s.LastAllocated == math.MaxUint64 {
 		return "", errors.New("invalid or exhausted clock sequence")
 	}
@@ -66,7 +66,7 @@ func validClockSequence(h clockSequenceHead) error {
 	}
 	return nil
 }
-func initializeClockSequence(ctx context.Context, tx *sql.Tx) error {
+func InitializeSequence(ctx context.Context, tx *sql.Tx) error {
 	if _, err := tx.ExecContext(ctx, "CREATE TABLE clock_sequence(singleton INTEGER PRIMARY KEY CHECK(singleton=1),payload BLOB NOT NULL) STRICT"); err != nil {
 		return err
 	}
@@ -74,7 +74,7 @@ func initializeClockSequence(ctx context.Context, tx *sql.Tx) error {
 	_, err := tx.ExecContext(ctx, "INSERT INTO clock_sequence VALUES(1,?)", b)
 	return err
 }
-func checkClockSequenceSchema(ctx context.Context, tx *sql.Tx) error {
+func CheckSequenceSchema(ctx context.Context, tx *sql.Tx) error {
 	_, err := tx.ExecContext(ctx, "SELECT singleton,payload FROM clock_sequence LIMIT 0")
 	return err
 }
@@ -160,15 +160,10 @@ func loadClockSequence(ctx context.Context, tx *sql.Tx) (ControllerSessionID, cl
 	}
 	return ns, h, nil
 }
-func (s *Store) ReadClockSequence(ctx context.Context) (ClockSequenceState, error) {
-	tx, err := s.begin(ctx)
-	if err != nil {
-		return ClockSequenceState{}, err
-	}
-	defer tx.Rollback()
+func ReadClockSequence(ctx context.Context, tx *sql.Tx) (SequenceState, error) {
 	ns, h, err := loadClockSequence(ctx, tx)
 	if err != nil {
-		return ClockSequenceState{}, err
+		return SequenceState{}, err
 	}
-	return ClockSequenceState{Namespace: ns, LastAllocated: h.LastAllocated, RetiredThrough: h.RetiredThrough}, tx.Commit()
+	return SequenceState{Namespace: ns, LastAllocated: h.LastAllocated, RetiredThrough: h.RetiredThrough}, nil
 }

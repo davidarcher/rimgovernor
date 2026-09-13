@@ -1,44 +1,16 @@
 package store
 
 import (
-	"bytes"
 	"context"
-	"database/sql"
 	"encoding/json"
 	"errors"
-	"fmt"
-	"io"
 
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
+	"github.com/davidarcher/RimGovernor/go/internal/store/gearreplace"
 )
 
-type GearReplaceAdmission struct {
-	Snapshot                              domain.GenerationSnapshot
-	Tick                                  domain.Tick
-	Pawn                                  domain.PawnID
-	Thing, Definition                     string
-	PawnSnapshotToken, ThingSnapshotToken string
-	LoadoutToken                          string
-}
-type ActionGearReplaceAdmission struct {
-	Action    domain.ActionID
-	Admission GearReplaceAdmission
-}
-
-func validateGearReplaceAdmission(a domain.Action, p domain.Progress, admission GearReplaceAdmission) error {
-	if err := admission.Snapshot.Validate(); err != nil {
-		return err
-	}
-	v := p.View()
-	if admission.Snapshot.Plan != v.Plan || admission.Snapshot.Revision != v.Revision || admission.Snapshot.Native == 0 || admission.Snapshot.Direction == 0 || admission.Tick < 0 {
-		return errors.New("admission plan or tick mismatch")
-	}
-	replace, ok := a.GearReplace()
-	if !ok || replace.Pawn() != admission.Pawn || replace.Thing() != admission.Thing || replace.Definition() != admission.Definition || submissionID(admission.PawnSnapshotToken) != nil || submissionID(admission.ThingSnapshotToken) != nil || submissionID(admission.LoadoutToken) != nil {
-		return errors.New("invalid gear replace admission")
-	}
-	return nil
-}
+type GearReplaceAdmission = gearreplace.Admission
+type ActionGearReplaceAdmission = gearreplace.ActionAdmission
 
 // PrepareGearReplace atomically records the exact pawn/item/loadout CAS
 // evidence and prepares pending work. This record is evidence, not a lease;
@@ -71,7 +43,7 @@ func (s *Store) PrepareGearReplace(ctx context.Context, plan domain.PlanID, acti
 	if !found {
 		return domain.Progress{}, ErrNotFound
 	}
-	if err = validateGearReplaceAdmission(a, p, admission); err != nil {
+	if err = gearreplace.ValidateAdmission(a, p, admission); err != nil {
 		return domain.Progress{}, err
 	}
 	v := p.View()
@@ -96,11 +68,7 @@ func (s *Store) PrepareGearReplace(ctx context.Context, plan domain.PlanID, acti
 			return domain.Progress{}, errors.New("admission observation moved backwards")
 		}
 	}
-	data, err := json.Marshal(admission)
-	if err != nil {
-		return domain.Progress{}, err
-	}
-	if _, err = tx.ExecContext(ctx, "INSERT INTO gear_replace_admissions(action_id,payload) VALUES(?,?) ON CONFLICT(action_id) DO UPDATE SET payload=excluded.payload", action, data); err != nil {
+	if err = gearreplace.Insert(ctx, tx, action, admission); err != nil {
 		return domain.Progress{}, err
 	}
 	if v.Stage == domain.Pending {
@@ -116,44 +84,4 @@ func (s *Store) PrepareGearReplace(ctx context.Context, plan domain.PlanID, acti
 		return domain.Progress{}, err
 	}
 	return p, nil
-}
-
-func loadGearReplaceAdmission(ctx context.Context, tx *sql.Tx, a domain.Action, p domain.Progress) (GearReplaceAdmission, bool, error) {
-	var data []byte
-	if err := tx.QueryRowContext(ctx, "SELECT payload FROM gear_replace_admissions WHERE action_id=?", a.ID()).Scan(&data); err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
-			return GearReplaceAdmission{}, false, nil
-		}
-		return GearReplaceAdmission{}, false, err
-	}
-	var admission GearReplaceAdmission
-	if len(data) > 32768 {
-		return GearReplaceAdmission{}, false, errors.New("gear replace admission exceeds bound")
-	}
-	decoder := json.NewDecoder(bytes.NewReader(data))
-	decoder.DisallowUnknownFields()
-	if err := decoder.Decode(&admission); err != nil {
-		return GearReplaceAdmission{}, false, err
-	}
-	if err := decoder.Decode(new(json.RawMessage)); err != io.EOF {
-		return GearReplaceAdmission{}, false, errors.New("trailing admission data")
-	}
-	canonical, err := json.Marshal(admission)
-	if err != nil {
-		return GearReplaceAdmission{}, false, err
-	}
-	if !bytes.Equal(data, canonical) {
-		return GearReplaceAdmission{}, false, errors.New("noncanonical admission record")
-	}
-	if err = validateGearReplaceAdmission(a, p, admission); err != nil {
-		return GearReplaceAdmission{}, false, fmt.Errorf("invalid action %q admission: %w", a.ID(), err)
-	}
-	v := p.View()
-	if (v.Stage == domain.Prepared || v.Attempt > 0) && !admission.Snapshot.Matches(v.Snapshot) {
-		return GearReplaceAdmission{}, false, errors.New("admission and progress authority disagree")
-	}
-	if (v.Unresolved || v.Stage == domain.Completed || v.Stage == domain.Unsuccessful) && admission.Tick > v.Tick {
-		return GearReplaceAdmission{}, false, errors.New("admission is newer than dispatched progress")
-	}
-	return admission, true, nil
 }

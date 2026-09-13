@@ -1,4 +1,4 @@
-package store
+package clock
 
 import (
 	"context"
@@ -10,7 +10,7 @@ import (
 	"unicode/utf8"
 )
 
-func validateClockWindow(intent ClockIntent) error {
+func validateClockWindow(intent Intent) error {
 	w := intent.Window
 	if w == nil {
 		return nil
@@ -23,7 +23,7 @@ func validateClockWindow(intent ClockIntent) error {
 	}
 	return nil
 }
-func checkClockWindowProfile(ctx context.Context, tx *sql.Tx, w *ClockWindowAdmission) error {
+func checkClockWindowProfile(ctx context.Context, tx *sql.Tx, w *WindowAdmission) error {
 	if w == nil {
 		return nil
 	}
@@ -39,7 +39,7 @@ func checkClockWindowProfile(ctx context.Context, tx *sql.Tx, w *ClockWindowAdmi
 
 // The ingestion/review watermark and dispatch share one transaction. Callers
 // cannot bypass this check by using the ordinary clock dispatch method.
-func checkClockWindowDispatch(ctx context.Context, tx *sql.Tx, w *ClockWindowAdmission) error {
+func checkClockWindowDispatch(ctx context.Context, tx *sql.Tx, w *WindowAdmission) error {
 	if w == nil {
 		return nil
 	}

@@ -18,20 +18,36 @@ import (
 	"time"
 
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
+	"github.com/davidarcher/RimGovernor/go/internal/store/acquisition"
+	"github.com/davidarcher/RimGovernor/go/internal/store/bill"
+	"github.com/davidarcher/RimGovernor/go/internal/store/clock"
+	"github.com/davidarcher/RimGovernor/go/internal/store/core"
+	"github.com/davidarcher/RimGovernor/go/internal/store/draft"
+	"github.com/davidarcher/RimGovernor/go/internal/store/equip"
+	"github.com/davidarcher/RimGovernor/go/internal/store/gearreplace"
+	"github.com/davidarcher/RimGovernor/go/internal/store/haul"
+	"github.com/davidarcher/RimGovernor/go/internal/store/melee"
+	"github.com/davidarcher/RimGovernor/go/internal/store/ranged"
+	"github.com/davidarcher/RimGovernor/go/internal/store/repair"
+	"github.com/davidarcher/RimGovernor/go/internal/store/rescue"
+	"github.com/davidarcher/RimGovernor/go/internal/store/supply"
+	"github.com/davidarcher/RimGovernor/go/internal/store/tend"
+	"github.com/davidarcher/RimGovernor/go/internal/store/work"
+	"github.com/davidarcher/RimGovernor/go/internal/store/zone"
 	"modernc.org/sqlite"
 )
 
 const schemaVersion = 46
 const applicationID = 0x52474f31
 
-var ErrConflict = errors.New("plan or action identity already exists")
-var ErrNotFound = errors.New("plan or action not found")
+var ErrConflict = core.ErrConflict
+var ErrNotFound = core.ErrNotFound
 
 type Store struct{ db *sql.DB }
 
 // ControllerSessionID identifies one persistent controller execution namespace.
 // It is independent of HTTP process sessions and survives controller restarts.
-type ControllerSessionID string
+type ControllerSessionID = core.ControllerSessionID
 type PlanState struct {
 	BillAdmissions []ActionBillAdmission
 	ZoneAdmissions []ActionZoneAdmission
@@ -176,19 +192,19 @@ CREATE TABLE work_preference_requests(request_id TEXT PRIMARY KEY, payload BLOB 
 		if err != nil {
 			return err
 		}
-		if err = initializeClockReview(ctx, tx); err != nil {
+		if err = clock.InitializeReview(ctx, tx); err != nil {
 			return err
 		}
 		if err = initializeGoals(ctx, tx); err != nil {
 			return err
 		}
-		if err = initializeClockInbox(ctx, tx); err != nil {
+		if err = clock.InitializeInbox(ctx, tx); err != nil {
 			return err
 		}
-		if err = initializeClockSequence(ctx, tx); err != nil {
+		if err = clock.InitializeSequence(ctx, tx); err != nil {
 			return err
 		}
-		if err = initializeClockCheckpoint(ctx, tx); err != nil {
+		if err = clock.InitializeCheckpoint(ctx, tx); err != nil {
 			return err
 		}
 		var entropy [32]byte
@@ -217,16 +233,16 @@ CREATE TABLE work_preference_requests(request_id TEXT PRIMARY KEY, payload BLOB 
 			}
 		}
 	}
-	if err = checkClockReviewSchema(ctx, tx); err != nil {
+	if err = clock.CheckReviewSchema(ctx, tx); err != nil {
 		return err
 	}
-	if err = checkClockInboxSchema(ctx, tx); err != nil {
+	if err = clock.CheckInboxSchema(ctx, tx); err != nil {
 		return err
 	}
-	if err = checkClockSequenceSchema(ctx, tx); err != nil {
+	if err = clock.CheckSequenceSchema(ctx, tx); err != nil {
 		return err
 	}
-	if err = checkClockCheckpointSchema(ctx, tx); err != nil {
+	if err = clock.CheckCheckpointSchema(ctx, tx); err != nil {
 		return err
 	}
 	// A matching version marker alone does not establish the expected tables.
@@ -278,30 +294,7 @@ func (s *Store) Identity(ctx context.Context) (ControllerSessionID, error) {
 	return id, nil
 }
 func identity(ctx context.Context, tx *sql.Tx) (ControllerSessionID, error) {
-	rows, err := tx.QueryContext(ctx, "SELECT singleton,controller_session_id FROM metadata")
-	if err != nil {
-		return "", err
-	}
-	defer rows.Close()
-	var id string
-	var singleton int
-	if !rows.Next() {
-		return "", errors.Join(errors.New("controller identity metadata is missing"), rows.Err())
-	}
-	if err = rows.Scan(&singleton, &id); err != nil {
-		return "", err
-	}
-	if rows.Next() {
-		return "", errors.New("controller identity metadata has multiple rows")
-	}
-	if err = rows.Err(); err != nil {
-		return "", err
-	}
-	decoded, err := hex.DecodeString(id)
-	if singleton != 1 || err != nil || len(decoded) != 32 || hex.EncodeToString(decoded) != id {
-		return "", errors.New("corrupt controller identity metadata")
-	}
-	return ControllerSessionID(id), nil
+	return core.Identity(ctx, tx)
 }
 
 // CreatePlan initializes every action atomically. IDs remain unique across plans.
@@ -347,11 +340,7 @@ func createPlan(ctx context.Context, tx *sql.Tx, plan domain.PlanSpec) error {
 }
 
 func conflict(err error) error {
-	var e *sqlite.Error
-	if errors.As(err, &e) && e.Code()&255 == 19 {
-		return fmt.Errorf("%w: %v", ErrConflict, err)
-	}
-	return err
+	return core.Conflict(err)
 }
 
 func (s *Store) LoadPlan(ctx context.Context, id domain.PlanID) (PlanState, error) {
@@ -453,7 +442,7 @@ func load(ctx context.Context, tx *sql.Tx, id domain.PlanID) (PlanState, error) 
 			return PlanState{}, fmt.Errorf("invalid action %q history: %w", a.ID(), e)
 		}
 		state.Progress = append(state.Progress, p)
-		acquisitionAdmission, acquisitionPresent, e := loadAcquisitionAdmission(ctx, tx, a, p)
+		acquisitionAdmission, acquisitionPresent, e := acquisition.LoadAdmission(ctx, tx, a, p)
 		if e != nil {
 			return PlanState{}, e
 		}
@@ -463,7 +452,7 @@ func load(ctx context.Context, tx *sql.Tx, id domain.PlanID) (PlanState, error) 
 		if acquisitionPresent {
 			state.AcquisitionAdmissions = append(state.AcquisitionAdmissions, ActionAcquisitionAdmission{Action: a.ID(), Admission: acquisitionAdmission})
 		}
-		supplyAdmission, supplyPresent, e := loadSupplyAdmission(ctx, tx, a, p)
+		supplyAdmission, supplyPresent, e := supply.LoadAdmission(ctx, tx, a, p)
 		if e != nil {
 			return PlanState{}, e
 		}
@@ -473,7 +462,7 @@ func load(ctx context.Context, tx *sql.Tx, id domain.PlanID) (PlanState, error) 
 		if supplyPresent {
 			state.SupplyAdmissions = append(state.SupplyAdmissions, ActionSupplyAdmission{Action: a.ID(), Admission: supplyAdmission})
 		}
-		billAdmission, billPresent, e := loadBillAdmission(ctx, tx, a, p)
+		billAdmission, billPresent, e := bill.LoadAdmission(ctx, tx, a, p)
 		if e != nil {
 			return PlanState{}, e
 		}
@@ -483,7 +472,7 @@ func load(ctx context.Context, tx *sql.Tx, id domain.PlanID) (PlanState, error) 
 		if billPresent {
 			state.BillAdmissions = append(state.BillAdmissions, ActionBillAdmission{Action: a.ID(), Admission: billAdmission})
 		}
-		zoneAdmission, zonePresent, e := loadZoneAdmission(ctx, tx, a, p)
+		zoneAdmission, zonePresent, e := zone.LoadAdmission(ctx, tx, a, p)
 		if e != nil {
 			return PlanState{}, e
 		}
@@ -493,7 +482,7 @@ func load(ctx context.Context, tx *sql.Tx, id domain.PlanID) (PlanState, error) 
 		if zonePresent {
 			state.ZoneAdmissions = append(state.ZoneAdmissions, ActionZoneAdmission{Action: a.ID(), Admission: zoneAdmission})
 		}
-		workAdmission, workPresent, e := loadWorkAdmission(ctx, tx, a, p)
+		workAdmission, workPresent, e := work.LoadAdmission(ctx, tx, a, p)
 		if e != nil {
 			return PlanState{}, e
 		}
@@ -508,7 +497,7 @@ func load(ctx context.Context, tx *sql.Tx, id domain.PlanID) (PlanState, error) 
 		if err != nil {
 			return PlanState{}, err
 		}
-		draftAdmission, draftPresent, e := loadDraftAdmission(ctx, tx, a, p)
+		draftAdmission, draftPresent, e := draft.LoadAdmission(ctx, tx, a, p)
 		if e != nil {
 			return PlanState{}, e
 		}
@@ -521,7 +510,7 @@ func load(ctx context.Context, tx *sql.Tx, id domain.PlanID) (PlanState, error) 
 		if present {
 			state.Admissions = append(state.Admissions, ActionAdmission{Action: a.ID(), Admission: admission})
 		}
-		meleeAdmission, meleePresent, e := loadMeleeAdmission(ctx, tx, a, p)
+		meleeAdmission, meleePresent, e := melee.LoadAdmission(ctx, tx, a, p)
 		if e != nil {
 			return PlanState{}, e
 		}
@@ -531,7 +520,7 @@ func load(ctx context.Context, tx *sql.Tx, id domain.PlanID) (PlanState, error) 
 		if meleePresent {
 			state.MeleeAdmissions = append(state.MeleeAdmissions, ActionMeleeAdmission{Action: a.ID(), Admission: meleeAdmission})
 		}
-		tendAdmission, tendPresent, e := loadTendAdmission(ctx, tx, a, p)
+		tendAdmission, tendPresent, e := tend.LoadAdmission(ctx, tx, a, p)
 		if e != nil {
 			return PlanState{}, e
 		}
@@ -541,7 +530,7 @@ func load(ctx context.Context, tx *sql.Tx, id domain.PlanID) (PlanState, error) 
 		if tendPresent {
 			state.TendAdmissions = append(state.TendAdmissions, ActionTendAdmission{Action: a.ID(), Admission: tendAdmission})
 		}
-		rescueAdmission, rescuePresent, e := loadRescueAdmission(ctx, tx, a, p)
+		rescueAdmission, rescuePresent, e := rescue.LoadAdmission(ctx, tx, a, p)
 		if e != nil {
 			return PlanState{}, e
 		}
@@ -551,7 +540,7 @@ func load(ctx context.Context, tx *sql.Tx, id domain.PlanID) (PlanState, error) 
 		if rescuePresent {
 			state.RescueAdmissions = append(state.RescueAdmissions, ActionRescueAdmission{Action: a.ID(), Admission: rescueAdmission})
 		}
-		rangedAdmission, rangedPresent, e := loadRangedAdmission(ctx, tx, a, p)
+		rangedAdmission, rangedPresent, e := ranged.LoadAdmission(ctx, tx, a, p)
 		if e != nil {
 			return PlanState{}, e
 		}
@@ -561,7 +550,7 @@ func load(ctx context.Context, tx *sql.Tx, id domain.PlanID) (PlanState, error) 
 		if rangedPresent {
 			state.RangedAdmissions = append(state.RangedAdmissions, ActionRangedAdmission{Action: a.ID(), Admission: rangedAdmission})
 		}
-		haulAdmission, haulPresent, e := loadHaulAdmission(ctx, tx, a, p)
+		haulAdmission, haulPresent, e := haul.LoadAdmission(ctx, tx, a, p)
 		if e != nil {
 			return PlanState{}, e
 		}
@@ -571,7 +560,7 @@ func load(ctx context.Context, tx *sql.Tx, id domain.PlanID) (PlanState, error) 
 		if haulPresent {
 			state.HaulAdmissions = append(state.HaulAdmissions, ActionHaulAdmission{Action: a.ID(), Admission: haulAdmission})
 		}
-		equipAdmission, equipPresent, e := loadEquipAdmission(ctx, tx, a, p)
+		equipAdmission, equipPresent, e := equip.LoadAdmission(ctx, tx, a, p)
 		if e != nil {
 			return PlanState{}, e
 		}
@@ -581,7 +570,7 @@ func load(ctx context.Context, tx *sql.Tx, id domain.PlanID) (PlanState, error) 
 		if equipPresent {
 			state.EquipAdmissions = append(state.EquipAdmissions, ActionEquipAdmission{Action: a.ID(), Admission: equipAdmission})
 		}
-		gearReplaceAdmission, gearReplacePresent, e := loadGearReplaceAdmission(ctx, tx, a, p)
+		gearReplaceAdmission, gearReplacePresent, e := gearreplace.LoadAdmission(ctx, tx, a, p)
 		if e != nil {
 			return PlanState{}, e
 		}
@@ -591,7 +580,7 @@ func load(ctx context.Context, tx *sql.Tx, id domain.PlanID) (PlanState, error) 
 		if gearReplacePresent {
 			state.GearReplaceAdmissions = append(state.GearReplaceAdmissions, ActionGearReplaceAdmission{Action: a.ID(), Admission: gearReplaceAdmission})
 		}
-		repairAdmission, repairPresent, e := loadRepairAdmission(ctx, tx, a, p)
+		repairAdmission, repairPresent, e := repair.LoadAdmission(ctx, tx, a, p)
 		if e != nil {
 			return PlanState{}, e
 		}
@@ -788,48 +777,24 @@ func advanceInTransaction(ctx context.Context, tx *sql.Tx, plan domain.PlanID, a
 		if event.Kind == "prepare" {
 			return domain.Progress{}, errors.New("acquisition requires typed preparation")
 		}
-		if event.Kind == "dispatch" {
-			matched := false
-			for _, record := range state.AcquisitionAdmissions {
-				if record.Action == action && record.Admission.Snapshot == event.Snapshot && record.Admission.Tick <= event.Tick {
-					matched = true
-				}
-			}
-			if !matched {
-				return domain.Progress{}, errors.New("acquisition dispatch lacks current admission")
-			}
+		if event.Kind == "dispatch" && !acquisition.GuardDispatch(state.AcquisitionAdmissions, action, event.Snapshot, event.Tick) {
+			return domain.Progress{}, errors.New("acquisition dispatch lacks current admission")
 		}
 	}
 	if current.Action().Kind() == domain.SupplyAllowAction {
 		if event.Kind == "prepare" {
 			return domain.Progress{}, errors.New("supply requires typed preparation")
 		}
-		if event.Kind == "dispatch" {
-			matched := false
-			for _, record := range state.SupplyAdmissions {
-				if record.Action == action && record.Admission.Snapshot == event.Snapshot && record.Admission.Tick <= event.Tick {
-					matched = true
-				}
-			}
-			if !matched {
-				return domain.Progress{}, errors.New("supply dispatch lacks current admission")
-			}
+		if event.Kind == "dispatch" && !supply.GuardDispatch(state.SupplyAdmissions, action, event.Snapshot, event.Tick) {
+			return domain.Progress{}, errors.New("supply dispatch lacks current admission")
 		}
 	}
 	if current.Action().Kind() == domain.ProductionBillAction {
 		if event.Kind == "prepare" {
 			return domain.Progress{}, errors.New("bill requires typed preparation")
 		}
-		if event.Kind == "dispatch" {
-			matched := false
-			for _, record := range state.BillAdmissions {
-				if record.Action == action && record.Admission.Snapshot == event.Snapshot && record.Admission.Tick <= event.Tick {
-					matched = true
-				}
-			}
-			if !matched {
-				return domain.Progress{}, errors.New("bill dispatch lacks admission")
-			}
+		if event.Kind == "dispatch" && !bill.GuardDispatch(state.BillAdmissions, action, event.Snapshot, event.Tick) {
+			return domain.Progress{}, errors.New("bill dispatch lacks admission")
 		}
 		// A trusted refusal proves no bill was created, leaving the bench+recipe pair
 		// claimable again; only an accepted or uncertain write may have produced one.
@@ -847,128 +812,64 @@ func advanceInTransaction(ctx context.Context, tx *sql.Tx, plan domain.PlanID, a
 		if event.Kind == "prepare" {
 			return domain.Progress{}, errors.New("zone requires typed preparation")
 		}
-		if event.Kind == "dispatch" {
-			matched := false
-			for _, record := range state.ZoneAdmissions {
-				if record.Action == action && record.Admission.Snapshot == event.Snapshot && record.Admission.Tick <= event.Tick {
-					matched = true
-				}
-			}
-			if !matched {
-				return domain.Progress{}, errors.New("zone dispatch lacks current admission")
-			}
+		if event.Kind == "dispatch" && !zone.GuardDispatch(state.ZoneAdmissions, action, event.Snapshot, event.Tick) {
+			return domain.Progress{}, errors.New("zone dispatch lacks current admission")
 		}
 	}
 	if current.Action().Kind() == domain.WorkAssignmentAction {
 		if event.Kind == "prepare" {
 			return domain.Progress{}, errors.New("work requires typed preparation")
 		}
-		if event.Kind == "dispatch" {
-			matched := false
-			for _, record := range state.WorkAdmissions {
-				if record.Action == action && record.Admission.Snapshot == event.Snapshot && record.Admission.Tick <= event.Tick {
-					matched = true
-				}
-			}
-			if !matched {
-				return domain.Progress{}, errors.New("work dispatch lacks current admission")
-			}
+		if event.Kind == "dispatch" && !work.GuardDispatch(state.WorkAdmissions, action, event.Snapshot, event.Tick) {
+			return domain.Progress{}, errors.New("work dispatch lacks current admission")
 		}
 	}
 	if current.Action().Kind() == domain.TendAction {
 		if event.Kind == "prepare" {
 			return domain.Progress{}, errors.New("tend requires typed preparation")
 		}
-		if event.Kind == "dispatch" {
-			matched := false
-			for _, record := range state.TendAdmissions {
-				if record.Action == action && record.Admission.Snapshot == event.Snapshot && record.Admission.Tick <= event.Tick {
-					matched = true
-				}
-			}
-			if !matched {
-				return domain.Progress{}, errors.New("tend dispatch lacks current admission")
-			}
+		if event.Kind == "dispatch" && !tend.GuardDispatch(state.TendAdmissions, action, event.Snapshot, event.Tick) {
+			return domain.Progress{}, errors.New("tend dispatch lacks current admission")
 		}
 	}
 	if current.Action().Kind() == domain.RescueAction {
 		if event.Kind == "prepare" {
 			return domain.Progress{}, errors.New("rescue requires typed preparation")
 		}
-		if event.Kind == "dispatch" {
-			matched := false
-			for _, record := range state.RescueAdmissions {
-				if record.Action == action && record.Admission.Snapshot == event.Snapshot && record.Admission.Tick <= event.Tick {
-					matched = true
-				}
-			}
-			if !matched {
-				return domain.Progress{}, errors.New("rescue dispatch lacks current admission")
-			}
+		if event.Kind == "dispatch" && !rescue.GuardDispatch(state.RescueAdmissions, action, event.Snapshot, event.Tick) {
+			return domain.Progress{}, errors.New("rescue dispatch lacks current admission")
 		}
 	}
 	if current.Action().Kind() == domain.HaulAction {
 		if event.Kind == "prepare" {
 			return domain.Progress{}, errors.New("haul requires typed preparation")
 		}
-		if event.Kind == "dispatch" {
-			matched := false
-			for _, record := range state.HaulAdmissions {
-				if record.Action == action && record.Admission.Snapshot == event.Snapshot && record.Admission.Tick <= event.Tick {
-					matched = true
-				}
-			}
-			if !matched {
-				return domain.Progress{}, errors.New("haul dispatch lacks current admission")
-			}
+		if event.Kind == "dispatch" && !haul.GuardDispatch(state.HaulAdmissions, action, event.Snapshot, event.Tick) {
+			return domain.Progress{}, errors.New("haul dispatch lacks current admission")
 		}
 	}
 	if current.Action().Kind() == domain.EquipAction {
 		if event.Kind == "prepare" {
 			return domain.Progress{}, errors.New("equip requires typed preparation")
 		}
-		if event.Kind == "dispatch" {
-			matched := false
-			for _, record := range state.EquipAdmissions {
-				if record.Action == action && record.Admission.Snapshot == event.Snapshot && record.Admission.Tick <= event.Tick {
-					matched = true
-				}
-			}
-			if !matched {
-				return domain.Progress{}, errors.New("equip dispatch lacks current admission")
-			}
+		if event.Kind == "dispatch" && !equip.GuardDispatch(state.EquipAdmissions, action, event.Snapshot, event.Tick) {
+			return domain.Progress{}, errors.New("equip dispatch lacks current admission")
 		}
 	}
 	if current.Action().Kind() == domain.GearReplaceAction {
 		if event.Kind == "prepare" {
 			return domain.Progress{}, errors.New("gear replace requires typed preparation")
 		}
-		if event.Kind == "dispatch" {
-			matched := false
-			for _, record := range state.GearReplaceAdmissions {
-				if record.Action == action && record.Admission.Snapshot == event.Snapshot && record.Admission.Tick <= event.Tick {
-					matched = true
-				}
-			}
-			if !matched {
-				return domain.Progress{}, errors.New("gear replace dispatch lacks current admission")
-			}
+		if event.Kind == "dispatch" && !gearreplace.GuardDispatch(state.GearReplaceAdmissions, action, event.Snapshot, event.Tick) {
+			return domain.Progress{}, errors.New("gear replace dispatch lacks current admission")
 		}
 	}
 	if current.Action().Kind() == domain.RepairAction {
 		if event.Kind == "prepare" {
 			return domain.Progress{}, errors.New("repair requires typed preparation")
 		}
-		if event.Kind == "dispatch" {
-			matched := false
-			for _, record := range state.RepairAdmissions {
-				if record.Action == action && record.Admission.Snapshot == event.Snapshot && record.Admission.Tick <= event.Tick {
-					matched = true
-				}
-			}
-			if !matched {
-				return domain.Progress{}, errors.New("repair dispatch lacks current admission")
-			}
+		if event.Kind == "dispatch" && !repair.GuardDispatch(state.RepairAdmissions, action, event.Snapshot, event.Tick) {
+			return domain.Progress{}, errors.New("repair dispatch lacks current admission")
 		}
 	}
 	if current.Action().Kind() == domain.CaravanDepartureAction {

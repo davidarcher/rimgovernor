@@ -9,9 +9,10 @@ import (
 	"fmt"
 
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
+	"github.com/davidarcher/RimGovernor/go/internal/store/core"
 )
 
-var ErrCapacity = errors.New("plan catalog capacity reached")
+var ErrCapacity = core.ErrCapacity
 
 // World is exact native identity. Map zero is valid; no live authority is implied.
 type World struct {
@@ -36,7 +37,7 @@ type Submission struct {
 	Revision domain.PlanRevision
 }
 
-func submissionID(id string) error { _, err := domain.NewPlan(domain.PlanID(id), 1, nil); return err }
+func submissionID(id string) error { return core.SubmissionID(id) }
 func (request SubmissionRequest) validate() error {
 	if err := submissionID(request.RequestID); err != nil {
 		return err

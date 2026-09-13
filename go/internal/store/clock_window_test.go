@@ -6,6 +6,7 @@ import (
 	"errors"
 	"github.com/davidarcher/RimGovernor/go/internal/bridge"
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
+	"github.com/davidarcher/RimGovernor/go/internal/store/clock"
 	"math"
 	"reflect"
 	"strings"
@@ -171,7 +172,7 @@ func TestClockWindowStoreCorruptionAndRollback(t *testing.T) {
 				if kind == "unknown field" {
 					payload = []byte(strings.Replace(string(payload), `"Window":{`, `"Window":{"Unexpected":true,`, 1))
 				} else {
-					var record clockIntentRecord
+					var record clock.IntentRecord
 					if err := json.Unmarshal(payload, &record); err != nil {
 						t.Fatal(err)
 					}

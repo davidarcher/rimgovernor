@@ -1,9 +1,10 @@
-package store
+package clock
 
 import (
 	"bytes"
 	"encoding/json"
 	"errors"
+
 	"github.com/davidarcher/RimGovernor/go/internal/bridge"
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	a "github.com/davidarcher/RimGovernor/go/internal/wire/authoritypb"
@@ -12,33 +13,10 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
-type ClockIntent struct {
-	RequestID string
-	Key       string
-	Snapshot  domain.GenerationSnapshot
-	Command   bridge.ClockCommand
-	Window    *ClockWindowAdmission
-}
-type ClockPhase string
-
-const (
-	ClockPrepared   ClockPhase = "prepared"
-	ClockDispatched ClockPhase = "dispatched"
-	ClockUncertain  ClockPhase = "uncertain"
-	ClockApplied    ClockPhase = "applied"
-	ClockRefused    ClockPhase = "refused"
-)
-
-type ClockAttempt struct {
-	Intent        ClockIntent
-	NativeAttempt *c.AttemptKey
-	Phase         ClockPhase
-	Reply         *k.ControlReply
-	// SupersededAt retires only the original world scope; Phase retains uncertainty.
-	SupersededAt *c.ObservationContext
-}
-
 const clockRecordLimit = 1 << 20
+
+// RecordLimit is the maximum encoded size of a clock evidence record.
+const RecordLimit = clockRecordLimit
 
 // The closed discriminator carries only lease-free intent. Nested native values
 // use official deterministic binary encoding, retaining optional field presence.
@@ -49,14 +27,14 @@ type clockIntentRecord struct {
 	Speed             int32
 	LeaseMS, MaxTicks uint32
 	Policy, Original  []byte
-	Window            *ClockWindowAdmission
+	Window            *WindowAdmission
 }
 
-func clockExpectation(v ClockAttempt) bridge.ClockExpectation {
+func clockExpectation(v Attempt) bridge.ClockExpectation {
 	s := v.Intent.Snapshot
 	return bridge.ClockExpectation{Identity: &c.Identity{ColonyId: proto.String(string(s.Colony)), MapId: proto.Int32(int32(s.Map)), LoadToken: proto.String(string(s.Load))}, Attempt: v.NativeAttempt, Owner: &a.Owner{ControllerSessionId: proto.String(v.NativeAttempt.GetControllerSessionId()), PlayerDirection: proto.Uint64(uint64(s.Direction))}, NativeGeneration: uint64(s.Native), Command: v.Intent.Command}
 }
-func validateClockIntent(v ClockAttempt) error {
+func validateClockIntent(v Attempt) error {
 	s := v.Intent.Snapshot
 	if v.Intent.Key != "" {
 		if err := submissionID(v.Intent.Key); err != nil {
@@ -103,7 +81,7 @@ func clockUnmarshal(b []byte, m proto.Message) error {
 	}
 	return nil
 }
-func encodeClockIntent(v ClockAttempt) ([]byte, error) {
+func encodeClockIntent(v Attempt) ([]byte, error) {
 	if err := validateClockIntent(v); err != nil {
 		return nil, err
 	}
@@ -134,32 +112,32 @@ func encodeClockIntent(v ClockAttempt) ([]byte, error) {
 	}
 	return b, err
 }
-func decodeClockIntent(id string, attempt *c.AttemptKey, b []byte) (ClockIntent, error) {
+func decodeClockIntent(id string, attempt *c.AttemptKey, b []byte) (Intent, error) {
 	if len(b) > clockRecordLimit {
-		return ClockIntent{}, errors.New("clock intent exceeds bound")
+		return Intent{}, errors.New("clock intent exceeds bound")
 	}
 	var record clockIntentRecord
 	decoder := json.NewDecoder(bytes.NewReader(b))
 	decoder.DisallowUnknownFields()
 	if err := decoder.Decode(&record); err != nil {
-		return ClockIntent{}, err
+		return Intent{}, err
 	}
 	canonical, err := json.Marshal(record)
 	if err != nil || !bytes.Equal(b, canonical) {
-		return ClockIntent{}, errors.New("noncanonical clock intent")
+		return Intent{}, errors.New("noncanonical clock intent")
 	}
-	intent := ClockIntent{RequestID: id, Key: record.Key, Snapshot: record.Snapshot, Window: record.Window}
+	intent := Intent{RequestID: id, Key: record.Key, Snapshot: record.Snapshot, Window: record.Window}
 	switch record.Kind {
 	case "start":
 		policy := &k.WatchPolicy{}
 		if err = clockUnmarshal(record.Policy, policy); err != nil {
-			return ClockIntent{}, err
+			return Intent{}, err
 		}
 		intent.Command.Start = &bridge.ClockStart{Speed: k.Speed(record.Speed), Policy: policy, LeaseMS: record.LeaseMS, MaxTicks: record.MaxTicks}
 	case "renew", "speed":
 		epoch := &k.Epoch{}
 		if err = clockUnmarshal(record.Original, epoch); err != nil {
-			return ClockIntent{}, err
+			return Intent{}, err
 		}
 		if record.Kind == "renew" {
 			intent.Command.Renew = &bridge.ClockRenew{Original: epoch, LeaseMS: record.LeaseMS}
@@ -167,30 +145,30 @@ func decodeClockIntent(id string, attempt *c.AttemptKey, b []byte) (ClockIntent,
 			intent.Command.Speed = &bridge.ClockSpeed{Original: epoch, Speed: k.Speed(record.Speed)}
 		}
 	default:
-		return ClockIntent{}, errors.New("unknown persisted clock command")
+		return Intent{}, errors.New("unknown persisted clock command")
 	}
-	encoded, err := encodeClockIntent(ClockAttempt{Intent: intent, NativeAttempt: attempt})
+	encoded, err := encodeClockIntent(Attempt{Intent: intent, NativeAttempt: attempt})
 	if err != nil {
-		return ClockIntent{}, err
+		return Intent{}, err
 	}
 	if !bytes.Equal(encoded, b) {
-		return ClockIntent{}, errors.New("extraneous clock command fields")
+		return Intent{}, errors.New("extraneous clock command fields")
 	}
 	return intent, nil
 }
-func clockReplyPhase(reply *k.ControlReply) ClockPhase {
+func clockReplyPhase(reply *k.ControlReply) Phase {
 	switch v := reply.Outcome.(type) {
 	case *k.ControlReply_Receipt:
 		if v.Receipt.GetApplied() != nil {
-			return ClockApplied
+			return Applied
 		}
-		return ClockUncertain
+		return Uncertain
 	case *k.ControlReply_Failure:
 		if v.Failure.GetCode() == c.FailureCode_FAILURE_CODE_ATTEMPT_CONFLICT {
-			return ClockUncertain
+			return Uncertain
 		}
-		return ClockRefused
+		return Refused
 	default:
-		return ClockRefused
+		return Refused
 	}
 }

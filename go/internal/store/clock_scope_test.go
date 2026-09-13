@@ -7,12 +7,13 @@ import (
 	"testing"
 
 	"github.com/davidarcher/RimGovernor/go/internal/bridge"
+	"github.com/davidarcher/RimGovernor/go/internal/store/clock"
 	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
 	"google.golang.org/protobuf/proto"
 )
 
 func clockScopeProof(v ClockAttempt) *c.ObservationContext {
-	id := proto.Clone(clockExpectation(v).Identity).(*c.Identity)
+	id := proto.Clone(clock.Expectation(v).Identity).(*c.Identity)
 	id.LoadToken = proto.String("replacement-load")
 	return &c.ObservationContext{Identity: id, Tick: proto.Int64(0)}
 }
@@ -89,7 +90,7 @@ func TestClockScopeRequiresPositiveReplacementAndUnresolvedStart(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	same := &c.ObservationContext{Identity: clockExpectation(v).Identity, Tick: proto.Int64(100), NativeGeneration: proto.Uint64(999)}
+	same := &c.ObservationContext{Identity: clock.Expectation(v).Identity, Tick: proto.Int64(100), NativeGeneration: proto.Uint64(999)}
 	for _, proof := range []*c.ObservationContext{nil, same, {Identity: clockScopeProof(v).Identity}, {Identity: clockScopeProof(v).Identity, Tick: proto.Int64(-1)}} {
 		if _, err = s.MarkClockScopeSuperseded(ctx, clockTestID(t, s, "start"), proof); err == nil {
 			t.Fatal("invalid replacement accepted", proof)
@@ -156,7 +157,7 @@ func TestClockScopeRollbackAndCorruptEvidence(t *testing.T) {
 	if _, err = s.db.Exec("DELETE FROM clock_epochs"); err != nil {
 		t.Fatal(err)
 	}
-	for _, data := range [][]byte{{0xff}, make([]byte, clockRecordLimit+1)} {
+	for _, data := range [][]byte{{0xff}, make([]byte, clock.RecordLimit+1)} {
 		if _, err = s.db.Exec("UPDATE clock_attempts SET scope_context=?", data); err != nil {
 			t.Fatal(err)
 		}

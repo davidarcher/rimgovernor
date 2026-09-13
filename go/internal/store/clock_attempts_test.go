@@ -5,6 +5,7 @@ import (
 	"errors"
 	"github.com/davidarcher/RimGovernor/go/internal/bridge"
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
+	"github.com/davidarcher/RimGovernor/go/internal/store/clock"
 	k "github.com/davidarcher/RimGovernor/go/internal/wire/clockpb"
 	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
 	"google.golang.org/protobuf/proto"
@@ -19,7 +20,7 @@ func clockIntent(id string) ClockIntent {
 	return ClockIntent{RequestID: id, Snapshot: s, Command: bridge.ClockCommand{Start: &bridge.ClockStart{Speed: k.Speed_SPEED_NORMAL, LeaseMS: 1000, MaxTicks: 100, Policy: &k.WatchPolicy{Mode: k.WatchMode_WATCH_MODE_COLONY.Enum(), HealthDropFraction: proto.Float32(.1), MinHealthFraction: proto.Float32(.2), HostileWithin: proto.Float32(20), InjuryStopCooldownMs: proto.Uint32(0)}}}}
 }
 func clockApplied(v ClockAttempt) *k.ControlReply {
-	e := clockExpectation(v)
+	e := clock.Expectation(v)
 	ctx := &c.ObservationContext{Identity: e.Identity, NativeGeneration: proto.Uint64(e.NativeGeneration), Tick: proto.Int64(12)}
 	var epoch *k.Epoch
 	if start := v.Intent.Command.Start; start != nil {
@@ -164,7 +165,7 @@ func TestClockNamespaceBoundsAndRollback(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err = clockActionAvailable(ctx, tx, "a"); !errors.Is(err, ErrConflict) {
+	if err = clock.ActionAvailable(ctx, tx, "a"); !errors.Is(err, ErrConflict) {
 		t.Fatal(err)
 	}
 	tx.Rollback()
@@ -280,7 +281,7 @@ func TestClockAttemptCapacityPreservesReplay(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	payload, err := encodeClockIntent(v)
+	payload, err := clock.EncodeIntent(v)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -289,7 +290,7 @@ func TestClockAttemptCapacityPreservesReplay(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer tx.Rollback()
-	head := clockSequenceHead{LastAllocated: 4096, Retained: []uint64{1}}
+	head := clock.SequenceHead{LastAllocated: 4096, Retained: []uint64{1}}
 	for i := 1; i < 4096; i++ {
 		id, _ := ClockRequestID(ControllerSessionID(v.NativeAttempt.GetControllerSessionId()), uint64(i+1))
 		head.Retained = append(head.Retained, uint64(i+1))
@@ -297,7 +298,7 @@ func TestClockAttemptCapacityPreservesReplay(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
-	if err = saveClockSequence(ctx, tx, head); err != nil {
+	if err = clock.SaveSequence(ctx, tx, head); err != nil {
 		t.Fatal(err)
 	}
 	if err = tx.Commit(); err != nil {

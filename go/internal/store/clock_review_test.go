@@ -5,10 +5,12 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	k "github.com/davidarcher/RimGovernor/go/internal/wire/clockpb"
-	"google.golang.org/protobuf/proto"
 	"reflect"
 	"testing"
+
+	"github.com/davidarcher/RimGovernor/go/internal/store/clock"
+	k "github.com/davidarcher/RimGovernor/go/internal/wire/clockpb"
+	"google.golang.org/protobuf/proto"
 )
 
 func reviewAppend(t *testing.T, s *Store, profile string, after int64, lost uint64) {
@@ -95,7 +97,7 @@ func TestClockReviewEventClassification(t *testing.T) {
 	t.Parallel()
 	benign := []*k.Event{{Event: &k.Event_Started{}}, {Event: &k.Event_SpeedChanged{}}, {Event: &k.Event_HostilesCleared{}}, {Event: &k.Event_ForcePauseCleared{}}}
 	for _, event := range benign {
-		if clockEventInterrupts(event) {
+		if clock.EventInterrupts(event) {
 			t.Fatal(event)
 		}
 	}
@@ -106,12 +108,12 @@ func TestClockReviewEventClassification(t *testing.T) {
 		reason := k.StopReason(number)
 		event := &k.Event{Event: &k.Event_Stopped{Stopped: &k.StopEvent{Reason: reason.Enum()}}}
 		want := reason != k.StopReason_STOP_REASON_TICK_BUDGET && reason != k.StopReason_STOP_REASON_REQUESTED_PAUSE
-		if clockEventInterrupts(event) != want {
+		if clock.EventInterrupts(event) != want {
 			t.Fatal(reason)
 		}
 	}
 	for _, event := range []*k.Event{{Event: &k.Event_Notification{}}, {Event: &k.Event_Alert{}}, {Event: &k.Event_InjuryObserved{}}, {Event: &k.Event_PauseFailed{}}, {Event: &k.Event_ForcePauseWaiting{}}} {
-		if !clockEventInterrupts(event) {
+		if !clock.EventInterrupts(event) {
 			t.Fatal(event)
 		}
 	}
@@ -185,8 +187,8 @@ func TestClockReviewConcurrentAckAndCapacity(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	for i := 2; i <= clockReviewCapacity; i++ {
-		data, _ := json.Marshal(clockReviewEntry{Kind: "ack", RequestID: fmt.Sprintf("empty-%d", i)})
+	for i := 2; i <= clock.ReviewCapacity; i++ {
+		data, _ := json.Marshal(clock.ReviewEntry{Kind: "ack", RequestID: fmt.Sprintf("empty-%d", i)})
 		if _, err = tx.Exec("INSERT INTO clock_review_log(sequence,payload) VALUES(?,?)", i, data); err != nil {
 			t.Fatal(err)
 		}

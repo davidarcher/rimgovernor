@@ -1,42 +1,16 @@
 package store
 
 import (
-	"bytes"
 	"context"
-	"database/sql"
 	"encoding/json"
 	"errors"
-	"fmt"
-	"io"
 
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
+	"github.com/davidarcher/RimGovernor/go/internal/store/zone"
 )
 
-type ZoneAdmission struct {
-	Snapshot      domain.GenerationSnapshot
-	Tick          domain.Tick
-	SnapshotToken string
-}
-type ActionZoneAdmission struct {
-	Action    domain.ActionID
-	Admission ZoneAdmission
-}
-
-func validateZoneAdmission(a domain.Action, p domain.Progress, admission ZoneAdmission) error {
-	if err := admission.Snapshot.Validate(); err != nil {
-		return err
-	}
-	v := p.View()
-	if admission.Snapshot.Plan != v.Plan || admission.Snapshot.Revision != v.Revision || admission.Tick < 0 {
-		return errors.New("admission plan or tick mismatch")
-	}
-	_, ok := a.ZoneCreate()
-	if !ok || submissionID(admission.SnapshotToken) != nil || admission.Snapshot.Native == 0 || admission.Snapshot.Direction == 0 {
-		return errors.New("invalid zone admission")
-	}
-
-	return nil
-}
+type ZoneAdmission = zone.Admission
+type ActionZoneAdmission = zone.ActionAdmission
 
 // PrepareZone atomically records the exact zone map CAS evidence and prepares
 // pending zone. An unissued Prepared action may replace its record under exactly
@@ -75,7 +49,7 @@ func (s *Store) PrepareZone(ctx context.Context, plan domain.PlanID, action doma
 	if !found {
 		return domain.Progress{}, ErrNotFound
 	}
-	if err = validateZoneAdmission(a, p, admission); err != nil {
+	if err = zone.ValidateAdmission(a, p, admission); err != nil {
 		return domain.Progress{}, err
 	}
 	accounted := false
@@ -110,11 +84,7 @@ func (s *Store) PrepareZone(ctx context.Context, plan domain.PlanID, action doma
 			return domain.Progress{}, errors.New("admission observation moved backwards")
 		}
 	}
-	data, err := json.Marshal(admission)
-	if err != nil {
-		return domain.Progress{}, err
-	}
-	if _, err = tx.ExecContext(ctx, "INSERT INTO zone_admissions(action_id,payload) VALUES(?,?) ON CONFLICT(action_id) DO UPDATE SET payload=excluded.payload", action, data); err != nil {
+	if err = zone.Insert(ctx, tx, action, admission); err != nil {
 		return domain.Progress{}, err
 	}
 	if v.Stage == domain.Pending {
@@ -130,44 +100,4 @@ func (s *Store) PrepareZone(ctx context.Context, plan domain.PlanID, action doma
 		return domain.Progress{}, err
 	}
 	return p, nil
-}
-
-func loadZoneAdmission(ctx context.Context, tx *sql.Tx, a domain.Action, p domain.Progress) (ZoneAdmission, bool, error) {
-	var data []byte
-	if err := tx.QueryRowContext(ctx, "SELECT payload FROM zone_admissions WHERE action_id=?", a.ID()).Scan(&data); err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
-			return ZoneAdmission{}, false, nil
-		}
-		return ZoneAdmission{}, false, err
-	}
-	var admission ZoneAdmission
-	if len(data) > 32768 {
-		return ZoneAdmission{}, false, errors.New("zone admission exceeds bound")
-	}
-	decoder := json.NewDecoder(bytes.NewReader(data))
-	decoder.DisallowUnknownFields()
-	if err := decoder.Decode(&admission); err != nil {
-		return ZoneAdmission{}, false, err
-	}
-	if err := decoder.Decode(new(json.RawMessage)); err != io.EOF {
-		return ZoneAdmission{}, false, errors.New("trailing admission data")
-	}
-	canonical, err := json.Marshal(admission)
-	if err != nil {
-		return ZoneAdmission{}, false, err
-	}
-	if !bytes.Equal(data, canonical) {
-		return ZoneAdmission{}, false, errors.New("noncanonical admission record")
-	}
-	if err = validateZoneAdmission(a, p, admission); err != nil {
-		return ZoneAdmission{}, false, fmt.Errorf("invalid action %q admission: %w", a.ID(), err)
-	}
-	v := p.View()
-	if (v.Stage == domain.Prepared || v.Attempt > 0) && !admission.Snapshot.Matches(v.Snapshot) {
-		return ZoneAdmission{}, false, errors.New("admission and progress authority disagree")
-	}
-	if v.Unresolved && admission.Tick > v.Tick {
-		return ZoneAdmission{}, false, errors.New("admission is newer than dispatched progress")
-	}
-	return admission, true, nil
 }

@@ -3,12 +3,14 @@ package store
 import (
 	"context"
 	"errors"
-	k "github.com/davidarcher/RimGovernor/go/internal/wire/clockpb"
-	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
-	"google.golang.org/protobuf/proto"
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/davidarcher/RimGovernor/go/internal/store/clock"
+	k "github.com/davidarcher/RimGovernor/go/internal/wire/clockpb"
+	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
+	"google.golang.org/protobuf/proto"
 )
 
 func inboxPage(after int64, count int, lost uint64) (*k.EventsRequest, *k.EventsPage) {
@@ -167,10 +169,10 @@ func TestClockInboxPageCapacity(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	for i := 0; i < clockInboxCapacity; i++ {
+	for i := 0; i < clock.InboxCapacity; i++ {
 		r, p := inboxPage(int64(i), 0, 1)
-		rb, _ := canonicalClockBytes(r)
-		pb, _ := canonicalClockBytes(p)
+		rb, _ := clock.CanonicalBytes(r)
+		pb, _ := clock.CanonicalBytes(p)
 		if _, err = tx.ExecContext(ctx, "INSERT INTO clock_event_pages(sequence,after_cursor,next_cursor,request,page) VALUES(?,?,?,?,?)", i+1, i, i+1, rb, pb); err != nil {
 			t.Fatal(err)
 		}
@@ -178,12 +180,12 @@ func TestClockInboxPageCapacity(t *testing.T) {
 	if err = tx.Commit(); err != nil {
 		t.Fatal(err)
 	}
-	r, p := inboxPage(clockInboxCapacity, 0, 1)
+	r, p := inboxPage(clock.InboxCapacity, 0, 1)
 	if _, _, err = s.AppendClockEvents(ctx, profile, r, p); !errors.Is(err, ErrCapacity) {
 		t.Fatal(err)
 	}
 	st, err := s.ReadClockInbox(ctx, profile)
-	if err != nil || st.PageCount != clockInboxCapacity || st.Cursor != clockInboxCapacity {
+	if err != nil || st.PageCount != clock.InboxCapacity || st.Cursor != clock.InboxCapacity {
 		t.Fatal(st, err)
 	}
 }

@@ -1,4 +1,4 @@
-package store
+package clock
 
 import (
 	"context"
@@ -18,12 +18,12 @@ type clockHistoryCheckpoint struct {
 }
 
 type clockArchivedAcknowledgement struct {
-	Request     ClockAcknowledgement
+	Request     Acknowledgement
 	Head        clockReviewHead
 	InboxCursor int64
 }
 
-func initializeClockCheckpoint(ctx context.Context, tx *sql.Tx) error {
+func InitializeCheckpoint(ctx context.Context, tx *sql.Tx) error {
 	_, err := tx.ExecContext(ctx, `CREATE TABLE clock_history_checkpoint(singleton INTEGER PRIMARY KEY CHECK(singleton=1),payload BLOB NOT NULL) STRICT;
 CREATE TABLE clock_acknowledgements(request_id TEXT PRIMARY KEY,payload BLOB NOT NULL) STRICT;`)
 	if err != nil {
@@ -34,7 +34,7 @@ CREATE TABLE clock_acknowledgements(request_id TEXT PRIMARY KEY,payload BLOB NOT
 	return err
 }
 
-func checkClockCheckpointSchema(ctx context.Context, tx *sql.Tx) error {
+func CheckCheckpointSchema(ctx context.Context, tx *sql.Tx) error {
 	if _, err := tx.ExecContext(ctx, "SELECT request_id,payload FROM clock_acknowledgements LIMIT 0"); err != nil {
 		return err
 	}
@@ -62,18 +62,18 @@ func loadClockCheckpoint(ctx context.Context, tx *sql.Tx) (clockHistoryCheckpoin
 	return checkpoint, nil
 }
 
-func loadClockAcknowledgement(ctx context.Context, tx *sql.Tx, ack ClockAcknowledgement, replay clockReviewReplay) (ClockReviewState, bool, error) {
+func loadClockAcknowledgement(ctx context.Context, tx *sql.Tx, ack Acknowledgement, replay clockReviewReplay) (ReviewState, bool, error) {
 	var data []byte
 	err := tx.QueryRowContext(ctx, "SELECT payload FROM clock_acknowledgements WHERE request_id=?", ack.RequestID).Scan(&data)
 	if errors.Is(err, sql.ErrNoRows) {
-		return ClockReviewState{}, false, nil
+		return ReviewState{}, false, nil
 	}
 	if err != nil {
-		return ClockReviewState{}, false, err
+		return ReviewState{}, false, err
 	}
 	var archived clockArchivedAcknowledgement
 	if err = clockReviewDecode(data, &archived); err != nil {
-		return ClockReviewState{}, false, err
+		return ReviewState{}, false, err
 	}
 	r := archived.Request
 	h := archived.Head
@@ -81,35 +81,30 @@ func loadClockAcknowledgement(ctx context.Context, tx *sql.Tx, ack ClockAcknowle
 		h.Reviewed != r.ThroughCursor || h.Acknowledged != r.ThroughCursor || archived.InboxCursor < h.Reviewed ||
 		archived.InboxCursor > replay.inbox.checkpoint.ReviewInboxCursor || h.Revision > replay.inbox.checkpoint.Review.Revision ||
 		(h.Revision != r.ExpectedRevision && (r.ExpectedRevision == math.MaxUint64 || h.Revision != r.ExpectedRevision+1)) {
-		return ClockReviewState{}, false, errors.New("invalid archived clock acknowledgement")
+		return ReviewState{}, false, errors.New("invalid archived clock acknowledgement")
 	}
 	if r != ack {
-		return ClockReviewState{}, false, ErrConflict
+		return ReviewState{}, false, ErrConflict
 	}
 	// An acknowledgement covers every hold through its reviewed cursor. Preserve
 	// its historical captured cursor instead of applying it to today's evidence.
-	return ClockReviewState{Revision: h.Revision, InboxCursor: archived.InboxCursor, ReviewedCursor: h.Reviewed, AcknowledgedCursor: h.Acknowledged, Holds: []ClockHold{}}, true, nil
+	return ReviewState{Revision: h.Revision, InboxCursor: archived.InboxCursor, ReviewedCursor: h.Reviewed, AcknowledgedCursor: h.Acknowledged, Holds: []Hold{}}, true, nil
 }
 
-type ClockHistoryCompaction struct {
+type HistoryCompaction struct {
 	RemovedPages, RemovedEvents, RemovedReviews int
 	Cursor                                      int64
 }
 
-// CompactClockHistory keeps a recent page tail and every unreviewed or
+// CompactHistory keeps a recent page tail and every unreviewed or
 // unacknowledged interruption/gap. Acknowledgement replies move to an indexed
 // archive; routine polling never loads that growing archive into memory.
-func (s *Store) CompactClockHistory(ctx context.Context, profile string) (ClockHistoryCompaction, error) {
-	var out ClockHistoryCompaction
+func CompactHistory(ctx context.Context, tx *sql.Tx, profile string) (HistoryCompaction, error) {
+	var out HistoryCompaction
 	path, err := canonicalClockProfile(profile)
 	if err != nil {
 		return out, err
 	}
-	tx, err := s.begin(ctx)
-	if err != nil {
-		return out, err
-	}
-	defer tx.Rollback()
 	replay, err := loadClockReview(ctx, tx, path)
 	if err != nil {
 		return out, err
@@ -120,7 +115,7 @@ func (s *Store) CompactClockHistory(ctx context.Context, profile string) (ClockH
 		return out, err
 	}
 	if len(replay.entries) < 128 && len(replay.inbox.Pages) < 128 && replay.inbox.State.EventCount < 256 && size < clockInboxBytes/2 {
-		return out, tx.Commit()
+		return out, nil
 	}
 	checkpoint := replay.inbox.checkpoint
 	// Compact a contiguous prefix so missing native cursor positions retain their
@@ -148,36 +143,36 @@ func (s *Store) CompactClockHistory(ctx context.Context, profile string) (ClockH
 		out.RemovedEvents += len(page.Page.Events)
 	}
 	if out.RemovedPages == 0 && len(replay.entries) == 0 {
-		return out, tx.Commit()
+		return out, nil
 	}
 	for i, entry := range replay.entries {
 		if entry.Kind != "ack" {
 			continue
 		}
-		archived := clockArchivedAcknowledgement{Request: ClockAcknowledgement{RequestID: entry.RequestID, ExpectedRevision: entry.ExpectedRevision, ThroughCursor: entry.ThroughCursor}, Head: replay.heads[i], InboxCursor: entry.InboxCursor}
+		archived := clockArchivedAcknowledgement{Request: Acknowledgement{RequestID: entry.RequestID, ExpectedRevision: entry.ExpectedRevision, ThroughCursor: entry.ThroughCursor}, Head: replay.heads[i], InboxCursor: entry.InboxCursor}
 		data, _ := json.Marshal(archived)
 		if _, err = tx.ExecContext(ctx, "INSERT INTO clock_acknowledgements(request_id,payload) VALUES(?,?)", entry.RequestID, data); err != nil {
-			return ClockHistoryCompaction{}, err
+			return HistoryCompaction{}, err
 		}
 	}
 	checkpoint.Review = replay.head
 	checkpoint.ReviewInboxCursor = replay.inbox.State.Cursor
 	data, _ := json.Marshal(checkpoint)
 	if _, err = tx.ExecContext(ctx, "UPDATE clock_history_checkpoint SET payload=? WHERE singleton=1", data); err != nil {
-		return ClockHistoryCompaction{}, err
+		return HistoryCompaction{}, err
 	}
 	if _, err = tx.ExecContext(ctx, "DELETE FROM clock_inbox_events WHERE page_sequence<=?", checkpoint.Pages); err != nil {
-		return ClockHistoryCompaction{}, err
+		return HistoryCompaction{}, err
 	}
 	if _, err = tx.ExecContext(ctx, "DELETE FROM clock_event_pages WHERE sequence<=?", checkpoint.Pages); err != nil {
-		return ClockHistoryCompaction{}, err
+		return HistoryCompaction{}, err
 	}
 	if _, err = tx.ExecContext(ctx, "DELETE FROM clock_review_log"); err != nil {
-		return ClockHistoryCompaction{}, err
+		return HistoryCompaction{}, err
 	}
 	out.RemovedReviews = len(replay.entries)
 	if _, err = loadClockReview(ctx, tx, path); err != nil {
-		return ClockHistoryCompaction{}, err
+		return HistoryCompaction{}, err
 	}
-	return out, tx.Commit()
+	return out, nil
 }

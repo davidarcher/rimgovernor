@@ -1,42 +1,16 @@
 package store
 
 import (
-	"bytes"
 	"context"
-	"database/sql"
 	"encoding/json"
 	"errors"
-	"fmt"
-	"io"
 
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
+	"github.com/davidarcher/RimGovernor/go/internal/store/rescue"
 )
 
-type RescueAdmission struct {
-	Snapshot                                   domain.GenerationSnapshot
-	Tick                                       domain.Tick
-	Rescuer, Patient                           domain.PawnID
-	RescuerSnapshotToken, PatientSnapshotToken string
-}
-type ActionRescueAdmission struct {
-	Action    domain.ActionID
-	Admission RescueAdmission
-}
-
-func validateRescueAdmission(a domain.Action, p domain.Progress, admission RescueAdmission) error {
-	if err := admission.Snapshot.Validate(); err != nil {
-		return err
-	}
-	v := p.View()
-	if admission.Snapshot.Plan != v.Plan || admission.Snapshot.Revision != v.Revision || admission.Snapshot.Native == 0 || admission.Snapshot.Direction == 0 || admission.Tick < 0 {
-		return errors.New("admission plan or tick mismatch")
-	}
-	rescue, ok := a.Rescue()
-	if !ok || rescue.Rescuer() != admission.Rescuer || rescue.Patient() != admission.Patient || submissionID(admission.RescuerSnapshotToken) != nil || submissionID(admission.PatientSnapshotToken) != nil {
-		return errors.New("invalid rescue admission")
-	}
-	return nil
-}
+type RescueAdmission = rescue.Admission
+type ActionRescueAdmission = rescue.ActionAdmission
 
 // PrepareRescue atomically records the exact rescuer/patient CAS evidence and
 // prepares pending work. This record is evidence, not a lease; the executor
@@ -69,7 +43,7 @@ func (s *Store) PrepareRescue(ctx context.Context, plan domain.PlanID, action do
 	if !found {
 		return domain.Progress{}, ErrNotFound
 	}
-	if err = validateRescueAdmission(a, p, admission); err != nil {
+	if err = rescue.ValidateAdmission(a, p, admission); err != nil {
 		return domain.Progress{}, err
 	}
 	v := p.View()
@@ -94,11 +68,7 @@ func (s *Store) PrepareRescue(ctx context.Context, plan domain.PlanID, action do
 			return domain.Progress{}, errors.New("admission observation moved backwards")
 		}
 	}
-	data, err := json.Marshal(admission)
-	if err != nil {
-		return domain.Progress{}, err
-	}
-	if _, err = tx.ExecContext(ctx, "INSERT INTO rescue_admissions(action_id,payload) VALUES(?,?) ON CONFLICT(action_id) DO UPDATE SET payload=excluded.payload", action, data); err != nil {
+	if err = rescue.Insert(ctx, tx, action, admission); err != nil {
 		return domain.Progress{}, err
 	}
 	if v.Stage == domain.Pending {
@@ -114,44 +84,4 @@ func (s *Store) PrepareRescue(ctx context.Context, plan domain.PlanID, action do
 		return domain.Progress{}, err
 	}
 	return p, nil
-}
-
-func loadRescueAdmission(ctx context.Context, tx *sql.Tx, a domain.Action, p domain.Progress) (RescueAdmission, bool, error) {
-	var data []byte
-	if err := tx.QueryRowContext(ctx, "SELECT payload FROM rescue_admissions WHERE action_id=?", a.ID()).Scan(&data); err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
-			return RescueAdmission{}, false, nil
-		}
-		return RescueAdmission{}, false, err
-	}
-	var admission RescueAdmission
-	if len(data) > 32768 {
-		return RescueAdmission{}, false, errors.New("rescue admission exceeds bound")
-	}
-	decoder := json.NewDecoder(bytes.NewReader(data))
-	decoder.DisallowUnknownFields()
-	if err := decoder.Decode(&admission); err != nil {
-		return RescueAdmission{}, false, err
-	}
-	if err := decoder.Decode(new(json.RawMessage)); err != io.EOF {
-		return RescueAdmission{}, false, errors.New("trailing admission data")
-	}
-	canonical, err := json.Marshal(admission)
-	if err != nil {
-		return RescueAdmission{}, false, err
-	}
-	if !bytes.Equal(data, canonical) {
-		return RescueAdmission{}, false, errors.New("noncanonical admission record")
-	}
-	if err = validateRescueAdmission(a, p, admission); err != nil {
-		return RescueAdmission{}, false, fmt.Errorf("invalid action %q admission: %w", a.ID(), err)
-	}
-	v := p.View()
-	if (v.Stage == domain.Prepared || v.Attempt > 0) && !admission.Snapshot.Matches(v.Snapshot) {
-		return RescueAdmission{}, false, errors.New("admission and progress authority disagree")
-	}
-	if (v.Unresolved || v.Stage == domain.Completed || v.Stage == domain.Unsuccessful) && admission.Tick > v.Tick {
-		return RescueAdmission{}, false, errors.New("admission is newer than dispatched progress")
-	}
-	return admission, true, nil
 }

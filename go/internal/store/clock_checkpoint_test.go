@@ -5,6 +5,8 @@ import (
 	"errors"
 	"reflect"
 	"testing"
+
+	"github.com/davidarcher/RimGovernor/go/internal/store/clock"
 )
 
 func appendReviewedBenign(t *testing.T, s *Store, profile string) ClockReviewState {
@@ -33,9 +35,9 @@ func appendReviewedBenign(t *testing.T, s *Store, profile string) ClockReviewSta
 func TestClockCompactionRepeatedWindowsAndAcknowledgementReplay(t *testing.T) {
 	const capacity = 256
 	const window = capacity / 64
-	original := clockReviewCapacity
-	clockReviewCapacity = capacity
-	t.Cleanup(func() { clockReviewCapacity = original })
+	original := clock.ReviewCapacity
+	clock.ReviewCapacity = capacity
+	t.Cleanup(func() { clock.ReviewCapacity = original })
 
 	ctx := context.Background()
 	s, path, profile := boundInbox(t)
@@ -49,7 +51,7 @@ func TestClockCompactionRepeatedWindowsAndAcknowledgementReplay(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	for i := range clockReviewCapacity + 16 {
+	for i := range clock.ReviewCapacity + 16 {
 		review = appendReviewedBenign(t, s, profile)
 		if i%window == window-1 {
 			if _, err = s.CompactClockHistory(ctx, profile); err != nil {
@@ -64,7 +66,7 @@ func TestClockCompactionRepeatedWindowsAndAcknowledgementReplay(t *testing.T) {
 		t.Fatal(current, review, err)
 	}
 	state, err := s.ReadClockInbox(ctx, profile)
-	if err != nil || state.Cursor != int64(clockReviewCapacity)+19 || state.LostCount != 2 || !state.Gap || state.PageCount >= 128 {
+	if err != nil || state.Cursor != int64(clock.ReviewCapacity)+19 || state.LostCount != 2 || !state.Gap || state.PageCount >= 128 {
 		t.Fatal(state, err)
 	}
 	replayed, err := s.AcknowledgeClockEvents(ctx, profile, ack)

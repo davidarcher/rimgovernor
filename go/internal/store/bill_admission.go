@@ -1,43 +1,16 @@
 package store
 
 import (
-	"bytes"
 	"context"
-	"database/sql"
 	"encoding/json"
 	"errors"
-	"fmt"
-	"io"
 
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
+	"github.com/davidarcher/RimGovernor/go/internal/store/bill"
 )
 
-type BillAdmission struct {
-	Snapshot      domain.GenerationSnapshot
-	Tick          domain.Tick
-	Bench         string
-	SnapshotToken string
-}
-type ActionBillAdmission struct {
-	Action    domain.ActionID
-	Admission BillAdmission
-}
-
-func validateBillAdmission(a domain.Action, p domain.Progress, admission BillAdmission) error {
-	if err := admission.Snapshot.Validate(); err != nil {
-		return err
-	}
-	v := p.View()
-	if admission.Snapshot.Plan != v.Plan || admission.Snapshot.Revision != v.Revision || admission.Tick < 0 {
-		return errors.New("admission plan or tick mismatch")
-	}
-	bill, ok := a.ProductionBill()
-	if !ok || string(bill.Bench()) != admission.Bench || submissionID(admission.SnapshotToken) != nil || admission.SnapshotToken != bill.BeforeToken() || admission.Snapshot.Native == 0 || admission.Snapshot.Direction == 0 {
-		return errors.New("invalid bill admission")
-	}
-
-	return nil
-}
+type BillAdmission = bill.Admission
+type ActionBillAdmission = bill.ActionAdmission
 
 // PrepareBill atomically records the exact bench bill CAS evidence and prepares
 // pending bill. An unissued Prepared action may replace its record under exactly
@@ -76,7 +49,7 @@ func (s *Store) PrepareBill(ctx context.Context, plan domain.PlanID, action doma
 	if !found {
 		return domain.Progress{}, ErrNotFound
 	}
-	if err = validateBillAdmission(a, p, admission); err != nil {
+	if err = bill.ValidateAdmission(a, p, admission); err != nil {
 		return domain.Progress{}, err
 	}
 	v := p.View()
@@ -102,11 +75,7 @@ func (s *Store) PrepareBill(ctx context.Context, plan domain.PlanID, action doma
 			return domain.Progress{}, errors.New("admission observation moved backwards")
 		}
 	}
-	data, err := json.Marshal(admission)
-	if err != nil {
-		return domain.Progress{}, err
-	}
-	if _, err = tx.ExecContext(ctx, "INSERT INTO bill_admissions(action_id,payload) VALUES(?,?) ON CONFLICT(action_id) DO UPDATE SET payload=excluded.payload", action, data); err != nil {
+	if err = bill.Insert(ctx, tx, action, admission); err != nil {
 		return domain.Progress{}, err
 	}
 	if v.Stage == domain.Pending {
@@ -122,44 +91,4 @@ func (s *Store) PrepareBill(ctx context.Context, plan domain.PlanID, action doma
 		return domain.Progress{}, err
 	}
 	return p, nil
-}
-
-func loadBillAdmission(ctx context.Context, tx *sql.Tx, a domain.Action, p domain.Progress) (BillAdmission, bool, error) {
-	var data []byte
-	if err := tx.QueryRowContext(ctx, "SELECT payload FROM bill_admissions WHERE action_id=?", a.ID()).Scan(&data); err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
-			return BillAdmission{}, false, nil
-		}
-		return BillAdmission{}, false, err
-	}
-	var admission BillAdmission
-	if len(data) > 32768 {
-		return BillAdmission{}, false, errors.New("bill admission exceeds bound")
-	}
-	decoder := json.NewDecoder(bytes.NewReader(data))
-	decoder.DisallowUnknownFields()
-	if err := decoder.Decode(&admission); err != nil {
-		return BillAdmission{}, false, err
-	}
-	if err := decoder.Decode(new(json.RawMessage)); err != io.EOF {
-		return BillAdmission{}, false, errors.New("trailing admission data")
-	}
-	canonical, err := json.Marshal(admission)
-	if err != nil {
-		return BillAdmission{}, false, err
-	}
-	if !bytes.Equal(data, canonical) {
-		return BillAdmission{}, false, errors.New("noncanonical admission record")
-	}
-	if err = validateBillAdmission(a, p, admission); err != nil {
-		return BillAdmission{}, false, fmt.Errorf("invalid action %q admission: %w", a.ID(), err)
-	}
-	v := p.View()
-	if (v.Stage == domain.Prepared || v.Attempt > 0) && !admission.Snapshot.Matches(v.Snapshot) {
-		return BillAdmission{}, false, errors.New("admission and progress authority disagree")
-	}
-	if (v.Unresolved || v.Stage == domain.Completed || v.Stage == domain.Unsuccessful) && admission.Tick > v.Tick {
-		return BillAdmission{}, false, errors.New("admission is newer than dispatched progress")
-	}
-	return admission, true, nil
 }

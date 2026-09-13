@@ -1,30 +1,27 @@
-package store
+package clock
 
 import (
 	"context"
+	"database/sql"
 	"errors"
+
 	k "github.com/davidarcher/RimGovernor/go/internal/wire/clockpb"
 	"google.golang.org/protobuf/proto"
 )
 
-// RetireClockHistory drops only settled or never-dispatched history. The exact
+// RetireHistory drops only settled or never-dispatched history. The exact
 // retained index and retirement watermark commit with deletions, so retirement
 // cannot turn an old request into permission for another native dispatch.
-func (s *Store) RetireClockHistory(ctx context.Context, expected ClockSequenceState, keepRecent uint32) (ClockRetirement, error) {
-	var out ClockRetirement
+func RetireHistory(ctx context.Context, tx *sql.Tx, expected SequenceState, keepRecent uint32) (Retirement, error) {
+	var out Retirement
 	if keepRecent > 256 {
 		return out, ErrCapacity
 	}
-	tx, err := s.begin(ctx)
-	if err != nil {
-		return out, err
-	}
-	defer tx.Rollback()
 	namespace, head, err := loadClockSequence(ctx, tx)
 	if err != nil {
 		return out, err
 	}
-	actual := ClockSequenceState{Namespace: namespace, LastAllocated: head.LastAllocated, RetiredThrough: head.RetiredThrough}
+	actual := SequenceState{Namespace: namespace, LastAllocated: head.LastAllocated, RetiredThrough: head.RetiredThrough}
 	if actual != expected {
 		return out, ErrConflict
 	}
@@ -49,8 +46,8 @@ func (s *Store) RetireClockHistory(ctx context.Context, expected ClockSequenceSt
 	if err = errors.Join(rows.Err(), rows.Close()); err != nil {
 		return out, err
 	}
-	attempts := make([]ClockAttempt, len(head.Retained))
-	epochs := make([]ClockEpochObligation, len(head.Retained))
+	attempts := make([]Attempt, len(head.Retained))
+	epochs := make([]EpochObligation, len(head.Retained))
 	keep := make([]bool, len(head.Retained))
 	epochCount := 0
 	latestWindow := -1
@@ -75,7 +72,7 @@ func (s *Store) RetireClockHistory(ctx context.Context, expected ClockSequenceSt
 				keep[i] = true
 			}
 		}
-		if v.Phase == ClockDispatched || v.Phase == ClockUncertain {
+		if v.Phase == Dispatched || v.Phase == Uncertain {
 			keep[i] = true
 		}
 		if v.Intent.Window != nil {
@@ -138,15 +135,12 @@ func (s *Store) RetireClockHistory(ctx context.Context, expected ClockSequenceSt
 	head.RetiredThrough = head.LastAllocated
 	head.Retained = retained
 	if err = saveClockSequence(ctx, tx, head); err != nil {
-		return ClockRetirement{}, err
+		return Retirement{}, err
 	}
 	if _, _, err = loadClockSequence(ctx, tx); err != nil {
-		return ClockRetirement{}, err
+		return Retirement{}, err
 	}
-	out.State = ClockSequenceState{Namespace: namespace, LastAllocated: head.LastAllocated, RetiredThrough: head.RetiredThrough}
+	out.State = SequenceState{Namespace: namespace, LastAllocated: head.LastAllocated, RetiredThrough: head.RetiredThrough}
 	out.RetainedAttempts = len(retained)
-	if err = tx.Commit(); err != nil {
-		return ClockRetirement{}, err
-	}
 	return out, nil
 }

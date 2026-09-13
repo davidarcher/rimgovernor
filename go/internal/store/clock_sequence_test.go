@@ -7,6 +7,8 @@ import (
 	"fmt"
 	"sync"
 	"testing"
+
+	"github.com/davidarcher/RimGovernor/go/internal/store/clock"
 )
 
 var clockTestLabels = struct {
@@ -175,11 +177,11 @@ func TestClockSequenceRetirementAndCorruption(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			head := clockSequenceHead{LastAllocated: 2, RetiredThrough: 2, Retained: []uint64{1}}
+			head := clock.SequenceHead{LastAllocated: 2, RetiredThrough: 2, Retained: []uint64{1}}
 			if _, err = tx.Exec("DELETE FROM clock_attempts WHERE request_id=?", second); err != nil {
 				t.Fatal(err)
 			}
-			if err = saveClockSequence(ctx, tx, head); err != nil {
+			if err = clock.SaveSequence(ctx, tx, head); err != nil {
 				t.Fatal(err)
 			}
 			if err = tx.Commit(); err != nil {
@@ -205,10 +207,10 @@ func TestClockSequenceRetirementAndCorruption(t *testing.T) {
 			case "missing-pinned":
 				_, err = s.db.Exec("DELETE FROM clock_attempts")
 			case "missing-live":
-				b, _ := json.Marshal(clockSequenceHead{LastAllocated: 2, Retained: []uint64{1}})
+				b, _ := json.Marshal(clock.SequenceHead{LastAllocated: 2, Retained: []uint64{1}})
 				_, err = s.db.Exec("UPDATE clock_sequence SET payload=?", b)
 			case "extra-row":
-				b, _ := json.Marshal(clockSequenceHead{LastAllocated: 2, RetiredThrough: 2, Retained: []uint64{}})
+				b, _ := json.Marshal(clock.SequenceHead{LastAllocated: 2, RetiredThrough: 2, Retained: []uint64{}})
 				_, err = s.db.Exec("UPDATE clock_sequence SET payload=?", b)
 			case "noncanonical":
 				_, err = s.db.Exec("UPDATE clock_sequence SET payload=CAST('{\"LastAllocated\":2,\"RetiredThrough\":2,\"Retained\":[1],\"unknown\":0}' AS BLOB)")

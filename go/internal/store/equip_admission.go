@@ -1,44 +1,16 @@
 package store
 
 import (
-	"bytes"
 	"context"
-	"database/sql"
 	"encoding/json"
 	"errors"
-	"fmt"
-	"io"
 
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
+	"github.com/davidarcher/RimGovernor/go/internal/store/equip"
 )
 
-type EquipAdmission struct {
-	Snapshot                              domain.GenerationSnapshot
-	Tick                                  domain.Tick
-	Pawn                                  domain.PawnID
-	Thing, Definition                     string
-	Cell                                  domain.Cell
-	PawnSnapshotToken, ThingSnapshotToken string
-}
-type ActionEquipAdmission struct {
-	Action    domain.ActionID
-	Admission EquipAdmission
-}
-
-func validateEquipAdmission(a domain.Action, p domain.Progress, admission EquipAdmission) error {
-	if err := admission.Snapshot.Validate(); err != nil {
-		return err
-	}
-	v := p.View()
-	if admission.Snapshot.Plan != v.Plan || admission.Snapshot.Revision != v.Revision || admission.Snapshot.Native == 0 || admission.Snapshot.Direction == 0 || admission.Tick < 0 {
-		return errors.New("admission plan or tick mismatch")
-	}
-	equip, ok := a.Equip()
-	if !ok || equip.Pawn() != admission.Pawn || equip.Thing() != admission.Thing || equip.Definition() != admission.Definition || equip.Cell() != admission.Cell || submissionID(admission.PawnSnapshotToken) != nil || submissionID(admission.ThingSnapshotToken) != nil {
-		return errors.New("invalid equip admission")
-	}
-	return nil
-}
+type EquipAdmission = equip.Admission
+type ActionEquipAdmission = equip.ActionAdmission
 
 // PrepareEquip atomically records the exact pawn/weapon CAS evidence and
 // prepares pending work. This record is evidence, not a lease; the executor
@@ -71,7 +43,7 @@ func (s *Store) PrepareEquip(ctx context.Context, plan domain.PlanID, action dom
 	if !found {
 		return domain.Progress{}, ErrNotFound
 	}
-	if err = validateEquipAdmission(a, p, admission); err != nil {
+	if err = equip.ValidateAdmission(a, p, admission); err != nil {
 		return domain.Progress{}, err
 	}
 	v := p.View()
@@ -96,11 +68,7 @@ func (s *Store) PrepareEquip(ctx context.Context, plan domain.PlanID, action dom
 			return domain.Progress{}, errors.New("admission observation moved backwards")
 		}
 	}
-	data, err := json.Marshal(admission)
-	if err != nil {
-		return domain.Progress{}, err
-	}
-	if _, err = tx.ExecContext(ctx, "INSERT INTO equip_admissions(action_id,payload) VALUES(?,?) ON CONFLICT(action_id) DO UPDATE SET payload=excluded.payload", action, data); err != nil {
+	if err = equip.Insert(ctx, tx, action, admission); err != nil {
 		return domain.Progress{}, err
 	}
 	if v.Stage == domain.Pending {
@@ -116,44 +84,4 @@ func (s *Store) PrepareEquip(ctx context.Context, plan domain.PlanID, action dom
 		return domain.Progress{}, err
 	}
 	return p, nil
-}
-
-func loadEquipAdmission(ctx context.Context, tx *sql.Tx, a domain.Action, p domain.Progress) (EquipAdmission, bool, error) {
-	var data []byte
-	if err := tx.QueryRowContext(ctx, "SELECT payload FROM equip_admissions WHERE action_id=?", a.ID()).Scan(&data); err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
-			return EquipAdmission{}, false, nil
-		}
-		return EquipAdmission{}, false, err
-	}
-	var admission EquipAdmission
-	if len(data) > 32768 {
-		return EquipAdmission{}, false, errors.New("equip admission exceeds bound")
-	}
-	decoder := json.NewDecoder(bytes.NewReader(data))
-	decoder.DisallowUnknownFields()
-	if err := decoder.Decode(&admission); err != nil {
-		return EquipAdmission{}, false, err
-	}
-	if err := decoder.Decode(new(json.RawMessage)); err != io.EOF {
-		return EquipAdmission{}, false, errors.New("trailing admission data")
-	}
-	canonical, err := json.Marshal(admission)
-	if err != nil {
-		return EquipAdmission{}, false, err
-	}
-	if !bytes.Equal(data, canonical) {
-		return EquipAdmission{}, false, errors.New("noncanonical admission record")
-	}
-	if err = validateEquipAdmission(a, p, admission); err != nil {
-		return EquipAdmission{}, false, fmt.Errorf("invalid action %q admission: %w", a.ID(), err)
-	}
-	v := p.View()
-	if (v.Stage == domain.Prepared || v.Attempt > 0) && !admission.Snapshot.Matches(v.Snapshot) {
-		return EquipAdmission{}, false, errors.New("admission and progress authority disagree")
-	}
-	if (v.Unresolved || v.Stage == domain.Completed || v.Stage == domain.Unsuccessful) && admission.Tick > v.Tick {
-		return EquipAdmission{}, false, errors.New("admission is newer than dispatched progress")
-	}
-	return admission, true, nil
 }

@@ -1,4 +1,4 @@
-package store
+package clock
 
 import (
 	"bytes"
@@ -7,6 +7,7 @@ import (
 	"database/sql"
 	"encoding/hex"
 	"errors"
+
 	"github.com/davidarcher/RimGovernor/go/internal/bridge"
 	k "github.com/davidarcher/RimGovernor/go/internal/wire/clockpb"
 	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
@@ -15,66 +16,66 @@ import (
 
 const clockColumns = "request_id,native_action_id,payload,phase,reply,scope_context"
 
-func scanClock(row interface{ Scan(...any) error }, session ControllerSessionID) (ClockAttempt, error) {
+func scanClock(row interface{ Scan(...any) error }, session ControllerSessionID) (Attempt, error) {
 	var id, action string
 	var payload, reply, scope []byte
-	var phase ClockPhase
+	var phase Phase
 	if err := row.Scan(&id, &action, &payload, &phase, &reply, &scope); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
-			return ClockAttempt{}, ErrNotFound
+			return Attempt{}, ErrNotFound
 		}
-		return ClockAttempt{}, err
+		return Attempt{}, err
 	}
 	attempt := &c.AttemptKey{ControllerSessionId: proto.String(string(session)), ActionId: proto.String(action), AttemptId: proto.Uint64(1)}
 	intent, err := decodeClockIntent(id, attempt, payload)
 	if err != nil {
-		return ClockAttempt{}, err
+		return Attempt{}, err
 	}
-	value := ClockAttempt{Intent: intent, NativeAttempt: attempt, Phase: phase}
+	value := Attempt{Intent: intent, NativeAttempt: attempt, Phase: phase}
 	if reply != nil {
 		value.Reply = &k.ControlReply{}
 		if err = clockUnmarshal(reply, value.Reply); err != nil {
-			return ClockAttempt{}, err
+			return Attempt{}, err
 		}
 		if err = bridge.ValidateClockControlReply(value.Reply, clockExpectation(value)); err != nil {
-			return ClockAttempt{}, err
+			return Attempt{}, err
 		}
 	}
 	switch phase {
-	case ClockPrepared, ClockDispatched:
+	case Prepared, Dispatched:
 		if reply != nil {
-			return ClockAttempt{}, errors.New("unissued clock phase contains outcome")
+			return Attempt{}, errors.New("unissued clock phase contains outcome")
 		}
-	case ClockUncertain:
-		if reply != nil && clockReplyPhase(value.Reply) != ClockUncertain {
-			return ClockAttempt{}, errors.New("uncertain clock phase contradicts outcome")
+	case Uncertain:
+		if reply != nil && clockReplyPhase(value.Reply) != Uncertain {
+			return Attempt{}, errors.New("uncertain clock phase contradicts outcome")
 		}
-	case ClockApplied, ClockRefused:
+	case Applied, Refused:
 		if reply == nil || clockReplyPhase(value.Reply) != phase {
-			return ClockAttempt{}, errors.New("terminal clock phase missing matching outcome")
+			return Attempt{}, errors.New("terminal clock phase missing matching outcome")
 		}
 	default:
-		return ClockAttempt{}, errors.New("invalid clock phase")
+		return Attempt{}, errors.New("invalid clock phase")
 	}
 	if scope != nil {
 		value.SupersededAt = &c.ObservationContext{}
 		if err = clockUnmarshal(scope, value.SupersededAt); err != nil {
-			return ClockAttempt{}, err
+			return Attempt{}, err
 		}
 		if err = validateClockScope(value, value.SupersededAt); err != nil {
-			return ClockAttempt{}, err
+			return Attempt{}, err
 		}
 	}
 	return value, nil
 }
-func loadClock(ctx context.Context, tx *sql.Tx, id string) (ClockAttempt, error) {
+func loadClock(ctx context.Context, tx *sql.Tx, id string) (Attempt, error) {
 	session, head, err := loadClockSequence(ctx, tx)
 	if err != nil {
-		return ClockAttempt{}, err
+		return Attempt{}, err
 	}
 	n, err := parseClockRequestID(session, id)
 	if err != nil {
-		return ClockAttempt{}, err
+		return Attempt{}, err
 	}
 	found := false
 	for _, v := range head.Retained {
@@ -85,28 +86,28 @@ func loadClock(ctx context.Context, tx *sql.Tx, id string) (ClockAttempt, error)
 	}
 	if !found {
 		if n <= head.RetiredThrough {
-			return ClockAttempt{}, ErrRetired
+			return Attempt{}, ErrRetired
 		}
 		if n <= head.LastAllocated {
-			return ClockAttempt{}, errors.New("missing allocated clock request")
+			return Attempt{}, errors.New("missing allocated clock request")
 		}
-		return ClockAttempt{}, ErrNotFound
+		return Attempt{}, ErrNotFound
 	}
 	return loadClockUnchecked(ctx, tx, id, session)
 }
-func loadClockUnchecked(ctx context.Context, tx *sql.Tx, id string, session ControllerSessionID) (ClockAttempt, error) {
+func loadClockUnchecked(ctx context.Context, tx *sql.Tx, id string, session ControllerSessionID) (Attempt, error) {
 	value, err := scanClock(tx.QueryRowContext(ctx, "SELECT "+clockColumns+" FROM clock_attempts WHERE request_id=?", id), session)
 	if err != nil {
-		return ClockAttempt{}, err
+		return Attempt{}, err
 	}
 	if err = clockActionAvailable(ctx, tx, value.NativeAttempt.GetActionId()); err != nil {
-		return ClockAttempt{}, err
+		return Attempt{}, err
 	}
 	if err = checkClockWindowProfile(ctx, tx, value.Intent.Window); err != nil {
-		return ClockAttempt{}, err
+		return Attempt{}, err
 	}
 	if _, err = checkClockEpoch(ctx, tx, value); err != nil {
-		return ClockAttempt{}, err
+		return Attempt{}, err
 	}
 	return value, nil
 }
@@ -121,105 +122,80 @@ func clockActionAvailable(ctx context.Context, tx *sql.Tx, action string) error 
 	return nil
 }
 
-// PrepareClock returns created=false only for exact durable intent replay. It
+// Prepare returns created=false only for exact durable intent replay. It
 // records no live lease and grants no permission to call native control.
-func (s *Store) PrepareClock(ctx context.Context, intent ClockIntent) (ClockAttempt, bool, error) {
-	tx, err := s.begin(ctx)
-	if err != nil {
-		return ClockAttempt{}, false, err
-	}
-	defer tx.Rollback()
+func Prepare(ctx context.Context, tx *sql.Tx, intent Intent) (Attempt, bool, error) {
 	session, head, err := loadClockSequence(ctx, tx)
 	if err != nil {
-		return ClockAttempt{}, false, err
+		return Attempt{}, false, err
 	}
 	sequence, err := parseClockRequestID(session, intent.RequestID)
 	if err != nil {
-		return ClockAttempt{}, false, err
+		return Attempt{}, false, err
 	}
 	var entropy [32]byte
 	if _, err = rand.Read(entropy[:]); err != nil {
-		return ClockAttempt{}, false, err
+		return Attempt{}, false, err
 	}
-	candidate := ClockAttempt{Intent: intent, NativeAttempt: &c.AttemptKey{ControllerSessionId: proto.String(string(session)), ActionId: proto.String("clock-" + hex.EncodeToString(entropy[:])), AttemptId: proto.Uint64(1)}, Phase: ClockPrepared}
+	candidate := Attempt{Intent: intent, NativeAttempt: &c.AttemptKey{ControllerSessionId: proto.String(string(session)), ActionId: proto.String("clock-" + hex.EncodeToString(entropy[:])), AttemptId: proto.Uint64(1)}, Phase: Prepared}
 	payload, err := encodeClockIntent(candidate)
 	if err != nil {
-		return ClockAttempt{}, false, err
+		return Attempt{}, false, err
 	}
 	if err = checkClockWindowProfile(ctx, tx, intent.Window); err != nil {
-		return ClockAttempt{}, false, err
+		return Attempt{}, false, err
 	}
 	old, err := loadClock(ctx, tx, intent.RequestID)
 	if err == nil {
 		original, e := encodeClockIntent(old)
 		if e != nil {
-			return ClockAttempt{}, false, e
+			return Attempt{}, false, e
 		}
 		if !bytes.Equal(original, payload) {
-			return ClockAttempt{}, false, ErrConflict
-		}
-		if err = tx.Commit(); err != nil {
-			return ClockAttempt{}, false, err
+			return Attempt{}, false, ErrConflict
 		}
 		return old, false, nil
 	}
 	if !errors.Is(err, ErrNotFound) {
-		return ClockAttempt{}, false, err
+		return Attempt{}, false, err
 	}
 	if head.LastAllocated == ^uint64(0) || sequence != head.LastAllocated+1 {
-		return ClockAttempt{}, false, ErrConflict
+		return Attempt{}, false, ErrConflict
 	}
 	if err = clockActionAvailable(ctx, tx, candidate.NativeAttempt.GetActionId()); err != nil {
-		return ClockAttempt{}, false, err
+		return Attempt{}, false, err
 	}
 	var count int
 	if err = tx.QueryRowContext(ctx, "SELECT count(*) FROM clock_attempts").Scan(&count); err != nil {
-		return ClockAttempt{}, false, err
+		return Attempt{}, false, err
 	}
 	if count >= 4096 {
-		return ClockAttempt{}, false, ErrCapacity
+		return Attempt{}, false, ErrCapacity
 	}
-	if _, err = tx.ExecContext(ctx, "INSERT INTO clock_attempts(request_id,native_action_id,payload,phase) VALUES(?,?,?,?)", intent.RequestID, candidate.NativeAttempt.GetActionId(), payload, ClockPrepared); err != nil {
-		return ClockAttempt{}, false, conflict(err)
+	if _, err = tx.ExecContext(ctx, "INSERT INTO clock_attempts(request_id,native_action_id,payload,phase) VALUES(?,?,?,?)", intent.RequestID, candidate.NativeAttempt.GetActionId(), payload, Prepared); err != nil {
+		return Attempt{}, false, conflict(err)
 	}
 	head.LastAllocated = sequence
 	head.Retained = append(head.Retained, sequence)
 	if err = saveClockSequence(ctx, tx, head); err != nil {
-		return ClockAttempt{}, false, err
+		return Attempt{}, false, err
 	}
 	saved, err := loadClock(ctx, tx, intent.RequestID)
 	if err != nil {
-		return ClockAttempt{}, false, err
-	}
-	if err = tx.Commit(); err != nil {
-		return ClockAttempt{}, false, err
+		return Attempt{}, false, err
 	}
 	return saved, true, nil
 }
-func (s *Store) LookupClockAttempt(ctx context.Context, id string) (ClockAttempt, error) {
+func LookupAttempt(ctx context.Context, tx *sql.Tx, id string) (Attempt, error) {
 	if err := submissionID(id); err != nil {
-		return ClockAttempt{}, err
+		return Attempt{}, err
 	}
-	tx, err := s.begin(ctx)
-	if err != nil {
-		return ClockAttempt{}, err
-	}
-	defer tx.Rollback()
-	v, err := loadClock(ctx, tx, id)
-	if err != nil {
-		return ClockAttempt{}, err
-	}
-	return v, tx.Commit()
+	return loadClock(ctx, tx, id)
 }
-func (s *Store) LoadClockAttempts(ctx context.Context, limit int) ([]ClockAttempt, error) {
+func LoadAttempts(ctx context.Context, tx *sql.Tx, limit int) ([]Attempt, error) {
 	if limit < 1 || limit > 4096 {
 		return nil, errors.New("clock attempt limit must be 1..4096")
 	}
-	tx, err := s.begin(ctx)
-	if err != nil {
-		return nil, err
-	}
-	defer tx.Rollback()
 	session, head, err := loadClockSequence(ctx, tx)
 	if err != nil {
 		return nil, err
@@ -227,7 +203,7 @@ func (s *Store) LoadClockAttempts(ctx context.Context, limit int) ([]ClockAttemp
 	if len(head.Retained) > limit {
 		return nil, ErrCapacity
 	}
-	out := make([]ClockAttempt, 0, len(head.Retained))
+	out := make([]Attempt, 0, len(head.Retained))
 	for _, sequence := range head.Retained {
 		id, _ := ClockRequestID(session, sequence)
 		v, e := loadClockUnchecked(ctx, tx, id, session)
@@ -236,43 +212,43 @@ func (s *Store) LoadClockAttempts(ctx context.Context, limit int) ([]ClockAttemp
 		}
 		out = append(out, v)
 	}
-	return out, tx.Commit()
+	return out, nil
 }
-func (s *Store) DispatchClock(ctx context.Context, id string) (ClockAttempt, error) {
-	return s.updateClock(ctx, id, func(v ClockAttempt) (ClockPhase, *k.ControlReply, error) {
-		if v.Phase != ClockPrepared {
+func Dispatch(ctx context.Context, tx *sql.Tx, id string) (Attempt, error) {
+	return update(ctx, tx, id, func(v Attempt) (Phase, *k.ControlReply, error) {
+		if v.Phase != Prepared {
 			return "", nil, ErrConflict
 		}
-		return ClockDispatched, nil, nil
+		return Dispatched, nil, nil
 	})
 }
-func (s *Store) MarkClockUncertain(ctx context.Context, id string) (ClockAttempt, error) {
-	return s.updateClock(ctx, id, func(v ClockAttempt) (ClockPhase, *k.ControlReply, error) {
-		if v.Phase != ClockDispatched && v.Phase != ClockUncertain {
+func MarkUncertain(ctx context.Context, tx *sql.Tx, id string) (Attempt, error) {
+	return update(ctx, tx, id, func(v Attempt) (Phase, *k.ControlReply, error) {
+		if v.Phase != Dispatched && v.Phase != Uncertain {
 			return "", nil, ErrConflict
 		}
-		return ClockUncertain, v.Reply, nil
+		return Uncertain, v.Reply, nil
 	})
 }
 
-// RecordClockReply accepts an original control-call reply or a recovered receipt.
+// RecordReply accepts an original control-call reply or a recovered receipt.
 // A lookup failure must never be repackaged as a pre-admission control refusal.
-func (s *Store) RecordClockReply(ctx context.Context, id string, reply *k.ControlReply) (ClockAttempt, error) {
+func RecordReply(ctx context.Context, tx *sql.Tx, id string, reply *k.ControlReply) (Attempt, error) {
 	if reply == nil {
-		return ClockAttempt{}, errors.New("clock reply required")
+		return Attempt{}, errors.New("clock reply required")
 	}
 	reply = proto.Clone(reply).(*k.ControlReply)
-	return s.updateClock(ctx, id, func(v ClockAttempt) (ClockPhase, *k.ControlReply, error) {
+	return update(ctx, tx, id, func(v Attempt) (Phase, *k.ControlReply, error) {
 		if err := bridge.ValidateClockControlReply(reply, clockExpectation(v)); err != nil {
 			return "", nil, err
 		}
-		if v.Phase == ClockApplied || v.Phase == ClockRefused {
+		if v.Phase == Applied || v.Phase == Refused {
 			if proto.Equal(v.Reply, reply) {
 				return v.Phase, v.Reply, nil
 			}
 			return "", nil, ErrConflict
 		}
-		if v.Phase != ClockDispatched && v.Phase != ClockUncertain {
+		if v.Phase != Dispatched && v.Phase != Uncertain {
 			return "", nil, ErrConflict
 		}
 		// Admission evidence and attempt conflicts require receipt recovery;
@@ -283,55 +259,43 @@ func (s *Store) RecordClockReply(ctx context.Context, id string, reply *k.Contro
 		return clockReplyPhase(reply), reply, nil
 	})
 }
-func (s *Store) updateClock(ctx context.Context, id string, change func(ClockAttempt) (ClockPhase, *k.ControlReply, error)) (ClockAttempt, error) {
+func update(ctx context.Context, tx *sql.Tx, id string, change func(Attempt) (Phase, *k.ControlReply, error)) (Attempt, error) {
 	if err := submissionID(id); err != nil {
-		return ClockAttempt{}, err
+		return Attempt{}, err
 	}
-	tx, err := s.begin(ctx)
-	if err != nil {
-		return ClockAttempt{}, err
-	}
-	defer tx.Rollback()
 	old, err := loadClock(ctx, tx, id)
 	if err != nil {
-		return ClockAttempt{}, err
+		return Attempt{}, err
 	}
 	if old.SupersededAt != nil {
-		return ClockAttempt{}, ErrConflict
+		return Attempt{}, ErrConflict
 	}
 	phase, reply, err := change(old)
 	if err != nil {
-		return ClockAttempt{}, err
+		return Attempt{}, err
 	}
-	if phase == ClockDispatched {
+	if phase == Dispatched {
 		if err = checkClockWindowDispatch(ctx, tx, old.Intent.Window); err != nil {
-			return ClockAttempt{}, err
+			return Attempt{}, err
 		}
 	}
 	if phase == old.Phase && proto.Equal(reply, old.Reply) {
-		return old, tx.Commit()
+		return old, nil
 	}
 	var data []byte
 	if reply != nil {
 		data, err = clockBinary(reply)
 		if err != nil {
-			return ClockAttempt{}, err
+			return Attempt{}, err
 		}
 	}
 	if _, err = tx.ExecContext(ctx, "UPDATE clock_attempts SET phase=?,reply=? WHERE request_id=?", phase, data, id); err != nil {
-		return ClockAttempt{}, err
+		return Attempt{}, err
 	}
-	if phase == ClockApplied && old.Intent.Command.Start != nil {
+	if phase == Applied && old.Intent.Command.Start != nil {
 		if _, err = tx.ExecContext(ctx, "INSERT INTO clock_epochs(start_request_id,stage,sequence) VALUES(?,'required','0')", id); err != nil {
-			return ClockAttempt{}, err
+			return Attempt{}, err
 		}
 	}
-	saved, err := loadClock(ctx, tx, id)
-	if err != nil {
-		return ClockAttempt{}, err
-	}
-	if err = tx.Commit(); err != nil {
-		return ClockAttempt{}, err
-	}
-	return saved, nil
+	return loadClock(ctx, tx, id)
 }

@@ -1,32 +1,16 @@
 package store
 
 import (
-	"bytes"
 	"context"
 	"database/sql"
 	"encoding/json"
 	"errors"
 
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
+	"github.com/davidarcher/RimGovernor/go/internal/store/ranged"
 )
 
-type ActionRangedAdmission struct {
-	Action    domain.ActionID
-	Admission MeleeAdmission
-}
-
-func validateRangedAdmission(a domain.Action, p domain.Progress, v MeleeAdmission) error {
-	m, ok := a.RangedAttack()
-	progress := p.View()
-	if !ok || v.Snapshot.Validate() != nil || v.Snapshot.Plan != progress.Plan || v.Snapshot.Revision != progress.Revision || v.Snapshot.Native == 0 || v.Snapshot.Direction == 0 || v.Tick < 0 || v.Pawn != m.Pawn() || v.Target != m.Target() || submissionID(v.PawnSnapshotToken) != nil || submissionID(v.TargetSnapshotToken) != nil {
-		return errors.New("invalid ranged attack admission")
-	}
-	claim := v.DraftClaim
-	if claim.Action != m.DraftAction() || claim.Pawn != m.Pawn() || claim.Attempt == 0 || claim.Origin != v.Snapshot || submissionID(string(claim.Claim)) != nil || submissionID(string(claim.Session)) != nil {
-		return errors.New("ranged attack admission draft mismatch")
-	}
-	return nil
-}
+type ActionRangedAdmission = ranged.ActionAdmission
 
 func validateRangedPrerequisite(ctx context.Context, tx *sql.Tx, state PlanState, action domain.ActionID, v MeleeAdmission, live bool) error {
 	if err := checkClaimSession(ctx, tx, v.DraftClaim); err != nil {
@@ -60,40 +44,6 @@ func validateRangedPrerequisite(ctx context.Context, tx *sql.Tx, state PlanState
 	return errors.New("ranged attack prerequisite missing")
 }
 
-func loadRangedAdmission(ctx context.Context, tx *sql.Tx, a domain.Action, p domain.Progress) (MeleeAdmission, bool, error) {
-	var data []byte
-	if err := tx.QueryRowContext(ctx, "SELECT payload FROM ranged_admissions WHERE action_id=?", a.ID()).Scan(&data); err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
-			return MeleeAdmission{}, false, nil
-		}
-		return MeleeAdmission{}, false, err
-	}
-	var v MeleeAdmission
-	if len(data) > 32768 {
-		return v, false, errors.New("ranged attack admission exceeds bound")
-	}
-	decoder := json.NewDecoder(bytes.NewReader(data))
-	decoder.DisallowUnknownFields()
-	if err := decoder.Decode(&v); err != nil {
-		return v, false, err
-	}
-	canonical, err := json.Marshal(v)
-	if err != nil || !bytes.Equal(data, canonical) {
-		return v, false, errors.New("noncanonical ranged attack admission")
-	}
-	if err = validateRangedAdmission(a, p, v); err != nil {
-		return v, false, err
-	}
-	progress := p.View()
-	if (progress.Stage == domain.Prepared || progress.Attempt > 0) && progress.Snapshot != v.Snapshot {
-		return v, false, errors.New("ranged attack admission authority mismatch")
-	}
-	if (progress.Unresolved || progress.Stage == domain.Completed || progress.Stage == domain.Unsuccessful) && v.Tick > progress.Tick {
-		return v, false, errors.New("ranged attack admission is newer than dispatch")
-	}
-	return v, true, nil
-}
-
 // PrepareRangedAttack records both exact pawn snapshots and the verified
 // prerequisite in the same transaction as preparation, mirroring PrepareMelee.
 func (s *Store) PrepareRangedAttack(ctx context.Context, plan domain.PlanID, action domain.ActionID, v MeleeAdmission) (domain.Progress, error) {
@@ -124,7 +74,7 @@ func (s *Store) PrepareRangedAttack(ctx context.Context, plan domain.PlanID, act
 	if !found {
 		return domain.Progress{}, ErrNotFound
 	}
-	if err = validateRangedAdmission(a, p, v); err != nil {
+	if err = ranged.ValidateAdmission(a, p, v); err != nil {
 		return domain.Progress{}, err
 	}
 	if err = validateRangedPrerequisite(ctx, tx, state, action, v, true); err != nil {
@@ -152,11 +102,7 @@ func (s *Store) PrepareRangedAttack(ctx context.Context, plan domain.PlanID, act
 			return domain.Progress{}, errors.New("ranged attack admission moved backwards")
 		}
 	}
-	data, err := json.Marshal(v)
-	if err != nil || len(data) > 32768 {
-		return domain.Progress{}, errors.New("ranged attack admission exceeds bound")
-	}
-	if _, err = tx.ExecContext(ctx, "INSERT INTO ranged_admissions(action_id,payload) VALUES(?,?) ON CONFLICT(action_id) DO UPDATE SET payload=excluded.payload", action, data); err != nil {
+	if err = ranged.Insert(ctx, tx, action, v); err != nil {
 		return domain.Progress{}, err
 	}
 	if before.Stage == domain.Pending {
@@ -172,14 +118,14 @@ func (s *Store) PrepareRangedAttack(ctx context.Context, plan domain.PlanID, act
 }
 
 func guardRangedAdvance(ctx context.Context, tx *sql.Tx, state PlanState, action domain.ActionID, event transition) error {
-	var ranged bool
+	var isRanged bool
 	for _, a := range state.Spec.Actions() {
 		if a.ID() == action {
-			_, ranged = a.RangedAttack()
+			_, isRanged = a.RangedAttack()
 			break
 		}
 	}
-	if !ranged {
+	if !isRanged {
 		return nil
 	}
 	if event.Kind == "prepare" {

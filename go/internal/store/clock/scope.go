@@ -1,15 +1,16 @@
-package store
+package clock
 
 import (
 	"context"
+	"database/sql"
 
 	"github.com/davidarcher/RimGovernor/go/internal/bridge"
 	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
 	"google.golang.org/protobuf/proto"
 )
 
-func validateClockScope(attempt ClockAttempt, observed *c.ObservationContext) error {
-	if attempt.Intent.Command.Start == nil || (attempt.Phase != ClockDispatched && attempt.Phase != ClockUncertain) {
+func validateClockScope(attempt Attempt, observed *c.ObservationContext) error {
+	if attempt.Intent.Command.Start == nil || (attempt.Phase != Dispatched && attempt.Phase != Uncertain) {
 		return ErrConflict
 	}
 	if err := bridge.ValidateContext(observed); err != nil {
@@ -26,44 +27,35 @@ func validateClockScope(attempt ClockAttempt, observed *c.ObservationContext) er
 	return nil
 }
 
-// MarkClockScopeSuperseded retires only a positively replaced world scope.
+// MarkScopeSuperseded retires only a positively replaced world scope.
 // The original command outcome stays uncertain; no epoch or absence is inferred.
-func (s *Store) MarkClockScopeSuperseded(ctx context.Context, id string, observed *c.ObservationContext) (ClockAttempt, error) {
+func MarkScopeSuperseded(ctx context.Context, tx *sql.Tx, id string, observed *c.ObservationContext) (Attempt, error) {
 	if err := submissionID(id); err != nil {
-		return ClockAttempt{}, err
+		return Attempt{}, err
 	}
 	if observed == nil {
-		return ClockAttempt{}, ErrConflict
+		return Attempt{}, ErrConflict
 	}
 	observed = proto.Clone(observed).(*c.ObservationContext)
 	data, err := clockBinary(observed)
 	if err != nil {
-		return ClockAttempt{}, err
+		return Attempt{}, err
 	}
-	tx, err := s.begin(ctx)
-	if err != nil {
-		return ClockAttempt{}, err
-	}
-	defer tx.Rollback()
 	old, err := loadClock(ctx, tx, id)
 	if err != nil {
-		return ClockAttempt{}, err
+		return Attempt{}, err
 	}
 	if err = validateClockScope(old, observed); err != nil {
-		return ClockAttempt{}, err
+		return Attempt{}, err
 	}
 	if old.SupersededAt != nil {
 		if !proto.Equal(old.SupersededAt, observed) {
-			return ClockAttempt{}, ErrConflict
+			return Attempt{}, ErrConflict
 		}
-		return old, tx.Commit()
+		return old, nil
 	}
 	if _, err = tx.ExecContext(ctx, "UPDATE clock_attempts SET scope_context=? WHERE request_id=?", data, id); err != nil {
-		return ClockAttempt{}, err
+		return Attempt{}, err
 	}
-	saved, err := loadClock(ctx, tx, id)
-	if err != nil {
-		return ClockAttempt{}, err
-	}
-	return saved, tx.Commit()
+	return loadClock(ctx, tx, id)
 }

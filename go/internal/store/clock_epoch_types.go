@@ -1,28 +1,16 @@
 package store
 
-import (
-	k "github.com/davidarcher/RimGovernor/go/internal/wire/clockpb"
-	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
-)
+import "github.com/davidarcher/RimGovernor/go/internal/store/clock"
 
-type ClockEpochStage string
+type ClockEpochStage = clock.EpochStage
 
 const (
-	ClockEpochRequired   ClockEpochStage = "required"
-	ClockEpochPausing    ClockEpochStage = "pausing"
-	ClockEpochUncertain  ClockEpochStage = "uncertain"
-	ClockEpochPaused     ClockEpochStage = "paused"
-	ClockEpochRetired    ClockEpochStage = "retired"
-	ClockEpochSuperseded ClockEpochStage = "superseded"
+	ClockEpochRequired   = clock.EpochRequired
+	ClockEpochPausing    = clock.EpochPausing
+	ClockEpochUncertain  = clock.EpochUncertain
+	ClockEpochPaused     = clock.EpochPaused
+	ClockEpochRetired    = clock.EpochRetired
+	ClockEpochSuperseded = clock.EpochSuperseded
 )
 
-// ClockEpochObligation derives ownership from an immutable applied Start receipt.
-// Sequence is a local pause-dispatch fence, not a native attempt or a live lease.
-type ClockEpochObligation struct {
-	StartRequestID string
-	Epoch          *k.Epoch
-	Stage          ClockEpochStage
-	Sequence       uint64
-	Context        *c.ObservationContext
-	Status         *k.Status
-}
+type ClockEpochObligation = clock.EpochObligation

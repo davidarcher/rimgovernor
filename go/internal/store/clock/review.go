@@ -1,4 +1,4 @@
-package store
+package clock
 
 import (
 	"bytes"
@@ -6,14 +6,17 @@ import (
 	"database/sql"
 	"encoding/json"
 	"errors"
-	k "github.com/davidarcher/RimGovernor/go/internal/wire/clockpb"
 	"math"
+
+	k "github.com/davidarcher/RimGovernor/go/internal/wire/clockpb"
 )
 
-// clockReviewCapacity is a var (not const) so capacity-boundary tests can
-// shrink it and exercise wraparound without paying the cost of filling a
+// ReviewCapacity is a var (not const) so capacity-boundary tests can shrink it
+// and exercise wraparound without paying the cost of filling a
 // production-scale ring buffer.
-var clockReviewCapacity = 4096
+var ReviewCapacity = 4096
+
+type ReviewEntry = clockReviewEntry
 
 type clockReviewHead struct {
 	Revision     uint64
@@ -31,10 +34,10 @@ type clockReviewReplay struct {
 	head    clockReviewHead
 	entries []clockReviewEntry
 	heads   []clockReviewHead
-	inbox   ClockInbox
+	inbox   Inbox
 }
 
-func initializeClockReview(ctx context.Context, tx *sql.Tx) error {
+func InitializeReview(ctx context.Context, tx *sql.Tx) error {
 	_, err := tx.ExecContext(ctx, `CREATE TABLE clock_review(singleton INTEGER PRIMARY KEY CHECK(singleton=1),payload BLOB NOT NULL) STRICT;
  CREATE TABLE clock_review_log(sequence INTEGER PRIMARY KEY CHECK(sequence>0),payload BLOB NOT NULL) STRICT;`)
 	if err != nil {
@@ -44,7 +47,7 @@ func initializeClockReview(ctx context.Context, tx *sql.Tx) error {
 	_, err = tx.ExecContext(ctx, "INSERT INTO clock_review(singleton,payload) VALUES(1,?)", payload)
 	return err
 }
-func checkClockReviewSchema(ctx context.Context, tx *sql.Tx) error {
+func CheckReviewSchema(ctx context.Context, tx *sql.Tx) error {
 	for _, q := range []string{"SELECT singleton,payload FROM clock_review LIMIT 0", "SELECT sequence,payload FROM clock_review_log LIMIT 0"} {
 		if _, err := tx.ExecContext(ctx, q); err != nil {
 			return err
@@ -70,7 +73,7 @@ func clockReviewDecode(data []byte, value any) error {
 	}
 	return nil
 }
-func clockReviewBoundary(inbox ClockInbox, cursor int64) bool {
+func clockReviewBoundary(inbox Inbox, cursor int64) bool {
 	if cursor == inbox.checkpoint.Cursor {
 		return true
 	}
@@ -91,8 +94,8 @@ func clockEventInterrupts(event *k.Event) bool {
 		return true
 	}
 }
-func clockReviewState(head clockReviewHead, inbox ClockInbox, cursor int64) ClockReviewState {
-	state := ClockReviewState{Revision: head.Revision, InboxCursor: cursor, ReviewedCursor: head.Reviewed, AcknowledgedCursor: head.Acknowledged, Holds: []ClockHold{}}
+func clockReviewState(head clockReviewHead, inbox Inbox, cursor int64) ReviewState {
+	state := ReviewState{Revision: head.Revision, InboxCursor: cursor, ReviewedCursor: head.Reviewed, AcknowledgedCursor: head.Acknowledged, Holds: []Hold{}}
 	for _, p := range inbox.Pages {
 		if p.Page.GetNextCursor() > head.Reviewed {
 			break
@@ -101,17 +104,17 @@ func clockReviewState(head clockReviewHead, inbox ClockInbox, cursor int64) Cloc
 			continue
 		}
 		if p.Page.GetGap() {
-			state.Holds = append(state.Holds, ClockHold{Kind: ClockGapHold, FromCursor: p.Request.GetAfterCursor() + 1, ThroughCursor: p.Page.GetNextCursor()})
+			state.Holds = append(state.Holds, Hold{Kind: GapHold, FromCursor: p.Request.GetAfterCursor() + 1, ThroughCursor: p.Page.GetNextCursor()})
 		}
 		for _, event := range p.Page.Events {
 			if event.GetCursor() > head.Acknowledged && clockEventInterrupts(event) {
-				state.Holds = append(state.Holds, ClockHold{Kind: ClockInterruptionHold, FromCursor: event.GetCursor(), ThroughCursor: event.GetCursor()})
+				state.Holds = append(state.Holds, Hold{Kind: InterruptionHold, FromCursor: event.GetCursor(), ThroughCursor: event.GetCursor()})
 			}
 		}
 	}
 	return state
 }
-func clockReviewApply(head clockReviewHead, entry clockReviewEntry, inbox ClockInbox) (clockReviewHead, error) {
+func clockReviewApply(head clockReviewHead, entry clockReviewEntry, inbox Inbox) (clockReviewHead, error) {
 	if entry.ExpectedRevision != head.Revision || !clockReviewBoundary(inbox, entry.InboxCursor) || entry.InboxCursor < head.Reviewed {
 		return head, errors.New("invalid clock review revision or captured cursor")
 	}
@@ -167,7 +170,7 @@ func loadClockReview(ctx context.Context, tx *sql.Tx, profile string) (clockRevi
 	if err = tx.QueryRowContext(ctx, "SELECT count(*) FROM clock_review_log").Scan(&count); err != nil {
 		return replay, err
 	}
-	if count > clockReviewCapacity {
+	if count > ReviewCapacity {
 		return replay, ErrCapacity
 	}
 	rows, err := tx.QueryContext(ctx, "SELECT sequence,payload FROM clock_review_log ORDER BY sequence")
@@ -212,105 +215,85 @@ func loadClockReview(ctx context.Context, tx *sql.Tx, profile string) (clockRevi
 	}
 	return replay, nil
 }
-func (s *Store) ReadClockReview(ctx context.Context, profile string) (ClockReviewState, error) {
+func ReadReview(ctx context.Context, tx *sql.Tx, profile string) (ReviewState, error) {
 	path, err := canonicalClockProfile(profile)
 	if err != nil {
-		return ClockReviewState{}, err
+		return ReviewState{}, err
 	}
-	tx, err := s.begin(ctx)
-	if err != nil {
-		return ClockReviewState{}, err
-	}
-	defer tx.Rollback()
 	replay, err := loadClockReview(ctx, tx, path)
 	if err != nil {
-		return ClockReviewState{}, err
+		return ReviewState{}, err
 	}
-	result := clockReviewState(replay.head, replay.inbox, replay.inbox.State.Cursor)
-	return result, tx.Commit()
+	return clockReviewState(replay.head, replay.inbox, replay.inbox.State.Cursor), nil
 }
-func saveClockReview(ctx context.Context, tx *sql.Tx, replay clockReviewReplay, entry clockReviewEntry) (ClockReviewState, error) {
-	if len(replay.entries) >= clockReviewCapacity {
-		return ClockReviewState{}, ErrCapacity
+func saveClockReview(ctx context.Context, tx *sql.Tx, replay clockReviewReplay, entry clockReviewEntry) (ReviewState, error) {
+	if len(replay.entries) >= ReviewCapacity {
+		return ReviewState{}, ErrCapacity
 	}
 	next, err := clockReviewApply(replay.head, entry, replay.inbox)
 	if err != nil {
-		return ClockReviewState{}, err
+		return ReviewState{}, err
 	}
 	data, _ := json.Marshal(entry)
 	head, _ := json.Marshal(next)
 	if _, err = tx.ExecContext(ctx, "INSERT INTO clock_review_log(sequence,payload) VALUES(?,?)", len(replay.entries)+1, data); err != nil {
-		return ClockReviewState{}, err
+		return ReviewState{}, err
 	}
 	if _, err = tx.ExecContext(ctx, "UPDATE clock_review SET payload=? WHERE singleton=1", head); err != nil {
-		return ClockReviewState{}, err
+		return ReviewState{}, err
 	}
 	return clockReviewState(next, replay.inbox, entry.InboxCursor), nil
 }
-func (s *Store) ReviewClockEvents(ctx context.Context, profile string, expectedRevision uint64) (ClockReviewState, error) {
+func ReviewEvents(ctx context.Context, tx *sql.Tx, profile string, expectedRevision uint64) (ReviewState, error) {
 	path, err := canonicalClockProfile(profile)
 	if err != nil {
-		return ClockReviewState{}, err
+		return ReviewState{}, err
 	}
-	tx, err := s.begin(ctx)
-	if err != nil {
-		return ClockReviewState{}, err
-	}
-	defer tx.Rollback()
 	replay, err := loadClockReview(ctx, tx, path)
 	if err != nil {
-		return ClockReviewState{}, err
+		return ReviewState{}, err
 	}
 	if replay.head.Revision != expectedRevision {
-		return ClockReviewState{}, ErrConflict
+		return ReviewState{}, ErrConflict
 	}
 	result := clockReviewState(replay.head, replay.inbox, replay.inbox.State.Cursor)
 	if replay.head.Reviewed != replay.inbox.State.Cursor {
 		result, err = saveClockReview(ctx, tx, replay, clockReviewEntry{Kind: "review", InboxCursor: replay.inbox.State.Cursor, ExpectedRevision: expectedRevision, ThroughCursor: replay.inbox.State.Cursor})
 	}
 	if err != nil {
-		return ClockReviewState{}, err
+		return ReviewState{}, err
 	}
-	return result, tx.Commit()
+	return result, nil
 }
-func (s *Store) AcknowledgeClockEvents(ctx context.Context, profile string, ack ClockAcknowledgement) (ClockReviewState, error) {
+func AcknowledgeEvents(ctx context.Context, tx *sql.Tx, profile string, ack Acknowledgement) (ReviewState, error) {
 	if err := submissionID(ack.RequestID); err != nil {
-		return ClockReviewState{}, err
+		return ReviewState{}, err
 	}
 	path, err := canonicalClockProfile(profile)
 	if err != nil {
-		return ClockReviewState{}, err
+		return ReviewState{}, err
 	}
-	tx, err := s.begin(ctx)
-	if err != nil {
-		return ClockReviewState{}, err
-	}
-	defer tx.Rollback()
 	replay, err := loadClockReview(ctx, tx, path)
 	if err != nil {
-		return ClockReviewState{}, err
+		return ReviewState{}, err
 	}
 	archived, found, err := loadClockAcknowledgement(ctx, tx, ack, replay)
 	if err != nil {
-		return ClockReviewState{}, err
+		return ReviewState{}, err
 	}
 	if found {
-		return archived, tx.Commit()
+		return archived, nil
 	}
 	for i, entry := range replay.entries {
 		if entry.Kind == "ack" && entry.RequestID == ack.RequestID {
 			if entry.ExpectedRevision != ack.ExpectedRevision || entry.ThroughCursor != ack.ThroughCursor {
-				return ClockReviewState{}, ErrConflict
+				return ReviewState{}, ErrConflict
 			}
-			return clockReviewState(replay.heads[i], replay.inbox, entry.InboxCursor), tx.Commit()
+			return clockReviewState(replay.heads[i], replay.inbox, entry.InboxCursor), nil
 		}
 	}
 	if ack.ExpectedRevision != replay.head.Revision || ack.ThroughCursor != replay.head.Reviewed {
-		return ClockReviewState{}, ErrConflict
+		return ReviewState{}, ErrConflict
 	}
-	result, err := saveClockReview(ctx, tx, replay, clockReviewEntry{Kind: "ack", InboxCursor: replay.inbox.State.Cursor, ExpectedRevision: ack.ExpectedRevision, ThroughCursor: ack.ThroughCursor, RequestID: ack.RequestID})
-	if err != nil {
-		return ClockReviewState{}, err
-	}
-	return result, tx.Commit()
+	return saveClockReview(ctx, tx, replay, clockReviewEntry{Kind: "ack", InboxCursor: replay.inbox.State.Cursor, ExpectedRevision: ack.ExpectedRevision, ThroughCursor: ack.ThroughCursor, RequestID: ack.RequestID})
 }

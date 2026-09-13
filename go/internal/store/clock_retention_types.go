@@ -1,16 +1,8 @@
 package store
 
-import "errors"
+import "github.com/davidarcher/RimGovernor/go/internal/store/clock"
 
-var ErrRetired = errors.New("clock request retired")
+var ErrRetired = clock.ErrRetired
 
-// ClockSequenceState binds allocation and retirement to this journal namespace.
-type ClockSequenceState struct {
-	Namespace                     ControllerSessionID
-	LastAllocated, RetiredThrough uint64
-}
-
-type ClockRetirement struct {
-	State                                            ClockSequenceState
-	RemovedAttempts, RemovedEpochs, RetainedAttempts int
-}
+type ClockSequenceState = clock.SequenceState
+type ClockRetirement = clock.Retirement

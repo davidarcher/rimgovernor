@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/davidarcher/RimGovernor/go/internal/bridge"
+	"github.com/davidarcher/RimGovernor/go/internal/store/clock"
 	k "github.com/davidarcher/RimGovernor/go/internal/wire/clockpb"
 	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
 	"google.golang.org/protobuf/proto"
@@ -192,7 +193,7 @@ func TestClockRetirementPinnedCapacity(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer tx.Rollback()
-	ns, h, err := loadClockSequence(ctx, tx)
+	ns, h, err := clock.LoadSequence(ctx, tx)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -201,7 +202,7 @@ func TestClockRetirementPinnedCapacity(t *testing.T) {
 		intent := clockIntent(id)
 		intent.Key = id
 		v := ClockAttempt{Intent: intent, NativeAttempt: &c.AttemptKey{ControllerSessionId: proto.String(string(ns)), ActionId: proto.String(fmt.Sprintf("native-%d", i)), AttemptId: proto.Uint64(1)}, Phase: ClockDispatched}
-		payload, err := encodeClockIntent(v)
+		payload, err := clock.EncodeIntent(v)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -211,7 +212,7 @@ func TestClockRetirementPinnedCapacity(t *testing.T) {
 		h.Retained = append(h.Retained, i)
 	}
 	h.LastAllocated = 4096
-	if err = saveClockSequence(ctx, tx, h); err != nil {
+	if err = clock.SaveSequence(ctx, tx, h); err != nil {
 		t.Fatal(err)
 	}
 	if err = tx.Commit(); err != nil {
