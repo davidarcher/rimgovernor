@@ -2483,6 +2483,40 @@ main. Native package and Go production cutover remain independent.
       acceptance.py` and `scripts/native_go_routine_acceptance.py` stay in
       place. `go build`/`vet`/`test ./...` clean; both Python test loaders
       are deleted.
+    - **Scope determination for the remaining `controller_tests/test_native_*`
+      loaders (formalized this pass; no further Slice 3 candidates found).**
+      A triage of the files not yet covered by the sub-bullets above sorted
+      them into three buckets, none of which fit Slice 3's "port a standalone
+      comparison helper from `scripts/*_acceptance.py`" pattern:
+      - *G01.x production-runtime territory, not N01.09.* `test_native_
+        contracts.py`, `test_native_forecasts.py`, `test_native_input_
+        channel.py`, `test_native_inspections.py`, `test_native_scenario.py`,
+        `test_native_spatial_access.py`, `test_native_trials.py`, and
+        `test_native_zone_furniture.py` exercise `rimgovernor.native_
+        contracts`/`colony_plan`/`native_forecasts`/`native_input_channel`/
+        `native_inspections`/`native_scenario`/`hands`/`native_trials`
+        directly — real production runtime modules, not `scripts/*_
+        acceptance.py` comparison helpers. Converting these is G01.x's job
+        (porting the production module itself), not this migration's.
+      - *Too-complex-defer.* `test_native_scenarios.py` drives Docker/sqlite/
+        subprocess orchestration comparable to the already-deferred
+        `building_service_evidence`/`facility_evidence` families — real
+        multi-file review and design work, not a bounded single-session
+        slice.
+      - *Different scope entirely, not an acceptance-script loader.*
+        `test_native_mod_package.py` (a PowerShell packaging script, not
+        Python) and `test_native_save_components.py` (a C# regex scan of
+        static repo structure) test build tooling and repo layout, not a
+        `scripts/*_acceptance.py` comparison helper — they don't fit this
+        migration's pattern regardless of complexity.
+      Combined with the families already deferred in earlier passes
+      (`test_native_building_service_evidence.py`, `test_native_emergency_
+      service_evidence.py`, `test_native_go_draft_acceptance.py`,
+      `test_native_probe_safety.py`, and the remaining `test_native_go_
+      {disaster,facility,mood,power,temperature,upkeep}_evidence.py` files),
+      Slice 3 has now covered every `controller_tests/test_native_*` loader
+      that fits its own pattern. No code changed this pass; this is a
+      scope-closing note only.
   - [ ] **Slice 4 — subsystem long tail (~70 remaining `scripts/*_acceptance.py`).**
     Group by existing `bridge/*.go` domain and land as independent sub-slices:
     construction/building; upkeep/comfort/gear/power (largest cluster); food/
