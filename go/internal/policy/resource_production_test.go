@@ -198,3 +198,128 @@ func TestSelectResourceSourcesCapAtEight(t *testing.T) {
 		t.Fatalf("got %d sources", len(got))
 	}
 }
+
+func TestSelectResourceTargetNoConfigOrUnknownStockSelectsNothing(t *testing.T) {
+	if _, _, ok, err := SelectResourceTarget(nil, domain.Known([]Amount{{"Steel", 0}})); err != nil || ok {
+		t.Fatalf("expected no target with no configured resources, got ok=%v err=%v", ok, err)
+	}
+	targets := map[Resource]int64{"Steel": 100}
+	if _, _, ok, err := SelectResourceTarget(targets, domain.Unknown[[]Amount]()); err != nil || ok {
+		t.Fatalf("expected no target with unknown stock, got ok=%v err=%v", ok, err)
+	}
+}
+
+func TestSelectResourceTargetEverythingCoveredSelectsNothing(t *testing.T) {
+	targets := map[Resource]int64{"Steel": 100, "WoodLog": 50}
+	stock := domain.Known([]Amount{{"Steel", 100}, {"WoodLog", 200}})
+	if _, _, ok, err := SelectResourceTarget(targets, stock); err != nil || ok {
+		t.Fatalf("expected no deficit to select, got ok=%v err=%v", ok, err)
+	}
+}
+
+func TestSelectResourceTargetPicksWorstProportionalDeficit(t *testing.T) {
+	// Steel: 80/100 short by 20% ; Plasteel: 10/50 short by 80% -> Plasteel wins
+	// even though its absolute deficit (40) is smaller than Steel's (20)? Here
+	// it is also larger, so pick a case where proportion and absolute amount
+	// disagree to prove proportion (not absolute deficit) drives selection.
+	targets := map[Resource]int64{"Steel": 1000, "Plasteel": 50}
+	stock := domain.Known([]Amount{{"Steel", 500}, {"Plasteel", 10}})
+	resource, target, ok, err := SelectResourceTarget(targets, stock)
+	if err != nil || !ok || resource != "Plasteel" || target != 50 {
+		t.Fatalf("got %v %v %v %v", resource, target, ok, err)
+	}
+}
+
+func TestSelectResourceTargetMissingStockTreatedAsFullyUnstocked(t *testing.T) {
+	targets := map[Resource]int64{"Components": 10}
+	resource, target, ok, err := SelectResourceTarget(targets, domain.Known([]Amount{}))
+	if err != nil || !ok || resource != "Components" || target != 10 {
+		t.Fatalf("got %v %v %v %v", resource, target, ok, err)
+	}
+}
+
+func TestSelectResourceTargetRejectsInvalidConfigOrStock(t *testing.T) {
+	if _, _, _, err := SelectResourceTarget(map[Resource]int64{"Steel": 0}, domain.Known([]Amount{})); err == nil {
+		t.Fatalf("expected an error for a non-positive target")
+	}
+	if _, _, _, err := SelectResourceTarget(map[Resource]int64{"Steel": 100}, domain.Known([]Amount{{"Steel", -1}})); err == nil {
+		t.Fatalf("expected an error for negative stock")
+	}
+	if _, _, _, err := SelectResourceTarget(map[Resource]int64{"Steel": 100}, domain.Known([]Amount{{"Steel", 1}, {"Steel", 2}})); err == nil {
+		t.Fatalf("expected an error for duplicate stock rows")
+	}
+}
+
+func resourceMethodFixture() ResourceMethodRequest {
+	recipe := GearRecipe{Definition: "Smelt", Products: []Resource{"Steel"}, Available: domain.Known(true), AvailableOn: domain.Known(true), Ingredients: domain.Known([][]Amount{{{"Slag", 5}}}), RequiredWork: domain.Known([]WorkRequirement{})}
+	bench := GearBench{ID: "bench", Bills: domain.Known([]GearBill{}), Recipes: domain.Known([]GearRecipe{recipe})}
+	return ResourceMethodRequest{Resource: "Steel", Target: 100, Benches: domain.Known([]GearBench{bench}), Stock: []Stock{{"Slag", domain.Known(int64(50))}}}
+}
+
+func TestSelectResourceMethodProducesFundedRecipeThenWaitsOnceSeen(t *testing.T) {
+	r := resourceMethodFixture()
+	method, err := SelectResourceMethod(r)
+	if err != nil || method.Kind != ResourceMethodProduce || method.Bench != "bench" || method.Recipe != "Smelt" || method.Resource != "Steel" || method.Target != 100 {
+		t.Fatalf("got %v %v", method, err)
+	}
+	r.Seen = []domain.MethodID{method.ID}
+	waiting, err := SelectResourceMethod(r)
+	if err != nil || waiting.Kind != ResourceMethodWait {
+		t.Fatalf("previously seen resource method must not repeat: %v %v", waiting, err)
+	}
+}
+
+func TestSelectResourceMethodInvalidResourceOrTargetIsUnknown(t *testing.T) {
+	r := resourceMethodFixture()
+	r.Resource = ""
+	if method, err := SelectResourceMethod(r); err != nil || method.Kind != ResourceMethodUnknown {
+		t.Fatalf("got %v %v", method, err)
+	}
+	r = resourceMethodFixture()
+	r.Target = 0
+	if method, err := SelectResourceMethod(r); err != nil || method.Kind != ResourceMethodUnknown {
+		t.Fatalf("got %v %v", method, err)
+	}
+	r = resourceMethodFixture()
+	r.Target = 20000
+	if method, err := SelectResourceMethod(r); err != nil || method.Kind != ResourceMethodUnknown {
+		t.Fatalf("got %v %v", method, err)
+	}
+}
+
+func TestSelectResourceMethodExistingActiveBillWaits(t *testing.T) {
+	r := resourceMethodFixture()
+	v, _ := r.Benches.Value()
+	v[0].Bills = domain.Known([]GearBill{{Active: domain.Known(true), Products: []Resource{"Steel"}}})
+	r.Benches = domain.Known(v)
+	method, err := SelectResourceMethod(r)
+	if err != nil || method.Kind != ResourceMethodWait {
+		t.Fatalf("got %v %v", method, err)
+	}
+}
+
+func TestSelectResourceMethodUnfundedRecipeIsBlocked(t *testing.T) {
+	r := resourceMethodFixture()
+	r.Stock = []Stock{{"Slag", domain.Known(int64(2))}}
+	method, err := SelectResourceMethod(r)
+	if err != nil || method.Kind != ResourceMethodBlocked {
+		t.Fatalf("got %v %v", method, err)
+	}
+}
+
+func TestSelectResourceMethodNoRecipeProducingResourceIsBlocked(t *testing.T) {
+	r := resourceMethodFixture()
+	r.Resource = "Plasteel"
+	method, err := SelectResourceMethod(r)
+	if err != nil || method.Kind != ResourceMethodBlocked {
+		t.Fatalf("got %v %v", method, err)
+	}
+}
+
+func TestSelectResourceMethodUnknownBenchesRefuseGuessing(t *testing.T) {
+	r := resourceMethodFixture()
+	r.Benches = domain.Unknown[[]GearBench]()
+	if method, err := SelectResourceMethod(r); err != nil || method.Kind != ResourceMethodUnknown {
+		t.Fatalf("got %v %v", method, err)
+	}
+}

@@ -56,6 +56,7 @@ type ClockSchedulerConfig struct {
 	AnimalContainment                *RoutineAnimalContainmentPlanner
 	Recovery                         *RoutineRecoveryPlanner
 	Research                         *RoutineResearchPlanner
+	Resource                         *RoutineResourcePlanner
 	CaravanJourney                   *CaravanJourneyTracker
 	RoutineMethods                   bool
 }
@@ -86,6 +87,7 @@ type ClockSchedulerResult struct {
 	AnimalContainment                             *RoutineAnimalContainmentResult
 	Recovery                                      *RoutineRecoveryResult
 	Research                                      *RoutineResearchResult
+	Resource                                      *RoutineResourceResult
 	CaravanJourney                                *CaravanJourneyResult
 	Running, Reconciled, Cleaned                  bool
 }
@@ -182,6 +184,9 @@ func NewClockScheduler(player *Player, session *Session, native ClockWindowNativ
 		return nil, ErrControl
 	}
 	if config.Research != nil && (config.Routine == nil || config.Research.reviewer != config.Routine) {
+		return nil, ErrControl
+	}
+	if config.Resource != nil && (config.Routine == nil || config.Resource.reviewer != config.Routine) {
 		return nil, ErrControl
 	}
 	if config.RoutineMethods && (config.Routine == nil || !session.routineMethods) {
@@ -370,6 +375,13 @@ func (s *ClockScheduler) Step(ctx context.Context) (ClockSchedulerResult, error)
 			return out, err
 		}
 		out.Research = &method
+	}
+	if s.config.Resource != nil {
+		method, err := s.config.Resource.step(call, epoch)
+		if err != nil {
+			return out, err
+		}
+		out.Resource = &method
 	}
 	if s.config.CaravanJourney != nil {
 		method, err := s.config.CaravanJourney.step(call, epoch)

@@ -759,13 +759,41 @@ without pushes, when the target checkout is safe; preserve other developers' wor
     (`SelectGearMethod`'s `Filter` output goes unused) and there is no
     cross-goal ingredient reservation yet — native bill pausing is the only
     thing preventing overcommitment across concurrent bills.
-    `MaintainResource-*` still has only its ingredient-deficit,
-    extraction-progress and acquisition-source-selection policy primitives
-    (`policy/resource_production.go`) with no dispatch vertical; its own
-    comment calls this "a same-sized effort to GearReplace/EnsureResearch" —
-    dynamic-target selection, mining-designation dispatch (a new native
-    operation category, not a bill), acquisition dispatch and
-    material-storage zoning are all still unstarted. `EnsureBasicPower` is
+    `MaintainResource-*`'s bench/recipe production half now has a dispatch
+    vertical: a single config-only `policy.MaintainResource` goal (the same
+    posture `EnsureResearch` uses for `RoutinePolicy.ResearchTarget` — visible
+    only once an operator declares `RoutinePolicy.ResourceTargets`, a
+    resource-definition-to-stock-floor map set via repeatable
+    `--routine-resource-target RESOURCE:TARGET` flags behind a new
+    `--routine-resource-plans` flag). `policy.SelectResourceTarget` performs
+    the dynamic-target selection this item calls for: given a fresh native
+    resource census, it picks whichever configured resource is furthest
+    (proportionally) below its floor, and `policy.SelectResourceMethod`
+    (mirroring `SelectMedicineMethod` exactly) funds a `domain.StockTarget`
+    `ProductionBillAction` for it through the same generic
+    `bridge.ReadGearBenches`/`ReadSupplyStock` census GearProduce/
+    MaintainMedicalReserves already read, dispatched by a new
+    `RoutineResourcePlanner`. What remains unstarted: native mine/harvest
+    source acquisition (`policy.SelectResourceSources`, already a tested pure
+    primitive, is not wired to anything yet), the genuinely new
+    mining-designation native operation category the extraction path needs
+    (investigation this round found the wire contract already fully defined —
+    `ResourceSourcesSnapshot`/`ListResourceSources` in observations.proto,
+    covering sources/storage/drilling — but implemented on neither the Go
+    bridge nor the native C# side; native `AcquireResource` similarly exists
+    end-to-end for hunting/plant harvest via `NativeHuntAcquisition.cs`/
+    `NativePlantAcquisition.cs` but has no mining adapter), the acquisition
+    dispatch that would move extracted stock (`buildingruntime/acquisition`
+    is a real, working, fully generic vertical today, but only ever fed by
+    the food/wood-specific `policy.SelectAcquisition`, not arbitrary mined
+    resources), material-storage zoning, and the native
+    `SetProductionPolicy` floors/commitments push
+    (`production_policy.py`'s `sync_production_policy`) that the Python
+    reference runs every tick alongside goal dispatch — none of that has Go
+    wiring yet either. Landing the extraction/mining half is a materially
+    larger effort than this bench-production half was, and touches native
+    read surfaces (`ListResourceSources`) that 05.4's extraction-development
+    work may also need — coordinate before starting it. `EnsureBasicPower` is
     done. `MaintainMedicalReserves` is now code-complete too, following
     `GearProduce`'s exact pattern: `policy.SelectMedicineMethod` matches the
     active reserve's single `MedicineHerbal` target against the same generic

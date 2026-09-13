@@ -28,6 +28,7 @@ const (
 	EnsureExpansion         GoalID = "EnsureExpansion"
 	MaintainEquipment       GoalID = "MaintainEquipment"
 	EnsureResearch          GoalID = "EnsureResearch"
+	MaintainResource        GoalID = "MaintainResource"
 )
 
 type RoutinePolicy struct {
@@ -45,6 +46,17 @@ type RoutinePolicy struct {
 	// remains an open gap (no Go goal family yet records the
 	// UnavailableThings/BlockedRecipes evidence ResearchNeeds expects).
 	ResearchTarget string
+	// ResourceTargets is an operator-declared map of native resource
+	// definition name to the native stock floor MaintainResource should keep
+	// it above; an empty map disables the goal entirely, the same config-only
+	// posture ResearchTarget uses for EnsureResearch. Unlike
+	// production_policy.py's plan-wide resource_policy (many simultaneously
+	// tracked floors driving both goal creation and the native
+	// SetProductionPolicy push), this only supports
+	// policy.SelectResourceTarget's own single-goal dynamic-target selection
+	// across these targets and issues no SetProductionPolicy push at all --
+	// see docs/BACKLOG.md 05.5 for what remains open.
+	ResourceTargets map[Resource]int64
 }
 
 func DefaultRoutinePolicy() RoutinePolicy {
@@ -74,6 +86,24 @@ func (p RoutinePolicy) Validate() error {
 	}
 	if p.ResearchTarget != "" && !validResource(Resource(p.ResearchTarget)) {
 		return errors.New("invalid research target")
+	}
+	if err := ValidateResourceTargets(p.ResourceTargets); err != nil {
+		return err
+	}
+	return nil
+}
+
+// ValidateResourceTargets checks every configured MaintainResource target:
+// a valid native resource definition name with a positive target within the
+// same StockTarget production bill bound (see domain.NewProductionBill).
+func ValidateResourceTargets(targets map[Resource]int64) error {
+	if len(targets) > 4096 {
+		return errors.New("too many configured resource targets")
+	}
+	for resource, target := range targets {
+		if !validResource(resource) || target <= 0 || target > 10000 {
+			return errors.New("invalid resource target")
+		}
 	}
 	return nil
 }
@@ -458,6 +488,17 @@ func DetectRoutine(f RoutineFacts, previous RoutineLatches, p RoutinePolicy) (Ro
 		addGoal(EnsureResearch, 4)
 	}
 	addAssessment(EnsureResearch, 4, researchRecovered)
+	// MaintainResource stays config-only, the same posture as EnsureResearch
+	// just above: recovered/deficit state is not derived from a review-time
+	// native resource census (RoutineFacts carries none), only from whether
+	// an operator declared any ResourceTargets at all. RoutineResourcePlanner
+	// performs its own fresh native read and policy.SelectResourceTarget's
+	// dynamic-target selection immediately before proposing a method.
+	resourceRecovered := domain.Known(len(p.ResourceTargets) == 0)
+	if !positive(resourceRecovered) {
+		addGoal(MaintainResource, 4)
+	}
+	addAssessment(MaintainResource, 4, resourceRecovered)
 	for _, n := range upkeep.Needs {
 		recovered := domain.Unknown[bool]()
 		if _, known := n.Targets.Value(); known {

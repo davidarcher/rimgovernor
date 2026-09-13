@@ -1,22 +1,26 @@
 package policy
 
 import (
+	"crypto/sha256"
 	"errors"
+	"fmt"
 	"sort"
 
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 )
 
-// MaintainResource-* opening slice: pure, native-shape-preserving primitives
-// ported from controller/rimgovernor/production_policy.py's
-// ingredient_deficits/observe_mining_progress. No domain/store/executor/
-// bridge/buildingruntime wiring exists yet for this goal family (see
-// docs/BACKLOG.md 05.5) — resource_method's own dynamic-target selection,
-// acquisition/mining dispatch, material-storage zoning and bill placement
-// are a same-sized effort to GearReplace/EnsureResearch and remain entirely
-// unstarted. These two functions only make its deterministic cost/deficit
-// and excavation-progress comparisons available and independently testable
-// ahead of that wiring, the same posture 05.5's other slices opened from.
+// MaintainResource-* pure primitives ported from
+// controller/rimgovernor/production_policy.py's
+// ingredient_deficits/observe_mining_progress/resource_method. See
+// docs/BACKLOG.md 05.5 for the dispatch vertical built on top of these
+// (buildingruntime.RoutineResourcePlanner): a single config-only
+// policy.MaintainResource goal, mirroring EnsureResearch's posture, whose
+// method is a generic bench/recipe StockTarget production bill exactly like
+// GearProduce/MaintainMedicalReserves dispatch through. Native mining-source
+// acquisition (SelectResourceSources below), material-storage zoning and the
+// native SetProductionPolicy floors/commitments push remain entirely
+// unstarted — see SelectResourceTarget and SelectResourceMethod's own doc
+// comments for what is and is not covered.
 
 // ResourceRequirement is one native recipe-ingredient alternative's exact
 // required quantity and the deficit against current stock.
@@ -166,4 +170,204 @@ func SelectResourceSources(sources []ResourceSource, target, stock, pending int6
 		}
 	}
 	return selected
+}
+
+// SelectResourceTarget performs MaintainResource's dynamic-target selection:
+// given every operator-configured resource target (RoutinePolicy's future
+// ResourceTargets, one native stock floor per definition) and a fresh native
+// stock census, it picks the single resource whose stock is furthest below
+// its own target (by proportion, so a small target is not starved behind a
+// large one merely stuck a few units short), the same way one plan-wide
+// review would attend to its worst-covered floor first. Unlike
+// production_policy.py's policyResources gate (which refuses to act on a
+// resource native does not itself recognize as stocked at all), a configured
+// resource absent from the census is treated as fully unstocked rather than
+// refused — Go has no decode of native policyResources yet to tell "unknown
+// definition" apart from "currently zero", a disclosed narrowing matching
+// medical_reserves.py's hardcoded-resource narrowing in
+// buildingruntime.medicineResourceDefinition. ok is false when stock is not
+// yet known, no resource is configured, or every configured resource already
+// meets its target — there is nothing to dispatch a method for this tick.
+func SelectResourceTarget(targets map[Resource]int64, stock domain.Fact[[]Amount]) (resource Resource, target int64, ok bool, err error) {
+	if len(targets) == 0 {
+		return "", 0, false, nil
+	}
+	if len(targets) > 4096 {
+		return "", 0, false, errors.New("too many configured resource targets")
+	}
+	names := make([]Resource, 0, len(targets))
+	for name, want := range targets {
+		if !validResource(name) || want <= 0 || want > 10000 {
+			return "", 0, false, errors.New("invalid resource target")
+		}
+		names = append(names, name)
+	}
+	sort.Slice(names, func(i, j int) bool { return names[i] < names[j] })
+	rows, known := stock.Value()
+	if !known {
+		return "", 0, false, nil
+	}
+	if len(rows) > 4096 {
+		return "", 0, false, errors.New("resource stock census exceeds bound")
+	}
+	have := map[Resource]int64{}
+	for _, q := range rows {
+		if !validResource(q.Resource) || q.Count < 0 {
+			return "", 0, false, errors.New("invalid resource stock")
+		}
+		if _, exists := have[q.Resource]; exists {
+			return "", 0, false, errors.New("duplicate resource stock")
+		}
+		have[q.Resource] = q.Count
+	}
+	bestRatio := -1.0
+	for _, name := range names {
+		want := targets[name]
+		deficit := want - have[name]
+		if deficit <= 0 {
+			continue
+		}
+		ratio := float64(deficit) / float64(want)
+		if ratio > bestRatio {
+			bestRatio, resource, target = ratio, name, want
+		}
+	}
+	return resource, target, resource != "", nil
+}
+
+// ResourceMethodKind names the shape of one proposed MaintainResource method.
+type ResourceMethodKind string
+
+const (
+	ResourceMethodUnknown   ResourceMethodKind = "unknown"
+	ResourceMethodRecovered ResourceMethodKind = "recovered"
+	ResourceMethodProduce   ResourceMethodKind = "produce"
+	ResourceMethodWait      ResourceMethodKind = "wait_for_existing_work"
+	ResourceMethodBlocked   ResourceMethodKind = "no_eligible_method"
+)
+
+// ResourceMethod is one proposed StockTarget production bill for the
+// resource SelectResourceTarget chose this tick.
+type ResourceMethod struct {
+	Kind          ResourceMethodKind
+	ID            domain.MethodID
+	Bench, Recipe string
+	Resource      Resource
+	Target        int64
+}
+
+// ResourceMethodRequest names the one dynamically-selected resource and
+// target SelectResourceMethod should fund a bill for, plus the same generic
+// bench/recipe census GearProduce/MaintainMedicalReserves already read
+// (policy.GearBench/GearRecipe via bridge.ReadGearBenches/ReadSupplyStock).
+// Like MedicinePlanningRequest, no Rules or Holds are threaded through yet —
+// the same disclosed no-cross-goal-ingredient-reservation gap GearProduce
+// and MaintainMedicalReserves already carry applies here too.
+type ResourceMethodRequest struct {
+	Resource Resource
+	Target   int64
+	Seen     []domain.MethodID
+	Benches  domain.Fact[[]GearBench]
+	Stock    []Stock
+}
+
+func resourceMethodID(resource Resource, bench, recipe string) domain.MethodID {
+	value := struct {
+		Resource      Resource
+		Bench, Recipe string
+	}{resource, bench, recipe}
+	sum := sha256.Sum256([]byte(fmt.Sprintf("%v", value)))
+	return domain.MethodID(fmt.Sprintf("resource-produce-%x", sum[:16]))
+}
+
+// SelectResourceMethod proposes one repeat-count StockTarget bill that keeps
+// at least Target units of Resource in stock, mirroring SelectMedicineMethod
+// exactly but over whichever resource SelectResourceTarget dynamically chose
+// rather than one hardcoded definition. It covers only the bench/recipe
+// production path of production_policy.py's resource_method — the native
+// mine/harvest source-acquisition branch (SelectResourceSources above) and
+// the extraction-development branch are not dispatched from here; a resource
+// with no producing recipe and no covering bill is simply Blocked, matching
+// this narrowing rather than falling back to those undispatched paths. It
+// issues no game orders and does not reserve resources.
+func SelectResourceMethod(r ResourceMethodRequest) (ResourceMethod, error) {
+	if !validResource(r.Resource) || r.Target <= 0 || r.Target > 10000 {
+		return ResourceMethod{Kind: ResourceMethodUnknown}, nil
+	}
+	if len(r.Seen) > 4096 {
+		return ResourceMethod{}, errors.New("resource method history exceeds bound")
+	}
+	seen := map[domain.MethodID]bool{}
+	for _, id := range r.Seen {
+		if !foodID(string(id)) || seen[id] {
+			return ResourceMethod{}, errors.New("invalid resource method history")
+		}
+		seen[id] = true
+	}
+	benches, known := r.Benches.Value()
+	if !known {
+		return ResourceMethod{Kind: ResourceMethodUnknown}, nil
+	}
+	gearRequest := GearPlanningRequest{Stock: r.Stock}
+	if err := validateGearProduction(benches, gearRequest); err != nil {
+		return ResourceMethod{}, err
+	}
+	benches = append([]GearBench(nil), benches...)
+	sort.Slice(benches, func(i, j int) bool { return benches[i].ID < benches[j].ID })
+	for _, b := range benches {
+		bills, known := b.Bills.Value()
+		if !known {
+			return ResourceMethod{Kind: ResourceMethodUnknown}, nil
+		}
+		for _, bill := range bills {
+			if !containsResource(bill.Products, r.Resource) {
+				continue
+			}
+			active, known := bill.Active.Value()
+			if !known {
+				return ResourceMethod{Kind: ResourceMethodUnknown}, nil
+			}
+			if active {
+				return ResourceMethod{Kind: ResourceMethodWait}, nil
+			}
+		}
+	}
+	for _, b := range benches {
+		recipes, known := b.Recipes.Value()
+		if !known {
+			return ResourceMethod{Kind: ResourceMethodUnknown}, nil
+		}
+		recipes = append([]GearRecipe(nil), recipes...)
+		sort.Slice(recipes, func(i, j int) bool { return recipes[i].Definition < recipes[j].Definition })
+		for _, recipe := range recipes {
+			if !containsResource(recipe.Products, r.Resource) {
+				continue
+			}
+			available, ak := recipe.Available.Value()
+			on, ok := recipe.AvailableOn.Value()
+			if ak && !available || ok && !on {
+				continue
+			}
+			if !ak || !ok {
+				return ResourceMethod{Kind: ResourceMethodUnknown}, nil
+			}
+			slots, known := recipe.Ingredients.Value()
+			if !known {
+				return ResourceMethod{Kind: ResourceMethodUnknown}, nil
+			}
+			_, _, funded, unknown := gearIngredients(slots, "", gearRequest)
+			if unknown {
+				return ResourceMethod{Kind: ResourceMethodUnknown}, nil
+			}
+			if !funded {
+				continue
+			}
+			id := resourceMethodID(r.Resource, b.ID, recipe.Definition)
+			if seen[id] {
+				return ResourceMethod{Kind: ResourceMethodWait, ID: id}, nil
+			}
+			return ResourceMethod{Kind: ResourceMethodProduce, ID: id, Bench: b.ID, Recipe: recipe.Definition, Resource: r.Resource, Target: r.Target}, nil
+		}
+	}
+	return ResourceMethod{Kind: ResourceMethodBlocked}, nil
 }
