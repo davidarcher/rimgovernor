@@ -51,6 +51,7 @@ type ClockSchedulerConfig struct {
 	Equip                            *RoutineEquipPlanner
 	SecureSupplies                   *RoutineSecureSuppliesPlanner
 	Gear                             *RoutineGearPlanner
+	AnimalContainment                *RoutineAnimalContainmentPlanner
 	RoutineMethods                   bool
 }
 type ClockSchedulerResult struct {
@@ -76,6 +77,7 @@ type ClockSchedulerResult struct {
 	Equip                                         *RoutineEquipResult
 	SecureSupplies                                *RoutineSecureSuppliesResult
 	Gear                                          *RoutineGearResult
+	AnimalContainment                             *RoutineAnimalContainmentResult
 	Running, Reconciled, Cleaned                  bool
 }
 type ClockScheduler struct {
@@ -153,6 +155,9 @@ func NewClockScheduler(player *Player, session *Session, native ClockWindowNativ
 		return nil, ErrControl
 	}
 	if config.SecureSupplies != nil && (config.Routine == nil || config.SecureSupplies.reviewer != config.Routine) {
+		return nil, ErrControl
+	}
+	if config.AnimalContainment != nil && (config.Routine == nil || config.AnimalContainment.reviewer != config.Routine) {
 		return nil, ErrControl
 	}
 	if config.Gear != nil && (config.Routine == nil || config.Gear.reviewer != config.Routine) {
@@ -316,6 +321,13 @@ func (s *ClockScheduler) Step(ctx context.Context) (ClockSchedulerResult, error)
 			return out, err
 		}
 		out.Gear = &method
+	}
+	if s.config.AnimalContainment != nil {
+		method, err := s.config.AnimalContainment.step(call, epoch)
+		if err != nil {
+			return out, err
+		}
+		out.AnimalContainment = &method
 	}
 	emergency, _, err := s.native.ReadEmergency(call, loaded.Context.Identity)
 	if err != nil {
