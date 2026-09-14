@@ -106,10 +106,20 @@ confirm the packaging path is wired correctly, not that a colony runs.
   remains the live pipeline; `interpreter/decode.go` decodes build, research,
   tend, rescue, draft, caravan departure/hold/route, husbandry, recovery
   service, bed assignment, movement, building temperature, surgery, quest
-  accept/fulfill, settlement gift, zone creation and zone edit (add/remove
+  accept/fulfill, settlement gift, zone creation, zone edit (add/remove
   cells, delete; crop/filter edits are deferred pending SettingsField zone
-  evidence coverage) proposals, but is not yet wired into the Go binary's
-  serve loop) — G01.08.
+  evidence coverage) and population policy proposals, but is not yet wired
+  into the Go binary's serve loop) — G01.08.
+  `set_population_policy` is the first interpreted command that is colony
+  configuration rather than a plan of native actions: it issues no native
+  call, so it carries no `domain.Action`, no bridge boundary and no
+  executor state machine. `interpreter.Proposal` returns the typed
+  `domain.PopulationPolicy` with an empty plan, and
+  `store.SubmitPopulationPolicy` keeps request-ID replay safety plus one
+  current value per colony/load/map, outside the plan/action tables —
+  `POST /api/player/population-policy/replace`,
+  `GET /api/player/population-policy?colonyId=&loadToken=&mapId=` and
+  `GET /api/player/population-policy/submission?requestId=`.
 - Media/camera/portrait/video/recording and trusted save/load — G01.09.
 - World progression remaining scope: closed, except the documented
   `SetTradeLines`/`AcceptTrade`/`EndTrade` acceptance-harness gap below —

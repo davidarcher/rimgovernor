@@ -1386,3 +1386,42 @@ func TestPawnFactsValidatedAndBounded(t *testing.T) {
 	_, err = i.Interpret(context.Background(), input)
 	assertKind(t, err, InvalidInput)
 }
+
+// A population policy is colony configuration, not a plan of native actions:
+// the proposal carries the typed policy and no plan at all.
+func TestSetPopulationPolicyProposalCarriesNoPlan(t *testing.T) {
+	response := func(context.Context, model.Request) (model.Response, error) {
+		return model.Response{Text: `{"command":"set_population_policy","maximum":12,"foodDays":30.5}`, FinishReason: model.Stop}, nil
+	}
+	proposal, err := clientFixture(t, response).Interpret(context.Background(), inputFixture())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !proposal.PopulationPolicy.Set() || proposal.PopulationPolicy.Maximum() != 12 || proposal.PopulationPolicy.FoodDays() != 30.5 {
+		t.Fatal("incorrect typed population policy proposal", proposal.PopulationPolicy)
+	}
+	if len(proposal.Plan.Actions()) != 0 {
+		t.Fatal("a population policy must propose no actions")
+	}
+	if proposal.Generation != inputFixture().Current {
+		t.Fatal("population policy must resolve against the input generation")
+	}
+}
+
+func TestSetPopulationPolicyRefusesOutOfRangeValues(t *testing.T) {
+	for _, text := range []string{
+		`{"command":"set_population_policy","maximum":0,"foodDays":30}`,
+		`{"command":"set_population_policy","maximum":101,"foodDays":30}`,
+		`{"command":"set_population_policy","maximum":-1,"foodDays":30}`,
+		`{"command":"set_population_policy","maximum":12,"foodDays":0}`,
+		`{"command":"set_population_policy","maximum":12,"foodDays":121}`,
+	} {
+		t.Run(text, func(t *testing.T) {
+			response := func(context.Context, model.Request) (model.Response, error) {
+				return model.Response{Text: text, FinishReason: model.Stop}, nil
+			}
+			_, err := clientFixture(t, response).Interpret(context.Background(), inputFixture())
+			assertKind(t, err, InvalidCommand)
+		})
+	}
+}
