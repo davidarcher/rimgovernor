@@ -101,7 +101,14 @@ confirm the packaging path is wired correctly, not that a colony runs.
   themselves are closed, each with domain/policy/store/executor/bridge and
   httpapi wiring (trade's `set_lines`/`accept`/`end` sub-operations resolve
   their open session via same-plan `ActionDependency`, not a native read —
-  see `go/internal/store/trade_session.go`); caravan departure and travel
+  see `go/internal/store/trade_session.go`). Only `trade_open` resolves
+  end to end through the direct single-action submission surface
+  (`POST /api/trades/plans`, mirroring `SubmitQuestFulfill`'s shape): a
+  `set_lines`/`accept`/`end` submitted the same way has no sibling action to
+  depend on and holds on `TradeSessionUnresolved` forever rather than
+  misbehaving — composing a dependent multi-action trade plan needs a plan
+  extension/amendment submission path that does not exist yet, a follow-up
+  item. Caravan departure and travel
   additionally have native acceptance harnesses
   (`nativeaccept/cmd/caravandepartureaccept`,
   `nativeaccept/cmd/caravancontrolaccept`). The read-only `evaluate_world`
