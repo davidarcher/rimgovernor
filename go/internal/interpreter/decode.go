@@ -115,11 +115,33 @@ type modelCommand struct {
 	// reuses Pawn and must be an observed pawn, so unlike the two policy
 	// commands this one is bounded against supplied facts.
 	Decision *string
+	// IntentID/Room hold build_room's player-chosen construction intent
+	// identity and its requested room shell. The intent is the durable handle
+	// a later cancellation or relocation resolves back to the committed
+	// placements, so unlike a request ID it is part of the command itself.
+	IntentID *string
+	Room     *modelRoomShell
 	// Goal holds create_goal's requested maintained goal kind (from a fixed
 	// whitelist, so nothing to bound against facts) or cancel_goal's target
 	// goal identity (which must be an observed one). The two commands are
 	// separate contracts that never appear together, so they share the field.
 	Goal *string
+}
+
+// modelRoomShell is an untrusted requested room shell: a rectangle, the wall
+// and entrance definitions, one material and the entrance side. Every field is
+// required, so pointers only distinguish absent from zero here; the domain
+// constructor owns the range and distinctness rules.
+type modelRoomShell struct {
+	X        *int32  `json:"x"`
+	Z        *int32  `json:"z"`
+	Width    *int32  `json:"width"`
+	Height   *int32  `json:"height"`
+	WallDef  *string `json:"wallDef"`
+	DoorDef  *string `json:"doorDef"`
+	Material *string `json:"material"`
+	Entrance *string `json:"entrance"`
+	Purpose  *string `json:"purpose"`
 }
 
 // modelExpeditionPolicy is an untrusted partial expedition policy request.
@@ -213,8 +235,10 @@ func decode(text string, limit int) (modelCommand, error) {
 		return decodeGoalCommand(fields, "create_goal")
 	case "cancel_goal":
 		return decodeGoalCommand(fields, "cancel_goal")
+	case "build_room":
+		return decodeBuildRoom(fields)
 	default:
-		return modelCommand{}, fail(UnsupportedCommand, "only building, research, tend, rescue, draft, caravan, husbandry, recover, bed_assign, move_pawn, set_building_temperature, request_surgery, hold_caravan, route_caravan, accept_quest, fulfill_quest, gift_settlement, create_zone, edit_zone, set_population_policy, set_expedition_policy, set_population_decision, modify_resource_policy, set_resource_reserve, create_goal and cancel_goal proposals are supported")
+		return modelCommand{}, fail(UnsupportedCommand, "only building, research, tend, rescue, draft, caravan, husbandry, recover, bed_assign, move_pawn, set_building_temperature, request_surgery, hold_caravan, route_caravan, accept_quest, fulfill_quest, gift_settlement, create_zone, edit_zone, build_room, set_population_policy, set_expedition_policy, set_population_decision, modify_resource_policy, set_resource_reserve, create_goal and cancel_goal proposals are supported")
 	}
 }
 
@@ -561,6 +585,38 @@ func decodeGoalCommand(fields map[string]json.RawMessage, command string) (model
 		return modelCommand{}, fail(InvalidCommand, "invalid goal field")
 	}
 	return modelCommand{Command: command, Goal: &goal}, nil
+}
+
+// decodeBuildRoom reads a whole requested room shell plus the player-chosen
+// construction intent identity. The intent pattern is Python BuildRoom's own,
+// and every shell field is required: this command replaces a rectangle's whole
+// perimeter, so there is no half of it that could sensibly be left implied.
+func decodeBuildRoom(fields map[string]json.RawMessage) (modelCommand, error) {
+	if len(fields) != 3 || fields["intentId"] == nil || fields["room"] == nil {
+		return modelCommand{}, fail(InvalidCommand, "unexpected command fields")
+	}
+	var intent string
+	if err := json.Unmarshal(fields["intentId"], &intent); err != nil {
+		return modelCommand{}, fail(InvalidCommand, "invalid intentId field")
+	}
+	if err := domain.ValidateRoomIntent(intent); err != nil {
+		return modelCommand{}, &Failure{InvalidCommand, err}
+	}
+	var raw map[string]json.RawMessage
+	if err := json.Unmarshal(fields["room"], &raw); err != nil || len(raw) != 9 {
+		return modelCommand{}, fail(InvalidCommand, "unexpected or missing room fields")
+	}
+	for _, key := range []string{"x", "z", "width", "height", "wallDef", "doorDef", "material", "entrance", "purpose"} {
+		value, ok := raw[key]
+		if !ok || bytes.Equal(bytes.TrimSpace(value), []byte("null")) {
+			return modelCommand{}, fail(InvalidCommand, "required room field missing or null")
+		}
+	}
+	var room modelRoomShell
+	if err := json.Unmarshal(fields["room"], &room); err != nil {
+		return modelCommand{}, fail(InvalidCommand, "invalid room field")
+	}
+	return modelCommand{Command: "build_room", IntentID: &intent, Room: &room}, nil
 }
 
 // optionalCommandField turns a decoded partial-request pointer into the
