@@ -353,3 +353,80 @@ func TestModelRouteCaravanShape(t *testing.T) {
 		})
 	}
 }
+
+func TestModelAcceptQuestShape(t *testing.T) {
+	result, err := decode(`{"command":"accept_quest","quest":"Quest_A","accepterPawn":"Thing_A","rewardChoice":0}`, 1)
+	if err != nil || result.Command != "accept_quest" || result.Quest == nil || *result.Quest != "Quest_A" ||
+		result.AccepterPawn == nil || *result.AccepterPawn != "Thing_A" || result.RewardChoice == nil || *result.RewardChoice != 0 {
+		t.Fatalf("accept_quest shape: %v %v", result, err)
+	}
+	noAccepter, err := decode(`{"command":"accept_quest","quest":"Quest_A","accepterPawn":"","rewardChoice":-1}`, 1)
+	if err != nil || noAccepter.AccepterPawn == nil || *noAccepter.AccepterPawn != "" || noAccepter.RewardChoice == nil || *noAccepter.RewardChoice != -1 {
+		t.Fatalf("accept_quest no-accepter shape: %v %v", noAccepter, err)
+	}
+	for _, text := range []string{
+		`{"command":"accept_quest"}`,
+		`{"command":"accept_quest","quest":"Quest_A"}`,
+		`{"command":"accept_quest","quest":"Quest_A","accepterPawn":"Thing_A"}`,
+		`{"command":"accept_quest","quest":null,"accepterPawn":"Thing_A","rewardChoice":0}`,
+		`{"command":"accept_quest","quest":"","accepterPawn":"Thing_A","rewardChoice":0}`,
+		`{"command":"accept_quest","quest":"Quest_A","accepterPawn":null,"rewardChoice":0}`,
+		`{"command":"accept_quest","quest":"Quest_A","accepterPawn":"Thing_A","rewardChoice":null}`,
+		`{"command":"accept_quest","quest":"Quest_A","accepterPawn":"Thing_A","rewardChoice":-2}`,
+		`{"command":"accept_quest","quest":"Quest_A","accepterPawn":"Thing_A","rewardChoice":0,"dryRun":false}`,
+	} {
+		t.Run(text, func(t *testing.T) {
+			_, err := decode(text, 1)
+			assertKind(t, err, InvalidCommand)
+		})
+	}
+}
+
+func TestModelFulfillQuestShape(t *testing.T) {
+	result, err := decode(`{"command":"fulfill_quest","quest":"Quest_A","caravan":"Caravan_A","crew":["Thing_A"]}`, 1)
+	if err != nil || result.Command != "fulfill_quest" || result.Quest == nil || *result.Quest != "Quest_A" ||
+		result.Caravan == nil || *result.Caravan != "Caravan_A" || len(result.Crew) != 1 || result.Crew[0] != "Thing_A" {
+		t.Fatalf("fulfill_quest shape: %v %v", result, err)
+	}
+	for _, text := range []string{
+		`{"command":"fulfill_quest"}`,
+		`{"command":"fulfill_quest","quest":"Quest_A","caravan":"Caravan_A"}`,
+		`{"command":"fulfill_quest","quest":null,"caravan":"Caravan_A","crew":["Thing_A"]}`,
+		`{"command":"fulfill_quest","quest":"","caravan":"Caravan_A","crew":["Thing_A"]}`,
+		`{"command":"fulfill_quest","quest":"Quest_A","caravan":"","crew":["Thing_A"]}`,
+		`{"command":"fulfill_quest","quest":"Quest_A","caravan":"Caravan_A","crew":[]}`,
+		`{"command":"fulfill_quest","quest":"Quest_A","caravan":"Caravan_A","crew":[""]}`,
+		`{"command":"fulfill_quest","quest":"Quest_A","caravan":"Caravan_A","crew":["Thing_A"],"dryRun":false}`,
+	} {
+		t.Run(text, func(t *testing.T) {
+			_, err := decode(text, 1)
+			assertKind(t, err, InvalidCommand)
+		})
+	}
+}
+
+func TestModelGiftSettlementShape(t *testing.T) {
+	text := `{"command":"gift_settlement","caravan":"Caravan_A","settlement":"Settlement_A","faction":"Faction_A","crew":["Thing_A"],"silver":100}`
+	result, err := decode(text, 1)
+	if err != nil || result.Command != "gift_settlement" || result.Caravan == nil || *result.Caravan != "Caravan_A" ||
+		result.Settlement == nil || *result.Settlement != "Settlement_A" || result.Faction == nil || *result.Faction != "Faction_A" ||
+		len(result.Crew) != 1 || result.Crew[0] != "Thing_A" || result.Silver == nil || *result.Silver != 100 {
+		t.Fatalf("gift_settlement shape: %v %v", result, err)
+	}
+	for _, invalid := range []string{
+		`{"command":"gift_settlement"}`,
+		`{"command":"gift_settlement","caravan":"Caravan_A","settlement":"Settlement_A","faction":"Faction_A","crew":["Thing_A"]}`,
+		`{"command":"gift_settlement","caravan":null,"settlement":"Settlement_A","faction":"Faction_A","crew":["Thing_A"],"silver":100}`,
+		`{"command":"gift_settlement","caravan":"Caravan_A","settlement":"","faction":"Faction_A","crew":["Thing_A"],"silver":100}`,
+		`{"command":"gift_settlement","caravan":"Caravan_A","settlement":"Settlement_A","faction":null,"crew":["Thing_A"],"silver":100}`,
+		`{"command":"gift_settlement","caravan":"Caravan_A","settlement":"Settlement_A","faction":"Faction_A","crew":[],"silver":100}`,
+		`{"command":"gift_settlement","caravan":"Caravan_A","settlement":"Settlement_A","faction":"Faction_A","crew":["Thing_A"],"silver":0}`,
+		`{"command":"gift_settlement","caravan":"Caravan_A","settlement":"Settlement_A","faction":"Faction_A","crew":["Thing_A"],"silver":null}`,
+		`{"command":"gift_settlement","caravan":"Caravan_A","settlement":"Settlement_A","faction":"Faction_A","crew":["Thing_A"],"silver":100,"dryRun":false}`,
+	} {
+		t.Run(invalid, func(t *testing.T) {
+			_, err := decode(invalid, 1)
+			assertKind(t, err, InvalidCommand)
+		})
+	}
+}
