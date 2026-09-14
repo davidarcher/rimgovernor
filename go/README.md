@@ -44,8 +44,10 @@ the construction planners wired in `serve_clock.go` — see
 capability boundary. It does not do player chat, save/load or media/camera
 controls; those stay in Python until G01.08/G01.09 land. Caravan departure and
 travel, quest accept/fulfill, settlement gifting and trade run through Go,
-alongside the read-only world-evaluation advisory report (G01.07f); the
-richer read-only expedition-risk advisory remains open, tracked on
+alongside the read-only world-evaluation advisory report (G01.07f) and the
+richer expedition-risk gates (destination temperature, hostility and
+goodwill) folded into caravan-departure admission; native acceptance
+harnesses for quest accept, settlement gift and trade remain open, tracked on
 [issue #28](https://github.com/davidarcher/rimgovernor/issues/28).
 
 **Windows**, from the repository root:
@@ -106,13 +108,23 @@ confirm the packaging path is wired correctly, not that a colony runs.
   accept/fulfill and settlement gift proposals, but is not yet wired into the
   Go binary's serve loop) — G01.08.
 - Media/camera/portrait/video/recording and trusted save/load — G01.09.
-- World progression remaining scope: the richer read-only expedition-risk
-  advisory (`evaluate_expedition` in
-  `controller/rimgovernor/expedition_policy.py`), and native acceptance
-  harnesses for quest accept, settlement gift and trade — G01.07f
+- World progression remaining scope: native acceptance harnesses for quest
+  accept, settlement gift and trade — G01.07f
   ([issue #28](https://github.com/davidarcher/rimgovernor/issues/28)).
-  `evaluate_expedition` remains Python-only because it needs native route
-  temperature/hostility/goodwill fields Go does not read yet.
+  `evaluate_expedition` (`controller/rimgovernor/expedition_policy.py`) is
+  now ported: `WorldRoute` (`contracts/proto/observations.proto`) and
+  `RoutePreparation` (`contracts/proto/operations.proto`) carry destination
+  temperature, hostility, goodwill and faction id, populated in
+  `NativeCaravanCatalog.RouteFacts`/`NativeCaravanOperations.Preview`
+  (`integrations/rimgovernor-native/src/Bridge/Protocol`) and enforced by
+  `policy.EvaluateCaravanDeparture` (`go/internal/policy/caravan_departure_admit.go`)
+  as `CaravanDestinationTemperatureOutOfRange`, `CaravanDestinationHostile`
+  and `CaravanDestinationGoodwillInsufficient` refusals — this vertical only
+  ever represents a 'form' action, so these always take Python's
+  non-'return' (blocking) branch. `route.get('foodRotDays')` is threaded
+  through as `CaravanDepartureFacts.RouteFoodRotDays` but, matching Python,
+  stays a non-blocking, informational-only signal: it never produces a
+  refusal here.
   Caravan departure/travel, quest accept/fulfill, settlement gift and trade
   themselves are closed, each with domain/policy/store/executor/bridge and
   httpapi wiring (trade's `set_lines`/`accept`/`end` sub-operations resolve

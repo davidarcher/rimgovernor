@@ -139,7 +139,23 @@ namespace HomeBridge.BridgeTools
                     catch (Exception) { /* No formed pack yet; ticks estimate is unavailable until crew/cargo are selected. */ }
                 }
                 else route.Reason = "No native path to this destination.";
-                if (settlement != null) route.SettlementId = settlement.GetUniqueLoadID();
+                // Mirrors legacy CaravanTool.RouteFacts' temperature/hostile/goodwill/
+                // factionId semantics exactly: hostile always reports (false absent a
+                // faction), factionId is set for any settlement faction including the
+                // player's own, and goodwill is only meaningful (and only set) for a
+                // non-player faction.
+                route.TemperatureC = GenTemperature.GetTemperatureFromSeasonAtTile(Find.TickManager.TicksAbs, target);
+                if (settlement != null)
+                {
+                    route.SettlementId = settlement.GetUniqueLoadID();
+                    var faction = settlement.Faction;
+                    route.Hostile = faction != null && faction.HostileTo(Faction.OfPlayer);
+                    if (faction != null)
+                    {
+                        route.FactionId = faction.GetUniqueLoadID();
+                        if (!faction.IsPlayer) route.Goodwill = faction.PlayerGoodwill;
+                    }
+                }
                 return (route, settlement);
             }
         }

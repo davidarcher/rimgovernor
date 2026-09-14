@@ -42,7 +42,7 @@ message PreviewEvaluation {
   }
 }
 message StockAvailability { optional string def_name = 1; optional int32 available = 2; }
-message RoutePreparation { optional bool reachable = 1; optional int64 estimated_ticks = 2; optional float food_days = 3; optional float food_rot_days = 4; optional int32 destination_tile = 5; optional float temperature = 6; }
+message RoutePreparation { optional bool reachable = 1; optional int64 estimated_ticks = 2; optional float food_days = 3; optional float food_rot_days = 4; optional int32 destination_tile = 5; optional float temperature = 6; optional bool hostile = 7; optional int32 goodwill = 8; optional string faction_id = 9; }
 message CaravanPreparation { optional float mass_usage = 1; optional float mass_capacity = 2; repeated DefCount selected_cargo = 3; repeated DefCount carried_cargo = 4; repeated StockAvailability materials = 5; repeated string home_pawn_ids = 6; optional int32 home_doctors = 7; RoutePreparation route = 8; optional string return_storage_snapshot_token = 9; }
 message SurgeryPreparation { optional string recipe_def = 1; optional int32 part_index = 2; repeated string practitioner_ids = 3; repeated DefCount missing_ingredients = 4; optional bool requires_medicine = 5; optional bool has_permitted_medicine = 6; optional string medical_catalog_snapshot_token = 7; }
 message TradePreparation { optional string session_id = 1; optional string deal_signature = 2; optional string sheet_snapshot_token = 3; optional int32 available_silver = 4; optional int32 goodwill = 5; optional int32 expected_goodwill_gain = 6; optional string resource_def = 7; optional int32 required_count = 8; optional int32 available_count = 9; optional string settlement_id = 10; }

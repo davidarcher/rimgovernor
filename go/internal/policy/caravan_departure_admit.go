@@ -25,14 +25,37 @@ const CaravanHomeFoodInsufficient Reason = "caravan_home_food_insufficient"
 // route/reachability gate for a 'form' action.
 const CaravanRouteUnavailable Reason = "caravan_route_unavailable"
 
+// CaravanDestinationTemperatureOutOfRange mirrors expedition_policy's
+// temperature gate: evaluate_expedition treats a temperature outside
+// [minimum_destination_temperature, maximum_destination_temperature], or an
+// unreadable temperature, as blocking for every action except 'return'. This
+// vertical only ever represents a 'form' action, so the 'return' relaxation
+// never applies here.
+const CaravanDestinationTemperatureOutOfRange Reason = "caravan_destination_temperature_out_of_range"
+
+// CaravanDestinationHostile mirrors evaluate_expedition's unconditional
+// hostile-settlement gate: hostile blocks regardless of action.
+const CaravanDestinationHostile Reason = "caravan_destination_hostile"
+
+// CaravanDestinationGoodwillInsufficient mirrors evaluate_expedition's
+// goodwill gate: only evaluated when the destination has a faction stake
+// (route.get('factionId')), and only blocking for actions other than
+// 'return' -- again always true for this 'form'-only vertical.
+const CaravanDestinationGoodwillInsufficient Reason = "caravan_destination_goodwill_insufficient"
+
 // CaravanDeparturePolicy is the bounded subset of Python's ExpeditionPolicy
-// this admission enforces before dispatch. Richer risk scoring (temperature,
-// goodwill, hostile settlements, concurrent caravan limits) is evaluated by
-// the read-only preview/advisory path, not here.
+// this admission enforces before dispatch. Concurrent caravan limits remain
+// read-only preview/advisory scope, not here; destination temperature,
+// hostility and goodwill are enforced below, mirroring
+// expedition_policy.evaluate_expedition's non-'return' branch (this vertical
+// only ever represents a 'form' action).
 type CaravanDeparturePolicy struct {
-	MinimumHomeColonists uint32
-	MinimumHomeFoodDays  float64
-	KeepHomeDoctor       bool
+	MinimumHomeColonists           uint32
+	MinimumHomeFoodDays            float64
+	KeepHomeDoctor                 bool
+	MinimumDestinationTemperatureC float64
+	MaximumDestinationTemperatureC float64
+	MinimumGoodwill                int32
 }
 
 // CaravanCrewFacts describes one already-selected undrafted crew pawn.
@@ -53,7 +76,24 @@ type CaravanDepartureFacts struct {
 	HomeDoctorAvailable    domain.Fact[bool]
 	HomeFoodRunwayDays     domain.Fact[float64]
 	RouteReachable         domain.Fact[bool]
-	NativeCanTry           domain.Fact[bool]
+	RouteTemperatureC      domain.Fact[float64]
+	RouteHostile           domain.Fact[bool]
+	// RouteFactionID mirrors Python's route.get('factionId') truthiness gate:
+	// empty means the destination has no settlement/faction stake, so the
+	// goodwill check below does not apply, exactly like CatalogToken/
+	// SnapshotToken elsewhere in this file it is a plain validated string,
+	// not a Fact, because "absent" (no faction) and "unknown" are the same
+	// thing here -- Python never distinguishes them either.
+	RouteFactionID string
+	RouteGoodwill  domain.Fact[int32]
+	// RouteFoodRotDays mirrors expedition_policy.evaluate_expedition's
+	// route.get('foodRotDays'): a warning-level signal only (rot arriving
+	// before the required travel-food margin), never blocking in Python
+	// regardless of action. This admission gate only ever admits or refuses,
+	// so the fact is carried for completeness/future advisory use but never
+	// checked for refusal here.
+	RouteFoodRotDays domain.Fact[float64]
+	NativeCanTry     domain.Fact[bool]
 }
 
 type CaravanDepartureRequest struct {
@@ -162,6 +202,35 @@ func EvaluateCaravanDeparture(r CaravanDepartureRequest) DraftDecision {
 	}
 	if !reachable {
 		return refuse(CaravanRouteUnavailable)
+	}
+	// Destination temperature, hostility and goodwill mirror
+	// expedition_policy.evaluate_expedition's non-'return' branch: this
+	// vertical only ever represents a 'form' action, so the checks below are
+	// always the strict (blocking) variant Python applies when action !=
+	// 'return'. foodRotDays is a warning-only signal in Python for every
+	// action and is never gated here (see CaravanDepartureFacts.RouteFoodRotDays).
+	temperature, known := f.RouteTemperatureC.Value()
+	if !known {
+		return refuse(UnknownFacts)
+	}
+	if temperature < r.Policy.MinimumDestinationTemperatureC || temperature > r.Policy.MaximumDestinationTemperatureC {
+		return refuse(CaravanDestinationTemperatureOutOfRange)
+	}
+	hostile, known := f.RouteHostile.Value()
+	if !known {
+		return refuse(UnknownFacts)
+	}
+	if hostile {
+		return refuse(CaravanDestinationHostile)
+	}
+	if f.RouteFactionID != "" {
+		goodwill, known := f.RouteGoodwill.Value()
+		if !known {
+			return refuse(UnknownFacts)
+		}
+		if goodwill < r.Policy.MinimumGoodwill {
+			return refuse(CaravanDestinationGoodwillInsufficient)
+		}
 	}
 	eligible, known := f.NativeCanTry.Value()
 	if !known {

@@ -363,7 +363,7 @@ message WorldTile {
 message WorldSnapshot { rimgovernor.common.v1.ObservationContext context = 1; WorldTile tile = 2; repeated Settlement settlements = 3; Completeness completeness = 4; }
 message WorldRequest { ReadScope scope = 1; optional int32 tile = 2; optional double settlement_radius = 3; rimgovernor.common.v1.PageRequest page = 4; }
 message WorldReply { oneof outcome { WorldSnapshot observed = 1; rimgovernor.common.v1.Unavailable unavailable = 2; rimgovernor.common.v1.Failure failure = 3; } }
-message WorldRoute { optional string settlement_id = 1; optional int32 destination = 2; optional bool reachable = 3; optional int64 estimated_ticks = 4; optional string reason = 5; }
+message WorldRoute { optional string settlement_id = 1; optional int32 destination = 2; optional bool reachable = 3; optional int64 estimated_ticks = 4; optional string reason = 5; optional double temperature_c = 6; optional bool hostile = 7; optional int32 goodwill = 8; optional string faction_id = 9; }
 message CaravanState {
   EntityRef caravan = 1; optional int32 tile = 2; optional int32 destination = 3; optional bool moving = 4;
   optional bool moving_now = 5; optional bool resting = 6; optional double mass_usage = 7; optional double mass_capacity = 8;

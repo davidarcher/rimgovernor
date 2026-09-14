@@ -67,6 +67,20 @@ func factFloat64(v *float64) domain.Fact[float64] {
 	return domain.Known(*v)
 }
 
+func factFloat64FromFloat32(v *float32) domain.Fact[float64] {
+	if v == nil {
+		return domain.Unknown[float64]()
+	}
+	return domain.Known(float64(*v))
+}
+
+func factInt32(v *int32) domain.Fact[int32] {
+	if v == nil {
+		return domain.Unknown[int32]()
+	}
+	return domain.Known(*v)
+}
+
 // caravanDoctorEnabled mirrors tend.doctorWorkFacts's enabled half: Doctor
 // work-type enablement is unknown unless native reported whether the work
 // type is disabled.
@@ -251,6 +265,10 @@ func (b *CaravanDepartureBoundary) InspectCaravanDeparture(ctx context.Context, 
 	for _, route := range catalog.Routes {
 		if route.GetDestination() == departure.DestinationTile() {
 			facts.RouteReachable = boundary.FactBool(route.Reachable)
+			facts.RouteTemperatureC = factFloat64(route.TemperatureC)
+			facts.RouteHostile = boundary.FactBool(route.Hostile)
+			facts.RouteFactionID = route.GetFactionId()
+			facts.RouteGoodwill = factInt32(route.Goodwill)
 			break
 		}
 	}
@@ -274,6 +292,14 @@ func (b *CaravanDepartureBoundary) InspectCaravanDeparture(ctx context.Context, 
 	}
 	facts.NativeCanTry = boundary.FactBool(evaluated.Accepted)
 	facts.PreviewTick = domain.Tick(evaluated.Context.GetTick())
+	// RoutePreparation.FoodRotDays is the dialog-level pre-departure figure
+	// (Dialog_FormCaravan.DaysWorthOfFood.tillRot for the exact selected
+	// pack), the same value Python's route.get('foodRotDays') reads --
+	// distinct from CaravanState.food_rot_days, which only exists once a
+	// caravan has already departed and is unrelated to this preview.
+	if routePrep := evaluated.GetCaravan().GetRoute(); routePrep != nil {
+		facts.RouteFoodRotDays = factFloat64FromFloat32(routePrep.FoodRotDays)
+	}
 
 	out.Facts, out.ObservedAt = facts, b.clock.Now()
 	return out, ctx.Err()
