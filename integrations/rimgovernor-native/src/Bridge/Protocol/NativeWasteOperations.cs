@@ -20,12 +20,13 @@ namespace HomeBridge.BridgeTools
     // home/manage_waste tool (HomeWasteTools.Haul) issues, so an order here
     // is exactly the job a player's float-menu click would produce. The
     // waste target's CAS token is self-computed and self-checked the same
-    // way NativeRecoveryOperations does for buildings: no existing
-    // observation reply exposes it yet (WasteItem.Snapshot is declared in
-    // observations.proto but ReadWaste has no native implementation), so a
-    // caller must obtain the token from a future dedicated read rather than
-    // the legacy home/waste_state JSON tool. That follow-up is out of scope
-    // here.
+    // way NativeRecoveryOperations does for buildings: no per-item lookup RPC
+    // exposes it (WasteItem.Snapshot is declared in observations.proto but
+    // ReadWaste has no native implementation), so a caller obtains the token
+    // via bridge.ReadWasteTarget's rimgovernor/observations_get_cells read
+    // with Things requested (NativeObservationTools.CellThingRow computes the
+    // identical Token(...) hash for the item's cell), not the legacy
+    // home/waste_state JSON tool.
     internal sealed class NativeWasteRecord
     {
         private readonly NativeControlIdentity identity;
