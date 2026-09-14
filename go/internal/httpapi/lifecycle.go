@@ -3,11 +3,13 @@ package httpapi
 import (
 	"context"
 	"crypto/subtle"
+	"encoding/json"
 	"errors"
 	"mime"
 	"net/http"
 	"net/url"
 
+	bridgepkg "github.com/davidarcher/RimGovernor/go/internal/bridge"
 	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
 	l "github.com/davidarcher/RimGovernor/go/internal/wire/lifecyclepb"
 	"google.golang.org/protobuf/proto"
@@ -19,6 +21,46 @@ import (
 // generation to attach to a lifecycle mutation or to project from a
 // completed reply; it never reaches native.
 var errNoLifecycleIdentity = errors.New("no current lifecycle identity")
+
+// blockingAttentionID extracts a GABS attention id from a games_call_tool
+// Refusal whose structured detail reports status "blocked_by_attention" (see
+// bridge.Client.AckAttention). It never inspects the attention's own content
+// (severity, summary) to decide anything -- only that GABS named an id to
+// acknowledge.
+func blockingAttentionID(err error) (string, bool) {
+	var refusal *bridgepkg.Refusal
+	if !errors.As(err, &refusal) {
+		return "", false
+	}
+	var body struct {
+		Status    string `json:"status"`
+		Attention struct {
+			AttentionID string `json:"attentionId"`
+		} `json:"attention"`
+	}
+	if json.Unmarshal(refusal.Result.Structured, &body) != nil {
+		return "", false
+	}
+	if body.Status != "blocked_by_attention" || body.Attention.AttentionID == "" {
+		return "", false
+	}
+	return body.Attention.AttentionID, true
+}
+
+// retryAfterAttentionAck re-issues op once when err is a GABS
+// blocked-by-attention refusal and an AttentionAcknowledger is configured; it
+// returns the error to use afterward (the retry's outcome, or the original
+// err when no retry was attempted or the ack itself failed).
+func (s *Server) retryAfterAttentionAck(ctx context.Context, err error, op func() error) error {
+	attentionID, ok := blockingAttentionID(err)
+	if !ok || s.config.Attention == nil {
+		return err
+	}
+	if ackErr := s.config.Attention.AckAttention(ctx, attentionID); ackErr != nil {
+		return err
+	}
+	return op()
+}
 
 type saveRequestDTO struct {
 	RequestID string `json:"requestId"`
@@ -131,6 +173,16 @@ func (s *Server) handleLifecycleRead(w http.ResponseWriter, r *http.Request) {
 		err = ctx.Err()
 	}
 	if err != nil {
+		err = s.retryAfterAttentionAck(ctx, err, func() error {
+			var opErr error
+			reply, _, opErr = s.config.Lifecycle.ReadLoad(ctx, ids[0])
+			if opErr == nil {
+				opErr = ctx.Err()
+			}
+			return opErr
+		})
+	}
+	if err != nil {
 		s.readFailure(w, r, err)
 		return
 	}
@@ -225,25 +277,45 @@ func (s *Server) handleLifecycleLoad(w http.ResponseWriter, r *http.Request, ctx
 		s.readFailure(w, r, err)
 		return
 	}
+	// A cold bootstrap load (no colony currently observed, e.g. the game is
+	// still at its main menu) has no prior identity to assert against, so
+	// ExpectedPlayer is left nil in that case; the proto itself treats it as
+	// optional (see validateLoadRequest in internal/bridge/lifecycle_load.go).
+	// Any other read failure still aborts the request.
+	var expectedPlayer *l.PlayerLifecycleContext
 	wire, direction, _, err := s.currentLifecycleIdentity(ctx)
-	if err != nil {
+	switch {
+	case err == nil:
+		expectedPlayer = &l.PlayerLifecycleContext{
+			Identity:        wire,
+			PlayerDirection: proto.Uint64(uint64(direction)),
+			RequestId:       proto.String(body.RequestID),
+		}
+	case errors.Is(err, errNoLifecycleIdentity):
+	default:
 		s.readFailure(w, r, err)
 		return
 	}
 	request := &l.LoadRequest{
-		RequestId: proto.String(body.RequestID),
-		SaveName:  proto.String(body.SaveName),
-		Readiness: readiness.Enum(),
-		TimeoutMs: proto.Uint32(body.TimeoutMs),
-		ExpectedPlayer: &l.PlayerLifecycleContext{
-			Identity:        wire,
-			PlayerDirection: proto.Uint64(uint64(direction)),
-			RequestId:       proto.String(body.RequestID),
-		},
+		RequestId:      proto.String(body.RequestID),
+		SaveName:       proto.String(body.SaveName),
+		Readiness:      readiness.Enum(),
+		TimeoutMs:      proto.Uint32(body.TimeoutMs),
+		ExpectedPlayer: expectedPlayer,
 	}
 	reply, _, err := s.config.Lifecycle.Load(ctx, request)
 	if err == nil {
 		err = ctx.Err()
+	}
+	if err != nil {
+		err = s.retryAfterAttentionAck(ctx, err, func() error {
+			var opErr error
+			reply, _, opErr = s.config.Lifecycle.Load(ctx, request)
+			if opErr == nil {
+				opErr = ctx.Err()
+			}
+			return opErr
+		})
 	}
 	if err != nil {
 		s.readFailure(w, r, err)

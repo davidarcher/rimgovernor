@@ -17,6 +17,12 @@ type SnapshotProvider interface {
 type PlanReader interface {
 	LoadPlan(context.Context, domain.PlanID) (store.PlanState, error)
 }
+
+// AttentionAcknowledger clears one blocking GABS attention item so a
+// subsequently retried native call is no longer refused on its account.
+type AttentionAcknowledger interface {
+	AckAttention(ctx context.Context, attentionID string) error
+}
 type Snapshot struct {
 	SessionID    string
 	Connected    bool
@@ -42,6 +48,11 @@ type Config struct {
 	WorldEvaluation              WorldEvaluation
 	TradeEconomy                 TradeEconomy
 	Lifecycle                    LifecycleWriter
+	// Attention, when set, lets a lifecycle mutation clear one blocking GABS
+	// attention item (raised for a game-side log line GABS treats as
+	// noteworthy, e.g. an error-level message) and retry once rather than
+	// failing outright. A nil Attention preserves prior behavior.
+	Attention AttentionAcknowledger
 	// VideoStreamPollInterval sets how often the video-stream WebSocket relay
 	// polls ReadFrame for a new frame. Zero uses a sane default (~24 Hz);
 	// this bounds correctness-proving throughput, not maximum achievable FPS.

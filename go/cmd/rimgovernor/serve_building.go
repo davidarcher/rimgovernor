@@ -162,6 +162,14 @@ type lifecycleCapability struct {
 	*bridge.LifecycleLoad
 }
 
+// attentionAcknowledger adapts bridge.Client.AckAttention to httpapi.AttentionAcknowledger.
+type attentionAcknowledger struct{ client *bridge.Client }
+
+func (a attentionAcknowledger) AckAttention(ctx context.Context, attentionID string) error {
+	_, err := a.client.AckAttention(ctx, attentionID)
+	return err
+}
+
 func openBuildingService(ctx context.Context, config bridge.ProcessConfig) (buildingServiceBridge, error) {
 	client, err := bridge.Open(ctx, config)
 	if err != nil {
@@ -687,7 +695,11 @@ func serveBuildingWithBridge(ctx context.Context, config serveConfig, out io.Wri
 			return err
 		}
 	}
-	server, err := httpapi.NewWithPlayer(httpapi.Config{ClockReview: clockReview, Routines: routines, WorldEvaluation: worldEvaluation, Notifications: notifications, Presentation: presentation, PresentationMedia: client.presentationMedia, Lifecycle: client.lifecycle, AssetsDir: config.assets, ReadTimeout: 35 * time.Second, ShutdownTimeout: 5 * time.Second, MaxResponseBytes: 1 << 20}, buildingSnapshots{reads, player}, database, player, database)
+	var attention httpapi.AttentionAcknowledger
+	if raw, ok := client.reads.(*bridge.Client); ok {
+		attention = attentionAcknowledger{raw}
+	}
+	server, err := httpapi.NewWithPlayer(httpapi.Config{ClockReview: clockReview, Routines: routines, WorldEvaluation: worldEvaluation, Notifications: notifications, Presentation: presentation, PresentationMedia: client.presentationMedia, Lifecycle: client.lifecycle, Attention: attention, AssetsDir: config.assets, ReadTimeout: 35 * time.Second, ShutdownTimeout: 5 * time.Second, MaxResponseBytes: 1 << 20}, buildingSnapshots{reads, player}, database, player, database)
 	if err != nil {
 		return err
 	}

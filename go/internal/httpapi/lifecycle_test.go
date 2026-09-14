@@ -3,6 +3,7 @@ package httpapi
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"path/filepath"
 	"testing"
 	"time"
@@ -20,6 +21,7 @@ type lifecycleFake struct {
 	save       *l.SaveReply
 	load       *l.LoadReply
 	err        error
+	failCalls  int // when > 0, the first failCalls calls return err instead of succeeding
 	calls      int
 	seenSave   *l.SaveRequest
 	seenLoad   *l.LoadRequest
@@ -27,28 +29,68 @@ type lifecycleFake struct {
 	readLoadID string
 }
 
+func (f *lifecycleFake) errFor() error {
+	if f.calls <= f.failCalls {
+		return f.err
+	}
+	return nil
+}
 func (f *lifecycleFake) Save(ctx context.Context, q *l.SaveRequest) (*l.SaveReply, bridge.Result, error) {
 	f.calls++
 	f.seenSave = q
-	return f.save, bridge.Result{}, f.err
+	return f.save, bridge.Result{}, f.errFor()
 }
 func (f *lifecycleFake) ReadSave(ctx context.Context, id string) (*l.SaveReply, bridge.Result, error) {
 	f.calls++
 	f.readSaveID = id
-	return f.save, bridge.Result{}, f.err
+	return f.save, bridge.Result{}, f.errFor()
 }
 func (f *lifecycleFake) Load(ctx context.Context, q *l.LoadRequest) (*l.LoadReply, bridge.Result, error) {
 	f.calls++
 	f.seenLoad = q
-	return f.load, bridge.Result{}, f.err
+	return f.load, bridge.Result{}, f.errFor()
 }
 func (f *lifecycleFake) ReadLoad(ctx context.Context, id string) (*l.LoadReply, bridge.Result, error) {
 	f.calls++
 	f.readLoadID = id
-	return f.load, bridge.Result{}, f.err
+	return f.load, bridge.Result{}, f.errFor()
+}
+
+// fakeAttention records acknowledgements an attention-blocked lifecycle
+// request retried against.
+type fakeAttention struct {
+	acked []string
+	err   error
+}
+
+func (f *fakeAttention) AckAttention(ctx context.Context, attentionID string) error {
+	f.acked = append(f.acked, attentionID)
+	return f.err
+}
+
+func attentionRefusal(attentionID string) error {
+	body, _ := json.Marshal(struct {
+		Status    string `json:"status"`
+		Attention struct {
+			AttentionID string `json:"attentionId"`
+		} `json:"attention"`
+	}{Status: "blocked_by_attention", Attention: struct {
+		AttentionID string `json:"attentionId"`
+	}{attentionID}})
+	return &bridge.Refusal{Tool: "games_call_tool", Result: bridge.Result{Structured: body}}
 }
 
 func lifecycleAPI(t *testing.T, mode string) (*Server, *lifecycleFake, string) {
+	t.Helper()
+	s, f, _, token := lifecycleAPIWithConfig(t, mode, true, nil)
+	return s, f, token
+}
+
+// lifecycleAPIWithConfig builds a lifecycle test server like lifecycleAPI,
+// additionally allowing the snapshot's identity to be omitted (a cold
+// bootstrap, e.g. the game still at its main menu) and an
+// AttentionAcknowledger to be wired in.
+func lifecycleAPIWithConfig(t *testing.T, mode string, knownIdentity bool, fa *fakeAttention) (*Server, *lifecycleFake, *fakeAttention, string) {
 	t.Helper()
 	db, e := store.Open(context.Background(), filepath.Join(t.TempDir(), "lifecycle.db"))
 	if e != nil {
@@ -66,14 +108,16 @@ func lifecycleAPI(t *testing.T, mode string) (*Server, *lifecycleFake, string) {
 			Loaded: &l.LoadedIdentity{Context: observed, Paused: proto.Bool(true)}, Readiness: l.Readiness_READINESS_MAP.Enum()}}},
 	}
 	f := &playerFixture{journal: db}
-	snapshot := Snapshot{
-		Connected:  true,
-		Mode:       mode,
-		Identity:   domain.Known(observation.Identity{Colony: "colony", Load: "load", Map: 0, Tick: 42}),
-		Generation: domain.Known(domain.GenerationSnapshot{Colony: "colony", Load: "load", Map: 0, Direction: 1, Plan: "plan", Revision: 1, Native: 1}),
-		Tick:       domain.Known(domain.Tick(42)),
+	snapshot := Snapshot{Connected: true, Mode: mode}
+	if knownIdentity {
+		snapshot.Identity = domain.Known(observation.Identity{Colony: "colony", Load: "load", Map: 0, Tick: 42})
+		snapshot.Generation = domain.Known(domain.GenerationSnapshot{Colony: "colony", Load: "load", Map: 0, Direction: 1, Plan: "plan", Revision: 1, Native: 1})
+		snapshot.Tick = domain.Known(domain.Tick(42))
 	}
-	s, e := NewWithPlayer(Config{Lifecycle: fake, ReadTimeout: time.Second, ShutdownTimeout: time.Second, MaxResponseBytes: 1 << 20},
+	if fa == nil {
+		fa = &fakeAttention{}
+	}
+	s, e := NewWithPlayer(Config{Lifecycle: fake, Attention: fa, ReadTimeout: time.Second, ShutdownTimeout: time.Second, MaxResponseBytes: 1 << 20},
 		snapshotFunc(func(context.Context) (Snapshot, error) { return snapshot, nil }), planFunc(unavailablePlan), f, db)
 	if e != nil {
 		t.Fatal(e)
@@ -84,7 +128,7 @@ func lifecycleAPI(t *testing.T, mode string) (*Server, *lifecycleFake, string) {
 	if err := json.Unmarshal(token.Body.Bytes(), &session); err != nil || session.Token == "" {
 		t.Fatal(token.Body.String(), err)
 	}
-	return s, fake, session.Token
+	return s, fake, fa, session.Token
 }
 
 func TestLifecycleSave(t *testing.T) {
@@ -205,5 +249,72 @@ func TestLifecycleUnavailableWithoutConfig(t *testing.T) {
 	out := playerCall(s, "POST", "/api/lifecycle/save", `{"requestId":"save-1","saveName":"checkpoint"}`, session.Token)
 	if out.Code != 404 {
 		t.Fatal(out.Code, out.Body.String())
+	}
+}
+
+func TestLifecycleLoadColdBootstrapOmitsExpectedPlayer(t *testing.T) {
+	s, f, _, token := lifecycleAPIWithConfig(t, "manual", false, nil)
+	out := playerCall(s, "POST", "/api/lifecycle/load", `{"requestId":"load-1","saveName":"checkpoint","readiness":"map","timeoutMs":5000}`, token)
+	if out.Code != 201 || f.calls != 1 {
+		t.Fatal(out.Code, out.Body.String())
+	}
+	if f.seenLoad.ExpectedPlayer != nil {
+		t.Fatal("expected nil ExpectedPlayer for a cold bootstrap load", f.seenLoad.ExpectedPlayer)
+	}
+}
+
+func TestLifecycleLoadRetriesAfterAttentionAck(t *testing.T) {
+	fa := &fakeAttention{}
+	s, f, fa, token := lifecycleAPIWithConfig(t, "automate", true, fa)
+	f.err = attentionRefusal("attn_1")
+	f.failCalls = 1
+	out := playerCall(s, "POST", "/api/lifecycle/load", `{"requestId":"load-1","saveName":"checkpoint","readiness":"map","timeoutMs":5000}`, token)
+	if out.Code != 201 || f.calls != 2 {
+		t.Fatal(out.Code, out.Body.String(), f.calls)
+	}
+	if len(fa.acked) != 1 || fa.acked[0] != "attn_1" {
+		t.Fatal(fa.acked)
+	}
+}
+
+func TestLifecycleReadLoadRetriesAfterAttentionAck(t *testing.T) {
+	fa := &fakeAttention{}
+	s, f, fa, _ := lifecycleAPIWithConfig(t, "manual", true, fa)
+	f.err = attentionRefusal("attn_2")
+	f.failCalls = 1
+	out := playerCall(s, "GET", "/api/lifecycle/load?requestId=load-1", "", "")
+	if out.Code != 200 || f.calls != 2 {
+		t.Fatal(out.Code, out.Body.String(), f.calls)
+	}
+	if len(fa.acked) != 1 || fa.acked[0] != "attn_2" {
+		t.Fatal(fa.acked)
+	}
+}
+
+func TestLifecycleLoadDoesNotRetryOnUnrelatedFailure(t *testing.T) {
+	fa := &fakeAttention{}
+	s, f, fa, token := lifecycleAPIWithConfig(t, "automate", true, fa)
+	f.err = errors.New("boom")
+	f.failCalls = 1
+	out := playerCall(s, "POST", "/api/lifecycle/load", `{"requestId":"load-1","saveName":"checkpoint","readiness":"map","timeoutMs":5000}`, token)
+	if out.Code == 201 || f.calls != 1 {
+		t.Fatal(out.Code, out.Body.String(), f.calls)
+	}
+	if len(fa.acked) != 0 {
+		t.Fatal(fa.acked)
+	}
+}
+
+func TestBlockingAttentionID(t *testing.T) {
+	if _, ok := blockingAttentionID(errors.New("boom")); ok {
+		t.Fatal("non-refusal error must not report an attention id")
+	}
+	unrelated := &bridge.Refusal{Tool: "games_call_tool", Result: bridge.Result{Structured: []byte(`{"status":"foreignOwner"}`)}}
+	if _, ok := blockingAttentionID(unrelated); ok {
+		t.Fatal("refusal without blocked_by_attention status must not report an attention id")
+	}
+	id, ok := blockingAttentionID(attentionRefusal("attn_9"))
+	if !ok || id != "attn_9" {
+		t.Fatal(id, ok)
 	}
 }

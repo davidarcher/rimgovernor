@@ -74,6 +74,25 @@ func (c *Client) GameStatus(ctx context.Context) (Result, error) {
 	})
 }
 
+type attentionArgument struct {
+	GameID      string `json:"gameId"`
+	AttentionID string `json:"attentionId"`
+}
+
+// AckAttention acknowledges a blocking GABS attention item (raised when GABS
+// observes a game-side log line it treats as noteworthy, e.g. an error-level
+// message) so that games_call_tool stops refusing further calls for this
+// game on its account. It never inspects or filters what is being
+// acknowledged; callers decide that from the Refusal detail they observed.
+func (c *Client) AckAttention(ctx context.Context, attentionID string) (Result, error) {
+	if attentionID == "" {
+		return Result{}, fmt.Errorf("%w: attention id required", ErrContract)
+	}
+	return c.operation(ctx, func(ctx context.Context, live *liveSession) (Result, error) {
+		return c.core(ctx, live, "games_ack_attention", encode(attentionArgument{c.gameID, attentionID}))
+	})
+}
+
 // NativeNames and Describe inspect metadata only. A discovered name can never be
 // passed through these methods to games_call_tool.
 func (c *Client) NativeNames(ctx context.Context, cursor, query string) (Result, error) {
