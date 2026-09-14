@@ -41,9 +41,12 @@ Python interpreter, venv or `controller/` package. What it covers today is
 bounded by the closed executor action set (building, owned draft, melee) and
 the construction planners wired in `serve_clock.go` — see
 [the migration review](../docs/developers/go-migration-review.md) for the exact
-capability boundary. It does not do player chat, save/load, media/camera
-controls or world progression; those stay in Python until G01.08/G01.09/G01.07f
-land.
+capability boundary. It does not do player chat, save/load or media/camera
+controls; those stay in Python until G01.08/G01.09 land. Caravan departure and
+travel, quest accept/fulfill and settlement gifting run through Go
+(G01.07f); trade and the richer read-only expedition/world advisory scoring
+remain open, tracked on
+[issue #28](https://github.com/davidarcher/rimgovernor/issues/28).
 
 **Windows**, from the repository root:
 
@@ -87,7 +90,17 @@ confirm the packaging path is wired correctly, not that a colony runs.
 - Player chat and local-model command interpretation (`player_commands.py`,
   `interpreter/decode.go` only accepts building proposals) — G01.08.
 - Media/camera/portrait/video/recording and trusted save/load — G01.09.
-- World progression: caravans, quests, settlement gifts, multi-map — G01.07f.
+- World progression remaining scope: trade (no domain/policy/store/executor
+  yet, only the native wire client), the richer read-only expedition-risk and
+  world-evaluation advisory scoring (`evaluate_expedition`/`evaluate_world`
+  in `controller/rimgovernor/expedition_policy.py`), and native acceptance
+  harnesses for quest accept and settlement gift — G01.07f
+  ([issue #28](https://github.com/davidarcher/rimgovernor/issues/28)).
+  Caravan departure/travel, quest accept/fulfill and settlement gift
+  themselves are closed, each with domain/policy/store/executor/bridge and
+  httpapi wiring; caravan departure and travel additionally have native
+  acceptance harnesses (`nativeaccept/cmd/caravandepartureaccept`,
+  `nativeaccept/cmd/caravancontrolaccept`).
 - Most routine workflows beyond construction: cooking/butcher bill execution,
   care/tend/rescue/defense dispatch beyond compiled plans, and other
   non-building executable actions — G01.05/G01.07a–c/e (many `--routine-*-plans`
