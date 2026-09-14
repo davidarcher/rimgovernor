@@ -23,8 +23,17 @@ namespace HomeBridge.BridgeTools
         internal readonly string? CaravanId;
         internal readonly int DestinationTile;
         internal readonly string[] PawnIds;
-        internal NativeCaravanRecord(string? caravanId, int destinationTile, string[] pawnIds)
-        { CaravanId = caravanId; DestinationTile = destinationTile; PawnIds = pawnIds; }
+        // TryFormAndSendCaravan does not create the Caravan world object
+        // synchronously: it calls CaravanFormingUtility.StartFormingCaravan,
+        // which starts a LordJob that walks the pawns to an exit tile over
+        // subsequent ticks before the caravan is actually created. AssemblyStarted
+        // distinguishes "native accepted the attempt and formation is under way"
+        // (CaravanId legitimately not resolvable yet -- keep polling) from "native
+        // refused the attempt outright" (CaravanId will never resolve -- final
+        // failure), which a null CaravanId alone cannot tell apart.
+        internal readonly bool AssemblyStarted;
+        internal NativeCaravanRecord(string? caravanId, int destinationTile, string[] pawnIds, bool assemblyStarted)
+        { CaravanId = caravanId; DestinationTile = destinationTile; PawnIds = pawnIds; AssemblyStarted = assemblyStarted; }
     }
 
     internal static class NativeCaravanOperations
@@ -169,20 +178,59 @@ namespace HomeBridge.BridgeTools
                     if (!Prepare(command, context, out map, out dialog, out pawns, out failure) || map == null || dialog == null || pawns == null)
                         throw new InvalidOperationException("Caravan formation prerequisites changed after admission.");
                     var expectedIds = pawns.Select(p => p.GetUniqueLoadID()).OrderBy(id => id, StringComparer.Ordinal).ToArray();
-                    bool accepted = (bool)NativeCaravanCatalog.Call(dialog, "TryFormAndSendCaravan")!;
-                    var caravan = accepted
-                        ? Find.WorldObjects.Caravans.SingleOrDefault(c => c.IsPlayerControlled
-                            && c.PawnsListForReading.Select(p => p.GetUniqueLoadID()).OrderBy(id => id, StringComparer.Ordinal).SequenceEqual(expectedIds))
-                        : null;
-                    var record = new NativeCaravanRecord(caravan?.GetUniqueLoadID(), command.DestinationTile, command.PawnIds.ToArray());
+                    // TryFormAndSendCaravan can throw after it has already mutated
+                    // native state (e.g. exiting the map and creating the Caravan
+                    // world object) -- vanilla RimWorld's own post-formation steps
+                    // (messages, tales, letters) are not exception-safe. Detecting
+                    // the caravan and registering the record must happen whether or
+                    // not the call threw, or an attempt that fails exactly here can
+                    // never be resolved later: receipts_observe_progress/lookup key
+                    // off state.Caravans, which a throw here would otherwise leave
+                    // empty forever, permanently stranding the admitted attempt.
+                    // TryFormAndSendCaravan itself returns false (without
+                    // throwing) whenever vanilla's CheckForWarnings flags a
+                    // non-fatal concern (e.g. insufficient trip food, no one
+                    // able to tend the sick) -- it defers the actual formation
+                    // to a Dialog_MessageBox confirmation's buttonAAction,
+                    // exactly like Dialog_FormCaravan's own UI flow requires a
+                    // player click to proceed. There is no player here, so
+                    // that confirmation must be auto-accepted the same way
+                    // NativeQuestFulfillOperations.Execute auto-accepts the
+                    // vanilla TradeRequestComp gizmo's own confirmation.
+                    bool accepted; Exception? formError = null;
+                    var windowsBefore = Find.WindowStack.Windows.ToArray();
+                    try { accepted = (bool)NativeCaravanCatalog.Call(dialog, "TryFormAndSendCaravan")!; }
+                    catch (Exception error) { accepted = false; formError = error; }
+                    if (!accepted && formError == null)
+                    {
+                        var newWindows = Find.WindowStack.Windows.Where(w => !windowsBefore.Contains(w)).ToArray();
+                        var confirmation = newWindows.OfType<Dialog_MessageBox>().SingleOrDefault();
+                        if (confirmation?.buttonAAction != null)
+                        {
+                            try { confirmation.buttonAAction(); accepted = true; }
+                            catch (Exception error) { accepted = false; formError = error; }
+                            finally { confirmation.Close(); }
+                        }
+                    }
+                    var caravan = Find.WorldObjects.Caravans.SingleOrDefault(c => c.IsPlayerControlled
+                        && c.PawnsListForReading.Select(p => p.GetUniqueLoadID()).OrderBy(id => id, StringComparer.Ordinal).SequenceEqual(expectedIds));
+                    var record = new NativeCaravanRecord(caravan?.GetUniqueLoadID(), command.DestinationTile, command.PawnIds.ToArray(), accepted);
                     state.Caravans.Add(pre.Attempt.Clone(), record);
                     var effect = new Receipts.CaravanEffect
                     {
-                        CaravanId = record.CaravanId, AssemblyStarted = accepted, PathStarted = caravan != null && caravan.pather.Moving,
+                        AssemblyStarted = accepted || caravan != null, PathStarted = caravan != null && caravan.pather.Moving,
                         DestinationTile = command.DestinationTile,
                     };
+                    // CaravanId is a protobuf string field: Google.Protobuf's
+                    // generated setter throws ArgumentNullException on a null
+                    // assignment. record.CaravanId is null exactly when no
+                    // caravan was formed (a legitimate native refusal, not only
+                    // the exceptional path above) -- assigning it unconditionally
+                    // crashed this exact refusal case pre-existing this change.
+                    if (record.CaravanId != null) effect.CaravanId = record.CaravanId;
                     effect.PawnIds.Add(command.PawnIds);
                     evidence = new Receipts.EffectEvidence { Caravan = effect };
+                    if (formError != null) throw new InvalidOperationException("Native caravan formation raised an exception.", formError);
                     if (!accepted || caravan == null) throw new InvalidOperationException("Native caravan formation readback did not apply.");
                 }
                 return new Operations.ExecuteReply { Receipt = NativeOperationEnvelope.Applied(state.Ledger, handle, pre.Attempt, context, owner, evidence) };
@@ -200,7 +248,7 @@ namespace HomeBridge.BridgeTools
             var result = new Receipts.Progress { Attempt = attempt.Clone(), Context = context.Clone(), CompleteInspection = false };
             try
             {
-                if (record.CaravanId == null)
+                if (record.CaravanId == null && !record.AssemblyStarted)
                 {
                     result.CompleteInspection = true;
                     var effect = new Receipts.CaravanEffect { AssemblyStarted = false, DestinationTile = record.DestinationTile };
@@ -209,16 +257,26 @@ namespace HomeBridge.BridgeTools
                         Evidence = new Receipts.EffectEvidence { Caravan = effect }, Detail = "Native caravan formation was not accepted." };
                     return result;
                 }
-                var caravan = Find.WorldObjects.Caravans.SingleOrDefault(c => c.IsPlayerControlled && c.GetUniqueLoadID() == record.CaravanId);
+                var caravan = record.CaravanId != null
+                    ? Find.WorldObjects.Caravans.SingleOrDefault(c => c.IsPlayerControlled && c.GetUniqueLoadID() == record.CaravanId)
+                    // AssemblyStarted but CaravanId unresolved: StartFormingCaravan's LordJob
+                    // walks pawns to an exit tile over subsequent ticks before the Caravan
+                    // world object exists, so the readback in Execute can legitimately have
+                    // been too early. Retry the same pawn-set lookup Execute used.
+                    : Find.WorldObjects.Caravans.SingleOrDefault(c => c.IsPlayerControlled
+                        && c.PawnsListForReading.Select(p => p.GetUniqueLoadID()).OrderBy(id => id, StringComparer.Ordinal)
+                            .SequenceEqual(record.PawnIds.OrderBy(id => id, StringComparer.Ordinal)));
                 if (caravan == null)
                 {
-                    result.Unknown = new Receipts.UnknownEffect { Reason = "The formed caravan is no longer observable; arrival or disbanding is not tracked yet." };
+                    result.Unknown = new Receipts.UnknownEffect { Reason = record.CaravanId != null
+                        ? "The formed caravan is no longer observable; arrival or disbanding is not tracked yet."
+                        : "Caravan formation was admitted and is still under way; not yet observable." };
                     return result;
                 }
                 result.CompleteInspection = true;
                 var current = new Receipts.CaravanEffect
                 {
-                    CaravanId = record.CaravanId, AssemblyStarted = true, PathStarted = caravan.pather.Moving, Stopped = !caravan.pather.Moving,
+                    CaravanId = caravan.GetUniqueLoadID(), AssemblyStarted = true, PathStarted = caravan.pather.Moving, Stopped = !caravan.pather.Moving,
                     DestinationTile = record.DestinationTile,
                 };
                 current.PawnIds.Add(caravan.PawnsListForReading.Select(p => p.GetUniqueLoadID()).Where(id => record.PawnIds.Contains(id)));

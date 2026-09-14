@@ -9,7 +9,7 @@ param(
         'MoodFixture', 'PopulationFixture', 'HusbandryFixture', 'MedicalManagementFixture',
         'MiningFixture', 'FoodObservationFixture', 'UpkeepFixture', 'TradeFixture',
         'ScenarioStartFixture', 'ConstructionLedgerFixture', 'EmergencyDevelopmentFixture',
-        'InstallFixture', 'ForecastFixture', 'InspectorFixture', 'ModalFixture', 'CampaignMetricsFixture', 'DraftFaultFixture', 'QuestFulfillFixture', 'BuildingTemperatureFixture', 'SurgeryFixture', 'CaravanControlFixture')]
+        'InstallFixture', 'ForecastFixture', 'InspectorFixture', 'ModalFixture', 'CampaignMetricsFixture', 'DraftFaultFixture', 'QuestFulfillFixture', 'BuildingTemperatureFixture', 'SurgeryFixture', 'CaravanControlFixture', 'CaravanDepartureFixture')]
     [string[]]$Fixture = @()
 )
 $ErrorActionPreference = 'Stop'

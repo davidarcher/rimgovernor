@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using HarmonyLib;
 using Verse;
 using Verse.Sound;
@@ -68,7 +69,19 @@ namespace HeadlessRim
             if (portraitOriginal != null)
                 harmony.Patch(portraitOriginal, prefix: new HarmonyMethod(typeof(HeadlessPatches), nameof(ReturnNullTexturePrefix)));
 
-            Log.Message("[HeadlessRim] Finished applying patches for: [UI Loop, Mesh generation, Audio, Portraits]");
+            // Caravan world-map arrival (e.g. CaravanExitMapUtility.ExitMapAndCreateCaravan
+            // routing a caravan straight to a destination) builds a world-tile float menu to
+            // offer the player a choice of arrival action. FloatMenuOption's constructor sizes
+            // its label via Verse.Text, whose static state is never initialized in headless mode
+            // (OnGUI never runs here) -- the first touch throws "GUI functions from inside OnGUI"
+            // and aborts the caller. There is no player to choose from the menu anyway, so skip
+            // straight to no eligible choices; callers fall back to a direct path/order.
+            Patch(harmony, typeof(FloatMenuMakerWorld), "ChoicesAtFor",
+                new[] { typeof(PlanetTile), typeof(Caravan) }, nameof(EmptyWorldFloatMenuChoicesPrefix));
+            Patch(harmony, typeof(FloatMenuMakerWorld), "ChoicesAtFor",
+                new[] { typeof(Vector2), typeof(Caravan) }, nameof(EmptyWorldFloatMenuChoicesPrefix));
+
+            Log.Message("[HeadlessRim] Finished applying patches for: [UI Loop, Mesh generation, Audio, Portraits, World float menus]");
         }
 
         // Helpers
@@ -82,7 +95,22 @@ namespace HeadlessRim
             catch (Exception error) { Log.Warning("[HeadlessRim] Patch failed: " + type.FullName + "." + methodName + ": " + error.Message); }
         }
 
+        private static void Patch(Harmony harmony, Type type, string methodName, Type[] parameters, string patchMethodName)
+        {
+            try
+            {
+                var original = AccessTools.Method(type, methodName, parameters);
+                if (original != null) harmony.Patch(original, prefix: new HarmonyMethod(typeof(HeadlessPatches), patchMethodName));
+            }
+            catch (Exception error) { Log.Warning("[HeadlessRim] Patch failed: " + type.FullName + "." + methodName + ": " + error.Message); }
+        }
+
         public static bool SkipPrefix() => false;
+        public static bool EmptyWorldFloatMenuChoicesPrefix(ref List<FloatMenuOption> __result)
+        {
+            __result = new List<FloatMenuOption>();
+            return false;
+        }
         public static void LongEventUpdatePrefix(object ___currentEvent)
         {
             if (___currentEvent != null)

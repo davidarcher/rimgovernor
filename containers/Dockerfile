@@ -35,6 +35,19 @@ COPY --from=dashboard /src/controller/rimgovernor/static/ controller/rimgovernor
 RUN pip install --no-cache-dir .
 CMD ["python", "-m", "rimgovernor", "--colonies", "--host", "0.0.0.0"]
 
+# Builds Go native-accept probes (go/internal/nativeaccept/cmd/*) for the worker
+# image, so a Docker-isolated acceptance run can exec a compiled probe directly
+# instead of a Python scenario script. Kept minimal and task-scoped: only the
+# probes actually used in a container run are built here.
+FROM golang:1.27.1-bookworm AS go-accept-builder
+WORKDIR /src
+COPY contracts/generated/protobuf/go/ contracts/generated/protobuf/go/
+COPY go/ go/
+WORKDIR /src/go
+RUN go mod download
+ENV CGO_ENABLED=0
+RUN go build -o /out/caravandepartureaccept ./internal/nativeaccept/cmd/caravandepartureaccept
+
 FROM controller-dependencies AS worker-dependencies
 RUN apt-get update && apt-get install -y --no-install-recommends libglib2.0-0 libglu1-mesa libgl1 libxcursor1 libxrandr2 libxinerama1 libxi6 libasound2 libgtk-3-0 libnss3 libxss1 libxtst6 xvfb x11-utils mesa-utils libgl1-mesa-dri && rm -rf /var/lib/apt/lists/*
 
@@ -43,6 +56,7 @@ LABEL io.rimgovernor.scenario-dashboard="1"
 # Reuse native libraries when only application source or probes change.
 COPY --from=tests /usr/local/ /usr/local/
 COPY --from=tests /app/ /app/
+COPY --from=go-accept-builder /out/caravandepartureaccept /app/bin/caravandepartureaccept
 ENV PYTHONUNBUFFERED=1
 ENV RIMGOVERNOR_CONTAINER_SOURCE=1
 ENTRYPOINT ["python", "-m", "rimgovernor.container_worker"]
