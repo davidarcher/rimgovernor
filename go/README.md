@@ -52,6 +52,18 @@ land.
 .\launch-go.ps1 -PlayerControl ...  # building/routine execution; add --routine-* flags after --
 ```
 
+`serve --player-control --clock-control --routine-reviews --routine-methods`
+composes every implemented and tested routine planner family (G01.10) instead
+of requiring an operator to enumerate the ~30 individual
+`--routine-*-plans`/`--routine-methods` flags: naming zero of those flags turns
+all of them on. Naming even one opts back out to exactly the named families,
+for targeted/debug runs. `GET /api/routines` reports which families a running
+process composed, whether reviews/methods execution are enabled, and the
+durable review cursor's last reviewed tick — a runtime-queryable view of the
+capability table below. Startup reconciliation (durable holds and goal
+admission on process start) is generation/goal-keyed rather than per-flag, so
+it already covers whatever set of families a given invocation composes.
+
 It builds the binary if missing, reuses the same dashboard build the Python
 launcher serves (`controller/rimgovernor/static`, built with `pnpm`, no
 Python), and requires the same prepared GABS/config/profile inputs as

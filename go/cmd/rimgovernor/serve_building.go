@@ -542,10 +542,14 @@ func serveBuildingWithBridge(ctx context.Context, config serveConfig, out io.Wri
 	presentation, _ := client.reads.(httpapi.PresentationReader)
 	notifications, _ := client.reads.(httpapi.NotificationReader)
 	var clockReview httpapi.ClockReview
+	var routines httpapi.RoutineProvider
 	if config.clockControl {
 		clockReview = serviceClockReview{database, config.profile}
 	}
-	server, err := httpapi.NewWithPlayer(httpapi.Config{ClockReview: clockReview, Notifications: notifications, Presentation: presentation, PresentationMedia: client.presentationMedia, AssetsDir: config.assets, ReadTimeout: 35 * time.Second, ShutdownTimeout: 5 * time.Second, MaxResponseBytes: 1 << 20}, buildingSnapshots{reads, player}, database, player, database)
+	if config.routineReviews {
+		routines = serviceRoutineDiagnostics{database, config.routineReviews, config.routineMethods, config.activeRoutineFamilies()}
+	}
+	server, err := httpapi.NewWithPlayer(httpapi.Config{ClockReview: clockReview, Routines: routines, Notifications: notifications, Presentation: presentation, PresentationMedia: client.presentationMedia, AssetsDir: config.assets, ReadTimeout: 35 * time.Second, ShutdownTimeout: 5 * time.Second, MaxResponseBytes: 1 << 20}, buildingSnapshots{reads, player}, database, player, database)
 	if err != nil {
 		return err
 	}

@@ -141,7 +141,7 @@ func (s *Server) handle(w http.ResponseWriter, r *http.Request) {
 	if s.handlePlayer(w, r) {
 		return
 	}
-	known := r.URL.Path == "/api/state" || r.URL.Path == "/api/health" || r.URL.Path == "/api/plan"
+	known := r.URL.Path == "/api/state" || r.URL.Path == "/api/health" || r.URL.Path == "/api/plan" || r.URL.Path == "/api/routines"
 	if r.Method != http.MethodGet && r.Method != http.MethodHead {
 		if known {
 			w.Header().Set("Allow", "GET, HEAD")
@@ -198,6 +198,20 @@ func (s *Server) handle(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		s.write(w, r, 200, result)
+	case "/api/routines":
+		if s.config.Routines == nil {
+			s.failure(w, r, 404, "not_found", "Routine diagnostics are not enabled")
+			return
+		}
+		status, err := s.config.Routines.RoutineStatus(ctx)
+		if err == nil {
+			err = ctx.Err()
+		}
+		if err != nil {
+			s.readFailure(w, r, err)
+			return
+		}
+		s.write(w, r, 200, routineStatus(status))
 	case "/api/plan":
 		ids := query["id"]
 		if len(query) != 1 || len(ids) != 1 || strings.TrimSpace(ids[0]) == "" || len(ids[0]) > 256 || !utf8.ValidString(ids[0]) {
