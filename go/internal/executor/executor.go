@@ -116,6 +116,8 @@ type Executor struct {
 	tendJournal                TendJournal
 	rescue                     RescueBoundary
 	rescueJournal              RescueJournal
+	capture                    CaptureBoundary
+	captureJournal             CaptureJournal
 	haul                       HaulBoundary
 	haulJournal                HaulJournal
 	equip                      EquipBoundary
@@ -338,6 +340,9 @@ func (e *Executor) Run(ctx context.Context, plan domain.PlanID, actionID domain.
 	}
 	if action.Kind() == domain.RescueAction && e.rescue != nil {
 		return e.runRescue(ctx, action, progress, authority, generation)
+	}
+	if action.Kind() == domain.CaptureAction && e.capture != nil {
+		return e.runCapture(ctx, action, progress, authority, generation)
 	}
 	if action.Kind() == domain.RangedAttackAction && e.ranged != nil {
 		return e.runRangedAttack(ctx, action, progress, authority, generation)

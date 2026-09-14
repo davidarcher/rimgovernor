@@ -148,6 +148,11 @@ type RoutineFacts struct {
 	// a dedicated per-cycle RoutineSource read instead of ObserveColony's
 	// always-present projection.
 	Prisoners domain.Fact[[]PrisonerFacts]
+	// Custody carries Population-*'s capture/rescue candidate census: every
+	// observed humanlike from the same dedicated population read Prisoners
+	// uses, broadened past prisoners alone so RoutinePopulationCustodyPlanner
+	// can detect and select a downed hostile or unadmitted guest to dispatch.
+	Custody domain.Fact[[]CustodyFacts]
 	// AvailableMethods is supplied by the configured runtime, never native facts.
 	AvailableMethods                                                           domain.Fact[[]GoalID]
 	Upkeep                                                                     UpkeepObservation
@@ -604,9 +609,21 @@ func DetectRoutine(f RoutineFacts, previous RoutineLatches, p RoutinePolicy) (Ro
 		addGoal(MaintainHerd, 3)
 		r.Goals[len(r.Goals)-1].MethodUnavailable = true
 	}
+	// custodyDeficit is only known once a deployment reads the population
+	// census broadened for custody (RoutinePopulationCustodyPlanner); an
+	// unknown custody status is not held against recovery, matching every
+	// other optional sub-step fact in this function -- only a known deficit,
+	// in either prisoner recruitment or custody, blocks recovery.
 	populationRecovered := domain.Unknown[bool]()
-	if deficit, known := PrisonerRecruitDeficit(f.Prisoners).Value(); known {
-		populationRecovered = domain.Known(!deficit)
+	prisonerDeficit, prisonerDeficitKnown := PrisonerRecruitDeficit(f.Prisoners).Value()
+	custodyDeficit, custodyDeficitKnown := CustodyDeficit(f.Custody).Value()
+	switch {
+	case prisonerDeficitKnown && prisonerDeficit, custodyDeficitKnown && custodyDeficit:
+		populationRecovered = domain.Known(false)
+	case prisonerDeficitKnown:
+		populationRecovered = domain.Known(!prisonerDeficit)
+	case custodyDeficitKnown:
+		populationRecovered = domain.Known(!custodyDeficit)
 	}
 	addAssessment(MaintainPopulation, 3, populationRecovered)
 	if !positive(populationRecovered) {

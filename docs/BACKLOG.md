@@ -1025,8 +1025,25 @@ without pushes, when the target checkout is safe; preserve other developers' wor
     `PrisonerInteractionBoundary`/`bridge.ReadPrisonerInteractionTarget`-backed
     buildingruntime wiring), matching `MaintainHerd-*`'s vertical shape, and now
     also has the routine-scheduler/CLI wiring described above. Population-*'s
-    custody sub-steps (capture/rescue) and every other e-row family's
-    need/health/stock/custody/service composition remain unstarted. G01.12
+    custody sub-steps (capture/rescue) are now also code-complete: a new
+    `CaptureAction` vertical (`Operations.Capture` already implemented in
+    `OrderTool.cs` via the same generic `PawnTargetOrder`/`PawnOrderKind`
+    dispatch Rescue uses, so no native change was needed) mirrors
+    `RescueAction`'s exact shape end to end, while the rescue leg reuses the
+    existing generic `RescueAction` vertical directly. `policy.MaintainPopulation`
+    now also folds in a custody deficit (`internal/policy/population_custody.go`)
+    derived from the same broadened per-cycle population census
+    (`RoutineFacts.Custody`, sourced from the existing
+    `rimgovernor/observations_read_population` read — no new native read
+    needed), and `RoutinePopulationCustodyPlanner` dispatches one capture or
+    rescue write per cycle behind `--routine-population-custody-plans`, wired
+    through `serve.go`/`serve_building.go`/`serve_clock.go` and `CaptureAction`
+    added to the three routine-dispatch allowlists. Disclosed narrowing: the
+    capture-vs-rescue choice is derived algorithmically from observed
+    guest/admitted/hostile facts rather than Python's externally supplied
+    per-pawn decision, matching every other `MaintainX` vertical's
+    fact-driven-deficit style. Every other e-row family's
+    need/health/stock/custody/service composition remains unstarted. G01.12
     gameplay acceptance gates the whole item.
 
   - [ ] **05.7 — Close the routine integration coverage.**

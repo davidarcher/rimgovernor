@@ -15,6 +15,7 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/acquisition"
 	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/bill"
 	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/boundary"
+	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/capture"
 	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/draft"
 	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/equip"
 	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/haul"
@@ -57,6 +58,7 @@ type buildingServiceBridge struct {
 	ranged              *ranged.RangedCapabilities
 	tend                *tend.TendCapabilities
 	rescue              *rescue.RescueCapabilities
+	capture             *capture.CaptureCapabilities
 	equip               *equip.EquipCapabilities
 	haul                *haul.HaulCapabilities
 	repair              *buildingruntime.RepairCapabilities
@@ -178,6 +180,7 @@ func openBuildingService(ctx context.Context, config bridge.ProcessConfig) (buil
 		ranged:              &ranged.RangedCapabilities{Native: client, Writer: attack},
 		tend:                &tend.TendCapabilities{Native: client, Writer: pawnOrder},
 		rescue:              &rescue.RescueCapabilities{Native: client, Writer: pawnOrder},
+		capture:             &capture.CaptureCapabilities{Native: client, Writer: pawnOrder},
 		equip:               &equip.EquipCapabilities{Native: client, Writer: pawnOrder},
 		haul:                &haul.HaulCapabilities{Native: client, Writer: pawnOrder},
 		repair:              &buildingruntime.RepairCapabilities{Native: client, Writer: pawnOrder},
@@ -360,11 +363,18 @@ func serveBuildingWithBridge(ctx context.Context, config serveConfig, out io.Wri
 		tendCapabilities = client.tend
 	}
 	var rescueCapabilities *rescue.RescueCapabilities
-	if config.routineRescuePlans {
+	if config.routineRescuePlans || config.routinePopulationCustodyPlans {
 		if client.rescue == nil {
 			return errors.New("rescue plans require typed capabilities")
 		}
 		rescueCapabilities = client.rescue
+	}
+	var captureCapabilities *capture.CaptureCapabilities
+	if config.routinePopulationCustodyPlans {
+		if client.capture == nil {
+			return errors.New("population custody plans require typed capture capabilities")
+		}
+		captureCapabilities = client.capture
 	}
 	var equipCapabilities *equip.EquipCapabilities
 	if config.routineEquipPlans {
@@ -444,6 +454,7 @@ func serveBuildingWithBridge(ctx context.Context, config serveConfig, out io.Wri
 		Ranged:              rangedCapabilities,
 		Tend:                tendCapabilities,
 		Rescue:              rescueCapabilities,
+		Capture:             captureCapabilities,
 		Equip:               equipCapabilities,
 		Haul:                haulCapabilities,
 		Repair:              repairCapabilities,
@@ -476,7 +487,7 @@ func serveBuildingWithBridge(ctx context.Context, config serveConfig, out io.Wri
 	}
 	owner = player
 	if config.clockControl {
-		if err = startServiceClock(lifetime, player, session, client.clockReads, database, config.profile, callTimeout, config.routineReviews, config.routineSleepingPlans, config.routineCookingPlans, config.routineShelterPlans, config.routineComfortPlans, config.routineExpansionPlans, config.routinePowerPlans, config.routineTemperaturePlans, config.routineProjectLimit, config.routineSupplyPlans, config.routineWorkPlans, config.routineAcquisitionPlans, config.routineDefensePlans, config.routineTendPlans, config.routineRescuePlans, config.routineEquipPlans, config.routineSecureSuppliesPlans, config.routineRepairPlans, config.routineCleanPlans, config.routineGearPlans, config.routineMedicalPlans, config.routineAnimalContainmentPlans, config.routineRecoveryPlans, config.routineHusbandryPlans, config.caravanJourneyTracking, config.routineResearchTarget, config.routineResourceTargets.Map(), config.routineFieldPlans, config.routineBillPlans, config.routineFoodStoragePlans, config.routinePrisonerInteractionPlans); err != nil {
+		if err = startServiceClock(lifetime, player, session, client.clockReads, database, config.profile, callTimeout, config.routineReviews, config.routineSleepingPlans, config.routineCookingPlans, config.routineShelterPlans, config.routineComfortPlans, config.routineExpansionPlans, config.routinePowerPlans, config.routineTemperaturePlans, config.routineProjectLimit, config.routineSupplyPlans, config.routineWorkPlans, config.routineAcquisitionPlans, config.routineDefensePlans, config.routineTendPlans, config.routineRescuePlans, config.routineEquipPlans, config.routineSecureSuppliesPlans, config.routineRepairPlans, config.routineCleanPlans, config.routineGearPlans, config.routineMedicalPlans, config.routineAnimalContainmentPlans, config.routineRecoveryPlans, config.routineHusbandryPlans, config.caravanJourneyTracking, config.routineResearchTarget, config.routineResourceTargets.Map(), config.routineFieldPlans, config.routineBillPlans, config.routineFoodStoragePlans, config.routinePrisonerInteractionPlans, config.routinePopulationCustodyPlans); err != nil {
 			return err
 		}
 	}

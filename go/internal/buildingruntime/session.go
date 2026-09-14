@@ -9,6 +9,7 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/acquisition"
 	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/bill"
 	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/boundary"
+	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/capture"
 	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/draft"
 	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/equip"
 	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/haul"
@@ -42,6 +43,7 @@ type SessionConfig struct {
 	Ranged              *ranged.RangedCapabilities
 	Tend                *tend.TendCapabilities
 	Rescue              *rescue.RescueCapabilities
+	Capture             *capture.CaptureCapabilities
 	Equip               *equip.EquipCapabilities
 	GearReplace         *GearReplaceCapabilities
 	Repair              *RepairCapabilities
@@ -407,6 +409,15 @@ func NewSession(ctx context.Context, config SessionConfig, journal *store.Store,
 			return cleanup(err)
 		}
 		if err := worker.EnableRescue(rescueBoundary); err != nil {
+			return cleanup(err)
+		}
+	}
+	if config.Capture != nil {
+		captureBoundary, err := capture.NewCaptureBoundary(config.Capture.Native, config.Capture.Writer, sessionBuildingLeases{control, journal, config.RoutineMethods, config.Executor.JournalTimeout}, clock, string(namespace))
+		if err != nil {
+			return cleanup(err)
+		}
+		if err := worker.EnableCapture(captureBoundary); err != nil {
 			return cleanup(err)
 		}
 	}

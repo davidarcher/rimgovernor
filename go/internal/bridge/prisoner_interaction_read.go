@@ -115,6 +115,9 @@ func (client *Client) ReadPrisonerInteractionTarget(ctx context.Context, identit
 type PrisonerCensus struct {
 	Context   *c.ObservationContext
 	Prisoners domain.Fact[[]policy.PrisonerFacts]
+	// Custody carries the same read's capture/rescue candidate census: every
+	// observed humanlike, not only prisoners. See ReadRoutinePopulation.
+	Custody domain.Fact[[]policy.CustodyFacts]
 }
 
 // ReadRoutinePopulation reads the whole population census and extracts every
@@ -144,6 +147,7 @@ func (client *Client) ReadRoutinePopulation(ctx context.Context, identity *c.Ide
 	}
 	seen := map[string]bool{}
 	rows := make([]policy.PrisonerFacts, 0, len(observed.Persons))
+	custody := make([]policy.CustodyFacts, 0, len(observed.Persons))
 	for _, person := range observed.Persons {
 		if person == nil || person.GetPawn().GetPawn() == nil {
 			return PrisonerCensus{}, raw, contract("population person missing pawn identity")
@@ -154,8 +158,28 @@ func (client *Client) ReadRoutinePopulation(ctx context.Context, identity *c.Ide
 		}
 		seen[id] = true
 		pawn := person.GetPawn()
+		custodyRow := policy.CustodyFacts{Pawn: domain.PawnID(id)}
+		if pawn.Dead != nil {
+			custodyRow.Dead = domain.Known(pawn.GetDead())
+		}
+		if pawn.Downed != nil {
+			custodyRow.Downed = domain.Known(pawn.GetDowned())
+		}
+		if pawn.Hostile != nil {
+			custodyRow.Hostile = domain.Known(pawn.GetHostile())
+		}
+		if pawn.Prisoner != nil {
+			custodyRow.Prisoner = domain.Known(pawn.GetPrisoner())
+		}
+		if person.Admitted != nil {
+			custodyRow.Admitted = domain.Known(person.GetAdmitted())
+		}
+		if person.Guest != nil {
+			custodyRow.Guest = domain.Known(person.GetGuest())
+		}
+		custody = append(custody, custodyRow)
 		if pawn.Prisoner == nil || !pawn.GetPrisoner() {
-			continue // MaintainPopulation only ever considers colony prisoners.
+			continue // MaintainPopulation's recruit census only ever considers colony prisoners.
 		}
 		snapshotToken := pawn.GetSnapshot().GetToken()
 		if validID(snapshotToken) != nil {
@@ -178,5 +202,5 @@ func (client *Client) ReadRoutinePopulation(ctx context.Context, identity *c.Ide
 		}
 		rows = append(rows, f)
 	}
-	return PrisonerCensus{Context: observed.Context, Prisoners: domain.Known(rows)}, raw, nil
+	return PrisonerCensus{Context: observed.Context, Prisoners: domain.Known(rows), Custody: domain.Known(custody)}, raw, nil
 }

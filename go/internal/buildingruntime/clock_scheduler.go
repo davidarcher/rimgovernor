@@ -59,6 +59,7 @@ type ClockSchedulerConfig struct {
 	Recovery                         *RoutineRecoveryPlanner
 	Husbandry                        *RoutineHusbandryPlanner
 	PrisonerInteraction              *RoutinePrisonerInteractionPlanner
+	PopulationCustody                *RoutinePopulationCustodyPlanner
 	Research                         *RoutineResearchPlanner
 	Resource                         *RoutineResourcePlanner
 	CaravanJourney                   *CaravanJourneyTracker
@@ -94,6 +95,7 @@ type ClockSchedulerResult struct {
 	Recovery                                      *RoutineRecoveryResult
 	Husbandry                                     *RoutineHusbandryResult
 	PrisonerInteraction                           *RoutinePrisonerInteractionResult
+	PopulationCustody                             *RoutinePopulationCustodyResult
 	Research                                      *RoutineResearchResult
 	Resource                                      *RoutineResourceResult
 	CaravanJourney                                *CaravanJourneyResult
@@ -201,6 +203,9 @@ func NewClockScheduler(player *Player, session *Session, native ClockWindowNativ
 		return nil, ErrControl
 	}
 	if config.PrisonerInteraction != nil && (config.Routine == nil || config.PrisonerInteraction.reviewer != config.Routine) {
+		return nil, ErrControl
+	}
+	if config.PopulationCustody != nil && (config.Routine == nil || config.PopulationCustody.reviewer != config.Routine) {
 		return nil, ErrControl
 	}
 	if config.Research != nil && (config.Routine == nil || config.Research.reviewer != config.Routine) {
@@ -416,6 +421,13 @@ func (s *ClockScheduler) Step(ctx context.Context) (ClockSchedulerResult, error)
 			return out, err
 		}
 		out.PrisonerInteraction = &method
+	}
+	if s.config.PopulationCustody != nil {
+		method, err := s.config.PopulationCustody.step(call, epoch)
+		if err != nil {
+			return out, err
+		}
+		out.PopulationCustody = &method
 	}
 	if s.config.Research != nil {
 		method, err := s.config.Research.step(call, epoch)
@@ -741,7 +753,7 @@ func clockSchedulerWork(plan store.PlanState, current domain.GenerationSnapshot)
 		if _, ok := p.Action().Building(); !ok {
 			switch p.Action().Kind() {
 			case domain.AcquisitionAction, domain.ProductionBillAction, domain.OwnedDraftAction,
-				domain.MeleeAttackAction, domain.RangedAttackAction, domain.TendAction, domain.RescueAction,
+				domain.MeleeAttackAction, domain.RangedAttackAction, domain.TendAction, domain.RescueAction, domain.CaptureAction,
 				domain.HaulAction, domain.EquipAction, domain.GearReplaceAction, domain.RecoveryServiceAction,
 				domain.BedAssignAction, domain.HusbandryAction, domain.PrisonerInteractionAction,
 				domain.RepairAction, domain.CleanAction:
