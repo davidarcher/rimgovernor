@@ -1666,9 +1666,7 @@ b; exact worker cleanup by a, with reuse by their later consumers.
 - [ ] **G01.10 — Integrate the complete Go controller.**
   Compose the above paths in one process with clock, recovery and diagnostics;
   reconcile responsibilities against current Python source and domain/interface/
-  state inventories. Inventory labels alone are not evidence. Resolve the known
-  `TestClockWorkerTransportBlockedWriteRetainsOwner` stop/deadline synchronization
-  issue while preserving blocked-write ownership and joined shutdown assertions.
+  state inventories. Inventory labels alone are not evidence.
   **Exit evidence:** fresh startup, ordinary colony work, player interruption,
   world/load changes and restart with one Go writer and no per-operation Python
   fallback. Reuse applicable family evidence; this is not another full migration.

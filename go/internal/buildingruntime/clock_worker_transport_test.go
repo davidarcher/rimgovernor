@@ -51,9 +51,28 @@ func clockTransportWait(t *testing.T, ch <-chan struct{}, label string) {
 	t.Helper()
 	select {
 	case <-ch:
-	case <-time.After(3 * time.Second):
+	case <-time.After(8 * time.Second):
 		t.Fatal("timed out: " + label)
 	}
+}
+
+// clockTransportWaitDisabled polls for the session's own local invalidation
+// rather than inferring it from the blocked write unblocking. Under
+// interruption, the write's context can be cancelled by the worker's own
+// per-call deadline racing ahead of the independent poll loop that actually
+// discovers and processes the interruption; unlike Manual/Stop (which
+// invalidate synchronously before the blocked write can unblock, under the
+// same lock), there is no ordering guarantee between the two here.
+func clockTransportWaitDisabled(t *testing.T, s *ClockScheduler, label string) {
+	t.Helper()
+	deadline := time.Now().Add(8 * time.Second)
+	for time.Now().Before(deadline) {
+		if !s.session.State().Enabled {
+			return
+		}
+		time.Sleep(time.Millisecond)
+	}
+	t.Fatal("timed out: " + label)
 }
 func clockTransportFixture(t *testing.T, blockStart bool) (*ClockScheduler, *blockedClockTransport, *ClockWorker) {
 	t.Helper()
@@ -78,7 +97,11 @@ func clockTransportFixture(t *testing.T, blockStart bool) (*ClockScheduler, *blo
 	return s, native, worker
 }
 func TestClockWorkerTransportBlockedWriteRetainsOwner(t *testing.T) {
-	t.Parallel()
+	// Not t.Parallel(): this fixture's assertions depend on the worker's real
+	// RenewInterval/CallTimeout timers firing within clockTransportWait's bound.
+	// Running alongside the package's other parallel tests under CPU contention
+	// starved those timers and produced an intermittent "timed out: dispatched
+	// native renew" failure.
 	for _, kind := range []string{"start", "renew"} {
 		for _, stop := range []string{"manual", "interruption", "stop"} {
 			t.Run(kind+"/"+stop, func(t *testing.T) {
@@ -120,10 +143,15 @@ func TestClockWorkerTransportBlockedWriteRetainsOwner(t *testing.T) {
 					if err := <-stopped; err == nil {
 						t.Fatal("blocked write unexpectedly joined")
 					}
-				}
-				// A transport deadline may cancel before local Stop has returned.
-				if s.session.State().Enabled {
-					t.Fatal("authority remained enabled")
+					// Manual/Stop invalidate synchronously, under the same lock
+					// State() reads, before the blocked write can unblock.
+					if s.session.State().Enabled {
+						t.Fatal("authority remained enabled")
+					}
+				} else {
+					// The interruption is discovered by the independent poll loop;
+					// the write's own per-call deadline can unblock it first.
+					clockTransportWaitDisabled(t, s, "authority disabled after interruption")
 				}
 				closeCtx, cancel := context.WithTimeout(context.Background(), 30*time.Millisecond)
 				err = s.session.Close(closeCtx)
@@ -171,7 +199,8 @@ func TestClockWorkerTransportBlockedWriteRetainsOwner(t *testing.T) {
 	}
 }
 func TestClockWorkerTransportRenewalBypassesPlayerGate(t *testing.T) {
-	t.Parallel()
+	// Not t.Parallel(): same real-timer contention risk as
+	// TestClockWorkerTransportBlockedWriteRetainsOwner above.
 	s, native, _ := clockTransportFixture(t, false)
 	clockTransportWait(t, native.started, "start")
 	select {
