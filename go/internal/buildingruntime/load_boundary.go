@@ -42,25 +42,31 @@ type LoadBoundary struct {
 // identity that legitimately persists across a load of the same save (the load
 // token is always freshly issued, matching RimWorld's own load-completion
 // contract). RequestID and SaveName must be caller-supplied valid identifiers.
+// RequireVisualReadiness asks native to hold LoadCompleted until the loaded
+// map has actually been drawn at least once (MapVisualReadyTracker), not
+// merely reached MAP readiness (data in memory); it defaults to MAP.
 type LoadRequest struct {
-	RequestID          string
-	SaveName           string
-	ExpectedColony     domain.ColonyID
-	HasExpectedColony  bool
-	ExpectedInstanceID string
-	PlayerDirection    domain.DirectionID
-	HasPlayerDirection bool
-	Deadline           time.Time
+	RequestID              string
+	SaveName               string
+	ExpectedColony         domain.ColonyID
+	HasExpectedColony      bool
+	ExpectedInstanceID     string
+	PlayerDirection        domain.DirectionID
+	HasPlayerDirection     bool
+	Deadline               time.Time
+	RequireVisualReadiness bool
 }
 
-// LoadResult is the durable evidence of one completed native load reaching
-// map readiness. Visual readiness is not distinguished in this slice: Paused
-// and Snapshot reflect whatever the native map reports at map-ready time.
+// LoadResult is the durable evidence of one completed native load. VisualReady
+// reflects the readiness native actually reported reaching (Readiness_VISUAL),
+// which is only ever true when the request asked for it: native never
+// completes a MAP-only request past visual readiness.
 type LoadResult struct {
-	Snapshot domain.GenerationSnapshot
-	Tick     domain.Tick
-	SaveName string
-	Paused   bool
+	Snapshot    domain.GenerationSnapshot
+	Tick        domain.Tick
+	SaveName    string
+	Paused      bool
+	VisualReady bool
 }
 
 // Load starts a native load and polls ReadLoad until map readiness, a typed
@@ -81,10 +87,14 @@ func (boundary_ *LoadBoundary) Load(ctx context.Context, request LoadRequest) (L
 	if !request.Deadline.IsZero() && !time.Now().Before(request.Deadline) {
 		return LoadResult{}, ErrLoad
 	}
+	readiness := l.Readiness_READINESS_MAP
+	if request.RequireVisualReadiness {
+		readiness = l.Readiness_READINESS_VISUAL
+	}
 	req := &l.LoadRequest{
 		RequestId: proto.String(request.RequestID),
 		SaveName:  proto.String(request.SaveName),
-		Readiness: l.Readiness_READINESS_MAP.Enum(),
+		Readiness: readiness.Enum(),
 	}
 	if request.ExpectedInstanceID != "" {
 		req.ExpectedInstanceId = proto.String(request.ExpectedInstanceID)
@@ -176,9 +186,10 @@ func completedResult(reply *l.LoadReply, request LoadRequest) (LoadResult, bool)
 		Map:    domain.MapID(identity.GetMapId()),
 	}
 	return LoadResult{
-		Snapshot: snapshot,
-		Tick:     domain.Tick(context.GetTick()),
-		SaveName: completed.GetSaveName(),
-		Paused:   completed.Loaded.GetPaused(),
+		Snapshot:    snapshot,
+		Tick:        domain.Tick(context.GetTick()),
+		SaveName:    completed.GetSaveName(),
+		Paused:      completed.Loaded.GetPaused(),
+		VisualReady: completed.GetReadiness() == l.Readiness_READINESS_VISUAL,
 	}, true
 }

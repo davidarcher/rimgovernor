@@ -2,11 +2,12 @@
 // native load slice: full disposable-worker lifecycle, a setup checkpoint via
 // the already-landed rimgovernor/lifecycle_save, then a rimgovernor/
 // lifecycle_load of that save polled through rimgovernor/lifecycle_read_load
-// to LoadCompleted with map_ready true and a freshly issued load token, plus
-// a rejection case (ReadLoad for an unknown request id). It never exercises
-// reconnect-after-disconnect or competing-viewer arbitration, which remain
-// separate, unimplemented capability. VISUAL readiness is not distinguished
-// from MAP in this slice and is not asserted here.
+// to LoadCompleted with map_ready true and a freshly issued load token, a
+// second load of the same save requesting VISUAL readiness and reaching a
+// completed VISUAL outcome, plus a rejection case (ReadLoad for an unknown
+// request id). It never exercises reconnect-after-disconnect or
+// competing-viewer arbitration, which remain separate, unimplemented
+// capability, and permanently out of scope for this item.
 package main
 
 import (
@@ -37,7 +38,7 @@ func main() {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(2)
 	}
-	report := na.NewReport("Trusted native rimgovernor/lifecycle_load: a setup checkpoint save, an async load of that save polled via rimgovernor/lifecycle_read_load to LoadCompleted with map_ready and a fresh load token, and an unknown-request-id rejection. No reconnect/competing-viewer capability exercised; VISUAL readiness not asserted.", !*rendered)
+	report := na.NewReport("Trusted native rimgovernor/lifecycle_load: a setup checkpoint save, an async MAP-readiness load of that save polled via rimgovernor/lifecycle_read_load to LoadCompleted with map_ready and a fresh load token, a second VISUAL-readiness load of the same save reaching a completed VISUAL outcome, and an unknown-request-id rejection. No reconnect/competing-viewer capability exercised.", !*rendered)
 	ctx, cancel := context.WithTimeout(context.Background(), *timeout)
 	defer cancel()
 	err := run(ctx, *root, *output, *game, !*rendered, report)
@@ -176,7 +177,39 @@ func run(ctx context.Context, root, output, gameID string, headless bool, report
 	if na.AsString(completed["requestId"]) != loadRequestID {
 		return fmt.Errorf("load-happy: completed request id mismatch")
 	}
+	if na.AsString(completed["readiness"]) != "READINESS_MAP" {
+		return fmt.Errorf("load-happy: expected READINESS_MAP, got %q", completed["readiness"])
+	}
 	report["case_happy"] = map[string]any{"saveName": setupSaveName, "colonyId": originalColonyID, "newLoadToken": afterIdentity["loadToken"]}
+
+	// Case 1b: a VISUAL-readiness load of the same save must not complete
+	// until the map has actually been drawn -- not merely MAP-ready with data
+	// in memory. The debug game was started with readiness "visual" above (so
+	// it is already rendering), so this load should still reach a completed
+	// VISUAL outcome within the polling budget.
+	visualRequestID := fmt.Sprintf("loadaccept-visual-%d", time.Now().UnixNano())
+	visualLoadReply, err := h.Wire(ctx, "load-visual-start", "lifecycle_load", map[string]any{
+		"requestId": visualRequestID,
+		"saveName":  setupSaveName,
+		"readiness": "READINESS_VISUAL",
+		"expectedPlayer": map[string]any{
+			"identity":        afterIdentity,
+			"playerDirection": 1,
+			"requestId":       visualRequestID,
+		},
+		"playerDirection": 1,
+	})
+	if err != nil {
+		return fmt.Errorf("load-visual-start: %w", err)
+	}
+	visualCompleted, err := pollLoad(ctx, h, visualLoadReply, visualRequestID, "load-visual-poll")
+	if err != nil {
+		return fmt.Errorf("load-visual: %w", err)
+	}
+	if na.AsString(visualCompleted["readiness"]) != "READINESS_VISUAL" {
+		return fmt.Errorf("load-visual: expected READINESS_VISUAL, got %q", visualCompleted["readiness"])
+	}
+	report["case_visual_readiness"] = true
 
 	// Case 2: ReadLoad for an unknown/expired request id must be refused, not
 	// silently treated as pending forever or completed.

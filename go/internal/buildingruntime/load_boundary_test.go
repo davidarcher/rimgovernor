@@ -51,6 +51,9 @@ func (f *loadFake) ReadLoad(_ context.Context, requestID string) (*l.LoadReply, 
 }
 
 func loadCompletedReply(requestID, saveName, colony string) *l.LoadReply {
+	return loadCompletedReplyWithReadiness(requestID, saveName, colony, l.Readiness_READINESS_MAP)
+}
+func loadCompletedReplyWithReadiness(requestID, saveName, colony string, readiness l.Readiness) *l.LoadReply {
 	return &l.LoadReply{Outcome: &l.LoadReply_Completed{Completed: &l.LoadCompleted{
 		RequestId: proto.String(requestID), SaveName: proto.String(saveName),
 		Loaded: &l.LoadedIdentity{
@@ -60,7 +63,7 @@ func loadCompletedReply(requestID, saveName, colony string) *l.LoadReply {
 			},
 			Paused: proto.Bool(true),
 		},
-		Readiness: l.Readiness_READINESS_MAP.Enum(),
+		Readiness: readiness.Enum(),
 	}}}
 }
 func loadPendingReply(requestID, saveName string) *l.LoadReply {
@@ -223,6 +226,58 @@ func TestLoadBoundaryRefusesColonyMismatch(t *testing.T) {
 	})
 	if !errors.Is(err, ErrLoad) {
 		t.Fatal("colony mismatch silently accepted")
+	}
+}
+
+func TestLoadBoundaryRequestsVisualReadiness(t *testing.T) {
+	t.Parallel()
+	fake := &loadFake{
+		loadReplies: []func(*l.LoadRequest) (*l.LoadReply, error){
+			func(r *l.LoadRequest) (*l.LoadReply, error) {
+				return asPending(loadPendingReply(r.GetRequestId(), r.GetSaveName()))
+			},
+		},
+		readReplies: []func(string) (*l.LoadReply, error){
+			// Native holds LoadCompleted until VISUAL readiness: a MAP-ready
+			// but not-yet-visual poll still comes back Pending.
+			func(id string) (*l.LoadReply, error) { return asPending(loadPendingReply(id, "save-1")) },
+			func(id string) (*l.LoadReply, error) {
+				return loadCompletedReplyWithReadiness(id, "save-1", "colony-1", l.Readiness_READINESS_VISUAL), nil
+			},
+		},
+	}
+	boundary := &LoadBoundary{Native: fake, PollInterval: time.Millisecond}
+	result, err := boundary.Load(context.Background(), LoadRequest{
+		RequestID: "req-1", SaveName: "save-1", RequireVisualReadiness: true, Deadline: time.Now().Add(5 * time.Second),
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !result.VisualReady {
+		t.Fatal("visual readiness was requested but not reflected in the result")
+	}
+	if fake.lastLoadReq.GetReadiness() != l.Readiness_READINESS_VISUAL {
+		t.Fatalf("native request did not ask for VISUAL readiness: %v", fake.lastLoadReq.GetReadiness())
+	}
+}
+
+func TestLoadBoundaryDefaultsToMapReadiness(t *testing.T) {
+	t.Parallel()
+	fake := &loadFake{loadReplies: []func(*l.LoadRequest) (*l.LoadReply, error){
+		func(r *l.LoadRequest) (*l.LoadReply, error) {
+			return loadCompletedReply(r.GetRequestId(), r.GetSaveName(), "colony-1"), nil
+		},
+	}}
+	boundary := &LoadBoundary{Native: fake}
+	result, err := boundary.Load(context.Background(), LoadRequest{RequestID: "req-1", SaveName: "save-1"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if result.VisualReady {
+		t.Fatal("MAP-only request reported visual readiness")
+	}
+	if fake.lastLoadReq.GetReadiness() != l.Readiness_READINESS_MAP {
+		t.Fatalf("default request did not ask for MAP readiness: %v", fake.lastLoadReq.GetReadiness())
 	}
 }
 

@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
+using HarmonyLib;
 using RimBridgeServer.Sdk;
 using Verse;
 using Common = RimGovernor.Protocol.Common;
@@ -14,11 +15,11 @@ namespace HomeBridge.BridgeTools
     // rimworld/load_game_ready tool, and not a relaunch: this calls
     // GameDataSaveLoader directly, same as ProtoLifecycleSaveTools calls
     // SaveGame directly). Loading is asynchronous: Load starts it and
-    // returns LoadPending; the caller polls ReadLoad for MAP readiness
-    // (a live Find.CurrentMap with a valid identity). READINESS_VISUAL is
-    // accepted but not distinguished from MAP in this slice -- visual_ready
-    // is always false. Reconnect-after-disconnect, competing viewers and
-    // camera/input are separate, unimplemented capability.
+    // returns LoadPending; the caller polls ReadLoad for either MAP readiness
+    // (a live Find.CurrentMap with a valid identity) or, when requested,
+    // VISUAL readiness (MAP readiness plus at least one actual map draw --
+    // see MapVisualReadyTracker below). Reconnect-after-disconnect, competing
+    // viewers and camera/input are separate, unimplemented capability.
     public sealed class ProtoLifecycleLoadTools
     {
         private const string LoadToolName = "rimgovernor/lifecycle_load";
@@ -41,6 +42,7 @@ namespace HomeBridge.BridgeTools
             public Common.Identity ExpectedColonyIdentity; // may be null: no live map existed before this load.
             public DateTime StartedUtc;
             public uint? TimeoutMs;
+            public Lifecycle.Readiness RequestedReadiness;
             public bool Completed;
             public Lifecycle.LoadReply Reply; // Set only once Completed is true.
         }
@@ -141,6 +143,8 @@ namespace HomeBridge.BridgeTools
                 ExpectedColonyIdentity = expectedColonyIdentity,
                 StartedUtc = DateTime.UtcNow,
                 TimeoutMs = request.HasTimeoutMs ? (uint?)request.TimeoutMs : null,
+                RequestedReadiness = request.HasReadiness && request.Readiness == Lifecycle.Readiness.Visual
+                    ? Lifecycle.Readiness.Visual : Lifecycle.Readiness.Map,
             };
             lock (Lock)
             {
@@ -148,11 +152,7 @@ namespace HomeBridge.BridgeTools
                 activeRequestId = entry.RequestId;
             }
 
-            return new Lifecycle.LoadReply { Pending = new Lifecycle.LoadPending
-            {
-                RequestId = request.RequestId, SaveName = request.SaveName,
-                ProcessConnected = true, MapReady = false, VisualReady = false,
-            } };
+            return PendingReply(entry, mapReady: false, visualReady: false);
         }
 
         // Call only on the game thread.
@@ -176,7 +176,7 @@ namespace HomeBridge.BridgeTools
             // subsequent frames; while it (or anything else) is queued or
             // running, the load is not done.
             if (LongEventHandler.AnyEventNowOrWaiting)
-                return PendingReply(entry);
+                return PendingReply(entry, mapReady: false, visualReady: false);
 
             Common.ObservationContext context;
             Common.Unavailable unavailable;
@@ -185,7 +185,7 @@ namespace HomeBridge.BridgeTools
                 if (entry.TimeoutMs.HasValue && DateTime.UtcNow - entry.StartedUtc > TimeSpan.FromMilliseconds(entry.TimeoutMs.Value))
                     return CompleteWith(entry, new Lifecycle.LoadReply { Failure = ProtoBoundary.Fail(Common.FailureCode.NativeFailure,
                         "Native load did not reach a ready map within the requested timeout: " + unavailable.Detail) });
-                return PendingReply(entry);
+                return PendingReply(entry, mapReady: false, visualReady: false);
             }
 
             // Map is ready. A fresh load always issues a new load token; only
@@ -199,20 +199,36 @@ namespace HomeBridge.BridgeTools
                     Detail = "Observed colony after load does not match the identity this request expected."
                 } });
 
+            // MAP readiness is satisfied. A caller that asked for VISUAL
+            // readiness additionally needs at least one real map draw after
+            // this point -- MapVisualReadyTracker reports that from a Harmony
+            // postfix on MapDrawer.DrawMapMesh, so this is the game actually
+            // having rendered the loaded map at least once, not merely data
+            // being in memory.
+            bool visualReady = MapVisualReadyTracker.VisualReady(Find.CurrentMap);
+            if (entry.RequestedReadiness == Lifecycle.Readiness.Visual && !visualReady)
+            {
+                if (entry.TimeoutMs.HasValue && DateTime.UtcNow - entry.StartedUtc > TimeSpan.FromMilliseconds(entry.TimeoutMs.Value))
+                    return CompleteWith(entry, new Lifecycle.LoadReply { Failure = ProtoBoundary.Fail(Common.FailureCode.NativeFailure,
+                        "Native load reached MAP readiness but not VISUAL readiness within the requested timeout.") });
+                return PendingReply(entry, mapReady: true, visualReady: false);
+            }
+
             bool paused = Find.TickManager != null && Find.TickManager.Paused;
+            var readiness = entry.RequestedReadiness == Lifecycle.Readiness.Visual ? Lifecycle.Readiness.Visual : Lifecycle.Readiness.Map;
             return CompleteWith(entry, new Lifecycle.LoadReply { Completed = new Lifecycle.LoadCompleted
             {
                 RequestId = entry.RequestId, SaveName = entry.SaveName,
                 Loaded = new Lifecycle.LoadedIdentity { Context = context, Paused = paused },
-                Readiness = Lifecycle.Readiness.Map,
+                Readiness = readiness,
             } });
         }
 
-        private static Lifecycle.LoadReply PendingReply(Entry entry) =>
+        private static Lifecycle.LoadReply PendingReply(Entry entry, bool mapReady, bool visualReady) =>
             new Lifecycle.LoadReply { Pending = new Lifecycle.LoadPending
             {
                 RequestId = entry.RequestId, SaveName = entry.SaveName,
-                ProcessConnected = true, MapReady = false, VisualReady = false,
+                ProcessConnected = true, MapReady = mapReady, VisualReady = visualReady,
             } };
 
         private static Lifecycle.LoadReply CompleteWith(Entry entry, Lifecycle.LoadReply reply)
@@ -240,6 +256,60 @@ namespace HomeBridge.BridgeTools
             }
             if (oldest != null)
                 Entries.Remove(oldest);
+        }
+    }
+
+    // VISUAL readiness means the game has actually drawn the loaded map at
+    // least once, not merely that map data is in memory (MAP readiness).
+    // MapDrawer.DrawMapMesh runs every frame a map is rendered, so a Harmony
+    // postfix on it -- separate from RenderDemandDriver's own prefix patch on
+    // the same method, which only ever skips a draw, never observes one --
+    // is the simplest true signal. Everything here runs on the Unity main
+    // thread (the same thread Draw and PollLoad both execute on via
+    // ctx.MainThread.InvokeAsync), so no locking is needed.
+    internal static class MapVisualReadyTracker
+    {
+        private static readonly AccessTools.FieldRef<MapDrawer, Map> MapField =
+            AccessTools.FieldRefAccess<MapDrawer, Map>("map");
+        private static Harmony harmony;
+        private static Map trackedMap;
+        private static bool rendered;
+
+        private static void EnsurePatched()
+        {
+            if (harmony != null) return;
+            harmony = new Harmony("davidarcher.rimgovernor.lifecycle-visual-ready");
+            harmony.Patch(AccessTools.Method(typeof(MapDrawer), "DrawMapMesh"),
+                postfix: new HarmonyMethod(typeof(MapVisualReadyTracker), nameof(DrawPostfix)));
+        }
+
+        // Call only on the game thread. Reports whether `map` has been drawn
+        // at least once since it most recently became the tracked map --
+        // switching to a different map (a fresh load replacing an old one)
+        // resets the signal, since a stale render of a since-unloaded map is
+        // not evidence the newly loaded one has ever been drawn.
+        internal static bool VisualReady(Map map)
+        {
+            EnsurePatched();
+            if (map == null) return false;
+            if (!ReferenceEquals(trackedMap, map))
+            {
+                trackedMap = map;
+                rendered = false;
+            }
+            return rendered;
+        }
+
+        private static void DrawPostfix(MapDrawer __instance)
+        {
+            var map = __instance != null ? MapField(__instance) : null;
+            if (map == null) return;
+            if (!ReferenceEquals(trackedMap, map))
+            {
+                trackedMap = map;
+                rendered = false;
+            }
+            rendered = true;
         }
     }
 }

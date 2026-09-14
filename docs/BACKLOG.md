@@ -1362,9 +1362,9 @@ b; exact worker cleanup by a, with reuse by their later consumers.
   expected pre-load colony identity (when replacing a live map) and answers
   `ReadLoad` polls by checking `LongEventHandler.AnyEventNowOrWaiting` and then
   `ProtoBoundary.TryReadContext` for a freshly loaded map. Map readiness is a
-  live `Find.CurrentMap` with a valid identity; `READINESS_VISUAL` is accepted
-  but not distinguished from MAP — `visual_ready` is always false, and this is
-  not real render-completion detection. Colony ids persist across a load of
+  live `Find.CurrentMap` with a valid identity; visual readiness (whether
+  `READINESS_VISUAL` is actually distinguished from MAP-only readiness) is
+  covered in its own slice further below. Colony ids persist across a load of
   the same save while the load token is always freshly issued (confirmed from
   `ColonyIdentity`'s own persistence: `ColonyId` is `Scribe`-serialized,
   `LoadToken` is not), so a completed load whose colony id doesn't match the
@@ -1404,7 +1404,8 @@ b; exact worker cleanup by a, with reuse by their later consumers.
   `ReadLoad` for an unknown `request_id` returned `Failure`,
   `FAILURE_CODE_NOT_FOUND`, never pending-forever or completed.
   **Explicitly out of scope for this slice:** visual-readiness detection
-  (`READINESS_VISUAL` is accepted but never actually distinguished),
+  (`READINESS_VISUAL` is accepted but not yet distinguished from MAP — see
+  the dedicated slice further below, which closes this gap),
   reconnect-after-disconnect session semantics, competing-viewer arbitration,
   `Lifecycle/ReadSave`, camera/input ownership, portraits, follow, and
   video/recording/diagnostics.
@@ -1744,11 +1745,57 @@ b; exact worker cleanup by a, with reuse by their later consumers.
   gates all write endpoints), so they would need ground-up design rather than
   wiring, and are out of scope for this item.
 
-  Visual-readiness detection for `Lifecycle/Load` (`READINESS_VISUAL` vs.
-  MAP-only readiness) remains unimplemented, as does
-  reconnect-after-disconnect session semantics and competing-viewer
-  arbitration, which are now explicitly and permanently out of scope for this
-  item (see above), not merely deferred.
+  Visual-readiness detection for `Lifecycle/Load` (`READINESS_VISUAL`,
+  distinct from MAP-only readiness) is now implemented, closing the one gap
+  the load slice above had left open. Native `ProtoLifecycleLoadTools.cs`
+  tracks each pending load's requested readiness (`RequestedReadiness` on its
+  internal `Entry`) and, once `Find.CurrentMap` has a valid identity, holds
+  `LoadCompleted` for a `READINESS_VISUAL` request until the loaded map has
+  actually been drawn at least once — not merely present in memory. That
+  signal comes from a new `MapVisualReadyTracker`, a Harmony **postfix** patch
+  on `Verse.MapDrawer.DrawMapMesh` (a second, independent patch on the same
+  method the pre-existing `RenderDemandDriver` **prefix** patch already
+  targets to suppress draws, never to observe a successful one; Harmony
+  supports multiple patches per target under distinct Harmony instance ids,
+  as `HeadlessPatches.cs` already demonstrates elsewhere in this codebase).
+  The tracker records whether the currently tracked `Map` object has been
+  drawn since it most recently became current, resetting on any map-reference
+  change so a stale render of a previously-loaded map can never satisfy
+  readiness for a newly loaded one; `MapDrawer.map` is a private field, reached
+  via `AccessTools.FieldRefAccess<MapDrawer, Map>` (confirmed by reflecting
+  the real installed `Assembly-CSharp.dll`: `IsPublic=False IsPrivate=True`),
+  not direct member access. Both `DrawMapMesh` (the postfix trigger) and
+  `PollLoad` (the reader) run on the Unity main/game thread, so the tracker's
+  static state needs no locking, matching the thread assumption
+  `RenderDemandDriver`'s own static state already relies on. `lifecycle.proto`
+  needed no changes (the `Readiness` enum and `LoadCompleted.readiness` /
+  `LoadPending.visual_ready`/`map_ready` fields already existed), and neither
+  did `bridge.LifecycleLoad`'s validation, which already validated
+  `Readiness` generically against the full enum range. Only
+  `buildingruntime.LoadBoundary` had readiness hardcoded to MAP; it now takes
+  a caller-supplied `LoadRequest.RequireVisualReadiness bool` (defaulting to
+  MAP) and reports back `LoadResult.VisualReady bool` from the readiness
+  native actually completed at. Covered by two new `load_boundary_test.go`
+  cases against the scripted fake `LifecycleLoader`
+  (`TestLoadBoundaryRequestsVisualReadiness`,
+  `TestLoadBoundaryDefaultsToMapReadiness`), both passing alongside every
+  pre-existing `Load*` test. `dotnet build` passes against the real installed
+  RimWorld/RimBridgeServer assemblies in this sandbox; `go build/vet/test
+  ./...` pass with zero regressions. Native-verified: `loadaccept`
+  (`go/internal/nativeaccept/cmd/loadaccept`), extended with a second load
+  case requesting `READINESS_VISUAL` against the same checkpoint save used by
+  the existing MAP-readiness case, ran against the real isolated RimWorld
+  instance and passed both the MAP case (colony id
+  `5409328edbfb41df9c5d2b490398cbfe` persisted, a freshly issued load token
+  `052daf1759284da5b4e53acda34f5949`) and the new VISUAL case, which reached a
+  `LoadCompleted` reply with `readiness == READINESS_VISUAL`, plus the
+  pre-existing unknown-`request_id` rejection
+  (`FAILURE_CODE_NOT_FOUND`). **Explicitly out of scope for this item, not
+  merely this slice:** reconnect-after-disconnect session semantics and
+  competing-viewer arbitration remain permanently dropped, as does
+  recording/diagnostics (see above) — there is no session/viewer-identity
+  concept anywhere in the codebase to build reconnect or arbitration on, so
+  they would need ground-up design rather than wiring.
 
 - [ ] **G01.10 — Integrate the complete Go controller.**
   Compose the above paths in one process with clock, recovery and diagnostics;
