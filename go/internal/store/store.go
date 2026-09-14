@@ -42,7 +42,7 @@ import (
 	"modernc.org/sqlite"
 )
 
-const schemaVersion = 68
+const schemaVersion = 69
 const applicationID = 0x52474f31
 
 var ErrConflict = core.ErrConflict
@@ -222,7 +222,7 @@ CREATE TABLE zone_edit_admissions(action_id TEXT PRIMARY KEY REFERENCES actions(
 CREATE TABLE construction_cancel_admissions(action_id TEXT PRIMARY KEY REFERENCES actions(id), payload BLOB NOT NULL) STRICT;
 CREATE TABLE clock_attempts(request_id TEXT PRIMARY KEY, native_action_id TEXT NOT NULL UNIQUE, payload BLOB NOT NULL, phase TEXT NOT NULL CHECK(phase IN ('prepared','dispatched','uncertain','applied','refused')), reply BLOB, scope_context BLOB) STRICT;
 CREATE TABLE clock_epochs(start_request_id TEXT PRIMARY KEY REFERENCES clock_attempts(request_id), stage TEXT NOT NULL CHECK(stage IN ('required','pausing','uncertain','paused','retired','superseded')), sequence TEXT NOT NULL, context BLOB, status BLOB) STRICT;
-CREATE TABLE submissions(request_id TEXT PRIMARY KEY, kind TEXT NOT NULL CHECK(kind IN ('building','owned_draft','caravan_departure','quest_accept','settlement_gift','quest_fulfill','travel_caravan','trade','trade_economy','zone_create','zone_edit','research_select','resource_policy','build_room','tend','rescue')), colony TEXT NOT NULL, load_token TEXT NOT NULL, map_id INTEGER NOT NULL, plan_id TEXT NOT NULL UNIQUE REFERENCES plans(id), action_id TEXT NOT NULL UNIQUE REFERENCES actions(id), revision TEXT NOT NULL) STRICT;
+CREATE TABLE submissions(request_id TEXT PRIMARY KEY, kind TEXT NOT NULL CHECK(kind IN ('building','owned_draft','caravan_departure','quest_accept','settlement_gift','quest_fulfill','travel_caravan','trade','trade_economy','zone_create','zone_edit','research_select','resource_policy','build_room','tend','rescue','husbandry','recovery_service','bed_assign','building_temperature','surgery','movement')), colony TEXT NOT NULL, load_token TEXT NOT NULL, map_id INTEGER NOT NULL, plan_id TEXT NOT NULL UNIQUE REFERENCES plans(id), action_id TEXT NOT NULL UNIQUE REFERENCES actions(id), revision TEXT NOT NULL) STRICT;
 CREATE TABLE draft_submissions(request_id TEXT PRIMARY KEY REFERENCES submissions(request_id), pawn TEXT NOT NULL) STRICT;
 CREATE INDEX action_transitions ON transitions(action_id,sequence);
 CREATE TABLE building_submissions(request_id TEXT PRIMARY KEY REFERENCES submissions(request_id), definition TEXT NOT NULL, x INTEGER NOT NULL, z INTEGER NOT NULL, rotation TEXT NOT NULL, stuff TEXT NOT NULL) STRICT;
@@ -237,6 +237,12 @@ CREATE TABLE zone_edit_submissions(request_id TEXT PRIMARY KEY REFERENCES submis
 CREATE TABLE research_select_submissions(request_id TEXT PRIMARY KEY REFERENCES submissions(request_id), payload BLOB NOT NULL) STRICT;
 CREATE TABLE tend_submissions(request_id TEXT PRIMARY KEY REFERENCES submissions(request_id), payload BLOB NOT NULL) STRICT;
 CREATE TABLE rescue_submissions(request_id TEXT PRIMARY KEY REFERENCES submissions(request_id), payload BLOB NOT NULL) STRICT;
+CREATE TABLE husbandry_submissions(request_id TEXT PRIMARY KEY REFERENCES submissions(request_id), payload BLOB NOT NULL) STRICT;
+CREATE TABLE recovery_service_submissions(request_id TEXT PRIMARY KEY REFERENCES submissions(request_id), payload BLOB NOT NULL) STRICT;
+CREATE TABLE bed_assign_submissions(request_id TEXT PRIMARY KEY REFERENCES submissions(request_id), payload BLOB NOT NULL) STRICT;
+CREATE TABLE building_temperature_submissions(request_id TEXT PRIMARY KEY REFERENCES submissions(request_id), payload BLOB NOT NULL) STRICT;
+CREATE TABLE surgery_submissions(request_id TEXT PRIMARY KEY REFERENCES submissions(request_id), payload BLOB NOT NULL) STRICT;
+CREATE TABLE movement_submissions(request_id TEXT PRIMARY KEY REFERENCES submissions(request_id), draft_action TEXT NOT NULL UNIQUE REFERENCES actions(id), payload BLOB NOT NULL) STRICT;
 CREATE TABLE build_room_submissions(request_id TEXT PRIMARY KEY REFERENCES submissions(request_id), colony TEXT NOT NULL, load_token TEXT NOT NULL, map_id INTEGER NOT NULL, intent_id TEXT NOT NULL, payload BLOB NOT NULL, UNIQUE(colony,load_token,map_id,intent_id)) STRICT;
 CREATE TABLE cancel_construction_submissions(request_id TEXT PRIMARY KEY, colony TEXT NOT NULL, load_token TEXT NOT NULL, map_id INTEGER NOT NULL, intent_id TEXT NOT NULL, source_plan TEXT NOT NULL REFERENCES plans(id), plan_id TEXT UNIQUE REFERENCES plans(id), action_id TEXT UNIQUE REFERENCES actions(id), revision TEXT NOT NULL, payload BLOB NOT NULL, CHECK((plan_id IS NULL)=(action_id IS NULL)), UNIQUE(colony,load_token,map_id,intent_id)) STRICT;
 CREATE TABLE relocate_construction_submissions(request_id TEXT PRIMARY KEY, colony TEXT NOT NULL, load_token TEXT NOT NULL, map_id INTEGER NOT NULL, intent_id TEXT NOT NULL, source_plan TEXT NOT NULL REFERENCES plans(id), plan_id TEXT NOT NULL UNIQUE REFERENCES plans(id), cancel_action TEXT UNIQUE REFERENCES actions(id), build_action TEXT NOT NULL UNIQUE REFERENCES actions(id), revision TEXT NOT NULL, payload BLOB NOT NULL, UNIQUE(colony,load_token,map_id,intent_id,source_plan)) STRICT;
@@ -376,6 +382,24 @@ CREATE TABLE resource_policies(colony TEXT NOT NULL, load_token TEXT NOT NULL, m
 		return err
 	}
 	if _, err = tx.ExecContext(ctx, "SELECT request_id,payload FROM rescue_submissions LIMIT 0"); err != nil {
+		return err
+	}
+	if _, err = tx.ExecContext(ctx, "SELECT request_id,payload FROM husbandry_submissions LIMIT 0"); err != nil {
+		return err
+	}
+	if _, err = tx.ExecContext(ctx, "SELECT request_id,payload FROM recovery_service_submissions LIMIT 0"); err != nil {
+		return err
+	}
+	if _, err = tx.ExecContext(ctx, "SELECT request_id,payload FROM bed_assign_submissions LIMIT 0"); err != nil {
+		return err
+	}
+	if _, err = tx.ExecContext(ctx, "SELECT request_id,payload FROM building_temperature_submissions LIMIT 0"); err != nil {
+		return err
+	}
+	if _, err = tx.ExecContext(ctx, "SELECT request_id,payload FROM surgery_submissions LIMIT 0"); err != nil {
+		return err
+	}
+	if _, err = tx.ExecContext(ctx, "SELECT request_id,draft_action,payload FROM movement_submissions LIMIT 0"); err != nil {
 		return err
 	}
 	if _, err = tx.ExecContext(ctx, "SELECT "+controlColumns+" FROM control_intents LIMIT 0"); err != nil {

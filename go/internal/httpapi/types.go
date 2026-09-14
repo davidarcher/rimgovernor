@@ -124,6 +124,36 @@ type Rescue struct {
 	Rescuer domain.PawnID `json:"rescuer"`
 	Patient domain.PawnID `json:"patient"`
 }
+type Husbandry struct {
+	Animal       domain.PawnID `json:"animal"`
+	Method       string        `json:"method"`
+	TrainableDef string        `json:"trainableDef"`
+}
+type RecoveryService struct {
+	Pawn   domain.PawnID `json:"pawn"`
+	Thing  string        `json:"thing"`
+	Method string        `json:"method"`
+}
+type BedAssign struct {
+	Pawn        domain.PawnID `json:"pawn"`
+	Bed         string        `json:"bed"`
+	PreviousBed string        `json:"previousBed"`
+}
+type BuildingTemperature struct {
+	Thing   string  `json:"thing"`
+	Celsius float64 `json:"celsius"`
+	Before  string  `json:"before"`
+}
+type Surgery struct {
+	Patient domain.PawnID `json:"patient"`
+	Recipe  string        `json:"recipe"`
+	Part    int32         `json:"part"`
+}
+type Movement struct {
+	Pawn domain.PawnID `json:"pawn"`
+	X    int32         `json:"x"`
+	Z    int32         `json:"z"`
+}
 type SettlementGift struct {
 	Caravan    domain.CaravanID    `json:"caravan"`
 	Settlement domain.SettlementID `json:"settlement"`

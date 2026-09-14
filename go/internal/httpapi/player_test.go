@@ -293,3 +293,27 @@ func (f *playerFixture) SubmitRescue(ctx context.Context, q store.RescueSubmissi
 	f.calls++
 	return f.journal.SubmitRescue(ctx, q)
 }
+func (f *playerFixture) SubmitHusbandry(ctx context.Context, q store.HusbandrySubmissionRequest) (store.HusbandrySubmission, bool, error) {
+	f.calls++
+	return f.journal.SubmitHusbandry(ctx, q)
+}
+func (f *playerFixture) SubmitRecoveryService(ctx context.Context, q store.RecoveryServiceSubmissionRequest) (store.RecoveryServiceSubmission, bool, error) {
+	f.calls++
+	return f.journal.SubmitRecoveryService(ctx, q)
+}
+func (f *playerFixture) SubmitBedAssign(ctx context.Context, q store.BedAssignSubmissionRequest) (store.BedAssignSubmission, bool, error) {
+	f.calls++
+	return f.journal.SubmitBedAssign(ctx, q)
+}
+func (f *playerFixture) SubmitBuildingTemperature(ctx context.Context, q store.BuildingTemperatureSubmissionRequest) (store.BuildingTemperatureSubmission, bool, error) {
+	f.calls++
+	return f.journal.SubmitBuildingTemperature(ctx, q)
+}
+func (f *playerFixture) SubmitSurgery(ctx context.Context, q store.SurgerySubmissionRequest) (store.SurgerySubmission, bool, error) {
+	f.calls++
+	return f.journal.SubmitSurgery(ctx, q)
+}
+func (f *playerFixture) SubmitMovement(ctx context.Context, q store.MovementSubmissionRequest) (store.MovementSubmission, bool, error) {
+	f.calls++
+	return f.journal.SubmitMovement(ctx, q)
+}
