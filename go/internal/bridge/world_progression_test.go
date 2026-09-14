@@ -24,13 +24,17 @@ func worldProgressionFixture() *o.WorldProgressionSnapshot {
 		Caravans: []*o.CaravanState{{
 			Caravan: &o.EntityRef{Id: proto.String("caravan-1")},
 			Tile:    proto.Int32(42), Moving: proto.Bool(true),
-			Pawns: []*o.PawnState{{Pawn: &o.EntityRef{Id: proto.String("pawn-1")}}},
+			Pawns:      []*o.PawnState{{Pawn: &o.EntityRef{Id: proto.String("pawn-1")}, Dead: proto.Bool(false), Downed: proto.Bool(false)}},
+			FoodDays:   proto.Float64(2.5),
+			Inventory:  []*o.Quantity{{DefName: proto.String("Silver"), Units: proto.Int64(50)}, {DefName: proto.String("Steel"), Units: proto.Int64(75)}},
+			HomeRoutes: []*o.WorldRoute{{Destination: proto.Int32(7), Reachable: proto.Bool(true), EstimatedTicks: proto.Int64(6000)}},
 		}},
 		Quests: []*o.QuestState{{
 			Id: proto.String("quest-1"), State: proto.String("NotYetAccepted"),
 			RequiresAccepter: proto.Bool(true), CanAccept: proto.Bool(true),
 			EligiblePawns: []*o.EntityRef{{Id: proto.String("pawn-1")}},
 			Rewards:       []*o.QuestReward{{ChoiceIndex: proto.Uint32(0)}},
+			TradeRequests: []*o.QuestTradeRequest{{Resource: proto.String("Steel"), Count: proto.Int64(40), Destination: proto.Int32(7)}},
 			Snapshot:      &o.SnapshotRef{Context: pbContext(), EntityId: proto.String("quest-1"), Token: proto.String("quest-cas")},
 		}},
 	}
@@ -61,6 +65,18 @@ func TestReadWorldProgressionAcceptsValidObservation(t *testing.T) {
 		out.Caravans[0].Tile != 42 || !out.Caravans[0].Moving || len(out.Caravans[0].PawnIDs) != 1 || out.Caravans[0].PawnIDs[0] != "pawn-1" {
 		t.Fatal(out, err)
 	}
+	caravan := out.Caravans[0]
+	if !caravan.FoodDaysKnown || caravan.FoodDays != 2.5 || caravan.Silver != 50 || caravan.Inventory["Silver"] != 50 || caravan.Inventory["Steel"] != 75 {
+		t.Fatal(caravan)
+	}
+	if len(caravan.Pawns) != 1 || caravan.Pawns[0].ID != "pawn-1" || !caravan.Pawns[0].DeadKnown || caravan.Pawns[0].Dead ||
+		!caravan.Pawns[0].DownedKnown || caravan.Pawns[0].Downed {
+		t.Fatal(caravan.Pawns)
+	}
+	if len(caravan.HomeRoutes) != 1 || caravan.HomeRoutes[0].DestinationMapID != 7 || !caravan.HomeRoutes[0].Reachable ||
+		!caravan.HomeRoutes[0].EstimatedTicksKnown || caravan.HomeRoutes[0].EstimatedTicks != 6000 {
+		t.Fatal(caravan.HomeRoutes)
+	}
 	if len(out.Maps) != 2 {
 		t.Fatal(out.Maps)
 	}
@@ -76,9 +92,12 @@ func TestReadWorldProgressionAcceptsValidObservation(t *testing.T) {
 	}
 	quest := out.Quests[0]
 	if quest.ID != "quest-1" || quest.State != "NotYetAccepted" || !quest.RequiresAccepter || !quest.CanAccept ||
-		quest.ChoiceCount != 1 || quest.HasTradeRequest || len(quest.EligiblePawnIDs) != 1 || quest.EligiblePawnIDs[0] != "pawn-1" ||
-		quest.SnapshotToken != "quest-cas" {
+		quest.ChoiceCount != 1 || !quest.HasTradeRequest || len(quest.EligiblePawnIDs) != 1 || quest.EligiblePawnIDs[0] != "pawn-1" ||
+		quest.SnapshotToken != "quest-cas" || !quest.TradeDestinationKnown || quest.TradeDestinationTile != 7 {
 		t.Fatal(quest)
+	}
+	if len(quest.TradeRequests) != 1 || quest.TradeRequests[0].Resource != "Steel" || quest.TradeRequests[0].Count != 40 || quest.TradeRequests[0].DestinationTile != 7 {
+		t.Fatal(quest.TradeRequests)
 	}
 }
 func TestReadWorldProgressionRejectsInvalidInputs(t *testing.T) {
@@ -127,6 +146,25 @@ func TestReadWorldProgressionMalformedEvidence(t *testing.T) {
 		},
 		"duplicate eligible quest pawn": func(v *o.WorldProgressionSnapshot) {
 			v.Quests[0].EligiblePawns = append(v.Quests[0].EligiblePawns, v.Quests[0].EligiblePawns[0])
+		},
+		"negative food days":         func(v *o.WorldProgressionSnapshot) { v.Caravans[0].FoodDays = proto.Float64(-1) },
+		"duplicate inventory def":    func(v *o.WorldProgressionSnapshot) { v.Caravans[0].Inventory = append(v.Caravans[0].Inventory, v.Caravans[0].Inventory[0]) },
+		"missing inventory units":    func(v *o.WorldProgressionSnapshot) { v.Caravans[0].Inventory[0].Units = nil },
+		"negative inventory units":   func(v *o.WorldProgressionSnapshot) { v.Caravans[0].Inventory[0].Units = proto.Int64(-1) },
+		"missing home route destination": func(v *o.WorldProgressionSnapshot) {
+			v.Caravans[0].HomeRoutes[0].Destination = nil
+		},
+		"missing home route reachable": func(v *o.WorldProgressionSnapshot) {
+			v.Caravans[0].HomeRoutes[0].Reachable = nil
+		},
+		"negative home route ticks": func(v *o.WorldProgressionSnapshot) {
+			v.Caravans[0].HomeRoutes[0].EstimatedTicks = proto.Int64(-1)
+		},
+		"negative trade request count": func(v *o.WorldProgressionSnapshot) {
+			v.Quests[0].TradeRequests[0].Count = proto.Int64(-1)
+		},
+		"negative trade request destination": func(v *o.WorldProgressionSnapshot) {
+			v.Quests[0].TradeRequests[0].Destination = proto.Int32(-1)
 		},
 	}
 	for name, edit := range edits {

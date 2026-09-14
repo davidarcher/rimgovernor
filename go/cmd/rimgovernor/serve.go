@@ -73,6 +73,8 @@ type serveConfig struct {
 	routineMethods                  bool
 	routineProjectLimit             int
 	caravanJourneyTracking          bool
+	worldEvaluation                 bool
+	worldEvaluationFoodMarginDays   float64
 	resourceRules                   resourceRuleFlags
 	refresh                         time.Duration
 }
@@ -125,6 +127,8 @@ func parseServe(args []string, diagnostics io.Writer) (serveConfig, error) {
 	flags.Var(&c.routineStoppedResources, "routine-resource-stop", "repeatable RESOURCE name ProductionPolicy's routine planner keeps stopped in the current native production policy")
 	flags.BoolVar(&c.routineMethods, "routine-methods", false, "execute reviewed routine building methods under the current player direction")
 	flags.BoolVar(&c.caravanJourneyTracking, "caravan-journey-tracking", false, "poll world progression each clock step and resolve tracked caravans that have returned home")
+	flags.BoolVar(&c.worldEvaluation, "world-evaluation", false, "expose a read-only /api/player/world-evaluation caravan-recovery and quest-deficit advisory report")
+	flags.Float64Var(&c.worldEvaluationFoodMarginDays, "world-evaluation-food-margin-days", 0.5, "days of caravan food required beyond its home route's estimated travel time before it is reported as needing recovery")
 	flags.Var(&c.resourceRules, "resource-rule", "repeatable RESOURCE:allow|stop|defense_only:RESERVE for building admission and dispatch")
 	flags.StringVar(&c.profile, "profile", "", "absolute shared game profile directory for player control")
 	flags.StringVar(&c.bridge.Executable, "gabs", "", "absolute GABS executable")
@@ -157,6 +161,19 @@ func parseServe(args []string, diagnostics io.Writer) (serveConfig, error) {
 	}
 	if c.caravanJourneyTracking && !c.clockControl {
 		return c, errors.New("--caravan-journey-tracking requires --clock-control")
+	}
+	if c.worldEvaluation && !c.playerControl {
+		return c, errors.New("--world-evaluation requires --player-control")
+	}
+	marginDaysExplicit := false
+	flags.Visit(func(f *flag.Flag) {
+		marginDaysExplicit = marginDaysExplicit || f.Name == "world-evaluation-food-margin-days"
+	})
+	if marginDaysExplicit && !c.worldEvaluation {
+		return c, errors.New("--world-evaluation-food-margin-days requires --world-evaluation")
+	}
+	if c.worldEvaluationFoodMarginDays < 0 {
+		return c, errors.New("--world-evaluation-food-margin-days must be non-negative")
 	}
 	if (c.routineBillPlans || c.routineFieldPlans || c.routineFoodStoragePlans || c.routineAcquisitionPlans || c.routineWorkPlans || c.routineSupplyPlans || c.routineSleepingPlans || c.routineCookingPlans || c.routineShelterPlans || c.routineComfortPlans || c.routineExpansionPlans || c.routinePowerPlans || c.routineTemperaturePlans || c.routineDefensePlans || c.routineTendPlans || c.routineRescuePlans || c.routineEquipPlans || c.routineSecureSuppliesPlans || c.routineRepairPlans || c.routineCleanPlans || c.routineHaulPlans || c.routineGearPlans || c.routineMedicalPlans || c.routineAnimalContainmentPlans || c.routineRecoveryPlans || c.routineHusbandryPlans || c.routinePrisonerInteractionPlans || c.routinePopulationCustodyPlans || c.routineHomeCoveragePlans || c.routineStoneShellPlans || c.routineResearchTarget != "" || c.routineResourcePlans || c.routineAnimalFeedPlans || c.routineProductionPolicyPlans) && !c.routineReviews {
 		return c, errors.New("routine building plans require --routine-reviews")

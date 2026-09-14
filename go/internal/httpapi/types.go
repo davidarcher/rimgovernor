@@ -38,6 +38,7 @@ type Config struct {
 	PresentationMedia            PresentationMediaWriter
 	Notifications                NotificationReader
 	ClockReview                  ClockReview
+	WorldEvaluation              WorldEvaluation
 	// VideoStreamPollInterval sets how often the video-stream WebSocket relay
 	// polls ReadFrame for a new frame. Zero uses a sane default (~24 Hz);
 	// this bounds correctness-proving throughput, not maximum achievable FPS.

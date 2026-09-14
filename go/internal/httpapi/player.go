@@ -200,7 +200,7 @@ func (s *Server) handlePlayer(w http.ResponseWriter, r *http.Request) bool {
 		return false
 	}
 	path := r.URL.Path
-	read := path == "/api/player/session" || path == "/api/player/control" || (path == "/api/buildings/submission" || path == "/api/drafts/submission") || path == "/api/player/clock" || path == "/api/player/work-preferences" || path == "/api/caravan-departures/submission" || path == "/api/quest-accepts/submission" || path == "/api/settlement-gifts/submission" || path == "/api/quest-fulfills/submission" || path == "/api/trades/submission"
+	read := path == "/api/player/session" || path == "/api/player/control" || (path == "/api/buildings/submission" || path == "/api/drafts/submission") || path == "/api/player/clock" || path == "/api/player/world-evaluation" || path == "/api/player/work-preferences" || path == "/api/caravan-departures/submission" || path == "/api/quest-accepts/submission" || path == "/api/settlement-gifts/submission" || path == "/api/quest-fulfills/submission" || path == "/api/trades/submission"
 	write := path == "/api/drafts/plans" || path == "/api/buildings/plans" || path == "/api/player/control/acquire" || path == "/api/player/control/manual" || path == "/api/player/clock/acknowledge" || path == "/api/player/work-preferences/replace" || path == "/api/caravan-departures/plans" || path == "/api/quest-accepts/plans" || path == "/api/settlement-gifts/plans" || path == "/api/quest-fulfills/plans" || path == "/api/trades/plans"
 	if !read && !write {
 		return false
@@ -253,6 +253,14 @@ func (s *Server) handlePlayer(w http.ResponseWriter, r *http.Request) bool {
 			s.failure(w, r, 400, "invalid_request", "Clock review accepts no query")
 		} else {
 			s.handleClockReview(ctx, w, r, write)
+		}
+		return true
+	}
+	if path == "/api/player/world-evaluation" {
+		if len(query) != 0 || r.URL.ForceQuery {
+			s.failure(w, r, 400, "invalid_request", "World evaluation accepts no query")
+		} else {
+			s.handleWorldEvaluation(ctx, w, r)
 		}
 		return true
 	}

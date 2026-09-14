@@ -35,6 +35,27 @@ func TestServeRequiresExplicitReadOnlyLocalConfiguration(t *testing.T) {
 	}
 }
 
+func TestServeWorldEvaluationFlagValidation(t *testing.T) {
+	dir := t.TempDir()
+	base := []string{"--player-control", "--profile", dir, "--gabs", filepath.Join(dir, "gabs"), "--config", dir, "--game", "trial", "--state", filepath.Join(dir, "state.db")}
+	if _, err := parseServe(append(append([]string(nil), base...), "--world-evaluation"), io.Discard); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := parseServe(append(append([]string(nil), base...), "--world-evaluation", "--world-evaluation-food-margin-days", "1.5"), io.Discard); err != nil {
+		t.Fatal(err)
+	}
+	readOnly := []string{"--read-only", "--gabs", filepath.Join(dir, "gabs"), "--config", dir, "--game", "trial", "--state", filepath.Join(dir, "state.db")}
+	if _, err := parseServe(append(append([]string(nil), readOnly...), "--world-evaluation"), io.Discard); err == nil {
+		t.Fatal("world evaluation without player control accepted")
+	}
+	if _, err := parseServe(append(append([]string(nil), base...), "--world-evaluation-food-margin-days", "1"), io.Discard); err == nil {
+		t.Fatal("food margin days without world evaluation accepted")
+	}
+	if _, err := parseServe(append(append([]string(nil), base...), "--world-evaluation", "--world-evaluation-food-margin-days", "-1"), io.Discard); err == nil {
+		t.Fatal("negative food margin days accepted")
+	}
+}
+
 func TestServeRejectsNonNumericPortsAndInvalidAssets(t *testing.T) {
 	dir := t.TempDir()
 	base := []string{"--read-only", "--gabs", filepath.Join(dir, "gabs"), "--config", dir, "--game", "trial", "--state", filepath.Join(dir, "state.db")}
