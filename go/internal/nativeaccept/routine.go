@@ -520,6 +520,9 @@ var developmentGoalNames = map[string]bool{
 	"MaintainEquipment": true, "MaintainFireSafety": true, "SecureSupplies": true, "MaintainEssentialRepairs": true,
 	"MaintainCleanFacilities": true, "MaintainMedicalReserves": true, "MaintainAnimalContainment": true,
 	"MaintainAnimalFeed": true, "MaintainSleeping": true, "MaintainHomeCoverage": true, "MaintainStoneShell": true,
+	// MaintainStorage (G01.07b 05.2): the ordinary (non-deteriorating) haul
+	// counterpart to SecureSupplies, missing from this set until now.
+	"MaintainStorage": true,
 }
 
 // AuditDevelopment asserts a Go routine review's Development block reflects the
