@@ -34,7 +34,7 @@ func TestCombatPawnsFixedDetailsAndUnknown(t *testing.T) {
 			if arg.Tool != "rimgovernor/observations_list_pawns" {
 				t.Fatal(arg.Tool)
 			}
-			draftTestRequest(t, arg, &o.ListPawnsRequest{Scope: &o.ReadScope{ExpectedIdentity: pbIdentity()}, Filter: &o.PawnFilter{Ids: []string{"pawn-1", "missing"}, IncludeDead: proto.Bool(true)}, Details: &o.PawnDetails{Needs: proto.Bool(false), Health: proto.Bool(true), Equipment: proto.Bool(true), Biography: proto.Bool(true), Settings: proto.Bool(false), Social: proto.Bool(false), Animals: proto.Bool(false)}, Page: &c.PageRequest{Limit: proto.Uint32(2)}})
+			draftTestRequest(t, arg, &o.ListPawnsRequest{Scope: &o.ReadScope{ExpectedIdentity: pbIdentity()}, Filter: &o.PawnFilter{Ids: []string{"pawn-1", "missing"}, IncludeDead: proto.Bool(true)}, Details: &o.PawnDetails{Needs: proto.Bool(false), Health: proto.Bool(true), Equipment: proto.Bool(true), Biography: proto.Bool(true), Settings: proto.Bool(false), Social: proto.Bool(false), Animals: proto.Bool(true)}, Page: &c.PageRequest{Limit: proto.Uint32(2)}})
 			identity.LoadToken = proto.String("changed")
 			ids[0] = "changed"
 			return pbResult(&o.ListPawnsReply{Outcome: &o.ListPawnsReply_Observed{Observed: snapshot}}), nil

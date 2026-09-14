@@ -53,9 +53,10 @@ const (
 // at least two capable defenders per observed opponent, up to four opponents
 // and eight defenders, with a ranged opponent requiring a ranged-equipped
 // defender. This proposal covers the general N-opponent case only; the
-// single-raider tribal 3-defender/85%-health sub-case and unarmed-defender
-// weapon fetch are deferred (native AI still defends adequately without them,
-// just with the standard bounds instead of the narrower special case).
+// single-raider tribal 3-defender/85%-health sub-case is the caller's
+// separate SelectTribalRaiderDefense preference, and an unarmed defender is
+// simply excluded here rather than equipped inline (RoutineEquipPlanner arms
+// colonists on its own independently-scheduled goal).
 //
 // Assignments are a proposal only; EvaluateMeleeDefense/EvaluateRangedDefense
 // re-validate each chosen (defender, target) pair against fresh facts before
@@ -81,7 +82,7 @@ func SelectSquadDefense(threats []SquadThreatFacts, defenders []SquadDefenderFac
 		if !sk || !mk || !manhunter {
 			return false
 		}
-		return size >= 0 && size <= 4
+		return size > 0 && size <= 4
 	}
 	eligibleDefender := func(d SquadDefenderFacts) bool {
 		dead, dk := d.Dead.Value()

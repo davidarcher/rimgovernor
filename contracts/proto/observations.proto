@@ -117,6 +117,7 @@ message AnimalState {
   optional string pen_id = 8; optional bool contained = 9; repeated string parent_ids = 10;
   repeated TrainingEntry training = 11; optional bool release = 12; optional bool slaughter = 13;
   optional bool safe_to_slaughter = 14; optional int32 minimum_handling_skill = 15; repeated ReadIssue issues = 16;
+  optional double body_size = 17;
 }
 message PawnState {
   EntityRef pawn = 1; optional string kind_def_name = 2; optional string faction_id = 3;
