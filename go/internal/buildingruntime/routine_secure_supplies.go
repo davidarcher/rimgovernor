@@ -28,6 +28,7 @@ type RoutineSecureSuppliesSource interface {
 	ReadEmergency(context.Context, *c.Identity) (bridge.EmergencyObservation, bridge.Result, error)
 	ReadTendPawns(context.Context, *c.Identity, []string) (*n.ListPawnsReply, bridge.Result, error)
 	PreviewZone(context.Context, *c.Identity, bridge.ZoneTarget) (*op.PreviewReply, bridge.Result, error)
+	PreviewBuilding(context.Context, domain.Action, domain.GenerationSnapshot) (bridge.BuildingPreview, bridge.Result, error)
 }
 
 // maxSecureSuppliesZoneMethods bounds SecureSupplies' covered-storage fallback
@@ -234,6 +235,13 @@ func (r *RoutineSecureSuppliesPlanner) step(call, epoch context.Context) (Routin
 		if fallback.Reason != "" {
 			return fallback, nil
 		}
+		fallback, err = r.supplyRoomFallback(call, epoch, state, goal, reading.Projection, started)
+		if err != nil {
+			return RoutineSecureSuppliesResult{}, err
+		}
+		if fallback.Reason != "" {
+			return fallback, nil
+		}
 		return RoutineSecureSuppliesResult{Reason: BuildingMethodExhausted}, nil
 	}
 	method := domain.MethodID(fmt.Sprintf("%s%d", prefix, attempt))
@@ -268,11 +276,7 @@ func (r *RoutineSecureSuppliesPlanner) step(call, epoch context.Context) (Routin
 // fallback does. It is bounded to maxSecureSuppliesZoneMethods zones per goal
 // episode. A zero-value, empty-Reason result means the fallback did not apply
 // this step (no zone budget left, no legal site, or a stale read) and the
-// caller should report its own exhaustion reason instead.
-//
-// upkeep_storage.py's second-tier supply_storeroom fallback (building an
-// entirely new enclosed room when no covered patch exists) is not ported by
-// this slice; it remains open, alongside MaintainStoneShell.
+// caller should try supplyRoomFallback next.
 func (r *RoutineSecureSuppliesPlanner) coveredStorageFallback(call, epoch context.Context, state ControlState, goal store.GoalState, projection observation.ColonyProjection, item policy.UpkeepItem, started time.Time) (RoutineSecureSuppliesResult, error) {
 	p := r.reviewer.player
 	zoneAttempts := medicalAttemptCount(goal.Methods, goal.Goal.Epoch, secureSuppliesZonePrefix)
@@ -353,6 +357,184 @@ func (r *RoutineSecureSuppliesPlanner) coveredStorageFallback(call, epoch contex
 		return RoutineSecureSuppliesResult{Reason: BuildingMethodRefused}, nil
 	}
 	return RoutineSecureSuppliesResult{Reason: BuildingMethodAdmitted, Plan: id}, nil
+}
+
+// supplyRoomShellMethod names SecureSupplies' whole-room fallback method: a
+// small Wall/Door enclosure built only after coveredStorageFallback finds no
+// reusable roofed patch. It never places a stockpile zone itself — once the
+// shell is complete and its interior has been reported roofed by the
+// ordinary cell census, coveredStorageFallback's own site search naturally
+// selects a patch inside it on a later step, exactly as upkeep_storage.py's
+// covered_storage reuses a supply_storeroom's finished room.
+const supplyRoomShellMethod domain.MethodID = "supply-room-shell"
+
+// secureSuppliesRoomShellPlan reports whether a plan spec already places the
+// SecureSupplies room shell's Wall/Door perimeter, mirroring
+// animalContainmentPlanKindOf's recovery of a prior pen shell from its own
+// actions rather than a naming convention.
+func secureSuppliesRoomShellPlan(spec domain.PlanSpec) bool {
+	for _, action := range spec.Actions() {
+		b, ok := action.Building()
+		if !ok {
+			continue
+		}
+		if b.Definition() == "Wall" || b.Definition() == "Door" {
+			return true
+		}
+	}
+	return false
+}
+
+// supplyRoomFallback ports upkeep_storage.py's supply_storeroom step: once
+// covered_storage can no longer reuse existing roofing, site and build one
+// small enclosed room (Wall perimeter, Door on the south wall's center) via
+// upkeep_sites.enclosure_site's free-cell search. It admits at most one such
+// room per goal episode, matching Python's `prior` dedup check: a completed
+// or pending room-shell method already present blocks a second one rather
+// than raising a duplicate-room refusal, since routine steps report "nothing
+// to do" here rather than an interactive skill-blocked error. A zero-value,
+// empty-Reason result means the fallback did not apply this step, and the
+// caller should report its own exhaustion reason instead.
+func (r *RoutineSecureSuppliesPlanner) supplyRoomFallback(call, epoch context.Context, state ControlState, goal store.GoalState, projection observation.ColonyProjection, started time.Time) (RoutineSecureSuppliesResult, error) {
+	p := r.reviewer.player
+	zoneAttempts := medicalAttemptCount(goal.Methods, goal.Goal.Epoch, secureSuppliesZonePrefix)
+	if zoneAttempts >= maxSecureSuppliesZoneMethods {
+		return RoutineSecureSuppliesResult{}, nil
+	}
+	for _, method := range goal.Methods {
+		plan, err := p.journal.LoadPlan(call, method.Plan)
+		if err != nil {
+			return RoutineSecureSuppliesResult{}, err
+		}
+		if secureSuppliesRoomShellPlan(plan.Spec) {
+			return RoutineSecureSuppliesResult{}, nil
+		}
+	}
+	held, err := p.journal.BuildingReservations(call, state.Snapshot)
+	if err != nil {
+		return RoutineSecureSuppliesResult{}, err
+	}
+	var protected []domain.Cell
+	for _, h := range held {
+		protected = append(protected, h.Footprint...)
+	}
+	wallDef, wok := animalContainmentDefinition(projection.Definitions, "Wall")
+	doorDef, dok := animalContainmentDefinition(projection.Definitions, "Door")
+	if !wok || !dok {
+		return RoutineSecureSuppliesResult{Reason: BuildingMethodUnknown}, nil
+	}
+	wavail, wak := wallDef.Available.Value()
+	davail, dak := doorDef.Available.Value()
+	if !wak || !dak || !wavail || !davail {
+		return RoutineSecureSuppliesResult{Reason: BuildingMethodUnknown}, nil
+	}
+	stuff, known := animalContainmentStuff(wallDef, doorDef)
+	if !known {
+		return RoutineSecureSuppliesResult{Reason: BuildingMethodUnknown}, nil
+	}
+	sites, err := policy.SupplyRoomEnclosureSites(policy.SupplyRoomEnclosureRequest{Bounds: projection.Bounds, Anchor: projection.Center, Cells: projection.Cells, Protected: protected})
+	if err != nil {
+		return RoutineSecureSuppliesResult{}, err
+	}
+	digest := sha256.Sum256([]byte(fmt.Sprintf("%s/%d/%s", goal.Goal.ID, goal.Goal.Epoch, supplyRoomShellMethod)))
+	planID := domain.PlanID(fmt.Sprintf("routine-supply-room-shell-%x", digest[:16]))
+	snapshot := state.Snapshot
+	snapshot.Plan = planID
+	snapshot.Revision = 1
+	for _, room := range sites {
+		actions, previews, stock, reason, err := r.previewSupplyRoomShell(call, snapshot, room, stuff, projection)
+		if err != nil {
+			return RoutineSecureSuppliesResult{}, err
+		}
+		if reason == BuildingMethodUnknown {
+			return RoutineSecureSuppliesResult{Reason: reason}, nil
+		}
+		if reason != "" {
+			continue
+		}
+		plan, err := domain.NewPlan(planID, 1, actions)
+		if err != nil {
+			return RoutineSecureSuppliesResult{}, err
+		}
+		if err = p.current(call, epoch); err != nil {
+			return RoutineSecureSuppliesResult{}, err
+		}
+		if p.session.State() != state {
+			return RoutineSecureSuppliesResult{}, ErrControl
+		}
+		elapsed := r.reviewer.clock.Now().Sub(started)
+		if elapsed < 0 || elapsed > r.reviewer.maxAge {
+			return RoutineSecureSuppliesResult{}, ErrControl
+		}
+		decision, err := p.journal.AdmitBuildingMethod(call, store.BuildingMethodRequest{Goal: goal.Goal.ID, Revision: goal.Revision, Method: supplyRoomShellMethod, Plan: plan, Current: snapshot, Tick: projection.Identity.Tick, Bounds: domain.Known(projection.Bounds), Stock: stock, Rules: r.reviewer.rules, Previews: previews, Purpose: policy.Routine})
+		if err != nil {
+			return RoutineSecureSuppliesResult{}, err
+		}
+		outcome := BuildingMethodRefused
+		if decision.Admitted {
+			outcome = BuildingMethodAdmitted
+		}
+		return RoutineSecureSuppliesResult{Reason: outcome, Plan: planID}, nil
+	}
+	return RoutineSecureSuppliesResult{Reason: BuildingMethodNoSpace}, nil
+}
+
+// previewSupplyRoomShell previews one candidate room's full 6x6 perimeter
+// (one Door anchoring the south wall's center, Wall elsewhere), mirroring
+// previewPenShell. It never commits: a rejected or infeasible cell aborts
+// only this candidate.
+func (r *RoutineSecureSuppliesPlanner) previewSupplyRoomShell(ctx context.Context, snapshot domain.GenerationSnapshot, room policy.Rectangle, stuff string, facts observation.ColonyProjection) ([]domain.Action, []policy.Preview, policy.StockObservation, RoutineBuildingReason, error) {
+	door := domain.Cell{X: room.X + room.Width/2, Z: room.Z}
+	perimeter := []domain.Cell{door}
+	for x := room.X; x < room.X+room.Width; x++ {
+		for z := room.Z; z < room.Z+room.Height; z++ {
+			cell := domain.Cell{X: x, Z: z}
+			if cell != door && (x == room.X || x == room.X+room.Width-1 || z == room.Z || z == room.Z+room.Height-1) {
+				perimeter = append(perimeter, cell)
+			}
+		}
+	}
+	stock := policy.StockObservation{Snapshot: snapshot, Tick: facts.Identity.Tick}
+	var actions []domain.Action
+	var previews []policy.Preview
+	for i, cell := range perimeter {
+		definition := "Wall"
+		if i == 0 {
+			definition = "Door"
+		}
+		building, err := domain.NewBuilding(definition, cell, domain.North, stuff)
+		if err != nil {
+			return nil, nil, policy.StockObservation{}, "", err
+		}
+		action, err := domain.NewBuildingAction(domain.ActionID(fmt.Sprintf("%s-%d", snapshot.Plan, i)), building)
+		if err != nil {
+			return nil, nil, policy.StockObservation{}, "", err
+		}
+		preview, _, err := r.native.PreviewBuilding(ctx, action, snapshot)
+		if err != nil {
+			return nil, nil, policy.StockObservation{}, "", err
+		}
+		v := preview.Preview
+		if v.Action != action || !v.Snapshot.Matches(snapshot) || v.Tick != facts.Identity.Tick || !preview.Stock.Snapshot.Matches(snapshot) || preview.Stock.Tick != facts.Identity.Tick {
+			return nil, nil, policy.StockObservation{}, "", ErrControl
+		}
+		made, madeKnown := v.MadeFromStuff.Value()
+		if !madeKnown || made != (stuff != "") {
+			return nil, nil, policy.StockObservation{}, BuildingMethodUnknown, nil
+		}
+		footprint, fk := v.Footprint.Value()
+		can, ck := v.CanPlace.Value()
+		safe, sk := v.SafeToPlace.Value()
+		if !fk || len(footprint) != 1 || footprint[0] != cell || !ck || !can || !sk || !safe {
+			return nil, nil, policy.StockObservation{}, BuildingMethodNoSpace, nil
+		}
+		if err := mergeRoutineStock(&stock, preview.Stock, i == 0); err != nil {
+			return nil, nil, policy.StockObservation{}, "", err
+		}
+		actions = append(actions, action)
+		previews = append(previews, v)
+	}
+	return actions, previews, stock, "", nil
 }
 
 func secureSuppliesHaulerFacts(pawn domain.PawnID, row *n.PawnState) policy.SecureSuppliesHaulerFacts {
