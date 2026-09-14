@@ -154,6 +154,11 @@ type RoutineFacts struct {
 	// uses, broadened past prisoners alone so RoutinePopulationCustodyPlanner
 	// can detect and select a downed hostile or unadmitted guest to dispatch.
 	Custody domain.Fact[[]CustodyFacts]
+	// Waste carries MaintainWaste's exposed/eligible native item census (the
+	// same WasteReply the generic per-tick colony read already carries), for
+	// pendingWaste/WasteDeficit to detect and, eventually, SelectWasteMethod
+	// to dispatch containment/burial candidates from.
+	Waste domain.Fact[[]WasteItem]
 	// AvailableMethods is supplied by the configured runtime, never native facts.
 	AvailableMethods                                                           domain.Fact[[]GoalID]
 	Upkeep                                                                     UpkeepObservation
@@ -665,6 +670,19 @@ func DetectRoutine(f RoutineFacts, previous RoutineLatches, p RoutinePolicy) (Ro
 			addGoal(animalNeed.id, priority)
 			r.Goals[len(r.Goals)-1].MethodUnavailable = true
 		}
+	}
+	wasteRecovered := domain.Unknown[bool]()
+	if items, known := f.Waste.Value(); known {
+		wasteRecovered = domain.Known(len(pendingWaste(items)) == 0)
+	}
+	addAssessment(MaintainWaste, 3, wasteRecovered)
+	if !positive(wasteRecovered) {
+		addGoal(MaintainWaste, 3)
+		// No composed dispatch method exists yet for MaintainWaste (no domain
+		// action kind, admission table or executor boundary); see the
+		// MaintainAnimalFeed doc comment's precedent -- visible-only until
+		// that vertical lands.
+		r.Goals[len(r.Goals)-1].MethodUnavailable = true
 	}
 	if err := f.Mood.Validate(); err != nil {
 		return RoutineNeeds{}, err

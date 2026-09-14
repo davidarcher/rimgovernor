@@ -17,6 +17,7 @@ func stableRoutine() RoutineFacts {
 		SleepingRecovered:    domain.Known(true),
 		AnimalUpkeep:         AnimalUpkeepObservation{Animals: domain.Known([]UpkeepAnimal{})},
 		Prisoners:            domain.Known([]PrisonerFacts{}),
+		Waste:                domain.Known([]WasteItem{}),
 		MedicalReserve:       MedicalReserveObservation{Items: domain.Known([]MedicineStack{{ID: "medicine", Definition: "MedicineHerbal", Count: 9, Perishable: domain.Known(false)}}), Resources: domain.Known([]Amount{{"MedicineHerbal", 9}})},
 		Upkeep:               emptyUpkeep(),
 		Gear:                 domain.Known(gear),
