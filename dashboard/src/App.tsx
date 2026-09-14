@@ -5,6 +5,12 @@ import {useEffect, useState} from 'react';
 export default function App(){
   const [connected,setConnected]=useState(false);
   const [error,setError]=useState('');
+  const [hash,setHash]=useState(location.hash);
+  useEffect(()=>{
+    const onHashChange=()=>setHash(location.hash);
+    window.addEventListener('hashchange',onHashChange);
+    return()=>window.removeEventListener('hashchange',onHashChange);
+  },[]);
   useEffect(()=>{
     let stopped=false,timer:ReturnType<typeof setTimeout>|undefined;
     const controller=new AbortController();
@@ -21,7 +27,7 @@ export default function App(){
     void detect();return()=>{stopped=true;controller.abort();if(timer)clearTimeout(timer);};
   },[]);
   if(connected)return <ObservationDashboard/>;
-  const helpOpen=location.hash.startsWith('#help');
+  const helpOpen=hash.startsWith('#help');
   return <main className="observation-shell">
     <header className="observation-header"><div><p className="observation-eyebrow">Colony field station</p><h1>RimGovernor</h1></div></header>
     <nav className="observation-nav" aria-label="Dashboard sections"><a href="#help" aria-current={helpOpen?'page':undefined}>Help</a></nav>
