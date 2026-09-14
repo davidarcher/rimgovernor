@@ -115,6 +115,11 @@ type modelCommand struct {
 	// reuses Pawn and must be an observed pawn, so unlike the two policy
 	// commands this one is bounded against supplied facts.
 	Decision *string
+	// Goal holds create_goal's requested maintained goal kind (from a fixed
+	// whitelist, so nothing to bound against facts) or cancel_goal's target
+	// goal identity (which must be an observed one). The two commands are
+	// separate contracts that never appear together, so they share the field.
+	Goal *string
 }
 
 // modelExpeditionPolicy is an untrusted partial expedition policy request.
@@ -204,8 +209,12 @@ func decode(text string, limit int) (modelCommand, error) {
 		return decodeModifyResourcePolicy(fields)
 	case "set_resource_reserve":
 		return decodeSetResourceReserve(fields)
+	case "create_goal":
+		return decodeGoalCommand(fields, "create_goal")
+	case "cancel_goal":
+		return decodeGoalCommand(fields, "cancel_goal")
 	default:
-		return modelCommand{}, fail(UnsupportedCommand, "only building, research, tend, rescue, draft, caravan, husbandry, recover, bed_assign, move_pawn, set_building_temperature, request_surgery, hold_caravan, route_caravan, accept_quest, fulfill_quest, gift_settlement, create_zone, edit_zone, set_population_policy, set_expedition_policy, set_population_decision, modify_resource_policy and set_resource_reserve proposals are supported")
+		return modelCommand{}, fail(UnsupportedCommand, "only building, research, tend, rescue, draft, caravan, husbandry, recover, bed_assign, move_pawn, set_building_temperature, request_surgery, hold_caravan, route_caravan, accept_quest, fulfill_quest, gift_settlement, create_zone, edit_zone, set_population_policy, set_expedition_policy, set_population_decision, modify_resource_policy, set_resource_reserve, create_goal and cancel_goal proposals are supported")
 	}
 }
 
@@ -533,6 +542,25 @@ func decodeSetResourceReserve(fields map[string]json.RawMessage) (modelCommand, 
 		return modelCommand{}, fail(InvalidCommand, "invalid reserve field")
 	}
 	return modelCommand{Command: "set_resource_reserve", Resource: &resource, Reserve: &reserve}, nil
+}
+
+// decodeGoalCommand reads the single goal field create_goal and cancel_goal
+// each carry. The two contracts have the same one-string shape and differ only
+// in what that string must be -- a whitelisted kind for create_goal, an
+// observed identity for cancel_goal -- so the membership check belongs to the
+// interpreter's own bounding, and this only rejects the wrong shape.
+// Deliberately no target fields: unlike Python's CreateGoal there is no
+// food_days, resource, quantity, deep_extraction, unwanted or bury here, and
+// any of them present makes the field count wrong and the command invalid.
+func decodeGoalCommand(fields map[string]json.RawMessage, command string) (modelCommand, error) {
+	if len(fields) != 2 || fields["goal"] == nil {
+		return modelCommand{}, fail(InvalidCommand, "unexpected command fields")
+	}
+	var goal string
+	if err := json.Unmarshal(fields["goal"], &goal); err != nil || goal == "" {
+		return modelCommand{}, fail(InvalidCommand, "invalid goal field")
+	}
+	return modelCommand{Command: command, Goal: &goal}, nil
 }
 
 // optionalCommandField turns a decoded partial-request pointer into the
