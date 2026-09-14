@@ -587,6 +587,22 @@ The dashboard displays these sections independently, retaining last-good data
 with a stale indicator during failed refreshes. A changed world or session excludes
 old results. Native notification production still requires game-level acceptance.
 
+### Native request diagnostics
+
+`serve --flight-recorder <absolute-path>` opt-in-records every native
+request/response/error, including background reads, replacing
+`controller/rimgovernor/flight_recorder.py`. It is off by default; a service
+started without the flag records nothing. Requests and errors are fsynced
+before the call returns; a response row is written unsynced and becomes
+durable only at the next durable record or segment rotation, so a crash can
+leave an explicit unmatched request but never a silently lost one. The
+timeline is a bounded JSONL file rotated into numbered segments (`<path>.1` is
+the newest) once the active segment reaches its size bound; the oldest segment
+is dropped on rotation. Oversized payloads are replaced with a truncated
+summary (SHA-256, original size, a bounded preview and, when present, the
+correlating `request`/`tool`/`category` fields) rather than growing the file
+unbounded. See `internal/flightrecorder` for the writer and `ReadTimeline` reader.
+
 ## Guarded player components
 
 `rimgovernor serve --player-control --profile <absolute-game-profile>` selects

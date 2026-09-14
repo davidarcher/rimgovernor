@@ -17,6 +17,7 @@ import (
 
 	"github.com/davidarcher/RimGovernor/go/internal/bridge"
 	"github.com/davidarcher/RimGovernor/go/internal/controller"
+	"github.com/davidarcher/RimGovernor/go/internal/flightrecorder"
 	"github.com/davidarcher/RimGovernor/go/internal/httpapi"
 	"github.com/davidarcher/RimGovernor/go/internal/observation"
 	"github.com/davidarcher/RimGovernor/go/internal/store"
@@ -28,6 +29,7 @@ func (wallClock) Now() time.Time { return time.Now() }
 
 type serveConfig struct {
 	bridge                          bridge.ProcessConfig
+	flightRecorder                  string
 	state, listen, assets           string
 	profile                         string
 	playerControl                   bool
@@ -135,6 +137,7 @@ func parseServe(args []string, diagnostics io.Writer) (serveConfig, error) {
 	flags.StringVar(&c.listen, "listen", "127.0.0.1:0", "loopback IP:port; 0 selects an available port")
 	flags.DurationVar(&c.refresh, "refresh", 3*time.Second, "observation refresh interval")
 	flags.DurationVar(&c.bridge.Timeout, "timeout", 15*time.Second, "native call timeout")
+	flags.StringVar(&c.flightRecorder, "flight-recorder", "", "absolute path recording every native request/response/error (optional; opt-in diagnostics)")
 	if err := flags.Parse(args); err != nil {
 		return c, err
 	}
@@ -198,6 +201,9 @@ func parseServe(args []string, diagnostics io.Writer) (serveConfig, error) {
 	if c.refresh < 500*time.Millisecond || c.refresh > time.Minute || c.bridge.Timeout < time.Second || c.bridge.Timeout > time.Minute {
 		return c, errors.New("refresh must be 500ms..1m and timeout 1s..1m")
 	}
+	if c.flightRecorder != "" && !filepath.IsAbs(c.flightRecorder) {
+		return c, errors.New("--flight-recorder requires an absolute path")
+	}
 	return c, nil
 }
 
@@ -232,6 +238,15 @@ func serve(ctx context.Context, args []string, out, diagnostics io.Writer) int {
 	if err != nil {
 		fmt.Fprintln(diagnostics, err)
 		return 2
+	}
+	if config.flightRecorder != "" {
+		recorder, err := flightrecorder.New(config.flightRecorder)
+		if err != nil {
+			fmt.Fprintln(diagnostics, "flight recorder:", err)
+			return 1
+		}
+		defer recorder.Close()
+		config.bridge.Recorder = recorder
 	}
 	if config.playerControl {
 		err = serveBuildingControl(ctx, config, out)
