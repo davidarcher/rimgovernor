@@ -61,8 +61,23 @@ resurrect an expired lease; release/expiry/disconnect/load/map changes clear hel
 keys/buttons independently of controller cancellation and never resume play.
 
 Keep the input viewer/lease distinct from simulation-write authority and clock
-epoch. Player camera, selection, UI and naming commands require the same current
-player identity and lease plus a captured UI precondition. `CaptureIdentity` binds
+epoch. Player camera, selection, UI and naming commands issued through
+`PlayerPresentation.Apply` (the `confirm_colony_names` branch of `PlayerCommand`)
+require the same current player identity and lease plus a captured UI
+precondition, exactly like every other `Apply` branch; there is no naming-specific
+carve-out of that boundary. `PresentationReads.PreviewNaming` is a read of the
+same authenticated surface and stays unregistered alongside it.
+
+The unauthenticated, autopilot-eligible `home/confirm_colony_names` tool
+(`ColonyNamingTool.cs:24-78`, row above) is a distinct surface, not a partial or
+legacy implementation of `PlayerPresentation.Apply`'s naming branch: the initial
+faction/settlement dialog blocks all play, including automated Hands, before any
+player lease or capture is possible, so gating it behind `PlayerPresentation`
+would deadlock autopilot bootstrap. Routine control dispatches the
+`ConfirmColonyNames` goal (priority 0) through this tool. `Apply`'s
+`confirm_colony_names` branch remains reserved for a future player-facing naming
+review affordance and is deliberately unregistered until one exists; it must not
+be relaxed to admit automated Hands. `CaptureIdentity` binds
 colony/load/map/native generation, player direction, exact complete selected IDs,
 window ID/type set, and a server-retained capture. The retained native capture must
 also verify camera matrices, viewport dimensions and window rectangles; those
