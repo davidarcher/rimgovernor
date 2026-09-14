@@ -113,8 +113,9 @@ confirm the packaging path is wired correctly, not that a colony runs.
   (`modify_resource_policy`/`set_resource_reserve`), maintained goal
   activation/cancellation (`create_goal`/`cancel_goal`), room shells
   (`build_room`), room adoption (`adopt_room`), construction cancellation
-  (`cancel_construction`) and construction relocation
-  (`relocate_construction`) proposals, but
+  (`cancel_construction`), construction relocation
+  (`relocate_construction`) and read-only world evaluation
+  (`evaluate_world`) proposals, but
   is not yet wired into the Go binary's serve loop) — G01.08.
   `set_population_policy` is the first interpreted command that is colony
   configuration rather than a plan of native actions: it issues no native
@@ -499,7 +500,20 @@ confirm the packaging path is wired correctly, not that a colony runs.
   read-only `evaluate_world` advisory (caravan recovery, quest resource
   deficits/carried cargo) is also in Go, served at
   `GET /api/player/world-evaluation` behind `--world-evaluation`
-  (`buildingruntime.WorldEvaluation`, `policy.EvaluateWorld`).
+  (`buildingruntime.WorldEvaluation`, `policy.EvaluateWorld`), and is now
+  reachable through the player-command path as well: `evaluate_world` is a
+  decodable interpreter command that sets `interpreter.Proposal.EvaluateWorld`
+  and carries nothing else. That flag is the emptiest proposal in the family —
+  no plan, no configuration, no named entity — because Python's `EvaluateWorld`
+  contract is a bare kind discriminator with no parameters. The evaluation
+  itself is deliberately not recomputed there: the interpreter holds no native
+  surface and no expedition policy, so a consumer that sees the flag answers
+  the player from the same `buildingruntime.WorldEvaluation.Read` the GET route
+  already calls. The GET route therefore stays, and is not redundant — it is
+  the single place the advisory is computed, and the only one with a native
+  surface to compute it from. There is no `/submission` counterpart for the
+  same reason there is no `Acknowledge`: the command writes nothing, so there
+  is no state to make consistent under a CAS token.
 - Most routine workflows beyond construction: cooking/butcher bill execution,
   care/tend/rescue/defense dispatch beyond compiled plans, and other
   non-building executable actions — G01.05/G01.07a–c/e (many `--routine-*-plans`
