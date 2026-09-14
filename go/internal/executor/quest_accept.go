@@ -55,6 +55,7 @@ func (e *Executor) runQuestAccept(ctx context.Context, action domain.Action, p d
 		decision := policy.EvaluateQuestAccept(policy.QuestAcceptRequest{Action: action, Progress: result.Progress, Current: expected, MinimumTick: minimum, Facts: facts})
 		result.Refused = decision.Refused
 		if !decision.Admitted {
+			result.Progress = e.holdRefusal(ctx, v.Plan, v.Action, decision.Refused, minimum, result.Progress)
 			return result, ErrHeld
 		}
 		admission := store.QuestAcceptAdmission{Snapshot: expected, Tick: facts.PreviewTick, Quest: accept.Quest(), AccepterPawn: accept.AccepterPawn(), RewardChoice: accept.RewardChoice(), QuestSnapshotToken: facts.Quest.SnapshotToken}

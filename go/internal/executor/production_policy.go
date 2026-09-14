@@ -52,6 +52,7 @@ func (e *Executor) runProductionPolicy(ctx context.Context, action domain.Action
 		decision := policy.EvaluateProductionPolicy(policy.ProductionPolicyRequest{Action: action, Progress: result.Progress, Current: expected, MinimumTick: v.Tick, Facts: inspection.Facts})
 		result.Refused = decision.Refused
 		if !decision.Admitted {
+			result.Progress = e.holdRefusal(ctx, v.Plan, v.Action, decision.Refused, v.Tick, result.Progress)
 			return result, ErrHeld
 		}
 		admission := store.ProductionPolicyAdmission{Snapshot: expected, Tick: inspection.Facts.Tick, Floors: value.Floors(), Stopped: value.Stopped(), Commitments: inspection.Commitments, Drills: inspection.Drills, SnapshotToken: inspection.Facts.Token}

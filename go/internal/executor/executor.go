@@ -571,6 +571,7 @@ func (e *Executor) inspect(ctx context.Context, target Target, progress domain.P
 	}
 	decision := policy.Admit(input)
 	if len(decision.Admitted) != 1 || decision.Admitted[0].Action != target.Action {
+		progress = e.holdRefusal(ctx, target.Snapshot.Plan, target.Action.ID(), decision.Refused, inspection.Tick, progress)
 		return inspection, decision.Refused, progress, ErrHeld
 	}
 	accepted := decision.Admitted[0]

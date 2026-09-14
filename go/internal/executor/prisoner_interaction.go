@@ -55,6 +55,7 @@ func (e *Executor) runPrisonerInteraction(ctx context.Context, action domain.Act
 		decision := policy.EvaluatePrisonerInteraction(policy.PrisonerInteractionRequest{Action: action, Progress: result.Progress, Current: expected, MinimumTick: minimum, Facts: facts})
 		result.Refused = decision.Refused
 		if !decision.Admitted {
+			result.Progress = e.holdRefusal(ctx, v.Plan, v.Action, decision.Refused, minimum, result.Progress)
 			return result, ErrHeld
 		}
 		admission := store.PrisonerInteractionAdmission{Snapshot: expected, Tick: facts.PreviewTick, Pawn: interaction.Pawn(), Interaction: interaction.Interaction(), PawnSnapshotToken: facts.Pawn.SnapshotToken}

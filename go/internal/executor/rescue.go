@@ -55,6 +55,7 @@ func (e *Executor) runRescue(ctx context.Context, action domain.Action, p domain
 		decision := policy.EvaluateRescue(policy.RescueRequest{Action: action, Progress: result.Progress, Current: expected, MinimumTick: minimum, Facts: facts})
 		result.Refused = decision.Refused
 		if !decision.Admitted {
+			result.Progress = e.holdRefusal(ctx, v.Plan, v.Action, decision.Refused, minimum, result.Progress)
 			return result, ErrHeld
 		}
 		admission := store.RescueAdmission{Snapshot: expected, Tick: facts.PreviewTick, Rescuer: rescue.Rescuer(), Patient: rescue.Patient(), RescuerSnapshotToken: facts.Rescuer.SnapshotToken, PatientSnapshotToken: facts.Patient.SnapshotToken}

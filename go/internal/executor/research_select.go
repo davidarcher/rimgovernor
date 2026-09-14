@@ -89,6 +89,7 @@ func (e *Executor) runResearchSelect(ctx context.Context, action domain.Action, 
 		decision := policy.EvaluateResearchSelect(policy.ResearchSelectRequest{Action: action, Progress: result.Progress, Current: expected, MinimumTick: v.Tick, Facts: inspection.Facts})
 		result.Refused = decision.Refused
 		if !decision.Admitted {
+			result.Progress = e.holdRefusal(ctx, v.Plan, v.Action, decision.Refused, v.Tick, result.Progress)
 			return result, ErrHeld
 		}
 		admission := store.ResearchSelectAdmission{Snapshot: expected, Tick: inspection.Facts.Tick, Project: value.Project()}

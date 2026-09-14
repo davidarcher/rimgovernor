@@ -55,6 +55,7 @@ func (e *Executor) runEquip(ctx context.Context, action domain.Action, p domain.
 		decision := policy.EvaluateEquip(policy.EquipRequest{Action: action, Progress: result.Progress, Current: expected, MinimumTick: minimum, Facts: facts})
 		result.Refused = decision.Refused
 		if !decision.Admitted {
+			result.Progress = e.holdRefusal(ctx, v.Plan, v.Action, decision.Refused, minimum, result.Progress)
 			return result, ErrHeld
 		}
 		admission := store.EquipAdmission{Snapshot: expected, Tick: facts.PreviewTick, Pawn: equip.Pawn(), Thing: equip.Thing(), Definition: equip.Definition(), Cell: equip.Cell(), PawnSnapshotToken: facts.Pawn.SnapshotToken, ThingSnapshotToken: facts.ThingSnapshotToken}

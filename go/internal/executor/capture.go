@@ -55,6 +55,7 @@ func (e *Executor) runCapture(ctx context.Context, action domain.Action, p domai
 		decision := policy.EvaluateCapture(policy.CaptureRequest{Action: action, Progress: result.Progress, Current: expected, MinimumTick: minimum, Facts: facts})
 		result.Refused = decision.Refused
 		if !decision.Admitted {
+			result.Progress = e.holdRefusal(ctx, v.Plan, v.Action, decision.Refused, minimum, result.Progress)
 			return result, ErrHeld
 		}
 		admission := store.CaptureAdmission{Snapshot: expected, Tick: facts.PreviewTick, Capturer: capture.Capturer(), Patient: capture.Patient(), CapturerSnapshotToken: facts.Capturer.SnapshotToken, PatientSnapshotToken: facts.Patient.SnapshotToken}

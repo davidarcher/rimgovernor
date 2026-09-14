@@ -55,6 +55,7 @@ func (e *Executor) runRepair(ctx context.Context, action domain.Action, p domain
 		decision := policy.EvaluateRepair(policy.RepairRequest{Action: action, Progress: result.Progress, Current: expected, MinimumTick: minimum, Facts: facts})
 		result.Refused = decision.Refused
 		if !decision.Admitted {
+			result.Progress = e.holdRefusal(ctx, v.Plan, v.Action, decision.Refused, minimum, result.Progress)
 			return result, ErrHeld
 		}
 		admission := store.RepairAdmission{Snapshot: expected, Tick: facts.PreviewTick, Pawn: repair.Pawn(), Structure: repair.Structure(), Cell: repair.Cell(), PawnSnapshotToken: facts.Pawn.SnapshotToken, StructureSnapshotToken: facts.Structure.SnapshotToken}

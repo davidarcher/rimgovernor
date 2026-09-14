@@ -55,6 +55,7 @@ func (e *Executor) runHomeCoverage(ctx context.Context, action domain.Action, p 
 		decision := policy.EvaluateHomeCoverage(policy.HomeCoverageRequest{Action: action, Progress: result.Progress, Current: expected, MinimumTick: minimum, Facts: facts})
 		result.Refused = decision.Refused
 		if !decision.Admitted {
+			result.Progress = e.holdRefusal(ctx, v.Plan, v.Action, decision.Refused, minimum, result.Progress)
 			return result, ErrHeld
 		}
 		revision, _ := facts.Revision.Value()

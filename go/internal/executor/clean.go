@@ -55,6 +55,7 @@ func (e *Executor) runClean(ctx context.Context, action domain.Action, p domain.
 		decision := policy.EvaluateClean(policy.CleanRequest{Action: action, Progress: result.Progress, Current: expected, MinimumTick: minimum, Facts: facts})
 		result.Refused = decision.Refused
 		if !decision.Admitted {
+			result.Progress = e.holdRefusal(ctx, v.Plan, v.Action, decision.Refused, minimum, result.Progress)
 			return result, ErrHeld
 		}
 		admission := store.CleanAdmission{Snapshot: expected, Tick: facts.PreviewTick, Pawn: clean.Pawn(), Filth: clean.Filth(), Cell: clean.Cell(), PawnSnapshotToken: facts.Pawn.SnapshotToken, FilthSnapshotToken: facts.Filth.SnapshotToken}

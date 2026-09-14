@@ -61,9 +61,11 @@ func (r UnsuccessfulReason) valid() bool {
 }
 
 // HeldReason explains why a not-yet-dispatched action is currently stuck,
-// mirroring (not importing, to avoid a domain->policy cycle) the emergency
-// subset of policy.Reason. Admission-decision refusal reasons are out of
-// scope for this mechanism.
+// mirroring (not importing, to avoid a domain->policy cycle) every
+// policy.Reason value across both the emergency subset and the ordinary
+// (non-emergency) admission-refusal reasons every action family's Admit-style
+// check can return -- geometry conflicts, insufficient stock, dependency and
+// spending blocks, per-family worker/resource unavailability, and the rest.
 type HeldReason string
 
 const (
@@ -71,39 +73,90 @@ const (
 	HeldCriticalMedical HeldReason = "critical_medical"
 	HeldStaleFacts      HeldReason = "stale_facts"
 	HeldUnknownFacts    HeldReason = "unknown_facts"
+
+	HeldNotReady           HeldReason = "not_ready"
+	HeldAlreadyReserved    HeldReason = "already_reserved"
+	HeldUnsafePlacement    HeldReason = "unsafe_placement"
+	HeldMaterialRequired   HeldReason = "explicit_material_required"
+	HeldDependencyBlocked  HeldReason = "dependency_incomplete"
+	HeldGeometryBlocked    HeldReason = "geometry_conflict"
+	HeldSpendingBlocked    HeldReason = "spending_policy"
+	HeldInsufficientStock  HeldReason = "insufficient_stock"
+	HeldInvalidHeld        HeldReason = "held_reservation_unverifiable"
+	HeldArithmeticOverflow HeldReason = "arithmetic_overflow"
+
+	HeldBedAssignPawnUnavailable        HeldReason = "bed_assign_pawn_unavailable"
+	HeldCaravanCrewUnavailable          HeldReason = "caravan_crew_unavailable"
+	HeldCaravanHomeFoodInsufficient     HeldReason = "caravan_home_food_insufficient"
+	HeldCaravanHomeStaffingInsufficient HeldReason = "caravan_home_staffing_insufficient"
+	HeldCaravanRouteUnavailable         HeldReason = "caravan_route_unavailable"
+	HeldCleanerUnavailable              HeldReason = "cleaner_unavailable"
+	HeldDoctorUnavailable               HeldReason = "doctor_unavailable"
+	HeldDraftOwnership                  HeldReason = "draft_ownership"
+	HeldEquipPawnUnavailable            HeldReason = "equip_pawn_unavailable"
+	HeldFilthIneligible                 HeldReason = "filth_ineligible"
+	HeldGearReplacePawnUnavailable      HeldReason = "gear_replace_pawn_unavailable"
+	HeldHaulerUnavailable               HeldReason = "hauler_unavailable"
+	HeldHomeCoverageExcluded            HeldReason = "home_coverage_excluded"
+	HeldHomeCoverageGeometryChanged     HeldReason = "home_coverage_geometry_changed"
+	HeldHusbandryAnimalUnavailable      HeldReason = "husbandry_animal_unavailable"
+	HeldInsufficientReserve             HeldReason = "insufficient_reserve"
+	HeldNativeIneligible                HeldReason = "native_ineligible"
+	HeldPatientIneligible               HeldReason = "patient_ineligible"
+	HeldPlayerOrder                     HeldReason = "player_order"
+	HeldPrisonerUnavailable             HeldReason = "prisoner_unavailable"
+	HeldProductionPolicySatisfied       HeldReason = "production_policy_satisfied"
+	HeldQuestUnavailable                HeldReason = "quest_unavailable"
+	HeldRecoveryServicePawnUnavailable  HeldReason = "recovery_service_pawn_unavailable"
+	HeldRepairerUnavailable             HeldReason = "repairer_unavailable"
+	HeldRescuerUnavailable              HeldReason = "rescuer_unavailable"
+	HeldResearchProjectClaimed          HeldReason = "research_project_claimed"
+	HeldSettlementUnavailable           HeldReason = "settlement_unavailable"
+	HeldStructureIneligible             HeldReason = "structure_ineligible"
+	HeldUnsuitableEquipment             HeldReason = "unsuitable_equipment"
+	HeldUnsupportedThreat               HeldReason = "unsupported_threat"
+	HeldWallRemovalGeometryChanged      HeldReason = "wall_removal_geometry_changed"
+	HeldWallRemovalTargetChanged        HeldReason = "wall_removal_target_changed"
 )
 
-func (r HeldReason) valid() bool {
-	switch r {
-	case HeldUnsafeThreat, HeldCriticalMedical, HeldStaleFacts, HeldUnknownFacts:
-		return true
-	}
-	return false
+// orderedHeldReasons lists every reason in the fixed, deterministic order
+// HoldEvidence.Reasons() decodes them in; bit position within this slice is
+// the single source of truth for the packed encoding below.
+var orderedHeldReasons = []HeldReason{
+	HeldUnsafeThreat, HeldCriticalMedical, HeldStaleFacts, HeldUnknownFacts,
+	HeldNotReady, HeldAlreadyReserved, HeldUnsafePlacement, HeldMaterialRequired,
+	HeldDependencyBlocked, HeldGeometryBlocked, HeldSpendingBlocked, HeldInsufficientStock,
+	HeldInvalidHeld, HeldArithmeticOverflow,
+	HeldBedAssignPawnUnavailable, HeldCaravanCrewUnavailable, HeldCaravanHomeFoodInsufficient,
+	HeldCaravanHomeStaffingInsufficient, HeldCaravanRouteUnavailable, HeldCleanerUnavailable,
+	HeldDoctorUnavailable, HeldDraftOwnership, HeldEquipPawnUnavailable, HeldFilthIneligible,
+	HeldGearReplacePawnUnavailable, HeldHaulerUnavailable, HeldHomeCoverageExcluded,
+	HeldHomeCoverageGeometryChanged, HeldHusbandryAnimalUnavailable, HeldInsufficientReserve,
+	HeldNativeIneligible, HeldPatientIneligible, HeldPlayerOrder, HeldPrisonerUnavailable,
+	HeldProductionPolicySatisfied, HeldQuestUnavailable, HeldRecoveryServicePawnUnavailable,
+	HeldRepairerUnavailable, HeldRescuerUnavailable, HeldResearchProjectClaimed,
+	HeldSettlementUnavailable, HeldStructureIneligible, HeldUnsuitableEquipment,
+	HeldUnsupportedThreat, HeldWallRemovalGeometryChanged, HeldWallRemovalTargetChanged,
 }
 
-// heldReasonBits packs the small, fixed set of hold reasons into a comparable
-// value so ProgressView (compared by == elsewhere) stays comparable; a slice
-// field could not. bit is the single source of truth for the encoding.
-type heldReasonBits uint8
+func (r HeldReason) valid() bool {
+	return r.bit() != 0
+}
+
+// heldReasonBits packs every hold reason into a comparable value so
+// ProgressView (compared by == elsewhere) stays comparable; a slice field
+// could not. 45 reasons currently exist, comfortably under the 64-bit cap;
+// bit reports 0 (invalid) once orderedHeldReasons would exceed that cap.
+type heldReasonBits uint64
 
 func (r HeldReason) bit() heldReasonBits {
-	switch r {
-	case HeldUnsafeThreat:
-		return 1 << 0
-	case HeldCriticalMedical:
-		return 1 << 1
-	case HeldStaleFacts:
-		return 1 << 2
-	case HeldUnknownFacts:
-		return 1 << 3
-	default:
-		return 0
+	for i, candidate := range orderedHeldReasons {
+		if candidate == r {
+			return 1 << i
+		}
 	}
+	return 0
 }
-
-// orderedHeldReasons lists every reason in the fixed, deterministic order
-// HoldEvidence.Reasons() decodes them in.
-var orderedHeldReasons = []HeldReason{HeldUnsafeThreat, HeldCriticalMedical, HeldStaleFacts, HeldUnknownFacts}
 
 // HoldEvidence ties held-action reasons to the exact plan/revision and tick
 // they were observed under. A projection must re-verify this tie before

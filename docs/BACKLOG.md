@@ -1761,6 +1761,65 @@ b; exact worker cleanup by a, with reuse by their later consumers.
   recovery-service/clean/caravan-departure remain unwired to the emergency-hold
   mechanism landed in an earlier slice of this item).
 
+  Durable recording of ordinary (non-emergency) admission-refusal reasons now
+  extends the hold mechanism to every remaining action family. Previously only
+  the 4 `EmergencyReason` values were durably recorded via `holdEmergency`;
+  the 41 other `policy.Reason` constants a family's `Admit`-style check can
+  return were computed and then discarded before `ErrHeld`, same as building's
+  emergency reasons were before an earlier slice of this item.
+  `domain.HeldReason`'s backing bitmask (`go/internal/domain/progress.go`) was
+  widened from `uint8` to `uint64` to hold all 45 reasons (4 emergency + 41
+  ordinary) as a single comparable value; `orderedHeldReasons` is now the bit-
+  position source of truth for all of them. A new
+  `go/internal/executor/hold.go` holds `reasonHeldReasons`, a static
+  `map[policy.Reason]domain.HeldReason` covering every declared `policy.Reason`
+  (proven exhaustive and bijective by
+  `TestReasonHeldReasonsIsExhaustiveAndBijective` in `hold_test.go` against an
+  explicit, manually-maintained list of all 45 constants — there is no way to
+  enumerate Go constants at runtime, so this is the regression guard for a
+  future reason added without a matching map entry), and `holdRefusal`, which
+  mirrors `holdEmergency`'s deduplicated, best-effort `Journal.Hold` call but
+  keyed off a family's `[]policy.Refusal` instead of an `EmergencyDecision`.
+  `Executor.inspect()` (the shared building/zone admission path) and all 20
+  other family-specific `run<Family>` methods now call `holdRefusal` in their
+  ordinary-refusal branch, immediately before returning `ErrHeld`, so a plain
+  (non-emergency) refusal is durably readable back via
+  `ProgressView.FreshHeldReason()` exactly like an emergency hold already was.
+  `draft` and `melee`/`ranged_attack` (whose refusal branches use non-standard
+  variable names for tick/plan/action) were wired individually rather than
+  mechanically. Covered by a new `FreshHeldReason` assertion in ten existing
+  per-family refusal tests that already exercised a real (non-emergency)
+  refusal path — `TestCaravanDepartureNativeIneligibleBlocksDispatch`,
+  `TestEquipNativeIneligibleBlocksDispatch`,
+  `TestGearReplaceNativeIneligibleBlocksDispatch`,
+  `TestHaulNativeIneligibleBlocksDispatch`,
+  `TestHusbandryNativeIneligibleBlocksDispatch`,
+  `TestPrisonerInteractionNativeIneligibleBlocksDispatch`,
+  `TestQuestAcceptNativeIneligibleBlocksDispatch`,
+  `TestRecoveryServiceNativeIneligibleBlocksDispatch`,
+  `TestSettlementGiftNativeIneligibleBlocksDispatch` (all `NativeIneligible`),
+  and `TestRangedAttackRequiresRangedWeapon` (`UnsuitableEquipment`) — plus the
+  new exhaustiveness/bijectiveness test above. `go build/vet/test ./...` pass
+  with zero regressions across every existing family test. **Explicitly out of
+  scope for this slice:** families with no pre-existing refusal-path test
+  fixture (bed_assign, clean, home_coverage, melee, production_policy,
+  quest_fulfill, repair, research_select, wall_removal) were wired for
+  durable recording but did not get a new `FreshHeldReason` regression test —
+  building fresh admission fixtures for them was judged out of scope, matching
+  the precedent set when a `zone` happy-path fixture was dropped earlier in
+  this item for the same reason; reconnect-after-disconnect session semantics,
+  competing-viewer arbitration, and recording/diagnostics are permanently
+  dropped, not deferred — there is no session/viewer-identity concept
+  anywhere in the codebase to build them on (a single global bearer token
+  gates all write endpoints), so they would need ground-up design rather than
+  wiring, and are out of scope for this item.
+
+  Visual-readiness detection for `Lifecycle/Load` (`READINESS_VISUAL` vs.
+  MAP-only readiness) remains unimplemented, as does
+  reconnect-after-disconnect session semantics and competing-viewer
+  arbitration, which are now explicitly and permanently out of scope for this
+  item (see above), not merely deferred.
+
 - [ ] **G01.10 — Integrate the complete Go controller.**
   Compose the above paths in one process with clock, recovery and diagnostics;
   reconcile responsibilities against current Python source and domain/interface/

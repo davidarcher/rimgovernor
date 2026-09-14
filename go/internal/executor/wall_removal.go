@@ -77,6 +77,7 @@ func (e *Executor) runWallRemoval(ctx context.Context, action domain.Action, p d
 		decision := policy.EvaluateWallRemoval(policy.WallRemovalRequest{Action: action, Progress: result.Progress, Current: expected, BackupIdentity: backupIdentity, Facts: facts})
 		result.Refused = decision.Refused
 		if !decision.Admitted {
+			result.Progress = e.holdRefusal(ctx, v.Plan, v.Action, decision.Refused, facts.ObservationTick, result.Progress)
 			return result, ErrHeld
 		}
 		identity, _ := facts.TargetIdentity.Value()

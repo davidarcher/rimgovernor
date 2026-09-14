@@ -55,6 +55,7 @@ func (e *Executor) runTend(ctx context.Context, action domain.Action, p domain.P
 		decision := policy.EvaluateTend(policy.TendRequest{Action: action, Progress: result.Progress, Current: expected, MinimumTick: minimum, Facts: facts})
 		result.Refused = decision.Refused
 		if !decision.Admitted {
+			result.Progress = e.holdRefusal(ctx, v.Plan, v.Action, decision.Refused, minimum, result.Progress)
 			return result, ErrHeld
 		}
 		admission := store.TendAdmission{Snapshot: expected, Tick: facts.PreviewTick, Doctor: tend.Doctor(), Patient: tend.Patient(), DoctorSnapshotToken: facts.Doctor.SnapshotToken, PatientSnapshotToken: facts.Patient.SnapshotToken}

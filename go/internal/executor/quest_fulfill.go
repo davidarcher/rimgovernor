@@ -55,6 +55,7 @@ func (e *Executor) runQuestFulfill(ctx context.Context, action domain.Action, p 
 		decision := policy.EvaluateQuestFulfill(policy.QuestFulfillRequest{Action: action, Progress: result.Progress, Current: expected, MinimumTick: minimum, Facts: facts})
 		result.Refused = decision.Refused
 		if !decision.Admitted {
+			result.Progress = e.holdRefusal(ctx, v.Plan, v.Action, decision.Refused, minimum, result.Progress)
 			return result, ErrHeld
 		}
 		admission := store.QuestFulfillAdmission{Snapshot: expected, Tick: facts.PreviewTick, Quest: fulfill.Quest(), Caravan: fulfill.Caravan(), CrewIDs: fulfill.CrewIDs(), QuestSnapshotToken: facts.Fulfill.QuestToken, CaravanSnapshotToken: facts.Fulfill.CaravanToken}

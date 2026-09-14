@@ -55,6 +55,7 @@ func (e *Executor) runGearReplace(ctx context.Context, action domain.Action, p d
 		decision := policy.EvaluateGearReplace(policy.GearReplaceRequest{Action: action, Progress: result.Progress, Current: expected, MinimumTick: minimum, Facts: facts})
 		result.Refused = decision.Refused
 		if !decision.Admitted {
+			result.Progress = e.holdRefusal(ctx, v.Plan, v.Action, decision.Refused, minimum, result.Progress)
 			return result, ErrHeld
 		}
 		admission := store.GearReplaceAdmission{Snapshot: expected, Tick: facts.PreviewTick, Pawn: replace.Pawn(), Thing: replace.Thing(), Definition: replace.Definition(), PawnSnapshotToken: facts.Pawn.SnapshotToken, ThingSnapshotToken: facts.ThingSnapshotToken, LoadoutToken: facts.LoadoutToken}

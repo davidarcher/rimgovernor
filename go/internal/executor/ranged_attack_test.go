@@ -121,4 +121,8 @@ func TestRangedAttackRequiresRangedWeapon(t *testing.T) {
 	if len(r.Refused) != 1 || r.Refused[0].Reason != policy.UnsuitableEquipment {
 		t.Fatal(r.Refused)
 	}
+	held, ok := r.Progress.View().FreshHeldReason()
+	if !ok || len(held) != 1 || held[0] != domain.HeldUnsuitableEquipment {
+		t.Fatal("ordinary refusal was not persisted as a held reason", held)
+	}
 }

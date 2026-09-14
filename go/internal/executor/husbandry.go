@@ -55,6 +55,7 @@ func (e *Executor) runHusbandry(ctx context.Context, action domain.Action, p dom
 		decision := policy.EvaluateHusbandry(policy.HusbandryRequest{Action: action, Progress: result.Progress, Current: expected, MinimumTick: minimum, Facts: facts})
 		result.Refused = decision.Refused
 		if !decision.Admitted {
+			result.Progress = e.holdRefusal(ctx, v.Plan, v.Action, decision.Refused, minimum, result.Progress)
 			return result, ErrHeld
 		}
 		admission := store.HusbandryAdmission{Snapshot: expected, Tick: facts.PreviewTick, Animal: husbandry.Animal(), Method: husbandry.Method(), TrainableDef: husbandry.TrainableDef(), AnimalSnapshotToken: facts.Animal.SnapshotToken, CensusToken: facts.CensusToken}

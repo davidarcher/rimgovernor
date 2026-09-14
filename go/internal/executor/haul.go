@@ -55,6 +55,7 @@ func (e *Executor) runHaul(ctx context.Context, action domain.Action, p domain.P
 		decision := policy.EvaluateHaul(policy.HaulRequest{Action: action, Progress: result.Progress, Current: expected, MinimumTick: minimum, Facts: facts})
 		result.Refused = decision.Refused
 		if !decision.Admitted {
+			result.Progress = e.holdRefusal(ctx, v.Plan, v.Action, decision.Refused, minimum, result.Progress)
 			return result, ErrHeld
 		}
 		admission := store.HaulAdmission{Snapshot: expected, Tick: facts.PreviewTick, Pawn: haul.Pawn(), Thing: haul.Thing(), Definition: haul.Definition(), Cell: haul.Cell(), PawnSnapshotToken: facts.Pawn.SnapshotToken, ThingSnapshotToken: facts.ThingSnapshotToken}

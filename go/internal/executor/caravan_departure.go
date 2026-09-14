@@ -63,6 +63,7 @@ func (e *Executor) runCaravanDeparture(ctx context.Context, action domain.Action
 		decision := policy.EvaluateCaravanDeparture(policy.CaravanDepartureRequest{Action: action, Progress: result.Progress, Current: expected, MinimumTick: minimum, Policy: inspection.Policy, Facts: facts})
 		result.Refused = decision.Refused
 		if !decision.Admitted {
+			result.Progress = e.holdRefusal(ctx, v.Plan, v.Action, decision.Refused, minimum, result.Progress)
 			return result, ErrHeld
 		}
 		admission := caravanDepartureAdmission(expected, facts.PreviewTick, facts)

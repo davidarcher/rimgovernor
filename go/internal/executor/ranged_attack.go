@@ -95,6 +95,7 @@ func (e *Executor) runRangedAttack(ctx context.Context, action domain.Action, pr
 		decision := policy.EvaluateRangedDefense(policy.RangedDefenseRequest{Action: action, Progress: latest, DraftProgress: prerequisite, Current: expected, MinimumTick: minimum, Facts: inspection.Facts})
 		result.Refused = decision.Refused
 		if !decision.Admitted {
+			result.Progress = e.holdRefusal(ctx, v.Plan, v.Action, decision.Refused, minimum, result.Progress)
 			return result, ErrHeld
 		}
 		facts := inspection.Facts

@@ -133,6 +133,10 @@ func TestHaulNativeIneligibleBlocksDispatch(t *testing.T) {
 	if err != ErrHeld || result.Progress.View().Stage != domain.Pending || n.dispatched != 0 {
 		t.Fatal(result, err)
 	}
+	held, ok := result.Progress.View().FreshHeldReason()
+	if !ok || len(held) != 1 || held[0] != domain.HeldNativeIneligible {
+		t.Fatal("ordinary refusal was not persisted as a held reason", held)
+	}
 }
 
 func TestHaulReconcileRejectsForeignThing(t *testing.T) {
