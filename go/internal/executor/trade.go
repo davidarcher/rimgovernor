@@ -9,12 +9,28 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/store"
 )
 
-// resolveTradeDependency finds the plan's own domain.ActionDependency for a
-// set_lines/accept/end action (declared by whoever built the plan) and looks
-// up the session it recorded. TradeOpen actions carry no dependency and
-// resolve to the zero TradeDependency. This never re-derives or guesses
-// which session is open: it is either the one durably recorded against the
-// exact dependency Open action id, or unresolved.
+// resolveTradeDependency finds which Open action a set_lines/accept/end
+// action's session belongs to, then looks up the session that Open recorded.
+// TradeOpen actions carry no dependency and resolve to the zero
+// TradeDependency. This never re-derives or guesses which session is open: it
+// is either the one durably recorded against the exact Open action id, or
+// unresolved.
+//
+// Two bindings are honoured, in this order:
+//
+//  1. The plan's own domain.ActionDependency, declared by whoever built a
+//     multi-action trade plan. Unchanged, and still the only binding such a
+//     plan needs.
+//  2. Failing that, a durable cross-plan store.RecordTradeSessionReference
+//     bound to this action's own identity at submission time. This is what
+//     lets the multi-phase negotiation driver submit each phase as its own
+//     one-action plan, which it must: SetTradeLines' concrete native line ids
+//     and counts only exist after Open has actually executed, and a committed
+//     PlanSpec is immutable. See store/trade_session_reference.go.
+//
+// Either way resolution ends in the same unchanged, never plan-scoped
+// LookupTradeSession, so an Open not yet observed complete still resolves to
+// unresolved.
 func (e *Executor) resolveTradeDependency(ctx context.Context, plan domain.PlanID, action domain.ActionID, kind domain.TradeOperationKind) (TradeDependency, error) {
 	if kind == domain.TradeOpen {
 		return TradeDependency{}, nil
@@ -29,6 +45,11 @@ func (e *Executor) resolveTradeDependency(ctx context.Context, plan domain.PlanI
 		if d.Action == action {
 			openAction, found = d.Requires, true
 			break
+		}
+	}
+	if !found {
+		if openAction, found, err = e.tradeJournal.LookupTradeSessionReference(ctx, action); err != nil {
+			return TradeDependency{}, err
 		}
 	}
 	if !found {

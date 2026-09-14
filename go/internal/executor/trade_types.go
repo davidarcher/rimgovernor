@@ -20,6 +20,10 @@ type TradeJournal interface {
 	PrepareTrade(context.Context, domain.PlanID, domain.ActionID, store.TradeAdmission) (domain.Progress, error)
 	RecordTradeSession(context.Context, domain.ActionID, store.TradeSession) error
 	LookupTradeSession(context.Context, domain.ActionID) (store.TradeSession, bool, error)
+	// LookupTradeSessionReference resolves the cross-plan binding a
+	// multi-phase negotiation records for each successor phase; see
+	// resolveTradeDependency and store/trade_session_reference.go.
+	LookupTradeSessionReference(context.Context, domain.ActionID) (domain.ActionID, bool, error)
 }
 
 // TradeDependency carries the resolved identity of a set_lines/accept/end

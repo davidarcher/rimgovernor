@@ -132,6 +132,28 @@ type modelCommand struct {
 	// goal identity (which must be an observed one). The two commands are
 	// separate contracts that never appear together, so they share the field.
 	Goal *string
+	// Trader/TradeNegotiator hold trade_economy's already-observed trader
+	// settlement and negotiator colonist; TradeTargets its priority-ordered
+	// economic targets and TradeSilverReserve the silver the colony always
+	// keeps; MaxSilverSpend the net silver ceiling for this one deal. They
+	// mirror Python's TradeEconomy contract field for field.
+	Trader, TradeNegotiator *string
+	TradeTargets            []modelTradeTarget
+	TradeSilverReserve      *int32
+	MaxSilverSpend          *int32
+}
+
+// modelTradeTarget is one requested economic target, mirroring Python's
+// TradeTarget exactly. Only item and stock are required; the four limits
+// default to zero, which means "never buy" / "never sell" respectively, the
+// same defaults the Python contract declares.
+type modelTradeTarget struct {
+	Item         string   `json:"item"`
+	Stock        *int32   `json:"stock"`
+	MaxBuy       *int32   `json:"maxBuy"`
+	MaxSell      *int32   `json:"maxSell"`
+	MaxBuyPrice  *float64 `json:"maxBuyPrice"`
+	MinSellPrice *float64 `json:"minSellPrice"`
 }
 
 // modelRoomShell is an untrusted requested room shell: a rectangle, the wall
@@ -266,8 +288,10 @@ func decode(text string, limit int) (modelCommand, error) {
 		return decodeRelocateConstruction(fields)
 	case "evaluate_world":
 		return decodeEvaluateWorld(fields)
+	case "trade_economy":
+		return decodeTradeEconomy(fields)
 	default:
-		return modelCommand{}, fail(UnsupportedCommand, "only building, research, tend, rescue, draft, caravan, husbandry, recover, bed_assign, move_pawn, set_building_temperature, request_surgery, hold_caravan, route_caravan, accept_quest, fulfill_quest, gift_settlement, create_zone, edit_zone, build_room, adopt_room, cancel_construction, relocate_construction, set_population_policy, set_expedition_policy, set_population_decision, modify_resource_policy, set_resource_reserve, create_goal, cancel_goal and evaluate_world proposals are supported")
+		return modelCommand{}, fail(UnsupportedCommand, "only building, research, tend, rescue, draft, caravan, husbandry, recover, bed_assign, move_pawn, set_building_temperature, request_surgery, hold_caravan, route_caravan, accept_quest, fulfill_quest, gift_settlement, create_zone, edit_zone, build_room, adopt_room, cancel_construction, relocate_construction, set_population_policy, set_expedition_policy, set_population_decision, modify_resource_policy, set_resource_reserve, create_goal, cancel_goal, evaluate_world and trade_economy proposals are supported")
 	}
 }
 
@@ -776,6 +800,60 @@ func decodeEvaluateWorld(fields map[string]json.RawMessage) (modelCommand, error
 		return modelCommand{}, fail(InvalidCommand, "unexpected command fields")
 	}
 	return modelCommand{Command: "evaluate_world"}, nil
+}
+
+// decodeTradeEconomy reads Python's TradeEconomy contract: a named trader, a
+// named negotiator, a whole economic policy and a net spend ceiling. Unlike
+// the two resource-policy commands this is not a partial patch -- every field
+// is required and none of them carries forward from anything established
+// before -- so an absent field is a refusal rather than "keep what stands".
+//
+// Each target's four limits are genuinely optional and default to zero, which
+// is the Python contract's own default and is meaningful rather than missing:
+// a zero max_buy means never buy that item and a zero max_sell means never
+// sell it, so a target with both left out is a pure floor declaration.
+func decodeTradeEconomy(fields map[string]json.RawMessage) (modelCommand, error) {
+	if len(fields) != 5 || fields["trader"] == nil || fields["negotiator"] == nil || fields["policy"] == nil || fields["maxSilverSpend"] == nil {
+		return modelCommand{}, fail(InvalidCommand, "unexpected command fields")
+	}
+	decodeField := func(key string) (*string, error) {
+		var value string
+		if err := json.Unmarshal(fields[key], &value); err != nil || value == "" {
+			return nil, fail(InvalidCommand, "invalid "+key+" field")
+		}
+		return &value, nil
+	}
+	trader, err := decodeField("trader")
+	if err != nil {
+		return modelCommand{}, err
+	}
+	negotiator, err := decodeField("negotiator")
+	if err != nil {
+		return modelCommand{}, err
+	}
+	var spend int32
+	if err := json.Unmarshal(fields["maxSilverSpend"], &spend); err != nil || spend < 0 {
+		return modelCommand{}, fail(InvalidCommand, "invalid maxSilverSpend field")
+	}
+	var wire struct {
+		Targets       []modelTradeTarget `json:"targets"`
+		SilverReserve *int32             `json:"silverReserve"`
+	}
+	if err := json.Unmarshal(fields["policy"], &wire); err != nil {
+		return modelCommand{}, fail(InvalidCommand, "invalid policy field")
+	}
+	if len(wire.Targets) == 0 || len(wire.Targets) > 30 || wire.SilverReserve == nil || *wire.SilverReserve < 0 {
+		return modelCommand{}, fail(InvalidCommand, "expected one to thirty economic targets and a silver reserve")
+	}
+	for _, target := range wire.Targets {
+		if target.Item == "" || target.Stock == nil || *target.Stock < 0 {
+			return modelCommand{}, fail(InvalidCommand, "each economic target needs an item and a stock level")
+		}
+	}
+	return modelCommand{
+		Command: "trade_economy", Trader: trader, TradeNegotiator: negotiator,
+		TradeTargets: wire.Targets, TradeSilverReserve: wire.SilverReserve, MaxSilverSpend: &spend,
+	}, nil
 }
 
 // optionalCommandField turns a decoded partial-request pointer into the

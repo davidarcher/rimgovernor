@@ -36,9 +36,19 @@ const (
 )
 
 // TradeLine is one requested row adjustment for SetTradeLines: an absolute
-// target count for one already-identified trade sheet row. It mirrors
-// bridge.TradeLineInput exactly, the same way CaravanDeparture's CargoItem
-// mirrors its own wire counterpart.
+// (not relative) target count for one already-identified trade sheet row. It
+// mirrors bridge.TradeLineInput exactly, the same way CaravanDeparture's
+// CargoItem mirrors its own wire counterpart.
+//
+// AbsoluteCount is signed, exactly as operations.proto's own int32
+// absolute_count is and exactly as Python's TradeLine documents it: positive
+// buys (the colony receives), negative sells (the colony gives), zero clears
+// the row. "Absolute" distinguishes it from a relative delta (Python's
+// `relative: False`), not from a sign. An earlier revision of this type
+// refused negatives, which made a sale inexpressible and so made
+// trade_policy.py's select_trade -- which produces negative counts for every
+// sale -- impossible to port; the bound below is the shape native itself
+// accepts.
 type TradeLine struct {
 	LineID        string
 	AbsoluteCount int32
@@ -84,7 +94,7 @@ func canonicalTradeLines(lines []TradeLine) (string, error) {
 	sort.Slice(rows, func(i, j int) bool { return rows[i].LineID < rows[j].LineID })
 	seen := make(map[string]bool, len(rows))
 	for _, l := range rows {
-		if !validID(l.LineID) || l.AbsoluteCount < 0 || seen[l.LineID] {
+		if !validID(l.LineID) || seen[l.LineID] {
 			return "", errors.New("invalid or duplicate trade line")
 		}
 		seen[l.LineID] = true
