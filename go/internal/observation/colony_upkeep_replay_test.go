@@ -117,7 +117,7 @@ func TestNativeUpkeepReplay(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(fixture.Expected) != 4 || len(upkeep.Needs) != 4 {
+	if len(fixture.Expected) != 5 || len(upkeep.Needs) != 5 {
 		t.Fatal("incomplete native upkeep replay")
 	}
 	for _, need := range upkeep.Needs {

@@ -477,7 +477,7 @@ legality. The variant also captures populated native fire, supply, repair and
 cleaning facts after Manual. Replay its `upkeep-replay.json` through the Go
 boundary and durable journal with `RIMBOT_NATIVE_UPKEEP_REPLAY=<absolute-path>`
 and `go test ./internal/observation -run TestNativeUpkeepReplay -count=1` from `go/`.
-The replay checks Python target ordering and metrics, all four direct upkeep needs,
+The replay checks Python target ordering and metrics, all five direct upkeep needs,
 and, when captured, medical reserve entry/recovery policy and its maintained need. It checks
 Manual invalidation and retained needs after reopening the database.
 Animal reference captures additionally check pen state, reachable feed, shared

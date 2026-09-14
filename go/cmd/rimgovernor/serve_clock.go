@@ -45,7 +45,8 @@ func serviceClockConfig(profile string) buildingruntime.ClockSchedulerConfig {
 // Starting these loops does not enable Player or acquire native authority.
 func startServiceClock(ctx context.Context, player *buildingruntime.Player, session *buildingruntime.Session, reads serviceClockReads, journal *store.Store, profile string, timeout time.Duration, routine, sleeping, cooking, shelter, comfort, expansion, power, temperature bool, projectLimit int, supplies, work, acquisition, defense, tend, rescue, equip, secureSupplies, repair, clean, gear, medical, animalContainment, recovery, husbandry, homeCoverage, caravanJourneyTracking bool, researchTarget string, resourceTargets map[policy.Resource]int64, productionPolicyPlans bool, productionReserves map[policy.Resource]int64, productionStopped []policy.Resource, fieldOptions ...bool) error {
 	// fieldOptions carries the field/bill/foodStorage/prisonerInteraction/
-	// populationCustody/stoneShell flags, in that fixed order, appended by the caller.
+	// populationCustody/stoneShell/haul flags, in that fixed order, appended
+	// by the caller.
 	config := serviceClockConfig(profile)
 	config.RoutineMethods = session.RoutineMethodsEnabled()
 	if caravanJourneyTracking {
@@ -64,11 +65,12 @@ func startServiceClock(ctx context.Context, player *buildingruntime.Player, sess
 	foodStorage := len(fieldOptions) >= 3 && fieldOptions[2]
 	prisonerInteraction := len(fieldOptions) >= 4 && fieldOptions[3]
 	populationCustody := len(fieldOptions) >= 5 && fieldOptions[4]
-	stoneShell := len(fieldOptions) == 6 && fieldOptions[5]
-	if len(fieldOptions) > 6 {
+	stoneShell := len(fieldOptions) >= 6 && fieldOptions[5]
+	haul := len(fieldOptions) == 7 && fieldOptions[6]
+	if len(fieldOptions) > 7 {
 		return errors.New("invalid field option")
 	}
-	if (bills || fields || foodStorage || acquisition || work || supplies || sleeping || cooking || shelter || comfort || expansion || power || temperature || defense || tend || rescue || equip || secureSupplies || repair || clean || gear || medical || animalContainment || recovery || husbandry || prisonerInteraction || populationCustody || homeCoverage || stoneShell || researchTarget != "" || len(resourceTargets) > 0 || productionPolicyPlans) && !routine {
+	if (bills || fields || foodStorage || acquisition || work || supplies || sleeping || cooking || shelter || comfort || expansion || power || temperature || defense || tend || rescue || equip || secureSupplies || repair || clean || haul || gear || medical || animalContainment || recovery || husbandry || prisonerInteraction || populationCustody || homeCoverage || stoneShell || researchTarget != "" || len(resourceTargets) > 0 || productionPolicyPlans) && !routine {
 		return errors.New("building plans require routine reviews")
 	}
 	if routine {
@@ -111,6 +113,9 @@ func startServiceClock(ctx context.Context, player *buildingruntime.Player, sess
 		}
 		if clean {
 			capabilities.Methods = append(capabilities.Methods, policy.MaintainCleanFacilities)
+		}
+		if haul {
+			capabilities.Methods = append(capabilities.Methods, policy.MaintainStorage)
 		}
 		if recovery {
 			capabilities.Methods = append(capabilities.Methods, policy.RecoverDisasterServices)
@@ -273,6 +278,16 @@ func startServiceClock(ctx context.Context, player *buildingruntime.Player, sess
 				return errors.New("clean plans require typed colony and tend observations")
 			}
 			config.Clean, err = buildingruntime.NewRoutineCleanPlanner(reviewer, cleanNative)
+			if err != nil {
+				return err
+			}
+		}
+		if haul {
+			haulNative, ok := reads.(buildingruntime.RoutineHaulSource)
+			if !ok {
+				return errors.New("haul plans require typed colony and tend observations")
+			}
+			config.Haul, err = buildingruntime.NewRoutineHaulPlanner(reviewer, haulNative)
 			if err != nil {
 				return err
 			}

@@ -630,24 +630,18 @@ without pushes, when the target checkout is safe; preserve other developers' wor
     added to this ID's closure gate. Audit current source rather than treating the
     migration review's historical capability assessment as current test evidence.
 
-  - [ ] **05.2 — Food and production bootstrap (G01.07b, shared storage in c).**
-    First connect original-supply Allow and saved work assignments; then safe
-    harvest/wood acquisition and bounded hunting; then fields/crop choice and
-    cooking, butchering and preservation bills. Deliver each executable method
-    before expanding to its next alternative. Bring forward only the storage/haul
-    subset of c needed to observe protected food output, and count it once there.
-    Consume crop forecasts while keeping future yield, animal demand, reserved
-    stock and current edible stock distinct. Reuse accepted campfire and field
-    geometry. Gate on ordinary acquired, harvested, cooked and stored output plus
-    a renewed deficit, emergency interruption and preserved player assignments.
-    Production bills, native player-edit invalidation, reserved-stock
-    accounting, and the shared c storage prerequisite (protected food
-    stockpile geometry/filter/ownership plus native haul, verified via a live
-    `haulsmoke` acceptance run) are implemented and covered by fast tests
-    across bridge/buildingruntime. Haul itself has no `RoutineHaulPlanner` or
-    `serve.go` wiring yet (05.3's allowlist fixes make it structurally able to
-    run once added). Remaining scope: that wiring, a small routine-flag doc
-    gap, and the G01.12 gameplay acceptance gate.
+  - [x] **05.2 — Food and production bootstrap (G01.07b, shared storage in c).**
+    Original-supply Allow, saved work assignments, safe harvest/wood
+    acquisition, bounded hunting, fields/crop choice, cooking/butchering/
+    preservation bills, and the shared c storage prerequisite (protected food
+    stockpile geometry/filter/ownership) are implemented and covered by fast
+    tests. Ordinary (non-decaying) haul dispatch out of that stockpile is
+    delivered as a new disjoint upkeep vertical, `MaintainStorage`
+    (`policy/upkeep.go`, `SelectSecureSupplies`-style selection over
+    Deterioration-0 items), with `RoutineHaulPlanner`
+    (`buildingruntime/routine_haul.go`) and `--routine-haul-plans` wired
+    through `serve.go`/`serve_building.go`/`serve_clock.go`. G01.12 gameplay
+    acceptance remains deferred there, not here.
 
   - [ ] **05.4 — Storage, shelter and direct upkeep (G01.07c).**
     Finish room adoption and storage ownership after the food prerequisite subset;

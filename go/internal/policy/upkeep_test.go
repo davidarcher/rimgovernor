@@ -33,10 +33,10 @@ func TestUpkeepNativeTargetOrderAndMetrics(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	for i, want := range [][]string{{"a", "b"}, {"medicine", "meal", "wood"}, {"heater", "wall", "door"}, {"b", "a"}} {
+	for i, want := range [][]string{{"a", "b"}, {"medicine", "meal", "wood"}, {"heater", "wall", "door"}, {"b", "a"}, {"steel"}} {
 		got, known := r.Needs[i].Targets.Value()
 		metric, mk := r.Needs[i].Metric.Value()
-		if !known || !reflect.DeepEqual(got, want) || !mk || metric != []float64{1.5, 37, 149, 3}[i] || !r.Needs[i].Active || r.Needs[i].Unsafe {
+		if !known || !reflect.DeepEqual(got, want) || !mk || metric != []float64{1.5, 37, 149, 3, 50}[i] || !r.Needs[i].Active || r.Needs[i].Unsafe {
 			t.Fatal(r.Needs[i])
 		}
 	}
@@ -51,7 +51,7 @@ func TestUpkeepUnknownRetainsRiskAndIssuedWork(t *testing.T) {
 			t.Fatal("unknown created emergency", n)
 		}
 	}
-	history := UpkeepHistory{true, true, true, true}
+	history := UpkeepHistory{true, true, true, true, true}
 	r, err = ReviewUpkeep(UpkeepObservation{}, history, nil)
 	if err != nil {
 		t.Fatal(err)

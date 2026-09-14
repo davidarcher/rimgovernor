@@ -13,6 +13,14 @@ const (
 	SecureSupplies           GoalID = "SecureSupplies"
 	MaintainEssentialRepairs GoalID = "MaintainEssentialRepairs"
 	MaintainCleanFacilities  GoalID = "MaintainCleanFacilities"
+	// MaintainStorage is the ordinary (non-decaying) counterpart to
+	// SecureSupplies: loose items sitting outside storage with zero
+	// deterioration -- typically fresh production output waiting to reach
+	// EnsureFoodStorage's stockpile -- rather than items already at risk.
+	// Its own UpkeepItem selection is deliberately disjoint from
+	// SecureSupplies' (Deterioration == 0 here, > 0 there), so the two never
+	// compete over the same real-world item.
+	MaintainStorage GoalID = "MaintainStorage"
 )
 
 // Each fact is a complete native section. An unavailable section cannot prove
@@ -52,7 +60,7 @@ type UpkeepFilth struct {
 	Room      string
 	Thickness uint32
 }
-type UpkeepHistory struct{ Fire, Supplies, Repairs, Cleaning bool }
+type UpkeepHistory struct{ Fire, Supplies, Repairs, Cleaning, Storage bool }
 type UpkeepNeed struct {
 	Goal     GoalID
 	Priority int
@@ -66,7 +74,7 @@ type UpkeepReview struct {
 	Needs   []UpkeepNeed
 }
 
-// ReviewUpkeep ports the four direct native upkeep contracts. Issued work is
+// ReviewUpkeep ports the five direct native upkeep contracts. Issued work is
 // supplied by the shared journal, never inferred from a receipt or target loss.
 func ReviewUpkeep(v UpkeepObservation, previous UpkeepHistory, issued map[GoalID]bool) (UpkeepReview, error) {
 	r := UpkeepReview{}
@@ -126,19 +134,25 @@ func ReviewUpkeep(v UpkeepObservation, previous UpkeepHistory, issued map[GoalID
 	}
 	r.History.Fire = add(MaintainFireSafety, 1, previous.Fire, targets, metric, unsafe)
 	targets, metric = domain.Unknown[[]string](), domain.Unknown[float64]()
+	storageTargets, storageMetric := domain.Unknown[[]string](), domain.Unknown[float64]()
 	if rows, known := v.Items.Value(); known {
 		seen, err := ids(len(rows))
 		if err != nil {
 			return r, err
 		}
 		selected := []UpkeepItem{}
+		storageSelected := []UpkeepItem{}
 		for _, row := range rows {
 			rot, known := row.RotTicks.Value()
 			if !valid(seen, row.ID) || !foodID(row.Definition) || row.Cell.X < 0 || row.Cell.Z < 0 || !foodNumber(row.Deterioration) || row.Deterioration < 0 || row.Count < 0 || known && rot < 0 {
 				return r, errors.New("invalid upkeep item")
 			}
-			if row.Deterioration > 0 && (!row.Roofed || !row.InStorage) && !row.Forbidden {
+			unstored := (!row.Roofed || !row.InStorage) && !row.Forbidden
+			switch {
+			case row.Deterioration > 0 && unstored:
 				selected = append(selected, row)
+			case row.Deterioration == 0 && unstored:
+				storageSelected = append(storageSelected, row)
 			}
 		}
 		sort.Slice(selected, func(i, j int) bool {
@@ -163,6 +177,16 @@ func ReviewUpkeep(v UpkeepObservation, previous UpkeepHistory, issued map[GoalID
 			total += float64(row.Count)
 		}
 		targets, metric = domain.Known(result), domain.Known(total)
+		// Non-perishable, so no rot-order tiebreak matters; sort by ID only
+		// for determinism.
+		sort.Slice(storageSelected, func(i, j int) bool { return storageSelected[i].ID < storageSelected[j].ID })
+		storageResult := []string{}
+		storageTotal := 0.0
+		for _, row := range storageSelected {
+			storageResult = append(storageResult, row.ID)
+			storageTotal += float64(row.Count)
+		}
+		storageTargets, storageMetric = domain.Known(storageResult), domain.Known(storageTotal)
 	}
 	r.History.Supplies = add(SecureSupplies, 3, previous.Supplies, targets, metric, false)
 	targets, metric = domain.Unknown[[]string](), domain.Unknown[float64]()
@@ -232,6 +256,7 @@ func ReviewUpkeep(v UpkeepObservation, previous UpkeepHistory, issued map[GoalID
 		targets, metric = domain.Known(result), domain.Known(total)
 	}
 	r.History.Cleaning = add(MaintainCleanFacilities, 3, previous.Cleaning, targets, metric, false)
+	r.History.Storage = add(MaintainStorage, 3, previous.Storage, storageTargets, storageMetric, false)
 	for _, n := range r.Needs {
 		if x, k := n.Metric.Value(); k && (math.IsNaN(x) || math.IsInf(x, 0)) {
 			return r, errors.New("upkeep metric overflow")

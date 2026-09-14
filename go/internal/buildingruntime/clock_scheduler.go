@@ -53,6 +53,7 @@ type ClockSchedulerConfig struct {
 	SecureSupplies                   *RoutineSecureSuppliesPlanner
 	Repair                           *RoutineRepairPlanner
 	Clean                            *RoutineCleanPlanner
+	Haul                             *RoutineHaulPlanner
 	Gear                             *RoutineGearPlanner
 	Medical                          *RoutineMedicalPlanner
 	AnimalContainment                *RoutineAnimalContainmentPlanner
@@ -92,6 +93,7 @@ type ClockSchedulerResult struct {
 	SecureSupplies                                *RoutineSecureSuppliesResult
 	Repair                                        *RoutineRepairResult
 	Clean                                         *RoutineCleanResult
+	Haul                                          *RoutineHaulResult
 	Gear                                          *RoutineGearResult
 	Medical                                       *RoutineMedicalResult
 	AnimalContainment                             *RoutineAnimalContainmentResult
@@ -191,6 +193,9 @@ func NewClockScheduler(player *Player, session *Session, native ClockWindowNativ
 		return nil, ErrControl
 	}
 	if config.Clean != nil && (config.Routine == nil || config.Clean.reviewer != config.Routine) {
+		return nil, ErrControl
+	}
+	if config.Haul != nil && (config.Routine == nil || config.Haul.reviewer != config.Routine) {
 		return nil, ErrControl
 	}
 	if config.AnimalContainment != nil && (config.Routine == nil || config.AnimalContainment.reviewer != config.Routine) {
@@ -394,6 +399,13 @@ func (s *ClockScheduler) Step(ctx context.Context) (ClockSchedulerResult, error)
 			return out, err
 		}
 		out.Clean = &method
+	}
+	if s.config.Haul != nil {
+		method, err := s.config.Haul.step(call, epoch)
+		if err != nil {
+			return out, err
+		}
+		out.Haul = &method
 	}
 	if s.config.Gear != nil {
 		method, err := s.config.Gear.step(call, epoch)
