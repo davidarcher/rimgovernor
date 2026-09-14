@@ -269,3 +269,7 @@ func (f *playerFixture) SubmitResearchSelect(ctx context.Context, q store.Resear
 	f.calls++
 	return f.journal.SubmitResearchSelect(ctx, q)
 }
+func (f *playerFixture) SubmitTravelCaravan(ctx context.Context, q store.TravelCaravanSubmissionRequest) (store.TravelCaravanSubmission, bool, error) {
+	f.calls++
+	return f.journal.SubmitTravelCaravan(ctx, q)
+}
