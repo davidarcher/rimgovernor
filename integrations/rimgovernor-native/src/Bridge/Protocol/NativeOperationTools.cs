@@ -29,6 +29,7 @@ namespace HomeBridge.BridgeTools
         internal readonly Dictionary<Common.AttemptKey, Operations.PatchBuilding> BuildingTemperatures = new Dictionary<Common.AttemptKey, Operations.PatchBuilding>();
         internal readonly Dictionary<Common.AttemptKey, Receipts.DesignationEffect> AllowedSupplies = new Dictionary<Common.AttemptKey, Receipts.DesignationEffect>();
         internal readonly Dictionary<Common.AttemptKey, NativeHaulRecord> Hauls = new Dictionary<Common.AttemptKey, NativeHaulRecord>();
+        internal readonly Dictionary<Common.AttemptKey, NativeCustodyRecord> Custody = new Dictionary<Common.AttemptKey, NativeCustodyRecord>();
         internal readonly Dictionary<Common.AttemptKey, NativeRecoveryServiceRecord> RecoveryServices = new Dictionary<Common.AttemptKey, NativeRecoveryServiceRecord>();
         internal readonly Dictionary<Common.AttemptKey, NativeMoodReliefRecord> MoodRelief = new Dictionary<Common.AttemptKey, NativeMoodReliefRecord>();
         internal readonly Dictionary<Common.AttemptKey, NativeHusbandryRecord> Husbandry = new Dictionary<Common.AttemptKey, NativeHusbandryRecord>();
@@ -106,9 +107,16 @@ namespace HomeBridge.BridgeTools
             if (request.Operation.CommandCase == Operations.Operation.CommandOneofCase.AttackTarget)
                 return NativeCombatOperations.Execute(state, request, context);
             if (request.Operation.CommandCase == Operations.Operation.CommandOneofCase.PawnTargetOrder)
-                return request.Operation.PawnTargetOrder.Kind == Operations.PawnOrderKind.Equip
-                    ? NativeEquipOperations.Execute(state, request, context)
-                    : NativeHaulOperations.Execute(state, request, context);
+            {
+                switch (request.Operation.PawnTargetOrder.Kind)
+                {
+                    case Operations.PawnOrderKind.Equip: return NativeEquipOperations.Execute(state, request, context);
+                    case Operations.PawnOrderKind.Haul: return NativeHaulOperations.Execute(state, request, context);
+                    case Operations.PawnOrderKind.Capture:
+                    case Operations.PawnOrderKind.Rescue: return NativeCustodyOperations.Execute(state, request, context);
+                    default: return Refuse(Common.FailureCode.Unsupported, "This native adapter implements Equip, Haul, Capture and Rescue pawn-target orders.");
+                }
+            }
             if (request.Operation.CommandCase == Operations.Operation.CommandOneofCase.RecoverService)
                 return NativeRecoveryOperations.Execute(state, request, context);
             if (request.Operation.CommandCase == Operations.Operation.CommandOneofCase.RelieveNeed)
@@ -221,9 +229,16 @@ namespace HomeBridge.BridgeTools
                 if (parsed.Operation?.CommandCase == Operations.Operation.CommandOneofCase.AttackTarget)
                     return ProtoBoundary.Encode(NativeCombatOperations.Preview(parsed.Operation.AttackTarget, context));
                 if (parsed.Operation?.CommandCase == Operations.Operation.CommandOneofCase.PawnTargetOrder)
-                    return ProtoBoundary.Encode(parsed.Operation.PawnTargetOrder.Kind == Operations.PawnOrderKind.Equip
-                        ? NativeEquipOperations.Preview(parsed.Operation.PawnTargetOrder, context)
-                        : NativeHaulOperations.Preview(parsed.Operation.PawnTargetOrder, context));
+                {
+                    switch (parsed.Operation.PawnTargetOrder.Kind)
+                    {
+                        case Operations.PawnOrderKind.Equip: return ProtoBoundary.Encode(NativeEquipOperations.Preview(parsed.Operation.PawnTargetOrder, context));
+                        case Operations.PawnOrderKind.Haul: return ProtoBoundary.Encode(NativeHaulOperations.Preview(parsed.Operation.PawnTargetOrder, context));
+                        case Operations.PawnOrderKind.Capture:
+                        case Operations.PawnOrderKind.Rescue: return ProtoBoundary.Encode(NativeCustodyOperations.Preview(parsed.Operation.PawnTargetOrder, context));
+                        default: return ProtoBoundary.Encode(new Operations.PreviewReply { Failure = ProtoBoundary.Fail(Common.FailureCode.Unsupported, "Preview implements Equip, Haul, Capture and Rescue pawn-target orders.") });
+                    }
+                }
                 if (parsed.Operation?.CommandCase == Operations.Operation.CommandOneofCase.RecoverService)
                     return ProtoBoundary.Encode(NativeRecoveryOperations.Preview(parsed.Operation.RecoverService, context));
                 if (parsed.Operation?.CommandCase == Operations.Operation.CommandOneofCase.RelieveNeed)
@@ -334,6 +349,9 @@ namespace HomeBridge.BridgeTools
                     NativeHaulRecord haul;
                     if (state.Hauls.TryGetValue(parsed.Attempt, out haul))
                         return ProtoBoundary.Encode(NativeOperationEnvelope.Progress(new Receipts.ProgressReply { Progress = haul.Observe(parsed.Attempt, context) }));
+                    NativeCustodyRecord custody;
+                    if (state.Custody.TryGetValue(parsed.Attempt, out custody))
+                        return ProtoBoundary.Encode(NativeOperationEnvelope.Progress(new Receipts.ProgressReply { Progress = custody.Observe(parsed.Attempt, context) }));
                     NativeRecoveryServiceRecord recovery;
                     if (state.RecoveryServices.TryGetValue(parsed.Attempt, out recovery))
                         return ProtoBoundary.Encode(NativeOperationEnvelope.Progress(new Receipts.ProgressReply { Progress = recovery.Observe(parsed.Attempt, context) }));
