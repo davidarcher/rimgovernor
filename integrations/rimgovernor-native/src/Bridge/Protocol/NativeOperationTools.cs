@@ -24,6 +24,7 @@ namespace HomeBridge.BridgeTools
         internal readonly Dictionary<Common.AttemptKey, NativeCombatRecord> Combat = new Dictionary<Common.AttemptKey, NativeCombatRecord>();
         internal readonly Dictionary<Common.AttemptKey, NativeProductionRecord> Bills = new Dictionary<Common.AttemptKey, NativeProductionRecord>();
         internal readonly Dictionary<Common.AttemptKey, NativeZoneRecord> Zones = new Dictionary<Common.AttemptKey, NativeZoneRecord>();
+        internal readonly Dictionary<Common.AttemptKey, NativeZoneEditRecord> ZoneEdits = new Dictionary<Common.AttemptKey, NativeZoneEditRecord>();
         internal readonly Dictionary<Common.AttemptKey, INativeAcquisitionRecord> Acquisition = new Dictionary<Common.AttemptKey, INativeAcquisitionRecord>();
         internal readonly Dictionary<Common.AttemptKey, Operations.PatchPawn> WorkSettings = new Dictionary<Common.AttemptKey, Operations.PatchPawn>();
         internal readonly Dictionary<Common.AttemptKey, Operations.PatchBuilding> BuildingTemperatures = new Dictionary<Common.AttemptKey, Operations.PatchBuilding>();
@@ -153,6 +154,8 @@ namespace HomeBridge.BridgeTools
                 return NativeColonyNamingOperations.Execute(state, request, context);
             if (request.Operation.CommandCase == Operations.Operation.CommandOneofCase.AssignBed)
                 return NativeBedAssignOperations.Execute(state, request, context);
+            if (request.Operation.CommandCase == Operations.Operation.CommandOneofCase.DeleteZone)
+                return NativeZoneDeletion.Execute(state, request, context);
             if (request.Operation.CommandCase != Operations.Operation.CommandOneofCase.PlaceBuilding)
                 return Refuse(Common.FailureCode.Unsupported, "This native adapter implements PlaceBuilding, temporary owned SetDrafted, exact owned MovePawn and melee, direct-bullet or supported injury-only explosive AttackTarget.");
             if (!NativeConstructionTracking.Ready)
@@ -279,6 +282,8 @@ namespace HomeBridge.BridgeTools
                     return ProtoBoundary.Encode(NativeColonyNamingOperations.Preview(parsed.Operation.ConfirmColonyNames, context));
                 if (parsed.Operation?.CommandCase == Operations.Operation.CommandOneofCase.AssignBed)
                     return ProtoBoundary.Encode(NativeBedAssignOperations.Preview(parsed.Operation.AssignBed, context));
+                if (parsed.Operation?.CommandCase == Operations.Operation.CommandOneofCase.DeleteZone)
+                    return ProtoBoundary.Encode(NativeZoneDeletion.Preview(parsed.Operation.DeleteZone, context));
                 if (parsed.Operation == null || parsed.Operation.CommandCase != Operations.Operation.CommandOneofCase.PlaceBuilding)
                     return ProtoBoundary.Encode(new Operations.PreviewReply { Failure = ProtoBoundary.Fail(Common.FailureCode.Unsupported, "Preview implements PlaceBuilding, temporary SetDrafted, exact owned MovePawn and melee, direct-bullet or supported injury-only explosive AttackTarget.") });
                 NativeConstructionPlan plan; RimGovernor.Protocol.Placement.PlacementEvaluated preview;
@@ -410,6 +415,9 @@ namespace HomeBridge.BridgeTools
                     NativeBedAssignRecord bedAssign;
                     if (state.BedAssignments.TryGetValue(parsed.Attempt, out bedAssign))
                         return ProtoBoundary.Encode(NativeOperationEnvelope.Progress(new Receipts.ProgressReply { Progress = bedAssign.Observe(parsed.Attempt, context) }));
+                    NativeZoneEditRecord zoneEdit;
+                    if (state.ZoneEdits.TryGetValue(parsed.Attempt, out zoneEdit))
+                        return ProtoBoundary.Encode(NativeOperationEnvelope.Progress(new Receipts.ProgressReply { Progress = zoneEdit.Observe(parsed.Attempt, context) }));
                 }
                 var progress = NativeOperationState.TryGet(context.Identity, out state) && state.Construction.TryGetValue(parsed.Attempt, out record)
                     ? record.Observe(parsed.Attempt, context)
