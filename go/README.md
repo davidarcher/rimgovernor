@@ -108,8 +108,9 @@ confirm the packaging path is wired correctly, not that a colony runs.
   service, bed assignment, movement, building temperature, surgery, quest
   accept/fulfill, settlement gift, zone creation, zone edit (add/remove
   cells, delete; crop/filter edits are deferred pending SettingsField zone
-  evidence coverage), population policy, expedition policy and per-pawn
-  population decision proposals, but
+  evidence coverage), population policy, expedition policy, per-pawn
+  population decision and per-resource production policy
+  (`modify_resource_policy`/`set_resource_reserve`) proposals, but
   is not yet wired into the Go binary's serve loop) — G01.08.
   `set_population_policy` is the first interpreted command that is colony
   configuration rather than a plan of native actions: it issues no native
@@ -160,6 +161,38 @@ confirm the packaging path is wired correctly, not that a colony runs.
   `RoutinePrisonerInteractionPlanner`. Teaching that autopilot custody
   selection to prefer or suppress individuals named here is a separate,
   behaviour-changing slice.
+  `modify_resource_policy` and `set_resource_reserve` are the first player
+  commands that are *both* persistent configuration *and* a real native
+  dispatch. They share one handler, one persistent per-resource policy and one
+  `SetProductionPolicy` write, exactly as Python's shared
+  `isinstance(request,(ModifyResourcePolicy,SetResourceReserve))` branch does.
+  Each command patches one half of one resource — spending preserving the
+  reserve, reserve preserving the spending — so
+  `interpreter.Proposal.ResourcePolicy` carries a
+  `domain.ResourcePolicyPatch`, not a whole policy, for the same reason
+  `set_expedition_policy` does: the interpreter does not hold the other
+  resources' established values. `store.SubmitResourcePolicy` merges the patch
+  over the resource's directive in force (or `{reserve 0, spending normal}`),
+  folds the world's **whole** set into one `domain.ProductionPolicy`
+  (`ResourceProductionPolicy`: strictly positive reserves become floors,
+  any non-`normal` spending becomes a stopped def — `production_budgets`
+  verbatim) and commits a one-action plan through `createPlan` directly. That
+  is deliberately the `CreateZone` shape, not a new pipeline: the entire
+  autopilot production-policy stack (`domain.ProductionPolicyAction`,
+  `bridge/production_policy*.go`, `executor/production_policy*.go`,
+  `store.PrepareProductionPolicy`) is reused **unchanged**, and the
+  autopilot-goal-bound `CommitGoalMethod` admission
+  `RoutineProductionPolicyPlanner` commits through is bypassed rather than
+  widened. The `Commitments`/`Drills` rows another system owns are still read
+  fresh and resent verbatim at dispatch, so a player patch can never clobber
+  them. `resource` is bounded against `Snapshot.ResourceDefinitions`, the Go
+  form of the Python handler's observed `known` set —
+  `POST /api/player/resource-policy/update`,
+  `GET /api/player/resource-policy?colonyId=&loadToken=&mapId=` and
+  `GET /api/player/resource-policy/submission?requestId=`. Python's second
+  source of floors (outstanding construction-bundle costs from
+  `plan.control['costs']`, sent as `commitments`) stays unported, the same
+  disclosed narrowing `policy.ProductionFloors` already carries.
 - Media/camera/portrait/video/recording and trusted save/load — G01.09.
 - World progression remaining scope: closed, except the documented
   `SetTradeLines`/`AcceptTrade`/`EndTrade` acceptance-harness gap below —

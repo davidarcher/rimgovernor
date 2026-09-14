@@ -102,6 +102,14 @@ type modelCommand struct {
 	// a partial patch, so absence is meaningful and the field stays nil when
 	// the command is something else.
 	ExpeditionPolicy *modelExpeditionPolicy
+	// Resource holds modify_resource_policy's and set_resource_reserve's named
+	// resource definition, which must be an observed one; Spending holds the
+	// former's requested restriction ("normal", "defense_only" or "stop") and
+	// Reserve the latter's requested protected quantity. The two commands are
+	// separate contracts that each set exactly one half, so exactly one of
+	// Spending and Reserve is ever populated.
+	Resource, Spending *string
+	Reserve            *int32
 	// Decision holds set_population_decision's requested per-pawn direction
 	// ("rescue", "capture", "recruit" or "ignore"); the named individual
 	// reuses Pawn and must be an observed pawn, so unlike the two policy
@@ -192,8 +200,12 @@ func decode(text string, limit int) (modelCommand, error) {
 		return decodeSetExpeditionPolicy(fields)
 	case "set_population_decision":
 		return decodeSetPopulationDecision(fields)
+	case "modify_resource_policy":
+		return decodeModifyResourcePolicy(fields)
+	case "set_resource_reserve":
+		return decodeSetResourceReserve(fields)
 	default:
-		return modelCommand{}, fail(UnsupportedCommand, "only building, research, tend, rescue, draft, caravan, husbandry, recover, bed_assign, move_pawn, set_building_temperature, request_surgery, hold_caravan, route_caravan, accept_quest, fulfill_quest, gift_settlement, create_zone, edit_zone, set_population_policy, set_expedition_policy and set_population_decision proposals are supported")
+		return modelCommand{}, fail(UnsupportedCommand, "only building, research, tend, rescue, draft, caravan, husbandry, recover, bed_assign, move_pawn, set_building_temperature, request_surgery, hold_caravan, route_caravan, accept_quest, fulfill_quest, gift_settlement, create_zone, edit_zone, set_population_policy, set_expedition_policy, set_population_decision, modify_resource_policy and set_resource_reserve proposals are supported")
 	}
 }
 
@@ -481,6 +493,46 @@ func decodeSetPopulationDecision(fields map[string]json.RawMessage) (modelComman
 		return modelCommand{}, fail(InvalidCommand, "invalid decision field")
 	}
 	return modelCommand{Command: "set_population_decision", Pawn: &pawn, Decision: &decision}, nil
+}
+
+// decodeModifyResourcePolicy reads the resource and spending restriction
+// ModifyResourcePolicy names. The restriction vocabulary belongs to
+// domain.ResourcePolicyPatch and the resource is bounded against supplied facts
+// by the interpreter; this only rejects the wrong shape. Deliberately no
+// reserve field: the Python contract sets spending alone and preserves the
+// existing reserve.
+func decodeModifyResourcePolicy(fields map[string]json.RawMessage) (modelCommand, error) {
+	if len(fields) != 3 || fields["resource"] == nil || fields["spending"] == nil {
+		return modelCommand{}, fail(InvalidCommand, "unexpected command fields")
+	}
+	var resource string
+	if err := json.Unmarshal(fields["resource"], &resource); err != nil || resource == "" {
+		return modelCommand{}, fail(InvalidCommand, "invalid resource field")
+	}
+	var spending string
+	if err := json.Unmarshal(fields["spending"], &spending); err != nil || spending == "" {
+		return modelCommand{}, fail(InvalidCommand, "invalid spending field")
+	}
+	return modelCommand{Command: "modify_resource_policy", Resource: &resource, Spending: &spending}, nil
+}
+
+// decodeSetResourceReserve reads the resource and protected quantity
+// SetResourceReserve names. The range belongs to domain.ResourcePolicyPatch;
+// this only rejects the wrong shape. Deliberately no spending field: the Python
+// contract sets the reserve alone and preserves the existing restriction.
+func decodeSetResourceReserve(fields map[string]json.RawMessage) (modelCommand, error) {
+	if len(fields) != 3 || fields["resource"] == nil || fields["reserve"] == nil || bytes.Equal(bytes.TrimSpace(fields["reserve"]), []byte("null")) {
+		return modelCommand{}, fail(InvalidCommand, "unexpected command fields")
+	}
+	var resource string
+	if err := json.Unmarshal(fields["resource"], &resource); err != nil || resource == "" {
+		return modelCommand{}, fail(InvalidCommand, "invalid resource field")
+	}
+	var reserve int32
+	if err := json.Unmarshal(fields["reserve"], &reserve); err != nil {
+		return modelCommand{}, fail(InvalidCommand, "invalid reserve field")
+	}
+	return modelCommand{Command: "set_resource_reserve", Resource: &resource, Reserve: &reserve}, nil
 }
 
 // optionalCommandField turns a decoded partial-request pointer into the
