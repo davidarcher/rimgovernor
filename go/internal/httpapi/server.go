@@ -135,6 +135,9 @@ func (s *Server) handle(w http.ResponseWriter, r *http.Request) {
 	if s.handlePresentationMedia(w, r) {
 		return
 	}
+	if s.handleLifecycle(w, r) {
+		return
+	}
 	if s.handleVideoStream(w, r) {
 		return
 	}

@@ -145,11 +145,20 @@ type buildingServiceBridge struct {
 	questFulfill        *buildingruntime.QuestFulfillCapabilities
 	caravanDeparture    *buildingruntime.CaravanDepartureCapabilities
 	presentationMedia   *bridge.PresentationMedia
+	lifecycle           lifecycleCapability
 }
 type buildingServiceOpener func(context.Context, bridge.ProcessConfig) (buildingServiceBridge, error)
 type ownedAuthority struct {
 	*bridge.Client
 	*bridge.AuthorityControl
+}
+
+// lifecycleCapability composes the two separately held lifecycle mutations
+// (Save, Load) into the single httpapi.LifecycleWriter shape; neither embedded
+// capability grants the other's authority.
+type lifecycleCapability struct {
+	*bridge.LifecycleSave
+	*bridge.LifecycleLoad
 }
 
 func openBuildingService(ctx context.Context, config bridge.ProcessConfig) (buildingServiceBridge, error) {
@@ -257,6 +266,14 @@ func openBuildingService(ctx context.Context, config bridge.ProcessConfig) (buil
 	if err != nil {
 		return buildingServiceBridge{}, errors.Join(err, client.Close())
 	}
+	lifecycleSave, err := bridge.NewLifecycleSave(client)
+	if err != nil {
+		return buildingServiceBridge{}, errors.Join(err, client.Close())
+	}
+	lifecycleLoad, err := bridge.NewLifecycleLoad(client)
+	if err != nil {
+		return buildingServiceBridge{}, errors.Join(err, client.Close())
+	}
 	return buildingServiceBridge{reads: client, native: client, authority: ownedAuthority{client, authority}, writes: writes, moodReliefWorld: client,
 		bills:           &bill.BillCapabilities{Native: client, Writer: bills},
 		zones:           &zone.ZoneCapabilities{Native: client, Writer: zones},
@@ -287,7 +304,8 @@ func openBuildingService(ctx context.Context, config bridge.ProcessConfig) (buil
 		settlementGift:      &buildingruntime.SettlementGiftCapabilities{Native: client, Writer: settlementGift},
 		questFulfill:        &buildingruntime.QuestFulfillCapabilities{Native: client, Writer: questFulfill},
 		caravanDeparture:    &buildingruntime.CaravanDepartureCapabilities{Native: client, Writer: caravanDeparture, Policy: defaultCaravanDeparturePolicy},
-		presentationMedia:   presentationMedia}, nil
+		presentationMedia:   presentationMedia,
+		lifecycle:           lifecycleCapability{lifecycleSave, lifecycleLoad}}, nil
 }
 
 type buildingWorldSource struct{ reads observation.Source }
@@ -655,7 +673,7 @@ func serveBuildingWithBridge(ctx context.Context, config serveConfig, out io.Wri
 			return err
 		}
 	}
-	server, err := httpapi.NewWithPlayer(httpapi.Config{ClockReview: clockReview, Routines: routines, WorldEvaluation: worldEvaluation, Notifications: notifications, Presentation: presentation, PresentationMedia: client.presentationMedia, AssetsDir: config.assets, ReadTimeout: 35 * time.Second, ShutdownTimeout: 5 * time.Second, MaxResponseBytes: 1 << 20}, buildingSnapshots{reads, player}, database, player, database)
+	server, err := httpapi.NewWithPlayer(httpapi.Config{ClockReview: clockReview, Routines: routines, WorldEvaluation: worldEvaluation, Notifications: notifications, Presentation: presentation, PresentationMedia: client.presentationMedia, Lifecycle: client.lifecycle, AssetsDir: config.assets, ReadTimeout: 35 * time.Second, ShutdownTimeout: 5 * time.Second, MaxResponseBytes: 1 << 20}, buildingSnapshots{reads, player}, database, player, database)
 	if err != nil {
 		return err
 	}
