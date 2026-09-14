@@ -89,6 +89,12 @@ type modelCommand struct {
 	// "remove" or "delete"); ZoneCells (shared with create_zone) holds the
 	// requested delta cells for add/remove and is unused for delete.
 	ZoneID, ZoneOp *string
+	// Maximum/FoodDays hold set_population_policy's requested colonist cap
+	// and minimum stored-food reserve in days. Both are plain bounded
+	// numbers: unlike every other command here this one names no observed
+	// entity, so there is nothing to bound against facts.
+	Maximum  *int32
+	FoodDays *float64
 }
 
 func decode(text string, limit int) (modelCommand, error) {
@@ -150,8 +156,10 @@ func decode(text string, limit int) (modelCommand, error) {
 		return decodeCreateZone(fields)
 	case "edit_zone":
 		return decodeEditZone(fields)
+	case "set_population_policy":
+		return decodeSetPopulationPolicy(fields)
 	default:
-		return modelCommand{}, fail(UnsupportedCommand, "only building, research, tend, rescue, draft, caravan, husbandry, recover, bed_assign, move_pawn, set_building_temperature, request_surgery, hold_caravan, route_caravan, accept_quest, fulfill_quest, gift_settlement, create_zone and edit_zone proposals are supported")
+		return modelCommand{}, fail(UnsupportedCommand, "only building, research, tend, rescue, draft, caravan, husbandry, recover, bed_assign, move_pawn, set_building_temperature, request_surgery, hold_caravan, route_caravan, accept_quest, fulfill_quest, gift_settlement, create_zone, edit_zone and set_population_policy proposals are supported")
 	}
 }
 
@@ -402,6 +410,24 @@ func decodeSetBuildingTemperature(fields map[string]json.RawMessage) (modelComma
 		return modelCommand{}, fail(InvalidCommand, "invalid celsius field")
 	}
 	return modelCommand{Command: "set_building_temperature", Thing: &thing, Celsius: &celsius}, nil
+}
+
+// decodeSetPopulationPolicy reads the two bounded numbers the population
+// capacity policy carries. The range check itself belongs to
+// domain.NewPopulationPolicy; this only rejects the wrong shape.
+func decodeSetPopulationPolicy(fields map[string]json.RawMessage) (modelCommand, error) {
+	if len(fields) != 3 || fields["maximum"] == nil || fields["foodDays"] == nil || bytes.Equal(bytes.TrimSpace(fields["maximum"]), []byte("null")) || bytes.Equal(bytes.TrimSpace(fields["foodDays"]), []byte("null")) {
+		return modelCommand{}, fail(InvalidCommand, "unexpected command fields")
+	}
+	var maximum int32
+	if err := json.Unmarshal(fields["maximum"], &maximum); err != nil {
+		return modelCommand{}, fail(InvalidCommand, "invalid maximum field")
+	}
+	var foodDays float64
+	if err := json.Unmarshal(fields["foodDays"], &foodDays); err != nil {
+		return modelCommand{}, fail(InvalidCommand, "invalid foodDays field")
+	}
+	return modelCommand{Command: "set_population_policy", Maximum: &maximum, FoodDays: &foodDays}, nil
 }
 
 func decodeSurgery(fields map[string]json.RawMessage) (modelCommand, error) {

@@ -165,6 +165,14 @@ type ZoneEdit struct {
 	Op     domain.ZoneEditOp  `json:"op"`
 	Cells  []ZoneCell         `json:"cells,omitempty"`
 }
+// PopulationPolicy is the wire shape for the colony population capacity
+// policy: a maximum colonist count and a minimum stored-food reserve in
+// days. It is a configuration value rather than a plan action, so unlike
+// ZoneEdit it carries no entity identity and no before-token.
+type PopulationPolicy struct {
+	Maximum  int32   `json:"maximum"`
+	FoodDays float64 `json:"foodDays"`
+}
 type DraftCleanup struct {
 	Stage domain.DraftCleanupStage `json:"stage"`
 }

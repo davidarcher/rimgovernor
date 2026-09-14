@@ -41,7 +41,7 @@ import (
 	"modernc.org/sqlite"
 )
 
-const schemaVersion = 60
+const schemaVersion = 61
 const applicationID = 0x52474f31
 
 var ErrConflict = core.ErrConflict
@@ -232,7 +232,9 @@ CREATE TABLE trade_submissions(request_id TEXT PRIMARY KEY REFERENCES submission
 CREATE TABLE zone_create_submissions(request_id TEXT PRIMARY KEY REFERENCES submissions(request_id), payload BLOB NOT NULL) STRICT;
 CREATE TABLE zone_edit_submissions(request_id TEXT PRIMARY KEY REFERENCES submissions(request_id), payload BLOB NOT NULL) STRICT;
 CREATE TABLE work_preferences(plan_id TEXT PRIMARY KEY REFERENCES plans(id), payload BLOB NOT NULL) STRICT;
-CREATE TABLE work_preference_requests(request_id TEXT PRIMARY KEY, payload BLOB NOT NULL) STRICT;`)
+CREATE TABLE work_preference_requests(request_id TEXT PRIMARY KEY, payload BLOB NOT NULL) STRICT;
+CREATE TABLE population_policy_submissions(request_id TEXT PRIMARY KEY, colony TEXT NOT NULL, load_token TEXT NOT NULL, map_id INTEGER NOT NULL, maximum INTEGER NOT NULL, food_days REAL NOT NULL) STRICT;
+CREATE TABLE population_policies(colony TEXT NOT NULL, load_token TEXT NOT NULL, map_id INTEGER NOT NULL, request_id TEXT NOT NULL REFERENCES population_policy_submissions(request_id), maximum INTEGER NOT NULL, food_days REAL NOT NULL, PRIMARY KEY(colony,load_token,map_id)) STRICT;`)
 		if err != nil {
 			return err
 		}

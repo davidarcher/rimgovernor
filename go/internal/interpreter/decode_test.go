@@ -508,3 +508,31 @@ func TestModelEditZoneShape(t *testing.T) {
 		})
 	}
 }
+
+func TestModelSetPopulationPolicyShape(t *testing.T) {
+	ok, err := decode(`{"command":"set_population_policy","maximum":12,"foodDays":30.5}`, 1)
+	if err != nil || ok.Command != "set_population_policy" || ok.Maximum == nil || *ok.Maximum != 12 || ok.FoodDays == nil || *ok.FoodDays != 30.5 {
+		t.Fatalf("set_population_policy shape: %v %v", ok, err)
+	}
+	// Decoding bounds only the shape; the numeric range belongs to domain.
+	wide, err := decode(`{"command":"set_population_policy","maximum":999,"foodDays":999}`, 1)
+	if err != nil || wide.Maximum == nil || *wide.Maximum != 999 {
+		t.Fatalf("out-of-range values decode here and are refused later: %v %v", wide, err)
+	}
+	for _, text := range []string{
+		`{"command":"set_population_policy"}`,
+		`{"command":"set_population_policy","maximum":12}`,
+		`{"command":"set_population_policy","foodDays":30}`,
+		`{"command":"set_population_policy","maximum":null,"foodDays":30}`,
+		`{"command":"set_population_policy","maximum":12,"foodDays":null}`,
+		`{"command":"set_population_policy","maximum":"12","foodDays":30}`,
+		`{"command":"set_population_policy","maximum":12,"foodDays":"30"}`,
+		`{"command":"set_population_policy","maximum":12.5,"foodDays":30}`,
+		`{"command":"set_population_policy","maximum":12,"foodDays":30,"pawn":"Thing_A"}`,
+	} {
+		t.Run(text, func(t *testing.T) {
+			_, err := decode(text, 1)
+			assertKind(t, err, InvalidCommand)
+		})
+	}
+}
