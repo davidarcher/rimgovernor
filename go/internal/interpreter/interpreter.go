@@ -313,6 +313,18 @@ type Proposal struct {
 	// placement safety are established per placement at inspection, not here.
 	BuildRoom       domain.RoomShell
 	BuildRoomIntent string
+	// AdoptRoom carries adopt_room's already-built room and AdoptRoomIntent its
+	// player-chosen intent identity: Plan is then zero and AdoptRoom.Set()
+	// reports true.
+	//
+	// It is the one proposal in this family that opens no work at all. Every
+	// other command here eventually produces native orders; adoption produces
+	// none, because the room it names is already standing. Python says the same
+	// in its own reply: "Existing construction preserved; no new construction
+	// issued". What the submission does instead is complete the shelter goal
+	// and record the player's inspection of the native room beside it.
+	AdoptRoom       domain.RoomAdoption
+	AdoptRoomIntent string
 	// CancelConstructionIntent carries cancel_construction's target build_room
 	// intent identity: Plan is then zero and CancelConstructionIntent is
 	// nonempty, and it is populated exclusively of every other outcome above.
@@ -537,6 +549,21 @@ func (i *Interpreter) Interpret(ctx context.Context, input Input) (Proposal, err
 		}
 		proposal.BuildRoom = room
 		proposal.BuildRoomIntent = *result.IntentID
+		proposal.Generation = input.Current
+		return proposal, nil
+	}
+	// Adopting a room carries no actions for the strongest reason of all: it
+	// issues no construction whatsoever, only a claim that an already-built
+	// room satisfies the shelter goal. Its cells are still bounded against
+	// supplied facts, because a room the model never observed is a room it
+	// invented. See Proposal.AdoptRoom.
+	if result.Command == "adopt_room" {
+		adoption, err := i.adoptRoom(input, result.Adopted)
+		if err != nil {
+			return proposal, err
+		}
+		proposal.AdoptRoom = adoption
+		proposal.AdoptRoomIntent = *result.IntentID
 		proposal.Generation = input.Current
 		return proposal, nil
 	}
@@ -1398,6 +1425,53 @@ func (i *Interpreter) buildRoom(input Input, request *modelRoomShell) (domain.Ro
 		seen[cell] = true
 	}
 	return room, nil
+}
+
+// adoptRoom resolves an adopt_room command into one already-built room the
+// player is claiming.
+//
+// It decides nothing about whether the room is real: whether the walls are
+// closed, the roof complete and the door a genuine native doorway is the game's
+// to report, and this boundary sees no native census. What it does enforce is
+// that nothing was invented -- every cell of the claimed interior, and the
+// entrance cell itself, must be an observed anchor inside the map, exactly as a
+// build_room shell's placements must be.
+//
+// The perimeter is deliberately not required to be observed. Adoption claims a
+// room's interior, and a player who inspected the inside of a finished room has
+// no reason to have walked its outer wall.
+func (i *Interpreter) adoptRoom(input Input, request *modelAdoptedRoom) (domain.RoomAdoption, error) {
+	var zero domain.RoomAdoption
+	if request == nil || request.X == nil || request.Z == nil || request.Width == nil || request.Height == nil || request.Entrance == nil {
+		return zero, fail(InvalidCommand, "adopt_room requires an inspected room")
+	}
+	interior := make([]domain.Cell, 0, len(request.InteriorCells))
+	for _, cell := range request.InteriorCells {
+		interior = append(interior, domain.Cell{X: *cell.X, Z: *cell.Z})
+	}
+	if len(interior) == 0 {
+		interior = nil
+	}
+	var door domain.Cell
+	doorSet := false
+	if request.EntranceCell != nil {
+		door, doorSet = domain.Cell{X: *request.EntranceCell.X, Z: *request.EntranceCell.Z}, true
+	}
+	adoption, err := domain.NewRoomAdoption(domain.RoomBounds{X: *request.X, Z: *request.Z, Width: *request.Width, Height: *request.Height},
+		domain.Rotation(*request.Entrance), interior, door, doorSet)
+	if err != nil {
+		return zero, &Failure{InvalidCommand, err}
+	}
+	observed := map[domain.Cell]bool{}
+	for _, cell := range input.Facts.Cells {
+		observed[cell] = true
+	}
+	for _, cell := range append(adoption.Interior(), adoption.EntranceCell()) {
+		if cell.X < 0 || cell.Z < 0 || cell.X >= input.Facts.Width || cell.Z >= input.Facts.Height || !observed[cell] {
+			return zero, fail(UnknownFacts, "unobserved or out-of-bounds adopted room cell")
+		}
+	}
+	return adoption, nil
 }
 
 // knownDefinition reports whether a definition and material pair is one the

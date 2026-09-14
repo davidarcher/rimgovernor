@@ -135,8 +135,7 @@ func (s *Store) SubmitGoalCreate(ctx context.Context, q GoalCreateSubmissionRequ
 		q.RequestID, w.Colony, w.Load, w.Map, string(q.Kind), string(state.Goal.ID), payload); err != nil {
 		return GoalCreateSubmission{}, false, conflict(err)
 	}
-	if _, err = tx.ExecContext(ctx, "INSERT INTO player_goals(colony,load_token,map_id,kind,request_id,goal_id) VALUES(?,?,?,?,?,?) ON CONFLICT(colony,load_token,map_id,kind) DO UPDATE SET request_id=excluded.request_id,goal_id=excluded.goal_id",
-		w.Colony, w.Load, w.Map, string(q.Kind), q.RequestID, string(state.Goal.ID)); err != nil {
+	if err = bindPlayerGoal(ctx, tx, w, q.Kind, "create_goal", q.RequestID, state.Goal.ID); err != nil {
 		return GoalCreateSubmission{}, false, conflict(err)
 	}
 	if err = tx.Commit(); err != nil {
@@ -299,6 +298,16 @@ func (s *Store) LookupGoalCreateSubmission(ctx context.Context, requestID string
 		return GoalCreateSubmission{}, err
 	}
 	return result, nil
+}
+
+// bindPlayerGoal records which goal identity a player command left bound to one
+// kind in one world, replacing whatever was bound before. Every player command
+// that owns a goal binds through here, so the binding stays single per kind; see
+// initializeGoals for why the row names its own command.
+func bindPlayerGoal(ctx context.Context, tx *sql.Tx, w World, kind domain.GoalKind, command, requestID string, id domain.GoalID) error {
+	_, err := tx.ExecContext(ctx, "INSERT INTO player_goals(colony,load_token,map_id,kind,command,request_id,goal_id) VALUES(?,?,?,?,?,?,?) ON CONFLICT(colony,load_token,map_id,kind) DO UPDATE SET command=excluded.command,request_id=excluded.request_id,goal_id=excluded.goal_id",
+		w.Colony, w.Load, w.Map, string(kind), command, requestID, string(id))
+	return err
 }
 
 func currentPlayerGoal(ctx context.Context, tx *sql.Tx, w World, kind domain.GoalKind) (domain.GoalID, error) {

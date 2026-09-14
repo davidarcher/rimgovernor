@@ -25,7 +25,8 @@ type modelCargo struct {
 	Count      *uint64 `json:"count"`
 }
 
-// modelCell is one untrusted requested zone footprint cell.
+// modelCell is one untrusted requested cell: a zone footprint cell, or one cell
+// of an adopted room's exact interior.
 type modelCell struct {
 	X *int32 `json:"x"`
 	Z *int32 `json:"z"`
@@ -121,6 +122,11 @@ type modelCommand struct {
 	// placements, so unlike a request ID it is part of the command itself.
 	IntentID *string
 	Room     *modelRoomShell
+	// Adopted holds adopt_room's already-built native room: the inspected
+	// rectangle and entrance side, and optionally the exact observed interior
+	// and boundary door of a nonrectangular room. It reuses IntentID for the
+	// adoption's own intent identity, which never coexists with build_room's.
+	Adopted *modelAdoptedRoom
 	// Goal holds create_goal's requested maintained goal kind (from a fixed
 	// whitelist, so nothing to bound against facts) or cancel_goal's target
 	// goal identity (which must be an observed one). The two commands are
@@ -142,6 +148,21 @@ type modelRoomShell struct {
 	Material *string `json:"material"`
 	Entrance *string `json:"entrance"`
 	Purpose  *string `json:"purpose"`
+}
+
+// modelAdoptedRoom is an untrusted already-built room the model proposes the
+// player adopt. The rectangle and entrance side are required; interiorCells and
+// entranceCell are the optional nonrectangular half and must appear together,
+// which the domain constructor enforces. Unlike modelRoomShell there is no
+// wall, door or material definition: adoption builds nothing.
+type modelAdoptedRoom struct {
+	X             *int32      `json:"x"`
+	Z             *int32      `json:"z"`
+	Width         *int32      `json:"width"`
+	Height        *int32      `json:"height"`
+	Entrance      *string     `json:"entrance"`
+	InteriorCells []modelCell `json:"interiorCells"`
+	EntranceCell  *modelCell  `json:"entranceCell"`
 }
 
 // modelExpeditionPolicy is an untrusted partial expedition policy request.
@@ -237,10 +258,12 @@ func decode(text string, limit int) (modelCommand, error) {
 		return decodeGoalCommand(fields, "cancel_goal")
 	case "build_room":
 		return decodeBuildRoom(fields)
+	case "adopt_room":
+		return decodeAdoptRoom(fields)
 	case "cancel_construction":
 		return decodeCancelConstruction(fields)
 	default:
-		return modelCommand{}, fail(UnsupportedCommand, "only building, research, tend, rescue, draft, caravan, husbandry, recover, bed_assign, move_pawn, set_building_temperature, request_surgery, hold_caravan, route_caravan, accept_quest, fulfill_quest, gift_settlement, create_zone, edit_zone, build_room, cancel_construction, set_population_policy, set_expedition_policy, set_population_decision, modify_resource_policy, set_resource_reserve, create_goal and cancel_goal proposals are supported")
+		return modelCommand{}, fail(UnsupportedCommand, "only building, research, tend, rescue, draft, caravan, husbandry, recover, bed_assign, move_pawn, set_building_temperature, request_surgery, hold_caravan, route_caravan, accept_quest, fulfill_quest, gift_settlement, create_zone, edit_zone, build_room, adopt_room, cancel_construction, set_population_policy, set_expedition_policy, set_population_decision, modify_resource_policy, set_resource_reserve, create_goal and cancel_goal proposals are supported")
 	}
 }
 
@@ -619,6 +642,58 @@ func decodeBuildRoom(fields map[string]json.RawMessage) (modelCommand, error) {
 		return modelCommand{}, fail(InvalidCommand, "invalid room field")
 	}
 	return modelCommand{Command: "build_room", IntentID: &intent, Room: &room}, nil
+}
+
+// decodeAdoptRoom reads one already-built room the player is claiming, plus the
+// adoption's own intent identity. The intent pattern is Python AdoptRoom's own,
+// which is BuildRoom's.
+//
+// The rectangle and entrance side are required and the nonrectangular pair is
+// optional, so unlike decodeBuildRoom this cannot demand a fixed field count.
+// It accepts only the seven known keys and rejects an explicit null for any of
+// them, then lets domain.NewRoomAdoption own every cross-field rule -- the
+// both-or-neither pairing, the strictly-inside bound, the connectivity and the
+// boundary entrance -- exactly as Python leaves them all to its `geometry`
+// validator.
+func decodeAdoptRoom(fields map[string]json.RawMessage) (modelCommand, error) {
+	if len(fields) != 3 || fields["intentId"] == nil || fields["room"] == nil {
+		return modelCommand{}, fail(InvalidCommand, "unexpected command fields")
+	}
+	var intent string
+	if err := json.Unmarshal(fields["intentId"], &intent); err != nil {
+		return modelCommand{}, fail(InvalidCommand, "invalid intentId field")
+	}
+	if err := domain.ValidateRoomIntent(intent); err != nil {
+		return modelCommand{}, &Failure{InvalidCommand, err}
+	}
+	var raw map[string]json.RawMessage
+	if err := json.Unmarshal(fields["room"], &raw); err != nil {
+		return modelCommand{}, fail(InvalidCommand, "invalid room field")
+	}
+	known := map[string]bool{"x": true, "z": true, "width": true, "height": true, "entrance": true, "interiorCells": true, "entranceCell": true}
+	for key, value := range raw {
+		if !known[key] || bytes.Equal(bytes.TrimSpace(value), []byte("null")) {
+			return modelCommand{}, fail(InvalidCommand, "unexpected or null room field")
+		}
+	}
+	for _, key := range []string{"x", "z", "width", "height", "entrance"} {
+		if _, ok := raw[key]; !ok {
+			return modelCommand{}, fail(InvalidCommand, "required room field missing")
+		}
+	}
+	var room modelAdoptedRoom
+	if err := json.Unmarshal(fields["room"], &room); err != nil {
+		return modelCommand{}, fail(InvalidCommand, "invalid room field")
+	}
+	for _, cell := range room.InteriorCells {
+		if cell.X == nil || cell.Z == nil {
+			return modelCommand{}, fail(InvalidCommand, "invalid adopted interior cell")
+		}
+	}
+	if room.EntranceCell != nil && (room.EntranceCell.X == nil || room.EntranceCell.Z == nil) {
+		return modelCommand{}, fail(InvalidCommand, "invalid adopted entrance cell")
+	}
+	return modelCommand{Command: "adopt_room", IntentID: &intent, Adopted: &room}, nil
 }
 
 // decodeCancelConstruction names one build_room intent and nothing else. There
