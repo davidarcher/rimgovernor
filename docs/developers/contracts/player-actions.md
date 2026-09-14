@@ -57,5 +57,6 @@ bill read. Recipe ingredient rules and production resource policies still apply.
 | Food/drug/apparel policies | Bill ingredient filters and stockpile filters; native pawn settings inspection. | Typed policy creation/edit/assignment and readback, including restriction versus actual consumption/wearing. |
 
 These extensions and contextual/queued execution acceptance remain tracked in
-[BACKLOG.md](../../BACKLOG.md). Their absence is explicit; no debug/editor operation or
+[Contextual and queued action extensions](https://github.com/davidarcher/rimgovernor/issues/16).
+Their absence is explicit; no debug/editor operation or
 unvalidated UI fallback substitutes for them.

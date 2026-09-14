@@ -272,8 +272,7 @@ func (r *RoutineSecureSuppliesPlanner) step(call, epoch context.Context) (Routin
 //
 // upkeep_storage.py's second-tier supply_storeroom fallback (building an
 // entirely new enclosed room when no covered patch exists) is not ported by
-// this slice; it remains open, tracked in docs/BACKLOG.md alongside
-// MaintainStoneShell.
+// this slice; it remains open, alongside MaintainStoneShell.
 func (r *RoutineSecureSuppliesPlanner) coveredStorageFallback(call, epoch context.Context, state ControlState, goal store.GoalState, projection observation.ColonyProjection, item policy.UpkeepItem, started time.Time) (RoutineSecureSuppliesResult, error) {
 	p := r.reviewer.player
 	zoneAttempts := medicalAttemptCount(goal.Methods, goal.Goal.Epoch, secureSuppliesZonePrefix)

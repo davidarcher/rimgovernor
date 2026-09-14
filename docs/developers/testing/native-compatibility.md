@@ -52,5 +52,5 @@ The legacy binder reports unknown outer keys but accepts them. That observation
 does not establish strict request validation. Component census and identity
 continuity do not prove populated state-family recovery, branched timeline or
 disconnect safety, completed pawn work, or unified-package compatibility. Track
-those requirements in [N01](../../BACKLOG.md#n01--unified-rimgovernor-native-mod)
+those requirements in the [N01 issues](https://github.com/davidarcher/rimgovernor/issues?q=is%3Aissue+is%3Aopen+label%3A%22area%3AN01%22)
 and the [saved-state inventory](../../../contracts/native-state-ownership.md).

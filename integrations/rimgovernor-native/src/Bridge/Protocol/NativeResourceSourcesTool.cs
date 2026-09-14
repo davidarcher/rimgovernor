@@ -25,8 +25,8 @@ namespace HomeBridge.BridgeTools
     // ResourceSource rows the new ResourceSourcesSnapshot contract wants.
     // Storage capacity is now populated (Storage below), porting
     // ResourceAcquisitionTools.Storage's exact hauler/capacity/candidate scan
-    // so both surfaces agree on material-storage adequacy too -- see
-    // docs/BACKLOG.md 05.5. Deliberately narrower than the legacy read in one
+    // so both surfaces agree on material-storage adequacy too.
+    // Deliberately narrower than the legacy read in one
     // remaining respect: extraction-development detail stays unset (an
     // explicit Unsupported failure when development is requested).
     public sealed class NativeResourceSourcesTool
@@ -93,7 +93,7 @@ namespace HomeBridge.BridgeTools
         // field-for-field so both surfaces agree on material-storage
         // adequacy. Unlike the legacy untyped reply, deep-drill portion
         // sizing and the hauling WorkType are not carried -- nothing on the
-        // Go side reads either yet (see docs/BACKLOG.md 05.5).
+        // Go side reads either yet.
         private static Obs.StorageCapacity Storage(Map map, ThingDef def)
         {
             var haulers = map.mapPawns.FreeColonistsSpawned.Where(p => !p.Downed && !p.Drafted && !p.InMentalState
@@ -131,7 +131,7 @@ namespace HomeBridge.BridgeTools
             // dispatch against a mined source (NativeMineAcquisition), but
             // harvest/hunt sources are still reached only through the
             // AcquisitionFacts census path, which already carries its own
-            // token. See docs/BACKLOG.md 05.5.
+            // token.
             if (thing is Mineable rock) entity.Snapshot = NativeMineAcquisition.Snapshot(rock, context);
             var row = new Obs.ResourceSource
             {

@@ -17,7 +17,7 @@ component you will change. Keep work in small verified slices using the
 | Browse running Docker colonies | [Local colony directory](local-colonies.md) |
 | Migrate an owned session | [Session migration](legacy-migration.md) |
 | Work on the Go controller | [Go module](../../go/README.md) and [migration contracts](../../contracts/README.md) |
-| Pick up unfinished work | [Backlog](../BACKLOG.md) |
+| Pick up unfinished work | [Backlog issues](https://github.com/davidarcher/rimgovernor/issues) |
 
 ## Component guides
 

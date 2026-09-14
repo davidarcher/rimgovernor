@@ -10,7 +10,7 @@ import (
 // EnsureResearch opening slice: pure, native-shape-preserving primitives ported
 // from controller/rimgovernor/research.py's prerequisite_queue/eligible_researchers/
 // usable_laboratories. No domain/store/executor/bridge/buildingruntime wiring exists
-// yet for this goal (see docs/BACKLOG.md 05.5) — these functions only make the
+// yet for this goal — these functions only make the
 // deterministic method-selection logic available and independently testable ahead
 // of that wiring, mirroring how 05.5's GearReplace slice started from policy alone.
 

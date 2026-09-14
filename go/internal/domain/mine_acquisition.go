@@ -19,7 +19,7 @@ import "errors"
 // AcquisitionAction's (one native-approved source thing, its harvested
 // resource definition, and its cell), so it reuses the Acquisition value
 // type verbatim -- only the ActionKind, admission bookkeeping and native read
-// differ. See docs/BACKLOG.md 05.5.
+// differ.
 const MineAcquisitionAction ActionKind = "mine_acquisition"
 
 func NewMineAcquisitionAction(id ActionID, acquisition Acquisition) (Action, error) {

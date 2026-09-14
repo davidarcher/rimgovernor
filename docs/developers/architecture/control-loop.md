@@ -41,8 +41,8 @@ hold without replacing the action or its evidence.
 
 Stability requires sleeping capacity, shelter, food, production, storage, cooking,
 temperature and other gates together. Changed conditions can invalidate stability.
-Sustained coverage belongs in [campaigns](../testing/campaigns.md) and the
-[backlog](../../BACKLOG.md).
+Sustained coverage belongs in [campaigns](../testing/campaigns.md) and
+[GitHub issues](https://github.com/davidarcher/rimgovernor/issues).
 
 Implementation: `colony_controller.py`, `colony_policy.py`, `colony_skills.py` and
 `bridge_runtime.py` under [controller/rimgovernor](../../../controller/rimgovernor).

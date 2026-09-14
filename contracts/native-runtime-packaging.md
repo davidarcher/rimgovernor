@@ -48,5 +48,5 @@ mode from native logs. Run batch and graphical/Xvfb modes against the same packa
 Current-game safety and gameplay changes need their own native outcomes; no
 old-save import or historical byte-parity campaign is required.
 
-See [N01](../docs/BACKLOG.md#n01--unified-rimgovernor-native-mod) for remaining typed
+See [N01](https://github.com/davidarcher/rimgovernor/issues?q=is%3Aissue+is%3Aopen+label%3A%22area%3AN01%22) for remaining typed
 contracts, lifecycle ownership, persistence and supported-platform acceptance.

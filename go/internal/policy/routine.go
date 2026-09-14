@@ -55,8 +55,7 @@ type RoutinePolicy struct {
 	// tracked floors driving both goal creation and the native
 	// SetProductionPolicy push), this only supports
 	// policy.SelectResourceTarget's own single-goal dynamic-target selection
-	// across these targets and issues no SetProductionPolicy push at all --
-	// see docs/BACKLOG.md 05.5 for what remains open.
+	// across these targets and issues no SetProductionPolicy push at all.
 	ResourceTargets map[Resource]int64
 	// ResourceReserves and StoppedResources are operator-declared inputs to
 	// ProductionFloors, mirroring production_policy.py's plan.control
@@ -65,8 +64,7 @@ type RoutinePolicy struct {
 	// selection), these drive the ProductionPolicy goal's own config-only
 	// posture: RoutineProductionPolicyPlanner dispatches ProductionFloors's
 	// computed floors/stopped rows through the native SetProductionPolicy
-	// write whenever they diverge from a fresh ReadProductionPolicy -- see
-	// docs/BACKLOG.md 05.5.
+	// write whenever they diverge from a fresh ReadProductionPolicy.
 	ResourceReserves map[Resource]int64
 	StoppedResources []Resource
 }

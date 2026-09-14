@@ -230,7 +230,7 @@ production.
 
 ## Related reading
 
-[Testing](README.md) · [Backlog](../../BACKLOG.md)
+[Testing](README.md) · [Issues](https://github.com/davidarcher/rimgovernor/issues)
 
 ## Combat and rescue in Docker
 

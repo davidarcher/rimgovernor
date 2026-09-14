@@ -24,7 +24,7 @@ namespace HomeBridge.BridgeTools
     // A baseline of pre-existing nearby stacks (captured at admission time) is
     // subtracted so output already sitting near the deposit before this
     // attempt started is never misattributed. This is a disclosed narrowing,
-    // not exact spawn tracking: see docs/BACKLOG.md 05.5.
+    // not exact spawn tracking.
     internal sealed class NativeMineRecord : INativeAcquisitionRecord
     {
         private readonly Map map;

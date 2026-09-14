@@ -141,7 +141,7 @@
        a licensed RimBridgeSdkDir/RimWorldManagedDir, unlike every other probe here. Its real
        IRimBridgeContext would conflict with the fake one in FakeSdkStub.cs if both were ever
        compiled at once - gating keeps that latent conflict moot until a future caller actually
-       supplies RimBridgeSdkDir alongside the always-on probes above (see BACKLOG note in the
+       supplies RimBridgeSdkDir alongside the always-on probes above (see the
        consolidation commit message / final report). -->
   <ItemGroup Condition="'$(RimBridgeSdkDir)' != '' AND '$(RimWorldManagedDir)' != ''">
     <Reference Include="RimBridgeServer.Sdk"><HintPath>$(RimBridgeSdkDir)/RimBridgeServer.Sdk.dll</HintPath></Reference>

@@ -1,8 +1,8 @@
 // Package mineacquisition wires the second, independently-registered
 // mine-acquisition vertical (domain.MineAcquisitionAction) into
 // buildingruntime, alongside (not in place of) the existing generic
-// buildingruntime/acquisition vertical. See docs/BACKLOG.md 05.5: a mined
-// resource is structurally excluded from the AcquisitionFacts census that
+// buildingruntime/acquisition vertical. A mined resource is structurally
+// excluded from the AcquisitionFacts census that
 // backs the generic vertical's InspectAcquisition, so mining dispatch needs
 // its own ActionKind, admission, executor branch and boundary, reading
 // bridge.ReadMineAcquisition (backed by ListResourceSources) instead.

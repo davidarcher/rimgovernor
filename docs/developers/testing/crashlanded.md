@@ -100,4 +100,4 @@ arbitrary long-term survival or difficult-biome coverage.
 
 ## Related reading
 
-[Testing](README.md) · [Backlog](../../BACKLOG.md)
+[Testing](README.md) · [Issues](https://github.com/davidarcher/rimgovernor/issues)

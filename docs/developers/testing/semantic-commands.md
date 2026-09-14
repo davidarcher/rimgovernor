@@ -92,4 +92,4 @@ removing the owned container.
 
 ## Related reading
 
-[Testing](README.md) · [Backlog](../../BACKLOG.md)
+[Testing](README.md) · [Issues](https://github.com/davidarcher/rimgovernor/issues)

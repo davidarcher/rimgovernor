@@ -43,7 +43,8 @@ runtime plan snapshots. Recording is disabled in ordinary runs. See the
 [scenario procedure](../testing/native-scenarios.md) for coverage and retention limits.
 
 Build output, saves, logs, binaries and measurements belong outside Git. Use
-[TESTING.md](../testing/README.md) for verification and [BACKLOG.md](../../BACKLOG.md) for all
+[TESTING.md](../testing/README.md) for verification and
+[GitHub issues](https://github.com/davidarcher/rimgovernor/issues) for all
 unfinished work. New capabilities should extend native contracts, guarded execution and
 observed postconditions, with focused tests and explicit gameplay acceptance. The
 combined autonomous starter colony remains unproven.

@@ -92,4 +92,4 @@ Docker cache reuse is safe here, whereas `--no-build` would test old copied sour
 
 ## Related reading
 
-[Testing](README.md) · [Backlog](../../BACKLOG.md)
+[Testing](README.md) · [Issues](https://github.com/davidarcher/rimgovernor/issues)

@@ -9,7 +9,7 @@ import (
 // ProductionPolicyAction is intent to push one native SetProductionPolicy
 // floors/stopped replacement toward policy.ProductionFloors's
 // operator-declared reserve/stopped-resource configuration, giving that
-// tested pure primitive its first real caller (see docs/BACKLOG.md 05.5).
+// tested pure primitive its first real caller.
 // The native write replaces the whole map-scoped ProductionPolicyState in one
 // call (contracts/proto/operations.proto's SetProductionPolicy comment), so
 // this action only ever carries the two rows this vertical actually wants to

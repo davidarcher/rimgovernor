@@ -27,7 +27,9 @@ flowchart LR
 | RimWorld | Simulation, legal placement and ordinary pawn work. |
 
 The Go controller and unified native mod are gated migrations; see the
-[backlog](../../BACKLOG.md) before changing runtime ownership.
+[G01](https://github.com/davidarcher/rimgovernor/issues?q=is%3Aissue+is%3Aopen+label%3A%22area%3AG01%22)
+and [N01](https://github.com/davidarcher/rimgovernor/issues?q=is%3Aissue+is%3Aopen+label%3A%22area%3AN01%22)
+issues before changing runtime ownership.
 
 ## Execution rules
 

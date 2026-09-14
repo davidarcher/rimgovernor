@@ -120,4 +120,4 @@ This verifies designation evidence retention, not killed prey or completed pawn 
 
 ## Related reading
 
-[Testing](README.md) · [Backlog](../../BACKLOG.md)
+[Testing](README.md) · [Issues](https://github.com/davidarcher/rimgovernor/issues)

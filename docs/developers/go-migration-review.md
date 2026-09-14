@@ -2,7 +2,8 @@
 
 Review of `codex/g01-05` at `f0f8b58a`, against the Python implementation in the
 same checkout. This is a source and retained-evidence audit, not a new test run.
-The actionable checklist is exclusively in [G01](../BACKLOG.md#g01--go-controller-rewrite).
+The actionable checklist is exclusively in the
+[G01 issues](https://github.com/davidarcher/rimgovernor/issues?q=is%3Aissue+is%3Aopen+label%3A%22area%3AG01%22).
 
 ## Finding
 

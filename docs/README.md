@@ -19,8 +19,9 @@ its contracts and run the relevant checks.
 - [Local Windows and Linux acceptance inputs](developers/testing/local-acceptance-inputs.md)
 - [Testing](developers/testing/README.md) and [subsystem contracts](developers/contracts/README.md)
 - [Generated wire contracts](../contracts/schema-generation.md)
-- [Backlog](BACKLOG.md): unfinished features, migrations and acceptance
-  (includes the G01.05 routine integration burndown plan)
+- [Backlog issues](https://github.com/davidarcher/rimgovernor/issues): unfinished
+  features, migrations and acceptance, labeled by priority (`priority:P0`/`P1`/`P2`)
+  or rewrite area (`area:G01`/`N01`/`tooling`)
 - [Go migration review](developers/go-migration-review.md): source-based capability assessment and evidence limits
 
 Keep docs close to the reader's task. Explain current behavior, give the commands

@@ -16,8 +16,7 @@ func TestMineAcquisitionActionAndClosedVariants(t *testing.T) {
 	}
 	// A MineAcquisitionAction must never satisfy the generic AcquisitionAction
 	// accessor -- the whole point of the second vertical is that the two
-	// remain distinct, independently admitted kinds (see docs/BACKLOG.md
-	// 05.5).
+	// remain distinct, independently admitted kinds.
 	if _, ok := action.Acquisition(); ok {
 		t.Fatal("mine acquisition exposed generic acquisition accessor")
 	}

@@ -1,7 +1,7 @@
 # Native mutable static-state inventory
 
 Source baseline: `4d8edbc3`. This is the semantic state portion of
-[N01.00](../docs/BACKLOG.md#n01--unified-rimgovernor-native-mod), complementing the
+[N01](https://github.com/davidarcher/rimgovernor/issues?q=is%3Aissue+is%3Aopen+label%3A%22area%3AN01%22), complementing the
 [saved-field audit](native-state-ownership.md). Current behavior below is established
 by source inspection, not native execution. Hazards are acceptance requirements;
 their implementation queue remains N01.05 in the backlog. No runtime or

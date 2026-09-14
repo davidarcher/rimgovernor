@@ -456,9 +456,8 @@ func run(ctx context.Context, root, output, gameID string, headless bool, report
 	// This proves a caller whose original reply never arrived can recover the
 	// true outcome from the attempt key alone, without redispatching the
 	// operation and without needing any authority at all -- the general,
-	// family-agnostic mechanism the "lost reply" gap in docs/BACKLOG.md's
-	// N01.04 entry names, live and beyond the shared envelope gate's own
-	// compiled-only coverage.
+	// family-agnostic "lost reply" recovery mechanism, live and beyond the
+	// shared envelope gate's own compiled-only coverage.
 	lookupAfterCleanupReply, err := h.Wire(ctx, "lookup-after-cleanup", "receipts_lookup", attempt)
 	if err != nil {
 		return err

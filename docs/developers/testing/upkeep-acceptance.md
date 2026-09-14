@@ -141,4 +141,5 @@ Failed trials must remain available; use another output directory after a fix.
 This probe establishes only its declared targets and bounded outcomes. It does not
 certify arbitrary bed replacements, safe wall replacement, sustained
 food/feed/medical production, seasonal preparation or the complete B04h campaign
-matrix. Those acceptance requirements remain in [the backlog](../../BACKLOG.md).
+matrix. Those acceptance requirements remain tracked in
+[B04h](https://github.com/davidarcher/rimgovernor/issues/2).

@@ -5,7 +5,7 @@
 ## Scope the change
 
 Read the [architecture](architecture/overview.md), [source map](source-map.md),
-affected contracts and [backlog](../BACKLOG.md). Identify the outcome, owning
+affected contracts and [backlog issues](https://github.com/davidarcher/rimgovernor/issues). Identify the outcome, owning
 component, changed contracts and acceptance cases. A few sentences suffice for
 a small fix. Size the slice to a coherent milestone, not the smallest possible
 step: game and acceptance checks are slow, so batch the related work a milestone

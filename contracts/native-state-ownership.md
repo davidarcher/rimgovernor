@@ -1,7 +1,7 @@
 # Native saved-state ownership inventory
 
 Source baseline: `3fea7d5c`. This source audit contributes to
-[N01.00](../docs/BACKLOG.md#n01--unified-rimgovernor-native-mod); it does not approve
+[N01](https://github.com/davidarcher/rimgovernor/issues?q=is%3Aissue+is%3Aopen+label%3A%22area%3AN01%22); it does not approve
 state removal or establish save compatibility. Existing controller persistence is
 inventoried in [state-inventory.json](state-inventory.json). N01.06 and G01.04/G01.08
 jointly own the proposed migrations below. The backlog remains the work queue.

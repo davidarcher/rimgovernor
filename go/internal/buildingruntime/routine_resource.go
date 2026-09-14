@@ -42,8 +42,8 @@ import (
 // inadequate). Only once storage already covers the deficit (or no mine
 // source was selected) does this planner dispatch a
 // domain.MineAcquisitionAction against the mine source through the second,
-// independently-registered mine-acquisition vertical (see docs/BACKLOG.md
-// 05.5). Extraction development is still not dispatched here.
+// independently-registered mine-acquisition vertical. Extraction development
+// is still not dispatched here.
 type RoutineResourceSource interface {
 	observation.ColonySource
 	ReadGearBenches(context.Context, *c.Identity) ([]bridge.GearBenchRead, bridge.Result, error)
@@ -452,7 +452,7 @@ func (r *RoutineResourcePlanner) materialStorageZoneFallback(call, epoch context
 // against the selection's mine source, if any -- the second,
 // independently-registered mine-acquisition vertical this planner's mine
 // dispatch needs, since a mined resource can never appear in the generic
-// vertical's AcquisitionFacts census (see docs/BACKLOG.md 05.5). Only a mine
+// vertical's AcquisitionFacts census. Only a mine
 // method source carries the Cell/Token bridge.ReadMineAcquisition/
 // AcquireResource need (policy.SelectResourceSources populates them for
 // "mine" rows only); any other selected method is left to the caller's

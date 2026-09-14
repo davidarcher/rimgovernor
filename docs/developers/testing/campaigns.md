@@ -171,4 +171,4 @@ Full episode comparisons must include model waits and useful outcomes.
 
 ## Related reading
 
-[Testing](README.md) · [Backlog](../../BACKLOG.md)
+[Testing](README.md) · [Issues](https://github.com/davidarcher/rimgovernor/issues)

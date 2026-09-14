@@ -55,7 +55,8 @@
   contracts and explicit component ownership. Integrate features through existing
   architecture; keep unstructured data at validated boundaries.
 - Start with the [documentation map](docs/README.md), [system overview](docs/developers/architecture/overview.md),
-  [backlog](docs/BACKLOG.md) and [test selection](docs/developers/testing/choose-tests.md).
+  the [backlog issues](https://github.com/davidarcher/rimgovernor/issues) and
+  [test selection](docs/developers/testing/choose-tests.md).
   Read the component guide and contracts for the subsystem being changed;
   use its testing page for commands. Runtime: Python, React,
   GABS/RimBridgeServer and `integrations/rimgovernor-native`.
@@ -125,8 +126,10 @@
 - Organize docs around players and developers. Give the reader the behavior,
   commands or contracts needed for their task; link to detail and avoid repeating
   shared rules. Keep the [documentation map](docs/README.md) current.
-- Keep all unfinished implementation, audit and acceptance work in
-  `docs/BACKLOG.md`. Update architecture and procedures when behavior changes.
+- Keep all unfinished implementation, audit and acceptance work tracked as
+  [GitHub issues](https://github.com/davidarcher/rimgovernor/issues), labeled
+  by priority (`priority:P0`/`P1`/`P2`) or rewrite area (`area:G01`/`N01`/`tooling`).
+  Update architecture and procedures when behavior changes.
 - Put iteration evidence in commit messages and generated test artifacts. Keep
   applicable source and dependency notices beside retained code, without change diaries.
 - `AGENTS.md` is the source of these instructions; `CLAUDE.md` is a symlink to it.

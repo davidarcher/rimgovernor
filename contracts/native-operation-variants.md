@@ -143,5 +143,5 @@ behavior, unknown keys, refused and unavailable results. Dynamic native names
 require installed-definition fixtures, not copied hardcoded lists. Method-source
 verification does not establish serialization, binding, pawn completion, stale
 queued dispatch, lost-reply recovery or save/load behavior. Those remain open in
-[N01](../docs/BACKLOG.md#n01--unified-rimgovernor-native-mod); the linked existing
+[N01](https://github.com/davidarcher/rimgovernor/issues?q=is%3Aissue+is%3Aopen+label%3A%22area%3AN01%22); the linked existing
 native scenarios are candidates, not evidence produced by this audit.

@@ -56,4 +56,4 @@ season; a mismatched starting condition is a failure, not a simulated pass.
 
 ## Related reading
 
-[Testing](README.md) · [Backlog](../../BACKLOG.md)
+[Testing](README.md) · [Issues](https://github.com/davidarcher/rimgovernor/issues)

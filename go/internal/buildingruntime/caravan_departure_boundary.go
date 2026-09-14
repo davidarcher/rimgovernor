@@ -26,8 +26,7 @@ import (
 // and the caravan catalog/preview/lookup/progress reads the round-1 bridge
 // layer (bridge/caravan_departure.go) already built against the FormCaravan
 // operation. ReadCaravanCatalog has no native handler as of this writing
-// (confirmed by exhaustive search of the C# mod); see the BACKLOG.md G01.07f
-// entry for what that means for real dispatch today.
+// (confirmed by exhaustive search of the C# mod).
 type CaravanDepartureNative interface {
 	ReadPawns(context.Context, *c.Identity, []string) (*n.ListPawnsReply, bridge.Result, error)
 	ReadColonyFacts(context.Context, *c.Identity, bool, []string) (*n.ColonyFactsReply, bridge.Result, error)

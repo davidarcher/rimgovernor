@@ -103,4 +103,4 @@ snapshot, remove only its exact volume name from `cache.json` with `docker volum
 
 ## Related reading
 
-[Testing](README.md) · [Backlog](../../BACKLOG.md)
+[Testing](README.md) · [Issues](https://github.com/davidarcher/rimgovernor/issues)

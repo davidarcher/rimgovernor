@@ -25,5 +25,5 @@ Open **Help** in the dashboard to read this guide without leaving your colony.
 - **Launch fails:** check the [setup prerequisites](setup.md).
   Setup does not download the game, GABS or the required baseline save.
 
-The [backlog](../BACKLOG.md) lists known gaps. A short successful run does not
+The [backlog issues](https://github.com/davidarcher/rimgovernor/issues) list known gaps. A short successful run does not
 establish reliable survival across every seed, season or threat.

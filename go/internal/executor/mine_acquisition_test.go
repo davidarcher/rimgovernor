@@ -11,10 +11,9 @@ import (
 )
 
 // mineAcquisitionEnvironment mirrors acquisitionEnvironment exactly, proving
-// the second, independently-registered mine-acquisition vertical (see
-// docs/BACKLOG.md 05.5) exercises the identical inspect/admit/dispatch/
-// reconcile state machine through its own boundary/journal wiring rather
-// than sharing AcquisitionAction's.
+// the second, independently-registered mine-acquisition vertical exercises
+// the identical inspect/admit/dispatch/reconcile state machine through its
+// own boundary/journal wiring rather than sharing AcquisitionAction's.
 type mineAcquisitionEnvironment struct {
 	*environment
 	inspected, allowed, observed       int

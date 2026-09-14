@@ -212,4 +212,4 @@ inference constant; a small timing sample is not a reliability guarantee.
 
 ## Related reading
 
-[Testing](README.md) · [Backlog](../../BACKLOG.md)
+[Testing](README.md) · [Issues](https://github.com/davidarcher/rimgovernor/issues)

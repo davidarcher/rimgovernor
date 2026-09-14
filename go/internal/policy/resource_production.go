@@ -12,8 +12,8 @@ import (
 // MaintainResource-* pure primitives ported from
 // controller/rimgovernor/production_policy.py's
 // ingredient_deficits/observe_mining_progress/resource_method/
-// production_budgets. See docs/BACKLOG.md 05.5 for the dispatch vertical
-// built on top of these (buildingruntime.RoutineResourcePlanner): a single
+// production_budgets. The dispatch vertical built on top of these
+// (buildingruntime.RoutineResourcePlanner) is a single
 // config-only policy.MaintainResource goal, mirroring EnsureResearch's
 // posture, whose method is a generic bench/recipe StockTarget production
 // bill exactly like GearProduce/MaintainMedicalReserves dispatch through.
@@ -111,15 +111,14 @@ func ResourceExtractionAdvanced(tick, lastProgressTick domain.Tick, mining, prio
 // also folds in a second source of floors -- outstanding, unconfirmed
 // construction-bundle ingredient costs from plan.control['costs'] -- which
 // has no Go equivalent yet; that half depends on the still-unported
-// multi-step staged-bundle admission model MaintainStoneShell's own
-// docs/BACKLOG.md 05.4 entry already tracks as needing dedicated design work,
-// so it is not attempted here. This is a pure primitive: nothing yet calls
-// it, pending the native SetProductionPolicy operation category, which this
-// round's investigation found is not just missing Go wiring but has no
-// native Execute/Preview handler at all (contracts/proto/operations.proto's
-// SetProductionPolicy message and observations.proto's ReadProductionPolicy
-// RPC are both fully unimplemented on the native side) -- see
-// docs/BACKLOG.md 05.5.
+// multi-step staged-bundle admission model MaintainStoneShell already needs
+// dedicated design work for, so it is not attempted here. This is a pure
+// primitive: nothing yet calls it, pending the native SetProductionPolicy
+// operation category, which this round's investigation found is not just
+// missing Go wiring but has no native Execute/Preview handler at all
+// (contracts/proto/operations.proto's SetProductionPolicy message and
+// observations.proto's ReadProductionPolicy RPC are both fully unimplemented
+// on the native side).
 func ProductionFloors(reserves map[Resource]int64, stopped []Resource) (map[Resource]int64, []Resource, error) {
 	if len(reserves) > 4096 || len(stopped) > 4096 {
 		return nil, nil, errors.New("production policy input exceeds bound")

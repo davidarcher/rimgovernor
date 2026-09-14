@@ -1,6 +1,6 @@
 # Disaster planning
 
-[Documentation](../../README.md) · [Routine planning backlog](../../BACKLOG.md)
+[Documentation](../../README.md) · [Issues](https://github.com/davidarcher/rimgovernor/issues)
 
 Go routine reviews track environmental disruption inside the shared goal journal.
 Native condition identities start an episode. The existing food, production,

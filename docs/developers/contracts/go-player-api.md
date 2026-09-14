@@ -3,7 +3,8 @@
 [Subsystem contracts](README.md)
 
 This is the fixed interface for G01.07a.2f.2–3. Service availability and native
-acceptance remain tracked in the [backlog](../../BACKLOG.md). The gated player
+acceptance remain tracked in
+[G01.08](https://github.com/davidarcher/rimgovernor/issues/29). The gated player
 service uses one Player, session, writer and current-control coordinator for all
 action families. Production launchers remain on Python until the runtime switch.
 

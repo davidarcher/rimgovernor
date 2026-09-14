@@ -73,4 +73,4 @@ certify industrial-medicine manufacturing or unavailable prerequisites.
 
 ## Related reading
 
-[Testing](README.md) · [Backlog](../../BACKLOG.md)
+[Testing](README.md) · [Issues](https://github.com/davidarcher/rimgovernor/issues)

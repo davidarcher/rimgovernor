@@ -68,4 +68,4 @@ orders and settings, not pawn-built rooms or general model reliability.
 
 ## Related reading
 
-[Testing](README.md) · [Backlog](../../BACKLOG.md)
+[Testing](README.md) · [Issues](https://github.com/davidarcher/rimgovernor/issues)

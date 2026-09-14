@@ -740,8 +740,9 @@ spellings, escapes, unknown fields and nulls remain significant. Inputs are boun
 to 8 MiB and 128 containers; malformed JSON, duplicates and invalid UTF-8 fail.
 
 Injected clocks and ID sequences in `internal/testkit` support deterministic
-behavior tests. Follow [G01](../docs/BACKLOG.md#g01--go-controller-rewrite) for
-active owners, dependencies and completion gates.
+behavior tests. Follow the
+[G01 issues](https://github.com/davidarcher/rimgovernor/issues?q=is%3Aissue+is%3Aopen+label%3A%22area%3AG01%22)
+for active owners, dependencies and completion gates.
 
 `serve --routine-expansion-plans` maintains one spare indoor sleeping place beyond
 the observed population. It requires routine reviews and uses the shared furnishing

@@ -22,7 +22,7 @@ work tracker or grant permission to change settings.
 Complete the message families and source/consumer coverage before implementing
 the Go and native adapters. A compiled schema is not evidence of native behavior.
 The unfinished contract inventory and implementation gates remain in
-[N01](../../docs/BACKLOG.md#n01--unified-rimgovernor-native-mod).
+[N01](https://github.com/davidarcher/rimgovernor/issues?q=is%3Aissue+is%3Aopen+label%3A%22area%3AN01%22).
 
 ## Wire and validation
 

@@ -22,9 +22,9 @@ type MineAcquisitionJournal interface {
 
 // EnableMineAcquisition activates the second, independently-registered
 // mine-acquisition capability on an already constructed Executor, alongside
-// (not in place of) EnableAcquisition -- see docs/BACKLOG.md 05.5 for why
-// mining dispatch needs its own ActionKind/admission/boundary rather than
-// sharing AcquisitionAction's single global registration. It reuses the
+// (not in place of) EnableAcquisition -- mining dispatch needs its own
+// ActionKind/admission/boundary rather than sharing AcquisitionAction's
+// single global registration. It reuses the
 // AcquisitionBoundary interface shape (InspectAcquisition/Acquire/
 // ObserveAcquisition) since the native AcquireResource wire dispatch is
 // identical; only the boundary implementation's native read and the action

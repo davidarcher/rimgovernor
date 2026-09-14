@@ -5,7 +5,7 @@
 Pinned versions and hashes are in `go/go.mod` and `go/go.sum`. Retained notices
 in `third_party/` cover the MCP Go SDK, modernc SQLite, SQLite and sqlite-vec.
 Include applicable dependency notices with distributed binaries; the Go packaging
-gate remains in [G01.11](docs/BACKLOG.md).
+gate remains in the [G01 issues](https://github.com/davidarcher/rimgovernor/issues?q=is%3Aissue+is%3Aopen+label%3A%22area%3AG01%22).
 
 ## Dashboard
 

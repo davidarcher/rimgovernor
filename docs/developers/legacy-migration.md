@@ -41,4 +41,4 @@ private profile; never substitute executable-name cleanup.
 
 ## Related reading
 
-[Testing](testing/README.md) · [Backlog](../BACKLOG.md)
+[Testing](testing/README.md) · [Issues](https://github.com/davidarcher/rimgovernor/issues)

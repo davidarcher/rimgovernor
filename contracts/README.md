@@ -24,7 +24,7 @@ identify code that may remain Python after the production cutover.
 
 Run `python scripts/check_go_coverage.py` from the repository root to validate
 cross-inventory structure and the source-specific drift checks. See the
-[rewrite sequence](../docs/BACKLOG.md#g01--go-controller-rewrite) for dependencies
+[rewrite sequence](https://github.com/davidarcher/rimgovernor/issues?q=is%3Aissue+is%3Aopen+label%3A%22area%3AG01%22) for dependencies
 and the [test selection guide](../docs/developers/testing/choose-tests.md) for acceptance scope.
 
 ## Generated contracts
@@ -50,7 +50,7 @@ production cutover acceptance is implied by inventory validation.
 
 ## Native compatibility baseline
 
-[N01](../docs/BACKLOG.md#n01--unified-rimgovernor-native-mod) shares these
+[N01](https://github.com/davidarcher/rimgovernor/issues?q=is%3Aissue+is%3Aopen+label%3A%22area%3AN01%22) shares these
 inventories with G01. [Native reply examples](fixtures/native-replies-baseline.json)
 retain three actual legacy Linux SDK request/reply pairs: identity, a single
 placement preview and a spatial-access refusal. Each includes source line/file
