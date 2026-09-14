@@ -398,9 +398,9 @@ func (s *ClockScheduler) Step(ctx context.Context) (ClockSchedulerResult, error)
 			deltaTick = tick - s.tickTraceTick
 			deltaMs = now.Sub(s.tickTraceAt).Milliseconds()
 		}
-		clockSchedulerLog("status: running=%v stopping=%v stopped=%v neverStarted=%v tick=%d deltaTick=%d deltaMs=%d cumulativeTick=%d",
+		clockSchedulerLog("status: running=%v stopping=%v stopped=%v neverStarted=%v stopReason=%v tick=%d deltaTick=%d deltaMs=%d cumulativeTick=%d",
 			status.GetRunning() != nil, status.GetStopping() != nil, status.GetStopped() != nil, status.GetNeverStarted() != nil,
-			tick, deltaTick, deltaMs, tick-s.tickTraceStart)
+			status.GetStopped().GetReason(), tick, deltaTick, deltaMs, tick-s.tickTraceStart)
 		s.tickTraceTick, s.tickTraceAt, s.tickTraceValid = tick, now, true
 	}
 	if status.GetRunning() != nil || status.GetStopping() != nil {

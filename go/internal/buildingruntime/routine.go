@@ -89,25 +89,32 @@ func (r *RoutineReviewer) step(ctx, epoch context.Context) (store.RoutineReviewR
 	p := r.player
 	state := p.session.State()
 	if !state.Enabled {
+		clockSchedulerLog("routine.step: state not enabled -> stopRoutine")
 		return p.stopRoutine(ctx)
 	}
 	if !state.ObservationKnown || state.Snapshot.Validate() != nil || state.Snapshot.Native == 0 {
+		clockSchedulerLog("routine.step: ErrControl observationKnown=%v snapshotValidate=%v native=%d", state.ObservationKnown, state.Snapshot.Validate(), state.Snapshot.Native)
 		return store.RoutineReviewResult{}, ErrControl
 	}
 	previous, err := p.journal.LoadRoutineReview(ctx)
 	if err != nil {
+		clockSchedulerLog("routine.step: LoadRoutineReview err=%v", err)
 		return store.RoutineReviewResult{}, err
 	}
 	identity, _, err := r.native.Identity(ctx)
 	if err != nil {
+		clockSchedulerLog("routine.step: native.Identity err=%v", err)
 		return store.RoutineReviewResult{}, err
 	}
 	expected, err := observation.DecodeIdentity(identity)
 	if err != nil {
+		clockSchedulerLog("routine.step: DecodeIdentity err=%v", err)
 		return store.RoutineReviewResult{}, err
 	}
 	native, known := expected.NativeGeneration.Value()
 	if expected.Colony != state.Snapshot.Colony || expected.Load != state.Snapshot.Load || expected.Map != state.Snapshot.Map || !known || native != state.Snapshot.Native {
+		clockSchedulerLog("routine.step: ErrControl identity mismatch expectedColony=%v stateColony=%v expectedLoad=%v stateLoad=%v expectedMap=%v stateMap=%v known=%v native=%d stateNative=%d",
+			expected.Colony, state.Snapshot.Colony, expected.Load, state.Snapshot.Load, expected.Map, state.Snapshot.Map, known, native, state.Snapshot.Native)
 		return store.RoutineReviewResult{}, ErrControl
 	}
 	plans, err := p.journal.LoadPlans(ctx, 256)
@@ -129,6 +136,7 @@ func (r *RoutineReviewer) step(ctx, epoch context.Context) (store.RoutineReviewR
 	}
 	claims, err := p.journal.ConstructionClaims(ctx, state.Snapshot, expected.Tick)
 	if err != nil {
+		clockSchedulerLog("routine.step: ConstructionClaims err=%v", err)
 		return store.RoutineReviewResult{}, err
 	}
 	observe := observation.ObserveRoutineOwned
@@ -137,10 +145,12 @@ func (r *RoutineReviewer) step(ctx, epoch context.Context) (store.RoutineReviewR
 	}
 	reading, err := observe(ctx, r.native, r.clock, expected, r.maxAge, claims, definitions...)
 	if err != nil {
+		clockSchedulerLog("routine.step: observe err=%v", err)
 		return store.RoutineReviewResult{}, err
 	}
 	emergency, err := policy.NewEmergencySnapshot(state.Snapshot, expected.Tick, reading.Emergency)
 	if err != nil {
+		clockSchedulerLog("routine.step: NewEmergencySnapshot err=%v", err)
 		return store.RoutineReviewResult{}, err
 	}
 	reading.Projection.Facts.Hostiles, reading.Projection.Facts.CriticalPatients = policy.EmergencyNeeds(emergency, state.Snapshot, expected.Tick)
@@ -165,15 +175,23 @@ func (r *RoutineReviewer) step(ctx, epoch context.Context) (store.RoutineReviewR
 		}
 	}
 	if err = p.current(ctx, epoch); err != nil {
+		clockSchedulerLog("routine.step: p.current err=%v", err)
 		return store.RoutineReviewResult{}, err
 	}
 	if p.session.State() != state {
+		clockSchedulerLog("routine.step: ErrControl state changed under us")
 		return store.RoutineReviewResult{}, ErrControl
 	}
 	// Manual cancels ctx before waiting for this gate, then invalidates any
 	// completed review before returning. Never hold the local stop mutex for SQL.
 	reading.Projection.Facts.AvailableMethods = r.methods
-	return p.journal.ReviewRoutine(ctx, store.RoutineReviewRequest{Revision: previous.Revision, WorkPreferenceRevision: preferences.Revision, Current: state.Snapshot, Tick: reading.Projection.Identity.Tick, Enabled: true, Policy: r.policy, Facts: reading.Projection.Facts})
+	result, err := p.journal.ReviewRoutine(ctx, store.RoutineReviewRequest{Revision: previous.Revision, WorkPreferenceRevision: preferences.Revision, Current: state.Snapshot, Tick: reading.Projection.Identity.Tick, Enabled: true, Policy: r.policy, Facts: reading.Projection.Facts})
+	if err != nil {
+		clockSchedulerLog("routine.step: ReviewRoutine err=%v", err)
+	} else {
+		clockSchedulerLog("routine.step: ReviewRoutine ok newRevision=%d", result.Review.Revision)
+	}
+	return result, err
 }
 
 // Caller holds the player gate. Invalidating existing work needs no native read,

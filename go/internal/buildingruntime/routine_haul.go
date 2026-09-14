@@ -94,16 +94,6 @@ func (r *RoutineHaulPlanner) step(call, epoch context.Context) (RoutineHaulResul
 	if !found || goal.Goal.Status != domain.GoalActive || goal.Goal.Need != domain.NeedDeficit {
 		return RoutineHaulResult{Reason: BuildingMethodNoDeficit}, nil
 	}
-	// MaintainStorage competes for the same bounded concurrent-project
-	// capacity as comfort/expansion/other priority>=3 autopilot goals; only
-	// act while this review's arbitration actually selected it.
-	selected := false
-	for _, row := range review.Development.Rows {
-		selected = selected || row.Goal == policy.MaintainStorage && row.Selected
-	}
-	if !selected {
-		return RoutineHaulResult{Reason: BuildingMethodRefused}, nil
-	}
 	for _, method := range goal.Methods {
 		plan, err := p.journal.LoadPlan(call, method.Plan)
 		if err != nil {
@@ -112,6 +102,21 @@ func (r *RoutineHaulPlanner) step(call, epoch context.Context) (RoutineHaulResul
 		if domain.GoalWorkOpen(plan.Progress) {
 			return RoutineHaulResult{Reason: BuildingMethodExistingWork}, nil
 		}
+	}
+	// MaintainStorage competes for the same bounded concurrent-project
+	// capacity as comfort/expansion/other priority>=3 autopilot goals; only
+	// act while this review's arbitration actually selected it. Checked after
+	// existing-work above: RankDevelopment marks an in-flight goal Committed
+	// but never re-Selected (development.go), so checking Selected first
+	// would refuse a goal that already has a haul in flight on every review
+	// cycle after admission, instead of recognizing it as existing work --
+	// stalling completion and never letting the clock settle (issue #42).
+	selected := false
+	for _, row := range review.Development.Rows {
+		selected = selected || row.Goal == policy.MaintainStorage && row.Selected
+	}
+	if !selected {
+		return RoutineHaulResult{Reason: BuildingMethodRefused}, nil
 	}
 	identity, _, err := r.native.Identity(call)
 	if err != nil {

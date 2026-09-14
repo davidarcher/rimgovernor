@@ -3,6 +3,9 @@ package buildingruntime
 import (
 	"context"
 	"errors"
+	"fmt"
+	"strings"
+
 	"github.com/davidarcher/RimGovernor/go/internal/bridge"
 	"github.com/davidarcher/RimGovernor/go/internal/executor"
 	"github.com/davidarcher/RimGovernor/go/internal/store"
@@ -102,6 +105,9 @@ func (s *ClockScheduler) PollEvents(ctx context.Context, native ClockEventNative
 		}
 	}
 	if page.GetGap() || clockPollInterrupts(page) {
+		if clockSchedulerDebug {
+			clockSchedulerLog("poll: interrupting gap=%v events=%s", page.GetGap(), clockPollEventKinds(page))
+		}
 		if err = invalidate(); err != nil {
 			return fail(err)
 		}
@@ -139,6 +145,21 @@ func (s *ClockScheduler) PollEvents(ctx context.Context, native ClockEventNative
 // disables writes before persistence, including an acquisition in progress.
 func clockPollMatchesAuthority(observed *c.ObservationContext, state ControlState) bool {
 	return !state.Enabled || state.ObservationKnown && proto.Equal(observed.Identity, controlIdentity(state.Snapshot)) && observed.NativeGeneration != nil && observed.GetNativeGeneration() == uint64(state.Snapshot.Native)
+}
+// clockPollEventKinds is a TEMPORARY diagnostic aid (RIMGOVERNOR_CLOCK_DEBUG=1)
+// for issue #42: it names which event(s) in a page tripped clockPollInterrupts,
+// since that function itself only returns a bool.
+func clockPollEventKinds(page *k.EventsPage) string {
+	kinds := make([]string, 0, len(page.Events))
+	for _, event := range page.Events {
+		switch v := event.Event.(type) {
+		case *k.Event_Stopped:
+			kinds = append(kinds, "Stopped("+v.Stopped.GetReason().String()+")")
+		default:
+			kinds = append(kinds, fmt.Sprintf("%T", event.Event))
+		}
+	}
+	return strings.Join(kinds, ",")
 }
 func clockPollInterrupts(page *k.EventsPage) bool {
 	for _, event := range page.Events {

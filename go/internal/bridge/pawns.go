@@ -36,7 +36,14 @@ func (client *Client) readPawnDetails(ctx context.Context, identity *c.Identity,
 		}
 		requested[id] = true
 	}
-	request := &o.ListPawnsRequest{Scope: &o.ReadScope{ExpectedIdentity: proto.Clone(identity).(*c.Identity)}, Filter: &o.PawnFilter{Ids: copied, IncludeDead: proto.Bool(true)}, Details: &o.PawnDetails{Needs: proto.Bool(false), Health: proto.Bool(combat), Equipment: proto.Bool(combat), Biography: proto.Bool(combat), Settings: proto.Bool(care || schedule), Social: proto.Bool(false), Animals: proto.Bool(combat)}, Page: &c.PageRequest{Limit: proto.Uint32(uint32(len(copied)))}}
+	// Settings gates only native's CarePolicy() (medical_care, self_tend); native
+	// has no independent wire flag or population path for schedule (TimetableSlot)
+	// detail on this read yet (see 88aafd4e's own "not landed this pass" note), so
+	// requesting schedule alone must never also set Settings -- doing so live-fires
+	// CarePolicy and returns MedicalCare/SelfTend the caller never asked for, which
+	// validateSettings correctly refuses as unrequested detail, permanently failing
+	// every routine review (confirmed live: routinehaulaccept/issue #42).
+	request := &o.ListPawnsRequest{Scope: &o.ReadScope{ExpectedIdentity: proto.Clone(identity).(*c.Identity)}, Filter: &o.PawnFilter{Ids: copied, IncludeDead: proto.Bool(true)}, Details: &o.PawnDetails{Needs: proto.Bool(false), Health: proto.Bool(combat), Equipment: proto.Bool(combat), Biography: proto.Bool(combat), Settings: proto.Bool(care), Social: proto.Bool(false), Animals: proto.Bool(combat)}, Page: &c.PageRequest{Limit: proto.Uint32(uint32(len(copied)))}}
 	if work {
 		request.Details.Work = proto.Bool(true)
 		request.Details.Needs = proto.Bool(true)
