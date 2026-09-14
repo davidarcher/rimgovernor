@@ -40,6 +40,18 @@ func RoutineDevelopmentDeficit(id GoalID, f RoutineFacts, p RoutinePolicy) domai
 		target = min(target, 2)
 		stock, known = f.Armed.Value()
 		known = known && countKnown
+	case MaintainWaste:
+		// Census-driven, not stock/target: any exposed, eligible item still
+		// pending is a full deficit: there's no partial-credit fraction for
+		// "half the trash is gone" the way there is for wood or bed count.
+		items, itemsKnown := f.Waste.Value()
+		if !itemsKnown {
+			return domain.Unknown[float64]()
+		}
+		if len(pendingWaste(items)) == 0 {
+			return domain.Known(0.0)
+		}
+		return domain.Known(1.0)
 	default:
 		return domain.Unknown[float64]()
 	}

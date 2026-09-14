@@ -154,8 +154,11 @@ func ValidateColonyFacts(v *o.ColonyFactsSnapshot, identity *c.Identity) error {
 			}
 		}
 	}
-	if len(v.PolicyResources) != 0 || len(v.FoodCorpses) != 0 || v.Waste != nil {
+	if len(v.PolicyResources) != 0 || len(v.FoodCorpses) != 0 {
 		return contract("unreviewed colony section")
+	}
+	if err := validateColonyWaste(v.Waste, v.MapSize, v.Context.Identity.GetMapId()); err != nil {
+		return err
 	}
 	if climate := v.FoodClimate; climate != nil {
 		if err := pawnsIssues(climate.Issues, climate.ProtoReflect()); err != nil {

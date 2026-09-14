@@ -46,7 +46,12 @@ func colonyWaste(v *o.ColonyFactsSnapshot) domain.Fact[[]policy.WasteItem] {
 		if id == "" {
 			continue
 		}
-		items = append(items, policy.WasteItem{ID: id, Kind: row.GetKind(), State: wasteLocation(row.GetState()), Eligible: row.GetEligible()})
+		position := row.GetThing().GetPosition()
+		if position == nil || position.X == nil || position.Z == nil || position.GetX() < 0 || position.GetZ() < 0 {
+			continue
+		}
+		cell := domain.Cell{X: position.GetX(), Z: position.GetZ()}
+		items = append(items, policy.WasteItem{ID: id, Kind: row.GetKind(), State: wasteLocation(row.GetState()), Eligible: row.GetEligible(), Cell: cell})
 	}
 	return domain.Known(items)
 }

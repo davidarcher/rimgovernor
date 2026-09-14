@@ -52,6 +52,7 @@ type SessionConfig struct {
 	GearReplace         *GearReplaceCapabilities
 	Repair              *RepairCapabilities
 	Clean               *CleanCapabilities
+	Waste               *WasteCapabilities
 	RecoveryService     *RecoveryServiceCapabilities
 	BedAssign           *BedAssignCapabilities
 	Surgery             *SurgeryCapabilities
@@ -326,6 +327,9 @@ func NewSession(ctx context.Context, config SessionConfig, journal *store.Store,
 	if config.Clean != nil && (config.Clean.Native == nil || config.Clean.Writer == nil) {
 		return cleanup(ErrControl)
 	}
+	if config.Waste != nil && (config.Waste.Native == nil || config.Waste.Writer == nil) {
+		return cleanup(ErrControl)
+	}
 	if config.RecoveryService != nil && (config.RecoveryService.Native == nil || config.RecoveryService.Writer == nil) {
 		return cleanup(ErrControl)
 	}
@@ -510,6 +514,15 @@ func NewSession(ctx context.Context, config SessionConfig, journal *store.Store,
 			return cleanup(err)
 		}
 		if err := worker.EnableClean(cleanBoundary); err != nil {
+			return cleanup(err)
+		}
+	}
+	if config.Waste != nil {
+		wasteBoundary, err := NewWasteBoundary(config.Waste.Native, config.Waste.Writer, sessionBuildingLeases{control, journal, config.RoutineMethods, config.Executor.JournalTimeout}, clock, string(namespace))
+		if err != nil {
+			return cleanup(err)
+		}
+		if err := worker.EnableWaste(wasteBoundary); err != nil {
 			return cleanup(err)
 		}
 	}

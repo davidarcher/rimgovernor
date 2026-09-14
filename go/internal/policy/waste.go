@@ -32,6 +32,7 @@ type WasteItem struct {
 	Kind     string
 	State    WasteState
 	Eligible bool
+	Cell     domain.Cell
 }
 
 // pendingWaste ports waste_management.py's pending_items: an exposed,
