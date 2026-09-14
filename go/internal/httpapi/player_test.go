@@ -285,3 +285,11 @@ func (f *playerFixture) SubmitTravelCaravan(ctx context.Context, q store.TravelC
 	f.calls++
 	return f.journal.SubmitTravelCaravan(ctx, q)
 }
+func (f *playerFixture) SubmitTend(ctx context.Context, q store.TendSubmissionRequest) (store.TendSubmission, bool, error) {
+	f.calls++
+	return f.journal.SubmitTend(ctx, q)
+}
+func (f *playerFixture) SubmitRescue(ctx context.Context, q store.RescueSubmissionRequest) (store.RescueSubmission, bool, error) {
+	f.calls++
+	return f.journal.SubmitRescue(ctx, q)
+}

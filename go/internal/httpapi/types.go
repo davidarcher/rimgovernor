@@ -115,6 +115,14 @@ type TravelCaravan struct {
 	Kind            string           `json:"kind"`
 	DestinationTile int32            `json:"destinationTile"`
 }
+type Tend struct {
+	Doctor  domain.PawnID `json:"doctor"`
+	Patient domain.PawnID `json:"patient"`
+}
+type Rescue struct {
+	Rescuer domain.PawnID `json:"rescuer"`
+	Patient domain.PawnID `json:"patient"`
+}
 type SettlementGift struct {
 	Caravan    domain.CaravanID    `json:"caravan"`
 	Settlement domain.SettlementID `json:"settlement"`
