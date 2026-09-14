@@ -34,14 +34,16 @@ func recoveryServiceMethodWire(method domain.RecoveryMethod) bridge.RecoveryServ
 }
 
 // RecoveryServiceNative reuses the generic bridge.ReadPawns for pawn
-// eligibility facts (same shape as GearReplaceNative's) plus the existing
-// bridge.ReadRepairTarget for the building's CAS token, the same scoped
-// refresh Repair's PawnOrder path uses; no dedicated recovery-service read is
-// needed to plan a method, only to refresh CAS tokens immediately before
-// dispatch.
+// eligibility facts (same shape as GearReplaceNative's) plus
+// bridge.ReadRecoveryServiceTarget, an unconstrained preview round-trip that
+// discovers the building's fresh recovery-specific CAS token (there is no
+// existing observation read that could produce it -- see
+// NativeRecoveryOperations.Token's own doc comment on the native side), the
+// same role bridge.ReadSurgeryTarget plays for a patient's health-signature
+// baseline before QueueSurgery.
 type RecoveryServiceNative interface {
 	ReadPawns(context.Context, *c.Identity, []string) (*n.ListPawnsReply, bridge.Result, error)
-	ReadRepairTarget(context.Context, *c.Identity, string) (bridge.RepairTarget, bridge.Result, error)
+	ReadRecoveryServiceTarget(context.Context, *c.Identity, string, string, string, bridge.RecoveryServiceMethod) (bridge.RecoveryServiceTarget, bridge.Result, error)
 	PreviewRecoveryService(context.Context, *c.Identity, string, string, string, string, bridge.RecoveryServiceMethod) (*o.PreviewReply, bridge.Result, error)
 	LookupRecoveryService(context.Context, bridge.RecoveryServiceAttempt) (*r.LookupReply, bridge.Result, error)
 	ObserveRecoveryServiceProgress(context.Context, bridge.RecoveryServiceAttempt, *r.Receipt) (*r.ProgressReply, bridge.Result, error)
@@ -98,7 +100,8 @@ func (b *RecoveryServiceBoundary) InspectRecoveryService(ctx context.Context, ta
 	if err != nil {
 		return out, err
 	}
-	building, _, err := b.native.ReadRepairTarget(ctx, boundary.Identity(current), service.Thing())
+	method := recoveryServiceMethodWire(service.Method())
+	building, _, err := b.native.ReadRecoveryServiceTarget(ctx, boundary.Identity(current), string(service.Pawn()), pawnToken, service.Thing(), method)
 	if err != nil {
 		return out, err
 	}
@@ -108,7 +111,6 @@ func (b *RecoveryServiceBoundary) InspectRecoveryService(ctx context.Context, ta
 	if building.Context.GetTick() < observed.Context.GetTick() {
 		return out, executor.ErrEvidence
 	}
-	method := recoveryServiceMethodWire(service.Method())
 	preview, _, err := b.native.PreviewRecoveryService(ctx, boundary.Identity(current), string(service.Pawn()), pawnToken, service.Thing(), building.Token, method)
 	if err != nil {
 		return out, err

@@ -41,7 +41,7 @@ func TestPreviewRecoveryServiceAcceptedAndRejections(t *testing.T) {
 	valid := &op.PreviewReply{Outcome: &op.PreviewReply_Evaluated{Evaluated: &op.PreviewEvaluation{
 		Context:   pbContext(),
 		Accepted:  proto.Bool(true),
-		Projected: &r.EffectEvidence{Effect: &r.EffectEvidence_Job{Job: &r.JobEffect{PawnId: proto.String("pawn"), JobDef: proto.String(recoveryServiceJobDef[RecoveryServiceRepair]), TargetA: &r.JobTarget{Target: &r.JobTarget_ThingId{ThingId: "thing"}}, CanTry: proto.Bool(true), Issued: proto.Bool(false), Verified: proto.Bool(false)}}},
+		Projected: &r.EffectEvidence{Effect: &r.EffectEvidence_Job{Job: &r.JobEffect{PawnId: proto.String("pawn"), JobDef: proto.String(recoveryServiceJobDef[RecoveryServiceRepair]), TargetA: &r.JobTarget{Target: &r.JobTarget_ThingId{ThingId: "thing"}}, CanTry: proto.Bool(true), Issued: proto.Bool(false), Verified: proto.Bool(false), TargetSnapshotToken: proto.String("thing-token")}}},
 	}}}
 	for _, test := range []struct {
 		name   string

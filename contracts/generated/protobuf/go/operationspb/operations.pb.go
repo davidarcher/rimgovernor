@@ -5428,13 +5428,20 @@ func (x *RecoveryArea) GetArea() *EntityPrecondition {
 	return nil
 }
 
+// expected_target_snapshot_token is decoupled from target's own EntityPrecondition
+// (whose token field is unused for this operation; only entity_id identity is
+// required) because the target's recovery-specific CAS token
+// (NativeRecoveryOperations.Token) has no existing observation read that could
+// produce it ahead of time: an unconstrained preview (this field omitted)
+// establishes the baseline, mirroring QueueSurgery's expected_health_token.
 type RecoverService struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Target        *EntityPrecondition    `protobuf:"bytes,1,opt,name=target,proto3" json:"target,omitempty"`
-	Pawn          *EntityPrecondition    `protobuf:"bytes,2,opt,name=pawn,proto3" json:"pawn,omitempty"`
-	Method        *ServiceMethod         `protobuf:"varint,3,opt,name=method,proto3,enum=rimgovernor.operations.v1.ServiceMethod,oneof" json:"method,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state                       protoimpl.MessageState `protogen:"open.v1"`
+	Target                      *EntityPrecondition    `protobuf:"bytes,1,opt,name=target,proto3" json:"target,omitempty"`
+	Pawn                        *EntityPrecondition    `protobuf:"bytes,2,opt,name=pawn,proto3" json:"pawn,omitempty"`
+	Method                      *ServiceMethod         `protobuf:"varint,3,opt,name=method,proto3,enum=rimgovernor.operations.v1.ServiceMethod,oneof" json:"method,omitempty"`
+	ExpectedTargetSnapshotToken *string                `protobuf:"bytes,4,opt,name=expected_target_snapshot_token,json=expectedTargetSnapshotToken,proto3,oneof" json:"expected_target_snapshot_token,omitempty"`
+	unknownFields               protoimpl.UnknownFields
+	sizeCache                   protoimpl.SizeCache
 }
 
 func (x *RecoverService) Reset() {
@@ -5486,6 +5493,13 @@ func (x *RecoverService) GetMethod() ServiceMethod {
 		return *x.Method
 	}
 	return ServiceMethod_SERVICE_METHOD_UNSPECIFIED
+}
+
+func (x *RecoverService) GetExpectedTargetSnapshotToken() string {
+	if x != nil && x.ExpectedTargetSnapshotToken != nil {
+		return *x.ExpectedTargetSnapshotToken
+	}
+	return ""
 }
 
 type ManageWaste struct {
@@ -7696,12 +7710,14 @@ const file_operations_proto_rawDesc = "" +
 	"\x18_expected_snapshot_token\"\x94\x01\n" +
 	"\fRecoveryArea\x12A\n" +
 	"\x04pawn\x18\x01 \x01(\v2-.rimgovernor.operations.v1.EntityPreconditionR\x04pawn\x12A\n" +
-	"\x04area\x18\x02 \x01(\v2-.rimgovernor.operations.v1.EntityPreconditionR\x04area\"\xec\x01\n" +
+	"\x04area\x18\x02 \x01(\v2-.rimgovernor.operations.v1.EntityPreconditionR\x04area\"\xd9\x02\n" +
 	"\x0eRecoverService\x12E\n" +
 	"\x06target\x18\x01 \x01(\v2-.rimgovernor.operations.v1.EntityPreconditionR\x06target\x12A\n" +
 	"\x04pawn\x18\x02 \x01(\v2-.rimgovernor.operations.v1.EntityPreconditionR\x04pawn\x12E\n" +
-	"\x06method\x18\x03 \x01(\x0e2(.rimgovernor.operations.v1.ServiceMethodH\x00R\x06method\x88\x01\x01B\t\n" +
-	"\a_method\"\xd5\x01\n" +
+	"\x06method\x18\x03 \x01(\x0e2(.rimgovernor.operations.v1.ServiceMethodH\x00R\x06method\x88\x01\x01\x12H\n" +
+	"\x1eexpected_target_snapshot_token\x18\x04 \x01(\tH\x01R\x1bexpectedTargetSnapshotToken\x88\x01\x01B\t\n" +
+	"\a_methodB!\n" +
+	"\x1f_expected_target_snapshot_token\"\xd5\x01\n" +
 	"\vManageWaste\x12E\n" +
 	"\x06target\x18\x01 \x01(\v2-.rimgovernor.operations.v1.EntityPreconditionR\x06target\x12A\n" +
 	"\x04pawn\x18\x02 \x01(\v2-.rimgovernor.operations.v1.EntityPreconditionR\x04pawn\x12!\n" +

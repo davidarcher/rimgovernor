@@ -205,7 +205,13 @@ message RemoveWall { EntityPrecondition wall = 1; optional string expected_site_
 message ReleaseWallRemovals { optional string expected_snapshot_token = 1; }
 message RecoveryArea { EntityPrecondition pawn = 1; EntityPrecondition area = 2; }
 enum ServiceMethod { SERVICE_METHOD_UNSPECIFIED = 0; SERVICE_METHOD_REPAIR = 1; SERVICE_METHOD_BREAKDOWN = 2; SERVICE_METHOD_REFUEL = 3; }
-message RecoverService { EntityPrecondition target = 1; EntityPrecondition pawn = 2; optional ServiceMethod method = 3; }
+// expected_target_snapshot_token is decoupled from target's own EntityPrecondition
+// (whose token field is unused for this operation; only entity_id identity is
+// required) because the target's recovery-specific CAS token
+// (NativeRecoveryOperations.Token) has no existing observation read that could
+// produce it ahead of time: an unconstrained preview (this field omitted)
+// establishes the baseline, mirroring QueueSurgery's expected_health_token.
+message RecoverService { EntityPrecondition target = 1; EntityPrecondition pawn = 2; optional ServiceMethod method = 3; optional string expected_target_snapshot_token = 4; }
 message ManageWaste { EntityPrecondition target = 1; EntityPrecondition pawn = 2; repeated string unwanted_ids = 3; repeated string bury_ids = 4; }
 enum Need { NEED_UNSPECIFIED = 0; NEED_FOOD = 1; NEED_REST = 2; NEED_JOY = 3; }
 message ExpectedJob { oneof state { int32 job_id = 1; Clear idle = 2; } }

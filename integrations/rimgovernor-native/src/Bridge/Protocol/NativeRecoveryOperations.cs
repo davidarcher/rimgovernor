@@ -86,8 +86,11 @@ namespace HomeBridge.BridgeTools
 
     internal static class NativeRecoveryOperations
     {
+        // Target only needs identity: its recovery-specific CAS token travels
+        // on the decoupled expected_target_snapshot_token field (checked in
+        // Prepare, conditionally), not on this EntityPrecondition's own token.
         internal static bool Valid(Operations.RecoverService? command) => command != null
-            && NativeDraftProtocol.ValidEntity(command.Target) && NativeDraftProtocol.ValidEntity(command.Pawn)
+            && NativeDraftProtocol.ValidEntityId(command.Target) && NativeDraftProtocol.ValidEntity(command.Pawn)
             && command.HasMethod && command.Method != Operations.ServiceMethod.Unspecified;
 
         internal static bool Eligible(Building? building) => building != null && !building.Destroyed && building.Spawned
@@ -144,11 +147,18 @@ namespace HomeBridge.BridgeTools
             }
         }
 
-        private static bool Prepare(Operations.RecoverService command, Common.ObservationContext context, out NativeControlIdentity identity,
-            out Pawn? pawn, out Building? building, out NativePawnSnapshot? snapshot, out Common.Failure failure)
+        // requireExpected additionally enforces the caller's
+        // expected_target_snapshot_token precondition (Execute always
+        // requires it; Preview only when the caller supplied it, letting an
+        // unconstrained call establish the current baseline), mirroring
+        // NativeSurgeryOperations.Prepare's requireExpected split. token is
+        // always the current native-computed value, returned so Preview can
+        // report it regardless of requireExpected.
+        private static bool Prepare(Operations.RecoverService command, Common.ObservationContext context, bool requireExpected, out NativeControlIdentity identity,
+            out Pawn? pawn, out Building? building, out NativePawnSnapshot? snapshot, out string token, out Common.Failure failure)
         {
             identity = new NativeControlIdentity(Current.Game, Find.CurrentMap, context.Identity.ColonyId, context.Identity.LoadToken);
-            pawn = null; building = null; snapshot = null;
+            pawn = null; building = null; snapshot = null; token = "";
             failure = ProtoBoundary.Fail(Common.FailureCode.Unavailable, "Live native pawn control hooks are required.");
             if (!NativePawnControlState.IsReady) return false;
             pawn = Find.CurrentMap.mapPawns.AllPawnsSpawned.SingleOrDefault(p => p.GetUniqueLoadID() == command.Pawn.EntityId);
@@ -159,7 +169,8 @@ namespace HomeBridge.BridgeTools
             { failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Service order requires an eligible undrafted pawn."); return false; }
             building = Find.CurrentMap.listerBuildings.allBuildingsColonist.SingleOrDefault(b => b.GetUniqueLoadID() == command.Target.EntityId);
             if (building == null || !Eligible(building)) { failure = ProtoBoundary.Fail(Common.FailureCode.NotFound, "Exact serviceable building is unavailable."); return false; }
-            if (Token(context.Identity, building) != command.Target.ExpectedSnapshotToken)
+            token = Token(context.Identity, building);
+            if (requireExpected && (!command.HasExpectedTargetSnapshotToken || token != command.ExpectedTargetSnapshotToken))
             { failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Service target snapshot changed; observe before new admission."); return false; }
             if (Satisfied(building, command.Method))
             { failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Observed service no longer needs this method."); return false; }
@@ -174,7 +185,7 @@ namespace HomeBridge.BridgeTools
             NativeAttemptLedger.Admission? handle = null; Authority.Owner? owner = null; Receipts.EffectEvidence? evidence = null;
             try
             {
-                if (!Prepare(command, context, out var identity, out var pawn, out var building, out var snapshot, out var failure))
+                if (!Prepare(command, context, true, out var identity, out var pawn, out var building, out var snapshot, out _, out var failure))
                     return new Operations.ExecuteReply { Failure = failure };
                 if (!NativeControlAuthority.TryGetForGame(Current.Game, out var authority) || authority == null)
                     return Refuse(Common.FailureCode.AuthorityRequired, "Current native authority is required.");
@@ -187,7 +198,7 @@ namespace HomeBridge.BridgeTools
                 if (result == null) return Refuse(Common.FailureCode.NativeFailure, "No native service job is available for this pawn and target.");
                 guard = authority.Check(pre.ExpectedGeneration, pre.LeaseId, pre.Attempt.ControllerSessionId);
                 if (!guard.Success) return new Operations.ExecuteReply { Failure = NativeAuthorityControlTools.Refusal(guard.Error, context) };
-                if (!Prepare(command, context, out identity, out pawn, out building, out snapshot, out failure))
+                if (!Prepare(command, context, true, out identity, out pawn, out building, out snapshot, out _, out failure))
                     return new Operations.ExecuteReply { Failure = failure };
                 var admission = state.Ledger.Admit("rimgovernor.operations.v1.Operations/Execute", request, context, owner);
                 if (admission.Kind != NativeAttemptLedger.DecisionKind.Admitted) return admission.Reply!;
@@ -195,7 +206,7 @@ namespace HomeBridge.BridgeTools
                 bool accepted = false; Exception? effectError = null;
                 using (authority.Owned())
                 {
-                    if (!NativePawnControlState.IsReady || !Prepare(command, context, out identity, out pawn, out building, out snapshot, out failure))
+                    if (!NativePawnControlState.IsReady || !Prepare(command, context, true, out identity, out pawn, out building, out snapshot, out _, out failure))
                         throw new InvalidOperationException("Service prerequisites changed after admission.");
                     guard = authority.Check(pre.ExpectedGeneration, pre.LeaseId, pre.Attempt.ControllerSessionId);
                     if (!guard.Success) throw new InvalidOperationException("Service authority changed before native effect.");
@@ -226,7 +237,13 @@ namespace HomeBridge.BridgeTools
                 return new Operations.PreviewReply { Failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Service order requires an exact pawn, exact building target and a repair/breakdown/refuel method.") };
             try
             {
-                if (!Prepare(command, context, out _, out var pawn, out var building, out var snapshot, out var failure))
+                // An unconstrained call (no expected_target_snapshot_token set)
+                // establishes the current baseline, the same role an
+                // unconstrained QueueSurgery call plays for its health token:
+                // there is no existing observation read that could produce
+                // this recovery-specific building token ahead of time.
+                var requireExpected = command.HasExpectedTargetSnapshotToken;
+                if (!Prepare(command, context, requireExpected, out _, out var pawn, out var building, out var snapshot, out var token, out var failure))
                     return new Operations.PreviewReply { Failure = failure };
                 var giverType = WorkGiverType(command.Method);
                 var result = WorkGiverDispatch.TryJob(pawn!, building!, def => def.giverClass == giverType, out _);
@@ -243,7 +260,7 @@ namespace HomeBridge.BridgeTools
                             Job = new Receipts.JobEffect
                             {
                                 PawnId = snapshot!.PawnId, JobDef = jobDef, CanTry = accepted, Issued = false, Verified = false,
-                                TargetA = new Receipts.JobTarget { ThingId = building!.GetUniqueLoadID() },
+                                TargetA = new Receipts.JobTarget { ThingId = building!.GetUniqueLoadID() }, TargetSnapshotToken = token,
                             }
                         }
                     }

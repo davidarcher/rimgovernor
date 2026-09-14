@@ -2595,8 +2595,12 @@ type JobEffect struct {
 	CanTry                 *bool                  `protobuf:"varint,20,opt,name=can_try,json=canTry,proto3,oneof" json:"can_try,omitempty"`
 	ResultingSnapshotToken *string                `protobuf:"bytes,21,opt,name=resulting_snapshot_token,json=resultingSnapshotToken,proto3,oneof" json:"resulting_snapshot_token,omitempty"`
 	DraftClaimId           *string                `protobuf:"bytes,22,opt,name=draft_claim_id,json=draftClaimId,proto3,oneof" json:"draft_claim_id,omitempty"`
-	unknownFields          protoimpl.UnknownFields
-	sizeCache              protoimpl.SizeCache
+	// Fresh CAS token for the operation's non-pawn target (e.g. RecoverService's
+	// building), populated only by an unconstrained preview discovery read;
+	// distinct from resulting_snapshot_token's post-effect pawn meaning.
+	TargetSnapshotToken *string `protobuf:"bytes,23,opt,name=target_snapshot_token,json=targetSnapshotToken,proto3,oneof" json:"target_snapshot_token,omitempty"`
+	unknownFields       protoimpl.UnknownFields
+	sizeCache           protoimpl.SizeCache
 }
 
 func (x *JobEffect) Reset() {
@@ -2779,6 +2783,13 @@ func (x *JobEffect) GetResultingSnapshotToken() string {
 func (x *JobEffect) GetDraftClaimId() string {
 	if x != nil && x.DraftClaimId != nil {
 		return *x.DraftClaimId
+	}
+	return ""
+}
+
+func (x *JobEffect) GetTargetSnapshotToken() string {
+	if x != nil && x.TargetSnapshotToken != nil {
+		return *x.TargetSnapshotToken
 	}
 	return ""
 }
@@ -4446,7 +4457,7 @@ const file_receipts_proto_rawDesc = "" +
 	"\tJobTarget\x12\x1b\n" +
 	"\bthing_id\x18\x01 \x01(\tH\x00R\athingId\x121\n" +
 	"\x04cell\x18\x02 \x01(\v2\x1b.rimgovernor.common.v1.CellH\x00R\x04cellB\b\n" +
-	"\x06target\"\xa3\t\n" +
+	"\x06target\"\xf6\t\n" +
 	"\tJobEffect\x12\x1c\n" +
 	"\apawn_id\x18\x01 \x01(\tH\x00R\x06pawnId\x88\x01\x01\x12\x1a\n" +
 	"\x06job_id\x18\x02 \x01(\x05H\x01R\x05jobId\x88\x01\x01\x12\x1c\n" +
@@ -4474,7 +4485,8 @@ const file_receipts_proto_rawDesc = "" +
 	"needBefore\x88\x01\x01\x12\x1c\n" +
 	"\acan_try\x18\x14 \x01(\bH\x11R\x06canTry\x88\x01\x01\x12=\n" +
 	"\x18resulting_snapshot_token\x18\x15 \x01(\tH\x12R\x16resultingSnapshotToken\x88\x01\x01\x12)\n" +
-	"\x0edraft_claim_id\x18\x16 \x01(\tH\x13R\fdraftClaimId\x88\x01\x01B\n" +
+	"\x0edraft_claim_id\x18\x16 \x01(\tH\x13R\fdraftClaimId\x88\x01\x01\x127\n" +
+	"\x15target_snapshot_token\x18\x17 \x01(\tH\x14R\x13targetSnapshotToken\x88\x01\x01B\n" +
 	"\n" +
 	"\b_pawn_idB\t\n" +
 	"\a_job_idB\n" +
@@ -4498,7 +4510,8 @@ const file_receipts_proto_rawDesc = "" +
 	"\n" +
 	"\b_can_tryB\x1b\n" +
 	"\x19_resulting_snapshot_tokenB\x11\n" +
-	"\x0f_draft_claim_id\"\xfd\x02\n" +
+	"\x0f_draft_claim_idB\x18\n" +
+	"\x16_target_snapshot_token\"\xfd\x02\n" +
 	"\rSurgeryEffect\x12\"\n" +
 	"\n" +
 	"patient_id\x18\x01 \x01(\tH\x00R\tpatientId\x88\x01\x01\x12\"\n" +

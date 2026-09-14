@@ -12,6 +12,13 @@ namespace HomeBridge.BridgeTools
             && entity.HasEntityId && ProtoBoundary.IsIdentifier(entity.EntityId)
             && entity.HasExpectedSnapshotToken && ProtoBoundary.IsIdentifier(entity.ExpectedSnapshotToken);
 
+        // Identity-only check for a target whose CAS token travels on a
+        // decoupled sibling field instead of this EntityPrecondition's own
+        // (e.g. RecoverService.expected_target_snapshot_token), the same
+        // split QueueSurgery uses for its patient's health-signature token.
+        internal static bool ValidEntityId(Operations.EntityPrecondition? entity) => entity != null
+            && entity.HasEntityId && ProtoBoundary.IsIdentifier(entity.EntityId);
+
         internal static bool ValidOwner(Authority.Owner? owner) => owner != null
             && owner.HasControllerSessionId && ProtoBoundary.IsIdentifier(owner.ControllerSessionId)
             && owner.HasPlayerDirection && owner.PlayerDirection > 0;
