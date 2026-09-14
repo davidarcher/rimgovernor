@@ -106,10 +106,9 @@ confirm the packaging path is wired correctly, not that a colony runs.
   accept/fulfill and settlement gift proposals, but is not yet wired into the
   Go binary's serve loop) — G01.08.
 - Media/camera/portrait/video/recording and trusted save/load — G01.09.
-- World progression remaining scope: the richer read-only expedition-risk
-  advisory (`evaluate_expedition` in
-  `controller/rimgovernor/expedition_policy.py`), and native acceptance
-  harnesses for quest accept, settlement gift and trade — G01.07f
+- World progression remaining scope: only the richer read-only
+  expedition-risk advisory (`evaluate_expedition` in
+  `controller/rimgovernor/expedition_policy.py`) — G01.07f
   ([issue #28](https://github.com/davidarcher/rimgovernor/issues/28)).
   `evaluate_expedition` remains Python-only because it needs native route
   temperature/hostility/goodwill fields Go does not read yet.
@@ -124,14 +123,24 @@ confirm the packaging path is wired correctly, not that a colony runs.
   depend on and holds on `TradeSessionUnresolved` forever rather than
   misbehaving — composing a dependent multi-action trade plan needs a plan
   extension/amendment submission path that does not exist yet, a follow-up
-  item. Caravan departure and travel
-  additionally have native acceptance harnesses
+  item. Caravan departure and travel, quest accept, settlement gift and
+  trade open now all have native acceptance harnesses
   (`nativeaccept/cmd/caravandepartureaccept`,
-  `nativeaccept/cmd/caravancontrolaccept`). The read-only `evaluate_world`
-  advisory (caravan recovery, quest resource deficits/carried cargo) is also
-  in Go, served at `GET /api/player/world-evaluation` behind
-  `--world-evaluation` (`buildingruntime.WorldEvaluation`,
-  `policy.EvaluateWorld`).
+  `nativeaccept/cmd/caravancontrolaccept`, `nativeaccept/cmd/questacceptaccept`,
+  `nativeaccept/cmd/settlementgiftaccept`, `nativeaccept/cmd/tradeaccept`),
+  each verified end to end against a real headless RimWorld instance:
+  native admission, CAS-token refusal (stale/corrupted identity, and for
+  trade an owner-conflict re-open while a session is still live), preview
+  non-mutation, replay idempotency and durable receipt lookup. Per the
+  `trade_open`-only limitation above, `tradeaccept` exercises OpenTrade
+  alone; `SetTradeLines`/`AcceptTrade`/`EndTrade` still have no acceptance
+  harness, since a raw wire harness cannot honestly submit them as a
+  standalone action without fabricating the same-plan `ActionDependency`
+  they require — that remains a documented gap, not a closed vertical. The
+  read-only `evaluate_world` advisory (caravan recovery, quest resource
+  deficits/carried cargo) is also in Go, served at
+  `GET /api/player/world-evaluation` behind `--world-evaluation`
+  (`buildingruntime.WorldEvaluation`, `policy.EvaluateWorld`).
 - Most routine workflows beyond construction: cooking/butcher bill execution,
   care/tend/rescue/defense dispatch beyond compiled plans, and other
   non-building executable actions — G01.05/G01.07a–c/e (many `--routine-*-plans`

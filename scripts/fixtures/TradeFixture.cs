@@ -32,8 +32,47 @@ namespace HomeBridge.BridgeTools
                     if (action == "incident") parms.traderKind = kind;
                     var eligible = def.Worker.CanFireNow(parms);
                     var applied = eligible && def.Worker.TryExecute(parms);
+                    var traderIds = applied
+                        ? map.mapPawns.AllPawnsSpawned.Where(p => p.Faction == parms.faction && p.trader != null && p.trader.traderKind != null)
+                            .Select(p => p.GetUniqueLoadID()).ToArray()
+                        : new string[0];
                     return new { eligible, applied, definition = def.defName, traderKind = kind.defName,
-                        faction = parms.faction.Name };
+                        faction = parms.faction.Name, traderIds };
+                }
+                if (action == "teleport_adjacent")
+                {
+                    var traderPawn = map.mapPawns.AllPawnsSpawned.FirstOrDefault(p => p.GetUniqueLoadID() == traderId);
+                    var negotiatorPawn = map.mapPawns.FreeColonistsSpawned.FirstOrDefault(p => p.GetUniqueLoadID() == pawnId);
+                    if (traderPawn == null || negotiatorPawn == null) throw new InvalidOperationException("Exact trader and negotiator are required.");
+                    var cell = GenAdjFast.AdjacentCells8Way(traderPawn.Position)
+                        .FirstOrDefault(c => c.InBounds(map) && c.Standable(map) && c.Walkable(map));
+                    if (!cell.IsValid) throw new InvalidOperationException("No standable cell adjacent to the trader.");
+                    negotiatorPawn.Position = cell;
+                    negotiatorPawn.Notify_Teleported();
+                    return new { success = true, x = cell.x, y = cell.y, z = cell.z };
+                }
+                // Read back the exact raw fields NativeTradeOperations.TraderToken/
+                // NegotiatorToken hash, so an acceptance harness can self-compute
+                // those tokens client side without guessing at RimWorld's
+                // IntVec3.ToString() format or its pawn altitude-layer constant.
+                if (action == "state")
+                {
+                    var traderPawn = map.mapPawns.AllPawnsSpawned.FirstOrDefault(p => p.GetUniqueLoadID() == traderId);
+                    var negotiatorPawn = map.mapPawns.FreeColonistsSpawned.FirstOrDefault(p => p.GetUniqueLoadID() == pawnId);
+                    if (traderPawn == null || negotiatorPawn == null) throw new InvalidOperationException("Exact trader and negotiator are required.");
+                    return new {
+                        trader = new {
+                            x = traderPawn.Position.x, y = traderPawn.Position.y, z = traderPawn.Position.z,
+                            canTradeNow = traderPawn.CanTradeNow,
+                            dismissed = traderPawn.mindState != null && traderPawn.mindState.traderDismissed,
+                        },
+                        negotiator = new {
+                            x = negotiatorPawn.Position.x, y = negotiatorPawn.Position.y, z = negotiatorPawn.Position.z,
+                            downed = negotiatorPawn.Downed, dead = negotiatorPawn.Dead,
+                            mental = negotiatorPawn.InMentalState,
+                            socialDisabled = negotiatorPawn.WorkTagIsDisabled(WorkTags.Social),
+                        },
+                    };
                 }
                 var trader = map.mapPawns.AllPawnsSpawned.FirstOrDefault(p => p.GetUniqueLoadID() == traderId);
                 var pawn = map.mapPawns.FreeColonistsSpawned.FirstOrDefault(p => p.GetUniqueLoadID() == pawnId);
