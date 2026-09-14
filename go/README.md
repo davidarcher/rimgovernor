@@ -2,10 +2,10 @@
 
 The module provides local observation and explicit player services, version/help
 and offline replay.
-`launch-go.ps1` and the `go-controller` Docker target (below) start this binary
-directly with no Python interpreter; the default `launch.ps1`/`build.ps1` paths
-and Docker image targets are unchanged and remain the production default until
-G01.12 accepts the switch. Go will start with fresh state; importing Python
+`launch.cmd`/`launch-go.ps1` and the `go-controller` Docker target (below) start
+this binary directly with no Python interpreter; this is the production default
+(G01.12). `launch.ps1` still runs the Python controller directly for rollback
+during the G01.13 removal window. Go starts with fresh state; importing Python
 databases and matching historical save formats are not rewrite gates.
 
 Use Go **1.27.1** from `.go-version`. From this directory:
@@ -34,28 +34,35 @@ Module dependencies and checksums are pinned in `go.mod`/`go.sum`; see the
 exercised with real SDK sessions and temporary databases as their slices land.
 Media dependencies are selected with their actual presentation consumers.
 
-## Go-only launch and packaging (G01.11)
+## Go launch and packaging, the production default (G01.11, G01.12)
 
 `go/cmd/rimgovernor`'s `serve` command is a real standalone binary: it needs no
-Python interpreter, venv or `controller/` package. What it covers today is
-bounded by the closed executor action set (building, owned draft, melee) and
-the construction planners wired in `serve_clock.go` — see
-[the migration review](../docs/developers/go-migration-review.md) for the exact
-capability boundary. It does not do player chat, save/load or media/camera
-controls; those stay in Python until G01.08/G01.09 land. Caravan departure and
-travel, quest accept/fulfill, settlement gifting and trade run through Go,
-alongside the read-only world-evaluation advisory report (G01.07f) and the
-richer expedition-risk gates (destination temperature, hostility and
-goodwill) folded into caravan-departure admission; quest accept, settlement
-gift and trade-open all have native acceptance harnesses verified against a
-real headless RimWorld instance (G01.07f;
+Python interpreter, venv or `controller/` package, and `launch.cmd` now starts
+it by default. It covers building, owned draft/melee execution, the routine
+planner families wired in `serve_clock.go`, lifecycle save/load, presentation
+and media (camera, pawn images, notifications, video streaming), and the ~30
+typed player submission endpoints under `internal/httpapi/player.go` (research,
+tend, rescue, caravan departure/hold/route, husbandry, recovery service, bed
+assignment, movement, building temperature, surgery, quest accept/fulfill,
+settlement gift, trade, zone create/edit, build/adopt room, cancel/relocate
+construction and more). The dashboard detects the Go backend
+(`GET /api/health` reports `backend: "go"`) and serves a dedicated observation
+and structured-control UI (`ObservationDashboard`/`PlayerControls`) instead of
+the Python controller's free-text chat UI: natural-language player chat is
+decoded end to end by `internal/interpreter/decode.go` but is **not yet wired
+into `serve`'s HTTP server** (`POST /api/chat` returns 501) — see
+[the migration review](../docs/developers/go-migration-review.md) for exact
+remaining boundaries. Caravan departure and travel, quest accept/fulfill,
+settlement gifting and trade all have native acceptance harnesses verified
+against a real headless RimWorld instance (G01.07f;
 [issue #28](https://github.com/davidarcher/rimgovernor/issues/28)).
 
 **Windows**, from the repository root:
 
 ```powershell
-.\launch-go.ps1 -NoBrowser          # read-only observation dashboard
-.\launch-go.ps1 -PlayerControl ...  # building/routine execution; add --routine-* flags after --
+.\launch.cmd                    # production default: player control, browser opens
+.\launch-go.ps1 -ReadOnly       # observation-only dashboard, no writes
+.\launch-go.ps1 ...              # add --routine-*-plans/--routine-methods flags for routine execution
 ```
 
 `serve --player-control --clock-control --routine-reviews --routine-methods`
@@ -70,8 +77,16 @@ capability table below. Startup reconciliation (durable holds and goal
 admission on process start) is generation/goal-keyed rather than per-flag, so
 it already covers whatever set of families a given invocation composes.
 
+**Known defect:** targeted G01.12 acceptance of `--clock-control
+--routine-reviews` found the native clock can fail to ever start
+(`clock_start` never issued despite an outstanding work plan and acquired
+control) — see [issue #45](https://github.com/davidarcher/rimgovernor/issues/45).
+`--player-control` alone (this launcher's default, no `--clock-control`) is
+unaffected. Related: [issue #42](https://github.com/davidarcher/rimgovernor/issues/42)
+covers the clock restarting in short, thrashing bursts once running.
+
 It builds the binary if missing, reuses the same dashboard build the Python
-launcher serves (`controller/rimgovernor/static`, built with `pnpm`, no
+controller serves (`controller/rimgovernor/static`, built with `pnpm`, no
 Python), and requires the same prepared GABS/config/profile inputs as
 `launch.ps1` (`docs/players/setup.md`) — GABS is a native executable dependency
 of the controller itself, not a Python one.
@@ -454,7 +469,9 @@ confirm the packaging path is wired correctly, not that a colony runs.
   adding a dependent command later safe by default. Python's
   `validate_player_authorization`/chat-revision re-check is not ported, for the
   same reason the cancellation slice did not port it.
-- Media/camera/portrait/video/recording and trusted save/load — G01.09.
+- Media/camera/portrait/video/recording and save/load are closed and wired
+  into `serve`'s HTTP server — G01.09/G01.10 (`internal/httpapi/presentation.go`,
+  `presentation_media.go`, `video_stream.go`, `lifecycle.go`).
 - World progression remaining scope: closed, except the documented
   `SetTradeLines`/`AcceptTrade`/`EndTrade` acceptance-harness gap below —
   G01.07f ([issue #28](https://github.com/davidarcher/rimgovernor/issues/28)).
@@ -538,9 +555,16 @@ confirm the packaging path is wired correctly, not that a colony runs.
   `scripts/container_scenario.py`, `scripts/prepare_bridge_trial.py` and
   `controller_tests/` (see `AGENTS.md`: new native acceptance tooling is Go,
   not Python — these are the existing, retained exception, not new tooling).
-- The production Python controller (`controller/rimgovernor`) remains the
-  default launch path; `launch.ps1`/`build.ps1`/the existing Docker targets are
-  unchanged. Switching the default is G01.12; removing Python is G01.13.
+- Natural-language player chat (`POST /api/chat`) stays served by the Python
+  controller only; the Go dashboard path exposes structured player controls
+  instead (`ObservationDashboard`/`PlayerControls`, no free-text chat UI) and
+  never calls it. Go's `interpreter/decode.go` decodes chat-shaped commands but
+  is not wired into `serve`'s HTTP server.
+- `launch.ps1` still runs the Python controller directly for rollback; the
+  Docker `directory`/`worker` targets remain Python (used by `controller_tests/`
+  and the native scenario/acceptance tooling above). `launch.cmd`/`launch-go.ps1`
+  and the `go-controller` Docker target are the production default (G01.12).
+  Removing Python entirely is G01.13.
 
 ## Routine policy components
 

@@ -1,13 +1,13 @@
 [CmdletBinding()]
 # Starts the Go controller binary directly: no Python interpreter, venv or
-# `python -m rimgovernor` in this path. It only covers what go/cmd/rimgovernor
-# currently implements (read-only observation, or player-control building/
-# routine execution per --routine-* flags); it does not replace player chat,
-# save/load, media or world-progression controls, which remain Python-only
-# until G01.08/G01.09/G01.07f land. See docs/developers/go-migration-review.md.
+# `python -m rimgovernor` in this path. Player-control building/draft/routine
+# execution is the default (G01.12); pass -ReadOnly for observation only. Go
+# does not yet replace natural-language player chat, which the dashboard only
+# offers against the Python controller (launch.ps1) — see go/README.md for the
+# current capability boundary.
 param(
   [int]$Port = 8787,
-  [switch]$PlayerControl,
+  [switch]$ReadOnly,
   [string]$Profile = '',
   [string]$Gabs = '',
   [string]$Config = '',
@@ -63,12 +63,12 @@ if (!$State) {
 New-Item -ItemType Directory -Force -Path (Split-Path -Parent $State) | Out-Null
 
 $arguments = @('serve')
-if ($PlayerControl) {
-  if (!$Profile) { $Profile = Join-Path $PSScriptRoot '.rimgovernor/bridge/profile' }
-  if (!(Test-Path -LiteralPath $Profile)) { throw 'PlayerControl requires an existing --profile directory; see docs/players/setup.md.' }
-  $arguments += @('--player-control', '--profile', (Resolve-Path -LiteralPath $Profile).Path)
-} else {
+if ($ReadOnly) {
   $arguments += '--read-only'
+} else {
+  if (!$Profile) { $Profile = Join-Path $PSScriptRoot '.rimgovernor/bridge/profile' }
+  if (!(Test-Path -LiteralPath $Profile)) { throw 'Player control requires an existing --profile directory; see docs/players/setup.md. Pass -ReadOnly for observation only.' }
+  $arguments += @('--player-control', '--profile', (Resolve-Path -LiteralPath $Profile).Path)
 }
 $arguments += @(
   '--gabs', (Resolve-Path -LiteralPath $Gabs).Path,
