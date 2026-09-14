@@ -87,6 +87,60 @@ func TestObservedSnapshotPreservesFalseAndZero(t *testing.T) {
 		t.Fatalf("lost known fact: %s", body)
 	}
 }
+type routineStatusFunc func(context.Context) (RoutineStatus, error)
+
+func (f routineStatusFunc) RoutineStatus(ctx context.Context) (RoutineStatus, error) { return f(ctx) }
+
+func TestRoutinesRouteUnavailableWithoutProvider(t *testing.T) {
+	server := testHTTP(t, newTestAPI(t, snapshotFunc(func(context.Context) (Snapshot, error) { return Snapshot{}, nil }), planFunc(unavailablePlan)))
+	status, _ := get(t, server.URL+"/api/routines")
+	if status != 404 {
+		t.Fatalf("routines exposed without a provider: %d", status)
+	}
+}
+func TestRoutinesRouteReportsComposedFamiliesAndReviewCursor(t *testing.T) {
+	s, err := New(Config{ReadTimeout: time.Second, ShutdownTimeout: time.Second, MaxResponseBytes: 1 << 20,
+		Routines: routineStatusFunc(func(context.Context) (RoutineStatus, error) {
+			return RoutineStatus{ReviewsEnabled: true, MethodsEnabled: true, ActiveFamilies: []string{"routine-sleeping-plans", "routine-bill-plans"}, LastReviewTick: domain.Tick(42), LastReviewKnown: true}, nil
+		})}, snapshotFunc(func(context.Context) (Snapshot, error) { return Snapshot{}, nil }), planFunc(unavailablePlan))
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { s.Close() })
+	server := testHTTP(t, s)
+	status, body := get(t, server.URL+"/api/routines")
+	var got routineStatusDTO
+	if err := json.Unmarshal(body, &got); err != nil {
+		t.Fatal(err)
+	}
+	if status != 200 || !got.ReviewsEnabled || !got.MethodsEnabled || len(got.ActiveFamilies) != 2 || got.LastReviewTick == nil || *got.LastReviewTick != 42 {
+		t.Fatalf("routine status: %s", body)
+	}
+}
+func TestRoutinesRouteRejectsMutationAndUnknownReviewCursor(t *testing.T) {
+	s, err := New(Config{ReadTimeout: time.Second, ShutdownTimeout: time.Second, MaxResponseBytes: 1 << 20,
+		Routines: routineStatusFunc(func(context.Context) (RoutineStatus, error) { return RoutineStatus{}, nil })},
+		snapshotFunc(func(context.Context) (Snapshot, error) { return Snapshot{}, nil }), planFunc(unavailablePlan))
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { s.Close() })
+	server := testHTTP(t, s)
+	status, body := get(t, server.URL+"/api/routines")
+	var got routineStatusDTO
+	json.Unmarshal(body, &got)
+	if status != 200 || got.LastReviewTick != nil || len(got.ActiveFamilies) != 0 {
+		t.Fatalf("unknown review cursor: %s", body)
+	}
+	response, err := http.Post(server.URL+"/api/routines", "application/json", strings.NewReader("{}"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	response.Body.Close()
+	if response.StatusCode != 405 {
+		t.Fatalf("routines accepted a mutation: %d", response.StatusCode)
+	}
+}
 func TestPlanReadsRealFreshStore(t *testing.T) {
 	database, err := store.Open(context.Background(), filepath.Join(t.TempDir(), "plans.db"))
 	if err != nil {
