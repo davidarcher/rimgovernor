@@ -125,6 +125,20 @@ type ClockScheduler struct {
 	config              ClockSchedulerConfig
 	clock               executor.Clock
 	pollGate, renewGate chan struct{}
+
+	// tickTrace is a TEMPORARY diagnostic aid (RIMGOVERNOR_CLOCK_DEBUG=1),
+	// read and written only from Step() which the ClockWorker's stepLoop
+	// calls serially -- see clockSchedulerLog. It lets a live run directly
+	// answer G01.07b's follow-up open question (issue tracking the
+	// clock-restart-cadence gap): whether native ticks actually advance
+	// during a "running" burst (would show a healthy per-step tick delta)
+	// or the clock is running in name only (delta stays ~0 across many
+	// real seconds), versus the cumulative-across-the-run total showing
+	// whether restart cadence alone, not lost ticks, is the bottleneck.
+	tickTraceValid bool
+	tickTraceTick  int64
+	tickTraceAt    time.Time
+	tickTraceStart int64
 }
 
 func NewClockScheduler(player *Player, session *Session, native ClockWindowNative, config ClockSchedulerConfig, clock executor.Clock) (*ClockScheduler, error) {
@@ -372,7 +386,23 @@ func (s *ClockScheduler) Step(ctx context.Context) (ClockSchedulerResult, error)
 	if status.Context.GetTick() < loaded.Context.GetTick() {
 		return out, errors.Join(executor.ErrEvidence, s.session.Disable())
 	}
-	clockSchedulerLog("status: running=%v stopping=%v stopped=%v neverStarted=%v tick=%d", status.GetRunning() != nil, status.GetStopping() != nil, status.GetStopped() != nil, status.GetNeverStarted() != nil, status.Context.GetTick())
+	if clockSchedulerDebug {
+		now := s.clock.Now()
+		tick := status.Context.GetTick()
+		if !s.tickTraceValid {
+			s.tickTraceStart = tick
+		}
+		var deltaTick int64
+		var deltaMs int64
+		if s.tickTraceValid {
+			deltaTick = tick - s.tickTraceTick
+			deltaMs = now.Sub(s.tickTraceAt).Milliseconds()
+		}
+		clockSchedulerLog("status: running=%v stopping=%v stopped=%v neverStarted=%v tick=%d deltaTick=%d deltaMs=%d cumulativeTick=%d",
+			status.GetRunning() != nil, status.GetStopping() != nil, status.GetStopped() != nil, status.GetNeverStarted() != nil,
+			tick, deltaTick, deltaMs, tick-s.tickTraceStart)
+		s.tickTraceTick, s.tickTraceAt, s.tickTraceValid = tick, now, true
+	}
 	if status.GetRunning() != nil || status.GetStopping() != nil {
 		var actual *k.Epoch
 		if status.GetRunning() != nil {
