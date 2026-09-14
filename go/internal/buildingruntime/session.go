@@ -53,6 +53,7 @@ type SessionConfig struct {
 	Repair              *RepairCapabilities
 	Clean               *CleanCapabilities
 	Waste               *WasteCapabilities
+	MoodRelief          *MoodReliefCapabilities
 	RecoveryService     *RecoveryServiceCapabilities
 	BedAssign           *BedAssignCapabilities
 	Surgery             *SurgeryCapabilities
@@ -330,6 +331,9 @@ func NewSession(ctx context.Context, config SessionConfig, journal *store.Store,
 	if config.Waste != nil && (config.Waste.Native == nil || config.Waste.Writer == nil) {
 		return cleanup(ErrControl)
 	}
+	if config.MoodRelief != nil && (config.MoodRelief.Native == nil || config.MoodRelief.Writer == nil) {
+		return cleanup(ErrControl)
+	}
 	if config.RecoveryService != nil && (config.RecoveryService.Native == nil || config.RecoveryService.Writer == nil) {
 		return cleanup(ErrControl)
 	}
@@ -523,6 +527,20 @@ func NewSession(ctx context.Context, config SessionConfig, journal *store.Store,
 			return cleanup(err)
 		}
 		if err := worker.EnableWaste(wasteBoundary); err != nil {
+			return cleanup(err)
+		}
+	}
+	if config.MoodRelief != nil {
+		// Longitude is not yet sourced anywhere in the CLI (no WorldRead call
+		// is wired at startup for it); passing Unknown here matches
+		// RoutineReviewer's own current default and never guesses --
+		// InspectMoodRelief/EvaluateMoodRelief correctly refuse dispatch
+		// until a future task wires an actual longitude source.
+		moodReliefBoundary, err := NewMoodReliefBoundary(config.MoodRelief.Native, config.MoodRelief.Writer, sessionBuildingLeases{control, journal, config.RoutineMethods, config.Executor.JournalTimeout}, clock, string(namespace), domain.Unknown[float64]())
+		if err != nil {
+			return cleanup(err)
+		}
+		if err := worker.EnableMoodRelief(moodReliefBoundary); err != nil {
 			return cleanup(err)
 		}
 	}

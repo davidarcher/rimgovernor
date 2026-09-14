@@ -133,6 +133,8 @@ type Executor struct {
 	cleanJournal               CleanJournal
 	waste                      WasteBoundary
 	wasteJournal               WasteJournal
+	moodRelief                 MoodReliefBoundary
+	moodReliefJournal          MoodReliefJournal
 	recoveryService            RecoveryServiceBoundary
 	recoveryServiceJournal     RecoveryServiceJournal
 	surgery                    SurgeryBoundary
@@ -385,6 +387,9 @@ func (e *Executor) Run(ctx context.Context, plan domain.PlanID, actionID domain.
 	}
 	if action.Kind() == domain.WasteAction && e.waste != nil {
 		return e.runWaste(ctx, action, progress, authority, generation)
+	}
+	if action.Kind() == domain.MoodReliefAction && e.moodRelief != nil {
+		return e.runMoodRelief(ctx, action, progress, authority, generation)
 	}
 	if action.Kind() == domain.RecoveryServiceAction && e.recoveryService != nil {
 		return e.runRecoveryService(ctx, action, progress, authority, generation)

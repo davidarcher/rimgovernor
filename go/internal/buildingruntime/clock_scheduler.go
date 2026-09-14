@@ -69,6 +69,7 @@ type ClockSchedulerConfig struct {
 	HomeCoverage                     *RoutineHomeCoveragePlanner
 	StoneShell                       *RoutineStoneShellPlanner
 	Waste                            *RoutineWastePlanner
+	MoodRelief                       *RoutineMoodReliefPlanner
 	RoutineMethods                   bool
 }
 type ClockSchedulerResult struct {
@@ -111,6 +112,7 @@ type ClockSchedulerResult struct {
 	HomeCoverage                                  *RoutineHomeCoverageResult
 	StoneShell                                    *RoutineStoneShellResult
 	Waste                                         *RoutineWasteResult
+	MoodRelief                                    *RoutineMoodReliefResult
 	Running, Reconciled, Cleaned                  bool
 }
 type ClockScheduler struct {
@@ -200,6 +202,9 @@ func NewClockScheduler(player *Player, session *Session, native ClockWindowNativ
 		return nil, ErrControl
 	}
 	if config.Waste != nil && (config.Routine == nil || config.Waste.reviewer != config.Routine) {
+		return nil, ErrControl
+	}
+	if config.MoodRelief != nil && (config.Routine == nil || config.MoodRelief.reviewer != config.Routine) {
 		return nil, ErrControl
 	}
 	if config.Haul != nil && (config.Routine == nil || config.Haul.reviewer != config.Routine) {
@@ -416,6 +421,13 @@ func (s *ClockScheduler) Step(ctx context.Context) (ClockSchedulerResult, error)
 			return out, err
 		}
 		out.Waste = &method
+	}
+	if s.config.MoodRelief != nil {
+		method, err := s.config.MoodRelief.step(call, epoch)
+		if err != nil {
+			return out, err
+		}
+		out.MoodRelief = &method
 	}
 	if s.config.Haul != nil {
 		method, err := s.config.Haul.step(call, epoch)
@@ -828,7 +840,7 @@ func clockSchedulerWork(plan store.PlanState, current domain.GenerationSnapshot)
 				domain.MeleeAttackAction, domain.RangedAttackAction, domain.TendAction, domain.RescueAction, domain.CaptureAction,
 				domain.HaulAction, domain.EquipAction, domain.GearReplaceAction, domain.RecoveryServiceAction,
 				domain.BedAssignAction, domain.HusbandryAction, domain.PrisonerInteractionAction,
-				domain.RepairAction, domain.CleanAction, domain.WasteAction, domain.MineAcquisitionAction, domain.ProductionPolicyAction, domain.SurgeryAction:
+				domain.RepairAction, domain.CleanAction, domain.WasteAction, domain.MineAcquisitionAction, domain.ProductionPolicyAction, domain.SurgeryAction, domain.MoodReliefAction:
 			default:
 				return false, nil, executor.ErrHeld
 			}
