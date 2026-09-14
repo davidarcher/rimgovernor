@@ -2681,6 +2681,7 @@ type AnimalState struct {
 	SafeToSlaughter      *bool                  `protobuf:"varint,14,opt,name=safe_to_slaughter,json=safeToSlaughter,proto3,oneof" json:"safe_to_slaughter,omitempty"`
 	MinimumHandlingSkill *int32                 `protobuf:"varint,15,opt,name=minimum_handling_skill,json=minimumHandlingSkill,proto3,oneof" json:"minimum_handling_skill,omitempty"`
 	Issues               []*ReadIssue           `protobuf:"bytes,16,rep,name=issues,proto3" json:"issues,omitempty"`
+	BodySize             *float64               `protobuf:"fixed64,17,opt,name=body_size,json=bodySize,proto3,oneof" json:"body_size,omitempty"`
 	unknownFields        protoimpl.UnknownFields
 	sizeCache            protoimpl.SizeCache
 }
@@ -2825,6 +2826,13 @@ func (x *AnimalState) GetIssues() []*ReadIssue {
 		return x.Issues
 	}
 	return nil
+}
+
+func (x *AnimalState) GetBodySize() float64 {
+	if x != nil && x.BodySize != nil {
+		return *x.BodySize
+	}
+	return 0
 }
 
 type PawnState struct {
@@ -25167,7 +25175,7 @@ const file_observations_proto_rawDesc = "" +
 	"\a_wantedB\f\n" +
 	"\n" +
 	"_availableB\t\n" +
-	"\a_reason\"\xf0\x06\n" +
+	"\a_reason\"\xa0\a\n" +
 	"\vAnimalState\x12\x1b\n" +
 	"\x06gender\x18\x01 \x01(\tH\x00R\x06gender\x88\x01\x01\x12 \n" +
 	"\tage_years\x18\x02 \x01(\x01H\x01R\bageYears\x88\x01\x01\x12(\n" +
@@ -25187,7 +25195,8 @@ const file_observations_proto_rawDesc = "" +
 	"R\tslaughter\x88\x01\x01\x12/\n" +
 	"\x11safe_to_slaughter\x18\x0e \x01(\bH\vR\x0fsafeToSlaughter\x88\x01\x01\x129\n" +
 	"\x16minimum_handling_skill\x18\x0f \x01(\x05H\fR\x14minimumHandlingSkill\x88\x01\x01\x12>\n" +
-	"\x06issues\x18\x10 \x03(\v2&.rimgovernor.observations.v1.ReadIssueR\x06issuesB\t\n" +
+	"\x06issues\x18\x10 \x03(\v2&.rimgovernor.observations.v1.ReadIssueR\x06issues\x12 \n" +
+	"\tbody_size\x18\x11 \x01(\x01H\rR\bbodySize\x88\x01\x01B\t\n" +
 	"\a_genderB\f\n" +
 	"\n" +
 	"_age_yearsB\x10\n" +
@@ -25205,7 +25214,9 @@ const file_observations_proto_rawDesc = "" +
 	"\n" +
 	"_slaughterB\x14\n" +
 	"\x12_safe_to_slaughterB\x19\n" +
-	"\x17_minimum_handling_skill\"\xc5\x10\n" +
+	"\x17_minimum_handling_skillB\f\n" +
+	"\n" +
+	"_body_size\"\xc5\x10\n" +
 	"\tPawnState\x12:\n" +
 	"\x04pawn\x18\x01 \x01(\v2&.rimgovernor.observations.v1.EntityRefR\x04pawn\x12'\n" +
 	"\rkind_def_name\x18\x02 \x01(\tH\x00R\vkindDefName\x88\x01\x01\x12\"\n" +
