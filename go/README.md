@@ -84,8 +84,12 @@ failure are compilation/protocol/wiring checks, not gameplay evidence — they
 confirm the packaging path is wired correctly, not that a colony runs.
 
 **Retained Python**, explicitly, after this item:
-- Player chat and local-model command interpretation (`player_commands.py`,
-  `interpreter/decode.go` only accepts building proposals) — G01.08.
+- Player chat and local-model command interpretation (`player_commands.py`
+  remains the live pipeline; `interpreter/decode.go` decodes build, research,
+  tend, rescue, draft, caravan departure/hold/route, husbandry, recovery
+  service, bed assignment, movement, building temperature, surgery, quest
+  accept/fulfill and settlement gift proposals, but is not yet wired into the
+  Go binary's serve loop) — G01.08.
 - Media/camera/portrait/video/recording and trusted save/load — G01.09.
 - World progression: caravans, quests, settlement gifts, multi-map — G01.07f.
 - Most routine workflows beyond construction: cooking/butcher bill execution,
