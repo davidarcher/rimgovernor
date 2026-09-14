@@ -180,6 +180,18 @@ func (r *RoutineResourcePlanner) step(call, epoch context.Context) (RoutineResou
 	if !ok {
 		return RoutineResourceResult{Reason: BuildingMethodUsed}, nil
 	}
+	return r.dispatchResourceGoal(call, epoch, state, goal, review.Tick, identity, resource, target, stock, started)
+}
+
+// dispatchResourceGoal is the shared MaintainResource/MaintainAnimalFeed
+// acquisition tail, once each goal's own selection has picked one
+// (resource, absolute stock floor) pair: bench/recipe production
+// (policy.SelectResourceMethod) first, falling back to native mine/harvest
+// sources (policy.SelectResourceSources) and, if hauling them needs new
+// storage, a covered stockpile zone -- see RoutineAnimalFeedPlanner for the
+// MaintainAnimalFeed caller.
+func (r *RoutineResourcePlanner) dispatchResourceGoal(call, epoch context.Context, state ControlState, goal store.GoalState, reviewTick domain.Tick, identity *c.Identity, resource policy.Resource, target int64, stock domain.Fact[[]policy.Amount], started time.Time) (RoutineResourceResult, error) {
+	p := r.reviewer.player
 	seen := make([]domain.MethodID, 0, len(goal.Methods))
 	for _, method := range goal.Methods {
 		seen = append(seen, method.Method)
@@ -230,7 +242,7 @@ func (r *RoutineResourcePlanner) step(call, epoch context.Context) (RoutineResou
 		if !ok {
 			return RoutineResourceResult{Reason: BuildingMethodUsed}, nil
 		}
-		zoneResult, handled, err := r.materialStorageZoneFallback(call, epoch, state, goal, review.Tick, resource, selected, sourceStorage, started)
+		zoneResult, handled, err := r.materialStorageZoneFallback(call, epoch, state, goal, reviewTick, resource, selected, sourceStorage, started)
 		if err != nil {
 			return RoutineResourceResult{}, err
 		}

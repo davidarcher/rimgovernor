@@ -63,6 +63,7 @@ type ClockSchedulerConfig struct {
 	PopulationCustody                *RoutinePopulationCustodyPlanner
 	Research                         *RoutineResearchPlanner
 	Resource                         *RoutineResourcePlanner
+	AnimalFeed                       *RoutineAnimalFeedPlanner
 	ProductionPolicy                 *RoutineProductionPolicyPlanner
 	CaravanJourney                   *CaravanJourneyTracker
 	HomeCoverage                     *RoutineHomeCoveragePlanner
@@ -103,6 +104,7 @@ type ClockSchedulerResult struct {
 	PopulationCustody                             *RoutinePopulationCustodyResult
 	Research                                      *RoutineResearchResult
 	Resource                                      *RoutineResourceResult
+	AnimalFeed                                    *RoutineResourceResult
 	ProductionPolicy                              *RoutineProductionPolicyResult
 	CaravanJourney                                *CaravanJourneyResult
 	HomeCoverage                                  *RoutineHomeCoverageResult
@@ -223,6 +225,9 @@ func NewClockScheduler(player *Player, session *Session, native ClockWindowNativ
 		return nil, ErrControl
 	}
 	if config.Resource != nil && (config.Routine == nil || config.Resource.reviewer != config.Routine) {
+		return nil, ErrControl
+	}
+	if config.AnimalFeed != nil && (config.Routine == nil || config.AnimalFeed.reviewer != config.Routine) {
 		return nil, ErrControl
 	}
 	if config.HomeCoverage != nil && (config.Routine == nil || config.HomeCoverage.reviewer != config.Routine) {
@@ -469,6 +474,13 @@ func (s *ClockScheduler) Step(ctx context.Context) (ClockSchedulerResult, error)
 			return out, err
 		}
 		out.Resource = &method
+	}
+	if s.config.AnimalFeed != nil {
+		method, err := s.config.AnimalFeed.step(call, epoch)
+		if err != nil {
+			return out, err
+		}
+		out.AnimalFeed = &method
 	}
 	if s.config.ProductionPolicy != nil {
 		method, err := s.config.ProductionPolicy.step(call, epoch)

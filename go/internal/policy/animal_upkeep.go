@@ -60,6 +60,7 @@ func (h AnimalUpkeepHistory) Validate() error {
 
 type AnimalFeedTarget struct {
 	ID                                PawnID
+	Definition                        Resource
 	RunwayDays, Nutrition, TargetDays float64
 }
 type AnimalUpkeepReview struct {
@@ -98,12 +99,14 @@ func ReviewAnimalUpkeep(v AnimalUpkeepObservation, previous AnimalUpkeepHistory,
 	seen := map[PawnID]bool{}
 	containment := []PawnID{}
 	eligible := []PawnID{}
+	definitions := map[PawnID]Resource{}
 	containmentKnown, feedKnown := true, true
 	for _, animal := range animals {
 		if !foodID(string(animal.ID)) || seen[animal.ID] || !validResource(animal.Definition) {
 			return r, invalid
 		}
 		seen[animal.ID] = true
+		definitions[animal.ID] = animal.Definition
 		pen, pk := animal.RequiresPen.Value()
 		contained, ck := animal.Contained.Value()
 		release, rk := animal.Release.Value()
@@ -160,7 +163,7 @@ func ReviewAnimalUpkeep(v AnimalUpkeepObservation, previous AnimalUpkeepHistory,
 			if !foodNumber(missing) {
 				return r, invalid
 			}
-			targets = append(targets, AnimalFeedTarget{id, row.RunwayDays, missing, p.FeedTargetDays})
+			targets = append(targets, AnimalFeedTarget{id, definitions[id], row.RunwayDays, missing, p.FeedTargetDays})
 			next = append(next, id)
 		}
 	}

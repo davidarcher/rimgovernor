@@ -356,9 +356,9 @@ func serveBuildingWithBridge(ctx context.Context, config serveConfig, out io.Wri
 		acquisitionCapabilities = client.acquisition
 	}
 	var mineAcquisitionCapabilities *mineacquisition.MineAcquisitionCapabilities
-	if config.routineResourcePlans {
+	if config.routineResourcePlans || config.routineAnimalFeedPlans {
 		if client.mineAcquisition == nil {
-			return errors.New("resource plans require typed mine acquisition capabilities")
+			return errors.New("resource and animal feed plans require typed mine acquisition capabilities")
 		}
 		mineAcquisitionCapabilities = client.mineAcquisition
 	}
@@ -518,7 +518,7 @@ func serveBuildingWithBridge(ctx context.Context, config serveConfig, out io.Wri
 	}
 	owner = player
 	if config.clockControl {
-		if err = startServiceClock(lifetime, player, session, client.clockReads, database, config.profile, callTimeout, config.routineReviews, config.routineSleepingPlans, config.routineCookingPlans, config.routineShelterPlans, config.routineComfortPlans, config.routineExpansionPlans, config.routinePowerPlans, config.routineTemperaturePlans, config.routineProjectLimit, config.routineSupplyPlans, config.routineWorkPlans, config.routineAcquisitionPlans, config.routineDefensePlans, config.routineTendPlans, config.routineRescuePlans, config.routineEquipPlans, config.routineSecureSuppliesPlans, config.routineRepairPlans, config.routineCleanPlans, config.routineGearPlans, config.routineMedicalPlans, config.routineAnimalContainmentPlans, config.routineRecoveryPlans, config.routineHusbandryPlans, config.routineHomeCoveragePlans, config.caravanJourneyTracking, config.routineResearchTarget, config.routineResourceTargets.Map(), config.routineProductionPolicyPlans, config.routineResourceReserves.Map(), config.routineStoppedResources.Slice(), config.routineFieldPlans, config.routineBillPlans, config.routineFoodStoragePlans, config.routinePrisonerInteractionPlans, config.routinePopulationCustodyPlans, config.routineStoneShellPlans, config.routineHaulPlans); err != nil {
+		if err = startServiceClock(lifetime, player, session, client.clockReads, database, config.profile, callTimeout, config.routineReviews, config.routineSleepingPlans, config.routineCookingPlans, config.routineShelterPlans, config.routineComfortPlans, config.routineExpansionPlans, config.routinePowerPlans, config.routineTemperaturePlans, config.routineProjectLimit, config.routineSupplyPlans, config.routineWorkPlans, config.routineAcquisitionPlans, config.routineDefensePlans, config.routineTendPlans, config.routineRescuePlans, config.routineEquipPlans, config.routineSecureSuppliesPlans, config.routineRepairPlans, config.routineCleanPlans, config.routineGearPlans, config.routineMedicalPlans, config.routineAnimalContainmentPlans, config.routineRecoveryPlans, config.routineHusbandryPlans, config.routineHomeCoveragePlans, config.caravanJourneyTracking, config.routineResearchTarget, config.routineResourceTargets.Map(), config.routineAnimalFeedPlans, config.routineProductionPolicyPlans, config.routineResourceReserves.Map(), config.routineStoppedResources.Slice(), config.routineFieldPlans, config.routineBillPlans, config.routineFoodStoragePlans, config.routinePrisonerInteractionPlans, config.routinePopulationCustodyPlans, config.routineStoneShellPlans, config.routineHaulPlans); err != nil {
 			return err
 		}
 	}
