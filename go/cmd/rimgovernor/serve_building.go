@@ -139,6 +139,7 @@ type buildingServiceBridge struct {
 	husbandry           *buildingruntime.HusbandryCapabilities
 	prisonerInteraction *buildingruntime.PrisonerInteractionCapabilities
 	research            *buildingruntime.ResearchSelectCapabilities
+	naming              *buildingruntime.ConfirmColonyNamesCapabilities
 	production          *buildingruntime.ProductionPolicyCapabilities
 	questAccept         *buildingruntime.QuestAcceptCapabilities
 	settlementGift      *buildingruntime.SettlementGiftCapabilities
@@ -242,6 +243,10 @@ func openBuildingService(ctx context.Context, config bridge.ProcessConfig) (buil
 	if err != nil {
 		return buildingServiceBridge{}, errors.Join(err, client.Close())
 	}
+	namingControl, err := bridge.NewNamingControl(client)
+	if err != nil {
+		return buildingServiceBridge{}, errors.Join(err, client.Close())
+	}
 	productionPolicyWriter, err := bridge.NewProductionPolicyWriter(client)
 	if err != nil {
 		return buildingServiceBridge{}, errors.Join(err, client.Close())
@@ -299,6 +304,7 @@ func openBuildingService(ctx context.Context, config bridge.ProcessConfig) (buil
 		husbandry:           &buildingruntime.HusbandryCapabilities{Native: client, Writer: husbandryWriter},
 		prisonerInteraction: &buildingruntime.PrisonerInteractionCapabilities{Native: client, Writer: prisonerInteractionWriter},
 		research:            &buildingruntime.ResearchSelectCapabilities{Native: client, Writer: researchSelect},
+		naming:              &buildingruntime.ConfirmColonyNamesCapabilities{Native: client, Writer: namingControl},
 		production:          &buildingruntime.ProductionPolicyCapabilities{Native: client, Writer: productionPolicyWriter},
 		questAccept:         &buildingruntime.QuestAcceptCapabilities{Native: client, Writer: questAccept},
 		settlementGift:      &buildingruntime.SettlementGiftCapabilities{Native: client, Writer: settlementGift},
@@ -573,6 +579,13 @@ func serveBuildingWithBridge(ctx context.Context, config serveConfig, out io.Wri
 		}
 		researchSelectCapabilities = client.research
 	}
+	var namingCapabilities *buildingruntime.ConfirmColonyNamesCapabilities
+	if config.routineNamingPlans {
+		if client.naming == nil {
+			return errors.New("naming plans require typed capabilities")
+		}
+		namingCapabilities = client.naming
+	}
 	var productionPolicyCapabilities *buildingruntime.ProductionPolicyCapabilities
 	if config.routineProductionPolicyPlans {
 		if client.production == nil {
@@ -608,6 +621,7 @@ func serveBuildingWithBridge(ctx context.Context, config serveConfig, out io.Wri
 		Husbandry:           husbandryCapabilities,
 		PrisonerInteraction: prisonerInteractionCapabilities,
 		ResearchSelect:      researchSelectCapabilities,
+		ConfirmColonyNames:  namingCapabilities,
 		ProductionPolicy:    productionPolicyCapabilities,
 		QuestAccept:         client.questAccept,
 		SettlementGift:      client.settlementGift,
@@ -632,7 +646,7 @@ func serveBuildingWithBridge(ctx context.Context, config serveConfig, out io.Wri
 	}
 	owner = player
 	if config.clockControl {
-		if err = startServiceClock(lifetime, player, session, client.clockReads, database, config.profile, callTimeout, config.routineReviews, config.routineSleepingPlans, config.routineCookingPlans, config.routineShelterPlans, config.routineComfortPlans, config.routineExpansionPlans, config.routinePowerPlans, config.routineTemperaturePlans, config.routineProjectLimit, config.routineSupplyPlans, config.routineWorkPlans, config.routineAcquisitionPlans, config.routineDefensePlans, config.routineTendPlans, config.routineRescuePlans, config.routineEquipPlans, config.routineSecureSuppliesPlans, config.routineRepairPlans, config.routineCleanPlans, config.routineGearPlans, config.routineMedicalPlans, config.routineAnimalContainmentPlans, config.routineRecoveryPlans, config.routineHusbandryPlans, config.routineHomeCoveragePlans, config.caravanJourneyTracking, config.routineResearchTarget, config.routineResourceTargets.Map(), config.routineAllowSlaughter, config.routineHerdPopulationMax.Map(), config.routineAnimalFeedPlans, config.routineProductionPolicyPlans, config.routineResourceReserves.Map(), config.routineStoppedResources.Slice(), config.routineFieldPlans, config.routineBillPlans, config.routineFoodStoragePlans, config.routinePrisonerInteractionPlans, config.routinePopulationCustodyPlans, config.routineStoneShellPlans, config.routineHaulPlans, config.routineWastePlans, config.routineMoodPlans); err != nil {
+		if err = startServiceClock(lifetime, player, session, client.clockReads, database, config.profile, callTimeout, config.routineReviews, config.routineSleepingPlans, config.routineCookingPlans, config.routineShelterPlans, config.routineComfortPlans, config.routineExpansionPlans, config.routinePowerPlans, config.routineTemperaturePlans, config.routineProjectLimit, config.routineSupplyPlans, config.routineWorkPlans, config.routineAcquisitionPlans, config.routineDefensePlans, config.routineTendPlans, config.routineRescuePlans, config.routineEquipPlans, config.routineSecureSuppliesPlans, config.routineRepairPlans, config.routineCleanPlans, config.routineGearPlans, config.routineMedicalPlans, config.routineAnimalContainmentPlans, config.routineRecoveryPlans, config.routineHusbandryPlans, config.routineHomeCoveragePlans, config.caravanJourneyTracking, config.routineResearchTarget, config.routineResourceTargets.Map(), config.routineAllowSlaughter, config.routineHerdPopulationMax.Map(), config.routineAnimalFeedPlans, config.routineProductionPolicyPlans, config.routineResourceReserves.Map(), config.routineStoppedResources.Slice(), config.routineFieldPlans, config.routineBillPlans, config.routineFoodStoragePlans, config.routinePrisonerInteractionPlans, config.routinePopulationCustodyPlans, config.routineStoneShellPlans, config.routineHaulPlans, config.routineWastePlans, config.routineMoodPlans, config.routineNamingPlans); err != nil {
 			return err
 		}
 	}

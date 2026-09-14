@@ -8,10 +8,10 @@ import (
 )
 
 func TestColonyNamingWindowContract(t *testing.T) {
-	for _, change := range []string{"present", "absent", "unknown", "missing-id", "negative-id", "unreviewed-names", "conflict"} {
+	for _, change := range []string{"present", "absent", "unknown", "missing-id", "negative-id", "missing-faction-name", "missing-settlement-name", "invalid-faction-name", "unreviewed-issues", "conflict"} {
 		t.Run(change, func(t *testing.T) {
 			v := colonyFixture(t).GetObserved()
-			v.Naming = &o.ColonyNaming{WindowId: proto.Int32(0)}
+			v.Naming = &o.ColonyNaming{WindowId: proto.Int32(0), FactionName: proto.String("Faction"), SettlementName: proto.String("Settlement")}
 			switch change {
 			case "absent", "unknown":
 				v.Naming = nil
@@ -22,8 +22,14 @@ func TestColonyNamingWindowContract(t *testing.T) {
 				v.Naming.WindowId = nil
 			case "negative-id":
 				v.Naming.WindowId = proto.Int32(-1)
-			case "unreviewed-names":
-				v.Naming.FactionName = proto.String("name")
+			case "missing-faction-name":
+				v.Naming.FactionName = nil
+			case "missing-settlement-name":
+				v.Naming.SettlementName = nil
+			case "invalid-faction-name":
+				v.Naming.FactionName = proto.String("")
+			case "unreviewed-issues":
+				v.Naming.Issues = append(v.Naming.Issues, &o.ReadIssue{Field: proto.String("naming")})
 			case "conflict":
 				v.Issues = append(v.Issues, &o.ReadIssue{Field: proto.String("naming"), Unavailable: &c.Unavailable{Reason: c.UnavailableReason_UNAVAILABLE_REASON_UNSUPPORTED.Enum()}})
 			}

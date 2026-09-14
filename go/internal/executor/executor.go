@@ -143,6 +143,8 @@ type Executor struct {
 	bedAssignJournal           BedAssignJournal
 	researchSelect             ResearchSelectBoundary
 	researchSelectJournal      ResearchSelectJournal
+	naming                     ConfirmColonyNamesBoundary
+	namingJournal              ConfirmColonyNamesJournal
 	husbandry                  HusbandryBoundary
 	husbandryJournal           HusbandryJournal
 	homeCoverage               HomeCoverageBoundary
@@ -408,6 +410,9 @@ func (e *Executor) Run(ctx context.Context, plan domain.PlanID, actionID domain.
 	}
 	if action.Kind() == domain.ResearchSelectAction && e.researchSelect != nil {
 		return e.runResearchSelect(ctx, action, progress, authority, generation)
+	}
+	if action.Kind() == domain.NamingConfirmationAction && e.naming != nil {
+		return e.runConfirmColonyNames(ctx, action, progress, authority, generation)
 	}
 	if action.Kind() == domain.HusbandryAction && e.husbandry != nil {
 		return e.runHusbandry(ctx, action, progress, authority, generation)

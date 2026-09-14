@@ -93,6 +93,7 @@ message Operation {
     GiftCaravanSilver gift_caravan_silver = 43;
     AcceptQuest accept_quest = 44;
     FulfillQuest fulfill_quest = 45;
+    ConfirmColonyNames confirm_colony_names = 46;
   }
 }
 
@@ -241,6 +242,12 @@ message TravelCaravan { EntityPrecondition caravan = 1; optional TravelKind kind
 message GiftCaravanSilver { EntityPrecondition caravan = 1; EntityPrecondition faction = 2; repeated string expected_pawn_ids = 3; optional int32 silver = 4; }
 message AcceptQuest { EntityPrecondition quest = 1; optional string accepter_pawn_id = 2; optional int32 reward_choice = 3; }
 message FulfillQuest { EntityPrecondition quest = 1; EntityPrecondition caravan = 2; repeated string expected_pawn_ids = 3; }
+// The initial faction/settlement naming dialog is colony-wide, not entity-scoped;
+// window_id plus the exact observed suggestions stand in for EntityPrecondition.
+// This is deliberately independent of presentation.proto's own ConfirmColonyNames,
+// which stays reserved for the explicit-player PlayerPresentation.Apply surface;
+// automated Hands never admit that surface. See presentation-coverage.md.
+message ConfirmColonyNames { optional int32 window_id = 1; optional string faction_name = 2; optional string settlement_name = 3; }
 
 // Safe cleanup may run after authority revocation, only for an unchanged native claim.
 message ReleaseOwnedDraftRequest {

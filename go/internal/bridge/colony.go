@@ -145,7 +145,8 @@ func ValidateColonyFacts(v *o.ColonyFactsSnapshot, identity *c.Identity) error {
 		seen[key] = true
 	}
 	if v.Naming != nil {
-		if v.Naming.WindowId == nil || v.Naming.GetWindowId() < 0 || !proto.Equal(v.Naming, &o.ColonyNaming{WindowId: v.Naming.WindowId}) {
+		if v.Naming.WindowId == nil || v.Naming.GetWindowId() < 0 || v.Naming.FactionName == nil || v.Naming.SettlementName == nil || len(v.Naming.Issues) != 0 ||
+			validID(v.Naming.GetFactionName()) != nil || validID(v.Naming.GetSettlementName()) != nil || len(v.Naming.ProtoReflect().GetUnknown()) != 0 {
 			return contract("invalid naming window census")
 		}
 		for _, issue := range v.Issues {

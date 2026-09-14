@@ -27,7 +27,7 @@ func TestRoutineNamingRecoveryUnknownAndRenewedDialog(t *testing.T) {
 		case "unknown":
 			want = domain.NeedUnknown
 		default:
-			v.Naming = &o.ColonyNaming{WindowId: proto.Int32(42)}
+			v.Naming = &o.ColonyNaming{WindowId: proto.Int32(42), FactionName: proto.String("Faction"), SettlementName: proto.String("Settlement")}
 		}
 		out, err := r.Step(context.Background())
 		if err != nil {

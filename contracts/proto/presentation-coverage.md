@@ -68,16 +68,20 @@ precondition, exactly like every other `Apply` branch; there is no naming-specif
 carve-out of that boundary. `PresentationReads.PreviewNaming` is a read of the
 same authenticated surface and stays unregistered alongside it.
 
-The unauthenticated, autopilot-eligible `home/confirm_colony_names` tool
-(`ColonyNamingTool.cs:24-78`, row above) is a distinct surface, not a partial or
-legacy implementation of `PlayerPresentation.Apply`'s naming branch: the initial
-faction/settlement dialog blocks all play, including automated Hands, before any
-player lease or capture is possible, so gating it behind `PlayerPresentation`
-would deadlock autopilot bootstrap. Routine control dispatches the
-`ConfirmColonyNames` goal (priority 0) through this tool. `Apply`'s
-`confirm_colony_names` branch remains reserved for a future player-facing naming
-review affordance and is deliberately unregistered until one exists; it must not
-be relaxed to admit automated Hands. `CaptureIdentity` binds
+The initial faction/settlement dialog blocks all play, including automated
+Hands, before any player lease or capture is possible, so gating its
+confirmation behind `PlayerPresentation` would deadlock autopilot bootstrap.
+Its autopilot-eligible path is instead `Operations.ConfirmColonyNames`
+(`NativeColonyNamingOperations`, see operation-coverage.md), admitted through
+the ordinary authority `WritePrecondition` every other automated write uses,
+not a player lease/capture. Routine control dispatches the `ConfirmColonyNames`
+goal (priority 0) through that operation. The unauthenticated legacy
+`home/confirm_colony_names` tool (`ColonyNamingTool.cs:24-78`, row above)
+predates it and remains for the accept-test harness and manual use; it is not
+the sanctioned production dispatch path. `Apply`'s `confirm_colony_names`
+branch remains reserved for a future player-facing naming review affordance
+and is deliberately unregistered until one exists; it must not be relaxed to
+admit automated Hands. `CaptureIdentity` binds
 colony/load/map/native generation, player direction, exact complete selected IDs,
 window ID/type set, and a server-retained capture. The retained native capture must
 also verify camera matrices, viewport dimensions and window rectangles; those
