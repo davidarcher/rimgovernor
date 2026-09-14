@@ -635,7 +635,17 @@ func serveBuildingWithBridge(ctx context.Context, config serveConfig, out io.Wri
 	if config.routineReviews {
 		routines = serviceRoutineDiagnostics{database, config.routineReviews, config.routineMethods, config.activeRoutineFamilies()}
 	}
-	server, err := httpapi.NewWithPlayer(httpapi.Config{ClockReview: clockReview, Routines: routines, Notifications: notifications, Presentation: presentation, PresentationMedia: client.presentationMedia, AssetsDir: config.assets, ReadTimeout: 35 * time.Second, ShutdownTimeout: 5 * time.Second, MaxResponseBytes: 1 << 20}, buildingSnapshots{reads, player}, database, player, database)
+	var worldEvaluation httpapi.WorldEvaluation
+	if config.worldEvaluation {
+		worldNative, ok := client.native.(buildingruntime.WorldEvaluationNative)
+		if !ok {
+			return errors.New("world evaluation requires typed world progression and colony fact observations")
+		}
+		if worldEvaluation, err = buildingruntime.NewWorldEvaluation(player, worldNative, policy.WorldEvaluationPolicy{TravelFoodMarginDays: config.worldEvaluationFoodMarginDays}); err != nil {
+			return err
+		}
+	}
+	server, err := httpapi.NewWithPlayer(httpapi.Config{ClockReview: clockReview, Routines: routines, WorldEvaluation: worldEvaluation, Notifications: notifications, Presentation: presentation, PresentationMedia: client.presentationMedia, AssetsDir: config.assets, ReadTimeout: 35 * time.Second, ShutdownTimeout: 5 * time.Second, MaxResponseBytes: 1 << 20}, buildingSnapshots{reads, player}, database, player, database)
 	if err != nil {
 		return err
 	}

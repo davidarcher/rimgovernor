@@ -143,6 +143,12 @@ func insertAction(ctx context.Context, tx *sql.Tx, plan domain.PlanID, ordinal i
 			return encodeErr
 		}
 		_, err = tx.ExecContext(ctx, "INSERT INTO actions(id,plan_id,ordinal,kind,travel_caravan_payload) VALUES(?,?,?,'travel_caravan',?)", a.ID(), plan, ordinal, data)
+	} else if trade, ok := a.Trade(); ok {
+		data, encodeErr := json.Marshal(tradePayload{trade.Kind(), trade.Trader(), trade.Negotiator(), trade.GiftMode(), trade.Lines(), trade.AllowPawns(), trade.ExpectedDealSignature(), trade.EconomicFloors(), trade.AllowEmpty(), trade.EndKind(), trade.ReceiveQuest()})
+		if encodeErr != nil {
+			return encodeErr
+		}
+		_, err = tx.ExecContext(ctx, "INSERT INTO actions(id,plan_id,ordinal,kind,trade_payload) VALUES(?,?,?,'trade',?)", a.ID(), plan, ordinal, data)
 	} else if relief, ok := a.MoodRelief(); ok {
 		job := relief.ExpectedJob()
 		data, encodeErr := json.Marshal(moodReliefPayload{relief.Need(), job.Idle, job.JobID, relief.ExpectedScheduleDef()})
@@ -161,8 +167,8 @@ func scanAction(rows *sql.Rows) (domain.Action, int, error) {
 	var ordinal int
 	var def, rotation, stuff, pawn, target, draftAction sql.NullString
 	var x, z sql.NullInt64
-	var work, zone, bill, caravan, settlementGiftBlob, questFulfillBlob, wallRemoval, productionPolicyBlob, buildingTemperatureBlob, travelCaravanBlob, moodReliefBlob []byte
-	if err := rows.Scan(&id, &kind, &def, &x, &z, &rotation, &stuff, &pawn, &target, &draftAction, &work, &zone, &bill, &caravan, &settlementGiftBlob, &questFulfillBlob, &wallRemoval, &productionPolicyBlob, &buildingTemperatureBlob, &travelCaravanBlob, &moodReliefBlob, &ordinal); err != nil {
+	var work, zone, bill, caravan, settlementGiftBlob, questFulfillBlob, wallRemoval, productionPolicyBlob, buildingTemperatureBlob, travelCaravanBlob, tradeBlob, moodReliefBlob []byte
+	if err := rows.Scan(&id, &kind, &def, &x, &z, &rotation, &stuff, &pawn, &target, &draftAction, &work, &zone, &bill, &caravan, &settlementGiftBlob, &questFulfillBlob, &wallRemoval, &productionPolicyBlob, &buildingTemperatureBlob, &travelCaravanBlob, &tradeBlob, &moodReliefBlob, &ordinal); err != nil {
 		return domain.Action{}, 0, err
 	}
 	if kind == "production_bill" && !pawn.Valid && !target.Valid && !draftAction.Valid && !def.Valid && !x.Valid && !z.Valid && !rotation.Valid && !stuff.Valid && work == nil && zone == nil {
@@ -387,6 +393,38 @@ func scanAction(rows *sql.Rows) (domain.Action, int, error) {
 	}
 	if moodReliefBlob != nil {
 		return domain.Action{}, 0, errors.New("mixed mood relief payload")
+	}
+	if kind == "trade" && !pawn.Valid && !target.Valid && !draftAction.Valid && !def.Valid && !x.Valid && !z.Valid && !rotation.Valid && !stuff.Valid {
+		var payload tradePayload
+		if len(tradeBlob) > 32768 || json.Unmarshal(tradeBlob, &payload) != nil {
+			return domain.Action{}, 0, errors.New("invalid trade payload")
+		}
+		canonical, _ := json.Marshal(payload)
+		if !bytes.Equal(canonical, tradeBlob) {
+			return domain.Action{}, 0, errors.New("noncanonical trade payload")
+		}
+		var value domain.Trade
+		var valueErr error
+		switch payload.Kind {
+		case domain.TradeOpen:
+			value, valueErr = domain.NewTradeOpen(payload.Trader, payload.Negotiator, payload.GiftMode)
+		case domain.TradeSetLines:
+			value, valueErr = domain.NewTradeSetLines(payload.Lines, payload.AllowPawns)
+		case domain.TradeAccept:
+			value, valueErr = domain.NewTradeAccept(payload.ExpectedDealSignature, payload.EconomicFloors, payload.AllowEmpty, payload.ReceiveQuest)
+		case domain.TradeEnd:
+			value, valueErr = domain.NewTradeEnd(payload.EndKind, payload.ReceiveQuest)
+		default:
+			valueErr = errors.New("unsupported trade operation kind")
+		}
+		if valueErr != nil {
+			return domain.Action{}, 0, valueErr
+		}
+		action, err := domain.NewTradeAction(id, value)
+		return action, ordinal, err
+	}
+	if tradeBlob != nil {
+		return domain.Action{}, 0, errors.New("mixed trade payload")
 	}
 	if kind == "owned_draft" && pawn.Valid && !target.Valid && !draftAction.Valid && !def.Valid && !x.Valid && !z.Valid && !rotation.Valid && !stuff.Valid {
 		d, e := domain.NewOwnedDraft(domain.PawnID(pawn.String))
@@ -681,4 +719,18 @@ type moodReliefPayload struct {
 	JobIdle     bool
 	JobID       int32
 	ScheduleDef string
+}
+
+type tradePayload struct {
+	Kind                  domain.TradeOperationKind
+	Trader                domain.SettlementID
+	Negotiator            domain.PawnID
+	GiftMode              bool
+	Lines                 []domain.TradeLine
+	AllowPawns            bool
+	ExpectedDealSignature string
+	EconomicFloors        []domain.TradeEconomicFloor
+	AllowEmpty            bool
+	EndKind               domain.TradeEndKind
+	ReceiveQuest          bool
 }

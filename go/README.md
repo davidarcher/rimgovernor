@@ -41,9 +41,12 @@ Python interpreter, venv or `controller/` package. What it covers today is
 bounded by the closed executor action set (building, owned draft, melee) and
 the construction planners wired in `serve_clock.go` — see
 [the migration review](../docs/developers/go-migration-review.md) for the exact
-capability boundary. It does not do player chat, save/load, media/camera
-controls or world progression; those stay in Python until G01.08/G01.09/G01.07f
-land.
+capability boundary. It does not do player chat, save/load or media/camera
+controls; those stay in Python until G01.08/G01.09 land. Caravan departure and
+travel, quest accept/fulfill, settlement gifting and trade run through Go,
+alongside the read-only world-evaluation advisory report (G01.07f); the
+richer read-only expedition-risk advisory remains open, tracked on
+[issue #28](https://github.com/davidarcher/rimgovernor/issues/28).
 
 **Windows**, from the repository root:
 
@@ -99,7 +102,32 @@ confirm the packaging path is wired correctly, not that a colony runs.
 - Player chat and local-model command interpretation (`player_commands.py`,
   `interpreter/decode.go` only accepts building proposals) — G01.08.
 - Media/camera/portrait/video/recording and trusted save/load — G01.09.
-- World progression: caravans, quests, settlement gifts, multi-map — G01.07f.
+- World progression remaining scope: the richer read-only expedition-risk
+  advisory (`evaluate_expedition` in
+  `controller/rimgovernor/expedition_policy.py`), and native acceptance
+  harnesses for quest accept, settlement gift and trade — G01.07f
+  ([issue #28](https://github.com/davidarcher/rimgovernor/issues/28)).
+  `evaluate_expedition` remains Python-only because it needs native route
+  temperature/hostility/goodwill fields Go does not read yet.
+  Caravan departure/travel, quest accept/fulfill, settlement gift and trade
+  themselves are closed, each with domain/policy/store/executor/bridge and
+  httpapi wiring (trade's `set_lines`/`accept`/`end` sub-operations resolve
+  their open session via same-plan `ActionDependency`, not a native read —
+  see `go/internal/store/trade_session.go`). Only `trade_open` resolves
+  end to end through the direct single-action submission surface
+  (`POST /api/trades/plans`, mirroring `SubmitQuestFulfill`'s shape): a
+  `set_lines`/`accept`/`end` submitted the same way has no sibling action to
+  depend on and holds on `TradeSessionUnresolved` forever rather than
+  misbehaving — composing a dependent multi-action trade plan needs a plan
+  extension/amendment submission path that does not exist yet, a follow-up
+  item. Caravan departure and travel
+  additionally have native acceptance harnesses
+  (`nativeaccept/cmd/caravandepartureaccept`,
+  `nativeaccept/cmd/caravancontrolaccept`). The read-only `evaluate_world`
+  advisory (caravan recovery, quest resource deficits/carried cargo) is also
+  in Go, served at `GET /api/player/world-evaluation` behind
+  `--world-evaluation` (`buildingruntime.WorldEvaluation`,
+  `policy.EvaluateWorld`).
 - Most routine workflows beyond construction: cooking/butcher bill execution,
   care/tend/rescue/defense dispatch beyond compiled plans, and other
   non-building executable actions — G01.05/G01.07a–c/e (many `--routine-*-plans`

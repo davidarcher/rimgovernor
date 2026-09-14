@@ -9,26 +9,70 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
+// WorldRouteFact is one native player-home route row (WorldRoute proto) from
+// a caravan's home_routes census (NativeWorldProgressionObservation.cs's
+// HomeRoutes(Caravan) helper populates one row per player-home map).
+// EstimatedTicksKnown is false when native reports no travel-time estimate
+// for that route (for example, an unreachable route); Reachable is always
+// populated. Nothing here proves the route is still valid at dispatch time --
+// it is only ever the world-evaluation advisory's read of a same-tick census.
+type WorldRouteFact struct {
+	DestinationMapID    int32
+	Reachable           bool
+	EstimatedTicks      int64
+	EstimatedTicksKnown bool
+}
+
+// CaravanPawnFact is one crew member's identity and dead/downed status from
+// a caravan's world-progression pawn census. DeadKnown/DownedKnown are false
+// only when native's own optional PawnState fields are absent; the
+// world-evaluation advisory's health check treats an absent fact the same
+// as Python's `p.get('dead') is False` -- not proven alive, not healthy.
+type CaravanPawnFact struct {
+	ID          string
+	Dead        bool
+	DeadKnown   bool
+	Downed      bool
+	DownedKnown bool
+}
+
 // CaravanJourney is the validated subset of one player caravan's world-progression
-// census row that travel/arrival tracking needs: its native identity, whether
-// it is still moving, and the crew currently aboard. It exists so a boundary
-// can tell "still travelling" from "no longer a caravan" (the World Object
-// disappears once its pawns enter any map, home or foreign) without depending
-// on FormCaravan's own attempt/receipt machinery, which only ever reports
-// "did native form and start this caravan" (see NativeCaravanRecord's doc
-// comment). This type does not surface CaravanState.pawns' full PawnState,
-// home_routes or mass/food fields; a future slice adds those once Go's
-// return-storage/failure-recovery workflow needs them. Silver is the one
+// census row that travel/arrival tracking and the read-only world-evaluation
+// advisory need: its native identity, whether it is still moving, the crew
+// currently aboard (with dead/downed status), its home routes and remaining
+// travel food, and its full cargo census. It exists so a boundary can tell
+// "still travelling" from "no longer a caravan" (the World Object disappears
+// once its pawns enter any map, home or foreign) without depending on
+// FormCaravan's own attempt/receipt machinery, which only ever reports "did
+// native form and start this caravan" (see NativeCaravanRecord's doc
+// comment). This type does not surface CaravanState.pawns' remaining
+// PawnState fields (needs, health details, and so on) or mass fields; a
+// future slice adds those once a caller needs them. Silver is the one
 // inventory quantity settlement-gift admission needs (a conservative reserve
-// check, not a full cargo manifest); native always populates the full
-// inventory census (Inventory() has no failure path), so an absent Silver
-// row is a known zero, not unknown.
+// check, not a full cargo manifest) and stays alongside the full Inventory
+// map for that existing caller; native always populates the full inventory
+// census (Inventory() has no failure path), so an absent Silver row is a
+// known zero, not unknown. FoodDaysKnown mirrors that same "absent is a
+// known fact, not a gap" discipline for CaravanState.food_days, which native
+// reports as an optional double.
 type CaravanJourney struct {
-	ID      string
-	Tile    int32
-	Moving  bool
-	PawnIDs []string
-	Silver  int32
+	ID            string
+	Tile          int32
+	Moving        bool
+	PawnIDs       []string
+	Pawns         []CaravanPawnFact
+	Silver        int32
+	FoodDays      float64
+	FoodDaysKnown bool
+	HomeRoutes    []WorldRouteFact
+	// Inventory is the full per-caravan cargo census (defName -> units),
+	// aggregated by native across every pawn aboard
+	// (CaravanInventoryUtility.AllInventoryItems). The read-only
+	// world-evaluation advisory treats this caravan-level total as a
+	// caravan's carried cargo rather than re-deriving it pawn by pawn, a
+	// narrower but equivalent read of the same native aggregate Python's
+	// evaluate_world instead summed from each pawn's own inventory list.
+	Inventory map[string]int64
 }
 
 // QuestOffer is the validated subset of one WorldProgressionSnapshot.quests
@@ -62,8 +106,27 @@ type QuestOffer struct {
 	// it unknown -- never guessed.
 	TradeDestinationTile  int32
 	TradeDestinationKnown bool
-	EligiblePawnIDs       []string
-	SnapshotToken         string
+	// TradeRequests is the quest's full native settlement trade objective
+	// list (QuestTradeRequest rows), kept alongside HasTradeRequest/
+	// TradeDestinationTile rather than replacing them -- FulfillQuest's
+	// boundary depends on those existing fields, and the read-only
+	// world-evaluation advisory needs the full resource/count list they
+	// summarize instead.
+	TradeRequests   []QuestTradeRequestFact
+	EligiblePawnIDs []string
+	SnapshotToken   string
+}
+
+// QuestTradeRequestFact is one native settlement trade objective row
+// (QuestTradeRequest proto) from a quest's trade_requests census: the
+// required resource def name and count, and the settlement's destination
+// tile. Nothing here proves the objective is still live or that any
+// particular caravan can fulfill it -- it is only the world-evaluation
+// advisory's read of a same-tick census.
+type QuestTradeRequestFact struct {
+	Resource        string
+	Count           int64
+	DestinationTile int32
 }
 
 // WorldMap is the validated subset of one WorldProgressionSnapshot.maps row
@@ -185,6 +248,7 @@ func worldProgressionSelected(v *o.WorldProgressionSnapshot, identity *c.Identit
 			return WorldProgressionRead{}, contract("invalid world progression caravan tile or crew")
 		}
 		pawnIDs := make([]string, len(row.Pawns))
+		pawns := make([]CaravanPawnFact, len(row.Pawns))
 		seenPawns := map[string]bool{}
 		for j, pawn := range row.Pawns {
 			if pawn == nil || pawn.Pawn == nil || validID(pawn.Pawn.GetId()) != nil || seenPawns[pawn.Pawn.GetId()] {
@@ -192,25 +256,59 @@ func worldProgressionSelected(v *o.WorldProgressionSnapshot, identity *c.Identit
 			}
 			seenPawns[pawn.Pawn.GetId()] = true
 			pawnIDs[j] = pawn.Pawn.GetId()
+			fact := CaravanPawnFact{ID: pawn.Pawn.GetId()}
+			if pawn.Dead != nil {
+				fact.Dead, fact.DeadKnown = pawn.GetDead(), true
+			}
+			if pawn.Downed != nil {
+				fact.Downed, fact.DownedKnown = pawn.GetDowned(), true
+			}
+			pawns[j] = fact
 		}
 		if len(row.Inventory) > 4096 {
 			return WorldProgressionRead{}, contract("world progression caravan inventory exceeds bound")
 		}
 		var silver int32
+		inventory := make(map[string]int64, len(row.Inventory))
 		seenDefs := map[string]bool{}
 		for _, item := range row.Inventory {
-			if item == nil || item.DefName == nil || seenDefs[item.GetDefName()] {
+			if item == nil || item.DefName == nil || seenDefs[item.GetDefName()] || item.Units == nil || item.GetUnits() < 0 {
 				return WorldProgressionRead{}, contract("invalid or duplicate world progression caravan inventory row")
 			}
 			seenDefs[item.GetDefName()] = true
+			inventory[item.GetDefName()] = item.GetUnits()
 			if item.GetDefName() == "Silver" {
-				if item.Units == nil || item.GetUnits() < 0 || item.GetUnits() > math.MaxInt32 {
+				if item.GetUnits() > math.MaxInt32 {
 					return WorldProgressionRead{}, contract("invalid world progression caravan silver")
 				}
 				silver = int32(item.GetUnits())
 			}
 		}
-		rows[i] = CaravanJourney{ID: row.Caravan.GetId(), Tile: row.GetTile(), Moving: row.GetMoving(), PawnIDs: pawnIDs, Silver: silver}
+		if len(row.HomeRoutes) > 64 {
+			return WorldProgressionRead{}, contract("world progression caravan home routes exceed bound")
+		}
+		routes := make([]WorldRouteFact, len(row.HomeRoutes))
+		for k, route := range row.HomeRoutes {
+			if route == nil || route.Destination == nil || route.GetDestination() < 0 || route.Reachable == nil {
+				return WorldProgressionRead{}, contract("invalid world progression caravan home route")
+			}
+			fact := WorldRouteFact{DestinationMapID: route.GetDestination(), Reachable: route.GetReachable()}
+			if route.EstimatedTicks != nil {
+				if route.GetEstimatedTicks() < 0 {
+					return WorldProgressionRead{}, contract("invalid world progression caravan home route ticks")
+				}
+				fact.EstimatedTicks, fact.EstimatedTicksKnown = route.GetEstimatedTicks(), true
+			}
+			routes[k] = fact
+		}
+		if !combatNumber(row.FoodDays, true) {
+			return WorldProgressionRead{}, contract("invalid world progression caravan food days")
+		}
+		journey := CaravanJourney{ID: row.Caravan.GetId(), Tile: row.GetTile(), Moving: row.GetMoving(), PawnIDs: pawnIDs, Pawns: pawns, Silver: silver, HomeRoutes: routes, Inventory: inventory}
+		if row.FoodDays != nil {
+			journey.FoodDays, journey.FoodDaysKnown = row.GetFoodDays(), true
+		}
+		rows[i] = journey
 	}
 	if len(v.Quests) > 256 {
 		return WorldProgressionRead{}, contract("world progression quests exceed bound")
@@ -248,6 +346,18 @@ func worldProgressionSelected(v *o.WorldProgressionSnapshot, identity *c.Identit
 		if len(row.TradeRequests) == 1 && row.TradeRequests[0] != nil && row.TradeRequests[0].Destination != nil {
 			quest.TradeDestinationTile, quest.TradeDestinationKnown = row.TradeRequests[0].GetDestination(), true
 		}
+		requests := make([]QuestTradeRequestFact, len(row.TradeRequests))
+		for k, request := range row.TradeRequests {
+			// Matches the existing TradeDestinationTile/TradeDestinationKnown
+			// tolerance above: a missing resource, count or destination on one
+			// row is not malformed evidence (native's own QuestTradeRequest
+			// fields are all optional), only a negative count/destination is.
+			if request == nil || request.GetCount() < 0 || request.GetDestination() < 0 {
+				return WorldProgressionRead{}, contract("invalid world progression quest trade request")
+			}
+			requests[k] = QuestTradeRequestFact{Resource: request.GetResource(), Count: request.GetCount(), DestinationTile: request.GetDestination()}
+		}
+		quest.TradeRequests = requests
 		quests[i] = quest
 	}
 	return WorldProgressionRead{Context: v.Context, Maps: maps, Caravans: rows, Quests: quests}, nil
