@@ -176,6 +176,39 @@ type PopulationPolicy struct {
 	Maximum  int32   `json:"maximum"`
 	FoodDays float64 `json:"foodDays"`
 }
+// ExpeditionPolicy is the wire shape for a whole set of expedition risk
+// limits, as read back from the server. Like PopulationPolicy it is
+// configuration rather than a plan action, so it carries no entity identity
+// and no before-token.
+type ExpeditionPolicy struct {
+	MinimumHomeColonists          int32   `json:"minimumHomeColonists"`
+	MinimumHomeFoodDays           float64 `json:"minimumHomeFoodDays"`
+	TravelFoodMarginDays          float64 `json:"travelFoodMarginDays"`
+	MaximumTravelDays             float64 `json:"maximumTravelDays"`
+	MaximumCaravans               int32   `json:"maximumCaravans"`
+	MinimumGoodwill               int32   `json:"minimumGoodwill"`
+	MinimumDestinationTemperature float64 `json:"minimumDestinationTemperature"`
+	MaximumDestinationTemperature float64 `json:"maximumDestinationTemperature"`
+	KeepHomeDoctor                bool    `json:"keepHomeDoctor"`
+	RequireReturnStorage          bool    `json:"requireReturnStorage"`
+}
+
+// ExpeditionPolicyPatch is the wire shape a player sends: only the limits
+// being changed. Every field is a pointer and omitted when unset, because an
+// absent field means "keep the established value" rather than any particular
+// number, and an explicit false is a real requested value.
+type ExpeditionPolicyPatch struct {
+	MinimumHomeColonists          *int32   `json:"minimumHomeColonists,omitempty"`
+	MinimumHomeFoodDays           *float64 `json:"minimumHomeFoodDays,omitempty"`
+	TravelFoodMarginDays          *float64 `json:"travelFoodMarginDays,omitempty"`
+	MaximumTravelDays             *float64 `json:"maximumTravelDays,omitempty"`
+	MaximumCaravans               *int32   `json:"maximumCaravans,omitempty"`
+	MinimumGoodwill               *int32   `json:"minimumGoodwill,omitempty"`
+	MinimumDestinationTemperature *float64 `json:"minimumDestinationTemperature,omitempty"`
+	MaximumDestinationTemperature *float64 `json:"maximumDestinationTemperature,omitempty"`
+	KeepHomeDoctor                *bool    `json:"keepHomeDoctor,omitempty"`
+	RequireReturnStorage          *bool    `json:"requireReturnStorage,omitempty"`
+}
 type DraftCleanup struct {
 	Stage domain.DraftCleanupStage `json:"stage"`
 }

@@ -5,6 +5,8 @@ import (
 	"encoding/json"
 	"io"
 	"unicode/utf8"
+
+	"github.com/davidarcher/RimGovernor/go/internal/domain"
 )
 
 // modelBuilding is an untrusted proposal, separate from native transport types.
@@ -95,6 +97,29 @@ type modelCommand struct {
 	// entity, so there is nothing to bound against facts.
 	Maximum  *int32
 	FoodDays *float64
+	// ExpeditionPolicy holds set_expedition_policy's requested subset of the
+	// expedition risk limits. Unlike every other command here the request is
+	// a partial patch, so absence is meaningful and the field stays nil when
+	// the command is something else.
+	ExpeditionPolicy *modelExpeditionPolicy
+}
+
+// modelExpeditionPolicy is an untrusted partial expedition policy request.
+// Pointers distinguish a limit the player asked to change from one that must
+// keep whatever value is already in force; at least one must be present.
+// Like set_population_policy these are plain bounded numbers and flags that
+// name no observed entity, so there is nothing to bound against facts.
+type modelExpeditionPolicy struct {
+	MinimumHomeColonists          *int32   `json:"minimumHomeColonists"`
+	MinimumHomeFoodDays           *float64 `json:"minimumHomeFoodDays"`
+	TravelFoodMarginDays          *float64 `json:"travelFoodMarginDays"`
+	MaximumTravelDays             *float64 `json:"maximumTravelDays"`
+	MaximumCaravans               *int32   `json:"maximumCaravans"`
+	MinimumGoodwill               *int32   `json:"minimumGoodwill"`
+	MinimumDestinationTemperature *float64 `json:"minimumDestinationTemperature"`
+	MaximumDestinationTemperature *float64 `json:"maximumDestinationTemperature"`
+	KeepHomeDoctor                *bool    `json:"keepHomeDoctor"`
+	RequireReturnStorage          *bool    `json:"requireReturnStorage"`
 }
 
 func decode(text string, limit int) (modelCommand, error) {
@@ -158,8 +183,10 @@ func decode(text string, limit int) (modelCommand, error) {
 		return decodeEditZone(fields)
 	case "set_population_policy":
 		return decodeSetPopulationPolicy(fields)
+	case "set_expedition_policy":
+		return decodeSetExpeditionPolicy(fields)
 	default:
-		return modelCommand{}, fail(UnsupportedCommand, "only building, research, tend, rescue, draft, caravan, husbandry, recover, bed_assign, move_pawn, set_building_temperature, request_surgery, hold_caravan, route_caravan, accept_quest, fulfill_quest, gift_settlement, create_zone, edit_zone and set_population_policy proposals are supported")
+		return modelCommand{}, fail(UnsupportedCommand, "only building, research, tend, rescue, draft, caravan, husbandry, recover, bed_assign, move_pawn, set_building_temperature, request_surgery, hold_caravan, route_caravan, accept_quest, fulfill_quest, gift_settlement, create_zone, edit_zone, set_population_policy and set_expedition_policy proposals are supported")
 	}
 }
 
@@ -428,6 +455,55 @@ func decodeSetPopulationPolicy(fields map[string]json.RawMessage) (modelCommand,
 		return modelCommand{}, fail(InvalidCommand, "invalid foodDays field")
 	}
 	return modelCommand{Command: "set_population_policy", Maximum: &maximum, FoodDays: &foodDays}, nil
+}
+
+// optionalCommandField turns a decoded partial-request pointer into the
+// comparable domain.Optional the domain and store layers carry.
+func optionalCommandField[T comparable](value *T) domain.Optional[T] {
+	if value == nil {
+		return domain.Optional[T]{}
+	}
+	return domain.Some(*value)
+}
+
+// expeditionPolicyFieldNames is the closed set of limits a
+// set_expedition_policy request may name.
+var expeditionPolicyFieldNames = map[string]bool{
+	"minimumHomeColonists": true, "minimumHomeFoodDays": true, "travelFoodMarginDays": true,
+	"maximumTravelDays": true, "maximumCaravans": true, "minimumGoodwill": true,
+	"minimumDestinationTemperature": true, "maximumDestinationTemperature": true,
+	"keepHomeDoctor": true, "requireReturnStorage": true,
+}
+
+// decodeSetExpeditionPolicy reads the subset of expedition limits the request
+// names. Unlike every other command here the field set is variable, because
+// the request is a partial patch: an absent limit keeps whatever value is
+// already in force, so only unknown names, nulls and an empty request are
+// refused on shape. The numeric ranges and the destination-temperature
+// cross-check belong to domain.ExpeditionPolicyPatch.
+func decodeSetExpeditionPolicy(fields map[string]json.RawMessage) (modelCommand, error) {
+	if len(fields) < 2 {
+		return modelCommand{}, fail(InvalidCommand, "unexpected command fields")
+	}
+	supplied := make(map[string]json.RawMessage, len(fields)-1)
+	for key, value := range fields {
+		if key == "command" {
+			continue
+		}
+		if !expeditionPolicyFieldNames[key] || bytes.Equal(bytes.TrimSpace(value), []byte("null")) {
+			return modelCommand{}, fail(InvalidCommand, "unexpected command fields")
+		}
+		supplied[key] = value
+	}
+	payload, err := json.Marshal(supplied)
+	if err != nil {
+		return modelCommand{}, fail(InvalidCommand, "unexpected command fields")
+	}
+	var policy modelExpeditionPolicy
+	if err = json.Unmarshal(payload, &policy); err != nil {
+		return modelCommand{}, fail(InvalidCommand, "invalid expedition policy field")
+	}
+	return modelCommand{Command: "set_expedition_policy", ExpeditionPolicy: &policy}, nil
 }
 
 func decodeSurgery(fields map[string]json.RawMessage) (modelCommand, error) {

@@ -1425,3 +1425,69 @@ func TestSetPopulationPolicyRefusesOutOfRangeValues(t *testing.T) {
 		})
 	}
 }
+
+// An expedition policy is configuration too, and is carried as the partial
+// patch the player asked for: the interpreter cannot see the limits in force,
+// so it must not invent values for the limits the request leaves alone.
+func TestSetExpeditionPolicyProposalCarriesOnlyRequestedLimits(t *testing.T) {
+	response := func(context.Context, model.Request) (model.Response, error) {
+		return model.Response{Text: `{"command":"set_expedition_policy","maximumTravelDays":9.5,"keepHomeDoctor":false}`, FinishReason: model.Stop}, nil
+	}
+	proposal, err := clientFixture(t, response).Interpret(context.Background(), inputFixture())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if proposal.ExpeditionPolicy.Empty() {
+		t.Fatal("an expedition policy proposal must carry the request")
+	}
+	if value, ok := proposal.ExpeditionPolicy.MaximumTravelDays.Get(); !ok || value != 9.5 {
+		t.Fatal("incorrect typed expedition policy proposal", proposal.ExpeditionPolicy)
+	}
+	if value, ok := proposal.ExpeditionPolicy.KeepHomeDoctor.Get(); !ok || value {
+		t.Fatal("an explicit false must survive as a supplied value", proposal.ExpeditionPolicy)
+	}
+	// Everything the request did not name must stay absent so the store can
+	// preserve whatever is already in force.
+	if proposal.ExpeditionPolicy.MinimumHomeColonists.Present() || proposal.ExpeditionPolicy.RequireReturnStorage.Present() {
+		t.Fatal("unrequested limits must not be invented", proposal.ExpeditionPolicy)
+	}
+	if len(proposal.Plan.Actions()) != 0 || proposal.PopulationPolicy.Set() {
+		t.Fatal("an expedition policy must propose no actions and no other policy")
+	}
+	if proposal.Generation != inputFixture().Current {
+		t.Fatal("expedition policy must resolve against the input generation")
+	}
+	// A later merge is the store's job; the proposal preserves the earlier
+	// value by omission alone.
+	merged, err := proposal.ExpeditionPolicy.Apply(domain.DefaultExpeditionPolicy())
+	if err != nil || merged.MaximumTravelDays() != 9.5 || merged.KeepHomeDoctor() ||
+		merged.MinimumHomeColonists() != 1 || !merged.RequireReturnStorage() {
+		t.Fatal(merged, err)
+	}
+}
+
+func TestSetExpeditionPolicyRefusesOutOfRangeValues(t *testing.T) {
+	for _, text := range []string{
+		`{"command":"set_expedition_policy","minimumHomeColonists":0}`,
+		`{"command":"set_expedition_policy","minimumHomeColonists":101}`,
+		`{"command":"set_expedition_policy","minimumHomeFoodDays":61}`,
+		`{"command":"set_expedition_policy","travelFoodMarginDays":-1}`,
+		`{"command":"set_expedition_policy","maximumTravelDays":0}`,
+		`{"command":"set_expedition_policy","maximumTravelDays":61}`,
+		`{"command":"set_expedition_policy","maximumCaravans":21}`,
+		`{"command":"set_expedition_policy","minimumGoodwill":101}`,
+		`{"command":"set_expedition_policy","minimumDestinationTemperature":51}`,
+		`{"command":"set_expedition_policy","maximumDestinationTemperature":-51}`,
+		// Both ends supplied at once are cross-checked here, where both are
+		// known; a lone end is cross-checked at merge time instead.
+		`{"command":"set_expedition_policy","minimumDestinationTemperature":40,"maximumDestinationTemperature":10}`,
+	} {
+		t.Run(text, func(t *testing.T) {
+			response := func(context.Context, model.Request) (model.Response, error) {
+				return model.Response{Text: text, FinishReason: model.Stop}, nil
+			}
+			_, err := clientFixture(t, response).Interpret(context.Background(), inputFixture())
+			assertKind(t, err, InvalidCommand)
+		})
+	}
+}

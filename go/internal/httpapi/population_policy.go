@@ -80,10 +80,11 @@ func projectPopulationPolicySubmission(v store.PopulationPolicySubmission) (popu
 	return populationPolicySubmissionDTO{v.Request.RequestID, playerWorldDTO(v.Request.World), populationPolicyWire(v.Request.Policy), populationPolicyWire(v.Current)}, nil
 }
 
-// populationPolicyWorld reads a colonyId/loadToken/mapId query triple. The
-// current policy is scoped per world rather than per plan, so a read cannot
-// borrow work-preferences' single planId query shape.
-func populationPolicyWorld(query url.Values) (store.World, error) {
+// policyWorld reads a colonyId/loadToken/mapId query triple, shared by the
+// population and expedition policy reads. A current policy is scoped per
+// world rather than per plan, so a read cannot borrow work-preferences'
+// single planId query shape.
+func policyWorld(query url.Values) (store.World, error) {
 	var world store.World
 	colony, load, mapID := query["colonyId"], query["loadToken"], query["mapId"]
 	if len(query) != 3 || len(colony) != 1 || len(load) != 1 || len(mapID) != 1 {
@@ -162,7 +163,7 @@ func (s *Server) handlePopulationPolicy(ctx context.Context, w http.ResponseWrit
 		}
 		s.write(w, r, 200, dto)
 	default:
-		world, err := populationPolicyWorld(query)
+		world, err := policyWorld(query)
 		if err != nil {
 			s.failure(w, r, 400, "invalid_query", "One colonyId, loadToken and mapId are required")
 			return

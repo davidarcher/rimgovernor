@@ -108,8 +108,8 @@ confirm the packaging path is wired correctly, not that a colony runs.
   service, bed assignment, movement, building temperature, surgery, quest
   accept/fulfill, settlement gift, zone creation, zone edit (add/remove
   cells, delete; crop/filter edits are deferred pending SettingsField zone
-  evidence coverage) and population policy proposals, but is not yet wired
-  into the Go binary's serve loop) — G01.08.
+  evidence coverage), population policy and expedition policy proposals, but
+  is not yet wired into the Go binary's serve loop) — G01.08.
   `set_population_policy` is the first interpreted command that is colony
   configuration rather than a plan of native actions: it issues no native
   call, so it carries no `domain.Action`, no bridge boundary and no
@@ -120,6 +120,26 @@ confirm the packaging path is wired correctly, not that a colony runs.
   `POST /api/player/population-policy/replace`,
   `GET /api/player/population-policy?colonyId=&loadToken=&mapId=` and
   `GET /api/player/population-policy/submission?requestId=`.
+  `set_expedition_policy` follows the same configuration-only path, with one
+  difference: it is a **partial patch**, mirroring Python's
+  `model_dump(exclude_unset=True)` merge. A request names only the limits it
+  changes; `store.SubmitExpeditionPolicy` merges it over the limits in force
+  (or over `domain.DefaultExpeditionPolicy` for a world that has never had
+  one), validates the merged whole including the
+  `minimumDestinationTemperature <= maximumDestinationTemperature` check, and
+  stores both the patch and the policy it produced so a replay reports what
+  that request did without re-merging it onto a newer current value.
+  `interpreter.Proposal.ExpeditionPolicy` therefore carries a
+  `domain.ExpeditionPolicyPatch`, not a whole policy —
+  `POST /api/player/expedition-policy/update` (named `/update`, not
+  `/replace`, precisely because unnamed limits are preserved),
+  `GET /api/player/expedition-policy?colonyId=&loadToken=&mapId=` and
+  `GET /api/player/expedition-policy/submission?requestId=`.
+  `domain.ExpeditionPolicy` is the writable player-facing whole and is
+  deliberately **not** unified with `policy.CaravanDeparturePolicy` or
+  `policy.WorldEvaluationPolicy`, which stay hardcoded read-only subsets
+  consumed by internal admission/evaluation functions; making those read
+  this store is a separate refactor.
 - Media/camera/portrait/video/recording and trusted save/load — G01.09.
 - World progression remaining scope: closed, except the documented
   `SetTradeLines`/`AcceptTrade`/`EndTrade` acceptance-harness gap below —
