@@ -879,40 +879,43 @@ without pushes, when the target checkout is safe; preserve other developers' wor
     (an explicit narrowing above), so this remains gated on extending that
     same read, not separately landable first.
 
-    The native `SetProductionPolicy` floors/commitments push
-    (`production_policy.py`'s `sync_production_policy`) was re-investigated
-    as a candidate independent of the above (no `ListResourceSources`
-    dependency), and the wire contract does already exist —
-    `contracts/proto/operations.proto`'s `SetProductionPolicy` message is a
-    case in the shared `Operation` oneof, and
-    `observations.proto`'s `ProductionPolicySnapshot`/`ReadProductionPolicy`
-    is a paired read — but neither has *any* native C# handler: not in
-    `NativeOperationTools.ExecuteNative`/`Preview`'s dispatch, and the only
-    working native implementation is the older untyped `home/production_policy`
-    MCP tool (`ProductionPolicyTool.cs`/`ProductionPolicyGuard`/
-    `ProductionPolicyState`, CSV-string arguments), which Go's `bridge.Client`
-    cannot call at all — `protoCall`/`protoRead`'s tool-name allowlist is a
-    deliberate closed transport seam admitting only reviewed typed
-    `rimgovernor/*` adapters. Wiring the typed `SetProductionPolicy` case
-    through the already-allowlisted `rimgovernor/operations_execute` name
-    is possible in principle, but production policy's write model (an
-    idempotent persistent budget, verified by reading it back, no
-    per-attempt progress to observe) doesn't fit the existing
-    attempt/lease/ledger `Execute` pattern every other operation handler
-    uses (see `NativeWorkSettings.Execute` for the shape: `EntityPrecondition`
-    + `NativeAttemptLedger.Admit` + authority-owned effect + `Receipts.Progress`
-    observation) — so this is a new native operation *shape*, not a copy of
-    an existing one, and a correspondingly sized effort, not the
-    smaller Go-only wiring task it was framed as. What is landed this round:
-    `policy.ProductionFloors` (`go/internal/policy/resource_production.go`),
-    a tested pure primitive porting `production_budgets`'s reserve/stopped
-    half only (the second half — outstanding unconfirmed construction-bundle
-    ingredient costs from Python's `plan.control['costs']` — has no Go
-    equivalent since it depends on the still-unported multi-step
-    staged-bundle admission model `MaintainStoneShell` above already needs),
-    plus new `RoutinePolicy.ResourceReserves`/`StoppedResources` config
-    fields it validates against. Like `SelectResourceSources`, it has no
-    caller yet.
+    The native `SetProductionPolicy` write and its paired
+    `ProductionPolicySnapshot`/`ReadProductionPolicy` read are now wired
+    end to end at the transport layer. A prior round's framing — that the
+    write's idempotent, verify-by-readback model "doesn't fit" the
+    attempt/lease/ledger `Execute` pattern — turned out to be wrong on
+    inspection: `NativeOperationTools.ExecuteNative` requires the full
+    `WritePrecondition` (generation/lease/attempt) for every operation kind
+    before any command-specific dispatch runs, and `NativeWorkSettings`
+    (pawn work priorities) is itself an idempotent set-and-verify write using
+    that exact shape, so it served directly as the template. New
+    `NativeProductionPolicyOperations.cs` implements Execute/Preview/Observe
+    (ledger admission, `ProductionPolicyGuard`/`ProductionPolicyState`
+    mutation reused from the legacy `ProductionPolicyTool.cs`, a CAS
+    snapshot token guarding the replace, `Receipts.ProductionPolicyEffect`
+    evidence) and is wired into `ExecuteNative`/`Preview`/`ObserveProgress`'s
+    dispatch; `NativeProductionPolicyObservationTools.cs` adds the read.
+    On the Go side, `bridge.PreviewProductionPolicy`/`ApplyProductionPolicy`/
+    `LookupProductionPolicy`/`ObserveProductionPolicyProgress`/
+    `ReadProductionPolicy` are new reviewed `protoCall`/`protoRead`
+    adapters, with contract-shape tests mirroring `gear_replace_test.go`'s
+    structure. Still open: nothing dispatches these methods yet.
+    `policy.ProductionFloors` (`go/internal/policy/resource_production.go`)
+    remains a tested pure primitive with no caller, and turning it into a
+    routine-scheduled push (task: read `ProductionFloors` against a fresh
+    `ReadProductionPolicy`, and when it diverges, drive
+    `ProductionPolicyWriter` through a committed plan) needs the same
+    domain/store/executor vertical every other native write in this
+    codebase goes through — a routine planner can only ever *propose* a
+    plan/action; the real lease/attempt precondition
+    `ApplyProductionPolicy` requires is manufactured solely inside the
+    executor's dispatch loop (`boundary.Boundary.Place`), and no
+    lighter-weight path (e.g. a one-action `store.SubmitDraft`-style
+    commit) applies here since that pattern is specific to player-owned
+    drafts, not routine-declared targets. That vertical (new `ActionKind`,
+    store rows, executor boundary, `RoutineProductionPolicyPlanner` behind
+    a `--routine-production-policy-plans` flag) is unattempted this round
+    and is the correctly-scoped next step, not a smaller follow-on.
 
     `EnsureBasicPower` is done. `MaintainMedicalReserves` is now code-complete too, following
     `GearProduce`'s exact pattern: `policy.SelectMedicineMethod` matches the
