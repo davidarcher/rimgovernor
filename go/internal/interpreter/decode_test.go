@@ -470,3 +470,41 @@ func TestModelCreateZoneShape(t *testing.T) {
 		})
 	}
 }
+
+func TestModelEditZoneShape(t *testing.T) {
+	add, err := decode(`{"command":"edit_zone","zoneId":"Zone_A","operation":"add","cells":[{"x":0,"z":0},{"x":1,"z":0}]}`, 1)
+	if err != nil || add.Command != "edit_zone" || add.ZoneID == nil || *add.ZoneID != "Zone_A" || add.ZoneOp == nil || *add.ZoneOp != "add" || len(add.ZoneCells) != 2 ||
+		*add.ZoneCells[0].X != 0 || *add.ZoneCells[0].Z != 0 || *add.ZoneCells[1].X != 1 || *add.ZoneCells[1].Z != 0 {
+		t.Fatalf("edit_zone add shape: %v %v", add, err)
+	}
+	remove, err := decode(`{"command":"edit_zone","zoneId":"Zone_A","operation":"remove","cells":[{"x":0,"z":0}]}`, 1)
+	if err != nil || remove.ZoneOp == nil || *remove.ZoneOp != "remove" || len(remove.ZoneCells) != 1 {
+		t.Fatalf("edit_zone remove shape: %v %v", remove, err)
+	}
+	del, err := decode(`{"command":"edit_zone","zoneId":"Zone_A","operation":"delete"}`, 1)
+	if err != nil || del.ZoneOp == nil || *del.ZoneOp != "delete" || len(del.ZoneCells) != 0 {
+		t.Fatalf("edit_zone delete shape: %v %v", del, err)
+	}
+	for _, text := range []string{
+		`{"command":"edit_zone"}`,
+		`{"command":"edit_zone","zoneId":"Zone_A"}`,
+		`{"command":"edit_zone","zoneId":"","operation":"delete"}`,
+		`{"command":"edit_zone","zoneId":null,"operation":"delete"}`,
+		`{"command":"edit_zone","operation":"delete"}`,
+		`{"command":"edit_zone","zoneId":"Zone_A","operation":null}`,
+		`{"command":"edit_zone","zoneId":"Zone_A","operation":"add"}`,
+		`{"command":"edit_zone","zoneId":"Zone_A","operation":"add","cells":[]}`,
+		`{"command":"edit_zone","zoneId":"Zone_A","operation":"add","cells":[{"x":0}]}`,
+		`{"command":"edit_zone","zoneId":"Zone_A","operation":"remove"}`,
+		`{"command":"edit_zone","zoneId":"Zone_A","operation":"delete","cells":[{"x":0,"z":0}]}`,
+		`{"command":"edit_zone","zoneId":"Zone_A","operation":"delete","dryRun":false}`,
+		`{"command":"edit_zone","zoneId":"Zone_A","operation":"crop"}`,
+		`{"command":"edit_zone","zoneId":"Zone_A","operation":"filter"}`,
+		`{"command":"edit_zone","zoneId":"Zone_A","operation":"bogus"}`,
+	} {
+		t.Run(text, func(t *testing.T) {
+			_, err := decode(text, 1)
+			assertKind(t, err, InvalidCommand)
+		})
+	}
+}

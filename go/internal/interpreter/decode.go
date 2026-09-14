@@ -85,6 +85,10 @@ type modelCommand struct {
 	ZoneKind, Preset, Priority, Crop *string
 	ZoneCells                        []modelCell
 	Allow                            []string
+	// ZoneID/ZoneOp hold edit_zone's target zone ID and operation ("add",
+	// "remove" or "delete"); ZoneCells (shared with create_zone) holds the
+	// requested delta cells for add/remove and is unused for delete.
+	ZoneID, ZoneOp *string
 }
 
 func decode(text string, limit int) (modelCommand, error) {
@@ -144,8 +148,10 @@ func decode(text string, limit int) (modelCommand, error) {
 		return decodeGiftSettlement(fields)
 	case "create_zone":
 		return decodeCreateZone(fields)
+	case "edit_zone":
+		return decodeEditZone(fields)
 	default:
-		return modelCommand{}, fail(UnsupportedCommand, "only building, research, tend, rescue, draft, caravan, husbandry, recover, bed_assign, move_pawn, set_building_temperature, request_surgery, hold_caravan, route_caravan, accept_quest, fulfill_quest, gift_settlement and create_zone proposals are supported")
+		return modelCommand{}, fail(UnsupportedCommand, "only building, research, tend, rescue, draft, caravan, husbandry, recover, bed_assign, move_pawn, set_building_temperature, request_surgery, hold_caravan, route_caravan, accept_quest, fulfill_quest, gift_settlement, create_zone and edit_zone proposals are supported")
 	}
 }
 
@@ -658,6 +664,43 @@ func decodeCreateZone(fields map[string]json.RawMessage) (modelCommand, error) {
 		}
 	default:
 		return modelCommand{}, fail(InvalidCommand, "invalid zoneKind field")
+	}
+}
+
+// decodeEditZone accepts only add, remove and delete operations. Crop and
+// filter are declared domain.ZoneEditOp values with no constructor this
+// slice (missing SettingsField evidence coverage), so any other requested
+// operation string — including "crop" and "filter" — is rejected here as an
+// unsupported operation, identically to an outright bogus value.
+func decodeEditZone(fields map[string]json.RawMessage) (modelCommand, error) {
+	if fields["zoneId"] == nil || fields["operation"] == nil || bytes.Equal(bytes.TrimSpace(fields["zoneId"]), []byte("null")) || bytes.Equal(bytes.TrimSpace(fields["operation"]), []byte("null")) {
+		return modelCommand{}, fail(InvalidCommand, "unexpected command fields")
+	}
+	var zoneID string
+	if err := json.Unmarshal(fields["zoneId"], &zoneID); err != nil || zoneID == "" {
+		return modelCommand{}, fail(InvalidCommand, "invalid zoneId field")
+	}
+	var op string
+	if err := json.Unmarshal(fields["operation"], &op); err != nil {
+		return modelCommand{}, fail(InvalidCommand, "invalid operation field")
+	}
+	switch op {
+	case "add", "remove":
+		if len(fields) != 4 || fields["cells"] == nil {
+			return modelCommand{}, fail(InvalidCommand, "unexpected command fields")
+		}
+		cells, err := decodeZoneCells(fields["cells"])
+		if err != nil {
+			return modelCommand{}, err
+		}
+		return modelCommand{Command: "edit_zone", ZoneID: &zoneID, ZoneOp: &op, ZoneCells: cells}, nil
+	case "delete":
+		if len(fields) != 3 {
+			return modelCommand{}, fail(InvalidCommand, "unexpected command fields")
+		}
+		return modelCommand{Command: "edit_zone", ZoneID: &zoneID, ZoneOp: &op}, nil
+	default:
+		return modelCommand{}, fail(InvalidCommand, "unsupported zone edit operation")
 	}
 }
 

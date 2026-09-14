@@ -824,6 +824,104 @@ func TestCreateZoneFactsValidatedAndBounded(t *testing.T) {
 	assertKind(t, err, InvalidInput)
 }
 
+func TestEditZoneAddRemoveDeleteProposals(t *testing.T) {
+	add := func(context.Context, model.Request) (model.Response, error) {
+		return model.Response{Text: `{"command":"edit_zone","zoneId":"Zone_A","operation":"add","cells":[{"x":0,"z":0},{"x":1,"z":0}]}`, FinishReason: model.Stop}, nil
+	}
+	input := inputFixture()
+	input.Facts.Cells = zoneCellFacts()
+	input.Facts.ObservedZones = []ZoneEditFact{{ZoneID: "Zone_A", Token: "token-1"}}
+	proposal, err := clientFixture(t, add).Interpret(context.Background(), input)
+	if err != nil {
+		t.Fatal(err)
+	}
+	actions := proposal.Plan.Actions()
+	if len(actions) != 1 || actions[0].ID() != "a1" {
+		t.Fatal("incorrect edit_zone action identity")
+	}
+	edit, ok := actions[0].ZoneEdit()
+	if !ok || edit.ZoneID() != "Zone_A" || edit.BeforeToken() != "token-1" || edit.Op() != domain.ZoneEditAdd || len(edit.Cells()) != 2 {
+		t.Fatal("incorrect typed edit_zone add proposal", edit)
+	}
+
+	remove := func(context.Context, model.Request) (model.Response, error) {
+		return model.Response{Text: `{"command":"edit_zone","zoneId":"Zone_A","operation":"remove","cells":[{"x":0,"z":0}]}`, FinishReason: model.Stop}, nil
+	}
+	input = inputFixture()
+	input.Facts.Cells = zoneCellFacts()
+	input.Facts.ObservedZones = []ZoneEditFact{{ZoneID: "Zone_A", Token: "token-1"}}
+	proposal, err = clientFixture(t, remove).Interpret(context.Background(), input)
+	if err != nil {
+		t.Fatal(err)
+	}
+	edit, ok = proposal.Plan.Actions()[0].ZoneEdit()
+	if !ok || edit.Op() != domain.ZoneEditRemove || len(edit.Cells()) != 1 {
+		t.Fatal("incorrect typed edit_zone remove proposal", edit)
+	}
+
+	del := func(context.Context, model.Request) (model.Response, error) {
+		return model.Response{Text: `{"command":"edit_zone","zoneId":"Zone_A","operation":"delete"}`, FinishReason: model.Stop}, nil
+	}
+	input = inputFixture()
+	input.Facts.ObservedZones = []ZoneEditFact{{ZoneID: "Zone_A", Token: "token-1"}}
+	proposal, err = clientFixture(t, del).Interpret(context.Background(), input)
+	if err != nil {
+		t.Fatal(err)
+	}
+	edit, ok = proposal.Plan.Actions()[0].ZoneEdit()
+	if !ok || edit.Op() != domain.ZoneEditDelete || len(edit.Cells()) != 0 {
+		t.Fatal("incorrect typed edit_zone delete proposal", edit)
+	}
+}
+
+func TestEditZoneRefusesUnknownFactsOrWrongActionCount(t *testing.T) {
+	add := `{"command":"edit_zone","zoneId":"Zone_A","operation":"add","cells":[{"x":0,"z":0},{"x":1,"z":0}]}`
+	del := `{"command":"edit_zone","zoneId":"Zone_A","operation":"delete"}`
+	for _, tc := range []struct {
+		name string
+		text string
+		edit func(*Input)
+	}{
+		{"unknown zone", add, func(in *Input) { in.Facts.Cells = zoneCellFacts() }},
+		{"unobserved cell", add, func(in *Input) { in.Facts.ObservedZones = []ZoneEditFact{{ZoneID: "Zone_A", Token: "token-1"}} }},
+		{"unknown zone delete", del, func(in *Input) {}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			response := func(context.Context, model.Request) (model.Response, error) {
+				return model.Response{Text: tc.text, FinishReason: model.Stop}, nil
+			}
+			input := inputFixture()
+			tc.edit(&input)
+			_, err := clientFixture(t, response).Interpret(context.Background(), input)
+			assertKind(t, err, UnknownFacts)
+		})
+	}
+	response := func(context.Context, model.Request) (model.Response, error) {
+		return model.Response{Text: del, FinishReason: model.Stop}, nil
+	}
+	input := inputFixture()
+	input.Facts.ObservedZones = []ZoneEditFact{{ZoneID: "Zone_A", Token: "token-1"}}
+	input.ActionIDs = append(input.ActionIDs, "a2")
+	_, err := clientFixture(t, response).Interpret(context.Background(), input)
+	assertKind(t, err, InvalidCommand)
+}
+
+func TestEditZoneFactsValidatedAndBounded(t *testing.T) {
+	i := clientFixture(t, func(context.Context, model.Request) (model.Response, error) {
+		t.Fatal("model called")
+		return model.Response{}, nil
+	})
+	input := inputFixture()
+	input.Facts.ObservedZones = []ZoneEditFact{{ZoneID: "Zone_A", Token: "token-1"}, {ZoneID: "Zone_A", Token: "token-2"}}
+	_, err := i.Interpret(context.Background(), input)
+	assertKind(t, err, InvalidInput)
+
+	input = inputFixture()
+	input.Facts.ObservedZones = []ZoneEditFact{{ZoneID: "", Token: "token-1"}}
+	_, err = i.Interpret(context.Background(), input)
+	assertKind(t, err, InvalidInput)
+}
+
 func TestCargoAndDestinationFactsValidatedAndBounded(t *testing.T) {
 	i := clientFixture(t, func(context.Context, model.Request) (model.Response, error) {
 		t.Fatal("model called")

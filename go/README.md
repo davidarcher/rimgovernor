@@ -106,8 +106,10 @@ confirm the packaging path is wired correctly, not that a colony runs.
   remains the live pipeline; `interpreter/decode.go` decodes build, research,
   tend, rescue, draft, caravan departure/hold/route, husbandry, recovery
   service, bed assignment, movement, building temperature, surgery, quest
-  accept/fulfill, settlement gift and zone creation proposals, but is not yet
-  wired into the Go binary's serve loop) — G01.08.
+  accept/fulfill, settlement gift, zone creation and zone edit (add/remove
+  cells, delete; crop/filter edits are deferred pending SettingsField zone
+  evidence coverage) proposals, but is not yet wired into the Go binary's
+  serve loop) — G01.08.
 - Media/camera/portrait/video/recording and trusted save/load — G01.09.
 - World progression remaining scope: closed, except the documented
   `SetTradeLines`/`AcceptTrade`/`EndTrade` acceptance-harness gap below —
