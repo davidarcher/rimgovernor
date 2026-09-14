@@ -405,10 +405,17 @@ func TestWorkerObserveTargetSerializesAcquireAndManualPreempts(t *testing.T) {
 	go func() { finished <- w.step(context.Background(), time.Now()) }()
 	<-entered
 	acquireDone := make(chan error, 1)
+	acquireStarted := make(chan struct{})
 	go func() {
+		close(acquireStarted)
 		_, err := w.player.Acquire(context.Background(), store.ControlRequest{RequestID: "queued", Kind: store.AcquireControl, World: playerWorld(v.Snapshot), Plan: v.Plan, Revision: 1})
 		acquireDone <- err
 	}()
+	// Give the queued Acquire a real chance to reach the epoch it must lose
+	// against before Manual runs; under scheduler contention the goroutine
+	// above can otherwise be delayed past Manual's epoch bump, read the new
+	// epoch instead of the stale one, and legitimately win the gate race.
+	<-acquireStarted
 	if f.acquires.Load() != 0 {
 		t.Fatal("Acquire passed reconciliation gate")
 	}
