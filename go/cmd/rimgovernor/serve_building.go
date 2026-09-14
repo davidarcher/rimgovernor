@@ -74,6 +74,7 @@ type buildingServiceBridge struct {
 	settlementGift      *buildingruntime.SettlementGiftCapabilities
 	questFulfill        *buildingruntime.QuestFulfillCapabilities
 	caravanDeparture    *buildingruntime.CaravanDepartureCapabilities
+	presentationMedia   *bridge.PresentationMedia
 }
 type buildingServiceOpener func(context.Context, bridge.ProcessConfig) (buildingServiceBridge, error)
 type ownedAuthority struct {
@@ -170,14 +171,18 @@ func openBuildingService(ctx context.Context, config bridge.ProcessConfig) (buil
 	if err != nil {
 		return buildingServiceBridge{}, errors.Join(err, client.Close())
 	}
+	presentationMedia, err := bridge.NewPresentationMedia(client)
+	if err != nil {
+		return buildingServiceBridge{}, errors.Join(err, client.Close())
+	}
 	return buildingServiceBridge{reads: client, native: client, authority: ownedAuthority{client, authority}, writes: writes,
-		bills:       &bill.BillCapabilities{Native: client, Writer: bills},
-		zones:       &zone.ZoneCapabilities{Native: client, Writer: zones},
-		acquisition:     &acquisition.AcquisitionCapabilities{Native: client, Writer: acquisitionWriter},
-		mineAcquisition: &mineacquisition.MineAcquisitionCapabilities{Native: client, Writer: acquisitionWriter},
-		work:        &work.WorkCapabilities{Native: client, Writer: workWriter},
-		supplies:    &supply.SupplyCapabilities{Native: client, Writer: supplies},
-		clock:       &buildingruntime.ClockCapabilities{Native: client, Writer: clock}, clockReads: client,
+		bills:               &bill.BillCapabilities{Native: client, Writer: bills},
+		zones:               &zone.ZoneCapabilities{Native: client, Writer: zones},
+		acquisition:         &acquisition.AcquisitionCapabilities{Native: client, Writer: acquisitionWriter},
+		mineAcquisition:     &mineacquisition.MineAcquisitionCapabilities{Native: client, Writer: acquisitionWriter},
+		work:                &work.WorkCapabilities{Native: client, Writer: workWriter},
+		supplies:            &supply.SupplyCapabilities{Native: client, Writer: supplies},
+		clock:               &buildingruntime.ClockCapabilities{Native: client, Writer: clock}, clockReads: client,
 		draft:               &draft.DraftCapabilities{Native: client, Writer: drafts, Cleanup: cleanup},
 		melee:               &melee.MeleeCapabilities{Native: client, Writer: attack},
 		ranged:              &ranged.RangedCapabilities{Native: client, Writer: attack},
@@ -196,7 +201,8 @@ func openBuildingService(ctx context.Context, config bridge.ProcessConfig) (buil
 		questAccept:         &buildingruntime.QuestAcceptCapabilities{Native: client, Writer: questAccept},
 		settlementGift:      &buildingruntime.SettlementGiftCapabilities{Native: client, Writer: settlementGift},
 		questFulfill:        &buildingruntime.QuestFulfillCapabilities{Native: client, Writer: questFulfill},
-		caravanDeparture:    &buildingruntime.CaravanDepartureCapabilities{Native: client, Writer: caravanDeparture, Policy: defaultCaravanDeparturePolicy}}, nil
+		caravanDeparture:    &buildingruntime.CaravanDepartureCapabilities{Native: client, Writer: caravanDeparture, Policy: defaultCaravanDeparturePolicy},
+		presentationMedia:   presentationMedia}, nil
 }
 
 type buildingWorldSource struct{ reads observation.Source }
@@ -525,7 +531,7 @@ func serveBuildingWithBridge(ctx context.Context, config serveConfig, out io.Wri
 	if config.clockControl {
 		clockReview = serviceClockReview{database, config.profile}
 	}
-	server, err := httpapi.NewWithPlayer(httpapi.Config{ClockReview: clockReview, Notifications: notifications, Presentation: presentation, AssetsDir: config.assets, ReadTimeout: 35 * time.Second, ShutdownTimeout: 5 * time.Second, MaxResponseBytes: 1 << 20}, buildingSnapshots{reads, player}, database, player, database)
+	server, err := httpapi.NewWithPlayer(httpapi.Config{ClockReview: clockReview, Notifications: notifications, Presentation: presentation, PresentationMedia: client.presentationMedia, AssetsDir: config.assets, ReadTimeout: 35 * time.Second, ShutdownTimeout: 5 * time.Second, MaxResponseBytes: 1 << 20}, buildingSnapshots{reads, player}, database, player, database)
 	if err != nil {
 		return err
 	}

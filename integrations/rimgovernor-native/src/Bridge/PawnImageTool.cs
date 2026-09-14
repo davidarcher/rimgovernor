@@ -1,4 +1,5 @@
 using System;
+using System.Diagnostics;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
@@ -22,7 +23,9 @@ namespace HomeBridge.BridgeTools
             try
             {
                 var pending = await ctx.MainThread.InvokeAsync(() => PawnImageCapture.Begin(pawnId, sessionId, view), cancellationToken);
-                return await pending.ConfigureAwait(false);
+                var result = await pending.ConfigureAwait(false);
+                return new { success = true, pawnId = result.PawnId, sessionId = result.SessionId,
+                    tick = result.Tick, pngBase64 = Convert.ToBase64String(result.Png) };
             }
             catch (InvalidOperationException error)
             {
@@ -32,16 +35,29 @@ namespace HomeBridge.BridgeTools
         }
     }
 
+    // The one result shape produced by a completed capture. The legacy JSON tool
+    // and the typed rimgovernor/presentation_capture_pawn tool each project this
+    // into their own reply shape; only one Harmony patch registration exists.
+    internal sealed class PawnCaptureResult
+    {
+        internal string PawnId, SessionId, View;
+        internal int Tick;
+        internal byte[] Png;
+        internal int Width, Height;
+        internal double ReadbackMs;
+    }
+
     // A single bounded request is serviced after map draw submission. The camera's
     // temporary offscreen target is restored synchronously before Unity presents it.
     public sealed class PawnImageCapture : MonoBehaviour
     {
         static PawnImageCapture instance;
-        static TaskCompletionSource<object> pending;
+        static TaskCompletionSource<PawnCaptureResult> pending;
         static string pawnId, sessionId, view;
         static Pawn pawn;
         static float deadline;
         static CellRect? extraView;
+        static Stopwatch stopwatch;
 
         static string Session()
         {
@@ -50,7 +66,7 @@ namespace HomeBridge.BridgeTools
                 identity.ColonyId + ":" + Find.CurrentMap.uniqueID + ":" + identity.LoadToken;
         }
 
-        public static Task<object> Begin(string id, string session, string kind)
+        internal static Task<PawnCaptureResult> Begin(string id, string session, string kind)
         {
             if (Application.isBatchMode || Find.Camera == null)
                 throw new InvalidOperationException("Pawn images require a rendered game");
@@ -70,8 +86,9 @@ namespace HomeBridge.BridgeTools
             }
             pawnId = id; sessionId = session; view = kind;
             deadline = Time.realtimeSinceStartup + 4;
+            stopwatch = Stopwatch.StartNew();
             RenderDemandDriver.Lease(5);
-            pending = new TaskCompletionSource<object>(TaskCreationOptions.RunContinuationsAsynchronously);
+            pending = new TaskCompletionSource<PawnCaptureResult>(TaskCreationOptions.RunContinuationsAsynchronously);
             return pending.Task;
         }
 
@@ -127,8 +144,14 @@ namespace HomeBridge.BridgeTools
                 if (Session() != sessionId || !pawn.Spawned || pawn.Map != Find.CurrentMap)
                     throw new InvalidOperationException("Loaded colony changed");
                 var bytes = view == "portrait" ? Portrait(pawn) : Follow(pawn);
-                pending.TrySetResult(new { success = true, pawnId, sessionId,
-                    tick = Find.TickManager.TicksGame, pngBase64 = Convert.ToBase64String(bytes) });
+                var elapsed = stopwatch?.Elapsed.TotalMilliseconds ?? 0;
+                pending.TrySetResult(new PawnCaptureResult
+                {
+                    PawnId = pawnId, SessionId = sessionId, View = view,
+                    Tick = Find.TickManager.TicksGame, Png = bytes,
+                    Width = view == "portrait" ? 192 : 640, Height = view == "portrait" ? 192 : 400,
+                    ReadbackMs = elapsed,
+                });
                 pending = null;
             }
             catch (Exception error) { Fail(error.Message); }

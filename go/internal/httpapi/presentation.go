@@ -18,7 +18,7 @@ import (
 
 func (s *Server) handlePresentation(w http.ResponseWriter, r *http.Request) bool {
 	switch r.URL.Path {
-	case "/api/presentation/camera", "/api/presentation/selection", "/api/presentation/colonists":
+	case "/api/presentation/camera", "/api/presentation/selection", "/api/presentation/colonists", "/api/presentation/render-state":
 	default:
 		return false
 	}
@@ -61,6 +61,11 @@ func (s *Server) handlePresentation(w http.ResponseWriter, r *http.Request) bool
 		err = cause
 		reply = value
 		observed = value.GetRoster().GetContext()
+	case "/api/presentation/render-state":
+		value, _, cause := s.config.Presentation.ReadRenderState(ctx, &p.ReadRequest{Identity: proto.Clone(wire).(*c.Identity)})
+		err = cause
+		reply = value
+		observed = value.GetStatus().GetContext()
 	}
 	s.writePresentation(w, r, ctx, identity, reply, observed, err)
 	return true

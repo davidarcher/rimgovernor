@@ -93,6 +93,50 @@ func (client *Client) ReadColonistRoster(ctx context.Context, request *p.Colonis
 	}
 	return reply, raw, nil
 }
+
+// RenderState is a zero-side-effect observation: it never extends or shortens
+// the native rendering lease. DemandRendering (presentation_media.go) is the
+// only RPC that changes lease state.
+func (client *Client) ReadRenderState(ctx context.Context, request *p.ReadRequest) (*p.RenderReply, Result, error) {
+	if request == nil {
+		return nil, Result{}, contract("render state request required")
+	}
+	request = proto.Clone(request).(*p.ReadRequest)
+	if err := presentationRequest(request, request.Identity); err != nil {
+		return nil, Result{}, err
+	}
+	reply := &p.RenderReply{}
+	raw, err := client.protoRead(ctx, "rimgovernor/presentation_render_state", request, reply)
+	if err != nil {
+		return nil, raw, err
+	}
+	switch v := reply.Outcome.(type) {
+	case *p.RenderReply_Failure:
+		return reply, raw, failure(v.Failure, raw)
+	case *p.RenderReply_Status:
+		err = validateRenderStatus(v.Status, request.Identity)
+	default:
+		err = contract("render state outcome required")
+	}
+	if err != nil {
+		return nil, raw, err
+	}
+	return reply, raw, nil
+}
+func validateRenderStatus(v *p.RenderStatus, id *c.Identity) error {
+	if v == nil {
+		return contract("render status missing")
+	}
+	if err := presentationContext(v.Context, id); err != nil {
+		return err
+	}
+	if v.Unavailable != nil {
+		if err := validateUnavailable(v.Unavailable); err != nil {
+			return err
+		}
+	}
+	return nil
+}
 func presentationRequest(request proto.Message, id *c.Identity) error {
 	if len(request.ProtoReflect().GetUnknown()) != 0 {
 		return contract("unknown presentation request fields")

@@ -18,8 +18,22 @@ namespace HomeBridge.BridgeTools
             [ToolParameter(Description = "Keep rendering for this many real seconds; zero only reads status.", DefaultValue = 0)] int seconds = 0)
         {
             if (seconds < 0 || seconds > 30) throw new ArgumentOutOfRangeException(nameof(seconds));
-            return await ctx.MainThread.InvokeAsync(() => RenderDemandDriver.Lease(seconds), cancellationToken);
+            var status = await ctx.MainThread.InvokeAsync(() => RenderDemandDriver.Lease(seconds), cancellationToken);
+            if (!status.Supported) return new { supported = false, suspended = status.Suspended, reason = status.UnavailableDetail };
+            return new { supported = true, suspended = status.Suspended, windowVisible = status.WindowVisible, leaseSeconds = status.RemainingSeconds };
         }
+    }
+
+    // The one status shape produced by the driver. Legacy JSON and the typed
+    // rimgovernor/presentation_render_state and .../presentation_render_demand
+    // tools each project this into their own reply shape.
+    internal readonly struct RenderDemandStatus
+    {
+        internal readonly bool Supported, Suspended, WindowVisible;
+        internal readonly float RemainingSeconds;
+        internal readonly string UnavailableDetail;
+        internal RenderDemandStatus(bool supported, bool suspended, bool windowVisible, float remainingSeconds, string unavailableDetail)
+        { Supported = supported; Suspended = suspended; WindowVisible = windowVisible; RemainingSeconds = remainingSeconds; UnavailableDetail = unavailableDetail; }
     }
 
     public sealed class RenderDemandDriver : MonoBehaviour
@@ -36,9 +50,9 @@ namespace HomeBridge.BridgeTools
         [DllImport("user32.dll")] static extern bool IsIconic(IntPtr hWnd);
         [DllImport("user32.dll")] static extern bool IsWindowVisible(IntPtr hWnd);
 
-        public static object Lease(int seconds)
+        internal static RenderDemandStatus Lease(int seconds)
         {
-            if (Application.isBatchMode) return new { supported = false, suspended = true, reason = "Startup headless mode cannot render" };
+            if (Application.isBatchMode) return new RenderDemandStatus(false, true, false, 0, "Startup headless mode cannot render");
             if (instance == null)
             {
                 instance = new GameObject("RimGovernorRenderDemand").AddComponent<RenderDemandDriver>();
@@ -48,8 +62,19 @@ namespace HomeBridge.BridgeTools
             }
             until = Mathf.Max(until, Time.realtimeSinceStartup + seconds);
             instance.Apply();
-            return new { supported = true, suspended = Suspended, windowVisible = instance.windowVisible,
-                leaseSeconds = Mathf.Max(0, until-Time.realtimeSinceStartup) };
+            return new RenderDemandStatus(true, Suspended, instance.windowVisible, Mathf.Max(0, until - Time.realtimeSinceStartup), null);
+        }
+
+        // A read-only peek never installs the driver/Harmony patch and never
+        // touches `until`: RenderState must be a zero-side-effect observation.
+        // (Lease(0) is NOT side-effect free -- Mathf.Max(until, now) can still
+        // extend a shorter existing lease up to "now", and it always installs
+        // the driver on first use. RenderState needs a true no-op path.)
+        internal static RenderDemandStatus Peek()
+        {
+            if (Application.isBatchMode) return new RenderDemandStatus(false, true, false, 0, "Startup headless mode cannot render");
+            if (instance == null) return new RenderDemandStatus(true, false, true, 0, null);
+            return new RenderDemandStatus(true, Suspended, instance.windowVisible, Mathf.Max(0, until - Time.realtimeSinceStartup), null);
         }
         public static bool DrawPrefix() => !Suspended;
         void Update()

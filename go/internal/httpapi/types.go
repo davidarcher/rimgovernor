@@ -35,6 +35,7 @@ type Config struct {
 	ReadTimeout, ShutdownTimeout time.Duration
 	MaxResponseBytes             int
 	Presentation                 PresentationReader
+	PresentationMedia            PresentationMediaWriter
 	Notifications                NotificationReader
 	ClockReview                  ClockReview
 }

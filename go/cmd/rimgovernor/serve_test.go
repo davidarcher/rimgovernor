@@ -235,6 +235,9 @@ func (f *servicePresentationFake) ReadSelection(context.Context, *p.ReadRequest)
 func (f *servicePresentationFake) ReadColonistRoster(context.Context, *p.ColonistRosterRequest) (*p.ColonistRosterReply, bridge.Result, error) {
 	panic("unexpected roster")
 }
+func (f *servicePresentationFake) ReadRenderState(context.Context, *p.ReadRequest) (*p.RenderReply, bridge.Result, error) {
+	panic("unexpected render state")
+}
 
 func (f *servicePresentationFake) ReadNotifications(context.Context, *p.NotificationsRequest) (*p.NotificationsReply, bridge.Result, error) {
 	f.notificationCalls.Add(1)

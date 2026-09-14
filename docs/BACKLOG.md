@@ -1715,6 +1715,58 @@ b; exact worker cleanup by a, with reuse by their later consumers.
   — observation-failure reasons (`UnsuccessfulReason`) were already done
   before this slice.
 
+  `PresentationMedia`'s pawn-capture half is now implemented: `RenderState`,
+  `DemandRendering` and `CapturePawn` are wired end to end, reusing the
+  existing native drivers rather than duplicating their Harmony-patched
+  draw-cycle plumbing. `RenderDemandDriver` gained a genuinely side-effect-free
+  `Peek()` (the legacy `Lease(0)` convention still installs the driver and can
+  extend `until`, so it cannot serve a read); `Lease`/`Peek` and
+  `PawnImageCapture.Begin` now return shared internal typed results
+  (`RenderDemandStatus`, `PawnCaptureResult`) that both the legacy
+  `home/render_demand`/`home/pawn_image` tools and the new proto tools project
+  from, so only one Harmony patch registration exists per driver and the
+  legacy tools' JSON shapes are unchanged. New native
+  `ProtoPresentationMediaTools.cs` (`rimgovernor/presentation_render_state`,
+  `rimgovernor/presentation_render_demand`, `rimgovernor/presentation_capture_pawn`)
+  validates identity/lease bounds (0-30s, mirroring the legacy tool) and
+  batch-mode/no-camera unavailability as a typed `Failure`, never an
+  exception; `CapturePawn` replies use a dedicated 48 MiB media ProtoJSON
+  envelope (`ProtoBoundary.EncodeMedia`) instead of the 1 MiB control-envelope
+  bound, since a PNG frame does not fit it. All three capabilities are
+  advertised in `ProtoIdentityTools`'s `ReadIdentity` list.
+  `bridge.PresentationMedia` (`go/internal/bridge/presentation_media.go`) is
+  the typed Go client for `DemandRendering`/`CapturePawn`, and
+  `ReadRenderState` was added alongside Camera/Selection/Colonists in
+  `presentation_reads.go`; both validate the reply's echoed identity/context
+  and MediaFrame shape (dimensions, PNG signature, capture-method-per-view
+  match, timestamp/readback sanity). `go/internal/httpapi/presentation_media.go`
+  exposes `POST /api/presentation/render-demand` and
+  `POST /api/presentation/pawn-image`, gated behind the player token
+  (`NewWithPlayer`) rather than a bare unauthenticated read: `DemandRendering`
+  changes native lease state and `CapturePawn` is an active native capture
+  with real cost, unlike the free `render-state`/`camera`/`selection`/
+  `colonists` reads. Covered by bridge contract-shape tests (malformed/missing
+  fields, lease bounds, view/pawn-id validation, capture-method mismatch) and
+  httpapi tests (player-token gating, request validation, successful
+  render-demand/pawn-image round trips, unavailable-without-config).
+  `dotnet build` passes against the real installed RimWorld/RimBridgeServer
+  assemblies; `go build/vet/test ./...` pass (same ten pre-existing unrelated
+  `go vet` warnings as the Save/Load/caravan-departure/emergency-hold slices).
+  Native-verified: `presentationmediaaccept`
+  (`go/internal/nativeaccept/cmd/presentationmediaaccept`) ran against the
+  real isolated RimWorld instance in windowed (non-headless) mode and
+  passed — a zero-side-effect `RenderState` read, a 5-second `DemandRendering`
+  lease whose `remainingLeaseMs` a subsequent `RenderState` reflected without
+  re-extending it, a portrait capture (192x192 PNG) and a follow capture
+  (640x400 PNG) against the same real spawned colonist, and an unknown-pawn-id
+  `CapturePawn` returning a typed `FAILURE_CODE_UNAVAILABLE`, never a crash or
+  hang.
+  **Explicitly out of scope for this slice:** video streaming
+  (`PresentationMedia`'s `LeaseVideo`/`ReadFrame`/`AcknowledgeFrame`) and
+  `CaptureScreenshot` are separate future slices, and the whole
+  `PlayerPresentation` service (`LeaseInput`/`SendInput`/`Apply` — camera/input
+  ownership from the web interface) is permanently dropped, not deferred.
+
 - [ ] **G01.10 — Integrate the complete Go controller.**
   Compose the above paths in one process with clock, recovery and diagnostics;
   reconcile responsibilities against current Python source and domain/interface/

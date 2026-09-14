@@ -106,6 +106,20 @@ namespace HomeBridge.BridgeTools
             return new Dictionary<string, object>(StringComparer.Ordinal) { ["payload"] = payload };
         }
 
+        // MediaFrame replies (base64 PNG bytes) do not fit the one MiB control
+        // envelope; presentation.proto documents a dedicated 48 MiB media
+        // ProtoJSON envelope for these messages. Non-media replies must keep
+        // using Encode() above so their bound stays at one MiB.
+        internal const int MaximumMediaEnvelopeBytes = 48 * 1024 * 1024;
+
+        internal static Dictionary<string, object> EncodeMedia(IMessage reply, bool compact = false)
+        {
+            var payload = Format(reply, compact);
+            if (Utf8.GetByteCount(payload) > MaximumMediaEnvelopeBytes)
+                throw new InvalidOperationException("Media reply exceeds the 48 MiB media envelope limit.");
+            return new Dictionary<string, object>(StringComparer.Ordinal) { ["payload"] = payload };
+        }
+
         internal static Common.Failure Fail(Common.FailureCode code, string detail)
         {
             return new Common.Failure { Code = code, Detail = detail };

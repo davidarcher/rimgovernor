@@ -105,13 +105,25 @@ namespace HomeBridge.BridgeTools
                     Support = Lifecycle.CapabilitySupport.Supported,
                     Detail = "Complete bounded native room geometry, statistics and memberships with exact filters and optional cells/boundary contents. Optional unreadable facts carry issues; no frozen paging or CAS snapshots."
                 });
-                foreach (var method in new[] { "Camera", "Selection", "Colonists" })
+                foreach (var method in new[] { "Camera", "Selection", "Colonists", "RenderState" })
                     loaded.Capabilities.Add(new Lifecycle.Capability
                     {
                         FullMethodName = "rimgovernor.presentation.v1.PresentationReads/" + method,
                         Support = Lifecycle.CapabilitySupport.Supported,
-                        Detail = "Read-only native presentation facts. Camera/selection require graphics; roster covers spawned colonists on loaded maps."
+                        Detail = "Read-only native presentation facts. Camera/selection require graphics; roster covers spawned colonists on loaded maps; RenderState is a zero-side-effect read of the controller rendering lease."
                     });
+                loaded.Capabilities.Add(new Lifecycle.Capability
+                {
+                    FullMethodName = "rimgovernor.presentation.v1.PresentationMedia/DemandRendering",
+                    Support = Lifecycle.CapabilitySupport.Supported,
+                    Detail = "Controller rendering lease of up to 30 real seconds; zero only reads status. No simulation or game-speed changes; PlayerIdentity's direction/viewer fields authenticate nothing."
+                });
+                loaded.Capabilities.Add(new Lifecycle.Capability
+                {
+                    FullMethodName = "rimgovernor.presentation.v1.PresentationMedia/CapturePawn",
+                    Support = Lifecycle.CapabilitySupport.Supported,
+                    Detail = "Single-frame colonist portrait or nearby-map follow PNG capture, async across a draw cycle. Batch-mode or no-camera games return a typed failure. LeaseVideo/ReadFrame/AcknowledgeFrame and CaptureScreenshot are not implemented."
+                });
                 loaded.Capabilities.Add(new Lifecycle.Capability
                 {
                     FullMethodName = "rimgovernor.observations.v1.Observations/ListPawns",

@@ -131,6 +131,9 @@ func (s *Server) handle(w http.ResponseWriter, r *http.Request) {
 	if s.handlePresentation(w, r) {
 		return
 	}
+	if s.handlePresentationMedia(w, r) {
+		return
+	}
 	if s.handlePlayer(w, r) {
 		return
 	}

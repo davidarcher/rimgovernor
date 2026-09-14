@@ -24,6 +24,7 @@ type presentationFake struct {
 	camera         *p.CameraReply
 	selection      *p.SelectionReply
 	roster         *p.ColonistRosterReply
+	renderState    *p.RenderReply
 	calls          int
 	hook           func(context.Context) error
 	id             *c.Identity
@@ -52,11 +53,14 @@ func (f *presentationFake) ReadColonistRoster(ctx context.Context, q *p.Colonist
 	f.mapOnly = q.CurrentMapOnly != nil && q.GetCurrentMapOnly()
 	return f.roster, bridge.Result{}, f.read(ctx, q.Identity)
 }
+func (f *presentationFake) ReadRenderState(ctx context.Context, q *p.ReadRequest) (*p.RenderReply, bridge.Result, error) {
+	return f.renderState, bridge.Result{}, f.read(ctx, q.Identity)
+}
 func presentationFixture(t *testing.T) (*Server, *presentationFake, *Snapshot) {
 	t.Helper()
 	identity := &c.Identity{ColonyId: proto.String("colony"), MapId: proto.Int32(0), LoadToken: proto.String("load")}
 	observed := &c.ObservationContext{Identity: identity, Tick: proto.Int64(5), NativeGeneration: proto.Uint64(math.MaxUint64)}
-	f := &presentationFake{camera: &p.CameraReply{Outcome: &p.CameraReply_Camera{Camera: &p.CameraState{Context: observed, ZoomExtensionEnabled: proto.Bool(false)}}}, selection: &p.SelectionReply{Outcome: &p.SelectionReply_Selection{Selection: &p.SelectionSnapshot{Context: observed}}}, roster: &p.ColonistRosterReply{Outcome: &p.ColonistRosterReply_Roster{Roster: &p.ColonistRoster{Context: observed}}}}
+	f := &presentationFake{camera: &p.CameraReply{Outcome: &p.CameraReply_Camera{Camera: &p.CameraState{Context: observed, ZoomExtensionEnabled: proto.Bool(false)}}}, selection: &p.SelectionReply{Outcome: &p.SelectionReply_Selection{Selection: &p.SelectionSnapshot{Context: observed}}}, roster: &p.ColonistRosterReply{Outcome: &p.ColonistRosterReply_Roster{Roster: &p.ColonistRoster{Context: observed}}}, renderState: &p.RenderReply{Outcome: &p.RenderReply_Status{Status: &p.RenderStatus{Context: observed, Supported: proto.Bool(true)}}}}
 	snapshot := &Snapshot{Connected: true, Identity: domain.Known(observation.Identity{Colony: "colony", Load: "load", Map: 0, Tick: 4})}
 	server, err := New(Config{Presentation: f, ReadTimeout: 20 * time.Millisecond, ShutdownTimeout: time.Second, MaxResponseBytes: 1 << 20}, snapshotFunc(func(context.Context) (Snapshot, error) { return *snapshot, nil }), planFunc(unavailablePlan))
 	if err != nil {
@@ -73,7 +77,7 @@ func presentationRequest(t *testing.T, s *Server, path string) *httptest.Respons
 	return recorder
 }
 func TestPresentationOfficialJSONAndFixedMethods(t *testing.T) {
-	for _, route := range []string{"camera", "selection", "colonists"} {
+	for _, route := range []string{"camera", "selection", "colonists", "render-state"} {
 		t.Run(route, func(t *testing.T) {
 			s, f, _ := presentationFixture(t)
 			out := presentationRequest(t, s, "/api/presentation/"+route)
