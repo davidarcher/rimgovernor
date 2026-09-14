@@ -264,8 +264,10 @@ func decode(text string, limit int) (modelCommand, error) {
 		return decodeCancelConstruction(fields)
 	case "relocate_construction":
 		return decodeRelocateConstruction(fields)
+	case "evaluate_world":
+		return decodeEvaluateWorld(fields)
 	default:
-		return modelCommand{}, fail(UnsupportedCommand, "only building, research, tend, rescue, draft, caravan, husbandry, recover, bed_assign, move_pawn, set_building_temperature, request_surgery, hold_caravan, route_caravan, accept_quest, fulfill_quest, gift_settlement, create_zone, edit_zone, build_room, adopt_room, cancel_construction, relocate_construction, set_population_policy, set_expedition_policy, set_population_decision, modify_resource_policy, set_resource_reserve, create_goal and cancel_goal proposals are supported")
+		return modelCommand{}, fail(UnsupportedCommand, "only building, research, tend, rescue, draft, caravan, husbandry, recover, bed_assign, move_pawn, set_building_temperature, request_surgery, hold_caravan, route_caravan, accept_quest, fulfill_quest, gift_settlement, create_zone, edit_zone, build_room, adopt_room, cancel_construction, relocate_construction, set_population_policy, set_expedition_policy, set_population_decision, modify_resource_policy, set_resource_reserve, create_goal, cancel_goal and evaluate_world proposals are supported")
 	}
 }
 
@@ -755,6 +757,25 @@ func decodeRelocateConstruction(fields map[string]json.RawMessage) (modelCommand
 		return modelCommand{}, fail(InvalidCommand, "invalid replacement field")
 	}
 	return modelCommand{Command: "relocate_construction", IntentID: &intent, Room: &room}, nil
+}
+
+// decodeEvaluateWorld reads the only command in this family that carries no
+// argument at all. Python's EvaluateWorld contract declares nothing but its
+// kind discriminator, because the advisory reports on whatever caravans and
+// quests native currently shows: there is no target to name and therefore
+// nothing to bound against facts, which makes the exact field count -- the
+// "command" key and nothing else -- the whole of its shape rule.
+//
+// Anything extra is refused rather than ignored, exactly as decodeGoalCommand
+// refuses Python's per-goal target fields: a model that supplied a caravan, a
+// quest or a scope here would be asking for a filtered evaluation this command
+// does not offer, and silently dropping the filter would answer a different
+// question than the one it asked.
+func decodeEvaluateWorld(fields map[string]json.RawMessage) (modelCommand, error) {
+	if len(fields) != 1 {
+		return modelCommand{}, fail(InvalidCommand, "unexpected command fields")
+	}
+	return modelCommand{Command: "evaluate_world"}, nil
 }
 
 // optionalCommandField turns a decoded partial-request pointer into the
