@@ -170,3 +170,204 @@ func TestCapturePawnFailureAndMismatch(t *testing.T) {
 		t.Fatal("mismatched capture method accepted")
 	}
 }
+
+var minimalVideoFrame = []byte{1, 2, 3, 4}
+
+func pbVideoState(active bool) *p.VideoState {
+	state := &p.VideoState{Context: pbContext(), Supported: proto.Bool(true), Active: proto.Bool(active)}
+	if active {
+		state.SourceId = proto.String("Local\\RimGovernorVideo-abc")
+		state.RemainingLeaseMs = proto.Uint32(8000)
+		state.CapturedFrames = proto.Uint64(3)
+		state.FramesPerSecond = proto.Float64(60)
+		state.PixelFormat = p.MediaEncoding_MEDIA_ENCODING_RGBA32_BOTTOM_UP.Enum()
+		state.CaptureMethod = p.CaptureMethod_CAPTURE_METHOD_READ_PIXELS.Enum()
+	}
+	return state
+}
+func TestLeaseVideoValidation(t *testing.T) {
+	client := testClient(t, &testServer{schema: protoSchema, handler: func(context.Context, nativeArgument) (*mcp.CallToolResult, error) {
+		t.Fatal("native call must not happen for an invalid request")
+		return nil, nil
+	}}, time.Second)
+	media, err := NewPresentationMedia(client)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, _, err = media.LeaseVideo(context.Background(), nil); err == nil {
+		t.Fatal("nil request accepted")
+	}
+	if _, _, err = media.LeaseVideo(context.Background(), &p.VideoLeaseRequest{}); err == nil {
+		t.Fatal("missing operation accepted")
+	}
+	if _, _, err = media.LeaseVideo(context.Background(), &p.VideoLeaseRequest{Operation: &p.VideoLeaseRequest_Start{Start: &p.VideoStart{Viewer: pbPlayerIdentity(), LeaseSeconds: proto.Uint32(16)}}}); err == nil {
+		t.Fatal("oversized lease accepted")
+	}
+	if _, _, err = media.LeaseVideo(context.Background(), &p.VideoLeaseRequest{Operation: &p.VideoLeaseRequest_Start{Start: &p.VideoStart{LeaseSeconds: proto.Uint32(5)}}}); err == nil {
+		t.Fatal("missing start viewer accepted")
+	}
+	if _, _, err = media.LeaseVideo(context.Background(), &p.VideoLeaseRequest{Operation: &p.VideoLeaseRequest_Stop{Stop: &p.VideoStop{}}}); err == nil {
+		t.Fatal("missing stop viewer accepted")
+	}
+}
+func TestLeaseVideoStartSuccess(t *testing.T) {
+	server := &testServer{schema: protoSchema, handler: func(context.Context, nativeArgument) (*mcp.CallToolResult, error) {
+		return pbResult(&p.VideoReply{Outcome: &p.VideoReply_State{State: pbVideoState(true)}}), nil
+	}}
+	client := testClient(t, server, time.Second)
+	media, err := NewPresentationMedia(client)
+	if err != nil {
+		t.Fatal(err)
+	}
+	reply, _, err := media.LeaseVideo(context.Background(), &p.VideoLeaseRequest{Operation: &p.VideoLeaseRequest_Start{Start: &p.VideoStart{Viewer: pbPlayerIdentity(), LeaseSeconds: proto.Uint32(8)}}})
+	if err != nil || !reply.GetState().GetActive() || reply.GetState().GetSourceId() == "" {
+		t.Fatal(reply, err)
+	}
+}
+func TestLeaseVideoStopSuccess(t *testing.T) {
+	server := &testServer{schema: protoSchema, handler: func(context.Context, nativeArgument) (*mcp.CallToolResult, error) {
+		return pbResult(&p.VideoReply{Outcome: &p.VideoReply_State{State: pbVideoState(false)}}), nil
+	}}
+	client := testClient(t, server, time.Second)
+	media, err := NewPresentationMedia(client)
+	if err != nil {
+		t.Fatal(err)
+	}
+	reply, _, err := media.LeaseVideo(context.Background(), &p.VideoLeaseRequest{Operation: &p.VideoLeaseRequest_Stop{Stop: &p.VideoStop{Viewer: pbPlayerIdentity()}}})
+	if err != nil || reply.GetState().GetActive() {
+		t.Fatal(reply, err)
+	}
+}
+func TestLeaseVideoRefused(t *testing.T) {
+	failureValue := &c.Failure{Code: c.FailureCode_FAILURE_CODE_UNAVAILABLE.Enum()}
+	server := &testServer{schema: protoSchema, handler: func(context.Context, nativeArgument) (*mcp.CallToolResult, error) {
+		reply := pbResult(&p.VideoReply{Outcome: &p.VideoReply_Failure{Failure: failureValue}})
+		reply.IsError = true
+		return reply, nil
+	}}
+	client := testClient(t, server, time.Second)
+	media, err := NewPresentationMedia(client)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, _, err = media.LeaseVideo(context.Background(), &p.VideoLeaseRequest{Operation: &p.VideoLeaseRequest_Start{Start: &p.VideoStart{Viewer: pbPlayerIdentity(), LeaseSeconds: proto.Uint32(5)}}}); !errors.Is(err, ErrRefused) {
+		t.Fatal(err)
+	}
+}
+func TestReadFrameValidation(t *testing.T) {
+	client := testClient(t, &testServer{schema: protoSchema, handler: func(context.Context, nativeArgument) (*mcp.CallToolResult, error) {
+		t.Fatal("native call must not happen for an invalid request")
+		return nil, nil
+	}}, time.Second)
+	media, err := NewPresentationMedia(client)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, _, err = media.ReadFrame(context.Background(), nil); err == nil {
+		t.Fatal("nil request accepted")
+	}
+	if _, _, err = media.ReadFrame(context.Background(), &p.FrameRequest{}); err == nil {
+		t.Fatal("missing viewer accepted")
+	}
+}
+func TestReadFrameSuccess(t *testing.T) {
+	server := &testServer{schema: protoSchema, handler: func(context.Context, nativeArgument) (*mcp.CallToolResult, error) {
+		return pbResult(&p.FrameReply{Outcome: &p.FrameReply_Frame{Frame: &p.MediaFrame{
+			Frame: &p.FrameReference{SourceId: proto.String("Local\\RimGovernorVideo-abc"), Sequence: proto.Uint64(7)},
+			Width: proto.Uint32(1920), Height: proto.Uint32(1080),
+			Encoding:       p.MediaEncoding_MEDIA_ENCODING_RGBA32_BOTTOM_UP.Enum(),
+			CaptureMethod:  p.CaptureMethod_CAPTURE_METHOD_READ_PIXELS.Enum(),
+			CapturedUnixMs: proto.Int64(1700000000000), ReadbackMs: proto.Float64(3.5),
+			Data: minimalVideoFrame,
+		}}}), nil
+	}}
+	client := testClient(t, server, time.Second)
+	media, err := NewPresentationMedia(client)
+	if err != nil {
+		t.Fatal(err)
+	}
+	reply, _, err := media.ReadFrame(context.Background(), &p.FrameRequest{Viewer: pbPlayerIdentity(), SourceId: proto.String("Local\\RimGovernorVideo-abc")})
+	if err != nil || reply.GetFrame().GetFrame().GetSequence() != 7 {
+		t.Fatal(reply, err)
+	}
+}
+func TestReadFrameInvalidReference(t *testing.T) {
+	server := &testServer{schema: protoSchema, handler: func(context.Context, nativeArgument) (*mcp.CallToolResult, error) {
+		return pbResult(&p.FrameReply{Outcome: &p.FrameReply_Frame{Frame: &p.MediaFrame{
+			Width: proto.Uint32(1920), Height: proto.Uint32(1080),
+			Encoding:       p.MediaEncoding_MEDIA_ENCODING_RGBA32_BOTTOM_UP.Enum(),
+			CaptureMethod:  p.CaptureMethod_CAPTURE_METHOD_READ_PIXELS.Enum(),
+			CapturedUnixMs: proto.Int64(1), ReadbackMs: proto.Float64(1), Data: minimalVideoFrame,
+		}}}), nil
+	}}
+	client := testClient(t, server, time.Second)
+	media, err := NewPresentationMedia(client)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, _, err = media.ReadFrame(context.Background(), &p.FrameRequest{Viewer: pbPlayerIdentity()}); err == nil {
+		t.Fatal("missing frame reference accepted")
+	}
+}
+func TestAcknowledgeFrameValidationAndSuccess(t *testing.T) {
+	client := testClient(t, &testServer{schema: protoSchema, handler: func(context.Context, nativeArgument) (*mcp.CallToolResult, error) {
+		t.Fatal("native call must not happen for an invalid request")
+		return nil, nil
+	}}, time.Second)
+	media, err := NewPresentationMedia(client)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, _, err = media.AcknowledgeFrame(context.Background(), nil); err == nil {
+		t.Fatal("nil request accepted")
+	}
+	if _, _, err = media.AcknowledgeFrame(context.Background(), &p.FrameAcknowledgement{Viewer: pbPlayerIdentity()}); err == nil {
+		t.Fatal("missing frame accepted")
+	}
+
+	ref := &p.FrameReference{SourceId: proto.String("Local\\RimGovernorVideo-abc"), Sequence: proto.Uint64(9)}
+	server := &testServer{schema: protoSchema, handler: func(context.Context, nativeArgument) (*mcp.CallToolResult, error) {
+		return pbResult(&p.FrameAcknowledgementReply{Outcome: &p.FrameAcknowledgementReply_Acknowledged{Acknowledged: &p.FrameAcknowledged{Frame: ref}}}), nil
+	}}
+	client2 := testClient(t, server, time.Second)
+	media2, err := NewPresentationMedia(client2)
+	if err != nil {
+		t.Fatal(err)
+	}
+	reply, _, err := media2.AcknowledgeFrame(context.Background(), &p.FrameAcknowledgement{Viewer: pbPlayerIdentity(), Frame: ref, DisplayedUnixMs: proto.Int64(1700000000100)})
+	if err != nil || reply.GetAcknowledged().GetFrame().GetSequence() != 9 {
+		t.Fatal(reply, err)
+	}
+}
+func TestAcknowledgeFrameMismatch(t *testing.T) {
+	ref := &p.FrameReference{SourceId: proto.String("s"), Sequence: proto.Uint64(1)}
+	other := &p.FrameReference{SourceId: proto.String("s"), Sequence: proto.Uint64(2)}
+	server := &testServer{schema: protoSchema, handler: func(context.Context, nativeArgument) (*mcp.CallToolResult, error) {
+		return pbResult(&p.FrameAcknowledgementReply{Outcome: &p.FrameAcknowledgementReply_Acknowledged{Acknowledged: &p.FrameAcknowledged{Frame: other}}}), nil
+	}}
+	client := testClient(t, server, time.Second)
+	media, err := NewPresentationMedia(client)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, _, err = media.AcknowledgeFrame(context.Background(), &p.FrameAcknowledgement{Viewer: pbPlayerIdentity(), Frame: ref}); err == nil {
+		t.Fatal("mismatched acknowledged frame reference accepted")
+	}
+}
+func TestAcknowledgeFrameRefused(t *testing.T) {
+	failureValue := &c.Failure{Code: c.FailureCode_FAILURE_CODE_UNAVAILABLE.Enum()}
+	ref := &p.FrameReference{SourceId: proto.String("s"), Sequence: proto.Uint64(1)}
+	server := &testServer{schema: protoSchema, handler: func(context.Context, nativeArgument) (*mcp.CallToolResult, error) {
+		reply := pbResult(&p.FrameAcknowledgementReply{Outcome: &p.FrameAcknowledgementReply_Refusal{Refusal: failureValue}})
+		reply.IsError = true
+		return reply, nil
+	}}
+	client := testClient(t, server, time.Second)
+	media, err := NewPresentationMedia(client)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, _, err = media.AcknowledgeFrame(context.Background(), &p.FrameAcknowledgement{Viewer: pbPlayerIdentity(), Frame: ref}); !errors.Is(err, ErrRefused) {
+		t.Fatal(err)
+	}
+}

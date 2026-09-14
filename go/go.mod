@@ -3,6 +3,7 @@ module github.com/davidarcher/RimGovernor/go
 go 1.27.1
 
 require (
+	github.com/coder/websocket v1.8.15
 	github.com/davidarcher/RimGovernor/go/internal/wire v0.0.0
 	github.com/google/jsonschema-go v0.4.3
 	github.com/modelcontextprotocol/go-sdk v1.7.0

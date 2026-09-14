@@ -21,15 +21,16 @@ import (
 )
 
 type Server struct {
-	player      PlayerBuildings
-	controls    ControlReader
-	playerToken string
-	config      Config
-	snapshots   SnapshotProvider
-	plans       PlanReader
-	assets      *os.Root
-	closeOnce   sync.Once
-	closeErr    error
+	player       PlayerBuildings
+	controls     ControlReader
+	playerToken  string
+	config       Config
+	snapshots    SnapshotProvider
+	plans        PlanReader
+	assets       *os.Root
+	closeOnce    sync.Once
+	closeErr     error
+	videoTickets sync.Map // hex ticket -> time.Time expiry; single-use, short-lived
 }
 
 func New(config Config, snapshots SnapshotProvider, plans PlanReader) (*Server, error) {
@@ -132,6 +133,9 @@ func (s *Server) handle(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if s.handlePresentationMedia(w, r) {
+		return
+	}
+	if s.handleVideoStream(w, r) {
 		return
 	}
 	if s.handlePlayer(w, r) {

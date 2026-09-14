@@ -22,6 +22,66 @@ namespace HomeBridge.BridgeTools
         }
     }
 
+    // Shared with the typed rimgovernor/presentation_lease_video and
+    // rimgovernor/presentation_read_frame RPCs: a plain in-process snapshot of
+    // the same capture VideoStreamDriver already performs for the legacy mmap
+    // buffer, read directly off this process's memory rather than by reopening
+    // the mmap file (which stays reserved for home/video_stream's own consumer).
+    internal readonly struct VideoFrameSnapshot
+    {
+        internal VideoFrameSnapshot(string sourceId, long sequence, int width, int height,
+            double capturedUnixSeconds, double readbackMs, byte[] data, bool topDown, bool bgra, string captureMethod)
+        {
+            SourceId = sourceId; Sequence = sequence; Width = width; Height = height;
+            CapturedUnixSeconds = capturedUnixSeconds; ReadbackMs = readbackMs; Data = data;
+            TopDown = topDown; Bgra = bgra; CaptureMethod = captureMethod;
+        }
+        internal string SourceId { get; }
+        internal long Sequence { get; }
+        internal int Width { get; }
+        internal int Height { get; }
+        internal double CapturedUnixSeconds { get; }
+        internal double ReadbackMs { get; }
+        internal byte[] Data { get; }
+        internal bool TopDown { get; }
+        internal bool Bgra { get; }
+        internal string CaptureMethod { get; }
+    }
+
+    internal readonly struct VideoLeaseStatus
+    {
+        internal VideoLeaseStatus(bool supported, string unavailableDetail, bool active, string sourceId,
+            float remainingSeconds, long capturedFrames, bool topDown, bool bgra, string captureMethod,
+            bool asyncReadbackSupported, string renderer, bool focused, int targetFrameRate, float frameSeconds,
+            int vsyncCount, double refreshRate, ulong workingSetBytes, double processCpuSeconds)
+        {
+            Supported = supported; UnavailableDetail = unavailableDetail; Active = active; SourceId = sourceId;
+            RemainingSeconds = remainingSeconds; CapturedFrames = capturedFrames; TopDown = topDown; Bgra = bgra;
+            CaptureMethod = captureMethod; AsyncReadbackSupported = asyncReadbackSupported; Renderer = renderer;
+            Focused = focused; TargetFrameRate = targetFrameRate; FrameSeconds = frameSeconds;
+            VsyncCount = vsyncCount; RefreshRate = refreshRate; WorkingSetBytes = workingSetBytes;
+            ProcessCpuSeconds = processCpuSeconds;
+        }
+        internal bool Supported { get; }
+        internal string UnavailableDetail { get; }
+        internal bool Active { get; }
+        internal string SourceId { get; }
+        internal float RemainingSeconds { get; }
+        internal long CapturedFrames { get; }
+        internal bool TopDown { get; }
+        internal bool Bgra { get; }
+        internal string CaptureMethod { get; }
+        internal bool AsyncReadbackSupported { get; }
+        internal string Renderer { get; }
+        internal bool Focused { get; }
+        internal int TargetFrameRate { get; }
+        internal float FrameSeconds { get; }
+        internal int VsyncCount { get; }
+        internal double RefreshRate { get; }
+        internal ulong WorkingSetBytes { get; }
+        internal double ProcessCpuSeconds { get; }
+    }
+
     public sealed class VideoStreamDriver : MonoBehaviour
     {
         // One latest RGBA32 frame, protected by a nonblocking cross-process mutex.
@@ -40,6 +100,11 @@ namespace HomeBridge.BridgeTools
         float until, next;
         long sequence;
         string error = "";
+        // Latest captured frame, kept purely in-process for the typed RPC path;
+        // the mmap buffer above remains the legacy home/video_stream transport.
+        byte[] latestFrame;
+        int latestWidth, latestHeight;
+        double latestCapturedUnixSeconds, latestReadbackMs;
         int? savedVsync, savedFrameRate;
         bool UsePresented => Application.platform == RuntimePlatform.LinuxPlayer
             && Environment.GetEnvironmentVariable("RIMGOVERNOR_PRIVATE_DISPLAY") == "1"
@@ -90,6 +155,42 @@ namespace HomeBridge.BridgeTools
                 focused = Application.isFocused, targetFrameRate = Application.targetFrameRate,
                 frameSeconds = Time.unscaledDeltaTime, vSyncCount = QualitySettings.vSyncCount,
                 refreshRate = Screen.currentResolution.refreshRateRatio.value };
+        }
+
+        // Typed counterpart of Lease(), sharing the exact same capture/lease
+        // logic: only the return shape differs, so home/video_stream and the
+        // rimgovernor/presentation_lease_video RPC never diverge in behavior.
+        internal static VideoLeaseStatus LeaseTyped(int seconds)
+        {
+            if (Application.isBatchMode || (Application.platform != RuntimePlatform.WindowsPlayer &&
+                Application.platform != RuntimePlatform.LinuxPlayer))
+                return new VideoLeaseStatus(false, "Raw video requires a rendered Windows or Linux player",
+                    false, null, 0, 0, false, false, null, false, null, false, 0, 0, 0, 0, 0, 0);
+            Lease(seconds);
+            bool active = instance != null && instance.mapping != null;
+            return new VideoLeaseStatus(true, null, active, active ? instance.bufferName : null,
+                active ? Mathf.Max(0, instance.until - Time.realtimeSinceStartup) : 0,
+                instance?.sequence ?? 0, instance != null && !instance.UsePresented, instance != null && instance.UsePresented,
+                active ? (instance.UsePresented ? "private-presented-window" : instance.UseAsync ? "async-gpu" : "read-pixels") : null,
+                SystemInfo.supportsAsyncGPUReadback, SystemInfo.graphicsDeviceName, Application.isFocused,
+                Application.targetFrameRate, Time.unscaledDeltaTime, QualitySettings.vSyncCount,
+                Screen.currentResolution.refreshRateRatio.value,
+                (ulong)System.Diagnostics.Process.GetCurrentProcess().WorkingSet64,
+                System.Diagnostics.Process.GetCurrentProcess().TotalProcessorTime.TotalSeconds);
+        }
+
+        // Reads the same in-process bytes Publish() just captured; never touches
+        // the mmap file. sourceId must match the active lease's source exactly.
+        internal static bool TryReadLatestFrame(string sourceId, out VideoFrameSnapshot frame)
+        {
+            frame = default;
+            if (instance == null || instance.mapping == null || instance.latestFrame == null) return false;
+            if (sourceId != null && sourceId != instance.bufferName) return false;
+            frame = new VideoFrameSnapshot(instance.bufferName, instance.sequence, instance.latestWidth, instance.latestHeight,
+                instance.latestCapturedUnixSeconds, instance.latestReadbackMs, instance.latestFrame,
+                !instance.UsePresented, instance.UsePresented,
+                instance.UsePresented ? "private-presented-window" : instance.UseAsync ? "async-gpu" : "read-pixels");
+            return true;
         }
 
         void Open()
@@ -238,6 +339,8 @@ namespace HomeBridge.BridgeTools
                 finally { if (retained) handle.DangerousRelease(); }
                 PlayerFrame.Remember(bufferName, ++sequence, view);
                 buffer.Write(0, sequence);
+                latestFrame = pixels; latestWidth = width; latestHeight = height;
+                latestCapturedUnixSeconds = captured; latestReadbackMs = readbackMs;
             }
             finally
             {
@@ -259,6 +362,7 @@ namespace HomeBridge.BridgeTools
             if (texture != null) { Destroy(texture); texture = null; }
             buffer?.Dispose(); buffer = null;
             mapping?.Dispose(); mapping = null;
+            latestFrame = null;
             gate?.Dispose(); gate = null;
             if (file != null) { file.Dispose(); file = null; File.Delete(bufferName); }
         }

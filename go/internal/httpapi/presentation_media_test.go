@@ -17,11 +17,16 @@ import (
 )
 
 type presentationMediaFake struct {
-	render *p.RenderReply
-	image  *p.PawnImageReply
-	err    error
-	calls  int
-	seen   proto.Message
+	render     *p.RenderReply
+	image      *p.PawnImageReply
+	video      *p.VideoReply
+	frame      *p.FrameReply
+	frames     []*p.FrameReply
+	err        error
+	calls      int
+	frameCalls int
+	ackCalls   int
+	seen       proto.Message
 }
 
 func (f *presentationMediaFake) DemandRendering(ctx context.Context, q *p.RenderDemand) (*p.RenderReply, bridge.Result, error) {
@@ -33,6 +38,30 @@ func (f *presentationMediaFake) CapturePawn(ctx context.Context, q *p.PawnImageR
 	f.calls++
 	f.seen = q
 	return f.image, bridge.Result{}, f.err
+}
+func (f *presentationMediaFake) LeaseVideo(ctx context.Context, q *p.VideoLeaseRequest) (*p.VideoReply, bridge.Result, error) {
+	f.calls++
+	f.seen = q
+	return f.video, bridge.Result{}, f.err
+}
+func (f *presentationMediaFake) ReadFrame(ctx context.Context, q *p.FrameRequest) (*p.FrameReply, bridge.Result, error) {
+	f.calls++
+	f.seen = q
+	f.frameCalls++
+	if len(f.frames) > 0 {
+		next := f.frames[0]
+		if len(f.frames) > 1 {
+			f.frames = f.frames[1:]
+		}
+		return next, bridge.Result{}, f.err
+	}
+	return f.frame, bridge.Result{}, f.err
+}
+func (f *presentationMediaFake) AcknowledgeFrame(ctx context.Context, q *p.FrameAcknowledgement) (*p.FrameAcknowledgementReply, bridge.Result, error) {
+	f.calls++
+	f.seen = q
+	f.ackCalls++
+	return &p.FrameAcknowledgementReply{Outcome: &p.FrameAcknowledgementReply_Acknowledged{Acknowledged: &p.FrameAcknowledged{Frame: q.GetFrame()}}}, bridge.Result{}, f.err
 }
 func presentationMediaAPI(t *testing.T) (*Server, *presentationMediaFake, string) {
 	t.Helper()
@@ -48,6 +77,11 @@ func presentationMediaAPI(t *testing.T) (*Server, *presentationMediaFake, string
 		image: &p.PawnImageReply{Outcome: &p.PawnImageReply_Image{Image: &p.PawnImage{PawnId: proto.String("p1"), View: p.PawnView_PAWN_VIEW_PORTRAIT.Enum(),
 			Frame: &p.MediaFrame{Width: proto.Uint32(192), Height: proto.Uint32(192), Encoding: p.MediaEncoding_MEDIA_ENCODING_PNG.Enum(),
 				CaptureMethod: p.CaptureMethod_CAPTURE_METHOD_PORTRAIT.Enum(), CapturedUnixMs: proto.Int64(1700000000000), ReadbackMs: proto.Float64(9), Data: []byte{0x89, 'P', 'N', 'G'}}}}},
+		video: &p.VideoReply{Outcome: &p.VideoReply_State{State: &p.VideoState{Context: observed, Supported: proto.Bool(true), Active: proto.Bool(true), SourceId: proto.String("Local\\RimGovernorVideo-abc"), RemainingLeaseMs: proto.Uint32(8000)}}},
+		frame: &p.FrameReply{Outcome: &p.FrameReply_Frame{Frame: &p.MediaFrame{
+			Frame: &p.FrameReference{SourceId: proto.String("Local\\RimGovernorVideo-abc"), Sequence: proto.Uint64(1)},
+			Width: proto.Uint32(4), Height: proto.Uint32(1), Encoding: p.MediaEncoding_MEDIA_ENCODING_RGBA32_BOTTOM_UP.Enum(),
+			CaptureMethod: p.CaptureMethod_CAPTURE_METHOD_READ_PIXELS.Enum(), CapturedUnixMs: proto.Int64(1700000000000), ReadbackMs: proto.Float64(1), Data: []byte{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16}}}},
 	}
 	f := &playerFixture{journal: db}
 	snapshot := Snapshot{Connected: true, Identity: domain.Known(observation.Identity{Colony: "colony", Load: "load", Map: 0, Tick: 5})}

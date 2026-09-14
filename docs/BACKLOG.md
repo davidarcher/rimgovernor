@@ -1767,6 +1767,71 @@ b; exact worker cleanup by a, with reuse by their later consumers.
   `PlayerPresentation` service (`LeaseInput`/`SendInput`/`Apply` — camera/input
   ownership from the web interface) is permanently dropped, not deferred.
 
+  Video streaming (`PresentationMedia`'s `LeaseVideo`/`ReadFrame`/
+  `AcknowledgeFrame`) is now implemented as a real push-based WebSocket relay,
+  porting `home/video_stream`'s design intent (smooth push delivery, not
+  browser-side RPC polling) without porting its cross-process mmap protocol
+  into Go. `VideoStreamDriver` gained plain in-process fields
+  (`latestFrame`/`latestWidth`/…) populated by the existing `Publish()`
+  alongside its legacy mmap write, read by a new `TryReadLatestFrame` static
+  accessor; the legacy `home/video_stream` mmap tool and its Python consumer
+  (`controller/rimgovernor/video_stream.py`) are untouched. New native
+  `ProtoPresentationMediaTools.cs` methods (`rimgovernor/presentation_lease_video`,
+  `rimgovernor/presentation_read_frame`, `rimgovernor/presentation_acknowledge_frame`)
+  follow the existing validate/`MainThread.InvokeAsync`/typed-driver pattern;
+  `ReadFrame` returns raw RGBA32/BGRA32 bytes (no PNG encode cost) through
+  `ProtoBoundary.EncodeMedia`'s existing 48 MiB envelope. All three are
+  advertised in `ProtoIdentityTools`'s `ReadIdentity` list.
+  `bridge.PresentationMedia` gained typed `LeaseVideo`/`ReadFrame`/
+  `AcknowledgeFrame` clients (`go/internal/bridge/presentation_media.go`),
+  validating lease bounds (0-15s, matching the legacy tool), frame reference/
+  dimension/encoding shape, and acknowledgement echo. `go/internal/httpapi/
+  video_stream.go` adds a player-token-gated `POST /api/presentation/
+  video-stream/lease` and a WebSocket relay at `/api/presentation/
+  video-stream`: since browsers cannot set custom headers on a WS handshake,
+  a separate token-gated `POST .../ticket` mints a single-use, 5-second-window
+  hex ticket (`crypto/rand`, `sync.Map`, `LoadAndDelete`) that the WS `GET`
+  must present as a query parameter and which is consumed atomically on
+  connect; the upgrade also re-validates `Origin`/`Host` the same way
+  `server.go`'s existing cross-origin check does, rejecting any cross-origin
+  attempt before `websocket.Accept`. The relay polls `ReadFrame` on a
+  configurable interval (default 40ms), forwards each new sequence as a
+  34-byte-header + raw-pixel binary frame, and calls `AcknowledgeFrame` after
+  each forwarded frame (accept-and-record telemetry only). WebSocket library:
+  `github.com/coder/websocket` (no WS library previously existed in go.mod) —
+  chosen over `golang.org/x/net/websocket` for its write-only-friendly
+  `CloseRead` (spins a read/ping-pong goroutine, cancels its context on
+  client close) and proper close-code handling. Fixed in the same slice: the
+  Go bridge's transport-wide `maxResponseBytes` cap was 4 MiB, far below
+  `ProtoBoundary`'s already-established 48 MiB media envelope — every
+  `ReadFrame` failed as "oversized native result" against a real rendered
+  game until this was raised to 50 MiB (`go/internal/bridge/client.go`) to
+  actually match the media tier the prior slice already committed to.
+  Covered by bridge contract-shape tests and httpapi tests including the
+  full ticket-mint-then-connect flow, single-use enforcement, cross-origin/
+  missing-Origin/unknown-ticket rejection, and stream termination on a native
+  error, using `httptest.NewServer` with the real WS client (a plain
+  `ResponseRecorder` cannot serve a hijacked upgrade). `dotnet build` passes
+  against the real installed RimWorld/RimBridgeServer assemblies; `go
+  build/vet/test ./...` pass (same ten pre-existing unrelated `go vet`
+  warnings as every prior slice). Native-verified: `videostreamaccept`
+  (`go/internal/nativeaccept/cmd/videostreamaccept`) ran against the real
+  isolated RimWorld instance in windowed (non-headless) mode and passed —
+  `LeaseVideo` start reported `active=true` with a real `sourceId` and
+  `remainingLeaseMs`; three consecutive `ReadFrame` polls returned strictly
+  increasing sequences with updated frame bytes (unpaused game); `AcknowledgeFrame`
+  echoed back the exact frame reference; `LeaseVideo` stop reported
+  `active=false`; a subsequent `ReadFrame` against the stopped source
+  returned a typed `FAILURE_CODE_UNAVAILABLE`. The WebSocket relay itself is
+  verified only at the Go level (fake bridge client), not against the live
+  game.
+  **Explicitly out of scope for this slice:** `CaptureScreenshot` and the
+  whole `PlayerPresentation` service remain permanently dropped;
+  `AcknowledgeFrame` is accept-and-record telemetry only — true
+  viewer-ack-driven capture backpressure is a future refinement; and no
+  FPS/throughput tuning beyond proving correctness (the 40ms default poll
+  interval is not a performance claim).
+
 - [ ] **G01.10 — Integrate the complete Go controller.**
   Compose the above paths in one process with clock, recovery and diagnostics;
   reconcile responsibilities against current Python source and domain/interface/

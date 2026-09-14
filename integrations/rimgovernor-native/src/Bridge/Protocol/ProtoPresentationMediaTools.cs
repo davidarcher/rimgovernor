@@ -11,13 +11,15 @@ using Presentation = RimGovernor.Protocol.Presentation;
 
 namespace HomeBridge.BridgeTools
 {
-    // Typed-proto surface for PresentationMedia's DemandRendering/CapturePawn and
-    // PresentationReads' RenderState. LeaseVideo/ReadFrame/AcknowledgeFrame,
-    // CaptureScreenshot and the whole PlayerPresentation service (camera/input
-    // ownership) are out of scope for this slice and are not implemented here.
-    // Both drivers (RenderDemandDriver, PawnImageCapture) are the same ones the
-    // legacy home/render_demand and home/pawn_image tools use; only one Harmony
-    // patch registration exists per driver.
+    // Typed-proto surface for PresentationMedia's DemandRendering/CapturePawn,
+    // the video streaming trio (LeaseVideo/ReadFrame/AcknowledgeFrame) and
+    // PresentationReads' RenderState. CaptureScreenshot and the whole
+    // PlayerPresentation service (camera/input ownership) remain out of scope.
+    // All drivers (RenderDemandDriver, PawnImageCapture, VideoStreamDriver) are
+    // the same ones their legacy home/* tools use; only one Harmony patch
+    // registration exists per driver. ReadFrame reads VideoStreamDriver's
+    // latest in-process captured bytes directly; it never reopens the legacy
+    // mmap buffer, which stays reserved for home/video_stream's own consumer.
     public sealed class ProtoPresentationMediaTools
     {
         [Tool("rimgovernor/presentation_render_state", Title = "Read native rendering lease state", Description = "Zero-side-effect observation of the controller rendering lease. Never extends or shortens the lease; DemandRendering is the only RPC that changes it.")]
@@ -98,6 +100,141 @@ namespace HomeBridge.BridgeTools
             {
                 return ProtoBoundary.Encode(new Presentation.PawnImageReply { Failure = Unavailable(errorCapture.Message) });
             }
+        }
+
+        [Tool("rimgovernor/presentation_lease_video", Title = "Lease native video capture", Description = "Starts or stops the shared in-process video capture ReadFrame reads from. No simulation or game-speed changes; PlayerIdentity's direction/viewer fields authenticate nothing.")]
+        [ToolResponse("payload", "string", "Official ProtoJSON VideoReply.", Always = true)]
+        public async Task<object> LeaseVideo(IRimBridgeContext ctx, CancellationToken cancellationToken,
+            [ToolParameter(Description = "Official ProtoJSON VideoLeaseRequest string in raw transport value.")] object request = null!)
+        {
+            if (!ProtoBoundary.TryParse(ctx, "rimgovernor/presentation_lease_video", request, Presentation.VideoLeaseRequest.Parser, out var parsed, out var failure)
+                || !ValidateVideoLease(parsed, out failure)) return ProtoBoundary.Encode(new Presentation.VideoReply { Failure = failure });
+            return await ctx.MainThread.InvokeAsync<object>(() => {
+                var viewer = parsed.OperationCase == Presentation.VideoLeaseRequest.OperationOneofCase.Start ? parsed.Start.Viewer : parsed.Stop.Viewer;
+                if (!ProtoBoundary.ValidateIdentity(viewer.Identity, Find.CurrentMap, out var context, out var error))
+                    return ProtoBoundary.Encode(new Presentation.VideoReply { Failure = error });
+                int seconds = parsed.OperationCase == Presentation.VideoLeaseRequest.OperationOneofCase.Start ? (int)parsed.Start.LeaseSeconds : 0;
+                var status = VideoStreamDriver.LeaseTyped(seconds);
+                return ProtoBoundary.Encode(new Presentation.VideoReply { State = VideoStatus(context, status) });
+            }, cancellationToken).ConfigureAwait(false);
+        }
+
+        [Tool("rimgovernor/presentation_read_frame", Title = "Read latest captured video frame", Description = "Returns the most recently captured raw video frame for the current lease. Never extends or shortens the lease; LeaseVideo is the only RPC that changes it.")]
+        [ToolResponse("payload", "string", "Official ProtoJSON FrameReply.", Always = true)]
+        public async Task<object> ReadFrame(IRimBridgeContext ctx, CancellationToken cancellationToken,
+            [ToolParameter(Description = "Official ProtoJSON FrameRequest string in raw transport value.")] object request = null!)
+        {
+            if (!ProtoBoundary.TryParse(ctx, "rimgovernor/presentation_read_frame", request, Presentation.FrameRequest.Parser, out var parsed, out var failure)
+                || !ValidateFrameRequest(parsed, out failure)) return ProtoBoundary.Encode(new Presentation.FrameReply { Failure = failure });
+            return await ctx.MainThread.InvokeAsync<object>(() => {
+                if (!ProtoBoundary.ValidateIdentity(parsed.Viewer.Identity, Find.CurrentMap, out var context, out var error))
+                    return ProtoBoundary.Encode(new Presentation.FrameReply { Failure = error });
+                if (!VideoStreamDriver.TryReadLatestFrame(parsed.HasSourceId ? parsed.SourceId : null, out var snapshot))
+                    return ProtoBoundary.Encode(new Presentation.FrameReply { Failure = Unavailable("No active video capture or captured frame is available yet.") });
+                var frame = new Presentation.MediaFrame
+                {
+                    Frame = new Presentation.FrameReference { SourceId = snapshot.SourceId, Sequence = (ulong)snapshot.Sequence },
+                    Width = (uint)snapshot.Width,
+                    Height = (uint)snapshot.Height,
+                    Encoding = snapshot.Bgra ? Presentation.MediaEncoding.Bgra32TopDown : Presentation.MediaEncoding.Rgba32BottomUp,
+                    CaptureMethod = snapshot.CaptureMethod switch
+                    {
+                        "private-presented-window" => Presentation.CaptureMethod.PrivatePresentedWindow,
+                        "async-gpu" => Presentation.CaptureMethod.AsyncGpu,
+                        _ => Presentation.CaptureMethod.ReadPixels,
+                    },
+                    CapturedUnixMs = (long)(snapshot.CapturedUnixSeconds * 1000.0),
+                    ReadbackMs = snapshot.ReadbackMs,
+                    Data = ByteString.CopyFrom(snapshot.Data),
+                };
+                return EncodeMedia(new Presentation.FrameReply { Frame = frame });
+            }, cancellationToken).ConfigureAwait(false);
+        }
+
+        [Tool("rimgovernor/presentation_acknowledge_frame", Title = "Acknowledge a displayed video frame", Description = "Records that a viewer displayed a given frame reference. Accept-and-record telemetry only; it does not yet throttle capture to acknowledged consumption.")]
+        [ToolResponse("payload", "string", "Official ProtoJSON FrameAcknowledgementReply.", Always = true)]
+        public async Task<object> AcknowledgeFrame(IRimBridgeContext ctx, CancellationToken cancellationToken,
+            [ToolParameter(Description = "Official ProtoJSON FrameAcknowledgement string in raw transport value.")] object request = null!)
+        {
+            if (!ProtoBoundary.TryParse(ctx, "rimgovernor/presentation_acknowledge_frame", request, Presentation.FrameAcknowledgement.Parser, out var parsed, out var failure)
+                || !ValidateFrameAcknowledgement(parsed, out failure)) return ProtoBoundary.Encode(new Presentation.FrameAcknowledgementReply { Refusal = failure });
+            return await ctx.MainThread.InvokeAsync<object>(() => {
+                if (!ProtoBoundary.ValidateIdentity(parsed.Viewer.Identity, Find.CurrentMap, out _, out var error))
+                    return ProtoBoundary.Encode(new Presentation.FrameAcknowledgementReply { Refusal = error });
+                return ProtoBoundary.Encode(new Presentation.FrameAcknowledgementReply
+                {
+                    Acknowledged = new Presentation.FrameAcknowledged { Frame = parsed.Frame },
+                });
+            }, cancellationToken).ConfigureAwait(false);
+        }
+
+        private static Presentation.VideoState VideoStatus(Common.ObservationContext context, VideoLeaseStatus status)
+        {
+            var result = new Presentation.VideoState { Context = context, Supported = status.Supported };
+            if (!status.Supported)
+            {
+                result.Unavailable = new Common.Unavailable { Reason = Common.UnavailableReason.Unsupported,
+                    Detail = string.IsNullOrEmpty(status.UnavailableDetail) ? "Native video capture is unsupported." : status.UnavailableDetail };
+                return result;
+            }
+            result.Active = status.Active;
+            if (status.Active)
+            {
+                result.SourceId = status.SourceId;
+                result.RemainingLeaseMs = (uint)Math.Max(0, Mathf.RoundToInt(status.RemainingSeconds * 1000f));
+                result.CapturedFrames = (ulong)Math.Max(0, status.CapturedFrames);
+                result.FramesPerSecond = 60;
+                result.PixelFormat = status.Bgra ? Presentation.MediaEncoding.Bgra32TopDown : Presentation.MediaEncoding.Rgba32BottomUp;
+                result.CaptureMethod = status.CaptureMethod switch
+                {
+                    "private-presented-window" => Presentation.CaptureMethod.PrivatePresentedWindow,
+                    "async-gpu" => Presentation.CaptureMethod.AsyncGpu,
+                    _ => Presentation.CaptureMethod.ReadPixels,
+                };
+            }
+            result.AsyncReadbackSupported = status.AsyncReadbackSupported;
+            result.Renderer = status.Renderer;
+            result.Focused = status.Focused;
+            result.TargetFrameRate = status.TargetFrameRate;
+            result.FrameSeconds = status.FrameSeconds;
+            result.VsyncCount = status.VsyncCount;
+            result.RefreshRate = status.RefreshRate;
+            result.WorkingSetBytes = status.WorkingSetBytes;
+            result.ProcessCpuSeconds = status.ProcessCpuSeconds;
+            return result;
+        }
+
+        private static bool ValidateVideoLease(Presentation.VideoLeaseRequest request, out Common.Failure failure)
+        {
+            failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Exact viewer identity and, for Start, a lease of 0-15 seconds are required.");
+            switch (request?.OperationCase)
+            {
+                case Presentation.VideoLeaseRequest.OperationOneofCase.Start:
+                    return request.Start.Viewer?.Identity != null && request.Start.LeaseSeconds <= 15
+                        && (!request.Start.Viewer.HasViewerId || ProtoBoundary.IsIdentifier(request.Start.Viewer.ViewerId));
+                case Presentation.VideoLeaseRequest.OperationOneofCase.Stop:
+                    return request.Stop.Viewer?.Identity != null
+                        && (!request.Stop.Viewer.HasViewerId || ProtoBoundary.IsIdentifier(request.Stop.Viewer.ViewerId))
+                        && (!request.Stop.HasSourceId || ProtoBoundary.IsIdentifier(request.Stop.SourceId));
+                default:
+                    return false;
+            }
+        }
+
+        private static bool ValidateFrameRequest(Presentation.FrameRequest request, out Common.Failure failure)
+        {
+            failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Exact viewer identity is required.");
+            return request?.Viewer?.Identity != null
+                && (!request.Viewer.HasViewerId || ProtoBoundary.IsIdentifier(request.Viewer.ViewerId))
+                && (!request.HasSourceId || ProtoBoundary.IsIdentifier(request.SourceId));
+        }
+
+        private static bool ValidateFrameAcknowledgement(Presentation.FrameAcknowledgement request, out Common.Failure failure)
+        {
+            failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Exact viewer identity and a frame reference are required.");
+            return request?.Viewer?.Identity != null && request.Frame != null
+                && ProtoBoundary.IsIdentifier(request.Frame.SourceId) && request.Frame.Sequence > 0
+                && (!request.Viewer.HasViewerId || ProtoBoundary.IsIdentifier(request.Viewer.ViewerId));
         }
 
         private static Presentation.RenderStatus Status(Common.ObservationContext context, RenderDemandStatus status)

@@ -63,7 +63,13 @@ type Discovery struct {
 	Tools           []Tool
 }
 
-const maxResponseBytes = 4 << 20
+// maxResponseBytes bounds the whole JSON-RPC tools/call response (envelope,
+// structured content and text combined). It must exceed ProtoBoundary's own
+// 48 MiB MaximumMediaEnvelopeBytes (raw uncompressed video frames go out
+// base64-encoded through that path) plus the MCP tool-result wrapper's own
+// overhead, or every ReadFrame call fails as "oversized" before the native
+// media bound is ever reached.
+const maxResponseBytes = 50 << 20
 const maxTools = 2048
 
 type transportFactory func() mcp.Transport
