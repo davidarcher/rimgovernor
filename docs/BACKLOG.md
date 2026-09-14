@@ -861,8 +861,9 @@ without pushes, when the target checkout is safe; preserve other developers' wor
     exactly the native read surface 05.4's extraction-development work was
     flagged as possibly also needing — confirmed this round via a fresh
     fetch that 05.4's current entry still shows no sign of having touched it.
-    Still open: material-storage zoning and the native `SetProductionPolicy`
-    push, both described below.
+    Still open: material-storage zoning, and dispatching the now
+    natively-wired `SetProductionPolicy` push from a routine planner, both
+    described below.
 
     Material-storage zoning (reusing `domain.ZoneCreateAction`/
     `NewAllowListStockpileZone`, exactly like 05.4's `SecureSupplies`
