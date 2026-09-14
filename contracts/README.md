@@ -22,10 +22,17 @@ fixture checks and native scenario references. Empty evidence lists preserve an
 uncovered acceptance requirement; they do not waive it. Tooling classifications
 identify code that may remain Python after the production cutover.
 
-Run `python scripts/check_go_coverage.py` from the repository root to validate
-cross-inventory structure and the source-specific drift checks. See the
-[rewrite sequence](https://github.com/davidarcher/rimgovernor/issues?q=is%3Aissue+is%3Aopen+label%3A%22area%3AG01%22) for dependencies
-and the [test selection guide](../docs/developers/testing/choose-tests.md) for acceptance scope.
+`domain-inventory.json`/`interface-inventory.json`/`state-inventory.json` and
+`scripts/check_go_coverage.py`, which validated their structure and each row's
+Python source path, tracked G01 migration coverage against the Python source
+tree. That tree was removed in G01.13
+([issue #33](https://github.com/davidarcher/rimgovernor/issues/33)), so nearly
+every row's `source`/`fixtures`/`native_scenarios` reference is now dangling;
+`check_go_coverage.py` is retained as a script but is no longer run in CI and
+is not expected to pass. The inventories are a frozen historical migration
+record, like the baselines below, not a live coverage gate. See the
+[rewrite sequence](https://github.com/davidarcher/rimgovernor/issues?q=is%3Aissue+is%3Aopen+label%3A%22area%3AG01%22)
+for what remains.
 
 ## Generated contracts
 
@@ -42,11 +49,15 @@ are not attributed to controller actions; recovery and sustained outcomes remain
 separate acceptance gates. Measurements alongside another native scenario cannot
 establish an uncontended comparison.
 
-Before G01.12, use the existing [throughput procedure](../docs/developers/testing/measure-throughput.md)
-with isolated licensed inputs and identical game, model, storage and rendering
-settings. Retain source/image/input hashes and raw reports under `.rimgovernor/`.
-Record numeric regression budgets before examining Go results. No performance or
-production cutover acceptance is implied by inventory validation.
+The Python throughput-measurement procedure this baseline was captured with was
+removed in G01.13 ([issue #33](https://github.com/davidarcher/rimgovernor/issues/33)),
+along with `check_serialization_baseline.py`/`check_state_inventory.py`, its only
+regeneration tooling. `python-baseline.json`,
+`fixtures/state-baseline.json` and `fixtures/serialization-baseline.json` are
+therefore frozen historical artifacts: retained for comparison, not
+regeneratable until equivalent Go tooling exists
+([issue #38](https://github.com/davidarcher/rimgovernor/issues/38)). No
+performance or production cutover acceptance is implied by inventory validation.
 
 ## Native compatibility baseline
 
@@ -64,16 +75,20 @@ identify the original run. Unified-package parity remains open.
 
 The [executable legacy baseline](native-compatibility-baseline.json) indexes fresh
 production batch and graphical startup, plus aggregate fixture discovery. It
-retains artifact hashes for actual SDK replies and copied-save reloads; see the
-[capture procedure](../docs/developers/testing/native-compatibility.md). Component
-presence and identity continuity do not establish populated field recovery.
+retains artifact hashes for actual SDK replies and copied-save reloads. The
+Python capture procedure it was recorded with was removed in G01.13
+([issue #33](https://github.com/davidarcher/rimgovernor/issues/33)); like the
+other baselines above, it is a frozen historical artifact until equivalent Go
+tooling exists ([issue #38](https://github.com/davidarcher/rimgovernor/issues/38)).
+Component presence and identity continuity do not establish populated field recovery.
 
 The domain inventory's `native_surface` extension records exported declarations,
 project membership, normalized source fingerprints, compilation exclusions and
 production/fixture ownership. It has separate native provenance and links back to
-existing G01 rows. `check_go_coverage.py` runs its drift checker and negative
-self-tests; source extraction does not establish installed SDK availability or
-exhaustive implemented argument variants.
+existing G01 rows. `python scripts/check_native_inventory.py --check` runs its
+drift checker directly (it no longer runs through `check_go_coverage.py`, which
+short-circuits on the now-dangling G01 rows above); source extraction does not
+establish installed SDK availability or exhaustive implemented argument variants.
 
 - [Implemented operation variants](native-operation-variants.md) records selectors,
   defaults, aliases and dry-run behavior for all 55 production exports.

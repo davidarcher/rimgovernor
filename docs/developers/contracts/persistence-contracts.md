@@ -72,5 +72,5 @@ never transport replay.
 
 ## Related reading
 
-Read [sessions and recovery](../architecture/sessions-and-recovery.md) and [audit
-retained evidence](../testing/audit-retention.md).
+Read [sessions and recovery](../architecture/sessions-and-recovery.md) and audit
+retained evidence.

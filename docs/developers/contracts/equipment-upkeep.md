@@ -74,6 +74,6 @@ not trigger unlimited replacement bills under the same loadout prerequisite.
 
 ## Acceptance
 
-Use the [equipment acceptance guide](../testing/equipment-upkeep.md) for the Docker
+Use the equipment acceptance guide for the Docker
 scenario. Fixture checks, native scripted pawn outcomes and sustained seasonal
 campaigns are different evidence levels.

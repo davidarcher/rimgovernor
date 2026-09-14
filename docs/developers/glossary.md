@@ -24,6 +24,4 @@
 | RimBridgeServer | The native bridge providing general game and UI tools; the colony companion extends its capabilities. |
 | Outpost | The dashboard's display name; repository and package names remain RimGovernor. |
 
-See [plans and Hands](architecture/plans-and-hands.md), [session
-contracts](contracts/session-contracts.md) and [testing and evidence](testing/evidence.md)
-for these terms in context.
+See [plans and Hands](architecture/plans-and-hands.md) for these terms in context.

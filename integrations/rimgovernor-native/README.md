@@ -109,37 +109,20 @@ supply section once plus animal, crop and patient rows. Upkeep, development and
 other unported sections remain explicitly unavailable.
 Oversized collections/replies return unavailable.
 
-Run `scripts/native_protobuf_acceptance.py` through
-`scripts/container_scenario.py` against a private production package. Its root is
-`/worker/run`; add `--rendered` for Xvfb and optionally `--go-preview-smoke` with
-the official-wire Linux Go smoke executable. The smoke explicitly transfers its
-own scenario's GABS connection and returns it for final native read checks.
+The `scripts/native_protobuf_acceptance.py`/`container_scenario.py`,
+`native_go_service_acceptance.py` and `native_guarded_construction_acceptance.py`
+scenario scripts this section once described (protobuf wire acceptance against a
+private production package, a Go read-only service handoff check, and a guarded
+construction cancellation check) were removed with the rest of the Python
+acceptance toolchain in
+[G01.13](https://github.com/davidarcher/rimgovernor/issues/33); equivalent Go
+harnesses are tracked in
+[issue #38](https://github.com/davidarcher/rimgovernor/issues/38).
+
 The focused `native-proto-*` and `native-authority*` probes in the consolidated
 `contracts/tests/NativeContractProbes.csproj` (run with `dotnet run --project
-contracts/tests/NativeContractProbes.csproj -- <probe-name>`) test parsing, SDK
-binding and authority semantics separately from this game run.
-
-Use `scripts/native_go_service_acceptance.py --root /worker/run --go-service
-/inputs/profile/rimgovernor-go` through the scenario launcher with a private
-production package to check the Go read-only service. It joins the first GABS
-process before starting Go, checks two refreshed HTTP observations, joins Go on
-SIGTERM and reconnects without force takeover. A contiguous native operation-event
-trace proves the service invoked only identity/status reads. Paused tick, identity
-and native generation must remain unchanged across the handoff.
-
-For guarded construction acceptance, build a private package with
-`-Fixture GuardedConstructionFixture` and run
-`scripts/native_guarded_construction_acceptance.py` through the same launcher.
-The fixture selects an existing capable colonist and existing wood, sets ordinary
-work priorities and returns legal wall sites. The Go building smoke places one
-wall, closes its controller session, and later reopens the same SQLite state to
-observe native completion. The scenario advances bounded ticks through
-`rimgovernor.native_scenario.advance_game`. Fixture builds are never production
-packages; retain the scenario report to distinguish acceptance from compilation.
-The native scenario accepts `--go-expected-outcome cancelled` with the current Go
-smoke: a real fixture cancellation must be recovered as unsuccessful by a
-fresh Go process, without another operation or advancing the simulation. Use one
-matching smoke binary for both phases and fresh SQLite state for each run.
+contracts/tests/NativeContractProbes.csproj -- <probe-name>`) still test parsing, SDK
+binding and authority semantics independent of a live game run.
 
 The headless GPL-3.0 notice and both upstream provenance records remain in Notices.
 Companion provenance records the absence of an upstream redistribution license;

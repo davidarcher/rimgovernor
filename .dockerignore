@@ -1,10 +1,5 @@
 # Build context is an allowlist: never send licensed inputs or worktrees to Docker.
 **
-!pyproject.toml
-!controller/
-!controller/**
-!controller_tests/
-!controller_tests/**
 !scripts/
 !scripts/**
 !contracts/
@@ -20,13 +15,12 @@
 !docs/players/*.md
 !containers/
 !containers/**
-**/__pycache__/**
 **/node_modules/**
 **/bin/**
 **/obj/**
 **/*.dll
 **/*.exe
-controller/rimgovernor/static/**
+dashboard/dist/**
 !THIRD_PARTY.md
 !third_party/
 !third_party/**

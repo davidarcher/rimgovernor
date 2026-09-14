@@ -59,4 +59,4 @@ observed condition starts a fresh episode. Routine events make no model calls.
 `ColonyFactsSnapshot.recovery` contains a same-context bounded census of player
 buildings, wholly roofed visible allowed areas, and colonist area restrictions.
 Reads do not acquire area leases, alter restrictions, or issue work. Partial or
-unavailable censuses remain unknown. See [acceptance](../testing/disaster-planning.md).
+unavailable censuses remain unknown. See acceptance.

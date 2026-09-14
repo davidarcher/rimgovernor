@@ -30,5 +30,5 @@ controller hysteresis, not a forecast. Missing thresholds retain established ris
 Power reserve risk likewise persists across unavailable reads and serialization;
 recovery requires readable current networks.
 
-See [native forecast acceptance](../testing/forecast-acceptance.md) for the bounded
+See native forecast acceptance for the bounded
 Docker probe and the distinction between forecast validation and pawn outcomes.

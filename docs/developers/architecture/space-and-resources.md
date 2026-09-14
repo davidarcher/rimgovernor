@@ -75,10 +75,8 @@ These plans do not create resources. Actual output, material consumption and rem
 stock need native readback. This is why production acceptance tests wait for pawn work
 rather than declaring success when a bill is accepted.
 
-The relevant source is
-[resource_accounting.py](../../../controller/rimgovernor/resource_accounting.py),
-[construction_preflight.py](../../../controller/rimgovernor/construction_preflight.py) and
-[production_policy.py](../../../controller/rimgovernor/production_policy.py). Use [spatial
+The relevant source is [go/internal/policy](../../../go/internal/policy) and
+[go/internal/store](../../../go/internal/store). Use [spatial
 contracts](../contracts/spatial-contracts.md) for exact geometry bounds and [command
 contracts](../contracts/command-contracts.md#provenance-and-resource-policies) for
 resource-policy semantics.

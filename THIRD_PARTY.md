@@ -28,7 +28,17 @@ The build manifest records bundled runtime dependency versions and file hashes;
 actual native loading remains part of N01 package acceptance.
 
 - [Colony bridge source notice](integrations/rimgovernor-native/Notices/companion/PROVENANCE.md)
-- [UI formatter source notice](controller/rimgovernor/vendor/PROVENANCE.md)
 - [Headless adapter source notice](integrations/rimgovernor-native/Notices/headless/PROVENANCE.md) and GPL-3.0 license
 
 Game files, artwork, GABS and installed SDK assemblies are supplied separately.
+
+## Retired Python UI formatter notice
+
+The Python production runtime's `companion_ui.py` (removed in
+[G01.13](https://github.com/davidarcher/rimgovernor/issues/33)) retained
+`slim_surface` and its helpers from Snowstar38/rimworld-claude-harness,
+`instruments/ui.py`, revision `89c2e90fedd51419a3db55a7f9865b0aef29b270`.
+Transport, CLI, clicking, dismissal and timers were excluded. The reviewed
+upstream checkout supplied no license file; that research reuse never
+established redistribution permission. Kept here for the historical record
+now that the code itself is gone.

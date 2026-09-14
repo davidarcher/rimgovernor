@@ -42,5 +42,6 @@ Manual stops routine automation but permits current explicit player work through
 Hands while paused. It does not resume simulation. Direction and colony/map/load
 changes invalidate work prepared under the previous context.
 
-Implementation: `player_commands.py`, `colony_plan.py` and `hands.py` under
-[controller/rimgovernor](../../../controller/rimgovernor).
+Implementation: [go/internal/domain](../../../go/internal/domain) (plans/goals),
+[go/internal/store](../../../go/internal/store) and
+[go/internal/executor](../../../go/internal/executor).

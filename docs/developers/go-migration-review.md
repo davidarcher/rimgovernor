@@ -8,9 +8,12 @@ The actionable checklist is exclusively in the
 **Superseded by G01.07–G01.12.** The capability table below reflects the state at
 the reviewed revision, well before G01.07–G01.10 closed and G01.12 switched the
 production default to Go. It is retained as a historical audit, not a current
-capability boundary. For the current boundary (including what still runs through
-Python — chat, and the `launch.ps1` rollback path) see [the Go module
-guide](../../go/README.md).
+capability boundary. For the current boundary see
+[the Go module guide](../../go/README.md); as of
+[G01.13](https://github.com/davidarcher/rimgovernor/issues/33) there is no
+Python anywhere in the repository, so the `controller/rimgovernor/*.py`
+citations below no longer resolve — they are kept as frozen historical
+evidence of what was reviewed, not live source links.
 
 ## Finding
 

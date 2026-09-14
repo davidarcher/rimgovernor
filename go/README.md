@@ -3,10 +3,11 @@
 The module provides local observation and explicit player services, version/help
 and offline replay.
 `launch.cmd`/`launch-go.ps1` and the `go-controller` Docker target (below) start
-this binary directly with no Python interpreter; this is the production default
-(G01.12). `launch.ps1` still runs the Python controller directly for rollback
-during the G01.13 removal window. Go starts with fresh state; importing Python
-databases and matching historical save formats are not rewrite gates.
+this binary directly; there is no Python interpreter, venv or `controller/`
+package anywhere in the repository as of G01.13
+([issue #33](https://github.com/davidarcher/rimgovernor/issues/33)). Go starts
+with fresh state; importing historical Python databases and matching historical
+save formats are not rewrite gates.
 
 Use Go **1.27.1** from `.go-version`. From this directory:
 
@@ -85,11 +86,10 @@ control) — see [issue #45](https://github.com/davidarcher/rimgovernor/issues/4
 unaffected. Related: [issue #42](https://github.com/davidarcher/rimgovernor/issues/42)
 covers the clock restarting in short, thrashing bursts once running.
 
-It builds the binary if missing, reuses the same dashboard build the Python
-controller serves (`controller/rimgovernor/static`, built with `pnpm`, no
-Python), and requires the same prepared GABS/config/profile inputs as
-`launch.ps1` (`docs/players/setup.md`) — GABS is a native executable dependency
-of the controller itself, not a Python one.
+It builds the binary if missing, builds the dashboard's static assets
+(`dashboard/dist`, built with `pnpm`, no Python) and requires prepared
+GABS/config/profile inputs (`docs/players/setup.md`) — GABS is a native
+executable dependency of the controller itself, not a Python one.
 
 **Docker**: `containers/Dockerfile`'s `go-controller` target builds the Go
 binary and packages the same dashboard assets, with no Python runtime or
@@ -110,15 +110,14 @@ Windows/macOS Docker Desktop caveat).
 
 **No licensed game files here**: without a real GABS build and prepared save,
 `serve` fails at the native bridge handshake (`bridge transport failure:
-initialize: ...`), the same boundary `docs/developers/testing/docker-checks.md`
-describes for other checks. That failure, `go build ./...`, `go vet ./...`,
+initialize: ...`). That failure, `go build ./...`, `go vet ./...`,
 `go test ./cmd/...` and an image build/`docker run` reaching that same clean
 failure are compilation/protocol/wiring checks, not gameplay evidence — they
 confirm the packaging path is wired correctly, not that a colony runs.
 
-**Retained Python**, explicitly, after this item:
-- Player chat and local-model command interpretation (`player_commands.py`
-  remains the live pipeline; `interpreter/decode.go` decodes build, research,
+**Remaining scope**, tracked separately from this item:
+- Natural-language player chat and local-model command interpretation:
+  `interpreter/decode.go` decodes build, research,
   tend, rescue, draft, caravan departure/hold/route, husbandry, recovery
   service, bed assignment, movement, building temperature, surgery, quest
   accept/fulfill, settlement gift, zone creation, zone edit (add/remove
@@ -550,21 +549,27 @@ confirm the packaging path is wired correctly, not that a colony runs.
   flags compile shared plans today without an executable action family yet).
   Equipment wear/replace, gear/medical production, research selection and
   resource-target production dispatch through Go are closed (G01.07d).
-- Development/scenario tooling stays Python by design, not as a gap: the
-  Docker controller/worker/colonies test targets, `scripts/container_checks.py`,
-  `scripts/container_scenario.py`, `scripts/prepare_bridge_trial.py` and
-  `controller_tests/` (see `AGENTS.md`: new native acceptance tooling is Go,
-  not Python — these are the existing, retained exception, not new tooling).
-- Natural-language player chat (`POST /api/chat`) stays served by the Python
-  controller only; the Go dashboard path exposes structured player controls
-  instead (`ObservationDashboard`/`PlayerControls`, no free-text chat UI) and
-  never calls it. Go's `interpreter/decode.go` decodes chat-shaped commands but
-  is not wired into `serve`'s HTTP server.
-- `launch.ps1` still runs the Python controller directly for rollback; the
-  Docker `directory`/`worker` targets remain Python (used by `controller_tests/`
-  and the native scenario/acceptance tooling above). `launch.cmd`/`launch-go.ps1`
-  and the `go-controller` Docker target are the production default (G01.12).
-  Removing Python entirely is G01.13.
+- Native scenario/acceptance tooling: G01.13
+  ([issue #33](https://github.com/davidarcher/rimgovernor/issues/33)) removed
+  the Python production runtime, `controller_tests/` and the Python
+  scenario/acceptance scripts entirely, along with the Docker
+  `controller-tests`/`tests`/`worker` build targets that ran them. Native
+  acceptance tooling is being rebuilt in Go — see
+  [issue #38](https://github.com/davidarcher/rimgovernor/issues/38). Until
+  then, only the `nativeaccept/cmd/*` Go harnesses listed above exercise a
+  real headless RimWorld instance.
+- Natural-language player chat (`POST /api/chat`) is not served by either
+  runtime: the Python server that used to serve it was removed in G01.13, and
+  the Go dashboard path exposes only structured player controls
+  (`ObservationDashboard`/`PlayerControls`, no free-text chat UI). Go's
+  `interpreter/decode.go` decodes chat-shaped commands but is not wired into
+  `serve`'s HTTP server. See
+  [issue #46](https://github.com/davidarcher/rimgovernor/issues/46) tracking
+  a possible Go chat implementation.
+- `--colonies` multi-instance directory serving was Python-only and was
+  removed, unported, in G01.13; see
+  [issue #47](https://github.com/davidarcher/rimgovernor/issues/47) tracking
+  a possible Go implementation.
 
 ## Routine policy components
 
@@ -823,8 +828,10 @@ action dispatch remains unavailable. `Recovery` retains typed proposal inputs an
 at most eight candidates for existing roofed areas or ordinary service work. Player
 restrictions, availability and used shared methods constrain selection; native
 admission is still required. Manual clears these candidates. See the
-[contract](../docs/developers/contracts/disaster-planning.md) and
-[acceptance commands](../docs/developers/testing/disaster-planning.md).
+[contract](../docs/developers/contracts/disaster-planning.md); the Python
+acceptance commands this once linked to were removed in G01.13
+([issue #38](https://github.com/davidarcher/rimgovernor/issues/38) tracks
+their Go rebuild).
 
 `ReadRoutinePawns` adds the work-only detail selection to the same exact-ID read,
 plus schedule (`TimetableSlot`) detail: the whole routine census is shared across
@@ -1183,9 +1190,11 @@ pawn construction. Unsuccessful outcomes remain distinct from unknown effects.
 
 `Executor.Stop` cancels work and joins native dispatch plus receipt persistence.
 A failed drain requires retaining the process lock, bridge and database until a
-later successful drain. [Native service acceptance](../docs/developers/testing/construction-recovery.md#go-http-building-service)
-verifies ordinary pawn completion and disabled same-database restart through the
-HTTP service. Supervised Go clock control remains a separate G01.10 integration.
+later successful drain, verified by native acceptance covering ordinary pawn
+completion and disabled same-database restart through the HTTP service (the
+Python acceptance commands this once linked to were removed in G01.13;
+[issue #38](https://github.com/davidarcher/rimgovernor/issues/38) tracks their
+Go rebuild). Supervised Go clock control remains a separate G01.10 integration.
 
 The internal clock scheduler can perform one finite healthy-colony scheduling step
 through the shared session. Its durable window admission binds current review and

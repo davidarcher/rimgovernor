@@ -189,15 +189,13 @@ alias, mismatched canonical method/schema links, changed native signatures or
 fingerprints, and changed generated compile inputs. The runtime source index is
 navigation for handwritten native ownership, not a second generated schema.
 
-`scripts/native_package_acceptance.py` now exercises identity, authority readback
-and placement through these fixed Protobuf capabilities. It retains the current
-`home/status` paused-clock check, camera/building readback and saved component
-census. Use it with `scripts/container_scenario.py`, prepared private inputs and a
-fresh output. Its small ProtoJSON smoke assertions do not replace official-parser
-boundary tests or the deeper `scripts/native_protobuf_acceptance.py` matrix.
-
-The older `native_compatibility_acceptance.py` and compatibility evidence describe
-the earlier saved-game/wire baseline. They are retained evidence tooling, not the
-current standard package check; their old placement requests do not match this
-cutover. No saved-game compatibility acceptance is required for this active-dev
-slice.
+The Python acceptance scripts this section once described
+(`native_package_acceptance.py`, `container_scenario.py`,
+`native_protobuf_acceptance.py`, `native_compatibility_acceptance.py`) exercised
+identity, authority readback, placement and the saved-game/wire compatibility
+baseline through these fixed Protobuf capabilities. They were removed with the
+rest of the Python acceptance toolchain in
+[G01.13](https://github.com/davidarcher/rimgovernor/issues/33); equivalent Go
+coverage is tracked in
+[issue #38](https://github.com/davidarcher/rimgovernor/issues/38). No saved-game
+compatibility acceptance is required for this active-dev slice.

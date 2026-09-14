@@ -1,1 +1,0 @@
-"""RimGovernor external colony controller."""

@@ -2,8 +2,8 @@
 
 [Documentation](../README.md)
 
-The Go controller is the production default (G01.12). Autopilot (routine work) needs
-no model and no player text input; run:
+The Go controller is the sole production runtime (G01.13). Autopilot (routine work)
+needs no model and no player text input; run:
 
 ```powershell
 .\launch.cmd
@@ -26,38 +26,15 @@ Each run opens a fresh Go state database (timestamped under `.rimgovernor/go/`);
 does not reuse a controller already listening on the target port, so stop an existing
 session (or pick a different `-Port`) before starting a new one.
 
-## Natural-language chat is not yet available here
+## Natural-language chat is not currently available
 
 The Go dashboard shows colony state and structured building/routine/player controls
-(no free-text message box); it does not call a local model. Interactive chat
-(typed requests interpreted by a local model) still runs only through the Python
-controller, which remains available directly for this and as a rollback path during
-the G01.13 removal window:
-
-```powershell
-.\launch.ps1                          # Python controller; interactive chat
-.\launch.ps1 -FreshGame               # Require a new fixture; close existing game/controller first
-.\launch.ps1 -NoGame                  # Connect to an already running bridge game
-.\launch.ps1 -Model qwen3.5-4b        # Use this model if loaded in LM Studio
-```
-
-The dashboard opens at http://127.0.0.1:8787 in Manual mode; it reuses an
-already-running native bridge game/controller instead of requiring a fresh one.
-This chat gap is tracked for the Go controller; it is not a rewrite gate for G01.12.
-
-### Configure local model roles (Python controller)
-
-Interactive chat uses the `strategist` model role; autopilot needs no inference. To
-configure a generic 4B analyst, copy/edit `config/models.example.json`, then restart
-with:
-
-```powershell
-.\launch.ps1 -ModelsConfig config\models.example.json
-```
-
-Role names are `strategist`, `analyst`, `architect`, and `critic`. All optional roles
-can be omitted or point at the same loaded model. Consultations happen only when the
-strategist asks a specific question.
+(no free-text message box); it does not call a local model. The Python controller
+that previously served interactive chat was removed in G01.13
+([issue #33](https://github.com/davidarcher/rimgovernor/issues/33)); there is
+currently no local-model chat path in either runtime. See
+[issue #46](https://github.com/davidarcher/rimgovernor/issues/46) for the
+status of rebuilding it in Go.
 
 ## Related reading
 

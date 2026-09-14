@@ -5,7 +5,7 @@
 The Go bridge and store validate clock commands and recovered evidence against the
 canonical native producer. The player service composes the scheduler and workers
 behind `--clock-control`; validation never restores permission after restart.
-See [native service acceptance](../testing/construction-recovery.md#go-http-building-service)
+See native service acceptance
 for the game-level verification procedure.
 
 ## Original command correlation

@@ -2,6 +2,12 @@
 
 All 97 porting-baseline native-tool inventory rows: 54 owned home calls, 33 upstream SDK calls, eight GABS boundaries and two dispatch/discovery mechanisms. The baseline 55-export production census additionally contains home/play_until_event, mapped below. See [current native capabilities](../native-protobuf-cutover.md) for implemented exports. Family coverage does not prove adapter behavior or field completeness.
 
+`controller/rimgovernor/*.py` citations below are frozen historical provenance from
+the Python baseline this mapping was captured against; that source tree was removed
+in [G01.13](https://github.com/davidarcher/rimgovernor/issues/33) and the paths no
+longer resolve. They are retained to show where each capability was originally
+discovered/mapped, not as live source links.
+
 | Baseline boundary | Canonical destination | Disposition | Inventory source |
 |---|---|---|---|
 | `games_start` | Existing exact-owned GABS process adapter | External host | `controller/rimgovernor/bridge.py:106` |

@@ -40,11 +40,14 @@ game and external SDK/Harmony binaries out of the package.
 
 ## Acceptance
 
-Build against the installed game/SDK references, then use the standard isolated
-scenario launcher with `scripts/native_package_acceptance.py`. It creates a new
-game, checks production discovery and the loader/component boundaries, previews
-without advancing paused time or changing the camera, and verifies the startup
-mode from native logs. Run batch and graphical/Xvfb modes against the same package.
+Build against the installed game/SDK references. The Python scenario launcher and
+`scripts/native_package_acceptance.py` this section once described (new-game
+production discovery, loader/component boundary checks, paused preview
+verification and batch/graphical startup mode checks) were removed with the
+rest of the Python acceptance toolchain in
+[G01.13](https://github.com/davidarcher/rimgovernor/issues/33); equivalent Go
+coverage is tracked in
+[issue #38](https://github.com/davidarcher/rimgovernor/issues/38).
 Current-game safety and gameplay changes need their own native outcomes; no
 old-save import or historical byte-parity campaign is required.
 

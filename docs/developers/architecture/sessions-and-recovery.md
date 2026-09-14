@@ -1,6 +1,6 @@
 # Sessions and recovery
 
-[Architecture](overview.md) · [Session contracts](../contracts/session-contracts.md)
+[Architecture](overview.md)
 
 Colony identity and map scope durable intent; a load token identifies the loaded
 instance. Reloading can preserve goals while invalidating old in-flight operations.
@@ -20,7 +20,8 @@ boundary; it does not record every simulation step or guarantee identical future
 pawn behavior. Attached sessions have a separate unchanged-game reconnect contract.
 
 See [save and resume](../../players/save-and-resume.md),
-[checkpoint tests](../testing/checkpoint-acceptance.md) and
+checkpoint acceptance (the Python harness was removed in G01.13; see
+[issue #38](https://github.com/davidarcher/rimgovernor/issues/38)) and
 [session migration](../legacy-migration.md).
 
 ## Archives and cleanup

@@ -1,5 +1,12 @@
 # Native saved-state ownership inventory
 
+Every `scripts/*_acceptance.py` and `controller_tests/*` entry point named
+below was removed with the rest of the Python acceptance toolchain in
+[G01.13](https://github.com/davidarcher/rimgovernor/issues/33); equivalent Go
+coverage is tracked in
+[issue #38](https://github.com/davidarcher/rimgovernor/issues/38). They are
+retained here as historical evidence pointers, not live commands.
+
 Source baseline: `3fea7d5c`. This source audit contributes to
 [N01](https://github.com/davidarcher/rimgovernor/issues?q=is%3Aissue+is%3Aopen+label%3A%22area%3AN01%22); it does not approve
 state removal or establish save compatibility. Existing controller persistence is

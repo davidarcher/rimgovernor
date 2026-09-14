@@ -46,4 +46,4 @@ An issued order, a carried body, an absent item, a merged stack or elapsed ticks
 not completion. Load and player-direction changes invalidate pending authority.
 Interrupted or uncertain work retains its evidence for inspection before replacement.
 
-See [native waste acceptance](../testing/waste-management.md) for test scope and inputs.
+See native waste acceptance for test scope and inputs.

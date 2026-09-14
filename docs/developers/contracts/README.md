@@ -6,9 +6,7 @@ Current rules, payloads and completion criteria. Open the topic that owns your c
 
 - [Action completion contracts](action-contracts.md)
 - [Player command contracts](command-contracts.md)
-- [Container and worker isolation](container-isolation.md)
 - [Controller and colony contracts](controller-contracts.md)
-- [Diagnostic evidence and recorder limits](diagnostics.md)
 - [Equipment and apparel upkeep](equipment-upkeep.md)
 - [Native forecast contracts](forecast-contracts.md)
 - [Animal husbandry contracts](husbandry-contracts.md)
@@ -24,7 +22,6 @@ Current rules, payloads and completion criteria. Open the topic that owns your c
 - [Recovery and uncertain-write contracts](recovery-contracts.md)
 - [Disaster planning](disaster-planning.md)
 - [Research tied to colony needs](research.md)
-- [Session, checkpoint and clock contracts](session-contracts.md)
 - [Spatial contracts](spatial-contracts.md)
 - [Colony upkeep contracts](upkeep-contracts.md)
 - [Waste containment contracts](waste-management.md)

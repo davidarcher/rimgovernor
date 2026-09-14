@@ -21,11 +21,12 @@ controller.
 Help renders the [player Markdown files](../../players/README.md) bundled at build
 time. Update those files to change both repository and in-app guidance. Player links
 stay inside Help; developer links open the repository. Help remains available when
-the game is disconnected, and opening it preserves the chat draft.
+the game is disconnected.
 
-A separate [local colony directory](../local-colonies.md) discovers running
-Docker workers and opens their dashboards in separate tabs. It owns no controller
-or game session. Each colony keeps its own origin, drafts and control leases.
+The multi-instance local colony directory (`--colonies`) was Python-only and was
+removed, unported, in [G01.13](https://github.com/davidarcher/rimgovernor/issues/33);
+see [issue #47](https://github.com/davidarcher/rimgovernor/issues/47) for the
+status of a possible Go implementation.
 
 Colony centers on the individual colonists. Their dossiers combine native portraits,
 worn gear, biographies, skills, health and mood with the current job report and
@@ -68,10 +69,9 @@ completed.
 
 The React entry point is
 [BridgeColony.tsx](../../../dashboard/src/features/manager/BridgeColony.tsx). Server-side
-controls are in [dashboard_controls.py](../../../controller/rimgovernor/dashboard_controls.py).
+controls are in [go/internal/httpapi](../../../go/internal/httpapi).
 See [interface contracts](../contracts/interface-contracts.md) for lease, capture and
-transport details, or [dashboard acceptance](../testing/dashboard-acceptance.md) for
-verification procedures.
+transport details.
 
 ## Visual second opinions
 
@@ -83,4 +83,4 @@ reviewer can miss a blueprint door; native facts still determine whether work is
 needed. Exact report recall preserves what was observed, not its correctness.
 
 See [source and framing contracts](../contracts/interface-contracts.md#visual-review-sources)
-and [visual evaluation](../testing/visual-reviews.md) for the bounded comparison.
+and visual evaluation for the bounded comparison.

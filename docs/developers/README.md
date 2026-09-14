@@ -10,14 +10,20 @@ component you will change. Keep work in small verified slices using the
 | Task | Start here |
 | --- | --- |
 | Set up locally | [Windows setup](../players/setup.md) |
-| Run checks without game files | [First Docker check](testing/first-check.md) |
-| Choose tests or run a native scenario | [Testing](testing/README.md) |
+| Run checks without game files | `go vet ./...` / `go test ./...` under `go/` (see [Go module](../../go/README.md)) |
 | Change game behavior | [Subsystem contracts](contracts/README.md) |
 | Change deployment names | [Project identity](project-identity.md) |
-| Browse running Docker colonies | [Local colony directory](local-colonies.md) |
 | Migrate an owned session | [Session migration](legacy-migration.md) |
 | Work on the Go controller | [Go module](../../go/README.md) and [migration contracts](../../contracts/README.md) |
 | Pick up unfinished work | [Backlog issues](https://github.com/davidarcher/rimgovernor/issues) |
+
+Native scenario/acceptance tooling (`testing/first-check.md`, `testing/README.md`
+and the rest of the old Python acceptance docs) was removed in
+[G01.13](https://github.com/davidarcher/rimgovernor/issues/33) along with the
+Python toolchain it documented; see
+[issue #38](https://github.com/davidarcher/rimgovernor/issues/38) for the Go
+rebuild. The multi-instance local colony directory (`--colonies`) was removed
+the same way; see [issue #47](https://github.com/davidarcher/rimgovernor/issues/47).
 
 ## Component guides
 

@@ -31,7 +31,7 @@ changes and review completion wake it immediately. Hands yields at its operation
 budget and requests continuation. Only one review or execution task runs at a time.
 Idle/blocked work and autosave refusals use a two-second retry backoff. Native clock
 journal reads notify the scheduler; lease renewal and periodic observation remain
-independent of task completion. See [session contracts](../contracts/session-contracts.md).
+independent of task completion.
 
 ## Verify progress
 
@@ -41,11 +41,9 @@ hold without replacing the action or its evidence.
 
 Stability requires sleeping capacity, shelter, food, production, storage, cooking,
 temperature and other gates together. Changed conditions can invalidate stability.
-Sustained coverage belongs in [campaigns](../testing/campaigns.md) and
+Sustained coverage belongs in campaigns and
 [GitHub issues](https://github.com/davidarcher/rimgovernor/issues).
 
-Implementation: `colony_controller.py`, `colony_policy.py`, `colony_skills.py` and
-`bridge_runtime.py` under [controller/rimgovernor](../../../controller/rimgovernor).
 The gated [Go routine components](../../../go/README.md#routine-policy-components)
 persist maintained goals, method reservations and action dependencies. Building
 methods reserve all costs atomically against the shared journal; Hands rechecks

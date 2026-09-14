@@ -64,5 +64,5 @@ These are current-condition projections. Future births, changing temperatures,
 spoilage and native job selection require fresh review; a bounded acceptance run
 does not establish indefinite herd sustainability.
 
-See [husbandry acceptance](../testing/husbandry-acceptance.md) for the native fixture
+See husbandry acceptance for the native fixture
 and the distinction between setup, orders and pawn outcomes.

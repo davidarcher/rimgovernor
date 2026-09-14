@@ -2,10 +2,17 @@
 param()
 $ErrorActionPreference = 'Stop'
 Set-Location -LiteralPath $PSScriptRoot
-$python = Join-Path $PSScriptRoot '.venv\Scripts\python.exe'
-if (!(Test-Path -LiteralPath $python)) { throw 'Run setup.ps1 first.' }
-& $python -m pytest -q
-if ($LASTEXITCODE) { throw 'Controller tests failed.' }
+Push-Location go
+try {
+    $env:GOTOOLCHAIN = 'go1.27.1'
+    $env:CGO_ENABLED = '0'
+    & go vet ./...
+    if ($LASTEXITCODE) { throw 'go vet failed.' }
+    & go test ./...
+    if ($LASTEXITCODE) { throw 'Go controller tests failed.' }
+    & go build -o ../.rimgovernor/go/rimgovernor.exe ./cmd/rimgovernor
+    if ($LASTEXITCODE) { throw 'Go controller build failed.' }
+} finally { Pop-Location }
 $pnpm = Get-Command pnpm -ErrorAction SilentlyContinue
 $bundled = Join-Path $env:USERPROFILE '.cache\codex-runtimes\codex-primary-runtime\dependencies\bin\fallback\pnpm.cmd'
 $packageManager = if ($pnpm) { $pnpm.Source } elseif (Test-Path $bundled) { $bundled } else { throw 'pnpm is required.' }
@@ -18,4 +25,4 @@ try {
     & $packageManager run build
     if ($LASTEXITCODE) { throw 'Dashboard build failed.' }
 } finally { Pop-Location }
-Write-Host 'Controller checks passed and dashboard built. No mod DLL installed.'
+Write-Host 'Go controller checks passed and dashboard built. No mod DLL installed.'

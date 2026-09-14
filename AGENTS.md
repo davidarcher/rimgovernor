@@ -54,12 +54,13 @@
   slices sized to a milestone rather than the smallest possible step, strict typed
   contracts and explicit component ownership. Integrate features through existing
   architecture; keep unstructured data at validated boundaries.
-- Start with the [documentation map](docs/README.md), [system overview](docs/developers/architecture/overview.md),
-  the [backlog issues](https://github.com/davidarcher/rimgovernor/issues) and
-  [test selection](docs/developers/testing/choose-tests.md).
-  Read the component guide and contracts for the subsystem being changed;
-  use its testing page for commands. Runtime: Python, React,
-  GABS/RimBridgeServer and `integrations/rimgovernor-native`.
+- Start with the [documentation map](docs/README.md), [system overview](docs/developers/architecture/overview.md)
+  and the [backlog issues](https://github.com/davidarcher/rimgovernor/issues).
+  Read the component guide and contracts for the subsystem being changed.
+  Runtime: Go (`go/`), React (`dashboard/`), GABS/RimBridgeServer and
+  `integrations/rimgovernor-native`. New native acceptance tooling is Go, not
+  Python — see [issue #38](https://github.com/davidarcher/rimgovernor/issues/38)
+  for the state of rebuilding it.
 - Keep one shared goal/action system and deterministic Hands. Routine control is
   deterministic; player chat interprets explicit semantic requests. Advisers cannot
   write game orders or own colony invariants.
@@ -73,50 +74,30 @@
 
 ## Validation
 
-- Before reporting missing native test inputs, read [local acceptance inputs](docs/developers/testing/local-acceptance-inputs.md).
-  The shared Windows/Linux store is `.rimgovernor/acceptance-inputs` under the
-  primary RimGovernor checkout; resolve it through Git common-dir from worktrees.
-  Copy private run inputs and build task DLLs there.
-
-- Follow the testing pyramid: many fast unit tests, fewer integration tests and
-  a small set of targeted game acceptance scenarios. Keep the edit/test loop fast.
-  Use fixtures, replay and contract tests for most migration parity; parameterize
-  biome and colony policy variants where simulation is unnecessary.
+- Follow the testing pyramid: many fast Go unit tests (`go test ./...` under
+  `go/`), fewer integration tests and a small set of targeted native
+  acceptance harnesses (`go/internal/nativeaccept/cmd/*`) verified against a
+  real headless RimWorld instance. Keep the edit/test loop fast.
 - Before a slow check, identify the changed behavior or unresolved failure it
-  verifies and why cheaper checks are insufficient. Run targeted game acceptance
-  at relevant feature milestones, not after every edit. Broad scenario matrices
-  and sustained campaigns are separate scheduled or explicitly requested work.
+  verifies and why cheaper checks are insufficient. Run targeted native
+  acceptance at relevant feature milestones, not after every edit.
 - After an acceptance failure, add a fast regression test where feasible and
-  rerun the affected scenario. Do not restart a whole campaign without a specific
-  reason. Do not duplicate tests or reviews already supported by applicable evidence.
-- Native scenario tick waits use `rimgovernor.native_scenario.advance_game` instead of
-  bespoke start/poll/resume loops. Its default acknowledges inspected Ancient danger
-  fixture warnings and preserves the remaining tick budget. Interruption acceptance
-  passes `expected_letters=()`; unexpected stops remain failures with evidence.
-- Start with the [test selection guide](docs/developers/testing/choose-tests.md).
-  [Docker controller checks](docs/developers/testing/docker-checks.md)
-  need no game files or model server; the separate native Docker runner needs
-  licensed Linux inputs. Its current assertions cover lifecycle and optional
-  rendered/input behavior; native pawn outcomes require scenario assertions.
-  Use fresh output directories and task-specific image tags; retain reports and
-  failures under `.rimgovernor/` and report the exact scope tested.
-- Use `scripts/container_scenario.py` for new script-based native Docker runs.
-  Specialized launchers must use its `dashboard_options` and
-  `require_dashboard_image` helpers so scenarios publish automatic loopback
-  dashboard ports. Rebuild old images; do not silently omit observation support.
-- During iteration, run affected test files and their contract neighbors. Run the
-  full affected suite once before handoff; reuse results while relevant inputs
-  remain unchanged, even when main advances.
-  Use one Docker check worker by default: extra workers repeat, not shard, tests.
-  Use `--controller-only --test controller_tests/test_NAME.py` for focused Docker
-  controller checks; omit `--test` for the full controller suite.
-- Use checks appropriate to the change; `build.ps1` runs controller and dashboard
-  checks. Distinguish compilation/protocol checks from actual gameplay validation.
+  rerun the affected harness. Do not duplicate tests or reviews already
+  supported by applicable evidence.
+- Use checks appropriate to the change; `build.ps1` runs the Go controller
+  checks (`go vet`, `go test`, `go build`) and dashboard checks. Distinguish
+  compilation/protocol checks from actual gameplay validation.
 - Never replace installed DLLs while any RimWorld instance is running, including
   another worktree's tests. Isolated tests must restore temporarily swapped DLLs.
 - Native behavior changes need targeted game-level acceptance before completion.
   Documentation-only edits need no game session. The full affected suite means
   the applicable automated suite, not the entire gameplay scenario matrix.
+- The broader Python Docker/scenario acceptance toolchain (`controller_tests/`,
+  `scripts/*_acceptance.py`, the `worker`/`controller-tests` Docker targets) was
+  removed in G01.13 ([issue #33](https://github.com/davidarcher/rimgovernor/issues/33))
+  and is being rebuilt in Go; see
+  [issue #38](https://github.com/davidarcher/rimgovernor/issues/38) for current
+  coverage and gaps before assuming a check described in old history still exists.
 
 ## Documentation and comments
 

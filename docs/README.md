@@ -16,9 +16,13 @@ its contracts and run the relevant checks.
 
 - [Architecture](developers/architecture/overview.md) and [source map](developers/source-map.md)
 - [Development workflow](developers/development-process.md)
-- [Local Windows and Linux acceptance inputs](developers/testing/local-acceptance-inputs.md)
-- [Testing](developers/testing/README.md) and [subsystem contracts](developers/contracts/README.md)
+- [Subsystem contracts](developers/contracts/README.md) and
+  [migration coverage](../contracts/README.md)
 - [Generated wire contracts](../contracts/schema-generation.md)
+- [Go controller development](../go/README.md), including its testing pyramid
+  (the Python Docker/scenario acceptance docs were removed in G01.13; native
+  acceptance tooling is being rebuilt in Go — see
+  [issue #38](https://github.com/davidarcher/rimgovernor/issues/38))
 - [Backlog issues](https://github.com/davidarcher/rimgovernor/issues): unfinished
   features, migrations and acceptance, labeled by priority (`priority:P0`/`P1`/`P2`)
   or rewrite area (`area:G01`/`N01`/`tooling`)

@@ -84,12 +84,6 @@ def main() -> int:
             if result.returncode:
                 return result.returncode
     result = subprocess.run(
-        [sys.executable, str(ROOT / "scripts" / "check_serialization_baseline.py"),
-         "--check", "--self-test"], cwd=ROOT,
-    )
-    if result.returncode:
-        return result.returncode
-    result = subprocess.run(
         [sys.executable, str(ROOT / "scripts" / "check_native_inventory.py"),
          "--check", "--self-test"], cwd=ROOT,
     )

@@ -6,8 +6,12 @@ production, training or treatment. Native eligibility remains authoritative.
 
 ## Native capability audit
 
-The installed bridge exposes the following contracts. Discovery is retained by
-`scripts/container_player_actions.py` with the tested DLL hashes and schemas.
+The installed bridge exposes the following contracts. Discovery was retained by
+`scripts/container_player_actions.py` with the tested DLL hashes and schemas
+until that Python discovery tooling was removed in
+[G01.13](https://github.com/davidarcher/rimgovernor/issues/33)
+([issue #38](https://github.com/davidarcher/rimgovernor/issues/38) tracks its
+Go rebuild); the contracts below remain current.
 
 | Surface | Native contract and execution boundary |
 | --- | --- |

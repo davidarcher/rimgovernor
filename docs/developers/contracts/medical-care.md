@@ -67,7 +67,7 @@ ticks are insufficient. Failure, cancellation, suspension, death and missing hea
 remain explicit; failed operations are never automatically repeated. Surgical health
 changes and postoperative recovery are separate outcomes.
 
-The native setup used by [medical acceptance](../testing/medical-care-acceptance.md)
+The native setup used by medical acceptance
 is excluded from production builds and from the model execution surface.
 
 The supervised clock accepts short-lived surgical recovery IDs only from confirmed,

@@ -1,10 +1,9 @@
 [CmdletBinding()]
-# Starts the Go controller binary directly: no Python interpreter, venv or
-# `python -m rimgovernor` in this path. Player-control building/draft/routine
-# execution is the default (G01.12); pass -ReadOnly for observation only. Go
-# does not yet replace natural-language player chat, which the dashboard only
-# offers against the Python controller (launch.ps1) — see go/README.md for the
-# current capability boundary.
+# Starts the Go controller binary directly: no Python interpreter anywhere in
+# this path (G01.13). Player-control building/draft/routine execution is the
+# default; pass -ReadOnly for observation only. Natural-language player chat is
+# not currently available in either runtime — see go/README.md for the current
+# capability boundary.
 param(
   [int]$Port = 8787,
   [switch]$ReadOnly,
@@ -39,7 +38,7 @@ if (!$Config) { $Config = Join-Path $PSScriptRoot '.rimgovernor/bridge/config' }
 if (!(Test-Path -LiteralPath $Gabs)) { throw 'Prepare the native bridge profile and GABS first; see docs/players/setup.md.' }
 if (!(Test-Path -LiteralPath (Join-Path $Config 'config.json'))) { throw 'Missing GABS configuration; see docs/players/setup.md.' }
 
-if (!$Assets) { $Assets = Join-Path $PSScriptRoot 'controller/rimgovernor/static' }
+if (!$Assets) { $Assets = Join-Path $PSScriptRoot 'dashboard/dist' }
 if (!(Test-Path -LiteralPath (Join-Path $Assets 'index.html'))) {
   Write-Host 'Building dashboard assets (no Python involved)...'
   $pnpm = Get-Command pnpm -ErrorAction SilentlyContinue

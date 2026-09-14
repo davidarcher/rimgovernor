@@ -89,12 +89,11 @@ toggle. The UI has no general undraft, claim-adoption or native-token input.
 
 ## Native draft acceptance
 
-Run `scripts/native_go_draft_acceptance.py` through `scripts/container_scenario.py`
-with `GuardedConstructionFixture`, a private Go binary and explicit `--go-source`
-and `--go-sha256` handoff arguments. The harness selects an observed healthy,
-unowned pawn and retains native claim/release evidence for ordinary completion,
-player override and recovery after a successful Execute reply is withheld and
-replaced by a transport error. It also checks HTTP response-body loss followed by
-lookup, and disabled same-database restarts without native acquisition or writes.
-It does not simulate transport timeout or EOF. All services join before another
-GABS owner connects; native tick advancement uses the shared scenario helper.
+The Python `scripts/native_go_draft_acceptance.py`/`container_scenario.py`
+scenario this section once described (`GuardedConstructionFixture` draft
+claim/release evidence for ordinary completion, player override, transport-error
+recovery, HTTP response-body loss followed by lookup, and disabled
+same-database restarts) was removed with the rest of the Python acceptance
+toolchain in [G01.13](https://github.com/davidarcher/rimgovernor/issues/33);
+equivalent Go coverage is tracked in
+[issue #38](https://github.com/davidarcher/rimgovernor/issues/38).
