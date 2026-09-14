@@ -26,6 +26,7 @@ namespace HomeBridge.BridgeTools
         internal readonly Dictionary<Common.AttemptKey, NativeZoneRecord> Zones = new Dictionary<Common.AttemptKey, NativeZoneRecord>();
         internal readonly Dictionary<Common.AttemptKey, INativeAcquisitionRecord> Acquisition = new Dictionary<Common.AttemptKey, INativeAcquisitionRecord>();
         internal readonly Dictionary<Common.AttemptKey, Operations.PatchPawn> WorkSettings = new Dictionary<Common.AttemptKey, Operations.PatchPawn>();
+        internal readonly Dictionary<Common.AttemptKey, Operations.PatchBuilding> BuildingTemperatures = new Dictionary<Common.AttemptKey, Operations.PatchBuilding>();
         internal readonly Dictionary<Common.AttemptKey, Receipts.DesignationEffect> AllowedSupplies = new Dictionary<Common.AttemptKey, Receipts.DesignationEffect>();
         internal readonly Dictionary<Common.AttemptKey, NativeHaulRecord> Hauls = new Dictionary<Common.AttemptKey, NativeHaulRecord>();
         internal readonly Dictionary<Common.AttemptKey, NativeRecoveryServiceRecord> RecoveryServices = new Dictionary<Common.AttemptKey, NativeRecoveryServiceRecord>();
@@ -40,6 +41,8 @@ namespace HomeBridge.BridgeTools
         internal readonly Dictionary<Common.AttemptKey, NativeSettlementGiftRecord> SettlementGifts = new Dictionary<Common.AttemptKey, NativeSettlementGiftRecord>();
         internal readonly Dictionary<Common.AttemptKey, NativeQuestFulfillRecord> QuestFulfills = new Dictionary<Common.AttemptKey, NativeQuestFulfillRecord>();
         internal readonly Dictionary<Common.AttemptKey, Operations.SetProductionPolicy> ProductionPolicies = new Dictionary<Common.AttemptKey, Operations.SetProductionPolicy>();
+        internal readonly Dictionary<Common.AttemptKey, NativeSurgeryRecord> Surgeries = new Dictionary<Common.AttemptKey, NativeSurgeryRecord>();
+        internal readonly Dictionary<Common.AttemptKey, NativeCaravanTravelRecord> CaravanTravels = new Dictionary<Common.AttemptKey, NativeCaravanTravelRecord>();
         private NativeOperationState(Common.Identity identity)
         { colony = identity.ColonyId; load = identity.LoadToken; Ledger = new NativeAttemptLedger(identity); }
         internal static bool TryGet(Common.Identity identity, out NativeOperationState state)
@@ -92,6 +95,8 @@ namespace HomeBridge.BridgeTools
                 return NativePlantAcquisition.Execute(state, request, context);
             if (request.Operation.CommandCase == Operations.Operation.CommandOneofCase.PatchPawn)
                 return NativeWorkSettings.Execute(state, request, context);
+            if (request.Operation.CommandCase == Operations.Operation.CommandOneofCase.PatchBuilding)
+                return NativeBuildingTemperature.Execute(state, request, context);
             if (request.Operation.CommandCase == Operations.Operation.CommandOneofCase.DesignateThing)
                 return NativeSupplyAllow.Execute(state, request, context);
             if (request.Operation.CommandCase == Operations.Operation.CommandOneofCase.SetDrafted)
@@ -130,6 +135,10 @@ namespace HomeBridge.BridgeTools
                 return NativeQuestFulfillOperations.Execute(state, request, context);
             if (request.Operation.CommandCase == Operations.Operation.CommandOneofCase.SetProductionPolicy)
                 return NativeProductionPolicyOperations.Execute(state, request, context);
+            if (request.Operation.CommandCase == Operations.Operation.CommandOneofCase.QueueSurgery)
+                return NativeSurgeryOperations.Execute(state, request, context);
+            if (request.Operation.CommandCase == Operations.Operation.CommandOneofCase.TravelCaravan)
+                return NativeCaravanTravel.Execute(state, request, context);
             if (request.Operation.CommandCase != Operations.Operation.CommandOneofCase.PlaceBuilding)
                 return Refuse(Common.FailureCode.Unsupported, "This native adapter implements PlaceBuilding, temporary owned SetDrafted, exact owned MovePawn and melee, direct-bullet or supported injury-only explosive AttackTarget.");
             if (!NativeConstructionTracking.Ready)
@@ -203,6 +212,8 @@ namespace HomeBridge.BridgeTools
                     return ProtoBoundary.Encode(NativePlantAcquisition.Preview(parsed.Operation.AcquireResource, context));
                 if (parsed.Operation?.CommandCase == Operations.Operation.CommandOneofCase.PatchPawn)
                     return ProtoBoundary.Encode(NativeWorkSettings.Preview(parsed.Operation.PatchPawn, context));
+                if (parsed.Operation?.CommandCase == Operations.Operation.CommandOneofCase.PatchBuilding)
+                    return ProtoBoundary.Encode(NativeBuildingTemperature.Preview(parsed.Operation.PatchBuilding, context));
                 if (parsed.Operation?.CommandCase == Operations.Operation.CommandOneofCase.DesignateThing)
                     return ProtoBoundary.Encode(NativeSupplyAllow.Preview(parsed.Operation.DesignateThing, context));
                 if (parsed.Operation?.CommandCase == Operations.Operation.CommandOneofCase.MovePawn)
@@ -239,6 +250,10 @@ namespace HomeBridge.BridgeTools
                     return ProtoBoundary.Encode(NativeQuestFulfillOperations.Preview(parsed.Operation.FulfillQuest, context));
                 if (parsed.Operation?.CommandCase == Operations.Operation.CommandOneofCase.SetProductionPolicy)
                     return ProtoBoundary.Encode(NativeProductionPolicyOperations.Preview(parsed.Operation.SetProductionPolicy, context));
+                if (parsed.Operation?.CommandCase == Operations.Operation.CommandOneofCase.QueueSurgery)
+                    return ProtoBoundary.Encode(NativeSurgeryOperations.Preview(parsed.Operation.QueueSurgery, context));
+                if (parsed.Operation?.CommandCase == Operations.Operation.CommandOneofCase.TravelCaravan)
+                    return ProtoBoundary.Encode(NativeCaravanTravel.Preview(parsed.Operation.TravelCaravan, context));
                 if (parsed.Operation == null || parsed.Operation.CommandCase != Operations.Operation.CommandOneofCase.PlaceBuilding)
                     return ProtoBoundary.Encode(new Operations.PreviewReply { Failure = ProtoBoundary.Fail(Common.FailureCode.Unsupported, "Preview implements PlaceBuilding, temporary SetDrafted, exact owned MovePawn and melee, direct-bullet or supported injury-only explosive AttackTarget.") });
                 NativeConstructionPlan plan; RimGovernor.Protocol.Placement.PlacementEvaluated preview;
@@ -304,6 +319,9 @@ namespace HomeBridge.BridgeTools
                         return ProtoBoundary.Encode(NativeOperationEnvelope.Progress(new Receipts.ProgressReply { Progress = NativeWorkSettings.Observe(parsed.Attempt, context, work) }));
                     if (state.AllowedSupplies.TryGetValue(parsed.Attempt, out allowed))
                         return ProtoBoundary.Encode(NativeOperationEnvelope.Progress(new Receipts.ProgressReply { Progress = NativeSupplyAllow.Observe(parsed.Attempt, context, allowed) }));
+                    Operations.PatchBuilding buildingTemperature;
+                    if (state.BuildingTemperatures.TryGetValue(parsed.Attempt, out buildingTemperature))
+                        return ProtoBoundary.Encode(NativeOperationEnvelope.Progress(new Receipts.ProgressReply { Progress = NativeBuildingTemperature.Observe(parsed.Attempt, context, buildingTemperature) }));
                     NativeCombatRecord combat;
                     if (state.Combat.TryGetValue(parsed.Attempt, out combat))
                         return ProtoBoundary.Encode(NativeOperationEnvelope.Progress(new Receipts.ProgressReply { Progress = combat.Observe(parsed.Attempt, context) }));
@@ -352,6 +370,12 @@ namespace HomeBridge.BridgeTools
                     Operations.SetProductionPolicy productionPolicy;
                     if (state.ProductionPolicies.TryGetValue(parsed.Attempt, out productionPolicy))
                         return ProtoBoundary.Encode(NativeOperationEnvelope.Progress(new Receipts.ProgressReply { Progress = NativeProductionPolicyOperations.Observe(parsed.Attempt, context, productionPolicy) }));
+                    NativeSurgeryRecord surgery;
+                    if (state.Surgeries.TryGetValue(parsed.Attempt, out surgery))
+                        return ProtoBoundary.Encode(NativeOperationEnvelope.Progress(new Receipts.ProgressReply { Progress = surgery.Observe(parsed.Attempt, context) }));
+                    NativeCaravanTravelRecord caravanTravel;
+                    if (state.CaravanTravels.TryGetValue(parsed.Attempt, out caravanTravel))
+                        return ProtoBoundary.Encode(NativeOperationEnvelope.Progress(new Receipts.ProgressReply { Progress = NativeCaravanTravel.Observe(parsed.Attempt, context, caravanTravel) }));
                 }
                 var progress = NativeOperationState.TryGet(context.Identity, out state) && state.Construction.TryGetValue(parsed.Attempt, out record)
                     ? record.Observe(parsed.Attempt, context)

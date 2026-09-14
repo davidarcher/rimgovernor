@@ -1277,7 +1277,7 @@ b; exact worker cleanup by a, with reuse by their later consumers.
   **Exit evidence:** representative scripted invalid/cancelled replies and actual
   configured LM Studio requests execute supported commands; advisers cannot mutate
   the game and there is no paid-provider fallback.
-  The interpreter now decodes nine command kinds end to end, each reusing its
+  The interpreter now decodes ten command kinds end to end, each reusing its
   unchanged existing store/policy/executor pipeline: `build` (variable count);
   `research` selects one already-observed selectable project into
   `ResearchSelectAction`; `tend` and `rescue` each select two distinct
@@ -1294,7 +1294,14 @@ b; exact worker cleanup by a, with reuse by their later consumers.
   legacy `home/upkeep_bed` tool drove) — its previous-bed CAS expectation
   comes entirely from a new `PawnBeds` fact the caller supplies (each pawn's
   currently-known bed or none), never from the model, so it needed a new fact
-  slot but no live re-read. Husbandry's and recovery's CAS tokens are read
+  slot but no live re-read; `move_pawn` selects one already-observed pawn and
+  one already-observed anchor cell into two actions — an implicit
+  `OwnedDraftAction` plus a `MovementAction` depending on it — following the
+  same Owner/Attempt draft-prerequisite pattern as melee/ranged attacks
+  (neither of which is itself interpreter-exposed), with its own new
+  `domain.Movement`/`policy.EvaluateMovement`/`store/movement`/
+  `executor.runMovement`/`buildingruntime/movement` pipeline wired onto the
+  existing `bridge/movement.go` native calls. Husbandry's and recovery's CAS tokens are read
   fresh by the executor's own inspection at dispatch, not needed at
   construction, so unlike `work_assignment` and `production_bill` (both carry
   a `before`/`token` CAS field on the domain type itself) they required no new
@@ -1308,20 +1315,50 @@ b; exact worker cleanup by a, with reuse by their later consumers.
   is routine harvest/hunt selection driven by policy, not a natural direct
   player command, and zone's constructors are narrowly closed to specific
   routine-only preset variants.
+  `hold_caravan`/`route_caravan` decode into a new `TravelCaravanAction`
+  (`domain.TravelCaravan`, kinds move/visit/return_home/stop) selecting one
+  already-observed, already-formed player caravan (`Input.Facts.Caravans`)
+  plus, for move/visit, an already-scouted destination tile. Unlike the
+  Tend/Rescue executor/CAS pattern, this follows FormCaravan's/QuestFulfill's
+  bespoke world-progression store-submission shape
+  (`store.TravelCaravanSubmission*`, `bridge.TravelCaravan*`,
+  `NativeCaravanTravel.cs`), since FormCaravan is TravelCaravan's own native
+  sibling and already uses that shape; its CAS token is `id|tile|moving` only
+  (no crew), since route/hold admission never depends on exact crew. No
+  proto changes were needed (`TravelCaravan`/`TravelKind` already existed).
+  Live-verified via `caravancontrolaccept` (Move/Stop/ReturnHome, stale-token
+  refusal, replay, lookup) against a real formed caravan
+  (`test/caravan_control_prepare` fixture); Visit's arrival-action branch is
+  unit-tested but not live-verified (fixture has no settlement).
   Cross-checked against `player_commands.py`'s actual `COMMAND_TYPES`: most
-  remaining names (RequestSurgery, GiftToSettlement, FulfillQuest,
-  SetExpeditionPolicy, EvaluateWorld, HoldCaravan, RouteCaravan, AcceptQuest,
+  remaining names (GiftToSettlement, FulfillQuest, SetExpeditionPolicy,
+  EvaluateWorld, AcceptQuest,
   SetPopulationPolicy/Decision, TradeEconomy, CreateGoal,
   ModifyResourcePolicy, SetResourceReserve, CancelGoal, CancelConstruction,
-  RelocateConstruction, AdoptRoom, BuildRoom, CreateZone, EditZone,
-  SetBuildingTemperature, MovePawn) have no existing domain.Action/executor
-  pipeline to reuse at all (no surgery, goal/policy-mutation, room, quest,
-  world-evaluation, temperature or movement action kind exists in Go) — these
-  need their own new native pipelines, not interpreter wiring, and are out of
-  this same-shape scope.
+  RelocateConstruction, AdoptRoom, BuildRoom, CreateZone, EditZone) have no
+  existing domain.Action/executor pipeline to reuse at all (no
+  goal/policy-mutation, room, quest or world-evaluation action kind exists in
+  Go) — these need their own new native pipelines, not interpreter wiring,
+  and are out of this same-shape scope. MovePawn and SetBuildingTemperature
+  now each have their own full pipeline: MovePawn follows the same
+  Owner/Attempt draft-prerequisite pattern as melee/ranged attacks, wired
+  onto the existing `bridge/movement.go` native calls; `SetBuildingTemperature`
+  is a one-shot patch-and-observe pipeline like `WorkAssignment` (native
+  `PatchBuilding`/`CompTempControl`, `set_building_temperature` interpreter
+  command). Both have a passing live-acceptance run (`movementaccept`,
+  `temperatureaccept`) and are no longer in this list.
+  RequestSurgery is done as the tenth player command: full native
+  `NativeSurgeryOperations.cs` (queues a real
+  `HealthCardUtility.CreateSurgeryBill` via `RecipeDefOf`/`BodyPartRecord`
+  lookup, mirroring `MedicalOperationsTool.cs`'s eligibility/CAS semantics)
+  plus the matching Go domain/store/policy/executor/bridge/buildingruntime/
+  interpreter pipeline, live-verified end to end via the Go
+  `surgeryaccept` acceptance binary (queue, CAS refusals, non-mutating
+  preview, execute, native-driven completion, replay idempotency, durable
+  lookup).
   Remaining: consultation/scout/visual review, knowledge/memory/evidence
   retrieval, streaming, deduplication and explicit cancellation, plus the
-  goal/policy/quest/room/temperature/movement command families above (bigger,
+  goal/policy/quest/room command families above (bigger,
   separate native slices). Naming confirmation additionally needs new native
   work: only the detection half exists (`policy.ConfirmColonyNames`,
   `observation.Colony`'s `ColonyNaming` fact); nothing in Go calls

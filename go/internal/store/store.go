@@ -20,6 +20,7 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"github.com/davidarcher/RimGovernor/go/internal/store/acquisition"
 	"github.com/davidarcher/RimGovernor/go/internal/store/bill"
+	"github.com/davidarcher/RimGovernor/go/internal/store/buildingtemperature"
 	"github.com/davidarcher/RimGovernor/go/internal/store/capture"
 	"github.com/davidarcher/RimGovernor/go/internal/store/clock"
 	"github.com/davidarcher/RimGovernor/go/internal/store/core"
@@ -28,6 +29,7 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/store/gearreplace"
 	"github.com/davidarcher/RimGovernor/go/internal/store/haul"
 	"github.com/davidarcher/RimGovernor/go/internal/store/melee"
+	"github.com/davidarcher/RimGovernor/go/internal/store/movement"
 	"github.com/davidarcher/RimGovernor/go/internal/store/ranged"
 	"github.com/davidarcher/RimGovernor/go/internal/store/repair"
 	"github.com/davidarcher/RimGovernor/go/internal/store/rescue"
@@ -66,6 +68,7 @@ type PlanState struct {
 	RescueAdmissions              []ActionRescueAdmission
 	CaptureAdmissions             []ActionCaptureAdmission
 	RangedAdmissions              []ActionRangedAdmission
+	MovementAdmissions            []ActionMovementAdmission
 	HaulAdmissions                []ActionHaulAdmission
 	EquipAdmissions               []ActionEquipAdmission
 	GearReplaceAdmissions         []ActionGearReplaceAdmission
@@ -73,6 +76,7 @@ type PlanState struct {
 	CaravanDepartureAdmissions    []ActionCaravanDepartureAdmission
 	CleanAdmissions               []ActionCleanAdmission
 	RecoveryServiceAdmissions     []ActionRecoveryServiceAdmission
+	SurgeryAdmissions             []ActionSurgeryAdmission
 	BedAssignAdmissions           []ActionBedAssignAdmission
 	ResearchSelectAdmissions      []ActionResearchSelectAdmission
 	HusbandryAdmissions           []ActionHusbandryAdmission
@@ -84,6 +88,7 @@ type PlanState struct {
 	MineAcquisitionAdmissions     []ActionMineAcquisitionAdmission
 	WallRemovalAdmissions         []ActionWallRemovalAdmission
 	ProductionPolicyAdmissions    []ActionProductionPolicyAdmission
+	BuildingTemperatureAdmissions []ActionBuildingTemperatureAdmission
 }
 
 // Open accepts a filesystem path, never a caller-supplied SQLite connection URI.
@@ -164,7 +169,7 @@ func (s *Store) initialize(ctx context.Context) error {
 CREATE TABLE plans(id TEXT PRIMARY KEY, revision TEXT NOT NULL, retired INTEGER NOT NULL DEFAULT 0 CHECK(retired IN (0,1)));
 CREATE INDEX active_plans ON plans(id) WHERE retired=0;
 CREATE TABLE retirement_floors(colony TEXT NOT NULL, load_token TEXT NOT NULL, map_id INTEGER NOT NULL, tick INTEGER NOT NULL CHECK(tick>=0), PRIMARY KEY(colony,load_token,map_id)) STRICT;
-CREATE TABLE actions(id TEXT PRIMARY KEY, plan_id TEXT NOT NULL REFERENCES plans(id), ordinal INTEGER NOT NULL, kind TEXT NOT NULL CHECK(kind IN ('building','owned_draft','melee_attack','supply_allow','work_assignment','acquisition','zone_create','tend','rescue','capture','ranged_attack','production_bill','haul','equip','gear_replace','repair','caravan_departure','clean','recovery_service','bed_assign','research_select','husbandry','home_coverage','prisoner_interaction','quest_accept','settlement_gift','quest_fulfill','mine_acquisition','wall_removal','production_policy')), definition TEXT, x INTEGER, z INTEGER, rotation TEXT, stuff TEXT, pawn TEXT, target TEXT, draft_action TEXT REFERENCES actions(id), work_payload BLOB, zone_payload BLOB, bill_payload BLOB, caravan_payload BLOB, settlement_gift_payload BLOB, quest_fulfill_payload BLOB, wall_removal_payload BLOB, production_policy_payload BLOB, CHECK((kind='production_bill' AND bill_payload IS NOT NULL) OR (kind<>'production_bill' AND bill_payload IS NULL)), CHECK((kind='zone_create' AND zone_payload IS NOT NULL) OR (kind!='zone_create' AND zone_payload IS NULL)), CHECK((kind='work_assignment' AND work_payload IS NOT NULL) OR (kind!='work_assignment' AND work_payload IS NULL)), CHECK((kind='caravan_departure' AND caravan_payload IS NOT NULL) OR (kind<>'caravan_departure' AND caravan_payload IS NULL)), CHECK((kind='settlement_gift' AND settlement_gift_payload IS NOT NULL) OR (kind<>'settlement_gift' AND settlement_gift_payload IS NULL)), CHECK((kind='quest_fulfill' AND quest_fulfill_payload IS NOT NULL) OR (kind<>'quest_fulfill' AND quest_fulfill_payload IS NULL)), CHECK((kind='wall_removal' AND wall_removal_payload IS NOT NULL) OR (kind<>'wall_removal' AND wall_removal_payload IS NULL)), CHECK((kind='production_policy' AND production_policy_payload IS NOT NULL) OR (kind<>'production_policy' AND production_policy_payload IS NULL)), CHECK((kind='production_bill' AND definition IS NULL AND x IS NULL AND z IS NULL AND rotation IS NULL AND stuff IS NULL AND pawn IS NULL AND target IS NULL AND draft_action IS NULL) OR (kind='zone_create' AND definition IS NULL AND x IS NULL AND z IS NULL AND rotation IS NULL AND stuff IS NULL AND pawn IS NULL AND target IS NULL AND draft_action IS NULL) OR (kind='caravan_departure' AND definition IS NULL AND x IS NULL AND z IS NULL AND rotation IS NULL AND stuff IS NULL AND pawn IS NULL AND target IS NULL AND draft_action IS NULL) OR (kind='settlement_gift' AND definition IS NULL AND x IS NULL AND z IS NULL AND rotation IS NULL AND stuff IS NULL AND pawn IS NULL AND target IS NULL AND draft_action IS NULL) OR (kind='quest_fulfill' AND definition IS NULL AND x IS NULL AND z IS NULL AND rotation IS NULL AND stuff IS NULL AND pawn IS NULL AND target IS NULL AND draft_action IS NULL) OR (kind='wall_removal' AND definition IS NULL AND x IS NULL AND z IS NULL AND rotation IS NULL AND stuff IS NULL AND pawn IS NULL AND target IS NULL AND draft_action IS NULL) OR (kind='production_policy' AND definition IS NULL AND x IS NULL AND z IS NULL AND rotation IS NULL AND stuff IS NULL AND pawn IS NULL AND target IS NULL AND draft_action IS NULL) OR (kind='building' AND definition IS NOT NULL AND x IS NOT NULL AND z IS NOT NULL AND rotation IS NOT NULL AND stuff IS NOT NULL AND pawn IS NULL AND target IS NULL AND draft_action IS NULL) OR (kind='owned_draft' AND definition IS NULL AND x IS NULL AND z IS NULL AND rotation IS NULL AND stuff IS NULL AND pawn IS NOT NULL AND target IS NULL AND draft_action IS NULL) OR (kind IN ('melee_attack','ranged_attack') AND definition IS NULL AND x IS NULL AND z IS NULL AND rotation IS NULL AND stuff IS NULL AND pawn IS NOT NULL AND target IS NOT NULL AND draft_action IS NOT NULL) OR (kind IN ('supply_allow','acquisition','mine_acquisition') AND definition IS NOT NULL AND x IS NOT NULL AND z IS NOT NULL AND rotation IS NULL AND stuff IS NULL AND pawn IS NULL AND target IS NOT NULL AND draft_action IS NULL) OR (kind='work_assignment' AND definition IS NULL AND x IS NULL AND z IS NULL AND rotation IS NULL AND stuff IS NULL AND pawn IS NOT NULL AND target IS NOT NULL AND draft_action IS NULL) OR (kind IN ('tend','rescue','capture') AND definition IS NULL AND x IS NULL AND z IS NULL AND rotation IS NULL AND stuff IS NULL AND pawn IS NOT NULL AND target IS NOT NULL AND draft_action IS NULL) OR (kind='haul' AND definition IS NOT NULL AND x IS NOT NULL AND z IS NOT NULL AND rotation IS NULL AND stuff IS NULL AND pawn IS NOT NULL AND target IS NOT NULL AND draft_action IS NULL) OR (kind='equip' AND definition IS NOT NULL AND x IS NOT NULL AND z IS NOT NULL AND rotation IS NULL AND stuff IS NULL AND pawn IS NOT NULL AND target IS NOT NULL AND draft_action IS NULL) OR (kind='gear_replace' AND definition IS NOT NULL AND x IS NULL AND z IS NULL AND rotation IS NULL AND stuff IS NULL AND pawn IS NOT NULL AND target IS NOT NULL AND draft_action IS NULL) OR (kind IN ('repair','clean') AND definition IS NULL AND x IS NOT NULL AND z IS NOT NULL AND rotation IS NULL AND stuff IS NULL AND pawn IS NOT NULL AND target IS NOT NULL AND draft_action IS NULL) OR (kind IN ('recovery_service','bed_assign') AND definition IS NOT NULL AND x IS NULL AND z IS NULL AND rotation IS NULL AND stuff IS NULL AND pawn IS NOT NULL AND target IS NOT NULL AND draft_action IS NULL) OR (kind='research_select' AND definition IS NOT NULL AND x IS NULL AND z IS NULL AND rotation IS NULL AND stuff IS NULL AND pawn IS NULL AND target IS NULL AND draft_action IS NULL) OR (kind='husbandry' AND definition IN ('train','slaughter') AND target IS NOT NULL AND pawn IS NULL AND x IS NULL AND z IS NULL AND rotation IS NULL AND draft_action IS NULL AND ((definition='train' AND stuff IS NOT NULL) OR (definition='slaughter' AND stuff IS NULL))) OR (kind='home_coverage' AND definition IS NOT NULL AND target IS NOT NULL AND pawn IS NULL AND x IS NULL AND z IS NULL AND rotation IS NULL AND stuff IS NULL AND draft_action IS NULL) OR (kind='prisoner_interaction' AND definition IN ('recruit','maintain') AND target IS NOT NULL AND pawn IS NULL AND x IS NULL AND z IS NULL AND rotation IS NULL AND stuff IS NULL AND draft_action IS NULL) OR (kind='quest_accept' AND target IS NOT NULL AND definition IS NOT NULL AND x IS NULL AND z IS NULL AND rotation IS NULL AND stuff IS NULL AND draft_action IS NULL)), UNIQUE(plan_id,ordinal)) STRICT;
+CREATE TABLE actions(id TEXT PRIMARY KEY, plan_id TEXT NOT NULL REFERENCES plans(id), ordinal INTEGER NOT NULL, kind TEXT NOT NULL CHECK(kind IN ('building','owned_draft','melee_attack','supply_allow','work_assignment','acquisition','zone_create','tend','rescue','capture','ranged_attack','production_bill','haul','equip','gear_replace','repair','caravan_departure','clean','recovery_service','movement','surgery','bed_assign','research_select','husbandry','home_coverage','prisoner_interaction','quest_accept','settlement_gift','quest_fulfill','mine_acquisition','wall_removal','building_temperature','travel_caravan','production_policy')), definition TEXT, x INTEGER, z INTEGER, rotation TEXT, stuff TEXT, pawn TEXT, target TEXT, draft_action TEXT REFERENCES actions(id), work_payload BLOB, zone_payload BLOB, bill_payload BLOB, caravan_payload BLOB, settlement_gift_payload BLOB, quest_fulfill_payload BLOB, wall_removal_payload BLOB, building_temperature_payload BLOB, travel_caravan_payload BLOB, production_policy_payload BLOB, CHECK((kind='production_bill' AND bill_payload IS NOT NULL) OR (kind<>'production_bill' AND bill_payload IS NULL)), CHECK((kind='zone_create' AND zone_payload IS NOT NULL) OR (kind!='zone_create' AND zone_payload IS NULL)), CHECK((kind='work_assignment' AND work_payload IS NOT NULL) OR (kind!='work_assignment' AND work_payload IS NULL)), CHECK((kind='caravan_departure' AND caravan_payload IS NOT NULL) OR (kind<>'caravan_departure' AND caravan_payload IS NULL)), CHECK((kind='settlement_gift' AND settlement_gift_payload IS NOT NULL) OR (kind<>'settlement_gift' AND settlement_gift_payload IS NULL)), CHECK((kind='quest_fulfill' AND quest_fulfill_payload IS NOT NULL) OR (kind<>'quest_fulfill' AND quest_fulfill_payload IS NULL)), CHECK((kind='wall_removal' AND wall_removal_payload IS NOT NULL) OR (kind<>'wall_removal' AND wall_removal_payload IS NULL)), CHECK((kind='building_temperature' AND building_temperature_payload IS NOT NULL) OR (kind<>'building_temperature' AND building_temperature_payload IS NULL)), CHECK((kind='travel_caravan' AND travel_caravan_payload IS NOT NULL) OR (kind<>'travel_caravan' AND travel_caravan_payload IS NULL)), CHECK((kind='production_policy' AND production_policy_payload IS NOT NULL) OR (kind<>'production_policy' AND production_policy_payload IS NULL)), CHECK((kind='production_bill' AND definition IS NULL AND x IS NULL AND z IS NULL AND rotation IS NULL AND stuff IS NULL AND pawn IS NULL AND target IS NULL AND draft_action IS NULL) OR (kind='zone_create' AND definition IS NULL AND x IS NULL AND z IS NULL AND rotation IS NULL AND stuff IS NULL AND pawn IS NULL AND target IS NULL AND draft_action IS NULL) OR (kind='caravan_departure' AND definition IS NULL AND x IS NULL AND z IS NULL AND rotation IS NULL AND stuff IS NULL AND pawn IS NULL AND target IS NULL AND draft_action IS NULL) OR (kind='settlement_gift' AND definition IS NULL AND x IS NULL AND z IS NULL AND rotation IS NULL AND stuff IS NULL AND pawn IS NULL AND target IS NULL AND draft_action IS NULL) OR (kind='quest_fulfill' AND definition IS NULL AND x IS NULL AND z IS NULL AND rotation IS NULL AND stuff IS NULL AND pawn IS NULL AND target IS NULL AND draft_action IS NULL) OR (kind='wall_removal' AND definition IS NULL AND x IS NULL AND z IS NULL AND rotation IS NULL AND stuff IS NULL AND pawn IS NULL AND target IS NULL AND draft_action IS NULL) OR (kind='travel_caravan' AND definition IS NULL AND x IS NULL AND z IS NULL AND rotation IS NULL AND stuff IS NULL AND pawn IS NULL AND target IS NULL AND draft_action IS NULL) OR (kind='production_policy' AND definition IS NULL AND x IS NULL AND z IS NULL AND rotation IS NULL AND stuff IS NULL AND pawn IS NULL AND target IS NULL AND draft_action IS NULL) OR (kind='building' AND definition IS NOT NULL AND x IS NOT NULL AND z IS NOT NULL AND rotation IS NOT NULL AND stuff IS NOT NULL AND pawn IS NULL AND target IS NULL AND draft_action IS NULL) OR (kind='owned_draft' AND definition IS NULL AND x IS NULL AND z IS NULL AND rotation IS NULL AND stuff IS NULL AND pawn IS NOT NULL AND target IS NULL AND draft_action IS NULL) OR (kind IN ('melee_attack','ranged_attack') AND definition IS NULL AND x IS NULL AND z IS NULL AND rotation IS NULL AND stuff IS NULL AND pawn IS NOT NULL AND target IS NOT NULL AND draft_action IS NOT NULL) OR (kind IN ('supply_allow','acquisition','mine_acquisition') AND definition IS NOT NULL AND x IS NOT NULL AND z IS NOT NULL AND rotation IS NULL AND stuff IS NULL AND pawn IS NULL AND target IS NOT NULL AND draft_action IS NULL) OR (kind='work_assignment' AND definition IS NULL AND x IS NULL AND z IS NULL AND rotation IS NULL AND stuff IS NULL AND pawn IS NOT NULL AND target IS NOT NULL AND draft_action IS NULL) OR (kind IN ('tend','rescue','capture') AND definition IS NULL AND x IS NULL AND z IS NULL AND rotation IS NULL AND stuff IS NULL AND pawn IS NOT NULL AND target IS NOT NULL AND draft_action IS NULL) OR (kind='haul' AND definition IS NOT NULL AND x IS NOT NULL AND z IS NOT NULL AND rotation IS NULL AND stuff IS NULL AND pawn IS NOT NULL AND target IS NOT NULL AND draft_action IS NULL) OR (kind='equip' AND definition IS NOT NULL AND x IS NOT NULL AND z IS NOT NULL AND rotation IS NULL AND stuff IS NULL AND pawn IS NOT NULL AND target IS NOT NULL AND draft_action IS NULL) OR (kind='gear_replace' AND definition IS NOT NULL AND x IS NULL AND z IS NULL AND rotation IS NULL AND stuff IS NULL AND pawn IS NOT NULL AND target IS NOT NULL AND draft_action IS NULL) OR (kind IN ('repair','clean') AND definition IS NULL AND x IS NOT NULL AND z IS NOT NULL AND rotation IS NULL AND stuff IS NULL AND pawn IS NOT NULL AND target IS NOT NULL AND draft_action IS NULL) OR (kind IN ('recovery_service','bed_assign') AND definition IS NOT NULL AND x IS NULL AND z IS NULL AND rotation IS NULL AND stuff IS NULL AND pawn IS NOT NULL AND target IS NOT NULL AND draft_action IS NULL) OR (kind='movement' AND definition IS NULL AND x IS NOT NULL AND z IS NOT NULL AND rotation IS NULL AND stuff IS NULL AND pawn IS NOT NULL AND target IS NULL AND draft_action IS NOT NULL) OR (kind='surgery' AND definition IS NOT NULL AND x IS NOT NULL AND z IS NULL AND rotation IS NULL AND stuff IS NULL AND pawn IS NOT NULL AND target IS NULL AND draft_action IS NULL) OR (kind='research_select' AND definition IS NOT NULL AND x IS NULL AND z IS NULL AND rotation IS NULL AND stuff IS NULL AND pawn IS NULL AND target IS NULL AND draft_action IS NULL) OR (kind='husbandry' AND definition IN ('train','slaughter') AND target IS NOT NULL AND pawn IS NULL AND x IS NULL AND z IS NULL AND rotation IS NULL AND draft_action IS NULL AND ((definition='train' AND stuff IS NOT NULL) OR (definition='slaughter' AND stuff IS NULL))) OR (kind='home_coverage' AND definition IS NOT NULL AND target IS NOT NULL AND pawn IS NULL AND x IS NULL AND z IS NULL AND rotation IS NULL AND stuff IS NULL AND draft_action IS NULL) OR (kind='prisoner_interaction' AND definition IN ('recruit','maintain') AND target IS NOT NULL AND pawn IS NULL AND x IS NULL AND z IS NULL AND rotation IS NULL AND stuff IS NULL AND draft_action IS NULL) OR (kind='quest_accept' AND target IS NOT NULL AND definition IS NOT NULL AND x IS NULL AND z IS NULL AND rotation IS NULL AND stuff IS NULL AND draft_action IS NULL) OR (kind='building_temperature' AND target IS NOT NULL AND definition IS NULL AND pawn IS NULL AND x IS NULL AND z IS NULL AND rotation IS NULL AND stuff IS NULL AND draft_action IS NULL)), UNIQUE(plan_id,ordinal)) STRICT;
 CREATE TABLE transitions(sequence INTEGER PRIMARY KEY, action_id TEXT NOT NULL REFERENCES actions(id), payload BLOB NOT NULL);
 CREATE TABLE action_dependencies(plan_id TEXT NOT NULL REFERENCES plans(id), action_id TEXT NOT NULL REFERENCES actions(id), requires_id TEXT NOT NULL REFERENCES actions(id), PRIMARY KEY(plan_id,action_id,requires_id)) STRICT;
 CREATE TABLE admissions(action_id TEXT PRIMARY KEY REFERENCES actions(id), payload BLOB NOT NULL);
@@ -181,6 +186,7 @@ CREATE TABLE tend_admissions(action_id TEXT PRIMARY KEY REFERENCES actions(id), 
 CREATE TABLE rescue_admissions(action_id TEXT PRIMARY KEY REFERENCES actions(id), payload BLOB NOT NULL) STRICT;
 CREATE TABLE capture_admissions(action_id TEXT PRIMARY KEY REFERENCES actions(id), payload BLOB NOT NULL) STRICT;
 CREATE TABLE ranged_admissions(action_id TEXT PRIMARY KEY REFERENCES actions(id), payload BLOB NOT NULL) STRICT;
+CREATE TABLE movement_admissions(action_id TEXT PRIMARY KEY REFERENCES actions(id), payload BLOB NOT NULL) STRICT;
 CREATE TABLE haul_admissions(action_id TEXT PRIMARY KEY REFERENCES actions(id), payload BLOB NOT NULL) STRICT;
 CREATE TABLE equip_admissions(action_id TEXT PRIMARY KEY REFERENCES actions(id), payload BLOB NOT NULL) STRICT;
 CREATE TABLE gear_replace_admissions(action_id TEXT PRIMARY KEY REFERENCES actions(id), payload BLOB NOT NULL) STRICT;
@@ -188,6 +194,7 @@ CREATE TABLE repair_admissions(action_id TEXT PRIMARY KEY REFERENCES actions(id)
 CREATE TABLE caravan_departure_admissions(action_id TEXT PRIMARY KEY REFERENCES actions(id), payload BLOB NOT NULL) STRICT;
 CREATE TABLE clean_admissions(action_id TEXT PRIMARY KEY REFERENCES actions(id), payload BLOB NOT NULL) STRICT;
 CREATE TABLE recovery_service_admissions(action_id TEXT PRIMARY KEY REFERENCES actions(id), payload BLOB NOT NULL) STRICT;
+CREATE TABLE surgery_admissions(action_id TEXT PRIMARY KEY REFERENCES actions(id), payload BLOB NOT NULL) STRICT;
 CREATE TABLE bed_assign_admissions(action_id TEXT PRIMARY KEY REFERENCES actions(id), payload BLOB NOT NULL) STRICT;
 CREATE TABLE research_select_admissions(action_id TEXT PRIMARY KEY REFERENCES actions(id), payload BLOB NOT NULL) STRICT;
 CREATE TABLE husbandry_admissions(action_id TEXT PRIMARY KEY REFERENCES actions(id), payload BLOB NOT NULL) STRICT;
@@ -199,9 +206,11 @@ CREATE TABLE quest_fulfill_admissions(action_id TEXT PRIMARY KEY REFERENCES acti
 CREATE TABLE mine_acquisition_admissions(action_id TEXT PRIMARY KEY REFERENCES actions(id), payload BLOB NOT NULL) STRICT;
 CREATE TABLE wall_removal_admissions(action_id TEXT PRIMARY KEY REFERENCES actions(id), payload BLOB NOT NULL) STRICT;
 CREATE TABLE production_policy_admissions(action_id TEXT PRIMARY KEY REFERENCES actions(id), payload BLOB NOT NULL) STRICT;
+CREATE TABLE building_temperature_admissions(action_id TEXT PRIMARY KEY REFERENCES actions(id), payload BLOB NOT NULL) STRICT;
+CREATE TABLE travel_caravan_admissions(action_id TEXT PRIMARY KEY REFERENCES actions(id), payload BLOB NOT NULL) STRICT;
 CREATE TABLE clock_attempts(request_id TEXT PRIMARY KEY, native_action_id TEXT NOT NULL UNIQUE, payload BLOB NOT NULL, phase TEXT NOT NULL CHECK(phase IN ('prepared','dispatched','uncertain','applied','refused')), reply BLOB, scope_context BLOB) STRICT;
 CREATE TABLE clock_epochs(start_request_id TEXT PRIMARY KEY REFERENCES clock_attempts(request_id), stage TEXT NOT NULL CHECK(stage IN ('required','pausing','uncertain','paused','retired','superseded')), sequence TEXT NOT NULL, context BLOB, status BLOB) STRICT;
-CREATE TABLE submissions(request_id TEXT PRIMARY KEY, kind TEXT NOT NULL CHECK(kind IN ('building','owned_draft','caravan_departure','quest_accept','settlement_gift','quest_fulfill')), colony TEXT NOT NULL, load_token TEXT NOT NULL, map_id INTEGER NOT NULL, plan_id TEXT NOT NULL UNIQUE REFERENCES plans(id), action_id TEXT NOT NULL UNIQUE REFERENCES actions(id), revision TEXT NOT NULL) STRICT;
+CREATE TABLE submissions(request_id TEXT PRIMARY KEY, kind TEXT NOT NULL CHECK(kind IN ('building','owned_draft','caravan_departure','quest_accept','settlement_gift','quest_fulfill','travel_caravan')), colony TEXT NOT NULL, load_token TEXT NOT NULL, map_id INTEGER NOT NULL, plan_id TEXT NOT NULL UNIQUE REFERENCES plans(id), action_id TEXT NOT NULL UNIQUE REFERENCES actions(id), revision TEXT NOT NULL) STRICT;
 CREATE TABLE draft_submissions(request_id TEXT PRIMARY KEY REFERENCES submissions(request_id), pawn TEXT NOT NULL) STRICT;
 CREATE INDEX action_transitions ON transitions(action_id,sequence);
 CREATE TABLE building_submissions(request_id TEXT PRIMARY KEY REFERENCES submissions(request_id), definition TEXT NOT NULL, x INTEGER NOT NULL, z INTEGER NOT NULL, rotation TEXT NOT NULL, stuff TEXT NOT NULL) STRICT;
@@ -209,6 +218,7 @@ CREATE TABLE caravan_departure_submissions(request_id TEXT PRIMARY KEY REFERENCE
 CREATE TABLE quest_accept_submissions(request_id TEXT PRIMARY KEY REFERENCES submissions(request_id), payload BLOB NOT NULL) STRICT;
 CREATE TABLE settlement_gift_submissions(request_id TEXT PRIMARY KEY REFERENCES submissions(request_id), payload BLOB NOT NULL) STRICT;
 CREATE TABLE quest_fulfill_submissions(request_id TEXT PRIMARY KEY REFERENCES submissions(request_id), payload BLOB NOT NULL) STRICT;
+CREATE TABLE travel_caravan_submissions(request_id TEXT PRIMARY KEY REFERENCES submissions(request_id), payload BLOB NOT NULL) STRICT;
 CREATE TABLE work_preferences(plan_id TEXT PRIMARY KEY REFERENCES plans(id), payload BLOB NOT NULL) STRICT;
 CREATE TABLE work_preference_requests(request_id TEXT PRIMARY KEY, payload BLOB NOT NULL) STRICT;`)
 		if err != nil {
@@ -251,7 +261,7 @@ CREATE TABLE work_preference_requests(request_id TEXT PRIMARY KEY, payload BLOB 
 	} else if version != schemaVersion || app != applicationID {
 		return fmt.Errorf("incompatible database application/version: %d/%d", app, version)
 	}
-	for _, query := range []string{"SELECT action_id,payload FROM draft_admissions LIMIT 0", "SELECT action_id,payload FROM melee_admissions LIMIT 0", "SELECT action_id,payload FROM tend_admissions LIMIT 0", "SELECT action_id,payload FROM rescue_admissions LIMIT 0", "SELECT action_id,payload FROM capture_admissions LIMIT 0", "SELECT action_id,payload FROM ranged_admissions LIMIT 0", "SELECT action_id,payload FROM haul_admissions LIMIT 0", "SELECT action_id,payload FROM equip_admissions LIMIT 0", "SELECT action_id,payload FROM gear_replace_admissions LIMIT 0", "SELECT action_id,payload FROM caravan_departure_admissions LIMIT 0", "SELECT action_id,payload FROM recovery_service_admissions LIMIT 0", "SELECT action_id,payload FROM bed_assign_admissions LIMIT 0", "SELECT action_id,payload FROM research_select_admissions LIMIT 0", "SELECT action_id,payload FROM husbandry_admissions LIMIT 0", "SELECT action_id,payload FROM home_coverage_admissions LIMIT 0", "SELECT action_id,payload FROM prisoner_interaction_admissions LIMIT 0", "SELECT action_id,payload FROM quest_accept_admissions LIMIT 0", "SELECT action_id,payload FROM settlement_gift_admissions LIMIT 0", "SELECT action_id,payload FROM quest_fulfill_admissions LIMIT 0", "SELECT action_id,payload FROM mine_acquisition_admissions LIMIT 0", "SELECT action_id,payload FROM wall_removal_admissions LIMIT 0", "SELECT action_id,payload FROM production_policy_admissions LIMIT 0", "SELECT request_id,kind,colony,load_token,map_id,plan_id,action_id,revision FROM submissions LIMIT 0", "SELECT request_id,pawn FROM draft_submissions LIMIT 0"} {
+	for _, query := range []string{"SELECT action_id,payload FROM draft_admissions LIMIT 0", "SELECT action_id,payload FROM melee_admissions LIMIT 0", "SELECT action_id,payload FROM tend_admissions LIMIT 0", "SELECT action_id,payload FROM rescue_admissions LIMIT 0", "SELECT action_id,payload FROM capture_admissions LIMIT 0", "SELECT action_id,payload FROM ranged_admissions LIMIT 0", "SELECT action_id,payload FROM movement_admissions LIMIT 0", "SELECT action_id,payload FROM haul_admissions LIMIT 0", "SELECT action_id,payload FROM equip_admissions LIMIT 0", "SELECT action_id,payload FROM gear_replace_admissions LIMIT 0", "SELECT action_id,payload FROM caravan_departure_admissions LIMIT 0", "SELECT action_id,payload FROM recovery_service_admissions LIMIT 0", "SELECT action_id,payload FROM surgery_admissions LIMIT 0", "SELECT action_id,payload FROM bed_assign_admissions LIMIT 0", "SELECT action_id,payload FROM research_select_admissions LIMIT 0", "SELECT action_id,payload FROM husbandry_admissions LIMIT 0", "SELECT action_id,payload FROM home_coverage_admissions LIMIT 0", "SELECT action_id,payload FROM prisoner_interaction_admissions LIMIT 0", "SELECT action_id,payload FROM quest_accept_admissions LIMIT 0", "SELECT action_id,payload FROM settlement_gift_admissions LIMIT 0", "SELECT action_id,payload FROM quest_fulfill_admissions LIMIT 0", "SELECT action_id,payload FROM mine_acquisition_admissions LIMIT 0", "SELECT action_id,payload FROM wall_removal_admissions LIMIT 0", "SELECT action_id,payload FROM production_policy_admissions LIMIT 0", "SELECT action_id,payload FROM building_temperature_admissions LIMIT 0", "SELECT action_id,payload FROM travel_caravan_admissions LIMIT 0", "SELECT request_id,kind,colony,load_token,map_id,plan_id,action_id,revision FROM submissions LIMIT 0", "SELECT request_id,pawn FROM draft_submissions LIMIT 0"} {
 		if version != 0 {
 			if _, err = tx.ExecContext(ctx, query); err != nil {
 				return err
@@ -302,6 +312,9 @@ CREATE TABLE work_preference_requests(request_id TEXT PRIMARY KEY, payload BLOB 
 		return err
 	}
 	if _, err = tx.ExecContext(ctx, "SELECT request_id,payload FROM quest_fulfill_submissions LIMIT 0"); err != nil {
+		return err
+	}
+	if _, err = tx.ExecContext(ctx, "SELECT request_id,payload FROM travel_caravan_submissions LIMIT 0"); err != nil {
 		return err
 	}
 	if _, err = tx.ExecContext(ctx, "SELECT "+controlColumns+" FROM control_intents LIMIT 0"); err != nil {
@@ -408,7 +421,7 @@ func load(ctx context.Context, tx *sql.Tx, id domain.PlanID) (PlanState, error) 
 	if err != nil {
 		return PlanState{}, err
 	}
-	rows, err := tx.QueryContext(ctx, "SELECT id,kind,definition,x,z,rotation,stuff,pawn,target,draft_action,work_payload,zone_payload,bill_payload,caravan_payload,settlement_gift_payload,quest_fulfill_payload,wall_removal_payload,production_policy_payload,ordinal FROM actions WHERE plan_id=? ORDER BY ordinal", id)
+	rows, err := tx.QueryContext(ctx, "SELECT id,kind,definition,x,z,rotation,stuff,pawn,target,draft_action,work_payload,zone_payload,bill_payload,caravan_payload,settlement_gift_payload,quest_fulfill_payload,wall_removal_payload,production_policy_payload,building_temperature_payload,travel_caravan_payload,ordinal FROM actions WHERE plan_id=? ORDER BY ordinal", id)
 	if err != nil {
 		return PlanState{}, err
 	}
@@ -549,6 +562,16 @@ func load(ctx context.Context, tx *sql.Tx, id domain.PlanID) (PlanState, error) 
 		if workPresent {
 			state.WorkAdmissions = append(state.WorkAdmissions, ActionWorkAdmission{Action: a.ID(), Admission: workAdmission})
 		}
+		buildingTemperatureAdmission, buildingTemperaturePresent, e := buildingtemperature.LoadAdmission(ctx, tx, a, p)
+		if e != nil {
+			return PlanState{}, e
+		}
+		if a.Kind() == domain.BuildingTemperatureAction && !buildingTemperaturePresent && (p.View().Stage == domain.Prepared || p.View().Attempt > 0) {
+			return PlanState{}, errors.New("building temperature progress lacks admission")
+		}
+		if buildingTemperaturePresent {
+			state.BuildingTemperatureAdmissions = append(state.BuildingTemperatureAdmissions, ActionBuildingTemperatureAdmission{Action: a.ID(), Admission: buildingTemperatureAdmission})
+		}
 
 		admission, present, err := loadAdmission(ctx, tx, a, p)
 		if err != nil {
@@ -616,6 +639,16 @@ func load(ctx context.Context, tx *sql.Tx, id domain.PlanID) (PlanState, error) 
 		}
 		if rangedPresent {
 			state.RangedAdmissions = append(state.RangedAdmissions, ActionRangedAdmission{Action: a.ID(), Admission: rangedAdmission})
+		}
+		movementAdmission, movementPresent, e := movement.LoadAdmission(ctx, tx, a, p)
+		if e != nil {
+			return PlanState{}, e
+		}
+		if a.Kind() == domain.MovementAction && !movementPresent && (p.View().Stage == domain.Prepared || p.View().Attempt > 0) {
+			return PlanState{}, errors.New("movement progress lacks admission")
+		}
+		if movementPresent {
+			state.MovementAdmissions = append(state.MovementAdmissions, ActionMovementAdmission{Action: a.ID(), Admission: movementAdmission})
 		}
 		haulAdmission, haulPresent, e := haul.LoadAdmission(ctx, tx, a, p)
 		if e != nil {
@@ -686,6 +719,16 @@ func load(ctx context.Context, tx *sql.Tx, id domain.PlanID) (PlanState, error) 
 		}
 		if recoveryServicePresent {
 			state.RecoveryServiceAdmissions = append(state.RecoveryServiceAdmissions, ActionRecoveryServiceAdmission{Action: a.ID(), Admission: recoveryServiceAdmission})
+		}
+		surgeryAdmission, surgeryPresent, e := loadSurgeryAdmission(ctx, tx, a, p)
+		if e != nil {
+			return PlanState{}, e
+		}
+		if a.Kind() == domain.SurgeryAction && !surgeryPresent && (p.View().Stage == domain.Prepared || p.View().Attempt > 0) {
+			return PlanState{}, errors.New("surgery progress lacks admission")
+		}
+		if surgeryPresent {
+			state.SurgeryAdmissions = append(state.SurgeryAdmissions, ActionSurgeryAdmission{Action: a.ID(), Admission: surgeryAdmission})
 		}
 		bedAssignAdmission, bedAssignPresent, e := loadBedAssignAdmission(ctx, tx, a, p)
 		if e != nil {
@@ -1066,6 +1109,22 @@ func advanceInTransaction(ctx context.Context, tx *sql.Tx, plan domain.PlanID, a
 			}
 		}
 	}
+	if current.Action().Kind() == domain.SurgeryAction {
+		if event.Kind == "prepare" {
+			return domain.Progress{}, errors.New("surgery requires typed preparation")
+		}
+		if event.Kind == "dispatch" {
+			matched := false
+			for _, record := range state.SurgeryAdmissions {
+				if record.Action == action && record.Admission.Snapshot == event.Snapshot && record.Admission.Tick <= event.Tick {
+					matched = true
+				}
+			}
+			if !matched {
+				return domain.Progress{}, errors.New("surgery dispatch lacks current admission")
+			}
+		}
+	}
 	if current.Action().Kind() == domain.BedAssignAction {
 		if event.Kind == "prepare" {
 			return domain.Progress{}, errors.New("bed assign requires typed preparation")
@@ -1226,6 +1285,14 @@ func advanceInTransaction(ctx context.Context, tx *sql.Tx, plan domain.PlanID, a
 			}
 		}
 	}
+	if current.Action().Kind() == domain.BuildingTemperatureAction {
+		if event.Kind == "prepare" {
+			return domain.Progress{}, errors.New("building temperature requires typed preparation")
+		}
+		if event.Kind == "dispatch" && !buildingtemperature.GuardDispatch(state.BuildingTemperatureAdmissions, action, event.Snapshot, event.Tick) {
+			return domain.Progress{}, errors.New("building temperature dispatch lacks current admission")
+		}
+	}
 	for _, record := range state.Admissions {
 		if record.Action != action {
 			continue
@@ -1244,6 +1311,9 @@ func advanceInTransaction(ctx context.Context, tx *sql.Tx, plan domain.PlanID, a
 		return domain.Progress{}, err
 	}
 	if err = guardRangedAdvance(ctx, tx, state, action, event); err != nil {
+		return domain.Progress{}, err
+	}
+	if err = guardMovementAdvance(ctx, tx, state, action, event); err != nil {
 		return domain.Progress{}, err
 	}
 	next, err := apply(current, event)

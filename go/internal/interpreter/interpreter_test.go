@@ -415,6 +415,107 @@ func TestCaravanRefusesUnknownFactsOrWrongActionCount(t *testing.T) {
 	assertKind(t, err, InvalidCommand)
 }
 
+func TestHoldCaravanProposal(t *testing.T) {
+	i := clientFixture(t, func(context.Context, model.Request) (model.Response, error) {
+		return model.Response{Text: `{"command":"hold_caravan","caravan":"Caravan_A"}`, FinishReason: model.Stop}, nil
+	})
+	input := inputFixture()
+	input.Facts.Caravans = []domain.CaravanID{"Caravan_A"}
+	proposal, err := i.Interpret(context.Background(), input)
+	if err != nil {
+		t.Fatal(err)
+	}
+	actions := proposal.Plan.Actions()
+	if len(actions) != 1 || actions[0].ID() != "a1" {
+		t.Fatal("incorrect hold_caravan action identity")
+	}
+	travel, ok := actions[0].TravelCaravan()
+	if !ok || travel.Caravan() != "Caravan_A" || travel.Kind() != domain.TravelStop || travel.DestinationTile() != -1 {
+		t.Fatal("incorrect typed hold_caravan proposal", travel)
+	}
+}
+
+func TestHoldCaravanRefusesUnknownFactsOrWrongActionCount(t *testing.T) {
+	text := `{"command":"hold_caravan","caravan":"Caravan_A"}`
+	response := func(context.Context, model.Request) (model.Response, error) {
+		return model.Response{Text: text, FinishReason: model.Stop}, nil
+	}
+	input := inputFixture()
+	i := clientFixture(t, response)
+	_, err := i.Interpret(context.Background(), input)
+	assertKind(t, err, UnknownFacts)
+
+	input = inputFixture()
+	input.Facts.Caravans = []domain.CaravanID{"Caravan_A"}
+	input.ActionIDs = append(input.ActionIDs, "a2")
+	i = clientFixture(t, response)
+	_, err = i.Interpret(context.Background(), input)
+	assertKind(t, err, InvalidCommand)
+}
+
+func TestRouteCaravanProposal(t *testing.T) {
+	for _, tc := range []struct {
+		name string
+		text string
+		kind domain.TravelKind
+		tile int32
+	}{
+		{"move", `{"command":"route_caravan","caravan":"Caravan_A","destinationTile":3,"returnHome":false,"visitSettlement":false}`, domain.TravelMove, 3},
+		{"visit", `{"command":"route_caravan","caravan":"Caravan_A","destinationTile":3,"returnHome":false,"visitSettlement":true}`, domain.TravelVisit, 3},
+		{"return home", `{"command":"route_caravan","caravan":"Caravan_A","destinationTile":null,"returnHome":true,"visitSettlement":false}`, domain.TravelReturnHome, -1},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			i := clientFixture(t, func(context.Context, model.Request) (model.Response, error) {
+				return model.Response{Text: tc.text, FinishReason: model.Stop}, nil
+			})
+			input := inputFixture()
+			input.Facts.Caravans = []domain.CaravanID{"Caravan_A"}
+			input.Facts.DestinationTiles = []int32{3}
+			proposal, err := i.Interpret(context.Background(), input)
+			if err != nil {
+				t.Fatal(err)
+			}
+			actions := proposal.Plan.Actions()
+			if len(actions) != 1 || actions[0].ID() != "a1" {
+				t.Fatal("incorrect route_caravan action identity")
+			}
+			travel, ok := actions[0].TravelCaravan()
+			if !ok || travel.Caravan() != "Caravan_A" || travel.Kind() != tc.kind || travel.DestinationTile() != tc.tile {
+				t.Fatal("incorrect typed route_caravan proposal", travel)
+			}
+		})
+	}
+}
+
+func TestRouteCaravanRefusesUnknownFactsOrWrongActionCount(t *testing.T) {
+	text := `{"command":"route_caravan","caravan":"Caravan_A","destinationTile":3,"returnHome":false,"visitSettlement":false}`
+	response := func(context.Context, model.Request) (model.Response, error) {
+		return model.Response{Text: text, FinishReason: model.Stop}, nil
+	}
+	for _, tc := range []struct {
+		name string
+		edit func(*Input)
+	}{
+		{"unknown caravan", func(in *Input) { in.Facts.DestinationTiles = []int32{3} }},
+		{"unknown destination", func(in *Input) { in.Facts.Caravans = []domain.CaravanID{"Caravan_A"} }},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			input := inputFixture()
+			tc.edit(&input)
+			i := clientFixture(t, response)
+			_, err := i.Interpret(context.Background(), input)
+			assertKind(t, err, UnknownFacts)
+		})
+	}
+	input := inputFixture()
+	input.Facts.Caravans = []domain.CaravanID{"Caravan_A"}
+	input.Facts.DestinationTiles = []int32{3}
+	input.ActionIDs = append(input.ActionIDs, "a2")
+	i := clientFixture(t, response)
+	_, err := i.Interpret(context.Background(), input)
+	assertKind(t, err, InvalidCommand)
+}
+
 func TestCargoAndDestinationFactsValidatedAndBounded(t *testing.T) {
 	i := clientFixture(t, func(context.Context, model.Request) (model.Response, error) {
 		t.Fatal("model called")
@@ -664,6 +765,202 @@ func TestBedFactsValidatedAndBounded(t *testing.T) {
 
 	input = inputFixture()
 	input.Facts.PawnBeds = []PawnBed{{Pawn: "Thing_A", Bed: "Thing_A"}}
+	_, err = i.Interpret(context.Background(), input)
+	assertKind(t, err, InvalidInput)
+}
+
+func TestMoveProposal(t *testing.T) {
+	i := clientFixture(t, func(context.Context, model.Request) (model.Response, error) {
+		return model.Response{Text: `{"command":"move_pawn","pawn":"Thing_A","x":2,"z":3}`, FinishReason: model.Stop}, nil
+	})
+	input := inputFixture()
+	input.Facts.Pawns = []domain.PawnID{"Thing_A"}
+	input.ActionIDs = append(input.ActionIDs, "a2")
+	proposal, err := i.Interpret(context.Background(), input)
+	if err != nil {
+		t.Fatal(err)
+	}
+	actions := proposal.Plan.Actions()
+	if len(actions) != 2 || actions[0].ID() != "a1" || actions[1].ID() != "a2" {
+		t.Fatal("incorrect move_pawn action identities")
+	}
+	draft, ok := actions[0].OwnedDraft()
+	if !ok || draft.Pawn() != "Thing_A" {
+		t.Fatal("incorrect typed implicit draft proposal")
+	}
+	movement, ok := actions[1].Movement()
+	if !ok || movement.Pawn() != "Thing_A" || movement.Destination() != (domain.Cell{X: 2, Z: 3}) || movement.DraftAction() != "a1" {
+		t.Fatal("incorrect typed movement proposal")
+	}
+}
+
+func TestMoveRefusesUnknownFactsOrWrongActionCount(t *testing.T) {
+	text := `{"command":"move_pawn","pawn":"Thing_A","x":2,"z":3}`
+	response := func(context.Context, model.Request) (model.Response, error) {
+		return model.Response{Text: text, FinishReason: model.Stop}, nil
+	}
+	for _, tc := range []struct {
+		name string
+		edit func(*Input)
+	}{
+		{"unknown pawn", func(in *Input) {}},
+		{"unobserved destination", func(in *Input) {
+			in.Facts.Pawns = []domain.PawnID{"Thing_A"}
+			in.Facts.Cells = []domain.Cell{{X: 5, Z: 5}}
+		}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			input := inputFixture()
+			input.ActionIDs = append(input.ActionIDs, "a2")
+			tc.edit(&input)
+			i := clientFixture(t, response)
+			_, err := i.Interpret(context.Background(), input)
+			assertKind(t, err, UnknownFacts)
+		})
+	}
+	input := inputFixture()
+	input.Facts.Pawns = []domain.PawnID{"Thing_A"}
+	i := clientFixture(t, response)
+	_, err := i.Interpret(context.Background(), input)
+	assertKind(t, err, InvalidCommand)
+}
+
+func TestSetBuildingTemperatureProposal(t *testing.T) {
+	i := clientFixture(t, func(context.Context, model.Request) (model.Response, error) {
+		return model.Response{Text: `{"command":"set_building_temperature","thing":"Thing_Heater1","celsius":21}`, FinishReason: model.Stop}, nil
+	})
+	input := inputFixture()
+	input.Facts.BuildingTemperatures = []BuildingTemperatureFact{{Thing: "Thing_Heater1", Token: "temp-token-0"}}
+	proposal, err := i.Interpret(context.Background(), input)
+	if err != nil {
+		t.Fatal(err)
+	}
+	actions := proposal.Plan.Actions()
+	if len(actions) != 1 || actions[0].ID() != "a1" {
+		t.Fatal("incorrect set_building_temperature action identity")
+	}
+	temperature, ok := actions[0].BuildingTemperature()
+	if !ok || temperature.Thing() != "Thing_Heater1" || temperature.Celsius() != 21 || temperature.BeforeToken() != "temp-token-0" {
+		t.Fatal("incorrect typed set_building_temperature proposal")
+	}
+}
+
+func TestSetBuildingTemperatureRefusesUnknownFactsOrWrongActionCount(t *testing.T) {
+	text := `{"command":"set_building_temperature","thing":"Thing_Heater1","celsius":21}`
+	response := func(context.Context, model.Request) (model.Response, error) {
+		return model.Response{Text: text, FinishReason: model.Stop}, nil
+	}
+	input := inputFixture()
+	i := clientFixture(t, response)
+	_, err := i.Interpret(context.Background(), input)
+	assertKind(t, err, UnknownFacts)
+
+	input = inputFixture()
+	input.Facts.BuildingTemperatures = []BuildingTemperatureFact{{Thing: "Thing_Heater1", Token: "temp-token-0"}}
+	input.ActionIDs = append(input.ActionIDs, "a2")
+	i = clientFixture(t, response)
+	_, err = i.Interpret(context.Background(), input)
+	assertKind(t, err, InvalidCommand)
+}
+
+func TestSetBuildingTemperatureRefusesOutOfRange(t *testing.T) {
+	i := clientFixture(t, func(context.Context, model.Request) (model.Response, error) {
+		return model.Response{Text: `{"command":"set_building_temperature","thing":"Thing_Heater1","celsius":5000}`, FinishReason: model.Stop}, nil
+	})
+	input := inputFixture()
+	input.Facts.BuildingTemperatures = []BuildingTemperatureFact{{Thing: "Thing_Heater1", Token: "temp-token-0"}}
+	_, err := i.Interpret(context.Background(), input)
+	assertKind(t, err, InvalidCommand)
+}
+
+func TestBuildingTemperatureFactsValidatedAndBounded(t *testing.T) {
+	i := clientFixture(t, func(context.Context, model.Request) (model.Response, error) {
+		t.Fatal("model called")
+		return model.Response{}, nil
+	})
+	input := inputFixture()
+	input.Facts.BuildingTemperatures = []BuildingTemperatureFact{{Thing: "Thing_Heater1", Token: "temp-token-0"}, {Thing: "Thing_Heater1", Token: "temp-token-1"}}
+	_, err := i.Interpret(context.Background(), input)
+	assertKind(t, err, InvalidInput)
+}
+
+func TestSurgeryProposal(t *testing.T) {
+	i := clientFixture(t, func(context.Context, model.Request) (model.Response, error) {
+		return model.Response{Text: `{"command":"request_surgery","patient":"Thing_A","recipe":"RemoveBodyPart","part":3}`, FinishReason: model.Stop}, nil
+	})
+	input := inputFixture()
+	input.Facts.Pawns = []domain.PawnID{"Thing_A"}
+	input.Facts.SurgeryOptions = []SurgeryOption{{Patient: "Thing_A", Recipe: "RemoveBodyPart", Part: 3}}
+	proposal, err := i.Interpret(context.Background(), input)
+	if err != nil {
+		t.Fatal(err)
+	}
+	actions := proposal.Plan.Actions()
+	if len(actions) != 1 || actions[0].ID() != "a1" {
+		t.Fatal("incorrect request_surgery action identity")
+	}
+	surgery, ok := actions[0].Surgery()
+	if !ok || surgery.Patient() != "Thing_A" || surgery.Recipe() != "RemoveBodyPart" || surgery.Part() != 3 {
+		t.Fatal("incorrect typed surgery proposal")
+	}
+}
+
+func TestSurgeryRefusesUnknownFactsOrWrongActionCount(t *testing.T) {
+	text := `{"command":"request_surgery","patient":"Thing_A","recipe":"RemoveBodyPart","part":3}`
+	response := func(context.Context, model.Request) (model.Response, error) {
+		return model.Response{Text: text, FinishReason: model.Stop}, nil
+	}
+	for _, tc := range []struct {
+		name string
+		edit func(*Input)
+	}{
+		{"no options at all", func(in *Input) {}},
+		{"wrong recipe", func(in *Input) {
+			in.Facts.SurgeryOptions = []SurgeryOption{{Patient: "Thing_A", Recipe: "InstallPegLeg", Part: 3}}
+		}},
+		{"wrong part", func(in *Input) {
+			in.Facts.SurgeryOptions = []SurgeryOption{{Patient: "Thing_A", Recipe: "RemoveBodyPart", Part: 2}}
+		}},
+		{"wrong patient", func(in *Input) {
+			in.Facts.SurgeryOptions = []SurgeryOption{{Patient: "Thing_B", Recipe: "RemoveBodyPart", Part: 3}}
+		}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			input := inputFixture()
+			tc.edit(&input)
+			i := clientFixture(t, response)
+			_, err := i.Interpret(context.Background(), input)
+			assertKind(t, err, UnknownFacts)
+		})
+	}
+	input := inputFixture()
+	input.Facts.SurgeryOptions = []SurgeryOption{{Patient: "Thing_A", Recipe: "RemoveBodyPart", Part: 3}}
+	input.ActionIDs = append(input.ActionIDs, "a2")
+	i := clientFixture(t, response)
+	_, err := i.Interpret(context.Background(), input)
+	assertKind(t, err, InvalidCommand)
+}
+
+func TestSurgeryOptionsValidatedAndBounded(t *testing.T) {
+	i := clientFixture(t, func(context.Context, model.Request) (model.Response, error) {
+		t.Fatal("model called")
+		return model.Response{}, nil
+	})
+	input := inputFixture()
+	input.Facts.SurgeryOptions = []SurgeryOption{
+		{Patient: "Thing_A", Recipe: "RemoveBodyPart", Part: 3},
+		{Patient: "Thing_A", Recipe: "RemoveBodyPart", Part: 3},
+	}
+	_, err := i.Interpret(context.Background(), input)
+	assertKind(t, err, InvalidInput)
+
+	input = inputFixture()
+	input.Facts.SurgeryOptions = []SurgeryOption{{Patient: "", Recipe: "RemoveBodyPart", Part: 3}}
+	_, err = i.Interpret(context.Background(), input)
+	assertKind(t, err, InvalidInput)
+
+	input = inputFixture()
+	input.Facts.SurgeryOptions = []SurgeryOption{{Patient: "Thing_A", Recipe: "RemoveBodyPart", Part: -2}}
 	_, err = i.Interpret(context.Background(), input)
 	assertKind(t, err, InvalidInput)
 }

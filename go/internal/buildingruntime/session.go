@@ -9,12 +9,14 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/acquisition"
 	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/bill"
 	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/boundary"
+	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/buildingtemperature"
 	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/capture"
 	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/draft"
 	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/equip"
 	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/haul"
 	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/melee"
 	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/mineacquisition"
+	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/movement"
 	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/ranged"
 	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/rescue"
 	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/supply"
@@ -42,6 +44,7 @@ type SessionConfig struct {
 	Melee               *melee.MeleeCapabilities
 	Haul                *haul.HaulCapabilities
 	Ranged              *ranged.RangedCapabilities
+	Movement            *movement.MovementCapabilities
 	Tend                *tend.TendCapabilities
 	Rescue              *rescue.RescueCapabilities
 	Capture             *capture.CaptureCapabilities
@@ -51,6 +54,7 @@ type SessionConfig struct {
 	Clean               *CleanCapabilities
 	RecoveryService     *RecoveryServiceCapabilities
 	BedAssign           *BedAssignCapabilities
+	Surgery             *SurgeryCapabilities
 	ResearchSelect      *ResearchSelectCapabilities
 	CaravanDeparture    *CaravanDepartureCapabilities
 	Husbandry           *HusbandryCapabilities
@@ -61,6 +65,7 @@ type SessionConfig struct {
 	QuestFulfill        *QuestFulfillCapabilities
 	MineAcquisition     *mineacquisition.MineAcquisitionCapabilities
 	ProductionPolicy    *ProductionPolicyCapabilities
+	BuildingTemperature *buildingtemperature.Capabilities
 }
 
 // Session binds the single profile owner to one journal and executor. Its caller
@@ -207,6 +212,9 @@ func NewSession(ctx context.Context, config SessionConfig, journal *store.Store,
 	if config.Ranged != nil && (config.Ranged.Native == nil || config.Ranged.Writer == nil || config.Draft == nil) {
 		return nil, errors.New("complete ranged and draft capabilities required")
 	}
+	if config.Movement != nil && (config.Movement.Native == nil || config.Movement.Writer == nil || config.Draft == nil) {
+		return nil, errors.New("complete movement and draft capabilities required")
+	}
 	if config.Clock != nil && (config.Clock.Native == nil || config.Clock.Writer == nil) {
 		return nil, errors.New("complete clock capabilities required")
 	}
@@ -268,8 +276,21 @@ func NewSession(ctx context.Context, config SessionConfig, journal *store.Store,
 			return cleanup(err)
 		}
 	}
+	var movementBoundary *movement.MovementBoundary
+	if config.Movement != nil {
+		if config.Movement.Native == nil || config.Movement.Writer == nil {
+			return cleanup(ErrControl)
+		}
+		movementBoundary, err = movement.NewMovementBoundary(config.Movement.Native, config.Movement.Writer, sessionBuildingLeases{control, journal, config.RoutineMethods, config.Executor.JournalTimeout}, clock, string(namespace))
+		if err != nil {
+			return cleanup(err)
+		}
+	}
 	var worker *executor.Executor
 	if config.Supplies != nil && (config.Supplies.Native == nil || config.Supplies.Writer == nil) {
+		return cleanup(ErrControl)
+	}
+	if config.BuildingTemperature != nil && (config.BuildingTemperature.Native == nil || config.BuildingTemperature.Writer == nil) {
 		return cleanup(ErrControl)
 	}
 	if config.Work != nil && (config.Work.Native == nil || config.Work.Writer == nil) {
@@ -311,6 +332,9 @@ func NewSession(ctx context.Context, config SessionConfig, journal *store.Store,
 	if config.BedAssign != nil && (config.BedAssign.Native == nil || config.BedAssign.Writer == nil) {
 		return cleanup(ErrControl)
 	}
+	if config.Surgery != nil && (config.Surgery.Native == nil || config.Surgery.Writer == nil) {
+		return cleanup(ErrControl)
+	}
 	if config.ResearchSelect != nil && (config.ResearchSelect.Native == nil || config.ResearchSelect.Writer == nil) {
 		return cleanup(ErrControl)
 	}
@@ -346,12 +370,20 @@ func NewSession(ctx context.Context, config SessionConfig, journal *store.Store,
 		routine = append(routine, journal)
 	}
 	switch {
+	case meleeBoundary != nil && rangedBoundary != nil && movementBoundary != nil:
+		worker, err = executor.NewWithMeleeRangedAndMovement(journal, place, draftBoundary, meleeBoundary, rangedBoundary, movementBoundary, clock, config.Executor, routine...)
 	case meleeBoundary != nil && rangedBoundary != nil:
 		worker, err = executor.NewWithMeleeAndRanged(journal, place, draftBoundary, meleeBoundary, rangedBoundary, clock, config.Executor, routine...)
+	case meleeBoundary != nil && movementBoundary != nil:
+		worker, err = executor.NewWithMeleeAndMovement(journal, place, draftBoundary, meleeBoundary, movementBoundary, clock, config.Executor, routine...)
+	case rangedBoundary != nil && movementBoundary != nil:
+		worker, err = executor.NewWithRangedAndMovement(journal, place, draftBoundary, rangedBoundary, movementBoundary, clock, config.Executor, routine...)
 	case meleeBoundary != nil:
 		worker, err = executor.NewWithMelee(journal, place, draftBoundary, meleeBoundary, clock, config.Executor, routine...)
 	case rangedBoundary != nil:
 		worker, err = executor.NewWithRanged(journal, place, draftBoundary, rangedBoundary, clock, config.Executor, routine...)
+	case movementBoundary != nil:
+		worker, err = executor.NewWithMovement(journal, place, draftBoundary, movementBoundary, clock, config.Executor, routine...)
 	case draftBoundary != nil:
 		worker, err = executor.NewWithDraft(journal, place, draftBoundary, clock, config.Executor, routine...)
 	default:
@@ -371,6 +403,11 @@ func NewSession(ctx context.Context, config SessionConfig, journal *store.Store,
 	}
 	if config.Work != nil {
 		if err := worker.EnableWork(work.NewWorkBoundary(place, *config.Work)); err != nil {
+			return cleanup(err)
+		}
+	}
+	if config.BuildingTemperature != nil {
+		if err := worker.EnableBuildingTemperature(buildingtemperature.NewBoundary(place, *config.BuildingTemperature)); err != nil {
 			return cleanup(err)
 		}
 	}
@@ -491,6 +528,15 @@ func NewSession(ctx context.Context, config SessionConfig, journal *store.Store,
 			return cleanup(err)
 		}
 		if err := worker.EnableBedAssign(bedAssignBoundary); err != nil {
+			return cleanup(err)
+		}
+	}
+	if config.Surgery != nil {
+		surgeryBoundary, err := NewSurgeryBoundary(config.Surgery.Native, config.Surgery.Writer, sessionBuildingLeases{control, journal, config.RoutineMethods, config.Executor.JournalTimeout}, clock, string(namespace))
+		if err != nil {
+			return cleanup(err)
+		}
+		if err := worker.EnableSurgery(surgeryBoundary); err != nil {
 			return cleanup(err)
 		}
 	}

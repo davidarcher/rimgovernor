@@ -199,6 +199,80 @@ func TestModelBedAssignShape(t *testing.T) {
 	}
 }
 
+func TestModelMoveShape(t *testing.T) {
+	result, err := decode(`{"command":"move_pawn","pawn":"Thing_A","x":3,"z":4}`, 1)
+	if err != nil || result.Command != "move_pawn" || result.Pawn == nil || *result.Pawn != "Thing_A" ||
+		result.X == nil || *result.X != 3 || result.Z == nil || *result.Z != 4 {
+		t.Fatalf("move_pawn shape: %v %v", result, err)
+	}
+	for _, text := range []string{
+		`{"command":"move_pawn"}`,
+		`{"command":"move_pawn","pawn":"Thing_A"}`,
+		`{"command":"move_pawn","pawn":"Thing_A","x":3}`,
+		`{"command":"move_pawn","pawn":null,"x":3,"z":4}`,
+		`{"command":"move_pawn","pawn":"","x":3,"z":4}`,
+		`{"command":"move_pawn","pawn":"Thing_A","x":-1,"z":4}`,
+		`{"command":"move_pawn","pawn":"Thing_A","x":3,"z":-1}`,
+		`{"command":"move_pawn","pawn":"Thing_A","x":3,"z":4,"dryRun":false}`,
+	} {
+		t.Run(text, func(t *testing.T) {
+			_, err := decode(text, 1)
+			assertKind(t, err, InvalidCommand)
+		})
+	}
+}
+
+func TestModelSetBuildingTemperatureShape(t *testing.T) {
+	result, err := decode(`{"command":"set_building_temperature","thing":"Thing_Heater1","celsius":21}`, 1)
+	if err != nil || result.Command != "set_building_temperature" || result.Thing == nil || *result.Thing != "Thing_Heater1" ||
+		result.Celsius == nil || *result.Celsius != 21 {
+		t.Fatalf("set_building_temperature shape: %v %v", result, err)
+	}
+	for _, text := range []string{
+		`{"command":"set_building_temperature"}`,
+		`{"command":"set_building_temperature","thing":"Thing_Heater1"}`,
+		`{"command":"set_building_temperature","thing":null,"celsius":21}`,
+		`{"command":"set_building_temperature","thing":"","celsius":21}`,
+		`{"command":"set_building_temperature","thing":"Thing_Heater1","celsius":null}`,
+		`{"command":"set_building_temperature","thing":"Thing_Heater1","celsius":"21"}`,
+		`{"command":"set_building_temperature","thing":"Thing_Heater1","celsius":21,"dryRun":false}`,
+	} {
+		t.Run(text, func(t *testing.T) {
+			_, err := decode(text, 1)
+			assertKind(t, err, InvalidCommand)
+		})
+	}
+}
+
+func TestModelSurgeryShape(t *testing.T) {
+	result, err := decode(`{"command":"request_surgery","patient":"Thing_A","recipe":"RemoveBodyPart","part":3}`, 1)
+	if err != nil || result.Command != "request_surgery" || result.Pawn == nil || *result.Pawn != "Thing_A" ||
+		result.Recipe == nil || *result.Recipe != "RemoveBodyPart" || result.Part == nil || *result.Part != 3 {
+		t.Fatalf("request_surgery shape: %v %v", result, err)
+	}
+	wholeBody, err := decode(`{"command":"request_surgery","patient":"Thing_A","recipe":"InstallPegLeg","part":-1}`, 1)
+	if err != nil || wholeBody.Part == nil || *wholeBody.Part != -1 {
+		t.Fatalf("request_surgery whole-body shape: %v %v", wholeBody, err)
+	}
+	for _, text := range []string{
+		`{"command":"request_surgery"}`,
+		`{"command":"request_surgery","patient":"Thing_A"}`,
+		`{"command":"request_surgery","patient":"Thing_A","recipe":"RemoveBodyPart"}`,
+		`{"command":"request_surgery","patient":null,"recipe":"RemoveBodyPart","part":3}`,
+		`{"command":"request_surgery","patient":"","recipe":"RemoveBodyPart","part":3}`,
+		`{"command":"request_surgery","patient":"Thing_A","recipe":"","part":3}`,
+		`{"command":"request_surgery","patient":"Thing_A","recipe":null,"part":3}`,
+		`{"command":"request_surgery","patient":"Thing_A","recipe":"RemoveBodyPart","part":null}`,
+		`{"command":"request_surgery","patient":"Thing_A","recipe":"RemoveBodyPart","part":-2}`,
+		`{"command":"request_surgery","patient":"Thing_A","recipe":"RemoveBodyPart","part":3,"dryRun":false}`,
+	} {
+		t.Run(text, func(t *testing.T) {
+			_, err := decode(text, 1)
+			assertKind(t, err, InvalidCommand)
+		})
+	}
+}
+
 func TestModelCaravanShape(t *testing.T) {
 	valid := `{"command":"caravan","crew":["Thing_A"],"cargo":[{"defName":"Silver","count":50}],"destinationTile":3}`
 	result, err := decode(valid, 1)
@@ -217,6 +291,61 @@ func TestModelCaravanShape(t *testing.T) {
 		`{"command":"caravan","crew":[""],"cargo":[{"defName":"Silver","count":50}],"destinationTile":3}`,
 		`{"command":"caravan","crew":["Thing_A"],"cargo":[{"defName":"Silver","count":-1}],"destinationTile":3}`,
 		`{"command":"caravan","crew":["Thing_A"],"cargo":[{"defName":"Silver","count":50}],"destinationTile":3,"dryRun":false}`,
+	} {
+		t.Run(text, func(t *testing.T) {
+			_, err := decode(text, 1)
+			assertKind(t, err, InvalidCommand)
+		})
+	}
+}
+
+func TestModelHoldCaravanShape(t *testing.T) {
+	result, err := decode(`{"command":"hold_caravan","caravan":"Caravan_A"}`, 1)
+	if err != nil || result.Command != "hold_caravan" || result.Caravan == nil || *result.Caravan != "Caravan_A" {
+		t.Fatalf("hold_caravan shape: %v %v", result, err)
+	}
+	for _, text := range []string{
+		`{"command":"hold_caravan"}`,
+		`{"command":"hold_caravan","caravan":null}`,
+		`{"command":"hold_caravan","caravan":""}`,
+		`{"command":"hold_caravan","caravan":"Caravan_A","destinationTile":3}`,
+	} {
+		t.Run(text, func(t *testing.T) {
+			_, err := decode(text, 1)
+			assertKind(t, err, InvalidCommand)
+		})
+	}
+}
+
+func TestModelRouteCaravanShape(t *testing.T) {
+	route := `{"command":"route_caravan","caravan":"Caravan_A","destinationTile":3,"returnHome":false,"visitSettlement":false}`
+	result, err := decode(route, 1)
+	if err != nil || result.Command != "route_caravan" || result.Caravan == nil || *result.Caravan != "Caravan_A" ||
+		result.DestinationTile == nil || *result.DestinationTile != 3 ||
+		result.ReturnHome == nil || *result.ReturnHome || result.VisitSettlement == nil || *result.VisitSettlement {
+		t.Fatalf("route_caravan route shape: %v %v", result, err)
+	}
+	visit := `{"command":"route_caravan","caravan":"Caravan_A","destinationTile":3,"returnHome":false,"visitSettlement":true}`
+	result, err = decode(visit, 1)
+	if err != nil || result.VisitSettlement == nil || !*result.VisitSettlement {
+		t.Fatalf("route_caravan visit shape: %v %v", result, err)
+	}
+	home := `{"command":"route_caravan","caravan":"Caravan_A","destinationTile":null,"returnHome":true,"visitSettlement":false}`
+	result, err = decode(home, 1)
+	if err != nil || result.DestinationTile != nil || result.ReturnHome == nil || !*result.ReturnHome {
+		t.Fatalf("route_caravan return-home shape: %v %v", result, err)
+	}
+	for _, text := range []string{
+		`{"command":"route_caravan"}`,
+		`{"command":"route_caravan","caravan":"Caravan_A"}`,
+		`{"command":"route_caravan","caravan":"","destinationTile":3,"returnHome":false,"visitSettlement":false}`,
+		`{"command":"route_caravan","caravan":"Caravan_A","destinationTile":-1,"returnHome":false,"visitSettlement":false}`,
+		// exactly one of destinationTile/returnHome
+		`{"command":"route_caravan","caravan":"Caravan_A","destinationTile":3,"returnHome":true,"visitSettlement":false}`,
+		`{"command":"route_caravan","caravan":"Caravan_A","destinationTile":null,"returnHome":false,"visitSettlement":false}`,
+		// visitSettlement requires a route, not return-home
+		`{"command":"route_caravan","caravan":"Caravan_A","destinationTile":null,"returnHome":true,"visitSettlement":true}`,
+		`{"command":"route_caravan","caravan":"Caravan_A","destinationTile":3,"returnHome":false,"visitSettlement":false,"dryRun":false}`,
 	} {
 		t.Run(text, func(t *testing.T) {
 			_, err := decode(text, 1)

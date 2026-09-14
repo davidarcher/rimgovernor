@@ -44,6 +44,21 @@ type modelCommand struct {
 	Pawn, Thing, Service *string
 	// Bed holds bed_assign's target bed thing ID (Pawn is shared with recover).
 	Bed *string
+	// X/Z hold move_pawn's destination cell (Pawn is shared with recover/bed_assign).
+	X, Z *int32
+	// Celsius holds set_building_temperature's requested target temperature
+	// (Thing is shared with recover's service target field).
+	Celsius *float64
+	// Recipe/Part hold request_surgery's recipe def name and body part index
+	// (-1 for whole-body); the patient reuses Pawn.
+	Recipe *string
+	Part   *int32
+	// Caravan holds hold_caravan/route_caravan's target already-formed player
+	// caravan ID. ReturnHome/VisitSettlement select route_caravan's
+	// disposition; DestinationTile (shared with caravan departure) is
+	// required for a route and absent for return_home.
+	Caravan                     *string
+	ReturnHome, VisitSettlement *bool
 }
 
 func decode(text string, limit int) (modelCommand, error) {
@@ -85,8 +100,18 @@ func decode(text string, limit int) (modelCommand, error) {
 		return decodeRecoveryService(fields)
 	case "bed_assign":
 		return decodeBedAssign(fields)
+	case "move_pawn":
+		return decodeMove(fields)
+	case "set_building_temperature":
+		return decodeSetBuildingTemperature(fields)
+	case "request_surgery":
+		return decodeSurgery(fields)
+	case "hold_caravan":
+		return decodeHoldCaravan(fields)
+	case "route_caravan":
+		return decodeRouteCaravan(fields)
 	default:
-		return modelCommand{}, fail(UnsupportedCommand, "only building, research, tend, rescue, draft, caravan, husbandry, recover and bed_assign proposals are supported")
+		return modelCommand{}, fail(UnsupportedCommand, "only building, research, tend, rescue, draft, caravan, husbandry, recover, bed_assign, move_pawn, set_building_temperature, request_surgery, hold_caravan and route_caravan proposals are supported")
 	}
 }
 
@@ -301,6 +326,113 @@ func decodeBedAssign(fields map[string]json.RawMessage) (modelCommand, error) {
 		return modelCommand{}, err
 	}
 	return modelCommand{Command: "bed_assign", Pawn: pawn, Bed: bed}, nil
+}
+
+func decodeMove(fields map[string]json.RawMessage) (modelCommand, error) {
+	if len(fields) != 4 || fields["pawn"] == nil || fields["x"] == nil || fields["z"] == nil {
+		return modelCommand{}, fail(InvalidCommand, "unexpected command fields")
+	}
+	if bytes.Equal(bytes.TrimSpace(fields["pawn"]), []byte("null")) {
+		return modelCommand{}, fail(InvalidCommand, "missing pawn")
+	}
+	var pawn string
+	if err := json.Unmarshal(fields["pawn"], &pawn); err != nil || pawn == "" {
+		return modelCommand{}, fail(InvalidCommand, "invalid pawn field")
+	}
+	var x, z int32
+	if err := json.Unmarshal(fields["x"], &x); err != nil || x < 0 {
+		return modelCommand{}, fail(InvalidCommand, "invalid x field")
+	}
+	if err := json.Unmarshal(fields["z"], &z); err != nil || z < 0 {
+		return modelCommand{}, fail(InvalidCommand, "invalid z field")
+	}
+	return modelCommand{Command: "move_pawn", Pawn: &pawn, X: &x, Z: &z}, nil
+}
+
+func decodeSetBuildingTemperature(fields map[string]json.RawMessage) (modelCommand, error) {
+	if len(fields) != 3 || fields["thing"] == nil || fields["celsius"] == nil || bytes.Equal(bytes.TrimSpace(fields["thing"]), []byte("null")) || bytes.Equal(bytes.TrimSpace(fields["celsius"]), []byte("null")) {
+		return modelCommand{}, fail(InvalidCommand, "unexpected command fields")
+	}
+	var thing string
+	if err := json.Unmarshal(fields["thing"], &thing); err != nil || thing == "" {
+		return modelCommand{}, fail(InvalidCommand, "invalid thing field")
+	}
+	var celsius float64
+	if err := json.Unmarshal(fields["celsius"], &celsius); err != nil {
+		return modelCommand{}, fail(InvalidCommand, "invalid celsius field")
+	}
+	return modelCommand{Command: "set_building_temperature", Thing: &thing, Celsius: &celsius}, nil
+}
+
+func decodeSurgery(fields map[string]json.RawMessage) (modelCommand, error) {
+	if len(fields) != 4 || fields["patient"] == nil || fields["recipe"] == nil || fields["part"] == nil {
+		return modelCommand{}, fail(InvalidCommand, "unexpected command fields")
+	}
+	if bytes.Equal(bytes.TrimSpace(fields["patient"]), []byte("null")) {
+		return modelCommand{}, fail(InvalidCommand, "missing patient")
+	}
+	var patient string
+	if err := json.Unmarshal(fields["patient"], &patient); err != nil || patient == "" {
+		return modelCommand{}, fail(InvalidCommand, "invalid patient field")
+	}
+	if bytes.Equal(bytes.TrimSpace(fields["recipe"]), []byte("null")) {
+		return modelCommand{}, fail(InvalidCommand, "missing recipe")
+	}
+	var recipe string
+	if err := json.Unmarshal(fields["recipe"], &recipe); err != nil || recipe == "" {
+		return modelCommand{}, fail(InvalidCommand, "invalid recipe field")
+	}
+	if bytes.Equal(bytes.TrimSpace(fields["part"]), []byte("null")) {
+		return modelCommand{}, fail(InvalidCommand, "missing part")
+	}
+	var part int32
+	if err := json.Unmarshal(fields["part"], &part); err != nil || part < -1 {
+		return modelCommand{}, fail(InvalidCommand, "invalid part field")
+	}
+	return modelCommand{Command: "request_surgery", Pawn: &patient, Recipe: &recipe, Part: &part}, nil
+}
+
+func decodeHoldCaravan(fields map[string]json.RawMessage) (modelCommand, error) {
+	if len(fields) != 2 || fields["caravan"] == nil || bytes.Equal(bytes.TrimSpace(fields["caravan"]), []byte("null")) {
+		return modelCommand{}, fail(InvalidCommand, "unexpected command fields")
+	}
+	var caravan string
+	if err := json.Unmarshal(fields["caravan"], &caravan); err != nil || caravan == "" {
+		return modelCommand{}, fail(InvalidCommand, "invalid caravan field")
+	}
+	return modelCommand{Command: "hold_caravan", Caravan: &caravan}, nil
+}
+
+func decodeRouteCaravan(fields map[string]json.RawMessage) (modelCommand, error) {
+	if len(fields) != 5 || fields["caravan"] == nil || fields["destinationTile"] == nil || fields["returnHome"] == nil || fields["visitSettlement"] == nil {
+		return modelCommand{}, fail(InvalidCommand, "unexpected command fields")
+	}
+	var caravan string
+	if err := json.Unmarshal(fields["caravan"], &caravan); err != nil || caravan == "" {
+		return modelCommand{}, fail(InvalidCommand, "invalid caravan field")
+	}
+	var returnHome, visitSettlement bool
+	if err := json.Unmarshal(fields["returnHome"], &returnHome); err != nil {
+		return modelCommand{}, fail(InvalidCommand, "invalid returnHome field")
+	}
+	if err := json.Unmarshal(fields["visitSettlement"], &visitSettlement); err != nil {
+		return modelCommand{}, fail(InvalidCommand, "invalid visitSettlement field")
+	}
+	var tile *int32
+	if !bytes.Equal(bytes.TrimSpace(fields["destinationTile"]), []byte("null")) {
+		var t int32
+		if err := json.Unmarshal(fields["destinationTile"], &t); err != nil || t < 0 {
+			return modelCommand{}, fail(InvalidCommand, "invalid destinationTile field")
+		}
+		tile = &t
+	}
+	if returnHome == (tile != nil) {
+		return modelCommand{}, fail(InvalidCommand, "choose exactly one of destinationTile or returnHome")
+	}
+	if returnHome && visitSettlement {
+		return modelCommand{}, fail(InvalidCommand, "settlement visits require a route, not return-home")
+	}
+	return modelCommand{Command: "route_caravan", Caravan: &caravan, DestinationTile: tile, ReturnHome: &returnHome, VisitSettlement: &visitSettlement}, nil
 }
 
 // Generic JSON token inspection is confined to this external text boundary.

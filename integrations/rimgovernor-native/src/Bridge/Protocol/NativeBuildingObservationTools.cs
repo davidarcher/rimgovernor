@@ -61,6 +61,14 @@ namespace HomeBridge.BridgeTools
                             w.Write(row.Status??""); w.Write(row.HitPoints); w.Write(row.Burning);
                             if (row.Construction != null) { w.Write(row.Construction.PercentComplete); w.Write(row.Construction.ResourcesComplete); }
                         });
+                        // Only target_temperature_c and its own dedicated CAS
+                        // snapshot are populated here; forbidden/power/medical/
+                        // owner/forPrisoners remain the "settings" unsupported
+                        // issue below. See NativeBuildingTemperature, the
+                        // PatchBuilding write this snapshot is read for.
+                        var tempControl = thing.TryGetComp<CompTempControl>();
+                        if (tempControl != null)
+                            row.Settings = new Obs.BuildingSettings { Snapshot = NativeBuildingTemperature.Snapshot(thing, context), TargetTemperatureC = tempControl.targetTemperature };
                         cells = checked(cells + row.OccupiedCells.Count);
                         Require(cells <= 4096, "Complete building geometry exceeds 4096 cells.");
                         snapshot.Buildings.Add(row);
@@ -159,7 +167,15 @@ namespace HomeBridge.BridgeTools
                 row.Construction = Construction(thing, buildDef, stuff);
             }
             else row.Issues.Add(Issue("construction", Common.UnavailableReason.NotApplicable, "Completed building is not a construction site."));
-            foreach (var field in new[] { "settings", "service", "thermal_sides", "bills" })
+            // "settings" is reported unsupported wholesale only when this thing has
+            // no CompTempControl; a temp-controlled thing gets target_temperature_c
+            // and its snapshot filled in by the caller below instead (see
+            // NativeBuildingTemperature) -- forbidden/power/medical/owner/
+            // forPrisoners remain unimplemented either way.
+            var fields = thing.TryGetComp<CompTempControl>() != null
+                ? new[] { "service", "thermal_sides", "bills" }
+                : new[] { "settings", "service", "thermal_sides", "bills" };
+            foreach (var field in fields)
                 row.Issues.Add(Issue(field, Common.UnavailableReason.Unsupported, "Typed fact or exact CAS snapshot producer is not implemented."));
             row.Issues.Add(Issue("inspect_text", Common.UnavailableReason.NotRequested, "Inspect strings are not requested."));
             return row;

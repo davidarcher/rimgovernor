@@ -59,6 +59,8 @@ func insertAction(ctx context.Context, tx *sql.Tx, plan domain.PlanID, ordinal i
 		_, err = tx.ExecContext(ctx, "INSERT INTO actions(id,plan_id,ordinal,kind,pawn,target) VALUES(?,?,?,'capture',?,?)", a.ID(), plan, ordinal, capture.Capturer(), capture.Patient())
 	} else if ranged, ok := a.RangedAttack(); ok {
 		_, err = tx.ExecContext(ctx, "INSERT INTO actions(id,plan_id,ordinal,kind,pawn,target,draft_action) VALUES(?,?,?,'ranged_attack',?,?,?)", a.ID(), plan, ordinal, ranged.Pawn(), ranged.Target(), ranged.DraftAction())
+	} else if mv, ok := a.Movement(); ok {
+		_, err = tx.ExecContext(ctx, "INSERT INTO actions(id,plan_id,ordinal,kind,pawn,x,z,draft_action) VALUES(?,?,?,'movement',?,?,?,?)", a.ID(), plan, ordinal, mv.Pawn(), mv.Destination().X, mv.Destination().Z, mv.DraftAction())
 	} else if haul, ok := a.Haul(); ok {
 		_, err = tx.ExecContext(ctx, "INSERT INTO actions(id,plan_id,ordinal,kind,pawn,target,definition,x,z) VALUES(?,?,?,'haul',?,?,?,?,?)", a.ID(), plan, ordinal, haul.Pawn(), haul.Thing(), haul.Definition(), haul.Cell().X, haul.Cell().Z)
 	} else if equip, ok := a.Equip(); ok {
@@ -77,6 +79,8 @@ func insertAction(ctx context.Context, tx *sql.Tx, plan domain.PlanID, ordinal i
 		_, err = tx.ExecContext(ctx, "INSERT INTO actions(id,plan_id,ordinal,kind,pawn,target,x,z) VALUES(?,?,?,'clean',?,?,?,?)", a.ID(), plan, ordinal, clean.Pawn(), clean.Filth(), clean.Cell().X, clean.Cell().Z)
 	} else if service, ok := a.RecoveryService(); ok {
 		_, err = tx.ExecContext(ctx, "INSERT INTO actions(id,plan_id,ordinal,kind,pawn,target,definition) VALUES(?,?,?,'recovery_service',?,?,?)", a.ID(), plan, ordinal, service.Pawn(), service.Thing(), string(service.Method()))
+	} else if surgery, ok := a.Surgery(); ok {
+		_, err = tx.ExecContext(ctx, "INSERT INTO actions(id,plan_id,ordinal,kind,pawn,definition,x) VALUES(?,?,?,'surgery',?,?,?)", a.ID(), plan, ordinal, surgery.Patient(), surgery.Recipe(), surgery.Part())
 	} else if assign, ok := a.BedAssign(); ok {
 		def := ""
 		if !assign.PreviousBed().Clear() {
@@ -125,6 +129,18 @@ func insertAction(ctx context.Context, tx *sql.Tx, plan domain.PlanID, ordinal i
 			return encodeErr
 		}
 		_, err = tx.ExecContext(ctx, "INSERT INTO actions(id,plan_id,ordinal,kind,production_policy_payload) VALUES(?,?,?,'production_policy',?)", a.ID(), plan, ordinal, data)
+	} else if temperature, ok := a.BuildingTemperature(); ok {
+		data, encodeErr := json.Marshal(buildingTemperaturePayload{temperature.Celsius(), temperature.BeforeToken()})
+		if encodeErr != nil {
+			return encodeErr
+		}
+		_, err = tx.ExecContext(ctx, "INSERT INTO actions(id,plan_id,ordinal,kind,target,building_temperature_payload) VALUES(?,?,?,'building_temperature',?,?)", a.ID(), plan, ordinal, temperature.Thing(), data)
+	} else if travel, ok := a.TravelCaravan(); ok {
+		data, encodeErr := json.Marshal(travelCaravanPayload{travel.Caravan(), travel.Kind(), travel.DestinationTile()})
+		if encodeErr != nil {
+			return encodeErr
+		}
+		_, err = tx.ExecContext(ctx, "INSERT INTO actions(id,plan_id,ordinal,kind,travel_caravan_payload) VALUES(?,?,?,'travel_caravan',?)", a.ID(), plan, ordinal, data)
 	} else {
 		return errors.New("unsupported persisted action")
 	}
@@ -136,8 +152,8 @@ func scanAction(rows *sql.Rows) (domain.Action, int, error) {
 	var ordinal int
 	var def, rotation, stuff, pawn, target, draftAction sql.NullString
 	var x, z sql.NullInt64
-	var work, zone, bill, caravan, settlementGiftBlob, questFulfillBlob, wallRemoval, productionPolicyBlob []byte
-	if err := rows.Scan(&id, &kind, &def, &x, &z, &rotation, &stuff, &pawn, &target, &draftAction, &work, &zone, &bill, &caravan, &settlementGiftBlob, &questFulfillBlob, &wallRemoval, &productionPolicyBlob, &ordinal); err != nil {
+	var work, zone, bill, caravan, settlementGiftBlob, questFulfillBlob, wallRemoval, productionPolicyBlob, buildingTemperatureBlob, travelCaravanBlob []byte
+	if err := rows.Scan(&id, &kind, &def, &x, &z, &rotation, &stuff, &pawn, &target, &draftAction, &work, &zone, &bill, &caravan, &settlementGiftBlob, &questFulfillBlob, &wallRemoval, &productionPolicyBlob, &buildingTemperatureBlob, &travelCaravanBlob, &ordinal); err != nil {
 		return domain.Action{}, 0, err
 	}
 	if kind == "production_bill" && !pawn.Valid && !target.Valid && !draftAction.Valid && !def.Valid && !x.Valid && !z.Valid && !rotation.Valid && !stuff.Valid && work == nil && zone == nil {
@@ -306,6 +322,44 @@ func scanAction(rows *sql.Rows) (domain.Action, int, error) {
 	if productionPolicyBlob != nil {
 		return domain.Action{}, 0, errors.New("mixed production policy payload")
 	}
+	if kind == "building_temperature" && target.Valid && !pawn.Valid && !draftAction.Valid && !def.Valid && !x.Valid && !z.Valid && !rotation.Valid && !stuff.Valid {
+		var payload buildingTemperaturePayload
+		if len(buildingTemperatureBlob) > 32768 || json.Unmarshal(buildingTemperatureBlob, &payload) != nil {
+			return domain.Action{}, 0, errors.New("invalid building temperature payload")
+		}
+		canonical, _ := json.Marshal(payload)
+		if !bytes.Equal(canonical, buildingTemperatureBlob) {
+			return domain.Action{}, 0, errors.New("noncanonical building temperature payload")
+		}
+		bt, err := domain.NewBuildingTemperature(target.String, payload.Celsius, payload.Before)
+		if err != nil {
+			return domain.Action{}, 0, err
+		}
+		action, err := domain.NewBuildingTemperatureAction(id, bt)
+		return action, ordinal, err
+	}
+	if buildingTemperatureBlob != nil {
+		return domain.Action{}, 0, errors.New("mixed building temperature payload")
+	}
+	if kind == "travel_caravan" && !pawn.Valid && !target.Valid && !draftAction.Valid && !def.Valid && !x.Valid && !z.Valid && !rotation.Valid && !stuff.Valid {
+		var payload travelCaravanPayload
+		if len(travelCaravanBlob) > 32768 || json.Unmarshal(travelCaravanBlob, &payload) != nil {
+			return domain.Action{}, 0, errors.New("invalid travel caravan payload")
+		}
+		canonical, _ := json.Marshal(payload)
+		if !bytes.Equal(canonical, travelCaravanBlob) {
+			return domain.Action{}, 0, errors.New("noncanonical travel caravan payload")
+		}
+		t, err := domain.NewTravelCaravan(payload.Caravan, payload.Kind, payload.DestinationTile)
+		if err != nil {
+			return domain.Action{}, 0, err
+		}
+		action, err := domain.NewTravelCaravanAction(id, t)
+		return action, ordinal, err
+	}
+	if travelCaravanBlob != nil {
+		return domain.Action{}, 0, errors.New("mixed travel caravan payload")
+	}
 	if kind == "owned_draft" && pawn.Valid && !target.Valid && !draftAction.Valid && !def.Valid && !x.Valid && !z.Valid && !rotation.Valid && !stuff.Valid {
 		d, e := domain.NewOwnedDraft(domain.PawnID(pawn.String))
 		if e != nil {
@@ -378,6 +432,14 @@ func scanAction(rows *sql.Rows) (domain.Action, int, error) {
 		a, err := domain.NewRangedAttackAction(id, m)
 		return a, ordinal, err
 	}
+	if kind == "movement" && pawn.Valid && !target.Valid && x.Valid && z.Valid && draftAction.Valid && !def.Valid && !rotation.Valid && !stuff.Valid && x.Int64 >= 0 && x.Int64 <= 2147483647 && z.Int64 >= 0 && z.Int64 <= 2147483647 {
+		mv, err := domain.NewMovement(domain.PawnID(pawn.String), domain.Cell{X: int32(x.Int64), Z: int32(z.Int64)}, domain.ActionID(draftAction.String))
+		if err != nil {
+			return domain.Action{}, 0, err
+		}
+		a, err := domain.NewMovementAction(id, mv)
+		return a, ordinal, err
+	}
 	if kind == "haul" && pawn.Valid && target.Valid && def.Valid && x.Valid && z.Valid && !draftAction.Valid && !rotation.Valid && !stuff.Valid && x.Int64 >= 0 && x.Int64 <= 2147483647 && z.Int64 >= 0 && z.Int64 <= 2147483647 {
 		h, err := domain.NewHaul(domain.PawnID(pawn.String), target.String, def.String, domain.Cell{X: int32(x.Int64), Z: int32(z.Int64)})
 		if err != nil {
@@ -424,6 +486,14 @@ func scanAction(rows *sql.Rows) (domain.Action, int, error) {
 			return domain.Action{}, 0, err
 		}
 		a, err := domain.NewRecoveryServiceAction(id, rs)
+		return a, ordinal, err
+	}
+	if kind == "surgery" && pawn.Valid && def.Valid && x.Valid && !target.Valid && !z.Valid && !draftAction.Valid && !rotation.Valid && !stuff.Valid && x.Int64 >= -1 && x.Int64 <= 2147483647 {
+		surgery, err := domain.NewSurgery(domain.PawnID(pawn.String), def.String, int32(x.Int64))
+		if err != nil {
+			return domain.Action{}, 0, err
+		}
+		a, err := domain.NewSurgeryAction(id, surgery)
 		return a, ordinal, err
 	}
 	if kind == "bed_assign" && pawn.Valid && target.Valid && def.Valid && !x.Valid && !z.Valid && !draftAction.Valid && !rotation.Valid && !stuff.Valid {
@@ -557,4 +627,15 @@ type wallRemovalPayload struct {
 type productionPolicyPayload struct {
 	Floors  []domain.ResourceFloor
 	Stopped []string
+}
+
+type buildingTemperaturePayload struct {
+	Celsius float64
+	Before  string
+}
+
+type travelCaravanPayload struct {
+	Caravan         domain.CaravanID
+	Kind            domain.TravelKind
+	DestinationTile int32
 }

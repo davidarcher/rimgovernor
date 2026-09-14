@@ -133,6 +133,8 @@ type Executor struct {
 	cleanJournal               CleanJournal
 	recoveryService            RecoveryServiceBoundary
 	recoveryServiceJournal     RecoveryServiceJournal
+	surgery                    SurgeryBoundary
+	surgeryJournal             SurgeryJournal
 	bedAssign                  BedAssignBoundary
 	bedAssignJournal           BedAssignJournal
 	researchSelect             ResearchSelectBoundary
@@ -157,6 +159,10 @@ type Executor struct {
 	productionPolicyJournal    ProductionPolicyJournal
 	ranged                     RangedBoundary
 	rangedJournal              RangedJournal
+	movement                   MovementBoundary
+	movementJournal            MovementJournal
+	buildingTemperature        BuildingTemperatureBoundary
+	buildingTemperatureJournal BuildingTemperatureJournal
 	routineScope               RoutineScope
 	journal                    Journal
 	draftJournal               DraftJournal
@@ -354,6 +360,9 @@ func (e *Executor) Run(ctx context.Context, plan domain.PlanID, actionID domain.
 	if action.Kind() == domain.RangedAttackAction && e.ranged != nil {
 		return e.runRangedAttack(ctx, action, progress, authority, generation)
 	}
+	if action.Kind() == domain.MovementAction && e.movement != nil {
+		return e.runMovement(ctx, action, progress, authority, generation)
+	}
 	if action.Kind() == domain.HaulAction && e.haul != nil {
 		return e.runHaul(ctx, action, progress, authority, generation)
 	}
@@ -374,6 +383,9 @@ func (e *Executor) Run(ctx context.Context, plan domain.PlanID, actionID domain.
 	}
 	if action.Kind() == domain.RecoveryServiceAction && e.recoveryService != nil {
 		return e.runRecoveryService(ctx, action, progress, authority, generation)
+	}
+	if action.Kind() == domain.SurgeryAction && e.surgery != nil {
+		return e.runSurgery(ctx, action, progress, authority, generation)
 	}
 	if action.Kind() == domain.BedAssignAction && e.bedAssign != nil {
 		return e.runBedAssign(ctx, action, progress, authority, generation)
@@ -410,6 +422,9 @@ func (e *Executor) Run(ctx context.Context, plan domain.PlanID, actionID domain.
 	}
 	if action.Kind() == domain.ProductionPolicyAction && e.productionPolicy != nil {
 		return e.runProductionPolicy(ctx, action, progress, authority, generation)
+	}
+	if action.Kind() == domain.BuildingTemperatureAction && e.buildingTemperature != nil {
+		return e.runBuildingTemperature(ctx, action, progress, authority, generation)
 	}
 	if action.Kind() != domain.BuildingAction {
 		return Result{}, errors.New("missing or unsupported building action")
