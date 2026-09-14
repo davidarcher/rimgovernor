@@ -156,6 +156,15 @@ type ZoneCreate struct {
 	Cells    []ZoneCell               `json:"cells"`
 	Allow    []string                 `json:"allow,omitempty"`
 }
+// ZoneEdit is the wire shape for the zone-edit command; only the fields the
+// selected Op carries are populated (cells for add/remove, none for
+// delete), mirroring Trade's discipline for its own closed sub-operations.
+type ZoneEdit struct {
+	ZoneID string             `json:"zoneId"`
+	Before string             `json:"before"`
+	Op     domain.ZoneEditOp  `json:"op"`
+	Cells  []ZoneCell         `json:"cells,omitempty"`
+}
 type DraftCleanup struct {
 	Stage domain.DraftCleanupStage `json:"stage"`
 }

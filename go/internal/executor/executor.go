@@ -169,6 +169,8 @@ type Executor struct {
 	movementJournal            MovementJournal
 	buildingTemperature        BuildingTemperatureBoundary
 	buildingTemperatureJournal BuildingTemperatureJournal
+	zoneEdit                   ZoneEditBoundary
+	zoneEditJournal            ZoneEditJournal
 	routineScope               RoutineScope
 	journal                    Journal
 	draftJournal               DraftJournal
@@ -440,6 +442,9 @@ func (e *Executor) Run(ctx context.Context, plan domain.PlanID, actionID domain.
 	}
 	if action.Kind() == domain.BuildingTemperatureAction && e.buildingTemperature != nil {
 		return e.runBuildingTemperature(ctx, action, progress, authority, generation)
+	}
+	if action.Kind() == domain.ZoneEditAction && e.zoneEdit != nil {
+		return e.runZoneEdit(ctx, action, progress, authority, generation)
 	}
 	if action.Kind() != domain.BuildingAction {
 		return Result{}, errors.New("missing or unsupported building action")
