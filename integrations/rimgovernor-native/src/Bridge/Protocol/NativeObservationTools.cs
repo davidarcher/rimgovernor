@@ -65,6 +65,11 @@ namespace HomeBridge.BridgeTools
                         }
                         if (fields.Visibility) row.Fogged = cell.Fogged(map);
                         if (fields.Traversal) { row.Walkable = cell.Walkable(map); row.Passable = !cell.Impassable(map); }
+                        if (fields.Things) {
+                            var here = cell.GetThingList(map);
+                            RequireCount(here.Count, 256);
+                            foreach (var thing in here) row.Things.Add(CellThingRow(thing, context));
+                        }
                         snapshot.Cells.Add(row);
                     }
                     return EncodeBounded(new Obs.GetCellsReply { Observed = snapshot });
@@ -85,8 +90,8 @@ namespace HomeBridge.BridgeTools
             failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Valid identity, bounded unique exact cells or inclusive rectangle required.");
             if (request == null || request.Scope?.ExpectedIdentity == null || !PageValid(request.Page)) return false;
             var fields = request.Fields;
-            if (fields != null && (fields.Zone || fields.Areas || fields.Things || fields.Designations || fields.Room || fields.Growth)) {
-                failure = ProtoBoundary.Fail(Common.FailureCode.Unsupported, "Only terrain, roof, visibility and traversal cell fields are implemented."); return false;
+            if (fields != null && (fields.Zone || fields.Areas || fields.Designations || fields.Room || fields.Growth)) {
+                failure = ProtoBoundary.Fail(Common.FailureCode.Unsupported, "Only terrain, roof, visibility, traversal and things cell fields are implemented."); return false;
             }
             try { Selection(request); return true; } catch (Exception) { return false; }
         }
@@ -116,7 +121,11 @@ namespace HomeBridge.BridgeTools
         internal static Obs.CellFields Fields(Obs.CellFields? source) => new Obs.CellFields {
             Terrain = source == null || !source.HasTerrain || source.Terrain, Roof = source == null || !source.HasRoof || source.Roof,
             Visibility = source == null || !source.HasVisibility || source.Visibility, Traversal = source == null || !source.HasTraversal || source.Traversal,
-            Zone = false, Areas = false, Things = false, Designations = false, Room = false, Growth = false };
+            // Things is opt-in only (absence selects false), unlike
+            // terrain/roof/visibility/traversal's absence-selects-true default:
+            // a bounded per-cell thing scan is not something every caller wants.
+            Things = source != null && source.HasThings && source.Things,
+            Zone = false, Areas = false, Designations = false, Room = false, Growth = false };
 
         private static Obs.StatusSnapshot Status(Map map, Obs.StatusRequest request, Common.ObservationContext context)
         {
@@ -219,6 +228,20 @@ namespace HomeBridge.BridgeTools
             var row = new Obs.EntityRef { Id=Identifier(thing.GetUniqueLoadID()), DefName=Identifier(thing.def.defName), Label=Diagnostic(thing.LabelCap) };
             if (thing.Spawned && thing.Map != null) { row.MapId=thing.Map.uniqueID; row.Position=Cell(thing.Position.x,thing.Position.z); }
             return row;
+        }
+        // Populates each thing's own CAS token via NativeWasteOperations.Token,
+        // the same self-computed hash NativeWasteOperations.Prepare checks: this
+        // is the real production discovery path bridge.ReadWasteTarget (and
+        // ReadFilthTarget) issue via a Things-scoped observations_get_cells read,
+        // since no dedicated per-item lookup RPC exists for a generic loose thing.
+        private static Obs.CellThing CellThingRow(Thing thing, Common.ObservationContext context)
+        {
+            var entity = Entity(thing);
+            entity.Snapshot = new Obs.SnapshotRef { Context = context.Clone(), EntityId = entity.Id, Token = NativeWasteOperations.Token(context.Identity, thing) };
+            return new Obs.CellThing {
+                Thing = entity, ClassName = thing.GetType().Name, StackCount = thing.stackCount,
+                Forbidden = thing.IsForbidden(Faction.OfPlayer),
+            };
         }
         private static Common.Cell Cell(int x,int z)=>new Common.Cell { X=x,Z=z };
         private static string Identifier(string? value) => ProtoBoundary.IsIdentifier(value!) ? value! : throw new InvalidOperationException("Native identifier unavailable.");

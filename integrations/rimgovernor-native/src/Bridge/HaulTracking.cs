@@ -80,8 +80,17 @@ namespace HomeBridge.BridgeTools
                 if (thing.Destroyed || thing.stackCount != p.Count || thing.def.defName != r.Definition) {
                     r.Blocker = "Tracked quantity changed outside a verified transfer"; return;
                 }
-                protectedAll &= thing.Spawned && thing.Map.uniqueID == r.MapId
-                    && thing.Position.Roofed(thing.Map) && thing.IsInValidStorage();
+                // IsInValidStorage() alone is the correct native completion
+                // signal: it already checks the thing sits somewhere its
+                // current slot group's storage settings actually accept it.
+                // Requiring the cell to also be Roofed here (as this line
+                // used to) makes a legitimate outdoor destination -- e.g.
+                // NativeWasteOperations.DirtyCell explicitly REQUIRES
+                // !Roofed for a valid dirty dumping stockpile -- impossible
+                // to ever observe as Complete: a real live run confirmed the
+                // haul physically finished (the item genuinely relocated)
+                // while receipts_observe_progress stayed Pending forever.
+                protectedAll &= thing.Spawned && thing.Map.uniqueID == r.MapId && thing.IsInValidStorage();
             }
             if (protectedAll) { r.Complete = true; r.CompletedTick = Find.TickManager.TicksGame; }
         }
