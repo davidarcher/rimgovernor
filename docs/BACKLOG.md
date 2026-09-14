@@ -1832,6 +1832,45 @@ b; exact worker cleanup by a, with reuse by their later consumers.
   FPS/throughput tuning beyond proving correctness (the 40ms default poll
   interval is not a performance claim).
 
+  `lifecycle.proto`'s previously-unimplemented `Lifecycle/ReadSave` RPC is now
+  wired end to end. `Save` is synchronous (it completes, fails or reports
+  uncertain within one call), so `ReadSave` is not a poll of an in-progress
+  save the way `ReadLoad` polls a load; it exists only so a caller who lost
+  the original reply — a dropped connection, a client restart — can re-read
+  that exact `request_id`'s recorded outcome without retrying the save
+  itself. Native `ProtoLifecycleSaveTools.cs` (`rimgovernor/lifecycle_read_save`)
+  now records every `Save` outcome (Completed/Uncertain, keyed by the
+  request's `request_id`) into the same bounded (32-entry), lock-guarded
+  in-memory table pattern `ProtoLifecycleLoadTools` already established for
+  load; `ReadSave` replays the recorded reply verbatim, or refuses an
+  unknown/expired `request_id` as `Failure`/`FAILURE_CODE_NOT_FOUND`, never
+  pending-forever or silently completed. Pre-flight `InvalidRequest` failures
+  (malformed request, not paused) are not recorded, matching `Load`'s own
+  pre-flight-rejection behavior. `ReadSave`'s capability is advertised in
+  `ProtoIdentityTools`'s `ReadIdentity` list. `bridge.LifecycleSave.ReadSave`
+  (`go/internal/bridge/lifecycle_save.go`) is the typed Go client, sharing
+  outcome-shape validation with `Save` through a new `interpretSaveOutcome`
+  helper that checks the reply's `request_id` echo without requiring the
+  full original request (save name, expected tick, direction) a caller
+  recovering from a lost reply may not still have on hand. Covered by bridge
+  contract-shape tests (missing request id, happy-path replay, uncertain
+  replay, unknown-request-id failure, mismatched-request-id rejection).
+  `dotnet build` passes against the real installed RimWorld/RimBridgeServer
+  assemblies in this sandbox; `go build/vet/test ./...` pass. Native-verified:
+  `checkpointaccept` (`go/internal/nativeaccept/cmd/checkpointaccept`) ran
+  `rimgovernor/lifecycle_read_save` against the real isolated RimWorld
+  instance and passed — a `ReadSave` for the happy-path save's `request_id`
+  replayed the exact completed outcome (identity, save name, request id) the
+  original `Save` call reported; a `ReadSave` for an unknown `request_id`
+  returned `Failure`, `FAILURE_CODE_NOT_FOUND`, never pending-forever or
+  completed.
+  **Explicitly out of scope for this slice:** reconnect-after-disconnect
+  session semantics, competing-viewer arbitration, camera/input ownership,
+  and action-hold/observation-failure reasons for every action family besides
+  building (haul/tend/husbandry/melee/bed-assign/gear/repair/research-select/
+  recovery-service/clean/caravan-departure remain unwired to the emergency-hold
+  mechanism landed in an earlier slice of this item).
+
 - [ ] **G01.10 — Integrate the complete Go controller.**
   Compose the above paths in one process with clock, recovery and diagnostics;
   reconcile responsibilities against current Python source and domain/interface/

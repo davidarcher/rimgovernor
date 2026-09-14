@@ -47,7 +47,13 @@ namespace HomeBridge.BridgeTools
                 {
                     FullMethodName = "rimgovernor.lifecycle.v1.Lifecycle/Save",
                     Support = Lifecycle.CapabilitySupport.Supported,
-                    Detail = "Trusted pause-gated single checkpoint save with pre/post identity, tick and pause re-verification. No load, reconnect or media/control ownership yet."
+                    Detail = "Trusted pause-gated single checkpoint save with pre/post identity, tick and pause re-verification. No reconnect or media/control ownership yet."
+                });
+                loaded.Capabilities.Add(new Lifecycle.Capability
+                {
+                    FullMethodName = "rimgovernor.lifecycle.v1.Lifecycle/ReadSave",
+                    Support = Lifecycle.CapabilitySupport.Supported,
+                    Detail = "Re-reads a rimgovernor/lifecycle_save request_id's exact recorded outcome after a lost reply. Save is synchronous; this is never a poll of an in-progress save."
                 });
                 loaded.Capabilities.Add(new Lifecycle.Capability
                 {

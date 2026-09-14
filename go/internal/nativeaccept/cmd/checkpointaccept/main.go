@@ -3,8 +3,11 @@
 // lifecycle plus three rimgovernor/lifecycle_save outcomes against the real
 // native tool -- a paused happy-path completed save with identity/tick/
 // direction/pause verification, an unpaused refusal, and a deliberately wrong
-// expected_tick uncertain outcome. It never exercises load/reconnect, which
-// remains a separate, unimplemented capability.
+// expected_tick uncertain outcome -- plus two rimgovernor/lifecycle_read_save
+// outcomes: replaying the happy-path save's exact recorded result by
+// request_id, and refusing an unknown request_id. It never exercises
+// reconnect-after-disconnect or competing-viewer arbitration, which remain
+// separate, unimplemented capability.
 package main
 
 import (
@@ -35,7 +38,7 @@ func main() {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(2)
 	}
-	report := na.NewReport("Trusted native rimgovernor/lifecycle_save checkpoint: paused happy-path completed save with identity/tick/direction/pause verification, unpaused refusal, and wrong-expected-tick uncertain outcome. No load/reconnect capability exercised.", !*rendered)
+	report := na.NewReport("Trusted native rimgovernor/lifecycle_save checkpoint: paused happy-path completed save with identity/tick/direction/pause verification, unpaused refusal, and wrong-expected-tick uncertain outcome; plus rimgovernor/lifecycle_read_save replaying the happy-path outcome by request_id and refusing an unknown request_id. No reconnect/competing-viewer capability exercised.", !*rendered)
 	ctx, cancel := context.WithTimeout(context.Background(), *timeout)
 	defer cancel()
 	err := run(ctx, *root, *output, *game, !*rendered, report)
@@ -225,6 +228,47 @@ func run(ctx context.Context, root, output, gameID string, headless bool, report
 		return fmt.Errorf("save-uncertain: missing detail")
 	}
 	report["case_uncertain"] = true
+
+	// Case 4: rimgovernor/lifecycle_read_save replays the happy-path save's
+	// exact recorded outcome by request_id -- proving a caller who lost the
+	// original reply can recover it without retrying the save itself.
+	if !na.Contains(names, "rimgovernor/lifecycle_read_save") {
+		return fmt.Errorf("missing rimgovernor/lifecycle_read_save in discovery")
+	}
+	readSaveReply, err := h.Wire(ctx, "read-save-happy", "lifecycle_read_save", map[string]any{
+		"requestId": happyRequestID,
+	})
+	if err != nil {
+		return fmt.Errorf("read-save-happy: %w", err)
+	}
+	_, readCompleted, err := na.Outcome(readSaveReply, "completed")
+	if err != nil {
+		return fmt.Errorf("read-save-happy: expected a completed save: %w", err)
+	}
+	if na.AsString(readCompleted["requestId"]) != happyRequestID {
+		return fmt.Errorf("read-save-happy: request id mismatch")
+	}
+	if na.AsString(readCompleted["saveName"]) != happySaveName {
+		return fmt.Errorf("read-save-happy: save name mismatch")
+	}
+	readCompletedContext, _ := na.AsMap(readCompleted["context"])
+	if !na.DeepEqual(readCompletedContext["identity"], identity) {
+		return fmt.Errorf("read-save-happy: replayed identity does not match the original save")
+	}
+	report["case_read_save_happy"] = true
+
+	// Case 5: ReadSave for an unknown request id is refused, never treated as
+	// pending or completed.
+	unknownReply, err := h.Wire(ctx, "read-save-unknown", "lifecycle_read_save", map[string]any{
+		"requestId": fmt.Sprintf("checkpointaccept-unknown-%d", time.Now().UnixNano()),
+	})
+	if err != nil {
+		return fmt.Errorf("read-save-unknown: %w", err)
+	}
+	if code, ok := na.FailureCode(unknownReply); !ok || code != "FAILURE_CODE_NOT_FOUND" {
+		return fmt.Errorf("read-save-unknown: expected FAILURE_CODE_NOT_FOUND, got %q", code)
+	}
+	report["case_read_save_unknown"] = true
 
 	logData, err := os.ReadFile(cfg.StartupLogPath())
 	if err != nil {

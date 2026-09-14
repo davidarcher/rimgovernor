@@ -51,27 +51,67 @@ func (save *LifecycleSave) Save(ctx context.Context, request *l.SaveRequest) (*l
 	if err != nil {
 		return nil, raw, err
 	}
-	switch value := reply.Outcome.(type) {
-	case *l.SaveReply_Completed:
-		if err = validateSaveCompleted(value.Completed, request); err != nil {
+	if err = interpretSaveOutcome(reply, request.Player.RequestId, raw); err != nil {
+		return nil, raw, err
+	}
+	if completed, ok := reply.Outcome.(*l.SaveReply_Completed); ok {
+		if err = validateSaveCompleted(completed.Completed, request); err != nil {
 			return nil, raw, err
 		}
-	case *l.SaveReply_Uncertain:
-		if value.Uncertain == nil || !diagnostic(value.Uncertain.Detail) {
-			return nil, raw, contract("invalid save uncertain")
-		}
-		if value.Uncertain.ObservedContext != nil {
-			if err = ValidateContext(value.Uncertain.ObservedContext); err != nil {
-				return nil, raw, err
-			}
-		}
-		return nil, raw, &SaveUncertain{value.Uncertain, raw}
-	case *l.SaveReply_Failure:
-		return nil, raw, failure(value.Failure, raw)
-	default:
-		return nil, raw, contract("save outcome missing")
 	}
 	return reply, raw, nil
+}
+
+// ReadSave re-reads a prior Save request_id's exact outcome. It exists only to
+// recover a reply the caller never received (a dropped connection, a client
+// restart) -- Save itself is synchronous, so this is never a poll of an
+// in-progress save. An unknown/expired request_id surfaces as a Failure.
+func (save *LifecycleSave) ReadSave(ctx context.Context, requestID string) (*l.SaveReply, Result, error) {
+	if save == nil || save.client == nil {
+		return nil, Result{}, contract("lifecycle save capability required")
+	}
+	if validID(requestID) != nil {
+		return nil, Result{}, contract("read save requires a request id")
+	}
+	request := &l.RequestStatus{RequestId: proto.String(requestID)}
+	reply := &l.SaveReply{}
+	raw, err := save.client.protoCall(ctx, "rimgovernor/lifecycle_read_save", request, reply)
+	if err != nil {
+		return nil, raw, err
+	}
+	if err = interpretSaveOutcome(reply, &requestID, raw); err != nil {
+		return nil, raw, err
+	}
+	return reply, raw, nil
+}
+
+// interpretSaveOutcome validates a SaveReply's shape and, for Uncertain,
+// returns the typed SaveUncertain error; it does not assert the full request
+// (save name, expected tick, direction) a caller may not have on hand.
+func interpretSaveOutcome(reply *l.SaveReply, requestID *string, raw Result) error {
+	switch value := reply.Outcome.(type) {
+	case *l.SaveReply_Completed:
+		if value.Completed == nil || value.Completed.RequestId == nil ||
+			requestID != nil && value.Completed.GetRequestId() != *requestID {
+			return contract("completed save request id mismatch")
+		}
+	case *l.SaveReply_Uncertain:
+		if value.Uncertain == nil || value.Uncertain.RequestId == nil ||
+			requestID != nil && value.Uncertain.GetRequestId() != *requestID || !diagnostic(value.Uncertain.Detail) {
+			return contract("invalid save uncertain")
+		}
+		if value.Uncertain.ObservedContext != nil {
+			if err := ValidateContext(value.Uncertain.ObservedContext); err != nil {
+				return err
+			}
+		}
+		return &SaveUncertain{value.Uncertain, raw}
+	case *l.SaveReply_Failure:
+		return failure(value.Failure, raw)
+	default:
+		return contract("save outcome missing")
+	}
+	return nil
 }
 
 func validateSaveRequest(request *l.SaveRequest) error {

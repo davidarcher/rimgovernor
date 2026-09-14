@@ -158,3 +158,89 @@ func TestSaveFailureOutcomeReturnsNativeFailure(t *testing.T) {
 		t.Fatalf("native failure not preserved: %v", err)
 	}
 }
+
+func TestReadSaveRequiresRequestID(t *testing.T) {
+	s := &testServer{schema: protoSchema}
+	save, err := NewLifecycleSave(testClient(t, s, time.Second))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, _, err := save.ReadSave(context.Background(), ""); !errors.Is(err, ErrContract) {
+		t.Fatalf("empty request id accepted: %v", err)
+	}
+	if len(s.calls) != 0 {
+		t.Fatal("invalid request dispatched")
+	}
+	if _, _, err := (&LifecycleSave{}).ReadSave(context.Background(), "req-1"); err == nil {
+		t.Fatal("nil client accepted")
+	}
+}
+
+func TestReadSaveHappyPathReplaysCompleted(t *testing.T) {
+	request := pbSaveRequest()
+	s := &testServer{schema: protoSchema, handler: func(context.Context, nativeArgument) (*mcp.CallToolResult, error) {
+		return pbResult(pbSaveCompleted(request)), nil
+	}}
+	save, err := NewLifecycleSave(testClient(t, s, time.Second))
+	if err != nil {
+		t.Fatal(err)
+	}
+	reply, raw, err := save.ReadSave(context.Background(), request.Player.GetRequestId())
+	if err != nil || reply.GetCompleted() == nil || len(raw.Envelope) == 0 {
+		t.Fatalf("read save %v %v", reply, err)
+	}
+	if reply.GetCompleted().GetSaveName() != "checkpoint-1" {
+		t.Fatal("completed fields not preserved")
+	}
+}
+
+func TestReadSaveUncertainOutcomeReturnsTypedRefusal(t *testing.T) {
+	request := pbSaveRequest()
+	uncertainReply := &l.SaveReply{Outcome: &l.SaveReply_Uncertain{Uncertain: &l.SaveUncertain{
+		RequestId: request.Player.RequestId, SaveName: request.SaveName, ObservedContext: pbContext(), Detail: proto.String("colony changed"),
+	}}}
+	s := &testServer{schema: protoSchema, handler: func(context.Context, nativeArgument) (*mcp.CallToolResult, error) {
+		return pbResult(uncertainReply), nil
+	}}
+	save, err := NewLifecycleSave(testClient(t, s, time.Second))
+	if err != nil {
+		t.Fatal(err)
+	}
+	reply, raw, err := save.ReadSave(context.Background(), request.Player.GetRequestId())
+	var uncertain *SaveUncertain
+	if !errors.As(err, &uncertain) || !errors.Is(err, ErrSaveUncertain) || reply != nil || len(raw.Envelope) == 0 {
+		t.Fatalf("uncertain outcome not preserved: %v", err)
+	}
+}
+
+func TestReadSaveUnknownRequestIDReturnsFailure(t *testing.T) {
+	failureReply := &l.SaveReply{Outcome: &l.SaveReply_Failure{Failure: &c.Failure{Code: c.FailureCode_FAILURE_CODE_NOT_FOUND.Enum(), Detail: proto.String("unknown or expired save request id")}}}
+	s := &testServer{schema: protoSchema, handler: func(context.Context, nativeArgument) (*mcp.CallToolResult, error) {
+		return pbResult(failureReply), nil
+	}}
+	save, err := NewLifecycleSave(testClient(t, s, time.Second))
+	if err != nil {
+		t.Fatal(err)
+	}
+	reply, _, err := save.ReadSave(context.Background(), "req-unknown")
+	var refusal *NativeFailure
+	if !errors.As(err, &refusal) || reply != nil {
+		t.Fatalf("unknown request id not refused: %v", err)
+	}
+}
+
+func TestReadSaveMismatchedRequestIDRejected(t *testing.T) {
+	request := pbSaveRequest()
+	completed := pbSaveCompleted(request)
+	completed.GetCompleted().RequestId = proto.String("other")
+	s := &testServer{schema: protoSchema, handler: func(context.Context, nativeArgument) (*mcp.CallToolResult, error) {
+		return pbResult(completed), nil
+	}}
+	save, err := NewLifecycleSave(testClient(t, s, time.Second))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, _, err := save.ReadSave(context.Background(), request.Player.GetRequestId()); !errors.Is(err, ErrContract) {
+		t.Fatalf("mismatched request id accepted: %v", err)
+	}
+}
