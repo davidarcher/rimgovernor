@@ -5,6 +5,13 @@ same checkout. This is a source and retained-evidence audit, not a new test run.
 The actionable checklist is exclusively in the
 [G01 issues](https://github.com/davidarcher/rimgovernor/issues?q=is%3Aissue+is%3Aopen+label%3A%22area%3AG01%22).
 
+**Superseded by G01.07–G01.12.** The capability table below reflects the state at
+the reviewed revision, well before G01.07–G01.10 closed and G01.12 switched the
+production default to Go. It is retained as a historical audit, not a current
+capability boundary. For the current boundary (including what still runs through
+Python — chat, and the `launch.ps1` rollback path) see [the Go module
+guide](../../go/README.md).
+
 ## Finding
 
 Go is a partial controller with substantial observation, policy and persistence
