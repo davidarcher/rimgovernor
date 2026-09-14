@@ -265,3 +265,7 @@ func (f *playerFixture) SubmitZoneEdit(ctx context.Context, q store.ZoneEditSubm
 	f.calls++
 	return f.journal.SubmitZoneEdit(ctx, q)
 }
+func (f *playerFixture) SubmitResearchSelect(ctx context.Context, q store.ResearchSelectSubmissionRequest) (store.ResearchSelectSubmission, bool, error) {
+	f.calls++
+	return f.journal.SubmitResearchSelect(ctx, q)
+}

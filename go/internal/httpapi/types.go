@@ -107,6 +107,9 @@ type QuestAccept struct {
 	AccepterPawn domain.PawnID  `json:"accepterPawn"`
 	RewardChoice int32          `json:"rewardChoice"`
 }
+type ResearchSelect struct {
+	Project string `json:"project"`
+}
 type SettlementGift struct {
 	Caravan    domain.CaravanID    `json:"caravan"`
 	Settlement domain.SettlementID `json:"settlement"`
