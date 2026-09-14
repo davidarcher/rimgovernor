@@ -253,3 +253,7 @@ func (f *playerFixture) SubmitQuestFulfill(ctx context.Context, q store.QuestFul
 	f.calls++
 	return f.journal.SubmitQuestFulfill(ctx, q)
 }
+func (f *playerFixture) SubmitZoneCreate(ctx context.Context, q store.ZoneCreateSubmissionRequest) (store.ZoneCreateSubmission, bool, error) {
+	f.calls++
+	return f.journal.SubmitZoneCreate(ctx, q)
+}
