@@ -516,6 +516,211 @@ func TestRouteCaravanRefusesUnknownFactsOrWrongActionCount(t *testing.T) {
 	assertKind(t, err, InvalidCommand)
 }
 
+func TestAcceptQuestProposal(t *testing.T) {
+	i := clientFixture(t, func(context.Context, model.Request) (model.Response, error) {
+		return model.Response{Text: `{"command":"accept_quest","quest":"Quest_A","accepterPawn":"Thing_A","rewardChoice":0}`, FinishReason: model.Stop}, nil
+	})
+	input := inputFixture()
+	input.Facts.QuestAcceptOptions = []QuestAcceptOption{{Quest: "Quest_A", AccepterPawn: "Thing_A", RewardChoice: 0}}
+	proposal, err := i.Interpret(context.Background(), input)
+	if err != nil {
+		t.Fatal(err)
+	}
+	actions := proposal.Plan.Actions()
+	if len(actions) != 1 || actions[0].ID() != "a1" {
+		t.Fatal("incorrect accept_quest action identity")
+	}
+	accept, ok := actions[0].QuestAccept()
+	if !ok || accept.Quest() != "Quest_A" || accept.AccepterPawn() != "Thing_A" || accept.RewardChoice() != 0 {
+		t.Fatal("incorrect typed accept_quest proposal", accept)
+	}
+}
+
+func TestAcceptQuestRefusesUnknownFactsOrWrongActionCount(t *testing.T) {
+	text := `{"command":"accept_quest","quest":"Quest_A","accepterPawn":"Thing_A","rewardChoice":0}`
+	response := func(context.Context, model.Request) (model.Response, error) {
+		return model.Response{Text: text, FinishReason: model.Stop}, nil
+	}
+	for _, tc := range []struct {
+		name string
+		edit func(*Input)
+	}{
+		{"no options at all", func(in *Input) {}},
+		{"wrong pawn", func(in *Input) {
+			in.Facts.QuestAcceptOptions = []QuestAcceptOption{{Quest: "Quest_A", AccepterPawn: "Thing_B", RewardChoice: 0}}
+		}},
+		{"wrong reward", func(in *Input) {
+			in.Facts.QuestAcceptOptions = []QuestAcceptOption{{Quest: "Quest_A", AccepterPawn: "Thing_A", RewardChoice: 1}}
+		}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			input := inputFixture()
+			tc.edit(&input)
+			i := clientFixture(t, response)
+			_, err := i.Interpret(context.Background(), input)
+			assertKind(t, err, UnknownFacts)
+		})
+	}
+	input := inputFixture()
+	input.Facts.QuestAcceptOptions = []QuestAcceptOption{{Quest: "Quest_A", AccepterPawn: "Thing_A", RewardChoice: 0}}
+	input.ActionIDs = append(input.ActionIDs, "a2")
+	i := clientFixture(t, response)
+	_, err := i.Interpret(context.Background(), input)
+	assertKind(t, err, InvalidCommand)
+}
+
+func TestQuestAcceptOptionsValidatedAndBounded(t *testing.T) {
+	i := clientFixture(t, func(context.Context, model.Request) (model.Response, error) {
+		t.Fatal("model called")
+		return model.Response{}, nil
+	})
+	input := inputFixture()
+	input.Facts.QuestAcceptOptions = []QuestAcceptOption{
+		{Quest: "Quest_A", AccepterPawn: "Thing_A", RewardChoice: 0},
+		{Quest: "Quest_A", AccepterPawn: "Thing_A", RewardChoice: 0},
+	}
+	_, err := i.Interpret(context.Background(), input)
+	assertKind(t, err, InvalidInput)
+
+	input = inputFixture()
+	input.Facts.QuestAcceptOptions = []QuestAcceptOption{{Quest: "", AccepterPawn: "Thing_A", RewardChoice: 0}}
+	_, err = i.Interpret(context.Background(), input)
+	assertKind(t, err, InvalidInput)
+}
+
+func TestFulfillQuestProposal(t *testing.T) {
+	i := clientFixture(t, func(context.Context, model.Request) (model.Response, error) {
+		return model.Response{Text: `{"command":"fulfill_quest","quest":"Quest_A","caravan":"Caravan_A","crew":["Thing_A"]}`, FinishReason: model.Stop}, nil
+	})
+	input := inputFixture()
+	input.Facts.FulfillableQuests = []domain.QuestID{"Quest_A"}
+	input.Facts.Caravans = []domain.CaravanID{"Caravan_A"}
+	input.Facts.Pawns = []domain.PawnID{"Thing_A"}
+	proposal, err := i.Interpret(context.Background(), input)
+	if err != nil {
+		t.Fatal(err)
+	}
+	actions := proposal.Plan.Actions()
+	if len(actions) != 1 || actions[0].ID() != "a1" {
+		t.Fatal("incorrect fulfill_quest action identity")
+	}
+	fulfill, ok := actions[0].QuestFulfill()
+	if !ok || fulfill.Quest() != "Quest_A" || fulfill.Caravan() != "Caravan_A" || len(fulfill.CrewIDs()) != 1 || fulfill.CrewIDs()[0] != "Thing_A" {
+		t.Fatal("incorrect typed fulfill_quest proposal", fulfill)
+	}
+}
+
+func TestFulfillQuestRefusesUnknownFactsOrWrongActionCount(t *testing.T) {
+	text := `{"command":"fulfill_quest","quest":"Quest_A","caravan":"Caravan_A","crew":["Thing_A"]}`
+	response := func(context.Context, model.Request) (model.Response, error) {
+		return model.Response{Text: text, FinishReason: model.Stop}, nil
+	}
+	for _, tc := range []struct {
+		name string
+		edit func(*Input)
+	}{
+		{"unknown quest", func(in *Input) {
+			in.Facts.Caravans = []domain.CaravanID{"Caravan_A"}
+			in.Facts.Pawns = []domain.PawnID{"Thing_A"}
+		}},
+		{"unknown caravan", func(in *Input) {
+			in.Facts.FulfillableQuests = []domain.QuestID{"Quest_A"}
+			in.Facts.Pawns = []domain.PawnID{"Thing_A"}
+		}},
+		{"unknown crew", func(in *Input) {
+			in.Facts.FulfillableQuests = []domain.QuestID{"Quest_A"}
+			in.Facts.Caravans = []domain.CaravanID{"Caravan_A"}
+		}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			input := inputFixture()
+			tc.edit(&input)
+			i := clientFixture(t, response)
+			_, err := i.Interpret(context.Background(), input)
+			assertKind(t, err, UnknownFacts)
+		})
+	}
+	input := inputFixture()
+	input.Facts.FulfillableQuests = []domain.QuestID{"Quest_A"}
+	input.Facts.Caravans = []domain.CaravanID{"Caravan_A"}
+	input.Facts.Pawns = []domain.PawnID{"Thing_A"}
+	input.ActionIDs = append(input.ActionIDs, "a2")
+	i := clientFixture(t, response)
+	_, err := i.Interpret(context.Background(), input)
+	assertKind(t, err, InvalidCommand)
+}
+
+func TestGiftSettlementProposal(t *testing.T) {
+	i := clientFixture(t, func(context.Context, model.Request) (model.Response, error) {
+		return model.Response{Text: `{"command":"gift_settlement","caravan":"Caravan_A","settlement":"Settlement_A","faction":"Faction_A","crew":["Thing_A"],"silver":100}`, FinishReason: model.Stop}, nil
+	})
+	input := inputFixture()
+	input.Facts.GiftTargets = []GiftTarget{{Caravan: "Caravan_A", Settlement: "Settlement_A", Faction: "Faction_A"}}
+	input.Facts.Pawns = []domain.PawnID{"Thing_A"}
+	proposal, err := i.Interpret(context.Background(), input)
+	if err != nil {
+		t.Fatal(err)
+	}
+	actions := proposal.Plan.Actions()
+	if len(actions) != 1 || actions[0].ID() != "a1" {
+		t.Fatal("incorrect gift_settlement action identity")
+	}
+	gift, ok := actions[0].SettlementGift()
+	if !ok || gift.Caravan() != "Caravan_A" || gift.Settlement() != "Settlement_A" || gift.Faction() != "Faction_A" || gift.Silver() != 100 || len(gift.CrewIDs()) != 1 || gift.CrewIDs()[0] != "Thing_A" {
+		t.Fatal("incorrect typed gift_settlement proposal", gift)
+	}
+}
+
+func TestGiftSettlementRefusesUnknownFactsOrWrongActionCount(t *testing.T) {
+	text := `{"command":"gift_settlement","caravan":"Caravan_A","settlement":"Settlement_A","faction":"Faction_A","crew":["Thing_A"],"silver":100}`
+	response := func(context.Context, model.Request) (model.Response, error) {
+		return model.Response{Text: text, FinishReason: model.Stop}, nil
+	}
+	for _, tc := range []struct {
+		name string
+		edit func(*Input)
+	}{
+		{"unknown target", func(in *Input) { in.Facts.Pawns = []domain.PawnID{"Thing_A"} }},
+		{"unknown crew", func(in *Input) {
+			in.Facts.GiftTargets = []GiftTarget{{Caravan: "Caravan_A", Settlement: "Settlement_A", Faction: "Faction_A"}}
+		}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			input := inputFixture()
+			tc.edit(&input)
+			i := clientFixture(t, response)
+			_, err := i.Interpret(context.Background(), input)
+			assertKind(t, err, UnknownFacts)
+		})
+	}
+	input := inputFixture()
+	input.Facts.GiftTargets = []GiftTarget{{Caravan: "Caravan_A", Settlement: "Settlement_A", Faction: "Faction_A"}}
+	input.Facts.Pawns = []domain.PawnID{"Thing_A"}
+	input.ActionIDs = append(input.ActionIDs, "a2")
+	i := clientFixture(t, response)
+	_, err := i.Interpret(context.Background(), input)
+	assertKind(t, err, InvalidCommand)
+}
+
+func TestGiftTargetsValidatedAndBounded(t *testing.T) {
+	i := clientFixture(t, func(context.Context, model.Request) (model.Response, error) {
+		t.Fatal("model called")
+		return model.Response{}, nil
+	})
+	input := inputFixture()
+	input.Facts.GiftTargets = []GiftTarget{
+		{Caravan: "Caravan_A", Settlement: "Settlement_A", Faction: "Faction_A"},
+		{Caravan: "Caravan_A", Settlement: "Settlement_A", Faction: "Faction_A"},
+	}
+	_, err := i.Interpret(context.Background(), input)
+	assertKind(t, err, InvalidInput)
+
+	input = inputFixture()
+	input.Facts.GiftTargets = []GiftTarget{{Caravan: "", Settlement: "Settlement_A", Faction: "Faction_A"}}
+	_, err = i.Interpret(context.Background(), input)
+	assertKind(t, err, InvalidInput)
+}
+
 func TestCargoAndDestinationFactsValidatedAndBounded(t *testing.T) {
 	i := clientFixture(t, func(context.Context, model.Request) (model.Response, error) {
 		t.Fatal("model called")

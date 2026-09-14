@@ -39,6 +39,7 @@ type Config struct {
 	Notifications                NotificationReader
 	ClockReview                  ClockReview
 	Routines                     RoutineProvider
+	WorldEvaluation              WorldEvaluation
 	// VideoStreamPollInterval sets how often the video-stream WebSocket relay
 	// polls ReadFrame for a new frame. Zero uses a sane default (~24 Hz);
 	// this bounds correctness-proving throughput, not maximum achievable FPS.
@@ -117,6 +118,31 @@ type QuestFulfill struct {
 	Quest   domain.QuestID   `json:"quest"`
 	Caravan domain.CaravanID `json:"caravan"`
 	CrewIDs []domain.PawnID  `json:"crewIds"`
+}
+type TradeLine struct {
+	LineID        string `json:"lineId"`
+	AbsoluteCount int32  `json:"absoluteCount"`
+}
+type TradeEconomicFloor struct {
+	DefName string `json:"defName"`
+	Count   int32  `json:"count"`
+}
+
+// Trade is the wire shape for all four trade sub-operations; only the
+// fields the selected Kind carries are populated (the same discipline
+// domain.Trade itself uses), all others are omitted/zero.
+type Trade struct {
+	Kind                  domain.TradeOperationKind `json:"kind"`
+	Trader                domain.SettlementID       `json:"trader,omitempty"`
+	Negotiator            domain.PawnID             `json:"negotiator,omitempty"`
+	GiftMode              bool                      `json:"giftMode,omitempty"`
+	Lines                 []TradeLine               `json:"lines,omitempty"`
+	AllowPawns            bool                      `json:"allowPawns,omitempty"`
+	ExpectedDealSignature string                    `json:"expectedDealSignature,omitempty"`
+	EconomicFloors        []TradeEconomicFloor      `json:"economicFloors,omitempty"`
+	AllowEmpty            bool                      `json:"allowEmpty,omitempty"`
+	EndKind               domain.TradeEndKind       `json:"endKind,omitempty"`
+	ReceiveQuest          bool                      `json:"receiveQuest,omitempty"`
 }
 type DraftCleanup struct {
 	Stage domain.DraftCleanupStage `json:"stage"`

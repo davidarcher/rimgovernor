@@ -255,7 +255,7 @@ func TestReadQuestAcceptTargetSelectsAndValidates(t *testing.T) {
 	client := testClient(t, server, time.Second)
 	target, _, err := client.ReadQuestAcceptTarget(context.Background(), pbIdentity(), "quest-1")
 	if err != nil || target.Quest != "quest-1" || target.SnapshotToken != "quest-cas" || target.State != "NotYetAccepted" ||
-		!target.RequiresAccepter || !target.CanAccept || target.ChoiceCount != 1 || target.HasTradeRequest || len(target.EligiblePawnIDs) != 1 {
+		!target.RequiresAccepter || !target.CanAccept || target.ChoiceCount != 1 || !target.HasTradeRequest || len(target.EligiblePawnIDs) != 1 {
 		t.Fatal(target, err)
 	}
 	missing := &testServer{schema: protoSchema, handler: func(context.Context, nativeArgument) (*mcp.CallToolResult, error) {

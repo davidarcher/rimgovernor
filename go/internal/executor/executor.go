@@ -157,6 +157,8 @@ type Executor struct {
 	settlementGiftJournal      SettlementGiftJournal
 	questFulfill               QuestFulfillBoundary
 	questFulfillJournal        QuestFulfillJournal
+	trade                      TradeBoundary
+	tradeJournal               TradeJournal
 	mineAcquisition            AcquisitionBoundary
 	mineAcquisitionJournal     MineAcquisitionJournal
 	productionPolicy           ProductionPolicyBoundary
@@ -420,6 +422,9 @@ func (e *Executor) Run(ctx context.Context, plan domain.PlanID, actionID domain.
 	}
 	if action.Kind() == domain.QuestFulfillAction && e.questFulfill != nil {
 		return e.runQuestFulfill(ctx, action, progress, authority, generation)
+	}
+	if action.Kind() == domain.TradeAction && e.trade != nil {
+		return e.runTrade(ctx, action, progress, authority, generation)
 	}
 	if action.Kind() == domain.WallRemovalAction && e.wallRemoval != nil {
 		return e.runWallRemoval(ctx, action, progress, authority, generation)

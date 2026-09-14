@@ -59,6 +59,18 @@ type modelCommand struct {
 	// required for a route and absent for return_home.
 	Caravan                     *string
 	ReturnHome, VisitSettlement *bool
+	// Quest holds accept_quest/fulfill_quest's target quest ID.
+	Quest *string
+	// AccepterPawn/RewardChoice hold accept_quest's accepter pawn (empty
+	// string when none is required) and reward option index (-1 when the
+	// quest carries none).
+	AccepterPawn *string
+	RewardChoice *int32
+	// Settlement/Faction hold gift_settlement's target settlement and
+	// faction (Caravan and Crew, shared with caravan departure/fulfillment,
+	// hold its caravan and crew). Silver holds the requested gift amount.
+	Settlement, Faction *string
+	Silver              *int32
 }
 
 func decode(text string, limit int) (modelCommand, error) {
@@ -110,8 +122,14 @@ func decode(text string, limit int) (modelCommand, error) {
 		return decodeHoldCaravan(fields)
 	case "route_caravan":
 		return decodeRouteCaravan(fields)
+	case "accept_quest":
+		return decodeAcceptQuest(fields)
+	case "fulfill_quest":
+		return decodeFulfillQuest(fields)
+	case "gift_settlement":
+		return decodeGiftSettlement(fields)
 	default:
-		return modelCommand{}, fail(UnsupportedCommand, "only building, research, tend, rescue, draft, caravan, husbandry, recover, bed_assign, move_pawn, set_building_temperature, request_surgery, hold_caravan and route_caravan proposals are supported")
+		return modelCommand{}, fail(UnsupportedCommand, "only building, research, tend, rescue, draft, caravan, husbandry, recover, bed_assign, move_pawn, set_building_temperature, request_surgery, hold_caravan, route_caravan, accept_quest, fulfill_quest and gift_settlement proposals are supported")
 	}
 }
 
@@ -433,6 +451,112 @@ func decodeRouteCaravan(fields map[string]json.RawMessage) (modelCommand, error)
 		return modelCommand{}, fail(InvalidCommand, "settlement visits require a route, not return-home")
 	}
 	return modelCommand{Command: "route_caravan", Caravan: &caravan, DestinationTile: tile, ReturnHome: &returnHome, VisitSettlement: &visitSettlement}, nil
+}
+
+func decodeCrew(raw json.RawMessage) ([]string, error) {
+	var crew []string
+	if err := json.Unmarshal(raw, &crew); err != nil || len(crew) == 0 || len(crew) > 64 {
+		return nil, fail(InvalidCommand, "expected bounded nonempty crew list")
+	}
+	for _, pawn := range crew {
+		if pawn == "" {
+			return nil, fail(InvalidCommand, "empty crew pawn")
+		}
+	}
+	return crew, nil
+}
+
+func decodeAcceptQuest(fields map[string]json.RawMessage) (modelCommand, error) {
+	if len(fields) != 4 || fields["quest"] == nil || fields["accepterPawn"] == nil || fields["rewardChoice"] == nil {
+		return modelCommand{}, fail(InvalidCommand, "unexpected command fields")
+	}
+	if bytes.Equal(bytes.TrimSpace(fields["quest"]), []byte("null")) {
+		return modelCommand{}, fail(InvalidCommand, "missing quest")
+	}
+	var quest string
+	if err := json.Unmarshal(fields["quest"], &quest); err != nil || quest == "" {
+		return modelCommand{}, fail(InvalidCommand, "invalid quest field")
+	}
+	if bytes.Equal(bytes.TrimSpace(fields["accepterPawn"]), []byte("null")) {
+		return modelCommand{}, fail(InvalidCommand, "missing accepterPawn")
+	}
+	var accepterPawn string
+	if err := json.Unmarshal(fields["accepterPawn"], &accepterPawn); err != nil {
+		return modelCommand{}, fail(InvalidCommand, "invalid accepterPawn field")
+	}
+	if bytes.Equal(bytes.TrimSpace(fields["rewardChoice"]), []byte("null")) {
+		return modelCommand{}, fail(InvalidCommand, "missing rewardChoice")
+	}
+	var rewardChoice int32
+	if err := json.Unmarshal(fields["rewardChoice"], &rewardChoice); err != nil || rewardChoice < -1 {
+		return modelCommand{}, fail(InvalidCommand, "invalid rewardChoice field")
+	}
+	return modelCommand{Command: "accept_quest", Quest: &quest, AccepterPawn: &accepterPawn, RewardChoice: &rewardChoice}, nil
+}
+
+func decodeFulfillQuest(fields map[string]json.RawMessage) (modelCommand, error) {
+	if len(fields) != 4 || fields["quest"] == nil || fields["caravan"] == nil || fields["crew"] == nil {
+		return modelCommand{}, fail(InvalidCommand, "unexpected command fields")
+	}
+	if bytes.Equal(bytes.TrimSpace(fields["quest"]), []byte("null")) {
+		return modelCommand{}, fail(InvalidCommand, "missing quest")
+	}
+	var quest string
+	if err := json.Unmarshal(fields["quest"], &quest); err != nil || quest == "" {
+		return modelCommand{}, fail(InvalidCommand, "invalid quest field")
+	}
+	if bytes.Equal(bytes.TrimSpace(fields["caravan"]), []byte("null")) {
+		return modelCommand{}, fail(InvalidCommand, "missing caravan")
+	}
+	var caravan string
+	if err := json.Unmarshal(fields["caravan"], &caravan); err != nil || caravan == "" {
+		return modelCommand{}, fail(InvalidCommand, "invalid caravan field")
+	}
+	crew, err := decodeCrew(fields["crew"])
+	if err != nil {
+		return modelCommand{}, err
+	}
+	return modelCommand{Command: "fulfill_quest", Quest: &quest, Caravan: &caravan, Crew: crew}, nil
+}
+
+func decodeGiftSettlement(fields map[string]json.RawMessage) (modelCommand, error) {
+	if len(fields) != 6 || fields["caravan"] == nil || fields["settlement"] == nil || fields["faction"] == nil || fields["crew"] == nil || fields["silver"] == nil {
+		return modelCommand{}, fail(InvalidCommand, "unexpected command fields")
+	}
+	decodeField := func(key string) (*string, error) {
+		if bytes.Equal(bytes.TrimSpace(fields[key]), []byte("null")) {
+			return nil, fail(InvalidCommand, "missing "+key)
+		}
+		var value string
+		if err := json.Unmarshal(fields[key], &value); err != nil || value == "" {
+			return nil, fail(InvalidCommand, "invalid "+key+" field")
+		}
+		return &value, nil
+	}
+	caravan, err := decodeField("caravan")
+	if err != nil {
+		return modelCommand{}, err
+	}
+	settlement, err := decodeField("settlement")
+	if err != nil {
+		return modelCommand{}, err
+	}
+	faction, err := decodeField("faction")
+	if err != nil {
+		return modelCommand{}, err
+	}
+	crew, err := decodeCrew(fields["crew"])
+	if err != nil {
+		return modelCommand{}, err
+	}
+	if bytes.Equal(bytes.TrimSpace(fields["silver"]), []byte("null")) {
+		return modelCommand{}, fail(InvalidCommand, "missing silver")
+	}
+	var silver int32
+	if err := json.Unmarshal(fields["silver"], &silver); err != nil || silver <= 0 {
+		return modelCommand{}, fail(InvalidCommand, "invalid silver field")
+	}
+	return modelCommand{Command: "gift_settlement", Caravan: caravan, Settlement: settlement, Faction: faction, Crew: crew, Silver: &silver}, nil
 }
 
 // Generic JSON token inspection is confined to this external text boundary.
