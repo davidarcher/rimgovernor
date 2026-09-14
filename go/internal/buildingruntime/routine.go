@@ -3,6 +3,7 @@ package buildingruntime
 import (
 	"context"
 	"errors"
+	"math"
 	"time"
 
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
@@ -14,18 +15,31 @@ import (
 // RoutineReviewer observes and journals needs under Player's existing gate.
 // It neither acquires authority nor creates methods or game orders.
 type RoutineReviewer struct {
-	methods domain.Fact[[]policy.GoalID]
-	player  *Player
-	native  observation.RoutineSource
-	clock   observation.Clock
-	policy  policy.RoutinePolicy
-	maxAge  time.Duration
-	rules   []policy.ResourceRule
+	methods   domain.Fact[[]policy.GoalID]
+	player    *Player
+	native    observation.RoutineSource
+	clock     observation.Clock
+	policy    policy.RoutinePolicy
+	maxAge    time.Duration
+	rules     []policy.ResourceRule
+	longitude domain.Fact[float64]
 }
 
 // RoutineCapabilities is the runtime's complete configured method set. Omitting
 // it leaves availability unspecified for callers that compose methods themselves.
-type RoutineCapabilities struct{ Methods []policy.GoalID }
+//
+// Longitude is the colony's home map-tile longitude (bridge.WorldRead.Longitude),
+// the map-local-hour ingredient boundary.HourOfDay/ExpectedScheduleDef need to
+// fence EnsureMood-* relief dispatch against a pawn's current timetable
+// assignment. It is resolved once by the caller (the colony's map tile never
+// moves within a session) rather than re-read on every Step, unlike every
+// other RoutineSource fact which is re-derived fresh each tick because it can
+// genuinely change; Longitude cannot, so caching it here avoids two wasted
+// native round trips (map lookup, then world-tile lookup) every review.
+type RoutineCapabilities struct {
+	Methods   []policy.GoalID
+	Longitude domain.Fact[float64]
+}
 
 func NewRoutineReviewer(player *Player, native observation.RoutineSource, clock observation.Clock, thresholds policy.RoutinePolicy, maxAge time.Duration, capabilities ...RoutineCapabilities) (*RoutineReviewer, error) {
 	if player == nil || native == nil || clock == nil || thresholds.Validate() != nil || maxAge <= 0 || maxAge > time.Minute {
@@ -36,6 +50,7 @@ func NewRoutineReviewer(player *Player, native observation.RoutineSource, clock 
 		return nil, err
 	}
 	methods := domain.Unknown[[]policy.GoalID]()
+	longitude := domain.Unknown[float64]()
 	if len(capabilities) > 1 {
 		return nil, ErrControl
 	}
@@ -44,8 +59,14 @@ func NewRoutineReviewer(player *Player, native observation.RoutineSource, clock 
 		if _, err := policy.DetectRoutine(policy.RoutineFacts{AvailableMethods: methods}, policy.RoutineLatches{}, thresholds); err != nil {
 			return nil, err
 		}
+		if lon, known := capabilities[0].Longitude.Value(); known {
+			if math.IsNaN(lon) || math.IsInf(lon, 0) || lon < -180 || lon > 180 {
+				return nil, ErrControl
+			}
+			longitude = capabilities[0].Longitude
+		}
 	}
-	reviewer := &RoutineReviewer{methods: methods, player: player, native: native, clock: clock, policy: thresholds, maxAge: maxAge, rules: append([]policy.ResourceRule(nil), rules...)}
+	reviewer := &RoutineReviewer{methods: methods, player: player, native: native, clock: clock, policy: thresholds, maxAge: maxAge, rules: append([]policy.ResourceRule(nil), rules...), longitude: longitude}
 	if reviewer.temperatureEnabled() {
 		if _, ok := native.(observation.TemperatureSource); !ok {
 			return nil, ErrControl
