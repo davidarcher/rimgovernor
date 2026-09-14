@@ -245,6 +245,9 @@ CREATE TABLE work_preference_requests(request_id TEXT PRIMARY KEY, payload BLOB 
 		if err = initializeCaravanTracking(ctx, tx); err != nil {
 			return err
 		}
+		if err = initializeTradeSessions(ctx, tx); err != nil {
+			return err
+		}
 		var entropy [32]byte
 		if _, err = tx.ExecContext(ctx, `CREATE TABLE control_intents(request_id TEXT PRIMARY KEY, kind TEXT NOT NULL, colony TEXT NOT NULL, load_token TEXT NOT NULL, map_id INTEGER NOT NULL, plan_id TEXT NOT NULL, revision TEXT NOT NULL, expected_direction TEXT NOT NULL, direction TEXT NOT NULL UNIQUE, phase TEXT NOT NULL, native_generation TEXT NOT NULL) STRICT`); err != nil {
 			return err
@@ -284,6 +287,9 @@ CREATE TABLE work_preference_requests(request_id TEXT PRIMARY KEY, payload BLOB 
 		return err
 	}
 	if err = checkCaravanTrackingSchema(ctx, tx); err != nil {
+		return err
+	}
+	if err = checkTradeSessionsSchema(ctx, tx); err != nil {
 		return err
 	}
 	// A matching version marker alone does not establish the expected tables.

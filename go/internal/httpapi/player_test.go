@@ -253,3 +253,7 @@ func (f *playerFixture) SubmitQuestFulfill(ctx context.Context, q store.QuestFul
 	f.calls++
 	return f.journal.SubmitQuestFulfill(ctx, q)
 }
+func (f *playerFixture) SubmitTrade(ctx context.Context, q store.TradeSubmissionRequest) (store.TradeSubmission, bool, error) {
+	f.calls++
+	return f.journal.SubmitTrade(ctx, q)
+}
