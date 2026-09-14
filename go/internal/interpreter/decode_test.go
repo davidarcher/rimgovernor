@@ -606,3 +606,48 @@ func TestModelSetPopulationDecisionShape(t *testing.T) {
 		})
 	}
 }
+
+func TestModelResourcePolicyShapes(t *testing.T) {
+	spending, err := decode(`{"command":"modify_resource_policy","resource":"Steel","spending":"defense_only"}`, 1)
+	if err != nil || spending.Command != "modify_resource_policy" || spending.Resource == nil || *spending.Resource != "Steel" ||
+		spending.Spending == nil || *spending.Spending != "defense_only" || spending.Reserve != nil {
+		t.Fatalf("modify_resource_policy shape: %v %v", spending, err)
+	}
+	reserve, err := decode(`{"command":"set_resource_reserve","resource":"Steel","reserve":0}`, 1)
+	if err != nil || reserve.Command != "set_resource_reserve" || reserve.Resource == nil || *reserve.Resource != "Steel" ||
+		reserve.Reserve == nil || *reserve.Reserve != 0 || reserve.Spending != nil {
+		t.Fatalf("set_resource_reserve shape: %v %v", reserve, err)
+	}
+	// Decoding bounds only the shape: the restriction vocabulary and the
+	// reserve range belong to domain, and the resource is bounded against facts
+	// by the interpreter.
+	unknown, err := decode(`{"command":"modify_resource_policy","resource":"Steel","spending":"hoard"}`, 1)
+	if err != nil || unknown.Spending == nil || *unknown.Spending != "hoard" {
+		t.Fatalf("unsupported restrictions decode here and are refused later: %v %v", unknown, err)
+	}
+	for _, text := range []string{
+		`{"command":"modify_resource_policy"}`,
+		`{"command":"modify_resource_policy","resource":"Steel"}`,
+		`{"command":"modify_resource_policy","spending":"stop"}`,
+		`{"command":"modify_resource_policy","resource":null,"spending":"stop"}`,
+		`{"command":"modify_resource_policy","resource":"Steel","spending":null}`,
+		`{"command":"modify_resource_policy","resource":"","spending":"stop"}`,
+		`{"command":"modify_resource_policy","resource":"Steel","spending":""}`,
+		`{"command":"modify_resource_policy","resource":"Steel","spending":1}`,
+		// Neither command may set both halves: each is its own contract.
+		`{"command":"modify_resource_policy","resource":"Steel","spending":"stop","reserve":5}`,
+		`{"command":"set_resource_reserve"}`,
+		`{"command":"set_resource_reserve","resource":"Steel"}`,
+		`{"command":"set_resource_reserve","reserve":5}`,
+		`{"command":"set_resource_reserve","resource":"Steel","reserve":null}`,
+		`{"command":"set_resource_reserve","resource":"","reserve":5}`,
+		`{"command":"set_resource_reserve","resource":"Steel","reserve":"5"}`,
+		`{"command":"set_resource_reserve","resource":"Steel","reserve":1.5}`,
+		`{"command":"set_resource_reserve","resource":"Steel","reserve":5,"spending":"stop"}`,
+	} {
+		t.Run(text, func(t *testing.T) {
+			_, err := decode(text, 1)
+			assertKind(t, err, InvalidCommand)
+		})
+	}
+}

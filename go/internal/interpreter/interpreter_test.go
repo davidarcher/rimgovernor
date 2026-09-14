@@ -1531,3 +1531,79 @@ func TestSetPopulationDecisionBoundsPawnAndDecision(t *testing.T) {
 	_, err = clientFixture(t, unsupported).Interpret(context.Background(), input)
 	assertKind(t, err, InvalidCommand)
 }
+
+func TestResourcePolicyProposalsCarryNoPlan(t *testing.T) {
+	input := inputFixture()
+	input.Facts.ResourceDefinitions = []string{"Steel", "WoodLog"}
+	spending := func(context.Context, model.Request) (model.Response, error) {
+		return model.Response{Text: `{"command":"modify_resource_policy","resource":"Steel","spending":"defense_only"}`, FinishReason: model.Stop}, nil
+	}
+	proposal, err := clientFixture(t, spending).Interpret(context.Background(), input)
+	if err != nil {
+		t.Fatal(err)
+	}
+	value, ok := proposal.ResourcePolicy.Spending.Get()
+	if proposal.ResourcePolicy.Resource != "Steel" || !ok || value != domain.ResourceSpendingDefenseOnly || proposal.ResourcePolicy.Reserve.Present() {
+		t.Fatal("incorrect typed resource spending proposal", proposal.ResourcePolicy)
+	}
+	if len(proposal.Plan.Actions()) != 0 || proposal.PopulationPolicy.Set() || !proposal.ExpeditionPolicy.Empty() || proposal.PopulationDecision.Set() {
+		t.Fatal("a resource policy must propose no actions and no other policy")
+	}
+	if proposal.Generation != input.Current {
+		t.Fatal("resource policy must resolve against the input generation")
+	}
+
+	reserve := func(context.Context, model.Request) (model.Response, error) {
+		return model.Response{Text: `{"command":"set_resource_reserve","resource":"WoodLog","reserve":250}`, FinishReason: model.Stop}, nil
+	}
+	proposal, err = clientFixture(t, reserve).Interpret(context.Background(), input)
+	if err != nil {
+		t.Fatal(err)
+	}
+	amount, ok := proposal.ResourcePolicy.Reserve.Get()
+	if proposal.ResourcePolicy.Resource != "WoodLog" || !ok || amount != 250 || proposal.ResourcePolicy.Spending.Present() {
+		t.Fatal("incorrect typed resource reserve proposal", proposal.ResourcePolicy)
+	}
+}
+
+func TestResourcePolicyBoundsResourceAndRange(t *testing.T) {
+	input := inputFixture()
+	input.Facts.ResourceDefinitions = []string{"Steel"}
+	for _, text := range []string{
+		`{"command":"modify_resource_policy","resource":"Plasteel","spending":"stop"}`,
+		`{"command":"set_resource_reserve","resource":"Plasteel","reserve":10}`,
+	} {
+		response := func(context.Context, model.Request) (model.Response, error) {
+			return model.Response{Text: text, FinishReason: model.Stop}, nil
+		}
+		_, err := clientFixture(t, response).Interpret(context.Background(), input)
+		assertKind(t, err, UnknownFacts)
+	}
+	for _, text := range []string{
+		`{"command":"modify_resource_policy","resource":"Steel","spending":"hoard"}`,
+		`{"command":"set_resource_reserve","resource":"Steel","reserve":-1}`,
+		`{"command":"set_resource_reserve","resource":"Steel","reserve":10001}`,
+	} {
+		response := func(context.Context, model.Request) (model.Response, error) {
+			return model.Response{Text: text, FinishReason: model.Stop}, nil
+		}
+		_, err := clientFixture(t, response).Interpret(context.Background(), input)
+		assertKind(t, err, InvalidCommand)
+	}
+}
+
+func TestResourcePolicyFactsValidatedAndBounded(t *testing.T) {
+	i := clientFixture(t, func(context.Context, model.Request) (model.Response, error) {
+		t.Fatal("model called")
+		return model.Response{}, nil
+	})
+	input := inputFixture()
+	input.Facts.ResourceDefinitions = []string{"Steel", "Steel"}
+	_, err := i.Interpret(context.Background(), input)
+	assertKind(t, err, InvalidInput)
+
+	input = inputFixture()
+	input.Facts.ResourceDefinitions = []string{" "}
+	_, err = i.Interpret(context.Background(), input)
+	assertKind(t, err, InvalidInput)
+}
