@@ -237,5 +237,13 @@ func combatDetails(row *o.PawnState, ctx *c.ObservationContext) error {
 			return err
 		}
 	}
+	if a := row.AnimalState; a != nil {
+		if !combatNumber(a.BodySize, true) {
+			return contract("invalid animal body size")
+		}
+		if err := pawnsIssues(a.Issues, a.ProtoReflect()); err != nil {
+			return err
+		}
+	}
 	return nil
 }

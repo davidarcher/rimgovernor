@@ -36,7 +36,7 @@ func (client *Client) readPawnDetails(ctx context.Context, identity *c.Identity,
 		}
 		requested[id] = true
 	}
-	request := &o.ListPawnsRequest{Scope: &o.ReadScope{ExpectedIdentity: proto.Clone(identity).(*c.Identity)}, Filter: &o.PawnFilter{Ids: copied, IncludeDead: proto.Bool(true)}, Details: &o.PawnDetails{Needs: proto.Bool(false), Health: proto.Bool(combat), Equipment: proto.Bool(combat), Biography: proto.Bool(combat), Settings: proto.Bool(care), Social: proto.Bool(false), Animals: proto.Bool(false)}, Page: &c.PageRequest{Limit: proto.Uint32(uint32(len(copied)))}}
+	request := &o.ListPawnsRequest{Scope: &o.ReadScope{ExpectedIdentity: proto.Clone(identity).(*c.Identity)}, Filter: &o.PawnFilter{Ids: copied, IncludeDead: proto.Bool(true)}, Details: &o.PawnDetails{Needs: proto.Bool(false), Health: proto.Bool(combat), Equipment: proto.Bool(combat), Biography: proto.Bool(combat), Settings: proto.Bool(care), Social: proto.Bool(false), Animals: proto.Bool(combat)}, Page: &c.PageRequest{Limit: proto.Uint32(uint32(len(copied)))}}
 	if work {
 		request.Details.Work = proto.Bool(true)
 		request.Details.Needs = proto.Bool(true)
@@ -97,7 +97,7 @@ func pawnsSnapshotSelected(v *o.PawnSnapshot, id *c.Identity, requested map[stri
 		if err := pawnsEntity(row.Pawn, v.Context); err != nil {
 			return err
 		}
-		if !work && row.Needs != nil || !combat && (row.Health != nil || row.Equipment != nil || row.Biography != nil) || !work && !care && row.Settings != nil || row.Social != nil || row.AnimalState != nil {
+		if !work && row.Needs != nil || !combat && (row.Health != nil || row.Equipment != nil || row.Biography != nil || row.AnimalState != nil) || !work && !care && row.Settings != nil || row.Social != nil {
 			return contract("unrequested pawn detail")
 		}
 		if combat {

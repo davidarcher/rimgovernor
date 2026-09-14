@@ -240,7 +240,7 @@ namespace HomeBridge.BridgeTools
 
         private static Obs.AnimalState Animal(Pawn pawn)
         {
-            var row=new Obs.AnimalState {Gender=pawn.gender.ToString()};
+            var row=new Obs.AnimalState {Gender=pawn.gender.ToString(),BodySize=Number(pawn.RaceProps.baseBodySize)};
             if(pawn.ageTracker!=null) row.AgeYears=Number(pawn.ageTracker.AgeBiologicalYearsFloat); else row.Issues.Add(Missing("age_years"));
             if(pawn.training==null) row.Issues.Add(Missing("training"));
             else {

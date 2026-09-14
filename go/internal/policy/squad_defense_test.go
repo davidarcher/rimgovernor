@@ -100,6 +100,44 @@ func TestSelectSquadDefenseExcludesIneligibleCandidates(t *testing.T) {
 	}
 }
 
+func squadAnimalThreat(id PawnID, bodySize float64, manhunter bool) SquadThreatFacts {
+	return SquadThreatFacts{ID: id, Dead: domain.Known(false), Downed: domain.Known(false), Humanlike: domain.Known(false), Animal: domain.Known(true), BodySize: domain.Known(bodySize), Manhunter: domain.Known(manhunter), RangedEquipped: domain.Known(false)}
+}
+
+func TestSelectSquadDefenseAdmitsSmallManhunterAnimal(t *testing.T) {
+	threats := []SquadThreatFacts{squadAnimalThreat("wolf", 1.4, true)}
+	defenders := []SquadDefenderFacts{squadDefender("a", false), squadDefender("b", false)}
+	assignments, ok := SelectSquadDefense(threats, defenders)
+	if !ok || len(assignments) != 2 {
+		t.Fatal(assignments, ok)
+	}
+	for _, a := range assignments {
+		if a.Target != "wolf" || a.Mode != SquadMelee {
+			t.Fatal(a)
+		}
+	}
+}
+
+func TestSelectSquadDefenseExcludesNonManhunterAnimal(t *testing.T) {
+	threats := []SquadThreatFacts{squadAnimalThreat("deer", 1.4, false)}
+	defenders := []SquadDefenderFacts{squadDefender("a", false), squadDefender("b", false)}
+	if _, ok := SelectSquadDefense(threats, defenders); ok {
+		t.Fatal("selected a non-manhunter animal")
+	}
+}
+
+func TestSelectSquadDefenseExcludesOversizedOrZeroSizedAnimal(t *testing.T) {
+	defenders := []SquadDefenderFacts{squadDefender("a", false), squadDefender("b", false)}
+	oversized := []SquadThreatFacts{squadAnimalThreat("elephant", 4.5, true)}
+	if _, ok := SelectSquadDefense(oversized, defenders); ok {
+		t.Fatal("selected an oversized manhunter animal")
+	}
+	zeroSized := []SquadThreatFacts{squadAnimalThreat("unknown-size", 0, true)}
+	if _, ok := SelectSquadDefense(zeroSized, defenders); ok {
+		t.Fatal("selected a zero body-size animal")
+	}
+}
+
 func TestSelectSquadDefenseNoEligibleThreatOrDefender(t *testing.T) {
 	if _, ok := SelectSquadDefense(nil, []SquadDefenderFacts{squadDefender("a", false)}); ok {
 		t.Fatal("selected with no threats")

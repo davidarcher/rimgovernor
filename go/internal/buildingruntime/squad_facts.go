@@ -5,6 +5,7 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/ranged"
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
+	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
 	n "github.com/davidarcher/RimGovernor/go/internal/wire/observationspb"
 )
 
@@ -26,11 +27,10 @@ func meleeCapable(equipment *n.PawnEquipment) domain.Fact[bool] {
 	return domain.Known(known)
 }
 
-// squadThreatFacts populates only what the shared pawn snapshot actually
-// carries. Body size and manhunter status are not exposed through this read,
-// so animal/manhunter opponents stay ineligible here (Animal/BodySize/
-// Manhunter unknown) until that native read is extended; humanlike opponents
-// are unaffected.
+// squadThreatFacts populates what the shared pawn snapshot carries, including
+// the animal detail (BodySize) requested alongside combat pawn reads and the
+// manhunter mental state exact-matched the same way Python's squad_defense
+// compared mentalState against ('Manhunter','ManhunterPermanent').
 func squadThreatFacts(row *n.PawnState) policy.SquadThreatFacts {
 	facts := policy.SquadThreatFacts{ID: policy.PawnID(row.Pawn.GetId()), Dead: boundary.FactBool(row.Dead), Downed: boundary.FactBool(row.Downed)}
 	if row.Humanlike != nil {
@@ -40,7 +40,26 @@ func squadThreatFacts(row *n.PawnState) policy.SquadThreatFacts {
 		facts.Animal = domain.Known(row.GetAnimal())
 	}
 	facts.RangedEquipped = ranged.RangedWeaponEquipped(row.Equipment)
+	facts.Manhunter = manhunterFact(row.MentalState, row.Issues)
+	if animal := row.AnimalState; animal != nil && animal.BodySize != nil && !boundary.IssueField(animal.Issues, "body_size") {
+		facts.BodySize = domain.Known(animal.GetBodySize())
+	}
 	return facts
+}
+
+// manhunterFact mirrors combat_method.py's exact mentalState comparison
+// rather than the looser substring match NativePawnObservationTools.cs uses
+// for HostileReason: only the two Manhunter mental-state defNames count.
+func manhunterFact(state *string, issues []*n.ReadIssue) domain.Fact[bool] {
+	if state != nil {
+		return domain.Known(*state == "Manhunter" || *state == "ManhunterPermanent")
+	}
+	for _, issue := range issues {
+		if issue.GetField() == "mental_state" && issue.GetUnavailable().GetReason() == c.UnavailableReason_UNAVAILABLE_REASON_NOT_APPLICABLE {
+			return domain.Known(false)
+		}
+	}
+	return domain.Unknown[bool]()
 }
 
 func squadDefenderFacts(row *n.PawnState) policy.SquadDefenderFacts {

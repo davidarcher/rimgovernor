@@ -18,8 +18,7 @@ import (
 // facts) plus the new bridge.ReadEquipWeapons for loose-weapon discovery.
 // Pawn position is not exposed by ReadCombatPawns, so SelectEquip's
 // nearest-weapon tie-break degrades to its deterministic fallback (ranged
-// preferred, then thing ID); this mirrors the already-documented
-// BodySize/Manhunter native gap and is safe, just not distance-optimal.
+// preferred, then thing ID); this is safe, just not distance-optimal.
 type RoutineEquipSource interface {
 	ReadEmergency(context.Context, *c.Identity) (bridge.EmergencyObservation, bridge.Result, error)
 	ReadCombatPawns(context.Context, *c.Identity, []string) (*n.ListPawnsReply, bridge.Result, error)
