@@ -643,92 +643,28 @@ without pushes, when the target checkout is safe; preserve other developers' wor
     through `serve.go`/`serve_building.go`/`serve_clock.go`. G01.12 gameplay
     acceptance remains deferred there, not here.
 
-  - [ ] **05.4 — Storage, shelter and direct upkeep (G01.07c).**
-    Finish room adoption and storage ownership after the food prerequisite subset;
-    then bed assignment/upgrade/use, Home coverage, repair/clean/fire selection and
-    staged stone replacement. Close the partial comfort lifecycle using existing
-    construction/use evidence where applicable and verify disabled restart.
-    Cover `SecureSupplies`, `MaintainSleeping`, `MaintainHomeCoverage`,
-    `MaintainEssentialRepairs`, `MaintainCleanFacilities`, `MaintainFireSafety`
-    and `MaintainStoneShell`. Preserve exact ownership, exclusions and temporary
-    structural support; wait for ordinary labor where Python does. Gate on storage,
-    bed use and upkeep outcomes, layout changes and interruption, not issued jobs.
-
-    `SecureSupplies`, `MaintainEssentialRepairs` and `MaintainCleanFacilities`
-    (each a full domain/policy/store/executor/buildingruntime vertical) are
-    closed and dispatchable via `Session.Run`. `SecureSupplies` now also
-    covers `upkeep_storage.py`'s `covered_storage` fallback: once ordinary
-    haul retries for the selected vulnerable item exhaust their bound, the
-    routine planner searches for the nearest legal roofed 2x2 patch
-    (`policy.CoveredStorageSites`, keyed off the native `storage_empty` cell
-    fact) and proposes an allow-listed stockpile zone for that item's
-    definition, dry-run previewed and admitted the same way `EnsureFoodStorage`
-    creates its starter stockpile; capped at three such zones per goal episode
-    like the Python reference. `supply_storeroom`'s larger whole-room fallback
-    is not ported and remains open, alongside `MaintainStoneShell`.
-    `MaintainCleanFacilities` sources its filth CAS token via a new
-    `bridge.ReadFilthTarget` (`observations_get_cells`, exact-cell scan by
-    entity ID), since filth has no exact-ID lookup RPC like `ListBuildings`;
-    this doc already records elsewhere that native currently refuses
-    `Fields.Things` on that RPC with `FAILURE_CODE_UNSUPPORTED`, so this path
-    is Go-complete and unit-tested but blocked on that same pre-existing
-    native gap until it lands. `MaintainFireSafety`'s decision logic
-    (`policy.EvaluateFireSafety`) is ported but unwired (moot below
-    priority-3 development ranking). `MaintainEssentialRepairs` and
-    `MaintainCleanFacilities` now each have routine-scheduler/CLI wiring
-    matching `SecureSupplies`'s precedent: a `policy.SelectRepair`/
-    `policy.SelectClean` pawn-and-target selection primitive (mirroring
-    `policy.SelectSecureSupplies` exactly, gated on the native Construction/
-    Cleaning work-type settings the same way Python's `colony_upkeep.py`
-    does), a `RoutineRepairPlanner`/`RoutineCleanPlanner` in
-    `buildingruntime`, and `--routine-repair-plans`/`--routine-clean-plans`
-    CLI flags threaded through `serve.go`/`serve_building.go`/
-    `serve_clock.go`. `policy.UpkeepStructure`/`UpkeepFilth` gained a `Cell`
-    field (sourced from each row's native entity position, the same way
-    `UpkeepItem` already carried one for `Haul`) since dispatch needs a
-    concrete cell to re-scope a fresh CAS token, and
-    `policy.DetectRoutine`'s upkeep loop no longer forces these two goals'
-    `MethodUnavailable`, matching `SecureSupplies`'s carve-out. `RepairAction`/
-    `CleanAction` were also missing from the three action-kind allowlists
-    every routine-dispatch vertical needs (`buildingruntime/worker.go`,
-    `buildingruntime/clock_scheduler.go`, `store/routine_execution.go`); both
-    are now present in all three. `MaintainSleeping` is
-    now closed via a `BedAssign` typed-dispatch vertical (domain/policy/
-    store/executor/buildingruntime, dispatchable through `Session.Run`).
-    `MaintainHomeCoverage` is now closed via a `HomeCoverage` typed-dispatch
-    vertical (domain/policy/store/executor/buildingruntime, dispatchable
-    through `Session.Run`), mirroring `BedAssign`'s structure and preserving
-    `home_coverage.py`'s exact behavior: it re-validates the selected
-    target's shape/revision/missing/excluded counts fresh at admission time
-    (refusing on any geometry change or exclusion) and dispatches native's
-    `ExtendHome` operation. Home coverage has no per-target CAS token in
-    native (`HomeCoverageTool.cs`'s `Apply` uses only a computed shape hash
-    plus a global revision counter), and no exact-ID lookup RPC either, so
-    `bridge.ReadHomeCoverageTarget` re-reads the general colony upkeep census
-    and matches the target row instead. Like `MaintainEssentialRepairs`/
-    `MaintainCleanFacilities`/`MaintainSleeping`'s own native gaps, no
-    `NativeOperationTools.cs` adapter wires `Operation_ExtendHome` into typed
-    Preview/Execute dispatch yet, so this is Go-complete and unit-tested but
-    blocked on that native gap for live acceptance. It also has no
-    routine-scheduler/CLI wiring yet, matching the
-    `MaintainEssentialRepairs`/`MaintainCleanFacilities` precedent. Still
-    open: `MaintainStoneShell` (untouched). Investigation found it does not
-    fit the single-action typed-dispatch pattern the other verticals share:
-    `wall_upgrade.py` admits a multi-step staged bundle at once (backup
-    walls, guarded original demolition, permanent replacement, backup
-    removal) with a dependency-graph proof spanning the whole bundle,
-    reference resolution that must follow a construction slot through
-    archived/retired plan steps, and a retirement cascade that cancels
-    dependent steps when native invalidates a pending demolition. None of
-    that has an equivalent in the current domain/store admission model
-    (single action, single `GenerationSnapshot`-scoped admission record), so
-    it needs dedicated design work for multi-action bundle admission before
-    implementation, not a fourth repetition of the BedAssign template.
-    Native
-    C# (`NativeHaulOperations.cs`) only implements
-    `PawnOrderKind.Haul` today, so Repair/Clean/Equip/Rescue/Tend/Work/Capture
-    are refused at the native boundary — tracked under G01.12, not specific
-    to this slice. No new Python acceptance tests added.
+  - [x] **05.4 — Storage, shelter and direct upkeep (G01.07c).**
+    `SecureSupplies` (plus `upkeep_storage.py`'s `covered_storage` fallback),
+    `MaintainEssentialRepairs`, `MaintainCleanFacilities`, `MaintainSleeping`
+    (`BedAssign`), `MaintainHomeCoverage` (`HomeCoverage`) and `MaintainStoneShell`
+    (`WallRemoval` bundle admission: backup-wall + guarded-demolition +
+    permanent-replacement + backup-removal, dispatched via
+    `RoutineStoneShellPlanner`/`--routine-stone-shell-plans`) are each closed as
+    domain/policy/store/executor/buildingruntime verticals dispatchable through
+    `Session.Run`, Go-complete and unit-tested. `supply_storeroom`'s larger
+    whole-room storage fallback is not ported and remains open.
+    `MaintainFireSafety`'s decision logic (`policy.EvaluateFireSafety`) is ported
+    but unwired (moot below priority-3 development ranking).
+    Remaining native-side gaps are tracked under G01.12, not this slice:
+    `NativeHaulOperations.cs` only implements `PawnOrderKind.Haul`, so
+    Repair/Clean/Equip/Rescue/Tend/Work/Capture are refused at the native
+    boundary; no `NativeOperationTools.cs` adapter wires `Operation_ExtendHome`,
+    `RemoveWall`, `ReleaseWallRemovals` or `ListWallUpgradeSites` into typed
+    Preview/Execute dispatch yet; `MaintainCleanFacilities`'s filth CAS token
+    read (`bridge.ReadFilthTarget`) is blocked on native's existing
+    `FAILURE_CODE_UNSUPPORTED` refusal for `Fields.Things` on
+    `observations_get_cells`; `WallRemovalEvidence.Retired` is never set
+    (needs a second `ColonyFacts.WallRemovalFacts` read, out of scope here).
 
   - [x] **05.5 — Equipment, research and replenishment (G01.07d).**
     Connect gear replacement/equip/wear to workshop recipes, bills and output;
