@@ -89,9 +89,11 @@ confirm the packaging path is wired correctly, not that a colony runs.
 - Media/camera/portrait/video/recording and trusted save/load — G01.09.
 - World progression: caravans, quests, settlement gifts, multi-map — G01.07f.
 - Most routine workflows beyond construction: cooking/butcher bill execution,
-  care/tend/rescue/equip/gear/defense dispatch beyond compiled plans, and other
-  non-building executable actions — G01.05/G01.07a–e (many `--routine-*-plans`
+  care/tend/rescue/defense dispatch beyond compiled plans, and other
+  non-building executable actions — G01.05/G01.07a–c/e (many `--routine-*-plans`
   flags compile shared plans today without an executable action family yet).
+  Equipment wear/replace, gear/medical production, research selection and
+  resource-target production dispatch through Go are closed (G01.07d).
 - Development/scenario tooling stays Python by design, not as a gap: the
   Docker controller/worker/colonies test targets, `scripts/container_checks.py`,
   `scripts/container_scenario.py`, `scripts/prepare_bridge_trial.py` and
@@ -117,7 +119,9 @@ Medical reserves use a separate maintained need with one medicine per colonist a
 its entry threshold and three as its recovery target. Native usable resource counts
 are capped against observed unexpired, allowed medicine stacks. Unknown reads
 preserve the reserve latch; Manual preserves it, while world replacement or tick
-rewind resets it. Replenishment proposals and execution remain open in G01.05/G01.07d.
+rewind resets it. `RoutineMedicalPlanner` (behind `--routine-medical-plans`)
+proposes a `ProductionBillAction` through the shared GearProduce bench/recipe
+census, closing replenishment execution (G01.07d).
 
 Startup supply reviews retain the first known native forbidden-supply census.
 Fresh reads can shrink that cohort, but later player forbids cannot expand or
