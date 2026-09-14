@@ -5,6 +5,7 @@ import (
 	"crypto/sha256"
 	"fmt"
 	"sort"
+	"time"
 
 	"github.com/davidarcher/RimGovernor/go/internal/bridge"
 	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/boundary"
@@ -25,19 +26,23 @@ import (
 // bench/recipe bill immediately before dispatch, the same
 // acceptance-not-authority preview those planners use.
 //
-// This planner covers only production_policy.py's resource_method
-// bench/recipe fallback branch (policy.SelectResourceMethod), the same
-// bench-production path GearProduce/MaintainMedicalReserves dispatch
-// through. The native mine/harvest source-acquisition branch
-// (policy.SelectResourceSources), extraction development and
-// material-storage zoning are not dispatched here yet -- see
-// docs/BACKLOG.md 05.5.
+// This planner covers production_policy.py's resource_method bench/recipe
+// fallback branch (policy.SelectResourceMethod), the same bench-production
+// path GearProduce/MaintainMedicalReserves dispatch through, plus its native
+// mine-source acquisition branch (policy.SelectResourceSources): whenever the
+// bench/recipe path cannot fund the deficit and a selected source is a mine
+// (the only method SelectResourceSources populates Cell/Token for), this
+// planner dispatches a domain.MineAcquisitionAction against it through the
+// second, independently-registered mine-acquisition vertical (see
+// docs/BACKLOG.md 05.5). Extraction development and material-storage zoning
+// are still not dispatched here.
 type RoutineResourceSource interface {
 	ReadColonyFacts(context.Context, *c.Identity, bool, []string) (*o.ColonyFactsReply, bridge.Result, error)
 	ReadGearBenches(context.Context, *c.Identity) ([]bridge.GearBenchRead, bridge.Result, error)
 	ReadSupplyStock(context.Context, *c.Identity, []string) ([]policy.Stock, bridge.Result, error)
 	PreviewBill(context.Context, *c.Identity, domain.ProductionBill) (*op.PreviewReply, bridge.Result, error)
 	ReadResourceSources(context.Context, *c.Identity, string) ([]bridge.ResourceSourceRow, bridge.Result, error)
+	PreviewAcquisition(context.Context, *c.Identity, bridge.AcquisitionTarget) (*op.PreviewReply, bridge.Result, error)
 }
 type RoutineResourcePlanner struct {
 	reviewer *RoutineReviewer
@@ -46,16 +51,18 @@ type RoutineResourcePlanner struct {
 type RoutineResourceResult struct {
 	Reason RoutineBuildingReason
 	Plan   domain.PlanID
-	// Sources is populated, for observability only, whenever the bench/recipe
-	// production path (policy.SelectResourceMethod) could not fund the
-	// dynamically-selected resource and a fresh native
-	// ListResourceSources/ReadResourceSources read plus
-	// policy.SelectResourceSources found undesignated mine/harvest sources
-	// that could cover the outstanding deficit. Nothing dispatches
-	// AcquireResource against these sources yet -- see docs/BACKLOG.md 05.5 --
-	// so this never changes Reason/Plan; a native read failure here is
-	// swallowed rather than propagated, since the bench/recipe outcome above
-	// already stands on its own.
+	// Sources is populated whenever the bench/recipe production path
+	// (policy.SelectResourceMethod) could not fund the dynamically-selected
+	// resource and a fresh native ListResourceSources/ReadResourceSources
+	// read plus policy.SelectResourceSources found undesignated mine/harvest
+	// sources that could cover the outstanding deficit. When the selection
+	// includes a mine source (the only method carrying a Cell/Token), it is
+	// actually dispatched -- see Reason/Plan -- against the second,
+	// independently-registered mine-acquisition vertical; any other selected
+	// method is still surfaced here for observability only, since only mine
+	// sources carry the CAS evidence this vertical's AcquireResource dispatch
+	// needs. A native read failure here is swallowed rather than propagated,
+	// since the bench/recipe outcome above already stands on its own.
 	Sources []policy.ResourceSource
 }
 
@@ -204,7 +211,16 @@ func (r *RoutineResourcePlanner) step(call, epoch context.Context) (RoutineResou
 		return RoutineResourceResult{}, err
 	}
 	if choice.Kind != policy.ResourceMethodProduce {
-		return RoutineResourceResult{Reason: BuildingMethodUsed, Sources: r.sourcesForDeficit(call, identity, resource, target, stock)}, nil
+		sources := r.sourcesForDeficit(call, identity, resource, target, stock)
+		result, dispatched, err := r.dispatchMineSource(call, epoch, state, goal, resource, sources, started)
+		if err != nil {
+			return RoutineResourceResult{}, err
+		}
+		if dispatched {
+			result.Sources = sources
+			return result, nil
+		}
+		return RoutineResourceResult{Reason: BuildingMethodUsed, Sources: sources}, nil
 	}
 	token, ok := tokens[choice.Bench]
 	if !ok {
@@ -256,10 +272,11 @@ func (r *RoutineResourcePlanner) step(call, epoch context.Context) (RoutineResou
 // and applies policy.SelectResourceSources against the outstanding deficit,
 // mirroring the first half of production_policy.py's resource_method (its
 // bill-listing fallback, which SelectResourceMethod above already covers, is
-// only reached once this source loop finds nothing to select). Nothing here
-// dispatches AcquireResource -- see RoutineResourceResult.Sources -- so a
-// native read failure is deliberately swallowed rather than surfaced,
-// preserving the bench/recipe outcome the caller already computed.
+// only reached once this source loop finds nothing to select). A native read
+// failure here is deliberately swallowed rather than surfaced, preserving
+// the bench/recipe outcome the caller already computed -- dispatchMineSource
+// below is what actually acts on the result.
+
 func (r *RoutineResourcePlanner) sourcesForDeficit(ctx context.Context, identity *c.Identity, resource policy.Resource, target int64, stock domain.Fact[[]policy.Amount]) []policy.ResourceSource {
 	rows, known := stock.Value()
 	if !known {
@@ -277,4 +294,68 @@ func (r *RoutineResourcePlanner) sourcesForDeficit(ctx context.Context, identity
 		return nil
 	}
 	return policy.SelectResourceSources(sources, target, have, 0)
+}
+
+// dispatchMineSource actually dispatches a domain.MineAcquisitionAction
+// against the selection's mine source, if any -- the second,
+// independently-registered mine-acquisition vertical this planner's mine
+// dispatch needs, since a mined resource can never appear in the generic
+// vertical's AcquisitionFacts census (see docs/BACKLOG.md 05.5). Only a mine
+// method source carries the Cell/Token bridge.ReadMineAcquisition/
+// AcquireResource need (policy.SelectResourceSources populates them for
+// "mine" rows only); any other selected method is left to the caller's
+// observability-only Sources reporting. dispatched is false, with a zero
+// result and nil error, when there is nothing to dispatch -- the caller then
+// falls back to its own BuildingMethodUsed reporting.
+func (r *RoutineResourcePlanner) dispatchMineSource(call, epoch context.Context, state ControlState, goal store.GoalState, resource policy.Resource, sources []policy.ResourceSource, started time.Time) (RoutineResourceResult, bool, error) {
+	var source policy.ResourceSource
+	found := false
+	for _, candidate := range sources {
+		if candidate.Method == policy.ResourceSourceMine {
+			source, found = candidate, true
+			break
+		}
+	}
+	if !found {
+		return RoutineResourceResult{}, false, nil
+	}
+	p := r.reviewer.player
+	acquisitionValue, err := domain.NewAcquisition(source.ThingID, string(resource), source.Cell)
+	if err != nil {
+		return RoutineResourceResult{}, false, err
+	}
+	digest := sha256.Sum256([]byte(fmt.Sprintf("%s/%d/mine/%s/%d/%d", goal.Goal.ID, goal.Goal.Epoch, source.ThingID, source.Cell.X, source.Cell.Z)))
+	id := domain.PlanID(fmt.Sprintf("routine-resource-mine-%x", digest[:16]))
+	methodID := domain.MethodID(fmt.Sprintf("resource-mine-%x", digest[:16]))
+	target := bridge.AcquisitionTarget{Acquisition: acquisitionValue, Token: source.Token}
+	preview, _, err := r.native.PreviewAcquisition(call, boundary.Identity(state.Snapshot), target)
+	if err != nil {
+		return RoutineResourceResult{}, false, err
+	}
+	evaluated := preview.GetEvaluated()
+	if evaluated == nil || !evaluated.GetAccepted() {
+		return RoutineResourceResult{Reason: BuildingMethodRefused}, true, nil
+	}
+	if _, err = boundary.Context(evaluated.Context, state.Snapshot); err != nil {
+		return RoutineResourceResult{}, false, ErrControl
+	}
+	action, err := domain.NewMineAcquisitionAction(domain.ActionID(fmt.Sprintf("%s-0", id)), acquisitionValue)
+	if err != nil {
+		return RoutineResourceResult{}, false, err
+	}
+	plan, err := domain.NewPlan(id, 1, []domain.Action{action})
+	if err != nil {
+		return RoutineResourceResult{}, false, err
+	}
+	if err = p.current(call, epoch); err != nil {
+		return RoutineResourceResult{}, false, err
+	}
+	elapsed := r.reviewer.clock.Now().Sub(started)
+	if p.session.State() != state || elapsed < 0 || elapsed > r.reviewer.maxAge {
+		return RoutineResourceResult{}, false, ErrControl
+	}
+	if _, err = p.journal.CommitGoalMethod(call, goal.Goal.ID, goal.Revision, methodID, plan); err != nil {
+		return RoutineResourceResult{}, false, err
+	}
+	return RoutineResourceResult{Reason: BuildingMethodAdmitted, Plan: id}, true, nil
 }

@@ -36,6 +36,9 @@ func (f *fakeResourceSourceNative) PreviewBill(context.Context, *c.Identity, dom
 func (f *fakeResourceSourceNative) ReadResourceSources(context.Context, *c.Identity, string) ([]bridge.ResourceSourceRow, bridge.Result, error) {
 	return f.rows, bridge.Result{}, f.err
 }
+func (f *fakeResourceSourceNative) PreviewAcquisition(context.Context, *c.Identity, bridge.AcquisitionTarget) (*op.PreviewReply, bridge.Result, error) {
+	panic("unused")
+}
 
 func TestSourcesForDeficitSelectsAgainstOutstandingNeed(t *testing.T) {
 	native := &fakeResourceSourceNative{rows: []bridge.ResourceSourceRow{

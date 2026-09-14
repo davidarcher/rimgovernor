@@ -20,6 +20,7 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/equip"
 	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/haul"
 	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/melee"
+	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/mineacquisition"
 	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/ranged"
 	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/rescue"
 	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/supply"
@@ -48,6 +49,7 @@ type buildingServiceBridge struct {
 	authority           buildingruntime.NativeAuthority
 	writes              boundary.BuildingWriter
 	acquisition         *acquisition.AcquisitionCapabilities
+	mineAcquisition     *mineacquisition.MineAcquisitionCapabilities
 	zones               *zone.ZoneCapabilities
 	work                *work.WorkCapabilities
 	supplies            *supply.SupplyCapabilities
@@ -171,7 +173,8 @@ func openBuildingService(ctx context.Context, config bridge.ProcessConfig) (buil
 	return buildingServiceBridge{reads: client, native: client, authority: ownedAuthority{client, authority}, writes: writes,
 		bills:       &bill.BillCapabilities{Native: client, Writer: bills},
 		zones:       &zone.ZoneCapabilities{Native: client, Writer: zones},
-		acquisition: &acquisition.AcquisitionCapabilities{Native: client, Writer: acquisitionWriter},
+		acquisition:     &acquisition.AcquisitionCapabilities{Native: client, Writer: acquisitionWriter},
+		mineAcquisition: &mineacquisition.MineAcquisitionCapabilities{Native: client, Writer: acquisitionWriter},
 		work:        &work.WorkCapabilities{Native: client, Writer: workWriter},
 		supplies:    &supply.SupplyCapabilities{Native: client, Writer: supplies},
 		clock:       &buildingruntime.ClockCapabilities{Native: client, Writer: clock}, clockReads: client,
@@ -340,6 +343,13 @@ func serveBuildingWithBridge(ctx context.Context, config serveConfig, out io.Wri
 		}
 		acquisitionCapabilities = client.acquisition
 	}
+	var mineAcquisitionCapabilities *mineacquisition.MineAcquisitionCapabilities
+	if config.routineResourcePlans {
+		if client.mineAcquisition == nil {
+			return errors.New("resource plans require typed mine acquisition capabilities")
+		}
+		mineAcquisitionCapabilities = client.mineAcquisition
+	}
 	var workCapabilities *work.WorkCapabilities
 	if config.routineWorkPlans {
 		if client.work == nil {
@@ -444,6 +454,7 @@ func serveBuildingWithBridge(ctx context.Context, config serveConfig, out io.Wri
 		Control:             buildingruntime.ControlConfig{ProfileDirectory: config.profile, LeaseDuration: 30 * time.Second, CallTimeout: callTimeout, Worlds: buildingWorldSource{client.reads}},
 		Executor:            executor.Limits{MaxAge: 5 * time.Second, RunTimeout: 8 * time.Second, JournalTimeout: 3 * time.Second},
 		Acquisition:         acquisitionCapabilities,
+		MineAcquisition:     mineAcquisitionCapabilities,
 		Zones:               zoneCapabilities,
 		Bills:               billCapabilities,
 		Work:                workCapabilities,

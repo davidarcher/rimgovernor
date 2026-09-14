@@ -148,6 +148,8 @@ type Executor struct {
 	settlementGiftJournal      SettlementGiftJournal
 	questFulfill               QuestFulfillBoundary
 	questFulfillJournal        QuestFulfillJournal
+	mineAcquisition            AcquisitionBoundary
+	mineAcquisitionJournal     MineAcquisitionJournal
 	ranged                     RangedBoundary
 	rangedJournal              RangedJournal
 	routineScope               RoutineScope
@@ -394,6 +396,9 @@ func (e *Executor) Run(ctx context.Context, plan domain.PlanID, actionID domain.
 	}
 	if action.Kind() == domain.MeleeAttackAction && e.melee != nil {
 		return e.runMelee(ctx, action, progress, authority, generation)
+	}
+	if action.Kind() == domain.MineAcquisitionAction && e.mineAcquisition != nil {
+		return e.runMineAcquisition(ctx, action, progress, authority, generation)
 	}
 	if action.Kind() != domain.BuildingAction {
 		return Result{}, errors.New("missing or unsupported building action")

@@ -14,6 +14,7 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/equip"
 	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/haul"
 	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/melee"
+	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/mineacquisition"
 	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/ranged"
 	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/rescue"
 	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/supply"
@@ -58,6 +59,7 @@ type SessionConfig struct {
 	QuestAccept         *QuestAcceptCapabilities
 	SettlementGift      *SettlementGiftCapabilities
 	QuestFulfill        *QuestFulfillCapabilities
+	MineAcquisition     *mineacquisition.MineAcquisitionCapabilities
 }
 
 // Session binds the single profile owner to one journal and executor. Its caller
@@ -332,6 +334,9 @@ func NewSession(ctx context.Context, config SessionConfig, journal *store.Store,
 	if config.QuestFulfill != nil && (config.QuestFulfill.Native == nil || config.QuestFulfill.Writer == nil) {
 		return cleanup(ErrControl)
 	}
+	if config.MineAcquisition != nil && (config.MineAcquisition.Native == nil || config.MineAcquisition.Writer == nil) {
+		return cleanup(ErrControl)
+	}
 	var routine []executor.RoutineScope
 	if config.RoutineMethods {
 		routine = append(routine, journal)
@@ -367,6 +372,11 @@ func NewSession(ctx context.Context, config SessionConfig, journal *store.Store,
 	}
 	if config.Acquisition != nil {
 		if err := worker.EnableAcquisition(acquisition.NewAcquisitionBoundary(place, *config.Acquisition)); err != nil {
+			return cleanup(err)
+		}
+	}
+	if config.MineAcquisition != nil {
+		if err := worker.EnableMineAcquisition(mineacquisition.NewMineAcquisitionBoundary(place, *config.MineAcquisition)); err != nil {
 			return cleanup(err)
 		}
 	}

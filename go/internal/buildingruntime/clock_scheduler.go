@@ -756,7 +756,7 @@ func clockSchedulerWork(plan store.PlanState, current domain.GenerationSnapshot)
 				domain.MeleeAttackAction, domain.RangedAttackAction, domain.TendAction, domain.RescueAction, domain.CaptureAction,
 				domain.HaulAction, domain.EquipAction, domain.GearReplaceAction, domain.RecoveryServiceAction,
 				domain.BedAssignAction, domain.HusbandryAction, domain.PrisonerInteractionAction,
-				domain.RepairAction, domain.CleanAction:
+				domain.RepairAction, domain.CleanAction, domain.MineAcquisitionAction:
 			default:
 				return false, nil, executor.ErrHeld
 			}

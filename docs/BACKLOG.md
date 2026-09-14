@@ -841,37 +841,28 @@ without pushes, when the target checkout is safe; preserve other developers' wor
     row (harvest/hunt rows still carry neither, unchanged). Verified with a
     native `dotnet build` and `go build/vet/test ./...`.
 
-    Still open: actually dispatching `AcquireResource` against a selected
-    mine source from Go. Re-investigation this round settled the dispatch
-    shape question the prior round left open: `buildingruntime/acquisition`'s
-    existing generic vertical (`domain.Acquisition`/`bridge.ReadAcquisition`/
-    `AcquisitionBoundary`/executor dispatch) is registered exactly once per
-    session, globally keyed by `domain.AcquisitionAction`
-    (`buildingruntime/session.go`'s `worker.EnableAcquisition`), and its
-    `AcquisitionBoundary.InspectAcquisition` step re-validates freshness by
-    re-reading the `AcquisitionFacts` census (via `AcquisitionNative.
-    ReadAcquisition`) and matching the target row by cell — a mined resource
-    can never appear there regardless of how it was constructed, so simply
-    building a `domain.Acquisition` for a mine source and committing it as a
-    plan would stall forever at `Inspect` (`ErrHeld`, no matching row).
-    Making mining dispatch actually run therefore needs either (a)
-    extending `AcquisitionFacts`/`policy.SelectAcquisition`'s census-shape
-    hardcoding as previously scoped, or (b) a second `AcquisitionNative`
-    implementation whose `ReadAcquisition` is backed by
-    `bridge.ReadResourceSources` instead of the census, registered as an
-    independent, separately-keyed vertical (new `ActionKind`, store rows,
-    executor branch, buildingruntime wiring) alongside the existing one
-    rather than sharing its single global registration — matching Python's
-    own `resource_method`, which reads `home/resource_sources` and dispatches
-    the identical `home/acquire_resource` operation food/wood use, but
-    requires its own dispatch plumbing on the Go side since the existing
-    generic vertical cannot be parameterized per-goal. Neither is landed yet;
-    `policy.SelectResourceSources` still has no caller beyond
-    `RoutineResourcePlanner.sourcesForDeficit`'s observability-only read.
-    `ListResourceSources` was also exactly the native read surface 05.4's
-    extraction-development work was flagged as possibly also needing —
-    confirmed this round via a fresh fetch that 05.4's current entry still
-    shows no sign of having touched it.
+    Mining dispatch is now closed: `AcquireResource` actually runs against a
+    selected mine source from Go. Since the existing generic
+    `buildingruntime/acquisition` vertical is registered once per session and
+    its `InspectAcquisition` re-validates freshness against the
+    `AcquisitionFacts` census (which structurally excludes mined resources),
+    this landed as a second, independently-registered vertical rather than
+    an extension of the first: a new `domain.MineAcquisitionAction` (own
+    admission table, executor journal, and `buildingruntime/mineacquisition`
+    boundary package), reusing the existing wire-dispatch bridge calls
+    (`PreviewAcquisition`/`Acquire`/`ObserveAcquisition`/
+    `ValidateAcquisitionEffect`) as-is since they were already generic over
+    `AcquisitionTarget`/`AcquisitionAttempt` rather than gated by
+    `ActionKind`. `RoutineResourcePlanner` now dispatches against it directly:
+    when `policy.SelectResourceMethod`'s bench/recipe path cannot fund the
+    deficit and `policy.SelectResourceSources` already found a mine source,
+    the planner commits a `MineAcquisitionAction` plan for it instead of only
+    surfacing the selection for observability. `ListResourceSources` was also
+    exactly the native read surface 05.4's extraction-development work was
+    flagged as possibly also needing — confirmed this round via a fresh
+    fetch that 05.4's current entry still shows no sign of having touched it.
+    Still open: material-storage zoning and the native `SetProductionPolicy`
+    push, both described below.
 
     Material-storage zoning (reusing `domain.ZoneCreateAction`/
     `NewAllowListStockpileZone`, exactly like 05.4's `SecureSupplies`
