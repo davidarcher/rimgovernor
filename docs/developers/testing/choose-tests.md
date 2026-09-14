@@ -26,6 +26,8 @@ put unrelated discoveries in the backlog.
 
 ## Available checks
 
+Native inputs on this host: [shared Windows/Linux store and worktree commands](local-acceptance-inputs.md).
+
 | What changed / what you need to establish | Available support | Requirements and limits |
 | --- | --- | --- |
 | Gated Go module/replay tools | From `go/`: `go test ./...`, `go vet ./...`, `go mod verify`, `go mod tidy -diff`; Go CI also checks formatting and Windows/Linux builds. | Pin Go via `go/.go-version`; Linux race tests need CGO/GCC. Native control and fresh Go-session recovery have separate behavioral checks. See [Go checks](../../../go/README.md). |

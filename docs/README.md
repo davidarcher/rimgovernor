@@ -16,6 +16,7 @@ its contracts and run the relevant checks.
 
 - [Architecture](developers/architecture/overview.md) and [source map](developers/source-map.md)
 - [Development workflow](developers/development-process.md)
+- [Local Windows and Linux acceptance inputs](developers/testing/local-acceptance-inputs.md)
 - [Testing](developers/testing/README.md) and [subsystem contracts](developers/contracts/README.md)
 - [Generated wire contracts](../contracts/schema-generation.md)
 - [Backlog](BACKLOG.md): unfinished features, migrations and acceptance

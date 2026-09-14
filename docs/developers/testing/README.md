@@ -8,6 +8,8 @@ For a first run without game files, use [First Docker check](first-check.md).
 
 ## Native test prerequisites
 
+Use the [repo-local Windows/Linux input store](local-acceptance-inputs.md) before reporting a missing sandbox.
+
 Run commands from the repository root. Use a disposable prepared profile, the
 selected scenario's fixtures and matching native DLLs. Read the script's `--help`.
 Use fresh `.rimgovernor/` output directories and task-specific image tags; retain

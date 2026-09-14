@@ -2,6 +2,8 @@
 
 [Documentation](../../README.md)
 
+On the development host, first use the [existing repo-local inputs](local-acceptance-inputs.md).
+
 Stage licensed Linux inputs before starting a native worker. Keep them stable throughout
 staging.
 

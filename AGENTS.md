@@ -72,6 +72,11 @@
 
 ## Validation
 
+- Before reporting missing native test inputs, read [local acceptance inputs](docs/developers/testing/local-acceptance-inputs.md).
+  The shared Windows/Linux store is `.rimgovernor/acceptance-inputs` under the
+  primary RimGovernor checkout; resolve it through Git common-dir from worktrees.
+  Copy private run inputs and build task DLLs there.
+
 - Follow the testing pyramid: many fast unit tests, fewer integration tests and
   a small set of targeted game acceptance scenarios. Keep the edit/test loop fast.
   Use fixtures, replay and contract tests for most migration parity; parameterize
