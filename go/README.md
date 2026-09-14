@@ -111,8 +111,9 @@ confirm the packaging path is wired correctly, not that a colony runs.
   evidence coverage), population policy, expedition policy, per-pawn
   population decision, per-resource production policy
   (`modify_resource_policy`/`set_resource_reserve`), maintained goal
-  activation/cancellation (`create_goal`/`cancel_goal`) and room shells
-  (`build_room`) proposals, but
+  activation/cancellation (`create_goal`/`cancel_goal`), room shells
+  (`build_room`) and construction cancellation (`cancel_construction`)
+  proposals, but
   is not yet wired into the Go binary's serve loop) — G01.08.
   `set_population_policy` is the first interpreted command that is colony
   configuration rather than a plan of native actions: it issues no native
@@ -270,17 +271,54 @@ confirm the packaging path is wired correctly, not that a colony runs.
   `store.LookupBuildRoomIntent` resolves a world-scoped `intent_id` back to its
   committed plan and placements, the Go stand-in for Python's
   `plan.control['player_intents']` mapping.
-  **Deferred, deliberately, and dependent on this landing first:**
-  `CancelConstruction`, `RelocateConstruction` and `AdoptRoom`. The first two
-  are not independent slices — Python's
-  `construction_cancellation.capture_targets` refuses any step whose
-  `source != 'PLAYER'`, so until a player-sourced construction exists there is
-  literally nothing for them to cancel or relocate. `BuildRoom` is that
-  construction, and the intent lookup above is the hook they resolve through.
-  `AdoptRoom` (selecting an existing native room rather than building one) is
-  independent of that hook but shares the `RoomBounds`/entrance vocabulary
-  introduced here. `PlaceBuildings`, Python's raw-placement-list sibling, is not
-  in this issue's tracked backlog and is not built here.
+  `cancel_construction` withdraws one such construction and is the first player
+  command that is *un*-construction-shaped. Unlike `build_room` it does add new
+  native plumbing, because nothing in Go had ever issued the
+  `operations.proto` `CancelConstruction` operation (as with `EditZone`, the
+  proto existed with zero Go callers; unlike `CreateZone`/`BuildRoom`, which
+  reused placement plumbing): `domain.ConstructionCancel` and a new
+  `ConstructionCancelAction`, `bridge/construction_cancel.go`,
+  `store/constructioncancel` with its typed admission, and
+  `executor/construction_cancel.go`. The problem it solves is that a pending
+  construction order has **no stable native identity** — a blueprint's thing ID
+  changes when it becomes a frame and vanishes when it is built, and
+  `ProgressView.Construction` is only populated for *completed* buildings — so
+  the action carries the placement's stable `(defName, cell, stuff)` triple and
+  the executor resolves it to a live thing ID plus CAS token at inspection, via
+  `home/list_buildings` over a 1×1 region filtered to `blueprint`/`frame`.
+  That is Python's `construction_cancellation.capture_targets` query, ambiguity
+  refusal included. Cancellation covers the **whole named intent**, matching
+  Python's one-`intent_id`-per-call semantics (there is no per-placement
+  granularity on either side); `store.LookupBuildRoomIntent` above is the hook,
+  and per placement the store decides what is still cancellable: never
+  dispatched or refused means nothing was placed, completed/cancelled/
+  unsuccessful is preserved untouched, and a dispatch whose receipt is missing
+  or unknown refuses the whole request ("uncertain receipt; reconcile it before
+  cancellation"). If *every* placement has already resolved that is a success,
+  not an error: the submission commits with `observedAbsent` true and no plan
+  at all, Python's `'observed_absent': True` result. That outcome is why this
+  family keeps its own `cancel_construction_submissions` table with nullable
+  `plan_id`/`action_id` rather than the shared `submissions` header, which
+  requires exactly one committed action per request. The executor mirrors
+  `zone_edit.go`'s two-phase shape (inspect twice, typed-prepare, dispatch,
+  verify the order is absent or `CONSTRUCTION_STAGE_CANCELLED`) with one extra
+  terminating branch: a target already gone at inspection cancels the action
+  outright instead of dispatching against a stale identity, so a replacement
+  placed since is never destroyed. In the interpreter the intent is bounded
+  against `Snapshot.ObservedConstructionIntents` exactly as `cancel_goal` bounds
+  its goal; Python's `validate_player_authorization`/`requests_relocation`
+  chat-message scanning is deliberately **not** ported, being specific to that
+  conversational flow —
+  `POST /api/cancel-constructions/plans` and
+  `GET /api/cancel-constructions/submission?requestId=`.
+  **Deferred, deliberately:** `RelocateConstruction` and `AdoptRoom`.
+  Relocation now has its prerequisite (this cancellation) but still needs a
+  replacement-placement validation layer — it is a cancel *and* a re-place, and
+  the re-place half must be admitted like any other placement. `AdoptRoom`
+  (selecting an existing native room rather than building one) is unrelated to
+  either hook but shares the `RoomBounds`/entrance vocabulary introduced here.
+  `PlaceBuildings`, Python's raw-placement-list sibling, is not in this issue's
+  tracked backlog and is not built here.
 - Media/camera/portrait/video/recording and trusted save/load — G01.09.
 - World progression remaining scope: closed, except the documented
   `SetTradeLines`/`AcceptTrade`/`EndTrade` acceptance-harness gap below —

@@ -39,6 +39,12 @@ func insertAction(ctx context.Context, tx *sql.Tx, plan domain.PlanID, ordinal i
 			return encodeErr
 		}
 		_, err = tx.ExecContext(ctx, "INSERT INTO actions(id,plan_id,ordinal,kind,zone_edit_payload) VALUES(?,?,?,'zone_edit',?)", a.ID(), plan, ordinal, data)
+	} else if c, ok := a.ConstructionCancel(); ok {
+		data, encodeErr := json.Marshal(constructionCancelPayloadOf(c))
+		if encodeErr != nil {
+			return encodeErr
+		}
+		_, err = tx.ExecContext(ctx, "INSERT INTO actions(id,plan_id,ordinal,kind,construction_cancel_payload) VALUES(?,?,?,'construction_cancel',?)", a.ID(), plan, ordinal, data)
 	} else if b, ok := a.Building(); ok {
 		_, err = tx.ExecContext(ctx, "INSERT INTO actions(id,plan_id,ordinal,kind,definition,x,z,rotation,stuff) VALUES(?,?,?,'building',?,?,?,?,?)", a.ID(), plan, ordinal, b.Definition(), b.Cell().X, b.Cell().Z, b.Rotation(), b.Stuff())
 	} else if d, ok := a.OwnedDraft(); ok {
@@ -173,8 +179,8 @@ func scanAction(rows *sql.Rows) (domain.Action, int, error) {
 	var ordinal int
 	var def, rotation, stuff, pawn, target, draftAction sql.NullString
 	var x, z sql.NullInt64
-	var work, zone, zoneEdit, bill, caravan, settlementGiftBlob, questFulfillBlob, wallRemoval, productionPolicyBlob, buildingTemperatureBlob, travelCaravanBlob, tradeBlob, moodReliefBlob []byte
-	if err := rows.Scan(&id, &kind, &def, &x, &z, &rotation, &stuff, &pawn, &target, &draftAction, &work, &zone, &zoneEdit, &bill, &caravan, &settlementGiftBlob, &questFulfillBlob, &wallRemoval, &productionPolicyBlob, &buildingTemperatureBlob, &travelCaravanBlob, &tradeBlob, &moodReliefBlob, &ordinal); err != nil {
+	var work, zone, zoneEdit, constructionCancel, bill, caravan, settlementGiftBlob, questFulfillBlob, wallRemoval, productionPolicyBlob, buildingTemperatureBlob, travelCaravanBlob, tradeBlob, moodReliefBlob []byte
+	if err := rows.Scan(&id, &kind, &def, &x, &z, &rotation, &stuff, &pawn, &target, &draftAction, &work, &zone, &zoneEdit, &bill, &caravan, &settlementGiftBlob, &questFulfillBlob, &wallRemoval, &productionPolicyBlob, &buildingTemperatureBlob, &travelCaravanBlob, &tradeBlob, &moodReliefBlob, &constructionCancel, &ordinal); err != nil {
 		return domain.Action{}, 0, err
 	}
 	if kind == "production_bill" && !pawn.Valid && !target.Valid && !draftAction.Valid && !def.Valid && !x.Valid && !z.Valid && !rotation.Valid && !stuff.Valid && work == nil && zone == nil {
@@ -247,6 +253,25 @@ func scanAction(rows *sql.Rows) (domain.Action, int, error) {
 	}
 	if zoneEdit != nil {
 		return domain.Action{}, 0, errors.New("mixed zone edit payload")
+	}
+	if kind == "construction_cancel" && !pawn.Valid && !target.Valid && !draftAction.Valid && !def.Valid && !x.Valid && !z.Valid && !rotation.Valid && !stuff.Valid && work == nil {
+		var payload constructionCancelPayload
+		if len(constructionCancel) > 32768 || json.Unmarshal(constructionCancel, &payload) != nil {
+			return domain.Action{}, 0, errors.New("invalid construction cancel payload")
+		}
+		canonical, _ := json.Marshal(payload)
+		if !bytes.Equal(canonical, constructionCancel) {
+			return domain.Action{}, 0, errors.New("noncanonical construction cancel payload")
+		}
+		value, valueErr := reconstructConstructionCancelPayload(payload)
+		if valueErr != nil {
+			return domain.Action{}, 0, valueErr
+		}
+		action, err := domain.NewConstructionCancelAction(id, value)
+		return action, ordinal, err
+	}
+	if constructionCancel != nil {
+		return domain.Action{}, 0, errors.New("mixed construction cancel payload")
 	}
 	if kind == "work_assignment" && pawn.Valid && target.Valid && !draftAction.Valid && !def.Valid && !x.Valid && !z.Valid && !rotation.Valid && !stuff.Valid {
 		var payload workPayload

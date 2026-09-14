@@ -218,16 +218,7 @@ func (s *Store) LookupBuildRoomIntent(ctx context.Context, world World, intentID
 		return BuildRoomSubmission{}, err
 	}
 	defer tx.Rollback()
-	var requestID string
-	err = tx.QueryRowContext(ctx, "SELECT request_id FROM build_room_submissions WHERE colony=? AND load_token=? AND map_id=? AND intent_id=?",
-		world.Colony, world.Load, world.Map, intentID).Scan(&requestID)
-	if errors.Is(err, sql.ErrNoRows) {
-		return BuildRoomSubmission{}, ErrNotFound
-	}
-	if err != nil {
-		return BuildRoomSubmission{}, err
-	}
-	result, err := lookupBuildRoomSubmission(ctx, tx, requestID)
+	result, err := lookupBuildRoomIntent(ctx, tx, world, intentID)
 	if err != nil {
 		return BuildRoomSubmission{}, err
 	}
@@ -235,6 +226,28 @@ func (s *Store) LookupBuildRoomIntent(ctx context.Context, world World, intentID
 		return BuildRoomSubmission{}, err
 	}
 	return result, nil
+}
+
+// lookupBuildRoomIntent is the in-transaction half of LookupBuildRoomIntent, so
+// a follow-up command such as cancel_construction can resolve the intent and
+// read the plan it names in the same atomic view.
+func lookupBuildRoomIntent(ctx context.Context, tx *sql.Tx, world World, intentID string) (BuildRoomSubmission, error) {
+	if err := world.Validate(); err != nil {
+		return BuildRoomSubmission{}, err
+	}
+	if err := domain.ValidateRoomIntent(intentID); err != nil {
+		return BuildRoomSubmission{}, err
+	}
+	var requestID string
+	err := tx.QueryRowContext(ctx, "SELECT request_id FROM build_room_submissions WHERE colony=? AND load_token=? AND map_id=? AND intent_id=?",
+		world.Colony, world.Load, world.Map, intentID).Scan(&requestID)
+	if errors.Is(err, sql.ErrNoRows) {
+		return BuildRoomSubmission{}, ErrNotFound
+	}
+	if err != nil {
+		return BuildRoomSubmission{}, err
+	}
+	return lookupBuildRoomSubmission(ctx, tx, requestID)
 }
 
 func lookupBuildRoomSubmission(ctx context.Context, tx *sql.Tx, id string) (BuildRoomSubmission, error) {

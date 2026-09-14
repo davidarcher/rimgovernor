@@ -237,8 +237,10 @@ func decode(text string, limit int) (modelCommand, error) {
 		return decodeGoalCommand(fields, "cancel_goal")
 	case "build_room":
 		return decodeBuildRoom(fields)
+	case "cancel_construction":
+		return decodeCancelConstruction(fields)
 	default:
-		return modelCommand{}, fail(UnsupportedCommand, "only building, research, tend, rescue, draft, caravan, husbandry, recover, bed_assign, move_pawn, set_building_temperature, request_surgery, hold_caravan, route_caravan, accept_quest, fulfill_quest, gift_settlement, create_zone, edit_zone, build_room, set_population_policy, set_expedition_policy, set_population_decision, modify_resource_policy, set_resource_reserve, create_goal and cancel_goal proposals are supported")
+		return modelCommand{}, fail(UnsupportedCommand, "only building, research, tend, rescue, draft, caravan, husbandry, recover, bed_assign, move_pawn, set_building_temperature, request_surgery, hold_caravan, route_caravan, accept_quest, fulfill_quest, gift_settlement, create_zone, edit_zone, build_room, cancel_construction, set_population_policy, set_expedition_policy, set_population_decision, modify_resource_policy, set_resource_reserve, create_goal and cancel_goal proposals are supported")
 	}
 }
 
@@ -617,6 +619,26 @@ func decodeBuildRoom(fields map[string]json.RawMessage) (modelCommand, error) {
 		return modelCommand{}, fail(InvalidCommand, "invalid room field")
 	}
 	return modelCommand{Command: "build_room", IntentID: &intent, Room: &room}, nil
+}
+
+// decodeCancelConstruction names one build_room intent and nothing else. There
+// is deliberately no per-placement selector: the intent is the unit a player
+// asked for and the unit Python's CancelConstruction withdraws, and letting a
+// model name individual cells would invite it to cancel a cell it merely
+// guessed at. Whether each placement is still pending is decided later against
+// journalled progress, never here.
+func decodeCancelConstruction(fields map[string]json.RawMessage) (modelCommand, error) {
+	if len(fields) != 2 || fields["intentId"] == nil {
+		return modelCommand{}, fail(InvalidCommand, "unexpected command fields")
+	}
+	var intent string
+	if err := json.Unmarshal(fields["intentId"], &intent); err != nil {
+		return modelCommand{}, fail(InvalidCommand, "invalid intentId field")
+	}
+	if err := domain.ValidateRoomIntent(intent); err != nil {
+		return modelCommand{}, &Failure{InvalidCommand, err}
+	}
+	return modelCommand{Command: "cancel_construction", IntentID: &intent}, nil
 }
 
 // optionalCommandField turns a decoded partial-request pointer into the
