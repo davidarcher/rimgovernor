@@ -2,6 +2,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Reflection;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
@@ -9,6 +10,7 @@ using Google.Protobuf;
 using RimBridgeServer.Sdk;
 using RimWorld;
 using Verse;
+using Verse.AI;
 using Common = RimGovernor.Protocol.Common;
 using Obs = RimGovernor.Protocol.Observations;
 
@@ -21,18 +23,18 @@ namespace HomeBridge.BridgeTools
     // Designated/MiningBlocker) so both the old and new surfaces agree on what
     // counts as a reachable, safe source, but reports only the bounded typed
     // ResourceSource rows the new ResourceSourcesSnapshot contract wants.
-    // Deliberately narrower than the legacy read for this first typed slice:
-    // no storage capacity or extraction-development detail (both left unset,
-    // an explicit Unsupported failure when development is requested), and no
-    // per-source CAS snapshot token yet (EntityRef.Snapshot stays unset) since
-    // nothing dispatches AcquireResource against a mined source yet -- see
-    // docs/BACKLOG.md 05.5.
+    // Storage capacity is now populated (Storage below), porting
+    // ResourceAcquisitionTools.Storage's exact hauler/capacity/candidate scan
+    // so both surfaces agree on material-storage adequacy too -- see
+    // docs/BACKLOG.md 05.5. Deliberately narrower than the legacy read in one
+    // remaining respect: extraction-development detail stays unset (an
+    // explicit Unsupported failure when development is requested).
     public sealed class NativeResourceSourcesTool
     {
         private const string ToolName = "rimgovernor/observations_list_resource_sources";
         private const int SourceLimit = 64;
 
-        [Tool(ToolName, Title = "Read reachable native resource sources", Description = "Up to 64 visible, safely reachable native mining or mature wild-plant sources for one exact output resource definition. Yields are estimates; only ordinary pawn labor produces actual stock. Storage capacity and extraction-development detail are not yet implemented by this adapter.")]
+        [Tool(ToolName, Title = "Read reachable native resource sources", Description = "Up to 64 visible, safely reachable native mining or mature wild-plant sources for one exact output resource definition. Yields are estimates; only ordinary pawn labor produces actual stock. Extraction-development detail is not yet implemented by this adapter.")]
         [ToolResponse("payload", "string", "Official ProtoJSON ResourceSourcesReply.", Always = true)]
         public async Task<object> ListResourceSources(IRimBridgeContext ctx, CancellationToken cancellationToken,
             [ToolParameter(Description = "Official ProtoJSON ResourceSourcesRequest string in raw transport value.")] object? request = null)
@@ -54,6 +56,7 @@ namespace HomeBridge.BridgeTools
                     var ordered = eligible.OrderByDescending(ResourceAcquisitionTools.Designated).ThenBy(Distance).ThenBy(t => t.thingIDNumber).ToList();
                     Require(ordered.Count <= SourceLimit, "Reachable resource source collection exceeds the read bound; narrow the query.");
                     var snapshot = new Obs.ResourceSourcesSnapshot { Context = context, Resource = parsed.Resource,
+                        Storage = Storage(map, definition),
                         Completeness = new Obs.Completeness { Page = new Common.PageInfo { Complete = true },
                             Matched = (ulong)ordered.Count, Returned = (ulong)ordered.Count, Filtered = (ulong)(deposits.Count - eligible.Count) } };
                     foreach (var thing in ordered) snapshot.Sources.Add(Project(thing, map, Distance(thing), context));
@@ -80,6 +83,43 @@ namespace HomeBridge.BridgeTools
                 return false;
             }
             return true;
+        }
+
+        // Ports ResourceAcquisitionTools.Storage's exact hauler/capacity/
+        // candidate-cell scan (the legacy "home/resource_sources" storage
+        // payload production_policy.py's resource_method keys its storage
+        // branch off) into the typed StorageCapacity message: haulers,
+        // capacity, stored, stack_limit and candidates match that method
+        // field-for-field so both surfaces agree on material-storage
+        // adequacy. Unlike the legacy untyped reply, deep-drill portion
+        // sizing and the hauling WorkType are not carried -- nothing on the
+        // Go side reads either yet (see docs/BACKLOG.md 05.5).
+        private static Obs.StorageCapacity Storage(Map map, ThingDef def)
+        {
+            var haulers = map.mapPawns.FreeColonistsSpawned.Where(p => !p.Downed && !p.Drafted && !p.InMentalState
+                && !p.WorkTypeIsDisabled(WorkTypeDefOf.Hauling)).ToList();
+            bool Accessible(IntVec3 c) => !c.Fogged(map) && c.Standable(map) && haulers.Any(p => !c.IsForbidden(p)
+                && p.CanReach(c, PathEndMode.OnCell, Danger.None));
+            bool Protected(IntVec3 c) => def.GetStatValueAbstract(StatDefOf.DeteriorationRate) <= 0 || c.Roofed(map);
+            // Count only empty floor slots, conservatively excluding shelves and partial stacks.
+            var capacity = map.haulDestinationManager.AllGroups.Where(g => g.Settings.filter.Allows(def))
+                .SelectMany(g => g.CellsList).Distinct().Count(c => Accessible(c) && Protected(c)
+                    && c.GetEdifice(map) == null && !c.GetThingList(map).Any(t => t.def.category == ThingCategory.Item)) * def.stackLimit;
+            var stored = map.haulDestinationManager.AllGroups.SelectMany(g => g.HeldThings
+                .Where(t => t.def == def && g.Settings.AllowedToAccept(t))).Distinct().Sum(t => t.stackCount);
+            var border = typeof(AutoHomeAreaMaker).GetField("BorderWidth", BindingFlags.Static | BindingFlags.NonPublic)?.GetRawConstantValue();
+            var knownBorder = border is int width && width >= 0 && width <= 32;
+            var margin = knownBorder ? (int)(border ?? 0) + 1 : 0;
+            var candidates = haulers.Count == 0 || !knownBorder ? new List<IntVec3>() : GenRadial.RadialCellsAround(haulers[0].Position, 20, true)
+                .Where(c => c.InBounds(map) && Accessible(c) && Protected(c) && map.zoneManager.ZoneAt(c) == null
+                    && !CellRect.CenteredOn(c, margin).Any(q => q.InBounds(map) && q.GetEdifice(map) is Mineable)
+                    && !c.GetThingList(map).Any(t => t is Building || t is Blueprint || t is Frame || t.def.category == ThingCategory.Item))
+                .Take(8).ToList();
+            var result = new Obs.StorageCapacity { Resource = def.defName, Capacity = capacity, Stored = stored, StackLimit = def.stackLimit };
+            result.Haulers.AddRange(haulers.Select(p => new Obs.EntityRef { Id = p.GetUniqueLoadID(), DefName = p.def.defName,
+                MapId = map.uniqueID, Position = new Common.Cell { X = p.Position.x, Z = p.Position.z } }));
+            result.Candidates.AddRange(candidates.Select(c => new Common.Cell { X = c.x, Z = c.z }));
+            return result;
         }
 
         private static Obs.ResourceSource Project(Thing thing, Map map, double distance, Common.ObservationContext context)

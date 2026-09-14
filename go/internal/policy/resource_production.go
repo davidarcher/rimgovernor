@@ -224,6 +224,91 @@ func SelectResourceSources(sources []ResourceSource, target, stock, pending int6
 	return selected
 }
 
+// ResourceStorage mirrors one native home/resource_sources "storage" payload
+// (NativeResourceSourcesTool.Storage, porting ResourceAcquisitionTools.Storage
+// exactly): production_policy.py's resource_method storage branch keys off
+// exactly these fields (haulers/capacity/stackLimit/candidates) to decide
+// whether hauling a selected mine source's yield needs a new covered
+// stockpile zone. Candidates are native's own hauler-reachable, roofed,
+// unreserved cell scan near an existing hauler -- not recomputed by
+// policy.CoveredStorageSites, the generic site-search this narrower,
+// deposit-adjacent placement does not need.
+type ResourceStorage struct {
+	Resource   Resource
+	Capacity   int64
+	Stored     int64
+	StackLimit int64
+	// Haulers is the count of eligible haulers native found (matching
+	// Python's `not storage.get('haulers')` emptiness check); the haulers'
+	// own identities are not threaded further since nothing here dispatches
+	// hauling jobs directly.
+	Haulers    int64
+	Candidates []domain.Cell
+}
+
+// ResourceStorageZone is the exact new allow-listed stockpile zone the
+// material-storage fallback should build, mirroring production_policy.py's
+// resource_method storage branch's create_zone operation.
+type ResourceStorageZone struct {
+	Cells []domain.Cell
+}
+
+// SelectResourceStorageZone decides whether hauling a selection of resource
+// sources (from SelectResourceSources) needs a new covered stockpile zone,
+// mirroring production_policy.py's resource_method exactly: the check only
+// ever applies when at least one selected source is a "mine" source (an
+// ordinary harvest/hunt yield needs no dedicated storage zone the way
+// Python's own branch guard requires). blocked is true when there is no
+// route to funding storage at all this tick (no eligible hauler, or no free
+// candidate cell covers the shortfall) -- mirroring Python's SkillBlocked, a
+// caller should treat this as a hard stop rather than silently proceeding as
+// if storage were adequate. needed is true only when blocked is false and a
+// new zone must be built; existing capacity already covering the deficit (or
+// no mine source selected at all) reports needed=false, blocked=false so the
+// caller's ordinary fallback speaks instead.
+func SelectResourceStorageZone(selected []ResourceSource, pending int64, storage ResourceStorage) (zone ResourceStorageZone, needed, blocked bool, err error) {
+	if len(selected) > 8 {
+		return ResourceStorageZone{}, false, false, errors.New("resource selection exceeds bound")
+	}
+	if pending < 0 || storage.Capacity < 0 || storage.Stored < 0 || storage.StackLimit < 0 || storage.Haulers < 0 {
+		return ResourceStorageZone{}, false, false, errors.New("invalid resource storage observation")
+	}
+	if len(storage.Candidates) > 4096 {
+		return ResourceStorageZone{}, false, false, errors.New("resource storage candidate collection exceeds bound")
+	}
+	hasMine := false
+	var yield int64
+	for _, s := range selected {
+		if s.Method == ResourceSourceMine {
+			hasMine = true
+		}
+		yield += s.Yield
+	}
+	if !hasMine {
+		return ResourceStorageZone{}, false, false, nil
+	}
+	if storage.Haulers == 0 {
+		return ResourceStorageZone{}, false, true, nil
+	}
+	capacityNeeded := yield + pending
+	if storage.Capacity >= capacityNeeded {
+		return ResourceStorageZone{}, false, false, nil
+	}
+	if storage.StackLimit == 0 {
+		return ResourceStorageZone{}, false, true, nil
+	}
+	shortfall := capacityNeeded - storage.Capacity
+	cellsNeeded := (shortfall + storage.StackLimit - 1) / storage.StackLimit
+	if cellsNeeded > int64(len(storage.Candidates)) {
+		cellsNeeded = int64(len(storage.Candidates))
+	}
+	if cellsNeeded <= 0 {
+		return ResourceStorageZone{}, false, true, nil
+	}
+	cells := append([]domain.Cell(nil), storage.Candidates[:cellsNeeded]...)
+	return ResourceStorageZone{Cells: cells}, true, false, nil
+}
+
 // SelectResourceTarget performs MaintainResource's dynamic-target selection:
 // given every operator-configured resource target (RoutinePolicy's future
 // ResourceTargets, one native stock floor per definition) and a fresh native

@@ -3,6 +3,7 @@ package buildingruntime
 import (
 	"context"
 	"crypto/sha256"
+	"errors"
 	"fmt"
 	"sort"
 	"time"
@@ -10,6 +11,7 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/bridge"
 	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/boundary"
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
+	"github.com/davidarcher/RimGovernor/go/internal/observation"
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
 	"github.com/davidarcher/RimGovernor/go/internal/store"
 	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
@@ -29,20 +31,27 @@ import (
 // This planner covers production_policy.py's resource_method bench/recipe
 // fallback branch (policy.SelectResourceMethod), the same bench-production
 // path GearProduce/MaintainMedicalReserves dispatch through, plus its native
-// mine-source acquisition branch (policy.SelectResourceSources): whenever the
-// bench/recipe path cannot fund the deficit and a selected source is a mine
-// (the only method SelectResourceSources populates Cell/Token for), this
-// planner dispatches a domain.MineAcquisitionAction against it through the
-// second, independently-registered mine-acquisition vertical (see
-// docs/BACKLOG.md 05.5). Extraction development and material-storage zoning
-// are still not dispatched here.
+// mine-source acquisition branch (policy.SelectResourceSources) and its
+// material-storage zoning branch (policy.SelectResourceStorageZone). Whenever
+// the bench/recipe path cannot fund the deficit and a fresh source selection
+// includes a "mine" source, that source's covered storage is checked first
+// (materialStorageZoneFallback): if a new stockpile zone is needed, it is
+// admitted and mine acquisition is deferred to a later tick (mirroring
+// production_policy.py's resource_method, which returns its storage
+// zone-build action instead of an acquisition action whenever storage is
+// inadequate). Only once storage already covers the deficit (or no mine
+// source was selected) does this planner dispatch a
+// domain.MineAcquisitionAction against the mine source through the second,
+// independently-registered mine-acquisition vertical (see docs/BACKLOG.md
+// 05.5). Extraction development is still not dispatched here.
 type RoutineResourceSource interface {
-	ReadColonyFacts(context.Context, *c.Identity, bool, []string) (*o.ColonyFactsReply, bridge.Result, error)
+	observation.ColonySource
 	ReadGearBenches(context.Context, *c.Identity) ([]bridge.GearBenchRead, bridge.Result, error)
 	ReadSupplyStock(context.Context, *c.Identity, []string) ([]policy.Stock, bridge.Result, error)
 	PreviewBill(context.Context, *c.Identity, domain.ProductionBill) (*op.PreviewReply, bridge.Result, error)
-	ReadResourceSources(context.Context, *c.Identity, string) ([]bridge.ResourceSourceRow, bridge.Result, error)
+	ReadResourceSources(context.Context, *c.Identity, string) ([]bridge.ResourceSourceRow, policy.ResourceStorage, bridge.Result, error)
 	PreviewAcquisition(context.Context, *c.Identity, bridge.AcquisitionTarget) (*op.PreviewReply, bridge.Result, error)
+	PreviewZone(context.Context, *c.Identity, bridge.ZoneTarget) (*op.PreviewReply, bridge.Result, error)
 }
 type RoutineResourcePlanner struct {
 	reviewer *RoutineReviewer
@@ -56,13 +65,19 @@ type RoutineResourceResult struct {
 	// resource and a fresh native ListResourceSources/ReadResourceSources
 	// read plus policy.SelectResourceSources found undesignated mine/harvest
 	// sources that could cover the outstanding deficit. When the selection
-	// includes a mine source (the only method carrying a Cell/Token), it is
-	// actually dispatched -- see Reason/Plan -- against the second,
-	// independently-registered mine-acquisition vertical; any other selected
-	// method is still surfaced here for observability only, since only mine
-	// sources carry the CAS evidence this vertical's AcquireResource dispatch
-	// needs. A native read failure here is swallowed rather than propagated,
-	// since the bench/recipe outcome above already stands on its own.
+	// includes a "mine" source (the only method carrying a Cell/Token), this
+	// same read's StorageCapacity payload is checked first
+	// (materialStorageZoneFallback): if hauling that source's yield needs a
+	// new covered stockpile zone, that zone is admitted (Reason/Plan set
+	// exactly like the bench/recipe path) and the mine source itself is not
+	// yet dispatched. Once storage already covers the deficit, the mine
+	// source is actually dispatched (dispatchMineSource) -- see Reason/Plan
+	// -- against the second, independently-registered mine-acquisition
+	// vertical; any other selected method is still surfaced here for
+	// observability only, since only mine sources carry the CAS evidence
+	// this vertical's AcquireResource dispatch needs. A native read failure
+	// here is swallowed rather than propagated, since the bench/recipe
+	// outcome above already stands on its own.
 	Sources []policy.ResourceSource
 }
 
@@ -211,16 +226,27 @@ func (r *RoutineResourcePlanner) step(call, epoch context.Context) (RoutineResou
 		return RoutineResourceResult{}, err
 	}
 	if choice.Kind != policy.ResourceMethodProduce {
-		sources := r.sourcesForDeficit(call, identity, resource, target, stock)
-		result, dispatched, err := r.dispatchMineSource(call, epoch, state, goal, resource, sources, started)
+		selected, sourceStorage, ok := r.sourcesForDeficit(call, identity, resource, target, stock)
+		if !ok {
+			return RoutineResourceResult{Reason: BuildingMethodUsed}, nil
+		}
+		zoneResult, handled, err := r.materialStorageZoneFallback(call, epoch, state, goal, review.Tick, resource, selected, sourceStorage, started)
+		if err != nil {
+			return RoutineResourceResult{}, err
+		}
+		if handled {
+			zoneResult.Sources = selected
+			return zoneResult, nil
+		}
+		result, dispatched, err := r.dispatchMineSource(call, epoch, state, goal, resource, selected, started)
 		if err != nil {
 			return RoutineResourceResult{}, err
 		}
 		if dispatched {
-			result.Sources = sources
+			result.Sources = selected
 			return result, nil
 		}
-		return RoutineResourceResult{Reason: BuildingMethodUsed, Sources: sources}, nil
+		return RoutineResourceResult{Reason: BuildingMethodUsed, Sources: selected}, nil
 	}
 	token, ok := tokens[choice.Bench]
 	if !ok {
@@ -269,18 +295,20 @@ func (r *RoutineResourcePlanner) step(call, epoch context.Context) (RoutineResou
 }
 
 // sourcesForDeficit reads the resource's fresh native mine/harvest sources
-// and applies policy.SelectResourceSources against the outstanding deficit,
-// mirroring the first half of production_policy.py's resource_method (its
-// bill-listing fallback, which SelectResourceMethod above already covers, is
-// only reached once this source loop finds nothing to select). A native read
-// failure here is deliberately swallowed rather than surfaced, preserving
-// the bench/recipe outcome the caller already computed -- dispatchMineSource
-// below is what actually acts on the result.
-
-func (r *RoutineResourcePlanner) sourcesForDeficit(ctx context.Context, identity *c.Identity, resource policy.Resource, target int64, stock domain.Fact[[]policy.Amount]) []policy.ResourceSource {
+// (and its always-populated StorageCapacity payload) and applies
+// policy.SelectResourceSources against the outstanding deficit, mirroring
+// the first half of production_policy.py's resource_method (its bill-listing
+// fallback, which SelectResourceMethod above already covers, is only reached
+// once this source loop finds nothing to select). Neither this method nor
+// materialStorageZoneFallback dispatches AcquireResource itself --
+// dispatchMineSource is what actually acts on the selection once storage is
+// adequate -- so a native read failure here is deliberately swallowed
+// (ok=false) rather than surfaced, preserving the bench/recipe outcome the
+// caller already computed.
+func (r *RoutineResourcePlanner) sourcesForDeficit(ctx context.Context, identity *c.Identity, resource policy.Resource, target int64, stock domain.Fact[[]policy.Amount]) (selected []policy.ResourceSource, storage policy.ResourceStorage, ok bool) {
 	rows, known := stock.Value()
 	if !known {
-		return nil
+		return nil, policy.ResourceStorage{}, false
 	}
 	var have int64
 	for _, row := range rows {
@@ -289,11 +317,135 @@ func (r *RoutineResourcePlanner) sourcesForDeficit(ctx context.Context, identity
 			break
 		}
 	}
-	sources, _, err := r.native.ReadResourceSources(ctx, identity, string(resource))
+	sources, storage, _, err := r.native.ReadResourceSources(ctx, identity, string(resource))
 	if err != nil {
-		return nil
+		return nil, policy.ResourceStorage{}, false
 	}
-	return policy.SelectResourceSources(sources, target, have, 0)
+	return policy.SelectResourceSources(sources, target, have, 0), storage, true
+}
+
+// materialStorageZoneFallback ports production_policy.py's resource_method
+// storage branch: once the bench/recipe path can't fund the
+// dynamically-selected resource, a fresh source selection that includes a
+// "mine" source is checked against the same read's StorageCapacity payload
+// (NativeResourceSourcesTool.Storage) to see whether hauling that source's
+// yield needs a new covered stockpile zone (policy.SelectResourceStorageZone).
+// It mirrors coveredStorageFallback's exact zone-build shape
+// (NewAllowListStockpileZone/PreviewZone/AdmitBuildingMethod, not
+// CommitGoalMethod, since a zone carries footprint like a building), but the
+// candidate cells come directly from native's own hauler-reachable, roofed,
+// unreserved scan rather than policy.CoveredStorageSites -- no geometry is
+// recomputed here. The zone's method ID is content-addressed by resource and
+// cells (matching Python's fingerprint dedup), not attempt-numbered, since
+// the candidate set is whatever native reports fresh each call, not
+// something this planner deliberately retries several times per episode.
+// handled is false when nothing applies this tick (no mine source selected,
+// or existing capacity already covers the deficit) -- the caller should then
+// fall through to dispatchMineSource instead, exactly mirroring Python's
+// resource_method returning its storage zone-build action in place of an
+// acquisition action only when storage is inadequate.
+func (r *RoutineResourcePlanner) materialStorageZoneFallback(call, epoch context.Context, state ControlState, goal store.GoalState, reviewTick domain.Tick, resource policy.Resource, selected []policy.ResourceSource, storage policy.ResourceStorage, started time.Time) (RoutineResourceResult, bool, error) {
+	zone, needed, blocked, err := policy.SelectResourceStorageZone(selected, 0, storage)
+	if err != nil {
+		return RoutineResourceResult{}, false, err
+	}
+	if blocked {
+		return RoutineResourceResult{Reason: BuildingMethodNoSpace}, true, nil
+	}
+	if !needed {
+		return RoutineResourceResult{}, false, nil
+	}
+	p := r.reviewer.player
+	held, err := p.journal.BuildingReservations(call, state.Snapshot)
+	if err != nil {
+		return RoutineResourceResult{}, false, err
+	}
+	protected := map[domain.Cell]bool{}
+	for _, h := range held {
+		for _, cell := range h.Footprint {
+			protected[cell] = true
+		}
+	}
+	cells := make([]domain.Cell, 0, len(zone.Cells))
+	for _, cell := range zone.Cells {
+		if !protected[cell] {
+			cells = append(cells, cell)
+		}
+	}
+	if len(cells) == 0 {
+		return RoutineResourceResult{Reason: BuildingMethodNoSpace}, true, nil
+	}
+	value, err := domain.NewAllowListStockpileZone(domain.ImportantPriority, []string{string(resource)}, cells)
+	if err != nil {
+		return RoutineResourceResult{}, false, err
+	}
+	hash := sha256.Sum256([]byte(fmt.Sprintf("%s/%v", resource, cells)))
+	method := domain.MethodID(fmt.Sprintf("material-storage-%x", hash[:16]))
+	if _, err = p.journal.LoadGoalMethod(call, goal.Goal.ID, goal.Goal.Epoch, method); err == nil {
+		return RoutineResourceResult{Reason: BuildingMethodUsed}, true, nil
+	} else if !errors.Is(err, store.ErrNotFound) {
+		return RoutineResourceResult{}, false, err
+	}
+	digest := sha256.Sum256([]byte(fmt.Sprintf("%s/%d/%s", goal.Goal.ID, goal.Goal.Epoch, method)))
+	id := domain.PlanID(fmt.Sprintf("routine-resource-zone-%x", digest[:16]))
+	last, _, err := r.native.Identity(call)
+	if err != nil {
+		return RoutineResourceResult{}, false, err
+	}
+	expected, err := observation.DecodeIdentity(last)
+	if err != nil {
+		return RoutineResourceResult{}, false, err
+	}
+	if !routineBuildingBoundary(expected, state.Snapshot, reviewTick) {
+		return RoutineResourceResult{}, false, ErrControl
+	}
+	reading, err := observation.ObserveColony(call, r.native, r.reviewer.clock, expected, r.reviewer.maxAge, true, nil)
+	if err != nil {
+		return RoutineResourceResult{}, false, err
+	}
+	projection := reading.Projection
+	token, known := projection.ZoneMapToken.Value()
+	if !known {
+		return RoutineResourceResult{Reason: BuildingMethodUnknown}, true, nil
+	}
+	snapshot := state.Snapshot
+	snapshot.Plan = id
+	snapshot.Revision = 1
+	action, err := domain.NewZoneCreateAction(domain.ActionID(fmt.Sprintf("%s-0", id)), value)
+	if err != nil {
+		return RoutineResourceResult{}, false, err
+	}
+	reply, _, err := r.native.PreviewZone(call, boundary.Identity(snapshot), bridge.ZoneTarget{Zone: value, Token: token})
+	if err != nil {
+		return RoutineResourceResult{}, false, err
+	}
+	v := reply.GetEvaluated()
+	if v == nil || !v.GetAccepted() {
+		return RoutineResourceResult{Reason: BuildingMethodRefused}, true, nil
+	}
+	if _, err = boundary.Context(v.Context, snapshot); err != nil || domain.Tick(v.Context.GetTick()) != projection.Identity.Tick {
+		return RoutineResourceResult{}, false, ErrControl
+	}
+	preview := policy.Preview{Action: action, Snapshot: snapshot, Tick: projection.Identity.Tick, CanPlace: domain.Known(true), SafeToPlace: domain.Known(true), MadeFromStuff: domain.Known(false), WatchCellsAccessible: domain.Known(true), Footprint: domain.Known(cells), Costs: domain.Known([]policy.Amount{})}
+	plan, err := domain.NewPlan(id, 1, []domain.Action{action})
+	if err != nil {
+		return RoutineResourceResult{}, false, err
+	}
+	if err = p.current(call, epoch); err != nil {
+		return RoutineResourceResult{}, false, err
+	}
+	elapsed := r.reviewer.clock.Now().Sub(started)
+	if p.session.State() != state || elapsed < 0 || elapsed > r.reviewer.maxAge {
+		return RoutineResourceResult{}, false, ErrControl
+	}
+	decision, err := p.journal.AdmitBuildingMethod(call, store.BuildingMethodRequest{Goal: goal.Goal.ID, Revision: goal.Revision, Method: method, Plan: plan, Current: snapshot, Tick: projection.Identity.Tick, Bounds: domain.Known(projection.Bounds), Stock: policy.StockObservation{Snapshot: snapshot, Tick: projection.Identity.Tick}, Rules: r.reviewer.rules, Previews: []policy.Preview{preview}, Purpose: policy.Routine})
+	if err != nil {
+		return RoutineResourceResult{}, false, err
+	}
+	if !decision.Admitted {
+		return RoutineResourceResult{Reason: BuildingMethodRefused}, true, nil
+	}
+	return RoutineResourceResult{Reason: BuildingMethodAdmitted, Plan: id}, true, nil
 }
 
 // dispatchMineSource actually dispatches a domain.MineAcquisitionAction
@@ -304,9 +456,11 @@ func (r *RoutineResourcePlanner) sourcesForDeficit(ctx context.Context, identity
 // method source carries the Cell/Token bridge.ReadMineAcquisition/
 // AcquireResource need (policy.SelectResourceSources populates them for
 // "mine" rows only); any other selected method is left to the caller's
-// observability-only Sources reporting. dispatched is false, with a zero
-// result and nil error, when there is nothing to dispatch -- the caller then
-// falls back to its own BuildingMethodUsed reporting.
+// observability-only Sources reporting. The caller only reaches this once
+// materialStorageZoneFallback reports handled=false, i.e. either no mine
+// source was selected or its covered storage already suffices. dispatched is
+// false, with a zero result and nil error, when there is nothing to dispatch
+// -- the caller then falls back to its own BuildingMethodUsed reporting.
 func (r *RoutineResourcePlanner) dispatchMineSource(call, epoch context.Context, state ControlState, goal store.GoalState, resource policy.Resource, sources []policy.ResourceSource, started time.Time) (RoutineResourceResult, bool, error) {
 	var source policy.ResourceSource
 	found := false

@@ -865,20 +865,42 @@ without pushes, when the target checkout is safe; preserve other developers' wor
     natively-wired `SetProductionPolicy` push from a routine planner, both
     described below.
 
-    Material-storage zoning (reusing `domain.ZoneCreateAction`/
-    `NewAllowListStockpileZone`, exactly like 05.4's `SecureSupplies`
-    covered-storage fallback) is well understood as a pattern —
-    `RoutineSecureSuppliesPlanner.coveredStorageFallback`
-    (`go/internal/buildingruntime/routine_secure_supplies.go`) is the
-    concrete template to copy: site selection, `NewAllowListStockpileZone`,
-    `PreviewZone`, then `AdmitBuildingMethod` (not `CommitGoalMethod`, since
-    zones carry footprint like buildings). But Python's trigger for it
-    (`resource_method`'s `storage` branch) only fires when a selected mine
-    source's `resource_sources` reply carries a `storage` payload
-    (`haulers`/`capacity`/`stackLimit`/`candidates`), and the new native
-    `ListResourceSources` handler does not populate `StorageCapacity` yet
-    (an explicit narrowing above), so this remains gated on extending that
-    same read, not separately landable first.
+    Material-storage zoning is now closed. `NativeResourceSourcesTool`'s
+    `ListResourceSources` handler populates `StorageCapacity` on every reply
+    (`Storage`, porting the legacy `ResourceAcquisitionTools.Storage`'s exact
+    hauler/capacity/candidate-cell scan field-for-field), and the proto
+    contract gained a `StorageCapacity.candidates` field (`repeated
+    rimgovernor.common.v1.Cell`) to carry native's own hauler-reachable,
+    roofed, unreserved cell scan near the deposit. `bridge.ReadResourceSources`
+    decodes it into a new `policy.ResourceStorage` (haulers counted, not
+    carried individually; candidate cells trusted as exact placement sites).
+    A new pure primitive, `policy.SelectResourceStorageZone`, mirrors
+    `resource_method`'s `storage` branch exactly: it only ever applies when a
+    selected source is a "mine" source, blocks (mirroring `SkillBlocked`)
+    when there is no eligible hauler regardless of capacity, and otherwise
+    sizes the exact shortfall cells needed from native's own candidates.
+    `RoutineResourcePlanner.materialStorageZoneFallback` wires it in: reusing
+    `RoutineSecureSuppliesPlanner.coveredStorageFallback`'s exact
+    `NewAllowListStockpileZone`/`PreviewZone`/`AdmitBuildingMethod` shape (not
+    `CommitGoalMethod`, since zones carry footprint like buildings) but using
+    native's own candidate cells directly rather than recomputing sites via
+    `policy.CoveredStorageSites`, and content-addressing its method ID by
+    resource and cells (matching Python's fingerprint dedup) rather than
+    attempt-numbering. It fires whenever the bench/recipe production path
+    can't fund the dynamically-selected resource and the same source read
+    already used for `Sources` observability selects a mine source needing
+    more storage — and, since mining dispatch is now also closed (above),
+    `RoutineResourcePlanner.step` runs this zone check *before*
+    `dispatchMineSource`: a mine source whose storage is still inadequate
+    gets its stockpile zone admitted instead of an acquisition dispatch that
+    tick, exactly mirroring `resource_method` returning its storage
+    zone-build action in place of an acquisition action whenever storage is
+    inadequate; once a prior zone already covers the deficit,
+    `dispatchMineSource` runs as before. Pending acquisition yield is still
+    hardcoded to zero in the same way `sourcesForDeficit`'s existing
+    `policy.SelectResourceSources` call already was, since native's
+    per-source `pending_yield` field is not decoded yet either. Verified with
+    a native `dotnet build` in addition to `go build/vet/test ./...`.
 
     The native `SetProductionPolicy` write and its paired
     `ProductionPolicySnapshot`/`ReadProductionPolicy` read are now wired

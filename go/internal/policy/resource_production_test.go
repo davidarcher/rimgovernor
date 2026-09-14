@@ -199,6 +199,69 @@ func TestSelectResourceSourcesCapAtEight(t *testing.T) {
 	}
 }
 
+func TestSelectResourceStorageZoneSkipsWithoutMineSelection(t *testing.T) {
+	selected := []ResourceSource{{ThingID: "wood1", Yield: 40, Method: "cut"}}
+	storage := ResourceStorage{Capacity: 0, StackLimit: 75, Haulers: 0}
+	zone, needed, blocked, err := SelectResourceStorageZone(selected, 0, storage)
+	if err != nil || needed || blocked || len(zone.Cells) != 0 {
+		t.Fatalf("got zone=%v needed=%v blocked=%v err=%v", zone, needed, blocked, err)
+	}
+}
+
+func TestSelectResourceStorageZoneSkipsWhenCapacityAlreadyCovers(t *testing.T) {
+	selected := []ResourceSource{{ThingID: "rock1", Yield: 40, Method: ResourceSourceMine}}
+	storage := ResourceStorage{Capacity: 100, StackLimit: 75, Haulers: 1}
+	zone, needed, blocked, err := SelectResourceStorageZone(selected, 0, storage)
+	if err != nil || needed || blocked || len(zone.Cells) != 0 {
+		t.Fatalf("got zone=%v needed=%v blocked=%v err=%v", zone, needed, blocked, err)
+	}
+}
+
+func TestSelectResourceStorageZoneBlockedWithoutHaulersEvenWhenCapacitySuffices(t *testing.T) {
+	// Mirrors production_policy.py's resource_method: the hauler check fires
+	// unconditionally whenever a mine source is selected, before capacity is
+	// even considered.
+	selected := []ResourceSource{{ThingID: "rock1", Yield: 40, Method: ResourceSourceMine}}
+	storage := ResourceStorage{Capacity: 1000, StackLimit: 75, Haulers: 0}
+	zone, needed, blocked, err := SelectResourceStorageZone(selected, 0, storage)
+	if err != nil || needed || !blocked || len(zone.Cells) != 0 {
+		t.Fatalf("got zone=%v needed=%v blocked=%v err=%v", zone, needed, blocked, err)
+	}
+}
+
+func TestSelectResourceStorageZoneBuildsShortfallCells(t *testing.T) {
+	selected := []ResourceSource{{ThingID: "rock1", Yield: 100, Method: ResourceSourceMine}}
+	storage := ResourceStorage{Capacity: 20, StackLimit: 30, Haulers: 1,
+		Candidates: []domain.Cell{{X: 1, Z: 1}, {X: 2, Z: 2}, {X: 3, Z: 3}, {X: 4, Z: 4}}}
+	// capacityNeeded = 100 + pending(10) = 110; shortfall = 90; cellsNeeded = ceil(90/30) = 3
+	zone, needed, blocked, err := SelectResourceStorageZone(selected, 10, storage)
+	if err != nil || !needed || blocked {
+		t.Fatalf("got zone=%v needed=%v blocked=%v err=%v", zone, needed, blocked, err)
+	}
+	if len(zone.Cells) != 3 || zone.Cells[0] != (domain.Cell{X: 1, Z: 1}) || zone.Cells[2] != (domain.Cell{X: 3, Z: 3}) {
+		t.Fatalf("got cells %v", zone.Cells)
+	}
+}
+
+func TestSelectResourceStorageZoneBlockedWhenNoCandidatesCoverShortfall(t *testing.T) {
+	selected := []ResourceSource{{ThingID: "rock1", Yield: 100, Method: ResourceSourceMine}}
+	storage := ResourceStorage{Capacity: 0, StackLimit: 30, Haulers: 1}
+	zone, needed, blocked, err := SelectResourceStorageZone(selected, 0, storage)
+	if err != nil || needed || !blocked || len(zone.Cells) != 0 {
+		t.Fatalf("got zone=%v needed=%v blocked=%v err=%v", zone, needed, blocked, err)
+	}
+}
+
+func TestSelectResourceStorageZoneRejectsInvalidInput(t *testing.T) {
+	selected := []ResourceSource{{ThingID: "rock1", Yield: 10, Method: ResourceSourceMine}}
+	if _, _, _, err := SelectResourceStorageZone(selected, -1, ResourceStorage{StackLimit: 1, Haulers: 1}); err == nil {
+		t.Fatal("expected rejection of negative pending")
+	}
+	if _, _, _, err := SelectResourceStorageZone(selected, 0, ResourceStorage{Capacity: -1, StackLimit: 1, Haulers: 1}); err == nil {
+		t.Fatal("expected rejection of negative capacity")
+	}
+}
+
 func TestSelectResourceTargetNoConfigOrUnknownStockSelectsNothing(t *testing.T) {
 	if _, _, ok, err := SelectResourceTarget(nil, domain.Known([]Amount{{"Steel", 0}})); err != nil || ok {
 		t.Fatalf("expected no target with no configured resources, got ok=%v err=%v", ok, err)
