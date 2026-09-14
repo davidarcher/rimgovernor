@@ -7,6 +7,7 @@ import (
 
 	"github.com/davidarcher/RimGovernor/go/internal/bridge"
 	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime"
+	"github.com/davidarcher/RimGovernor/go/internal/httpapi"
 	"github.com/davidarcher/RimGovernor/go/internal/observation"
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
 	"github.com/davidarcher/RimGovernor/go/internal/store"
@@ -24,6 +25,30 @@ func (s serviceClockReview) Read(ctx context.Context) (store.ClockReviewState, e
 }
 func (s serviceClockReview) Acknowledge(ctx context.Context, ack store.ClockAcknowledgement) (store.ClockReviewState, error) {
 	return s.journal.AcknowledgeClockEvents(ctx, s.profile, ack)
+}
+
+// serviceRoutineDiagnostics implements httpapi.RoutineProvider: a read-only,
+// runtime-queryable view of which composed routine planner families this
+// process wired up at startup and the durable review cursor's progress.
+type serviceRoutineDiagnostics struct {
+	journal        *store.Store
+	reviewsEnabled bool
+	methodsEnabled bool
+	families       []string
+}
+
+func (s serviceRoutineDiagnostics) RoutineStatus(ctx context.Context) (httpapi.RoutineStatus, error) {
+	review, err := s.journal.LoadRoutineReview(ctx)
+	if err != nil {
+		return httpapi.RoutineStatus{}, err
+	}
+	return httpapi.RoutineStatus{
+		ReviewsEnabled:  s.reviewsEnabled,
+		MethodsEnabled:  s.methodsEnabled,
+		ActiveFamilies:  s.families,
+		LastReviewTick:  review.Tick,
+		LastReviewKnown: review.Revision != 0,
+	}, nil
 }
 
 type serviceClockReads interface {

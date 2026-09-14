@@ -17,6 +17,7 @@ import (
 
 	"github.com/davidarcher/RimGovernor/go/internal/bridge"
 	"github.com/davidarcher/RimGovernor/go/internal/controller"
+	"github.com/davidarcher/RimGovernor/go/internal/flightrecorder"
 	"github.com/davidarcher/RimGovernor/go/internal/httpapi"
 	"github.com/davidarcher/RimGovernor/go/internal/observation"
 	"github.com/davidarcher/RimGovernor/go/internal/store"
@@ -28,6 +29,7 @@ func (wallClock) Now() time.Time { return time.Now() }
 
 type serveConfig struct {
 	bridge                          bridge.ProcessConfig
+	flightRecorder                  string
 	state, listen, assets           string
 	profile                         string
 	playerControl                   bool
@@ -137,6 +139,7 @@ func parseServe(args []string, diagnostics io.Writer) (serveConfig, error) {
 	flags.StringVar(&c.listen, "listen", "127.0.0.1:0", "loopback IP:port; 0 selects an available port")
 	flags.DurationVar(&c.refresh, "refresh", 3*time.Second, "observation refresh interval")
 	flags.DurationVar(&c.bridge.Timeout, "timeout", 15*time.Second, "native call timeout")
+	flags.StringVar(&c.flightRecorder, "flight-recorder", "", "absolute path recording every native request/response/error (optional; opt-in diagnostics)")
 	if err := flags.Parse(args); err != nil {
 		return c, err
 	}
@@ -144,9 +147,23 @@ func parseServe(args []string, diagnostics io.Writer) (serveConfig, error) {
 		return c, errors.New("serve requires exactly one of --read-only or --player-control")
 	}
 	projectLimitExplicit := false
-	flags.Visit(func(f *flag.Flag) { projectLimitExplicit = projectLimitExplicit || f.Name == "routine-project-limit" })
+	explicitPlan := false
+	flags.Visit(func(f *flag.Flag) {
+		projectLimitExplicit = projectLimitExplicit || f.Name == "routine-project-limit"
+		explicitPlan = explicitPlan || strings.HasPrefix(f.Name, "routine-") && strings.HasSuffix(f.Name, "-plans")
+	})
 	if c.routineProjectLimit < 1 || c.routineProjectLimit > 8 || projectLimitExplicit && !c.routineReviews {
 		return c, errors.New("--routine-project-limit requires --routine-reviews and a value from 1 through 8")
+	}
+	// Composed default: an operator who asks for --routine-methods without
+	// naming any individual --routine-*-plans flag gets every implemented and
+	// tested planner family at once, instead of having to enumerate ~30 flags.
+	// Naming even one --routine-*-plans flag opts out of this default and
+	// falls back to exactly the named families (existing targeted/debug use).
+	if c.routineMethods && !explicitPlan {
+		for _, entry := range routinePlanFlags(&c) {
+			*entry.Enabled = true
+		}
 	}
 	if len(c.resourceRules) > 0 && !c.playerControl {
 		return c, errors.New("--resource-rule requires --player-control")
@@ -200,7 +217,73 @@ func parseServe(args []string, diagnostics io.Writer) (serveConfig, error) {
 	if c.refresh < 500*time.Millisecond || c.refresh > time.Minute || c.bridge.Timeout < time.Second || c.bridge.Timeout > time.Minute {
 		return c, errors.New("refresh must be 500ms..1m and timeout 1s..1m")
 	}
+	if c.flightRecorder != "" && !filepath.IsAbs(c.flightRecorder) {
+		return c, errors.New("--flight-recorder requires an absolute path")
+	}
 	return c, nil
+}
+
+// routinePlanFlag names one "--routine-*-plans" boolean flag alongside a
+// pointer into the serveConfig it was parsed into.
+type routinePlanFlag struct {
+	Name    string
+	Enabled *bool
+}
+
+// routinePlanFlags lists every "--routine-*-plans" boolean flag, in
+// registration order. It backs both the composed default (parseServe turns
+// every one of these on when --routine-methods is set and none of them was
+// named explicitly) and the /api/routines diagnostics family list, so the two
+// stay in lockstep with the flag registrations above.
+func routinePlanFlags(c *serveConfig) []routinePlanFlag {
+	return []routinePlanFlag{
+		{"routine-sleeping-plans", &c.routineSleepingPlans},
+		{"routine-bill-plans", &c.routineBillPlans},
+		{"routine-field-plans", &c.routineFieldPlans},
+		{"routine-food-storage-plans", &c.routineFoodStoragePlans},
+		{"routine-acquisition-plans", &c.routineAcquisitionPlans},
+		{"routine-work-plans", &c.routineWorkPlans},
+		{"routine-supply-plans", &c.routineSupplyPlans},
+		{"routine-cooking-plans", &c.routineCookingPlans},
+		{"routine-shelter-plans", &c.routineShelterPlans},
+		{"routine-comfort-plans", &c.routineComfortPlans},
+		{"routine-expansion-plans", &c.routineExpansionPlans},
+		{"routine-temperature-plans", &c.routineTemperaturePlans},
+		{"routine-power-plans", &c.routinePowerPlans},
+		{"routine-defense-plans", &c.routineDefensePlans},
+		{"routine-tend-plans", &c.routineTendPlans},
+		{"routine-rescue-plans", &c.routineRescuePlans},
+		{"routine-equip-plans", &c.routineEquipPlans},
+		{"routine-secure-supplies-plans", &c.routineSecureSuppliesPlans},
+		{"routine-repair-plans", &c.routineRepairPlans},
+		{"routine-clean-plans", &c.routineCleanPlans},
+		{"routine-haul-plans", &c.routineHaulPlans},
+		{"routine-gear-plans", &c.routineGearPlans},
+		{"routine-medical-plans", &c.routineMedicalPlans},
+		{"routine-animal-containment-plans", &c.routineAnimalContainmentPlans},
+		{"routine-recovery-plans", &c.routineRecoveryPlans},
+		{"routine-husbandry-plans", &c.routineHusbandryPlans},
+		{"routine-prisoner-interaction-plans", &c.routinePrisonerInteractionPlans},
+		{"routine-population-custody-plans", &c.routinePopulationCustodyPlans},
+		{"routine-home-coverage-plans", &c.routineHomeCoveragePlans},
+		{"routine-stone-shell-plans", &c.routineStoneShellPlans},
+		{"routine-resource-plans", &c.routineResourcePlans},
+		{"routine-animal-feed-plans", &c.routineAnimalFeedPlans},
+		{"routine-production-policy-plans", &c.routineProductionPolicyPlans},
+	}
+}
+
+// activeRoutineFamilies reports the flag names of every routine planner
+// family this configuration enabled, for runtime diagnostics.
+func (c serveConfig) activeRoutineFamilies() []string {
+	cp := c
+	var names []string
+	for _, entry := range routinePlanFlags(&cp) {
+		if *entry.Enabled {
+			names = append(names, entry.Name)
+		}
+	}
+	return names
 }
 
 // Validate before opening GABS or creating state. The HTTP server subsequently
@@ -234,6 +317,15 @@ func serve(ctx context.Context, args []string, out, diagnostics io.Writer) int {
 	if err != nil {
 		fmt.Fprintln(diagnostics, err)
 		return 2
+	}
+	if config.flightRecorder != "" {
+		recorder, err := flightrecorder.New(config.flightRecorder)
+		if err != nil {
+			fmt.Fprintln(diagnostics, "flight recorder:", err)
+			return 1
+		}
+		defer recorder.Close()
+		config.bridge.Recorder = recorder
 	}
 	if config.playerControl {
 		err = serveBuildingControl(ctx, config, out)

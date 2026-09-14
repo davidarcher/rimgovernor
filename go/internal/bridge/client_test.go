@@ -13,6 +13,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/davidarcher/RimGovernor/go/internal/flightrecorder"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 )
 
@@ -87,7 +88,7 @@ func (s *testServer) factory(t *testing.T) transportFactory {
 }
 func testClient(t *testing.T, s *testServer, timeout time.Duration) *Client {
 	t.Helper()
-	client, err := open(context.Background(), "fixture-game", timeout, s.factory(t))
+	client, err := open(context.Background(), "fixture-game", timeout, nil, s.factory(t))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -206,7 +207,7 @@ func TestOwnedSubprocessAndFailedConnections(t *testing.T) {
 	}
 	var cmd *exec.Cmd
 	start := time.Now()
-	_, err = open(context.Background(), "fixture", 30*time.Millisecond, func() mcp.Transport {
+	_, err = open(context.Background(), "fixture", 30*time.Millisecond, nil, func() mcp.Transport {
 		cmd = exec.Command(executable, "server", "stdio", "--configDir", filepath.Join(t.TempDir(), "unresponsive"))
 		return &mcp.CommandTransport{Command: cmd, TerminateDuration: 20 * time.Millisecond}
 	})
@@ -258,7 +259,7 @@ func TestLostConnectionAndMissingCapabilities(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer session.Close()
-	_, err = open(context.Background(), "fixture", time.Second, func() mcp.Transport { return clientTransport })
+	_, err = open(context.Background(), "fixture", time.Second, nil, func() mcp.Transport { return clientTransport })
 	if !errors.Is(err, ErrContract) {
 		t.Fatalf("missing capabilities accepted: %v", err)
 	}
@@ -302,7 +303,7 @@ func TestConcurrentReconnectHonorsContextAndClose(t *testing.T) {
 	factory := s.factory(t)
 	entered := make(chan struct{})
 	count := 0
-	client, err := open(context.Background(), "fixture", time.Second, func() mcp.Transport {
+	client, err := open(context.Background(), "fixture", time.Second, nil, func() mcp.Transport {
 		count++
 		if count == 1 {
 			return factory()
@@ -335,4 +336,59 @@ func TestConcurrentReconnectHonorsContextAndClose(t *testing.T) {
 	if count != 2 {
 		t.Fatal("canceled reconnect launched a process")
 	}
+}
+
+func TestFlightRecorderCapturesRequestResponseAndError(t *testing.T) {
+	failing := int32(0)
+	s := &testServer{handler: func(ctx context.Context, args nativeArgument) (*mcp.CallToolResult, error) {
+		if atomic.LoadInt32(&failing) != 0 {
+			return &mcp.CallToolResult{IsError: true}, nil
+		}
+		return structured(`{"colonyId":"test-colony","tick":0,"operation":{"id":"receipt-1"}}`), nil
+	}}
+	path := filepath.Join(t.TempDir(), "timeline.jsonl")
+	rec, err := flightrecorder.New(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { rec.Close() })
+	client, err := open(context.Background(), "fixture-game", time.Second, rec, s.factory(t))
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = client.Close() })
+	client.SetRecordingContext(func() map[string]any { return map[string]any{"colony": "test-colony"} })
+	if _, err = testNativeRead(client, context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	atomic.StoreInt32(&failing, 1)
+	if _, err = testNativeRead(client, context.Background()); err == nil {
+		t.Fatal("expected refused call to surface an error")
+	}
+	rows, err := flightrecorder.ReadTimeline(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var kinds []string
+	for _, row := range rows {
+		kinds = append(kinds, row.Kind)
+	}
+	assertContains(t, kinds, "native_request")
+	assertContains(t, kinds, "native_response")
+	assertContains(t, kinds, "native_error")
+	for _, row := range rows {
+		if row.Kind == "native_request" && row.Context["colony"] != "test-colony" {
+			t.Fatalf("expected recording context on request row, got %+v", row.Context)
+		}
+	}
+}
+
+func assertContains(t *testing.T, values []string, want string) {
+	t.Helper()
+	for _, v := range values {
+		if v == want {
+			return
+		}
+	}
+	t.Fatalf("expected %q among %v", want, values)
 }

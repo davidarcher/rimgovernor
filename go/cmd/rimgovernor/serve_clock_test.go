@@ -42,6 +42,51 @@ func TestComfortServeRequiresReviewsAndCanOwnRoutineMethods(t *testing.T) {
 	}
 }
 
+// TestRoutineMethodsWithNoNamedPlanComposesEveryFamily verifies the G01.10
+// composed default: --routine-methods alone (no individual
+// --routine-*-plans flag named) turns on every implemented planner family
+// in one process, instead of requiring an operator to enumerate ~30 flags.
+func TestRoutineMethodsWithNoNamedPlanComposesEveryFamily(t *testing.T) {
+	dir := t.TempDir()
+	base := []string{"--gabs", filepath.Join(dir, "gabs"), "--config", dir, "--game", "game", "--state", filepath.Join(dir, "state.db"), "--clock-control", "--player-control", "--profile", dir, "--routine-reviews", "--routine-methods"}
+	c, err := parseServe(base, io.Discard)
+	if err != nil {
+		t.Fatal(err)
+	}
+	families := routinePlanFlags(&c)
+	if len(families) == 0 {
+		t.Fatal("no routine plan families registered")
+	}
+	for _, entry := range families {
+		if !*entry.Enabled {
+			t.Fatalf("composed default left %s disabled", entry.Name)
+		}
+	}
+	if got := c.activeRoutineFamilies(); len(got) != len(families) {
+		t.Fatalf("active families %v did not cover every registered family", got)
+	}
+}
+
+// TestRoutineMethodsWithNamedPlanOptsOutOfComposedDefault verifies naming even
+// one --routine-*-plans flag disables the composed default and leaves every
+// other family off, preserving the existing targeted/debug flag behavior.
+func TestRoutineMethodsWithNamedPlanOptsOutOfComposedDefault(t *testing.T) {
+	dir := t.TempDir()
+	base := []string{"--gabs", filepath.Join(dir, "gabs"), "--config", dir, "--game", "game", "--state", filepath.Join(dir, "state.db"), "--clock-control", "--player-control", "--profile", dir, "--routine-reviews", "--routine-methods", "--routine-sleeping-plans"}
+	c, err := parseServe(base, io.Discard)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !c.routineSleepingPlans {
+		t.Fatal("named plan flag not honored")
+	}
+	for _, entry := range routinePlanFlags(&c) {
+		if entry.Name != "routine-sleeping-plans" && *entry.Enabled {
+			t.Fatalf("composed default fired despite a named plan flag: %s", entry.Name)
+		}
+	}
+}
+
 type clockServiceFake struct {
 	buildingruntime.ClockNative
 	buildingruntime.ClockWriter

@@ -52,6 +52,18 @@ land.
 .\launch-go.ps1 -PlayerControl ...  # building/routine execution; add --routine-* flags after --
 ```
 
+`serve --player-control --clock-control --routine-reviews --routine-methods`
+composes every implemented and tested routine planner family (G01.10) instead
+of requiring an operator to enumerate the ~30 individual
+`--routine-*-plans`/`--routine-methods` flags: naming zero of those flags turns
+all of them on. Naming even one opts back out to exactly the named families,
+for targeted/debug runs. `GET /api/routines` reports which families a running
+process composed, whether reviews/methods execution are enabled, and the
+durable review cursor's last reviewed tick — a runtime-queryable view of the
+capability table below. Startup reconciliation (durable holds and goal
+admission on process start) is generation/goal-keyed rather than per-flag, so
+it already covers whatever set of families a given invocation composes.
+
 It builds the binary if missing, reuses the same dashboard build the Python
 launcher serves (`controller/rimgovernor/static`, built with `pnpm`, no
 Python), and requires the same prepared GABS/config/profile inputs as
@@ -586,6 +598,22 @@ acknowledge it, dismiss it or resume play.
 The dashboard displays these sections independently, retaining last-good data
 with a stale indicator during failed refreshes. A changed world or session excludes
 old results. Native notification production still requires game-level acceptance.
+
+### Native request diagnostics
+
+`serve --flight-recorder <absolute-path>` opt-in-records every native
+request/response/error, including background reads, replacing
+`controller/rimgovernor/flight_recorder.py`. It is off by default; a service
+started without the flag records nothing. Requests and errors are fsynced
+before the call returns; a response row is written unsynced and becomes
+durable only at the next durable record or segment rotation, so a crash can
+leave an explicit unmatched request but never a silently lost one. The
+timeline is a bounded JSONL file rotated into numbered segments (`<path>.1` is
+the newest) once the active segment reaches its size bound; the oldest segment
+is dropped on rotation. Oversized payloads are replaced with a truncated
+summary (SHA-256, original size, a bounded preview and, when present, the
+correlating `request`/`tool`/`category` fields) rather than growing the file
+unbounded. See `internal/flightrecorder` for the writer and `ReadTimeline` reader.
 
 ## Guarded player components
 

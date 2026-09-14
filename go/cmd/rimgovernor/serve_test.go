@@ -35,6 +35,21 @@ func TestServeRequiresExplicitReadOnlyLocalConfiguration(t *testing.T) {
 	}
 }
 
+func TestServeRejectsRelativeFlightRecorderPath(t *testing.T) {
+	dir := t.TempDir()
+	base := []string{"--read-only", "--gabs", filepath.Join(dir, "gabs"), "--config", dir, "--game", "trial", "--state", filepath.Join(dir, "state.db")}
+	if _, err := parseServe(append(append([]string{}, base...), "--flight-recorder", "relative.jsonl"), io.Discard); err == nil {
+		t.Fatal("accepted relative --flight-recorder path")
+	}
+	config, err := parseServe(append(append([]string{}, base...), "--flight-recorder", filepath.Join(dir, "timeline.jsonl")), io.Discard)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if config.flightRecorder != filepath.Join(dir, "timeline.jsonl") {
+		t.Fatalf("flight recorder path not retained: %+v", config)
+	}
+}
+
 func TestServeRejectsNonNumericPortsAndInvalidAssets(t *testing.T) {
 	dir := t.TempDir()
 	base := []string{"--read-only", "--gabs", filepath.Join(dir, "gabs"), "--config", dir, "--game", "trial", "--state", filepath.Join(dir, "state.db")}
