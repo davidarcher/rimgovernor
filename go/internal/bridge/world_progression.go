@@ -69,12 +69,16 @@ type QuestOffer struct {
 // WorldMap is the validated subset of one WorldProgressionSnapshot.maps row
 // that failure-recovery classification needs: which map this is (native
 // uniqueID) and whether native marks it a player home map, plus the pawn
-// IDs native reports currently spawned there. It does not surface tile,
-// label or stored items; nothing here reads or writes anything on a
-// foreign map, it only lets a caller tell "this pawn is alive and visible
-// on some live map" from "absent from every census we can read".
+// IDs native reports currently spawned there. Tile is surfaced because it is
+// this codebase's only home-tile source: a caller wanting the colony's home
+// world-map tile (e.g. to feed ReadWorld's longitude lookup) finds the row
+// with Home true and reads its Tile. It does not surface label or stored
+// items; nothing here reads or writes anything on a foreign map, it only
+// lets a caller tell "this pawn is alive and visible on some live map" from
+// "absent from every census we can read".
 type WorldMap struct {
 	ID      int32
+	Tile    int32
 	Home    bool
 	PawnIDs []string
 }
@@ -146,7 +150,7 @@ func worldProgressionSelected(v *o.WorldProgressionSnapshot, identity *c.Identit
 	maps := make([]WorldMap, len(v.Maps))
 	seenMapPawns := map[string]bool{}
 	for i, row := range v.Maps {
-		if row == nil || row.Id == nil || row.Home == nil || len(row.Pawns) > 256 {
+		if row == nil || row.Id == nil || row.Tile == nil || row.GetTile() < 0 || row.Home == nil || len(row.Pawns) > 256 {
 			return WorldProgressionRead{}, contract("invalid world progression map")
 		}
 		pawnIDs := make([]string, len(row.Pawns))
@@ -165,7 +169,7 @@ func worldProgressionSelected(v *o.WorldProgressionSnapshot, identity *c.Identit
 			seenMapPawns[pawn.Pawn.GetId()] = true
 			pawnIDs[j] = pawn.Pawn.GetId()
 		}
-		maps[i] = WorldMap{ID: row.GetId(), Home: row.GetHome(), PawnIDs: pawnIDs}
+		maps[i] = WorldMap{ID: row.GetId(), Tile: row.GetTile(), Home: row.GetHome(), PawnIDs: pawnIDs}
 	}
 	if len(v.Caravans) > 256 {
 		return WorldProgressionRead{}, contract("world progression caravans exceed bound")

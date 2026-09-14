@@ -34,6 +34,7 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/observation"
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
 	"github.com/davidarcher/RimGovernor/go/internal/store"
+	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
 )
 
 // defaultCaravanDeparturePolicy is the fixed admission threshold for the
@@ -41,6 +42,61 @@ import (
 // colonist and five days of food home, and keep a doctor among the stayers.
 // Not yet operator-configurable; no CLI flag exists for it.
 var defaultCaravanDeparturePolicy = policy.CaravanDeparturePolicy{MinimumHomeColonists: 1, MinimumHomeFoodDays: 5, KeepHomeDoctor: true}
+
+// moodReliefWorldSource is the narrow slice of *bridge.Client that
+// readMoodReliefLongitude needs to find the colony's home tile and read its
+// longitude: the world-progression census (for the home map's Tile) and
+// ReadWorld itself (for WorldTile.longitude). It exists only so
+// readMoodReliefLongitude can be exercised against a test fake without
+// pulling in the rest of bridge.Client's surface.
+type moodReliefWorldSource interface {
+	ReadWorldProgression(ctx context.Context, identity *c.Identity, includeStorage bool) (bridge.WorldProgressionRead, bridge.Result, error)
+	ReadWorld(ctx context.Context, identity *c.Identity, tile int32, settlementRadius float64) (bridge.WorldRead, bridge.Result, error)
+}
+
+// readMoodReliefLongitude reads the colony's home-tile longitude once, at
+// session startup: bridge.WorldRead.Longitude's doc comment calls it
+// "effectively a session constant" since the colony's map tile does not
+// move, so one read here is enough -- MoodRelief's boundary never issues a
+// per-tick WorldRead for it. It never aborts the CLI session: a missing
+// identity or world source, a failed identity/world-progression/world read,
+// or no map marked Home in the census all degrade to Unknown -- the same
+// "log/ignore and fall back" degradation every other optional startup
+// capability in this file uses, and never a guessed or defaulted longitude.
+func readMoodReliefLongitude(ctx context.Context, identitySource observation.Source, worldSource moodReliefWorldSource) domain.Fact[float64] {
+	unknown := domain.Unknown[float64]()
+	if identitySource == nil || worldSource == nil {
+		return unknown
+	}
+	reply, _, err := identitySource.Identity(ctx)
+	if err != nil {
+		return unknown
+	}
+	identity, err := observation.DecodeIdentity(reply)
+	if err != nil {
+		return unknown
+	}
+	wireIdentity := boundary.Identity(domain.GenerationSnapshot{Colony: identity.Colony, Load: identity.Load, Map: identity.Map})
+	progression, _, err := worldSource.ReadWorldProgression(ctx, wireIdentity, false)
+	if err != nil {
+		return unknown
+	}
+	homeTile, found := int32(-1), false
+	for _, m := range progression.Maps {
+		if m.Home {
+			homeTile, found = m.Tile, true
+			break
+		}
+	}
+	if !found {
+		return unknown
+	}
+	world, _, err := worldSource.ReadWorld(ctx, wireIdentity, homeTile, 0)
+	if err != nil {
+		return unknown
+	}
+	return world.Longitude
+}
 
 type buildingServiceBridge struct {
 	bills               *bill.BillCapabilities
@@ -67,6 +123,7 @@ type buildingServiceBridge struct {
 	clean               *buildingruntime.CleanCapabilities
 	waste               *buildingruntime.WasteCapabilities
 	moodRelief          *buildingruntime.MoodReliefCapabilities
+	moodReliefWorld     moodReliefWorldSource
 	gearReplace         *buildingruntime.GearReplaceCapabilities
 	recoveryService     *buildingruntime.RecoveryServiceCapabilities
 	husbandry           *buildingruntime.HusbandryCapabilities
@@ -190,7 +247,7 @@ func openBuildingService(ctx context.Context, config bridge.ProcessConfig) (buil
 	if err != nil {
 		return buildingServiceBridge{}, errors.Join(err, client.Close())
 	}
-	return buildingServiceBridge{reads: client, native: client, authority: ownedAuthority{client, authority}, writes: writes,
+	return buildingServiceBridge{reads: client, native: client, authority: ownedAuthority{client, authority}, writes: writes, moodReliefWorld: client,
 		bills:           &bill.BillCapabilities{Native: client, Writer: bills},
 		zones:           &zone.ZoneCapabilities{Native: client, Writer: zones},
 		acquisition:     &acquisition.AcquisitionCapabilities{Native: client, Writer: acquisitionWriter},
@@ -451,6 +508,7 @@ func serveBuildingWithBridge(ctx context.Context, config serveConfig, out io.Wri
 			return errors.New("mood plans require typed mood relief capabilities")
 		}
 		moodReliefCapabilities = client.moodRelief
+		moodReliefCapabilities.Longitude = readMoodReliefLongitude(lifetime, client.reads, client.moodReliefWorld)
 	}
 	var gearReplaceCapabilities *buildingruntime.GearReplaceCapabilities
 	if config.routineGearPlans {

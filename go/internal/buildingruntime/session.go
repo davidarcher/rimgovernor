@@ -531,12 +531,12 @@ func NewSession(ctx context.Context, config SessionConfig, journal *store.Store,
 		}
 	}
 	if config.MoodRelief != nil {
-		// Longitude is not yet sourced anywhere in the CLI (no WorldRead call
-		// is wired at startup for it); passing Unknown here matches
-		// RoutineReviewer's own current default and never guesses --
-		// InspectMoodRelief/EvaluateMoodRelief correctly refuse dispatch
-		// until a future task wires an actual longitude source.
-		moodReliefBoundary, err := NewMoodReliefBoundary(config.MoodRelief.Native, config.MoodRelief.Writer, sessionBuildingLeases{control, journal, config.RoutineMethods, config.Executor.JournalTimeout}, clock, string(namespace), domain.Unknown[float64]())
+		// Longitude comes from the CLI's one-time startup ReadWorld call (see
+		// serve_building.go's readMoodReliefLongitude); it stays Unknown when
+		// no source was wired or that read failed, and is never guessed here
+		// -- InspectMoodRelief/EvaluateMoodRelief correctly refuse dispatch
+		// whenever it is unknown.
+		moodReliefBoundary, err := NewMoodReliefBoundary(config.MoodRelief.Native, config.MoodRelief.Writer, sessionBuildingLeases{control, journal, config.RoutineMethods, config.Executor.JournalTimeout}, clock, string(namespace), config.MoodRelief.Longitude)
 		if err != nil {
 			return cleanup(err)
 		}

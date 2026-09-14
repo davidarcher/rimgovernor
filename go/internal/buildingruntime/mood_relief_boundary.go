@@ -36,6 +36,11 @@ type MoodReliefWriter interface {
 type MoodReliefCapabilities struct {
 	Native MoodReliefNative
 	Writer MoodReliefWriter
+	// Longitude is the colony's home-tile longitude, read once at session
+	// startup (see serve_building.go's readMoodReliefLongitude); Unknown when
+	// no longitude source was wired or the startup read failed. It flows
+	// straight into NewMoodReliefBoundary -- never guessed or defaulted here.
+	Longitude domain.Fact[float64]
 }
 type MoodReliefBoundary struct {
 	native    MoodReliefNative
