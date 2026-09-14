@@ -131,9 +131,12 @@ namespace HomeBridge.BridgeTools
                 {
                     Reachable = route.Reachable, FoodDays = food.days, FoodRotDays = food.tillRot,
                     DestinationTile = command.DestinationTile,
-                    Temperature = (float)GenTemperature.GetTemperatureFromSeasonAtTile(Find.TickManager.TicksAbs, new PlanetTile(command.DestinationTile)),
+                    Temperature = (float)route.TemperatureC,
+                    Hostile = route.Hostile,
                 };
                 if (route.HasEstimatedTicks) routePrep.EstimatedTicks = route.EstimatedTicks;
+                if (route.HasFactionId) routePrep.FactionId = route.FactionId;
+                if (route.HasGoodwill) routePrep.Goodwill = route.Goodwill;
                 var caravanPrep = new Operations.CaravanPreparation
                 {
                     MassUsage = dialog.MassUsage, MassCapacity = dialog.MassCapacity,

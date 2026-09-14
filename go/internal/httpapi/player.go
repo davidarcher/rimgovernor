@@ -24,6 +24,7 @@ type PlayerBuildings interface {
 	SubmitSettlementGift(context.Context, store.SettlementGiftSubmissionRequest) (store.SettlementGiftSubmission, bool, error)
 	SubmitQuestFulfill(context.Context, store.QuestFulfillSubmissionRequest) (store.QuestFulfillSubmission, bool, error)
 	SubmitTrade(context.Context, store.TradeSubmissionRequest) (store.TradeSubmission, bool, error)
+	SubmitZoneCreate(context.Context, store.ZoneCreateSubmissionRequest) (store.ZoneCreateSubmission, bool, error)
 	Acquire(context.Context, store.ControlRequest) (store.ControlRecord, error)
 	Manual(context.Context, store.ControlRequest) (store.ControlRecord, error)
 	State() buildingruntime.ControlState
@@ -38,6 +39,7 @@ type ControlReader interface {
 	LookupSettlementGiftSubmission(context.Context, string) (store.SettlementGiftSubmission, error)
 	LookupQuestFulfillSubmission(context.Context, string) (store.QuestFulfillSubmission, error)
 	LookupTradeSubmission(context.Context, string) (store.TradeSubmission, error)
+	LookupZoneCreateSubmission(context.Context, string) (store.ZoneCreateSubmission, error)
 }
 
 // NewWithPlayer explicitly enables authenticated player intent. Dependencies and
@@ -200,8 +202,8 @@ func (s *Server) handlePlayer(w http.ResponseWriter, r *http.Request) bool {
 		return false
 	}
 	path := r.URL.Path
-	read := path == "/api/player/session" || path == "/api/player/control" || (path == "/api/buildings/submission" || path == "/api/drafts/submission") || path == "/api/player/clock" || path == "/api/player/world-evaluation" || path == "/api/player/work-preferences" || path == "/api/caravan-departures/submission" || path == "/api/quest-accepts/submission" || path == "/api/settlement-gifts/submission" || path == "/api/quest-fulfills/submission" || path == "/api/trades/submission"
-	write := path == "/api/drafts/plans" || path == "/api/buildings/plans" || path == "/api/player/control/acquire" || path == "/api/player/control/manual" || path == "/api/player/clock/acknowledge" || path == "/api/player/work-preferences/replace" || path == "/api/caravan-departures/plans" || path == "/api/quest-accepts/plans" || path == "/api/settlement-gifts/plans" || path == "/api/quest-fulfills/plans" || path == "/api/trades/plans"
+	read := path == "/api/player/session" || path == "/api/player/control" || (path == "/api/buildings/submission" || path == "/api/drafts/submission") || path == "/api/player/clock" || path == "/api/player/world-evaluation" || path == "/api/player/work-preferences" || path == "/api/caravan-departures/submission" || path == "/api/quest-accepts/submission" || path == "/api/settlement-gifts/submission" || path == "/api/quest-fulfills/submission" || path == "/api/trades/submission" || path == "/api/zone-creates/submission"
+	write := path == "/api/drafts/plans" || path == "/api/buildings/plans" || path == "/api/player/control/acquire" || path == "/api/player/control/manual" || path == "/api/player/clock/acknowledge" || path == "/api/player/work-preferences/replace" || path == "/api/caravan-departures/plans" || path == "/api/quest-accepts/plans" || path == "/api/settlement-gifts/plans" || path == "/api/quest-fulfills/plans" || path == "/api/trades/plans" || path == "/api/zone-creates/plans"
 	if !read && !write {
 		return false
 	}
@@ -321,6 +323,10 @@ func (s *Server) handlePlayer(w http.ResponseWriter, r *http.Request) bool {
 			s.submitTrade(w, r, ctx)
 			return true
 		}
+		if path == "/api/zone-creates/plans" {
+			s.submitZoneCreate(w, r, ctx)
+			return true
+		}
 		var q store.ControlRequest
 		var err error
 		if strings.HasSuffix(path, "/acquire") {
@@ -360,7 +366,7 @@ func (s *Server) handlePlayer(w http.ResponseWriter, r *http.Request) bool {
 		return true
 	}
 	ids := query["requestId"]
-	submissionLookup := path == "/api/buildings/submission" || path == "/api/drafts/submission" || path == "/api/caravan-departures/submission" || path == "/api/quest-accepts/submission" || path == "/api/settlement-gifts/submission" || path == "/api/quest-fulfills/submission" || path == "/api/trades/submission"
+	submissionLookup := path == "/api/buildings/submission" || path == "/api/drafts/submission" || path == "/api/caravan-departures/submission" || path == "/api/quest-accepts/submission" || path == "/api/settlement-gifts/submission" || path == "/api/quest-fulfills/submission" || path == "/api/trades/submission" || path == "/api/zone-creates/submission"
 	if (len(query) != 0 && (len(query) != 1 || len(ids) != 1 || buildingRequestID(ids[0]) != nil)) || (submissionLookup && len(ids) != 1) {
 		s.failure(w, r, 400, "invalid_query", "One requestId is required")
 		return true
@@ -387,6 +393,10 @@ func (s *Server) handlePlayer(w http.ResponseWriter, r *http.Request) bool {
 	}
 	if path == "/api/trades/submission" {
 		s.lookupTrade(w, r, ctx, ids[0])
+		return true
+	}
+	if path == "/api/zone-creates/submission" {
+		s.lookupZoneCreate(w, r, ctx, ids[0])
 		return true
 	}
 	if path == "/api/buildings/submission" {

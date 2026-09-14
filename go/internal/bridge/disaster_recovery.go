@@ -60,11 +60,20 @@ type RecoveryServiceAttempt struct {
 	Method      RecoveryServiceMethod
 }
 
+// recoveryServiceOperation builds the RecoverService command. The target's
+// CAS token travels on the decoupled ExpectedTargetSnapshotToken field
+// (mirroring QueueSurgery's expected_health_token), not on Target's own
+// EntityPrecondition, which carries identity only: the target's
+// recovery-specific token has no existing observation read that could
+// produce it ahead of time, so ReadRecoveryServiceTarget discovers it via an
+// unconstrained preview (thingToken == "" here, field left unset).
 func recoveryServiceOperation(pawn, pawnToken, thing, thingToken string, method RecoveryServiceMethod) *o.Operation {
 	wireMethod := method.wire()
-	return &o.Operation{Command: &o.Operation_RecoverService{RecoverService: &o.RecoverService{
-		Target: gearEntity(thing, thingToken), Pawn: gearEntity(pawn, pawnToken), Method: &wireMethod,
-	}}}
+	command := &o.RecoverService{Target: &o.EntityPrecondition{EntityId: proto.String(thing)}, Pawn: gearEntity(pawn, pawnToken), Method: &wireMethod}
+	if thingToken != "" {
+		command.ExpectedTargetSnapshotToken = proto.String(thingToken)
+	}
+	return &o.Operation{Command: &o.Operation_RecoverService{RecoverService: command}}
 }
 
 func recoveryServiceCommand(pawn, pawnToken, thing, thingToken string, method RecoveryServiceMethod) error {
@@ -75,6 +84,78 @@ func recoveryServiceCommand(pawn, pawnToken, thing, thingToken string, method Re
 		return contract("invalid recovery service method")
 	}
 	return nil
+}
+
+func recoveryServiceDiscoveryCommand(pawn, pawnToken, thing string, method RecoveryServiceMethod) error {
+	if validID(pawn) != nil || validID(pawnToken) != nil || validID(thing) != nil || pawn == thing {
+		return contract("invalid recovery service target discovery")
+	}
+	if _, ok := recoveryServiceJobDef[method]; !ok {
+		return contract("invalid recovery service method")
+	}
+	return nil
+}
+
+// RecoveryServiceTarget carries one exact structure's freshly
+// native-computed recovery-service CAS token (NativeRecoveryOperations.Token:
+// hit points, breakdown state, fuel level, forbidden, burning), discovered
+// via an unconstrained RecoverService preview -- no expected target token
+// supplied -- the same way bridge.SurgeryTarget/ReadSurgeryTarget establishes
+// a patient's health-signature baseline for QueueSurgery. The general upkeep
+// census strips snapshot tokens, and the row-level building read
+// (NativeBuildingObservationTools, bridge.ReadConstructionBuildings) only
+// ever populates a row-level "building-" hash over unrelated fields, never
+// the nested EntityRef.Snapshot this token would need -- so this preview
+// round-trip is the only source.
+type RecoveryServiceTarget struct {
+	Context   *c.ObservationContext
+	Structure string
+	Token     string
+	Accepted  bool
+}
+
+// ReadRecoveryServiceTarget previews the exact pawn/structure/method triple
+// with no expected target token supplied, returning the native-computed
+// current recovery-service CAS token and whether native reports the method
+// presently applicable. Callers must still run PreviewRecoveryService (or go
+// straight to admission) with the returned token before dispatch; this call
+// establishes the baseline, it is not authority.
+func (client *Client) ReadRecoveryServiceTarget(ctx context.Context, identity *c.Identity, pawn, pawnToken, structure string, method RecoveryServiceMethod) (RecoveryServiceTarget, Result, error) {
+	if err := ValidateIdentity(identity); err != nil {
+		return RecoveryServiceTarget{}, Result{}, err
+	}
+	if err := recoveryServiceDiscoveryCommand(pawn, pawnToken, structure, method); err != nil {
+		return RecoveryServiceTarget{}, Result{}, err
+	}
+	identity = proto.Clone(identity).(*c.Identity)
+	reply := &o.PreviewReply{}
+	raw, err := client.protoRead(ctx, "rimgovernor/operations_preview", &o.PreviewRequest{Identity: identity, Operation: recoveryServiceOperation(pawn, pawnToken, structure, "", method)}, reply)
+	if err != nil {
+		return RecoveryServiceTarget{}, raw, err
+	}
+	if err = buildingUnknown(reply); err != nil {
+		return RecoveryServiceTarget{}, raw, err
+	}
+	switch v := reply.Outcome.(type) {
+	case *o.PreviewReply_Failure:
+		return RecoveryServiceTarget{}, raw, failure(v.Failure, raw)
+	case *o.PreviewReply_Evaluated:
+		value := v.Evaluated
+		if value == nil {
+			return RecoveryServiceTarget{}, raw, contract("recovery service target preview missing")
+		}
+		if err = buildingContext(value.Context, identity, 0, false); err != nil {
+			return RecoveryServiceTarget{}, raw, err
+		}
+		job := value.Projected.GetJob()
+		if value.Accepted == nil || job == nil || job.GetPawnId() != pawn || job.GetTargetA().GetThingId() != structure ||
+			job.TargetSnapshotToken == nil || validID(job.GetTargetSnapshotToken()) != nil {
+			return RecoveryServiceTarget{}, raw, contract("recovery service target facts missing")
+		}
+		return RecoveryServiceTarget{Context: value.Context, Structure: structure, Token: job.GetTargetSnapshotToken(), Accepted: value.GetAccepted()}, raw, nil
+	default:
+		return RecoveryServiceTarget{}, raw, contract("recovery service target outcome missing")
+	}
 }
 
 // PreviewRecoveryService checks an exact already-selected pawn/building
@@ -111,7 +192,7 @@ func (client *Client) PreviewRecoveryService(ctx context.Context, identity *c.Id
 			err = contract("recovery service preview facts missing")
 			break
 		}
-		expected := &r.JobEffect{PawnId: proto.String(pawn), JobDef: proto.String(recoveryServiceJobDef[method]), TargetA: &r.JobTarget{Target: &r.JobTarget_ThingId{ThingId: thing}}, CanTry: proto.Bool(value.GetAccepted()), Issued: proto.Bool(false), Verified: proto.Bool(false)}
+		expected := &r.JobEffect{PawnId: proto.String(pawn), JobDef: proto.String(recoveryServiceJobDef[method]), TargetA: &r.JobTarget{Target: &r.JobTarget_ThingId{ThingId: thing}}, CanTry: proto.Bool(value.GetAccepted()), Issued: proto.Bool(false), Verified: proto.Bool(false), TargetSnapshotToken: proto.String(thingToken)}
 		if !proto.Equal(job, expected) {
 			err = contract("recovery service preview projection mismatch")
 		}

@@ -144,6 +144,18 @@ type Trade struct {
 	EndKind               domain.TradeEndKind       `json:"endKind,omitempty"`
 	ReceiveQuest          bool                      `json:"receiveQuest,omitempty"`
 }
+type ZoneCell struct {
+	X int32 `json:"x"`
+	Z int32 `json:"z"`
+}
+type ZoneCreate struct {
+	Kind     domain.ZoneKind          `json:"kind"`
+	Crop     string                   `json:"crop,omitempty"`
+	Preset   domain.StockpilePreset   `json:"preset,omitempty"`
+	Priority domain.StockpilePriority `json:"priority,omitempty"`
+	Cells    []ZoneCell               `json:"cells"`
+	Allow    []string                 `json:"allow,omitempty"`
+}
 type DraftCleanup struct {
 	Stage domain.DraftCleanupStage `json:"stage"`
 }

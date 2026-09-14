@@ -141,6 +141,10 @@ message JobEffect {
   optional bool can_try = 20;
   optional string resulting_snapshot_token = 21;
   optional string draft_claim_id = 22;
+  // Fresh CAS token for the operation's non-pawn target (e.g. RecoverService's
+  // building), populated only by an unconstrained preview discovery read;
+  // distinct from resulting_snapshot_token's post-effect pawn meaning.
+  optional string target_snapshot_token = 23;
 }
 message SurgeryEffect { optional string patient_id = 1; optional string recipe_def = 2; optional int32 part_index = 3; optional string bill_id = 4; optional bool queued = 5; optional string health_token = 6; SnapshotEvidence bill_stack = 7; }
 message AnimalEffect { SnapshotEvidence animal = 1; optional string census_token = 2; optional string trainable_def = 3; optional bool wanted = 4; optional bool slaughter_designated = 5; }

@@ -39,9 +39,19 @@ import (
 
 // defaultCaravanDeparturePolicy is the fixed admission threshold for the
 // unconditional player-command CaravanDeparture vertical: leave at least one
-// colonist and five days of food home, and keep a doctor among the stayers.
-// Not yet operator-configurable; no CLI flag exists for it.
-var defaultCaravanDeparturePolicy = policy.CaravanDeparturePolicy{MinimumHomeColonists: 1, MinimumHomeFoodDays: 5, KeepHomeDoctor: true}
+// colonist and five days of food home, keep a doctor among the stayers, and
+// block departures to a destination outside [-10, 40] Celsius, a hostile
+// settlement, or a settlement whose goodwill is below -50 -- the same
+// defaults Python's ExpeditionPolicy model ships. Not yet
+// operator-configurable; no CLI flag exists for it.
+var defaultCaravanDeparturePolicy = policy.CaravanDeparturePolicy{
+	MinimumHomeColonists:           1,
+	MinimumHomeFoodDays:            5,
+	KeepHomeDoctor:                 true,
+	MinimumDestinationTemperatureC: -10,
+	MaximumDestinationTemperatureC: 40,
+	MinimumGoodwill:                -50,
+}
 
 // moodReliefWorldSource is the narrow slice of *bridge.Client that
 // readMoodReliefLongitude needs to find the colony's home tile and read its

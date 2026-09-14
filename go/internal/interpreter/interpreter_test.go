@@ -721,6 +721,109 @@ func TestGiftTargetsValidatedAndBounded(t *testing.T) {
 	assertKind(t, err, InvalidInput)
 }
 
+func zoneCellFacts() []domain.Cell { return []domain.Cell{{X: 0, Z: 0}, {X: 1, Z: 0}} }
+
+func TestCreateZoneGrowingProposal(t *testing.T) {
+	i := clientFixture(t, func(context.Context, model.Request) (model.Response, error) {
+		return model.Response{Text: `{"command":"create_zone","zoneKind":"growing","crop":"Rice","cells":[{"x":0,"z":0},{"x":1,"z":0}]}`, FinishReason: model.Stop}, nil
+	})
+	input := inputFixture()
+	input.Facts.Cells = zoneCellFacts()
+	input.Facts.CropDefinitions = []string{"Rice"}
+	proposal, err := i.Interpret(context.Background(), input)
+	if err != nil {
+		t.Fatal(err)
+	}
+	actions := proposal.Plan.Actions()
+	if len(actions) != 1 || actions[0].ID() != "a1" {
+		t.Fatal("incorrect create_zone action identity")
+	}
+	zone, ok := actions[0].ZoneCreate()
+	if !ok || zone.Kind() != domain.GrowingZone || zone.Crop() != "Rice" || len(zone.Cells()) != 2 {
+		t.Fatal("incorrect typed create_zone proposal", zone)
+	}
+}
+
+func TestCreateZoneStockpileProposals(t *testing.T) {
+	food := func(context.Context, model.Request) (model.Response, error) {
+		return model.Response{Text: `{"command":"create_zone","zoneKind":"stockpile","preset":"food","priority":"important","cells":[{"x":0,"z":0},{"x":1,"z":0}]}`, FinishReason: model.Stop}, nil
+	}
+	input := inputFixture()
+	input.Facts.Cells = zoneCellFacts()
+	proposal, err := clientFixture(t, food).Interpret(context.Background(), input)
+	if err != nil {
+		t.Fatal(err)
+	}
+	zone, ok := proposal.Plan.Actions()[0].ZoneCreate()
+	if !ok || zone.Kind() != domain.StockpileZone || zone.Preset() != domain.FoodPreset || zone.Priority() != domain.ImportantPriority {
+		t.Fatal("incorrect typed food stockpile proposal", zone)
+	}
+
+	nothing := func(context.Context, model.Request) (model.Response, error) {
+		return model.Response{Text: `{"command":"create_zone","zoneKind":"stockpile","preset":"nothing","priority":"important","allow":["Silver"],"cells":[{"x":0,"z":0},{"x":1,"z":0}]}`, FinishReason: model.Stop}, nil
+	}
+	input = inputFixture()
+	input.Facts.Cells = zoneCellFacts()
+	input.Facts.StockpileDefinitions = []string{"Silver"}
+	proposal, err = clientFixture(t, nothing).Interpret(context.Background(), input)
+	if err != nil {
+		t.Fatal(err)
+	}
+	zone, ok = proposal.Plan.Actions()[0].ZoneCreate()
+	if !ok || zone.Preset() != domain.NothingPreset || len(zone.Allow()) != 1 || zone.Allow()[0] != "Silver" {
+		t.Fatal("incorrect typed allow-listed stockpile proposal", zone)
+	}
+}
+
+func TestCreateZoneRefusesUnknownFactsOrWrongActionCount(t *testing.T) {
+	growing := `{"command":"create_zone","zoneKind":"growing","crop":"Rice","cells":[{"x":0,"z":0},{"x":1,"z":0}]}`
+	nothing := `{"command":"create_zone","zoneKind":"stockpile","preset":"nothing","priority":"important","allow":["Silver"],"cells":[{"x":0,"z":0},{"x":1,"z":0}]}`
+	for _, tc := range []struct {
+		name string
+		text string
+		edit func(*Input)
+	}{
+		{"unobserved cell", growing, func(in *Input) { in.Facts.CropDefinitions = []string{"Rice"} }},
+		{"unknown crop", growing, func(in *Input) { in.Facts.Cells = zoneCellFacts() }},
+		{"unknown allow-list definition", nothing, func(in *Input) { in.Facts.Cells = zoneCellFacts() }},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			response := func(context.Context, model.Request) (model.Response, error) {
+				return model.Response{Text: tc.text, FinishReason: model.Stop}, nil
+			}
+			input := inputFixture()
+			tc.edit(&input)
+			_, err := clientFixture(t, response).Interpret(context.Background(), input)
+			assertKind(t, err, UnknownFacts)
+		})
+	}
+	response := func(context.Context, model.Request) (model.Response, error) {
+		return model.Response{Text: growing, FinishReason: model.Stop}, nil
+	}
+	input := inputFixture()
+	input.Facts.Cells = zoneCellFacts()
+	input.Facts.CropDefinitions = []string{"Rice"}
+	input.ActionIDs = append(input.ActionIDs, "a2")
+	_, err := clientFixture(t, response).Interpret(context.Background(), input)
+	assertKind(t, err, InvalidCommand)
+}
+
+func TestCreateZoneFactsValidatedAndBounded(t *testing.T) {
+	i := clientFixture(t, func(context.Context, model.Request) (model.Response, error) {
+		t.Fatal("model called")
+		return model.Response{}, nil
+	})
+	input := inputFixture()
+	input.Facts.CropDefinitions = []string{"Rice", "Rice"}
+	_, err := i.Interpret(context.Background(), input)
+	assertKind(t, err, InvalidInput)
+
+	input = inputFixture()
+	input.Facts.StockpileDefinitions = []string{"Silver", "Silver"}
+	_, err = i.Interpret(context.Background(), input)
+	assertKind(t, err, InvalidInput)
+}
+
 func TestCargoAndDestinationFactsValidatedAndBounded(t *testing.T) {
 	i := clientFixture(t, func(context.Context, model.Request) (model.Response, error) {
 		t.Fatal("model called")

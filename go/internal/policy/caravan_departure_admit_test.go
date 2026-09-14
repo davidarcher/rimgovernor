@@ -27,9 +27,14 @@ func caravanDepartureRequest(t *testing.T) CaravanDepartureRequest {
 		HomeDoctorAvailable:    domain.Known(true),
 		HomeFoodRunwayDays:     domain.Known(20.0),
 		RouteReachable:         domain.Known(true),
+		RouteTemperatureC:      domain.Known(15.0),
+		RouteHostile:           domain.Known(false),
+		RouteFactionID:         "faction-1",
+		RouteGoodwill:          domain.Known(int32(0)),
+		RouteFoodRotDays:       domain.Known(9.0),
 		NativeCanTry:           domain.Known(true),
 	}
-	policy := CaravanDeparturePolicy{MinimumHomeColonists: 1, MinimumHomeFoodDays: 5, KeepHomeDoctor: true}
+	policy := CaravanDeparturePolicy{MinimumHomeColonists: 1, MinimumHomeFoodDays: 5, KeepHomeDoctor: true, MinimumDestinationTemperatureC: -10, MaximumDestinationTemperatureC: 40, MinimumGoodwill: -50}
 	return CaravanDepartureRequest{Action: a, Progress: p, Current: s, MinimumTick: 11, Policy: policy, Facts: facts}
 }
 
@@ -50,6 +55,18 @@ func TestCaravanDepartureAdmission(t *testing.T) {
 	}
 	if original.View().Stage != domain.Pending {
 		t.Fatal("mutated progress")
+	}
+}
+
+// TestCaravanDepartureAdmissionNoFactionStake mirrors evaluate_expedition's
+// `if route.get('factionId') and ...` gate: an empty-wilds destination with
+// no settlement/faction carries no goodwill requirement at all, even when
+// goodwill itself is unknown.
+func TestCaravanDepartureAdmissionNoFactionStake(t *testing.T) {
+	r := caravanDepartureRequest(t)
+	r.Facts.RouteFactionID, r.Facts.RouteGoodwill = "", domain.Unknown[int32]()
+	if d := EvaluateCaravanDeparture(r); !d.Admitted || len(d.Refused) != 0 {
+		t.Fatal(d)
 	}
 }
 
@@ -92,6 +109,13 @@ func TestCaravanDepartureDefenseHolds(t *testing.T) {
 		{"insufficient home food", func(r *CaravanDepartureRequest) { r.Facts.HomeFoodRunwayDays = domain.Known(1.0) }, CaravanHomeFoodInsufficient},
 		{"unknown route", func(r *CaravanDepartureRequest) { r.Facts.RouteReachable = domain.Unknown[bool]() }, UnknownFacts},
 		{"unreachable route", func(r *CaravanDepartureRequest) { r.Facts.RouteReachable = domain.Known(false) }, CaravanRouteUnavailable},
+		{"unknown temperature", func(r *CaravanDepartureRequest) { r.Facts.RouteTemperatureC = domain.Unknown[float64]() }, UnknownFacts},
+		{"temperature too cold", func(r *CaravanDepartureRequest) { r.Facts.RouteTemperatureC = domain.Known(-11.0) }, CaravanDestinationTemperatureOutOfRange},
+		{"temperature too hot", func(r *CaravanDepartureRequest) { r.Facts.RouteTemperatureC = domain.Known(41.0) }, CaravanDestinationTemperatureOutOfRange},
+		{"unknown hostile", func(r *CaravanDepartureRequest) { r.Facts.RouteHostile = domain.Unknown[bool]() }, UnknownFacts},
+		{"hostile destination", func(r *CaravanDepartureRequest) { r.Facts.RouteHostile = domain.Known(true) }, CaravanDestinationHostile},
+		{"unknown goodwill", func(r *CaravanDepartureRequest) { r.Facts.RouteGoodwill = domain.Unknown[int32]() }, UnknownFacts},
+		{"insufficient goodwill", func(r *CaravanDepartureRequest) { r.Facts.RouteGoodwill = domain.Known(int32(-51)) }, CaravanDestinationGoodwillInsufficient},
 		{"preview refusal", func(r *CaravanDepartureRequest) { r.Facts.NativeCanTry = domain.Known(false) }, NativeIneligible},
 		{"unknown preview", func(r *CaravanDepartureRequest) { r.Facts.NativeCanTry = domain.Unknown[bool]() }, UnknownFacts},
 	}

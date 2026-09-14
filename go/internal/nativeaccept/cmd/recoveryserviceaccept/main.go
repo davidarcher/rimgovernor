@@ -20,14 +20,9 @@
 package main
 
 import (
-	"bytes"
 	"context"
-	"crypto/sha256"
-	"encoding/binary"
-	"encoding/hex"
 	"flag"
 	"fmt"
-	"math"
 	"os"
 	"time"
 
@@ -251,123 +246,94 @@ func run(ctx context.Context, root, output, gameID string, headless bool, report
 		return token, nil
 	}
 
-	// wallState reads HitPoints/defName/Burning through
+	// wallState reads HitPoints/maxHitPoints through
 	// rimgovernor/observations_list_buildings with statuses=["built"],
-	// category="artificial", playerOnly=true -- exactly the call
-	// bridge.ReadRepairTarget issues.
-	//
-	// NOTE (confirmed genuine bug, out of scope to fix in production here):
-	// bridge.ReadRepairTarget (go/internal/bridge/repair_target.go) reads its
-	// CAS token from the nested EntityRef's own Snapshot field
-	// (row.GetBuilding().Snapshot), but NativeBuildingObservationTools.cs's
-	// Project() never sets that nested field for buildings -- only the
-	// ROW-level "snapshot" (a completely different hash, prefix "building-",
-	// over status/hitPoints/burning/construction) is populated. Even that
-	// row-level token would not satisfy NativeRecoveryOperations.Token()'s own
-	// check: Token() computes an entirely different SHA256 (prefix
-	// "recover-", over colonyId/loadToken/mapId/uniqueLoadID/defName/
-	// useHitPoints/hitPoints/maxHitPoints/brokenDown/fuel/targetFuel/
-	// forbidden/burning) that no existing observation reply exposes --
-	// exactly as NativeRecoveryOperations.cs's own doc comment warns. This
-	// means buildingruntime.RecoveryServiceBoundary.InspectRecoveryService
-	// would always fail with "repair target CAS token unavailable" against
-	// real native. This accept tool works around the gap (test-only) by
-	// replicating Token()'s exact algorithm locally in computeRecoveryToken
-	// below, using known fixture values, so the native RecoverService
-	// dispatch itself can still be proven correct end-to-end.
-	wallState := func(label string) (hitPoints, maxHP float64, defName string, burning bool, err error) {
+	// category="artificial", playerOnly=true, purely to independently assert
+	// the wall's real HitPoints before/after dispatch (not for its CAS
+	// token: see discoverTargetToken below).
+	wallState := func(label string) (hitPoints, maxHP float64, err error) {
 		reply, err := h.Wire(ctx, label, "observations_list_buildings", map[string]any{
 			"scope": map[string]any{"expectedIdentity": identity}, "ids": []string{wallID},
 			"statuses": []string{"built"}, "category": "artificial", "playerOnly": true,
 			"page": map[string]any{"limit": 1},
 		})
 		if err != nil {
-			return 0, 0, "", false, err
+			return 0, 0, err
 		}
 		_, observed, err := na.Outcome(reply, "observed")
 		if err != nil {
-			return 0, 0, "", false, err
+			return 0, 0, err
 		}
 		rows := na.AsSlice(observed["buildings"])
 		if len(rows) != 1 {
-			return 0, 0, "", false, fmt.Errorf("%s: expected exactly one building row, got %#v", label, observed)
+			return 0, 0, fmt.Errorf("%s: expected exactly one building row, got %#v", label, observed)
 		}
 		row, _ := na.AsMap(rows[0])
 		building, _ := na.AsMap(row["building"])
 		if na.AsString(building["id"]) != wallID {
-			return 0, 0, "", false, fmt.Errorf("%s: unexpected building row: %#v", label, row)
-		}
-		defName = na.AsString(building["defName"])
-		if defName == "" {
-			return 0, 0, "", false, fmt.Errorf("%s: missing building defName: %#v", label, row)
+			return 0, 0, fmt.Errorf("%s: unexpected building row: %#v", label, row)
 		}
 		if _, present := row["hitPoints"]; !present {
-			return 0, 0, "", false, fmt.Errorf("%s: missing hitPoints: %#v", label, row)
+			return 0, 0, fmt.Errorf("%s: missing hitPoints: %#v", label, row)
 		}
-		burning, _ = na.AsBool(row["burning"])
-		return na.AsNumber(row["hitPoints"]), na.AsNumber(row["maxHitPoints"]), defName, burning, nil
+		return na.AsNumber(row["hitPoints"]), na.AsNumber(row["maxHitPoints"]), nil
 	}
 
-	// computeRecoveryToken replicates NativeRecoveryOperations.Token()'s
-	// exact .NET BinaryWriter + SHA256 algorithm (see the wallState doc
-	// comment above for why this workaround is necessary): each string is a
-	// 7-bit-encoded (LEB128-style) UTF-8 byte-length prefix followed by raw
-	// UTF-8 bytes, each bool is one byte (0/1), each int32/float32 is
-	// 4-byte little-endian. The fixture's Wall has no CompBreakdownable or
-	// CompRefuelable, so brokenDown is always false and fuel/targetFuel are
-	// always -1, and the fixture never forbids its wall.
-	computeRecoveryToken := func(uniqueLoadID, defName string, hitPoints, maxHitPoints int32, burning bool) string {
-		var buf bytes.Buffer
-		writeNetString := func(s string) {
-			b := []byte(s)
-			n := uint32(len(b))
-			for n >= 0x80 {
-				buf.WriteByte(byte(n&0x7F | 0x80))
-				n >>= 7
-			}
-			buf.WriteByte(byte(n))
-			buf.Write(b)
-		}
-		writeBool := func(v bool) {
-			if v {
-				buf.WriteByte(1)
-			} else {
-				buf.WriteByte(0)
-			}
-		}
-		writeInt32 := func(v int32) {
-			var b [4]byte
-			binary.LittleEndian.PutUint32(b[:], uint32(v))
-			buf.Write(b[:])
-		}
-		writeFloat32 := func(v float32) {
-			var b [4]byte
-			binary.LittleEndian.PutUint32(b[:], math.Float32bits(v))
-			buf.Write(b[:])
-		}
-		writeNetString(na.AsString(identity["colonyId"]))
-		writeNetString(na.AsString(identity["loadToken"]))
-		writeInt32(int32(na.AsNumber(identity["mapId"])))
-		writeNetString(uniqueLoadID)
-		writeNetString(defName)
-		writeBool(true) // useHitPoints: always true for our Wall fixture
-		writeInt32(hitPoints)
-		writeInt32(maxHitPoints)
-		writeBool(false) // brokenDown: Wall has no CompBreakdownable
-		writeFloat32(-1) // fuel: Wall has no CompRefuelable
-		writeFloat32(-1) // targetFuel: Wall has no CompRefuelable
-		writeBool(false) // forbidden: fixture never forbids its wall
-		writeBool(burning)
-		sum := sha256.Sum256(buf.Bytes())
-		return "recover-" + hex.EncodeToString(sum[:])
-	}
-
+	// buildOperation mirrors bridge.recoveryServiceOperation
+	// (go/internal/bridge/disaster_recovery.go): target carries identity
+	// only (its recovery-specific CAS token has no existing observation read
+	// that could produce it ahead of time), and the token travels on the
+	// decoupled expectedTargetSnapshotToken field instead, omitted entirely
+	// when wToken is empty -- an unconstrained call, exactly like
+	// discoverTargetToken below issues to establish the baseline.
 	buildOperation := func(pID, pToken, wID, wToken string) map[string]any {
-		return map[string]any{"recoverService": map[string]any{
-			"target": map[string]any{"entityId": wID, "expectedSnapshotToken": wToken},
+		recover := map[string]any{
+			"target": map[string]any{"entityId": wID},
 			"pawn":   map[string]any{"entityId": pID, "expectedSnapshotToken": pToken},
 			"method": "SERVICE_METHOD_REPAIR",
-		}}
+		}
+		if wToken != "" {
+			recover["expectedTargetSnapshotToken"] = wToken
+		}
+		return map[string]any{"recoverService": recover}
+	}
+
+	// discoverTargetToken mirrors bridge.ReadRecoveryServiceTarget
+	// (go/internal/bridge/disaster_recovery.go): the real production fix for
+	// the bug this tool previously worked around (a local replica of
+	// NativeRecoveryOperations.Token()'s algorithm). No existing observation
+	// read exposes the wall's recovery-specific CAS token, so this issues
+	// the exact same unconstrained rimgovernor/operations_preview round-trip
+	// bridge.ReadRecoveryServiceTarget does (no expectedTargetSnapshotToken
+	// supplied) and reads the native-computed value back from
+	// evaluated.projected.job.targetSnapshotToken.
+	discoverTargetToken := func(label, pID, pToken, wID string) (string, error) {
+		reply, err := h.Wire(ctx, label, "operations_preview", map[string]any{
+			"identity": identity, "operation": buildOperation(pID, pToken, wID, ""),
+		})
+		if err != nil {
+			return "", err
+		}
+		_, evaluated, err := na.Outcome(reply, "evaluated")
+		if err != nil {
+			return "", err
+		}
+		if accepted, _ := na.AsBool(evaluated["accepted"]); !accepted {
+			return "", fmt.Errorf("%s: expected the discovery preview to be accepted, got %#v", label, evaluated)
+		}
+		projected, _ := na.AsMap(evaluated["projected"])
+		job, _ := na.AsMap(projected["job"])
+		if na.AsString(job["pawnId"]) != pID {
+			return "", fmt.Errorf("%s: unexpected discovery preview pawn: %#v", label, job)
+		}
+		if targetA, _ := na.AsMap(job["targetA"]); na.AsString(targetA["thingId"]) != wID {
+			return "", fmt.Errorf("%s: unexpected discovery preview target: %#v", label, job)
+		}
+		wToken := na.AsString(job["targetSnapshotToken"])
+		if wToken == "" {
+			return "", fmt.Errorf("%s: missing discovered target snapshot token: %#v", label, job)
+		}
+		return wToken, nil
 	}
 	buildRequest := func(actionID string, generation any, operation map[string]any) map[string]any {
 		return map[string]any{
@@ -390,7 +356,7 @@ func run(ctx context.Context, root, output, gameID string, headless bool, report
 		return na.AsString(failure["code"]), nil
 	}
 
-	beforeHitPoints, beforeMax, wallDefName, beforeBurning, err := wallState("wall-before")
+	beforeHitPoints, beforeMax, err := wallState("wall-before")
 	if err != nil {
 		return err
 	}
@@ -399,11 +365,18 @@ func run(ctx context.Context, root, output, gameID string, headless bool, report
 	}
 	report["wall_before_hit_points"] = beforeHitPoints
 	report["wall_max_hit_points"] = beforeMax
-	wallToken := computeRecoveryToken(wallID, wallDefName, int32(beforeHitPoints), int32(beforeMax), beforeBurning)
 	token, err := pawnToken("pawn-before")
 	if err != nil {
 		return err
 	}
+	// Real production discovery: the same unconstrained preview round-trip
+	// bridge.ReadRecoveryServiceTarget issues, proving the actual fix rather
+	// than a client-side replica of the native hash.
+	wallToken, err := discoverTargetToken("discover-wall-token", pawnID, token, wallID)
+	if err != nil {
+		return err
+	}
+	report["wall_token_discovered"] = true
 
 	// Refusal 1: a stale performer CAS token must be refused.
 	staleGeneration, err := currentGeneration("generation-stale-pawn")
@@ -449,7 +422,7 @@ func run(ctx context.Context, root, output, gameID string, headless bool, report
 	if issued, _ := na.AsBool(previewJob["issued"]); issued {
 		return fmt.Errorf("preview-repair: expected a dry-run preview to not issue a job: %#v", previewJob)
 	}
-	afterPreviewHitPoints, _, _, _, err := wallState("wall-after-preview")
+	afterPreviewHitPoints, _, err := wallState("wall-after-preview")
 	if err != nil {
 		return err
 	}
@@ -504,7 +477,7 @@ func run(ctx context.Context, root, output, gameID string, headless bool, report
 	if _, err := h.Call(ctx, "pause-after-repair", "rimworld/set_time_speed", map[string]any{"speed": "Paused", "ultraSpeedBoost": false}); err != nil {
 		return err
 	}
-	afterHitPoints, afterMax, _, _, err := wallState("wall-after-complete")
+	afterHitPoints, afterMax, err := wallState("wall-after-complete")
 	if err != nil {
 		return err
 	}

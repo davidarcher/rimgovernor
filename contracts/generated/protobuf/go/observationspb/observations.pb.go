@@ -13571,6 +13571,10 @@ type WorldRoute struct {
 	Reachable      *bool                  `protobuf:"varint,3,opt,name=reachable,proto3,oneof" json:"reachable,omitempty"`
 	EstimatedTicks *int64                 `protobuf:"varint,4,opt,name=estimated_ticks,json=estimatedTicks,proto3,oneof" json:"estimated_ticks,omitempty"`
 	Reason         *string                `protobuf:"bytes,5,opt,name=reason,proto3,oneof" json:"reason,omitempty"`
+	TemperatureC   *float64               `protobuf:"fixed64,6,opt,name=temperature_c,json=temperatureC,proto3,oneof" json:"temperature_c,omitempty"`
+	Hostile        *bool                  `protobuf:"varint,7,opt,name=hostile,proto3,oneof" json:"hostile,omitempty"`
+	Goodwill       *int32                 `protobuf:"varint,8,opt,name=goodwill,proto3,oneof" json:"goodwill,omitempty"`
+	FactionId      *string                `protobuf:"bytes,9,opt,name=faction_id,json=factionId,proto3,oneof" json:"faction_id,omitempty"`
 	unknownFields  protoimpl.UnknownFields
 	sizeCache      protoimpl.SizeCache
 }
@@ -13636,6 +13640,34 @@ func (x *WorldRoute) GetEstimatedTicks() int64 {
 func (x *WorldRoute) GetReason() string {
 	if x != nil && x.Reason != nil {
 		return *x.Reason
+	}
+	return ""
+}
+
+func (x *WorldRoute) GetTemperatureC() float64 {
+	if x != nil && x.TemperatureC != nil {
+		return *x.TemperatureC
+	}
+	return 0
+}
+
+func (x *WorldRoute) GetHostile() bool {
+	if x != nil && x.Hostile != nil {
+		return *x.Hostile
+	}
+	return false
+}
+
+func (x *WorldRoute) GetGoodwill() int32 {
+	if x != nil && x.Goodwill != nil {
+		return *x.Goodwill
+	}
+	return 0
+}
+
+func (x *WorldRoute) GetFactionId() string {
+	if x != nil && x.FactionId != nil {
+		return *x.FactionId
 	}
 	return ""
 }
@@ -26720,20 +26752,30 @@ const file_observations_proto_rawDesc = "" +
 	"\bobserved\x18\x01 \x01(\v2*.rimgovernor.observations.v1.WorldSnapshotH\x00R\bobserved\x12F\n" +
 	"\vunavailable\x18\x02 \x01(\v2\".rimgovernor.common.v1.UnavailableH\x00R\vunavailable\x12:\n" +
 	"\afailure\x18\x03 \x01(\v2\x1e.rimgovernor.common.v1.FailureH\x00R\afailureB\t\n" +
-	"\aoutcome\"\x9a\x02\n" +
+	"\aoutcome\"\xe2\x03\n" +
 	"\n" +
 	"WorldRoute\x12(\n" +
 	"\rsettlement_id\x18\x01 \x01(\tH\x00R\fsettlementId\x88\x01\x01\x12%\n" +
 	"\vdestination\x18\x02 \x01(\x05H\x01R\vdestination\x88\x01\x01\x12!\n" +
 	"\treachable\x18\x03 \x01(\bH\x02R\treachable\x88\x01\x01\x12,\n" +
 	"\x0festimated_ticks\x18\x04 \x01(\x03H\x03R\x0eestimatedTicks\x88\x01\x01\x12\x1b\n" +
-	"\x06reason\x18\x05 \x01(\tH\x04R\x06reason\x88\x01\x01B\x10\n" +
+	"\x06reason\x18\x05 \x01(\tH\x04R\x06reason\x88\x01\x01\x12(\n" +
+	"\rtemperature_c\x18\x06 \x01(\x01H\x05R\ftemperatureC\x88\x01\x01\x12\x1d\n" +
+	"\ahostile\x18\a \x01(\bH\x06R\ahostile\x88\x01\x01\x12\x1f\n" +
+	"\bgoodwill\x18\b \x01(\x05H\aR\bgoodwill\x88\x01\x01\x12\"\n" +
+	"\n" +
+	"faction_id\x18\t \x01(\tH\bR\tfactionId\x88\x01\x01B\x10\n" +
 	"\x0e_settlement_idB\x0e\n" +
 	"\f_destinationB\f\n" +
 	"\n" +
 	"_reachableB\x12\n" +
 	"\x10_estimated_ticksB\t\n" +
-	"\a_reason\"\xa5\x06\n" +
+	"\a_reasonB\x10\n" +
+	"\x0e_temperature_cB\n" +
+	"\n" +
+	"\b_hostileB\v\n" +
+	"\t_goodwillB\r\n" +
+	"\v_faction_id\"\xa5\x06\n" +
 	"\fCaravanState\x12@\n" +
 	"\acaravan\x18\x01 \x01(\v2&.rimgovernor.observations.v1.EntityRefR\acaravan\x12\x17\n" +
 	"\x04tile\x18\x02 \x01(\x05H\x00R\x04tile\x88\x01\x01\x12%\n" +

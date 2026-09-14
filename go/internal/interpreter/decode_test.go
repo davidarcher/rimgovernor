@@ -430,3 +430,43 @@ func TestModelGiftSettlementShape(t *testing.T) {
 		})
 	}
 }
+
+func TestModelCreateZoneShape(t *testing.T) {
+	growing, err := decode(`{"command":"create_zone","zoneKind":"growing","crop":"Rice","cells":[{"x":0,"z":0},{"x":1,"z":0}]}`, 1)
+	if err != nil || growing.Command != "create_zone" || growing.ZoneKind == nil || *growing.ZoneKind != "growing" ||
+		growing.Crop == nil || *growing.Crop != "Rice" || len(growing.ZoneCells) != 2 ||
+		*growing.ZoneCells[0].X != 0 || *growing.ZoneCells[0].Z != 0 || *growing.ZoneCells[1].X != 1 || *growing.ZoneCells[1].Z != 0 {
+		t.Fatalf("create_zone growing shape: %v %v", growing, err)
+	}
+	food, err := decode(`{"command":"create_zone","zoneKind":"stockpile","preset":"food","priority":"important","cells":[{"x":0,"z":0}]}`, 1)
+	if err != nil || food.Command != "create_zone" || food.Preset == nil || *food.Preset != "food" || food.Priority == nil || *food.Priority != "important" || len(food.ZoneCells) != 1 {
+		t.Fatalf("create_zone food stockpile shape: %v %v", food, err)
+	}
+	nothing, err := decode(`{"command":"create_zone","zoneKind":"stockpile","preset":"nothing","priority":"important","allow":["Silver"],"cells":[{"x":0,"z":0}]}`, 1)
+	if err != nil || nothing.Preset == nil || *nothing.Preset != "nothing" || len(nothing.Allow) != 1 || nothing.Allow[0] != "Silver" {
+		t.Fatalf("create_zone allow-listed stockpile shape: %v %v", nothing, err)
+	}
+	for _, text := range []string{
+		`{"command":"create_zone"}`,
+		`{"command":"create_zone","zoneKind":"growing","cells":[{"x":0,"z":0}]}`,
+		`{"command":"create_zone","zoneKind":"growing","crop":"","cells":[{"x":0,"z":0}]}`,
+		`{"command":"create_zone","zoneKind":"growing","crop":null,"cells":[{"x":0,"z":0}]}`,
+		`{"command":"create_zone","zoneKind":"growing","crop":"Rice","cells":[]}`,
+		`{"command":"create_zone","zoneKind":"growing","crop":"Rice","cells":[{"x":0}]}`,
+		`{"command":"create_zone","zoneKind":"growing","crop":"Rice","cells":[{"x":0,"z":null}]}`,
+		`{"command":"create_zone","zoneKind":"growing","crop":"Rice","cells":[{"x":0,"z":0}],"dryRun":false}`,
+		`{"command":"create_zone","zoneKind":"stockpile","priority":"important","cells":[{"x":0,"z":0}]}`,
+		`{"command":"create_zone","zoneKind":"stockpile","preset":"food","cells":[{"x":0,"z":0}]}`,
+		`{"command":"create_zone","zoneKind":"stockpile","preset":"food","priority":"important","cells":[{"x":0,"z":0}],"dryRun":false}`,
+		`{"command":"create_zone","zoneKind":"stockpile","preset":"nothing","priority":"important","cells":[{"x":0,"z":0}]}`,
+		`{"command":"create_zone","zoneKind":"stockpile","preset":"nothing","priority":"important","allow":[],"cells":[{"x":0,"z":0}]}`,
+		`{"command":"create_zone","zoneKind":"stockpile","preset":"nothing","priority":"important","allow":[""],"cells":[{"x":0,"z":0}]}`,
+		`{"command":"create_zone","zoneKind":"stockpile","preset":"bogus","priority":"important","cells":[{"x":0,"z":0}]}`,
+		`{"command":"create_zone","zoneKind":"bogus","cells":[{"x":0,"z":0}]}`,
+	} {
+		t.Run(text, func(t *testing.T) {
+			_, err := decode(text, 1)
+			assertKind(t, err, InvalidCommand)
+		})
+	}
+}

@@ -24,12 +24,12 @@ func (n *caravanDepartureEnvironment) caravanDepartureFacts(target Target) polic
 	for _, pawn := range departure.Crew() {
 		crew = append(crew, policy.CaravanCrewFacts{Pawn: pawn, SnapshotToken: "crew-token-" + string(pawn), Dead: domain.Known(false), Downed: domain.Known(false), Drafted: domain.Known(false), MentalState: domain.Known(false), PlayerForced: domain.Known(false), QueuedJobs: domain.Known(uint32(0))})
 	}
-	return policy.CaravanDepartureFacts{Snapshot: target.Snapshot, PawnTick: n.tick, PreviewTick: n.tick, Crew: crew, CatalogToken: "catalog-token", RemainingHomeColonists: domain.Known(uint32(5)), HomeDoctorAvailable: domain.Known(true), HomeFoodRunwayDays: domain.Known(30.0), RouteReachable: domain.Known(true), NativeCanTry: domain.Known(!n.ineligible)}
+	return policy.CaravanDepartureFacts{Snapshot: target.Snapshot, PawnTick: n.tick, PreviewTick: n.tick, Crew: crew, CatalogToken: "catalog-token", RemainingHomeColonists: domain.Known(uint32(5)), HomeDoctorAvailable: domain.Known(true), HomeFoodRunwayDays: domain.Known(30.0), RouteReachable: domain.Known(true), RouteTemperatureC: domain.Known(15.0), RouteHostile: domain.Known(false), RouteFactionID: "faction-1", RouteGoodwill: domain.Known(int32(0)), RouteFoodRotDays: domain.Known(9.0), NativeCanTry: domain.Known(!n.ineligible)}
 }
 func (n *caravanDepartureEnvironment) InspectCaravanDeparture(_ context.Context, target Target) (CaravanDepartureInspection, error) {
 	n.inspected++
 	now := n.clock.Now()
-	return CaravanDepartureInspection{StartedAt: now, ObservedAt: now, Facts: n.caravanDepartureFacts(target), Policy: policy.CaravanDeparturePolicy{MinimumHomeColonists: 1, MinimumHomeFoodDays: 1, KeepHomeDoctor: false}}, nil
+	return CaravanDepartureInspection{StartedAt: now, ObservedAt: now, Facts: n.caravanDepartureFacts(target), Policy: policy.CaravanDeparturePolicy{MinimumHomeColonists: 1, MinimumHomeFoodDays: 1, KeepHomeDoctor: false, MinimumDestinationTemperatureC: -10, MaximumDestinationTemperatureC: 40, MinimumGoodwill: -50}}, nil
 }
 func (n *caravanDepartureEnvironment) DepartCaravan(_ context.Context, dispatch CaravanDepartureDispatch) (Receipt, error) {
 	n.dispatched++

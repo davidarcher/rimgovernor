@@ -42,7 +42,7 @@ message PreviewEvaluation {
   }
 }
 message StockAvailability { optional string def_name = 1; optional int32 available = 2; }
-message RoutePreparation { optional bool reachable = 1; optional int64 estimated_ticks = 2; optional float food_days = 3; optional float food_rot_days = 4; optional int32 destination_tile = 5; optional float temperature = 6; }
+message RoutePreparation { optional bool reachable = 1; optional int64 estimated_ticks = 2; optional float food_days = 3; optional float food_rot_days = 4; optional int32 destination_tile = 5; optional float temperature = 6; optional bool hostile = 7; optional int32 goodwill = 8; optional string faction_id = 9; }
 message CaravanPreparation { optional float mass_usage = 1; optional float mass_capacity = 2; repeated DefCount selected_cargo = 3; repeated DefCount carried_cargo = 4; repeated StockAvailability materials = 5; repeated string home_pawn_ids = 6; optional int32 home_doctors = 7; RoutePreparation route = 8; optional string return_storage_snapshot_token = 9; }
 message SurgeryPreparation { optional string recipe_def = 1; optional int32 part_index = 2; repeated string practitioner_ids = 3; repeated DefCount missing_ingredients = 4; optional bool requires_medicine = 5; optional bool has_permitted_medicine = 6; optional string medical_catalog_snapshot_token = 7; }
 message TradePreparation { optional string session_id = 1; optional string deal_signature = 2; optional string sheet_snapshot_token = 3; optional int32 available_silver = 4; optional int32 goodwill = 5; optional int32 expected_goodwill_gain = 6; optional string resource_def = 7; optional int32 required_count = 8; optional int32 available_count = 9; optional string settlement_id = 10; }
@@ -205,7 +205,13 @@ message RemoveWall { EntityPrecondition wall = 1; optional string expected_site_
 message ReleaseWallRemovals { optional string expected_snapshot_token = 1; }
 message RecoveryArea { EntityPrecondition pawn = 1; EntityPrecondition area = 2; }
 enum ServiceMethod { SERVICE_METHOD_UNSPECIFIED = 0; SERVICE_METHOD_REPAIR = 1; SERVICE_METHOD_BREAKDOWN = 2; SERVICE_METHOD_REFUEL = 3; }
-message RecoverService { EntityPrecondition target = 1; EntityPrecondition pawn = 2; optional ServiceMethod method = 3; }
+// expected_target_snapshot_token is decoupled from target's own EntityPrecondition
+// (whose token field is unused for this operation; only entity_id identity is
+// required) because the target's recovery-specific CAS token
+// (NativeRecoveryOperations.Token) has no existing observation read that could
+// produce it ahead of time: an unconstrained preview (this field omitted)
+// establishes the baseline, mirroring QueueSurgery's expected_health_token.
+message RecoverService { EntityPrecondition target = 1; EntityPrecondition pawn = 2; optional ServiceMethod method = 3; optional string expected_target_snapshot_token = 4; }
 message ManageWaste { EntityPrecondition target = 1; EntityPrecondition pawn = 2; repeated string unwanted_ids = 3; repeated string bury_ids = 4; }
 enum Need { NEED_UNSPECIFIED = 0; NEED_FOOD = 1; NEED_REST = 2; NEED_JOY = 3; }
 message ExpectedJob { oneof state { int32 job_id = 1; Clear idle = 2; } }
