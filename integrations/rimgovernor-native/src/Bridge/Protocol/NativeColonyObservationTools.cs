@@ -119,7 +119,8 @@ namespace HomeBridge.BridgeTools
             foreach (var cell in forbidden) result.ForbiddenSupplies.Add(Cell(cell));
             ReadProduction(result, map, people, things, reachable, humanFood, limit);
             var naming = ColonyNamingTools.Pending();
-            if (naming != null) result.Naming = new Obs.ColonyNaming { WindowId = naming.ID };
+            if (naming != null) result.Naming = new Obs.ColonyNaming { WindowId = naming.ID,
+                FactionName = ColonyNamingTools.Name(naming, "curName"), SettlementName = ColonyNamingTools.Name(naming, "curSecondName") };
             else if (Find.WindowStack == null || Find.WindowStack.Windows.OfType<Dialog_NamePlayerFactionAndSettlement>().Any())
                 result.Issues.Add(Issue("naming", Common.UnavailableReason.Unsupported, "Naming window census is unavailable or obstructed by another paused dialog."));
             else result.Issues.Add(Issue("naming", Common.UnavailableReason.NotApplicable, "No pending colony naming dialog."));

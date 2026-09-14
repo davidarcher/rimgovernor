@@ -32,7 +32,7 @@ All 97 porting-baseline native-tool inventory rows: 54 owned home calls, 33 upst
 | `home/acquire_resource` | Operations.Preview / Execute: AcquireResource | Typed | `controller/rimgovernor/bridge_game.py:15` |
 | `home/production_policy` | Operations.Preview / Execute: SetProductionPolicy; Observations.ReadColonyFacts policy snapshot | Typed | `controller/rimgovernor/bridge_game.py:15` |
 | `home/cancel_construction` | Operations.Preview / Execute: CancelConstruction | Typed | `controller/rimgovernor/bridge_game.py:15` |
-| `home/confirm_colony_names` | PresentationReads.PreviewNaming; PlayerPresentation.Apply naming | Typed | `controller/rimgovernor/bridge_game.py:15` |
+| `home/confirm_colony_names` | Operations.ConfirmColonyNames (autopilot); PresentationReads.PreviewNaming/PlayerPresentation.Apply naming (future player affordance, unregistered) | Typed | `controller/rimgovernor/bridge_game.py:15` |
 | `home/zone_cells` | Operations.Preview / Execute: CreateZone / DeleteZone / EditZoneCells / RepairZone / PatchStockpile / PatchGrowing; Observations.ListZones | Typed | `controller/rimgovernor/bridge_game.py:15` |
 | `home/place_building` | Operations.Preview / Execute: PlaceBuilding; Placement.Preview | Typed | `controller/rimgovernor/bridge_game.py:15` |
 | `home/pawn_config` | Operations.Preview / Execute: PatchPawn; Observations.ReadPawnSettings | Typed | `controller/rimgovernor/bridge_game.py:15` |

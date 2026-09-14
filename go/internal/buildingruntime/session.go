@@ -58,6 +58,7 @@ type SessionConfig struct {
 	BedAssign           *BedAssignCapabilities
 	Surgery             *SurgeryCapabilities
 	ResearchSelect      *ResearchSelectCapabilities
+	ConfirmColonyNames  *ConfirmColonyNamesCapabilities
 	CaravanDeparture    *CaravanDepartureCapabilities
 	Husbandry           *HusbandryCapabilities
 	HomeCoverage        *HomeCoverageCapabilities
@@ -346,6 +347,9 @@ func NewSession(ctx context.Context, config SessionConfig, journal *store.Store,
 	if config.ResearchSelect != nil && (config.ResearchSelect.Native == nil || config.ResearchSelect.Writer == nil) {
 		return cleanup(ErrControl)
 	}
+	if config.ConfirmColonyNames != nil && (config.ConfirmColonyNames.Native == nil || config.ConfirmColonyNames.Writer == nil) {
+		return cleanup(ErrControl)
+	}
 	if config.CaravanDeparture != nil && (config.CaravanDeparture.Native == nil || config.CaravanDeparture.Writer == nil) {
 		return cleanup(ErrControl)
 	}
@@ -441,6 +445,11 @@ func NewSession(ctx context.Context, config SessionConfig, journal *store.Store,
 	}
 	if config.ResearchSelect != nil {
 		if err := worker.EnableResearchSelect(&researchSelectBoundary{Boundary: place, research: *config.ResearchSelect}); err != nil {
+			return cleanup(err)
+		}
+	}
+	if config.ConfirmColonyNames != nil {
+		if err := worker.EnableConfirmColonyNames(&confirmColonyNamesBoundary{Boundary: place, naming: *config.ConfirmColonyNames}); err != nil {
 			return cleanup(err)
 		}
 	}

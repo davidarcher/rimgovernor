@@ -19,7 +19,7 @@ namespace HomeBridge.BridgeTools
                 ? windows[0] as Dialog_NamePlayerFactionAndSettlement : null;
         }
 
-        private static string Name(Dialog_GiveName dialog, string field) =>
+        internal static string Name(Dialog_GiveName dialog, string field) =>
             (AccessTools.Field(typeof(Dialog_GiveName), field)?.GetValue(dialog) as string)?.Trim();
 
         internal static object Snapshot()

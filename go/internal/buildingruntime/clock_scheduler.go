@@ -71,6 +71,7 @@ type ClockSchedulerConfig struct {
 	StoneShell                       *RoutineStoneShellPlanner
 	Waste                            *RoutineWastePlanner
 	MoodRelief                       *RoutineMoodReliefPlanner
+	Naming                           *RoutineNamingPlanner
 	RoutineMethods                   bool
 }
 type ClockSchedulerResult struct {
@@ -114,6 +115,7 @@ type ClockSchedulerResult struct {
 	StoneShell                                    *RoutineStoneShellResult
 	Waste                                         *RoutineWasteResult
 	MoodRelief                                    *RoutineMoodReliefResult
+	Naming                                        *RoutineNamingResult
 	Running, Reconciled, Cleaned                  bool
 }
 type ClockScheduler struct {
@@ -233,6 +235,9 @@ func NewClockScheduler(player *Player, session *Session, native ClockWindowNativ
 		return nil, ErrControl
 	}
 	if config.Research != nil && (config.Routine == nil || config.Research.reviewer != config.Routine) {
+		return nil, ErrControl
+	}
+	if config.Naming != nil && (config.Routine == nil || config.Naming.reviewer != config.Routine) {
 		return nil, ErrControl
 	}
 	if config.Resource != nil && (config.Routine == nil || config.Resource.reviewer != config.Routine) {
@@ -509,6 +514,13 @@ func (s *ClockScheduler) Step(ctx context.Context) (ClockSchedulerResult, error)
 			return out, err
 		}
 		out.Research = &method
+	}
+	if s.config.Naming != nil {
+		method, err := s.config.Naming.step(call, epoch)
+		if err != nil {
+			return out, err
+		}
+		out.Naming = &method
 	}
 	if s.config.Resource != nil {
 		method, err := s.config.Resource.step(call, epoch)

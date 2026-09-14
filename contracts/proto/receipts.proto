@@ -47,6 +47,7 @@ message EffectEvidence {
     CaravanEffect caravan = 18;
     QuestEffect quest = 19;
     AcquisitionEffect acquisition = 20;
+    NamingEffect naming = 21;
   }
 }
 message SnapshotEvidence {
@@ -67,6 +68,12 @@ message AcquisitionEffect {
   repeated AcquisitionOutput outputs = 7;
   optional bool output_observed = 8;
   optional bool output_complete = 9;
+}
+message NamingEffect {
+  optional int32 window_id = 1;
+  optional string faction_name = 2;
+  optional string settlement_name = 3;
+  optional bool confirmed = 4;
 }
 enum ConstructionStage { CONSTRUCTION_STAGE_UNSPECIFIED = 0; CONSTRUCTION_STAGE_BLUEPRINT = 1; CONSTRUCTION_STAGE_FRAME = 2; CONSTRUCTION_STAGE_BUILDING = 3; CONSTRUCTION_STAGE_CANCELLED = 4; }
 message ConstructionEffect {
