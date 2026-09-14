@@ -1,11 +1,9 @@
-import BridgeColony from './features/manager/BridgeColony';
-import LocalColonies from './features/manager/LocalColonies';
-import ScenarioWatch from './features/manager/ScenarioWatch';
 import ObservationDashboard from './features/manager/ObservationDashboard';
+import PlayerGuide from './features/manager/PlayerGuide';
 import {useEffect, useState} from 'react';
 
 export default function App(){
-  const [backend,setBackend]=useState<'go'|'colony'|null>(null);
+  const [connected,setConnected]=useState(false);
   const [error,setError]=useState('');
   useEffect(()=>{
     let stopped=false,timer:ReturnType<typeof setTimeout>|undefined;
@@ -16,16 +14,24 @@ export default function App(){
         if(!response.ok)throw Error(`Connection unavailable (${response.status})`);
         const health:unknown=await response.json();
         if(typeof health!=='object'||health===null||!('service' in health)||health.service!=='rimgovernor')throw Error('Unrecognized colony service');
-        const name='backend' in health?health.backend:undefined;
-        if(name!==undefined&&name!=='rimbridge'&&name!=='go')throw Error('Unrecognized colony service');
-        if(!stopped)setBackend(name==='go'?'go':'colony');
-      }catch(reason){if(!stopped){setError(reason instanceof Error?reason.message:'Connection unavailable');timer=setTimeout(detect,2000);}}
+        if(!stopped){setConnected(true);setError('');}
+      }catch(reason){if(!stopped){setConnected(false);setError(reason instanceof Error?reason.message:'Connection unavailable');}}
+      if(!stopped)timer=setTimeout(detect,2000);
     };
     void detect();return()=>{stopped=true;controller.abort();if(timer)clearTimeout(timer);};
   },[]);
-  if(backend==='go')return <ObservationDashboard/>;
-  if(backend==='colony')return location.pathname === '/colonies'
-    ? <main className="colony-directory"><LocalColonies/></main>
-    : location.pathname === '/scenario' ? <ScenarioWatch/> : <BridgeColony/>;
-  return <main className="observation-shell"><header className="observation-header"><h1>RimGovernor</h1></header><p role="status">{error?`${error}. Reconnecting…`:'Connecting to your colony…'}</p></main>;
+  if(connected)return <ObservationDashboard/>;
+  const helpOpen=location.hash.startsWith('#help');
+  return <main className="observation-shell">
+    <header className="observation-header"><div><p className="observation-eyebrow">Colony field station</p><h1>RimGovernor</h1></div></header>
+    <nav className="observation-nav" aria-label="Dashboard sections"><a href="#help" aria-current={helpOpen?'page':undefined}>Help</a></nav>
+    {helpOpen?<PlayerGuide/>:<>
+      <p role="status" className={error?'observation-notice observation-warning':'observation-notice'}>{error?`${error}. Reconnecting…`:'Waiting for the game controller…'}</p>
+      <section className="observation-panel"><h2>Start the game</h2>
+        <p>This dashboard connects once the RimGovernor controller is running and a colony is loaded.</p>
+        <p>On Windows, run <code>launch.cmd</code> from the repository root, then load or start a save in RimWorld.</p>
+        <p>See <a href="#help">Help</a> for full setup and launch instructions.</p>
+      </section>
+    </>}
+  </main>;
 }

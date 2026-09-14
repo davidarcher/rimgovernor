@@ -10,16 +10,19 @@ const reply=(value:unknown)=>({ok:true,json:async()=>value});
 function stubObservationFetch(handler: (url: string, options: {signal: AbortSignal}) => Promise<unknown>) {
  vi.stubGlobal('fetch', (url: string, options: {signal: AbortSignal}) => url === '/api/player/session' || url.startsWith('/api/presentation/') ? Promise.resolve({ok:false,status:404,json:async()=>({code:'not_found',detail:'Not found'})}) : handler(url,options));
 }
-afterEach(()=>{cleanup();vi.useRealTimers();vi.unstubAllGlobals();});
+function goToWork() {location.hash = '#work';}
+afterEach(()=>{cleanup();vi.useRealTimers();vi.unstubAllGlobals();location.hash='';});
 it('renders observed native facts and typed plan with no mutation controls',async()=>{
+ goToWork();
  const fetcher=vi.fn(async(url:string)=>reply(url==='/api/state'?state:plan));stubObservationFetch(fetcher);
  await act(async()=>{render(<ObservationDashboard/>);});
- expect(screen.getByText('RimGovernor')).toBeVisible();expect(screen.getByText('Observation mode')).toBeVisible();expect(screen.getByText('Running')).toBeVisible();
+ expect(screen.getByText('RimGovernor')).toBeVisible();expect(screen.getByText('Running')).toBeVisible();
  expect(screen.getByText('colony-a')).toBeVisible();expect(screen.getByText('Wall')).toBeVisible();expect(screen.getByText('Outcome requires observation')).toBeVisible();
  expect(screen.getByText('plan-a · Revision 9007199254740993')).toBeVisible();expect(screen.queryByRole('button')).toBeNull();expect(screen.queryByRole('textbox')).toBeNull();
  expect(fetcher.mock.calls.map(call=>call[0])).toEqual(['/api/state','/api/plan?id=plan-a']);
 });
 it('keeps last good readings and plan on refresh errors',async()=>{
+ goToWork();
  vi.useFakeTimers();let fail=false;
  stubObservationFetch(vi.fn(async(url:string)=>{if(fail)throw Error('Offline');return reply(url==='/api/state'?state:plan);}));
  await act(async()=>{render(<ObservationDashboard/>);});fail=true;
@@ -28,6 +31,7 @@ it('keeps last good readings and plan on refresh errors',async()=>{
  expect(screen.getByText('Readings unavailable or stale')).toBeVisible();
 });
 it('clears a previous plan when native identity changes before a failed plan refresh',async()=>{
+ goToWork();
  vi.useFakeTimers();let changed=false;
  stubObservationFetch(vi.fn(async(url:string)=>{if(url==='/api/state')return reply(changed?{...state,sessionId:'load-b',identity:{...state.identity,loadToken:'load-b'}}:state);if(changed)throw Error('Plan unavailable');return reply(plan);}));
  await act(async()=>{render(<ObservationDashboard/>);});changed=true;
@@ -35,10 +39,11 @@ it('clears a previous plan when native identity changes before a failed plan ref
  expect(screen.queryByText('Wall')).toBeNull();expect(screen.getByText('load-b')).toBeVisible();expect(screen.getByText('Waiting for the active plan.')).toBeVisible();
 });
 it('shows unknown observations explicitly and cancels its requests on unmount',async()=>{
+ goToWork();
  let signal:AbortSignal|undefined;
  stubObservationFetch(vi.fn(async(_url:string,options:{signal:AbortSignal})=>{signal=options.signal;return reply({...state,identity:null,activePlanId:null,game:{tick:null,paused:null,observedAt:null,stale:true}});}));
  let view:ReturnType<typeof render>|undefined;await act(async()=>{view=render(<ObservationDashboard/>);});
- expect(screen.getByText('Tick unknown')).toBeVisible();expect(screen.getAllByText('Unknown').length).toBeGreaterThan(1);expect(screen.getByText('No active plan reported.')).toBeVisible();
+ expect(screen.getByText('Tick —')).toBeVisible();expect(screen.getAllByText('—').length).toBeGreaterThan(1);expect(screen.getByText('No active plan reported.')).toBeVisible();
  view?.unmount();expect(signal?.aborted).toBe(true);
 });
 it('rejects malformed wire values instead of turning unknown values into facts',()=>{
@@ -63,6 +68,7 @@ it('preserves null reasons and validates closed unsuccessful outcomes',()=>{
  ]) expect(()=>readPlan(withProgress(patch))).toThrow();
 });
 it.each(['cancelled','unsuccessful'])('shows unsuccessful evidence in %s stage and retains it on bad refresh',async(stage)=>{
+ goToWork();
  vi.useFakeTimers();let invalid=false;
  stubObservationFetch(vi.fn(async(url:string)=>reply(url==='/api/state'?state:withProgress({stage,effect:'unsuccessful',unresolved:false,unsuccessfulReason:invalid?'invented':'outcome_not_achieved'}))));
  await act(async()=>{render(<ObservationDashboard/>);});
@@ -76,6 +82,7 @@ it.each(['cancelled','unsuccessful'])('shows unsuccessful evidence in %s stage a
 });
 
 it('renders temporary draft completion separately from uncertain cleanup and retains it on refresh failure',async()=>{
+ goToWork();
  vi.useFakeTimers();let fail=false;
  const draftPlan={...plan,actions:[{id:'draft',kind:'owned_draft',draft:{pawnId:'Pawn_42'},progress:{stage:'completed',attempt:'1',tick:44,unresolved:false,receipt:'accepted',effect:'completed',unsuccessfulReason:null,draftCleanup:{stage:'uncertain'}}}]};
  stubObservationFetch(async(url)=>{if(fail)throw Error('Offline');return reply(url==='/api/state'?state:draftPlan);});
@@ -83,4 +90,11 @@ it('renders temporary draft completion separately from uncertain cleanup and ret
  expect(screen.getByText('Pawn Pawn_42')).toBeVisible();expect(screen.getByText('Completion observed')).toBeVisible();expect(screen.getByText('Draft cleanup: Release outcome unknown')).toBeVisible();
  fail=true;await act(async()=>{await vi.advanceTimersByTimeAsync(1500);});
  expect(screen.getByText('Draft cleanup: Release outcome unknown')).toBeVisible();expect(screen.queryByRole('button')).toBeNull();
+});
+
+it('keeps Help reachable without a connection, from the Watch view default',async()=>{
+ stubObservationFetch(vi.fn(async()=>({ok:false,status:503,json:async()=>({code:'unavailable',detail:'offline'})})));
+ await act(async()=>{render(<ObservationDashboard/>);});
+ expect(screen.getByRole('link',{name:'Help'})).toBeVisible();
+ expect(screen.getByRole('link',{name:'Watch'})).toHaveAttribute('aria-current','page');
 });

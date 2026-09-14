@@ -24,3 +24,14 @@
 @media(max-width:700px){.observation-shell{padding:24px 16px}.observation-grid,.observation-identity{grid-template-columns:1fr}.observation-actions li{flex-direction:column;gap:10px}.observation-header h1{font-size:36px}}
 .presentation-columns {display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:1rem}.presentation-columns h3 {margin-top:0}.presentation-columns ul {padding-left:1.2rem}.presentation-inspect {white-space:pre-wrap;overflow-wrap:anywhere}.presentation-stale {color:var(--warning,#ddb874)}
 .notification-columns {display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:1rem}.notification-columns h3 {margin-top:0}.notification-columns ul {padding-left:1.2rem}.notification-text {white-space:pre-wrap;overflow-wrap:anywhere}
+.observation-nav {display:flex;gap:8px;margin-bottom:22px;flex-wrap:wrap}
+.observation-nav a {color:#a8a697;text-decoration:none;padding:8px 16px;border:1px solid #3c3d34;border-radius:24px}
+.observation-nav a[aria-current=page] {color:#ddb975;border-color:#ddb975}
+.observation-note {font-size:13px;font-style:italic}
+.game-video-canvas {width:100%;height:auto;max-height:70vh;background:#0c0e0a;border-radius:4px;display:block}
+.game-video-status {margin-top:10px}
+.pawn-portrait-grid {display:grid;grid-template-columns:repeat(auto-fill,minmax(96px,1fr));gap:14px}
+.pawn-image {margin:0;text-align:center}
+.pawn-image img {width:100%;aspect-ratio:1;object-fit:cover;border-radius:4px;background:#0c0e0a}
+.pawn-image-empty {width:100%;aspect-ratio:1;display:flex;align-items:center;justify-content:center;background:#0c0e0a;border-radius:4px;font:400 28px Georgia,serif;color:#77745c}
+.pawn-image figcaption {font-size:12px;color:#a8a697;margin-top:4px}

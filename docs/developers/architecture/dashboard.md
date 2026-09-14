@@ -2,85 +2,94 @@
 
 [Documentation](../../README.md) · [System overview](overview.md)
 
-The dashboard presents the controller's shared state and gives the player a way to
-direct it. It is not another planner. Its goals, blockers, policies and receipts refer
-to the same records used by automation and chat.
+The dashboard presents the Go controller's observed state and the explicit
+player-command surface. It does not run its own planner; everything it shows
+is a typed read of `serve`'s HTTP API (`GET /api/state`, `/api/plan`,
+`/api/presentation/*`), and everything it submits goes through the same
+`requestId`/CAS-guarded `/api/player/*` and `/api/<family>/plans` endpoints
+any other client would use.
 
 ## Presentation should survive background work
 
-The interface refreshes compact state while preserving drafts and the last good data. A
-slow or failed refresh should not erase a message being composed or replace a useful
-view with empty state. Raw identifiers and detailed tool evidence belong in diagnostics
-so the main view can explain what is happening in colony terms.
+The interface polls compact state while preserving the last good data. A slow
+or failed refresh should not replace a useful view with an empty one — errors
+are shown alongside the last successful reading, not in place of it.
 
-The main navigation is Watch, Priorities, Work, Colony and Help. Watch combines the game view
-and chat. Priorities explains policy and verified gates; Work shows plans and their
-progress, with activity available as a related view. These are different views of one
-controller.
+The main navigation is Watch, Work, Colony and Help. Watch combines the live
+game view with the explicit player-control panel (session token, building and
+temporary-draft submission, control acquire/manual, clock review). Work is a
+read-only feed of the active plan's actions and their progress; there is no
+control here to cancel a step in place. Colony shows the current-map colonist
+roster and portraits. These are different views of the same controller state.
 
-Help renders the [player Markdown files](../../players/README.md) bundled at build
-time. Update those files to change both repository and in-app guidance. Player links
-stay inside Help; developer links open the repository. Help remains available when
-the game is disconnected.
+Help renders the [player Markdown files](../../players/README.md) bundled at
+build time. Update those files to change both repository and in-app guidance.
+Help remains reachable even before the controller is detected — the
+pre-connect screen carries its own Help link and plain-language launch
+instructions, not just a spinner.
 
-The multi-instance local colony directory (`--colonies`) was Python-only and was
-removed, unported, in [G01.13](https://github.com/davidarcher/rimgovernor/issues/33);
-see [issue #47](https://github.com/davidarcher/rimgovernor/issues/47) for the
+The multi-instance local colony directory (`--colonies`, and the
+dashboard's own `/colonies` route into it) was Python-only and was removed
+with the rest of the Python runtime in
+[G01.13](https://github.com/davidarcher/rimgovernor/issues/33); see
+[issue #47](https://github.com/davidarcher/rimgovernor/issues/47) for the
 status of a possible Go implementation.
 
-Colony centers on the individual colonists. Their dossiers combine native portraits,
-worn gear, biographies, skills, health and mood with the current job report and
-sampled job changes. Thoughts come from the game's stored memories and situational
-cache; viewing a colonist does not recalculate their mind. An optional separate
-follow view shows the pawn's surroundings without navigating the main camera.
-Details and media refresh only on demand and retain their last readings on failure.
+Colony currently shows what `GET /api/presentation/colonists` actually
+returns: colonist id, name, map and position. Full dossiers (worn gear,
+biography, skills, health, mood, job history) existed in the retired
+Python/BridgeColony dashboard but have no Go backend equivalent yet — this is
+a tracked gap, not a UI omission.
 
 ## Video and simulation are independent
 
-The game may run while video is paused, or the view may remain active while the
-simulation is paused. Viewer leases request native capture only while a viewer needs it.
-Pausing video does not issue a game-time command.
+The game may run while video is paused, or the view may remain active while
+the simulation is paused. A viewer lease (`POST /api/presentation/video-lease`)
+requests native capture only while a viewer needs it; pausing video does not
+issue a game-time command.
 
-When supported, the view receives frame-bound WebSocket video from native capture through the Python
-server. The stream keeps the latest frame instead of queuing old frames. Unsupported or
-stalled streaming falls back to snapshots, retaining the last good image. Headless
-sessions cannot provide game images.
-
-This means a smooth picture and a healthy simulation are different observations. Decoded
-frame rate says something about delivery to the browser; it does not measure controller
-throughput or prove low end-to-end input latency.
+Live video is a lease → render-demand → short-lived ticket → binary WebSocket
+sequence against the Go controller's own `internal/httpapi` video-stream
+routes (`/api/presentation/video-lease`, `/api/presentation/render-demand`,
+`/api/presentation/video-stream/ticket`, `/api/presentation/video-stream`) —
+not the old Python server's WebRTC/framebuffer path. Frames carry a strictly
+increasing sequence number so the client can drop stale or duplicate frames.
+There is currently no still-image fallback for the main viewport when video
+is unsupported (`GameVideoGo.tsx` shows a status message instead); a
+per-colonist still portrait is available separately via
+`POST /api/presentation/pawn-image`.
 
 ## Viewing does not grant control
 
-Player time controls enter Manual. A separate load-scoped lease owns dashboard player
-input. Taking control stops routine ownership before accepting that input; releasing
-control leaves a Manual hold until an explicit automation resume. Stale or competing
-viewers cannot reuse an old lease after a context change.
+Player commands enter through explicit control acquisition
+(`/api/player/control/acquire`) tied to a specific plan and revision, or are
+relinquished with `/api/player/control/manual`. There is no free-form
+mouse/keyboard input relay in the Go controller — this is an intentional
+architectural boundary, not a missing feature; see
+[README.md](../../../go/README.md) for the read-only presentation guarantees.
 
-Camera navigation and stable-ID colonist selection use discovered native contracts and
-readback. Private rendered Docker workers also accept native pointer, drag, wheel and
-keyboard input after Take control. Each event names the displayed frame and current
-owner. Changed views or delayed events are refused, and uncertain events are never
-replayed. Desktop windows retain the stable-ID and camera controls.
-
-Action follow is a separate presentation option for supported writes. It can show an
-issued order, but it does not track all subsequent pawn labor or certify that the work
-completed.
+## Implementation
 
 The React entry point is
-[BridgeColony.tsx](../../../dashboard/src/features/manager/BridgeColony.tsx). Server-side
-controls are in [go/internal/httpapi](../../../go/internal/httpapi).
-See [interface contracts](../contracts/interface-contracts.md) for lease, capture and
-transport details.
+[ObservationDashboard.tsx](../../../dashboard/src/features/manager/ObservationDashboard.tsx),
+mounted from [App.tsx](../../../dashboard/src/App.tsx) once `GET /api/health`
+confirms the controller is up. Server-side handlers live under
+[go/internal/httpapi](../../../go/internal/httpapi). See
+[interface contracts](../contracts/interface-contracts.md) for lease, capture
+and transport details.
 
-## Visual second opinions
+## Retired: chat, notebook, player-authored projects, autopilot settings, visual review, local colony directory
 
-An optional reviewer can examine the player viewport and a detail crop from the same
-image without taking control of the camera. Its concerns are shown on the retained
-source image in the activity journal, so a later camera pan does not move a concern
-onto unrelated scenery. These are historical visual suggestions. Even a confident
-reviewer can miss a blueprint door; native facts still determine whether work is
-needed. Exact report recall preserves what was observed, not its correctness.
-
-See [source and framing contracts](../contracts/interface-contracts.md#visual-review-sources)
-and visual evaluation for the bounded comparison.
+The earlier Python/BridgeColony dashboard also had a chat-driven command
+surface, a colonist notebook/memories feature, a player-authored project
+list, savable autopilot settings, an automated visual-review reviewer (which
+examined the player viewport for concerns without taking control of the
+camera), and the local colony directory described above. None of these have
+a Go backend equivalent today (`POST /api/chat` currently returns `501`; the
+rest have no route at all), so the ported dashboard does not show them
+rather than fake the data. See issues
+[#46](https://github.com/davidarcher/rimgovernor/issues/46),
+[#47](https://github.com/davidarcher/rimgovernor/issues/47),
+[#49](https://github.com/davidarcher/rimgovernor/issues/49), and
+[#50](https://github.com/davidarcher/rimgovernor/issues/50) for the status
+of bringing these back on the Go controller.
