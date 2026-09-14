@@ -579,12 +579,26 @@ func DetectRoutine(f RoutineFacts, previous RoutineLatches, p RoutinePolicy) (Ro
 	addAssessment(ProductionPolicy, 4, productionPolicyRecovered)
 	for _, n := range upkeep.Needs {
 		recovered := domain.Unknown[bool]()
+		targetsKnown := false
 		if _, known := n.Targets.Value(); known {
 			recovered = domain.Known(!n.Active)
+			targetsKnown = true
 		}
 		addAssessment(n.Goal, n.Priority, recovered)
 		if !positive(recovered) {
 			addGoal(n.Goal, n.Priority)
+			// addGoal's Deficit defaults to RoutineDevelopmentDeficit(n.Goal, ...),
+			// which only covers EnsureExpansion/MaintainWood/EnsureBasicDefense
+			// and otherwise reports Unknown -- leaving every upkeep.Needs-sourced
+			// goal (Fire/Supplies/Repairs/Cleaning/Storage) permanently
+			// DevelopmentUnknown in RankDevelopment, so it could never win a
+			// capacity slot. These needs are binary (recovered/deficit, not a
+			// partial fraction -- see UpkeepNeed.Active/Targets above), so a
+			// confirmed active deficit reports the full Known(1.0), matching
+			// development_test.go's own fixture for this exact shape.
+			if targetsKnown {
+				r.Goals[len(r.Goals)-1].Deficit = domain.Known(1.0)
+			}
 			// SecureSupplies, MaintainEssentialRepairs, MaintainCleanFacilities
 			// and MaintainStorage now each have a composed dispatch method
 			// (G01.07c 05.4, G01.07b 05.2); the rest of the direct upkeep

@@ -39,9 +39,20 @@ namespace HomeBridge.BridgeTools
             }
             if(d.Equipment) row.Equipment=Equipment(pawn); else row.Issues.Add(Skipped("equipment"));
             if(d.Biography) row.Biography=Biography(pawn); else row.Issues.Add(Skipped("biography"));
-            if(d.Settings) row.Settings=Settings(pawn);
-            else if(d.Work) { row.Settings=new Obs.PawnSettings(); Work(pawn,row.Settings); }
-            else row.Issues.Add(Skipped("settings"));
+            if(d.Settings || d.Work) {
+                row.Settings=new Obs.PawnSettings();
+                // The bridge contract (go/internal/bridge/work_pawns.go's
+                // validateSettings) enforces that a PawnSettings reply carries
+                // ONLY the fields the request actually asked for: care policy
+                // (medical_care, self_tend) under d.Settings, work priorities
+                // under d.Work. Callers that request both (e.g. ReadTendPawns)
+                // must therefore get exactly their union, never the wider
+                // Assign-tab row (hostility_response, follow flags, master,
+                // allowed area, schedule) that home/pawn_config's own
+                // PawnSettingsRead.SettingsBlock/ScheduleBlock report instead.
+                if(d.Settings) CarePolicy(pawn,row.Settings);
+                if(d.Work) Work(pawn,row.Settings);
+            } else row.Issues.Add(Skipped("settings"));
             if(d.Social) row.Social=Social(pawn,colonists);
             else row.Issues.Add(Skipped("social"));
             if(!d.Animals) row.Issues.Add(Skipped("animal_state"));
@@ -203,27 +214,24 @@ namespace HomeBridge.BridgeTools
             return row;
         }
 
-        private static Obs.PawnSettings Settings(Pawn pawn)
+        // Populates ONLY the care-policy fields (medical_care, self_tend) that
+        // go/internal/bridge/work_pawns.go's validateSettings allows through
+        // when a caller asks for `care`. hostility_response, the follow flags,
+        // master_id, allowed_area_id and the 24-hour schedule are the wider
+        // Assign-tab row -- deliberately never requested via this protobuf
+        // (rimgovernor/observations_list_pawns) path, so they must never be
+        // set here regardless of what native happens to hold; home/pawn_config
+        // and home/list_pawns reach that wider row through PawnSettingsRead's
+        // own dictionary-based SettingsBlock/ScheduleBlock instead.
+        private static void CarePolicy(Pawn pawn,Obs.PawnSettings row)
         {
-            var row=new Obs.PawnSettings();var settings=pawn.playerSettings;
+            var settings=pawn.playerSettings;
             if(settings==null) {
-                foreach(var field in new[]{"medical_care","self_tend","hostility_response","allowed_area_id","master_id","follow_drafted","follow_fieldwork"}) row.Issues.Add(Missing(field));
+                row.Issues.Add(Missing("medical_care"));row.Issues.Add(Missing("self_tend"));
+            } else {
+                row.MedicalCare=settings.medCare.ToString();row.SelfTend=settings.selfTend;
             }
-            else {
-                row.MedicalCare=settings.medCare.ToString();row.SelfTend=settings.selfTend;row.HostilityResponse=settings.hostilityResponse.ToString();
-                row.FollowDrafted=settings.followDrafted;row.FollowFieldwork=settings.followFieldwork;
-                if(settings.Master!=null) row.MasterId=Id(settings.Master.GetUniqueLoadID()); else row.Issues.Add(Issue("master_id",Common.UnavailableReason.NotApplicable,"No assigned master."));
-                var area=settings.AreaRestrictionInPawnCurrentMap;
-                if(area!=null) row.AllowedAreaId=Id(area.GetUniqueLoadID()); else row.Issues.Add(Issue("allowed_area_id",Common.UnavailableReason.NotApplicable,"No area restriction."));
-            }
-            Work(pawn,row);
-            if(pawn.timetable==null) row.Issues.Add(Missing("schedule"));
-            else for(var hour=0;hour<24;hour++) row.Schedule.Add(new Obs.TimetableSlot {Hour=(uint)hour,AssignmentDefName=Id(pawn.timetable.GetAssignment(hour).defName)});
-            row.Issues.Add(Unsupported("snapshot","This read does not issue settings CAS tokens."));
-            row.Issues.Add(Unsupported("allowed_areas","Selectable area catalog is not projected."));
             row.Issues.Add(Unsupported("medical_care_options","Selectable medical care catalog is not projected."));
-            row.Issues.Add(Unsupported("hostility_response_options","Selectable hostility response catalog is not projected."));
-            return row;
         }
 
         private static void Work(Pawn pawn,Obs.PawnSettings row)
