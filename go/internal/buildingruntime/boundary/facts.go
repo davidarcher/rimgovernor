@@ -1,6 +1,9 @@
 package boundary
 
 import (
+	"strconv"
+
+	"github.com/davidarcher/RimGovernor/go/internal/bridge"
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"github.com/davidarcher/RimGovernor/go/internal/executor"
 	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
@@ -77,4 +80,40 @@ func IssueField(issues []*n.ReadIssue, field string) bool {
 		}
 	}
 	return false
+}
+
+// JobEvidenceExpectedJob decodes one pawn's JobEvidence into the ExpectedJob
+// fencing value EnsureMood-* relief dispatch (bridge.MoodReliefWriter) must
+// supply. JobEvidence.LoadId is the exact decimal-string form of the native
+// Job.loadID int -- see NativeObservationTools.cs's JobRow
+// (integrations/rimgovernor-native/src/Bridge/Protocol/NativeObservationTools.cs,
+// "row.LoadId = job.loadID.ToString(...)") -- the same int
+// NativeMoodReliefOperations.cs fences on ("jobId = job.loadID") and the same
+// int the legacy JSON tool exposed as jobLoadId. A pawn with no current job
+// carries JobRow's own "current_job" Not-Applicable issue instead of a
+// LoadId, which decodes as explicitly Idle rather than an unknown job.
+//
+// job itself being nil (the job tracker/queue unavailable, PawnState's own
+// "job" issue) is a different, coarser unavailability the caller must check
+// first via IssueField(row.Issues, "job") -- this function only decodes an
+// already-present JobEvidence.
+func JobEvidenceExpectedJob(job *n.JobEvidence) (bridge.MoodReliefExpectedJob, bool) {
+	if job == nil {
+		return bridge.MoodReliefExpectedJob{}, false
+	}
+	if IssueField(job.Issues, "current_job") {
+		if job.LoadId != nil {
+			return bridge.MoodReliefExpectedJob{}, false
+		}
+		return bridge.MoodReliefExpectedJob{Idle: true}, true
+	}
+	if job.LoadId == nil {
+		return bridge.MoodReliefExpectedJob{}, false
+	}
+	id, err := strconv.ParseInt(job.GetLoadId(), 10, 32)
+	if err != nil {
+		return bridge.MoodReliefExpectedJob{}, false
+	}
+	v := int32(id)
+	return bridge.MoodReliefExpectedJob{JobID: &v}, true
 }
