@@ -195,6 +195,62 @@ func TestMethodCostsAndGoalRollbackTogether(t *testing.T) {
 	}
 }
 
+func TestBuildingMethodAdmitsMixedCostedAndWallRemovalBundle(t *testing.T) {
+	t.Parallel()
+	ctx := context.Background()
+	s, _, g := goalFixture(t)
+	building, e := domain.NewBuilding("Wall", domain.Cell{X: 3, Z: 5}, domain.North, "BlocksGranite")
+	if e != nil {
+		t.Fatal(e)
+	}
+	place, e := domain.NewBuildingAction("place", building)
+	if e != nil {
+		t.Fatal(e)
+	}
+	removal, e := domain.NewWallRemoval("original-wall", "", 3, 5, 0, 1, false, false, "")
+	if e != nil {
+		t.Fatal(e)
+	}
+	demolish, e := domain.NewWallRemovalAction("demolish", removal)
+	if e != nil {
+		t.Fatal(e)
+	}
+	p, e := domain.NewPlan("stone-shell", 1, []domain.Action{place, demolish})
+	if e != nil {
+		t.Fatal(e)
+	}
+	scope := g.Goal.Snapshot
+	scope.Plan, scope.Revision = p.ID(), p.Revision()
+	r := BuildingMethodRequest{Goal: g.Goal.ID, Revision: g.Revision, Method: "stone-shell", Plan: p, Current: scope, Tick: g.Goal.Tick, Bounds: domain.Known(policy.Bounds{Width: 100, Height: 100}), Purpose: policy.Routine,
+		Stock:    policy.StockObservation{Snapshot: scope, Tick: g.Goal.Tick, Values: []policy.Stock{{Resource: "BlocksGranite", Available: domain.Known(int64(100))}}},
+		Previews: []policy.Preview{{Action: place, Snapshot: scope, Tick: g.Goal.Tick, CanPlace: domain.Known(true), SafeToPlace: domain.Known(true), MadeFromStuff: domain.Known(true), Footprint: domain.Known([]domain.Cell{{X: 3, Z: 5}}), Costs: domain.Known([]policy.Amount{{Resource: "BlocksGranite", Count: 10}})}},
+	}
+	d, e := s.AdmitBuildingMethod(ctx, r)
+	if e != nil || !d.Admitted {
+		t.Fatal(d, e)
+	}
+	loaded, e := s.LoadPlan(ctx, p.ID())
+	if e != nil || len(loaded.Admissions) != 1 || loaded.Admissions[0].Action != "place" {
+		t.Fatal(loaded, e)
+	}
+
+	// A preview on a wall-removal action is refused outright, and the plan is
+	// not persisted.
+	bad := r
+	bad.Plan, e = domain.NewPlan("stone-shell-bad", 1, []domain.Action{place, demolish})
+	if e != nil {
+		t.Fatal(e)
+	}
+	bad.Current.Plan = bad.Plan.ID()
+	bad.Previews = append(bad.Previews, policy.Preview{Action: demolish, Snapshot: scope, Tick: g.Goal.Tick})
+	if d, e := s.AdmitBuildingMethod(ctx, bad); e == nil && d.Admitted {
+		t.Fatal("wall removal action accepted a preview", d)
+	}
+	if _, e := s.LoadPlan(ctx, bad.Plan.ID()); !errors.Is(e, ErrNotFound) {
+		t.Fatal("invalid bundle persisted", e)
+	}
+}
+
 func TestMethodAdmissionReadAfterRestartHasCompleteReservations(t *testing.T) {
 	t.Parallel()
 	ctx := context.Background()

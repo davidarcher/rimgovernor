@@ -32,6 +32,8 @@ const CaravanDepartureAction ActionKind = "caravan_departure"
 const CleanAction ActionKind = "clean"
 const RecoveryServiceAction ActionKind = "recovery_service"
 
+// WallRemovalAction is declared in wall_removal.go alongside its payload.
+
 // HusbandryAction is declared in husbandry.go alongside its Husbandry payload.
 // PrisonerInteractionAction is declared in prisoner_interaction.go alongside
 // its PrisonerInteraction payload.
@@ -101,6 +103,7 @@ type Action struct {
 	settlementGift      SettlementGift
 	questFulfill        QuestFulfill
 	mineAcquisition     Acquisition
+	wallRemoval         WallRemoval
 }
 
 func NewBuildingAction(id ActionID, building Building) (Action, error) {
@@ -116,12 +119,12 @@ func (a Action) ID() ActionID               { return a.id }
 func (a Action) Kind() ActionKind           { return a.kind }
 func (a Action) Building() (Building, bool) { return a.building, a.kind == BuildingAction }
 func SupportedActionKinds() []ActionKind {
-	return []ActionKind{BuildingAction, OwnedDraftAction, MeleeAttackAction, SupplyAllowAction, WorkAssignmentAction, AcquisitionAction, ZoneCreateAction, TendAction, RescueAction, CaptureAction, RangedAttackAction, ProductionBillAction, HaulAction, EquipAction, GearReplaceAction, RepairAction, CaravanDepartureAction, CleanAction, RecoveryServiceAction, BedAssignAction, ResearchSelectAction, HusbandryAction, HomeCoverageAction, PrisonerInteractionAction, QuestAcceptAction, SettlementGiftAction, QuestFulfillAction, MineAcquisitionAction}
+	return []ActionKind{BuildingAction, OwnedDraftAction, MeleeAttackAction, SupplyAllowAction, WorkAssignmentAction, AcquisitionAction, ZoneCreateAction, TendAction, RescueAction, CaptureAction, RangedAttackAction, ProductionBillAction, HaulAction, EquipAction, GearReplaceAction, RepairAction, CaravanDepartureAction, CleanAction, RecoveryServiceAction, BedAssignAction, ResearchSelectAction, HusbandryAction, HomeCoverageAction, PrisonerInteractionAction, QuestAcceptAction, SettlementGiftAction, QuestFulfillAction, MineAcquisitionAction, WallRemovalAction}
 }
 func ValidateHandlerCoverage(kinds []ActionKind) error {
 	seen := make(map[ActionKind]bool)
 	for _, kind := range kinds {
-		if (kind != BuildingAction && kind != OwnedDraftAction && kind != MeleeAttackAction && kind != SupplyAllowAction && kind != WorkAssignmentAction && kind != AcquisitionAction && kind != ZoneCreateAction && kind != TendAction && kind != RescueAction && kind != CaptureAction && kind != RangedAttackAction && kind != ProductionBillAction && kind != HaulAction && kind != EquipAction && kind != GearReplaceAction && kind != RepairAction && kind != CaravanDepartureAction && kind != CleanAction && kind != RecoveryServiceAction && kind != BedAssignAction && kind != ResearchSelectAction && kind != HusbandryAction && kind != HomeCoverageAction && kind != PrisonerInteractionAction && kind != QuestAcceptAction && kind != SettlementGiftAction && kind != QuestFulfillAction && kind != MineAcquisitionAction) || seen[kind] {
+		if (kind != BuildingAction && kind != OwnedDraftAction && kind != MeleeAttackAction && kind != SupplyAllowAction && kind != WorkAssignmentAction && kind != AcquisitionAction && kind != ZoneCreateAction && kind != TendAction && kind != RescueAction && kind != CaptureAction && kind != RangedAttackAction && kind != ProductionBillAction && kind != HaulAction && kind != EquipAction && kind != GearReplaceAction && kind != RepairAction && kind != CaravanDepartureAction && kind != CleanAction && kind != RecoveryServiceAction && kind != BedAssignAction && kind != ResearchSelectAction && kind != HusbandryAction && kind != HomeCoverageAction && kind != PrisonerInteractionAction && kind != QuestAcceptAction && kind != SettlementGiftAction && kind != QuestFulfillAction && kind != MineAcquisitionAction && kind != WallRemovalAction) || seen[kind] {
 			return fmt.Errorf("unknown or duplicate action handler %q", kind)
 		}
 		seen[kind] = true
@@ -211,6 +214,8 @@ func NewPlan(id PlanID, revision PlanRevision, actions []Action, dependencies ..
 			canonical, err = NewQuestFulfillAction(a.id, a.questFulfill)
 		case MineAcquisitionAction:
 			canonical, err = NewMineAcquisitionAction(a.id, a.mineAcquisition)
+		case WallRemovalAction:
+			canonical, err = NewWallRemovalAction(a.id, a.wallRemoval)
 		default:
 			return PlanSpec{}, errors.New("unsupported action variant")
 		}
@@ -233,6 +238,13 @@ func NewPlan(id PlanID, revision PlanRevision, actions []Action, dependencies ..
 			prerequisite, exists := seen[a.ranged.draftAction]
 			if !exists || prerequisite.kind != OwnedDraftAction || prerequisite.draft.pawn != a.ranged.pawn {
 				return PlanSpec{}, errors.New("ranged attack requires its preceding owned draft for the same pawn")
+			}
+		}
+		if a.kind == WallRemovalAction && a.wallRemoval.backupOf != "" {
+			prerequisite, exists := seen[a.wallRemoval.backupOf]
+			building, isBuilding := prerequisite.Building()
+			if !exists || !isBuilding || building.Definition() != "Wall" {
+				return PlanSpec{}, errors.New("backup wall removal requires its preceding backup wall in the same bundle")
 			}
 		}
 		seen[a.id] = a
@@ -283,6 +295,9 @@ func validateDependencies(actions map[ActionID]Action, dependencies []ActionDepe
 		}
 		if ranged, k := a.RangedAttack(); k {
 			graph[id] = append(graph[id], ranged.DraftAction())
+		}
+		if removal, k := a.WallRemoval(); k && removal.BackupOf() != "" {
+			graph[id] = append(graph[id], removal.BackupOf())
 		}
 	}
 	visiting, done := map[ActionID]bool{}, map[ActionID]bool{}

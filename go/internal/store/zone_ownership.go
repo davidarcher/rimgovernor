@@ -71,3 +71,22 @@ func stockpileClaims(ctx context.Context, tx *sql.Tx, current domain.GenerationS
 	}
 	return domain.Known(result), nil
 }
+
+// StockpileClaims exposes stockpileClaims outside the routine review
+// transaction, mirroring Store.ConstructionClaims, so a routine scheduler can
+// re-derive a fresh HomeCoverage target list on its own tick.
+func (s *Store) StockpileClaims(ctx context.Context, current domain.GenerationSnapshot, tick domain.Tick) (domain.Fact[[]policy.OwnedStockpile], error) {
+	if current.Validate() != nil || tick < 0 {
+		return domain.Unknown[[]policy.OwnedStockpile](), ErrConflict
+	}
+	tx, err := s.begin(ctx)
+	if err != nil {
+		return domain.Unknown[[]policy.OwnedStockpile](), err
+	}
+	defer tx.Rollback()
+	result, err := stockpileClaims(ctx, tx, current, tick)
+	if err != nil {
+		return result, err
+	}
+	return result, tx.Commit()
+}

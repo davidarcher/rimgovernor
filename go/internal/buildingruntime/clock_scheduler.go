@@ -63,6 +63,8 @@ type ClockSchedulerConfig struct {
 	Research                         *RoutineResearchPlanner
 	Resource                         *RoutineResourcePlanner
 	CaravanJourney                   *CaravanJourneyTracker
+	HomeCoverage                     *RoutineHomeCoveragePlanner
+	StoneShell                       *RoutineStoneShellPlanner
 	RoutineMethods                   bool
 }
 type ClockSchedulerResult struct {
@@ -99,6 +101,8 @@ type ClockSchedulerResult struct {
 	Research                                      *RoutineResearchResult
 	Resource                                      *RoutineResourceResult
 	CaravanJourney                                *CaravanJourneyResult
+	HomeCoverage                                  *RoutineHomeCoverageResult
+	StoneShell                                    *RoutineStoneShellResult
 	Running, Reconciled, Cleaned                  bool
 }
 type ClockScheduler struct {
@@ -212,6 +216,12 @@ func NewClockScheduler(player *Player, session *Session, native ClockWindowNativ
 		return nil, ErrControl
 	}
 	if config.Resource != nil && (config.Routine == nil || config.Resource.reviewer != config.Routine) {
+		return nil, ErrControl
+	}
+	if config.HomeCoverage != nil && (config.Routine == nil || config.HomeCoverage.reviewer != config.Routine) {
+		return nil, ErrControl
+	}
+	if config.StoneShell != nil && (config.Routine == nil || config.StoneShell.reviewer != config.Routine) {
 		return nil, ErrControl
 	}
 	if config.RoutineMethods && (config.Routine == nil || !session.routineMethods) {
@@ -449,6 +459,20 @@ func (s *ClockScheduler) Step(ctx context.Context) (ClockSchedulerResult, error)
 			return out, err
 		}
 		out.CaravanJourney = &method
+	}
+	if s.config.HomeCoverage != nil {
+		method, err := s.config.HomeCoverage.step(call, epoch)
+		if err != nil {
+			return out, err
+		}
+		out.HomeCoverage = &method
+	}
+	if s.config.StoneShell != nil {
+		method, err := s.config.StoneShell.step(call, epoch)
+		if err != nil {
+			return out, err
+		}
+		out.StoneShell = &method
 	}
 	emergency, _, err := s.native.ReadEmergency(call, loaded.Context.Identity)
 	if err != nil {

@@ -43,9 +43,9 @@ func serviceClockConfig(profile string) buildingruntime.ClockSchedulerConfig {
 
 // Session owns the attached worker's drain, including failed startup cleanup.
 // Starting these loops does not enable Player or acquire native authority.
-func startServiceClock(ctx context.Context, player *buildingruntime.Player, session *buildingruntime.Session, reads serviceClockReads, journal *store.Store, profile string, timeout time.Duration, routine, sleeping, cooking, shelter, comfort, expansion, power, temperature bool, projectLimit int, supplies, work, acquisition, defense, tend, rescue, equip, secureSupplies, repair, clean, gear, medical, animalContainment, recovery, husbandry, caravanJourneyTracking bool, researchTarget string, resourceTargets map[policy.Resource]int64, fieldOptions ...bool) error {
+func startServiceClock(ctx context.Context, player *buildingruntime.Player, session *buildingruntime.Session, reads serviceClockReads, journal *store.Store, profile string, timeout time.Duration, routine, sleeping, cooking, shelter, comfort, expansion, power, temperature bool, projectLimit int, supplies, work, acquisition, defense, tend, rescue, equip, secureSupplies, repair, clean, gear, medical, animalContainment, recovery, husbandry, homeCoverage, caravanJourneyTracking bool, researchTarget string, resourceTargets map[policy.Resource]int64, fieldOptions ...bool) error {
 	// fieldOptions carries the field/bill/foodStorage/prisonerInteraction/
-	// populationCustody flags, in that fixed order, appended by the caller.
+	// populationCustody/stoneShell flags, in that fixed order, appended by the caller.
 	config := serviceClockConfig(profile)
 	config.RoutineMethods = session.RoutineMethodsEnabled()
 	if caravanJourneyTracking {
@@ -63,11 +63,12 @@ func startServiceClock(ctx context.Context, player *buildingruntime.Player, sess
 	bills := len(fieldOptions) >= 2 && fieldOptions[1]
 	foodStorage := len(fieldOptions) >= 3 && fieldOptions[2]
 	prisonerInteraction := len(fieldOptions) >= 4 && fieldOptions[3]
-	populationCustody := len(fieldOptions) == 5 && fieldOptions[4]
-	if len(fieldOptions) > 5 {
+	populationCustody := len(fieldOptions) >= 5 && fieldOptions[4]
+	stoneShell := len(fieldOptions) == 6 && fieldOptions[5]
+	if len(fieldOptions) > 6 {
 		return errors.New("invalid field option")
 	}
-	if (bills || fields || foodStorage || acquisition || work || supplies || sleeping || cooking || shelter || comfort || expansion || power || temperature || defense || tend || rescue || equip || secureSupplies || repair || clean || gear || medical || animalContainment || recovery || husbandry || prisonerInteraction || populationCustody || researchTarget != "" || len(resourceTargets) > 0) && !routine {
+	if (bills || fields || foodStorage || acquisition || work || supplies || sleeping || cooking || shelter || comfort || expansion || power || temperature || defense || tend || rescue || equip || secureSupplies || repair || clean || gear || medical || animalContainment || recovery || husbandry || prisonerInteraction || populationCustody || homeCoverage || stoneShell || researchTarget != "" || len(resourceTargets) > 0) && !routine {
 		return errors.New("building plans require routine reviews")
 	}
 	if routine {
@@ -119,6 +120,12 @@ func startServiceClock(ctx context.Context, player *buildingruntime.Player, sess
 		}
 		if prisonerInteraction || populationCustody {
 			capabilities.Methods = append(capabilities.Methods, policy.MaintainPopulation)
+		}
+		if homeCoverage {
+			capabilities.Methods = append(capabilities.Methods, policy.MaintainHomeCoverage)
+		}
+		if stoneShell {
+			capabilities.Methods = append(capabilities.Methods, policy.MaintainStoneShell)
 		}
 		if researchTarget != "" {
 			thresholds.ResearchTarget = researchTarget
@@ -319,6 +326,26 @@ func startServiceClock(ctx context.Context, player *buildingruntime.Player, sess
 				return errors.New("population custody plans require typed combat observations")
 			}
 			config.PopulationCustody, err = buildingruntime.NewRoutinePopulationCustodyPlanner(reviewer, custodyNative)
+			if err != nil {
+				return err
+			}
+		}
+		if homeCoverage {
+			homeCoverageNative, ok := reads.(buildingruntime.RoutineHomeCoverageSource)
+			if !ok {
+				return errors.New("home coverage plans require typed colony and construction observations")
+			}
+			config.HomeCoverage, err = buildingruntime.NewRoutineHomeCoveragePlanner(reviewer, homeCoverageNative)
+			if err != nil {
+				return err
+			}
+		}
+		if stoneShell {
+			stoneShellNative, ok := reads.(buildingruntime.RoutineStoneShellSource)
+			if !ok {
+				return errors.New("stone shell plans require typed wall upgrade site and placement observations")
+			}
+			config.StoneShell, err = buildingruntime.NewRoutineStoneShellPlanner(reviewer, stoneShellNative)
 			if err != nil {
 				return err
 			}

@@ -1,7 +1,10 @@
 package policy
 
 import (
+	"crypto/sha256"
+	"encoding/json"
 	"errors"
+	"fmt"
 	"sort"
 
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
@@ -120,6 +123,80 @@ func ReviewHomeCoverage(owned domain.Fact[[]ConstructionClaim], zones domain.Fac
 	}
 	sort.Slice(result, func(i, j int) bool { return result[i].ID < result[j].ID })
 	return domain.Known(result), nil
+}
+
+type HomeCoverageMethodKind string
+
+const (
+	HomeCoverageUnknown   HomeCoverageMethodKind = "unknown"
+	HomeCoverageRecovered HomeCoverageMethodKind = "recovered"
+	HomeCoverageExtend    HomeCoverageMethodKind = "extend"
+	HomeCoverageBlocked   HomeCoverageMethodKind = "no_eligible_method"
+)
+
+// HomeCoverageMethod proposes extending native Home over one already-owned
+// target's exact bounded footprint. It issues no game order; the shared
+// admission recheck happens fresh at dispatch (home_coverage.py's guard()).
+type HomeCoverageMethod struct {
+	Kind          HomeCoverageMethodKind
+	ID            domain.MethodID
+	Target, Shape string
+	Revision      int64
+}
+
+func homeCoverageMethodID(target, shape string) domain.MethodID {
+	value := struct{ Target, Shape string }{target, shape}
+	data, _ := json.Marshal(value)
+	sum := sha256.Sum256(data)
+	return domain.MethodID(fmt.Sprintf("home-%x", sum[:16]))
+}
+
+// SelectHomeCoverageMethod mirrors home_coverage.py's method(): scan the first
+// eight sorted targets (already filtered to missing>0 or blocked by
+// ReviewHomeCoverage), skipping any with a blocker or a live exclusion and any
+// already method_seen for this goal epoch, and propose the first admissible
+// one.
+func SelectHomeCoverageMethod(targets domain.Fact[[]HomeCoverageTarget], revision int64, seen []domain.MethodID) (HomeCoverageMethod, error) {
+	rows, known := targets.Value()
+	if !known {
+		return HomeCoverageMethod{Kind: HomeCoverageUnknown}, nil
+	}
+	if len(rows) > 256 {
+		return HomeCoverageMethod{}, errors.New("home coverage targets exceed bound")
+	}
+	if len(rows) == 0 {
+		return HomeCoverageMethod{Kind: HomeCoverageRecovered}, nil
+	}
+	if len(seen) > 4096 {
+		return HomeCoverageMethod{}, errors.New("home coverage method history exceeds bound")
+	}
+	seenSet := map[domain.MethodID]bool{}
+	for _, id := range seen {
+		if !foodID(string(id)) || seenSet[id] {
+			return HomeCoverageMethod{}, errors.New("invalid home coverage method history")
+		}
+		seenSet[id] = true
+	}
+	limit := rows
+	if len(limit) > 8 {
+		limit = limit[:8]
+	}
+	for _, row := range limit {
+		if row.Blocker != "" {
+			continue
+		}
+		excluded, ek := row.Excluded.Value()
+		shape, sk := row.Shape.Value()
+		if !ek || !sk || excluded > 0 {
+			continue
+		}
+		id := homeCoverageMethodID(row.ID, shape)
+		if seenSet[id] {
+			continue
+		}
+		return HomeCoverageMethod{Kind: HomeCoverageExtend, ID: id, Target: row.ID, Shape: shape, Revision: revision}, nil
+	}
+	return HomeCoverageMethod{Kind: HomeCoverageBlocked}, nil
 }
 
 func ReviewStoneShell(owned domain.Fact[[]ConstructionClaim], structures domain.Fact[[]StoneStructure]) (domain.Fact[[]string], error) {

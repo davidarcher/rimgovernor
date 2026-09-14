@@ -42,8 +42,8 @@ func (s *Store) AdmitBuildingMethod(ctx context.Context, r BuildingMethodRequest
 		return BuildingMethodDecision{}, errors.New("invalid method admission scope")
 	}
 	actions := r.Plan.Actions()
-	if len(actions) == 0 || len(actions) != len(r.Previews) || len(actions) > 256 {
-		return BuildingMethodDecision{}, errors.New("complete bounded method previews required")
+	if len(actions) == 0 || len(actions) > 256 {
+		return BuildingMethodDecision{}, errors.New("bounded method actions required")
 	}
 	previews := map[domain.ActionID]policy.Preview{}
 	for _, p := range r.Previews {
@@ -74,18 +74,31 @@ func (s *Store) AdmitBuildingMethod(ctx context.Context, r BuildingMethodRequest
 	}
 	var candidates []policy.Candidate
 	for _, a := range actions {
-		if a.Kind() != domain.BuildingAction && a.Kind() != domain.ZoneCreateAction {
+		switch a.Kind() {
+		case domain.BuildingAction, domain.ZoneCreateAction:
+			preview, exists := previews[a.ID()]
+			if !exists || preview.Action != a {
+				return BuildingMethodDecision{}, errors.New("method preview does not match action")
+			}
+			progress, err := domain.NewProgress(r.Plan, a.ID())
+			if err != nil {
+				return BuildingMethodDecision{}, err
+			}
+			candidates = append(candidates, policy.Candidate{Action: a, Progress: progress, Priority: int32(4 - g.Priority), Purpose: r.Purpose, Preview: preview})
+		case domain.WallRemovalAction:
+			// Guarded demolition carries no cost/footprint preview; it is
+			// admitted as part of the bundle's dependency graph but excluded
+			// from policy.Admit's candidate list, and re-checked at dispatch
+			// (executor.runWallRemoval), not here.
+			if _, exists := previews[a.ID()]; exists {
+				return BuildingMethodDecision{}, errors.New("wall removal action must not carry a preview")
+			}
+		default:
 			return BuildingMethodDecision{}, errors.New("unsupported method action family")
 		}
-		preview, exists := previews[a.ID()]
-		if !exists || preview.Action != a {
-			return BuildingMethodDecision{}, errors.New("method preview does not match action")
-		}
-		progress, err := domain.NewProgress(r.Plan, a.ID())
-		if err != nil {
-			return BuildingMethodDecision{}, err
-		}
-		candidates = append(candidates, policy.Candidate{Action: a, Progress: progress, Priority: int32(4 - g.Priority), Purpose: r.Purpose, Preview: preview})
+	}
+	if len(candidates) != len(r.Previews) {
+		return BuildingMethodDecision{}, errors.New("complete bounded method previews required")
 	}
 	held, err := buildingMethodHolds(ctx, tx, r.Current)
 	if err != nil {
@@ -96,7 +109,7 @@ func (s *Store) AdmitBuildingMethod(ctx context.Context, r BuildingMethodRequest
 		return BuildingMethodDecision{}, err
 	}
 	decision := policy.Admit(input)
-	if len(decision.Refused) != 0 || len(decision.Admitted) != len(actions) {
+	if len(decision.Refused) != 0 || len(decision.Admitted) != len(candidates) {
 		return BuildingMethodDecision{Goal: goal, Refused: decision.Refused}, nil
 	}
 	goal, err = commitGoalMethod(ctx, tx, r.Goal, r.Revision, r.Method, r.Plan)
