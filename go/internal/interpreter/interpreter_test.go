@@ -26,7 +26,10 @@ func inputFixture() Input {
 }
 func clientFixture(t *testing.T, fn completeFunc) *Interpreter {
 	t.Helper()
-	i, err := New(Config{ContextTokens: 16384, MaxOutputTokens: 1024, MaxActions: 4}, fn)
+	// 32768 is what model.LoadedCapacity reports for the served model; the
+	// rules text enumerating every supported command no longer fits the older
+	// 16384 fixture alongside a room-sized fact snapshot.
+	i, err := New(Config{ContextTokens: 32768, MaxOutputTokens: 1024, MaxActions: 4}, fn)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -60,7 +63,7 @@ func TestProposalFromActualLocalHTTP(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer transport.Close()
-	i, err := New(Config{16384, 1024, 4}, transport)
+	i, err := New(Config{32768, 1024, 4}, transport)
 	if err != nil {
 		t.Fatal(err)
 	}
