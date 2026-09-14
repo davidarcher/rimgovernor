@@ -41,6 +41,8 @@ const BuildingTemperatureAction ActionKind = "building_temperature"
 // TravelCaravanAction is declared in travel_caravan.go alongside its
 // TravelCaravan payload.
 
+// TradeAction is declared in trade.go alongside its Trade payload.
+
 // HusbandryAction is declared in husbandry.go alongside its Husbandry payload.
 // PrisonerInteractionAction is declared in prisoner_interaction.go alongside
 // its PrisonerInteraction payload.
@@ -116,6 +118,7 @@ type Action struct {
 	wallRemoval         WallRemoval
 	productionPolicy    ProductionPolicy
 	travelCaravan       TravelCaravan
+	trade               Trade
 }
 
 func NewBuildingAction(id ActionID, building Building) (Action, error) {
@@ -131,12 +134,12 @@ func (a Action) ID() ActionID               { return a.id }
 func (a Action) Kind() ActionKind           { return a.kind }
 func (a Action) Building() (Building, bool) { return a.building, a.kind == BuildingAction }
 func SupportedActionKinds() []ActionKind {
-	return []ActionKind{BuildingAction, OwnedDraftAction, MeleeAttackAction, SupplyAllowAction, WorkAssignmentAction, AcquisitionAction, ZoneCreateAction, TendAction, RescueAction, CaptureAction, RangedAttackAction, ProductionBillAction, HaulAction, EquipAction, GearReplaceAction, RepairAction, CaravanDepartureAction, CleanAction, RecoveryServiceAction, MovementAction, SurgeryAction, BedAssignAction, ResearchSelectAction, HusbandryAction, HomeCoverageAction, PrisonerInteractionAction, QuestAcceptAction, SettlementGiftAction, QuestFulfillAction, MineAcquisitionAction, WallRemovalAction, BuildingTemperatureAction, ProductionPolicyAction, TravelCaravanAction}
+	return []ActionKind{BuildingAction, OwnedDraftAction, MeleeAttackAction, SupplyAllowAction, WorkAssignmentAction, AcquisitionAction, ZoneCreateAction, TendAction, RescueAction, CaptureAction, RangedAttackAction, ProductionBillAction, HaulAction, EquipAction, GearReplaceAction, RepairAction, CaravanDepartureAction, CleanAction, RecoveryServiceAction, MovementAction, SurgeryAction, BedAssignAction, ResearchSelectAction, HusbandryAction, HomeCoverageAction, PrisonerInteractionAction, QuestAcceptAction, SettlementGiftAction, QuestFulfillAction, MineAcquisitionAction, WallRemovalAction, BuildingTemperatureAction, ProductionPolicyAction, TravelCaravanAction, TradeAction}
 }
 func ValidateHandlerCoverage(kinds []ActionKind) error {
 	seen := make(map[ActionKind]bool)
 	for _, kind := range kinds {
-		if (kind != BuildingAction && kind != OwnedDraftAction && kind != MeleeAttackAction && kind != SupplyAllowAction && kind != WorkAssignmentAction && kind != AcquisitionAction && kind != ZoneCreateAction && kind != TendAction && kind != RescueAction && kind != CaptureAction && kind != RangedAttackAction && kind != ProductionBillAction && kind != HaulAction && kind != EquipAction && kind != GearReplaceAction && kind != RepairAction && kind != CaravanDepartureAction && kind != CleanAction && kind != RecoveryServiceAction && kind != MovementAction && kind != SurgeryAction && kind != BedAssignAction && kind != ResearchSelectAction && kind != HusbandryAction && kind != HomeCoverageAction && kind != PrisonerInteractionAction && kind != QuestAcceptAction && kind != SettlementGiftAction && kind != QuestFulfillAction && kind != MineAcquisitionAction && kind != WallRemovalAction && kind != BuildingTemperatureAction && kind != ProductionPolicyAction && kind != TravelCaravanAction) || seen[kind] {
+		if (kind != BuildingAction && kind != OwnedDraftAction && kind != MeleeAttackAction && kind != SupplyAllowAction && kind != WorkAssignmentAction && kind != AcquisitionAction && kind != ZoneCreateAction && kind != TendAction && kind != RescueAction && kind != CaptureAction && kind != RangedAttackAction && kind != ProductionBillAction && kind != HaulAction && kind != EquipAction && kind != GearReplaceAction && kind != RepairAction && kind != CaravanDepartureAction && kind != CleanAction && kind != RecoveryServiceAction && kind != MovementAction && kind != SurgeryAction && kind != BedAssignAction && kind != ResearchSelectAction && kind != HusbandryAction && kind != HomeCoverageAction && kind != PrisonerInteractionAction && kind != QuestAcceptAction && kind != SettlementGiftAction && kind != QuestFulfillAction && kind != MineAcquisitionAction && kind != WallRemovalAction && kind != BuildingTemperatureAction && kind != ProductionPolicyAction && kind != TravelCaravanAction && kind != TradeAction) || seen[kind] {
 			return fmt.Errorf("unknown or duplicate action handler %q", kind)
 		}
 		seen[kind] = true
@@ -238,6 +241,8 @@ func NewPlan(id PlanID, revision PlanRevision, actions []Action, dependencies ..
 			canonical, err = NewProductionPolicyAction(a.id, a.productionPolicy)
 		case TravelCaravanAction:
 			canonical, err = NewTravelCaravanAction(a.id, a.travelCaravan)
+		case TradeAction:
+			canonical, err = NewTradeAction(a.id, a.trade)
 		default:
 			return PlanSpec{}, errors.New("unsupported action variant")
 		}
