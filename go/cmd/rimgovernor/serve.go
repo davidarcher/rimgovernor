@@ -374,7 +374,8 @@ func serveReadOnly(ctx context.Context, config serveConfig, out io.Writer) (resu
 
 type serviceBridge interface {
 	observation.Source
-	ConnectGame(context.Context) (bridge.Result, error)
+	GamesStart(context.Context) (bridge.Result, error)
+	ConnectWithPoll(context.Context, bridge.Result) (bridge.Result, error)
 	Close() error
 }
 type bridgeOpener func(context.Context, bridge.ProcessConfig) (serviceBridge, error)
@@ -393,7 +394,11 @@ func serveWithBridge(ctx context.Context, config serveConfig, out io.Writer, ope
 		return err
 	}
 	defer func() { result = errors.Join(result, client.Close()) }()
-	if _, err = client.ConnectGame(ctx); err != nil {
+	started, err := client.GamesStart(ctx)
+	if err != nil {
+		return err
+	}
+	if _, err = client.ConnectWithPoll(ctx, started); err != nil {
 		return err
 	}
 	database, err := store.Open(ctx, config.state)

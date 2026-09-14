@@ -421,7 +421,11 @@ func serveBuildingWithBridge(ctx context.Context, config serveConfig, out io.Wri
 	if client.caravanDeparture == nil || client.caravanDeparture.Native == nil || client.caravanDeparture.Writer == nil {
 		return errors.New("player service requires complete caravan departure capabilities")
 	}
-	if _, err = client.reads.ConnectGame(lifetime); err != nil {
+	started, err := client.reads.GamesStart(lifetime)
+	if err != nil {
+		return err
+	}
+	if _, err = client.reads.ConnectWithPoll(lifetime, started); err != nil {
 		return err
 	}
 	database, err := store.Open(lifetime, config.state)

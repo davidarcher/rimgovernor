@@ -109,8 +109,11 @@ type serviceFake struct {
 	connectErr        error
 }
 
-func (f *serviceFake) ConnectGame(context.Context) (bridge.Result, error) {
+func (f *serviceFake) GamesStart(context.Context) (bridge.Result, error) {
 	return bridge.Result{}, f.connectErr
+}
+func (f *serviceFake) ConnectWithPoll(context.Context, bridge.Result) (bridge.Result, error) {
+	return bridge.Result{}, nil
 }
 func (f *serviceFake) Identity(ctx context.Context) (*lifecyclepb.IdentityReply, bridge.Result, error) {
 	f.active.Add(1)
