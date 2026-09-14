@@ -112,8 +112,9 @@ confirm the packaging path is wired correctly, not that a colony runs.
   population decision, per-resource production policy
   (`modify_resource_policy`/`set_resource_reserve`), maintained goal
   activation/cancellation (`create_goal`/`cancel_goal`), room shells
-  (`build_room`), room adoption (`adopt_room`) and construction cancellation
-  (`cancel_construction`) proposals, but
+  (`build_room`), room adoption (`adopt_room`), construction cancellation
+  (`cancel_construction`) and construction relocation
+  (`relocate_construction`) proposals, but
   is not yet wired into the Go binary's serve loop) — G01.08.
   `set_population_policy` is the first interpreted command that is colony
   configuration rather than a plan of native actions: it issues no native
@@ -386,12 +387,72 @@ confirm the packaging path is wired correctly, not that a colony runs.
   `validate_adoption`, which re-runs `verify_entrance` on each review — and is
   tracked separately.
 
-  **Deferred, deliberately:** `RelocateConstruction`. It now has its
-  prerequisite (this cancellation) but still needs a replacement-placement
-  validation layer — it is a cancel *and* a re-place, and the re-place half must
-  be admitted like any other placement.
-  `PlaceBuildings`, Python's raw-placement-list sibling, is not in this issue's
-  tracked backlog and is not built here.
+  `relocate_construction` moves an already-named construction somewhere else,
+  and is the first command here that is two of the others at once: it names an
+  existing intent the way `cancel_construction` does *and* carries a whole shell
+  the way `build_room` does, and bounds both halves accordingly (the intent
+  against `Snapshot.ObservedConstructionIntents`, the replacement's definitions,
+  material and every expanded cell against `Snapshot.Definitions`/`Cells`). The
+  design question it answers is **ordering across two commands**, and the answer
+  is `domain.ActionDependency`, the generic action-ordering primitive
+  `domain.NewPlan` has always accepted and nothing had used across a command
+  boundary: it is plan-local, so the withdrawal of the old orders and the
+  placement of the new ones travel in **one** committed plan rather than two,
+  with `PlanSpec.CheckDependencies`/`ErrDependency` holding every replacement
+  placement out of admission until the withdrawals have completed in the current
+  world. That is Python's `PlanStep.after=[{'step':removal_id,'when':'complete'}]`
+  with the same coarse granularity: the withdrawals run in a chain and every
+  placement requires the last of them, mirroring Python's monolithic
+  removal-then-replacement rather than pairing cells — pairing each new cell to
+  each old one is 63504 edges at the 64×64 maximum, against domain's 4096 bound,
+  where the chain is at most 503.
+
+  There are two paths, Python's own split. On the **fast path** nothing of the
+  original was ever dispatched, so there is no native order to withdraw and the
+  plan holds the replacement's placements alone (`fastPath` on the wire); Python
+  re-invokes `BuildRoom` under the same `intent_id` there, and this is the same
+  thing without the re-entrancy. On the **combined path** something was issued,
+  and then *every* issued placement must still be cleanly withdrawable — a
+  completed or independently removed one refuses the whole relocation rather
+  than moving half a room, Python's "completed or missing construction is
+  preserved", reusing `cancellableTargets` unchanged from the cancellation
+  slice. Both paths additionally cancel the source's **never-dispatched**
+  placements in this controller's own journal, which is the one respect in
+  which relocation is more than cancel-plus-build: `cancel_construction` leaves
+  them alone because withdrawing native orders is all it promises, but a
+  relocation that left them live would go on to build the old room beside the
+  new one.
+
+  **Intent supersession is append-only.** `build_room_submissions` is never
+  rewritten — that row is what `request_id` replay resolves to, and rewriting it
+  would break BuildRoom's own guarantee — so each relocation instead records the
+  plan it supersedes in `relocate_construction_submissions`, unique per
+  `(world, intent, source_plan)`, and `store.LookupConstructionIntent` walks that
+  chain forwards to the current head. `SubmitCancelConstruction` now resolves
+  through it rather than calling `LookupBuildRoomIntent` directly, so cancelling
+  a relocated intent withdraws where the construction stands, not where it was
+  first ordered; with no relocation on record the head *is* the build-room
+  submission, so nothing changes for an intent that was never moved —
+  `POST /api/relocate-constructions/plans` and
+  `GET /api/relocate-constructions/submission?requestId=`.
+
+  **Simplified, deliberately:** Python's replacement is a `RoomShell | Buildings`
+  union and its handler refuses a replacement of a different kind than the
+  original ("Relocation must preserve the construction kind"). Here the
+  replacement is a room shell and nothing else, because `build_room` is the only
+  player command in this family that issues construction, so the kind can never
+  differ and the check is a tautology the Go decode already enforces at its field
+  type. `PlaceBuildings`, Python's raw-placement-list sibling, is not in this
+  issue's tracked backlog and is not built here; if it ever lands, the kind check
+  comes back with it. Python's "dependent work references this construction"
+  refusal *is* ported (`dependentOnSource`) but is currently **vacuous**:
+  `ActionDependency` is plan-local, `build_room` commits its plan with no
+  dependencies at all, and a relocation's own edges point at its withdrawals
+  rather than at its placements, so nothing can hold such an edge today. It is
+  kept because it is two loops over data already in hand and it is what makes
+  adding a dependent command later safe by default. Python's
+  `validate_player_authorization`/chat-revision re-check is not ported, for the
+  same reason the cancellation slice did not port it.
 - Media/camera/portrait/video/recording and trusted save/load — G01.09.
 - World progression remaining scope: closed, except the documented
   `SetTradeLines`/`AcceptTrade`/`EndTrade` acceptance-harness gap below —

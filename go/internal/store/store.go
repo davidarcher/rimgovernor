@@ -42,7 +42,7 @@ import (
 	"modernc.org/sqlite"
 )
 
-const schemaVersion = 65
+const schemaVersion = 66
 const applicationID = 0x52474f31
 
 var ErrConflict = core.ErrConflict
@@ -237,6 +237,7 @@ CREATE TABLE zone_edit_submissions(request_id TEXT PRIMARY KEY REFERENCES submis
 CREATE TABLE research_select_submissions(request_id TEXT PRIMARY KEY REFERENCES submissions(request_id), payload BLOB NOT NULL) STRICT;
 CREATE TABLE build_room_submissions(request_id TEXT PRIMARY KEY REFERENCES submissions(request_id), colony TEXT NOT NULL, load_token TEXT NOT NULL, map_id INTEGER NOT NULL, intent_id TEXT NOT NULL, payload BLOB NOT NULL, UNIQUE(colony,load_token,map_id,intent_id)) STRICT;
 CREATE TABLE cancel_construction_submissions(request_id TEXT PRIMARY KEY, colony TEXT NOT NULL, load_token TEXT NOT NULL, map_id INTEGER NOT NULL, intent_id TEXT NOT NULL, source_plan TEXT NOT NULL REFERENCES plans(id), plan_id TEXT UNIQUE REFERENCES plans(id), action_id TEXT UNIQUE REFERENCES actions(id), revision TEXT NOT NULL, payload BLOB NOT NULL, CHECK((plan_id IS NULL)=(action_id IS NULL)), UNIQUE(colony,load_token,map_id,intent_id)) STRICT;
+CREATE TABLE relocate_construction_submissions(request_id TEXT PRIMARY KEY, colony TEXT NOT NULL, load_token TEXT NOT NULL, map_id INTEGER NOT NULL, intent_id TEXT NOT NULL, source_plan TEXT NOT NULL REFERENCES plans(id), plan_id TEXT NOT NULL UNIQUE REFERENCES plans(id), cancel_action TEXT UNIQUE REFERENCES actions(id), build_action TEXT NOT NULL UNIQUE REFERENCES actions(id), revision TEXT NOT NULL, payload BLOB NOT NULL, UNIQUE(colony,load_token,map_id,intent_id,source_plan)) STRICT;
 CREATE TABLE room_adoption_submissions(request_id TEXT PRIMARY KEY, colony TEXT NOT NULL, load_token TEXT NOT NULL, map_id INTEGER NOT NULL, intent_id TEXT NOT NULL, goal_id TEXT NOT NULL REFERENCES goals(id), payload BLOB NOT NULL, UNIQUE(colony,load_token,map_id,intent_id)) STRICT;
 CREATE TABLE adopted_shelters(colony TEXT NOT NULL, load_token TEXT NOT NULL, map_id INTEGER NOT NULL, request_id TEXT NOT NULL REFERENCES room_adoption_submissions(request_id), intent_id TEXT NOT NULL, goal_id TEXT NOT NULL REFERENCES goals(id), PRIMARY KEY(colony,load_token,map_id)) STRICT;
 CREATE TABLE work_preferences(plan_id TEXT PRIMARY KEY REFERENCES plans(id), payload BLOB NOT NULL) STRICT;

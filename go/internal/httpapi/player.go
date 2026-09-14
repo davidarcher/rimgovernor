@@ -30,6 +30,7 @@ type PlayerBuildings interface {
 	SubmitTravelCaravan(context.Context, store.TravelCaravanSubmissionRequest) (store.TravelCaravanSubmission, bool, error)
 	SubmitBuildRoom(context.Context, store.BuildRoomSubmissionRequest) (store.BuildRoomSubmission, bool, error)
 	SubmitCancelConstruction(context.Context, store.CancelConstructionSubmissionRequest) (store.CancelConstructionSubmission, bool, error)
+	SubmitRelocateConstruction(context.Context, store.RelocateConstructionSubmissionRequest) (store.RelocateConstructionSubmission, bool, error)
 	Acquire(context.Context, store.ControlRequest) (store.ControlRecord, error)
 	Manual(context.Context, store.ControlRequest) (store.ControlRecord, error)
 	State() buildingruntime.ControlState
@@ -50,6 +51,7 @@ type ControlReader interface {
 	LookupTravelCaravanSubmission(context.Context, string) (store.TravelCaravanSubmission, error)
 	LookupBuildRoomSubmission(context.Context, string) (store.BuildRoomSubmission, error)
 	LookupCancelConstructionSubmission(context.Context, string) (store.CancelConstructionSubmission, error)
+	LookupRelocateConstructionSubmission(context.Context, string) (store.RelocateConstructionSubmission, error)
 }
 
 // NewWithPlayer explicitly enables authenticated player intent. Dependencies and
@@ -212,8 +214,8 @@ func (s *Server) handlePlayer(w http.ResponseWriter, r *http.Request) bool {
 		return false
 	}
 	path := r.URL.Path
-	read := path == "/api/player/session" || path == "/api/player/control" || (path == "/api/buildings/submission" || path == "/api/drafts/submission") || path == "/api/player/clock" || path == "/api/player/world-evaluation" || path == "/api/player/work-preferences" || path == "/api/caravan-departures/submission" || path == "/api/quest-accepts/submission" || path == "/api/settlement-gifts/submission" || path == "/api/quest-fulfills/submission" || path == "/api/trades/submission" || path == "/api/zone-creates/submission" || path == "/api/zone-edits/submission" || path == "/api/research-selects/submission" || path == "/api/travel-caravans/submission" || path == "/api/player/population-policy" || path == "/api/player/population-policy/submission" || path == "/api/player/expedition-policy" || path == "/api/player/expedition-policy/submission" || path == "/api/player/population-decision" || path == "/api/player/population-decision/submission" || path == "/api/player/resource-policy" || path == "/api/player/resource-policy/submission" || path == "/api/player/goals" || path == "/api/player/goals/submission" || path == "/api/player/adopt-room" || path == "/api/player/adopt-room/submission" || path == "/api/build-rooms/submission" || path == "/api/cancel-constructions/submission"
-	write :=path == "/api/drafts/plans" || path == "/api/buildings/plans" || path == "/api/player/control/acquire" || path == "/api/player/control/manual" || path == "/api/player/clock/acknowledge" || path == "/api/player/work-preferences/replace" || path == "/api/caravan-departures/plans" || path == "/api/quest-accepts/plans" || path == "/api/settlement-gifts/plans" || path == "/api/quest-fulfills/plans" || path == "/api/trades/plans" || path == "/api/zone-creates/plans" || path == "/api/zone-edits/plans" || path == "/api/research-selects/plans" || path == "/api/travel-caravans/plans" || path == "/api/player/population-policy/replace" || path == "/api/player/expedition-policy/update" || path == "/api/player/population-decision/replace" || path == "/api/player/resource-policy/update" || path == "/api/player/goals/activate" || path == "/api/player/goals/cancel" || path == "/api/player/adopt-room/claim" || path == "/api/build-rooms/plans" || path == "/api/cancel-constructions/plans"
+	read := path == "/api/player/session" || path == "/api/player/control" || (path == "/api/buildings/submission" || path == "/api/drafts/submission") || path == "/api/player/clock" || path == "/api/player/world-evaluation" || path == "/api/player/work-preferences" || path == "/api/caravan-departures/submission" || path == "/api/quest-accepts/submission" || path == "/api/settlement-gifts/submission" || path == "/api/quest-fulfills/submission" || path == "/api/trades/submission" || path == "/api/zone-creates/submission" || path == "/api/zone-edits/submission" || path == "/api/research-selects/submission" || path == "/api/travel-caravans/submission" || path == "/api/player/population-policy" || path == "/api/player/population-policy/submission" || path == "/api/player/expedition-policy" || path == "/api/player/expedition-policy/submission" || path == "/api/player/population-decision" || path == "/api/player/population-decision/submission" || path == "/api/player/resource-policy" || path == "/api/player/resource-policy/submission" || path == "/api/player/goals" || path == "/api/player/goals/submission" || path == "/api/player/adopt-room" || path == "/api/player/adopt-room/submission" || path == "/api/build-rooms/submission" || path == "/api/cancel-constructions/submission" || path == "/api/relocate-constructions/submission"
+	write :=path == "/api/drafts/plans" || path == "/api/buildings/plans" || path == "/api/player/control/acquire" || path == "/api/player/control/manual" || path == "/api/player/clock/acknowledge" || path == "/api/player/work-preferences/replace" || path == "/api/caravan-departures/plans" || path == "/api/quest-accepts/plans" || path == "/api/settlement-gifts/plans" || path == "/api/quest-fulfills/plans" || path == "/api/trades/plans" || path == "/api/zone-creates/plans" || path == "/api/zone-edits/plans" || path == "/api/research-selects/plans" || path == "/api/travel-caravans/plans" || path == "/api/player/population-policy/replace" || path == "/api/player/expedition-policy/update" || path == "/api/player/population-decision/replace" || path == "/api/player/resource-policy/update" || path == "/api/player/goals/activate" || path == "/api/player/goals/cancel" || path == "/api/player/adopt-room/claim" || path == "/api/build-rooms/plans" || path == "/api/cancel-constructions/plans" || path == "/api/relocate-constructions/plans"
 	if !read && !write {
 		return false
 	}
@@ -369,6 +371,10 @@ func (s *Server) handlePlayer(w http.ResponseWriter, r *http.Request) bool {
 			s.submitCancelConstruction(w, r, ctx)
 			return true
 		}
+		if path == "/api/relocate-constructions/plans" {
+			s.submitRelocateConstruction(w, r, ctx)
+			return true
+		}
 		if path == "/api/research-selects/plans" {
 			s.submitResearchSelect(w, r, ctx)
 			return true
@@ -420,7 +426,7 @@ func (s *Server) handlePlayer(w http.ResponseWriter, r *http.Request) bool {
 		return true
 	}
 	ids := query["requestId"]
-	submissionLookup := path == "/api/buildings/submission" || path == "/api/drafts/submission" || path == "/api/caravan-departures/submission" || path == "/api/quest-accepts/submission" || path == "/api/settlement-gifts/submission" || path == "/api/quest-fulfills/submission" || path == "/api/trades/submission" || path == "/api/zone-creates/submission" || path == "/api/zone-edits/submission" || path == "/api/research-selects/submission" || path == "/api/travel-caravans/submission" || path == "/api/build-rooms/submission" || path == "/api/cancel-constructions/submission"
+	submissionLookup := path == "/api/buildings/submission" || path == "/api/drafts/submission" || path == "/api/caravan-departures/submission" || path == "/api/quest-accepts/submission" || path == "/api/settlement-gifts/submission" || path == "/api/quest-fulfills/submission" || path == "/api/trades/submission" || path == "/api/zone-creates/submission" || path == "/api/zone-edits/submission" || path == "/api/research-selects/submission" || path == "/api/travel-caravans/submission" || path == "/api/build-rooms/submission" || path == "/api/cancel-constructions/submission" || path == "/api/relocate-constructions/submission"
 	if (len(query) != 0 && (len(query) != 1 || len(ids) != 1 || buildingRequestID(ids[0]) != nil)) || (submissionLookup && len(ids) != 1) {
 		s.failure(w, r, 400, "invalid_query", "One requestId is required")
 		return true
@@ -471,6 +477,10 @@ func (s *Server) handlePlayer(w http.ResponseWriter, r *http.Request) bool {
 	}
 	if path == "/api/cancel-constructions/submission" {
 		s.lookupCancelConstruction(w, r, ctx, ids[0])
+		return true
+	}
+	if path == "/api/relocate-constructions/submission" {
+		s.lookupRelocateConstruction(w, r, ctx, ids[0])
 		return true
 	}
 	if path == "/api/buildings/submission" {

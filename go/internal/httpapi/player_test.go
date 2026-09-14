@@ -269,6 +269,10 @@ func (f *playerFixture) SubmitCancelConstruction(ctx context.Context, q store.Ca
 	f.calls++
 	return f.journal.SubmitCancelConstruction(ctx, q)
 }
+func (f *playerFixture) SubmitRelocateConstruction(ctx context.Context, q store.RelocateConstructionSubmissionRequest) (store.RelocateConstructionSubmission, bool, error) {
+	f.calls++
+	return f.journal.SubmitRelocateConstruction(ctx, q)
+}
 func (f *playerFixture) SubmitZoneEdit(ctx context.Context, q store.ZoneEditSubmissionRequest) (store.ZoneEditSubmission, bool, error) {
 	f.calls++
 	return f.journal.SubmitZoneEdit(ctx, q)
