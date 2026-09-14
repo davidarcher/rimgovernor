@@ -1537,6 +1537,37 @@ b; exact worker cleanup by a, with reuse by their later consumers.
   emergency-gated at all (haul, tend, and the rest of the roster) were never
   in scope for this mechanism.
 
+  `draft` now durably records emergency holds too, closing the gap noted
+  above, but it could not reuse the other seven families' mechanical
+  pattern: draft deliberately ignores a colony-wide `EmergencyUnsafeThreat`
+  from an unrelated hostile, and another pawn's `EmergencyCriticalMedical`
+  — drafting a healthy, uninvolved pawn during a fight elsewhere is exactly
+  what a player wants, not something to block — so an unconditional
+  `EvaluateEmergency` gate ahead of `policy.EvaluateOwnedDraft` (the pattern
+  used for the other six families) would have been a behavior regression.
+  Instead, `policy.DraftDecision` gained an `Emergency EmergencyDecision`
+  field (`go/internal/policy/owned_draft.go`), populated only by the
+  specific internal branches that are genuinely emergency-caused — stale or
+  unknown colony-wide facts from `EvaluateOwnedDraft`'s own clearance check,
+  and the drafted pawn's own unknown or bad health facts — via a new
+  `refuseEmergency` helper alongside the existing `refuse`; every other
+  refusal branch (pawn-identity mismatch, ownership, player order, native
+  eligibility) leaves `Emergency` at its zero value. `go/internal/executor/
+  draft.go`'s `runDraft` calls the shared `holdEmergency` helper exactly
+  when `decision.Emergency.Holds` is non-empty, immediately before its
+  existing `ErrHeld` return, so a plain ownership/order refusal still
+  records no hold. Covered by
+  `TestDraftEmergencyBlocksDispatchAndPersistsHold` (the drafted pawn's own
+  bad health facts hold and durably persist) and
+  `TestDraftIgnoresUnrelatedThreatForHealthyPawn` (a colony-wide hostile
+  elsewhere never blocks drafting a healthy, uninvolved pawn — proof the
+  refactor did not regress draft's deliberately narrower emergency scope).
+  `go build/vet/test ./...` pass. **Explicitly out of scope for this
+  slice:** ordinary (non-emergency) admission-refusal reasons remain
+  unaddressed for every family; families that are not emergency-gated at
+  all (haul, tend, and the rest of the roster) remain out of scope for this
+  mechanism by design, not oversight.
+
   `PresentationMedia`'s pawn-capture half is now implemented: `RenderState`,
   `DemandRendering` and `CapturePawn` are wired end to end, reusing the
   existing native drivers rather than duplicating their Harmony-patched

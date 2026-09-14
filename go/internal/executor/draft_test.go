@@ -121,6 +121,40 @@ func TestDraftSecondInspectionHoldsWithoutDispatch(t *testing.T) {
 		t.Fatal(r, err)
 	}
 }
+func TestDraftEmergencyBlocksDispatchAndPersistsHold(t *testing.T) {
+	f, d := newDraftFixture(t)
+	d.inspect = func(v *DraftInspection) {
+		v.Emergency, _ = policy.NewEmergencySnapshot(v.Current, v.Tick, policy.EmergencyFacts{ColonistsComplete: domain.Known(true), ThreatsComplete: domain.Known(true), Colonists: []policy.EmergencyPawn{{ID: "pawn", Dead: domain.Known(false), Downed: domain.Known(true), Bleeding: domain.Known(true), NeedsTend: domain.Known(true)}}})
+	}
+	r, err := f.run()
+	if !errors.Is(err, ErrHeld) || d.calls != 0 {
+		t.Fatal(r, err)
+	}
+	held, ok := f.progress(t).FreshHeldReason()
+	if !ok || len(held) != 1 || held[0] != domain.HeldCriticalMedical {
+		t.Fatal("emergency hold was not persisted as a held reason", held)
+	}
+}
+
+// A colony-wide threat unrelated to the pawn being drafted must never block
+// drafting a healthy, uninvolved pawn -- that is exactly what a player wants
+// to do in a fight, not something to hold on. This is the reason draft's
+// emergency handling cannot simply mirror the other action families'
+// unconditional EvaluateEmergency gate.
+func TestDraftIgnoresUnrelatedThreatForHealthyPawn(t *testing.T) {
+	f, d := newDraftFixture(t)
+	d.inspect = func(v *DraftInspection) {
+		v.Emergency, _ = policy.NewEmergencySnapshot(v.Current, v.Tick, policy.EmergencyFacts{
+			ColonistsComplete: domain.Known(true), ThreatsComplete: domain.Known(true),
+			Colonists: []policy.EmergencyPawn{{ID: "pawn", Dead: domain.Known(false), Downed: domain.Known(false), Bleeding: domain.Known(false), NeedsTend: domain.Known(false)}},
+			Threats:   []policy.EmergencyThreat{{ID: "hostile", Kind: policy.Hostile, Dead: domain.Known(false), Downed: domain.Known(false)}},
+		})
+	}
+	r, err := f.run()
+	if err != nil || d.calls != 1 {
+		t.Fatal(r, err, d)
+	}
+}
 func TestDraftCancellationJournalsUncertaintyAndSerializesCleanup(t *testing.T) {
 	f, d := newDraftFixture(t)
 	entered := make(chan struct{})

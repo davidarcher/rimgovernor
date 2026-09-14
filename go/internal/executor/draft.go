@@ -77,6 +77,9 @@ func (e *Executor) runDraft(ctx context.Context, action domain.Action, progress 
 		decision := policy.EvaluateOwnedDraft(policy.DraftRequest{Action: action, Progress: result.Progress, Current: inspection.Current, Tick: inspection.Tick, Pawn: inspection.Pawn, Emergency: inspection.Emergency})
 		result.Refused = decision.Refused
 		if !decision.Admitted {
+			if len(decision.Emergency.Holds) > 0 {
+				result.Progress = e.holdEmergency(ctx, v.Plan, v.Action, decision.Emergency, inspection.Tick, result.Progress)
+			}
 			return result, ErrHeld
 		}
 		admission := store.DraftAdmission{Snapshot: expected, Tick: inspection.Tick, Pawn: inspection.Pawn.Pawn, PawnSnapshotToken: inspection.PawnSnapshotToken}

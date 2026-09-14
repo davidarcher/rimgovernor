@@ -16,8 +16,9 @@ type DraftRequest struct {
 	Emergency EmergencySnapshot
 }
 type DraftDecision struct {
-	Admitted bool
-	Refused  []Refusal
+	Admitted  bool
+	Refused   []Refusal
+	Emergency EmergencyDecision
 }
 
 const (
@@ -31,6 +32,17 @@ const (
 func EvaluateOwnedDraft(request DraftRequest) DraftDecision {
 	refuse := func(reason Reason) DraftDecision {
 		return DraftDecision{Refused: []Refusal{{Action: request.Action.ID(), Reason: reason}}}
+	}
+	// refuseEmergency marks a refusal as caused by the same genuine emergency
+	// facts EvaluateEmergency itself would hold on, scoped to only the holds
+	// relevant to this pawn's own drafting -- never a colony-wide UnsafeThreat
+	// or another pawn's CriticalMedical, which draft deliberately ignores
+	// (drafting an uninvolved, healthy pawn during a threat elsewhere is
+	// exactly what a player wants to do, not something to block).
+	refuseEmergency := func(reason Reason, holds ...EmergencyHold) DraftDecision {
+		d := refuse(reason)
+		d.Emergency = EmergencyDecision{Holds: holds}
+		return d
 	}
 	draft, ok := request.Action.OwnedDraft()
 	if !ok {
@@ -63,9 +75,9 @@ func EvaluateOwnedDraft(request DraftRequest) DraftDecision {
 	for _, hold := range clearance.Holds {
 		switch hold.Reason {
 		case EmergencyStaleFacts:
-			return refuse(StaleFacts)
+			return refuseEmergency(StaleFacts, EmergencyHold{Reason: EmergencyStaleFacts})
 		case EmergencyUnknownFacts:
-			return refuse(UnknownFacts)
+			return refuseEmergency(UnknownFacts, EmergencyHold{Reason: EmergencyUnknownFacts})
 		}
 	}
 	found := false
@@ -77,15 +89,15 @@ func EvaluateOwnedDraft(request DraftRequest) DraftDecision {
 		for _, fact := range []domain.Fact[bool]{pawn.Dead, pawn.Downed, pawn.Bleeding, pawn.NeedsTend} {
 			bad, known := fact.Value()
 			if !known {
-				return refuse(UnknownFacts)
+				return refuseEmergency(UnknownFacts, EmergencyHold{Reason: EmergencyUnknownFacts, Pawn: pawn.ID})
 			}
 			if bad {
-				return refuse(CriticalMedical)
+				return refuseEmergency(CriticalMedical, EmergencyHold{Reason: EmergencyCriticalMedical, Pawn: pawn.ID})
 			}
 		}
 	}
 	if !found {
-		return refuse(UnknownFacts)
+		return refuseEmergency(UnknownFacts, EmergencyHold{Reason: EmergencyUnknownFacts, Pawn: PawnID(draft.Pawn())})
 	}
 	for _, fact := range []domain.Fact[bool]{request.Pawn.Drafted, request.Pawn.Unowned, request.Pawn.PlayerForced, request.Pawn.NativeCanTry} {
 		if _, known := fact.Value(); !known {
