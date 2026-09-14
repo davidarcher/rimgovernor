@@ -181,6 +181,15 @@ type PopulationPolicy struct {
 	Maximum  int32   `json:"maximum"`
 	FoodDays float64 `json:"foodDays"`
 }
+
+// PopulationDecision is the wire shape for one player-sourced per-pawn
+// population direction: rescue, capture, recruit or ignore for one exact
+// observed pawn. Like PopulationPolicy it is a recorded direction rather than
+// a plan action, so it carries no before-token.
+type PopulationDecision struct {
+	Pawn     string `json:"pawn"`
+	Decision string `json:"decision"`
+}
 // ExpeditionPolicy is the wire shape for a whole set of expedition risk
 // limits, as read back from the server. Like PopulationPolicy it is
 // configuration rather than a plan action, so it carries no entity identity
