@@ -110,8 +110,9 @@ confirm the packaging path is wired correctly, not that a colony runs.
   cells, delete; crop/filter edits are deferred pending SettingsField zone
   evidence coverage), population policy, expedition policy, per-pawn
   population decision, per-resource production policy
-  (`modify_resource_policy`/`set_resource_reserve`) and maintained goal
-  activation/cancellation (`create_goal`/`cancel_goal`) proposals, but
+  (`modify_resource_policy`/`set_resource_reserve`), maintained goal
+  activation/cancellation (`create_goal`/`cancel_goal`) and room shells
+  (`build_room`) proposals, but
   is not yet wired into the Go binary's serve loop) — G01.08.
   `set_population_policy` is the first interpreted command that is colony
   configuration rather than a plan of native actions: it issues no native
@@ -238,6 +239,48 @@ confirm the packaging path is wired correctly, not that a colony runs.
   today. `MaintainWaste` also still has no composed dispatch method (G01.07e);
   activating it makes the goal visible and player-sourced, not dispatchable.
   Both gaps are separately tracked.
+  `build_room` is the first player command that is construction-shaped. It adds
+  no native plumbing: the placement dispatch, preview, receipt verification and
+  executor state machine the autopilot's own shelter routine uses
+  (`bridge.PreviewBuilding`/`placement.go`, `domain.BuildingAction`,
+  `buildingruntime.RoutineBuildingPlanner`) already do everything a room needs.
+  What was missing in Go was the geometry: Python's `spatial.room_placements`
+  expands a `RoomShell` rectangle into the perimeter-wall-plus-one-door
+  placement list, and nothing here had ported it (the routine shelter planner
+  generates its own fixed starter perimeter inline, always a south door, always
+  `Wall`/`Door` in `WoodLog`). `domain.RoomShell` now carries that port —
+  `Door()` is `spatial.room_entrance`'s side midpoint and `Placements()` is
+  `room_placements`, door first, then the remaining perimeter in Python's
+  `RoomBounds.cells()` order, walls facing north, interior cells deliberately
+  absent (a shell, not a floor). Unlike the Python contract it holds one
+  material rather than a preference list, because `domain.Building` resolves
+  exactly one stuff and later entries could never be dispatched. Submission
+  follows `SubmitZoneCreate`'s shape — player-command-driven, bypassing the
+  autopilot-goal-bound `admitZoneMethod`-family gates, committing its own plan
+  immediately — with one difference: that plan holds *many* actions, one
+  ordinary `BuildingAction` per perimeter cell (252 at the 64×64 maximum, within
+  the 256-action bound). That is also why `interpreter.Proposal` carries
+  `BuildRoom`/`BuildRoomIntent` instead of a `Plan`: `Config.MaxActions` is at
+  most 16 and even a 7×7 room expands to 24 placements, so the shell travels and
+  is expanded once at submission. Wall/door definitions and material are bounded
+  against `Snapshot.Definitions` exactly as a `build` placement's, and every
+  expanded cell against `Snapshot.Cells` exactly as a `create_zone` footprint's —
+  `POST /api/build-rooms/plans` and
+  `GET /api/build-rooms/submission?requestId=`.
+  `store.LookupBuildRoomIntent` resolves a world-scoped `intent_id` back to its
+  committed plan and placements, the Go stand-in for Python's
+  `plan.control['player_intents']` mapping.
+  **Deferred, deliberately, and dependent on this landing first:**
+  `CancelConstruction`, `RelocateConstruction` and `AdoptRoom`. The first two
+  are not independent slices — Python's
+  `construction_cancellation.capture_targets` refuses any step whose
+  `source != 'PLAYER'`, so until a player-sourced construction exists there is
+  literally nothing for them to cancel or relocate. `BuildRoom` is that
+  construction, and the intent lookup above is the hook they resolve through.
+  `AdoptRoom` (selecting an existing native room rather than building one) is
+  independent of that hook but shares the `RoomBounds`/entrance vocabulary
+  introduced here. `PlaceBuildings`, Python's raw-placement-list sibling, is not
+  in this issue's tracked backlog and is not built here.
 - Media/camera/portrait/video/recording and trusted save/load — G01.09.
 - World progression remaining scope: closed, except the documented
   `SetTradeLines`/`AcceptTrade`/`EndTrade` acceptance-harness gap below —
