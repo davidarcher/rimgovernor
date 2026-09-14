@@ -262,8 +262,10 @@ func decode(text string, limit int) (modelCommand, error) {
 		return decodeAdoptRoom(fields)
 	case "cancel_construction":
 		return decodeCancelConstruction(fields)
+	case "relocate_construction":
+		return decodeRelocateConstruction(fields)
 	default:
-		return modelCommand{}, fail(UnsupportedCommand, "only building, research, tend, rescue, draft, caravan, husbandry, recover, bed_assign, move_pawn, set_building_temperature, request_surgery, hold_caravan, route_caravan, accept_quest, fulfill_quest, gift_settlement, create_zone, edit_zone, build_room, adopt_room, cancel_construction, set_population_policy, set_expedition_policy, set_population_decision, modify_resource_policy, set_resource_reserve, create_goal and cancel_goal proposals are supported")
+		return modelCommand{}, fail(UnsupportedCommand, "only building, research, tend, rescue, draft, caravan, husbandry, recover, bed_assign, move_pawn, set_building_temperature, request_surgery, hold_caravan, route_caravan, accept_quest, fulfill_quest, gift_settlement, create_zone, edit_zone, build_room, adopt_room, cancel_construction, relocate_construction, set_population_policy, set_expedition_policy, set_population_decision, modify_resource_policy, set_resource_reserve, create_goal and cancel_goal proposals are supported")
 	}
 }
 
@@ -714,6 +716,45 @@ func decodeCancelConstruction(fields map[string]json.RawMessage) (modelCommand, 
 		return modelCommand{}, &Failure{InvalidCommand, err}
 	}
 	return modelCommand{Command: "cancel_construction", IntentID: &intent}, nil
+}
+
+// decodeRelocateConstruction names one already-submitted construction intent and
+// the whole replacement shell to put in its place. It is decodeBuildRoom's shape
+// over decodeCancelConstruction's target, which is exactly what the command is.
+//
+// Python's replacement is a RoomShell | Buildings union and its handler refuses a
+// replacement of a different kind than the original. Here the field is a room
+// shell and nothing else, because build_room is the only player command in this
+// family that issues construction, so every relocatable construction is a room
+// shell and the kind can never differ. There is deliberately no per-cell
+// selector: a relocation moves the whole named room, exactly as a cancellation
+// withdraws the whole named room.
+func decodeRelocateConstruction(fields map[string]json.RawMessage) (modelCommand, error) {
+	if len(fields) != 3 || fields["intentId"] == nil || fields["replacement"] == nil {
+		return modelCommand{}, fail(InvalidCommand, "unexpected command fields")
+	}
+	var intent string
+	if err := json.Unmarshal(fields["intentId"], &intent); err != nil {
+		return modelCommand{}, fail(InvalidCommand, "invalid intentId field")
+	}
+	if err := domain.ValidateRoomIntent(intent); err != nil {
+		return modelCommand{}, &Failure{InvalidCommand, err}
+	}
+	var raw map[string]json.RawMessage
+	if err := json.Unmarshal(fields["replacement"], &raw); err != nil || len(raw) != 9 {
+		return modelCommand{}, fail(InvalidCommand, "unexpected or missing replacement fields")
+	}
+	for _, key := range []string{"x", "z", "width", "height", "wallDef", "doorDef", "material", "entrance", "purpose"} {
+		value, ok := raw[key]
+		if !ok || bytes.Equal(bytes.TrimSpace(value), []byte("null")) {
+			return modelCommand{}, fail(InvalidCommand, "required replacement field missing or null")
+		}
+	}
+	var room modelRoomShell
+	if err := json.Unmarshal(fields["replacement"], &room); err != nil {
+		return modelCommand{}, fail(InvalidCommand, "invalid replacement field")
+	}
+	return modelCommand{Command: "relocate_construction", IntentID: &intent, Room: &room}, nil
 }
 
 // optionalCommandField turns a decoded partial-request pointer into the

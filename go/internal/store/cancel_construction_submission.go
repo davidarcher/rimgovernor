@@ -190,7 +190,13 @@ func (s *Store) SubmitCancelConstruction(ctx context.Context, c CancelConstructi
 	if !errors.Is(err, ErrNotFound) {
 		return CancelConstructionSubmission{}, false, err
 	}
-	source, err := lookupBuildRoomIntent(ctx, tx, c.World, c.IntentID)
+	// The intent resolves through every relocation of it, not straight to the
+	// build_room submission that first named it: cancelling a construction the
+	// player has since moved must withdraw where it stands now, never the
+	// superseded orders at the old location. With no relocation on record the
+	// head is exactly that build_room submission, so this is identical to the
+	// direct lookup for every intent that was never relocated.
+	source, err := lookupConstructionIntent(ctx, tx, c.World, c.IntentID)
 	if err != nil {
 		return CancelConstructionSubmission{}, false, err
 	}
