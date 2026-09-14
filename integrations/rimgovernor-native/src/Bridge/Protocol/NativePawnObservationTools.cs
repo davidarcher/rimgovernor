@@ -101,7 +101,7 @@ namespace HomeBridge.BridgeTools
                 && (!f.HasWithinColonistDistance || row.HasNearestColonistDistance && row.NearestColonistDistance<=f.WithinColonistDistance);
         }
 
-        private static Obs.PawnState Core(Pawn pawn, List<Pawn> colonists, Common.ObservationContext context)
+        internal static Obs.PawnState Core(Pawn pawn, List<Pawn> colonists, Common.ObservationContext context)
         {
             var row=NativeObservationTools.PawnRow(pawn,false,context);
             row.Pawn.Label=Text(pawn.LabelCap);
@@ -139,7 +139,7 @@ namespace HomeBridge.BridgeTools
             f.IncludeDead, f.Colonist, f.Prisoner, f.Animal, f.Humanlike, f.Mechanoid, f.Tame, f.Wild, f.Hostile, f.Downed, f.Drafted,
             f.NameContains??"", f.WithinColonistDistance,
             string.Join(",", f.Ids.OrderBy(i=>i,StringComparer.Ordinal)));
-        private static Obs.SnapshotRef PawnSnapshotToken(Pawn pawn,Obs.PawnState row,Common.ObservationContext context)
+        internal static Obs.SnapshotRef PawnSnapshotToken(Pawn pawn,Obs.PawnState row,Common.ObservationContext context)
             => NativeObservationSnapshot.Snapshot("pawn-state", context, row.Pawn.Id, w => {
                 w.Write(row.Dead); w.Write(row.Downed); w.Write(row.Drafted); w.Write(row.InBed); w.Write(row.Hostile);
                 w.Write(row.MentalState??""); w.Write(row.HostileReason??""); w.Write(row.FactionId??"");
