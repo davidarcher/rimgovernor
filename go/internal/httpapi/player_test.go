@@ -257,3 +257,7 @@ func (f *playerFixture) SubmitTrade(ctx context.Context, q store.TradeSubmission
 	f.calls++
 	return f.journal.SubmitTrade(ctx, q)
 }
+func (f *playerFixture) SubmitZoneCreate(ctx context.Context, q store.ZoneCreateSubmissionRequest) (store.ZoneCreateSubmission, bool, error) {
+	f.calls++
+	return f.journal.SubmitZoneCreate(ctx, q)
+}

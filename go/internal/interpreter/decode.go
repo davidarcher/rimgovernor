@@ -23,6 +23,12 @@ type modelCargo struct {
 	Count      *uint64 `json:"count"`
 }
 
+// modelCell is one untrusted requested zone footprint cell.
+type modelCell struct {
+	X *int32 `json:"x"`
+	Z *int32 `json:"z"`
+}
+
 // modelCommand is the untrusted decoded shape of exactly one supported
 // command. Only the fields matching Command are populated.
 type modelCommand struct {
@@ -71,6 +77,14 @@ type modelCommand struct {
 	// hold its caravan and crew). Silver holds the requested gift amount.
 	Settlement, Faction *string
 	Silver              *int32
+	// ZoneKind/Preset/Priority hold create_zone's zone kind ("growing" or
+	// "stockpile"), stockpile filter preset ("food" or "nothing") and
+	// priority ("important"); Crop holds the growing kind's sown crop def.
+	// ZoneCells holds the requested footprint and Allow the nothing
+	// preset's allow-list definitions.
+	ZoneKind, Preset, Priority, Crop *string
+	ZoneCells                        []modelCell
+	Allow                            []string
 }
 
 func decode(text string, limit int) (modelCommand, error) {
@@ -128,8 +142,10 @@ func decode(text string, limit int) (modelCommand, error) {
 		return decodeFulfillQuest(fields)
 	case "gift_settlement":
 		return decodeGiftSettlement(fields)
+	case "create_zone":
+		return decodeCreateZone(fields)
 	default:
-		return modelCommand{}, fail(UnsupportedCommand, "only building, research, tend, rescue, draft, caravan, husbandry, recover, bed_assign, move_pawn, set_building_temperature, request_surgery, hold_caravan, route_caravan, accept_quest, fulfill_quest and gift_settlement proposals are supported")
+		return modelCommand{}, fail(UnsupportedCommand, "only building, research, tend, rescue, draft, caravan, husbandry, recover, bed_assign, move_pawn, set_building_temperature, request_surgery, hold_caravan, route_caravan, accept_quest, fulfill_quest, gift_settlement and create_zone proposals are supported")
 	}
 }
 
@@ -557,6 +573,92 @@ func decodeGiftSettlement(fields map[string]json.RawMessage) (modelCommand, erro
 		return modelCommand{}, fail(InvalidCommand, "invalid silver field")
 	}
 	return modelCommand{Command: "gift_settlement", Caravan: caravan, Settlement: settlement, Faction: faction, Crew: crew, Silver: &silver}, nil
+}
+
+func decodeZoneCells(raw json.RawMessage) ([]modelCell, error) {
+	var rawCells []json.RawMessage
+	if err := json.Unmarshal(raw, &rawCells); err != nil || len(rawCells) == 0 || len(rawCells) > 256 {
+		return nil, fail(InvalidCommand, "expected bounded nonempty cell list")
+	}
+	cells := make([]modelCell, 0, len(rawCells))
+	for _, r := range rawCells {
+		var fields map[string]json.RawMessage
+		if err := json.Unmarshal(r, &fields); err != nil || len(fields) != 2 {
+			return nil, fail(InvalidCommand, "expected cell object")
+		}
+		for _, key := range []string{"x", "z"} {
+			if fields[key] == nil || bytes.Equal(bytes.TrimSpace(fields[key]), []byte("null")) {
+				return nil, fail(InvalidCommand, "missing or null cell field")
+			}
+		}
+		var cell modelCell
+		if err := json.Unmarshal(r, &cell); err != nil {
+			return nil, fail(InvalidCommand, "invalid cell field type")
+		}
+		cells = append(cells, cell)
+	}
+	return cells, nil
+}
+
+func decodeCreateZone(fields map[string]json.RawMessage) (modelCommand, error) {
+	if fields["zoneKind"] == nil || fields["cells"] == nil {
+		return modelCommand{}, fail(InvalidCommand, "unexpected command fields")
+	}
+	var kind string
+	if err := json.Unmarshal(fields["zoneKind"], &kind); err != nil {
+		return modelCommand{}, fail(InvalidCommand, "invalid zoneKind field")
+	}
+	cells, err := decodeZoneCells(fields["cells"])
+	if err != nil {
+		return modelCommand{}, err
+	}
+	switch kind {
+	case "growing":
+		if len(fields) != 4 || fields["crop"] == nil || bytes.Equal(bytes.TrimSpace(fields["crop"]), []byte("null")) {
+			return modelCommand{}, fail(InvalidCommand, "unexpected command fields")
+		}
+		var crop string
+		if err := json.Unmarshal(fields["crop"], &crop); err != nil || crop == "" {
+			return modelCommand{}, fail(InvalidCommand, "invalid crop field")
+		}
+		return modelCommand{Command: "create_zone", ZoneKind: &kind, Crop: &crop, ZoneCells: cells}, nil
+	case "stockpile":
+		if fields["preset"] == nil || fields["priority"] == nil {
+			return modelCommand{}, fail(InvalidCommand, "unexpected command fields")
+		}
+		var preset, priority string
+		if err := json.Unmarshal(fields["preset"], &preset); err != nil {
+			return modelCommand{}, fail(InvalidCommand, "invalid preset field")
+		}
+		if err := json.Unmarshal(fields["priority"], &priority); err != nil {
+			return modelCommand{}, fail(InvalidCommand, "invalid priority field")
+		}
+		switch preset {
+		case "food":
+			if len(fields) != 5 {
+				return modelCommand{}, fail(InvalidCommand, "unexpected command fields")
+			}
+			return modelCommand{Command: "create_zone", ZoneKind: &kind, Preset: &preset, Priority: &priority, ZoneCells: cells}, nil
+		case "nothing":
+			if len(fields) != 6 || fields["allow"] == nil {
+				return modelCommand{}, fail(InvalidCommand, "unexpected command fields")
+			}
+			var allow []string
+			if err := json.Unmarshal(fields["allow"], &allow); err != nil || len(allow) == 0 || len(allow) > 32 {
+				return modelCommand{}, fail(InvalidCommand, "expected bounded nonempty allow list")
+			}
+			for _, name := range allow {
+				if name == "" {
+					return modelCommand{}, fail(InvalidCommand, "empty allow-list definition")
+				}
+			}
+			return modelCommand{Command: "create_zone", ZoneKind: &kind, Preset: &preset, Priority: &priority, ZoneCells: cells, Allow: allow}, nil
+		default:
+			return modelCommand{}, fail(InvalidCommand, "invalid preset field")
+		}
+	default:
+		return modelCommand{}, fail(InvalidCommand, "invalid zoneKind field")
+	}
 }
 
 // Generic JSON token inspection is confined to this external text boundary.
