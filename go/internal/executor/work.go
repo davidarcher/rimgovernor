@@ -129,7 +129,11 @@ func (e *Executor) runWork(ctx context.Context, action domain.Action, p domain.P
 		if err = e.guard(ctx, expected, generation); err != nil {
 			return result, err
 		}
-		if inspection.Current != expected || inspection.Work != work || !inspection.Accepted || !e.fresh(inspection.StartedAt, inspection.ObservedAt) || !policy.EvaluateEmergency(inspection.Emergency, expected, inspection.Tick).Clear {
+		if inspection.Current != expected || inspection.Work != work || !inspection.Accepted || !e.fresh(inspection.StartedAt, inspection.ObservedAt) {
+			return result, ErrHeld
+		}
+		if emergency := policy.EvaluateEmergency(inspection.Emergency, expected, inspection.Tick); !emergency.Clear {
+			result.Progress = e.holdEmergency(ctx, v.Plan, v.Action, emergency, inspection.Tick, result.Progress)
 			return result, ErrHeld
 		}
 		next, err := e.workJournal.PrepareWork(ctx, v.Plan, v.Action, store.WorkAdmission{Snapshot: expected, Tick: inspection.Tick, Pawn: string(work.Pawn()), SnapshotToken: inspection.SnapshotToken})

@@ -135,7 +135,11 @@ func (e *Executor) runAcquisition(ctx context.Context, action domain.Action, p d
 		if err = e.guard(ctx, expected, generation); err != nil {
 			return result, err
 		}
-		if inspection.Current != expected || inspection.Acquisition != acquisition || !inspection.Accepted || !e.fresh(inspection.StartedAt, inspection.ObservedAt) || !policy.EvaluateEmergency(inspection.Emergency, expected, inspection.Tick).Clear {
+		if inspection.Current != expected || inspection.Acquisition != acquisition || !inspection.Accepted || !e.fresh(inspection.StartedAt, inspection.ObservedAt) {
+			return result, ErrHeld
+		}
+		if emergency := policy.EvaluateEmergency(inspection.Emergency, expected, inspection.Tick); !emergency.Clear {
+			result.Progress = e.holdEmergency(ctx, v.Plan, v.Action, emergency, inspection.Tick, result.Progress)
 			return result, ErrHeld
 		}
 		next, err := e.acquisitionJournal.PrepareAcquisition(ctx, v.Plan, v.Action, store.AcquisitionAdmission{Snapshot: expected, Tick: inspection.Tick, Thing: acquisition.Thing(), SnapshotToken: inspection.SnapshotToken})

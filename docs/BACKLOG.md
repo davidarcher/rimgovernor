@@ -1507,6 +1507,36 @@ b; exact worker cleanup by a, with reuse by their later consumers.
   — observation-failure reasons (`UnsuccessfulReason`) were already done
   before this slice.
 
+  Durable emergency-hold recording now extends from building-only to the
+  other six action families that evaluate `policy.EvaluateEmergency`:
+  acquisition, bill, mine_acquisition, supply, work and zone
+  (`go/internal/executor/{acquisition,bill,mine_acquisition,supply,work,
+  zone}.go`). Each family's dispatch loop already computed an
+  `EmergencyDecision` from its own `Inspection.Emergency` field and returned
+  `ErrHeld` on a non-clear result; the only change is that this branch now
+  also calls a new shared `(*Executor).holdEmergency` helper before
+  returning, extracted from `inspect()`'s pre-existing building-emergency
+  branch (`go/internal/executor/executor.go`) so the same
+  deduplicated-reasons-plus-inspection-tick `Journal.Hold` call is not
+  duplicated seven times; `inspect()` itself is behavior-preserving, now
+  calling the extracted helper instead of inlining its body. Covered by a new
+  `FreshHeldReason` assertion in each family's existing
+  `TestXxxEmergencyAndDirectionChangesBlockDispatch`-style test
+  (`acquisition_test.go`, `mine_acquisition_test.go`, `supply_test.go`,
+  `work_test.go`) proving the unknown-facts hold both blocks dispatch and is
+  durably readable back off the stored plan, plus a new
+  `TestBillEmergencyBlocksDispatch` and a new `zone_test.go` fixture
+  (`TestZoneEmergencyBlocksDispatch`) for the two families that had no
+  existing emergency-path test coverage at all. `go build/vet/test ./...`
+  pass. **Explicitly out of scope for this slice:** `draft` remains
+  unaddressed for this mechanism — `policy.EvaluateOwnedDraft`'s refusal
+  shape mixes emergency-specific reasons with draft-only reasons in a way
+  that needs its own filtering, not the mechanical pattern used here; ordinary
+  (non-emergency) admission-refusal reasons remain unaddressed for every
+  family including building, as noted above; and families that are not
+  emergency-gated at all (haul, tend, and the rest of the roster) were never
+  in scope for this mechanism.
+
   `PresentationMedia`'s pawn-capture half is now implemented: `RenderState`,
   `DemandRendering` and `CapturePawn` are wired end to end, reusing the
   existing native drivers rather than duplicating their Harmony-patched

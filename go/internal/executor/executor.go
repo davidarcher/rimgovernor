@@ -515,31 +515,22 @@ func (e *Executor) inspect(ctx context.Context, target Target, progress domain.P
 	if !emergency.Clear {
 		seen := map[policy.Reason]bool{}
 		refused := []policy.Refusal{}
-		var holdReasons []domain.HeldReason
 		for _, hold := range emergency.Holds {
 			reason := policy.UnknownFacts
-			held := domain.HeldUnknownFacts
 			switch hold.Reason {
 			case policy.EmergencyUnsafeThreat:
-				reason, held = policy.UnsafeThreat, domain.HeldUnsafeThreat
+				reason = policy.UnsafeThreat
 			case policy.EmergencyCriticalMedical:
-				reason, held = policy.CriticalMedical, domain.HeldCriticalMedical
+				reason = policy.CriticalMedical
 			case policy.EmergencyStaleFacts:
-				reason, held = policy.StaleFacts, domain.HeldStaleFacts
+				reason = policy.StaleFacts
 			}
 			if !seen[reason] {
 				seen[reason] = true
 				refused = append(refused, policy.Refusal{Action: target.Action.ID(), Reason: reason})
-				holdReasons = append(holdReasons, held)
 			}
 		}
-		// Best-effort: a durable-write failure here must not mask the emergency
-		// hold itself. The action stays Pending/Prepared regardless, so the next
-		// inspection recomputes and retries recording the reason.
-		next, holdErr := e.journal.Hold(ctx, target.Snapshot.Plan, target.Action.ID(), holdReasons, inspection.Tick)
-		if holdErr == nil {
-			progress = next
-		}
+		progress = e.holdEmergency(ctx, target.Snapshot.Plan, target.Action.ID(), emergency, inspection.Tick, progress)
 		return inspection, refused, progress, ErrHeld
 	}
 	if !inspection.ExternalHoldsComplete {
@@ -574,6 +565,40 @@ func (e *Executor) inspect(ctx context.Context, target Target, progress domain.P
 	}
 	return inspection, nil, progress, nil
 }
+
+// holdEmergency durably records an emergency-gated, not-yet-dispatched
+// action's hold reasons via journal.Hold, deduplicated the same way inspect's
+// building branch already does, so a caller polling e.g. /api/plan learns why
+// the action is stuck instead of only observing a bare ErrHeld. Shared by
+// every emergency-aware family (building, acquisition, bill, mine
+// acquisition, supply, work, zone), not just building. Best-effort: a
+// durable-write failure here must not mask the emergency hold itself -- the
+// action stays Pending/Prepared regardless, so the next inspection
+// recomputes and retries recording the reason.
+func (e *Executor) holdEmergency(ctx context.Context, plan domain.PlanID, actionID domain.ActionID, decision policy.EmergencyDecision, tick domain.Tick, progress domain.Progress) domain.Progress {
+	seen := map[domain.HeldReason]bool{}
+	var reasons []domain.HeldReason
+	for _, hold := range decision.Holds {
+		held := domain.HeldUnknownFacts
+		switch hold.Reason {
+		case policy.EmergencyUnsafeThreat:
+			held = domain.HeldUnsafeThreat
+		case policy.EmergencyCriticalMedical:
+			held = domain.HeldCriticalMedical
+		case policy.EmergencyStaleFacts:
+			held = domain.HeldStaleFacts
+		}
+		if !seen[held] {
+			seen[held] = true
+			reasons = append(reasons, held)
+		}
+	}
+	if next, err := e.journal.Hold(ctx, plan, actionID, reasons, tick); err == nil {
+		return next
+	}
+	return progress
+}
+
 func (e *Executor) fresh(start, end time.Time) bool {
 	now := e.clock.Now()
 	return !start.IsZero() && !end.IsZero() && !end.Before(start) && !now.Before(end) && !now.Before(start) && now.Sub(start) <= e.limits.MaxAge

@@ -130,6 +130,13 @@ func TestMineAcquisitionEmergencyAndDirectionChangesBlockDispatch(t *testing.T) 
 			if _, err := f.run(); err == nil || n.allowed != 0 {
 				t.Fatal("unsafe write", err)
 			}
+			if changed {
+				return
+			}
+			held, ok := f.progress(t).FreshHeldReason()
+			if !ok || len(held) != 1 || held[0] != domain.HeldUnknownFacts {
+				t.Fatal("emergency hold was not persisted as a held reason", held)
+			}
 		})
 	}
 }

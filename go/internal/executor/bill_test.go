@@ -19,6 +19,7 @@ type billEnvironment struct {
 	attemptOutcome                 func(Receipt, error) (Receipt, error)
 	effect                         domain.Effect
 	matches                        bool
+	unsafe                         bool
 	iterations                     uint32
 	outputComplete, outputObserved bool
 	outputCount                    int
@@ -31,7 +32,7 @@ func (n *billEnvironment) InspectBill(_ context.Context, target Target) (BillIns
 	}
 	bill, _ := target.Action.ProductionBill()
 	tick := domain.Tick(100 + int64(n.inspected))
-	emergency, _ := policy.NewEmergencySnapshot(target.Snapshot, tick, policy.EmergencyFacts{ColonistsComplete: domain.Known(true), ThreatsComplete: domain.Known(true)})
+	emergency, _ := policy.NewEmergencySnapshot(target.Snapshot, tick, policy.EmergencyFacts{ColonistsComplete: domain.Known(!n.unsafe), ThreatsComplete: domain.Known(true)})
 	return BillInspection{Current: target.Snapshot, Tick: tick, StartedAt: n.clock.Now(), ObservedAt: n.clock.Now(), Bill: bill, SnapshotToken: bill.BeforeToken(), Accepted: true, Emergency: emergency}, nil
 }
 func (n *billEnvironment) AddBill(_ context.Context, request BillDispatch) (Receipt, error) {
@@ -103,6 +104,18 @@ func billFixture(t *testing.T) (*fixture, *billEnvironment) {
 		t.Fatal(err)
 	}
 	return f, n
+}
+
+func TestBillEmergencyBlocksDispatch(t *testing.T) {
+	f, n := billFixture(t)
+	n.unsafe = true
+	if _, err := f.run(); err == nil || n.added != 0 {
+		t.Fatal("unsafe write", err)
+	}
+	held, ok := f.progress(t).FreshHeldReason()
+	if !ok || len(held) != 1 || held[0] != domain.HeldUnknownFacts {
+		t.Fatal("emergency hold was not persisted as a held reason", held)
+	}
 }
 
 // A destroyed bench (or a bill row removed from it) must not strand the goal:

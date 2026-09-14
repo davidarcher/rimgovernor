@@ -129,7 +129,11 @@ func (e *Executor) runSupply(ctx context.Context, action domain.Action, p domain
 		if err = e.guard(ctx, expected, generation); err != nil {
 			return result, err
 		}
-		if inspection.Current != expected || inspection.Supply != supply || !inspection.Accepted || !e.fresh(inspection.StartedAt, inspection.ObservedAt) || !policy.EvaluateEmergency(inspection.Emergency, expected, inspection.Tick).Clear {
+		if inspection.Current != expected || inspection.Supply != supply || !inspection.Accepted || !e.fresh(inspection.StartedAt, inspection.ObservedAt) {
+			return result, ErrHeld
+		}
+		if emergency := policy.EvaluateEmergency(inspection.Emergency, expected, inspection.Tick); !emergency.Clear {
+			result.Progress = e.holdEmergency(ctx, v.Plan, v.Action, emergency, inspection.Tick, result.Progress)
 			return result, ErrHeld
 		}
 		next, err := e.supplyJournal.PrepareSupply(ctx, v.Plan, v.Action, store.SupplyAdmission{Snapshot: expected, Tick: inspection.Tick, Thing: supply.Thing(), SnapshotToken: inspection.SnapshotToken})
