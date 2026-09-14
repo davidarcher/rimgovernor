@@ -474,16 +474,29 @@ confirm the packaging path is wired correctly, not that a colony runs.
   refusal here.
   Caravan departure/travel, quest accept/fulfill, settlement gift and trade
   themselves are closed, each with domain/policy/store/executor/bridge and
-  httpapi wiring (trade's `set_lines`/`accept`/`end` sub-operations resolve
-  their open session via same-plan `ActionDependency`, not a native read —
-  see `go/internal/store/trade_session.go`). Only `trade_open` resolves
-  end to end through the direct single-action submission surface
-  (`POST /api/trades/plans`, mirroring `SubmitQuestFulfill`'s shape): a
-  `set_lines`/`accept`/`end` submitted the same way has no sibling action to
-  depend on and holds on `TradeSessionUnresolved` forever rather than
-  misbehaving — composing a dependent multi-action trade plan needs a plan
-  extension/amendment submission path that does not exist yet, a follow-up
-  item. Caravan departure and travel, quest accept, settlement gift and
+  httpapi wiring. Trade's `set_lines`/`accept`/`end` sub-operations resolve
+  their open session by one of two durable bindings, never a native read
+  (`executor.resolveTradeDependency`): the plan's own same-plan
+  `ActionDependency`, or failing that a cross-plan
+  `trade_session_references` row bound to the dependent action's own
+  identity at submission time (`go/internal/store/trade_session_reference.go`).
+  Either way resolution ends in the same never-plan-scoped
+  `LookupTradeSession` (`go/internal/store/trade_session.go`), so an Open
+  that has not been observed complete still holds on
+  `TradeSessionUnresolved` rather than guessing a session.
+  Through the direct single-action submission surface
+  (`POST /api/trades/plans`, mirroring `SubmitQuestFulfill`'s shape) only
+  `trade_open` resolves end to end, since a lone `set_lines`/`accept`/`end`
+  carries neither binding. The whole four-phase negotiation instead runs as
+  the player `trade_economy` command (`POST /api/trade-economies/plans`,
+  looked up at `/api/trade-economies/submission`): it ports Python's
+  `select_trade`/`economic_reserves` (`policy/trade_select.go`) over a
+  complete paginated sheet read (`bridge.ReadTradeSheet`) and drives
+  open → set_lines → accept/end as separate one-action plans stitched by
+  the cross-plan binding above (`store/trade_negotiation.go`,
+  `buildingruntime/trade_economy.go`). It is an optional httpapi surface
+  like `WorldEvaluation`, answering 404 when not enabled.
+  Caravan departure and travel, quest accept, settlement gift and
   trade open now all have native acceptance harnesses
   (`nativeaccept/cmd/caravandepartureaccept`,
   `nativeaccept/cmd/caravancontrolaccept`, `nativeaccept/cmd/questacceptaccept`,
@@ -492,10 +505,10 @@ confirm the packaging path is wired correctly, not that a colony runs.
   native admission, CAS-token refusal (stale/corrupted identity, and for
   trade an owner-conflict re-open while a session is still live), preview
   non-mutation, replay idempotency and durable receipt lookup. Per the
-  `trade_open`-only limitation above, `tradeaccept` exercises OpenTrade
+  direct-submission limitation above, `tradeaccept` exercises OpenTrade
   alone; `SetTradeLines`/`AcceptTrade`/`EndTrade` still have no acceptance
   harness, since a raw wire harness cannot honestly submit them as a
-  standalone action without fabricating the same-plan `ActionDependency`
+  standalone action without fabricating one of the two session bindings
   they require — that remains a documented gap, not a closed vertical. The
   read-only `evaluate_world` advisory (caravan recovery, quest resource
   deficits/carried cargo) is also in Go, served at
