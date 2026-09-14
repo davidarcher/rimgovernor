@@ -55,7 +55,10 @@ func (b *WorkBoundary) readWork(ctx context.Context, w domain.WorkAssignment, s 
 		return nil, 0, executor.ErrHeld
 	}
 	settings := v.Pawns[0].Settings
-	if settings.Snapshot == nil || settings.ManualWorkPriorities == nil || settings.GetManualWorkPriorities() != w.Manual() {
+	if settings.Snapshot == nil {
+		return nil, 0, executor.ErrHeld
+	}
+	if len(w.Settings()) > 0 && (settings.ManualWorkPriorities == nil || settings.GetManualWorkPriorities() != w.Manual()) {
 		return nil, 0, executor.ErrHeld
 	}
 	return settings, domain.Tick(v.Context.GetTick()), nil
@@ -173,6 +176,14 @@ func (b *WorkBoundary) ObserveWork(ctx context.Context, p executor.Placement, cu
 	for _, desired := range wanted.Work.Settings() {
 		actual, known := values[desired.Definition]
 		matches = matches && known && actual == desired.Priority
+	}
+	if wanted.Work.HasArea() {
+		current := settings.AllowedAreaId
+		if wanted.Work.AreaClear() {
+			matches = matches && current == nil
+		} else {
+			matches = matches && current != nil && settings.GetAllowedAreaId() == wanted.Work.Area()
+		}
 	}
 	var evidence *r.EffectEvidence
 	if completed := v.GetCompleted(); completed != nil && matches {

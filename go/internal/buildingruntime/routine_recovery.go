@@ -11,14 +11,17 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/store"
 )
 
-// RoutineRecoveryPlanner proposes one RecoveryService action for
-// RecoverDisasterServices' service-job half (repair, breakdown restoration,
-// refuel): policy.SelectRecoveryMethods already ranks and validates
-// candidates, ordering exposure protection (RecoveryAreaProposal) strictly
-// before repair/breakdown/refuel work (RecoveryServiceProposal). Only the
-// latter is dispatchable today; a RecoveryAreaProposal winner (no native
-// restriction-admission operation exists yet) is left open, the same way
-// RoutineGearPlanner leaves the workshop-bill half of MaintainEquipment inert.
+// RoutineRecoveryPlanner proposes one recovery action for
+// RecoverDisasterServices: policy.SelectRecoveryMethods already ranks and
+// validates candidates, ordering exposure protection (RecoveryAreaProposal)
+// strictly before repair/breakdown/refuel work (RecoveryServiceProposal) --
+// the two kinds never co-occur in one selection, so this planner dispatches
+// whichever single kind SelectRecoveryMethods returned. A RecoveryAreaProposal
+// winner becomes a work_assignment action carrying only an allowed-area
+// change (domain.NewAreaAssignment), dispatched through the same native
+// PatchPawn CAS write work-priority assignments already use
+// (go/internal/bridge/work_assignment.go, NativeWorkSettings.cs); a
+// RecoveryServiceProposal winner becomes a recovery_service action as before.
 //
 // Unlike RoutineGearPlanner, this planner re-derives its selection with a
 // fresh full colony census (observation.ObserveRoutineOwned against the
@@ -136,27 +139,62 @@ func (r *RoutineRecoveryPlanner) step(call, epoch context.Context) (RoutineRecov
 	}
 	var chosen *policy.RecoveryCandidate
 	for i := range selection.Candidates {
-		if selection.Candidates[i].Kind == policy.RecoveryServiceProposal {
+		switch selection.Candidates[i].Kind {
+		case policy.RecoveryServiceProposal, policy.RecoveryAreaProposal:
 			chosen = &selection.Candidates[i]
+		}
+		if chosen != nil {
 			break
 		}
 	}
 	if chosen == nil {
 		return RoutineRecoveryResult{Reason: BuildingMethodUsed}, nil
 	}
-	method, ok := recoveryServiceMethod(chosen.Method)
-	if !ok {
-		return RoutineRecoveryResult{}, ErrControl
-	}
-	service, err := domain.NewRecoveryService(domain.PawnID(chosen.Pawn), chosen.Building, method)
-	if err != nil {
-		return RoutineRecoveryResult{}, err
-	}
 	digest := sha256.Sum256([]byte(fmt.Sprintf("%s/%d/%s", goal.Goal.ID, goal.Goal.Epoch, chosen.ID)))
 	id := domain.PlanID(fmt.Sprintf("routine-recovery-%x", digest[:16]))
-	action, err := domain.NewRecoveryServiceAction(domain.ActionID(fmt.Sprintf("%s-0", id)), service)
-	if err != nil {
-		return RoutineRecoveryResult{}, err
+	var action domain.Action
+	switch chosen.Kind {
+	case policy.RecoveryAreaProposal:
+		workers, wk := read.Projection.WorkPawns.Value()
+		if !wk {
+			return RoutineRecoveryResult{}, ErrControl
+		}
+		var token string
+		found := false
+		for _, w := range workers {
+			if w.ID == chosen.Pawn {
+				t, tk := w.SnapshotToken.Value()
+				if !tk {
+					return RoutineRecoveryResult{}, ErrControl
+				}
+				token, found = t, true
+				break
+			}
+		}
+		if !found {
+			return RoutineRecoveryResult{}, ErrControl
+		}
+		assignment, err := domain.NewAreaAssignment(domain.PawnID(chosen.Pawn), token, false, chosen.Area)
+		if err != nil {
+			return RoutineRecoveryResult{}, err
+		}
+		action, err = domain.NewWorkAssignmentAction(domain.ActionID(fmt.Sprintf("%s-0", id)), assignment)
+		if err != nil {
+			return RoutineRecoveryResult{}, err
+		}
+	default:
+		method, ok := recoveryServiceMethod(chosen.Method)
+		if !ok {
+			return RoutineRecoveryResult{}, ErrControl
+		}
+		service, err := domain.NewRecoveryService(domain.PawnID(chosen.Pawn), chosen.Building, method)
+		if err != nil {
+			return RoutineRecoveryResult{}, err
+		}
+		action, err = domain.NewRecoveryServiceAction(domain.ActionID(fmt.Sprintf("%s-0", id)), service)
+		if err != nil {
+			return RoutineRecoveryResult{}, err
+		}
 	}
 	plan, err := domain.NewPlan(id, 1, []domain.Action{action})
 	if err != nil {

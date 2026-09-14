@@ -26,13 +26,23 @@ func NewWorkControl(client *Client) (*WorkControl, error) {
 	return &WorkControl{client}, nil
 }
 func validateWork(w domain.WorkAssignment) error {
-	_, err := domain.NewWorkAssignment(w.Pawn(), w.BeforeToken(), w.Manual(), w.Settings())
-	return err
+	canonical, err := w.Canonical()
+	if err != nil || canonical != w {
+		return contract("invalid work assignment")
+	}
+	return nil
 }
 func workOperation(w domain.WorkAssignment) *op.Operation {
 	patch := &op.PatchPawn{Pawn: &op.EntityPrecondition{EntityId: proto.String(string(w.Pawn())), ExpectedSnapshotToken: proto.String(w.BeforeToken())}}
 	for _, setting := range w.Settings() {
 		patch.Work = append(patch.Work, &op.WorkPriority{WorkTypeDef: proto.String(setting.Definition), Priority: proto.Int32(setting.Priority)})
+	}
+	if w.HasArea() {
+		if w.AreaClear() {
+			patch.AllowedArea = &op.Assignment{Value: &op.Assignment_Clear{Clear: &op.Clear{}}}
+		} else {
+			patch.AllowedArea = &op.Assignment{Value: &op.Assignment_EntityId{EntityId: w.Area()}}
+		}
 	}
 	return &op.Operation{Command: &op.Operation_PatchPawn{PatchPawn: patch}}
 }
@@ -84,27 +94,51 @@ func validWorkAttempt(w WorkAttempt) error {
 	if ValidateIdentity(w.Identity) != nil || buildingAttempt(w.Attempt) != nil || authorityOwner(w.Owner) != nil || buildingUnknown(w.Owner) != nil || w.Generation == 0 || w.Owner.GetControllerSessionId() != w.Attempt.GetControllerSessionId() {
 		return contract("invalid work attempt")
 	}
-	_, err := domain.NewWorkAssignment(w.Work.Pawn(), w.Work.BeforeToken(), w.Work.Manual(), w.Work.Settings())
-	return err
+	canonical, err := w.Work.Canonical()
+	if err != nil || canonical != w.Work {
+		return contract("invalid work assignment")
+	}
+	return nil
 }
 func workEffect(v *r.EffectEvidence, work domain.WorkAssignment, matches bool) error {
 	effect := v.GetSettings()
-	if effect == nil || effect.Snapshot == nil || effect.Snapshot.GetEntityId() != string(work.Pawn()) || effect.Snapshot.GetBeforeToken() != work.BeforeToken() || validID(effect.Snapshot.GetAfterToken()) != nil || len(effect.Fields) != len(work.Settings()) {
+	expectedFields := len(work.Settings())
+	if work.HasArea() {
+		expectedFields++
+	}
+	if effect == nil || effect.Snapshot == nil || effect.Snapshot.GetEntityId() != string(work.Pawn()) || effect.Snapshot.GetBeforeToken() != work.BeforeToken() || validID(effect.Snapshot.GetAfterToken()) != nil || len(effect.Fields) != expectedFields {
 		return contract("work effect mismatch")
 	}
 	seen := map[string]bool{}
 	for _, setting := range work.Settings() {
 		seen[setting.Definition] = true
 	}
+	areaSeen := !work.HasArea()
+	want := r.FieldOutcome_FIELD_OUTCOME_APPLIED
+	if !matches {
+		want = r.FieldOutcome_FIELD_OUTCOME_REFUSED
+	}
 	for _, field := range effect.Fields {
-		want := r.FieldOutcome_FIELD_OUTCOME_APPLIED
-		if !matches {
-			want = r.FieldOutcome_FIELD_OUTCOME_REFUSED
-		}
-		if field == nil || field.GetField() != r.SettingsField_SETTINGS_FIELD_WORK || field.GetOutcome() != want || !seen[field.GetWorkTypeDef()] {
+		if field == nil || field.GetOutcome() != want {
 			return contract("work field mismatch")
 		}
-		delete(seen, field.GetWorkTypeDef())
+		switch field.GetField() {
+		case r.SettingsField_SETTINGS_FIELD_WORK:
+			if !seen[field.GetWorkTypeDef()] {
+				return contract("work field mismatch")
+			}
+			delete(seen, field.GetWorkTypeDef())
+		case r.SettingsField_SETTINGS_FIELD_ALLOWED_AREA:
+			if areaSeen {
+				return contract("work field mismatch")
+			}
+			areaSeen = true
+		default:
+			return contract("work field mismatch")
+		}
+	}
+	if len(seen) != 0 || !areaSeen {
+		return contract("work field mismatch")
 	}
 	return nil
 }

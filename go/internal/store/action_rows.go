@@ -40,7 +40,7 @@ func insertAction(ctx context.Context, tx *sql.Tx, plan domain.PlanID, ordinal i
 	} else if m, ok := a.MeleeAttack(); ok {
 		_, err = tx.ExecContext(ctx, "INSERT INTO actions(id,plan_id,ordinal,kind,pawn,target,draft_action) VALUES(?,?,?,'melee_attack',?,?,?)", a.ID(), plan, ordinal, m.Pawn(), m.Target(), m.DraftAction())
 	} else if work, ok := a.WorkAssignment(); ok {
-		data, encodeErr := json.Marshal(workPayload{work.Manual(), work.Settings()})
+		data, encodeErr := json.Marshal(workPayload{work.Manual(), work.Settings(), work.HasArea(), work.AreaClear(), work.Area()})
 		if encodeErr != nil {
 			return encodeErr
 		}
@@ -232,7 +232,16 @@ func scanAction(rows *sql.Rows) (domain.Action, int, error) {
 		if !bytes.Equal(canonical, work) {
 			return domain.Action{}, 0, errors.New("noncanonical work payload")
 		}
-		w, err := domain.NewWorkAssignment(domain.PawnID(pawn.String), target.String, payload.Manual, payload.Settings)
+		var w domain.WorkAssignment
+		var err error
+		if payload.HasArea {
+			if len(payload.Settings) != 0 {
+				return domain.Action{}, 0, errors.New("mixed work/area payload not supported")
+			}
+			w, err = domain.NewAreaAssignment(domain.PawnID(pawn.String), target.String, payload.AreaClear, payload.Area)
+		} else {
+			w, err = domain.NewWorkAssignment(domain.PawnID(pawn.String), target.String, payload.Manual, payload.Settings)
+		}
 		if err != nil {
 			return domain.Action{}, 0, err
 		}
@@ -652,8 +661,11 @@ func scanAction(rows *sql.Rows) (domain.Action, int, error) {
 }
 
 type workPayload struct {
-	Manual   bool
-	Settings []domain.WorkSetting
+	Manual    bool
+	Settings  []domain.WorkSetting
+	HasArea   bool   `json:",omitempty"`
+	AreaClear bool   `json:",omitempty"`
+	Area      string `json:",omitempty"`
 }
 
 type zonePayload struct {

@@ -42,14 +42,20 @@ namespace HomeBridge.BridgeTools
                 foreach (var area in areas) {
                     var cells = area.ActiveCells.OrderBy(c => c.z).ThenBy(c => c.x).ToList();
                     if (cells.Count > 4096) throw new InvalidOperationException("Recovery area exceeds bound.");
-                    var row = new Obs.RecoveryArea { Id = area.ID.ToString(System.Globalization.CultureInfo.InvariantCulture), Roofed = true, Completeness = Complete(cells.Count) };
+                    // GetUniqueLoadID(), not the bare Area.ID int: this is the
+                    // same identifier space PatchPawn's allowed_area
+                    // assignment resolves and NativePawnDetails' own
+                    // allowed_area_id publishes, so a RecoveryAreaProposal
+                    // naming a refuge from this census round-trips through
+                    // native admission and native readback consistently.
+                    var row = new Obs.RecoveryArea { Id = area.GetUniqueLoadID(), Roofed = true, Completeness = Complete(cells.Count) };
                     foreach (var cell in cells) row.Cells.Add(Cell(cell));
                     result.Areas.Add(row);
                 }
                 foreach (var pawn in pawns) {
                     var row = new Obs.RecoveryRestriction { Pawn = Entity(pawn) };
                     var area = pawn.playerSettings?.AreaRestrictionInPawnCurrentMap;
-                    if (area != null) row.AreaId = area.ID.ToString(System.Globalization.CultureInfo.InvariantCulture);
+                    if (area != null) row.AreaId = area.GetUniqueLoadID();
                     result.Restrictions.Add(row);
                 }
                 return new Obs.RecoveryReply { Observed = result };
