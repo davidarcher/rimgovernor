@@ -37,10 +37,14 @@ type CaravanJourney struct {
 // required and which of the currently eligible colonists may supply it,
 // native's own CanAcceptQuest verdict, the exact count of options in the
 // quest's single native reward-choice part (0 when it carries none, so a
-// caller never has to guess), and whether it also carries a settlement trade
-// objective (FulfillQuest territory, out of scope for acceptance). It does
-// not surface reward item contents or trade destination; nothing here picks
-// a quest or a reward, it only proves facts about one already-selected quest.
+// caller never has to guess; the player names an exact index in
+// [0, ChoiceCount) via QuestAccept.RewardChoice, whether that count is one
+// option or many -- native itself refuses any quest exposing two or more
+// separate QuestPart_Choice parts, so ChoiceCount never needs to represent
+// that shape), and whether it also carries a settlement trade objective
+// (FulfillQuest territory, out of scope for acceptance). It does not surface
+// reward item contents or trade destination; nothing here picks a quest or a
+// reward, it only proves facts about one already-selected quest and option.
 type QuestOffer struct {
 	ID               string
 	State            string

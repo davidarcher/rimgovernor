@@ -44,6 +44,57 @@ func TestQuestAcceptAdmission(t *testing.T) {
 	}
 }
 
+// questAcceptRequestChoice builds a fresh, independent request (no
+// RequiresAccepter, since only the reward-choice shape is under test) with an
+// explicit rewardChoice/choiceCount pair, so tests can exercise any index
+// against any option count without disturbing the base fixture's Action
+// (which Progress binds to by value, not just by ID).
+func questAcceptRequestChoice(t *testing.T, rewardChoice, choiceCount int32) QuestAcceptRequest {
+	t.Helper()
+	accept, err := domain.NewQuestAccept("quest-1", "", rewardChoice)
+	if err != nil {
+		t.Fatal(err)
+	}
+	a, err := domain.NewQuestAcceptAction("quest-accept-1", accept)
+	if err != nil {
+		t.Fatal(err)
+	}
+	plan, err := domain.NewPlan("plan", 1, []domain.Action{a})
+	if err != nil {
+		t.Fatal(err)
+	}
+	s := domain.GenerationSnapshot{Colony: "colony", Map: 0, Load: "load", Direction: 1, Plan: plan.ID(), Revision: 1, Native: 1}
+	p, _ := domain.NewProgress(plan, a.ID())
+	quest := QuestFacts{
+		Quest: "quest-1", SnapshotToken: "quest-cas", State: domain.Known("NotYetAccepted"), RequiresAccepter: domain.Known(false),
+		CanAccept: domain.Known(true), ChoiceCount: domain.Known(choiceCount), HasTradeRequest: domain.Known(false),
+	}
+	return QuestAcceptRequest{Action: a, Progress: p, Current: s, MinimumTick: 11, Facts: QuestAcceptFacts{Snapshot: s, QuestTick: 12, PreviewTick: 13, Quest: quest, NativeCanTry: domain.Known(true)}}
+}
+
+func TestQuestAcceptAdmitsAnyInRangeChoiceAmongMultipleOptions(t *testing.T) {
+	for _, tc := range []struct{ rewardChoice, choiceCount int32 }{
+		{0, 3}, {1, 3}, {2, 3}, {0, 1},
+	} {
+		r := questAcceptRequestChoice(t, tc.rewardChoice, tc.choiceCount)
+		if d := EvaluateQuestAccept(r); !d.Admitted || len(d.Refused) != 0 {
+			t.Fatalf("rewardChoice=%d choiceCount=%d: %+v", tc.rewardChoice, tc.choiceCount, d)
+		}
+	}
+}
+
+func TestQuestAcceptRefusesOutOfRangeOrUnselectedChoice(t *testing.T) {
+	for _, tc := range []struct{ rewardChoice, choiceCount int32 }{
+		{3, 3}, {-1, 3}, {1, 0}, {5, 1},
+	} {
+		r := questAcceptRequestChoice(t, tc.rewardChoice, tc.choiceCount)
+		d := EvaluateQuestAccept(r)
+		if d.Admitted || len(d.Refused) != 1 {
+			t.Fatalf("rewardChoice=%d choiceCount=%d: %+v", tc.rewardChoice, tc.choiceCount, d)
+		}
+	}
+}
+
 func TestQuestAcceptAdmissionWithoutAccepterOrChoice(t *testing.T) {
 	accept, _ := domain.NewQuestAccept("quest-1", "", -1)
 	a, _ := domain.NewQuestAcceptAction("quest-accept-1", accept)
@@ -89,7 +140,6 @@ func TestQuestAcceptDefenseHolds(t *testing.T) {
 		{"unknown can accept", func(r *QuestAcceptRequest) { r.Facts.Quest.CanAccept = domain.Unknown[bool]() }},
 		{"cannot accept", func(r *QuestAcceptRequest) { r.Facts.Quest.CanAccept = domain.Known(false) }},
 		{"unknown choice count", func(r *QuestAcceptRequest) { r.Facts.Quest.ChoiceCount = domain.Unknown[int32]() }},
-		{"ambiguous choice", func(r *QuestAcceptRequest) { r.Facts.Quest.ChoiceCount = domain.Known(int32(2)) }},
 		{"choice mismatch", func(r *QuestAcceptRequest) { r.Facts.Quest.ChoiceCount = domain.Known(int32(0)) }},
 		{"unknown requires accepter", func(r *QuestAcceptRequest) { r.Facts.Quest.RequiresAccepter = domain.Unknown[bool]() }},
 		{"missing eligible accepter", func(r *QuestAcceptRequest) { r.Facts.Quest.EligibleAccepters = nil }},

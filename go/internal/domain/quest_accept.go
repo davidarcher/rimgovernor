@@ -8,12 +8,14 @@ type QuestID string
 
 // QuestAccept is explicit intent to accept one already-observed quest offer.
 // AccepterPawn only matters when the quest RequiresAccepter (native rejects a
-// mismatch); RewardChoice selects the exact choice index of a quest's single
-// QuestPart_Choice, or -1 when the quest carries none. Native eligibility
-// (CanAcceptQuest, CanPawnAcceptQuest, at most one native choice part) is
-// established at inspection, not here -- the same split PrisonerInteraction
-// and Husbandry use. This action never selects which quest to accept; a
-// planner upstream of this boundary makes that choice conservatively.
+// mismatch); RewardChoice selects the exact option index of a quest's single
+// QuestPart_Choice (any of its N options, not just a lone default), or -1
+// when the quest carries none. Native eligibility (CanAcceptQuest,
+// CanPawnAcceptQuest, at most one native choice part, the index falling
+// within the currently observed option count) is established at inspection,
+// not here -- the same split PrisonerInteraction and Husbandry use. This
+// action never selects which quest to accept, nor which reward is "best"; a
+// player command upstream of this boundary makes both choices explicitly.
 type QuestAccept struct {
 	quest        QuestID
 	accepterPawn PawnID

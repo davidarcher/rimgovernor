@@ -15,7 +15,11 @@ const QuestUnavailable Reason = "quest_unavailable"
 // QuestFacts describes the one already-observed quest offer a goal chose to
 // accept, as read from the world-progression census (NativeWorldProgressionObservation.cs's
 // Quests()). ChoiceCount is the number of options in the quest's single
-// native QuestPart_Choice, or 0 when it carries none.
+// native QuestPart_Choice, or 0 when it carries none. A quest carrying two or
+// more separate native QuestPart_Choice parts is never representable here
+// (native's own AcceptQuest.Prepare refuses that shape outright,
+// "multiple native choice parts require the quest interface"); ChoiceCount
+// only ever counts the options within one such part.
 type QuestFacts struct {
 	Quest              domain.QuestID
 	SnapshotToken      string
@@ -46,10 +50,15 @@ type QuestAcceptRequest struct {
 // choice immediately before dispatch, the same shape EvaluatePrisonerInteraction
 // uses for its own direct-write order. Admission proves eligibility now; it
 // does not prove the write is accepted, and it deliberately never picks a
-// quest or reward on its own: a mismatched, ambiguous (more than one native
-// reward choice without an exact selection) or accepter-less RequiresAccepter
-// quest is refused rather than guessed, so no reckless colony commitment can
-// be made through this boundary.
+// quest or reward on its own: the player command must name an exact
+// RewardChoice index that falls within the quest's currently observed
+// ChoiceCount (whatever that count is -- one option or many), and a
+// mismatched, out-of-range or accepter-less RequiresAccepter quest is
+// refused rather than guessed, so no reckless colony commitment can be made
+// through this boundary. Native alone re-validates the exact same index
+// against the live QuestPart_Choice.choices at execute time
+// (NativeQuestOperations.Prepare); this admission is a preliminary,
+// best-available-facts check, not proof the write will apply.
 func EvaluateQuestAccept(r QuestAcceptRequest) DraftDecision {
 	refuse := func(reason Reason) DraftDecision {
 		return DraftDecision{Refused: []Refusal{{Action: r.Action.ID(), Reason: reason}}}
@@ -99,11 +108,10 @@ func EvaluateQuestAccept(r QuestAcceptRequest) DraftDecision {
 	switch {
 	case choiceCount == 0 && accept.RewardChoice() != -1:
 		return refuse(NativeIneligible)
-	case choiceCount == 1 && accept.RewardChoice() != 0:
-		return refuse(NativeIneligible)
-	case choiceCount > 1:
-		// Multiple native choice parts require the quest interface; never
-		// guess a reward here.
+	case choiceCount > 0 && (accept.RewardChoice() < 0 || accept.RewardChoice() >= choiceCount):
+		// The player must name an exact index among the quest's currently
+		// observed options; an unselected (-1) or out-of-range index is
+		// refused rather than guessed.
 		return refuse(NativeIneligible)
 	}
 	requiresAccepter, known := f.Quest.RequiresAccepter.Value()

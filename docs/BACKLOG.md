@@ -1387,10 +1387,18 @@ b; exact worker cleanup by a, with reuse by their later consumers.
   `TradeRequestComp.ActiveRequest`, so Go's `HasTradeRequest` (and
   `policy.EvaluateQuestFulfill`'s admission check on it) stayed true forever
   after a real fulfillment; it now checks `ActiveRequest` like
-  `NativeQuestFulfillOperations.Observe` already did. Reward selection
-  beyond a single pre-known choice index is still unstarted
-  (`EvaluateQuestAccept` always refuses when a quest exposes more than one
-  reward choice rather than guessing). Settlement gifts are now
+  `NativeQuestFulfillOperations.Observe` already did. Reward-choice
+  selection beyond a single pre-known index is implemented:
+  `EvaluateQuestAccept` now admits any player-named `RewardChoice` index
+  that falls within the quest's currently observed `ChoiceCount`, whether
+  that count is one option or many, refusing only an out-of-range or
+  unselected index -- native's own `AcceptQuest` execute path
+  (`NativeQuestOperations.Prepare`/`Execute`) already applied
+  `choice.Choose(choice.choices[rewardChoice])` for an arbitrary in-range
+  index and needed no change. A quest exposing two or more separate native
+  `QuestPart_Choice` parts remains out of scope and is refused by native
+  itself (`Prepare`'s "multiple native choice parts require the quest
+  interface"), never guessed by Go. Settlement gifts are now
   implemented end to end: native `GiftCaravanSilver` (execute+preview+observe,
   `NativeSettlementGiftOperations.cs`) is wired into `NativeOperationTools.cs`'s
   dispatch, and `NativeWorldObservation.cs` adds the previously proto-only,
