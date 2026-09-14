@@ -1,2 +1,2 @@
 @echo off
-powershell.exe -NoProfile -ExecutionPolicy Bypass -File "%~dp0launch.ps1" %*
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File "%~dp0launch-go.ps1" %*

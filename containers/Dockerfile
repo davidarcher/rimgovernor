@@ -62,15 +62,19 @@ ENV RIMGOVERNOR_CONTAINER_SOURCE=1
 ENTRYPOINT ["python", "-m", "rimgovernor.container_worker"]
 CMD []
 
-# Go-only controller path (G01.11). Builds and packages the Go binary and the
-# same dashboard static assets with no Python runtime or dependencies. The
-# binary itself still starts the native GABS bridge as a subprocess (see
-# go/internal/bridge and go/cmd/rimgovernor/serve.go), so a real serve session
-# needs a Linux GABS build, a prepared profile/state path and, because
-# --listen only accepts a loopback address, host-style networking (`docker run
-# --network host` or compose `network_mode: host`) rather than bridge port
-# publishing. `version`/`help`/flag-validation exercise the image without any
-# of that: they are compilation/protocol checks, not gameplay evidence.
+# Go controller path, the production default (G01.11, G01.12; also the last
+# stage, so a plain `docker build` with no --target builds this). Builds and
+# packages the Go binary and the same dashboard static assets with no Python
+# runtime or dependencies. The binary itself still starts the native GABS
+# bridge as a subprocess (see go/internal/bridge and
+# go/cmd/rimgovernor/serve.go), so a real serve session needs a Linux GABS
+# build, a prepared profile/state path and, because --listen only accepts a
+# loopback address, host-style networking (`docker run --network host` or
+# compose `network_mode: host`) rather than bridge port publishing.
+# `version`/`help`/flag-validation exercise the image without any of that:
+# they are compilation/protocol checks, not gameplay evidence. The `worker`/
+# `directory` targets above remain Python: native scenario/acceptance tooling
+# and the G01.13 rollback path.
 FROM golang:1.27.1-bookworm AS go-builder
 WORKDIR /src
 COPY contracts/generated/protobuf/go/ contracts/generated/protobuf/go/
