@@ -3,6 +3,7 @@ package bridge
 import (
 	"context"
 	"encoding/json"
+	"math"
 	"testing"
 	"time"
 
@@ -23,6 +24,49 @@ func worldFixture() *o.WorldSnapshot {
 			Snapshot:        &o.SnapshotRef{Context: pbContext(), EntityId: proto.String("settlement-1"), Token: proto.String("settlement-cas")},
 			FactionSnapshot: &o.SnapshotRef{Context: pbContext(), EntityId: proto.String("faction-1"), Token: proto.String("faction-cas")},
 		}},
+	}
+}
+
+// TestReadWorldDecodesLongitude covers the map-longitude wire-decode half of
+// the EnsureMood-* schedule-fencing gap: boundary.ExpectedScheduleDef needs
+// (tick, longitude, schedule slots) and longitude lives on WorldTile, not yet
+// joined into the routine/mood census pipeline -- this only verifies the
+// bridge-level decode used to eventually supply that value.
+func TestReadWorldDecodesLongitude(t *testing.T) {
+	for _, test := range []struct {
+		name      string
+		edit      func(*o.WorldSnapshot)
+		known     bool
+		longitude float64
+		invalid   bool
+	}{
+		{"missing tile", func(v *o.WorldSnapshot) {}, false, 0, false},
+		{"missing longitude", func(v *o.WorldSnapshot) { v.Tile = &o.WorldTile{} }, false, 0, false},
+		{"known longitude", func(v *o.WorldSnapshot) { v.Tile = &o.WorldTile{Longitude: proto.Float64(-73.5)} }, true, -73.5, false},
+		{"nan longitude", func(v *o.WorldSnapshot) { v.Tile = &o.WorldTile{Longitude: proto.Float64(math.NaN())} }, false, 0, true},
+		{"out of range longitude", func(v *o.WorldSnapshot) { v.Tile = &o.WorldTile{Longitude: proto.Float64(200)} }, false, 0, true},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			snapshot := worldFixture()
+			test.edit(snapshot)
+			client := testClient(t, &testServer{schema: protoSchema, handler: func(context.Context, nativeArgument) (*mcp.CallToolResult, error) {
+				return pbResult(&o.WorldReply{Outcome: &o.WorldReply_Observed{Observed: snapshot}}), nil
+			}}, time.Second)
+			out, _, err := client.ReadWorld(context.Background(), pbIdentity(), 42, 0)
+			if test.invalid {
+				if err == nil {
+					t.Fatal("expected invalid longitude rejected")
+				}
+				return
+			}
+			if err != nil {
+				t.Fatal(err)
+			}
+			lon, known := out.Longitude.Value()
+			if known != test.known || (known && lon != test.longitude) {
+				t.Fatal(lon, known)
+			}
+		})
 	}
 }
 

@@ -375,7 +375,10 @@ admission is still required. Manual clears these candidates. See the
 [contract](../docs/developers/contracts/disaster-planning.md) and
 [acceptance commands](../docs/developers/testing/disaster-planning.md).
 
-`ReadRoutinePawns` adds the work-only detail selection to the same exact-ID read.
+`ReadRoutinePawns` adds the work-only detail selection to the same exact-ID read,
+plus schedule (`TimetableSlot`) detail: the whole routine census is shared across
+every routine planner, and `EnsureMood-*` relief dispatch needs a pawn's current
+timetable assignment (`boundary.ExpectedScheduleDef`) to fence its native writes.
 It preserves native work applicability and numbered/checkbox mode. `AssignWork`
 selects specialists with stable ties, construction skill precedence and shared labor,
 and compares proposed priorities with native readback in the correct mode. Routine

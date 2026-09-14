@@ -59,5 +59,5 @@ func homeColonistsSelected(v *o.PawnSnapshot, id *c.Identity) error {
 		}
 		requested[row.Pawn.GetId()] = true
 	}
-	return pawnsSnapshotSelected(v, id, requested, false, true, false)
+	return pawnsSnapshotSelected(v, id, requested, false, true, false, false)
 }

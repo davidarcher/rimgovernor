@@ -40,3 +40,46 @@ func TestRoutineMoodNeedsValidationAndSelection(t *testing.T) {
 		})
 	}
 }
+
+// TestRoutineScheduleDetailValidation covers the validateSettings schedule
+// gap: ReadRoutinePawns/ValidateRoutinePawnSnapshot must accept
+// PawnSettings.Schedule (EnsureMood-* relief dispatch needs a pawn's current
+// timetable assignment to fence its native writes via
+// boundary.ExpectedScheduleDef), while selections that never requested
+// schedule detail (combat, tend) must keep refusing it as unrequested.
+func TestRoutineScheduleDetailValidation(t *testing.T) {
+	for _, test := range []struct {
+		name    string
+		change  func(*o.PawnSettings)
+		routine bool
+	}{
+		{"known slots", nil, true},
+		{"duplicate hour", func(s *o.PawnSettings) {
+			s.Schedule = append(s.Schedule, &o.TimetableSlot{Hour: proto.Uint32(0), AssignmentDefName: proto.String("Sleep")})
+		}, false},
+		{"hour out of range", func(s *o.PawnSettings) {
+			s.Schedule[0].Hour = proto.Uint32(24)
+		}, false},
+		{"invalid def name", func(s *o.PawnSettings) {
+			s.Schedule[0].AssignmentDefName = proto.String("  ")
+		}, false},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			s := combatPawnsFixture()
+			settings := &o.PawnSettings{Schedule: []*o.TimetableSlot{{Hour: proto.Uint32(0), AssignmentDefName: proto.String("Anything")}}}
+			if test.change != nil {
+				test.change(settings)
+			}
+			s.Pawns[0].Settings = settings
+			if err := ValidateRoutinePawnSnapshot(s, pbIdentity(), []string{"pawn-1"}); (err == nil) != test.routine {
+				t.Fatal("routine", err)
+			}
+			if ValidateCombatPawnSnapshot(s, pbIdentity(), []string{"pawn-1"}) == nil {
+				t.Fatal("combat-only selection accepted schedule")
+			}
+			if ValidateTendPawnSnapshot(s, pbIdentity(), []string{"pawn-1"}) == nil {
+				t.Fatal("tend-only selection accepted schedule")
+			}
+		})
+	}
+}

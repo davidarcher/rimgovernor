@@ -2,7 +2,9 @@ package bridge
 
 import (
 	"context"
+	"math"
 
+	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
 	o "github.com/davidarcher/RimGovernor/go/internal/wire/observationspb"
 	"google.golang.org/protobuf/proto"
@@ -31,6 +33,12 @@ type SettlementFact struct {
 type WorldRead struct {
 	Context     *c.ObservationContext
 	Settlements []SettlementFact
+	// Longitude is the requested tile's world-map longitude (WorldTile.longitude),
+	// the map-local-hour ingredient boundary.HourOfDay/ExpectedScheduleDef needs
+	// to fence EnsureMood-* relief dispatch against a pawn's current timetable
+	// assignment. It is effectively a session constant: the colony's map tile
+	// does not move. Unknown when native omits WorldTile or reports it unavailable.
+	Longitude domain.Fact[float64]
 }
 
 // ReadWorld reads settlements within settlementRadius tiles (0: exact tile)
@@ -111,5 +119,13 @@ func worldSelected(v *o.WorldSnapshot, identity *c.Identity) (WorldRead, error) 
 		}
 		rows[i] = fact
 	}
-	return WorldRead{Context: v.Context, Settlements: rows}, nil
+	longitude := domain.Unknown[float64]()
+	if tile := v.Tile; tile != nil && tile.Longitude != nil {
+		lon := tile.GetLongitude()
+		if math.IsNaN(lon) || math.IsInf(lon, 0) || lon < -180 || lon > 180 {
+			return WorldRead{}, contract("invalid world tile longitude")
+		}
+		longitude = domain.Known(lon)
+	}
+	return WorldRead{Context: v.Context, Settlements: rows, Longitude: longitude}, nil
 }

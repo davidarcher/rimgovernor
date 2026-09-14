@@ -16,9 +16,9 @@ func (client *Client) ReadPawns(ctx context.Context, identity *c.Identity, ids [
 	return client.readPawns(ctx, identity, ids, false)
 }
 func (client *Client) readPawns(ctx context.Context, identity *c.Identity, ids []string, combat bool) (*o.ListPawnsReply, Result, error) {
-	return client.readPawnDetails(ctx, identity, ids, combat, false, false)
+	return client.readPawnDetails(ctx, identity, ids, combat, false, false, false)
 }
-func (client *Client) readPawnDetails(ctx context.Context, identity *c.Identity, ids []string, combat, work, care bool) (*o.ListPawnsReply, Result, error) {
+func (client *Client) readPawnDetails(ctx context.Context, identity *c.Identity, ids []string, combat, work, care, schedule bool) (*o.ListPawnsReply, Result, error) {
 	if err := ValidateIdentity(identity); err != nil {
 		return nil, Result{}, err
 	}
@@ -36,7 +36,7 @@ func (client *Client) readPawnDetails(ctx context.Context, identity *c.Identity,
 		}
 		requested[id] = true
 	}
-	request := &o.ListPawnsRequest{Scope: &o.ReadScope{ExpectedIdentity: proto.Clone(identity).(*c.Identity)}, Filter: &o.PawnFilter{Ids: copied, IncludeDead: proto.Bool(true)}, Details: &o.PawnDetails{Needs: proto.Bool(false), Health: proto.Bool(combat), Equipment: proto.Bool(combat), Biography: proto.Bool(combat), Settings: proto.Bool(care), Social: proto.Bool(false), Animals: proto.Bool(combat)}, Page: &c.PageRequest{Limit: proto.Uint32(uint32(len(copied)))}}
+	request := &o.ListPawnsRequest{Scope: &o.ReadScope{ExpectedIdentity: proto.Clone(identity).(*c.Identity)}, Filter: &o.PawnFilter{Ids: copied, IncludeDead: proto.Bool(true)}, Details: &o.PawnDetails{Needs: proto.Bool(false), Health: proto.Bool(combat), Equipment: proto.Bool(combat), Biography: proto.Bool(combat), Settings: proto.Bool(care || schedule), Social: proto.Bool(false), Animals: proto.Bool(combat)}, Page: &c.PageRequest{Limit: proto.Uint32(uint32(len(copied)))}}
 	if work {
 		request.Details.Work = proto.Bool(true)
 		request.Details.Needs = proto.Bool(true)
@@ -55,7 +55,7 @@ func (client *Client) readPawnDetails(ctx context.Context, identity *c.Identity,
 	case *o.ListPawnsReply_Unavailable:
 		err = unavailable(v.Unavailable, raw)
 	case *o.ListPawnsReply_Observed:
-		err = pawnsSnapshotSelected(v.Observed, request.Scope.ExpectedIdentity, requested, combat, work, care)
+		err = pawnsSnapshotSelected(v.Observed, request.Scope.ExpectedIdentity, requested, combat, work, care, schedule)
 	default:
 		err = contract("pawn read outcome missing")
 	}
@@ -65,9 +65,9 @@ func pawnsSnapshot(v *o.PawnSnapshot, id *c.Identity, requested map[string]bool)
 	return pawnsSnapshotDetails(v, id, requested, false)
 }
 func pawnsSnapshotDetails(v *o.PawnSnapshot, id *c.Identity, requested map[string]bool, combat bool) error {
-	return pawnsSnapshotSelected(v, id, requested, combat, false, false)
+	return pawnsSnapshotSelected(v, id, requested, combat, false, false, false)
 }
-func pawnsSnapshotSelected(v *o.PawnSnapshot, id *c.Identity, requested map[string]bool, combat, work, care bool) error {
+func pawnsSnapshotSelected(v *o.PawnSnapshot, id *c.Identity, requested map[string]bool, combat, work, care, schedule bool) error {
 	if v == nil {
 		return contract("pawn snapshot missing")
 	}
@@ -97,7 +97,7 @@ func pawnsSnapshotSelected(v *o.PawnSnapshot, id *c.Identity, requested map[stri
 		if err := pawnsEntity(row.Pawn, v.Context); err != nil {
 			return err
 		}
-		if !work && row.Needs != nil || !combat && (row.Health != nil || row.Equipment != nil || row.Biography != nil || row.AnimalState != nil) || !work && !care && row.Settings != nil || row.Social != nil {
+		if !work && row.Needs != nil || !combat && (row.Health != nil || row.Equipment != nil || row.Biography != nil || row.AnimalState != nil) || !work && !care && !schedule && row.Settings != nil || row.Social != nil {
 			return contract("unrequested pawn detail")
 		}
 		if combat {
@@ -109,7 +109,7 @@ func pawnsSnapshotSelected(v *o.PawnSnapshot, id *c.Identity, requested map[stri
 			if ref := row.Settings.Snapshot; ref != nil && (ref.GetEntityId() != row.Pawn.GetId() || !proto.Equal(ref.Context, v.Context)) {
 				return contract("settings snapshot scope mismatch")
 			}
-			if err := validateSettings(row.Settings, work, care); err != nil {
+			if err := validateSettings(row.Settings, work, care, schedule); err != nil {
 				return err
 			}
 		}

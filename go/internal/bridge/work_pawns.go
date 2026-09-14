@@ -7,17 +7,25 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
+// ReadRoutinePawns also requests schedule (TimetableSlot) detail: the shared
+// routine census (ObserveRoutine/routineBracket) feeds every routine
+// planner -- Work, Waste, Disaster, Mood and others -- from this one read, and
+// EnsureMood-* relief dispatch needs a pawn's current timetable assignment
+// (boundary.ExpectedScheduleDef) to fence its native writes. Requesting it
+// here, once, for the whole shared census matches how Needs is already
+// requested unconditionally for the same reason rather than per-consumer.
 func (client *Client) ReadRoutinePawns(ctx context.Context, id *c.Identity, ids []string) (*o.ListPawnsReply, Result, error) {
-	return client.readPawnDetails(ctx, id, ids, true, true, false)
+	return client.readPawnDetails(ctx, id, ids, true, true, false, true)
 }
 func ValidateRoutinePawnSnapshot(snapshot *o.PawnSnapshot, id *c.Identity, ids []string) error {
-	return validateDetailedPawnSnapshot(snapshot, id, ids, true, false)
+	return validateDetailedPawnSnapshot(snapshot, id, ids, true, false, true)
 }
 
 // validateSettings enforces that PawnSettings carries only the fields the
 // request actually asked for: work priorities under work, care policy under
-// care. Either, both or neither may be set; unrequested fields are refused.
-func validateSettings(s *o.PawnSettings, work, care bool) error {
+// care, timetable slots under schedule. Any subset may be set; unrequested
+// fields are refused.
+func validateSettings(s *o.PawnSettings, work, care, schedule bool) error {
 	allowed := &o.PawnSettings{Snapshot: s.Snapshot, Issues: s.Issues}
 	if work {
 		allowed.Work, allowed.WorkApplies, allowed.ManualWorkPriorities = s.Work, s.WorkApplies, s.ManualWorkPriorities
@@ -25,7 +33,10 @@ func validateSettings(s *o.PawnSettings, work, care bool) error {
 	if care {
 		allowed.MedicalCare, allowed.SelfTend = s.MedicalCare, s.SelfTend
 	}
-	if !proto.Equal(s, allowed) || len(s.Work) > 256 {
+	if schedule {
+		allowed.Schedule = s.Schedule
+	}
+	if !proto.Equal(s, allowed) || len(s.Work) > 256 || len(s.Schedule) > 24 {
 		return contract("unrequested settings detail")
 	}
 	if s.Snapshot != nil && (validID(s.Snapshot.GetEntityId()) != nil || validID(s.Snapshot.GetToken()) != nil) {
@@ -52,6 +63,20 @@ func validateSettings(s *o.PawnSettings, work, care bool) error {
 	if care && s.MedicalCare != nil {
 		if err := validID(s.GetMedicalCare()); err != nil {
 			return err
+		}
+	}
+	if schedule {
+		seenHours := map[uint32]bool{}
+		for _, slot := range s.Schedule {
+			if slot == nil || slot.Hour == nil || slot.GetHour() > 23 || seenHours[slot.GetHour()] {
+				return contract("invalid or duplicate timetable slot")
+			}
+			seenHours[slot.GetHour()] = true
+			if slot.AssignmentDefName != nil {
+				if err := validID(slot.GetAssignmentDefName()); err != nil {
+					return err
+				}
+			}
 		}
 	}
 	return nil
