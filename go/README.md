@@ -112,8 +112,8 @@ confirm the packaging path is wired correctly, not that a colony runs.
   population decision, per-resource production policy
   (`modify_resource_policy`/`set_resource_reserve`), maintained goal
   activation/cancellation (`create_goal`/`cancel_goal`), room shells
-  (`build_room`) and construction cancellation (`cancel_construction`)
-  proposals, but
+  (`build_room`), room adoption (`adopt_room`) and construction cancellation
+  (`cancel_construction`) proposals, but
   is not yet wired into the Go binary's serve loop) — G01.08.
   `set_population_policy` is the first interpreted command that is colony
   configuration rather than a plan of native actions: it issues no native
@@ -311,12 +311,85 @@ confirm the packaging path is wired correctly, not that a colony runs.
   conversational flow —
   `POST /api/cancel-constructions/plans` and
   `GET /api/cancel-constructions/submission?requestId=`.
-  **Deferred, deliberately:** `RelocateConstruction` and `AdoptRoom`.
-  Relocation now has its prerequisite (this cancellation) but still needs a
-  replacement-placement validation layer — it is a cancel *and* a re-place, and
-  the re-place half must be admitted like any other placement. `AdoptRoom`
-  (selecting an existing native room rather than building one) is unrelated to
-  either hook but shares the `RoomBounds`/entrance vocabulary introduced here.
+  `adopt_room` claims an **already-built** native room — walls, door and roof
+  already complete, whether the autopilot built it, an earlier `build_room` did,
+  or the player did by hand — as satisfying `EnsureInitialShelter`. It is the
+  only command in this family that issues no native call *and* opens no work:
+  Python's own reply is "Existing construction preserved; no new construction
+  issued", and the Go reply repeats it verbatim. It reuses the `RoomBounds`,
+  `Rotation` entrance and `ValidateRoomIntent` vocabulary `build_room`
+  introduced; `domain.RoomAdoption` adds only what adoption needs, which is
+  Python `AdoptRoom`'s `geometry` validator ported whole, nonrectangular support
+  included: `interior_cells`/`entrance_cell` are supplied together or not at
+  all, every cell lies strictly inside the inspected bounds with no duplicate,
+  the entrance cell is outside the interior with the cell beyond it also outside
+  (a boundary facing out, not an interior aisle), and the interior is one
+  connected region — `connectedCells` is the port of `shell_site.connected_cells`.
+  The rectangular form derives the same side-midpoint door `RoomShell.Door`
+  places, so adopting a room this controller built names that room's own door.
+
+  **Goal completion with evidence** is the design question this slice answers.
+  `domain.Goal` has no evidence or target field — the same constraint the
+  `create_goal` slice documented for its own per-goal configuration — so
+  Python's `goal.evidence['adoption']` (native room id, cell count, native role)
+  has nowhere to live on the goal. Rather than widen a type the whole autopilot
+  goal lifecycle validates, the evidence is stored beside the goal in the
+  adoption's own table, the config-only shape `set_population_policy` and
+  `modify_resource_policy` already use. The goal itself is completed through the
+  **unchanged** lifecycle: `Goal.Validate` refuses `GoalSatisfied` unless
+  `Need == NeedRecovered` and `RecoveryObserved`, and `domain.ReviewGoal` reaches
+  exactly that from a fresh goal in one call — reviewing at `NeedRecovered` with
+  no open work sets both together. So adoption is `NewGoal` then one
+  `ReviewGoal(…, NeedRecovered, false, false)`, the player's explicit inspection
+  standing as the recovery observation exactly as `create_goal` treats their
+  direction as the deficit assertion. No invariant is weakened and no new status
+  is invented. A shelter goal with **open work** is refused rather than completed
+  ("cancel it before adopting a finished room"): a room still being built is not
+  a room the player can have inspected as finished. `player_goals` is now the one
+  per-world, per-kind binding shared by both commands (it carries a `command`
+  column and no foreign key, since `request_id` may name either request table),
+  so adoption completes the same goal `create_goal` would have activated instead
+  of leaving a second, contradictory player goal. `adopted_shelters` is Python's
+  `plan.control['preferred_shelter']`; its
+  `suppressed_goals['EnsureInitialShelter']` clear has no counterpart, this
+  controller having no goal-suppression map. Python's "existing construction
+  history must remain intact" refusal is ported against
+  `build_room_submissions`, which is where an intent's construction history
+  lives here —
+  `POST /api/player/adopt-room/claim`,
+  `GET /api/player/adopt-room?colonyId=&loadToken=&mapId=` and
+  `GET /api/player/adopt-room/submission?requestId=`.
+
+  **Deferred in `adopt_room`, deliberately:** Python's submission-time
+  re-observation (`room_adoption.verified_room`/`verify_entrance`) is **not**
+  ported, for two independent reasons. First, there is no seam for it: a
+  `buildingruntime.Player` holds a journal and a `WorldSource` (colony/load/map
+  identity only), never a bridge client, so *every* player command in this
+  family takes already-observed geometry on the player's word — `build_room`
+  says so explicitly — and giving this one command native reads would widen the
+  whole player surface. Second, the pawn-route half cannot be built at all yet:
+  `home/spatial_access` exists natively only as the legacy tool
+  (`integrations/rimgovernor-native/src/Bridge/SpatialAccessTool.cs`), and
+  although `observations.proto` declares `ReadSpatialAccess`, no typed
+  `rimgovernor/observations_read_spatial_access` tool is registered, so a Go
+  bridge adapter for it would call nothing. The roof/enclosure and doorway
+  checks *are* portable against existing typed reads
+  (`rimgovernor/observations_list_rooms` with `include_boundary`/
+  `include_outdoors` gives `RoomState.proper_room`, `open_roof_count`,
+  `psychologically_outdoors` and `doorway`; note the typed contract has no
+  `doorDef`, so the `doorway` flag plus a completed non-blueprint/non-frame
+  building at the cell is the typed equivalent of Python's def-name match), but
+  wiring them with no caller would be dead code. What the store *does* enforce
+  is that the player's own evidence is self-consistent: the reported native cell
+  count must equal the interior they described. Re-verification belongs with a
+  reviewer that already holds a bridge client — the port of Python's
+  `validate_adoption`, which re-runs `verify_entrance` on each review — and is
+  tracked separately.
+
+  **Deferred, deliberately:** `RelocateConstruction`. It now has its
+  prerequisite (this cancellation) but still needs a replacement-placement
+  validation layer — it is a cancel *and* a re-place, and the re-place half must
+  be admitted like any other placement.
   `PlaceBuildings`, Python's raw-placement-list sibling, is not in this issue's
   tracked backlog and is not built here.
 - Media/camera/portrait/video/recording and trusted save/load — G01.09.

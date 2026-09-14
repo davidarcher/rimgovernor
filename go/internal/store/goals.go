@@ -22,13 +22,24 @@ type GoalState struct {
 
 const maxActiveGoals = 512
 
+// initializeGoals creates the goal lifecycle tables.
+//
+// player_goals is the one per-world, per-kind binding for goals the player
+// commands directly, shared by every such command rather than owned by one:
+// CreateGoal binds a kind it force-activates, AdoptRoom binds
+// EnsureInitialShelter when it completes it. Because request_id may name a row
+// in either command's own request table, it carries no foreign key and the
+// command column says which table to read it from. Sharing the binding is what
+// makes the two commands agree: adopting a room completes the same shelter goal
+// CreateGoal would have activated, instead of leaving a second, contradictory
+// player goal for the same kind.
 func initializeGoals(ctx context.Context, tx *sql.Tx) error {
 	_, err := tx.ExecContext(ctx, `CREATE TABLE goals(id TEXT PRIMARY KEY, revision TEXT NOT NULL, payload BLOB NOT NULL, retired INTEGER NOT NULL DEFAULT 0 CHECK(retired IN (0,1))) STRICT;
 CREATE INDEX active_goals ON goals(id) WHERE retired=0;
 CREATE TABLE goal_methods(goal_id TEXT NOT NULL REFERENCES goals(id), epoch TEXT NOT NULL, method_id TEXT NOT NULL, plan_id TEXT NOT NULL UNIQUE REFERENCES plans(id), PRIMARY KEY(goal_id,epoch,method_id)) STRICT;
 CREATE TABLE routine_review(singleton INTEGER PRIMARY KEY CHECK(singleton=1), payload BLOB NOT NULL) STRICT;
 CREATE TABLE goal_create_submissions(request_id TEXT PRIMARY KEY, colony TEXT NOT NULL, load_token TEXT NOT NULL, map_id INTEGER NOT NULL, kind TEXT NOT NULL, goal_id TEXT NOT NULL REFERENCES goals(id), payload BLOB NOT NULL) STRICT;
-CREATE TABLE player_goals(colony TEXT NOT NULL, load_token TEXT NOT NULL, map_id INTEGER NOT NULL, kind TEXT NOT NULL, request_id TEXT NOT NULL REFERENCES goal_create_submissions(request_id), goal_id TEXT NOT NULL REFERENCES goals(id), PRIMARY KEY(colony,load_token,map_id,kind)) STRICT;`)
+CREATE TABLE player_goals(colony TEXT NOT NULL, load_token TEXT NOT NULL, map_id INTEGER NOT NULL, kind TEXT NOT NULL, command TEXT NOT NULL CHECK(command IN ('create_goal','adopt_room')), request_id TEXT NOT NULL, goal_id TEXT NOT NULL REFERENCES goals(id), PRIMARY KEY(colony,load_token,map_id,kind)) STRICT;`)
 	return err
 }
 
