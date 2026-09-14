@@ -1374,12 +1374,23 @@ b; exact worker cleanup by a, with reuse by their later consumers.
   reused from `AcceptQuest`, and a `"caravan-fulfill-"`-prefixed hash distinct
   from `SettlementGift`'s own caravan token); native alone re-derives the
   requested resource/count against the live `TradeRequestComp`, so no
-  resource facts cross the boundary. Not done: a live-game acceptance run
-  (`go build ./...` passes; no `questfulfillaccept` native-acceptance harness
-  was added this round — see the note at the end of this item for why) and
-  reward selection beyond a single pre-known choice index, which is likewise
-  unstarted (`EvaluateQuestAccept` always refuses when a quest exposes more
-  than one reward choice rather than guessing). Settlement gifts are now
+  resource facts cross the boundary. A live-game acceptance run now exists
+  (`go/internal/nativeaccept/cmd/questfulfillaccept`, using a new
+  `QuestFulfillFixture` private disposable fixture to build a deterministic
+  quest/trade-request/caravan scenario) and passes against the isolated
+  RimWorld install: preview, execute through the real gizmo/confirmation
+  path, replay idempotency, `receipts_lookup`, and refusals for
+  not-yet-at-settlement, stale caravan position, and post-fulfillment retry.
+  The run caught a real bug, now fixed: `NativeWorldProgressionObservation
+  .TradeRequests()` reported a quest's trade objective from the
+  `QuestPart_InitiateTradeRequest` part's mere presence, never checking
+  `TradeRequestComp.ActiveRequest`, so Go's `HasTradeRequest` (and
+  `policy.EvaluateQuestFulfill`'s admission check on it) stayed true forever
+  after a real fulfillment; it now checks `ActiveRequest` like
+  `NativeQuestFulfillOperations.Observe` already did. Reward selection
+  beyond a single pre-known choice index is still unstarted
+  (`EvaluateQuestAccept` always refuses when a quest exposes more than one
+  reward choice rather than guessing). Settlement gifts are now
   implemented end to end: native `GiftCaravanSilver` (execute+preview+observe,
   `NativeSettlementGiftOperations.cs`) is wired into `NativeOperationTools.cs`'s
   dispatch, and `NativeWorldObservation.cs` adds the previously proto-only,
@@ -1408,8 +1419,8 @@ b; exact worker cleanup by a, with reuse by their later consumers.
   `client`, `bridge.NewSettlementGiftWriter`), the same way `Draft` is always
   present, so `EnableSettlementGift` actually runs in the live server instead
   of only in tests. `FulfillQuest`'s native write handler and full Go vertical
-  are described above; it has not yet been exercised against a live game
-  (see the note at the end of this item). Failure recovery across
+  are described above and now have a passing live-game acceptance run
+  (`questfulfillaccept`, see above). Failure recovery across
   multiple active maps is now a deliberately conservative slice rather than
   full recovery: native's world-progression census already reports every
   map's spawned-pawn roster (`NativeWorldProgressionObservation.cs`'s
@@ -1430,14 +1441,7 @@ b; exact worker cleanup by a, with reuse by their later consumers.
   ./...` pass, including new bridge malformed-map-evidence tests, policy
   classifier tests for the foreign-map case, and store/tracker tests for
   stuck-record bookkeeping (idempotent SinceTick, threshold filtering,
-  clear-on-resolve, clear-on-recovery). No existing `nativeaccept` command
-  targets world-progression content (quests, caravans, settlements) the way
-  `guardedconstructionaccept`/`movementaccept` target a single map's
-  construction/movement fixtures; building `questfulfillaccept` needs its own
-  save fixture (an ongoing quest with one `QuestPart_InitiateTradeRequest`,
-  a caravan positioned at that exact settlement with sufficient cargo) and
-  was judged large enough to risk delaying this vertical, so it was left for
-  a follow-up round rather than attempted here.
+  clear-on-resolve, clear-on-recovery).
   **Exit evidence:** native departure, arrival, quest fulfillment/reward
   selection, and failure recovery with Go owning the workflow and no
   wrong-map writes.

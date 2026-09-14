@@ -158,13 +158,25 @@ namespace HomeBridge.BridgeTools
             return rows;
         }
 
+        // Only a still-active request is reported: once
+        // NativeQuestFulfillOperations.Execute fulfills the live
+        // TradeRequestComp, the QuestPart_InitiateTradeRequest itself
+        // typically remains on the quest (removing it is the responsibility
+        // of whatever quest-script listener chain reacts to the settlement's
+        // fulfillment signal, which a minimal quest need not carry), so
+        // reporting on the part's mere presence would keep HasTradeRequest
+        // (world_progression.go) true forever after a real fulfillment --
+        // exactly the signal policy.EvaluateQuestFulfill's admission check
+        // relies on to know the objective is done. Mirrors Observe()'s own
+        // ActiveRequest check so both accessors agree.
         private static List<Obs.QuestTradeRequest> TradeRequests(Quest quest)
         {
             var rows = new List<Obs.QuestTradeRequest>();
             foreach (var part in quest.PartsListForReading.OfType<QuestPart_InitiateTradeRequest>())
             {
+                if (part.settlement?.GetComponent<TradeRequestComp>()?.ActiveRequest != true) continue;
                 var row = new Obs.QuestTradeRequest { Resource = part.requestedThingDef?.defName ?? "", Count = part.requestedCount };
-                if (part.settlement != null) row.Destination = part.settlement.Tile.tileId;
+                row.Destination = part.settlement.Tile.tileId;
                 rows.Add(row);
             }
             return rows;

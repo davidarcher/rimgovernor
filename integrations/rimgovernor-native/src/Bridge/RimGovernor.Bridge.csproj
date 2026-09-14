@@ -52,6 +52,7 @@
     <Compile Include="../../../../scripts/fixtures/InspectorFixture.cs" Condition="'$(InspectorFixture)' == 'true'" />
     <Compile Include="../../../../scripts/fixtures/ModalFixture.cs" Condition="'$(ModalFixture)' == 'true'" />
     <Compile Include="../../../../scripts/fixtures/CampaignMetricsFixture.cs" Condition="'$(CampaignMetricsFixture)' == 'true'" />
+    <Compile Include="../../../../scripts/fixtures/QuestFulfillFixture.cs" Condition="'$(QuestFulfillFixture)' == 'true'" />
     <ProjectReference Include="../Runtime/RimGovernor.Runtime.csproj"><Private>false</Private></ProjectReference>
     <PackageReference Include="Microsoft.NETFramework.ReferenceAssemblies.net472" Version="1.0.3" PrivateAssets="all" />
     <Reference Include="RimBridgeServer.Sdk"><HintPath>$(RimBridgeSdkDir)/RimBridgeServer.Sdk.dll</HintPath><Private>false</Private></Reference>
