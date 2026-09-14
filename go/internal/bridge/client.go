@@ -13,6 +13,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/davidarcher/RimGovernor/go/internal/flightrecorder"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 )
 
@@ -34,6 +35,10 @@ type ProcessConfig struct {
 	LogLevel   string
 	Timeout    time.Duration
 	Stderr     io.Writer
+	// Recorder, when set, durably records every native request/response/error
+	// including background reads, replacing controller/rimgovernor/flight_recorder.py.
+	// It is opt-in: a nil Recorder records nothing and costs nothing.
+	Recorder *flightrecorder.Recorder
 }
 
 // Result retains the complete MCP receipt at the transport boundary. Structured
@@ -116,6 +121,19 @@ type Client struct {
 	gameID     string
 	timeout    time.Duration
 	gate       chan struct{}
+
+	recorder         *flightrecorder.Recorder
+	recordingContext func() map[string]any
+}
+
+// SetRecordingContext installs a callback read once per recorded call and
+// attached to every flight-recorder row it produces, mirroring the Python
+// BridgeClient.recording_context hook (colony/plan/direction identity, not
+// authority). It has no effect when the Client has no Recorder.
+func (c *Client) SetRecordingContext(context func() map[string]any) {
+	c.mu.Lock()
+	c.recordingContext = context
+	c.mu.Unlock()
 }
 
 func Open(ctx context.Context, config ProcessConfig) (*Client, error) {
@@ -130,14 +148,14 @@ func Open(ctx context.Context, config ProcessConfig) (*Client, error) {
 	default:
 		return nil, fmt.Errorf("%w: invalid log level", ErrContract)
 	}
-	return open(ctx, config.GameID, config.Timeout, func() mcp.Transport {
+	return open(ctx, config.GameID, config.Timeout, config.Recorder, func() mcp.Transport {
 		cmd := exec.Command(config.Executable, "server", "stdio", "--configDir", config.ConfigDir, "--log-level", config.LogLevel)
 		cmd.Stderr = config.Stderr
 		return &mcp.CommandTransport{Command: cmd, TerminateDuration: time.Second}
 	})
 }
 
-func open(ctx context.Context, gameID string, timeout time.Duration, factory transportFactory) (*Client, error) {
+func open(ctx context.Context, gameID string, timeout time.Duration, recorder *flightrecorder.Recorder, factory transportFactory) (*Client, error) {
 	if gameID == "" || len(gameID) > 256 {
 		return nil, fmt.Errorf("%w: invalid game ID", ErrContract)
 	}
@@ -147,7 +165,7 @@ func open(ctx context.Context, gameID string, timeout time.Duration, factory tra
 	if timeout < time.Millisecond || timeout > 120*time.Second {
 		return nil, fmt.Errorf("%w: timeout outside 1ms..120s", ErrContract)
 	}
-	c := &Client{factory: factory, gameID: gameID, timeout: timeout, gate: make(chan struct{}, 1), lifecycle: make(chan struct{}, 1)}
+	c := &Client{factory: factory, gameID: gameID, timeout: timeout, gate: make(chan struct{}, 1), lifecycle: make(chan struct{}, 1), recorder: recorder}
 	if err := c.Reconnect(ctx); err != nil {
 		return nil, err
 	}
@@ -328,6 +346,25 @@ func (c *Client) operation(ctx context.Context, run func(context.Context, *liveS
 	return run(ctx, live)
 }
 
+// snapshotRecordingContext reads the installed recording-context callback (if
+// any) once per call and merges in any action/goal correlation the caller
+// attached to ctx via flightrecorder.WithAction.
+func (c *Client) snapshotRecordingContext(ctx context.Context) map[string]any {
+	c.mu.Lock()
+	callback := c.recordingContext
+	c.mu.Unlock()
+	merged := map[string]any{}
+	if callback != nil {
+		for k, v := range callback() {
+			merged[k] = v
+		}
+	}
+	for k, v := range flightrecorder.ActionFrom(ctx) {
+		merged[k] = v
+	}
+	return merged
+}
+
 func (c *Client) core(ctx context.Context, live *liveSession, name string, arguments json.RawMessage) (Result, error) {
 	found := false
 	for _, tool := range live.discovery.Tools {
@@ -339,15 +376,36 @@ func (c *Client) core(ctx context.Context, live *liveSession, name string, argum
 	if !found {
 		return Result{}, fmt.Errorf("%w: missing capability %s", ErrContract, name)
 	}
+	var recordCtx map[string]any
+	var request uint64
+	recording := c.recorder != nil
+	if recording {
+		recordCtx = c.snapshotRecordingContext(ctx)
+		request, _ = c.recorder.Event("native_request", recordCtx, true, map[string]any{"tool": name, "arguments": arguments})
+	}
 	result, err := live.sdk.CallTool(ctx, &mcp.CallToolParams{Name: name, Arguments: arguments})
 	raw, receiptErr := live.owner.connection.receipt()
 	if receiptErr != nil {
+		if recording {
+			c.recorder.Event("native_error", recordCtx, true, map[string]any{"request": request, "tool": name, "error": receiptErr.Error()})
+		}
 		return Result{}, receiptErr
 	}
 	if err != nil {
+		if recording {
+			c.recorder.Event("native_error", recordCtx, true, map[string]any{"request": request, "tool": name, "error": err.Error()})
+		}
 		return Result{}, fmt.Errorf("%w: %s: %w", ErrTransport, name, err)
 	}
-	return decodeReceipt(name, raw, result)
+	decoded, decodeErr := decodeReceipt(name, raw, result)
+	if recording {
+		if decodeErr != nil {
+			c.recorder.Event("native_error", recordCtx, true, map[string]any{"request": request, "tool": name, "error": decodeErr.Error()})
+		} else {
+			c.recorder.Event("native_response", recordCtx, false, map[string]any{"request": request, "tool": name, "result": decoded.Structured})
+		}
+	}
+	return decoded, decodeErr
 }
 
 func decodeResult(name string, result *mcp.CallToolResult) (Result, error) {
