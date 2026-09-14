@@ -208,8 +208,8 @@ func (s *Server) handlePlayer(w http.ResponseWriter, r *http.Request) bool {
 		return false
 	}
 	path := r.URL.Path
-	read := path == "/api/player/session" || path == "/api/player/control" || (path == "/api/buildings/submission" || path == "/api/drafts/submission") || path == "/api/player/clock" || path == "/api/player/world-evaluation" || path == "/api/player/work-preferences" || path == "/api/caravan-departures/submission" || path == "/api/quest-accepts/submission" || path == "/api/settlement-gifts/submission" || path == "/api/quest-fulfills/submission" || path == "/api/trades/submission" || path == "/api/zone-creates/submission" || path == "/api/zone-edits/submission" || path == "/api/research-selects/submission" || path == "/api/travel-caravans/submission" || path == "/api/player/population-policy" || path == "/api/player/population-policy/submission" || path == "/api/player/expedition-policy" || path == "/api/player/expedition-policy/submission"
-	write := path == "/api/drafts/plans" || path == "/api/buildings/plans" || path == "/api/player/control/acquire" || path == "/api/player/control/manual" || path == "/api/player/clock/acknowledge" || path == "/api/player/work-preferences/replace" || path == "/api/caravan-departures/plans" || path == "/api/quest-accepts/plans" || path == "/api/settlement-gifts/plans" || path == "/api/quest-fulfills/plans" || path == "/api/trades/plans" || path == "/api/zone-creates/plans" || path == "/api/zone-edits/plans" || path == "/api/research-selects/plans" || path == "/api/travel-caravans/plans" || path == "/api/player/population-policy/replace" || path == "/api/player/expedition-policy/update"
+	read := path == "/api/player/session" || path == "/api/player/control" || (path == "/api/buildings/submission" || path == "/api/drafts/submission") || path == "/api/player/clock" || path == "/api/player/world-evaluation" || path == "/api/player/work-preferences" || path == "/api/caravan-departures/submission" || path == "/api/quest-accepts/submission" || path == "/api/settlement-gifts/submission" || path == "/api/quest-fulfills/submission" || path == "/api/trades/submission" || path == "/api/zone-creates/submission" || path == "/api/zone-edits/submission" || path == "/api/research-selects/submission" || path == "/api/travel-caravans/submission" || path == "/api/player/population-policy" || path == "/api/player/population-policy/submission" || path == "/api/player/expedition-policy" || path == "/api/player/expedition-policy/submission" || path == "/api/player/population-decision" || path == "/api/player/population-decision/submission"
+	write := path == "/api/drafts/plans" || path == "/api/buildings/plans" || path == "/api/player/control/acquire" || path == "/api/player/control/manual" || path == "/api/player/clock/acknowledge" || path == "/api/player/work-preferences/replace" || path == "/api/caravan-departures/plans" || path == "/api/quest-accepts/plans" || path == "/api/settlement-gifts/plans" || path == "/api/quest-fulfills/plans" || path == "/api/trades/plans" || path == "/api/zone-creates/plans" || path == "/api/zone-edits/plans" || path == "/api/research-selects/plans" || path == "/api/travel-caravans/plans" || path == "/api/player/population-policy/replace" || path == "/api/player/expedition-policy/update" || path == "/api/player/population-decision/replace"
 	if !read && !write {
 		return false
 	}
@@ -262,6 +262,10 @@ func (s *Server) handlePlayer(w http.ResponseWriter, r *http.Request) bool {
 	}
 	if strings.HasPrefix(path, "/api/player/expedition-policy") {
 		s.handleExpeditionPolicy(ctx, w, r, query, path)
+		return true
+	}
+	if strings.HasPrefix(path, "/api/player/population-decision") {
+		s.handlePopulationDecision(ctx, w, r, query, path)
 		return true
 	}
 	if path == "/api/player/clock" || path == "/api/player/clock/acknowledge" {

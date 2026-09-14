@@ -577,3 +577,32 @@ func TestModelSetExpeditionPolicyShape(t *testing.T) {
 		})
 	}
 }
+
+func TestModelSetPopulationDecisionShape(t *testing.T) {
+	ok, err := decode(`{"command":"set_population_decision","pawn":"Thing_A","decision":"rescue"}`, 1)
+	if err != nil || ok.Command != "set_population_decision" || ok.Pawn == nil || *ok.Pawn != "Thing_A" || ok.Decision == nil || *ok.Decision != "rescue" {
+		t.Fatalf("set_population_decision shape: %v %v", ok, err)
+	}
+	// Decoding bounds only the shape: the decision vocabulary belongs to
+	// domain and the pawn is bounded against facts by the interpreter.
+	unknown, err := decode(`{"command":"set_population_decision","pawn":"Thing_A","decision":"release"}`, 1)
+	if err != nil || unknown.Decision == nil || *unknown.Decision != "release" {
+		t.Fatalf("unsupported decisions decode here and are refused later: %v %v", unknown, err)
+	}
+	for _, text := range []string{
+		`{"command":"set_population_decision"}`,
+		`{"command":"set_population_decision","pawn":"Thing_A"}`,
+		`{"command":"set_population_decision","decision":"rescue"}`,
+		`{"command":"set_population_decision","pawn":null,"decision":"rescue"}`,
+		`{"command":"set_population_decision","pawn":"Thing_A","decision":null}`,
+		`{"command":"set_population_decision","pawn":"","decision":"rescue"}`,
+		`{"command":"set_population_decision","pawn":"Thing_A","decision":""}`,
+		`{"command":"set_population_decision","pawn":"Thing_A","decision":1}`,
+		`{"command":"set_population_decision","pawn":"Thing_A","decision":"rescue","maximum":12}`,
+	} {
+		t.Run(text, func(t *testing.T) {
+			_, err := decode(text, 1)
+			assertKind(t, err, InvalidCommand)
+		})
+	}
+}

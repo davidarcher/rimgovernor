@@ -108,7 +108,8 @@ confirm the packaging path is wired correctly, not that a colony runs.
   service, bed assignment, movement, building temperature, surgery, quest
   accept/fulfill, settlement gift, zone creation, zone edit (add/remove
   cells, delete; crop/filter edits are deferred pending SettingsField zone
-  evidence coverage), population policy and expedition policy proposals, but
+  evidence coverage), population policy, expedition policy and per-pawn
+  population decision proposals, but
   is not yet wired into the Go binary's serve loop) — G01.08.
   `set_population_policy` is the first interpreted command that is colony
   configuration rather than a plan of native actions: it issues no native
@@ -140,6 +141,25 @@ confirm the packaging path is wired correctly, not that a colony runs.
   `policy.WorldEvaluationPolicy`, which stay hardcoded read-only subsets
   consumed by internal admission/evaluation functions; making those read
   this store is a separate refactor.
+  `set_population_decision` is the third record-only command and the first
+  that names an observed entity: one player-sourced direction per pawn
+  (`rescue`, `capture`, `recruit` or `ignore`), Python's per-pawn
+  `ColonyGoal(source='PLAYER', …)` keyed by `population.goal_id(pawn)`. The
+  pawn is bounded against `Snapshot.Pawns` like draft/tend/rescue;
+  `store.SubmitPopulationDecision` keeps request-ID replay safety plus one
+  current directive per colony/load/map/pawn, and requires an established
+  population policy for the three custody decisions (reporting `ErrNotFound`
+  otherwise) while `ignore` never does, matching the Python handler —
+  `POST /api/player/population-decision/replace`,
+  `GET /api/player/population-decision?colonyId=&loadToken=&mapId=` and
+  `GET /api/player/population-decision/submission?requestId=`.
+  It carries no `domain.Action` on purpose: rescue and capture already have
+  one-shot player commands (`rescue`) and their own autopilot upkeep
+  (`policy.CustodyDeficit`/`SelectCustodyMethod` dispatched by
+  `buildingruntime.RoutinePopulationCustodyPlanner`), and recruitment has
+  `RoutinePrisonerInteractionPlanner`. Teaching that autopilot custody
+  selection to prefer or suppress individuals named here is a separate,
+  behaviour-changing slice.
 - Media/camera/portrait/video/recording and trusted save/load — G01.09.
 - World progression remaining scope: closed, except the documented
   `SetTradeLines`/`AcceptTrade`/`EndTrade` acceptance-harness gap below —

@@ -1491,3 +1491,43 @@ func TestSetExpeditionPolicyRefusesOutOfRangeValues(t *testing.T) {
 		})
 	}
 }
+
+// A per-pawn population decision proposes no actions either, but unlike the
+// two policies it names an individual, so the pawn is bounded against facts.
+func TestSetPopulationDecisionProposalCarriesNoPlan(t *testing.T) {
+	response := func(context.Context, model.Request) (model.Response, error) {
+		return model.Response{Text: `{"command":"set_population_decision","pawn":"Thing_A","decision":"capture"}`, FinishReason: model.Stop}, nil
+	}
+	input := inputFixture()
+	input.Facts.Pawns = []domain.PawnID{"Thing_A", "Thing_B"}
+	proposal, err := clientFixture(t, response).Interpret(context.Background(), input)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !proposal.PopulationDecision.Set() || proposal.PopulationDecision.Pawn() != "Thing_A" ||
+		proposal.PopulationDecision.Decision() != domain.PopulationCapture {
+		t.Fatal("incorrect typed population decision proposal", proposal.PopulationDecision)
+	}
+	if len(proposal.Plan.Actions()) != 0 || proposal.PopulationPolicy.Set() || !proposal.ExpeditionPolicy.Empty() {
+		t.Fatal("a population decision must propose no actions and no policy")
+	}
+	if proposal.Generation != input.Current {
+		t.Fatal("population decision must resolve against the input generation")
+	}
+}
+
+func TestSetPopulationDecisionBoundsPawnAndDecision(t *testing.T) {
+	input := inputFixture()
+	input.Facts.Pawns = []domain.PawnID{"Thing_A"}
+	unknown := func(context.Context, model.Request) (model.Response, error) {
+		return model.Response{Text: `{"command":"set_population_decision","pawn":"Thing_Missing","decision":"rescue"}`, FinishReason: model.Stop}, nil
+	}
+	_, err := clientFixture(t, unknown).Interpret(context.Background(), input)
+	assertKind(t, err, UnknownFacts)
+
+	unsupported := func(context.Context, model.Request) (model.Response, error) {
+		return model.Response{Text: `{"command":"set_population_decision","pawn":"Thing_A","decision":"release"}`, FinishReason: model.Stop}, nil
+	}
+	_, err = clientFixture(t, unsupported).Interpret(context.Background(), input)
+	assertKind(t, err, InvalidCommand)
+}

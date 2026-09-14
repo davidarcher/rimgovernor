@@ -102,6 +102,11 @@ type modelCommand struct {
 	// a partial patch, so absence is meaningful and the field stays nil when
 	// the command is something else.
 	ExpeditionPolicy *modelExpeditionPolicy
+	// Decision holds set_population_decision's requested per-pawn direction
+	// ("rescue", "capture", "recruit" or "ignore"); the named individual
+	// reuses Pawn and must be an observed pawn, so unlike the two policy
+	// commands this one is bounded against supplied facts.
+	Decision *string
 }
 
 // modelExpeditionPolicy is an untrusted partial expedition policy request.
@@ -185,8 +190,10 @@ func decode(text string, limit int) (modelCommand, error) {
 		return decodeSetPopulationPolicy(fields)
 	case "set_expedition_policy":
 		return decodeSetExpeditionPolicy(fields)
+	case "set_population_decision":
+		return decodeSetPopulationDecision(fields)
 	default:
-		return modelCommand{}, fail(UnsupportedCommand, "only building, research, tend, rescue, draft, caravan, husbandry, recover, bed_assign, move_pawn, set_building_temperature, request_surgery, hold_caravan, route_caravan, accept_quest, fulfill_quest, gift_settlement, create_zone, edit_zone, set_population_policy and set_expedition_policy proposals are supported")
+		return modelCommand{}, fail(UnsupportedCommand, "only building, research, tend, rescue, draft, caravan, husbandry, recover, bed_assign, move_pawn, set_building_temperature, request_surgery, hold_caravan, route_caravan, accept_quest, fulfill_quest, gift_settlement, create_zone, edit_zone, set_population_policy, set_expedition_policy and set_population_decision proposals are supported")
 	}
 }
 
@@ -455,6 +462,25 @@ func decodeSetPopulationPolicy(fields map[string]json.RawMessage) (modelCommand,
 		return modelCommand{}, fail(InvalidCommand, "invalid foodDays field")
 	}
 	return modelCommand{Command: "set_population_policy", Maximum: &maximum, FoodDays: &foodDays}, nil
+}
+
+// decodeSetPopulationDecision reads the pawn and direction a per-pawn
+// population decision names. The decision vocabulary itself belongs to
+// domain.NewPopulationDirective and the pawn is bounded against supplied
+// facts by the interpreter; this only rejects the wrong shape.
+func decodeSetPopulationDecision(fields map[string]json.RawMessage) (modelCommand, error) {
+	if len(fields) != 3 || fields["pawn"] == nil || fields["decision"] == nil {
+		return modelCommand{}, fail(InvalidCommand, "unexpected command fields")
+	}
+	var pawn string
+	if err := json.Unmarshal(fields["pawn"], &pawn); err != nil || pawn == "" {
+		return modelCommand{}, fail(InvalidCommand, "invalid pawn field")
+	}
+	var decision string
+	if err := json.Unmarshal(fields["decision"], &decision); err != nil || decision == "" {
+		return modelCommand{}, fail(InvalidCommand, "invalid decision field")
+	}
+	return modelCommand{Command: "set_population_decision", Pawn: &pawn, Decision: &decision}, nil
 }
 
 // optionalCommandField turns a decoded partial-request pointer into the
