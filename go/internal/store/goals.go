@@ -26,7 +26,9 @@ func initializeGoals(ctx context.Context, tx *sql.Tx) error {
 	_, err := tx.ExecContext(ctx, `CREATE TABLE goals(id TEXT PRIMARY KEY, revision TEXT NOT NULL, payload BLOB NOT NULL, retired INTEGER NOT NULL DEFAULT 0 CHECK(retired IN (0,1))) STRICT;
 CREATE INDEX active_goals ON goals(id) WHERE retired=0;
 CREATE TABLE goal_methods(goal_id TEXT NOT NULL REFERENCES goals(id), epoch TEXT NOT NULL, method_id TEXT NOT NULL, plan_id TEXT NOT NULL UNIQUE REFERENCES plans(id), PRIMARY KEY(goal_id,epoch,method_id)) STRICT;
-CREATE TABLE routine_review(singleton INTEGER PRIMARY KEY CHECK(singleton=1), payload BLOB NOT NULL) STRICT;`)
+CREATE TABLE routine_review(singleton INTEGER PRIMARY KEY CHECK(singleton=1), payload BLOB NOT NULL) STRICT;
+CREATE TABLE goal_create_submissions(request_id TEXT PRIMARY KEY, colony TEXT NOT NULL, load_token TEXT NOT NULL, map_id INTEGER NOT NULL, kind TEXT NOT NULL, goal_id TEXT NOT NULL REFERENCES goals(id), payload BLOB NOT NULL) STRICT;
+CREATE TABLE player_goals(colony TEXT NOT NULL, load_token TEXT NOT NULL, map_id INTEGER NOT NULL, kind TEXT NOT NULL, request_id TEXT NOT NULL REFERENCES goal_create_submissions(request_id), goal_id TEXT NOT NULL REFERENCES goals(id), PRIMARY KEY(colony,load_token,map_id,kind)) STRICT;`)
 	return err
 }
 
@@ -320,6 +322,22 @@ func (s *Store) CancelGoal(ctx context.Context, id domain.GoalID, revision uint6
 	if err != nil {
 		return GoalState{}, err
 	}
+	out, err := cancelGoalState(ctx, tx, state, revision)
+	if err != nil {
+		return GoalState{}, err
+	}
+	if err = tx.Commit(); err != nil {
+		return GoalState{}, err
+	}
+	return out, nil
+}
+
+// cancelGoalState is the shared cancellation body: CAS on the local revision,
+// cancel the goal's captured work through the ordinary progress journal, and
+// record the cancellation. CancelGoal and the player-facing CancelPlayerGoal
+// both go through exactly this, so the player path adds a world bound and a
+// reachable entry point, never different cancellation semantics.
+func cancelGoalState(ctx context.Context, tx *sql.Tx, state GoalState, revision uint64) (GoalState, error) {
 	if state.Revision != revision {
 		return GoalState{}, ErrConflict
 	}
@@ -330,14 +348,7 @@ func (s *Store) CancelGoal(ctx context.Context, id domain.GoalID, revision uint6
 	if err = cancelGoalMethods(ctx, tx, state); err != nil {
 		return GoalState{}, err
 	}
-	out, err := saveGoal(ctx, tx, state, g)
-	if err != nil {
-		return GoalState{}, err
-	}
-	if err = tx.Commit(); err != nil {
-		return GoalState{}, err
-	}
-	return out, nil
+	return saveGoal(ctx, tx, state, g)
 }
 
 func cancelGoalMethods(ctx context.Context, tx *sql.Tx, state GoalState) error {

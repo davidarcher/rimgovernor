@@ -109,8 +109,9 @@ confirm the packaging path is wired correctly, not that a colony runs.
   accept/fulfill, settlement gift, zone creation, zone edit (add/remove
   cells, delete; crop/filter edits are deferred pending SettingsField zone
   evidence coverage), population policy, expedition policy, per-pawn
-  population decision and per-resource production policy
-  (`modify_resource_policy`/`set_resource_reserve`) proposals, but
+  population decision, per-resource production policy
+  (`modify_resource_policy`/`set_resource_reserve`) and maintained goal
+  activation/cancellation (`create_goal`/`cancel_goal`) proposals, but
   is not yet wired into the Go binary's serve loop) — G01.08.
   `set_population_policy` is the first interpreted command that is colony
   configuration rather than a plan of native actions: it issues no native
@@ -193,6 +194,50 @@ confirm the packaging path is wired correctly, not that a colony runs.
   source of floors (outstanding construction-bundle costs from
   `plan.control['costs']`, sent as `commitments`) stays unported, the same
   disclosed narrowing `policy.ProductionFloors` already carries.
+  `create_goal` and `cancel_goal` add no goal machinery at all; they make the
+  machinery that already exists reachable from a player path. Every kind
+  Python's `CreateGoal` whitelists is already an autopilot-managed goal with
+  fixed `policy.GoalID` constants and deterministic deficit assessment
+  (`policy.DetectRoutine`), and `domain.Goal` already carried a `PlayerGoal`
+  source. So activation is exactly: create (or reuse) a player-sourced
+  `domain.Goal` for that kind and review it at `NeedDeficit` — explicit player
+  direction *is* the deficit assertion, overriding what the autopilot's own
+  review currently observes. `store.SubmitGoalCreate` keeps request-ID replay
+  safety plus one goal identity per colony/load/map/kind. Reusing a live goal
+  lets `domain.ReviewGoal`'s own epoch rule do what Python's
+  `reopen_methods`/`attempts` does; a cancelled or invalidated goal is never
+  resurrected (cancellation is terminal in `ReviewGoal`), so the binding moves
+  to a fresh identity and the superseded goal keeps its history. Nothing about
+  the autopilot's lifecycle is widened: `admitRoutineDevelopment` already
+  exempted non-autopilot goals from the development arbitration gate,
+  `routineCommitments` already counted `PlayerGoal` open work against the
+  autopilot's concurrent-project capacity, and `retireRoutineGoals` only ever
+  retires invalidated autopilot goals. `cancel_goal` calls the unchanged
+  `store.CancelGoal` body through `CancelPlayerGoal`, which adds a world bound
+  and the same local CAS revision — method cancellation and progress-journal
+  cancellation are untouched. Python's fuzzy `resolve_goal_id` is deliberately
+  **not** ported: the identity is bounded against `Snapshot.ObservedGoals`
+  exactly as `edit_zone` bounds its `zoneId`, so a prefix or a kind name is
+  refused rather than guessed —
+  `POST /api/player/goals/activate`, `POST /api/player/goals/cancel`,
+  `GET /api/player/goals?colonyId=&loadToken=&mapId=` and
+  `GET /api/player/goals/submission?requestId=`.
+  **Deferred, deliberately:** Python's per-goal `target` configuration —
+  `EnsureFoodSupply`'s `food_days`, `MaintainResource`'s
+  `resource`/`quantity`/`deep_extraction` and `MaintainWaste`'s
+  `unwanted`/`bury`. `domain.Goal` has no free-form target dict, and the Go
+  equivalents of these values (`policy.RoutinePolicy`'s
+  `FoodTargetDays`/`FoodMinDays` and `ResourceTargets`) are process-level
+  operator CLI flags captured once when `NewRoutineReviewer` is constructed,
+  not per-world stored state; `MaintainWaste` has no Go target at all, because
+  native authority owns waste eligibility (`policy.WasteItem.Eligible`).
+  Making any of them player-settable means converting `RoutinePolicy` from
+  immutable process config into per-world stored config the routine review
+  re-reads each pass — a change to the autopilot's own configuration model
+  larger than this command, and one autopilot does not consume from the store
+  today. `MaintainWaste` also still has no composed dispatch method (G01.07e);
+  activating it makes the goal visible and player-sourced, not dispatchable.
+  Both gaps are separately tracked.
 - Media/camera/portrait/video/recording and trusted save/load — G01.09.
 - World progression remaining scope: closed, except the documented
   `SetTradeLines`/`AcceptTrade`/`EndTrade` acceptance-harness gap below —
