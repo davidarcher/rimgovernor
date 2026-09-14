@@ -6,6 +6,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"os"
 	"time"
 
@@ -284,6 +285,18 @@ func NewClockScheduler(player *Player, session *Session, native ClockWindowNativ
 	return &ClockScheduler{player: player, session: session, native: native, config: config, clock: clock, pollGate: make(chan struct{}, 1), renewGate: make(chan struct{}, 1)}, nil
 }
 
+var clockSchedulerDebug = os.Getenv("RIMGOVERNOR_CLOCK_DEBUG") != ""
+
+// clockSchedulerLog is a TEMPORARY diagnostic aid (RIMGOVERNOR_CLOCK_DEBUG=1)
+// for tracing which Step() branch is taken; added while root-causing the
+// clock-restart-cadence gap surfaced by G01.07b's RoutineHaulPlanner
+// acceptance work (see follow-up issue for MaintainStorage haul completion).
+func clockSchedulerLog(format string, args ...any) {
+	if clockSchedulerDebug {
+		fmt.Fprintf(os.Stderr, "[clock-scheduler] "+format+"\n", args...)
+	}
+}
+
 // Step performs at most one scheduling decision. It never acquires authority,
 // renews an epoch, acknowledges events, or starts a background loop.
 func (s *ClockScheduler) Step(ctx context.Context) (ClockSchedulerResult, error) {
@@ -354,6 +367,7 @@ func (s *ClockScheduler) Step(ctx context.Context) (ClockSchedulerResult, error)
 	if status.Context.GetTick() < loaded.Context.GetTick() {
 		return out, errors.Join(executor.ErrEvidence, s.session.Disable())
 	}
+	clockSchedulerLog("status: running=%v stopping=%v stopped=%v neverStarted=%v tick=%d", status.GetRunning() != nil, status.GetStopping() != nil, status.GetStopped() != nil, status.GetNeverStarted() != nil, status.Context.GetTick())
 	if status.GetRunning() != nil || status.GetStopping() != nil {
 		var actual *k.Epoch
 		if status.GetRunning() != nil {
@@ -379,10 +393,12 @@ func (s *ClockScheduler) Step(ctx context.Context) (ClockSchedulerResult, error)
 			return out, executor.ErrHeld
 		}
 		out.Running = true
+		clockSchedulerLog("clock already running under our own epoch -> skip planners this tick")
 		return out, nil
 	}
 	if obligations {
 		out.Cleaned = true
+		clockSchedulerLog("obligations present, not running -> cleanup")
 		return out, s.session.CleanupClock(call)
 	}
 	if !state.Enabled {
@@ -391,6 +407,7 @@ func (s *ClockScheduler) Step(ctx context.Context) (ClockSchedulerResult, error)
 	if err = s.player.current(call, epoch); err != nil {
 		return out, err
 	}
+	clockSchedulerLog("reached stepPlanners")
 	if err = s.stepPlanners(call, epoch, &out); err != nil {
 		return out, err
 	}
@@ -434,6 +451,7 @@ func (s *ClockScheduler) Step(ctx context.Context) (ClockSchedulerResult, error)
 		if err != nil {
 			return out, err
 		}
+		clockSchedulerLog("Haul.step result: reason=%v plan=%s", method.Reason, method.Plan)
 		out.Haul = &method
 	}
 	if s.config.Gear != nil {
@@ -605,6 +623,7 @@ func (s *ClockScheduler) Step(ctx context.Context) (ClockSchedulerResult, error)
 		facts.Status.NewestCursor = domain.Known(status.GetNewestCursor())
 	}
 	out.Decision = policy.EvaluateClockWindow(facts, policy.ClockWindowLimits{Now: s.clock.Now(), MaxAge: s.config.MaxAge, MaxTicks: start.MaxTicks})
+	clockSchedulerLog("EvaluateClockWindow: work=%v admitted=%v refused=%v", work, out.Decision.Admitted, out.Decision.Refused)
 	if !out.Decision.Admitted {
 		return out, executor.ErrHeld
 	}
