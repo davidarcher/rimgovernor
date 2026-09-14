@@ -29,7 +29,8 @@ func routineExecutableKind(kind domain.ActionKind) bool {
 		domain.SupplyAllowAction, domain.WorkAssignmentAction, domain.AcquisitionAction, domain.ZoneCreateAction,
 		domain.ProductionBillAction, domain.TendAction, domain.RescueAction, domain.CaptureAction, domain.HaulAction, domain.EquipAction,
 		domain.GearReplaceAction, domain.RecoveryServiceAction, domain.BedAssignAction, domain.HusbandryAction,
-		domain.PrisonerInteractionAction, domain.RepairAction, domain.CleanAction, domain.MineAcquisitionAction:
+		domain.PrisonerInteractionAction, domain.RepairAction, domain.CleanAction, domain.MineAcquisitionAction,
+		domain.ProductionPolicyAction:
 		return true
 	default:
 		return false

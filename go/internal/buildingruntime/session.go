@@ -60,6 +60,7 @@ type SessionConfig struct {
 	SettlementGift      *SettlementGiftCapabilities
 	QuestFulfill        *QuestFulfillCapabilities
 	MineAcquisition     *mineacquisition.MineAcquisitionCapabilities
+	ProductionPolicy    *ProductionPolicyCapabilities
 }
 
 // Session binds the single profile owner to one journal and executor. Its caller
@@ -337,6 +338,9 @@ func NewSession(ctx context.Context, config SessionConfig, journal *store.Store,
 	if config.MineAcquisition != nil && (config.MineAcquisition.Native == nil || config.MineAcquisition.Writer == nil) {
 		return cleanup(ErrControl)
 	}
+	if config.ProductionPolicy != nil && (config.ProductionPolicy.Native == nil || config.ProductionPolicy.Writer == nil) {
+		return cleanup(ErrControl)
+	}
 	var routine []executor.RoutineScope
 	if config.RoutineMethods {
 		routine = append(routine, journal)
@@ -392,6 +396,11 @@ func NewSession(ctx context.Context, config SessionConfig, journal *store.Store,
 	}
 	if config.ResearchSelect != nil {
 		if err := worker.EnableResearchSelect(&researchSelectBoundary{Boundary: place, research: *config.ResearchSelect}); err != nil {
+			return cleanup(err)
+		}
+	}
+	if config.ProductionPolicy != nil {
+		if err := worker.EnableProductionPolicy(&productionPolicyBoundary{Boundary: place, production: *config.ProductionPolicy}); err != nil {
 			return cleanup(err)
 		}
 	}

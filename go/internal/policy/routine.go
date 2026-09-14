@@ -29,6 +29,7 @@ const (
 	MaintainEquipment       GoalID = "MaintainEquipment"
 	EnsureResearch          GoalID = "EnsureResearch"
 	MaintainResource        GoalID = "MaintainResource"
+	ProductionPolicy        GoalID = "ProductionPolicy"
 )
 
 type RoutinePolicy struct {
@@ -61,9 +62,11 @@ type RoutinePolicy struct {
 	// ProductionFloors, mirroring production_policy.py's plan.control
 	// resource_policy reserve/spending-stopped configuration. Unlike
 	// ResourceTargets (which drives MaintainResource's own goal/method
-	// selection), these have no dispatch vertical yet: ProductionFloors is a
-	// tested pure primitive with no caller, pending the native
-	// SetProductionPolicy operation category -- see docs/BACKLOG.md 05.5.
+	// selection), these drive the ProductionPolicy goal's own config-only
+	// posture: RoutineProductionPolicyPlanner dispatches ProductionFloors's
+	// computed floors/stopped rows through the native SetProductionPolicy
+	// write whenever they diverge from a fresh ReadProductionPolicy -- see
+	// docs/BACKLOG.md 05.5.
 	ResourceReserves map[Resource]int64
 	StoppedResources []Resource
 }
@@ -523,6 +526,18 @@ func DetectRoutine(f RoutineFacts, previous RoutineLatches, p RoutinePolicy) (Ro
 		addGoal(MaintainResource, 4)
 	}
 	addAssessment(MaintainResource, 4, resourceRecovered)
+	// ProductionPolicy stays config-only, the same posture as EnsureResearch
+	// and MaintainResource above: recovered/deficit state is not derived
+	// from a review-time native census (RoutineFacts carries none), only
+	// from whether an operator declared any ResourceReserves/StoppedResources
+	// at all. RoutineProductionPolicyPlanner performs its own fresh
+	// ReadProductionPolicy and policy.ProductionFloors comparison immediately
+	// before proposing a method.
+	productionPolicyRecovered := domain.Known(len(p.ResourceReserves) == 0 && len(p.StoppedResources) == 0)
+	if !positive(productionPolicyRecovered) {
+		addGoal(ProductionPolicy, 4)
+	}
+	addAssessment(ProductionPolicy, 4, productionPolicyRecovered)
 	for _, n := range upkeep.Needs {
 		recovered := domain.Unknown[bool]()
 		if _, known := n.Targets.Value(); known {

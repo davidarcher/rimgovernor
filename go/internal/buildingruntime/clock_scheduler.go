@@ -62,6 +62,7 @@ type ClockSchedulerConfig struct {
 	PopulationCustody                *RoutinePopulationCustodyPlanner
 	Research                         *RoutineResearchPlanner
 	Resource                         *RoutineResourcePlanner
+	ProductionPolicy                 *RoutineProductionPolicyPlanner
 	CaravanJourney                   *CaravanJourneyTracker
 	HomeCoverage                     *RoutineHomeCoveragePlanner
 	StoneShell                       *RoutineStoneShellPlanner
@@ -100,6 +101,7 @@ type ClockSchedulerResult struct {
 	PopulationCustody                             *RoutinePopulationCustodyResult
 	Research                                      *RoutineResearchResult
 	Resource                                      *RoutineResourceResult
+	ProductionPolicy                              *RoutineProductionPolicyResult
 	CaravanJourney                                *CaravanJourneyResult
 	HomeCoverage                                  *RoutineHomeCoverageResult
 	StoneShell                                    *RoutineStoneShellResult
@@ -222,6 +224,9 @@ func NewClockScheduler(player *Player, session *Session, native ClockWindowNativ
 		return nil, ErrControl
 	}
 	if config.StoneShell != nil && (config.Routine == nil || config.StoneShell.reviewer != config.Routine) {
+		return nil, ErrControl
+	}
+	if config.ProductionPolicy != nil && (config.Routine == nil || config.ProductionPolicy.reviewer != config.Routine) {
 		return nil, ErrControl
 	}
 	if config.RoutineMethods && (config.Routine == nil || !session.routineMethods) {
@@ -452,6 +457,13 @@ func (s *ClockScheduler) Step(ctx context.Context) (ClockSchedulerResult, error)
 			return out, err
 		}
 		out.Resource = &method
+	}
+	if s.config.ProductionPolicy != nil {
+		method, err := s.config.ProductionPolicy.step(call, epoch)
+		if err != nil {
+			return out, err
+		}
+		out.ProductionPolicy = &method
 	}
 	if s.config.CaravanJourney != nil {
 		method, err := s.config.CaravanJourney.step(call, epoch)
@@ -780,7 +792,7 @@ func clockSchedulerWork(plan store.PlanState, current domain.GenerationSnapshot)
 				domain.MeleeAttackAction, domain.RangedAttackAction, domain.TendAction, domain.RescueAction, domain.CaptureAction,
 				domain.HaulAction, domain.EquipAction, domain.GearReplaceAction, domain.RecoveryServiceAction,
 				domain.BedAssignAction, domain.HusbandryAction, domain.PrisonerInteractionAction,
-				domain.RepairAction, domain.CleanAction, domain.MineAcquisitionAction:
+				domain.RepairAction, domain.CleanAction, domain.MineAcquisitionAction, domain.ProductionPolicyAction:
 			default:
 				return false, nil, executor.ErrHeld
 			}

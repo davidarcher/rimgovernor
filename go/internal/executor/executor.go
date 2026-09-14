@@ -153,6 +153,8 @@ type Executor struct {
 	questFulfillJournal        QuestFulfillJournal
 	mineAcquisition            AcquisitionBoundary
 	mineAcquisitionJournal     MineAcquisitionJournal
+	productionPolicy           ProductionPolicyBoundary
+	productionPolicyJournal    ProductionPolicyJournal
 	ranged                     RangedBoundary
 	rangedJournal              RangedJournal
 	routineScope               RoutineScope
@@ -405,6 +407,9 @@ func (e *Executor) Run(ctx context.Context, plan domain.PlanID, actionID domain.
 	}
 	if action.Kind() == domain.MineAcquisitionAction && e.mineAcquisition != nil {
 		return e.runMineAcquisition(ctx, action, progress, authority, generation)
+	}
+	if action.Kind() == domain.ProductionPolicyAction && e.productionPolicy != nil {
+		return e.runProductionPolicy(ctx, action, progress, authority, generation)
 	}
 	if action.Kind() != domain.BuildingAction {
 		return Result{}, errors.New("missing or unsupported building action")

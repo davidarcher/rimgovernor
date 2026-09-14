@@ -65,6 +65,9 @@ type serveConfig struct {
 	routineResearchTarget           string
 	routineResourcePlans            bool
 	routineResourceTargets          resourceTargetFlags
+	routineProductionPolicyPlans    bool
+	routineResourceReserves         resourceReserveFlags
+	routineStoppedResources         stoppedResourceFlags
 	routineMethods                  bool
 	routineProjectLimit             int
 	caravanJourneyTracking          bool
@@ -113,6 +116,9 @@ func parseServe(args []string, diagnostics io.Writer) (serveConfig, error) {
 	flags.StringVar(&c.routineResearchTarget, "routine-research-target", "", "operator-declared native ResearchProjectDef name EnsureResearch's routine planner selects prerequisite-ordered toward, once no research project is already current")
 	flags.BoolVar(&c.routineResourcePlans, "routine-resource-plans", false, "compile MaintainResource bench/recipe replenishment bill selection into shared plans")
 	flags.Var(&c.routineResourceTargets, "routine-resource-target", "repeatable RESOURCE:TARGET native stock floor MaintainResource's dynamic-target selection dispatches a production bill toward")
+	flags.BoolVar(&c.routineProductionPolicyPlans, "routine-production-policy-plans", false, "compile ProductionPolicy resource floor/stop replacement into shared plans")
+	flags.Var(&c.routineResourceReserves, "routine-resource-reserve", "repeatable RESOURCE:FLOOR native stock floor ProductionPolicy's routine planner replaces into the current native production policy")
+	flags.Var(&c.routineStoppedResources, "routine-resource-stop", "repeatable RESOURCE name ProductionPolicy's routine planner keeps stopped in the current native production policy")
 	flags.BoolVar(&c.routineMethods, "routine-methods", false, "execute reviewed routine building methods under the current player direction")
 	flags.BoolVar(&c.caravanJourneyTracking, "caravan-journey-tracking", false, "poll world progression each clock step and resolve tracked caravans that have returned home")
 	flags.Var(&c.resourceRules, "resource-rule", "repeatable RESOURCE:allow|stop|defense_only:RESERVE for building admission and dispatch")
@@ -148,21 +154,24 @@ func parseServe(args []string, diagnostics io.Writer) (serveConfig, error) {
 	if c.caravanJourneyTracking && !c.clockControl {
 		return c, errors.New("--caravan-journey-tracking requires --clock-control")
 	}
-	if (c.routineBillPlans || c.routineFieldPlans || c.routineFoodStoragePlans || c.routineAcquisitionPlans || c.routineWorkPlans || c.routineSupplyPlans || c.routineSleepingPlans || c.routineCookingPlans || c.routineShelterPlans || c.routineComfortPlans || c.routineExpansionPlans || c.routinePowerPlans || c.routineTemperaturePlans || c.routineDefensePlans || c.routineTendPlans || c.routineRescuePlans || c.routineEquipPlans || c.routineSecureSuppliesPlans || c.routineRepairPlans || c.routineCleanPlans || c.routineGearPlans || c.routineMedicalPlans || c.routineAnimalContainmentPlans || c.routineRecoveryPlans || c.routineHusbandryPlans || c.routinePrisonerInteractionPlans || c.routinePopulationCustodyPlans || c.routineHomeCoveragePlans || c.routineStoneShellPlans || c.routineResearchTarget != "" || c.routineResourcePlans) && !c.routineReviews {
+	if (c.routineBillPlans || c.routineFieldPlans || c.routineFoodStoragePlans || c.routineAcquisitionPlans || c.routineWorkPlans || c.routineSupplyPlans || c.routineSleepingPlans || c.routineCookingPlans || c.routineShelterPlans || c.routineComfortPlans || c.routineExpansionPlans || c.routinePowerPlans || c.routineTemperaturePlans || c.routineDefensePlans || c.routineTendPlans || c.routineRescuePlans || c.routineEquipPlans || c.routineSecureSuppliesPlans || c.routineRepairPlans || c.routineCleanPlans || c.routineGearPlans || c.routineMedicalPlans || c.routineAnimalContainmentPlans || c.routineRecoveryPlans || c.routineHusbandryPlans || c.routinePrisonerInteractionPlans || c.routinePopulationCustodyPlans || c.routineHomeCoveragePlans || c.routineStoneShellPlans || c.routineResearchTarget != "" || c.routineResourcePlans || c.routineProductionPolicyPlans) && !c.routineReviews {
 		return c, errors.New("routine building plans require --routine-reviews")
 	}
-	if c.routineMethods && !c.routineBillPlans && !c.routineFieldPlans && !c.routineFoodStoragePlans && !c.routineAcquisitionPlans && !c.routineWorkPlans && !c.routineSupplyPlans && !c.routineSleepingPlans && !c.routineCookingPlans && !c.routineShelterPlans && !c.routineComfortPlans && !c.routineExpansionPlans && !c.routinePowerPlans && !c.routineTemperaturePlans && !c.routineDefensePlans && !c.routineTendPlans && !c.routineRescuePlans && !c.routineEquipPlans && !c.routineSecureSuppliesPlans && !c.routineRepairPlans && !c.routineCleanPlans && !c.routineGearPlans && !c.routineMedicalPlans && !c.routineAnimalContainmentPlans && !c.routineRecoveryPlans && !c.routineHusbandryPlans && !c.routinePrisonerInteractionPlans && !c.routinePopulationCustodyPlans && !c.routineHomeCoveragePlans && !c.routineStoneShellPlans && c.routineResearchTarget == "" && !c.routineResourcePlans {
+	if c.routineMethods && !c.routineBillPlans && !c.routineFieldPlans && !c.routineFoodStoragePlans && !c.routineAcquisitionPlans && !c.routineWorkPlans && !c.routineSupplyPlans && !c.routineSleepingPlans && !c.routineCookingPlans && !c.routineShelterPlans && !c.routineComfortPlans && !c.routineExpansionPlans && !c.routinePowerPlans && !c.routineTemperaturePlans && !c.routineDefensePlans && !c.routineTendPlans && !c.routineRescuePlans && !c.routineEquipPlans && !c.routineSecureSuppliesPlans && !c.routineRepairPlans && !c.routineCleanPlans && !c.routineGearPlans && !c.routineMedicalPlans && !c.routineAnimalContainmentPlans && !c.routineRecoveryPlans && !c.routineHusbandryPlans && !c.routinePrisonerInteractionPlans && !c.routinePopulationCustodyPlans && !c.routineHomeCoveragePlans && !c.routineStoneShellPlans && c.routineResearchTarget == "" && !c.routineResourcePlans && !c.routineProductionPolicyPlans {
 		return c, errors.New("--routine-methods requires a routine building planner")
 	}
-	// Defense/tend/rescue/equip/secure-supplies/repair/clean/gear/medical/animal-containment/recovery/husbandry/prisoner-interaction/population-custody/home-coverage/stone-shell/research/resource
+	// Defense/tend/rescue/equip/secure-supplies/repair/clean/gear/medical/animal-containment/recovery/husbandry/prisoner-interaction/population-custody/home-coverage/stone-shell/research/resource/production-policy
 	// plans never become the literal current plan (see clockSchedulerWork); they
 	// can only run through the RoutineMethods concurrent-authorization path, so
 	// without it their committed plans would never be authorized or dispatched.
-	if (c.routineDefensePlans || c.routineTendPlans || c.routineRescuePlans || c.routineEquipPlans || c.routineSecureSuppliesPlans || c.routineRepairPlans || c.routineCleanPlans || c.routineGearPlans || c.routineMedicalPlans || c.routineAnimalContainmentPlans || c.routineRecoveryPlans || c.routineHusbandryPlans || c.routinePrisonerInteractionPlans || c.routinePopulationCustodyPlans || c.routineHomeCoveragePlans || c.routineStoneShellPlans || c.routineResearchTarget != "" || c.routineResourcePlans) && !c.routineMethods {
-		return c, errors.New("--routine-defense-plans, --routine-tend-plans, --routine-rescue-plans, --routine-equip-plans, --routine-secure-supplies-plans, --routine-repair-plans, --routine-clean-plans, --routine-gear-plans, --routine-medical-plans, --routine-animal-containment-plans, --routine-recovery-plans, --routine-husbandry-plans, --routine-prisoner-interaction-plans, --routine-population-custody-plans, --routine-home-coverage-plans, --routine-stone-shell-plans, --routine-research-target and --routine-resource-plans require --routine-methods")
+	if (c.routineDefensePlans || c.routineTendPlans || c.routineRescuePlans || c.routineEquipPlans || c.routineSecureSuppliesPlans || c.routineRepairPlans || c.routineCleanPlans || c.routineGearPlans || c.routineMedicalPlans || c.routineAnimalContainmentPlans || c.routineRecoveryPlans || c.routineHusbandryPlans || c.routinePrisonerInteractionPlans || c.routinePopulationCustodyPlans || c.routineHomeCoveragePlans || c.routineStoneShellPlans || c.routineResearchTarget != "" || c.routineResourcePlans || c.routineProductionPolicyPlans) && !c.routineMethods {
+		return c, errors.New("--routine-defense-plans, --routine-tend-plans, --routine-rescue-plans, --routine-equip-plans, --routine-secure-supplies-plans, --routine-repair-plans, --routine-clean-plans, --routine-gear-plans, --routine-medical-plans, --routine-animal-containment-plans, --routine-recovery-plans, --routine-husbandry-plans, --routine-prisoner-interaction-plans, --routine-population-custody-plans, --routine-home-coverage-plans, --routine-stone-shell-plans, --routine-research-target, --routine-resource-plans and --routine-production-policy-plans require --routine-methods")
 	}
 	if len(c.routineResourceTargets) > 0 && !c.routineResourcePlans {
 		return c, errors.New("--routine-resource-target requires --routine-resource-plans")
+	}
+	if (len(c.routineResourceReserves) > 0 || len(c.routineStoppedResources) > 0) && !c.routineProductionPolicyPlans {
+		return c, errors.New("--routine-resource-reserve and --routine-resource-stop require --routine-production-policy-plans")
 	}
 	if c.playerControl && !filepath.IsAbs(c.profile) || !c.playerControl && c.profile != "" {
 		return c, errors.New("--player-control requires an absolute --profile; read-only mode takes no profile")

@@ -43,7 +43,7 @@ func serviceClockConfig(profile string) buildingruntime.ClockSchedulerConfig {
 
 // Session owns the attached worker's drain, including failed startup cleanup.
 // Starting these loops does not enable Player or acquire native authority.
-func startServiceClock(ctx context.Context, player *buildingruntime.Player, session *buildingruntime.Session, reads serviceClockReads, journal *store.Store, profile string, timeout time.Duration, routine, sleeping, cooking, shelter, comfort, expansion, power, temperature bool, projectLimit int, supplies, work, acquisition, defense, tend, rescue, equip, secureSupplies, repair, clean, gear, medical, animalContainment, recovery, husbandry, homeCoverage, caravanJourneyTracking bool, researchTarget string, resourceTargets map[policy.Resource]int64, fieldOptions ...bool) error {
+func startServiceClock(ctx context.Context, player *buildingruntime.Player, session *buildingruntime.Session, reads serviceClockReads, journal *store.Store, profile string, timeout time.Duration, routine, sleeping, cooking, shelter, comfort, expansion, power, temperature bool, projectLimit int, supplies, work, acquisition, defense, tend, rescue, equip, secureSupplies, repair, clean, gear, medical, animalContainment, recovery, husbandry, homeCoverage, caravanJourneyTracking bool, researchTarget string, resourceTargets map[policy.Resource]int64, productionPolicyPlans bool, productionReserves map[policy.Resource]int64, productionStopped []policy.Resource, fieldOptions ...bool) error {
 	// fieldOptions carries the field/bill/foodStorage/prisonerInteraction/
 	// populationCustody/stoneShell flags, in that fixed order, appended by the caller.
 	config := serviceClockConfig(profile)
@@ -68,7 +68,7 @@ func startServiceClock(ctx context.Context, player *buildingruntime.Player, sess
 	if len(fieldOptions) > 6 {
 		return errors.New("invalid field option")
 	}
-	if (bills || fields || foodStorage || acquisition || work || supplies || sleeping || cooking || shelter || comfort || expansion || power || temperature || defense || tend || rescue || equip || secureSupplies || repair || clean || gear || medical || animalContainment || recovery || husbandry || prisonerInteraction || populationCustody || homeCoverage || stoneShell || researchTarget != "" || len(resourceTargets) > 0) && !routine {
+	if (bills || fields || foodStorage || acquisition || work || supplies || sleeping || cooking || shelter || comfort || expansion || power || temperature || defense || tend || rescue || equip || secureSupplies || repair || clean || gear || medical || animalContainment || recovery || husbandry || prisonerInteraction || populationCustody || homeCoverage || stoneShell || researchTarget != "" || len(resourceTargets) > 0 || productionPolicyPlans) && !routine {
 		return errors.New("building plans require routine reviews")
 	}
 	if routine {
@@ -134,6 +134,11 @@ func startServiceClock(ctx context.Context, player *buildingruntime.Player, sess
 		if len(resourceTargets) > 0 {
 			thresholds.ResourceTargets = resourceTargets
 			capabilities.Methods = append(capabilities.Methods, policy.MaintainResource)
+		}
+		if productionPolicyPlans {
+			thresholds.ResourceReserves = productionReserves
+			thresholds.StoppedResources = productionStopped
+			capabilities.Methods = append(capabilities.Methods, policy.ProductionPolicy)
 		}
 		reviewer, err := buildingruntime.NewRoutineReviewer(player, native, wallClock{}, thresholds, config.MaxAge, capabilities)
 		if err != nil {
@@ -366,6 +371,16 @@ func startServiceClock(ctx context.Context, player *buildingruntime.Player, sess
 				return errors.New("resource plans require typed colony observations")
 			}
 			config.Resource, err = buildingruntime.NewRoutineResourcePlanner(reviewer, resourceNative)
+			if err != nil {
+				return err
+			}
+		}
+		if productionPolicyPlans {
+			productionPolicyNative, ok := reads.(buildingruntime.RoutineProductionPolicySource)
+			if !ok {
+				return errors.New("production policy plans require typed production policy observations")
+			}
+			config.ProductionPolicy, err = buildingruntime.NewRoutineProductionPolicyPlanner(reviewer, productionPolicyNative)
 			if err != nil {
 				return err
 			}

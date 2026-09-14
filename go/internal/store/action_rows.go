@@ -119,6 +119,12 @@ func insertAction(ctx context.Context, tx *sql.Tx, plan domain.PlanID, ordinal i
 			return encodeErr
 		}
 		_, err = tx.ExecContext(ctx, "INSERT INTO actions(id,plan_id,ordinal,kind,wall_removal_payload) VALUES(?,?,?,'wall_removal',?)", a.ID(), plan, ordinal, data)
+	} else if productionPolicy, ok := a.ProductionPolicy(); ok {
+		data, encodeErr := json.Marshal(productionPolicyPayload{productionPolicy.Floors(), productionPolicy.Stopped()})
+		if encodeErr != nil {
+			return encodeErr
+		}
+		_, err = tx.ExecContext(ctx, "INSERT INTO actions(id,plan_id,ordinal,kind,production_policy_payload) VALUES(?,?,?,'production_policy',?)", a.ID(), plan, ordinal, data)
 	} else {
 		return errors.New("unsupported persisted action")
 	}
@@ -130,8 +136,8 @@ func scanAction(rows *sql.Rows) (domain.Action, int, error) {
 	var ordinal int
 	var def, rotation, stuff, pawn, target, draftAction sql.NullString
 	var x, z sql.NullInt64
-	var work, zone, bill, caravan, settlementGiftBlob, questFulfillBlob, wallRemoval []byte
-	if err := rows.Scan(&id, &kind, &def, &x, &z, &rotation, &stuff, &pawn, &target, &draftAction, &work, &zone, &bill, &caravan, &settlementGiftBlob, &questFulfillBlob, &wallRemoval, &ordinal); err != nil {
+	var work, zone, bill, caravan, settlementGiftBlob, questFulfillBlob, wallRemoval, productionPolicyBlob []byte
+	if err := rows.Scan(&id, &kind, &def, &x, &z, &rotation, &stuff, &pawn, &target, &draftAction, &work, &zone, &bill, &caravan, &settlementGiftBlob, &questFulfillBlob, &wallRemoval, &productionPolicyBlob, &ordinal); err != nil {
 		return domain.Action{}, 0, err
 	}
 	if kind == "production_bill" && !pawn.Valid && !target.Valid && !draftAction.Valid && !def.Valid && !x.Valid && !z.Valid && !rotation.Valid && !stuff.Valid && work == nil && zone == nil {
@@ -280,6 +286,25 @@ func scanAction(rows *sql.Rows) (domain.Action, int, error) {
 	}
 	if wallRemoval != nil {
 		return domain.Action{}, 0, errors.New("mixed wall removal payload")
+	}
+	if kind == "production_policy" && !pawn.Valid && !target.Valid && !draftAction.Valid && !def.Valid && !x.Valid && !z.Valid && !rotation.Valid && !stuff.Valid {
+		var payload productionPolicyPayload
+		if len(productionPolicyBlob) > 32768 || json.Unmarshal(productionPolicyBlob, &payload) != nil {
+			return domain.Action{}, 0, errors.New("invalid production policy payload")
+		}
+		canonical, _ := json.Marshal(payload)
+		if !bytes.Equal(canonical, productionPolicyBlob) {
+			return domain.Action{}, 0, errors.New("noncanonical production policy payload")
+		}
+		v, err := domain.NewProductionPolicy(payload.Floors, payload.Stopped)
+		if err != nil {
+			return domain.Action{}, 0, err
+		}
+		a, err := domain.NewProductionPolicyAction(id, v)
+		return a, ordinal, err
+	}
+	if productionPolicyBlob != nil {
+		return domain.Action{}, 0, errors.New("mixed production policy payload")
 	}
 	if kind == "owned_draft" && pawn.Valid && !target.Valid && !draftAction.Valid && !def.Valid && !x.Valid && !z.Valid && !rotation.Valid && !stuff.Valid {
 		d, e := domain.NewOwnedDraft(domain.PawnID(pawn.String))
@@ -528,4 +553,8 @@ type wallRemovalPayload struct {
 	X, Z, NX, NZ int32
 	Left, Right  bool
 	Material     string
+}
+type productionPolicyPayload struct {
+	Floors  []domain.ResourceFloor
+	Stopped []string
 }
