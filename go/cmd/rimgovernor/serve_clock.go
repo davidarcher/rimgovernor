@@ -68,7 +68,7 @@ func serviceClockConfig(profile string) buildingruntime.ClockSchedulerConfig {
 
 // Session owns the attached worker's drain, including failed startup cleanup.
 // Starting these loops does not enable Player or acquire native authority.
-func startServiceClock(ctx context.Context, player *buildingruntime.Player, session *buildingruntime.Session, reads serviceClockReads, journal *store.Store, profile string, timeout time.Duration, routine, sleeping, cooking, shelter, comfort, expansion, power, temperature bool, projectLimit int, supplies, work, acquisition, defense, tend, rescue, equip, secureSupplies, repair, clean, gear, medical, animalContainment, recovery, husbandry, homeCoverage, caravanJourneyTracking bool, researchTarget string, resourceTargets map[policy.Resource]int64, animalFeedPlans bool, productionPolicyPlans bool, productionReserves map[policy.Resource]int64, productionStopped []policy.Resource, fieldOptions ...bool) error {
+func startServiceClock(ctx context.Context, player *buildingruntime.Player, session *buildingruntime.Session, reads serviceClockReads, journal *store.Store, profile string, timeout time.Duration, routine, sleeping, cooking, shelter, comfort, expansion, power, temperature bool, projectLimit int, supplies, work, acquisition, defense, tend, rescue, equip, secureSupplies, repair, clean, gear, medical, animalContainment, recovery, husbandry, homeCoverage, caravanJourneyTracking bool, researchTarget string, resourceTargets map[policy.Resource]int64, allowSlaughter bool, herdPopulationMax map[policy.Resource]int64, animalFeedPlans bool, productionPolicyPlans bool, productionReserves map[policy.Resource]int64, productionStopped []policy.Resource, fieldOptions ...bool) error {
 	// fieldOptions carries the field/bill/foodStorage/prisonerInteraction/
 	// populationCustody/stoneShell/haul/waste flags, in that fixed order,
 	// appended by the caller.
@@ -150,6 +150,8 @@ func startServiceClock(ctx context.Context, player *buildingruntime.Player, sess
 			capabilities.Methods = append(capabilities.Methods, policy.RecoverDisasterServices)
 		}
 		if husbandry {
+			thresholds.AllowSlaughter = allowSlaughter
+			thresholds.HerdPopulationMax = herdPopulationMax
 			capabilities.Methods = append(capabilities.Methods, policy.MaintainHerd)
 		}
 		if prisonerInteraction || populationCustody {

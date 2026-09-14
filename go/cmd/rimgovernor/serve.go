@@ -62,6 +62,8 @@ type serveConfig struct {
 	routineAnimalContainmentPlans   bool
 	routineRecoveryPlans            bool
 	routineHusbandryPlans           bool
+	routineAllowSlaughter           bool
+	routineHerdPopulationMax        herdPopulationMaxFlags
 	routinePrisonerInteractionPlans bool
 	routinePopulationCustodyPlans   bool
 	routineHomeCoveragePlans        bool
@@ -116,6 +118,8 @@ func parseServe(args []string, diagnostics io.Writer) (serveConfig, error) {
 	flags.BoolVar(&c.routineAnimalContainmentPlans, "routine-animal-containment-plans", false, "compile animal pen shell/marker containment method selection into shared plans")
 	flags.BoolVar(&c.routineRecoveryPlans, "routine-recovery-plans", false, "compile disaster-recovery repair/breakdown/refuel service selection into shared plans")
 	flags.BoolVar(&c.routineHusbandryPlans, "routine-husbandry-plans", false, "compile herd recursive-training selection into shared plans")
+	flags.BoolVar(&c.routineAllowSlaughter, "routine-allow-slaughter", false, "operator opt-in letting MaintainHerd's routine planner also propose a slaughter write for a surplus animal once --routine-herd-population-max is declared; slaughter is irreversible and stays off unless explicitly set")
+	flags.Var(&c.routineHerdPopulationMax, "routine-herd-population-max", "repeatable RACE:MAX native animal definition population ceiling MaintainHerd's routine planner slaughters surplus toward, only once --routine-allow-slaughter is also set")
 	flags.BoolVar(&c.routinePrisonerInteractionPlans, "routine-prisoner-interaction-plans", false, "compile recruitable-prisoner recruit-interaction selection into shared plans")
 	flags.BoolVar(&c.routinePopulationCustodyPlans, "routine-population-custody-plans", false, "compile downed-hostile capture and unadmitted-guest rescue custody selection into shared plans")
 	flags.BoolVar(&c.routineHomeCoveragePlans, "routine-home-coverage-plans", false, "compile native Home-area extension over owned facilities/stockpiles into shared plans")
@@ -195,6 +199,9 @@ func parseServe(args []string, diagnostics io.Writer) (serveConfig, error) {
 	}
 	if (len(c.routineResourceReserves) > 0 || len(c.routineStoppedResources) > 0) && !c.routineProductionPolicyPlans {
 		return c, errors.New("--routine-resource-reserve and --routine-resource-stop require --routine-production-policy-plans")
+	}
+	if (c.routineAllowSlaughter || len(c.routineHerdPopulationMax) > 0) && !c.routineHusbandryPlans {
+		return c, errors.New("--routine-allow-slaughter and --routine-herd-population-max require --routine-husbandry-plans")
 	}
 	if c.playerControl && !filepath.IsAbs(c.profile) || !c.playerControl && c.profile != "" {
 		return c, errors.New("--player-control requires an absolute --profile; read-only mode takes no profile")

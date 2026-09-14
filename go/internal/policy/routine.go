@@ -67,6 +67,24 @@ type RoutinePolicy struct {
 	// write whenever they diverge from a fresh ReadProductionPolicy.
 	ResourceReserves map[Resource]int64
 	StoppedResources []Resource
+	// AllowSlaughter is an operator-declared, explicit opt-in for
+	// MaintainHerd to ever propose a slaughter write for a surplus animal;
+	// it defaults to false (see DefaultRoutinePolicy), and slaughter is
+	// never proposed unless an operator sets this true. Slaughter is a
+	// destructive, irreversible in-game action, unlike every other
+	// RoutinePolicy field -- this default must never change to true. See
+	// MaintainHerd's doc comment for the full disclosed narrowing.
+	AllowSlaughter bool
+	// HerdPopulationMax is an operator-declared map of native animal
+	// definition name (the same Resource-typed def name ResourceTargets
+	// uses) to the population maximum MaintainHerd should keep that race at
+	// or under; an empty map (the default) tracks no race at all, so
+	// AllowSlaughter alone is not enough to dispatch a slaughter write --
+	// both must be set. Unlike Python's husbandry.py per-race target (which
+	// also carries a minimum, protected-id set and breeding-reserve count),
+	// this only supports the maximum half of that target, narrowed the same
+	// way ResearchTarget's doc comment discloses its own gap.
+	HerdPopulationMax map[Resource]int64
 }
 
 func DefaultRoutinePolicy() RoutinePolicy {
@@ -102,6 +120,24 @@ func (p RoutinePolicy) Validate() error {
 	}
 	if _, _, err := ProductionFloors(p.ResourceReserves, p.StoppedResources); err != nil {
 		return err
+	}
+	if err := ValidateHerdPopulationMax(p.HerdPopulationMax); err != nil {
+		return err
+	}
+	return nil
+}
+
+// ValidateHerdPopulationMax checks every configured MaintainHerd population
+// maximum, the same shape and bound ValidateResourceTargets uses for
+// MaintainResource's targets.
+func ValidateHerdPopulationMax(populationMax map[Resource]int64) error {
+	if len(populationMax) > 4096 {
+		return errors.New("too many configured herd population maximums")
+	}
+	for race, max := range populationMax {
+		if !validResource(race) || max <= 0 || max > 10000 {
+			return errors.New("invalid herd population maximum")
+		}
 	}
 	return nil
 }
@@ -620,7 +656,7 @@ func DetectRoutine(f RoutineFacts, previous RoutineLatches, p RoutinePolicy) (Ro
 		animalFeed = domain.Known(len(targets) == 0)
 	}
 	herdRecovered := domain.Unknown[bool]()
-	if deficit, known := AnimalHerdDeficit(f.AnimalUpkeep.Animals).Value(); known {
+	if deficit, known := AnimalHerdDeficit(f.AnimalUpkeep.Animals, p.AllowSlaughter, p.HerdPopulationMax).Value(); known {
 		herdRecovered = domain.Known(!deficit)
 	}
 	addAssessment(MaintainHerd, 3, herdRecovered)

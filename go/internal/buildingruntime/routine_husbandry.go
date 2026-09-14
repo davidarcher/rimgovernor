@@ -11,13 +11,15 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/store"
 )
 
-// RoutineHusbandryPlanner proposes one Husbandry training write for
-// MaintainHerd's deficit: policy.AnimalHerdDeficit/SelectHusbandryMethod
+// RoutineHusbandryPlanner proposes one Husbandry training or slaughter write
+// for MaintainHerd's deficit: policy.AnimalHerdDeficit/SelectHusbandryMethod
 // already recognize and pick from the same generic animal census
 // MaintainAnimalContainment reads (AnimalState already carries training and
 // safe-to-slaughter facts, so no dedicated per-cycle husbandry read is
-// needed to detect or select). Disclosed narrowing: only training is
-// dispatched, never slaughter — see policy.MaintainHerd's doc comment for why.
+// needed to detect or select). Slaughter is only ever proposed once the
+// operator-declared RoutinePolicy.AllowSlaughter/HerdPopulationMax opt-in is
+// set — see policy.MaintainHerd's doc comment for the disclosed narrowing
+// this still carries (no protected-id/breeding-reserve richness).
 type RoutineHusbandryPlanner struct {
 	reviewer *RoutineReviewer
 }
@@ -98,23 +100,26 @@ func (r *RoutineHusbandryPlanner) step(call, epoch context.Context) (RoutineHusb
 		return RoutineHusbandryResult{}, err
 	}
 	animals := read.Projection.Facts.AnimalUpkeep.Animals
-	choice := policy.SelectHusbandryMethod(animals)
+	choice := policy.SelectHusbandryMethod(animals, r.reviewer.policy.AllowSlaughter, r.reviewer.policy.HerdPopulationMax)
 	switch choice.Reason {
 	case policy.HusbandryNoDeficit:
 		return RoutineHusbandryResult{Reason: BuildingMethodUsed}, nil
 	case policy.HusbandryUnknown:
 		return RoutineHusbandryResult{Reason: BuildingMethodUnknown}, nil
 	}
-	// Keyed by animal and attempt count, not trainable: a fresh attempt after
-	// an interrupted or failed try re-selects whichever trainable is
-	// currently best, mirroring RoutineEquipPlanner's method key.
-	prefix := fmt.Sprintf("train-%s-", choice.Animal)
+	// Keyed by animal, method and attempt count, not trainable: a fresh
+	// attempt after an interrupted or failed try re-selects whichever
+	// trainable is currently best, mirroring RoutineEquipPlanner's method
+	// key. The method name is included so a training attempt count never
+	// collides with, or is exhausted by, a slaughter attempt on the same
+	// animal (or vice versa) -- they are independent write kinds.
+	prefix := fmt.Sprintf("%s-%s-", choice.Method, choice.Animal)
 	attempt := medicalAttemptCount(goal.Methods, goal.Goal.Epoch, prefix)
 	if attempt >= maxMedicalAttemptsPerPatient {
 		return RoutineHusbandryResult{Reason: BuildingMethodExhausted}, nil
 	}
 	method := domain.MethodID(fmt.Sprintf("%s%d", prefix, attempt))
-	husbandry, err := domain.NewHusbandry(domain.PawnID(choice.Animal), domain.HusbandryTrain, choice.TrainableDef)
+	husbandry, err := domain.NewHusbandry(domain.PawnID(choice.Animal), choice.Method, choice.TrainableDef)
 	if err != nil {
 		return RoutineHusbandryResult{}, err
 	}
