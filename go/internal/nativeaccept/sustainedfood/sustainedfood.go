@@ -207,6 +207,14 @@ func Run(ctx context.Context, cfg RunConfig, report na.Report) ([]map[string]any
 		"--routine-reviews", "--routine-methods",
 		"--routine-field-plans", "--routine-food-storage-plans", "--routine-acquisition-plans",
 		"--routine-cooking-plans", "--routine-supply-plans",
+		// Needed only so the executor's ProductionPolicy capability is wired up
+		// at all (serve_building.go gates it on this same flag) -- the
+		// acquire-anchor below dispatches through that capability. With no
+		// --routine-resource-reserve/--routine-resource-stop configured, the
+		// routine planner it also enables stays a no-op (see
+		// RoutineProductionPolicyPlanner's doc comment: its target
+		// floors/stopped set is entirely operator-config-derived).
+		"--routine-production-policy-plans",
 		"--profile", profileDir,
 		"--gabs", gabsExecutable,
 		"--config", naCfg.Configuration,
@@ -347,16 +355,28 @@ func Run(ctx context.Context, cfg RunConfig, report na.Report) ([]map[string]any
 	}
 	report["service_state_attached"] = state
 
-	// Acquire needs an anchor plan; its own fate is irrelevant to this
-	// diagnostic (EnsureFoodSupply is priority 2 and bypasses
-	// policy.RankDevelopment's capacity arbitration entirely -- see
-	// routine.go's addGoal(EnsureFoodSupply, 2) and development.go's
-	// `if g.Priority < 3 { continue }`), it exists only because
-	// /api/player/control/acquire requires a planId/revision.
-	submission, status, err := apiCall("POST", "/api/buildings/plans", map[string]any{
+	// Acquire needs an anchor plan purely because /api/player/control/acquire
+	// requires a planId/revision to attach to (store.checkedControl looks the
+	// plan up in the shared submissions table) -- it exists only for that.
+	// Any submission kind works here since AcquireControl does not care what
+	// the plan does, only that it exists, so this uses a resource-policy
+	// submission: it commits its own one-action plan the same way a building
+	// or zone does (see ResourcePolicySubmissionRequest's doc comment), but
+	// unlike either of those its native effect (SetProductionPolicy) is a
+	// pure settings write with no pawn labor and no persistent map object --
+	// no travel, no haul, no structure or zone left behind. Earlier versions
+	// anchored on a real Wall building (which a solo colony's only pawn
+	// travels to, hauls for, and builds, competing with EnsureFoodSupply for
+	// the one pawn's time -- issue #1) and then on a NothingPreset stockpile
+	// zone (still a stockpile zone in principle, and still left a spurious
+	// designation on the map for the run's duration). Setting Silver's
+	// spending to its own default ("normal") is a genuine no-op: it changes
+	// nothing about the colony, just gives AcquireControl something real to
+	// attach to.
+	submission, status, err := apiCall("POST", "/api/player/resource-policy/update", map[string]any{
 		"requestId": prefix + "-anchor-1",
 		"expected":  identity,
-		"building":  map[string]any{"defName": "Wall", "x": 10, "z": 10, "rotation": "north", "stuff": "WoodLog"},
+		"policy":    map[string]any{"resource": "Silver", "spending": "normal"},
 	}, token)
 	if err != nil {
 		return nil, err
