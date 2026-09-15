@@ -47,10 +47,10 @@ func (b *DraftBoundary) historicalClaim(p executor.Placement, receipt *r.Receipt
 		}
 	case *n.DraftClaimObservation_Owned:
 		owned := state.Owned
-		if owned == nil || !boundary.ValidID(owned.GetClaimId()) || owned.Owner == nil || !boundary.ValidID(owned.Owner.GetControllerSessionId()) || owned.Owner.PlayerDirection == nil || owned.Owner.GetPlayerDirection() == 0 || !proto.Equal(owned.PawnSnapshot, row.Pawn.Snapshot) {
+		if owned == nil || !boundary.ValidID(owned.GetClaimId()) || !proto.Equal(owned.PawnSnapshot, row.Pawn.Snapshot) {
 			return unknown, executor.ErrHeld
 		}
-		if owned.GetClaimId() == job.GetDraftClaimId() && owned.Owner.GetControllerSessionId() == b.session && owned.Owner.GetPlayerDirection() == uint64(p.Snapshot.Direction) {
+		if owned.GetClaimId() == job.GetDraftClaimId() {
 			return unknown, executor.ErrHeld
 		}
 	default:

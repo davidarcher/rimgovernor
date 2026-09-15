@@ -17,7 +17,6 @@ import (
 type NamingAttempt struct {
 	Identity       *c.Identity
 	Attempt        *c.AttemptKey
-	Owner          *a.Owner
 	Generation     uint64
 	WindowID       int32
 	FactionName    string
@@ -63,7 +62,7 @@ func (client *Client) PreviewConfirmColonyNames(ctx context.Context, identity *c
 	return reply, raw, nil
 }
 func (writer *NamingControl) ConfirmColonyNames(ctx context.Context, pre *a.WritePrecondition, windowID int32, factionName, settlementName string) (*op.ExecuteReply, Result, error) {
-	if writer == nil || writer.client == nil || pre == nil || buildingUnknown(pre) != nil || ValidateIdentity(pre.Identity) != nil || buildingAttempt(pre.Attempt) != nil || pre.GetExpectedGeneration() == 0 || validID(pre.GetLeaseId()) != nil || validNaming(windowID, factionName, settlementName) != nil {
+	if writer == nil || writer.client == nil || pre == nil || buildingUnknown(pre) != nil || ValidateIdentity(pre.Identity) != nil || buildingAttempt(pre.Attempt) != nil || pre.GetExpectedGeneration() == 0 || validNaming(windowID, factionName, settlementName) != nil {
 		return nil, Result{}, contract("invalid naming execution")
 	}
 	reply := &op.ExecuteReply{}
@@ -78,14 +77,14 @@ func (writer *NamingControl) ConfirmColonyNames(ctx context.Context, pre *a.Writ
 		return nil, raw, failure(reply.GetFailure(), raw)
 	}
 	v := reply.GetReceipt()
-	if v == nil || v.AuthorizingOwner == nil || v.AuthorizingOwner.GetControllerSessionId() != pre.Attempt.GetControllerSessionId() {
+	if v == nil {
 		return nil, raw, contract("naming owner mismatch")
 	}
-	err = namingReceipt(v, NamingAttempt{pre.Identity, pre.Attempt, v.AuthorizingOwner, pre.GetExpectedGeneration(), windowID, factionName, settlementName})
+	err = namingReceipt(v, NamingAttempt{pre.Identity, pre.Attempt, pre.GetExpectedGeneration(), windowID, factionName, settlementName})
 	return reply, raw, err
 }
 func validNamingAttempt(w NamingAttempt) error {
-	if ValidateIdentity(w.Identity) != nil || buildingAttempt(w.Attempt) != nil || authorityOwner(w.Owner) != nil || buildingUnknown(w.Owner) != nil || w.Generation == 0 || w.Owner.GetControllerSessionId() != w.Attempt.GetControllerSessionId() {
+	if ValidateIdentity(w.Identity) != nil || buildingAttempt(w.Attempt) != nil || w.Generation == 0 {
 		return contract("invalid naming attempt")
 	}
 	return validNaming(w.WindowID, w.FactionName, w.SettlementName)
@@ -101,7 +100,7 @@ func namingEffect(v *r.EffectEvidence, w NamingAttempt, applied bool) error {
 	return nil
 }
 func namingReceipt(v *r.Receipt, w NamingAttempt) error {
-	if v == nil || buildingUnknown(v) != nil || !proto.Equal(v.Attempt, w.Attempt) || !proto.Equal(v.AuthorizingOwner, w.Owner) || buildingContext(v.AdmittedContext, w.Identity, w.Generation, true) != nil {
+	if v == nil || buildingUnknown(v) != nil || !proto.Equal(v.Attempt, w.Attempt) || buildingContext(v.AdmittedContext, w.Identity, w.Generation, true) != nil {
 		return contract("naming admission mismatch")
 	}
 	switch out := v.Outcome.(type) {

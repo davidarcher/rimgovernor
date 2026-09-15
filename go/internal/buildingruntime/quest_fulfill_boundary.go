@@ -28,7 +28,7 @@ type QuestFulfillNative interface {
 	ObserveQuestFulfillProgress(context.Context, bridge.QuestFulfillAttempt, *r.Receipt) (*r.ProgressReply, bridge.Result, error)
 }
 type QuestFulfillWriter interface {
-	ApplyQuestFulfill(context.Context, *a.WritePrecondition, *a.Owner, string, string, string, string, []string) (*o.ExecuteReply, bridge.Result, error)
+	ApplyQuestFulfill(context.Context, *a.WritePrecondition, string, string, string, string, []string) (*o.ExecuteReply, bridge.Result, error)
 }
 type QuestFulfillCapabilities struct {
 	Native QuestFulfillNative
@@ -123,7 +123,6 @@ func (b *QuestFulfillBoundary) attempt(dispatch executor.QuestFulfillDispatch) (
 	return bridge.QuestFulfillAttempt{
 		Identity:        boundary.Identity(p.Snapshot),
 		Attempt:         &c.AttemptKey{ControllerSessionId: proto.String(b.session), ActionId: proto.String(string(p.Action.ID())), AttemptId: proto.Uint64(uint64(p.Attempt))},
-		Owner:           &a.Owner{ControllerSessionId: proto.String(b.session), PlayerDirection: proto.Uint64(uint64(p.Snapshot.Direction))},
 		Generation:      uint64(p.Snapshot.Native),
 		Quest:           string(fulfill.Quest()),
 		QuestToken:      admission.QuestSnapshotToken,
@@ -150,8 +149,8 @@ func (b *QuestFulfillBoundary) WriteQuestFulfill(ctx context.Context, dispatch e
 	if err = ctx.Err(); err != nil {
 		return out, err
 	}
-	pre := &a.WritePrecondition{Identity: attempt.Identity, Attempt: attempt.Attempt, ExpectedGeneration: proto.Uint64(attempt.Generation), LeaseId: proto.String(lease)}
-	reply, _, err := b.writer.ApplyQuestFulfill(ctx, pre, attempt.Owner, attempt.Quest, attempt.QuestToken, attempt.Caravan, attempt.CaravanToken, attempt.ExpectedPawnIDs)
+	pre := &a.WritePrecondition{Identity: attempt.Identity, Attempt: attempt.Attempt, ExpectedGeneration: proto.Uint64(attempt.Generation),}
+	reply, _, err := b.writer.ApplyQuestFulfill(ctx, pre, attempt.Quest, attempt.QuestToken, attempt.Caravan, attempt.CaravanToken, attempt.ExpectedPawnIDs)
 	var refused *bridge.NativeFailure
 	if errors.As(err, &refused) && refused.Value != nil && refused.Value.GetCode() != c.FailureCode_FAILURE_CODE_ATTEMPT_CONFLICT {
 		out.Kind = domain.ReceiptRefused
@@ -208,7 +207,7 @@ func (b *QuestFulfillBoundary) ObserveQuestFulfill(ctx context.Context, dispatch
 		if v.InFlight == nil || !proto.Equal(v.InFlight.Attempt, attempt.Attempt) {
 			return out, executor.ErrEvidence
 		}
-		if err = boundary.Admission(&r.Receipt{Attempt: v.InFlight.Attempt, AdmittedContext: v.InFlight.AdmittedContext, AuthorizingOwner: attempt.Owner}, p, b.session); err != nil {
+		if err = boundary.Admission(&r.Receipt{Attempt: v.InFlight.Attempt, AdmittedContext: v.InFlight.AdmittedContext}, p, b.session); err != nil {
 			return out, err
 		}
 	case *r.LookupReply_Receipt:

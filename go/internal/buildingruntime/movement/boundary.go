@@ -25,7 +25,7 @@ type MovementNative interface {
 	ObserveMovementProgress(context.Context, bridge.MovementAttempt, *r.Receipt) (*r.ProgressReply, bridge.Result, error)
 }
 type MovementWriter interface {
-	MovePawn(context.Context, *a.WritePrecondition, *a.Owner, *o.MovePawn) (*o.ExecuteReply, bridge.Result, error)
+	MovePawn(context.Context, *a.WritePrecondition, *o.MovePawn) (*o.ExecuteReply, bridge.Result, error)
 }
 type MovementCapabilities struct {
 	Native MovementNative
@@ -136,8 +136,12 @@ func (b *MovementBoundary) InspectMovement(ctx context.Context, target executor.
 	if row.Job != nil {
 		facts.Pawn.PlayerForced, facts.Pawn.QueuedJobs = boundary.FactBool(row.Job.PlayerForced), boundary.FactUint(row.Job.QueuedJobs)
 	}
-	if owned := row.GetDraftClaim().GetOwned(); owned != nil && owned.Owner != nil && owned.Owner.PlayerDirection != nil && boundary.ValidID(owned.GetClaimId()) && boundary.ValidID(owned.Owner.GetControllerSessionId()) && owned.PawnSnapshot != nil && proto.Equal(owned.PawnSnapshot, row.Pawn.Snapshot) {
-		facts.Pawn.Owner = domain.Known(policy.MovementDraftOwner{Claim: domain.DraftClaimID(owned.GetClaimId()), Session: domain.ControllerSessionID(owned.Owner.GetControllerSessionId()), Direction: domain.DirectionID(owned.Owner.GetPlayerDirection())})
+	// A claim is either held by the single bot process or it is not: native
+	// no longer reports a distinct session/direction for it (see
+	// observations.proto's OwnedDraftClaim), so an observed claim is by
+	// construction ours in the current epoch.
+	if owned := row.GetDraftClaim().GetOwned(); owned != nil && boundary.ValidID(owned.GetClaimId()) && owned.PawnSnapshot != nil && proto.Equal(owned.PawnSnapshot, row.Pawn.Snapshot) {
+		facts.Pawn.Owner = domain.Known(policy.MovementDraftOwner{Claim: domain.DraftClaimID(owned.GetClaimId()), Session: domain.ControllerSessionID(b.session), Direction: current.Direction})
 	}
 	out.Facts, out.ObservedAt = facts, b.clock.Now()
 	return out, ctx.Err()
@@ -152,7 +156,7 @@ func (b *MovementBoundary) attempt(dispatch executor.MovementDispatch) (bridge.M
 	if p.Attempt == 0 || p.Tick < 0 || admission.Snapshot != p.Snapshot || admission.Pawn != m.Pawn() || admission.Destination != m.Destination() || admission.Tick > p.Tick || !boundary.ValidID(admission.PawnSnapshotToken) {
 		return bridge.MovementAttempt{}, executor.ErrEvidence
 	}
-	return bridge.MovementAttempt{Identity: boundary.Identity(p.Snapshot), Attempt: &c.AttemptKey{ControllerSessionId: proto.String(b.session), ActionId: proto.String(string(p.Action.ID())), AttemptId: proto.Uint64(uint64(p.Attempt))}, NativeGeneration: uint64(p.Snapshot.Native), Owner: &a.Owner{ControllerSessionId: proto.String(b.session), PlayerDirection: proto.Uint64(uint64(p.Snapshot.Direction))}, PawnID: string(m.Pawn()), Destination: &c.Cell{X: proto.Int32(m.Destination().X), Z: proto.Int32(m.Destination().Z)}}, nil
+	return bridge.MovementAttempt{Identity: boundary.Identity(p.Snapshot), Attempt: &c.AttemptKey{ControllerSessionId: proto.String(b.session), ActionId: proto.String(string(p.Action.ID())), AttemptId: proto.Uint64(uint64(p.Attempt))}, NativeGeneration: uint64(p.Snapshot.Native), PawnID: string(m.Pawn()), Destination: &c.Cell{X: proto.Int32(m.Destination().X), Z: proto.Int32(m.Destination().Z)}}, nil
 }
 
 func movementJob(job *r.JobEffect, dispatch executor.MovementDispatch) error {
@@ -187,8 +191,8 @@ func (b *MovementBoundary) MoveTo(ctx context.Context, dispatch executor.Movemen
 	if err = ctx.Err(); err != nil {
 		return out, err
 	}
-	pre := &a.WritePrecondition{Identity: attempt.Identity, Attempt: attempt.Attempt, ExpectedGeneration: proto.Uint64(attempt.NativeGeneration), LeaseId: proto.String(lease)}
-	reply, _, err := b.writer.MovePawn(ctx, pre, attempt.Owner, movementCommand(attempt.PawnID, dispatch.Admission.PawnSnapshotToken, dispatch.Admission.Destination))
+	pre := &a.WritePrecondition{Identity: attempt.Identity, Attempt: attempt.Attempt, ExpectedGeneration: proto.Uint64(attempt.NativeGeneration),}
+	reply, _, err := b.writer.MovePawn(ctx, pre, movementCommand(attempt.PawnID, dispatch.Admission.PawnSnapshotToken, dispatch.Admission.Destination))
 	var refused *bridge.NativeFailure
 	if errors.As(err, &refused) && refused.Value != nil && refused.Value.GetCode() != c.FailureCode_FAILURE_CODE_ATTEMPT_CONFLICT {
 		out.Kind = domain.ReceiptRefused

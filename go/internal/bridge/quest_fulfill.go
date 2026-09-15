@@ -37,7 +37,6 @@ import (
 type QuestFulfillAttempt struct {
 	Identity              *c.Identity
 	Attempt               *c.AttemptKey
-	Owner                 *a.Owner
 	Generation            uint64
 	Quest, QuestToken     string
 	Caravan, CaravanToken string
@@ -135,13 +134,7 @@ func questFulfillAttempt(v QuestFulfillAttempt) (QuestFulfillAttempt, error) {
 	if err := buildingAttempt(v.Attempt); err != nil {
 		return QuestFulfillAttempt{}, err
 	}
-	if err := authorityOwner(v.Owner); err != nil {
-		return QuestFulfillAttempt{}, err
-	}
-	if err := buildingUnknown(v.Owner); err != nil {
-		return QuestFulfillAttempt{}, err
-	}
-	if v.Generation == 0 || v.Owner.GetControllerSessionId() != v.Attempt.GetControllerSessionId() {
+	if v.Generation == 0 {
 		return QuestFulfillAttempt{}, contract("quest fulfill admission owner or generation mismatch")
 	}
 	if err := questFulfillCommand(v.Quest, v.QuestToken, v.Caravan, v.CaravanToken, v.ExpectedPawnIDs); err != nil {
@@ -149,7 +142,6 @@ func questFulfillAttempt(v QuestFulfillAttempt) (QuestFulfillAttempt, error) {
 	}
 	v.Identity = proto.Clone(v.Identity).(*c.Identity)
 	v.Attempt = proto.Clone(v.Attempt).(*c.AttemptKey)
-	v.Owner = proto.Clone(v.Owner).(*a.Owner)
 	v.ExpectedPawnIDs = append([]string(nil), v.ExpectedPawnIDs...)
 	return v, nil
 }
@@ -162,7 +154,7 @@ func questFulfillEvidence(effect *r.QuestEffect, expected QuestFulfillAttempt) (
 }
 
 func questFulfillReceipt(v *r.Receipt, expected QuestFulfillAttempt) error {
-	if v == nil || buildingUnknown(v) != nil || !proto.Equal(v.Attempt, expected.Attempt) || !proto.Equal(v.AuthorizingOwner, expected.Owner) {
+	if v == nil || buildingUnknown(v) != nil || !proto.Equal(v.Attempt, expected.Attempt) {
 		return contract("quest fulfill admission mismatch")
 	}
 	if err := buildingContext(v.AdmittedContext, expected.Identity, expected.Generation, true); err != nil {
@@ -199,14 +191,14 @@ func NewQuestFulfillWriter(client *Client) (*QuestFulfillWriter, error) {
 }
 
 // ApplyQuestFulfill dispatches one already-admitted quest fulfill write.
-func (writer *QuestFulfillWriter) ApplyQuestFulfill(ctx context.Context, pre *a.WritePrecondition, owner *a.Owner, quest, questToken, caravan, caravanToken string, expectedPawnIDs []string) (*o.ExecuteReply, Result, error) {
-	if writer == nil || writer.client == nil || pre == nil || buildingUnknown(pre) != nil || ValidateIdentity(pre.Identity) != nil || buildingAttempt(pre.Attempt) != nil || pre.GetExpectedGeneration() == 0 || validID(pre.GetLeaseId()) != nil {
+func (writer *QuestFulfillWriter) ApplyQuestFulfill(ctx context.Context, pre *a.WritePrecondition, quest, questToken, caravan, caravanToken string, expectedPawnIDs []string) (*o.ExecuteReply, Result, error) {
+	if writer == nil || writer.client == nil || pre == nil || buildingUnknown(pre) != nil || ValidateIdentity(pre.Identity) != nil || buildingAttempt(pre.Attempt) != nil || pre.GetExpectedGeneration() == 0 {
 		return nil, Result{}, contract("invalid quest fulfill execution")
 	}
 	if err := questFulfillCommand(quest, questToken, caravan, caravanToken, expectedPawnIDs); err != nil {
 		return nil, Result{}, err
 	}
-	expected, err := questFulfillAttempt(QuestFulfillAttempt{Identity: pre.Identity, Attempt: pre.Attempt, Owner: owner, Generation: pre.GetExpectedGeneration(), Quest: quest, QuestToken: questToken, Caravan: caravan, CaravanToken: caravanToken, ExpectedPawnIDs: expectedPawnIDs})
+	expected, err := questFulfillAttempt(QuestFulfillAttempt{Identity: pre.Identity, Attempt: pre.Attempt, Generation: pre.GetExpectedGeneration(), Quest: quest, QuestToken: questToken, Caravan: caravan, CaravanToken: caravanToken, ExpectedPawnIDs: expectedPawnIDs})
 	if err != nil {
 		return nil, Result{}, err
 	}

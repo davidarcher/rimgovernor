@@ -9,10 +9,10 @@ import (
 
 // ValidateClockExpectation checks immutable admission evidence, not live permission.
 func ValidateClockExpectation(e ClockExpectation) error {
-	if err := errors.Join(clockWire(e.Identity), clockWire(e.Attempt), clockWire(e.Owner), ValidateIdentity(e.Identity), buildingAttempt(e.Attempt), authorityOwner(e.Owner)); err != nil {
+	if err := errors.Join(clockWire(e.Identity), clockWire(e.Attempt), ValidateIdentity(e.Identity), buildingAttempt(e.Attempt)); err != nil {
 		return err
 	}
-	if e.NativeGeneration == 0 || e.Attempt.GetControllerSessionId() != e.Owner.GetControllerSessionId() {
+	if e.NativeGeneration == 0 {
 		return contract("clock expectation admission mismatch")
 	}
 	arms := 0
@@ -50,7 +50,7 @@ func ValidateClockExpectation(e ClockExpectation) error {
 	if err := clockEpoch(original); err != nil {
 		return err
 	}
-	if original.Origin.GetNativeGeneration() != e.NativeGeneration || !sameIdentity(original.Origin.Identity, e.Identity) || original.Owner.GetControllerSessionId() != e.Owner.GetControllerSessionId() {
+	if original.Origin.GetNativeGeneration() != e.NativeGeneration || !sameIdentity(original.Origin.Identity, e.Identity) {
 		return contract("clock original epoch mismatch")
 	}
 	return nil
@@ -63,7 +63,7 @@ func ValidateClockReceipt(r *k.ControlReceipt, e ClockExpectation) error {
 	if err := ValidateClockExpectation(e); err != nil {
 		return err
 	}
-	if err := clockReceipt(r, e.Identity, e.Attempt, e.Owner, e.NativeGeneration); err != nil {
+	if err := clockReceipt(r, e.Identity, e.Attempt, e.NativeGeneration); err != nil {
 		return err
 	}
 	if r.GetUncertain() != nil {

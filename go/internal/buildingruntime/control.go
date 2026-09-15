@@ -20,12 +20,17 @@ import (
 
 var ErrControl = errors.New("writer authority unavailable")
 
+// liveToken is an opaque non-empty sentinel returned by Lease while the bot
+// holds Auto-mode authority. There is no negotiated lease ID any more (see
+// #52); callers only ever check it for presence/validity, never compare it
+// against a value the native side returned.
+const liveToken = "auto"
+
 // NativeAuthority combines the separately held read client and trusted authority
 // capability. Neither a model nor the read-only HTTP service receives this owner.
 type NativeAuthority interface {
 	ReadAuthority(context.Context, *c.Identity) (*a.StatusReply, bridge.Result, error)
-	Acquire(context.Context, *a.Acquire) (*a.ControlReply, bridge.Result, error)
-	Renew(context.Context, *a.Renew, *a.Owner) (*a.ControlReply, bridge.Result, error)
+	SetMode(context.Context, *a.SetMode) (*a.ControlReply, bridge.Result, error)
 	Revoke(context.Context, *a.Revoke) (*a.ControlReply, bridge.Result, error)
 }
 type SessionIdentity interface {
@@ -38,9 +43,9 @@ type AuthoritySink interface {
 	UpdateAuthority(executor.Authority) error
 }
 type ControlConfig struct {
-	ProfileDirectory           string
-	LeaseDuration, CallTimeout time.Duration
-	StopWrites                 func(context.Context) error
+	ProfileDirectory string
+	CallTimeout      time.Duration
+	StopWrites       func(context.Context) error
 	// CleanupWrites joins invalidated commands and drains owned effects under
 	// the control gate. It must not call back into Control or acquire a lease.
 	CleanupWrites func(context.Context) error
@@ -50,7 +55,10 @@ type ControlConfig struct {
 }
 
 // Control owns the shared profile lock until controls and native writers drain.
-// It renews only on explicit calls. A lease is not permission to resume the clock.
+// Auto means the bot holds authority outright; there is no negotiated lease to
+// renew or expire. A local-player interruption (detected natively) or an
+// explicit call to Manual is what ends authority, and either bumps the
+// generation the next write must match.
 type Control struct {
 	mu               sync.Mutex
 	gate             chan struct{}
@@ -63,17 +71,15 @@ type Control struct {
 	epoch            context.Context
 	cancelEpoch      context.CancelFunc
 	stopLifetime     func() bool
-	timer            *time.Timer
 	snapshot         domain.GenerationSnapshot
 	haveTarget       bool
 	observationKnown bool
-	lease            string
-	deadline         time.Time
+	active           bool
 	closing, closed  bool
 }
 
 func NewControl(ctx context.Context, config ControlConfig, identity SessionIdentity, native NativeAuthority, sink AuthoritySink) (*Control, error) {
-	if identity == nil || native == nil || sink == nil || config.StopWrites == nil || config.LeaseDuration < time.Second || config.LeaseDuration > 30*time.Second || config.LeaseDuration%time.Millisecond != 0 || config.CallTimeout <= 0 || config.CallTimeout > time.Minute {
+	if identity == nil || native == nil || sink == nil || config.StopWrites == nil || config.CallTimeout <= 0 || config.CallTimeout > time.Minute {
 		return nil, ErrControl
 	}
 	owner, err := runtimeowner.Acquire(ctx, config.ProfileDirectory)
@@ -103,8 +109,11 @@ func NewControl(ctx context.Context, config ControlConfig, identity SessionIdent
 }
 
 // Acquire must be called only by an authenticated explicit-player entrypoint.
-// A requested direction is scoped intent, not authentication. Fresh native CAS
-// replaces the requested native generation; an existing owner is never adopted.
+// A requested direction is scoped intent, not authentication -- it stays a
+// domain-level concept for goal invalidation across acquisitions (see
+// domain.GenerationSnapshot) and is never sent over the wire any more; the
+// wire contract only carries identity, generation and the requested Mode.
+// Fresh native CAS replaces the requested native generation.
 func (control *Control) Acquire(ctx context.Context, requested domain.GenerationSnapshot) (domain.GenerationSnapshot, error) {
 	if err := requested.Validate(); err != nil {
 		return domain.GenerationSnapshot{}, err
@@ -158,64 +167,33 @@ func (control *Control) Acquire(ctx context.Context, requested domain.Generation
 	}
 	control.snapshot, control.haveTarget = requested, true
 	control.mu.Unlock()
-	started := time.Now()
-	reply, _, err := control.native.Acquire(call, &a.Acquire{Identity: controlIdentity(requested), ExpectedGeneration: proto.Uint64(generation), Owner: control.controlOwner(requested), LeaseMs: proto.Uint32(uint32(control.config.LeaseDuration / time.Millisecond))})
+	reply, _, err := control.native.SetMode(call, &a.SetMode{Identity: controlIdentity(requested), ExpectedGeneration: proto.Uint64(generation), Mode: a.Mode_MODE_AUTO.Enum()})
 	if err != nil {
 		return domain.GenerationSnapshot{}, err
 	}
 	requested.Native++
-	if err = control.acceptGrant(call, epoch, reply, requested, "", started); err != nil {
+	if err = control.acceptGrant(call, epoch, reply, requested); err != nil {
 		return domain.GenerationSnapshot{}, err
 	}
 	return requested, nil
 }
 
-func (control *Control) Renew(ctx context.Context) error {
-	control.mu.Lock()
-	if !control.liveLocked(time.Now()) {
-		control.mu.Unlock()
-		return ErrControl
-	}
-	epoch, snapshot, lease, deadline := control.epoch, control.snapshot, control.lease, control.deadline
-	control.mu.Unlock()
-	call, done, err := control.enter(ctx, epoch)
-	if err != nil {
-		return err
-	}
-	defer done()
-	call, cancel := context.WithDeadline(call, deadline)
-	defer cancel()
-	if err := call.Err(); err != nil {
-		return err
-	}
-	started := time.Now()
-	reply, _, err := control.native.Renew(call, &a.Renew{Identity: controlIdentity(snapshot), ExpectedGeneration: proto.Uint64(uint64(snapshot.Native)), ControllerSessionId: proto.String(string(control.namespace)), LeaseId: proto.String(lease), LeaseMs: proto.Uint32(uint32(control.config.LeaseDuration / time.Millisecond))}, control.controlOwner(snapshot))
-	if err == nil {
-		err = control.acceptGrant(call, epoch, reply, snapshot, lease, started)
-	}
-	if err != nil {
-		control.mu.Lock()
-		if control.epoch == epoch {
-			err = errors.Join(err, control.invalidateLocked())
-		}
-		control.mu.Unlock()
-	}
-	return err
-}
-
-// Lease is checked again immediately before native dispatch. Unknown, expired,
-// revoked or differently scoped authority cannot supply a lease ID.
+// Lease reports whether the bot currently holds Auto-mode authority for the
+// given snapshot. It is checked again immediately before native dispatch.
+// The returned token is opaque and carries no native identity; it exists only
+// so callers can distinguish "authority live" from "authority unavailable"
+// with the same presence check they used against the old lease ID.
 func (control *Control) Lease(snapshot domain.GenerationSnapshot) (string, error) {
 	control.mu.Lock()
 	defer control.mu.Unlock()
-	if !control.liveLocked(time.Now()) || !control.snapshot.Matches(snapshot) {
+	if !control.liveLocked() || !control.snapshot.Matches(snapshot) {
 		return "", ErrControl
 	}
-	return control.lease, nil
+	return liveToken, nil
 }
 
 // Manual disables local authority before waiting for any native call. Inspection
-// reconciles an uncertain acquire/renew, but never adopts its lease or retries it.
+// reconciles an uncertain SetMode call, but never adopts a grant from it.
 func (control *Control) Manual(ctx context.Context) error {
 	control.mu.Lock()
 	if control.closing {
@@ -314,12 +292,7 @@ func (control *Control) shutdownTarget(ctx context.Context) error {
 func (control *Control) invalidateLocked() error {
 	control.cancelEpoch()
 	control.epoch, control.cancelEpoch = context.WithCancel(control.lifetime)
-	if control.timer != nil {
-		control.timer.Stop()
-		control.timer = nil
-	}
-	control.lease = ""
-	control.deadline = time.Time{}
+	control.active = false
 	value := executor.Authority{}
 	if control.observationKnown {
 		value.Snapshot = control.snapshot
@@ -341,15 +314,12 @@ func (control *Control) failedObservationLocked(cause error) error {
 	control.observationKnown = false
 	return errors.Join(cause, control.invalidateLocked())
 }
-func (control *Control) liveLocked(now time.Time) bool {
-	if control.closing || control.lifetime.Err() != nil || control.lease == "" {
-		return false
-	}
-	if !now.Before(control.deadline) {
-		control.invalidateLocked()
-		return false
-	}
-	return true
+
+// liveLocked reports whether authority is currently held. There is no lease
+// deadline any more; live means "the last observation/grant said Auto and
+// nothing has invalidated it since" (see invalidateLocked).
+func (control *Control) liveLocked() bool {
+	return !control.closing && control.lifetime.Err() == nil && control.active
 }
 func (control *Control) enter(ctx, epoch context.Context) (context.Context, func(), error) {
 	call, cancel := context.WithTimeout(ctx, control.config.CallTimeout)
@@ -373,38 +343,24 @@ func (control *Control) enter(ctx, epoch context.Context) (context.Context, func
 	}
 	return call, func() { <-control.gate; cleanup() }, nil
 }
-func (control *Control) acceptGrant(call, epoch context.Context, reply *a.ControlReply, snapshot domain.GenerationSnapshot, lease string, started time.Time) error {
+func (control *Control) acceptGrant(call, epoch context.Context, reply *a.ControlReply, snapshot domain.GenerationSnapshot) error {
 	grant := reply.GetGranted()
-	if grant == nil || bridge.ValidateContext(grant.Context) != nil || !proto.Equal(grant.Context.Identity, controlIdentity(snapshot)) || grant.Context.NativeGeneration == nil || grant.Context.GetNativeGeneration() != uint64(snapshot.Native) || grant.Authority == nil || !proto.Equal(grant.Authority.Owner, control.controlOwner(snapshot)) || grant.Authority.RemainingLeaseMs == nil || grant.Authority.GetRemainingLeaseMs() == 0 || time.Duration(grant.Authority.GetRemainingLeaseMs())*time.Millisecond > control.config.LeaseDuration || !controlID(grant.GetLeaseId()) || lease != "" && grant.GetLeaseId() != lease {
+	if grant == nil || bridge.ValidateContext(grant.Context) != nil || !proto.Equal(grant.Context.Identity, controlIdentity(snapshot)) || grant.Context.NativeGeneration == nil || grant.Context.GetNativeGeneration() != uint64(snapshot.Native) || grant.Authority == nil || grant.Authority.GetMode() != a.Mode_MODE_AUTO {
 		return ErrControl
 	}
-	deadline := started.Add(time.Duration(grant.Authority.GetRemainingLeaseMs()) * time.Millisecond)
 	control.mu.Lock()
 	defer control.mu.Unlock()
-	if call.Err() != nil || epoch.Err() != nil || control.closing || !time.Now().Before(deadline) {
+	if call.Err() != nil || epoch.Err() != nil || control.closing {
 		return ErrControl
 	}
-	control.snapshot, control.lease, control.deadline = snapshot, grant.GetLeaseId(), deadline
+	control.snapshot = snapshot
+	control.active = true
 	control.observationKnown = true
 	if err := control.sink.UpdateAuthority(executor.Authority{Snapshot: snapshot, Enabled: true}); err != nil {
 		control.invalidateLocked()
 		return err
 	}
-	control.armTimerLocked(epoch)
 	return nil
-}
-func (control *Control) armTimerLocked(epoch context.Context) {
-	if control.timer != nil {
-		control.timer.Stop()
-	}
-	deadline := control.deadline
-	control.timer = time.AfterFunc(time.Until(deadline), func() {
-		control.mu.Lock()
-		defer control.mu.Unlock()
-		if !control.closed && control.epoch == epoch && control.deadline == deadline {
-			control.invalidateLocked()
-		}
-	})
 }
 func (control *Control) revoke(ctx context.Context, reason a.RevocationReason) error {
 	control.mu.Lock()
@@ -428,7 +384,7 @@ func (control *Control) revoke(ctx context.Context, reason a.RevocationReason) e
 		return control.publishDisabled(ctx, snapshot, status.Context.GetNativeGeneration())
 	}
 	active := status.GetActive()
-	if active == nil || !proto.Equal(active.Owner, control.controlOwner(snapshot)) {
+	if active == nil || active.GetMode() != a.Mode_MODE_AUTO {
 		return ErrControl
 	}
 	generation := status.Context.GetNativeGeneration()
@@ -453,12 +409,13 @@ func (control *Control) publishDisabled(ctx context.Context, expected domain.Gen
 		return ErrControl
 	}
 	control.snapshot.Native = domain.NativeGeneration(generation)
+	control.active = false
 	control.observationKnown = true
 	return control.sink.UpdateAuthority(executor.Authority{Snapshot: control.snapshot})
 }
 
 // ObserveTarget seeds a read-only restart target after the caller validates the
-// durable plan/revision. It cannot replace a live lease or adopt a native owner.
+// durable plan/revision. It cannot replace live authority or adopt a grant.
 func (control *Control) ObserveTarget(ctx context.Context, requested domain.GenerationSnapshot) error {
 	if err := requested.Validate(); err != nil {
 		return err
@@ -467,7 +424,7 @@ func (control *Control) ObserveTarget(ctx context.Context, requested domain.Gene
 		return ErrControl
 	}
 	control.mu.Lock()
-	if control.closing || control.liveLocked(time.Now()) {
+	if control.closing || control.liveLocked() {
 		control.mu.Unlock()
 		return ErrControl
 	}
@@ -479,7 +436,7 @@ func (control *Control) ObserveTarget(ctx context.Context, requested domain.Gene
 	}
 	defer done()
 	control.mu.Lock()
-	if control.closing || epoch.Err() != nil || control.epoch != epoch || control.liveLocked(time.Now()) {
+	if control.closing || epoch.Err() != nil || control.epoch != epoch || control.liveLocked() {
 		control.mu.Unlock()
 		return ErrControl
 	}
@@ -506,8 +463,8 @@ func (control *Control) ObserveTarget(ctx context.Context, requested domain.Gene
 	return control.sink.UpdateAuthority(executor.Authority{Snapshot: control.snapshot})
 }
 
-// Refresh observes the stored target without acquiring or extending authority.
-// Known revocation/generation changes remain available for read reconciliation.
+// Refresh observes the stored target without acquiring authority. Known
+// revocation/generation changes remain available for read reconciliation.
 func (control *Control) Refresh(ctx context.Context) error {
 	control.mu.Lock()
 	if control.closing || !control.haveTarget {
@@ -521,7 +478,6 @@ func (control *Control) Refresh(ctx context.Context) error {
 		return err
 	}
 	defer done()
-	started := time.Now()
 	reply, _, err := control.native.ReadAuthority(call, controlIdentity(snapshot))
 	if err == nil {
 		err = controlStatus(reply, snapshot)
@@ -540,19 +496,13 @@ func (control *Control) Refresh(ctx context.Context) error {
 	}
 	status := reply.GetStatus()
 	active := status.GetActive()
-	if status.Context.GetNativeGeneration() != uint64(snapshot.Native) || active == nil || !proto.Equal(active.Owner, control.controlOwner(snapshot)) || !control.liveLocked(time.Now()) {
+	if status.Context.GetNativeGeneration() != uint64(snapshot.Native) || active == nil || active.GetMode() != a.Mode_MODE_AUTO {
 		err = control.invalidateLocked()
 		control.snapshot.Native = domain.NativeGeneration(status.Context.GetNativeGeneration())
 		control.observationKnown = true
 		return errors.Join(err, control.sink.UpdateAuthority(executor.Authority{Snapshot: control.snapshot}))
 	}
-	// A read may shorten a known lease, never extend or resurrect it.
-	observedDeadline := started.Add(time.Duration(active.GetRemainingLeaseMs()) * time.Millisecond)
-	if observedDeadline.Before(control.deadline) {
-		control.deadline = observedDeadline
-		control.armTimerLocked(epoch)
-	}
-	control.liveLocked(time.Now())
+	control.active = true
 	return nil
 }
 func controlStatus(reply *a.StatusReply, snapshot domain.GenerationSnapshot) error {
@@ -561,21 +511,18 @@ func controlStatus(reply *a.StatusReply, snapshot domain.GenerationSnapshot) err
 		return ErrControl
 	}
 	if inactive := status.GetInactive(); inactive != nil {
-		if inactive.Reason == nil || *inactive.Reason <= 0 || *inactive.Reason > a.RevocationReason_REVOCATION_REASON_GENERATION_EXHAUSTED {
+		if inactive.Reason == nil || *inactive.Reason <= 0 || *inactive.Reason > a.RevocationReason_REVOCATION_REASON_UNAVAILABLE {
 			return ErrControl
 		}
 		return nil
 	}
-	if active := status.GetActive(); active != nil && active.Owner != nil && controlID(active.Owner.GetControllerSessionId()) && active.Owner.GetPlayerDirection() > 0 && active.RemainingLeaseMs != nil && active.GetRemainingLeaseMs() > 0 && active.GetRemainingLeaseMs() <= 30000 {
+	if active := status.GetActive(); active != nil && active.GetMode() == a.Mode_MODE_AUTO {
 		return nil
 	}
 	return ErrControl
 }
 func controlIdentity(s domain.GenerationSnapshot) *c.Identity {
 	return &c.Identity{ColonyId: proto.String(string(s.Colony)), LoadToken: proto.String(string(s.Load)), MapId: proto.Int32(int32(s.Map))}
-}
-func (control *Control) controlOwner(s domain.GenerationSnapshot) *a.Owner {
-	return &a.Owner{ControllerSessionId: proto.String(string(control.namespace)), PlayerDirection: proto.Uint64(uint64(s.Direction))}
 }
 func controlID(value string) bool {
 	return utf8.ValidString(value) && strings.TrimSpace(value) != "" && len(value) <= 256 && !strings.ContainsRune(value, 0)

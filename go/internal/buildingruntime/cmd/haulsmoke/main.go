@@ -335,7 +335,7 @@ func perform(opts options, out *report) (err error) {
 	native := &recordingNative{Client: client, AuthorityControl: authority, writer: pawnOrderWriter, records: &out.Calls}
 	owner, err = buildingruntime.NewSession(ctx, buildingruntime.SessionConfig{
 		Haul:     &haul.HaulCapabilities{Native: native, Writer: native},
-		Control:  buildingruntime.ControlConfig{ProfileDirectory: opts.profile, LeaseDuration: 30 * time.Second, CallTimeout: 20 * time.Second},
+		Control:  buildingruntime.ControlConfig{ProfileDirectory: opts.profile, CallTimeout: 20 * time.Second},
 		Executor: executor.Limits{MaxAge: 20 * time.Second, RunTimeout: 60 * time.Second, JournalTimeout: 5 * time.Second},
 	}, journal, native, native, buildingWriter, realClock{})
 	if err != nil {
@@ -366,8 +366,8 @@ type recordingNative struct {
 	records *[]callRecord
 }
 
-func (n *recordingNative) OrderPawn(ctx context.Context, pre *a.WritePrecondition, owner *a.Owner, command *o.PawnTargetOrder) (*o.ExecuteReply, bridge.Result, error) {
-	reply, raw, err := n.writer.OrderPawn(ctx, pre, owner, command)
+func (n *recordingNative) OrderPawn(ctx context.Context, pre *a.WritePrecondition, command *o.PawnTargetOrder) (*o.ExecuteReply, bridge.Result, error) {
+	reply, raw, err := n.writer.OrderPawn(ctx, pre, command)
 	*n.records = append(*n.records, callRecord{"operations_execute", raw})
 	return reply, raw, err
 }

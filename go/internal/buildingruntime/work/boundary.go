@@ -104,7 +104,7 @@ func (b *WorkBoundary) InspectWork(ctx context.Context, t executor.Target) (exec
 }
 func (b *WorkBoundary) workAttempt(p executor.Placement) bridge.WorkAttempt {
 	w, _ := p.Action.WorkAssignment()
-	return bridge.WorkAttempt{Identity: boundary.Identity(p.Snapshot), Attempt: b.Attempt(p), Owner: &a.Owner{ControllerSessionId: proto.String(b.Session), PlayerDirection: proto.Uint64(uint64(p.Snapshot.Direction))}, Generation: uint64(p.Snapshot.Native), Work: w}
+	return bridge.WorkAttempt{Identity: boundary.Identity(p.Snapshot), Attempt: b.Attempt(p), Generation: uint64(p.Snapshot.Native), Work: w}
 }
 func (b *WorkBoundary) AssignWork(ctx context.Context, d executor.WorkDispatch) (executor.Receipt, error) {
 	p := d.Attempt

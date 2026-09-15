@@ -49,7 +49,7 @@ type RecoveryServiceNative interface {
 	ObserveRecoveryServiceProgress(context.Context, bridge.RecoveryServiceAttempt, *r.Receipt) (*r.ProgressReply, bridge.Result, error)
 }
 type RecoveryServiceWriter interface {
-	ApplyRecoveryService(context.Context, *a.WritePrecondition, *a.Owner, string, string, string, string, bridge.RecoveryServiceMethod) (*o.ExecuteReply, bridge.Result, error)
+	ApplyRecoveryService(context.Context, *a.WritePrecondition, string, string, string, string, bridge.RecoveryServiceMethod) (*o.ExecuteReply, bridge.Result, error)
 }
 type RecoveryServiceCapabilities struct {
 	Native RecoveryServiceNative
@@ -149,7 +149,7 @@ func (b *RecoveryServiceBoundary) attempt(dispatch executor.RecoveryServiceDispa
 	if !ok || p.Attempt == 0 || p.Tick < 0 || admission.Snapshot != p.Snapshot || admission.Pawn != service.Pawn() || admission.Thing != service.Thing() || admission.Method != service.Method() || admission.Tick > p.Tick || !boundary.ValidID(admission.PawnSnapshotToken) || !boundary.ValidID(admission.ThingSnapshotToken) {
 		return bridge.RecoveryServiceAttempt{}, executor.ErrEvidence
 	}
-	return bridge.RecoveryServiceAttempt{Identity: boundary.Identity(p.Snapshot), Attempt: &c.AttemptKey{ControllerSessionId: proto.String(b.session), ActionId: proto.String(string(p.Action.ID())), AttemptId: proto.Uint64(uint64(p.Attempt))}, Owner: &a.Owner{ControllerSessionId: proto.String(b.session), PlayerDirection: proto.Uint64(uint64(p.Snapshot.Direction))}, Generation: uint64(p.Snapshot.Native), Pawn: string(service.Pawn()), Thing: service.Thing(), PawnToken: admission.PawnSnapshotToken, ThingToken: admission.ThingSnapshotToken, Method: recoveryServiceMethodWire(admission.Method)}, nil
+	return bridge.RecoveryServiceAttempt{Identity: boundary.Identity(p.Snapshot), Attempt: &c.AttemptKey{ControllerSessionId: proto.String(b.session), ActionId: proto.String(string(p.Action.ID())), AttemptId: proto.Uint64(uint64(p.Attempt))}, Generation: uint64(p.Snapshot.Native), Pawn: string(service.Pawn()), Thing: service.Thing(), PawnToken: admission.PawnSnapshotToken, ThingToken: admission.ThingSnapshotToken, Method: recoveryServiceMethodWire(admission.Method)}, nil
 }
 
 func recoveryServiceJob(job *r.JobEffect, dispatch executor.RecoveryServiceDispatch) error {
@@ -183,8 +183,8 @@ func (b *RecoveryServiceBoundary) RecoveryServicePawn(ctx context.Context, dispa
 	if err = ctx.Err(); err != nil {
 		return out, err
 	}
-	pre := &a.WritePrecondition{Identity: attempt.Identity, Attempt: attempt.Attempt, ExpectedGeneration: proto.Uint64(attempt.Generation), LeaseId: proto.String(lease)}
-	reply, _, err := b.writer.ApplyRecoveryService(ctx, pre, attempt.Owner, attempt.Pawn, attempt.PawnToken, attempt.Thing, attempt.ThingToken, attempt.Method)
+	pre := &a.WritePrecondition{Identity: attempt.Identity, Attempt: attempt.Attempt, ExpectedGeneration: proto.Uint64(attempt.Generation),}
+	reply, _, err := b.writer.ApplyRecoveryService(ctx, pre, attempt.Pawn, attempt.PawnToken, attempt.Thing, attempt.ThingToken, attempt.Method)
 	var refused *bridge.NativeFailure
 	if errors.As(err, &refused) && refused.Value != nil && refused.Value.GetCode() != c.FailureCode_FAILURE_CODE_ATTEMPT_CONFLICT {
 		out.Kind = domain.ReceiptRefused
@@ -242,7 +242,7 @@ func (b *RecoveryServiceBoundary) ObserveRecoveryService(ctx context.Context, di
 		if v.InFlight == nil || !proto.Equal(v.InFlight.Attempt, attempt.Attempt) {
 			return out, executor.ErrEvidence
 		}
-		if err = boundary.Admission(&r.Receipt{Attempt: v.InFlight.Attempt, AdmittedContext: v.InFlight.AdmittedContext, AuthorizingOwner: attempt.Owner}, p, b.session); err != nil {
+		if err = boundary.Admission(&r.Receipt{Attempt: v.InFlight.Attempt, AdmittedContext: v.InFlight.AdmittedContext}, p, b.session); err != nil {
 			return out, err
 		}
 	case *r.LookupReply_Receipt:

@@ -24,7 +24,6 @@ import (
 type HomeCoverageAttempt struct {
 	Identity   *c.Identity
 	Attempt    *c.AttemptKey
-	Owner      *a.Owner
 	Generation uint64
 	Target     string
 	Shape      string
@@ -98,13 +97,7 @@ func homeCoverageAttempt(v HomeCoverageAttempt) (HomeCoverageAttempt, error) {
 	if err := buildingAttempt(v.Attempt); err != nil {
 		return HomeCoverageAttempt{}, err
 	}
-	if err := authorityOwner(v.Owner); err != nil {
-		return HomeCoverageAttempt{}, err
-	}
-	if err := buildingUnknown(v.Owner); err != nil {
-		return HomeCoverageAttempt{}, err
-	}
-	if v.Generation == 0 || v.Owner.GetControllerSessionId() != v.Attempt.GetControllerSessionId() {
+	if v.Generation == 0 {
 		return HomeCoverageAttempt{}, contract("home coverage admission owner or generation mismatch")
 	}
 	if err := homeCoverageCommand(v.Target, v.Shape, v.Revision); err != nil {
@@ -112,7 +105,6 @@ func homeCoverageAttempt(v HomeCoverageAttempt) (HomeCoverageAttempt, error) {
 	}
 	v.Identity = proto.Clone(v.Identity).(*c.Identity)
 	v.Attempt = proto.Clone(v.Attempt).(*c.AttemptKey)
-	v.Owner = proto.Clone(v.Owner).(*a.Owner)
 	return v, nil
 }
 
@@ -132,7 +124,7 @@ func homeCoverageEvidence(evidence *r.EffectEvidence, expected HomeCoverageAttem
 }
 
 func homeCoverageReceipt(v *r.Receipt, expected HomeCoverageAttempt) error {
-	if v == nil || buildingUnknown(v) != nil || !proto.Equal(v.Attempt, expected.Attempt) || !proto.Equal(v.AuthorizingOwner, expected.Owner) {
+	if v == nil || buildingUnknown(v) != nil || !proto.Equal(v.Attempt, expected.Attempt) {
 		return contract("home coverage admission mismatch")
 	}
 	if err := buildingContext(v.AdmittedContext, expected.Identity, expected.Generation, true); err != nil {
@@ -169,14 +161,14 @@ func NewHomeCoverageWriter(client *Client) (*HomeCoverageWriter, error) {
 }
 
 // ApplyHomeCoverage dispatches one already-admitted Home extension.
-func (writer *HomeCoverageWriter) ApplyHomeCoverage(ctx context.Context, pre *a.WritePrecondition, owner *a.Owner, target, shape string, revision int64) (*o.ExecuteReply, Result, error) {
-	if writer == nil || writer.client == nil || pre == nil || buildingUnknown(pre) != nil || ValidateIdentity(pre.Identity) != nil || buildingAttempt(pre.Attempt) != nil || pre.GetExpectedGeneration() == 0 || validID(pre.GetLeaseId()) != nil {
+func (writer *HomeCoverageWriter) ApplyHomeCoverage(ctx context.Context, pre *a.WritePrecondition, target, shape string, revision int64) (*o.ExecuteReply, Result, error) {
+	if writer == nil || writer.client == nil || pre == nil || buildingUnknown(pre) != nil || ValidateIdentity(pre.Identity) != nil || buildingAttempt(pre.Attempt) != nil || pre.GetExpectedGeneration() == 0 {
 		return nil, Result{}, contract("invalid home coverage execution")
 	}
 	if err := homeCoverageCommand(target, shape, revision); err != nil {
 		return nil, Result{}, err
 	}
-	expected, err := homeCoverageAttempt(HomeCoverageAttempt{Identity: pre.Identity, Attempt: pre.Attempt, Owner: owner, Generation: pre.GetExpectedGeneration(), Target: target, Shape: shape, Revision: revision})
+	expected, err := homeCoverageAttempt(HomeCoverageAttempt{Identity: pre.Identity, Attempt: pre.Attempt, Generation: pre.GetExpectedGeneration(), Target: target, Shape: shape, Revision: revision})
 	if err != nil {
 		return nil, Result{}, err
 	}

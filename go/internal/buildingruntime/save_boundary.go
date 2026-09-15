@@ -55,7 +55,7 @@ func (control *Control) Checkpoint(ctx context.Context, save LifecycleSaver, req
 		return CheckpointResult{}, ErrCheckpoint
 	}
 	control.mu.Lock()
-	if control.closing || !control.liveLocked(time.Now()) {
+	if control.closing || !control.liveLocked() {
 		control.mu.Unlock()
 		return CheckpointResult{}, ErrCheckpoint
 	}

@@ -38,13 +38,7 @@ func pawnOrderAttempt(v PawnOrderAttempt) (PawnOrderAttempt, error) {
 	if err := buildingAttempt(v.Attempt); err != nil {
 		return PawnOrderAttempt{}, err
 	}
-	if err := authorityOwner(v.Owner); err != nil {
-		return PawnOrderAttempt{}, err
-	}
-	if err := buildingUnknown(v.Owner); err != nil {
-		return PawnOrderAttempt{}, err
-	}
-	if v.NativeGeneration == 0 || v.Owner.GetControllerSessionId() != v.Attempt.GetControllerSessionId() {
+	if v.NativeGeneration == 0 {
 		return PawnOrderAttempt{}, contract("pawn order admission owner or generation mismatch")
 	}
 	if err := validID(v.PawnID); err != nil {
@@ -52,7 +46,6 @@ func pawnOrderAttempt(v PawnOrderAttempt) (PawnOrderAttempt, error) {
 	}
 	v.Identity = proto.Clone(v.Identity).(*c.Identity)
 	v.Attempt = proto.Clone(v.Attempt).(*c.AttemptKey)
-	v.Owner = proto.Clone(v.Owner).(*a.Owner)
 	if validID(v.TargetID) != nil || v.TargetID == v.PawnID || len(pawnOrderJobDefs(v.Kind)) == 0 || v.RequireSafeStorage != pawnOrderRequiresSafeStorage(v.Kind) {
 		return PawnOrderAttempt{}, contract("invalid pawn order attempt target or kind")
 	}
@@ -103,11 +96,11 @@ func (client *Client) PreviewPawnOrder(ctx context.Context, identity *c.Identity
 	}
 	return reply, raw, err
 }
-func (control *PawnOrderControl) OrderPawn(ctx context.Context, pre *a.WritePrecondition, owner *a.Owner, command *o.PawnTargetOrder) (*o.ExecuteReply, Result, error) {
+func (control *PawnOrderControl) OrderPawn(ctx context.Context, pre *a.WritePrecondition, command *o.PawnTargetOrder) (*o.ExecuteReply, Result, error) {
 	if control == nil || control.client == nil {
 		return nil, Result{}, contract("pawn order capability missing")
 	}
-	if pre == nil || validID(pre.GetLeaseId()) != nil {
+	if pre == nil {
 		return nil, Result{}, contract("pawn order lease missing")
 	}
 	if err := buildingUnknown(pre); err != nil {
@@ -116,7 +109,7 @@ func (control *PawnOrderControl) OrderPawn(ctx context.Context, pre *a.WritePrec
 	if err := pawnOrderCommand(command); err != nil {
 		return nil, Result{}, err
 	}
-	expected, err := pawnOrderAttempt(PawnOrderAttempt{pre.Identity, pre.Attempt, pre.GetExpectedGeneration(), owner, command.Pawn.GetEntityId(), command.Target.GetEntityId(), command.GetKind(), command.GetRequireSafeStorage()})
+	expected, err := pawnOrderAttempt(PawnOrderAttempt{pre.Identity, pre.Attempt, pre.GetExpectedGeneration(), command.Pawn.GetEntityId(), command.Target.GetEntityId(), command.GetKind(), command.GetRequireSafeStorage()})
 	if err != nil {
 		return nil, Result{}, err
 	}

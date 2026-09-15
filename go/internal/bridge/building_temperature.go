@@ -17,7 +17,6 @@ import (
 type BuildingTemperatureAttempt struct {
 	Identity    *c.Identity
 	Attempt     *c.AttemptKey
-	Owner       *a.Owner
 	Generation  uint64
 	Temperature domain.BuildingTemperature
 }
@@ -61,7 +60,7 @@ func (client *Client) PreviewBuildingTemperature(ctx context.Context, identity *
 	return reply, raw, nil
 }
 func (writer *BuildingTemperatureControl) ApplyBuildingTemperature(ctx context.Context, pre *a.WritePrecondition, target domain.BuildingTemperature) (*op.ExecuteReply, Result, error) {
-	if writer == nil || writer.client == nil || pre == nil || buildingUnknown(pre) != nil || ValidateIdentity(pre.Identity) != nil || buildingAttempt(pre.Attempt) != nil || pre.GetExpectedGeneration() == 0 || validID(pre.GetLeaseId()) != nil || validateBuildingTemperature(target) != nil {
+	if writer == nil || writer.client == nil || pre == nil || buildingUnknown(pre) != nil || ValidateIdentity(pre.Identity) != nil || buildingAttempt(pre.Attempt) != nil || pre.GetExpectedGeneration() == 0 || validateBuildingTemperature(target) != nil {
 		return nil, Result{}, contract("invalid building temperature execution")
 	}
 	reply := &op.ExecuteReply{}
@@ -76,14 +75,14 @@ func (writer *BuildingTemperatureControl) ApplyBuildingTemperature(ctx context.C
 		return nil, raw, failure(reply.GetFailure(), raw)
 	}
 	v := reply.GetReceipt()
-	if v == nil || v.AuthorizingOwner == nil || v.AuthorizingOwner.GetControllerSessionId() != pre.Attempt.GetControllerSessionId() {
+	if v == nil {
 		return nil, raw, contract("building temperature owner mismatch")
 	}
-	err = buildingTemperatureReceipt(v, BuildingTemperatureAttempt{pre.Identity, pre.Attempt, v.AuthorizingOwner, pre.GetExpectedGeneration(), target})
+	err = buildingTemperatureReceipt(v, BuildingTemperatureAttempt{pre.Identity, pre.Attempt, pre.GetExpectedGeneration(), target})
 	return reply, raw, err
 }
 func validBuildingTemperatureAttempt(w BuildingTemperatureAttempt) error {
-	if ValidateIdentity(w.Identity) != nil || buildingAttempt(w.Attempt) != nil || authorityOwner(w.Owner) != nil || buildingUnknown(w.Owner) != nil || w.Generation == 0 || w.Owner.GetControllerSessionId() != w.Attempt.GetControllerSessionId() {
+	if ValidateIdentity(w.Identity) != nil || buildingAttempt(w.Attempt) != nil || w.Generation == 0 {
 		return contract("invalid building temperature attempt")
 	}
 	return validateBuildingTemperature(w.Temperature)
@@ -104,7 +103,7 @@ func buildingTemperatureEffect(v *r.EffectEvidence, target domain.BuildingTemper
 	return nil
 }
 func buildingTemperatureReceipt(v *r.Receipt, w BuildingTemperatureAttempt) error {
-	if v == nil || buildingUnknown(v) != nil || !proto.Equal(v.Attempt, w.Attempt) || !proto.Equal(v.AuthorizingOwner, w.Owner) || buildingContext(v.AdmittedContext, w.Identity, w.Generation, true) != nil {
+	if v == nil || buildingUnknown(v) != nil || !proto.Equal(v.Attempt, w.Attempt) || buildingContext(v.AdmittedContext, w.Identity, w.Generation, true) != nil {
 		return contract("building temperature admission mismatch")
 	}
 	switch out := v.Outcome.(type) {

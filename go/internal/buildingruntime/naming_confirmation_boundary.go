@@ -64,7 +64,7 @@ func (b *confirmColonyNamesBoundary) InspectConfirmColonyNames(ctx context.Conte
 	return out, nil
 }
 func (b *confirmColonyNamesBoundary) namingAttempt(p executor.Placement, windowID int32, factionName, settlementName string) bridge.NamingAttempt {
-	return bridge.NamingAttempt{Identity: boundary.Identity(p.Snapshot), Attempt: b.Attempt(p), Owner: &a.Owner{ControllerSessionId: proto.String(b.Session), PlayerDirection: proto.Uint64(uint64(p.Snapshot.Direction))}, Generation: uint64(p.Snapshot.Native), WindowID: windowID, FactionName: factionName, SettlementName: settlementName}
+	return bridge.NamingAttempt{Identity: boundary.Identity(p.Snapshot), Attempt: b.Attempt(p), Generation: uint64(p.Snapshot.Native), WindowID: windowID, FactionName: factionName, SettlementName: settlementName}
 }
 func (b *confirmColonyNamesBoundary) ConfirmColonyNames(ctx context.Context, d executor.ConfirmColonyNamesDispatch) (executor.Receipt, error) {
 	p := d.Attempt

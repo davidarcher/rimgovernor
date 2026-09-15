@@ -18,7 +18,6 @@ type BillRead struct {
 type BillAttempt struct {
 	Identity   *c.Identity
 	Attempt    *c.AttemptKey
-	Owner      *a.Owner
 	Generation uint64
 	Bill       domain.ProductionBill
 }
@@ -92,7 +91,7 @@ func (client *Client) PreviewBill(ctx context.Context, identity *c.Identity, tar
 	return reply, raw, nil
 }
 func (writer *BillControl) AddBill(ctx context.Context, pre *a.WritePrecondition, target domain.ProductionBill) (*op.ExecuteReply, Result, error) {
-	if writer == nil || writer.client == nil || pre == nil || buildingUnknown(pre) != nil || ValidateIdentity(pre.Identity) != nil || buildingAttempt(pre.Attempt) != nil || pre.GetExpectedGeneration() == 0 || validID(pre.GetLeaseId()) != nil || validBill(target) != nil {
+	if writer == nil || writer.client == nil || pre == nil || buildingUnknown(pre) != nil || ValidateIdentity(pre.Identity) != nil || buildingAttempt(pre.Attempt) != nil || pre.GetExpectedGeneration() == 0 || validBill(target) != nil {
 		return nil, Result{}, contract("invalid bill execution")
 	}
 	reply := &op.ExecuteReply{}
@@ -108,14 +107,14 @@ func (writer *BillControl) AddBill(ctx context.Context, pre *a.WritePrecondition
 	}
 	// The runtime additionally compares full owner/direction against its admission.
 	v := reply.GetReceipt()
-	if v == nil || v.AuthorizingOwner == nil || v.AuthorizingOwner.GetControllerSessionId() != pre.Attempt.GetControllerSessionId() {
+	if v == nil {
 		return nil, raw, contract("bill owner mismatch")
 	}
-	err = billReceipt(v, BillAttempt{Identity: pre.Identity, Attempt: pre.Attempt, Owner: v.AuthorizingOwner, Generation: pre.GetExpectedGeneration(), Bill: target})
+	err = billReceipt(v, BillAttempt{Identity: pre.Identity, Attempt: pre.Attempt, Generation: pre.GetExpectedGeneration(), Bill: target})
 	return reply, raw, err
 }
 func validBillAttempt(w BillAttempt) error {
-	if ValidateIdentity(w.Identity) != nil || buildingAttempt(w.Attempt) != nil || authorityOwner(w.Owner) != nil || buildingUnknown(w.Owner) != nil || w.Generation == 0 || w.Owner.GetControllerSessionId() != w.Attempt.GetControllerSessionId() {
+	if ValidateIdentity(w.Identity) != nil || buildingAttempt(w.Attempt) != nil || w.Generation == 0 {
 		return contract("invalid bill attempt")
 	}
 	return validBill(w.Bill)
@@ -153,7 +152,7 @@ func ValidateBillEffect(v *r.EffectEvidence, bill domain.ProductionBill) error {
 }
 func billEffect(v *r.EffectEvidence, w BillAttempt) error { return ValidateBillEffect(v, w.Bill) }
 func billReceipt(v *r.Receipt, w BillAttempt) error {
-	if v == nil || buildingUnknown(v) != nil || !proto.Equal(v.Attempt, w.Attempt) || !proto.Equal(v.AuthorizingOwner, w.Owner) || buildingContext(v.AdmittedContext, w.Identity, w.Generation, true) != nil {
+	if v == nil || buildingUnknown(v) != nil || !proto.Equal(v.Attempt, w.Attempt) || buildingContext(v.AdmittedContext, w.Identity, w.Generation, true) != nil {
 		return contract("bill admission mismatch")
 	}
 	switch out := v.Outcome.(type) {

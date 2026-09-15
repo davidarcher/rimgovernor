@@ -22,7 +22,6 @@ type SupplyRead struct {
 type SupplyAttempt struct {
 	Identity   *c.Identity
 	Attempt    *c.AttemptKey
-	Owner      *a.Owner
 	Generation uint64
 	Supply     domain.SupplyAllow
 }
@@ -131,7 +130,7 @@ func (client *Client) PreviewSupplyAllow(ctx context.Context, identity *c.Identi
 	return reply, raw, nil
 }
 func (writer *SupplyControl) AllowSupply(ctx context.Context, pre *a.WritePrecondition, target SupplyTarget) (*op.ExecuteReply, Result, error) {
-	if writer == nil || writer.client == nil || pre == nil || buildingUnknown(pre) != nil || ValidateIdentity(pre.Identity) != nil || buildingAttempt(pre.Attempt) != nil || pre.GetExpectedGeneration() == 0 || validID(pre.GetLeaseId()) != nil || validSupply(target) != nil {
+	if writer == nil || writer.client == nil || pre == nil || buildingUnknown(pre) != nil || ValidateIdentity(pre.Identity) != nil || buildingAttempt(pre.Attempt) != nil || pre.GetExpectedGeneration() == 0 || validSupply(target) != nil {
 		return nil, Result{}, contract("invalid supply execution")
 	}
 	reply := &op.ExecuteReply{}
@@ -147,14 +146,14 @@ func (writer *SupplyControl) AllowSupply(ctx context.Context, pre *a.WritePrecon
 	}
 	// The runtime additionally compares full owner/direction against its admission.
 	v := reply.GetReceipt()
-	if v == nil || v.AuthorizingOwner == nil || v.AuthorizingOwner.GetControllerSessionId() != pre.Attempt.GetControllerSessionId() {
+	if v == nil {
 		return nil, raw, contract("supply owner mismatch")
 	}
-	err = supplyReceipt(v, SupplyAttempt{pre.Identity, pre.Attempt, v.AuthorizingOwner, pre.GetExpectedGeneration(), target.Supply})
+	err = supplyReceipt(v, SupplyAttempt{pre.Identity, pre.Attempt, pre.GetExpectedGeneration(), target.Supply})
 	return reply, raw, err
 }
 func validSupplyAttempt(w SupplyAttempt) error {
-	if ValidateIdentity(w.Identity) != nil || buildingAttempt(w.Attempt) != nil || authorityOwner(w.Owner) != nil || buildingUnknown(w.Owner) != nil || w.Generation == 0 || w.Owner.GetControllerSessionId() != w.Attempt.GetControllerSessionId() {
+	if ValidateIdentity(w.Identity) != nil || buildingAttempt(w.Attempt) != nil || w.Generation == 0 {
 		return contract("invalid supply attempt")
 	}
 	_, err := domain.NewSupplyAllow(w.Supply.Thing(), w.Supply.Definition(), w.Supply.Cell())
@@ -168,7 +167,7 @@ func supplyEffect(v *r.EffectEvidence, supply domain.SupplyAllow, allowed bool) 
 	return nil
 }
 func supplyReceipt(v *r.Receipt, w SupplyAttempt) error {
-	if v == nil || buildingUnknown(v) != nil || !proto.Equal(v.Attempt, w.Attempt) || !proto.Equal(v.AuthorizingOwner, w.Owner) || buildingContext(v.AdmittedContext, w.Identity, w.Generation, true) != nil {
+	if v == nil || buildingUnknown(v) != nil || !proto.Equal(v.Attempt, w.Attempt) || buildingContext(v.AdmittedContext, w.Identity, w.Generation, true) != nil {
 		return contract("supply admission mismatch")
 	}
 	switch out := v.Outcome.(type) {

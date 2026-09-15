@@ -26,7 +26,7 @@ type WallRemovalNative interface {
 	ObserveWallRemovalProgress(context.Context, bridge.WallRemovalAttempt, *r.Receipt) (*r.ProgressReply, bridge.Result, error)
 }
 type WallRemovalWriter interface {
-	ApplyWallRemoval(context.Context, *a.WritePrecondition, *a.Owner, string) (*o.ExecuteReply, bridge.Result, error)
+	ApplyWallRemoval(context.Context, *a.WritePrecondition, string) (*o.ExecuteReply, bridge.Result, error)
 }
 type WallRemovalCapabilities struct {
 	Native WallRemovalNative
@@ -109,7 +109,7 @@ func (b *WallRemovalBoundary) attempt(dispatch executor.WallRemovalDispatch) (br
 	if !ok || p.Attempt == 0 || p.Tick < 0 || admission.Snapshot != p.Snapshot || admission.Original != removal.Original() || admission.BackupOf != removal.BackupOf() || admission.Tick > p.Tick || admission.TargetIdentity == "" {
 		return bridge.WallRemovalAttempt{}, executor.ErrEvidence
 	}
-	return bridge.WallRemovalAttempt{Identity: boundary.Identity(p.Snapshot), Attempt: &c.AttemptKey{ControllerSessionId: proto.String(b.session), ActionId: proto.String(string(p.Action.ID())), AttemptId: proto.Uint64(uint64(p.Attempt))}, Owner: &a.Owner{ControllerSessionId: proto.String(b.session), PlayerDirection: proto.Uint64(uint64(p.Snapshot.Direction))}, Generation: uint64(p.Snapshot.Native), Target: admission.TargetIdentity}, nil
+	return bridge.WallRemovalAttempt{Identity: boundary.Identity(p.Snapshot), Attempt: &c.AttemptKey{ControllerSessionId: proto.String(b.session), ActionId: proto.String(string(p.Action.ID())), AttemptId: proto.Uint64(uint64(p.Attempt))}, Generation: uint64(p.Snapshot.Native), Target: admission.TargetIdentity}, nil
 }
 
 func (b *WallRemovalBoundary) ExecuteWallRemoval(ctx context.Context, dispatch executor.WallRemovalDispatch) (executor.Receipt, error) {
@@ -129,8 +129,8 @@ func (b *WallRemovalBoundary) ExecuteWallRemoval(ctx context.Context, dispatch e
 	if err = ctx.Err(); err != nil {
 		return out, err
 	}
-	pre := &a.WritePrecondition{Identity: attempt.Identity, Attempt: attempt.Attempt, ExpectedGeneration: proto.Uint64(attempt.Generation), LeaseId: proto.String(lease)}
-	reply, _, err := b.writer.ApplyWallRemoval(ctx, pre, attempt.Owner, attempt.Target)
+	pre := &a.WritePrecondition{Identity: attempt.Identity, Attempt: attempt.Attempt, ExpectedGeneration: proto.Uint64(attempt.Generation),}
+	reply, _, err := b.writer.ApplyWallRemoval(ctx, pre, attempt.Target)
 	var refused *bridge.NativeFailure
 	if errors.As(err, &refused) && refused.Value != nil && refused.Value.GetCode() != c.FailureCode_FAILURE_CODE_ATTEMPT_CONFLICT {
 		out.Kind = domain.ReceiptRefused
@@ -187,7 +187,7 @@ func (b *WallRemovalBoundary) ObserveWallRemoval(ctx context.Context, dispatch e
 		if v.InFlight == nil || !proto.Equal(v.InFlight.Attempt, attempt.Attempt) {
 			return out, executor.ErrEvidence
 		}
-		if err = boundary.Admission(&r.Receipt{Attempt: v.InFlight.Attempt, AdmittedContext: v.InFlight.AdmittedContext, AuthorizingOwner: attempt.Owner}, p, b.session); err != nil {
+		if err = boundary.Admission(&r.Receipt{Attempt: v.InFlight.Attempt, AdmittedContext: v.InFlight.AdmittedContext}, p, b.session); err != nil {
 			return out, err
 		}
 	case *r.LookupReply_Receipt:

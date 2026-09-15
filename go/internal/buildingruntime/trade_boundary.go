@@ -51,10 +51,10 @@ type TradeNative interface {
 	ObserveTradeEndProgress(context.Context, bridge.TradeEndAttempt, *r.Receipt) (*r.ProgressReply, bridge.Result, error)
 }
 type TradeWriter interface {
-	ApplyOpenTrade(context.Context, *a.WritePrecondition, *a.Owner, string, string, string, string, bool) (*o.ExecuteReply, bridge.Result, error)
-	ApplySetTradeLines(context.Context, *a.WritePrecondition, *a.Owner, string, string, []bridge.TradeLineInput, bool) (*o.ExecuteReply, bridge.Result, error)
-	ApplyAcceptTrade(context.Context, *a.WritePrecondition, *a.Owner, string, string, string, []bridge.TradeEconomicFloor, bool, bool) (*o.ExecuteReply, bridge.Result, error)
-	ApplyEndTrade(context.Context, *a.WritePrecondition, *a.Owner, string, string, o.EndTradeKind, bool) (*o.ExecuteReply, bridge.Result, error)
+	ApplyOpenTrade(context.Context, *a.WritePrecondition, string, string, string, string, bool) (*o.ExecuteReply, bridge.Result, error)
+	ApplySetTradeLines(context.Context, *a.WritePrecondition, string, string, []bridge.TradeLineInput, bool) (*o.ExecuteReply, bridge.Result, error)
+	ApplyAcceptTrade(context.Context, *a.WritePrecondition, string, string, string, []bridge.TradeEconomicFloor, bool, bool) (*o.ExecuteReply, bridge.Result, error)
+	ApplyEndTrade(context.Context, *a.WritePrecondition, string, string, o.EndTradeKind, bool) (*o.ExecuteReply, bridge.Result, error)
 }
 type TradeCapabilities struct {
 	Native TradeNative
@@ -260,9 +260,8 @@ func (b *TradeBoundary) inspectSessionPreview(ctx context.Context, target execut
 	return out, ctx.Err()
 }
 
-func (b *TradeBoundary) key(p executor.Placement) (*c.AttemptKey, *a.Owner) {
-	return &c.AttemptKey{ControllerSessionId: proto.String(b.session), ActionId: proto.String(string(p.Action.ID())), AttemptId: proto.Uint64(uint64(p.Attempt))},
-		&a.Owner{ControllerSessionId: proto.String(b.session), PlayerDirection: proto.Uint64(uint64(p.Snapshot.Direction))}
+func (b *TradeBoundary) key(p executor.Placement) *c.AttemptKey {
+	return &c.AttemptKey{ControllerSessionId: proto.String(b.session), ActionId: proto.String(string(p.Action.ID())), AttemptId: proto.Uint64(uint64(p.Attempt))}
 }
 
 func (b *TradeBoundary) openAttempt(dispatch executor.TradeDispatch) (bridge.TradeOpenAttempt, domain.Trade, error) {
@@ -272,9 +271,9 @@ func (b *TradeBoundary) openAttempt(dispatch executor.TradeDispatch) (bridge.Tra
 		!boundary.ValidID(admission.TraderSnapshotToken) || !boundary.ValidID(admission.NegotiatorSnapshotToken) {
 		return bridge.TradeOpenAttempt{}, domain.Trade{}, executor.ErrEvidence
 	}
-	attemptKey, owner := b.key(p)
+	attemptKey := b.key(p)
 	return bridge.TradeOpenAttempt{
-		Identity: boundary.Identity(p.Snapshot), Attempt: attemptKey, Owner: owner, Generation: uint64(p.Snapshot.Native),
+		Identity: boundary.Identity(p.Snapshot), Attempt: attemptKey, Generation: uint64(p.Snapshot.Native),
 		Trader: string(trade.Trader()), TraderToken: admission.TraderSnapshotToken,
 		Negotiator: string(trade.Negotiator()), NegotiatorToken: admission.NegotiatorSnapshotToken, GiftMode: trade.GiftMode(),
 	}, trade, nil
@@ -295,9 +294,9 @@ func (b *TradeBoundary) setLinesAttempt(dispatch executor.TradeDispatch) (bridge
 	if err != nil || trade.Kind() != domain.TradeSetLines {
 		return bridge.TradeSetLinesAttempt{}, executor.ErrEvidence
 	}
-	attemptKey, owner := b.key(dispatch.Attempt)
+	attemptKey := b.key(dispatch.Attempt)
 	return bridge.TradeSetLinesAttempt{
-		Identity: boundary.Identity(dispatch.Attempt.Snapshot), Attempt: attemptKey, Owner: owner, Generation: uint64(dispatch.Attempt.Snapshot.Native),
+		Identity: boundary.Identity(dispatch.Attempt.Snapshot), Attempt: attemptKey, Generation: uint64(dispatch.Attempt.Snapshot.Native),
 		Session: session, SessionToken: token, Lines: tradeLinesWire(trade.Lines()), AllowPawns: trade.AllowPawns(),
 	}, nil
 }
@@ -306,9 +305,9 @@ func (b *TradeBoundary) acceptAttempt(dispatch executor.TradeDispatch) (bridge.T
 	if err != nil || trade.Kind() != domain.TradeAccept {
 		return bridge.TradeAcceptAttempt{}, executor.ErrEvidence
 	}
-	attemptKey, owner := b.key(dispatch.Attempt)
+	attemptKey := b.key(dispatch.Attempt)
 	return bridge.TradeAcceptAttempt{
-		Identity: boundary.Identity(dispatch.Attempt.Snapshot), Attempt: attemptKey, Owner: owner, Generation: uint64(dispatch.Attempt.Snapshot.Native),
+		Identity: boundary.Identity(dispatch.Attempt.Snapshot), Attempt: attemptKey, Generation: uint64(dispatch.Attempt.Snapshot.Native),
 		Session: session, SessionToken: token, ExpectedDealSignature: trade.ExpectedDealSignature(), EconomicFloors: tradeFloorsWire(trade.EconomicFloors()),
 		AllowEmpty: trade.AllowEmpty(), ReceiveQuest: trade.ReceiveQuest(),
 	}, nil
@@ -322,9 +321,9 @@ func (b *TradeBoundary) endAttempt(dispatch executor.TradeDispatch) (bridge.Trad
 	if err != nil {
 		return bridge.TradeEndAttempt{}, err
 	}
-	attemptKey, owner := b.key(dispatch.Attempt)
+	attemptKey := b.key(dispatch.Attempt)
 	return bridge.TradeEndAttempt{
-		Identity: boundary.Identity(dispatch.Attempt.Snapshot), Attempt: attemptKey, Owner: owner, Generation: uint64(dispatch.Attempt.Snapshot.Native),
+		Identity: boundary.Identity(dispatch.Attempt.Snapshot), Attempt: attemptKey, Generation: uint64(dispatch.Attempt.Snapshot.Native),
 		Session: session, SessionToken: token, Kind: kind, ReceiveQuest: trade.ReceiveQuest(),
 	}, nil
 }
@@ -353,7 +352,7 @@ func (b *TradeBoundary) WriteTrade(ctx context.Context, dispatch executor.TradeD
 		return out, err
 	}
 	pre := func(identity *c.Identity, attempt *c.AttemptKey) *a.WritePrecondition {
-		return &a.WritePrecondition{Identity: identity, Attempt: attempt, ExpectedGeneration: proto.Uint64(uint64(p.Snapshot.Native)), LeaseId: proto.String(lease)}
+		return &a.WritePrecondition{Identity: identity, Attempt: attempt, ExpectedGeneration: proto.Uint64(uint64(p.Snapshot.Native)),}
 	}
 	var reply *o.ExecuteReply
 	var callErr error
@@ -367,25 +366,25 @@ func (b *TradeBoundary) WriteTrade(ctx context.Context, dispatch executor.TradeD
 		if err != nil {
 			return out, err
 		}
-		reply, _, callErr = b.writer.ApplyOpenTrade(ctx, pre(attempt.Identity, attempt.Attempt), attempt.Owner, attempt.Trader, attempt.TraderToken, attempt.Negotiator, attempt.NegotiatorToken, attempt.GiftMode)
+		reply, _, callErr = b.writer.ApplyOpenTrade(ctx, pre(attempt.Identity, attempt.Attempt), attempt.Trader, attempt.TraderToken, attempt.Negotiator, attempt.NegotiatorToken, attempt.GiftMode)
 	case domain.TradeSetLines:
 		attempt, err := b.setLinesAttempt(dispatch)
 		if err != nil {
 			return out, err
 		}
-		reply, _, callErr = b.writer.ApplySetTradeLines(ctx, pre(attempt.Identity, attempt.Attempt), attempt.Owner, attempt.Session, attempt.SessionToken, attempt.Lines, attempt.AllowPawns)
+		reply, _, callErr = b.writer.ApplySetTradeLines(ctx, pre(attempt.Identity, attempt.Attempt), attempt.Session, attempt.SessionToken, attempt.Lines, attempt.AllowPawns)
 	case domain.TradeAccept:
 		attempt, err := b.acceptAttempt(dispatch)
 		if err != nil {
 			return out, err
 		}
-		reply, _, callErr = b.writer.ApplyAcceptTrade(ctx, pre(attempt.Identity, attempt.Attempt), attempt.Owner, attempt.Session, attempt.SessionToken, attempt.ExpectedDealSignature, attempt.EconomicFloors, attempt.AllowEmpty, attempt.ReceiveQuest)
+		reply, _, callErr = b.writer.ApplyAcceptTrade(ctx, pre(attempt.Identity, attempt.Attempt), attempt.Session, attempt.SessionToken, attempt.ExpectedDealSignature, attempt.EconomicFloors, attempt.AllowEmpty, attempt.ReceiveQuest)
 	case domain.TradeEnd:
 		attempt, err := b.endAttempt(dispatch)
 		if err != nil {
 			return out, err
 		}
-		reply, _, callErr = b.writer.ApplyEndTrade(ctx, pre(attempt.Identity, attempt.Attempt), attempt.Owner, attempt.Session, attempt.SessionToken, attempt.Kind, attempt.ReceiveQuest)
+		reply, _, callErr = b.writer.ApplyEndTrade(ctx, pre(attempt.Identity, attempt.Attempt), attempt.Session, attempt.SessionToken, attempt.Kind, attempt.ReceiveQuest)
 	default:
 		return out, executor.ErrEvidence
 	}
@@ -431,7 +430,7 @@ func (b *TradeBoundary) ObserveTrade(ctx context.Context, dispatch executor.Trad
 		attemptKey = attempt.Attempt
 		lookup, _, lookupErr = b.native.LookupTradeOpen(ctx, attempt)
 		if lookupErr == nil {
-			if err = b.checkLookup(lookup, dispatch, current, attempt.Owner); err != nil {
+			if err = b.checkLookup(lookup, dispatch, current); err != nil {
 				return out, err
 			}
 			progressReply, _, lookupErr = b.native.ObserveTradeOpenProgress(ctx, attempt, nil)
@@ -444,7 +443,7 @@ func (b *TradeBoundary) ObserveTrade(ctx context.Context, dispatch executor.Trad
 		attemptKey = attempt.Attempt
 		lookup, _, lookupErr = b.native.LookupTradeSetLines(ctx, attempt)
 		if lookupErr == nil {
-			if err = b.checkLookup(lookup, dispatch, current, attempt.Owner); err != nil {
+			if err = b.checkLookup(lookup, dispatch, current); err != nil {
 				return out, err
 			}
 			progressReply, _, lookupErr = b.native.ObserveTradeSetLinesProgress(ctx, attempt, nil)
@@ -457,7 +456,7 @@ func (b *TradeBoundary) ObserveTrade(ctx context.Context, dispatch executor.Trad
 		attemptKey = attempt.Attempt
 		lookup, _, lookupErr = b.native.LookupTradeAccept(ctx, attempt)
 		if lookupErr == nil {
-			if err = b.checkLookup(lookup, dispatch, current, attempt.Owner); err != nil {
+			if err = b.checkLookup(lookup, dispatch, current); err != nil {
 				return out, err
 			}
 			progressReply, _, lookupErr = b.native.ObserveTradeAcceptProgress(ctx, attempt, nil)
@@ -470,7 +469,7 @@ func (b *TradeBoundary) ObserveTrade(ctx context.Context, dispatch executor.Trad
 		attemptKey = attempt.Attempt
 		lookup, _, lookupErr = b.native.LookupTradeEnd(ctx, attempt)
 		if lookupErr == nil {
-			if err = b.checkLookup(lookup, dispatch, current, attempt.Owner); err != nil {
+			if err = b.checkLookup(lookup, dispatch, current); err != nil {
 				return out, err
 			}
 			progressReply, _, lookupErr = b.native.ObserveTradeEndProgress(ctx, attempt, nil)
@@ -545,7 +544,7 @@ func (b *TradeBoundary) ObserveTrade(ctx context.Context, dispatch executor.Trad
 	}
 }
 
-func (b *TradeBoundary) checkLookup(lookup *r.LookupReply, dispatch executor.TradeDispatch, current domain.GenerationSnapshot, owner *a.Owner) error {
+func (b *TradeBoundary) checkLookup(lookup *r.LookupReply, dispatch executor.TradeDispatch, current domain.GenerationSnapshot) error {
 	switch v := lookup.Outcome.(type) {
 	case *r.LookupReply_Unknown:
 		return nil
@@ -553,7 +552,7 @@ func (b *TradeBoundary) checkLookup(lookup *r.LookupReply, dispatch executor.Tra
 		if v.InFlight == nil {
 			return executor.ErrEvidence
 		}
-		return boundary.Admission(&r.Receipt{Attempt: v.InFlight.Attempt, AdmittedContext: v.InFlight.AdmittedContext, AuthorizingOwner: owner}, dispatch.Attempt, b.session)
+		return boundary.Admission(&r.Receipt{Attempt: v.InFlight.Attempt, AdmittedContext: v.InFlight.AdmittedContext}, dispatch.Attempt, b.session)
 	case *r.LookupReply_Receipt:
 		return b.checkReceipt(v.Receipt, dispatch)
 	default:

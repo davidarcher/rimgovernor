@@ -1,7 +1,6 @@
 package bridge
 
 import (
-	a "github.com/davidarcher/RimGovernor/go/internal/wire/authoritypb"
 	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
 )
 
@@ -11,7 +10,6 @@ type DraftAttempt struct {
 	Identity         *c.Identity
 	Attempt          *c.AttemptKey
 	NativeGeneration uint64
-	Owner            *a.Owner
 	PawnID           string
 }
 

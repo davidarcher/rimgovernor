@@ -95,7 +95,7 @@ func (b *SupplyBoundary) InspectSupply(ctx context.Context, target executor.Targ
 }
 func (b *SupplyBoundary) supplyAttempt(p executor.Placement) bridge.SupplyAttempt {
 	supply, _ := p.Action.SupplyAllow()
-	return bridge.SupplyAttempt{Identity: boundary.Identity(p.Snapshot), Attempt: b.Attempt(p), Owner: &a.Owner{ControllerSessionId: proto.String(b.Session), PlayerDirection: proto.Uint64(uint64(p.Snapshot.Direction))}, Generation: uint64(p.Snapshot.Native), Supply: supply}
+	return bridge.SupplyAttempt{Identity: boundary.Identity(p.Snapshot), Attempt: b.Attempt(p), Generation: uint64(p.Snapshot.Native), Supply: supply}
 }
 func (b *SupplyBoundary) AllowSupply(ctx context.Context, request executor.SupplyDispatch) (executor.Receipt, error) {
 	p := request.Attempt

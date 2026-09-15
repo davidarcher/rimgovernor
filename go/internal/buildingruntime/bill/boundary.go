@@ -87,7 +87,7 @@ func (b *BillBoundary) InspectBill(ctx context.Context, target executor.Target) 
 }
 func (b *BillBoundary) billAttempt(p executor.Placement) bridge.BillAttempt {
 	bill, _ := p.Action.ProductionBill()
-	return bridge.BillAttempt{Identity: boundary.Identity(p.Snapshot), Attempt: b.Attempt(p), Owner: &a.Owner{ControllerSessionId: proto.String(b.Session), PlayerDirection: proto.Uint64(uint64(p.Snapshot.Direction))}, Generation: uint64(p.Snapshot.Native), Bill: bill}
+	return bridge.BillAttempt{Identity: boundary.Identity(p.Snapshot), Attempt: b.Attempt(p), Generation: uint64(p.Snapshot.Native), Bill: bill}
 }
 func (b *BillBoundary) AddBill(ctx context.Context, request executor.BillDispatch) (executor.Receipt, error) {
 	p := request.Attempt

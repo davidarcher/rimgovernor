@@ -34,7 +34,6 @@ import (
 type SettlementGiftAttempt struct {
 	Identity              *c.Identity
 	Attempt               *c.AttemptKey
-	Owner                 *a.Owner
 	Generation            uint64
 	Caravan, CaravanToken string
 	Faction, FactionToken string
@@ -134,13 +133,7 @@ func settlementGiftAttempt(v SettlementGiftAttempt) (SettlementGiftAttempt, erro
 	if err := buildingAttempt(v.Attempt); err != nil {
 		return SettlementGiftAttempt{}, err
 	}
-	if err := authorityOwner(v.Owner); err != nil {
-		return SettlementGiftAttempt{}, err
-	}
-	if err := buildingUnknown(v.Owner); err != nil {
-		return SettlementGiftAttempt{}, err
-	}
-	if v.Generation == 0 || v.Owner.GetControllerSessionId() != v.Attempt.GetControllerSessionId() {
+	if v.Generation == 0 {
 		return SettlementGiftAttempt{}, contract("settlement gift admission owner or generation mismatch")
 	}
 	if err := settlementGiftCommand(v.Caravan, v.CaravanToken, v.Faction, v.FactionToken, v.ExpectedPawnIDs, v.Silver); err != nil {
@@ -148,7 +141,6 @@ func settlementGiftAttempt(v SettlementGiftAttempt) (SettlementGiftAttempt, erro
 	}
 	v.Identity = proto.Clone(v.Identity).(*c.Identity)
 	v.Attempt = proto.Clone(v.Attempt).(*c.AttemptKey)
-	v.Owner = proto.Clone(v.Owner).(*a.Owner)
 	v.ExpectedPawnIDs = append([]string(nil), v.ExpectedPawnIDs...)
 	return v, nil
 }
@@ -161,7 +153,7 @@ func settlementGiftEvidence(effect *r.TradeEffect, expected SettlementGiftAttemp
 }
 
 func settlementGiftReceipt(v *r.Receipt, expected SettlementGiftAttempt) error {
-	if v == nil || buildingUnknown(v) != nil || !proto.Equal(v.Attempt, expected.Attempt) || !proto.Equal(v.AuthorizingOwner, expected.Owner) {
+	if v == nil || buildingUnknown(v) != nil || !proto.Equal(v.Attempt, expected.Attempt) {
 		return contract("settlement gift admission mismatch")
 	}
 	if err := buildingContext(v.AdmittedContext, expected.Identity, expected.Generation, true); err != nil {
@@ -198,14 +190,14 @@ func NewSettlementGiftWriter(client *Client) (*SettlementGiftWriter, error) {
 }
 
 // ApplySettlementGift dispatches one already-admitted settlement gift write.
-func (writer *SettlementGiftWriter) ApplySettlementGift(ctx context.Context, pre *a.WritePrecondition, owner *a.Owner, caravan, caravanToken, faction, factionToken string, expectedPawnIDs []string, silver int32) (*o.ExecuteReply, Result, error) {
-	if writer == nil || writer.client == nil || pre == nil || buildingUnknown(pre) != nil || ValidateIdentity(pre.Identity) != nil || buildingAttempt(pre.Attempt) != nil || pre.GetExpectedGeneration() == 0 || validID(pre.GetLeaseId()) != nil {
+func (writer *SettlementGiftWriter) ApplySettlementGift(ctx context.Context, pre *a.WritePrecondition, caravan, caravanToken, faction, factionToken string, expectedPawnIDs []string, silver int32) (*o.ExecuteReply, Result, error) {
+	if writer == nil || writer.client == nil || pre == nil || buildingUnknown(pre) != nil || ValidateIdentity(pre.Identity) != nil || buildingAttempt(pre.Attempt) != nil || pre.GetExpectedGeneration() == 0 {
 		return nil, Result{}, contract("invalid settlement gift execution")
 	}
 	if err := settlementGiftCommand(caravan, caravanToken, faction, factionToken, expectedPawnIDs, silver); err != nil {
 		return nil, Result{}, err
 	}
-	expected, err := settlementGiftAttempt(SettlementGiftAttempt{Identity: pre.Identity, Attempt: pre.Attempt, Owner: owner, Generation: pre.GetExpectedGeneration(), Caravan: caravan, CaravanToken: caravanToken, Faction: faction, FactionToken: factionToken, ExpectedPawnIDs: expectedPawnIDs, Silver: silver})
+	expected, err := settlementGiftAttempt(SettlementGiftAttempt{Identity: pre.Identity, Attempt: pre.Attempt, Generation: pre.GetExpectedGeneration(), Caravan: caravan, CaravanToken: caravanToken, Faction: faction, FactionToken: factionToken, ExpectedPawnIDs: expectedPawnIDs, Silver: silver})
 	if err != nil {
 		return nil, Result{}, err
 	}

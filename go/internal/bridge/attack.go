@@ -53,21 +53,14 @@ func attackAttempt(v AttackAttempt) (AttackAttempt, error) {
 	if err := buildingAttempt(v.Attempt); err != nil {
 		return AttackAttempt{}, err
 	}
-	if err := authorityOwner(v.Owner); err != nil {
-		return AttackAttempt{}, err
-	}
-	if err := buildingUnknown(v.Owner); err != nil {
-		return AttackAttempt{}, err
-	}
-	if v.NativeGeneration == 0 || v.Owner.GetControllerSessionId() != v.Attempt.GetControllerSessionId() {
-		return AttackAttempt{}, contract("attack admission owner or generation mismatch")
+	if v.NativeGeneration == 0 {
+		return AttackAttempt{}, contract("attack admission generation mismatch")
 	}
 	if err := validID(v.PawnID); err != nil {
 		return AttackAttempt{}, err
 	}
 	v.Identity = proto.Clone(v.Identity).(*c.Identity)
 	v.Attempt = proto.Clone(v.Attempt).(*c.AttemptKey)
-	v.Owner = proto.Clone(v.Owner).(*a.Owner)
 	if validID(v.TargetID) != nil || v.TargetID == v.PawnID || attackJobDef(v.Mode) == "" {
 		return AttackAttempt{}, contract("invalid melee attempt target or mode")
 	}
@@ -117,12 +110,12 @@ func (client *Client) PreviewAttack(ctx context.Context, identity *c.Identity, c
 	}
 	return reply, raw, err
 }
-func (control *AttackControl) AttackTarget(ctx context.Context, pre *a.WritePrecondition, owner *a.Owner, command *o.AttackTarget) (*o.ExecuteReply, Result, error) {
+func (control *AttackControl) AttackTarget(ctx context.Context, pre *a.WritePrecondition, command *o.AttackTarget) (*o.ExecuteReply, Result, error) {
 	if control == nil || control.client == nil {
 		return nil, Result{}, contract("attack capability missing")
 	}
-	if pre == nil || validID(pre.GetLeaseId()) != nil {
-		return nil, Result{}, contract("attack lease missing")
+	if pre == nil {
+		return nil, Result{}, contract("attack precondition missing")
 	}
 	if err := buildingUnknown(pre); err != nil {
 		return nil, Result{}, err
@@ -130,7 +123,7 @@ func (control *AttackControl) AttackTarget(ctx context.Context, pre *a.WritePrec
 	if err := attackCommand(command); err != nil {
 		return nil, Result{}, err
 	}
-	expected, err := attackAttempt(AttackAttempt{pre.Identity, pre.Attempt, pre.GetExpectedGeneration(), owner, command.Pawn.GetEntityId(), command.Target.GetEntityId(), command.GetMode(), command.GetRequireHostile(), command.GetRequireStanding(), command.GetRequireCombatHealth()})
+	expected, err := attackAttempt(AttackAttempt{pre.Identity, pre.Attempt, pre.GetExpectedGeneration(), command.Pawn.GetEntityId(), command.Target.GetEntityId(), command.GetMode(), command.GetRequireHostile(), command.GetRequireStanding(), command.GetRequireCombatHealth()})
 	if err != nil {
 		return nil, Result{}, err
 	}

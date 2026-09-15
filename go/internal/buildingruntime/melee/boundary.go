@@ -24,7 +24,7 @@ type MeleeNative interface {
 	ObserveAttackProgress(context.Context, bridge.AttackAttempt, *r.Receipt) (*r.ProgressReply, bridge.Result, error)
 }
 type MeleeWriter interface {
-	AttackTarget(context.Context, *a.WritePrecondition, *a.Owner, *o.AttackTarget) (*o.ExecuteReply, bridge.Result, error)
+	AttackTarget(context.Context, *a.WritePrecondition, *o.AttackTarget) (*o.ExecuteReply, bridge.Result, error)
 }
 type MeleeCapabilities struct {
 	Native MeleeNative
@@ -149,8 +149,12 @@ func (b *MeleeBoundary) InspectMelee(ctx context.Context, target executor.Target
 	if pawn.Job != nil {
 		facts.Pawn.PlayerForced, facts.Pawn.QueuedJobs = boundary.FactBool(pawn.Job.PlayerForced), boundary.FactUint(pawn.Job.QueuedJobs)
 	}
-	if owned := pawn.GetDraftClaim().GetOwned(); owned != nil && owned.Owner != nil && owned.Owner.PlayerDirection != nil && boundary.ValidID(owned.GetClaimId()) && boundary.ValidID(owned.Owner.GetControllerSessionId()) && owned.PawnSnapshot != nil && proto.Equal(owned.PawnSnapshot, pawn.Pawn.Snapshot) {
-		facts.Pawn.Owner = domain.Known(policy.MeleeDraftOwner{Claim: domain.DraftClaimID(owned.GetClaimId()), Session: domain.ControllerSessionID(owned.Owner.GetControllerSessionId()), Direction: domain.DirectionID(owned.Owner.GetPlayerDirection())})
+	// A claim is either held by the single bot process or it is not: native
+	// no longer reports a distinct session/direction for it (see
+	// observations.proto's OwnedDraftClaim), so an observed claim is by
+	// construction ours in the current epoch.
+	if owned := pawn.GetDraftClaim().GetOwned(); owned != nil && boundary.ValidID(owned.GetClaimId()) && owned.PawnSnapshot != nil && proto.Equal(owned.PawnSnapshot, pawn.Pawn.Snapshot) {
+		facts.Pawn.Owner = domain.Known(policy.MeleeDraftOwner{Claim: domain.DraftClaimID(owned.GetClaimId()), Session: domain.ControllerSessionID(b.session), Direction: current.Direction})
 	}
 	if biography := pawn.Biography; biography != nil && !boundary.IssueField(biography.Issues, "disabled_work_tags") {
 		capable := true
@@ -186,7 +190,7 @@ func (b *MeleeBoundary) attempt(dispatch executor.MeleeDispatch) (bridge.AttackA
 	if p.Attempt == 0 || p.Tick < 0 || admission.Tick < 0 || admission.Snapshot != p.Snapshot || admission.Pawn != m.Pawn() || admission.Target != m.Target() || admission.Tick > p.Tick || !boundary.ValidID(admission.PawnSnapshotToken) || !boundary.ValidID(admission.TargetSnapshotToken) {
 		return bridge.AttackAttempt{}, executor.ErrEvidence
 	}
-	return bridge.AttackAttempt{Identity: boundary.Identity(p.Snapshot), Attempt: &c.AttemptKey{ControllerSessionId: proto.String(b.session), ActionId: proto.String(string(p.Action.ID())), AttemptId: proto.Uint64(uint64(p.Attempt))}, NativeGeneration: uint64(p.Snapshot.Native), Owner: &a.Owner{ControllerSessionId: proto.String(b.session), PlayerDirection: proto.Uint64(uint64(p.Snapshot.Direction))}, PawnID: string(m.Pawn()), TargetID: string(m.Target()), Mode: o.AttackMode_ATTACK_MODE_MELEE, RequireHostile: true, RequireStanding: true, RequireCombatHealth: true}, nil
+	return bridge.AttackAttempt{Identity: boundary.Identity(p.Snapshot), Attempt: &c.AttemptKey{ControllerSessionId: proto.String(b.session), ActionId: proto.String(string(p.Action.ID())), AttemptId: proto.Uint64(uint64(p.Attempt))}, NativeGeneration: uint64(p.Snapshot.Native), PawnID: string(m.Pawn()), TargetID: string(m.Target()), Mode: o.AttackMode_ATTACK_MODE_MELEE, RequireHostile: true, RequireStanding: true, RequireCombatHealth: true}, nil
 }
 
 func meleeJob(job *r.JobEffect, dispatch executor.MeleeDispatch) error {
@@ -220,8 +224,8 @@ func (b *MeleeBoundary) AttackMelee(ctx context.Context, dispatch executor.Melee
 	if err = ctx.Err(); err != nil {
 		return out, err
 	}
-	pre := &a.WritePrecondition{Identity: attempt.Identity, Attempt: attempt.Attempt, ExpectedGeneration: proto.Uint64(attempt.NativeGeneration), LeaseId: proto.String(lease)}
-	reply, _, err := b.writer.AttackTarget(ctx, pre, attempt.Owner, meleeCommand(attempt.PawnID, attempt.TargetID, dispatch.Admission.PawnSnapshotToken, dispatch.Admission.TargetSnapshotToken))
+	pre := &a.WritePrecondition{Identity: attempt.Identity, Attempt: attempt.Attempt, ExpectedGeneration: proto.Uint64(attempt.NativeGeneration),}
+	reply, _, err := b.writer.AttackTarget(ctx, pre, meleeCommand(attempt.PawnID, attempt.TargetID, dispatch.Admission.PawnSnapshotToken, dispatch.Admission.TargetSnapshotToken))
 	var refused *bridge.NativeFailure
 	if errors.As(err, &refused) && refused.Value != nil && refused.Value.GetCode() != c.FailureCode_FAILURE_CODE_ATTEMPT_CONFLICT {
 		out.Kind = domain.ReceiptRefused

@@ -39,7 +39,6 @@ func surgeryCareWire(care domain.MedicalCare) o.MedicalCare {
 type SurgeryAttempt struct {
 	Identity     *c.Identity
 	Attempt      *c.AttemptKey
-	Owner        *a.Owner
 	Generation   uint64
 	Patient      string
 	PatientToken string
@@ -174,13 +173,7 @@ func surgeryAttempt(v SurgeryAttempt) (SurgeryAttempt, error) {
 	if err := buildingAttempt(v.Attempt); err != nil {
 		return SurgeryAttempt{}, err
 	}
-	if err := authorityOwner(v.Owner); err != nil {
-		return SurgeryAttempt{}, err
-	}
-	if err := buildingUnknown(v.Owner); err != nil {
-		return SurgeryAttempt{}, err
-	}
-	if v.Generation == 0 || v.Owner.GetControllerSessionId() != v.Attempt.GetControllerSessionId() {
+	if v.Generation == 0 {
 		return SurgeryAttempt{}, contract("surgery admission owner or generation mismatch")
 	}
 	if err := surgeryCommand(v.Patient, v.PatientToken, v.Recipe, v.HealthToken, v.Part, v.Care); err != nil {
@@ -188,7 +181,6 @@ func surgeryAttempt(v SurgeryAttempt) (SurgeryAttempt, error) {
 	}
 	v.Identity = proto.Clone(v.Identity).(*c.Identity)
 	v.Attempt = proto.Clone(v.Attempt).(*c.AttemptKey)
-	v.Owner = proto.Clone(v.Owner).(*a.Owner)
 	return v, nil
 }
 
@@ -208,7 +200,7 @@ func surgeryEvidence(evidence *r.EffectEvidence, expected SurgeryAttempt) (*r.Su
 }
 
 func surgeryReceipt(v *r.Receipt, expected SurgeryAttempt) error {
-	if v == nil || buildingUnknown(v) != nil || !proto.Equal(v.Attempt, expected.Attempt) || !proto.Equal(v.AuthorizingOwner, expected.Owner) {
+	if v == nil || buildingUnknown(v) != nil || !proto.Equal(v.Attempt, expected.Attempt) {
 		return contract("surgery admission mismatch")
 	}
 	if err := buildingContext(v.AdmittedContext, expected.Identity, expected.Generation, true); err != nil {
@@ -245,14 +237,14 @@ func NewSurgeryWriter(client *Client) (*SurgeryWriter, error) {
 }
 
 // ApplySurgery dispatches one already-admitted operation bill request.
-func (writer *SurgeryWriter) ApplySurgery(ctx context.Context, pre *a.WritePrecondition, owner *a.Owner, patient, patientToken, recipe string, part int32, healthToken string, care domain.MedicalCare) (*o.ExecuteReply, Result, error) {
-	if writer == nil || writer.client == nil || pre == nil || buildingUnknown(pre) != nil || ValidateIdentity(pre.Identity) != nil || buildingAttempt(pre.Attempt) != nil || pre.GetExpectedGeneration() == 0 || validID(pre.GetLeaseId()) != nil {
+func (writer *SurgeryWriter) ApplySurgery(ctx context.Context, pre *a.WritePrecondition, patient, patientToken, recipe string, part int32, healthToken string, care domain.MedicalCare) (*o.ExecuteReply, Result, error) {
+	if writer == nil || writer.client == nil || pre == nil || buildingUnknown(pre) != nil || ValidateIdentity(pre.Identity) != nil || buildingAttempt(pre.Attempt) != nil || pre.GetExpectedGeneration() == 0 {
 		return nil, Result{}, contract("invalid surgery execution")
 	}
 	if err := surgeryCommand(patient, patientToken, recipe, healthToken, part, care); err != nil {
 		return nil, Result{}, err
 	}
-	expected, err := surgeryAttempt(SurgeryAttempt{Identity: pre.Identity, Attempt: pre.Attempt, Owner: owner, Generation: pre.GetExpectedGeneration(), Patient: patient, PatientToken: patientToken, Recipe: recipe, Part: part, HealthToken: healthToken, Care: care})
+	expected, err := surgeryAttempt(SurgeryAttempt{Identity: pre.Identity, Attempt: pre.Attempt, Generation: pre.GetExpectedGeneration(), Patient: patient, PatientToken: patientToken, Recipe: recipe, Part: part, HealthToken: healthToken, Care: care})
 	if err != nil {
 		return nil, Result{}, err
 	}

@@ -1,8 +1,6 @@
 package buildingruntime
 
 import (
-	"time"
-
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"github.com/davidarcher/RimGovernor/go/internal/store"
 )
@@ -29,7 +27,7 @@ func (control *Control) stateLocked() ControlState {
 	if control.closing || control.closed {
 		return ControlState{}
 	}
-	state := ControlState{Enabled: control.liveLocked(time.Now()), ObservationKnown: control.observationKnown}
+	state := ControlState{Enabled: control.liveLocked(), ObservationKnown: control.observationKnown}
 	if state.ObservationKnown {
 		state.Snapshot = control.snapshot
 	}

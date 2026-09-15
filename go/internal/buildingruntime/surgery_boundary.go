@@ -53,7 +53,7 @@ type SurgeryNative interface {
 	ObserveSurgeryProgress(context.Context, bridge.SurgeryAttempt, *r.Receipt) (*r.ProgressReply, bridge.Result, error)
 }
 type SurgeryWriter interface {
-	ApplySurgery(context.Context, *a.WritePrecondition, *a.Owner, string, string, string, int32, string, domain.MedicalCare) (*o.ExecuteReply, bridge.Result, error)
+	ApplySurgery(context.Context, *a.WritePrecondition, string, string, string, int32, string, domain.MedicalCare) (*o.ExecuteReply, bridge.Result, error)
 }
 type SurgeryCapabilities struct {
 	Native SurgeryNative
@@ -146,7 +146,7 @@ func (b *SurgeryBoundary) attempt(dispatch executor.SurgeryDispatch) (bridge.Sur
 	if !ok || p.Attempt == 0 || p.Tick < 0 || admission.Snapshot != p.Snapshot || admission.Patient != surgery.Patient() || admission.Recipe != surgery.Recipe() || admission.Part != surgery.Part() || admission.Tick > p.Tick || !boundary.ValidID(admission.PatientSnapshotToken) || !boundary.ValidID(admission.HealthToken) || !domain.ValidMedicalCare(admission.Care) {
 		return bridge.SurgeryAttempt{}, executor.ErrEvidence
 	}
-	return bridge.SurgeryAttempt{Identity: boundary.Identity(p.Snapshot), Attempt: &c.AttemptKey{ControllerSessionId: proto.String(b.session), ActionId: proto.String(string(p.Action.ID())), AttemptId: proto.Uint64(uint64(p.Attempt))}, Owner: &a.Owner{ControllerSessionId: proto.String(b.session), PlayerDirection: proto.Uint64(uint64(p.Snapshot.Direction))}, Generation: uint64(p.Snapshot.Native), Patient: string(surgery.Patient()), PatientToken: admission.PatientSnapshotToken, Recipe: surgery.Recipe(), Part: surgery.Part(), HealthToken: admission.HealthToken, Care: admission.Care}, nil
+	return bridge.SurgeryAttempt{Identity: boundary.Identity(p.Snapshot), Attempt: &c.AttemptKey{ControllerSessionId: proto.String(b.session), ActionId: proto.String(string(p.Action.ID())), AttemptId: proto.Uint64(uint64(p.Attempt))}, Generation: uint64(p.Snapshot.Native), Patient: string(surgery.Patient()), PatientToken: admission.PatientSnapshotToken, Recipe: surgery.Recipe(), Part: surgery.Part(), HealthToken: admission.HealthToken, Care: admission.Care}, nil
 }
 
 func (b *SurgeryBoundary) QueueSurgery(ctx context.Context, dispatch executor.SurgeryDispatch) (executor.Receipt, error) {
@@ -166,8 +166,8 @@ func (b *SurgeryBoundary) QueueSurgery(ctx context.Context, dispatch executor.Su
 	if err = ctx.Err(); err != nil {
 		return out, err
 	}
-	pre := &a.WritePrecondition{Identity: attempt.Identity, Attempt: attempt.Attempt, ExpectedGeneration: proto.Uint64(attempt.Generation), LeaseId: proto.String(lease)}
-	reply, _, err := b.writer.ApplySurgery(ctx, pre, attempt.Owner, attempt.Patient, attempt.PatientToken, attempt.Recipe, attempt.Part, attempt.HealthToken, attempt.Care)
+	pre := &a.WritePrecondition{Identity: attempt.Identity, Attempt: attempt.Attempt, ExpectedGeneration: proto.Uint64(attempt.Generation),}
+	reply, _, err := b.writer.ApplySurgery(ctx, pre, attempt.Patient, attempt.PatientToken, attempt.Recipe, attempt.Part, attempt.HealthToken, attempt.Care)
 	var refused *bridge.NativeFailure
 	if errors.As(err, &refused) && refused.Value != nil && refused.Value.GetCode() != c.FailureCode_FAILURE_CODE_ATTEMPT_CONFLICT {
 		out.Kind = domain.ReceiptRefused
@@ -224,7 +224,7 @@ func (b *SurgeryBoundary) ObserveSurgery(ctx context.Context, dispatch executor.
 		if v.InFlight == nil || !proto.Equal(v.InFlight.Attempt, attempt.Attempt) {
 			return out, executor.ErrEvidence
 		}
-		if err = boundary.Admission(&r.Receipt{Attempt: v.InFlight.Attempt, AdmittedContext: v.InFlight.AdmittedContext, AuthorizingOwner: attempt.Owner}, p, b.session); err != nil {
+		if err = boundary.Admission(&r.Receipt{Attempt: v.InFlight.Attempt, AdmittedContext: v.InFlight.AdmittedContext}, p, b.session); err != nil {
 			return out, err
 		}
 	case *r.LookupReply_Receipt:

@@ -23,7 +23,6 @@ type ZoneRead struct {
 type ZoneAttempt struct {
 	Identity   *c.Identity
 	Attempt    *c.AttemptKey
-	Owner      *a.Owner
 	Generation uint64
 	Token      string
 	Zone       domain.ZoneCreate
@@ -129,7 +128,7 @@ func (client *Client) PreviewZone(ctx context.Context, identity *c.Identity, tar
 	return reply, raw, nil
 }
 func (writer *ZoneControl) CreateZone(ctx context.Context, pre *a.WritePrecondition, target ZoneTarget) (*op.ExecuteReply, Result, error) {
-	if writer == nil || writer.client == nil || pre == nil || buildingUnknown(pre) != nil || ValidateIdentity(pre.Identity) != nil || buildingAttempt(pre.Attempt) != nil || pre.GetExpectedGeneration() == 0 || validID(pre.GetLeaseId()) != nil || validZone(target) != nil {
+	if writer == nil || writer.client == nil || pre == nil || buildingUnknown(pre) != nil || ValidateIdentity(pre.Identity) != nil || buildingAttempt(pre.Attempt) != nil || pre.GetExpectedGeneration() == 0 || validZone(target) != nil {
 		return nil, Result{}, contract("invalid zone execution")
 	}
 	reply := &op.ExecuteReply{}
@@ -145,14 +144,14 @@ func (writer *ZoneControl) CreateZone(ctx context.Context, pre *a.WritePrecondit
 	}
 	// The runtime additionally compares full owner/direction against its admission.
 	v := reply.GetReceipt()
-	if v == nil || v.AuthorizingOwner == nil || v.AuthorizingOwner.GetControllerSessionId() != pre.Attempt.GetControllerSessionId() {
+	if v == nil {
 		return nil, raw, contract("zone owner mismatch")
 	}
-	err = zoneReceipt(v, ZoneAttempt{Identity: pre.Identity, Attempt: pre.Attempt, Owner: v.AuthorizingOwner, Generation: pre.GetExpectedGeneration(), Token: target.Token, Zone: target.Zone})
+	err = zoneReceipt(v, ZoneAttempt{Identity: pre.Identity, Attempt: pre.Attempt, Generation: pre.GetExpectedGeneration(), Token: target.Token, Zone: target.Zone})
 	return reply, raw, err
 }
 func validZoneAttempt(w ZoneAttempt) error {
-	if ValidateIdentity(w.Identity) != nil || buildingAttempt(w.Attempt) != nil || authorityOwner(w.Owner) != nil || buildingUnknown(w.Owner) != nil || w.Generation == 0 || w.Owner.GetControllerSessionId() != w.Attempt.GetControllerSessionId() {
+	if ValidateIdentity(w.Identity) != nil || buildingAttempt(w.Attempt) != nil || w.Generation == 0 {
 		return contract("invalid zone attempt")
 	}
 	return validZone(ZoneTarget{w.Zone, w.Token})
@@ -186,7 +185,7 @@ func zoneEffect(v *r.EffectEvidence, w ZoneAttempt) error {
 	return err
 }
 func zoneReceipt(v *r.Receipt, w ZoneAttempt) error {
-	if v == nil || buildingUnknown(v) != nil || !proto.Equal(v.Attempt, w.Attempt) || !proto.Equal(v.AuthorizingOwner, w.Owner) || buildingContext(v.AdmittedContext, w.Identity, w.Generation, true) != nil {
+	if v == nil || buildingUnknown(v) != nil || !proto.Equal(v.Attempt, w.Attempt) || buildingContext(v.AdmittedContext, w.Identity, w.Generation, true) != nil {
 		return contract("zone admission mismatch")
 	}
 	switch out := v.Outcome.(type) {

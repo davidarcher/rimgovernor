@@ -27,7 +27,7 @@ type QuestAcceptNative interface {
 	ObserveQuestAcceptProgress(context.Context, bridge.QuestAcceptAttempt, *r.Receipt) (*r.ProgressReply, bridge.Result, error)
 }
 type QuestAcceptWriter interface {
-	ApplyQuestAccept(context.Context, *a.WritePrecondition, *a.Owner, string, string, string, int32) (*o.ExecuteReply, bridge.Result, error)
+	ApplyQuestAccept(context.Context, *a.WritePrecondition, string, string, string, int32) (*o.ExecuteReply, bridge.Result, error)
 }
 type QuestAcceptCapabilities struct {
 	Native QuestAcceptNative
@@ -103,7 +103,6 @@ func (b *QuestAcceptBoundary) attempt(dispatch executor.QuestAcceptDispatch) (br
 	return bridge.QuestAcceptAttempt{
 		Identity:     boundary.Identity(p.Snapshot),
 		Attempt:      &c.AttemptKey{ControllerSessionId: proto.String(b.session), ActionId: proto.String(string(p.Action.ID())), AttemptId: proto.Uint64(uint64(p.Attempt))},
-		Owner:        &a.Owner{ControllerSessionId: proto.String(b.session), PlayerDirection: proto.Uint64(uint64(p.Snapshot.Direction))},
 		Generation:   uint64(p.Snapshot.Native),
 		Quest:        string(accept.Quest()),
 		QuestToken:   admission.QuestSnapshotToken,
@@ -129,8 +128,8 @@ func (b *QuestAcceptBoundary) WriteQuestAccept(ctx context.Context, dispatch exe
 	if err = ctx.Err(); err != nil {
 		return out, err
 	}
-	pre := &a.WritePrecondition{Identity: attempt.Identity, Attempt: attempt.Attempt, ExpectedGeneration: proto.Uint64(attempt.Generation), LeaseId: proto.String(lease)}
-	reply, _, err := b.writer.ApplyQuestAccept(ctx, pre, attempt.Owner, attempt.Quest, attempt.QuestToken, attempt.AccepterPawn, attempt.RewardChoice)
+	pre := &a.WritePrecondition{Identity: attempt.Identity, Attempt: attempt.Attempt, ExpectedGeneration: proto.Uint64(attempt.Generation),}
+	reply, _, err := b.writer.ApplyQuestAccept(ctx, pre, attempt.Quest, attempt.QuestToken, attempt.AccepterPawn, attempt.RewardChoice)
 	var refused *bridge.NativeFailure
 	if errors.As(err, &refused) && refused.Value != nil && refused.Value.GetCode() != c.FailureCode_FAILURE_CODE_ATTEMPT_CONFLICT {
 		out.Kind = domain.ReceiptRefused
@@ -187,7 +186,7 @@ func (b *QuestAcceptBoundary) ObserveQuestAccept(ctx context.Context, dispatch e
 		if v.InFlight == nil || !proto.Equal(v.InFlight.Attempt, attempt.Attempt) {
 			return out, executor.ErrEvidence
 		}
-		if err = boundary.Admission(&r.Receipt{Attempt: v.InFlight.Attempt, AdmittedContext: v.InFlight.AdmittedContext, AuthorizingOwner: attempt.Owner}, p, b.session); err != nil {
+		if err = boundary.Admission(&r.Receipt{Attempt: v.InFlight.Attempt, AdmittedContext: v.InFlight.AdmittedContext}, p, b.session); err != nil {
 			return out, err
 		}
 	case *r.LookupReply_Receipt:

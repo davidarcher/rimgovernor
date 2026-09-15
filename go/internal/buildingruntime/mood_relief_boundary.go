@@ -31,7 +31,7 @@ type MoodReliefNative interface {
 	ObserveMoodReliefProgress(context.Context, bridge.MoodReliefAttempt, *r.Receipt) (*r.ProgressReply, bridge.Result, error)
 }
 type MoodReliefWriter interface {
-	ApplyMoodRelief(context.Context, *a.WritePrecondition, *a.Owner, string, string, bridge.MoodReliefNeed, bridge.MoodReliefExpectedJob, string) (*o.ExecuteReply, bridge.Result, error)
+	ApplyMoodRelief(context.Context, *a.WritePrecondition, string, string, bridge.MoodReliefNeed, bridge.MoodReliefExpectedJob, string) (*o.ExecuteReply, bridge.Result, error)
 }
 type MoodReliefCapabilities struct {
 	Native MoodReliefNative
@@ -179,7 +179,6 @@ func (b *MoodReliefBoundary) attempt(dispatch executor.MoodReliefDispatch) (brid
 	return bridge.MoodReliefAttempt{
 		Identity:   boundary.Identity(p.Snapshot),
 		Attempt:    &c.AttemptKey{ControllerSessionId: proto.String(b.session), ActionId: proto.String(string(p.Action.ID())), AttemptId: proto.Uint64(uint64(p.Attempt))},
-		Owner:      &a.Owner{ControllerSessionId: proto.String(b.session), PlayerDirection: proto.Uint64(uint64(p.Snapshot.Direction))},
 		Generation: uint64(p.Snapshot.Native),
 		Pawn:       string(relief.Pawn()), PawnToken: admission.PawnSnapshotToken,
 		Need: moodReliefNeedWire(relief.Need()), ExpectedJob: moodReliefJobWire(relief.ExpectedJob()), ExpectedScheduleDef: relief.ExpectedScheduleDef(),
@@ -203,8 +202,8 @@ func (b *MoodReliefBoundary) ManageMoodRelief(ctx context.Context, dispatch exec
 	if err = ctx.Err(); err != nil {
 		return out, err
 	}
-	pre := &a.WritePrecondition{Identity: attempt.Identity, Attempt: attempt.Attempt, ExpectedGeneration: proto.Uint64(attempt.Generation), LeaseId: proto.String(lease)}
-	reply, _, err := b.writer.ApplyMoodRelief(ctx, pre, attempt.Owner, attempt.Pawn, attempt.PawnToken, attempt.Need, attempt.ExpectedJob, attempt.ExpectedScheduleDef)
+	pre := &a.WritePrecondition{Identity: attempt.Identity, Attempt: attempt.Attempt, ExpectedGeneration: proto.Uint64(attempt.Generation),}
+	reply, _, err := b.writer.ApplyMoodRelief(ctx, pre, attempt.Pawn, attempt.PawnToken, attempt.Need, attempt.ExpectedJob, attempt.ExpectedScheduleDef)
 	var refused *bridge.NativeFailure
 	if errors.As(err, &refused) && refused.Value != nil && refused.Value.GetCode() != c.FailureCode_FAILURE_CODE_ATTEMPT_CONFLICT {
 		out.Kind = domain.ReceiptRefused

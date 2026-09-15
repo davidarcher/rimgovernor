@@ -25,7 +25,6 @@ import (
 type WallRemovalAttempt struct {
 	Identity   *c.Identity
 	Attempt    *c.AttemptKey
-	Owner      *a.Owner
 	Generation uint64
 	Target     string
 }
@@ -45,13 +44,7 @@ func wallRemovalAttempt(v WallRemovalAttempt) (WallRemovalAttempt, error) {
 	if err := buildingAttempt(v.Attempt); err != nil {
 		return WallRemovalAttempt{}, err
 	}
-	if err := authorityOwner(v.Owner); err != nil {
-		return WallRemovalAttempt{}, err
-	}
-	if err := buildingUnknown(v.Owner); err != nil {
-		return WallRemovalAttempt{}, err
-	}
-	if v.Generation == 0 || v.Owner.GetControllerSessionId() != v.Attempt.GetControllerSessionId() {
+	if v.Generation == 0 {
 		return WallRemovalAttempt{}, contract("wall removal admission owner or generation mismatch")
 	}
 	if validID(v.Target) != nil {
@@ -59,7 +52,6 @@ func wallRemovalAttempt(v WallRemovalAttempt) (WallRemovalAttempt, error) {
 	}
 	v.Identity = proto.Clone(v.Identity).(*c.Identity)
 	v.Attempt = proto.Clone(v.Attempt).(*c.AttemptKey)
-	v.Owner = proto.Clone(v.Owner).(*a.Owner)
 	return v, nil
 }
 
@@ -76,7 +68,7 @@ func wallRemovalEvidence(evidence *r.EffectEvidence, expected WallRemovalAttempt
 }
 
 func wallRemovalReceipt(v *r.Receipt, expected WallRemovalAttempt) error {
-	if v == nil || buildingUnknown(v) != nil || !proto.Equal(v.Attempt, expected.Attempt) || !proto.Equal(v.AuthorizingOwner, expected.Owner) {
+	if v == nil || buildingUnknown(v) != nil || !proto.Equal(v.Attempt, expected.Attempt) {
 		return contract("wall removal admission mismatch")
 	}
 	if err := buildingContext(v.AdmittedContext, expected.Identity, expected.Generation, true); err != nil {
@@ -114,14 +106,14 @@ func NewWallRemovalWriter(client *Client) (*WallRemovalWriter, error) {
 
 // ApplyWallRemoval dispatches one already-admitted guarded demolition or
 // backup removal.
-func (writer *WallRemovalWriter) ApplyWallRemoval(ctx context.Context, pre *a.WritePrecondition, owner *a.Owner, target string) (*o.ExecuteReply, Result, error) {
-	if writer == nil || writer.client == nil || pre == nil || buildingUnknown(pre) != nil || ValidateIdentity(pre.Identity) != nil || buildingAttempt(pre.Attempt) != nil || pre.GetExpectedGeneration() == 0 || validID(pre.GetLeaseId()) != nil {
+func (writer *WallRemovalWriter) ApplyWallRemoval(ctx context.Context, pre *a.WritePrecondition, target string) (*o.ExecuteReply, Result, error) {
+	if writer == nil || writer.client == nil || pre == nil || buildingUnknown(pre) != nil || ValidateIdentity(pre.Identity) != nil || buildingAttempt(pre.Attempt) != nil || pre.GetExpectedGeneration() == 0 {
 		return nil, Result{}, contract("invalid wall removal execution")
 	}
 	if validID(target) != nil {
 		return nil, Result{}, contract("invalid wall removal target")
 	}
-	expected, err := wallRemovalAttempt(WallRemovalAttempt{Identity: pre.Identity, Attempt: pre.Attempt, Owner: owner, Generation: pre.GetExpectedGeneration(), Target: target})
+	expected, err := wallRemovalAttempt(WallRemovalAttempt{Identity: pre.Identity, Attempt: pre.Attempt, Generation: pre.GetExpectedGeneration(), Target: target})
 	if err != nil {
 		return nil, Result{}, err
 	}

@@ -13,7 +13,6 @@ import (
 type ResearchSelectAttempt struct {
 	Identity   *c.Identity
 	Attempt    *c.AttemptKey
-	Owner      *a.Owner
 	Generation uint64
 	Project    string
 	Token      string
@@ -57,7 +56,7 @@ func (client *Client) PreviewResearchSelect(ctx context.Context, identity *c.Ide
 	return reply, raw, nil
 }
 func (writer *ResearchSelectControl) SelectResearch(ctx context.Context, pre *a.WritePrecondition, project, token string) (*op.ExecuteReply, Result, error) {
-	if writer == nil || writer.client == nil || pre == nil || buildingUnknown(pre) != nil || ValidateIdentity(pre.Identity) != nil || buildingAttempt(pre.Attempt) != nil || pre.GetExpectedGeneration() == 0 || validID(pre.GetLeaseId()) != nil || validResearchSelect(project, token) != nil {
+	if writer == nil || writer.client == nil || pre == nil || buildingUnknown(pre) != nil || ValidateIdentity(pre.Identity) != nil || buildingAttempt(pre.Attempt) != nil || pre.GetExpectedGeneration() == 0 || validResearchSelect(project, token) != nil {
 		return nil, Result{}, contract("invalid research select execution")
 	}
 	reply := &op.ExecuteReply{}
@@ -72,14 +71,14 @@ func (writer *ResearchSelectControl) SelectResearch(ctx context.Context, pre *a.
 		return nil, raw, failure(reply.GetFailure(), raw)
 	}
 	v := reply.GetReceipt()
-	if v == nil || v.AuthorizingOwner == nil || v.AuthorizingOwner.GetControllerSessionId() != pre.Attempt.GetControllerSessionId() {
+	if v == nil {
 		return nil, raw, contract("research select owner mismatch")
 	}
-	err = researchSelectReceipt(v, ResearchSelectAttempt{pre.Identity, pre.Attempt, v.AuthorizingOwner, pre.GetExpectedGeneration(), project, token})
+	err = researchSelectReceipt(v, ResearchSelectAttempt{pre.Identity, pre.Attempt, pre.GetExpectedGeneration(), project, token})
 	return reply, raw, err
 }
 func validResearchSelectAttempt(w ResearchSelectAttempt) error {
-	if ValidateIdentity(w.Identity) != nil || buildingAttempt(w.Attempt) != nil || authorityOwner(w.Owner) != nil || buildingUnknown(w.Owner) != nil || w.Generation == 0 || w.Owner.GetControllerSessionId() != w.Attempt.GetControllerSessionId() {
+	if ValidateIdentity(w.Identity) != nil || buildingAttempt(w.Attempt) != nil || w.Generation == 0 {
 		return contract("invalid research select attempt")
 	}
 	return validResearchSelect(w.Project, w.Token)
@@ -103,7 +102,7 @@ func ValidateResearchSelectEffect(v *r.EffectEvidence, project string, applied b
 	return researchSelectEffect(v, project, applied)
 }
 func researchSelectReceipt(v *r.Receipt, w ResearchSelectAttempt) error {
-	if v == nil || buildingUnknown(v) != nil || !proto.Equal(v.Attempt, w.Attempt) || !proto.Equal(v.AuthorizingOwner, w.Owner) || buildingContext(v.AdmittedContext, w.Identity, w.Generation, true) != nil {
+	if v == nil || buildingUnknown(v) != nil || !proto.Equal(v.Attempt, w.Attempt) || buildingContext(v.AdmittedContext, w.Identity, w.Generation, true) != nil {
 		return contract("research select admission mismatch")
 	}
 	switch out := v.Outcome.(type) {

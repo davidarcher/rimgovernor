@@ -112,7 +112,6 @@ type ConstructionCancelSelection struct {
 type ConstructionCancelAttempt struct {
 	Identity   *c.Identity
 	Attempt    *c.AttemptKey
-	Owner      *a.Owner
 	Generation uint64
 	Selected   ConstructionCancelSelection
 }
@@ -175,7 +174,7 @@ func (client *Client) PreviewConstructionCancel(ctx context.Context, identity *c
 }
 
 func (writer *ConstructionCancelControl) ApplyConstructionCancel(ctx context.Context, pre *a.WritePrecondition, s ConstructionCancelSelection) (*op.ExecuteReply, Result, error) {
-	if writer == nil || writer.client == nil || pre == nil || buildingUnknown(pre) != nil || ValidateIdentity(pre.Identity) != nil || buildingAttempt(pre.Attempt) != nil || pre.GetExpectedGeneration() == 0 || validID(pre.GetLeaseId()) != nil || validConstructionCancelSelection(s) != nil {
+	if writer == nil || writer.client == nil || pre == nil || buildingUnknown(pre) != nil || ValidateIdentity(pre.Identity) != nil || buildingAttempt(pre.Attempt) != nil || pre.GetExpectedGeneration() == 0 || validConstructionCancelSelection(s) != nil {
 		return nil, Result{}, contract("invalid construction cancel execution")
 	}
 	reply := &op.ExecuteReply{}
@@ -190,15 +189,15 @@ func (writer *ConstructionCancelControl) ApplyConstructionCancel(ctx context.Con
 		return nil, raw, failure(reply.GetFailure(), raw)
 	}
 	v := reply.GetReceipt()
-	if v == nil || v.AuthorizingOwner == nil || v.AuthorizingOwner.GetControllerSessionId() != pre.Attempt.GetControllerSessionId() {
+	if v == nil {
 		return nil, raw, contract("construction cancel owner mismatch")
 	}
-	err = constructionCancelReceipt(v, ConstructionCancelAttempt{Identity: pre.Identity, Attempt: pre.Attempt, Owner: v.AuthorizingOwner, Generation: pre.GetExpectedGeneration(), Selected: s})
+	err = constructionCancelReceipt(v, ConstructionCancelAttempt{Identity: pre.Identity, Attempt: pre.Attempt, Generation: pre.GetExpectedGeneration(), Selected: s})
 	return reply, raw, err
 }
 
 func validConstructionCancelAttempt(w ConstructionCancelAttempt) error {
-	if ValidateIdentity(w.Identity) != nil || buildingAttempt(w.Attempt) != nil || authorityOwner(w.Owner) != nil || buildingUnknown(w.Owner) != nil || w.Generation == 0 || w.Owner.GetControllerSessionId() != w.Attempt.GetControllerSessionId() {
+	if ValidateIdentity(w.Identity) != nil || buildingAttempt(w.Attempt) != nil || w.Generation == 0 {
 		return contract("invalid construction cancel attempt")
 	}
 	return validConstructionCancelSelection(w.Selected)
@@ -234,7 +233,7 @@ func constructionCancelEffect(v *r.EffectEvidence, w ConstructionCancelAttempt) 
 	return err
 }
 func constructionCancelReceipt(v *r.Receipt, w ConstructionCancelAttempt) error {
-	if v == nil || buildingUnknown(v) != nil || !proto.Equal(v.Attempt, w.Attempt) || !proto.Equal(v.AuthorizingOwner, w.Owner) || buildingContext(v.AdmittedContext, w.Identity, w.Generation, true) != nil {
+	if v == nil || buildingUnknown(v) != nil || !proto.Equal(v.Attempt, w.Attempt) || buildingContext(v.AdmittedContext, w.Identity, w.Generation, true) != nil {
 		return contract("construction cancel admission mismatch")
 	}
 	switch out := v.Outcome.(type) {

@@ -27,7 +27,7 @@ type HomeCoverageNative interface {
 	ObserveHomeCoverageProgress(context.Context, bridge.HomeCoverageAttempt, *r.Receipt) (*r.ProgressReply, bridge.Result, error)
 }
 type HomeCoverageWriter interface {
-	ApplyHomeCoverage(context.Context, *a.WritePrecondition, *a.Owner, string, string, int64) (*o.ExecuteReply, bridge.Result, error)
+	ApplyHomeCoverage(context.Context, *a.WritePrecondition, string, string, int64) (*o.ExecuteReply, bridge.Result, error)
 }
 type HomeCoverageCapabilities struct {
 	Native HomeCoverageNative
@@ -97,7 +97,7 @@ func (b *HomeCoverageBoundary) attempt(dispatch executor.HomeCoverageDispatch) (
 	if !ok || p.Attempt == 0 || p.Tick < 0 || admission.Snapshot != p.Snapshot || admission.Target != coverage.Target() || admission.Shape != coverage.Shape() || admission.Tick > p.Tick {
 		return bridge.HomeCoverageAttempt{}, executor.ErrEvidence
 	}
-	return bridge.HomeCoverageAttempt{Identity: boundary.Identity(p.Snapshot), Attempt: &c.AttemptKey{ControllerSessionId: proto.String(b.session), ActionId: proto.String(string(p.Action.ID())), AttemptId: proto.Uint64(uint64(p.Attempt))}, Owner: &a.Owner{ControllerSessionId: proto.String(b.session), PlayerDirection: proto.Uint64(uint64(p.Snapshot.Direction))}, Generation: uint64(p.Snapshot.Native), Target: coverage.Target(), Shape: coverage.Shape(), Revision: admission.Revision}, nil
+	return bridge.HomeCoverageAttempt{Identity: boundary.Identity(p.Snapshot), Attempt: &c.AttemptKey{ControllerSessionId: proto.String(b.session), ActionId: proto.String(string(p.Action.ID())), AttemptId: proto.Uint64(uint64(p.Attempt))}, Generation: uint64(p.Snapshot.Native), Target: coverage.Target(), Shape: coverage.Shape(), Revision: admission.Revision}, nil
 }
 
 func (b *HomeCoverageBoundary) ExtendHomeCoverage(ctx context.Context, dispatch executor.HomeCoverageDispatch) (executor.Receipt, error) {
@@ -117,8 +117,8 @@ func (b *HomeCoverageBoundary) ExtendHomeCoverage(ctx context.Context, dispatch 
 	if err = ctx.Err(); err != nil {
 		return out, err
 	}
-	pre := &a.WritePrecondition{Identity: attempt.Identity, Attempt: attempt.Attempt, ExpectedGeneration: proto.Uint64(attempt.Generation), LeaseId: proto.String(lease)}
-	reply, _, err := b.writer.ApplyHomeCoverage(ctx, pre, attempt.Owner, attempt.Target, attempt.Shape, attempt.Revision)
+	pre := &a.WritePrecondition{Identity: attempt.Identity, Attempt: attempt.Attempt, ExpectedGeneration: proto.Uint64(attempt.Generation),}
+	reply, _, err := b.writer.ApplyHomeCoverage(ctx, pre, attempt.Target, attempt.Shape, attempt.Revision)
 	var refused *bridge.NativeFailure
 	if errors.As(err, &refused) && refused.Value != nil && refused.Value.GetCode() != c.FailureCode_FAILURE_CODE_ATTEMPT_CONFLICT {
 		out.Kind = domain.ReceiptRefused
@@ -175,7 +175,7 @@ func (b *HomeCoverageBoundary) ObserveHomeCoverage(ctx context.Context, dispatch
 		if v.InFlight == nil || !proto.Equal(v.InFlight.Attempt, attempt.Attempt) {
 			return out, executor.ErrEvidence
 		}
-		if err = boundary.Admission(&r.Receipt{Attempt: v.InFlight.Attempt, AdmittedContext: v.InFlight.AdmittedContext, AuthorizingOwner: attempt.Owner}, p, b.session); err != nil {
+		if err = boundary.Admission(&r.Receipt{Attempt: v.InFlight.Attempt, AdmittedContext: v.InFlight.AdmittedContext}, p, b.session); err != nil {
 			return out, err
 		}
 	case *r.LookupReply_Receipt:

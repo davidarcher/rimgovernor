@@ -174,9 +174,6 @@ func pawnsSnapshotSelected(v *o.PawnSnapshot, id *c.Identity, requested map[stri
 				if err := validID(owned.GetClaimId()); err != nil {
 					return err
 				}
-				if err := authorityOwner(owned.Owner); err != nil {
-					return err
-				}
 				if owned.PawnSnapshot == nil {
 					return contract("owned draft snapshot missing")
 				}

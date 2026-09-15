@@ -76,7 +76,7 @@ func (b *researchSelectBoundary) InspectResearchSelect(ctx context.Context, targ
 	return out, nil
 }
 func (b *researchSelectBoundary) researchAttempt(p executor.Placement, project string) bridge.ResearchSelectAttempt {
-	return bridge.ResearchSelectAttempt{Identity: boundary.Identity(p.Snapshot), Attempt: b.Attempt(p), Owner: &a.Owner{ControllerSessionId: proto.String(b.Session), PlayerDirection: proto.Uint64(uint64(p.Snapshot.Direction))}, Generation: uint64(p.Snapshot.Native), Project: project, Token: project}
+	return bridge.ResearchSelectAttempt{Identity: boundary.Identity(p.Snapshot), Attempt: b.Attempt(p), Generation: uint64(p.Snapshot.Native), Project: project, Token: project}
 }
 func (b *researchSelectBoundary) SelectResearch(ctx context.Context, d executor.ResearchSelectDispatch) (executor.Receipt, error) {
 	p := d.Attempt

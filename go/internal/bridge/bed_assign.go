@@ -37,7 +37,6 @@ func (p BedAssignPreviousBed) wire() *o.Assignment {
 type BedAssignAttempt struct {
 	Identity    *c.Identity
 	Attempt     *c.AttemptKey
-	Owner       *a.Owner
 	Generation  uint64
 	Pawn, Bed   string
 	PawnToken   string
@@ -119,13 +118,7 @@ func bedAssignAttempt(v BedAssignAttempt) (BedAssignAttempt, error) {
 	if err := buildingAttempt(v.Attempt); err != nil {
 		return BedAssignAttempt{}, err
 	}
-	if err := authorityOwner(v.Owner); err != nil {
-		return BedAssignAttempt{}, err
-	}
-	if err := buildingUnknown(v.Owner); err != nil {
-		return BedAssignAttempt{}, err
-	}
-	if v.Generation == 0 || v.Owner.GetControllerSessionId() != v.Attempt.GetControllerSessionId() {
+	if v.Generation == 0 {
 		return BedAssignAttempt{}, contract("bed assign admission owner or generation mismatch")
 	}
 	if err := bedAssignCommand(v.Pawn, v.PawnToken, v.Bed, v.BedToken, v.Previous); err != nil {
@@ -133,7 +126,6 @@ func bedAssignAttempt(v BedAssignAttempt) (BedAssignAttempt, error) {
 	}
 	v.Identity = proto.Clone(v.Identity).(*c.Identity)
 	v.Attempt = proto.Clone(v.Attempt).(*c.AttemptKey)
-	v.Owner = proto.Clone(v.Owner).(*a.Owner)
 	return v, nil
 }
 
@@ -157,7 +149,7 @@ func bedAssignEvidence(evidence *r.EffectEvidence, expected BedAssignAttempt) (*
 }
 
 func bedAssignReceipt(v *r.Receipt, expected BedAssignAttempt) error {
-	if v == nil || buildingUnknown(v) != nil || !proto.Equal(v.Attempt, expected.Attempt) || !proto.Equal(v.AuthorizingOwner, expected.Owner) {
+	if v == nil || buildingUnknown(v) != nil || !proto.Equal(v.Attempt, expected.Attempt) {
 		return contract("bed assign admission mismatch")
 	}
 	if err := buildingContext(v.AdmittedContext, expected.Identity, expected.Generation, true); err != nil {
@@ -194,14 +186,14 @@ func NewBedAssignWriter(client *Client) (*BedAssignWriter, error) {
 }
 
 // ApplyBedAssign dispatches one already-admitted bed ownership assignment.
-func (writer *BedAssignWriter) ApplyBedAssign(ctx context.Context, pre *a.WritePrecondition, owner *a.Owner, pawn, pawnToken, bed, bedToken string, previous BedAssignPreviousBed) (*o.ExecuteReply, Result, error) {
-	if writer == nil || writer.client == nil || pre == nil || buildingUnknown(pre) != nil || ValidateIdentity(pre.Identity) != nil || buildingAttempt(pre.Attempt) != nil || pre.GetExpectedGeneration() == 0 || validID(pre.GetLeaseId()) != nil {
+func (writer *BedAssignWriter) ApplyBedAssign(ctx context.Context, pre *a.WritePrecondition, pawn, pawnToken, bed, bedToken string, previous BedAssignPreviousBed) (*o.ExecuteReply, Result, error) {
+	if writer == nil || writer.client == nil || pre == nil || buildingUnknown(pre) != nil || ValidateIdentity(pre.Identity) != nil || buildingAttempt(pre.Attempt) != nil || pre.GetExpectedGeneration() == 0 {
 		return nil, Result{}, contract("invalid bed assign execution")
 	}
 	if err := bedAssignCommand(pawn, pawnToken, bed, bedToken, previous); err != nil {
 		return nil, Result{}, err
 	}
-	expected, err := bedAssignAttempt(BedAssignAttempt{Identity: pre.Identity, Attempt: pre.Attempt, Owner: owner, Generation: pre.GetExpectedGeneration(), Pawn: pawn, Bed: bed, PawnToken: pawnToken, BedToken: bedToken, Previous: previous})
+	expected, err := bedAssignAttempt(BedAssignAttempt{Identity: pre.Identity, Attempt: pre.Attempt, Generation: pre.GetExpectedGeneration(), Pawn: pawn, Bed: bed, PawnToken: pawnToken, BedToken: bedToken, Previous: previous})
 	if err != nil {
 		return nil, Result{}, err
 	}

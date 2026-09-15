@@ -37,13 +37,7 @@ func movementAttempt(v MovementAttempt) (MovementAttempt, error) {
 	if err := buildingAttempt(v.Attempt); err != nil {
 		return MovementAttempt{}, err
 	}
-	if err := authorityOwner(v.Owner); err != nil {
-		return MovementAttempt{}, err
-	}
-	if err := buildingUnknown(v.Owner); err != nil {
-		return MovementAttempt{}, err
-	}
-	if v.NativeGeneration == 0 || v.Owner.GetControllerSessionId() != v.Attempt.GetControllerSessionId() {
+	if v.NativeGeneration == 0 {
 		return MovementAttempt{}, contract("movement admission owner or generation mismatch")
 	}
 	if err := validID(v.PawnID); err != nil {
@@ -51,7 +45,6 @@ func movementAttempt(v MovementAttempt) (MovementAttempt, error) {
 	}
 	v.Identity = proto.Clone(v.Identity).(*c.Identity)
 	v.Attempt = proto.Clone(v.Attempt).(*c.AttemptKey)
-	v.Owner = proto.Clone(v.Owner).(*a.Owner)
 	if err := movementCell(v.Destination); err != nil {
 		return MovementAttempt{}, err
 	}
@@ -102,11 +95,11 @@ func (client *Client) PreviewMovement(ctx context.Context, identity *c.Identity,
 	}
 	return reply, raw, err
 }
-func (control *MovementControl) MovePawn(ctx context.Context, pre *a.WritePrecondition, owner *a.Owner, command *o.MovePawn) (*o.ExecuteReply, Result, error) {
+func (control *MovementControl) MovePawn(ctx context.Context, pre *a.WritePrecondition, command *o.MovePawn) (*o.ExecuteReply, Result, error) {
 	if control == nil || control.client == nil {
 		return nil, Result{}, contract("movement capability missing")
 	}
-	if pre == nil || validID(pre.GetLeaseId()) != nil {
+	if pre == nil {
 		return nil, Result{}, contract("movement lease missing")
 	}
 	if err := buildingUnknown(pre); err != nil {
@@ -115,7 +108,7 @@ func (control *MovementControl) MovePawn(ctx context.Context, pre *a.WritePrecon
 	if err := movementCommand(command); err != nil {
 		return nil, Result{}, err
 	}
-	expected, err := movementAttempt(MovementAttempt{pre.Identity, pre.Attempt, pre.GetExpectedGeneration(), owner, command.Pawn.GetEntityId(), command.Destination})
+	expected, err := movementAttempt(MovementAttempt{pre.Identity, pre.Attempt, pre.GetExpectedGeneration(), command.Pawn.GetEntityId(), command.Destination})
 	if err != nil {
 		return nil, Result{}, err
 	}

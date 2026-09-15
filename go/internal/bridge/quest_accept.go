@@ -22,7 +22,6 @@ import (
 type QuestAcceptAttempt struct {
 	Identity                *c.Identity
 	Attempt                 *c.AttemptKey
-	Owner                   *a.Owner
 	Generation              uint64
 	Quest, QuestToken       string
 	AccepterPawn            string
@@ -103,13 +102,7 @@ func questAcceptAttempt(v QuestAcceptAttempt) (QuestAcceptAttempt, error) {
 	if err := buildingAttempt(v.Attempt); err != nil {
 		return QuestAcceptAttempt{}, err
 	}
-	if err := authorityOwner(v.Owner); err != nil {
-		return QuestAcceptAttempt{}, err
-	}
-	if err := buildingUnknown(v.Owner); err != nil {
-		return QuestAcceptAttempt{}, err
-	}
-	if v.Generation == 0 || v.Owner.GetControllerSessionId() != v.Attempt.GetControllerSessionId() {
+	if v.Generation == 0 {
 		return QuestAcceptAttempt{}, contract("quest accept admission owner or generation mismatch")
 	}
 	if err := questAcceptCommand(v.Quest, v.QuestToken, v.AccepterPawn, v.RewardChoice); err != nil {
@@ -117,7 +110,6 @@ func questAcceptAttempt(v QuestAcceptAttempt) (QuestAcceptAttempt, error) {
 	}
 	v.Identity = proto.Clone(v.Identity).(*c.Identity)
 	v.Attempt = proto.Clone(v.Attempt).(*c.AttemptKey)
-	v.Owner = proto.Clone(v.Owner).(*a.Owner)
 	return v, nil
 }
 
@@ -129,7 +121,7 @@ func questAcceptEvidence(effect *r.QuestEffect, expected QuestAcceptAttempt) (*r
 }
 
 func questAcceptReceipt(v *r.Receipt, expected QuestAcceptAttempt) error {
-	if v == nil || buildingUnknown(v) != nil || !proto.Equal(v.Attempt, expected.Attempt) || !proto.Equal(v.AuthorizingOwner, expected.Owner) {
+	if v == nil || buildingUnknown(v) != nil || !proto.Equal(v.Attempt, expected.Attempt) {
 		return contract("quest accept admission mismatch")
 	}
 	if err := buildingContext(v.AdmittedContext, expected.Identity, expected.Generation, true); err != nil {
@@ -166,14 +158,14 @@ func NewQuestAcceptWriter(client *Client) (*QuestAcceptWriter, error) {
 }
 
 // ApplyQuestAccept dispatches one already-admitted quest accept write.
-func (writer *QuestAcceptWriter) ApplyQuestAccept(ctx context.Context, pre *a.WritePrecondition, owner *a.Owner, quest, questToken, accepterPawn string, rewardChoice int32) (*o.ExecuteReply, Result, error) {
-	if writer == nil || writer.client == nil || pre == nil || buildingUnknown(pre) != nil || ValidateIdentity(pre.Identity) != nil || buildingAttempt(pre.Attempt) != nil || pre.GetExpectedGeneration() == 0 || validID(pre.GetLeaseId()) != nil {
+func (writer *QuestAcceptWriter) ApplyQuestAccept(ctx context.Context, pre *a.WritePrecondition, quest, questToken, accepterPawn string, rewardChoice int32) (*o.ExecuteReply, Result, error) {
+	if writer == nil || writer.client == nil || pre == nil || buildingUnknown(pre) != nil || ValidateIdentity(pre.Identity) != nil || buildingAttempt(pre.Attempt) != nil || pre.GetExpectedGeneration() == 0 {
 		return nil, Result{}, contract("invalid quest accept execution")
 	}
 	if err := questAcceptCommand(quest, questToken, accepterPawn, rewardChoice); err != nil {
 		return nil, Result{}, err
 	}
-	expected, err := questAcceptAttempt(QuestAcceptAttempt{Identity: pre.Identity, Attempt: pre.Attempt, Owner: owner, Generation: pre.GetExpectedGeneration(), Quest: quest, QuestToken: questToken, AccepterPawn: accepterPawn, RewardChoice: rewardChoice})
+	expected, err := questAcceptAttempt(QuestAcceptAttempt{Identity: pre.Identity, Attempt: pre.Attempt, Generation: pre.GetExpectedGeneration(), Quest: quest, QuestToken: questToken, AccepterPawn: accepterPawn, RewardChoice: rewardChoice})
 	if err != nil {
 		return nil, Result{}, err
 	}

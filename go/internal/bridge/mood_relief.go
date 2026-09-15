@@ -60,7 +60,6 @@ func (e MoodReliefExpectedJob) wire() *o.ExpectedJob {
 type MoodReliefAttempt struct {
 	Identity            *c.Identity
 	Attempt             *c.AttemptKey
-	Owner               *a.Owner
 	Generation          uint64
 	Pawn                string
 	PawnToken           string
@@ -140,13 +139,7 @@ func moodReliefAttempt(v MoodReliefAttempt) (MoodReliefAttempt, error) {
 	if err := buildingAttempt(v.Attempt); err != nil {
 		return MoodReliefAttempt{}, err
 	}
-	if err := authorityOwner(v.Owner); err != nil {
-		return MoodReliefAttempt{}, err
-	}
-	if err := buildingUnknown(v.Owner); err != nil {
-		return MoodReliefAttempt{}, err
-	}
-	if v.Generation == 0 || v.Owner.GetControllerSessionId() != v.Attempt.GetControllerSessionId() {
+	if v.Generation == 0 {
 		return MoodReliefAttempt{}, contract("mood relief admission owner or generation mismatch")
 	}
 	if err := moodReliefCommand(v.Pawn, v.PawnToken, v.Need, v.ExpectedJob, v.ExpectedScheduleDef); err != nil {
@@ -154,7 +147,6 @@ func moodReliefAttempt(v MoodReliefAttempt) (MoodReliefAttempt, error) {
 	}
 	v.Identity = proto.Clone(v.Identity).(*c.Identity)
 	v.Attempt = proto.Clone(v.Attempt).(*c.AttemptKey)
-	v.Owner = proto.Clone(v.Owner).(*a.Owner)
 	return v, nil
 }
 
@@ -174,7 +166,7 @@ func moodReliefEvidence(evidence *r.EffectEvidence, expected MoodReliefAttempt) 
 }
 
 func moodReliefReceipt(v *r.Receipt, expected MoodReliefAttempt) error {
-	if v == nil || buildingUnknown(v) != nil || !proto.Equal(v.Attempt, expected.Attempt) || !proto.Equal(v.AuthorizingOwner, expected.Owner) {
+	if v == nil || buildingUnknown(v) != nil || !proto.Equal(v.Attempt, expected.Attempt) {
 		return contract("mood relief admission mismatch")
 	}
 	if err := buildingContext(v.AdmittedContext, expected.Identity, expected.Generation, true); err != nil {
@@ -211,14 +203,14 @@ func NewMoodReliefWriter(client *Client) (*MoodReliefWriter, error) {
 }
 
 // ApplyMoodRelief dispatches one already-admitted need relief order.
-func (writer *MoodReliefWriter) ApplyMoodRelief(ctx context.Context, pre *a.WritePrecondition, owner *a.Owner, pawn, pawnToken string, need MoodReliefNeed, job MoodReliefExpectedJob, schedule string) (*o.ExecuteReply, Result, error) {
-	if writer == nil || writer.client == nil || pre == nil || buildingUnknown(pre) != nil || ValidateIdentity(pre.Identity) != nil || buildingAttempt(pre.Attempt) != nil || pre.GetExpectedGeneration() == 0 || validID(pre.GetLeaseId()) != nil {
+func (writer *MoodReliefWriter) ApplyMoodRelief(ctx context.Context, pre *a.WritePrecondition, pawn, pawnToken string, need MoodReliefNeed, job MoodReliefExpectedJob, schedule string) (*o.ExecuteReply, Result, error) {
+	if writer == nil || writer.client == nil || pre == nil || buildingUnknown(pre) != nil || ValidateIdentity(pre.Identity) != nil || buildingAttempt(pre.Attempt) != nil || pre.GetExpectedGeneration() == 0 {
 		return nil, Result{}, contract("invalid mood relief execution")
 	}
 	if err := moodReliefCommand(pawn, pawnToken, need, job, schedule); err != nil {
 		return nil, Result{}, err
 	}
-	expected, err := moodReliefAttempt(MoodReliefAttempt{Identity: pre.Identity, Attempt: pre.Attempt, Owner: owner, Generation: pre.GetExpectedGeneration(), Pawn: pawn, PawnToken: pawnToken, Need: need, ExpectedJob: job, ExpectedScheduleDef: schedule})
+	expected, err := moodReliefAttempt(MoodReliefAttempt{Identity: pre.Identity, Attempt: pre.Attempt, Generation: pre.GetExpectedGeneration(), Pawn: pawn, PawnToken: pawnToken, Need: need, ExpectedJob: job, ExpectedScheduleDef: schedule})
 	if err != nil {
 		return nil, Result{}, err
 	}

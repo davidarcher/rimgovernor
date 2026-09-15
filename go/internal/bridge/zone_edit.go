@@ -66,7 +66,6 @@ func (client *Client) ReadZoneEditTarget(ctx context.Context, identity *c.Identi
 type ZoneEditAttempt struct {
 	Identity   *c.Identity
 	Attempt    *c.AttemptKey
-	Owner      *a.Owner
 	Generation uint64
 	Edit       domain.ZoneEdit
 }
@@ -122,7 +121,7 @@ func (client *Client) PreviewZoneEdit(ctx context.Context, identity *c.Identity,
 	return reply, raw, nil
 }
 func (writer *ZoneEditControl) ApplyZoneEdit(ctx context.Context, pre *a.WritePrecondition, edit domain.ZoneEdit) (*op.ExecuteReply, Result, error) {
-	if writer == nil || writer.client == nil || pre == nil || buildingUnknown(pre) != nil || ValidateIdentity(pre.Identity) != nil || buildingAttempt(pre.Attempt) != nil || pre.GetExpectedGeneration() == 0 || validID(pre.GetLeaseId()) != nil || validZoneEdit(edit) != nil {
+	if writer == nil || writer.client == nil || pre == nil || buildingUnknown(pre) != nil || ValidateIdentity(pre.Identity) != nil || buildingAttempt(pre.Attempt) != nil || pre.GetExpectedGeneration() == 0 || validZoneEdit(edit) != nil {
 		return nil, Result{}, contract("invalid zone edit execution")
 	}
 	reply := &op.ExecuteReply{}
@@ -137,14 +136,14 @@ func (writer *ZoneEditControl) ApplyZoneEdit(ctx context.Context, pre *a.WritePr
 		return nil, raw, failure(reply.GetFailure(), raw)
 	}
 	v := reply.GetReceipt()
-	if v == nil || v.AuthorizingOwner == nil || v.AuthorizingOwner.GetControllerSessionId() != pre.Attempt.GetControllerSessionId() {
+	if v == nil {
 		return nil, raw, contract("zone edit owner mismatch")
 	}
-	err = zoneEditReceipt(v, ZoneEditAttempt{Identity: pre.Identity, Attempt: pre.Attempt, Owner: v.AuthorizingOwner, Generation: pre.GetExpectedGeneration(), Edit: edit})
+	err = zoneEditReceipt(v, ZoneEditAttempt{Identity: pre.Identity, Attempt: pre.Attempt, Generation: pre.GetExpectedGeneration(), Edit: edit})
 	return reply, raw, err
 }
 func validZoneEditAttempt(w ZoneEditAttempt) error {
-	if ValidateIdentity(w.Identity) != nil || buildingAttempt(w.Attempt) != nil || authorityOwner(w.Owner) != nil || buildingUnknown(w.Owner) != nil || w.Generation == 0 || w.Owner.GetControllerSessionId() != w.Attempt.GetControllerSessionId() {
+	if ValidateIdentity(w.Identity) != nil || buildingAttempt(w.Attempt) != nil || w.Generation == 0 {
 		return contract("invalid zone edit attempt")
 	}
 	return validZoneEdit(w.Edit)
@@ -193,7 +192,7 @@ func zoneEditEffect(v *r.EffectEvidence, w ZoneEditAttempt) error {
 	return err
 }
 func zoneEditReceipt(v *r.Receipt, w ZoneEditAttempt) error {
-	if v == nil || buildingUnknown(v) != nil || !proto.Equal(v.Attempt, w.Attempt) || !proto.Equal(v.AuthorizingOwner, w.Owner) || buildingContext(v.AdmittedContext, w.Identity, w.Generation, true) != nil {
+	if v == nil || buildingUnknown(v) != nil || !proto.Equal(v.Attempt, w.Attempt) || buildingContext(v.AdmittedContext, w.Identity, w.Generation, true) != nil {
 		return contract("zone edit admission mismatch")
 	}
 	switch out := v.Outcome.(type) {

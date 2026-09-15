@@ -40,7 +40,6 @@ type ProductionPolicyTarget struct {
 type ProductionPolicyAttempt struct {
 	Identity   *c.Identity
 	Attempt    *c.AttemptKey
-	Owner      *a.Owner
 	Generation uint64
 	Target     ProductionPolicyTarget
 }
@@ -167,13 +166,7 @@ func productionPolicyAttempt(v ProductionPolicyAttempt) (ProductionPolicyAttempt
 	if err := buildingAttempt(v.Attempt); err != nil {
 		return ProductionPolicyAttempt{}, err
 	}
-	if err := authorityOwner(v.Owner); err != nil {
-		return ProductionPolicyAttempt{}, err
-	}
-	if err := buildingUnknown(v.Owner); err != nil {
-		return ProductionPolicyAttempt{}, err
-	}
-	if v.Generation == 0 || v.Owner.GetControllerSessionId() != v.Attempt.GetControllerSessionId() {
+	if v.Generation == 0 {
 		return ProductionPolicyAttempt{}, contract("production policy admission owner or generation mismatch")
 	}
 	if err := validProductionPolicyTarget(v.Target); err != nil {
@@ -181,7 +174,6 @@ func productionPolicyAttempt(v ProductionPolicyAttempt) (ProductionPolicyAttempt
 	}
 	v.Identity = proto.Clone(v.Identity).(*c.Identity)
 	v.Attempt = proto.Clone(v.Attempt).(*c.AttemptKey)
-	v.Owner = proto.Clone(v.Owner).(*a.Owner)
 	return v, nil
 }
 
@@ -205,7 +197,7 @@ func productionPolicyEvidence(evidence *r.EffectEvidence, expected ProductionPol
 }
 
 func productionPolicyReceipt(v *r.Receipt, expected ProductionPolicyAttempt) error {
-	if v == nil || buildingUnknown(v) != nil || !proto.Equal(v.Attempt, expected.Attempt) || !proto.Equal(v.AuthorizingOwner, expected.Owner) {
+	if v == nil || buildingUnknown(v) != nil || !proto.Equal(v.Attempt, expected.Attempt) {
 		return contract("production policy admission mismatch")
 	}
 	if err := buildingContext(v.AdmittedContext, expected.Identity, expected.Generation, true); err != nil {
@@ -247,14 +239,14 @@ func NewProductionPolicyWriter(client *Client) (*ProductionPolicyWriter, error) 
 // caller to pass the currently expected snapshot token, since the native
 // handler compares it before applying -- see
 // NativeProductionPolicyOperations.Prepare on the native side.
-func (writer *ProductionPolicyWriter) ApplyProductionPolicy(ctx context.Context, pre *a.WritePrecondition, owner *a.Owner, target ProductionPolicyTarget) (*o.ExecuteReply, Result, error) {
-	if writer == nil || writer.client == nil || pre == nil || buildingUnknown(pre) != nil || ValidateIdentity(pre.Identity) != nil || buildingAttempt(pre.Attempt) != nil || pre.GetExpectedGeneration() == 0 || validID(pre.GetLeaseId()) != nil {
+func (writer *ProductionPolicyWriter) ApplyProductionPolicy(ctx context.Context, pre *a.WritePrecondition, target ProductionPolicyTarget) (*o.ExecuteReply, Result, error) {
+	if writer == nil || writer.client == nil || pre == nil || buildingUnknown(pre) != nil || ValidateIdentity(pre.Identity) != nil || buildingAttempt(pre.Attempt) != nil || pre.GetExpectedGeneration() == 0 {
 		return nil, Result{}, contract("invalid production policy execution")
 	}
 	if err := validProductionPolicyTarget(target); err != nil {
 		return nil, Result{}, err
 	}
-	expected, err := productionPolicyAttempt(ProductionPolicyAttempt{Identity: pre.Identity, Attempt: pre.Attempt, Owner: owner, Generation: pre.GetExpectedGeneration(), Target: target})
+	expected, err := productionPolicyAttempt(ProductionPolicyAttempt{Identity: pre.Identity, Attempt: pre.Attempt, Generation: pre.GetExpectedGeneration(), Target: target})
 	if err != nil {
 		return nil, Result{}, err
 	}

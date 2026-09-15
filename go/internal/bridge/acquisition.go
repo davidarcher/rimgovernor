@@ -21,7 +21,6 @@ type AcquisitionRead struct {
 type AcquisitionAttempt struct {
 	Identity    *c.Identity
 	Attempt     *c.AttemptKey
-	Owner       *a.Owner
 	Generation  uint64
 	Acquisition domain.Acquisition
 }
@@ -88,7 +87,7 @@ func (client *Client) PreviewAcquisition(ctx context.Context, identity *c.Identi
 	return reply, raw, nil
 }
 func (writer *AcquisitionControl) Acquire(ctx context.Context, pre *a.WritePrecondition, target AcquisitionTarget) (*op.ExecuteReply, Result, error) {
-	if writer == nil || writer.client == nil || pre == nil || buildingUnknown(pre) != nil || ValidateIdentity(pre.Identity) != nil || buildingAttempt(pre.Attempt) != nil || pre.GetExpectedGeneration() == 0 || validID(pre.GetLeaseId()) != nil || validAcquisition(target) != nil {
+	if writer == nil || writer.client == nil || pre == nil || buildingUnknown(pre) != nil || ValidateIdentity(pre.Identity) != nil || buildingAttempt(pre.Attempt) != nil || pre.GetExpectedGeneration() == 0 || validAcquisition(target) != nil {
 		return nil, Result{}, contract("invalid acquisition execution")
 	}
 	reply := &op.ExecuteReply{}
@@ -102,16 +101,12 @@ func (writer *AcquisitionControl) Acquire(ctx context.Context, pre *a.WritePreco
 	if reply.GetFailure() != nil {
 		return nil, raw, failure(reply.GetFailure(), raw)
 	}
-	// The runtime additionally compares full owner/direction against its admission.
 	v := reply.GetReceipt()
-	if v == nil || v.AuthorizingOwner == nil || v.AuthorizingOwner.GetControllerSessionId() != pre.Attempt.GetControllerSessionId() {
-		return nil, raw, contract("acquisition owner mismatch")
-	}
-	err = acquisitionReceipt(v, AcquisitionAttempt{pre.Identity, pre.Attempt, v.AuthorizingOwner, pre.GetExpectedGeneration(), target.Acquisition})
+	err = acquisitionReceipt(v, AcquisitionAttempt{pre.Identity, pre.Attempt, pre.GetExpectedGeneration(), target.Acquisition})
 	return reply, raw, err
 }
 func validAcquisitionAttempt(w AcquisitionAttempt) error {
-	if ValidateIdentity(w.Identity) != nil || buildingAttempt(w.Attempt) != nil || authorityOwner(w.Owner) != nil || buildingUnknown(w.Owner) != nil || w.Generation == 0 || w.Owner.GetControllerSessionId() != w.Attempt.GetControllerSessionId() {
+	if ValidateIdentity(w.Identity) != nil || buildingAttempt(w.Attempt) != nil || w.Generation == 0 {
 		return contract("invalid acquisition attempt")
 	}
 	_, err := domain.NewAcquisition(w.Acquisition.Thing(), w.Acquisition.Definition(), w.Acquisition.Cell())
@@ -149,7 +144,7 @@ func acquisitionEffect(v *r.EffectEvidence, acquisition domain.Acquisition, desi
 	return nil
 }
 func acquisitionReceipt(v *r.Receipt, w AcquisitionAttempt) error {
-	if v == nil || buildingUnknown(v) != nil || !proto.Equal(v.Attempt, w.Attempt) || !proto.Equal(v.AuthorizingOwner, w.Owner) || buildingContext(v.AdmittedContext, w.Identity, w.Generation, true) != nil {
+	if v == nil || buildingUnknown(v) != nil || !proto.Equal(v.Attempt, w.Attempt) || buildingContext(v.AdmittedContext, w.Identity, w.Generation, true) != nil {
 		return contract("acquisition admission mismatch")
 	}
 	switch out := v.Outcome.(type) {

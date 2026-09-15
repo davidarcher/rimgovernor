@@ -25,7 +25,7 @@ type RescueNative interface {
 	ObservePawnOrderProgress(context.Context, bridge.PawnOrderAttempt, *r.Receipt) (*r.ProgressReply, bridge.Result, error)
 }
 type RescueWriter interface {
-	OrderPawn(context.Context, *a.WritePrecondition, *a.Owner, *o.PawnTargetOrder) (*o.ExecuteReply, bridge.Result, error)
+	OrderPawn(context.Context, *a.WritePrecondition, *o.PawnTargetOrder) (*o.ExecuteReply, bridge.Result, error)
 }
 type RescueCapabilities struct {
 	Native RescueNative
@@ -166,7 +166,7 @@ func (b *RescueBoundary) attempt(dispatch executor.RescueDispatch) (bridge.PawnO
 	if !ok || p.Attempt == 0 || p.Tick < 0 || admission.Snapshot != p.Snapshot || admission.Rescuer != rescue.Rescuer() || admission.Patient != rescue.Patient() || admission.Tick > p.Tick || !boundary.ValidID(admission.RescuerSnapshotToken) || !boundary.ValidID(admission.PatientSnapshotToken) {
 		return bridge.PawnOrderAttempt{}, executor.ErrEvidence
 	}
-	return bridge.PawnOrderAttempt{Identity: boundary.Identity(p.Snapshot), Attempt: &c.AttemptKey{ControllerSessionId: proto.String(b.session), ActionId: proto.String(string(p.Action.ID())), AttemptId: proto.Uint64(uint64(p.Attempt))}, NativeGeneration: uint64(p.Snapshot.Native), Owner: &a.Owner{ControllerSessionId: proto.String(b.session), PlayerDirection: proto.Uint64(uint64(p.Snapshot.Direction))}, PawnID: string(rescue.Rescuer()), TargetID: string(rescue.Patient()), Kind: o.PawnOrderKind_PAWN_ORDER_KIND_RESCUE, RequireSafeStorage: false}, nil
+	return bridge.PawnOrderAttempt{Identity: boundary.Identity(p.Snapshot), Attempt: &c.AttemptKey{ControllerSessionId: proto.String(b.session), ActionId: proto.String(string(p.Action.ID())), AttemptId: proto.Uint64(uint64(p.Attempt))}, NativeGeneration: uint64(p.Snapshot.Native), PawnID: string(rescue.Rescuer()), TargetID: string(rescue.Patient()), Kind: o.PawnOrderKind_PAWN_ORDER_KIND_RESCUE, RequireSafeStorage: false}, nil
 }
 
 func rescueJob(job *r.JobEffect, dispatch executor.RescueDispatch) error {

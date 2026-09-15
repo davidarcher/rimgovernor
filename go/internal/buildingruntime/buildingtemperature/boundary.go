@@ -97,7 +97,7 @@ func (b *Boundary) InspectBuildingTemperature(ctx context.Context, t executor.Ta
 }
 func (b *Boundary) attempt(p executor.Placement) bridge.BuildingTemperatureAttempt {
 	t, _ := p.Action.BuildingTemperature()
-	return bridge.BuildingTemperatureAttempt{Identity: boundary.Identity(p.Snapshot), Attempt: b.Attempt(p), Owner: &a.Owner{ControllerSessionId: proto.String(b.Session), PlayerDirection: proto.Uint64(uint64(p.Snapshot.Direction))}, Generation: uint64(p.Snapshot.Native), Temperature: t}
+	return bridge.BuildingTemperatureAttempt{Identity: boundary.Identity(p.Snapshot), Attempt: b.Attempt(p), Generation: uint64(p.Snapshot.Native), Temperature: t}
 }
 func (b *Boundary) ApplyBuildingTemperature(ctx context.Context, d executor.BuildingTemperatureDispatch) (executor.Receipt, error) {
 	p := d.Attempt

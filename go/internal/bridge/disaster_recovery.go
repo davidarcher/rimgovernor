@@ -52,7 +52,6 @@ var recoveryServiceJobDef = map[RecoveryServiceMethod]string{
 type RecoveryServiceAttempt struct {
 	Identity    *c.Identity
 	Attempt     *c.AttemptKey
-	Owner       *a.Owner
 	Generation  uint64
 	Pawn, Thing string
 	PawnToken   string
@@ -209,13 +208,7 @@ func recoveryServiceAttempt(v RecoveryServiceAttempt) (RecoveryServiceAttempt, e
 	if err := buildingAttempt(v.Attempt); err != nil {
 		return RecoveryServiceAttempt{}, err
 	}
-	if err := authorityOwner(v.Owner); err != nil {
-		return RecoveryServiceAttempt{}, err
-	}
-	if err := buildingUnknown(v.Owner); err != nil {
-		return RecoveryServiceAttempt{}, err
-	}
-	if v.Generation == 0 || v.Owner.GetControllerSessionId() != v.Attempt.GetControllerSessionId() {
+	if v.Generation == 0 {
 		return RecoveryServiceAttempt{}, contract("recovery service admission owner or generation mismatch")
 	}
 	if err := recoveryServiceCommand(v.Pawn, v.PawnToken, v.Thing, v.ThingToken, v.Method); err != nil {
@@ -223,7 +216,6 @@ func recoveryServiceAttempt(v RecoveryServiceAttempt) (RecoveryServiceAttempt, e
 	}
 	v.Identity = proto.Clone(v.Identity).(*c.Identity)
 	v.Attempt = proto.Clone(v.Attempt).(*c.AttemptKey)
-	v.Owner = proto.Clone(v.Owner).(*a.Owner)
 	return v, nil
 }
 
@@ -243,7 +235,7 @@ func recoveryServiceEvidence(evidence *r.EffectEvidence, expected RecoveryServic
 }
 
 func recoveryServiceReceipt(v *r.Receipt, expected RecoveryServiceAttempt) error {
-	if v == nil || buildingUnknown(v) != nil || !proto.Equal(v.Attempt, expected.Attempt) || !proto.Equal(v.AuthorizingOwner, expected.Owner) {
+	if v == nil || buildingUnknown(v) != nil || !proto.Equal(v.Attempt, expected.Attempt) {
 		return contract("recovery service admission mismatch")
 	}
 	if err := buildingContext(v.AdmittedContext, expected.Identity, expected.Generation, true); err != nil {
@@ -281,14 +273,14 @@ func NewRecoveryServiceWriter(client *Client) (*RecoveryServiceWriter, error) {
 
 // ApplyRecoveryService dispatches one already-admitted repair, breakdown
 // restoration or refuel order.
-func (writer *RecoveryServiceWriter) ApplyRecoveryService(ctx context.Context, pre *a.WritePrecondition, owner *a.Owner, pawn, pawnToken, thing, thingToken string, method RecoveryServiceMethod) (*o.ExecuteReply, Result, error) {
-	if writer == nil || writer.client == nil || pre == nil || buildingUnknown(pre) != nil || ValidateIdentity(pre.Identity) != nil || buildingAttempt(pre.Attempt) != nil || pre.GetExpectedGeneration() == 0 || validID(pre.GetLeaseId()) != nil {
+func (writer *RecoveryServiceWriter) ApplyRecoveryService(ctx context.Context, pre *a.WritePrecondition, pawn, pawnToken, thing, thingToken string, method RecoveryServiceMethod) (*o.ExecuteReply, Result, error) {
+	if writer == nil || writer.client == nil || pre == nil || buildingUnknown(pre) != nil || ValidateIdentity(pre.Identity) != nil || buildingAttempt(pre.Attempt) != nil || pre.GetExpectedGeneration() == 0 {
 		return nil, Result{}, contract("invalid recovery service execution")
 	}
 	if err := recoveryServiceCommand(pawn, pawnToken, thing, thingToken, method); err != nil {
 		return nil, Result{}, err
 	}
-	expected, err := recoveryServiceAttempt(RecoveryServiceAttempt{Identity: pre.Identity, Attempt: pre.Attempt, Owner: owner, Generation: pre.GetExpectedGeneration(), Pawn: pawn, Thing: thing, PawnToken: pawnToken, ThingToken: thingToken, Method: method})
+	expected, err := recoveryServiceAttempt(RecoveryServiceAttempt{Identity: pre.Identity, Attempt: pre.Attempt, Generation: pre.GetExpectedGeneration(), Pawn: pawn, Thing: thing, PawnToken: pawnToken, ThingToken: thingToken, Method: method})
 	if err != nil {
 		return nil, Result{}, err
 	}
