@@ -723,7 +723,7 @@ func (s *ClockScheduler) stepPlanners(call, epoch context.Context, out *ClockSch
 	if s.config.Routine != nil {
 		review, err := s.config.Routine.step(call, epoch)
 		if err != nil {
-			return err
+			return fmt.Errorf("routine: %w", err)
 		}
 		out.Routine = &review
 		if review.Review.Mood != nil {
@@ -737,88 +737,89 @@ func (s *ClockScheduler) stepPlanners(call, epoch context.Context, out *ClockSch
 	if s.config.Work != nil {
 		method, err := s.config.Work.step(call, epoch)
 		if err != nil {
-			return err
+			return fmt.Errorf("work: %w", err)
 		}
 		out.Work = &method
 	}
 	if s.config.Fields != nil {
 		method, err := s.config.Fields.step(call, epoch)
 		if err != nil {
-			return err
+			return fmt.Errorf("fields: %w", err)
 		}
 		out.Fields = &method
 	}
 	if s.config.FoodStorage != nil {
 		method, err := s.config.FoodStorage.step(call, epoch)
 		if err != nil {
-			return err
+			return fmt.Errorf("foodStorage: %w", err)
 		}
 		out.FoodStorage = &method
 	}
 	if s.config.FoodAcquisition != nil {
 		method, err := s.config.FoodAcquisition.step(call, epoch)
 		if err != nil {
-			return err
+			return fmt.Errorf("foodAcquisition: %w", err)
 		}
 		out.FoodAcquisition = &method
 	}
 	if s.config.WoodAcquisition != nil {
 		method, err := s.config.WoodAcquisition.step(call, epoch)
 		if err != nil {
-			return err
+			return fmt.Errorf("woodAcquisition: %w", err)
 		}
 		out.WoodAcquisition = &method
 	}
 	if s.config.Supplies != nil {
 		method, err := s.config.Supplies.step(call, epoch)
 		if err != nil {
-			return err
+			return fmt.Errorf("supplies: %w", err)
 		}
 		out.Supplies = &method
 	}
 	if s.config.Sleeping != nil {
 		method, err := s.config.Sleeping.step(call, epoch)
 		if err != nil {
-			return err
+			return fmt.Errorf("sleeping: %w", err)
 		}
 		out.Sleeping = &method
 	}
 	if s.config.Power != nil {
 		method, err := s.config.Power.step(call, epoch)
 		if err != nil {
-			return err
+			return fmt.Errorf("power: %w", err)
 		}
 		out.Power = &method
 	}
 	if s.config.Temperature != nil {
 		method, err := s.config.Temperature.step(call, epoch)
 		if err != nil {
-			return err
+			return fmt.Errorf("temperature: %w", err)
 		}
 		out.Temperature = &method
 	}
 	if s.config.Cooking != nil {
 		method, err := s.config.Cooking.step(call, epoch)
 		if err != nil {
-			return err
+			return fmt.Errorf("cooking: %w", err)
 		}
 		out.Cooking = &method
 	}
 	if s.config.Butcher != nil {
 		method, err := s.config.Butcher.step(call, epoch)
 		if err != nil {
-			return err
+			return fmt.Errorf("butcher: %w", err)
 		}
 		out.Butcher = &method
 	}
 	for _, entry := range []struct {
+		name    string
 		planner *RoutineBillPlanner
 		result  **RoutineBillResult
-	}{{s.config.CookingBills, &out.CookingBills}, {s.config.PreservationBills, &out.PreservationBills}, {s.config.ButcherBills, &out.ButcherBills}} {
+	}{{"cookingBills", s.config.CookingBills, &out.CookingBills}, {"preservationBills", s.config.PreservationBills, &out.PreservationBills}, {"butcherBills", s.config.ButcherBills, &out.ButcherBills}} {
 		if entry.planner != nil {
 			method, err := entry.planner.step(call, epoch)
 			if err != nil {
-				return err
+				return fmt.Errorf("%s: %w", entry.name, err)
 			}
 			*entry.result = &method
 		}
@@ -826,42 +827,42 @@ func (s *ClockScheduler) stepPlanners(call, epoch context.Context, out *ClockSch
 	if s.config.Comfort != nil {
 		method, err := s.config.Comfort.step(call, epoch)
 		if err != nil {
-			return err
+			return fmt.Errorf("comfort: %w", err)
 		}
 		out.Comfort = &method
 	}
 	if s.config.Expansion != nil {
 		method, err := s.config.Expansion.step(call, epoch)
 		if err != nil {
-			return err
+			return fmt.Errorf("expansion: %w", err)
 		}
 		out.Expansion = &method
 	}
 	if s.config.Defense != nil {
 		method, err := s.config.Defense.step(call, epoch)
 		if err != nil {
-			return err
+			return fmt.Errorf("defense: %w", err)
 		}
 		out.Defense = &method
 	}
 	if s.config.Tend != nil {
 		method, err := s.config.Tend.step(call, epoch)
 		if err != nil {
-			return err
+			return fmt.Errorf("tend: %w", err)
 		}
 		out.Tend = &method
 	}
 	if s.config.Rescue != nil {
 		method, err := s.config.Rescue.step(call, epoch)
 		if err != nil {
-			return err
+			return fmt.Errorf("rescue: %w", err)
 		}
 		out.Rescue = &method
 	}
 	if s.config.Equip != nil {
 		method, err := s.config.Equip.step(call, epoch)
 		if err != nil {
-			return err
+			return fmt.Errorf("equip: %w", err)
 		}
 		out.Equip = &method
 	}

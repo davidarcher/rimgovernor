@@ -58,7 +58,14 @@ type serviceClockReads interface {
 
 func serviceClockConfig(profile string) buildingruntime.ClockSchedulerConfig {
 	return buildingruntime.ClockSchedulerConfig{
-		Profile: profile, MaxAge: 5 * time.Second,
+		// MaxAge bounds how stale the facts read during Step() may be by the
+		// time EvaluateClockWindow admits a window. On a real, populated map
+		// the routine reviewer's full colony census plus any chained
+		// planner's native reads can alone take 5s+ (see issue #45), so a 5s
+		// MaxAge routinely refused with stale_facts before the write was
+		// ever attempted. Not tied to ClockWorkerConfig.CallTimeout's
+		// lease/4 ceiling (serve_building.go) -- validated up to 1 minute.
+		Profile: profile, MaxAge: 10 * time.Second,
 		Start: bridge.ClockStart{Speed: k.Speed_SPEED_NORMAL, LeaseMS: 30000, MaxTicks: 600,
 			Policy: &k.WatchPolicy{Mode: k.WatchMode_WATCH_MODE_COLONY.Enum(),
 				HealthDropFraction: proto.Float32(.1), MinHealthFraction: proto.Float32(.5),
