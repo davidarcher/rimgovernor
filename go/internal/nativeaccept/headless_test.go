@@ -317,6 +317,50 @@ func TestPrepareRewritesHeadlessArgs(t *testing.T) {
 	}
 }
 
+func TestPrepareMirrorsEveryVariantSave(t *testing.T) {
+	source := writeSourceRoot(t)
+	destination := filepath.Join(t.TempDir(), "worker")
+	root, err := IsolatedRoot(source, destination)
+	if err != nil {
+		t.Fatal(err)
+	}
+	// A variant save (e.g. deposited by variantgen.Generate) lives directly
+	// in the worker root's profile/Saves, same as the hand-staged baseline;
+	// IsolatedRoot itself is a separate, currently-unused-in-production
+	// bootstrap step and not part of this path.
+	if err := os.WriteFile(filepath.Join(root, "profile", "Saves", "RimGovernor-tribal8-scarce-wood.rws"), []byte("variant-save-data"), 0644); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := Prepare(root); err != nil {
+		t.Fatalf("Prepare failed: %v", err)
+	}
+	if _, err := os.Stat(filepath.Join(root, "headless-profile", "Saves", "RimGovernor-tribal8-baseline.rws")); err != nil {
+		t.Fatalf("headless-profile baseline save missing: %v", err)
+	}
+	got, err := os.ReadFile(filepath.Join(root, "headless-profile", "Saves", "RimGovernor-tribal8-scarce-wood.rws"))
+	if err != nil {
+		t.Fatalf("headless-profile variant save missing: %v", err)
+	}
+	if string(got) != "variant-save-data" {
+		t.Fatalf("variant save contents = %q, want %q", got, "variant-save-data")
+	}
+}
+
+func TestPrepareFailsWithoutRequiredBaseline(t *testing.T) {
+	source := writeSourceRoot(t)
+	destination := filepath.Join(t.TempDir(), "worker")
+	root, err := IsolatedRoot(source, destination)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Remove(filepath.Join(root, "profile", "Saves", "RimGovernor-tribal8-baseline.rws")); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := Prepare(root); err == nil {
+		t.Fatal("expected Prepare to fail without the required baseline save")
+	}
+}
+
 func TestPrepareRenderedRewritesWindowedArgs(t *testing.T) {
 	source := writeSourceRoot(t)
 	destination := filepath.Join(t.TempDir(), "worker")

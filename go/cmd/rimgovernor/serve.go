@@ -84,6 +84,7 @@ type serveConfig struct {
 	worldEvaluationFoodMarginDays   float64
 	resourceRules                   resourceRuleFlags
 	refresh                         time.Duration
+	clockSpeed                      string
 }
 
 func parseServe(args []string, diagnostics io.Writer) (serveConfig, error) {
@@ -150,6 +151,7 @@ func parseServe(args []string, diagnostics io.Writer) (serveConfig, error) {
 	flags.StringVar(&c.assets, "assets", "", "absolute built dashboard directory (optional)")
 	flags.StringVar(&c.listen, "listen", "127.0.0.1:0", "loopback IP:port; 0 selects an available port")
 	flags.DurationVar(&c.refresh, "refresh", 3*time.Second, "observation refresh interval")
+	flags.StringVar(&c.clockSpeed, "clock-speed", "Normal", "requested native game-clock speed while --clock-control holds a window: Normal, Fast or Superfast")
 	flags.DurationVar(&c.bridge.Timeout, "timeout", 15*time.Second, "native call timeout")
 	flags.StringVar(&c.flightRecorder, "flight-recorder", "", "absolute path recording every native request/response/error (optional; opt-in diagnostics)")
 	if err := flags.Parse(args); err != nil {
@@ -182,6 +184,12 @@ func parseServe(args []string, diagnostics io.Writer) (serveConfig, error) {
 	}
 	if c.clockControl && !c.playerControl {
 		return c, errors.New("--clock-control requires --player-control")
+	}
+	if c.clockSpeed != "Normal" && c.clockSpeed != "Fast" && c.clockSpeed != "Superfast" {
+		return c, errors.New("--clock-speed must be Normal, Fast or Superfast")
+	}
+	if c.clockSpeed != "Normal" && !c.clockControl {
+		return c, errors.New("--clock-speed requires --clock-control")
 	}
 	if c.routineReviews && !c.clockControl {
 		return c, errors.New("--routine-reviews requires --clock-control")

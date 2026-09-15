@@ -56,7 +56,20 @@ type serviceClockReads interface {
 	buildingruntime.ClockEventNative
 }
 
-func serviceClockConfig(profile string) buildingruntime.ClockSchedulerConfig {
+// parseClockSpeed maps the validated --clock-speed flag value (parseServe
+// already rejects anything else) to the native Clock.Speed enum.
+func parseClockSpeed(speed string) k.Speed {
+	switch speed {
+	case "Fast":
+		return k.Speed_SPEED_FAST
+	case "Superfast":
+		return k.Speed_SPEED_SUPERFAST
+	default:
+		return k.Speed_SPEED_NORMAL
+	}
+}
+
+func serviceClockConfig(profile string, speed k.Speed) buildingruntime.ClockSchedulerConfig {
 	return buildingruntime.ClockSchedulerConfig{
 		// MaxAge bounds how stale the facts read during Step() may be by the
 		// time EvaluateClockWindow admits a window. On a real, populated map
@@ -66,7 +79,7 @@ func serviceClockConfig(profile string) buildingruntime.ClockSchedulerConfig {
 		// ever attempted. Not tied to ClockWorkerConfig.CallTimeout's
 		// lease/4 ceiling (serve_building.go) -- validated up to 1 minute.
 		Profile: profile, MaxAge: 10 * time.Second,
-		Start: bridge.ClockStart{Speed: k.Speed_SPEED_NORMAL, LeaseMS: 30000, MaxTicks: 600,
+		Start: bridge.ClockStart{Speed: speed, LeaseMS: 30000, MaxTicks: 600,
 			Policy: &k.WatchPolicy{Mode: k.WatchMode_WATCH_MODE_COLONY.Enum(),
 				HealthDropFraction: proto.Float32(.1), MinHealthFraction: proto.Float32(.5),
 				HostileWithin: proto.Float32(20), InjuryStopCooldownMs: proto.Uint32(0)}},
@@ -75,11 +88,11 @@ func serviceClockConfig(profile string) buildingruntime.ClockSchedulerConfig {
 
 // Session owns the attached worker's drain, including failed startup cleanup.
 // Starting these loops does not enable Player or acquire native authority.
-func startServiceClock(ctx context.Context, player *buildingruntime.Player, session *buildingruntime.Session, reads serviceClockReads, journal *store.Store, profile string, timeout time.Duration, routine, sleeping, cooking, shelter, comfort, expansion, power, temperature bool, projectLimit int, supplies, work, acquisition, defense, tend, rescue, equip, secureSupplies, repair, clean, gear, medical, animalContainment, recovery, husbandry, homeCoverage, caravanJourneyTracking bool, researchTarget string, resourceTargets map[policy.Resource]int64, allowSlaughter bool, herdPopulationMax map[policy.Resource]int64, animalFeedPlans bool, productionPolicyPlans bool, productionReserves map[policy.Resource]int64, productionStopped []policy.Resource, fieldOptions ...bool) error {
+func startServiceClock(ctx context.Context, player *buildingruntime.Player, session *buildingruntime.Session, reads serviceClockReads, journal *store.Store, profile string, clockSpeed string, timeout time.Duration, routine, sleeping, cooking, shelter, comfort, expansion, power, temperature bool, projectLimit int, supplies, work, acquisition, defense, tend, rescue, equip, secureSupplies, repair, clean, gear, medical, animalContainment, recovery, husbandry, homeCoverage, caravanJourneyTracking bool, researchTarget string, resourceTargets map[policy.Resource]int64, allowSlaughter bool, herdPopulationMax map[policy.Resource]int64, animalFeedPlans bool, productionPolicyPlans bool, productionReserves map[policy.Resource]int64, productionStopped []policy.Resource, fieldOptions ...bool) error {
 	// fieldOptions carries the field/bill/foodStorage/prisonerInteraction/
 	// populationCustody/stoneShell/haul/waste/mood/naming flags, in that fixed
 	// order, appended by the caller.
-	config := serviceClockConfig(profile)
+	config := serviceClockConfig(profile, parseClockSpeed(clockSpeed))
 	config.RoutineMethods = session.RoutineMethodsEnabled()
 	if caravanJourneyTracking {
 		native, ok := reads.(buildingruntime.CaravanJourneyNative)

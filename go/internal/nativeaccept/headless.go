@@ -324,8 +324,8 @@ func PrepareRendered(root string) (string, error) {
 }
 
 // Prepare builds the headless-profile subdirectory (copying Prefs.xml/ModsConfig.xml
-// and the baseline save into it), rewrites config.json's args for batch mode, writes
-// config-headless/config.json, and returns that directory.
+// and every profile/Saves/*.rws save into it), rewrites config.json's args for batch
+// mode, writes config-headless/config.json, and returns that directory.
 func Prepare(root string) (string, error) {
 	root = mustAbs(root)
 	config, err := loadConfig(filepath.Join(root, "config", "config.json"))
@@ -358,9 +358,25 @@ func Prepare(root string) (string, error) {
 	if err := PrepareNativeModConfig(filepath.Join(profile, "Config", "ModsConfig.xml")); err != nil {
 		return "", err
 	}
+	// Every save under profile/Saves -- not just the tribal8 baseline -- so a
+	// headless run (the default for the native acceptance binaries) can load
+	// any variant save deposited there, e.g. by variantsavegen, the same way
+	// a rendered run already can (PrepareRendered points RimWorld straight at
+	// profile/Saves with no copy step). The baseline itself stays required:
+	// its absence is exactly the "fresh checkout, save not staged yet" state
+	// docs/players/setup.md describes.
 	const baseline = "RimGovernor-tribal8-baseline.rws"
-	if err := copyFile(filepath.Join(root, "profile", "Saves", baseline), filepath.Join(profile, "Saves", baseline)); err != nil {
+	if _, err := os.Stat(filepath.Join(root, "profile", "Saves", baseline)); err != nil {
+		return "", fmt.Errorf("required baseline save missing: %w", err)
+	}
+	saves, err := filepath.Glob(filepath.Join(root, "profile", "Saves", "*.rws"))
+	if err != nil {
 		return "", err
+	}
+	for _, save := range saves {
+		if err := copyFile(save, filepath.Join(profile, "Saves", filepath.Base(save))); err != nil {
+			return "", err
+		}
 	}
 	game["args"] = []any{
 		"-savedatafolder=" + profile, "-logFile", filepath.Join(root, "HeadlessPlayer.log"),

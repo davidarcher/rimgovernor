@@ -17,12 +17,15 @@ import (
 // game ID: it briefly still holds a launch claim for the previous process while it
 // finishes tearing down, and reports that in the refusal detail (mirroring the
 // "a launch claim for ... was published while preparing this operation ... re-check
-// games_status and retry" pattern that controller/rimgovernor/bridge.py's
-// runtime_file_read documents for native reads). This is a harness-sequencing race,
-// not a game mutation, so GamesStart retries it a bounded number of times, re-checking
-// games_status in between exactly as the Python retry does.
+// games_status and retry" pattern). This is a harness-sequencing race, not a game
+// mutation, so GamesStart retries it a bounded number of times, re-checking
+// games_status in between. The backoff budget (~4.5s across 6 attempts) is sized for
+// a real RimWorld process teardown, not just GABS's own bookkeeping: a 3-attempt/150ms
+// budget was observed to be too short back-to-back-generating a manifest's variants
+// (games_start refused on the very next variant after the prior one's process had
+// already fully exited per games_status).
 func (c *Client) GamesStart(ctx context.Context) (Result, error) {
-	const maxAttempts = 3
+	const maxAttempts = 6
 	var lastErr error
 	for attempt := 0; attempt < maxAttempts; attempt++ {
 		result, err := c.operation(ctx, func(ctx context.Context, live *liveSession) (Result, error) {
@@ -39,8 +42,8 @@ func (c *Client) GamesStart(ctx context.Context) (Result, error) {
 		if ctx.Err() != nil {
 			return Result{}, ctx.Err()
 		}
-		_, _ = c.GameStatus(ctx) // re-check status, matching Python's claim-changed retry; error ignored, only used to let GABS settle
-		if err := sleepOrDone(ctx, time.Duration(attempt+1)*50*time.Millisecond); err != nil {
+		_, _ = c.GameStatus(ctx) // re-check status, matching the claim-changed retry pattern; error ignored, only used to let GABS settle
+		if err := sleepOrDone(ctx, time.Duration(attempt+1)*300*time.Millisecond); err != nil {
 			return Result{}, err
 		}
 	}
