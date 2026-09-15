@@ -57,10 +57,12 @@ namespace HomeBridge.BridgeTools
                     foreach (var thing in page)
                     {
                         var row = Project(thing);
-                        row.Snapshot = NativeObservationSnapshot.Snapshot("building", context, row.Building.Id, w => {
-                            w.Write(row.Status??""); w.Write(row.HitPoints); w.Write(row.Burning);
-                            if (row.Construction != null) { w.Write(row.Construction.PercentComplete); w.Write(row.Construction.ResourcesComplete); }
-                        });
+                        row.Snapshot = row.Construction != null
+                            ? NativeObservationSnapshot.Snapshot("building", context, row.Building.Id, w => {
+                                w.Write(row.Status??""); w.Write(row.HitPoints); w.Write(row.Burning);
+                                w.Write(row.Construction.PercentComplete); w.Write(row.Construction.ResourcesComplete);
+                            })
+                            : Token(thing, context);
                         // Only target_temperature_c and its own dedicated CAS
                         // snapshot are populated here; forbidden/power/medical/
                         // owner/forPrisoners remain the "settings" unsupported
@@ -131,6 +133,17 @@ namespace HomeBridge.BridgeTools
                 || (double)thing.HitPoints / thing.MaxHitPoints >= request.DamagedBelowFraction)) return false;
             return true;
         }
+
+        // Shared with NativeBedAssignOperations: AssignBed's bed precondition
+        // reuses this same generic building CAS token (ReadBedTarget/bridge
+        // treats a bed like any repairable building), not a bed-specific
+        // occupancy token -- the previousBed field already guards the pawn's
+        // prior ownership, so this only needs to catch hit points/status/fire
+        // changes since the caller last observed.
+        internal static Obs.SnapshotRef Token(Thing thing, Common.ObservationContext context) =>
+            NativeObservationSnapshot.Snapshot("building", context, Id(thing.GetUniqueLoadID()), w => {
+                w.Write(Status(thing) ?? ""); w.Write(thing.HitPoints); w.Write(thing.IsBurning());
+            });
 
         internal static Obs.BuildingState Project(Thing thing)
         {
