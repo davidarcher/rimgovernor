@@ -229,3 +229,28 @@ it('invalidates same-session old-world permission and permits a new-world plan u
  expect(screen.getByText('request-1')).toBeVisible();expect(screen.getByText('request-3')).toBeVisible();
  expect(screen.getByRole('button',{name:'Enable draft plan'})).toBeDisabled();
 });
+
+it('submits a chat message, decodes the interpreted command and enables its plan',async()=>{
+ const fetcher=setup(async(url,options)=>{
+  if(url==='/api/chats/plans')return response({requestId:'request-1',command:'tend',building:null,research:null,tend:{requestId:'request-1',expected:world,tend:{doctor:'Pawn_1',patient:'Pawn_2'},planId:'plan',actionId:'action',revision:'1'},rescue:null,draft:null,husbandry:null},201);
+  if(url==='/api/player/control/acquire')return response({record:{requestId:'request-2',kind:'acquire',expected:world,planId:'plan',revision:'1',expectedDirection:'0',direction:'1',phase:'granted',nativeGeneration:'2'},state,error:null});
+  throw Error(url+JSON.stringify(options));
+ });
+ await act(async()=>{render(<PlayerControls observation={observation} observationFresh/>);});
+ fireEvent.change(screen.getByLabelText('Message'),{target:{value:'tend to Pawn_2'}});
+ await act(async()=>{fireEvent.click(screen.getByRole('button',{name:'Send'}));});
+ expect(screen.getByText('Doctor Pawn_1 tends patient Pawn_2')).toBeVisible();expect(screen.getByText('Plan plan · Revision 1')).toBeVisible();
+ expect(fetcher).toHaveBeenCalledWith('/api/chats/plans',expect.objectContaining({body:JSON.stringify({requestId:'request-1',expected:world,message:'tend to Pawn_2'})}));
+ expect(screen.getByLabelText('Message')).toHaveValue('');
+ await act(async()=>{fireEvent.click(screen.getByRole('button',{name:'Enable this plan'}));});
+ expect(fetcher).toHaveBeenCalledWith('/api/player/control/acquire',expect.objectContaining({body:JSON.stringify({requestId:'request-2',expected:world,planId:'plan',revision:'1',expectedDirection:'0'})}));
+});
+it('hides chat once the server reports it disabled, without disturbing other forms',async()=>{
+ const fetcher=setup(async url=>{if(url==='/api/chats/plans')return response({code:'unsupported',detail:'Chat is not enabled on this controller'},501);throw Error(url);});
+ await act(async()=>{render(<PlayerControls observation={observation} observationFresh/>);});
+ expect(screen.getByText('Chat')).toBeVisible();
+ fireEvent.change(screen.getByLabelText('Message'),{target:{value:'tend to Pawn_2'}});
+ await act(async()=>{fireEvent.click(screen.getByRole('button',{name:'Send'}));});
+ expect(screen.queryByText('Chat')).toBeNull();expect(screen.getByLabelText('Definition name')).toHaveValue('');
+ expect(fetcher.mock.calls.filter(([url])=>url==='/api/chats/plans')).toHaveLength(1);
+});

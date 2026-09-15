@@ -49,9 +49,18 @@ settlement gift, trade, zone create/edit, build/adopt room, cancel/relocate
 construction and more). The dashboard detects the Go backend
 (`GET /api/health` reports `backend: "go"`) and serves a dedicated observation
 and structured-control UI (`ObservationDashboard`/`PlayerControls`) instead of
-the Python controller's free-text chat UI: natural-language player chat is
-decoded end to end by `internal/interpreter/decode.go` but is **not yet wired
-into `serve`'s HTTP server** (`POST /api/chat` returns 501) — see
+the Python controller's free-text chat UI. Natural-language player chat is
+wired end to end for six command families — `POST /api/chats/plans` decodes a
+free-text message, gathers a bounded fact snapshot from the live native
+bridge, runs it through `internal/interpreter` against a local
+OpenAI-compatible model (LM Studio or similar), and dispatches the resulting
+single-action proposal to the same submission stores the structured
+build/research/tend/rescue/draft/husbandry endpoints use. It is opt-in behind
+`serve --chat --chat-model <name>` (requires `--player-control`; see
+`--chat-base-url`, `--chat-context-tokens`, `--chat-max-output-tokens`) and
+returns 501 when not enabled. Every other command family `interpreter/decode.go`
+understands is still not wired into chat's dispatch — see **Remaining scope**
+below — and the dashboard has no chat UI yet (issue #46). See
 [the migration review](../docs/developers/go-migration-review.md) for exact
 remaining boundaries. Caravan departure and travel, quest accept/fulfill,
 settlement gifting and trade all have native acceptance harnesses verified
@@ -116,21 +125,27 @@ failure are compilation/protocol/wiring checks, not gameplay evidence — they
 confirm the packaging path is wired correctly, not that a colony runs.
 
 **Remaining scope**, tracked separately from this item:
-- Natural-language player chat and local-model command interpretation:
-  `interpreter/decode.go` decodes build, research,
-  tend, rescue, draft, caravan departure/hold/route, husbandry, recovery
-  service, bed assignment, movement, building temperature, surgery, quest
-  accept/fulfill, settlement gift, zone creation, zone edit (add/remove
-  cells, delete; crop/filter edits are deferred pending SettingsField zone
-  evidence coverage), population policy, expedition policy, per-pawn
-  population decision, per-resource production policy
+- Natural-language player chat and local-model command interpretation
+  (G01.08, chat HTTP wiring closed by [issue #46](https://github.com/davidarcher/rimgovernor/issues/46)):
+  `POST /api/chats/plans` (behind `serve --chat --chat-model <name>`) covers
+  build (single building per message — `interpreter`'s exact
+  ActionID-count check means a chat message can only place one building),
+  research selection, tend, rescue, draft and husbandry. `interpreter/decode.go`
+  additionally decodes move_pawn (two ActionIDs, out of scope for chat's
+  single-action budget), caravan departure/hold/route, recovery service, bed
+  assignment, movement, building temperature, surgery, quest accept/fulfill,
+  settlement gift, zone creation, zone edit (add/remove cells, delete;
+  crop/filter edits are deferred pending SettingsField zone evidence
+  coverage), population policy, expedition policy, per-pawn population
+  decision, per-resource production policy
   (`modify_resource_policy`/`set_resource_reserve`), maintained goal
   activation/cancellation (`create_goal`/`cancel_goal`), room shells
   (`build_room`), room adoption (`adopt_room`), construction cancellation
   (`cancel_construction`), construction relocation
   (`relocate_construction`) and read-only world evaluation
-  (`evaluate_world`) proposals, but
-  is not yet wired into the Go binary's serve loop) — G01.08.
+  (`evaluate_world`) proposals, none of which chat dispatches yet. The
+  dashboard also has no chat UI yet — the structured `ObservationDashboard`/
+  `PlayerControls` panels are the only player-facing UI Go serves today.
   `set_population_policy` is the first interpreted command that is colony
   configuration rather than a plan of native actions: it issues no native
   call, so it carries no `domain.Action`, no bridge boundary and no
@@ -558,14 +573,15 @@ confirm the packaging path is wired correctly, not that a colony runs.
   [issue #38](https://github.com/davidarcher/rimgovernor/issues/38). Until
   then, only the `nativeaccept/cmd/*` Go harnesses listed above exercise a
   real headless RimWorld instance.
-- Natural-language player chat (`POST /api/chat`) is not served by either
-  runtime: the Python server that used to serve it was removed in G01.13, and
-  the Go dashboard path exposes only structured player controls
-  (`ObservationDashboard`/`PlayerControls`, no free-text chat UI). Go's
-  `interpreter/decode.go` decodes chat-shaped commands but is not wired into
-  `serve`'s HTTP server. See
-  [issue #46](https://github.com/davidarcher/rimgovernor/issues/46) tracking
-  a possible Go chat implementation.
+- Natural-language player chat: the Python server that used to serve
+  `POST /api/chat` was removed in G01.13 and was not ported. Go instead serves
+  chat natively at `POST /api/chats/plans` (opt-in via `serve --chat
+  --chat-model <name>`), covering build (single building), research
+  selection, tend, rescue, draft and husbandry — see **Remaining scope**
+  above for the command families chat does not dispatch yet
+  ([issue #46](https://github.com/davidarcher/rimgovernor/issues/46)). The Go
+  dashboard still exposes only structured player controls
+  (`ObservationDashboard`/`PlayerControls`); it has no free-text chat UI.
 - `--colonies` multi-instance directory serving was Python-only and was
   removed, unported, in G01.13; see
   [issue #47](https://github.com/davidarcher/rimgovernor/issues/47) tracking
