@@ -130,10 +130,10 @@ func (t *CaravanJourneyTracker) Step(ctx context.Context) (CaravanJourneyResult,
 		return CaravanJourneyResult{}, err
 	}
 	defer done()
-	return t.step(call, epoch)
+	return t.step(call, epoch, newStepArbiter())
 }
 
-func (t *CaravanJourneyTracker) step(call, epoch context.Context) (CaravanJourneyResult, error) {
+func (t *CaravanJourneyTracker) step(call, epoch context.Context, arbiter *stepArbiter) (CaravanJourneyResult, error) {
 	active, err := t.journal.ListActiveCaravanTracking(call)
 	if err != nil {
 		return CaravanJourneyResult{}, err

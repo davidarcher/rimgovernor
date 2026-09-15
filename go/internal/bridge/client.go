@@ -109,8 +109,19 @@ type liveSession struct {
 	discovery Discovery
 }
 
-// Client owns a single session. Calls are serialized; Close cancels in-flight and
-// queued work. Reconnect is explicit and never repeats a native call.
+// maxConcurrentCalls bounds how many native calls one Client may have in
+// flight at once. GABP only requires outbound frame writes to stay atomic
+// when responses/events are produced concurrently (github.com/pardeike/GABS
+// docs/releases/v1.1.1.md); the go-sdk transport already guarantees that
+// (mcp.ioConn.writeMu) and correlates concurrent calls by JSON-RPC ID
+// (jsonrpc2.Connection.outgoingCalls), same as GABS's own GABP client
+// (pendingReqs). So calls need not be single-flight; this cap is only
+// backpressure against a caller bug flooding the native bridge at once.
+const maxConcurrentCalls = 8
+
+// Client owns a single session. Up to maxConcurrentCalls calls may be in
+// flight at once; Close cancels in-flight and queued work. Reconnect is
+// explicit and never repeats a native call.
 type Client struct {
 	lifecycle  chan struct{}
 	mu         sync.Mutex
@@ -165,7 +176,7 @@ func open(ctx context.Context, gameID string, timeout time.Duration, recorder *f
 	if timeout < time.Millisecond || timeout > 120*time.Second {
 		return nil, fmt.Errorf("%w: timeout outside 1ms..120s", ErrContract)
 	}
-	c := &Client{factory: factory, gameID: gameID, timeout: timeout, gate: make(chan struct{}, 1), lifecycle: make(chan struct{}, 1), recorder: recorder}
+	c := &Client{factory: factory, gameID: gameID, timeout: timeout, gate: make(chan struct{}, maxConcurrentCalls), lifecycle: make(chan struct{}, 1), recorder: recorder}
 	if err := c.Reconnect(ctx); err != nil {
 		return nil, err
 	}
@@ -383,8 +394,18 @@ func (c *Client) core(ctx context.Context, live *liveSession, name string, argum
 		recordCtx = c.snapshotRecordingContext(ctx)
 		request, _ = c.recorder.Event("native_request", recordCtx, true, map[string]any{"tool": name, "arguments": arguments})
 	}
-	result, err := live.sdk.CallTool(ctx, &mcp.CallToolParams{Name: name, Arguments: arguments})
-	raw, receiptErr := live.owner.connection.receipt()
+	waiter := make(chan receiptOutcome, 1)
+	result, err := live.sdk.CallTool(withReceiptWaiter(ctx, waiter), &mcp.CallToolParams{Name: name, Arguments: arguments})
+	var raw json.RawMessage
+	var receiptErr error
+	select {
+	case outcome := <-waiter:
+		raw, receiptErr = outcome.raw, outcome.err
+	default:
+		// No response ever reached Read for this request (write failure,
+		// cancellation before reply, ...); fall through on the CallTool
+		// error below, exactly as when a receipt legitimately never arrives.
+	}
 	if receiptErr != nil {
 		if recording {
 			c.recorder.Event("native_error", recordCtx, true, map[string]any{"request": request, "tool": name, "error": receiptErr.Error()})

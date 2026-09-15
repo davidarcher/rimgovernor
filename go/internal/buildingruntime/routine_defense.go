@@ -40,9 +40,9 @@ func (r *RoutineDefensePlanner) Step(ctx context.Context) (RoutineDefenseResult,
 		return RoutineDefenseResult{}, err
 	}
 	defer done()
-	return r.step(call, epoch)
+	return r.step(call, epoch, newStepArbiter())
 }
-func (r *RoutineDefensePlanner) step(call, epoch context.Context) (RoutineDefenseResult, error) {
+func (r *RoutineDefensePlanner) step(call, epoch context.Context, arbiter *stepArbiter) (RoutineDefenseResult, error) {
 	p := r.reviewer.player
 	state := p.session.State()
 	if !state.Enabled {
@@ -166,6 +166,13 @@ func (r *RoutineDefensePlanner) step(call, epoch context.Context) (RoutineDefens
 		assignments, ok = policy.SelectSquadDefense(threats, defenders)
 	}
 	if !ok {
+		return RoutineDefenseResult{Reason: BuildingMethodUsed}, nil
+	}
+	defenderIDs := make([]domain.PawnID, 0, len(assignments))
+	for _, a := range assignments {
+		defenderIDs = append(defenderIDs, a.Defender)
+	}
+	if !arbiter.tryClaim(defenderIDs) {
 		return RoutineDefenseResult{Reason: BuildingMethodUsed}, nil
 	}
 	sort.Slice(assignments, func(i, j int) bool {

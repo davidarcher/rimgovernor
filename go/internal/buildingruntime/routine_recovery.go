@@ -49,7 +49,7 @@ func (r *RoutineRecoveryPlanner) Step(ctx context.Context) (RoutineRecoveryResul
 		return RoutineRecoveryResult{}, err
 	}
 	defer done()
-	return r.step(call, epoch)
+	return r.step(call, epoch, newStepArbiter())
 }
 
 func recoveryServiceMethod(method policy.RecoveryMethod) (domain.RecoveryMethod, bool) {
@@ -65,7 +65,7 @@ func recoveryServiceMethod(method policy.RecoveryMethod) (domain.RecoveryMethod,
 	}
 }
 
-func (r *RoutineRecoveryPlanner) step(call, epoch context.Context) (RoutineRecoveryResult, error) {
+func (r *RoutineRecoveryPlanner) step(call, epoch context.Context, arbiter *stepArbiter) (RoutineRecoveryResult, error) {
 	p := r.reviewer.player
 	state := p.session.State()
 	if !state.Enabled {
@@ -148,6 +148,9 @@ func (r *RoutineRecoveryPlanner) step(call, epoch context.Context) (RoutineRecov
 		}
 	}
 	if chosen == nil {
+		return RoutineRecoveryResult{Reason: BuildingMethodUsed}, nil
+	}
+	if !arbiter.tryClaim([]domain.PawnID{domain.PawnID(chosen.Pawn)}) {
 		return RoutineRecoveryResult{Reason: BuildingMethodUsed}, nil
 	}
 	digest := sha256.Sum256([]byte(fmt.Sprintf("%s/%d/%s", goal.Goal.ID, goal.Goal.Epoch, chosen.ID)))

@@ -32,9 +32,9 @@ func (r *RoutineAcquisitionPlanner) Step(ctx context.Context) (RoutineAcquisitio
 		return RoutineAcquisitionResult{}, err
 	}
 	defer done()
-	return r.step(call, epoch)
+	return r.step(call, epoch, newStepArbiter())
 }
-func (r *RoutineAcquisitionPlanner) step(call, epoch context.Context) (RoutineAcquisitionResult, error) {
+func (r *RoutineAcquisitionPlanner) step(call, epoch context.Context, arbiter *stepArbiter) (RoutineAcquisitionResult, error) {
 	p := r.reviewer.player
 	state := p.session.State()
 	if !state.Enabled {

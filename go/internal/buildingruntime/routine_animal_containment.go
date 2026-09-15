@@ -40,7 +40,7 @@ func (r *RoutineAnimalContainmentPlanner) Step(ctx context.Context) (RoutineAnim
 		return RoutineAnimalContainmentResult{}, err
 	}
 	defer done()
-	return r.step(call, epoch)
+	return r.step(call, epoch, newStepArbiter())
 }
 
 const (
@@ -169,7 +169,7 @@ func animalContainmentStuff(a, b observation.PlanningDefinition) (string, bool) 
 	}
 }
 
-func (r *RoutineAnimalContainmentPlanner) step(call, epoch context.Context) (RoutineAnimalContainmentResult, error) {
+func (r *RoutineAnimalContainmentPlanner) step(call, epoch context.Context, arbiter *stepArbiter) (RoutineAnimalContainmentResult, error) {
 	p := r.reviewer.player
 	state := p.session.State()
 	if !state.Enabled {

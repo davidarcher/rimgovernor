@@ -46,9 +46,9 @@ func (r *RoutineEquipPlanner) Step(ctx context.Context) (RoutineEquipResult, err
 		return RoutineEquipResult{}, err
 	}
 	defer done()
-	return r.step(call, epoch)
+	return r.step(call, epoch, newStepArbiter())
 }
-func (r *RoutineEquipPlanner) step(call, epoch context.Context) (RoutineEquipResult, error) {
+func (r *RoutineEquipPlanner) step(call, epoch context.Context, arbiter *stepArbiter) (RoutineEquipResult, error) {
 	p := r.reviewer.player
 	state := p.session.State()
 	if !state.Enabled {
@@ -148,6 +148,9 @@ func (r *RoutineEquipPlanner) step(call, epoch context.Context) (RoutineEquipRes
 		candidates = append(candidates, policy.EquipCandidateWeapon{Thing: w.Thing, Definition: w.Definition, Cell: w.Cell, Ranged: domain.Known(true)})
 	}
 	pawn, weapon, ok := policy.SelectEquip(pawns, candidates)
+	if ok && !arbiter.tryClaim([]domain.PawnID{pawn}, "equip-weapon:"+weapon.Thing) {
+		ok = false
+	}
 	if !ok {
 		return RoutineEquipResult{Reason: BuildingMethodUsed}, nil
 	}

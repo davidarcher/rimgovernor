@@ -42,9 +42,9 @@ func (r *RoutineRescuePlanner) Step(ctx context.Context) (RoutineRescueResult, e
 		return RoutineRescueResult{}, err
 	}
 	defer done()
-	return r.step(call, epoch)
+	return r.step(call, epoch, newStepArbiter())
 }
-func (r *RoutineRescuePlanner) step(call, epoch context.Context) (RoutineRescueResult, error) {
+func (r *RoutineRescuePlanner) step(call, epoch context.Context, arbiter *stepArbiter) (RoutineRescueResult, error) {
 	p := r.reviewer.player
 	state := p.session.State()
 	if !state.Enabled {
@@ -129,6 +129,9 @@ func (r *RoutineRescuePlanner) step(call, epoch context.Context) (RoutineRescueR
 		patients = append(patients, rescue.NewRescuePatientFacts(pawn, row, ""))
 	}
 	rescuer, patient, ok := policy.SelectRescue(rescuers, patients)
+	if ok && !arbiter.tryClaim([]domain.PawnID{rescuer, patient}) {
+		ok = false
+	}
 	if !ok {
 		return RoutineRescueResult{Reason: BuildingMethodUsed}, nil
 	}

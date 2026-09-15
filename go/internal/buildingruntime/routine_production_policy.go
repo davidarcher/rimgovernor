@@ -50,7 +50,7 @@ func (r *RoutineProductionPolicyPlanner) Step(ctx context.Context) (RoutineProdu
 		return RoutineProductionPolicyResult{}, err
 	}
 	defer done()
-	return r.step(call, epoch)
+	return r.step(call, epoch, newStepArbiter())
 }
 
 // productionPolicyMatches reports whether the native floors/stopped rows
@@ -85,7 +85,7 @@ func productionPolicyMatches(read bridge.ProductionPolicyRead, value domain.Prod
 	return true
 }
 
-func (r *RoutineProductionPolicyPlanner) step(call, epoch context.Context) (RoutineProductionPolicyResult, error) {
+func (r *RoutineProductionPolicyPlanner) step(call, epoch context.Context, arbiter *stepArbiter) (RoutineProductionPolicyResult, error) {
 	p := r.reviewer.player
 	state := p.session.State()
 	if !state.Enabled {

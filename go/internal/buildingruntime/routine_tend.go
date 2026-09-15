@@ -40,9 +40,9 @@ func (r *RoutineTendPlanner) Step(ctx context.Context) (RoutineTendResult, error
 		return RoutineTendResult{}, err
 	}
 	defer done()
-	return r.step(call, epoch)
+	return r.step(call, epoch, newStepArbiter())
 }
-func (r *RoutineTendPlanner) step(call, epoch context.Context) (RoutineTendResult, error) {
+func (r *RoutineTendPlanner) step(call, epoch context.Context, arbiter *stepArbiter) (RoutineTendResult, error) {
 	p := r.reviewer.player
 	state := p.session.State()
 	if !state.Enabled {
@@ -127,6 +127,9 @@ func (r *RoutineTendPlanner) step(call, epoch context.Context) (RoutineTendResul
 		patients = append(patients, tend.NewTendPatientFacts(pawn, row, ""))
 	}
 	doctor, patient, ok := policy.SelectTend(doctors, patients)
+	if ok && !arbiter.tryClaim([]domain.PawnID{doctor, patient}) {
+		ok = false
+	}
 	if !ok {
 		return RoutineTendResult{Reason: BuildingMethodUsed}, nil
 	}

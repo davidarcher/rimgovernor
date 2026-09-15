@@ -52,7 +52,7 @@ func (r *RoutineHaulPlanner) Step(ctx context.Context) (RoutineHaulResult, error
 		return RoutineHaulResult{}, err
 	}
 	defer done()
-	return r.step(call, epoch)
+	return r.step(call, epoch, newStepArbiter())
 }
 
 // step delivers ordinary (non-decaying) MaintainStorage items to whatever
@@ -63,7 +63,7 @@ func (r *RoutineHaulPlanner) Step(ctx context.Context) (RoutineHaulResult, error
 // two goals' own UpkeepItem selections disjoint (Deterioration == 0 here,
 // > 0 for SecureSupplies), so the two planners never race over the same
 // real-world item.
-func (r *RoutineHaulPlanner) step(call, epoch context.Context) (RoutineHaulResult, error) {
+func (r *RoutineHaulPlanner) step(call, epoch context.Context, arbiter *stepArbiter) (RoutineHaulResult, error) {
 	p := r.reviewer.player
 	state := p.session.State()
 	if !state.Enabled {
@@ -221,6 +221,9 @@ func (r *RoutineHaulPlanner) step(call, epoch context.Context) (RoutineHaulResul
 		pawns = append(pawns, facts)
 	}
 	item, pawn, ok := policy.SelectSecureSupplies(items, pawns)
+	if ok && !arbiter.tryClaim([]domain.PawnID{pawn}, "haul-item:"+item.ID) {
+		ok = false
+	}
 	if !ok {
 		return RoutineHaulResult{Reason: BuildingMethodUsed}, nil
 	}

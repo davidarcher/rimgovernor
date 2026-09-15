@@ -48,9 +48,9 @@ func (r *RoutineWastePlanner) Step(ctx context.Context) (RoutineWasteResult, err
 		return RoutineWasteResult{}, err
 	}
 	defer done()
-	return r.step(call, epoch)
+	return r.step(call, epoch, newStepArbiter())
 }
-func (r *RoutineWastePlanner) step(call, epoch context.Context) (RoutineWasteResult, error) {
+func (r *RoutineWastePlanner) step(call, epoch context.Context, arbiter *stepArbiter) (RoutineWasteResult, error) {
 	p := r.reviewer.player
 	state := p.session.State()
 	if !state.Enabled {
@@ -162,6 +162,9 @@ func (r *RoutineWastePlanner) step(call, epoch context.Context) (RoutineWasteRes
 		pawns = append(pawns, wasteCandidateFacts(pawn, row))
 	}
 	item, pawn, ok := policy.SelectWasteMethod(items, pawns)
+	if ok && !arbiter.tryClaim([]domain.PawnID{domain.PawnID(pawn)}, "waste-item:"+item.ID) {
+		ok = false
+	}
 	if !ok {
 		return RoutineWasteResult{Reason: BuildingMethodUsed}, nil
 	}

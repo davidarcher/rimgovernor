@@ -44,9 +44,9 @@ func (r *RoutineFieldPlanner) Step(ctx context.Context) (RoutineFieldResult, err
 		return RoutineFieldResult{}, err
 	}
 	defer done()
-	return r.step(call, epoch)
+	return r.step(call, epoch, newStepArbiter())
 }
-func (r *RoutineFieldPlanner) step(call, epoch context.Context) (RoutineFieldResult, error) {
+func (r *RoutineFieldPlanner) step(call, epoch context.Context, arbiter *stepArbiter) (RoutineFieldResult, error) {
 	p := r.reviewer.player
 	state := p.session.State()
 	if !state.Enabled {

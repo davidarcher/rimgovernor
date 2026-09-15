@@ -37,9 +37,9 @@ func (r *RoutineSupplyPlanner) Step(ctx context.Context) (RoutineSupplyResult, e
 		return RoutineSupplyResult{}, err
 	}
 	defer done()
-	return r.step(call, epoch)
+	return r.step(call, epoch, newStepArbiter())
 }
-func (r *RoutineSupplyPlanner) step(call, epoch context.Context) (RoutineSupplyResult, error) {
+func (r *RoutineSupplyPlanner) step(call, epoch context.Context, arbiter *stepArbiter) (RoutineSupplyResult, error) {
 	p := r.reviewer.player
 	state := p.session.State()
 	if !state.Enabled {

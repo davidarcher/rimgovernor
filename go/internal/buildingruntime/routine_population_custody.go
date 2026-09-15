@@ -46,9 +46,9 @@ func (r *RoutinePopulationCustodyPlanner) Step(ctx context.Context) (RoutinePopu
 		return RoutinePopulationCustodyResult{}, err
 	}
 	defer done()
-	return r.step(call, epoch)
+	return r.step(call, epoch, newStepArbiter())
 }
-func (r *RoutinePopulationCustodyPlanner) step(call, epoch context.Context) (RoutinePopulationCustodyResult, error) {
+func (r *RoutinePopulationCustodyPlanner) step(call, epoch context.Context, arbiter *stepArbiter) (RoutinePopulationCustodyResult, error) {
 	p := r.reviewer.player
 	state := p.session.State()
 	if !state.Enabled {
@@ -170,6 +170,9 @@ func (r *RoutinePopulationCustodyPlanner) step(call, epoch context.Context) (Rou
 	case policy.CustodyRescue:
 		patients := []policy.RescuePatientFacts{rescue.NewRescuePatientFacts(choice.Pawn, patient, "")}
 		performer, target, ok := policy.SelectRescue(performers, patients)
+		if ok && !arbiter.tryClaim([]domain.PawnID{performer, target}) {
+			ok = false
+		}
 		if !ok {
 			return RoutinePopulationCustodyResult{Reason: BuildingMethodUsed}, nil
 		}
@@ -193,6 +196,9 @@ func (r *RoutinePopulationCustodyPlanner) step(call, epoch context.Context) (Rou
 	case policy.CustodyCapture:
 		patients := []policy.CapturePatientFacts{capture.NewCapturePatientFacts(choice.Pawn, patient, "")}
 		performer, target, ok := policy.SelectCapture(performers, patients)
+		if ok && !arbiter.tryClaim([]domain.PawnID{performer, target}) {
+			ok = false
+		}
 		if !ok {
 			return RoutinePopulationCustodyResult{Reason: BuildingMethodUsed}, nil
 		}
