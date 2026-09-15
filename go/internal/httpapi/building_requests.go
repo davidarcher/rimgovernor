@@ -46,39 +46,6 @@ func decodeBuildingSubmission(reader io.Reader) (store.SubmissionRequest, error)
 	result.Building, err = domain.NewBuilding(definition, cell, rotation, stuff)
 	return result, err
 }
-func decodeBuildingAcquire(reader io.Reader) (store.ControlRequest, error) {
-	result := store.ControlRequest{Kind: store.AcquireControl}
-	fields, err := buildingRequest(reader, "requestId", "expected", "planId", "revision", "expectedDirection")
-	if err != nil {
-		return result, err
-	}
-	if err = json.Unmarshal(fields["requestId"], &result.RequestID); err != nil {
-		return result, err
-	}
-	if err = buildingRequestID(result.RequestID); err != nil {
-		return result, err
-	}
-	if result.World, err = buildingWorld(fields["expected"]); err != nil {
-		return result, err
-	}
-	if err = json.Unmarshal(fields["planId"], &result.Plan); err != nil {
-		return result, err
-	}
-	if err = buildingRequestID(string(result.Plan)); err != nil {
-		return result, err
-	}
-	revision, err := buildingUint(fields["revision"])
-	if err != nil || revision == 0 {
-		return result, errors.New("revision must be a positive canonical uint64 string")
-	}
-	direction, err := buildingUint(fields["expectedDirection"])
-	if err != nil {
-		return result, err
-	}
-	result.Revision = domain.PlanRevision(revision)
-	result.ExpectedDirection = domain.DirectionID(direction)
-	return result, nil
-}
 func decodeBuildingManual(reader io.Reader) (store.ControlRequest, error) {
 	result := store.ControlRequest{Kind: store.ManualControl}
 	fields, err := buildingRequest(reader, "requestId", "expected")

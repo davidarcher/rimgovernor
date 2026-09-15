@@ -18,7 +18,6 @@ control uses these routes; building submission routes remain family-specific.
 | GET | `/api/player/session` | Process token and `mode: "explicit-player"` |
 | GET | `/api/player/control` | Current control record and actual permission |
 | GET | `/api/player/control?requestId=…` | Historical request and actual permission |
-| POST | `/api/player/control/acquire` | Explicitly enable an exact stored plan revision |
 | POST | `/api/player/control/manual` | Invalidate local permission and clean up owned work |
 | POST | `/api/buildings/plans` | Store one building intent |
 | GET | `/api/buildings/submission?requestId=…` | Read a building submission |
@@ -46,8 +45,14 @@ across action families. Conflicting reuse returns 409. Submission never acquires
 authority or drafts a pawn; native eligibility and CAS are resolved by fresh
 executor inspection when a player enables the plan.
 
-Acquire and Manual retain the existing exact-world, direction-CAS and durable
-request semantics. Historical results never confer current permission. Bodies
+Manual retains the existing exact-world, direction-CAS and durable request
+semantics. There is no dashboard-facing Acquire route: the dashboard never
+independently acquires authority, it only submits commands through the plan
+routes above for the bot to execute under its own Auto-mode authority.
+`GET /api/player/control[?requestId=…]` still reports any Acquire-kind
+control record that exists (for example historical evidence written some
+other way), but nothing reachable from the dashboard can create a new one.
+Historical results never confer current permission. Bodies
 remain bounded to 8192 bytes, with duplicate, unknown, null, malformed and trailing
 fields rejected. Errors retain the existing sanitized code/detail and control
 record/state/error shapes. Missing lookup is not proof that a timed-out POST had
@@ -77,9 +82,10 @@ supplies the same Player and store used by the worker.
 ## Dashboard behavior
 
 Building and draft forms share token bootstrap, current permission, direction
-CAS, Manual and acquisition history. An outstanding acquisition in either family
-prevents a competing acquisition; Manual remains available. Background refresh
-preserves both forms, request IDs and last-good data. Session/world changes exclude
+CAS and Manual. Acquisition itself is not dashboard-initiated; the forms only
+display whatever the bot's own Auto-mode authority currently reports. Manual
+remains available regardless of that outcome. Background refresh preserves
+both forms, request IDs and last-good data. Session/world changes exclude
 stale permission and responses without silently resubmitting either intent.
 
 Show ordinary progress and cleanup separately. Explain that a standalone temporary
