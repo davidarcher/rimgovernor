@@ -231,7 +231,7 @@ func (s *Server) handlePlayer(w http.ResponseWriter, r *http.Request) bool {
 	}
 	path := r.URL.Path
 	read := path == "/api/player/session" || path == "/api/player/control" || (path == "/api/buildings/submission" || path == "/api/drafts/submission") || path == "/api/player/clock" || path == "/api/player/world-evaluation" || path == "/api/player/work-preferences" || path == "/api/caravan-departures/submission" || path == "/api/quest-accepts/submission" || path == "/api/settlement-gifts/submission" || path == "/api/quest-fulfills/submission" || path == "/api/trades/submission" || path == "/api/trade-economies/submission" || path == "/api/zone-creates/submission" || path == "/api/zone-edits/submission" || path == "/api/research-selects/submission" || path == "/api/travel-caravans/submission" || path == "/api/player/population-policy" || path == "/api/player/population-policy/submission" || path == "/api/player/expedition-policy" || path == "/api/player/expedition-policy/submission" || path == "/api/player/population-decision" || path == "/api/player/population-decision/submission" || path == "/api/player/resource-policy" || path == "/api/player/resource-policy/submission" || path == "/api/player/goals" || path == "/api/player/goals/submission" || path == "/api/player/adopt-room" || path == "/api/player/adopt-room/submission" || path == "/api/build-rooms/submission" || path == "/api/cancel-constructions/submission" || path == "/api/relocate-constructions/submission" || path == "/api/tends/submission" || path == "/api/rescues/submission" || path == "/api/husbandries/submission" || path == "/api/recovery-services/submission" || path == "/api/bed-assigns/submission" || path == "/api/building-temperatures/submission" || path == "/api/surgeries/submission" || path == "/api/movements/submission"
-	write :=path == "/api/drafts/plans" || path == "/api/buildings/plans" || path == "/api/player/control/manual" || path == "/api/player/clock/acknowledge" || path == "/api/player/work-preferences/replace" || path == "/api/caravan-departures/plans" || path == "/api/quest-accepts/plans" || path == "/api/settlement-gifts/plans" || path == "/api/quest-fulfills/plans" || path == "/api/trades/plans" || path == "/api/trade-economies/plans" || path == "/api/zone-creates/plans" || path == "/api/zone-edits/plans" || path == "/api/research-selects/plans" || path == "/api/travel-caravans/plans" || path == "/api/player/population-policy/replace" || path == "/api/player/expedition-policy/update" || path == "/api/player/population-decision/replace" || path == "/api/player/resource-policy/update" || path == "/api/player/goals/activate" || path == "/api/player/goals/cancel" || path == "/api/player/adopt-room/claim" || path == "/api/build-rooms/plans" || path == "/api/cancel-constructions/plans" || path == "/api/relocate-constructions/plans" || path == "/api/tends/plans" || path == "/api/rescues/plans" || path == "/api/husbandries/plans" || path == "/api/recovery-services/plans" || path == "/api/bed-assigns/plans" || path == "/api/building-temperatures/plans" || path == "/api/surgeries/plans" || path == "/api/movements/plans"
+	write := path == "/api/drafts/plans" || path == "/api/buildings/plans" || path == "/api/player/control/acquire" || path == "/api/player/control/manual" || path == "/api/player/clock/acknowledge" || path == "/api/player/work-preferences/replace" || path == "/api/caravan-departures/plans" || path == "/api/quest-accepts/plans" || path == "/api/settlement-gifts/plans" || path == "/api/quest-fulfills/plans" || path == "/api/trades/plans" || path == "/api/trade-economies/plans" || path == "/api/zone-creates/plans" || path == "/api/zone-edits/plans" || path == "/api/research-selects/plans" || path == "/api/travel-caravans/plans" || path == "/api/player/population-policy/replace" || path == "/api/player/expedition-policy/update" || path == "/api/player/population-decision/replace" || path == "/api/player/resource-policy/update" || path == "/api/player/goals/activate" || path == "/api/player/goals/cancel" || path == "/api/player/adopt-room/claim" || path == "/api/build-rooms/plans" || path == "/api/cancel-constructions/plans" || path == "/api/relocate-constructions/plans" || path == "/api/tends/plans" || path == "/api/rescues/plans" || path == "/api/husbandries/plans" || path == "/api/recovery-services/plans" || path == "/api/bed-assigns/plans" || path == "/api/building-temperatures/plans" || path == "/api/surgeries/plans" || path == "/api/movements/plans"
 	if !read && !write {
 		return false
 	}
@@ -439,11 +439,13 @@ func (s *Server) handlePlayer(w http.ResponseWriter, r *http.Request) bool {
 			s.submitBuildRoom(w, r, ctx)
 			return true
 		}
-		// Only /api/player/control/manual remains a standalone control write:
-		// the dashboard no longer independently acquires authority. Acquire now
-		// only happens as part of /api/buildings/plans, folded into the bot's
-		// existing plan-submission entrypoint (see autoAcquire).
-		q, err := decodeBuildingManual(r.Body)
+		var q store.ControlRequest
+		var err error
+		if strings.HasSuffix(path, "/acquire") {
+			q, err = decodeBuildingAcquire(r.Body)
+		} else {
+			q, err = decodeBuildingManual(r.Body)
+		}
 		if err != nil {
 			s.failure(w, r, 400, "invalid_request", "Invalid control request")
 			return true
@@ -452,7 +454,12 @@ func (s *Server) handlePlayer(w http.ResponseWriter, r *http.Request) bool {
 			s.readFailure(w, r, ctx.Err())
 			return true
 		}
-		record, err := s.player.Manual(ctx, q)
+		var record store.ControlRecord
+		if q.Kind == store.AcquireControl {
+			record, err = s.player.Acquire(ctx, q)
+		} else {
+			record, err = s.player.Manual(ctx, q)
+		}
 		if err == nil {
 			err = ctx.Err()
 		}

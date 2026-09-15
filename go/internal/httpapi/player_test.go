@@ -129,15 +129,6 @@ func TestPlayerHTTPAuthenticationAndBoundaries(t *testing.T) {
 		t.Fatal(w.Code)
 	}
 }
-// TestPlayerHTTPDurableRecoveryAndLiveState covers the surviving control
-// surface once the dashboard's standalone acquire route is gone: submission
-// stays acquire-free (per TestBuildingServiceSubmissionDoesNotAcquireAndShutdownJoins
-// and the "Submission never acquires authority" contract in
-// docs/developers/contracts/go-player-api.md), and Manual remains the only
-// control mutation the dashboard can still reach over HTTP. Historical
-// Acquire-kind records (created some other way, e.g. by the bot itself) are
-// still readable via GET, which TestPlayerHTTPHistoricalGrantDoesNotEnable
-// covers directly.
 func TestPlayerHTTPDurableRecoveryAndLiveState(t *testing.T) {
 	s, f := playerAPI(t)
 	token := s.playerToken
@@ -156,11 +147,25 @@ func TestPlayerHTTPDurableRecoveryAndLiveState(t *testing.T) {
 	if e := json.Unmarshal(w.Body.Bytes(), &submission); e != nil || w.Code != 200 || submission.Building.Stuff != "" || submission.Revision != 1 {
 		t.Fatal(w.Body.String(), e)
 	}
-	if f.calls != 2 {
-		t.Fatal("submission touched control", f.calls)
+	acquire := `{"requestId":"control","expected":` + requestWorld + `,"planId":"` + string(submission.PlanID) + `","revision":"1","expectedDirection":"0"}`
+	f.uncertain = true
+	w = playerCall(s, "POST", "/api/player/control/acquire", acquire, token)
+	var result controlDTO
+	if e := json.Unmarshal(w.Body.Bytes(), &result); e != nil || w.Code != 503 || result.Record == nil || result.Record.Phase != store.UncertainControl || result.State.Enabled || result.State.Generation != nil || result.Error == nil || strings.Contains(w.Body.String(), "secret") {
+		t.Fatal(w.Code, w.Body.String(), e)
 	}
-	if w := playerCall(s, "POST", "/api/player/control/acquire", "{}", token); w.Code != 501 {
-		t.Fatal("dashboard can still reach a direct acquire route", w.Code, w.Body.String())
+	if f.seen.Kind != store.AcquireControl || f.seen.Plan != submission.PlanID {
+		t.Fatal(f.seen)
+	}
+	for _, path := range []string{"/api/player/control", "/api/player/control?requestId=control"} {
+		w = playerCall(s, "GET", path, "", "")
+		if w.Code != 200 || !strings.Contains(w.Body.String(), `"phase":"uncertain"`) {
+			t.Fatal(w.Code, w.Body.String())
+		}
+	}
+	w = playerCall(s, "POST", "/api/player/control/acquire", acquire, token)
+	if w.Code != 200 || !strings.Contains(w.Body.String(), `"enabled":false`) {
+		t.Fatal(w.Code, w.Body.String())
 	}
 	manual := strings.Replace(manualJSON, `"request"`, `"manual"`, 1)
 	w = playerCall(s, "POST", "/api/player/control/manual", manual, token)
