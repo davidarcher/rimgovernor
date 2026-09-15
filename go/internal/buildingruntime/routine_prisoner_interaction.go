@@ -40,10 +40,10 @@ func (r *RoutinePrisonerInteractionPlanner) Step(ctx context.Context) (RoutinePr
 		return RoutinePrisonerInteractionResult{}, err
 	}
 	defer done()
-	return r.step(call, epoch)
+	return r.step(call, epoch, newStepArbiter())
 }
 
-func (r *RoutinePrisonerInteractionPlanner) step(call, epoch context.Context) (RoutinePrisonerInteractionResult, error) {
+func (r *RoutinePrisonerInteractionPlanner) step(call, epoch context.Context, arbiter *stepArbiter) (RoutinePrisonerInteractionResult, error) {
 	p := r.reviewer.player
 	state := p.session.State()
 	if !state.Enabled {

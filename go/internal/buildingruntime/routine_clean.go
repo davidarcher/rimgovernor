@@ -49,9 +49,9 @@ func (r *RoutineCleanPlanner) Step(ctx context.Context) (RoutineCleanResult, err
 		return RoutineCleanResult{}, err
 	}
 	defer done()
-	return r.step(call, epoch)
+	return r.step(call, epoch, newStepArbiter())
 }
-func (r *RoutineCleanPlanner) step(call, epoch context.Context) (RoutineCleanResult, error) {
+func (r *RoutineCleanPlanner) step(call, epoch context.Context, arbiter *stepArbiter) (RoutineCleanResult, error) {
 	p := r.reviewer.player
 	state := p.session.State()
 	if !state.Enabled {
@@ -204,6 +204,9 @@ func (r *RoutineCleanPlanner) step(call, epoch context.Context) (RoutineCleanRes
 		pawns = append(pawns, facts)
 	}
 	target, pawn, ok := policy.SelectClean(filth, pawns)
+	if ok && !arbiter.tryClaim([]domain.PawnID{pawn}, "clean-target:"+target.ID) {
+		ok = false
+	}
 	if !ok {
 		return RoutineCleanResult{Reason: BuildingMethodUsed}, nil
 	}

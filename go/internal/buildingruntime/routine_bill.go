@@ -46,9 +46,9 @@ func (r *RoutineBillPlanner) Step(ctx context.Context) (RoutineBillResult, error
 		return RoutineBillResult{}, err
 	}
 	defer done()
-	return r.step(call, epoch)
+	return r.step(call, epoch, newStepArbiter())
 }
-func (r *RoutineBillPlanner) step(call, epoch context.Context) (RoutineBillResult, error) {
+func (r *RoutineBillPlanner) step(call, epoch context.Context, arbiter *stepArbiter) (RoutineBillResult, error) {
 	p := r.reviewer.player
 	state := p.session.State()
 	if !state.Enabled {

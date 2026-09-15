@@ -36,14 +36,14 @@ func (r *RoutineFoodStoragePlanner) Step(ctx context.Context) (RoutineFoodStorag
 		return RoutineFoodStorageResult{}, err
 	}
 	defer done()
-	return r.step(call, epoch)
+	return r.step(call, epoch, newStepArbiter())
 }
 
 // step furnishes the same starter shell EnsureInitialShelter already built,
 // rather than selecting or building a new room: the player-selected shelter
 // handoff (backlog row 894) is not composed yet, so this slice only closes the
 // narrower starter-room fallback.
-func (r *RoutineFoodStoragePlanner) step(call, epoch context.Context) (RoutineFoodStorageResult, error) {
+func (r *RoutineFoodStoragePlanner) step(call, epoch context.Context, arbiter *stepArbiter) (RoutineFoodStorageResult, error) {
 	p := r.reviewer.player
 	state := p.session.State()
 	if !state.Enabled {

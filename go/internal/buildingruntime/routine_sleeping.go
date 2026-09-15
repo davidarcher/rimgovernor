@@ -71,16 +71,16 @@ func (r *RoutineBuildingPlanner) Step(ctx context.Context) (RoutineBuildingResul
 		return RoutineBuildingResult{}, err
 	}
 	defer done()
-	return r.step(call, epoch)
+	return r.step(call, epoch, newStepArbiter())
 }
 
 // step is also used by the scheduler already holding the same player gate.
-func (r *RoutineBuildingPlanner) step(call, epoch context.Context) (RoutineBuildingResult, error) {
+func (r *RoutineBuildingPlanner) step(call, epoch context.Context, arbiter *stepArbiter) (RoutineBuildingResult, error) {
 	roofingOnly := false
 	if r.shelter {
 		indoor := *r
 		indoor.shelter, indoor.definition = false, "SleepingSpot"
-		result, err := indoor.step(call, epoch)
+		result, err := indoor.step(call, epoch, arbiter)
 		if err != nil || result.Reason != BuildingMethodNoSpace && result.Reason != BuildingMethodUsed {
 			return result, err
 		}

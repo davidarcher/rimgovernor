@@ -40,10 +40,10 @@ func (r *RoutineHusbandryPlanner) Step(ctx context.Context) (RoutineHusbandryRes
 		return RoutineHusbandryResult{}, err
 	}
 	defer done()
-	return r.step(call, epoch)
+	return r.step(call, epoch, newStepArbiter())
 }
 
-func (r *RoutineHusbandryPlanner) step(call, epoch context.Context) (RoutineHusbandryResult, error) {
+func (r *RoutineHusbandryPlanner) step(call, epoch context.Context, arbiter *stepArbiter) (RoutineHusbandryResult, error) {
 	p := r.reviewer.player
 	state := p.session.State()
 	if !state.Enabled {
@@ -117,6 +117,9 @@ func (r *RoutineHusbandryPlanner) step(call, epoch context.Context) (RoutineHusb
 	attempt := medicalAttemptCount(goal.Methods, goal.Goal.Epoch, prefix)
 	if attempt >= maxMedicalAttemptsPerPatient {
 		return RoutineHusbandryResult{Reason: BuildingMethodExhausted}, nil
+	}
+	if !arbiter.tryClaim([]domain.PawnID{domain.PawnID(choice.Animal)}) {
+		return RoutineHusbandryResult{Reason: BuildingMethodUsed}, nil
 	}
 	method := domain.MethodID(fmt.Sprintf("%s%d", prefix, attempt))
 	husbandry, err := domain.NewHusbandry(domain.PawnID(choice.Animal), choice.Method, choice.TrainableDef)

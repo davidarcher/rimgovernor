@@ -55,7 +55,7 @@ func (r *RoutineGearPlanner) Step(ctx context.Context) (RoutineGearResult, error
 		return RoutineGearResult{}, err
 	}
 	defer done()
-	return r.step(call, epoch)
+	return r.step(call, epoch, newStepArbiter())
 }
 
 // gearObservationFacts decodes an already-validated gear census the same way
@@ -107,7 +107,7 @@ func gearCandidateDefinition(observation policy.GearObservation, pawn policy.Paw
 	return "", false
 }
 
-func (r *RoutineGearPlanner) step(call, epoch context.Context) (RoutineGearResult, error) {
+func (r *RoutineGearPlanner) step(call, epoch context.Context, arbiter *stepArbiter) (RoutineGearResult, error) {
 	p := r.reviewer.player
 	state := p.session.State()
 	if !state.Enabled {
@@ -232,6 +232,9 @@ func (r *RoutineGearPlanner) step(call, epoch context.Context) (RoutineGearResul
 		definition, ok := gearCandidateDefinition(observation, choice.Pawn, choice.Target)
 		if !ok {
 			return RoutineGearResult{}, ErrControl
+		}
+		if !arbiter.tryClaim([]domain.PawnID{domain.PawnID(choice.Pawn)}) {
+			return RoutineGearResult{Reason: BuildingMethodUsed}, nil
 		}
 		replace, err := domain.NewGearReplace(domain.PawnID(choice.Pawn), choice.Target, definition)
 		if err != nil {

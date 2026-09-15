@@ -44,9 +44,9 @@ func (r *RoutineNamingPlanner) Step(ctx context.Context) (RoutineNamingResult, e
 		return RoutineNamingResult{}, err
 	}
 	defer done()
-	return r.step(call, epoch)
+	return r.step(call, epoch, newStepArbiter())
 }
-func (r *RoutineNamingPlanner) step(call, epoch context.Context) (RoutineNamingResult, error) {
+func (r *RoutineNamingPlanner) step(call, epoch context.Context, arbiter *stepArbiter) (RoutineNamingResult, error) {
 	p := r.reviewer.player
 	state := p.session.State()
 	if !state.Enabled {

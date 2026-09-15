@@ -48,9 +48,9 @@ func (r *RoutineRepairPlanner) Step(ctx context.Context) (RoutineRepairResult, e
 		return RoutineRepairResult{}, err
 	}
 	defer done()
-	return r.step(call, epoch)
+	return r.step(call, epoch, newStepArbiter())
 }
-func (r *RoutineRepairPlanner) step(call, epoch context.Context) (RoutineRepairResult, error) {
+func (r *RoutineRepairPlanner) step(call, epoch context.Context, arbiter *stepArbiter) (RoutineRepairResult, error) {
 	p := r.reviewer.player
 	state := p.session.State()
 	if !state.Enabled {
@@ -203,6 +203,9 @@ func (r *RoutineRepairPlanner) step(call, epoch context.Context) (RoutineRepairR
 		pawns = append(pawns, facts)
 	}
 	structure, pawn, ok := policy.SelectRepair(structures, pawns)
+	if ok && !arbiter.tryClaim([]domain.PawnID{pawn}, "repair-structure:"+structure.ID) {
+		ok = false
+	}
 	if !ok {
 		return RoutineRepairResult{Reason: BuildingMethodUsed}, nil
 	}

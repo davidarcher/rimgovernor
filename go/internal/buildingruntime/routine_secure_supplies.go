@@ -61,9 +61,9 @@ func (r *RoutineSecureSuppliesPlanner) Step(ctx context.Context) (RoutineSecureS
 		return RoutineSecureSuppliesResult{}, err
 	}
 	defer done()
-	return r.step(call, epoch)
+	return r.step(call, epoch, newStepArbiter())
 }
-func (r *RoutineSecureSuppliesPlanner) step(call, epoch context.Context) (RoutineSecureSuppliesResult, error) {
+func (r *RoutineSecureSuppliesPlanner) step(call, epoch context.Context, arbiter *stepArbiter) (RoutineSecureSuppliesResult, error) {
 	p := r.reviewer.player
 	state := p.session.State()
 	if !state.Enabled {
@@ -216,6 +216,9 @@ func (r *RoutineSecureSuppliesPlanner) step(call, epoch context.Context) (Routin
 		pawns = append(pawns, facts)
 	}
 	item, pawn, ok := policy.SelectSecureSupplies(items, pawns)
+	if ok && !arbiter.tryClaim([]domain.PawnID{pawn}, "haul-item:"+item.ID) {
+		ok = false
+	}
 	if !ok {
 		return RoutineSecureSuppliesResult{Reason: BuildingMethodUsed}, nil
 	}
@@ -228,14 +231,14 @@ func (r *RoutineSecureSuppliesPlanner) step(call, epoch context.Context) (Routin
 	prefix := fmt.Sprintf("secure-supplies-%s-", item.ID)
 	attempt := medicalAttemptCount(goal.Methods, goal.Goal.Epoch, prefix)
 	if attempt >= maxMedicalAttemptsPerPatient {
-		fallback, err := r.coveredStorageFallback(call, epoch, state, goal, reading.Projection, item, started)
+		fallback, err := r.coveredStorageFallback(call, epoch, state, goal, reading.Projection, item, started, arbiter)
 		if err != nil {
 			return RoutineSecureSuppliesResult{}, err
 		}
 		if fallback.Reason != "" {
 			return fallback, nil
 		}
-		fallback, err = r.supplyRoomFallback(call, epoch, state, goal, reading.Projection, started)
+		fallback, err = r.supplyRoomFallback(call, epoch, state, goal, reading.Projection, started, arbiter)
 		if err != nil {
 			return RoutineSecureSuppliesResult{}, err
 		}
@@ -277,7 +280,7 @@ func (r *RoutineSecureSuppliesPlanner) step(call, epoch context.Context) (Routin
 // episode. A zero-value, empty-Reason result means the fallback did not apply
 // this step (no zone budget left, no legal site, or a stale read) and the
 // caller should try supplyRoomFallback next.
-func (r *RoutineSecureSuppliesPlanner) coveredStorageFallback(call, epoch context.Context, state ControlState, goal store.GoalState, projection observation.ColonyProjection, item policy.UpkeepItem, started time.Time) (RoutineSecureSuppliesResult, error) {
+func (r *RoutineSecureSuppliesPlanner) coveredStorageFallback(call, epoch context.Context, state ControlState, goal store.GoalState, projection observation.ColonyProjection, item policy.UpkeepItem, started time.Time, arbiter *stepArbiter) (RoutineSecureSuppliesResult, error) {
 	p := r.reviewer.player
 	zoneAttempts := medicalAttemptCount(goal.Methods, goal.Goal.Epoch, secureSuppliesZonePrefix)
 	if zoneAttempts >= maxSecureSuppliesZoneMethods {
@@ -395,7 +398,7 @@ func secureSuppliesRoomShellPlan(spec domain.PlanSpec) bool {
 // to do" here rather than an interactive skill-blocked error. A zero-value,
 // empty-Reason result means the fallback did not apply this step, and the
 // caller should report its own exhaustion reason instead.
-func (r *RoutineSecureSuppliesPlanner) supplyRoomFallback(call, epoch context.Context, state ControlState, goal store.GoalState, projection observation.ColonyProjection, started time.Time) (RoutineSecureSuppliesResult, error) {
+func (r *RoutineSecureSuppliesPlanner) supplyRoomFallback(call, epoch context.Context, state ControlState, goal store.GoalState, projection observation.ColonyProjection, started time.Time, arbiter *stepArbiter) (RoutineSecureSuppliesResult, error) {
 	p := r.reviewer.player
 	zoneAttempts := medicalAttemptCount(goal.Methods, goal.Goal.Epoch, secureSuppliesZonePrefix)
 	if zoneAttempts >= maxSecureSuppliesZoneMethods {

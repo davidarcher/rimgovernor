@@ -45,7 +45,7 @@ func (r *RoutineMoodReliefPlanner) Step(ctx context.Context) (RoutineMoodReliefR
 		return RoutineMoodReliefResult{}, err
 	}
 	defer done()
-	return r.step(call, epoch)
+	return r.step(call, epoch, newStepArbiter())
 }
 
 // moodReliefValue mirrors store's unexported moodFact/moodValue lift for
@@ -100,7 +100,7 @@ func moodReliefUsedNeeds(methods []domain.GoalMethod, epoch uint64, pawn policy.
 	return used
 }
 
-func (r *RoutineMoodReliefPlanner) step(call, epoch context.Context) (RoutineMoodReliefResult, error) {
+func (r *RoutineMoodReliefPlanner) step(call, epoch context.Context, arbiter *stepArbiter) (RoutineMoodReliefResult, error) {
 	p := r.reviewer.player
 	sessionState := p.session.State()
 	if !sessionState.Enabled {
@@ -202,6 +202,9 @@ func (r *RoutineMoodReliefPlanner) step(call, epoch context.Context) (RoutineMoo
 		}
 		domainJob, ok := moodReliefJobDomain(job)
 		if !ok {
+			continue
+		}
+		if !arbiter.tryClaim([]domain.PawnID{domain.PawnID(moodState.Pawn.ID)}) {
 			continue
 		}
 		relief, err := domain.NewMoodRelief(domain.PawnID(moodState.Pawn.ID), need, domainJob, def)

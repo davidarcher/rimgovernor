@@ -20,6 +20,7 @@ import (
 	k "github.com/davidarcher/RimGovernor/go/internal/wire/clockpb"
 	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
 	l "github.com/davidarcher/RimGovernor/go/internal/wire/lifecyclepb"
+	"golang.org/x/sync/errgroup"
 	"google.golang.org/protobuf/proto"
 )
 
@@ -443,156 +444,224 @@ func (s *ClockScheduler) Step(ctx context.Context) (ClockSchedulerResult, error)
 		return out, err
 	}
 	clockSchedulerLog("reached stepPlanners")
-	if err = s.stepPlanners(call, epoch, &out); err != nil {
+	arbiter := newStepArbiter()
+	g, gctx := errgroup.WithContext(call)
+	if err = s.stepPlanners(call, gctx, epoch, &out, g, arbiter); err != nil {
 		return out, err
 	}
 	if s.config.SecureSupplies != nil {
-		method, err := s.config.SecureSupplies.step(call, epoch)
-		if err != nil {
-			return out, err
-		}
-		out.SecureSupplies = &method
+		g.Go(func() error {
+			method, err := s.config.SecureSupplies.step(gctx, epoch, arbiter)
+			if err != nil {
+				return err
+			}
+			out.SecureSupplies = &method
+			return nil
+		})
 	}
 	if s.config.Repair != nil {
-		method, err := s.config.Repair.step(call, epoch)
-		if err != nil {
-			return out, err
-		}
-		out.Repair = &method
+		g.Go(func() error {
+			method, err := s.config.Repair.step(gctx, epoch, arbiter)
+			if err != nil {
+				return err
+			}
+			out.Repair = &method
+			return nil
+		})
 	}
 	if s.config.Clean != nil {
-		method, err := s.config.Clean.step(call, epoch)
-		if err != nil {
-			return out, err
-		}
-		out.Clean = &method
+		g.Go(func() error {
+			method, err := s.config.Clean.step(gctx, epoch, arbiter)
+			if err != nil {
+				return err
+			}
+			out.Clean = &method
+			return nil
+		})
 	}
 	if s.config.Waste != nil {
-		method, err := s.config.Waste.step(call, epoch)
-		if err != nil {
-			return out, err
-		}
-		out.Waste = &method
+		g.Go(func() error {
+			method, err := s.config.Waste.step(gctx, epoch, arbiter)
+			if err != nil {
+				return err
+			}
+			out.Waste = &method
+			return nil
+		})
 	}
 	if s.config.MoodRelief != nil {
-		method, err := s.config.MoodRelief.step(call, epoch)
-		if err != nil {
-			return out, err
-		}
-		out.MoodRelief = &method
+		g.Go(func() error {
+			method, err := s.config.MoodRelief.step(gctx, epoch, arbiter)
+			if err != nil {
+				return err
+			}
+			out.MoodRelief = &method
+			return nil
+		})
 	}
 	if s.config.Haul != nil {
-		method, err := s.config.Haul.step(call, epoch)
-		if err != nil {
-			return out, err
-		}
-		clockSchedulerLog("Haul.step result: reason=%v plan=%s", method.Reason, method.Plan)
-		out.Haul = &method
+		g.Go(func() error {
+			method, err := s.config.Haul.step(gctx, epoch, arbiter)
+			if err != nil {
+				return err
+			}
+			clockSchedulerLog("Haul.step result: reason=%v plan=%s", method.Reason, method.Plan)
+			out.Haul = &method
+			return nil
+		})
 	}
 	if s.config.Gear != nil {
-		method, err := s.config.Gear.step(call, epoch)
-		if err != nil {
-			return out, err
-		}
-		out.Gear = &method
+		g.Go(func() error {
+			method, err := s.config.Gear.step(gctx, epoch, arbiter)
+			if err != nil {
+				return err
+			}
+			out.Gear = &method
+			return nil
+		})
 	}
 	if s.config.Medical != nil {
-		method, err := s.config.Medical.step(call, epoch)
-		if err != nil {
-			return out, err
-		}
-		out.Medical = &method
+		g.Go(func() error {
+			method, err := s.config.Medical.step(gctx, epoch, arbiter)
+			if err != nil {
+				return err
+			}
+			out.Medical = &method
+			return nil
+		})
 	}
 	if s.config.AnimalContainment != nil {
-		method, err := s.config.AnimalContainment.step(call, epoch)
-		if err != nil {
-			return out, err
-		}
-		out.AnimalContainment = &method
+		g.Go(func() error {
+			method, err := s.config.AnimalContainment.step(gctx, epoch, arbiter)
+			if err != nil {
+				return err
+			}
+			out.AnimalContainment = &method
+			return nil
+		})
 	}
 	if s.config.Recovery != nil {
-		method, err := s.config.Recovery.step(call, epoch)
-		if err != nil {
-			return out, err
-		}
-		out.Recovery = &method
+		g.Go(func() error {
+			method, err := s.config.Recovery.step(gctx, epoch, arbiter)
+			if err != nil {
+				return err
+			}
+			out.Recovery = &method
+			return nil
+		})
 	}
 	if s.config.Husbandry != nil {
-		method, err := s.config.Husbandry.step(call, epoch)
-		if err != nil {
-			return out, err
-		}
-		out.Husbandry = &method
+		g.Go(func() error {
+			method, err := s.config.Husbandry.step(gctx, epoch, arbiter)
+			if err != nil {
+				return err
+			}
+			out.Husbandry = &method
+			return nil
+		})
 	}
 	if s.config.PrisonerInteraction != nil {
-		method, err := s.config.PrisonerInteraction.step(call, epoch)
-		if err != nil {
-			return out, err
-		}
-		out.PrisonerInteraction = &method
+		g.Go(func() error {
+			method, err := s.config.PrisonerInteraction.step(gctx, epoch, arbiter)
+			if err != nil {
+				return err
+			}
+			out.PrisonerInteraction = &method
+			return nil
+		})
 	}
 	if s.config.PopulationCustody != nil {
-		method, err := s.config.PopulationCustody.step(call, epoch)
-		if err != nil {
-			return out, err
-		}
-		out.PopulationCustody = &method
+		g.Go(func() error {
+			method, err := s.config.PopulationCustody.step(gctx, epoch, arbiter)
+			if err != nil {
+				return err
+			}
+			out.PopulationCustody = &method
+			return nil
+		})
 	}
 	if s.config.Research != nil {
-		method, err := s.config.Research.step(call, epoch)
-		if err != nil {
-			return out, err
-		}
-		out.Research = &method
+		g.Go(func() error {
+			method, err := s.config.Research.step(gctx, epoch, arbiter)
+			if err != nil {
+				return err
+			}
+			out.Research = &method
+			return nil
+		})
 	}
 	if s.config.Naming != nil {
-		method, err := s.config.Naming.step(call, epoch)
-		if err != nil {
-			return out, err
-		}
-		out.Naming = &method
+		g.Go(func() error {
+			method, err := s.config.Naming.step(gctx, epoch, arbiter)
+			if err != nil {
+				return err
+			}
+			out.Naming = &method
+			return nil
+		})
 	}
 	if s.config.Resource != nil {
-		method, err := s.config.Resource.step(call, epoch)
-		if err != nil {
-			return out, err
-		}
-		out.Resource = &method
+		g.Go(func() error {
+			method, err := s.config.Resource.step(gctx, epoch, arbiter)
+			if err != nil {
+				return err
+			}
+			out.Resource = &method
+			return nil
+		})
 	}
 	if s.config.AnimalFeed != nil {
-		method, err := s.config.AnimalFeed.step(call, epoch)
-		if err != nil {
-			return out, err
-		}
-		out.AnimalFeed = &method
+		g.Go(func() error {
+			method, err := s.config.AnimalFeed.step(gctx, epoch, arbiter)
+			if err != nil {
+				return err
+			}
+			out.AnimalFeed = &method
+			return nil
+		})
 	}
 	if s.config.ProductionPolicy != nil {
-		method, err := s.config.ProductionPolicy.step(call, epoch)
-		if err != nil {
-			return out, err
-		}
-		out.ProductionPolicy = &method
+		g.Go(func() error {
+			method, err := s.config.ProductionPolicy.step(gctx, epoch, arbiter)
+			if err != nil {
+				return err
+			}
+			out.ProductionPolicy = &method
+			return nil
+		})
 	}
 	if s.config.CaravanJourney != nil {
-		method, err := s.config.CaravanJourney.step(call, epoch)
-		if err != nil {
-			return out, err
-		}
-		out.CaravanJourney = &method
+		g.Go(func() error {
+			method, err := s.config.CaravanJourney.step(gctx, epoch, arbiter)
+			if err != nil {
+				return err
+			}
+			out.CaravanJourney = &method
+			return nil
+		})
 	}
 	if s.config.HomeCoverage != nil {
-		method, err := s.config.HomeCoverage.step(call, epoch)
-		if err != nil {
-			return out, err
-		}
-		out.HomeCoverage = &method
+		g.Go(func() error {
+			method, err := s.config.HomeCoverage.step(gctx, epoch, arbiter)
+			if err != nil {
+				return err
+			}
+			out.HomeCoverage = &method
+			return nil
+		})
 	}
 	if s.config.StoneShell != nil {
-		method, err := s.config.StoneShell.step(call, epoch)
-		if err != nil {
-			return out, err
-		}
-		out.StoneShell = &method
+		g.Go(func() error {
+			method, err := s.config.StoneShell.step(gctx, epoch, arbiter)
+			if err != nil {
+				return err
+			}
+			out.StoneShell = &method
+			return nil
+		})
+	}
+	if err = g.Wait(); err != nil {
+		return out, err
 	}
 	emergency, _, err := s.native.ReadEmergency(call, loaded.Context.Identity)
 	if err != nil {
@@ -713,15 +782,20 @@ func (s *ClockScheduler) Step(ctx context.Context) (ClockSchedulerResult, error)
 	return out, err
 }
 
-// stepPlanners runs the routine reviewer and every configured routine planner
-// in turn, writing each result into out as it completes. A planner left nil
-// in config is simply skipped, matching how Step selected planners inline
-// before this was extracted. The first planner error (or a mental-risk
-// refusal from the reviewer) stops the sequence; out keeps whatever earlier
-// planners already recorded, exactly as Step's inline version did.
-func (s *ClockScheduler) stepPlanners(call, epoch context.Context, out *ClockSchedulerResult) error {
+// stepPlanners runs the routine reviewer synchronously first (every other
+// planner's dispatch depends on being able to load the review it commits),
+// then queues every other configured routine planner onto g as a concurrent
+// goroutine sharing arbiter, returning immediately without waiting for them.
+// The caller (ClockScheduler.Step) queues its own remaining inline planners
+// onto the same g before calling g.Wait(), so the whole non-Routine batch —
+// this function's planners and Step's own — runs as one concurrent wave. A
+// planner left nil in config is simply skipped, matching how Step selected
+// planners inline before this was extracted. Routine's own error (or a
+// mental-risk refusal from the reviewer) aborts before anything is queued;
+// an error from a queued planner surfaces later, from g.Wait().
+func (s *ClockScheduler) stepPlanners(call, gctx, epoch context.Context, out *ClockSchedulerResult, g *errgroup.Group, arbiter *stepArbiter) error {
 	if s.config.Routine != nil {
-		review, err := s.config.Routine.step(call, epoch)
+		review, err := s.config.Routine.step(call, epoch, arbiter)
 		if err != nil {
 			return fmt.Errorf("routine: %w", err)
 		}
@@ -735,81 +809,114 @@ func (s *ClockScheduler) stepPlanners(call, epoch context.Context, out *ClockSch
 		}
 	}
 	if s.config.Work != nil {
-		method, err := s.config.Work.step(call, epoch)
-		if err != nil {
-			return fmt.Errorf("work: %w", err)
-		}
-		out.Work = &method
+		g.Go(func() error {
+			method, err := s.config.Work.step(gctx, epoch, arbiter)
+			if err != nil {
+				return fmt.Errorf("work: %w", err)
+			}
+			out.Work = &method
+			return nil
+		})
 	}
 	if s.config.Fields != nil {
-		method, err := s.config.Fields.step(call, epoch)
-		if err != nil {
-			return fmt.Errorf("fields: %w", err)
-		}
-		out.Fields = &method
+		g.Go(func() error {
+			method, err := s.config.Fields.step(gctx, epoch, arbiter)
+			if err != nil {
+				return fmt.Errorf("fields: %w", err)
+			}
+			out.Fields = &method
+			return nil
+		})
 	}
 	if s.config.FoodStorage != nil {
-		method, err := s.config.FoodStorage.step(call, epoch)
-		if err != nil {
-			return fmt.Errorf("foodStorage: %w", err)
-		}
-		out.FoodStorage = &method
+		g.Go(func() error {
+			method, err := s.config.FoodStorage.step(gctx, epoch, arbiter)
+			if err != nil {
+				return fmt.Errorf("foodStorage: %w", err)
+			}
+			out.FoodStorage = &method
+			return nil
+		})
 	}
 	if s.config.FoodAcquisition != nil {
-		method, err := s.config.FoodAcquisition.step(call, epoch)
-		if err != nil {
-			return fmt.Errorf("foodAcquisition: %w", err)
-		}
-		out.FoodAcquisition = &method
+		g.Go(func() error {
+			method, err := s.config.FoodAcquisition.step(gctx, epoch, arbiter)
+			if err != nil {
+				return fmt.Errorf("foodAcquisition: %w", err)
+			}
+			out.FoodAcquisition = &method
+			return nil
+		})
 	}
 	if s.config.WoodAcquisition != nil {
-		method, err := s.config.WoodAcquisition.step(call, epoch)
-		if err != nil {
-			return fmt.Errorf("woodAcquisition: %w", err)
-		}
-		out.WoodAcquisition = &method
+		g.Go(func() error {
+			method, err := s.config.WoodAcquisition.step(gctx, epoch, arbiter)
+			if err != nil {
+				return fmt.Errorf("woodAcquisition: %w", err)
+			}
+			out.WoodAcquisition = &method
+			return nil
+		})
 	}
 	if s.config.Supplies != nil {
-		method, err := s.config.Supplies.step(call, epoch)
-		if err != nil {
-			return fmt.Errorf("supplies: %w", err)
-		}
-		out.Supplies = &method
+		g.Go(func() error {
+			method, err := s.config.Supplies.step(gctx, epoch, arbiter)
+			if err != nil {
+				return fmt.Errorf("supplies: %w", err)
+			}
+			out.Supplies = &method
+			return nil
+		})
 	}
 	if s.config.Sleeping != nil {
-		method, err := s.config.Sleeping.step(call, epoch)
-		if err != nil {
-			return fmt.Errorf("sleeping: %w", err)
-		}
-		out.Sleeping = &method
+		g.Go(func() error {
+			method, err := s.config.Sleeping.step(gctx, epoch, arbiter)
+			if err != nil {
+				return fmt.Errorf("sleeping: %w", err)
+			}
+			out.Sleeping = &method
+			return nil
+		})
 	}
 	if s.config.Power != nil {
-		method, err := s.config.Power.step(call, epoch)
-		if err != nil {
-			return fmt.Errorf("power: %w", err)
-		}
-		out.Power = &method
+		g.Go(func() error {
+			method, err := s.config.Power.step(gctx, epoch, arbiter)
+			if err != nil {
+				return fmt.Errorf("power: %w", err)
+			}
+			out.Power = &method
+			return nil
+		})
 	}
 	if s.config.Temperature != nil {
-		method, err := s.config.Temperature.step(call, epoch)
-		if err != nil {
-			return fmt.Errorf("temperature: %w", err)
-		}
-		out.Temperature = &method
+		g.Go(func() error {
+			method, err := s.config.Temperature.step(gctx, epoch, arbiter)
+			if err != nil {
+				return fmt.Errorf("temperature: %w", err)
+			}
+			out.Temperature = &method
+			return nil
+		})
 	}
 	if s.config.Cooking != nil {
-		method, err := s.config.Cooking.step(call, epoch)
-		if err != nil {
-			return fmt.Errorf("cooking: %w", err)
-		}
-		out.Cooking = &method
+		g.Go(func() error {
+			method, err := s.config.Cooking.step(gctx, epoch, arbiter)
+			if err != nil {
+				return fmt.Errorf("cooking: %w", err)
+			}
+			out.Cooking = &method
+			return nil
+		})
 	}
 	if s.config.Butcher != nil {
-		method, err := s.config.Butcher.step(call, epoch)
-		if err != nil {
-			return fmt.Errorf("butcher: %w", err)
-		}
-		out.Butcher = &method
+		g.Go(func() error {
+			method, err := s.config.Butcher.step(gctx, epoch, arbiter)
+			if err != nil {
+				return fmt.Errorf("butcher: %w", err)
+			}
+			out.Butcher = &method
+			return nil
+		})
 	}
 	for _, entry := range []struct {
 		name    string
@@ -817,54 +924,76 @@ func (s *ClockScheduler) stepPlanners(call, epoch context.Context, out *ClockSch
 		result  **RoutineBillResult
 	}{{"cookingBills", s.config.CookingBills, &out.CookingBills}, {"preservationBills", s.config.PreservationBills, &out.PreservationBills}, {"butcherBills", s.config.ButcherBills, &out.ButcherBills}} {
 		if entry.planner != nil {
-			method, err := entry.planner.step(call, epoch)
-			if err != nil {
-				return fmt.Errorf("%s: %w", entry.name, err)
-			}
-			*entry.result = &method
+			entry := entry
+			g.Go(func() error {
+				method, err := entry.planner.step(gctx, epoch, arbiter)
+				if err != nil {
+					return fmt.Errorf("%s: %w", entry.name, err)
+				}
+				*entry.result = &method
+				return nil
+			})
 		}
 	}
 	if s.config.Comfort != nil {
-		method, err := s.config.Comfort.step(call, epoch)
-		if err != nil {
-			return fmt.Errorf("comfort: %w", err)
-		}
-		out.Comfort = &method
+		g.Go(func() error {
+			method, err := s.config.Comfort.step(gctx, epoch, arbiter)
+			if err != nil {
+				return fmt.Errorf("comfort: %w", err)
+			}
+			out.Comfort = &method
+			return nil
+		})
 	}
 	if s.config.Expansion != nil {
-		method, err := s.config.Expansion.step(call, epoch)
-		if err != nil {
-			return fmt.Errorf("expansion: %w", err)
-		}
-		out.Expansion = &method
+		g.Go(func() error {
+			method, err := s.config.Expansion.step(gctx, epoch, arbiter)
+			if err != nil {
+				return fmt.Errorf("expansion: %w", err)
+			}
+			out.Expansion = &method
+			return nil
+		})
 	}
 	if s.config.Defense != nil {
-		method, err := s.config.Defense.step(call, epoch)
-		if err != nil {
-			return fmt.Errorf("defense: %w", err)
-		}
-		out.Defense = &method
+		g.Go(func() error {
+			method, err := s.config.Defense.step(gctx, epoch, arbiter)
+			if err != nil {
+				return fmt.Errorf("defense: %w", err)
+			}
+			out.Defense = &method
+			return nil
+		})
 	}
 	if s.config.Tend != nil {
-		method, err := s.config.Tend.step(call, epoch)
-		if err != nil {
-			return fmt.Errorf("tend: %w", err)
-		}
-		out.Tend = &method
+		g.Go(func() error {
+			method, err := s.config.Tend.step(gctx, epoch, arbiter)
+			if err != nil {
+				return fmt.Errorf("tend: %w", err)
+			}
+			out.Tend = &method
+			return nil
+		})
 	}
 	if s.config.Rescue != nil {
-		method, err := s.config.Rescue.step(call, epoch)
-		if err != nil {
-			return fmt.Errorf("rescue: %w", err)
-		}
-		out.Rescue = &method
+		g.Go(func() error {
+			method, err := s.config.Rescue.step(gctx, epoch, arbiter)
+			if err != nil {
+				return fmt.Errorf("rescue: %w", err)
+			}
+			out.Rescue = &method
+			return nil
+		})
 	}
 	if s.config.Equip != nil {
-		method, err := s.config.Equip.step(call, epoch)
-		if err != nil {
-			return fmt.Errorf("equip: %w", err)
-		}
-		out.Equip = &method
+		g.Go(func() error {
+			method, err := s.config.Equip.step(gctx, epoch, arbiter)
+			if err != nil {
+				return fmt.Errorf("equip: %w", err)
+			}
+			out.Equip = &method
+			return nil
+		})
 	}
 	return nil
 }

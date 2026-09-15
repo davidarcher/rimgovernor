@@ -93,7 +93,7 @@ func (r *RoutineResourcePlanner) Step(ctx context.Context) (RoutineResourceResul
 		return RoutineResourceResult{}, err
 	}
 	defer done()
-	return r.step(call, epoch)
+	return r.step(call, epoch, newStepArbiter())
 }
 
 // resourceStockFacts decodes the same generic top-level resource census
@@ -113,7 +113,7 @@ func resourceStockFacts(v *o.ColonyFactsSnapshot) domain.Fact[[]policy.Amount] {
 	return domain.Known(rows)
 }
 
-func (r *RoutineResourcePlanner) step(call, epoch context.Context) (RoutineResourceResult, error) {
+func (r *RoutineResourcePlanner) step(call, epoch context.Context, arbiter *stepArbiter) (RoutineResourceResult, error) {
 	p := r.reviewer.player
 	state := p.session.State()
 	if !state.Enabled {

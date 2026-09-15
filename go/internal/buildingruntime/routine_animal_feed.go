@@ -41,10 +41,10 @@ func (r *RoutineAnimalFeedPlanner) Step(ctx context.Context) (RoutineResourceRes
 		return RoutineResourceResult{}, err
 	}
 	defer done()
-	return r.step(call, epoch)
+	return r.step(call, epoch, newStepArbiter())
 }
 
-func (r *RoutineAnimalFeedPlanner) step(call, epoch context.Context) (RoutineResourceResult, error) {
+func (r *RoutineAnimalFeedPlanner) step(call, epoch context.Context, arbiter *stepArbiter) (RoutineResourceResult, error) {
 	p := r.reviewer.player
 	state := p.session.State()
 	if !state.Enabled {

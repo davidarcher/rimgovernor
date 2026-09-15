@@ -81,11 +81,11 @@ func (r *RoutineReviewer) Step(ctx context.Context) (store.RoutineReviewResult, 
 		return store.RoutineReviewResult{}, err
 	}
 	defer done()
-	return r.step(call, epoch)
+	return r.step(call, epoch, newStepArbiter())
 }
 
 // step is also usable by a scheduler already holding the player gate.
-func (r *RoutineReviewer) step(ctx, epoch context.Context) (store.RoutineReviewResult, error) {
+func (r *RoutineReviewer) step(ctx, epoch context.Context, arbiter *stepArbiter) (store.RoutineReviewResult, error) {
 	p := r.player
 	state := p.session.State()
 	if !state.Enabled {

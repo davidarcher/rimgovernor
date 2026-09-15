@@ -50,9 +50,9 @@ func (r *RoutineResearchPlanner) Step(ctx context.Context) (RoutineResearchResul
 		return RoutineResearchResult{}, err
 	}
 	defer done()
-	return r.step(call, epoch)
+	return r.step(call, epoch, newStepArbiter())
 }
-func (r *RoutineResearchPlanner) step(call, epoch context.Context) (RoutineResearchResult, error) {
+func (r *RoutineResearchPlanner) step(call, epoch context.Context, arbiter *stepArbiter) (RoutineResearchResult, error) {
 	p := r.reviewer.player
 	state := p.session.State()
 	if !state.Enabled {

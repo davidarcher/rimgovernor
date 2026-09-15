@@ -45,7 +45,7 @@ func (r *RoutineHomeCoveragePlanner) Step(ctx context.Context) (RoutineHomeCover
 		return RoutineHomeCoverageResult{}, err
 	}
 	defer done()
-	return r.step(call, epoch)
+	return r.step(call, epoch, newStepArbiter())
 }
 
 // homeCoverageObservationFacts decodes the same unconditional Upkeep section
@@ -81,7 +81,7 @@ func homeCoverageObservationFacts(v *o.ColonyFactsSnapshot) (policy.HomeCoverage
 	return result, true
 }
 
-func (r *RoutineHomeCoveragePlanner) step(call, epoch context.Context) (RoutineHomeCoverageResult, error) {
+func (r *RoutineHomeCoveragePlanner) step(call, epoch context.Context, arbiter *stepArbiter) (RoutineHomeCoverageResult, error) {
 	p := r.reviewer.player
 	state := p.session.State()
 	if !state.Enabled {

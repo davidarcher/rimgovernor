@@ -52,7 +52,7 @@ func (r *RoutineStoneShellPlanner) Step(ctx context.Context) (RoutineStoneShellR
 		return RoutineStoneShellResult{}, err
 	}
 	defer done()
-	return r.step(call, epoch)
+	return r.step(call, epoch, newStepArbiter())
 }
 
 func stoneShellMethodID(wall string) domain.MethodID {
@@ -60,7 +60,7 @@ func stoneShellMethodID(wall string) domain.MethodID {
 	return domain.MethodID(fmt.Sprintf("wall-%x", sum[:16]))
 }
 
-func (r *RoutineStoneShellPlanner) step(call, epoch context.Context) (RoutineStoneShellResult, error) {
+func (r *RoutineStoneShellPlanner) step(call, epoch context.Context, arbiter *stepArbiter) (RoutineStoneShellResult, error) {
 	p := r.reviewer.player
 	state := p.session.State()
 	if !state.Enabled {

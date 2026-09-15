@@ -66,7 +66,7 @@ func (r *RoutineMedicalPlanner) Step(ctx context.Context) (RoutineMedicalResult,
 		return RoutineMedicalResult{}, err
 	}
 	defer done()
-	return r.step(call, epoch)
+	return r.step(call, epoch, newStepArbiter())
 }
 
 // medicalOptionalBool and medicalOptionalTicks mirror observation.optional's
@@ -140,7 +140,7 @@ func medicalReserveObservationFacts(v *o.ColonyFactsSnapshot) policy.MedicalRese
 	return r
 }
 
-func (r *RoutineMedicalPlanner) step(call, epoch context.Context) (RoutineMedicalResult, error) {
+func (r *RoutineMedicalPlanner) step(call, epoch context.Context, arbiter *stepArbiter) (RoutineMedicalResult, error) {
 	p := r.reviewer.player
 	state := p.session.State()
 	if !state.Enabled {
@@ -255,6 +255,9 @@ func (r *RoutineMedicalPlanner) step(call, epoch context.Context) (RoutineMedica
 	token, ok := tokens[choice.Bench]
 	if !ok {
 		return RoutineMedicalResult{}, ErrControl
+	}
+	if !arbiter.tryClaim(nil, "bench:"+choice.Bench) {
+		return RoutineMedicalResult{Reason: BuildingMethodUsed}, nil
 	}
 	digest := sha256.Sum256([]byte(fmt.Sprintf("%s/%d/%s", goal.Goal.ID, goal.Goal.Epoch, choice.ID)))
 	id := domain.PlanID(fmt.Sprintf("routine-medical-%x", digest[:16]))
