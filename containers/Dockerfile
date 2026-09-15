@@ -30,6 +30,42 @@ RUN go mod download
 ENV CGO_ENABLED=0
 RUN go build -o /out/rimgovernor ./cmd/rimgovernor
 
+# Docker acceptance worker (go/internal/dockeraccept): the same rimgovernor
+# binary as go-controller, plus the shared-library set a headless (or Xvfb-
+# rendered) Unity/RimWorld process needs, which go-controller has no reason to
+# carry. Game, mods and GABS binary are bind-mounted read-only at run time
+# (rimgovernor-dockeraccept/#38); nothing license-bearing is baked into this
+# image. Kept before go-controller so a plain `docker build` with no --target
+# still builds go-controller by default.
+#
+# dockeraccept.StartWorker builds /worker/game entirely out of individual
+# read-only `-v` bind mounts -- one per game top-level entry, plus one for
+# Mods -- rather than one mount for the whole game directory. RimWorld's
+# Unity engine resolves its install directory from the *real* path of its
+# running executable, so a single game mount plus a Mods symlink pointing
+# elsewhere doesn't work: Unity follows the symlink straight back to the
+# game mount, where no Mods directory exists. Real per-entry mounts under
+# the writable /worker parent give it a normal-looking tree instead, without
+# copying game data or ever writing to the shared, read-only input store.
+FROM debian:bookworm-slim AS worker
+# curl: Docker Desktop's --network host (Windows/macOS) runs containers
+# inside its own VM and does not bridge to the true host loopback, so
+# go/internal/dockeraccept.Worker's HTTP health/state checks run through
+# `docker exec ... curl` instead of a direct host-side connection -- that
+# works uniformly there and under Linux's real host networking.
+RUN apt-get update && apt-get install -y --no-install-recommends ca-certificates curl \
+    libglib2.0-0 libglu1-mesa libgl1 libxcursor1 libxrandr2 libxinerama1 libxi6 \
+    libasound2 libgtk-3-0 libnss3 libxss1 libxtst6 xvfb x11-utils mesa-utils \
+    libgl1-mesa-dri && rm -rf /var/lib/apt/lists/*
+WORKDIR /app
+COPY --from=go-builder /out/rimgovernor ./rimgovernor
+COPY --from=dashboard /src/dashboard/dist/ ./dashboard/
+COPY containers/worker-merge-game.sh ./worker-merge-game.sh
+RUN chmod +x ./worker-merge-game.sh
+ENV RIMGOVERNOR_CONTAINER_SOURCE=1
+ENTRYPOINT ["./worker-merge-game.sh"]
+CMD ["version"]
+
 FROM debian:bookworm-slim AS go-controller
 RUN apt-get update && apt-get install -y --no-install-recommends ca-certificates && rm -rf /var/lib/apt/lists/*
 WORKDIR /app
