@@ -226,6 +226,25 @@ areas, breeding or removal settings. Adequate global stock with insufficient ani
 access or rot runway produces an explicit staging blocker rather than more bills.
 Production receipts do not prove either access or ingestion.
 
+`MaintainFoodStorage` tracks perishable, not-yet-rotted nutrition split between
+stock already sitting in an adequately covered or enclosed/cold site and stock
+that is not. It starts when unstored nutrition clears a small at-risk floor
+(five units, avoiding thrash over a single dropped ration) and the stored share
+of total perishable nutrition falls under the configured minimum fraction
+(default one half), and it does not clear until that share recovers past the
+higher target fraction (default nine tenths). Non-perishable and already-rotted
+stock never contributes: it is not at risk of being lost to inadequate storage.
+The method prefers relocating at-risk stock into an existing covered/enclosed
+site with observed spare capacity, choosing deterministically among candidates;
+only once every known site is unusable or exhausted does it fall back to a
+StockTarget production bill for more preserved or non-perishable food, through
+the same source/bill method other resource goals use. Relocation and bill
+receipts never prove spoilage was averted; the census must observe the stock
+as stored, or the runway as recovered, before the deficit clears. The native
+observation of which sites are adequately covered or enclosed/cold, and their
+remaining capacity, is separate outstanding [B04h](https://github.com/davidarcher/rimgovernor/issues/2)
+work; the policy above is defined and tested against that observation shape.
+
 `EnsureComfort` maintains dining and recreation after startup survival work.
 Its deficit remains visible during emergencies; admission waits rather than
 claiming the facilities complete. Sleeping upgrades belong to `MaintainSleeping`.

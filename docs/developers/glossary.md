@@ -23,5 +23,7 @@
 | GABS | The process used to discover and call the installed game bridge tools. |
 | RimBridgeServer | The native bridge providing general game and UI tools; the colony companion extends its capabilities. |
 | Outpost | The dashboard's display name; repository and package names remain RimGovernor. |
+| Adequately stored (food) | A perishable stock observed sitting in a covered stockpile or an enclosed/cold room, as opposed to exposed to ordinary ambient rot. |
+| Spoilage buffer | The margin `MaintainFoodStorage` tries to keep positive: perishable nutrition already stored, above the configured minimum share of total perishable nutrition on hand. |
 
 See [plans and Hands](architecture/plans-and-hands.md) for these terms in context.
