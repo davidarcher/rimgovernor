@@ -22,21 +22,83 @@ const (
 	_ = protoimpl.EnforceVersion(protoimpl.MaxVersion - 20)
 )
 
+// There is exactly one bot process and one local human player. Auto means the
+// bot holds authority; Manual means it does not. There is no negotiated lease,
+// no session identity, and no second "direction" concept to arbitrate between
+// controllers, because there is only ever one controller.
+type Mode int32
+
+const (
+	Mode_MODE_UNSPECIFIED Mode = 0
+	Mode_MODE_AUTO        Mode = 1
+	Mode_MODE_MANUAL      Mode = 2
+)
+
+// Enum value maps for Mode.
+var (
+	Mode_name = map[int32]string{
+		0: "MODE_UNSPECIFIED",
+		1: "MODE_AUTO",
+		2: "MODE_MANUAL",
+	}
+	Mode_value = map[string]int32{
+		"MODE_UNSPECIFIED": 0,
+		"MODE_AUTO":        1,
+		"MODE_MANUAL":      2,
+	}
+)
+
+func (x Mode) Enum() *Mode {
+	p := new(Mode)
+	*p = x
+	return p
+}
+
+func (x Mode) String() string {
+	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
+}
+
+func (Mode) Descriptor() protoreflect.EnumDescriptor {
+	return file_authority_proto_enumTypes[0].Descriptor()
+}
+
+func (Mode) Type() protoreflect.EnumType {
+	return &file_authority_proto_enumTypes[0]
+}
+
+func (x Mode) Number() protoreflect.EnumNumber {
+	return protoreflect.EnumNumber(x)
+}
+
+// Deprecated: Use Mode.Descriptor instead.
+func (Mode) EnumDescriptor() ([]byte, []int) {
+	return file_authority_proto_rawDescGZIP(), []int{0}
+}
+
 type RevocationReason int32
 
 const (
-	RevocationReason_REVOCATION_REASON_UNSPECIFIED          RevocationReason = 0
-	RevocationReason_REVOCATION_REASON_NONE                 RevocationReason = 1
-	RevocationReason_REVOCATION_REASON_MANUAL               RevocationReason = 2
-	RevocationReason_REVOCATION_REASON_PLAYER_DIRECTION     RevocationReason = 3
+	RevocationReason_REVOCATION_REASON_UNSPECIFIED RevocationReason = 0
+	RevocationReason_REVOCATION_REASON_NONE        RevocationReason = 1
+	RevocationReason_REVOCATION_REASON_MANUAL      RevocationReason = 2
+	// Native player action detected by the Harmony hooks (order issued, drafted,
+	// bill/schedule/settings edited directly, etc.) while the bot held authority.
+	RevocationReason_REVOCATION_REASON_PLAYER_CONTROL RevocationReason = 3
+	// A specific native player order observed by the hooks; kept distinct from
+	// PLAYER_CONTROL because acceptance tests assert on this exact reason and it
+	// carries a different in-flight-write carve-out (see NativeControlAuthority).
 	RevocationReason_REVOCATION_REASON_EXTERNAL_ORDER       RevocationReason = 4
-	RevocationReason_REVOCATION_REASON_PLAYER_CONTROL       RevocationReason = 5
-	RevocationReason_REVOCATION_REASON_LEASE_EXPIRED        RevocationReason = 6
-	RevocationReason_REVOCATION_REASON_IDENTITY_CHANGED     RevocationReason = 7
-	RevocationReason_REVOCATION_REASON_DISCONNECT           RevocationReason = 8
-	RevocationReason_REVOCATION_REASON_SHUTDOWN             RevocationReason = 9
-	RevocationReason_REVOCATION_REASON_HOOKS_UNAVAILABLE    RevocationReason = 10
-	RevocationReason_REVOCATION_REASON_GENERATION_EXHAUSTED RevocationReason = 11
+	RevocationReason_REVOCATION_REASON_IDENTITY_CHANGED     RevocationReason = 5
+	RevocationReason_REVOCATION_REASON_DISCONNECT           RevocationReason = 6
+	RevocationReason_REVOCATION_REASON_SHUTDOWN             RevocationReason = 7
+	RevocationReason_REVOCATION_REASON_HOOKS_UNAVAILABLE    RevocationReason = 8
+	RevocationReason_REVOCATION_REASON_GENERATION_EXHAUSTED RevocationReason = 9
+	// Kept despite the lease going away: overflow/clock-unavailable style failures
+	// that used to end a timed lease still need a terminal "no longer active,
+	// and not because of a specific detected player action" reason. Genuinely
+	// unsure whether callers still need this distinct from GENERATION_EXHAUSTED,
+	// so it is kept rather than silently folded away.
+	RevocationReason_REVOCATION_REASON_UNAVAILABLE RevocationReason = 10
 )
 
 // Enum value maps for RevocationReason.
@@ -45,29 +107,27 @@ var (
 		0:  "REVOCATION_REASON_UNSPECIFIED",
 		1:  "REVOCATION_REASON_NONE",
 		2:  "REVOCATION_REASON_MANUAL",
-		3:  "REVOCATION_REASON_PLAYER_DIRECTION",
+		3:  "REVOCATION_REASON_PLAYER_CONTROL",
 		4:  "REVOCATION_REASON_EXTERNAL_ORDER",
-		5:  "REVOCATION_REASON_PLAYER_CONTROL",
-		6:  "REVOCATION_REASON_LEASE_EXPIRED",
-		7:  "REVOCATION_REASON_IDENTITY_CHANGED",
-		8:  "REVOCATION_REASON_DISCONNECT",
-		9:  "REVOCATION_REASON_SHUTDOWN",
-		10: "REVOCATION_REASON_HOOKS_UNAVAILABLE",
-		11: "REVOCATION_REASON_GENERATION_EXHAUSTED",
+		5:  "REVOCATION_REASON_IDENTITY_CHANGED",
+		6:  "REVOCATION_REASON_DISCONNECT",
+		7:  "REVOCATION_REASON_SHUTDOWN",
+		8:  "REVOCATION_REASON_HOOKS_UNAVAILABLE",
+		9:  "REVOCATION_REASON_GENERATION_EXHAUSTED",
+		10: "REVOCATION_REASON_UNAVAILABLE",
 	}
 	RevocationReason_value = map[string]int32{
 		"REVOCATION_REASON_UNSPECIFIED":          0,
 		"REVOCATION_REASON_NONE":                 1,
 		"REVOCATION_REASON_MANUAL":               2,
-		"REVOCATION_REASON_PLAYER_DIRECTION":     3,
+		"REVOCATION_REASON_PLAYER_CONTROL":       3,
 		"REVOCATION_REASON_EXTERNAL_ORDER":       4,
-		"REVOCATION_REASON_PLAYER_CONTROL":       5,
-		"REVOCATION_REASON_LEASE_EXPIRED":        6,
-		"REVOCATION_REASON_IDENTITY_CHANGED":     7,
-		"REVOCATION_REASON_DISCONNECT":           8,
-		"REVOCATION_REASON_SHUTDOWN":             9,
-		"REVOCATION_REASON_HOOKS_UNAVAILABLE":    10,
-		"REVOCATION_REASON_GENERATION_EXHAUSTED": 11,
+		"REVOCATION_REASON_IDENTITY_CHANGED":     5,
+		"REVOCATION_REASON_DISCONNECT":           6,
+		"REVOCATION_REASON_SHUTDOWN":             7,
+		"REVOCATION_REASON_HOOKS_UNAVAILABLE":    8,
+		"REVOCATION_REASON_GENERATION_EXHAUSTED": 9,
+		"REVOCATION_REASON_UNAVAILABLE":          10,
 	}
 )
 
@@ -82,11 +142,11 @@ func (x RevocationReason) String() string {
 }
 
 func (RevocationReason) Descriptor() protoreflect.EnumDescriptor {
-	return file_authority_proto_enumTypes[0].Descriptor()
+	return file_authority_proto_enumTypes[1].Descriptor()
 }
 
 func (RevocationReason) Type() protoreflect.EnumType {
-	return &file_authority_proto_enumTypes[0]
+	return &file_authority_proto_enumTypes[1]
 }
 
 func (x RevocationReason) Number() protoreflect.EnumNumber {
@@ -95,59 +155,7 @@ func (x RevocationReason) Number() protoreflect.EnumNumber {
 
 // Deprecated: Use RevocationReason.Descriptor instead.
 func (RevocationReason) EnumDescriptor() ([]byte, []int) {
-	return file_authority_proto_rawDescGZIP(), []int{0}
-}
-
-type Owner struct {
-	state               protoimpl.MessageState `protogen:"open.v1"`
-	ControllerSessionId *string                `protobuf:"bytes,1,opt,name=controller_session_id,json=controllerSessionId,proto3,oneof" json:"controller_session_id,omitempty"`
-	PlayerDirection     *uint64                `protobuf:"varint,2,opt,name=player_direction,json=playerDirection,proto3,oneof" json:"player_direction,omitempty"`
-	unknownFields       protoimpl.UnknownFields
-	sizeCache           protoimpl.SizeCache
-}
-
-func (x *Owner) Reset() {
-	*x = Owner{}
-	mi := &file_authority_proto_msgTypes[0]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *Owner) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*Owner) ProtoMessage() {}
-
-func (x *Owner) ProtoReflect() protoreflect.Message {
-	mi := &file_authority_proto_msgTypes[0]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use Owner.ProtoReflect.Descriptor instead.
-func (*Owner) Descriptor() ([]byte, []int) {
-	return file_authority_proto_rawDescGZIP(), []int{0}
-}
-
-func (x *Owner) GetControllerSessionId() string {
-	if x != nil && x.ControllerSessionId != nil {
-		return *x.ControllerSessionId
-	}
-	return ""
-}
-
-func (x *Owner) GetPlayerDirection() uint64 {
-	if x != nil && x.PlayerDirection != nil {
-		return *x.PlayerDirection
-	}
-	return 0
+	return file_authority_proto_rawDescGZIP(), []int{1}
 }
 
 type InactiveAuthority struct {
@@ -159,7 +167,7 @@ type InactiveAuthority struct {
 
 func (x *InactiveAuthority) Reset() {
 	*x = InactiveAuthority{}
-	mi := &file_authority_proto_msgTypes[1]
+	mi := &file_authority_proto_msgTypes[0]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -171,7 +179,7 @@ func (x *InactiveAuthority) String() string {
 func (*InactiveAuthority) ProtoMessage() {}
 
 func (x *InactiveAuthority) ProtoReflect() protoreflect.Message {
-	mi := &file_authority_proto_msgTypes[1]
+	mi := &file_authority_proto_msgTypes[0]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -184,7 +192,7 @@ func (x *InactiveAuthority) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use InactiveAuthority.ProtoReflect.Descriptor instead.
 func (*InactiveAuthority) Descriptor() ([]byte, []int) {
-	return file_authority_proto_rawDescGZIP(), []int{1}
+	return file_authority_proto_rawDescGZIP(), []int{0}
 }
 
 func (x *InactiveAuthority) GetReason() RevocationReason {
@@ -195,16 +203,15 @@ func (x *InactiveAuthority) GetReason() RevocationReason {
 }
 
 type ActiveAuthority struct {
-	state            protoimpl.MessageState `protogen:"open.v1"`
-	Owner            *Owner                 `protobuf:"bytes,1,opt,name=owner,proto3" json:"owner,omitempty"`
-	RemainingLeaseMs *uint32                `protobuf:"varint,2,opt,name=remaining_lease_ms,json=remainingLeaseMs,proto3,oneof" json:"remaining_lease_ms,omitempty"`
-	unknownFields    protoimpl.UnknownFields
-	sizeCache        protoimpl.SizeCache
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Mode          *Mode                  `protobuf:"varint,1,opt,name=mode,proto3,enum=rimgovernor.authority.v1.Mode,oneof" json:"mode,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *ActiveAuthority) Reset() {
 	*x = ActiveAuthority{}
-	mi := &file_authority_proto_msgTypes[2]
+	mi := &file_authority_proto_msgTypes[1]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -216,7 +223,7 @@ func (x *ActiveAuthority) String() string {
 func (*ActiveAuthority) ProtoMessage() {}
 
 func (x *ActiveAuthority) ProtoReflect() protoreflect.Message {
-	mi := &file_authority_proto_msgTypes[2]
+	mi := &file_authority_proto_msgTypes[1]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -229,21 +236,14 @@ func (x *ActiveAuthority) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ActiveAuthority.ProtoReflect.Descriptor instead.
 func (*ActiveAuthority) Descriptor() ([]byte, []int) {
-	return file_authority_proto_rawDescGZIP(), []int{2}
+	return file_authority_proto_rawDescGZIP(), []int{1}
 }
 
-func (x *ActiveAuthority) GetOwner() *Owner {
-	if x != nil {
-		return x.Owner
+func (x *ActiveAuthority) GetMode() Mode {
+	if x != nil && x.Mode != nil {
+		return *x.Mode
 	}
-	return nil
-}
-
-func (x *ActiveAuthority) GetRemainingLeaseMs() uint32 {
-	if x != nil && x.RemainingLeaseMs != nil {
-		return *x.RemainingLeaseMs
-	}
-	return 0
+	return Mode_MODE_UNSPECIFIED
 }
 
 type Status struct {
@@ -261,7 +261,7 @@ type Status struct {
 
 func (x *Status) Reset() {
 	*x = Status{}
-	mi := &file_authority_proto_msgTypes[3]
+	mi := &file_authority_proto_msgTypes[2]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -273,7 +273,7 @@ func (x *Status) String() string {
 func (*Status) ProtoMessage() {}
 
 func (x *Status) ProtoReflect() protoreflect.Message {
-	mi := &file_authority_proto_msgTypes[3]
+	mi := &file_authority_proto_msgTypes[2]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -286,7 +286,7 @@ func (x *Status) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Status.ProtoReflect.Descriptor instead.
 func (*Status) Descriptor() ([]byte, []int) {
-	return file_authority_proto_rawDescGZIP(), []int{3}
+	return file_authority_proto_rawDescGZIP(), []int{2}
 }
 
 func (x *Status) GetContext() *commonpb.ObservationContext {
@@ -361,7 +361,7 @@ type StatusRequest struct {
 
 func (x *StatusRequest) Reset() {
 	*x = StatusRequest{}
-	mi := &file_authority_proto_msgTypes[4]
+	mi := &file_authority_proto_msgTypes[3]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -373,7 +373,7 @@ func (x *StatusRequest) String() string {
 func (*StatusRequest) ProtoMessage() {}
 
 func (x *StatusRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_authority_proto_msgTypes[4]
+	mi := &file_authority_proto_msgTypes[3]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -386,7 +386,7 @@ func (x *StatusRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use StatusRequest.ProtoReflect.Descriptor instead.
 func (*StatusRequest) Descriptor() ([]byte, []int) {
-	return file_authority_proto_rawDescGZIP(), []int{4}
+	return file_authority_proto_rawDescGZIP(), []int{3}
 }
 
 func (x *StatusRequest) GetIdentity() *commonpb.Identity {
@@ -409,7 +409,7 @@ type StatusReply struct {
 
 func (x *StatusReply) Reset() {
 	*x = StatusReply{}
-	mi := &file_authority_proto_msgTypes[5]
+	mi := &file_authority_proto_msgTypes[4]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -421,7 +421,7 @@ func (x *StatusReply) String() string {
 func (*StatusReply) ProtoMessage() {}
 
 func (x *StatusReply) ProtoReflect() protoreflect.Message {
-	mi := &file_authority_proto_msgTypes[5]
+	mi := &file_authority_proto_msgTypes[4]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -434,7 +434,7 @@ func (x *StatusReply) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use StatusReply.ProtoReflect.Descriptor instead.
 func (*StatusReply) Descriptor() ([]byte, []int) {
-	return file_authority_proto_rawDescGZIP(), []int{5}
+	return file_authority_proto_rawDescGZIP(), []int{4}
 }
 
 func (x *StatusReply) GetOutcome() isStatusReply_Outcome {
@@ -478,32 +478,32 @@ func (*StatusReply_Status) isStatusReply_Outcome() {}
 
 func (*StatusReply_Failure) isStatusReply_Outcome() {}
 
-// Acquisition is produced only by the explicit player-control path.
-type Acquire struct {
+// SetMode is the only way to change authority explicitly. Auto grants the bot
+// authority outright; Manual revokes it. There is no acquire/renew handshake.
+type SetMode struct {
 	state              protoimpl.MessageState `protogen:"open.v1"`
 	Identity           *commonpb.Identity     `protobuf:"bytes,1,opt,name=identity,proto3" json:"identity,omitempty"`
 	ExpectedGeneration *uint64                `protobuf:"varint,2,opt,name=expected_generation,json=expectedGeneration,proto3,oneof" json:"expected_generation,omitempty"`
-	Owner              *Owner                 `protobuf:"bytes,3,opt,name=owner,proto3" json:"owner,omitempty"`
-	LeaseMs            *uint32                `protobuf:"varint,4,opt,name=lease_ms,json=leaseMs,proto3,oneof" json:"lease_ms,omitempty"`
+	Mode               *Mode                  `protobuf:"varint,3,opt,name=mode,proto3,enum=rimgovernor.authority.v1.Mode,oneof" json:"mode,omitempty"`
 	unknownFields      protoimpl.UnknownFields
 	sizeCache          protoimpl.SizeCache
 }
 
-func (x *Acquire) Reset() {
-	*x = Acquire{}
-	mi := &file_authority_proto_msgTypes[6]
+func (x *SetMode) Reset() {
+	*x = SetMode{}
+	mi := &file_authority_proto_msgTypes[5]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *Acquire) String() string {
+func (x *SetMode) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*Acquire) ProtoMessage() {}
+func (*SetMode) ProtoMessage() {}
 
-func (x *Acquire) ProtoReflect() protoreflect.Message {
-	mi := &file_authority_proto_msgTypes[6]
+func (x *SetMode) ProtoReflect() protoreflect.Message {
+	mi := &file_authority_proto_msgTypes[5]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -514,113 +514,30 @@ func (x *Acquire) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use Acquire.ProtoReflect.Descriptor instead.
-func (*Acquire) Descriptor() ([]byte, []int) {
-	return file_authority_proto_rawDescGZIP(), []int{6}
+// Deprecated: Use SetMode.ProtoReflect.Descriptor instead.
+func (*SetMode) Descriptor() ([]byte, []int) {
+	return file_authority_proto_rawDescGZIP(), []int{5}
 }
 
-func (x *Acquire) GetIdentity() *commonpb.Identity {
+func (x *SetMode) GetIdentity() *commonpb.Identity {
 	if x != nil {
 		return x.Identity
 	}
 	return nil
 }
 
-func (x *Acquire) GetExpectedGeneration() uint64 {
+func (x *SetMode) GetExpectedGeneration() uint64 {
 	if x != nil && x.ExpectedGeneration != nil {
 		return *x.ExpectedGeneration
 	}
 	return 0
 }
 
-func (x *Acquire) GetOwner() *Owner {
-	if x != nil {
-		return x.Owner
+func (x *SetMode) GetMode() Mode {
+	if x != nil && x.Mode != nil {
+		return *x.Mode
 	}
-	return nil
-}
-
-func (x *Acquire) GetLeaseMs() uint32 {
-	if x != nil && x.LeaseMs != nil {
-		return *x.LeaseMs
-	}
-	return 0
-}
-
-type Renew struct {
-	state               protoimpl.MessageState `protogen:"open.v1"`
-	Identity            *commonpb.Identity     `protobuf:"bytes,1,opt,name=identity,proto3" json:"identity,omitempty"`
-	ExpectedGeneration  *uint64                `protobuf:"varint,2,opt,name=expected_generation,json=expectedGeneration,proto3,oneof" json:"expected_generation,omitempty"`
-	ControllerSessionId *string                `protobuf:"bytes,3,opt,name=controller_session_id,json=controllerSessionId,proto3,oneof" json:"controller_session_id,omitempty"`
-	LeaseId             *string                `protobuf:"bytes,4,opt,name=lease_id,json=leaseId,proto3,oneof" json:"lease_id,omitempty"`
-	LeaseMs             *uint32                `protobuf:"varint,5,opt,name=lease_ms,json=leaseMs,proto3,oneof" json:"lease_ms,omitempty"`
-	unknownFields       protoimpl.UnknownFields
-	sizeCache           protoimpl.SizeCache
-}
-
-func (x *Renew) Reset() {
-	*x = Renew{}
-	mi := &file_authority_proto_msgTypes[7]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *Renew) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*Renew) ProtoMessage() {}
-
-func (x *Renew) ProtoReflect() protoreflect.Message {
-	mi := &file_authority_proto_msgTypes[7]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use Renew.ProtoReflect.Descriptor instead.
-func (*Renew) Descriptor() ([]byte, []int) {
-	return file_authority_proto_rawDescGZIP(), []int{7}
-}
-
-func (x *Renew) GetIdentity() *commonpb.Identity {
-	if x != nil {
-		return x.Identity
-	}
-	return nil
-}
-
-func (x *Renew) GetExpectedGeneration() uint64 {
-	if x != nil && x.ExpectedGeneration != nil {
-		return *x.ExpectedGeneration
-	}
-	return 0
-}
-
-func (x *Renew) GetControllerSessionId() string {
-	if x != nil && x.ControllerSessionId != nil {
-		return *x.ControllerSessionId
-	}
-	return ""
-}
-
-func (x *Renew) GetLeaseId() string {
-	if x != nil && x.LeaseId != nil {
-		return *x.LeaseId
-	}
-	return ""
-}
-
-func (x *Renew) GetLeaseMs() uint32 {
-	if x != nil && x.LeaseMs != nil {
-		return *x.LeaseMs
-	}
-	return 0
+	return Mode_MODE_UNSPECIFIED
 }
 
 type Revoke struct {
@@ -634,7 +551,7 @@ type Revoke struct {
 
 func (x *Revoke) Reset() {
 	*x = Revoke{}
-	mi := &file_authority_proto_msgTypes[8]
+	mi := &file_authority_proto_msgTypes[6]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -646,7 +563,7 @@ func (x *Revoke) String() string {
 func (*Revoke) ProtoMessage() {}
 
 func (x *Revoke) ProtoReflect() protoreflect.Message {
-	mi := &file_authority_proto_msgTypes[8]
+	mi := &file_authority_proto_msgTypes[6]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -659,7 +576,7 @@ func (x *Revoke) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Revoke.ProtoReflect.Descriptor instead.
 func (*Revoke) Descriptor() ([]byte, []int) {
-	return file_authority_proto_rawDescGZIP(), []int{8}
+	return file_authority_proto_rawDescGZIP(), []int{6}
 }
 
 func (x *Revoke) GetIdentity() *commonpb.Identity {
@@ -687,8 +604,7 @@ type ControlRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Types that are valid to be assigned to Operation:
 	//
-	//	*ControlRequest_Acquire
-	//	*ControlRequest_Renew
+	//	*ControlRequest_SetMode
 	//	*ControlRequest_Revoke
 	Operation     isControlRequest_Operation `protobuf_oneof:"operation"`
 	unknownFields protoimpl.UnknownFields
@@ -697,7 +613,7 @@ type ControlRequest struct {
 
 func (x *ControlRequest) Reset() {
 	*x = ControlRequest{}
-	mi := &file_authority_proto_msgTypes[9]
+	mi := &file_authority_proto_msgTypes[7]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -709,7 +625,7 @@ func (x *ControlRequest) String() string {
 func (*ControlRequest) ProtoMessage() {}
 
 func (x *ControlRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_authority_proto_msgTypes[9]
+	mi := &file_authority_proto_msgTypes[7]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -722,7 +638,7 @@ func (x *ControlRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ControlRequest.ProtoReflect.Descriptor instead.
 func (*ControlRequest) Descriptor() ([]byte, []int) {
-	return file_authority_proto_rawDescGZIP(), []int{9}
+	return file_authority_proto_rawDescGZIP(), []int{7}
 }
 
 func (x *ControlRequest) GetOperation() isControlRequest_Operation {
@@ -732,19 +648,10 @@ func (x *ControlRequest) GetOperation() isControlRequest_Operation {
 	return nil
 }
 
-func (x *ControlRequest) GetAcquire() *Acquire {
+func (x *ControlRequest) GetSetMode() *SetMode {
 	if x != nil {
-		if x, ok := x.Operation.(*ControlRequest_Acquire); ok {
-			return x.Acquire
-		}
-	}
-	return nil
-}
-
-func (x *ControlRequest) GetRenew() *Renew {
-	if x != nil {
-		if x, ok := x.Operation.(*ControlRequest_Renew); ok {
-			return x.Renew
+		if x, ok := x.Operation.(*ControlRequest_SetMode); ok {
+			return x.SetMode
 		}
 	}
 	return nil
@@ -763,21 +670,15 @@ type isControlRequest_Operation interface {
 	isControlRequest_Operation()
 }
 
-type ControlRequest_Acquire struct {
-	Acquire *Acquire `protobuf:"bytes,1,opt,name=acquire,proto3,oneof"`
-}
-
-type ControlRequest_Renew struct {
-	Renew *Renew `protobuf:"bytes,2,opt,name=renew,proto3,oneof"`
+type ControlRequest_SetMode struct {
+	SetMode *SetMode `protobuf:"bytes,1,opt,name=set_mode,json=setMode,proto3,oneof"`
 }
 
 type ControlRequest_Revoke struct {
-	Revoke *Revoke `protobuf:"bytes,3,opt,name=revoke,proto3,oneof"`
+	Revoke *Revoke `protobuf:"bytes,2,opt,name=revoke,proto3,oneof"`
 }
 
-func (*ControlRequest_Acquire) isControlRequest_Operation() {}
-
-func (*ControlRequest_Renew) isControlRequest_Operation() {}
+func (*ControlRequest_SetMode) isControlRequest_Operation() {}
 
 func (*ControlRequest_Revoke) isControlRequest_Operation() {}
 
@@ -785,14 +686,13 @@ type Granted struct {
 	state         protoimpl.MessageState       `protogen:"open.v1"`
 	Context       *commonpb.ObservationContext `protobuf:"bytes,1,opt,name=context,proto3" json:"context,omitempty"`
 	Authority     *ActiveAuthority             `protobuf:"bytes,2,opt,name=authority,proto3" json:"authority,omitempty"`
-	LeaseId       *string                      `protobuf:"bytes,3,opt,name=lease_id,json=leaseId,proto3,oneof" json:"lease_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
 func (x *Granted) Reset() {
 	*x = Granted{}
-	mi := &file_authority_proto_msgTypes[10]
+	mi := &file_authority_proto_msgTypes[8]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -804,7 +704,7 @@ func (x *Granted) String() string {
 func (*Granted) ProtoMessage() {}
 
 func (x *Granted) ProtoReflect() protoreflect.Message {
-	mi := &file_authority_proto_msgTypes[10]
+	mi := &file_authority_proto_msgTypes[8]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -817,7 +717,7 @@ func (x *Granted) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Granted.ProtoReflect.Descriptor instead.
 func (*Granted) Descriptor() ([]byte, []int) {
-	return file_authority_proto_rawDescGZIP(), []int{10}
+	return file_authority_proto_rawDescGZIP(), []int{8}
 }
 
 func (x *Granted) GetContext() *commonpb.ObservationContext {
@@ -834,13 +734,6 @@ func (x *Granted) GetAuthority() *ActiveAuthority {
 	return nil
 }
 
-func (x *Granted) GetLeaseId() string {
-	if x != nil && x.LeaseId != nil {
-		return *x.LeaseId
-	}
-	return ""
-}
-
 type Revoked struct {
 	state         protoimpl.MessageState       `protogen:"open.v1"`
 	Context       *commonpb.ObservationContext `protobuf:"bytes,1,opt,name=context,proto3" json:"context,omitempty"`
@@ -851,7 +744,7 @@ type Revoked struct {
 
 func (x *Revoked) Reset() {
 	*x = Revoked{}
-	mi := &file_authority_proto_msgTypes[11]
+	mi := &file_authority_proto_msgTypes[9]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -863,7 +756,7 @@ func (x *Revoked) String() string {
 func (*Revoked) ProtoMessage() {}
 
 func (x *Revoked) ProtoReflect() protoreflect.Message {
-	mi := &file_authority_proto_msgTypes[11]
+	mi := &file_authority_proto_msgTypes[9]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -876,7 +769,7 @@ func (x *Revoked) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Revoked.ProtoReflect.Descriptor instead.
 func (*Revoked) Descriptor() ([]byte, []int) {
-	return file_authority_proto_rawDescGZIP(), []int{11}
+	return file_authority_proto_rawDescGZIP(), []int{9}
 }
 
 func (x *Revoked) GetContext() *commonpb.ObservationContext {
@@ -907,7 +800,7 @@ type ControlReply struct {
 
 func (x *ControlReply) Reset() {
 	*x = ControlReply{}
-	mi := &file_authority_proto_msgTypes[12]
+	mi := &file_authority_proto_msgTypes[10]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -919,7 +812,7 @@ func (x *ControlReply) String() string {
 func (*ControlReply) ProtoMessage() {}
 
 func (x *ControlReply) ProtoReflect() protoreflect.Message {
-	mi := &file_authority_proto_msgTypes[12]
+	mi := &file_authority_proto_msgTypes[10]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -932,7 +825,7 @@ func (x *ControlReply) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ControlReply.ProtoReflect.Descriptor instead.
 func (*ControlReply) Descriptor() ([]byte, []int) {
-	return file_authority_proto_rawDescGZIP(), []int{12}
+	return file_authority_proto_rawDescGZIP(), []int{10}
 }
 
 func (x *ControlReply) GetOutcome() isControlReply_Outcome {
@@ -991,20 +884,25 @@ func (*ControlReply_Revoked) isControlReply_Outcome() {}
 
 func (*ControlReply_Failure) isControlReply_Outcome() {}
 
-// A new write requires all these preconditions atomically on the game thread.
+// A new write requires these preconditions atomically on the game thread: the
+// identity is still current, the attempt is admitted at most once, and the
+// generation has not moved past what the caller computed its command against
+// (a local-player interruption bumps the generation even though there is no
+// lease to expire). Identity is a colony/load/map staleness check, not part
+// of the authority-ownership ceremony this message used to also carry; owner
+// and lease_id are dropped because there is only ever one bot holding Auto.
 type WritePrecondition struct {
 	state              protoimpl.MessageState `protogen:"open.v1"`
 	Identity           *commonpb.Identity     `protobuf:"bytes,1,opt,name=identity,proto3" json:"identity,omitempty"`
 	ExpectedGeneration *uint64                `protobuf:"varint,2,opt,name=expected_generation,json=expectedGeneration,proto3,oneof" json:"expected_generation,omitempty"`
-	LeaseId            *string                `protobuf:"bytes,3,opt,name=lease_id,json=leaseId,proto3,oneof" json:"lease_id,omitempty"`
-	Attempt            *commonpb.AttemptKey   `protobuf:"bytes,4,opt,name=attempt,proto3" json:"attempt,omitempty"`
+	Attempt            *commonpb.AttemptKey   `protobuf:"bytes,3,opt,name=attempt,proto3" json:"attempt,omitempty"`
 	unknownFields      protoimpl.UnknownFields
 	sizeCache          protoimpl.SizeCache
 }
 
 func (x *WritePrecondition) Reset() {
 	*x = WritePrecondition{}
-	mi := &file_authority_proto_msgTypes[13]
+	mi := &file_authority_proto_msgTypes[11]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1016,7 +914,7 @@ func (x *WritePrecondition) String() string {
 func (*WritePrecondition) ProtoMessage() {}
 
 func (x *WritePrecondition) ProtoReflect() protoreflect.Message {
-	mi := &file_authority_proto_msgTypes[13]
+	mi := &file_authority_proto_msgTypes[11]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1029,7 +927,7 @@ func (x *WritePrecondition) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use WritePrecondition.ProtoReflect.Descriptor instead.
 func (*WritePrecondition) Descriptor() ([]byte, []int) {
-	return file_authority_proto_rawDescGZIP(), []int{13}
+	return file_authority_proto_rawDescGZIP(), []int{11}
 }
 
 func (x *WritePrecondition) GetIdentity() *commonpb.Identity {
@@ -1046,13 +944,6 @@ func (x *WritePrecondition) GetExpectedGeneration() uint64 {
 	return 0
 }
 
-func (x *WritePrecondition) GetLeaseId() string {
-	if x != nil && x.LeaseId != nil {
-		return *x.LeaseId
-	}
-	return ""
-}
-
 func (x *WritePrecondition) GetAttempt() *commonpb.AttemptKey {
 	if x != nil {
 		return x.Attempt
@@ -1064,19 +955,13 @@ var File_authority_proto protoreflect.FileDescriptor
 
 const file_authority_proto_rawDesc = "" +
 	"\n" +
-	"\x0fauthority.proto\x12\x18rimgovernor.authority.v1\x1a\fcommon.proto\"\x9f\x01\n" +
-	"\x05Owner\x127\n" +
-	"\x15controller_session_id\x18\x01 \x01(\tH\x00R\x13controllerSessionId\x88\x01\x01\x12.\n" +
-	"\x10player_direction\x18\x02 \x01(\x04H\x01R\x0fplayerDirection\x88\x01\x01B\x18\n" +
-	"\x16_controller_session_idB\x13\n" +
-	"\x11_player_direction\"g\n" +
+	"\x0fauthority.proto\x12\x18rimgovernor.authority.v1\x1a\fcommon.proto\"g\n" +
 	"\x11InactiveAuthority\x12G\n" +
 	"\x06reason\x18\x01 \x01(\x0e2*.rimgovernor.authority.v1.RevocationReasonH\x00R\x06reason\x88\x01\x01B\t\n" +
-	"\a_reason\"\x92\x01\n" +
-	"\x0fActiveAuthority\x125\n" +
-	"\x05owner\x18\x01 \x01(\v2\x1f.rimgovernor.authority.v1.OwnerR\x05owner\x121\n" +
-	"\x12remaining_lease_ms\x18\x02 \x01(\rH\x00R\x10remainingLeaseMs\x88\x01\x01B\x15\n" +
-	"\x13_remaining_lease_ms\"\xae\x02\n" +
+	"\a_reason\"S\n" +
+	"\x0fActiveAuthority\x127\n" +
+	"\x04mode\x18\x01 \x01(\x0e2\x1e.rimgovernor.authority.v1.ModeH\x00R\x04mode\x88\x01\x01B\a\n" +
+	"\x05_mode\"\xae\x02\n" +
 	"\x06Status\x12C\n" +
 	"\acontext\x18\x01 \x01(\v2).rimgovernor.common.v1.ObservationContextR\acontext\x12F\n" +
 	"\vunavailable\x18\x02 \x01(\v2\".rimgovernor.common.v1.UnavailableH\x00R\vunavailable\x12I\n" +
@@ -1088,40 +973,26 @@ const file_authority_proto_rawDesc = "" +
 	"\vStatusReply\x12:\n" +
 	"\x06status\x18\x01 \x01(\v2 .rimgovernor.authority.v1.StatusH\x00R\x06status\x12:\n" +
 	"\afailure\x18\x02 \x01(\v2\x1e.rimgovernor.common.v1.FailureH\x00R\afailureB\t\n" +
-	"\aoutcome\"\xf8\x01\n" +
-	"\aAcquire\x12;\n" +
-	"\bidentity\x18\x01 \x01(\v2\x1f.rimgovernor.common.v1.IdentityR\bidentity\x124\n" +
-	"\x13expected_generation\x18\x02 \x01(\x04H\x00R\x12expectedGeneration\x88\x01\x01\x125\n" +
-	"\x05owner\x18\x03 \x01(\v2\x1f.rimgovernor.authority.v1.OwnerR\x05owner\x12\x1e\n" +
-	"\blease_ms\x18\x04 \x01(\rH\x01R\aleaseMs\x88\x01\x01B\x16\n" +
-	"\x14_expected_generationB\v\n" +
-	"\t_lease_ms\"\xbf\x02\n" +
-	"\x05Renew\x12;\n" +
+	"\aoutcome\"\xd6\x01\n" +
+	"\aSetMode\x12;\n" +
 	"\bidentity\x18\x01 \x01(\v2\x1f.rimgovernor.common.v1.IdentityR\bidentity\x124\n" +
 	"\x13expected_generation\x18\x02 \x01(\x04H\x00R\x12expectedGeneration\x88\x01\x01\x127\n" +
-	"\x15controller_session_id\x18\x03 \x01(\tH\x01R\x13controllerSessionId\x88\x01\x01\x12\x1e\n" +
-	"\blease_id\x18\x04 \x01(\tH\x02R\aleaseId\x88\x01\x01\x12\x1e\n" +
-	"\blease_ms\x18\x05 \x01(\rH\x03R\aleaseMs\x88\x01\x01B\x16\n" +
-	"\x14_expected_generationB\x18\n" +
-	"\x16_controller_session_idB\v\n" +
-	"\t_lease_idB\v\n" +
-	"\t_lease_ms\"\xe7\x01\n" +
+	"\x04mode\x18\x03 \x01(\x0e2\x1e.rimgovernor.authority.v1.ModeH\x01R\x04mode\x88\x01\x01B\x16\n" +
+	"\x14_expected_generationB\a\n" +
+	"\x05_mode\"\xe7\x01\n" +
 	"\x06Revoke\x12;\n" +
 	"\bidentity\x18\x01 \x01(\v2\x1f.rimgovernor.common.v1.IdentityR\bidentity\x124\n" +
 	"\x13expected_generation\x18\x02 \x01(\x04H\x00R\x12expectedGeneration\x88\x01\x01\x12G\n" +
 	"\x06reason\x18\x03 \x01(\x0e2*.rimgovernor.authority.v1.RevocationReasonH\x01R\x06reason\x88\x01\x01B\x16\n" +
 	"\x14_expected_generationB\t\n" +
-	"\a_reason\"\xd1\x01\n" +
-	"\x0eControlRequest\x12=\n" +
-	"\aacquire\x18\x01 \x01(\v2!.rimgovernor.authority.v1.AcquireH\x00R\aacquire\x127\n" +
-	"\x05renew\x18\x02 \x01(\v2\x1f.rimgovernor.authority.v1.RenewH\x00R\x05renew\x12:\n" +
-	"\x06revoke\x18\x03 \x01(\v2 .rimgovernor.authority.v1.RevokeH\x00R\x06revokeB\v\n" +
-	"\toperation\"\xc4\x01\n" +
+	"\a_reason\"\x99\x01\n" +
+	"\x0eControlRequest\x12>\n" +
+	"\bset_mode\x18\x01 \x01(\v2!.rimgovernor.authority.v1.SetModeH\x00R\asetMode\x12:\n" +
+	"\x06revoke\x18\x02 \x01(\v2 .rimgovernor.authority.v1.RevokeH\x00R\x06revokeB\v\n" +
+	"\toperation\"\x97\x01\n" +
 	"\aGranted\x12C\n" +
 	"\acontext\x18\x01 \x01(\v2).rimgovernor.common.v1.ObservationContextR\acontext\x12G\n" +
-	"\tauthority\x18\x02 \x01(\v2).rimgovernor.authority.v1.ActiveAuthorityR\tauthority\x12\x1e\n" +
-	"\blease_id\x18\x03 \x01(\tH\x00R\aleaseId\x88\x01\x01B\v\n" +
-	"\t_lease_id\"\x99\x01\n" +
+	"\tauthority\x18\x02 \x01(\v2).rimgovernor.authority.v1.ActiveAuthorityR\tauthority\"\x99\x01\n" +
 	"\aRevoked\x12C\n" +
 	"\acontext\x18\x01 \x01(\v2).rimgovernor.common.v1.ObservationContextR\acontext\x12I\n" +
 	"\tauthority\x18\x02 \x01(\v2+.rimgovernor.authority.v1.InactiveAuthorityR\tauthority\"\xd3\x01\n" +
@@ -1129,28 +1000,29 @@ const file_authority_proto_rawDesc = "" +
 	"\agranted\x18\x01 \x01(\v2!.rimgovernor.authority.v1.GrantedH\x00R\agranted\x12=\n" +
 	"\arevoked\x18\x02 \x01(\v2!.rimgovernor.authority.v1.RevokedH\x00R\arevoked\x12:\n" +
 	"\afailure\x18\x03 \x01(\v2\x1e.rimgovernor.common.v1.FailureH\x00R\afailureB\t\n" +
-	"\aoutcome\"\x88\x02\n" +
+	"\aoutcome\"\xdb\x01\n" +
 	"\x11WritePrecondition\x12;\n" +
 	"\bidentity\x18\x01 \x01(\v2\x1f.rimgovernor.common.v1.IdentityR\bidentity\x124\n" +
-	"\x13expected_generation\x18\x02 \x01(\x04H\x00R\x12expectedGeneration\x88\x01\x01\x12\x1e\n" +
-	"\blease_id\x18\x03 \x01(\tH\x01R\aleaseId\x88\x01\x01\x12;\n" +
-	"\aattempt\x18\x04 \x01(\v2!.rimgovernor.common.v1.AttemptKeyR\aattemptB\x16\n" +
-	"\x14_expected_generationB\v\n" +
-	"\t_lease_id*\xc7\x03\n" +
+	"\x13expected_generation\x18\x02 \x01(\x04H\x00R\x12expectedGeneration\x88\x01\x01\x12;\n" +
+	"\aattempt\x18\x03 \x01(\v2!.rimgovernor.common.v1.AttemptKeyR\aattemptB\x16\n" +
+	"\x14_expected_generation*<\n" +
+	"\x04Mode\x12\x14\n" +
+	"\x10MODE_UNSPECIFIED\x10\x00\x12\r\n" +
+	"\tMODE_AUTO\x10\x01\x12\x0f\n" +
+	"\vMODE_MANUAL\x10\x02*\x9d\x03\n" +
 	"\x10RevocationReason\x12!\n" +
 	"\x1dREVOCATION_REASON_UNSPECIFIED\x10\x00\x12\x1a\n" +
 	"\x16REVOCATION_REASON_NONE\x10\x01\x12\x1c\n" +
-	"\x18REVOCATION_REASON_MANUAL\x10\x02\x12&\n" +
-	"\"REVOCATION_REASON_PLAYER_DIRECTION\x10\x03\x12$\n" +
-	" REVOCATION_REASON_EXTERNAL_ORDER\x10\x04\x12$\n" +
-	" REVOCATION_REASON_PLAYER_CONTROL\x10\x05\x12#\n" +
-	"\x1fREVOCATION_REASON_LEASE_EXPIRED\x10\x06\x12&\n" +
-	"\"REVOCATION_REASON_IDENTITY_CHANGED\x10\a\x12 \n" +
-	"\x1cREVOCATION_REASON_DISCONNECT\x10\b\x12\x1e\n" +
-	"\x1aREVOCATION_REASON_SHUTDOWN\x10\t\x12'\n" +
-	"#REVOCATION_REASON_HOOKS_UNAVAILABLE\x10\n" +
-	"\x12*\n" +
-	"&REVOCATION_REASON_GENERATION_EXHAUSTED\x10\v2\xc6\x01\n" +
+	"\x18REVOCATION_REASON_MANUAL\x10\x02\x12$\n" +
+	" REVOCATION_REASON_PLAYER_CONTROL\x10\x03\x12$\n" +
+	" REVOCATION_REASON_EXTERNAL_ORDER\x10\x04\x12&\n" +
+	"\"REVOCATION_REASON_IDENTITY_CHANGED\x10\x05\x12 \n" +
+	"\x1cREVOCATION_REASON_DISCONNECT\x10\x06\x12\x1e\n" +
+	"\x1aREVOCATION_REASON_SHUTDOWN\x10\a\x12'\n" +
+	"#REVOCATION_REASON_HOOKS_UNAVAILABLE\x10\b\x12*\n" +
+	"&REVOCATION_REASON_GENERATION_EXHAUSTED\x10\t\x12!\n" +
+	"\x1dREVOCATION_REASON_UNAVAILABLE\x10\n" +
+	"2\xc6\x01\n" +
 	"\tAuthority\x12\\\n" +
 	"\n" +
 	"ReadStatus\x12'.rimgovernor.authority.v1.StatusRequest\x1a%.rimgovernor.authority.v1.StatusReply\x12[\n" +
@@ -1168,66 +1040,63 @@ func file_authority_proto_rawDescGZIP() []byte {
 	return file_authority_proto_rawDescData
 }
 
-var file_authority_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
-var file_authority_proto_msgTypes = make([]protoimpl.MessageInfo, 14)
+var file_authority_proto_enumTypes = make([]protoimpl.EnumInfo, 2)
+var file_authority_proto_msgTypes = make([]protoimpl.MessageInfo, 12)
 var file_authority_proto_goTypes = []any{
-	(RevocationReason)(0),               // 0: rimgovernor.authority.v1.RevocationReason
-	(*Owner)(nil),                       // 1: rimgovernor.authority.v1.Owner
+	(Mode)(0),                           // 0: rimgovernor.authority.v1.Mode
+	(RevocationReason)(0),               // 1: rimgovernor.authority.v1.RevocationReason
 	(*InactiveAuthority)(nil),           // 2: rimgovernor.authority.v1.InactiveAuthority
 	(*ActiveAuthority)(nil),             // 3: rimgovernor.authority.v1.ActiveAuthority
 	(*Status)(nil),                      // 4: rimgovernor.authority.v1.Status
 	(*StatusRequest)(nil),               // 5: rimgovernor.authority.v1.StatusRequest
 	(*StatusReply)(nil),                 // 6: rimgovernor.authority.v1.StatusReply
-	(*Acquire)(nil),                     // 7: rimgovernor.authority.v1.Acquire
-	(*Renew)(nil),                       // 8: rimgovernor.authority.v1.Renew
-	(*Revoke)(nil),                      // 9: rimgovernor.authority.v1.Revoke
-	(*ControlRequest)(nil),              // 10: rimgovernor.authority.v1.ControlRequest
-	(*Granted)(nil),                     // 11: rimgovernor.authority.v1.Granted
-	(*Revoked)(nil),                     // 12: rimgovernor.authority.v1.Revoked
-	(*ControlReply)(nil),                // 13: rimgovernor.authority.v1.ControlReply
-	(*WritePrecondition)(nil),           // 14: rimgovernor.authority.v1.WritePrecondition
-	(*commonpb.ObservationContext)(nil), // 15: rimgovernor.common.v1.ObservationContext
-	(*commonpb.Unavailable)(nil),        // 16: rimgovernor.common.v1.Unavailable
-	(*commonpb.Identity)(nil),           // 17: rimgovernor.common.v1.Identity
-	(*commonpb.Failure)(nil),            // 18: rimgovernor.common.v1.Failure
-	(*commonpb.AttemptKey)(nil),         // 19: rimgovernor.common.v1.AttemptKey
+	(*SetMode)(nil),                     // 7: rimgovernor.authority.v1.SetMode
+	(*Revoke)(nil),                      // 8: rimgovernor.authority.v1.Revoke
+	(*ControlRequest)(nil),              // 9: rimgovernor.authority.v1.ControlRequest
+	(*Granted)(nil),                     // 10: rimgovernor.authority.v1.Granted
+	(*Revoked)(nil),                     // 11: rimgovernor.authority.v1.Revoked
+	(*ControlReply)(nil),                // 12: rimgovernor.authority.v1.ControlReply
+	(*WritePrecondition)(nil),           // 13: rimgovernor.authority.v1.WritePrecondition
+	(*commonpb.ObservationContext)(nil), // 14: rimgovernor.common.v1.ObservationContext
+	(*commonpb.Unavailable)(nil),        // 15: rimgovernor.common.v1.Unavailable
+	(*commonpb.Identity)(nil),           // 16: rimgovernor.common.v1.Identity
+	(*commonpb.Failure)(nil),            // 17: rimgovernor.common.v1.Failure
+	(*commonpb.AttemptKey)(nil),         // 18: rimgovernor.common.v1.AttemptKey
 }
 var file_authority_proto_depIdxs = []int32{
-	0,  // 0: rimgovernor.authority.v1.InactiveAuthority.reason:type_name -> rimgovernor.authority.v1.RevocationReason
-	1,  // 1: rimgovernor.authority.v1.ActiveAuthority.owner:type_name -> rimgovernor.authority.v1.Owner
-	15, // 2: rimgovernor.authority.v1.Status.context:type_name -> rimgovernor.common.v1.ObservationContext
-	16, // 3: rimgovernor.authority.v1.Status.unavailable:type_name -> rimgovernor.common.v1.Unavailable
+	1,  // 0: rimgovernor.authority.v1.InactiveAuthority.reason:type_name -> rimgovernor.authority.v1.RevocationReason
+	0,  // 1: rimgovernor.authority.v1.ActiveAuthority.mode:type_name -> rimgovernor.authority.v1.Mode
+	14, // 2: rimgovernor.authority.v1.Status.context:type_name -> rimgovernor.common.v1.ObservationContext
+	15, // 3: rimgovernor.authority.v1.Status.unavailable:type_name -> rimgovernor.common.v1.Unavailable
 	2,  // 4: rimgovernor.authority.v1.Status.inactive:type_name -> rimgovernor.authority.v1.InactiveAuthority
 	3,  // 5: rimgovernor.authority.v1.Status.active:type_name -> rimgovernor.authority.v1.ActiveAuthority
-	17, // 6: rimgovernor.authority.v1.StatusRequest.identity:type_name -> rimgovernor.common.v1.Identity
+	16, // 6: rimgovernor.authority.v1.StatusRequest.identity:type_name -> rimgovernor.common.v1.Identity
 	4,  // 7: rimgovernor.authority.v1.StatusReply.status:type_name -> rimgovernor.authority.v1.Status
-	18, // 8: rimgovernor.authority.v1.StatusReply.failure:type_name -> rimgovernor.common.v1.Failure
-	17, // 9: rimgovernor.authority.v1.Acquire.identity:type_name -> rimgovernor.common.v1.Identity
-	1,  // 10: rimgovernor.authority.v1.Acquire.owner:type_name -> rimgovernor.authority.v1.Owner
-	17, // 11: rimgovernor.authority.v1.Renew.identity:type_name -> rimgovernor.common.v1.Identity
-	17, // 12: rimgovernor.authority.v1.Revoke.identity:type_name -> rimgovernor.common.v1.Identity
-	0,  // 13: rimgovernor.authority.v1.Revoke.reason:type_name -> rimgovernor.authority.v1.RevocationReason
-	7,  // 14: rimgovernor.authority.v1.ControlRequest.acquire:type_name -> rimgovernor.authority.v1.Acquire
-	8,  // 15: rimgovernor.authority.v1.ControlRequest.renew:type_name -> rimgovernor.authority.v1.Renew
-	9,  // 16: rimgovernor.authority.v1.ControlRequest.revoke:type_name -> rimgovernor.authority.v1.Revoke
-	15, // 17: rimgovernor.authority.v1.Granted.context:type_name -> rimgovernor.common.v1.ObservationContext
-	3,  // 18: rimgovernor.authority.v1.Granted.authority:type_name -> rimgovernor.authority.v1.ActiveAuthority
-	15, // 19: rimgovernor.authority.v1.Revoked.context:type_name -> rimgovernor.common.v1.ObservationContext
-	2,  // 20: rimgovernor.authority.v1.Revoked.authority:type_name -> rimgovernor.authority.v1.InactiveAuthority
-	11, // 21: rimgovernor.authority.v1.ControlReply.granted:type_name -> rimgovernor.authority.v1.Granted
-	12, // 22: rimgovernor.authority.v1.ControlReply.revoked:type_name -> rimgovernor.authority.v1.Revoked
-	18, // 23: rimgovernor.authority.v1.ControlReply.failure:type_name -> rimgovernor.common.v1.Failure
-	17, // 24: rimgovernor.authority.v1.WritePrecondition.identity:type_name -> rimgovernor.common.v1.Identity
-	19, // 25: rimgovernor.authority.v1.WritePrecondition.attempt:type_name -> rimgovernor.common.v1.AttemptKey
-	5,  // 26: rimgovernor.authority.v1.Authority.ReadStatus:input_type -> rimgovernor.authority.v1.StatusRequest
-	10, // 27: rimgovernor.authority.v1.Authority.Control:input_type -> rimgovernor.authority.v1.ControlRequest
-	6,  // 28: rimgovernor.authority.v1.Authority.ReadStatus:output_type -> rimgovernor.authority.v1.StatusReply
-	13, // 29: rimgovernor.authority.v1.Authority.Control:output_type -> rimgovernor.authority.v1.ControlReply
-	28, // [28:30] is the sub-list for method output_type
-	26, // [26:28] is the sub-list for method input_type
-	26, // [26:26] is the sub-list for extension type_name
-	26, // [26:26] is the sub-list for extension extendee
-	0,  // [0:26] is the sub-list for field type_name
+	17, // 8: rimgovernor.authority.v1.StatusReply.failure:type_name -> rimgovernor.common.v1.Failure
+	16, // 9: rimgovernor.authority.v1.SetMode.identity:type_name -> rimgovernor.common.v1.Identity
+	0,  // 10: rimgovernor.authority.v1.SetMode.mode:type_name -> rimgovernor.authority.v1.Mode
+	16, // 11: rimgovernor.authority.v1.Revoke.identity:type_name -> rimgovernor.common.v1.Identity
+	1,  // 12: rimgovernor.authority.v1.Revoke.reason:type_name -> rimgovernor.authority.v1.RevocationReason
+	7,  // 13: rimgovernor.authority.v1.ControlRequest.set_mode:type_name -> rimgovernor.authority.v1.SetMode
+	8,  // 14: rimgovernor.authority.v1.ControlRequest.revoke:type_name -> rimgovernor.authority.v1.Revoke
+	14, // 15: rimgovernor.authority.v1.Granted.context:type_name -> rimgovernor.common.v1.ObservationContext
+	3,  // 16: rimgovernor.authority.v1.Granted.authority:type_name -> rimgovernor.authority.v1.ActiveAuthority
+	14, // 17: rimgovernor.authority.v1.Revoked.context:type_name -> rimgovernor.common.v1.ObservationContext
+	2,  // 18: rimgovernor.authority.v1.Revoked.authority:type_name -> rimgovernor.authority.v1.InactiveAuthority
+	10, // 19: rimgovernor.authority.v1.ControlReply.granted:type_name -> rimgovernor.authority.v1.Granted
+	11, // 20: rimgovernor.authority.v1.ControlReply.revoked:type_name -> rimgovernor.authority.v1.Revoked
+	17, // 21: rimgovernor.authority.v1.ControlReply.failure:type_name -> rimgovernor.common.v1.Failure
+	16, // 22: rimgovernor.authority.v1.WritePrecondition.identity:type_name -> rimgovernor.common.v1.Identity
+	18, // 23: rimgovernor.authority.v1.WritePrecondition.attempt:type_name -> rimgovernor.common.v1.AttemptKey
+	5,  // 24: rimgovernor.authority.v1.Authority.ReadStatus:input_type -> rimgovernor.authority.v1.StatusRequest
+	9,  // 25: rimgovernor.authority.v1.Authority.Control:input_type -> rimgovernor.authority.v1.ControlRequest
+	6,  // 26: rimgovernor.authority.v1.Authority.ReadStatus:output_type -> rimgovernor.authority.v1.StatusReply
+	12, // 27: rimgovernor.authority.v1.Authority.Control:output_type -> rimgovernor.authority.v1.ControlReply
+	26, // [26:28] is the sub-list for method output_type
+	24, // [24:26] is the sub-list for method input_type
+	24, // [24:24] is the sub-list for extension type_name
+	24, // [24:24] is the sub-list for extension extendee
+	0,  // [0:24] is the sub-list for field type_name
 }
 
 func init() { file_authority_proto_init() }
@@ -1237,38 +1106,34 @@ func file_authority_proto_init() {
 	}
 	file_authority_proto_msgTypes[0].OneofWrappers = []any{}
 	file_authority_proto_msgTypes[1].OneofWrappers = []any{}
-	file_authority_proto_msgTypes[2].OneofWrappers = []any{}
-	file_authority_proto_msgTypes[3].OneofWrappers = []any{
+	file_authority_proto_msgTypes[2].OneofWrappers = []any{
 		(*Status_Unavailable)(nil),
 		(*Status_Inactive)(nil),
 		(*Status_Active)(nil),
 	}
-	file_authority_proto_msgTypes[5].OneofWrappers = []any{
+	file_authority_proto_msgTypes[4].OneofWrappers = []any{
 		(*StatusReply_Status)(nil),
 		(*StatusReply_Failure)(nil),
 	}
+	file_authority_proto_msgTypes[5].OneofWrappers = []any{}
 	file_authority_proto_msgTypes[6].OneofWrappers = []any{}
-	file_authority_proto_msgTypes[7].OneofWrappers = []any{}
-	file_authority_proto_msgTypes[8].OneofWrappers = []any{}
-	file_authority_proto_msgTypes[9].OneofWrappers = []any{
-		(*ControlRequest_Acquire)(nil),
-		(*ControlRequest_Renew)(nil),
+	file_authority_proto_msgTypes[7].OneofWrappers = []any{
+		(*ControlRequest_SetMode)(nil),
 		(*ControlRequest_Revoke)(nil),
 	}
-	file_authority_proto_msgTypes[10].OneofWrappers = []any{}
-	file_authority_proto_msgTypes[12].OneofWrappers = []any{
+	file_authority_proto_msgTypes[10].OneofWrappers = []any{
 		(*ControlReply_Granted)(nil),
 		(*ControlReply_Revoked)(nil),
 		(*ControlReply_Failure)(nil),
 	}
-	file_authority_proto_msgTypes[13].OneofWrappers = []any{}
+	file_authority_proto_msgTypes[11].OneofWrappers = []any{}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_authority_proto_rawDesc), len(file_authority_proto_rawDesc)),
-			NumEnums:      1,
-			NumMessages:   14,
+			NumEnums:      2,
+			NumMessages:   12,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

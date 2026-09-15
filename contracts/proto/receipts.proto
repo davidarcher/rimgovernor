@@ -3,13 +3,18 @@ package rimgovernor.receipts.v1;
 option csharp_namespace = "RimGovernor.Protocol.Receipts";
 option go_package = "github.com/davidarcher/RimGovernor/go/internal/wire/receiptspb;receiptspb";
 import "common.proto";
-import "authority.proto";
 import "placement.proto";
 
+// authorizing_owner (rimgovernor.authority.v1.Owner) was removed: with a single
+// bot process there is only ever one possible authorizing actor, so recording
+// which "owner" admitted a write no longer carries information. Admission is
+// still proven by the admitted_context generation matching the caller's
+// expected_generation at the time of the write.
 message Receipt {
   rimgovernor.common.v1.AttemptKey attempt = 1;
   rimgovernor.common.v1.ObservationContext admitted_context = 2;
-  rimgovernor.authority.v1.Owner authorizing_owner = 3;
+  reserved 3;
+  reserved "authorizing_owner";
   oneof outcome {
     NoChange no_change = 4;
     Applied applied = 5;

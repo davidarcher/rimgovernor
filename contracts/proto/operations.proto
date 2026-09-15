@@ -249,12 +249,17 @@ message FulfillQuest { EntityPrecondition quest = 1; EntityPrecondition caravan 
 // automated Hands never admit that surface. See presentation-coverage.md.
 message ConfirmColonyNames { optional int32 window_id = 1; optional string faction_name = 2; optional string settlement_name = 3; }
 
-// Safe cleanup may run after authority revocation, only for an unchanged native claim.
+// Safe cleanup may run after authority revocation, only for an unchanged native
+// claim. original_owner (rimgovernor.authority.v1.Owner) was removed: whether
+// this release still belongs to the same causal owned scope is now proven by
+// generation continuity alone (see NativeControlAuthority.IsCausalScopeForOriginalOwner),
+// since there is only ever one bot that could have held the claim.
 message ReleaseOwnedDraftRequest {
   rimgovernor.common.v1.Identity identity = 1;
   EntityPrecondition pawn = 2;
   optional string expected_claim_id = 3;
-  rimgovernor.authority.v1.Owner original_owner = 4;
+  reserved 4;
+  reserved "original_owner";
 }
 message DraftRelease {
   ReleaseOwnedDraftRequest request = 1;
