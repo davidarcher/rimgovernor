@@ -1,5 +1,6 @@
 #nullable enable
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using RimWorld;
 using Verse;
@@ -13,28 +14,55 @@ namespace HomeBridge.BridgeTools
     // Shared by DeleteZone now and EditZoneCells later: both guard one
     // specific zone's own per-zone CAS token (NativeZoneObservationTools.Token),
     // unlike NativeZoneRecord's whole-map CreateZone token.
+    /// <summary>
+    /// Records a pending zone mutation for progress observation. A null
+    /// <see cref="DesiredCells"/> means delete semantics (success = the zone
+    /// is gone); a non-null set means cell-edit semantics (success = the
+    /// zone's live cells exactly equal the set -- or, when the set is empty,
+    /// that the zone deregistered itself, which Zone.RemoveCell does on its
+    /// own once a zone's last cell is removed).
+    /// </summary>
     internal sealed class NativeZoneEditRecord
     {
         internal readonly Zone Zone;
         internal readonly Map Map;
         internal readonly string BeforeToken;
-        internal NativeZoneEditRecord(Zone zone, Map map, string beforeToken) { Zone = zone; Map = map; BeforeToken = beforeToken; }
+        internal readonly HashSet<IntVec3>? DesiredCells;
+        internal NativeZoneEditRecord(Zone zone, Map map, string beforeToken) { Zone = zone; Map = map; BeforeToken = beforeToken; DesiredCells = null; }
+        internal NativeZoneEditRecord(Zone zone, Map map, string beforeToken, HashSet<IntVec3> desiredCells) { Zone = zone; Map = map; BeforeToken = beforeToken; DesiredCells = desiredCells; }
 
         internal Receipts.ZoneEffect Evidence()
         {
             var present = Map.zoneManager.AllZones.Contains(Zone);
-            return new Receipts.ZoneEffect { ZoneId = Zone.GetUniqueLoadID(), Present = present,
+            var result = new Receipts.ZoneEffect { ZoneId = Zone.GetUniqueLoadID(), Present = present,
                 Snapshot = new Receipts.SnapshotEvidence { EntityId = Zone.GetUniqueLoadID(), BeforeToken = BeforeToken } };
+            if (present)
+            {
+                var cells = Zone.Cells.OrderBy(c => c.x).ThenBy(c => c.z).ToArray();
+                var grid = Map.AllCells.Count(c => Map.zoneManager.ZoneAt(c) == Zone);
+                result.ChangedCells = cells.Length; result.ListedCellCount = cells.Length; result.GridCellCount = grid;
+                result.PhantomCellCount = cells.Count(c => Map.zoneManager.ZoneAt(c) != Zone);
+                foreach (var c in cells) result.Cells.Add(new Receipts.CellResult { Cell = new Common.Cell { X = c.x, Z = c.z }, Accepted = Map.zoneManager.ZoneAt(c) == Zone });
+            }
+            return result;
         }
 
         internal Receipts.Progress Observe(Common.AttemptKey attempt, Common.ObservationContext context)
         {
             var result = new Receipts.Progress { Attempt = attempt.Clone(), Context = context.Clone(), CompleteInspection = true };
             var evidence = Evidence();
-            if (Map != Find.CurrentMap) { result.CompleteInspection = false; result.Unknown = new Receipts.UnknownEffect { Reason = "Deleted zone's map is unavailable." }; return result; }
-            if (!evidence.Present) result.Completed = new Receipts.CompletedEffect { Evidence = new Receipts.EffectEvidence { Zone = evidence } };
+            var reason = DesiredCells == null ? "Deleted zone's map is unavailable." : "Edited zone's map is unavailable.";
+            if (Map != Find.CurrentMap) { result.CompleteInspection = false; result.Unknown = new Receipts.UnknownEffect { Reason = reason }; return result; }
+
+            bool matches;
+            if (DesiredCells == null || DesiredCells.Count == 0) matches = !evidence.Present;
+            else matches = evidence.Present && evidence.PhantomCellCount == 0 && evidence.GridCellCount == evidence.ListedCellCount
+                && new HashSet<IntVec3>(Zone.Cells).SetEquals(DesiredCells);
+
+            if (matches) result.Completed = new Receipts.CompletedEffect { Evidence = new Receipts.EffectEvidence { Zone = evidence } };
             else result.Unsuccessful = new Receipts.UnsuccessfulEffect { Reason = Receipts.UnsuccessfulReason.OutcomeNotAchieved,
-                Evidence = new Receipts.EffectEvidence { Zone = evidence }, Detail = "Zone is still present." };
+                Evidence = new Receipts.EffectEvidence { Zone = evidence },
+                Detail = DesiredCells == null ? "Zone is still present." : "Zone cells differ from the requested edit." };
             return result;
         }
     }

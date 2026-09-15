@@ -31,9 +31,17 @@ namespace HomeBridge.BridgeTools
                 var wallDef = DefDatabase<ThingDef>.GetNamedSilentFail("Wall");
                 if (wallDef == null || !wallDef.MadeFromStuff || !GenStuff.AllowedStuffsFor(wallDef).Contains(ThingDefOf.WoodLog))
                     return Refuse("Wall def unavailable or WoodLog is not an allowed stuff in this ruleset.");
+                // Every cell in the whole 4x4 footprint -- not just the inner
+                // 2x2 -- must already be free of things (loose items, wild
+                // plants) before any wall or roof is placed. Checking only
+                // Standable here let ambient debris or a wild plant slip
+                // through, get walled/roofed over, and only be caught by the
+                // inner-cell check below -- after the wall Things were
+                // already spawned and left behind.
                 var origin = GenRadial.RadialCellsAround(pawn.Position, 40, true).FirstOrDefault(c =>
                     new CellRect(c.x, c.z, 4, 4).Cells.All(cell => cell.InBounds(map) && !cell.Fogged(map)
                         && cell.Standable(map) && cell.GetEdifice(map) == null && cell.GetZone(map) == null
+                        && cell.GetThingList(map).Count == 0
                         && cell.GetTerrain(map).affordances.Contains(TerrainAffordanceDefOf.Heavy)));
                 if (origin == default) return Refuse("No open area for the fixture zone site.");
 

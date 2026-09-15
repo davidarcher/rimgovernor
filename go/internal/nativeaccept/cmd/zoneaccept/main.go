@@ -1,19 +1,20 @@
-// Command zoneaccept exercises three typed native zone dispatch verticals
-// (N01.04, issue #34) in one run: CreateZone (wired but previously with no
-// acceptance harness at all), the new native rimgovernor/observations_list_zones
-// tool (NativeZoneObservationTools.cs), and DeleteZone
-// (NativeZoneDeletion.cs) -- the small, self-contained half of the two
-// remaining zone-editing operations. EditZoneCells (porting
-// ZoneCellsTool.cs's add/remove cell simulation) is not covered here.
+// Command zoneaccept exercises the full set of typed native zone dispatch
+// verticals (N01.04, issue #34) in one run: CreateZone, the native
+// rimgovernor/observations_list_zones tool (NativeZoneObservationTools.cs),
+// EditZoneCells (NativeZoneCellEdit.cs, both directions), and DeleteZone
+// (NativeZoneDeletion.cs).
 //
 // A real stockpile zone is created over a disposable fixture's roofed,
 // walled, empty 2x2 interior through the typed operations contract, its
-// per-zone CAS snapshot token is read back through the new ListZones tool
-// (not just inferred from the create receipt), and that exact zone is then
+// per-zone CAS snapshot token is read back through the ListZones tool (not
+// just inferred from the create receipt). One corner cell is then removed
+// through EditZoneCells (leaving a contiguous 3-cell L-shape, and returning
+// that cell to genuinely free ground), that same cell is added back through
+// EditZoneCells (restoring the original 2x2), and the exact zone is then
 // deleted through the typed operations contract -- with stale-token
-// refusal, preview non-mutation, real effect evidence, a real post-delete
-// ListZones readback showing the zone gone, and replay idempotency checked
-// at each step, mirroring bedassignaccept's own real-evidence shape.
+// refusal, preview non-mutation, real effect evidence, real ListZones
+// readbacks and replay idempotency checked at each step, mirroring
+// bedassignaccept's own real-evidence shape.
 package main
 
 import (
@@ -53,9 +54,10 @@ func main() {
 	}
 	report := na.NewReport("Native typed zone dispatch: a real stockpile zone is created via the typed "+
 		"CreateZone operation over a disposable fixture site, its per-zone CAS snapshot token is read back "+
-		"through the new rimgovernor/observations_list_zones tool, and that exact zone is deleted via the typed "+
-		"DeleteZone operation, with stale-token refusal, preview non-mutation, real effect evidence, a real "+
-		"post-delete ListZones readback and replay idempotency.", !*rendered)
+		"through the rimgovernor/observations_list_zones tool, one corner cell is removed and then re-added "+
+		"through the typed EditZoneCells operation, and the exact zone is deleted via the typed DeleteZone "+
+		"operation, with stale-token refusal, preview non-mutation, real effect evidence, real ListZones "+
+		"readbacks and replay idempotency.", !*rendered)
 	ctx, cancel := context.WithTimeout(context.Background(), *timeout)
 	defer cancel()
 	err := run(ctx, *root, *output, *game, !*rendered, report)
@@ -353,14 +355,166 @@ func run(ctx context.Context, root, output, gameID string, headless bool, report
 
 	// --- ListZones: real per-zone CAS snapshot token readback, first coverage for this observation tool. ---
 
-	deleteToken, present, err := zoneState("zone-after-create", zoneID)
+	tokenAfterCreate, present, err := zoneState("zone-after-create", zoneID)
 	if err != nil {
 		return err
 	}
 	if !present {
 		return fmt.Errorf("zone-after-create: expected the created zone to be listed")
 	}
-	report["zone_token_after_create"] = deleteToken
+	report["zone_token_after_create"] = tokenAfterCreate
+
+	// --- EditZoneCells: real dispatch, first acceptance coverage for this operation. ---
+	//
+	// cells[0] is one corner of the fixture's 2x2 interior. Removing it
+	// leaves a contiguous 3-cell L-shape and returns that cell to genuinely
+	// free ground (EditZoneCells's ADD never steals a cell from another
+	// zone -- it only ever accepts free ground, matching CreateZone's own
+	// eligibility test -- so re-adding the very cell this harness just
+	// freed is the one add case the fixture can exercise without a second
+	// site).
+
+	editCell := cells[0]
+
+	staleEditGeneration, err := currentGeneration("generation-stale-edit-remove")
+	if err != nil {
+		return err
+	}
+	staleEditRemoveRequest := buildRequest("zone-edit-remove-stale-token", staleEditGeneration, map[string]any{"editZoneCells": map[string]any{
+		"zone": map[string]any{"entityId": zoneID, "expectedSnapshotToken": "zone-stale-00000000000000000000000000000000000000000000000000000000000000"},
+		"edit": "CELL_EDIT_REMOVE", "cells": map[string]any{"explicitCells": map[string]any{"cells": []map[string]any{editCell}}},
+	}})
+	if code, err := failureCode("edit-remove-stale-token", staleEditRemoveRequest); err != nil {
+		return err
+	} else if code != "FAILURE_CODE_INVALID_REQUEST" && code != "FAILURE_CODE_NOT_FOUND" {
+		return fmt.Errorf("edit-remove-stale-token: expected an invalid-request/not-found refusal, got %q", code)
+	}
+
+	removeOperation := map[string]any{"editZoneCells": map[string]any{
+		"zone": map[string]any{"entityId": zoneID, "expectedSnapshotToken": tokenAfterCreate},
+		"edit": "CELL_EDIT_REMOVE", "cells": map[string]any{"explicitCells": map[string]any{"cells": []map[string]any{editCell}}},
+	}}
+	removePreviewReply, err := h.Wire(ctx, "preview-edit-remove", "operations_preview", map[string]any{"identity": identity, "operation": removeOperation})
+	if err != nil {
+		return err
+	}
+	removePreviewEvaluated, ok := na.AsMap(removePreviewReply["evaluated"])
+	if !ok {
+		return fmt.Errorf("preview-edit-remove: expected an evaluated reply, got %#v", removePreviewReply)
+	}
+	if accepted, _ := na.AsBool(removePreviewEvaluated["accepted"]); !accepted {
+		return fmt.Errorf("preview-edit-remove: expected the cell removal to be accepted, got %#v", removePreviewEvaluated)
+	}
+	if token, previewPresent, err := zoneState("zone-after-edit-remove-preview", zoneID); err != nil {
+		return err
+	} else if token != tokenAfterCreate || !previewPresent {
+		return fmt.Errorf("preview-edit-remove: dry-run preview unexpectedly changed the zone")
+	}
+
+	editRemoveGeneration, err := currentGeneration("generation-before-edit-remove")
+	if err != nil {
+		return err
+	}
+	editRemoveRequest := buildRequest("zone-edit-remove", editRemoveGeneration, removeOperation)
+	editRemoveReply, err := h.Wire(ctx, "execute-edit-remove", "operations_execute", editRemoveRequest)
+	if err != nil {
+		return err
+	}
+	_, editRemoveReceipt, err := na.Outcome(editRemoveReply, "receipt")
+	if err != nil {
+		return err
+	}
+	editRemoveApplied, ok := na.AsMap(editRemoveReceipt["applied"])
+	if !ok {
+		return fmt.Errorf("execute-edit-remove: expected an applied outcome, got %#v", editRemoveReceipt)
+	}
+	editRemoveObserved, _ := na.AsMap(editRemoveApplied["observed"])
+	editRemoveZoneEffect, ok := na.AsMap(editRemoveObserved["zone"])
+	if !ok {
+		return fmt.Errorf("execute-edit-remove: expected zone effect evidence, got %#v", editRemoveObserved)
+	}
+	if present, _ := na.AsBool(editRemoveZoneEffect["present"]); !present {
+		return fmt.Errorf("execute-edit-remove: expected present=true (3 cells remain), got %#v", editRemoveZoneEffect)
+	}
+	if listed := na.AsNumber(editRemoveZoneEffect["listedCellCount"]); int(listed) != len(cells)-1 {
+		return fmt.Errorf("execute-edit-remove: expected %d listed cells after removing one, got %#v", len(cells)-1, editRemoveZoneEffect)
+	}
+
+	tokenAfterRemove, present, err := zoneState("zone-after-edit-remove", zoneID)
+	if err != nil {
+		return err
+	}
+	if !present {
+		return fmt.Errorf("zone-after-edit-remove: expected the zone to still be listed with 3 cells")
+	}
+	if tokenAfterRemove == tokenAfterCreate {
+		return fmt.Errorf("zone-after-edit-remove: expected the per-zone CAS token to change after a real cell removal")
+	}
+
+	// Replay: the exact same remove attempt returns an identical receipt.
+	replayEditRemoveReply, err := h.Wire(ctx, "replay-edit-remove", "operations_execute", editRemoveRequest)
+	if err != nil {
+		return err
+	}
+	_, replayEditRemove, err := na.Outcome(replayEditRemoveReply, "receipt")
+	if err != nil {
+		return err
+	}
+	if !na.DeepEqual(replayEditRemove, editRemoveReceipt) {
+		return fmt.Errorf("replay-edit-remove: replay of the same attempt returned a different receipt")
+	}
+	report["zone_cells_after_edit_remove"] = len(cells) - 1
+
+	addOperation := map[string]any{"editZoneCells": map[string]any{
+		"zone": map[string]any{"entityId": zoneID, "expectedSnapshotToken": tokenAfterRemove},
+		"edit": "CELL_EDIT_ADD", "cells": map[string]any{"explicitCells": map[string]any{"cells": []map[string]any{editCell}}},
+	}}
+	addPreviewReply, err := h.Wire(ctx, "preview-edit-add", "operations_preview", map[string]any{"identity": identity, "operation": addOperation})
+	if err != nil {
+		return err
+	}
+	addPreviewEvaluated, ok := na.AsMap(addPreviewReply["evaluated"])
+	if !ok {
+		return fmt.Errorf("preview-edit-add: expected an evaluated reply, got %#v", addPreviewReply)
+	}
+	if accepted, _ := na.AsBool(addPreviewEvaluated["accepted"]); !accepted {
+		return fmt.Errorf("preview-edit-add: expected the cell addition to be accepted, got %#v", addPreviewEvaluated)
+	}
+
+	editAddGeneration, err := currentGeneration("generation-before-edit-add")
+	if err != nil {
+		return err
+	}
+	editAddRequest := buildRequest("zone-edit-add", editAddGeneration, addOperation)
+	editAddReply, err := h.Wire(ctx, "execute-edit-add", "operations_execute", editAddRequest)
+	if err != nil {
+		return err
+	}
+	_, editAddReceipt, err := na.Outcome(editAddReply, "receipt")
+	if err != nil {
+		return err
+	}
+	editAddApplied, ok := na.AsMap(editAddReceipt["applied"])
+	if !ok {
+		return fmt.Errorf("execute-edit-add: expected an applied outcome, got %#v", editAddReceipt)
+	}
+	editAddObserved, _ := na.AsMap(editAddApplied["observed"])
+	editAddZoneEffect, ok := na.AsMap(editAddObserved["zone"])
+	if !ok {
+		return fmt.Errorf("execute-edit-add: expected zone effect evidence, got %#v", editAddObserved)
+	}
+	if listed := na.AsNumber(editAddZoneEffect["listedCellCount"]); int(listed) != len(cells) {
+		return fmt.Errorf("execute-edit-add: expected %d listed cells after re-adding the corner, got %#v", len(cells), editAddZoneEffect)
+	}
+
+	deleteToken, present, err := zoneState("zone-after-edit-add", zoneID)
+	if err != nil {
+		return err
+	}
+	if !present {
+		return fmt.Errorf("zone-after-edit-add: expected the zone to be listed with all %d cells restored", len(cells))
+	}
+	report["zone_cells_after_edit_add"] = len(cells)
 
 	// --- DeleteZone: real dispatch. ---
 

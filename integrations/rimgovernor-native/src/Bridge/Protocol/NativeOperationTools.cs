@@ -156,6 +156,8 @@ namespace HomeBridge.BridgeTools
                 return NativeBedAssignOperations.Execute(state, request, context);
             if (request.Operation.CommandCase == Operations.Operation.CommandOneofCase.DeleteZone)
                 return NativeZoneDeletion.Execute(state, request, context);
+            if (request.Operation.CommandCase == Operations.Operation.CommandOneofCase.EditZoneCells)
+                return NativeZoneCellEdit.Execute(state, request, context);
             if (request.Operation.CommandCase != Operations.Operation.CommandOneofCase.PlaceBuilding)
                 return Refuse(Common.FailureCode.Unsupported, "This native adapter implements PlaceBuilding, temporary owned SetDrafted, exact owned MovePawn and melee, direct-bullet or supported injury-only explosive AttackTarget.");
             if (!NativeConstructionTracking.Ready)
@@ -284,6 +286,8 @@ namespace HomeBridge.BridgeTools
                     return ProtoBoundary.Encode(NativeBedAssignOperations.Preview(parsed.Operation.AssignBed, context));
                 if (parsed.Operation?.CommandCase == Operations.Operation.CommandOneofCase.DeleteZone)
                     return ProtoBoundary.Encode(NativeZoneDeletion.Preview(parsed.Operation.DeleteZone, context));
+                if (parsed.Operation?.CommandCase == Operations.Operation.CommandOneofCase.EditZoneCells)
+                    return ProtoBoundary.Encode(NativeZoneCellEdit.Preview(parsed.Operation.EditZoneCells, context));
                 if (parsed.Operation == null || parsed.Operation.CommandCase != Operations.Operation.CommandOneofCase.PlaceBuilding)
                     return ProtoBoundary.Encode(new Operations.PreviewReply { Failure = ProtoBoundary.Fail(Common.FailureCode.Unsupported, "Preview implements PlaceBuilding, temporary SetDrafted, exact owned MovePawn and melee, direct-bullet or supported injury-only explosive AttackTarget.") });
                 NativeConstructionPlan plan; RimGovernor.Protocol.Placement.PlacementEvaluated preview;
