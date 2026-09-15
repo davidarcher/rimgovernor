@@ -109,6 +109,9 @@ func composedRoutineFixture(t *testing.T) (*RoutineReviewer, *store.Store, *play
 // a single process: each admits its own held plan independently, and a
 // single player Manual direction change cancels every family's held plan
 // without one family's cancellation touching another's plan or actions.
+//
+// Known flaky under full-module `go test ./...` parallel load (passes
+// reliably in isolation and even at the whole-package level); see issue #53.
 func TestComposedRoutineFamiliesManualCancelsWithoutCrossLeak(t *testing.T) {
 	t.Parallel()
 	ctx := context.Background()
