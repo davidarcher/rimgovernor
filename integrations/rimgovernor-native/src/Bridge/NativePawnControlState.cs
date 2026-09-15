@@ -9,22 +9,19 @@ using HarmonyLib;
 using RimWorld;
 using Verse;
 using Verse.AI;
-using Authority = RimGovernor.Protocol.Authority;
 
 namespace HomeBridge.BridgeTools
 {
     internal enum NativePawnControlResult { Ready, AlreadyReleased, Unavailable, StaleIdentity, StaleSnapshot, ClaimMismatch, Ineligible, AuthorityRequired, Uncertain, CapacityExhausted }
     internal sealed class NativeDraftClaim
     {
-        internal NativeDraftClaim(string id, Authority.Owner owner) { ClaimId = id; originalOwner = owner.Clone(); }
+        internal NativeDraftClaim(string id) { ClaimId = id; }
         internal string ClaimId { get; }
-        private readonly Authority.Owner originalOwner;
-        internal Authority.Owner Owner => originalOwner.Clone();
     }
     internal sealed class NativePawnSnapshot
     {
         internal NativePawnSnapshot(string token, NativePawnFacts facts, NativeDraftClaim? claim)
-        { Token = token; Facts = facts; Claim = claim == null ? null : new NativeDraftClaim(claim.ClaimId, claim.Owner); }
+        { Token = token; Facts = facts; Claim = claim == null ? null : new NativeDraftClaim(claim.ClaimId); }
         internal string Token { get; }
         internal string PawnId => Facts.PawnId;
         internal bool Drafted => Facts.Drafted;
@@ -34,23 +31,19 @@ namespace HomeBridge.BridgeTools
     }
     internal sealed class NativeDraftClaimTicket
     {
-        internal NativeDraftClaimTicket(NativePawnControlRecord record, NativePawnSnapshot before, Authority.Owner owner)
-        { Record = record; Before = before; originalOwner = owner.Clone(); }
+        internal NativeDraftClaimTicket(NativePawnControlRecord record, NativePawnSnapshot before)
+        { Record = record; Before = before; }
         internal readonly NativePawnControlRecord Record;
         internal NativePawnSnapshot Before { get; }
-        private readonly Authority.Owner originalOwner;
-        internal Authority.Owner Owner => originalOwner.Clone();
         internal bool Used;
     }
     internal sealed class NativeDraftReleaseTicket
     {
-        internal NativeDraftReleaseTicket(NativePawnControlRecord record, NativePawnSnapshot before, string claimId, Authority.Owner owner)
-        { Record = record; Before = before; ClaimId = claimId; originalOwner = owner.Clone(); }
+        internal NativeDraftReleaseTicket(NativePawnControlRecord record, NativePawnSnapshot before, string claimId)
+        { Record = record; Before = before; ClaimId = claimId; }
         internal readonly NativePawnControlRecord Record;
         internal NativePawnSnapshot Before { get; }
         internal string ClaimId { get; }
-        private readonly Authority.Owner originalOwner;
-        internal Authority.Owner Owner => originalOwner.Clone();
         internal NativePawnSnapshot? After { get; set; }
     }
 
@@ -117,12 +110,12 @@ namespace HomeBridge.BridgeTools
                 Snapshot = new NativePawnSnapshot(Guid.NewGuid().ToString("N"), facts, Claim);
             return Snapshot;
         }
-        internal NativePawnControlResult PrepareClaim(NativePawnSnapshot current, string token, Authority.Owner owner, out NativeDraftClaimTicket? ticket)
+        internal NativePawnControlResult PrepareClaim(NativePawnSnapshot current, string token, out NativeDraftClaimTicket? ticket)
         {
             ticket = null;
             if (current.Token != token) return NativePawnControlResult.StaleSnapshot;
             if (current.Drafted || !current.Eligible || current.Claim != null) return NativePawnControlResult.Ineligible;
-            ticket = new NativeDraftClaimTicket(this, current, owner);
+            ticket = new NativeDraftClaimTicket(this, current);
             return NativePawnControlResult.Ready;
         }
         internal NativePawnControlResult CompleteClaim(NativeDraftClaimTicket ticket, NativePawnFacts facts, out NativePawnSnapshot snapshot)
@@ -134,16 +127,15 @@ namespace HomeBridge.BridgeTools
             if (!facts.SameEligibility(before) || !facts.Eligible || !facts.Drafted || before.Drafted
                 || before.DraftRevision == ulong.MaxValue || facts.DraftRevision != before.DraftRevision + 1 || facts.OrderRevision != before.OrderRevision)
                 return NativePawnControlResult.Uncertain;
-            Claim = new NativeDraftClaim(Guid.NewGuid().ToString("N"), ticket.Owner); ClaimRevision = facts.DraftRevision;
+            Claim = new NativeDraftClaim(Guid.NewGuid().ToString("N")); ClaimRevision = facts.DraftRevision;
             Release = null;
             snapshot = Observe(facts);
             return NativePawnControlResult.Ready;
         }
-        internal NativePawnControlResult PrepareRelease(NativePawnSnapshot current, string token, string claimId, Authority.Owner owner,
-            out NativeDraftReleaseTicket? ticket)
+        internal NativePawnControlResult PrepareRelease(NativePawnSnapshot current, string token, string claimId, out NativeDraftReleaseTicket? ticket)
         {
             ticket = null;
-            if (Release != null && Release.Before.Token == token && Release.ClaimId == claimId && Release.Owner.Equals(owner))
+            if (Release != null && Release.Before.Token == token && Release.ClaimId == claimId)
             {
                 ticket = Release;
                 if (!current.Facts.SameIdentity(Release.Before.Facts)) return NativePawnControlResult.StaleIdentity;
@@ -154,8 +146,8 @@ namespace HomeBridge.BridgeTools
                 return NativePawnControlResult.StaleSnapshot;
             }
             if (current.Token != token) return NativePawnControlResult.StaleSnapshot;
-            if (!current.Drafted || current.Claim == null || current.Claim.ClaimId != claimId || !current.Claim.Owner.Equals(owner)) return NativePawnControlResult.ClaimMismatch;
-            ticket = new NativeDraftReleaseTicket(this, current, claimId, owner);
+            if (!current.Drafted || current.Claim == null || current.Claim.ClaimId != claimId) return NativePawnControlResult.ClaimMismatch;
+            ticket = new NativeDraftReleaseTicket(this, current, claimId);
             Release = ticket; // Admission is correlated even when the caller's native setter throws.
             return NativePawnControlResult.Ready;
         }
@@ -170,11 +162,11 @@ namespace HomeBridge.BridgeTools
             Claim = null; snapshot = Observe(facts); ticket.After = snapshot;
             return NativePawnControlResult.Ready;
         }
-        internal void Ordered(bool sameOwner)
+        internal void Ordered(bool causallyOwned)
         {
             if (OrderRevision == ulong.MaxValue) throw new InvalidOperationException("Pawn order revision exhausted.");
             OrderRevision++;
-            if (!sameOwner) Claim = null;
+            if (!causallyOwned) Claim = null;
         }
     }
 
@@ -228,8 +220,8 @@ namespace HomeBridge.BridgeTools
         private static void Ordered(Pawn ___pawn, bool __result)
         {
             if (!__result || Current.Game == null || !Games.TryGetValue(Current.Game, out var game) || !game.Pawns.TryGetValue(___pawn, out var record)) return;
-            bool sameOwner = record.Claim != null && CausallyOwned(Current.Game, record.Claim.Owner);
-            try { record.Ordered(sameOwner); } catch { game.Exhausted = true; }
+            bool causallyOwned = record.Claim != null && CausallyOwned(Current.Game);
+            try { record.Ordered(causallyOwned); } catch { game.Exhausted = true; }
         }
         private static void BeforeGame(out Game? __state) => __state = Current.Game;
         private static void AfterGame(Game? __state) { if (!ReferenceEquals(__state,Current.Game)) Invalidate(__state); }
@@ -240,19 +232,21 @@ namespace HomeBridge.BridgeTools
             if (game == null || !Games.TryGetValue(game, out var state)) return;
             if (Interlocked.Increment(ref state.ContextRevision) <= 0) state.Exhausted = true;
         }
-        private static bool CausallyOwned(Game game, Authority.Owner owner)
+        // A claim survives an ordered-job interruption only if it was created,
+        // and still lives, within the same causally-owned authority generation
+        // scope: there being exactly one bot actor, generation continuity alone
+        // proves the claim is still the bot's (see NativeControlAuthority.IsCausalOwnedScope).
+        private static bool CausallyOwned(Game game) =>
+            NativeControlAuthority.TryGetForGame(game, out var authority) && authority != null && authority.IsCausalOwnedScope();
+        // Claim creation additionally requires the authority to be presently
+        // Active (Mode.Auto); release does not require this (matching the
+        // original asymmetry, which allowed cleanup after Manual/expiry).
+        private static bool Active(Game game)
         {
-            return ValidOwner(owner) && NativeControlAuthority.TryGetForGame(game, out var authority) && authority != null
-                && authority.IsCausalScopeForOriginalOwner(owner.ControllerSessionId, owner.PlayerDirection);
-        }
-        private static bool Owned(Game game, Authority.Owner owner)
-        {
-            if (!ValidOwner(owner) || !NativeControlAuthority.TryGetForGame(game,out var authority) || authority == null || !authority.IsOwned) return false;
+            if (!NativeControlAuthority.TryGetForGame(game, out var authority) || authority == null) return false;
             var status = authority.Status();
-            return status.Available && status.Active && status.Lease!.ControllerSessionId == owner.ControllerSessionId && status.Lease.PlayerDirection == owner.PlayerDirection;
+            return status.Available && status.Active;
         }
-        private static bool ValidOwner(Authority.Owner owner) => owner != null && owner.HasControllerSessionId && ProtoBoundary.IsIdentifier(owner.ControllerSessionId)
-            && owner.HasPlayerDirection && owner.PlayerDirection > 0;
         private static NativePawnControlResult Read(NativeControlIdentity identity, Pawn pawn, out NativePawnControlRecord? record, out NativePawnSnapshot? snapshot)
         {
             record = null; snapshot = null;
@@ -286,13 +280,13 @@ namespace HomeBridge.BridgeTools
         internal static NativePawnControlResult Observe(NativeControlIdentity identity, Pawn pawn, out NativePawnSnapshot? snapshot) => Read(identity,pawn,out _,out snapshot);
         internal static NativePawnControlResult Check(NativeControlIdentity identity, Pawn pawn, string token, out NativePawnSnapshot? snapshot)
         { var result = Read(identity,pawn,out _,out snapshot); return result != NativePawnControlResult.Ready ? result : snapshot!.Token == token ? result : NativePawnControlResult.StaleSnapshot; }
-        internal static NativePawnControlResult PrepareClaim(NativeControlIdentity identity, Pawn pawn, string expectedToken, Authority.Owner owner,
+        internal static NativePawnControlResult PrepareClaim(NativeControlIdentity identity, Pawn pawn, string expectedToken,
             out NativeDraftClaimTicket? ticket, out NativePawnSnapshot? snapshot)
         {
             ticket = null; var result = Read(identity,pawn,out var record,out snapshot);
             if (result != NativePawnControlResult.Ready) return result;
-            if (!Owned(identity.Game,owner)) return NativePawnControlResult.AuthorityRequired;
-            return record!.PrepareClaim(snapshot!,expectedToken,owner,out ticket);
+            if (!Active(identity.Game)) return NativePawnControlResult.AuthorityRequired;
+            return record!.PrepareClaim(snapshot!,expectedToken,out ticket);
         }
         internal static NativePawnControlResult CompleteClaim(NativeDraftClaimTicket ticket, out NativePawnSnapshot? snapshot)
         {
@@ -301,13 +295,13 @@ namespace HomeBridge.BridgeTools
             if (record != ticket.Record) return NativePawnControlResult.ClaimMismatch;
             return record!.CompleteClaim(ticket,snapshot!.Facts,out snapshot);
         }
-        internal static NativePawnControlResult PrepareRelease(NativeControlIdentity identity, Pawn pawn, string expectedToken,string claimId,Authority.Owner originalOwner,
+        internal static NativePawnControlResult PrepareRelease(NativeControlIdentity identity, Pawn pawn, string expectedToken,string claimId,
             out NativeDraftReleaseTicket? ticket,out NativePawnSnapshot? snapshot)
         {
             ticket = null; var result = Read(identity,pawn,out var record,out snapshot);
             if (result != NativePawnControlResult.Ready) return result;
-            if (!ValidOwner(originalOwner) || !ProtoBoundary.IsIdentifier(claimId)) return NativePawnControlResult.ClaimMismatch;
-            return record!.PrepareRelease(snapshot!,expectedToken,claimId,originalOwner,out ticket);
+            if (!ProtoBoundary.IsIdentifier(claimId)) return NativePawnControlResult.ClaimMismatch;
+            return record!.PrepareRelease(snapshot!,expectedToken,claimId,out ticket);
         }
         internal static NativePawnControlResult CompleteRelease(NativeDraftReleaseTicket ticket,out NativePawnSnapshot? snapshot)
         {

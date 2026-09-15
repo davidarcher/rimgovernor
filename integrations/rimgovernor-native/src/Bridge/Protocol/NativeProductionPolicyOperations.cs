@@ -197,7 +197,7 @@ namespace HomeBridge.BridgeTools
 
         internal static Operations.ExecuteReply Execute(NativeOperationState state, Operations.ExecuteRequest request, Common.ObservationContext context)
         {
-            NativeAttemptLedger.Admission? handle = null; Authority.Owner? owner = null; Receipts.EffectEvidence? evidence = null;
+            NativeAttemptLedger.Admission? handle = null; Receipts.EffectEvidence? evidence = null;
             var pre = request.Precondition; var command = request.Operation.SetProductionPolicy;
             var map = Find.CurrentMap;
             try
@@ -207,18 +207,17 @@ namespace HomeBridge.BridgeTools
                     return new Operations.ExecuteReply { Failure = failure };
                 if (!NativeControlAuthority.TryGetForGame(Current.Game, out var authority) || authority == null)
                     return new Operations.ExecuteReply { Failure = ProtoBoundary.Fail(Common.FailureCode.AuthorityRequired, "Native authority is required.") };
-                var guard = authority.Check(pre.ExpectedGeneration, pre.LeaseId, pre.Attempt.ControllerSessionId);
+                var guard = authority.Check(pre.ExpectedGeneration);
                 context.NativeGeneration = guard.Snapshot.Generation;
                 if (!guard.Success) return new Operations.ExecuteReply { Failure = NativeAuthorityControlTools.Refusal(guard.Error, context) };
-                owner = new Authority.Owner { ControllerSessionId = guard.Snapshot.Lease!.ControllerSessionId, PlayerDirection = guard.Snapshot.Lease.PlayerDirection };
-                var admitted = state.Ledger.Admit("rimgovernor.operations.v1.Operations/Execute", request, context, owner);
+                var admitted = state.Ledger.Admit("rimgovernor.operations.v1.Operations/Execute", request, context);
                 if (admitted.Kind != NativeAttemptLedger.DecisionKind.Admitted) return admitted.Reply!;
                 handle = admitted.Handle;
                 // Track even partial application before mutating; a setter failure cannot erase a write.
                 state.ProductionPolicies.Add(pre.Attempt.Clone(), command.Clone());
                 using (authority.Owned())
                 {
-                    if (!authority.Check(pre.ExpectedGeneration, pre.LeaseId, pre.Attempt.ControllerSessionId).Success
+                    if (!authority.Check(pre.ExpectedGeneration).Success
                         || !Prepare(command, context, map, out var checkedFloors, out var checkedCommitments, out var checkedStopped, out var checkedDrills, out failure))
                         throw new InvalidOperationException("Production policy admission changed before effect.");
                     var before = Snapshot(map!, context);
@@ -229,13 +228,13 @@ namespace HomeBridge.BridgeTools
                     effect.InterruptedPawnIds.AddRange(interrupted);
                     evidence = new Receipts.EffectEvidence { ProductionPolicy = effect };
                 }
-                return new Operations.ExecuteReply { Receipt = NativeOperationEnvelope.Applied(state.Ledger, handle, pre.Attempt, context, owner, evidence) };
+                return new Operations.ExecuteReply { Receipt = NativeOperationEnvelope.Applied(state.Ledger, handle, pre.Attempt, context, evidence) };
             }
             catch (Exception error)
             {
                 return handle == null
                     ? new Operations.ExecuteReply { Failure = ProtoBoundary.Fail(Common.FailureCode.NativeFailure, "Production policy admission failed: " + error.GetType().Name) }
-                    : new Operations.ExecuteReply { Receipt = NativeOperationEnvelope.Uncertain(state.Ledger, handle, pre.Attempt, context, owner!, evidence!, "Admitted production policy requires observation: " + error.GetType().Name) };
+                    : new Operations.ExecuteReply { Receipt = NativeOperationEnvelope.Uncertain(state.Ledger, handle, pre.Attempt, context, evidence!, "Admitted production policy requires observation: " + error.GetType().Name) };
             }
         }
 

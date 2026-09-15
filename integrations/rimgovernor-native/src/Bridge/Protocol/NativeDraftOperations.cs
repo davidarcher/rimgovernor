@@ -3,7 +3,6 @@ using System;
 using System.Linq;
 using Verse;
 using Common = RimGovernor.Protocol.Common;
-using Authority = RimGovernor.Protocol.Authority;
 using Operations = RimGovernor.Protocol.Operations;
 using Receipts = RimGovernor.Protocol.Receipts;
 
@@ -33,7 +32,7 @@ namespace HomeBridge.BridgeTools
             result.CompleteInspection=true;
             bool matches=Matches(wanted,verified,current);
             var correlated=matches ? (wanted?current.Claim:releasedClaim) : null;
-            var effect=NativeDraftProtocol.Effect(current.PawnId,current.Drafted,current.Token,false,matches,correlated?.ClaimId,correlated?.Owner);
+            var effect=NativeDraftProtocol.Effect(current.PawnId,current.Drafted,current.Token,false,matches,correlated?.ClaimId);
             if(matches) result.Completed=new Receipts.CompletedEffect {Evidence=new Receipts.EffectEvidence {Job=effect}};
             else result.Unsuccessful=new Receipts.UnsuccessfulEffect {Reason=Receipts.UnsuccessfulReason.Interrupted,
                 Evidence=new Receipts.EffectEvidence {Job=effect},Detail="The current pawn state no longer matches the verified owned draft outcome."};
@@ -41,12 +40,12 @@ namespace HomeBridge.BridgeTools
         }
         // A later draft setter/order invalidates the claim. Matching a bool alone
         // cannot attribute a replacement draft to the original operation: the exact
-        // claim ID and owner (or, on release, the exact token) must still agree with
-        // what this operation verified, so any other pawn order that redrafts or
-        // releases the pawn in between is reported Interrupted, not Completed.
+        // claim ID (or, on release, the exact token) must still agree with what this
+        // operation verified, so any other pawn order that redrafts or releases the
+        // pawn in between is reported Interrupted, not Completed.
         internal static bool Matches(bool wanted,NativePawnSnapshot verified,NativePawnSnapshot current) =>
             wanted ? current.Drafted && current.Claim!=null && verified.Claim!=null
-                && current.Claim.ClaimId==verified.Claim.ClaimId && current.Claim.Owner.Equals(verified.Claim.Owner)
+                && current.Claim.ClaimId==verified.Claim.ClaimId
                 : !current.Drafted && current.Claim==null && current.Token==verified.Token;
     }
 
@@ -56,37 +55,36 @@ namespace HomeBridge.BridgeTools
         {
             var command=request.Operation.SetDrafted;var precondition=request.Precondition;
             if(!NativeDraftProtocol.Validate(command,out var failure)) return new Operations.ExecuteReply {Failure=failure};
-            NativeAttemptLedger.Admission? admitted=null;Authority.Owner? admittedOwner=null;
+            NativeAttemptLedger.Admission? admitted=null;
             Common.ObservationContext? admittedContext=null;
             try {
                 if(!Resolve(command.Pawn,context,out var identity,out var pawn,out var before,out failure))
                     return new Operations.ExecuteReply {Failure=failure};
                 if(!NativeControlAuthority.TryGetForGame(Current.Game,out var authority) || authority==null)
                     return Refuse(Common.FailureCode.AuthorityRequired,"Native authority is required.");
-                var guard=authority.Check(precondition.ExpectedGeneration,precondition.LeaseId,precondition.Attempt.ControllerSessionId);
+                var guard=authority.Check(precondition.ExpectedGeneration);
                 if(!guard.Success) return new Operations.ExecuteReply {Failure=NativeAuthorityControlTools.Refusal(guard.Error,context)};
-                var owner=new Authority.Owner {ControllerSessionId=guard.Snapshot.Lease!.ControllerSessionId,PlayerDirection=guard.Snapshot.Lease.PlayerDirection};
-                if(!Eligible(command,before!,owner,out failure)) return new Operations.ExecuteReply {Failure=failure};
+                if(!Eligible(command,before!,out failure)) return new Operations.ExecuteReply {Failure=failure};
                 if(!NativePawnControlState.IsReady) return Refuse(Common.FailureCode.Unavailable,"Native pawn control hooks are unavailable.");
-                guard=authority.Check(precondition.ExpectedGeneration,precondition.LeaseId,precondition.Attempt.ControllerSessionId);
+                guard=authority.Check(precondition.ExpectedGeneration);
                 context.NativeGeneration=guard.Snapshot.Generation;
                 if(!guard.Success) return new Operations.ExecuteReply {Failure=NativeAuthorityControlTools.Refusal(guard.Error,context)};
                 var check=NativePawnControlState.Check(identity!,pawn!,command.Pawn.ExpectedSnapshotToken,out before);
                 if(check!=NativePawnControlResult.Ready) return new Operations.ExecuteReply {Failure=NativeDraftProtocol.Failure(check,context)};
                 var admissionContext=context.Clone();
-                var admission=state.Ledger.Admit("rimgovernor.operations.v1.Operations/Execute",request,admissionContext,owner);
+                var admission=state.Ledger.Admit("rimgovernor.operations.v1.Operations/Execute",request,admissionContext);
                 if(admission.Kind!=NativeAttemptLedger.DecisionKind.Admitted) return admission.Reply!;
-                admitted=admission.Handle;admittedOwner=owner;admittedContext=admissionContext;
-                return Apply(state,request,admission.Handle!,admissionContext,owner,authority,identity!,pawn!,before!);
+                admitted=admission.Handle;admittedContext=admissionContext;
+                return Apply(state,request,admission.Handle!,admissionContext,authority,identity!,pawn!,before!);
             }
             catch(Exception error) {
                 return admitted==null ? Refuse(Common.FailureCode.NativeFailure,"Draft validation failed: "+error.GetType().Name)
-                    : Uncertain(state,admitted,precondition.Attempt,admittedContext!,admittedOwner!,null,"Admitted draft requires observation: "+error.GetType().Name);
+                    : Uncertain(state,admitted,precondition.Attempt,admittedContext!,null,"Admitted draft requires observation: "+error.GetType().Name);
             }
         }
 
         private static Operations.ExecuteReply Apply(NativeOperationState state,Operations.ExecuteRequest request,NativeAttemptLedger.Admission admission,
-            Common.ObservationContext context,Authority.Owner owner,NativeControlAuthority authority,NativeControlIdentity identity,Pawn pawn,NativePawnSnapshot before)
+            Common.ObservationContext context,NativeControlAuthority authority,NativeControlIdentity identity,Pawn pawn,NativePawnSnapshot before)
         {
             var command=request.Operation.SetDrafted;var pre=request.Precondition;
             var record=new NativeDraftRecord(identity,pawn,context,command.Drafted);
@@ -96,27 +94,27 @@ namespace HomeBridge.BridgeTools
                 using(authority.Owned()) {
                     if(command.Drafted && before.Drafted) {
                         var unchanged=NativePawnControlState.Check(identity,pawn,command.Pawn.ExpectedSnapshotToken,out after);
-                        if(unchanged!=NativePawnControlResult.Ready || after==null || !Eligible(command,after,owner,out _))
+                        if(unchanged!=NativePawnControlResult.Ready || after==null || !Eligible(command,after,out _))
                             throw new InvalidOperationException("Owned draft changed after admission.");
                         record.Confirm(after);
-                        var unchangedEvidence=new Receipts.EffectEvidence {Job=NativeDraftProtocol.Effect(after.PawnId,true,after.Token,false,true,after.Claim!.ClaimId,after.Claim.Owner)};
-                        var candidate=new Receipts.Receipt {Attempt=pre.Attempt,AdmittedContext=context,AuthorizingOwner=owner,
+                        var unchangedEvidence=new Receipts.EffectEvidence {Job=NativeDraftProtocol.Effect(after.PawnId,true,after.Token,false,true,after.Claim!.ClaimId)};
+                        var candidate=new Receipts.Receipt {Attempt=pre.Attempt,AdmittedContext=context,
                             NoChange=new Receipts.NoChange {Observed=unchangedEvidence,Detail="The exact current claim already owns this draft."}};
                         if(!NativeOperationEnvelope.Fits(new Operations.ExecuteReply {Receipt=candidate})) throw new InvalidOperationException("Draft receipt cannot be encoded.");
                         return new Operations.ExecuteReply {Receipt=state.Ledger.FinishNoChange(admission,unchangedEvidence,candidate.NoChange.Detail)};
                     }
                     NativeDraftClaimTicket? claim=null;NativeDraftReleaseTicket? release=null;
                     var prepared=command.Drafted
-                        ? NativePawnControlState.PrepareClaim(identity,pawn,command.Pawn.ExpectedSnapshotToken,owner,out claim,out after)
-                        : NativePawnControlState.PrepareRelease(identity,pawn,command.Pawn.ExpectedSnapshotToken,before.Claim!.ClaimId,owner,out release,out after);
+                        ? NativePawnControlState.PrepareClaim(identity,pawn,command.Pawn.ExpectedSnapshotToken,out claim,out after)
+                        : NativePawnControlState.PrepareRelease(identity,pawn,command.Pawn.ExpectedSnapshotToken,before.Claim!.ClaimId,out release,out after);
                     if(prepared!=NativePawnControlResult.Ready) throw new InvalidOperationException("Draft preparation changed after admission: "+prepared);
                     try {
-                        var current=authority.Check(pre.ExpectedGeneration,pre.LeaseId,pre.Attempt.ControllerSessionId);
+                        var current=authority.Check(pre.ExpectedGeneration);
                         if(!current.Success || !NativePawnControlState.IsReady) throw new InvalidOperationException("Draft authority or hook health changed before effect.");
                         if(NativePawnControlState.Check(identity,pawn,command.Pawn.ExpectedSnapshotToken,out _)!=NativePawnControlResult.Ready)
                             throw new InvalidOperationException("Pawn snapshot changed before effect.");
                         // No await or secondary operation may occur between guard and setter.
-                        current=authority.Check(pre.ExpectedGeneration,pre.LeaseId,pre.Attempt.ControllerSessionId);
+                        current=authority.Check(pre.ExpectedGeneration);
                         if(!current.Success) throw new InvalidOperationException("Draft authority expired before effect.");
                         issued=true;pawn.drafter.Drafted=command.Drafted;
                     }
@@ -128,14 +126,14 @@ namespace HomeBridge.BridgeTools
                     if(!verified && effectError==null) effectError=new InvalidOperationException("Draft outcome could not be certified: "+completed);
                 }
                 var job=after==null?null:NativeDraftProtocol.Effect(after.PawnId,after.Drafted,after.Token,issued,verified,
-                    command.Drafted?after.Claim?.ClaimId:before.Claim?.ClaimId,command.Drafted?after.Claim?.Owner:before.Claim?.Owner);
+                    command.Drafted?after.Claim?.ClaimId:before.Claim?.ClaimId);
                 var evidence=job==null?null:new Receipts.EffectEvidence {Job=job};
-                if(effectError!=null || !verified) return Uncertain(state,admission,pre.Attempt,context,owner,evidence,"Admitted draft requires observation: "+(effectError?.GetType().Name??"unverified"));
-                return new Operations.ExecuteReply {Receipt=NativeOperationEnvelope.Applied(state.Ledger,admission,pre.Attempt,context,owner,evidence!)};
+                if(effectError!=null || !verified) return Uncertain(state,admission,pre.Attempt,context,evidence,"Admitted draft requires observation: "+(effectError?.GetType().Name??"unverified"));
+                return new Operations.ExecuteReply {Receipt=NativeOperationEnvelope.Applied(state.Ledger,admission,pre.Attempt,context,evidence!)};
             }
             catch(Exception error) {
-                var evidence=after==null?null:new Receipts.EffectEvidence {Job=NativeDraftProtocol.Effect(after.PawnId,after.Drafted,after.Token,issued,false,after.Claim?.ClaimId,after.Claim?.Owner)};
-                return Uncertain(state,admission,pre.Attempt,context,owner,evidence,"Admitted draft requires observation: "+error.GetType().Name);
+                var evidence=after==null?null:new Receipts.EffectEvidence {Job=NativeDraftProtocol.Effect(after.PawnId,after.Drafted,after.Token,issued,false,after.Claim?.ClaimId)};
+                return Uncertain(state,admission,pre.Attempt,context,evidence,"Admitted draft requires observation: "+error.GetType().Name);
             }
         }
 
@@ -145,7 +143,11 @@ namespace HomeBridge.BridgeTools
             try {
                 if(!Resolve(command.Pawn,context,out _,out _,out var snapshot,out failure)) return new Operations.PreviewReply {Failure=failure};
                 bool accepted=command.Drafted ? snapshot!.Eligible && (!snapshot.Drafted || snapshot.Claim!=null) : snapshot!.Drafted && snapshot.Claim!=null;
-                if(command.HasExpectedDraftOwner && snapshot.Claim?.Owner.ControllerSessionId!=command.ExpectedDraftOwner) accepted=false;
+                // ExpectedDraftOwner's post-refactor semantics are not documented on the wire;
+                // treated here as an expected claim ID, the only remaining ownership token a
+                // claim carries once Authority.Owner was removed (mirrors ExpectedClaimId on
+                // ReleaseOwnedDraftRequest). Flagged as an interpretive, unconfirmed choice.
+                if(command.HasExpectedDraftOwner && snapshot.Claim?.ClaimId!=command.ExpectedDraftOwner) accepted=false;
                 return NativeOperationEnvelope.Preview(new Operations.PreviewReply {Evaluated=new Operations.PreviewEvaluation {
                     Context=context.Clone(),Accepted=accepted,Reason=accepted?"Execution still requires current matching authority.":"Native pawn eligibility or draft claim does not match.",
                     Projected=new Receipts.EffectEvidence {Job=new Receipts.JobEffect {PawnId=snapshot.PawnId,Drafted=command.Drafted,CanTry=accepted,Issued=false,Verified=false}}}});
@@ -163,7 +165,7 @@ namespace HomeBridge.BridgeTools
                 var identity=new NativeControlIdentity(Current.Game,Find.CurrentMap,context.Identity.ColonyId,context.Identity.LoadToken);
                 var pawn=FindPawn(Find.CurrentMap,request.Pawn.EntityId);
                 if(pawn==null) return new Operations.ReleaseOwnedDraftReply {Failure=ProtoBoundary.Fail(Common.FailureCode.NotFound,"Exact pawn is not spawned on the current map.")};
-                var prepared=NativePawnControlState.PrepareRelease(identity,pawn,request.Pawn.ExpectedSnapshotToken,request.ExpectedClaimId,request.OriginalOwner,out ticket,out observed);
+                var prepared=NativePawnControlState.PrepareRelease(identity,pawn,request.Pawn.ExpectedSnapshotToken,request.ExpectedClaimId,out ticket,out observed);
                 if(prepared==NativePawnControlResult.AlreadyReleased && observed!=null)
                     return new Operations.ReleaseOwnedDraftReply {AlreadyReleased=Released(request,context,observed,false)};
                 if(prepared==NativePawnControlResult.Uncertain) return ReleaseUncertain(request,context,"The exact cleanup was previously admitted and is still uncertain; no second setter was issued.");
@@ -194,7 +196,7 @@ namespace HomeBridge.BridgeTools
         private static Operations.DraftRelease Released(Operations.ReleaseOwnedDraftRequest request,Common.ObservationContext context,NativePawnSnapshot snapshot,bool issued)
         {
             var result=new Operations.DraftRelease {Request=request.Clone(),Context=context.Clone(),
-                Observed=NativeDraftProtocol.Effect(snapshot.PawnId,snapshot.Drafted,snapshot.Token,issued,true,request.ExpectedClaimId,request.OriginalOwner)};
+                Observed=NativeDraftProtocol.Effect(snapshot.PawnId,snapshot.Drafted,snapshot.Token,issued,true,request.ExpectedClaimId)};
             if(snapshot.Drafted || snapshot.Claim!=null || !NativeOperationEnvelope.Fits(new Operations.ReleaseOwnedDraftReply {Released=result}))
                 throw new InvalidOperationException("Cleanup readback is not a complete encodable undraft.");
             return result;
@@ -221,18 +223,22 @@ namespace HomeBridge.BridgeTools
             if(matching.Length>1) throw new InvalidOperationException("Native pawn ID is ambiguous.");
             return matching.SingleOrDefault();
         }
-        internal static bool Eligible(Operations.SetDrafted command,NativePawnSnapshot snapshot,Authority.Owner owner,out Common.Failure failure)
+        // Ownership is now proven purely by claim existence: with exactly one
+        // bot actor, any live NativeDraftClaim on the pawn was created by this
+        // adapter under NativeControlAuthority's Owned() scope, so there is no
+        // separate owner token left to compare (mirrors NativeMovementOperations.Owns()).
+        internal static bool Eligible(Operations.SetDrafted command,NativePawnSnapshot snapshot,out Common.Failure failure)
         {
-            failure=ProtoBoundary.Fail(Common.FailureCode.OwnerConflict,"Draft owner/claim does not match the exact current authorizing owner.");
-            if(command.HasExpectedDraftOwner && snapshot.Claim?.Owner.ControllerSessionId!=command.ExpectedDraftOwner) return false;
-            if(snapshot.Drafted && (snapshot.Claim==null || !NativeDraftProtocol.SameOwner(snapshot.Claim.Owner,owner))) return false;
-            if(!command.Drafted) return snapshot.Drafted && snapshot.Claim!=null && NativeDraftProtocol.SameOwner(snapshot.Claim.Owner,owner);
+            failure=ProtoBoundary.Fail(Common.FailureCode.OwnerConflict,"Draft claim does not match the exact current admitted claim.");
+            if(command.HasExpectedDraftOwner && snapshot.Claim?.ClaimId!=command.ExpectedDraftOwner) return false;
+            if(snapshot.Drafted && snapshot.Claim==null) return false;
+            if(!command.Drafted) return snapshot.Drafted && snapshot.Claim!=null;
             if(!snapshot.Eligible) {failure=ProtoBoundary.Fail(Common.FailureCode.InvalidRequest,"Pawn is not currently eligible for ordinary native drafting.");return false;}
             return !snapshot.Drafted || snapshot.Claim!=null;
         }
         private static Operations.ExecuteReply Refuse(Common.FailureCode code,string detail)=>new Operations.ExecuteReply {Failure=ProtoBoundary.Fail(code,detail)};
         private static Operations.ExecuteReply Uncertain(NativeOperationState state,NativeAttemptLedger.Admission admission,Common.AttemptKey attempt,
-            Common.ObservationContext context,Authority.Owner owner,Receipts.EffectEvidence? evidence,string detail)=>new Operations.ExecuteReply {
-                Receipt=NativeOperationEnvelope.Uncertain(state.Ledger,admission,attempt,context,owner,evidence!,detail)};
+            Common.ObservationContext context,Receipts.EffectEvidence? evidence,string detail)=>new Operations.ExecuteReply {
+                Receipt=NativeOperationEnvelope.Uncertain(state.Ledger,admission,attempt,context,evidence!,detail)};
     }
 }

@@ -190,7 +190,7 @@ namespace HomeBridge.BridgeTools
             var command = request.Operation.QueueSurgery; var pre = request.Precondition;
             if (!Valid(command))
                 return Refuse(Common.FailureCode.InvalidRequest, "Surgery requires an exact patient, exact recipe defName and a whole-body or exact body part index.");
-            NativeAttemptLedger.Admission? handle = null; Authority.Owner? owner = null; Receipts.EffectEvidence? evidence = null;
+            NativeAttemptLedger.Admission? handle = null; Receipts.EffectEvidence? evidence = null;
             try
             {
                 if (!Prepare(command, context, true, out var identity, out var pawn, out var recipe, out var part, out var health, out var care, out var failure))
@@ -199,16 +199,15 @@ namespace HomeBridge.BridgeTools
                     return Refuse(Common.FailureCode.InvalidRequest, reason);
                 if (!NativeControlAuthority.TryGetForGame(Current.Game, out var authority) || authority == null)
                     return Refuse(Common.FailureCode.AuthorityRequired, "Current native authority is required.");
-                var guard = authority.Check(pre.ExpectedGeneration, pre.LeaseId, pre.Attempt.ControllerSessionId);
+                var guard = authority.Check(pre.ExpectedGeneration);
                 context.NativeGeneration = guard.Snapshot.Generation;
                 if (!guard.Success) return new Operations.ExecuteReply { Failure = NativeAuthorityControlTools.Refusal(guard.Error, context) };
-                owner = new Authority.Owner { ControllerSessionId = guard.Snapshot.Lease!.ControllerSessionId, PlayerDirection = guard.Snapshot.Lease.PlayerDirection };
-                guard = authority.Check(pre.ExpectedGeneration, pre.LeaseId, pre.Attempt.ControllerSessionId);
+                guard = authority.Check(pre.ExpectedGeneration);
                 if (!guard.Success) return new Operations.ExecuteReply { Failure = NativeAuthorityControlTools.Refusal(guard.Error, context) };
                 if (!Prepare(command, context, true, out identity, out pawn, out recipe, out part, out health, out care, out failure)
                     || !Eligible(pawn!, recipe!, part, Find.CurrentMap, out reason))
                     return new Operations.ExecuteReply { Failure = failure ?? ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, reason) };
-                var admission = state.Ledger.Admit("rimgovernor.operations.v1.Operations/Execute", request, context, owner);
+                var admission = state.Ledger.Admit("rimgovernor.operations.v1.Operations/Execute", request, context);
                 if (admission.Kind != NativeAttemptLedger.DecisionKind.Admitted) return admission.Reply!;
                 handle = admission.Handle!;
                 using (authority.Owned())
@@ -217,7 +216,7 @@ namespace HomeBridge.BridgeTools
                         || !Prepare(command, context, true, out identity, out pawn, out recipe, out part, out health, out care, out failure)
                         || !Eligible(pawn!, recipe!, part, Find.CurrentMap, out reason))
                         throw new InvalidOperationException("Surgery prerequisites changed after admission.");
-                    guard = authority.Check(pre.ExpectedGeneration, pre.LeaseId, pre.Attempt.ControllerSessionId);
+                    guard = authority.Check(pre.ExpectedGeneration);
                     if (!guard.Success) throw new InvalidOperationException("Surgery authority changed before native effect.");
                     if (!Find.TickManager.Paused) throw new InvalidOperationException("Queueing requires the game to be paused.");
                     var bill = HealthCardUtility.CreateSurgeryBill(pawn!, recipe, part);
@@ -227,13 +226,13 @@ namespace HomeBridge.BridgeTools
                     state.Surgeries.Add(pre.Attempt.Clone(), record);
                     evidence = record.Evidence(health, true);
                 }
-                return new Operations.ExecuteReply { Receipt = NativeOperationEnvelope.Applied(state.Ledger, handle, pre.Attempt, context, owner, evidence) };
+                return new Operations.ExecuteReply { Receipt = NativeOperationEnvelope.Applied(state.Ledger, handle, pre.Attempt, context, evidence) };
             }
             catch (Exception error)
             {
                 return handle == null
                     ? Refuse(Common.FailureCode.NativeFailure, "Surgery validation failed: " + error.GetType().Name)
-                    : new Operations.ExecuteReply { Receipt = NativeOperationEnvelope.Uncertain(state.Ledger, handle, pre.Attempt, context, owner!, evidence!, "Admitted surgery requires observation: " + error.GetType().Name) };
+                    : new Operations.ExecuteReply { Receipt = NativeOperationEnvelope.Uncertain(state.Ledger, handle, pre.Attempt, context, evidence!, "Admitted surgery requires observation: " + error.GetType().Name) };
             }
         }
 

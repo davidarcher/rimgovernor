@@ -116,18 +116,17 @@ namespace HomeBridge.BridgeTools
             var command = request.Operation.PawnTargetOrder; var pre = request.Precondition;
             if (!Valid(command))
                 return Refuse(Common.FailureCode.InvalidRequest, "Equip requires an exact pawn, exact equippable target and require_safe_storage:false.");
-            NativeAttemptLedger.Admission? handle = null; Authority.Owner? owner = null; Receipts.EffectEvidence? evidence = null;
+            NativeAttemptLedger.Admission? handle = null; Receipts.EffectEvidence? evidence = null;
             try
             {
                 if (!Prepare(command, context, out var identity, out var pawn, out var weapon, out var snapshot, out var failure))
                     return new Operations.ExecuteReply { Failure = failure };
                 if (!NativeControlAuthority.TryGetForGame(Current.Game, out var authority) || authority == null)
                     return Refuse(Common.FailureCode.AuthorityRequired, "Current native authority is required.");
-                var guard = authority.Check(pre.ExpectedGeneration, pre.LeaseId, pre.Attempt.ControllerSessionId);
+                var guard = authority.Check(pre.ExpectedGeneration);
                 context.NativeGeneration = guard.Snapshot.Generation;
                 if (!guard.Success) return new Operations.ExecuteReply { Failure = NativeAuthorityControlTools.Refusal(guard.Error, context) };
-                owner = new Authority.Owner { ControllerSessionId = guard.Snapshot.Lease!.ControllerSessionId, PlayerDirection = guard.Snapshot.Lease.PlayerDirection };
-                var admission = state.Ledger.Admit("rimgovernor.operations.v1.Operations/Execute", request, context, owner);
+                var admission = state.Ledger.Admit("rimgovernor.operations.v1.Operations/Execute", request, context);
                 if (admission.Kind != NativeAttemptLedger.DecisionKind.Admitted) return admission.Reply!;
                 handle = admission.Handle!;
                 bool accepted = false; Exception? effectError = null;
@@ -135,7 +134,7 @@ namespace HomeBridge.BridgeTools
                 {
                     if (!NativePawnControlState.IsReady || !Prepare(command, context, out identity, out pawn, out weapon, out snapshot, out failure))
                         throw new InvalidOperationException("Equip prerequisites changed after admission.");
-                    guard = authority.Check(pre.ExpectedGeneration, pre.LeaseId, pre.Attempt.ControllerSessionId);
+                    guard = authority.Check(pre.ExpectedGeneration);
                     if (!guard.Success) throw new InvalidOperationException("Equip authority changed before native effect.");
                     var job = JobMaker.MakeJob(JobDefOf.Equip, weapon);
                     var record = new NativeEquipRecord(identity, pawn!, weapon!, job, context);
@@ -152,13 +151,13 @@ namespace HomeBridge.BridgeTools
                     evidence = record.Evidence(snapshot, accepted, correlated);
                     if (effectError != null || !accepted || !correlated) throw new InvalidOperationException("Native equip order requires causal observation.", effectError);
                 }
-                return new Operations.ExecuteReply { Receipt = NativeOperationEnvelope.Applied(state.Ledger, handle, pre.Attempt, context, owner, evidence) };
+                return new Operations.ExecuteReply { Receipt = NativeOperationEnvelope.Applied(state.Ledger, handle, pre.Attempt, context, evidence) };
             }
             catch (Exception error)
             {
                 return handle == null
                     ? Refuse(Common.FailureCode.NativeFailure, "Equip validation failed: " + error.GetType().Name)
-                    : new Operations.ExecuteReply { Receipt = NativeOperationEnvelope.Uncertain(state.Ledger, handle, pre.Attempt, context, owner!, evidence!, "Admitted equip order requires observation: " + error.GetType().Name) };
+                    : new Operations.ExecuteReply { Receipt = NativeOperationEnvelope.Uncertain(state.Ledger, handle, pre.Attempt, context, evidence!, "Admitted equip order requires observation: " + error.GetType().Name) };
             }
         }
 

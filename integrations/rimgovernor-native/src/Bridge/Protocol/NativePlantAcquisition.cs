@@ -87,37 +87,36 @@ namespace HomeBridge.BridgeTools
         {
             if (NativeHuntAcquisition.IsHunt(request.Operation.AcquireResource)) return NativeHuntAcquisition.Execute(state, request, context);
             if (NativeMineAcquisition.IsMine(request.Operation.AcquireResource)) return NativeMineAcquisition.Execute(state, request, context);
-            NativeAttemptLedger.Admission? handle = null; Authority.Owner? owner = null; Receipts.EffectEvidence? evidence = null;
+            NativeAttemptLedger.Admission? handle = null; Receipts.EffectEvidence? evidence = null;
             var pre = request.Precondition; var command = request.Operation.AcquireResource;
             try
             {
                 if (!Prepare(command, context, out var plant, out var failure)) return new Operations.ExecuteReply { Failure = failure };
                 if (!NativeControlAuthority.TryGetForGame(Current.Game, out var authority) || authority == null)
                     return new Operations.ExecuteReply { Failure = ProtoBoundary.Fail(Common.FailureCode.AuthorityRequired, "Native authority is required.") };
-                var guard = authority.Check(pre.ExpectedGeneration, pre.LeaseId, pre.Attempt.ControllerSessionId);
+                var guard = authority.Check(pre.ExpectedGeneration);
                 context.NativeGeneration = guard.Snapshot.Generation;
                 if (!guard.Success) return new Operations.ExecuteReply { Failure = NativeAuthorityControlTools.Refusal(guard.Error, context) };
-                owner = new Authority.Owner { ControllerSessionId = guard.Snapshot.Lease!.ControllerSessionId, PlayerDirection = guard.Snapshot.Lease.PlayerDirection };
-                var admitted = state.Ledger.Admit("rimgovernor.operations.v1.Operations/Execute", request, context, owner);
+                var admitted = state.Ledger.Admit("rimgovernor.operations.v1.Operations/Execute", request, context);
                 if (admitted.Kind != NativeAttemptLedger.DecisionKind.Admitted) return admitted.Reply!;
                 handle = admitted.Handle;
                 var record = new NativeAcquisitionRecord(plant!);
                 state.Acquisition.Add(pre.Attempt.Clone(), record);
                 using (authority.Owned())
                 {
-                    if (!authority.Check(pre.ExpectedGeneration, pre.LeaseId, pre.Attempt.ControllerSessionId).Success
+                    if (!authority.Check(pre.ExpectedGeneration).Success
                         || !Prepare(command, context, out var checkedPlant, out failure) || !ReferenceEquals(plant, checkedPlant)
                         || !NativeAcquisitionTracking.Track(record)) throw new InvalidOperationException("Acquisition changed before designation.");
                     ResourceAcquisitionTools.DesignatorFor(plant!).DesignateThing(plant);
                     evidence = new Receipts.EffectEvidence { Acquisition = record.Evidence() };
                     if (!evidence.Acquisition.Designated) throw new InvalidOperationException("Native acquisition designation was not observed.");
                 }
-                return new Operations.ExecuteReply { Receipt = NativeOperationEnvelope.Applied(state.Ledger, handle, pre.Attempt, context, owner, evidence) };
+                return new Operations.ExecuteReply { Receipt = NativeOperationEnvelope.Applied(state.Ledger, handle, pre.Attempt, context, evidence) };
             }
             catch (Exception error)
             {
                 return handle == null ? new Operations.ExecuteReply { Failure = ProtoBoundary.Fail(Common.FailureCode.NativeFailure, "Acquisition admission failed: " + error.GetType().Name) }
-                    : new Operations.ExecuteReply { Receipt = NativeOperationEnvelope.Uncertain(state.Ledger, handle, pre.Attempt, context, owner!, evidence!, "Admitted acquisition requires observation: " + error.GetType().Name) };
+                    : new Operations.ExecuteReply { Receipt = NativeOperationEnvelope.Uncertain(state.Ledger, handle, pre.Attempt, context, evidence!, "Admitted acquisition requires observation: " + error.GetType().Name) };
             }
         }
     }

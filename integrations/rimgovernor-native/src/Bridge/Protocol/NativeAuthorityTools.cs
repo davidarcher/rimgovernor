@@ -13,7 +13,7 @@ namespace HomeBridge.BridgeTools
     {
         private const string ToolName = "rimgovernor/authority_read_status";
 
-        [Tool(ToolName, Title = "Read native control authority", Description = "Read current native authority without acquiring or renewing control. request is official ProtoJSON for rimgovernor.authority.v1.StatusRequest.")]
+        [Tool(ToolName, Title = "Read native control authority", Description = "Read current native authority without changing mode. request is official ProtoJSON for rimgovernor.authority.v1.StatusRequest.")]
         [ToolResponse("payload", "string", "Official ProtoJSON rimgovernor.authority.v1.StatusReply.", Always = true)]
         public async Task<object> ReadStatus(IRimBridgeContext ctx, CancellationToken cancellationToken,
             [ToolParameter(Description = "Official ProtoJSON StatusRequest with exact colony/load/map identity.")] object? request = null)
@@ -44,7 +44,7 @@ namespace HomeBridge.BridgeTools
             }, cancellationToken);
         }
 
-        // This projection does not initialize hooks, grant authority or disclose the lease secret.
+        // This projection does not initialize hooks or grant authority.
         internal static Authority.Status Project(NativeControlSnapshot snapshot, Common.ObservationContext context)
         {
             var status = new Authority.Status { Context = context.Clone() };
@@ -54,17 +54,9 @@ namespace HomeBridge.BridgeTools
                 status.Unavailable = Unavailable(snapshot);
                 return status;
             }
-            if (snapshot.Lease != null)
+            if (snapshot.Active)
             {
-                status.Active = new Authority.ActiveAuthority
-                {
-                    Owner = new Authority.Owner
-                    {
-                        ControllerSessionId = snapshot.Lease.ControllerSessionId,
-                        PlayerDirection = snapshot.Lease.PlayerDirection
-                    },
-                    RemainingLeaseMs = checked((uint)snapshot.RemainingLeaseMs)
-                };
+                status.Active = new Authority.ActiveAuthority { Mode = Authority.Mode.Auto };
                 return status;
             }
             if (TryReason(snapshot.Reason, out var reason))
@@ -93,21 +85,24 @@ namespace HomeBridge.BridgeTools
             }
         }
 
+        // ClockUnavailable is internal-only and unreachable while Available (a clock
+        // fault permanently clears Available); it maps to the wire's generic
+        // Unavailable=10 value, which the proto documents as covering exactly this
+        // kind of terminal "not active, not a detected player action" reason.
         private static bool TryReason(NativeControlRevocationReason source, out Authority.RevocationReason result)
         {
             switch (source)
             {
                 case NativeControlRevocationReason.None: result = Authority.RevocationReason.None; return true;
                 case NativeControlRevocationReason.Manual: result = Authority.RevocationReason.Manual; return true;
-                case NativeControlRevocationReason.PlayerDirection: result = Authority.RevocationReason.PlayerDirection; return true;
                 case NativeControlRevocationReason.ExternalOrder: result = Authority.RevocationReason.ExternalOrder; return true;
                 case NativeControlRevocationReason.PlayerControl: result = Authority.RevocationReason.PlayerControl; return true;
-                case NativeControlRevocationReason.LeaseExpired: result = Authority.RevocationReason.LeaseExpired; return true;
                 case NativeControlRevocationReason.IdentityChanged: result = Authority.RevocationReason.IdentityChanged; return true;
                 case NativeControlRevocationReason.Disconnect: result = Authority.RevocationReason.Disconnect; return true;
                 case NativeControlRevocationReason.Shutdown: result = Authority.RevocationReason.Shutdown; return true;
                 case NativeControlRevocationReason.HooksUnavailable: result = Authority.RevocationReason.HooksUnavailable; return true;
                 case NativeControlRevocationReason.GenerationExhausted: result = Authority.RevocationReason.GenerationExhausted; return true;
+                case NativeControlRevocationReason.ClockUnavailable: result = Authority.RevocationReason.Unavailable; return true;
                 default: result = Authority.RevocationReason.Unspecified; return false;
             }
         }

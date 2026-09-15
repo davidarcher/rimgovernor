@@ -13,7 +13,6 @@ using Common=RimGovernor.Protocol.Common;
 using Obs=RimGovernor.Protocol.Observations;
 using Operations=RimGovernor.Protocol.Operations;
 using Receipts=RimGovernor.Protocol.Receipts;
-using Authority=RimGovernor.Protocol.Authority;
 namespace HomeBridge.BridgeTools {
  internal static class NativeProductionBills {
   internal static string Hash(Action<BinaryWriter> write){using(var bytes=new MemoryStream()){using(var writer=new BinaryWriter(bytes,Encoding.UTF8,true))write(writer);using(var hash=SHA256.Create())return "bill-"+BitConverter.ToString(hash.ComputeHash(bytes.ToArray())).Replace("-","").ToLowerInvariant();}}
@@ -54,14 +53,14 @@ namespace HomeBridge.BridgeTools {
   }
   internal static Operations.PreviewReply Preview(Operations.AddBill command,Common.ObservationContext context)=>Prepare(command,context,out _,out _,out _,out var failure)?new Operations.PreviewReply{Evaluated=new Operations.PreviewEvaluation{Context=context.Clone(),Accepted=true}}:new Operations.PreviewReply{Failure=failure};
   internal static Operations.ExecuteReply Execute(NativeOperationState state,Operations.ExecuteRequest request,Common.ObservationContext context){
-   NativeAttemptLedger.Admission? handle=null;Authority.Owner? owner=null;Receipts.EffectEvidence? evidence=null;var pre=request.Precondition;var command=request.Operation.AddBill;
+   NativeAttemptLedger.Admission? handle=null;Receipts.EffectEvidence? evidence=null;var pre=request.Precondition;var command=request.Operation.AddBill;
    try{
     if(!Prepare(command,context,out var bench,out var giver,out var recipe,out var failure))return new Operations.ExecuteReply{Failure=failure};
     if(!NativeControlAuthority.TryGetForGame(Current.Game,out var authority)||authority==null)return new Operations.ExecuteReply{Failure=ProtoBoundary.Fail(Common.FailureCode.AuthorityRequired,"Native authority required.")};
-    var guard=authority.Check(pre.ExpectedGeneration,pre.LeaseId,pre.Attempt.ControllerSessionId);context.NativeGeneration=guard.Snapshot.Generation;if(!guard.Success)return new Operations.ExecuteReply{Failure=NativeAuthorityControlTools.Refusal(guard.Error,context)};
-    owner=new Authority.Owner{ControllerSessionId=guard.Snapshot.Lease!.ControllerSessionId,PlayerDirection=guard.Snapshot.Lease.PlayerDirection};var admitted=state.Ledger.Admit("rimgovernor.operations.v1.Operations/Execute",request,context,owner);if(admitted.Kind!=NativeAttemptLedger.DecisionKind.Admitted)return admitted.Reply!;handle=admitted.Handle;
+    var guard=authority.Check(pre.ExpectedGeneration);context.NativeGeneration=guard.Snapshot.Generation;if(!guard.Success)return new Operations.ExecuteReply{Failure=NativeAuthorityControlTools.Refusal(guard.Error,context)};
+    var admitted=state.Ledger.Admit("rimgovernor.operations.v1.Operations/Execute",request,context);if(admitted.Kind!=NativeAttemptLedger.DecisionKind.Admitted)return admitted.Reply!;handle=admitted.Handle;
     using(authority.Owned()){
-     if(!authority.Check(pre.ExpectedGeneration,pre.LeaseId,pre.Attempt.ControllerSessionId).Success||!Prepare(command,context,out bench,out giver,out recipe,out failure))throw new InvalidOperationException("Bill scope changed");
+     if(!authority.Check(pre.ExpectedGeneration).Success||!Prepare(command,context,out bench,out giver,out recipe,out failure))throw new InvalidOperationException("Bill scope changed");
      var bill=recipe!.MakeNewBill(null) as Bill_Production;if(bill==null)throw new InvalidOperationException("Recipe is not ordinary production");
      var s=command.Settings;bill.repeatMode=s.RepeatMode==Operations.RepeatMode.Forever?BillRepeatModeDefOf.Forever:BillRepeatModeDefOf.TargetCount;
      if(s.RepeatMode==Operations.RepeatMode.Target){bill.targetCount=s.TargetCount;bill.unpauseWhenYouHave=s.UnpauseThreshold;bill.pauseWhenSatisfied=true;}
@@ -70,8 +69,8 @@ namespace HomeBridge.BridgeTools {
      state.Bills.Add(pre.Attempt.Clone(),record);if(!NativeProductionTracking.Track(record))throw new InvalidOperationException("Production tracking unavailable");giver!.BillStack.AddBill(bill);record.Capture();
      evidence=new Receipts.EffectEvidence{Bill=record.Evidence(context)};
     }
-    return new Operations.ExecuteReply{Receipt=NativeOperationEnvelope.Applied(state.Ledger,handle,pre.Attempt,context,owner,evidence)};
-   }catch(Exception error){return handle==null?new Operations.ExecuteReply{Failure=ProtoBoundary.Fail(Common.FailureCode.NativeFailure,"Bill admission failed: "+error.GetType().Name)}:new Operations.ExecuteReply{Receipt=NativeOperationEnvelope.Uncertain(state.Ledger,handle,pre.Attempt,context,owner!,evidence!,"Production needs inspection: "+error.GetType().Name)};}
+    return new Operations.ExecuteReply{Receipt=NativeOperationEnvelope.Applied(state.Ledger,handle,pre.Attempt,context,evidence)};
+   }catch(Exception error){return handle==null?new Operations.ExecuteReply{Failure=ProtoBoundary.Fail(Common.FailureCode.NativeFailure,"Bill admission failed: "+error.GetType().Name)}:new Operations.ExecuteReply{Receipt=NativeOperationEnvelope.Uncertain(state.Ledger,handle,pre.Attempt,context,evidence!,"Production needs inspection: "+error.GetType().Name)};}
   }
  }
 }

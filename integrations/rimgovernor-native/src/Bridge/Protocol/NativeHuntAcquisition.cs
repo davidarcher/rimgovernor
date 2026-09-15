@@ -113,34 +113,33 @@ namespace HomeBridge.BridgeTools
         }
         internal static Operations.ExecuteReply Execute(NativeOperationState state, Operations.ExecuteRequest request, Common.ObservationContext context)
         {
-            NativeAttemptLedger.Admission? handle = null; Authority.Owner? owner = null; Receipts.EffectEvidence? evidence = null;
+            NativeAttemptLedger.Admission? handle = null; Receipts.EffectEvidence? evidence = null;
             var pre = request.Precondition; var command = request.Operation.AcquireResource;
             try
             {
                 if (!Prepare(command, context, out var prey, out var failure)) return new Operations.ExecuteReply { Failure = failure };
                 if (!NativeControlAuthority.TryGetForGame(Current.Game, out var authority) || authority == null)
                     return new Operations.ExecuteReply { Failure = ProtoBoundary.Fail(Common.FailureCode.AuthorityRequired, "Native authority is required.") };
-                var guard = authority.Check(pre.ExpectedGeneration, pre.LeaseId, pre.Attempt.ControllerSessionId);
+                var guard = authority.Check(pre.ExpectedGeneration);
                 context.NativeGeneration = guard.Snapshot.Generation;
                 if (!guard.Success) return new Operations.ExecuteReply { Failure = NativeAuthorityControlTools.Refusal(guard.Error, context) };
-                owner = new Authority.Owner { ControllerSessionId = guard.Snapshot.Lease!.ControllerSessionId, PlayerDirection = guard.Snapshot.Lease.PlayerDirection };
-                var admitted = state.Ledger.Admit("rimgovernor.operations.v1.Operations/Execute", request, context, owner);
+                var admitted = state.Ledger.Admit("rimgovernor.operations.v1.Operations/Execute", request, context);
                 if (admitted.Kind != NativeAttemptLedger.DecisionKind.Admitted) return admitted.Reply!;
                 handle = admitted.Handle;
                 var record = new NativeHuntRecord(prey!); state.Acquisition.Add(pre.Attempt.Clone(), record);
                 using (authority.Owned())
                 {
-                    if (!authority.Check(pre.ExpectedGeneration, pre.LeaseId, pre.Attempt.ControllerSessionId).Success
+                    if (!authority.Check(pre.ExpectedGeneration).Success
                         || !Prepare(command, context, out var checkedPrey, out failure) || !ReferenceEquals(prey, checkedPrey)) throw new InvalidOperationException("Hunting changed before designation.");
                     new Designator_Hunt().DesignateThing(prey);
                     evidence = new Receipts.EffectEvidence { Acquisition = record.Evidence() };
                     if (!evidence.Acquisition.Designated) throw new InvalidOperationException("Hunt designation was not observed.");
                 }
-                return new Operations.ExecuteReply { Receipt = NativeOperationEnvelope.Applied(state.Ledger, handle, pre.Attempt, context, owner, evidence) };
+                return new Operations.ExecuteReply { Receipt = NativeOperationEnvelope.Applied(state.Ledger, handle, pre.Attempt, context, evidence) };
             }
             catch (Exception error)
             {
-                if (handle != null) return new Operations.ExecuteReply { Receipt = NativeOperationEnvelope.Uncertain(state.Ledger, handle, pre.Attempt, context, owner!, evidence!, "Hunting write interrupted: " + error.GetType().Name) };
+                if (handle != null) return new Operations.ExecuteReply { Receipt = NativeOperationEnvelope.Uncertain(state.Ledger, handle, pre.Attempt, context, evidence!, "Hunting write interrupted: " + error.GetType().Name) };
                 return new Operations.ExecuteReply { Failure = ProtoBoundary.Fail(Common.FailureCode.NativeFailure, "Hunting failed: " + error.GetType().Name) };
             }
         }

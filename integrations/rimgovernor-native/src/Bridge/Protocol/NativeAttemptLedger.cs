@@ -57,13 +57,12 @@ namespace HomeBridge.BridgeTools
             internal readonly IMessage Request;
             internal readonly Authority.WritePrecondition Precondition;
             internal readonly Common.ObservationContext Context;
-            internal readonly Authority.Owner Owner;
             internal Receipts.Receipt? Receipt;
             internal Clock.ControlReceipt? ClockReceipt;
             internal Entry(string method, IMessage request, Authority.WritePrecondition precondition,
-                Common.ObservationContext context, Authority.Owner owner)
+                Common.ObservationContext context)
             {
-                Method = method; Precondition = precondition.Clone(); Context = context.Clone(); Owner = owner.Clone();
+                Method = method; Precondition = precondition.Clone(); Context = context.Clone();
                 // The accepted union is deliberately closed to official request types.
                 switch (request)
                 {
@@ -101,7 +100,7 @@ namespace HomeBridge.BridgeTools
                     return new Decision(DecisionKind.Replay, reply: new Operations.ExecuteReply { Receipt = entry.Receipt.Clone() });
                 return new Decision(DecisionKind.InFlight,
                     reply: new Operations.ExecuteReply { Receipt = new Receipts.Receipt
-                        { Attempt = key.Clone(), AdmittedContext = entry.Context.Clone(), AuthorizingOwner = entry.Owner.Clone(),
+                        { Attempt = key.Clone(), AdmittedContext = entry.Context.Clone(),
                           Uncertain = new Receipts.Uncertain { Detail = "Attempt is admitted and still in flight; no new effect was dispatched." } } },
                     inFlight: new Receipts.InFlight
                     { Attempt = key.Clone(), AdmittedContext = entry.Context.Clone() });
@@ -114,17 +113,14 @@ namespace HomeBridge.BridgeTools
         // Call only after all native guards succeed, immediately before effects.
         // The handle is the only route to terminal admitted outcomes.
         internal Decision Admit(string method, Operations.ExecuteRequest request,
-            Common.ObservationContext context, Authority.Owner owner)
+            Common.ObservationContext context)
         {
             var prior = Inspect(method, request);
             if (prior.Kind != DecisionKind.New) return prior;
             if (!ValidContext(context) || !context.Identity.Equals(request.Precondition.Identity)
-                || !context.HasNativeGeneration || context.NativeGeneration != request.Precondition.ExpectedGeneration
-                || owner == null || !owner.HasControllerSessionId || !Identifier(owner.ControllerSessionId)
-                || owner.ControllerSessionId != request.Precondition.Attempt.ControllerSessionId
-                || !owner.HasPlayerDirection || owner.PlayerDirection == 0)
-                return Refused(Common.FailureCode.InvalidRequest, "Admission context and owner must match the validated request.");
-            var entry = new Entry(method, request, request.Precondition, context, owner);
+                || !context.HasNativeGeneration || context.NativeGeneration != request.Precondition.ExpectedGeneration)
+                return Refused(Common.FailureCode.InvalidRequest, "Admission context must match the validated request.");
+            var entry = new Entry(method, request, request.Precondition, context);
             var handle = new Admission();
             entries.Add(entry.Precondition.Attempt.Clone(), entry);
             handles.Add(handle, entry);
@@ -157,7 +153,6 @@ namespace HomeBridge.BridgeTools
             if (entry.Receipt != null) throw new InvalidOperationException("An admitted receipt is immutable once recorded.");
             receipt.Attempt = entry.Precondition.Attempt.Clone();
             receipt.AdmittedContext = entry.Context.Clone();
-            receipt.AuthorizingOwner = entry.Owner.Clone();
             entry.Receipt = receipt;
             return receipt.Clone();
         }
@@ -200,18 +195,15 @@ namespace HomeBridge.BridgeTools
                 : new ClockDecision(DecisionKind.New);
         }
 
-        internal ClockDecision AdmitClock(string method, IMessage request, Common.ObservationContext context, Authority.Owner owner)
+        internal ClockDecision AdmitClock(string method, IMessage request, Common.ObservationContext context)
         {
             var prior = InspectClock(method, request);
             if (prior.Kind != DecisionKind.New) return prior;
             var pre = ClockPrecondition(method, request)!;
             if (!ValidContext(context) || !context.Identity.Equals(pre.Identity)
-                || !context.HasNativeGeneration || context.NativeGeneration != pre.ExpectedGeneration
-                || owner == null || !owner.HasControllerSessionId || !Identifier(owner.ControllerSessionId)
-                || owner.ControllerSessionId != pre.Attempt.ControllerSessionId
-                || !owner.HasPlayerDirection || owner.PlayerDirection == 0)
-                return ClockRefused(Common.FailureCode.InvalidRequest, "Admission context and owner must match the validated request.");
-            var entry = new Entry(method, request, pre, context, owner);
+                || !context.HasNativeGeneration || context.NativeGeneration != pre.ExpectedGeneration)
+                return ClockRefused(Common.FailureCode.InvalidRequest, "Admission context must match the validated request.");
+            var entry = new Entry(method, request, pre, context);
             var handle = new Admission();
             entries.Add(entry.Precondition.Attempt.Clone(), entry);
             handles.Add(handle, entry);
@@ -247,7 +239,6 @@ namespace HomeBridge.BridgeTools
         {
             receipt.Attempt = entry.Precondition.Attempt.Clone();
             receipt.AdmittedContext = entry.Context.Clone();
-            receipt.AuthorizingOwner = entry.Owner.Clone();
             entry.ClockReceipt = receipt;
             return receipt.Clone();
         }
@@ -276,7 +267,7 @@ namespace HomeBridge.BridgeTools
 
         private static Clock.ControlReceipt ClockInFlight(Entry entry) => new Clock.ControlReceipt
         {
-            Attempt = entry.Precondition.Attempt.Clone(), AdmittedContext = entry.Context.Clone(), AuthorizingOwner = entry.Owner.Clone(),
+            Attempt = entry.Precondition.Attempt.Clone(), AdmittedContext = entry.Context.Clone(),
             Uncertain = new Clock.UncertainControl { Detail = "Attempt is admitted and still in flight; no new effect was dispatched." }
         };
 
@@ -294,7 +285,7 @@ namespace HomeBridge.BridgeTools
         private Common.FailureCode? ValidateClockRequest(IMessage request, Authority.WritePrecondition? pre)
         {
             if (pre == null || !ValidIdentity(pre.Identity) || !ValidAttempt(pre.Attempt)
-                || !pre.HasExpectedGeneration || pre.ExpectedGeneration == 0 || !pre.HasLeaseId || !Identifier(pre.LeaseId))
+                || !pre.HasExpectedGeneration || pre.ExpectedGeneration == 0)
                 return Common.FailureCode.InvalidRequest;
             if (!request.Equals(request.Descriptor.Parser.WithDiscardUnknownFields(true).ParseFrom(request.ToByteArray())))
                 return Common.FailureCode.InvalidRequest;
@@ -305,7 +296,7 @@ namespace HomeBridge.BridgeTools
         {
             var pre = request?.Precondition;
             if (!Identifier(method) || pre == null || !ValidIdentity(pre.Identity) || !ValidAttempt(pre.Attempt)
-                || !pre.HasExpectedGeneration || pre.ExpectedGeneration == 0 || !pre.HasLeaseId || !Identifier(pre.LeaseId)
+                || !pre.HasExpectedGeneration || pre.ExpectedGeneration == 0
                 || request!.Operation == null || request.Operation.CommandCase == Operations.Operation.CommandOneofCase.None)
                 return Common.FailureCode.InvalidRequest;
             // Official binary parsing discards unknown fields recursively; equality

@@ -134,25 +134,24 @@ namespace HomeBridge.BridgeTools
             var command = request.Operation.PawnTargetOrder; var pre = request.Precondition;
             if (!Valid(command))
                 return Refuse(Common.FailureCode.InvalidRequest, "Haul requires an exact undrafted pawn, exact haulable target and require_safe_storage.");
-            NativeAttemptLedger.Admission? handle = null; Authority.Owner? owner = null; Receipts.EffectEvidence? evidence = null;
+            NativeAttemptLedger.Admission? handle = null; Receipts.EffectEvidence? evidence = null;
             try
             {
                 if (!Prepare(command, context, out var identity, out var pawn, out var thing, out var snapshot, out var failure))
                     return new Operations.ExecuteReply { Failure = failure };
                 if (!NativeControlAuthority.TryGetForGame(Current.Game, out var authority) || authority == null)
                     return Refuse(Common.FailureCode.AuthorityRequired, "Current native authority is required.");
-                var guard = authority.Check(pre.ExpectedGeneration, pre.LeaseId, pre.Attempt.ControllerSessionId);
+                var guard = authority.Check(pre.ExpectedGeneration);
                 context.NativeGeneration = guard.Snapshot.Generation;
                 if (!guard.Success) return new Operations.ExecuteReply { Failure = NativeAuthorityControlTools.Refusal(guard.Error, context) };
-                owner = new Authority.Owner { ControllerSessionId = guard.Snapshot.Lease!.ControllerSessionId, PlayerDirection = guard.Snapshot.Lease.PlayerDirection };
                 // Resolve a real native job before reserving an attempt; no effect has run.
                 var result = WorkGiverDispatch.TryJob(pawn!, thing!, def => def.workType == WorkTypeDefOf.Hauling, out _);
                 if (result == null) return Refuse(Common.FailureCode.NativeFailure, "No native hauling job is available for this pawn and target.");
-                guard = authority.Check(pre.ExpectedGeneration, pre.LeaseId, pre.Attempt.ControllerSessionId);
+                guard = authority.Check(pre.ExpectedGeneration);
                 if (!guard.Success) return new Operations.ExecuteReply { Failure = NativeAuthorityControlTools.Refusal(guard.Error, context) };
                 if (!Recheck(identity, pawn!, command, thing!, context, out snapshot))
                     return Refuse(Common.FailureCode.OwnerConflict, "Pawn or target snapshot changed before admission.");
-                var admission = state.Ledger.Admit("rimgovernor.operations.v1.Operations/Execute", request, context, owner);
+                var admission = state.Ledger.Admit("rimgovernor.operations.v1.Operations/Execute", request, context);
                 if (admission.Kind != NativeAttemptLedger.DecisionKind.Admitted) return admission.Reply!;
                 handle = admission.Handle!;
                 bool accepted = false; Exception? effectError = null;
@@ -160,7 +159,7 @@ namespace HomeBridge.BridgeTools
                 {
                     if (!NativePawnControlState.IsReady || !Recheck(identity, pawn!, command, thing!, context, out snapshot))
                         throw new InvalidOperationException("Haul prerequisites changed after admission.");
-                    guard = authority.Check(pre.ExpectedGeneration, pre.LeaseId, pre.Attempt.ControllerSessionId);
+                    guard = authority.Check(pre.ExpectedGeneration);
                     if (!guard.Success) throw new InvalidOperationException("Haul authority changed before native effect.");
                     var trackingId = HaulTracking.Begin(thing!, pawn!);
                     if (trackingId == null) throw new InvalidOperationException("Native haul quantity tracking is unavailable.");
@@ -179,13 +178,13 @@ namespace HomeBridge.BridgeTools
                     evidence = record.Evidence(snapshot, accepted, correlated);
                     if (effectError != null || !accepted || !correlated) throw new InvalidOperationException("Native haul requires causal observation.", effectError);
                 }
-                return new Operations.ExecuteReply { Receipt = NativeOperationEnvelope.Applied(state.Ledger, handle, pre.Attempt, context, owner, evidence) };
+                return new Operations.ExecuteReply { Receipt = NativeOperationEnvelope.Applied(state.Ledger, handle, pre.Attempt, context, evidence) };
             }
             catch (Exception error)
             {
                 return handle == null
                     ? Refuse(Common.FailureCode.NativeFailure, "Haul validation failed: " + error.GetType().Name)
-                    : new Operations.ExecuteReply { Receipt = NativeOperationEnvelope.Uncertain(state.Ledger, handle, pre.Attempt, context, owner!, evidence!, "Admitted haul requires observation: " + error.GetType().Name) };
+                    : new Operations.ExecuteReply { Receipt = NativeOperationEnvelope.Uncertain(state.Ledger, handle, pre.Attempt, context, evidence!, "Admitted haul requires observation: " + error.GetType().Name) };
             }
         }
 

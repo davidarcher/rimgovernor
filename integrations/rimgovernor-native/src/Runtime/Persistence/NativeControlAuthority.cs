@@ -9,15 +9,18 @@ namespace HomeBridge.BridgeTools
 {
     public enum NativeControlRevocationReason
     {
-        None, Manual, PlayerDirection, ExternalOrder, PlayerControl, LeaseExpired,
+        None, Manual, ExternalOrder, PlayerControl,
         IdentityChanged, Disconnect, Shutdown, HooksUnavailable, GenerationExhausted, ClockUnavailable
     }
 
     public enum NativeControlError
     {
-        None, Unavailable, StaleIdentity, StaleGeneration, InvalidDirection, InvalidLeaseDuration,
-        InvalidOwner, AuthorityRequired, OwnerConflict, LeaseMismatch, GenerationExhausted
+        None, Unavailable, StaleIdentity, StaleGeneration, AuthorityRequired, GenerationExhausted
     }
+
+    // There is only ever one bot process (see #52): mode replaces the negotiated
+    // lease. Auto grants the bot outright; Manual is the local player's own mode.
+    public enum NativeControlMode { Auto, Manual }
 
     public sealed class NativeControlIdentity
     {
@@ -33,26 +36,15 @@ namespace HomeBridge.BridgeTools
             && ReferenceEquals(Map, other.Map) && MapId == other.MapId && ColonyId == other.ColonyId && LoadToken == other.LoadToken;
     }
 
-    public sealed class NativeControlLease
-    {
-        internal NativeControlLease(string leaseId, string controllerSessionId, ulong playerDirection)
-        { LeaseId = leaseId; ControllerSessionId = controllerSessionId; PlayerDirection = playerDirection; }
-        public string LeaseId { get; }
-        public string ControllerSessionId { get; }
-        public ulong PlayerDirection { get; }
-    }
-
     public sealed class NativeControlSnapshot
     {
         internal NativeControlSnapshot(NativeControlIdentity? identity, ulong generation, bool available,
-            NativeControlLease? lease, int remaining, NativeControlRevocationReason reason)
-        { Identity = identity; Generation = generation; Available = available; Lease = lease; RemainingLeaseMs = remaining; Reason = reason; }
+            bool active, NativeControlRevocationReason reason)
+        { Identity = identity; Generation = generation; Available = available; Active = active; Reason = reason; }
         public NativeControlIdentity? Identity { get; }
         public ulong Generation { get; }
         public bool Available { get; }
-        public bool Active => Lease != null;
-        public NativeControlLease? Lease { get; }
-        public int RemainingLeaseMs { get; }
+        public bool Active { get; }
         public NativeControlRevocationReason Reason { get; }
     }
 
@@ -67,7 +59,7 @@ namespace HomeBridge.BridgeTools
 
     /// <summary>
     /// Unsaved, main-thread authority for one Game. Clock supervision is separate.
-    /// Only the explicit player-control adapter may acquire; executors may check or renew.
+    /// Only the explicit player-control adapter may set mode; executors may check.
     /// </summary>
     public sealed class NativeControlAuthority
     {
@@ -77,9 +69,8 @@ namespace HomeBridge.BridgeTools
         private readonly Func<long> clock;
         private readonly int thread;
         private NativeControlIdentity? identity;
-        private NativeControlLease? lease;
+        private bool active;
         private ulong generation;
-        private long deadline;
         private long now;
         private bool observedClock;
         private bool clockHealthy = true;
@@ -91,7 +82,6 @@ namespace HomeBridge.BridgeTools
         private int pendingContextInvalidation;
         private NativeControlIdentity? ownedIdentity;
         private ulong ownedGeneration;
-        private NativeControlLease? originalOwnedLease;
         private NativeControlRevocationReason reason = NativeControlRevocationReason.HooksUnavailable;
 
         public static NativeControlAuthority ForGame(Game game)
@@ -147,38 +137,26 @@ namespace HomeBridge.BridgeTools
             return Snapshot();
         }
 
-        public NativeControlResult Acquire(ulong expectedGeneration, string controllerSessionId, ulong playerDirection, int leaseMs)
+        // The only way to change authority explicitly: Auto grants the bot
+        // authority outright, Manual revokes it. There is no acquire/renew
+        // handshake because there is only ever one bot process (see #52).
+        public NativeControlResult SetMode(ulong expectedGeneration, NativeControlMode mode)
         {
             Refresh();
             var error = Guard(expectedGeneration);
             if (error != NativeControlError.None) return Result(error);
-            if (string.IsNullOrWhiteSpace(controllerSessionId)) return Result(NativeControlError.InvalidOwner);
-            if (playerDirection == 0) return Result(NativeControlError.InvalidDirection);
-            if (!ValidDuration(leaseMs)) return Result(NativeControlError.InvalidLeaseDuration);
-            if (lease != null) return Result(NativeControlError.OwnerConflict);
-            if (!TryDeadline(leaseMs, out var expires)) return Result(NativeControlError.Unavailable);
             if (!Advance()) return Result(NativeControlError.GenerationExhausted);
-            lease = new NativeControlLease(Guid.NewGuid().ToString("N"), controllerSessionId, playerDirection);
-            deadline = expires;
-            reason = NativeControlRevocationReason.None;
+            if (mode == NativeControlMode.Auto) { active = true; reason = NativeControlRevocationReason.None; }
+            else { active = false; reason = NativeControlRevocationReason.Manual; }
             return Result(NativeControlError.None);
         }
 
-        public NativeControlResult Renew(ulong expectedGeneration, string leaseId, string controllerSessionId, int leaseMs)
+        public NativeControlResult Check(ulong expectedGeneration)
         {
             Refresh();
-            var error = CheckLease(expectedGeneration, leaseId, controllerSessionId);
-            if (error != NativeControlError.None) return Result(error);
-            if (!ValidDuration(leaseMs)) return Result(NativeControlError.InvalidLeaseDuration);
-            if (!TryDeadline(leaseMs, out var expires)) return Result(NativeControlError.Unavailable);
-            deadline = expires;
-            return Result(NativeControlError.None);
-        }
-
-        public NativeControlResult Check(ulong expectedGeneration, string leaseId, string controllerSessionId)
-        {
-            Refresh();
-            return Result(CheckLease(expectedGeneration, leaseId, controllerSessionId));
+            var error = Guard(expectedGeneration);
+            if (error == NativeControlError.None && !active) error = NativeControlError.AuthorityRequired;
+            return Result(error);
         }
 
         public NativeControlResult Revoke(ulong expectedGeneration, NativeControlRevocationReason revokeReason)
@@ -203,9 +181,9 @@ namespace HomeBridge.BridgeTools
         public IDisposable Owned()
         {
             Refresh();
-            if (!Available || lease == null) throw new InvalidOperationException("Native authority is not active");
+            if (!Available || !active) throw new InvalidOperationException("Native authority is not active");
             if (ownedDepth > 0 && !IsOwned) throw new InvalidOperationException("Native owned scope identity changed");
-            if (ownedDepth == 0) { ownedIdentity = identity; ownedGeneration = generation; originalOwnedLease = lease; }
+            if (ownedDepth == 0) { ownedIdentity = identity; ownedGeneration = generation; }
             ownedDepth = checked(ownedDepth + 1);
             return new OwnedScope(this);
         }
@@ -216,30 +194,27 @@ namespace HomeBridge.BridgeTools
             {
                 if (Thread.CurrentThread.ManagedThreadId != thread || ownedDepth == 0) return false;
                 Refresh();
-                return Available && lease != null && ownedGeneration == generation && CurrentContextMatches();
+                return Available && active && ownedGeneration == generation && CurrentContextMatches();
             }
         }
 
         /// <summary>
-        /// Cleanup attribution only, never write permission. A synchronous order
-        /// already admitted by Owned may finish just after its lease expires.
-        /// All other revocations, acquisitions and context changes end attribution.
+        /// Cleanup attribution only, never write permission. Since there is only
+        /// ever one bot process (see #52), causal-scope attribution no longer
+        /// needs a caller-supplied owner token: it is proven purely by generation
+        /// continuity within the same Owned() scope.
         /// </summary>
-        public bool IsCausalScopeForOriginalOwner(string controllerSessionId, ulong playerDirection)
+        public bool IsCausalOwnedScope()
         {
             if (Thread.CurrentThread.ManagedThreadId != thread || ownedDepth == 0) return false;
             Refresh();
-            return originalOwnedLease != null && originalOwnedLease.ControllerSessionId == controllerSessionId
-                && originalOwnedLease.PlayerDirection == playerDirection && HasCausalOwnedScope();
+            return HasCausalOwnedScope();
         }
 
         private bool HasCausalOwnedScope()
         {
-            if (Thread.CurrentThread.ManagedThreadId != thread || ownedDepth == 0 || originalOwnedLease == null
-                || !Available || !CurrentContextMatches()) return false;
-            return generation == ownedGeneration && ReferenceEquals(lease, originalOwnedLease)
-                || ownedGeneration < ulong.MaxValue && generation == ownedGeneration + 1 && lease == null
-                    && reason == NativeControlRevocationReason.LeaseExpired;
+            if (Thread.CurrentThread.ManagedThreadId != thread || ownedDepth == 0 || !Available || !CurrentContextMatches()) return false;
+            return generation == ownedGeneration;
         }
 
         private sealed class OwnedScope : IDisposable
@@ -251,7 +226,7 @@ namespace HomeBridge.BridgeTools
                 if (owner == null) return;
                 owner.RequireThread();
                 owner.ownedDepth--;
-                if (owner.ownedDepth == 0) { owner.ownedIdentity = null; owner.originalOwnedLease = null; }
+                if (owner.ownedDepth == 0) owner.ownedIdentity = null;
                 owner = null;
             }
         }
@@ -302,7 +277,6 @@ namespace HomeBridge.BridgeTools
             if (identity != null && !identity.Same(current!)) Invalidate(NativeControlRevocationReason.IdentityChanged);
             identity = current;
             contextLost = false;
-            if (lease != null && now >= deadline) Invalidate(NativeControlRevocationReason.LeaseExpired);
         }
 
         private bool Available => contextValid && hooksReady && clockHealthy && !exhausted;
@@ -314,21 +288,12 @@ namespace HomeBridge.BridgeTools
             return expectedGeneration == 0 || expectedGeneration != generation ? NativeControlError.StaleGeneration : NativeControlError.None;
         }
 
-        private NativeControlError CheckLease(ulong expectedGeneration, string leaseId, string controllerSessionId)
-        {
-            var error = Guard(expectedGeneration);
-            if (error != NativeControlError.None) return error;
-            if (lease == null) return NativeControlError.AuthorityRequired;
-            if (lease.ControllerSessionId != controllerSessionId) return NativeControlError.OwnerConflict;
-            return lease.LeaseId == leaseId ? NativeControlError.None : NativeControlError.LeaseMismatch;
-        }
-
         private bool Advance()
         {
             if (generation == ulong.MaxValue)
             {
                 exhausted = true;
-                lease = null;
+                active = false;
                 reason = NativeControlRevocationReason.GenerationExhausted;
                 return false;
             }
@@ -338,26 +303,11 @@ namespace HomeBridge.BridgeTools
 
         private void Invalidate(NativeControlRevocationReason revokeReason)
         {
-            lease = null;
-            deadline = 0;
+            active = false;
             if (Advance()) reason = revokeReason;
         }
 
-        private static bool ValidDuration(int leaseMs) => leaseMs >= 1000 && leaseMs <= 30000;
-        private bool TryDeadline(int leaseMs, out long expires)
-        {
-            expires = 0;
-            if (now > long.MaxValue - leaseMs)
-            {
-                Invalidate(NativeControlRevocationReason.ClockUnavailable);
-                clockHealthy = false;
-                return false;
-            }
-            expires = checked(now + leaseMs);
-            return true;
-        }
-        private NativeControlSnapshot Snapshot() => new NativeControlSnapshot(contextValid ? identity : null, generation,
-            Available, lease, lease == null ? 0 : (int)Math.Min(30000, Math.Max(0, deadline - now)), reason);
+        private NativeControlSnapshot Snapshot() => new NativeControlSnapshot(contextValid ? identity : null, generation, Available, active, reason);
         private NativeControlResult Result(NativeControlError error) => new NativeControlResult(error, Snapshot());
     }
 }

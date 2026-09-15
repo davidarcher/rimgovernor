@@ -60,9 +60,9 @@ namespace HomeBridge.BridgeTools
                     || requireJob && (job.loadID!=jobId || job.def?.defName!=jobDef || !ReferenceEquals(job.targetA.Thing,target)
                         || ranged && (!ReferenceEquals(job.verbToUse,attackVerb) || !ReferenceEquals(pawn.equipment?.PrimaryEq?.PrimaryVerb,attackVerb)))
                     || Current.Game!=identity.Game || Find.CurrentMap!=identity.Map
-                    || !authority.Check(precondition.ExpectedGeneration,precondition.LeaseId,precondition.Attempt.ControllerSessionId).Success
+                    || !authority.Check(precondition.ExpectedGeneration).Success
                     || NativePawnControlState.Observe(identity,pawn,out var snapshot)!=NativePawnControlResult.Ready || snapshot==null
-                    || !snapshot.Eligible || !snapshot.Drafted || snapshot.Claim?.ClaimId!=before.Claim!.ClaimId || !snapshot.Claim.Owner.Equals(before.Claim.Owner)
+                    || !snapshot.Eligible || !snapshot.Drafted || snapshot.Claim?.ClaimId!=before.Claim!.ClaimId
                     || snapshot.Facts.DraftRevision!=before.Facts.DraftRevision)return false;
                 return CausalOrderAllows(before.Facts.OrderRevision,snapshot.Facts.OrderRevision,dispatching);
             }catch{return false;}
@@ -74,7 +74,7 @@ namespace HomeBridge.BridgeTools
         {
             if(before.Facts.OrderRevision==ulong.MaxValue || snapshot.Facts.OrderRevision!=before.Facts.OrderRevision+1
                 || snapshot.Facts.DraftRevision!=before.Facts.DraftRevision || snapshot.Claim?.ClaimId!=before.Claim!.ClaimId
-                || !snapshot.Claim.Owner.Equals(before.Claim.Owner) || !LiveJob())return false;
+                || !LiveJob())return false;
             order=snapshot.Facts.OrderRevision;return true;
         }
         internal Receipts.EffectEvidence Evidence(NativePawnSnapshot snapshot,bool issued,bool verified)
@@ -82,8 +82,8 @@ namespace HomeBridge.BridgeTools
             var effect=new Receipts.JobEffect {PawnId=snapshot.PawnId,JobId=jobId,JobDef=jobDef,
                 TargetA=new Receipts.JobTarget {ThingId=targetId},Issued=issued,Verified=verified,Drafted=snapshot.Drafted,
                 ResultingSnapshotToken=snapshot.Token,VerifiedReason=verified?"Exact native attack job observed; combat outcome is not certified.":"Attack outcome requires observation."};
-            if(snapshot.Claim?.ClaimId==before.Claim!.ClaimId && snapshot.Claim.Owner.Equals(before.Claim.Owner))
-            {effect.DraftClaimId=snapshot.Claim.ClaimId;effect.DraftOwner=snapshot.Claim.Owner.ControllerSessionId;}
+            if(snapshot.Claim?.ClaimId==before.Claim!.ClaimId)
+            {effect.DraftClaimId=snapshot.Claim.ClaimId;}
             return new Receipts.EffectEvidence {Job=effect};
         }
         internal Receipts.Progress Observe(Common.AttemptKey attempt,Common.ObservationContext context)
@@ -95,7 +95,7 @@ namespace HomeBridge.BridgeTools
                     throw new InvalidOperationException("Original attacker context cannot be inspected.");
                 if(!order.HasValue)Capture(snapshot);
                 bool unchanged=context.NativeGeneration==admitted.NativeGeneration && snapshot.Eligible && snapshot.Drafted
-                    && snapshot.Claim?.ClaimId==before.Claim!.ClaimId && snapshot.Claim.Owner.Equals(before.Claim.Owner)
+                    && snapshot.Claim?.ClaimId==before.Claim!.ClaimId
                     && snapshot.Facts.OrderRevision==order;
                 bool damageObserved=damage.ObservedDamage && damage.ObservedTick>=admitted.Tick;
                 var phase=Classify(order.HasValue,unchanged,target.Dead,target.Downed,requireStanding,LiveJob(),damageObserved && damage.CausedDeath,damageObserved && damage.CausedDowning);
@@ -188,21 +188,20 @@ namespace HomeBridge.BridgeTools
         {
             var command=request.Operation.AttackTarget;var pre=request.Precondition;
             if(!Valid(command))return Refuse(Common.FailureCode.InvalidRequest,"Attack requires distinct exact attacker/target snapshots and explicit Auto, Melee or Ranged mode.");
-            NativeAttemptLedger.Admission? handle=null;Authority.Owner? owner=null;Receipts.EffectEvidence? evidence=null;
+            NativeAttemptLedger.Admission? handle=null;Receipts.EffectEvidence? evidence=null;
             try {
                 if(!Resolve(command,context,out var identity,out var pawn,out var target,out var before,out var definition,out var verb,out var failure))return new Operations.ExecuteReply {Failure=failure};
                 if(!NativeControlAuthority.TryGetForGame(Current.Game,out var authority) || authority==null)return Refuse(Common.FailureCode.AuthorityRequired,"Current native authority is required.");
-                var guard=authority.Check(pre.ExpectedGeneration,pre.LeaseId,pre.Attempt.ControllerSessionId);context.NativeGeneration=guard.Snapshot.Generation;
+                var guard=authority.Check(pre.ExpectedGeneration);context.NativeGeneration=guard.Snapshot.Generation;
                 if(!guard.Success)return new Operations.ExecuteReply {Failure=NativeAuthorityControlTools.Refusal(guard.Error,context)};
-                owner=new Authority.Owner {ControllerSessionId=guard.Snapshot.Lease!.ControllerSessionId,PlayerDirection=guard.Snapshot.Lease.PlayerDirection};
-                if(!NativeMovementOperations.Owns(before!,owner))return Refuse(Common.FailureCode.OwnerConflict,"Attack requires an eligible drafted attacker with the exact current owner's native claim.");
+                if(!NativeMovementOperations.Owns(before!))return Refuse(Common.FailureCode.OwnerConflict,"Attack requires an eligible drafted attacker with an existing native claim.");
                 var job=JobMaker.MakeJob(definition,target);job.killIncappedTarget=definition==JobDefOf.AttackMelee && target!.Downed;
                 if(verb!=null)ConfigureRangedJob(job,verb,target!);
                 if(!Resolve(command,context,out identity,out pawn,out target,out before,out var rechecked,out var recheckedVerb,out failure))return new Operations.ExecuteReply {Failure=failure};
-                if(rechecked!=definition || !ReferenceEquals(recheckedVerb,verb) || !NativeMovementOperations.Owns(before!,owner))return Refuse(Common.FailureCode.OwnerConflict,"Attack prerequisites changed before admission.");
-                guard=authority.Check(pre.ExpectedGeneration,pre.LeaseId,pre.Attempt.ControllerSessionId);
+                if(rechecked!=definition || !ReferenceEquals(recheckedVerb,verb) || !NativeMovementOperations.Owns(before!))return Refuse(Common.FailureCode.OwnerConflict,"Attack prerequisites changed before admission.");
+                guard=authority.Check(pre.ExpectedGeneration);
                 if(!guard.Success)return new Operations.ExecuteReply {Failure=NativeAuthorityControlTools.Refusal(guard.Error,context)};
-                var admission=state.Ledger.Admit("rimgovernor.operations.v1.Operations/Execute",request,context,owner);
+                var admission=state.Ledger.Admit("rimgovernor.operations.v1.Operations/Execute",request,context);
                 if(admission.Kind!=NativeAttemptLedger.DecisionKind.Admitted)return admission.Reply!;
                 handle=admission.Handle!;
                 var record=new NativeCombatRecord(identity,pawn!,target!,job,before!,context,command.RequireStanding,pre,authority);
@@ -210,9 +209,9 @@ namespace HomeBridge.BridgeTools
                 bool accepted=false;Exception? effectError=null;
                 using(authority.Owned()) {
                     if(!Resolve(command,context,out var finalIdentity,out var finalPawn,out var finalTarget,out var checkedPawn,out rechecked,out recheckedVerb,out failure)
-                        || !ReferenceEquals(finalPawn,pawn) || !ReferenceEquals(finalTarget,target) || rechecked!=definition || !ReferenceEquals(recheckedVerb,verb) || !NativeMovementOperations.Owns(checkedPawn!,owner))
+                        || !ReferenceEquals(finalPawn,pawn) || !ReferenceEquals(finalTarget,target) || rechecked!=definition || !ReferenceEquals(recheckedVerb,verb) || !NativeMovementOperations.Owns(checkedPawn!))
                         throw new InvalidOperationException("Exact combat prerequisites changed after admission.");
-                    guard=authority.Check(pre.ExpectedGeneration,pre.LeaseId,pre.Attempt.ControllerSessionId);
+                    guard=authority.Check(pre.ExpectedGeneration);
                     if(!guard.Success)throw new InvalidOperationException("Attack authority changed before native effect.");
                     record.BeginDispatch();
                     try{accepted=pawn!.jobs.TryTakeOrderedJob(job,JobTag.Misc);}catch(Exception error){effectError=error;}
@@ -222,9 +221,9 @@ namespace HomeBridge.BridgeTools
                     bool correlated=record.Capture(after);evidence=record.Evidence(after,accepted,correlated);
                     if(effectError!=null || !accepted || !correlated)throw new InvalidOperationException("Attack job requires causal observation.",effectError);
                 }
-                return new Operations.ExecuteReply {Receipt=NativeOperationEnvelope.Applied(state.Ledger,handle,pre.Attempt,context,owner,evidence!)};
+                return new Operations.ExecuteReply {Receipt=NativeOperationEnvelope.Applied(state.Ledger,handle,pre.Attempt,context,evidence!)};
             }catch(Exception error){return handle==null?Refuse(Common.FailureCode.NativeFailure,"Attack validation failed: "+error.GetType().Name)
-                :new Operations.ExecuteReply {Receipt=NativeOperationEnvelope.Uncertain(state.Ledger,handle,pre.Attempt,context,owner!,evidence!,"Admitted attack requires observation: "+error.GetType().Name)};}
+                :new Operations.ExecuteReply {Receipt=NativeOperationEnvelope.Uncertain(state.Ledger,handle,pre.Attempt,context,evidence!,"Admitted attack requires observation: "+error.GetType().Name)};}
         }
         internal static Operations.PreviewReply Preview(Operations.AttackTarget command,Common.ObservationContext context)
         {

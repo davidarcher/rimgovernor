@@ -104,7 +104,7 @@ namespace HomeBridge.BridgeTools
         private static Clock.ControlReply Control(string method, IMessage request, Authority.WritePrecondition pre, Clock.OwnedRequest owned,
             Func<Common.Failure> validate, Func<Common.ObservationContext, Clock.Status> apply)
         {
-            if (pre == null || !pre.HasExpectedGeneration || pre.ExpectedGeneration == 0 || !pre.HasLeaseId || !ProtoBoundary.IsIdentifier(pre.LeaseId)
+            if (pre == null || !pre.HasExpectedGeneration || pre.ExpectedGeneration == 0
                 || !ValidAttempt(pre.Attempt)) return Refused(Invalid("A complete current authority and attempt precondition is required."));
             Common.ObservationContext context; Common.Failure failure;
             if (!ProtoBoundary.ValidateIdentity(pre.Identity, Find.CurrentMap, out context, out failure)) return Refused(failure);
@@ -122,24 +122,23 @@ namespace HomeBridge.BridgeTools
             NativeControlAuthority authority;
             if (!NativeControlAuthority.TryGetForGame(Current.Game, out authority) || authority == null)
                 return Refused(ProtoBoundary.Fail(Common.FailureCode.AuthorityRequired, "Native authority has not been acquired."));
-            var guard = authority.Check(pre.ExpectedGeneration, pre.LeaseId, pre.Attempt.ControllerSessionId);
+            var guard = authority.Check(pre.ExpectedGeneration);
             context.NativeGeneration = guard.Snapshot.Generation;
             if (!guard.Success) return Refused(NativeAuthorityControlTools.Refusal(guard.Error, context));
             if (method == "Start" && LongEventHandler.AnyEventNowOrWaiting)
                 return new Clock.ControlReply { LongEventPending = new Clock.LongEventPending { Detail = "A native long event is pending; no clock attempt was admitted." } };
             failure = validate(); if (failure != null) return Refused(failure);
-            guard = authority.Check(pre.ExpectedGeneration, pre.LeaseId, pre.Attempt.ControllerSessionId);
+            guard = authority.Check(pre.ExpectedGeneration);
             context.NativeGeneration = guard.Snapshot.Generation;
             if (!guard.Success) return Refused(NativeAuthorityControlTools.Refusal(guard.Error, context));
-            var owner = new Authority.Owner { ControllerSessionId = guard.Snapshot.Lease.ControllerSessionId, PlayerDirection = guard.Snapshot.Lease.PlayerDirection };
-            var admission = state.Ledger.AdmitClock(fullMethod, request, context, owner);
+            var admission = state.Ledger.AdmitClock(fullMethod, request, context);
             if (admission.Kind != NativeAttemptLedger.DecisionKind.Admitted) return admission.Reply;
             try
             {
                 Clock.Status status;
                 using (authority.Owned()) status = apply(context);
                 var candidate = new Clock.ControlReply { Receipt = new Clock.ControlReceipt { Attempt = pre.Attempt.Clone(), AdmittedContext = context.Clone(),
-                    AuthorizingOwner = owner.Clone(), Applied = new Clock.AppliedControl { Status = status } } };
+                    Applied = new Clock.AppliedControl { Status = status } } };
                 if (!Fits(candidate)) return new Clock.ControlReply { Receipt = state.Ledger.FinishClockUncertain(admission.Handle, null,
                     "Clock control was admitted; complete status exceeds the bounded receipt envelope. Inspect current clock status.") };
                 return new Clock.ControlReply { Receipt = state.Ledger.FinishClockApplied(admission.Handle, status) };

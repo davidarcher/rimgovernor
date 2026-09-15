@@ -5,7 +5,6 @@ using RimWorld;
 using Verse;
 using Verse.AI;
 using Common = RimGovernor.Protocol.Common;
-using Authority = RimGovernor.Protocol.Authority;
 using Operations = RimGovernor.Protocol.Operations;
 using Receipts = RimGovernor.Protocol.Receipts;
 
@@ -43,7 +42,7 @@ namespace HomeBridge.BridgeTools
         {
             if(before.Facts.OrderRevision==ulong.MaxValue || snapshot.Facts.OrderRevision!=before.Facts.OrderRevision+1
                 || snapshot.Facts.DraftRevision!=before.Facts.DraftRevision)return false;
-            if(snapshot.Claim?.ClaimId!=claim.ClaimId || !snapshot.Claim.Owner.Equals(claim.Owner))return false;
+            if(snapshot.Claim?.ClaimId!=claim.ClaimId)return false;
             bool current=ReferenceEquals(pawn.CurJob,job),queued=pawn.jobs.jobQueue.Any(q=>ReferenceEquals(q.job,job));
             if(!current && !queued)return false;
             if(job.loadID!=jobId || job.def!=JobDefOf.Goto || job.targetA.Cell!=destination)return false;
@@ -55,8 +54,8 @@ namespace HomeBridge.BridgeTools
                 TargetA=new Receipts.JobTarget {Cell=new Common.Cell {X=destination.x,Z=destination.z}},Issued=issued,Verified=verified,
                 VerifiedReason=verified?"Exact issued native job and owned draft claim observed.":"Issued job outcome requires observation.",
                 Drafted=snapshot.Drafted,ResultingSnapshotToken=snapshot.Token};
-            if(snapshot.Claim?.ClaimId==claim.ClaimId && snapshot.Claim.Owner.Equals(claim.Owner))
-            {effect.DraftOwner=claim.Owner.ControllerSessionId;effect.DraftClaimId=claim.ClaimId;}
+            if(snapshot.Claim?.ClaimId==claim.ClaimId)
+            {effect.DraftClaimId=claim.ClaimId;}
             if(!noChange){effect.JobId=jobId;effect.JobDef="Goto";}
             else effect.VerifiedReason="Exact destination already observed; no movement job issued.";
             return new Receipts.EffectEvidence {Job=effect};
@@ -71,7 +70,7 @@ namespace HomeBridge.BridgeTools
                 if(!order.HasValue)Capture(snapshot,before);
                 bool current=ReferenceEquals(pawn.CurJob,job), queued=pawn.jobs.jobQueue.Any(q=>ReferenceEquals(q.job,job));
                 bool unchanged=context.NativeGeneration==admitted.NativeGeneration && snapshot.Eligible && snapshot.Drafted
-                    && snapshot.Claim?.ClaimId==claim.ClaimId && snapshot.Claim.Owner.Equals(claim.Owner)
+                    && snapshot.Claim?.ClaimId==claim.ClaimId
                     && snapshot.Facts.OrderRevision==order && (noChange || (!current && !queued)
                         || job.loadID==jobId && job.def==JobDefOf.Goto && job.targetA.Cell==destination);
                 if(current && unchanged)started=true;
@@ -91,8 +90,9 @@ namespace HomeBridge.BridgeTools
     {
         internal static bool Valid(Operations.MovePawn? command)=>command!=null && NativeDraftProtocol.ValidEntity(command.Pawn)
             && command.Destination!=null && command.Destination.HasX && command.Destination.HasZ;
-        internal static bool Owns(NativePawnSnapshot snapshot,Authority.Owner owner)=>snapshot.Eligible && snapshot.Drafted
-            && snapshot.Claim!=null && NativeDraftProtocol.SameOwner(snapshot.Claim.Owner,owner);
+        // Since there is only ever one bot process (see #52), a claim's mere
+        // existence is proof of ownership; no caller-supplied owner token remains.
+        internal static bool Owns(NativePawnSnapshot snapshot)=>snapshot.Eligible && snapshot.Drafted && snapshot.Claim!=null;
         private static bool Prepare(Operations.MovePawn command,Common.ObservationContext context,out NativeControlIdentity identity,
             out Pawn? pawn,out NativePawnSnapshot? snapshot,out IntVec3 destination,out Common.Failure failure)
         {
@@ -113,23 +113,22 @@ namespace HomeBridge.BridgeTools
         {
             var command=request.Operation.MovePawn;var pre=request.Precondition;
             if(!Valid(command))return Refuse(Common.FailureCode.InvalidRequest,"Move requires exact pawn snapshot and explicit destination coordinates.");
-            NativeAttemptLedger.Admission? handle=null;Authority.Owner? owner=null;Receipts.EffectEvidence? evidence=null;
+            NativeAttemptLedger.Admission? handle=null;Receipts.EffectEvidence? evidence=null;
             try {
                 if(!Prepare(command,context,out var identity,out var pawn,out var snapshot,out var destination,out var failure))return new Operations.ExecuteReply {Failure=failure};
                 if(!NativeControlAuthority.TryGetForGame(Current.Game,out var authority) || authority==null)return Refuse(Common.FailureCode.AuthorityRequired,"Current native authority is required.");
-                var guard=authority.Check(pre.ExpectedGeneration,pre.LeaseId,pre.Attempt.ControllerSessionId);
+                var guard=authority.Check(pre.ExpectedGeneration);
                 context.NativeGeneration=guard.Snapshot.Generation;
                 if(!guard.Success)return new Operations.ExecuteReply {Failure=NativeAuthorityControlTools.Refusal(guard.Error,context)};
-                owner=new Authority.Owner {ControllerSessionId=guard.Snapshot.Lease!.ControllerSessionId,PlayerDirection=guard.Snapshot.Lease.PlayerDirection};
-                if(!Owns(snapshot!,owner))return Refuse(Common.FailureCode.OwnerConflict,"Move requires an eligible drafted pawn with the exact current owner's native claim.");
+                if(!Owns(snapshot!))return Refuse(Common.FailureCode.OwnerConflict,"Move requires an eligible drafted pawn with an existing native claim.");
                 // Resolve a real native job before reserving an attempt; no effect has run.
                 var job=JobMaker.MakeJob(JobDefOf.Goto,destination);
                 if(job==null || job.def!=JobDefOf.Goto || job.targetA.Cell!=destination)return Refuse(Common.FailureCode.NativeFailure,"Native Goto job could not be prepared.");
-                guard=authority.Check(pre.ExpectedGeneration,pre.LeaseId,pre.Attempt.ControllerSessionId);
+                guard=authority.Check(pre.ExpectedGeneration);
                 if(!guard.Success)return new Operations.ExecuteReply {Failure=NativeAuthorityControlTools.Refusal(guard.Error,context)};
-                if(NativePawnControlState.Check(identity,pawn!,command.Pawn.ExpectedSnapshotToken,out snapshot)!=NativePawnControlResult.Ready || !Owns(snapshot!,owner))
+                if(NativePawnControlState.Check(identity,pawn!,command.Pawn.ExpectedSnapshotToken,out snapshot)!=NativePawnControlResult.Ready || !Owns(snapshot!))
                     return Refuse(Common.FailureCode.OwnerConflict,"Pawn snapshot or owned claim changed before admission.");
-                var admission=state.Ledger.Admit("rimgovernor.operations.v1.Operations/Execute",request,context,owner);
+                var admission=state.Ledger.Admit("rimgovernor.operations.v1.Operations/Execute",request,context);
                 if(admission.Kind!=NativeAttemptLedger.DecisionKind.Admitted)return admission.Reply!;
                 handle=admission.Handle!;
                 var record=new NativeMovementRecord(identity,pawn!,destination,job,snapshot!,context);
@@ -137,13 +136,13 @@ namespace HomeBridge.BridgeTools
                 bool accepted=false;Exception? effectError=null;
                 using(authority.Owned()) {
                     if(!NativePawnControlState.IsReady || NativePawnControlState.Check(identity,pawn!,command.Pawn.ExpectedSnapshotToken,out snapshot)!=NativePawnControlResult.Ready
-                        || !Owns(snapshot!,owner) || !Legal(pawn!,destination))throw new InvalidOperationException("Movement prerequisites changed after admission.");
-                    guard=authority.Check(pre.ExpectedGeneration,pre.LeaseId,pre.Attempt.ControllerSessionId);
+                        || !Owns(snapshot!) || !Legal(pawn!,destination))throw new InvalidOperationException("Movement prerequisites changed after admission.");
+                    guard=authority.Check(pre.ExpectedGeneration);
                     if(!guard.Success)throw new InvalidOperationException("Movement authority changed before native effect.");
                     if(pawn!.Position==destination) {
                         record.AlreadyAtDestination(snapshot!);
                         evidence=record.Evidence(snapshot!,false,true);
-                        var candidate=new Receipts.Receipt {Attempt=pre.Attempt,AdmittedContext=context,AuthorizingOwner=owner,
+                        var candidate=new Receipts.Receipt {Attempt=pre.Attempt,AdmittedContext=context,
                             NoChange=new Receipts.NoChange {Observed=evidence,Detail="Pawn already occupies the exact destination."}};
                         if(!NativeOperationEnvelope.Fits(new Operations.ExecuteReply {Receipt=candidate}))throw new InvalidOperationException("Movement no-change evidence is not encodable.");
                         return new Operations.ExecuteReply {Receipt=state.Ledger.FinishNoChange(handle,evidence,candidate.NoChange.Detail)};
@@ -157,10 +156,10 @@ namespace HomeBridge.BridgeTools
                     evidence=record.Evidence(snapshot,accepted,correlated);
                     if(effectError!=null || !accepted || !correlated)throw new InvalidOperationException("Native movement requires causal observation.",effectError);
                 }
-                return new Operations.ExecuteReply {Receipt=NativeOperationEnvelope.Applied(state.Ledger,handle,pre.Attempt,context,owner,evidence)};
+                return new Operations.ExecuteReply {Receipt=NativeOperationEnvelope.Applied(state.Ledger,handle,pre.Attempt,context,evidence)};
             } catch(Exception error) {
                 if(handle==null)return Refuse(Common.FailureCode.NativeFailure,"Movement validation failed: "+error.GetType().Name);
-                return new Operations.ExecuteReply {Receipt=NativeOperationEnvelope.Uncertain(state.Ledger,handle,pre.Attempt,context,owner!,evidence!,"Admitted movement requires observation: "+error.GetType().Name)};
+                return new Operations.ExecuteReply {Receipt=NativeOperationEnvelope.Uncertain(state.Ledger,handle,pre.Attempt,context,evidence!,"Admitted movement requires observation: "+error.GetType().Name)};
             }
         }
         internal static Operations.PreviewReply Preview(Operations.MovePawn command,Common.ObservationContext context)

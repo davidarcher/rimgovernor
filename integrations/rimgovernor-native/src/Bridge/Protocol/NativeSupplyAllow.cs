@@ -94,7 +94,6 @@ namespace HomeBridge.BridgeTools
         internal static Operations.ExecuteReply Execute(NativeOperationState state, Operations.ExecuteRequest request, Common.ObservationContext context)
         {
             NativeAttemptLedger.Admission? handle = null;
-            Authority.Owner? owner = null;
             Receipts.EffectEvidence? evidence = null;
             var pre = request.Precondition;
             try
@@ -102,16 +101,15 @@ namespace HomeBridge.BridgeTools
                 if (!Prepare(request.Operation.DesignateThing, context, out var thing, out var failure)) return new Operations.ExecuteReply { Failure = failure };
                 if (!NativeControlAuthority.TryGetForGame(Current.Game, out var authority) || authority == null)
                     return new Operations.ExecuteReply { Failure = ProtoBoundary.Fail(Common.FailureCode.AuthorityRequired, "Native authority is required.") };
-                var guard = authority.Check(pre.ExpectedGeneration, pre.LeaseId, pre.Attempt.ControllerSessionId);
+                var guard = authority.Check(pre.ExpectedGeneration);
                 context.NativeGeneration = guard.Snapshot.Generation;
                 if (!guard.Success) return new Operations.ExecuteReply { Failure = NativeAuthorityControlTools.Refusal(guard.Error, context) };
-                owner = new Authority.Owner { ControllerSessionId = guard.Snapshot.Lease!.ControllerSessionId, PlayerDirection = guard.Snapshot.Lease.PlayerDirection };
-                var admitted = state.Ledger.Admit("rimgovernor.operations.v1.Operations/Execute", request, context, owner);
+                var admitted = state.Ledger.Admit("rimgovernor.operations.v1.Operations/Execute", request, context);
                 if (admitted.Kind != NativeAttemptLedger.DecisionKind.Admitted) return admitted.Reply!;
                 handle = admitted.Handle;
                 using (authority.Owned())
                 {
-                    var current = authority.Check(pre.ExpectedGeneration, pre.LeaseId, pre.Attempt.ControllerSessionId);
+                    var current = authority.Check(pre.ExpectedGeneration);
                     if (!current.Success || !Prepare(request.Operation.DesignateThing, context, out var checkedThing, out failure)
                         || !ReferenceEquals(checkedThing, thing)) throw new InvalidOperationException("Supply admission changed before effect.");
                     new Designator_Unforbid().DesignateThing(thing);
@@ -119,13 +117,13 @@ namespace HomeBridge.BridgeTools
                     evidence = Evidence(thing!);
                     state.AllowedSupplies.Add(pre.Attempt.Clone(), evidence.Designation.Clone());
                 }
-                return new Operations.ExecuteReply { Receipt = NativeOperationEnvelope.Applied(state.Ledger, handle, pre.Attempt, context, owner, evidence) };
+                return new Operations.ExecuteReply { Receipt = NativeOperationEnvelope.Applied(state.Ledger, handle, pre.Attempt, context, evidence) };
             }
             catch (Exception error)
             {
                 return handle == null
                     ? new Operations.ExecuteReply { Failure = ProtoBoundary.Fail(Common.FailureCode.NativeFailure, "Supply admission failed: " + error.GetType().Name) }
-                    : new Operations.ExecuteReply { Receipt = NativeOperationEnvelope.Uncertain(state.Ledger, handle, pre.Attempt, context, owner!, evidence!, "Admitted Allow requires observation: " + error.GetType().Name) };
+                    : new Operations.ExecuteReply { Receipt = NativeOperationEnvelope.Uncertain(state.Ledger, handle, pre.Attempt, context, evidence!, "Admitted Allow requires observation: " + error.GetType().Name) };
             }
         }
 
