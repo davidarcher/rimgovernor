@@ -19,7 +19,6 @@ func TestLostDraftReplyThenPlayerReplacementRecoversOnlyHistoricalClaim(t *testi
 			claim := draft.KnownClaim(f)
 			if kind == "replacement-owned" {
 				f.Row.DraftClaim.GetOwned().ClaimId = proto.String("replacement")
-				f.Row.DraftClaim.GetOwned().Owner.PlayerDirection = proto.Uint64(2)
 			} else {
 				f.Row.Drafted = proto.Bool(false)
 				f.Row.DraftClaim = &n.DraftClaimObservation{State: &n.DraftClaimObservation_Unowned{Unowned: &n.NoOwnedDraftClaim{}}}
@@ -61,7 +60,7 @@ func TestLostDraftReplyThenPlayerReplacementRecoversOnlyHistoricalClaim(t *testi
 
 func TestHistoricalClaimRejectsMissingOrContradictoryProof(t *testing.T) {
 	t.Parallel()
-	for _, kind := range []string{"unavailable", "uncertain", "unverified", "no-token", "wrong-owner", "wrong-attempt", "wrong-generation", "future-receipt", "missing-cas", "incomplete-replacement-owner"} {
+	for _, kind := range []string{"unavailable", "uncertain", "unverified", "no-token", "wrong-world", "wrong-attempt", "wrong-generation", "future-receipt", "missing-cas", "incomplete-replacement-owner"} {
 		t.Run(kind, func(t *testing.T) {
 			b, f := draft.NewFixture(t)
 			f.Row.Drafted = proto.Bool(false)
@@ -76,8 +75,8 @@ func TestHistoricalClaimRejectsMissingOrContradictoryProof(t *testing.T) {
 				f.Receipt.GetApplied().Observed.GetJob().Verified = proto.Bool(false)
 			case "no-token":
 				f.Receipt.GetApplied().Observed.GetJob().ResultingSnapshotToken = nil
-			case "wrong-owner":
-				f.Receipt.AuthorizingOwner.PlayerDirection = proto.Uint64(2)
+			case "wrong-world":
+				f.Receipt.AdmittedContext.Identity.LoadToken = proto.String("replacement")
 			case "wrong-attempt":
 				f.Receipt.Attempt.AttemptId = proto.Uint64(2)
 			case "wrong-generation":

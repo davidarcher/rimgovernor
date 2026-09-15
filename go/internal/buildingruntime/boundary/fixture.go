@@ -54,7 +54,7 @@ func NewFixture(t *testing.T) (*Boundary, *Fixture) {
 	f.Emergency = bridge.EmergencyObservation{Context: proto.Clone(ctx).(*c.ObservationContext), Facts: policy.EmergencyFacts{ColonistsComplete: domain.Known(true), ThreatsComplete: domain.Known(true), Colonists: []policy.EmergencyPawn{{ID: "pawn", Dead: domain.Known(false), Downed: domain.Known(false), Bleeding: domain.Known(false), NeedsTend: domain.Known(false)}}}}
 	f.Emergency.Context.Tick = proto.Int64(12)
 	attempt := &c.AttemptKey{ControllerSessionId: proto.String("session"), ActionId: proto.String("action"), AttemptId: proto.Uint64(1)}
-	f.Receipt = &r.Receipt{Attempt: attempt, AdmittedContext: ctx, AuthorizingOwner: &a.Owner{ControllerSessionId: proto.String("session"), PlayerDirection: proto.Uint64(1)}, Outcome: &r.Receipt_Uncertain{Uncertain: &r.Uncertain{}}}
+	f.Receipt = &r.Receipt{Attempt: attempt, AdmittedContext: ctx, Outcome: &r.Receipt_Uncertain{Uncertain: &r.Uncertain{}}}
 	effect := &r.ConstructionEffect{OriginThingId: proto.String("blueprint1"), CurrentThingId: proto.String("building1"), DefName: proto.String("Wall"), Stuff: proto.String("WoodLog"), Cell: &c.Cell{X: proto.Int32(1), Z: proto.Int32(2)}, Rotation: p.Rotation_ROTATION_NORTH.Enum(), Stage: r.ConstructionStage_CONSTRUCTION_STAGE_BUILDING.Enum(), Present: proto.Bool(true), Started: proto.Bool(true), Failed: proto.Bool(false)}
 	f.Progress = &r.Progress{Attempt: proto.Clone(attempt).(*c.AttemptKey), Context: proto.Clone(ctx).(*c.ObservationContext), CompleteInspection: proto.Bool(true), Effect: &r.Progress_Completed{Completed: &r.CompletedEffect{Evidence: &r.EffectEvidence{Effect: &r.EffectEvidence_Construction{Construction: effect}}}}}
 	boundary, err := NewBoundary(f, f, f, f, FixedClock{}, "session", nil)

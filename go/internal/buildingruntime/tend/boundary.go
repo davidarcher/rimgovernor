@@ -25,7 +25,7 @@ type TendNative interface {
 	ObservePawnOrderProgress(context.Context, bridge.PawnOrderAttempt, *r.Receipt) (*r.ProgressReply, bridge.Result, error)
 }
 type TendWriter interface {
-	OrderPawn(context.Context, *a.WritePrecondition, *a.Owner, *o.PawnTargetOrder) (*o.ExecuteReply, bridge.Result, error)
+	OrderPawn(context.Context, *a.WritePrecondition, *o.PawnTargetOrder) (*o.ExecuteReply, bridge.Result, error)
 }
 type TendCapabilities struct {
 	Native TendNative
@@ -210,7 +210,7 @@ func (b *TendBoundary) attempt(dispatch executor.TendDispatch) (bridge.PawnOrder
 	if !ok || p.Attempt == 0 || p.Tick < 0 || admission.Snapshot != p.Snapshot || admission.Doctor != tend.Doctor() || admission.Patient != tend.Patient() || admission.Tick > p.Tick || !boundary.ValidID(admission.DoctorSnapshotToken) || !boundary.ValidID(admission.PatientSnapshotToken) {
 		return bridge.PawnOrderAttempt{}, executor.ErrEvidence
 	}
-	return bridge.PawnOrderAttempt{Identity: boundary.Identity(p.Snapshot), Attempt: &c.AttemptKey{ControllerSessionId: proto.String(b.session), ActionId: proto.String(string(p.Action.ID())), AttemptId: proto.Uint64(uint64(p.Attempt))}, NativeGeneration: uint64(p.Snapshot.Native), Owner: &a.Owner{ControllerSessionId: proto.String(b.session), PlayerDirection: proto.Uint64(uint64(p.Snapshot.Direction))}, PawnID: string(tend.Doctor()), TargetID: string(tend.Patient()), Kind: o.PawnOrderKind_PAWN_ORDER_KIND_TEND, RequireSafeStorage: false}, nil
+	return bridge.PawnOrderAttempt{Identity: boundary.Identity(p.Snapshot), Attempt: &c.AttemptKey{ControllerSessionId: proto.String(b.session), ActionId: proto.String(string(p.Action.ID())), AttemptId: proto.Uint64(uint64(p.Attempt))}, NativeGeneration: uint64(p.Snapshot.Native), PawnID: string(tend.Doctor()), TargetID: string(tend.Patient()), Kind: o.PawnOrderKind_PAWN_ORDER_KIND_TEND, RequireSafeStorage: false}, nil
 }
 
 func tendJob(job *r.JobEffect, dispatch executor.TendDispatch) error {

@@ -8,7 +8,6 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/bridge"
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"github.com/davidarcher/RimGovernor/go/internal/executor"
-	a "github.com/davidarcher/RimGovernor/go/internal/wire/authoritypb"
 	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
 	n "github.com/davidarcher/RimGovernor/go/internal/wire/observationspb"
 	o "github.com/davidarcher/RimGovernor/go/internal/wire/operationspb"
@@ -201,10 +200,10 @@ func (b *DraftBoundary) InspectDraftCleanup(ctx context.Context, p executor.Plac
 		superseded = true
 	case *n.DraftClaimObservation_Owned:
 		owned := state.Owned
-		if owned == nil || owned.Owner == nil || owned.Owner.ControllerSessionId == nil || owned.Owner.PlayerDirection == nil || owned.Owner.GetPlayerDirection() == 0 || !boundary.ValidID(owned.Owner.GetControllerSessionId()) || !boundary.ValidID(owned.GetClaimId()) || !proto.Equal(owned.PawnSnapshot, row.Pawn.Snapshot) {
+		if owned == nil || !boundary.ValidID(owned.GetClaimId()) || !proto.Equal(owned.PawnSnapshot, row.Pawn.Snapshot) {
 			return out, executor.ErrHeld
 		}
-		superseded = owned.GetClaimId() != string(claim.Claim) || owned.Owner.GetControllerSessionId() != string(claim.Session) || owned.Owner.GetPlayerDirection() != uint64(claim.Origin.Direction)
+		superseded = owned.GetClaimId() != string(claim.Claim)
 	default:
 		return out, executor.ErrHeld
 	}
@@ -230,7 +229,7 @@ func (b *DraftBoundary) ReleaseDraft(ctx context.Context, release domain.DraftRe
 	if release.Sequence == 0 || q.Tick < 0 || q.Observed.Validate() != nil || q.Observed.Native == 0 || claim.Origin.Validate() != nil || claim.Origin.Native == 0 || claim.Origin.Direction == 0 || claim.Attempt == 0 || !boundary.World(q.Observed, claim.Origin) || q.Observed.Native < claim.Origin.Native || !boundary.ValidID(string(claim.Action)) || !boundary.ValidID(string(claim.Pawn)) || !boundary.ValidID(string(claim.Claim)) || string(claim.Session) != b.session || !boundary.ValidID(q.PawnSnapshotToken) {
 		return out, executor.ErrEvidence
 	}
-	request := &o.ReleaseOwnedDraftRequest{Identity: boundary.Identity(claim.Origin), Pawn: &o.EntityPrecondition{EntityId: proto.String(string(claim.Pawn)), ExpectedSnapshotToken: proto.String(q.PawnSnapshotToken)}, ExpectedClaimId: proto.String(string(claim.Claim)), OriginalOwner: &a.Owner{ControllerSessionId: proto.String(string(claim.Session)), PlayerDirection: proto.Uint64(uint64(claim.Origin.Direction))}}
+	request := &o.ReleaseOwnedDraftRequest{Identity: boundary.Identity(claim.Origin), Pawn: &o.EntityPrecondition{EntityId: proto.String(string(claim.Pawn)), ExpectedSnapshotToken: proto.String(q.PawnSnapshotToken)}, ExpectedClaimId: proto.String(string(claim.Claim))}
 	if err := ctx.Err(); err != nil {
 		return out, err
 	}

@@ -18,7 +18,7 @@ control uses these routes; building submission routes remain family-specific.
 | GET | `/api/player/session` | Process token and `mode: "explicit-player"` |
 | GET | `/api/player/control` | Current control record and actual permission |
 | GET | `/api/player/control?requestId=…` | Historical request and actual permission |
-| POST | `/api/player/control/acquire` | Explicitly enable an exact stored plan revision |
+| POST | `/api/player/control/acquire` | Explicitly enable an exact stored plan revision for the bot's own Auto-mode authority |
 | POST | `/api/player/control/manual` | Invalidate local permission and clean up owned work |
 | POST | `/api/buildings/plans` | Store one building intent |
 | GET | `/api/buildings/submission?requestId=…` | Read a building submission |
@@ -47,7 +47,12 @@ authority or drafts a pawn; native eligibility and CAS are resolved by fresh
 executor inspection when a player enables the plan.
 
 Acquire and Manual retain the existing exact-world, direction-CAS and durable
-request semantics. Historical results never confer current permission. Bodies
+request semantics. Acquire does not negotiate a lease or an owner identity —
+there is exactly one bot and one local human player, so Acquire is simply an
+explicit dashboard trigger that tells the sole bot to switch its own Mode to
+Auto for an exact stored plan revision; the bot's native side still resolves
+eligibility and CAS itself when it acts. Historical results never confer
+current permission. Bodies
 remain bounded to 8192 bytes, with duplicate, unknown, null, malformed and trailing
 fields rejected. Errors retain the existing sanitized code/detail and control
 record/state/error shapes. Missing lookup is not proof that a timed-out POST had
@@ -77,10 +82,14 @@ supplies the same Player and store used by the worker.
 ## Dashboard behavior
 
 Building and draft forms share token bootstrap, current permission, direction
-CAS, Manual and acquisition history. An outstanding acquisition in either family
-prevents a competing acquisition; Manual remains available. Background refresh
-preserves both forms, request IDs and last-good data. Session/world changes exclude
-stale permission and responses without silently resubmitting either intent.
+CAS, Manual and acquisition history. An outstanding acquisition in either
+family still prevents a competing acquisition — there is still exactly one
+bot, so a second Acquire for a different plan/direction while one is already
+in flight is rejected the same way it always was, just without any Owner
+identity involved; Manual remains available regardless. Background refresh
+preserves both forms, request IDs and last-good data. Session/world changes
+exclude stale permission and responses without silently resubmitting either
+intent.
 
 Show ordinary progress and cleanup separately. Explain that a standalone temporary
 draft releases its owned claim when the plan finishes; it is not a persistent draft

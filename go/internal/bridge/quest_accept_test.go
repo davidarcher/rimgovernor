@@ -18,17 +18,16 @@ import (
 )
 
 func questAcceptPre() *a.WritePrecondition {
-	return &a.WritePrecondition{Identity: pbIdentity(), ExpectedGeneration: proto.Uint64(1), LeaseId: proto.String("lease"), Attempt: &c.AttemptKey{ControllerSessionId: proto.String("controller"), ActionId: proto.String("action"), AttemptId: proto.Uint64(1)}}
+	return &a.WritePrecondition{Identity: pbIdentity(), ExpectedGeneration: proto.Uint64(1), Attempt: &c.AttemptKey{ControllerSessionId: proto.String("controller"), ActionId: proto.String("action"), AttemptId: proto.Uint64(1)}}
 }
 func questAcceptEffectEvidence() *r.EffectEvidence {
 	return &r.EffectEvidence{Effect: &r.EffectEvidence_Quest{Quest: &r.QuestEffect{QuestId: proto.String("quest-1"), Accepted: proto.Bool(true), State: proto.String("Ongoing")}}}
 }
 func questAcceptAdmission() *r.Receipt {
-	return &r.Receipt{Attempt: questAcceptPre().Attempt, AdmittedContext: &c.ObservationContext{Identity: pbIdentity(), Tick: proto.Int64(10), NativeGeneration: proto.Uint64(1)}, AuthorizingOwner: &a.Owner{ControllerSessionId: proto.String("controller"), PlayerDirection: proto.Uint64(1)}, Outcome: &r.Receipt_Applied{Applied: &r.Applied{Observed: questAcceptEffectEvidence()}}}
+	return &r.Receipt{Attempt: questAcceptPre().Attempt, AdmittedContext: &c.ObservationContext{Identity: pbIdentity(), Tick: proto.Int64(10), NativeGeneration: proto.Uint64(1)}, Outcome: &r.Receipt_Applied{Applied: &r.Applied{Observed: questAcceptEffectEvidence()}}}
 }
 func questAcceptAttemptFixture() QuestAcceptAttempt {
-	admission := questAcceptAdmission()
-	return QuestAcceptAttempt{Identity: pbIdentity(), Attempt: questAcceptPre().Attempt, Owner: admission.AuthorizingOwner, Generation: 1, Quest: "quest-1", QuestToken: "quest-cas", AccepterPawn: "pawn-1", RewardChoice: 0}
+	return QuestAcceptAttempt{Identity: pbIdentity(), Attempt: questAcceptPre().Attempt, Generation: 1, Quest: "quest-1", QuestToken: "quest-cas", AccepterPawn: "pawn-1", RewardChoice: 0}
 }
 
 func TestPreviewQuestAcceptAcceptedAndRejections(t *testing.T) {
@@ -144,18 +143,17 @@ func TestApplyQuestAcceptCorrelationAndOwnerMismatch(t *testing.T) {
 		t.Fatal(err)
 	}
 	pre := questAcceptPre()
-	owner := questAcceptAdmission().AuthorizingOwner
-	reply, raw, err := writer.ApplyQuestAccept(context.Background(), pre, owner, "quest-1", "quest-cas", "pawn-1", 0)
+	reply, raw, err := writer.ApplyQuestAccept(context.Background(), pre, "quest-1", "quest-cas", "pawn-1", 0)
 	if err != nil || reply.GetReceipt() == nil || len(raw.Envelope) == 0 {
 		t.Fatal(err)
 	}
 	mismatched := &testServer{schema: protoSchema, handler: func(context.Context, nativeArgument) (*mcp.CallToolResult, error) {
 		admission := questAcceptAdmission()
-		admission.AuthorizingOwner.ControllerSessionId = proto.String("someone-else")
+		admission.Attempt.AttemptId = proto.Uint64(999)
 		return pbResult(&op.ExecuteReply{Outcome: &op.ExecuteReply_Receipt{Receipt: admission}}), nil
 	}}
 	writer, _ = NewQuestAcceptWriter(testClient(t, mismatched, time.Second))
-	if _, _, err = writer.ApplyQuestAccept(context.Background(), pre, owner, "quest-1", "quest-cas", "pawn-1", 0); !errors.Is(err, ErrContract) {
+	if _, _, err = writer.ApplyQuestAccept(context.Background(), pre, "quest-1", "quest-cas", "pawn-1", 0); !errors.Is(err, ErrContract) {
 		t.Fatal("owner mismatch accepted", err)
 	}
 }
@@ -163,20 +161,18 @@ func TestApplyQuestAcceptCorrelationAndOwnerMismatch(t *testing.T) {
 func TestApplyQuestAcceptInvalidInputsNeverDispatch(t *testing.T) {
 	s := &testServer{schema: protoSchema}
 	writer, _ := NewQuestAcceptWriter(testClient(t, s, time.Second))
-	owner := questAcceptAdmission().AuthorizingOwner
 	for _, change := range []func(*a.WritePrecondition){
 		func(v *a.WritePrecondition) { v.ExpectedGeneration = nil },
 		func(v *a.WritePrecondition) { v.ExpectedGeneration = proto.Uint64(0) },
-		func(v *a.WritePrecondition) { v.LeaseId = nil },
 		func(v *a.WritePrecondition) { v.Attempt.AttemptId = nil },
 	} {
 		pre := questAcceptPre()
 		change(pre)
-		if _, _, err := writer.ApplyQuestAccept(context.Background(), pre, owner, "quest-1", "quest-cas", "pawn-1", 0); !errors.Is(err, ErrContract) {
+		if _, _, err := writer.ApplyQuestAccept(context.Background(), pre, "quest-1", "quest-cas", "pawn-1", 0); !errors.Is(err, ErrContract) {
 			t.Fatal("invalid precondition accepted", err)
 		}
 	}
-	if _, _, err := writer.ApplyQuestAccept(context.Background(), questAcceptPre(), owner, "quest-1", "quest-cas", "pawn-1", -2); !errors.Is(err, ErrContract) {
+	if _, _, err := writer.ApplyQuestAccept(context.Background(), questAcceptPre(), "quest-1", "quest-cas", "pawn-1", -2); !errors.Is(err, ErrContract) {
 		t.Fatal("invalid reward choice accepted", err)
 	}
 	if len(s.calls) != 0 {
@@ -232,14 +228,14 @@ func TestLookupAndObserveQuestAccept(t *testing.T) {
 		return out, nil
 	}}
 	writer, _ := NewQuestAcceptWriter(testClient(t, refusal, time.Second))
-	if _, raw, err := writer.ApplyQuestAccept(context.Background(), questAcceptPre(), admission.AuthorizingOwner, "quest-1", "quest-cas", "pawn-1", 0); !errors.Is(err, ErrRefused) || len(raw.Envelope) == 0 {
+	if _, raw, err := writer.ApplyQuestAccept(context.Background(), questAcceptPre(), "quest-1", "quest-cas", "pawn-1", 0); !errors.Is(err, ErrRefused) || len(raw.Envelope) == 0 {
 		t.Fatal("typed refusal lost", err)
 	}
 	lost := &testServer{schema: protoSchema, handler: func(context.Context, nativeArgument) (*mcp.CallToolResult, error) {
 		return nil, errors.New("lost after potential effect")
 	}}
 	writer, _ = NewQuestAcceptWriter(testClient(t, lost, time.Second))
-	if reply, _, err := writer.ApplyQuestAccept(context.Background(), questAcceptPre(), admission.AuthorizingOwner, "quest-1", "quest-cas", "pawn-1", 0); err == nil || reply != nil || len(lost.calls) != 1 {
+	if reply, _, err := writer.ApplyQuestAccept(context.Background(), questAcceptPre(), "quest-1", "quest-cas", "pawn-1", 0); err == nil || reply != nil || len(lost.calls) != 1 {
 		t.Fatal("lost reply fabricated outcome or retried", err)
 	}
 }

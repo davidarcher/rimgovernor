@@ -25,7 +25,6 @@ type Fixture struct {
 	Command       *o.AttackTarget
 	PreviewTick   int64
 	ProgressReads int
-	Owner         *a.Owner
 }
 
 func NewFixture(t *testing.T) (*MeleeBoundary, *Fixture, executor.MeleeDispatch) {
@@ -81,16 +80,15 @@ func (f *Fixture) PreviewAttack(ctx context.Context, id *c.Identity, command *o.
 	current.Tick = proto.Int64(f.PreviewTick)
 	return &o.PreviewReply{Outcome: &o.PreviewReply_Evaluated{Evaluated: &o.PreviewEvaluation{Context: current, Accepted: proto.Bool(true), Projected: &r.EffectEvidence{Effect: &r.EffectEvidence_Job{Job: &r.JobEffect{PawnId: proto.String("pawn"), JobDef: proto.String("AttackMelee"), TargetA: &r.JobTarget{Target: &r.JobTarget_ThingId{ThingId: "target"}}, CanTry: proto.Bool(true)}}}}}}, bridge.Result{}, ctx.Err()
 }
-func (f *Fixture) AttackTarget(ctx context.Context, pre *a.WritePrecondition, owner *a.Owner, command *o.AttackTarget) (*o.ExecuteReply, bridge.Result, error) {
+func (f *Fixture) AttackTarget(ctx context.Context, pre *a.WritePrecondition, command *o.AttackTarget) (*o.ExecuteReply, bridge.Result, error) {
 	f.Writes++
 	f.LastPre = proto.Clone(pre).(*a.WritePrecondition)
-	f.Owner = proto.Clone(owner).(*a.Owner)
 	f.Command = proto.Clone(command).(*o.AttackTarget)
 	return &o.ExecuteReply{Outcome: &o.ExecuteReply_Receipt{Receipt: proto.Clone(f.Receipt).(*r.Receipt)}}, bridge.Result{}, f.WriteErr
 }
 func (f *Fixture) LookupAttackAttempt(ctx context.Context, attempt bridge.AttackAttempt) (*r.LookupReply, bridge.Result, error) {
 	f.Lookups++
-	if attempt.Attempt.GetActionId() != "attack" || attempt.NativeGeneration != 2 || attempt.Owner.GetPlayerDirection() != 1 {
+	if attempt.Attempt.GetActionId() != "attack" || attempt.NativeGeneration != 2 {
 		return nil, bridge.Result{}, executor.ErrEvidence
 	}
 	if f.Receipt == nil {

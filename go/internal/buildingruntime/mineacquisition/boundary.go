@@ -109,7 +109,7 @@ func (b *MineAcquisitionBoundary) InspectAcquisition(ctx context.Context, target
 }
 func (b *MineAcquisitionBoundary) acquisitionAttempt(p executor.Placement) bridge.AcquisitionAttempt {
 	acquisition, _ := p.Action.MineAcquisition()
-	return bridge.AcquisitionAttempt{Identity: boundary.Identity(p.Snapshot), Attempt: b.Attempt(p), Owner: &a.Owner{ControllerSessionId: proto.String(b.Session), PlayerDirection: proto.Uint64(uint64(p.Snapshot.Direction))}, Generation: uint64(p.Snapshot.Native), Acquisition: acquisition}
+	return bridge.AcquisitionAttempt{Identity: boundary.Identity(p.Snapshot), Attempt: b.Attempt(p), Generation: uint64(p.Snapshot.Native), Acquisition: acquisition}
 }
 func (b *MineAcquisitionBoundary) Acquire(ctx context.Context, request executor.AcquisitionDispatch) (executor.Receipt, error) {
 	p := request.Attempt

@@ -35,7 +35,9 @@ func NewClockWorker(ctx context.Context, scheduler *ClockScheduler, nativeEvents
 	if scheduler == nil || nativeEvents == nil {
 		return nil, ErrControl
 	}
-	lease := min(time.Duration(scheduler.config.Start.LeaseMS)*time.Millisecond, scheduler.session.control.config.LeaseDuration)
+	// The authority Mode has no time-based expiry, so the worker's cadence is
+	// bounded only by the clock's own requested lease duration.
+	lease := time.Duration(scheduler.config.Start.LeaseMS) * time.Millisecond
 	if config.PollInterval <= 0 || config.RenewInterval <= 0 || config.StepInterval <= 0 || config.CallTimeout <= 0 || config.PollInterval > lease/4 || config.RenewInterval > lease/4 || config.CallTimeout > lease/4 || config.CallTimeout > scheduler.player.config.CallTimeout || config.MaxBackoff < config.StepInterval || config.MaxBackoff > time.Minute || config.PageLimit < 1 || config.PageLimit > 128 {
 		return nil, ErrControl
 	}

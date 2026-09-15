@@ -29,7 +29,7 @@ type GearReplaceNative interface {
 	ObserveGearReplaceProgress(context.Context, bridge.GearReplaceAttempt, *r.Receipt) (*r.ProgressReply, bridge.Result, error)
 }
 type GearReplaceWriter interface {
-	ApplyGearReplace(context.Context, *a.WritePrecondition, *a.Owner, string, string, string, string, string) (*o.ExecuteReply, bridge.Result, error)
+	ApplyGearReplace(context.Context, *a.WritePrecondition, string, string, string, string, string) (*o.ExecuteReply, bridge.Result, error)
 }
 type GearReplaceCapabilities struct {
 	Native GearReplaceNative
@@ -134,7 +134,7 @@ func (b *GearReplaceBoundary) attempt(dispatch executor.GearReplaceDispatch) (br
 	if !ok || p.Attempt == 0 || p.Tick < 0 || admission.Snapshot != p.Snapshot || admission.Pawn != replace.Pawn() || admission.Thing != replace.Thing() || admission.Definition != replace.Definition() || admission.Tick > p.Tick || !boundary.ValidID(admission.PawnSnapshotToken) || !boundary.ValidID(admission.ThingSnapshotToken) || !boundary.ValidID(admission.LoadoutToken) {
 		return bridge.GearReplaceAttempt{}, executor.ErrEvidence
 	}
-	return bridge.GearReplaceAttempt{Identity: boundary.Identity(p.Snapshot), Attempt: &c.AttemptKey{ControllerSessionId: proto.String(b.session), ActionId: proto.String(string(p.Action.ID())), AttemptId: proto.Uint64(uint64(p.Attempt))}, Owner: &a.Owner{ControllerSessionId: proto.String(b.session), PlayerDirection: proto.Uint64(uint64(p.Snapshot.Direction))}, Generation: uint64(p.Snapshot.Native), Pawn: string(replace.Pawn()), Thing: replace.Thing(), PawnToken: admission.PawnSnapshotToken, ThingToken: admission.ThingSnapshotToken, LoadoutToken: admission.LoadoutToken}, nil
+	return bridge.GearReplaceAttempt{Identity: boundary.Identity(p.Snapshot), Attempt: &c.AttemptKey{ControllerSessionId: proto.String(b.session), ActionId: proto.String(string(p.Action.ID())), AttemptId: proto.Uint64(uint64(p.Attempt))}, Generation: uint64(p.Snapshot.Native), Pawn: string(replace.Pawn()), Thing: replace.Thing(), PawnToken: admission.PawnSnapshotToken, ThingToken: admission.ThingSnapshotToken, LoadoutToken: admission.LoadoutToken}, nil
 }
 
 func gearReplaceJob(job *r.JobEffect, dispatch executor.GearReplaceDispatch) error {
@@ -168,8 +168,8 @@ func (b *GearReplaceBoundary) GearReplacePawn(ctx context.Context, dispatch exec
 	if err = ctx.Err(); err != nil {
 		return out, err
 	}
-	pre := &a.WritePrecondition{Identity: attempt.Identity, Attempt: attempt.Attempt, ExpectedGeneration: proto.Uint64(attempt.Generation), LeaseId: proto.String(lease)}
-	reply, _, err := b.writer.ApplyGearReplace(ctx, pre, attempt.Owner, attempt.Pawn, attempt.PawnToken, attempt.Thing, attempt.ThingToken, attempt.LoadoutToken)
+	pre := &a.WritePrecondition{Identity: attempt.Identity, Attempt: attempt.Attempt, ExpectedGeneration: proto.Uint64(attempt.Generation),}
+	reply, _, err := b.writer.ApplyGearReplace(ctx, pre, attempt.Pawn, attempt.PawnToken, attempt.Thing, attempt.ThingToken, attempt.LoadoutToken)
 	var refused *bridge.NativeFailure
 	if errors.As(err, &refused) && refused.Value != nil && refused.Value.GetCode() != c.FailureCode_FAILURE_CODE_ATTEMPT_CONFLICT {
 		out.Kind = domain.ReceiptRefused
@@ -227,7 +227,7 @@ func (b *GearReplaceBoundary) ObserveGearReplace(ctx context.Context, dispatch e
 		if v.InFlight == nil || !proto.Equal(v.InFlight.Attempt, attempt.Attempt) {
 			return out, executor.ErrEvidence
 		}
-		if err = boundary.Admission(&r.Receipt{Attempt: v.InFlight.Attempt, AdmittedContext: v.InFlight.AdmittedContext, AuthorizingOwner: attempt.Owner}, p, b.session); err != nil {
+		if err = boundary.Admission(&r.Receipt{Attempt: v.InFlight.Attempt, AdmittedContext: v.InFlight.AdmittedContext}, p, b.session); err != nil {
 			return out, err
 		}
 	case *r.LookupReply_Receipt:

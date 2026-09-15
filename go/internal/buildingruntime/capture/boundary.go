@@ -25,7 +25,7 @@ type CaptureNative interface {
 	ObservePawnOrderProgress(context.Context, bridge.PawnOrderAttempt, *r.Receipt) (*r.ProgressReply, bridge.Result, error)
 }
 type CaptureWriter interface {
-	OrderPawn(context.Context, *a.WritePrecondition, *a.Owner, *o.PawnTargetOrder) (*o.ExecuteReply, bridge.Result, error)
+	OrderPawn(context.Context, *a.WritePrecondition, *o.PawnTargetOrder) (*o.ExecuteReply, bridge.Result, error)
 }
 type CaptureCapabilities struct {
 	Native CaptureNative
@@ -165,7 +165,7 @@ func (b *CaptureBoundary) attempt(dispatch executor.CaptureDispatch) (bridge.Paw
 	if !ok || p.Attempt == 0 || p.Tick < 0 || admission.Snapshot != p.Snapshot || admission.Capturer != capture.Capturer() || admission.Patient != capture.Patient() || admission.Tick > p.Tick || !boundary.ValidID(admission.CapturerSnapshotToken) || !boundary.ValidID(admission.PatientSnapshotToken) {
 		return bridge.PawnOrderAttempt{}, executor.ErrEvidence
 	}
-	return bridge.PawnOrderAttempt{Identity: boundary.Identity(p.Snapshot), Attempt: &c.AttemptKey{ControllerSessionId: proto.String(b.session), ActionId: proto.String(string(p.Action.ID())), AttemptId: proto.Uint64(uint64(p.Attempt))}, NativeGeneration: uint64(p.Snapshot.Native), Owner: &a.Owner{ControllerSessionId: proto.String(b.session), PlayerDirection: proto.Uint64(uint64(p.Snapshot.Direction))}, PawnID: string(capture.Capturer()), TargetID: string(capture.Patient()), Kind: o.PawnOrderKind_PAWN_ORDER_KIND_CAPTURE, RequireSafeStorage: false}, nil
+	return bridge.PawnOrderAttempt{Identity: boundary.Identity(p.Snapshot), Attempt: &c.AttemptKey{ControllerSessionId: proto.String(b.session), ActionId: proto.String(string(p.Action.ID())), AttemptId: proto.Uint64(uint64(p.Attempt))}, NativeGeneration: uint64(p.Snapshot.Native), PawnID: string(capture.Capturer()), TargetID: string(capture.Patient()), Kind: o.PawnOrderKind_PAWN_ORDER_KIND_CAPTURE, RequireSafeStorage: false}, nil
 }
 
 func captureJob(job *r.JobEffect, dispatch executor.CaptureDispatch) error {

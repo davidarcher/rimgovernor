@@ -25,383 +25,130 @@ namespace RimGovernor.Protocol.Authority {
       byte[] descriptorData = global::System.Convert.FromBase64String(
           string.Concat(
             "Cg9hdXRob3JpdHkucHJvdG8SGHJpbWdvdmVybm9yLmF1dGhvcml0eS52MRoM",
-            "Y29tbW9uLnByb3RvInkKBU93bmVyEiIKFWNvbnRyb2xsZXJfc2Vzc2lvbl9p",
-            "ZBgBIAEoCUgAiAEBEh0KEHBsYXllcl9kaXJlY3Rpb24YAiABKARIAYgBAUIY",
-            "ChZfY29udHJvbGxlcl9zZXNzaW9uX2lkQhMKEV9wbGF5ZXJfZGlyZWN0aW9u",
-            "Il8KEUluYWN0aXZlQXV0aG9yaXR5Ej8KBnJlYXNvbhgBIAEoDjIqLnJpbWdv",
-            "dmVybm9yLmF1dGhvcml0eS52MS5SZXZvY2F0aW9uUmVhc29uSACIAQFCCQoH",
-            "X3JlYXNvbiJ5Cg9BY3RpdmVBdXRob3JpdHkSLgoFb3duZXIYASABKAsyHy5y",
-            "aW1nb3Zlcm5vci5hdXRob3JpdHkudjEuT3duZXISHwoScmVtYWluaW5nX2xl",
-            "YXNlX21zGAIgASgNSACIAQFCFQoTX3JlbWFpbmluZ19sZWFzZV9tcyKGAgoG",
-            "U3RhdHVzEjoKB2NvbnRleHQYASABKAsyKS5yaW1nb3Zlcm5vci5jb21tb24u",
-            "djEuT2JzZXJ2YXRpb25Db250ZXh0EjkKC3VuYXZhaWxhYmxlGAIgASgLMiIu",
-            "cmltZ292ZXJub3IuY29tbW9uLnYxLlVuYXZhaWxhYmxlSAASPwoIaW5hY3Rp",
-            "dmUYAyABKAsyKy5yaW1nb3Zlcm5vci5hdXRob3JpdHkudjEuSW5hY3RpdmVB",
-            "dXRob3JpdHlIABI7CgZhY3RpdmUYBCABKAsyKS5yaW1nb3Zlcm5vci5hdXRo",
-            "b3JpdHkudjEuQWN0aXZlQXV0aG9yaXR5SABCBwoFc3RhdGUiQgoNU3RhdHVz",
-            "UmVxdWVzdBIxCghpZGVudGl0eRgBIAEoCzIfLnJpbWdvdmVybm9yLmNvbW1v",
-            "bi52MS5JZGVudGl0eSJ/CgtTdGF0dXNSZXBseRIyCgZzdGF0dXMYASABKAsy",
-            "IC5yaW1nb3Zlcm5vci5hdXRob3JpdHkudjEuU3RhdHVzSAASMQoHZmFpbHVy",
-            "ZRgCIAEoCzIeLnJpbWdvdmVybm9yLmNvbW1vbi52MS5GYWlsdXJlSABCCQoH",
-            "b3V0Y29tZSLKAQoHQWNxdWlyZRIxCghpZGVudGl0eRgBIAEoCzIfLnJpbWdv",
-            "dmVybm9yLmNvbW1vbi52MS5JZGVudGl0eRIgChNleHBlY3RlZF9nZW5lcmF0",
-            "aW9uGAIgASgESACIAQESLgoFb3duZXIYAyABKAsyHy5yaW1nb3Zlcm5vci5h",
-            "dXRob3JpdHkudjEuT3duZXISFQoIbGVhc2VfbXMYBCABKA1IAYgBAUIWChRf",
-            "ZXhwZWN0ZWRfZ2VuZXJhdGlvbkILCglfbGVhc2VfbXMi+gEKBVJlbmV3EjEK",
-            "CGlkZW50aXR5GAEgASgLMh8ucmltZ292ZXJub3IuY29tbW9uLnYxLklkZW50",
-            "aXR5EiAKE2V4cGVjdGVkX2dlbmVyYXRpb24YAiABKARIAIgBARIiChVjb250",
-            "cm9sbGVyX3Nlc3Npb25faWQYAyABKAlIAYgBARIVCghsZWFzZV9pZBgEIAEo",
-            "CUgCiAEBEhUKCGxlYXNlX21zGAUgASgNSAOIAQFCFgoUX2V4cGVjdGVkX2dl",
-            "bmVyYXRpb25CGAoWX2NvbnRyb2xsZXJfc2Vzc2lvbl9pZEILCglfbGVhc2Vf",
-            "aWRCCwoJX2xlYXNlX21zIsEBCgZSZXZva2USMQoIaWRlbnRpdHkYASABKAsy",
-            "Hy5yaW1nb3Zlcm5vci5jb21tb24udjEuSWRlbnRpdHkSIAoTZXhwZWN0ZWRf",
-            "Z2VuZXJhdGlvbhgCIAEoBEgAiAEBEj8KBnJlYXNvbhgDIAEoDjIqLnJpbWdv",
-            "dmVybm9yLmF1dGhvcml0eS52MS5SZXZvY2F0aW9uUmVhc29uSAGIAQFCFgoU",
-            "X2V4cGVjdGVkX2dlbmVyYXRpb25CCQoHX3JlYXNvbiK5AQoOQ29udHJvbFJl",
-            "cXVlc3QSNAoHYWNxdWlyZRgBIAEoCzIhLnJpbWdvdmVybm9yLmF1dGhvcml0",
-            "eS52MS5BY3F1aXJlSAASMAoFcmVuZXcYAiABKAsyHy5yaW1nb3Zlcm5vci5h",
-            "dXRob3JpdHkudjEuUmVuZXdIABIyCgZyZXZva2UYAyABKAsyIC5yaW1nb3Zl",
-            "cm5vci5hdXRob3JpdHkudjEuUmV2b2tlSABCCwoJb3BlcmF0aW9uIqcBCgdH",
-            "cmFudGVkEjoKB2NvbnRleHQYASABKAsyKS5yaW1nb3Zlcm5vci5jb21tb24u",
-            "djEuT2JzZXJ2YXRpb25Db250ZXh0EjwKCWF1dGhvcml0eRgCIAEoCzIpLnJp",
-            "bWdvdmVybm9yLmF1dGhvcml0eS52MS5BY3RpdmVBdXRob3JpdHkSFQoIbGVh",
-            "c2VfaWQYAyABKAlIAIgBAUILCglfbGVhc2VfaWQihQEKB1Jldm9rZWQSOgoH",
-            "Y29udGV4dBgBIAEoCzIpLnJpbWdvdmVybm9yLmNvbW1vbi52MS5PYnNlcnZh",
-            "dGlvbkNvbnRleHQSPgoJYXV0aG9yaXR5GAIgASgLMisucmltZ292ZXJub3Iu",
-            "YXV0aG9yaXR5LnYxLkluYWN0aXZlQXV0aG9yaXR5IrgBCgxDb250cm9sUmVw",
-            "bHkSNAoHZ3JhbnRlZBgBIAEoCzIhLnJpbWdvdmVybm9yLmF1dGhvcml0eS52",
-            "MS5HcmFudGVkSAASNAoHcmV2b2tlZBgCIAEoCzIhLnJpbWdvdmVybm9yLmF1",
-            "dGhvcml0eS52MS5SZXZva2VkSAASMQoHZmFpbHVyZRgDIAEoCzIeLnJpbWdv",
-            "dmVybm9yLmNvbW1vbi52MS5GYWlsdXJlSABCCQoHb3V0Y29tZSLYAQoRV3Jp",
-            "dGVQcmVjb25kaXRpb24SMQoIaWRlbnRpdHkYASABKAsyHy5yaW1nb3Zlcm5v",
-            "ci5jb21tb24udjEuSWRlbnRpdHkSIAoTZXhwZWN0ZWRfZ2VuZXJhdGlvbhgC",
-            "IAEoBEgAiAEBEhUKCGxlYXNlX2lkGAMgASgJSAGIAQESMgoHYXR0ZW1wdBgE",
-            "IAEoCzIhLnJpbWdvdmVybm9yLmNvbW1vbi52MS5BdHRlbXB0S2V5QhYKFF9l",
-            "eHBlY3RlZF9nZW5lcmF0aW9uQgsKCV9sZWFzZV9pZCrHAwoQUmV2b2NhdGlv",
-            "blJlYXNvbhIhCh1SRVZPQ0FUSU9OX1JFQVNPTl9VTlNQRUNJRklFRBAAEhoK",
-            "FlJFVk9DQVRJT05fUkVBU09OX05PTkUQARIcChhSRVZPQ0FUSU9OX1JFQVNP",
-            "Tl9NQU5VQUwQAhImCiJSRVZPQ0FUSU9OX1JFQVNPTl9QTEFZRVJfRElSRUNU",
-            "SU9OEAMSJAogUkVWT0NBVElPTl9SRUFTT05fRVhURVJOQUxfT1JERVIQBBIk",
-            "CiBSRVZPQ0FUSU9OX1JFQVNPTl9QTEFZRVJfQ09OVFJPTBAFEiMKH1JFVk9D",
-            "QVRJT05fUkVBU09OX0xFQVNFX0VYUElSRUQQBhImCiJSRVZPQ0FUSU9OX1JF",
-            "QVNPTl9JREVOVElUWV9DSEFOR0VEEAcSIAocUkVWT0NBVElPTl9SRUFTT05f",
-            "RElTQ09OTkVDVBAIEh4KGlJFVk9DQVRJT05fUkVBU09OX1NIVVRET1dOEAkS",
-            "JwojUkVWT0NBVElPTl9SRUFTT05fSE9PS1NfVU5BVkFJTEFCTEUQChIqCiZS",
-            "RVZPQ0FUSU9OX1JFQVNPTl9HRU5FUkFUSU9OX0VYSEFVU1RFRBALMsYBCglB",
-            "dXRob3JpdHkSXAoKUmVhZFN0YXR1cxInLnJpbWdvdmVybm9yLmF1dGhvcml0",
-            "eS52MS5TdGF0dXNSZXF1ZXN0GiUucmltZ292ZXJub3IuYXV0aG9yaXR5LnYx",
-            "LlN0YXR1c1JlcGx5ElsKB0NvbnRyb2wSKC5yaW1nb3Zlcm5vci5hdXRob3Jp",
-            "dHkudjEuQ29udHJvbFJlcXVlc3QaJi5yaW1nb3Zlcm5vci5hdXRob3JpdHku",
-            "djEuQ29udHJvbFJlcGx5Qm5aS2dpdGh1Yi5jb20vZGF2aWRhcmNoZXIvUmlt",
-            "R292ZXJub3IvZ28vaW50ZXJuYWwvd2lyZS9hdXRob3JpdHlwYjthdXRob3Jp",
-            "dHlwYqoCHlJpbUdvdmVybm9yLlByb3RvY29sLkF1dGhvcml0eWIGcHJvdG8z"));
+            "Y29tbW9uLnByb3RvIl8KEUluYWN0aXZlQXV0aG9yaXR5Ej8KBnJlYXNvbhgB",
+            "IAEoDjIqLnJpbWdvdmVybm9yLmF1dGhvcml0eS52MS5SZXZvY2F0aW9uUmVh",
+            "c29uSACIAQFCCQoHX3JlYXNvbiJNCg9BY3RpdmVBdXRob3JpdHkSMQoEbW9k",
+            "ZRgBIAEoDjIeLnJpbWdvdmVybm9yLmF1dGhvcml0eS52MS5Nb2RlSACIAQFC",
+            "BwoFX21vZGUihgIKBlN0YXR1cxI6Cgdjb250ZXh0GAEgASgLMikucmltZ292",
+            "ZXJub3IuY29tbW9uLnYxLk9ic2VydmF0aW9uQ29udGV4dBI5Cgt1bmF2YWls",
+            "YWJsZRgCIAEoCzIiLnJpbWdvdmVybm9yLmNvbW1vbi52MS5VbmF2YWlsYWJs",
+            "ZUgAEj8KCGluYWN0aXZlGAMgASgLMisucmltZ292ZXJub3IuYXV0aG9yaXR5",
+            "LnYxLkluYWN0aXZlQXV0aG9yaXR5SAASOwoGYWN0aXZlGAQgASgLMikucmlt",
+            "Z292ZXJub3IuYXV0aG9yaXR5LnYxLkFjdGl2ZUF1dGhvcml0eUgAQgcKBXN0",
+            "YXRlIkIKDVN0YXR1c1JlcXVlc3QSMQoIaWRlbnRpdHkYASABKAsyHy5yaW1n",
+            "b3Zlcm5vci5jb21tb24udjEuSWRlbnRpdHkifwoLU3RhdHVzUmVwbHkSMgoG",
+            "c3RhdHVzGAEgASgLMiAucmltZ292ZXJub3IuYXV0aG9yaXR5LnYxLlN0YXR1",
+            "c0gAEjEKB2ZhaWx1cmUYAiABKAsyHi5yaW1nb3Zlcm5vci5jb21tb24udjEu",
+            "RmFpbHVyZUgAQgkKB291dGNvbWUisgEKB1NldE1vZGUSMQoIaWRlbnRpdHkY",
+            "ASABKAsyHy5yaW1nb3Zlcm5vci5jb21tb24udjEuSWRlbnRpdHkSIAoTZXhw",
+            "ZWN0ZWRfZ2VuZXJhdGlvbhgCIAEoBEgAiAEBEjEKBG1vZGUYAyABKA4yHi5y",
+            "aW1nb3Zlcm5vci5hdXRob3JpdHkudjEuTW9kZUgBiAEBQhYKFF9leHBlY3Rl",
+            "ZF9nZW5lcmF0aW9uQgcKBV9tb2RlIsEBCgZSZXZva2USMQoIaWRlbnRpdHkY",
+            "ASABKAsyHy5yaW1nb3Zlcm5vci5jb21tb24udjEuSWRlbnRpdHkSIAoTZXhw",
+            "ZWN0ZWRfZ2VuZXJhdGlvbhgCIAEoBEgAiAEBEj8KBnJlYXNvbhgDIAEoDjIq",
+            "LnJpbWdvdmVybm9yLmF1dGhvcml0eS52MS5SZXZvY2F0aW9uUmVhc29uSAGI",
+            "AQFCFgoUX2V4cGVjdGVkX2dlbmVyYXRpb25CCQoHX3JlYXNvbiKIAQoOQ29u",
+            "dHJvbFJlcXVlc3QSNQoIc2V0X21vZGUYASABKAsyIS5yaW1nb3Zlcm5vci5h",
+            "dXRob3JpdHkudjEuU2V0TW9kZUgAEjIKBnJldm9rZRgCIAEoCzIgLnJpbWdv",
+            "dmVybm9yLmF1dGhvcml0eS52MS5SZXZva2VIAEILCglvcGVyYXRpb24igwEK",
+            "B0dyYW50ZWQSOgoHY29udGV4dBgBIAEoCzIpLnJpbWdvdmVybm9yLmNvbW1v",
+            "bi52MS5PYnNlcnZhdGlvbkNvbnRleHQSPAoJYXV0aG9yaXR5GAIgASgLMiku",
+            "cmltZ292ZXJub3IuYXV0aG9yaXR5LnYxLkFjdGl2ZUF1dGhvcml0eSKFAQoH",
+            "UmV2b2tlZBI6Cgdjb250ZXh0GAEgASgLMikucmltZ292ZXJub3IuY29tbW9u",
+            "LnYxLk9ic2VydmF0aW9uQ29udGV4dBI+CglhdXRob3JpdHkYAiABKAsyKy5y",
+            "aW1nb3Zlcm5vci5hdXRob3JpdHkudjEuSW5hY3RpdmVBdXRob3JpdHkiuAEK",
+            "DENvbnRyb2xSZXBseRI0CgdncmFudGVkGAEgASgLMiEucmltZ292ZXJub3Iu",
+            "YXV0aG9yaXR5LnYxLkdyYW50ZWRIABI0CgdyZXZva2VkGAIgASgLMiEucmlt",
+            "Z292ZXJub3IuYXV0aG9yaXR5LnYxLlJldm9rZWRIABIxCgdmYWlsdXJlGAMg",
+            "ASgLMh4ucmltZ292ZXJub3IuY29tbW9uLnYxLkZhaWx1cmVIAEIJCgdvdXRj",
+            "b21lIrQBChFXcml0ZVByZWNvbmRpdGlvbhIxCghpZGVudGl0eRgBIAEoCzIf",
+            "LnJpbWdvdmVybm9yLmNvbW1vbi52MS5JZGVudGl0eRIgChNleHBlY3RlZF9n",
+            "ZW5lcmF0aW9uGAIgASgESACIAQESMgoHYXR0ZW1wdBgDIAEoCzIhLnJpbWdv",
+            "dmVybm9yLmNvbW1vbi52MS5BdHRlbXB0S2V5QhYKFF9leHBlY3RlZF9nZW5l",
+            "cmF0aW9uKjwKBE1vZGUSFAoQTU9ERV9VTlNQRUNJRklFRBAAEg0KCU1PREVf",
+            "QVVUTxABEg8KC01PREVfTUFOVUFMEAIqnQMKEFJldm9jYXRpb25SZWFzb24S",
+            "IQodUkVWT0NBVElPTl9SRUFTT05fVU5TUEVDSUZJRUQQABIaChZSRVZPQ0FU",
+            "SU9OX1JFQVNPTl9OT05FEAESHAoYUkVWT0NBVElPTl9SRUFTT05fTUFOVUFM",
+            "EAISJAogUkVWT0NBVElPTl9SRUFTT05fUExBWUVSX0NPTlRST0wQAxIkCiBS",
+            "RVZPQ0FUSU9OX1JFQVNPTl9FWFRFUk5BTF9PUkRFUhAEEiYKIlJFVk9DQVRJ",
+            "T05fUkVBU09OX0lERU5USVRZX0NIQU5HRUQQBRIgChxSRVZPQ0FUSU9OX1JF",
+            "QVNPTl9ESVNDT05ORUNUEAYSHgoaUkVWT0NBVElPTl9SRUFTT05fU0hVVERP",
+            "V04QBxInCiNSRVZPQ0FUSU9OX1JFQVNPTl9IT09LU19VTkFWQUlMQUJMRRAI",
+            "EioKJlJFVk9DQVRJT05fUkVBU09OX0dFTkVSQVRJT05fRVhIQVVTVEVEEAkS",
+            "IQodUkVWT0NBVElPTl9SRUFTT05fVU5BVkFJTEFCTEUQCjLGAQoJQXV0aG9y",
+            "aXR5ElwKClJlYWRTdGF0dXMSJy5yaW1nb3Zlcm5vci5hdXRob3JpdHkudjEu",
+            "U3RhdHVzUmVxdWVzdBolLnJpbWdvdmVybm9yLmF1dGhvcml0eS52MS5TdGF0",
+            "dXNSZXBseRJbCgdDb250cm9sEigucmltZ292ZXJub3IuYXV0aG9yaXR5LnYx",
+            "LkNvbnRyb2xSZXF1ZXN0GiYucmltZ292ZXJub3IuYXV0aG9yaXR5LnYxLkNv",
+            "bnRyb2xSZXBseUJuWktnaXRodWIuY29tL2RhdmlkYXJjaGVyL1JpbUdvdmVy",
+            "bm9yL2dvL2ludGVybmFsL3dpcmUvYXV0aG9yaXR5cGI7YXV0aG9yaXR5cGKq",
+            "Ah5SaW1Hb3Zlcm5vci5Qcm90b2NvbC5BdXRob3JpdHliBnByb3RvMw=="));
       descriptor = pbr::FileDescriptor.FromGeneratedCode(descriptorData,
           new pbr::FileDescriptor[] { global::RimGovernor.Protocol.Common.CommonReflection.Descriptor, },
-          new pbr::GeneratedClrTypeInfo(new[] {typeof(global::RimGovernor.Protocol.Authority.RevocationReason), }, null, new pbr::GeneratedClrTypeInfo[] {
-            new pbr::GeneratedClrTypeInfo(typeof(global::RimGovernor.Protocol.Authority.Owner), global::RimGovernor.Protocol.Authority.Owner.Parser, new[]{ "ControllerSessionId", "PlayerDirection" }, new[]{ "ControllerSessionId", "PlayerDirection" }, null, null, null),
+          new pbr::GeneratedClrTypeInfo(new[] {typeof(global::RimGovernor.Protocol.Authority.Mode), typeof(global::RimGovernor.Protocol.Authority.RevocationReason), }, null, new pbr::GeneratedClrTypeInfo[] {
             new pbr::GeneratedClrTypeInfo(typeof(global::RimGovernor.Protocol.Authority.InactiveAuthority), global::RimGovernor.Protocol.Authority.InactiveAuthority.Parser, new[]{ "Reason" }, new[]{ "Reason" }, null, null, null),
-            new pbr::GeneratedClrTypeInfo(typeof(global::RimGovernor.Protocol.Authority.ActiveAuthority), global::RimGovernor.Protocol.Authority.ActiveAuthority.Parser, new[]{ "Owner", "RemainingLeaseMs" }, new[]{ "RemainingLeaseMs" }, null, null, null),
+            new pbr::GeneratedClrTypeInfo(typeof(global::RimGovernor.Protocol.Authority.ActiveAuthority), global::RimGovernor.Protocol.Authority.ActiveAuthority.Parser, new[]{ "Mode" }, new[]{ "Mode" }, null, null, null),
             new pbr::GeneratedClrTypeInfo(typeof(global::RimGovernor.Protocol.Authority.Status), global::RimGovernor.Protocol.Authority.Status.Parser, new[]{ "Context", "Unavailable", "Inactive", "Active" }, new[]{ "State" }, null, null, null),
             new pbr::GeneratedClrTypeInfo(typeof(global::RimGovernor.Protocol.Authority.StatusRequest), global::RimGovernor.Protocol.Authority.StatusRequest.Parser, new[]{ "Identity" }, null, null, null, null),
             new pbr::GeneratedClrTypeInfo(typeof(global::RimGovernor.Protocol.Authority.StatusReply), global::RimGovernor.Protocol.Authority.StatusReply.Parser, new[]{ "Status", "Failure" }, new[]{ "Outcome" }, null, null, null),
-            new pbr::GeneratedClrTypeInfo(typeof(global::RimGovernor.Protocol.Authority.Acquire), global::RimGovernor.Protocol.Authority.Acquire.Parser, new[]{ "Identity", "ExpectedGeneration", "Owner", "LeaseMs" }, new[]{ "ExpectedGeneration", "LeaseMs" }, null, null, null),
-            new pbr::GeneratedClrTypeInfo(typeof(global::RimGovernor.Protocol.Authority.Renew), global::RimGovernor.Protocol.Authority.Renew.Parser, new[]{ "Identity", "ExpectedGeneration", "ControllerSessionId", "LeaseId", "LeaseMs" }, new[]{ "ExpectedGeneration", "ControllerSessionId", "LeaseId", "LeaseMs" }, null, null, null),
+            new pbr::GeneratedClrTypeInfo(typeof(global::RimGovernor.Protocol.Authority.SetMode), global::RimGovernor.Protocol.Authority.SetMode.Parser, new[]{ "Identity", "ExpectedGeneration", "Mode" }, new[]{ "ExpectedGeneration", "Mode" }, null, null, null),
             new pbr::GeneratedClrTypeInfo(typeof(global::RimGovernor.Protocol.Authority.Revoke), global::RimGovernor.Protocol.Authority.Revoke.Parser, new[]{ "Identity", "ExpectedGeneration", "Reason" }, new[]{ "ExpectedGeneration", "Reason" }, null, null, null),
-            new pbr::GeneratedClrTypeInfo(typeof(global::RimGovernor.Protocol.Authority.ControlRequest), global::RimGovernor.Protocol.Authority.ControlRequest.Parser, new[]{ "Acquire", "Renew", "Revoke" }, new[]{ "Operation" }, null, null, null),
-            new pbr::GeneratedClrTypeInfo(typeof(global::RimGovernor.Protocol.Authority.Granted), global::RimGovernor.Protocol.Authority.Granted.Parser, new[]{ "Context", "Authority", "LeaseId" }, new[]{ "LeaseId" }, null, null, null),
+            new pbr::GeneratedClrTypeInfo(typeof(global::RimGovernor.Protocol.Authority.ControlRequest), global::RimGovernor.Protocol.Authority.ControlRequest.Parser, new[]{ "SetMode", "Revoke" }, new[]{ "Operation" }, null, null, null),
+            new pbr::GeneratedClrTypeInfo(typeof(global::RimGovernor.Protocol.Authority.Granted), global::RimGovernor.Protocol.Authority.Granted.Parser, new[]{ "Context", "Authority" }, null, null, null, null),
             new pbr::GeneratedClrTypeInfo(typeof(global::RimGovernor.Protocol.Authority.Revoked), global::RimGovernor.Protocol.Authority.Revoked.Parser, new[]{ "Context", "Authority" }, null, null, null, null),
             new pbr::GeneratedClrTypeInfo(typeof(global::RimGovernor.Protocol.Authority.ControlReply), global::RimGovernor.Protocol.Authority.ControlReply.Parser, new[]{ "Granted", "Revoked", "Failure" }, new[]{ "Outcome" }, null, null, null),
-            new pbr::GeneratedClrTypeInfo(typeof(global::RimGovernor.Protocol.Authority.WritePrecondition), global::RimGovernor.Protocol.Authority.WritePrecondition.Parser, new[]{ "Identity", "ExpectedGeneration", "LeaseId", "Attempt" }, new[]{ "ExpectedGeneration", "LeaseId" }, null, null, null)
+            new pbr::GeneratedClrTypeInfo(typeof(global::RimGovernor.Protocol.Authority.WritePrecondition), global::RimGovernor.Protocol.Authority.WritePrecondition.Parser, new[]{ "Identity", "ExpectedGeneration", "Attempt" }, new[]{ "ExpectedGeneration" }, null, null, null)
           }));
     }
     #endregion
 
   }
   #region Enums
+  /// <summary>
+  /// There is exactly one bot process and one local human player. Auto means the
+  /// bot holds authority; Manual means it does not. There is no negotiated lease,
+  /// no session identity, and no second "direction" concept to arbitrate between
+  /// controllers, because there is only ever one controller.
+  /// </summary>
+  public enum Mode {
+    [pbr::OriginalName("MODE_UNSPECIFIED")] Unspecified = 0,
+    [pbr::OriginalName("MODE_AUTO")] Auto = 1,
+    [pbr::OriginalName("MODE_MANUAL")] Manual = 2,
+  }
+
   public enum RevocationReason {
     [pbr::OriginalName("REVOCATION_REASON_UNSPECIFIED")] Unspecified = 0,
     [pbr::OriginalName("REVOCATION_REASON_NONE")] None = 1,
     [pbr::OriginalName("REVOCATION_REASON_MANUAL")] Manual = 2,
-    [pbr::OriginalName("REVOCATION_REASON_PLAYER_DIRECTION")] PlayerDirection = 3,
+    /// <summary>
+    /// Native player action detected by the Harmony hooks (order issued, drafted,
+    /// bill/schedule/settings edited directly, etc.) while the bot held authority.
+    /// </summary>
+    [pbr::OriginalName("REVOCATION_REASON_PLAYER_CONTROL")] PlayerControl = 3,
+    /// <summary>
+    /// A specific native player order observed by the hooks; kept distinct from
+    /// PLAYER_CONTROL because acceptance tests assert on this exact reason and it
+    /// carries a different in-flight-write carve-out (see NativeControlAuthority).
+    /// </summary>
     [pbr::OriginalName("REVOCATION_REASON_EXTERNAL_ORDER")] ExternalOrder = 4,
-    [pbr::OriginalName("REVOCATION_REASON_PLAYER_CONTROL")] PlayerControl = 5,
-    [pbr::OriginalName("REVOCATION_REASON_LEASE_EXPIRED")] LeaseExpired = 6,
-    [pbr::OriginalName("REVOCATION_REASON_IDENTITY_CHANGED")] IdentityChanged = 7,
-    [pbr::OriginalName("REVOCATION_REASON_DISCONNECT")] Disconnect = 8,
-    [pbr::OriginalName("REVOCATION_REASON_SHUTDOWN")] Shutdown = 9,
-    [pbr::OriginalName("REVOCATION_REASON_HOOKS_UNAVAILABLE")] HooksUnavailable = 10,
-    [pbr::OriginalName("REVOCATION_REASON_GENERATION_EXHAUSTED")] GenerationExhausted = 11,
+    [pbr::OriginalName("REVOCATION_REASON_IDENTITY_CHANGED")] IdentityChanged = 5,
+    [pbr::OriginalName("REVOCATION_REASON_DISCONNECT")] Disconnect = 6,
+    [pbr::OriginalName("REVOCATION_REASON_SHUTDOWN")] Shutdown = 7,
+    [pbr::OriginalName("REVOCATION_REASON_HOOKS_UNAVAILABLE")] HooksUnavailable = 8,
+    [pbr::OriginalName("REVOCATION_REASON_GENERATION_EXHAUSTED")] GenerationExhausted = 9,
+    /// <summary>
+    /// Kept despite the lease going away: overflow/clock-unavailable style failures
+    /// that used to end a timed lease still need a terminal "no longer active,
+    /// and not because of a specific detected player action" reason. Genuinely
+    /// unsure whether callers still need this distinct from GENERATION_EXHAUSTED,
+    /// so it is kept rather than silently folded away.
+    /// </summary>
+    [pbr::OriginalName("REVOCATION_REASON_UNAVAILABLE")] Unavailable = 10,
   }
 
   #endregion
 
   #region Messages
-  [global::System.Diagnostics.DebuggerDisplayAttribute("{ToString(),nq}")]
-  public sealed partial class Owner : pb::IMessage<Owner>
-  #if !GOOGLE_PROTOBUF_REFSTRUCT_COMPATIBILITY_MODE
-      , pb::IBufferMessage
-  #endif
-  {
-    private static readonly pb::MessageParser<Owner> _parser = new pb::MessageParser<Owner>(() => new Owner());
-    private pb::UnknownFieldSet _unknownFields;
-    private int _hasBits0;
-    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
-    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-    public static pb::MessageParser<Owner> Parser { get { return _parser; } }
-
-    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
-    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-    public static pbr::MessageDescriptor Descriptor {
-      get { return global::RimGovernor.Protocol.Authority.AuthorityReflection.Descriptor.MessageTypes[0]; }
-    }
-
-    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
-    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-    pbr::MessageDescriptor pb::IMessage.Descriptor {
-      get { return Descriptor; }
-    }
-
-    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
-    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-    public Owner() {
-      OnConstruction();
-    }
-
-    partial void OnConstruction();
-
-    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
-    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-    public Owner(Owner other) : this() {
-      _hasBits0 = other._hasBits0;
-      controllerSessionId_ = other.controllerSessionId_;
-      playerDirection_ = other.playerDirection_;
-      _unknownFields = pb::UnknownFieldSet.Clone(other._unknownFields);
-    }
-
-    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
-    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-    public Owner Clone() {
-      return new Owner(this);
-    }
-
-    /// <summary>Field number for the "controller_session_id" field.</summary>
-    public const int ControllerSessionIdFieldNumber = 1;
-    private readonly static string ControllerSessionIdDefaultValue = "";
-
-    private string controllerSessionId_;
-    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
-    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-    public string ControllerSessionId {
-      get { return controllerSessionId_ ?? ControllerSessionIdDefaultValue; }
-      set {
-        controllerSessionId_ = pb::ProtoPreconditions.CheckNotNull(value, "value");
-      }
-    }
-    /// <summary>Gets whether the "controller_session_id" field is set</summary>
-    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
-    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-    public bool HasControllerSessionId {
-      get { return controllerSessionId_ != null; }
-    }
-    /// <summary>Clears the value of the "controller_session_id" field</summary>
-    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
-    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-    public void ClearControllerSessionId() {
-      controllerSessionId_ = null;
-    }
-
-    /// <summary>Field number for the "player_direction" field.</summary>
-    public const int PlayerDirectionFieldNumber = 2;
-    private readonly static ulong PlayerDirectionDefaultValue = 0UL;
-
-    private ulong playerDirection_;
-    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
-    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-    public ulong PlayerDirection {
-      get { if ((_hasBits0 & 1) != 0) { return playerDirection_; } else { return PlayerDirectionDefaultValue; } }
-      set {
-        _hasBits0 |= 1;
-        playerDirection_ = value;
-      }
-    }
-    /// <summary>Gets whether the "player_direction" field is set</summary>
-    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
-    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-    public bool HasPlayerDirection {
-      get { return (_hasBits0 & 1) != 0; }
-    }
-    /// <summary>Clears the value of the "player_direction" field</summary>
-    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
-    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-    public void ClearPlayerDirection() {
-      _hasBits0 &= ~1;
-    }
-
-    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
-    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-    public override bool Equals(object other) {
-      return Equals(other as Owner);
-    }
-
-    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
-    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-    public bool Equals(Owner other) {
-      if (ReferenceEquals(other, null)) {
-        return false;
-      }
-      if (ReferenceEquals(other, this)) {
-        return true;
-      }
-      if (ControllerSessionId != other.ControllerSessionId) return false;
-      if (PlayerDirection != other.PlayerDirection) return false;
-      return Equals(_unknownFields, other._unknownFields);
-    }
-
-    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
-    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-    public override int GetHashCode() {
-      int hash = 1;
-      if (HasControllerSessionId) hash ^= ControllerSessionId.GetHashCode();
-      if (HasPlayerDirection) hash ^= PlayerDirection.GetHashCode();
-      if (_unknownFields != null) {
-        hash ^= _unknownFields.GetHashCode();
-      }
-      return hash;
-    }
-
-    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
-    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-    public override string ToString() {
-      return pb::JsonFormatter.ToDiagnosticString(this);
-    }
-
-    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
-    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-    public void WriteTo(pb::CodedOutputStream output) {
-    #if !GOOGLE_PROTOBUF_REFSTRUCT_COMPATIBILITY_MODE
-      output.WriteRawMessage(this);
-    #else
-      if (HasControllerSessionId) {
-        output.WriteRawTag(10);
-        output.WriteString(ControllerSessionId);
-      }
-      if (HasPlayerDirection) {
-        output.WriteRawTag(16);
-        output.WriteUInt64(PlayerDirection);
-      }
-      if (_unknownFields != null) {
-        _unknownFields.WriteTo(output);
-      }
-    #endif
-    }
-
-    #if !GOOGLE_PROTOBUF_REFSTRUCT_COMPATIBILITY_MODE
-    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
-    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-    void pb::IBufferMessage.InternalWriteTo(ref pb::WriteContext output) {
-      if (HasControllerSessionId) {
-        output.WriteRawTag(10);
-        output.WriteString(ControllerSessionId);
-      }
-      if (HasPlayerDirection) {
-        output.WriteRawTag(16);
-        output.WriteUInt64(PlayerDirection);
-      }
-      if (_unknownFields != null) {
-        _unknownFields.WriteTo(ref output);
-      }
-    }
-    #endif
-
-    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
-    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-    public int CalculateSize() {
-      int size = 0;
-      if (HasControllerSessionId) {
-        size += 1 + pb::CodedOutputStream.ComputeStringSize(ControllerSessionId);
-      }
-      if (HasPlayerDirection) {
-        size += 1 + pb::CodedOutputStream.ComputeUInt64Size(PlayerDirection);
-      }
-      if (_unknownFields != null) {
-        size += _unknownFields.CalculateSize();
-      }
-      return size;
-    }
-
-    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
-    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-    public void MergeFrom(Owner other) {
-      if (other == null) {
-        return;
-      }
-      if (other.HasControllerSessionId) {
-        ControllerSessionId = other.ControllerSessionId;
-      }
-      if (other.HasPlayerDirection) {
-        PlayerDirection = other.PlayerDirection;
-      }
-      _unknownFields = pb::UnknownFieldSet.MergeFrom(_unknownFields, other._unknownFields);
-    }
-
-    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
-    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-    public void MergeFrom(pb::CodedInputStream input) {
-    #if !GOOGLE_PROTOBUF_REFSTRUCT_COMPATIBILITY_MODE
-      input.ReadRawMessage(this);
-    #else
-      uint tag;
-      while ((tag = input.ReadTag()) != 0) {
-      if ((tag & 7) == 4) {
-        // Abort on any end group tag.
-        return;
-      }
-      switch(tag) {
-          default:
-            _unknownFields = pb::UnknownFieldSet.MergeFieldFrom(_unknownFields, input);
-            break;
-          case 10: {
-            ControllerSessionId = input.ReadString();
-            break;
-          }
-          case 16: {
-            PlayerDirection = input.ReadUInt64();
-            break;
-          }
-        }
-      }
-    #endif
-    }
-
-    #if !GOOGLE_PROTOBUF_REFSTRUCT_COMPATIBILITY_MODE
-    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
-    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-    void pb::IBufferMessage.InternalMergeFrom(ref pb::ParseContext input) {
-      uint tag;
-      while ((tag = input.ReadTag()) != 0) {
-      if ((tag & 7) == 4) {
-        // Abort on any end group tag.
-        return;
-      }
-      switch(tag) {
-          default:
-            _unknownFields = pb::UnknownFieldSet.MergeFieldFrom(_unknownFields, ref input);
-            break;
-          case 10: {
-            ControllerSessionId = input.ReadString();
-            break;
-          }
-          case 16: {
-            PlayerDirection = input.ReadUInt64();
-            break;
-          }
-        }
-      }
-    }
-    #endif
-
-  }
-
   [global::System.Diagnostics.DebuggerDisplayAttribute("{ToString(),nq}")]
   public sealed partial class InactiveAuthority : pb::IMessage<InactiveAuthority>
   #if !GOOGLE_PROTOBUF_REFSTRUCT_COMPATIBILITY_MODE
@@ -418,7 +165,7 @@ namespace RimGovernor.Protocol.Authority {
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
     public static pbr::MessageDescriptor Descriptor {
-      get { return global::RimGovernor.Protocol.Authority.AuthorityReflection.Descriptor.MessageTypes[1]; }
+      get { return global::RimGovernor.Protocol.Authority.AuthorityReflection.Descriptor.MessageTypes[0]; }
     }
 
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
@@ -633,7 +380,7 @@ namespace RimGovernor.Protocol.Authority {
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
     public static pbr::MessageDescriptor Descriptor {
-      get { return global::RimGovernor.Protocol.Authority.AuthorityReflection.Descriptor.MessageTypes[2]; }
+      get { return global::RimGovernor.Protocol.Authority.AuthorityReflection.Descriptor.MessageTypes[1]; }
     }
 
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
@@ -654,8 +401,7 @@ namespace RimGovernor.Protocol.Authority {
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
     public ActiveAuthority(ActiveAuthority other) : this() {
       _hasBits0 = other._hasBits0;
-      owner_ = other.owner_ != null ? other.owner_.Clone() : null;
-      remainingLeaseMs_ = other.remainingLeaseMs_;
+      mode_ = other.mode_;
       _unknownFields = pb::UnknownFieldSet.Clone(other._unknownFields);
     }
 
@@ -665,42 +411,30 @@ namespace RimGovernor.Protocol.Authority {
       return new ActiveAuthority(this);
     }
 
-    /// <summary>Field number for the "owner" field.</summary>
-    public const int OwnerFieldNumber = 1;
-    private global::RimGovernor.Protocol.Authority.Owner owner_;
+    /// <summary>Field number for the "mode" field.</summary>
+    public const int ModeFieldNumber = 1;
+    private readonly static global::RimGovernor.Protocol.Authority.Mode ModeDefaultValue = global::RimGovernor.Protocol.Authority.Mode.Unspecified;
+
+    private global::RimGovernor.Protocol.Authority.Mode mode_;
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-    public global::RimGovernor.Protocol.Authority.Owner Owner {
-      get { return owner_; }
-      set {
-        owner_ = value;
-      }
-    }
-
-    /// <summary>Field number for the "remaining_lease_ms" field.</summary>
-    public const int RemainingLeaseMsFieldNumber = 2;
-    private readonly static uint RemainingLeaseMsDefaultValue = 0;
-
-    private uint remainingLeaseMs_;
-    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
-    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-    public uint RemainingLeaseMs {
-      get { if ((_hasBits0 & 1) != 0) { return remainingLeaseMs_; } else { return RemainingLeaseMsDefaultValue; } }
+    public global::RimGovernor.Protocol.Authority.Mode Mode {
+      get { if ((_hasBits0 & 1) != 0) { return mode_; } else { return ModeDefaultValue; } }
       set {
         _hasBits0 |= 1;
-        remainingLeaseMs_ = value;
+        mode_ = value;
       }
     }
-    /// <summary>Gets whether the "remaining_lease_ms" field is set</summary>
+    /// <summary>Gets whether the "mode" field is set</summary>
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-    public bool HasRemainingLeaseMs {
+    public bool HasMode {
       get { return (_hasBits0 & 1) != 0; }
     }
-    /// <summary>Clears the value of the "remaining_lease_ms" field</summary>
+    /// <summary>Clears the value of the "mode" field</summary>
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-    public void ClearRemainingLeaseMs() {
+    public void ClearMode() {
       _hasBits0 &= ~1;
     }
 
@@ -719,8 +453,7 @@ namespace RimGovernor.Protocol.Authority {
       if (ReferenceEquals(other, this)) {
         return true;
       }
-      if (!object.Equals(Owner, other.Owner)) return false;
-      if (RemainingLeaseMs != other.RemainingLeaseMs) return false;
+      if (Mode != other.Mode) return false;
       return Equals(_unknownFields, other._unknownFields);
     }
 
@@ -728,8 +461,7 @@ namespace RimGovernor.Protocol.Authority {
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
     public override int GetHashCode() {
       int hash = 1;
-      if (owner_ != null) hash ^= Owner.GetHashCode();
-      if (HasRemainingLeaseMs) hash ^= RemainingLeaseMs.GetHashCode();
+      if (HasMode) hash ^= Mode.GetHashCode();
       if (_unknownFields != null) {
         hash ^= _unknownFields.GetHashCode();
       }
@@ -748,13 +480,9 @@ namespace RimGovernor.Protocol.Authority {
     #if !GOOGLE_PROTOBUF_REFSTRUCT_COMPATIBILITY_MODE
       output.WriteRawMessage(this);
     #else
-      if (owner_ != null) {
-        output.WriteRawTag(10);
-        output.WriteMessage(Owner);
-      }
-      if (HasRemainingLeaseMs) {
-        output.WriteRawTag(16);
-        output.WriteUInt32(RemainingLeaseMs);
+      if (HasMode) {
+        output.WriteRawTag(8);
+        output.WriteEnum((int) Mode);
       }
       if (_unknownFields != null) {
         _unknownFields.WriteTo(output);
@@ -766,13 +494,9 @@ namespace RimGovernor.Protocol.Authority {
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
     void pb::IBufferMessage.InternalWriteTo(ref pb::WriteContext output) {
-      if (owner_ != null) {
-        output.WriteRawTag(10);
-        output.WriteMessage(Owner);
-      }
-      if (HasRemainingLeaseMs) {
-        output.WriteRawTag(16);
-        output.WriteUInt32(RemainingLeaseMs);
+      if (HasMode) {
+        output.WriteRawTag(8);
+        output.WriteEnum((int) Mode);
       }
       if (_unknownFields != null) {
         _unknownFields.WriteTo(ref output);
@@ -784,11 +508,8 @@ namespace RimGovernor.Protocol.Authority {
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
     public int CalculateSize() {
       int size = 0;
-      if (owner_ != null) {
-        size += 1 + pb::CodedOutputStream.ComputeMessageSize(Owner);
-      }
-      if (HasRemainingLeaseMs) {
-        size += 1 + pb::CodedOutputStream.ComputeUInt32Size(RemainingLeaseMs);
+      if (HasMode) {
+        size += 1 + pb::CodedOutputStream.ComputeEnumSize((int) Mode);
       }
       if (_unknownFields != null) {
         size += _unknownFields.CalculateSize();
@@ -802,14 +523,8 @@ namespace RimGovernor.Protocol.Authority {
       if (other == null) {
         return;
       }
-      if (other.owner_ != null) {
-        if (owner_ == null) {
-          Owner = new global::RimGovernor.Protocol.Authority.Owner();
-        }
-        Owner.MergeFrom(other.Owner);
-      }
-      if (other.HasRemainingLeaseMs) {
-        RemainingLeaseMs = other.RemainingLeaseMs;
+      if (other.HasMode) {
+        Mode = other.Mode;
       }
       _unknownFields = pb::UnknownFieldSet.MergeFrom(_unknownFields, other._unknownFields);
     }
@@ -830,15 +545,8 @@ namespace RimGovernor.Protocol.Authority {
           default:
             _unknownFields = pb::UnknownFieldSet.MergeFieldFrom(_unknownFields, input);
             break;
-          case 10: {
-            if (owner_ == null) {
-              Owner = new global::RimGovernor.Protocol.Authority.Owner();
-            }
-            input.ReadMessage(Owner);
-            break;
-          }
-          case 16: {
-            RemainingLeaseMs = input.ReadUInt32();
+          case 8: {
+            Mode = (global::RimGovernor.Protocol.Authority.Mode) input.ReadEnum();
             break;
           }
         }
@@ -860,15 +568,8 @@ namespace RimGovernor.Protocol.Authority {
           default:
             _unknownFields = pb::UnknownFieldSet.MergeFieldFrom(_unknownFields, ref input);
             break;
-          case 10: {
-            if (owner_ == null) {
-              Owner = new global::RimGovernor.Protocol.Authority.Owner();
-            }
-            input.ReadMessage(Owner);
-            break;
-          }
-          case 16: {
-            RemainingLeaseMs = input.ReadUInt32();
+          case 8: {
+            Mode = (global::RimGovernor.Protocol.Authority.Mode) input.ReadEnum();
             break;
           }
         }
@@ -893,7 +594,7 @@ namespace RimGovernor.Protocol.Authority {
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
     public static pbr::MessageDescriptor Descriptor {
-      get { return global::RimGovernor.Protocol.Authority.AuthorityReflection.Descriptor.MessageTypes[3]; }
+      get { return global::RimGovernor.Protocol.Authority.AuthorityReflection.Descriptor.MessageTypes[2]; }
     }
 
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
@@ -1286,7 +987,7 @@ namespace RimGovernor.Protocol.Authority {
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
     public static pbr::MessageDescriptor Descriptor {
-      get { return global::RimGovernor.Protocol.Authority.AuthorityReflection.Descriptor.MessageTypes[4]; }
+      get { return global::RimGovernor.Protocol.Authority.AuthorityReflection.Descriptor.MessageTypes[3]; }
     }
 
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
@@ -1493,7 +1194,7 @@ namespace RimGovernor.Protocol.Authority {
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
     public static pbr::MessageDescriptor Descriptor {
-      get { return global::RimGovernor.Protocol.Authority.AuthorityReflection.Descriptor.MessageTypes[5]; }
+      get { return global::RimGovernor.Protocol.Authority.AuthorityReflection.Descriptor.MessageTypes[4]; }
     }
 
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
@@ -1773,25 +1474,26 @@ namespace RimGovernor.Protocol.Authority {
   }
 
   /// <summary>
-  /// Acquisition is produced only by the explicit player-control path.
+  /// SetMode is the only way to change authority explicitly. Auto grants the bot
+  /// authority outright; Manual revokes it. There is no acquire/renew handshake.
   /// </summary>
   [global::System.Diagnostics.DebuggerDisplayAttribute("{ToString(),nq}")]
-  public sealed partial class Acquire : pb::IMessage<Acquire>
+  public sealed partial class SetMode : pb::IMessage<SetMode>
   #if !GOOGLE_PROTOBUF_REFSTRUCT_COMPATIBILITY_MODE
       , pb::IBufferMessage
   #endif
   {
-    private static readonly pb::MessageParser<Acquire> _parser = new pb::MessageParser<Acquire>(() => new Acquire());
+    private static readonly pb::MessageParser<SetMode> _parser = new pb::MessageParser<SetMode>(() => new SetMode());
     private pb::UnknownFieldSet _unknownFields;
     private int _hasBits0;
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-    public static pb::MessageParser<Acquire> Parser { get { return _parser; } }
+    public static pb::MessageParser<SetMode> Parser { get { return _parser; } }
 
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
     public static pbr::MessageDescriptor Descriptor {
-      get { return global::RimGovernor.Protocol.Authority.AuthorityReflection.Descriptor.MessageTypes[6]; }
+      get { return global::RimGovernor.Protocol.Authority.AuthorityReflection.Descriptor.MessageTypes[5]; }
     }
 
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
@@ -1802,7 +1504,7 @@ namespace RimGovernor.Protocol.Authority {
 
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-    public Acquire() {
+    public SetMode() {
       OnConstruction();
     }
 
@@ -1810,19 +1512,18 @@ namespace RimGovernor.Protocol.Authority {
 
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-    public Acquire(Acquire other) : this() {
+    public SetMode(SetMode other) : this() {
       _hasBits0 = other._hasBits0;
       identity_ = other.identity_ != null ? other.identity_.Clone() : null;
       expectedGeneration_ = other.expectedGeneration_;
-      owner_ = other.owner_ != null ? other.owner_.Clone() : null;
-      leaseMs_ = other.leaseMs_;
+      mode_ = other.mode_;
       _unknownFields = pb::UnknownFieldSet.Clone(other._unknownFields);
     }
 
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-    public Acquire Clone() {
-      return new Acquire(this);
+    public SetMode Clone() {
+      return new SetMode(this);
     }
 
     /// <summary>Field number for the "identity" field.</summary>
@@ -1864,54 +1565,42 @@ namespace RimGovernor.Protocol.Authority {
       _hasBits0 &= ~1;
     }
 
-    /// <summary>Field number for the "owner" field.</summary>
-    public const int OwnerFieldNumber = 3;
-    private global::RimGovernor.Protocol.Authority.Owner owner_;
+    /// <summary>Field number for the "mode" field.</summary>
+    public const int ModeFieldNumber = 3;
+    private readonly static global::RimGovernor.Protocol.Authority.Mode ModeDefaultValue = global::RimGovernor.Protocol.Authority.Mode.Unspecified;
+
+    private global::RimGovernor.Protocol.Authority.Mode mode_;
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-    public global::RimGovernor.Protocol.Authority.Owner Owner {
-      get { return owner_; }
-      set {
-        owner_ = value;
-      }
-    }
-
-    /// <summary>Field number for the "lease_ms" field.</summary>
-    public const int LeaseMsFieldNumber = 4;
-    private readonly static uint LeaseMsDefaultValue = 0;
-
-    private uint leaseMs_;
-    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
-    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-    public uint LeaseMs {
-      get { if ((_hasBits0 & 2) != 0) { return leaseMs_; } else { return LeaseMsDefaultValue; } }
+    public global::RimGovernor.Protocol.Authority.Mode Mode {
+      get { if ((_hasBits0 & 2) != 0) { return mode_; } else { return ModeDefaultValue; } }
       set {
         _hasBits0 |= 2;
-        leaseMs_ = value;
+        mode_ = value;
       }
     }
-    /// <summary>Gets whether the "lease_ms" field is set</summary>
+    /// <summary>Gets whether the "mode" field is set</summary>
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-    public bool HasLeaseMs {
+    public bool HasMode {
       get { return (_hasBits0 & 2) != 0; }
     }
-    /// <summary>Clears the value of the "lease_ms" field</summary>
+    /// <summary>Clears the value of the "mode" field</summary>
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-    public void ClearLeaseMs() {
+    public void ClearMode() {
       _hasBits0 &= ~2;
     }
 
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
     public override bool Equals(object other) {
-      return Equals(other as Acquire);
+      return Equals(other as SetMode);
     }
 
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-    public bool Equals(Acquire other) {
+    public bool Equals(SetMode other) {
       if (ReferenceEquals(other, null)) {
         return false;
       }
@@ -1920,8 +1609,7 @@ namespace RimGovernor.Protocol.Authority {
       }
       if (!object.Equals(Identity, other.Identity)) return false;
       if (ExpectedGeneration != other.ExpectedGeneration) return false;
-      if (!object.Equals(Owner, other.Owner)) return false;
-      if (LeaseMs != other.LeaseMs) return false;
+      if (Mode != other.Mode) return false;
       return Equals(_unknownFields, other._unknownFields);
     }
 
@@ -1931,8 +1619,7 @@ namespace RimGovernor.Protocol.Authority {
       int hash = 1;
       if (identity_ != null) hash ^= Identity.GetHashCode();
       if (HasExpectedGeneration) hash ^= ExpectedGeneration.GetHashCode();
-      if (owner_ != null) hash ^= Owner.GetHashCode();
-      if (HasLeaseMs) hash ^= LeaseMs.GetHashCode();
+      if (HasMode) hash ^= Mode.GetHashCode();
       if (_unknownFields != null) {
         hash ^= _unknownFields.GetHashCode();
       }
@@ -1959,13 +1646,9 @@ namespace RimGovernor.Protocol.Authority {
         output.WriteRawTag(16);
         output.WriteUInt64(ExpectedGeneration);
       }
-      if (owner_ != null) {
-        output.WriteRawTag(26);
-        output.WriteMessage(Owner);
-      }
-      if (HasLeaseMs) {
-        output.WriteRawTag(32);
-        output.WriteUInt32(LeaseMs);
+      if (HasMode) {
+        output.WriteRawTag(24);
+        output.WriteEnum((int) Mode);
       }
       if (_unknownFields != null) {
         _unknownFields.WriteTo(output);
@@ -1985,13 +1668,9 @@ namespace RimGovernor.Protocol.Authority {
         output.WriteRawTag(16);
         output.WriteUInt64(ExpectedGeneration);
       }
-      if (owner_ != null) {
-        output.WriteRawTag(26);
-        output.WriteMessage(Owner);
-      }
-      if (HasLeaseMs) {
-        output.WriteRawTag(32);
-        output.WriteUInt32(LeaseMs);
+      if (HasMode) {
+        output.WriteRawTag(24);
+        output.WriteEnum((int) Mode);
       }
       if (_unknownFields != null) {
         _unknownFields.WriteTo(ref output);
@@ -2009,11 +1688,8 @@ namespace RimGovernor.Protocol.Authority {
       if (HasExpectedGeneration) {
         size += 1 + pb::CodedOutputStream.ComputeUInt64Size(ExpectedGeneration);
       }
-      if (owner_ != null) {
-        size += 1 + pb::CodedOutputStream.ComputeMessageSize(Owner);
-      }
-      if (HasLeaseMs) {
-        size += 1 + pb::CodedOutputStream.ComputeUInt32Size(LeaseMs);
+      if (HasMode) {
+        size += 1 + pb::CodedOutputStream.ComputeEnumSize((int) Mode);
       }
       if (_unknownFields != null) {
         size += _unknownFields.CalculateSize();
@@ -2023,7 +1699,7 @@ namespace RimGovernor.Protocol.Authority {
 
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-    public void MergeFrom(Acquire other) {
+    public void MergeFrom(SetMode other) {
       if (other == null) {
         return;
       }
@@ -2036,14 +1712,8 @@ namespace RimGovernor.Protocol.Authority {
       if (other.HasExpectedGeneration) {
         ExpectedGeneration = other.ExpectedGeneration;
       }
-      if (other.owner_ != null) {
-        if (owner_ == null) {
-          Owner = new global::RimGovernor.Protocol.Authority.Owner();
-        }
-        Owner.MergeFrom(other.Owner);
-      }
-      if (other.HasLeaseMs) {
-        LeaseMs = other.LeaseMs;
+      if (other.HasMode) {
+        Mode = other.Mode;
       }
       _unknownFields = pb::UnknownFieldSet.MergeFrom(_unknownFields, other._unknownFields);
     }
@@ -2075,15 +1745,8 @@ namespace RimGovernor.Protocol.Authority {
             ExpectedGeneration = input.ReadUInt64();
             break;
           }
-          case 26: {
-            if (owner_ == null) {
-              Owner = new global::RimGovernor.Protocol.Authority.Owner();
-            }
-            input.ReadMessage(Owner);
-            break;
-          }
-          case 32: {
-            LeaseMs = input.ReadUInt32();
+          case 24: {
+            Mode = (global::RimGovernor.Protocol.Authority.Mode) input.ReadEnum();
             break;
           }
         }
@@ -2116,430 +1779,8 @@ namespace RimGovernor.Protocol.Authority {
             ExpectedGeneration = input.ReadUInt64();
             break;
           }
-          case 26: {
-            if (owner_ == null) {
-              Owner = new global::RimGovernor.Protocol.Authority.Owner();
-            }
-            input.ReadMessage(Owner);
-            break;
-          }
-          case 32: {
-            LeaseMs = input.ReadUInt32();
-            break;
-          }
-        }
-      }
-    }
-    #endif
-
-  }
-
-  [global::System.Diagnostics.DebuggerDisplayAttribute("{ToString(),nq}")]
-  public sealed partial class Renew : pb::IMessage<Renew>
-  #if !GOOGLE_PROTOBUF_REFSTRUCT_COMPATIBILITY_MODE
-      , pb::IBufferMessage
-  #endif
-  {
-    private static readonly pb::MessageParser<Renew> _parser = new pb::MessageParser<Renew>(() => new Renew());
-    private pb::UnknownFieldSet _unknownFields;
-    private int _hasBits0;
-    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
-    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-    public static pb::MessageParser<Renew> Parser { get { return _parser; } }
-
-    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
-    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-    public static pbr::MessageDescriptor Descriptor {
-      get { return global::RimGovernor.Protocol.Authority.AuthorityReflection.Descriptor.MessageTypes[7]; }
-    }
-
-    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
-    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-    pbr::MessageDescriptor pb::IMessage.Descriptor {
-      get { return Descriptor; }
-    }
-
-    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
-    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-    public Renew() {
-      OnConstruction();
-    }
-
-    partial void OnConstruction();
-
-    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
-    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-    public Renew(Renew other) : this() {
-      _hasBits0 = other._hasBits0;
-      identity_ = other.identity_ != null ? other.identity_.Clone() : null;
-      expectedGeneration_ = other.expectedGeneration_;
-      controllerSessionId_ = other.controllerSessionId_;
-      leaseId_ = other.leaseId_;
-      leaseMs_ = other.leaseMs_;
-      _unknownFields = pb::UnknownFieldSet.Clone(other._unknownFields);
-    }
-
-    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
-    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-    public Renew Clone() {
-      return new Renew(this);
-    }
-
-    /// <summary>Field number for the "identity" field.</summary>
-    public const int IdentityFieldNumber = 1;
-    private global::RimGovernor.Protocol.Common.Identity identity_;
-    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
-    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-    public global::RimGovernor.Protocol.Common.Identity Identity {
-      get { return identity_; }
-      set {
-        identity_ = value;
-      }
-    }
-
-    /// <summary>Field number for the "expected_generation" field.</summary>
-    public const int ExpectedGenerationFieldNumber = 2;
-    private readonly static ulong ExpectedGenerationDefaultValue = 0UL;
-
-    private ulong expectedGeneration_;
-    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
-    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-    public ulong ExpectedGeneration {
-      get { if ((_hasBits0 & 1) != 0) { return expectedGeneration_; } else { return ExpectedGenerationDefaultValue; } }
-      set {
-        _hasBits0 |= 1;
-        expectedGeneration_ = value;
-      }
-    }
-    /// <summary>Gets whether the "expected_generation" field is set</summary>
-    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
-    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-    public bool HasExpectedGeneration {
-      get { return (_hasBits0 & 1) != 0; }
-    }
-    /// <summary>Clears the value of the "expected_generation" field</summary>
-    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
-    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-    public void ClearExpectedGeneration() {
-      _hasBits0 &= ~1;
-    }
-
-    /// <summary>Field number for the "controller_session_id" field.</summary>
-    public const int ControllerSessionIdFieldNumber = 3;
-    private readonly static string ControllerSessionIdDefaultValue = "";
-
-    private string controllerSessionId_;
-    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
-    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-    public string ControllerSessionId {
-      get { return controllerSessionId_ ?? ControllerSessionIdDefaultValue; }
-      set {
-        controllerSessionId_ = pb::ProtoPreconditions.CheckNotNull(value, "value");
-      }
-    }
-    /// <summary>Gets whether the "controller_session_id" field is set</summary>
-    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
-    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-    public bool HasControllerSessionId {
-      get { return controllerSessionId_ != null; }
-    }
-    /// <summary>Clears the value of the "controller_session_id" field</summary>
-    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
-    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-    public void ClearControllerSessionId() {
-      controllerSessionId_ = null;
-    }
-
-    /// <summary>Field number for the "lease_id" field.</summary>
-    public const int LeaseIdFieldNumber = 4;
-    private readonly static string LeaseIdDefaultValue = "";
-
-    private string leaseId_;
-    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
-    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-    public string LeaseId {
-      get { return leaseId_ ?? LeaseIdDefaultValue; }
-      set {
-        leaseId_ = pb::ProtoPreconditions.CheckNotNull(value, "value");
-      }
-    }
-    /// <summary>Gets whether the "lease_id" field is set</summary>
-    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
-    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-    public bool HasLeaseId {
-      get { return leaseId_ != null; }
-    }
-    /// <summary>Clears the value of the "lease_id" field</summary>
-    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
-    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-    public void ClearLeaseId() {
-      leaseId_ = null;
-    }
-
-    /// <summary>Field number for the "lease_ms" field.</summary>
-    public const int LeaseMsFieldNumber = 5;
-    private readonly static uint LeaseMsDefaultValue = 0;
-
-    private uint leaseMs_;
-    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
-    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-    public uint LeaseMs {
-      get { if ((_hasBits0 & 2) != 0) { return leaseMs_; } else { return LeaseMsDefaultValue; } }
-      set {
-        _hasBits0 |= 2;
-        leaseMs_ = value;
-      }
-    }
-    /// <summary>Gets whether the "lease_ms" field is set</summary>
-    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
-    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-    public bool HasLeaseMs {
-      get { return (_hasBits0 & 2) != 0; }
-    }
-    /// <summary>Clears the value of the "lease_ms" field</summary>
-    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
-    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-    public void ClearLeaseMs() {
-      _hasBits0 &= ~2;
-    }
-
-    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
-    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-    public override bool Equals(object other) {
-      return Equals(other as Renew);
-    }
-
-    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
-    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-    public bool Equals(Renew other) {
-      if (ReferenceEquals(other, null)) {
-        return false;
-      }
-      if (ReferenceEquals(other, this)) {
-        return true;
-      }
-      if (!object.Equals(Identity, other.Identity)) return false;
-      if (ExpectedGeneration != other.ExpectedGeneration) return false;
-      if (ControllerSessionId != other.ControllerSessionId) return false;
-      if (LeaseId != other.LeaseId) return false;
-      if (LeaseMs != other.LeaseMs) return false;
-      return Equals(_unknownFields, other._unknownFields);
-    }
-
-    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
-    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-    public override int GetHashCode() {
-      int hash = 1;
-      if (identity_ != null) hash ^= Identity.GetHashCode();
-      if (HasExpectedGeneration) hash ^= ExpectedGeneration.GetHashCode();
-      if (HasControllerSessionId) hash ^= ControllerSessionId.GetHashCode();
-      if (HasLeaseId) hash ^= LeaseId.GetHashCode();
-      if (HasLeaseMs) hash ^= LeaseMs.GetHashCode();
-      if (_unknownFields != null) {
-        hash ^= _unknownFields.GetHashCode();
-      }
-      return hash;
-    }
-
-    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
-    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-    public override string ToString() {
-      return pb::JsonFormatter.ToDiagnosticString(this);
-    }
-
-    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
-    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-    public void WriteTo(pb::CodedOutputStream output) {
-    #if !GOOGLE_PROTOBUF_REFSTRUCT_COMPATIBILITY_MODE
-      output.WriteRawMessage(this);
-    #else
-      if (identity_ != null) {
-        output.WriteRawTag(10);
-        output.WriteMessage(Identity);
-      }
-      if (HasExpectedGeneration) {
-        output.WriteRawTag(16);
-        output.WriteUInt64(ExpectedGeneration);
-      }
-      if (HasControllerSessionId) {
-        output.WriteRawTag(26);
-        output.WriteString(ControllerSessionId);
-      }
-      if (HasLeaseId) {
-        output.WriteRawTag(34);
-        output.WriteString(LeaseId);
-      }
-      if (HasLeaseMs) {
-        output.WriteRawTag(40);
-        output.WriteUInt32(LeaseMs);
-      }
-      if (_unknownFields != null) {
-        _unknownFields.WriteTo(output);
-      }
-    #endif
-    }
-
-    #if !GOOGLE_PROTOBUF_REFSTRUCT_COMPATIBILITY_MODE
-    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
-    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-    void pb::IBufferMessage.InternalWriteTo(ref pb::WriteContext output) {
-      if (identity_ != null) {
-        output.WriteRawTag(10);
-        output.WriteMessage(Identity);
-      }
-      if (HasExpectedGeneration) {
-        output.WriteRawTag(16);
-        output.WriteUInt64(ExpectedGeneration);
-      }
-      if (HasControllerSessionId) {
-        output.WriteRawTag(26);
-        output.WriteString(ControllerSessionId);
-      }
-      if (HasLeaseId) {
-        output.WriteRawTag(34);
-        output.WriteString(LeaseId);
-      }
-      if (HasLeaseMs) {
-        output.WriteRawTag(40);
-        output.WriteUInt32(LeaseMs);
-      }
-      if (_unknownFields != null) {
-        _unknownFields.WriteTo(ref output);
-      }
-    }
-    #endif
-
-    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
-    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-    public int CalculateSize() {
-      int size = 0;
-      if (identity_ != null) {
-        size += 1 + pb::CodedOutputStream.ComputeMessageSize(Identity);
-      }
-      if (HasExpectedGeneration) {
-        size += 1 + pb::CodedOutputStream.ComputeUInt64Size(ExpectedGeneration);
-      }
-      if (HasControllerSessionId) {
-        size += 1 + pb::CodedOutputStream.ComputeStringSize(ControllerSessionId);
-      }
-      if (HasLeaseId) {
-        size += 1 + pb::CodedOutputStream.ComputeStringSize(LeaseId);
-      }
-      if (HasLeaseMs) {
-        size += 1 + pb::CodedOutputStream.ComputeUInt32Size(LeaseMs);
-      }
-      if (_unknownFields != null) {
-        size += _unknownFields.CalculateSize();
-      }
-      return size;
-    }
-
-    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
-    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-    public void MergeFrom(Renew other) {
-      if (other == null) {
-        return;
-      }
-      if (other.identity_ != null) {
-        if (identity_ == null) {
-          Identity = new global::RimGovernor.Protocol.Common.Identity();
-        }
-        Identity.MergeFrom(other.Identity);
-      }
-      if (other.HasExpectedGeneration) {
-        ExpectedGeneration = other.ExpectedGeneration;
-      }
-      if (other.HasControllerSessionId) {
-        ControllerSessionId = other.ControllerSessionId;
-      }
-      if (other.HasLeaseId) {
-        LeaseId = other.LeaseId;
-      }
-      if (other.HasLeaseMs) {
-        LeaseMs = other.LeaseMs;
-      }
-      _unknownFields = pb::UnknownFieldSet.MergeFrom(_unknownFields, other._unknownFields);
-    }
-
-    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
-    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-    public void MergeFrom(pb::CodedInputStream input) {
-    #if !GOOGLE_PROTOBUF_REFSTRUCT_COMPATIBILITY_MODE
-      input.ReadRawMessage(this);
-    #else
-      uint tag;
-      while ((tag = input.ReadTag()) != 0) {
-      if ((tag & 7) == 4) {
-        // Abort on any end group tag.
-        return;
-      }
-      switch(tag) {
-          default:
-            _unknownFields = pb::UnknownFieldSet.MergeFieldFrom(_unknownFields, input);
-            break;
-          case 10: {
-            if (identity_ == null) {
-              Identity = new global::RimGovernor.Protocol.Common.Identity();
-            }
-            input.ReadMessage(Identity);
-            break;
-          }
-          case 16: {
-            ExpectedGeneration = input.ReadUInt64();
-            break;
-          }
-          case 26: {
-            ControllerSessionId = input.ReadString();
-            break;
-          }
-          case 34: {
-            LeaseId = input.ReadString();
-            break;
-          }
-          case 40: {
-            LeaseMs = input.ReadUInt32();
-            break;
-          }
-        }
-      }
-    #endif
-    }
-
-    #if !GOOGLE_PROTOBUF_REFSTRUCT_COMPATIBILITY_MODE
-    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
-    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-    void pb::IBufferMessage.InternalMergeFrom(ref pb::ParseContext input) {
-      uint tag;
-      while ((tag = input.ReadTag()) != 0) {
-      if ((tag & 7) == 4) {
-        // Abort on any end group tag.
-        return;
-      }
-      switch(tag) {
-          default:
-            _unknownFields = pb::UnknownFieldSet.MergeFieldFrom(_unknownFields, ref input);
-            break;
-          case 10: {
-            if (identity_ == null) {
-              Identity = new global::RimGovernor.Protocol.Common.Identity();
-            }
-            input.ReadMessage(Identity);
-            break;
-          }
-          case 16: {
-            ExpectedGeneration = input.ReadUInt64();
-            break;
-          }
-          case 26: {
-            ControllerSessionId = input.ReadString();
-            break;
-          }
-          case 34: {
-            LeaseId = input.ReadString();
-            break;
-          }
-          case 40: {
-            LeaseMs = input.ReadUInt32();
+          case 24: {
+            Mode = (global::RimGovernor.Protocol.Authority.Mode) input.ReadEnum();
             break;
           }
         }
@@ -2565,7 +1806,7 @@ namespace RimGovernor.Protocol.Authority {
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
     public static pbr::MessageDescriptor Descriptor {
-      get { return global::RimGovernor.Protocol.Authority.AuthorityReflection.Descriptor.MessageTypes[8]; }
+      get { return global::RimGovernor.Protocol.Authority.AuthorityReflection.Descriptor.MessageTypes[6]; }
     }
 
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
@@ -2877,7 +2118,7 @@ namespace RimGovernor.Protocol.Authority {
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
     public static pbr::MessageDescriptor Descriptor {
-      get { return global::RimGovernor.Protocol.Authority.AuthorityReflection.Descriptor.MessageTypes[9]; }
+      get { return global::RimGovernor.Protocol.Authority.AuthorityReflection.Descriptor.MessageTypes[7]; }
     }
 
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
@@ -2898,11 +2139,8 @@ namespace RimGovernor.Protocol.Authority {
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
     public ControlRequest(ControlRequest other) : this() {
       switch (other.OperationCase) {
-        case OperationOneofCase.Acquire:
-          Acquire = other.Acquire.Clone();
-          break;
-        case OperationOneofCase.Renew:
-          Renew = other.Renew.Clone();
+        case OperationOneofCase.SetMode:
+          SetMode = other.SetMode.Clone();
           break;
         case OperationOneofCase.Revoke:
           Revoke = other.Revoke.Clone();
@@ -2918,32 +2156,20 @@ namespace RimGovernor.Protocol.Authority {
       return new ControlRequest(this);
     }
 
-    /// <summary>Field number for the "acquire" field.</summary>
-    public const int AcquireFieldNumber = 1;
+    /// <summary>Field number for the "set_mode" field.</summary>
+    public const int SetModeFieldNumber = 1;
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-    public global::RimGovernor.Protocol.Authority.Acquire Acquire {
-      get { return operationCase_ == OperationOneofCase.Acquire ? (global::RimGovernor.Protocol.Authority.Acquire) operation_ : null; }
+    public global::RimGovernor.Protocol.Authority.SetMode SetMode {
+      get { return operationCase_ == OperationOneofCase.SetMode ? (global::RimGovernor.Protocol.Authority.SetMode) operation_ : null; }
       set {
         operation_ = value;
-        operationCase_ = value == null ? OperationOneofCase.None : OperationOneofCase.Acquire;
-      }
-    }
-
-    /// <summary>Field number for the "renew" field.</summary>
-    public const int RenewFieldNumber = 2;
-    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
-    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-    public global::RimGovernor.Protocol.Authority.Renew Renew {
-      get { return operationCase_ == OperationOneofCase.Renew ? (global::RimGovernor.Protocol.Authority.Renew) operation_ : null; }
-      set {
-        operation_ = value;
-        operationCase_ = value == null ? OperationOneofCase.None : OperationOneofCase.Renew;
+        operationCase_ = value == null ? OperationOneofCase.None : OperationOneofCase.SetMode;
       }
     }
 
     /// <summary>Field number for the "revoke" field.</summary>
-    public const int RevokeFieldNumber = 3;
+    public const int RevokeFieldNumber = 2;
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
     public global::RimGovernor.Protocol.Authority.Revoke Revoke {
@@ -2958,9 +2184,8 @@ namespace RimGovernor.Protocol.Authority {
     /// <summary>Enum of possible cases for the "operation" oneof.</summary>
     public enum OperationOneofCase {
       None = 0,
-      Acquire = 1,
-      Renew = 2,
-      Revoke = 3,
+      SetMode = 1,
+      Revoke = 2,
     }
     private OperationOneofCase operationCase_ = OperationOneofCase.None;
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
@@ -2991,8 +2216,7 @@ namespace RimGovernor.Protocol.Authority {
       if (ReferenceEquals(other, this)) {
         return true;
       }
-      if (!object.Equals(Acquire, other.Acquire)) return false;
-      if (!object.Equals(Renew, other.Renew)) return false;
+      if (!object.Equals(SetMode, other.SetMode)) return false;
       if (!object.Equals(Revoke, other.Revoke)) return false;
       if (OperationCase != other.OperationCase) return false;
       return Equals(_unknownFields, other._unknownFields);
@@ -3002,8 +2226,7 @@ namespace RimGovernor.Protocol.Authority {
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
     public override int GetHashCode() {
       int hash = 1;
-      if (operationCase_ == OperationOneofCase.Acquire) hash ^= Acquire.GetHashCode();
-      if (operationCase_ == OperationOneofCase.Renew) hash ^= Renew.GetHashCode();
+      if (operationCase_ == OperationOneofCase.SetMode) hash ^= SetMode.GetHashCode();
       if (operationCase_ == OperationOneofCase.Revoke) hash ^= Revoke.GetHashCode();
       hash ^= (int) operationCase_;
       if (_unknownFields != null) {
@@ -3024,16 +2247,12 @@ namespace RimGovernor.Protocol.Authority {
     #if !GOOGLE_PROTOBUF_REFSTRUCT_COMPATIBILITY_MODE
       output.WriteRawMessage(this);
     #else
-      if (operationCase_ == OperationOneofCase.Acquire) {
+      if (operationCase_ == OperationOneofCase.SetMode) {
         output.WriteRawTag(10);
-        output.WriteMessage(Acquire);
-      }
-      if (operationCase_ == OperationOneofCase.Renew) {
-        output.WriteRawTag(18);
-        output.WriteMessage(Renew);
+        output.WriteMessage(SetMode);
       }
       if (operationCase_ == OperationOneofCase.Revoke) {
-        output.WriteRawTag(26);
+        output.WriteRawTag(18);
         output.WriteMessage(Revoke);
       }
       if (_unknownFields != null) {
@@ -3046,16 +2265,12 @@ namespace RimGovernor.Protocol.Authority {
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
     void pb::IBufferMessage.InternalWriteTo(ref pb::WriteContext output) {
-      if (operationCase_ == OperationOneofCase.Acquire) {
+      if (operationCase_ == OperationOneofCase.SetMode) {
         output.WriteRawTag(10);
-        output.WriteMessage(Acquire);
-      }
-      if (operationCase_ == OperationOneofCase.Renew) {
-        output.WriteRawTag(18);
-        output.WriteMessage(Renew);
+        output.WriteMessage(SetMode);
       }
       if (operationCase_ == OperationOneofCase.Revoke) {
-        output.WriteRawTag(26);
+        output.WriteRawTag(18);
         output.WriteMessage(Revoke);
       }
       if (_unknownFields != null) {
@@ -3068,11 +2283,8 @@ namespace RimGovernor.Protocol.Authority {
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
     public int CalculateSize() {
       int size = 0;
-      if (operationCase_ == OperationOneofCase.Acquire) {
-        size += 1 + pb::CodedOutputStream.ComputeMessageSize(Acquire);
-      }
-      if (operationCase_ == OperationOneofCase.Renew) {
-        size += 1 + pb::CodedOutputStream.ComputeMessageSize(Renew);
+      if (operationCase_ == OperationOneofCase.SetMode) {
+        size += 1 + pb::CodedOutputStream.ComputeMessageSize(SetMode);
       }
       if (operationCase_ == OperationOneofCase.Revoke) {
         size += 1 + pb::CodedOutputStream.ComputeMessageSize(Revoke);
@@ -3090,17 +2302,11 @@ namespace RimGovernor.Protocol.Authority {
         return;
       }
       switch (other.OperationCase) {
-        case OperationOneofCase.Acquire:
-          if (Acquire == null) {
-            Acquire = new global::RimGovernor.Protocol.Authority.Acquire();
+        case OperationOneofCase.SetMode:
+          if (SetMode == null) {
+            SetMode = new global::RimGovernor.Protocol.Authority.SetMode();
           }
-          Acquire.MergeFrom(other.Acquire);
-          break;
-        case OperationOneofCase.Renew:
-          if (Renew == null) {
-            Renew = new global::RimGovernor.Protocol.Authority.Renew();
-          }
-          Renew.MergeFrom(other.Renew);
+          SetMode.MergeFrom(other.SetMode);
           break;
         case OperationOneofCase.Revoke:
           if (Revoke == null) {
@@ -3130,24 +2336,15 @@ namespace RimGovernor.Protocol.Authority {
             _unknownFields = pb::UnknownFieldSet.MergeFieldFrom(_unknownFields, input);
             break;
           case 10: {
-            global::RimGovernor.Protocol.Authority.Acquire subBuilder = new global::RimGovernor.Protocol.Authority.Acquire();
-            if (operationCase_ == OperationOneofCase.Acquire) {
-              subBuilder.MergeFrom(Acquire);
+            global::RimGovernor.Protocol.Authority.SetMode subBuilder = new global::RimGovernor.Protocol.Authority.SetMode();
+            if (operationCase_ == OperationOneofCase.SetMode) {
+              subBuilder.MergeFrom(SetMode);
             }
             input.ReadMessage(subBuilder);
-            Acquire = subBuilder;
+            SetMode = subBuilder;
             break;
           }
           case 18: {
-            global::RimGovernor.Protocol.Authority.Renew subBuilder = new global::RimGovernor.Protocol.Authority.Renew();
-            if (operationCase_ == OperationOneofCase.Renew) {
-              subBuilder.MergeFrom(Renew);
-            }
-            input.ReadMessage(subBuilder);
-            Renew = subBuilder;
-            break;
-          }
-          case 26: {
             global::RimGovernor.Protocol.Authority.Revoke subBuilder = new global::RimGovernor.Protocol.Authority.Revoke();
             if (operationCase_ == OperationOneofCase.Revoke) {
               subBuilder.MergeFrom(Revoke);
@@ -3176,24 +2373,15 @@ namespace RimGovernor.Protocol.Authority {
             _unknownFields = pb::UnknownFieldSet.MergeFieldFrom(_unknownFields, ref input);
             break;
           case 10: {
-            global::RimGovernor.Protocol.Authority.Acquire subBuilder = new global::RimGovernor.Protocol.Authority.Acquire();
-            if (operationCase_ == OperationOneofCase.Acquire) {
-              subBuilder.MergeFrom(Acquire);
+            global::RimGovernor.Protocol.Authority.SetMode subBuilder = new global::RimGovernor.Protocol.Authority.SetMode();
+            if (operationCase_ == OperationOneofCase.SetMode) {
+              subBuilder.MergeFrom(SetMode);
             }
             input.ReadMessage(subBuilder);
-            Acquire = subBuilder;
+            SetMode = subBuilder;
             break;
           }
           case 18: {
-            global::RimGovernor.Protocol.Authority.Renew subBuilder = new global::RimGovernor.Protocol.Authority.Renew();
-            if (operationCase_ == OperationOneofCase.Renew) {
-              subBuilder.MergeFrom(Renew);
-            }
-            input.ReadMessage(subBuilder);
-            Renew = subBuilder;
-            break;
-          }
-          case 26: {
             global::RimGovernor.Protocol.Authority.Revoke subBuilder = new global::RimGovernor.Protocol.Authority.Revoke();
             if (operationCase_ == OperationOneofCase.Revoke) {
               subBuilder.MergeFrom(Revoke);
@@ -3224,7 +2412,7 @@ namespace RimGovernor.Protocol.Authority {
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
     public static pbr::MessageDescriptor Descriptor {
-      get { return global::RimGovernor.Protocol.Authority.AuthorityReflection.Descriptor.MessageTypes[10]; }
+      get { return global::RimGovernor.Protocol.Authority.AuthorityReflection.Descriptor.MessageTypes[8]; }
     }
 
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
@@ -3246,7 +2434,6 @@ namespace RimGovernor.Protocol.Authority {
     public Granted(Granted other) : this() {
       context_ = other.context_ != null ? other.context_.Clone() : null;
       authority_ = other.authority_ != null ? other.authority_.Clone() : null;
-      leaseId_ = other.leaseId_;
       _unknownFields = pb::UnknownFieldSet.Clone(other._unknownFields);
     }
 
@@ -3280,32 +2467,6 @@ namespace RimGovernor.Protocol.Authority {
       }
     }
 
-    /// <summary>Field number for the "lease_id" field.</summary>
-    public const int LeaseIdFieldNumber = 3;
-    private readonly static string LeaseIdDefaultValue = "";
-
-    private string leaseId_;
-    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
-    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-    public string LeaseId {
-      get { return leaseId_ ?? LeaseIdDefaultValue; }
-      set {
-        leaseId_ = pb::ProtoPreconditions.CheckNotNull(value, "value");
-      }
-    }
-    /// <summary>Gets whether the "lease_id" field is set</summary>
-    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
-    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-    public bool HasLeaseId {
-      get { return leaseId_ != null; }
-    }
-    /// <summary>Clears the value of the "lease_id" field</summary>
-    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
-    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-    public void ClearLeaseId() {
-      leaseId_ = null;
-    }
-
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
     public override bool Equals(object other) {
@@ -3323,7 +2484,6 @@ namespace RimGovernor.Protocol.Authority {
       }
       if (!object.Equals(Context, other.Context)) return false;
       if (!object.Equals(Authority, other.Authority)) return false;
-      if (LeaseId != other.LeaseId) return false;
       return Equals(_unknownFields, other._unknownFields);
     }
 
@@ -3333,7 +2493,6 @@ namespace RimGovernor.Protocol.Authority {
       int hash = 1;
       if (context_ != null) hash ^= Context.GetHashCode();
       if (authority_ != null) hash ^= Authority.GetHashCode();
-      if (HasLeaseId) hash ^= LeaseId.GetHashCode();
       if (_unknownFields != null) {
         hash ^= _unknownFields.GetHashCode();
       }
@@ -3360,10 +2519,6 @@ namespace RimGovernor.Protocol.Authority {
         output.WriteRawTag(18);
         output.WriteMessage(Authority);
       }
-      if (HasLeaseId) {
-        output.WriteRawTag(26);
-        output.WriteString(LeaseId);
-      }
       if (_unknownFields != null) {
         _unknownFields.WriteTo(output);
       }
@@ -3382,10 +2537,6 @@ namespace RimGovernor.Protocol.Authority {
         output.WriteRawTag(18);
         output.WriteMessage(Authority);
       }
-      if (HasLeaseId) {
-        output.WriteRawTag(26);
-        output.WriteString(LeaseId);
-      }
       if (_unknownFields != null) {
         _unknownFields.WriteTo(ref output);
       }
@@ -3401,9 +2552,6 @@ namespace RimGovernor.Protocol.Authority {
       }
       if (authority_ != null) {
         size += 1 + pb::CodedOutputStream.ComputeMessageSize(Authority);
-      }
-      if (HasLeaseId) {
-        size += 1 + pb::CodedOutputStream.ComputeStringSize(LeaseId);
       }
       if (_unknownFields != null) {
         size += _unknownFields.CalculateSize();
@@ -3428,9 +2576,6 @@ namespace RimGovernor.Protocol.Authority {
           Authority = new global::RimGovernor.Protocol.Authority.ActiveAuthority();
         }
         Authority.MergeFrom(other.Authority);
-      }
-      if (other.HasLeaseId) {
-        LeaseId = other.LeaseId;
       }
       _unknownFields = pb::UnknownFieldSet.MergeFrom(_unknownFields, other._unknownFields);
     }
@@ -3463,10 +2608,6 @@ namespace RimGovernor.Protocol.Authority {
               Authority = new global::RimGovernor.Protocol.Authority.ActiveAuthority();
             }
             input.ReadMessage(Authority);
-            break;
-          }
-          case 26: {
-            LeaseId = input.ReadString();
             break;
           }
         }
@@ -3502,10 +2643,6 @@ namespace RimGovernor.Protocol.Authority {
             input.ReadMessage(Authority);
             break;
           }
-          case 26: {
-            LeaseId = input.ReadString();
-            break;
-          }
         }
       }
     }
@@ -3528,7 +2665,7 @@ namespace RimGovernor.Protocol.Authority {
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
     public static pbr::MessageDescriptor Descriptor {
-      get { return global::RimGovernor.Protocol.Authority.AuthorityReflection.Descriptor.MessageTypes[11]; }
+      get { return global::RimGovernor.Protocol.Authority.AuthorityReflection.Descriptor.MessageTypes[9]; }
     }
 
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
@@ -3781,7 +2918,7 @@ namespace RimGovernor.Protocol.Authority {
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
     public static pbr::MessageDescriptor Descriptor {
-      get { return global::RimGovernor.Protocol.Authority.AuthorityReflection.Descriptor.MessageTypes[12]; }
+      get { return global::RimGovernor.Protocol.Authority.AuthorityReflection.Descriptor.MessageTypes[10]; }
     }
 
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
@@ -4114,7 +3251,13 @@ namespace RimGovernor.Protocol.Authority {
   }
 
   /// <summary>
-  /// A new write requires all these preconditions atomically on the game thread.
+  /// A new write requires these preconditions atomically on the game thread: the
+  /// identity is still current, the attempt is admitted at most once, and the
+  /// generation has not moved past what the caller computed its command against
+  /// (a local-player interruption bumps the generation even though there is no
+  /// lease to expire). Identity is a colony/load/map staleness check, not part
+  /// of the authority-ownership ceremony this message used to also carry; owner
+  /// and lease_id are dropped because there is only ever one bot holding Auto.
   /// </summary>
   [global::System.Diagnostics.DebuggerDisplayAttribute("{ToString(),nq}")]
   public sealed partial class WritePrecondition : pb::IMessage<WritePrecondition>
@@ -4132,7 +3275,7 @@ namespace RimGovernor.Protocol.Authority {
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
     public static pbr::MessageDescriptor Descriptor {
-      get { return global::RimGovernor.Protocol.Authority.AuthorityReflection.Descriptor.MessageTypes[13]; }
+      get { return global::RimGovernor.Protocol.Authority.AuthorityReflection.Descriptor.MessageTypes[11]; }
     }
 
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
@@ -4155,7 +3298,6 @@ namespace RimGovernor.Protocol.Authority {
       _hasBits0 = other._hasBits0;
       identity_ = other.identity_ != null ? other.identity_.Clone() : null;
       expectedGeneration_ = other.expectedGeneration_;
-      leaseId_ = other.leaseId_;
       attempt_ = other.attempt_ != null ? other.attempt_.Clone() : null;
       _unknownFields = pb::UnknownFieldSet.Clone(other._unknownFields);
     }
@@ -4205,34 +3347,8 @@ namespace RimGovernor.Protocol.Authority {
       _hasBits0 &= ~1;
     }
 
-    /// <summary>Field number for the "lease_id" field.</summary>
-    public const int LeaseIdFieldNumber = 3;
-    private readonly static string LeaseIdDefaultValue = "";
-
-    private string leaseId_;
-    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
-    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-    public string LeaseId {
-      get { return leaseId_ ?? LeaseIdDefaultValue; }
-      set {
-        leaseId_ = pb::ProtoPreconditions.CheckNotNull(value, "value");
-      }
-    }
-    /// <summary>Gets whether the "lease_id" field is set</summary>
-    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
-    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-    public bool HasLeaseId {
-      get { return leaseId_ != null; }
-    }
-    /// <summary>Clears the value of the "lease_id" field</summary>
-    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
-    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-    public void ClearLeaseId() {
-      leaseId_ = null;
-    }
-
     /// <summary>Field number for the "attempt" field.</summary>
-    public const int AttemptFieldNumber = 4;
+    public const int AttemptFieldNumber = 3;
     private global::RimGovernor.Protocol.Common.AttemptKey attempt_;
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
@@ -4260,7 +3376,6 @@ namespace RimGovernor.Protocol.Authority {
       }
       if (!object.Equals(Identity, other.Identity)) return false;
       if (ExpectedGeneration != other.ExpectedGeneration) return false;
-      if (LeaseId != other.LeaseId) return false;
       if (!object.Equals(Attempt, other.Attempt)) return false;
       return Equals(_unknownFields, other._unknownFields);
     }
@@ -4271,7 +3386,6 @@ namespace RimGovernor.Protocol.Authority {
       int hash = 1;
       if (identity_ != null) hash ^= Identity.GetHashCode();
       if (HasExpectedGeneration) hash ^= ExpectedGeneration.GetHashCode();
-      if (HasLeaseId) hash ^= LeaseId.GetHashCode();
       if (attempt_ != null) hash ^= Attempt.GetHashCode();
       if (_unknownFields != null) {
         hash ^= _unknownFields.GetHashCode();
@@ -4299,12 +3413,8 @@ namespace RimGovernor.Protocol.Authority {
         output.WriteRawTag(16);
         output.WriteUInt64(ExpectedGeneration);
       }
-      if (HasLeaseId) {
-        output.WriteRawTag(26);
-        output.WriteString(LeaseId);
-      }
       if (attempt_ != null) {
-        output.WriteRawTag(34);
+        output.WriteRawTag(26);
         output.WriteMessage(Attempt);
       }
       if (_unknownFields != null) {
@@ -4325,12 +3435,8 @@ namespace RimGovernor.Protocol.Authority {
         output.WriteRawTag(16);
         output.WriteUInt64(ExpectedGeneration);
       }
-      if (HasLeaseId) {
-        output.WriteRawTag(26);
-        output.WriteString(LeaseId);
-      }
       if (attempt_ != null) {
-        output.WriteRawTag(34);
+        output.WriteRawTag(26);
         output.WriteMessage(Attempt);
       }
       if (_unknownFields != null) {
@@ -4348,9 +3454,6 @@ namespace RimGovernor.Protocol.Authority {
       }
       if (HasExpectedGeneration) {
         size += 1 + pb::CodedOutputStream.ComputeUInt64Size(ExpectedGeneration);
-      }
-      if (HasLeaseId) {
-        size += 1 + pb::CodedOutputStream.ComputeStringSize(LeaseId);
       }
       if (attempt_ != null) {
         size += 1 + pb::CodedOutputStream.ComputeMessageSize(Attempt);
@@ -4375,9 +3478,6 @@ namespace RimGovernor.Protocol.Authority {
       }
       if (other.HasExpectedGeneration) {
         ExpectedGeneration = other.ExpectedGeneration;
-      }
-      if (other.HasLeaseId) {
-        LeaseId = other.LeaseId;
       }
       if (other.attempt_ != null) {
         if (attempt_ == null) {
@@ -4416,10 +3516,6 @@ namespace RimGovernor.Protocol.Authority {
             break;
           }
           case 26: {
-            LeaseId = input.ReadString();
-            break;
-          }
-          case 34: {
             if (attempt_ == null) {
               Attempt = new global::RimGovernor.Protocol.Common.AttemptKey();
             }
@@ -4457,10 +3553,6 @@ namespace RimGovernor.Protocol.Authority {
             break;
           }
           case 26: {
-            LeaseId = input.ReadString();
-            break;
-          }
-          case 34: {
             if (attempt_ == null) {
               Attempt = new global::RimGovernor.Protocol.Common.AttemptKey();
             }

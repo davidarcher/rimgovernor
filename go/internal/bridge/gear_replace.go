@@ -20,7 +20,6 @@ const gearReplaceJobDef = "Wear"
 type GearReplaceAttempt struct {
 	Identity     *c.Identity
 	Attempt      *c.AttemptKey
-	Owner        *a.Owner
 	Generation   uint64
 	Pawn, Thing  string
 	PawnToken    string
@@ -92,13 +91,7 @@ func gearReplaceAttempt(v GearReplaceAttempt) (GearReplaceAttempt, error) {
 	if err := buildingAttempt(v.Attempt); err != nil {
 		return GearReplaceAttempt{}, err
 	}
-	if err := authorityOwner(v.Owner); err != nil {
-		return GearReplaceAttempt{}, err
-	}
-	if err := buildingUnknown(v.Owner); err != nil {
-		return GearReplaceAttempt{}, err
-	}
-	if v.Generation == 0 || v.Owner.GetControllerSessionId() != v.Attempt.GetControllerSessionId() {
+	if v.Generation == 0 {
 		return GearReplaceAttempt{}, contract("gear replace admission owner or generation mismatch")
 	}
 	if err := gearReplaceCommand(v.Pawn, v.PawnToken, v.Thing, v.ThingToken, v.LoadoutToken); err != nil {
@@ -106,7 +99,6 @@ func gearReplaceAttempt(v GearReplaceAttempt) (GearReplaceAttempt, error) {
 	}
 	v.Identity = proto.Clone(v.Identity).(*c.Identity)
 	v.Attempt = proto.Clone(v.Attempt).(*c.AttemptKey)
-	v.Owner = proto.Clone(v.Owner).(*a.Owner)
 	return v, nil
 }
 func gearReplaceEvidence(evidence *r.EffectEvidence, expected GearReplaceAttempt) (*r.JobEffect, error) {
@@ -124,7 +116,7 @@ func gearReplaceEvidence(evidence *r.EffectEvidence, expected GearReplaceAttempt
 	return job, nil
 }
 func gearReplaceReceipt(v *r.Receipt, expected GearReplaceAttempt) error {
-	if v == nil || buildingUnknown(v) != nil || !proto.Equal(v.Attempt, expected.Attempt) || !proto.Equal(v.AuthorizingOwner, expected.Owner) {
+	if v == nil || buildingUnknown(v) != nil || !proto.Equal(v.Attempt, expected.Attempt) {
 		return contract("gear replace admission mismatch")
 	}
 	if err := buildingContext(v.AdmittedContext, expected.Identity, expected.Generation, true); err != nil {
@@ -161,14 +153,14 @@ func NewGearReplaceWriter(client *Client) (*GearReplaceWriter, error) {
 }
 
 // ApplyGearReplace dispatches one already-admitted wear order.
-func (writer *GearReplaceWriter) ApplyGearReplace(ctx context.Context, pre *a.WritePrecondition, owner *a.Owner, pawn, pawnToken, thing, thingToken, loadoutToken string) (*o.ExecuteReply, Result, error) {
-	if writer == nil || writer.client == nil || pre == nil || buildingUnknown(pre) != nil || ValidateIdentity(pre.Identity) != nil || buildingAttempt(pre.Attempt) != nil || pre.GetExpectedGeneration() == 0 || validID(pre.GetLeaseId()) != nil {
+func (writer *GearReplaceWriter) ApplyGearReplace(ctx context.Context, pre *a.WritePrecondition, pawn, pawnToken, thing, thingToken, loadoutToken string) (*o.ExecuteReply, Result, error) {
+	if writer == nil || writer.client == nil || pre == nil || buildingUnknown(pre) != nil || ValidateIdentity(pre.Identity) != nil || buildingAttempt(pre.Attempt) != nil || pre.GetExpectedGeneration() == 0 {
 		return nil, Result{}, contract("invalid gear replace execution")
 	}
 	if err := gearReplaceCommand(pawn, pawnToken, thing, thingToken, loadoutToken); err != nil {
 		return nil, Result{}, err
 	}
-	expected, err := gearReplaceAttempt(GearReplaceAttempt{Identity: pre.Identity, Attempt: pre.Attempt, Owner: owner, Generation: pre.GetExpectedGeneration(), Pawn: pawn, Thing: thing, PawnToken: pawnToken, ThingToken: thingToken, LoadoutToken: loadoutToken})
+	expected, err := gearReplaceAttempt(GearReplaceAttempt{Identity: pre.Identity, Attempt: pre.Attempt, Generation: pre.GetExpectedGeneration(), Pawn: pawn, Thing: thing, PawnToken: pawnToken, ThingToken: thingToken, LoadoutToken: loadoutToken})
 	if err != nil {
 		return nil, Result{}, err
 	}

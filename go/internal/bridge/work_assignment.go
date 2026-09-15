@@ -13,7 +13,6 @@ import (
 type WorkAttempt struct {
 	Identity   *c.Identity
 	Attempt    *c.AttemptKey
-	Owner      *a.Owner
 	Generation uint64
 	Work       domain.WorkAssignment
 }
@@ -68,7 +67,7 @@ func (client *Client) PreviewWorkAssignment(ctx context.Context, identity *c.Ide
 	return reply, raw, nil
 }
 func (writer *WorkControl) AssignWork(ctx context.Context, pre *a.WritePrecondition, target domain.WorkAssignment) (*op.ExecuteReply, Result, error) {
-	if writer == nil || writer.client == nil || pre == nil || buildingUnknown(pre) != nil || ValidateIdentity(pre.Identity) != nil || buildingAttempt(pre.Attempt) != nil || pre.GetExpectedGeneration() == 0 || validID(pre.GetLeaseId()) != nil || validateWork(target) != nil {
+	if writer == nil || writer.client == nil || pre == nil || buildingUnknown(pre) != nil || ValidateIdentity(pre.Identity) != nil || buildingAttempt(pre.Attempt) != nil || pre.GetExpectedGeneration() == 0 || validateWork(target) != nil {
 		return nil, Result{}, contract("invalid work execution")
 	}
 	reply := &op.ExecuteReply{}
@@ -84,14 +83,14 @@ func (writer *WorkControl) AssignWork(ctx context.Context, pre *a.WritePrecondit
 	}
 	// The runtime additionally compares full owner/direction against its admission.
 	v := reply.GetReceipt()
-	if v == nil || v.AuthorizingOwner == nil || v.AuthorizingOwner.GetControllerSessionId() != pre.Attempt.GetControllerSessionId() {
+	if v == nil {
 		return nil, raw, contract("work owner mismatch")
 	}
-	err = workReceipt(v, WorkAttempt{pre.Identity, pre.Attempt, v.AuthorizingOwner, pre.GetExpectedGeneration(), target})
+	err = workReceipt(v, WorkAttempt{pre.Identity, pre.Attempt, pre.GetExpectedGeneration(), target})
 	return reply, raw, err
 }
 func validWorkAttempt(w WorkAttempt) error {
-	if ValidateIdentity(w.Identity) != nil || buildingAttempt(w.Attempt) != nil || authorityOwner(w.Owner) != nil || buildingUnknown(w.Owner) != nil || w.Generation == 0 || w.Owner.GetControllerSessionId() != w.Attempt.GetControllerSessionId() {
+	if ValidateIdentity(w.Identity) != nil || buildingAttempt(w.Attempt) != nil || w.Generation == 0 {
 		return contract("invalid work attempt")
 	}
 	canonical, err := w.Work.Canonical()
@@ -143,7 +142,7 @@ func workEffect(v *r.EffectEvidence, work domain.WorkAssignment, matches bool) e
 	return nil
 }
 func workReceipt(v *r.Receipt, w WorkAttempt) error {
-	if v == nil || buildingUnknown(v) != nil || !proto.Equal(v.Attempt, w.Attempt) || !proto.Equal(v.AuthorizingOwner, w.Owner) || buildingContext(v.AdmittedContext, w.Identity, w.Generation, true) != nil {
+	if v == nil || buildingUnknown(v) != nil || !proto.Equal(v.Attempt, w.Attempt) || buildingContext(v.AdmittedContext, w.Identity, w.Generation, true) != nil {
 		return contract("work admission mismatch")
 	}
 	switch out := v.Outcome.(type) {

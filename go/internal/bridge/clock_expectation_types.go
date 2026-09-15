@@ -1,7 +1,6 @@
 package bridge
 
 import (
-	a "github.com/davidarcher/RimGovernor/go/internal/wire/authoritypb"
 	k "github.com/davidarcher/RimGovernor/go/internal/wire/clockpb"
 	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
 )
@@ -35,7 +34,6 @@ type ClockSpeed struct {
 type ClockExpectation struct {
 	Identity         *c.Identity
 	Attempt          *c.AttemptKey
-	Owner            *a.Owner
 	NativeGeneration uint64
 	Command          ClockCommand
 }

@@ -141,23 +141,22 @@ namespace HomeBridge.BridgeTools
             var command = request.Operation.TravelCaravan; var pre = request.Precondition;
             if (!Valid(command))
                 return Refuse(Common.FailureCode.InvalidRequest, "Caravan travel requires an exact current caravan snapshot and, for move/visit, a valid destination.");
-            NativeAttemptLedger.Admission? handle = null; Authority.Owner? owner = null; Receipts.EffectEvidence? evidence = null;
+            NativeAttemptLedger.Admission? handle = null; Receipts.EffectEvidence? evidence = null;
             try
             {
                 if (!Prepare(command, out var caravan, out var target, out var arrival, out var failure))
                     return new Operations.ExecuteReply { Failure = failure };
                 if (!NativeControlAuthority.TryGetForGame(Current.Game, out var authority) || authority == null)
                     return Refuse(Common.FailureCode.AuthorityRequired, "Current native authority is required.");
-                var guard = authority.Check(pre.ExpectedGeneration, pre.LeaseId, pre.Attempt.ControllerSessionId);
+                var guard = authority.Check(pre.ExpectedGeneration);
                 context.NativeGeneration = guard.Snapshot.Generation;
                 if (!guard.Success) return new Operations.ExecuteReply { Failure = NativeAuthorityControlTools.Refusal(guard.Error, context) };
-                owner = new Authority.Owner { ControllerSessionId = guard.Snapshot.Lease!.ControllerSessionId, PlayerDirection = guard.Snapshot.Lease.PlayerDirection };
-                var admission = state.Ledger.Admit("rimgovernor.operations.v1.Operations/Execute", request, context, owner);
+                var admission = state.Ledger.Admit("rimgovernor.operations.v1.Operations/Execute", request, context);
                 if (admission.Kind != NativeAttemptLedger.DecisionKind.Admitted) return admission.Reply!;
                 handle = admission.Handle!;
                 using (authority.Owned())
                 {
-                    var current = authority.Check(pre.ExpectedGeneration, pre.LeaseId, pre.Attempt.ControllerSessionId);
+                    var current = authority.Check(pre.ExpectedGeneration);
                     if (!current.Success) throw new InvalidOperationException("Caravan travel authority changed before native effect.");
                     if (!Prepare(command, out caravan, out target, out arrival, out failure) || caravan == null)
                         throw new InvalidOperationException("Caravan travel prerequisites changed after admission.");
@@ -187,13 +186,13 @@ namespace HomeBridge.BridgeTools
                     if (command.Kind == Operations.TravelKind.Stop ? !effect.Stopped : !effect.PathStarted)
                         throw new InvalidOperationException("Native caravan travel readback did not apply.");
                 }
-                return new Operations.ExecuteReply { Receipt = NativeOperationEnvelope.Applied(state.Ledger, handle, pre.Attempt, context, owner, evidence) };
+                return new Operations.ExecuteReply { Receipt = NativeOperationEnvelope.Applied(state.Ledger, handle, pre.Attempt, context, evidence) };
             }
             catch (Exception error)
             {
                 return handle == null
                     ? Refuse(Common.FailureCode.NativeFailure, "Caravan travel validation failed: " + error.GetType().Name)
-                    : new Operations.ExecuteReply { Receipt = NativeOperationEnvelope.Uncertain(state.Ledger, handle, pre.Attempt, context, owner!, evidence!, "Admitted caravan travel requires observation: " + error.GetType().Name) };
+                    : new Operations.ExecuteReply { Receipt = NativeOperationEnvelope.Uncertain(state.Ledger, handle, pre.Attempt, context, evidence!, "Admitted caravan travel requires observation: " + error.GetType().Name) };
             }
         }
 

@@ -83,7 +83,7 @@ namespace HomeBridge.BridgeTools
         {
             var precondition = request.Precondition;
             if (precondition == null || !precondition.HasExpectedGeneration || precondition.ExpectedGeneration == 0
-                || !precondition.HasLeaseId || !ProtoBoundary.IsIdentifier(precondition.LeaseId) || !ValidAttempt(precondition.Attempt))
+                || !ValidAttempt(precondition.Attempt))
                 return Refuse(Common.FailureCode.InvalidRequest, "A complete authority precondition and positive attempt are required.");
             Common.ObservationContext context; Common.Failure failure;
             if (!ProtoBoundary.ValidateIdentity(precondition.Identity, Find.CurrentMap, out context, out failure))
@@ -165,7 +165,7 @@ namespace HomeBridge.BridgeTools
             NativeControlAuthority authority;
             if (!NativeControlAuthority.TryGetForGame(Current.Game, out authority) || authority == null)
                 return Refuse(Common.FailureCode.AuthorityRequired, "Native authority has not been acquired.");
-            var guard = authority.Check(precondition.ExpectedGeneration, precondition.LeaseId, precondition.Attempt.ControllerSessionId);
+            var guard = authority.Check(precondition.ExpectedGeneration);
             context.NativeGeneration = guard.Snapshot.Generation;
             if (!guard.Success) return new Operations.ExecuteReply { Failure = NativeAuthorityControlTools.Refusal(guard.Error, context) };
             NativeConstructionPlan plan; RimGovernor.Protocol.Placement.PlacementEvaluated preview;
@@ -175,14 +175,12 @@ namespace HomeBridge.BridgeTools
                     return new Operations.ExecuteReply { Failure = failure };
             }
             catch (Exception error) { return Refuse(Common.FailureCode.NativeFailure, "Construction validation failed: " + error.GetType().Name); }
-            guard = authority.Check(precondition.ExpectedGeneration, precondition.LeaseId, precondition.Attempt.ControllerSessionId);
+            guard = authority.Check(precondition.ExpectedGeneration);
             context.NativeGeneration = guard.Snapshot.Generation;
             if (!guard.Success) return new Operations.ExecuteReply { Failure = NativeAuthorityControlTools.Refusal(guard.Error, context) };
-            var owner = new Authority.Owner { ControllerSessionId = guard.Snapshot.Lease.ControllerSessionId,
-                PlayerDirection = guard.Snapshot.Lease.PlayerDirection };
             if (!NativeConstructionTracking.Ready)
                 return Refuse(Common.FailureCode.Unavailable, "Construction transition tracking is unavailable.");
-            var admission = state.Ledger.Admit("rimgovernor.operations.v1.Operations/Execute", request, context, owner);
+            var admission = state.Ledger.Admit("rimgovernor.operations.v1.Operations/Execute", request, context);
             if (admission.Kind != NativeAttemptLedger.DecisionKind.Admitted) return admission.Reply;
             var observed = plan.Proposed();
             try
@@ -195,7 +193,7 @@ namespace HomeBridge.BridgeTools
                     state.Construction.Add(precondition.Attempt.Clone(), record);
                     if (!record.Matches(placed)) throw new InvalidOperationException("Placed object did not match admitted construction.");
                     return new Operations.ExecuteReply { Receipt = NativeOperationEnvelope.Applied(state.Ledger, admission.Handle,
-                        precondition.Attempt, context, owner, new Receipts.EffectEvidence { Construction = record.Effect }) };
+                        precondition.Attempt, context, new Receipts.EffectEvidence { Construction = record.Effect }) };
                 }
             }
             catch (Exception error)
@@ -206,7 +204,7 @@ namespace HomeBridge.BridgeTools
                     : observed.CancelledFrameIds.Count > 0 || observed.WipedThingIds.Count > 0
                         ? new Receipts.EffectEvidence { Construction = observed } : null;
                 return new Operations.ExecuteReply { Receipt = NativeOperationEnvelope.Uncertain(state.Ledger, admission.Handle,
-                    precondition.Attempt, context, owner, lastObserved, "Admitted construction requires observation: " + error.GetType().Name) };
+                    precondition.Attempt, context, lastObserved, "Admitted construction requires observation: " + error.GetType().Name) };
             }
         }
 

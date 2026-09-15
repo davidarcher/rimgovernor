@@ -17,18 +17,17 @@ import (
 )
 
 func settlementGiftPre() *a.WritePrecondition {
-	return &a.WritePrecondition{Identity: pbIdentity(), ExpectedGeneration: proto.Uint64(1), LeaseId: proto.String("lease"), Attempt: &c.AttemptKey{ControllerSessionId: proto.String("controller"), ActionId: proto.String("action"), AttemptId: proto.Uint64(1)}}
+	return &a.WritePrecondition{Identity: pbIdentity(), ExpectedGeneration: proto.Uint64(1), Attempt: &c.AttemptKey{ControllerSessionId: proto.String("controller"), ActionId: proto.String("action"), AttemptId: proto.Uint64(1)}}
 }
 func settlementGiftEffectEvidence() *r.EffectEvidence {
 	return &r.EffectEvidence{Effect: &r.EffectEvidence_Trade{Trade: &r.TradeEffect{FactionId: proto.String("faction-1"), Executed: proto.Bool(true), ActuallyTraded: proto.Bool(true)}}}
 }
 func settlementGiftAdmission() *r.Receipt {
-	return &r.Receipt{Attempt: settlementGiftPre().Attempt, AdmittedContext: &c.ObservationContext{Identity: pbIdentity(), Tick: proto.Int64(10), NativeGeneration: proto.Uint64(1)}, AuthorizingOwner: &a.Owner{ControllerSessionId: proto.String("controller"), PlayerDirection: proto.Uint64(1)}, Outcome: &r.Receipt_Applied{Applied: &r.Applied{Observed: settlementGiftEffectEvidence()}}}
+	return &r.Receipt{Attempt: settlementGiftPre().Attempt, AdmittedContext: &c.ObservationContext{Identity: pbIdentity(), Tick: proto.Int64(10), NativeGeneration: proto.Uint64(1)}, Outcome: &r.Receipt_Applied{Applied: &r.Applied{Observed: settlementGiftEffectEvidence()}}}
 }
 func settlementGiftAttemptFixture() SettlementGiftAttempt {
-	admission := settlementGiftAdmission()
 	return SettlementGiftAttempt{
-		Identity: pbIdentity(), Attempt: settlementGiftPre().Attempt, Owner: admission.AuthorizingOwner, Generation: 1,
+		Identity: pbIdentity(), Attempt: settlementGiftPre().Attempt, Generation: 1,
 		Caravan: "caravan-1", CaravanToken: "caravan-cas", Faction: "faction-1", FactionToken: "faction-cas",
 		ExpectedPawnIDs: []string{"pawn-1", "pawn-2"}, Silver: 500,
 	}
@@ -148,18 +147,17 @@ func TestApplySettlementGiftCorrelationAndOwnerMismatch(t *testing.T) {
 		t.Fatal(err)
 	}
 	pre := settlementGiftPre()
-	owner := settlementGiftAdmission().AuthorizingOwner
-	reply, raw, err := writer.ApplySettlementGift(context.Background(), pre, owner, "caravan-1", "caravan-cas", "faction-1", "faction-cas", []string{"pawn-1", "pawn-2"}, 500)
+	reply, raw, err := writer.ApplySettlementGift(context.Background(), pre, "caravan-1", "caravan-cas", "faction-1", "faction-cas", []string{"pawn-1", "pawn-2"}, 500)
 	if err != nil || reply.GetReceipt() == nil || len(raw.Envelope) == 0 {
 		t.Fatal(err)
 	}
 	mismatched := &testServer{schema: protoSchema, handler: func(context.Context, nativeArgument) (*mcp.CallToolResult, error) {
 		admission := settlementGiftAdmission()
-		admission.AuthorizingOwner.ControllerSessionId = proto.String("someone-else")
+		admission.Attempt.AttemptId = proto.Uint64(999)
 		return pbResult(&op.ExecuteReply{Outcome: &op.ExecuteReply_Receipt{Receipt: admission}}), nil
 	}}
 	writer, _ = NewSettlementGiftWriter(testClient(t, mismatched, time.Second))
-	if _, _, err = writer.ApplySettlementGift(context.Background(), pre, owner, "caravan-1", "caravan-cas", "faction-1", "faction-cas", []string{"pawn-1", "pawn-2"}, 500); !errors.Is(err, ErrContract) {
+	if _, _, err = writer.ApplySettlementGift(context.Background(), pre, "caravan-1", "caravan-cas", "faction-1", "faction-cas", []string{"pawn-1", "pawn-2"}, 500); !errors.Is(err, ErrContract) {
 		t.Fatal("owner mismatch accepted", err)
 	}
 }
@@ -167,20 +165,18 @@ func TestApplySettlementGiftCorrelationAndOwnerMismatch(t *testing.T) {
 func TestApplySettlementGiftInvalidInputsNeverDispatch(t *testing.T) {
 	s := &testServer{schema: protoSchema}
 	writer, _ := NewSettlementGiftWriter(testClient(t, s, time.Second))
-	owner := settlementGiftAdmission().AuthorizingOwner
 	for _, change := range []func(*a.WritePrecondition){
 		func(v *a.WritePrecondition) { v.ExpectedGeneration = nil },
 		func(v *a.WritePrecondition) { v.ExpectedGeneration = proto.Uint64(0) },
-		func(v *a.WritePrecondition) { v.LeaseId = nil },
 		func(v *a.WritePrecondition) { v.Attempt.AttemptId = nil },
 	} {
 		pre := settlementGiftPre()
 		change(pre)
-		if _, _, err := writer.ApplySettlementGift(context.Background(), pre, owner, "caravan-1", "caravan-cas", "faction-1", "faction-cas", []string{"pawn-1", "pawn-2"}, 500); !errors.Is(err, ErrContract) {
+		if _, _, err := writer.ApplySettlementGift(context.Background(), pre, "caravan-1", "caravan-cas", "faction-1", "faction-cas", []string{"pawn-1", "pawn-2"}, 500); !errors.Is(err, ErrContract) {
 			t.Fatal("invalid precondition accepted", err)
 		}
 	}
-	if _, _, err := writer.ApplySettlementGift(context.Background(), settlementGiftPre(), owner, "caravan-1", "caravan-cas", "faction-1", "faction-cas", []string{"pawn-1", "pawn-2"}, 0); !errors.Is(err, ErrContract) {
+	if _, _, err := writer.ApplySettlementGift(context.Background(), settlementGiftPre(), "caravan-1", "caravan-cas", "faction-1", "faction-cas", []string{"pawn-1", "pawn-2"}, 0); !errors.Is(err, ErrContract) {
 		t.Fatal("invalid silver accepted", err)
 	}
 	if len(s.calls) != 0 {
@@ -236,14 +232,14 @@ func TestLookupAndObserveSettlementGift(t *testing.T) {
 		return out, nil
 	}}
 	writer, _ := NewSettlementGiftWriter(testClient(t, refusal, time.Second))
-	if _, raw, err := writer.ApplySettlementGift(context.Background(), settlementGiftPre(), admission.AuthorizingOwner, "caravan-1", "caravan-cas", "faction-1", "faction-cas", []string{"pawn-1", "pawn-2"}, 500); !errors.Is(err, ErrRefused) || len(raw.Envelope) == 0 {
+	if _, raw, err := writer.ApplySettlementGift(context.Background(), settlementGiftPre(), "caravan-1", "caravan-cas", "faction-1", "faction-cas", []string{"pawn-1", "pawn-2"}, 500); !errors.Is(err, ErrRefused) || len(raw.Envelope) == 0 {
 		t.Fatal("typed refusal lost", err)
 	}
 	lost := &testServer{schema: protoSchema, handler: func(context.Context, nativeArgument) (*mcp.CallToolResult, error) {
 		return nil, errors.New("lost after potential effect")
 	}}
 	writer, _ = NewSettlementGiftWriter(testClient(t, lost, time.Second))
-	if reply, _, err := writer.ApplySettlementGift(context.Background(), settlementGiftPre(), admission.AuthorizingOwner, "caravan-1", "caravan-cas", "faction-1", "faction-cas", []string{"pawn-1", "pawn-2"}, 500); err == nil || reply != nil || len(lost.calls) != 1 {
+	if reply, _, err := writer.ApplySettlementGift(context.Background(), settlementGiftPre(), "caravan-1", "caravan-cas", "faction-1", "faction-cas", []string{"pawn-1", "pawn-2"}, 500); err == nil || reply != nil || len(lost.calls) != 1 {
 		t.Fatal("lost reply fabricated outcome or retried", err)
 	}
 }

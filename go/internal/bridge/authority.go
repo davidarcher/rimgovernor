@@ -10,7 +10,7 @@ import (
 )
 
 // AuthorityControl is a separately held mutation capability. Construct it only
-// in the trusted player-control owner; possession of a Client grants no lease.
+// in the trusted player-control owner; possession of a Client grants no mode.
 // Calls never retry, reconnect, or enable service writes automatically.
 type AuthorityControl struct{ client *Client }
 
@@ -59,7 +59,7 @@ func (client *Client) ReadAuthority(ctx context.Context, identity *c.Identity) (
 		case *a.Status_Unavailable:
 			return reply, raw, unavailable(state.Unavailable, raw)
 		case *a.Status_Active:
-			err = activeAuthority(state.Active, 30000)
+			err = activeAuthority(state.Active)
 		case *a.Status_Inactive:
 			err = inactiveAuthority(state.Inactive)
 		default:
@@ -77,35 +77,21 @@ func (client *Client) ReadAuthority(ctx context.Context, identity *c.Identity) (
 	return reply, raw, nil
 }
 
-func (control *AuthorityControl) Acquire(ctx context.Context, request *a.Acquire) (*a.ControlReply, Result, error) {
+// SetMode is the only way to change authority explicitly: Auto grants the bot
+// authority outright, Manual revokes it. There is no acquire/renew handshake
+// because there is only ever one bot process (see #52).
+func (control *AuthorityControl) SetMode(ctx context.Context, request *a.SetMode) (*a.ControlReply, Result, error) {
 	if request == nil {
-		return nil, Result{}, contract("acquire required")
+		return nil, Result{}, contract("set-mode required")
 	}
-	request = proto.Clone(request).(*a.Acquire)
-	if err := errors.Join(authorityUnknown(request), authorityRequest(request.Identity, request.ExpectedGeneration), authorityOwner(request.Owner), authorityDuration(request.LeaseMs)); err != nil {
+	request = proto.Clone(request).(*a.SetMode)
+	if err := errors.Join(authorityUnknown(request), authorityRequest(request.Identity, request.ExpectedGeneration), authorityMode(request.Mode)); err != nil {
 		return nil, Result{}, err
 	}
 	if request.GetExpectedGeneration() == ^uint64(0) {
 		return nil, Result{}, contract("authority generation exhausted")
 	}
-	return control.call(ctx, &a.ControlRequest{Operation: &a.ControlRequest_Acquire{Acquire: request}}, request.Owner)
-}
-func (control *AuthorityControl) Renew(ctx context.Context, request *a.Renew, expectedOwner *a.Owner) (*a.ControlReply, Result, error) {
-	if request == nil {
-		return nil, Result{}, contract("renew required")
-	}
-	request = proto.Clone(request).(*a.Renew)
-	if err := errors.Join(authorityUnknown(request), authorityRequest(request.Identity, request.ExpectedGeneration), validID(request.GetControllerSessionId()), validID(request.GetLeaseId()), authorityDuration(request.LeaseMs)); err != nil {
-		return nil, Result{}, err
-	}
-	if err := errors.Join(authorityUnknown(expectedOwner), authorityOwner(expectedOwner)); err != nil {
-		return nil, Result{}, err
-	}
-	expectedOwner = proto.Clone(expectedOwner).(*a.Owner)
-	if expectedOwner.GetControllerSessionId() != request.GetControllerSessionId() {
-		return nil, Result{}, contract("renew owner session mismatch")
-	}
-	return control.call(ctx, &a.ControlRequest{Operation: &a.ControlRequest_Renew{Renew: request}}, expectedOwner)
+	return control.call(ctx, &a.ControlRequest{Operation: &a.ControlRequest_SetMode{SetMode: request}})
 }
 func (control *AuthorityControl) Revoke(ctx context.Context, request *a.Revoke) (*a.ControlReply, Result, error) {
 	if request == nil {
@@ -116,16 +102,16 @@ func (control *AuthorityControl) Revoke(ctx context.Context, request *a.Revoke) 
 		return nil, Result{}, err
 	}
 	switch request.GetReason() {
-	case a.RevocationReason_REVOCATION_REASON_MANUAL, a.RevocationReason_REVOCATION_REASON_PLAYER_DIRECTION, a.RevocationReason_REVOCATION_REASON_DISCONNECT, a.RevocationReason_REVOCATION_REASON_SHUTDOWN:
+	case a.RevocationReason_REVOCATION_REASON_MANUAL, a.RevocationReason_REVOCATION_REASON_DISCONNECT, a.RevocationReason_REVOCATION_REASON_SHUTDOWN:
 	default:
 		return nil, Result{}, contract("external revocation reason required")
 	}
 	if request.GetExpectedGeneration() == ^uint64(0) {
 		return nil, Result{}, contract("authority generation exhausted")
 	}
-	return control.call(ctx, &a.ControlRequest{Operation: &a.ControlRequest_Revoke{Revoke: request}}, nil)
+	return control.call(ctx, &a.ControlRequest{Operation: &a.ControlRequest_Revoke{Revoke: request}})
 }
-func (control *AuthorityControl) call(ctx context.Context, request *a.ControlRequest, expectedOwner *a.Owner) (*a.ControlReply, Result, error) {
+func (control *AuthorityControl) call(ctx context.Context, request *a.ControlRequest) (*a.ControlReply, Result, error) {
 	if control == nil || control.client == nil {
 		return nil, Result{}, contract("authority capability required")
 	}
@@ -143,27 +129,21 @@ func (control *AuthorityControl) call(ctx context.Context, request *a.ControlReq
 			return reply, raw, err
 		}
 	} else {
-		err = validateAuthorityControl(request, reply, expectedOwner)
+		err = validateAuthorityControl(request, reply)
 	}
 	if err != nil {
 		return nil, raw, &AuthorityUncertain{err, raw}
 	}
 	return reply, raw, nil
 }
-func validateAuthorityControl(request *a.ControlRequest, reply *a.ControlReply, expectedOwner *a.Owner) error {
+func validateAuthorityControl(request *a.ControlRequest, reply *a.ControlReply) error {
 	var identity *c.Identity
 	var generation uint64
-	var duration uint32
-	var session, lease string
-	var owner *a.Owner
 	var reason a.RevocationReason
+	var mode a.Mode
 	switch op := request.Operation.(type) {
-	case *a.ControlRequest_Acquire:
-		identity, generation, duration, owner = op.Acquire.Identity, op.Acquire.GetExpectedGeneration(), op.Acquire.GetLeaseMs(), op.Acquire.Owner
-		session = owner.GetControllerSessionId()
-	case *a.ControlRequest_Renew:
-		identity, generation, duration = op.Renew.Identity, op.Renew.GetExpectedGeneration(), op.Renew.GetLeaseMs()
-		session, lease = op.Renew.GetControllerSessionId(), op.Renew.GetLeaseId()
+	case *a.ControlRequest_SetMode:
+		identity, generation, mode = op.SetMode.Identity, op.SetMode.GetExpectedGeneration(), op.SetMode.GetMode()
 	case *a.ControlRequest_Revoke:
 		identity, generation, reason = op.Revoke.Identity, op.Revoke.GetExpectedGeneration(), op.Revoke.GetReason()
 	default:
@@ -182,21 +162,19 @@ func validateAuthorityControl(request *a.ControlRequest, reply *a.ControlReply, 
 		}
 		return nil
 	}
-	if lease == "" {
-		generation++
+	if mode == a.Mode_MODE_MANUAL {
+		revoked := reply.GetRevoked()
+		if revoked == nil {
+			return contract("manual set-mode requires inactive reply")
+		}
+		return errors.Join(authorityContext(revoked.Context, identity, generation+1), inactiveAuthority(revoked.Authority))
 	}
 	granted := reply.GetGranted()
 	if granted == nil {
-		return contract("acquire/renew requires granted reply")
+		return contract("set-mode auto requires granted reply")
 	}
-	if err := errors.Join(authorityContext(granted.Context, identity, generation), activeAuthority(granted.Authority, duration), validID(granted.GetLeaseId())); err != nil {
+	if err := errors.Join(authorityContext(granted.Context, identity, generation+1), activeAuthority(granted.Authority)); err != nil {
 		return err
-	}
-	if granted.Authority.Owner.GetControllerSessionId() != session || !proto.Equal(expectedOwner, granted.Authority.Owner) {
-		return contract("granted owner mismatch")
-	}
-	if lease != "" && (granted.GetLeaseId() != lease || granted.Context.GetNativeGeneration() != generation) {
-		return contract("renewal changed lease or generation")
 	}
 	return nil
 }
@@ -221,23 +199,27 @@ func authorityRequest(identity *c.Identity, generation *uint64) error {
 	}
 	return nil
 }
-func authorityOwner(value *a.Owner) error {
-	if value == nil || value.PlayerDirection == nil || value.GetPlayerDirection() == 0 {
-		return contract("authority owner required")
-	}
-	return validID(value.GetControllerSessionId())
-}
+// authorityDuration bounds a requested lease duration in milliseconds. It is
+// no longer used by the authority domain itself (Mode has no time-based
+// expiry), but the clock domain's own, unrelated lease-duration requests
+// still need the same bound.
 func authorityDuration(value *uint32) error {
 	if value == nil || *value < 1000 || *value > 30000 {
 		return contract("authority duration outside1000..30000ms")
 	}
 	return nil
 }
-func activeAuthority(value *a.ActiveAuthority, maximum uint32) error {
-	if value == nil || value.RemainingLeaseMs == nil || value.GetRemainingLeaseMs() == 0 || value.GetRemainingLeaseMs() > maximum {
-		return contract("invalid active lease duration")
+func authorityMode(value *a.Mode) error {
+	if value == nil || *value != a.Mode_MODE_AUTO && *value != a.Mode_MODE_MANUAL {
+		return contract("explicit authority mode required")
 	}
-	return authorityOwner(value.Owner)
+	return nil
+}
+func activeAuthority(value *a.ActiveAuthority) error {
+	if value == nil || value.GetMode() != a.Mode_MODE_AUTO {
+		return contract("invalid active authority")
+	}
+	return nil
 }
 func inactiveAuthority(value *a.InactiveAuthority) error {
 	if value == nil || value.Reason == nil || value.GetReason() < 1 || value.GetReason().Descriptor().Values().ByNumber(value.GetReason().Number()) == nil {

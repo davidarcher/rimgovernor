@@ -28,7 +28,7 @@ type SettlementGiftNative interface {
 	ObserveSettlementGiftProgress(context.Context, bridge.SettlementGiftAttempt, *r.Receipt) (*r.ProgressReply, bridge.Result, error)
 }
 type SettlementGiftWriter interface {
-	ApplySettlementGift(context.Context, *a.WritePrecondition, *a.Owner, string, string, string, string, []string, int32) (*o.ExecuteReply, bridge.Result, error)
+	ApplySettlementGift(context.Context, *a.WritePrecondition, string, string, string, string, []string, int32) (*o.ExecuteReply, bridge.Result, error)
 }
 type SettlementGiftCapabilities struct {
 	Native SettlementGiftNative
@@ -132,7 +132,6 @@ func (b *SettlementGiftBoundary) attempt(dispatch executor.SettlementGiftDispatc
 	return bridge.SettlementGiftAttempt{
 		Identity:        boundary.Identity(p.Snapshot),
 		Attempt:         &c.AttemptKey{ControllerSessionId: proto.String(b.session), ActionId: proto.String(string(p.Action.ID())), AttemptId: proto.Uint64(uint64(p.Attempt))},
-		Owner:           &a.Owner{ControllerSessionId: proto.String(b.session), PlayerDirection: proto.Uint64(uint64(p.Snapshot.Direction))},
 		Generation:      uint64(p.Snapshot.Native),
 		Caravan:         string(gift.Caravan()),
 		CaravanToken:    admission.CaravanSnapshotToken,
@@ -160,8 +159,8 @@ func (b *SettlementGiftBoundary) WriteSettlementGift(ctx context.Context, dispat
 	if err = ctx.Err(); err != nil {
 		return out, err
 	}
-	pre := &a.WritePrecondition{Identity: attempt.Identity, Attempt: attempt.Attempt, ExpectedGeneration: proto.Uint64(attempt.Generation), LeaseId: proto.String(lease)}
-	reply, _, err := b.writer.ApplySettlementGift(ctx, pre, attempt.Owner, attempt.Caravan, attempt.CaravanToken, attempt.Faction, attempt.FactionToken, attempt.ExpectedPawnIDs, attempt.Silver)
+	pre := &a.WritePrecondition{Identity: attempt.Identity, Attempt: attempt.Attempt, ExpectedGeneration: proto.Uint64(attempt.Generation),}
+	reply, _, err := b.writer.ApplySettlementGift(ctx, pre, attempt.Caravan, attempt.CaravanToken, attempt.Faction, attempt.FactionToken, attempt.ExpectedPawnIDs, attempt.Silver)
 	var refused *bridge.NativeFailure
 	if errors.As(err, &refused) && refused.Value != nil && refused.Value.GetCode() != c.FailureCode_FAILURE_CODE_ATTEMPT_CONFLICT {
 		out.Kind = domain.ReceiptRefused
@@ -218,7 +217,7 @@ func (b *SettlementGiftBoundary) ObserveSettlementGift(ctx context.Context, disp
 		if v.InFlight == nil || !proto.Equal(v.InFlight.Attempt, attempt.Attempt) {
 			return out, executor.ErrEvidence
 		}
-		if err = boundary.Admission(&r.Receipt{Attempt: v.InFlight.Attempt, AdmittedContext: v.InFlight.AdmittedContext, AuthorizingOwner: attempt.Owner}, p, b.session); err != nil {
+		if err = boundary.Admission(&r.Receipt{Attempt: v.InFlight.Attempt, AdmittedContext: v.InFlight.AdmittedContext}, p, b.session); err != nil {
 			return out, err
 		}
 	case *r.LookupReply_Receipt:

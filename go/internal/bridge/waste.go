@@ -25,7 +25,6 @@ const maxWasteIDs = 256
 type WasteAttempt struct {
 	Identity             *c.Identity
 	Attempt              *c.AttemptKey
-	Owner                *a.Owner
 	Generation           uint64
 	Pawn, PawnToken      string
 	Target, TargetToken  string
@@ -116,13 +115,7 @@ func wasteAttempt(v WasteAttempt) (WasteAttempt, error) {
 	if err := buildingAttempt(v.Attempt); err != nil {
 		return WasteAttempt{}, err
 	}
-	if err := authorityOwner(v.Owner); err != nil {
-		return WasteAttempt{}, err
-	}
-	if err := buildingUnknown(v.Owner); err != nil {
-		return WasteAttempt{}, err
-	}
-	if v.Generation == 0 || v.Owner.GetControllerSessionId() != v.Attempt.GetControllerSessionId() {
+	if v.Generation == 0 {
 		return WasteAttempt{}, contract("waste admission owner or generation mismatch")
 	}
 	if err := wasteCommand(v.Pawn, v.PawnToken, v.Target, v.TargetToken, v.UnwantedIDs, v.BuryIDs); err != nil {
@@ -130,7 +123,6 @@ func wasteAttempt(v WasteAttempt) (WasteAttempt, error) {
 	}
 	v.Identity = proto.Clone(v.Identity).(*c.Identity)
 	v.Attempt = proto.Clone(v.Attempt).(*c.AttemptKey)
-	v.Owner = proto.Clone(v.Owner).(*a.Owner)
 	return v, nil
 }
 
@@ -150,7 +142,7 @@ func wasteEvidence(evidence *r.EffectEvidence, expected WasteAttempt) (*r.JobEff
 }
 
 func wasteReceipt(v *r.Receipt, expected WasteAttempt) error {
-	if v == nil || buildingUnknown(v) != nil || !proto.Equal(v.Attempt, expected.Attempt) || !proto.Equal(v.AuthorizingOwner, expected.Owner) {
+	if v == nil || buildingUnknown(v) != nil || !proto.Equal(v.Attempt, expected.Attempt) {
 		return contract("waste admission mismatch")
 	}
 	if err := buildingContext(v.AdmittedContext, expected.Identity, expected.Generation, true); err != nil {
@@ -187,14 +179,14 @@ func NewWasteWriter(client *Client) (*WasteWriter, error) {
 }
 
 // ApplyWaste dispatches one already-admitted waste relocation or burial haul.
-func (writer *WasteWriter) ApplyWaste(ctx context.Context, pre *a.WritePrecondition, owner *a.Owner, pawn, pawnToken, target, targetToken string, unwanted, bury []string) (*o.ExecuteReply, Result, error) {
-	if writer == nil || writer.client == nil || pre == nil || buildingUnknown(pre) != nil || ValidateIdentity(pre.Identity) != nil || buildingAttempt(pre.Attempt) != nil || pre.GetExpectedGeneration() == 0 || validID(pre.GetLeaseId()) != nil {
+func (writer *WasteWriter) ApplyWaste(ctx context.Context, pre *a.WritePrecondition, pawn, pawnToken, target, targetToken string, unwanted, bury []string) (*o.ExecuteReply, Result, error) {
+	if writer == nil || writer.client == nil || pre == nil || buildingUnknown(pre) != nil || ValidateIdentity(pre.Identity) != nil || buildingAttempt(pre.Attempt) != nil || pre.GetExpectedGeneration() == 0 {
 		return nil, Result{}, contract("invalid waste execution")
 	}
 	if err := wasteCommand(pawn, pawnToken, target, targetToken, unwanted, bury); err != nil {
 		return nil, Result{}, err
 	}
-	expected, err := wasteAttempt(WasteAttempt{Identity: pre.Identity, Attempt: pre.Attempt, Owner: owner, Generation: pre.GetExpectedGeneration(), Pawn: pawn, PawnToken: pawnToken, Target: target, TargetToken: targetToken, UnwantedIDs: unwanted, BuryIDs: bury})
+	expected, err := wasteAttempt(WasteAttempt{Identity: pre.Identity, Attempt: pre.Attempt, Generation: pre.GetExpectedGeneration(), Pawn: pawn, PawnToken: pawnToken, Target: target, TargetToken: targetToken, UnwantedIDs: unwanted, BuryIDs: bury})
 	if err != nil {
 		return nil, Result{}, err
 	}

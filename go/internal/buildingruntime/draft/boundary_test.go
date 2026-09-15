@@ -33,16 +33,16 @@ func TestDraftBoundaryInspectAndExactDispatch(t *testing.T) {
 }
 func TestDraftBoundaryOriginalAttemptAndFreshOwnerRequired(t *testing.T) {
 	t.Parallel()
-	for _, kind := range []string{"valid", "lost-receipt", "foreign-direction", "different-claim", "missing-row", "wrong-attempt", "unknown-progress", "missing-owner"} {
+	for _, kind := range []string{"valid", "lost-receipt", "different-claim", "claim-lapsed", "missing-row", "wrong-attempt", "unknown-progress"} {
 		t.Run(kind, func(t *testing.T) {
 			b, f := NewFixture(t)
 			switch kind {
 			case "lost-receipt":
 				f.Receipt = nil
-			case "foreign-direction":
-				f.Row.DraftClaim.GetOwned().Owner.PlayerDirection = proto.Uint64(2)
 			case "different-claim":
 				f.Row.DraftClaim.GetOwned().ClaimId = proto.String("other")
+			case "claim-lapsed":
+				f.Row.DraftClaim = &n.DraftClaimObservation{State: &n.DraftClaimObservation_Unowned{Unowned: &n.NoOwnedDraftClaim{}}}
 			case "missing-row":
 				f.Row = nil
 			case "wrong-attempt":
@@ -50,8 +50,6 @@ func TestDraftBoundaryOriginalAttemptAndFreshOwnerRequired(t *testing.T) {
 			case "unknown-progress":
 				f.Receipt = nil
 				f.Progress.Effect = &r.Progress_Unknown{Unknown: &r.UnknownEffect{}}
-			case "missing-owner":
-				f.Row.DraftClaim.GetOwned().Owner = nil
 			}
 			out, err := b.ObserveDraft(context.Background(), f.P, f.P.Snapshot)
 			_, known := out.Claim.Value()
@@ -59,7 +57,7 @@ func TestDraftBoundaryOriginalAttemptAndFreshOwnerRequired(t *testing.T) {
 				if err != nil || !known || out.Observation.Effect != domain.EffectCompleted {
 					t.Fatal(out, err)
 				}
-			} else if kind == "foreign-direction" || kind == "different-claim" {
+			} else if kind == "different-claim" || kind == "claim-lapsed" {
 				if err != nil || !known || out.Observation.Effect != domain.EffectUnknown {
 					t.Fatal(out, err)
 				}
@@ -78,15 +76,15 @@ func TestDraftBoundaryOriginalAttemptAndFreshOwnerRequired(t *testing.T) {
 }
 func TestDraftCleanupInspectionArms(t *testing.T) {
 	t.Parallel()
-	for _, kind := range []string{"release", "unowned", "foreign-owner", "world", "unknown", "missing-row", "unavailable"} {
+	for _, kind := range []string{"release", "unowned", "superseded-claim", "world", "unknown", "missing-row", "unavailable"} {
 		t.Run(kind, func(t *testing.T) {
 			b, f := NewFixture(t)
 			cleanup := domain.DraftCleanup{Stage: domain.DraftCleanupRequired, Claim: domain.Known(KnownClaim(f))}
 			switch kind {
 			case "unowned":
 				f.Row.DraftClaim = &n.DraftClaimObservation{State: &n.DraftClaimObservation_Unowned{Unowned: &n.NoOwnedDraftClaim{}}}
-			case "foreign-owner":
-				f.Row.DraftClaim.GetOwned().Owner.PlayerDirection = proto.Uint64(2)
+			case "superseded-claim":
+				f.Row.DraftClaim.GetOwned().ClaimId = proto.String("other")
 			case "world":
 				f.Ctx.Identity.LoadToken = proto.String("replacement")
 				f.Ctx.NativeGeneration = nil
@@ -120,7 +118,7 @@ func TestDraftCleanupInspectionArms(t *testing.T) {
 			if kind == "release" && (out.Request == nil || out.Request.PawnSnapshotToken != "cas") {
 				t.Fatal(out)
 			}
-			if (kind == "unowned" || kind == "foreign-owner") && out.Supersession == nil {
+			if (kind == "unowned" || kind == "superseded-claim") && out.Supersession == nil {
 				t.Fatal(out)
 			}
 			if kind == "world" && (out.ScopeSupersession == nil || f.Reads != 0 || f.Lookups != 0) {

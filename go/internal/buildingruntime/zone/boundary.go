@@ -92,7 +92,7 @@ func (b *ZoneBoundary) zoneAttempt(ctx context.Context, p executor.Placement) (b
 	}
 	for _, row := range state.ZoneAdmissions {
 		if row.Action == p.Action.ID() && row.Admission.Snapshot == p.Snapshot {
-			return bridge.ZoneAttempt{Identity: boundary.Identity(p.Snapshot), Attempt: b.Attempt(p), Owner: &a.Owner{ControllerSessionId: proto.String(b.Session), PlayerDirection: proto.Uint64(uint64(p.Snapshot.Direction))}, Generation: uint64(p.Snapshot.Native), Token: row.Admission.SnapshotToken, Zone: zone}, nil
+			return bridge.ZoneAttempt{Identity: boundary.Identity(p.Snapshot), Attempt: b.Attempt(p), Generation: uint64(p.Snapshot.Native), Token: row.Admission.SnapshotToken, Zone: zone}, nil
 		}
 	}
 	return bridge.ZoneAttempt{}, executor.ErrEvidence

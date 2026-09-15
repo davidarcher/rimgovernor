@@ -1,7 +1,6 @@
 package bridge
 
 import (
-	a "github.com/davidarcher/RimGovernor/go/internal/wire/authoritypb"
 	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
 	o "github.com/davidarcher/RimGovernor/go/internal/wire/operationspb"
 )
@@ -13,7 +12,6 @@ type AttackAttempt struct {
 	Identity                                             *c.Identity
 	Attempt                                              *c.AttemptKey
 	NativeGeneration                                     uint64
-	Owner                                                *a.Owner
 	PawnID, TargetID                                     string
 	Mode                                                 o.AttackMode
 	RequireHostile, RequireStanding, RequireCombatHealth bool

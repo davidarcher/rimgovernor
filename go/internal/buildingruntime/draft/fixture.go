@@ -43,13 +43,12 @@ func NewFixture(t *testing.T) (*DraftBoundary, *Fixture) {
 	snapshot := domain.GenerationSnapshot{Colony: "colony", Load: "load", Map: 0, Plan: "plan", Revision: 1, Direction: 1, Native: 2}
 	p := executor.Placement{Action: action, Snapshot: snapshot, Attempt: 1, Tick: 10}
 	ctx := &c.ObservationContext{Identity: boundary.Identity(snapshot), Tick: proto.Int64(10), NativeGeneration: proto.Uint64(2)}
-	owner := &a.Owner{ControllerSessionId: proto.String("session"), PlayerDirection: proto.Uint64(1)}
 	ref := &n.SnapshotRef{Context: proto.Clone(ctx).(*c.ObservationContext), EntityId: proto.String("pawn"), Token: proto.String("cas")}
-	row := &n.PawnState{Pawn: &n.EntityRef{Id: proto.String("pawn"), Snapshot: ref}, Drafted: proto.Bool(true), DraftClaim: &n.DraftClaimObservation{State: &n.DraftClaimObservation_Owned{Owned: &n.OwnedDraftClaim{ClaimId: proto.String("claim"), Owner: owner, PawnSnapshot: proto.Clone(ref).(*n.SnapshotRef)}}}, Job: &n.JobEvidence{PlayerForced: proto.Bool(false), QueuedJobs: proto.Uint32(0)}}
+	row := &n.PawnState{Pawn: &n.EntityRef{Id: proto.String("pawn"), Snapshot: ref}, Drafted: proto.Bool(true), DraftClaim: &n.DraftClaimObservation{State: &n.DraftClaimObservation_Owned{Owned: &n.OwnedDraftClaim{ClaimId: proto.String("claim"), PawnSnapshot: proto.Clone(ref).(*n.SnapshotRef)}}}, Job: &n.JobEvidence{PlayerForced: proto.Bool(false), QueuedJobs: proto.Uint32(0)}}
 	job := &r.JobEffect{PawnId: proto.String("pawn"), Drafted: proto.Bool(true), Verified: proto.Bool(true), Issued: proto.Bool(true), DraftOwner: proto.String("session"), DraftClaimId: proto.String("claim"), ResultingSnapshotToken: proto.String("cas")}
 	effect := &r.EffectEvidence{Effect: &r.EffectEvidence_Job{Job: job}}
 	key := &c.AttemptKey{ControllerSessionId: proto.String("session"), ActionId: proto.String("action"), AttemptId: proto.Uint64(1)}
-	f := &Fixture{P: p, Ctx: ctx, Row: row, Receipt: &r.Receipt{Attempt: key, AdmittedContext: proto.Clone(ctx).(*c.ObservationContext), AuthorizingOwner: proto.Clone(owner).(*a.Owner), Outcome: &r.Receipt_Applied{Applied: &r.Applied{Observed: effect}}}, Progress: &r.Progress{Attempt: proto.Clone(key).(*c.AttemptKey), Context: proto.Clone(ctx).(*c.ObservationContext), CompleteInspection: proto.Bool(true), Effect: &r.Progress_Completed{Completed: &r.CompletedEffect{Evidence: proto.Clone(effect).(*r.EffectEvidence)}}}}
+	f := &Fixture{P: p, Ctx: ctx, Row: row, Receipt: &r.Receipt{Attempt: key, AdmittedContext: proto.Clone(ctx).(*c.ObservationContext), Outcome: &r.Receipt_Applied{Applied: &r.Applied{Observed: effect}}}, Progress: &r.Progress{Attempt: proto.Clone(key).(*c.AttemptKey), Context: proto.Clone(ctx).(*c.ObservationContext), CompleteInspection: proto.Bool(true), Effect: &r.Progress_Completed{Completed: &r.CompletedEffect{Evidence: proto.Clone(effect).(*r.EffectEvidence)}}}}
 	b, err := NewDraftBoundary(f, f, f, f, boundary.FixedClock{}, "session")
 	if err != nil {
 		t.Fatal(err)
@@ -80,7 +79,7 @@ func (f *Fixture) PreviewDraft(_ context.Context, _ *c.Identity, pawn *o.EntityP
 }
 func (f *Fixture) LookupDraftAttempt(_ context.Context, attempt bridge.DraftAttempt) (*r.LookupReply, bridge.Result, error) {
 	f.Lookups++
-	if attempt.Attempt.GetActionId() != string(f.P.Action.ID()) || attempt.NativeGeneration != uint64(f.P.Snapshot.Native) || attempt.Owner.GetPlayerDirection() != uint64(f.P.Snapshot.Direction) {
+	if attempt.Attempt.GetActionId() != string(f.P.Action.ID()) || attempt.NativeGeneration != uint64(f.P.Snapshot.Native) {
 		return nil, bridge.Result{}, executor.ErrEvidence
 	}
 	if f.Receipt == nil {
@@ -95,7 +94,7 @@ func (f *Fixture) Lease(domain.GenerationSnapshot) (string, error) {
 	f.Leases++
 	return "lease", nil
 }
-func (f *Fixture) DraftPawn(_ context.Context, pre *a.WritePrecondition, _ *a.Owner, pawn *o.EntityPrecondition) (*o.ExecuteReply, bridge.Result, error) {
+func (f *Fixture) DraftPawn(_ context.Context, pre *a.WritePrecondition, pawn *o.EntityPrecondition) (*o.ExecuteReply, bridge.Result, error) {
 	f.Writes++
 	f.LastPre = proto.Clone(pre).(*a.WritePrecondition)
 	f.LastPawn = proto.Clone(pawn).(*o.EntityPrecondition)
@@ -104,7 +103,7 @@ func (f *Fixture) DraftPawn(_ context.Context, pre *a.WritePrecondition, _ *a.Ow
 func (f *Fixture) ReleaseOwnedDraft(_ context.Context, q *o.ReleaseOwnedDraftRequest) (*o.ReleaseOwnedDraftReply, bridge.Result, error) {
 	f.Releases++
 	f.LastRelease = proto.Clone(q).(*o.ReleaseOwnedDraftRequest)
-	reply := &o.ReleaseOwnedDraftReply{Outcome: &o.ReleaseOwnedDraftReply_Released{Released: &o.DraftRelease{Request: proto.Clone(q).(*o.ReleaseOwnedDraftRequest), Context: proto.Clone(f.Ctx).(*c.ObservationContext), Observed: &r.JobEffect{PawnId: q.Pawn.EntityId, Drafted: proto.Bool(false), Verified: proto.Bool(true), Issued: proto.Bool(true), DraftOwner: q.OriginalOwner.ControllerSessionId, DraftClaimId: q.ExpectedClaimId, ResultingSnapshotToken: proto.String("after")}}}}
+	reply := &o.ReleaseOwnedDraftReply{Outcome: &o.ReleaseOwnedDraftReply_Released{Released: &o.DraftRelease{Request: proto.Clone(q).(*o.ReleaseOwnedDraftRequest), Context: proto.Clone(f.Ctx).(*c.ObservationContext), Observed: &r.JobEffect{PawnId: q.Pawn.EntityId, Drafted: proto.Bool(false), Verified: proto.Bool(true), Issued: proto.Bool(true), DraftOwner: proto.String("session"), DraftClaimId: q.ExpectedClaimId, ResultingSnapshotToken: proto.String("after")}}}}
 	if f.MutateRelease != nil {
 		f.MutateRelease(reply)
 	}

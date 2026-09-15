@@ -7049,13 +7049,16 @@ func (x *ConfirmColonyNames) GetSettlementName() string {
 	return ""
 }
 
-// Safe cleanup may run after authority revocation, only for an unchanged native claim.
+// Safe cleanup may run after authority revocation, only for an unchanged native
+// claim. original_owner (rimgovernor.authority.v1.Owner) was removed: whether
+// this release still belongs to the same causal owned scope is now proven by
+// generation continuity alone (see NativeControlAuthority.IsCausalScopeForOriginalOwner),
+// since there is only ever one bot that could have held the claim.
 type ReleaseOwnedDraftRequest struct {
 	state           protoimpl.MessageState `protogen:"open.v1"`
 	Identity        *commonpb.Identity     `protobuf:"bytes,1,opt,name=identity,proto3" json:"identity,omitempty"`
 	Pawn            *EntityPrecondition    `protobuf:"bytes,2,opt,name=pawn,proto3" json:"pawn,omitempty"`
 	ExpectedClaimId *string                `protobuf:"bytes,3,opt,name=expected_claim_id,json=expectedClaimId,proto3,oneof" json:"expected_claim_id,omitempty"`
-	OriginalOwner   *authoritypb.Owner     `protobuf:"bytes,4,opt,name=original_owner,json=originalOwner,proto3" json:"original_owner,omitempty"`
 	unknownFields   protoimpl.UnknownFields
 	sizeCache       protoimpl.SizeCache
 }
@@ -7109,13 +7112,6 @@ func (x *ReleaseOwnedDraftRequest) GetExpectedClaimId() string {
 		return *x.ExpectedClaimId
 	}
 	return ""
-}
-
-func (x *ReleaseOwnedDraftRequest) GetOriginalOwner() *authoritypb.Owner {
-	if x != nil {
-		return x.OriginalOwner
-	}
-	return nil
 }
 
 type DraftRelease struct {
@@ -7955,13 +7951,12 @@ const file_operations_proto_rawDesc = "" +
 	"\n" +
 	"_window_idB\x0f\n" +
 	"\r_faction_nameB\x12\n" +
-	"\x10_settlement_name\"\xa9\x02\n" +
+	"\x10_settlement_name\"\xf7\x01\n" +
 	"\x18ReleaseOwnedDraftRequest\x12;\n" +
 	"\bidentity\x18\x01 \x01(\v2\x1f.rimgovernor.common.v1.IdentityR\bidentity\x12A\n" +
 	"\x04pawn\x18\x02 \x01(\v2-.rimgovernor.operations.v1.EntityPreconditionR\x04pawn\x12/\n" +
-	"\x11expected_claim_id\x18\x03 \x01(\tH\x00R\x0fexpectedClaimId\x88\x01\x01\x12F\n" +
-	"\x0eoriginal_owner\x18\x04 \x01(\v2\x1f.rimgovernor.authority.v1.OwnerR\roriginalOwnerB\x14\n" +
-	"\x12_expected_claim_id\"\xe2\x01\n" +
+	"\x11expected_claim_id\x18\x03 \x01(\tH\x00R\x0fexpectedClaimId\x88\x01\x01B\x14\n" +
+	"\x12_expected_claim_idJ\x04\b\x04\x10\x05R\x0eoriginal_owner\"\xe2\x01\n" +
 	"\fDraftRelease\x12M\n" +
 	"\arequest\x18\x01 \x01(\v23.rimgovernor.operations.v1.ReleaseOwnedDraftRequestR\arequest\x12C\n" +
 	"\acontext\x18\x02 \x01(\v2).rimgovernor.common.v1.ObservationContextR\acontext\x12>\n" +
@@ -8209,8 +8204,7 @@ var file_operations_proto_goTypes = []any{
 	(*commonpb.Cell)(nil),                  // 110: rimgovernor.common.v1.Cell
 	(*placementpb.PlacementCandidate)(nil), // 111: rimgovernor.placement.v1.PlacementCandidate
 	(placementpb.Rotation)(0),              // 112: rimgovernor.placement.v1.Rotation
-	(*authoritypb.Owner)(nil),              // 113: rimgovernor.authority.v1.Owner
-	(*receiptspb.JobEffect)(nil),           // 114: rimgovernor.receipts.v1.JobEffect
+	(*receiptspb.JobEffect)(nil),           // 113: rimgovernor.receipts.v1.JobEffect
 }
 var file_operations_proto_depIdxs = []int32{
 	103, // 0: rimgovernor.operations.v1.ExecuteRequest.precondition:type_name -> rimgovernor.authority.v1.WritePrecondition
@@ -8394,27 +8388,26 @@ var file_operations_proto_depIdxs = []int32{
 	28,  // 178: rimgovernor.operations.v1.FulfillQuest.caravan:type_name -> rimgovernor.operations.v1.EntityPrecondition
 	106, // 179: rimgovernor.operations.v1.ReleaseOwnedDraftRequest.identity:type_name -> rimgovernor.common.v1.Identity
 	28,  // 180: rimgovernor.operations.v1.ReleaseOwnedDraftRequest.pawn:type_name -> rimgovernor.operations.v1.EntityPrecondition
-	113, // 181: rimgovernor.operations.v1.ReleaseOwnedDraftRequest.original_owner:type_name -> rimgovernor.authority.v1.Owner
-	99,  // 182: rimgovernor.operations.v1.DraftRelease.request:type_name -> rimgovernor.operations.v1.ReleaseOwnedDraftRequest
-	107, // 183: rimgovernor.operations.v1.DraftRelease.context:type_name -> rimgovernor.common.v1.ObservationContext
-	114, // 184: rimgovernor.operations.v1.DraftRelease.observed:type_name -> rimgovernor.receipts.v1.JobEffect
-	99,  // 185: rimgovernor.operations.v1.DraftReleaseUncertain.request:type_name -> rimgovernor.operations.v1.ReleaseOwnedDraftRequest
-	107, // 186: rimgovernor.operations.v1.DraftReleaseUncertain.context:type_name -> rimgovernor.common.v1.ObservationContext
-	100, // 187: rimgovernor.operations.v1.ReleaseOwnedDraftReply.released:type_name -> rimgovernor.operations.v1.DraftRelease
-	100, // 188: rimgovernor.operations.v1.ReleaseOwnedDraftReply.already_released:type_name -> rimgovernor.operations.v1.DraftRelease
-	101, // 189: rimgovernor.operations.v1.ReleaseOwnedDraftReply.uncertain:type_name -> rimgovernor.operations.v1.DraftReleaseUncertain
-	105, // 190: rimgovernor.operations.v1.ReleaseOwnedDraftReply.failure:type_name -> rimgovernor.common.v1.Failure
-	19,  // 191: rimgovernor.operations.v1.Operations.Preview:input_type -> rimgovernor.operations.v1.PreviewRequest
-	17,  // 192: rimgovernor.operations.v1.Operations.Execute:input_type -> rimgovernor.operations.v1.ExecuteRequest
-	99,  // 193: rimgovernor.operations.v1.Operations.ReleaseOwnedDraft:input_type -> rimgovernor.operations.v1.ReleaseOwnedDraftRequest
-	20,  // 194: rimgovernor.operations.v1.Operations.Preview:output_type -> rimgovernor.operations.v1.PreviewReply
-	18,  // 195: rimgovernor.operations.v1.Operations.Execute:output_type -> rimgovernor.operations.v1.ExecuteReply
-	102, // 196: rimgovernor.operations.v1.Operations.ReleaseOwnedDraft:output_type -> rimgovernor.operations.v1.ReleaseOwnedDraftReply
-	194, // [194:197] is the sub-list for method output_type
-	191, // [191:194] is the sub-list for method input_type
-	191, // [191:191] is the sub-list for extension type_name
-	191, // [191:191] is the sub-list for extension extendee
-	0,   // [0:191] is the sub-list for field type_name
+	99,  // 181: rimgovernor.operations.v1.DraftRelease.request:type_name -> rimgovernor.operations.v1.ReleaseOwnedDraftRequest
+	107, // 182: rimgovernor.operations.v1.DraftRelease.context:type_name -> rimgovernor.common.v1.ObservationContext
+	113, // 183: rimgovernor.operations.v1.DraftRelease.observed:type_name -> rimgovernor.receipts.v1.JobEffect
+	99,  // 184: rimgovernor.operations.v1.DraftReleaseUncertain.request:type_name -> rimgovernor.operations.v1.ReleaseOwnedDraftRequest
+	107, // 185: rimgovernor.operations.v1.DraftReleaseUncertain.context:type_name -> rimgovernor.common.v1.ObservationContext
+	100, // 186: rimgovernor.operations.v1.ReleaseOwnedDraftReply.released:type_name -> rimgovernor.operations.v1.DraftRelease
+	100, // 187: rimgovernor.operations.v1.ReleaseOwnedDraftReply.already_released:type_name -> rimgovernor.operations.v1.DraftRelease
+	101, // 188: rimgovernor.operations.v1.ReleaseOwnedDraftReply.uncertain:type_name -> rimgovernor.operations.v1.DraftReleaseUncertain
+	105, // 189: rimgovernor.operations.v1.ReleaseOwnedDraftReply.failure:type_name -> rimgovernor.common.v1.Failure
+	19,  // 190: rimgovernor.operations.v1.Operations.Preview:input_type -> rimgovernor.operations.v1.PreviewRequest
+	17,  // 191: rimgovernor.operations.v1.Operations.Execute:input_type -> rimgovernor.operations.v1.ExecuteRequest
+	99,  // 192: rimgovernor.operations.v1.Operations.ReleaseOwnedDraft:input_type -> rimgovernor.operations.v1.ReleaseOwnedDraftRequest
+	20,  // 193: rimgovernor.operations.v1.Operations.Preview:output_type -> rimgovernor.operations.v1.PreviewReply
+	18,  // 194: rimgovernor.operations.v1.Operations.Execute:output_type -> rimgovernor.operations.v1.ExecuteReply
+	102, // 195: rimgovernor.operations.v1.Operations.ReleaseOwnedDraft:output_type -> rimgovernor.operations.v1.ReleaseOwnedDraftReply
+	193, // [193:196] is the sub-list for method output_type
+	190, // [190:193] is the sub-list for method input_type
+	190, // [190:190] is the sub-list for extension type_name
+	190, // [190:190] is the sub-list for extension extendee
+	0,   // [0:190] is the sub-list for field type_name
 }
 
 func init() { file_operations_proto_init() }

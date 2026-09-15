@@ -183,18 +183,17 @@ namespace HomeBridge.BridgeTools
         }
         internal static Operations.ExecuteReply Execute(NativeOperationState state, Operations.ExecuteRequest request, Common.ObservationContext context)
         {
-            NativeAttemptLedger.Admission? handle = null; Authority.Owner? owner = null; Receipts.EffectEvidence? evidence = null;
+            NativeAttemptLedger.Admission? handle = null; Receipts.EffectEvidence? evidence = null;
             var pre = request.Precondition; var command = request.Operation.CreateZone;
             try {
                 if (!Prepare(command, context, out var crop, out var failure)) return new Operations.ExecuteReply { Failure = failure };
                 if (!NativeControlAuthority.TryGetForGame(Current.Game, out var authority) || authority == null) return new Operations.ExecuteReply { Failure = ProtoBoundary.Fail(Common.FailureCode.AuthorityRequired, "Native authority required.") };
-                var guard = authority.Check(pre.ExpectedGeneration, pre.LeaseId, pre.Attempt.ControllerSessionId); context.NativeGeneration = guard.Snapshot.Generation;
+                var guard = authority.Check(pre.ExpectedGeneration); context.NativeGeneration = guard.Snapshot.Generation;
                 if (!guard.Success) return new Operations.ExecuteReply { Failure = NativeAuthorityControlTools.Refusal(guard.Error, context) };
-                owner = new Authority.Owner { ControllerSessionId = guard.Snapshot.Lease!.ControllerSessionId, PlayerDirection = guard.Snapshot.Lease.PlayerDirection };
-                var admitted = state.Ledger.Admit("rimgovernor.operations.v1.Operations/Execute", request, context, owner);
+                var admitted = state.Ledger.Admit("rimgovernor.operations.v1.Operations/Execute", request, context);
                 if (admitted.Kind != NativeAttemptLedger.DecisionKind.Admitted) return admitted.Reply!; handle = admitted.Handle;
                 using (authority.Owned()) {
-                    if (!authority.Check(pre.ExpectedGeneration, pre.LeaseId, pre.Attempt.ControllerSessionId).Success || !Prepare(command, context, out crop, out failure)) throw new InvalidOperationException("Zone scope changed before creation.");
+                    if (!authority.Check(pre.ExpectedGeneration).Success || !Prepare(command, context, out crop, out failure)) throw new InvalidOperationException("Zone scope changed before creation.");
                     var map = Find.CurrentMap;
                     NativeZoneRecord record;
                     if (command.Type == Operations.ZoneType.Growing) {
@@ -217,11 +216,11 @@ namespace HomeBridge.BridgeTools
                     }
                     evidence = new Receipts.EffectEvidence { Zone = record.Evidence() };
                 }
-                return new Operations.ExecuteReply { Receipt = NativeOperationEnvelope.Applied(state.Ledger, handle, pre.Attempt, context, owner, evidence) };
+                return new Operations.ExecuteReply { Receipt = NativeOperationEnvelope.Applied(state.Ledger, handle, pre.Attempt, context, evidence) };
             }
             catch (Exception error) {
                 return handle == null ? new Operations.ExecuteReply { Failure = ProtoBoundary.Fail(Common.FailureCode.NativeFailure, "Zone admission failed: " + error.GetType().Name) }
-                    : new Operations.ExecuteReply { Receipt = NativeOperationEnvelope.Uncertain(state.Ledger, handle, pre.Attempt, context, owner!, evidence!, "Created zone requires inspection: " + error.GetType().Name) };
+                    : new Operations.ExecuteReply { Receipt = NativeOperationEnvelope.Uncertain(state.Ledger, handle, pre.Attempt, context, evidence!, "Created zone requires inspection: " + error.GetType().Name) };
             }
         }
     }

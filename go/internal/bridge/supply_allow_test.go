@@ -18,7 +18,7 @@ func supplyTestTarget() SupplyTarget {
 	return SupplyTarget{s, "snapshot"}
 }
 func supplyTestAttempt() SupplyAttempt {
-	return SupplyAttempt{pbIdentity(), buildingPre().Attempt, draftTestAttempt().Owner, 1, supplyTestTarget().Supply}
+	return SupplyAttempt{pbIdentity(), buildingPre().Attempt, 1, supplyTestTarget().Supply}
 }
 func supplyTestEffect() *r.EffectEvidence {
 	return &r.EffectEvidence{Effect: &r.EffectEvidence_Designation{Designation: &r.DesignationEffect{ThingId: proto.String("steel"), ResourceDef: proto.String("Steel"), DesignationDef: proto.String("Allow"), Present: proto.Bool(true), Cell: &c.Cell{X: proto.Int32(1), Z: proto.Int32(2)}}}}
@@ -86,7 +86,6 @@ func TestSupplyFixedCapabilityAndReceiptCorrelation(t *testing.T) {
 		t.Fatal(calls, err)
 	}
 	for name, edit := range map[string]func(*r.Receipt){
-		"owner":     func(v *r.Receipt) { v.AuthorizingOwner.PlayerDirection = proto.Uint64(10) },
 		"world":     func(v *r.Receipt) { v.AdmittedContext.Identity.LoadToken = proto.String("other") },
 		"attempt":   func(v *r.Receipt) { v.Attempt.AttemptId = proto.Uint64(2) },
 		"item":      func(v *r.Receipt) { v.GetApplied().Observed.GetDesignation().ThingId = proto.String("other") },

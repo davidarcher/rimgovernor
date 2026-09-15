@@ -151,10 +151,13 @@ message StatusReply {
 message LongEventPending { optional string detail = 1; }
 message AppliedControl { Status status = 1; }
 message UncertainControl { Status last_observed = 1; optional string detail = 2; }
+// authorizing_owner (rimgovernor.authority.v1.Owner) was removed: with a
+// single bot process there is only ever one possible authorizing actor.
 message ControlReceipt {
   rimgovernor.common.v1.AttemptKey attempt = 1;
   rimgovernor.common.v1.ObservationContext admitted_context = 2;
-  rimgovernor.authority.v1.Owner authorizing_owner = 3;
+  reserved 3;
+  reserved "authorizing_owner";
   oneof outcome {
     AppliedControl applied = 4;
     UncertainControl uncertain = 5;

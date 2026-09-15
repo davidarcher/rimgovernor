@@ -36,7 +36,6 @@ import (
 type TravelCaravanAttempt struct {
 	Identity              *c.Identity
 	Attempt               *c.AttemptKey
-	Owner                 *a.Owner
 	Generation            uint64
 	Caravan, CaravanToken string
 	Kind                  o.TravelKind
@@ -154,13 +153,7 @@ func travelCaravanAttempt(v TravelCaravanAttempt) (TravelCaravanAttempt, error) 
 	if err := buildingAttempt(v.Attempt); err != nil {
 		return TravelCaravanAttempt{}, err
 	}
-	if err := authorityOwner(v.Owner); err != nil {
-		return TravelCaravanAttempt{}, err
-	}
-	if err := buildingUnknown(v.Owner); err != nil {
-		return TravelCaravanAttempt{}, err
-	}
-	if v.Generation == 0 || v.Owner.GetControllerSessionId() != v.Attempt.GetControllerSessionId() {
+	if v.Generation == 0 {
 		return TravelCaravanAttempt{}, contract("travel caravan admission owner or generation mismatch")
 	}
 	if err := travelCaravanCommand(v.Caravan, v.CaravanToken, v.Kind, v.DestinationTile); err != nil {
@@ -168,7 +161,6 @@ func travelCaravanAttempt(v TravelCaravanAttempt) (TravelCaravanAttempt, error) 
 	}
 	v.Identity = proto.Clone(v.Identity).(*c.Identity)
 	v.Attempt = proto.Clone(v.Attempt).(*c.AttemptKey)
-	v.Owner = proto.Clone(v.Owner).(*a.Owner)
 	return v, nil
 }
 
@@ -206,7 +198,7 @@ func travelCaravanEvidence(evidence *r.EffectEvidence, expected TravelCaravanAtt
 }
 
 func travelCaravanReceipt(v *r.Receipt, expected TravelCaravanAttempt) error {
-	if v == nil || buildingUnknown(v) != nil || !proto.Equal(v.Attempt, expected.Attempt) || !proto.Equal(v.AuthorizingOwner, expected.Owner) {
+	if v == nil || buildingUnknown(v) != nil || !proto.Equal(v.Attempt, expected.Attempt) {
 		return contract("travel caravan admission mismatch")
 	}
 	if err := buildingContext(v.AdmittedContext, expected.Identity, expected.Generation, true); err != nil {
@@ -243,14 +235,14 @@ func NewTravelCaravanWriter(client *Client) (*TravelCaravanWriter, error) {
 }
 
 // ApplyTravelCaravan dispatches one already-admitted TravelCaravan order.
-func (writer *TravelCaravanWriter) ApplyTravelCaravan(ctx context.Context, pre *a.WritePrecondition, owner *a.Owner, caravan, caravanToken string, kind o.TravelKind, destinationTile int32) (*o.ExecuteReply, Result, error) {
-	if writer == nil || writer.client == nil || pre == nil || buildingUnknown(pre) != nil || ValidateIdentity(pre.Identity) != nil || buildingAttempt(pre.Attempt) != nil || pre.GetExpectedGeneration() == 0 || validID(pre.GetLeaseId()) != nil {
+func (writer *TravelCaravanWriter) ApplyTravelCaravan(ctx context.Context, pre *a.WritePrecondition, caravan, caravanToken string, kind o.TravelKind, destinationTile int32) (*o.ExecuteReply, Result, error) {
+	if writer == nil || writer.client == nil || pre == nil || buildingUnknown(pre) != nil || ValidateIdentity(pre.Identity) != nil || buildingAttempt(pre.Attempt) != nil || pre.GetExpectedGeneration() == 0 {
 		return nil, Result{}, contract("invalid travel caravan execution")
 	}
 	if err := travelCaravanCommand(caravan, caravanToken, kind, destinationTile); err != nil {
 		return nil, Result{}, err
 	}
-	expected, err := travelCaravanAttempt(TravelCaravanAttempt{Identity: pre.Identity, Attempt: pre.Attempt, Owner: owner, Generation: pre.GetExpectedGeneration(), Caravan: caravan, CaravanToken: caravanToken, Kind: kind, DestinationTile: destinationTile})
+	expected, err := travelCaravanAttempt(TravelCaravanAttempt{Identity: pre.Identity, Attempt: pre.Attempt, Generation: pre.GetExpectedGeneration(), Caravan: caravan, CaravanToken: caravanToken, Kind: kind, DestinationTile: destinationTile})
 	if err != nil {
 		return nil, Result{}, err
 	}

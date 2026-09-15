@@ -31,13 +31,7 @@ func draftAttempt(v DraftAttempt) (DraftAttempt, error) {
 	if err := buildingAttempt(v.Attempt); err != nil {
 		return DraftAttempt{}, err
 	}
-	if err := authorityOwner(v.Owner); err != nil {
-		return DraftAttempt{}, err
-	}
-	if err := buildingUnknown(v.Owner); err != nil {
-		return DraftAttempt{}, err
-	}
-	if v.NativeGeneration == 0 || v.Owner.GetControllerSessionId() != v.Attempt.GetControllerSessionId() {
+	if v.NativeGeneration == 0 {
 		return DraftAttempt{}, contract("draft admission owner or generation mismatch")
 	}
 	if err := validID(v.PawnID); err != nil {
@@ -45,7 +39,6 @@ func draftAttempt(v DraftAttempt) (DraftAttempt, error) {
 	}
 	v.Identity = proto.Clone(v.Identity).(*c.Identity)
 	v.Attempt = proto.Clone(v.Attempt).(*c.AttemptKey)
-	v.Owner = proto.Clone(v.Owner).(*a.Owner)
 	return v, nil
 }
 
@@ -92,11 +85,11 @@ func (client *Client) PreviewDraft(ctx context.Context, identity *c.Identity, pa
 	}
 	return reply, raw, err
 }
-func (control *DraftControl) DraftPawn(ctx context.Context, pre *a.WritePrecondition, owner *a.Owner, pawn *o.EntityPrecondition) (*o.ExecuteReply, Result, error) {
+func (control *DraftControl) DraftPawn(ctx context.Context, pre *a.WritePrecondition, pawn *o.EntityPrecondition) (*o.ExecuteReply, Result, error) {
 	if control == nil || control.client == nil {
 		return nil, Result{}, contract("draft capability missing")
 	}
-	if pre == nil || validID(pre.GetLeaseId()) != nil {
+	if pre == nil {
 		return nil, Result{}, contract("draft lease missing")
 	}
 	if err := buildingUnknown(pre); err != nil {
@@ -105,7 +98,7 @@ func (control *DraftControl) DraftPawn(ctx context.Context, pre *a.WritePrecondi
 	if err := draftEntity(pawn); err != nil {
 		return nil, Result{}, err
 	}
-	expected, err := draftAttempt(DraftAttempt{pre.Identity, pre.Attempt, pre.GetExpectedGeneration(), owner, pawn.GetEntityId()})
+	expected, err := draftAttempt(DraftAttempt{pre.Identity, pre.Attempt, pre.GetExpectedGeneration(), pawn.GetEntityId()})
 	if err != nil {
 		return nil, Result{}, err
 	}
@@ -213,9 +206,6 @@ func (cleanup *DraftCleanup) ReleaseOwnedDraft(ctx context.Context, request *o.R
 	if err := draftEntity(request.Pawn); err != nil {
 		return nil, Result{}, err
 	}
-	if err := authorityOwner(request.OriginalOwner); err != nil {
-		return nil, Result{}, err
-	}
 	if err := validID(request.GetExpectedClaimId()); err != nil {
 		return nil, Result{}, err
 	}
@@ -247,7 +237,7 @@ func (cleanup *DraftCleanup) ReleaseOwnedDraft(ctx context.Context, request *o.R
 	return reply, raw, err
 }
 func draftReceipt(v *r.Receipt, expected DraftAttempt) error {
-	if v == nil || !proto.Equal(v.Attempt, expected.Attempt) || !proto.Equal(v.AuthorizingOwner, expected.Owner) {
+	if v == nil || !proto.Equal(v.Attempt, expected.Attempt) {
 		return contract("draft receipt attempt or owner mismatch")
 	}
 	if err := buildingUnknown(v); err != nil {
@@ -284,7 +274,7 @@ func draftReceipt(v *r.Receipt, expected DraftAttempt) error {
 	if evidence == nil && !complete {
 		return nil
 	}
-	job, err := draftEvidence(evidence, expected.PawnID, expected.Owner)
+	job, err := draftEvidence(evidence, expected.PawnID)
 	if err != nil {
 		return err
 	}
@@ -293,7 +283,7 @@ func draftReceipt(v *r.Receipt, expected DraftAttempt) error {
 	}
 	return nil
 }
-func draftEvidence(evidence *r.EffectEvidence, pawn string, owner *a.Owner) (*r.JobEffect, error) {
+func draftEvidence(evidence *r.EffectEvidence, pawn string) (*r.JobEffect, error) {
 	job := evidence.GetJob()
 	if job == nil || job.PawnId == nil || job.GetPawnId() != pawn {
 		return nil, contract("draft pawn effect mismatch")
@@ -309,9 +299,6 @@ func draftEvidence(evidence *r.EffectEvidence, pawn string, owner *a.Owner) (*r.
 				return nil, err
 			}
 		}
-	}
-	if job.DraftOwner != nil && job.GetDraftOwner() != owner.GetControllerSessionId() {
-		return nil, contract("draft effect owner mismatch")
 	}
 	return job, nil
 }
@@ -380,7 +367,7 @@ func draftProgress(v *r.Progress, expected DraftAttempt, admitted *r.Receipt) er
 	if evidence == nil && !terminal {
 		return nil
 	}
-	job, err := draftEvidence(evidence, expected.PawnID, expected.Owner)
+	job, err := draftEvidence(evidence, expected.PawnID)
 	if err != nil {
 		return err
 	}
@@ -399,7 +386,7 @@ func draftRelease(v *o.DraftRelease, request *o.ReleaseOwnedDraftRequest, issued
 	if err := buildingContext(v.Context, request.Identity, 0, false); err != nil {
 		return err
 	}
-	job, err := draftEvidence(&r.EffectEvidence{Effect: &r.EffectEvidence_Job{Job: v.Observed}}, request.Pawn.GetEntityId(), request.OriginalOwner)
+	job, err := draftEvidence(&r.EffectEvidence{Effect: &r.EffectEvidence_Job{Job: v.Observed}}, request.Pawn.GetEntityId())
 	if err != nil {
 		return err
 	}

@@ -8,7 +8,6 @@ using RimWorld;
 using Verse;
 using Verse.AI;
 using Common = RimGovernor.Protocol.Common;
-using Authority = RimGovernor.Protocol.Authority;
 using Operations = RimGovernor.Protocol.Operations;
 using Receipts = RimGovernor.Protocol.Receipts;
 
@@ -391,14 +390,14 @@ namespace HomeBridge.BridgeTools
         internal static Operations.ExecuteReply Execute(NativeOperationState state, Operations.ExecuteRequest request, Common.ObservationContext context)
         {
             var operation = request.Operation; var pre = request.Precondition; var identity = context.Identity;
-            NativeAttemptLedger.Admission? handle = null; Authority.Owner? owner = null; Receipts.EffectEvidence? evidence = null;
+            NativeAttemptLedger.Admission? handle = null; Receipts.EffectEvidence? evidence = null;
             try
             {
                 Common.Failure failure;
                 if (operation.CommandCase == Operations.Operation.CommandOneofCase.OpenTrade)
                 {
                     if (!PrepareOpen(operation.OpenTrade, identity, out var trader, out var negotiator, out failure)) return new Operations.ExecuteReply { Failure = failure };
-                    var admitReply = Admit(state, request, context, out handle, out owner, out var authority);
+                    var admitReply = Admit(state, request, context, out handle, out var authority);
                     if (admitReply != null) return admitReply;
                     using (authority!.Owned())
                     {
@@ -414,13 +413,13 @@ namespace HomeBridge.BridgeTools
                         state.Trade.Add(pre.Attempt.Clone(), new NativeTradeRecord(evidence));
                         if (!TradeSession.Active) throw new InvalidOperationException("Native open readback did not apply.");
                     }
-                    return new Operations.ExecuteReply { Receipt = NativeOperationEnvelope.Applied(state.Ledger, handle, pre.Attempt, context, owner, evidence) };
+                    return new Operations.ExecuteReply { Receipt = NativeOperationEnvelope.Applied(state.Ledger, handle, pre.Attempt, context, evidence) };
                 }
                 if (operation.CommandCase == Operations.Operation.CommandOneofCase.SetTradeLines)
                 {
                     var all0 = RequireSession(identity, out failure) ? _sessionDeal!.AllTradeables : new List<Tradeable>();
                     if (!PrepareLines(operation.SetTradeLines, identity, all0, out var prepared, out failure)) return new Operations.ExecuteReply { Failure = failure };
-                    var admitReply = Admit(state, request, context, out handle, out owner, out var authority);
+                    var admitReply = Admit(state, request, context, out handle, out var authority);
                     if (admitReply != null) return admitReply;
                     using (authority!.Owned())
                     {
@@ -444,12 +443,12 @@ namespace HomeBridge.BridgeTools
                         foreach (var l in lineEffects) evidence.Trade.Lines.Add(l);
                         state.Trade.Add(pre.Attempt.Clone(), new NativeTradeRecord(evidence));
                     }
-                    return new Operations.ExecuteReply { Receipt = NativeOperationEnvelope.Applied(state.Ledger, handle, pre.Attempt, context, owner, evidence) };
+                    return new Operations.ExecuteReply { Receipt = NativeOperationEnvelope.Applied(state.Ledger, handle, pre.Attempt, context, evidence) };
                 }
                 if (operation.CommandCase == Operations.Operation.CommandOneofCase.AcceptTrade)
                 {
                     if (!PrepareAccept(operation.AcceptTrade, identity, out failure)) return new Operations.ExecuteReply { Failure = failure };
-                    var admitReply = Admit(state, request, context, out handle, out owner, out var authority);
+                    var admitReply = Admit(state, request, context, out handle, out var authority);
                     if (admitReply != null) return admitReply;
                     using (authority!.Owned())
                     {
@@ -488,12 +487,12 @@ namespace HomeBridge.BridgeTools
                         state.Trade.Add(pre.Attempt.Clone(), new NativeTradeRecord(evidence));
                         if (executeError != null || !executed) throw new InvalidOperationException("Native trade execution requires observation.", executeError);
                     }
-                    return new Operations.ExecuteReply { Receipt = NativeOperationEnvelope.Applied(state.Ledger, handle, pre.Attempt, context, owner, evidence) };
+                    return new Operations.ExecuteReply { Receipt = NativeOperationEnvelope.Applied(state.Ledger, handle, pre.Attempt, context, evidence) };
                 }
                 if (operation.CommandCase == Operations.Operation.CommandOneofCase.EndTrade)
                 {
                     if (!PrepareEnd(operation.EndTrade, identity, out failure)) return new Operations.ExecuteReply { Failure = failure };
-                    var admitReply = Admit(state, request, context, out handle, out owner, out var authority);
+                    var admitReply = Admit(state, request, context, out handle, out var authority);
                     if (admitReply != null) return admitReply;
                     using (authority!.Owned())
                     {
@@ -520,7 +519,7 @@ namespace HomeBridge.BridgeTools
                         } };
                         state.Trade.Add(pre.Attempt.Clone(), new NativeTradeRecord(evidence));
                     }
-                    return new Operations.ExecuteReply { Receipt = NativeOperationEnvelope.Applied(state.Ledger, handle, pre.Attempt, context, owner, evidence) };
+                    return new Operations.ExecuteReply { Receipt = NativeOperationEnvelope.Applied(state.Ledger, handle, pre.Attempt, context, evidence) };
                 }
                 return Refuse(Common.FailureCode.Unsupported, "Trade execute implements OpenTrade, SetTradeLines, AcceptTrade and EndTrade only.");
             }
@@ -528,26 +527,25 @@ namespace HomeBridge.BridgeTools
             {
                 return handle == null
                     ? Refuse(Common.FailureCode.NativeFailure, "Trade validation failed: " + error.GetType().Name)
-                    : new Operations.ExecuteReply { Receipt = NativeOperationEnvelope.Uncertain(state.Ledger, handle, pre.Attempt, context, owner!, evidence!, "Admitted trade order requires observation: " + error.GetType().Name) };
+                    : new Operations.ExecuteReply { Receipt = NativeOperationEnvelope.Uncertain(state.Ledger, handle, pre.Attempt, context, evidence!, "Admitted trade order requires observation: " + error.GetType().Name) };
             }
         }
 
-        // Returns null when admission succeeded (handle/owner/authority are
-        // set and the caller should proceed into authority.Owned()), or the
-        // exact reply to return immediately otherwise -- an authority
-        // refusal or the ledger's own retry/duplicate/conflict reply.
+        // Returns null when admission succeeded (handle/authority are set and
+        // the caller should proceed into authority.Owned()), or the exact
+        // reply to return immediately otherwise -- an authority refusal or
+        // the ledger's own retry/duplicate/conflict reply.
         private static Operations.ExecuteReply? Admit(NativeOperationState state, Operations.ExecuteRequest request, Common.ObservationContext context,
-            out NativeAttemptLedger.Admission? handle, out Authority.Owner? owner, out NativeControlAuthority? authority)
+            out NativeAttemptLedger.Admission? handle, out NativeControlAuthority? authority)
         {
-            handle = null; owner = null; authority = null;
+            handle = null; authority = null;
             var pre = request.Precondition;
             if (!NativeControlAuthority.TryGetForGame(Current.Game, out authority) || authority == null)
                 return Refuse(Common.FailureCode.AuthorityRequired, "Current native authority is required.");
-            var guard = authority.Check(pre.ExpectedGeneration, pre.LeaseId, pre.Attempt.ControllerSessionId);
+            var guard = authority.Check(pre.ExpectedGeneration);
             context.NativeGeneration = guard.Snapshot.Generation;
             if (!guard.Success) return new Operations.ExecuteReply { Failure = NativeAuthorityControlTools.Refusal(guard.Error, context) };
-            owner = new Authority.Owner { ControllerSessionId = guard.Snapshot.Lease!.ControllerSessionId, PlayerDirection = guard.Snapshot.Lease.PlayerDirection };
-            var admission = state.Ledger.Admit("rimgovernor.operations.v1.Operations/Execute", request, context, owner);
+            var admission = state.Ledger.Admit("rimgovernor.operations.v1.Operations/Execute", request, context);
             if (admission.Kind != NativeAttemptLedger.DecisionKind.Admitted) return admission.Reply;
             handle = admission.Handle;
             return null;

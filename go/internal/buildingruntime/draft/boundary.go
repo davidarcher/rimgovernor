@@ -27,7 +27,7 @@ type DraftNative interface {
 	ObserveDraftProgress(context.Context, bridge.DraftAttempt, *r.Receipt) (*r.ProgressReply, bridge.Result, error)
 }
 type DraftWriter interface {
-	DraftPawn(context.Context, *a.WritePrecondition, *a.Owner, *o.EntityPrecondition) (*o.ExecuteReply, bridge.Result, error)
+	DraftPawn(context.Context, *a.WritePrecondition, *o.EntityPrecondition) (*o.ExecuteReply, bridge.Result, error)
 }
 type DraftCleanupWriter interface {
 	ReleaseOwnedDraft(context.Context, *o.ReleaseOwnedDraftRequest) (*o.ReleaseOwnedDraftReply, bridge.Result, error)
@@ -61,7 +61,7 @@ func (b *DraftBoundary) attempt(p executor.Placement) (bridge.DraftAttempt, erro
 	if err != nil || p.Attempt == 0 || p.Tick < 0 {
 		return bridge.DraftAttempt{}, executor.ErrEvidence
 	}
-	return bridge.DraftAttempt{Identity: boundary.Identity(p.Snapshot), Attempt: &c.AttemptKey{ControllerSessionId: proto.String(b.session), ActionId: proto.String(string(p.Action.ID())), AttemptId: proto.Uint64(uint64(p.Attempt))}, NativeGeneration: uint64(p.Snapshot.Native), Owner: &a.Owner{ControllerSessionId: proto.String(b.session), PlayerDirection: proto.Uint64(uint64(p.Snapshot.Direction))}, PawnID: pawn}, nil
+	return bridge.DraftAttempt{Identity: boundary.Identity(p.Snapshot), Attempt: &c.AttemptKey{ControllerSessionId: proto.String(b.session), ActionId: proto.String(string(p.Action.ID())), AttemptId: proto.Uint64(uint64(p.Attempt))}, NativeGeneration: uint64(p.Snapshot.Native), PawnID: pawn}, nil
 }
 
 // pawnRead requires the requested whole-query result; no row is not absence proof.
@@ -165,7 +165,7 @@ func (b *DraftBoundary) claim(p executor.Placement, job *r.JobEffect, row *n.Paw
 		return domain.Unknown[domain.DraftClaim](), executor.ErrEvidence
 	}
 	owned := row.GetDraftClaim().GetOwned()
-	if owned == nil || owned.Owner == nil || owned.Owner.ControllerSessionId == nil || owned.Owner.PlayerDirection == nil || owned.GetClaimId() != job.GetDraftClaimId() || owned.Owner.GetControllerSessionId() != b.session || owned.Owner.GetPlayerDirection() != uint64(p.Snapshot.Direction) {
+	if owned == nil || owned.GetClaimId() != job.GetDraftClaimId() {
 		return domain.Unknown[domain.DraftClaim](), executor.ErrHeld
 	}
 	if _, err := boundary.PawnToken(row, observed); err != nil {
@@ -193,11 +193,11 @@ func (b *DraftBoundary) Draft(ctx context.Context, dispatch executor.DraftDispat
 	if !boundary.ValidID(lease) {
 		return out, executor.ErrAuthority
 	}
-	pre := &a.WritePrecondition{Identity: attempt.Identity, ExpectedGeneration: proto.Uint64(attempt.NativeGeneration), LeaseId: proto.String(lease), Attempt: attempt.Attempt}
+	pre := &a.WritePrecondition{Identity: attempt.Identity, ExpectedGeneration: proto.Uint64(attempt.NativeGeneration), Attempt: attempt.Attempt}
 	if err = ctx.Err(); err != nil {
 		return out, err
 	}
-	reply, _, err := b.writer.DraftPawn(ctx, pre, attempt.Owner, &o.EntityPrecondition{EntityId: proto.String(attempt.PawnID), ExpectedSnapshotToken: proto.String(dispatch.PawnSnapshotToken)})
+	reply, _, err := b.writer.DraftPawn(ctx, pre, &o.EntityPrecondition{EntityId: proto.String(attempt.PawnID), ExpectedSnapshotToken: proto.String(dispatch.PawnSnapshotToken)})
 	var refused *bridge.NativeFailure
 	if errors.As(err, &refused) && refused.Value != nil && refused.Value.GetCode() != c.FailureCode_FAILURE_CODE_ATTEMPT_CONFLICT {
 		out.Receipt.Kind = domain.ReceiptRefused

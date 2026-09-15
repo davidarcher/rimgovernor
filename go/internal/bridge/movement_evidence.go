@@ -6,7 +6,7 @@ import (
 )
 
 func movementReceipt(v *r.Receipt, expected MovementAttempt) error {
-	if v == nil || !proto.Equal(v.Attempt, expected.Attempt) || !proto.Equal(v.AuthorizingOwner, expected.Owner) {
+	if v == nil || !proto.Equal(v.Attempt, expected.Attempt) {
 		return contract("movement receipt attempt or owner mismatch")
 	}
 	if err := buildingUnknown(v); err != nil {
@@ -71,7 +71,7 @@ func movementEvidence(evidence *r.EffectEvidence, expected MovementAttempt) (*r.
 			}
 		}
 	}
-	if (job.DraftOwner == nil) != (job.DraftClaimId == nil) || job.DraftOwner != nil && job.GetDraftOwner() != expected.Owner.GetControllerSessionId() {
+	if (job.DraftOwner == nil) != (job.DraftClaimId == nil) {
 		return nil, contract("movement claim owner mismatch")
 	}
 	return job, nil

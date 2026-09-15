@@ -138,7 +138,7 @@ func TestBoundaryPlacementLeaseAndFailureKinds(t *testing.T) {
 	t.Parallel()
 	b, f := NewFixture(t)
 	out, err := b.Place(context.Background(), f.Placement)
-	if err != nil || out.Kind != domain.ReceiptUnknown || f.Places != 1 || f.LastPre.GetLeaseId() != "lease" {
+	if err != nil || out.Kind != domain.ReceiptUnknown || f.Places != 1 {
 		t.Fatal(err)
 	}
 	b, f = NewFixture(t)
@@ -157,9 +157,9 @@ func TestBoundaryPlacementLeaseAndFailureKinds(t *testing.T) {
 		t.Fatal("SDK refusal inferred no effect")
 	}
 	b, f = NewFixture(t)
-	f.Receipt.AuthorizingOwner.PlayerDirection = proto.Uint64(2)
+	f.Receipt.Attempt.AttemptId = proto.Uint64(999)
 	if out, err = b.Place(context.Background(), f.Placement); err == nil || out.Kind != domain.ReceiptUnknown {
-		t.Fatal("wrong direction accepted")
+		t.Fatal("corrupted receipt accepted")
 	}
 	b, f = NewFixture(t)
 	ctx, cancel := context.WithCancel(context.Background())
@@ -192,7 +192,7 @@ func TestBoundaryRestartReadsWithoutLeaseAndChecksCompletion(t *testing.T) {
 	}
 	for _, change := range []func(*Fixture){func(f *Fixture) { f.Progress.CompleteInspection = nil }, func(f *Fixture) { f.Progress.Context.Tick = proto.Int64(9) }, func(f *Fixture) { f.Progress.Context.NativeGeneration = nil }, func(f *Fixture) { f.Progress.Attempt.AttemptId = proto.Uint64(2) }, func(f *Fixture) {
 		f.Progress.GetCompleted().Evidence.GetConstruction().DefName = proto.String("Door")
-	}, func(f *Fixture) { f.Receipt.AuthorizingOwner.PlayerDirection = proto.Uint64(2) }} {
+	}, func(f *Fixture) { f.Receipt.Attempt.AttemptId = proto.Uint64(999) }} {
 		b, f := NewFixture(t)
 		change(f)
 		if _, err := b.Observe(context.Background(), f.Placement, f.Placement.Snapshot); err == nil {

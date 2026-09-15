@@ -33,10 +33,9 @@ func TestAcquisitionFixedWriteAndExactAdmission(t *testing.T) {
 	if _, _, err := writer.Acquire(context.Background(), buildingPre(), acquisitionTestTarget()); err != nil {
 		t.Fatal(err)
 	}
-	want := AcquisitionAttempt{pbIdentity(), buildingPre().Attempt, draftTestAttempt().Owner, 1, acquisitionTestTarget().Acquisition}
+	want := AcquisitionAttempt{pbIdentity(), buildingPre().Attempt, 1, acquisitionTestTarget().Acquisition}
 	for _, edit := range []func(*r.Receipt){
 		func(v *r.Receipt) { v.Attempt.AttemptId = proto.Uint64(2) },
-		func(v *r.Receipt) { v.AuthorizingOwner.PlayerDirection = proto.Uint64(2) },
 		func(v *r.Receipt) { v.GetApplied().Observed.GetAcquisition().SourceId = proto.String("other") },
 		func(v *r.Receipt) { v.GetApplied().Observed.GetAcquisition().Cell.Z = proto.Int32(3) },
 		func(v *r.Receipt) { v.GetApplied().Observed.GetAcquisition().ProducedUnits = proto.Int32(10) },

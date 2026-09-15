@@ -7,7 +7,6 @@ import (
 
 	"github.com/davidarcher/RimGovernor/go/internal/bridge"
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
-	a "github.com/davidarcher/RimGovernor/go/internal/wire/authoritypb"
 	k "github.com/davidarcher/RimGovernor/go/internal/wire/clockpb"
 	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
 	"google.golang.org/protobuf/proto"
@@ -32,7 +31,7 @@ type clockIntentRecord struct {
 
 func clockExpectation(v Attempt) bridge.ClockExpectation {
 	s := v.Intent.Snapshot
-	return bridge.ClockExpectation{Identity: &c.Identity{ColonyId: proto.String(string(s.Colony)), MapId: proto.Int32(int32(s.Map)), LoadToken: proto.String(string(s.Load))}, Attempt: v.NativeAttempt, Owner: &a.Owner{ControllerSessionId: proto.String(v.NativeAttempt.GetControllerSessionId()), PlayerDirection: proto.Uint64(uint64(s.Direction))}, NativeGeneration: uint64(s.Native), Command: v.Intent.Command}
+	return bridge.ClockExpectation{Identity: &c.Identity{ColonyId: proto.String(string(s.Colony)), MapId: proto.Int32(int32(s.Map)), LoadToken: proto.String(string(s.Load))}, Attempt: v.NativeAttempt, NativeGeneration: uint64(s.Native), Command: v.Intent.Command}
 }
 func validateClockIntent(v Attempt) error {
 	s := v.Intent.Snapshot

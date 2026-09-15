@@ -19,7 +19,7 @@ import (
 // already declares this exact OrderPawn signature, so no boundary-specific
 // interface changes are needed to use it here.
 type PawnOrderWriter interface {
-	OrderPawn(context.Context, *a.WritePrecondition, *a.Owner, *o.PawnTargetOrder) (*o.ExecuteReply, bridge.Result, error)
+	OrderPawn(context.Context, *a.WritePrecondition, *o.PawnTargetOrder) (*o.ExecuteReply, bridge.Result, error)
 }
 
 // DispatchPawnOrder runs the write half shared by every pawn-order boundary:
@@ -50,8 +50,8 @@ func DispatchPawnOrder(ctx context.Context, leases LeaseSource, writer PawnOrder
 	if err = ctx.Err(); err != nil {
 		return out, err
 	}
-	pre := &a.WritePrecondition{Identity: attempt.Identity, Attempt: attempt.Attempt, ExpectedGeneration: proto.Uint64(attempt.NativeGeneration), LeaseId: proto.String(lease)}
-	reply, _, err := writer.OrderPawn(ctx, pre, attempt.Owner, buildCommand(attempt))
+	pre := &a.WritePrecondition{Identity: attempt.Identity, Attempt: attempt.Attempt, ExpectedGeneration: proto.Uint64(attempt.NativeGeneration)}
+	reply, _, err := writer.OrderPawn(ctx, pre, buildCommand(attempt))
 	var refused *bridge.NativeFailure
 	if errors.As(err, &refused) && refused.Value != nil && refused.Value.GetCode() != c.FailureCode_FAILURE_CODE_ATTEMPT_CONFLICT {
 		out.Kind = domain.ReceiptRefused
@@ -91,7 +91,10 @@ func (b *Boundary) DispatchWrite(ctx context.Context, p executor.Placement, vali
 	if err != nil {
 		return out, err
 	}
-	pre := &a.WritePrecondition{Identity: Identity(p.Snapshot), Attempt: b.Attempt(p), LeaseId: proto.String(lease), ExpectedGeneration: proto.Uint64(uint64(p.Snapshot.Native))}
+	if !ValidID(lease) {
+		return out, executor.ErrAuthority
+	}
+	pre := &a.WritePrecondition{Identity: Identity(p.Snapshot), Attempt: b.Attempt(p), ExpectedGeneration: proto.Uint64(uint64(p.Snapshot.Native))}
 	reply, _, err := write(pre)
 	if err != nil {
 		return out, err

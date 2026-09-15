@@ -30,7 +30,7 @@ type HaulNative interface {
 	ObservePawnOrderProgress(context.Context, bridge.PawnOrderAttempt, *r.Receipt) (*r.ProgressReply, bridge.Result, error)
 }
 type HaulWriter interface {
-	OrderPawn(context.Context, *a.WritePrecondition, *a.Owner, *o.PawnTargetOrder) (*o.ExecuteReply, bridge.Result, error)
+	OrderPawn(context.Context, *a.WritePrecondition, *o.PawnTargetOrder) (*o.ExecuteReply, bridge.Result, error)
 }
 type HaulCapabilities struct {
 	Native HaulNative
@@ -151,7 +151,7 @@ func (b *HaulBoundary) attempt(dispatch executor.HaulDispatch) (bridge.PawnOrder
 	if !ok || p.Attempt == 0 || p.Tick < 0 || admission.Snapshot != p.Snapshot || admission.Pawn != haul.Pawn() || admission.Thing != haul.Thing() || admission.Definition != haul.Definition() || admission.Cell != haul.Cell() || admission.Tick > p.Tick || !boundary.ValidID(admission.PawnSnapshotToken) || !boundary.ValidID(admission.ThingSnapshotToken) {
 		return bridge.PawnOrderAttempt{}, executor.ErrEvidence
 	}
-	return bridge.PawnOrderAttempt{Identity: boundary.Identity(p.Snapshot), Attempt: &c.AttemptKey{ControllerSessionId: proto.String(b.session), ActionId: proto.String(string(p.Action.ID())), AttemptId: proto.Uint64(uint64(p.Attempt))}, NativeGeneration: uint64(p.Snapshot.Native), Owner: &a.Owner{ControllerSessionId: proto.String(b.session), PlayerDirection: proto.Uint64(uint64(p.Snapshot.Direction))}, PawnID: string(haul.Pawn()), TargetID: haul.Thing(), Kind: o.PawnOrderKind_PAWN_ORDER_KIND_HAUL, RequireSafeStorage: true}, nil
+	return bridge.PawnOrderAttempt{Identity: boundary.Identity(p.Snapshot), Attempt: &c.AttemptKey{ControllerSessionId: proto.String(b.session), ActionId: proto.String(string(p.Action.ID())), AttemptId: proto.Uint64(uint64(p.Attempt))}, NativeGeneration: uint64(p.Snapshot.Native), PawnID: string(haul.Pawn()), TargetID: haul.Thing(), Kind: o.PawnOrderKind_PAWN_ORDER_KIND_HAUL, RequireSafeStorage: true}, nil
 }
 
 func haulJob(job *r.JobEffect, dispatch executor.HaulDispatch) error {

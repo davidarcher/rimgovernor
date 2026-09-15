@@ -36,7 +36,7 @@ func TestDraftHTTPActualPlayerSubmissionAndRecovery(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer db.Close()
-	session, err := buildingruntime.NewSession(ctx, buildingruntime.SessionConfig{Control: buildingruntime.ControlConfig{ProfileDirectory: dir, LeaseDuration: time.Second, CallTimeout: time.Second}, Executor: executor.Limits{MaxAge: time.Second, RunTimeout: time.Second, JournalTimeout: time.Second}}, db, draftUnusedNative{}, draftUnusedAuthority{}, draftUnusedWriter{}, draftHTTPClock{})
+	session, err := buildingruntime.NewSession(ctx, buildingruntime.SessionConfig{Control: buildingruntime.ControlConfig{ProfileDirectory: dir, CallTimeout: time.Second}, Executor: executor.Limits{MaxAge: time.Second, RunTimeout: time.Second, JournalTimeout: time.Second}}, db, draftUnusedNative{}, draftUnusedAuthority{}, draftUnusedWriter{}, draftHTTPClock{})
 	if err != nil {
 		t.Fatal(err)
 	}

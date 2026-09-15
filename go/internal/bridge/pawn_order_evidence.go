@@ -29,7 +29,7 @@ func pawnOrderEvidence(evidence *r.EffectEvidence, expected PawnOrderAttempt) (*
 	return job, nil
 }
 func pawnOrderReceipt(v *r.Receipt, expected PawnOrderAttempt) error {
-	if v == nil || !proto.Equal(v.Attempt, expected.Attempt) || !proto.Equal(v.AuthorizingOwner, expected.Owner) {
+	if v == nil || !proto.Equal(v.Attempt, expected.Attempt) {
 		return contract("pawn order receipt attempt or owner mismatch")
 	}
 	if err := buildingUnknown(v); err != nil {

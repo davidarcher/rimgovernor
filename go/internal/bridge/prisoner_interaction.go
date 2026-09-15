@@ -43,7 +43,6 @@ func prisonerInteractionWire(mode PrisonerInteractionMode) o.PrisonerInteraction
 type PrisonerInteractionAttempt struct {
 	Identity        *c.Identity
 	Attempt         *c.AttemptKey
-	Owner           *a.Owner
 	Generation      uint64
 	Pawn, PawnToken string
 	Interaction     PrisonerInteractionMode
@@ -116,13 +115,7 @@ func prisonerInteractionAttempt(v PrisonerInteractionAttempt) (PrisonerInteracti
 	if err := buildingAttempt(v.Attempt); err != nil {
 		return PrisonerInteractionAttempt{}, err
 	}
-	if err := authorityOwner(v.Owner); err != nil {
-		return PrisonerInteractionAttempt{}, err
-	}
-	if err := buildingUnknown(v.Owner); err != nil {
-		return PrisonerInteractionAttempt{}, err
-	}
-	if v.Generation == 0 || v.Owner.GetControllerSessionId() != v.Attempt.GetControllerSessionId() {
+	if v.Generation == 0 {
 		return PrisonerInteractionAttempt{}, contract("prisoner interaction admission owner or generation mismatch")
 	}
 	if err := prisonerInteractionCommand(v.Pawn, v.PawnToken, v.Interaction); err != nil {
@@ -130,7 +123,6 @@ func prisonerInteractionAttempt(v PrisonerInteractionAttempt) (PrisonerInteracti
 	}
 	v.Identity = proto.Clone(v.Identity).(*c.Identity)
 	v.Attempt = proto.Clone(v.Attempt).(*c.AttemptKey)
-	v.Owner = proto.Clone(v.Owner).(*a.Owner)
 	return v, nil
 }
 
@@ -142,7 +134,7 @@ func prisonerInteractionEvidence(effect *r.PrisonerEffect, expected PrisonerInte
 }
 
 func prisonerInteractionReceipt(v *r.Receipt, expected PrisonerInteractionAttempt) error {
-	if v == nil || buildingUnknown(v) != nil || !proto.Equal(v.Attempt, expected.Attempt) || !proto.Equal(v.AuthorizingOwner, expected.Owner) {
+	if v == nil || buildingUnknown(v) != nil || !proto.Equal(v.Attempt, expected.Attempt) {
 		return contract("prisoner interaction admission mismatch")
 	}
 	if err := buildingContext(v.AdmittedContext, expected.Identity, expected.Generation, true); err != nil {
@@ -179,14 +171,14 @@ func NewPrisonerInteractionWriter(client *Client) (*PrisonerInteractionWriter, e
 }
 
 // ApplyPrisonerInteraction dispatches one already-admitted interaction write.
-func (writer *PrisonerInteractionWriter) ApplyPrisonerInteraction(ctx context.Context, pre *a.WritePrecondition, owner *a.Owner, pawn, pawnToken string, interaction PrisonerInteractionMode) (*o.ExecuteReply, Result, error) {
-	if writer == nil || writer.client == nil || pre == nil || buildingUnknown(pre) != nil || ValidateIdentity(pre.Identity) != nil || buildingAttempt(pre.Attempt) != nil || pre.GetExpectedGeneration() == 0 || validID(pre.GetLeaseId()) != nil {
+func (writer *PrisonerInteractionWriter) ApplyPrisonerInteraction(ctx context.Context, pre *a.WritePrecondition, pawn, pawnToken string, interaction PrisonerInteractionMode) (*o.ExecuteReply, Result, error) {
+	if writer == nil || writer.client == nil || pre == nil || buildingUnknown(pre) != nil || ValidateIdentity(pre.Identity) != nil || buildingAttempt(pre.Attempt) != nil || pre.GetExpectedGeneration() == 0 {
 		return nil, Result{}, contract("invalid prisoner interaction execution")
 	}
 	if err := prisonerInteractionCommand(pawn, pawnToken, interaction); err != nil {
 		return nil, Result{}, err
 	}
-	expected, err := prisonerInteractionAttempt(PrisonerInteractionAttempt{Identity: pre.Identity, Attempt: pre.Attempt, Owner: owner, Generation: pre.GetExpectedGeneration(), Pawn: pawn, PawnToken: pawnToken, Interaction: interaction})
+	expected, err := prisonerInteractionAttempt(PrisonerInteractionAttempt{Identity: pre.Identity, Attempt: pre.Attempt, Generation: pre.GetExpectedGeneration(), Pawn: pawn, PawnToken: pawnToken, Interaction: interaction})
 	if err != nil {
 		return nil, Result{}, err
 	}

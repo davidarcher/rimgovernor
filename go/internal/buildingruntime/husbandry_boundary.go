@@ -38,7 +38,7 @@ type HusbandryNative interface {
 	ObserveHusbandryProgress(context.Context, bridge.HusbandryAttempt, *r.Receipt) (*r.ProgressReply, bridge.Result, error)
 }
 type HusbandryWriter interface {
-	ApplyHusbandry(context.Context, *a.WritePrecondition, *a.Owner, string, string, string, bridge.HusbandryMethod, string) (*o.ExecuteReply, bridge.Result, error)
+	ApplyHusbandry(context.Context, *a.WritePrecondition, string, string, string, bridge.HusbandryMethod, string) (*o.ExecuteReply, bridge.Result, error)
 }
 type HusbandryCapabilities struct {
 	Native HusbandryNative
@@ -118,7 +118,6 @@ func (b *HusbandryBoundary) attempt(dispatch executor.HusbandryDispatch) (bridge
 	return bridge.HusbandryAttempt{
 		Identity:            boundary.Identity(p.Snapshot),
 		Attempt:             &c.AttemptKey{ControllerSessionId: proto.String(b.session), ActionId: proto.String(string(p.Action.ID())), AttemptId: proto.Uint64(uint64(p.Attempt))},
-		Owner:               &a.Owner{ControllerSessionId: proto.String(b.session), PlayerDirection: proto.Uint64(uint64(p.Snapshot.Direction))},
 		Generation:          uint64(p.Snapshot.Native),
 		Animal:              string(husbandry.Animal()),
 		AnimalToken:         admission.AnimalSnapshotToken,
@@ -145,8 +144,8 @@ func (b *HusbandryBoundary) WriteHusbandry(ctx context.Context, dispatch executo
 	if err = ctx.Err(); err != nil {
 		return out, err
 	}
-	pre := &a.WritePrecondition{Identity: attempt.Identity, Attempt: attempt.Attempt, ExpectedGeneration: proto.Uint64(attempt.Generation), LeaseId: proto.String(lease)}
-	reply, _, err := b.writer.ApplyHusbandry(ctx, pre, attempt.Owner, attempt.Animal, attempt.AnimalToken, attempt.ExpectedCensusToken, attempt.Method, attempt.TrainableDef)
+	pre := &a.WritePrecondition{Identity: attempt.Identity, Attempt: attempt.Attempt, ExpectedGeneration: proto.Uint64(attempt.Generation),}
+	reply, _, err := b.writer.ApplyHusbandry(ctx, pre, attempt.Animal, attempt.AnimalToken, attempt.ExpectedCensusToken, attempt.Method, attempt.TrainableDef)
 	var refused *bridge.NativeFailure
 	if errors.As(err, &refused) && refused.Value != nil && refused.Value.GetCode() != c.FailureCode_FAILURE_CODE_ATTEMPT_CONFLICT {
 		out.Kind = domain.ReceiptRefused
@@ -203,7 +202,7 @@ func (b *HusbandryBoundary) ObserveHusbandry(ctx context.Context, dispatch execu
 		if v.InFlight == nil || !proto.Equal(v.InFlight.Attempt, attempt.Attempt) {
 			return out, executor.ErrEvidence
 		}
-		if err = boundary.Admission(&r.Receipt{Attempt: v.InFlight.Attempt, AdmittedContext: v.InFlight.AdmittedContext, AuthorizingOwner: attempt.Owner}, p, b.session); err != nil {
+		if err = boundary.Admission(&r.Receipt{Attempt: v.InFlight.Attempt, AdmittedContext: v.InFlight.AdmittedContext}, p, b.session); err != nil {
 			return out, err
 		}
 	case *r.LookupReply_Receipt:

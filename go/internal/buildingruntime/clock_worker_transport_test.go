@@ -9,7 +9,6 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/bridge"
 	"github.com/davidarcher/RimGovernor/go/internal/runtimeowner"
 	"github.com/davidarcher/RimGovernor/go/internal/store"
-	a "github.com/davidarcher/RimGovernor/go/internal/wire/authoritypb"
 	k "github.com/davidarcher/RimGovernor/go/internal/wire/clockpb"
 	"google.golang.org/protobuf/proto"
 )
@@ -32,15 +31,15 @@ func (f *blockedClockTransport) stall(ctx context.Context) {
 	case <-f.release:
 	}
 }
-func (f *blockedClockTransport) Start(ctx context.Context, r *k.StartRequest, owner *a.Owner) (*k.ControlReply, bridge.Result, error) {
-	reply, raw, err := f.joinedClockNative.Start(ctx, r, owner)
+func (f *blockedClockTransport) Start(ctx context.Context, r *k.StartRequest) (*k.ControlReply, bridge.Result, error) {
+	reply, raw, err := f.joinedClockNative.Start(ctx, r)
 	if f.blockStart {
 		f.stall(ctx)
 	}
 	return reply, raw, err
 }
-func (f *blockedClockTransport) Renew(ctx context.Context, r *k.RenewRequest, epoch *k.Epoch, owner *a.Owner) (*k.ControlReply, bridge.Result, error) {
-	reply, raw, err := f.joinedClockNative.Renew(ctx, r, epoch, owner)
+func (f *blockedClockTransport) Renew(ctx context.Context, r *k.RenewRequest, epoch *k.Epoch) (*k.ControlReply, bridge.Result, error) {
+	reply, raw, err := f.joinedClockNative.Renew(ctx, r, epoch)
 	f.renewedOnce.Do(func() { close(f.renewed) })
 	if !f.blockStart {
 		f.stall(ctx)

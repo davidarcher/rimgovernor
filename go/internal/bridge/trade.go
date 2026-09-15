@@ -67,8 +67,8 @@ func tradeEffect(evidence *r.EffectEvidence) (*r.TradeEffect, error) {
 
 type tradeEvidenceValidator func(*r.EffectEvidence) (*r.TradeEffect, error)
 
-func tradeReceiptGeneric(v *r.Receipt, identity *c.Identity, attempt *c.AttemptKey, owner *a.Owner, generation uint64, validate tradeEvidenceValidator) error {
-	if v == nil || buildingUnknown(v) != nil || !proto.Equal(v.Attempt, attempt) || !proto.Equal(v.AuthorizingOwner, owner) {
+func tradeReceiptGeneric(v *r.Receipt, identity *c.Identity, attempt *c.AttemptKey, generation uint64, validate tradeEvidenceValidator) error {
+	if v == nil || buildingUnknown(v) != nil || !proto.Equal(v.Attempt, attempt) {
 		return contract("trade admission mismatch")
 	}
 	if err := buildingContext(v.AdmittedContext, identity, generation, true); err != nil {
@@ -95,10 +95,10 @@ func tradeReceiptGeneric(v *r.Receipt, identity *c.Identity, attempt *c.AttemptK
 	}
 }
 
-func tradeLookupGeneric(reply *r.LookupReply, raw Result, identity *c.Identity, attempt *c.AttemptKey, owner *a.Owner, generation uint64, validate tradeEvidenceValidator) error {
+func tradeLookupGeneric(reply *r.LookupReply, raw Result, identity *c.Identity, attempt *c.AttemptKey, generation uint64, validate tradeEvidenceValidator) error {
 	switch v := reply.Outcome.(type) {
 	case *r.LookupReply_Receipt:
-		return tradeReceiptGeneric(v.Receipt, identity, attempt, owner, generation, validate)
+		return tradeReceiptGeneric(v.Receipt, identity, attempt, generation, validate)
 	case *r.LookupReply_InFlight:
 		if v.InFlight == nil || !proto.Equal(v.InFlight.Attempt, attempt) {
 			return contract("trade in-flight attempt mismatch")
@@ -177,7 +177,6 @@ func NewTradeWriter(client *Client) (*TradeWriter, error) {
 type TradeOpenAttempt struct {
 	Identity                    *c.Identity
 	Attempt                     *c.AttemptKey
-	Owner                       *a.Owner
 	Generation                  uint64
 	Trader, TraderToken         string
 	Negotiator, NegotiatorToken string
@@ -244,13 +243,7 @@ func tradeOpenAttempt(v TradeOpenAttempt) (TradeOpenAttempt, error) {
 	if err := buildingAttempt(v.Attempt); err != nil {
 		return TradeOpenAttempt{}, err
 	}
-	if err := authorityOwner(v.Owner); err != nil {
-		return TradeOpenAttempt{}, err
-	}
-	if err := buildingUnknown(v.Owner); err != nil {
-		return TradeOpenAttempt{}, err
-	}
-	if v.Generation == 0 || v.Owner.GetControllerSessionId() != v.Attempt.GetControllerSessionId() {
+	if v.Generation == 0 {
 		return TradeOpenAttempt{}, contract("open trade admission owner or generation mismatch")
 	}
 	if err := tradeOpenCommand(v.Trader, v.TraderToken, v.Negotiator, v.NegotiatorToken); err != nil {
@@ -258,7 +251,6 @@ func tradeOpenAttempt(v TradeOpenAttempt) (TradeOpenAttempt, error) {
 	}
 	v.Identity = proto.Clone(v.Identity).(*c.Identity)
 	v.Attempt = proto.Clone(v.Attempt).(*c.AttemptKey)
-	v.Owner = proto.Clone(v.Owner).(*a.Owner)
 	return v, nil
 }
 func tradeOpenEvidence(evidence *r.EffectEvidence, expected TradeOpenAttempt) (*r.TradeEffect, error) {
@@ -275,14 +267,14 @@ func tradeOpenEvidence(evidence *r.EffectEvidence, expected TradeOpenAttempt) (*
 	return t, nil
 }
 
-func (writer *TradeWriter) ApplyOpenTrade(ctx context.Context, pre *a.WritePrecondition, owner *a.Owner, trader, traderToken, negotiator, negotiatorToken string, giftMode bool) (*o.ExecuteReply, Result, error) {
-	if writer == nil || writer.client == nil || pre == nil || buildingUnknown(pre) != nil || ValidateIdentity(pre.Identity) != nil || buildingAttempt(pre.Attempt) != nil || pre.GetExpectedGeneration() == 0 || validID(pre.GetLeaseId()) != nil {
+func (writer *TradeWriter) ApplyOpenTrade(ctx context.Context, pre *a.WritePrecondition, trader, traderToken, negotiator, negotiatorToken string, giftMode bool) (*o.ExecuteReply, Result, error) {
+	if writer == nil || writer.client == nil || pre == nil || buildingUnknown(pre) != nil || ValidateIdentity(pre.Identity) != nil || buildingAttempt(pre.Attempt) != nil || pre.GetExpectedGeneration() == 0 {
 		return nil, Result{}, contract("invalid open trade execution")
 	}
 	if err := tradeOpenCommand(trader, traderToken, negotiator, negotiatorToken); err != nil {
 		return nil, Result{}, err
 	}
-	expected, err := tradeOpenAttempt(TradeOpenAttempt{Identity: pre.Identity, Attempt: pre.Attempt, Owner: owner, Generation: pre.GetExpectedGeneration(), Trader: trader, TraderToken: traderToken, Negotiator: negotiator, NegotiatorToken: negotiatorToken, GiftMode: giftMode})
+	expected, err := tradeOpenAttempt(TradeOpenAttempt{Identity: pre.Identity, Attempt: pre.Attempt, Generation: pre.GetExpectedGeneration(), Trader: trader, TraderToken: traderToken, Negotiator: negotiator, NegotiatorToken: negotiatorToken, GiftMode: giftMode})
 	if err != nil {
 		return nil, Result{}, err
 	}
@@ -297,7 +289,7 @@ func (writer *TradeWriter) ApplyOpenTrade(ctx context.Context, pre *a.WritePreco
 	}
 	switch v := reply.Outcome.(type) {
 	case *o.ExecuteReply_Receipt:
-		err = tradeReceiptGeneric(v.Receipt, expected.Identity, expected.Attempt, expected.Owner, expected.Generation, func(e *r.EffectEvidence) (*r.TradeEffect, error) { return tradeOpenEvidence(e, expected) })
+		err = tradeReceiptGeneric(v.Receipt, expected.Identity, expected.Attempt, expected.Generation, func(e *r.EffectEvidence) (*r.TradeEffect, error) { return tradeOpenEvidence(e, expected) })
 	case *o.ExecuteReply_Failure:
 		err = failure(v.Failure, raw)
 	default:
@@ -318,7 +310,7 @@ func (client *Client) LookupTradeOpen(ctx context.Context, w TradeOpenAttempt) (
 	if err = buildingUnknown(reply); err != nil {
 		return reply, raw, err
 	}
-	err = tradeLookupGeneric(reply, raw, expected.Identity, expected.Attempt, expected.Owner, expected.Generation, func(e *r.EffectEvidence) (*r.TradeEffect, error) { return tradeOpenEvidence(e, expected) })
+	err = tradeLookupGeneric(reply, raw, expected.Identity, expected.Attempt, expected.Generation, func(e *r.EffectEvidence) (*r.TradeEffect, error) { return tradeOpenEvidence(e, expected) })
 	return reply, raw, err
 }
 func (client *Client) ObserveTradeOpenProgress(ctx context.Context, w TradeOpenAttempt, admitted *r.Receipt) (*r.ProgressReply, Result, error) {
@@ -327,7 +319,7 @@ func (client *Client) ObserveTradeOpenProgress(ctx context.Context, w TradeOpenA
 		return nil, Result{}, err
 	}
 	if admitted != nil {
-		if err = tradeReceiptGeneric(admitted, expected.Identity, expected.Attempt, expected.Owner, expected.Generation, func(e *r.EffectEvidence) (*r.TradeEffect, error) { return tradeOpenEvidence(e, expected) }); err != nil {
+		if err = tradeReceiptGeneric(admitted, expected.Identity, expected.Attempt, expected.Generation, func(e *r.EffectEvidence) (*r.TradeEffect, error) { return tradeOpenEvidence(e, expected) }); err != nil {
 			return nil, Result{}, err
 		}
 		admitted = proto.Clone(admitted).(*r.Receipt)
@@ -356,7 +348,6 @@ func (client *Client) ObserveTradeOpenProgress(ctx context.Context, w TradeOpenA
 type TradeSetLinesAttempt struct {
 	Identity              *c.Identity
 	Attempt               *c.AttemptKey
-	Owner                 *a.Owner
 	Generation            uint64
 	Session, SessionToken string
 	Lines                 []TradeLineInput
@@ -444,13 +435,7 @@ func tradeSetLinesAttempt(v TradeSetLinesAttempt) (TradeSetLinesAttempt, error) 
 	if err := buildingAttempt(v.Attempt); err != nil {
 		return TradeSetLinesAttempt{}, err
 	}
-	if err := authorityOwner(v.Owner); err != nil {
-		return TradeSetLinesAttempt{}, err
-	}
-	if err := buildingUnknown(v.Owner); err != nil {
-		return TradeSetLinesAttempt{}, err
-	}
-	if v.Generation == 0 || v.Owner.GetControllerSessionId() != v.Attempt.GetControllerSessionId() {
+	if v.Generation == 0 {
 		return TradeSetLinesAttempt{}, contract("set trade lines admission owner or generation mismatch")
 	}
 	if err := tradeSetLinesCommand(v.Session, v.SessionToken, v.Lines); err != nil {
@@ -458,7 +443,6 @@ func tradeSetLinesAttempt(v TradeSetLinesAttempt) (TradeSetLinesAttempt, error) 
 	}
 	v.Identity = proto.Clone(v.Identity).(*c.Identity)
 	v.Attempt = proto.Clone(v.Attempt).(*c.AttemptKey)
-	v.Owner = proto.Clone(v.Owner).(*a.Owner)
 	return v, nil
 }
 func tradeSetLinesEvidence(evidence *r.EffectEvidence, expected TradeSetLinesAttempt) (*r.TradeEffect, error) {
@@ -478,14 +462,14 @@ func tradeSetLinesEvidence(evidence *r.EffectEvidence, expected TradeSetLinesAtt
 	return t, nil
 }
 
-func (writer *TradeWriter) ApplySetTradeLines(ctx context.Context, pre *a.WritePrecondition, owner *a.Owner, session, sessionToken string, lines []TradeLineInput, allowPawns bool) (*o.ExecuteReply, Result, error) {
-	if writer == nil || writer.client == nil || pre == nil || buildingUnknown(pre) != nil || ValidateIdentity(pre.Identity) != nil || buildingAttempt(pre.Attempt) != nil || pre.GetExpectedGeneration() == 0 || validID(pre.GetLeaseId()) != nil {
+func (writer *TradeWriter) ApplySetTradeLines(ctx context.Context, pre *a.WritePrecondition, session, sessionToken string, lines []TradeLineInput, allowPawns bool) (*o.ExecuteReply, Result, error) {
+	if writer == nil || writer.client == nil || pre == nil || buildingUnknown(pre) != nil || ValidateIdentity(pre.Identity) != nil || buildingAttempt(pre.Attempt) != nil || pre.GetExpectedGeneration() == 0 {
 		return nil, Result{}, contract("invalid set trade lines execution")
 	}
 	if err := tradeSetLinesCommand(session, sessionToken, lines); err != nil {
 		return nil, Result{}, err
 	}
-	expected, err := tradeSetLinesAttempt(TradeSetLinesAttempt{Identity: pre.Identity, Attempt: pre.Attempt, Owner: owner, Generation: pre.GetExpectedGeneration(), Session: session, SessionToken: sessionToken, Lines: lines, AllowPawns: allowPawns})
+	expected, err := tradeSetLinesAttempt(TradeSetLinesAttempt{Identity: pre.Identity, Attempt: pre.Attempt, Generation: pre.GetExpectedGeneration(), Session: session, SessionToken: sessionToken, Lines: lines, AllowPawns: allowPawns})
 	if err != nil {
 		return nil, Result{}, err
 	}
@@ -500,7 +484,7 @@ func (writer *TradeWriter) ApplySetTradeLines(ctx context.Context, pre *a.WriteP
 	}
 	switch v := reply.Outcome.(type) {
 	case *o.ExecuteReply_Receipt:
-		err = tradeReceiptGeneric(v.Receipt, expected.Identity, expected.Attempt, expected.Owner, expected.Generation, func(e *r.EffectEvidence) (*r.TradeEffect, error) { return tradeSetLinesEvidence(e, expected) })
+		err = tradeReceiptGeneric(v.Receipt, expected.Identity, expected.Attempt, expected.Generation, func(e *r.EffectEvidence) (*r.TradeEffect, error) { return tradeSetLinesEvidence(e, expected) })
 	case *o.ExecuteReply_Failure:
 		err = failure(v.Failure, raw)
 	default:
@@ -521,7 +505,7 @@ func (client *Client) LookupTradeSetLines(ctx context.Context, w TradeSetLinesAt
 	if err = buildingUnknown(reply); err != nil {
 		return reply, raw, err
 	}
-	err = tradeLookupGeneric(reply, raw, expected.Identity, expected.Attempt, expected.Owner, expected.Generation, func(e *r.EffectEvidence) (*r.TradeEffect, error) { return tradeSetLinesEvidence(e, expected) })
+	err = tradeLookupGeneric(reply, raw, expected.Identity, expected.Attempt, expected.Generation, func(e *r.EffectEvidence) (*r.TradeEffect, error) { return tradeSetLinesEvidence(e, expected) })
 	return reply, raw, err
 }
 func (client *Client) ObserveTradeSetLinesProgress(ctx context.Context, w TradeSetLinesAttempt, admitted *r.Receipt) (*r.ProgressReply, Result, error) {
@@ -530,7 +514,7 @@ func (client *Client) ObserveTradeSetLinesProgress(ctx context.Context, w TradeS
 		return nil, Result{}, err
 	}
 	if admitted != nil {
-		if err = tradeReceiptGeneric(admitted, expected.Identity, expected.Attempt, expected.Owner, expected.Generation, func(e *r.EffectEvidence) (*r.TradeEffect, error) { return tradeSetLinesEvidence(e, expected) }); err != nil {
+		if err = tradeReceiptGeneric(admitted, expected.Identity, expected.Attempt, expected.Generation, func(e *r.EffectEvidence) (*r.TradeEffect, error) { return tradeSetLinesEvidence(e, expected) }); err != nil {
 			return nil, Result{}, err
 		}
 		admitted = proto.Clone(admitted).(*r.Receipt)
@@ -559,7 +543,6 @@ func (client *Client) ObserveTradeSetLinesProgress(ctx context.Context, w TradeS
 type TradeAcceptAttempt struct {
 	Identity              *c.Identity
 	Attempt               *c.AttemptKey
-	Owner                 *a.Owner
 	Generation            uint64
 	Session, SessionToken string
 	ExpectedDealSignature string
@@ -643,13 +626,7 @@ func tradeAcceptAttempt(v TradeAcceptAttempt) (TradeAcceptAttempt, error) {
 	if err := buildingAttempt(v.Attempt); err != nil {
 		return TradeAcceptAttempt{}, err
 	}
-	if err := authorityOwner(v.Owner); err != nil {
-		return TradeAcceptAttempt{}, err
-	}
-	if err := buildingUnknown(v.Owner); err != nil {
-		return TradeAcceptAttempt{}, err
-	}
-	if v.Generation == 0 || v.Owner.GetControllerSessionId() != v.Attempt.GetControllerSessionId() {
+	if v.Generation == 0 {
 		return TradeAcceptAttempt{}, contract("accept trade admission owner or generation mismatch")
 	}
 	if err := tradeAcceptCommand(v.Session, v.SessionToken, v.ExpectedDealSignature, v.EconomicFloors); err != nil {
@@ -657,7 +634,6 @@ func tradeAcceptAttempt(v TradeAcceptAttempt) (TradeAcceptAttempt, error) {
 	}
 	v.Identity = proto.Clone(v.Identity).(*c.Identity)
 	v.Attempt = proto.Clone(v.Attempt).(*c.AttemptKey)
-	v.Owner = proto.Clone(v.Owner).(*a.Owner)
 	return v, nil
 }
 func tradeAcceptEvidence(evidence *r.EffectEvidence, expected TradeAcceptAttempt) (*r.TradeEffect, error) {
@@ -671,14 +647,14 @@ func tradeAcceptEvidence(evidence *r.EffectEvidence, expected TradeAcceptAttempt
 	return t, nil
 }
 
-func (writer *TradeWriter) ApplyAcceptTrade(ctx context.Context, pre *a.WritePrecondition, owner *a.Owner, session, sessionToken, expectedDealSignature string, floors []TradeEconomicFloor, allowEmpty, receiveQuest bool) (*o.ExecuteReply, Result, error) {
-	if writer == nil || writer.client == nil || pre == nil || buildingUnknown(pre) != nil || ValidateIdentity(pre.Identity) != nil || buildingAttempt(pre.Attempt) != nil || pre.GetExpectedGeneration() == 0 || validID(pre.GetLeaseId()) != nil {
+func (writer *TradeWriter) ApplyAcceptTrade(ctx context.Context, pre *a.WritePrecondition, session, sessionToken, expectedDealSignature string, floors []TradeEconomicFloor, allowEmpty, receiveQuest bool) (*o.ExecuteReply, Result, error) {
+	if writer == nil || writer.client == nil || pre == nil || buildingUnknown(pre) != nil || ValidateIdentity(pre.Identity) != nil || buildingAttempt(pre.Attempt) != nil || pre.GetExpectedGeneration() == 0 {
 		return nil, Result{}, contract("invalid accept trade execution")
 	}
 	if err := tradeAcceptCommand(session, sessionToken, expectedDealSignature, floors); err != nil {
 		return nil, Result{}, err
 	}
-	expected, err := tradeAcceptAttempt(TradeAcceptAttempt{Identity: pre.Identity, Attempt: pre.Attempt, Owner: owner, Generation: pre.GetExpectedGeneration(), Session: session, SessionToken: sessionToken, ExpectedDealSignature: expectedDealSignature, EconomicFloors: floors, AllowEmpty: allowEmpty, ReceiveQuest: receiveQuest})
+	expected, err := tradeAcceptAttempt(TradeAcceptAttempt{Identity: pre.Identity, Attempt: pre.Attempt, Generation: pre.GetExpectedGeneration(), Session: session, SessionToken: sessionToken, ExpectedDealSignature: expectedDealSignature, EconomicFloors: floors, AllowEmpty: allowEmpty, ReceiveQuest: receiveQuest})
 	if err != nil {
 		return nil, Result{}, err
 	}
@@ -693,7 +669,7 @@ func (writer *TradeWriter) ApplyAcceptTrade(ctx context.Context, pre *a.WritePre
 	}
 	switch v := reply.Outcome.(type) {
 	case *o.ExecuteReply_Receipt:
-		err = tradeReceiptGeneric(v.Receipt, expected.Identity, expected.Attempt, expected.Owner, expected.Generation, func(e *r.EffectEvidence) (*r.TradeEffect, error) { return tradeAcceptEvidence(e, expected) })
+		err = tradeReceiptGeneric(v.Receipt, expected.Identity, expected.Attempt, expected.Generation, func(e *r.EffectEvidence) (*r.TradeEffect, error) { return tradeAcceptEvidence(e, expected) })
 	case *o.ExecuteReply_Failure:
 		err = failure(v.Failure, raw)
 	default:
@@ -714,7 +690,7 @@ func (client *Client) LookupTradeAccept(ctx context.Context, w TradeAcceptAttemp
 	if err = buildingUnknown(reply); err != nil {
 		return reply, raw, err
 	}
-	err = tradeLookupGeneric(reply, raw, expected.Identity, expected.Attempt, expected.Owner, expected.Generation, func(e *r.EffectEvidence) (*r.TradeEffect, error) { return tradeAcceptEvidence(e, expected) })
+	err = tradeLookupGeneric(reply, raw, expected.Identity, expected.Attempt, expected.Generation, func(e *r.EffectEvidence) (*r.TradeEffect, error) { return tradeAcceptEvidence(e, expected) })
 	return reply, raw, err
 }
 func (client *Client) ObserveTradeAcceptProgress(ctx context.Context, w TradeAcceptAttempt, admitted *r.Receipt) (*r.ProgressReply, Result, error) {
@@ -723,7 +699,7 @@ func (client *Client) ObserveTradeAcceptProgress(ctx context.Context, w TradeAcc
 		return nil, Result{}, err
 	}
 	if admitted != nil {
-		if err = tradeReceiptGeneric(admitted, expected.Identity, expected.Attempt, expected.Owner, expected.Generation, func(e *r.EffectEvidence) (*r.TradeEffect, error) { return tradeAcceptEvidence(e, expected) }); err != nil {
+		if err = tradeReceiptGeneric(admitted, expected.Identity, expected.Attempt, expected.Generation, func(e *r.EffectEvidence) (*r.TradeEffect, error) { return tradeAcceptEvidence(e, expected) }); err != nil {
 			return nil, Result{}, err
 		}
 		admitted = proto.Clone(admitted).(*r.Receipt)
@@ -752,7 +728,6 @@ func (client *Client) ObserveTradeAcceptProgress(ctx context.Context, w TradeAcc
 type TradeEndAttempt struct {
 	Identity              *c.Identity
 	Attempt               *c.AttemptKey
-	Owner                 *a.Owner
 	Generation            uint64
 	Session, SessionToken string
 	Kind                  o.EndTradeKind
@@ -822,13 +797,7 @@ func tradeEndAttempt(v TradeEndAttempt) (TradeEndAttempt, error) {
 	if err := buildingAttempt(v.Attempt); err != nil {
 		return TradeEndAttempt{}, err
 	}
-	if err := authorityOwner(v.Owner); err != nil {
-		return TradeEndAttempt{}, err
-	}
-	if err := buildingUnknown(v.Owner); err != nil {
-		return TradeEndAttempt{}, err
-	}
-	if v.Generation == 0 || v.Owner.GetControllerSessionId() != v.Attempt.GetControllerSessionId() {
+	if v.Generation == 0 {
 		return TradeEndAttempt{}, contract("end trade admission owner or generation mismatch")
 	}
 	if err := tradeEndCommand(v.Session, v.SessionToken, v.Kind); err != nil {
@@ -836,7 +805,6 @@ func tradeEndAttempt(v TradeEndAttempt) (TradeEndAttempt, error) {
 	}
 	v.Identity = proto.Clone(v.Identity).(*c.Identity)
 	v.Attempt = proto.Clone(v.Attempt).(*c.AttemptKey)
-	v.Owner = proto.Clone(v.Owner).(*a.Owner)
 	return v, nil
 }
 
@@ -848,14 +816,14 @@ func tradeEndEvidence(evidence *r.EffectEvidence, expected TradeEndAttempt) (*r.
 	return tradeEffect(evidence)
 }
 
-func (writer *TradeWriter) ApplyEndTrade(ctx context.Context, pre *a.WritePrecondition, owner *a.Owner, session, sessionToken string, kind o.EndTradeKind, receiveQuest bool) (*o.ExecuteReply, Result, error) {
-	if writer == nil || writer.client == nil || pre == nil || buildingUnknown(pre) != nil || ValidateIdentity(pre.Identity) != nil || buildingAttempt(pre.Attempt) != nil || pre.GetExpectedGeneration() == 0 || validID(pre.GetLeaseId()) != nil {
+func (writer *TradeWriter) ApplyEndTrade(ctx context.Context, pre *a.WritePrecondition, session, sessionToken string, kind o.EndTradeKind, receiveQuest bool) (*o.ExecuteReply, Result, error) {
+	if writer == nil || writer.client == nil || pre == nil || buildingUnknown(pre) != nil || ValidateIdentity(pre.Identity) != nil || buildingAttempt(pre.Attempt) != nil || pre.GetExpectedGeneration() == 0 {
 		return nil, Result{}, contract("invalid end trade execution")
 	}
 	if err := tradeEndCommand(session, sessionToken, kind); err != nil {
 		return nil, Result{}, err
 	}
-	expected, err := tradeEndAttempt(TradeEndAttempt{Identity: pre.Identity, Attempt: pre.Attempt, Owner: owner, Generation: pre.GetExpectedGeneration(), Session: session, SessionToken: sessionToken, Kind: kind, ReceiveQuest: receiveQuest})
+	expected, err := tradeEndAttempt(TradeEndAttempt{Identity: pre.Identity, Attempt: pre.Attempt, Generation: pre.GetExpectedGeneration(), Session: session, SessionToken: sessionToken, Kind: kind, ReceiveQuest: receiveQuest})
 	if err != nil {
 		return nil, Result{}, err
 	}
@@ -870,7 +838,7 @@ func (writer *TradeWriter) ApplyEndTrade(ctx context.Context, pre *a.WritePrecon
 	}
 	switch v := reply.Outcome.(type) {
 	case *o.ExecuteReply_Receipt:
-		err = tradeReceiptGeneric(v.Receipt, expected.Identity, expected.Attempt, expected.Owner, expected.Generation, func(e *r.EffectEvidence) (*r.TradeEffect, error) { return tradeEndEvidence(e, expected) })
+		err = tradeReceiptGeneric(v.Receipt, expected.Identity, expected.Attempt, expected.Generation, func(e *r.EffectEvidence) (*r.TradeEffect, error) { return tradeEndEvidence(e, expected) })
 	case *o.ExecuteReply_Failure:
 		err = failure(v.Failure, raw)
 	default:
@@ -891,7 +859,7 @@ func (client *Client) LookupTradeEnd(ctx context.Context, w TradeEndAttempt) (*r
 	if err = buildingUnknown(reply); err != nil {
 		return reply, raw, err
 	}
-	err = tradeLookupGeneric(reply, raw, expected.Identity, expected.Attempt, expected.Owner, expected.Generation, func(e *r.EffectEvidence) (*r.TradeEffect, error) { return tradeEndEvidence(e, expected) })
+	err = tradeLookupGeneric(reply, raw, expected.Identity, expected.Attempt, expected.Generation, func(e *r.EffectEvidence) (*r.TradeEffect, error) { return tradeEndEvidence(e, expected) })
 	return reply, raw, err
 }
 func (client *Client) ObserveTradeEndProgress(ctx context.Context, w TradeEndAttempt, admitted *r.Receipt) (*r.ProgressReply, Result, error) {
@@ -900,7 +868,7 @@ func (client *Client) ObserveTradeEndProgress(ctx context.Context, w TradeEndAtt
 		return nil, Result{}, err
 	}
 	if admitted != nil {
-		if err = tradeReceiptGeneric(admitted, expected.Identity, expected.Attempt, expected.Owner, expected.Generation, func(e *r.EffectEvidence) (*r.TradeEffect, error) { return tradeEndEvidence(e, expected) }); err != nil {
+		if err = tradeReceiptGeneric(admitted, expected.Identity, expected.Attempt, expected.Generation, func(e *r.EffectEvidence) (*r.TradeEffect, error) { return tradeEndEvidence(e, expected) }); err != nil {
 			return nil, Result{}, err
 		}
 		admitted = proto.Clone(admitted).(*r.Receipt)

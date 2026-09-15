@@ -27,7 +27,7 @@ namespace HomeBridge.BridgeTools
                     row.DraftClaim = snapshot.Claim == null
                         ? new Obs.DraftClaimObservation { Unowned = new Obs.NoOwnedDraftClaim() }
                         : new Obs.DraftClaimObservation { Owned = new Obs.OwnedDraftClaim {
-                            ClaimId = snapshot.Claim.ClaimId, Owner = snapshot.Claim.Owner, PawnSnapshot = reference.Clone() } };
+                            ClaimId = snapshot.Claim.ClaimId, PawnSnapshot = reference.Clone() } };
                     return;
                 }
                 detail += " " + result;

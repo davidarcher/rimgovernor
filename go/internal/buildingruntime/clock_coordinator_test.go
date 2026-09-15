@@ -43,29 +43,29 @@ func (f *clockCoreFake) ReadClockAttempt(ctx context.Context, r *k.AttemptReques
 	}
 	return &k.AttemptReply{Outcome: &k.AttemptReply_Receipt{Receipt: proto.Clone(f.receipt).(*k.ControlReceipt)}}, bridge.Result{}, nil
 }
-func (f *clockCoreFake) Start(ctx context.Context, r *k.StartRequest, owner *a.Owner) (*k.ControlReply, bridge.Result, error) {
+func (f *clockCoreFake) Start(ctx context.Context, r *k.StartRequest) (*k.ControlReply, bridge.Result, error) {
 	f.writes++
 	if f.write != nil {
 		f.write(ctx)
 	}
 	e := &k.Epoch{Owner: &k.EpochOwner{ControllerSessionId: proto.String(r.Authority.Attempt.GetControllerSessionId()), Epoch: proto.Int64(1)}, Origin: proto.Clone(f.status.Context).(*c.ObservationContext), RequestedSpeed: r.Speed, Policy: r.Policy, StartTick: proto.Int64(12), TickDeadline: proto.Int64(12 + int64(r.GetMaxTicks())), LastTick: proto.Int64(12), LeaseRemainingMs: proto.Uint32(r.GetLeaseMs())}
 	f.status.State = &k.Status_Running{Running: &k.Running{Epoch: e}}
-	f.receipt = &k.ControlReceipt{Attempt: proto.Clone(r.Authority.Attempt).(*c.AttemptKey), AuthorizingOwner: proto.Clone(owner).(*a.Owner), AdmittedContext: proto.Clone(f.status.Context).(*c.ObservationContext), Outcome: &k.ControlReceipt_Applied{Applied: &k.AppliedControl{Status: proto.Clone(f.status).(*k.Status)}}}
+	f.receipt = &k.ControlReceipt{Attempt: proto.Clone(r.Authority.Attempt).(*c.AttemptKey), AdmittedContext: proto.Clone(f.status.Context).(*c.ObservationContext), Outcome: &k.ControlReceipt_Applied{Applied: &k.AppliedControl{Status: proto.Clone(f.status).(*k.Status)}}}
 	if f.lost {
 		return nil, bridge.Result{}, context.DeadlineExceeded
 	}
 	return &k.ControlReply{Outcome: &k.ControlReply_Receipt{Receipt: f.receipt}}, bridge.Result{}, nil
 }
-func (f *clockCoreFake) Renew(ctx context.Context, r *k.RenewRequest, original *k.Epoch, owner *a.Owner) (*k.ControlReply, bridge.Result, error) {
-	return f.change(r.Authority, owner)
+func (f *clockCoreFake) Renew(ctx context.Context, r *k.RenewRequest, original *k.Epoch) (*k.ControlReply, bridge.Result, error) {
+	return f.change(r.Authority)
 }
-func (f *clockCoreFake) ChangeSpeed(ctx context.Context, r *k.SpeedRequest, original *k.Epoch, owner *a.Owner) (*k.ControlReply, bridge.Result, error) {
+func (f *clockCoreFake) ChangeSpeed(ctx context.Context, r *k.SpeedRequest, original *k.Epoch) (*k.ControlReply, bridge.Result, error) {
 	f.status.GetRunning().Epoch.RequestedSpeed = r.Speed
-	return f.change(r.Authority, owner)
+	return f.change(r.Authority)
 }
-func (f *clockCoreFake) change(pre *a.WritePrecondition, owner *a.Owner) (*k.ControlReply, bridge.Result, error) {
+func (f *clockCoreFake) change(pre *a.WritePrecondition) (*k.ControlReply, bridge.Result, error) {
 	f.writes++
-	r := &k.ControlReceipt{Attempt: pre.Attempt, AdmittedContext: f.status.Context, AuthorizingOwner: owner, Outcome: &k.ControlReceipt_Applied{Applied: &k.AppliedControl{Status: proto.Clone(f.status).(*k.Status)}}}
+	r := &k.ControlReceipt{Attempt: pre.Attempt, AdmittedContext: f.status.Context, Outcome: &k.ControlReceipt_Applied{Applied: &k.AppliedControl{Status: proto.Clone(f.status).(*k.Status)}}}
 	return &k.ControlReply{Outcome: &k.ControlReply_Receipt{Receipt: r}}, bridge.Result{}, nil
 }
 

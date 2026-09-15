@@ -9,7 +9,6 @@ package boundary
 import (
 	"context"
 	"errors"
-	"fmt"
 	"strings"
 	"time"
 	"unicode/utf8"
@@ -145,7 +144,7 @@ func (b *Boundary) Place(ctx context.Context, placement executor.Placement) (exe
 	if !ValidID(lease) {
 		return out, executor.ErrAuthority
 	}
-	pre := &a.WritePrecondition{Identity: Identity(placement.Snapshot), ExpectedGeneration: proto.Uint64(uint64(placement.Snapshot.Native)), LeaseId: proto.String(lease), Attempt: b.Attempt(placement)}
+	pre := &a.WritePrecondition{Identity: Identity(placement.Snapshot), ExpectedGeneration: proto.Uint64(uint64(placement.Snapshot.Native)), Attempt: b.Attempt(placement)}
 	if err = ctx.Err(); err != nil {
 		return out, err
 	}
@@ -342,10 +341,6 @@ func Admission(receipt *r.Receipt, placement executor.Placement, session string)
 	}
 	if _, err := Context(receipt.AdmittedContext, placement.Snapshot); err != nil {
 		return err
-	}
-	owner := receipt.AuthorizingOwner
-	if owner == nil || owner.ControllerSessionId == nil || owner.PlayerDirection == nil || owner.GetControllerSessionId() != session || owner.GetPlayerDirection() != uint64(placement.Snapshot.Direction) {
-		return fmt.Errorf("%w: original authorizing owner changed", executor.ErrEvidence)
 	}
 	return nil
 }

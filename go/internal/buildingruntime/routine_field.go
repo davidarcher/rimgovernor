@@ -11,7 +11,6 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/observation"
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
 	"github.com/davidarcher/RimGovernor/go/internal/store"
-	a "github.com/davidarcher/RimGovernor/go/internal/wire/authoritypb"
 	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
 	op "github.com/davidarcher/RimGovernor/go/internal/wire/operationspb"
 	receipts "github.com/davidarcher/RimGovernor/go/internal/wire/receiptspb"
@@ -291,7 +290,7 @@ func (r *RoutineFieldPlanner) fieldAllowance(ctx context.Context, goal domain.Go
 			if token == "" {
 				continue
 			}
-			attempt := bridge.ZoneAttempt{Identity: boundary.Identity(snapshot), Attempt: &c.AttemptKey{ControllerSessionId: proto.String(string(namespace)), ActionId: proto.String(string(v.Action)), AttemptId: proto.Uint64(uint64(v.Attempt))}, Owner: &a.Owner{ControllerSessionId: proto.String(string(namespace)), PlayerDirection: proto.Uint64(uint64(snapshot.Direction))}, Generation: uint64(snapshot.Native), Token: token, Zone: zone}
+			attempt := bridge.ZoneAttempt{Identity: boundary.Identity(snapshot), Attempt: &c.AttemptKey{ControllerSessionId: proto.String(string(namespace)), ActionId: proto.String(string(v.Action)), AttemptId: proto.Uint64(uint64(v.Attempt))}, Generation: uint64(snapshot.Native), Token: token, Zone: zone}
 			lookup, _, err := native.LookupZone(ctx, attempt)
 			if err != nil {
 				return 0, err

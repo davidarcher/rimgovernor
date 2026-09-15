@@ -27,7 +27,6 @@ type CaravanCargoSelection struct {
 type CaravanDepartureAttempt struct {
 	Identity        *c.Identity
 	Attempt         *c.AttemptKey
-	Owner           *a.Owner
 	Generation      uint64
 	CatalogToken    string
 	PawnIDs         []string
@@ -120,13 +119,7 @@ func caravanDepartureAttempt(v CaravanDepartureAttempt) (CaravanDepartureAttempt
 	if err := buildingAttempt(v.Attempt); err != nil {
 		return CaravanDepartureAttempt{}, err
 	}
-	if err := authorityOwner(v.Owner); err != nil {
-		return CaravanDepartureAttempt{}, err
-	}
-	if err := buildingUnknown(v.Owner); err != nil {
-		return CaravanDepartureAttempt{}, err
-	}
-	if v.Generation == 0 || v.Owner.GetControllerSessionId() != v.Attempt.GetControllerSessionId() {
+	if v.Generation == 0 {
 		return CaravanDepartureAttempt{}, contract("caravan departure admission owner or generation mismatch")
 	}
 	if err := caravanDepartureCommand(v.CatalogToken, v.PawnIDs, v.Cargo, v.DestinationTile); err != nil {
@@ -134,7 +127,6 @@ func caravanDepartureAttempt(v CaravanDepartureAttempt) (CaravanDepartureAttempt
 	}
 	v.Identity = proto.Clone(v.Identity).(*c.Identity)
 	v.Attempt = proto.Clone(v.Attempt).(*c.AttemptKey)
-	v.Owner = proto.Clone(v.Owner).(*a.Owner)
 	v.PawnIDs = append([]string(nil), v.PawnIDs...)
 	v.Cargo = append([]CaravanCargoSelection(nil), v.Cargo...)
 	return v, nil
@@ -161,7 +153,7 @@ func caravanDepartureEvidence(evidence *r.EffectEvidence, expected CaravanDepart
 	return effect, nil
 }
 func caravanDepartureReceipt(v *r.Receipt, expected CaravanDepartureAttempt) error {
-	if v == nil || buildingUnknown(v) != nil || !proto.Equal(v.Attempt, expected.Attempt) || !proto.Equal(v.AuthorizingOwner, expected.Owner) {
+	if v == nil || buildingUnknown(v) != nil || !proto.Equal(v.Attempt, expected.Attempt) {
 		return contract("caravan departure admission mismatch")
 	}
 	if err := buildingContext(v.AdmittedContext, expected.Identity, expected.Generation, true); err != nil {
@@ -198,14 +190,14 @@ func NewCaravanDepartureWriter(client *Client) (*CaravanDepartureWriter, error) 
 }
 
 // ApplyCaravanDeparture dispatches one already-admitted FormCaravan order.
-func (writer *CaravanDepartureWriter) ApplyCaravanDeparture(ctx context.Context, pre *a.WritePrecondition, owner *a.Owner, catalogToken string, pawnIDs []string, cargo []CaravanCargoSelection, destinationTile int32) (*o.ExecuteReply, Result, error) {
-	if writer == nil || writer.client == nil || pre == nil || buildingUnknown(pre) != nil || ValidateIdentity(pre.Identity) != nil || buildingAttempt(pre.Attempt) != nil || pre.GetExpectedGeneration() == 0 || validID(pre.GetLeaseId()) != nil {
+func (writer *CaravanDepartureWriter) ApplyCaravanDeparture(ctx context.Context, pre *a.WritePrecondition, catalogToken string, pawnIDs []string, cargo []CaravanCargoSelection, destinationTile int32) (*o.ExecuteReply, Result, error) {
+	if writer == nil || writer.client == nil || pre == nil || buildingUnknown(pre) != nil || ValidateIdentity(pre.Identity) != nil || buildingAttempt(pre.Attempt) != nil || pre.GetExpectedGeneration() == 0 {
 		return nil, Result{}, contract("invalid caravan departure execution")
 	}
 	if err := caravanDepartureCommand(catalogToken, pawnIDs, cargo, destinationTile); err != nil {
 		return nil, Result{}, err
 	}
-	expected, err := caravanDepartureAttempt(CaravanDepartureAttempt{Identity: pre.Identity, Attempt: pre.Attempt, Owner: owner, Generation: pre.GetExpectedGeneration(), CatalogToken: catalogToken, PawnIDs: pawnIDs, Cargo: cargo, DestinationTile: destinationTile})
+	expected, err := caravanDepartureAttempt(CaravanDepartureAttempt{Identity: pre.Identity, Attempt: pre.Attempt, Generation: pre.GetExpectedGeneration(), CatalogToken: catalogToken, PawnIDs: pawnIDs, Cargo: cargo, DestinationTile: destinationTile})
 	if err != nil {
 		return nil, Result{}, err
 	}

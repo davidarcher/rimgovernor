@@ -9,6 +9,7 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/executor"
 	"github.com/davidarcher/RimGovernor/go/internal/runtimeowner"
 	"github.com/davidarcher/RimGovernor/go/internal/store"
+	o "github.com/davidarcher/RimGovernor/go/internal/wire/operationspb"
 	"google.golang.org/protobuf/proto"
 	"path/filepath"
 	"sync"
@@ -31,11 +32,14 @@ func draftSessionFixture(t *testing.T, unknown bool) (*Session, *draft.Fixture, 
 		t.Fatal(err)
 	}
 	native.Receipt.Attempt.ControllerSessionId = proto.String(string(namespace))
-	native.Receipt.AuthorizingOwner.ControllerSessionId = proto.String(string(namespace))
-	native.Row.DraftClaim.GetOwned().Owner.ControllerSessionId = proto.String(string(namespace))
 	native.Progress.Attempt.ControllerSessionId = proto.String(string(namespace))
 	boundary.ReceiptJob(native.Receipt).DraftOwner = proto.String(string(namespace))
 	native.Progress.GetCompleted().GetEvidence().GetJob().DraftOwner = proto.String(string(namespace))
+	native.MutateRelease = func(reply *o.ReleaseOwnedDraftReply) {
+		if released := reply.GetReleased(); released != nil && released.Observed != nil {
+			released.Observed.DraftOwner = proto.String(string(namespace))
+		}
+	}
 	plan, err := domain.NewPlan("plan", 1, []domain.Action{native.P.Action})
 	if err != nil {
 		t.Fatal(err)
@@ -63,7 +67,7 @@ func draftSessionFixture(t *testing.T, unknown bool) (*Session, *draft.Fixture, 
 		t.Fatal(err)
 	}
 	_, building := boundary.NewFixture(t)
-	config := SessionConfig{Control: ControlConfig{ProfileDirectory: dir, LeaseDuration: time.Second, CallTimeout: time.Second}, Executor: executor.Limits{MaxAge: time.Second, RunTimeout: time.Second, JournalTimeout: time.Second}, Draft: &draft.DraftCapabilities{Native: native, Writer: native, Cleanup: native}}
+	config := SessionConfig{Control: ControlConfig{ProfileDirectory: dir, CallTimeout: time.Second}, Executor: executor.Limits{MaxAge: time.Second, RunTimeout: time.Second, JournalTimeout: time.Second}, Draft: &draft.DraftCapabilities{Native: native, Writer: native, Cleanup: native}}
 	session, err := NewSession(ctx, config, journal, sessionNative{building}, &controlNative{generation: 2}, sessionNative{building}, boundary.FixedClock{})
 	if err != nil {
 		t.Fatal(err)
@@ -153,7 +157,7 @@ func TestDraftSessionRejectsPartialCapabilitiesBeforeOwnership(t *testing.T) {
 	defer journal.Close()
 	_, f := boundary.NewFixture(t)
 	native := sessionNative{f}
-	config := SessionConfig{Control: ControlConfig{ProfileDirectory: dir, LeaseDuration: time.Second, CallTimeout: time.Second}, Executor: executor.Limits{MaxAge: time.Second, RunTimeout: time.Second, JournalTimeout: time.Second}, Draft: &draft.DraftCapabilities{}}
+	config := SessionConfig{Control: ControlConfig{ProfileDirectory: dir, CallTimeout: time.Second}, Executor: executor.Limits{MaxAge: time.Second, RunTimeout: time.Second, JournalTimeout: time.Second}, Draft: &draft.DraftCapabilities{}}
 	if _, err = NewSession(ctx, config, journal, native, &controlNative{generation: 1}, native, boundary.FixedClock{}); err == nil {
 		t.Fatal("partial capabilities accepted")
 	}
@@ -191,7 +195,7 @@ func TestCancelledSessionAttachmentDoesNotStrandOwnerOnExistingDraft(t *testing.
 	native.ReadErr = errors.New("native unavailable during construction")
 	dir := t.TempDir()
 	sink := &sessionSink{}
-	control, err := NewControl(context.Background(), ControlConfig{ProfileDirectory: dir, LeaseDuration: time.Second, CallTimeout: time.Second, StopWrites: sink.stop}, journal, &controlNative{generation: 2}, sink)
+	control, err := NewControl(context.Background(), ControlConfig{ProfileDirectory: dir, CallTimeout: time.Second, StopWrites: sink.stop}, journal, &controlNative{generation: 2}, sink)
 	if err != nil {
 		t.Fatal(err)
 	}

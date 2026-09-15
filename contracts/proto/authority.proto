@@ -4,32 +4,45 @@ option csharp_namespace = "RimGovernor.Protocol.Authority";
 option go_package = "github.com/davidarcher/RimGovernor/go/internal/wire/authoritypb;authoritypb";
 import "common.proto";
 
-message Owner {
-  optional string controller_session_id = 1;
-  optional uint64 player_direction = 2;
+// There is exactly one bot process and one local human player. Auto means the
+// bot holds authority; Manual means it does not. There is no negotiated lease,
+// no session identity, and no second "direction" concept to arbitrate between
+// controllers, because there is only ever one controller.
+enum Mode {
+  MODE_UNSPECIFIED = 0;
+  MODE_AUTO = 1;
+  MODE_MANUAL = 2;
 }
 
 enum RevocationReason {
   REVOCATION_REASON_UNSPECIFIED = 0;
   REVOCATION_REASON_NONE = 1;
   REVOCATION_REASON_MANUAL = 2;
-  REVOCATION_REASON_PLAYER_DIRECTION = 3;
+  // Native player action detected by the Harmony hooks (order issued, drafted,
+  // bill/schedule/settings edited directly, etc.) while the bot held authority.
+  REVOCATION_REASON_PLAYER_CONTROL = 3;
+  // A specific native player order observed by the hooks; kept distinct from
+  // PLAYER_CONTROL because acceptance tests assert on this exact reason and it
+  // carries a different in-flight-write carve-out (see NativeControlAuthority).
   REVOCATION_REASON_EXTERNAL_ORDER = 4;
-  REVOCATION_REASON_PLAYER_CONTROL = 5;
-  REVOCATION_REASON_LEASE_EXPIRED = 6;
-  REVOCATION_REASON_IDENTITY_CHANGED = 7;
-  REVOCATION_REASON_DISCONNECT = 8;
-  REVOCATION_REASON_SHUTDOWN = 9;
-  REVOCATION_REASON_HOOKS_UNAVAILABLE = 10;
-  REVOCATION_REASON_GENERATION_EXHAUSTED = 11;
+  REVOCATION_REASON_IDENTITY_CHANGED = 5;
+  REVOCATION_REASON_DISCONNECT = 6;
+  REVOCATION_REASON_SHUTDOWN = 7;
+  REVOCATION_REASON_HOOKS_UNAVAILABLE = 8;
+  REVOCATION_REASON_GENERATION_EXHAUSTED = 9;
+  // Kept despite the lease going away: overflow/clock-unavailable style failures
+  // that used to end a timed lease still need a terminal "no longer active,
+  // and not because of a specific detected player action" reason. Genuinely
+  // unsure whether callers still need this distinct from GENERATION_EXHAUSTED,
+  // so it is kept rather than silently folded away.
+  REVOCATION_REASON_UNAVAILABLE = 10;
 }
 
 message InactiveAuthority {
   optional RevocationReason reason = 1;
 }
 message ActiveAuthority {
-  Owner owner = 1;
-  optional uint32 remaining_lease_ms = 2;
+  optional Mode mode = 1;
 }
 message Status {
   rimgovernor.common.v1.ObservationContext context = 1;
@@ -50,19 +63,12 @@ message StatusReply {
   }
 }
 
-// Acquisition is produced only by the explicit player-control path.
-message Acquire {
+// SetMode is the only way to change authority explicitly. Auto grants the bot
+// authority outright; Manual revokes it. There is no acquire/renew handshake.
+message SetMode {
   rimgovernor.common.v1.Identity identity = 1;
   optional uint64 expected_generation = 2;
-  Owner owner = 3;
-  optional uint32 lease_ms = 4;
-}
-message Renew {
-  rimgovernor.common.v1.Identity identity = 1;
-  optional uint64 expected_generation = 2;
-  optional string controller_session_id = 3;
-  optional string lease_id = 4;
-  optional uint32 lease_ms = 5;
+  optional Mode mode = 3;
 }
 message Revoke {
   rimgovernor.common.v1.Identity identity = 1;
@@ -71,15 +77,13 @@ message Revoke {
 }
 message ControlRequest {
   oneof operation {
-    Acquire acquire = 1;
-    Renew renew = 2;
-    Revoke revoke = 3;
+    SetMode set_mode = 1;
+    Revoke revoke = 2;
   }
 }
 message Granted {
   rimgovernor.common.v1.ObservationContext context = 1;
   ActiveAuthority authority = 2;
-  optional string lease_id = 3;
 }
 message Revoked {
   rimgovernor.common.v1.ObservationContext context = 1;
@@ -93,12 +97,17 @@ message ControlReply {
   }
 }
 
-// A new write requires all these preconditions atomically on the game thread.
+// A new write requires these preconditions atomically on the game thread: the
+// identity is still current, the attempt is admitted at most once, and the
+// generation has not moved past what the caller computed its command against
+// (a local-player interruption bumps the generation even though there is no
+// lease to expire). Identity is a colony/load/map staleness check, not part
+// of the authority-ownership ceremony this message used to also carry; owner
+// and lease_id are dropped because there is only ever one bot holding Auto.
 message WritePrecondition {
   rimgovernor.common.v1.Identity identity = 1;
   optional uint64 expected_generation = 2;
-  optional string lease_id = 3;
-  rimgovernor.common.v1.AttemptKey attempt = 4;
+  rimgovernor.common.v1.AttemptKey attempt = 3;
 }
 
 // Read methods remain separate from mutation methods for capability isolation.

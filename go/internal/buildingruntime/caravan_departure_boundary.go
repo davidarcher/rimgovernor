@@ -37,7 +37,7 @@ type CaravanDepartureNative interface {
 	ObserveCaravanDepartureProgress(context.Context, bridge.CaravanDepartureAttempt, *r.Receipt) (*r.ProgressReply, bridge.Result, error)
 }
 type CaravanDepartureWriter interface {
-	ApplyCaravanDeparture(context.Context, *a.WritePrecondition, *a.Owner, string, []string, []bridge.CaravanCargoSelection, int32) (*o.ExecuteReply, bridge.Result, error)
+	ApplyCaravanDeparture(context.Context, *a.WritePrecondition, string, []string, []bridge.CaravanCargoSelection, int32) (*o.ExecuteReply, bridge.Result, error)
 }
 type CaravanDepartureCapabilities struct {
 	Native CaravanDepartureNative
@@ -332,7 +332,6 @@ func (b *CaravanDepartureBoundary) attempt(dispatch executor.CaravanDepartureDis
 	return bridge.CaravanDepartureAttempt{
 		Identity:        boundary.Identity(p.Snapshot),
 		Attempt:         &c.AttemptKey{ControllerSessionId: proto.String(b.session), ActionId: proto.String(string(p.Action.ID())), AttemptId: proto.Uint64(uint64(p.Attempt))},
-		Owner:           &a.Owner{ControllerSessionId: proto.String(b.session), PlayerDirection: proto.Uint64(uint64(p.Snapshot.Direction))},
 		Generation:      uint64(p.Snapshot.Native),
 		CatalogToken:    admission.CatalogToken,
 		PawnIDs:         pawnIDs,
@@ -384,8 +383,8 @@ func (b *CaravanDepartureBoundary) DepartCaravan(ctx context.Context, dispatch e
 	if err = ctx.Err(); err != nil {
 		return out, err
 	}
-	pre := &a.WritePrecondition{Identity: attempt.Identity, Attempt: attempt.Attempt, ExpectedGeneration: proto.Uint64(attempt.Generation), LeaseId: proto.String(lease)}
-	reply, _, err := b.writer.ApplyCaravanDeparture(ctx, pre, attempt.Owner, attempt.CatalogToken, attempt.PawnIDs, attempt.Cargo, attempt.DestinationTile)
+	pre := &a.WritePrecondition{Identity: attempt.Identity, Attempt: attempt.Attempt, ExpectedGeneration: proto.Uint64(attempt.Generation),}
+	reply, _, err := b.writer.ApplyCaravanDeparture(ctx, pre, attempt.CatalogToken, attempt.PawnIDs, attempt.Cargo, attempt.DestinationTile)
 	var refused *bridge.NativeFailure
 	if errors.As(err, &refused) && refused.Value != nil && refused.Value.GetCode() != c.FailureCode_FAILURE_CODE_ATTEMPT_CONFLICT {
 		out.Kind = domain.ReceiptRefused
@@ -430,7 +429,6 @@ func (b *CaravanDepartureBoundary) observeAttempt(dispatch executor.CaravanDepar
 	return bridge.CaravanDepartureAttempt{
 		Identity:        boundary.Identity(p.Snapshot),
 		Attempt:         &c.AttemptKey{ControllerSessionId: proto.String(b.session), ActionId: proto.String(string(p.Action.ID())), AttemptId: proto.Uint64(uint64(p.Attempt))},
-		Owner:           &a.Owner{ControllerSessionId: proto.String(b.session), PlayerDirection: proto.Uint64(uint64(p.Snapshot.Direction))},
 		Generation:      uint64(p.Snapshot.Native),
 		CatalogToken:    admission.CatalogToken,
 		PawnIDs:         pawnIDs,
@@ -462,7 +460,7 @@ func (b *CaravanDepartureBoundary) ObserveCaravanDeparture(ctx context.Context, 
 		if v.InFlight == nil || !proto.Equal(v.InFlight.Attempt, attempt.Attempt) {
 			return out, executor.ErrEvidence
 		}
-		if err = boundary.Admission(&r.Receipt{Attempt: v.InFlight.Attempt, AdmittedContext: v.InFlight.AdmittedContext, AuthorizingOwner: attempt.Owner}, p, b.session); err != nil {
+		if err = boundary.Admission(&r.Receipt{Attempt: v.InFlight.Attempt, AdmittedContext: v.InFlight.AdmittedContext}, p, b.session); err != nil {
 			return out, err
 		}
 	case *r.LookupReply_Receipt:

@@ -339,7 +339,7 @@ func perform(opts options, out *report) (err error) {
 	native := &recordingNative{Client: client, AuthorityControl: authority, writer: billWriter, records: &out.Calls}
 	owner, err = buildingruntime.NewSession(ctx, buildingruntime.SessionConfig{
 		Bills:    &bill.BillCapabilities{Native: native, Writer: native},
-		Control:  buildingruntime.ControlConfig{ProfileDirectory: opts.profile, LeaseDuration: 30 * time.Second, CallTimeout: 20 * time.Second},
+		Control:  buildingruntime.ControlConfig{ProfileDirectory: opts.profile, CallTimeout: 20 * time.Second},
 		Executor: executor.Limits{MaxAge: 20 * time.Second, RunTimeout: 60 * time.Second, JournalTimeout: 5 * time.Second},
 	}, journal, native, native, buildingWriter, realClock{})
 	if err != nil {

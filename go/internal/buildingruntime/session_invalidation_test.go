@@ -66,11 +66,10 @@ func TestSessionFailedRefreshCancelsDisabledReconciliationUntilFreshObservation(
 		t.Fatal(err)
 	}
 	fixture.Receipt.Attempt.ControllerSessionId = proto.String(string(namespace))
-	fixture.Receipt.AuthorizingOwner.ControllerSessionId = proto.String(string(namespace))
 	fixture.Progress.Attempt = proto.Clone(fixture.Receipt).(*r.Receipt).Attempt
 	native := &blockedSessionObservation{sessionNative: sessionNative{fixture}, entered: make(chan struct{}), block: true}
 	authority := &controlNative{generation: 1}
-	config := SessionConfig{Control: ControlConfig{ProfileDirectory: dir, LeaseDuration: time.Second, CallTimeout: time.Second}, Executor: executor.Limits{MaxAge: time.Second, RunTimeout: 5 * time.Second, JournalTimeout: time.Second}}
+	config := SessionConfig{Control: ControlConfig{ProfileDirectory: dir, CallTimeout: time.Second}, Executor: executor.Limits{MaxAge: time.Second, RunTimeout: 5 * time.Second, JournalTimeout: time.Second}}
 	session, err := NewSession(ctx, config, journal, native, authority, native, boundary.FixedClock{})
 	if err != nil {
 		t.Fatal(err)

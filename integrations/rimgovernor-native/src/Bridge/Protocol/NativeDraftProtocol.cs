@@ -1,6 +1,5 @@
 #nullable enable
 using Common = RimGovernor.Protocol.Common;
-using Authority = RimGovernor.Protocol.Authority;
 using Operations = RimGovernor.Protocol.Operations;
 using Receipts = RimGovernor.Protocol.Receipts;
 
@@ -19,10 +18,6 @@ namespace HomeBridge.BridgeTools
         internal static bool ValidEntityId(Operations.EntityPrecondition? entity) => entity != null
             && entity.HasEntityId && ProtoBoundary.IsIdentifier(entity.EntityId);
 
-        internal static bool ValidOwner(Authority.Owner? owner) => owner != null
-            && owner.HasControllerSessionId && ProtoBoundary.IsIdentifier(owner.ControllerSessionId)
-            && owner.HasPlayerDirection && owner.PlayerDirection > 0;
-
         internal static bool Validate(Operations.SetDrafted? command, out Common.Failure failure)
         {
             failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Draft command requires exact pawn ID, native snapshot token and explicit drafted state.");
@@ -40,12 +35,10 @@ namespace HomeBridge.BridgeTools
         internal static bool ValidateRelease(Operations.ReleaseOwnedDraftRequest? request, out Common.Failure failure)
         {
             failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest,
-                "Release requires exact pawn ID, native snapshot token, original claim ID and complete original owner/direction.");
+                "Release requires exact pawn ID, native snapshot token and original claim ID.");
             return request != null && ValidEntity(request.Pawn) && request.HasExpectedClaimId
-                && ProtoBoundary.IsIdentifier(request.ExpectedClaimId) && ValidOwner(request.OriginalOwner);
+                && ProtoBoundary.IsIdentifier(request.ExpectedClaimId);
         }
-
-        internal static bool SameOwner(Authority.Owner? left, Authority.Owner? right) => ValidOwner(left) && ValidOwner(right) && left!.Equals(right);
 
         internal static Common.Failure Failure(NativePawnControlResult result, Common.ObservationContext context) => new Common.Failure
         {
@@ -60,13 +53,12 @@ namespace HomeBridge.BridgeTools
         };
 
         internal static Receipts.JobEffect Effect(string pawnId, bool drafted, string token,
-            bool issued, bool verified, string? claimId = null, Authority.Owner? owner = null)
+            bool issued, bool verified, string? claimId = null)
         {
             var result = new Receipts.JobEffect { PawnId = pawnId, Drafted = drafted,
                 ResultingSnapshotToken = token, Issued = issued, Verified = verified,
                 VerifiedReason = verified ? "Exact native draft state and claim readback." : "Native draft outcome requires observation." };
             if (claimId != null) result.DraftClaimId = claimId;
-            if (owner != null) result.DraftOwner = owner.ControllerSessionId;
             return result;
         }
     }

@@ -159,7 +159,7 @@ namespace HomeBridge.BridgeTools
             bool slaughter = operation.CommandCase == Operations.Operation.CommandOneofCase.SlaughterAnimal;
             if (!training && !slaughter)
                 return Refuse(Common.FailureCode.Unsupported, "Husbandry execute implements SetAnimalTraining and SlaughterAnimal only.");
-            NativeAttemptLedger.Admission? handle = null; Authority.Owner? owner = null; Receipts.EffectEvidence? evidence = null;
+            NativeAttemptLedger.Admission? handle = null; Receipts.EffectEvidence? evidence = null;
             try
             {
                 Pawn? animal; Common.Failure failure;
@@ -167,16 +167,15 @@ namespace HomeBridge.BridgeTools
                 else { if (!PrepareSlaughter(operation.SlaughterAnimal, out animal, out failure)) return new Operations.ExecuteReply { Failure = failure }; }
                 if (!NativeControlAuthority.TryGetForGame(Current.Game, out var authority) || authority == null)
                     return Refuse(Common.FailureCode.AuthorityRequired, "Current native authority is required.");
-                var guard = authority.Check(pre.ExpectedGeneration, pre.LeaseId, pre.Attempt.ControllerSessionId);
+                var guard = authority.Check(pre.ExpectedGeneration);
                 context.NativeGeneration = guard.Snapshot.Generation;
                 if (!guard.Success) return new Operations.ExecuteReply { Failure = NativeAuthorityControlTools.Refusal(guard.Error, context) };
-                owner = new Authority.Owner { ControllerSessionId = guard.Snapshot.Lease!.ControllerSessionId, PlayerDirection = guard.Snapshot.Lease.PlayerDirection };
-                var admission = state.Ledger.Admit("rimgovernor.operations.v1.Operations/Execute", request, context, owner);
+                var admission = state.Ledger.Admit("rimgovernor.operations.v1.Operations/Execute", request, context);
                 if (admission.Kind != NativeAttemptLedger.DecisionKind.Admitted) return admission.Reply!;
                 handle = admission.Handle!;
                 using (authority.Owned())
                 {
-                    var current = authority.Check(pre.ExpectedGeneration, pre.LeaseId, pre.Attempt.ControllerSessionId);
+                    var current = authority.Check(pre.ExpectedGeneration);
                     if (!current.Success) throw new InvalidOperationException("Husbandry authority changed before native effect.");
                     if (training)
                     {
@@ -200,13 +199,13 @@ namespace HomeBridge.BridgeTools
                         if (!Designated(animal, DesignationDefOf.Slaughter)) throw new InvalidOperationException("Native slaughter designation readback did not apply.");
                     }
                 }
-                return new Operations.ExecuteReply { Receipt = NativeOperationEnvelope.Applied(state.Ledger, handle, pre.Attempt, context, owner, evidence) };
+                return new Operations.ExecuteReply { Receipt = NativeOperationEnvelope.Applied(state.Ledger, handle, pre.Attempt, context, evidence) };
             }
             catch (Exception error)
             {
                 return handle == null
                     ? Refuse(Common.FailureCode.NativeFailure, "Husbandry validation failed: " + error.GetType().Name)
-                    : new Operations.ExecuteReply { Receipt = NativeOperationEnvelope.Uncertain(state.Ledger, handle, pre.Attempt, context, owner!, evidence!, "Admitted husbandry order requires observation: " + error.GetType().Name) };
+                    : new Operations.ExecuteReply { Receipt = NativeOperationEnvelope.Uncertain(state.Ledger, handle, pre.Attempt, context, evidence!, "Admitted husbandry order requires observation: " + error.GetType().Name) };
             }
         }
 

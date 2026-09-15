@@ -19,7 +19,7 @@ func workTestEffect() *r.EffectEvidence {
 	return &r.EffectEvidence{Effect: &r.EffectEvidence_Settings{Settings: &r.SettingsEffect{Snapshot: &r.SnapshotEvidence{EntityId: proto.String("pawn"), BeforeToken: proto.String("before"), AfterToken: proto.String("after")}, Fields: []*r.FieldResult{{Field: r.SettingsField_SETTINGS_FIELD_WORK.Enum(), Outcome: r.FieldOutcome_FIELD_OUTCOME_APPLIED.Enum(), Entry: &r.FieldResult_WorkTypeDef{WorkTypeDef: "Cooking"}}}}}}
 }
 func workTestAttempt() WorkAttempt {
-	return WorkAttempt{pbIdentity(), buildingPre().Attempt, draftTestAttempt().Owner, 1, workTestAssignment()}
+	return WorkAttempt{pbIdentity(), buildingPre().Attempt, 1, workTestAssignment()}
 }
 func workTestReceipt() *r.Receipt {
 	v := draftTestReceipt()
@@ -44,7 +44,6 @@ func TestWorkFixedCapabilityAndReceiptCorrelation(t *testing.T) {
 		t.Fatal(calls, err)
 	}
 	for name, edit := range map[string]func(*r.Receipt){
-		"owner":   func(v *r.Receipt) { v.AuthorizingOwner.PlayerDirection = proto.Uint64(2) },
 		"attempt": func(v *r.Receipt) { v.Attempt.AttemptId = proto.Uint64(2) },
 		"pawn":    func(v *r.Receipt) { v.GetApplied().Observed.GetSettings().Snapshot.EntityId = proto.String("foreign") },
 		"before": func(v *r.Receipt) {

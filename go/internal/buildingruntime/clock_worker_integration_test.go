@@ -4,7 +4,6 @@ import (
 	"context"
 	"github.com/davidarcher/RimGovernor/go/internal/bridge"
 	"github.com/davidarcher/RimGovernor/go/internal/runtimeowner"
-	a "github.com/davidarcher/RimGovernor/go/internal/wire/authoritypb"
 	k "github.com/davidarcher/RimGovernor/go/internal/wire/clockpb"
 	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
 	l "github.com/davidarcher/RimGovernor/go/internal/wire/lifecyclepb"
@@ -49,27 +48,27 @@ func (f *joinedClockNative) ReadEmergency(ctx context.Context, id *c.Identity) (
 	f.calls++
 	return f.source.ReadEmergency(ctx, id)
 }
-func (f *joinedClockNative) Start(ctx context.Context, r *k.StartRequest, owner *a.Owner) (*k.ControlReply, bridge.Result, error) {
+func (f *joinedClockNative) Start(ctx context.Context, r *k.StartRequest) (*k.ControlReply, bridge.Result, error) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	f.calls++
-	reply, raw, err := f.source.Start(ctx, r, owner)
+	reply, raw, err := f.source.Start(ctx, r)
 	if err == nil {
 		f.startOnce.Do(func() { close(f.started) })
 	}
 	return reply, raw, err
 }
-func (f *joinedClockNative) Renew(ctx context.Context, r *k.RenewRequest, original *k.Epoch, owner *a.Owner) (*k.ControlReply, bridge.Result, error) {
+func (f *joinedClockNative) Renew(ctx context.Context, r *k.RenewRequest, original *k.Epoch) (*k.ControlReply, bridge.Result, error) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	f.calls++
-	return f.source.Renew(ctx, r, original, owner)
+	return f.source.Renew(ctx, r, original)
 }
-func (f *joinedClockNative) ChangeSpeed(ctx context.Context, r *k.SpeedRequest, original *k.Epoch, owner *a.Owner) (*k.ControlReply, bridge.Result, error) {
+func (f *joinedClockNative) ChangeSpeed(ctx context.Context, r *k.SpeedRequest, original *k.Epoch) (*k.ControlReply, bridge.Result, error) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	f.calls++
-	return f.source.ChangeSpeed(ctx, r, original, owner)
+	return f.source.ChangeSpeed(ctx, r, original)
 }
 func (f *joinedClockNative) OwnedPause(ctx context.Context, r *k.OwnedRequest) (*k.StatusReply, bridge.Result, error) {
 	f.mu.Lock()

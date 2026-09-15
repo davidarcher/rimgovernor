@@ -138,6 +138,7 @@ func buildingFields(raw []byte, keys ...string) (map[string]json.RawMessage, err
 	}
 	return fields, nil
 }
+
 // buildingOptionalFields is buildingFields for an object that carries a fixed
 // set of required keys plus a known set of optional ones. Required keys must be
 // present and non-null exactly as buildingFields demands; an optional key may be

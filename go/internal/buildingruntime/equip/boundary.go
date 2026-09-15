@@ -28,7 +28,7 @@ type EquipNative interface {
 	ObservePawnOrderProgress(context.Context, bridge.PawnOrderAttempt, *r.Receipt) (*r.ProgressReply, bridge.Result, error)
 }
 type EquipWriter interface {
-	OrderPawn(context.Context, *a.WritePrecondition, *a.Owner, *o.PawnTargetOrder) (*o.ExecuteReply, bridge.Result, error)
+	OrderPawn(context.Context, *a.WritePrecondition, *o.PawnTargetOrder) (*o.ExecuteReply, bridge.Result, error)
 }
 type EquipCapabilities struct {
 	Native EquipNative
@@ -149,7 +149,7 @@ func (b *EquipBoundary) attempt(dispatch executor.EquipDispatch) (bridge.PawnOrd
 	if !ok || p.Attempt == 0 || p.Tick < 0 || admission.Snapshot != p.Snapshot || admission.Pawn != equip.Pawn() || admission.Thing != equip.Thing() || admission.Definition != equip.Definition() || admission.Cell != equip.Cell() || admission.Tick > p.Tick || !boundary.ValidID(admission.PawnSnapshotToken) || !boundary.ValidID(admission.ThingSnapshotToken) {
 		return bridge.PawnOrderAttempt{}, executor.ErrEvidence
 	}
-	return bridge.PawnOrderAttempt{Identity: boundary.Identity(p.Snapshot), Attempt: &c.AttemptKey{ControllerSessionId: proto.String(b.session), ActionId: proto.String(string(p.Action.ID())), AttemptId: proto.Uint64(uint64(p.Attempt))}, NativeGeneration: uint64(p.Snapshot.Native), Owner: &a.Owner{ControllerSessionId: proto.String(b.session), PlayerDirection: proto.Uint64(uint64(p.Snapshot.Direction))}, PawnID: string(equip.Pawn()), TargetID: equip.Thing(), Kind: o.PawnOrderKind_PAWN_ORDER_KIND_EQUIP, RequireSafeStorage: false}, nil
+	return bridge.PawnOrderAttempt{Identity: boundary.Identity(p.Snapshot), Attempt: &c.AttemptKey{ControllerSessionId: proto.String(b.session), ActionId: proto.String(string(p.Action.ID())), AttemptId: proto.Uint64(uint64(p.Attempt))}, NativeGeneration: uint64(p.Snapshot.Native), PawnID: string(equip.Pawn()), TargetID: equip.Thing(), Kind: o.PawnOrderKind_PAWN_ORDER_KIND_EQUIP, RequireSafeStorage: false}, nil
 }
 
 func equipJob(job *r.JobEffect, dispatch executor.EquipDispatch) error {

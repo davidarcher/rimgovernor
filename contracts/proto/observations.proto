@@ -3,7 +3,6 @@ package rimgovernor.observations.v1;
 option csharp_namespace = "RimGovernor.Protocol.Observations";
 option go_package = "github.com/davidarcher/RimGovernor/go/internal/wire/observationspb;observationspb";
 import "common.proto";
-import "authority.proto";
 
 // All requests are read-only; previews/admission and UI/media have other owners.
 // Validators require context, selected outcome, finite numbers and exact IDs.
@@ -135,9 +134,13 @@ message PawnState {
   SnapshotRef snapshot = 36;
 }
 message NoOwnedDraftClaim {}
+// owner (rimgovernor.authority.v1.Owner) was removed: a claim is either held by
+// the single bot process or it is not; there is no other possible owner left
+// to distinguish.
 message OwnedDraftClaim {
   optional string claim_id = 1;
-  rimgovernor.authority.v1.Owner owner = 2;
+  reserved 2;
+  reserved "owner";
   SnapshotRef pawn_snapshot = 3;
 }
 // A drafted pawn may have no controller claim. Missing owner is not ours.

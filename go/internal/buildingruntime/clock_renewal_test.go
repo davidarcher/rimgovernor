@@ -9,7 +9,6 @@ import (
 
 	"github.com/davidarcher/RimGovernor/go/internal/bridge"
 	"github.com/davidarcher/RimGovernor/go/internal/store"
-	a "github.com/davidarcher/RimGovernor/go/internal/wire/authoritypb"
 	k "github.com/davidarcher/RimGovernor/go/internal/wire/clockpb"
 	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
 	"google.golang.org/protobuf/proto"
@@ -142,14 +141,14 @@ type renewalWriter struct {
 	onRenew  func() (*k.ControlReply, error)
 }
 
-func (f *renewalWriter) Renew(ctx context.Context, r *k.RenewRequest, original *k.Epoch, owner *a.Owner) (*k.ControlReply, bridge.Result, error) {
+func (f *renewalWriter) Renew(ctx context.Context, r *k.RenewRequest, original *k.Epoch) (*k.ControlReply, bridge.Result, error) {
 	f.renews++
 	f.original = proto.Clone(original).(*k.Epoch)
 	if f.onRenew != nil {
 		reply, err := f.onRenew()
 		return reply, bridge.Result{}, err
 	}
-	reply, raw, err := f.clockCoreFake.Renew(ctx, r, original, owner)
+	reply, raw, err := f.clockCoreFake.Renew(ctx, r, original)
 	if reply != nil {
 		f.receipt = proto.Clone(reply.GetReceipt()).(*k.ControlReceipt)
 	}

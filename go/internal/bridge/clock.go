@@ -33,15 +33,15 @@ type ClockUncertain struct {
 func (e *ClockUncertain) Error() string { return "clock outcome uncertain: " + e.Cause.Error() }
 func (e *ClockUncertain) Unwrap() error { return e.Cause }
 
-func clockPrecondition(pre *a.WritePrecondition, owner *a.Owner) error {
+func clockPrecondition(pre *a.WritePrecondition) error {
 	if pre == nil {
 		return contract("clock authority required")
 	}
-	if err := errors.Join(clockWire(pre), clockWire(owner), ValidateIdentity(pre.Identity), buildingAttempt(pre.Attempt), authorityOwner(owner)); err != nil {
+	if err := errors.Join(clockWire(pre), ValidateIdentity(pre.Identity), buildingAttempt(pre.Attempt)); err != nil {
 		return err
 	}
-	if pre.ExpectedGeneration == nil || pre.GetExpectedGeneration() == 0 || pre.LeaseId == nil || validID(pre.GetLeaseId()) != nil || pre.Attempt.GetControllerSessionId() != owner.GetControllerSessionId() {
-		return contract("clock authority presence or owner")
+	if pre.ExpectedGeneration == nil || pre.GetExpectedGeneration() == 0 {
+		return contract("clock authority presence")
 	}
 	return nil
 }
@@ -61,12 +61,12 @@ func clockOriginal(request *k.OwnedRequest, pre *a.WritePrecondition, original *
 	return nil
 }
 
-func (control *ClockControl) Start(ctx context.Context, request *k.StartRequest, expectedOwner *a.Owner) (*k.ControlReply, Result, error) {
+func (control *ClockControl) Start(ctx context.Context, request *k.StartRequest) (*k.ControlReply, Result, error) {
 	if request == nil {
 		return nil, Result{}, contract("clock start required")
 	}
 	request = proto.Clone(request).(*k.StartRequest)
-	if err := errors.Join(clockWire(request), clockPrecondition(request.Authority, expectedOwner), authorityDuration(request.LeaseMs)); err != nil {
+	if err := errors.Join(clockWire(request), clockPrecondition(request.Authority), authorityDuration(request.LeaseMs)); err != nil {
 		return nil, Result{}, err
 	}
 	if request.Speed == nil || request.GetSpeed() < 1 || request.GetSpeed() > 3 || request.MaxTicks == nil || request.GetMaxTicks() < 1 || request.GetMaxTicks() > 1800000 {
@@ -75,32 +75,30 @@ func (control *ClockControl) Start(ctx context.Context, request *k.StartRequest,
 	if err := clockPolicy(request.Policy, int64(request.GetMaxTicks())); err != nil {
 		return nil, Result{}, err
 	}
-	expectedOwner = proto.Clone(expectedOwner).(*a.Owner)
-	expectation := ClockExpectation{request.Authority.Identity, request.Authority.Attempt, expectedOwner, request.Authority.GetExpectedGeneration(), ClockCommand{Start: &ClockStart{Speed: request.GetSpeed(), Policy: request.Policy, LeaseMS: request.GetLeaseMs(), MaxTicks: request.GetMaxTicks()}}}
-	return control.clockCall(ctx, "rimgovernor/clock_start", request, request.Authority, expectedOwner, func(r *k.ControlReceipt) error { return ValidateClockReceipt(r, expectation) })
+	expectation := ClockExpectation{request.Authority.Identity, request.Authority.Attempt, request.Authority.GetExpectedGeneration(), ClockCommand{Start: &ClockStart{Speed: request.GetSpeed(), Policy: request.Policy, LeaseMS: request.GetLeaseMs(), MaxTicks: request.GetMaxTicks()}}}
+	return control.clockCall(ctx, "rimgovernor/clock_start", request, request.Authority, func(r *k.ControlReceipt) error { return ValidateClockReceipt(r, expectation) })
 }
-func (control *ClockControl) Renew(ctx context.Context, request *k.RenewRequest, originalEpoch *k.Epoch, expectedOwner *a.Owner) (*k.ControlReply, Result, error) {
+func (control *ClockControl) Renew(ctx context.Context, request *k.RenewRequest, originalEpoch *k.Epoch) (*k.ControlReply, Result, error) {
 	if request == nil {
 		return nil, Result{}, contract("clock renew required")
 	}
 	request = proto.Clone(request).(*k.RenewRequest)
-	if err := errors.Join(clockWire(request), clockPrecondition(request.Authority, expectedOwner), authorityDuration(request.LeaseMs)); err != nil {
+	if err := errors.Join(clockWire(request), clockPrecondition(request.Authority), authorityDuration(request.LeaseMs)); err != nil {
 		return nil, Result{}, err
 	}
 	if err := clockOriginal(request.Epoch, request.Authority, originalEpoch); err != nil {
 		return nil, Result{}, err
 	}
 	originalEpoch = proto.Clone(originalEpoch).(*k.Epoch)
-	expectedOwner = proto.Clone(expectedOwner).(*a.Owner)
-	expectation := ClockExpectation{request.Authority.Identity, request.Authority.Attempt, expectedOwner, request.Authority.GetExpectedGeneration(), ClockCommand{Renew: &ClockRenew{Original: originalEpoch, LeaseMS: request.GetLeaseMs()}}}
-	return control.clockCall(ctx, "rimgovernor/clock_renew", request, request.Authority, expectedOwner, func(r *k.ControlReceipt) error { return ValidateClockReceipt(r, expectation) })
+	expectation := ClockExpectation{request.Authority.Identity, request.Authority.Attempt, request.Authority.GetExpectedGeneration(), ClockCommand{Renew: &ClockRenew{Original: originalEpoch, LeaseMS: request.GetLeaseMs()}}}
+	return control.clockCall(ctx, "rimgovernor/clock_renew", request, request.Authority, func(r *k.ControlReceipt) error { return ValidateClockReceipt(r, expectation) })
 }
-func (control *ClockControl) ChangeSpeed(ctx context.Context, request *k.SpeedRequest, originalEpoch *k.Epoch, expectedOwner *a.Owner) (*k.ControlReply, Result, error) {
+func (control *ClockControl) ChangeSpeed(ctx context.Context, request *k.SpeedRequest, originalEpoch *k.Epoch) (*k.ControlReply, Result, error) {
 	if request == nil {
 		return nil, Result{}, contract("clock speed request required")
 	}
 	request = proto.Clone(request).(*k.SpeedRequest)
-	if err := errors.Join(clockWire(request), clockPrecondition(request.Authority, expectedOwner)); err != nil {
+	if err := errors.Join(clockWire(request), clockPrecondition(request.Authority)); err != nil {
 		return nil, Result{}, err
 	}
 	if request.Speed == nil || request.GetSpeed() < 1 || request.GetSpeed() > 3 {
@@ -110,9 +108,8 @@ func (control *ClockControl) ChangeSpeed(ctx context.Context, request *k.SpeedRe
 		return nil, Result{}, err
 	}
 	originalEpoch = proto.Clone(originalEpoch).(*k.Epoch)
-	expectedOwner = proto.Clone(expectedOwner).(*a.Owner)
-	expectation := ClockExpectation{request.Authority.Identity, request.Authority.Attempt, expectedOwner, request.Authority.GetExpectedGeneration(), ClockCommand{Speed: &ClockSpeed{Original: originalEpoch, Speed: request.GetSpeed()}}}
-	return control.clockCall(ctx, "rimgovernor/clock_change_speed", request, request.Authority, expectedOwner, func(r *k.ControlReceipt) error { return ValidateClockReceipt(r, expectation) })
+	expectation := ClockExpectation{request.Authority.Identity, request.Authority.Attempt, request.Authority.GetExpectedGeneration(), ClockCommand{Speed: &ClockSpeed{Original: originalEpoch, Speed: request.GetSpeed()}}}
+	return control.clockCall(ctx, "rimgovernor/clock_change_speed", request, request.Authority, func(r *k.ControlReceipt) error { return ValidateClockReceipt(r, expectation) })
 }
 func clockSameEpoch(actual, original *k.Epoch, speed k.Speed) error {
 	if actual == nil || !proto.Equal(actual.Owner, original.Owner) || !proto.Equal(actual.Origin, original.Origin) || !proto.Equal(actual.Policy, original.Policy) || actual.GetStartTick() != original.GetStartTick() || actual.GetTickDeadline() != original.GetTickDeadline() || actual.GetRequestedSpeed() != speed || actual.GetLastTick() < original.GetLastTick() {
@@ -120,7 +117,7 @@ func clockSameEpoch(actual, original *k.Epoch, speed k.Speed) error {
 	}
 	return nil
 }
-func (control *ClockControl) clockCall(ctx context.Context, name string, request proto.Message, pre *a.WritePrecondition, owner *a.Owner, validate func(*k.ControlReceipt) error) (*k.ControlReply, Result, error) {
+func (control *ClockControl) clockCall(ctx context.Context, name string, request proto.Message, pre *a.WritePrecondition, validate func(*k.ControlReceipt) error) (*k.ControlReply, Result, error) {
 	if control == nil || control.client == nil {
 		return nil, Result{}, contract("clock capability required")
 	}
@@ -144,7 +141,7 @@ func (control *ClockControl) clockCall(ctx context.Context, name string, request
 		}
 		err = contract("invalid clock pending result")
 	case *k.ControlReply_Receipt:
-		err = clockReceipt(v.Receipt, pre.Identity, pre.Attempt, owner, pre.GetExpectedGeneration())
+		err = clockReceipt(v.Receipt, pre.Identity, pre.Attempt, pre.GetExpectedGeneration())
 		if err == nil && v.Receipt.GetUncertain() != nil {
 			return reply, raw, &ClockUncertain{errors.New("native reported uncertain clock control"), raw}
 		}
@@ -230,7 +227,7 @@ func (client *Client) ReadClockAttempt(ctx context.Context, request *k.AttemptRe
 			err = contract("missing unknown attempt")
 		}
 	case *k.AttemptReply_Receipt:
-		err = clockReceipt(v.Receipt, request.Identity, request.Attempt, nil, 0)
+		err = clockReceipt(v.Receipt, request.Identity, request.Attempt, 0)
 	default:
 		err = contract("missing clock attempt outcome")
 	}
@@ -384,14 +381,14 @@ func clockStatus(s *k.Status, identity *c.Identity) error {
 	}
 	return nil
 }
-func clockReceipt(r *k.ControlReceipt, identity *c.Identity, attempt *c.AttemptKey, owner *a.Owner, generation uint64) error {
+func clockReceipt(r *k.ControlReceipt, identity *c.Identity, attempt *c.AttemptKey, generation uint64) error {
 	if r == nil {
 		return contract("clock receipt required")
 	}
-	if err := errors.Join(clockWire(r), buildingAttempt(r.Attempt), ValidateContext(r.AdmittedContext), authorityOwner(r.AuthorizingOwner)); err != nil {
+	if err := errors.Join(clockWire(r), buildingAttempt(r.Attempt), ValidateContext(r.AdmittedContext)); err != nil {
 		return err
 	}
-	if !proto.Equal(r.Attempt, attempt) || !sameIdentity(r.AdmittedContext.Identity, identity) || r.AdmittedContext.NativeGeneration == nil || (generation != 0 && r.AdmittedContext.GetNativeGeneration() != generation) || r.AuthorizingOwner.GetControllerSessionId() != attempt.GetControllerSessionId() || (owner != nil && !proto.Equal(r.AuthorizingOwner, owner)) {
+	if !proto.Equal(r.Attempt, attempt) || !sameIdentity(r.AdmittedContext.Identity, identity) || r.AdmittedContext.NativeGeneration == nil || (generation != 0 && r.AdmittedContext.GetNativeGeneration() != generation) {
 		return contract("clock receipt admission mismatch")
 	}
 	switch v := r.Outcome.(type) {

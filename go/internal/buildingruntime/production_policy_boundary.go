@@ -27,7 +27,7 @@ type ProductionPolicyNative interface {
 	ObserveProductionPolicyProgress(context.Context, bridge.ProductionPolicyAttempt, *rp.Receipt) (*rp.ProgressReply, bridge.Result, error)
 }
 type ProductionPolicyWriter interface {
-	ApplyProductionPolicy(context.Context, *a.WritePrecondition, *a.Owner, bridge.ProductionPolicyTarget) (*op.ExecuteReply, bridge.Result, error)
+	ApplyProductionPolicy(context.Context, *a.WritePrecondition, bridge.ProductionPolicyTarget) (*op.ExecuteReply, bridge.Result, error)
 }
 type ProductionPolicyCapabilities struct {
 	Native ProductionPolicyNative
@@ -134,7 +134,7 @@ func drillsFromRead(rows []bridge.ProductionDrill) []bridge.ProductionDrillTarge
 }
 
 func (b *productionPolicyBoundary) productionPolicyAttempt(p executor.Placement, target bridge.ProductionPolicyTarget) bridge.ProductionPolicyAttempt {
-	return bridge.ProductionPolicyAttempt{Identity: boundary.Identity(p.Snapshot), Attempt: b.Attempt(p), Owner: &a.Owner{ControllerSessionId: proto.String(b.Session), PlayerDirection: proto.Uint64(uint64(p.Snapshot.Direction))}, Generation: uint64(p.Snapshot.Native), Target: target}
+	return bridge.ProductionPolicyAttempt{Identity: boundary.Identity(p.Snapshot), Attempt: b.Attempt(p), Generation: uint64(p.Snapshot.Native), Target: target}
 }
 
 func (b *productionPolicyBoundary) SetProductionPolicy(ctx context.Context, d executor.ProductionPolicyDispatch) (executor.Receipt, error) {
@@ -149,8 +149,7 @@ func (b *productionPolicyBoundary) SetProductionPolicy(ctx context.Context, d ex
 			return nil
 		},
 		func(pre *a.WritePrecondition) (*op.ExecuteReply, bridge.Result, error) {
-			owner := &a.Owner{ControllerSessionId: proto.String(b.Session), PlayerDirection: proto.Uint64(uint64(p.Snapshot.Direction))}
-			return b.production.Writer.ApplyProductionPolicy(ctx, pre, owner, target)
+			return b.production.Writer.ApplyProductionPolicy(ctx, pre, target)
 		},
 	)
 }

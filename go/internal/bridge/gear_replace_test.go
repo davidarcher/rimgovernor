@@ -17,7 +17,7 @@ import (
 )
 
 func gearReplacePre() *a.WritePrecondition {
-	return &a.WritePrecondition{Identity: pbIdentity(), ExpectedGeneration: proto.Uint64(1), LeaseId: proto.String("lease"), Attempt: &c.AttemptKey{ControllerSessionId: proto.String("controller"), ActionId: proto.String("action"), AttemptId: proto.Uint64(1)}}
+	return &a.WritePrecondition{Identity: pbIdentity(), ExpectedGeneration: proto.Uint64(1), Attempt: &c.AttemptKey{ControllerSessionId: proto.String("controller"), ActionId: proto.String("action"), AttemptId: proto.Uint64(1)}}
 }
 func gearReplaceEffectEvidence() *r.EffectEvidence {
 	return &r.EffectEvidence{Effect: &r.EffectEvidence_Job{Job: &r.JobEffect{
@@ -30,11 +30,10 @@ func gearReplaceEffectEvidence() *r.EffectEvidence {
 	}}}
 }
 func gearReplaceAdmission() *r.Receipt {
-	return &r.Receipt{Attempt: gearReplacePre().Attempt, AdmittedContext: &c.ObservationContext{Identity: pbIdentity(), Tick: proto.Int64(10), NativeGeneration: proto.Uint64(1)}, AuthorizingOwner: &a.Owner{ControllerSessionId: proto.String("controller"), PlayerDirection: proto.Uint64(1)}, Outcome: &r.Receipt_Applied{Applied: &r.Applied{Observed: gearReplaceEffectEvidence()}}}
+	return &r.Receipt{Attempt: gearReplacePre().Attempt, AdmittedContext: &c.ObservationContext{Identity: pbIdentity(), Tick: proto.Int64(10), NativeGeneration: proto.Uint64(1)}, Outcome: &r.Receipt_Applied{Applied: &r.Applied{Observed: gearReplaceEffectEvidence()}}}
 }
 func gearReplaceAttemptFixture() GearReplaceAttempt {
-	admission := gearReplaceAdmission()
-	return GearReplaceAttempt{Identity: pbIdentity(), Attempt: gearReplacePre().Attempt, Owner: admission.AuthorizingOwner, Generation: 1, Pawn: "pawn", Thing: "thing", PawnToken: "pawn-token", ThingToken: "thing-token", LoadoutToken: "loadout-token"}
+	return GearReplaceAttempt{Identity: pbIdentity(), Attempt: gearReplacePre().Attempt, Generation: 1, Pawn: "pawn", Thing: "thing", PawnToken: "pawn-token", ThingToken: "thing-token", LoadoutToken: "loadout-token"}
 }
 
 func TestPreviewGearReplaceAcceptedAndRejections(t *testing.T) {
@@ -144,18 +143,17 @@ func TestApplyGearReplaceCorrelationAndOwnerMismatch(t *testing.T) {
 		t.Fatal(err)
 	}
 	pre := gearReplacePre()
-	owner := gearReplaceAdmission().AuthorizingOwner
-	reply, raw, err := writer.ApplyGearReplace(context.Background(), pre, owner, "pawn", "pawn-token", "thing", "thing-token", "loadout-token")
+	reply, raw, err := writer.ApplyGearReplace(context.Background(), pre, "pawn", "pawn-token", "thing", "thing-token", "loadout-token")
 	if err != nil || reply.GetReceipt() == nil || len(raw.Envelope) == 0 {
 		t.Fatal(err)
 	}
 	mismatched := &testServer{schema: protoSchema, handler: func(context.Context, nativeArgument) (*mcp.CallToolResult, error) {
 		admission := gearReplaceAdmission()
-		admission.AuthorizingOwner.ControllerSessionId = proto.String("someone-else")
+		admission.Attempt.AttemptId = proto.Uint64(999)
 		return pbResult(&op.ExecuteReply{Outcome: &op.ExecuteReply_Receipt{Receipt: admission}}), nil
 	}}
 	writer, _ = NewGearReplaceWriter(testClient(t, mismatched, time.Second))
-	if _, _, err = writer.ApplyGearReplace(context.Background(), pre, owner, "pawn", "pawn-token", "thing", "thing-token", "loadout-token"); !errors.Is(err, ErrContract) {
+	if _, _, err = writer.ApplyGearReplace(context.Background(), pre, "pawn", "pawn-token", "thing", "thing-token", "loadout-token"); !errors.Is(err, ErrContract) {
 		t.Fatal("owner mismatch accepted", err)
 	}
 }
@@ -163,20 +161,18 @@ func TestApplyGearReplaceCorrelationAndOwnerMismatch(t *testing.T) {
 func TestApplyGearReplaceInvalidInputsNeverDispatch(t *testing.T) {
 	s := &testServer{schema: protoSchema}
 	writer, _ := NewGearReplaceWriter(testClient(t, s, time.Second))
-	owner := gearReplaceAdmission().AuthorizingOwner
 	for _, change := range []func(*a.WritePrecondition){
 		func(v *a.WritePrecondition) { v.ExpectedGeneration = nil },
 		func(v *a.WritePrecondition) { v.ExpectedGeneration = proto.Uint64(0) },
-		func(v *a.WritePrecondition) { v.LeaseId = nil },
 		func(v *a.WritePrecondition) { v.Attempt.AttemptId = nil },
 	} {
 		pre := gearReplacePre()
 		change(pre)
-		if _, _, err := writer.ApplyGearReplace(context.Background(), pre, owner, "pawn", "pawn-token", "thing", "thing-token", "loadout-token"); !errors.Is(err, ErrContract) {
+		if _, _, err := writer.ApplyGearReplace(context.Background(), pre, "pawn", "pawn-token", "thing", "thing-token", "loadout-token"); !errors.Is(err, ErrContract) {
 			t.Fatal("invalid precondition accepted", err)
 		}
 	}
-	if _, _, err := writer.ApplyGearReplace(context.Background(), gearReplacePre(), owner, "pawn", "pawn-token", "pawn", "thing-token", "loadout-token"); !errors.Is(err, ErrContract) {
+	if _, _, err := writer.ApplyGearReplace(context.Background(), gearReplacePre(), "pawn", "pawn-token", "pawn", "thing-token", "loadout-token"); !errors.Is(err, ErrContract) {
 		t.Fatal("pawn/thing collision accepted", err)
 	}
 	if len(s.calls) != 0 {
@@ -236,14 +232,14 @@ func TestLookupAndObserveGearReplace(t *testing.T) {
 		return out, nil
 	}}
 	writer, _ := NewGearReplaceWriter(testClient(t, refusal, time.Second))
-	if _, raw, err := writer.ApplyGearReplace(context.Background(), gearReplacePre(), admission.AuthorizingOwner, "pawn", "pawn-token", "thing", "thing-token", "loadout-token"); !errors.Is(err, ErrRefused) || len(raw.Envelope) == 0 {
+	if _, raw, err := writer.ApplyGearReplace(context.Background(), gearReplacePre(), "pawn", "pawn-token", "thing", "thing-token", "loadout-token"); !errors.Is(err, ErrRefused) || len(raw.Envelope) == 0 {
 		t.Fatal("typed refusal lost", err)
 	}
 	lost := &testServer{schema: protoSchema, handler: func(context.Context, nativeArgument) (*mcp.CallToolResult, error) {
 		return nil, errors.New("lost after potential effect")
 	}}
 	writer, _ = NewGearReplaceWriter(testClient(t, lost, time.Second))
-	if reply, _, err := writer.ApplyGearReplace(context.Background(), gearReplacePre(), admission.AuthorizingOwner, "pawn", "pawn-token", "thing", "thing-token", "loadout-token"); err == nil || reply != nil || len(lost.calls) != 1 {
+	if reply, _, err := writer.ApplyGearReplace(context.Background(), gearReplacePre(), "pawn", "pawn-token", "thing", "thing-token", "loadout-token"); err == nil || reply != nil || len(lost.calls) != 1 {
 		t.Fatal("lost reply fabricated outcome or retried", err)
 	}
 }

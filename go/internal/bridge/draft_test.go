@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	a "github.com/davidarcher/RimGovernor/go/internal/wire/authoritypb"
 	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
 	o "github.com/davidarcher/RimGovernor/go/internal/wire/operationspb"
 	r "github.com/davidarcher/RimGovernor/go/internal/wire/receiptspb"
@@ -17,7 +16,7 @@ import (
 )
 
 func draftTestAttempt() DraftAttempt {
-	return DraftAttempt{Identity: pbIdentity(), Attempt: buildingPre().Attempt, NativeGeneration: 1, Owner: &a.Owner{ControllerSessionId: proto.String("controller"), PlayerDirection: proto.Uint64(9)}, PawnID: "pawn"}
+	return DraftAttempt{Identity: pbIdentity(), Attempt: buildingPre().Attempt, NativeGeneration: 1, PawnID: "pawn"}
 }
 func draftTestPawn() *o.EntityPrecondition {
 	return &o.EntityPrecondition{EntityId: proto.String("pawn"), ExpectedSnapshotToken: proto.String("before")}
@@ -29,10 +28,10 @@ func draftTestEvidence() *r.EffectEvidence {
 	return &r.EffectEvidence{Effect: &r.EffectEvidence_Job{Job: draftTestJob()}}
 }
 func draftTestReceipt() *r.Receipt {
-	return &r.Receipt{Attempt: buildingPre().Attempt, AdmittedContext: buildingAdmission().AdmittedContext, AuthorizingOwner: draftTestAttempt().Owner, Outcome: &r.Receipt_Applied{Applied: &r.Applied{Observed: draftTestEvidence()}}}
+	return &r.Receipt{Attempt: buildingPre().Attempt, AdmittedContext: buildingAdmission().AdmittedContext, Outcome: &r.Receipt_Applied{Applied: &r.Applied{Observed: draftTestEvidence()}}}
 }
 func draftTestRelease() *o.ReleaseOwnedDraftRequest {
-	return &o.ReleaseOwnedDraftRequest{Identity: pbIdentity(), Pawn: draftTestPawn(), ExpectedClaimId: proto.String("claim"), OriginalOwner: draftTestAttempt().Owner}
+	return &o.ReleaseOwnedDraftRequest{Identity: pbIdentity(), Pawn: draftTestPawn(), ExpectedClaimId: proto.String("claim")}
 }
 func draftTestRequest(t *testing.T, arg nativeArgument, expected proto.Message) {
 	t.Helper()
@@ -49,7 +48,6 @@ func draftTestRequest(t *testing.T, arg nativeArgument, expected proto.Message) 
 }
 func TestDraftFixedCapabilityAndReplay(t *testing.T) {
 	pre := buildingPre()
-	owner := draftTestAttempt().Owner
 	pawn := draftTestPawn()
 	calls := 0
 	client := testClient(t, &testServer{schema: protoSchema, handler: func(_ context.Context, arg nativeArgument) (*mcp.CallToolResult, error) {
@@ -65,7 +63,7 @@ func TestDraftFixedCapabilityAndReplay(t *testing.T) {
 		t.Fatal(err)
 	}
 	for range 2 {
-		reply, raw, err := control.DraftPawn(context.Background(), pre, owner, pawn)
+		reply, raw, err := control.DraftPawn(context.Background(), pre, pawn)
 		if err != nil || len(raw.Envelope) == 0 || !proto.Equal(reply.GetReceipt(), draftTestReceipt()) {
 			t.Fatal(reply, err)
 		}
@@ -78,7 +76,7 @@ func TestDraftFixedCapabilityAndReplay(t *testing.T) {
 	}
 }
 func TestDraftReceiptCorrelationAndUncertainty(t *testing.T) {
-	for name, edit := range map[string]func(*r.Receipt){"owner direction": func(v *r.Receipt) { v.AuthorizingOwner.PlayerDirection = proto.Uint64(10) }, "owner session": func(v *r.Receipt) { v.AuthorizingOwner.ControllerSessionId = proto.String("foreign") }, "attempt": func(v *r.Receipt) { v.Attempt.AttemptId = proto.Uint64(2) }, "world": func(v *r.Receipt) { v.AdmittedContext.Identity.LoadToken = proto.String("other") }, "generation": func(v *r.Receipt) { v.AdmittedContext.NativeGeneration = proto.Uint64(2) }, "pawn": func(v *r.Receipt) { v.GetApplied().Observed.GetJob().PawnId = proto.String("other") }, "claim absent": func(v *r.Receipt) { v.GetApplied().Observed.GetJob().DraftClaimId = nil }, "unverified": func(v *r.Receipt) { v.GetApplied().Observed.GetJob().Verified = nil }, "unrelated effect": func(v *r.Receipt) { v.GetApplied().Observed = buildingEffect() }, "job order": func(v *r.Receipt) { v.GetApplied().Observed.GetJob().JobDef = proto.String("Attack") }, "unknown": func(v *r.Receipt) { v.AuthorizingOwner.ProtoReflect().SetUnknown([]byte{0x18, 1}) }} {
+	for name, edit := range map[string]func(*r.Receipt){"attempt": func(v *r.Receipt) { v.Attempt.AttemptId = proto.Uint64(2) }, "world": func(v *r.Receipt) { v.AdmittedContext.Identity.LoadToken = proto.String("other") }, "generation": func(v *r.Receipt) { v.AdmittedContext.NativeGeneration = proto.Uint64(2) }, "pawn": func(v *r.Receipt) { v.GetApplied().Observed.GetJob().PawnId = proto.String("other") }, "claim absent": func(v *r.Receipt) { v.GetApplied().Observed.GetJob().DraftClaimId = nil }, "unverified": func(v *r.Receipt) { v.GetApplied().Observed.GetJob().Verified = nil }, "unrelated effect": func(v *r.Receipt) { v.GetApplied().Observed = buildingEffect() }, "job order": func(v *r.Receipt) { v.GetApplied().Observed.GetJob().JobDef = proto.String("Attack") }, "unknown": func(v *r.Receipt) { v.GetApplied().Observed.GetJob().ProtoReflect().SetUnknown([]byte{0x18, 1}) }} {
 		t.Run(name, func(t *testing.T) {
 			v := draftTestReceipt()
 			edit(v)
@@ -213,9 +211,9 @@ func TestDraftCleanupExactClaimNoLease(t *testing.T) {
 				t.Fatal(got, err)
 			}
 			if kind == "released" {
-				value.Request.OriginalOwner.PlayerDirection = proto.Uint64(3)
+				value.Request.ExpectedClaimId = proto.String("replacement")
 				if err := draftRelease(value, request, true); err == nil {
-					t.Fatal("changed owner echo accepted")
+					t.Fatal("changed request echo accepted")
 				}
 			}
 		})
@@ -241,7 +239,7 @@ func TestDraftFailureLostReplyAndCancellation(t *testing.T) {
 			control, _ := NewDraftControl(client)
 			ctx, cancel := context.WithTimeout(context.Background(), 30*time.Millisecond)
 			defer cancel()
-			reply, _, err := control.DraftPawn(ctx, buildingPre(), draftTestAttempt().Owner, draftTestPawn())
+			reply, _, err := control.DraftPawn(ctx, buildingPre(), draftTestPawn())
 			if err == nil || calls.Load() != 1 {
 				t.Fatal(reply, err, calls.Load())
 			}

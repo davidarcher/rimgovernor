@@ -17,7 +17,7 @@ import (
 )
 
 func recoveryServicePre() *a.WritePrecondition {
-	return &a.WritePrecondition{Identity: pbIdentity(), ExpectedGeneration: proto.Uint64(1), LeaseId: proto.String("lease"), Attempt: &c.AttemptKey{ControllerSessionId: proto.String("controller"), ActionId: proto.String("action"), AttemptId: proto.Uint64(1)}}
+	return &a.WritePrecondition{Identity: pbIdentity(), ExpectedGeneration: proto.Uint64(1), Attempt: &c.AttemptKey{ControllerSessionId: proto.String("controller"), ActionId: proto.String("action"), AttemptId: proto.Uint64(1)}}
 }
 func recoveryServiceEffectEvidence() *r.EffectEvidence {
 	return &r.EffectEvidence{Effect: &r.EffectEvidence_Job{Job: &r.JobEffect{
@@ -30,11 +30,10 @@ func recoveryServiceEffectEvidence() *r.EffectEvidence {
 	}}}
 }
 func recoveryServiceAdmission() *r.Receipt {
-	return &r.Receipt{Attempt: recoveryServicePre().Attempt, AdmittedContext: &c.ObservationContext{Identity: pbIdentity(), Tick: proto.Int64(10), NativeGeneration: proto.Uint64(1)}, AuthorizingOwner: &a.Owner{ControllerSessionId: proto.String("controller"), PlayerDirection: proto.Uint64(1)}, Outcome: &r.Receipt_Applied{Applied: &r.Applied{Observed: recoveryServiceEffectEvidence()}}}
+	return &r.Receipt{Attempt: recoveryServicePre().Attempt, AdmittedContext: &c.ObservationContext{Identity: pbIdentity(), Tick: proto.Int64(10), NativeGeneration: proto.Uint64(1)}, Outcome: &r.Receipt_Applied{Applied: &r.Applied{Observed: recoveryServiceEffectEvidence()}}}
 }
 func recoveryServiceAttemptFixture() RecoveryServiceAttempt {
-	admission := recoveryServiceAdmission()
-	return RecoveryServiceAttempt{Identity: pbIdentity(), Attempt: recoveryServicePre().Attempt, Owner: admission.AuthorizingOwner, Generation: 1, Pawn: "pawn", Thing: "thing", PawnToken: "pawn-token", ThingToken: "thing-token", Method: RecoveryServiceRepair}
+	return RecoveryServiceAttempt{Identity: pbIdentity(), Attempt: recoveryServicePre().Attempt, Generation: 1, Pawn: "pawn", Thing: "thing", PawnToken: "pawn-token", ThingToken: "thing-token", Method: RecoveryServiceRepair}
 }
 
 func TestPreviewRecoveryServiceAcceptedAndRejections(t *testing.T) {
@@ -146,18 +145,17 @@ func TestApplyRecoveryServiceCorrelationAndOwnerMismatch(t *testing.T) {
 		t.Fatal(err)
 	}
 	pre := recoveryServicePre()
-	owner := recoveryServiceAdmission().AuthorizingOwner
-	reply, raw, err := writer.ApplyRecoveryService(context.Background(), pre, owner, "pawn", "pawn-token", "thing", "thing-token", RecoveryServiceRepair)
+	reply, raw, err := writer.ApplyRecoveryService(context.Background(), pre, "pawn", "pawn-token", "thing", "thing-token", RecoveryServiceRepair)
 	if err != nil || reply.GetReceipt() == nil || len(raw.Envelope) == 0 {
 		t.Fatal(err)
 	}
 	mismatched := &testServer{schema: protoSchema, handler: func(context.Context, nativeArgument) (*mcp.CallToolResult, error) {
 		admission := recoveryServiceAdmission()
-		admission.AuthorizingOwner.ControllerSessionId = proto.String("someone-else")
+		admission.Attempt.AttemptId = proto.Uint64(999)
 		return pbResult(&op.ExecuteReply{Outcome: &op.ExecuteReply_Receipt{Receipt: admission}}), nil
 	}}
 	writer, _ = NewRecoveryServiceWriter(testClient(t, mismatched, time.Second))
-	if _, _, err = writer.ApplyRecoveryService(context.Background(), pre, owner, "pawn", "pawn-token", "thing", "thing-token", RecoveryServiceRepair); !errors.Is(err, ErrContract) {
+	if _, _, err = writer.ApplyRecoveryService(context.Background(), pre, "pawn", "pawn-token", "thing", "thing-token", RecoveryServiceRepair); !errors.Is(err, ErrContract) {
 		t.Fatal("owner mismatch accepted", err)
 	}
 }
@@ -165,23 +163,21 @@ func TestApplyRecoveryServiceCorrelationAndOwnerMismatch(t *testing.T) {
 func TestApplyRecoveryServiceInvalidInputsNeverDispatch(t *testing.T) {
 	s := &testServer{schema: protoSchema}
 	writer, _ := NewRecoveryServiceWriter(testClient(t, s, time.Second))
-	owner := recoveryServiceAdmission().AuthorizingOwner
 	for _, change := range []func(*a.WritePrecondition){
 		func(v *a.WritePrecondition) { v.ExpectedGeneration = nil },
 		func(v *a.WritePrecondition) { v.ExpectedGeneration = proto.Uint64(0) },
-		func(v *a.WritePrecondition) { v.LeaseId = nil },
 		func(v *a.WritePrecondition) { v.Attempt.AttemptId = nil },
 	} {
 		pre := recoveryServicePre()
 		change(pre)
-		if _, _, err := writer.ApplyRecoveryService(context.Background(), pre, owner, "pawn", "pawn-token", "thing", "thing-token", RecoveryServiceRepair); !errors.Is(err, ErrContract) {
+		if _, _, err := writer.ApplyRecoveryService(context.Background(), pre, "pawn", "pawn-token", "thing", "thing-token", RecoveryServiceRepair); !errors.Is(err, ErrContract) {
 			t.Fatal("invalid precondition accepted", err)
 		}
 	}
-	if _, _, err := writer.ApplyRecoveryService(context.Background(), recoveryServicePre(), owner, "pawn", "pawn-token", "pawn", "thing-token", RecoveryServiceRepair); !errors.Is(err, ErrContract) {
+	if _, _, err := writer.ApplyRecoveryService(context.Background(), recoveryServicePre(), "pawn", "pawn-token", "pawn", "thing-token", RecoveryServiceRepair); !errors.Is(err, ErrContract) {
 		t.Fatal("pawn/thing collision accepted", err)
 	}
-	if _, _, err := writer.ApplyRecoveryService(context.Background(), recoveryServicePre(), owner, "pawn", "pawn-token", "thing", "thing-token", RecoveryServiceUnspecified); !errors.Is(err, ErrContract) {
+	if _, _, err := writer.ApplyRecoveryService(context.Background(), recoveryServicePre(), "pawn", "pawn-token", "thing", "thing-token", RecoveryServiceUnspecified); !errors.Is(err, ErrContract) {
 		t.Fatal("unspecified method accepted", err)
 	}
 	if len(s.calls) != 0 {
@@ -241,14 +237,14 @@ func TestLookupAndObserveRecoveryService(t *testing.T) {
 		return out, nil
 	}}
 	writer, _ := NewRecoveryServiceWriter(testClient(t, refusal, time.Second))
-	if _, raw, err := writer.ApplyRecoveryService(context.Background(), recoveryServicePre(), admission.AuthorizingOwner, "pawn", "pawn-token", "thing", "thing-token", RecoveryServiceRepair); !errors.Is(err, ErrRefused) || len(raw.Envelope) == 0 {
+	if _, raw, err := writer.ApplyRecoveryService(context.Background(), recoveryServicePre(), "pawn", "pawn-token", "thing", "thing-token", RecoveryServiceRepair); !errors.Is(err, ErrRefused) || len(raw.Envelope) == 0 {
 		t.Fatal("typed refusal lost", err)
 	}
 	lost := &testServer{schema: protoSchema, handler: func(context.Context, nativeArgument) (*mcp.CallToolResult, error) {
 		return nil, errors.New("lost after potential effect")
 	}}
 	writer, _ = NewRecoveryServiceWriter(testClient(t, lost, time.Second))
-	if reply, _, err := writer.ApplyRecoveryService(context.Background(), recoveryServicePre(), admission.AuthorizingOwner, "pawn", "pawn-token", "thing", "thing-token", RecoveryServiceRepair); err == nil || reply != nil || len(lost.calls) != 1 {
+	if reply, _, err := writer.ApplyRecoveryService(context.Background(), recoveryServicePre(), "pawn", "pawn-token", "thing", "thing-token", RecoveryServiceRepair); err == nil || reply != nil || len(lost.calls) != 1 {
 		t.Fatal("lost reply fabricated outcome or retried", err)
 	}
 }

@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"errors"
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
-	a "github.com/davidarcher/RimGovernor/go/internal/wire/authoritypb"
 	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
 	o "github.com/davidarcher/RimGovernor/go/internal/wire/observationspb"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
@@ -107,8 +106,8 @@ func TestPawnsOptionalCASAndClaims(t *testing.T) {
 	row.Issues = nil
 	ref := &o.SnapshotRef{Context: proto.Clone(snapshot.Context).(*c.ObservationContext), EntityId: proto.String("pawn-1"), Token: proto.String("opaque")}
 	row.Pawn.Snapshot = ref
-	row.DraftClaim = &o.DraftClaimObservation{State: &o.DraftClaimObservation_Owned{Owned: &o.OwnedDraftClaim{ClaimId: proto.String("claim"), Owner: &a.Owner{ControllerSessionId: proto.String("owner"), PlayerDirection: proto.Uint64(math.MaxUint64)}, PawnSnapshot: proto.Clone(ref).(*o.SnapshotRef)}}}
-	for _, name := range []string{"valid", "wrongentity", "future", "wrongworld", "mismatchedtoken", "missingowner", "missingtoken"} {
+	row.DraftClaim = &o.DraftClaimObservation{State: &o.DraftClaimObservation_Owned{Owned: &o.OwnedDraftClaim{ClaimId: proto.String("claim"), PawnSnapshot: proto.Clone(ref).(*o.SnapshotRef)}}}
+	for _, name := range []string{"valid", "wrongentity", "future", "wrongworld", "mismatchedtoken", "missingtoken"} {
 		t.Run(name, func(t *testing.T) {
 			v := proto.Clone(snapshot).(*o.PawnSnapshot)
 			owned := v.Pawns[0].DraftClaim.GetOwned()
@@ -121,8 +120,6 @@ func TestPawnsOptionalCASAndClaims(t *testing.T) {
 				owned.PawnSnapshot.Context.Identity.LoadToken = proto.String("other")
 			case "mismatchedtoken":
 				owned.PawnSnapshot.Token = proto.String("different")
-			case "missingowner":
-				owned.Owner = nil
 			case "missingtoken":
 				owned.PawnSnapshot.Token = nil
 			}

@@ -32,7 +32,6 @@ var husbandryMethodValid = map[HusbandryMethod]bool{HusbandryMethodTrain: true, 
 type HusbandryAttempt struct {
 	Identity             *c.Identity
 	Attempt              *c.AttemptKey
-	Owner                *a.Owner
 	Generation           uint64
 	Animal, AnimalToken  string
 	ExpectedCensusToken  string
@@ -126,13 +125,7 @@ func husbandryAttempt(v HusbandryAttempt) (HusbandryAttempt, error) {
 	if err := buildingAttempt(v.Attempt); err != nil {
 		return HusbandryAttempt{}, err
 	}
-	if err := authorityOwner(v.Owner); err != nil {
-		return HusbandryAttempt{}, err
-	}
-	if err := buildingUnknown(v.Owner); err != nil {
-		return HusbandryAttempt{}, err
-	}
-	if v.Generation == 0 || v.Owner.GetControllerSessionId() != v.Attempt.GetControllerSessionId() {
+	if v.Generation == 0 {
 		return HusbandryAttempt{}, contract("husbandry admission owner or generation mismatch")
 	}
 	if err := husbandryCommand(v.Animal, v.AnimalToken, v.ExpectedCensusToken, v.Method, v.TrainableDef); err != nil {
@@ -140,7 +133,6 @@ func husbandryAttempt(v HusbandryAttempt) (HusbandryAttempt, error) {
 	}
 	v.Identity = proto.Clone(v.Identity).(*c.Identity)
 	v.Attempt = proto.Clone(v.Attempt).(*c.AttemptKey)
-	v.Owner = proto.Clone(v.Owner).(*a.Owner)
 	return v, nil
 }
 
@@ -162,7 +154,7 @@ func husbandryEvidence(effect *r.AnimalEffect, expected HusbandryAttempt) (*r.An
 }
 
 func husbandryReceipt(v *r.Receipt, expected HusbandryAttempt) error {
-	if v == nil || buildingUnknown(v) != nil || !proto.Equal(v.Attempt, expected.Attempt) || !proto.Equal(v.AuthorizingOwner, expected.Owner) {
+	if v == nil || buildingUnknown(v) != nil || !proto.Equal(v.Attempt, expected.Attempt) {
 		return contract("husbandry admission mismatch")
 	}
 	if err := buildingContext(v.AdmittedContext, expected.Identity, expected.Generation, true); err != nil {
@@ -200,14 +192,14 @@ func NewHusbandryWriter(client *Client) (*HusbandryWriter, error) {
 
 // ApplyHusbandry dispatches one already-admitted training request or
 // slaughter designation.
-func (writer *HusbandryWriter) ApplyHusbandry(ctx context.Context, pre *a.WritePrecondition, owner *a.Owner, animal, animalToken, census string, method HusbandryMethod, trainableDef string) (*o.ExecuteReply, Result, error) {
-	if writer == nil || writer.client == nil || pre == nil || buildingUnknown(pre) != nil || ValidateIdentity(pre.Identity) != nil || buildingAttempt(pre.Attempt) != nil || pre.GetExpectedGeneration() == 0 || validID(pre.GetLeaseId()) != nil {
+func (writer *HusbandryWriter) ApplyHusbandry(ctx context.Context, pre *a.WritePrecondition, animal, animalToken, census string, method HusbandryMethod, trainableDef string) (*o.ExecuteReply, Result, error) {
+	if writer == nil || writer.client == nil || pre == nil || buildingUnknown(pre) != nil || ValidateIdentity(pre.Identity) != nil || buildingAttempt(pre.Attempt) != nil || pre.GetExpectedGeneration() == 0 {
 		return nil, Result{}, contract("invalid husbandry execution")
 	}
 	if err := husbandryCommand(animal, animalToken, census, method, trainableDef); err != nil {
 		return nil, Result{}, err
 	}
-	expected, err := husbandryAttempt(HusbandryAttempt{Identity: pre.Identity, Attempt: pre.Attempt, Owner: owner, Generation: pre.GetExpectedGeneration(), Animal: animal, AnimalToken: animalToken, ExpectedCensusToken: census, Method: method, TrainableDef: trainableDef})
+	expected, err := husbandryAttempt(HusbandryAttempt{Identity: pre.Identity, Attempt: pre.Attempt, Generation: pre.GetExpectedGeneration(), Animal: animal, AnimalToken: animalToken, ExpectedCensusToken: census, Method: method, TrainableDef: trainableDef})
 	if err != nil {
 		return nil, Result{}, err
 	}

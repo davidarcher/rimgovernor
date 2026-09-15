@@ -47,7 +47,6 @@ type workerSession interface {
 	Run(context.Context, domain.PlanID, domain.ActionID) (executor.Result, error)
 	CleanupDraft(context.Context, domain.PlanID, domain.ActionID) (executor.Result, error)
 	ObserveTarget(context.Context, domain.GenerationSnapshot) error
-	Renew(context.Context) error
 }
 
 // Worker owns Player's lifecycle, but its caller retains bridge and store handles
@@ -87,10 +86,10 @@ func NewWorker(ctx context.Context, config WorkerConfig, player *Player, session
 	if config.RoutineMethods && !session.routineMethods {
 		return nil, ErrControl
 	}
-	return newWorker(ctx, config, player, session, session.control.config.LeaseDuration)
+	return newWorker(ctx, config, player, session)
 }
-func newWorker(ctx context.Context, config WorkerConfig, player *Player, session workerSession, lease time.Duration) (*Worker, error) {
-	if player == nil || session == nil || player.session != session || config.StepInterval <= 0 || config.MaxBackoff < config.StepInterval || config.MaxBackoff > time.Minute || config.StepTimeout <= 0 || config.StepTimeout > player.config.CallTimeout || config.RenewInterval <= 0 || config.RenewTimeout <= 0 || config.RenewInterval > lease/4 || config.RenewTimeout > lease/4 || config.PlayerPriorityGrace < 0 {
+func newWorker(ctx context.Context, config WorkerConfig, player *Player, session workerSession) (*Worker, error) {
+	if player == nil || session == nil || player.session != session || config.StepInterval <= 0 || config.MaxBackoff < config.StepInterval || config.MaxBackoff > time.Minute || config.StepTimeout <= 0 || config.StepTimeout > player.config.CallTimeout || config.PlayerPriorityGrace < 0 {
 		return nil, ErrControl
 	}
 	player.mu.Lock()
@@ -107,9 +106,8 @@ func newWorker(ctx context.Context, config WorkerConfig, player *Player, session
 	w.stopPlayer = context.AfterFunc(player.lifetime, cancel)
 	w.stopContext = context.AfterFunc(lifetime, func() { _ = w.stop() })
 	var loops sync.WaitGroup
-	loops.Add(2)
+	loops.Add(1)
 	go func() { defer loops.Done(); w.steps() }()
-	go func() { defer loops.Done(); w.renewals() }()
 	go func() { loops.Wait(); w.stop(); close(w.done) }()
 	return w, nil
 }
@@ -151,24 +149,6 @@ func (w *Worker) steps() {
 		case <-w.ctx.Done():
 			return
 		case <-ticker.C:
-		}
-	}
-}
-func (w *Worker) renewals() {
-	ticker := time.NewTicker(w.config.RenewInterval)
-	defer ticker.Stop()
-	for {
-		select {
-		case <-w.ctx.Done():
-			return
-		case <-ticker.C:
-		}
-		if w.session.State().Enabled {
-			call, cancel := context.WithTimeout(w.ctx, w.config.RenewTimeout)
-			// Control validates the existing lease and invalidates it on failure. This
-			// loop never takes the player gate, so Run cannot starve an existing lease.
-			_ = w.session.Renew(call)
-			cancel()
 		}
 	}
 }

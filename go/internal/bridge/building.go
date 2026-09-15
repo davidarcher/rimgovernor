@@ -128,7 +128,7 @@ func (client *Client) ObserveBuildingProgress(ctx context.Context, admitted *r.R
 	return reply, raw, err
 }
 func buildingInputs(pre *a.WritePrecondition, candidate *p.PlacementCandidate) error {
-	if pre == nil || pre.ExpectedGeneration == nil || pre.GetExpectedGeneration() == 0 || pre.LeaseId == nil || validID(pre.GetLeaseId()) != nil {
+	if pre == nil || pre.ExpectedGeneration == nil || pre.GetExpectedGeneration() == 0 {
 		return contract("building precondition presence")
 	}
 	if err := buildingUnknown(pre); err != nil {
@@ -181,10 +181,6 @@ func buildingReceipt(receipt *r.Receipt, pre *a.WritePrecondition, candidate *p.
 	}
 	if err := buildingCandidate(receipt.AdmittedContext.Identity, candidate); err != nil {
 		return err
-	}
-	owner := receipt.AuthorizingOwner
-	if owner == nil || owner.ControllerSessionId == nil || owner.PlayerDirection == nil || owner.GetPlayerDirection() == 0 || owner.GetControllerSessionId() != receipt.Attempt.GetControllerSessionId() {
-		return contract("receipt owner mismatch")
 	}
 	if pre != nil {
 		if !proto.Equal(receipt.Attempt, pre.Attempt) {

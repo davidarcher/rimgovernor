@@ -41,7 +41,7 @@ type BedAssignNative interface {
 	ObserveBedAssignProgress(context.Context, bridge.BedAssignAttempt, *r.Receipt) (*r.ProgressReply, bridge.Result, error)
 }
 type BedAssignWriter interface {
-	ApplyBedAssign(context.Context, *a.WritePrecondition, *a.Owner, string, string, string, string, bridge.BedAssignPreviousBed) (*o.ExecuteReply, bridge.Result, error)
+	ApplyBedAssign(context.Context, *a.WritePrecondition, string, string, string, string, bridge.BedAssignPreviousBed) (*o.ExecuteReply, bridge.Result, error)
 }
 type BedAssignCapabilities struct {
 	Native BedAssignNative
@@ -134,7 +134,7 @@ func (b *BedAssignBoundary) attempt(dispatch executor.BedAssignDispatch) (bridge
 	if err != nil || previous != assign.PreviousBed() {
 		return bridge.BedAssignAttempt{}, executor.ErrEvidence
 	}
-	return bridge.BedAssignAttempt{Identity: boundary.Identity(p.Snapshot), Attempt: &c.AttemptKey{ControllerSessionId: proto.String(b.session), ActionId: proto.String(string(p.Action.ID())), AttemptId: proto.Uint64(uint64(p.Attempt))}, Owner: &a.Owner{ControllerSessionId: proto.String(b.session), PlayerDirection: proto.Uint64(uint64(p.Snapshot.Direction))}, Generation: uint64(p.Snapshot.Native), Pawn: string(assign.Pawn()), Bed: assign.Bed(), PawnToken: admission.PawnSnapshotToken, BedToken: admission.BedSnapshotToken, Previous: bedAssignPreviousBedWire(assign.PreviousBed())}, nil
+	return bridge.BedAssignAttempt{Identity: boundary.Identity(p.Snapshot), Attempt: &c.AttemptKey{ControllerSessionId: proto.String(b.session), ActionId: proto.String(string(p.Action.ID())), AttemptId: proto.Uint64(uint64(p.Attempt))}, Generation: uint64(p.Snapshot.Native), Pawn: string(assign.Pawn()), Bed: assign.Bed(), PawnToken: admission.PawnSnapshotToken, BedToken: admission.BedSnapshotToken, Previous: bedAssignPreviousBedWire(assign.PreviousBed())}, nil
 }
 
 func (b *BedAssignBoundary) AssignBedPawn(ctx context.Context, dispatch executor.BedAssignDispatch) (executor.Receipt, error) {
@@ -154,8 +154,8 @@ func (b *BedAssignBoundary) AssignBedPawn(ctx context.Context, dispatch executor
 	if err = ctx.Err(); err != nil {
 		return out, err
 	}
-	pre := &a.WritePrecondition{Identity: attempt.Identity, Attempt: attempt.Attempt, ExpectedGeneration: proto.Uint64(attempt.Generation), LeaseId: proto.String(lease)}
-	reply, _, err := b.writer.ApplyBedAssign(ctx, pre, attempt.Owner, attempt.Pawn, attempt.PawnToken, attempt.Bed, attempt.BedToken, attempt.Previous)
+	pre := &a.WritePrecondition{Identity: attempt.Identity, Attempt: attempt.Attempt, ExpectedGeneration: proto.Uint64(attempt.Generation),}
+	reply, _, err := b.writer.ApplyBedAssign(ctx, pre, attempt.Pawn, attempt.PawnToken, attempt.Bed, attempt.BedToken, attempt.Previous)
 	var refused *bridge.NativeFailure
 	if errors.As(err, &refused) && refused.Value != nil && refused.Value.GetCode() != c.FailureCode_FAILURE_CODE_ATTEMPT_CONFLICT {
 		out.Kind = domain.ReceiptRefused
@@ -212,7 +212,7 @@ func (b *BedAssignBoundary) ObserveBedAssign(ctx context.Context, dispatch execu
 		if v.InFlight == nil || !proto.Equal(v.InFlight.Attempt, attempt.Attempt) {
 			return out, executor.ErrEvidence
 		}
-		if err = boundary.Admission(&r.Receipt{Attempt: v.InFlight.Attempt, AdmittedContext: v.InFlight.AdmittedContext, AuthorizingOwner: attempt.Owner}, p, b.session); err != nil {
+		if err = boundary.Admission(&r.Receipt{Attempt: v.InFlight.Attempt, AdmittedContext: v.InFlight.AdmittedContext}, p, b.session); err != nil {
 			return out, err
 		}
 	case *r.LookupReply_Receipt:

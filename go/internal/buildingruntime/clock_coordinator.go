@@ -24,9 +24,9 @@ type ClockNative interface {
 }
 type ClockWriter interface {
 	OwnedPause(context.Context, *k.OwnedRequest) (*k.StatusReply, bridge.Result, error)
-	Start(context.Context, *k.StartRequest, *a.Owner) (*k.ControlReply, bridge.Result, error)
-	Renew(context.Context, *k.RenewRequest, *k.Epoch, *a.Owner) (*k.ControlReply, bridge.Result, error)
-	ChangeSpeed(context.Context, *k.SpeedRequest, *k.Epoch, *a.Owner) (*k.ControlReply, bridge.Result, error)
+	Start(context.Context, *k.StartRequest) (*k.ControlReply, bridge.Result, error)
+	Renew(context.Context, *k.RenewRequest, *k.Epoch) (*k.ControlReply, bridge.Result, error)
+	ChangeSpeed(context.Context, *k.SpeedRequest, *k.Epoch) (*k.ControlReply, bridge.Result, error)
 }
 type ClockCoordinatorConfig struct{ CallTimeout, JournalTimeout time.Duration }
 type ClockCoordinator struct {
@@ -128,7 +128,7 @@ func (q *ClockCoordinator) Stop(ctx context.Context) error {
 }
 func clockCoordinatorExpectation(v store.ClockAttempt) bridge.ClockExpectation {
 	s := v.Intent.Snapshot
-	return bridge.ClockExpectation{Identity: boundary.Identity(s), Attempt: v.NativeAttempt, Owner: &a.Owner{ControllerSessionId: proto.String(v.NativeAttempt.GetControllerSessionId()), PlayerDirection: proto.Uint64(uint64(s.Direction))}, NativeGeneration: uint64(s.Native), Command: v.Intent.Command}
+	return bridge.ClockExpectation{Identity: boundary.Identity(s), Attempt: v.NativeAttempt, NativeGeneration: uint64(s.Native), Command: v.Intent.Command}
 }
 func clockCoordinatorTerminal(stage store.ClockEpochStage) bool {
 	return stage == store.ClockEpochPaused || stage == store.ClockEpochRetired || stage == store.ClockEpochSuperseded
@@ -311,18 +311,18 @@ func (q *ClockCoordinator) command(ctx context.Context, intent store.ClockIntent
 	if err = q.guard(call, generation, v.Intent.Snapshot); err != nil {
 		return q.uncertain(v, err)
 	}
-	pre := &a.WritePrecondition{Identity: e.Identity, Attempt: e.Attempt, ExpectedGeneration: proto.Uint64(e.NativeGeneration), LeaseId: proto.String(lease)}
+	pre := &a.WritePrecondition{Identity: e.Identity, Attempt: e.Attempt, ExpectedGeneration: proto.Uint64(e.NativeGeneration)}
 	var reply *k.ControlReply
 	switch command := v.Intent.Command; {
 	case command.Start != nil:
 		s := command.Start
-		reply, _, err = q.writer.Start(call, &k.StartRequest{Authority: pre, Speed: s.Speed.Enum(), Policy: s.Policy, LeaseMs: proto.Uint32(s.LeaseMS), MaxTicks: proto.Uint32(s.MaxTicks)}, e.Owner)
+		reply, _, err = q.writer.Start(call, &k.StartRequest{Authority: pre, Speed: s.Speed.Enum(), Policy: s.Policy, LeaseMs: proto.Uint32(s.LeaseMS), MaxTicks: proto.Uint32(s.MaxTicks)})
 	case command.Renew != nil:
 		r := command.Renew
-		reply, _, err = q.writer.Renew(call, &k.RenewRequest{Epoch: &k.OwnedRequest{Identity: e.Identity, Owner: r.Original.Owner}, Authority: pre, LeaseMs: proto.Uint32(r.LeaseMS)}, r.Original, e.Owner)
+		reply, _, err = q.writer.Renew(call, &k.RenewRequest{Epoch: &k.OwnedRequest{Identity: e.Identity, Owner: r.Original.Owner}, Authority: pre, LeaseMs: proto.Uint32(r.LeaseMS)}, r.Original)
 	case command.Speed != nil:
 		s := command.Speed
-		reply, _, err = q.writer.ChangeSpeed(call, &k.SpeedRequest{Epoch: &k.OwnedRequest{Identity: e.Identity, Owner: s.Original.Owner}, Authority: pre, Speed: s.Speed.Enum()}, s.Original, e.Owner)
+		reply, _, err = q.writer.ChangeSpeed(call, &k.SpeedRequest{Epoch: &k.OwnedRequest{Identity: e.Identity, Owner: s.Original.Owner}, Authority: pre, Speed: s.Speed.Enum()}, s.Original)
 	}
 	return q.record(v, reply, errors.Join(err, call.Err()))
 }

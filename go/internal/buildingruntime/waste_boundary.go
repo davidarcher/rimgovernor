@@ -32,7 +32,7 @@ type WasteNative interface {
 	ObserveWasteProgress(context.Context, bridge.WasteAttempt, *r.Receipt) (*r.ProgressReply, bridge.Result, error)
 }
 type WasteWriter interface {
-	ApplyWaste(context.Context, *a.WritePrecondition, *a.Owner, string, string, string, string, []string, []string) (*o.ExecuteReply, bridge.Result, error)
+	ApplyWaste(context.Context, *a.WritePrecondition, string, string, string, string, []string, []string) (*o.ExecuteReply, bridge.Result, error)
 }
 type WasteCapabilities struct {
 	Native WasteNative
@@ -138,7 +138,6 @@ func (b *WasteBoundary) attempt(dispatch executor.WasteDispatch) (bridge.WasteAt
 	return bridge.WasteAttempt{
 		Identity:   boundary.Identity(p.Snapshot),
 		Attempt:    &c.AttemptKey{ControllerSessionId: proto.String(b.session), ActionId: proto.String(string(p.Action.ID())), AttemptId: proto.Uint64(uint64(p.Attempt))},
-		Owner:      &a.Owner{ControllerSessionId: proto.String(b.session), PlayerDirection: proto.Uint64(uint64(p.Snapshot.Direction))},
 		Generation: uint64(p.Snapshot.Native),
 		Pawn:       string(waste.Pawn()), PawnToken: admission.PawnSnapshotToken,
 		Target: waste.Target(), TargetToken: admission.TargetSnapshotToken,
@@ -162,8 +161,8 @@ func (b *WasteBoundary) ManageWaste(ctx context.Context, dispatch executor.Waste
 	if err = ctx.Err(); err != nil {
 		return out, err
 	}
-	pre := &a.WritePrecondition{Identity: attempt.Identity, Attempt: attempt.Attempt, ExpectedGeneration: proto.Uint64(attempt.Generation), LeaseId: proto.String(lease)}
-	reply, _, err := b.writer.ApplyWaste(ctx, pre, attempt.Owner, attempt.Pawn, attempt.PawnToken, attempt.Target, attempt.TargetToken, attempt.UnwantedIDs, attempt.BuryIDs)
+	pre := &a.WritePrecondition{Identity: attempt.Identity, Attempt: attempt.Attempt, ExpectedGeneration: proto.Uint64(attempt.Generation),}
+	reply, _, err := b.writer.ApplyWaste(ctx, pre, attempt.Pawn, attempt.PawnToken, attempt.Target, attempt.TargetToken, attempt.UnwantedIDs, attempt.BuryIDs)
 	var refused *bridge.NativeFailure
 	if errors.As(err, &refused) && refused.Value != nil && refused.Value.GetCode() != c.FailureCode_FAILURE_CODE_ATTEMPT_CONFLICT {
 		out.Kind = domain.ReceiptRefused

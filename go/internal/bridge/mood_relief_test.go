@@ -18,7 +18,7 @@ import (
 
 func moodReliefJob() MoodReliefExpectedJob { id := int32(7); return MoodReliefExpectedJob{JobID: &id} }
 func moodReliefPre() *a.WritePrecondition {
-	return &a.WritePrecondition{Identity: pbIdentity(), ExpectedGeneration: proto.Uint64(1), LeaseId: proto.String("lease"), Attempt: &c.AttemptKey{ControllerSessionId: proto.String("controller"), ActionId: proto.String("action"), AttemptId: proto.Uint64(1)}}
+	return &a.WritePrecondition{Identity: pbIdentity(), ExpectedGeneration: proto.Uint64(1), Attempt: &c.AttemptKey{ControllerSessionId: proto.String("controller"), ActionId: proto.String("action"), AttemptId: proto.Uint64(1)}}
 }
 func moodReliefEffectEvidence() *r.EffectEvidence {
 	return &r.EffectEvidence{Effect: &r.EffectEvidence_Job{Job: &r.JobEffect{
@@ -31,11 +31,10 @@ func moodReliefEffectEvidence() *r.EffectEvidence {
 	}}}
 }
 func moodReliefAdmission() *r.Receipt {
-	return &r.Receipt{Attempt: moodReliefPre().Attempt, AdmittedContext: &c.ObservationContext{Identity: pbIdentity(), Tick: proto.Int64(10), NativeGeneration: proto.Uint64(1)}, AuthorizingOwner: &a.Owner{ControllerSessionId: proto.String("controller"), PlayerDirection: proto.Uint64(1)}, Outcome: &r.Receipt_Applied{Applied: &r.Applied{Observed: moodReliefEffectEvidence()}}}
+	return &r.Receipt{Attempt: moodReliefPre().Attempt, AdmittedContext: &c.ObservationContext{Identity: pbIdentity(), Tick: proto.Int64(10), NativeGeneration: proto.Uint64(1)}, Outcome: &r.Receipt_Applied{Applied: &r.Applied{Observed: moodReliefEffectEvidence()}}}
 }
 func moodReliefAttemptFixture() MoodReliefAttempt {
-	admission := moodReliefAdmission()
-	return MoodReliefAttempt{Identity: pbIdentity(), Attempt: moodReliefPre().Attempt, Owner: admission.AuthorizingOwner, Generation: 1, Pawn: "pawn", PawnToken: "pawn-token", Need: MoodReliefFood, ExpectedJob: moodReliefJob(), ExpectedScheduleDef: "Anything"}
+	return MoodReliefAttempt{Identity: pbIdentity(), Attempt: moodReliefPre().Attempt, Generation: 1, Pawn: "pawn", PawnToken: "pawn-token", Need: MoodReliefFood, ExpectedJob: moodReliefJob(), ExpectedScheduleDef: "Anything"}
 }
 
 func TestPreviewMoodReliefAcceptedAndRejections(t *testing.T) {
@@ -150,18 +149,17 @@ func TestApplyMoodReliefCorrelationAndOwnerMismatch(t *testing.T) {
 		t.Fatal(err)
 	}
 	pre := moodReliefPre()
-	owner := moodReliefAdmission().AuthorizingOwner
-	reply, raw, err := writer.ApplyMoodRelief(context.Background(), pre, owner, "pawn", "pawn-token", MoodReliefFood, moodReliefJob(), "Anything")
+	reply, raw, err := writer.ApplyMoodRelief(context.Background(), pre, "pawn", "pawn-token", MoodReliefFood, moodReliefJob(), "Anything")
 	if err != nil || reply.GetReceipt() == nil || len(raw.Envelope) == 0 {
 		t.Fatal(err)
 	}
 	mismatched := &testServer{schema: protoSchema, handler: func(context.Context, nativeArgument) (*mcp.CallToolResult, error) {
 		admission := moodReliefAdmission()
-		admission.AuthorizingOwner.ControllerSessionId = proto.String("someone-else")
+		admission.Attempt.AttemptId = proto.Uint64(999)
 		return pbResult(&op.ExecuteReply{Outcome: &op.ExecuteReply_Receipt{Receipt: admission}}), nil
 	}}
 	writer, _ = NewMoodReliefWriter(testClient(t, mismatched, time.Second))
-	if _, _, err = writer.ApplyMoodRelief(context.Background(), pre, owner, "pawn", "pawn-token", MoodReliefFood, moodReliefJob(), "Anything"); !errors.Is(err, ErrContract) {
+	if _, _, err = writer.ApplyMoodRelief(context.Background(), pre, "pawn", "pawn-token", MoodReliefFood, moodReliefJob(), "Anything"); !errors.Is(err, ErrContract) {
 		t.Fatal("owner mismatch accepted", err)
 	}
 }
@@ -169,20 +167,18 @@ func TestApplyMoodReliefCorrelationAndOwnerMismatch(t *testing.T) {
 func TestApplyMoodReliefInvalidInputsNeverDispatch(t *testing.T) {
 	s := &testServer{schema: protoSchema}
 	writer, _ := NewMoodReliefWriter(testClient(t, s, time.Second))
-	owner := moodReliefAdmission().AuthorizingOwner
 	for _, change := range []func(*a.WritePrecondition){
 		func(v *a.WritePrecondition) { v.ExpectedGeneration = nil },
 		func(v *a.WritePrecondition) { v.ExpectedGeneration = proto.Uint64(0) },
-		func(v *a.WritePrecondition) { v.LeaseId = nil },
 		func(v *a.WritePrecondition) { v.Attempt.AttemptId = nil },
 	} {
 		pre := moodReliefPre()
 		change(pre)
-		if _, _, err := writer.ApplyMoodRelief(context.Background(), pre, owner, "pawn", "pawn-token", MoodReliefFood, moodReliefJob(), "Anything"); !errors.Is(err, ErrContract) {
+		if _, _, err := writer.ApplyMoodRelief(context.Background(), pre, "pawn", "pawn-token", MoodReliefFood, moodReliefJob(), "Anything"); !errors.Is(err, ErrContract) {
 			t.Fatal("invalid precondition accepted", err)
 		}
 	}
-	if _, _, err := writer.ApplyMoodRelief(context.Background(), moodReliefPre(), owner, "pawn", "pawn-token", MoodReliefNeedUnspecified, moodReliefJob(), "Anything"); !errors.Is(err, ErrContract) {
+	if _, _, err := writer.ApplyMoodRelief(context.Background(), moodReliefPre(), "pawn", "pawn-token", MoodReliefNeedUnspecified, moodReliefJob(), "Anything"); !errors.Is(err, ErrContract) {
 		t.Fatal("unspecified need accepted", err)
 	}
 	if len(s.calls) != 0 {
@@ -238,14 +234,14 @@ func TestLookupAndObserveMoodRelief(t *testing.T) {
 		return out, nil
 	}}
 	writer, _ := NewMoodReliefWriter(testClient(t, refusal, time.Second))
-	if _, raw, err := writer.ApplyMoodRelief(context.Background(), moodReliefPre(), admission.AuthorizingOwner, "pawn", "pawn-token", MoodReliefFood, moodReliefJob(), "Anything"); !errors.Is(err, ErrRefused) || len(raw.Envelope) == 0 {
+	if _, raw, err := writer.ApplyMoodRelief(context.Background(), moodReliefPre(), "pawn", "pawn-token", MoodReliefFood, moodReliefJob(), "Anything"); !errors.Is(err, ErrRefused) || len(raw.Envelope) == 0 {
 		t.Fatal("typed refusal lost", err)
 	}
 	lost := &testServer{schema: protoSchema, handler: func(context.Context, nativeArgument) (*mcp.CallToolResult, error) {
 		return nil, errors.New("lost after potential effect")
 	}}
 	writer, _ = NewMoodReliefWriter(testClient(t, lost, time.Second))
-	if reply, _, err := writer.ApplyMoodRelief(context.Background(), moodReliefPre(), admission.AuthorizingOwner, "pawn", "pawn-token", MoodReliefFood, moodReliefJob(), "Anything"); err == nil || reply != nil || len(lost.calls) != 1 {
+	if reply, _, err := writer.ApplyMoodRelief(context.Background(), moodReliefPre(), "pawn", "pawn-token", MoodReliefFood, moodReliefJob(), "Anything"); err == nil || reply != nil || len(lost.calls) != 1 {
 		t.Fatal("lost reply fabricated outcome or retried", err)
 	}
 }

@@ -44,11 +44,10 @@ namespace HomeBridge.BridgeTools
             var pre = s.Typed.Authority;
             if (!NativeControlAuthority.TryGetForGame(Current.Game, out authority) || authority == null)
             { Stop(s, "unavailable", "Authorizing native authority is unavailable.", true, null); return true; }
-            var result = authority.Check(pre.ExpectedGeneration, pre.LeaseId, pre.Attempt.ControllerSessionId);
+            var result = authority.Check(pre.ExpectedGeneration);
             if (result.Success && TypedHooksReady()) return false;
             var reason = result.Snapshot.Reason;
             var kind = reason == NativeControlRevocationReason.IdentityChanged ? "session_changed"
-                : reason == NativeControlRevocationReason.LeaseExpired ? "lease_expired"
                 : reason == NativeControlRevocationReason.HooksUnavailable || reason == NativeControlRevocationReason.GenerationExhausted
                     || reason == NativeControlRevocationReason.ClockUnavailable || !TypedHooksReady() ? "unavailable" : "external_pause";
             Stop(s, kind, "Authorizing native authority stopped: " + reason + "; " + result.Error, true, null);
@@ -170,7 +169,7 @@ namespace HomeBridge.BridgeTools
                 catch (Exception) { return ProtoBoundary.Fail(Common.FailureCode.Unavailable, "Native clock enforcement hooks could not be verified."); }
                 if (requested.ExpectedGeneration != original.ExpectedGeneration)
                     return ProtoBoundary.Fail(Common.FailureCode.StaleGeneration, "A replacement authority generation cannot adopt an existing epoch.");
-                if (requested.LeaseId != original.LeaseId || requested.Attempt == null
+                if (requested.Attempt == null
                     || requested.Attempt.ControllerSessionId != original.Attempt.ControllerSessionId
                     || !original.Identity.Equals(requested.Identity))
                     return ProtoBoundary.Fail(Common.FailureCode.AuthorityRequired, "Clock control must retain the epoch's original authority grant.");
