@@ -518,7 +518,7 @@ func AuditResourceRules(plan map[string]any, names []string) error {
 var developmentGoalNames = map[string]bool{
 	"MaintainWood": true, "EnsureBasicDefense": true, "EnsureComfort": true, "EnsureExpansion": true,
 	"MaintainEquipment": true, "MaintainFireSafety": true, "SecureSupplies": true, "MaintainEssentialRepairs": true,
-	"MaintainCleanFacilities": true, "MaintainMedicalReserves": true, "MaintainAnimalContainment": true,
+	"MaintainCleanFacilities": true, "MaintainMedicalReserves": true, "MaintainFoodStorage": true, "MaintainAnimalContainment": true,
 	"MaintainAnimalFeed": true, "MaintainSleeping": true, "MaintainHomeCoverage": true, "MaintainStoneShell": true,
 	// MaintainStorage (G01.07b 05.2): the ordinary (non-deteriorating) haul
 	// counterpart to SecureSupplies, missing from this set until now.

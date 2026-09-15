@@ -24,6 +24,7 @@ const (
 	MaintainWood            GoalID = "MaintainWood"
 	MaintainMedicalCare     GoalID = "MaintainMedicalCare"
 	MaintainMedicalReserves GoalID = "MaintainMedicalReserves"
+	MaintainFoodStorage     GoalID = "MaintainFoodStorage"
 	EnsureComfort           GoalID = "EnsureComfort"
 	EnsureExpansion         GoalID = "EnsureExpansion"
 	MaintainEquipment       GoalID = "MaintainEquipment"
@@ -32,9 +33,15 @@ const (
 	ProductionPolicy        GoalID = "ProductionPolicy"
 )
 
+// foodStorageUpkeepPriority is MaintainFoodStorage's entry development
+// priority, the same priority medicalReservePriority (a local var, not a
+// const, at its own point of use below) starts MaintainMedicalReserves at.
+const foodStorageUpkeepPriority = 3
+
 type RoutinePolicy struct {
 	AnimalUpkeep                                  AnimalUpkeepPolicy
 	MedicalReserve                                MedicalReservePolicy
+	FoodStorage                                   FoodStoragePolicy
 	MaxDevelopmentProjects                        int
 	FoodMinDays, FoodTargetDays, FootholdFoodDays float64
 	ColdEnter, ColdExit, HotExit, HotEnter        float64
@@ -88,7 +95,7 @@ type RoutinePolicy struct {
 }
 
 func DefaultRoutinePolicy() RoutinePolicy {
-	return RoutinePolicy{AnimalUpkeep: DefaultAnimalUpkeepPolicy(), MedicalReserve: DefaultMedicalReservePolicy(), MaxDevelopmentProjects: 2, FoodMinDays: 3, FoodTargetDays: 7, FootholdFoodDays: 3,
+	return RoutinePolicy{AnimalUpkeep: DefaultAnimalUpkeepPolicy(), MedicalReserve: DefaultMedicalReservePolicy(), FoodStorage: DefaultFoodStoragePolicy(), MaxDevelopmentProjects: 2, FoodMinDays: 3, FoodTargetDays: 7, FootholdFoodDays: 3,
 		ColdEnter: 12, ColdExit: 16, HotExit: 28, HotEnter: 32, WoodMin: 120, WoodTarget: 350, WoodMax: 500}
 }
 
@@ -98,6 +105,9 @@ func (p RoutinePolicy) Validate() error {
 	}
 	if p.MedicalReserve.MinimumPerColonist < 0 || p.MedicalReserve.TargetPerColonist <= p.MedicalReserve.MinimumPerColonist {
 		return errors.New("invalid medicine reserve thresholds")
+	}
+	if !p.FoodStorage.valid() {
+		return errors.New("invalid food storage thresholds")
 	}
 	if p.MaxDevelopmentProjects < 1 || p.MaxDevelopmentProjects > 8 {
 		return errors.New("invalid development project limit")
@@ -177,6 +187,7 @@ type RoutineFacts struct {
 	Sleeping            domain.Fact[SleepingObservation]
 	SleepingRecovered   domain.Fact[bool]
 	AnimalUpkeep        AnimalUpkeepObservation
+	FoodStorageUpkeep   FoodStorageObservation
 	MedicalReserve      MedicalReserveObservation
 	// Prisoners carries Population-*'s recruit/maintain census: unlike
 	// AnimalUpkeep, this has no generic per-tick colony read to piggyback on
@@ -234,6 +245,7 @@ type RoutineLatches struct {
 	Sleeping                 bool
 	Animals                  AnimalUpkeepHistory
 	MedicalReserve           bool
+	FoodStorage              bool
 	Food, Cold, Hot, Wood    bool
 	Upkeep                   UpkeepHistory
 }
@@ -331,6 +343,10 @@ func DetectRoutine(f RoutineFacts, previous RoutineLatches, p RoutinePolicy) (Ro
 	if err != nil {
 		return RoutineNeeds{}, err
 	}
+	foodStorage, err := ReviewFoodStorage(f.FoodStorageUpkeep, previous.FoodStorage, p.FoodStorage)
+	if err != nil {
+		return RoutineNeeds{}, err
+	}
 	upkeep, err := ReviewUpkeep(f.Upkeep, previous.Upkeep, f.UpkeepIssued)
 	if err != nil {
 		return RoutineNeeds{}, err
@@ -406,6 +422,7 @@ func DetectRoutine(f RoutineFacts, previous RoutineLatches, p RoutinePolicy) (Ro
 		Sleeping:       sleepingActive,
 		Animals:        animals.History,
 		MedicalReserve: medicine.Active,
+		FoodStorage:    foodStorage.Active,
 		Upkeep:         upkeep.History,
 		Food:           latchValue(previous.Food, f.FoodDays, p.FoodMinDays, p.FoodTargetDays, false),
 		Cold:           latchValue(previous.Cold, fallback(f.SleepingMin, f.OutdoorTemperature), p.ColdEnter, p.ColdExit, false),
@@ -659,6 +676,19 @@ func DetectRoutine(f RoutineFacts, previous RoutineLatches, p RoutinePolicy) (Ro
 	addAssessment(MaintainMedicalReserves, medicalReservePriority, medicalReserveRecovered)
 	if !positive(medicalReserveRecovered) {
 		addGoal(MaintainMedicalReserves, medicalReservePriority)
+		r.Goals[len(r.Goals)-1].MethodUnavailable = true
+	}
+	foodStorageActive := foodStorage.Active || f.UpkeepIssued[MaintainFoodStorage]
+	foodStorageRecovered := domain.Unknown[bool]()
+	foodStoragePriority := foodStorageUpkeepPriority
+	if _, known := foodStorage.StoredNutrition.Value(); known {
+		foodStorageRecovered = domain.Known(!foodStorageActive)
+	} else if !foodStorageActive {
+		foodStoragePriority = 4
+	}
+	addAssessment(MaintainFoodStorage, foodStoragePriority, foodStorageRecovered)
+	if !positive(foodStorageRecovered) {
+		addGoal(MaintainFoodStorage, foodStoragePriority)
 		r.Goals[len(r.Goals)-1].MethodUnavailable = true
 	}
 	animalContainment := domain.Unknown[bool]()

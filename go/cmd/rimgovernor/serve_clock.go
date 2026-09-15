@@ -88,7 +88,7 @@ func serviceClockConfig(profile string, speed k.Speed) buildingruntime.ClockSche
 
 // Session owns the attached worker's drain, including failed startup cleanup.
 // Starting these loops does not enable Player or acquire native authority.
-func startServiceClock(ctx context.Context, player *buildingruntime.Player, session *buildingruntime.Session, reads serviceClockReads, journal *store.Store, profile string, clockSpeed string, timeout time.Duration, routine, sleeping, cooking, shelter, comfort, expansion, power, temperature bool, projectLimit int, supplies, work, acquisition, defense, tend, rescue, equip, secureSupplies, repair, clean, gear, medical, animalContainment, recovery, husbandry, homeCoverage, caravanJourneyTracking bool, researchTarget string, resourceTargets map[policy.Resource]int64, allowSlaughter bool, herdPopulationMax map[policy.Resource]int64, animalFeedPlans bool, productionPolicyPlans bool, productionReserves map[policy.Resource]int64, productionStopped []policy.Resource, fieldOptions ...bool) error {
+func startServiceClock(ctx context.Context, player *buildingruntime.Player, session *buildingruntime.Session, reads serviceClockReads, journal *store.Store, profile string, clockSpeed string, timeout time.Duration, routine, sleeping, cooking, shelter, comfort, expansion, power, temperature bool, projectLimit int, supplies, work, acquisition, defense, tend, rescue, equip, secureSupplies, repair, clean, gear, medical, foodStorageUpkeep, animalContainment, recovery, husbandry, homeCoverage, caravanJourneyTracking bool, researchTarget string, resourceTargets map[policy.Resource]int64, allowSlaughter bool, herdPopulationMax map[policy.Resource]int64, animalFeedPlans bool, productionPolicyPlans bool, productionReserves map[policy.Resource]int64, productionStopped []policy.Resource, fieldOptions ...bool) error {
 	// fieldOptions carries the field/bill/foodStorage/prisonerInteraction/
 	// populationCustody/stoneShell/haul/waste/mood/naming flags, in that fixed
 	// order, appended by the caller.
@@ -118,7 +118,7 @@ func startServiceClock(ctx context.Context, player *buildingruntime.Player, sess
 	if len(fieldOptions) > 10 {
 		return errors.New("invalid field option")
 	}
-	if (bills || fields || foodStorage || acquisition || work || supplies || sleeping || cooking || shelter || comfort || expansion || power || temperature || defense || tend || rescue || equip || secureSupplies || repair || clean || haul || waste || moodRelief || gear || medical || animalContainment || recovery || husbandry || prisonerInteraction || populationCustody || homeCoverage || stoneShell || naming || researchTarget != "" || len(resourceTargets) > 0 || animalFeedPlans || productionPolicyPlans) && !routine {
+	if (bills || fields || foodStorage || acquisition || work || supplies || sleeping || cooking || shelter || comfort || expansion || power || temperature || defense || tend || rescue || equip || secureSupplies || repair || clean || haul || waste || moodRelief || gear || medical || foodStorageUpkeep || animalContainment || recovery || husbandry || prisonerInteraction || populationCustody || homeCoverage || stoneShell || naming || researchTarget != "" || len(resourceTargets) > 0 || animalFeedPlans || productionPolicyPlans) && !routine {
 		return errors.New("building plans require routine reviews")
 	}
 	if routine {
@@ -384,6 +384,16 @@ func startServiceClock(ctx context.Context, player *buildingruntime.Player, sess
 				return errors.New("medical reserve plans require typed colony observations")
 			}
 			config.Medical, err = buildingruntime.NewRoutineMedicalPlanner(reviewer, medicalNative)
+			if err != nil {
+				return err
+			}
+		}
+		if foodStorageUpkeep {
+			foodStorageNative, ok := reads.(buildingruntime.RoutineFoodStorageUpkeepSource)
+			if !ok {
+				return errors.New("food storage upkeep plans require typed colony and resource-source observations")
+			}
+			config.FoodStorageUpkeep, err = buildingruntime.NewRoutineFoodStorageUpkeepPlanner(reviewer, foodStorageNative)
 			if err != nil {
 				return err
 			}

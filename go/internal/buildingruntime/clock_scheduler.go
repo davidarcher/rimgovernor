@@ -57,6 +57,7 @@ type ClockSchedulerConfig struct {
 	Haul                             *RoutineHaulPlanner
 	Gear                             *RoutineGearPlanner
 	Medical                          *RoutineMedicalPlanner
+	FoodStorageUpkeep                *RoutineFoodStorageUpkeepPlanner
 	AnimalContainment                *RoutineAnimalContainmentPlanner
 	Recovery                         *RoutineRecoveryPlanner
 	Husbandry                        *RoutineHusbandryPlanner
@@ -101,6 +102,7 @@ type ClockSchedulerResult struct {
 	Haul                                          *RoutineHaulResult
 	Gear                                          *RoutineGearResult
 	Medical                                       *RoutineMedicalResult
+	FoodStorageUpkeep                             *RoutineFoodStorageUpkeepResult
 	AnimalContainment                             *RoutineAnimalContainmentResult
 	Recovery                                      *RoutineRecoveryResult
 	Husbandry                                     *RoutineHusbandryResult
@@ -234,6 +236,9 @@ func NewClockScheduler(player *Player, session *Session, native ClockWindowNativ
 		return nil, ErrControl
 	}
 	if config.Medical != nil && (config.Routine == nil || config.Medical.reviewer != config.Routine) {
+		return nil, ErrControl
+	}
+	if config.FoodStorageUpkeep != nil && (config.Routine == nil || config.FoodStorageUpkeep.reviewer != config.Routine) {
 		return nil, ErrControl
 	}
 	if config.Recovery != nil && (config.Routine == nil || config.Recovery.reviewer != config.Routine) {
@@ -526,6 +531,16 @@ func (s *ClockScheduler) Step(ctx context.Context) (ClockSchedulerResult, error)
 				return err
 			}
 			out.Medical = &method
+			return nil
+		})
+	}
+	if s.config.FoodStorageUpkeep != nil {
+		g.Go(func() error {
+			method, err := s.config.FoodStorageUpkeep.step(gctx, epoch, arbiter)
+			if err != nil {
+				return err
+			}
+			out.FoodStorageUpkeep = &method
 			return nil
 		})
 	}
