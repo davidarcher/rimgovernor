@@ -72,15 +72,6 @@ func (r *RoutineAcquisitionPlanner) step(call, epoch context.Context, arbiter *s
 			return RoutineAcquisitionResult{Reason: BuildingMethodRefused}, nil
 		}
 	}
-	for _, method := range goal.Methods {
-		plan, err := p.journal.LoadPlan(call, method.Plan)
-		if err != nil {
-			return RoutineAcquisitionResult{}, err
-		}
-		if acquisitionBlockingWork(plan.Progress) {
-			return RoutineAcquisitionResult{Reason: BuildingMethodExistingWork}, nil
-		}
-	}
 	plans, err := p.journal.LoadPlans(call, 256)
 	if err != nil {
 		return RoutineAcquisitionResult{}, err
@@ -106,6 +97,43 @@ func (r *RoutineAcquisitionPlanner) step(call, epoch context.Context, arbiter *s
 		return RoutineAcquisitionResult{}, err
 	}
 	projection := read.Projection
+	huntSources := map[string]bool{}
+	if rows, known := projection.Acquisition.Value(); known {
+		for _, row := range rows {
+			if row.Hunt {
+				huntSources[row.ID] = true
+			}
+		}
+	}
+	reloadPlans := false
+	for _, method := range goal.Methods {
+		plan, err := p.journal.LoadPlan(call, method.Plan)
+		if err != nil {
+			return RoutineAcquisitionResult{}, err
+		}
+		for _, stalled := range stalledHuntActions(plan.Progress, huntSources, expected.Tick, r.reviewer.policy.HuntStallTicks) {
+			// HuntingSafety.RouteSafe (native) stays authoritative and is never
+			// bypassed here -- this only stops RimGovernor's own planner from
+			// staying wedged behind an action native keeps correctly refusing
+			// to let through, freeing it to try a different prey or source.
+			if _, err = p.journal.Cancel(call, method.Plan, stalled); err != nil {
+				return RoutineAcquisitionResult{}, err
+			}
+			reloadPlans = true
+		}
+		plan, err = p.journal.LoadPlan(call, method.Plan)
+		if err != nil {
+			return RoutineAcquisitionResult{}, err
+		}
+		if acquisitionBlockingWork(plan.Progress) {
+			return RoutineAcquisitionResult{Reason: BuildingMethodExistingWork}, nil
+		}
+	}
+	if reloadPlans {
+		if plans, err = p.journal.LoadPlans(call, 256); err != nil {
+			return RoutineAcquisitionResult{}, err
+		}
+	}
 	pending := projection.PendingWoodUnits
 	deficit := domain.Unknown[float64]()
 	food := r.need == policy.EnsureFoodSupply
@@ -198,4 +226,26 @@ func acquisitionBlockingWork(progress []domain.Progress) bool {
 		}
 	}
 	return false
+}
+
+// stalledHuntActions finds dispatched Hunt-kind acquisition actions that have
+// stayed unresolved for at least graceTicks. Native's HuntingSafety.RouteSafe
+// can repeatedly interrupt the shared game clock while a hunter's route stays
+// unsafe, which leaves the dispatched action's evidence unresolved -- it never
+// completes, fails, or gets re-inspected -- so it reads as open work forever
+// and blocks acquisitionBlockingWork's caller from proposing anything else.
+// graceTicks <= 0 disables this (never treats anything as stalled).
+func stalledHuntActions(progress []domain.Progress, huntSources map[string]bool, now domain.Tick, graceTicks int64) []domain.ActionID {
+	if graceTicks <= 0 {
+		return nil
+	}
+	var stalled []domain.ActionID
+	for _, p := range progress {
+		acquisition, ok := p.Action().Acquisition()
+		v := p.View()
+		if ok && huntSources[acquisition.Thing()] && v.Unresolved && int64(now-v.Tick) >= graceTicks {
+			stalled = append(stalled, v.Action)
+		}
+	}
+	return stalled
 }
