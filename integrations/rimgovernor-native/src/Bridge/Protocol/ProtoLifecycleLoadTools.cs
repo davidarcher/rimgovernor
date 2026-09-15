@@ -110,13 +110,31 @@ namespace HomeBridge.BridgeTools
             lock (Lock)
             {
                 Prune();
-                // A prior Load is still in flight under a different request id:
-                // that older request is now superseded. It keeps its entry so a
-                // caller still polling it learns what happened instead of
-                // waiting forever.
-                if (activeRequestId != null && activeRequestId != request.RequestId
-                    && Entries.TryGetValue(activeRequestId, out var previous) && !previous.Completed)
+                if (activeRequestId != null && Entries.TryGetValue(activeRequestId, out var previous) && !previous.Completed)
                 {
+                    // A retry of the very same request that is still in flight:
+                    // answer with its existing pending status instead of calling
+                    // GameDataSaveLoader.LoadGame again for a load already
+                    // running -- LoadGame is not reentrant (Verse.FloodFiller
+                    // throws "Nested FloodFill calls are not allowed" when a
+                    // second load pass overlaps the first, and the engine can
+                    // wedge hard enough to sever the GABP connection).
+                    if (activeRequestId == request.RequestId)
+                        return PendingReply(previous, mapReady: false, visualReady: false);
+
+                    // A different request arrived while the actual engine load
+                    // is still physically running (LongEventHandler still has
+                    // the load event queued or executing): refuse rather than
+                    // start a second, overlapping GameDataSaveLoader.LoadGame
+                    // call. The previous entry is left in flight, not
+                    // superseded, since it has not actually failed or finished.
+                    if (LongEventHandler.AnyEventNowOrWaiting)
+                        return new Lifecycle.LoadReply { Failure = ProtoBoundary.Fail(Common.FailureCode.Unavailable,
+                            "A native load (" + previous.RequestId + ") is already in progress.") };
+
+                    // The prior load's LongEventHandler work has finished (or
+                    // never started) but its entry was never marked completed --
+                    // safe to supersede and proceed.
                     previous.Completed = true;
                     previous.Reply = new Lifecycle.LoadReply { Superseded = new Lifecycle.LoadSuperseded
                     {
