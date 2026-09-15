@@ -60,7 +60,7 @@ export class PlayerHTTPError extends Error {constructor(public status: number, m
 export function definiteRejection(error: unknown): boolean {
   return error instanceof PlayerHTTPError && (error.status === 400 && error.code === 'invalid_request' || error.status === 403 && error.code === 'player_auth' || error.status === 409 && ['conflict', 'capacity'].includes(error.code ?? ''));
 }
-async function request(path: string, signal?: AbortSignal, token?: string, body?: SubmissionRequest | DraftRequest | AcquireRequest | ManualRequest | ClockAcknowledgement): Promise<{response: Response; value: unknown}> {
+async function request(path: string, signal?: AbortSignal, token?: string, body?: SubmissionRequest | DraftRequest | AcquireRequest | ManualRequest | ClockAcknowledgement | ChatRequest): Promise<{response: Response; value: unknown}> {
   const response = await fetch(path, {method: body ? 'POST' : 'GET', cache: 'no-store', credentials: 'same-origin', signal,
     ...(body ? {headers: {'Content-Type': 'application/json', 'X-RimGovernor-Player': token ?? ''}, body: JSON.stringify(body)} : {})});
   const value: unknown = await response.json();
@@ -105,6 +105,48 @@ export async function submitDraft(token: string, body: DraftRequest, signal?: Ab
 }
 export async function readDraftResult(requestId: string, signal?: AbortSignal): Promise<DraftSubmission> {
   const {response, value} = await request(`/api/drafts/submission?requestId=${encodeURIComponent(requestId)}`, signal); if (!response.ok) failed(response, value); return readDraftSubmission(value);
+}
+
+export type ChatRequest = {requestId: string; expected: World; message: string};
+export type ChatResearch = {project: string};
+export type ChatTend = {doctor: string; patient: string};
+export type ChatRescue = {rescuer: string; patient: string};
+export type ChatHusbandry = {animal: string; method: string; trainableDef: string};
+export type ChatSubmission =
+  | {requestId: string; command: 'build'; expected: World; planId: string; actionId: string; revision: string; building: Building}
+  | {requestId: string; command: 'research'; expected: World; planId: string; actionId: string; revision: string; research: ChatResearch}
+  | {requestId: string; command: 'tend'; expected: World; planId: string; actionId: string; revision: string; tend: ChatTend}
+  | {requestId: string; command: 'rescue'; expected: World; planId: string; actionId: string; revision: string; rescue: ChatRescue}
+  | {requestId: string; command: 'draft'; expected: World; planId: string; actionId: string; revision: string; draft: {pawnId: string}}
+  | {requestId: string; command: 'husbandry'; expected: World; planId: string; actionId: string; revision: string; husbandry: ChatHusbandry};
+function readChatResearch(value: unknown): ChatResearch {const v = object(value, ['project']); return {project: id(v.project)};}
+function readChatTend(value: unknown): ChatTend {const v = object(value, ['doctor', 'patient']); return {doctor: id(v.doctor), patient: id(v.patient)};}
+function readChatRescue(value: unknown): ChatRescue {const v = object(value, ['rescuer', 'patient']); return {rescuer: id(v.rescuer), patient: id(v.patient)};}
+function readChatHusbandry(value: unknown): ChatHusbandry {const v = object(value, ['animal', 'method', 'trainableDef']); return {animal: id(v.animal), method: id(v.method), trainableDef: v.trainableDef === '' ? '' : id(v.trainableDef)};}
+function readChatFamily(value: unknown, keys: readonly string[]): {expected: World; planId: string; actionId: string; revision: string} & Record<string, unknown> {
+  const v = object(value, keys);
+  return {...v, expected: readWorld(v.expected), planId: id(v.planId), actionId: id(v.actionId), revision: positive(v.revision)};
+}
+export function readChatSubmission(value: unknown): ChatSubmission {
+  const outer = object(value, ['requestId', 'command', 'building', 'research', 'tend', 'rescue', 'draft', 'husbandry']);
+  const requestId = id(outer.requestId);
+  const keys = ['requestId', 'expected', 'planId', 'actionId', 'revision'] as const;
+  switch (outer.command) {
+    case 'build': {const f = readChatFamily(outer.building, [...keys, 'building']); return {requestId, command: 'build', expected: f.expected, planId: f.planId, actionId: f.actionId, revision: f.revision, building: readBuilding(f.building)};}
+    case 'research': {const f = readChatFamily(outer.research, [...keys, 'select']); return {requestId, command: 'research', expected: f.expected, planId: f.planId, actionId: f.actionId, revision: f.revision, research: readChatResearch(f.select)};}
+    case 'tend': {const f = readChatFamily(outer.tend, [...keys, 'tend']); return {requestId, command: 'tend', expected: f.expected, planId: f.planId, actionId: f.actionId, revision: f.revision, tend: readChatTend(f.tend)};}
+    case 'rescue': {const f = readChatFamily(outer.rescue, [...keys, 'rescue']); return {requestId, command: 'rescue', expected: f.expected, planId: f.planId, actionId: f.actionId, revision: f.revision, rescue: readChatRescue(f.rescue)};}
+    case 'draft': {const f = readChatFamily(outer.draft, [...keys, 'draft']); return {requestId, command: 'draft', expected: f.expected, planId: f.planId, actionId: f.actionId, revision: f.revision, draft: readDraft(f.draft)};}
+    case 'husbandry': {const f = readChatFamily(outer.husbandry, [...keys, 'husbandry']); return {requestId, command: 'husbandry', expected: f.expected, planId: f.planId, actionId: f.actionId, revision: f.revision, husbandry: readChatHusbandry(f.husbandry)};}
+    default: throw Error('Unknown chat command');
+  }
+}
+export class ChatDisabledError extends Error {}
+export async function submitChat(token: string, body: ChatRequest, signal?: AbortSignal): Promise<ChatSubmission> {
+  const {response, value} = await request('/api/chats/plans', signal, token, body);
+  if (response.status === 501) throw new ChatDisabledError('Chat is not enabled on this controller');
+  if (!response.ok) failed(response, value);
+  return readChatSubmission(value);
 }
 
 export type ClockAcknowledgement = {requestId: string; expectedRevision: string; throughCursor: string};

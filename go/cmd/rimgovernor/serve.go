@@ -85,6 +85,11 @@ type serveConfig struct {
 	resourceRules                   resourceRuleFlags
 	refresh                         time.Duration
 	clockSpeed                      string
+	chat                            bool
+	chatModel                       string
+	chatBaseURL                     string
+	chatContextTokens               int
+	chatMaxOutputTokens             int
 }
 
 func parseServe(args []string, diagnostics io.Writer) (serveConfig, error) {
@@ -154,6 +159,11 @@ func parseServe(args []string, diagnostics io.Writer) (serveConfig, error) {
 	flags.StringVar(&c.clockSpeed, "clock-speed", "Normal", "requested native game-clock speed while --clock-control holds a window: Normal, Fast or Superfast")
 	flags.DurationVar(&c.bridge.Timeout, "timeout", 15*time.Second, "native call timeout")
 	flags.StringVar(&c.flightRecorder, "flight-recorder", "", "absolute path recording every native request/response/error (optional; opt-in diagnostics)")
+	flags.BoolVar(&c.chat, "chat", false, "expose /api/chats/plans: interpret a free-text player message into a build/research/tend/rescue/draft/husbandry command via a local OpenAI-compatible model")
+	flags.StringVar(&c.chatModel, "chat-model", "", "model name as loaded by the local OpenAI-compatible server (required with --chat)")
+	flags.StringVar(&c.chatBaseURL, "chat-base-url", "http://127.0.0.1:1234/v1", "local OpenAI-compatible base URL (e.g. LM Studio) chat sends completions to")
+	flags.IntVar(&c.chatContextTokens, "chat-context-tokens", 8192, "approximate model context window chat budgets prompts against (4096..16777216)")
+	flags.IntVar(&c.chatMaxOutputTokens, "chat-max-output-tokens", 1024, "maximum output tokens chat requests per completion")
 	if err := flags.Parse(args); err != nil {
 		return c, err
 	}
@@ -255,6 +265,25 @@ func parseServe(args []string, diagnostics io.Writer) (serveConfig, error) {
 	}
 	if c.flightRecorder != "" && !filepath.IsAbs(c.flightRecorder) {
 		return c, errors.New("--flight-recorder requires an absolute path")
+	}
+	chatOptionExplicit := false
+	flags.Visit(func(f *flag.Flag) {
+		chatOptionExplicit = chatOptionExplicit || f.Name == "chat-model" || f.Name == "chat-base-url" || f.Name == "chat-context-tokens" || f.Name == "chat-max-output-tokens"
+	})
+	if c.chat && !c.playerControl {
+		return c, errors.New("--chat requires --player-control")
+	}
+	if c.chat && strings.TrimSpace(c.chatModel) == "" {
+		return c, errors.New("--chat requires --chat-model")
+	}
+	if !c.chat && chatOptionExplicit {
+		return c, errors.New("--chat-model, --chat-base-url, --chat-context-tokens and --chat-max-output-tokens require --chat")
+	}
+	if c.chatContextTokens < 4096 || c.chatContextTokens > 1<<24 {
+		return c, errors.New("--chat-context-tokens must be 4096..16777216")
+	}
+	if c.chatMaxOutputTokens < 1 || c.chatMaxOutputTokens >= c.chatContextTokens-2048 {
+		return c, errors.New("--chat-max-output-tokens must be positive and leave room under --chat-context-tokens")
 	}
 	return c, nil
 }

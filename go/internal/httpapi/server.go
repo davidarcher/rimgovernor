@@ -16,7 +16,9 @@ import (
 	"sync"
 	"unicode/utf8"
 
+	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime"
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
+	"github.com/davidarcher/RimGovernor/go/internal/interpreter"
 	"github.com/davidarcher/RimGovernor/go/internal/store"
 )
 
@@ -31,6 +33,16 @@ type Server struct {
 	closeOnce    sync.Once
 	closeErr     error
 	videoTickets sync.Map // hex ticket -> time.Time expiry; single-use, short-lived
+	chat         *interpreter.Interpreter
+	chatNative   buildingruntime.ChatFactsNative
+}
+
+// EnableChat wires the Go-native chat command endpoint (/api/chats/plans)
+// into a server already constructed with NewWithPlayer. Both dependencies are
+// required together: without them the route responds 501, matching every
+// other not-yet-available mutation under /api/.
+func (s *Server) EnableChat(interp *interpreter.Interpreter, native buildingruntime.ChatFactsNative) {
+	s.chat, s.chatNative = interp, native
 }
 
 func New(config Config, snapshots SnapshotProvider, plans PlanReader) (*Server, error) {
