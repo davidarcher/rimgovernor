@@ -20,7 +20,7 @@ func clockTestPolicy() *k.WatchPolicy {
 	return &k.WatchPolicy{Mode: k.WatchMode_WATCH_MODE_COLONY.Enum(), HealthDropFraction: proto.Float32(.1), MinHealthFraction: proto.Float32(.2), HostileWithin: proto.Float32(20), InjuryStopCooldownMs: proto.Uint32(0)}
 }
 func clockTestPre() *a.WritePrecondition {
-	return &a.WritePrecondition{Identity: pbIdentity(), ExpectedGeneration: proto.Uint64(7), LeaseId: proto.String("lease"), Attempt: &c.AttemptKey{ControllerSessionId: proto.String("controller"), ActionId: proto.String("clock-start"), AttemptId: proto.Uint64(1)}}
+	return &a.WritePrecondition{Identity: pbIdentity(), ExpectedGeneration: proto.Uint64(7), Attempt: &c.AttemptKey{ControllerSessionId: proto.String("controller"), ActionId: proto.String("clock-start"), AttemptId: proto.Uint64(1)}}
 }
 func clockTestStart() *k.StartRequest {
 	return &k.StartRequest{Authority: clockTestPre(), Speed: k.Speed_SPEED_NORMAL.Enum(), Policy: clockTestPolicy(), LeaseMs: proto.Uint32(1000), MaxTicks: proto.Uint32(100)}
@@ -32,7 +32,7 @@ func clockTestStatus() *k.Status {
 	return &k.Status{Context: authorityTestContext(7), State: &k.Status_Running{Running: &k.Running{Epoch: clockTestEpoch()}}, NativeTickBoundary: proto.Bool(true), DurableEvents: proto.Bool(true), NewestCursor: proto.Int64(0), ObservedSpeed: k.ObservedSpeed_OBSERVED_SPEED_NORMAL.Enum(), ActualPaused: proto.Bool(false), EvidenceCompleteness: &c.PageInfo{Complete: proto.Bool(true)}}
 }
 func clockTestReceipt() *k.ControlReceipt {
-	return &k.ControlReceipt{Attempt: clockTestPre().Attempt, AdmittedContext: authorityTestContext(7), AuthorizingOwner: authorityTestOwner(), Outcome: &k.ControlReceipt_Applied{Applied: &k.AppliedControl{Status: clockTestStatus()}}}
+	return &k.ControlReceipt{Attempt: clockTestPre().Attempt, AdmittedContext: authorityTestContext(7), Outcome: &k.ControlReceipt_Applied{Applied: &k.AppliedControl{Status: clockTestStatus()}}}
 }
 func clockTestOwned() *k.OwnedRequest {
 	return &k.OwnedRequest{Identity: pbIdentity(), Owner: clockTestEpoch().Owner}
@@ -103,13 +103,13 @@ func TestClockFixedSDKOperations(t *testing.T) {
 	if _, _, err := client.ReadClockAttempt(ctx, &k.AttemptRequest{Identity: pbIdentity(), Attempt: clockTestPre().Attempt}); err != nil {
 		t.Fatal(err)
 	}
-	if _, raw, err := control.Start(ctx, clockTestStart(), authorityTestOwner()); err != nil || len(raw.Envelope) == 0 {
+	if _, raw, err := control.Start(ctx, clockTestStart()); err != nil || len(raw.Envelope) == 0 {
 		t.Fatal(err, raw)
 	}
-	if _, _, err := control.Renew(ctx, &k.RenewRequest{Epoch: clockTestOwned(), Authority: clockTestPre(), LeaseMs: proto.Uint32(2000)}, clockTestEpoch(), authorityTestOwner()); err != nil {
+	if _, _, err := control.Renew(ctx, &k.RenewRequest{Epoch: clockTestOwned(), Authority: clockTestPre(), LeaseMs: proto.Uint32(2000)}, clockTestEpoch()); err != nil {
 		t.Fatal(err)
 	}
-	if _, _, err := control.ChangeSpeed(ctx, &k.SpeedRequest{Epoch: clockTestOwned(), Authority: clockTestPre(), Speed: k.Speed_SPEED_FAST.Enum()}, clockTestEpoch(), authorityTestOwner()); err != nil {
+	if _, _, err := control.ChangeSpeed(ctx, &k.SpeedRequest{Epoch: clockTestOwned(), Authority: clockTestPre(), Speed: k.Speed_SPEED_FAST.Enum()}, clockTestEpoch()); err != nil {
 		t.Fatal(err)
 	}
 	if reply, _, err := control.OwnedPause(ctx, clockTestOwned()); err != nil || !reply.GetStatus().GetStopped().GetPauseVerified() {
@@ -133,7 +133,7 @@ func TestClockInvalidStartNeverCalls(t *testing.T) {
 			r := clockTestStart()
 			edit(r)
 			control := &ClockControl{}
-			if _, _, err := control.Start(context.Background(), r, authorityTestOwner()); !errors.Is(err, ErrContract) {
+			if _, _, err := control.Start(context.Background(), r); !errors.Is(err, ErrContract) {
 				t.Fatal(err)
 			}
 		})
@@ -164,7 +164,7 @@ func TestClockStatusPreservesStoppedOriginAndUnknownFacts(t *testing.T) {
 	}
 }
 func TestClockControlRejectsMismatchedAppliedReceipt(t *testing.T) {
-	for name, edit := range map[string]func(*k.ControlReceipt){"attempt": func(r *k.ControlReceipt) { r.Attempt.AttemptId = proto.Uint64(2) }, "direction": func(r *k.ControlReceipt) { r.AuthorizingOwner.PlayerDirection = proto.Uint64(4) }, "generation": func(r *k.ControlReceipt) { r.AdmittedContext.NativeGeneration = proto.Uint64(8) }, "identity": func(r *k.ControlReceipt) { r.GetApplied().Status.Context.Identity.LoadToken = proto.String("other") }, "deadline": func(r *k.ControlReceipt) { r.GetApplied().Status.GetRunning().Epoch.TickDeadline = proto.Int64(113) }, "owner": func(r *k.ControlReceipt) {
+	for name, edit := range map[string]func(*k.ControlReceipt){"attempt": func(r *k.ControlReceipt) { r.Attempt.AttemptId = proto.Uint64(2) }, "generation": func(r *k.ControlReceipt) { r.AdmittedContext.NativeGeneration = proto.Uint64(8) }, "identity": func(r *k.ControlReceipt) { r.GetApplied().Status.Context.Identity.LoadToken = proto.String("other") }, "deadline": func(r *k.ControlReceipt) { r.GetApplied().Status.GetRunning().Epoch.TickDeadline = proto.Int64(113) }, "owner": func(r *k.ControlReceipt) {
 		r.GetApplied().Status.GetRunning().Epoch.Owner.ControllerSessionId = proto.String("other")
 	}, "long lease": func(r *k.ControlReceipt) {
 		r.GetApplied().Status.GetRunning().Epoch.LeaseRemainingMs = proto.Uint32(1001)
@@ -178,7 +178,7 @@ func TestClockControlRejectsMismatchedAppliedReceipt(t *testing.T) {
 				return pbResult(&k.ControlReply{Outcome: &k.ControlReply_Receipt{Receipt: r}}), nil
 			}}, time.Second)
 			control, _ := NewClockControl(client)
-			_, raw, err := control.Start(context.Background(), clockTestStart(), authorityTestOwner())
+			_, raw, err := control.Start(context.Background(), clockTestStart())
 			var uncertain *ClockUncertain
 			if !errors.As(err, &uncertain) || !errors.Is(err, ErrContract) || calls != 1 || len(raw.Envelope) == 0 {
 				t.Fatal(err, calls)
@@ -230,7 +230,7 @@ func TestClockTypedFailureUnknownAndUncertainty(t *testing.T) {
 				}
 				return
 			}
-			r, raw, err := control.Start(context.Background(), clockTestStart(), authorityTestOwner())
+			r, raw, err := control.Start(context.Background(), clockTestStart())
 			var uncertain *ClockUncertain
 			switch kind {
 			case "failure":
@@ -264,7 +264,7 @@ func TestClockCancellationDoesNotDispatch(t *testing.T) {
 	control, _ := NewClockControl(client)
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
-	_, _, err := control.Start(ctx, clockTestStart(), authorityTestOwner())
+	_, _, err := control.Start(ctx, clockTestStart())
 	var uncertain *ClockUncertain
 	if !errors.Is(err, context.Canceled) || errors.As(err, &uncertain) || calls != 0 {
 		t.Fatal(err, calls)
@@ -281,7 +281,7 @@ func TestClockTransportDeadlineIsUncertainWithoutRetry(t *testing.T) {
 	control, _ := NewClockControl(client)
 	ctx, cancel := context.WithTimeout(context.Background(), 50*time.Millisecond)
 	defer cancel()
-	_, _, err := control.Start(ctx, clockTestStart(), authorityTestOwner())
+	_, _, err := control.Start(ctx, clockTestStart())
 	var uncertain *ClockUncertain
 	if !errors.As(err, &uncertain) || !errors.Is(err, context.DeadlineExceeded) {
 		t.Fatal(err)
@@ -334,7 +334,7 @@ func TestClockAppliedStartCanImmediatelyStop(t *testing.T) {
 		return pbResult(&k.ControlReply{Outcome: &k.ControlReply_Receipt{Receipt: r}}), nil
 	}}, time.Second)
 	control, _ := NewClockControl(client)
-	r, _, err := control.Start(context.Background(), clockTestStart(), authorityTestOwner())
+	r, _, err := control.Start(context.Background(), clockTestStart())
 	if err != nil || r.GetReceipt().GetApplied().GetStatus().GetStopped() == nil {
 		t.Fatal(r, err)
 	}

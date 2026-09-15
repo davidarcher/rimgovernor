@@ -16,6 +16,7 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/runtimeowner"
 	"github.com/davidarcher/RimGovernor/go/internal/store"
 	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
+	o "github.com/davidarcher/RimGovernor/go/internal/wire/operationspb"
 	"google.golang.org/protobuf/proto"
 )
 
@@ -41,11 +42,14 @@ func TestMeleeSessionCompositionAndWorkerDraftRetention(t *testing.T) {
 		t.Fatal(err)
 	}
 	f.Receipt.Attempt.ControllerSessionId = proto.String(string(id))
-	f.Receipt.AuthorizingOwner.ControllerSessionId = proto.String(string(id))
-	f.Row.DraftClaim.GetOwned().Owner.ControllerSessionId = proto.String(string(id))
 	f.Progress.Attempt.ControllerSessionId = proto.String(string(id))
 	boundary.ReceiptJob(f.Receipt).DraftOwner = proto.String(string(id))
 	f.Progress.GetCompleted().Evidence.GetJob().DraftOwner = proto.String(string(id))
+	f.MutateRelease = func(reply *o.ReleaseOwnedDraftReply) {
+		if released := reply.GetReleased(); released != nil && released.Observed != nil {
+			released.Observed.DraftOwner = proto.String(string(id))
+		}
+	}
 	pawnDraft, _ := domain.NewOwnedDraft("pawn")
 	d, _ := domain.NewOwnedDraftAction("action", pawnDraft)
 	plan, err := domain.NewPlan("plan", 1, []domain.Action{d, dispatch.Attempt.Action})
@@ -56,7 +60,7 @@ func TestMeleeSessionCompositionAndWorkerDraftRetention(t *testing.T) {
 		t.Fatal(err)
 	}
 	_, building := boundary.NewFixture(t)
-	config := SessionConfig{Control: ControlConfig{ProfileDirectory: dir, LeaseDuration: time.Second, CallTimeout: time.Second}, Executor: executor.Limits{MaxAge: time.Second, RunTimeout: time.Second, JournalTimeout: time.Second}, Draft: &draft.DraftCapabilities{Native: f.Fixture, Writer: f.Fixture, Cleanup: f.Fixture}, Melee: &melee.MeleeCapabilities{Native: native, Writer: native}}
+	config := SessionConfig{Control: ControlConfig{ProfileDirectory: dir, CallTimeout: time.Second}, Executor: executor.Limits{MaxAge: time.Second, RunTimeout: time.Second, JournalTimeout: time.Second}, Draft: &draft.DraftCapabilities{Native: f.Fixture, Writer: f.Fixture, Cleanup: f.Fixture}, Melee: &melee.MeleeCapabilities{Native: native, Writer: native}}
 	s, err := NewSession(ctx, config, journal, sessionNative{building}, &controlNative{generation: 1}, sessionNative{building}, boundary.FixedClock{})
 	if err != nil {
 		t.Fatal(err)
@@ -122,7 +126,7 @@ func TestMeleeSessionRejectsIncompleteCapabilitiesBeforeOwnership(t *testing.T) 
 	_, native, _ := melee.NewFixture(t)
 	_, building := boundary.NewFixture(t)
 	for _, mode := range []string{"missing-draft", "missing-native", "missing-writer"} {
-		config := SessionConfig{Control: ControlConfig{ProfileDirectory: dir, LeaseDuration: time.Second, CallTimeout: time.Second}, Executor: executor.Limits{MaxAge: time.Second, RunTimeout: time.Second, JournalTimeout: time.Second}, Draft: &draft.DraftCapabilities{Native: native.Fixture, Writer: native.Fixture, Cleanup: native.Fixture}, Melee: &melee.MeleeCapabilities{Native: native, Writer: native}}
+		config := SessionConfig{Control: ControlConfig{ProfileDirectory: dir, CallTimeout: time.Second}, Executor: executor.Limits{MaxAge: time.Second, RunTimeout: time.Second, JournalTimeout: time.Second}, Draft: &draft.DraftCapabilities{Native: native.Fixture, Writer: native.Fixture, Cleanup: native.Fixture}, Melee: &melee.MeleeCapabilities{Native: native, Writer: native}}
 		switch mode {
 		case "missing-draft":
 			config.Draft = nil

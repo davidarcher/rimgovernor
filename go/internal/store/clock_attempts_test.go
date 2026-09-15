@@ -32,7 +32,7 @@ func clockApplied(v ClockAttempt) *k.ControlReply {
 		epoch.RequestedSpeed = v.Intent.Command.Speed.Speed.Enum()
 	}
 	status := &k.Status{Context: ctx, State: &k.Status_Running{Running: &k.Running{Epoch: epoch}}, NativeTickBoundary: proto.Bool(true), DurableEvents: proto.Bool(true), NewestCursor: proto.Int64(0), ObservedSpeed: k.ObservedSpeed_OBSERVED_SPEED_NORMAL.Enum(), ActualPaused: proto.Bool(false), EvidenceCompleteness: &c.PageInfo{Complete: proto.Bool(true)}}
-	return &k.ControlReply{Outcome: &k.ControlReply_Receipt{Receipt: &k.ControlReceipt{Attempt: e.Attempt, AdmittedContext: ctx, AuthorizingOwner: e.Owner, Outcome: &k.ControlReceipt_Applied{Applied: &k.AppliedControl{Status: status}}}}}
+	return &k.ControlReply{Outcome: &k.ControlReply_Receipt{Receipt: &k.ControlReceipt{Attempt: e.Attempt, AdmittedContext: ctx, Outcome: &k.ControlReceipt_Applied{Applied: &k.AppliedControl{Status: status}}}}}
 }
 func TestClockJournalReopenAndImmutableEvidence(t *testing.T) {
 	t.Parallel()

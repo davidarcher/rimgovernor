@@ -17,7 +17,7 @@ func movementTestCommand() *o.MovePawn {
 }
 func movementTestAttempt() MovementAttempt {
 	d := draftTestAttempt()
-	return MovementAttempt{d.Identity, d.Attempt, d.NativeGeneration, d.Owner, d.PawnID, movementTestCommand().Destination}
+	return MovementAttempt{d.Identity, d.Attempt, d.NativeGeneration, d.PawnID, movementTestCommand().Destination}
 }
 func movementTestReceipt(noChange bool) *r.Receipt {
 	v := draftTestReceipt()
@@ -65,7 +65,7 @@ func TestMovementFixedSDKPreviewExecuteLookupProgress(t *testing.T) {
 				t.Fatal(err)
 			}
 			control, _ := NewMovementControl(client)
-			receipt, _, err := control.MovePawn(context.Background(), buildingPre(), draftTestAttempt().Owner, movementTestCommand())
+			receipt, _, err := control.MovePawn(context.Background(), buildingPre(), movementTestCommand())
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -82,7 +82,7 @@ func TestMovementFixedSDKPreviewExecuteLookupProgress(t *testing.T) {
 	}
 }
 func TestMovementReceiptAndCompletionCorrelation(t *testing.T) {
-	for name, edit := range map[string]func(*r.Receipt){"pawn": func(v *r.Receipt) { draftObserved(v).PawnId = proto.String("other") }, "destination": func(v *r.Receipt) { draftObserved(v).TargetA.GetCell().X = proto.Int32(9) }, "owner direction": func(v *r.Receipt) { v.AuthorizingOwner.PlayerDirection = proto.Uint64(2) }, "generation": func(v *r.Receipt) { v.AdmittedContext.NativeGeneration = proto.Uint64(2) }, "job absent": func(v *r.Receipt) { draftObserved(v).JobId = nil }, "unverified": func(v *r.Receipt) { draftObserved(v).Verified = proto.Bool(false) }, "other operation": func(v *r.Receipt) { draftObserved(v).AutoDrafted = proto.Bool(true) }} {
+	for name, edit := range map[string]func(*r.Receipt){"pawn": func(v *r.Receipt) { draftObserved(v).PawnId = proto.String("other") }, "destination": func(v *r.Receipt) { draftObserved(v).TargetA.GetCell().X = proto.Int32(9) }, "generation": func(v *r.Receipt) { v.AdmittedContext.NativeGeneration = proto.Uint64(2) }, "job absent": func(v *r.Receipt) { draftObserved(v).JobId = nil }, "unverified": func(v *r.Receipt) { draftObserved(v).Verified = proto.Bool(false) }, "other operation": func(v *r.Receipt) { draftObserved(v).AutoDrafted = proto.Bool(true) }} {
 		t.Run(name, func(t *testing.T) {
 			v := movementTestReceipt(false)
 			edit(v)
@@ -177,7 +177,7 @@ func TestMovementLookupUnknownInflightAndRefusal(t *testing.T) {
 func TestMovementUncertainWithoutReadbackCompletes(t *testing.T) {
 	admitted := movementTestReceipt(false)
 	admitted.Outcome = &r.Receipt_Uncertain{Uncertain: &r.Uncertain{Detail: proto.String("post-write readback unavailable")}}
-	for _, bad := range []string{"", "destination", "key", "generation", "original owner", "missing receipt"} {
+	for _, bad := range []string{"", "destination", "key", "generation", "corrupted receipt", "missing receipt"} {
 		t.Run(bad, func(t *testing.T) {
 			original := proto.Clone(admitted).(*r.Receipt)
 			progress := movementTestProgress(false)
@@ -188,8 +188,8 @@ func TestMovementUncertainWithoutReadbackCompletes(t *testing.T) {
 				progress.Attempt.ActionId = proto.String("wrong")
 			case "generation":
 				progress.Context.NativeGeneration = proto.Uint64(7)
-			case "original owner":
-				original.AuthorizingOwner.PlayerDirection = proto.Uint64(777)
+			case "corrupted receipt":
+				original.Attempt.AttemptId = proto.Uint64(777)
 			case "missing receipt":
 				original = nil
 			}

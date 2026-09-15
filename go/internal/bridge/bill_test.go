@@ -27,7 +27,7 @@ func billFoodTarget(t *testing.T) domain.ProductionBill {
 	return b
 }
 func billPre() *a.WritePrecondition {
-	return &a.WritePrecondition{Identity: pbIdentity(), ExpectedGeneration: proto.Uint64(1), LeaseId: proto.String("lease"), Attempt: &c.AttemptKey{ControllerSessionId: proto.String("controller"), ActionId: proto.String("action"), AttemptId: proto.Uint64(1)}}
+	return &a.WritePrecondition{Identity: pbIdentity(), ExpectedGeneration: proto.Uint64(1), Attempt: &c.AttemptKey{ControllerSessionId: proto.String("controller"), ActionId: proto.String("action"), AttemptId: proto.Uint64(1)}}
 }
 func billEffectEvidence() *r.EffectEvidence {
 	return &r.EffectEvidence{Effect: &r.EffectEvidence_Bill{Bill: &r.BillEffect{
@@ -45,11 +45,10 @@ func billEffectEvidence() *r.EffectEvidence {
 	}}}
 }
 func billAdmission() *r.Receipt {
-	return &r.Receipt{Attempt: billPre().Attempt, AdmittedContext: &c.ObservationContext{Identity: pbIdentity(), Tick: proto.Int64(10), NativeGeneration: proto.Uint64(1)}, AuthorizingOwner: &a.Owner{ControllerSessionId: proto.String("controller"), PlayerDirection: proto.Uint64(1)}, Outcome: &r.Receipt_Applied{Applied: &r.Applied{Observed: billEffectEvidence()}}}
+	return &r.Receipt{Attempt: billPre().Attempt, AdmittedContext: &c.ObservationContext{Identity: pbIdentity(), Tick: proto.Int64(10), NativeGeneration: proto.Uint64(1)}, Outcome: &r.Receipt_Applied{Applied: &r.Applied{Observed: billEffectEvidence()}}}
 }
 func billAttempt(t *testing.T) BillAttempt {
-	admission := billAdmission()
-	return BillAttempt{Identity: pbIdentity(), Attempt: billPre().Attempt, Owner: admission.AuthorizingOwner, Generation: 1, Bill: billFoodTarget(t)}
+	return BillAttempt{Identity: pbIdentity(), Attempt: billPre().Attempt, Generation: 1, Bill: billFoodTarget(t)}
 }
 
 func TestBillOperationSettingsByMode(t *testing.T) {
@@ -180,7 +179,7 @@ func TestAddBillReceiptCorrelationAndOwnerMismatch(t *testing.T) {
 	}
 	mismatched := &testServer{schema: protoSchema, handler: func(context.Context, nativeArgument) (*mcp.CallToolResult, error) {
 		admission := billAdmission()
-		admission.AuthorizingOwner.ControllerSessionId = proto.String("someone-else")
+		admission.Attempt.AttemptId = proto.Uint64(999)
 		return pbResult(&op.ExecuteReply{Outcome: &op.ExecuteReply_Receipt{Receipt: admission}}), nil
 	}}
 	control, _ = NewBillControl(testClient(t, mismatched, time.Second))
@@ -196,7 +195,6 @@ func TestAddBillInvalidInputsNeverDispatch(t *testing.T) {
 	for _, change := range []func(*a.WritePrecondition){
 		func(v *a.WritePrecondition) { v.ExpectedGeneration = nil },
 		func(v *a.WritePrecondition) { v.ExpectedGeneration = proto.Uint64(0) },
-		func(v *a.WritePrecondition) { v.LeaseId = nil },
 		func(v *a.WritePrecondition) { v.Attempt.AttemptId = nil },
 	} {
 		pre := billPre()

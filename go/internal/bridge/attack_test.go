@@ -16,7 +16,7 @@ func attackTestCommand() *o.AttackTarget {
 }
 func attackTestAttempt() AttackAttempt {
 	d := draftTestAttempt()
-	return AttackAttempt{d.Identity, d.Attempt, d.NativeGeneration, d.Owner, d.PawnID, "enemy", o.AttackMode_ATTACK_MODE_MELEE, true, true, true}
+	return AttackAttempt{d.Identity, d.Attempt, d.NativeGeneration, d.PawnID, "enemy", o.AttackMode_ATTACK_MODE_MELEE, true, true, true}
 }
 func attackTestReceipt() *r.Receipt {
 	v := draftTestReceipt()
@@ -58,7 +58,7 @@ func TestAttackFixedMeleeSDK(t *testing.T) {
 		t.Fatal(err)
 	}
 	control, _ := NewAttackControl(client)
-	receipt, _, err := control.AttackTarget(context.Background(), buildingPre(), draftTestAttempt().Owner, attackTestCommand())
+	receipt, _, err := control.AttackTarget(context.Background(), buildingPre(), attackTestCommand())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -77,7 +77,7 @@ func rangedTestCommand() *o.AttackTarget {
 }
 func rangedTestAttempt() AttackAttempt {
 	d := draftTestAttempt()
-	return AttackAttempt{d.Identity, d.Attempt, d.NativeGeneration, d.Owner, d.PawnID, "enemy", o.AttackMode_ATTACK_MODE_RANGED, true, true, true}
+	return AttackAttempt{d.Identity, d.Attempt, d.NativeGeneration, d.PawnID, "enemy", o.AttackMode_ATTACK_MODE_RANGED, true, true, true}
 }
 func rangedTestReceipt() *r.Receipt {
 	v := draftTestReceipt()
@@ -116,7 +116,7 @@ func TestAttackFixedRangedSDK(t *testing.T) {
 		t.Fatal(err)
 	}
 	control, _ := NewAttackControl(client)
-	receipt, _, err := control.AttackTarget(context.Background(), buildingPre(), draftTestAttempt().Owner, rangedTestCommand())
+	receipt, _, err := control.AttackTarget(context.Background(), buildingPre(), rangedTestCommand())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -166,7 +166,7 @@ func TestAttackGuardedInputsNeverCall(t *testing.T) {
 			if _, _, err := client.PreviewAttack(context.Background(), pbIdentity(), v); !errors.Is(err, ErrContract) {
 				t.Fatal(err)
 			}
-			if _, _, err := control.AttackTarget(context.Background(), buildingPre(), draftTestAttempt().Owner, v); !errors.Is(err, ErrContract) {
+			if _, _, err := control.AttackTarget(context.Background(), buildingPre(), v); !errors.Is(err, ErrContract) {
 				t.Fatal(err)
 			}
 		})
@@ -191,7 +191,7 @@ func TestAttackRejectsMismatchedEvidence(t *testing.T) {
 		t.Fatal(err)
 	}
 	v := attackTestReceipt()
-	v.AuthorizingOwner.PlayerDirection = proto.Uint64(99)
+	v.Attempt.AttemptId = proto.Uint64(99)
 	if err := attackReceipt(v, attackTestAttempt()); !errors.Is(err, ErrContract) {
 		t.Fatal(err)
 	}

@@ -16,13 +16,13 @@ import (
 )
 
 func buildingPre() *a.WritePrecondition {
-	return &a.WritePrecondition{Identity: pbIdentity(), ExpectedGeneration: proto.Uint64(1), LeaseId: proto.String("lease"), Attempt: &c.AttemptKey{ControllerSessionId: proto.String("controller"), ActionId: proto.String("action"), AttemptId: proto.Uint64(1)}}
+	return &a.WritePrecondition{Identity: pbIdentity(), ExpectedGeneration: proto.Uint64(1), Attempt: &c.AttemptKey{ControllerSessionId: proto.String("controller"), ActionId: proto.String("action"), AttemptId: proto.Uint64(1)}}
 }
 func buildingEffect() *r.EffectEvidence {
 	return &r.EffectEvidence{Effect: &r.EffectEvidence_Construction{Construction: &r.ConstructionEffect{OriginThingId: proto.String("blueprint1"), CurrentThingId: proto.String("blueprint1"), DefName: proto.String("Wall"), Stuff: proto.String(""), Cell: &c.Cell{X: proto.Int32(0), Z: proto.Int32(0)}, Rotation: pbRequest().Placements[0].Rotation, Stage: r.ConstructionStage_CONSTRUCTION_STAGE_BLUEPRINT.Enum(), Present: proto.Bool(true), Started: proto.Bool(false), Failed: proto.Bool(false)}}}
 }
 func buildingAdmission() *r.Receipt {
-	return &r.Receipt{Attempt: buildingPre().Attempt, AdmittedContext: &c.ObservationContext{Identity: pbIdentity(), Tick: proto.Int64(10), NativeGeneration: proto.Uint64(1)}, AuthorizingOwner: &a.Owner{ControllerSessionId: proto.String("controller"), PlayerDirection: proto.Uint64(1)}, Outcome: &r.Receipt_Applied{Applied: &r.Applied{Observed: buildingEffect()}}}
+	return &r.Receipt{Attempt: buildingPre().Attempt, AdmittedContext: &c.ObservationContext{Identity: pbIdentity(), Tick: proto.Int64(10), NativeGeneration: proto.Uint64(1)}, Outcome: &r.Receipt_Applied{Applied: &r.Applied{Observed: buildingEffect()}}}
 }
 func buildingDone() *r.Progress {
 	e := buildingEffect()
@@ -62,7 +62,7 @@ func TestBuildingCapabilityAndReceiptCorrelation(t *testing.T) {
 	if reply.GetReceipt().GetApplied().Observed.GetConstruction().GetStage() != r.ConstructionStage_CONSTRUCTION_STAGE_BLUEPRINT {
 		t.Fatal("receipt promoted completion")
 	}
-	for _, change := range []func(*r.Receipt){func(v *r.Receipt) { v.Attempt.AttemptId = proto.Uint64(2) }, func(v *r.Receipt) { v.AdmittedContext.Identity.LoadToken = proto.String("other") }, func(v *r.Receipt) { v.AdmittedContext.NativeGeneration = proto.Uint64(2) }, func(v *r.Receipt) { v.AuthorizingOwner.ControllerSessionId = proto.String("other") }, func(v *r.Receipt) { v.AuthorizingOwner.PlayerDirection = nil }, func(v *r.Receipt) {
+	for _, change := range []func(*r.Receipt){func(v *r.Receipt) { v.Attempt.AttemptId = proto.Uint64(2) }, func(v *r.Receipt) { v.AdmittedContext.Identity.LoadToken = proto.String("other") }, func(v *r.Receipt) { v.AdmittedContext.NativeGeneration = proto.Uint64(2) }, func(v *r.Receipt) {
 		v.GetApplied().Observed = &r.EffectEvidence{Effect: &r.EffectEvidence_Designation{Designation: &r.DesignationEffect{}}}
 	}, func(v *r.Receipt) { v.GetApplied().Observed.GetConstruction().Cell.X = proto.Int32(2) }, func(v *r.Receipt) { v.GetApplied().Observed.GetConstruction().OriginThingId = nil }, func(v *r.Receipt) { v.GetApplied().Observed.GetConstruction().Present = nil }} {
 		v := buildingAdmission()
@@ -75,7 +75,8 @@ func TestBuildingCapabilityAndReceiptCorrelation(t *testing.T) {
 func TestBuildingInvalidInputsNeverDispatch(t *testing.T) {
 	s := &testServer{schema: protoSchema}
 	cap, _ := NewBuildingControl(testClient(t, s, time.Second))
-	for _, change := range []func(*a.WritePrecondition){func(v *a.WritePrecondition) { v.ExpectedGeneration = nil }, func(v *a.WritePrecondition) { v.ExpectedGeneration = proto.Uint64(0) }, func(v *a.WritePrecondition) { v.LeaseId = nil }, func(v *a.WritePrecondition) { v.Attempt.AttemptId = nil }, func(v *a.WritePrecondition) { v.Identity.ProtoReflect().SetUnknown([]byte{0x20, 1}) }, func(v *a.WritePrecondition) { v.Attempt.ControllerSessionId = proto.String("bad\x00") }} {
+	for _, change := range []func(*a.WritePrecondition){func(v *a.WritePrecondition) { v.ExpectedGeneration = nil }, func(v *a.WritePrecondition) { v.ExpectedGeneration = proto.Uint64(0) },
+ func(v *a.WritePrecondition) { v.Attempt.AttemptId = nil }, func(v *a.WritePrecondition) { v.Identity.ProtoReflect().SetUnknown([]byte{0x20, 1}) }, func(v *a.WritePrecondition) { v.Attempt.ControllerSessionId = proto.String("bad\x00") }} {
 		v := buildingPre()
 		change(v)
 		if _, _, err := cap.PlaceBuilding(context.Background(), v, pbRequest().Placements[0]); !errors.Is(err, ErrContract) {

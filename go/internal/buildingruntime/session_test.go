@@ -51,7 +51,7 @@ func TestSessionOwnsDispatchAndManualReconciliation(t *testing.T) {
 			}
 			native := sessionNative{fixture}
 			authority := &controlNative{generation: 1}
-			config := SessionConfig{Control: ControlConfig{ProfileDirectory: dir, LeaseDuration: time.Second, CallTimeout: time.Second}, Executor: executor.Limits{MaxAge: time.Second, RunTimeout: time.Second, JournalTimeout: time.Second}}
+			config := SessionConfig{Control: ControlConfig{ProfileDirectory: dir, CallTimeout: time.Second}, Executor: executor.Limits{MaxAge: time.Second, RunTimeout: time.Second, JournalTimeout: time.Second}}
 			session, err := NewSession(ctx, config, journal, native, authority, native, boundary.FixedClock{})
 			if err != nil {
 				t.Fatal(err)
@@ -89,7 +89,6 @@ func TestSessionOwnsDispatchAndManualReconciliation(t *testing.T) {
 			fixture.Receipt.AdmittedContext.NativeGeneration = proto.Uint64(uint64(current.Native))
 			fixture.Receipt.AdmittedContext.Tick = proto.Int64(11)
 			fixture.Receipt.Attempt.ControllerSessionId = proto.String(string(namespace))
-			fixture.Receipt.AuthorizingOwner.ControllerSessionId = proto.String(string(namespace))
 			fixture.Progress.Attempt = proto.Clone(fixture.Receipt.Attempt).(*c.AttemptKey)
 			result, err := session.Run(ctx, "plan", "action")
 			if err != nil || !result.NativeCalled || !result.Progress.View().Unresolved {

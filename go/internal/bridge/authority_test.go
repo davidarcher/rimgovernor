@@ -13,17 +13,14 @@ import (
 	"time"
 )
 
-func authorityTestOwner() *a.Owner {
-	return &a.Owner{ControllerSessionId: proto.String("controller"), PlayerDirection: proto.Uint64(3)}
-}
 func authorityTestContext(generation uint64) *c.ObservationContext {
 	return &c.ObservationContext{Identity: pbIdentity(), Tick: proto.Int64(12), NativeGeneration: proto.Uint64(generation)}
 }
-func authorityTestAcquire() *a.Acquire {
-	return &a.Acquire{Identity: pbIdentity(), ExpectedGeneration: proto.Uint64(7), Owner: authorityTestOwner(), LeaseMs: proto.Uint32(1000)}
+func authorityTestSetMode() *a.SetMode {
+	return &a.SetMode{Identity: pbIdentity(), ExpectedGeneration: proto.Uint64(7), Mode: a.Mode_MODE_AUTO.Enum()}
 }
 func authorityTestGranted(generation uint64) *a.ControlReply {
-	return &a.ControlReply{Outcome: &a.ControlReply_Granted{Granted: &a.Granted{Context: authorityTestContext(generation), Authority: &a.ActiveAuthority{Owner: authorityTestOwner(), RemainingLeaseMs: proto.Uint32(999)}, LeaseId: proto.String("lease")}}}
+	return &a.ControlReply{Outcome: &a.ControlReply_Granted{Granted: &a.Granted{Context: authorityTestContext(generation), Authority: &a.ActiveAuthority{Mode: a.Mode_MODE_AUTO.Enum()}}}}
 }
 func authorityTestControl(t *testing.T, handler func(context.Context, nativeArgument) (*mcp.CallToolResult, error)) (*Client, *AuthorityControl) {
 	t.Helper()
@@ -59,14 +56,9 @@ func TestAuthorityFixedSDKCapabilities(t *testing.T) {
 			t.Fatal(err)
 		}
 		switch operation := request.Operation.(type) {
-		case *a.ControlRequest_Acquire:
-			if !proto.Equal(operation.Acquire, authorityTestAcquire()) {
-				t.Fatal("changed acquire")
-			}
-			return pbResult(authorityTestGranted(8)), nil
-		case *a.ControlRequest_Renew:
-			if operation.Renew.GetLeaseId() != "lease" || operation.Renew.GetExpectedGeneration() != 8 {
-				t.Fatal("changed renew")
+		case *a.ControlRequest_SetMode:
+			if !proto.Equal(operation.SetMode, authorityTestSetMode()) {
+				t.Fatal("changed set-mode")
 			}
 			return pbResult(authorityTestGranted(8)), nil
 		case *a.ControlRequest_Revoke:
@@ -82,17 +74,13 @@ func TestAuthorityFixedSDKCapabilities(t *testing.T) {
 	if _, err := client.protoRead(context.Background(), "rimgovernor/authority_control", &a.ControlRequest{}, &a.ControlReply{}); !errors.Is(err, ErrContract) {
 		t.Fatal("read capability admitted control", err)
 	}
-	if _, _, err := control.Acquire(context.Background(), authorityTestAcquire()); err != nil {
-		t.Fatal(err)
-	}
-	renew := &a.Renew{Identity: pbIdentity(), ExpectedGeneration: proto.Uint64(8), ControllerSessionId: proto.String("controller"), LeaseId: proto.String("lease"), LeaseMs: proto.Uint32(1000)}
-	if _, _, err := control.Renew(context.Background(), renew, authorityTestOwner()); err != nil {
+	if _, _, err := control.SetMode(context.Background(), authorityTestSetMode()); err != nil {
 		t.Fatal(err)
 	}
 	if _, _, err := control.Revoke(context.Background(), &a.Revoke{Identity: pbIdentity(), ExpectedGeneration: proto.Uint64(8), Reason: a.RevocationReason_REVOCATION_REASON_MANUAL.Enum()}); err != nil {
 		t.Fatal(err)
 	}
-	if calls != 4 {
+	if calls != 3 {
 		t.Fatalf("unexpected calls %d", calls)
 	}
 }
@@ -101,20 +89,20 @@ func TestAuthorityInvalidRequestsNeverCall(t *testing.T) {
 		t.Fatal("invalid request called native")
 		return nil, nil
 	})
-	for name, edit := range map[string]func(*a.Acquire){
-		"identity": func(v *a.Acquire) { v.Identity.MapId = nil }, "generation": func(v *a.Acquire) { v.ExpectedGeneration = proto.Uint64(0) }, "overflow": func(v *a.Acquire) { v.ExpectedGeneration = proto.Uint64(^uint64(0)) },
-		"owner": func(v *a.Acquire) { v.Owner.PlayerDirection = nil }, "NUL": func(v *a.Acquire) { v.Owner.ControllerSessionId = proto.String("a\x00b") }, "short": func(v *a.Acquire) { v.LeaseMs = proto.Uint32(999) }, "long": func(v *a.Acquire) { v.LeaseMs = proto.Uint32(30001) },
-		"unknown": func(v *a.Acquire) { v.Owner.ProtoReflect().SetUnknown([]byte{0x18, 0x01}) },
+	for name, edit := range map[string]func(*a.SetMode){
+		"identity": func(v *a.SetMode) { v.Identity.MapId = nil }, "generation": func(v *a.SetMode) { v.ExpectedGeneration = proto.Uint64(0) }, "overflow": func(v *a.SetMode) { v.ExpectedGeneration = proto.Uint64(^uint64(0)) },
+		"mode": func(v *a.SetMode) { v.Mode = nil }, "NUL": func(v *a.SetMode) { v.Identity.LoadToken = proto.String("a\x00b") },
+		"unknown": func(v *a.SetMode) { v.Identity.ProtoReflect().SetUnknown([]byte{0x18, 0x01}) },
 	} {
 		t.Run(name, func(t *testing.T) {
-			v := authorityTestAcquire()
+			v := authorityTestSetMode()
 			edit(v)
-			if _, _, err := control.Acquire(context.Background(), v); !errors.Is(err, ErrContract) {
+			if _, _, err := control.SetMode(context.Background(), v); !errors.Is(err, ErrContract) {
 				t.Fatal(err)
 			}
 		})
 	}
-	if _, _, err := control.Revoke(context.Background(), &a.Revoke{Identity: pbIdentity(), ExpectedGeneration: proto.Uint64(7), Reason: a.RevocationReason_REVOCATION_REASON_LEASE_EXPIRED.Enum()}); !errors.Is(err, ErrContract) {
+	if _, _, err := control.Revoke(context.Background(), &a.Revoke{Identity: pbIdentity(), ExpectedGeneration: proto.Uint64(7), Reason: a.RevocationReason_REVOCATION_REASON_UNSPECIFIED.Enum()}); !errors.Is(err, ErrContract) {
 		t.Fatal(err)
 	}
 	if _, err := NewAuthorityControl(nil); !errors.Is(err, ErrContract) {
@@ -124,7 +112,7 @@ func TestAuthorityInvalidRequestsNeverCall(t *testing.T) {
 func TestAuthorityBadAcknowledgementRemainsUncertain(t *testing.T) {
 	for name, edit := range map[string]func(*a.ControlReply){
 		"missing": func(v *a.ControlReply) { v.Outcome = nil }, "old generation": func(v *a.ControlReply) { v.GetGranted().Context.NativeGeneration = proto.Uint64(7) }, "incidental generation": func(v *a.ControlReply) { v.GetGranted().Context.NativeGeneration = proto.Uint64(9) },
-		"load": func(v *a.ControlReply) { v.GetGranted().Context.Identity.LoadToken = proto.String("replacement") }, "owner": func(v *a.ControlReply) { v.GetGranted().Authority.Owner.PlayerDirection = proto.Uint64(4) }, "expired": func(v *a.ControlReply) { v.GetGranted().Authority.RemainingLeaseMs = proto.Uint32(0) }, "duration": func(v *a.ControlReply) { v.GetGranted().Authority.RemainingLeaseMs = proto.Uint32(1001) }, "lease": func(v *a.ControlReply) { v.GetGranted().LeaseId = nil },
+		"load": func(v *a.ControlReply) { v.GetGranted().Context.Identity.LoadToken = proto.String("replacement") }, "mode": func(v *a.ControlReply) { v.GetGranted().Authority.Mode = a.Mode_MODE_MANUAL.Enum() }, "missing authority": func(v *a.ControlReply) { v.GetGranted().Authority = nil },
 	} {
 		t.Run(name, func(t *testing.T) {
 			calls := 0
@@ -134,7 +122,7 @@ func TestAuthorityBadAcknowledgementRemainsUncertain(t *testing.T) {
 				edit(reply)
 				return pbResult(reply), nil
 			})
-			reply, raw, err := control.Acquire(context.Background(), authorityTestAcquire())
+			reply, raw, err := control.SetMode(context.Background(), authorityTestSetMode())
 			var uncertain *AuthorityUncertain
 			if reply != nil || !errors.As(err, &uncertain) || !errors.Is(err, ErrContract) || len(raw.Envelope) == 0 || calls != 1 {
 				t.Fatalf("%v %v calls=%d", reply, err, calls)
@@ -155,7 +143,7 @@ func TestAuthorityFailureAndLostResponse(t *testing.T) {
 				reply.IsError = true
 				return reply, nil
 			})
-			reply, _, err := control.Acquire(context.Background(), authorityTestAcquire())
+			reply, _, err := control.SetMode(context.Background(), authorityTestSetMode())
 			var uncertain *AuthorityUncertain
 			if lost {
 				if !errors.As(err, &uncertain) || reply != nil {
@@ -173,30 +161,16 @@ func TestAuthorityFailureAndLostResponse(t *testing.T) {
 		})
 	}
 }
-func TestAuthorityRenewRetainsOriginalDirection(t *testing.T) {
-	_, control := authorityTestControl(t, func(context.Context, nativeArgument) (*mcp.CallToolResult, error) {
-		reply := authorityTestGranted(8)
-		reply.GetGranted().Authority.Owner.PlayerDirection = proto.Uint64(4)
-		return pbResult(reply), nil
-	})
-	request := &a.Renew{Identity: pbIdentity(), ExpectedGeneration: proto.Uint64(8), ControllerSessionId: proto.String("controller"), LeaseId: proto.String("lease"), LeaseMs: proto.Uint32(1000)}
-	_, _, err := control.Renew(context.Background(), request, authorityTestOwner())
-	var uncertain *AuthorityUncertain
-	if !errors.As(err, &uncertain) {
-		t.Fatal(err)
-	}
-}
-
 func TestAuthorityReadRejectsStaleAndIncompleteStatus(t *testing.T) {
 	for name, edit := range map[string]func(*a.Status){
 		"stale identity":     func(v *a.Status) { v.Context.Identity.LoadToken = proto.String("other") },
 		"missing generation": func(v *a.Status) { v.Context.NativeGeneration = nil },
-		"missing owner":      func(v *a.Status) { v.GetActive().Owner = nil },
+		"missing mode":       func(v *a.Status) { v.GetActive().Mode = nil },
 		"missing state":      func(v *a.Status) { v.State = nil },
 	} {
 		t.Run(name, func(t *testing.T) {
 			client, _ := authorityTestControl(t, func(context.Context, nativeArgument) (*mcp.CallToolResult, error) {
-				status := &a.Status{Context: authorityTestContext(7), State: &a.Status_Active{Active: &a.ActiveAuthority{Owner: authorityTestOwner(), RemainingLeaseMs: proto.Uint32(1)}}}
+				status := &a.Status{Context: authorityTestContext(7), State: &a.Status_Active{Active: &a.ActiveAuthority{Mode: a.Mode_MODE_AUTO.Enum()}}}
 				edit(status)
 				return pbResult(&a.StatusReply{Outcome: &a.StatusReply_Status{Status: status}}), nil
 			})
@@ -217,7 +191,7 @@ func TestAuthorityTransportCancellationDoesNotRetry(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	done := make(chan error, 1)
-	go func() { _, _, err := control.Acquire(ctx, authorityTestAcquire()); done <- err }()
+	go func() { _, _, err := control.SetMode(ctx, authorityTestSetMode()); done <- err }()
 	select {
 	case <-started:
 		cancel()
@@ -239,18 +213,12 @@ func TestAuthorityTransportCancellationDoesNotRetry(t *testing.T) {
 	default:
 	}
 }
-func TestAuthorityRevocationAndRenewalPreconditions(t *testing.T) {
+func TestAuthorityRevocationPreconditions(t *testing.T) {
 	_, control := authorityTestControl(t, func(context.Context, nativeArgument) (*mcp.CallToolResult, error) {
 		t.Fatal("invalid control reached native")
 		return nil, nil
 	})
 	if _, _, err := control.Revoke(context.Background(), &a.Revoke{Identity: pbIdentity(), ExpectedGeneration: proto.Uint64(^uint64(0)), Reason: a.RevocationReason_REVOCATION_REASON_MANUAL.Enum()}); !errors.Is(err, ErrContract) {
-		t.Fatal(err)
-	}
-	request := &a.Renew{Identity: pbIdentity(), ExpectedGeneration: proto.Uint64(8), ControllerSessionId: proto.String("controller"), LeaseId: proto.String("lease"), LeaseMs: proto.Uint32(1000)}
-	owner := authorityTestOwner()
-	owner.ControllerSessionId = proto.String("another")
-	if _, _, err := control.Renew(context.Background(), request, owner); !errors.Is(err, ErrContract) {
 		t.Fatal(err)
 	}
 }

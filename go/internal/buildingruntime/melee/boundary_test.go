@@ -26,7 +26,7 @@ func TestMeleeBoundaryInspectAndExactDispatch(t *testing.T) {
 		t.Fatal(owner, known)
 	}
 	receipt, err := b.AttackMelee(context.Background(), d)
-	if err != nil || receipt.Kind != domain.ReceiptAccepted || f.Leases != 1 || f.Writes != 1 || f.LastPre.GetLeaseId() != "lease" || f.Owner.GetPlayerDirection() != 1 || !proto.Equal(f.Command, meleeCommand("pawn", "target", "cas", "target-cas")) {
+	if err != nil || receipt.Kind != domain.ReceiptAccepted || f.Leases != 1 || f.Writes != 1 || !proto.Equal(f.Command, meleeCommand("pawn", "target", "cas", "target-cas")) {
 		t.Fatal(receipt, err, f.Command)
 	}
 }
@@ -62,7 +62,8 @@ func TestMeleeBoundaryInspectMissingAndChangedFacts(t *testing.T) {
 				f.PreviewTick = 11
 				reject = true
 			case "claim direction":
-				f.Row.DraftClaim.GetOwned().Owner.PlayerDirection = proto.Uint64(9)
+				d.Attempt.Snapshot.Direction = 9
+				d.Admission.DraftClaim.Origin.Direction = 9
 			case "violent":
 				f.Row.Biography.DisabledWorkTags = []string{"Violent"}
 			case "missing health":
@@ -152,7 +153,7 @@ func TestMeleeBoundaryRejectsUncorrelatedRecovery(t *testing.T) {
 			case "claim":
 				boundary.ReceiptJob(f.Receipt).DraftClaimId = proto.String("other")
 			case "owner direction":
-				f.Receipt.AuthorizingOwner.PlayerDirection = proto.Uint64(3)
+				f.Receipt.Attempt.AttemptId = proto.Uint64(999)
 			case "job":
 				f.Progress.GetCompleted().Evidence.GetJob().JobId = proto.Int32(99)
 			case "target":

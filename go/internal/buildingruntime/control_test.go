@@ -37,12 +37,18 @@ func (s *controlSink) UpdateAuthority(v executor.Authority) error {
 }
 func (s *controlSink) enabled() bool { s.mu.Lock(); defer s.mu.Unlock(); return s.value.Enabled }
 
+// controlNative fakes the native side's Mode+generation authority (see #52):
+// there is no session/lease negotiation any more, just an Active/Inactive Mode
+// and a generation counter that bumps on every SetMode/Revoke.
 type controlNative struct {
-	mu                        sync.Mutex
-	generation                uint64
-	owner                     *a.Owner
+	mu         sync.Mutex
+	generation uint64
+	active     bool
+	// renews stays at zero: there is no renewal handshake any more (see #52),
+	// but it is kept so sibling test files that assert "renew never happened"
+	// still compile and hold.
 	acquires, renews, revokes atomic.Int32
-	onGrant                   func(context.Context, string, *a.ControlReply) error
+	onGrant                   func(context.Context, *a.ControlReply) error
 	onRevoke                  func()
 	onRead                    func(context.Context) error
 }
@@ -59,43 +65,31 @@ func (n *controlNative) ReadAuthority(ctx context.Context, id *c.Identity) (*a.S
 	n.mu.Lock()
 	defer n.mu.Unlock()
 	status := &a.Status{Context: &c.ObservationContext{Identity: proto.Clone(id).(*c.Identity), Tick: proto.Int64(10), NativeGeneration: proto.Uint64(n.generation)}}
-	if n.owner == nil {
-		status.State = &a.Status_Inactive{Inactive: &a.InactiveAuthority{Reason: a.RevocationReason_REVOCATION_REASON_NONE.Enum()}}
+	if n.active {
+		status.State = &a.Status_Active{Active: &a.ActiveAuthority{Mode: a.Mode_MODE_AUTO.Enum()}}
 	} else {
-		status.State = &a.Status_Active{Active: &a.ActiveAuthority{Owner: proto.Clone(n.owner).(*a.Owner), RemainingLeaseMs: proto.Uint32(1000)}}
+		status.State = &a.Status_Inactive{Inactive: &a.InactiveAuthority{Reason: a.RevocationReason_REVOCATION_REASON_NONE.Enum()}}
 	}
 	return &a.StatusReply{Outcome: &a.StatusReply_Status{Status: status}}, bridge.Result{}, nil
 }
-func (n *controlNative) grant(id *c.Identity, owner *a.Owner, lease string) *a.ControlReply {
-	return &a.ControlReply{Outcome: &a.ControlReply_Granted{Granted: &a.Granted{Context: &c.ObservationContext{Identity: proto.Clone(id).(*c.Identity), Tick: proto.Int64(10), NativeGeneration: proto.Uint64(n.generation)}, Authority: &a.ActiveAuthority{Owner: proto.Clone(owner).(*a.Owner), RemainingLeaseMs: proto.Uint32(1000)}, LeaseId: proto.String(lease)}}}
-}
-func (n *controlNative) Acquire(ctx context.Context, r *a.Acquire) (*a.ControlReply, bridge.Result, error) {
+func (n *controlNative) SetMode(ctx context.Context, r *a.SetMode) (*a.ControlReply, bridge.Result, error) {
 	n.acquires.Add(1)
 	n.mu.Lock()
 	n.generation++
-	n.owner = proto.Clone(r.Owner).(*a.Owner)
-	reply := n.grant(r.Identity, r.Owner, "lease")
+	n.active = r.GetMode() == a.Mode_MODE_AUTO
+	reply := &a.ControlReply{Outcome: &a.ControlReply_Granted{Granted: &a.Granted{
+		Context:   &c.ObservationContext{Identity: proto.Clone(r.Identity).(*c.Identity), Tick: proto.Int64(10), NativeGeneration: proto.Uint64(n.generation)},
+		Authority: &a.ActiveAuthority{Mode: a.Mode_MODE_AUTO.Enum()},
+	}}}
 	n.mu.Unlock()
 	if n.onGrant != nil {
-		if err := n.onGrant(ctx, "acquire", reply); err != nil {
+		if err := n.onGrant(ctx, reply); err != nil {
 			return nil, bridge.Result{}, err
 		}
 	}
 	return reply, bridge.Result{}, nil
 }
-func (n *controlNative) Renew(ctx context.Context, r *a.Renew, owner *a.Owner) (*a.ControlReply, bridge.Result, error) {
-	n.renews.Add(1)
-	n.mu.Lock()
-	reply := n.grant(r.Identity, owner, r.GetLeaseId())
-	n.mu.Unlock()
-	if n.onGrant != nil {
-		if err := n.onGrant(ctx, "renew", reply); err != nil {
-			return nil, bridge.Result{}, err
-		}
-	}
-	return reply, bridge.Result{}, nil
-}
-func (n *controlNative) Revoke(_ context.Context, r *a.Revoke) (*a.ControlReply, bridge.Result, error) {
+func (n *controlNative) Revoke(ctx context.Context, r *a.Revoke) (*a.ControlReply, bridge.Result, error) {
 	n.revokes.Add(1)
 	if n.onRevoke != nil {
 		n.onRevoke()
@@ -103,8 +97,11 @@ func (n *controlNative) Revoke(_ context.Context, r *a.Revoke) (*a.ControlReply,
 	n.mu.Lock()
 	defer n.mu.Unlock()
 	n.generation++
-	n.owner = nil
-	return &a.ControlReply{Outcome: &a.ControlReply_Revoked{Revoked: &a.Revoked{Context: &c.ObservationContext{Identity: proto.Clone(r.Identity).(*c.Identity), Tick: proto.Int64(10), NativeGeneration: proto.Uint64(n.generation)}, Authority: &a.InactiveAuthority{Reason: r.Reason}}}}, bridge.Result{}, nil
+	n.active = false
+	return &a.ControlReply{Outcome: &a.ControlReply_Revoked{Revoked: &a.Revoked{
+		Context:   &c.ObservationContext{Identity: proto.Clone(r.Identity).(*c.Identity), Tick: proto.Int64(10), NativeGeneration: proto.Uint64(n.generation)},
+		Authority: &a.InactiveAuthority{Reason: r.Reason},
+	}}}, bridge.Result{}, nil
 }
 func controlFixture(t *testing.T, stop func(context.Context) error) (*Control, *controlNative, *controlSink, string) {
 	t.Helper()
@@ -119,7 +116,7 @@ func controlFixture(t *testing.T, stop func(context.Context) error) (*Control, *
 	if stop == nil {
 		stop = func(context.Context) error { return nil }
 	}
-	control, err := NewControl(context.Background(), ControlConfig{ProfileDirectory: dir, LeaseDuration: time.Second, CallTimeout: time.Second, StopWrites: stop}, db, n, sink)
+	control, err := NewControl(context.Background(), ControlConfig{ProfileDirectory: dir, CallTimeout: time.Second, StopWrites: stop}, db, n, sink)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -142,16 +139,13 @@ func TestControlOwnsProfileAndExplicitLease(t *testing.T) {
 	if snapshot.Native != 2 || !sink.enabled() {
 		t.Fatal("fresh native generation not installed")
 	}
-	if lease, err := control.Lease(snapshot); err != nil || lease != "lease" {
+	if lease, err := control.Lease(snapshot); err != nil || lease == "" {
 		t.Fatal(lease, err)
 	}
 	wrong := snapshot
 	wrong.Direction++
 	if _, err := control.Lease(wrong); err == nil {
 		t.Fatal("wrong direction got lease")
-	}
-	if err := control.Renew(context.Background()); err != nil {
-		t.Fatal(err)
 	}
 	n.onRevoke = func() {
 		if sink.enabled() {
@@ -163,9 +157,6 @@ func TestControlOwnsProfileAndExplicitLease(t *testing.T) {
 	}
 	if _, err := control.Lease(snapshot); err == nil {
 		t.Fatal("manual retained lease")
-	}
-	if err := control.Renew(context.Background()); err == nil || n.renews.Load() != 1 {
-		t.Fatal("renew reacquired")
 	}
 	if err := control.Close(context.Background()); err != nil {
 		t.Fatal(err)
@@ -179,12 +170,15 @@ func TestControlOwnsProfileAndExplicitLease(t *testing.T) {
 func TestControlUncertainAcquireRequiresObservationAndNeverAdopts(t *testing.T) {
 	t.Parallel()
 	control, n, sink, _ := controlFixture(t, nil)
-	n.onGrant = func(context.Context, string, *a.ControlReply) error {
+	n.onGrant = func(context.Context, *a.ControlReply) error {
 		return &bridge.AuthorityUncertain{Cause: errors.New("reply lost")}
 	}
 	if _, err := control.Acquire(context.Background(), controlScope()); err == nil || sink.enabled() {
 		t.Fatal("lost response enabled writes")
 	}
+	// The native side already committed the mode change before the reply was
+	// lost, so a second attempt observes Active and must not request another
+	// grant (no adoption of an unconfirmed change).
 	if _, err := control.Acquire(context.Background(), controlScope()); err == nil || n.acquires.Load() != 1 {
 		t.Fatal("uncertain acquisition retried/adopted")
 	}
@@ -195,69 +189,24 @@ func TestControlUncertainAcquireRequiresObservationAndNeverAdopts(t *testing.T) 
 		t.Fatal("uncertain acquire not reconciled")
 	}
 }
-func TestControlRejectsBadGrantsAndConservativeDeadline(t *testing.T) {
+func TestControlRejectsBadGrants(t *testing.T) {
 	t.Parallel()
-	for _, kind := range []string{"owner", "generation", "expired"} {
+	for _, kind := range []string{"mode", "generation"} {
 		t.Run(kind, func(t *testing.T) {
 			control, n, sink, _ := controlFixture(t, nil)
-			n.onGrant = func(_ context.Context, _ string, r *a.ControlReply) error {
+			n.onGrant = func(_ context.Context, r *a.ControlReply) error {
 				switch kind {
-				case "owner":
-					r.GetGranted().Authority.Owner.PlayerDirection = proto.Uint64(99)
+				case "mode":
+					r.GetGranted().Authority.Mode = a.Mode_MODE_MANUAL.Enum()
 				case "generation":
 					r.GetGranted().Context.NativeGeneration = proto.Uint64(77)
-				case "expired":
-					r.GetGranted().Authority.RemainingLeaseMs = proto.Uint32(1)
-					time.Sleep(3 * time.Millisecond)
 				}
 				return nil
 			}
 			if _, err := control.Acquire(context.Background(), controlScope()); err == nil || sink.enabled() {
-				t.Fatal("invalid/expired grant enabled writes")
+				t.Fatal("invalid grant enabled writes")
 			}
 		})
-	}
-}
-func TestControlManualCancelsActiveAndQueuedRenew(t *testing.T) {
-	t.Parallel()
-	control, n, sink, _ := controlFixture(t, nil)
-	snapshot, err := control.Acquire(context.Background(), controlScope())
-	if err != nil {
-		t.Fatal(err)
-	}
-	entered := make(chan struct{})
-	n.onGrant = func(ctx context.Context, kind string, _ *a.ControlReply) error {
-		if kind == "renew" {
-			close(entered)
-			<-ctx.Done()
-			return ctx.Err()
-		}
-		return nil
-	}
-	done := make(chan error, 2)
-	go func() { done <- control.Renew(context.Background()) }()
-	<-entered
-	queued, cancel := context.WithCancel(context.Background())
-	cancel()
-	go func() { done <- control.Renew(queued) }()
-	if err := control.Manual(context.Background()); err != nil {
-		t.Fatal(err)
-	}
-	for i := 0; i < 2; i++ {
-		select {
-		case err := <-done:
-			if err == nil {
-				t.Fatal("cancelled renew succeeded")
-			}
-		case <-time.After(time.Second):
-			t.Fatal("renew did not stop")
-		}
-	}
-	if n.renews.Load() != 1 || sink.enabled() {
-		t.Fatal("queued renewal survived Manual")
-	}
-	if _, err := control.Lease(snapshot); err == nil {
-		t.Fatal("old lease survived")
 	}
 }
 func TestControlCloseRetainsLockUntilWritersDrain(t *testing.T) {
@@ -288,81 +237,6 @@ func TestControlCloseRetainsLockUntilWritersDrain(t *testing.T) {
 		t.Fatal(err)
 	}
 	other.Close()
-}
-
-func TestControlLeaseExpiryDisablesSinkWithoutNewCalls(t *testing.T) {
-	t.Parallel()
-	control, n, sink, _ := controlFixture(t, nil)
-	n.onGrant = func(_ context.Context, _ string, r *a.ControlReply) error {
-		r.GetGranted().Authority.RemainingLeaseMs = proto.Uint32(100)
-		return nil
-	}
-	snapshot, err := control.Acquire(context.Background(), controlScope())
-	if err != nil {
-		t.Fatal(err)
-	}
-	for {
-		select {
-		case enabled := <-sink.changes:
-			if enabled {
-				goto acquired
-			}
-		default:
-			t.Fatal("missing acquisition notification")
-		}
-	}
-acquired:
-	select {
-	case enabled := <-sink.changes:
-		if enabled {
-			t.Fatal("expiry enabled authority")
-		}
-	case <-time.After(time.Second):
-		t.Fatal("lease did not expire")
-	}
-	if _, err := control.Lease(snapshot); err == nil {
-		t.Fatal("expired lease supplied")
-	}
-	if err := control.Renew(context.Background()); err == nil || n.renews.Load() != 0 {
-		t.Fatal("expired lease renewed")
-	}
-}
-
-func TestControlCloseJoinsActiveRenew(t *testing.T) {
-	t.Parallel()
-	control, n, sink, _ := controlFixture(t, nil)
-	snapshot, err := control.Acquire(context.Background(), controlScope())
-	if err != nil {
-		t.Fatal(err)
-	}
-	entered := make(chan struct{})
-	returned := make(chan struct{})
-	n.onGrant = func(ctx context.Context, kind string, _ *a.ControlReply) error {
-		if kind == "renew" {
-			close(entered)
-			<-ctx.Done()
-			close(returned)
-			return ctx.Err()
-		}
-		return nil
-	}
-	done := make(chan error, 1)
-	go func() { done <- control.Renew(context.Background()) }()
-	<-entered
-	if err := control.Close(context.Background()); err != nil {
-		t.Fatal(err)
-	}
-	select {
-	case <-returned:
-	default:
-		t.Fatal("Close did not join control")
-	}
-	if err := <-done; err == nil {
-		t.Fatal("cancelled renewal succeeded")
-	}
-	if _, err := control.Lease(snapshot); err == nil || sink.enabled() {
-		t.Fatal("closed control supplied authority")
-	}
 }
 
 func TestControlRefreshRetainsDisabledCurrentGeneration(t *testing.T) {
@@ -399,7 +273,7 @@ func TestControlObserveTargetRestartsWithoutAcquiringOrAdopting(t *testing.T) {
 	control, n, sink, _ := controlFixture(t, nil)
 	n.mu.Lock()
 	n.generation = 7
-	n.owner = &a.Owner{ControllerSessionId: proto.String("previous-controller"), PlayerDirection: proto.Uint64(2)}
+	n.active = true
 	n.mu.Unlock()
 	requested := controlScope()
 	requested.Native = 2
@@ -415,11 +289,11 @@ func TestControlObserveTargetRestartsWithoutAcquiringOrAdopting(t *testing.T) {
 	if _, err := control.Lease(value.Snapshot); err == nil {
 		t.Fatal("restart adopted native lease")
 	}
-	if n.acquires.Load() != 0 || n.renews.Load() != 0 || n.revokes.Load() != 0 {
+	if n.acquires.Load() != 0 || n.revokes.Load() != 0 {
 		t.Fatal("restart observation mutated authority")
 	}
 	n.mu.Lock()
-	n.owner = nil
+	n.active = false
 	n.mu.Unlock()
 	if err := control.ObserveTarget(context.Background(), requested); err != nil {
 		t.Fatal("inactive observation", err)
@@ -493,7 +367,7 @@ func TestControlFailedObservationClearsSeededTargetButRetainsCleanup(t *testing.
 			}
 			native.onRead = nil
 			native.generation = uint64(original.Native)
-			native.owner = control.controlOwner(original)
+			native.active = true
 			if err = control.Manual(context.Background()); err != nil {
 				t.Fatal("cleanup retry failed", err)
 			}

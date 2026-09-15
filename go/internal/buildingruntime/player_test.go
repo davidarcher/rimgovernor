@@ -15,8 +15,6 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/executor"
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
 	"github.com/davidarcher/RimGovernor/go/internal/store"
-	a "github.com/davidarcher/RimGovernor/go/internal/wire/authoritypb"
-	"google.golang.org/protobuf/proto"
 )
 
 type playerWorldSource struct {
@@ -365,7 +363,7 @@ func TestPlayerActualSessionCleansPriorOwnedLeaseAndRejectsForeignOwner(t *testi
 	defer db.Close()
 	_, native := boundary.NewFixture(t)
 	authority := &controlNative{generation: 1}
-	session, err := NewSession(ctx, SessionConfig{Control: ControlConfig{ProfileDirectory: dir, LeaseDuration: time.Second, CallTimeout: time.Second}, Executor: executor.Limits{MaxAge: time.Second, RunTimeout: time.Second, JournalTimeout: time.Second}}, db, native, authority, native, boundary.FixedClock{})
+	session, err := NewSession(ctx, SessionConfig{Control: ControlConfig{ProfileDirectory: dir, CallTimeout: time.Second}, Executor: executor.Limits{MaxAge: time.Second, RunTimeout: time.Second, JournalTimeout: time.Second}}, db, native, authority, native, boundary.FixedClock{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -387,8 +385,11 @@ func TestPlayerActualSessionCleansPriorOwnedLeaseAndRejectsForeignOwner(t *testi
 	if err != nil || got.Direction != 2 || authority.acquires.Load() != 2 || authority.revokes.Load() != 1 || !p.State().Enabled {
 		t.Fatal(got, err)
 	}
+	// Simulate the native side reporting Auto authority whose generation counter
+	// is exhausted: the bot must refuse to touch it rather than revoke or adopt it.
 	authority.mu.Lock()
-	authority.owner = &a.Owner{ControllerSessionId: proto.String("foreign"), PlayerDirection: proto.Uint64(99)}
+	authority.active = true
+	authority.generation = ^uint64(0)
 	authority.mu.Unlock()
 	third := q
 	third.RequestID = "third"
@@ -403,8 +404,8 @@ func TestPlayerActualSessionCleansPriorOwnedLeaseAndRejectsForeignOwner(t *testi
 	requireProfileHeld(t, dir)
 	// The foreign owner independently leaves; shutdown can now observe inactivity.
 	authority.mu.Lock()
-	authority.owner = nil
-	authority.generation++
+	authority.active = false
+	authority.generation = 2
 	authority.mu.Unlock()
 	if err := p.Close(ctx); err != nil {
 		t.Fatal(err)

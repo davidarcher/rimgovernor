@@ -49,7 +49,7 @@ func TestSessionOtherStoredPlanHoldSurvivesManualAndRestart(t *testing.T) {
 	}
 	native := sessionNative{fixture}
 	authority := &controlNative{generation: 1}
-	config := SessionConfig{Control: ControlConfig{ProfileDirectory: dir, LeaseDuration: time.Second, CallTimeout: time.Second}, Executor: executor.Limits{MaxAge: time.Second, RunTimeout: time.Second, JournalTimeout: time.Second}}
+	config := SessionConfig{Control: ControlConfig{ProfileDirectory: dir, CallTimeout: time.Second}, Executor: executor.Limits{MaxAge: time.Second, RunTimeout: time.Second, JournalTimeout: time.Second}}
 	session, err := NewSession(ctx, config, journal, native, authority, native, boundary.FixedClock{})
 	if err != nil {
 		t.Fatal(err)
@@ -87,7 +87,6 @@ func TestSessionOtherStoredPlanHoldSurvivesManualAndRestart(t *testing.T) {
 	fixture.Receipt.AdmittedContext.NativeGeneration = proto.Uint64(uint64(currentA.Native))
 	fixture.Receipt.AdmittedContext.Tick = proto.Int64(11)
 	fixture.Receipt.Attempt.ControllerSessionId = proto.String(string(namespace))
-	fixture.Receipt.AuthorizingOwner.ControllerSessionId = proto.String(string(namespace))
 	result, err := session.Run(ctx, planA.ID(), fixture.Placement.Action.ID())
 	if err != nil || !result.NativeCalled || !result.Progress.View().Unresolved || fixture.Places != 1 {
 		t.Fatalf("A dispatch: %+v %v", result, err)
@@ -96,7 +95,7 @@ func TestSessionOtherStoredPlanHoldSurvivesManualAndRestart(t *testing.T) {
 		t.Fatal(err)
 	}
 	authority.mu.Lock()
-	inactive := authority.owner == nil
+	inactive := !authority.active
 	authority.mu.Unlock()
 	if !inactive || authority.revokes.Load() != 1 {
 		t.Fatal("Manual retained native authority")

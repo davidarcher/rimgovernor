@@ -24,7 +24,7 @@ func newClockSessionTest(t *testing.T, db *store.Store, fake *clockCoreFake) (*S
 		t.Fatal(err)
 	}
 	dir := t.TempDir()
-	config := SessionConfig{Control: ControlConfig{ProfileDirectory: dir, LeaseDuration: time.Second, CallTimeout: time.Second}, Executor: executor.Limits{MaxAge: time.Second, RunTimeout: time.Second, JournalTimeout: time.Second}, Clock: &ClockCapabilities{Native: fake, Writer: fake}}
+	config := SessionConfig{Control: ControlConfig{ProfileDirectory: dir, CallTimeout: time.Second}, Executor: executor.Limits{MaxAge: time.Second, RunTimeout: time.Second, JournalTimeout: time.Second}, Clock: &ClockCapabilities{Native: fake, Writer: fake}}
 	native := sessionNative{fixture}
 	authority := &controlNative{generation: 6}
 	s, err := NewSession(context.Background(), config, db, native, authority, native, boundary.FixedClock{})

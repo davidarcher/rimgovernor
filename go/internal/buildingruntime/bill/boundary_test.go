@@ -134,10 +134,10 @@ func TestInspectBillRejections(t *testing.T) {
 
 func TestAddBillDispatchAndSnapshotMismatch(t *testing.T) {
 	bb, f, _, placement, bill := newBillBoundaryFixture(t)
-	admission := &r.Receipt{Attempt: bb.Attempt(placement), AdmittedContext: &c.ObservationContext{Identity: boundary.Identity(placement.Snapshot), Tick: proto.Int64(10), NativeGeneration: proto.Uint64(1)}, AuthorizingOwner: &a.Owner{ControllerSessionId: proto.String("session"), PlayerDirection: proto.Uint64(uint64(placement.Snapshot.Direction))}, Outcome: &r.Receipt_Applied{Applied: &r.Applied{Observed: billEffectEvidence(bill)}}}
+	admission := &r.Receipt{Attempt: bb.Attempt(placement), AdmittedContext: &c.ObservationContext{Identity: boundary.Identity(placement.Snapshot), Tick: proto.Int64(10), NativeGeneration: proto.Uint64(1)}, Outcome: &r.Receipt_Applied{Applied: &r.Applied{Observed: billEffectEvidence(bill)}}}
 	f.addReply = &op.ExecuteReply{Outcome: &op.ExecuteReply_Receipt{Receipt: admission}}
 	out, err := bb.AddBill(context.Background(), executor.BillDispatch{Attempt: placement, SnapshotToken: bill.BeforeToken()})
-	if err != nil || out.Kind != domain.ReceiptAccepted || f.adds != 1 || f.lastPre.GetLeaseId() != "lease" {
+	if err != nil || out.Kind != domain.ReceiptAccepted || f.adds != 1 {
 		t.Fatal(err, out)
 	}
 	bb, f, _, placement, bill = newBillBoundaryFixture(t)
@@ -148,7 +148,7 @@ func TestAddBillDispatchAndSnapshotMismatch(t *testing.T) {
 
 func TestObserveBillCompletedUnsuccessfulAndAbsent(t *testing.T) {
 	bb, f, _, placement, bill := newBillBoundaryFixture(t)
-	admission := &r.Receipt{Attempt: bb.Attempt(placement), AdmittedContext: &c.ObservationContext{Identity: boundary.Identity(placement.Snapshot), Tick: proto.Int64(10), NativeGeneration: proto.Uint64(1)}, AuthorizingOwner: &a.Owner{ControllerSessionId: proto.String("session"), PlayerDirection: proto.Uint64(uint64(placement.Snapshot.Direction))}, Outcome: &r.Receipt_Uncertain{Uncertain: &r.Uncertain{}}}
+	admission := &r.Receipt{Attempt: bb.Attempt(placement), AdmittedContext: &c.ObservationContext{Identity: boundary.Identity(placement.Snapshot), Tick: proto.Int64(10), NativeGeneration: proto.Uint64(1)}, Outcome: &r.Receipt_Uncertain{Uncertain: &r.Uncertain{}}}
 	f.lookupReply = &r.LookupReply{Outcome: &r.LookupReply_Receipt{Receipt: admission}}
 	progressCtx := &c.ObservationContext{Identity: boundary.Identity(placement.Snapshot), Tick: proto.Int64(11), NativeGeneration: proto.Uint64(1)}
 	attempt := bb.Attempt(placement)
@@ -188,7 +188,7 @@ func TestObserveBillRejectsInvalidEvidenceAndUnknownAdmission(t *testing.T) {
 		t.Fatal("observed without admitted receipt")
 	}
 	bb, f, _, placement, bill := newBillBoundaryFixture(t)
-	admission := &r.Receipt{Attempt: bb.Attempt(placement), AdmittedContext: boundaryContextFor(placement.Snapshot), AuthorizingOwner: &a.Owner{ControllerSessionId: proto.String("session"), PlayerDirection: proto.Uint64(uint64(placement.Snapshot.Direction))}, Outcome: &r.Receipt_Uncertain{Uncertain: &r.Uncertain{}}}
+	admission := &r.Receipt{Attempt: bb.Attempt(placement), AdmittedContext: boundaryContextFor(placement.Snapshot), Outcome: &r.Receipt_Uncertain{Uncertain: &r.Uncertain{}}}
 	f.lookupReply = &r.LookupReply{Outcome: &r.LookupReply_Receipt{Receipt: admission}}
 	badEvidence := proto.Clone(billEffectEvidence(bill)).(*r.EffectEvidence)
 	badEvidence.GetBill().RecipeDef = proto.String("ForeignRecipe")

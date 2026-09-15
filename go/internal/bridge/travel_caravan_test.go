@@ -17,7 +17,7 @@ import (
 )
 
 func travelCaravanPre() *a.WritePrecondition {
-	return &a.WritePrecondition{Identity: pbIdentity(), ExpectedGeneration: proto.Uint64(1), LeaseId: proto.String("lease"), Attempt: &c.AttemptKey{ControllerSessionId: proto.String("controller"), ActionId: proto.String("action"), AttemptId: proto.Uint64(1)}}
+	return &a.WritePrecondition{Identity: pbIdentity(), ExpectedGeneration: proto.Uint64(1), Attempt: &c.AttemptKey{ControllerSessionId: proto.String("controller"), ActionId: proto.String("action"), AttemptId: proto.Uint64(1)}}
 }
 func travelCaravanEffectEvidence() *r.EffectEvidence {
 	return &r.EffectEvidence{Effect: &r.EffectEvidence_Caravan{Caravan: &r.CaravanEffect{
@@ -33,11 +33,10 @@ func travelCaravanStopEffectEvidence() *r.EffectEvidence {
 	}}}
 }
 func travelCaravanAdmission() *r.Receipt {
-	return &r.Receipt{Attempt: travelCaravanPre().Attempt, AdmittedContext: &c.ObservationContext{Identity: pbIdentity(), Tick: proto.Int64(10), NativeGeneration: proto.Uint64(1)}, AuthorizingOwner: &a.Owner{ControllerSessionId: proto.String("controller"), PlayerDirection: proto.Uint64(1)}, Outcome: &r.Receipt_Applied{Applied: &r.Applied{Observed: travelCaravanEffectEvidence()}}}
+	return &r.Receipt{Attempt: travelCaravanPre().Attempt, AdmittedContext: &c.ObservationContext{Identity: pbIdentity(), Tick: proto.Int64(10), NativeGeneration: proto.Uint64(1)}, Outcome: &r.Receipt_Applied{Applied: &r.Applied{Observed: travelCaravanEffectEvidence()}}}
 }
 func travelCaravanAttemptFixture() TravelCaravanAttempt {
-	admission := travelCaravanAdmission()
-	return TravelCaravanAttempt{Identity: pbIdentity(), Attempt: travelCaravanPre().Attempt, Owner: admission.AuthorizingOwner, Generation: 1, Caravan: "caravan-1", CaravanToken: "caravan-token", Kind: op.TravelKind_TRAVEL_KIND_MOVE, DestinationTile: 42}
+	return TravelCaravanAttempt{Identity: pbIdentity(), Attempt: travelCaravanPre().Attempt, Generation: 1, Caravan: "caravan-1", CaravanToken: "caravan-token", Kind: op.TravelKind_TRAVEL_KIND_MOVE, DestinationTile: 42}
 }
 
 func TestPreviewTravelCaravanAcceptedAndRejections(t *testing.T) {
@@ -153,18 +152,17 @@ func TestApplyTravelCaravanCorrelationAndOwnerMismatch(t *testing.T) {
 		t.Fatal(err)
 	}
 	pre := travelCaravanPre()
-	owner := travelCaravanAdmission().AuthorizingOwner
-	reply, raw, err := writer.ApplyTravelCaravan(context.Background(), pre, owner, "caravan-1", "caravan-token", op.TravelKind_TRAVEL_KIND_MOVE, 42)
+	reply, raw, err := writer.ApplyTravelCaravan(context.Background(), pre, "caravan-1", "caravan-token", op.TravelKind_TRAVEL_KIND_MOVE, 42)
 	if err != nil || reply.GetReceipt() == nil || len(raw.Envelope) == 0 {
 		t.Fatal(err)
 	}
 	mismatched := &testServer{schema: protoSchema, handler: func(context.Context, nativeArgument) (*mcp.CallToolResult, error) {
 		admission := travelCaravanAdmission()
-		admission.AuthorizingOwner.ControllerSessionId = proto.String("someone-else")
+		admission.Attempt.AttemptId = proto.Uint64(999)
 		return pbResult(&op.ExecuteReply{Outcome: &op.ExecuteReply_Receipt{Receipt: admission}}), nil
 	}}
 	writer, _ = NewTravelCaravanWriter(testClient(t, mismatched, time.Second))
-	if _, _, err = writer.ApplyTravelCaravan(context.Background(), pre, owner, "caravan-1", "caravan-token", op.TravelKind_TRAVEL_KIND_MOVE, 42); !errors.Is(err, ErrContract) {
+	if _, _, err = writer.ApplyTravelCaravan(context.Background(), pre, "caravan-1", "caravan-token", op.TravelKind_TRAVEL_KIND_MOVE, 42); !errors.Is(err, ErrContract) {
 		t.Fatal("owner mismatch accepted", err)
 	}
 }
@@ -193,11 +191,10 @@ func TestApplyTravelCaravanStopCarriesNoDestination(t *testing.T) {
 		t.Fatal(err)
 	}
 	pre := travelCaravanPre()
-	owner := travelCaravanAdmission().AuthorizingOwner
-	if _, _, err := writer.ApplyTravelCaravan(context.Background(), pre, owner, "caravan-1", "caravan-token", op.TravelKind_TRAVEL_KIND_STOP, -1); err != nil {
+	if _, _, err := writer.ApplyTravelCaravan(context.Background(), pre, "caravan-1", "caravan-token", op.TravelKind_TRAVEL_KIND_STOP, -1); err != nil {
 		t.Fatal(err)
 	}
-	if _, _, err := writer.ApplyTravelCaravan(context.Background(), pre, owner, "caravan-1", "caravan-token", op.TravelKind_TRAVEL_KIND_STOP, 0); !errors.Is(err, ErrContract) {
+	if _, _, err := writer.ApplyTravelCaravan(context.Background(), pre, "caravan-1", "caravan-token", op.TravelKind_TRAVEL_KIND_STOP, 0); !errors.Is(err, ErrContract) {
 		t.Fatal("stop with a destination accepted", err)
 	}
 }
@@ -205,20 +202,18 @@ func TestApplyTravelCaravanStopCarriesNoDestination(t *testing.T) {
 func TestApplyTravelCaravanInvalidInputsNeverDispatch(t *testing.T) {
 	s := &testServer{schema: protoSchema}
 	writer, _ := NewTravelCaravanWriter(testClient(t, s, time.Second))
-	owner := travelCaravanAdmission().AuthorizingOwner
 	for _, change := range []func(*a.WritePrecondition){
 		func(v *a.WritePrecondition) { v.ExpectedGeneration = nil },
 		func(v *a.WritePrecondition) { v.ExpectedGeneration = proto.Uint64(0) },
-		func(v *a.WritePrecondition) { v.LeaseId = nil },
 		func(v *a.WritePrecondition) { v.Attempt.AttemptId = nil },
 	} {
 		pre := travelCaravanPre()
 		change(pre)
-		if _, _, err := writer.ApplyTravelCaravan(context.Background(), pre, owner, "caravan-1", "caravan-token", op.TravelKind_TRAVEL_KIND_MOVE, 42); !errors.Is(err, ErrContract) {
+		if _, _, err := writer.ApplyTravelCaravan(context.Background(), pre, "caravan-1", "caravan-token", op.TravelKind_TRAVEL_KIND_MOVE, 42); !errors.Is(err, ErrContract) {
 			t.Fatal("invalid precondition accepted", err)
 		}
 	}
-	if _, _, err := writer.ApplyTravelCaravan(context.Background(), travelCaravanPre(), owner, "", "caravan-token", op.TravelKind_TRAVEL_KIND_MOVE, 42); !errors.Is(err, ErrContract) {
+	if _, _, err := writer.ApplyTravelCaravan(context.Background(), travelCaravanPre(), "", "caravan-token", op.TravelKind_TRAVEL_KIND_MOVE, 42); !errors.Is(err, ErrContract) {
 		t.Fatal("missing caravan id accepted", err)
 	}
 	if len(s.calls) != 0 {
@@ -276,14 +271,14 @@ func TestLookupAndObserveTravelCaravan(t *testing.T) {
 		return out, nil
 	}}
 	writer, _ := NewTravelCaravanWriter(testClient(t, refusal, time.Second))
-	if _, raw, err := writer.ApplyTravelCaravan(context.Background(), travelCaravanPre(), admission.AuthorizingOwner, "caravan-1", "caravan-token", op.TravelKind_TRAVEL_KIND_MOVE, 42); !errors.Is(err, ErrRefused) || len(raw.Envelope) == 0 {
+	if _, raw, err := writer.ApplyTravelCaravan(context.Background(), travelCaravanPre(), "caravan-1", "caravan-token", op.TravelKind_TRAVEL_KIND_MOVE, 42); !errors.Is(err, ErrRefused) || len(raw.Envelope) == 0 {
 		t.Fatal("typed refusal lost", err)
 	}
 	lost := &testServer{schema: protoSchema, handler: func(context.Context, nativeArgument) (*mcp.CallToolResult, error) {
 		return nil, errors.New("lost after potential effect")
 	}}
 	writer, _ = NewTravelCaravanWriter(testClient(t, lost, time.Second))
-	if reply, _, err := writer.ApplyTravelCaravan(context.Background(), travelCaravanPre(), admission.AuthorizingOwner, "caravan-1", "caravan-token", op.TravelKind_TRAVEL_KIND_MOVE, 42); err == nil || reply != nil || len(lost.calls) != 1 {
+	if reply, _, err := writer.ApplyTravelCaravan(context.Background(), travelCaravanPre(), "caravan-1", "caravan-token", op.TravelKind_TRAVEL_KIND_MOVE, 42); err == nil || reply != nil || len(lost.calls) != 1 {
 		t.Fatal("lost reply fabricated outcome or retried", err)
 	}
 }

@@ -10,7 +10,7 @@ import (
 
 func clockExpectationFixture() ClockExpectation {
 	p := clockTestPre()
-	return ClockExpectation{Identity: p.Identity, Attempt: p.Attempt, Owner: authorityTestOwner(), NativeGeneration: 7, Command: ClockCommand{Start: &ClockStart{Speed: k.Speed_SPEED_NORMAL, Policy: clockTestPolicy(), LeaseMS: 1000, MaxTicks: 100}}}
+	return ClockExpectation{Identity: p.Identity, Attempt: p.Attempt, NativeGeneration: 7, Command: ClockCommand{Start: &ClockStart{Speed: k.Speed_SPEED_NORMAL, Policy: clockTestPolicy(), LeaseMS: 1000, MaxTicks: 100}}}
 }
 func TestClockExpectationInvalidEvidence(t *testing.T) {
 	for name, edit := range map[string]func(*ClockExpectation){
@@ -20,9 +20,6 @@ func TestClockExpectationInvalidEvidence(t *testing.T) {
 		"missing attempt":  func(e *ClockExpectation) { e.Attempt = nil },
 		"zero attempt":     func(e *ClockExpectation) { e.Attempt.AttemptId = proto.Uint64(0) },
 		"zero generation":  func(e *ClockExpectation) { e.NativeGeneration = 0 },
-		"foreign owner":    func(e *ClockExpectation) { e.Owner.ControllerSessionId = proto.String("foreign") },
-		"zero direction":   func(e *ClockExpectation) { e.Owner.PlayerDirection = proto.Uint64(0) },
-		"unknown owner":    func(e *ClockExpectation) { e.Owner.ProtoReflect().SetUnknown([]byte{0x78, 1}) },
 		"zero budget":      func(e *ClockExpectation) { e.Command.Start.MaxTicks = 0 },
 		"long budget":      func(e *ClockExpectation) { e.Command.Start.MaxTicks = 1800001 },
 		"short lease":      func(e *ClockExpectation) { e.Command.Start.LeaseMS = 999 },
@@ -33,9 +30,9 @@ func TestClockExpectationInvalidEvidence(t *testing.T) {
 			e.Command.Start.Policy.MedicalRestIds = []string{"pawn"}
 			e.Command.Start.MaxTicks = 601
 		},
-		"renew foreign epoch": func(e *ClockExpectation) {
+		"renew missing owner": func(e *ClockExpectation) {
 			o := clockTestEpoch()
-			o.Owner.ControllerSessionId = proto.String("foreign")
+			o.Owner = nil
 			e.Command = ClockCommand{Renew: &ClockRenew{Original: o, LeaseMS: 1000}}
 		},
 		"speed foreign world": func(e *ClockExpectation) {
@@ -55,7 +52,6 @@ func TestClockExpectationInvalidEvidence(t *testing.T) {
 }
 func TestClockReceiptRecoveryCorrelatesFullAdmission(t *testing.T) {
 	for name, edit := range map[string]func(*k.ControlReceipt){
-		"direction":  func(r *k.ControlReceipt) { r.AuthorizingOwner.PlayerDirection = proto.Uint64(99) },
 		"generation": func(r *k.ControlReceipt) { r.AdmittedContext.NativeGeneration = proto.Uint64(8) },
 		"attempt":    func(r *k.ControlReceipt) { r.Attempt.AttemptId = proto.Uint64(2) },
 		"policy": func(r *k.ControlReceipt) {
@@ -99,13 +95,8 @@ func TestClockExpectationOutcomesAndReadPurity(t *testing.T) {
 	if err := ValidateClockReceipt(r, e); err != nil || r.GetUncertain() == nil {
 		t.Fatal("uncertainty lost", err)
 	}
-	r.AuthorizingOwner.PlayerDirection = proto.Uint64(99)
-	if ValidateClockReceipt(r, e) == nil {
-		t.Fatal("uncertain foreign admission")
-	}
 	e = clockExpectationFixture()
 	e.Attempt.AttemptId = proto.Uint64(math.MaxUint64)
-	e.Owner.PlayerDirection = proto.Uint64(math.MaxUint64)
 	e.NativeGeneration = math.MaxUint64
 	if err := ValidateClockExpectation(e); err != nil {
 		t.Fatal("uint64 precision", err)

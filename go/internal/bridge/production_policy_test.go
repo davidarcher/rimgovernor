@@ -28,7 +28,7 @@ func productionPolicyTargetFixture() ProductionPolicyTarget {
 	}
 }
 func productionPolicyPre() *a.WritePrecondition {
-	return &a.WritePrecondition{Identity: pbIdentity(), ExpectedGeneration: proto.Uint64(1), LeaseId: proto.String("lease"), Attempt: &c.AttemptKey{ControllerSessionId: proto.String("controller"), ActionId: proto.String("action"), AttemptId: proto.Uint64(1)}}
+	return &a.WritePrecondition{Identity: pbIdentity(), ExpectedGeneration: proto.Uint64(1), Attempt: &c.AttemptKey{ControllerSessionId: proto.String("controller"), ActionId: proto.String("action"), AttemptId: proto.Uint64(1)}}
 }
 func productionPolicyEffectEvidence() *r.EffectEvidence {
 	return &r.EffectEvidence{Effect: &r.EffectEvidence_ProductionPolicy{ProductionPolicy: &r.ProductionPolicyEffect{
@@ -37,11 +37,10 @@ func productionPolicyEffectEvidence() *r.EffectEvidence {
 	}}}
 }
 func productionPolicyAdmission() *r.Receipt {
-	return &r.Receipt{Attempt: productionPolicyPre().Attempt, AdmittedContext: &c.ObservationContext{Identity: pbIdentity(), Tick: proto.Int64(10), NativeGeneration: proto.Uint64(1)}, AuthorizingOwner: &a.Owner{ControllerSessionId: proto.String("controller"), PlayerDirection: proto.Uint64(1)}, Outcome: &r.Receipt_Applied{Applied: &r.Applied{Observed: productionPolicyEffectEvidence()}}}
+	return &r.Receipt{Attempt: productionPolicyPre().Attempt, AdmittedContext: &c.ObservationContext{Identity: pbIdentity(), Tick: proto.Int64(10), NativeGeneration: proto.Uint64(1)}, Outcome: &r.Receipt_Applied{Applied: &r.Applied{Observed: productionPolicyEffectEvidence()}}}
 }
 func productionPolicyAttemptFixture() ProductionPolicyAttempt {
-	admission := productionPolicyAdmission()
-	return ProductionPolicyAttempt{Identity: pbIdentity(), Attempt: productionPolicyPre().Attempt, Owner: admission.AuthorizingOwner, Generation: 1, Target: productionPolicyTargetFixture()}
+	return ProductionPolicyAttempt{Identity: pbIdentity(), Attempt: productionPolicyPre().Attempt, Generation: 1, Target: productionPolicyTargetFixture()}
 }
 
 func TestPreviewProductionPolicyAcceptedAndRejections(t *testing.T) {
@@ -162,18 +161,17 @@ func TestApplyProductionPolicyCorrelationAndOwnerMismatch(t *testing.T) {
 		t.Fatal(err)
 	}
 	pre := productionPolicyPre()
-	owner := productionPolicyAdmission().AuthorizingOwner
-	reply, raw, err := writer.ApplyProductionPolicy(context.Background(), pre, owner, productionPolicyTargetFixture())
+	reply, raw, err := writer.ApplyProductionPolicy(context.Background(), pre, productionPolicyTargetFixture())
 	if err != nil || reply.GetReceipt() == nil || len(raw.Envelope) == 0 {
 		t.Fatal(err)
 	}
 	mismatched := &testServer{schema: protoSchema, handler: func(context.Context, nativeArgument) (*mcp.CallToolResult, error) {
 		admission := productionPolicyAdmission()
-		admission.AuthorizingOwner.ControllerSessionId = proto.String("someone-else")
+		admission.Attempt.AttemptId = proto.Uint64(999)
 		return pbResult(&op.ExecuteReply{Outcome: &op.ExecuteReply_Receipt{Receipt: admission}}), nil
 	}}
 	writer, _ = NewProductionPolicyWriter(testClient(t, mismatched, time.Second))
-	if _, _, err = writer.ApplyProductionPolicy(context.Background(), pre, owner, productionPolicyTargetFixture()); !errors.Is(err, ErrContract) {
+	if _, _, err = writer.ApplyProductionPolicy(context.Background(), pre, productionPolicyTargetFixture()); !errors.Is(err, ErrContract) {
 		t.Fatal("owner mismatch accepted", err)
 	}
 }
@@ -181,22 +179,20 @@ func TestApplyProductionPolicyCorrelationAndOwnerMismatch(t *testing.T) {
 func TestApplyProductionPolicyInvalidInputsNeverDispatch(t *testing.T) {
 	s := &testServer{schema: protoSchema}
 	writer, _ := NewProductionPolicyWriter(testClient(t, s, time.Second))
-	owner := productionPolicyAdmission().AuthorizingOwner
 	for _, change := range []func(*a.WritePrecondition){
 		func(v *a.WritePrecondition) { v.ExpectedGeneration = nil },
 		func(v *a.WritePrecondition) { v.ExpectedGeneration = proto.Uint64(0) },
-		func(v *a.WritePrecondition) { v.LeaseId = nil },
 		func(v *a.WritePrecondition) { v.Attempt.AttemptId = nil },
 	} {
 		pre := productionPolicyPre()
 		change(pre)
-		if _, _, err := writer.ApplyProductionPolicy(context.Background(), pre, owner, productionPolicyTargetFixture()); !errors.Is(err, ErrContract) {
+		if _, _, err := writer.ApplyProductionPolicy(context.Background(), pre, productionPolicyTargetFixture()); !errors.Is(err, ErrContract) {
 			t.Fatal("invalid precondition accepted", err)
 		}
 	}
 	badTarget := productionPolicyTargetFixture()
 	badTarget.ExpectedSnapshotToken = ""
-	if _, _, err := writer.ApplyProductionPolicy(context.Background(), productionPolicyPre(), owner, badTarget); !errors.Is(err, ErrContract) {
+	if _, _, err := writer.ApplyProductionPolicy(context.Background(), productionPolicyPre(), badTarget); !errors.Is(err, ErrContract) {
 		t.Fatal("invalid target accepted", err)
 	}
 	if len(s.calls) != 0 {
@@ -257,14 +253,14 @@ func TestLookupAndObserveProductionPolicy(t *testing.T) {
 		return out, nil
 	}}
 	writer, _ := NewProductionPolicyWriter(testClient(t, refusal, time.Second))
-	if _, raw, err := writer.ApplyProductionPolicy(context.Background(), productionPolicyPre(), admission.AuthorizingOwner, productionPolicyTargetFixture()); !errors.Is(err, ErrRefused) || len(raw.Envelope) == 0 {
+	if _, raw, err := writer.ApplyProductionPolicy(context.Background(), productionPolicyPre(), productionPolicyTargetFixture()); !errors.Is(err, ErrRefused) || len(raw.Envelope) == 0 {
 		t.Fatal("typed refusal lost", err)
 	}
 	lost := &testServer{schema: protoSchema, handler: func(context.Context, nativeArgument) (*mcp.CallToolResult, error) {
 		return nil, errors.New("lost after potential effect")
 	}}
 	writer, _ = NewProductionPolicyWriter(testClient(t, lost, time.Second))
-	if reply, _, err := writer.ApplyProductionPolicy(context.Background(), productionPolicyPre(), admission.AuthorizingOwner, productionPolicyTargetFixture()); err == nil || reply != nil || len(lost.calls) != 1 {
+	if reply, _, err := writer.ApplyProductionPolicy(context.Background(), productionPolicyPre(), productionPolicyTargetFixture()); err == nil || reply != nil || len(lost.calls) != 1 {
 		t.Fatal("lost reply fabricated outcome or retried", err)
 	}
 }

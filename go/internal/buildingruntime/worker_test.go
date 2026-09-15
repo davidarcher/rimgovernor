@@ -177,7 +177,7 @@ func TestWorkerRefusalRequiresNewExplicitDirection(t *testing.T) {
 		t.Fatal("fresh native generation rejected")
 	}
 }
-func TestWorkerManualCancelsRunAndRenewIsIndependent(t *testing.T) {
+func TestWorkerManualCancelsRun(t *testing.T) {
 	t.Parallel()
 	w, f, _ := workerFixture(t)
 	v := workerPending(t, w, "active", false)
@@ -191,7 +191,7 @@ func TestWorkerManualCancelsRunAndRenewIsIndependent(t *testing.T) {
 		<-ctx.Done()
 		return executor.Result{}, ctx.Err()
 	}
-	running, err := newWorker(context.Background(), w.config, w.player, f, time.Second)
+	running, err := newWorker(context.Background(), w.config, w.player, f)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -201,13 +201,6 @@ func TestWorkerManualCancelsRunAndRenewIsIndependent(t *testing.T) {
 	case <-time.After(time.Second):
 		t.Fatal("run not entered")
 	}
-	deadline := time.Now().Add(time.Second)
-	for f.renews.Load() == 0 && time.Now().Before(deadline) {
-		time.Sleep(time.Millisecond)
-	}
-	if f.renews.Load() == 0 {
-		t.Fatal("run blocked independent renew")
-	}
 	_, err = w.player.Manual(context.Background(), store.ControlRequest{RequestID: "manual", Kind: store.ManualControl, World: playerWorld(v.Snapshot)})
 	if err != nil {
 		t.Fatal(err)
@@ -215,7 +208,7 @@ func TestWorkerManualCancelsRunAndRenewIsIndependent(t *testing.T) {
 	if f.State().Enabled {
 		t.Fatal("manual retained permission")
 	}
-	if _, err := newWorker(context.Background(), w.config, w.player, f, time.Second); err == nil {
+	if _, err := newWorker(context.Background(), w.config, w.player, f); err == nil {
 		t.Fatal("duplicate worker")
 	}
 }
@@ -233,7 +226,7 @@ func TestWorkerCloseTimeoutRetainsSessionAndCanRetry(t *testing.T) {
 		<-release
 		return executor.Result{}, errors.New("lost reply")
 	}
-	running, err := newWorker(context.Background(), w.config, w.player, f, time.Second)
+	running, err := newWorker(context.Background(), w.config, w.player, f)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -268,7 +261,7 @@ func TestWorkerRealSessionReopensUncertainAttemptWithoutAcquire(t *testing.T) {
 	_, fixture := boundary.NewFixture(t)
 	native := sessionNative{fixture}
 	authority := &controlNative{generation: 1}
-	config := SessionConfig{Control: ControlConfig{ProfileDirectory: dir, LeaseDuration: time.Second, CallTimeout: time.Second}, Executor: executor.Limits{MaxAge: time.Second, RunTimeout: time.Second, JournalTimeout: time.Second}}
+	config := SessionConfig{Control: ControlConfig{ProfileDirectory: dir, CallTimeout: time.Second}, Executor: executor.Limits{MaxAge: time.Second, RunTimeout: time.Second, JournalTimeout: time.Second}}
 	session, err := NewSession(ctx, config, db, native, authority, native, boundary.FixedClock{})
 	if err != nil {
 		t.Fatal(err)
@@ -309,7 +302,6 @@ func TestWorkerRealSessionReopensUncertainAttemptWithoutAcquire(t *testing.T) {
 	fixture.Receipt.AdmittedContext.Tick = proto.Int64(11)
 	fixture.Receipt.Attempt.ControllerSessionId = proto.String(string(namespace))
 	fixture.Receipt.Attempt.ActionId = proto.String(string(action.ID()))
-	fixture.Receipt.AuthorizingOwner.ControllerSessionId = proto.String(string(namespace))
 	fixture.Progress.Attempt = proto.Clone(fixture.Receipt.Attempt).(*c.AttemptKey)
 	w := &Worker{player: player, session: session, config: WorkerConfig{StepInterval: time.Millisecond, MaxBackoff: time.Second, StepTimeout: time.Second}, waits: make(map[domain.ActionID]workerWait)}
 	fixture.PlaceErr = &bridge.NativeFailure{Value: &c.Failure{Code: c.FailureCode_FAILURE_CODE_AUTHORITY_REQUIRED.Enum()}}
@@ -334,7 +326,6 @@ func TestWorkerRealSessionReopensUncertainAttemptWithoutAcquire(t *testing.T) {
 	fixture.Emergency.Context.NativeGeneration = proto.Uint64(uint64(current.Native))
 	fixture.Receipt.AdmittedContext.NativeGeneration = proto.Uint64(uint64(current.Native))
 	fixture.Receipt.Attempt.AttemptId = proto.Uint64(2)
-	fixture.Receipt.AuthorizingOwner.PlayerDirection = proto.Uint64(uint64(current.Direction))
 	fixture.Progress.Attempt = proto.Clone(fixture.Receipt.Attempt).(*c.AttemptKey)
 	fixture.PlaceErr = nil
 	if err = w.step(ctx, time.Now().Add(2*time.Second)); err != nil {
@@ -467,7 +458,7 @@ func TestWorkerLifetimeCancellationStopsPlayer(t *testing.T) {
 	t.Parallel()
 	w, f, _ := workerFixture(t)
 	lifetime, cancel := context.WithCancel(context.Background())
-	running, err := newWorker(lifetime, w.config, w.player, f, time.Second)
+	running, err := newWorker(lifetime, w.config, w.player, f)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -485,7 +476,7 @@ func TestWorkerLifetimeCancellationStopsPlayer(t *testing.T) {
 	}
 }
 
-func TestWorkerIdentityLossImmediatelyDisablesDispatchAndRenewal(t *testing.T) {
+func TestWorkerIdentityLossImmediatelyDisablesDispatch(t *testing.T) {
 	t.Parallel()
 	cases := []struct {
 		name  string
@@ -516,13 +507,6 @@ func TestWorkerIdentityLossImmediatelyDisablesDispatchAndRenewal(t *testing.T) {
 			}
 			if f.runs.Load() != 0 || f.acquires.Load() != 0 || f.manuals.Load() != 0 {
 				t.Fatal("identity loss caused native work")
-			}
-			ctx, cancel := context.WithTimeout(context.Background(), 3*w.config.RenewInterval)
-			defer cancel()
-			w.ctx = ctx
-			w.renewals()
-			if f.renews.Load() != 0 {
-				t.Fatal("renewal continued after identity loss")
 			}
 		})
 	}

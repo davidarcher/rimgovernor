@@ -54,8 +54,10 @@ func TestControlStateChecksExpiryAndHidesUnknownTarget(t *testing.T) {
 		t.Fatal(err)
 	}
 	control.mu.Lock()
-	control.timer.Stop()
-	control.deadline = time.Now().Add(-time.Second)
+	if err = control.invalidateLocked(); err != nil {
+		control.mu.Unlock()
+		t.Fatal(err)
+	}
 	control.mu.Unlock()
 	state := control.State()
 	if state.Enabled || !state.ObservationKnown || state.Snapshot != snapshot || sink.enabled() {
@@ -78,7 +80,7 @@ func TestControlDisableInvalidatesBlockedAcquireGrant(t *testing.T) {
 	t.Parallel()
 	control, native, sink, _ := controlFixture(t, nil)
 	entered, release := make(chan struct{}), make(chan struct{})
-	native.onGrant = func(context.Context, string, *a.ControlReply) error { close(entered); <-release; return nil }
+	native.onGrant = func(context.Context, *a.ControlReply) error { close(entered); <-release; return nil }
 	done := make(chan error, 1)
 	go func() { _, err := control.Acquire(context.Background(), controlScope()); done <- err }()
 	<-entered
@@ -153,7 +155,7 @@ func TestSessionDisableSynchronouslyInvalidatesBlockedRun(t *testing.T) {
 		t.Fatal(err)
 	}
 	native := &controlNative{generation: 1}
-	control, err := NewControl(ctx, ControlConfig{ProfileDirectory: dir, LeaseDuration: time.Second, CallTimeout: time.Second, StopWrites: worker.Stop}, journal, native, worker)
+	control, err := NewControl(ctx, ControlConfig{ProfileDirectory: dir, CallTimeout: time.Second, StopWrites: worker.Stop}, journal, native, worker)
 	if err != nil {
 		t.Fatal(err)
 	}
