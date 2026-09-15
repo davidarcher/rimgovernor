@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -103,7 +104,13 @@ func testNativeRead(client *Client, ctx context.Context) (Result, error) {
 	})
 }
 
-func TestCancellationQueueAndClose(t *testing.T) {
+// TestCancellationAndClose exercises per-call context cancellation and Close
+// against a Client that now allows concurrent in-flight calls (see
+// TestConcurrentNativeCallsDoNotCrossTalk). The second call here overlaps the
+// first in the handler rather than queuing behind it — that overlap is the
+// point of the fix — but it must still fail with its own context's
+// DeadlineExceeded, and Close must still cancel whatever remains in flight.
+func TestCancellationAndClose(t *testing.T) {
 	entered := make(chan struct{}, 2)
 	s := &testServer{handler: func(ctx context.Context, _ nativeArgument) (*mcp.CallToolResult, error) {
 		entered <- struct{}{}
@@ -117,8 +124,9 @@ func TestCancellationQueueAndClose(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Millisecond)
 	defer cancel()
 	if _, err := testNativeRead(client, ctx); !errors.Is(err, context.DeadlineExceeded) {
-		t.Fatalf("queue cancellation: %v", err)
+		t.Fatalf("second call cancellation: %v", err)
 	}
+	<-entered // the second call now overlaps the first rather than queuing behind it
 	if err := client.Close(); err != nil {
 		t.Fatal(err)
 	}
@@ -138,9 +146,6 @@ func TestCancellationQueueAndClose(t *testing.T) {
 	}
 	if err := client.Close(); err != nil {
 		t.Fatal("close not idempotent", err)
-	}
-	if len(entered) != 0 {
-		t.Fatal("cancelled queued read dispatched")
 	}
 }
 
@@ -380,6 +385,71 @@ func TestFlightRecorderCapturesRequestResponseAndError(t *testing.T) {
 		if row.Kind == "native_request" && row.Context["colony"] != "test-colony" {
 			t.Fatalf("expected recording context on request row, got %+v", row.Context)
 		}
+	}
+}
+
+// TestConcurrentNativeCallsDoNotCrossTalk fires overlapping native calls from
+// multiple goroutines and asserts each gets back its own distinct payload.
+// This is the regression test for the bridge no longer forcing calls
+// single-flight: bridge.Client.operation used to hard-serialize every native
+// call via a capacity-1 gate, and receiptConnection tracked exactly one
+// pending request/response at a time. Neither GABP (frame-write atomicity
+// only) nor GABS's own GABP client (map-keyed pending requests) nor the
+// go-sdk transport this Client already depends on (writeMu-guarded writes,
+// ID-correlated outgoingCalls) require single-flight; this test exercises
+// the two calls actually overlapping in the handler to prove concurrent
+// requests are correlated correctly rather than cross-talking.
+func TestConcurrentNativeCallsDoNotCrossTalk(t *testing.T) {
+	const n = 6
+	release := make(chan struct{})
+	entered := make(chan struct{}, n)
+	s := &testServer{handler: func(ctx context.Context, args nativeArgument) (*mcp.CallToolResult, error) {
+		entered <- struct{}{}
+		<-release // hold every call open simultaneously to force real overlap
+		return structured(`{"echo":` + string(args.Arguments) + `}`), nil
+	}}
+	client := testClient(t, s, 5*time.Second)
+
+	type outcome struct {
+		want string
+		got  Result
+		err  error
+	}
+	results := make(chan outcome, n)
+	for i := 0; i < n; i++ {
+		i := i
+		go func() {
+			result, err := client.operation(context.Background(), func(ctx context.Context, live *liveSession) (Result, error) {
+				return client.core(ctx, live, "games_call_tool", encode(nativeArgument{client.gameID, "fixture/read", json.RawMessage(fmt.Sprintf("%d", i))}))
+			})
+			results <- outcome{want: fmt.Sprintf(`{"echo":%d}`, i), got: result, err: err}
+		}()
+	}
+	for i := 0; i < n; i++ {
+		select {
+		case <-entered:
+		case <-time.After(5 * time.Second):
+			t.Fatalf("only %d of %d calls overlapped in the handler", i, n)
+		}
+	}
+	close(release)
+	seen := map[string]bool{}
+	for i := 0; i < n; i++ {
+		select {
+		case o := <-results:
+			if o.err != nil {
+				t.Fatalf("call failed: %v", o.err)
+			}
+			if string(o.got.Structured) != o.want {
+				t.Fatalf("cross-talk: got %s, want %s", o.got.Structured, o.want)
+			}
+			seen[o.want] = true
+		case <-time.After(5 * time.Second):
+			t.Fatal("timed out waiting for results")
+		}
+	}
+	if len(seen) != n {
+		t.Fatalf("expected %d distinct results, got %d", n, len(seen))
 	}
 }
 
