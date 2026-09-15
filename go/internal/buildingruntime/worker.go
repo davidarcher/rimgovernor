@@ -15,6 +15,11 @@ type WorkerConfig struct {
 	RoutineMethods                        bool
 	StepInterval, MaxBackoff, StepTimeout time.Duration
 	RenewInterval, RenewTimeout           time.Duration
+	// PlayerPriorityGrace bounds how long the acquired plan's own pending work
+	// may hold exclusive priority over routine dispatch (see step's use of
+	// playerPendingSince). Zero means unbounded priority, matching prior
+	// behavior.
+	PlayerPriorityGrace time.Duration
 }
 
 // routineExecutableKind lists every action kind the worker (and, for a
@@ -57,8 +62,9 @@ type Worker struct {
 	done        chan struct{}
 	stopContext func() bool
 	// Only the step loop accesses scheduling state. The catalog bounds this map.
-	waits  map[domain.ActionID]workerWait
-	cursor domain.ActionID
+	waits              map[domain.ActionID]workerWait
+	cursor             domain.ActionID
+	playerPendingSince time.Time
 }
 
 type workerCandidate struct {
@@ -84,7 +90,7 @@ func NewWorker(ctx context.Context, config WorkerConfig, player *Player, session
 	return newWorker(ctx, config, player, session, session.control.config.LeaseDuration)
 }
 func newWorker(ctx context.Context, config WorkerConfig, player *Player, session workerSession, lease time.Duration) (*Worker, error) {
-	if player == nil || session == nil || player.session != session || config.StepInterval <= 0 || config.MaxBackoff < config.StepInterval || config.MaxBackoff > time.Minute || config.StepTimeout <= 0 || config.StepTimeout > player.config.CallTimeout || config.RenewInterval <= 0 || config.RenewTimeout <= 0 || config.RenewInterval > lease/4 || config.RenewTimeout > lease/4 {
+	if player == nil || session == nil || player.session != session || config.StepInterval <= 0 || config.MaxBackoff < config.StepInterval || config.MaxBackoff > time.Minute || config.StepTimeout <= 0 || config.StepTimeout > player.config.CallTimeout || config.RenewInterval <= 0 || config.RenewTimeout <= 0 || config.RenewInterval > lease/4 || config.RenewTimeout > lease/4 || config.PlayerPriorityGrace < 0 {
 		return nil, ErrControl
 	}
 	player.mu.Lock()
@@ -214,6 +220,20 @@ func (w *Worker) step(ctx context.Context, now time.Time) error {
 			}
 		}
 	}
+	// playerPending's own eligible-but-undispatched work takes priority over
+	// routine dispatch below, but only until PlayerPriorityGrace elapses: an
+	// acquired plan action that can never resolve (missing material, blocked
+	// tile, ...) would otherwise starve every routine family indefinitely.
+	// A zero grace preserves that unbounded priority for callers that rely on
+	// it (see TestRoutineWorkerPreservesPlayerPriorityAndCancellation).
+	if playerPending {
+		if w.playerPendingSince.IsZero() {
+			w.playerPendingSince = now
+		}
+	} else {
+		w.playerPendingSince = time.Time{}
+	}
+	priorityExpired := playerPending && w.config.PlayerPriorityGrace > 0 && now.Sub(w.playerPendingSince) >= w.config.PlayerPriorityGrace
 	for _, plan := range plans {
 		planScope := scope
 		if w.config.RoutineMethods && scope.Enabled && scope.ObservationKnown && plan.Spec.ID() != scope.Snapshot.Plan {
@@ -225,7 +245,7 @@ func (w *Worker) step(ctx context.Context, now time.Time) error {
 		}
 		for _, progress := range plan.Progress {
 			v := progress.View()
-			if playerPending && planScope.Snapshot != scope.Snapshot && routineExecutableKind(progress.Action().Kind()) && !v.Unresolved {
+			if playerPending && !priorityExpired && planScope.Snapshot != scope.Snapshot && routineExecutableKind(progress.Action().Kind()) && !v.Unresolved {
 				continue
 			}
 			cleanup := workerCleanupEligible(plan, v, scope, world)

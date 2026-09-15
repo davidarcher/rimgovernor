@@ -55,6 +55,44 @@ func TestRoutineWorkerPreservesPlayerPriorityAndCancellation(t *testing.T) {
 	}
 }
 
+func TestRoutineWorkerPlayerPriorityExpiresAfterGrace(t *testing.T) {
+	t.Parallel()
+	planner, _, base, _, _ := sleepingFixture(t)
+	ctx := context.Background()
+	method, err := planner.Step(ctx)
+	if err != nil || !method.Decision.Admitted {
+		t.Fatal(method, err)
+	}
+	p := planner.reviewer.player
+	f := &workerFake{playerFakeSession: base}
+	p.session = f
+	w := &Worker{player: p, session: f, config: WorkerConfig{RoutineMethods: true, StepInterval: time.Millisecond, MaxBackoff: time.Second, StepTimeout: time.Second, PlayerPriorityGrace: time.Second}, waits: make(map[domain.ActionID]workerWait)}
+	root := base.State()
+	var selected domain.PlanID
+	f.run = func(_ context.Context, plan domain.PlanID, _ domain.ActionID) (executor.Result, error) {
+		selected = plan
+		return executor.Result{}, nil
+	}
+	start := time.Now()
+	// The player's own plan action is still pending and never cancelled here,
+	// unlike TestRoutineWorkerPreservesPlayerPriorityAndCancellation: priority
+	// is expected to hold only until PlayerPriorityGrace elapses.
+	if err = w.step(ctx, start); err != nil || selected != root.Snapshot.Plan {
+		t.Fatal(selected, err)
+	}
+	selected = ""
+	if err = w.step(ctx, start.Add(500*time.Millisecond)); err != nil || selected != root.Snapshot.Plan {
+		t.Fatal("routine ran before grace elapsed", selected, err)
+	}
+	selected = ""
+	if err = w.step(ctx, start.Add(2*time.Second)); err != nil || selected != method.Decision.Goal.Methods[0].Plan {
+		t.Fatal("routine did not run once player priority grace elapsed", selected, err)
+	}
+	if base.State() != root {
+		t.Fatal("routine selection changed player authority")
+	}
+}
+
 func TestRoutineClockIncludesMethodsAfterPlayerPlanSettles(t *testing.T) {
 	t.Parallel()
 	s, f := schedulerFixture(t)
