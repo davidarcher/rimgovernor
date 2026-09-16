@@ -36,6 +36,14 @@ func EvaluateClockWindow(f ClockWindowFacts, limits ClockWindowLimits) ClockWind
 			hold(ClockWindowStale)
 		case EmergencyUnknownFacts:
 			hold(ClockWindowUnknown)
+		case EmergencyCriticalMedical:
+			// Must NOT refuse the window here: RoutineTendPlanner dispatches the
+			// tend order regardless of window admission, but the native side can
+			// only carry it out -- and NeedsTend can only clear -- while ticks are
+			// actually passing. Refusing to admit a window while NeedsTend is true
+			// deadlocks: the order times out unexecuted, the reviewer retries next
+			// poll, and the colony is unsafe forever. Unlike a hostile threat, an
+			// untended patient is resolved BY letting the clock run, not by holding it.
 		default:
 			hold(ClockWindowUnsafe)
 		}

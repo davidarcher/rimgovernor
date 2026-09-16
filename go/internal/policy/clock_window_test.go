@@ -105,14 +105,17 @@ func TestClockWindowConservativeHolds(t *testing.T) {
 }
 func TestClockWindowEmergencyAndTickBudgetBoundaries(t *testing.T) {
 	f, l := clockWindowFixture(t)
-	for _, kind := range []string{"medical", "threat", "stale"} {
+	// "medical" is deliberately NOT refused: a colonist needing tend can only be
+	// resolved by ticks passing (RoutineTendPlanner's dispatched order needs the
+	// native clock running to execute), so holding the window here would deadlock
+	// rather than protect anything. "threat" still refuses -- an unmanaged raid
+	// should not auto-advance.
+	for _, kind := range []string{"threat", "stale"} {
 		t.Run(kind, func(t *testing.T) {
 			f := f
 			facts := EmergencyFacts{ColonistsComplete: domain.Known(true), ThreatsComplete: domain.Known(true)}
 			tick := f.Tick
 			switch kind {
-			case "medical":
-				facts.Colonists = []EmergencyPawn{{ID: "pawn", Dead: domain.Known(false), Downed: domain.Known(false), Bleeding: domain.Known(false), NeedsTend: domain.Known(true)}}
 			case "threat":
 				facts.Threats = []EmergencyThreat{{ID: "enemy", Kind: Hostile, Dead: domain.Known(false), Downed: domain.Known(false)}}
 			case "stale":
@@ -133,6 +136,20 @@ func TestClockWindowEmergencyAndTickBudgetBoundaries(t *testing.T) {
 			}
 		})
 	}
+	t.Run("medical", func(t *testing.T) {
+		f := f
+		facts := EmergencyFacts{ColonistsComplete: domain.Known(true), ThreatsComplete: domain.Known(true),
+			Colonists: []EmergencyPawn{{ID: "pawn", Dead: domain.Known(false), Downed: domain.Known(false), Bleeding: domain.Known(false), NeedsTend: domain.Known(true)}}}
+		var err error
+		f.Emergency, err = NewEmergencySnapshot(f.Current, f.Tick, facts)
+		if err != nil {
+			t.Fatal(err)
+		}
+		d := EvaluateClockWindow(f, l)
+		if !d.Admitted || len(d.Refused) != 0 {
+			t.Fatal(d)
+		}
+	})
 	for _, budget := range []uint32{1, 1800000} {
 		l.MaxTicks = budget
 		f.Tick = domain.Tick(math.MaxInt64 - int64(budget))
