@@ -49,6 +49,9 @@ func (s FoodStorageStock) stored(p FoodStoragePolicy) domain.Fact[bool] {
 	return domain.Known(temperature <= p.ChilledMaxC || float64(ticks) >= p.SafeRotDays*ticksPerDay)
 }
 
+// celsius accepts any finite temperature, below zero included.
+func celsius(n float64) bool { return !math.IsNaN(n) && !math.IsInf(n, 0) }
+
 // ticksPerDay is RimWorld's fixed tick count per in-game day.
 const ticksPerDay = 60000
 
@@ -84,15 +87,20 @@ type FoodStoragePolicy struct {
 	// it under 0 C); SafeRotDays is the rot runway that makes warm roofed
 	// stock acceptable anyway.
 	ChilledMaxC, SafeRotDays float64
+	// ChilledExitC is the measured storage temperature MaintainRefrigeration
+	// releases at (hysteresis under ChilledMaxC); FreezerTargetC is the
+	// setpoint it asks a cooler for.
+	ChilledExitC, FreezerTargetC float64
 }
 
 func DefaultFoodStoragePolicy() FoodStoragePolicy {
-	return FoodStoragePolicy{MinimumStoredFraction: 0.5, TargetStoredFraction: 0.9, AtRiskNutritionThreshold: 5, ChilledMaxC: 10, SafeRotDays: 5}
+	return FoodStoragePolicy{MinimumStoredFraction: 0.5, TargetStoredFraction: 0.9, AtRiskNutritionThreshold: 5, ChilledMaxC: 10, SafeRotDays: 5, ChilledExitC: 5, FreezerTargetC: -5}
 }
 
 func (p FoodStoragePolicy) valid() bool {
 	return foodNumber(p.MinimumStoredFraction) && foodNumber(p.TargetStoredFraction) && foodNumber(p.AtRiskNutritionThreshold) &&
-		foodNumber(p.ChilledMaxC) && foodNumber(p.SafeRotDays) && p.SafeRotDays >= 0 &&
+		foodNumber(p.SafeRotDays) && celsius(p.ChilledMaxC) && celsius(p.ChilledExitC) && celsius(p.FreezerTargetC) &&
+		p.ChilledExitC <= p.ChilledMaxC && p.FreezerTargetC <= p.ChilledExitC &&
 		p.MinimumStoredFraction < p.TargetStoredFraction && p.TargetStoredFraction <= 1
 }
 
@@ -114,34 +122,54 @@ type FoodStorageReview struct {
 // Non-perishable and already-rotted stock never contributes: it is not at
 // risk of being lost to inadequate storage. An unknown fact anywhere in the
 // census preserves the latch untouched, matching ReviewMedicalReserve.
+// Validate rejects malformed or duplicate stock rows; an unknown census is
+// valid.
+func (v FoodStorageObservation) Validate() error {
+	invalid := errors.New("invalid food storage facts")
+	stocks, known := v.Stocks.Value()
+	if !known {
+		return nil
+	}
+	if len(stocks) > 4096 {
+		return invalid
+	}
+	seen := map[string]bool{}
+	for _, entry := range stocks {
+		s := entry.Stock
+		if !foodID(s.ID) || seen[s.ID] {
+			return invalid
+		}
+		seen[s.ID] = true
+		if nutrition, nk := s.Nutrition.Value(); nk && !foodNumber(nutrition) {
+			return invalid
+		}
+		if ticks, tk := s.RotTicks.Value(); tk && ticks < 0 {
+			return invalid
+		}
+		if temperature, tk := s.TemperatureC.Value(); tk && !celsius(temperature) {
+			return invalid
+		}
+	}
+	return nil
+}
+
 func ReviewFoodStorage(v FoodStorageObservation, active bool, p FoodStoragePolicy) (FoodStorageReview, error) {
 	r := FoodStorageReview{Active: active}
 	invalid := errors.New("invalid food storage facts or thresholds")
 	if !p.valid() {
 		return r, invalid
 	}
+	if err := v.Validate(); err != nil {
+		return r, invalid
+	}
 	stocks, known := v.Stocks.Value()
 	if !known {
 		return r, nil
 	}
-	if len(stocks) > 4096 {
-		return r, invalid
-	}
-	seen := map[string]bool{}
 	var stored, unstored, total float64
 	for _, entry := range stocks {
 		s := entry.Stock
-		if !foodID(s.ID) || seen[s.ID] {
-			return r, invalid
-		}
-		seen[s.ID] = true
 		nutrition, nk := s.Nutrition.Value()
-		if nk && !foodNumber(nutrition) {
-			return r, invalid
-		}
-		if ticks, tk := s.RotTicks.Value(); tk && ticks < 0 {
-			return r, invalid
-		}
 		perishable, pk := s.Perishable.Value()
 		if !nk || !pk || !perishable {
 			continue

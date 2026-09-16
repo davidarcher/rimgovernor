@@ -142,7 +142,7 @@ func TestFoodStorageReviewIgnoresNonPerishableAndRotted(t *testing.T) {
 }
 
 func TestFoodStorageReviewRejectsInvalidFacts(t *testing.T) {
-	if _, err := ReviewFoodStorage(FoodStorageObservation{}, false, FoodStoragePolicy{0.9, 0.5, 5, 10, 5}); err == nil {
+	if _, err := ReviewFoodStorage(FoodStorageObservation{}, false, FoodStoragePolicy{0.9, 0.5, 5, 10, 5, 5, -5}); err == nil {
 		t.Fatal("unordered thresholds must be rejected")
 	}
 	dup := FoodStorageObservation{Stocks: domain.Known([]FoodStorageStock{

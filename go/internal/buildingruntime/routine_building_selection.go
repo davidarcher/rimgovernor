@@ -64,6 +64,11 @@ func (r *RoutineBuildingPlanner) selection(facts observation.ColonyProjection) (
 			return 0, "", BuildingMethodUnknown
 		}
 		return 1, r.temperature.Key, ""
+	case policy.MaintainRefrigeration:
+		if r.refrigeration == nil || r.refrigeration.Method != policy.RefrigerationBuild {
+			return 0, "", BuildingMethodUnknown
+		}
+		return 1, r.refrigeration.Key, ""
 	case policy.EnsureBasicPower:
 		if r.power == nil {
 			return 0, "", BuildingMethodUnknown

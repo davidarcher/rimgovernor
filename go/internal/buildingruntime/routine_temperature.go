@@ -27,10 +27,10 @@ func (r *RoutineReviewer) temperatureEnabled() bool {
 }
 
 // roomsEnabled reports whether any composed family reads the typed room
-// census inside the review bracket: temperature plans need room heat and
-// comfort plans need each facility's hosting room role.
+// census inside the review bracket: temperature and refrigeration plans need
+// room heat and comfort plans need each facility's hosting room role.
 func (r *RoutineReviewer) roomsEnabled() bool {
-	return r.temperatureEnabled() || r.methodEnabled(policy.EnsureComfort)
+	return r.temperatureEnabled() || r.methodEnabled(policy.EnsureComfort) || r.methodEnabled(policy.MaintainRefrigeration)
 }
 
 func (r *RoutineReviewer) methodEnabled(goal policy.GoalID) bool {

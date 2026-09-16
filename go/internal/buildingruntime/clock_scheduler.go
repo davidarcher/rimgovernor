@@ -47,6 +47,7 @@ type ClockSchedulerConfig struct {
 	Expansion                        *RoutineBuildingPlanner
 	Power                            *RoutineBuildingPlanner
 	Temperature                      *RoutineBuildingPlanner
+	Refrigeration                    *RoutineBuildingPlanner
 	Defense                          *RoutineDefensePlanner
 	Tend                             *RoutineTendPlanner
 	Rescue                           *RoutineRescuePlanner
@@ -92,6 +93,7 @@ type ClockSchedulerResult struct {
 	Expansion                                     *RoutineBuildingResult
 	Power                                         *RoutineBuildingResult
 	Temperature                                   *RoutineBuildingResult
+	Refrigeration                                 *RoutineBuildingResult
 	Defense                                       *RoutineDefenseResult
 	Tend                                          *RoutineTendResult
 	Rescue                                        *RoutineRescueResult
@@ -197,6 +199,9 @@ func NewClockScheduler(player *Player, session *Session, native ClockWindowNativ
 		return nil, ErrControl
 	}
 	if config.Temperature != nil && (config.Routine == nil || config.Temperature.reviewer != config.Routine || config.Temperature.goal != policy.EnsureTemperatureSafety) {
+		return nil, ErrControl
+	}
+	if config.Refrigeration != nil && (config.Routine == nil || config.Refrigeration.reviewer != config.Routine || config.Refrigeration.goal != policy.MaintainRefrigeration) {
 		return nil, ErrControl
 	}
 	if config.Defense != nil && (config.Routine == nil || config.Defense.reviewer != config.Routine) {
@@ -728,7 +733,7 @@ func (s *ClockScheduler) Step(ctx context.Context) (ClockSchedulerResult, error)
 	if out.Fields != nil {
 		nativeWorkTicks = out.Fields.NativeWorkTicks
 	}
-	for _, result := range []*RoutineBuildingResult{out.Sleeping, out.Comfort, out.Expansion, out.Power, out.Temperature} {
+	for _, result := range []*RoutineBuildingResult{out.Sleeping, out.Comfort, out.Expansion, out.Power, out.Temperature, out.Refrigeration} {
 		if result != nil {
 			nativeWorkTicks = max(nativeWorkTicks, result.NativeWorkTicks)
 		}
@@ -912,6 +917,16 @@ func (s *ClockScheduler) stepPlanners(call, gctx, epoch context.Context, out *Cl
 				return fmt.Errorf("temperature: %w", err)
 			}
 			out.Temperature = &method
+			return nil
+		})
+	}
+	if s.config.Refrigeration != nil {
+		g.Go(func() error {
+			method, err := s.config.Refrigeration.step(gctx, epoch, arbiter)
+			if err != nil {
+				return fmt.Errorf("refrigeration: %w", err)
+			}
+			out.Refrigeration = &method
 			return nil
 		})
 	}

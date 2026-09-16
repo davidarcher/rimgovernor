@@ -25,6 +25,7 @@ const (
 	MaintainMedicalCare     GoalID = "MaintainMedicalCare"
 	MaintainMedicalReserves GoalID = "MaintainMedicalReserves"
 	MaintainFoodStorage     GoalID = "MaintainFoodStorage"
+	MaintainRefrigeration   GoalID = "MaintainRefrigeration"
 	EnsureComfort           GoalID = "EnsureComfort"
 	EnsureExpansion         GoalID = "EnsureExpansion"
 	MaintainEquipment       GoalID = "MaintainEquipment"
@@ -37,6 +38,10 @@ const (
 // priority, the same priority medicalReservePriority (a local var, not a
 // const, at its own point of use below) starts MaintainMedicalReserves at.
 const foodStorageUpkeepPriority = 3
+
+// refrigerationPriority keeps MaintainRefrigeration out of the ranked
+// development queue (see DetectRoutine's comment at its point of use).
+const refrigerationPriority = 2
 
 type RoutinePolicy struct {
 	AnimalUpkeep                                  AnimalUpkeepPolicy
@@ -274,6 +279,7 @@ type RoutineLatches struct {
 	Animals                  AnimalUpkeepHistory
 	MedicalReserve           bool
 	FoodStorage              bool
+	Refrigeration            bool
 	Food, Cold, Hot, Wood    bool
 	Upkeep                   UpkeepHistory
 }
@@ -375,6 +381,10 @@ func DetectRoutine(f RoutineFacts, previous RoutineLatches, p RoutinePolicy) (Ro
 	if err != nil {
 		return RoutineNeeds{}, err
 	}
+	refrigeration, err := ReviewRefrigeration(f.FoodStorageUpkeep, previous.Refrigeration, p.FoodStorage)
+	if err != nil {
+		return RoutineNeeds{}, err
+	}
 	upkeep, err := ReviewUpkeep(f.Upkeep, previous.Upkeep, f.UpkeepIssued)
 	if err != nil {
 		return RoutineNeeds{}, err
@@ -451,6 +461,7 @@ func DetectRoutine(f RoutineFacts, previous RoutineLatches, p RoutinePolicy) (Ro
 		Animals:        animals.History,
 		MedicalReserve: medicine.Active,
 		FoodStorage:    foodStorage.Active,
+		Refrigeration:  refrigeration.Active,
 		Upkeep:         upkeep.History,
 		Food:           latchValue(previous.Food, f.FoodDays, p.FoodMinDays, p.FoodTargetDays, false),
 		Cold:           latchValue(previous.Cold, fallback(f.SleepingMin, f.OutdoorTemperature), p.ColdEnter, p.ColdExit, false),
@@ -706,6 +717,23 @@ func DetectRoutine(f RoutineFacts, previous RoutineLatches, p RoutinePolicy) (Ro
 	if !positive(foodStorageRecovered) {
 		addGoal(MaintainFoodStorage, foodStoragePriority)
 		r.Goals[len(r.Goals)-1].MethodUnavailable = true
+	}
+	// Refrigeration answers the same at-risk perishable nutrition as
+	// MaintainFoodStorage by cooling the room the food already sits in. It
+	// runs at foothold priority like EnsureTemperatureSafety rather than as a
+	// ranked development project: the review only latches on food inside
+	// SafeRotDays of spoiling, and a cooler queued behind the project limit
+	// arrives after the food is gone.
+	refrigerationRecovered := domain.Unknown[bool]()
+	if _, known := refrigeration.WarmNutrition.Value(); known {
+		refrigerationRecovered = domain.Known(!refrigeration.Active)
+	}
+	addAssessment(MaintainRefrigeration, refrigerationPriority, refrigerationRecovered)
+	if !positive(refrigerationRecovered) {
+		addGoal(MaintainRefrigeration, refrigerationPriority)
+		if nutrition, known := refrigeration.WarmNutrition.Value(); known && p.FoodStorage.AtRiskNutritionThreshold > 0 {
+			r.Goals[len(r.Goals)-1].Deficit = domain.Known(min(1, nutrition/p.FoodStorage.AtRiskNutritionThreshold))
+		}
 	}
 	animalContainment := domain.Unknown[bool]()
 	if targets, known := animals.Containment.Value(); known {
