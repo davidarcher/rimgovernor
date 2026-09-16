@@ -218,12 +218,30 @@ never re-cropped. Open hunting or foraging under EnsureFoodSupply does not block
 batch and a sown field does not block acquisition (the store exempts each from the
 other's open work, mirroring the acquisition-over-bill exemption); a second field batch
 still waits for the first to resolve. Each batch previews at most six patches inside the
-shared step budget. The field planner also requests `SunLamp` and `HydroponicsBasin`
-definitions and decodes `PlanningFacts.environment` into `ColonyProjection.Environment`
-(`policy.ControlledEnvironment`: lamps with native growth cells, growers with sow tags,
-indoor rooms, per-network headroom with `NightHeadroomW`/`CalmNightHeadroomW`); it is
-observed only, unknown when the native side withholds it, and site-type selection
-consumes it. Insufficient farmland does not reject an otherwise legal
+shared step budget. The field planner also requests `SunLamp`, `HydroponicsBasin` and
+`Heater` definitions and decodes `PlanningFacts.environment` into
+`ColonyProjection.Environment` (`policy.ControlledEnvironment`: lamps with native growth
+cells, growers with sow tags, indoor rooms, per-network headroom with
+`NightHeadroomW`/`CalmNightHeadroomW`); it is observed only and unknown when the native
+side withholds it. Site-type selection (`policy.PlanSiteType`) ranks every crop under
+outdoor, greenhouse-reuse (roofed soil a running lamp lights), greenhouse-new (roofed
+indoor soil plus one lamp placed where its growth disc covers the most soil),
+hydroponics (new basins on lit roofed floor, only for the basin's native default crop
+with the `Hydroponic` sow tag, since growers cannot be re-cropped natively) and
+dark-room (unlit roofed indoor soil for a zero-glow crop) by the same net-nutrition-per-
+needed-cell score, charging construction per building and power per added kilowatt
+against the best network's day headroom (lamps) or night/calm-night headroom (basins,
+heaters), and a heater per room or outdoors below 10C; a kind without the power,
+heater, infrastructure or crop compatibility it needs stays in the candidate list with
+its reason, and an unknown environment leaves only outdoor candidates. Controlled kinds
+ignore the outdoor season. Candidates are enacted in score order: zone kinds preview
+growing zones, construction kinds preview the lamp or basins as building actions
+(the lit soil is planted by a later batch once the game reports it), and a candidate the
+game refuses to place or the store cannot reserve falls through to the next, at most
+three per step. Open farm-infrastructure work blocks the next batch like open zone work,
+and the store's field exemption covers `SunLamp`/`HydroponicsBasin`/`Heater` plans.
+`nativeaccept/cmd/farmselectaccept` asserts the traced selection kind/crop, the
+winner's term breakdown and every loser's reason. Insufficient farmland does not reject an otherwise legal
 shelter. Selected field capacity remains separate from observed growing cells and the
 production gate. Work
 allocation uses observed capabilities/skills, job load and stable identity tie breaks;
