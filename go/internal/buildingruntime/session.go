@@ -13,6 +13,7 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/capture"
 	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/draft"
 	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/equip"
+	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/excavation"
 	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/haul"
 	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/melee"
 	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/mineacquisition"
@@ -67,6 +68,7 @@ type SessionConfig struct {
 	SettlementGift      *SettlementGiftCapabilities
 	QuestFulfill        *QuestFulfillCapabilities
 	MineAcquisition     *mineacquisition.MineAcquisitionCapabilities
+	Excavation          *excavation.ExcavationCapabilities
 	ProductionPolicy    *ProductionPolicyCapabilities
 	BuildingTemperature *buildingtemperature.Capabilities
 }
@@ -374,6 +376,9 @@ func NewSession(ctx context.Context, config SessionConfig, journal *store.Store,
 	if config.MineAcquisition != nil && (config.MineAcquisition.Native == nil || config.MineAcquisition.Writer == nil) {
 		return cleanup(ErrControl)
 	}
+	if config.Excavation != nil && (config.Excavation.Native == nil || config.Excavation.Writer == nil) {
+		return cleanup(ErrControl)
+	}
 	if config.ProductionPolicy != nil && (config.ProductionPolicy.Native == nil || config.ProductionPolicy.Writer == nil) {
 		return cleanup(ErrControl)
 	}
@@ -430,6 +435,11 @@ func NewSession(ctx context.Context, config SessionConfig, journal *store.Store,
 	}
 	if config.MineAcquisition != nil {
 		if err := worker.EnableMineAcquisition(mineacquisition.NewMineAcquisitionBoundary(place, *config.MineAcquisition)); err != nil {
+			return cleanup(err)
+		}
+	}
+	if config.Excavation != nil {
+		if err := worker.EnableExcavation(excavation.NewExcavationBoundary(place, *config.Excavation)); err != nil {
 			return cleanup(err)
 		}
 	}
@@ -690,7 +700,7 @@ func (s *Session) Acquire(ctx context.Context, requested domain.GenerationSnapsh
 	return s.control.Acquire(ctx, requested)
 }
 func (s *Session) State() ControlState { return s.control.State() }
-func (s *Session) Disable() error                  { return s.control.Disable() }
+func (s *Session) Disable() error      { return s.control.Disable() }
 
 // ObserveTarget attaches only read reconciliation to a durable plan. It cannot
 // obtain a lease, even if native status reports an active owner for this namespace.

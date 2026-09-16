@@ -39,7 +39,7 @@ namespace RimGovernor.Protocol.Receipts {
             "Jy5yaW1nb3Zlcm5vci5yZWNlaXB0cy52MS5FZmZlY3RFdmlkZW5jZSJrCglV",
             "bmNlcnRhaW4SPgoNbGFzdF9vYnNlcnZlZBgBIAEoCzInLnJpbWdvdmVybm9y",
             "LnJlY2VpcHRzLnYxLkVmZmVjdEV2aWRlbmNlEhMKBmRldGFpbBgCIAEoCUgA",
-            "iAEBQgkKB19kZXRhaWwi9AkKDkVmZmVjdEV2aWRlbmNlEkMKDGNvbnN0cnVj",
+            "iAEBQgkKB19kZXRhaWwitQoKDkVmZmVjdEV2aWRlbmNlEkMKDGNvbnN0cnVj",
             "dGlvbhgBIAEoCzIrLnJpbWdvdmVybm9yLnJlY2VpcHRzLnYxLkNvbnN0cnVj",
             "dGlvbkVmZmVjdEgAEkMKDGluc3RhbGxhdGlvbhgCIAEoCzIrLnJpbWdvdmVy",
             "bm9yLnJlY2VpcHRzLnYxLkluc3RhbGxhdGlvbkVmZmVjdEgAEkEKC2Rlc2ln",
@@ -67,22 +67,31 @@ namespace RimGovernor.Protocol.Receipts {
             "LnJlY2VpcHRzLnYxLlF1ZXN0RWZmZWN0SAASQQoLYWNxdWlzaXRpb24YFCAB",
             "KAsyKi5yaW1nb3Zlcm5vci5yZWNlaXB0cy52MS5BY3F1aXNpdGlvbkVmZmVj",
             "dEgAEjcKBm5hbWluZxgVIAEoCzIlLnJpbWdvdmVybm9yLnJlY2VpcHRzLnYx",
-            "Lk5hbWluZ0VmZmVjdEgAQggKBmVmZmVjdCKOAQoQU25hcHNob3RFdmlkZW5j",
-            "ZRIWCgllbnRpdHlfaWQYASABKAlIAIgBARIZCgxiZWZvcmVfdG9rZW4YAiAB",
-            "KAlIAYgBARIYCgthZnRlcl90b2tlbhgDIAEoCUgCiAEBQgwKCl9lbnRpdHlf",
-            "aWRCDwoNX2JlZm9yZV90b2tlbkIOCgxfYWZ0ZXJfdG9rZW4iVQoRQWNxdWlz",
-            "aXRpb25PdXRwdXQSFQoIdGhpbmdfaWQYASABKAlIAIgBARISCgV1bml0cxgC",
-            "IAEoBUgBiAEBQgsKCV90aGluZ19pZEIICgZfdW5pdHMiuQMKEUFjcXVpc2l0",
-            "aW9uRWZmZWN0EhYKCXNvdXJjZV9pZBgBIAEoCUgAiAEBEhkKDHJlc291cmNl",
-            "X2RlZhgCIAEoCUgBiAEBEikKBGNlbGwYAyABKAsyGy5yaW1nb3Zlcm5vci5j",
-            "b21tb24udjEuQ2VsbBIXCgpkZXNpZ25hdGVkGAQgASgISAKIAQESGwoObGFi",
-            "b3JfZmluaXNoZWQYBSABKAhIA4gBARIbCg5wcm9kdWNlZF91bml0cxgGIAEo",
-            "BUgEiAEBEjsKB291dHB1dHMYByADKAsyKi5yaW1nb3Zlcm5vci5yZWNlaXB0",
-            "cy52MS5BY3F1aXNpdGlvbk91dHB1dBIcCg9vdXRwdXRfb2JzZXJ2ZWQYCCAB",
-            "KAhIBYgBARIcCg9vdXRwdXRfY29tcGxldGUYCSABKAhIBogBAUIMCgpfc291",
-            "cmNlX2lkQg8KDV9yZXNvdXJjZV9kZWZCDQoLX2Rlc2lnbmF0ZWRCEQoPX2xh",
-            "Ym9yX2ZpbmlzaGVkQhEKD19wcm9kdWNlZF91bml0c0ISChBfb3V0cHV0X29i",
-            "c2VydmVkQhIKEF9vdXRwdXRfY29tcGxldGUiuAEKDE5hbWluZ0VmZmVjdBIW",
+            "Lk5hbWluZ0VmZmVjdEgAEj8KCmV4Y2F2YXRpb24YFiABKAsyKS5yaW1nb3Zl",
+            "cm5vci5yZWNlaXB0cy52MS5FeGNhdmF0aW9uRWZmZWN0SABCCAoGZWZmZWN0",
+            "Io4BChBTbmFwc2hvdEV2aWRlbmNlEhYKCWVudGl0eV9pZBgBIAEoCUgAiAEB",
+            "EhkKDGJlZm9yZV90b2tlbhgCIAEoCUgBiAEBEhgKC2FmdGVyX3Rva2VuGAMg",
+            "ASgJSAKIAQFCDAoKX2VudGl0eV9pZEIPCg1fYmVmb3JlX3Rva2VuQg4KDF9h",
+            "ZnRlcl90b2tlbiJVChFBY3F1aXNpdGlvbk91dHB1dBIVCgh0aGluZ19pZBgB",
+            "IAEoCUgAiAEBEhIKBXVuaXRzGAIgASgFSAGIAQFCCwoJX3RoaW5nX2lkQggK",
+            "Bl91bml0cyK5AwoRQWNxdWlzaXRpb25FZmZlY3QSFgoJc291cmNlX2lkGAEg",
+            "ASgJSACIAQESGQoMcmVzb3VyY2VfZGVmGAIgASgJSAGIAQESKQoEY2VsbBgD",
+            "IAEoCzIbLnJpbWdvdmVybm9yLmNvbW1vbi52MS5DZWxsEhcKCmRlc2lnbmF0",
+            "ZWQYBCABKAhIAogBARIbCg5sYWJvcl9maW5pc2hlZBgFIAEoCEgDiAEBEhsK",
+            "DnByb2R1Y2VkX3VuaXRzGAYgASgFSASIAQESOwoHb3V0cHV0cxgHIAMoCzIq",
+            "LnJpbWdvdmVybm9yLnJlY2VpcHRzLnYxLkFjcXVpc2l0aW9uT3V0cHV0EhwK",
+            "D291dHB1dF9vYnNlcnZlZBgIIAEoCEgFiAEBEhwKD291dHB1dF9jb21wbGV0",
+            "ZRgJIAEoCEgGiAEBQgwKCl9zb3VyY2VfaWRCDwoNX3Jlc291cmNlX2RlZkIN",
+            "CgtfZGVzaWduYXRlZEIRCg9fbGFib3JfZmluaXNoZWRCEQoPX3Byb2R1Y2Vk",
+            "X3VuaXRzQhIKEF9vdXRwdXRfb2JzZXJ2ZWRCEgoQX291dHB1dF9jb21wbGV0",
+            "ZSLRAgoQRXhjYXZhdGlvbkVmZmVjdBIpCgRjZWxsGAEgASgLMhsucmltZ292",
+            "ZXJub3IuY29tbW9uLnYxLkNlbGwSHgoRbWluZWFibGVfZGVmX25hbWUYAiAB",
+            "KAlIAIgBARIXCgpkZXNpZ25hdGVkGAMgASgISAGIAQESKQocYWRvcHRlZF9l",
+            "eGlzdGluZ19kZXNpZ25hdGlvbhgEIAEoCEgCiAEBEhQKB2NsZWFyZWQYBSAB",
+            "KAhIA4gBARIWCgljYW5jZWxsZWQYBiABKAhIBIgBARIUCgdibG9ja2VyGAcg",
+            "ASgJSAWIAQFCFAoSX21pbmVhYmxlX2RlZl9uYW1lQg0KC19kZXNpZ25hdGVk",
+            "Qh8KHV9hZG9wdGVkX2V4aXN0aW5nX2Rlc2lnbmF0aW9uQgoKCF9jbGVhcmVk",
+            "QgwKCl9jYW5jZWxsZWRCCgoIX2Jsb2NrZXIiuAEKDE5hbWluZ0VmZmVjdBIW",
             "Cgl3aW5kb3dfaWQYASABKAVIAIgBARIZCgxmYWN0aW9uX25hbWUYAiABKAlI",
             "AYgBARIcCg9zZXR0bGVtZW50X25hbWUYAyABKAlIAogBARIWCgljb25maXJt",
             "ZWQYBCABKAhIA4gBAUIMCgpfd2luZG93X2lkQg8KDV9mYWN0aW9uX25hbWVC",
@@ -335,10 +344,11 @@ namespace RimGovernor.Protocol.Receipts {
             new pbr::GeneratedClrTypeInfo(typeof(global::RimGovernor.Protocol.Receipts.NoChange), global::RimGovernor.Protocol.Receipts.NoChange.Parser, new[]{ "Observed", "Detail" }, new[]{ "Detail" }, null, null, null),
             new pbr::GeneratedClrTypeInfo(typeof(global::RimGovernor.Protocol.Receipts.Applied), global::RimGovernor.Protocol.Receipts.Applied.Parser, new[]{ "Observed" }, null, null, null, null),
             new pbr::GeneratedClrTypeInfo(typeof(global::RimGovernor.Protocol.Receipts.Uncertain), global::RimGovernor.Protocol.Receipts.Uncertain.Parser, new[]{ "LastObserved", "Detail" }, new[]{ "Detail" }, null, null, null),
-            new pbr::GeneratedClrTypeInfo(typeof(global::RimGovernor.Protocol.Receipts.EffectEvidence), global::RimGovernor.Protocol.Receipts.EffectEvidence.Parser, new[]{ "Construction", "Installation", "Designation", "Settings", "Bill", "Research", "ProductionPolicy", "Zone", "Home", "Bed", "Wall", "Area", "Job", "Surgery", "Animal", "Prisoner", "Trade", "Caravan", "Quest", "Acquisition", "Naming" }, new[]{ "Effect" }, null, null, null),
+            new pbr::GeneratedClrTypeInfo(typeof(global::RimGovernor.Protocol.Receipts.EffectEvidence), global::RimGovernor.Protocol.Receipts.EffectEvidence.Parser, new[]{ "Construction", "Installation", "Designation", "Settings", "Bill", "Research", "ProductionPolicy", "Zone", "Home", "Bed", "Wall", "Area", "Job", "Surgery", "Animal", "Prisoner", "Trade", "Caravan", "Quest", "Acquisition", "Naming", "Excavation" }, new[]{ "Effect" }, null, null, null),
             new pbr::GeneratedClrTypeInfo(typeof(global::RimGovernor.Protocol.Receipts.SnapshotEvidence), global::RimGovernor.Protocol.Receipts.SnapshotEvidence.Parser, new[]{ "EntityId", "BeforeToken", "AfterToken" }, new[]{ "EntityId", "BeforeToken", "AfterToken" }, null, null, null),
             new pbr::GeneratedClrTypeInfo(typeof(global::RimGovernor.Protocol.Receipts.AcquisitionOutput), global::RimGovernor.Protocol.Receipts.AcquisitionOutput.Parser, new[]{ "ThingId", "Units" }, new[]{ "ThingId", "Units" }, null, null, null),
             new pbr::GeneratedClrTypeInfo(typeof(global::RimGovernor.Protocol.Receipts.AcquisitionEffect), global::RimGovernor.Protocol.Receipts.AcquisitionEffect.Parser, new[]{ "SourceId", "ResourceDef", "Cell", "Designated", "LaborFinished", "ProducedUnits", "Outputs", "OutputObserved", "OutputComplete" }, new[]{ "SourceId", "ResourceDef", "Designated", "LaborFinished", "ProducedUnits", "OutputObserved", "OutputComplete" }, null, null, null),
+            new pbr::GeneratedClrTypeInfo(typeof(global::RimGovernor.Protocol.Receipts.ExcavationEffect), global::RimGovernor.Protocol.Receipts.ExcavationEffect.Parser, new[]{ "Cell", "MineableDefName", "Designated", "AdoptedExistingDesignation", "Cleared", "Cancelled", "Blocker" }, new[]{ "MineableDefName", "Designated", "AdoptedExistingDesignation", "Cleared", "Cancelled", "Blocker" }, null, null, null),
             new pbr::GeneratedClrTypeInfo(typeof(global::RimGovernor.Protocol.Receipts.NamingEffect), global::RimGovernor.Protocol.Receipts.NamingEffect.Parser, new[]{ "WindowId", "FactionName", "SettlementName", "Confirmed" }, new[]{ "WindowId", "FactionName", "SettlementName", "Confirmed" }, null, null, null),
             new pbr::GeneratedClrTypeInfo(typeof(global::RimGovernor.Protocol.Receipts.ConstructionEffect), global::RimGovernor.Protocol.Receipts.ConstructionEffect.Parser, new[]{ "OriginThingId", "CurrentThingId", "DefName", "Stuff", "Cell", "Rotation", "Stage", "Present", "Started", "Failed", "Blocker", "CancelledFrameIds", "WipedThingIds" }, new[]{ "OriginThingId", "CurrentThingId", "DefName", "Stuff", "Rotation", "Stage", "Present", "Started", "Failed", "Blocker" }, null, null, null),
             new pbr::GeneratedClrTypeInfo(typeof(global::RimGovernor.Protocol.Receipts.InstallationEffect), global::RimGovernor.Protocol.Receipts.InstallationEffect.Parser, new[]{ "InnerThingId", "PackedThingId", "BlueprintId", "DefName", "Stuff", "Cell", "Rotation", "Stage" }, new[]{ "InnerThingId", "PackedThingId", "BlueprintId", "DefName", "Stuff", "Rotation", "Stage" }, null, null, null),
@@ -1717,6 +1727,9 @@ namespace RimGovernor.Protocol.Receipts {
         case EffectOneofCase.Naming:
           Naming = other.Naming.Clone();
           break;
+        case EffectOneofCase.Excavation:
+          Excavation = other.Excavation.Clone();
+          break;
       }
 
       _unknownFields = pb::UnknownFieldSet.Clone(other._unknownFields);
@@ -1980,6 +1993,18 @@ namespace RimGovernor.Protocol.Receipts {
       }
     }
 
+    /// <summary>Field number for the "excavation" field.</summary>
+    public const int ExcavationFieldNumber = 22;
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public global::RimGovernor.Protocol.Receipts.ExcavationEffect Excavation {
+      get { return effectCase_ == EffectOneofCase.Excavation ? (global::RimGovernor.Protocol.Receipts.ExcavationEffect) effect_ : null; }
+      set {
+        effect_ = value;
+        effectCase_ = value == null ? EffectOneofCase.None : EffectOneofCase.Excavation;
+      }
+    }
+
     private object effect_;
     /// <summary>Enum of possible cases for the "effect" oneof.</summary>
     public enum EffectOneofCase {
@@ -2005,6 +2030,7 @@ namespace RimGovernor.Protocol.Receipts {
       Quest = 19,
       Acquisition = 20,
       Naming = 21,
+      Excavation = 22,
     }
     private EffectOneofCase effectCase_ = EffectOneofCase.None;
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
@@ -2056,6 +2082,7 @@ namespace RimGovernor.Protocol.Receipts {
       if (!object.Equals(Quest, other.Quest)) return false;
       if (!object.Equals(Acquisition, other.Acquisition)) return false;
       if (!object.Equals(Naming, other.Naming)) return false;
+      if (!object.Equals(Excavation, other.Excavation)) return false;
       if (EffectCase != other.EffectCase) return false;
       return Equals(_unknownFields, other._unknownFields);
     }
@@ -2085,6 +2112,7 @@ namespace RimGovernor.Protocol.Receipts {
       if (effectCase_ == EffectOneofCase.Quest) hash ^= Quest.GetHashCode();
       if (effectCase_ == EffectOneofCase.Acquisition) hash ^= Acquisition.GetHashCode();
       if (effectCase_ == EffectOneofCase.Naming) hash ^= Naming.GetHashCode();
+      if (effectCase_ == EffectOneofCase.Excavation) hash ^= Excavation.GetHashCode();
       hash ^= (int) effectCase_;
       if (_unknownFields != null) {
         hash ^= _unknownFields.GetHashCode();
@@ -2188,6 +2216,10 @@ namespace RimGovernor.Protocol.Receipts {
         output.WriteRawTag(170, 1);
         output.WriteMessage(Naming);
       }
+      if (effectCase_ == EffectOneofCase.Excavation) {
+        output.WriteRawTag(178, 1);
+        output.WriteMessage(Excavation);
+      }
       if (_unknownFields != null) {
         _unknownFields.WriteTo(output);
       }
@@ -2282,6 +2314,10 @@ namespace RimGovernor.Protocol.Receipts {
         output.WriteRawTag(170, 1);
         output.WriteMessage(Naming);
       }
+      if (effectCase_ == EffectOneofCase.Excavation) {
+        output.WriteRawTag(178, 1);
+        output.WriteMessage(Excavation);
+      }
       if (_unknownFields != null) {
         _unknownFields.WriteTo(ref output);
       }
@@ -2354,6 +2390,9 @@ namespace RimGovernor.Protocol.Receipts {
       }
       if (effectCase_ == EffectOneofCase.Naming) {
         size += 2 + pb::CodedOutputStream.ComputeMessageSize(Naming);
+      }
+      if (effectCase_ == EffectOneofCase.Excavation) {
+        size += 2 + pb::CodedOutputStream.ComputeMessageSize(Excavation);
       }
       if (_unknownFields != null) {
         size += _unknownFields.CalculateSize();
@@ -2493,6 +2532,12 @@ namespace RimGovernor.Protocol.Receipts {
             Naming = new global::RimGovernor.Protocol.Receipts.NamingEffect();
           }
           Naming.MergeFrom(other.Naming);
+          break;
+        case EffectOneofCase.Excavation:
+          if (Excavation == null) {
+            Excavation = new global::RimGovernor.Protocol.Receipts.ExcavationEffect();
+          }
+          Excavation.MergeFrom(other.Excavation);
           break;
       }
 
@@ -2704,6 +2749,15 @@ namespace RimGovernor.Protocol.Receipts {
             Naming = subBuilder;
             break;
           }
+          case 178: {
+            global::RimGovernor.Protocol.Receipts.ExcavationEffect subBuilder = new global::RimGovernor.Protocol.Receipts.ExcavationEffect();
+            if (effectCase_ == EffectOneofCase.Excavation) {
+              subBuilder.MergeFrom(Excavation);
+            }
+            input.ReadMessage(subBuilder);
+            Excavation = subBuilder;
+            break;
+          }
         }
       }
     #endif
@@ -2910,6 +2964,15 @@ namespace RimGovernor.Protocol.Receipts {
             }
             input.ReadMessage(subBuilder);
             Naming = subBuilder;
+            break;
+          }
+          case 178: {
+            global::RimGovernor.Protocol.Receipts.ExcavationEffect subBuilder = new global::RimGovernor.Protocol.Receipts.ExcavationEffect();
+            if (effectCase_ == EffectOneofCase.Excavation) {
+              subBuilder.MergeFrom(Excavation);
+            }
+            input.ReadMessage(subBuilder);
+            Excavation = subBuilder;
             break;
           }
         }
@@ -4100,6 +4163,528 @@ namespace RimGovernor.Protocol.Receipts {
 
   }
 
+  /// <summary>
+  /// Excavation completes when no mineable remains at the cell; yield is not evidence.
+  /// </summary>
+  [global::System.Diagnostics.DebuggerDisplayAttribute("{ToString(),nq}")]
+  public sealed partial class ExcavationEffect : pb::IMessage<ExcavationEffect>
+  #if !GOOGLE_PROTOBUF_REFSTRUCT_COMPATIBILITY_MODE
+      , pb::IBufferMessage
+  #endif
+  {
+    private static readonly pb::MessageParser<ExcavationEffect> _parser = new pb::MessageParser<ExcavationEffect>(() => new ExcavationEffect());
+    private pb::UnknownFieldSet _unknownFields;
+    private int _hasBits0;
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public static pb::MessageParser<ExcavationEffect> Parser { get { return _parser; } }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public static pbr::MessageDescriptor Descriptor {
+      get { return global::RimGovernor.Protocol.Receipts.ReceiptsReflection.Descriptor.MessageTypes[8]; }
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    pbr::MessageDescriptor pb::IMessage.Descriptor {
+      get { return Descriptor; }
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public ExcavationEffect() {
+      OnConstruction();
+    }
+
+    partial void OnConstruction();
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public ExcavationEffect(ExcavationEffect other) : this() {
+      _hasBits0 = other._hasBits0;
+      cell_ = other.cell_ != null ? other.cell_.Clone() : null;
+      mineableDefName_ = other.mineableDefName_;
+      designated_ = other.designated_;
+      adoptedExistingDesignation_ = other.adoptedExistingDesignation_;
+      cleared_ = other.cleared_;
+      cancelled_ = other.cancelled_;
+      blocker_ = other.blocker_;
+      _unknownFields = pb::UnknownFieldSet.Clone(other._unknownFields);
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public ExcavationEffect Clone() {
+      return new ExcavationEffect(this);
+    }
+
+    /// <summary>Field number for the "cell" field.</summary>
+    public const int CellFieldNumber = 1;
+    private global::RimGovernor.Protocol.Common.Cell cell_;
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public global::RimGovernor.Protocol.Common.Cell Cell {
+      get { return cell_; }
+      set {
+        cell_ = value;
+      }
+    }
+
+    /// <summary>Field number for the "mineable_def_name" field.</summary>
+    public const int MineableDefNameFieldNumber = 2;
+    private readonly static string MineableDefNameDefaultValue = "";
+
+    private string mineableDefName_;
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public string MineableDefName {
+      get { return mineableDefName_ ?? MineableDefNameDefaultValue; }
+      set {
+        mineableDefName_ = pb::ProtoPreconditions.CheckNotNull(value, "value");
+      }
+    }
+    /// <summary>Gets whether the "mineable_def_name" field is set</summary>
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public bool HasMineableDefName {
+      get { return mineableDefName_ != null; }
+    }
+    /// <summary>Clears the value of the "mineable_def_name" field</summary>
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public void ClearMineableDefName() {
+      mineableDefName_ = null;
+    }
+
+    /// <summary>Field number for the "designated" field.</summary>
+    public const int DesignatedFieldNumber = 3;
+    private readonly static bool DesignatedDefaultValue = false;
+
+    private bool designated_;
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public bool Designated {
+      get { if ((_hasBits0 & 1) != 0) { return designated_; } else { return DesignatedDefaultValue; } }
+      set {
+        _hasBits0 |= 1;
+        designated_ = value;
+      }
+    }
+    /// <summary>Gets whether the "designated" field is set</summary>
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public bool HasDesignated {
+      get { return (_hasBits0 & 1) != 0; }
+    }
+    /// <summary>Clears the value of the "designated" field</summary>
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public void ClearDesignated() {
+      _hasBits0 &= ~1;
+    }
+
+    /// <summary>Field number for the "adopted_existing_designation" field.</summary>
+    public const int AdoptedExistingDesignationFieldNumber = 4;
+    private readonly static bool AdoptedExistingDesignationDefaultValue = false;
+
+    private bool adoptedExistingDesignation_;
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public bool AdoptedExistingDesignation {
+      get { if ((_hasBits0 & 2) != 0) { return adoptedExistingDesignation_; } else { return AdoptedExistingDesignationDefaultValue; } }
+      set {
+        _hasBits0 |= 2;
+        adoptedExistingDesignation_ = value;
+      }
+    }
+    /// <summary>Gets whether the "adopted_existing_designation" field is set</summary>
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public bool HasAdoptedExistingDesignation {
+      get { return (_hasBits0 & 2) != 0; }
+    }
+    /// <summary>Clears the value of the "adopted_existing_designation" field</summary>
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public void ClearAdoptedExistingDesignation() {
+      _hasBits0 &= ~2;
+    }
+
+    /// <summary>Field number for the "cleared" field.</summary>
+    public const int ClearedFieldNumber = 5;
+    private readonly static bool ClearedDefaultValue = false;
+
+    private bool cleared_;
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public bool Cleared {
+      get { if ((_hasBits0 & 4) != 0) { return cleared_; } else { return ClearedDefaultValue; } }
+      set {
+        _hasBits0 |= 4;
+        cleared_ = value;
+      }
+    }
+    /// <summary>Gets whether the "cleared" field is set</summary>
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public bool HasCleared {
+      get { return (_hasBits0 & 4) != 0; }
+    }
+    /// <summary>Clears the value of the "cleared" field</summary>
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public void ClearCleared() {
+      _hasBits0 &= ~4;
+    }
+
+    /// <summary>Field number for the "cancelled" field.</summary>
+    public const int CancelledFieldNumber = 6;
+    private readonly static bool CancelledDefaultValue = false;
+
+    private bool cancelled_;
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public bool Cancelled {
+      get { if ((_hasBits0 & 8) != 0) { return cancelled_; } else { return CancelledDefaultValue; } }
+      set {
+        _hasBits0 |= 8;
+        cancelled_ = value;
+      }
+    }
+    /// <summary>Gets whether the "cancelled" field is set</summary>
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public bool HasCancelled {
+      get { return (_hasBits0 & 8) != 0; }
+    }
+    /// <summary>Clears the value of the "cancelled" field</summary>
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public void ClearCancelled() {
+      _hasBits0 &= ~8;
+    }
+
+    /// <summary>Field number for the "blocker" field.</summary>
+    public const int BlockerFieldNumber = 7;
+    private readonly static string BlockerDefaultValue = "";
+
+    private string blocker_;
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public string Blocker {
+      get { return blocker_ ?? BlockerDefaultValue; }
+      set {
+        blocker_ = pb::ProtoPreconditions.CheckNotNull(value, "value");
+      }
+    }
+    /// <summary>Gets whether the "blocker" field is set</summary>
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public bool HasBlocker {
+      get { return blocker_ != null; }
+    }
+    /// <summary>Clears the value of the "blocker" field</summary>
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public void ClearBlocker() {
+      blocker_ = null;
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public override bool Equals(object other) {
+      return Equals(other as ExcavationEffect);
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public bool Equals(ExcavationEffect other) {
+      if (ReferenceEquals(other, null)) {
+        return false;
+      }
+      if (ReferenceEquals(other, this)) {
+        return true;
+      }
+      if (!object.Equals(Cell, other.Cell)) return false;
+      if (MineableDefName != other.MineableDefName) return false;
+      if (Designated != other.Designated) return false;
+      if (AdoptedExistingDesignation != other.AdoptedExistingDesignation) return false;
+      if (Cleared != other.Cleared) return false;
+      if (Cancelled != other.Cancelled) return false;
+      if (Blocker != other.Blocker) return false;
+      return Equals(_unknownFields, other._unknownFields);
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public override int GetHashCode() {
+      int hash = 1;
+      if (cell_ != null) hash ^= Cell.GetHashCode();
+      if (HasMineableDefName) hash ^= MineableDefName.GetHashCode();
+      if (HasDesignated) hash ^= Designated.GetHashCode();
+      if (HasAdoptedExistingDesignation) hash ^= AdoptedExistingDesignation.GetHashCode();
+      if (HasCleared) hash ^= Cleared.GetHashCode();
+      if (HasCancelled) hash ^= Cancelled.GetHashCode();
+      if (HasBlocker) hash ^= Blocker.GetHashCode();
+      if (_unknownFields != null) {
+        hash ^= _unknownFields.GetHashCode();
+      }
+      return hash;
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public override string ToString() {
+      return pb::JsonFormatter.ToDiagnosticString(this);
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public void WriteTo(pb::CodedOutputStream output) {
+    #if !GOOGLE_PROTOBUF_REFSTRUCT_COMPATIBILITY_MODE
+      output.WriteRawMessage(this);
+    #else
+      if (cell_ != null) {
+        output.WriteRawTag(10);
+        output.WriteMessage(Cell);
+      }
+      if (HasMineableDefName) {
+        output.WriteRawTag(18);
+        output.WriteString(MineableDefName);
+      }
+      if (HasDesignated) {
+        output.WriteRawTag(24);
+        output.WriteBool(Designated);
+      }
+      if (HasAdoptedExistingDesignation) {
+        output.WriteRawTag(32);
+        output.WriteBool(AdoptedExistingDesignation);
+      }
+      if (HasCleared) {
+        output.WriteRawTag(40);
+        output.WriteBool(Cleared);
+      }
+      if (HasCancelled) {
+        output.WriteRawTag(48);
+        output.WriteBool(Cancelled);
+      }
+      if (HasBlocker) {
+        output.WriteRawTag(58);
+        output.WriteString(Blocker);
+      }
+      if (_unknownFields != null) {
+        _unknownFields.WriteTo(output);
+      }
+    #endif
+    }
+
+    #if !GOOGLE_PROTOBUF_REFSTRUCT_COMPATIBILITY_MODE
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    void pb::IBufferMessage.InternalWriteTo(ref pb::WriteContext output) {
+      if (cell_ != null) {
+        output.WriteRawTag(10);
+        output.WriteMessage(Cell);
+      }
+      if (HasMineableDefName) {
+        output.WriteRawTag(18);
+        output.WriteString(MineableDefName);
+      }
+      if (HasDesignated) {
+        output.WriteRawTag(24);
+        output.WriteBool(Designated);
+      }
+      if (HasAdoptedExistingDesignation) {
+        output.WriteRawTag(32);
+        output.WriteBool(AdoptedExistingDesignation);
+      }
+      if (HasCleared) {
+        output.WriteRawTag(40);
+        output.WriteBool(Cleared);
+      }
+      if (HasCancelled) {
+        output.WriteRawTag(48);
+        output.WriteBool(Cancelled);
+      }
+      if (HasBlocker) {
+        output.WriteRawTag(58);
+        output.WriteString(Blocker);
+      }
+      if (_unknownFields != null) {
+        _unknownFields.WriteTo(ref output);
+      }
+    }
+    #endif
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public int CalculateSize() {
+      int size = 0;
+      if (cell_ != null) {
+        size += 1 + pb::CodedOutputStream.ComputeMessageSize(Cell);
+      }
+      if (HasMineableDefName) {
+        size += 1 + pb::CodedOutputStream.ComputeStringSize(MineableDefName);
+      }
+      if (HasDesignated) {
+        size += 1 + 1;
+      }
+      if (HasAdoptedExistingDesignation) {
+        size += 1 + 1;
+      }
+      if (HasCleared) {
+        size += 1 + 1;
+      }
+      if (HasCancelled) {
+        size += 1 + 1;
+      }
+      if (HasBlocker) {
+        size += 1 + pb::CodedOutputStream.ComputeStringSize(Blocker);
+      }
+      if (_unknownFields != null) {
+        size += _unknownFields.CalculateSize();
+      }
+      return size;
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public void MergeFrom(ExcavationEffect other) {
+      if (other == null) {
+        return;
+      }
+      if (other.cell_ != null) {
+        if (cell_ == null) {
+          Cell = new global::RimGovernor.Protocol.Common.Cell();
+        }
+        Cell.MergeFrom(other.Cell);
+      }
+      if (other.HasMineableDefName) {
+        MineableDefName = other.MineableDefName;
+      }
+      if (other.HasDesignated) {
+        Designated = other.Designated;
+      }
+      if (other.HasAdoptedExistingDesignation) {
+        AdoptedExistingDesignation = other.AdoptedExistingDesignation;
+      }
+      if (other.HasCleared) {
+        Cleared = other.Cleared;
+      }
+      if (other.HasCancelled) {
+        Cancelled = other.Cancelled;
+      }
+      if (other.HasBlocker) {
+        Blocker = other.Blocker;
+      }
+      _unknownFields = pb::UnknownFieldSet.MergeFrom(_unknownFields, other._unknownFields);
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public void MergeFrom(pb::CodedInputStream input) {
+    #if !GOOGLE_PROTOBUF_REFSTRUCT_COMPATIBILITY_MODE
+      input.ReadRawMessage(this);
+    #else
+      uint tag;
+      while ((tag = input.ReadTag()) != 0) {
+      if ((tag & 7) == 4) {
+        // Abort on any end group tag.
+        return;
+      }
+      switch(tag) {
+          default:
+            _unknownFields = pb::UnknownFieldSet.MergeFieldFrom(_unknownFields, input);
+            break;
+          case 10: {
+            if (cell_ == null) {
+              Cell = new global::RimGovernor.Protocol.Common.Cell();
+            }
+            input.ReadMessage(Cell);
+            break;
+          }
+          case 18: {
+            MineableDefName = input.ReadString();
+            break;
+          }
+          case 24: {
+            Designated = input.ReadBool();
+            break;
+          }
+          case 32: {
+            AdoptedExistingDesignation = input.ReadBool();
+            break;
+          }
+          case 40: {
+            Cleared = input.ReadBool();
+            break;
+          }
+          case 48: {
+            Cancelled = input.ReadBool();
+            break;
+          }
+          case 58: {
+            Blocker = input.ReadString();
+            break;
+          }
+        }
+      }
+    #endif
+    }
+
+    #if !GOOGLE_PROTOBUF_REFSTRUCT_COMPATIBILITY_MODE
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    void pb::IBufferMessage.InternalMergeFrom(ref pb::ParseContext input) {
+      uint tag;
+      while ((tag = input.ReadTag()) != 0) {
+      if ((tag & 7) == 4) {
+        // Abort on any end group tag.
+        return;
+      }
+      switch(tag) {
+          default:
+            _unknownFields = pb::UnknownFieldSet.MergeFieldFrom(_unknownFields, ref input);
+            break;
+          case 10: {
+            if (cell_ == null) {
+              Cell = new global::RimGovernor.Protocol.Common.Cell();
+            }
+            input.ReadMessage(Cell);
+            break;
+          }
+          case 18: {
+            MineableDefName = input.ReadString();
+            break;
+          }
+          case 24: {
+            Designated = input.ReadBool();
+            break;
+          }
+          case 32: {
+            AdoptedExistingDesignation = input.ReadBool();
+            break;
+          }
+          case 40: {
+            Cleared = input.ReadBool();
+            break;
+          }
+          case 48: {
+            Cancelled = input.ReadBool();
+            break;
+          }
+          case 58: {
+            Blocker = input.ReadString();
+            break;
+          }
+        }
+      }
+    }
+    #endif
+
+  }
+
   [global::System.Diagnostics.DebuggerDisplayAttribute("{ToString(),nq}")]
   public sealed partial class NamingEffect : pb::IMessage<NamingEffect>
   #if !GOOGLE_PROTOBUF_REFSTRUCT_COMPATIBILITY_MODE
@@ -4116,7 +4701,7 @@ namespace RimGovernor.Protocol.Receipts {
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
     public static pbr::MessageDescriptor Descriptor {
-      get { return global::RimGovernor.Protocol.Receipts.ReceiptsReflection.Descriptor.MessageTypes[8]; }
+      get { return global::RimGovernor.Protocol.Receipts.ReceiptsReflection.Descriptor.MessageTypes[9]; }
     }
 
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
@@ -4485,7 +5070,7 @@ namespace RimGovernor.Protocol.Receipts {
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
     public static pbr::MessageDescriptor Descriptor {
-      get { return global::RimGovernor.Protocol.Receipts.ReceiptsReflection.Descriptor.MessageTypes[9]; }
+      get { return global::RimGovernor.Protocol.Receipts.ReceiptsReflection.Descriptor.MessageTypes[10]; }
     }
 
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
@@ -5261,7 +5846,7 @@ namespace RimGovernor.Protocol.Receipts {
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
     public static pbr::MessageDescriptor Descriptor {
-      get { return global::RimGovernor.Protocol.Receipts.ReceiptsReflection.Descriptor.MessageTypes[10]; }
+      get { return global::RimGovernor.Protocol.Receipts.ReceiptsReflection.Descriptor.MessageTypes[11]; }
     }
 
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
@@ -5829,7 +6414,7 @@ namespace RimGovernor.Protocol.Receipts {
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
     public static pbr::MessageDescriptor Descriptor {
-      get { return global::RimGovernor.Protocol.Receipts.ReceiptsReflection.Descriptor.MessageTypes[11]; }
+      get { return global::RimGovernor.Protocol.Receipts.ReceiptsReflection.Descriptor.MessageTypes[12]; }
     }
 
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
@@ -6243,7 +6828,7 @@ namespace RimGovernor.Protocol.Receipts {
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
     public static pbr::MessageDescriptor Descriptor {
-      get { return global::RimGovernor.Protocol.Receipts.ReceiptsReflection.Descriptor.MessageTypes[12]; }
+      get { return global::RimGovernor.Protocol.Receipts.ReceiptsReflection.Descriptor.MessageTypes[13]; }
     }
 
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
@@ -6749,7 +7334,7 @@ namespace RimGovernor.Protocol.Receipts {
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
     public static pbr::MessageDescriptor Descriptor {
-      get { return global::RimGovernor.Protocol.Receipts.ReceiptsReflection.Descriptor.MessageTypes[13]; }
+      get { return global::RimGovernor.Protocol.Receipts.ReceiptsReflection.Descriptor.MessageTypes[14]; }
     }
 
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
@@ -6983,7 +7568,7 @@ namespace RimGovernor.Protocol.Receipts {
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
     public static pbr::MessageDescriptor Descriptor {
-      get { return global::RimGovernor.Protocol.Receipts.ReceiptsReflection.Descriptor.MessageTypes[14]; }
+      get { return global::RimGovernor.Protocol.Receipts.ReceiptsReflection.Descriptor.MessageTypes[15]; }
     }
 
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
@@ -7658,7 +8243,7 @@ namespace RimGovernor.Protocol.Receipts {
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
     public static pbr::MessageDescriptor Descriptor {
-      get { return global::RimGovernor.Protocol.Receipts.ReceiptsReflection.Descriptor.MessageTypes[15]; }
+      get { return global::RimGovernor.Protocol.Receipts.ReceiptsReflection.Descriptor.MessageTypes[16]; }
     }
 
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
@@ -7974,7 +8559,7 @@ namespace RimGovernor.Protocol.Receipts {
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
     public static pbr::MessageDescriptor Descriptor {
-      get { return global::RimGovernor.Protocol.Receipts.ReceiptsReflection.Descriptor.MessageTypes[16]; }
+      get { return global::RimGovernor.Protocol.Receipts.ReceiptsReflection.Descriptor.MessageTypes[17]; }
     }
 
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
@@ -8284,7 +8869,7 @@ namespace RimGovernor.Protocol.Receipts {
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
     public static pbr::MessageDescriptor Descriptor {
-      get { return global::RimGovernor.Protocol.Receipts.ReceiptsReflection.Descriptor.MessageTypes[17]; }
+      get { return global::RimGovernor.Protocol.Receipts.ReceiptsReflection.Descriptor.MessageTypes[18]; }
     }
 
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
@@ -8571,7 +9156,7 @@ namespace RimGovernor.Protocol.Receipts {
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
     public static pbr::MessageDescriptor Descriptor {
-      get { return global::RimGovernor.Protocol.Receipts.ReceiptsReflection.Descriptor.MessageTypes[18]; }
+      get { return global::RimGovernor.Protocol.Receipts.ReceiptsReflection.Descriptor.MessageTypes[19]; }
     }
 
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
@@ -8934,7 +9519,7 @@ namespace RimGovernor.Protocol.Receipts {
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
     public static pbr::MessageDescriptor Descriptor {
-      get { return global::RimGovernor.Protocol.Receipts.ReceiptsReflection.Descriptor.MessageTypes[19]; }
+      get { return global::RimGovernor.Protocol.Receipts.ReceiptsReflection.Descriptor.MessageTypes[20]; }
     }
 
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
@@ -9480,7 +10065,7 @@ namespace RimGovernor.Protocol.Receipts {
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
     public static pbr::MessageDescriptor Descriptor {
-      get { return global::RimGovernor.Protocol.Receipts.ReceiptsReflection.Descriptor.MessageTypes[20]; }
+      get { return global::RimGovernor.Protocol.Receipts.ReceiptsReflection.Descriptor.MessageTypes[21]; }
     }
 
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
@@ -9896,7 +10481,7 @@ namespace RimGovernor.Protocol.Receipts {
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
     public static pbr::MessageDescriptor Descriptor {
-      get { return global::RimGovernor.Protocol.Receipts.ReceiptsReflection.Descriptor.MessageTypes[21]; }
+      get { return global::RimGovernor.Protocol.Receipts.ReceiptsReflection.Descriptor.MessageTypes[22]; }
     }
 
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
@@ -10316,7 +10901,7 @@ namespace RimGovernor.Protocol.Receipts {
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
     public static pbr::MessageDescriptor Descriptor {
-      get { return global::RimGovernor.Protocol.Receipts.ReceiptsReflection.Descriptor.MessageTypes[22]; }
+      get { return global::RimGovernor.Protocol.Receipts.ReceiptsReflection.Descriptor.MessageTypes[23]; }
     }
 
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
@@ -10757,7 +11342,7 @@ namespace RimGovernor.Protocol.Receipts {
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
     public static pbr::MessageDescriptor Descriptor {
-      get { return global::RimGovernor.Protocol.Receipts.ReceiptsReflection.Descriptor.MessageTypes[23]; }
+      get { return global::RimGovernor.Protocol.Receipts.ReceiptsReflection.Descriptor.MessageTypes[24]; }
     }
 
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
@@ -11170,7 +11755,7 @@ namespace RimGovernor.Protocol.Receipts {
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
     public static pbr::MessageDescriptor Descriptor {
-      get { return global::RimGovernor.Protocol.Receipts.ReceiptsReflection.Descriptor.MessageTypes[24]; }
+      get { return global::RimGovernor.Protocol.Receipts.ReceiptsReflection.Descriptor.MessageTypes[25]; }
     }
 
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
@@ -11466,7 +12051,7 @@ namespace RimGovernor.Protocol.Receipts {
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
     public static pbr::MessageDescriptor Descriptor {
-      get { return global::RimGovernor.Protocol.Receipts.ReceiptsReflection.Descriptor.MessageTypes[25]; }
+      get { return global::RimGovernor.Protocol.Receipts.ReceiptsReflection.Descriptor.MessageTypes[26]; }
     }
 
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
@@ -12808,7 +13393,7 @@ namespace RimGovernor.Protocol.Receipts {
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
     public static pbr::MessageDescriptor Descriptor {
-      get { return global::RimGovernor.Protocol.Receipts.ReceiptsReflection.Descriptor.MessageTypes[26]; }
+      get { return global::RimGovernor.Protocol.Receipts.ReceiptsReflection.Descriptor.MessageTypes[27]; }
     }
 
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
@@ -13325,7 +13910,7 @@ namespace RimGovernor.Protocol.Receipts {
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
     public static pbr::MessageDescriptor Descriptor {
-      get { return global::RimGovernor.Protocol.Receipts.ReceiptsReflection.Descriptor.MessageTypes[27]; }
+      get { return global::RimGovernor.Protocol.Receipts.ReceiptsReflection.Descriptor.MessageTypes[28]; }
     }
 
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
@@ -13739,7 +14324,7 @@ namespace RimGovernor.Protocol.Receipts {
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
     public static pbr::MessageDescriptor Descriptor {
-      get { return global::RimGovernor.Protocol.Receipts.ReceiptsReflection.Descriptor.MessageTypes[28]; }
+      get { return global::RimGovernor.Protocol.Receipts.ReceiptsReflection.Descriptor.MessageTypes[29]; }
     }
 
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
@@ -13998,7 +14583,7 @@ namespace RimGovernor.Protocol.Receipts {
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
     public static pbr::MessageDescriptor Descriptor {
-      get { return global::RimGovernor.Protocol.Receipts.ReceiptsReflection.Descriptor.MessageTypes[29]; }
+      get { return global::RimGovernor.Protocol.Receipts.ReceiptsReflection.Descriptor.MessageTypes[30]; }
     }
 
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
@@ -14316,7 +14901,7 @@ namespace RimGovernor.Protocol.Receipts {
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
     public static pbr::MessageDescriptor Descriptor {
-      get { return global::RimGovernor.Protocol.Receipts.ReceiptsReflection.Descriptor.MessageTypes[30]; }
+      get { return global::RimGovernor.Protocol.Receipts.ReceiptsReflection.Descriptor.MessageTypes[31]; }
     }
 
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
@@ -15094,7 +15679,7 @@ namespace RimGovernor.Protocol.Receipts {
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
     public static pbr::MessageDescriptor Descriptor {
-      get { return global::RimGovernor.Protocol.Receipts.ReceiptsReflection.Descriptor.MessageTypes[31]; }
+      get { return global::RimGovernor.Protocol.Receipts.ReceiptsReflection.Descriptor.MessageTypes[32]; }
     }
 
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
@@ -15588,7 +16173,7 @@ namespace RimGovernor.Protocol.Receipts {
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
     public static pbr::MessageDescriptor Descriptor {
-      get { return global::RimGovernor.Protocol.Receipts.ReceiptsReflection.Descriptor.MessageTypes[32]; }
+      get { return global::RimGovernor.Protocol.Receipts.ReceiptsReflection.Descriptor.MessageTypes[33]; }
     }
 
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
@@ -16054,7 +16639,7 @@ namespace RimGovernor.Protocol.Receipts {
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
     public static pbr::MessageDescriptor Descriptor {
-      get { return global::RimGovernor.Protocol.Receipts.ReceiptsReflection.Descriptor.MessageTypes[33]; }
+      get { return global::RimGovernor.Protocol.Receipts.ReceiptsReflection.Descriptor.MessageTypes[34]; }
     }
 
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
@@ -16307,7 +16892,7 @@ namespace RimGovernor.Protocol.Receipts {
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
     public static pbr::MessageDescriptor Descriptor {
-      get { return global::RimGovernor.Protocol.Receipts.ReceiptsReflection.Descriptor.MessageTypes[34]; }
+      get { return global::RimGovernor.Protocol.Receipts.ReceiptsReflection.Descriptor.MessageTypes[35]; }
     }
 
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
@@ -16514,7 +17099,7 @@ namespace RimGovernor.Protocol.Receipts {
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
     public static pbr::MessageDescriptor Descriptor {
-      get { return global::RimGovernor.Protocol.Receipts.ReceiptsReflection.Descriptor.MessageTypes[35]; }
+      get { return global::RimGovernor.Protocol.Receipts.ReceiptsReflection.Descriptor.MessageTypes[36]; }
     }
 
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
@@ -16767,7 +17352,7 @@ namespace RimGovernor.Protocol.Receipts {
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
     public static pbr::MessageDescriptor Descriptor {
-      get { return global::RimGovernor.Protocol.Receipts.ReceiptsReflection.Descriptor.MessageTypes[36]; }
+      get { return global::RimGovernor.Protocol.Receipts.ReceiptsReflection.Descriptor.MessageTypes[37]; }
     }
 
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
@@ -17167,7 +17752,7 @@ namespace RimGovernor.Protocol.Receipts {
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
     public static pbr::MessageDescriptor Descriptor {
-      get { return global::RimGovernor.Protocol.Receipts.ReceiptsReflection.Descriptor.MessageTypes[37]; }
+      get { return global::RimGovernor.Protocol.Receipts.ReceiptsReflection.Descriptor.MessageTypes[38]; }
     }
 
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
@@ -17420,7 +18005,7 @@ namespace RimGovernor.Protocol.Receipts {
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
     public static pbr::MessageDescriptor Descriptor {
-      get { return global::RimGovernor.Protocol.Receipts.ReceiptsReflection.Descriptor.MessageTypes[38]; }
+      get { return global::RimGovernor.Protocol.Receipts.ReceiptsReflection.Descriptor.MessageTypes[39]; }
     }
 
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
@@ -17627,7 +18212,7 @@ namespace RimGovernor.Protocol.Receipts {
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
     public static pbr::MessageDescriptor Descriptor {
-      get { return global::RimGovernor.Protocol.Receipts.ReceiptsReflection.Descriptor.MessageTypes[39]; }
+      get { return global::RimGovernor.Protocol.Receipts.ReceiptsReflection.Descriptor.MessageTypes[40]; }
     }
 
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
@@ -17834,7 +18419,7 @@ namespace RimGovernor.Protocol.Receipts {
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
     public static pbr::MessageDescriptor Descriptor {
-      get { return global::RimGovernor.Protocol.Receipts.ReceiptsReflection.Descriptor.MessageTypes[40]; }
+      get { return global::RimGovernor.Protocol.Receipts.ReceiptsReflection.Descriptor.MessageTypes[41]; }
     }
 
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
@@ -18046,7 +18631,7 @@ namespace RimGovernor.Protocol.Receipts {
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
     public static pbr::MessageDescriptor Descriptor {
-      get { return global::RimGovernor.Protocol.Receipts.ReceiptsReflection.Descriptor.MessageTypes[41]; }
+      get { return global::RimGovernor.Protocol.Receipts.ReceiptsReflection.Descriptor.MessageTypes[42]; }
     }
 
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
@@ -18259,7 +18844,7 @@ namespace RimGovernor.Protocol.Receipts {
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
     public static pbr::MessageDescriptor Descriptor {
-      get { return global::RimGovernor.Protocol.Receipts.ReceiptsReflection.Descriptor.MessageTypes[42]; }
+      get { return global::RimGovernor.Protocol.Receipts.ReceiptsReflection.Descriptor.MessageTypes[43]; }
     }
 
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
@@ -18571,7 +19156,7 @@ namespace RimGovernor.Protocol.Receipts {
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
     public static pbr::MessageDescriptor Descriptor {
-      get { return global::RimGovernor.Protocol.Receipts.ReceiptsReflection.Descriptor.MessageTypes[43]; }
+      get { return global::RimGovernor.Protocol.Receipts.ReceiptsReflection.Descriptor.MessageTypes[44]; }
     }
 
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
@@ -19172,7 +19757,7 @@ namespace RimGovernor.Protocol.Receipts {
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
     public static pbr::MessageDescriptor Descriptor {
-      get { return global::RimGovernor.Protocol.Receipts.ReceiptsReflection.Descriptor.MessageTypes[44]; }
+      get { return global::RimGovernor.Protocol.Receipts.ReceiptsReflection.Descriptor.MessageTypes[45]; }
     }
 
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]

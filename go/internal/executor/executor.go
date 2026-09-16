@@ -163,6 +163,8 @@ type Executor struct {
 	tradeJournal               TradeJournal
 	mineAcquisition            AcquisitionBoundary
 	mineAcquisitionJournal     MineAcquisitionJournal
+	excavation                 ExcavationBoundary
+	excavationJournal          ExcavationJournal
 	productionPolicy           ProductionPolicyBoundary
 	productionPolicyJournal    ProductionPolicyJournal
 	ranged                     RangedBoundary
@@ -443,6 +445,9 @@ func (e *Executor) Run(ctx context.Context, plan domain.PlanID, actionID domain.
 	}
 	if action.Kind() == domain.MineAcquisitionAction && e.mineAcquisition != nil {
 		return e.runMineAcquisition(ctx, action, progress, authority, generation)
+	}
+	if action.Kind() == domain.ExcavationAction && e.excavation != nil {
+		return e.runExcavation(ctx, action, progress, authority, generation)
 	}
 	if action.Kind() == domain.ProductionPolicyAction && e.productionPolicy != nil {
 		return e.runProductionPolicy(ctx, action, progress, authority, generation)

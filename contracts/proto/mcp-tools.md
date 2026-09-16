@@ -2,7 +2,7 @@
 
 Each canonical Protobuf RPC has one fixed MCP tool name: `rimgovernor/<family>_<snake_case_rpc>`. The family is the middle component of `rimgovernor.<family>.v1`; RPC names are converted from PascalCase to lowercase words separated by underscores. Service names remain part of the descriptor identity but are not repeated in tool names. Consequently, RPC names must remain unique across services within one family, including the three presentation services.
 
-This table comes from the nine official compiled C# `FileDescriptor` objects, not a parallel schema parser or source generator. All 78 methods have unique MCP names, and the longest name is 51 characters, below the 64-character ceiling. `common.proto` contributes shared messages but no RPCs. The table fixes capability identity; it does not claim an adapter is installed or native acceptance has passed.
+This table comes from the nine official compiled C# `FileDescriptor` objects, not a parallel schema parser or source generator. All 79 methods have unique MCP names, and the longest name is 51 characters, below the 64-character ceiling. `common.proto` contributes shared messages but no RPCs. The table fixes capability identity; it does not claim an adapter is installed or native acceptance has passed.
 
 ## Wrapper and dispatch
 
@@ -73,6 +73,7 @@ Use [shared rules](README.md) and the family coverage documents for exact valida
 | `rimgovernor/observations_list_traders` | `rimgovernor.observations.v1.Observations/ListTraders` | `rimgovernor.observations.v1.TradersRequest` | `rimgovernor.observations.v1.TradersReply` |
 | `rimgovernor/observations_list_wall_upgrade_sites` | `rimgovernor.observations.v1.Observations/ListWallUpgradeSites` | `rimgovernor.observations.v1.WallUpgradeSitesRequest` | `rimgovernor.observations.v1.WallUpgradeSitesReply` |
 | `rimgovernor/observations_list_zones` | `rimgovernor.observations.v1.Observations/ListZones` | `rimgovernor.observations.v1.ListZonesRequest` | `rimgovernor.observations.v1.ListZonesReply` |
+| `rimgovernor/observations_read_excavation_site` | `rimgovernor.observations.v1.Observations/ReadExcavationSite` | `rimgovernor.observations.v1.ExcavationSiteRequest` | `rimgovernor.observations.v1.ExcavationSiteReply` |
 | `rimgovernor/observations_read_bills` | `rimgovernor.observations.v1.Observations/ReadBills` | `rimgovernor.observations.v1.BillsRequest` | `rimgovernor.observations.v1.BillsReply` |
 | `rimgovernor/observations_read_building_settings` | `rimgovernor.observations.v1.Observations/ReadBuildingSettings` | `rimgovernor.observations.v1.BuildingSettingsRequest` | `rimgovernor.observations.v1.BuildingSettingsReply` |
 | `rimgovernor/observations_read_caravan_catalog` | `rimgovernor.observations.v1.Observations/ReadCaravanCatalog` | `rimgovernor.observations.v1.CaravanCatalogRequest` | `rimgovernor.observations.v1.CaravanCatalogReply` |

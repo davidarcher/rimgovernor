@@ -117,6 +117,8 @@ const (
 	HeldUnsupportedThreat               HeldReason = "unsupported_threat"
 	HeldWallRemovalGeometryChanged      HeldReason = "wall_removal_geometry_changed"
 	HeldWallRemovalTargetChanged        HeldReason = "wall_removal_target_changed"
+	HeldExcavationUnsupported           HeldReason = "excavation_unsupported"
+	HeldExcavationGeometryChanged       HeldReason = "excavation_geometry_changed"
 )
 
 // orderedHeldReasons lists every reason in the fixed, deterministic order
@@ -137,6 +139,7 @@ var orderedHeldReasons = []HeldReason{
 	HeldRepairerUnavailable, HeldRescuerUnavailable, HeldResearchProjectClaimed,
 	HeldSettlementUnavailable, HeldStructureIneligible, HeldUnsuitableEquipment,
 	HeldUnsupportedThreat, HeldWallRemovalGeometryChanged, HeldWallRemovalTargetChanged,
+	HeldExcavationUnsupported, HeldExcavationGeometryChanged,
 }
 
 func (r HeldReason) valid() bool {
@@ -145,7 +148,7 @@ func (r HeldReason) valid() bool {
 
 // heldReasonBits packs every hold reason into a comparable value so
 // ProgressView (compared by == elsewhere) stays comparable; a slice field
-// could not. 45 reasons currently exist, comfortably under the 64-bit cap;
+// could not. 47 reasons currently exist, comfortably under the 64-bit cap;
 // bit reports 0 (invalid) once orderedHeldReasons would exceed that cap.
 type heldReasonBits uint64
 

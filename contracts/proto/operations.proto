@@ -94,6 +94,7 @@ message Operation {
     AcceptQuest accept_quest = 44;
     FulfillQuest fulfill_quest = 45;
     ConfirmColonyNames confirm_colony_names = 46;
+    ExcavateCell excavate_cell = 47;
   }
 }
 
@@ -106,6 +107,9 @@ message CellList { repeated rimgovernor.common.v1.Cell cells = 1; }
 message Rectangle { rimgovernor.common.v1.Cell origin = 1; optional int32 width = 2; optional int32 height = 3; }
 message Cells { oneof selection { CellList explicit_cells = 1; Rectangle rectangle = 2; } }
 message PlaceBuilding { rimgovernor.placement.v1.PlacementCandidate placement = 1; }
+// Excavation designates one rock cell for ordinary pawn mining as part of a
+// staged room/corridor. An existing Mine designation at the cell is adopted.
+message ExcavateCell { rimgovernor.common.v1.Cell cell = 1; optional string expected_mineable_def_name = 2; optional string expected_snapshot_token = 3; }
 message CancelConstruction { EntityPrecondition target = 1; optional string expected_def_name = 2; rimgovernor.common.v1.Cell cell = 3; optional string expected_stuff = 4; }
 message InstallBuilding { EntityPrecondition packed_or_inner = 1; rimgovernor.common.v1.Cell destination = 2; optional rimgovernor.placement.v1.Rotation rotation = 3; }
 message AcquireResource { EntityPrecondition source = 1; optional string resource_def_name = 2; rimgovernor.common.v1.Cell cell = 3; }

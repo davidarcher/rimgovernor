@@ -85,13 +85,14 @@ func (s *Store) AdmitBuildingMethod(ctx context.Context, r BuildingMethodRequest
 				return BuildingMethodDecision{}, err
 			}
 			candidates = append(candidates, policy.Candidate{Action: a, Progress: progress, Priority: int32(4 - g.Priority), Purpose: r.Purpose, Preview: preview})
-		case domain.WallRemovalAction:
-			// Guarded demolition carries no cost/footprint preview; it is
-			// admitted as part of the bundle's dependency graph but excluded
-			// from policy.Admit's candidate list, and re-checked at dispatch
-			// (executor.runWallRemoval), not here.
+		case domain.WallRemovalAction, domain.ExcavationAction:
+			// Guarded demolition and staged excavation carry no cost/footprint
+			// preview; they are admitted as part of the bundle's dependency
+			// graph but excluded from policy.Admit's candidate list, and
+			// re-checked at dispatch (executor.runWallRemoval /
+			// executor.runExcavation), not here.
 			if _, exists := previews[a.ID()]; exists {
-				return BuildingMethodDecision{}, errors.New("wall removal action must not carry a preview")
+				return BuildingMethodDecision{}, errors.New("guarded action must not carry a preview")
 			}
 		default:
 			return BuildingMethodDecision{}, errors.New("unsupported method action family")

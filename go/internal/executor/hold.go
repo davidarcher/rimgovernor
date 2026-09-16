@@ -64,6 +64,8 @@ var reasonHeldReasons = map[policy.Reason]domain.HeldReason{
 	policy.UnsupportedThreat:               domain.HeldUnsupportedThreat,
 	policy.WallRemovalGeometryChanged:      domain.HeldWallRemovalGeometryChanged,
 	policy.WallRemovalTargetChanged:        domain.HeldWallRemovalTargetChanged,
+	policy.ExcavationUnsupported:           domain.HeldExcavationUnsupported,
+	policy.ExcavationGeometryChanged:       domain.HeldExcavationGeometryChanged,
 }
 
 // holdRefusal durably records a refused-but-not-yet-dispatched action's

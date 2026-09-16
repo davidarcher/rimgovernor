@@ -27,6 +27,7 @@ func allKnownReasons() []policy.Reason {
 		policy.RepairerUnavailable, policy.RescuerUnavailable, policy.ResearchProjectClaimed,
 		policy.SettlementUnavailable, policy.StructureIneligible, policy.UnsuitableEquipment,
 		policy.UnsupportedThreat, policy.WallRemovalGeometryChanged, policy.WallRemovalTargetChanged,
+		policy.ExcavationUnsupported, policy.ExcavationGeometryChanged,
 	}
 }
 func TestReasonHeldReasonsIsExhaustiveAndBijective(t *testing.T) {

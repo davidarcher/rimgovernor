@@ -20,7 +20,7 @@ func TestShapePresenceAndArms(t *testing.T) {
 	for _, shape := range messageShapes(kind) {
 		seen[shape.variant] = true
 	}
-	for _, variant := range []string{"absent", "populated", "oneof:operation/acquire", "oneof:operation/renew", "oneof:operation/revoke"} {
+	for _, variant := range []string{"absent", "populated", "oneof:operation/set_mode", "oneof:operation/revoke"} {
 		if !seen[variant] {
 			t.Fatalf("uncovered %s", variant)
 		}

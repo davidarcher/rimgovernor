@@ -73,6 +73,7 @@ Sources in this table are under
 | ColonyFactsTool.cs / colony_facts | ReadColonyFacts; concrete composition described below | colony_controller, food_forecast, colony_upkeep, development |
 | SpatialAccessTool.cs / spatial_access | ReadSpatialAccess; PawnAccess and AccessTarget | spatial, spatial_site, construction_preflight |
 | RoofSupportTool.cs / roof_support | ReadRoofSupport; exact target, RoofSupportCell | wall/room upkeep and roof safety |
+| ExcavationTool.cs / read_excavation_site | ReadExcavationSite; ExcavationCell per requested cell (fogged = unknown), site-level ExcavationSupport after counterfactual removal, worker/access evidence | staged room/corridor excavation (B06f) |
 | WallUpgradeTool.cs / wall_upgrade_sites | ListWallUpgradeSites; WallUpgradeSite, material and worker evidence | wall_upgrade, colony_upkeep |
 | ResourceAcquisitionTool.cs / resource_sources | ListResourceSources; ResourceSource, StorageCapacity, ExtractionDevelopment | resource_control, extraction_development, mining |
 | HusbandryTool.cs / husbandry_facts | ReadHusbandry; HusbandryAnimal, TrainingEntry, HandlerState | husbandry, animal_feed |
@@ -219,6 +220,7 @@ Tokens cover the relevant native facts and domain-specific settings, not authori
 | CancelConstruction.target | ListBuildings.building.snapshot or GetCells.thing.snapshot |
 | InstallBuilding.packed_or_inner | ReadInstallStatus.packed_snapshot or inner_snapshot, matched to selected ID |
 | AcquireResource.source | ListResourceSources.source.snapshot |
+| ExcavateCell.expected_snapshot_token | ReadExcavationSite.cells[].snapshot (cell + rock def + hit points + designation; never a Mineable ThingID) |
 | DesignateThing.target | GetCells.thing.snapshot / ListPawns.pawn.snapshot / ListBuildings.building.snapshot |
 | PatchBuilding.building | ReadBuildingSettings.snapshot (same building ID) |
 | PatchPawn.pawn | ReadPawnSettings.snapshot (same pawn ID) |

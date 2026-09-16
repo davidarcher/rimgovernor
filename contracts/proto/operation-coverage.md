@@ -59,6 +59,7 @@ Source files below are under `integrations/rimgovernor-native/src/Bridge`. Read-
 | CancelConstructionTool.cs | CancelConstruction | Exact original target, def/stuff/cell, cancellation and affected frame/material observations; never cancel replacement. |
 | InstallTool.cs home/install | InstallBuilding | Stable inner ID, packed/queued/installed state; WipeExistingThings then blueprint placement can yield uncertain partial effects. Status is a read. |
 | ResourceAcquisitionTool.cs | AcquireResource | Exact product/source/cell, ordinary plant/mining designation, later actual output. Current unresolved mining ledger max256. |
+| ExcavationTool.cs | ExcavateCell | Exact cell and rock def, ordinary Mine designation (adopts an existing one idempotently), single-cell counterfactual roof support and a separate per-pick guard that never relaxes MiningBlocker. Completion requires the cell actually cleared; yield is never evidence. |
 | Upstream apply_architect_designator | DesignateThing allow/forbid/hunt/harvest/deconstruct | Exact inspected thing with native CanDesignate; no generic designator-string dispatch. Cell/roof variants are not silently invented. |
 | BuildingConfigTool.cs | PatchBuilding | Forbidden,power,temperature,medical,owner,prisoner flags; field result + exact before/after snapshot. Gizmos are reads. |
 | PawnConfigTool.cs | PatchPawn | Work,schedule,care,hostility,self-tend,follow,area,master,training/slaughter/release; cascaded changes in snapshot. Drop/nickname excluded from automation. |

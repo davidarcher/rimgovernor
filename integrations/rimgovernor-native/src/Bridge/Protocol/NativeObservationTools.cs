@@ -79,6 +79,24 @@ namespace HomeBridge.BridgeTools
             }, cancellationToken).ConfigureAwait(false);
         }
 
+        [Tool("rimgovernor/observations_read_excavation_site", Title = "Read excavation site",
+            Description = "Official ExcavationSiteRequest ProtoJSON. Certifies1..64 exact rock cells for staged room/corridor excavation: per-cell rock, roof, fog, designation and eligibility plus counterfactual roof support after removing every requested cell, pending collapse and mining worker access. Fogged cells are unknown. Read-only.")]
+        [ToolResponse("payload", "string", "Official observations ExcavationSiteReply ProtoJSON.", Always = true)]
+        public async Task<object> ReadExcavationSite(IRimBridgeContext ctx, CancellationToken cancellationToken,
+            [ToolParameter(Description = "Raw value must be an ExcavationSiteRequest ProtoJSON string.")] object? request = null)
+        {
+            if (!ProtoBoundary.TryParse(ctx, "rimgovernor/observations_read_excavation_site", request!, Obs.ExcavationSiteRequest.Parser, out var parsed, out var failure)
+                || !NativeExcavationSite.Validate(parsed, out failure)) return ProtoBoundary.Encode(new Obs.ExcavationSiteReply { Failure = failure });
+            return await ctx.MainThread.InvokeAsync<object>(() => {
+                var map = Find.CurrentMap;
+                if (!ProtoBoundary.ValidateIdentity(parsed.Scope?.ExpectedIdentity!, map, out var context, out failure))
+                    return ProtoBoundary.Encode(new Obs.ExcavationSiteReply { Failure = failure });
+                try { return EncodeBounded(new Obs.ExcavationSiteReply { Observed = NativeExcavationSite.Read(map, parsed, context) }); }
+                catch (ReadLimit error) { return ProtoBoundary.Encode(new Obs.ExcavationSiteReply { Unavailable = Unavailable(Common.UnavailableReason.LimitExceeded, error.Message) }); }
+                catch (Exception) { return ProtoBoundary.Encode(new Obs.ExcavationSiteReply { Unavailable = Unavailable(Common.UnavailableReason.ReadFailed, "Native excavation site facts could not be read completely.") }); }
+            }, cancellationToken).ConfigureAwait(false);
+        }
+
         internal static bool ValidateStatus(Obs.StatusRequest request, out Common.Failure failure)
         {
             failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Valid identity scope, page1..256 and finite nonnegative predator radius required.");

@@ -60,6 +60,7 @@ discovered/mapped, not as live source links.
 | `rimworld/close_main_tab` | PlayerPresentation.Apply exact closed captured command | Typed | `controller/rimgovernor/bridge_game.py:20` |
 | `home/wall_upgrade_sites` | Observations.ListWallUpgradeSites | Typed | `controller/rimgovernor/bridge_game.py:7` |
 | `home/roof_support` | Observations.ReadRoofSupport | Typed | `controller/rimgovernor/bridge_game.py:7` |
+| (new, Go-era) excavation site | Observations.ReadExcavationSite; Operations.Preview / Execute: ExcavateCell | Typed | [#8](https://github.com/davidarcher/rimgovernor/issues/8) |
 | `home/recovery_state` | Observations.ReadRecovery | Typed | `controller/rimgovernor/bridge_game.py:7` |
 | `home/husbandry_facts` | Observations.ReadHusbandry | Typed | `controller/rimgovernor/bridge_game.py:7` |
 | `home/waste_state` | Observations.ReadWaste | Typed | `controller/rimgovernor/bridge_game.py:7` |

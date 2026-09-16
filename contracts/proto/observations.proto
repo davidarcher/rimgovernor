@@ -307,6 +307,24 @@ message RoofSupportCell { rimgovernor.common.v1.Cell cell = 1; optional string r
 message RoofSupportSnapshot { rimgovernor.common.v1.ObservationContext context = 1; EntityRef target = 2; repeated RoofSupportCell roofs = 3; Completeness completeness = 4; }
 message RoofSupportRequest { ReadScope scope = 1; optional string target_id = 2; }
 message RoofSupportReply { oneof outcome { RoofSupportSnapshot observed = 1; rimgovernor.common.v1.Unavailable unavailable = 2; rimgovernor.common.v1.Failure failure = 3; } }
+// Excavation reads certify a requested set of rock cells for staged room/corridor
+// excavation. Unlike surface mining, roofed cells are admissible; support is a
+// counterfactual check that every remaining roof stays within the native support
+// radius of a holder after all requested cells are removed. Fogged cells are unknown.
+enum ExcavationSupport { EXCAVATION_SUPPORT_UNSPECIFIED = 0; EXCAVATION_SUPPORT_SUPPORTED = 1; EXCAVATION_SUPPORT_UNKNOWN = 2; EXCAVATION_SUPPORT_UNSUPPORTED = 3; }
+message ExcavationCell {
+  rimgovernor.common.v1.Cell cell = 1; optional bool fogged = 2; optional string mineable_def_name = 3; optional string mineable_id = 4;
+  optional int32 hit_points = 5; optional string roof_def_name = 6; optional bool holds_roof = 7; optional bool walkable = 8;
+  optional bool mine_designated = 9; optional bool eligible = 10; optional string blocker = 11; SnapshotRef snapshot = 12;
+}
+message ExcavationSiteSnapshot {
+  rimgovernor.common.v1.ObservationContext context = 1; repeated ExcavationCell cells = 2;
+  ExcavationSupport support_after_removal = 3; optional uint32 roof_cells_checked = 4; optional string support_blocker = 5;
+  optional bool collapse_pending = 6; optional bool worker_available = 7; repeated string worker_ids = 8;
+  optional bool access_reachable = 9; Completeness completeness = 10;
+}
+message ExcavationSiteRequest { ReadScope scope = 1; repeated rimgovernor.common.v1.Cell cells = 2; rimgovernor.common.v1.Cell access_cell = 3; }
+message ExcavationSiteReply { oneof outcome { ExcavationSiteSnapshot observed = 1; rimgovernor.common.v1.Unavailable unavailable = 2; rimgovernor.common.v1.Failure failure = 3; } }
 message WallMaterialOption { optional string stuff = 1; repeated Quantity costs = 2; }
 message WallUpgradeSite {
   EntityRef target = 1; optional bool target_present = 2; optional bool player_owned = 3;
@@ -564,6 +582,7 @@ service Observations {
   rpc ReadColonyFacts(ColonyFactsRequest) returns (ColonyFactsReply);
   rpc ReadSpatialAccess(SpatialAccessRequest) returns (SpatialAccessReply);
   rpc ReadRoofSupport(RoofSupportRequest) returns (RoofSupportReply);
+  rpc ReadExcavationSite(ExcavationSiteRequest) returns (ExcavationSiteReply);
   rpc ListWallUpgradeSites(WallUpgradeSitesRequest) returns (WallUpgradeSitesReply);
   rpc ListResourceSources(ResourceSourcesRequest) returns (ResourceSourcesReply);
   rpc ReadHusbandry(HusbandryRequest) returns (HusbandryReply);

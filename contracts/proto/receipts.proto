@@ -53,6 +53,7 @@ message EffectEvidence {
     QuestEffect quest = 19;
     AcquisitionEffect acquisition = 20;
     NamingEffect naming = 21;
+    ExcavationEffect excavation = 22;
   }
 }
 message SnapshotEvidence {
@@ -73,6 +74,16 @@ message AcquisitionEffect {
   repeated AcquisitionOutput outputs = 7;
   optional bool output_observed = 8;
   optional bool output_complete = 9;
+}
+// Excavation completes when no mineable remains at the cell; yield is not evidence.
+message ExcavationEffect {
+  rimgovernor.common.v1.Cell cell = 1;
+  optional string mineable_def_name = 2;
+  optional bool designated = 3;
+  optional bool adopted_existing_designation = 4;
+  optional bool cleared = 5;
+  optional bool cancelled = 6;
+  optional string blocker = 7;
 }
 message NamingEffect {
   optional int32 window_id = 1;
