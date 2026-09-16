@@ -71,6 +71,7 @@ type ClockSchedulerConfig struct {
 	CaravanJourney                   *CaravanJourneyTracker
 	HomeCoverage                     *RoutineHomeCoveragePlanner
 	StoneShell                       *RoutineStoneShellPlanner
+	DefenseLayout                    *RoutineDefenseLayoutPlanner
 	Waste                            *RoutineWastePlanner
 	MoodRelief                       *RoutineMoodReliefPlanner
 	Naming                           *RoutineNamingPlanner
@@ -117,6 +118,7 @@ type ClockSchedulerResult struct {
 	CaravanJourney                                *CaravanJourneyResult
 	HomeCoverage                                  *RoutineHomeCoverageResult
 	StoneShell                                    *RoutineStoneShellResult
+	DefenseLayout                                 *RoutineDefenseLayoutResult
 	Waste                                         *RoutineWasteResult
 	MoodRelief                                    *RoutineMoodReliefResult
 	Naming                                        *RoutineNamingResult
@@ -274,6 +276,9 @@ func NewClockScheduler(player *Player, session *Session, native ClockWindowNativ
 		return nil, ErrControl
 	}
 	if config.StoneShell != nil && (config.Routine == nil || config.StoneShell.reviewer != config.Routine) {
+		return nil, ErrControl
+	}
+	if config.DefenseLayout != nil && (config.Routine == nil || config.DefenseLayout.reviewer != config.Routine) {
 		return nil, ErrControl
 	}
 	if config.ProductionPolicy != nil && (config.Routine == nil || config.ProductionPolicy.reviewer != config.Routine) {
@@ -676,6 +681,16 @@ func (s *ClockScheduler) Step(ctx context.Context) (ClockSchedulerResult, error)
 				return err
 			}
 			out.StoneShell = &method
+			return nil
+		})
+	}
+	if s.config.DefenseLayout != nil {
+		g.Go(func() error {
+			method, err := s.config.DefenseLayout.step(gctx, epoch)
+			if err != nil {
+				return err
+			}
+			out.DefenseLayout = &method
 			return nil
 		})
 	}

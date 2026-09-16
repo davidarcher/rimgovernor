@@ -32,6 +32,7 @@ const (
 	EnsureResearch          GoalID = "EnsureResearch"
 	MaintainResource        GoalID = "MaintainResource"
 	ProductionPolicy        GoalID = "ProductionPolicy"
+	EnsureDefensiveLayout   GoalID = "EnsureDefensiveLayout"
 )
 
 // foodStorageUpkeepPriority is MaintainFoodStorage's entry development
@@ -109,6 +110,13 @@ type RoutinePolicy struct {
 	// supported (no minimum, protected-id set or breeding-reserve count),
 	// narrowed the same way ResearchTarget's doc comment discloses its own gap.
 	HerdPopulationMax map[Resource]int64
+	// DefensiveLayout is an operator-declared opt-in for EnsureDefensiveLayout
+	// (issue #5): the staged chokepoint/firing-line/funnel/trap-corridor
+	// construction RoutineDefenseLayoutPlanner proposes from a fresh native
+	// defense-site census. It keeps the same config-only posture as
+	// ResearchTarget: the review does not derive layout completeness from a
+	// census, the planner decides per tier from its own admitted plans.
+	DefensiveLayout bool
 }
 
 func DefaultRoutinePolicy() RoutinePolicy {
@@ -622,6 +630,14 @@ func DetectRoutine(f RoutineFacts, previous RoutineLatches, p RoutinePolicy) (Ro
 	// ReadProductionPolicy comparison before proposing a method.
 	productionPolicyRecovered := domain.Known(len(p.ResourceReserves) == 0 && len(p.StoppedResources) == 0)
 	addAssessment(ProductionPolicy, 4, productionPolicyRecovered)
+	// EnsureDefensiveLayout is config-only like EnsureResearch above: opt-in
+	// activates the goal at priority 3 (after the storage gate) and the
+	// planner reports no work once every tier stands.
+	defensiveLayoutRecovered := domain.Known(!p.DefensiveLayout)
+	if !positive(defensiveLayoutRecovered) {
+		addGoal(EnsureDefensiveLayout, 3)
+	}
+	addAssessment(EnsureDefensiveLayout, 3, defensiveLayoutRecovered)
 	for _, n := range upkeep.Needs {
 		recovered := domain.Unknown[bool]()
 		targetsKnown := false

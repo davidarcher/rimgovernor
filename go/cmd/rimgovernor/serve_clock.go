@@ -104,7 +104,7 @@ func startServiceClock(ctx context.Context, player *buildingruntime.Player, sess
 	allowSlaughter, herdPopulationMax := sc.routineAllowSlaughter, sc.routineHerdPopulationMax.Map()
 	animalFeedPlans, productionPolicyPlans, productionReserves, productionStopped := sc.routineAnimalFeedPlans, sc.routineProductionPolicyPlans, sc.routineResourceReserves.Map(), sc.routineStoppedResources.Slice()
 	fields, bills, foodStorage := sc.routineFieldPlans, sc.routineBillPlans, sc.routineFoodStoragePlans
-	prisonerInteraction, populationCustody, stoneShell := sc.routinePrisonerInteractionPlans, sc.routinePopulationCustodyPlans, sc.routineStoneShellPlans
+	prisonerInteraction, populationCustody, stoneShell, defensiveLayout := sc.routinePrisonerInteractionPlans, sc.routinePopulationCustodyPlans, sc.routineStoneShellPlans, sc.routineDefensiveLayoutPlans
 	haul, waste, moodRelief, naming := sc.routineHaulPlans, sc.routineWastePlans, sc.routineMoodPlans, sc.routineNamingPlans
 	config := serviceClockConfig(profile, parseClockSpeed(clockSpeed))
 	config.RoutineMethods = session.RoutineMethodsEnabled()
@@ -119,7 +119,7 @@ func startServiceClock(ctx context.Context, player *buildingruntime.Player, sess
 		}
 		config.CaravanJourney = tracker
 	}
-	if (bills || fields || foodStorage || acquisition || work || supplies || sleeping || cooking || shelter || comfort || expansion || power || temperature || defense || tend || rescue || equip || secureSupplies || repair || clean || haul || waste || moodRelief || gear || medical || foodStorageUpkeep || refrigeration || animalContainment || recovery || husbandry || prisonerInteraction || populationCustody || homeCoverage || stoneShell || naming || researchTarget != "" || len(resourceTargets) > 0 || animalFeedPlans || productionPolicyPlans) && !routine {
+	if (bills || fields || foodStorage || acquisition || work || supplies || sleeping || cooking || shelter || comfort || expansion || power || temperature || defense || tend || rescue || equip || secureSupplies || repair || clean || haul || waste || moodRelief || gear || medical || foodStorageUpkeep || refrigeration || animalContainment || recovery || husbandry || prisonerInteraction || populationCustody || homeCoverage || stoneShell || defensiveLayout || naming || researchTarget != "" || len(resourceTargets) > 0 || animalFeedPlans || productionPolicyPlans) && !routine {
 		return errors.New("building plans require routine reviews")
 	}
 	if routine {
@@ -188,6 +188,10 @@ func startServiceClock(ctx context.Context, player *buildingruntime.Player, sess
 		}
 		if stoneShell {
 			capabilities.Methods = append(capabilities.Methods, policy.MaintainStoneShell)
+		}
+		if defensiveLayout {
+			thresholds.DefensiveLayout = true
+			capabilities.Methods = append(capabilities.Methods, policy.EnsureDefensiveLayout)
 		}
 		if researchTarget != "" {
 			thresholds.ResearchTarget = researchTarget
@@ -456,6 +460,16 @@ func startServiceClock(ctx context.Context, player *buildingruntime.Player, sess
 				return errors.New("stone shell plans require typed wall upgrade site and placement observations")
 			}
 			config.StoneShell, err = buildingruntime.NewRoutineStoneShellPlanner(reviewer, stoneShellNative)
+			if err != nil {
+				return err
+			}
+		}
+		if defensiveLayout {
+			defenseNative, ok := reads.(buildingruntime.RoutineDefenseLayoutSource)
+			if !ok {
+				return errors.New("defensive layout plans require typed defense site, lines of fire, spatial access, combat pawn and placement observations")
+			}
+			config.DefenseLayout, err = buildingruntime.NewRoutineDefenseLayoutPlanner(reviewer, defenseNative)
 			if err != nil {
 				return err
 			}

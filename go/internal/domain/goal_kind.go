@@ -37,6 +37,7 @@ const (
 	MaintainWoodGoal            GoalKind = "MaintainWood"
 	MaintainResourceGoal        GoalKind = "MaintainResource"
 	MaintainWasteGoal           GoalKind = "MaintainWaste"
+	EnsureDefensiveLayoutGoal   GoalKind = "EnsureDefensiveLayout"
 )
 
 // GoalKinds is every kind CreateGoal accepts, in declaration order.
@@ -44,7 +45,7 @@ const (
 // array; it is freshly allocated per call.
 func GoalKinds() []GoalKind {
 	return []GoalKind{EnsureFoodSupplyGoal, EnsureInitialShelterGoal, EnsureFoodStorageGoal, EnsureCookingGoal,
-		EnsureTemperatureSafetyGoal, EnsureBasicPowerGoal, EnsureBasicDefenseGoal, MaintainWoodGoal, MaintainResourceGoal, MaintainWasteGoal}
+		EnsureTemperatureSafetyGoal, EnsureBasicPowerGoal, EnsureBasicDefenseGoal, MaintainWoodGoal, MaintainResourceGoal, MaintainWasteGoal, EnsureDefensiveLayoutGoal}
 }
 
 // NewGoalKind validates one requested kind against the whitelist.
@@ -74,7 +75,7 @@ func (k GoalKind) Set() bool { return k != "" }
 // for MaintainWaste alone. Goal priority is a scheduling class, not authority;
 // see Goal.Validate for its permitted range.
 func (k GoalKind) Priority() int {
-	if k == MaintainWasteGoal {
+	if k == MaintainWasteGoal || k == EnsureDefensiveLayoutGoal {
 		return 3
 	}
 	return 2

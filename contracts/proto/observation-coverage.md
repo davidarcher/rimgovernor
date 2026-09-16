@@ -71,7 +71,7 @@ Sources in this table are under
 | CellsPlusTool.cs / get_cells_plus | GetCells; CellState, CellThing, DesignationState | bridge_game, spatial, construction_preflight, hands |
 | ResearchTool.cs / research without set | ReadResearch; ResearchSnapshot, ResearchProject, Researcher, ResearchSlot | research_control, research_intent, development |
 | ColonyFactsTool.cs / colony_facts | ReadColonyFacts; concrete composition described below | colony_controller, food_forecast, colony_upkeep, development |
-| SpatialAccessTool.cs / spatial_access | ReadSpatialAccess; PawnAccess and AccessTarget | spatial, spatial_site, construction_preflight |
+| SpatialAccessTool.cs / spatial_access; NativeSpatialAccessTool.cs / observations_read_spatial_access | ReadSpatialAccess; PawnAccess and AccessTarget (proto port registered for the defense layout access audit) | spatial, spatial_site, construction_preflight, defense layout (B06c) |
 | NativeDefenseObservationTools.cs / observations_read_defense_site | ReadDefenseSite; DefenseCell cover fill, sight blocking, natural rock, door, home area and native map-edge reachability over at most 2048 cells | defense layout (B06c) |
 | NativeDefenseObservationTools.cs / observations_read_lines_of_fire | ReadLinesOfFire; native GenSight line of sight and CoverUtility block chance per (firing, approach) pair, at most 64×64 | defense layout, defensive positioning (B06c) |
 | RoofSupportTool.cs / roof_support | ReadRoofSupport; exact target, RoofSupportCell | wall/room upkeep and roof safety |

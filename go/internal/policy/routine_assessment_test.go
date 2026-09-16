@@ -30,7 +30,7 @@ func TestRoutineAssessmentsDoNotInferRecoveryFromAbsentWork(t *testing.T) {
 		// is correctly still Unknown. With a target configured, research and
 		// resource needs are measured from native facts (see
 		// TestConfiguredTargetsRankForDevelopment).
-		if n.ID == EnsureResearch || n.ID == MaintainResource || n.ID == ProductionPolicy {
+		if n.ID == EnsureResearch || n.ID == MaintainResource || n.ID == ProductionPolicy || n.ID == EnsureDefensiveLayout {
 			continue
 		}
 		if n.Need != domain.NeedUnknown {

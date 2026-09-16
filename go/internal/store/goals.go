@@ -38,6 +38,7 @@ func initializeGoals(ctx context.Context, tx *sql.Tx) error {
 CREATE INDEX active_goals ON goals(id) WHERE retired=0;
 CREATE TABLE goal_methods(goal_id TEXT NOT NULL REFERENCES goals(id), epoch TEXT NOT NULL, method_id TEXT NOT NULL, plan_id TEXT NOT NULL UNIQUE REFERENCES plans(id), PRIMARY KEY(goal_id,epoch,method_id)) STRICT;
 CREATE TABLE routine_review(singleton INTEGER PRIMARY KEY CHECK(singleton=1), payload BLOB NOT NULL) STRICT;
+CREATE TABLE defense_layout(singleton INTEGER PRIMARY KEY CHECK(singleton=1), payload BLOB NOT NULL) STRICT;
 CREATE TABLE goal_create_submissions(request_id TEXT PRIMARY KEY, colony TEXT NOT NULL, load_token TEXT NOT NULL, map_id INTEGER NOT NULL, kind TEXT NOT NULL, goal_id TEXT NOT NULL REFERENCES goals(id), payload BLOB NOT NULL) STRICT;
 CREATE TABLE player_goals(colony TEXT NOT NULL, load_token TEXT NOT NULL, map_id INTEGER NOT NULL, kind TEXT NOT NULL, command TEXT NOT NULL CHECK(command IN ('create_goal','adopt_room')), request_id TEXT NOT NULL, goal_id TEXT NOT NULL REFERENCES goals(id), PRIMARY KEY(colony,load_token,map_id,kind)) STRICT;`)
 	return err
