@@ -51,7 +51,10 @@ type TendPatientFacts struct {
 // first available doctor with the first available patient. This is a proposal
 // only; EvaluateTend re-validates the chosen pair against fresh facts.
 func SelectTend(doctors []TendDoctorFacts, patients []TendPatientFacts) (domain.PawnID, domain.PawnID, bool) {
-	eligibleDoctor := func(d TendDoctorFacts) bool {
+	// allowDrafted is only tried once no undrafted doctor is eligible at all --
+	// giving up a drafted colonist's current order costs more than an idle
+	// undrafted one, so it is strictly a fallback, never a first choice.
+	eligibleDoctor := func(d TendDoctorFacts, allowDrafted bool) bool {
 		dead, dk := d.Dead.Value()
 		downed, wk := d.Downed.Value()
 		drafted, tk := d.Drafted.Value()
@@ -66,7 +69,7 @@ func SelectTend(doctors []TendDoctorFacts, patients []TendPatientFacts) (domain.
 		if !dk || !wk || !tk || !mk || !fk || !qk || !ek || !sk || !sdk || !wek || !odk {
 			return false
 		}
-		return !dead && !downed && !drafted && !mental && !forced && queued == 0 && existing != "TendPatient" && enabled && !overrideDisabled && !skillDisabled && skill >= 0
+		return !dead && !downed && (allowDrafted || !drafted) && !mental && !forced && queued == 0 && existing != "TendPatient" && enabled && !overrideDisabled && !skillDisabled && skill >= 0
 	}
 	eligiblePatient := func(p TendPatientFacts) bool {
 		dead, dk := p.Dead.Value()
@@ -80,8 +83,15 @@ func SelectTend(doctors []TendDoctorFacts, patients []TendPatientFacts) (domain.
 	}
 	var doctorPool []TendDoctorFacts
 	for _, d := range doctors {
-		if eligibleDoctor(d) {
+		if eligibleDoctor(d, false) {
 			doctorPool = append(doctorPool, d)
+		}
+	}
+	if len(doctorPool) == 0 {
+		for _, d := range doctors {
+			if eligibleDoctor(d, true) {
+				doctorPool = append(doctorPool, d)
+			}
 		}
 	}
 	var patientPool []TendPatientFacts
@@ -177,10 +187,19 @@ func EvaluateTend(r TendRequest) DraftDecision {
 	if f.Doctor.Pawn != tend.Doctor() || f.Patient.Pawn != tend.Patient() || !validToken(f.Doctor.SnapshotToken) || !validToken(f.Patient.SnapshotToken) {
 		return refuse(UnknownFacts)
 	}
+	drafted, known := f.Doctor.Drafted.Value()
+	if !known {
+		return refuse(UnknownFacts)
+	}
 	// EmergencyCriticalMedical fires for any bleeding/downed/untended colonist,
 	// including the patient this action exists to treat, so it is deliberately
-	// excluded here. Combat safety (EmergencyUnsafeThreat) still gates dispatch:
-	// triage only proceeds once threats_cleared, matching the Python reference.
+	// excluded here. Combat safety (EmergencyUnsafeThreat) gates an undrafted
+	// doctor's dispatch: ordinary triage only proceeds once threats_cleared,
+	// matching the Python reference. A drafted doctor is exempted -- the
+	// controller drafted them itself, so sending them to tend a dying colonist
+	// is the same class of decision as drafting a healthy pawn during a threat
+	// elsewhere (see EvaluateOwnedDraft): native's own job-acceptance check
+	// (NativeCanTry below) remains the live safety authority for the order.
 	for _, hold := range EvaluateEmergency(f.Emergency, r.Current, f.PreviewTick).Holds {
 		switch hold.Reason {
 		case EmergencyStaleFacts:
@@ -188,10 +207,12 @@ func EvaluateTend(r TendRequest) DraftDecision {
 		case EmergencyUnknownFacts:
 			return refuse(UnknownFacts)
 		case EmergencyUnsafeThreat:
-			return refuse(UnsupportedThreat)
+			if !drafted {
+				return refuse(UnsupportedThreat)
+			}
 		}
 	}
-	for _, fact := range []domain.Fact[bool]{f.Doctor.Dead, f.Doctor.Downed, f.Doctor.Drafted, f.Doctor.MentalState, f.Doctor.PlayerForced} {
+	for _, fact := range []domain.Fact[bool]{f.Doctor.Dead, f.Doctor.Downed, f.Doctor.MentalState, f.Doctor.PlayerForced} {
 		if _, known := fact.Value(); !known {
 			return refuse(UnknownFacts)
 		}
@@ -222,13 +243,12 @@ func EvaluateTend(r TendRequest) DraftDecision {
 	}
 	dead, _ := f.Doctor.Dead.Value()
 	downed, _ := f.Doctor.Downed.Value()
-	drafted, _ := f.Doctor.Drafted.Value()
 	mental, _ := f.Doctor.MentalState.Value()
 	forced, _ := f.Doctor.PlayerForced.Value()
 	if dead || downed {
 		return refuse(CriticalMedical)
 	}
-	if drafted || mental || forced || queued != 0 {
+	if mental || forced || queued != 0 {
 		return refuse(PlayerOrder)
 	}
 	if existingDoctorJob == "TendPatient" {
