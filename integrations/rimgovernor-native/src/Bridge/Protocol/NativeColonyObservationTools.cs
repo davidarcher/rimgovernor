@@ -303,6 +303,8 @@ namespace HomeBridge.BridgeTools
                 var row = new Obs.CellState { Cell = Cell(c), Terrain = terrain.defName, Fogged = false, Walkable = c.Walkable(map), Passable = !c.Impassable(map),
                     Fertility = Finite(map.fertilityGrid.FertilityAt(c)), SupportsLight = terrain.affordances.Contains(TerrainAffordanceDefOf.Light),
                     Occupied = c.GetEdifice(map) != null || c.GetThingList(map).Any(t => t is Blueprint || t is Frame),
+                    Doorway = c.GetDoor(map) != null || c.GetThingList(map).Any(t => (t is Blueprint || t is Frame)
+                        && t.def.entityDefToBuild is ThingDef built && typeof(Building_Door).IsAssignableFrom(built.thingClass)),
                     Indoors = room != null && room.ProperRoom && !room.PsychologicallyOutdoors,
                     StorageEmpty = !c.GetThingList(map).Any(t => t is Plant || t is Building || t is Blueprint || t is Frame || t.def.category == ThingCategory.Item) };
                 if (roof != null) row.Roof = roof.defName; else row.Issues.Add(Issue("roof", Common.UnavailableReason.NotApplicable, "No roof."));

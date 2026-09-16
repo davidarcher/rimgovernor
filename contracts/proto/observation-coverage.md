@@ -128,8 +128,11 @@ their own narrow typed receipts, without an import cycle.
   policy definition labels, environment conditions, climate/growing inputs,
   farm productivity, cooking products/nutrition/rot and bills, butchering bills,
   harvestable acquisition items, food corpses, Boolean qualifying food storage,
-  forbidden supply cells, and planning definitions/cells. Source's hardcoded
-  starter definition list is replaced by explicit requested open definition names.
+  forbidden supply cells, the player faction's tech level (`player_tech_level`,
+  which selects the starter shelter's shape), and planning definitions/cells
+  including per-cell `doorway` (a door, door blueprint or door frame) so indoor
+  furnishing keeps entrance aisles clear. Source's hardcoded starter definition
+  list is replaced by explicit requested open definition names.
 - NeedReliefTool.cs consumers require current needs, queued/current job identity,
   player-forced/interruptibility/native priority, timetable, carry/fire/draft/
   mental/dead/downed and medical rest facts. PawnState/Settings/JobEvidence carries

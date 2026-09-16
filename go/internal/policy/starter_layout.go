@@ -12,7 +12,10 @@ type Rectangle struct{ X, Z, Width, Height int32 }
 type SiteCell struct {
 	Cell                                                                   domain.Cell
 	Walkable, Occupied, Zone, Roofed, Indoors, SupportsLight, StorageEmpty domain.Fact[bool]
-	Fertility                                                              domain.Fact[float64]
+	// Doorway reports a door, or a door blueprint or frame, on the cell;
+	// indoor furnishing keeps the cells beside a doorway clear as its aisle.
+	Doorway   domain.Fact[bool]
+	Fertility domain.Fact[float64]
 }
 
 // ShelterStyle selects the starter shell's shape family. The rectangle is
