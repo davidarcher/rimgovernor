@@ -195,10 +195,10 @@ func (caller *Client) protoCall(ctx context.Context, name string, request, reply
 	result, err := caller.operation(ctx, func(ctx context.Context, live *liveSession) (Result, error) {
 		detail, err := caller.describe(ctx, live, name)
 		if err != nil {
-			return detail, err
+			return detail, fmt.Errorf("describe %s: %w", name, err)
 		}
 		if err = validateOwnedStringInput(detail.Structured, "request"); err != nil {
-			return Result{}, err
+			return Result{}, fmt.Errorf("describe %s: %w", name, err)
 		}
 		invoked = true
 		return caller.core(ctx, live, "games_call_tool", encode(nativeArgument{caller.gameID, name, args}))

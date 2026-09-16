@@ -22,7 +22,9 @@ func NewRoutineTemperaturePlanner(reviewer *RoutineReviewer, native RoutineBuild
 	return &RoutineBuildingPlanner{reviewer: reviewer, native: native, goal: policy.EnsureTemperatureSafety}, nil
 }
 
-func (r *RoutineReviewer) temperatureEnabled() bool { return r.methodEnabled(policy.EnsureTemperatureSafety) }
+func (r *RoutineReviewer) temperatureEnabled() bool {
+	return r.methodEnabled(policy.EnsureTemperatureSafety)
+}
 
 // roomsEnabled reports whether any composed family reads the typed room
 // census inside the review bracket: temperature plans need room heat and

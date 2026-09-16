@@ -32,6 +32,16 @@ import (
 
 const baselineSave = "RimGovernor-tribal8-baseline"
 
+// facilityFamilies composes the startup ladder EnsureComfort ranks behind
+// plus comfort itself: RankDevelopment only grants a comfort slot once every
+// priority-0..2 need (starting supplies, work assignments, food, shelter,
+// temperature, cooking, storage) has recovered, so those families must be
+// able to act. The full autonomous composition is not used: with every
+// family on, the gear planner fails outright (issue #62) and the parallel
+// planner step exceeds its call timeout on a shared machine, so the clock
+// never starts.
+const facilityFamilies = "sleeping,shelter,temperature,comfort,work,supply,field,food-storage,acquisition,cooking,production-policy"
+
 func main() {
 	root := flag.String("root", "", "absolute disposable worker root (e.g. .rimgovernor/bridge)")
 	output := flag.String("output", "", "fresh output directory (default <root>/native-facility-acceptance)")
@@ -67,7 +77,7 @@ func main() {
 		Root: *root, Output: *output, GameID: *game, Headless: !*rendered,
 		RimgovernorBinary: *rimgovernorBinary, Save: *save,
 		Watch: *watch, Poll: *poll, NativeTimeout: *nativeTimeout, ClockSpeed: *clockSpeed,
-		RequestPrefix: "facility", Families: "all", Goal: policy.EnsureComfort,
+		RequestPrefix: "facility", Families: facilityFamilies, Goal: policy.EnsureComfort,
 		Until: comfortRecovered,
 	}
 	var journal *store.Store

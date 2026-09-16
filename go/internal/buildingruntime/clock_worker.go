@@ -137,12 +137,18 @@ func (w *ClockWorker) renewLoop() {
 }
 
 type clockStepKey struct {
-	request, phase, reasons              string
+	request, phase, reasons, failure     string
 	failed, running, reconciled, cleaned bool
 }
 
 func clockWorkerKey(result ClockSchedulerResult, err error) clockStepKey {
 	key := clockStepKey{failed: err != nil, running: result.Running, reconciled: result.Reconciled, cleaned: result.Cleaned}
+	if err != nil {
+		// A different failure is a state change worth one more log line:
+		// otherwise a planner error that follows the routine startup
+		// authority refusal is never surfaced at all.
+		key.failure = err.Error()
+	}
 	if result.Attempt != nil {
 		key.request = result.Attempt.Intent.RequestID
 		key.phase = string(result.Attempt.Phase)
