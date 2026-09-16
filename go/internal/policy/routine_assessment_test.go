@@ -22,13 +22,14 @@ func TestRoutineAssessmentsDoNotInferRecoveryFromAbsentWork(t *testing.T) {
 		t.Fatal(r)
 	}
 	for _, n := range r.Assessments {
-		// EnsureResearch, MaintainResource and ProductionPolicy are the
-		// assessments derived from operator config
-		// (RoutinePolicy.ResearchTarget/ResourceTargets/ResourceReserves/
-		// StoppedResources) rather than a native RoutineFacts field, so
-		// DefaultRoutinePolicy's empty target/map is itself known evidence
-		// ("no target configured" is certain, not unobserved) even though
-		// every other assessment here is correctly still Unknown.
+		// EnsureResearch, MaintainResource and ProductionPolicy are gated on
+		// operator config (RoutinePolicy.ResearchTarget/ResourceTargets/
+		// ResourceReserves/StoppedResources): DefaultRoutinePolicy's empty
+		// target/map is itself known evidence ("no target configured" is
+		// certain, not unobserved) even though every other assessment here
+		// is correctly still Unknown. With a target configured, research and
+		// resource needs are measured from native facts (see
+		// TestConfiguredTargetsRankForDevelopment).
 		if n.ID == EnsureResearch || n.ID == MaintainResource || n.ID == ProductionPolicy {
 			continue
 		}

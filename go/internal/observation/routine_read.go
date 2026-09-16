@@ -2,6 +2,7 @@ package observation
 
 import (
 	"context"
+	"sort"
 	"time"
 
 	"github.com/davidarcher/RimGovernor/go/internal/bridge"
@@ -18,9 +19,18 @@ type RoutineSource interface {
 	ReadRoutinePopulation(context.Context, *c.Identity) (bridge.PrisonerCensus, bridge.Result, error)
 }
 
+// RoutineResearchSource is the optional research read a RoutineSource may
+// offer. When present it is read inside the same paused identity bracket as
+// the colony census so EnsureResearch's need is measured, not assumed from
+// configuration; without it the research fact stays unknown.
+type RoutineResearchSource interface {
+	ReadResearch(context.Context, *c.Identity) (bridge.ResearchRead, bridge.Result, error)
+}
+
 type RoutineReading struct {
 	ColonyReading
 	Emergency          policy.EmergencyFacts
+	ResearchReceipt    bridge.Result
 	EmergencyReceipt   bridge.Result
 	PawnReceipt        bridge.Result
 	DefinitionReceipt  bridge.Result
@@ -41,6 +51,8 @@ type routineBracket struct {
 	pawnReceipt       bridge.Result
 	population        bridge.PrisonerCensus
 	populationReceipt bridge.Result
+	research          domain.Fact[policy.ResearchFacts]
+	researchReceipt   bridge.Result
 	armed             domain.Fact[int64]
 	work              domain.Fact[[]policy.WorkPawn]
 	medical           domain.Fact[[]policy.CarePawn]
@@ -88,6 +100,9 @@ func (s *routineBracket) ReadColonyFacts(ctx context.Context, id *c.Identity, pl
 	populationIdentity.Paused = s.expected.Paused
 	if !sameColonyBoundary(populationIdentity, s.expected) {
 		return nil, receipt, ErrChanged
+	}
+	if err := s.readResearch(ctx, id); err != nil {
+		return nil, receipt, err
 	}
 	if complete, known := s.emergency.Facts.ColonistsComplete.Value(); known && complete {
 		ids := make([]string, 0, len(s.emergency.Facts.Colonists))
@@ -152,6 +167,7 @@ func observeRoutine(ctx context.Context, source RoutineSource, clock Clock, expe
 	reading.Projection.Facts.MoodPawns = bracket.mood
 	reading.Projection.Facts.RecoveryWorkers = recoveryWorkers(bracket.mood)
 	reading.Projection.Facts.Gear = routineGear(reading.Projection.Facts.Gear, bracket.emergency.Facts)
+	reading.Projection.Facts.Research = bracket.research
 	reading.Projection.Facts.Prisoners = bracket.population.Prisoners
 	reading.Projection.Facts.Custody = bracket.population.Custody
 	reading.Projection.Definitions = append(reading.Projection.Definitions, bracket.extraDefinitions...)
@@ -159,7 +175,7 @@ func observeRoutine(ctx context.Context, source RoutineSource, clock Clock, expe
 		reading.Projection.TemperaturePlanning = bracket.temperature
 		reading.Projection.Facts.SleepingMin, reading.Projection.Facts.SleepingMax = policy.TemperatureRange(bracket.temperature)
 	}
-	return RoutineReading{ColonyReading: reading, Emergency: bracket.emergency.Facts, EmergencyReceipt: bracket.receipt, PawnReceipt: bracket.pawnReceipt, DefinitionReceipt: bracket.definitionReceipt, TemperatureReceipt: bracket.temperatureReceipt, PopulationReceipt: bracket.populationReceipt}, nil
+	return RoutineReading{ColonyReading: reading, Emergency: bracket.emergency.Facts, EmergencyReceipt: bracket.receipt, PawnReceipt: bracket.pawnReceipt, DefinitionReceipt: bracket.definitionReceipt, TemperatureReceipt: bracket.temperatureReceipt, PopulationReceipt: bracket.populationReceipt, ResearchReceipt: bracket.researchReceipt}, nil
 }
 
 // Request only project definitions absent from the default planning census. Both
@@ -213,5 +229,38 @@ func (s *routineBracket) readProjectDefinitions(ctx context.Context, id *c.Ident
 		}
 		s.extraDefinitions = append(s.extraDefinitions, d)
 	}
+	return nil
+}
+
+// readResearch stays inside the colony identity bracket: a source without a
+// research read leaves the fact unknown, and a research snapshot from a
+// different colony boundary invalidates the whole reading.
+func (s *routineBracket) readResearch(ctx context.Context, id *c.Identity) error {
+	source, ok := s.RoutineSource.(RoutineResearchSource)
+	if !ok {
+		return nil
+	}
+	read, receipt, err := source.ReadResearch(ctx, id)
+	s.researchReceipt = receipt
+	if err != nil {
+		return err
+	}
+	identity, err := contextIdentity(read.Context)
+	if err != nil {
+		return err
+	}
+	identity.Paused = s.expected.Paused
+	if !sameColonyBoundary(identity, s.expected) {
+		return ErrChanged
+	}
+	facts := policy.ResearchFacts{Current: policy.ResearchProjectID(read.CurrentProject)}
+	for name := range read.Projects {
+		facts.Projects = append(facts.Projects, policy.ResearchProjectID(name))
+	}
+	sort.Slice(facts.Projects, func(i, j int) bool { return facts.Projects[i] < facts.Projects[j] })
+	for _, name := range read.Finished {
+		facts.Finished = append(facts.Finished, policy.ResearchProjectID(name))
+	}
+	s.research = domain.Known(facts)
 	return nil
 }

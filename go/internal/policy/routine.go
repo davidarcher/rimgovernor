@@ -56,7 +56,10 @@ type RoutinePolicy struct {
 	// prey or a non-hunt source.
 	HuntStallTicks int64
 	// ResearchTarget is an operator-declared desired native ResearchProjectDef
-	// name; empty disables EnsureResearch's routine dispatch. Unlike
+	// name; empty disables EnsureResearch's routine dispatch. The need is
+	// measured against RoutineFacts.Research each review (idle tab with the
+	// target unfinished is a deficit; any current project or a finished
+	// target is recovered). Unlike
 	// research.py's needs(), which derives targets from every other active
 	// goal's own observed capability gaps, this only supports one explicit
 	// target -- deriving targets from other goals' evidence generically
@@ -65,8 +68,9 @@ type RoutinePolicy struct {
 	ResearchTarget string
 	// ResourceTargets is an operator-declared map of native resource
 	// definition name to the native stock floor MaintainResource should keep
-	// it above; an empty map disables the goal entirely, the same config-only
-	// posture ResearchTarget uses for EnsureResearch. Unlike
+	// it above; an empty map disables the goal entirely. The deficit is
+	// measured against RoutineFacts.Resources each review as the worst-covered
+	// target's shortfall fraction. Unlike
 	// production_policy.py's plan-wide resource_policy (many simultaneously
 	// tracked floors driving both goal creation and the native
 	// SetProductionPolicy push), this only supports
@@ -77,10 +81,11 @@ type RoutinePolicy struct {
 	// ProductionFloors, mirroring production_policy.py's plan.control
 	// resource_policy reserve/spending-stopped configuration. Unlike
 	// ResourceTargets (which drives MaintainResource's own goal/method
-	// selection), these drive the ProductionPolicy goal's own config-only
+	// selection), these drive the ProductionPolicy goal's config-only
 	// posture: RoutineProductionPolicyPlanner dispatches ProductionFloors's
 	// computed floors/stopped rows through the native SetProductionPolicy
-	// write whenever they diverge from a fresh ReadProductionPolicy.
+	// write whenever they diverge from a fresh ReadProductionPolicy. The push
+	// is not development work and holds no development slot (DevelopmentExempt).
 	ResourceReserves map[Resource]int64
 	StoppedResources []Resource
 	// AllowSlaughter is an operator-declared, explicit opt-in for
@@ -234,6 +239,14 @@ type RoutineFacts struct {
 	FoodDays, PopulationFoodDays, FieldCoverage                                domain.Fact[float64]
 	SleepingMin, SleepingMax, OutdoorTemperature, PowerHeadroom                domain.Fact[float64]
 	Wood                                                                       domain.Fact[int64]
+	// Resources is the generic reachable, unforbidden player item census
+	// (the same colony facts rows Wood is taken from), so MaintainResource's
+	// deficit is measured at review time instead of assumed from config.
+	Resources domain.Fact[[]Amount]
+	// Research is the native research state read inside the same paused
+	// identity bracket as the other routine facts. Unknown when the source
+	// cannot read research; missing facts never recover EnsureResearch.
+	Research domain.Fact[ResearchFacts]
 	Hostiles, CriticalPatients                                                 domain.Fact[int64]
 	AllPatientsResting, ColonyNaming, CleanupPawns, ForbiddenSupplies          domain.Fact[bool]
 	FoodStorage, Cooking, WorkCoverage, PowerRequired, DisabledConsumers       domain.Fact[bool]
@@ -570,41 +583,29 @@ func DetectRoutine(f RoutineFacts, previous RoutineLatches, p RoutinePolicy) (Ro
 	addAssessment(EnsureComfort, 4, f.ComfortRecovered)
 	addAssessment(EnsureExpansion, 4, expansion)
 	addAssessment(MaintainEquipment, 3, gear.Recovered)
-	// EnsureResearch stays config-only: unlike every other goal above, its
-	// recovered/deficit state is not derived from a review-time native
-	// census (no RoutineFacts field records the current research project),
-	// only from whether an operator declared a ResearchTarget at all. The
-	// routine planner performs its own fresh native read to decide whether
-	// a project is already selected before ever proposing a method; see
-	// RoutinePolicy.ResearchTarget's doc comment for the disclosed gap this
-	// narrows around (no cross-goal needs-driven target derivation).
-	researchRecovered := domain.Known(p.ResearchTarget == "")
+	// EnsureResearch and MaintainResource are operator-configured targets whose
+	// deficit is measured against native facts read in this review: no target
+	// configured is certain recovery, a configured target with missing facts is
+	// unknown, and RoutineResearchPlanner/RoutineResourcePlanner still re-read
+	// native state immediately before proposing a method.
+	researchRecovered, researchDeficit := ResearchTargetNeed(p.ResearchTarget, f.Research)
 	if !positive(researchRecovered) {
 		addGoal(EnsureResearch, 4)
+		r.Goals[len(r.Goals)-1].Deficit = researchDeficit
 	}
 	addAssessment(EnsureResearch, 4, researchRecovered)
-	// MaintainResource stays config-only, the same posture as EnsureResearch
-	// just above: recovered/deficit state is not derived from a review-time
-	// native resource census (RoutineFacts carries none), only from whether
-	// an operator declared any ResourceTargets at all. RoutineResourcePlanner
-	// performs its own fresh native read and policy.SelectResourceTarget's
-	// dynamic-target selection immediately before proposing a method.
-	resourceRecovered := domain.Known(len(p.ResourceTargets) == 0)
+	resourceRecovered, resourceDeficit := ResourceTargetNeed(p.ResourceTargets, f.Resources)
 	if !positive(resourceRecovered) {
 		addGoal(MaintainResource, 4)
+		r.Goals[len(r.Goals)-1].Deficit = resourceDeficit
 	}
 	addAssessment(MaintainResource, 4, resourceRecovered)
-	// ProductionPolicy stays config-only, the same posture as EnsureResearch
-	// and MaintainResource above: recovered/deficit state is not derived
-	// from a review-time native census (RoutineFacts carries none), only
-	// from whether an operator declared any ResourceReserves/StoppedResources
-	// at all. RoutineProductionPolicyPlanner performs its own fresh
-	// ReadProductionPolicy and policy.ProductionFloors comparison immediately
-	// before proposing a method.
+	// ProductionPolicy is a configuration push, not development work: it needs
+	// no pawn labor and holds no optional capacity slot, so it is assessed (and
+	// admitted) outside the development ranking. Its recovered state is
+	// config-only: RoutineProductionPolicyPlanner performs its own fresh
+	// ReadProductionPolicy comparison before proposing a method.
 	productionPolicyRecovered := domain.Known(len(p.ResourceReserves) == 0 && len(p.StoppedResources) == 0)
-	if !positive(productionPolicyRecovered) {
-		addGoal(ProductionPolicy, 4)
-	}
 	addAssessment(ProductionPolicy, 4, productionPolicyRecovered)
 	for _, n := range upkeep.Needs {
 		recovered := domain.Unknown[bool]()

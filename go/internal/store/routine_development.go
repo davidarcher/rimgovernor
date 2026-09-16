@@ -108,6 +108,9 @@ func admitRoutineDevelopment(ctx context.Context, tx *sql.Tx, g domain.Goal) err
 			break
 		}
 	}
+	if policy.DevelopmentExempt(need) {
+		return nil
+	}
 	selected := false
 	for _, row := range review.Development.Rows {
 		if row.Goal == need {

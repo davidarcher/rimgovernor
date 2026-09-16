@@ -59,12 +59,21 @@ the entrance aisle and existing zones. Nine valid cells may form several patches
 when service furniture prevents a complete rectangle. Native readback still
 establishes the storage gate.
 
-Priority-class 3 goals for basic equipment defense, wood and maintained
-player resource targets share a deterministic admission order. Scores combine a
-0–100 observed deficit fraction, a 100-point player-target preference, one point per
-2,500 waiting game ticks and a 20-point selection hysteresis bonus. Stable goal IDs
-break ties. These weights are policy ordering, not measured benefit or time estimates.
-Unknown resource stock cannot admit a new project. Emergencies retain precedence.
+Optional goals (priority class 3 and 4: basic equipment defense, wood, comfort,
+expansion, maintained research and resource targets) share a deterministic admission
+order. Scores combine a 0–100 observed deficit fraction, a 100-point player-target
+preference, one point per 2,500 waiting game ticks and a 20-point selection hysteresis
+bonus. Stable goal IDs break ties. These weights are policy ordering, not measured
+benefit or time estimates. Emergencies retain precedence, and comfort waits for
+startup-survival goals.
+
+Every ranked deficit is measured from the review's native facts. A configured research
+target is a full deficit while the research tab is idle and the target unfinished; any
+current project (including one the player chose) or a finished target counts as
+recovered. A resource target's deficit is the worst-covered target's shortfall against
+the reachable, unforbidden item census. Unknown stock or research state cannot admit a
+new project and never counts as recovery. The production-policy push is configuration,
+not development work: it is admitted without a ranking row and holds no slot.
 
 `max_development_projects` defaults to two and accepts integer values from one through
 eight through the versioned player settings API. Available capacity is the smaller of
@@ -81,8 +90,9 @@ candidate in the same review. Waiting age advances only with native ticks and re
 for committed work; context/direction changes and tick rewinds reset ranking history.
 The shared plan retains the ranking, observed worker count and explicit deferral reasons
 under `control.development`; the dashboard displays them. Native labor forecasts remain
-evidence with unknown completion times. This ordering does not implement comfort,
-research or expansion methods, or establish their native gameplay acceptance.
+evidence with unknown completion times. Native gameplay acceptance of competing
+comfort, research, resource and expansion demands is tracked in
+[issue #9](https://github.com/davidarcher/rimgovernor/issues/9).
 
 ## Method compilation and work allocation
 

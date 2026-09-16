@@ -216,10 +216,17 @@ func DecodeColony(reply *o.ColonyFactsReply, expected Identity) (ColonyProjectio
 	}
 	if !hasIssue(v.Issues, "resources") {
 		r.Facts.Wood = domain.Known(int64(0))
+		rows := make([]policy.Amount, 0, len(v.Resources))
+		complete := true
 		for _, q := range v.Resources {
 			if q.GetDefName() == "WoodLog" {
 				r.Facts.Wood = optional(q.Units)
 			}
+			complete = complete && q.Units != nil
+			rows = append(rows, policy.Amount{Resource: policy.Resource(q.GetDefName()), Count: q.GetUnits()})
+		}
+		if complete {
+			r.Facts.Resources = domain.Known(rows)
 		}
 	}
 	if !hasIssue(v.Issues, "forbidden_supplies") {
