@@ -86,6 +86,19 @@ how narrow connectors and concave rooms around rock arise. Site score,
 reserved yard and indoor storage placement are computed from the footprint,
 not a fixed rectangle.
 
+Resuming control invalidates every routine goal and cancels its plans, so
+after a restart the walls and door already standing, framed or blueprinted
+natively are the only durable record of a shell in progress. Before siting a
+shell, the routine reads the player wall and door census within 64 cells of
+the colony centre and, for each player door nearest the centre first, tries
+every starter shape whose south door lands on that cell (the hut templates
+for the hut style, then the 9x9 rectangle). A shape is adopted when the door
+and at least one wall already stand on it and every other ring cell is
+placeable now; the admitted plan holds only those missing cells, and its
+walls do not wait for a door that already stands. A lone door, a blocked
+ring cell or a grown irregular shell (which has no template) is not adopted
+and the routine sites afresh.
+
 Indoor furnishing treats the four orthogonal neighbours of every observed
 doorway (a door, or a door blueprint or frame) as protected: the entrance
 aisle is never a furniture candidate.
