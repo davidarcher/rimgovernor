@@ -249,9 +249,9 @@ func buildingEvidence(evidence *r.EffectEvidence, candidate *p.PlacementCandidat
 	if v.GetPresent() && (v.OriginThingId == nil || v.CurrentThingId == nil || v.Stage == nil || v.GetStage() == r.ConstructionStage_CONSTRUCTION_STAGE_CANCELLED) {
 		return contract("present construction lineage missing")
 	}
-	if v.GetStage() == r.ConstructionStage_CONSTRUCTION_STAGE_BLUEPRINT && v.OriginThingId != nil && v.CurrentThingId != nil && v.GetOriginThingId() != v.GetCurrentThingId() {
-		return contract("blueprint origin mismatch")
-	}
+	// A blueprint may carry an identity other than its origin: native follows
+	// a failed construction (Frame.FailConstruction) into the fresh blueprint
+	// the game spawns in the frame's place.
 	if v.GetStage() == r.ConstructionStage_CONSTRUCTION_STAGE_BUILDING && v.Started != nil && !v.GetStarted() {
 		return contract("building cannot be unstarted")
 	}
