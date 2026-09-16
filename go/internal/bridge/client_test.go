@@ -14,7 +14,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/davidarcher/RimGovernor/go/internal/flightrecorder"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 )
 
@@ -352,7 +351,7 @@ func TestFlightRecorderCapturesRequestResponseAndError(t *testing.T) {
 		return structured(`{"colonyId":"test-colony","tick":0,"operation":{"id":"receipt-1"}}`), nil
 	}}
 	path := filepath.Join(t.TempDir(), "timeline.jsonl")
-	rec, err := flightrecorder.New(path)
+	rec, err := NewFlightRecorder(path)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -370,7 +369,7 @@ func TestFlightRecorderCapturesRequestResponseAndError(t *testing.T) {
 	if _, err = testNativeRead(client, context.Background()); err == nil {
 		t.Fatal("expected refused call to surface an error")
 	}
-	rows, err := flightrecorder.ReadTimeline(path)
+	rows, err := ReadTimeline(path)
 	if err != nil {
 		t.Fatal(err)
 	}

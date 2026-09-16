@@ -16,8 +16,6 @@ import (
 	"time"
 
 	"github.com/davidarcher/RimGovernor/go/internal/bridge"
-	"github.com/davidarcher/RimGovernor/go/internal/controller"
-	"github.com/davidarcher/RimGovernor/go/internal/flightrecorder"
 	"github.com/davidarcher/RimGovernor/go/internal/httpapi"
 	"github.com/davidarcher/RimGovernor/go/internal/observation"
 	"github.com/davidarcher/RimGovernor/go/internal/store"
@@ -337,7 +335,7 @@ func serve(ctx context.Context, args []string, out, diagnostics io.Writer) int {
 		return 2
 	}
 	if config.flightRecorder != "" {
-		recorder, err := flightrecorder.New(config.flightRecorder)
+		recorder, err := bridge.NewFlightRecorder(config.flightRecorder)
 		if err != nil {
 			fmt.Fprintln(diagnostics, "flight recorder:", err)
 			return 1
@@ -399,7 +397,7 @@ func serveWithBridge(ctx context.Context, config serveConfig, out io.Writer, ope
 	if _, err = rand.Read(random[:]); err != nil {
 		return err
 	}
-	snapshots, err := controller.NewReadState(hex.EncodeToString(random[:]), client, wallClock{}, 2*config.refresh+config.bridge.Timeout)
+	snapshots, err := newReadState(hex.EncodeToString(random[:]), client, wallClock{}, 2*config.refresh+config.bridge.Timeout)
 	if err != nil {
 		return err
 	}

@@ -11,8 +11,8 @@ import (
 )
 
 // gearReplaceJobDef is the native job RimWorld issues to wear an already
-// carried or produced item; ImproveGear is the same native operation Python's
-// gear_upkeep.compile_upkeep drives through home/gear_upkeep. This name is
+// carried or produced item; ImproveGear is the native operation behind
+// home/gear_upkeep. This name is
 // unverified against native source from this repo and remains an open native
 // acceptance item for G01.12.
 const gearReplaceJobDef = "Wear"

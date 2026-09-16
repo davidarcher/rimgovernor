@@ -47,7 +47,7 @@ func resourcePolicyWire(d domain.ResourceDirective) ResourcePolicy {
 
 // decodeResourcePolicyFields reads the one half of a resource's policy the
 // request changes. Exactly one of spending or reserve is accepted, matching the
-// two separate Python commands this one route serves: a body naming both is a
+// two separate commands this one route serves: a body naming both is a
 // third command neither contract defines.
 func decodeResourcePolicyFields(raw json.RawMessage) (domain.ResourcePolicyPatch, error) {
 	var patch domain.ResourcePolicyPatch

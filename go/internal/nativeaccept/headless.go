@@ -1,5 +1,5 @@
-// Package nativeaccept ports controller/rimgovernor/headless.py and the disposable-
-// worker parts of controller/rimgovernor/bridge.py to Go, for the native acceptance
+// Package nativeaccept is the headless-launch and disposable-worker harness for
+// the native acceptance
 // binaries under go/internal/nativeaccept/cmd. It owns the "generic native call is
 // fine in an acceptance harness" carve-out via bridge.Client.NativeCall, rather than
 // loosening the bridge package's own reviewed-reads boundary.

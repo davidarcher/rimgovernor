@@ -56,7 +56,7 @@ func TestCandidatesPartialCellsCannotProveSafeDestination(t *testing.T) {
 	}
 }
 
-// movementFixture mirrors test_native_movement_acceptance.py's fixture(): a completed
+// movementFixture is the fixture: a completed
 // Goto job that arrived at destination.
 func movementFixture() (destination, effect, row, progress map[string]any) {
 	destination = map[string]any{"x": 2.0, "z": 0.0}

@@ -6,13 +6,12 @@ import (
 	"testing"
 
 	"github.com/davidarcher/RimGovernor/go/internal/bridge"
-	"github.com/davidarcher/RimGovernor/go/internal/runtimeowner"
 	a "github.com/davidarcher/RimGovernor/go/internal/wire/authoritypb"
 )
 
 func requireProfileHeld(t *testing.T, dir string) {
 	t.Helper()
-	other, err := runtimeowner.Acquire(context.Background(), dir)
+	other, err := AcquireProfile(context.Background(), dir)
 	if err == nil {
 		other.Close()
 		t.Fatal("uncertain shutdown released profile ownership")
@@ -44,7 +43,7 @@ func TestCloseRetainsProfileUntilAuthorityReadRecovers(t *testing.T) {
 	if native.revokes.Load() != 1 || native.acquires.Load() != 1 {
 		t.Fatal("close retried acquisition or failed to revoke the observed owner")
 	}
-	other, err := runtimeowner.Acquire(context.Background(), dir)
+	other, err := AcquireProfile(context.Background(), dir)
 	if err != nil {
 		t.Fatal("confirmed shutdown retained the profile", err)
 	}
@@ -84,7 +83,7 @@ func TestCloseObservesLostRevokeReplyBeforeReleasingProfile(t *testing.T) {
 	if native.revokes.Load() != 1 || native.acquires.Load() != 1 {
 		t.Fatal("shutdown replayed a write instead of observing inactive authority")
 	}
-	other, err := runtimeowner.Acquire(context.Background(), dir)
+	other, err := AcquireProfile(context.Background(), dir)
 	if err != nil {
 		t.Fatal("observed inactive authority did not release profile", err)
 	}

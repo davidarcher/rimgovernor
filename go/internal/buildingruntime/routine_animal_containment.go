@@ -427,8 +427,7 @@ func (r *RoutineAnimalContainmentPlanner) previewPenShell(ctx context.Context, s
 }
 
 // placeMarker searches the completed shell's interior for a legal PenMarker
-// spot, nearest its northwest interior corner within radius 4 — the same
-// near/radius the Python placement() helper used for this exact call.
+// spot, nearest its northwest interior corner within radius 4.
 func (r *RoutineAnimalContainmentPlanner) placeMarker(call, epoch context.Context, state ControlState, goal store.GoalState, facts observation.ColonyProjection, protected []domain.Cell, read observation.RoutineReading, room policy.Rectangle) (RoutineAnimalContainmentResult, error) {
 	p := r.reviewer.player
 	markerDef, ok := animalContainmentDefinition(facts.Definitions, "PenMarker")

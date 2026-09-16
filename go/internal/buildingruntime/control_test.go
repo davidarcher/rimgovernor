@@ -12,7 +12,6 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/bridge"
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"github.com/davidarcher/RimGovernor/go/internal/executor"
-	"github.com/davidarcher/RimGovernor/go/internal/runtimeowner"
 	"github.com/davidarcher/RimGovernor/go/internal/store"
 	a "github.com/davidarcher/RimGovernor/go/internal/wire/authoritypb"
 	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
@@ -126,7 +125,7 @@ func controlFixture(t *testing.T, stop func(context.Context) error) (*Control, *
 func TestControlOwnsProfileAndExplicitLease(t *testing.T) {
 	t.Parallel()
 	control, n, sink, dir := controlFixture(t, nil)
-	if other, err := runtimeowner.Acquire(context.Background(), dir); err == nil {
+	if other, err := AcquireProfile(context.Background(), dir); err == nil {
 		other.Close()
 		t.Fatal("competing owner admitted")
 	}
@@ -161,7 +160,7 @@ func TestControlOwnsProfileAndExplicitLease(t *testing.T) {
 	if err := control.Close(context.Background()); err != nil {
 		t.Fatal(err)
 	}
-	other, err := runtimeowner.Acquire(context.Background(), dir)
+	other, err := AcquireProfile(context.Background(), dir)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -224,7 +223,7 @@ func TestControlCloseRetainsLockUntilWritersDrain(t *testing.T) {
 	if err := control.Close(context.Background()); err == nil || sink.enabled() {
 		t.Fatal("failed drain released authority")
 	}
-	if other, err := runtimeowner.Acquire(context.Background(), dir); err == nil {
+	if other, err := AcquireProfile(context.Background(), dir); err == nil {
 		other.Close()
 		t.Fatal("failed drain released lock")
 	}
@@ -232,7 +231,7 @@ func TestControlCloseRetainsLockUntilWritersDrain(t *testing.T) {
 	if err := control.Close(context.Background()); err != nil {
 		t.Fatal(err)
 	}
-	other, err := runtimeowner.Acquire(context.Background(), dir)
+	other, err := AcquireProfile(context.Background(), dir)
 	if err != nil {
 		t.Fatal(err)
 	}

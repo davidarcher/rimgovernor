@@ -1,5 +1,4 @@
-// Package controller owns the Go service lifecycle and current observations.
-package controller
+package main
 
 import (
 	"context"
@@ -12,9 +11,9 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/observation"
 )
 
-// ReadState retains the last good observation while refreshes run serially.
+// readState retains the last good observation while refreshes run serially.
 // It owns no native mutation capability or player-direction authority.
-type ReadState struct {
+type readState struct {
 	mu       sync.Mutex
 	refresh  chan struct{}
 	source   observation.Source
@@ -24,14 +23,14 @@ type ReadState struct {
 	snapshot httpapi.Snapshot
 }
 
-func NewReadState(sessionID string, source observation.Source, clock observation.Clock, maxAge time.Duration) (*ReadState, error) {
+func newReadState(sessionID string, source observation.Source, clock observation.Clock, maxAge time.Duration) (*readState, error) {
 	if sessionID == "" || source == nil || clock == nil || maxAge <= 0 {
 		return nil, errors.New("session, observation source, clock and positive freshness limit required")
 	}
-	return &ReadState{source: source, clock: clock, maxAge: maxAge, refresh: make(chan struct{}, 1), snapshot: httpapi.Snapshot{SessionID: sessionID, Mode: "manual", Status: "Waiting for game observations", Stale: true}}, nil
+	return &readState{source: source, clock: clock, maxAge: maxAge, refresh: make(chan struct{}, 1), snapshot: httpapi.Snapshot{SessionID: sessionID, Mode: "manual", Status: "Waiting for game observations", Stale: true}}, nil
 }
 
-func (s *ReadState) Refresh(ctx context.Context) error {
+func (s *readState) Refresh(ctx context.Context) error {
 	select {
 	case s.refresh <- struct{}{}:
 		defer func() { <-s.refresh }()
@@ -64,7 +63,7 @@ func (s *ReadState) Refresh(ctx context.Context) error {
 	return nil
 }
 
-func (s *ReadState) Snapshot(ctx context.Context) (httpapi.Snapshot, error) {
+func (s *readState) Snapshot(ctx context.Context) (httpapi.Snapshot, error) {
 	if err := ctx.Err(); err != nil {
 		return httpapi.Snapshot{}, err
 	}
@@ -83,7 +82,7 @@ func (s *ReadState) Snapshot(ctx context.Context) (httpapi.Snapshot, error) {
 
 // Poll runs after the initial refresh. The caller cancels and joins it before
 // closing the bridge session, so no worker outlives its native connection.
-func (s *ReadState) Poll(ctx context.Context, interval time.Duration) {
+func (s *readState) Poll(ctx context.Context, interval time.Duration) {
 	timer := time.NewTicker(interval)
 	defer timer.Stop()
 	for {

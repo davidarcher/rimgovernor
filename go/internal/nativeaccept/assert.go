@@ -7,8 +7,8 @@ import (
 
 // Small dynamic-JSON navigation helpers shared by the four acceptance binaries. The
 // native reply shape is a decoded ProtoJSON document (map[string]any/[]any/etc.), so
-// these mirror the loose dict access the Python scripts perform, with explicit errors
-// in place of Python's bare assert. Exported for use from go/internal/nativeaccept/cmd/*.
+// these navigate it loosely, with explicit errors in place of bare asserts.
+// Exported for use from go/internal/nativeaccept/cmd/*.
 
 func AsMap(v any) (map[string]any, bool) {
 	m, ok := v.(map[string]any)
@@ -42,8 +42,7 @@ func AsNumber(v any) float64 {
 }
 
 // RequireIdentifier asserts value is a populated, non-whitespace-only identifier
-// string with no embedded null byte and at most 256 UTF-8 bytes, mirroring
-// native_pawn_acceptance.py's identifier(). A whitespace-only or oversized string
+// string with no embedded null byte and at most 256 UTF-8 bytes. A whitespace-only or oversized string
 // must never pass as a genuine native id/token, even though a bare Go string
 // equality/length check against "" alone would let one through.
 func RequireIdentifier(v any) error {

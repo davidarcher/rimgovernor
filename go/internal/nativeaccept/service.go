@@ -14,8 +14,7 @@ var serviceDiagnostics = map[string]bool{"rimbridge/list_operation_events": true
 
 // ServiceTrace asserts a native operation-event history is gapless from baseline,
 // attributes every non-diagnostic event to a known read capability, and never
-// attributes a write capability, then returns the ordered read-operation names,
-// mirroring native_go_service_acceptance.py's trace(). It requires at least two
+// attributes a write capability, then returns the ordered read-operation names. It requires at least two
 // observations_read_status and four lifecycle_read_identity operations, matching
 // the fixed read cadence a read-only Go service session must reproduce.
 func ServiceTrace(events []map[string]any, baseline int, capabilities map[string][]string) ([]string, error) {

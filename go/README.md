@@ -102,8 +102,7 @@ checks, not gameplay evidence.
 The dashboard detects the Go backend (`GET /api/health` reports
 `backend: "go"`) and renders `ObservationDashboard`/`PlayerControls`. The
 structured player endpoints are listed in
-[the player API contract](../docs/developers/contracts/go-player-api.md) and
-[player actions](../docs/developers/contracts/player-actions.md). The player
+[the player API contract](../docs/developers/contracts/go-player-api.md). The player
 surface is guidance, not per-pawn orders: one building placement and one
 research selection remain as typed plan submissions, and everything else is
 colony configuration (goals, population/expedition/resource policies, per-pawn
@@ -376,9 +375,7 @@ recovery, scoped to the current load token; native consumer power establishes
 recovery. Targeted gameplay acceptance is `poweraccept -scenario fuel`
 (out-of-fuel generator: hold, colonists refuel, consumer recovers) and
 `-scenario reserve` (draining battery: one more generator admitted and built),
-against `PowerFixture`; the older `native_go_routine_acceptance.py
---power-methods generation|conduit` scenarios with ForecastFixture still cover
-correlated construction, Manual and disabled restart. Replay uses
+against `PowerFixture`. Replay of captured generation/conduit scenarios uses
 `RIMGOVERNOR_NATIVE_POWER_METHODS_CAPTURE=<capture-directory> go test
 ./internal/observation -run TestNativePowerMethodsReplay`.
 
@@ -392,9 +389,8 @@ are 12/32 C and recovery thresholds are 16/28 C; unknown room evidence cannot pr
 recovery. Completed methods in the current load lend at most 10,000 ticks for ordinary
 refueling and heat exchange. Method identity follows the bed and thermal definition,
 so regenerated native room IDs cannot duplicate a method in the same goal epoch.
-The isolated acceptance variants are `native_go_routine_acceptance.py
---temperature-methods cold` and `--temperature-methods hot`, with ForecastFixture,
-RoutineSleepingFixture and ScenarioStartFixture. Replay uses
+The cold and hot variants use ForecastFixture, RoutineSleepingFixture and
+ScenarioStartFixture. Replay uses
 `RIMGOVERNOR_NATIVE_TEMPERATURE_CAPTURE=<capture-directory> go test
 ./internal/observation -run TestNativeTemperatureMethodsReplay`.
 
@@ -507,9 +503,9 @@ Go retains its footprint but lets net stock from a later game tick replace its
 original cost reservation. Repeated pending reads retain the first proof tick;
 unknown evidence clears it. Same-tick stock, unobserved writes and gross stock keep
 the original cost hold. The proof replays from the fresh Go journal; it does not
-certify pawn completion. `native_building_service_acceptance.py
---construction-accounting` exercises two shared player projects under a reserve
-that permits exactly two walls, including unfinished work and restart.
+certify pawn completion. The construction-accounting scenario is two shared
+player projects under a reserve that permits exactly two walls, including
+unfinished work and restart; it has no Go acceptance binary yet.
 
 Autonomous play attaches the reviewer to the service clock worker. It uses the
 default routine thresholds and requires typed colony observations. Startup
@@ -587,8 +583,8 @@ Unknown queries preserve established needs. Home exclusions remain explicit;
 Home/stone execution and stockpile ownership await their shared action families.
 The ownership census is bounded to 256 method records and 256 completed buildings;
 larger histories produce unknown ownership instead of silently truncating it.
-`native_go_routine_acceptance.py --shelter-methods --facility-upkeep` uses the
-existing `UpkeepFixture` to remove one Home cell after normal shell construction.
+The facility-upkeep scenario uses the existing `UpkeepFixture` to remove one
+Home cell after normal shell construction.
 Replay the captured native facts against its real journal backup with
 `RIMBOT_NATIVE_FACILITY_REPLAY=<absolute-output-directory>` and
 `go test ./internal/observation -run TestNativeFacilityUpkeepReplay -count=1`.
@@ -686,7 +682,7 @@ the newest) once the active segment reaches its size bound; the oldest segment
 is dropped on rotation. Oversized payloads are replaced with a truncated
 summary (SHA-256, original size, a bounded preview and, when present, the
 correlating `request`/`tool`/`category` fields) rather than growing the file
-unbounded. See `internal/flightrecorder` for the writer and `ReadTimeline` reader.
+unbounded. See `bridge.FlightRecorder` for the writer and `bridge.ReadTimeline` for the reader.
 
 ## Guarded player components
 

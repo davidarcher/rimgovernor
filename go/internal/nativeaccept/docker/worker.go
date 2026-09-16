@@ -1,4 +1,4 @@
-package dockeraccept
+package docker
 
 import (
 	"bytes"
@@ -25,9 +25,7 @@ const baselineSave = "RimGovernor-tribal8-baseline.rws"
 
 // Inputs are the host-absolute, read-only source directories drawn from the
 // shared .rimgovernor/acceptance-inputs/<platform> store (see that store's
-// README and the recovered docs/developers/testing/local-acceptance-inputs.md,
-// deleted alongside the Python acceptance tooling but still the source of
-// truth for this layout). Mods is the platform's shared Mods directory
+// README, the source of truth for this layout). Mods is the platform's shared Mods directory
 // itself (containing Harmony/RimBridgeServer/RimGovernor as subfolders,
 // matching nativeaccept.RequireNativePackage's expectation), even though it
 // never actually lives inside Game on the host. Unless WorkerConfig.
@@ -356,9 +354,8 @@ func (w *Worker) State(ctx context.Context) (stateDTO, error) {
 // loadBaselineSave loads the shared acceptance-input store's baseline save
 // (already staged at /worker/profile/Saves by prepareConfig) through the
 // player HTTP API, exactly as a real player-control client would: rimgovernor
-// itself never auto-loads a save on cold start (its own README documents
-// --start-save as belonging to the deleted Python acceptance CLI, not
-// `rimgovernor serve`), so without this call the game sits at its main menu
+// itself never auto-loads a save on cold start (`--start-save` is a game
+// launch argument, not a `rimgovernor serve` flag), so without this call the game sits at its main menu
 // forever and /api/state.connected -- which reflects an observed, loaded
 // colony identity, not mere bridge/process liveness -- never turns true.
 func (w *Worker) loadBaselineSave(ctx context.Context) error {
@@ -398,9 +395,8 @@ func (w *Worker) loadBaselineSave(ctx context.Context) error {
 
 // waitReady polls /api/health until the container's HTTP server is up, loads
 // the baseline save (once) through the player API, then polls /api/state
-// until the container reports a connected native session, mirroring the
-// deleted container_native_acceptance.py's start()/api('/api/state') poll
-// loop plus the explicit load step described on loadBaselineSave.
+// until the container reports a connected native session, with the explicit
+// load step described on loadBaselineSave.
 func (w *Worker) waitReady(ctx context.Context, timeout time.Duration) error {
 	if timeout <= 0 {
 		timeout = 240 * time.Second

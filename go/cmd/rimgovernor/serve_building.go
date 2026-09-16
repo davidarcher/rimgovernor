@@ -28,7 +28,6 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/tend"
 	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/work"
 	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/zone"
-	"github.com/davidarcher/RimGovernor/go/internal/controller"
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"github.com/davidarcher/RimGovernor/go/internal/executor"
 	"github.com/davidarcher/RimGovernor/go/internal/httpapi"
@@ -652,7 +651,7 @@ func serveBuildingWithBridge(ctx context.Context, config serveConfig, out io.Wri
 	if _, err = rand.Read(entropy[:]); err != nil {
 		return err
 	}
-	reads, err := controller.NewReadState(hex.EncodeToString(entropy[:]), client.reads, wallClock{}, 2*config.refresh+config.bridge.Timeout)
+	reads, err := newReadState(hex.EncodeToString(entropy[:]), client.reads, wallClock{}, 2*config.refresh+config.bridge.Timeout)
 	if err != nil {
 		return err
 	}

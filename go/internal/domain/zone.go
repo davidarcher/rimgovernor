@@ -26,8 +26,7 @@ const (
 	// NothingPreset is the allow-list-only filter SecureSupplies' covered
 	// storage/supply storeroom fallback uses when no ordinary haul
 	// destination exists: everything is disallowed except the explicit
-	// definitions named in Allow(), mirroring upkeep_storage.py's
-	// preset='nothing', allow=definitions native zone request.
+	// definitions named in Allow() (preset='nothing', allow=definitions).
 	NothingPreset StockpilePreset = "nothing"
 )
 
@@ -82,7 +81,7 @@ func canonicalConnectedCells(cells []Cell) (string, error) {
 
 // canonicalAllowList sorts, deduplicates and bounds an allow-list of
 // definitions, mirroring canonicalConnectedCells' role for zone footprints.
-// Python's covered_storage caps the same list at 32 sorted, deduplicated
+// The list is capped at 32 sorted, deduplicated
 // definitions before ever reaching the native call.
 func canonicalAllowList(definitions []string) (string, error) {
 	if len(definitions) == 0 || len(definitions) > 32 {
@@ -125,8 +124,8 @@ func NewStockpileZone(preset StockpilePreset, priority StockpilePriority, cells 
 
 // NewAllowListStockpileZone builds the NothingPreset covered-storage/supply
 // storeroom fallback variant: an "everything disallowed except this explicit
-// definition list" filter, exactly as upkeep_storage.py's covered_storage and
-// supply_storeroom request from the native zone-cells/CreateZone operation.
+// definition list" filter, as the covered_storage and
+// supply_storeroom fallbacks request from the native zone-cells/CreateZone operation.
 func NewAllowListStockpileZone(priority StockpilePriority, allow []string, cells []Cell) (ZoneCreate, error) {
 	if priority != ImportantPriority {
 		return ZoneCreate{}, errors.New("invalid stockpile zone configuration")

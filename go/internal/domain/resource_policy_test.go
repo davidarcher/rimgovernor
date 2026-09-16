@@ -56,8 +56,7 @@ func TestResourcePolicyPatchSetsExactlyOneHalf(t *testing.T) {
 	}
 }
 
-// Each command preserves the half it does not name, the exact behaviour the
-// two Python doc strings promise.
+// Each command preserves the half it does not name.
 func TestResourcePolicyPatchPreservesTheOtherHalf(t *testing.T) {
 	base, err := NewResourceDirective("Steel", 250, ResourceSpendingStop)
 	if err != nil {
@@ -71,8 +70,7 @@ func TestResourcePolicyPatchPreservesTheOtherHalf(t *testing.T) {
 	if err != nil || reserve.Reserve() != 0 || reserve.Spending() != ResourceSpendingStop {
 		t.Fatal("changing the reserve must preserve the restriction", reserve, err)
 	}
-	// A first mention merges onto {reserve 0, spending normal}, as Python's
-	// setdefault does.
+	// A first mention merges onto {reserve 0, spending normal}.
 	first, err := ResourcePolicyPatch{Resource: "Plasteel", Reserve: Some(int64(30))}.Apply(ResourceDirective{})
 	if err != nil || first.Resource() != "Plasteel" || first.Reserve() != 30 || first.Spending() != ResourceSpendingNormal {
 		t.Fatal("first mention merges onto the default entry", first, err)
@@ -87,7 +85,7 @@ func TestResourceProductionPolicyFoldsWholeSet(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	// A zero reserve carries no floor (Python's "if v" filter) but an unnamed
+	// A zero reserve carries no floor but an unnamed
 	// restriction still stops the resource.
 	wood, err := NewResourceDirective("WoodLog", 0, ResourceSpendingDefenseOnly)
 	if err != nil {

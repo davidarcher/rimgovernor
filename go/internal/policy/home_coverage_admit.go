@@ -4,12 +4,12 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 )
 
-// HomeCoverageGeometryChanged mirrors home_coverage.py's targets() blocker:
+// HomeCoverageGeometryChanged is the home-coverage target blocker:
 // the target's freshly observed shape no longer matches the shape the
 // planner selected against, so the intended cells may have moved.
 const HomeCoverageGeometryChanged Reason = "home_coverage_geometry_changed"
 
-// HomeCoverageExcluded mirrors home_coverage.py's method(): any missing cell
+// HomeCoverageExcluded is the exclusion rule: any missing cell
 // in scope that is a player or pre-observation Home exclusion blocks the
 // whole target rather than being overridden.
 const HomeCoverageExcluded Reason = "home_coverage_excluded"

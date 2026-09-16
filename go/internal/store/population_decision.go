@@ -52,15 +52,14 @@ func (q PopulationDecisionSubmissionRequest) validate() error {
 //
 // A rescue, capture or recruit decision requires an already established
 // population capacity policy for the world and reports ErrNotFound when there
-// is none, matching the Python handler's "Set an explicit population maximum
-// and food reserve first". The ignore decision skips that check entirely, so
+// is none ("set an explicit population maximum and food reserve first").
+// The ignore decision skips that check entirely, so
 // a player can always withdraw a direction they previously gave. The check
 // runs inside this transaction, against the policy as it actually stands,
 // rather than against a value read earlier by a caller.
 //
 // Pawn liveness and candidacy are deliberately not checked here. They are
-// fresher-than-store native facts -- Python re-observes the population census
-// inside the handler -- and this store holds no census. The interpreter
+// fresher-than-store native facts, and this store holds no census. The interpreter
 // bounds the pawn to an observed identity, and native custody dispatch
 // establishes eligibility at inspection, the same way every other
 // pawn-identifier command in this controller does.

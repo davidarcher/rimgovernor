@@ -12,7 +12,6 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"github.com/davidarcher/RimGovernor/go/internal/executor"
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
-	"github.com/davidarcher/RimGovernor/go/internal/runtimeowner"
 	"github.com/davidarcher/RimGovernor/go/internal/store"
 	k "github.com/davidarcher/RimGovernor/go/internal/wire/clockpb"
 	"google.golang.org/protobuf/proto"
@@ -110,7 +109,7 @@ func TestClockWorkerDisabledRestart(t *testing.T) {
 			case <-time.After(3 * time.Second):
 				t.Fatal("restart failed to pause original epoch")
 			}
-			if owner, err := runtimeowner.Acquire(ctx, profile); !errors.Is(err, runtimeowner.ErrOwned) {
+			if owner, err := AcquireProfile(ctx, profile); !errors.Is(err, ErrProfileOwned) {
 				if owner != nil {
 					_ = owner.Close()
 				}
@@ -148,7 +147,7 @@ func TestClockWorkerDisabledRestart(t *testing.T) {
 			if writes != 1 || pauses != 1 || (scenario == "lost-start-reply" && lookups != 1) || session.State().Enabled || authority.acquires.Load() != 0 {
 				t.Fatal("restart side effects", writes, pauses, lookups, session.State())
 			}
-			if owner, err := runtimeowner.Acquire(ctx, profile); !errors.Is(err, runtimeowner.ErrOwned) {
+			if owner, err := AcquireProfile(ctx, profile); !errors.Is(err, ErrProfileOwned) {
 				if owner != nil {
 					_ = owner.Close()
 				}
@@ -157,7 +156,7 @@ func TestClockWorkerDisabledRestart(t *testing.T) {
 			if err = session.Close(stopCtx); err != nil {
 				t.Fatal(err)
 			}
-			owner, err := runtimeowner.Acquire(ctx, profile)
+			owner, err := AcquireProfile(ctx, profile)
 			if err != nil {
 				t.Fatal("joined Close retained profile", err)
 			}

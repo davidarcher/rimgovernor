@@ -7,19 +7,19 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 )
 
-// EnsureResearch opening slice: pure, native-shape-preserving primitives ported
-// from controller/rimgovernor/research.py's prerequisite_queue/eligible_researchers/
-// usable_laboratories. No domain/store/executor/bridge/buildingruntime wiring exists
+// EnsureResearch opening slice: pure, native-shape-preserving primitives
+// (prerequisite queue, eligible researchers, usable laboratories). No
+// domain/store/executor/bridge/buildingruntime wiring exists
 // yet for this goal — these functions only make the
 // deterministic method-selection logic available and independently testable ahead
 // of that wiring, mirroring how 05.5's GearReplace slice started from policy alone.
 
 const (
-	// ResearchQueueMax bounds the returned prerequisite queue, matching Python's
-	// research.py MAX_QUEUE — the native research UI cannot usefully preview more.
+	// ResearchQueueMax bounds the returned prerequisite queue -- the native
+	// research UI cannot usefully preview more.
 	ResearchQueueMax = 8
-	// researchVisitMax bounds prerequisite-graph inspection, matching Python's
-	// research.py MAX_VISITS, to reject pathological/cyclic native data instead of
+	// researchVisitMax bounds prerequisite-graph inspection, to reject
+	// pathological/cyclic native data instead of
 	// hanging on it.
 	researchVisitMax = 128
 )

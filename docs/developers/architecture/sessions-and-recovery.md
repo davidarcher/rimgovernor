@@ -45,3 +45,20 @@ Workers own their controller, private profile, database and GABS process. Cleanu
 stops owned processes only. Windows workers share installed DLLs, so all games must
 stop before replacing them. Docker workers stage private binary snapshots and
 retain output after container removal.
+
+## Uncertain writes and read retries
+
+Recovery operates on the existing action identity and requires fresh evidence.
+A lost reply after dispatch may conceal an accepted order: the receipt is
+retained as uncertain and the game is inspected before any retry; ambiguous
+non-idempotent writes are never replayed automatically. A reload (new load
+token) or a tick rewind invalidates an interrupted attempt; completed or
+resumed work is observed without another order. Retired flags on plans and
+goals bound the working set (see
+[persistence contracts](../contracts/persistence-contracts.md)).
+
+GABS launch-claim collisions and runtime-state publication faults permit a
+bounded number of retries for reads and explicit previews only; mutations do
+not retry. Requests within one GABS session are serialized, cancellation while
+queued sends no request, and a lost mutation response still requires
+observation before the plan moves on.

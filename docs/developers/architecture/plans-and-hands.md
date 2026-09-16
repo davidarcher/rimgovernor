@@ -1,6 +1,6 @@
 # Plans and Hands
 
-[Architecture](overview.md) · [Command contracts](../contracts/command-contracts.md)
+[Architecture](overview.md) · [Go player API](../contracts/go-player-api.md)
 
 Player requests and routine automation share admission checks, resource accounting
 and completion tracking. The plan owns goals; Hands deterministically executes
@@ -32,7 +32,7 @@ Acknowledging a request establishes acceptance; completion requires the
 A refusal before writing can be reconsidered when conditions change. A lost reply
 after dispatch may conceal an accepted order: retain intent and inspect the game
 before retrying. Recovery preserves action identity and requires fresh context.
-See [recovery contracts](../contracts/recovery-contracts.md).
+See [sessions and recovery](sessions-and-recovery.md).
 
 Cancelling a goal stops pursuit while retaining issued game orders. Removing
 construction is a separate explicit request against exact pending objects;

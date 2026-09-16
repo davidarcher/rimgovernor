@@ -11,8 +11,8 @@ import (
 
 // Recorded from development.placement at ad402967 with the exact native facts
 // in placementSearchFixture; every native preview refused to expose all 64 sites.
-func TestPlacementSearchPythonReplay(t *testing.T) {
-	data, err := os.ReadFile("testdata/placement-python.json")
+func TestPlacementSearchRecordedReplay(t *testing.T) {
+	data, err := os.ReadFile("testdata/placement-recorded.json")
 	if err != nil {
 		t.Fatal(err)
 	}

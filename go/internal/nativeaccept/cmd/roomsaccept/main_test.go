@@ -2,7 +2,7 @@ package main
 
 import "testing"
 
-// roomSample mirrors test_native_rooms_evidence.py's sample(): a single-cell room
+// roomSample is the sample fixture: a single-cell room
 // with known-zero/false facts throughout, to prove those legitimate falsy values are
 // never confused with an absent field.
 func roomSample() (map[string]any, map[string]any) {

@@ -14,7 +14,7 @@ import (
 	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
 )
 
-// stoneShellCandidateBound mirrors wall_upgrade.py's method(): at most this
+// stoneShellCandidateBound: at most this
 // many undedup'd flammable owned walls are considered per tick.
 const stoneShellCandidateBound = 8
 
@@ -161,8 +161,8 @@ func (r *RoutineStoneShellPlanner) step(call, epoch context.Context, arbiter *st
 // propose builds and admits one candidate wall's bundle. ok is false only for
 // a structural reason to move on to the next candidate (no site, no material,
 // unsupported backup geometry); any other outcome, admitted or refused, is
-// this tick's final result exactly as wall_upgrade.py's method() returns on
-// the first candidate whose bundle it fully builds.
+// this tick's final result: the first candidate whose bundle fully builds
+// wins.
 func (r *RoutineStoneShellPlanner) propose(call, epoch context.Context, goal store.GoalState, state ControlState, read observation.RoutineReading, wall string) (RoutineStoneShellResult, bool, error) {
 	p := r.reviewer.player
 	projection := read.Projection
@@ -190,7 +190,7 @@ func (r *RoutineStoneShellPlanner) propose(call, epoch context.Context, goal sto
 	for i, c := range material.Costs {
 		costs[i] = policy.Amount{Resource: policy.Resource(c.Resource), Count: c.Units}
 	}
-	// wall_upgrade.py's guard only records the replacement material once no
+	// The guard only records the replacement material once no
 	// backup wall's own construction already carries it.
 	removalMaterial := ""
 	if backupCount == 0 {

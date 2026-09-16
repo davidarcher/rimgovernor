@@ -87,7 +87,7 @@ func TestGoalCreateRejectsUnsupportedKindAndInvalidScope(t *testing.T) {
 }
 
 // Re-activating a live player goal reuses its identity and lets ReviewGoal's
-// own epoch rule do the work Python's reopen_methods/attempts does; a cancelled
+// own epoch rule do the reopening work; a cancelled
 // one is never resurrected, because cancellation is terminal in ReviewGoal.
 func TestGoalCreateReopensLiveGoalAndReplacesCancelledOne(t *testing.T) {
 	t.Parallel()
@@ -169,8 +169,8 @@ func TestCancelPlayerGoalBoundsWorldAndRevision(t *testing.T) {
 	}
 }
 
-// An autopilot goal is cancellable through the same player path, matching
-// Python's CancelGoal, which resolves any recorded goal ID.
+// An autopilot goal is cancellable through the same player path: any
+// recorded goal ID resolves.
 func TestCancelPlayerGoalCancelsAutopilotGoalInSameWorld(t *testing.T) {
 	t.Parallel()
 	ctx := context.Background()

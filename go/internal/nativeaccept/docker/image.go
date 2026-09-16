@@ -1,7 +1,6 @@
-// Package dockeraccept ports the disposable-worker parts of the deleted
-// scripts/container_checks.py and scripts/container_native_acceptance.py to
-// Go, for acceptance binaries that must prove the Go controller behaves
-// correctly when run as the containers/Dockerfile "worker" image under
+// Package docker drives the containers/Dockerfile "worker" image as a
+// disposable acceptance worker, for binaries that must prove the Go
+// controller behaves correctly when run as that image under
 // --network host (see that Dockerfile stage's comment for why host
 // networking is required). It never reaches into a container's native GABS
 // attachment directly -- go/internal/bridge.Client.ConnectGameWithTakeover
@@ -9,7 +8,7 @@
 // attachment, which is exactly the stability this package is meant to prove.
 // Everything here drives the container the same way an external caller
 // would: its published HTTP API.
-package dockeraccept
+package docker
 
 import (
 	"bytes"
@@ -21,8 +20,6 @@ import (
 	"strings"
 )
 
-// DockerBinary resolves the docker CLI, preferring PATH and falling back to
-// the standard Windows Docker Desktop resource-bin location, mirroring the
 // deleted scripts/container_checks.py's docker_environment() discovery.
 func DockerBinary() (string, error) {
 	if path, err := exec.LookPath("docker"); err == nil {
@@ -103,8 +100,7 @@ func ContainerLogs(ctx context.Context, docker, name string) (string, error) {
 }
 
 // ContainerState reports whether name is currently running, for readiness
-// polling and post-mortem evidence (mirrors the deleted
-// container_native_acceptance.py's stopped_state()).
+// polling and post-mortem evidence.
 func ContainerState(ctx context.Context, docker, name string) (running bool, err error) {
 	var out bytes.Buffer
 	cmd := exec.CommandContext(ctx, docker, "inspect", "--format", "{{.State.Running}}", name)

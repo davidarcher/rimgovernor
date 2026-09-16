@@ -16,9 +16,7 @@ const (
 )
 
 // PopulationDirective is an immutable, comparable player-sourced population
-// direction for one exact observed pawn: the Go form of Python's per-pawn
-// ColonyGoal(source='PLAYER', priority_class=3, target={'pawn','decision'})
-// keyed by population.goal_id(pawn).
+// direction for one exact observed pawn.
 //
 // Like PopulationPolicy it is player intent without being a plan action, and
 // for the same reason: recording a decision issues no native RimWorld call.
@@ -40,8 +38,7 @@ const (
 //     uses; RoutinePrisonerInteractionPlanner covers recruitment.
 //
 // A directive is therefore persistent bookkeeping of what the player asked
-// for a named individual, in the same shape the Python controller keeps it,
-// and deliberately does not fabricate an Action, a CAS token or a dispatch of
+// for a named individual, and deliberately does not fabricate an Action, a CAS token or a dispatch of
 // its own. Teaching the autopilot custody planner to prefer or suppress
 // individuals named here is a separate, behaviour-changing slice.
 type PopulationDirective struct {
@@ -67,21 +64,19 @@ func NewPopulationDirective(pawn PawnID, decision PopulationDecision) (Populatio
 func (d PopulationDirective) Pawn() PawnID                 { return d.pawn }
 func (d PopulationDirective) Decision() PopulationDecision { return d.decision }
 
-// Set reports whether a directive has been recorded. The zero value is not
-// constructible through NewPopulationDirective, so it unambiguously means
+// "the player has said nothing about this pawn".
 // "the player has said nothing about this pawn", the same way an absent
-// plan.colony_goals entry does in the Python controller.
+// plan entry does.
 func (d PopulationDirective) Set() bool { return d != PopulationDirective{} }
 
 // Withdrawn reports the ignore decision: future population orders for this
 // pawn are withdrawn. It preserves existing native state -- an already
 // rescued guest stays rescued and an existing prisoner is never released --
-// exactly as the Python handler's ignore branch does, which cancels only
-// pending steps of the player's own goal.
+// cancelling only pending steps of the player's own direction.
 func (d PopulationDirective) Withdrawn() bool { return d.Set() && d.decision == PopulationIgnore }
 
 // RequiresPolicy reports whether recording this directive requires an already
-// established population capacity policy. Python requires one for rescue,
-// capture and recruit, and deliberately skips that check for ignore, so a
+// established population capacity policy: rescue, capture and recruit do;
+// ignore deliberately skips that check, so a
 // player can always withdraw a direction they previously gave.
 func (d PopulationDirective) RequiresPolicy() bool { return d.Set() && !d.Withdrawn() }

@@ -68,6 +68,6 @@ the plan.
 
 ## Related reading
 
-See [spatial contracts](spatial-contracts.md), [recovery
-contracts](recovery-contracts.md), and [plans and
+See [spatial contracts](spatial-contracts.md), [sessions and
+recovery](../architecture/sessions-and-recovery.md), and [plans and
 Hands](../architecture/plans-and-hands.md).

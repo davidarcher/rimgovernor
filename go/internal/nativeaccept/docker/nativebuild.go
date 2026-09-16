@@ -1,4 +1,4 @@
-package dockeraccept
+package docker
 
 import (
 	"context"

@@ -1,4 +1,4 @@
-package controller
+package main
 
 import (
 	"context"
@@ -54,7 +54,7 @@ func (s *fakeSource) Status(_ context.Context, identity *commonpb.Identity) (*ob
 func TestRetainLastGoodReadOnRefreshFailureAndAge(t *testing.T) {
 	clock := &fakeClock{time.Now()}
 	source := &fakeSource{paused: proto.Bool(false)}
-	state, err := NewReadState("session", source, clock, time.Second)
+	state, err := newReadState("session", source, clock, time.Second)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -98,7 +98,7 @@ func TestRetainLastGoodReadOnRefreshFailureAndAge(t *testing.T) {
 
 func TestQueuedRefreshCancellationDoesNotWaitForNativeRead(t *testing.T) {
 	source := &fakeSource{block: make(chan struct{}), entered: make(chan struct{}, 1)}
-	state, _ := NewReadState("session", source, &fakeClock{time.Now()}, time.Second)
+	state, _ := newReadState("session", source, &fakeClock{time.Now()}, time.Second)
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	done := make(chan error, 1)
@@ -116,7 +116,7 @@ func TestQueuedRefreshCancellationDoesNotWaitForNativeRead(t *testing.T) {
 }
 
 func TestInitialUnavailableReadHasNoInventedFacts(t *testing.T) {
-	state, err := NewReadState("session", &fakeSource{err: errors.New("unavailable")}, &fakeClock{time.Now()}, time.Second)
+	state, err := newReadState("session", &fakeSource{err: errors.New("unavailable")}, &fakeClock{time.Now()}, time.Second)
 	if err != nil {
 		t.Fatal(err)
 	}

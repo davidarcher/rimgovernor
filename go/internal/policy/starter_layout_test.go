@@ -13,8 +13,8 @@ import (
 // exact 40x40 native facts. This checks every retained site's room and storage
 // geometry and order; farms come from the shared PlanFarmSites score instead
 // of the recorded distance-first packing.
-func TestStarterPythonReplay(t *testing.T) {
-	data, err := os.ReadFile("testdata/starter-python.json")
+func TestStarterRecordedReplay(t *testing.T) {
+	data, err := os.ReadFile("testdata/starter-recorded.json")
 	if err != nil {
 		t.Fatal(err)
 	}

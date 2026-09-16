@@ -1,4 +1,4 @@
-// Command suppliesaccept replaces scripts/native_supplies_acceptance.py: full
+// Command suppliesaccept proves the full
 // disposable-worker lifecycle plus typed supply-stock reads compared against the
 // legacy home/list_things census, for both held and spawned-only ownership modes.
 package main
@@ -405,7 +405,7 @@ func checkStock(row, legacy map[string]any, identity map[string]any, includeHeld
 
 // count asserts value is a canonical ProtoJSON int64 quantity string -- ASCII decimal
 // digits only, no leading zero (except the literal "0"), no sign, and within int64
-// range -- mirroring native_supplies_acceptance.py's count(). A missing/absent
+// range. A missing/absent
 // quantity (nil, a bare number, or a malformed string) must never be read as zero.
 func count(v any) (int64, error) {
 	s, ok := v.(string)

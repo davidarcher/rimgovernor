@@ -64,9 +64,8 @@ type RoutinePolicy struct {
 	// name; empty disables EnsureResearch's routine dispatch. The need is
 	// measured against RoutineFacts.Research each review (idle tab with the
 	// target unfinished is a deficit; any current project or a finished
-	// target is recovered). Unlike
-	// research.py's needs(), which derives targets from every other active
-	// goal's own observed capability gaps, this only supports one explicit
+	// target is recovered). Targets are not derived from every other active
+	// goal's own observed capability gaps; this only supports one explicit
 	// target -- deriving targets from other goals' evidence generically
 	// remains an open gap (no Go goal family yet records the
 	// UnavailableThings/BlockedRecipes evidence ResearchNeeds expects).
@@ -75,16 +74,15 @@ type RoutinePolicy struct {
 	// definition name to the native stock floor MaintainResource should keep
 	// it above; an empty map disables the goal entirely. The deficit is
 	// measured against RoutineFacts.Resources each review as the worst-covered
-	// target's shortfall fraction. Unlike
-	// production_policy.py's plan-wide resource_policy (many simultaneously
-	// tracked floors driving both goal creation and the native
-	// SetProductionPolicy push), this only supports
+	// target's shortfall fraction. There is no plan-wide resource policy
+	// (many simultaneously tracked floors driving both goal creation and the
+	// native SetProductionPolicy push); this only supports
 	// policy.SelectResourceTarget's own single-goal dynamic-target selection
 	// across these targets and issues no SetProductionPolicy push at all.
 	ResourceTargets map[Resource]int64
 	// ResourceReserves and StoppedResources are operator-declared inputs to
-	// ProductionFloors, mirroring production_policy.py's plan.control
-	// resource_policy reserve/spending-stopped configuration. Unlike
+	// ProductionFloors: the per-resource reserve/spending-stopped
+	// configuration. Unlike
 	// ResourceTargets (which drives MaintainResource's own goal/method
 	// selection), these drive the ProductionPolicy goal's config-only
 	// posture: RoutineProductionPolicyPlanner dispatches ProductionFloors's
@@ -106,10 +104,9 @@ type RoutinePolicy struct {
 	// uses) to the population maximum MaintainHerd should keep that race at
 	// or under; an empty map (the default) tracks no race at all, so
 	// AllowSlaughter alone is not enough to dispatch a slaughter write --
-	// both must be set. Unlike Python's husbandry.py per-race target (which
-	// also carries a minimum, protected-id set and breeding-reserve count),
-	// this only supports the maximum half of that target, narrowed the same
-	// way ResearchTarget's doc comment discloses its own gap.
+	// both must be set. Only the maximum half of a per-race target is
+	// supported (no minimum, protected-id set or breeding-reserve count),
+	// narrowed the same way ResearchTarget's doc comment discloses its own gap.
 	HerdPopulationMax map[Resource]int64
 }
 

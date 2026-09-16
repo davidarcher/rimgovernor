@@ -3,16 +3,13 @@ package nativeaccept
 import "fmt"
 
 // Owner is the fixed authority owner identity used by the draft/combat/movement
-// acceptance binaries, mirroring native_draft_acceptance.py's OWNER. It is shared
-// across those families (combataccept/movementaccept reuse the same draft/order
-// helpers below) exactly as the Python scripts import OWNER from
-// native_draft_acceptance.py.
+// acceptance binaries. It is shared across those families
+// (combataccept/movementaccept reuse the same draft/order helpers below).
 var Owner = map[string]any{"controllerSessionId": "native-draft-acceptance", "playerDirection": "1"}
 
 // PawnRow asserts an observations_list_pawns reply is a single complete, exact-match
 // page whose context matches identity, extracts the (optionally id-checked) single
-// row, and validates its snapshot/draftClaim invariants. Mirrors
-// native_draft_acceptance.py's pawn_row().
+// row, and validates its snapshot/draftClaim invariants.
 func PawnRow(reply map[string]any, identity map[string]any, pawnID string) (map[string]any, error) {
 	_, observed, err := Outcome(reply, "observed")
 	if err != nil {
@@ -74,18 +71,16 @@ func PawnRow(reply map[string]any, identity map[string]any, pawnID string) (map[
 	return row, nil
 }
 
-// Target builds the EntityTarget{entityId, expectedSnapshotToken} for row, mirroring
-// native_draft_acceptance.py's target().
+// Target builds the EntityTarget{entityId, expectedSnapshotToken} for row.
 func Target(row map[string]any) map[string]any {
 	pawn, _ := AsMap(row["pawn"])
 	snapshot, _ := AsMap(pawn["snapshot"])
 	return map[string]any{"entityId": pawn["id"], "expectedSnapshotToken": snapshot["token"]}
 }
 
-// ExecuteRequest builds an operations_execute setDrafted request under grant's lease,
-// mirroring native_draft_acceptance.py's execute_request(). Callers overwrite
-// ["operation"] for non-draft operations (attack, movement), matching the Python
-// scripts' pattern of building on this shared precondition/attempt shape.
+// ExecuteRequest builds an operations_execute setDrafted request under grant's lease. Callers overwrite
+// ["operation"] for non-draft operations (attack, movement), building on this
+// shared precondition/attempt shape.
 func ExecuteRequest(identity, grant, row map[string]any, number int) map[string]any {
 	context, _ := AsMap(grant["context"])
 	return map[string]any{
@@ -106,8 +101,7 @@ func ExecuteRequest(identity, grant, row map[string]any, number int) map[string]
 }
 
 // ReleaseRequest builds an operations_release_owned_draft request for row's current
-// owned claim, asserting it is owned by Owner. Mirrors
-// native_draft_acceptance.py's release_request().
+// owned claim, asserting it is owned by Owner.
 func ReleaseRequest(identity, row map[string]any) (map[string]any, error) {
 	draftClaim, _ := AsMap(row["draftClaim"])
 	claim, ok := AsMap(draftClaim["owned"])
@@ -124,8 +118,7 @@ func ReleaseRequest(identity, row map[string]any) (map[string]any, error) {
 }
 
 // SameControl asserts before and after describe the same draft control state
-// (drafted flag, target/snapshot token, and full draftClaim). Mirrors
-// native_draft_acceptance.py's same_control().
+// (drafted flag, target/snapshot token, and full draftClaim).
 func SameControl(before, after map[string]any) error {
 	beforeDrafted, _ := before["drafted"].(bool)
 	afterDrafted, _ := after["drafted"].(bool)
@@ -142,7 +135,7 @@ func SameControl(before, after map[string]any) error {
 }
 
 // ActualOrder asserts a test/b04f_setup external-order fixture reply was accepted and
-// agrees with row's observed job. Mirrors native_draft_acceptance.py's actual_order().
+// agrees with row's observed job.
 func ActualOrder(external, row map[string]any) error {
 	success, _ := AsBool(external["success"])
 	accepted, _ := AsBool(external["accepted"])
@@ -176,7 +169,6 @@ func ActualOrder(external, row map[string]any) error {
 
 // OwnedEffect asserts an operations_execute receipt's named case (default "applied")
 // describes row's own owned draft claim being set with the given issued value.
-// Mirrors native_draft_acceptance.py's owned_effect().
 func OwnedEffect(receipt, row map[string]any, caseName string, issued bool) error {
 	if caseName == "" {
 		caseName = "applied"

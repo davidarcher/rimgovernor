@@ -182,8 +182,8 @@ func SelectSquadDefense(threats []SquadThreatFacts, defenders []SquadDefenderFac
 // SelectTribalRaiderDefense mirrors single_raider_defense's tribal branch: a
 // lone humanlike, non-ranged opponent is bounded tighter than the general
 // N-opponent case above — three healthy (>=85%, not needing tend) already-
-// armed defenders instead of two. Unlike Python's synchronous per-encounter
-// weapon fetch, an unarmed candidate is simply excluded here rather than
+// armed defenders instead of two. There is no synchronous per-encounter
+// weapon fetch: an unarmed candidate is simply excluded here rather than
 // equipped inline: EnsureBasicDefense arms colonists on its own
 // independently-scheduled goal (see RoutineEquipPlanner), so this method
 // just holds — via the caller falling back to SelectSquadDefense's general,

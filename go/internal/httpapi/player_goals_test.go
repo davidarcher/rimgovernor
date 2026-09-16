@@ -89,8 +89,8 @@ func TestPlayerGoalsHTTPRejectsBadRequests(t *testing.T) {
 	s, _ := playerAPI(t)
 	const activate = "/api/player/goals/activate"
 	for _, body := range []string{
-		// Unwhitelisted or absent kinds, and Python's per-goal target fields,
-		// which have no Go counterpart and are not silently dropped.
+		// Unwhitelisted or absent kinds, and per-goal target fields, which
+		// have no counterpart and are not silently dropped.
 		`{"requestId":"r",` + goalExpected + `,"goal":"EnsureComfort","tick":1}`,
 		`{"requestId":"r",` + goalExpected + `,"goal":"","tick":1}`,
 		`{"requestId":"r",` + goalExpected + `,"tick":1}`,

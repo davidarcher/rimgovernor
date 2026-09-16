@@ -1,4 +1,4 @@
-package runtimeowner
+package buildingruntime
 
 import (
 	"errors"
@@ -6,10 +6,10 @@ import (
 	"os"
 )
 
-func lock(file *os.File) error {
+func lockProfile(file *os.File) error {
 	err := unix.Flock(int(file.Fd()), unix.LOCK_EX|unix.LOCK_NB)
 	if errors.Is(err, unix.EWOULDBLOCK) || errors.Is(err, unix.EAGAIN) {
-		return ErrOwned
+		return ErrProfileOwned
 	}
 	return err
 }

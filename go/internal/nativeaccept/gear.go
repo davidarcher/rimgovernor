@@ -7,7 +7,7 @@ import (
 )
 
 // AuditGear compares paused canonical gear planning facts against the native
-// upkeep read, mirroring native_go_gear_evidence.py's audit_gear(): the typed
+// upkeep read: the typed
 // gear census must exactly match the native pawn set, each pawn's snapshot must
 // carry the colony's own context and the native loadout token, its deficit flag
 // must be an explicit boolean matching the native fact, and its eligible
@@ -172,7 +172,7 @@ func sameKeySet(a, b map[string]map[string]any) bool {
 }
 
 // sortedReplacementNeeds normalizes a replacementNeeds list into a sorted slice of
-// (defName, stuff, reason) triples, mirroring the Python fixture's needs() lambda:
+// (defName, stuff, reason) triples:
 // a missing/empty "stuff" is treated the same as an absent one.
 func sortedReplacementNeeds(rows []any) [][3]string {
 	out := make([][3]string, 0, len(rows))

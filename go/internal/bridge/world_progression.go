@@ -27,7 +27,7 @@ type WorldRouteFact struct {
 // a caravan's world-progression pawn census. DeadKnown/DownedKnown are false
 // only when native's own optional PawnState fields are absent; the
 // world-evaluation advisory's health check treats an absent fact the same
-// as Python's `p.get('dead') is False` -- not proven alive, not healthy.
+// as "not proven alive" -- not healthy.
 type CaravanPawnFact struct {
 	ID          string
 	Dead        bool
@@ -70,8 +70,8 @@ type CaravanJourney struct {
 	// (CaravanInventoryUtility.AllInventoryItems). The read-only
 	// world-evaluation advisory treats this caravan-level total as a
 	// caravan's carried cargo rather than re-deriving it pawn by pawn, a
-	// narrower but equivalent read of the same native aggregate Python's
-	// evaluate_world instead summed from each pawn's own inventory list.
+	// narrower but equivalent read of the same native aggregate a per-pawn
+	// inventory sum would produce.
 	Inventory map[string]int64
 }
 

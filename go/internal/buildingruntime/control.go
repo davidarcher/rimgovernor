@@ -11,7 +11,6 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/bridge"
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"github.com/davidarcher/RimGovernor/go/internal/executor"
-	"github.com/davidarcher/RimGovernor/go/internal/runtimeowner"
 	"github.com/davidarcher/RimGovernor/go/internal/store"
 	a "github.com/davidarcher/RimGovernor/go/internal/wire/authoritypb"
 	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
@@ -66,7 +65,7 @@ type Control struct {
 	native           NativeAuthority
 	sink             AuthoritySink
 	namespace        store.ControllerSessionID
-	owner            *runtimeowner.Owner
+	owner            *ProfileOwner
 	lifetime         context.Context
 	epoch            context.Context
 	cancelEpoch      context.CancelFunc
@@ -82,7 +81,7 @@ func NewControl(ctx context.Context, config ControlConfig, identity SessionIdent
 	if identity == nil || native == nil || sink == nil || config.StopWrites == nil || config.CallTimeout <= 0 || config.CallTimeout > time.Minute {
 		return nil, ErrControl
 	}
-	owner, err := runtimeowner.Acquire(ctx, config.ProfileDirectory)
+	owner, err := AcquireProfile(ctx, config.ProfileDirectory)
 	if err != nil {
 		return nil, err
 	}

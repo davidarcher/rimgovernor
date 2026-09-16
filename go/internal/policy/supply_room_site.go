@@ -13,8 +13,8 @@ import (
 // CoveredStorageSites finds no reusable roofed patch. Perimeter cells must be
 // walkable, unoccupied, unzoned and light-supporting like the animal pen
 // enclosure; the 4x4 interior additionally must observe empty native storage,
-// matching Python's empty_interior=True default so the room is not spent on
-// an interior that cannot accept its guarded stockpile.
+// so the room is not spent on an interior that cannot accept its guarded
+// stockpile.
 type SupplyRoomEnclosureRequest struct {
 	Bounds    Bounds
 	Anchor    domain.Cell

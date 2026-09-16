@@ -7,7 +7,6 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/draft"
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"github.com/davidarcher/RimGovernor/go/internal/executor"
-	"github.com/davidarcher/RimGovernor/go/internal/runtimeowner"
 	"github.com/davidarcher/RimGovernor/go/internal/store"
 	o "github.com/davidarcher/RimGovernor/go/internal/wire/operationspb"
 	"google.golang.org/protobuf/proto"
@@ -98,7 +97,7 @@ func TestDraftSessionCloseDrainsTerminalAndLostReceipt(t *testing.T) {
 			if cleanup.Stage != domain.DraftReleased {
 				t.Fatal(cleanup)
 			}
-			owner, err := runtimeowner.Acquire(context.Background(), dir)
+			owner, err := AcquireProfile(context.Background(), dir)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -116,7 +115,7 @@ func TestDraftSessionUncertainCloseRetainsOwnerAndRetriesOnlyOnNextCall(t *testi
 	if native.Releases != 1 {
 		t.Fatal("retried within sweep", native.Releases)
 	}
-	if owner, err := runtimeowner.Acquire(context.Background(), dir); err == nil {
+	if owner, err := AcquireProfile(context.Background(), dir); err == nil {
 		_ = owner.Close()
 		t.Fatal("released owner before cleanup")
 	}
@@ -161,7 +160,7 @@ func TestDraftSessionRejectsPartialCapabilitiesBeforeOwnership(t *testing.T) {
 	if _, err = NewSession(ctx, config, journal, native, &controlNative{generation: 1}, native, boundary.FixedClock{}); err == nil {
 		t.Fatal("partial capabilities accepted")
 	}
-	owner, err := runtimeowner.Acquire(ctx, dir)
+	owner, err := AcquireProfile(ctx, dir)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -207,7 +206,7 @@ func TestCancelledSessionAttachmentDoesNotStrandOwnerOnExistingDraft(t *testing.
 	if err = control.Close(context.Background()); err != nil {
 		t.Fatal(err)
 	}
-	owner, err := runtimeowner.Acquire(context.Background(), dir)
+	owner, err := AcquireProfile(context.Background(), dir)
 	if err != nil {
 		t.Fatal("unreachable construction retained owner", err)
 	}

@@ -136,7 +136,7 @@ const (
 
 // HomeCoverageMethod proposes extending native Home over one already-owned
 // target's exact bounded footprint. It issues no game order; the shared
-// admission recheck happens fresh at dispatch (home_coverage.py's guard()).
+// admission recheck happens fresh at dispatch.
 type HomeCoverageMethod struct {
 	Kind          HomeCoverageMethodKind
 	ID            domain.MethodID
@@ -151,7 +151,7 @@ func homeCoverageMethodID(target, shape string) domain.MethodID {
 	return domain.MethodID(fmt.Sprintf("home-%x", sum[:16]))
 }
 
-// SelectHomeCoverageMethod mirrors home_coverage.py's method(): scan the first
+// SelectHomeCoverageMethod proposes one home-coverage extension: scan the first
 // eight sorted targets (already filtered to missing>0 or blocked by
 // ReviewHomeCoverage), skipping any with a blocker or a live exclusion and any
 // already method_seen for this goal epoch, and propose the first admissible

@@ -9,15 +9,15 @@ import (
 
 // UnknownKeyProbe is the sentinel argument name compatibility acceptance sends to
 // prove (or fail to prove) that a legacy home/* binder actually rejects unknown
-// arguments, mirroring native_compatibility_acceptance.py's UNKNOWN_KEY.
+// arguments.
 const UnknownKeyProbe = "n01UnknownArgumentProbe"
 
 // GameComponents are the native save components a fresh colony's <game> scope must
-// carry exactly once, mirroring native_compatibility_acceptance.py's GAME_COMPONENTS.
+// carry exactly once.
 var GameComponents = map[string]bool{}
 
 // MapComponent is the native save component a loaded map's scope must carry exactly
-// once, mirroring native_compatibility_acceptance.py's MAP_COMPONENT.
+// once.
 const MapComponent = "HomeBridge.BridgeTools.HomeCoverageState"
 
 func init() {
@@ -29,8 +29,7 @@ func init() {
 	}
 }
 
-// PageNames extracts one discovery page's tool names and next cursor, mirroring
-// native_compatibility_acceptance.py's page_names(): a page missing an explicit
+// PageNames extracts one discovery page's tool names and next cursor: a page missing an explicit
 // tools list, a row missing its native gabpName, or a non-string cursor is a
 // malformed reply, never an empty/absent page.
 func PageNames(page map[string]any) ([]string, string, error) {
@@ -73,8 +72,7 @@ func numericStrict(v any) (float64, bool) {
 
 // VerifyReload asserts a reload/restart preserved colony identity and map while
 // rotating the load token and advancing at most the documented one load-boundary
-// tick, and that the reloaded clock is paused at exactly the reported tick --
-// mirroring native_compatibility_acceptance.py's verify_reload().
+// tick, and that the reloaded clock is paused at exactly the reported tick.
 func VerifyReload(before, after, clock map[string]any) error {
 	colonyID, ok := before["colonyId"].(string)
 	if !ok || colonyID == "" {
@@ -116,7 +114,7 @@ func VerifyReload(before, after, clock map[string]any) error {
 }
 
 // BinderObservation classifies a legacy home/* tool's reply to an unknown-argument
-// probe, mirroring native_compatibility_acceptance.py's binder_observation(). It
+// probe. It
 // never claims strict validation is proven: a legacy binder that silently drops an
 // unknown key looks identical to one that never received it.
 func BinderObservation(data map[string]any, isError bool) map[string]any {
@@ -138,8 +136,7 @@ func BinderObservation(data map[string]any, isError bool) map[string]any {
 }
 
 // ComponentCensus counts each native HomeBridge.* save component per scope (the
-// overall game, and each loaded map), mirroring
-// native_compatibility_acceptance.py's component_census(): every component the
+// overall game, and each loaded map): every component the
 // unified mod owns must appear exactly once per scope, never duplicated or absent.
 func ComponentCensus(path string) (map[string]map[string]int, error) {
 	data, err := os.ReadFile(path)

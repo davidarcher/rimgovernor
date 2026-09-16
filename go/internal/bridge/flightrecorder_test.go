@@ -1,4 +1,4 @@
-package flightrecorder
+package bridge
 
 import (
 	"context"
@@ -10,7 +10,7 @@ import (
 
 func TestRetentionAndTruncationAreExplicit(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "timeline.jsonl")
-	r, err := New(path, SegmentBytes(1024), Segments(2), PayloadBytes(128))
+	r, err := NewFlightRecorder(path, FlightSegmentBytes(1024), FlightSegments(2), FlightPayloadBytes(128))
 	if err != nil {
 		t.Fatalf("New: %v", err)
 	}
@@ -46,7 +46,7 @@ func TestRetentionAndTruncationAreExplicit(t *testing.T) {
 	if len(files) != 2 {
 		t.Fatalf("expected 2 retained files, got %d", len(files))
 	}
-	stats := r.Stats()
+	stats := r.FlightRecorderStats()
 	if stats.Truncated != 21 {
 		t.Fatalf("expected 21 truncated records (20 events + coverage), got %d", stats.Truncated)
 	}
@@ -54,7 +54,7 @@ func TestRetentionAndTruncationAreExplicit(t *testing.T) {
 
 func TestTruncatedReceiptKeepsRequestCorrelation(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "timeline.jsonl")
-	r, err := New(path, PayloadBytes(128))
+	r, err := NewFlightRecorder(path, FlightPayloadBytes(128))
 	if err != nil {
 		t.Fatalf("New: %v", err)
 	}
@@ -82,7 +82,7 @@ func TestTruncatedReceiptKeepsRequestCorrelation(t *testing.T) {
 
 func TestSegmentRotationDropsOldestAndShiftsIndexes(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "timeline.jsonl")
-	r, err := New(path, SegmentBytes(minSegmentBytes), Segments(3), PayloadBytes(minPayloadBytes))
+	r, err := NewFlightRecorder(path, FlightSegmentBytes(minSegmentBytes), FlightSegments(3), FlightPayloadBytes(minPayloadBytes))
 	if err != nil {
 		t.Fatalf("New: %v", err)
 	}
@@ -102,7 +102,7 @@ func TestSegmentRotationDropsOldestAndShiftsIndexes(t *testing.T) {
 	if len(files) != 3 {
 		t.Fatalf("expected 3 retained files (active + 2 segments), got %d: %v", len(files), files)
 	}
-	stats := r.Stats()
+	stats := r.FlightRecorderStats()
 	if stats.Rotations == 0 {
 		t.Fatal("expected at least one rotation")
 	}
@@ -110,7 +110,7 @@ func TestSegmentRotationDropsOldestAndShiftsIndexes(t *testing.T) {
 
 func TestDurableRecordsFsyncImmediatelyNonDurableDoNot(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "timeline.jsonl")
-	r, err := New(path)
+	r, err := NewFlightRecorder(path)
 	if err != nil {
 		t.Fatalf("New: %v", err)
 	}
@@ -121,7 +121,7 @@ func TestDurableRecordsFsyncImmediatelyNonDurableDoNot(t *testing.T) {
 	if _, err = r.Event("native_response", nil, false, map[string]any{"tool": "x"}); err != nil {
 		t.Fatalf("Event: %v", err)
 	}
-	stats := r.Stats()
+	stats := r.FlightRecorderStats()
 	// coverage + native_request are durable; native_response is not.
 	if stats.DurableRecords != 2 {
 		t.Fatalf("expected 2 durable records, got %d", stats.DurableRecords)
@@ -132,29 +132,29 @@ func TestDurableRecordsFsyncImmediatelyNonDurableDoNot(t *testing.T) {
 }
 
 func TestActionContextRoundTrips(t *testing.T) {
-	ctx := WithAction(context.Background(), "action-1", "goal-1")
-	got := ActionFrom(ctx)
+	ctx := WithFlightAction(context.Background(), "action-1", "goal-1")
+	got := flightActionFrom(ctx)
 	if got["action_id"] != "action-1" || got["goal_id"] != "goal-1" {
 		t.Fatalf("unexpected action context: %+v", got)
 	}
-	if ActionFrom(context.Background()) != nil {
+	if flightActionFrom(context.Background()) != nil {
 		t.Fatal("expected nil action context on bare context")
 	}
-	unattached := WithAction(context.Background(), "", "goal")
-	if ActionFrom(unattached) != nil {
+	unattached := WithFlightAction(context.Background(), "", "goal")
+	if flightActionFrom(unattached) != nil {
 		t.Fatal("expected an empty action id to attach no correlation")
 	}
 }
 
 func TestRejectsBoundsBelowMinimums(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "timeline.jsonl")
-	if _, err := New(path, SegmentBytes(1)); err == nil {
+	if _, err := NewFlightRecorder(path, FlightSegmentBytes(1)); err == nil {
 		t.Fatal("expected error for undersized segment bytes")
 	}
-	if _, err := New(path, Segments(1)); err == nil {
+	if _, err := NewFlightRecorder(path, FlightSegments(1)); err == nil {
 		t.Fatal("expected error for undersized segments")
 	}
-	if _, err := New(path, PayloadBytes(1)); err == nil {
+	if _, err := NewFlightRecorder(path, FlightPayloadBytes(1)); err == nil {
 		t.Fatal("expected error for undersized payload bytes")
 	}
 }

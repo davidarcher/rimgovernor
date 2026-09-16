@@ -32,8 +32,8 @@ type RoutineSecureSuppliesSource interface {
 }
 
 // maxSecureSuppliesZoneMethods bounds SecureSupplies' covered-storage fallback
-// to a handful of new zones per goal episode, mirroring upkeep_storage.py's
-// three-item SecureSupplies cap across covered_storage and supply_storeroom.
+// to a handful of new zones per goal episode: a three-item cap across
+// covered_storage and supply_storeroom.
 // Once reached, ordinary haul attempts remain the only route until a new
 // episode begins.
 const maxSecureSuppliesZoneMethods = 3
@@ -271,12 +271,11 @@ func (r *RoutineSecureSuppliesPlanner) step(call, epoch context.Context, arbiter
 	return RoutineSecureSuppliesResult{Reason: BuildingMethodAdmitted, Plan: id}, nil
 }
 
-// coveredStorageFallback ports upkeep_storage.py's covered_storage step: once
+// coveredStorageFallback is the covered_storage step: once
 // ordinary hauling for the selected vulnerable item has been retried to its
 // bound, propose a small allow-listed stockpile zone (native preset='nothing'
 // with an explicit definition allow-list) on the nearest legal roofed 2x2
-// patch instead, exactly as the Python reference's dry-run zone-create
-// fallback does. It is bounded to maxSecureSuppliesZoneMethods zones per goal
+// patch instead. It is bounded to maxSecureSuppliesZoneMethods zones per goal
 // episode. A zero-value, empty-Reason result means the fallback did not apply
 // this step (no zone budget left, no legal site, or a stale read) and the
 // caller should try supplyRoomFallback next.
@@ -367,8 +366,7 @@ func (r *RoutineSecureSuppliesPlanner) coveredStorageFallback(call, epoch contex
 // reusable roofed patch. It never places a stockpile zone itself — once the
 // shell is complete and its interior has been reported roofed by the
 // ordinary cell census, coveredStorageFallback's own site search naturally
-// selects a patch inside it on a later step, exactly as upkeep_storage.py's
-// covered_storage reuses a supply_storeroom's finished room.
+// selects a patch inside it on a later step, reusing the finished room.
 const supplyRoomShellMethod domain.MethodID = "supply-room-shell"
 
 // secureSuppliesRoomShellPlan reports whether a plan spec already places the
@@ -388,11 +386,11 @@ func secureSuppliesRoomShellPlan(spec domain.PlanSpec) bool {
 	return false
 }
 
-// supplyRoomFallback ports upkeep_storage.py's supply_storeroom step: once
+// supplyRoomFallback is the supply_storeroom step: once
 // covered_storage can no longer reuse existing roofing, site and build one
 // small enclosed room (Wall perimeter, Door on the south wall's center) via
 // upkeep_sites.enclosure_site's free-cell search. It admits at most one such
-// room per goal episode, matching Python's `prior` dedup check: a completed
+// room per goal episode (a `prior` dedup check): a completed
 // or pending room-shell method already present blocks a second one rather
 // than raising a duplicate-room refusal, since routine steps report "nothing
 // to do" here rather than an interactive skill-blocked error. A zero-value,

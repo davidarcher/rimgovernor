@@ -1,4 +1,4 @@
-package runtimeowner
+package buildingruntime
 
 import (
 	"bufio"
@@ -13,12 +13,12 @@ import (
 
 func TestOwnershipAndRelease(t *testing.T) {
 	dir := t.TempDir()
-	owner, err := Acquire(context.Background(), dir)
+	owner, err := AcquireProfile(context.Background(), dir)
 	if err != nil {
 		t.Fatal(err)
 	}
 	defer owner.Close()
-	if second, err := Acquire(context.Background(), filepath.Join(dir, ".")); !errors.Is(err, ErrOwned) {
+	if second, err := AcquireProfile(context.Background(), filepath.Join(dir, ".")); !errors.Is(err, ErrProfileOwned) {
 		if second != nil {
 			second.Close()
 		}
@@ -30,7 +30,7 @@ func TestOwnershipAndRelease(t *testing.T) {
 	if err = owner.Close(); err != nil {
 		t.Fatal(err)
 	}
-	next, err := Acquire(context.Background(), dir)
+	next, err := AcquireProfile(context.Background(), dir)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -40,7 +40,7 @@ func TestOwnershipAndRelease(t *testing.T) {
 	}
 	cancelled, cancel := context.WithCancel(context.Background())
 	cancel()
-	if _, err = Acquire(cancelled, dir); !errors.Is(err, context.Canceled) {
+	if _, err = AcquireProfile(cancelled, dir); !errors.Is(err, context.Canceled) {
 		t.Fatal(err)
 	}
 }
@@ -66,7 +66,7 @@ func TestProcessCrashReleasesOwnership(t *testing.T) {
 	if err != nil || line != "owned\n" {
 		t.Fatalf("child ownership: %q %v", line, err)
 	}
-	if owner, err := Acquire(context.Background(), dir); !errors.Is(err, ErrOwned) {
+	if owner, err := AcquireProfile(context.Background(), dir); !errors.Is(err, ErrProfileOwned) {
 		if owner != nil {
 			owner.Close()
 		}
@@ -76,7 +76,7 @@ func TestProcessCrashReleasesOwnership(t *testing.T) {
 		t.Fatal(err)
 	}
 	_ = cmd.Wait()
-	owner, err := Acquire(context.Background(), dir)
+	owner, err := AcquireProfile(context.Background(), dir)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -88,7 +88,7 @@ func TestOwnerProcessHelper(t *testing.T) {
 	if dir == "" {
 		return
 	}
-	owner, err := Acquire(context.Background(), dir)
+	owner, err := AcquireProfile(context.Background(), dir)
 	if err != nil {
 		t.Fatal(err)
 	}

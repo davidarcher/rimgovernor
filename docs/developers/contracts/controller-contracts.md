@@ -16,7 +16,7 @@ recovery.
 
 ## Chat entry
 
-Only a new human chat revision invokes `planner.py`. Mode changes and routine native
+Only a new human chat message invokes the interpreter. Mode changes and routine native
 events do not invoke inference. Model failure is reported to the player while
 deterministic operation can continue.
 

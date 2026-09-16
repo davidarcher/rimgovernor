@@ -1,5 +1,6 @@
-// Package runtimeowner enforces one controller process per configured game profile.
-package runtimeowner
+// Profile ownership: one controller process per configured game profile. Every
+// writer for a profile takes this lock; readers never do.
+package buildingruntime
 
 import (
 	"context"
@@ -10,20 +11,20 @@ import (
 	"sync"
 )
 
-var ErrOwned = errors.New("game profile already has a controller owner")
+var ErrProfileOwned = errors.New("game profile already has a controller owner")
 
-// Owner must remain open until all native writes and owned workers have stopped.
+// ProfileOwner must remain open until all native writes and owned workers have stopped.
 // Kernel ownership ends on process exit, including a crash. The lock file remains
 // in place: deleting it would let another process lock a different inode.
-type Owner struct {
+type ProfileOwner struct {
 	mu   sync.Mutex
 	file *os.File
 }
 
-// Acquire uses the existing, shared game profile directory, not a task worktree or
+// AcquireProfile uses the existing, shared game profile directory, not a task worktree or
 // per-controller database directory. Every writer for a profile must use this lock.
 // Acquisition is nonblocking; readers do not acquire ownership.
-func Acquire(ctx context.Context, profileDirectory string) (*Owner, error) {
+func AcquireProfile(ctx context.Context, profileDirectory string) (*ProfileOwner, error) {
 	if err := ctx.Err(); err != nil {
 		return nil, err
 	}
@@ -55,11 +56,11 @@ func Acquire(ctx context.Context, profileDirectory string) (*Owner, error) {
 	if err != nil {
 		return nil, err
 	}
-	if err = lock(file); err != nil {
+	if err = lockProfile(file); err != nil {
 		file.Close()
 		return nil, fmt.Errorf("controller ownership: %w", err)
 	}
-	owner := &Owner{file: file}
+	owner := &ProfileOwner{file: file}
 	if err = ctx.Err(); err != nil {
 		owner.Close()
 		return nil, err
@@ -67,7 +68,7 @@ func Acquire(ctx context.Context, profileDirectory string) (*Owner, error) {
 	return owner, nil
 }
 
-func (o *Owner) Close() error {
+func (o *ProfileOwner) Close() error {
 	o.mu.Lock()
 	defer o.mu.Unlock()
 	if o.file == nil {

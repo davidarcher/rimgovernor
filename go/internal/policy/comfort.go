@@ -163,7 +163,7 @@ func (r ComfortReview) Deficit() domain.Fact[float64] {
 	if r.Dining == ComfortUnknown || r.Recreation == ComfortUnknown {
 		return domain.Unknown[float64]()
 	}
-	// Python development ranking counts each unmet facility kind equally,
+	// The development ranking counts each unmet facility kind equally,
 	// whether it needs capacity or proof of use.
 	value := 0.0
 	if r.Dining != ComfortRecovered {

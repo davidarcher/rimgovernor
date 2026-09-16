@@ -1,7 +1,7 @@
 #!/bin/sh
-# /worker/game is populated entirely by dockeraccept.StartWorker's own `-v`
+# /worker/game is populated entirely by docker.StartWorker's own `-v`
 # mounts (one read-only bind per game top-level entry, plus one for Mods --
-# see go/internal/dockeraccept/worker.go), not by this script: RimWorld's
+# see go/internal/nativeaccept/docker/worker.go), not by this script: RimWorld's
 # Unity engine resolves its install directory from the *real* path of its
 # running executable, so a merge built from symlinks into a separately
 # read-only /inputs/game (an earlier version of this script) doesn't work --
@@ -13,7 +13,7 @@
 # What this script does do: if GABS_BIN/GAME_ID/GABS_CONFIG_DIR are set, runs
 # `gabs games start` once before exec'ing rimgovernor. GABS enforces
 # single-attachment ownership per game over its MCP/GABP session (see
-# go/internal/dockeraccept's package comment -- this is why that package
+# go/internal/nativeaccept/docker's package comment -- this is why that package
 # never opens its own bridge.Client alongside a container's rimgovernor
 # process); rimgovernor's own `serve --gabs ...` only ever calls
 # games_connect, never games_start, so something has to launch the game

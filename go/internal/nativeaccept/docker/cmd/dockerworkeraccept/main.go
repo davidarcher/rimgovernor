@@ -2,10 +2,9 @@
 // containers/Dockerfile "worker" target, start one --network host worker
 // container against real Linux game/mods/profile/GABS inputs, prove it
 // reports a connected native session over its own HTTP API (never via a
-// second bridge.Client -- see go/internal/dockeraccept's package comment),
-// then stop it cleanly. It does not yet exercise the paired two-worker
-// checkpoint scenario (go/internal/dockeraccept/cmd/dockernativeaccept,
-// unbuilt); that is the next slice.
+// second bridge.Client -- see go/internal/nativeaccept/docker's package comment),
+// then stop it cleanly. It does not exercise a paired two-worker scenario;
+// Go has no paired checkpoints (#59).
 package main
 
 import (
@@ -16,7 +15,7 @@ import (
 	"path/filepath"
 	"time"
 
-	"github.com/davidarcher/RimGovernor/go/internal/dockeraccept"
+	"github.com/davidarcher/RimGovernor/go/internal/nativeaccept/docker"
 	na "github.com/davidarcher/RimGovernor/go/internal/nativeaccept"
 )
 
@@ -78,21 +77,21 @@ type runConfig struct {
 }
 
 func run(ctx context.Context, cfg runConfig, report na.Report) error {
-	docker, err := dockeraccept.DockerBinary()
+	dockerBinary, err := docker.DockerBinary()
 	if err != nil {
 		return err
 	}
-	if err := dockeraccept.RequireLinuxContainers(ctx, docker); err != nil {
+	if err := docker.RequireLinuxContainers(ctx, dockerBinary); err != nil {
 		return err
 	}
 	if !cfg.noBuild {
-		id, err := dockeraccept.BuildImage(ctx, docker, cfg.source, "worker", cfg.image, filepath.Join(cfg.output, "build.log"))
+		id, err := docker.BuildImage(ctx, dockerBinary, cfg.source, "worker", cfg.image, filepath.Join(cfg.output, "build.log"))
 		if err != nil {
 			return err
 		}
 		report["image"] = id
 	} else {
-		id, err := dockeraccept.InspectImage(ctx, docker, cfg.image)
+		id, err := docker.InspectImage(ctx, dockerBinary, cfg.image)
 		if err != nil {
 			return err
 		}
@@ -100,9 +99,9 @@ func run(ctx context.Context, cfg runConfig, report na.Report) error {
 	}
 
 	root := filepath.Join(cfg.output, "worker")
-	worker, err := dockeraccept.StartWorker(ctx, dockeraccept.WorkerConfig{
-		Docker: docker, Image: cfg.image,
-		Inputs:          dockeraccept.Inputs{Game: cfg.game, Mods: cfg.mods, Profile: cfg.profile, Gabs: cfg.gabs},
+	worker, err := docker.StartWorker(ctx, docker.WorkerConfig{
+		Docker: dockerBinary, Image: cfg.image,
+		Inputs:          docker.Inputs{Game: cfg.game, Mods: cfg.mods, Profile: cfg.profile, Gabs: cfg.gabs},
 		ConfigTemplate:  cfg.configTemplate,
 		Root:            root,
 		Name:            "rimgovernor-dockerworkeraccept-" + filepath.Base(cfg.output),

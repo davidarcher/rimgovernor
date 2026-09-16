@@ -1,4 +1,4 @@
-package flightrecorder
+package bridge
 
 import (
 	"bufio"
@@ -70,7 +70,7 @@ func ReadTimeline(path string) ([]TimelineRecord, error) {
 	var previous uint64
 	havePrevious := false
 	for _, file := range files {
-		lines, err := readLines(file)
+		lines, err := readFlightLines(file)
 		if err != nil {
 			return nil, err
 		}
@@ -99,7 +99,7 @@ func ReadTimeline(path string) ([]TimelineRecord, error) {
 	return records, nil
 }
 
-func readLines(path string) ([]string, error) {
+func readFlightLines(path string) ([]string, error) {
 	file, err := os.Open(path)
 	if err != nil {
 		return nil, fmt.Errorf("flightrecorder: open %s: %w", path, err)

@@ -28,7 +28,7 @@ import (
 // bench/recipe bill immediately before dispatch, the same
 // acceptance-not-authority preview those planners use.
 //
-// This planner covers production_policy.py's resource_method bench/recipe
+// This planner covers the resource method's bench/recipe
 // fallback branch (policy.SelectResourceMethod), the same bench-production
 // path GearProduce/MaintainMedicalReserves dispatch through, plus its native
 // mine-source acquisition branch (policy.SelectResourceSources) and its
@@ -36,9 +36,8 @@ import (
 // the bench/recipe path cannot fund the deficit and a fresh source selection
 // includes a "mine" source, that source's covered storage is checked first
 // (materialStorageZoneFallback): if a new stockpile zone is needed, it is
-// admitted and mine acquisition is deferred to a later tick (mirroring
-// production_policy.py's resource_method, which returns its storage
-// zone-build action instead of an acquisition action whenever storage is
+// admitted and mine acquisition is deferred to a later tick (the storage
+// zone-build action takes the place of an acquisition action whenever storage is
 // inadequate). Only once storage already covers the deficit (or no mine
 // source was selected) does this planner dispatch a
 // domain.MineAcquisitionAction against the mine source through the second,
@@ -308,8 +307,8 @@ func (r *RoutineResourcePlanner) dispatchResourceGoal(call, epoch context.Contex
 
 // sourcesForDeficit reads the resource's fresh native mine/harvest sources
 // (and its always-populated StorageCapacity payload) and applies
-// policy.SelectResourceSources against the outstanding deficit, mirroring
-// the first half of production_policy.py's resource_method (its bill-listing
+// policy.SelectResourceSources against the outstanding deficit -- the first
+// half of the resource method (its bill-listing
 // fallback, which SelectResourceMethod above already covers, is only reached
 // once this source loop finds nothing to select). Neither this method nor
 // materialStorageZoneFallback dispatches AcquireResource itself --
@@ -336,7 +335,7 @@ func (r *RoutineResourcePlanner) sourcesForDeficit(ctx context.Context, identity
 	return policy.SelectResourceSources(sources, target, have, 0), storage, true
 }
 
-// materialStorageZoneFallback ports production_policy.py's resource_method
+// materialStorageZoneFallback is the resource method's
 // storage branch: once the bench/recipe path can't fund the
 // dynamically-selected resource, a fresh source selection that includes a
 // "mine" source is checked against the same read's StorageCapacity payload
@@ -348,14 +347,13 @@ func (r *RoutineResourcePlanner) sourcesForDeficit(ctx context.Context, identity
 // candidate cells come directly from native's own hauler-reachable, roofed,
 // unreserved scan rather than policy.CoveredStorageSites -- no geometry is
 // recomputed here. The zone's method ID is content-addressed by resource and
-// cells (matching Python's fingerprint dedup), not attempt-numbered, since
+// cells (fingerprint dedup), not attempt-numbered, since
 // the candidate set is whatever native reports fresh each call, not
 // something this planner deliberately retries several times per episode.
 // handled is false when nothing applies this tick (no mine source selected,
 // or existing capacity already covers the deficit) -- the caller should then
-// fall through to dispatchMineSource instead, exactly mirroring Python's
-// resource_method returning its storage zone-build action in place of an
-// acquisition action only when storage is inadequate.
+// fall through to dispatchMineSource instead: the storage zone-build takes
+// the place of an acquisition action only when storage is inadequate.
 func (r *RoutineResourcePlanner) materialStorageZoneFallback(call, epoch context.Context, state ControlState, goal store.GoalState, reviewTick domain.Tick, resource policy.Resource, selected []policy.ResourceSource, storage policy.ResourceStorage, started time.Time) (RoutineResourceResult, bool, error) {
 	zone, needed, blocked, err := policy.SelectResourceStorageZone(selected, 0, storage)
 	if err != nil {

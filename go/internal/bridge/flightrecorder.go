@@ -1,8 +1,7 @@
-// Package flightrecorder is an opt-in bounded native timeline: requests reach
-// durable storage before dispatch. It replaces controller/rimgovernor/flight_recorder.py
-// for the Go controller. Construction is always explicit; there is no hidden
-// global recorder, unlike the Python module's env-var singleton.
-package flightrecorder
+// Flight recorder: an opt-in bounded native timeline. Requests reach durable
+// storage before dispatch. Construction is always explicit; there is no hidden
+// global recorder.
+package bridge
 
 import (
 	"context"
@@ -24,11 +23,11 @@ const (
 	minPayloadBytes = 128
 )
 
-// Recorder appends one JSON line per event to path, rotating into numbered
+// FlightRecorder appends one JSON line per event to path, rotating into numbered
 // segments (path.1 is the newest rotated segment) once the active segment
 // reaches SegmentBytes, and retaining at most Segments total files. Every
 // exported method is safe for concurrent use.
-type Recorder struct {
+type FlightRecorder struct {
 	path         string
 	segmentBytes int64
 	segments     int
@@ -46,24 +45,28 @@ type Recorder struct {
 	elapsed  time.Duration
 }
 
-// Option configures a Recorder at construction. Defaults match the Python
-// FlightRecorder: 8 MiB segments, 8 retained segments, 256 KiB payloads.
-type Option func(*Recorder)
+// FlightRecorderOption configures a FlightRecorder at construction. Defaults:
+// 8 MiB segments, 8 retained segments, 256 KiB payloads.
+type FlightRecorderOption func(*FlightRecorder)
 
-func SegmentBytes(n int64) Option { return func(r *Recorder) { r.segmentBytes = n } }
-func Segments(n int) Option       { return func(r *Recorder) { r.segments = n } }
-func PayloadBytes(n int) Option   { return func(r *Recorder) { r.payloadBytes = n } }
+func FlightSegmentBytes(n int64) FlightRecorderOption {
+	return func(r *FlightRecorder) { r.segmentBytes = n }
+}
+func FlightSegments(n int) FlightRecorderOption { return func(r *FlightRecorder) { r.segments = n } }
+func FlightPayloadBytes(n int) FlightRecorderOption {
+	return func(r *FlightRecorder) { r.payloadBytes = n }
+}
 
-// RunID overrides the recorder's run identifier, otherwise a random hex value.
-func RunID(id string) Option { return func(r *Recorder) { r.run = id } }
+// FlightRunID overrides the recorder's run identifier, otherwise a random hex value.
+func FlightRunID(id string) FlightRecorderOption { return func(r *FlightRecorder) { r.run = id } }
 
 // New opens (or creates) path for durable append and records one "coverage"
 // event describing what the timeline does and does not capture.
-func New(path string, opts ...Option) (*Recorder, error) {
+func NewFlightRecorder(path string, opts ...FlightRecorderOption) (*FlightRecorder, error) {
 	if path == "" {
 		return nil, errors.New("flightrecorder: path required")
 	}
-	r := &Recorder{path: path, segmentBytes: 8 << 20, segments: 8, payloadBytes: 256 << 10}
+	r := &FlightRecorder{path: path, segmentBytes: 8 << 20, segments: 8, payloadBytes: 256 << 10}
 	for _, opt := range opts {
 		opt(r)
 	}
@@ -95,7 +98,7 @@ func New(path string, opts ...Option) (*Recorder, error) {
 // durable "request" row bracketing a non-durable "response" row that becomes
 // durable only at the next durable record or segment rotation. context and
 // payload are marshaled as JSON objects; a nil map encodes as {}.
-func (r *Recorder) Event(kind string, context map[string]any, durable bool, payload map[string]any) (uint64, error) {
+func (r *FlightRecorder) Event(kind string, context map[string]any, durable bool, payload map[string]any) (uint64, error) {
 	if r == nil {
 		return 0, errors.New("flightrecorder: recorder required")
 	}
@@ -118,7 +121,7 @@ func (r *Recorder) Event(kind string, context map[string]any, durable bool, payl
 			"preview":        string(encoded[:r.payloadBytes]),
 		}
 		for _, key := range []string{"request", "tool", "category"} {
-			if value, ok := payload[key]; ok && correlatable(value) {
+			if value, ok := payload[key]; ok && flightCorrelatable(value) {
 				correlated[key] = value
 			}
 		}
@@ -171,7 +174,7 @@ func (r *Recorder) Event(kind string, context map[string]any, durable bool, payl
 	return sequence, nil
 }
 
-func correlatable(value any) bool {
+func flightCorrelatable(value any) bool {
 	switch v := value.(type) {
 	case string:
 		return len(v) <= 256
@@ -182,7 +185,7 @@ func correlatable(value any) bool {
 	}
 }
 
-func (r *Recorder) ensureOpen() error {
+func (r *FlightRecorder) ensureOpen() error {
 	if r.file != nil {
 		return nil
 	}
@@ -202,7 +205,7 @@ func (r *Recorder) ensureOpen() error {
 
 // rotateLocked finishes the active segment durably, shifts retained segments
 // up by one index (dropping the oldest), and starts a fresh empty segment.
-func (r *Recorder) rotateLocked() error {
+func (r *FlightRecorder) rotateLocked() error {
 	if err := r.file.Sync(); err != nil {
 		return fmt.Errorf("flightrecorder: rotate fsync: %w", err)
 	}
@@ -228,10 +231,10 @@ func (r *Recorder) rotateLocked() error {
 	return r.ensureOpen()
 }
 
-func (r *Recorder) segmentPath(index int) string { return fmt.Sprintf("%s.%d", r.path, index) }
+func (r *FlightRecorder) segmentPath(index int) string { return fmt.Sprintf("%s.%d", r.path, index) }
 
 // Close finishes the current segment durably. Later events reopen it.
-func (r *Recorder) Close() error {
+func (r *FlightRecorder) Close() error {
 	if r == nil {
 		return nil
 	}
@@ -249,8 +252,8 @@ func (r *Recorder) Close() error {
 	return closeErr
 }
 
-// Stats reports counters useful for diagnostics; it never fails.
-type Stats struct {
+// FlightRecorderStats reports counters useful for diagnostics; it never fails.
+type FlightRecorderStats struct {
 	Records           uint64
 	Truncated         uint64
 	Rotations         uint64
@@ -261,10 +264,10 @@ type Stats struct {
 	PayloadBytes      int
 }
 
-func (r *Recorder) Stats() Stats {
+func (r *FlightRecorder) FlightRecorderStats() FlightRecorderStats {
 	r.mu.Lock()
 	defer r.mu.Unlock()
-	return Stats{
+	return FlightRecorderStats{
 		Records: r.records, Truncated: r.truncate, Rotations: r.rotate, DurableRecords: r.durable,
 		RecordingSeconds: r.elapsed.Seconds(), RetentionSegments: r.segments,
 		SegmentBytes: r.segmentBytes, PayloadBytes: r.payloadBytes,
@@ -273,17 +276,17 @@ func (r *Recorder) Stats() Stats {
 
 type actionContextKey struct{}
 
-// WithAction attaches an action/goal correlation pair to ctx; Event calls
-// made against a bridge that reads it via ActionFrom include it in context.
-func WithAction(ctx context.Context, actionID, goalID string) context.Context {
+// WithFlightAction attaches an action/goal correlation pair to ctx; Event calls
+// made against a bridge that reads it via flightActionFrom include it in context.
+func WithFlightAction(ctx context.Context, actionID, goalID string) context.Context {
 	if actionID == "" {
 		return ctx
 	}
 	return context.WithValue(ctx, actionContextKey{}, map[string]any{"action_id": actionID, "goal_id": goalID})
 }
 
-// ActionFrom reads back the correlation WithAction attached, or nil.
-func ActionFrom(ctx context.Context) map[string]any {
+// flightActionFrom reads back the correlation WithFlightAction attached, or nil.
+func flightActionFrom(ctx context.Context) map[string]any {
 	value, _ := ctx.Value(actionContextKey{}).(map[string]any)
 	return value
 }

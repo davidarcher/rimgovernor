@@ -123,8 +123,7 @@ func TestActualOrderRejectsUnacceptedFixture(t *testing.T) {
 	}
 }
 
-// draftReply builds a PawnRow input mirroring test_native_draft_acceptance.py's
-// reply() fixture: one owned-drafted row under a single complete page.
+// draftReply builds a PawnRow input: one owned-drafted row under a single complete page.
 func draftReply() map[string]any {
 	context := map[string]any{"identity": map[string]any{"colonyId": "colony", "loadToken": "load", "mapId": 0.0}, "tick": "0", "nativeGeneration": "1"}
 	snapshot := map[string]any{"context": deepCopyMap(context), "entityId": "Human1", "token": "token"}

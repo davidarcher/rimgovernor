@@ -342,8 +342,8 @@ func run(ctx context.Context, root, output, gameID string, headless bool, report
 	}
 
 	// Refusal 3: the near-term-pregnant mother's own SafeToSlaughter=false
-	// fact refuses a slaughter designation attempt outright, mirroring the
-	// legacy Python acceptance's own "pregnant_animal_protected" case.
+	// fact refuses a slaughter designation attempt outright
+	// ("pregnant_animal_protected").
 	protectedRequest := buildRequest("husbandry-protected", slaughterOperation(motherID, motherSettingsToken, motherCensusToken))
 	if code, err := failureCode("protected-mother", protectedRequest); err != nil {
 		return err

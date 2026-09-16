@@ -9,8 +9,7 @@ import "errors"
 // generic waste census (policy.WasteItem) carries no exact-ID lookup RPC, so
 // the item's CAS token must be resolved by scanning its cell's things instead.
 // UnwantedIDs/BuryIDs are always empty for an autopilot-selected item: no
-// Go autopilot goal yet carries player-declared unwanted/bury lists (mirrors
-// waste_management.py's empty comma-joins when no such target exists), so
+// Go autopilot goal yet carries player-declared unwanted/bury lists, so
 // native's own ManageWaste/manage_waste eligibility owns the haul-or-bury
 // destination choice unassisted.
 type Waste struct {

@@ -5,13 +5,12 @@ import (
 	"sort"
 )
 
-// ResourceSpending is the per-resource spending restriction Python's
+// ResourceSpending is the per-resource spending restriction
 // ModifyResourcePolicy names: normal allows routine spending, defense_only
 // permits only defensive work, and stop prohibits all spending including
 // defense. Native SetProductionPolicy has one stopped-definitions list and no
 // third state between them, so both restricted values dispatch as "stopped"
-// exactly as production_policy.py's production_budgets does
-// (`if policy.get('spending','normal') != 'normal': stopped.append(resource)`).
+// exactly as the production budget does.
 // The distinction is still carried here rather than collapsed at the command
 // boundary so the recorded player intent stays exactly what was asked for.
 type ResourceSpending string
@@ -27,8 +26,8 @@ const (
 const MaxResourceReserve = 10000
 
 // ResourceDirective is one resource's whole player-declared production policy:
-// the Go form of one entry of Python's plan.control['resource_policy'], whose
-// value is always the pair {'reserve': int, 'spending': str}. It is immutable
+// the Go form of one entry of the resource policy, whose
+// value is always the pair (reserve, spending). It is immutable
 // and comparable like PopulationDirective.
 //
 // A directive is persistent player configuration, not an action. The native
@@ -45,7 +44,7 @@ type ResourceDirective struct {
 // NewResourceDirective bounds a resource definition name the way every other
 // identifier command does and range-checks the reserve against the same
 // ceiling the dispatched floor carries. A zero reserve is valid and means no
-// floor at all, matching Python's "Zero removes the reserve".
+// floor at all: zero removes the reserve.
 func NewResourceDirective(resource string, reserve int64, spending ResourceSpending) (ResourceDirective, error) {
 	if !validID(resource) {
 		return ResourceDirective{}, errors.New("invalid resource definition")
@@ -61,8 +60,8 @@ func NewResourceDirective(resource string, reserve int64, spending ResourceSpend
 	return ResourceDirective{resource, reserve, spending}, nil
 }
 
-// DefaultResourceDirective is the entry Python's setdefault installs the first
-// time a resource is named: {'reserve': 0, 'spending': 'normal'}.
+// DefaultResourceDirective is the entry installed the first
+// time a resource is named: reserve 0, spending normal.
 func DefaultResourceDirective(resource string) (ResourceDirective, error) {
 	return NewResourceDirective(resource, 0, ResourceSpendingNormal)
 }
@@ -82,10 +81,9 @@ func (d ResourceDirective) Set() bool { return d != ResourceDirective{} }
 func (d ResourceDirective) Restricted() bool { return d.Set() && d.spending != ResourceSpendingNormal }
 
 // ResourcePolicyPatch is one explicit player request to change part of one
-// resource's policy, the shape both Python commands share: ModifyResourcePolicy
+// resource's policy, the shape both commands share: ModifyResourcePolicy
 // sets spending alone and SetResourceReserve sets reserve alone, and each
-// preserves the other half through `policy.update(model_dump(exclude={'kind',
-// 'resource'}))` over the entry already in force. Absence is therefore
+// preserves the other half of the entry already in force. Absence is therefore
 // meaningful and carried by Optional, exactly as ExpeditionPolicyPatch carries
 // its own unset limits.
 type ResourcePolicyPatch struct {
@@ -98,7 +96,7 @@ type ResourcePolicyPatch struct {
 func (q ResourcePolicyPatch) Empty() bool { return q == ResourcePolicyPatch{} }
 
 // Validate bounds the named resource and range-checks only the half the
-// request actually supplies. Exactly one half must be supplied: the two Python
+// request actually supplies. Exactly one half must be supplied: the two
 // commands are separate contracts and neither can set both, so a request
 // naming both is a shape this controller never produces and is refused rather
 // than silently accepted as a third command.
@@ -152,13 +150,11 @@ func (q ResourcePolicyPatch) Apply(base ResourceDirective) (ResourceDirective, e
 
 // ResourceProductionPolicy folds a world's whole set of player directives into
 // the single ProductionPolicy value one native SetProductionPolicy write
-// carries, mirroring production_policy.py's production_budgets/policy_arguments
-// pair exactly: floors are the strictly positive reserves (Python's `if v`
-// filter drops the zeroes) and stopped is every resource whose spending is not
-// normal.
+// carries: floors are the strictly positive reserves (zeroes are dropped)
+// and stopped is every resource whose spending is not normal.
 //
-// Python's second source of floors -- outstanding construction-bundle
-// ingredient costs from plan.control['costs'], which it sends as commitments --
+// A second source of floors -- outstanding construction-bundle
+// ingredient costs sent as commitments --
 // is deliberately not folded in here, the same disclosed narrowing
 // policy.ProductionFloors already carries: the staged-bundle admission model it
 // depends on has no Go equivalent. The Commitments and Drills rows another

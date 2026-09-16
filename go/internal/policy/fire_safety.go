@@ -3,8 +3,8 @@ package policy
 import "github.com/davidarcher/RimGovernor/go/internal/domain"
 
 // FireSafetyPawnFacts mirrors SecureSuppliesHaulerFacts' eligibility shape
-// applied to the Firefighting work type: colony_upkeep.py's upkeep_method
-// candidate filter for the 'firefight' action (dead/downed/drafted/mental
+// applied to the Firefighting work type: the
+// candidate filter for the firefight action (dead/downed/drafted/mental
 // state, player-forced job, needs-tend/bleeding, and an enabled non-zero-
 // priority work setting).
 type FireSafetyPawnFacts struct {
@@ -14,8 +14,8 @@ type FireSafetyPawnFacts struct {
 	FirefightingEnabled                domain.Fact[bool]
 }
 
-// FireSafetyOutcome names the same three-way branch colony_upkeep.py's
-// firefight handling makes: recovered (no active fire), waiting on the
+// FireSafetyOutcome names the three-way firefight branch: recovered (no
+// active fire), waiting on the
 // native, non-orderable firefighting WorkGiver because an eligible worker
 // exists and the fire is bounded, or blocked because no such worker or
 // bound exists and the emergency hold must be retained.
@@ -28,12 +28,9 @@ const (
 	FireSafetyUnknown          FireSafetyOutcome = "unknown"
 )
 
-// EvaluateFireSafety ports the firefight branch of colony_upkeep.py's
-// upkeep_method, narrowed to the evidence this project's wire schema
-// actually exposes. Python additionally consults a per-fire safeWorkers list
-// naming which specific pawns the native pathfinder considers safe for that
-// exact fire; UpkeepFire here only carries id/home/size (see
-// policy.UpkeepFire, observation/colony_upkeep.go), so no such per-target
+// EvaluateFireSafety decides the firefight branch from the evidence this
+// project's wire schema actually exposes: UpkeepFire only carries id/home/size
+// (see policy.UpkeepFire, observation/colony_upkeep.go), so no per-target safe-worker
 // list exists to thread through. This deliberately narrows to a colony-wide
 // eligible-firefighter existence check paired with ReviewUpkeep's own Unsafe
 // verdict (more than three home fires, or any fire with unmeasured or >1

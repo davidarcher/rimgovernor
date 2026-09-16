@@ -7,7 +7,6 @@ import (
 	"time"
 
 	"github.com/davidarcher/RimGovernor/go/internal/bridge"
-	"github.com/davidarcher/RimGovernor/go/internal/runtimeowner"
 	"github.com/davidarcher/RimGovernor/go/internal/store"
 	k "github.com/davidarcher/RimGovernor/go/internal/wire/clockpb"
 	"google.golang.org/protobuf/proto"
@@ -158,7 +157,7 @@ func TestClockWorkerTransportBlockedWriteRetainsOwner(t *testing.T) {
 				if err == nil {
 					t.Fatal("Close released an in-flight transport")
 				}
-				if owner, err := runtimeowner.Acquire(context.Background(), s.config.Profile); err == nil {
+				if owner, err := AcquireProfile(context.Background(), s.config.Profile); err == nil {
 					_ = owner.Close()
 					t.Fatal("profile released while write blocked")
 				}
@@ -188,7 +187,7 @@ func TestClockWorkerTransportBlockedWriteRetainsOwner(t *testing.T) {
 				if pauses != 1 || writes != expectedWrites {
 					t.Fatal("unexpected native effects", pauses, writes)
 				}
-				owner, err := runtimeowner.Acquire(context.Background(), s.config.Profile)
+				owner, err := AcquireProfile(context.Background(), s.config.Profile)
 				if err != nil {
 					t.Fatal("joined Close retained profile", err)
 				}

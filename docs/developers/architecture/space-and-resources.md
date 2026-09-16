@@ -88,6 +88,6 @@ rather than declaring success when a bill is accepted.
 
 The relevant source is [go/internal/policy](../../../go/internal/policy) and
 [go/internal/store](../../../go/internal/store). Use [spatial
-contracts](../contracts/spatial-contracts.md) for exact geometry bounds and [command
-contracts](../contracts/command-contracts.md#provenance-and-resource-policies) for
-resource-policy semantics.
+contracts](../contracts/spatial-contracts.md) for exact geometry bounds and [the Go player
+API](../contracts/go-player-api.md#colony-configuration) for resource-policy
+semantics.

@@ -2,12 +2,12 @@ package policy
 
 import "github.com/davidarcher/RimGovernor/go/internal/domain"
 
-// WallRemovalTargetChanged mirrors wall_upgrade.py's resolve(): the exact
+// WallRemovalTargetChanged is the resolve-time blocker: the exact
 // native identity this step clears (the original wall, or the backup wall a
 // preceding same-plan action built) no longer matches what was proposed.
 const WallRemovalTargetChanged Reason = "wall_removal_target_changed"
 
-// WallRemovalGeometryChanged mirrors wall_upgrade.py's site re-check: native
+// WallRemovalGeometryChanged is the site re-check blocker: native
 // no longer reports this exact demolition/backup geometry as a legal,
 // supported wall-upgrade site.
 const WallRemovalGeometryChanged Reason = "wall_removal_geometry_changed"
