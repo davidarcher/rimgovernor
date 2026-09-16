@@ -34,14 +34,6 @@
   teams or require a global quiet period.
   Check the target checkout and diff locally; coordinate only actual overlap or
   an actively edited target. Resolve routine integration locally.
-- Before each landing, fetch origin and pull origin/main into the clean main
-  checkout (`git pull --ff-only origin main`), then integrate the verified task
-  commits and push main (`git push origin main`). If main has diverged, merge
-  origin/main without discarding either side and check any resolved conflicts.
-  If the push loses a race, fetch and integrate the new remote commits, then retry.
-  Never force-push main. For an empty remote, the first landing uses
-  `git push -u origin main`. A landing is complete only when origin/main contains
-  the landed commits; report any authentication or network blocker.
 - Test evidence follows relevant code, dependencies, inputs and environment, not
   the main HEAD hash. Unrelated main commits, clean cherry-picks and rebases do
   not invalidate passing results. Rerun only checks affected by changed behavior,
@@ -58,8 +50,7 @@
   and the [backlog issues](https://github.com/davidarcher/rimgovernor/issues).
   Read the component guide and contracts for the subsystem being changed.
   Runtime: Go (`go/`), React (`dashboard/`), GABS/RimBridgeServer and
-  `integrations/rimgovernor-native`. Native acceptance tooling is Go; see
-  [issue #38](https://github.com/davidarcher/rimgovernor/issues/38) for coverage gaps.
+  `integrations/rimgovernor-native`. Native acceptance tooling is Go.
 - Keep one shared goal/action system and deterministic Hands. Routine control is
   deterministic; player chat interprets explicit semantic requests. Advisers cannot
   write game orders or own colony invariants.
@@ -107,8 +98,7 @@
   Documentation-only edits need no game session. The full affected suite means
   the applicable automated suite, not the entire gameplay scenario matrix.
 - Checks named in old commits or issues may no longer exist; trust
-  `go/internal/nativeaccept/cmd/` and
-  [issue #38](https://github.com/davidarcher/rimgovernor/issues/38) over history.
+  `go/internal/nativeaccept/cmd/` over history.
 
 ## Documentation and comments
 
