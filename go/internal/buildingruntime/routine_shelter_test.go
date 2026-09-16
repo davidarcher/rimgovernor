@@ -2,6 +2,8 @@ package buildingruntime
 
 import (
 	"context"
+	"strconv"
+	"strings"
 	"testing"
 	"time"
 
@@ -654,5 +656,99 @@ func TestRoutineShelterAdoptsALoneDoor(t *testing.T) {
 	}
 	if len(plan.Spec.Dependencies()) != 0 {
 		t.Fatal("walls of an adopted shell must not wait for a door that already stands")
+	}
+}
+
+func TestRoutineShelterAdoptsTheBestMatchedShapeOrWaits(t *testing.T) {
+	t.Parallel()
+	r, db, base := shelterFixture(t)
+	base.reply.GetObserved().PlayerTechLevel = proto.String("Neolithic")
+	base.reply.GetObserved().Center = &c.Cell{X: proto.Int32(10), Z: proto.Int32(10)}
+	hutCells(base, 21, func(int32, int32) bool { return true })
+	door := domain.Cell{X: 4, Z: 3}
+	shapes := policy.ShellShapesAtDoor(door, policy.ShelterHut)
+	first, second := map[domain.Cell]bool{}, map[domain.Cell]bool{}
+	for _, w := range shapes[0].Walls() {
+		first[w] = true
+	}
+	for _, w := range shapes[1].Walls() {
+		second[w] = true
+	}
+	// The hut's lower courses are shared by the first two shapes at the door;
+	// one wall above them belongs to the first shape only, and one of its
+	// missing cells is briefly blocked (a cancelled frame still clearing).
+	var own []domain.Cell
+	n := &adoptingNative{sleepingNative: base}
+	for _, w := range shapes[0].Walls() {
+		if second[w] {
+			def := "Wall"
+			if w == door {
+				def = "Door"
+			}
+			n.standing = append(n.standing, bridge.Structure{ID: strconv.Itoa(len(n.standing)), Definition: def, Cell: w, Status: "built"})
+		} else {
+			own = append(own, w)
+		}
+	}
+	n.standing = append(n.standing, bridge.Structure{ID: "own", Definition: "Wall", Cell: own[0], Status: "built"})
+	blocked := own[1]
+	previewed := map[domain.Cell]bool{}
+	preview := base.onPreview
+	base.onPreview = func(ctx context.Context, v *bridge.BuildingPreview) {
+		preview(ctx, v)
+		if b, ok := v.Preview.Action.Building(); ok {
+			previewed[b.Cell()] = true
+			if b.Cell() == blocked {
+				v.Preview.CanPlace = domain.Known(false)
+			}
+		}
+	}
+	planner, err := NewRoutineShelterPlanner(r.reviewer, n)
+	if err != nil {
+		t.Fatal(err)
+	}
+	n.last = r.reviewer.player.session.State().Snapshot
+	result, err := planner.Step(context.Background())
+	if err != nil || result.Reason != BuildingShellBlocked {
+		t.Fatal("a blocked best-matched shell must wait, not adopt a lesser shape or site afresh:", result, err)
+	}
+	for cell := range previewed {
+		if !first[cell] {
+			t.Fatal("previewed a cell off the best-matched shape", cell)
+		}
+	}
+	plans, err := db.LoadPlans(context.Background(), 64)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, p := range plans {
+		if strings.HasPrefix(string(p.Spec.ID()), "routine-shell-") {
+			t.Fatal("no shell plan while the earlier shell is blocked", p.Spec.ID())
+		}
+	}
+
+	// Once the cell clears the first shape is adopted whole.
+	blocked = domain.Cell{X: -1, Z: -1}
+	n.last = r.reviewer.player.session.State().Snapshot
+	result, err = planner.Step(context.Background())
+	if err != nil || result.Reason != BuildingMethodAdmitted {
+		t.Fatal(result, err)
+	}
+	plan, err := db.LoadPlan(context.Background(), result.Decision.Goal.Methods[0].Plan)
+	if err != nil {
+		t.Fatal(err)
+	}
+	got := map[domain.Cell]bool{}
+	for _, action := range plan.Spec.Actions() {
+		b, _ := action.Building()
+		got[b.Cell()] = true
+	}
+	if len(got) != len(own)-1 {
+		t.Fatalf("reissued %d cells, want the %d missing cells of the first shape", len(got), len(own)-1)
+	}
+	for _, w := range own[1:] {
+		if !got[w] {
+			t.Fatal("missing wall not reissued", w)
+		}
 	}
 }

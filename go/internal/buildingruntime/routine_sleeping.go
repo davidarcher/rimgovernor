@@ -29,8 +29,12 @@ const (
 	BuildingMethodNoSpace      RoutineBuildingReason = "insufficient_verified_space"
 	BuildingMethodUsed         RoutineBuildingReason = "method_already_used"
 	BuildingMethodRefused      RoutineBuildingReason = "shared_admission_refused"
-	BuildingMethodExhausted    RoutineBuildingReason = "retry_bound_exhausted"
-	BuildingMethodAdmitted     RoutineBuildingReason = "admitted"
+	// BuildingShellBlocked: a shell begun earlier stands at the colony centre
+	// but the cells it still needs are not placeable this review, or it
+	// stands whole; the routine waits rather than site a second shell.
+	BuildingShellBlocked    RoutineBuildingReason = "earlier_shell_blocked"
+	BuildingMethodExhausted RoutineBuildingReason = "retry_bound_exhausted"
+	BuildingMethodAdmitted  RoutineBuildingReason = "admitted"
 	// BuildingMethodSeparation defers a butcher bill while the separated
 	// butcher spot build still owns the food-supply goal.
 	BuildingMethodSeparation RoutineBuildingReason = "butcher_separation_pending"
