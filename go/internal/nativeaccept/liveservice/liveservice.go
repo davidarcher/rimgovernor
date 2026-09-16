@@ -316,50 +316,23 @@ func (p *Prepared) Start(ctx context.Context, report na.Report) (*Service, error
 		case <-time.After(500 * time.Millisecond):
 		}
 	}
-	// Acquire attaches to a plan; a Silver spending policy at its own default
-	// is a genuine no-op that exists only to anchor the acquisition. The same
-	// requestId replays on restart, returning the plan already committed.
-	submission, status, err := s.API("POST", "/api/player/resource-policy/update", map[string]any{
-		"requestId": p.cfg.Prefix + "-anchor-1",
-		"expected":  p.Identity,
-		"policy":    map[string]any{"resource": "Silver", "spending": "normal"},
-	})
-	if err != nil {
-		s.Stop()
-		return nil, err
-	}
-	if status != 200 && status != 201 {
-		s.Stop()
-		return nil, fmt.Errorf("unexpected anchor plan submission status=%d body=%#v", status, submission)
-	}
-	planID, revision := na.AsString(submission["planId"]), na.AsString(submission["revision"])
-	if planID == "" || revision == "" {
-		s.Stop()
-		return nil, fmt.Errorf("unexpected anchor plan submission: %#v", submission)
-	}
-	direction := "0"
-	if st, status, err := s.API("GET", "/api/state", nil); err == nil && status == 200 {
-		if generation, ok := na.AsMap(st["generation"]); ok {
-			if observed := na.AsString(generation["direction"]); observed != "" {
-				direction = observed
-			}
-		}
-	}
-	acquired, status, err := s.API("POST", "/api/player/control/acquire", map[string]any{
-		"requestId": label + "-acquire", "expected": p.Identity,
-		"planId": planID, "revision": revision, "expectedDirection": direction,
+	// Resume needs no anchor plan: authority is the world's own root plan,
+	// created on first resume. Every start uses a fresh requestId because a
+	// replayed one returns the earlier, already-lapsed record.
+	acquired, status, err := s.API("POST", "/api/player/control/resume", map[string]any{
+		"requestId": label + "-resume", "expected": p.Identity,
 	})
 	if err != nil {
 		s.Stop()
 		return nil, err
 	}
 	record, _ := na.AsMap(acquired["record"])
-	if status != 200 || na.AsString(record["phase"]) != "granted" {
+	if status != 200 || na.AsString(record["phase"]) != "running" {
 		s.Stop()
-		return nil, fmt.Errorf("acquire was not granted: status=%d %#v", status, acquired)
+		return nil, fmt.Errorf("resume was not running: status=%d %#v", status, acquired)
 	}
-	report[label+"_acquired"] = acquired
-	s.keepAlive = &authorityKeepAlive{api: s.API, identity: p.Identity, planID: planID, revision: revision, prefix: label, direction: na.AsString(record["direction"])}
+	report[label+"_resumed"] = acquired
+	s.keepAlive = &authorityKeepAlive{api: s.API, identity: p.Identity, prefix: label}
 	keepCtx, stop := context.WithCancel(ctx)
 	s.stopKeep = stop
 	s.keepWG.Add(1)
@@ -476,12 +449,9 @@ func (p *Prepared) Finish(ctx context.Context, report na.Report) error {
 type authorityKeepAlive struct {
 	api      func(method, path string, body map[string]any) (map[string]any, int, error)
 	identity map[string]any
-	planID   string
-	revision string
 	prefix   string
 
 	mu                sync.Mutex
-	direction         string
 	attempts          int
 	reacquired        int
 	acknowledged      int
@@ -493,7 +463,7 @@ func (k *authorityKeepAlive) snapshot() map[string]any {
 	k.mu.Lock()
 	defer k.mu.Unlock()
 	out := map[string]any{
-		"attempts": k.attempts, "reacquired": k.reacquired, "final_direction": k.direction,
+		"attempts": k.attempts, "reacquired": k.reacquired,
 		"acknowledged": k.acknowledged, "acknowledge_failed": k.acknowledgeFailed,
 	}
 	if k.lastError != "" {
@@ -546,38 +516,23 @@ func (k *authorityKeepAlive) run(ctx context.Context) {
 			}
 		}
 		k.mu.Lock()
-		direction := k.direction
 		k.attempts++
 		k.mu.Unlock()
-		acquired, status, err := k.api("POST", "/api/player/control/acquire", map[string]any{
+		acquired, status, err := k.api("POST", "/api/player/control/resume", map[string]any{
 			"requestId": fmt.Sprintf("%s-reacquire-%d", k.prefix, time.Now().UnixNano()),
-			"expected":  k.identity, "planId": k.planID, "revision": k.revision,
-			"expectedDirection": direction,
+			"expected":  k.identity,
 		})
 		if err != nil {
 			k.note(err.Error())
 			continue
 		}
 		record, _ := na.AsMap(acquired["record"])
-		if observed := na.AsString(record["direction"]); observed != "" {
-			k.mu.Lock()
-			k.direction = observed
-			k.mu.Unlock()
-		} else if state, ok := na.AsMap(acquired["state"]); ok {
-			if generation, ok := na.AsMap(state["generation"]); ok {
-				if observed := na.AsString(generation["direction"]); observed != "" {
-					k.mu.Lock()
-					k.direction = observed
-					k.mu.Unlock()
-				}
-			}
-		}
 		if status != 200 {
 			k.note(fmt.Sprintf("reacquire status=%d body=%#v", status, acquired))
 			continue
 		}
-		if na.AsString(record["phase"]) != "granted" {
-			k.note(fmt.Sprintf("reacquire not granted: %#v", acquired))
+		if na.AsString(record["phase"]) != "running" {
+			k.note(fmt.Sprintf("reacquire not running: %#v", acquired))
 			continue
 		}
 		k.mu.Lock()
