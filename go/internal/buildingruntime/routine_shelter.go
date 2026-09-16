@@ -105,8 +105,8 @@ const shellAdoptionReach int32 = 64
 
 func (r *RoutineBuildingPlanner) previewShell(ctx context.Context, snapshot domain.GenerationSnapshot, facts observation.ColonyProjection, protected []domain.Cell, check func() error) ([]policy.Preview, policy.StockObservation, RoutineBuildingReason, error) {
 	style := shelterStyle(facts)
-	if selected, stock, adopted, err := r.adoptShell(ctx, snapshot, facts, protected, style, check); err != nil || adopted {
-		return selected, stock, "", err
+	if selected, stock, reason, adopted, err := r.adoptShell(ctx, snapshot, facts, protected, style, check); err != nil || adopted {
+		return selected, stock, reason, err
 	}
 	var cells []policy.SiteCell
 	for _, c := range facts.Cells {
@@ -189,29 +189,34 @@ func (r *RoutineBuildingPlanner) previewShellCell(ctx context.Context, snapshot 
 // otherwise ordered ring. Without this the next review would site a second
 // shell beside the first. A shell is recognised from a standing player door
 // on one of the shapes the starter search issues at that door
-// (policy.ShellShapesAtDoor) whose every other cell either stands already or
-// is placeable now; a lone door suffices because an interrupted plan's
-// blueprints and frames are cancelled natively and only its completed cells
-// survive. Doors are tried nearest the colony centre first.
-func (r *RoutineBuildingPlanner) adoptShell(ctx context.Context, snapshot domain.GenerationSnapshot, facts observation.ColonyProjection, protected []domain.Cell, style policy.ShelterStyle, check func() error) ([]policy.Preview, policy.StockObservation, bool, error) {
+// (policy.ShellShapesAtDoor); a lone door suffices because an interrupted
+// plan's blueprints and frames are cancelled natively and only its completed
+// cells survive. Shapes at one door share their lowest courses, so the shape
+// is the one the census matches best, decided before any preview: adopting
+// the first shape whose remaining cells happened to be placeable issued a
+// second, taller ring over a half-built hut once the true ring was briefly
+// blocked. When the best-matched shape is not placeable now the review
+// waits (BuildingShellBlocked) rather than siting a fresh shell beside it.
+// Doors are tried nearest the colony centre first.
+func (r *RoutineBuildingPlanner) adoptShell(ctx context.Context, snapshot domain.GenerationSnapshot, facts observation.ColonyProjection, protected []domain.Cell, style policy.ShelterStyle, check func() error) ([]policy.Preview, policy.StockObservation, RoutineBuildingReason, bool, error) {
 	reader, ok := r.native.(structureReader)
 	if !ok {
-		return nil, policy.StockObservation{}, false, nil
+		return nil, policy.StockObservation{}, "", false, nil
 	}
 	minimum := domain.Cell{X: max(0, facts.Center.X-shellAdoptionReach), Z: max(0, facts.Center.Z-shellAdoptionReach)}
 	maximum := domain.Cell{X: min(facts.Bounds.Width-1, facts.Center.X+shellAdoptionReach), Z: min(facts.Bounds.Height-1, facts.Center.Z+shellAdoptionReach)}
 	if minimum.X > maximum.X || minimum.Z > maximum.Z {
-		return nil, policy.StockObservation{}, false, nil
+		return nil, policy.StockObservation{}, "", false, nil
 	}
 	census, _, err := reader.ReadStructures(ctx, boundary.Identity(snapshot), minimum, maximum, []string{"Wall", "Door"})
 	if err != nil {
-		return nil, policy.StockObservation{}, false, err
+		return nil, policy.StockObservation{}, "", false, err
 	}
 	if err := check(); err != nil {
-		return nil, policy.StockObservation{}, false, err
+		return nil, policy.StockObservation{}, "", false, err
 	}
 	if census.Tick != facts.Identity.Tick || census.Generation != uint64(snapshot.Native) {
-		return nil, policy.StockObservation{}, false, ErrControl
+		return nil, policy.StockObservation{}, "", false, ErrControl
 	}
 	standing := make(map[domain.Cell]string, len(census.Structures))
 	var doors []domain.Cell
@@ -222,7 +227,7 @@ func (r *RoutineBuildingPlanner) adoptShell(ctx context.Context, snapshot domain
 		}
 	}
 	if len(doors) == 0 {
-		return nil, policy.StockObservation{}, false, nil
+		return nil, policy.StockObservation{}, "", false, nil
 	}
 	sort.Slice(doors, func(i, j int) bool {
 		a, b := squaredDistance(doors[i], facts.Center), squaredDistance(doors[j], facts.Center)
@@ -236,40 +241,55 @@ func (r *RoutineBuildingPlanner) adoptShell(ctx context.Context, snapshot domain
 		guarded[c] = true
 	}
 	for d, door := range doors {
-		for shape, shell := range policy.ShellShapesAtDoor(door, style) {
-			perimeter := shell.Placements("Wall", "Door", "WoodLog")
-			stock := policy.StockObservation{Snapshot: snapshot, Tick: facts.Identity.Tick}
-			var selected []policy.Preview
-			matched, fits := 0, true
-			for i, building := range perimeter {
-				cell := building.Cell()
-				if standing[cell] == building.Definition() {
+		shapes := policy.ShellShapesAtDoor(door, style)
+		best, bestMatched := -1, 0
+		for shape, shell := range shapes {
+			matched := 0
+			for _, building := range shell.Placements("Wall", "Door", "WoodLog") {
+				if standing[building.Cell()] == building.Definition() {
 					matched++
-					continue
 				}
-				if _, other := standing[cell]; other || guarded[cell] {
-					fits = false
-					break
-				}
-				preview, placeable, reason, err := r.previewShellCell(ctx, snapshot, facts, domain.ActionID(fmt.Sprintf("%s-adopt-%d-%d-%d", snapshot.Plan, d, shape, i)), building, check)
-				if err != nil {
-					return nil, policy.StockObservation{}, false, err
-				}
-				if reason != "" || !placeable {
-					fits = false
-					break
-				}
-				if err := mergeRoutineStock(&stock, preview.Stock, len(selected) == 0); err != nil {
-					return nil, policy.StockObservation{}, false, err
-				}
-				selected = append(selected, preview.Preview)
 			}
-			if fits && matched >= 1 && len(selected) > 0 {
-				return selected, stock, true, nil
+			if matched > bestMatched {
+				best, bestMatched = shape, matched
 			}
 		}
+		if best < 0 {
+			continue
+		}
+		perimeter := shapes[best].Placements("Wall", "Door", "WoodLog")
+		stock := policy.StockObservation{Snapshot: snapshot, Tick: facts.Identity.Tick}
+		var selected []policy.Preview
+		for i, building := range perimeter {
+			cell := building.Cell()
+			if standing[cell] == building.Definition() {
+				continue
+			}
+			if _, other := standing[cell]; other || guarded[cell] {
+				return nil, policy.StockObservation{}, BuildingShellBlocked, true, nil
+			}
+			preview, placeable, reason, err := r.previewShellCell(ctx, snapshot, facts, domain.ActionID(fmt.Sprintf("%s-adopt-%d-%d-%d", snapshot.Plan, d, best, i)), building, check)
+			if err != nil {
+				return nil, policy.StockObservation{}, "", false, err
+			}
+			if reason != "" {
+				return nil, policy.StockObservation{}, reason, true, nil
+			}
+			if !placeable {
+				return nil, policy.StockObservation{}, BuildingShellBlocked, true, nil
+			}
+			if err := mergeRoutineStock(&stock, preview.Stock, len(selected) == 0); err != nil {
+				return nil, policy.StockObservation{}, "", false, err
+			}
+			selected = append(selected, preview.Preview)
+		}
+		if len(selected) == 0 {
+			// The shell stands whole; nothing to adopt and nothing to site.
+			return nil, policy.StockObservation{}, BuildingShellBlocked, true, nil
+		}
+		return selected, stock, "", true, nil
 	}
-	return nil, policy.StockObservation{}, false, nil
+	return nil, policy.StockObservation{}, "", false, nil
 }
 
 func squaredDistance(a, b domain.Cell) int64 {

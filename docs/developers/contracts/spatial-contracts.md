@@ -93,12 +93,16 @@ completed natively are then the only durable record of a shell in progress.
 Before siting a shell, the routine reads the player wall and door census
 within 64 cells of the colony centre and, for each player door nearest the
 centre first, tries every starter shape whose south door lands on that cell
-(the hut templates for the hut style, then the 9x9 rectangle). A shape is
-adopted when the door stands on it and every other ring cell either stands
-already or is placeable now; the admitted plan holds only the missing cells,
-and its walls do not wait for a door that already stands. A blocked ring
-cell or a grown irregular shell (which has no template) is not adopted and
-the routine sites afresh.
+(the hut templates for the hut style, then the 9x9 rectangle). Shapes at
+one door share their lowest courses, so the shape adopted is the one whose
+ring the census matches best (most standing cells, earliest template on a
+tie), decided before any placement preview; the admitted plan holds only
+that shape's missing cells, and its walls do not wait for a door that
+already stands. When a missing cell of the best-matched shape is not
+placeable now (for instance a cancelled frame still clearing) the review
+reports `earlier_shell_blocked` and waits: it never adopts a lesser shape at
+the same door nor sites a second shell beside the first. A grown irregular
+shell (which has no template) is not adopted and the routine sites afresh.
 
 Indoor furnishing treats the four orthogonal neighbours of every observed
 doorway (a door, or a door blueprint or frame) as protected: the entrance
