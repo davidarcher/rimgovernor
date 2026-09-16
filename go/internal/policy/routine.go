@@ -677,7 +677,14 @@ func DetectRoutine(f RoutineFacts, previous RoutineLatches, p RoutinePolicy) (Ro
 		addAssessment(facility.id, priority, recovered)
 		if !positive(recovered) {
 			addGoal(facility.id, priority)
-			r.Goals[len(r.Goals)-1].MethodUnavailable = true
+			// Binary need, like the upkeep.Needs goals above: a confirmed
+			// deficit ranks at Known(1.0); an unknown census stays
+			// DevelopmentUnknown. Method availability follows the composed
+			// capability list (AvailableMethods below), since both the
+			// MaintainHomeCoverage and MaintainStoneShell verticals dispatch.
+			if _, known := recovered.Value(); known {
+				r.Goals[len(r.Goals)-1].Deficit = domain.Known(1.0)
+			}
 		}
 	}
 	sleepingRecovered := f.SleepingRecovered

@@ -203,7 +203,7 @@ func (r *RoutineStoneShellPlanner) propose(call, epoch context.Context, goal sto
 	snapshot.Plan, snapshot.Revision = id, 1
 	var actions []domain.Action
 	var previews []policy.Preview
-	var stock policy.StockObservation
+	stock := policy.StockObservation{Snapshot: snapshot, Tick: projection.Identity.Tick}
 	first := true
 	backupIDs := make([]domain.ActionID, 0, backupCount)
 	for i, cell := range site.BackupCells {
