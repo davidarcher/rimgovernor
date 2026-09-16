@@ -69,7 +69,15 @@
 - Use configured local LM Studio models with no silent paid-provider fallback.
 - Verify native outcomes: receipts do not prove pawn work completed. Observe
   uncertain writes before retrying. Plans do not own arbitrary map coordinates.
-- Manual, player direction and colony/load/map changes invalidate pending work.
+- Manual mode is the only thing that pauses controller action: while
+  `NativeControlAuthority` reads Manual (e.g. the player took over during
+  combat), the controller does nothing. Once it reads Auto again, the
+  controller may act on anything on the map immediately, including
+  something the player just drafted, forced, restricted or placed — there is
+  no per-subsystem "player owns this, hands off" state and no waiting
+  period. Colony/load/map changes and stale in-flight snapshots still
+  invalidate pending work; that is ordinary concurrency safety, not a
+  player-ownership rule.
 - Preserve UI drafts and last good data during background refreshes.
 
 ## Validation

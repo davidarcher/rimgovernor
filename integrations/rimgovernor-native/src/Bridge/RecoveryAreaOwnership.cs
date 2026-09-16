@@ -23,7 +23,6 @@ namespace HomeBridge.BridgeTools
             foreach (var claim in state.Claims.Where(c => c.Pawn?.playerSettings == __instance
                 && c.Pawn.Map == c.Assigned?.Map).ToList())
             {
-                state.Overrides.Add(claim.Pawn);
                 state.Claims.Remove(claim);
             }
         }

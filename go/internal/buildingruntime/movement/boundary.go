@@ -133,9 +133,6 @@ func (b *MovementBoundary) InspectMovement(ctx context.Context, target executor.
 	if row.Health != nil {
 		facts.Pawn.Bleeding, facts.Pawn.NeedsTend = boundary.FactBool(row.Health.Bleeding), boundary.FactBool(row.Health.NeedsTend)
 	}
-	if row.Job != nil {
-		facts.Pawn.PlayerForced, facts.Pawn.QueuedJobs = boundary.FactBool(row.Job.PlayerForced), boundary.FactUint(row.Job.QueuedJobs)
-	}
 	// A claim is either held by the single bot process or it is not: native
 	// no longer reports a distinct session/direction for it (see
 	// observations.proto's OwnedDraftClaim), so an observed claim is by
@@ -191,7 +188,7 @@ func (b *MovementBoundary) MoveTo(ctx context.Context, dispatch executor.Movemen
 	if err = ctx.Err(); err != nil {
 		return out, err
 	}
-	pre := &a.WritePrecondition{Identity: attempt.Identity, Attempt: attempt.Attempt, ExpectedGeneration: proto.Uint64(attempt.NativeGeneration),}
+	pre := &a.WritePrecondition{Identity: attempt.Identity, Attempt: attempt.Attempt, ExpectedGeneration: proto.Uint64(attempt.NativeGeneration)}
 	reply, _, err := b.writer.MovePawn(ctx, pre, movementCommand(attempt.PawnID, dispatch.Admission.PawnSnapshotToken, dispatch.Admission.Destination))
 	var refused *bridge.NativeFailure
 	if errors.As(err, &refused) && refused.Value != nil && refused.Value.GetCode() != c.FailureCode_FAILURE_CODE_ATTEMPT_CONFLICT {

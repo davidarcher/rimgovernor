@@ -41,7 +41,7 @@ func rangedRequest(t *testing.T) RangedDefenseRequest {
 	if err != nil {
 		t.Fatal(err)
 	}
-	return RangedDefenseRequest{Action: a, Progress: p, DraftProgress: d, Current: s, MinimumTick: 11, Facts: RangedDefenseFacts{Snapshot: s, PawnTick: 12, PreviewTick: 13, Emergency: e, NativeCanTry: domain.Known(true), Pawn: RangedPawnFacts{Pawn: "pawn", SnapshotToken: "pawn-cas", Dead: domain.Known(false), Downed: domain.Known(false), Bleeding: domain.Known(false), NeedsTend: domain.Known(false), HealthFraction: domain.Known(1.0), FreeColonist: domain.Known(true), Drafted: domain.Known(true), PlayerForced: domain.Known(false), QueuedJobs: domain.Known(uint32(0)), ViolenceCapable: domain.Known(true), RangedWeaponEquipped: domain.Known(true), Owner: domain.Known(MeleeDraftOwner{Claim: "claim", Session: "session", Direction: 1})}, Target: RangedTargetFacts{Pawn: "target", SnapshotToken: "target-cas", Dead: domain.Known(false), Downed: domain.Known(false), Hostile: domain.Known(true)}}}
+	return RangedDefenseRequest{Action: a, Progress: p, DraftProgress: d, Current: s, MinimumTick: 11, Facts: RangedDefenseFacts{Snapshot: s, PawnTick: 12, PreviewTick: 13, Emergency: e, NativeCanTry: domain.Known(true), Pawn: RangedPawnFacts{Pawn: "pawn", SnapshotToken: "pawn-cas", Dead: domain.Known(false), Downed: domain.Known(false), Bleeding: domain.Known(false), NeedsTend: domain.Known(false), HealthFraction: domain.Known(1.0), FreeColonist: domain.Known(true), Drafted: domain.Known(true), ViolenceCapable: domain.Known(true), RangedWeaponEquipped: domain.Known(true), Owner: domain.Known(MeleeDraftOwner{Claim: "claim", Session: "session", Direction: 1})}, Target: RangedTargetFacts{Pawn: "target", SnapshotToken: "target-cas", Dead: domain.Known(false), Downed: domain.Known(false), Hostile: domain.Known(true)}}}
 }
 
 func TestRangedDefenseAdmission(t *testing.T) {
@@ -107,8 +107,6 @@ func TestRangedDefenseHolds(t *testing.T) {
 		{"ranged unknown", func(r *RangedDefenseRequest) { r.Facts.Pawn.RangedWeaponEquipped = domain.Unknown[bool]() }},
 		{"not free", func(r *RangedDefenseRequest) { r.Facts.Pawn.FreeColonist = domain.Known(false) }},
 		{"undrafted", func(r *RangedDefenseRequest) { r.Facts.Pawn.Drafted = domain.Known(false) }},
-		{"player order", func(r *RangedDefenseRequest) { r.Facts.Pawn.PlayerForced = domain.Known(true) }},
-		{"queue", func(r *RangedDefenseRequest) { r.Facts.Pawn.QueuedJobs = domain.Known(uint32(1)) }},
 		{"target downed", func(r *RangedDefenseRequest) { r.Facts.Target.Downed = domain.Known(true) }},
 		{"target neutral", func(r *RangedDefenseRequest) { r.Facts.Target.Hostile = domain.Known(false) }},
 		{"preview refusal", func(r *RangedDefenseRequest) { r.Facts.NativeCanTry = domain.Known(false) }},

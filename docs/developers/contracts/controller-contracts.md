@@ -136,12 +136,13 @@ available.
 During native toxic fallout, `home/recovery_area` can lease an existing wholly
 roofed, reachable allowed area. It refuses unsafe areas and any widening of a
 player restriction. The saved lease expires after 600 ticks, condition expiry or
-a load change. Any later area setter relinquishes ownership, including a change
-and reversal between observations. Player overrides are preserved. Leases belong
-to one map; a returning pawn's expired lease is released without changing another
-map's area setting. These areas restrict work destinations; they do not make
-travel paths or every environmental hazard
-safe. No observed refuge produces a blocker. Outdoor acquisition and field
+a load change. Any later area setter drops the stale claim immediately, including
+a change and reversal between observations; there is no permanent "player owns
+this pawn's work area" record any more, so the controller may issue a fresh lease
+for that pawn right away. Leases belong to one map; a returning pawn's expired
+lease is released without changing another map's area setting. These areas
+restrict work destinations; they do not make travel paths or every environmental
+hazard safe. No observed refuge produces a blocker. Outdoor acquisition and field
 expansion pause during the roof-sensitive hazard and become eligible again after
 expiry. Native growers retain existing fields and resow lost crops under normal
 work permissions; forecast harvest never substitutes for stored food.

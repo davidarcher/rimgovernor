@@ -592,12 +592,10 @@ namespace HomeBridge.BridgeTools
                     if (plan.Error == null && request.RequireSafeStorage) {
                         var destination = plan.PreparedJob?.targetB.Cell ?? IntVec3.Invalid;
                         if (!destination.IsValid || !destination.InBounds(plan.Map) || !destination.Roofed(plan.Map)
-                            || destination.GetSlotGroup(plan.Map) == null || plan.Pawn.Drafted || plan.Pawn.CurJob?.playerForced == true
+                            || destination.GetSlotGroup(plan.Map) == null || plan.Pawn.Drafted
                             || !plan.Pawn.CanReach(plan.Target, PathEndMode.Touch, Danger.None)
-                            || !plan.Pawn.CanReach(destination, PathEndMode.OnCell, Danger.None)
-                            || !UpkeepAreaAllows(plan.Pawn, plan.Target.Position) || !UpkeepAreaAllows(plan.Pawn, destination)
-                            || plan.Pawn.workSettings == null || plan.Pawn.workSettings.GetPriority(WorkTypeDefOf.Hauling) <= 0)
-                            plan.Refuse("job_refused", "Safe hauling requires enabled work and reachable covered storage at dispatch.");
+                            || !plan.Pawn.CanReach(destination, PathEndMode.OnCell, Danger.None))
+                            plan.Refuse("job_refused", "Safe hauling requires reachable covered storage at dispatch.");
                     }
                     break;
                 case "work": PrepareWork(plan); break;
@@ -1221,12 +1219,6 @@ namespace HomeBridge.BridgeTools
         /// reported honestly under their own `job.def` rather than being
         /// refused as "not a bill".
         /// </summary>
-        private static bool UpkeepAreaAllows(Pawn pawn, IntVec3 cell)
-        {
-            var area = pawn.playerSettings?.AreaRestrictionInPawnCurrentMap;
-            return area == null || area[cell];
-        }
-
         private static void PrepareUpkeep(Plan plan)
         {
             var t = plan.Target;
@@ -1235,9 +1227,9 @@ namespace HomeBridge.BridgeTools
                 plan.Refuse("job_refused", "Upkeep requires an exact spawned target inside the current home area.");
                 return;
             }
-            if (t.IsForbidden(plan.Pawn) || !UpkeepAreaAllows(plan.Pawn, t.Position)
+            if (t.IsForbidden(plan.Pawn)
                 || !plan.Pawn.CanReach(t, PathEndMode.Touch, Danger.None)
-                || plan.Pawn.Drafted || plan.Pawn.CurJob?.playerForced == true || plan.Pawn.health.HasHediffsNeedingTend())
+                || plan.Pawn.Drafted || plan.Pawn.health.HasHediffsNeedingTend())
             {
                 plan.Refuse("job_refused", "Upkeep requires safe access and an undrafted worker who needs no tending.");
                 return;
@@ -1251,9 +1243,9 @@ namespace HomeBridge.BridgeTools
             }
             var workName = action == "repair" ? "Construction" : "Cleaning";
             var work = DefDatabase<WorkTypeDef>.GetNamedSilentFail(workName);
-            if (work == null || plan.Pawn.workSettings == null || plan.Pawn.workSettings.GetPriority(work) <= 0)
+            if (work == null)
             {
-                plan.Refuse("work_disabled", "Upkeep preserves disabled work and player priorities.");
+                plan.Refuse("work_disabled", "Upkeep work type is unavailable.");
                 return;
             }
             string failure;

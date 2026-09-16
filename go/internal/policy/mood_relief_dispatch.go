@@ -27,9 +27,9 @@ const MoodReliefFencingStale Reason = "mood_relief_fencing_stale"
 // including refreshing both dispatch-fencing values, immediately before
 // dispatch -- mirroring WastePawnFacts's role for MaintainWaste.
 type MoodReliefPawnFacts struct {
-	Pawn                                        domain.PawnID
-	SnapshotToken                               string
-	Dead, Downed, Drafted, Mental, PlayerForced domain.Fact[bool]
+	Pawn                          domain.PawnID
+	SnapshotToken                 string
+	Dead, Downed, Drafted, Mental domain.Fact[bool]
 	// ExpectedJob and ExpectedScheduleDef are freshly decoded (by
 	// buildingruntime's moodReliefDispatchFacts) at inspection time, not
 	// copied from the committed action: a stale value would otherwise let
@@ -85,7 +85,7 @@ func EvaluateMoodRelief(r MoodReliefDispatchRequest) DraftDecision {
 	if f.Pawn.Pawn != relief.Pawn() || !validToken(f.Pawn.SnapshotToken) {
 		return refuse(UnknownFacts)
 	}
-	for _, fact := range []domain.Fact[bool]{f.Pawn.Dead, f.Pawn.Downed, f.Pawn.Drafted, f.Pawn.Mental, f.Pawn.PlayerForced} {
+	for _, fact := range []domain.Fact[bool]{f.Pawn.Dead, f.Pawn.Downed, f.Pawn.Drafted, f.Pawn.Mental} {
 		if _, known := fact.Value(); !known {
 			return refuse(UnknownFacts)
 		}
@@ -94,11 +94,10 @@ func EvaluateMoodRelief(r MoodReliefDispatchRequest) DraftDecision {
 	downed, _ := f.Pawn.Downed.Value()
 	drafted, _ := f.Pawn.Drafted.Value()
 	mental, _ := f.Pawn.Mental.Value()
-	forced, _ := f.Pawn.PlayerForced.Value()
 	if dead || downed {
 		return refuse(MoodReliefPawnUnavailable)
 	}
-	if drafted || mental || forced {
+	if drafted || mental {
 		return refuse(PlayerOrder)
 	}
 	job, jobKnown := f.Pawn.ExpectedJob.Value()

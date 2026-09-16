@@ -52,7 +52,7 @@ func EvaluateMovement(r MovementRequest) DraftDecision {
 			return refuse(CriticalMedical)
 		}
 	}
-	for _, fact := range []domain.Fact[bool]{f.Pawn.Dead, f.Pawn.Downed, f.Pawn.Bleeding, f.Pawn.NeedsTend, f.Pawn.FreeColonist, f.Pawn.Drafted, f.Pawn.PlayerForced, f.NativeCanTry} {
+	for _, fact := range []domain.Fact[bool]{f.Pawn.Dead, f.Pawn.Downed, f.Pawn.Bleeding, f.Pawn.NeedsTend, f.Pawn.FreeColonist, f.Pawn.Drafted, f.NativeCanTry} {
 		if _, known := fact.Value(); !known {
 			return refuse(UnknownFacts)
 		}
@@ -70,14 +70,6 @@ func EvaluateMovement(r MovementRequest) DraftDecision {
 	drafted, _ := f.Pawn.Drafted.Value()
 	if !drafted {
 		return refuse(DraftOwnership)
-	}
-	forced, _ := f.Pawn.PlayerForced.Value()
-	queued, known := f.Pawn.QueuedJobs.Value()
-	if !known {
-		return refuse(UnknownFacts)
-	}
-	if forced || queued != 0 {
-		return refuse(PlayerOrder)
 	}
 	eligible, _ := f.NativeCanTry.Value()
 	if !eligible {

@@ -121,7 +121,7 @@ func EvaluateRangedDefense(r RangedDefenseRequest) DraftDecision {
 	if health <= float64(float32(0.5005)) {
 		return refuse(CriticalMedical)
 	}
-	for _, fact := range []domain.Fact[bool]{f.Pawn.FreeColonist, f.Pawn.ViolenceCapable, f.Pawn.RangedWeaponEquipped, f.Pawn.Drafted, f.Pawn.PlayerForced, f.Target.Dead, f.Target.Downed, f.Target.Hostile, f.NativeCanTry} {
+	for _, fact := range []domain.Fact[bool]{f.Pawn.FreeColonist, f.Pawn.ViolenceCapable, f.Pawn.RangedWeaponEquipped, f.Pawn.Drafted, f.Target.Dead, f.Target.Downed, f.Target.Hostile, f.NativeCanTry} {
 		if _, known := fact.Value(); !known {
 			return refuse(UnknownFacts)
 		}
@@ -138,14 +138,6 @@ func EvaluateRangedDefense(r RangedDefenseRequest) DraftDecision {
 	drafted, _ := f.Pawn.Drafted.Value()
 	if !drafted {
 		return refuse(DraftOwnership)
-	}
-	forced, _ := f.Pawn.PlayerForced.Value()
-	queued, known := f.Pawn.QueuedJobs.Value()
-	if !known {
-		return refuse(UnknownFacts)
-	}
-	if forced || queued != 0 {
-		return refuse(PlayerOrder)
 	}
 	dead, _ := f.Target.Dead.Value()
 	down, _ := f.Target.Downed.Value()

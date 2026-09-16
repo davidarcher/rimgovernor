@@ -132,9 +132,6 @@ func homeDoctorAvailable(rows []*n.PawnState, crew map[domain.PawnID]bool) domai
 
 func caravanCrewFacts(pawn domain.PawnID, row *n.PawnState, token string) policy.CaravanCrewFacts {
 	facts := policy.CaravanCrewFacts{Pawn: pawn, SnapshotToken: token, Dead: boundary.FactBool(row.Dead), Downed: boundary.FactBool(row.Downed), Drafted: boundary.FactBool(row.Drafted), MentalState: boundary.FactPresence(row.MentalState, row.Issues, "mental_state")}
-	if row.Job != nil && !boundary.IssueField(row.Job.Issues, "player_forced") && !boundary.IssueField(row.Job.Issues, "queued_jobs") {
-		facts.PlayerForced, facts.QueuedJobs = boundary.FactBool(row.Job.PlayerForced), boundary.FactUint(row.Job.QueuedJobs)
-	}
 	return facts
 }
 
@@ -383,7 +380,7 @@ func (b *CaravanDepartureBoundary) DepartCaravan(ctx context.Context, dispatch e
 	if err = ctx.Err(); err != nil {
 		return out, err
 	}
-	pre := &a.WritePrecondition{Identity: attempt.Identity, Attempt: attempt.Attempt, ExpectedGeneration: proto.Uint64(attempt.Generation),}
+	pre := &a.WritePrecondition{Identity: attempt.Identity, Attempt: attempt.Attempt, ExpectedGeneration: proto.Uint64(attempt.Generation)}
 	reply, _, err := b.writer.ApplyCaravanDeparture(ctx, pre, attempt.CatalogToken, attempt.PawnIDs, attempt.Cargo, attempt.DestinationTile)
 	var refused *bridge.NativeFailure
 	if errors.As(err, &refused) && refused.Value != nil && refused.Value.GetCode() != c.FailureCode_FAILURE_CODE_ATTEMPT_CONFLICT {

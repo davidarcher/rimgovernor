@@ -212,14 +212,10 @@ func EvaluateTend(r TendRequest) DraftDecision {
 			}
 		}
 	}
-	for _, fact := range []domain.Fact[bool]{f.Doctor.Dead, f.Doctor.Downed, f.Doctor.MentalState, f.Doctor.PlayerForced} {
+	for _, fact := range []domain.Fact[bool]{f.Doctor.Dead, f.Doctor.Downed, f.Doctor.MentalState} {
 		if _, known := fact.Value(); !known {
 			return refuse(UnknownFacts)
 		}
-	}
-	queued, known := f.Doctor.QueuedJobs.Value()
-	if !known {
-		return refuse(UnknownFacts)
 	}
 	existingDoctorJob, known := f.Doctor.ExistingJobDef.Value()
 	if !known {
@@ -244,11 +240,10 @@ func EvaluateTend(r TendRequest) DraftDecision {
 	dead, _ := f.Doctor.Dead.Value()
 	downed, _ := f.Doctor.Downed.Value()
 	mental, _ := f.Doctor.MentalState.Value()
-	forced, _ := f.Doctor.PlayerForced.Value()
 	if dead || downed {
 		return refuse(CriticalMedical)
 	}
-	if mental || forced || queued != 0 {
+	if mental {
 		return refuse(PlayerOrder)
 	}
 	if existingDoctorJob == "TendPatient" {

@@ -137,14 +137,10 @@ func EvaluateRescue(r RescueRequest) DraftDecision {
 			return refuse(UnsupportedThreat)
 		}
 	}
-	for _, fact := range []domain.Fact[bool]{f.Rescuer.Dead, f.Rescuer.Downed, f.Rescuer.Drafted, f.Rescuer.MentalState, f.Rescuer.PlayerForced} {
+	for _, fact := range []domain.Fact[bool]{f.Rescuer.Dead, f.Rescuer.Downed, f.Rescuer.Drafted, f.Rescuer.MentalState} {
 		if _, known := fact.Value(); !known {
 			return refuse(UnknownFacts)
 		}
-	}
-	queued, known := f.Rescuer.QueuedJobs.Value()
-	if !known {
-		return refuse(UnknownFacts)
 	}
 	existingRescuerJob, known := f.Rescuer.ExistingJobDef.Value()
 	if !known {
@@ -154,11 +150,10 @@ func EvaluateRescue(r RescueRequest) DraftDecision {
 	downed, _ := f.Rescuer.Downed.Value()
 	drafted, _ := f.Rescuer.Drafted.Value()
 	mental, _ := f.Rescuer.MentalState.Value()
-	forced, _ := f.Rescuer.PlayerForced.Value()
 	if dead || downed {
 		return refuse(CriticalMedical)
 	}
-	if drafted || mental || forced || queued != 0 {
+	if drafted || mental {
 		return refuse(PlayerOrder)
 	}
 	if existingRescuerJob == "Rescue" {

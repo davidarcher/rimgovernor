@@ -136,8 +136,7 @@ func (b *HaulBoundary) InspectHaul(ctx context.Context, target executor.Target) 
 
 func haulPawnFacts(pawn domain.PawnID, row *n.PawnState, token string) policy.HaulPawnFacts {
 	facts := policy.HaulPawnFacts{Pawn: pawn, SnapshotToken: token, Dead: boundary.FactBool(row.Dead), Downed: boundary.FactBool(row.Downed), Drafted: boundary.FactBool(row.Drafted), MentalState: boundary.FactPresence(row.MentalState, row.Issues, "mental_state")}
-	if row.Job != nil && !boundary.IssueField(row.Job.Issues, "player_forced") && !boundary.IssueField(row.Job.Issues, "queued_jobs") && !boundary.IssueField(row.Job.Issues, "def_name") {
-		facts.PlayerForced, facts.QueuedJobs = boundary.FactBool(row.Job.PlayerForced), boundary.FactUint(row.Job.QueuedJobs)
+	if row.Job != nil && !boundary.IssueField(row.Job.Issues, "def_name") {
 		if row.Job.DefName != nil {
 			facts.ExistingJobDef = domain.Known(row.Job.GetDefName())
 		}

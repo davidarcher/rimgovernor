@@ -26,7 +26,7 @@ func (d *draftFake) InspectDraft(_ context.Context, t Target) (DraftInspection, 
 	if err != nil {
 		return DraftInspection{}, err
 	}
-	v := DraftInspection{Current: t.Snapshot, Tick: 100, StartedAt: now, ObservedAt: now, PawnSnapshotToken: "token", Emergency: emergency, Pawn: policy.DraftPawnFacts{Pawn: "pawn", Drafted: domain.Known(false), Unowned: domain.Known(true), PlayerForced: domain.Known(false), QueuedJobs: domain.Known(uint32(0)), NativeCanTry: domain.Known(true)}}
+	v := DraftInspection{Current: t.Snapshot, Tick: 100, StartedAt: now, ObservedAt: now, PawnSnapshotToken: "token", Emergency: emergency, Pawn: policy.DraftPawnFacts{Pawn: "pawn", Drafted: domain.Known(false), Unowned: domain.Known(true), NativeCanTry: domain.Known(true)}}
 	if d.inspect != nil {
 		d.inspect(&v)
 	}
@@ -113,7 +113,7 @@ func TestDraftSecondInspectionHoldsWithoutDispatch(t *testing.T) {
 	f, d := newDraftFixture(t)
 	d.inspect = func(v *DraftInspection) {
 		if d.inspections == 2 {
-			v.Pawn.PlayerForced = domain.Known(true)
+			v.Pawn.NativeCanTry = domain.Known(false)
 		}
 	}
 	r, err := f.run()
