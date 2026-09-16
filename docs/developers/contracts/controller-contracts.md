@@ -62,10 +62,20 @@ establishes the storage gate.
 Optional goals (priority class 3 and 4: basic equipment defense, wood, comfort,
 expansion, maintained research and resource targets) share a deterministic admission
 order. Scores combine a 0–100 observed deficit fraction, a 100-point player-target
-preference, one point per 2,500 waiting game ticks and a 20-point selection hysteresis
-bonus. Stable goal IDs break ties. These weights are policy ordering, not measured
-benefit or time estimates. Emergencies retain precedence, and comfort waits for
-startup-survival goals.
+preference, one point per 2,500 waiting game ticks, a 20-point selection hysteresis
+bonus, a bottleneck penalty of up to 30 points and a risk penalty of up to 40 points
+(`policy.DefaultDevelopmentWeights`). Stable goal IDs break ties. These weights are
+policy ordering, not measured benefit or time estimates. Emergencies retain precedence,
+and comfort waits for startup-survival goals.
+
+The bottleneck penalty is lead-time evidence: it scales with how contested a goal's
+labor profile is (free pawns of its work types after commitments, against the eligible
+goals sharing those types), so an uncontested goal can be admitted ahead of one that
+would wait on the same scarce builder. Risk is observed exposure of outdoor work
+(construction, mining, plant cutting): an active cold or hot latch halves that work's
+priority weight, and an observed outdoor hazard condition such as toxic fallout defers
+it with `risk_deferred`. Neither term is a safety guard; native danger checks and Hands
+dispatch guards still apply.
 
 Every ranked deficit is measured from the review's native facts. A configured research
 target is a full deficit while the research tab is idle and the target unfinished; any

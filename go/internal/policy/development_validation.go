@@ -34,12 +34,15 @@ func ValidateDevelopmentState(s DevelopmentState) error {
 	selected := 0
 	for _, row := range s.Rows {
 		deficit, k := row.Deficit.Value()
+		if risk, rk := row.Risk.Value(); rk && (math.IsNaN(risk) || risk < 0 || risk > 1) {
+			return errors.New("invalid development risk")
+		}
 		if !validResource(Resource(row.Goal)) || seen[row.Goal] || row.WaitingSince < 0 || row.WaitingSince > s.Tick || math.IsNaN(row.Score) || math.IsInf(row.Score, 0) || row.Score < 0 || k && (math.IsNaN(deficit) || math.IsInf(deficit, 0) || deficit < 0 || deficit > 1) || row.Committed != committed[row.Goal] {
 			return errors.New("invalid development row")
 		}
 		seen[row.Goal] = true
 		switch row.Reason {
-		case "", DevelopmentCancelled, DevelopmentAdviser, DevelopmentEmergency, DevelopmentStartup, DevelopmentBlocked, DevelopmentCommitted, DevelopmentWorkersUnknown, DevelopmentNoWorkers, DevelopmentUnknown, DevelopmentCapacity, DevelopmentMethodUnavailable:
+		case "", DevelopmentCancelled, DevelopmentAdviser, DevelopmentEmergency, DevelopmentStartup, DevelopmentBlocked, DevelopmentCommitted, DevelopmentWorkersUnknown, DevelopmentNoWorkers, DevelopmentUnknown, DevelopmentCapacity, DevelopmentMethodUnavailable, DevelopmentRisk:
 			if row.Bottleneck != "" {
 				return errors.New("invalid development bottleneck")
 			}

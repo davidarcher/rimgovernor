@@ -27,6 +27,42 @@ type DevelopmentGoal struct {
 	MethodUnavailable           bool
 	// Labor is the goal's profile (GoalLabor); nil means no pawn work.
 	Labor LaborProfile
+	// Risk is observed exposure of the goal's work (0 none .. 1 unsafe), from
+	// RoutineDevelopmentRisk; unknown risk neither penalises nor defers.
+	Risk domain.Fact[float64]
+}
+
+// DevelopmentWeights are the ranking's policy ordering terms. They order
+// candidates for bounded admission; none is a measured benefit, a labor
+// forecast or a completion-time estimate.
+type DevelopmentWeights struct {
+	// Deficit scales the 0..1 observed deficit fraction.
+	Deficit float64
+	// Player is the flat preference for player-sourced goals.
+	Player float64
+	// AgeTicks is the game-tick wait that earns one point.
+	AgeTicks float64
+	// Hysteresis keeps a previously selected goal ahead of near ties.
+	Hysteresis float64
+	// Bottleneck penalises goals whose profile labor is scarce relative to
+	// the eligible goals competing for it (lead time: contested scarce labor
+	// finishes later and frees its slot later).
+	Bottleneck float64
+	// Risk scales the observed 0..1 exposure penalty; risk of 1 defers.
+	Risk float64
+}
+
+func DefaultDevelopmentWeights() DevelopmentWeights {
+	return DevelopmentWeights{Deficit: 100, Player: 100, AgeTicks: 2500, Hysteresis: 20, Bottleneck: 30, Risk: 40}
+}
+
+func (w DevelopmentWeights) valid() bool {
+	for _, v := range []float64{w.Deficit, w.Player, w.AgeTicks, w.Hysteresis, w.Bottleneck, w.Risk} {
+		if math.IsNaN(v) || math.IsInf(v, 0) || v < 0 || v > 1e6 {
+			return false
+		}
+	}
+	return w.AgeTicks > 0
 }
 
 // Commitment refers to existing shared action progress, never a receipt-derived
@@ -58,6 +94,8 @@ const (
 	// DevelopmentLabor: every work type in the goal's profile is already
 	// occupied by committed work or has no enabled pawn; Bottleneck names one.
 	DevelopmentLabor DevelopmentReason = "labor_unavailable"
+	// DevelopmentRisk: the goal's work is observed unsafe (risk 1) this review.
+	DevelopmentRisk DevelopmentReason = "risk_deferred"
 )
 
 type DevelopmentRow struct {
@@ -68,6 +106,7 @@ type DevelopmentRow struct {
 	Selected, Committed bool
 	Reason              DevelopmentReason
 	Bottleneck          WorkType
+	Risk                domain.Fact[float64]
 }
 
 // DevelopmentState is a value snapshot owned by the review caller. Context and
@@ -85,10 +124,12 @@ type DevelopmentState struct {
 }
 
 type DevelopmentRequest struct {
-	Snapshot    domain.GenerationSnapshot
-	Tick        domain.Tick
-	Workers     domain.Fact[int]
-	Labor       domain.Fact[map[WorkType]int]
+	Snapshot domain.GenerationSnapshot
+	Tick     domain.Tick
+	Workers  domain.Fact[int]
+	Labor    domain.Fact[map[WorkType]int]
+	// Weights zero value uses DefaultDevelopmentWeights.
+	Weights     DevelopmentWeights
 	Limit       int
 	Goals       []DevelopmentGoal
 	Commitments []Commitment
@@ -104,6 +145,13 @@ func validGoal(id GoalID, source GoalSource, priority int) bool {
 func RankDevelopment(r DevelopmentRequest) (DevelopmentState, error) {
 	if r.Snapshot.Validate() != nil || r.Tick < 0 || r.Limit < 1 || r.Limit > 8 || len(r.Goals) > 512 || len(r.Commitments) > 4096 {
 		return DevelopmentState{}, errors.New("invalid development review")
+	}
+	weights := r.Weights
+	if weights == (DevelopmentWeights{}) {
+		weights = DefaultDevelopmentWeights()
+	}
+	if !weights.valid() {
+		return DevelopmentState{}, errors.New("invalid development weights")
 	}
 	workers, knownWorkers := r.Workers.Value()
 	if knownWorkers && (workers < 0 || workers > 4096) {
@@ -161,7 +209,8 @@ func RankDevelopment(r DevelopmentRequest) (DevelopmentState, error) {
 	seen := map[GoalID]bool{}
 	for _, g := range r.Goals {
 		fraction, known := g.Deficit.Value()
-		if !validGoal(g.ID, g.Source, g.Priority) || seen[g.ID] || !validLabor(g.Labor) || known && (math.IsNaN(fraction) || math.IsInf(fraction, 0) || fraction < 0 || fraction > 1) {
+		risk, riskKnown := g.Risk.Value()
+		if !validGoal(g.ID, g.Source, g.Priority) || seen[g.ID] || !validLabor(g.Labor) || known && (math.IsNaN(fraction) || math.IsInf(fraction, 0) || fraction < 0 || fraction > 1) || riskKnown && (math.IsNaN(risk) || risk < 0 || risk > 1) {
 			return DevelopmentState{}, errors.New("invalid development goal")
 		}
 		seen[g.ID] = true
@@ -178,14 +227,18 @@ func RankDevelopment(r DevelopmentRequest) (DevelopmentState, error) {
 			since = previous.WaitingSince
 		}
 		fraction, known := g.Deficit.Value()
-		score := 100*fraction + float64(r.Tick-since)/2500
+		score := weights.Deficit*fraction + float64(r.Tick-since)/weights.AgeTicks
 		if g.Source == PlayerGoal {
-			score += 100
+			score += weights.Player
 		}
 		if previous.Selected {
-			score += 20
+			score += weights.Hysteresis
 		}
-		row := DevelopmentRow{Goal: g.ID, Score: math.RoundToEven(score*1000) / 1000, Deficit: g.Deficit, WaitingSince: since, Committed: committed[g.ID]}
+		risk, riskKnown := g.Risk.Value()
+		if riskKnown {
+			score -= weights.Risk * risk
+		}
+		row := DevelopmentRow{Goal: g.ID, Score: score, Deficit: g.Deficit, WaitingSince: since, Committed: committed[g.ID], Risk: g.Risk}
 		switch {
 		case g.Cancelled:
 			row.Reason = DevelopmentCancelled
@@ -201,6 +254,8 @@ func RankDevelopment(r DevelopmentRequest) (DevelopmentState, error) {
 			row.Reason = DevelopmentCommitted
 		case g.MethodUnavailable:
 			row.Reason = DevelopmentMethodUnavailable
+		case riskKnown && risk >= 1:
+			row.Reason = DevelopmentRisk
 		case !knownWorkers:
 			row.Reason = DevelopmentWorkersUnknown
 		case workers == 0:
@@ -213,6 +268,36 @@ func RankDevelopment(r DevelopmentRequest) (DevelopmentState, error) {
 		}
 		result.Rows = append(result.Rows, row)
 	}
+	profiles := map[GoalID]LaborProfile{}
+	for _, g := range r.Goals {
+		profiles[g.ID] = g.Labor
+	}
+	// Bottleneck: eligible goals competing for the same scarce labor. The
+	// ratio uses free labor after commitments against the number of eligible
+	// goals whose profiles share a type, so it is order-independent.
+	competing := map[WorkType]int{}
+	for _, row := range result.Rows {
+		if row.Reason == "" {
+			for _, w := range profiles[row.Goal] {
+				competing[w]++
+			}
+		}
+	}
+	for i := range result.Rows {
+		row := &result.Rows[i]
+		profile := profiles[row.Goal]
+		if row.Reason != "" || len(profile) == 0 || !ledger.known {
+			row.Score = math.RoundToEven(max(0, row.Score)*1000) / 1000
+			continue
+		}
+		free, contenders := 0, 0
+		for _, w := range profile {
+			free += ledger.free[w]
+			contenders = max(contenders, competing[w])
+		}
+		ratio := min(1, float64(free)/float64(max(1, contenders)))
+		row.Score = math.RoundToEven(max(0, row.Score-weights.Bottleneck*(1-ratio))*1000) / 1000
+	}
 	sort.Slice(result.Rows, func(i, j int) bool {
 		a, b := result.Rows[i], result.Rows[j]
 		if a.Score != b.Score {
@@ -220,10 +305,6 @@ func RankDevelopment(r DevelopmentRequest) (DevelopmentState, error) {
 		}
 		return a.Goal < b.Goal
 	})
-	profiles := map[GoalID]LaborProfile{}
-	for _, g := range r.Goals {
-		profiles[g.ID] = g.Labor
-	}
 	free := max(0, result.Capacity-len(committed))
 	for i := range result.Rows {
 		row := &result.Rows[i]

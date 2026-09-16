@@ -270,4 +270,19 @@ func TestRoutineDevelopmentLaborPersistsAndDefers(t *testing.T) {
 	if _, err = s.CommitGoalMethod(ctx, g.Goal.ID, g.Revision, "wall", plan(t, "wall", "wall-action")); !errors.Is(err, ErrConflict) {
 		t.Fatal("labor-deferred goal admitted", err)
 	}
+	// An observed outdoor hazard defers outdoor work ahead of labor accounting
+	// and the measured risk persists with the row.
+	r.Facts.DisasterConditions = domain.Known([]policy.DisasterCondition{{ID: "1", Definition: "ToxicFallout"}})
+	third := reviewRoutine(t, s, &r)
+	expansion = developmentRow(t, third.Review, policy.EnsureExpansion)
+	if expansion.Reason != policy.DevelopmentRisk || expansion.Risk == nil || *expansion.Risk != 1 || expansion.Bottleneck != "" {
+		t.Fatal(expansion)
+	}
+	if research := developmentRow(t, third.Review, policy.EnsureResearch); !research.Selected || research.Risk == nil || *research.Risk != 0 {
+		t.Fatal(research)
+	}
+	loaded, err = s.LoadRoutineReview(ctx)
+	if err != nil || !reflect.DeepEqual(loaded, third.Review) {
+		t.Fatal(loaded, err)
+	}
 }

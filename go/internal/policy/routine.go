@@ -459,7 +459,7 @@ func DetectRoutine(f RoutineFacts, previous RoutineLatches, p RoutinePolicy) (Ro
 	}
 	r := RoutineNeeds{Gates: g, Latches: l}
 	addGoal := func(id GoalID, priority int) {
-		r.Goals = append(r.Goals, DevelopmentGoal{ID: id, Source: AutopilotGoal, Priority: priority, Deficit: RoutineDevelopmentDeficit(id, f, p), Labor: GoalLabor(id)})
+		r.Goals = append(r.Goals, DevelopmentGoal{ID: id, Source: AutopilotGoal, Priority: priority, Deficit: RoutineDevelopmentDeficit(id, f, p), Labor: GoalLabor(id), Risk: RoutineDevelopmentRisk(id, f, l)})
 	}
 	if positive(f.ColonyNaming) {
 		addGoal(ConfirmColonyNames, 0)

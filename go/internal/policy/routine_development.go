@@ -135,3 +135,34 @@ func ResourceTargetNeed(targets map[Resource]int64, stock domain.Fact[[]Amount])
 func DevelopmentExempt(need GoalID) bool {
 	return need == ProductionPolicy
 }
+
+// outdoorHazards are native game conditions under which outdoor pawn work is
+// observed unsafe rather than merely uncomfortable.
+var outdoorHazards = map[string]bool{"ToxicFallout": true}
+
+// RoutineDevelopmentRisk measures a routine goal's observed work exposure for
+// ranking: goals whose labor profile is outdoor work (construction, mining,
+// plant cutting) carry risk 1 under an observed outdoor hazard condition and
+// risk 0.5 while a cold or hot latch is active; everything else is 0. It is
+// ordering evidence for admission, not a safety guard: native danger checks
+// and Hands dispatch guards still apply.
+func RoutineDevelopmentRisk(id GoalID, f RoutineFacts, l RoutineLatches) domain.Fact[float64] {
+	outdoor := false
+	for _, w := range GoalLabor(id) {
+		outdoor = outdoor || w == WorkConstruction || w == WorkMining || w == WorkPlantCutting
+	}
+	if !outdoor {
+		return domain.Known(0.0)
+	}
+	if conditions, known := f.DisasterConditions.Value(); known {
+		for _, c := range conditions {
+			if outdoorHazards[c.Definition] {
+				return domain.Known(1.0)
+			}
+		}
+	}
+	if l.Cold || l.Hot {
+		return domain.Known(0.5)
+	}
+	return domain.Known(0.0)
+}

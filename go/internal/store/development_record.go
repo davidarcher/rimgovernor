@@ -23,6 +23,7 @@ type RoutineDevelopmentRow struct {
 	Selected, Committed bool
 	Reason              policy.DevelopmentReason
 	Bottleneck          policy.WorkType `json:",omitempty"`
+	Risk                *float64        `json:",omitempty"`
 }
 
 func developmentRecord(s policy.DevelopmentState) RoutineDevelopment {
@@ -40,6 +41,9 @@ func developmentRecord(s policy.DevelopmentState) RoutineDevelopment {
 		v := RoutineDevelopmentRow{Goal: row.Goal, Score: row.Score, WaitingSince: row.WaitingSince, Selected: row.Selected, Committed: row.Committed, Reason: row.Reason, Bottleneck: row.Bottleneck}
 		if deficit, k := row.Deficit.Value(); k {
 			v.Deficit = &deficit
+		}
+		if risk, k := row.Risk.Value(); k {
+			v.Risk = &risk
 		}
 		r.Rows = append(r.Rows, v)
 	}
@@ -61,6 +65,9 @@ func (r RoutineDevelopment) state() policy.DevelopmentState {
 		v := policy.DevelopmentRow{Goal: row.Goal, Score: row.Score, WaitingSince: row.WaitingSince, Selected: row.Selected, Committed: row.Committed, Reason: row.Reason, Bottleneck: row.Bottleneck}
 		if row.Deficit != nil {
 			v.Deficit = domain.Known(*row.Deficit)
+		}
+		if row.Risk != nil {
+			v.Risk = domain.Known(*row.Risk)
 		}
 		s.Rows = append(s.Rows, v)
 	}
