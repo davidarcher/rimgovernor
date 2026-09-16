@@ -758,6 +758,32 @@ func verifyNative(ctx context.Context, h *na.Harness, p *liveservice.Prepared, s
 	if hut == nil {
 		return fmt.Errorf("no native room whose cells equal the planned interior (%d cells)", len(inside))
 	}
+	// Doorway rooms are excluded from the typed census unless outdoors rooms
+	// are included; a second census without cells (the outdoors mega-room
+	// would otherwise list the whole map) finds the door's one-tile room by
+	// its extents.
+	if doorway == nil {
+		reply, err := h.Wire(ctx, "doorways-after", "observations_list_rooms", map[string]any{"scope": map[string]any{"expectedIdentity": identity}, "includeOutdoors": true})
+		if err != nil {
+			return err
+		}
+		_, all, err := na.Outcome(reply, "observed")
+		if err != nil {
+			return err
+		}
+		for _, raw := range na.AsSlice(all["rooms"]) {
+			row, _ := na.AsMap(raw)
+			extents, _ := na.AsMap(row["extents"])
+			lo, _ := na.AsMap(extents["minimum"])
+			hi, _ := na.AsMap(extents["maximum"])
+			at := func(m map[string]any) domain.Cell {
+				return domain.Cell{X: int32(na.AsNumber(m["x"])), Z: int32(na.AsNumber(m["z"]))}
+			}
+			if boolOf(row["doorway"]) && at(lo) == door && at(hi) == door {
+				doorway = row
+			}
+		}
+	}
 	summary := map[string]any{
 		"id": hut["id"], "role": hut["role"], "properRoom": hut["properRoom"], "outdoors": hut["outdoors"],
 		"openRoofCount": hut["openRoofCount"], "cellCount": hut["cellCount"], "beds": len(na.AsSlice(hut["beds"])),
