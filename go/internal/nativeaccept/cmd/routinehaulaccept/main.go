@@ -746,8 +746,9 @@ func run(ctx context.Context, root, output, gameID string, headless bool, rimgov
 		case <-time.After(time.Second):
 		}
 	}
-	defer stopGame(finalClient)
+	// Deferred LIFO: stop the game while the session is still open, then close.
 	defer finalClient.Close()
+	defer stopGame(finalClient)
 
 	afterBoth, err := finalHarness.Call(ctx, "after-both-hauls", "test/storage_haul_control", map[string]any{
 		"colonyId": identity["colonyId"], "loadToken": identity["loadToken"], "mapId": identity["mapId"],
