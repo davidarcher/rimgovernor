@@ -89,7 +89,10 @@ func (r *RoutineFieldPlanner) step(call, epoch context.Context, arbiter *stepArb
 		if err != nil {
 			return RoutineFieldResult{}, err
 		}
-		if domain.GoalWorkOpen(plan.Progress) {
+		// Only open field work blocks another field batch. Hunting and
+		// foraging plans under the same goal share no cells or resources
+		// with a growing zone and would otherwise starve crops indefinitely.
+		if fieldBlockingWork(plan.Progress) {
 			return RoutineFieldResult{Reason: BuildingMethodExistingWork}, nil
 		}
 	}
@@ -129,6 +132,7 @@ func (r *RoutineFieldPlanner) step(call, epoch context.Context, arbiter *stepArb
 	}
 	token, known := projection.ZoneMapToken.Value()
 	if !known {
+		clockSchedulerLog("Fields: zone map token unknown")
 		return RoutineFieldResult{Reason: BuildingMethodUnknown, NativeWorkTicks: wait}, nil
 	}
 	held, err := p.journal.BuildingReservations(call, state.Snapshot)
@@ -143,20 +147,24 @@ func (r *RoutineFieldPlanner) step(call, epoch context.Context, arbiter *stepArb
 	for _, d := range projection.Definitions {
 		choices = append(choices, policy.CropChoice{Name: d.Name, Available: d.Available, Edible: d.Edible, GrowDays: d.GrowDays, FertilityMin: d.FertilityMin, FertilitySensitivity: d.FertilitySensitivity, HarvestNutrition: d.HarvestNutrition, Demand: d.NutritionDemandPerDay})
 	}
-	crop, known := policy.ChooseCrop(choices, projection.CropClimate, projection.Facts.FoodDays, projection.Cells, protected)
-	if !known {
-		return RoutineFieldResult{Reason: BuildingMethodUnknown, NativeWorkTicks: wait}, nil
-	}
 	coverage := policy.FieldCoverage(projection.Facts.Colonists, projection.FieldCapacityCrops, r.reviewer.policy.FoodTargetDays)
 	var zones []policy.FarmZone
 	for _, farm := range projection.Farms {
 		zones = append(zones, policy.FarmZone{ID: farm.ID, Crop: farm.Crop, Managed: managed[farm.ID]})
 	}
-	sites := policy.GrowthFields(projection.Bounds, projection.Center, domain.Unknown[domain.Cell](), projection.Cells, protected, zones, crop, policy.FieldTarget(projection.Facts.Colonists, crop, r.reviewer.policy.FoodTargetDays), coverage)
-	patches := sites.Patches
-	if len(patches) == 0 {
-		return RoutineFieldResult{Reason: BuildingMethodUsed, NativeWorkTicks: wait}, nil
+	field, known := policy.PlanField(policy.FieldRequest{Choices: choices, Climate: projection.CropClimate, Runway: projection.Facts.FoodDays, Colonists: projection.Facts.Colonists, ReserveDays: r.reviewer.policy.FoodTargetDays, Coverage: coverage, Site: policy.FarmSiteRequest{Bounds: projection.Bounds, Anchor: projection.Center, Storage: domain.Unknown[domain.Cell](), Cells: projection.Cells, Protected: protected, Zones: zones}})
+	if !known {
+		clockSchedulerLog("Fields: no plan (cells=%d choices=%d climate=%+v runway=%+v colonists=%+v coverage=%+v zones=%d): %s", len(projection.Cells), len(choices), projection.CropClimate, projection.Facts.FoodDays, projection.Facts.Colonists, coverage, len(zones), field.Explain())
+		return RoutineFieldResult{Reason: BuildingMethodUnknown, NativeWorkTicks: wait}, nil
 	}
+	// Each patch costs one native preview inside the shared step budget, so a
+	// large plan is committed over several batches; the next batch starts once
+	// this one's zone work has completed and the coverage facts have moved.
+	crop, patches := field.Crop, field.Sites.Patches
+	if len(patches) > fieldBatchPatches {
+		patches = patches[:fieldBatchPatches]
+	}
+	clockSchedulerLog("Fields plan: %s | %s", field.Explain(), field.Sites.Explain())
 	hash := sha256.New()
 	fmt.Fprintf(hash, "%s/%v", crop.Name, patches)
 	method := domain.MethodID(fmt.Sprintf("fields-%x", hash.Sum(nil)[:16]))
@@ -232,6 +240,17 @@ func (r *RoutineFieldPlanner) step(call, epoch context.Context, arbiter *stepArb
 		reason = BuildingMethodAdmitted
 	}
 	return RoutineFieldResult{Reason: reason, Plan: id}, nil
+}
+
+const fieldBatchPatches = 6
+
+func fieldBlockingWork(progress []domain.Progress) bool {
+	for _, p := range progress {
+		if _, ok := p.Action().ZoneCreate(); ok && domain.GoalWorkOpen([]domain.Progress{p}) {
+			return true
+		}
+	}
+	return false
 }
 func uniqueFieldDefinitions(values []string) []string {
 	seen := map[string]bool{}

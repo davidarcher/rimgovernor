@@ -213,3 +213,38 @@ func (n *fieldExecutorTest) ObserveZone(ctx context.Context, p executor.Placemen
 	}
 	return executor.ZoneEvidence{Observation: domain.Observation{Action: p.Action.ID(), Attempt: p.Attempt, Snapshot: current, Tick: n.tick + 2, Effect: effect, Causality: domain.AfterDispatch}, StartedAt: n.clock.Now(), ObservedAt: n.clock.Now(), Complete: n.complete, Zone: zone, Matches: domain.Known(n.complete)}, nil
 }
+
+// Open hunting or foraging under EnsureFoodSupply must not starve the field
+// planner; only open zone work does.
+func TestFieldBlockingWorkIgnoresAcquisition(t *testing.T) {
+	t.Parallel()
+	hunt := dispatchedHunt(t, "hunt-deer", "deer", 100)
+	if fieldBlockingWork([]domain.Progress{hunt}) {
+		t.Fatal("open hunt blocked fields")
+	}
+	zone, err := domain.NewZoneCreate(domain.GrowingZone, "Plant_Rice", []domain.Cell{{X: 1, Z: 1}, {X: 2, Z: 1}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	a, err := domain.NewZoneCreateAction("field-1", zone)
+	if err != nil {
+		t.Fatal(err)
+	}
+	spec, err := domain.NewPlan("field-plan", 1, []domain.Action{a})
+	if err != nil {
+		t.Fatal(err)
+	}
+	p, err := domain.NewProgress(spec, a.ID())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !fieldBlockingWork([]domain.Progress{hunt, p}) {
+		t.Fatal("pending zone did not block fields")
+	}
+	if p, err = p.Cancel(); err != nil {
+		t.Fatal(err)
+	}
+	if fieldBlockingWork([]domain.Progress{p}) {
+		t.Fatal("cancelled zone blocked fields")
+	}
+}

@@ -283,6 +283,7 @@ namespace HomeBridge.BridgeTools
                     row.GrowDays = Finite(def.plant.growDays); row.FertilityMin = Finite(def.plant.fertilityMin); row.FertilitySensitivity = Finite(def.plant.fertilitySensitivity);
                     var product = def.plant.harvestedThingDef;
                     if (product != null) {
+                        row.Edible = product.IsNutritionGivingIngestible && !product.IsDrug;
                         row.HarvestNutrition = Finite(def.plant.harvestYield * product.GetStatValueAbstract(StatDefOf.Nutrition));
                         row.NutritionDemandPerDay = Finite(demand + animals.Where(p => p.RaceProps.CanEverEat(product)
                             && p.foodRestriction?.GetCurrentRespectedRestriction(p)?.filter.Allows(product) != false)

@@ -194,8 +194,19 @@ credit instead of the fragment charge; player zones, occupied, roofed, protected
 unreachable and undescribed cells never become free land. Isolated 1x1 cells are used
 only when no larger patch meets the crop's fertility floor. Each selected patch keeps
 its scored terms (`FarmSitePlan.Explain`) so acceptance evidence can say why a site
-won. Insufficient farmland does not reject an otherwise legal shelter. Selected field
-capacity remains separate from observed growing cells and the production gate. Work
+won. Expansion chooses crop and patches jointly (`policy.PlanField`): every available
+edible crop with complete native facts is planned over its own fertility floor and ranked
+by net nutrition per needed cell, so a fertility-tolerant crop wins on poor soil; a
+remaining season under 2.5 grow cycles excludes a crop, an unknown remaining season while
+sowing is possible is treated as short, and a stored-food runway under 2.5 cycles of the
+fastest crop is urgent — both prefer the fastest crop that can plant. Existing zones are
+never re-cropped. Open hunting or foraging under EnsureFoodSupply does not block a field
+batch and a sown field does not block acquisition (the store exempts each from the
+other's open work, mirroring the acquisition-over-bill exemption); a second field batch
+still waits for the first to resolve. Each batch previews at most six patches inside the
+shared step budget. Insufficient farmland does not reject an otherwise legal
+shelter. Selected field capacity remains separate from observed growing cells and the
+production gate. Work
 allocation uses observed capabilities/skills, job load and stable identity tie breaks;
 it respects the game's checkbox versus manual-priority modes and explicit player
 overrides.
