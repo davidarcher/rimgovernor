@@ -32,7 +32,7 @@ func (m *movementFake) InspectMovement(_ context.Context, target Target, claim d
 	if err != nil {
 		return MovementInspection{}, err
 	}
-	v := MovementInspection{StartedAt: now, ObservedAt: now, Facts: policy.MovementFacts{Snapshot: target.Snapshot, PawnTick: tick, PreviewTick: tick, Emergency: emergency, NativeCanTry: domain.Known(true), Pawn: policy.MovementPawnFacts{Pawn: "pawn", SnapshotToken: "pawn-cas", Dead: domain.Known(false), Downed: domain.Known(false), Bleeding: domain.Known(false), NeedsTend: domain.Known(false), FreeColonist: domain.Known(m.freeColonist), Drafted: domain.Known(true), PlayerForced: domain.Known(false), QueuedJobs: domain.Known(uint32(0)), Owner: domain.Known(policy.MovementDraftOwner{Claim: claim.Claim, Session: claim.Session, Direction: claim.Origin.Direction})}}}
+	v := MovementInspection{StartedAt: now, ObservedAt: now, Facts: policy.MovementFacts{Snapshot: target.Snapshot, PawnTick: tick, PreviewTick: tick, Emergency: emergency, NativeCanTry: domain.Known(true), Pawn: policy.MovementPawnFacts{Pawn: "pawn", SnapshotToken: "pawn-cas", Dead: domain.Known(false), Downed: domain.Known(false), Bleeding: domain.Known(false), NeedsTend: domain.Known(false), FreeColonist: domain.Known(m.freeColonist), Drafted: domain.Known(true), Owner: domain.Known(policy.MovementDraftOwner{Claim: claim.Claim, Session: claim.Session, Direction: claim.Origin.Direction})}}}
 	if m.inspect != nil {
 		m.inspect(&v)
 	}

@@ -20,7 +20,7 @@ type recoveryServiceEnvironment struct {
 
 func (n *recoveryServiceEnvironment) recoveryServiceFacts(target Target) policy.RecoveryServiceFacts {
 	service, _ := target.Action.RecoveryService()
-	pawn := policy.RecoveryServicePawnFacts{Pawn: service.Pawn(), SnapshotToken: "pawn-token", Dead: domain.Known(false), Downed: domain.Known(false), Drafted: domain.Known(false), MentalState: domain.Known(false), PlayerForced: domain.Known(false), QueuedJobs: domain.Known(uint32(0)), ExistingJobDef: domain.Known("")}
+	pawn := policy.RecoveryServicePawnFacts{Pawn: service.Pawn(), SnapshotToken: "pawn-token", Dead: domain.Known(false), Downed: domain.Known(false), Drafted: domain.Known(false), MentalState: domain.Known(false), ExistingJobDef: domain.Known("")}
 	return policy.RecoveryServiceFacts{Snapshot: target.Snapshot, PawnTick: n.tick, PreviewTick: n.tick, Pawn: pawn, ThingSnapshotToken: "thing-token", NativeCanTry: domain.Known(!n.ineligible)}
 }
 func (n *recoveryServiceEnvironment) InspectRecoveryService(_ context.Context, target Target) (RecoveryServiceInspection, error) {

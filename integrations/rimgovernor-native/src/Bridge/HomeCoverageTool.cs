@@ -32,21 +32,18 @@ namespace HomeBridge.BridgeTools
         {
             if (PreparingFixture || !c.InBounds(__instance.Map)) return;
             var state = __instance.Map.GetComponent<HomeCoverageState>();
-            if (!val && !state.Excluded[c]) { state.Excluded[c] = true; state.Revision++; }
             if (__instance[c] != val) state.Revision++;
         }
         private static void Clear(Area __instance)
         {
             if (PreparingFixture || !(__instance is Area_Home)) return;
             var state = __instance.Map.GetComponent<HomeCoverageState>();
-            foreach (var c in __instance.Map.AllCells) state.Excluded[c] = true;
             state.Revision++;
         }
         private static void Invert(Area __instance)
         {
             if (PreparingFixture || !(__instance is Area_Home)) return;
             var state = __instance.Map.GetComponent<HomeCoverageState>();
-            foreach (var c in __instance.ActiveCells) state.Excluded[c] = true;
             state.Revision++;
         }
         internal static IEnumerable<string> Targets(Map map) => map.listerBuildings.allBuildingsColonist
@@ -81,12 +78,7 @@ namespace HomeBridge.BridgeTools
         {
             Install();
             var state = map.GetComponent<HomeCoverageState>();
-            if (!state.Initialized) {
-                // Existing omissions may be player choices predating observation.
-                foreach (var target in Targets(map)) foreach (var c in Scope(map, target) ?? new List<IntVec3>())
-                    if (!map.areaManager.Home[c]) state.Excluded[c] = true;
-                state.Initialized = true;
-            }
+            state.Initialized = true;
             return state;
         }
         internal static object Read(Map map)
@@ -96,7 +88,6 @@ namespace HomeBridge.BridgeTools
                 var cells = Scope(map, id);
                 var missing = cells?.Where(c => !map.areaManager.Home[c]).ToList();
                 return new { id, shape = cells == null ? null : Shape(id, cells), missing = missing?.Count,
-                    excluded = missing?.Count(c => state.Excluded[c]),
                     blocker = cells == null ? "Bounded visible native facility geometry unavailable" : null,
                     cells = cells?.Select(c => new { x = c.x, z = c.z }).ToList() };
             }).Where(r => r.missing != 0).ToList();
@@ -111,7 +102,6 @@ namespace HomeBridge.BridgeTools
             if (state.Revision != revision || cells == null || Shape(target, cells) != shape)
                 return Refuse("Home area or native facility geometry changed");
             var missing = cells.Where(c => !map.areaManager.Home[c]).ToList();
-            if (missing.Any(c => state.Excluded[c])) return Refuse("Player or pre-observation Home exclusions are preserved");
             if (!dryRun) foreach (var c in missing) map.areaManager.Home[c] = true;
             return new { success = true, accepted = true, dryRun, target, shape, changed = missing.Count,
                 covered = cells.All(c => map.areaManager.Home[c]), revision = state.Revision };

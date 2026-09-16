@@ -14,12 +14,11 @@ const RecoveryServicePawnUnavailable Reason = "recovery_service_pawn_unavailable
 // RecoveryServicePawnFacts describes the one already-selected undrafted pawn
 // SelectRecoveryMethods chose for a repair, breakdown restoration or refuel job.
 type RecoveryServicePawnFacts struct {
-	Pawn                      domain.PawnID
-	SnapshotToken             string
-	Dead, Downed, Drafted     domain.Fact[bool]
-	MentalState, PlayerForced domain.Fact[bool]
-	QueuedJobs                domain.Fact[uint32]
-	ExistingJobDef            domain.Fact[string]
+	Pawn                  domain.PawnID
+	SnapshotToken         string
+	Dead, Downed, Drafted domain.Fact[bool]
+	MentalState           domain.Fact[bool]
+	ExistingJobDef        domain.Fact[string]
 }
 
 type RecoveryServiceFacts struct {
@@ -68,27 +67,22 @@ func EvaluateRecoveryService(r RecoveryServiceRequest) DraftDecision {
 	if f.Pawn.Pawn != service.Pawn() || !validToken(f.Pawn.SnapshotToken) || !validToken(f.ThingSnapshotToken) {
 		return refuse(UnknownFacts)
 	}
-	for _, fact := range []domain.Fact[bool]{f.Pawn.Dead, f.Pawn.Downed, f.Pawn.Drafted, f.Pawn.MentalState, f.Pawn.PlayerForced} {
+	for _, fact := range []domain.Fact[bool]{f.Pawn.Dead, f.Pawn.Downed, f.Pawn.Drafted, f.Pawn.MentalState} {
 		if _, known := fact.Value(); !known {
 			return refuse(UnknownFacts)
 		}
 	}
-	queued, known := f.Pawn.QueuedJobs.Value()
-	if !known {
-		return refuse(UnknownFacts)
-	}
-	if _, known = f.Pawn.ExistingJobDef.Value(); !known {
+	if _, known := f.Pawn.ExistingJobDef.Value(); !known {
 		return refuse(UnknownFacts)
 	}
 	dead, _ := f.Pawn.Dead.Value()
 	downed, _ := f.Pawn.Downed.Value()
 	drafted, _ := f.Pawn.Drafted.Value()
 	mental, _ := f.Pawn.MentalState.Value()
-	forced, _ := f.Pawn.PlayerForced.Value()
 	if dead || downed {
 		return refuse(RecoveryServicePawnUnavailable)
 	}
-	if drafted || mental || forced || queued != 0 {
+	if drafted || mental {
 		return refuse(PlayerOrder)
 	}
 	eligible, known := f.NativeCanTry.Value()

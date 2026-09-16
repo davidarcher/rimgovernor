@@ -32,7 +32,7 @@ func (m *meleeFake) InspectMelee(_ context.Context, target Target, claim domain.
 	if err != nil {
 		return MeleeInspection{}, err
 	}
-	v := MeleeInspection{StartedAt: now, ObservedAt: now, Facts: policy.MeleeDefenseFacts{Snapshot: target.Snapshot, PawnTick: tick, PreviewTick: tick, Emergency: emergency, NativeCanTry: domain.Known(true), Pawn: policy.MeleePawnFacts{Pawn: "pawn", SnapshotToken: "pawn-cas", Dead: domain.Known(false), Downed: domain.Known(false), Bleeding: domain.Known(false), NeedsTend: domain.Known(false), HealthFraction: domain.Known(1.0), FreeColonist: domain.Known(true), Drafted: domain.Known(true), PlayerForced: domain.Known(false), QueuedJobs: domain.Known(uint32(0)), ViolenceCapable: domain.Known(true), EquipmentKnown: domain.Known(true), Owner: domain.Known(policy.MeleeDraftOwner{Claim: claim.Claim, Session: claim.Session, Direction: claim.Origin.Direction})}, Target: policy.MeleeTargetFacts{Pawn: "hostile", SnapshotToken: "target-cas", Dead: domain.Known(false), Downed: domain.Known(false), Hostile: domain.Known(true)}}}
+	v := MeleeInspection{StartedAt: now, ObservedAt: now, Facts: policy.MeleeDefenseFacts{Snapshot: target.Snapshot, PawnTick: tick, PreviewTick: tick, Emergency: emergency, NativeCanTry: domain.Known(true), Pawn: policy.MeleePawnFacts{Pawn: "pawn", SnapshotToken: "pawn-cas", Dead: domain.Known(false), Downed: domain.Known(false), Bleeding: domain.Known(false), NeedsTend: domain.Known(false), HealthFraction: domain.Known(1.0), FreeColonist: domain.Known(true), Drafted: domain.Known(true), ViolenceCapable: domain.Known(true), EquipmentKnown: domain.Known(true), Owner: domain.Known(policy.MeleeDraftOwner{Claim: claim.Claim, Session: claim.Session, Direction: claim.Origin.Direction})}, Target: policy.MeleeTargetFacts{Pawn: "hostile", SnapshotToken: "target-cas", Dead: domain.Known(false), Downed: domain.Known(false), Hostile: domain.Known(true)}}}
 	if m.inspect != nil {
 		m.inspect(&v)
 	}
@@ -135,7 +135,7 @@ func TestMeleeDispatchThenDisabledCausalCompletion(t *testing.T) {
 }
 
 func TestMeleeSecondInspectionAndCleanupRaceHold(t *testing.T) {
-	for _, mode := range []string{"player-order", "stale-time", "cleanup"} {
+	for _, mode := range []string{"stale-time", "cleanup"} {
 		t.Run(mode, func(t *testing.T) {
 			f, _, m := newMeleeFixture(t)
 			m.inspect = func(v *MeleeInspection) {
@@ -143,8 +143,6 @@ func TestMeleeSecondInspectionAndCleanupRaceHold(t *testing.T) {
 					return
 				}
 				switch mode {
-				case "player-order":
-					v.Facts.Pawn.PlayerForced = domain.Known(true)
 				case "stale-time":
 					v.StartedAt = v.StartedAt.Add(-2 * time.Second)
 				case "cleanup":

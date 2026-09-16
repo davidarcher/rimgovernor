@@ -21,12 +21,11 @@ const FilthIneligible Reason = "filth_ineligible"
 // The planner has already chosen this pawn and filth; EvaluateClean only
 // re-validates the pair immediately before dispatch.
 type CleanPawnFacts struct {
-	Pawn                      domain.PawnID
-	SnapshotToken             string
-	Dead, Downed, Drafted     domain.Fact[bool]
-	MentalState, PlayerForced domain.Fact[bool]
-	QueuedJobs                domain.Fact[uint32]
-	ExistingJobDef            domain.Fact[string]
+	Pawn                  domain.PawnID
+	SnapshotToken         string
+	Dead, Downed, Drafted domain.Fact[bool]
+	MentalState           domain.Fact[bool]
+	ExistingJobDef        domain.Fact[string]
 }
 
 // CleanFilthFacts describes the one already-selected filth entity. Exists
@@ -84,14 +83,10 @@ func EvaluateClean(r CleanRequest) DraftDecision {
 	if f.Pawn.Pawn != clean.Pawn() || f.Filth.Filth != clean.Filth() || !validToken(f.Pawn.SnapshotToken) || !validToken(f.Filth.SnapshotToken) {
 		return refuse(UnknownFacts)
 	}
-	for _, fact := range []domain.Fact[bool]{f.Pawn.Dead, f.Pawn.Downed, f.Pawn.Drafted, f.Pawn.MentalState, f.Pawn.PlayerForced} {
+	for _, fact := range []domain.Fact[bool]{f.Pawn.Dead, f.Pawn.Downed, f.Pawn.Drafted, f.Pawn.MentalState} {
 		if _, known := fact.Value(); !known {
 			return refuse(UnknownFacts)
 		}
-	}
-	queued, known := f.Pawn.QueuedJobs.Value()
-	if !known {
-		return refuse(UnknownFacts)
 	}
 	existingJob, known := f.Pawn.ExistingJobDef.Value()
 	if !known {
@@ -101,11 +96,10 @@ func EvaluateClean(r CleanRequest) DraftDecision {
 	downed, _ := f.Pawn.Downed.Value()
 	drafted, _ := f.Pawn.Drafted.Value()
 	mental, _ := f.Pawn.MentalState.Value()
-	forced, _ := f.Pawn.PlayerForced.Value()
 	if dead || downed {
 		return refuse(CleanerUnavailable)
 	}
-	if drafted || mental || forced || queued != 0 {
+	if drafted || mental {
 		return refuse(PlayerOrder)
 	}
 	if existingJob == "Clean" {

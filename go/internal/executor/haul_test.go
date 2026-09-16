@@ -20,7 +20,7 @@ type haulEnvironment struct {
 
 func (n *haulEnvironment) haulFacts(target Target) policy.HaulFacts {
 	haul, _ := target.Action.Haul()
-	pawn := policy.HaulPawnFacts{Pawn: haul.Pawn(), SnapshotToken: "pawn-token", Dead: domain.Known(false), Downed: domain.Known(false), Drafted: domain.Known(false), MentalState: domain.Known(false), PlayerForced: domain.Known(false), QueuedJobs: domain.Known(uint32(0)), ExistingJobDef: domain.Known("")}
+	pawn := policy.HaulPawnFacts{Pawn: haul.Pawn(), SnapshotToken: "pawn-token", Dead: domain.Known(false), Downed: domain.Known(false), Drafted: domain.Known(false), MentalState: domain.Known(false), ExistingJobDef: domain.Known("")}
 	return policy.HaulFacts{Snapshot: target.Snapshot, PawnTick: n.tick, PreviewTick: n.tick, Pawn: pawn, ThingSnapshotToken: "thing-token", NativeCanTry: domain.Known(!n.ineligible)}
 }
 func (n *haulEnvironment) InspectHaul(_ context.Context, target Target) (HaulInspection, error) {

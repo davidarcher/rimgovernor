@@ -55,8 +55,7 @@ func NewWasteBoundary(native WasteNative, writer WasteWriter, leases boundary.Le
 
 func wastePawnFacts(pawn domain.PawnID, row *n.PawnState, token string) policy.WastePawnFacts {
 	facts := policy.WastePawnFacts{Pawn: pawn, SnapshotToken: token, Dead: boundary.FactBool(row.Dead), Downed: boundary.FactBool(row.Downed), Drafted: boundary.FactBool(row.Drafted), MentalState: boundary.FactPresence(row.MentalState, row.Issues, "mental_state")}
-	if row.Job != nil && !boundary.IssueField(row.Job.Issues, "player_forced") && !boundary.IssueField(row.Job.Issues, "queued_jobs") && !boundary.IssueField(row.Job.Issues, "def_name") {
-		facts.PlayerForced, facts.QueuedJobs = boundary.FactBool(row.Job.PlayerForced), boundary.FactUint(row.Job.QueuedJobs)
+	if row.Job != nil && !boundary.IssueField(row.Job.Issues, "def_name") {
 		if row.Job.DefName != nil {
 			facts.ExistingJobDef = domain.Known(row.Job.GetDefName())
 		}
@@ -161,7 +160,7 @@ func (b *WasteBoundary) ManageWaste(ctx context.Context, dispatch executor.Waste
 	if err = ctx.Err(); err != nil {
 		return out, err
 	}
-	pre := &a.WritePrecondition{Identity: attempt.Identity, Attempt: attempt.Attempt, ExpectedGeneration: proto.Uint64(attempt.Generation),}
+	pre := &a.WritePrecondition{Identity: attempt.Identity, Attempt: attempt.Attempt, ExpectedGeneration: proto.Uint64(attempt.Generation)}
 	reply, _, err := b.writer.ApplyWaste(ctx, pre, attempt.Pawn, attempt.PawnToken, attempt.Target, attempt.TargetToken, attempt.UnwantedIDs, attempt.BuryIDs)
 	var refused *bridge.NativeFailure
 	if errors.As(err, &refused) && refused.Value != nil && refused.Value.GetCode() != c.FailureCode_FAILURE_CODE_ATTEMPT_CONFLICT {

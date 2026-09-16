@@ -16,12 +16,11 @@ const HaulerUnavailable Reason = "hauler_unavailable"
 // pawn and thing; EvaluateHaul only re-validates the pair immediately before
 // dispatch.
 type HaulPawnFacts struct {
-	Pawn                      domain.PawnID
-	SnapshotToken             string
-	Dead, Downed, Drafted     domain.Fact[bool]
-	MentalState, PlayerForced domain.Fact[bool]
-	QueuedJobs                domain.Fact[uint32]
-	ExistingJobDef            domain.Fact[string]
+	Pawn                  domain.PawnID
+	SnapshotToken         string
+	Dead, Downed, Drafted domain.Fact[bool]
+	MentalState           domain.Fact[bool]
+	ExistingJobDef        domain.Fact[string]
 }
 
 type HaulFacts struct {
@@ -70,14 +69,10 @@ func EvaluateHaul(r HaulRequest) DraftDecision {
 	if f.Pawn.Pawn != haul.Pawn() || !validToken(f.Pawn.SnapshotToken) || !validToken(f.ThingSnapshotToken) {
 		return refuse(UnknownFacts)
 	}
-	for _, fact := range []domain.Fact[bool]{f.Pawn.Dead, f.Pawn.Downed, f.Pawn.Drafted, f.Pawn.MentalState, f.Pawn.PlayerForced} {
+	for _, fact := range []domain.Fact[bool]{f.Pawn.Dead, f.Pawn.Downed, f.Pawn.Drafted, f.Pawn.MentalState} {
 		if _, known := fact.Value(); !known {
 			return refuse(UnknownFacts)
 		}
-	}
-	queued, known := f.Pawn.QueuedJobs.Value()
-	if !known {
-		return refuse(UnknownFacts)
 	}
 	existingJob, known := f.Pawn.ExistingJobDef.Value()
 	if !known {
@@ -87,11 +82,10 @@ func EvaluateHaul(r HaulRequest) DraftDecision {
 	downed, _ := f.Pawn.Downed.Value()
 	drafted, _ := f.Pawn.Drafted.Value()
 	mental, _ := f.Pawn.MentalState.Value()
-	forced, _ := f.Pawn.PlayerForced.Value()
 	if dead || downed {
 		return refuse(HaulerUnavailable)
 	}
-	if drafted || mental || forced || queued != 0 {
+	if drafted || mental {
 		return refuse(PlayerOrder)
 	}
 	if existingJob == "HaulToCell" || existingJob == "HaulToContainer" {

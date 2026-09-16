@@ -3,9 +3,8 @@ package policy
 import "github.com/davidarcher/RimGovernor/go/internal/domain"
 
 type DraftPawnFacts struct {
-	Pawn                                         domain.PawnID
-	Drafted, Unowned, PlayerForced, NativeCanTry domain.Fact[bool]
-	QueuedJobs                                   domain.Fact[uint32]
+	Pawn                           domain.PawnID
+	Drafted, Unowned, NativeCanTry domain.Fact[bool]
 }
 type DraftRequest struct {
 	Action    domain.Action
@@ -99,24 +98,16 @@ func EvaluateOwnedDraft(request DraftRequest) DraftDecision {
 	if !found {
 		return refuseEmergency(UnknownFacts, EmergencyHold{Reason: EmergencyUnknownFacts, Pawn: PawnID(draft.Pawn())})
 	}
-	for _, fact := range []domain.Fact[bool]{request.Pawn.Drafted, request.Pawn.Unowned, request.Pawn.PlayerForced, request.Pawn.NativeCanTry} {
+	for _, fact := range []domain.Fact[bool]{request.Pawn.Drafted, request.Pawn.Unowned, request.Pawn.NativeCanTry} {
 		if _, known := fact.Value(); !known {
 			return refuse(UnknownFacts)
 		}
 	}
-	queued, known := request.Pawn.QueuedJobs.Value()
-	if !known {
-		return refuse(UnknownFacts)
-	}
 	drafted, _ := request.Pawn.Drafted.Value()
 	unowned, _ := request.Pawn.Unowned.Value()
-	forced, _ := request.Pawn.PlayerForced.Value()
 	eligible, _ := request.Pawn.NativeCanTry.Value()
 	if drafted || !unowned {
 		return refuse(DraftOwnership)
-	}
-	if forced || queued != 0 {
-		return refuse(PlayerOrder)
 	}
 	if !eligible {
 		return refuse(NativeIneligible)

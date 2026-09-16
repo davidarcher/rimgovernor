@@ -9,7 +9,7 @@ namespace HomeBridge.BridgeTools
         public List<string> Backup = new List<string>();
         public int MapId, X, Z, Nx, Nz, CompletedTick;
         public long UiRevision;
-        public bool Complete, PlayerOwned, Retired;
+        public bool Complete, Retired;
         public void ExposeData()
         {
             Scribe_Values.Look(ref Id, "id"); Scribe_Values.Look(ref Target, "target");
@@ -20,7 +20,7 @@ namespace HomeBridge.BridgeTools
             Scribe_Values.Look(ref MapId, "mapId"); Scribe_Values.Look(ref X, "x"); Scribe_Values.Look(ref Z, "z");
             Scribe_Values.Look(ref Nx, "nx"); Scribe_Values.Look(ref Nz, "nz");
             Scribe_Values.Look(ref CompletedTick, "completedTick"); Scribe_Values.Look(ref UiRevision, "uiRevision");
-            Scribe_Values.Look(ref Complete, "complete"); Scribe_Values.Look(ref PlayerOwned, "playerOwned");
+            Scribe_Values.Look(ref Complete, "complete");
             Scribe_Values.Look(ref Retired, "retired");
             Scribe_Collections.Look(ref Backup, "backup", LookMode.Value);
             if (Scribe.mode == LoadSaveMode.PostLoadInit && Backup == null) Backup = new List<string>();

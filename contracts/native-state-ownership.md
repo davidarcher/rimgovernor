@@ -161,10 +161,12 @@ Sources: [saved types](../integrations/rimgovernor-native/src/Runtime/Persistenc
 | `Material/material`, `MapId/mapId`, `X/x`, `Z/z`, `Nx/nx`, `Nz/nz` | SQL | Fresh geometry/material; planned orientation and original association are historical. |
 | `Load/load`, `UiRevision/uiRevision` | SQL | No; old authority must never be restored to a new load. |
 | `CompletedTick/completedTick`, `Complete/complete` | SQL | No; missing wall is not proof of safe owned demolition. |
-| `PlayerOwned/playerOwned`, `Retired/retired`, `Blocker/blocker` | SQL | No; designation ownership/cancellation history. |
+| `Retired/retired`, `Blocker/blocker` | SQL | No; designation/cancellation history. |
 
 Current guards require supervision, matching load/UI revision and safe enclosure,
-support and resource facts. A replaced designation retires controller ownership.
+support and resource facts. There is no `PlayerOwned` field any more: a replaced
+demolition designation is treated as an ordinary geometry/state change like any
+other, re-evaluated by `Check()` rather than permanently retiring the record.
 Release keeps records to guard already-running jobs after removing designations;
 registration is capped at 512. This is a concrete reason not to simply delete the
 component after copying its list into SQL.
@@ -212,14 +214,17 @@ Sources: [saved map](../integrations/rimgovernor-native/src/Runtime/Persistence/
 | --- | --- | --- |
 | `Weapons/rimgovernorUpkeepWeapons` (pawn unique-load-ID -> weapon unique-load-ID) | SQL | No; equipped item is observable, who assigned it is not. |
 
-Current code records the claim when an equip job becomes current and checks the
-exact primary weapon before upkeep replacement. The component itself has no tick
-writer; native equip work can finish while disconnected. Migration: import claims
-as untrusted historical evidence into matched SQL, then remove the saved map and
-require fresh native evidence plus SQL ownership for replacement. Missing SQL must
-preserve equipped weapons as player-owned. Required acceptance: lost equip receipt,
-player swap and swap-back, older branch, pending equip save/load and missing SQL;
-never claim a weapon solely because it matches an old ID. Existing entry point:
+Current code still records the claim when an equip job becomes current, but
+upkeep replacement no longer requires the pawn's current primary to match a
+previously recorded claim: any pawn's weapon, controller-equipped or
+player-equipped, is eligible for replacement once it fails the quality/wear
+checks in `GearUpkeepTool.WeaponEligible`. The saved map is now informational
+history rather than an ownership gate. The component itself has no tick
+writer; native equip work can finish while disconnected. Migration: import
+claims as untrusted historical evidence into matched SQL, then remove the
+saved map. Required acceptance: lost equip receipt, player swap and
+swap-back, older branch, pending equip save/load and missing SQL; never claim
+a weapon solely because it matches an old ID. Existing entry point:
 `scripts/gear_upkeep_acceptance.py`.
 
 ## Recovery areas
@@ -233,20 +238,22 @@ Sources: [saved claims and cleanup](../integrations/rimgovernor-native/src/Runti
 | `RecoveryAreaClaim.Pawn/pawn` (reference) | Native cleanup target | Fresh pawn, not cleanup association. |
 | `Before/before`, `Assigned/assigned` (area references) | Native compare-and-restore obligation | Current area is fresh; prior area and assignment provenance are not. |
 | `Owner/owner`, `Until/until` | Native cleanup expiry discriminator | No; must not grant resumed automation authority. |
-| `RecoveryAreas.Overrides/rimgovernorRecoveryAreaOverrides` (pawn references) | SQL override history | No; a player setter may restore the same value. |
 
-Current tick cleanup restores only an unchanged assigned area on the matching map,
-when the tick deadline expires, load token changes or toxic fallout ends. A pawn
-on another map waits until return. Missing pawn/settings/assigned area removes the
-claim; an observed changed assignment records an override. Patched setters also
-invalidate claims, including a same-value setter.
+There is no `Overrides` list any more: an area-restriction change is no longer
+remembered as a permanent "player owns this pawn's work area" refusal. Current
+tick cleanup restores only an unchanged assigned area on the matching map, when
+the tick deadline expires, load token changes or toxic fallout ends. A pawn on
+another map waits until return. Missing pawn/settings/assigned area, or an
+observed changed assignment, simply drops the stale claim; the controller may
+issue a fresh lease for that pawn immediately afterward. Patched setters also
+drop claims on any change, including a same-value setter, which is ordinary
+staleness handling rather than a player-ownership record.
 
-Proposed native exception: the five claim fields are a bounded cleanup obligation
-needed when the controller is absent, not a second decision ledger. Reduce them only
-after demonstrating independent restoration with player ownership preserved. Migrate
-override history to SQL through durable player-change events; a missing database
+Proposed native exception: the remaining claim fields are a bounded cleanup
+obligation needed when the controller is absent, not a second decision ledger.
+Migrate cleanup history to SQL through durable change events; a missing database
 must not allow old claims to be reacquired. Required acceptance: absent controller,
-load before expiry, player same-value setter, removed area/pawn, map departure/return
+load before expiry, same-value setter, removed area/pawn, map departure/return
 and fallout ending while disconnected. Test the retained cleanup path without any
 bridge tool discovery. Existing entry point: `scripts/disaster_recovery_acceptance.py`.
 
@@ -257,23 +264,22 @@ Sources: [saved map state](../integrations/rimgovernor-native/src/Runtime/Persis
 
 | Field/key | Sole target owner | Reconstructible? |
 | --- | --- | --- |
-| `Excluded/rimgovernorHomeExcluded` (`BoolGrid`, deep) | SQL player-exclusion history | No; unset Home cells do not distinguish deliberate removal from never-covered cells. |
-| `Initialized/rimgovernorHomeInitialized` | SQL observation-baseline metadata | No; whether omissions were previously classified is historical. |
+| `Initialized/rimgovernorHomeInitialized` | Native per-load bookkeeping | No; whether the map has been observed once is historical. |
 | `Revision/rimgovernorHomeRevision` | Native per-load freshness token, unsaved target | No need to preserve its value if load identity invalidates all old requests. |
 
-Current `State` classifies initial facility omissions conservatively; installed
-patches record Home removal, clear and invert, incrementing the saved revision.
-This tracking can run without controller connectivity. Actual Home area stays
-game-owned. Migration/removal: deliver exclusion changes to SQL durably; when
-history is missing/gapped, conservatively treat existing omissions as excluded and
-require fresh admission. Drop the saved revision only after requests bind freshness
-to load/map plus a per-load revision. No native exclusion-history exception is
-approved merely to preserve the old implementation.
+There is no `Excluded` grid any more: a cell the player removed from Home, or a
+facility cell not covered when the controller first observed the map, is no
+longer remembered as permanently off-limits. Installed patches only bump the
+saved revision on Home removal/clear/invert, purely so `home/upkeep_home`
+can detect that geometry changed since it last read the area; they no longer
+mark cells as excluded. `home/upkeep_home` may add Home over any cell in an
+observed facility/stockpile footprint that is currently missing it, including
+one the player deliberately removed, subject only to the revision/shape match
+against the geometry the caller observed. Actual Home area stays game-owned.
 
-Required acceptance: disconnect across clear/invert and remove/re-add, restart with
-missing SQL, old save against newer exclusions, changed facility geometry and stale
-same-number revision from another load. Never expand Home across a player omission
-because an event was lost. Existing entry point: `scripts/home_coverage_acceptance.py`.
+Required acceptance: disconnect across clear/invert and remove/re-add, restart,
+changed facility geometry and stale same-number revision from another load.
+Existing entry point: `scripts/home_coverage_acceptance.py`.
 
 ## Shared migration gate
 

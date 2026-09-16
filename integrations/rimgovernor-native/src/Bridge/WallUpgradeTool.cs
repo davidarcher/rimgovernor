@@ -13,7 +13,7 @@ namespace HomeBridge.BridgeTools
 {
     internal static class WallUpgradeSafety
     {
-        private static bool installed, issuing;
+        private static bool installed;
         private static WallRemovalState State(bool create = false)
         {
             if (Current.Game == null) return null;
@@ -34,8 +34,6 @@ namespace HomeBridge.BridgeTools
                 finalizer: new HarmonyMethod(typeof(WallUpgradeSafety), nameof(AfterRemoval)));
             harmony.Patch(AccessTools.Method(typeof(JobDriver_Deconstruct), "MakeNewToils"),
                 postfix: new HarmonyMethod(typeof(WallUpgradeSafety), nameof(GuardJob)));
-            harmony.Patch(AccessTools.Method(typeof(DesignationManager), nameof(DesignationManager.AddDesignation)),
-                postfix: new HarmonyMethod(typeof(WallUpgradeSafety), nameof(Designated)));
             installed = true;
         }
         private static Building Wall(Map map, string id) => map?.listerBuildings.allBuildingsColonist
@@ -75,7 +73,6 @@ namespace HomeBridge.BridgeTools
         {
             var map = Find.CurrentMap;
             if (map == null || map.uniqueID != r.MapId || ownership && r.Load != Load) return "Colony/load/map changed";
-            if (r.PlayerOwned) return "Player replaced the demolition designation";
             if (r.Blocker != null) return r.Blocker;
             if (ownership && r.UiRevision != PlayerFrame.CurrentUiRevision) return "Player input invalidated pending demolition";
             if (Math.Abs(r.Nx) > 1 || Math.Abs(r.Nz) > 1 || r.Nx == 0 && r.Nz == 0) return "Invalid wall orientation";
@@ -119,7 +116,7 @@ namespace HomeBridge.BridgeTools
             return RoofSupportSafety.Blocker(target, out _);
         }
         private static WallRemovalRecord Claim(Thing t) => t == null ? null : State()?.Records.LastOrDefault(r =>
-            r.Target == t.GetUniqueLoadID() && !r.Complete && !r.PlayerOwned);
+            r.Target == t.GetUniqueLoadID() && !r.Complete);
         private static void Eligible(Thing t, ref bool __result)
         {
             var r = Claim(t); if (r == null || !__result) return;
@@ -154,19 +151,13 @@ namespace HomeBridge.BridgeTools
             else { __state.Complete = true; __state.CompletedTick = Find.TickManager.TicksGame; }
             return __exception;
         }
-        private static void Designated(Designation newDes)
-        {
-            if (issuing || newDes.def != DesignationDefOf.Deconstruct) return;
-            var r = Claim(newDes.target.Thing);
-            if (r != null) { r.PlayerOwned = true; r.Blocker = "Player replaced the demolition designation"; }
-        }
         internal static object Read(Map map)
         {
             Install();
             return (State()?.Records ?? new List<WallRemovalRecord>()).Where(r => r.MapId == map.uniqueID).Select(r => {
-                if (!r.Complete && !r.PlayerOwned && r.Blocker == null) r.Blocker = Check(r);
+                if (!r.Complete && r.Blocker == null) r.Blocker = Check(r);
                 return new { id = r.Id, target = r.Target, complete = r.Complete, completedTick = r.CompletedTick,
-                    blocker = r.Blocker, playerOwned = r.PlayerOwned, retired = r.Retired,
+                    blocker = r.Blocker, retired = r.Retired,
                     targetPresent = Wall(map, r.Target) != null,
                     designated = Wall(map, r.Target) is Building target
                         && map.designationManager.DesignationOn(target, DesignationDefOf.Deconstruct) != null };
@@ -174,7 +165,7 @@ namespace HomeBridge.BridgeTools
         }
         internal static object Release(bool dryRun)
         {
-            var records = (State()?.Records ?? new List<WallRemovalRecord>()).Where(r => !r.Complete && !r.PlayerOwned).ToList();
+            var records = (State()?.Records ?? new List<WallRemovalRecord>()).Where(r => !r.Complete).ToList();
             if (!dryRun) foreach (var r in records) {
                 r.Blocker = "Automation stopped; pending demolition invalidated";
                 var map = Find.CurrentMap;
@@ -207,17 +198,14 @@ namespace HomeBridge.BridgeTools
             var designator = new Designator_Deconstruct();
             if (!designator.CanDesignateThing(wall).Accepted) return Refuse("Native deconstruction designator refused");
             var workers = map.mapPawns.FreeColonistsSpawned.Where(p => !p.Downed && !p.Drafted && !p.InMentalState
-                && p.CurJob?.playerForced != true && !p.WorkTypeIsDisabled(WorkTypeDefOf.Construction)
-                && p.workSettings?.GetPriority(WorkTypeDefOf.Construction) > 0 && !p.health.HasHediffsNeedingTend()
+                && !p.WorkTypeIsDisabled(WorkTypeDefOf.Construction) && !p.health.HasHediffsNeedingTend()
                 && p.health.hediffSet.BleedRateTotal <= 0
-                && (p.playerSettings?.AreaRestrictionInPawnCurrentMap == null || p.playerSettings.AreaRestrictionInPawnCurrentMap[wall.Position])
                 && p.CanReserveAndReach(wall, PathEndMode.Touch, Danger.None)).ToList();
             if (workers.Count == 0) return Refuse("No enabled available builder with safe native access");
             if (!dryRun) {
                 State().Records.Add(r);
-                try { issuing = true; designator.DesignateThing(wall); }
+                try { designator.DesignateThing(wall); }
                 catch { r.Blocker = "Native designation outcome is uncertain"; throw; }
-                finally { issuing = false; }
                 if (map.designationManager.DesignationOn(wall, DesignationDefOf.Deconstruct) == null)
                     return Refuse("Native demolition designation was not observed");
             }

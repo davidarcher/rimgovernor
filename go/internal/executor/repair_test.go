@@ -21,7 +21,7 @@ type repairEnvironment struct {
 
 func (n *repairEnvironment) repairFacts(target Target) policy.RepairFacts {
 	repair, _ := target.Action.Repair()
-	pawn := policy.RepairPawnFacts{Pawn: repair.Pawn(), SnapshotToken: "pawn-token", Dead: domain.Known(false), Downed: domain.Known(false), Drafted: domain.Known(false), MentalState: domain.Known(false), PlayerForced: domain.Known(false), QueuedJobs: domain.Known(uint32(0)), ExistingJobDef: domain.Known("")}
+	pawn := policy.RepairPawnFacts{Pawn: repair.Pawn(), SnapshotToken: "pawn-token", Dead: domain.Known(false), Downed: domain.Known(false), Drafted: domain.Known(false), MentalState: domain.Known(false), ExistingJobDef: domain.Known("")}
 	structure := policy.RepairStructureFacts{Structure: repair.Structure(), SnapshotToken: "structure-token", Exists: domain.Known(true), Damaged: domain.Known(true)}
 	return policy.RepairFacts{Snapshot: target.Snapshot, PawnTick: n.tick, PreviewTick: n.tick, NativeCanTry: domain.Known(true), Pawn: pawn, Structure: structure}
 }

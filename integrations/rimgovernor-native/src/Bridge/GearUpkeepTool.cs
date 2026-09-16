@@ -53,7 +53,6 @@ namespace HomeBridge.BridgeTools
             if (p.apparel == null || p.outfits?.CurrentApparelPolicy == null ||
                 !p.health.capacities.CapableOf(PawnCapacityDefOf.Manipulation)) return "No apparel capability";
             if (p.IsMutant && p.mutant.Def.disableApparel) return "Mutant cannot use apparel";
-            if (p.CurJob?.playerForced == true) return "Preserving player ordered job";
             return null;
         }
 
@@ -101,12 +100,10 @@ namespace HomeBridge.BridgeTools
                 return "Weapon protected by resource policy or commitments";
             var primary = p.equipment?.Primary;
             if (primary != null) {
-                if (!GearOwnership.State().Weapons.TryGetValue(p.GetUniqueLoadID(), out var owned) || primary.GetUniqueLoadID() != owned)
-                    return "Preserving player weapon assignment";
-                if (primary.def != weapon.def) return "Preserving assigned weapon type";
-                if (!primary.def.useHitPoints || primary.HitPoints > primary.MaxHitPoints * .5f) return "Current weapon does not need replacement";
                 if (primary.TryGetQuality(out var oldQuality) && (!weapon.TryGetQuality(out var quality) || quality < oldQuality))
                     return "Replacement would lower weapon quality";
+                if (primary.def == weapon.def && (!primary.def.useHitPoints || primary.HitPoints > primary.MaxHitPoints * .5f))
+                    return "Current weapon does not need replacement";
             }
             if (weapon.def.useHitPoints && weapon.HitPoints < weapon.MaxHitPoints * .8f) return "Replacement weapon is too worn";
             return null;
@@ -143,8 +140,7 @@ namespace HomeBridge.BridgeTools
                 && p.outfits.CurrentApparelPolicy.filter.Allows(a.def)))
                 needs.Add(new ProductionNeed { defName = a.def.defName, stuff = a.Stuff?.defName, reason = "wear" });
             var primary = p.equipment?.Primary;
-            if (primary != null && primary.def.useHitPoints && primary.HitPoints <= primary.MaxHitPoints * .5f
-                && GearOwnership.State().Weapons.TryGetValue(p.GetUniqueLoadID(), out var owned) && primary.GetUniqueLoadID() == owned)
+            if (primary != null && primary.def.useHitPoints && primary.HitPoints <= primary.MaxHitPoints * .5f)
                 needs.Add(new ProductionNeed { defName = primary.def.defName, stuff = primary.Stuff?.defName, reason = "weapon wear" });
             var cold = p.AmbientTemperature < p.GetStatValue(StatDefOf.ComfyTemperatureMin);
             var hot = p.AmbientTemperature > p.GetStatValue(StatDefOf.ComfyTemperatureMax);

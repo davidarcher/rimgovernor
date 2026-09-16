@@ -60,11 +60,10 @@ type CaravanDeparturePolicy struct {
 
 // CaravanCrewFacts describes one already-selected undrafted crew pawn.
 type CaravanCrewFacts struct {
-	Pawn                      domain.PawnID
-	SnapshotToken             string
-	Dead, Downed, Drafted     domain.Fact[bool]
-	MentalState, PlayerForced domain.Fact[bool]
-	QueuedJobs                domain.Fact[uint32]
+	Pawn                  domain.PawnID
+	SnapshotToken         string
+	Dead, Downed, Drafted domain.Fact[bool]
+	MentalState           domain.Fact[bool]
 }
 
 type CaravanDepartureFacts struct {
@@ -152,24 +151,19 @@ func EvaluateCaravanDeparture(r CaravanDepartureRequest) DraftDecision {
 		if !present || member.Pawn != pawn {
 			return refuse(UnknownFacts)
 		}
-		for _, fact := range []domain.Fact[bool]{member.Dead, member.Downed, member.Drafted, member.MentalState, member.PlayerForced} {
+		for _, fact := range []domain.Fact[bool]{member.Dead, member.Downed, member.Drafted, member.MentalState} {
 			if _, known := fact.Value(); !known {
 				return refuse(UnknownFacts)
 			}
-		}
-		if _, known := member.QueuedJobs.Value(); !known {
-			return refuse(UnknownFacts)
 		}
 		dead, _ := member.Dead.Value()
 		downed, _ := member.Downed.Value()
 		drafted, _ := member.Drafted.Value()
 		mental, _ := member.MentalState.Value()
-		forced, _ := member.PlayerForced.Value()
-		queued, _ := member.QueuedJobs.Value()
 		if dead || downed {
 			return refuse(CaravanCrewUnavailable)
 		}
-		if drafted || mental || forced || queued != 0 {
+		if drafted || mental {
 			return refuse(PlayerOrder)
 		}
 	}
