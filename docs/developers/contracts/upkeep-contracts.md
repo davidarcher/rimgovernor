@@ -240,10 +240,11 @@ only once every known site is unusable or exhausted does it fall back to a
 StockTarget production bill for more preserved or non-perishable food, through
 the same source/bill method other resource goals use. Relocation and bill
 receipts never prove spoilage was averted; the census must observe the stock
-as stored, or the runway as recovered, before the deficit clears. The native
-observation of which sites are adequately covered or enclosed/cold, and their
-remaining capacity, is separate outstanding [B04h](https://github.com/davidarcher/rimgovernor/issues/2)
-work; the policy above is defined and tested against that observation shape.
+as stored, or the runway as recovered, before the deficit clears. Native code
+sets `FoodStock.roofed` per stock row, which the census reads to determine
+adequately covered/enclosed storage; a real-game acceptance run confirming
+this end-to-end is still pending due to a headless-environment instability
+tracked separately from [B04h](https://github.com/davidarcher/rimgovernor/issues/2).
 
 `EnsureComfort` maintains dining and recreation after startup survival work.
 Its deficit remains visible during emergencies; admission waits rather than
