@@ -183,10 +183,12 @@ func (r *RoutineBuildingPlanner) previewShellCell(ctx context.Context, snapshot 
 // door already standing, framed or blueprinted natively are the only durable
 // record of the shell; a cancelled frame likewise leaves a gap in an
 // otherwise ordered ring. Without this the next review would site a second
-// shell beside the first. A shell is recognised from a player door plus at
-// least one wall on one of the shapes the starter search issues at that door
-// (policy.ShellShapesAtDoor); every other cell of that shape must be placeable
-// now. Doors are tried nearest the colony centre first.
+// shell beside the first. A shell is recognised from a standing player door
+// on one of the shapes the starter search issues at that door
+// (policy.ShellShapesAtDoor) whose every other cell either stands already or
+// is placeable now; a lone door suffices because an interrupted plan's
+// blueprints and frames are cancelled natively and only its completed cells
+// survive. Doors are tried nearest the colony centre first.
 func (r *RoutineBuildingPlanner) adoptShell(ctx context.Context, snapshot domain.GenerationSnapshot, facts observation.ColonyProjection, protected []domain.Cell, style policy.ShelterStyle, check func() error) ([]policy.Preview, policy.StockObservation, bool, error) {
 	reader, ok := r.native.(structureReader)
 	if !ok {
@@ -258,7 +260,7 @@ func (r *RoutineBuildingPlanner) adoptShell(ctx context.Context, snapshot domain
 				}
 				selected = append(selected, preview.Preview)
 			}
-			if fits && matched >= 2 && len(selected) > 0 {
+			if fits && matched >= 1 && len(selected) > 0 {
 				return selected, stock, true, nil
 			}
 		}

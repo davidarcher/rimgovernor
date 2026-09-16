@@ -612,13 +612,16 @@ func TestRoutineShelterReissuesOnlyTheMissingCellsOfAnEarlierShell(t *testing.T)
 	}
 }
 
-func TestRoutineShelterIgnoresALoneDoorAndSitesAfresh(t *testing.T) {
+func TestRoutineShelterAdoptsALoneDoor(t *testing.T) {
 	t.Parallel()
 	r, db, base := shelterFixture(t)
 	base.reply.GetObserved().PlayerTechLevel = proto.String("Neolithic")
 	base.reply.GetObserved().Center = &c.Cell{X: proto.Int32(10), Z: proto.Int32(10)}
 	hutCells(base, 21, func(int32, int32) bool { return true })
-	n := &adoptingNative{sleepingNative: base, standing: []bridge.Structure{{ID: "door", Definition: "Door", Cell: domain.Cell{X: 4, Z: 3}, Status: "built"}}}
+	// An interrupted shell's blueprints and frames are cancelled natively;
+	// only the door it had finished survives, and it is the shell's record.
+	door := domain.Cell{X: 4, Z: 3}
+	n := &adoptingNative{sleepingNative: base, standing: []bridge.Structure{{ID: "door", Definition: "Door", Cell: door, Status: "built"}}}
 	planner, err := NewRoutineShelterPlanner(r.reviewer, n)
 	if err != nil {
 		t.Fatal(err)
@@ -632,9 +635,24 @@ func TestRoutineShelterIgnoresALoneDoorAndSitesAfresh(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	door, cells := shellCells(t, plan)
-	want, _ := domain.EllipseFootprint(domain.Cell{X: 10, Z: 10}, 4, 4, domain.EllipseNorthSouth, domain.South)
-	if door.Cell() != want.Door() || len(cells) != len(want.Walls()) {
-		t.Fatal("a lone door is not a shell in progress", door, len(cells))
+	want := policy.ShellShapesAtDoor(door, policy.ShelterHut)[0]
+	got := map[domain.Cell]bool{}
+	for _, action := range plan.Spec.Actions() {
+		b, ok := action.Building()
+		if !ok || b.Definition() != "Wall" || b.Cell() == door || got[b.Cell()] {
+			t.Fatal("unexpected action around a lone door", action)
+		}
+		got[b.Cell()] = true
+	}
+	if len(got) != len(want.Walls())-1 {
+		t.Fatalf("reissued %d cells, want the %d walls of the first shape at the door", len(got), len(want.Walls())-1)
+	}
+	for _, w := range want.Walls() {
+		if w != door && !got[w] {
+			t.Fatal("missing wall not reissued", w)
+		}
+	}
+	if len(plan.Spec.Dependencies()) != 0 {
+		t.Fatal("walls of an adopted shell must not wait for a door that already stands")
 	}
 }

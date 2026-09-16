@@ -106,6 +106,7 @@ type shell struct {
 	footprint domain.RoomFootprint
 	cells     map[domain.Cell]int // shell cell -> action index
 	shape     string
+	seen      map[domain.PlanID]bool // every shell plan the store has listed
 }
 
 func run(ctx context.Context, cfg liveservice.Config, buildWait, furnishWait time.Duration, report na.Report) error {
@@ -289,15 +290,27 @@ func (l lineage) liveComplete() bool {
 // shellLineage reads the lineage from the store. Any shell plan with a cell
 // off run 1's ring is a second shell and fails the run.
 func shellLineage(ctx context.Context, st *store.Store, sh *shell) (lineage, error) {
-	plans, err := st.LoadPlans(ctx, 256)
+	// The catalog lists live plans only; a plan retired by an interruption
+	// stays part of the lineage, so every shell plan ever seen is reloaded.
+	live, err := st.LoadPlans(ctx, 256)
 	if err != nil {
 		return lineage{}, err
 	}
+	for _, plan := range live {
+		if strings.HasPrefix(string(plan.Spec.ID()), "routine-shell-") {
+			sh.seen[plan.Spec.ID()] = true
+		}
+	}
+	var plans []store.PlanState
+	for id := range sh.seen {
+		plan, err := st.LoadPlan(ctx, id)
+		if err != nil {
+			return lineage{}, err
+		}
+		plans = append(plans, plan)
+	}
 	l := lineage{plans: map[domain.PlanID]bool{}, ordered: map[domain.Cell]bool{}, undecided: map[domain.Cell]bool{}}
 	for _, plan := range plans {
-		if !strings.HasPrefix(string(plan.Spec.ID()), "routine-shell-") {
-			continue
-		}
 		cancelled := false
 		for i, a := range plan.Spec.Actions() {
 			b, ok := a.Building()
@@ -454,6 +467,7 @@ func waitShell(ctx context.Context, st *store.Store, wait time.Duration) (*shell
 						return nil, err
 					}
 					sh.planID, sh.goalID = m.Plan, binding.Goal
+					sh.seen = map[domain.PlanID]bool{m.Plan: true}
 					return sh, nil
 				}
 			}
