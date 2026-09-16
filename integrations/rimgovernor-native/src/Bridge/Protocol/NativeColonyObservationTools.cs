@@ -174,7 +174,7 @@ namespace HomeBridge.BridgeTools
             Bound(traders.Count + batteries.Count + conduits.Count + nets.Count, limit);
             var result = new Obs.DevelopmentFacts { Completeness = Complete(traders.Count + batteries.Count + conduits.Count) };
             foreach (var power in traders) {
-                var building = power.parent;
+                var building = (Building)power.parent;
                 var service = new Obs.BuildingServiceState { Connected = power.PowerNet != null, PowerOn = power.PowerOn,
                     PowerOutputW = Finite(power.PowerOutput), SwitchedOn = building.TryGetComp<CompFlickable>()?.SwitchIsOn ?? true };
                 if (power.PowerNet != null) service.PowerNetId = NetId(power.PowerNet);
@@ -182,7 +182,7 @@ namespace HomeBridge.BridgeTools
                 result.Power.Add(new Obs.DevelopmentPower { BaseW = Finite(-power.Props.PowerConsumption), Building = PowerState(map, building, service) });
             }
             foreach (var battery in batteries) {
-                var building = battery.parent;
+                var building = (Building)battery.parent;
                 var service = new Obs.BuildingServiceState { Connected = battery.PowerNet != null, PowerOn = battery.PowerNet != null,
                     PowerOutputW = 0, SwitchedOn = building.TryGetComp<CompFlickable>()?.SwitchIsOn ?? true };
                 if (battery.PowerNet != null) service.PowerNetId = NetId(battery.PowerNet);

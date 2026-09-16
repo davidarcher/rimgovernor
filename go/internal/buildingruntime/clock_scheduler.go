@@ -906,6 +906,7 @@ func (s *ClockScheduler) stepPlanners(call, gctx, epoch context.Context, out *Cl
 			if err != nil {
 				return fmt.Errorf("power: %w", err)
 			}
+			clockSchedulerLog("Power.step result: reason=%v decision=%+v nativeWorkTicks=%d", method.Reason, method.Decision, method.NativeWorkTicks)
 			out.Power = &method
 			return nil
 		})
@@ -926,6 +927,7 @@ func (s *ClockScheduler) stepPlanners(call, gctx, epoch context.Context, out *Cl
 			if err != nil {
 				return fmt.Errorf("refrigeration: %w", err)
 			}
+			clockSchedulerLog("Refrigeration.step result: reason=%v decision=%+v nativeWorkTicks=%d", method.Reason, method.Decision, method.NativeWorkTicks)
 			out.Refrigeration = &method
 			return nil
 		})
@@ -1050,8 +1052,9 @@ func clockSchedulerWork(plan store.PlanState, current domain.GenerationSnapshot)
 		if v.Stage == domain.Cancelled || v.Stage == domain.Unsuccessful || !v.Unresolved && v.Stage == domain.Completed {
 			continue
 		}
-		// Allow is an immediate designation and needs no simulation window.
-		if p.Action().Kind() == domain.SupplyAllowAction || p.Action().Kind() == domain.WorkAssignmentAction || p.Action().Kind() == domain.ZoneCreateAction {
+		// Allow, work settings, zones and a building's temperature target are
+		// immediate designations and need no simulation window.
+		if p.Action().Kind() == domain.SupplyAllowAction || p.Action().Kind() == domain.WorkAssignmentAction || p.Action().Kind() == domain.ZoneCreateAction || p.Action().Kind() == domain.BuildingTemperatureAction {
 			continue
 		}
 		// Construction, native plant labor, and the routine-dispatched action

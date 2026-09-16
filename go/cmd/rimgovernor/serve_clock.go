@@ -515,7 +515,7 @@ func startServiceClock(ctx context.Context, player *buildingruntime.Player, sess
 				return err
 			}
 		}
-		if sleeping || cooking || shelter || comfort || expansion || power || temperature {
+		if sleeping || cooking || shelter || comfort || expansion || power || temperature || refrigeration {
 			source, ok := reads.(buildingruntime.RoutineBuildingSource)
 			if !ok {
 				return errors.New("building plans require typed placement previews")

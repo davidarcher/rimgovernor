@@ -45,15 +45,25 @@ func (r *RoutineBuildingPlanner) selectRefrigeration(call context.Context, facts
 		return nil, "", err
 	}
 	if !review.Active {
+		if clockSchedulerDebug {
+			clockSchedulerLog("refrigeration: inactive review=%+v storage=%+v", review, facts.Facts.FoodStorageUpkeep)
+		}
 		return nil, BuildingMethodNoDeficit, nil
 	}
 	coolers, _, err := observation.ReadRefrigerationCoolers(call, r.native.(observation.RefrigerationSource), facts.Identity, facts.PowerPlanning)
 	if err != nil {
 		return nil, "", err
 	}
-	proposal, err := policy.SelectRefrigerationMethod(review, observation.RefrigerationFacts(facts, coolers), r.reviewer.policy.FoodStorage, allowance)
+	fact := observation.RefrigerationFacts(facts, coolers)
+	proposal, err := policy.SelectRefrigerationMethod(review, fact, r.reviewer.policy.FoodStorage, allowance)
 	if err != nil {
 		return nil, "", err
+	}
+	if clockSchedulerDebug {
+		v, known := fact.Value()
+		_, tk := facts.Rooms.Value()
+		_, ck := coolers.Value()
+		clockSchedulerLog("refrigeration: review=%+v factKnown=%v temperatureKnown=%v coolersKnown=%v rooms=%d cells=%d coolerAvailable=%+v proposal=%+v", review, known, tk, ck, len(v.Rooms), len(v.Cells), v.CoolerAvailable, proposal)
 	}
 	switch proposal.Method {
 	case policy.RefrigerationBuild, policy.RefrigerationSetTarget:
@@ -159,6 +169,9 @@ func (r *RoutineBuildingPlanner) previewRefrigeration(ctx context.Context, snaps
 	}
 	if err = mergeRoutineStock(&stock, preview.Stock, true); err != nil {
 		return nil, stock, "", err
+	}
+	if clockSchedulerDebug {
+		clockSchedulerLog("refrigeration: preview costs=%+v stock=%+v", p.Costs, stock.Values)
 	}
 	return []policy.Preview{p}, stock, "", nil
 }

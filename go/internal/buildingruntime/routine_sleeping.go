@@ -268,6 +268,13 @@ func (r *RoutineBuildingPlanner) step(call, epoch context.Context, arbiter *step
 		available = comfortBuilderAvailable(facts, r.definition, preferences.Overrides)
 	}
 	if !available {
+		if clockSchedulerDebug {
+			for _, d := range facts.Definitions {
+				if d.Name == r.definition {
+					clockSchedulerLog("%s: builder unavailable definition=%+v workPawns=%+v", goal.Goal.ID, d, facts.WorkPawns)
+				}
+			}
+		}
 		return RoutineBuildingResult{Reason: BuildingMethodUnknown}, nil
 	}
 	if existing, loadErr := p.journal.LoadGoalMethod(call, goal.Goal.ID, goal.Goal.Epoch, method); loadErr == nil {

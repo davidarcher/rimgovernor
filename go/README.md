@@ -344,23 +344,36 @@ colonists count. Missing gear or inconsistent colony/pawn censuses leave readine
 unknown; tick or generation changes reject the review. This supplies the maintained
 defense need without issuing equipment or combat orders.
 
-The colony development section supplies a complete, bounded power-trader census.
-Routine power coverage uses each consumer's own native network and output watts;
-generation on unrelated networks does not cover a deficit. Disconnected or unpowered
-consumers remain deficits, while no consumers means no electrical requirement.
-Enabled, unforbidden consumers without power also remain recovery targets. Missing
-census or service facts preserve unknown coverage. These reads issue no power orders.
-The same bounded census carries native trader footprints, conduit positions and
-active map conditions for power planning. The `power` family compiles
-network-local generation or up to eight conduit cells through shared building
-admission and existing Hands execution. Installed
-capacity waits for ordinary refueling/output. Solar flares and player-disabled
-equipment hold proposals. Completed methods lend at most 10,000 ticks for native
-power recovery, scoped to the current load token; native consumer power establishes
-recovery. Targeted gameplay acceptance uses `native_go_routine_acceptance.py
---power-methods generation` or `--power-methods conduit` with ForecastFixture. Both scenarios verify native
-consumer recovery, correlated construction, Manual and disabled restart. Replay
-uses `RIMGOVERNOR_NATIVE_POWER_METHODS_CAPTURE=<capture-directory> go test
+The colony development section supplies a complete, bounded power census:
+every trader with its refuelable (fuel, target, out-of-fuel, allowed fuels) and
+breakdown service facts, every battery as a zero-load row with stored and
+capacity watt-days, and a per-network summary (generation, consumption, stored
+and capacity energy). Routine power coverage uses each consumer's own native
+network and output watts; generation on unrelated networks does not cover a
+deficit. Disconnected or unpowered consumers remain deficits, while no consumers
+means no electrical requirement. Enabled, unforbidden consumers without power also
+remain recovery targets. Missing census or service facts preserve unknown
+coverage. These reads issue no power orders. The same bounded census carries
+native trader footprints, conduit positions and active map conditions for power
+planning. The `power` family compiles network-local generation or up to eight
+conduit cells through shared building admission and existing Hands execution. A
+producer that is out of fuel or broken down holds the proposal
+(`waiting_for_refuel`, `waiting_for_repair`): refuelling and repair are other
+families' ordinary pawn work, never a second generator. A powered network whose
+stored reserve would drain in under `PowerPlanning.ReserveMinDays` (default one
+day) is a deficit too, so generation is sized to connected load rather than
+momentary surplus. The generator definition comes from native planning
+availability and fuel stock (solar, then wood with wood on hand, then chemfuel),
+not a hardcoded wood-fired default. Solar flares and player-disabled equipment
+hold proposals. Completed methods lend at most 10,000 ticks for native power
+recovery, scoped to the current load token; native consumer power establishes
+recovery. Targeted gameplay acceptance is `poweraccept -scenario fuel`
+(out-of-fuel generator: hold, colonists refuel, consumer recovers) and
+`-scenario reserve` (draining battery: one more generator admitted and built),
+against `PowerFixture`; the older `native_go_routine_acceptance.py
+--power-methods generation|conduit` scenarios with ForecastFixture still cover
+correlated construction, Manual and disabled restart. Replay uses
+`RIMGOVERNOR_NATIVE_POWER_METHODS_CAPTURE=<capture-directory> go test
 ./internal/observation -run TestNativePowerMethodsReplay`.
 
 The `temperature` family adds complete indoor room reads to the paused
@@ -378,6 +391,28 @@ The isolated acceptance variants are `native_go_routine_acceptance.py
 RoutineSleepingFixture and ScenarioStartFixture. Replay uses
 `RIMGOVERNOR_NATIVE_TEMPERATURE_CAPTURE=<capture-directory> go test
 ./internal/observation -run TestNativeTemperatureMethodsReplay`.
+
+The `refrigeration` family maintains `MaintainRefrigeration`. The typed food
+census now carries each stock's roof, measured temperature and room, so
+`MaintainFoodStorage` counts a stock as stored when it is roofed and either
+chilled (at or under 10 C) or has at least five days of rot runway, and the
+refrigeration review latches on roofed perishable nutrition that is warmer than
+that, inside a known room, and short of runway (enter at the food-storage at-risk
+threshold, release once every such stock reads 5 C or colder). Per affected room,
+in deterministic order, the method is: report `enclosed_storage_room_needed` for
+an unenclosed room; hold `cooler_power_needed` when the room's serving cooler is
+disconnected or unpowered (the `power` family's deficit); hold
+`cooler_heat_rejection_blocked` when its hot side vents indoors; patch a
+warm-setpoint serving cooler to the freezer target (-5 C) through the shared
+building-temperature action; otherwise wait for native cooling. With no serving
+cooler, or after a completed cooler method's 120,000-tick allowance elapsed
+without release, it compiles one `Cooler` on the lowest-sorted wall cell of the
+room that has a straight inside-wall-outdoors line, front outward, gated on
+native `Cooler` planning availability (`cooler_research_needed`). A cooler's
+cold and hot sides derive from its rotation on the Go side. The goal runs at
+priority 2 so it bypasses ranked development: spoilage is a bounded loss the
+colony is already paying for. Targeted acceptance is `refrigerationaccept
+-scenario build|setpoint|power` against `RefrigerationFixture`.
 
 Routine reviews also read native pawn needs and thought targets. Per-pawn mood
 goals retain break-threshold and food/rest/recreation hysteresis through Manual and

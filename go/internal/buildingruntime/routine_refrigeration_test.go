@@ -154,6 +154,20 @@ func TestRefrigerationPatchesExistingCoolerTargetThenWaits(t *testing.T) {
 	if next, err := p.Step(context.Background()); err != nil || next.Reason != BuildingMethodExistingWork {
 		t.Fatal(next, err)
 	}
+	// The routine worker must dispatch the patch (it is not a player plan)
+	// and the clock must not wait on it: a target change is immediate.
+	if !routineExecutableKind(plan.Progress[0].Action().Kind()) {
+		t.Fatal("building temperature patch is not routine-executable")
+	}
+	root := p.reviewer.player.State().Snapshot
+	target := root
+	target.Plan, target.Revision = plan.Spec.ID(), plan.Spec.Revision()
+	if err := db.AuthorizeRoutinePlan(context.Background(), root, target); err != nil {
+		t.Fatal("routine authorization refused the patch plan:", err)
+	}
+	if work, _, err := clockSchedulerWork(plan, target); err != nil || work {
+		t.Fatal(work, err)
+	}
 }
 
 func TestRefrigerationWaitsOnColdSetpointCooler(t *testing.T) {

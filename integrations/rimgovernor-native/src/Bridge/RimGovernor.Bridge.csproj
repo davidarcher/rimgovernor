@@ -64,6 +64,8 @@
     <Compile Include="../../../../scripts/fixtures/RecoveryAreaFixture.cs" Condition="'$(RecoveryAreaFixture)' == 'true'" />
     <Compile Include="../../../../scripts/fixtures/BedAssignFixture.cs" Condition="'$(BedAssignFixture)' == 'true'" />
     <Compile Include="../../../../scripts/fixtures/ZoneDeleteFixture.cs" Condition="'$(ZoneDeleteFixture)' == 'true'" />
+    <Compile Include="../../../../scripts/fixtures/RefrigerationFixture.cs" Condition="'$(RefrigerationFixture)' == 'true'" />
+    <Compile Include="../../../../scripts/fixtures/PowerFixture.cs" Condition="'$(PowerFixture)' == 'true'" />
     <ProjectReference Include="../Runtime/RimGovernor.Runtime.csproj"><Private>false</Private></ProjectReference>
     <PackageReference Include="Microsoft.NETFramework.ReferenceAssemblies.net472" Version="1.0.3" PrivateAssets="all" />
     <Reference Include="RimBridgeServer.Sdk"><HintPath>$(RimBridgeSdkDir)/RimBridgeServer.Sdk.dll</HintPath><Private>false</Private></Reference>

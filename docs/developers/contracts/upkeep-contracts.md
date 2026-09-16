@@ -241,10 +241,27 @@ StockTarget production bill for more preserved or non-perishable food, through
 the same source/bill method other resource goals use. Relocation and bill
 receipts never prove spoilage was averted; the census must observe the stock
 as stored, or the runway as recovered, before the deficit clears. Native code
-sets `FoodStock.roofed` per stock row, which the census reads to determine
-adequately covered/enclosed storage; a real-game acceptance run confirming
-this end-to-end is still pending due to a headless-environment instability
-tracked separately from [B04h](https://github.com/davidarcher/rimgovernor/issues/2).
+sets `FoodStock.roofed`, `temperature_c` and `room_id` per stock row; a stock
+counts as stored when it is roofed and either chilled (at or under 10 C) or
+has at least five days of rot runway, so a roofed but warm stockpile is not a
+storage deficit unless the food is close to rotting.
+
+`MaintainRefrigeration` (issue [#6](https://github.com/davidarcher/rimgovernor/issues/6)
+slice 1) takes the warm side of that split: roofed perishable nutrition in a
+known room, warmer than 10 C and under five days from rot. It latches at the
+same five-unit at-risk floor and releases only once every such stock measures
+5 C or colder; unknown temperature or room facts preserve the latch. Its
+method needs an enclosed room, native `Cooler` availability, and a wall cell
+with a straight inside-wall-outdoors line; an existing cooler whose cold side
+faces the room is patched to the freezer target through the building-
+temperature action rather than duplicated, an unpowered or disconnected one
+defers to `EnsureBasicPower`, and one venting into another enclosed room is
+reported blocked. A cooler receipt or completed build never clears the
+deficit: native cooling must be observed on the stock itself. `EnsureBasicPower`
+in turn holds on out-of-fuel or broken producers (refuelling and repair are
+ordinary pawn work) and treats a powered network draining its batteries in
+under a day as a deficit, sizing the next generator to connected load and
+choosing its definition from native availability and fuel stock.
 
 `EnsureComfort` maintains dining and recreation after startup survival work.
 Its deficit remains visible during emergencies; admission waits rather than
