@@ -338,47 +338,12 @@ func Run(ctx context.Context, cfg RunConfig, report na.Report) ([]map[string]any
 	}
 	report["service_state_attached"] = state
 
-	// Acquire needs an anchor plan purely because /api/player/control/acquire
-	// requires a planId/revision to attach to (store.checkedControl looks the
-	// plan up in the shared submissions table) -- it exists only for that.
-	// Any submission kind works here since AcquireControl does not care what
-	// the plan does, only that it exists, so this uses a resource-policy
-	// submission: it commits its own one-action plan the same way a building
-	// or zone does (see ResourcePolicySubmissionRequest's doc comment), but
-	// unlike either of those its native effect (SetProductionPolicy) is a
-	// pure settings write with no pawn labor and no persistent map object --
-	// no travel, no haul, no structure or zone left behind. Earlier versions
-	// anchored on a real Wall building (which a solo colony's only pawn
-	// travels to, hauls for, and builds, competing with EnsureFoodSupply for
-	// the one pawn's time -- issue #1) and then on a NothingPreset stockpile
-	// zone (still a stockpile zone in principle, and still left a spurious
-	// designation on the map for the run's duration). Setting Silver's
-	// spending to its own default ("normal") is a genuine no-op: it changes
-	// nothing about the colony, just gives AcquireControl something real to
-	// attach to.
-	submission, status, err := apiCall("POST", "/api/player/resource-policy/update", map[string]any{
-		"requestId": prefix + "-anchor-1",
-		"expected":  identity,
-		"policy":    map[string]any{"resource": "Silver", "spending": "normal"},
-	}, token)
-	if err != nil {
-		return nil, err
-	}
-	if status != 200 && status != 201 {
-		return nil, fmt.Errorf("unexpected anchor plan submission status=%d body=%#v", status, submission)
-	}
-	planID := na.AsString(submission["planId"])
-	revision := na.AsString(submission["revision"])
-	if planID == "" || revision == "" {
-		return nil, fmt.Errorf("unexpected anchor plan submission: %#v", submission)
-	}
-	report["anchor_submission"] = submission
-
+	// Resume needs no anchor plan: authority is the world's own root plan,
+	// created on first resume (SIMP02, #55).
 	acquireBody := map[string]any{
-		"requestId": prefix + "-acquire-1", "expected": identity,
-		"planId": planID, "revision": revision,
+		"requestId": prefix + "-resume-1", "expected": identity,
 	}
-	acquired, status, err := apiCall("POST", "/api/player/control/acquire", acquireBody, token)
+	acquired, status, err := apiCall("POST", "/api/player/control/resume", acquireBody, token)
 	if err != nil {
 		return nil, err
 	}
@@ -386,8 +351,8 @@ func Run(ctx context.Context, cfg RunConfig, report na.Report) ([]map[string]any
 		return nil, fmt.Errorf("unexpected acquire status=%d body=%#v", status, acquired)
 	}
 	acquiredRecord, _ := na.AsMap(acquired["record"])
-	if na.AsString(acquiredRecord["phase"]) != "granted" {
-		return nil, fmt.Errorf("acquire was not granted: %#v", acquired)
+	if na.AsString(acquiredRecord["phase"]) != "running" {
+		return nil, fmt.Errorf("resume was not running: %#v", acquired)
 	}
 	report["acquired"] = acquired
 
@@ -403,7 +368,7 @@ func Run(ctx context.Context, cfg RunConfig, report na.Report) ([]map[string]any
 	// re-acquires it automatically -- see routinehaulaccept's
 	// authorityKeepAlive doc comment for the full mechanism, reused verbatim
 	// here since a multi-minute observation window needs the same recovery.
-	keepAlive := &authorityKeepAlive{apiCall: apiCall, identity: identity, planID: planID, revision: revision, token: token, prefix: prefix}
+	keepAlive := &authorityKeepAlive{apiCall: apiCall, identity: identity, token: token, prefix: prefix}
 	keepAliveCtx, stopKeepAlive := context.WithCancel(ctx)
 	var keepAliveWG sync.WaitGroup
 	keepAliveWG.Add(1)
@@ -572,8 +537,6 @@ func sampleFoodGoal(ctx context.Context, s *store.Store) (map[string]any, error)
 type authorityKeepAlive struct {
 	apiCall  func(method, path string, body map[string]any, token string) (map[string]any, int, error)
 	identity map[string]any
-	planID   string
-	revision string
 	token    string
 	prefix   string
 
@@ -640,9 +603,9 @@ func (k *authorityKeepAlive) run(ctx context.Context) {
 		k.mu.Unlock()
 		body := map[string]any{
 			"requestId": fmt.Sprintf("%s-reacquire-%d", k.prefix, time.Now().UnixNano()),
-			"expected":  k.identity, "planId": k.planID, "revision": k.revision,
+			"expected":  k.identity,
 		}
-		acquired, status, err := k.apiCall("POST", "/api/player/control/acquire", body, k.token)
+		acquired, status, err := k.apiCall("POST", "/api/player/control/resume", body, k.token)
 		if err != nil {
 			k.mu.Lock()
 			k.lastError = err.Error()
@@ -656,9 +619,9 @@ func (k *authorityKeepAlive) run(ctx context.Context) {
 			k.mu.Unlock()
 			continue
 		}
-		if na.AsString(record["phase"]) != "granted" {
+		if na.AsString(record["phase"]) != "running" {
 			k.mu.Lock()
-			k.lastError = fmt.Sprintf("reacquire not granted: %#v", acquired)
+			k.lastError = fmt.Sprintf("reacquire not running: %#v", acquired)
 			k.mu.Unlock()
 			continue
 		}

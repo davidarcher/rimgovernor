@@ -9,7 +9,10 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/executor"
 )
 
-func TestRoutineWorkerPreservesPlayerPriorityAndCancellation(t *testing.T) {
+// One author: the player's submitted guidance plan and the routine method
+// are both dispatched under the root plan's authority, without priority
+// arbitration between them; cancellation removes each from dispatch.
+func TestRoutineWorkerDispatchesGuidanceAndMethodsUnderRoot(t *testing.T) {
 	t.Parallel()
 	planner, db, base, _, _ := sleepingFixture(t)
 	ctx := context.Background()
@@ -22,74 +25,34 @@ func TestRoutineWorkerPreservesPlayerPriorityAndCancellation(t *testing.T) {
 	p.session = f
 	w := &Worker{player: p, session: f, config: WorkerConfig{RoutineMethods: true, StepInterval: time.Millisecond, MaxBackoff: time.Second, StepTimeout: time.Second}, waits: make(map[domain.ActionID]workerWait)}
 	root := base.State()
-	var selected domain.PlanID
+	guidance := playerPlan(t, db)
+	selected := map[domain.PlanID]bool{}
 	f.run = func(_ context.Context, plan domain.PlanID, _ domain.ActionID) (executor.Result, error) {
-		selected = plan
+		selected[plan] = true
 		return executor.Result{}, nil
 	}
-	if err = w.step(ctx, time.Now()); err != nil || selected != root.Snapshot.Plan {
-		t.Fatal(selected, err)
-	}
-	playerPlan, err := db.LoadPlan(ctx, root.Snapshot.Plan)
-	if err != nil {
-		t.Fatal(err)
-	}
-	for _, action := range playerPlan.Spec.Actions() {
-		if _, err = db.Cancel(ctx, playerPlan.Spec.ID(), action.ID()); err != nil {
+	for i := 0; i < 4; i++ {
+		if err = w.step(ctx, time.Now().Add(time.Duration(i)*time.Second)); err != nil {
 			t.Fatal(err)
 		}
 	}
-	selected = ""
-	if err = w.step(ctx, time.Now().Add(time.Second)); err != nil || selected != method.Decision.Goal.Methods[0].Plan {
-		t.Fatal(selected, err)
+	if !selected[guidance.Spec.ID()] || !selected[method.Decision.Goal.Methods[0].Plan] || selected[root.Snapshot.Plan] {
+		t.Fatal(selected)
 	}
 	if base.State() != root {
-		t.Fatal("routine selection changed player authority")
+		t.Fatal("dispatch changed root authority")
+	}
+	for _, action := range guidance.Spec.Actions() {
+		if _, err = db.Cancel(ctx, guidance.Spec.ID(), action.ID()); err != nil {
+			t.Fatal(err)
+		}
 	}
 	if _, err = db.CancelGoal(ctx, method.Decision.Goal.Goal.ID, method.Decision.Goal.Revision); err != nil {
 		t.Fatal(err)
 	}
-	selected = ""
-	if err = w.step(ctx, time.Now().Add(2*time.Second)); err != nil || selected != "" {
-		t.Fatal("cancelled routine ran", selected, err)
-	}
-}
-
-func TestRoutineWorkerPlayerPriorityExpiresAfterGrace(t *testing.T) {
-	t.Parallel()
-	planner, _, base, _, _ := sleepingFixture(t)
-	ctx := context.Background()
-	method, err := planner.Step(ctx)
-	if err != nil || !method.Decision.Admitted {
-		t.Fatal(method, err)
-	}
-	p := planner.reviewer.player
-	f := &workerFake{playerFakeSession: base}
-	p.session = f
-	w := &Worker{player: p, session: f, config: WorkerConfig{RoutineMethods: true, StepInterval: time.Millisecond, MaxBackoff: time.Second, StepTimeout: time.Second, PlayerPriorityGrace: time.Second}, waits: make(map[domain.ActionID]workerWait)}
-	root := base.State()
-	var selected domain.PlanID
-	f.run = func(_ context.Context, plan domain.PlanID, _ domain.ActionID) (executor.Result, error) {
-		selected = plan
-		return executor.Result{}, nil
-	}
-	start := time.Now()
-	// The player's own plan action is still pending and never cancelled here,
-	// unlike TestRoutineWorkerPreservesPlayerPriorityAndCancellation: priority
-	// is expected to hold only until PlayerPriorityGrace elapses.
-	if err = w.step(ctx, start); err != nil || selected != root.Snapshot.Plan {
-		t.Fatal(selected, err)
-	}
-	selected = ""
-	if err = w.step(ctx, start.Add(500*time.Millisecond)); err != nil || selected != root.Snapshot.Plan {
-		t.Fatal("routine ran before grace elapsed", selected, err)
-	}
-	selected = ""
-	if err = w.step(ctx, start.Add(2*time.Second)); err != nil || selected != method.Decision.Goal.Methods[0].Plan {
-		t.Fatal("routine did not run once player priority grace elapsed", selected, err)
-	}
-	if base.State() != root {
-		t.Fatal("routine selection changed player authority")
+	selected = map[domain.PlanID]bool{}
+	if err = w.step(ctx, time.Now().Add(10*time.Second)); err != nil || len(selected) != 0 {
+		t.Fatal("cancelled work ran", selected, err)
 	}
 }
 

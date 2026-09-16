@@ -148,11 +148,9 @@ func TestFieldPlannerReservationsCASAndManual(t *testing.T) {
 	if _, err = worker.Run(ctx, result.Plan, second.ID()); err != nil || boundary.writes != 1 {
 		t.Fatal("uncertainty retried", err)
 	}
-	request.Kind = store.ManualControl
+	request.Kind = store.PauseControl
 	request.RequestID = "manual-fields"
-	request.Plan = ""
-	request.Revision = 0
-	if _, err := reviewer.player.Manual(ctx, request); err != nil {
+	if _, err := reviewer.player.Pause(ctx, request); err != nil {
 		t.Fatal(err)
 	}
 

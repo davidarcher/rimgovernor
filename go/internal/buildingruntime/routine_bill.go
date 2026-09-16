@@ -99,7 +99,11 @@ func (r *RoutineBillPlanner) step(call, epoch context.Context, arbiter *stepArbi
 	if err != nil {
 		return RoutineBillResult{}, err
 	}
-	definitions := routineProjectDefinitions(plans, state.Snapshot)
+	playerPlans, err := p.journal.PlayerPlans(call, playerWorld(state.Snapshot))
+	if err != nil {
+		return RoutineBillResult{}, err
+	}
+	definitions := routineProjectDefinitions(plans, state.Snapshot, playerPlans)
 	identity, _, err := r.reviewer.native.Identity(call)
 	if err != nil {
 		return RoutineBillResult{}, err

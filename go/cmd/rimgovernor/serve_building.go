@@ -625,7 +625,7 @@ func serveBuildingWithBridge(ctx context.Context, config serveConfig, out io.Wri
 	}
 	worker, err := buildingruntime.NewWorker(lifetime, buildingruntime.WorkerConfig{RoutineMethods: config.routineMethods,
 		StepInterval: time.Second, MaxBackoff: 10 * time.Second, StepTimeout: min(config.bridge.Timeout, 8*time.Second),
-		RenewInterval: 5 * time.Second, RenewTimeout: 5 * time.Second, PlayerPriorityGrace: 30 * time.Second,
+		RenewInterval: 5 * time.Second, RenewTimeout: 5 * time.Second,
 	}, player, session)
 	if err != nil {
 		return err

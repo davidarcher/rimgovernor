@@ -148,7 +148,7 @@ func TestRoutineShelterNeverCommitsPartialOrUnknownShell(t *testing.T) {
 				t.Fatal("invalid shell admitted", change)
 			}
 			plans, err := db.LoadPlans(context.Background(), 256)
-			if err != nil || len(plans) != 1 {
+			if err != nil || len(plans) != 2 {
 				t.Fatal("partial shell committed", plans, err)
 			}
 		})
@@ -245,8 +245,8 @@ func TestRoutineShelterManualCancelsWholePendingShell(t *testing.T) {
 	if err != nil || !result.Decision.Admitted {
 		t.Fatal(result, err)
 	}
-	request := store.ControlRequest{RequestID: "manual-shell", Kind: store.ManualControl, World: playerWorld(result.Decision.Goal.Goal.Snapshot)}
-	if _, err := r.reviewer.player.Manual(ctx, request); err != nil {
+	request := store.ControlRequest{RequestID: "manual-shell", Kind: store.PauseControl, World: playerWorld(result.Decision.Goal.Goal.Snapshot)}
+	if _, err := r.reviewer.player.Pause(ctx, request); err != nil {
 		t.Fatal(err)
 	}
 	plan, err := db.LoadPlan(ctx, result.Decision.Goal.Methods[0].Plan)

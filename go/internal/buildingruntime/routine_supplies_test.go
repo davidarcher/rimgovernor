@@ -69,8 +69,8 @@ func TestSupplyPlannerBoundsPendingWorkAndManualCancels(t *testing.T) {
 	if next, err := planner.Step(ctx); err != nil || next.Reason != BuildingMethodExistingWork || len(source.cells) != 1 {
 		t.Fatal(next, err)
 	}
-	request.Kind, request.RequestID, request.Plan, request.Revision = store.ManualControl, "manual-supplies", "", 0
-	if _, err = reviewer.player.Manual(ctx, request); err != nil {
+	request.Kind, request.RequestID = store.PauseControl, "manual-supplies"
+	if _, err = reviewer.player.Pause(ctx, request); err != nil {
 		t.Fatal(err)
 	}
 	if next, err := planner.Step(ctx); err != nil || next.Reason != BuildingMethodDisabled {

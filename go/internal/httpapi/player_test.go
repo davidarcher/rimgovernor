@@ -25,7 +25,7 @@ func (f *playerFixture) Submit(ctx context.Context, q store.SubmissionRequest) (
 	f.calls++
 	return f.journal.SubmitBuilding(ctx, q)
 }
-func (f *playerFixture) Acquire(ctx context.Context, q store.ControlRequest) (store.ControlRecord, error) {
+func (f *playerFixture) Resume(ctx context.Context, q store.ControlRequest) (store.ControlRecord, error) {
 	f.calls++
 	f.seen = q
 	r, created, e := f.journal.BeginControl(ctx, q)
@@ -39,16 +39,16 @@ func (f *playerFixture) Acquire(ctx context.Context, q store.ControlRequest) (st
 		}
 		return r, errors.New("secret native diagnostic")
 	}
-	return f.journal.CompleteControl(ctx, q.RequestID, store.GrantedControl, 7)
+	return f.journal.CompleteControl(ctx, q.RequestID, store.RunningControl, 7)
 }
-func (f *playerFixture) Manual(ctx context.Context, q store.ControlRequest) (store.ControlRecord, error) {
+func (f *playerFixture) Pause(ctx context.Context, q store.ControlRequest) (store.ControlRecord, error) {
 	f.calls++
 	f.seen = q
 	r, created, e := f.journal.BeginControl(ctx, q)
 	if e != nil || !created {
 		return r, e
 	}
-	return f.journal.CompleteControl(ctx, q.RequestID, store.DisabledControl, 0)
+	return f.journal.CompleteControl(ctx, q.RequestID, store.PausedControl, 0)
 }
 func (f *playerFixture) State() buildingruntime.ControlState { return f.state }
 func playerAPI(t *testing.T) (*Server, *playerFixture) {
@@ -105,7 +105,7 @@ func TestPlayerHTTPAuthenticationAndBoundaries(t *testing.T) {
 	for _, tc := range []struct {
 		method, path, body string
 		code               int
-	}{{"GET", "/api/buildings/plans", "", 405}, {"POST", "/api/player/session", "", 405}, {"GET", "/api/player/session", "body", 400}, {"POST", "/api/buildings/plans?x=1", submissionJSON, 400}, {"POST", "/api/buildings/plans", strings.Repeat("x", 8193), 400}, {"POST", "/api/buildings/plans", `{}`, 400}, {"POST", "/api/player/control/manual", manualJSON[:len(manualJSON)-1] + `,"kind":"acquire"}`, 400}, {"GET", "/api/player/control?requestId=a&requestId=b", "", 400}} {
+	}{{"GET", "/api/buildings/plans", "", 405}, {"POST", "/api/player/session", "", 405}, {"GET", "/api/player/session", "body", 400}, {"POST", "/api/buildings/plans?x=1", submissionJSON, 400}, {"POST", "/api/buildings/plans", strings.Repeat("x", 8193), 400}, {"POST", "/api/buildings/plans", `{}`, 400}, {"POST", "/api/player/control/pause", manualJSON[:len(manualJSON)-1] + `,"kind":"resume"}`, 400}, {"GET", "/api/player/control?requestId=a&requestId=b", "", 400}} {
 		w := playerCall(s, tc.method, tc.path, tc.body, session.Token)
 		if w.Code != tc.code {
 			t.Fatal(tc, w.Code, w.Body.String())
@@ -147,14 +147,14 @@ func TestPlayerHTTPDurableRecoveryAndLiveState(t *testing.T) {
 	if e := json.Unmarshal(w.Body.Bytes(), &submission); e != nil || w.Code != 200 || submission.Building.Stuff != "" || submission.Revision != 1 {
 		t.Fatal(w.Body.String(), e)
 	}
-	acquire := `{"requestId":"control","expected":` + requestWorld + `,"planId":"` + string(submission.PlanID) + `","revision":"1"}`
+	acquire := `{"requestId":"control","expected":` + requestWorld + `}`
 	f.uncertain = true
-	w = playerCall(s, "POST", "/api/player/control/acquire", acquire, token)
+	w = playerCall(s, "POST", "/api/player/control/resume", acquire, token)
 	var result controlDTO
 	if e := json.Unmarshal(w.Body.Bytes(), &result); e != nil || w.Code != 503 || result.Record == nil || result.Record.Phase != store.UncertainControl || result.State.Enabled || result.State.Generation != nil || result.Error == nil || strings.Contains(w.Body.String(), "secret") {
 		t.Fatal(w.Code, w.Body.String(), e)
 	}
-	if f.seen.Kind != store.AcquireControl || f.seen.Plan != submission.PlanID {
+	if f.seen.Kind != store.ResumeControl || f.seen.RequestID != "control" {
 		t.Fatal(f.seen)
 	}
 	for _, path := range []string{"/api/player/control", "/api/player/control?requestId=control"} {
@@ -163,13 +163,13 @@ func TestPlayerHTTPDurableRecoveryAndLiveState(t *testing.T) {
 			t.Fatal(w.Code, w.Body.String())
 		}
 	}
-	w = playerCall(s, "POST", "/api/player/control/acquire", acquire, token)
+	w = playerCall(s, "POST", "/api/player/control/resume", acquire, token)
 	if w.Code != 200 || !strings.Contains(w.Body.String(), `"enabled":false`) {
 		t.Fatal(w.Code, w.Body.String())
 	}
 	manual := strings.Replace(manualJSON, `"request"`, `"manual"`, 1)
-	w = playerCall(s, "POST", "/api/player/control/manual", manual, token)
-	if w.Code != 200 || f.seen.Kind != store.ManualControl || !strings.Contains(w.Body.String(), `"phase":"disabled"`) {
+	w = playerCall(s, "POST", "/api/player/control/pause", manual, token)
+	if w.Code != 200 || f.seen.Kind != store.PauseControl || !strings.Contains(w.Body.String(), `"phase":"paused"`) {
 		t.Fatal(w.Code, w.Body.String())
 	}
 	w = playerCall(s, "GET", "/api/player/control?requestId=missing", "", "")
@@ -186,11 +186,11 @@ func TestPlayerHTTPProjectionGuards(t *testing.T) {
 	if _, e := projectPlayerState(buildingruntime.ControlState{Enabled: true}); e == nil {
 		t.Fatal("fabricated authority")
 	}
-	q := store.ControlRequest{RequestID: "a", Kind: store.ManualControl, World: store.World{Colony: "colony", Load: "load"}}
+	q := store.ControlRequest{RequestID: "a", Kind: store.PauseControl, World: store.World{Colony: "colony", Load: "load"}}
 	if _, e := projectControl(store.ControlRecord{Request: q, Phase: "invented"}); e == nil {
 		t.Fatal("unknown phase")
 	}
-	if _, e := projectControl(store.ControlRecord{Request: q, Phase: store.GrantedControl, NativeGeneration: 3}); e == nil {
+	if _, e := projectControl(store.ControlRecord{Request: q, Phase: store.RunningControl, NativeGeneration: 3}); e == nil {
 		t.Fatal("Manual grant")
 	}
 	ctx, cancel := context.WithCancel(context.Background())
@@ -209,15 +209,15 @@ func TestPlayerHTTPHistoricalGrantDoesNotEnable(t *testing.T) {
 	if e != nil {
 		t.Fatal(e)
 	}
-	request := store.ControlRequest{RequestID: "granted", Kind: store.AcquireControl, World: submitted.Request.World, Plan: submitted.Plan, Revision: 1}
+	request := store.ControlRequest{RequestID: "granted", Kind: store.ResumeControl, World: submitted.Request.World}
 	if _, _, e = f.journal.BeginControl(context.Background(), request); e != nil {
 		t.Fatal(e)
 	}
-	if _, e = f.journal.CompleteControl(context.Background(), request.RequestID, store.GrantedControl, 7); e != nil {
+	if _, e = f.journal.CompleteControl(context.Background(), request.RequestID, store.RunningControl, 7); e != nil {
 		t.Fatal(e)
 	}
 	w := playerCall(s, "GET", "/api/player/control?requestId=granted", "", "")
-	if w.Code != 200 || !strings.Contains(w.Body.String(), `"phase":"granted"`) || !strings.Contains(w.Body.String(), `"enabled":false`) || !strings.Contains(w.Body.String(), `"generation":null`) {
+	if w.Code != 200 || !strings.Contains(w.Body.String(), `"phase":"running"`) || !strings.Contains(w.Body.String(), `"enabled":false`) || !strings.Contains(w.Body.String(), `"generation":null`) {
 		t.Fatal(w.Code, w.Body.String())
 	}
 	if f.calls != 0 {

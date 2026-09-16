@@ -85,9 +85,8 @@ func TestRoutineSleepingAdmitsWholePendingMethodAndManualInvalidates(t *testing.
 	if next, err := r.Step(context.Background()); err != nil || next.Reason != BuildingMethodExistingWork || n.previews != 2 {
 		t.Fatal(next, err)
 	}
-	request.Kind, request.RequestID = store.ManualControl, "manual-sleep"
-	request.Plan, request.Revision = "", 0
-	if _, err = r.reviewer.player.Manual(context.Background(), request); err != nil {
+	request.Kind, request.RequestID = store.PauseControl, "manual-sleep"
+	if _, err = r.reviewer.player.Pause(context.Background(), request); err != nil {
 		t.Fatal(err)
 	}
 	p, err = db.LoadPlan(context.Background(), p.Spec.ID())
@@ -144,7 +143,7 @@ func TestRoutineSleepingRejectsIncompleteAndChangedEvidence(t *testing.T) {
 				t.Fatal("invalid method admitted", change)
 			}
 			plans, err := db.LoadPlans(context.Background(), 256)
-			if err != nil || len(plans) != 1 {
+			if err != nil || len(plans) != 2 {
 				t.Fatal("partial method committed", plans, err)
 			}
 		})
@@ -305,16 +304,15 @@ func TestRoutineSleepingManualCancelsBlockedPreview(t *testing.T) {
 	case <-time.After(time.Second):
 		t.Fatal("preview not entered")
 	}
-	request.Kind, request.RequestID = store.ManualControl, "manual-preview"
-	request.Plan, request.Revision = "", 0
-	if _, err := r.reviewer.player.Manual(context.Background(), request); err != nil {
+	request.Kind, request.RequestID = store.PauseControl, "manual-preview"
+	if _, err := r.reviewer.player.Pause(context.Background(), request); err != nil {
 		t.Fatal(err)
 	}
 	if err := <-finished; err == nil {
 		t.Fatal("cancelled compilation succeeded")
 	}
 	plans, err := db.LoadPlans(context.Background(), 256)
-	if err != nil || len(plans) != 1 || session.State().Enabled {
+	if err != nil || len(plans) != 2 || session.State().Enabled {
 		t.Fatal(plans, err)
 	}
 }

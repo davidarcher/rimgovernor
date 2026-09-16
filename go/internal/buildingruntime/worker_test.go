@@ -201,7 +201,7 @@ func TestWorkerManualCancelsRun(t *testing.T) {
 	case <-time.After(time.Second):
 		t.Fatal("run not entered")
 	}
-	_, err = w.player.Manual(context.Background(), store.ControlRequest{RequestID: "manual", Kind: store.ManualControl, World: playerWorld(v.Snapshot)})
+	_, err = w.player.Pause(context.Background(), store.ControlRequest{RequestID: "manual", Kind: store.PauseControl, World: playerWorld(v.Snapshot)})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -273,14 +273,13 @@ func TestWorkerRealSessionReopensUncertainAttemptWithoutAcquire(t *testing.T) {
 		t.Fatal(err)
 	}
 	request := playerAcquire(t, player)
-	if _, err = player.Acquire(ctx, request); err != nil {
+	if _, err = player.Resume(ctx, request); err != nil {
 		t.Fatal(err)
 	}
+	plan := playerPlan(t, db)
+	// Guidance is dispatched under root authority in the plan's own scope.
 	current := session.State().Snapshot
-	plan, err := db.LoadPlan(ctx, current.Plan)
-	if err != nil {
-		t.Fatal(err)
-	}
+	current.Plan, current.Revision = plan.Spec.ID(), plan.Spec.Revision()
 	action := plan.Spec.Actions()[0]
 	building, _ := action.Building()
 	namespace, err := db.Identity(ctx)
@@ -315,10 +314,11 @@ func TestWorkerRealSessionReopensUncertainAttemptWithoutAcquire(t *testing.T) {
 		t.Fatal("same activation retried known refusal", fixture.Places)
 	}
 	request.RequestID = "acquire-again"
-	if _, err = player.Acquire(ctx, request); err != nil {
+	if _, err = player.Resume(ctx, request); err != nil {
 		t.Fatal(err)
 	}
 	current = session.State().Snapshot
+	current.Plan, current.Revision = plan.Spec.ID(), plan.Spec.Revision()
 	fixture.Preview.Preview.Snapshot = current
 	fixture.Preview.Stock.Snapshot = current
 	fixture.Bounds.Context.NativeGeneration = proto.Uint64(uint64(current.Native))
@@ -353,8 +353,8 @@ func TestWorkerRealSessionReopensUncertainAttemptWithoutAcquire(t *testing.T) {
 	}
 	defer player.Close(ctx)
 	// Replaying a historical grant cannot reenable this fresh session.
-	record, err := player.Acquire(ctx, request)
-	if err != nil || record.Phase != store.GrantedControl || player.State().Enabled {
+	record, err := player.Resume(ctx, request)
+	if err != nil || record.Phase != store.RunningControl || player.State().Enabled {
 		t.Fatal(record, err)
 	}
 	fixture.Progress.Context.NativeGeneration = proto.Uint64(uint64(current.Native) + 1)
@@ -398,7 +398,7 @@ func TestWorkerObserveTargetSerializesAcquireAndManualPreempts(t *testing.T) {
 	acquireStarted := make(chan struct{})
 	go func() {
 		close(acquireStarted)
-		_, err := w.player.Acquire(context.Background(), store.ControlRequest{RequestID: "queued", Kind: store.AcquireControl, World: playerWorld(v.Snapshot), Plan: v.Plan, Revision: 1})
+		_, err := w.player.Resume(context.Background(), store.ControlRequest{RequestID: "queued", Kind: store.ResumeControl, World: playerWorld(v.Snapshot)})
 		acquireDone <- err
 	}()
 	// Give the queued Acquire a real chance to reach the epoch it must lose
@@ -409,7 +409,7 @@ func TestWorkerObserveTargetSerializesAcquireAndManualPreempts(t *testing.T) {
 	if f.acquires.Load() != 0 {
 		t.Fatal("Acquire passed reconciliation gate")
 	}
-	_, err := w.player.Manual(context.Background(), store.ControlRequest{RequestID: "manual", Kind: store.ManualControl, World: playerWorld(v.Snapshot)})
+	_, err := w.player.Pause(context.Background(), store.ControlRequest{RequestID: "manual", Kind: store.PauseControl, World: playerWorld(v.Snapshot)})
 	if err != nil {
 		t.Fatal(err)
 	}

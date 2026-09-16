@@ -185,8 +185,8 @@ func TestTemperatureSharedMethodPlacementAndManual(t *testing.T) {
 			if next, err := p.Step(context.Background()); err != nil || next.Reason != BuildingMethodExistingWork || n.previews != 1 {
 				t.Fatal(next, err)
 			}
-			request.Kind, request.RequestID, request.Plan, request.Revision = store.ManualControl, "manual-temperature", "", 0
-			if _, err := p.reviewer.player.Manual(context.Background(), request); err != nil {
+			request.Kind, request.RequestID = store.PauseControl, "manual-temperature"
+			if _, err := p.reviewer.player.Pause(context.Background(), request); err != nil {
 				t.Fatal(err)
 			}
 			plan, err = db.LoadPlan(context.Background(), plan.Spec.ID())
@@ -246,7 +246,7 @@ func TestTemperatureUnknownExistingFacilityAndRecoveredRoom(t *testing.T) {
 				t.Fatal(result)
 			}
 			plans, err := db.LoadPlans(context.Background(), 256)
-			if err != nil || len(plans) != 1 {
+			if err != nil || len(plans) != 2 {
 				t.Fatal(plans, err)
 			}
 			if mode == "existing" && result.Reason != RoutineBuildingReason(policy.TemperatureWait) {

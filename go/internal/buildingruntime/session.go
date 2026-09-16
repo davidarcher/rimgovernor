@@ -142,12 +142,12 @@ func (s sessionBuildingLeases) Lease(target domain.GenerationSnapshot) (string, 
 	if root.Snapshot == target {
 		return s.control.Lease(target)
 	}
-	if !s.routine || !root.Enabled || !root.ObservationKnown {
+	if !root.Enabled || !root.ObservationKnown {
 		return "", ErrControl
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), s.timeout)
 	defer cancel()
-	if err := s.journal.AuthorizeRoutinePlan(ctx, root.Snapshot, target); err != nil {
+	if err := (planAuthorizer{s.journal, s.routine}).AuthorizeRoutinePlan(ctx, root.Snapshot, target); err != nil {
 		return "", err
 	}
 	return s.control.Lease(root.Snapshot)
@@ -177,12 +177,12 @@ func (l lazyRoutineLeases) Lease(target domain.GenerationSnapshot) (string, erro
 	if root.Snapshot == target {
 		return control.Lease(target)
 	}
-	if !l.routine || !root.Enabled || !root.ObservationKnown {
+	if !root.Enabled || !root.ObservationKnown {
 		return "", ErrControl
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), l.timeout)
 	defer cancel()
-	if err := l.journal.AuthorizeRoutinePlan(ctx, root.Snapshot, target); err != nil {
+	if err := (planAuthorizer{l.journal, l.routine}).AuthorizeRoutinePlan(ctx, root.Snapshot, target); err != nil {
 		return "", err
 	}
 	return control.Lease(root.Snapshot)
@@ -333,10 +333,7 @@ func NewSession(ctx context.Context, config SessionConfig, journal *store.Store,
 	if config.ProductionPolicy != nil && (config.ProductionPolicy.Native == nil || config.ProductionPolicy.Writer == nil) {
 		return cleanup(ErrControl)
 	}
-	var routine []executor.RoutineScope
-	if config.RoutineMethods {
-		routine = append(routine, journal)
-	}
+	routine := []executor.RoutineScope{planAuthorizer{journal, config.RoutineMethods}}
 	switch {
 	case meleeBoundary != nil && rangedBoundary != nil:
 		worker, err = executor.NewWithMeleeAndRanged(journal, place, draftBoundary, meleeBoundary, rangedBoundary, clock, config.Executor, routine...)

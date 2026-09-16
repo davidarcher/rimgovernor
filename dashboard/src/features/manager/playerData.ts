@@ -2,12 +2,12 @@ export type World = {colonyId: string; mapId: number; loadToken: string};
 export type Building = {defName: string; stuff: string; x: number; z: number; rotation: 'north' | 'east' | 'south' | 'west'};
 export type SubmissionRequest = {requestId: string; expected: World; building: Building};
 export type Submission = SubmissionRequest & {planId: string; actionId: string; revision: string};
-export type AcquireRequest = {requestId: string; expected: World; planId: string; revision: string};
-export type ManualRequest = {requestId: string; expected: World};
+export type ControlRequest = {requestId: string; expected: World};
 export type Generation = {colony: string; map: number; load: string; plan: string; revision: string; native: string};
 export type PlayerState = {enabled: boolean; observationKnown: boolean; generation: Generation | null};
 export type Failure = {code: string; detail: string};
-export type ControlRecord = {requestId: string; kind: 'acquire' | 'manual'; expected: World; planId: string | null; revision: string; phase: 'pending' | 'granted' | 'disabled' | 'refused' | 'uncertain'; nativeGeneration: string};
+export type ControlKind = 'resume' | 'pause';
+export type ControlRecord = {requestId: string; kind: ControlKind; expected: World; phase: 'pending' | 'running' | 'paused' | 'refused' | 'uncertain'; nativeGeneration: string};
 export type ControlReply = {record: ControlRecord | null; state: PlayerState; error: Failure | null};
 
 function isObject(value: unknown): value is Record<string, unknown> {return typeof value === 'object' && value !== null && !Array.isArray(value);}
@@ -43,11 +43,10 @@ export function readPlayerState(value: unknown): PlayerState {
   return state;
 }
 function readControlRecord(value: unknown): ControlRecord {
-  const v = object(value, ['requestId', 'kind', 'expected', 'planId', 'revision', 'phase', 'nativeGeneration']);
-  const record: ControlRecord = {requestId: id(v.requestId), kind: choice(v.kind, ['acquire', 'manual']), expected: readWorld(v.expected), planId: v.planId === null ? null : id(v.planId), revision: decimal(v.revision), phase: choice(v.phase, ['pending', 'granted', 'disabled', 'refused', 'uncertain']), nativeGeneration: decimal(v.nativeGeneration)};
-  if (record.kind === 'manual' ? record.planId !== null || record.revision !== '0' : record.planId === null || record.revision === '0') throw Error('Invalid control intent');
-  if (record.phase === 'granted' ? record.kind !== 'acquire' || record.nativeGeneration === '0' : record.nativeGeneration !== '0') throw Error('Invalid historical grant');
-  if (record.phase === 'disabled' && record.kind !== 'manual') throw Error('Invalid Manual result');
+  const v = object(value, ['requestId', 'kind', 'expected', 'phase', 'nativeGeneration']);
+  const record: ControlRecord = {requestId: id(v.requestId), kind: choice(v.kind, ['resume', 'pause']), expected: readWorld(v.expected), phase: choice(v.phase, ['pending', 'running', 'paused', 'refused', 'uncertain']), nativeGeneration: decimal(v.nativeGeneration)};
+  if (record.phase === 'running' ? record.kind !== 'resume' || record.nativeGeneration === '0' : record.nativeGeneration !== '0') throw Error('Invalid historical grant');
+  if (record.phase === 'paused' && record.kind !== 'pause') throw Error('Invalid pause result');
   return record;
 }
 function readFailure(value: unknown): Failure {const v = object(value, ['code', 'detail']); return {code: id(v.code), detail: text(v.detail)};}
@@ -58,7 +57,7 @@ export class PlayerHTTPError extends Error {constructor(public status: number, m
 export function definiteRejection(error: unknown): boolean {
   return error instanceof PlayerHTTPError && (error.status === 400 && error.code === 'invalid_request' || error.status === 403 && error.code === 'player_auth' || error.status === 409 && ['conflict', 'capacity'].includes(error.code ?? ''));
 }
-async function request(path: string, signal?: AbortSignal, token?: string, body?: SubmissionRequest | AcquireRequest | ManualRequest | ClockAcknowledgement | ChatRequest): Promise<{response: Response; value: unknown}> {
+async function request(path: string, signal?: AbortSignal, token?: string, body?: SubmissionRequest | ControlRequest | ClockAcknowledgement | ChatRequest): Promise<{response: Response; value: unknown}> {
   const response = await fetch(path, {method: body ? 'POST' : 'GET', cache: 'no-store', credentials: 'same-origin', signal,
     ...(body ? {headers: {'Content-Type': 'application/json', 'X-RimGovernor-Player': token ?? ''}, body: JSON.stringify(body)} : {})});
   const value: unknown = await response.json();
@@ -77,7 +76,7 @@ export async function submitBuilding(token: string, body: SubmissionRequest, sig
 export async function readSubmissionResult(requestId: string, signal?: AbortSignal): Promise<Submission> {
   const {response, value} = await request(`/api/buildings/submission?requestId=${encodeURIComponent(requestId)}`, signal); if (!response.ok) failed(response, value); return readSubmission(value);
 }
-async function controlRequest(path: string, signal?: AbortSignal, token?: string, body?: AcquireRequest | ManualRequest): Promise<ControlReply> {
+async function controlRequest(path: string, signal?: AbortSignal, token?: string, body?: ControlRequest): Promise<ControlReply> {
   const {response, value} = await request(path, signal, token, body);
   // Error statuses can carry durable pending/uncertain evidence and actual state.
   if (!response.ok && !(isObject(value) && Object.hasOwn(value, 'state'))) failed(response, value);
@@ -90,8 +89,9 @@ async function controlRequest(path: string, signal?: AbortSignal, token?: string
 }
 export function readCurrentControl(signal?: AbortSignal): Promise<ControlReply> {return controlRequest('/api/player/control', signal);}
 export function readControlResult(requestId: string, signal?: AbortSignal): Promise<ControlReply> {return controlRequest(`/api/player/control?requestId=${encodeURIComponent(requestId)}`, signal);}
-export function acquirePlan(token: string, body: AcquireRequest, signal?: AbortSignal): Promise<ControlReply> {return controlRequest('/api/player/control/acquire', signal, token, body);}
-export function manualPlayer(token: string, body: ManualRequest, signal?: AbortSignal): Promise<ControlReply> {return controlRequest('/api/player/control/manual', signal, token, body);}
+// One author: resume runs the bot (routine methods and any submitted guidance) under the world's root plan; pause stops it.
+export function resumeControl(token: string, body: ControlRequest, signal?: AbortSignal): Promise<ControlReply> {return controlRequest('/api/player/control/resume', signal, token, body);}
+export function pauseControl(token: string, body: ControlRequest, signal?: AbortSignal): Promise<ControlReply> {return controlRequest('/api/player/control/pause', signal, token, body);}
 
 export function readDraft(value: unknown): {pawnId: string} {const v = object(value, ['pawnId']); return {pawnId: id(v.pawnId)};}
 

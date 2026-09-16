@@ -97,7 +97,11 @@ func (r *RoutineFieldPlanner) step(call, epoch context.Context, arbiter *stepArb
 	if err != nil {
 		return RoutineFieldResult{}, err
 	}
-	definitions := append(routineProjectDefinitions(plans, state.Snapshot), "Plant_Rice", "Plant_Potato", "Plant_Corn")
+	playerPlans, err := p.journal.PlayerPlans(call, playerWorld(state.Snapshot))
+	if err != nil {
+		return RoutineFieldResult{}, err
+	}
+	definitions := append(routineProjectDefinitions(plans, state.Snapshot, playerPlans), "Plant_Rice", "Plant_Potato", "Plant_Corn")
 	definitions = uniqueFieldDefinitions(definitions)
 	identity, _, err := r.reviewer.native.Identity(call)
 	if err != nil {

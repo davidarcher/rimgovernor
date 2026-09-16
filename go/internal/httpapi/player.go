@@ -19,8 +19,8 @@ import (
 type PlayerBuildings interface {
 	Submit(context.Context, store.SubmissionRequest) (store.Submission, bool, error)
 	SubmitResearchSelect(context.Context, store.ResearchSelectSubmissionRequest) (store.ResearchSelectSubmission, bool, error)
-	Acquire(context.Context, store.ControlRequest) (store.ControlRecord, error)
-	Manual(context.Context, store.ControlRequest) (store.ControlRecord, error)
+	Resume(context.Context, store.ControlRequest) (store.ControlRecord, error)
+	Pause(context.Context, store.ControlRequest) (store.ControlRecord, error)
 	State() buildingruntime.ControlState
 }
 type ControlReader interface {
@@ -62,8 +62,6 @@ type controlRecordDTO struct {
 	RequestID        string                  `json:"requestId"`
 	Kind             store.ControlKind       `json:"kind"`
 	Expected         Identity                `json:"expected"`
-	PlanID           *domain.PlanID          `json:"planId"`
-	Revision         domain.PlanRevision     `json:"revision,string"`
 	Phase            store.ControlPhase      `json:"phase"`
 	NativeGeneration domain.NativeGeneration `json:"nativeGeneration,string"`
 }
@@ -100,28 +98,19 @@ func projectControl(v store.ControlRecord) (*controlRecordDTO, error) {
 	if buildingRequestID(q.RequestID) != nil || q.World.Validate() != nil {
 		return nil, errors.New("invalid control record")
 	}
-	var plan *domain.PlanID
 	switch q.Kind {
-	case store.AcquireControl:
-		if buildingRequestID(string(q.Plan)) != nil || q.Revision == 0 {
-			return nil, errors.New("invalid acquire record")
-		}
-		plan = &q.Plan
-	case store.ManualControl:
-		if q.Plan != "" || q.Revision != 0 {
-			return nil, errors.New("invalid manual record")
-		}
+	case store.ResumeControl, store.PauseControl:
 	default:
 		return nil, errors.New("unknown control kind")
 	}
 	switch v.Phase {
-	case store.GrantedControl:
-		if q.Kind != store.AcquireControl || v.NativeGeneration == 0 {
-			return nil, errors.New("invalid grant")
+	case store.RunningControl:
+		if q.Kind != store.ResumeControl || v.NativeGeneration == 0 {
+			return nil, errors.New("invalid running record")
 		}
-	case store.DisabledControl:
-		if q.Kind != store.ManualControl || v.NativeGeneration != 0 {
-			return nil, errors.New("invalid disable")
+	case store.PausedControl:
+		if q.Kind != store.PauseControl || v.NativeGeneration != 0 {
+			return nil, errors.New("invalid paused record")
 		}
 	case store.PendingControl, store.RefusedControl, store.UncertainControl:
 		if v.NativeGeneration != 0 {
@@ -130,7 +119,7 @@ func projectControl(v store.ControlRecord) (*controlRecordDTO, error) {
 	default:
 		return nil, errors.New("unknown control phase")
 	}
-	return &controlRecordDTO{q.RequestID, q.Kind, playerWorldDTO(q.World), plan, q.Revision, v.Phase, v.NativeGeneration}, nil
+	return &controlRecordDTO{q.RequestID, q.Kind, playerWorldDTO(q.World), v.Phase, v.NativeGeneration}, nil
 }
 func projectPlayerState(v buildingruntime.ControlState) (playerStateDTO, error) {
 	out := playerStateDTO{Enabled: v.Enabled, ObservationKnown: v.ObservationKnown}
@@ -189,7 +178,7 @@ func (s *Server) handlePlayer(w http.ResponseWriter, r *http.Request) bool {
 	}
 	path := r.URL.Path
 	read := path == "/api/player/session" || path == "/api/player/control" || path == "/api/buildings/submission" || path == "/api/player/clock" || path == "/api/player/world-evaluation" || path == "/api/player/work-preferences" || path == "/api/research-selects/submission" || path == "/api/player/population-policy" || path == "/api/player/population-policy/submission" || path == "/api/player/expedition-policy" || path == "/api/player/expedition-policy/submission" || path == "/api/player/population-decision" || path == "/api/player/population-decision/submission" || path == "/api/player/resource-policy" || path == "/api/player/resource-policy/submission" || path == "/api/player/goals" || path == "/api/player/goals/submission"
-	write := path == "/api/chats/plans" || path == "/api/buildings/plans" || path == "/api/player/control/acquire" || path == "/api/player/control/manual" || path == "/api/player/clock/acknowledge" || path == "/api/player/work-preferences/replace" || path == "/api/research-selects/plans" || path == "/api/player/population-policy/replace" || path == "/api/player/expedition-policy/update" || path == "/api/player/population-decision/replace" || path == "/api/player/resource-policy/update" || path == "/api/player/goals/activate" || path == "/api/player/goals/cancel"
+	write := path == "/api/chats/plans" || path == "/api/buildings/plans" || path == "/api/player/control/resume" || path == "/api/player/control/pause" || path == "/api/player/clock/acknowledge" || path == "/api/player/work-preferences/replace" || path == "/api/research-selects/plans" || path == "/api/player/population-policy/replace" || path == "/api/player/expedition-policy/update" || path == "/api/player/population-decision/replace" || path == "/api/player/resource-policy/update" || path == "/api/player/goals/activate" || path == "/api/player/goals/cancel"
 	if !read && !write {
 		return false
 	}
@@ -317,13 +306,11 @@ func (s *Server) handlePlayer(w http.ResponseWriter, r *http.Request) bool {
 			s.submitResearchSelect(w, r, ctx)
 			return true
 		}
-		var q store.ControlRequest
-		var err error
-		if strings.HasSuffix(path, "/acquire") {
-			q, err = decodeBuildingAcquire(r.Body)
-		} else {
-			q, err = decodeBuildingManual(r.Body)
+		kind := store.PauseControl
+		if strings.HasSuffix(path, "/resume") {
+			kind = store.ResumeControl
 		}
+		q, err := decodeControl(r.Body, kind)
 		if err != nil {
 			s.failure(w, r, 400, "invalid_request", "Invalid control request")
 			return true
@@ -333,10 +320,10 @@ func (s *Server) handlePlayer(w http.ResponseWriter, r *http.Request) bool {
 			return true
 		}
 		var record store.ControlRecord
-		if q.Kind == store.AcquireControl {
-			record, err = s.player.Acquire(ctx, q)
+		if q.Kind == store.ResumeControl {
+			record, err = s.player.Resume(ctx, q)
 		} else {
-			record, err = s.player.Manual(ctx, q)
+			record, err = s.player.Pause(ctx, q)
 		}
 		if err == nil {
 			err = ctx.Err()

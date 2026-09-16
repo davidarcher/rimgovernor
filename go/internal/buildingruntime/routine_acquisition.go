@@ -76,7 +76,11 @@ func (r *RoutineAcquisitionPlanner) step(call, epoch context.Context, arbiter *s
 	if err != nil {
 		return RoutineAcquisitionResult{}, err
 	}
-	definitions := routineProjectDefinitions(plans, state.Snapshot)
+	playerPlans, err := p.journal.PlayerPlans(call, playerWorld(state.Snapshot))
+	if err != nil {
+		return RoutineAcquisitionResult{}, err
+	}
+	definitions := routineProjectDefinitions(plans, state.Snapshot, playerPlans)
 	identity, _, err := r.reviewer.native.Identity(call)
 	if err != nil {
 		return RoutineAcquisitionResult{}, err

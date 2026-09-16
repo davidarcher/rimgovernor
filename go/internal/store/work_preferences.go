@@ -53,16 +53,13 @@ func decodeWorkRecord(data []byte, target any) error {
 	return nil
 }
 func loadWorkPreferences(ctx context.Context, tx *sql.Tx, plan domain.PlanID) (WorkPreferences, error) {
-	var world World
-	if err := tx.QueryRowContext(ctx, "SELECT colony,load_token,map_id FROM submissions WHERE plan_id=?", plan).Scan(&world.Colony, &world.Load, &world.Map); err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
-			return WorkPreferences{}, ErrNotFound
-		}
+	world, err := planWorld(ctx, tx, plan)
+	if err != nil {
 		return WorkPreferences{}, err
 	}
 	result := WorkPreferences{Plan: plan, World: world, Overrides: []policy.WorkOverride{}}
 	var data []byte
-	err := tx.QueryRowContext(ctx, "SELECT payload FROM work_preferences WHERE plan_id=?", plan).Scan(&data)
+	err = tx.QueryRowContext(ctx, "SELECT payload FROM work_preferences WHERE plan_id=?", plan).Scan(&data)
 	if errors.Is(err, sql.ErrNoRows) {
 		return result, nil
 	}

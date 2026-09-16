@@ -68,12 +68,10 @@ func composedRoutineFixture(t *testing.T) (*RoutineReviewer, *store.Store, *play
 	t.Helper()
 	ctx := context.Background()
 	reviewer, db, session, request, native := routineFixture(t)
-	rootPlan, err := db.LoadPlan(ctx, session.State().Snapshot.Plan)
-	if err != nil {
-		t.Fatal(err)
-	}
-	for _, action := range rootPlan.Spec.Actions() {
-		if _, err = db.Cancel(ctx, rootPlan.Spec.ID(), action.ID()); err != nil {
+	submitted := playerPlan(t, db)
+	var err error
+	for _, action := range submitted.Spec.Actions() {
+		if _, err = db.Cancel(ctx, submitted.Spec.ID(), action.ID()); err != nil {
 			t.Fatal(err)
 		}
 	}
@@ -151,8 +149,8 @@ func TestComposedRoutineFamiliesManualCancelsWithoutCrossLeak(t *testing.T) {
 	// A single player Manual direction change should cancel every family's
 	// in-flight hold, in the same way each family's individual test proves
 	// for itself in isolation.
-	request.Kind, request.RequestID, request.Plan, request.Revision = store.ManualControl, "manual-composed", "", 0
-	if _, err := reviewer.player.Manual(ctx, request); err != nil {
+	request.Kind, request.RequestID = store.PauseControl, "manual-composed"
+	if _, err := reviewer.player.Pause(ctx, request); err != nil {
 		t.Fatal(err)
 	}
 
@@ -269,7 +267,7 @@ func composedAcquire(t *testing.T, p *Player, requestID string, x, z int32) stor
 	if err != nil || !created {
 		t.Fatal(submission, created, err)
 	}
-	return store.ControlRequest{RequestID: requestID + "-acquire", Kind: store.AcquireControl, World: submission.Request.World, Plan: submission.Plan, Revision: submission.Revision}
+	return store.ControlRequest{RequestID: requestID + "-acquire", Kind: store.ResumeControl, World: submission.Request.World}
 }
 
 func composedNativeFixture(t *testing.T) *routineNative {
@@ -309,15 +307,12 @@ func TestComposedRoutineFamiliesFreshStartReconciliationRecoversIndependently(t 
 		t.Fatal(err)
 	}
 	request1 := composedAcquire(t, p1, "composed-restart-first", 1, 1)
-	if _, err = p1.Acquire(ctx, request1); err != nil {
+	if _, err = p1.Resume(ctx, request1); err != nil {
 		t.Fatal(err)
 	}
-	rootPlan1, err := db1.LoadPlan(ctx, session1.State().Snapshot.Plan)
-	if err != nil {
-		t.Fatal(err)
-	}
-	for _, action := range rootPlan1.Spec.Actions() {
-		if _, err = db1.Cancel(ctx, rootPlan1.Spec.ID(), action.ID()); err != nil {
+	submitted1 := submittedPlan(t, db1, "composed-restart-first")
+	for _, action := range submitted1.Spec.Actions() {
+		if _, err = db1.Cancel(ctx, submitted1.Spec.ID(), action.ID()); err != nil {
 			t.Fatal(err)
 		}
 	}
@@ -379,20 +374,17 @@ func TestComposedRoutineFamiliesFreshStartReconciliationRecoversIndependently(t 
 	// against a brand new, never-enabled local session), so it first issues
 	// its own Manual to clear the orphaned grant before acquiring fresh
 	// authority, the way a real restarted controller reconciles a stale world.
-	_, err = p2.Manual(ctx, store.ControlRequest{RequestID: "composed-restart-release", Kind: store.ManualControl, World: request1.World})
+	_, err = p2.Pause(ctx, store.ControlRequest{RequestID: "composed-restart-release", Kind: store.PauseControl, World: request1.World})
 	if err != nil {
 		t.Fatal(err)
 	}
 	request2 := composedAcquire(t, p2, "composed-restart-second", 2, 2)
-	if _, err = p2.Acquire(ctx, request2); err != nil {
+	if _, err = p2.Resume(ctx, request2); err != nil {
 		t.Fatal(err)
 	}
-	rootPlan2, err := db2.LoadPlan(ctx, session2.State().Snapshot.Plan)
-	if err != nil {
-		t.Fatal(err)
-	}
-	for _, action := range rootPlan2.Spec.Actions() {
-		if _, err = db2.Cancel(ctx, rootPlan2.Spec.ID(), action.ID()); err != nil {
+	submitted2 := submittedPlan(t, db2, "composed-restart-second")
+	for _, action := range submitted2.Spec.Actions() {
+		if _, err = db2.Cancel(ctx, submitted2.Spec.ID(), action.ID()); err != nil {
 			t.Fatal(err)
 		}
 	}

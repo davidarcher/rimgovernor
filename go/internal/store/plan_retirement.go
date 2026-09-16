@@ -26,13 +26,9 @@ func guardRetirementFloor(ctx context.Context, tx *sql.Tx, current domain.Genera
 	return nil
 }
 
-// Only settled autopilot methods retire. Current control, unresolved effects,
+// Only settled autopilot methods retire. The current root plan, unresolved effects,
 // cleanup and unsuccessful work keep their complete catalog entries.
 func retireRoutinePlans(ctx context.Context, tx *sql.Tx, current domain.GenerationSnapshot, tick domain.Tick) error {
-	control, err := currentControl(ctx, tx)
-	if err != nil && !errors.Is(err, ErrNotFound) {
-		return err
-	}
 	rows, err := tx.QueryContext(ctx, "SELECT p.id,m.goal_id FROM plans p INDEXED BY active_plans CROSS JOIN goal_methods m ON m.plan_id=p.id WHERE p.retired=0 ORDER BY p.id LIMIT 257")
 	if err != nil {
 		return err
@@ -59,7 +55,7 @@ func retireRoutinePlans(ctx context.Context, tx *sql.Tx, current domain.Generati
 		return ErrCapacity
 	}
 	for _, v := range links {
-		if v.plan == current.Plan || v.plan == control.Request.Plan {
+		if v.plan == current.Plan {
 			continue
 		}
 		g, err := loadGoal(ctx, tx, v.goal)

@@ -106,7 +106,7 @@ structured player endpoints are listed in
 surface is guidance, not per-pawn orders: one building placement and one
 research selection remain as typed plan submissions, and everything else is
 colony configuration (goals, population/expedition/resource policies, per-pawn
-population decisions, work preferences) or control (acquire/manual, clock
+population decisions, work preferences) or control (resume/pause, clock
 acknowledgement, world evaluation). Per-command player slices for tend, rescue,
 draft, husbandry, recovery service, bed assignment, movement, building
 temperature, surgery, caravans, quests, settlement gifts, trade, zone edits and
@@ -645,19 +645,20 @@ unbounded. See `internal/flightrecorder` for the writer and `ReadTimeline` reade
 the building service. Supply the same `--gabs`, `--config`, `--game`, `--state`,
 `--listen` and optional `--assets` arguments as the observation service. The profile
 must be the shared game profile, so another controller cannot acquire its process
-lock. The service starts in Manual; it never restores a live lease from SQLite.
+lock. The service starts paused; it never restores a live lease from SQLite.
 
 With built dashboard assets, player controls accept a building definition,
-material, map coordinates and rotation. Submitting stores intent; enabling its
-plan separately acquires permission. **Manual — stop orders** remains available
-while acquisition is pending. The building and chat forms share current
+material, map coordinates and rotation. Submitting stores guidance; **Resume**
+runs the bot for the observed world and **Pause** stops it, and Pause remains
+available while a resume is pending. The building and chat forms share current
 permission and control history. Form drafts and request IDs survive background
 refreshes, and result checks only read the recorded request.
 Player controls are hidden when the service runs read-only.
 
-Submit a single building through `POST /api/buildings/plans`, then explicitly
-acquire that plan through `POST /api/player/control/acquire`. Manual uses
-`POST /api/player/control/manual` and stops local work before waiting for native
+Submit a single building through `POST /api/buildings/plans`; the running bot
+dispatches it under the world's root plan. Resume uses
+`POST /api/player/control/resume` and Pause uses
+`POST /api/player/control/pause`, which stops local work before waiting for native
 cleanup. These routes require JSON and the process token returned by
 `GET /api/player/session` in the `X-RimGovernor-Player` header. Tokens remain in
 memory. Requests bind exact colony/load/map identity and stable request IDs;

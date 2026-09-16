@@ -7,6 +7,10 @@ instance. Reloading can preserve goals while invalidating old in-flight operatio
 There is one author of orders, so no per-request direction counter or compare-and-swap
 exists: authority is the load token (which world instance), the native tick (no rewind)
 and the native order generation (no native order-history drift), plus a pause flag.
+Control intents are `resume` and `pause` for an exact world; resume runs the bot under
+that world's empty root plan (`root/<colony>/<load>/<map>`), and routine methods and
+player submissions dispatch under it once authorized. "Manual" in older contract text
+means the paused state.
 Observation revisions and native context are separate from authority: background
 refreshes cannot authorize new work. Recheck load token, tick and generation before
 writes.
@@ -18,7 +22,7 @@ SQLite and records hashes in a manifest. The save contains the colony; the datab
 contains goals, receipts, policies and conversation. Restore them together to keep
 intent aligned with issued game orders.
 
-Resume validates the pair and starts in Manual with a new load token. Pending and
+Resume validates the pair and starts paused with a new load token. Pending and
 uncertain actions retain their recovery requirements. A checkpoint is a restart
 boundary; it does not record every simulation step or guarantee identical future
 pawn behavior. Attached sessions have a separate unchanged-game reconnect contract.

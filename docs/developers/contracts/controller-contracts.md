@@ -216,9 +216,9 @@ routine observation and review revisions; there is no player-direction counter.
 New growing zones validate crop identity and pollution compatibility before
 registration, and configure the crop in the same native operation. Hands records intent
 before writes, retains partial progress and verifies native outcomes. Routine execution
-yields after 12 operations. An explicit current player request may dispatch through the
-same Hands in Manual, while the clock stays paused; it does not dispatch unrelated
-autonomous work.
+yields after 12 operations. Nothing dispatches while paused: player submissions are
+guidance executed under the world's root plan only while the bot is running, the same
+way routine methods are.
 
 ## Foothold gates and forecast limits
 

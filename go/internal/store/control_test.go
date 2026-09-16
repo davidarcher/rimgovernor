@@ -11,11 +11,7 @@ import (
 
 func controlRequest(t *testing.T, s *Store) ControlRequest {
 	t.Helper()
-	v, _, e := s.SubmitBuilding(context.Background(), submissionRequest(t, "building"))
-	if e != nil {
-		t.Fatal(e)
-	}
-	return ControlRequest{RequestID: "acquire", Kind: AcquireControl, World: v.Request.World, Plan: v.Plan, Revision: v.Revision}
+	return ControlRequest{RequestID: "resume", Kind: ResumeControl, World: submissionRequest(t, "building").World}
 }
 func TestControlReplayRestartAndHistoricalCompletion(t *testing.T) {
 	t.Parallel()
@@ -41,25 +37,25 @@ func TestControlReplayRestartAndHistoricalCompletion(t *testing.T) {
 	if _, _, e = s.BeginControl(ctx, changed); !errors.Is(e, ErrConflict) {
 		t.Fatal(e)
 	}
-	manual := ControlRequest{RequestID: "manual", Kind: ManualControl, World: q.World}
+	manual := ControlRequest{RequestID: "pause", Kind: PauseControl, World: q.World}
 	last, created, e := s.BeginControl(ctx, manual)
 	if e != nil || !created || last.Phase != PendingControl {
 		t.Fatal(last, e)
 	}
-	completed, e := s.CompleteControl(ctx, q.RequestID, GrantedControl, 5)
-	if e != nil || completed.Phase != GrantedControl {
+	completed, e := s.CompleteControl(ctx, q.RequestID, RunningControl, 5)
+	if e != nil || completed.Phase != RunningControl {
 		t.Fatal(completed, e)
 	}
 	if current, e := s.CurrentControl(ctx); e != nil || current != last {
 		t.Fatal(current, e)
 	}
-	if replay, e := s.CompleteControl(ctx, q.RequestID, GrantedControl, 5); e != nil || replay != completed {
+	if replay, e := s.CompleteControl(ctx, q.RequestID, RunningControl, 5); e != nil || replay != completed {
 		t.Fatal(e)
 	}
 	if _, e = s.CompleteControl(ctx, q.RequestID, RefusedControl, 0); !errors.Is(e, ErrConflict) {
 		t.Fatal(e)
 	}
-	if _, e = s.CompleteControl(ctx, manual.RequestID, DisabledControl, 0); e != nil {
+	if _, e = s.CompleteControl(ctx, manual.RequestID, PausedControl, 0); e != nil {
 		t.Fatal(e)
 	}
 	if old, created, e := s.BeginControl(ctx, q); e != nil || created || old != completed {
@@ -80,7 +76,7 @@ func TestControlConcurrentBeginAndRollback(t *testing.T) {
 		go func(i int, s *Store) {
 			defer wg.Done()
 			r := q
-			r.RequestID = fmt.Sprint("acquire", i)
+			r.RequestID = fmt.Sprint("resume", i)
 			_, _, e := s.BeginControl(ctx, r)
 			results <- e
 		}(i, s)
@@ -94,13 +90,13 @@ func TestControlConcurrentBeginAndRollback(t *testing.T) {
 		}
 	}
 	latest, e := a.CurrentControl(ctx)
-	if e != nil || latest.Request.Kind != AcquireControl || latest.Phase != PendingControl {
+	if e != nil || latest.Request.Kind != ResumeControl || latest.Phase != PendingControl {
 		t.Fatal(latest, e)
 	}
 	if _, e := a.db.Exec("CREATE TRIGGER control_fail BEFORE INSERT ON control_intents BEGIN SELECT RAISE(ABORT,'fixture'); END"); e != nil {
 		t.Fatal(e)
 	}
-	manual := ControlRequest{RequestID: "failed", Kind: ManualControl, World: q.World}
+	manual := ControlRequest{RequestID: "failed", Kind: PauseControl, World: q.World}
 	if _, _, e := a.BeginControl(ctx, manual); e == nil {
 		t.Fatal("expected failure")
 	}
@@ -117,7 +113,7 @@ func TestControlValidationCapacityOverflowAndCorruption(t *testing.T) {
 	ctx := context.Background()
 	s := open(t, filepath.Join(t.TempDir(), "c.db"))
 	q := controlRequest(t, s)
-	for _, change := range []func(*ControlRequest){func(r *ControlRequest) { r.World.Map++ }, func(r *ControlRequest) { r.Revision++ }, func(r *ControlRequest) { r.Plan = "missing" }, func(r *ControlRequest) { r.Kind = "bad" }, func(r *ControlRequest) { r.RequestID = "" }} {
+	for _, change := range []func(*ControlRequest){func(r *ControlRequest) { r.World.Colony = "" }, func(r *ControlRequest) { r.Kind = "bad" }, func(r *ControlRequest) { r.RequestID = "" }} {
 		bad := q
 		change(&bad)
 		if _, _, e := s.BeginControl(ctx, bad); e == nil {
@@ -128,23 +124,23 @@ func TestControlValidationCapacityOverflowAndCorruption(t *testing.T) {
 	if e != nil {
 		t.Fatal(e)
 	}
-	for _, phase := range []ControlPhase{PendingControl, DisabledControl, "bad"} {
+	for _, phase := range []ControlPhase{PendingControl, PausedControl, "bad"} {
 		if _, e = s.CompleteControl(ctx, q.RequestID, phase, 0); e == nil {
 			t.Fatal(phase)
 		}
 	}
-	if _, e = s.CompleteControl(ctx, q.RequestID, GrantedControl, 0); e == nil {
+	if _, e = s.CompleteControl(ctx, q.RequestID, RunningControl, 0); e == nil {
 		t.Fatal("zero grant")
 	}
 	if _, e = s.CompleteControl(ctx, q.RequestID, UncertainControl, 2); e == nil {
 		t.Fatal("uncertain generation")
 	}
 	// Fill the bounded history atomically without performing thousands of separate fsyncs.
-	_, e = s.db.Exec(`WITH RECURSIVE n(x) AS (SELECT 2 UNION ALL SELECT x+1 FROM n WHERE x<4096) INSERT INTO control_intents SELECT 'manual-'||x,'manual','colony','load',0,'','0','pending','0' FROM n`)
+	_, e = s.db.Exec(`WITH RECURSIVE n(x) AS (SELECT 2 UNION ALL SELECT x+1 FROM n WHERE x<4096) INSERT INTO control_intents SELECT 'pause-'||x,'pause','colony','load',0,'pending','0' FROM n`)
 	if e != nil {
 		t.Fatal(e)
 	}
-	manual := ControlRequest{RequestID: "overflow", Kind: ManualControl, World: q.World}
+	manual := ControlRequest{RequestID: "overflow", Kind: PauseControl, World: q.World}
 	if _, _, e = s.BeginControl(ctx, manual); !errors.Is(e, ErrCapacity) {
 		t.Fatal(e)
 	}
@@ -154,8 +150,8 @@ func TestControlValidationCapacityOverflowAndCorruption(t *testing.T) {
 	if _, e = s.db.Exec("DELETE FROM control_intents WHERE request_id!=?", q.RequestID); e != nil {
 		t.Fatal(e)
 	}
-	for _, assignment := range []string{"revision='01'", "revision='18446744073709551616'", "phase='bad'", "native_generation='1'", "kind='bad'"} {
-		if _, e = s.db.Exec("UPDATE control_intents SET revision='1',phase='pending',native_generation='0',kind='acquire'"); e != nil {
+	for _, assignment := range []string{"native_generation='01'", "native_generation='18446744073709551616'", "phase='bad'", "native_generation='1'", "kind='bad'"} {
+		if _, e = s.db.Exec("UPDATE control_intents SET phase='pending',native_generation='0',kind='resume'"); e != nil {
 			t.Fatal(e)
 		}
 		if _, e = s.db.Exec("UPDATE control_intents SET " + assignment); e != nil {

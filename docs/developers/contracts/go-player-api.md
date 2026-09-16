@@ -19,8 +19,8 @@ control uses these routes.
 | GET | `/api/player/session` | Process token and `mode: "explicit-player"` |
 | GET | `/api/player/control` | Current control record and actual permission |
 | GET | `/api/player/control?requestId=…` | Historical request and actual permission |
-| POST | `/api/player/control/acquire` | Explicitly enable an exact stored plan revision for the bot's own Auto-mode authority |
-| POST | `/api/player/control/manual` | Invalidate local permission and clean up owned work |
+| POST | `/api/player/control/resume` | Run the bot for the exact observed world under that world's root plan |
+| POST | `/api/player/control/pause` | Stop the bot: invalidate local permission and clean up owned work |
 | POST | `/api/buildings/plans` | Store one building intent |
 | GET | `/api/buildings/submission?requestId=…` | Read a building submission |
 | POST | `/api/research-selects/plans` | Store one research-selection intent |
@@ -64,13 +64,20 @@ only as routine-planner output; the routes, store tables and executor states for
 their player submissions were removed in
 [issue #54](https://github.com/davidarcher/rimgovernor/issues/54).
 
-Acquire and Manual retain the existing exact-world and durable request
-semantics; there is no direction compare-and-swap, intents are journaled in order. Acquire does not negotiate a lease or an owner identity —
-there is exactly one bot and one local human player, so Acquire is simply an
-explicit dashboard trigger that tells the sole bot to switch its own Mode to
-Auto for an exact stored plan revision; the bot's native side still resolves
-eligibility and CAS itself when it acts. Historical results never confer
-current permission. Bodies
+Resume and Pause carry `requestId` and `expected` (the exact world) only;
+there is no plan reference and no direction compare-and-swap. Intents are
+journaled in order and each `requestId` is durable. Resume creates or reuses
+the world's empty root plan (`root/<colony>/<load>/<map>`, revision 1) and
+runs the bot under it; the root plan holds no actions. Routine methods and
+player submissions (building, research) for the same world are dispatched
+under the root's authority once `AuthorizeRoutinePlan` or
+`AuthorizePlayerPlan` accepts them — a submission is guidance the running
+bot executes, not a grant of its own, and there is no priority arbitration
+between guidance and routine work. Pause stops local work and cleans up
+owned drafts. Record phases are `pending`, `running` (resume, non-zero
+native generation), `paused`, `refused` and `uncertain`. Historical results
+never confer current permission; `state.generation.plan` is the live root
+plan and is the `planId` that work preferences attach to. Bodies
 remain bounded to 8192 bytes, with duplicate, unknown, null, malformed and trailing
 fields rejected. Errors retain the existing sanitized code/detail and control
 record/state/error shapes. Missing lookup is not proof that a timed-out POST had
@@ -93,7 +100,7 @@ already recorded ordinary outcome. The public projection omits claim IDs, leases
 native tokens and controller-session ownership data.
 
 The Go player surface (`httpapi.PlayerBuildings`) is `Submit`,
-`SubmitResearchSelect`, `Acquire`, `Manual` and `State`; its reader
+`SubmitResearchSelect`, `Resume`, `Pause` and `State`; its reader
 (`httpapi.ControlReader`) is `CurrentControl`, `LookupControl`,
 `LookupSubmission` and `LookupResearchSelectSubmission`. Configuration routes
 have their own narrow interfaces. Production service composition supplies the
@@ -101,12 +108,12 @@ same Player and store used by the worker.
 
 ## Dashboard behavior
 
-The building and chat forms share token bootstrap, current permission, Manual
-and acquisition history. An outstanding acquisition from either
-form still prevents a competing acquisition — there is still exactly one
-bot, so a second Acquire for a different plan while one is already
-in flight is rejected the same way it always was, just without any Owner
-identity involved; Manual remains available regardless. Background refresh
+The building and chat forms share token bootstrap, current permission and
+the Resume/Pause history. Submissions are guidance: the forms no longer enable
+a plan; the heading's Resume runs the bot for the observed world and Pause
+stops it. An unresolved Resume (pending or uncertain) blocks another Resume
+until a later journaled Pause supersedes it; Pause remains available
+regardless. Background refresh
 preserves both forms, request IDs and last-good data. Session/world changes
 exclude stale permission and responses without silently resubmitting either
 intent.

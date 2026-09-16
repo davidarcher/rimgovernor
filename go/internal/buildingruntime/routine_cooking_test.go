@@ -101,13 +101,11 @@ func TestRoutineCookingCannotSpendPlayerReservation(t *testing.T) {
 	p, db, _ := cookingFixture(t)
 	ctx := context.Background()
 	root := p.reviewer.player.State().Snapshot
-	plan, err := db.LoadPlan(ctx, root.Plan)
-	if err != nil {
-		t.Fatal(err)
-	}
+	plan := playerPlan(t, db)
+	root.Plan, root.Revision = plan.Spec.ID(), plan.Spec.Revision()
 	a := plan.Spec.Actions()[0]
 	b, _ := a.Building()
-	if _, err = db.ReserveAndPrepare(ctx, plan.Spec.ID(), a.ID(), store.Admission{Snapshot: root, Tick: 7, Costs: []store.MaterialCost{{Definition: "WoodLog", Count: 5}}, Footprint: []domain.Cell{b.Cell()}}); err != nil {
+	if _, err := db.ReserveAndPrepare(ctx, plan.Spec.ID(), a.ID(), store.Admission{Snapshot: root, Tick: 7, Costs: []store.MaterialCost{{Definition: "WoodLog", Count: 5}}, Footprint: []domain.Cell{b.Cell()}}); err != nil {
 		t.Fatal(err)
 	}
 	result, err := p.Step(ctx)

@@ -121,7 +121,11 @@ func (r *RoutineReviewer) step(ctx, epoch context.Context, arbiter *stepArbiter)
 	if err != nil {
 		return store.RoutineReviewResult{}, err
 	}
-	definitions := routineProjectDefinitions(plans, state.Snapshot)
+	playerPlans, err := p.journal.PlayerPlans(ctx, playerWorld(state.Snapshot))
+	if err != nil {
+		return store.RoutineReviewResult{}, err
+	}
+	definitions := routineProjectDefinitions(plans, state.Snapshot, playerPlans)
 	preferences, err := p.journal.LoadWorkPreferences(ctx, state.Snapshot.Plan)
 	if errors.Is(err, store.ErrNotFound) {
 		// Directly created plans have no player submission or saved overrides.

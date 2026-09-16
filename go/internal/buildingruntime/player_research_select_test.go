@@ -85,15 +85,14 @@ func TestPlayerResearchSelectSubmissionRequiresSeparateExplicitAcquire(t *testin
 	t.Parallel()
 	p, _, s, _ := playerFixture(t)
 	q := playerResearchSelectRequest()
-	submission, _, err := p.SubmitResearchSelect(context.Background(), q)
-	if err != nil {
+	if _, _, err := p.SubmitResearchSelect(context.Background(), q); err != nil {
 		t.Fatal(err)
 	}
 	if s.acquires.Load() != 0 {
 		t.Fatal("implicit acquire")
 	}
-	record, err := p.Acquire(context.Background(), store.ControlRequest{RequestID: "acquire-research-select", Kind: store.AcquireControl, World: q.World, Plan: submission.Plan, Revision: submission.Revision})
-	if err != nil || record.Phase != store.GrantedControl || s.acquires.Load() != 1 {
+	record, err := p.Resume(context.Background(), store.ControlRequest{RequestID: "acquire-research-select", Kind: store.ResumeControl, World: q.World})
+	if err != nil || record.Phase != store.RunningControl || s.acquires.Load() != 1 {
 		t.Fatal(record, err)
 	}
 }

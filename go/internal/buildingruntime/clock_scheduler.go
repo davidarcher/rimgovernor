@@ -700,7 +700,7 @@ func (s *ClockScheduler) Step(ctx context.Context) (ClockSchedulerResult, error)
 	if err != nil {
 		return out, err
 	}
-	if s.config.RoutineMethods {
+	{
 		plans, err := s.player.journal.LoadPlans(call, 256)
 		if err != nil {
 			return out, err
@@ -711,7 +711,7 @@ func (s *ClockScheduler) Step(ctx context.Context) (ClockSchedulerResult, error)
 			}
 			target := state.Snapshot
 			target.Plan, target.Revision = method.Spec.ID(), method.Spec.Revision()
-			if err := s.player.journal.AuthorizeRoutinePlan(call, state.Snapshot, target); err != nil {
+			if err := (planAuthorizer{s.player.journal, s.config.RoutineMethods}).AuthorizeRoutinePlan(call, state.Snapshot, target); err != nil {
 				continue
 			}
 			remaining, items, err := clockSchedulerWork(method, target)

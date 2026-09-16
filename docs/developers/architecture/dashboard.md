@@ -56,9 +56,9 @@ per-colonist still portrait is available separately via
 
 ## Viewing does not grant control
 
-Player commands enter through explicit control acquisition
-(`/api/player/control/acquire`) tied to a specific plan and revision, or are
-relinquished with `/api/player/control/manual`. There is no free-form
+The bot is started for the observed world with `/api/player/control/resume`
+and stopped with `/api/player/control/pause`; player submissions are guidance
+the running bot executes under the world's root plan. There is no free-form
 mouse/keyboard input relay in the Go controller — this is an intentional
 architectural boundary, not a missing feature; see
 [README.md](../../../go/README.md) for the read-only presentation guarantees.
