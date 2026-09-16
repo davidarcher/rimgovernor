@@ -322,3 +322,17 @@ func StarterLayouts(r StarterRequest) ([]StarterLayout, error) {
 	}
 	return layouts, nil
 }
+
+// HutTemplateShells returns every hut template centred on c with a south
+// entrance, in the order the starter search tries them, so acceptance tooling
+// can recognise a native shell as one of the shapes this policy issues.
+func HutTemplateShells(c domain.Cell) []domain.RoomFootprint {
+	var shells []domain.RoomFootprint
+	for _, template := range hutTemplates {
+		shell, err := domain.EllipseFootprint(c, template.radiusX, template.radiusZ, template.orientation, domain.South)
+		if err == nil {
+			shells = append(shells, shell)
+		}
+	}
+	return shells
+}

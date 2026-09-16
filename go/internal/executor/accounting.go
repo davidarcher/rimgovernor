@@ -95,6 +95,13 @@ func planHolds(state store.PlanState, target domain.ActionID, expected *domain.P
 		if v.Stage == domain.Cancelled && noEffect {
 			continue
 		}
+		// Only building placements reserve resources and cells here; every
+		// other kind carries its own admission table and holds nothing, so a
+		// dispatched supply, acquisition or policy action in some other plan
+		// must not hold construction hostage.
+		if action.Kind() != domain.BuildingAction {
+			continue
+		}
 		record, present := records[action.ID()]
 		if !present {
 			if v.Stage == domain.Pending && v.Attempt == 0 && !v.Unresolved {

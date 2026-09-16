@@ -45,6 +45,11 @@ Future phases reserve no land. A player can adopt an inspected existing room,
 including an irregular shelter, and furnish it while preserving connected access.
 Repairs use normal construction before the room can count as habitable.
 
+The first shelter's shape is chosen from the native player-faction tech level:
+Neolithic colonies raise a circular or oval hut, others a 9x9 rectangle, and
+constrained terrain grows a connected irregular footprint when no template fits
+(see the room footprint contract in [spatial contracts](../contracts/spatial-contracts.md)).
+
 ## Reservations prevent competing promises
 
 At admission, material accounting considers accepted commitments together. At dispatch,
