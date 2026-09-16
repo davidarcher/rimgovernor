@@ -516,8 +516,15 @@ func startServiceClock(ctx context.Context, player *buildingruntime.Player, sess
 			if !ok {
 				return errors.New("building plans require typed placement previews")
 			}
+			var excavation buildingruntime.RoutineExcavationSource
+			if shelter || expansion {
+				excavation, ok = reads.(buildingruntime.RoutineExcavationSource)
+				if !ok {
+					return errors.New("shelter and expansion plans require typed excavation site reads")
+				}
+			}
 			if shelter {
-				config.Sleeping, err = buildingruntime.NewRoutineShelterPlanner(reviewer, source)
+				config.Sleeping, err = buildingruntime.NewRoutineShelterPlanner(reviewer, source, excavation)
 				if err != nil {
 					return err
 				}
@@ -546,7 +553,7 @@ func startServiceClock(ctx context.Context, player *buildingruntime.Player, sess
 				}
 			}
 			if expansion {
-				config.Expansion, err = buildingruntime.NewRoutineExpansionPlanner(reviewer, source)
+				config.Expansion, err = buildingruntime.NewRoutineExpansionPlanner(reviewer, source, excavation)
 				if err != nil {
 					return err
 				}

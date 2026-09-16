@@ -53,6 +53,7 @@ type RoutineBuildingPlanner struct {
 	environment policy.PlacementEnvironment
 	adjacent    []domain.Cell
 	shelter     bool
+	excavation  RoutineExcavationSource
 	power       *policy.PowerProposal
 	temperature *policy.TemperatureProposal
 }
@@ -224,6 +225,17 @@ func (r *RoutineBuildingPlanner) step(call, epoch context.Context, arbiter *step
 	if reason != "" {
 		return RoutineBuildingResult{Reason: reason}, nil
 	}
+	if r.shelter && r.excavation != nil {
+		// An excavation project in progress under this goal epoch continues
+		// stage by stage before any open-site shell is reconsidered.
+		target, err := r.excavationProject(call, goal)
+		if err != nil {
+			return RoutineBuildingResult{}, err
+		}
+		if target != nil {
+			return r.stepExcavation(call, epoch, excavationStep{state: state, review: review, goal: goal, facts: facts, read: reading, target: *target})
+		}
+	}
 	available := routineDefinitionsAvailable(facts, definitions, r.shelter)
 	if r.goal == policy.EnsureComfort || r.goal == policy.EnsureBasicPower || r.goal == policy.EnsureTemperatureSafety {
 		preferences, loadErr := p.journal.LoadWorkPreferences(call, state.Snapshot.Plan)
@@ -334,7 +346,17 @@ func (r *RoutineBuildingPlanner) step(call, epoch context.Context, arbiter *step
 		}
 		return nil
 	}
-	selected, stock, reason, err := r.previewMethod(call, snapshot, facts, protected, missing, check)
+	var selected []policy.Preview
+	var stock policy.StockObservation
+	if r.shelter && r.excavation != nil {
+		var target *policy.ExcavationTarget
+		selected, stock, reason, target, err = r.previewShelter(call, snapshot, facts, protected, check)
+		if err == nil && target != nil {
+			return r.stepExcavation(call, epoch, excavationStep{state: state, review: review, goal: goal, facts: facts, read: reading, target: *target})
+		}
+	} else {
+		selected, stock, reason, err = r.previewMethod(call, snapshot, facts, protected, missing, check)
+	}
 	if err != nil || reason != "" {
 		return RoutineBuildingResult{Reason: reason}, err
 	}

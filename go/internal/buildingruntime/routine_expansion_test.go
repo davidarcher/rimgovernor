@@ -38,7 +38,7 @@ func TestExpansionAdmitsSparePlaceAndManualCancels(t *testing.T) {
 	base, db, _, request, n := sleepingFixture(t)
 	ctx := context.Background()
 	prepareExpansionReview(t, db, n)
-	r, err := NewRoutineExpansionPlanner(base.reviewer, n)
+	r, err := NewRoutineExpansionPlanner(base.reviewer, n, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -84,7 +84,7 @@ func TestExpansionAdmitsWholeShellWhenExistingRoomsAreFull(t *testing.T) {
 	t.Parallel()
 	base, db, n := shelterFixture(t)
 	prepareExpansionReview(t, db, n)
-	r, err := NewRoutineExpansionPlanner(base.reviewer, n)
+	r, err := NewRoutineExpansionPlanner(base.reviewer, n, nil)
 	if err != nil {
 		t.Fatal(err)
 	}

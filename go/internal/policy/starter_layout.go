@@ -13,6 +13,7 @@ type SiteCell struct {
 	Cell                                                                   domain.Cell
 	Walkable, Occupied, Zone, Roofed, Indoors, SupportsLight, StorageEmpty domain.Fact[bool]
 	Fertility                                                              domain.Fact[float64]
+	Roof                                                                   domain.Fact[string]
 }
 type StarterRequest struct {
 	Bounds Bounds

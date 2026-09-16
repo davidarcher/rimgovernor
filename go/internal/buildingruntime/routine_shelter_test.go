@@ -47,7 +47,7 @@ func shelterFixture(t *testing.T) (*RoutineBuildingPlanner, *store.Store, *sleep
 		v.Preview.Costs = domain.Known([]policy.Amount{{Resource: "WoodLog", Count: cost}})
 		v.Stock.Values = []policy.Stock{{Resource: "WoodLog", Available: domain.Known(int64(180))}}
 	}
-	planner, err := NewRoutineShelterPlanner(r.reviewer, n)
+	planner, err := NewRoutineShelterPlanner(r.reviewer, n, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -158,7 +158,7 @@ func TestRoutineShelterNeverCommitsPartialOrUnknownShell(t *testing.T) {
 func TestRoutineShelterPrefersExistingRoom(t *testing.T) {
 	t.Parallel()
 	r, db, _, _, n := sleepingFixture(t)
-	planner, err := NewRoutineShelterPlanner(r.reviewer, n)
+	planner, err := NewRoutineShelterPlanner(r.reviewer, n, nil)
 	if err != nil {
 		t.Fatal(err)
 	}

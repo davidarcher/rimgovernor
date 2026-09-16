@@ -12,20 +12,24 @@ import (
 
 // NewRoutineShelterPlanner prefers furnishing verified indoor space. Only when
 // that whole method has no space does it propose a native-grounded starter shell.
-func NewRoutineShelterPlanner(reviewer *RoutineReviewer, native RoutineBuildingSource) (*RoutineBuildingPlanner, error) {
+//
+// With an excavation source the planner also considers digging the room
+// into visible mountain rock and picks whichever site policy.ChooseExcavation
+// prefers; a nil source keeps the open-site shell only.
+func NewRoutineShelterPlanner(reviewer *RoutineReviewer, native RoutineBuildingSource, excavation RoutineExcavationSource) (*RoutineBuildingPlanner, error) {
 	if reviewer == nil || native == nil {
 		return nil, ErrControl
 	}
-	return &RoutineBuildingPlanner{reviewer: reviewer, native: native, goal: policy.EnsureInitialShelter, definition: "Wall", shelter: true}, nil
+	return &RoutineBuildingPlanner{reviewer: reviewer, native: native, excavation: excavation, goal: policy.EnsureInitialShelter, definition: "Wall", shelter: true}, nil
 }
 
 // Expansion reuses the same furnishing and whole-shell admission path to keep
 // one spare indoor sleeping place beyond the observed population.
-func NewRoutineExpansionPlanner(reviewer *RoutineReviewer, native RoutineBuildingSource) (*RoutineBuildingPlanner, error) {
+func NewRoutineExpansionPlanner(reviewer *RoutineReviewer, native RoutineBuildingSource, excavation RoutineExcavationSource) (*RoutineBuildingPlanner, error) {
 	if reviewer == nil || native == nil {
 		return nil, ErrControl
 	}
-	return &RoutineBuildingPlanner{reviewer: reviewer, native: native, goal: policy.EnsureExpansion, definition: "Wall", shelter: true}, nil
+	return &RoutineBuildingPlanner{reviewer: reviewer, native: native, excavation: excavation, goal: policy.EnsureExpansion, definition: "Wall", shelter: true}, nil
 }
 
 // A completed starter shell may trigger RimWorld's normal automatic roofing.
