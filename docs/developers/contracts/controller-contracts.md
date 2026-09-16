@@ -62,11 +62,19 @@ establishes the storage gate.
 Optional goals (priority class 3 and 4: basic equipment defense, wood, comfort,
 expansion, maintained research and resource targets) share a deterministic admission
 order. Scores combine a 0–100 observed deficit fraction, a 100-point player-target
-preference, one point per 2,500 waiting game ticks, a 20-point selection hysteresis
+preference, one point per 1,000 waiting game ticks, a 20-point selection hysteresis
 bonus, a bottleneck penalty of up to 30 points and a risk penalty of up to 40 points
 (`policy.DefaultDevelopmentWeights`). Stable goal IDs break ties. These weights are
 policy ordering, not measured benefit or time estimates. Emergencies retain precedence,
 and comfort waits for startup-survival goals.
+
+The age weight is the starvation bound: an eligible optional goal overtakes any
+persistently larger deficit within 100,000 waiting ticks (under two game days), and the
+gap is usually smaller because committed work resets the incumbent's waiting age. The
+bound is verified by replayed ranking simulations (`development_simulation_test.go`)
+covering competing constant deficits, capacity loss and recovery, player interruption,
+uncertain cancelled writes and load/map/tick resets. Those replays establish bounded
+admission and retained waiting identities, not pawn progress or completion times.
 
 The bottleneck penalty is lead-time evidence: it scales with how contested a goal's
 labor profile is (free pawns of its work types after commitments, against the eligible

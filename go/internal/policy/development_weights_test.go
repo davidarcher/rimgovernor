@@ -15,7 +15,7 @@ func TestDevelopmentWeightsDefaultAndValidation(t *testing.T) {
 	}
 	r.Weights.Deficit = 0
 	r.Tick, r.Previous = 2600, base
-	if s := rank(t, r); s.Rows[0].Goal != "storage" || s.Rows[0].Score != 21 {
+	if s := rank(t, r); s.Rows[0].Goal != "storage" || s.Rows[0].Score != 22.5 {
 		t.Fatal("age and hysteresis alone", s.Rows)
 	}
 	for _, bad := range []DevelopmentWeights{{Deficit: 100}, {Deficit: -1, AgeTicks: 1}, {AgeTicks: 1, Risk: 1e7}} {
