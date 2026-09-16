@@ -16,7 +16,7 @@ recovery.
 
 ## Chat entry
 
-Only a new human chat revision invokes `planner.py`. Mode changes and routine native
+Only a new human chat message invokes the interpreter. Mode changes and routine native
 events do not invoke inference. Model failure is reported to the player while
 deterministic operation can continue.
 
@@ -62,11 +62,19 @@ establishes the storage gate.
 Optional goals (priority class 3 and 4: basic equipment defense, wood, comfort,
 expansion, maintained research and resource targets) share a deterministic admission
 order. Scores combine a 0–100 observed deficit fraction, a 100-point player-target
-preference, one point per 2,500 waiting game ticks, a 20-point selection hysteresis
+preference, one point per 1,000 waiting game ticks, a 20-point selection hysteresis
 bonus, a bottleneck penalty of up to 30 points and a risk penalty of up to 40 points
 (`policy.DefaultDevelopmentWeights`). Stable goal IDs break ties. These weights are
 policy ordering, not measured benefit or time estimates. Emergencies retain precedence,
 and comfort waits for startup-survival goals.
+
+The age weight is the starvation bound: an eligible optional goal overtakes any
+persistently larger deficit within 100,000 waiting ticks (under two game days), and the
+gap is usually smaller because committed work resets the incumbent's waiting age. The
+bound is verified by replayed ranking simulations (`development_simulation_test.go`)
+covering competing constant deficits, capacity loss and recovery, player interruption,
+uncertain cancelled writes and load/map/tick resets. Those replays establish bounded
+admission and retained waiting identities, not pawn progress or completion times.
 
 The bottleneck penalty is lead-time evidence: it scales with how contested a goal's
 labor profile is (free pawns of its work types after commitments, against the eligible
@@ -108,7 +116,13 @@ capacity-deferred candidate in the same review; labor-deferred candidates wait f
 next review's fresh census. Waiting age advances only with native ticks and resets
 for committed work; world changes and tick rewinds reset ranking history.
 The shared plan retains the ranking, observed worker and per-work-type labor counts and
-explicit deferral reasons in the routine review's development record. Native labor forecasts remain
+explicit deferral reasons in the routine review's development record. `GET /api/routines`
+returns that record under `development` (null until a review has ranked): reviewed tick,
+capacity, nullable worker count, sorted free-labor rows, committed goal IDs and one row
+per optional goal with score, nullable deficit and risk, `waitingSince`, selection and
+commitment flags, the deferral reason and, for `labor_unavailable`, the bottleneck work
+type. The dashboard's Work view renders it read-only as "Development priorities"; the
+panel hides itself when routine diagnostics are disabled. Native labor forecasts remain
 evidence with unknown completion times. Native gameplay acceptance of competing
 comfort, research, resource and expansion demands is tracked in
 [issue #9](https://github.com/davidarcher/rimgovernor/issues/9).
@@ -204,7 +218,30 @@ never re-cropped. Open hunting or foraging under EnsureFoodSupply does not block
 batch and a sown field does not block acquisition (the store exempts each from the
 other's open work, mirroring the acquisition-over-bill exemption); a second field batch
 still waits for the first to resolve. Each batch previews at most six patches inside the
-shared step budget. Insufficient farmland does not reject an otherwise legal
+shared step budget. The field planner also requests `SunLamp`, `HydroponicsBasin` and
+`Heater` definitions and decodes `PlanningFacts.environment` into
+`ColonyProjection.Environment` (`policy.ControlledEnvironment`: lamps with native growth
+cells, growers with sow tags, indoor rooms, per-network headroom with
+`NightHeadroomW`/`CalmNightHeadroomW`); it is observed only and unknown when the native
+side withholds it. Site-type selection (`policy.PlanSiteType`) ranks every crop under
+outdoor, greenhouse-reuse (roofed soil a running lamp lights), greenhouse-new (roofed
+indoor soil plus one lamp placed where its growth disc covers the most soil),
+hydroponics (new basins on lit roofed floor, only for the basin's native default crop
+with the `Hydroponic` sow tag, since growers cannot be re-cropped natively) and
+dark-room (unlit roofed indoor soil for a zero-glow crop) by the same net-nutrition-per-
+needed-cell score, charging construction per building and power per added kilowatt
+against the best network's day headroom (lamps) or night/calm-night headroom (basins,
+heaters), and a heater per room or outdoors below 10C; a kind without the power,
+heater, infrastructure or crop compatibility it needs stays in the candidate list with
+its reason, and an unknown environment leaves only outdoor candidates. Controlled kinds
+ignore the outdoor season. Candidates are enacted in score order: zone kinds preview
+growing zones, construction kinds preview the lamp or basins as building actions
+(the lit soil is planted by a later batch once the game reports it), and a candidate the
+game refuses to place or the store cannot reserve falls through to the next, at most
+three per step. Open farm-infrastructure work blocks the next batch like open zone work,
+and the store's field exemption covers `SunLamp`/`HydroponicsBasin`/`Heater` plans.
+`nativeaccept/cmd/farmselectaccept` asserts the traced selection kind/crop, the
+winner's term breakdown and every loser's reason. Insufficient farmland does not reject an otherwise legal
 shelter. Selected field capacity remains separate from observed growing cells and the
 production gate. Work
 allocation uses observed capabilities/skills, job load and stable identity tie breaks;

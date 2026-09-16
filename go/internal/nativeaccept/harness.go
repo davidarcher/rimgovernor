@@ -17,7 +17,7 @@ import (
 )
 
 // Harness owns Evidence recording and generic native calls for the acceptance
-// binaries. It mirrors native_package_acceptance.py's Evidence class: every native
+// binaries. It records evidence: every native
 // call/reply pair is written to <output>/NNNN-<label>.json for post-mortem review.
 type Harness struct {
 	Client   *bridge.Client
@@ -74,7 +74,7 @@ func writeEvidence(path string, row map[string]any) {
 
 // Wire calls a rimgovernor/* Protobuf-JSON tool: it wraps request as {"request":
 // json.Marshal(request)} and unwraps the ProtoJSON string payload from the reply's
-// "payload" field, matching native_protobuf_acceptance.py's wire()/proto() helpers.
+// "payload" field.
 func (h *Harness) Wire(ctx context.Context, label, method string, request any) (map[string]any, error) {
 	encoded, err := json.Marshal(request)
 	if err != nil {
@@ -97,7 +97,7 @@ func (h *Harness) Wire(ctx context.Context, label, method string, request any) (
 }
 
 // Outcome asserts the wire reply is exactly the single-field oneof named case and
-// returns its value, mirroring native_pawn_acceptance.py's outcome().
+// returns its value.
 func Outcome(message map[string]any, cases ...string) (string, map[string]any, error) {
 	if len(message) != 1 {
 		return "", nil, fmt.Errorf("expected exactly one oneof case, found %v", keys(message))
@@ -124,7 +124,7 @@ func keys(m map[string]any) []string {
 }
 
 // Discovery pages through games_tool_names and returns every discovered native tool
-// name, bounded like native_compatibility_acceptance.py's discovery().
+// name, bounded.
 func (h *Harness) Discovery(ctx context.Context) ([]string, error) {
 	var names []string
 	cursor := ""
@@ -209,8 +209,7 @@ func WaitForNativeTool(ctx context.Context, client *bridge.Client, name string, 
 // ValidateDiscovery asserts discovered names carry no duplicate registrations, cover
 // every required production export, cover every expectedFixture, and expose no
 // fixture-shaped export (a "test/" prefix, a name containing "fixture", or a name in
-// fixtures) beyond expectedFixtures. Mirrors native_compatibility_acceptance.py's
-// validate_discovery().
+// fixtures) beyond expectedFixtures.
 func ValidateDiscovery(names []string, production, fixtures, expectedFixtures map[string]bool) error {
 	counts := map[string]int{}
 	for _, name := range names {
@@ -269,8 +268,7 @@ func ValidateDiscovery(names []string, production, fixtures, expectedFixtures ma
 	return nil
 }
 
-// PackageFiles hashes the unified native mod's on-disk files, mirroring
-// native_package_acceptance.py's package_files() (used to record installed-artifact
+// PackageFiles hashes the unified native mod's on-disk files (used to record installed-artifact
 // evidence in the report; it does not re-run RequireNativePackage's checks).
 func PackageFiles(installation string) (map[string]string, error) {
 	pkg := filepath.Join(installation, "Mods", "RimGovernor")
@@ -304,7 +302,7 @@ func PackageFiles(installation string) (map[string]string, error) {
 }
 
 // ArtifactHashes hashes every regular file under output, for the report's evidence
-// manifest (mirrors the Python scripts' output.rglob("*") artifact census).
+// manifest (an artifact census of every file under output).
 func ArtifactHashes(output string) (map[string]string, error) {
 	hashes := map[string]string{}
 	err := filepath.WalkDir(output, func(path string, entry fs.DirEntry, err error) error {
@@ -329,8 +327,7 @@ func ArtifactHashes(output string) (map[string]string, error) {
 	return hashes, err
 }
 
-// CheckStartupLog validates the mod's HeadlessRim startup markers, mirroring
-// native_package_acceptance.py's check_startup_log(): batch initialization must be
+// CheckStartupLog validates the mod's HeadlessRim startup markers: batch initialization must be
 // active exactly when headless is requested, and no bootstrap/post-init error logged.
 func CheckStartupLog(log string, headless bool) error {
 	if strings.Contains(log, "[HeadlessRim] Bootstrap Error:") {

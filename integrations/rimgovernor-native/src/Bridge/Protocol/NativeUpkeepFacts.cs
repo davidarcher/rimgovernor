@@ -55,12 +55,20 @@ namespace HomeBridge.BridgeTools
                 result.Fires.AddRange(values);
             });
             Read("filth", result, () => {
-                var rows = things.OfType<Filth>().OrderBy(f => f.thingIDNumber).ToList();
+                // Home-area filth only: a map carries hundreds of natural
+                // dirt and rubble rows outside it that no clean order may
+                // ever target (upkeep orders require the home area), and a
+                // whole-map census exceeded the bound on every real map.
+                var rows = things.OfType<Filth>().Where(f => map.areaManager.Home[f.Position]).OrderBy(f => f.thingIDNumber).ToList();
                 Require(rows.Count, 256);
                 var values = rows.Select(f => {
                     var value = new Obs.FilthState { Filth = Ref(f), Home = map.areaManager.Home[f.Position], Thickness = checked((uint)f.thickness) };
-                    var room = f.GetRoom()?.Role?.defName;
-                    if (room != null) value.RoomRole = Id(room);
+                    var room = f.GetRoom();
+                    if (room?.Role != null) value.RoomRole = Id(room.Role.defName);
+                    // The same room identity the typed room census reports, so
+                    // the controller can pair filth with a measured room
+                    // cleanliness instead of a role name alone.
+                    if (room != null) value.RoomId = room.ID.ToString(System.Globalization.CultureInfo.InvariantCulture);
                     return value;
                 }).ToList();
                 result.Filth.AddRange(values);

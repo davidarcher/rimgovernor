@@ -179,6 +179,8 @@ func (r *RoutineReviewer) step(ctx, epoch context.Context, arbiter *stepArbiter)
 			}
 		}
 	}
+	reading.Projection.Facts.Upkeep.Rooms = reading.Projection.Rooms
+	reading.Projection.Facts.CleaningContext(reading.Projection.Identity.Tick)
 	if err = p.current(ctx, epoch); err != nil {
 		clockSchedulerLog("routine.step: p.current err=%v", err)
 		return store.RoutineReviewResult{}, err

@@ -15,10 +15,14 @@ Emergencies preempt development. Food, wood and temperature use separate entry a
 recovery thresholds to avoid replacing goals on small fluctuations. Goals retain
 outcomes, methods retain approaches and steps identify executable work across reviews.
 
-Optional projects compete for bounded capacity based on observed deficits, player
-targets and waiting time. Accepted work keeps its identity as capacity changes;
-unavailable methods yield to other candidates. Work displays the reason for deferral.
-Worker capacity is a scheduling bound, not a completion-time guarantee.
+Optional projects (comfort, research, production targets, defense, expansion)
+compete for bounded capacity based on measured deficits, player targets, waiting time,
+labor contention and observed outdoor risk. Each goal declares the native work types
+that can serve it; admission is bounded by both the project limit and free pawns of
+those types. Accepted work keeps its identity as capacity changes; unavailable methods
+yield to other candidates. Work displays the reason for deferral, including the
+bottleneck work type. Worker capacity is a scheduling bound, not a completion-time
+guarantee, and waiting age alone overtakes any deficit gap within a fixed tick bound.
 
 ## Execute under supervision
 

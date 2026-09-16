@@ -20,8 +20,8 @@ import (
 // (cell included, unlike the exact-ID CAS lookup this census lacks — see
 // bridge.ReadFilthTarget's doc comment) and the existing tend pawn read
 // (already requests combat+work+care details) for cleaner eligibility: dead/
-// downed/drafted/mental state, health, existing job and the Cleaning work
-// setting. No new native call is introduced for this slice.
+// downed/drafted/mental state, health, existing job and whether Cleaning is
+// disabled outright. No new native call is introduced for this slice.
 type RoutineCleanSource interface {
 	observation.ColonySource
 	ReadEmergency(context.Context, *c.Identity) (bridge.EmergencyObservation, bridge.Result, error)
@@ -113,11 +113,19 @@ func (r *RoutineCleanPlanner) step(call, epoch context.Context, arbiter *stepArb
 		return RoutineCleanResult{}, ErrControl
 	}
 	started := r.reviewer.clock.Now()
-	reading, err := observation.ObserveColony(call, r.native, r.reviewer.clock, expected, r.reviewer.maxAge, true, nil)
+	reading, err := observation.ObserveRoutineRooms(call, r.native.(observation.RoutineSource), r.reviewer.clock, expected, r.reviewer.maxAge, domain.Unknown[[]policy.ConstructionClaim]())
 	if err != nil {
 		return RoutineCleanResult{}, err
 	}
-	upkeepReview, err := policy.ReviewUpkeep(reading.Projection.Facts.Upkeep, policy.UpkeepHistory{}, nil)
+	// The bounded response reads the same room census, coverage and latch
+	// the review did: filth outside a latched dirty workspace is ordinary
+	// colonist work, never a direct order.
+	reading.Projection.Facts.Upkeep.Rooms = reading.Projection.Rooms
+	if pawns, known := reading.Projection.WorkPawns.Value(); known {
+		reading.Projection.Facts.Labor = policy.RoutineLabor(pawns)
+	}
+	reading.Projection.Facts.CleaningContext(expected.Tick)
+	upkeepReview, err := policy.ReviewUpkeepWith(reading.Projection.Facts.Upkeep, review.Latches.Upkeep, nil, r.reviewer.policy.Cleanliness)
 	if err != nil {
 		return RoutineCleanResult{}, err
 	}
@@ -267,7 +275,13 @@ func cleaningWorkEnabled(work []*n.WorkSetting) domain.Fact[bool] {
 		if w.Disabled == nil || w.Priority == nil {
 			return domain.Unknown[bool]()
 		}
-		return domain.Known(!w.GetDisabled() && w.GetPriority() > 0)
+		// A direct clean order is player-forced: native honours it whatever
+		// the Work-tab priority says (OrderTool.FinishWorkGiverPlan), and the
+		// bounded response exists precisely for colonies whose ordinary
+		// coverage (Cleaning priority > 0) failed. Only real incapability
+		// excludes a pawn; controller-issued priority-0 overrides are
+		// honoured by the caller.
+		return domain.Known(!w.GetDisabled())
 	}
 	return domain.Unknown[bool]()
 }

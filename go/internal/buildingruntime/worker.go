@@ -30,7 +30,7 @@ func routineExecutableKind(kind domain.ActionKind) bool {
 		domain.ProductionBillAction, domain.TendAction, domain.RescueAction, domain.CaptureAction, domain.HaulAction, domain.EquipAction,
 		domain.GearReplaceAction, domain.RecoveryServiceAction, domain.HusbandryAction,
 		domain.PrisonerInteractionAction, domain.RepairAction, domain.CleanAction, domain.MineAcquisitionAction,
-		domain.ProductionPolicyAction:
+		domain.ProductionPolicyAction, domain.BuildingTemperatureAction:
 		return true
 	default:
 		return false
@@ -194,12 +194,17 @@ func (w *Worker) step(ctx context.Context, now time.Time) error {
 			target.Plan, target.Revision = plan.Spec.ID(), plan.Spec.Revision()
 			if (planAuthorizer{w.player.journal, w.config.RoutineMethods}).AuthorizeRoutinePlan(call, scope.Snapshot, target) == nil {
 				planScope.Snapshot = target
+			} else if clockSchedulerDebug {
+				clockSchedulerLog("worker: authorize plan=%s root=%+v err=%v", plan.Spec.ID(), scope.Snapshot, err)
 			}
 		}
 		for _, progress := range plan.Progress {
 			v := progress.View()
 			cleanup := workerCleanupEligible(plan, v, scope, world)
 			routineObservation := w.config.RoutineMethods && v.Unresolved && routineExecutableKind(progress.Action().Kind()) && playerWorld(v.Snapshot) == world
+			if clockSchedulerDebug && progress.Action().Kind() == domain.BuildingTemperatureAction {
+				clockSchedulerLog("worker: temperature candidate action=%s stage=%v authorized=%v eligible=%v worldErr=%v", v.Action, v.Stage, planScope.Snapshot != scope.Snapshot, workerEligible(plan, v, planScope, world), worldErr)
+			}
 			if cleanup || worldErr == nil && (routineObservation || workerEligible(plan, v, planScope, world)) {
 				live[v.Action] = true
 				candidates = append(candidates, workerCandidate{view: v, cleanup: cleanup})
@@ -248,6 +253,9 @@ func (w *Worker) step(ctx context.Context, now time.Time) error {
 		after := v
 		if result.Progress.View().Action == v.Action {
 			after = result.Progress.View()
+		}
+		if clockSchedulerDebug {
+			clockSchedulerLog("worker: action=%s kind=%v cleanup=%v stage=%v->%v err=%v", v.Action, candidate.view.Plan, candidate.cleanup, v.Stage, after.Stage, err)
 		}
 		delay := w.config.StepInterval
 		if after == v && wait.view == v && wait.scope == workerScope(scope) && wait.cleanup == candidate.cleanup {

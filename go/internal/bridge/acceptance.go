@@ -54,8 +54,7 @@ func (c *Client) GamesStart(ctx context.Context) (Result, error) {
 // transient "a launch claim ... was published while preparing this operation ...
 // re-check games_status and retry" pattern GABS uses when a previous game's process
 // claim has not yet released. Detail text is drawn from every text content entry and
-// the structured "message"/"error" fields, matching how BridgeError.detail is derived
-// in controller/rimgovernor/bridge.py.
+// the structured "message"/"error" fields.
 func isLaunchClaimRace(refusal *Refusal) bool {
 	detail := strings.ToLower(refusalDetail(refusal))
 	for _, part := range []string{
@@ -117,12 +116,12 @@ func (c *Client) NativeCall(ctx context.Context, tool string, arguments json.Raw
 	})
 }
 
-// ConnectWithPoll ports the Python BridgeClient.connect() reconnect/backoff behavior:
+// ConnectWithPoll is the reconnect/backoff behavior:
 // it accepts the games_start receipt, short-circuits if GABS reports it is already
 // GABP-connected, polls games_status while a backgroundConnect handoff is pending, or
 // otherwise calls games_connect and polls the native tool catalog until it is
-// discoverable (bounded by a 120s deadline in each branch, matching the Python asyncio
-// timeouts). It never retries a load or other game mutation after an uncertain result.
+// discoverable (bounded by a 120s deadline in each branch). It never retries a
+// load or other game mutation after an uncertain result.
 func (c *Client) ConnectWithPoll(ctx context.Context, started Result) (Result, error) {
 	var startup struct {
 		GabpConnected     bool `json:"gabpConnected"`

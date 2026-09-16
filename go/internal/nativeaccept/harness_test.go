@@ -51,8 +51,8 @@ func TestValidateDiscoveryTreatsCasefoldedFixtureNameAsFixtureShaped(t *testing.
 	}
 }
 
-// batchLog/normalLog mirror test_native_package_acceptance.py's
-// test_startup_requires_batch_patches_and_preserves_graphical_mode fixtures.
+// batchLog/normalLog are the startup-log fixtures: batch patches armed versus
+// an ordinary graphical start.
 const batchLog = "[HeadlessRim] Bootstrap armed.\n[HeadlessRim] Headless mode active."
 const normalLog = "Normal game startup"
 
@@ -82,8 +82,7 @@ func TestCheckStartupLogRequiresBatchPatchesAndPreservesGraphicalMode(t *testing
 	}
 }
 
-// writePackage mirrors test_native_package_acceptance.py's
-// test_package_requires_both_loader_assemblies_and_rejects_mixed_install fixture.
+// writePackage writes a minimal installed native package.
 func writePackage(t *testing.T, root string) {
 	t.Helper()
 	mod := filepath.Join(root, "Mods", "RimGovernor")
@@ -121,8 +120,7 @@ func TestPackageFilesRequiresBothLoaderAssembliesAndRejectsMixedInstall(t *testi
 	}
 }
 
-// TestOutcomeRequiresExactlyOneNamedCase mirrors
-// test_native_package_acceptance.py's test_protobuf_smoke_requires_successful_fixed_outcome:
+// TestOutcomeRequiresExactlyOneNamedCase:
 // a decoded ProtoJSON reply must carry exactly the one requested oneof case, never an
 // unrequested case alone or alongside it.
 func TestOutcomeRequiresExactlyOneNamedCase(t *testing.T) {

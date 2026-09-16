@@ -1,4 +1,4 @@
-// Command researchaccept replaces scripts/native_research_acceptance.py: full
+// Command researchaccept proves the full
 // disposable-worker lifecycle plus typed research-project reads compared against
 // the legacy home/research getter and a private fingerprint fixture that proves the
 // typed read never mutates saved research state.
@@ -180,8 +180,8 @@ func run(ctx context.Context, root, output, gameID string, headless bool, report
 		return fmt.Errorf("filtered completeness: %w", err)
 	}
 
-	// Bounded search for a project row with a populated unlocks collection, as the
-	// Python script does; unlocks are only returned per-row on request.
+	// Bounded search for a project row with a populated unlocks collection;
+	// unlocks are only returned per-row on request.
 	var unlockRows []any
 	candidates := projects
 	for index, raw := range candidates {
@@ -269,7 +269,7 @@ func run(ctx context.Context, root, output, gameID string, headless bool, report
 	// populated nextCursor) the same way it does for observations_list_pawns/rooms
 	// truncation elsewhere; only a single row's own child collections (Bound(),
 	// line 236) or the whole-reply size (1 MiB, line 232) trigger LIMIT_EXCEEDED.
-	// The Python/Go original here expected an unavailable refusal that this tool
+	// An earlier version expected an unavailable refusal that this tool
 	// has never actually produced for a small page limit; fixed forward to assert
 	// the real truncation behavior instead of preserving the untested assumption.
 	overflowReply, err := h.Wire(ctx, "overflow", "observations_read_research", na.Merge(full, map[string]any{"page": map[string]any{"limit": 1}}))

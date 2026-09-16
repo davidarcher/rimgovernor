@@ -25,6 +25,7 @@ const (
 	MaintainMedicalCare     GoalID = "MaintainMedicalCare"
 	MaintainMedicalReserves GoalID = "MaintainMedicalReserves"
 	MaintainFoodStorage     GoalID = "MaintainFoodStorage"
+	MaintainRefrigeration   GoalID = "MaintainRefrigeration"
 	EnsureComfort           GoalID = "EnsureComfort"
 	EnsureExpansion         GoalID = "EnsureExpansion"
 	MaintainEquipment       GoalID = "MaintainEquipment"
@@ -38,10 +39,15 @@ const (
 // const, at its own point of use below) starts MaintainMedicalReserves at.
 const foodStorageUpkeepPriority = 3
 
+// refrigerationPriority keeps MaintainRefrigeration out of the ranked
+// development queue (see DetectRoutine's comment at its point of use).
+const refrigerationPriority = 2
+
 type RoutinePolicy struct {
 	AnimalUpkeep                                  AnimalUpkeepPolicy
 	MedicalReserve                                MedicalReservePolicy
 	FoodStorage                                   FoodStoragePolicy
+	Cleanliness                                   CleanlinessPolicy
 	MaxDevelopmentProjects                        int
 	FoodMinDays, FoodTargetDays, FootholdFoodDays float64
 	ColdEnter, ColdExit, HotExit, HotEnter        float64
@@ -59,9 +65,8 @@ type RoutinePolicy struct {
 	// name; empty disables EnsureResearch's routine dispatch. The need is
 	// measured against RoutineFacts.Research each review (idle tab with the
 	// target unfinished is a deficit; any current project or a finished
-	// target is recovered). Unlike
-	// research.py's needs(), which derives targets from every other active
-	// goal's own observed capability gaps, this only supports one explicit
+	// target is recovered). Targets are not derived from every other active
+	// goal's own observed capability gaps; this only supports one explicit
 	// target -- deriving targets from other goals' evidence generically
 	// remains an open gap (no Go goal family yet records the
 	// UnavailableThings/BlockedRecipes evidence ResearchNeeds expects).
@@ -70,16 +75,15 @@ type RoutinePolicy struct {
 	// definition name to the native stock floor MaintainResource should keep
 	// it above; an empty map disables the goal entirely. The deficit is
 	// measured against RoutineFacts.Resources each review as the worst-covered
-	// target's shortfall fraction. Unlike
-	// production_policy.py's plan-wide resource_policy (many simultaneously
-	// tracked floors driving both goal creation and the native
-	// SetProductionPolicy push), this only supports
+	// target's shortfall fraction. There is no plan-wide resource policy
+	// (many simultaneously tracked floors driving both goal creation and the
+	// native SetProductionPolicy push); this only supports
 	// policy.SelectResourceTarget's own single-goal dynamic-target selection
 	// across these targets and issues no SetProductionPolicy push at all.
 	ResourceTargets map[Resource]int64
 	// ResourceReserves and StoppedResources are operator-declared inputs to
-	// ProductionFloors, mirroring production_policy.py's plan.control
-	// resource_policy reserve/spending-stopped configuration. Unlike
+	// ProductionFloors: the per-resource reserve/spending-stopped
+	// configuration. Unlike
 	// ResourceTargets (which drives MaintainResource's own goal/method
 	// selection), these drive the ProductionPolicy goal's config-only
 	// posture: RoutineProductionPolicyPlanner dispatches ProductionFloors's
@@ -101,15 +105,14 @@ type RoutinePolicy struct {
 	// uses) to the population maximum MaintainHerd should keep that race at
 	// or under; an empty map (the default) tracks no race at all, so
 	// AllowSlaughter alone is not enough to dispatch a slaughter write --
-	// both must be set. Unlike Python's husbandry.py per-race target (which
-	// also carries a minimum, protected-id set and breeding-reserve count),
-	// this only supports the maximum half of that target, narrowed the same
-	// way ResearchTarget's doc comment discloses its own gap.
+	// both must be set. Only the maximum half of a per-race target is
+	// supported (no minimum, protected-id set or breeding-reserve count),
+	// narrowed the same way ResearchTarget's doc comment discloses its own gap.
 	HerdPopulationMax map[Resource]int64
 }
 
 func DefaultRoutinePolicy() RoutinePolicy {
-	return RoutinePolicy{AnimalUpkeep: DefaultAnimalUpkeepPolicy(), MedicalReserve: DefaultMedicalReservePolicy(), FoodStorage: DefaultFoodStoragePolicy(), MaxDevelopmentProjects: 2, FoodMinDays: 3, FoodTargetDays: 7, FootholdFoodDays: 3,
+	return RoutinePolicy{AnimalUpkeep: DefaultAnimalUpkeepPolicy(), MedicalReserve: DefaultMedicalReservePolicy(), FoodStorage: DefaultFoodStoragePolicy(), Cleanliness: DefaultCleanlinessPolicy(), MaxDevelopmentProjects: 2, FoodMinDays: 3, FoodTargetDays: 7, FootholdFoodDays: 3,
 		ColdEnter: 12, ColdExit: 16, HotExit: 28, HotEnter: 32, WoodMin: 120, WoodTarget: 350, WoodMax: 500, HuntStallTicks: 6000}
 }
 
@@ -122,6 +125,9 @@ func (p RoutinePolicy) Validate() error {
 	}
 	if !p.FoodStorage.valid() {
 		return errors.New("invalid food storage thresholds")
+	}
+	if !p.Cleanliness.valid() {
+		return errors.New("invalid cleanliness thresholds")
 	}
 	if p.MaxDevelopmentProjects < 1 || p.MaxDevelopmentProjects > 8 {
 		return errors.New("invalid development project limit")
@@ -274,6 +280,7 @@ type RoutineLatches struct {
 	Animals                  AnimalUpkeepHistory
 	MedicalReserve           bool
 	FoodStorage              bool
+	Refrigeration            bool
 	Food, Cold, Hot, Wood    bool
 	Upkeep                   UpkeepHistory
 }
@@ -375,7 +382,11 @@ func DetectRoutine(f RoutineFacts, previous RoutineLatches, p RoutinePolicy) (Ro
 	if err != nil {
 		return RoutineNeeds{}, err
 	}
-	upkeep, err := ReviewUpkeep(f.Upkeep, previous.Upkeep, f.UpkeepIssued)
+	refrigeration, err := ReviewRefrigeration(f.FoodStorageUpkeep, previous.Refrigeration, p.FoodStorage)
+	if err != nil {
+		return RoutineNeeds{}, err
+	}
+	upkeep, err := ReviewUpkeepWith(f.Upkeep, previous.Upkeep, f.UpkeepIssued, p.Cleanliness)
 	if err != nil {
 		return RoutineNeeds{}, err
 	}
@@ -451,6 +462,7 @@ func DetectRoutine(f RoutineFacts, previous RoutineLatches, p RoutinePolicy) (Ro
 		Animals:        animals.History,
 		MedicalReserve: medicine.Active,
 		FoodStorage:    foodStorage.Active,
+		Refrigeration:  refrigeration.Active,
 		Upkeep:         upkeep.History,
 		Food:           latchValue(previous.Food, f.FoodDays, p.FoodMinDays, p.FoodTargetDays, false),
 		Cold:           latchValue(previous.Cold, fallback(f.SleepingMin, f.OutdoorTemperature), p.ColdEnter, p.ColdExit, false),
@@ -665,7 +677,14 @@ func DetectRoutine(f RoutineFacts, previous RoutineLatches, p RoutinePolicy) (Ro
 		addAssessment(facility.id, priority, recovered)
 		if !positive(recovered) {
 			addGoal(facility.id, priority)
-			r.Goals[len(r.Goals)-1].MethodUnavailable = true
+			// Binary need, like the upkeep.Needs goals above: a confirmed
+			// deficit ranks at Known(1.0); an unknown census stays
+			// DevelopmentUnknown. Method availability follows the composed
+			// capability list (AvailableMethods below), since both the
+			// MaintainHomeCoverage and MaintainStoneShell verticals dispatch.
+			if _, known := recovered.Value(); known {
+				r.Goals[len(r.Goals)-1].Deficit = domain.Known(1.0)
+			}
 		}
 	}
 	sleepingRecovered := f.SleepingRecovered
@@ -706,6 +725,23 @@ func DetectRoutine(f RoutineFacts, previous RoutineLatches, p RoutinePolicy) (Ro
 	if !positive(foodStorageRecovered) {
 		addGoal(MaintainFoodStorage, foodStoragePriority)
 		r.Goals[len(r.Goals)-1].MethodUnavailable = true
+	}
+	// Refrigeration answers the same at-risk perishable nutrition as
+	// MaintainFoodStorage by cooling the room the food already sits in. It
+	// runs at foothold priority like EnsureTemperatureSafety rather than as a
+	// ranked development project: the review only latches on food inside
+	// SafeRotDays of spoiling, and a cooler queued behind the project limit
+	// arrives after the food is gone.
+	refrigerationRecovered := domain.Unknown[bool]()
+	if _, known := refrigeration.WarmNutrition.Value(); known {
+		refrigerationRecovered = domain.Known(!refrigeration.Active)
+	}
+	addAssessment(MaintainRefrigeration, refrigerationPriority, refrigerationRecovered)
+	if !positive(refrigerationRecovered) {
+		addGoal(MaintainRefrigeration, refrigerationPriority)
+		if nutrition, known := refrigeration.WarmNutrition.Value(); known && p.FoodStorage.AtRiskNutritionThreshold > 0 {
+			r.Goals[len(r.Goals)-1].Deficit = domain.Known(min(1, nutrition/p.FoodStorage.AtRiskNutritionThreshold))
+		}
 	}
 	animalContainment := domain.Unknown[bool]()
 	if targets, known := animals.Containment.Value(); known {

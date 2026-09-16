@@ -87,7 +87,7 @@ func TestNativeRoutineWorkParity(t *testing.T) {
 		actual[string(pawn.Pawn)] = values
 	}
 	if !reflect.DeepEqual(actual, expected.Assignments) {
-		t.Fatalf("Go/Python work mismatch: got %#v want %#v", actual, expected.Assignments)
+		t.Fatalf("work mismatch: got %#v want %#v", actual, expected.Assignments)
 	}
 	capacity, ck := d.Capacity.Value()
 	matches, mk := d.Matches.Value()

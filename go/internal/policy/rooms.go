@@ -51,6 +51,10 @@ type Room struct {
 	Role        domain.Fact[RoomRole]
 	Enclosed    domain.Fact[bool]
 	Temperature domain.Fact[float64]
+	// Cleanliness is RimWorld's own room Cleanliness stat (0 clean, negative
+	// dirtier), the same number the game's food-poisoning and infection
+	// chances read. Unknown when the native stat read failed.
+	Cleanliness domain.Fact[float64]
 	Beds        []string
 	Contents    domain.Fact[[]Amount]
 	Cells       []domain.Cell

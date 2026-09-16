@@ -6,7 +6,7 @@ import (
 	na "github.com/davidarcher/RimGovernor/go/internal/nativeaccept"
 )
 
-// capabilityFixture mirrors test_native_research_evidence.py's capability(): one
+// capabilityFixture is the capability fixture: one
 // researcher present with a known-zero priority and known-false active/disabled, to
 // prove those legitimate falsy facts are not confused with a missing field.
 func capabilityFixture() (map[string]any, map[string]any) {

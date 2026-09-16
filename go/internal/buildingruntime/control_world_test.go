@@ -3,7 +3,6 @@ package buildingruntime
 import (
 	"context"
 	"errors"
-	"github.com/davidarcher/RimGovernor/go/internal/runtimeowner"
 	"github.com/davidarcher/RimGovernor/go/internal/store"
 	"testing"
 )
@@ -45,7 +44,7 @@ func TestControlCloseRetiresOnlyPositivelyReplacedWorld(t *testing.T) {
 			if control.snapshot != original {
 				t.Fatal("replacement overwrote original cleanup scope")
 			}
-			other, err := runtimeowner.Acquire(context.Background(), dir)
+			other, err := AcquireProfile(context.Background(), dir)
 			if err != nil {
 				t.Fatal("profile not released", err)
 			}
@@ -84,7 +83,7 @@ func TestControlCloseWorldFailureRetainsOwnershipForRetry(t *testing.T) {
 			if control.closed || sink.enabled() || n.revokes.Load() != 0 {
 				t.Fatal("failed close released permission or ownership")
 			}
-			if other, err := runtimeowner.Acquire(context.Background(), dir); err == nil {
+			if other, err := AcquireProfile(context.Background(), dir); err == nil {
 				other.Close()
 				t.Fatal("failed close released profile")
 			}
@@ -92,7 +91,7 @@ func TestControlCloseWorldFailureRetainsOwnershipForRetry(t *testing.T) {
 			if err := control.Close(context.Background()); err != nil {
 				t.Fatal(err)
 			}
-			other, err := runtimeowner.Acquire(context.Background(), dir)
+			other, err := AcquireProfile(context.Background(), dir)
 			if err != nil {
 				t.Fatal(err)
 			}

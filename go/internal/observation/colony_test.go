@@ -121,7 +121,7 @@ func TestColonyNativeCaptureReachesRoutineReview(t *testing.T) {
 			if !known || math.Abs(coverage-*want.FieldCoverage) > 1e-9 {
 				t.Fatal("native field coverage parity", p.Facts.FieldCoverage, *want.FieldCoverage)
 			}
-			t.Logf("Native field coverage matches Python: %.9g", coverage)
+			t.Logf("Native field coverage matches the reference: %.9g", coverage)
 		}
 		if !known || growing != want.GrowingCells {
 			t.Fatal("native growing-cell parity", p.Facts.GrowingCells, want)
@@ -158,10 +158,10 @@ func TestColonyNativeCaptureReachesRoutineReview(t *testing.T) {
 		}
 		for _, pair := range [][2]float64{{days, want.RunwayDays}, {forecast.UsableNutrition, want.UsableNutrition}, {forecast.AtRiskNutrition, want.AtRiskNutrition}, {forecast.InventoryNutrition, want.InventoryNutrition}} {
 			if math.Abs(pair[0]-pair[1]) > 1e-6*math.Max(1, math.Abs(pair[1])) {
-				t.Fatal("Go/Python native food forecast mismatch", pair)
+				t.Fatal("native food forecast mismatch", pair)
 			}
 		}
-		t.Logf("Native food forecast matches Python: runway %.9g days", days)
+		t.Logf("Native food forecast matches the reference: runway %.9g days", days)
 	}
 	if reference := os.Getenv("RIMGOVERNOR_NATIVE_COMBINED_FOOD_FORECAST"); reference != "" {
 		data, err := os.ReadFile(reference)

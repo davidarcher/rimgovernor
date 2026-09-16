@@ -12,7 +12,6 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"github.com/davidarcher/RimGovernor/go/internal/executor"
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
-	"github.com/davidarcher/RimGovernor/go/internal/runtimeowner"
 	"github.com/davidarcher/RimGovernor/go/internal/store"
 	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
 	p "github.com/davidarcher/RimGovernor/go/internal/wire/placementpb"
@@ -57,7 +56,7 @@ func TestSessionOwnsDispatchAndManualReconciliation(t *testing.T) {
 				t.Fatal(err)
 			}
 			defer session.Close(ctx)
-			if owner, err := runtimeowner.Acquire(ctx, dir); err == nil {
+			if owner, err := AcquireProfile(ctx, dir); err == nil {
 				owner.Close()
 				t.Fatal("session did not own profile")
 			}
@@ -138,7 +137,7 @@ func TestSessionOwnsDispatchAndManualReconciliation(t *testing.T) {
 			if _, err = session.Run(ctx, "plan", "action"); !errors.Is(err, executor.ErrStopped) {
 				t.Fatalf("closed runtime ran: %v", err)
 			}
-			owner, err := runtimeowner.Acquire(ctx, dir)
+			owner, err := AcquireProfile(ctx, dir)
 			if err != nil {
 				t.Fatal("drained runtime retained lock", err)
 			}

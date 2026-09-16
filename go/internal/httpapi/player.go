@@ -178,7 +178,7 @@ func (s *Server) handlePlayer(w http.ResponseWriter, r *http.Request) bool {
 	}
 	path := r.URL.Path
 	read := path == "/api/player/session" || path == "/api/player/control" || path == "/api/buildings/submission" || path == "/api/player/clock" || path == "/api/player/world-evaluation" || path == "/api/player/work-preferences" || path == "/api/research-selects/submission" || path == "/api/player/population-policy" || path == "/api/player/population-policy/submission" || path == "/api/player/expedition-policy" || path == "/api/player/expedition-policy/submission" || path == "/api/player/population-decision" || path == "/api/player/population-decision/submission" || path == "/api/player/resource-policy" || path == "/api/player/resource-policy/submission" || path == "/api/player/goals" || path == "/api/player/goals/submission"
-	write := path == "/api/chats/plans" || path == "/api/buildings/plans" || path == "/api/player/control/resume" || path == "/api/player/control/pause" || path == "/api/player/clock/acknowledge" || path == "/api/player/work-preferences/replace" || path == "/api/research-selects/plans" || path == "/api/player/population-policy/replace" || path == "/api/player/expedition-policy/update" || path == "/api/player/population-decision/replace" || path == "/api/player/resource-policy/update" || path == "/api/player/goals/activate" || path == "/api/player/goals/cancel"
+	write := path == "/api/chat" || path == "/api/buildings/plans" || path == "/api/player/control/resume" || path == "/api/player/control/pause" || path == "/api/player/clock/acknowledge" || path == "/api/player/work-preferences/replace" || path == "/api/research-selects/plans" || path == "/api/player/population-policy/replace" || path == "/api/player/expedition-policy/update" || path == "/api/player/population-decision/replace" || path == "/api/player/resource-policy/update" || path == "/api/player/goals/activate" || path == "/api/player/goals/cancel"
 	if !read && !write {
 		return false
 	}
@@ -266,8 +266,8 @@ func (s *Server) handlePlayer(w http.ResponseWriter, r *http.Request) bool {
 		return true
 	}
 	if write {
-		if path == "/api/chats/plans" {
-			if s.chat == nil || s.chatNative == nil {
+		if path == "/api/chat" {
+			if s.chat == nil || s.chatNative == nil || s.chatJournal == nil {
 				s.failure(w, r, 501, "unsupported", "Chat is not enabled on this controller")
 				return true
 			}

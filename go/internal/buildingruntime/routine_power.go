@@ -21,7 +21,9 @@ func NewRoutinePowerPlanner(reviewer *RoutineReviewer, native RoutineBuildingSou
 }
 
 func (r *RoutineBuildingPlanner) selectPower(facts observation.ColonyProjection) (*RoutineBuildingPlanner, RoutineBuildingReason, error) {
-	proposal, err := policy.SelectPowerMethod(facts.PowerPlanning, facts.Bounds, facts.Cells, nil)
+	planning := policy.DefaultPowerPlanning()
+	planning.Generators = facts.GeneratorOptions()
+	proposal, err := policy.SelectPowerMethod(facts.PowerPlanning, facts.Bounds, facts.Cells, nil, planning)
 	if err != nil {
 		return nil, "", err
 	}
@@ -32,12 +34,15 @@ func (r *RoutineBuildingPlanner) selectPower(facts observation.ColonyProjection)
 		return nil, BuildingMethodNoDeficit, nil
 	case policy.PowerRouteBlocked:
 		return nil, BuildingMethodNoSpace, nil
-	case policy.PowerWaitOutput, policy.PowerWaitBlackout, policy.PowerWaitPlayer:
+	case policy.PowerWaitOutput, policy.PowerWaitFuel, policy.PowerWaitRepair, policy.PowerWaitBlackout, policy.PowerWaitPlayer, policy.PowerNoGenerator:
 		return nil, RoutineBuildingReason(proposal.Method), nil
 	}
 	resolved := *r
 	resolved.power = &proposal
 	resolved.definition, resolved.environment = string(proposal.Method), policy.PlacementAnywhere
+	if proposal.Method == policy.PowerGenerate {
+		resolved.definition = proposal.Definition
+	}
 	return &resolved, "", nil
 }
 
@@ -59,6 +64,20 @@ func powerOutputAllowance(ctx context.Context, journal *store.Store, goal domain
 	return allowance, nil
 }
 
+// powerDefinition reports whether a completed building belongs to the power
+// family: a conduit or any compilable generator definition.
+func powerDefinition(name string) bool {
+	if name == "PowerConduit" {
+		return true
+	}
+	for _, g := range policy.GeneratorDefinitions {
+		if g == name {
+			return true
+		}
+	}
+	return false
+}
+
 func powerNativeWorkTicks(plan store.PlanState, current domain.GenerationSnapshot, tick domain.Tick) uint32 {
 	if len(plan.Progress) < 1 || len(plan.Progress) > 8 {
 		return 0
@@ -67,7 +86,7 @@ func powerNativeWorkTicks(plan store.PlanState, current domain.GenerationSnapsho
 	var completed domain.Tick
 	for _, p := range plan.Progress {
 		b, ok := p.Action().Building()
-		if !ok || b.Definition() != "WoodFiredGenerator" && b.Definition() != "PowerConduit" {
+		if !ok || !powerDefinition(b.Definition()) {
 			return 0
 		}
 		v := p.View()

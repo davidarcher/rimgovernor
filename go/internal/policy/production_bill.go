@@ -38,8 +38,10 @@ type ProductionBench struct {
 	Token          domain.Fact[string]
 	Usable         domain.Fact[bool]
 	Butcher        bool
-	Recipes        []ProductionRecipe
-	Bills          []ExistingProductionBill
+	// Room is the native room census identity the bench stands in.
+	Room    domain.Fact[string]
+	Recipes []ProductionRecipe
+	Bills   []ExistingProductionBill
 }
 type BillSelection struct {
 	Bench, Recipe, Token string
@@ -139,10 +141,19 @@ func SelectProductionBill(purpose BillPurpose, benches domain.Fact[[]ProductionB
 	if len(options) == 0 {
 		return BillSelection{}, false
 	}
+	// Butchery belongs away from the cooking workspace (issue #6): a butcher
+	// bench standing in no cooking bench's room wins over one that shares.
+	separated := map[string]bool{}
+	if purpose == ButcherFood {
+		separated = SeparatedButcherBenches(rows)
+	}
 	sort.Slice(options, func(i, j int) bool {
 		a, b := options[i], options[j]
 		if purpose == CookFood && (a.Recipe == "CookMealSimple") != (b.Recipe == "CookMealSimple") {
 			return a.Recipe == "CookMealSimple"
+		}
+		if separated[a.Bench] != separated[b.Bench] {
+			return separated[a.Bench]
 		}
 		if a.Recipe != b.Recipe {
 			return a.Recipe < b.Recipe
@@ -150,4 +161,41 @@ func SelectProductionBill(purpose BillPurpose, benches domain.Fact[[]ProductionB
 		return a.Bench < b.Bench
 	})
 	return options[0], true
+}
+
+// SeparatedButcherBenches reports, by ID, every butcher bench whose room is
+// known and holds no cooking bench. A bench with an unknown room is never
+// certified separated.
+func SeparatedButcherBenches(benches []ProductionBench) map[string]bool {
+	cooking := map[string]bool{}
+	for _, bench := range benches {
+		if room, known := bench.Room.Value(); known && !bench.Butcher {
+			cooking[room] = true
+		}
+	}
+	result := map[string]bool{}
+	for _, bench := range benches {
+		if room, known := bench.Room.Value(); known && bench.Butcher && !cooking[room] {
+			result[bench.ID] = true
+		}
+	}
+	return result
+}
+
+// AllButchersColocated is true when at least one butcher bench exists, every
+// butcher bench's room is known, and none stands apart from cooking: the
+// separated-spot build then owns the food-supply goal before any bill.
+func AllButchersColocated(benches []ProductionBench) bool {
+	separated := SeparatedButcherBenches(benches)
+	butchers := 0
+	for _, bench := range benches {
+		if !bench.Butcher {
+			continue
+		}
+		if _, known := bench.Room.Value(); !known || separated[bench.ID] {
+			return false
+		}
+		butchers++
+	}
+	return butchers > 0
 }

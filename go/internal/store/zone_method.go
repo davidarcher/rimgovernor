@@ -8,21 +8,29 @@ import (
 )
 
 // fieldOpenWorkExempt is the mirror of acquisitionOpenWorkExempt: a method made
-// only of growing-zone creations may be committed while the goal's open work is
+// only of growing-zone creations or farm infrastructure may be committed while the goal's open work is
 // nothing but dispatched acquisitions or production bills. Sowing a field and
 // gathering wild food are independent answers to the same food deficit, and
 // the acquisition batch is refreshed every review, so waiting for it to drain
 // would starve the field planner indefinitely. Open zone work (an earlier
 // field batch still being created) or any other family's open work still
 // blocks, so field batches remain strictly sequential.
+
+// fieldInfrastructure are the buildings a field batch may place instead of
+// zones: they light, heat or replace the soil a later batch plants.
+var fieldInfrastructure = map[string]bool{"SunLamp": true, "HydroponicsBasin": true, "Heater": true}
+
 func fieldOpenWorkExempt(ctx context.Context, tx *sql.Tx, goal GoalState, plan domain.PlanSpec) (bool, error) {
 	if len(plan.Actions()) == 0 {
 		return false, nil
 	}
 	for _, action := range plan.Actions() {
-		if zone, ok := action.ZoneCreate(); !ok || zone.Kind() != domain.GrowingZone {
-			return false, nil
+		zone, isZone := action.ZoneCreate()
+		building, isBuilding := action.Building()
+		if isZone && zone.Kind() == domain.GrowingZone || isBuilding && fieldInfrastructure[building.Definition()] {
+			continue
 		}
+		return false, nil
 	}
 	for _, m := range goal.Methods {
 		p, err := load(ctx, tx, m.Plan)

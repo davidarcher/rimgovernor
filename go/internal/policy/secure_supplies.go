@@ -7,7 +7,7 @@ import (
 )
 
 // SecureSuppliesHaulerFacts mirrors HaulPawnFacts' eligibility inputs plus the
-// two additional Python filters that select a candidate before a Haul action
+// two additional filters that select a candidate before a Haul action
 // is even proposed: an enabled, non-zero-priority Hauling work type and a
 // healthy pawn (no needed tend, no bleeding). EvaluateHaul re-validates the
 // exact chosen pawn/thing pair again immediately before dispatch; this only

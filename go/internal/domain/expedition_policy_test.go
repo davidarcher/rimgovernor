@@ -12,7 +12,7 @@ func TestExpeditionPolicyDefaultsAndBounds(t *testing.T) {
 		base.TravelFoodMarginDays() != 0.5 || base.MaximumTravelDays() != 3 || base.MaximumCaravans() != 2 ||
 		base.MinimumGoodwill() != -50 || base.MinimumDestinationTemperature() != -10 ||
 		base.MaximumDestinationTemperature() != 40 || !base.KeepHomeDoctor() || !base.RequireReturnStorage() {
-		t.Fatal("defaults must mirror the Python contract", base)
+		t.Fatal("defaults must match the documented contract", base)
 	}
 	if (ExpeditionPolicy{}).Set() {
 		t.Fatal("the zero value must report no policy")

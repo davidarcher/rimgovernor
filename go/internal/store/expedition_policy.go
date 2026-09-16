@@ -16,7 +16,7 @@ import (
 // submissions table.
 //
 // Unlike the population policy this is a partial patch, not a replacement:
-// Python's SetExpeditionPolicy merges model_dump(exclude_unset=True) over the
+// the patch is merged over the
 // policy already in force, so Patch names only what the player is changing
 // and everything else keeps its established value.
 type ExpeditionPolicySubmissionRequest struct {
@@ -230,7 +230,7 @@ func (s *Store) LookupExpeditionPolicySubmission(ctx context.Context, requestID 
 
 // CurrentExpeditionPolicy returns the world's expedition policy. Unlike
 // CurrentPopulationPolicy this never reports ErrNotFound: every field of the
-// Python contract carries a default, so a world whose player has never
+// contract carries a default, so a world whose player has never
 // submitted a policy is governed by DefaultExpeditionPolicy rather than by no
 // policy at all, and that is also the base a first partial patch merges onto.
 func (s *Store) CurrentExpeditionPolicy(ctx context.Context, w World) (domain.ExpeditionPolicy, error) {

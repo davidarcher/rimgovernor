@@ -123,9 +123,10 @@ func EvaluateClean(r CleanRequest) DraftDecision {
 }
 
 // CleanCandidateFacts mirrors SecureSuppliesHaulerFacts' eligibility inputs,
-// substituting colony_upkeep.py's Cleaning work-type gate for Hauling: an
-// enabled, non-zero-priority Cleaning work type and a healthy pawn (no
-// needed tend, no bleeding). EvaluateClean re-validates the exact chosen
+// substituting a Cleaning work-type gate for Hauling: Cleaning not disabled
+// (priority may be 0: the order is player-forced and the bounded response
+// targets exactly the colonies whose priority coverage failed) and a healthy
+// pawn (no needed tend, no bleeding). EvaluateClean re-validates the exact chosen
 // pawn/filth pair again immediately before dispatch; this only narrows which
 // already-selected filth and pawn become one Clean proposal.
 type CleanCandidateFacts struct {

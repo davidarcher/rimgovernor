@@ -2,10 +2,7 @@
 
 [Subsystem contracts](README.md)
 
-This is the fixed interface for G01.07a.2f.2–3. Service availability and native
-acceptance remain tracked in
-[G01.08](https://github.com/davidarcher/rimgovernor/issues/29). The gated player
-service uses one Player, session, writer and current-control coordinator. The
+The gated player service uses one Player, session, writer and current-control coordinator. The
 surface is guidance: building placement and research selection are the only
 typed plan submissions; the rest is colony configuration and control.
 
@@ -25,7 +22,7 @@ control uses these routes.
 | GET | `/api/buildings/submission?requestId=…` | Read a building submission |
 | POST | `/api/research-selects/plans` | Store one research-selection intent |
 | GET | `/api/research-selects/submission?requestId=…` | Read a research-selection submission |
-| POST | `/api/chats/plans` | Interpret one plain-language request into a build or research submission |
+| POST | `/api/chat` | Answer one plain-language message with an explanation and at most one applied policy nudge (goal activate/cancel, population, expedition, resource policy, population decision); never a build or order |
 | GET/POST | `/api/player/goals`, `/api/player/goals/activate`, `/api/player/goals/cancel` | Maintained goal activation and cancellation |
 | GET/POST | `/api/player/population-policy`, `…/replace` | Population capacity policy |
 | GET/POST | `/api/player/expedition-policy`, `…/update` | Expedition risk limits |
@@ -82,6 +79,19 @@ remain bounded to 8192 bytes, with duplicate, unknown, null, malformed and trail
 fields rejected. Errors retain the existing sanitized code/detail and control
 record/state/error shapes. Missing lookup is not proof that a timed-out POST had
 no effect; clients recover by reading the same request ID without automatic POSTs.
+
+## Colony configuration
+
+Configuration routes record player intent; they issue no per-pawn order.
+Population policy is a full replacement. Expedition policy is a patch merged
+over the policy in force (an unset field keeps its value; a world with no
+policy starts from the documented defaults). A population decision for
+rescue, capture or recruit requires an established population policy; ignore
+never does, so a direction can always be withdrawn. Resource policy has two
+halves: spending (`normal`, `defense_only`, `stop`) and a numeric reserve
+(zero removes the floor). A request names exactly one half and the other is
+preserved; every change dispatches the whole merged set as one native
+production-policy write. Work preferences attach to the live root plan.
 
 ## Plan projection
 

@@ -19,7 +19,6 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"github.com/davidarcher/RimGovernor/go/internal/httpapi"
 	"github.com/davidarcher/RimGovernor/go/internal/observation"
-	"github.com/davidarcher/RimGovernor/go/internal/runtimeowner"
 	"github.com/davidarcher/RimGovernor/go/internal/wire/lifecyclepb"
 	"google.golang.org/protobuf/proto"
 )
@@ -104,7 +103,7 @@ func TestBuildingServiceSubmissionDoesNotAcquireAndShutdownJoins(t *testing.T) {
 	case <-time.After(4 * time.Second):
 		t.Fatal("startup timeout")
 	}
-	if other, err := runtimeowner.Acquire(context.Background(), dir); err == nil {
+	if other, err := buildingruntime.AcquireProfile(context.Background(), dir); err == nil {
 		other.Close()
 		t.Fatal("profile has two owners")
 	}
@@ -169,7 +168,7 @@ func TestBuildingServiceSubmissionDoesNotAcquireAndShutdownJoins(t *testing.T) {
 	if !fake.closed.Load() || fake.closeWhileReading.Load() {
 		t.Fatal("bridge closed before readers joined")
 	}
-	owner, err := runtimeowner.Acquire(context.Background(), dir)
+	owner, err := buildingruntime.AcquireProfile(context.Background(), dir)
 	if err != nil {
 		t.Fatal("profile retained after close", err)
 	}

@@ -20,7 +20,7 @@ namespace HomeBridge.BridgeTools
         private const string ToolName = "rimgovernor/observations_read_colony_facts";
         private static readonly string[] StarterDefinitions = {
             "Wall", "Door", "Bed", "SleepingSpot", "Campfire", "ButcherSpot", "FueledStove", "Heater",
-            "PassiveCooler", "Cooler", "WoodFiredGenerator", "PowerConduit", "Sandbags", "Barricade",
+            "PassiveCooler", "Cooler", "WoodFiredGenerator", "SolarGenerator", "ChemfuelPoweredGenerator", "Battery", "PowerConduit", "Sandbags", "Barricade",
             "StandingLamp", "SimpleResearchBench", "Table1x2c", "DiningChair", "HorseshoesPin",
             "Plant_Rice", "Plant_Potato", "Plant_Corn", "TableStonecutter", "Fence", "FenceGate", "PenMarker"
         };
@@ -161,29 +161,81 @@ namespace HomeBridge.BridgeTools
 
         private static Obs.DevelopmentFacts ReadPower(Map map, int limit)
         {
+            // Traders (consumers and generators) and batteries share one census so
+            // Go's power topology sees every network member that matters for
+            // coverage and reserve: batteries carry base_w = 0 plus stored/capacity
+            // energy, generators carry their refuelable and breakdown service facts.
             var traders = map.listerBuildings.allBuildingsColonist.Select(b => b.TryGetComp<CompPowerTrader>())
+                .Where(p => p != null).OrderBy(p => p.parent.thingIDNumber).ToList();
+            var batteries = map.listerBuildings.allBuildingsColonist.Select(b => b.TryGetComp<CompPowerBattery>())
                 .Where(p => p != null).OrderBy(p => p.parent.thingIDNumber).ToList();
             var conduits = map.listerBuildings.allBuildingsColonist.Where(b => b.def.defName == "PowerConduit")
                 .OrderBy(b => b.thingIDNumber).ToList();
-            Bound(traders.Count + conduits.Count, limit);
-            var result = new Obs.DevelopmentFacts { Completeness = Complete(traders.Count + conduits.Count) };
+            var nets = map.powerNetManager.AllNetsListForReading.OrderBy(n => n.GetHashCode()).ToList();
+            Bound(traders.Count + batteries.Count + conduits.Count + nets.Count, limit);
+            var result = new Obs.DevelopmentFacts { Completeness = Complete(traders.Count + batteries.Count + conduits.Count) };
             foreach (var power in traders) {
-                var building = power.parent;
+                var building = (Building)power.parent;
                 var service = new Obs.BuildingServiceState { Connected = power.PowerNet != null, PowerOn = power.PowerOn,
                     PowerOutputW = Finite(power.PowerOutput), SwitchedOn = building.TryGetComp<CompFlickable>()?.SwitchIsOn ?? true };
-                if (power.PowerNet != null) service.PowerNetId = power.PowerNet.GetHashCode().ToString(System.Globalization.CultureInfo.InvariantCulture);
-                var state = new Obs.BuildingState { Building = new Obs.EntityRef { Id = building.GetUniqueLoadID(), MapId = map.uniqueID,
-                        DefName = building.def.defName, Position = Cell(building.Position) },
-                    Service = service, Settings = new Obs.BuildingSettings { Forbidden = building.IsForbidden(Faction.OfPlayer) } };
-                var occupied = building.OccupiedRect().Cells.ToList();
-                Bound(occupied.Count, 4096);
-                foreach (var cell in occupied) state.OccupiedCells.Add(Cell(cell));
-                result.Power.Add(new Obs.DevelopmentPower { BaseW = Finite(-power.Props.PowerConsumption), Building = state });
+                if (power.PowerNet != null) service.PowerNetId = NetId(power.PowerNet);
+                Service(building, service);
+                result.Power.Add(new Obs.DevelopmentPower { BaseW = Finite(-power.Props.PowerConsumption), Building = PowerState(map, building, service) });
+            }
+            foreach (var battery in batteries) {
+                var building = (Building)battery.parent;
+                var service = new Obs.BuildingServiceState { Connected = battery.PowerNet != null, PowerOn = battery.PowerNet != null,
+                    PowerOutputW = 0, SwitchedOn = building.TryGetComp<CompFlickable>()?.SwitchIsOn ?? true };
+                if (battery.PowerNet != null) service.PowerNetId = NetId(battery.PowerNet);
+                Service(building, service);
+                result.Power.Add(new Obs.DevelopmentPower { BaseW = 0, Building = PowerState(map, building, service),
+                    StoredWattDays = Finite(battery.StoredEnergy), CapacityWattDays = Finite(battery.Props.storedEnergyMax) });
             }
             foreach (var conduit in conduits)
                 result.Furniture.Add(new Obs.DevelopmentFurniture { Building = new Obs.EntityRef { Id = conduit.GetUniqueLoadID(),
                     MapId = map.uniqueID, DefName = conduit.def.defName, Position = Cell(conduit.Position) } });
+            foreach (var net in nets) {
+                var generation = net.powerComps.Where(p => p.PowerOn && p.PowerOutput > 0).Sum(p => (double)p.PowerOutput);
+                var consumption = net.powerComps.Where(p => p.PowerOn && p.PowerOutput < 0).Sum(p => (double)-p.PowerOutput);
+                result.Networks.Add(new Obs.PowerNetwork { Id = NetId(net),
+                    Producers = (uint)net.powerComps.Count(p => p.Props.PowerConsumption < 0),
+                    Consumers = (uint)net.powerComps.Count(p => p.Props.PowerConsumption > 0),
+                    Batteries = (uint)net.batteryComps.Count, Transmitters = (uint)net.transmitters.Count, Connectors = (uint)net.connectors.Count,
+                    GenerationW = Finite(generation), ConsumptionW = Finite(consumption), NetW = Finite(generation - consumption),
+                    StoredWattDays = Finite(net.CurrentStoredEnergy()),
+                    CapacityWattDays = Finite(net.batteryComps.Sum(b => (double)b.Props.storedEnergyMax)),
+                    HasSource = net.powerComps.Any(p => p.Props.PowerConsumption < 0),
+                    HasActiveSource = net.powerComps.Any(p => p.PowerOn && p.PowerOutput > 0),
+                    Completeness = Complete(net.powerComps.Count + net.batteryComps.Count) });
+            }
             return result;
+        }
+
+        private static string NetId(PowerNet net) => net.GetHashCode().ToString(System.Globalization.CultureInfo.InvariantCulture);
+
+        // Refuelable and breakdown service facts mirror NativeRecoveryFacts so the
+        // power planner can distinguish "waiting for ordinary refueling/repair"
+        // from "no producer" without a second census.
+        private static void Service(Building building, Obs.BuildingServiceState service)
+        {
+            service.BrokenDown = building.TryGetComp<CompBreakdownable>()?.BrokenDown ?? false;
+            var fuel = building.TryGetComp<CompRefuelable>();
+            if (fuel == null) return;
+            service.Fuel = Finite(fuel.Fuel); service.TargetFuel = Finite(fuel.TargetFuelLevel); service.OutOfFuel = !fuel.HasFuel;
+            var defs = fuel.Props.fuelFilter.AllowedThingDefs.Select(d => d.defName).OrderBy(d => d, StringComparer.Ordinal).ToList();
+            Bound(defs.Count, 256);
+            service.AllowedFuelDefs.Add(defs);
+        }
+
+        private static Obs.BuildingState PowerState(Map map, Building building, Obs.BuildingServiceState service)
+        {
+            var state = new Obs.BuildingState { Building = new Obs.EntityRef { Id = building.GetUniqueLoadID(), MapId = map.uniqueID,
+                    DefName = building.def.defName, Position = Cell(building.Position) },
+                Service = service, Settings = new Obs.BuildingSettings { Forbidden = building.IsForbidden(Faction.OfPlayer) } };
+            var occupied = building.OccupiedRect().Cells.ToList();
+            Bound(occupied.Count, 4096);
+            foreach (var cell in occupied) state.OccupiedCells.Add(Cell(cell));
+            return state;
         }
 
         private static void ReadProduction(Obs.ColonyFactsSnapshot result, Map map, List<Pawn> people,
@@ -229,6 +281,8 @@ namespace HomeBridge.BridgeTools
                     row.Production.Add(production);
                 }
                 for(var index=0;index<bench.BillStack.Count;index++)row.Bills.Add(NativeProductionBills.BillRow(bench.BillStack.Bills[index],index));
+                var cookingRoom = bench.GetRoom();
+                if (cookingRoom != null) row.RoomId = cookingRoom.ID.ToString(System.Globalization.CultureInfo.InvariantCulture);
                 result.Cooking.Add(row);
             }
             foreach(var bench in things.Where(t=>t.Faction==Faction.OfPlayer&&t is IBillGiver&&reachable(t)&&t.def.AllRecipes.Any(r=>r.defName=="ButcherCorpseFlesh")).OrderBy(t=>t.thingIDNumber)){
@@ -236,6 +290,8 @@ namespace HomeBridge.BridgeTools
                 var row=new Obs.ButcheringFacts{Bench=new Obs.EntityRef{Id=bench.GetUniqueLoadID(),DefName=bench.def.defName,MapId=map.uniqueID,Position=Cell(bench.Position),Snapshot=NativeProductionBills.Snapshot(bench,giver,result.Context)},Usable=NativeProductionBills.Usable(bench)};
                 foreach(var recipe in bench.def.AllRecipes.Where(r=>r.defName=="ButcherCorpseFlesh"))row.Recipes.Add(NativeProductionBills.RecipeRow(bench,recipe));
                 for(var index=0;index<giver.BillStack.Count;index++)row.Bills.Add(NativeProductionBills.BillRow(giver.BillStack.Bills[index],index));
+                var butcherRoom = bench.GetRoom();
+                if (butcherRoom != null) row.RoomId = butcherRoom.ID.ToString(System.Globalization.CultureInfo.InvariantCulture);
                 result.Butchering.Add(row);
             }
 
@@ -280,8 +336,14 @@ namespace HomeBridge.BridgeTools
                     foreach (var cost in costs) row.Costs.Add(new Obs.Quantity { DefName = cost.thingDef.defName, Units = cost.count });
                     if (def.building?.bed_humanlike == true) row.RestEffectiveness = Finite(def.GetStatValueAbstract(StatDefOf.BedRestEffectiveness, stuff));
                 }
+                var powerProps = def.GetCompProperties<CompProperties_Power>();
+                if (powerProps != null) row.PowerW = Finite(powerProps.PowerConsumption);
+                var glowProps = def.GetCompProperties<CompProperties_Glower>();
+                if (glowProps != null) row.GlowRadius = Finite(glowProps.glowRadius);
+                if (def.building?.sowTag != null) { row.SowTag = def.building.sowTag; if (def.fertility >= 0f) row.GrowerFertility = Finite(def.fertility); }
                 if (def.plant != null) {
                     row.GrowDays = Finite(def.plant.growDays); row.FertilityMin = Finite(def.plant.fertilityMin); row.FertilitySensitivity = Finite(def.plant.fertilitySensitivity);
+                    row.GrowMinGlow = Finite(def.plant.growMinGlow); row.SowTags.Add(def.plant.sowTags ?? new List<string>());
                     var product = def.plant.harvestedThingDef;
                     if (product != null) {
                         row.Edible = product.IsNutritionGivingIngestible && !product.IsDrug;
@@ -316,6 +378,86 @@ namespace HomeBridge.BridgeTools
             }
             cells.Completeness = Complete(cells.Cells.Count, fogged);
             result.Cells = cells;
+            try { result.Environment = Environment(map, min, max, limit); }
+            catch (ReadLimit) { throw; }
+            catch (Exception) { result.Issues.Add(Issue("environment", Common.UnavailableReason.ReadFailed, "Controlled-environment growing facts are unavailable.")); }
+            return result;
+        }
+        // Sun lamps, plant growers and rooms inside the planning region plus every
+        // power network's headroom split by source. Lamp growth cells are the
+        // native Building_SunLamp radius, not the glow radius, so the controller
+        // never plants where the game would not grow.
+        // The native sun lamp class is internal; its def names the class and carries the growth radius as specialDisplayRadius.
+        private static bool IsSunLamp(Building b) => b.def.thingClass?.Name == "Building_SunLamp" && b.def.specialDisplayRadius > 0f;
+        private static Obs.ControlledEnvironment Environment(Map map, IntVec3 min, IntVec3 max, int limit)
+        {
+            var result = new Obs.ControlledEnvironment { OutdoorTemperatureC = Finite(map.mapTemperature.OutdoorTemp), Daylight = GenCelestial.CurCelestialSunGlow(map) >= 0.3f };
+            bool Inside(IntVec3 c) => c.x >= min.x && c.x <= max.x && c.z >= min.z && c.z <= max.z;
+            string? NetId(CompPowerTrader? power) => power?.PowerNet == null ? null : power.PowerNet.GetHashCode().ToString(System.Globalization.CultureInfo.InvariantCulture);
+            var rooms = new Dictionary<int, Room>();
+            void Note(Room? room) { if (room != null && !room.PsychologicallyOutdoors && room.ProperRoom) rooms[room.ID] = room; }
+            var buildings = map.listerBuildings.allBuildingsColonist.Where(b => Inside(b.Position)).OrderBy(b => b.GetUniqueLoadID(), StringComparer.Ordinal).ToList();
+            Bound(buildings.Count(b => IsSunLamp(b) || b is Building_PlantGrower), limit);
+            foreach (var building in buildings) {
+                var power = building.TryGetComp<CompPowerTrader>();
+                var room = building.GetRoom();
+                if (IsSunLamp(building)) { var lamp = building;
+                    var row = new Obs.GrowLight { Building = new Obs.EntityRef { Id = lamp.GetUniqueLoadID(), MapId = map.uniqueID, DefName = lamp.def.defName, Position = Cell(lamp.Position) } };
+                    if (power != null) { row.Powered = power.PowerOn; row.PowerW = Finite(power.Props.PowerConsumption); var id = NetId(power); if (id != null) row.PowerNetId = id; }
+                    else row.Issues.Add(Issue("powered", Common.UnavailableReason.NotApplicable, "Lamp has no power trader."));
+                    var schedule = lamp.TryGetComp<CompSchedule>();
+                    row.LitNow = (power == null || power.PowerOn) && (schedule == null || schedule.Allowed);
+                    foreach (var c in GenRadial.RadialCellsAround(lamp.Position, lamp.def.specialDisplayRadius, true).Where(c => c.InBounds(map))) row.GrowthCells.Add(Cell(c));
+                    if (room != null) { row.RoomId = room.ID.ToString(System.Globalization.CultureInfo.InvariantCulture); Note(room); }
+                    result.Lights.Add(row);
+                } else if (building is Building_PlantGrower grower) {
+                    var row = new Obs.PlantGrower { Building = new Obs.EntityRef { Id = grower.GetUniqueLoadID(), MapId = map.uniqueID, DefName = grower.def.defName, Position = Cell(grower.Position) },
+                        CanSow = grower.CanAcceptSowNow() };
+                    if (grower.def.fertility >= 0f) row.Fertility = Finite(grower.def.fertility);
+                    if (grower.def.building?.sowTag != null) row.SowTag = grower.def.building.sowTag;
+                    var crop = grower.GetPlantDefToGrow();
+                    if (crop != null) row.CropDefName = crop.defName;
+                    if (power != null) { row.Powered = power.PowerOn; row.PowerW = Finite(power.Props.PowerConsumption); var id = NetId(power); if (id != null) row.PowerNetId = id; }
+                    foreach (var c in ((IPlantToGrowSettable)grower).Cells) row.PlantCells.Add(Cell(c));
+                    if (room != null) { row.RoomId = room.ID.ToString(System.Globalization.CultureInfo.InvariantCulture); Note(room); }
+                    result.Growers.Add(row);
+                }
+            }
+            for (int z = min.z; z <= max.z; z++) for (int x = min.x; x <= max.x; x++) {
+                var c = new IntVec3(x, 0, z);
+                if (!c.Fogged(map)) Note(c.GetRoom(map));
+            }
+            Bound(rooms.Count, limit);
+            foreach (var room in rooms.Values.OrderBy(r => r.ID)) {
+                var row = new Obs.GrowRoom { RoomId = room.ID.ToString(System.Globalization.CultureInfo.InvariantCulture), TemperatureC = Finite(room.Temperature), CellCount = (uint)room.CellCount,
+                    OpenRoofCount = (uint)room.OpenRoofCount, ProperRoom = room.ProperRoom, PsychologicallyOutdoors = room.PsychologicallyOutdoors };
+                uint lit = 0;
+                foreach (var c in room.Cells) if (map.glowGrid.GroundGlowAt(c) >= 0.3f) lit++;
+                row.LitCells = lit;
+                result.Rooms.Add(row);
+            }
+            var nets = map.powerNetManager?.AllNetsListForReading ?? new List<PowerNet>();
+            Bound(nets.Count, limit);
+            foreach (var net in nets.OrderBy(n => n.GetHashCode())) {
+                var row = new Obs.PowerHeadroom { Id = net.GetHashCode().ToString(System.Globalization.CultureInfo.InvariantCulture), HasActiveSource = net.HasActivePowerSource };
+                double generation = 0, solar = 0, wind = 0, consumption = 0;
+                foreach (var trader in net.powerComps ?? new List<CompPowerTrader>()) {
+                    if (trader == null) continue;
+                    var output = Finite(trader.PowerOutput);
+                    if (trader.Props != null && trader.Props.PowerConsumption < 0f) {
+                        if (output <= 0) continue;
+                        generation += output;
+                        if (trader.parent.TryGetComp<CompPowerPlantSolar>() != null) solar += output;
+                        else if (trader.parent.TryGetComp<CompPowerPlantWind>() != null) wind += output;
+                    } else if (output < 0) consumption -= output;
+                }
+                double capacity = 0;
+                foreach (var battery in net.batteryComps ?? new List<CompPowerBattery>()) if (battery?.Props != null) capacity += Finite(battery.Props.storedEnergyMax);
+                row.GenerationW = generation; row.SolarW = solar; row.WindW = wind; row.ConsumptionW = consumption;
+                row.StoredWattDays = Finite(net.CurrentStoredEnergy()); row.CapacityWattDays = capacity;
+                result.Networks.Add(row);
+            }
+            result.Completeness = Complete(result.Lights.Count + result.Growers.Count + result.Rooms.Count + result.Networks.Count);
             return result;
         }
         private static Common.Cell Cell(IntVec3 c) => new Common.Cell { X = c.x, Z = c.z };
@@ -366,6 +508,7 @@ namespace HomeBridge.BridgeTools
                 if (stock.holder != null) row.HolderId = stock.holder;
                 if (stock.rotTicks.HasValue) row.RotTicks = stock.rotTicks.Value;
                 if (stock.roofed.HasValue) row.Roofed = stock.roofed.Value;
+                if (stock.roomId != null) row.RoomId = stock.roomId;
                 result.Stocks.Add(row);
             }
             return result;

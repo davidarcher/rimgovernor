@@ -43,6 +43,11 @@ type NativeUnavailable struct {
 }
 
 func (e *NativeUnavailable) Error() string {
+	// The native detail names the bound or field that failed; without it a
+	// LIMIT_EXCEEDED census is undiagnosable from the service log.
+	if detail := e.Value.GetDetail(); detail != "" {
+		return "native read unavailable: " + e.Value.GetReason().String() + ": " + detail
+	}
 	return "native read unavailable: " + e.Value.GetReason().String()
 }
 func (e *NativeUnavailable) Unwrap() error { return ErrUnavailable }

@@ -23,7 +23,9 @@ it("navigates the bundled player docs and renders controls and code examples", a
   await screen.findByRole("heading", { name: "Windows setup" });
   expect(screen.getByRole("article")).toHaveFocus();
   expect(screen.getByText(/powershell -ExecutionPolicy Bypass/).closest("pre")).toBeTruthy();
-  expect(screen.getByRole("link", { name: "issue #46" })).toHaveAttribute("href",
-    "https://github.com/davidarcher/rimgovernor/issues/46");
-  expect(screen.getByRole("link", { name: "issue #46" })).toHaveAttribute("rel", "noopener noreferrer");
+  await userEvent.click(screen.getByRole("link", { name: "Player guide" }));
+  await screen.findByRole("heading", { name: "Player guide" });
+  expect(screen.getByRole("link", { name: "backlog issues" })).toHaveAttribute("href",
+    "https://github.com/davidarcher/rimgovernor/issues");
+  expect(screen.getByRole("link", { name: "backlog issues" })).toHaveAttribute("rel", "noopener noreferrer");
 });

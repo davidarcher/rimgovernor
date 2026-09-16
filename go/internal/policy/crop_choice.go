@@ -17,6 +17,10 @@ type CropChoice struct {
 	Name                                                                   string
 	Available, Edible                                                      domain.Fact[bool]
 	GrowDays, FertilityMin, FertilitySensitivity, HarvestNutrition, Demand domain.Fact[float64]
+	// SowTags are the native sow tags ("Ground", "Hydroponic"); MinGlow is the
+	// native minimum light for growth, zero for cave crops.
+	SowTags domain.Fact[[]string]
+	MinGlow domain.Fact[float64]
 }
 
 // FieldRequest is one expansion decision: which edible crop to sow, and where,
@@ -73,27 +77,35 @@ func (p FieldPlan) Explain() string {
 // crop. Existing zones are never re-cropped: the plan only adds patches.
 func PlanField(r FieldRequest) (FieldPlan, bool) {
 	sowing, sk := r.Climate.Sowing.Value()
+	if !sk || !sowing {
+		return FieldPlan{}, false
+	}
+	return planField(r, false)
+}
+
+type viableCrop struct {
+	crop   CropChoice
+	days   float64
+	needed int
+}
+
+// viableCrops screens the request's crops. With indoor set the remaining
+// outdoor season is ignored: a roofed, lit and heated site grows all year.
+func viableCrops(r FieldRequest, indoor bool) (viables []viableCrop, excluded []FieldCandidate, ok bool) {
 	season, seasonKnown := r.Climate.DaysRemaining.Value()
 	fraction, fk := r.Coverage.Value()
-	if !sk || !sowing || len(r.Choices) > 256 || !fk || !foodNumber(fraction) || seasonKnown && !fieldPositive(season) {
-		return FieldPlan{}, false
+	if len(r.Choices) > 256 || !fk || !foodNumber(fraction) || seasonKnown && !fieldPositive(season) {
+		return nil, nil, false
 	}
 	seen := map[string]bool{}
 	for _, crop := range r.Choices {
 		if seen[crop.Name] {
-			return FieldPlan{}, false
+			return nil, nil, false
 		}
 		seen[crop.Name] = true
 	}
-	type viable struct {
-		crop   CropChoice
-		days   float64
-		needed int
-	}
-	var viables []viable
-	plan := FieldPlan{}
-	excluded := func(crop CropChoice, reason string) {
-		plan.Candidates = append(plan.Candidates, FieldCandidate{Crop: crop, Reason: reason})
+	exclude := func(crop CropChoice, reason string) {
+		excluded = append(excluded, FieldCandidate{Crop: crop, Reason: reason})
 	}
 	for _, crop := range r.Choices {
 		available, ak := crop.Available.Value()
@@ -101,35 +113,55 @@ func PlanField(r FieldRequest) (FieldPlan, bool) {
 		days, gk := crop.GrowDays.Value()
 		switch {
 		case !ak || !ek || !gk || !fieldPositive(days):
-			excluded(crop, "incomplete crop facts")
+			exclude(crop, "incomplete crop facts")
 			continue
 		case !available || !edible:
-			excluded(crop, "not an available edible crop")
+			exclude(crop, "not an available edible crop")
 			continue
-		case seasonKnown && days*2.5 > season:
-			excluded(crop, "season too short")
+		case !indoor && seasonKnown && days*2.5 > season:
+			exclude(crop, "season too short")
 			continue
 		}
 		count, known := FieldTarget(r.Colonists, crop, r.ReserveDays).Value()
 		if !known {
-			excluded(crop, "field target unknown")
+			exclude(crop, "field target unknown")
 			continue
 		}
 		needed := int(math.Ceil(float64(count)*(1-fraction) - 1e-9))
 		if needed <= 0 {
-			return FieldPlan{}, false
+			return nil, nil, false
 		}
-		viables = append(viables, viable{crop, days, needed})
+		viables = append(viables, viableCrop{crop, days, needed})
 	}
+	return viables, excluded, true
+}
+
+// fieldUrgency is true when the stored-food runway is shorter than 2.5 cycles
+// of the fastest viable crop, or (outdoors) when the remaining season is
+// unknown while sowing is possible.
+func fieldUrgency(r FieldRequest, viables []viableCrop, indoor bool) bool {
 	if len(viables) == 0 {
-		return plan, false
+		return false
 	}
 	fastest := viables[0].days
 	for _, v := range viables {
 		fastest = min(fastest, v.days)
 	}
+	_, seasonKnown := r.Climate.DaysRemaining.Value()
 	foodDays, runwayKnown := r.Runway.Value()
-	urgent := !seasonKnown || runwayKnown && foodNumber(foodDays) && foodDays < fastest*2.5
+	return !indoor && !seasonKnown || runwayKnown && foodNumber(foodDays) && foodDays < fastest*2.5
+}
+
+func planField(r FieldRequest, indoor bool) (FieldPlan, bool) {
+	viables, excluded, ok := viableCrops(r, indoor)
+	if !ok {
+		return FieldPlan{}, false
+	}
+	plan := FieldPlan{Candidates: excluded}
+	if len(viables) == 0 {
+		return plan, false
+	}
+	urgent := fieldUrgency(r, viables, indoor)
 	plan.Urgent = urgent
 	for _, v := range viables {
 		site := r.Site
@@ -150,22 +182,7 @@ func PlanField(r FieldRequest) (FieldPlan, bool) {
 		plan.Candidates = append(plan.Candidates, c)
 	}
 	sort.Slice(plan.Candidates, func(i, j int) bool {
-		a, b := plan.Candidates[i], plan.Candidates[j]
-		if (a.Sites.Cells > 0) != (b.Sites.Cells > 0) {
-			return a.Sites.Cells > 0
-		}
-		ad, _ := a.Crop.GrowDays.Value()
-		bd, _ := b.Crop.GrowDays.Value()
-		if urgent && ad != bd {
-			return ad < bd
-		}
-		if a.Score != b.Score {
-			return a.Score > b.Score
-		}
-		if ad != bd {
-			return ad < bd
-		}
-		return a.Crop.Name < b.Crop.Name
+		return fieldCandidateLess(plan.Candidates[i], plan.Candidates[j], urgent)
 	})
 	best := plan.Candidates[0]
 	if best.Sites.Cells == 0 {
@@ -173,6 +190,26 @@ func PlanField(r FieldRequest) (FieldPlan, bool) {
 	}
 	plan.Crop, plan.Needed, plan.Sites = best.Crop, best.Needed, best.Sites
 	return plan, true
+}
+
+// fieldCandidateLess orders plantable candidates first, then the fastest crop
+// under urgency, then the highest score, then the fastest crop, then by name.
+func fieldCandidateLess(a, b FieldCandidate, urgent bool) bool {
+	if (a.Sites.Cells > 0) != (b.Sites.Cells > 0) {
+		return a.Sites.Cells > 0
+	}
+	ad, _ := a.Crop.GrowDays.Value()
+	bd, _ := b.Crop.GrowDays.Value()
+	if urgent && ad != bd {
+		return ad < bd
+	}
+	if a.Score != b.Score {
+		return a.Score > b.Score
+	}
+	if ad != bd {
+		return ad < bd
+	}
+	return a.Crop.Name < b.Crop.Name
 }
 
 func freeCropSoil(cell SiteCell, minimum float64, blocked map[domain.Cell]bool) (float64, bool) {

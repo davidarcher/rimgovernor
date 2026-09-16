@@ -74,3 +74,23 @@ func TestRoomProjectionCarriesNativeRoleAndComfortHostingNeedsBothCensuses(t *te
 		t.Fatal("missing comfort census certified comfort")
 	}
 }
+
+func TestTemperatureRoomsDecodesCleanlinessStat(t *testing.T) {
+	rooms := &o.RoomsSnapshot{Rooms: []*o.RoomState{
+		{Id: proto.String("clean"), ProperRoom: proto.Bool(true), Stats: []*o.RoomStat{{DefName: proto.String("Cleanliness"), Value: proto.Float64(-2.5)}}},
+		{Id: proto.String("unavailable"), ProperRoom: proto.Bool(true), Stats: []*o.RoomStat{{DefName: proto.String("Cleanliness"), Unavailable: &c.Unavailable{}}}},
+		{Id: proto.String("missing"), ProperRoom: proto.Bool(true), Stats: []*o.RoomStat{{DefName: proto.String("Impressiveness"), Value: proto.Float64(1)}}},
+	}}
+	census, known := temperatureRooms(rooms, domain.Unknown[policy.SleepingObservation]()).Value()
+	if !known || len(census.Rooms) != 3 {
+		t.Fatal(census, known)
+	}
+	if v, ok := census.Rooms[0].Cleanliness.Value(); !ok || v != -2.5 {
+		t.Fatal(census.Rooms[0])
+	}
+	for _, room := range census.Rooms[1:] {
+		if _, ok := room.Cleanliness.Value(); ok {
+			t.Fatal(room)
+		}
+	}
+}

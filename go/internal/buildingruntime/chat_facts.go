@@ -3,135 +3,216 @@ package buildingruntime
 import (
 	"context"
 	"errors"
+	"sort"
 
 	"github.com/davidarcher/RimGovernor/go/internal/bridge"
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"github.com/davidarcher/RimGovernor/go/internal/interpreter"
+	"github.com/davidarcher/RimGovernor/go/internal/store"
 	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
 	o "github.com/davidarcher/RimGovernor/go/internal/wire/observationspb"
 	"google.golang.org/protobuf/proto"
 )
 
-// ChatCatalogDefinitions is the fixed buildable-definition catalog chat's
-// fact gatherer asks native for. ReadColonyFacts fails its entire read if
-// asked for a defName native does not recognize (see bridge/colony.go), so
-// this deliberately stays a short, guaranteed-vanilla list rather than a
-// broad guess. Chat currently has no build command anyway (see
-// GatherChatFacts doc): this list only satisfies interpreter.validateInput's
-// unconditional non-empty Definitions/Cells requirement for every command,
-// it never bounds what chat may place.
-var ChatCatalogDefinitions = []string{"Wall", "Door"}
-
-// ChatFactsNative narrows *bridge.Client to exactly the three reads chat's
-// fact gatherer needs.
+// ChatFactsNative narrows *bridge.Client to the three reads chat's fact
+// gatherer needs: the colony census, the named colonist roster and the
+// custody census every observed humanlike appears in.
 type ChatFactsNative interface {
 	ReadColonyFacts(ctx context.Context, identity *c.Identity, planning bool, definitions []string) (*o.ColonyFactsReply, bridge.Result, error)
 	ReadHomeColonists(ctx context.Context, identity *c.Identity) (*o.ListPawnsReply, bridge.Result, error)
-	ReadResearch(ctx context.Context, identity *c.Identity) (bridge.ResearchRead, bridge.Result, error)
+	ReadRoutinePopulation(ctx context.Context, identity *c.Identity) (bridge.PrisonerCensus, bridge.Result, error)
 }
 
-// GatherChatFacts assembles the bounded interpreter.Snapshot backing chat's
-// currently supported command families -- research, tend, rescue, draft and
-// husbandry (slaughter/train) -- plus the corresponding domain.GenerationSnapshot
-// the interpreter call must be issued against. It does not chain reads
-// through the boundary CAS machinery: unlike an action boundary's Inspect,
-// this is a read-only fact gather with no prior admitted snapshot to check
-// reads against, and every command it supports re-establishes its own
-// admission at dispatch (store.SubmitTend et al. commit a fresh one-action
-// plan directly). The returned Generation carries the real native generation
-// ReadColonyFacts observed, but session/plan identity is a fixed placeholder:
-// nothing downstream keys chat's one-shot commands off plan continuity, only
-// off Snapshot.Generation matching Current for interpreter.Interpret's own
-// staleness check (see interpreter.validateInput), which this function
-// guarantees by construction.
-//
-// world identifies the colony/load/map the caller already resolved from the
-// player's supplied identity; only its Colony/Load/Map fields are read.
-func GatherChatFacts(ctx context.Context, native ChatFactsNative, world domain.GenerationSnapshot) (interpreter.Snapshot, domain.GenerationSnapshot, error) {
-	if native == nil {
-		return interpreter.Snapshot{}, domain.GenerationSnapshot{}, errors.New("chat facts native reader required")
+// ChatFactsJournal narrows *store.Store to the policy state chat reads: the
+// goals the routine reviewer and the player currently track, and every
+// policy input a guidance nudge may change.
+type ChatFactsJournal interface {
+	LoadRoutineReview(context.Context) (store.RoutineReview, error)
+	LoadGoal(context.Context, domain.GoalID) (store.GoalState, error)
+	PlayerGoals(context.Context, store.World) (map[domain.GoalKind]domain.GoalID, error)
+	CurrentPopulationPolicy(context.Context, store.World) (domain.PopulationPolicy, error)
+	CurrentExpeditionPolicy(context.Context, store.World) (domain.ExpeditionPolicy, error)
+	ResourcePolicies(context.Context, store.World) ([]domain.ResourceDirective, error)
+	PopulationDecisions(context.Context, store.World) ([]domain.PopulationDirective, error)
+}
+
+// GatherChatFacts assembles the bounded interpreter.Facts for one chat
+// message plus the domain.GenerationSnapshot the interpreter call must be
+// issued against. It is a read-only fact gather: nothing here chains through
+// boundary CAS machinery, because every nudge the guidance may carry
+// re-establishes its own admission when the policy input is submitted. The
+// returned generation carries the native generation the colony read observed
+// under the world's root plan, so a nudge applied against it is judged
+// against the same authority the routine reviewer uses.
+func GatherChatFacts(ctx context.Context, native ChatFactsNative, journal ChatFactsJournal, world store.World) (interpreter.Facts, domain.GenerationSnapshot, error) {
+	var none interpreter.Facts
+	if native == nil || journal == nil {
+		return none, domain.GenerationSnapshot{}, errors.New("chat facts native reader and journal required")
+	}
+	if err := world.Validate(); err != nil {
+		return none, domain.GenerationSnapshot{}, err
 	}
 	identity := &c.Identity{ColonyId: proto.String(string(world.Colony)), LoadToken: proto.String(string(world.Load)), MapId: proto.Int32(int32(world.Map))}
-	colony, _, err := native.ReadColonyFacts(ctx, identity, true, ChatCatalogDefinitions)
+	colony, _, err := native.ReadColonyFacts(ctx, identity, false, nil)
 	if err != nil {
-		return interpreter.Snapshot{}, domain.GenerationSnapshot{}, err
+		return none, domain.GenerationSnapshot{}, err
 	}
 	observed := colony.GetObserved()
 	if observed == nil || observed.Context == nil || observed.Context.NativeGeneration == nil {
-		return interpreter.Snapshot{}, domain.GenerationSnapshot{}, errors.New("colony facts read returned no usable context")
+		return none, domain.GenerationSnapshot{}, errors.New("colony facts read returned no usable context")
 	}
-	current := domain.GenerationSnapshot{Colony: world.Colony, Load: world.Load, Map: world.Map, Plan: "chat", Revision: 1, Native: domain.NativeGeneration(observed.Context.GetNativeGeneration())}
+	current := domain.GenerationSnapshot{Colony: world.Colony, Load: world.Load, Map: world.Map, Plan: store.RootPlanID(world), Revision: 1, Native: domain.NativeGeneration(observed.Context.GetNativeGeneration())}
 	if err = current.Validate(); err != nil {
-		return interpreter.Snapshot{}, domain.GenerationSnapshot{}, err
+		return none, domain.GenerationSnapshot{}, err
 	}
-	snapshot := interpreter.Snapshot{Generation: current, Width: int32(observed.MapSize.GetWidth()), Height: int32(observed.MapSize.GetHeight())}
-	planning := observed.GetPlanning().GetObserved()
-	if planning == nil {
-		return interpreter.Snapshot{}, domain.GenerationSnapshot{}, errors.New("colony facts read did not return planning facts")
+	facts := interpreter.Facts{Generation: current, Pawns: []interpreter.Pawn{}, Goals: []interpreter.Goal{}, PolicyResources: []string{}, ResourcePolicies: []interpreter.ResourcePolicy{}, PopulationDecisions: []interpreter.PopulationDecision{}}
+	facts.Colony = interpreter.Colony{Tick: domain.Tick(observed.Context.GetTick()), Biome: observed.GetBiome(), ColonistCount: observed.GetColonistCount(), WorkerCount: observed.GetWorkerCount(), BedCapacity: observed.GetBedCapacity(), Resources: []interpreter.Resource{}}
+	if observed.FoodRunwayDays != nil {
+		days := observed.GetFoodRunwayDays()
+		facts.Colony.FoodRunwayDays = &days
 	}
-	for _, row := range planning.Definitions {
-		if row == nil || row.Definition == nil {
+	if observed.OutdoorTemperatureC != nil {
+		temperature := observed.GetOutdoorTemperatureC()
+		facts.Colony.OutdoorTemperatureC = &temperature
+	}
+	stocked := map[string]bool{}
+	for _, row := range observed.GetResources() {
+		if row == nil || row.DefName == nil || stocked[row.GetDefName()] {
 			continue
 		}
-		d := interpreter.Definition{DefName: row.Definition.GetDefName()}
-		if row.Stuff != nil {
-			d.Stuff = []string{row.GetStuff()}
-		} else {
-			d.AllowDefaultStuff = true
-		}
-		snapshot.Definitions = append(snapshot.Definitions, d)
+		stocked[row.GetDefName()] = true
+		facts.Colony.Resources = append(facts.Colony.Resources, interpreter.Resource{DefName: row.GetDefName(), Units: row.GetUnits()})
 	}
-	for _, row := range planning.Cells.GetCells() {
-		if row == nil || row.Cell == nil || row.Fogged == nil || row.GetFogged() {
+	policyResources := map[string]bool{}
+	for _, row := range observed.GetPolicyResources() {
+		if row == nil || row.GetDefName() == "" || policyResources[row.GetDefName()] {
 			continue
 		}
-		snapshot.Cells = append(snapshot.Cells, domain.Cell{X: row.Cell.GetX(), Z: row.Cell.GetZ()})
-	}
-	if len(snapshot.Definitions) == 0 || len(snapshot.Cells) == 0 {
-		return interpreter.Snapshot{}, domain.GenerationSnapshot{}, errors.New("colony facts read observed no usable definitions or cells")
+		policyResources[row.GetDefName()] = true
+		facts.PolicyResources = append(facts.PolicyResources, row.GetDefName())
 	}
 
 	roster, _, err := native.ReadHomeColonists(ctx, identity)
 	if err != nil {
-		return interpreter.Snapshot{}, domain.GenerationSnapshot{}, err
+		return none, domain.GenerationSnapshot{}, err
 	}
 	rosterObserved := roster.GetObserved()
 	if rosterObserved == nil {
-		return interpreter.Snapshot{}, domain.GenerationSnapshot{}, errors.New("home colonist read returned no usable roster")
+		return none, domain.GenerationSnapshot{}, errors.New("home colonist read returned no usable roster")
 	}
+	pawns := map[domain.PawnID]int{}
 	for _, row := range rosterObserved.Pawns {
-		if row == nil || row.Pawn == nil {
+		if row == nil || row.Pawn == nil || row.Pawn.GetId() == "" {
 			continue
 		}
-		snapshot.Pawns = append(snapshot.Pawns, domain.PawnID(row.Pawn.GetId()))
+		id := domain.PawnID(row.Pawn.GetId())
+		if _, seen := pawns[id]; seen {
+			continue
+		}
+		pawns[id] = len(facts.Pawns)
+		facts.Pawns = append(facts.Pawns, interpreter.Pawn{ID: id, Label: row.Pawn.GetLabel(), Colonist: true, Downed: row.GetDowned()})
+	}
+	census, _, err := native.ReadRoutinePopulation(ctx, identity)
+	if err != nil {
+		return none, domain.GenerationSnapshot{}, err
+	}
+	if custody, known := census.Custody.Value(); known {
+		for _, row := range custody {
+			if dead, _ := row.Dead.Value(); dead || row.Pawn == "" {
+				continue
+			}
+			pawn := interpreter.Pawn{ID: row.Pawn}
+			pawn.Downed, _ = row.Downed.Value()
+			pawn.Prisoner, _ = row.Prisoner.Value()
+			pawn.Guest, _ = row.Guest.Value()
+			pawn.Hostile, _ = row.Hostile.Value()
+			if index, seen := pawns[row.Pawn]; seen {
+				existing := &facts.Pawns[index]
+				existing.Downed, existing.Prisoner, existing.Guest, existing.Hostile = existing.Downed || pawn.Downed, pawn.Prisoner, pawn.Guest, pawn.Hostile
+				continue
+			}
+			pawns[row.Pawn] = len(facts.Pawns)
+			facts.Pawns = append(facts.Pawns, pawn)
+		}
 	}
 
-	research, _, err := native.ReadResearch(ctx, identity)
+	review, err := journal.LoadRoutineReview(ctx)
 	if err != nil {
-		return interpreter.Snapshot{}, domain.GenerationSnapshot{}, err
+		return none, domain.GenerationSnapshot{}, err
 	}
-	finished := map[string]bool{}
-	for _, name := range research.Finished {
-		finished[name] = true
+	goals := map[domain.GoalID]bool{}
+	addGoal := func(id domain.GoalID, kind string) error {
+		if goals[id] {
+			return nil
+		}
+		state, err := journal.LoadGoal(ctx, id)
+		if errors.Is(err, store.ErrNotFound) {
+			return nil
+		}
+		if err != nil {
+			return err
+		}
+		g := state.Goal
+		if g.Snapshot.Colony != world.Colony || g.Snapshot.Load != world.Load || g.Snapshot.Map != world.Map || state.Retired || g.Status == domain.GoalCancelled || g.Status == domain.GoalInvalidated {
+			return nil
+		}
+		goals[id] = true
+		facts.Goals = append(facts.Goals, interpreter.Goal{ID: id, Kind: kind, Source: g.Source, Status: g.Status, Need: g.Need, Priority: g.Priority})
+		return nil
 	}
-	for name, facts := range research.Projects {
-		if name == research.CurrentProject || finished[name] {
-			continue
-		}
-		prereqs, known := facts.Prerequisites.Value()
-		if !known {
-			continue
-		}
-		ready := true
-		for _, prereq := range prereqs {
-			if !finished[string(prereq)] {
-				ready = false
-				break
+	if review.Snapshot.Colony == world.Colony && review.Snapshot.Load == world.Load && review.Snapshot.Map == world.Map {
+		for _, binding := range review.Goals {
+			if err = addGoal(binding.Goal, string(binding.Need)); err != nil {
+				return none, domain.GenerationSnapshot{}, err
 			}
 		}
-		if ready {
-			snapshot.ResearchProjects = append(snapshot.ResearchProjects, name)
+	}
+	playerGoals, err := journal.PlayerGoals(ctx, world)
+	if err != nil {
+		return none, domain.GenerationSnapshot{}, err
+	}
+	kinds := make([]domain.GoalKind, 0, len(playerGoals))
+	for kind := range playerGoals {
+		kinds = append(kinds, kind)
+	}
+	sort.Slice(kinds, func(i, j int) bool { return kinds[i] < kinds[j] })
+	for _, kind := range kinds {
+		if err = addGoal(playerGoals[kind], string(kind)); err != nil {
+			return none, domain.GenerationSnapshot{}, err
 		}
 	}
-	return snapshot, current, nil
+
+	population, err := journal.CurrentPopulationPolicy(ctx, world)
+	if err != nil && !errors.Is(err, store.ErrNotFound) {
+		return none, domain.GenerationSnapshot{}, err
+	}
+	if err == nil && population.Set() {
+		facts.PopulationPolicy = &interpreter.PopulationPolicy{Maximum: population.Maximum(), FoodDays: population.FoodDays()}
+	}
+	expedition, err := journal.CurrentExpeditionPolicy(ctx, world)
+	if err != nil {
+		return none, domain.GenerationSnapshot{}, err
+	}
+	facts.ExpeditionPolicy = interpreter.ExpeditionPolicy{
+		MinimumHomeColonists: expedition.MinimumHomeColonists(), MinimumHomeFoodDays: expedition.MinimumHomeFoodDays(),
+		TravelFoodMarginDays: expedition.TravelFoodMarginDays(), MaximumTravelDays: expedition.MaximumTravelDays(),
+		MaximumCaravans: expedition.MaximumCaravans(), MinimumGoodwill: expedition.MinimumGoodwill(),
+		MinimumDestinationTemperature: expedition.MinimumDestinationTemperature(), MaximumDestinationTemperature: expedition.MaximumDestinationTemperature(),
+		KeepHomeDoctor: expedition.KeepHomeDoctor(), RequireReturnStorage: expedition.RequireReturnStorage(),
+	}
+	directives, err := journal.ResourcePolicies(ctx, world)
+	if err != nil {
+		return none, domain.GenerationSnapshot{}, err
+	}
+	for _, directive := range directives {
+		facts.ResourcePolicies = append(facts.ResourcePolicies, interpreter.ResourcePolicy{Resource: directive.Resource(), Reserve: directive.Reserve(), Spending: directive.Spending()})
+	}
+	decisions, err := journal.PopulationDecisions(ctx, world)
+	if err != nil {
+		return none, domain.GenerationSnapshot{}, err
+	}
+	for _, decision := range decisions {
+		facts.PopulationDecisions = append(facts.PopulationDecisions, interpreter.PopulationDecision{Pawn: decision.Pawn(), Decision: decision.Decision()})
+	}
+	return facts, current, nil
 }

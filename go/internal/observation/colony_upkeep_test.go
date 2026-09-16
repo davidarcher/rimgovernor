@@ -41,3 +41,21 @@ func TestUpkeepProjectionPreservesSectionsAndFalsePresence(t *testing.T) {
 		t.Fatal("absent section became empty")
 	}
 }
+
+func TestUpkeepFilthCarriesRoomIdentity(t *testing.T) {
+	u := &o.UpkeepFacts{Filth: []*o.FilthState{
+		{Filth: &o.EntityRef{Id: proto.String("blood"), DefName: proto.String("Filth_Blood")}, Home: proto.Bool(true), Thickness: proto.Uint32(2), RoomRole: proto.String("Kitchen"), RoomId: proto.String("7")},
+		{Filth: &o.EntityRef{Id: proto.String("dirt")}, Home: proto.Bool(true), Thickness: proto.Uint32(1)},
+	}}
+	v := &o.ColonyFactsSnapshot{Upkeep: &o.UpkeepSection{Outcome: &o.UpkeepSection_Observed{Observed: u}}}
+	rows, known := colonyUpkeep(v).Filth.Value()
+	if !known || len(rows) != 2 {
+		t.Fatal(rows, known)
+	}
+	if id, ok := rows[0].RoomID.Value(); !ok || id != "7" || rows[0].Definition != "Filth_Blood" || rows[0].Room != "Kitchen" {
+		t.Fatal(rows[0])
+	}
+	if _, ok := rows[1].RoomID.Value(); ok {
+		t.Fatal("outdoor filth gained a room", rows[1])
+	}
+}

@@ -13,7 +13,6 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"github.com/davidarcher/RimGovernor/go/internal/executor"
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
-	"github.com/davidarcher/RimGovernor/go/internal/runtimeowner"
 	"github.com/davidarcher/RimGovernor/go/internal/store"
 	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
 	o "github.com/davidarcher/RimGovernor/go/internal/wire/operationspb"
@@ -139,7 +138,7 @@ func TestMeleeSessionRejectsIncompleteCapabilitiesBeforeOwnership(t *testing.T) 
 			session.Close(ctx)
 			t.Fatal("invalid configuration accepted", mode)
 		}
-		owner, err := runtimeowner.Acquire(ctx, dir)
+		owner, err := AcquireProfile(ctx, dir)
 		if err != nil {
 			t.Fatal(err)
 		}

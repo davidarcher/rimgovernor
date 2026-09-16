@@ -2,8 +2,8 @@
 
 [Documentation](../../README.md) · [Controller contracts](controller-contracts.md)
 
-Forecasts are read-only and use native definitions and rates. `native_forecasts.py`
-shares them between deterministic facts and player fact inspection.
+Forecasts are read-only and use native definitions and rates. One forecast
+implementation serves deterministic facts and player fact inspection.
 
 | Projection | Observed inputs | Bound |
 | --- | --- | --- |

@@ -176,8 +176,7 @@ func TestSelectResourceSourcesAtMostOneMinePerCall(t *testing.T) {
 func TestSelectResourceSourcesMineNeverFollowsAnyPriorSelection(t *testing.T) {
 	// A mine source is only ever added when nothing has been selected yet --
 	// ordinary sources selected first stop the loop before a later mine
-	// source is reached, matching production_policy.py's
-	// "if method == 'mine' and selected: break".
+	// source is reached (the loop breaks once a mine source is selected).
 	sources := []ResourceSource{
 		{ThingID: "surface", Yield: 10, Distance: 1},
 		{ThingID: "mine1", Yield: 100, Distance: 2, Method: ResourceSourceMine, Safety: "open_surface"},
@@ -218,9 +217,8 @@ func TestSelectResourceStorageZoneSkipsWhenCapacityAlreadyCovers(t *testing.T) {
 }
 
 func TestSelectResourceStorageZoneBlockedWithoutHaulersEvenWhenCapacitySuffices(t *testing.T) {
-	// Mirrors production_policy.py's resource_method: the hauler check fires
-	// unconditionally whenever a mine source is selected, before capacity is
-	// even considered.
+	// The hauler check fires unconditionally whenever a mine source is
+	// selected, before capacity is even considered.
 	selected := []ResourceSource{{ThingID: "rock1", Yield: 40, Method: ResourceSourceMine}}
 	storage := ResourceStorage{Capacity: 1000, StackLimit: 75, Haulers: 0}
 	zone, needed, blocked, err := SelectResourceStorageZone(selected, 0, storage)

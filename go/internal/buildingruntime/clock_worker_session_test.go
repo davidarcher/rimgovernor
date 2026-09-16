@@ -3,7 +3,6 @@ package buildingruntime
 import (
 	"context"
 	"errors"
-	"github.com/davidarcher/RimGovernor/go/internal/runtimeowner"
 	"testing"
 )
 
@@ -39,7 +38,7 @@ func TestClockWorkerSessionRetainsOwnerUntilJoinedCleanup(t *testing.T) {
 	if err := s.Close(context.Background()); !errors.Is(err, blocked) {
 		t.Fatal(err)
 	}
-	if owner, err := runtimeowner.Acquire(context.Background(), dir); err == nil {
+	if owner, err := AcquireProfile(context.Background(), dir); err == nil {
 		owner.Close()
 		t.Fatal("released owner before worker joined")
 	}
@@ -52,7 +51,7 @@ func TestClockWorkerSessionRetainsOwnerUntilJoinedCleanup(t *testing.T) {
 	if calls != 2 || !s.clock.stopped {
 		t.Fatal(calls, s.clock.stopped)
 	}
-	owner, err := runtimeowner.Acquire(context.Background(), dir)
+	owner, err := AcquireProfile(context.Background(), dir)
 	if err != nil {
 		t.Fatal(err)
 	}

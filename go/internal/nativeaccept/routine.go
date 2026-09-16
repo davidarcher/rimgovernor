@@ -13,7 +13,7 @@ import (
 type HTTPGet func(method, path string) (map[string]any, error)
 
 // AssertRoutineRunning asserts the Go-owned supervised clock is still in automate
-// mode, mirroring native_go_routine_acceptance.py's assert_routine_running(): a
+// mode: a
 // non-automate state is always an interruption, and the player clock is fetched
 // only to enrich that error, never to justify continuing.
 func AssertRoutineRunning(http HTTPGet) error {
@@ -32,8 +32,7 @@ func AssertRoutineRunning(http HTTPGet) error {
 }
 
 // AuditMedicalCare asserts a Go routine review's durable MedicalCare census and
-// MaintainMedicalCare goal reproduce a reference medical-care evaluation exactly,
-// mirroring native_go_routine_acceptance.py's audit_medical_care(). This does not
+// MaintainMedicalCare goal reproduce a reference medical-care evaluation exactly. This does not
 // port medical_care_reference()/care_state() themselves, since those compute the
 // actual medical-triage facts from raw pawn data -- production runtime logic
 // (rimgovernor.medical_management), out of this migration's scope; callers supply
@@ -64,8 +63,7 @@ func AuditMedicalCare(active, expected map[string]any) error {
 // AuditStartingSupplies asserts a Go routine review's durable StartingSupplies
 // census matches the native original forbidden-supply cells exactly (once sorted
 // into (Z,X) native order) and its AllowStartingSupplies goal need reflects
-// whether any such cells remain, mirroring native_go_routine_acceptance.py's
-// audit_starting_supplies().
+// whether any such cells remain.
 func AuditStartingSupplies(active map[string]any, cells []any) error {
 	review, _ := AsMap(active["review"])
 	history, _ := AsMap(review["StartingSupplies"])
@@ -108,7 +106,7 @@ func AuditStartingSupplies(active map[string]any, cells []any) error {
 
 // AuditComfortUse asserts a recovered EnsureComfort goal's dining/recreation use
 // proof still identifies a currently accessible native facility for every eligible
-// colonist, mirroring native_go_routine_acceptance.py's audit_comfort_use(): a
+// colonist: a
 // facility that no longer admits every eligible colonist, or whose proof no
 // longer names an accessible facility, is never treated as a pass.
 func AuditComfortUse(active, native map[string]any) (map[string]any, error) {
@@ -177,8 +175,7 @@ type shellCell = [2]int
 
 // ShellGeometry asserts a starter shell plan places exactly 32 WoodLog buildings
 // forming a complete 9x9 perimeter with its one door on the south wall's center
-// cell, then returns the interior 7x7 cell set, mirroring
-// native_go_routine_acceptance.py's shell_geometry().
+// cell, then returns the interior 7x7 cell set.
 func ShellGeometry(plan map[string]any) (map[shellCell]bool, error) {
 	actions := AsSlice(plan["actions"])
 	buildings := make([]map[string]any, 0, len(actions))
@@ -255,8 +252,7 @@ func shellCellSetsEqual(a, b map[shellCell]bool) bool {
 }
 
 // AppendOperationHistory extends a retained native operation-event history with a
-// contiguous batch (never exceeding the scenario's 100000-row bound), mirroring
-// native_go_routine_acceptance.py's append_operation_history(): a batch that skips
+// contiguous batch (never exceeding the scenario's 100000-row bound): a batch that skips
 // or repeats a sequence number is always rejected, and rejection never mutates the
 // retained history.
 func AppendOperationHistory(history *[]map[string]any, batch []map[string]any, baseline int) error {
@@ -279,8 +275,7 @@ func AppendOperationHistory(history *[]map[string]any, batch []map[string]any, b
 
 // ReadOperationHistory reads a retained native operation-history JSONL file
 // (never exceeding a 64MiB bound), keeps only rows newer than baseline, and
-// appends them in sequence order via AppendOperationHistory, mirroring
-// native_go_routine_acceptance.py's read_operation_history().
+// appends them in sequence order via AppendOperationHistory.
 func ReadOperationHistory(path string, baseline int) ([]map[string]any, error) {
 	info, err := os.Stat(path)
 	if err != nil {
@@ -315,8 +310,7 @@ func ReadOperationHistory(path string, baseline int) ([]map[string]any, error) {
 }
 
 // MedicalNeed classifies a fresh observations_list_pawns reply's medical urgency
-// from pure native health facts (dead/downed/bleeding/needsTend), mirroring
-// native_go_routine_acceptance.py's medical_need(): an incomplete census or any
+// from pure native health facts (dead/downed/bleeding/needsTend): an incomplete census or any
 // missing/non-boolean health fact for a living pawn is always "unknown", never
 // silently treated as healthy.
 func MedicalNeed(reply map[string]any) (string, error) {
@@ -362,8 +356,7 @@ func MedicalNeed(reply map[string]any) (string, error) {
 // AssertConstructionStart asserts a fresh scenario's starting colonists are all
 // healthy and its native threat census shows no starting hostiles or hunting
 // predators, with every incidental predator/downed observation explicitly marked
-// non-hostile, mirroring native_go_routine_acceptance.py's
-// assert_construction_start().
+// non-hostile.
 func AssertConstructionStart(reply map[string]any) error {
 	need, err := MedicalNeed(reply)
 	if err != nil {
@@ -407,8 +400,7 @@ func AssertConstructionStart(reply map[string]any) error {
 
 // AuditRoutine asserts a native operation-event history is gapless from baseline
 // and every attributed event belongs to the allowed capability set for the
-// Go-owned routine reviewer, then returns the ordered operation names, mirroring
-// native_go_routine_acceptance.py's audit_routine(): a running (non-restart)
+// Go-owned routine reviewer, then returns the ordered operation names: a running (non-restart)
 // session must show observations_read_colony_facts, and a disabled restart must
 // never expose authority/clock/execute/preview capabilities.
 func AuditRoutine(events []map[string]any, baseline int, capabilities map[string][]string, restart bool) ([]string, error) {
@@ -486,8 +478,7 @@ func AuditRoutine(events []map[string]any, baseline int, capabilities map[string
 
 // AuditResourceRules asserts a resource-policy plan's actions remain untouched
 // (pending, zero attempts) while the routine reviewer previews placement
-// repeatedly without ever executing, mirroring
-// native_go_routine_acceptance.py's audit_resource_rules().
+// repeatedly without ever executing.
 func AuditResourceRules(plan map[string]any, names []string) error {
 	actions := AsSlice(plan["actions"])
 	if len(actions) == 0 {
@@ -530,8 +521,7 @@ var developmentGoalNames = map[string]bool{
 // consumed slot for the accepted player project, and a well-formed, capacity-
 // bounded set of native development rows (finite score, in-bounds waiting tick,
 // and — for any selected row — a known deficit with no blocking reason or
-// existing commitment), mirroring native_go_routine_acceptance.py's
-// audit_development().
+// existing commitment).
 func AuditDevelopment(review map[string]any, workers, projectLimit int) (map[string]any, error) {
 	development, _ := AsMap(review["Development"])
 	if !DeepEqual(development["Snapshot"], review["Snapshot"]) || !DeepEqual(development["Tick"], review["Tick"]) {

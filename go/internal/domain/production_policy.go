@@ -20,8 +20,8 @@ import (
 const ProductionPolicyAction ActionKind = "production_policy"
 
 // ResourceFloor is one native resource definition's positive reserve floor
-// (policy.ProductionFloors already strips zero reserves, matching Python's
-// "if v" filter, so a floor here is always strictly positive).
+// (policy.ProductionFloors already strips zero reserves,
+// so a floor here is always strictly positive).
 type ResourceFloor struct {
 	Resource string
 	Floor    int64

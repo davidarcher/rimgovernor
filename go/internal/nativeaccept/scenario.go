@@ -10,23 +10,19 @@ import (
 	"time"
 )
 
-// This file ports controller/rimgovernor/native_scenario.py's advance_game() and
-// scripts/native_typed_clock_acceptance.py's TypedScenarioClock/ScenarioRuntime to
-// Go, so cmd/combataccept and cmd/movementaccept can advance real game ticks the
-// same bounded, letter-acknowledging way native_combat_acceptance.py and
-// native_movement_acceptance.py do. It intentionally omits the medical-rest wait
-// mode: TypedScenarioClock's own Change() never accepted it either (only the
-// combat-target mode is exercised through the typed clock adapter), so no acceptance
-// caller loses coverage by this port not carrying it either.
+// This file is the scenario advance loop and typed scenario clock, so
+// cmd/combataccept and cmd/movementaccept can advance real game ticks in a
+// bounded, letter-acknowledging way. It intentionally omits a medical-rest wait
+// mode: only the combat-target mode is exercised through the typed clock adapter.
 
 // scenarioPolicy is the fixed watch policy every acceptance clock window starts
-// with, mirroring native_typed_clock_acceptance.py's POLICY constant.
+// with.
 var scenarioPolicy = map[string]any{
 	"mode": "WATCH_MODE_COLONY", "healthDropFraction": 0.1,
 	"minHealthFraction": 0.5, "hostileWithin": 40, "injuryStopCooldownMs": 0,
 }
 
-// scenarioHoldReasons mirrors controller/rimgovernor/clock_control.py's HOLD_REASONS:
+// scenarioHoldReasons are the hold reasons:
 // stop reasons that mean an external actor now owns the clock's fate.
 var scenarioHoldReasons = map[string]bool{
 	"external_pause": true, "external_speed_changed": true, "lease_expired": true,
@@ -35,7 +31,7 @@ var scenarioHoldReasons = map[string]bool{
 	"hunting_route_unsafe": true,
 }
 
-// ScenarioInterrupted mirrors native_scenario.py's ScenarioInterrupted: the
+// ScenarioInterrupted: the
 // scenario stopped with retained evidence in the caller's report, not a bug in the
 // acceptance code itself. Callers that expect an interruption (e.g. an authority
 // revocation test) type-assert for this instead of treating any error the same way.
@@ -78,7 +74,7 @@ func deepCopyMap(m map[string]any) map[string]any {
 	return out
 }
 
-// validateScenarioContext mirrors native_typed_clock_acceptance.py's context().
+// validateScenarioContext.
 func validateScenarioContext(value map[string]any) error {
 	identity, ok := AsMap(value["identity"])
 	if !ok {
@@ -98,8 +94,7 @@ func validateScenarioContext(value map[string]any) error {
 }
 
 // projectStatus adapts a decoded clock_read_status/clock_pause/receipt status into
-// advance_game's protocol, mirroring native_typed_clock_acceptance.py's
-// project_status().
+// advance_game's protocol.
 func projectStatus(status map[string]any) (map[string]any, error) {
 	contextValue, ok := AsMap(status["context"])
 	if !ok {
@@ -187,8 +182,7 @@ func projectStatus(status map[string]any) (map[string]any, error) {
 	return result, nil
 }
 
-// projectEvents adapts a decoded clock_read_events page, mirroring
-// native_typed_clock_acceptance.py's project_events().
+// projectEvents adapts a decoded clock_read_events page.
 func projectEvents(page map[string]any, after uint64) (map[string]any, error) {
 	contextValue, ok := AsMap(page["context"])
 	if !ok {
@@ -294,15 +288,14 @@ func projectEvents(page map[string]any, after uint64) (map[string]any, error) {
 }
 
 // ScenarioControl records one owned clock control call, so AdvanceGame's caller can
-// replay it after a stop/revocation the way native_typed_clock_acceptance.py does.
+// replay it after a stop/revocation.
 type ScenarioControl struct {
 	Method  string
 	Request map[string]any
 	Receipt map[string]any
 }
 
-// ScenarioClock is the typed clock/authority transport adapter AdvanceGame drives,
-// mirroring native_typed_clock_acceptance.py's TypedScenarioClock. Every native
+// ScenarioClock is the typed clock/authority transport adapter AdvanceGame drives. Every native
 // call goes through Wire (ordinarily Harness.Wire), so this type owns only the
 // owner-side bookkeeping (grant, attempt counter, event cursor, replay log)
 // AdvanceGame needs to safely resume, replay and detect drift.
@@ -313,12 +306,11 @@ type ScenarioClock struct {
 	Report   Report
 
 	// CombatTargets, when non-empty, switches every clock_start this clock issues
-	// to WATCH_MODE_COMBAT with these acknowledged hostiles, mirroring
-	// native_combat_acceptance.py's CombatScenarioClock.control() override.
+	// to WATCH_MODE_COMBAT with these acknowledged hostiles.
 	CombatTargets []string
 
 	// Grant is the current authority grant (acquire/renew's "granted" body).
-	// Exported like the Python attribute so callers can seed or recover it
+	// Exported so callers can seed or recover it
 	// (e.g. after AdvanceGame renews authority mid-run).
 	Grant map[string]any
 	// OnStarted, when set, runs after Change() admits a fresh clock_start receipt
@@ -627,9 +619,9 @@ func (s *ScenarioClock) Poll(ctx context.Context) ([]any, error) {
 }
 
 // ScenarioRuntime is the minimal advance_game(rt, ...) surface a Go acceptance
-// binary needs, mirroring native_typed_clock_acceptance.py's ScenarioRuntime.
+// binary needs.
 // It has no review-task/decision-loop concurrency: every acceptance binary drives
-// its scenario from one goroutine, so those Python fields are simply absent here.
+// its scenario from one goroutine.
 type ScenarioRuntime struct {
 	// Query issues a generic native/MCP tool call (e.g. Harness.Call) for the
 	// game-observation reads AdvanceGame needs (home/colony_identity, home/status)
@@ -704,8 +696,7 @@ func WithCombatTargets(targets ...string) AdvanceOption {
 }
 
 // AdvanceGame advances exactly ticks native ticks, acknowledging only inspected
-// fixture warnings, mirroring controller/rimgovernor/native_scenario.py's
-// advance_game(). It never dismisses letters, clears player holds, or retries
+// fixture warnings. It never dismisses letters, clears player holds, or retries
 // game orders; an unexpected injury, new threat, or drifted identity raises
 // *ScenarioInterrupted with the failing evidence retained on rt.Report.
 func AdvanceGame(ctx context.Context, rt *ScenarioRuntime, ticks uint64, opts ...AdvanceOption) (map[string]any, error) {

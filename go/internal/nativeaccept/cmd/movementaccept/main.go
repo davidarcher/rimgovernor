@@ -1,4 +1,4 @@
-// Command movementaccept replaces scripts/native_movement_acceptance.py: real
+// Command movementaccept proves real
 // ordinary typed pawn arrival through the scenario clock (no injected movement or
 // completion), exact CAS/replay, no-op, and Manual/player override handling.
 package main
@@ -672,8 +672,7 @@ func run(ctx context.Context, root, output, gameID string, headless bool, report
 	return nil
 }
 
-// moveRequest builds an operations_execute movePawn request under grant's lease,
-// mirroring native_movement_acceptance.py's move_request().
+// moveRequest builds an operations_execute movePawn request under grant's lease.
 func moveRequest(identity, grant, row map[string]any, number int, destination map[string]any) map[string]any {
 	request := na.ExecuteRequest(identity, grant, row, number)
 	request["operation"] = map[string]any{"movePawn": map[string]any{"pawn": na.Target(row), "destination": deepCopyMap(destination)}}
@@ -688,8 +687,7 @@ func deepCopyMap(m map[string]any) map[string]any {
 }
 
 // candidates filters and orders an observations_get_cells reply's cells to the exact
-// set of nearby, walkable, passable, unfogged candidates, mirroring
-// native_movement_acceptance.py's candidates().
+// set of nearby, walkable, passable, unfogged candidates.
 func candidates(snapshot, origin map[string]any) ([]map[string]any, error) {
 	completeness, _ := na.AsMap(snapshot["completeness"])
 	page, _ := na.AsMap(completeness["page"])
@@ -735,7 +733,7 @@ func candidates(snapshot, origin map[string]any) ([]map[string]any, error) {
 }
 
 // jobEffect asserts an operations_execute receipt's applied job matches a fresh Goto
-// order to destination, mirroring native_movement_acceptance.py's job_effect().
+// order to destination.
 func jobEffect(receipt, row, destination map[string]any) (map[string]any, error) {
 	applied, _ := na.AsMap(receipt["applied"])
 	observed, _ := na.AsMap(applied["observed"])
@@ -766,8 +764,7 @@ func jobEffect(receipt, row, destination map[string]any) (map[string]any, error)
 }
 
 // arrival asserts row has physically arrived at destination and the observed progress
-// records a causally verified completion matching issued, mirroring
-// native_movement_acceptance.py's arrival().
+// records a causally verified completion matching issued.
 func arrival(progress, row, destination, issued map[string]any) error {
 	pawn, _ := na.AsMap(row["pawn"])
 	if !na.DeepEqual(pawn["position"], destination) {

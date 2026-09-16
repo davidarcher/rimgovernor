@@ -6,6 +6,7 @@ import (
 	"errors"
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"github.com/davidarcher/RimGovernor/go/internal/observation"
+	"github.com/davidarcher/RimGovernor/go/internal/policy"
 	"github.com/davidarcher/RimGovernor/go/internal/store"
 	"io"
 	"net"
@@ -402,4 +403,45 @@ func TestServeShutdownCancelsActiveProvider(t *testing.T) {
 		t.Fatal(err)
 	}
 	<-requestDone
+}
+
+func TestRoutinesRouteExposesDevelopmentRanking(t *testing.T) {
+	risk := 1.0
+	development := policy.DevelopmentState{Tick: 500, Workers: domain.Known(3), Labor: domain.Known(map[policy.WorkType]int{policy.WorkResearch: 1, policy.WorkConstruction: 0}), Capacity: 2, Committed: []domain.GoalID{"player-room"},
+		Rows: []policy.DevelopmentRow{
+			{Goal: "ensure-research", Score: 60, Deficit: domain.Known(0.6), WaitingSince: 100, Selected: true},
+			{Goal: "ensure-comfort", Score: 40, Deficit: domain.Known(0.5), WaitingSince: 100, Reason: policy.DevelopmentLabor, Bottleneck: policy.WorkConstruction},
+			{Goal: "maintain-wood", Score: 0, Deficit: domain.Known(0.3), Risk: domain.Known(risk), WaitingSince: 200, Reason: policy.DevelopmentRisk},
+			{Goal: "maintain-resource", WaitingSince: 300, Reason: policy.DevelopmentUnknown},
+		}}
+	s, err := New(Config{ReadTimeout: time.Second, ShutdownTimeout: time.Second, MaxResponseBytes: 1 << 20,
+		Routines: routineStatusFunc(func(context.Context) (RoutineStatus, error) {
+			return RoutineStatus{ReviewsEnabled: true, LastReviewTick: 500, LastReviewKnown: true, Development: &development}, nil
+		})}, snapshotFunc(func(context.Context) (Snapshot, error) { return Snapshot{}, nil }), planFunc(unavailablePlan))
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { s.Close() })
+	server := testHTTP(t, s)
+	status, body := get(t, server.URL+"/api/routines")
+	var got routineStatusDTO
+	if err := json.Unmarshal(body, &got); err != nil {
+		t.Fatal(err)
+	}
+	d := got.Development
+	if status != 200 || d == nil || d.Tick != 500 || d.Workers == nil || *d.Workers != 3 || d.Capacity != 2 || len(d.Committed) != 1 || len(d.Rows) != 4 {
+		t.Fatalf("development ranking: %s", body)
+	}
+	if len(d.Labor) != 2 || d.Labor[0].Work != policy.WorkConstruction || d.Labor[0].Free != 0 || d.Labor[1].Work != policy.WorkResearch || d.Labor[1].Free != 1 {
+		t.Fatalf("labor rows unsorted or lost: %s", body)
+	}
+	if d.Rows[1].Reason != policy.DevelopmentLabor || d.Rows[1].Bottleneck != policy.WorkConstruction || d.Rows[1].Risk != nil {
+		t.Fatalf("labor deferral: %s", body)
+	}
+	if d.Rows[2].Reason != policy.DevelopmentRisk || d.Rows[2].Risk == nil || *d.Rows[2].Risk != 1 || d.Rows[3].Deficit != nil {
+		t.Fatalf("risk deferral or unknown deficit: %s", body)
+	}
+	if !strings.Contains(string(body), `"reason":"labor_unavailable"`) || !strings.Contains(string(body), `"reason":"risk_deferred"`) || !strings.Contains(string(body), `"bottleneck":""`) {
+		t.Fatalf("wire reasons: %s", body)
+	}
 }

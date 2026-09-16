@@ -25,9 +25,8 @@ func wasteLocation(v o.WasteLocation) policy.WasteState {
 // pendingWaste/SelectWasteMethod expect. A missing observed snapshot or an
 // incomplete page (unlike the exact-CAS husbandry/resource reads, this
 // generic census is never repaged mid-review) stays unknown; a row's own
-// missing eligibility/state is treated as not-pending, mirroring
-// waste_management.py's own truthy `.get('eligible') is True` check rather
-// than failing the whole census over one partial row.
+// missing eligibility/state is treated as not-pending (a truthy eligible
+// check) rather than failing the whole census over one partial row.
 func colonyWaste(v *o.ColonyFactsSnapshot) domain.Fact[[]policy.WasteItem] {
 	snapshot := v.GetWaste().GetObserved()
 	if snapshot == nil {

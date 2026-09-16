@@ -1,4 +1,4 @@
-// Command combataccept replaces scripts/native_combat_acceptance.py: bounded actual
+// Command combataccept proves bounded actual
 // combat terminal outcome through the scenario clock's WATCH_MODE_COMBAT policy, with
 // player override/fresh claim, replay, and completed-before-Manual retention. No
 // damage or completion injection; the terminal outcome must be causally verified by
@@ -678,7 +678,7 @@ func run(ctx context.Context, root, output, gameID string, headless, ranged, exp
 }
 
 // attackRequest builds an operations_execute attackTarget request under grant's
-// lease, mirroring native_combat_acceptance.py's attack_request().
+// lease.
 func attackRequest(identity, grant, actor, victim map[string]any, number int, mode string) map[string]any {
 	request := na.ExecuteRequest(identity, grant, actor, number)
 	request["operation"] = map[string]any{"attackTarget": map[string]any{
@@ -707,7 +707,7 @@ func checkAttackEffect(receipt map[string]any, caseName, actorID, targetID, jobD
 }
 
 // terminal asserts progress records a causally verified terminal attack outcome
-// against victim/targetID, mirroring native_combat_acceptance.py's terminal().
+// against victim/targetID.
 func terminal(progress, receipt, victim map[string]any, targetID string, ranged bool) error {
 	complete, _ := na.AsBool(progress["completeInspection"])
 	completed, ok := na.AsMap(progress["completed"])
@@ -752,8 +752,7 @@ func terminal(progress, receipt, victim map[string]any, targetID string, ranged 
 	return nil
 }
 
-// overriddenAttack asserts a player override interrupted the pending attack,
-// mirroring native_combat_acceptance.py's overridden_attack().
+// overriddenAttack asserts a player override interrupted the pending attack.
 func overriddenAttack(progress, before, after, external map[string]any) error {
 	complete, _ := na.AsBool(progress["completeInspection"])
 	if !complete {
@@ -776,8 +775,7 @@ func overriddenAttack(progress, before, after, external map[string]any) error {
 }
 
 // observedRows asserts an observations_list_pawns reply is a single complete, exact-
-// match page with unique pawn ids and returns its rows, mirroring
-// native_combat_acceptance.py's observed_rows().
+// match page with unique pawn ids and returns its rows.
 func observedRows(reply, identity map[string]any) ([]map[string]any, error) {
 	_, observed, err := na.Outcome(reply, "observed")
 	if err != nil {
@@ -813,8 +811,7 @@ func observedRows(reply, identity map[string]any) ([]map[string]any, error) {
 }
 
 // healthyCandidates filters rows to violence-capable, undrafted, healthy colonists
-// (and shooting-capable when ranged), mirroring
-// native_combat_acceptance.py's healthy_candidates().
+// (and shooting-capable when ranged).
 func healthyCandidates(rows []map[string]any, ranged bool) ([]map[string]any, error) {
 	if len(rows) == 0 {
 		return nil, fmt.Errorf("no rows provided")

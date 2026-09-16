@@ -41,7 +41,7 @@ func (n MoodReliefNeed) wire() o.Need {
 
 var moodReliefValid = map[MoodReliefNeed]bool{MoodReliefFood: true, MoodReliefRest: true, MoodReliefJoy: true}
 
-// MoodReliefExpectedJob mirrors Python's expectedJob: either the pawn's
+// MoodReliefExpectedJob is the expected job: either the pawn's
 // exact current job load ID, or explicitly idle.
 type MoodReliefExpectedJob struct {
 	JobID *int32

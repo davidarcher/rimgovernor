@@ -48,8 +48,7 @@ type CheckpointResult struct {
 // validates the reply before returning success. Authority is never revoked
 // and the profile lock is never released: play continues in Manual after a
 // checkpoint. An uncertain native outcome is always reported as a refusal,
-// never silently accepted, matching the Python "checkpoint was not
-// published" behavior this replaces.
+// never silently accepted.
 func (control *Control) Checkpoint(ctx context.Context, save LifecycleSaver, request CheckpointRequest) (CheckpointResult, error) {
 	if save == nil || request.Expected.Validate() != nil || !boundary.ValidID(request.SaveName) {
 		return CheckpointResult{}, ErrCheckpoint

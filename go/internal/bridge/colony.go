@@ -275,10 +275,27 @@ func validateColonyPlanning(p *o.PlanningFacts, ctx *c.ObservationContext, size 
 				return contract("invalid research prerequisite")
 			}
 		}
-		for _, number := range []*float64{d.RestEffectiveness, d.GrowDays, d.FertilityMin, d.FertilitySensitivity, d.HarvestNutrition, d.NutritionDemandPerDay} {
+		for i, number := range []*float64{d.RestEffectiveness, d.GrowDays, d.FertilityMin, d.FertilitySensitivity, d.HarvestNutrition, d.NutritionDemandPerDay, d.GrowMinGlow, d.GrowerFertility, d.GlowRadius} {
 			if !combatNumber(number, true) {
-				return contract("invalid planning definition number")
+				return contract("invalid planning definition number %d for %s", i, d.Definition.GetDefName())
 			}
+		}
+		// A generator's native base draw is negative.
+		if !combatNumber(d.PowerW, false) {
+			return contract("invalid planning definition number")
+		}
+		if len(d.SowTags) > 32 || d.SowTag != nil && validID(d.GetSowTag()) != nil {
+			return contract("invalid planning definition sow tags")
+		}
+		for _, tag := range d.SowTags {
+			if validID(tag) != nil {
+				return contract("invalid planning definition sow tags")
+			}
+		}
+	}
+	if p.Environment != nil {
+		if err := validateGrowingEnvironment(p.Environment, size); err != nil {
+			return err
 		}
 	}
 	v := p.Cells
@@ -311,6 +328,76 @@ func validateColonyPlanning(p *o.PlanningFacts, ctx *c.ObservationContext, size 
 		for _, name := range []*string{row.Terrain, row.Roof, row.ZoneId, row.RoomId} {
 			if name != nil && validID(*name) != nil {
 				return contract("invalid planning cell identifier")
+			}
+		}
+	}
+	return nil
+}
+
+// validateGrowingEnvironment bounds the controlled-growing census: every row
+// is identified, every cell lies on the map, every number is finite and the
+// completeness row counts exactly the rows present.
+func validateGrowingEnvironment(e *o.ControlledEnvironment, size *o.MapSize) error {
+	if err := pawnsIssues(e.Issues, e.ProtoReflect()); err != nil {
+		return err
+	}
+	if !combatNumber(e.OutdoorTemperatureC, false) {
+		return contract("invalid environment temperature")
+	}
+	if err := colonyCounts(e.Completeness, len(e.Lights)+len(e.Growers)+len(e.Rooms)+len(e.Networks), 1024); err != nil {
+		return err
+	}
+	optionalID := func(v *string) bool { return v == nil || validID(*v) == nil }
+	entity := func(ref *o.EntityRef) bool {
+		return ref != nil && validID(ref.GetId()) == nil && validID(ref.GetDefName()) == nil && colonyCell(ref.Position, size)
+	}
+	cells := func(rows []*c.Cell) bool {
+		if len(rows) > 256 {
+			return false
+		}
+		for _, row := range rows {
+			if !colonyCell(row, size) {
+				return false
+			}
+		}
+		return true
+	}
+	seen := map[string]bool{}
+	unique := func(id string) bool {
+		if seen[id] {
+			return false
+		}
+		seen[id] = true
+		return true
+	}
+	for _, row := range e.Lights {
+		if row == nil || !entity(row.Building) || !unique("light/"+row.Building.GetId()) || !optionalID(row.RoomId) || !optionalID(row.PowerNetId) || !combatNumber(row.PowerW, true) || !cells(row.GrowthCells) {
+			return contract("invalid environment light")
+		}
+		if err := pawnsIssues(row.Issues, row.ProtoReflect()); err != nil {
+			return err
+		}
+	}
+	for _, row := range e.Growers {
+		if row == nil || !entity(row.Building) || !unique("grower/"+row.Building.GetId()) || !optionalID(row.RoomId) || !optionalID(row.PowerNetId) || !optionalID(row.SowTag) || !optionalID(row.CropDefName) || !combatNumber(row.PowerW, true) || !combatNumber(row.Fertility, true) || !cells(row.PlantCells) {
+			return contract("invalid environment grower")
+		}
+		if err := pawnsIssues(row.Issues, row.ProtoReflect()); err != nil {
+			return err
+		}
+	}
+	for _, row := range e.Rooms {
+		if row == nil || validID(row.GetRoomId()) != nil || !unique("room/"+row.GetRoomId()) || !combatNumber(row.TemperatureC, false) || row.LitCells != nil && row.CellCount != nil && row.GetLitCells() > row.GetCellCount() {
+			return contract("invalid environment room")
+		}
+	}
+	for _, row := range e.Networks {
+		if row == nil || validID(row.GetId()) != nil || !unique("network/"+row.GetId()) {
+			return contract("invalid environment network")
+		}
+		for _, number := range []*float64{row.GenerationW, row.SolarW, row.WindW, row.ConsumptionW, row.StoredWattDays, row.CapacityWattDays} {
+			if !combatNumber(number, true) {
+				return contract("invalid environment network")
 			}
 		}
 	}

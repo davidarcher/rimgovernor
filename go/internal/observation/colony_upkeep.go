@@ -63,7 +63,7 @@ func colonyUpkeep(v *o.ColonyFactsSnapshot) policy.UpkeepObservation {
 				known = false
 				break
 			}
-			rows = append(rows, policy.UpkeepFilth{ID: item.Filth.GetId(), Cell: domain.Cell{X: item.Filth.GetPosition().GetX(), Z: item.Filth.GetPosition().GetZ()}, Home: item.GetHome(), Room: item.GetRoomRole(), Thickness: item.GetThickness()})
+			rows = append(rows, policy.UpkeepFilth{ID: item.Filth.GetId(), Definition: item.Filth.GetDefName(), Cell: domain.Cell{X: item.Filth.GetPosition().GetX(), Z: item.Filth.GetPosition().GetZ()}, Home: item.GetHome(), Room: item.GetRoomRole(), RoomID: optional(item.RoomId), Thickness: item.GetThickness()})
 		}
 		if known {
 			r.Filth = domain.Known(rows)

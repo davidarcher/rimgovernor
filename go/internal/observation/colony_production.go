@@ -99,8 +99,8 @@ func colonyProductionBenches(v *o.ColonyFactsSnapshot) domain.Fact[[]policy.Prod
 		return domain.Unknown[[]policy.ProductionBench]()
 	}
 	var rows []policy.ProductionBench
-	add := func(entity *o.EntityRef, usable *bool, recipes []*o.RecipeState, bills []*o.BillState, production []*o.FoodProduction, butcher bool) {
-		row := policy.ProductionBench{ID: entity.GetId(), Definition: entity.GetDefName(), Usable: optional(usable), Butcher: butcher}
+	add := func(entity *o.EntityRef, usable *bool, recipes []*o.RecipeState, bills []*o.BillState, production []*o.FoodProduction, butcher bool, room *string) {
+		row := policy.ProductionBench{ID: entity.GetId(), Definition: entity.GetDefName(), Usable: optional(usable), Butcher: butcher, Room: optional(room)}
 		if entity.Snapshot != nil {
 			row.Token = optional(entity.Snapshot.Token)
 		}
@@ -127,10 +127,10 @@ func colonyProductionBenches(v *o.ColonyFactsSnapshot) domain.Fact[[]policy.Prod
 		rows = append(rows, row)
 	}
 	for _, b := range v.Cooking {
-		add(b.Bench, b.Usable, b.Recipes, b.Bills, b.Production, false)
+		add(b.Bench, b.Usable, b.Recipes, b.Bills, b.Production, false, b.RoomId)
 	}
 	for _, b := range v.Butchering {
-		add(b.Bench, b.Usable, b.Recipes, b.Bills, nil, true)
+		add(b.Bench, b.Usable, b.Recipes, b.Bills, nil, true, b.RoomId)
 	}
 	return domain.Known(rows)
 }

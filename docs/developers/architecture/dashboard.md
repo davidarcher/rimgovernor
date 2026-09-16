@@ -73,14 +73,19 @@ confirms the controller is up. Server-side handlers live under
 [interface contracts](../contracts/interface-contracts.md) for lease, capture
 and transport details.
 
-## Retired: chat, notebook, player-authored projects, autopilot settings, visual review, local colony directory
+## Chat
 
-A chat-driven command surface, a colonist notebook/memories feature, a
-player-authored project list, savable autopilot settings, an automated
-visual-review reviewer and the local colony directory described above have no
-backend today (`POST /api/chat` currently returns `501`; the rest have no route
-at all), so the dashboard does not show them rather than fake the data. See issues
-[#46](https://github.com/davidarcher/rimgovernor/issues/46),
+`PlayerControls` shows an adviser chat panel when `POST /api/chat` is enabled
+(`--chat-model`; the panel hides itself on the first 501). Each reply is an
+explanation plus at most one applied policy nudge, rendered in a short reply
+log; chat never authors orders (`playerData.ts` `ChatGuidance`).
+
+## Retired: notebook, player-authored projects, autopilot settings, visual review, local colony directory
+
+A colonist notebook/memories feature, a player-authored project list, savable
+autopilot settings, an automated visual-review reviewer and the local colony
+directory described above have no backend today, so the dashboard does not show
+them rather than fake the data. See issues
 [#47](https://github.com/davidarcher/rimgovernor/issues/47),
 [#49](https://github.com/davidarcher/rimgovernor/issues/49), and
 [#50](https://github.com/davidarcher/rimgovernor/issues/50) for the status

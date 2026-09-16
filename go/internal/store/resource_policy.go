@@ -14,7 +14,7 @@ import (
 
 // ResourcePolicySubmissionRequest is explicit player intent to change one half
 // of one resource's production policy: ModifyResourcePolicy's spending
-// restriction, or SetResourceReserve's protected quantity. The two Python
+// restriction, or SetResourceReserve's protected quantity. The two
 // commands share one handler and one dispatch, so they share one submission
 // here; Patch names which half was asked for and the other half keeps whatever
 // the player established before.
@@ -112,9 +112,7 @@ func (q ResourcePolicySubmissionRequest) validate() error {
 // SetProductionPolicy write carries. The native operation replaces the whole
 // map-scoped production policy in one call, so the full merged set is what must
 // be dispatched even though the player only changed one resource -- exactly the
-// full-replacement shape ZoneCreate's cells already have, and exactly what
-// Python's policy_arguments builds from the whole of
-// plan.control['resource_policy'].
+// full-replacement shape ZoneCreate's cells already have.
 func resourcePolicyDispatch(current []domain.ResourceDirective, applied domain.ResourceDirective) (domain.ProductionPolicy, error) {
 	merged := make([]domain.ResourceDirective, 0, len(current)+1)
 	replaced := false

@@ -88,3 +88,45 @@ func TestColonyEnvironmentRejectsUnavailablePopulatedAndDuplicateConditions(t *t
 		t.Fatal("unavailable populated environment accepted")
 	}
 }
+
+// Milestone A of issue #6 added refuelable/breakdown service facts, battery
+// storage rows and per-network summaries to the development census; the
+// allowlist validator must admit exactly those and nothing else, or the live
+// routine planner never observes the colony at all (seen as
+// "unsupported development facts" holding the clock at tick 0).
+func TestColonyPowerAcceptsFuelBatteryAndNetworkFacts(t *testing.T) {
+	for _, phase := range []string{"valid", "negative-fuel", "bad-fuel-def", "stored-over-capacity", "duplicate-network", "network-unknown-field", "network-nan", "network-partial", "too-many-networks"} {
+		t.Run(phase, func(t *testing.T) {
+			generator := &o.DevelopmentPower{BaseW: proto.Float64(1000), Building: &o.BuildingState{Building: &o.EntityRef{Id: proto.String("generator"), MapId: proto.Int32(0)}, Service: &o.BuildingServiceState{Connected: proto.Bool(true), PowerOn: proto.Bool(false), PowerOutputW: proto.Float64(0), SwitchedOn: proto.Bool(true), PowerNetId: proto.String("net"), Fuel: proto.Float64(0), TargetFuel: proto.Float64(30), OutOfFuel: proto.Bool(true), BrokenDown: proto.Bool(false), AllowedFuelDefs: []string{"WoodLog"}}, Settings: &o.BuildingSettings{Forbidden: proto.Bool(false)}}}
+			battery := &o.DevelopmentPower{BaseW: proto.Float64(0), StoredWattDays: proto.Float64(300), CapacityWattDays: proto.Float64(600), Building: &o.BuildingState{Building: &o.EntityRef{Id: proto.String("battery"), MapId: proto.Int32(0)}, Service: &o.BuildingServiceState{Connected: proto.Bool(true), PowerOn: proto.Bool(true), PowerOutputW: proto.Float64(0), SwitchedOn: proto.Bool(true), PowerNetId: proto.String("net"), BrokenDown: proto.Bool(false)}, Settings: &o.BuildingSettings{Forbidden: proto.Bool(false)}}}
+			net := &o.PowerNetwork{Id: proto.String("net"), Producers: proto.Uint32(1), Consumers: proto.Uint32(0), Batteries: proto.Uint32(1), Transmitters: proto.Uint32(3), Connectors: proto.Uint32(0), GenerationW: proto.Float64(0), ConsumptionW: proto.Float64(0), NetW: proto.Float64(0), StoredWattDays: proto.Float64(300), CapacityWattDays: proto.Float64(600), HasSource: proto.Bool(true), HasActiveSource: proto.Bool(false), Completeness: &o.Completeness{Page: &c.PageInfo{Complete: proto.Bool(true)}, Matched: proto.Uint64(2), Returned: proto.Uint64(2), Filtered: proto.Uint64(0), Unreadable: proto.Uint64(0)}}
+			v := &o.DevelopmentFacts{Power: []*o.DevelopmentPower{generator, battery}, Networks: []*o.PowerNetwork{net}, Completeness: &o.Completeness{Page: &c.PageInfo{Complete: proto.Bool(true)}, Matched: proto.Uint64(2), Returned: proto.Uint64(2), Filtered: proto.Uint64(0), Unreadable: proto.Uint64(0)}}
+			switch phase {
+			case "negative-fuel":
+				generator.Building.Service.Fuel = proto.Float64(-1)
+			case "bad-fuel-def":
+				generator.Building.Service.AllowedFuelDefs = []string{""}
+			case "stored-over-capacity":
+				battery.StoredWattDays = proto.Float64(601)
+			case "duplicate-network":
+				v.Networks = append(v.Networks, proto.Clone(net).(*o.PowerNetwork))
+			case "network-unknown-field":
+				net.MemberIds = []string{"generator"}
+			case "network-nan":
+				net.NetW = proto.Float64(math.NaN())
+			case "network-partial":
+				net.Completeness.Page.Complete = proto.Bool(false)
+			case "too-many-networks":
+				for i := 0; i < 256; i++ {
+					extra := proto.Clone(net).(*o.PowerNetwork)
+					extra.Id = proto.String("net" + string(rune('a'+i%26)) + string(rune('a'+i/26)))
+					v.Networks = append(v.Networks, extra)
+				}
+			}
+			err := validateColonyPower(v, &c.Identity{MapId: proto.Int32(0)}, &o.MapSize{Width: proto.Uint32(10), Height: proto.Uint32(10)})
+			if (err == nil) != (phase == "valid") {
+				t.Fatal(phase, err)
+			}
+		})
+	}
+}

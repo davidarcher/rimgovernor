@@ -15,7 +15,7 @@ import (
 // acquisition method: policy.ReviewAnimalUpkeep's Feed deficit (the same
 // generic animal/food census MaintainHerd and MaintainAnimalContainment
 // already read) feeds policy.SelectAnimalFeedMethod's resource/quantity
-// selection (ported from husbandry.py's update_feed_goal) into the exact
+// selection into the exact
 // same bench/recipe production and native mine/harvest acquisition pipeline
 // RoutineResourcePlanner already established for MaintainResource -- see
 // dispatchResourceGoal in routine_resource.go. This was blocked on 05.5's

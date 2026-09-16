@@ -128,7 +128,7 @@ type PopulationDecision struct {
 
 // ResourcePolicy is the wire shape for one resource's whole player-declared
 // production policy: the protected reserve and the spending restriction, the
-// pair Python keeps in plan.control['resource_policy'][resource]. Unlike the
+// pair recorded per resource. Unlike the
 // two colony policies a change to it does dispatch natively, but the directive
 // itself is still a recorded configuration value rather than an action, so it
 // carries no before-token of its own; the CAS token the native write needs is

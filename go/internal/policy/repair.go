@@ -130,7 +130,7 @@ func EvaluateRepair(r RepairRequest) DraftDecision {
 }
 
 // RepairCandidateFacts mirrors SecureSuppliesHaulerFacts' eligibility inputs,
-// substituting colony_upkeep.py's Construction work-type gate for Hauling:
+// substituting the Construction work-type gate for Hauling:
 // an enabled, non-zero-priority Construction work type and a healthy pawn (no
 // needed tend, no bleeding). EvaluateRepair re-validates the exact chosen
 // pawn/structure pair again immediately before dispatch; this only narrows

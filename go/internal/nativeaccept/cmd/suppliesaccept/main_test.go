@@ -2,7 +2,7 @@ package main
 
 import "testing"
 
-// suppliesComplete mirrors test_native_supplies_acceptance.py's complete(number).
+// suppliesComplete is a complete supplies census page numbered number.
 func suppliesComplete(number int) map[string]any {
 	return map[string]any{"page": map[string]any{"complete": true}, "matched": itoaSupplies(number), "returned": itoaSupplies(number), "unreadable": "0"}
 }
@@ -19,7 +19,7 @@ func itoaSupplies(n int) string {
 	return digits
 }
 
-// suppliesSamples mirrors test_native_supplies_acceptance.py's samples().
+// suppliesSamples returns the complete and truncated sample pages.
 func suppliesSamples() (map[string]any, map[string]any) {
 	legacy := map[string]any{
 		"defName": "WoodLog", "total": 5.0, "stacks": 2.0, "ours": 2.0, "oursUnforbidden": 2.0, "forbidden": 0.0,

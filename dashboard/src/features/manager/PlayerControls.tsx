@@ -3,13 +3,17 @@ import ClockReview from './ClockReview';
 import type {ObservationState} from './observationData';
 import {PlayerHTTPError, definiteRejection, pauseControl, readBuilding, readControlResult, readCurrentControl, readPlayerSession, readSubmissionResult, resumeControl, sameWorld, submitBuilding, type ControlKind, type ControlRecord, type ControlReply, type ControlRequest, type Submission, type SubmissionRequest, type World} from './playerData';
 
-import {ChatDisabledError, submitChat, type ChatRequest, type ChatSubmission} from './playerData';
+import {ChatDisabledError, submitChat, type ChatGuidance, type ChatRequest, type ChatReply} from './playerData';
 
 const message = (error: unknown) => error instanceof Error ? error.message : 'Building operation unavailable';
-function describeChat(value: ChatSubmission): string {
-  switch (value.command) {
-    case 'build': return `Build ${value.building.defName}${value.building.stuff ? ` (${value.building.stuff})` : ''} at (${value.building.x}, ${value.building.z}) facing ${value.building.rotation}`;
-    case 'research': return `Select research project ${value.research.project}`;
+function describeGuidance(value: ChatGuidance): string {
+  switch (value.kind) {
+    case 'activate_goal': return `Activated goal ${value.goal.goalId} (${value.goal.status}, ${value.goal.need})`;
+    case 'cancel_goal': return `Cancelled goal ${value.goal.goalId}`;
+    case 'set_population_policy': return `Population policy: up to ${value.populationPolicy.maximum} colonists, ${value.populationPolicy.foodDays} food days`;
+    case 'set_expedition_policy': return `Expedition limits: ${Object.entries(value.expeditionPolicy).map(([key, item]) => `${key} ${item}`).join(', ')}`;
+    case 'set_population_decision': return `Population decision: ${value.populationDecision.decision} ${value.populationDecision.pawn}`;
+    case 'set_resource_policy': return `Resource policy: ${value.resourcePolicy.resource} reserve ${value.resourcePolicy.reserve}, spending ${value.resourcePolicy.spending}`;
   }
 }
 function submissionMatches(value: Submission, request: SubmissionRequest): boolean {return value.requestId === request.requestId && sameWorld(value.expected, request.expected) && Object.entries(request.building).every(([key, item]) => Object.entries(value.building).some(([other, actual]) => key === other && item === actual));}
@@ -23,7 +27,7 @@ export default function PlayerControls({observation, observationFresh}: {observa
   const [draft, setDraft] = useState({defName: '', stuff: '', x: '', z: '', rotation: 'north'});
   const [submission, setSubmission] = useState<Submission | null>(null), [submitIntent, setSubmitIntent] = useState<SubmissionRequest | null>(null);
   const [chatMessage, setChatMessage] = useState('');
-  const [chatSubmission, setChatSubmission] = useState<ChatSubmission | null>(null), [chatIntent, setChatIntent] = useState<ChatRequest | null>(null);
+  const [chatReplies, setChatReplies] = useState<Array<{request: ChatRequest; reply: ChatReply}>>([]), [chatIntent, setChatIntent] = useState<ChatRequest | null>(null);
   const [chatSubmitting, setChatSubmitting] = useState(false), [chatDisabled, setChatDisabled] = useState(false);
   const busyChat = useRef(false);
   const [resumeIntent, setResumeIntent] = useState<ControlRequest | null>(null), [pauseIntent, setPauseIntent] = useState<ControlRequest | null>(null);
@@ -126,16 +130,16 @@ export default function PlayerControls({observation, observationFresh}: {observa
     try {const reply = await readSubmissionResult(submitIntent.requestId, signal()); if (!submissionMatches(reply, submitIntent)) throw Error('Submission result does not match this request'); if (mounted.current) {setSubmission(reply); setError('');}}
     catch (reason) {fail(reason, expected);} finally {busySubmit.current = false; if (mounted.current) setSubmitting(false);}
   };
-  const chatMatches = (value: ChatSubmission, request: ChatRequest) => value.requestId === request.requestId && sameWorld(value.expected, request.expected);
+  const chatMatches = (value: ChatReply, request: ChatRequest) => value.requestId === request.requestId && sameWorld(value.expected, request.expected);
   const sendChat = async () => {
-    if (!token || !freshWorld || !observation?.identity || busyChat.current || !chatMessage.trim() || chatIntent && !chatSubmission && !rejectedRequests.includes(chatIntent.requestId)) return;
+    if (!token || !freshWorld || !observation?.identity || busyChat.current || !chatMessage.trim()) return;
     const expected = version.current; let requestId: string | null = null;
     try {
       const request = {requestId: crypto.randomUUID(), expected: {...observation.identity}, message: chatMessage.trim()};
-      requestId = request.requestId; busyChat.current = true; setChatSubmitting(true); setChatIntent(request); setChatSubmission(null); setError('');
+      requestId = request.requestId; busyChat.current = true; setChatSubmitting(true); setChatIntent(request); setError('');
       const reply = await submitChat(token, request, signal());
-      if (!chatMatches(reply, request)) throw Error('Chat submission result does not match this request');
-      if (mounted.current) {setChatSubmission(reply); setChatMessage('');}
+      if (!chatMatches(reply, request)) throw Error('Chat reply does not match this request');
+      if (mounted.current) {setChatReplies(previous => [...previous.slice(-19), {request, reply}]); setChatMessage('');}
     } catch (reason) {
       if (reason instanceof ChatDisabledError) {if (mounted.current) setChatDisabled(true); return;}
       if (mounted.current && requestId && definiteRejection(reason)) {const rejected = requestId; setRejectedRequests(previous => [...previous, rejected]);}
@@ -170,12 +174,12 @@ export default function PlayerControls({observation, observationFresh}: {observa
     {submitIntent && <p>Submission request: <code>{submitIntent.requestId}</code> {rejectedRequests.includes(submitIntent.requestId) && '· Rejected before admission'} <button type="button" disabled={submitting} onClick={() => void recoverSubmission()}>Check submission result</button></p>}
     {submission && <div><h3>Submitted building</h3><p>{submission.building.defName} · {submission.building.stuff || 'No material specified'} · ({submission.building.x}, {submission.building.z}) · {submission.building.rotation}</p><p>Plan {submission.planId} · Revision {submission.revision}</p>{!sameSubmissionWorld && <p>This submission belongs to a different observed world.</p>}</div>}
     {!chatDisabled && <><h3>Chat</h3>
-      <p>Describe one action in plain language — a building or a research pick. A local model interprets it into exactly one of those commands; the resulting plan is guidance the running bot executes.</p>
+      <p>Ask the adviser what the autopilot is doing and why, or nudge its policy: activate or cancel a maintained goal, cap the population, set expedition limits, decide for a named pawn, or reserve or restrict a resource. It never places buildings or issues orders.</p>
       <form onSubmit={event => {event.preventDefault(); void sendChat();}}>
-        <label>Message<input value={chatMessage} onChange={event => setChatMessage(event.target.value)} placeholder="e.g. research microelectronics"/></label>
-        <button type="submit" disabled={!token || !freshWorld || chatSubmitting || !chatMessage.trim()}>{chatSubmitting ? 'Interpreting…' : 'Send'}</button>
+        <label>Message<input value={chatMessage} onChange={event => setChatMessage(event.target.value)} placeholder="e.g. why is nobody cooking?"/></label>
+        <button type="submit" disabled={!token || !freshWorld || chatSubmitting || !chatMessage.trim()}>{chatSubmitting ? 'Thinking…' : 'Send'}</button>
       </form>
-      {chatSubmission && <div><h4>Interpreted command</h4><p>{describeChat(chatSubmission)}</p><p>Plan {chatSubmission.planId} · Revision {chatSubmission.revision}</p>{observation?.identity && !sameWorld(chatSubmission.expected, observation.identity) && <p>This chat submission belongs to a different observed world.</p>}</div>}
+      {chatReplies.length > 0 && <ol className="chat-log" aria-label="Chat replies">{chatReplies.map(({request, reply}) => <li key={request.requestId}><p><strong>You:</strong> {request.message}</p><p><strong>Adviser:</strong> {reply.explanation}</p>{reply.guidance && <p>Applied: {describeGuidance(reply.guidance)}</p>}{observation?.identity && !sameWorld(reply.expected, observation.identity) && <p>This reply belongs to a different observed world.</p>}</li>)}</ol>}
     </>}
     {resumeIntent && <p>Resume request: <code>{resumeIntent.requestId}</code> · Historical result: {resumeRecord?.phase ?? (resumeIntent && rejectedRequests.includes(resumeIntent.requestId) ? 'rejected before admission' : 'not yet known')} <button type="button" onClick={() => void recoverControl('resume')}>Check resume result</button></p>}
     {pauseIntent && <p>Pause request: <code>{pauseIntent.requestId}</code> · Historical result: {pauseRecord?.phase ?? 'not yet known'} <button type="button" onClick={() => void recoverControl('pause')}>Check pause result</button></p>}

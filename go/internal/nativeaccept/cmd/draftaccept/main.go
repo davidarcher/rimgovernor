@@ -1,4 +1,4 @@
-// Command draftaccept replaces scripts/native_draft_acceptance.py: full disposable-
+// Command draftaccept proves the full disposable-
 // worker lifecycle plus paused real native draft CAS, owned claims, replay/no-op,
 // Manual cleanup, player override refusal, and real ordinary-ledger exhaustion with
 // owned-cleanup-beyond-exhaustion. Capacity refusal's own boundary remains covered by
@@ -838,8 +838,7 @@ func failureCode(ctx context.Context, h *na.Harness, label string, request map[s
 
 // rawWire calls a rimgovernor/* Protobuf-JSON tool directly against client, bypassing
 // Harness evidence recording. Used only for the ~4k-call ledger exhaustion loop, to
-// avoid writing one evidence file per fill attempt (mirrors native_draft_acceptance.py's
-// raw_wire(), which calls bridge.call() directly for the same reason).
+// avoid writing one evidence file per fill attempt.
 func rawWire(ctx context.Context, client *bridge.Client, method string, request map[string]any) (map[string]any, error) {
 	encoded, err := json.Marshal(request)
 	if err != nil {

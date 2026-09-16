@@ -15,6 +15,7 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/acquisition"
 	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/bill"
 	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/boundary"
+	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/buildingtemperature"
 	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/capture"
 	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/draft"
 	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/equip"
@@ -27,7 +28,6 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/tend"
 	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/work"
 	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/zone"
-	"github.com/davidarcher/RimGovernor/go/internal/controller"
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"github.com/davidarcher/RimGovernor/go/internal/executor"
 	"github.com/davidarcher/RimGovernor/go/internal/httpapi"
@@ -127,6 +127,7 @@ type buildingServiceBridge struct {
 	research            *buildingruntime.ResearchSelectCapabilities
 	naming              *buildingruntime.ConfirmColonyNamesCapabilities
 	production          *buildingruntime.ProductionPolicyCapabilities
+	buildingTemperature *buildingtemperature.Capabilities
 	presentationMedia   *bridge.PresentationMedia
 	lifecycle           lifecycleCapability
 }
@@ -241,6 +242,10 @@ func openBuildingService(ctx context.Context, config bridge.ProcessConfig) (buil
 	if err != nil {
 		return buildingServiceBridge{}, errors.Join(err, client.Close())
 	}
+	buildingTemperatureControl, err := bridge.NewBuildingTemperatureControl(client)
+	if err != nil {
+		return buildingServiceBridge{}, errors.Join(err, client.Close())
+	}
 	presentationMedia, err := bridge.NewPresentationMedia(client)
 	if err != nil {
 		return buildingServiceBridge{}, errors.Join(err, client.Close())
@@ -280,6 +285,7 @@ func openBuildingService(ctx context.Context, config bridge.ProcessConfig) (buil
 		research:            &buildingruntime.ResearchSelectCapabilities{Native: client, Writer: researchSelect},
 		naming:              &buildingruntime.ConfirmColonyNamesCapabilities{Native: client, Writer: namingControl},
 		production:          &buildingruntime.ProductionPolicyCapabilities{Native: client, Writer: productionPolicyWriter},
+		buildingTemperature: &buildingtemperature.Capabilities{Native: client, Writer: buildingTemperatureControl},
 		presentationMedia:   presentationMedia,
 		lifecycle:           lifecycleCapability{lifecycleSave, lifecycleLoad}}, nil
 }
@@ -570,6 +576,15 @@ func serveBuildingWithBridge(ctx context.Context, config serveConfig, out io.Wri
 		}
 		productionPolicyCapabilities = client.production
 	}
+	// The refrigeration family patches cooler targets through the shared
+	// executor, so its building-temperature capability rides with the family.
+	var buildingTemperatureCapabilities *buildingtemperature.Capabilities
+	if config.routineRefrigerationPlans {
+		if client.buildingTemperature == nil {
+			return errors.New("refrigeration plans require typed capabilities")
+		}
+		buildingTemperatureCapabilities = client.buildingTemperature
+	}
 	session, err := buildingruntime.NewSession(lifetime, buildingruntime.SessionConfig{RoutineMethods: config.routineMethods,
 		Rules:               config.resourceRules,
 		Control:             buildingruntime.ControlConfig{ProfileDirectory: config.profile, CallTimeout: callTimeout, Worlds: buildingWorldSource{client.reads}},
@@ -600,6 +615,7 @@ func serveBuildingWithBridge(ctx context.Context, config serveConfig, out io.Wri
 		ResearchSelect:      researchSelectCapabilities,
 		ConfirmColonyNames:  namingCapabilities,
 		ProductionPolicy:    productionPolicyCapabilities,
+		BuildingTemperature: buildingTemperatureCapabilities,
 	}, database, client.native, client.authority, client.writes, wallClock{})
 	if err != nil {
 		return err
@@ -635,7 +651,7 @@ func serveBuildingWithBridge(ctx context.Context, config serveConfig, out io.Wri
 	if _, err = rand.Read(entropy[:]); err != nil {
 		return err
 	}
-	reads, err := controller.NewReadState(hex.EncodeToString(entropy[:]), client.reads, wallClock{}, 2*config.refresh+config.bridge.Timeout)
+	reads, err := newReadState(hex.EncodeToString(entropy[:]), client.reads, wallClock{}, 2*config.refresh+config.bridge.Timeout)
 	if err != nil {
 		return err
 	}
@@ -679,14 +695,23 @@ func serveBuildingWithBridge(ctx context.Context, config serveConfig, out io.Wri
 			return err
 		}
 		defer func() { result = errors.Join(result, modelClient.Close()) }()
-		interp, err := interpreter.NewLocal(interpreter.Config{ContextTokens: config.chatContextTokens, MaxOutputTokens: config.chatMaxOutputTokens, MaxActions: 1}, modelClient)
+		interp, err := interpreter.NewLocal(interpreter.Config{ContextTokens: config.chatContextTokens, MaxOutputTokens: config.chatMaxOutputTokens}, modelClient)
 		if err != nil {
 			return err
 		}
-		server.EnableChat(interp, raw)
+		server.EnableChat(interp, raw, database)
 	}
 	pollDone = make(chan struct{})
 	go func() { defer close(pollDone); reads.Poll(lifetime, config.refresh) }()
+	if config.resume {
+		resumer, err := newAutoResumer(buildingSnapshots{reads, player}, player, out)
+		if err != nil {
+			return err
+		}
+		resumeDone := make(chan struct{})
+		defer func() { <-resumeDone }()
+		go func() { defer close(resumeDone); resumer.run(lifetime, config.refresh) }()
+	}
 	if _, err = fmt.Fprintf(out, "RimGovernor Go player service: http://%s\n", listener.Addr()); err != nil {
 		return err
 	}

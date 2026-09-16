@@ -96,6 +96,12 @@ func insertAction(ctx context.Context, tx *sql.Tx, plan domain.PlanID, ordinal i
 			return encodeErr
 		}
 		_, err = tx.ExecContext(ctx, "INSERT INTO actions(id,plan_id,ordinal,kind,production_policy_payload) VALUES(?,?,?,'production_policy',?)", a.ID(), plan, ordinal, data)
+	} else if temperature, ok := a.BuildingTemperature(); ok {
+		data, encodeErr := json.Marshal(buildingTemperaturePayload{temperature.Celsius(), temperature.BeforeToken()})
+		if encodeErr != nil {
+			return encodeErr
+		}
+		_, err = tx.ExecContext(ctx, "INSERT INTO actions(id,plan_id,ordinal,kind,target,building_temperature_payload) VALUES(?,?,?,'building_temperature',?,?)", a.ID(), plan, ordinal, temperature.Thing(), data)
 	} else if relief, ok := a.MoodRelief(); ok {
 		job := relief.ExpectedJob()
 		data, encodeErr := json.Marshal(moodReliefPayload{relief.Need(), job.Idle, job.JobID, relief.ExpectedScheduleDef()})
@@ -114,8 +120,8 @@ func scanAction(rows *sql.Rows) (domain.Action, int, error) {
 	var ordinal int
 	var def, rotation, stuff, pawn, target, draftAction sql.NullString
 	var x, z sql.NullInt64
-	var work, zone, bill, wallRemoval, productionPolicyBlob, moodReliefBlob []byte
-	if err := rows.Scan(&id, &kind, &def, &x, &z, &rotation, &stuff, &pawn, &target, &draftAction, &work, &zone, &bill, &wallRemoval, &productionPolicyBlob, &moodReliefBlob, &ordinal); err != nil {
+	var work, zone, bill, wallRemoval, productionPolicyBlob, buildingTemperatureBlob, moodReliefBlob []byte
+	if err := rows.Scan(&id, &kind, &def, &x, &z, &rotation, &stuff, &pawn, &target, &draftAction, &work, &zone, &bill, &wallRemoval, &productionPolicyBlob, &buildingTemperatureBlob, &moodReliefBlob, &ordinal); err != nil {
 		return domain.Action{}, 0, err
 	}
 	if kind == "production_bill" && !pawn.Valid && !target.Valid && !draftAction.Valid && !def.Valid && !x.Valid && !z.Valid && !rotation.Valid && !stuff.Valid && work == nil && zone == nil {
@@ -235,6 +241,25 @@ func scanAction(rows *sql.Rows) (domain.Action, int, error) {
 	}
 	if productionPolicyBlob != nil {
 		return domain.Action{}, 0, errors.New("mixed production policy payload")
+	}
+	if kind == "building_temperature" && target.Valid && !pawn.Valid && !draftAction.Valid && !def.Valid && !x.Valid && !z.Valid && !rotation.Valid && !stuff.Valid {
+		var payload buildingTemperaturePayload
+		if len(buildingTemperatureBlob) > 32768 || json.Unmarshal(buildingTemperatureBlob, &payload) != nil {
+			return domain.Action{}, 0, errors.New("invalid building temperature payload")
+		}
+		canonical, _ := json.Marshal(payload)
+		if !bytes.Equal(canonical, buildingTemperatureBlob) {
+			return domain.Action{}, 0, errors.New("noncanonical building temperature payload")
+		}
+		bt, err := domain.NewBuildingTemperature(target.String, payload.Celsius, payload.Before)
+		if err != nil {
+			return domain.Action{}, 0, err
+		}
+		action, err := domain.NewBuildingTemperatureAction(id, bt)
+		return action, ordinal, err
+	}
+	if buildingTemperatureBlob != nil {
+		return domain.Action{}, 0, errors.New("mixed building temperature payload")
 	}
 	if kind == "mood_relief" && pawn.Valid && !target.Valid && !draftAction.Valid && !def.Valid && !x.Valid && !z.Valid && !rotation.Valid && !stuff.Valid {
 		var payload moodReliefPayload
@@ -463,6 +488,11 @@ type wallRemovalPayload struct {
 type productionPolicyPayload struct {
 	Floors  []domain.ResourceFloor
 	Stopped []string
+}
+
+type buildingTemperaturePayload struct {
+	Celsius float64
+	Before  string
 }
 
 type moodReliefPayload struct {

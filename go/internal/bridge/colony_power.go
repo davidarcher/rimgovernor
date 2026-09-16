@@ -8,11 +8,14 @@ import (
 )
 
 func validateColonyPower(v *o.DevelopmentFacts, identity *c.Identity, size *o.MapSize) error {
-	if v == nil || !proto.Equal(v, &o.DevelopmentFacts{Power: v.Power, Furniture: v.Furniture, Completeness: v.Completeness}) {
+	if v == nil || !proto.Equal(v, &o.DevelopmentFacts{Power: v.Power, Furniture: v.Furniture, Completeness: v.Completeness, Networks: v.Networks}) {
 		return contract("unsupported development facts")
 	}
 	if err := colonyCounts(v.Completeness, len(v.Power)+len(v.Furniture), 256); err != nil {
 		return err
+	}
+	if len(v.Networks) > 256 {
+		return contract("power network census exceeds bound")
 	}
 	seen := map[string]bool{}
 	for _, row := range v.Power {
@@ -43,8 +46,24 @@ func validateColonyPower(v *o.DevelopmentFacts, identity *c.Identity, size *o.Ma
 			return contract("power footprint misses anchor")
 		}
 		s := b.Service
-		if s == nil || !proto.Equal(s, &o.BuildingServiceState{Connected: s.Connected, PowerOn: s.PowerOn, PowerOutputW: s.PowerOutputW, SwitchedOn: s.SwitchedOn, PowerNetId: s.PowerNetId}) {
+		if s == nil || !proto.Equal(s, &o.BuildingServiceState{Connected: s.Connected, PowerOn: s.PowerOn, PowerOutputW: s.PowerOutputW, SwitchedOn: s.SwitchedOn, PowerNetId: s.PowerNetId, Fuel: s.Fuel, TargetFuel: s.TargetFuel, OutOfFuel: s.OutOfFuel, BrokenDown: s.BrokenDown, AllowedFuelDefs: s.AllowedFuelDefs}) {
 			return contract("unsupported power service detail")
+		}
+		if len(s.AllowedFuelDefs) > 256 {
+			return contract("power fuel definitions exceed bound")
+		}
+		for _, def := range s.AllowedFuelDefs {
+			if validID(def) != nil {
+				return contract("invalid power fuel definition")
+			}
+		}
+		for _, value := range []*float64{s.Fuel, s.TargetFuel, row.StoredWattDays, row.CapacityWattDays} {
+			if value != nil && (math.IsNaN(*value) || math.IsInf(*value, 0) || *value < 0 || *value > 1e12) {
+				return contract("invalid power service quantity")
+			}
+		}
+		if row.StoredWattDays != nil && row.CapacityWattDays != nil && row.GetStoredWattDays() > row.GetCapacityWattDays() {
+			return contract("power storage exceeds capacity")
 		}
 		if b.Settings == nil || !proto.Equal(b.Settings, &o.BuildingSettings{Forbidden: b.Settings.Forbidden}) {
 			return contract("unsupported power settings detail")
@@ -56,6 +75,24 @@ func validateColonyPower(v *o.DevelopmentFacts, identity *c.Identity, size *o.Ma
 		}
 		if s.PowerNetId != nil && (validID(s.GetPowerNetId()) != nil || s.Connected != nil && !s.GetConnected()) {
 			return contract("invalid power network identity")
+		}
+	}
+	networks := map[string]bool{}
+	for _, net := range v.Networks {
+		if net == nil || validID(net.GetId()) != nil || networks[net.GetId()] || !proto.Equal(net, &o.PowerNetwork{Id: net.Id, Producers: net.Producers, Consumers: net.Consumers, Batteries: net.Batteries, Transmitters: net.Transmitters, Connectors: net.Connectors, GenerationW: net.GenerationW, ConsumptionW: net.ConsumptionW, NetW: net.NetW, StoredWattDays: net.StoredWattDays, CapacityWattDays: net.CapacityWattDays, HasSource: net.HasSource, HasActiveSource: net.HasActiveSource, Completeness: net.Completeness}) {
+			return contract("invalid power network")
+		}
+		networks[net.GetId()] = true
+		for _, value := range []*float64{net.GenerationW, net.ConsumptionW, net.NetW, net.StoredWattDays, net.CapacityWattDays} {
+			if value != nil && (math.IsNaN(*value) || math.IsInf(*value, 0) || math.Abs(*value) > 1e12) {
+				return contract("invalid power network wattage")
+			}
+		}
+		if net.GenerationW != nil && net.GetGenerationW() < 0 || net.ConsumptionW != nil && net.GetConsumptionW() < 0 || net.StoredWattDays != nil && net.GetStoredWattDays() < 0 || net.CapacityWattDays != nil && net.GetCapacityWattDays() < 0 {
+			return contract("negative power network quantity")
+		}
+		if c := net.Completeness; c != nil && (c.Page == nil || !c.Page.GetComplete() || c.GetUnreadable() != 0 || c.GetMatched() != c.GetReturned()) {
+			return contract("incomplete power network census")
 		}
 	}
 	conduits := map[[2]int32]bool{}

@@ -15,7 +15,7 @@ function object(value: unknown, keys: readonly string[]): Record<string, unknown
   if (!isObject(value) || Object.keys(value).length !== keys.length || keys.some(key => !Object.hasOwn(value, key))) throw Error('Invalid player response fields');
   return value;
 }
-function text(value: unknown): string {if (typeof value !== 'string' || [...value].length > 4096) throw Error('Invalid response text'); return value;}
+function text(value: unknown): string {if (typeof value !== 'string' || [...value].length > 16384) throw Error('Invalid response text'); return value;}
 function id(value: unknown): string {const result = text(value); if (!result.trim() || result.includes('\0') || new TextEncoder().encode(result).length > 256 || /[\uD800-\uDBFF](?![\uDC00-\uDFFF])|(?<![\uD800-\uDBFF])[\uDC00-\uDFFF]/u.test(result)) throw Error('Invalid identifier'); return result;}
 function bool(value: unknown): boolean {if (typeof value !== 'boolean') throw Error('Invalid flag'); return value;}
 function integer(value: unknown): number {if (typeof value !== 'number' || !Number.isInteger(value) || value < 0 || value > 2147483647) throw Error('Invalid map coordinate'); return value;}
@@ -96,31 +96,44 @@ export function pauseControl(token: string, body: ControlRequest, signal?: Abort
 export function readDraft(value: unknown): {pawnId: string} {const v = object(value, ['pawnId']); return {pawnId: id(v.pawnId)};}
 
 export type ChatRequest = {requestId: string; expected: World; message: string};
-export type ChatResearch = {project: string};
-export type ChatSubmission =
-  | {requestId: string; command: 'build'; expected: World; planId: string; actionId: string; revision: string; building: Building}
-  | {requestId: string; command: 'research'; expected: World; planId: string; actionId: string; revision: string; research: ChatResearch};
-function readChatResearch(value: unknown): ChatResearch {const v = object(value, ['project']); return {project: id(v.project)};}
-function readChatFamily(value: unknown, keys: readonly string[]): {expected: World; planId: string; actionId: string; revision: string} & Record<string, unknown> {
-  const v = object(value, keys);
-  return {...v, expected: readWorld(v.expected), planId: id(v.planId), actionId: id(v.actionId), revision: positive(v.revision)};
+export type ChatGoal = {goalId: string; source: string; status: string; need: string; priority: number; revision: string};
+export type ChatGuidance =
+  | {kind: 'activate_goal' | 'cancel_goal'; goal: ChatGoal}
+  | {kind: 'set_population_policy'; populationPolicy: {maximum: number; foodDays: number}}
+  | {kind: 'set_expedition_policy'; expeditionPolicy: Record<string, number | boolean>}
+  | {kind: 'set_population_decision'; populationDecision: {pawn: string; decision: string}}
+  | {kind: 'set_resource_policy'; resourcePolicy: {resource: string; reserve: number; spending: string}};
+export type ChatReply = {requestId: string; expected: World; explanation: string; guidance: ChatGuidance | null};
+function number(value: unknown): number {if (typeof value !== 'number' || !Number.isFinite(value)) throw Error('Invalid number'); return value;}
+function readChatGoal(value: unknown): ChatGoal {
+  const v = object(value, ['goalId', 'source', 'status', 'need', 'priority', 'epoch', 'revision', 'tick']);
+  return {goalId: id(v.goalId), source: id(v.source), status: id(v.status), need: id(v.need), priority: integer(v.priority), revision: decimal(v.revision)};
 }
-export function readChatSubmission(value: unknown): ChatSubmission {
-  const outer = object(value, ['requestId', 'command', 'building', 'research']);
-  const requestId = id(outer.requestId);
-  const keys = ['requestId', 'expected', 'planId', 'actionId', 'revision'] as const;
-  switch (outer.command) {
-    case 'build': {const f = readChatFamily(outer.building, [...keys, 'building']); return {requestId, command: 'build', expected: f.expected, planId: f.planId, actionId: f.actionId, revision: f.revision, building: readBuilding(f.building)};}
-    case 'research': {const f = readChatFamily(outer.research, [...keys, 'select']); return {requestId, command: 'research', expected: f.expected, planId: f.planId, actionId: f.actionId, revision: f.revision, research: readChatResearch(f.select)};}
-    default: throw Error('Unknown chat command');
+function readChatGuidance(value: unknown): ChatGuidance {
+  if (!isObject(value) || typeof value.kind !== 'string') throw Error('Invalid chat guidance');
+  switch (value.kind) {
+    case 'activate_goal': case 'cancel_goal': return {kind: value.kind, goal: readChatGoal(object(value, ['kind', 'goal']).goal)};
+    case 'set_population_policy': {const p = object(object(value, ['kind', 'populationPolicy']).populationPolicy, ['maximum', 'foodDays']); return {kind: value.kind, populationPolicy: {maximum: integer(p.maximum), foodDays: number(p.foodDays)}};}
+    case 'set_expedition_policy': {
+      const p = object(value, ['kind', 'expeditionPolicy']).expeditionPolicy;
+      if (!isObject(p) || Object.values(p).some(item => typeof item !== 'number' && typeof item !== 'boolean')) throw Error('Invalid expedition policy');
+      return {kind: value.kind, expeditionPolicy: p as Record<string, number | boolean>};
+    }
+    case 'set_population_decision': {const p = object(object(value, ['kind', 'populationDecision']).populationDecision, ['pawn', 'decision']); return {kind: value.kind, populationDecision: {pawn: id(p.pawn), decision: id(p.decision)}};}
+    case 'set_resource_policy': {const p = object(object(value, ['kind', 'resourcePolicy']).resourcePolicy, ['resource', 'reserve', 'spending']); return {kind: value.kind, resourcePolicy: {resource: id(p.resource), reserve: integer(p.reserve), spending: id(p.spending)}};}
+    default: throw Error('Unknown chat guidance kind');
   }
 }
+export function readChatReply(value: unknown): ChatReply {
+  const v = object(value, ['requestId', 'expected', 'explanation', 'guidance']);
+  return {requestId: id(v.requestId), expected: readWorld(v.expected), explanation: text(v.explanation), guidance: v.guidance === null ? null : readChatGuidance(v.guidance)};
+}
 export class ChatDisabledError extends Error {}
-export async function submitChat(token: string, body: ChatRequest, signal?: AbortSignal): Promise<ChatSubmission> {
-  const {response, value} = await request('/api/chats/plans', signal, token, body);
+export async function submitChat(token: string, body: ChatRequest, signal?: AbortSignal): Promise<ChatReply> {
+  const {response, value} = await request('/api/chat', signal, token, body);
   if (response.status === 501) throw new ChatDisabledError('Chat is not enabled on this controller');
   if (!response.ok) failed(response, value);
-  return readChatSubmission(value);
+  return readChatReply(value);
 }
 
 export type ClockAcknowledgement = {requestId: string; expectedRevision: string; throughCursor: string};

@@ -81,12 +81,28 @@ func temperatureRooms(rooms *o.RoomsSnapshot, sleeping domain.Fact[policy.Sleepi
 			contents = append(contents, policy.Amount{Resource: policy.Resource(q.GetDefName()), Count: q.GetUnits()})
 		}
 		row.Contents = domain.Known(contents)
+		row.Cleanliness = roomStat(room, "Cleanliness")
 		for _, cell := range room.Cells {
 			row.Cells = append(row.Cells, domain.Cell{X: cell.GetX(), Z: cell.GetZ()})
 		}
 		result.Rooms = append(result.Rooms, row)
 	}
 	return domain.Known(result)
+}
+
+// roomStat reads one named native room stat; a missing or unavailable stat
+// is unknown, never zero.
+func roomStat(room *o.RoomState, name string) domain.Fact[float64] {
+	for _, stat := range room.Stats {
+		if stat.GetDefName() != name {
+			continue
+		}
+		if stat.Unavailable != nil || stat.Value == nil {
+			return domain.Unknown[float64]()
+		}
+		return domain.Known(stat.GetValue())
+	}
+	return domain.Unknown[float64]()
 }
 
 // The native census names Room.Role by RoomRoleDef defName; a missing role is

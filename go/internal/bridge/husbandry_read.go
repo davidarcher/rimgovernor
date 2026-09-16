@@ -11,7 +11,7 @@ import (
 // HusbandryTarget is the fresh animal CAS evidence InspectHusbandry needs
 // immediately before preview: the entity-level settings token gearEntity's
 // ExpectedSnapshotToken carries, the herd-wide census token husbandryCommand's
-// ExpectedCensusToken carries (mirroring Python's animal['censusToken']), and
+// ExpectedCensusToken carries, and
 // the training/slaughter eligibility facts a selected method is re-validated
 // against. The routine candidate search itself is out of scope here, the same
 // way RecoveryServiceNative needs no dedicated recovery read to plan a

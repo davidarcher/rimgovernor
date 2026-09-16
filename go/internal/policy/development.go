@@ -53,7 +53,7 @@ type DevelopmentWeights struct {
 }
 
 func DefaultDevelopmentWeights() DevelopmentWeights {
-	return DevelopmentWeights{Deficit: 100, Player: 100, AgeTicks: 2500, Hysteresis: 20, Bottleneck: 30, Risk: 40}
+	return DevelopmentWeights{Deficit: 100, Player: 100, AgeTicks: 1000, Hysteresis: 20, Bottleneck: 30, Risk: 40}
 }
 
 func (w DevelopmentWeights) valid() bool {

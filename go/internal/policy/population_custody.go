@@ -8,9 +8,8 @@ import (
 
 // CustodyDecision names which of Population-*'s two custody sub-steps a
 // candidate calls for: capture (a downed hostile not yet colony property)
-// or rescue (a downed guest not yet admitted). Unlike population.py's
-// per-pawn goal, which carries an externally supplied decision, Go derives
-// the decision purely from observed facts -- guest status vs. hostility --
+// or rescue (a downed guest not yet admitted). The decision is derived
+// purely from observed facts -- guest status vs. hostility --
 // matching the deficit-detection style every other MaintainX vertical uses.
 type CustodyDecision string
 
