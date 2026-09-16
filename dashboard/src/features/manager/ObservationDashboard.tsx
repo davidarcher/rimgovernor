@@ -6,6 +6,7 @@ import './ObservationDashboard.css';
 import PlayerControls from './PlayerControls';
 import PresentationPanel from './PresentationPanel';
 import NotificationPanel from './NotificationPanel';
+import DevelopmentPanel from './DevelopmentPanel';
 import GameVideoGo from './GameVideoGo';
 import PawnPortraitGo from './PawnPortraitGo';
 import PlayerGuide from './PlayerGuide';
@@ -157,6 +158,7 @@ export default function ObservationDashboard() {
       </>}
       {view === 'work' && <>
         <WorkPanel state={state} plan={plan}/>
+        <DevelopmentPanel active/>
         <NotificationPanel observation={state} observationFresh={observationFresh}/>
       </>}
       {view === 'colony' && <>

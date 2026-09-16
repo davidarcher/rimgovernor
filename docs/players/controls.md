@@ -6,7 +6,7 @@
 | --- | --- |
 | Watch | See the game and send chat requests. |
 | Priorities | Inspect colony needs, policy and stability checks. |
-| Work | Follow plans, progress and blockers. |
+| Work | Follow plans, progress, blockers and development priorities. |
 | Colony | Inspect colonists, jobs, skills, gear, health and mood. |
 | Help | Read the player guide, launch options and save instructions. |
 
@@ -36,6 +36,15 @@ reads the changed policy on its next review, so check Work for the result.
 Manual permits explicit player requests while routine automation stays off.
 Cancelling a goal stops further pursuit but leaves issued game orders in place.
 Removing pending construction is a separate request; completed buildings remain.
+
+## Read development priorities
+
+Work lists the optional projects the last routine review ranked: comfort, research,
+production targets, defense and expansion. Each row shows whether the project was
+selected, is in progress, or why it waits — for capacity, for free pawns of a named
+work type, for a known deficit, or because outdoor work is unsafe. Emergencies are
+handled before this list and never appear in it. The panel is absent when routine
+reviews are disabled.
 
 Use **Save checkpoint and pause** before ending an owned session. See
 [save and resume](save-and-resume.md) for restarting it.

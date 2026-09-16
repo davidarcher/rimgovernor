@@ -116,7 +116,13 @@ capacity-deferred candidate in the same review; labor-deferred candidates wait f
 next review's fresh census. Waiting age advances only with native ticks and resets
 for committed work; world changes and tick rewinds reset ranking history.
 The shared plan retains the ranking, observed worker and per-work-type labor counts and
-explicit deferral reasons in the routine review's development record. Native labor forecasts remain
+explicit deferral reasons in the routine review's development record. `GET /api/routines`
+returns that record under `development` (null until a review has ranked): reviewed tick,
+capacity, nullable worker count, sorted free-labor rows, committed goal IDs and one row
+per optional goal with score, nullable deficit and risk, `waitingSince`, selection and
+commitment flags, the deferral reason and, for `labor_unavailable`, the bottleneck work
+type. The dashboard's Work view renders it read-only as "Development priorities"; the
+panel hides itself when routine diagnostics are disabled. Native labor forecasts remain
 evidence with unknown completion times. Native gameplay acceptance of competing
 comfort, research, resource and expansion demands is tracked in
 [issue #9](https://github.com/davidarcher/rimgovernor/issues/9).

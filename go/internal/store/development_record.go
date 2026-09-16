@@ -49,7 +49,8 @@ func developmentRecord(s policy.DevelopmentState) RoutineDevelopment {
 	}
 	return r
 }
-func (r RoutineDevelopment) state() policy.DevelopmentState {
+// State rebuilds the policy ranking this record persisted.
+func (r RoutineDevelopment) State() policy.DevelopmentState {
 	s := policy.DevelopmentState{Snapshot: r.Snapshot, Tick: r.Tick, Capacity: r.Capacity, Committed: append([]domain.GoalID(nil), r.Committed...)}
 	if r.Workers != nil {
 		s.Workers = domain.Known(*r.Workers)

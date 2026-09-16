@@ -126,7 +126,7 @@ func loadRoutine(ctx context.Context, tx *sql.Tx) (RoutineReview, error) {
 		return RoutineReview{}, errors.New("future comfort use history")
 	}
 	if r.Enabled {
-		if r.Development.Snapshot != r.Snapshot || r.Development.Tick != r.Tick || policy.ValidateDevelopmentState(r.Development.state()) != nil {
+		if r.Development.Snapshot != r.Snapshot || r.Development.Tick != r.Tick || policy.ValidateDevelopmentState(r.Development.State()) != nil {
 			return RoutineReview{}, errors.New("invalid routine development history")
 		}
 	} else {
@@ -411,7 +411,7 @@ func reviewRoutineTx(ctx context.Context, tx *sql.Tx, request RoutineReviewReque
 	}
 	if request.Enabled {
 		var development policy.DevelopmentState
-		development, err = rankRoutineDevelopment(ctx, tx, request, needs, result.Goals, previous.Development.state())
+		development, err = rankRoutineDevelopment(ctx, tx, request, needs, result.Goals, previous.Development.State())
 		if err != nil {
 			return RoutineReviewResult{}, err
 		}

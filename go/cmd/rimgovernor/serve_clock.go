@@ -42,13 +42,18 @@ func (s serviceRoutineDiagnostics) RoutineStatus(ctx context.Context) (httpapi.R
 	if err != nil {
 		return httpapi.RoutineStatus{}, err
 	}
-	return httpapi.RoutineStatus{
+	status := httpapi.RoutineStatus{
 		ReviewsEnabled:  s.reviewsEnabled,
 		MethodsEnabled:  s.methodsEnabled,
 		ActiveFamilies:  s.families,
 		LastReviewTick:  review.Tick,
 		LastReviewKnown: review.Revision != 0,
-	}, nil
+	}
+	if review.Revision != 0 {
+		development := review.Development.State()
+		status.Development = &development
+	}
+	return status, nil
 }
 
 type serviceClockReads interface {
