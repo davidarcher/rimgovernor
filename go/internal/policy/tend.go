@@ -81,23 +81,34 @@ func SelectTend(doctors []TendDoctorFacts, patients []TendPatientFacts) (domain.
 		}
 		return !dead && needsTend && !noCare && existing != "TendPatient"
 	}
+	var patientPool []TendPatientFacts
+	needsTendItself := map[domain.PawnID]bool{}
+	for _, p := range patients {
+		if eligiblePatient(p) {
+			patientPool = append(patientPool, p)
+			needsTendItself[p.Pawn] = true
+		}
+	}
+	// A pawn that itself needs tend is never picked as someone else's doctor
+	// here -- domain.NewTend requires distinct doctor/patient identities, and
+	// TendDoctorFacts' own doc comment already puts self-tend out of scope
+	// (native AI self-tends a pawn with no eligible doctor on its own). Without
+	// this exclusion, a mildly ill but otherwise eligible pawn (not dead,
+	// downed or mentally broken) can rank first in both pools -- e.g. three
+	// colonists each with a mild Flu/withdrawal condition and equal Medicine
+	// skill sort to the same lowest-ID pawn in both lists -- which
+	// domain.NewTend then refuses, stalling the routine clock step on repeat.
 	var doctorPool []TendDoctorFacts
 	for _, d := range doctors {
-		if eligibleDoctor(d, false) {
+		if !needsTendItself[d.Pawn] && eligibleDoctor(d, false) {
 			doctorPool = append(doctorPool, d)
 		}
 	}
 	if len(doctorPool) == 0 {
 		for _, d := range doctors {
-			if eligibleDoctor(d, true) {
+			if !needsTendItself[d.Pawn] && eligibleDoctor(d, true) {
 				doctorPool = append(doctorPool, d)
 			}
-		}
-	}
-	var patientPool []TendPatientFacts
-	for _, p := range patients {
-		if eligiblePatient(p) {
-			patientPool = append(patientPool, p)
 		}
 	}
 	if len(doctorPool) == 0 || len(patientPool) == 0 {

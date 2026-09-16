@@ -195,3 +195,22 @@ func TestSelectTendFallsBackToDraftedDoctor(t *testing.T) {
 		t.Fatal("selected an ineligible doctor")
 	}
 }
+
+// A mildly ill pawn (not dead, downed or mentally broken) is nominally an
+// eligible doctor by TendDoctorFacts alone, but must never be selected as its
+// own doctor: domain.NewTend refuses equal doctor/patient identities, and
+// live acceptance evidence (three colonists all mildly ill with equal
+// Medicine skill, so the same lowest-ID pawn topped both pools) showed this
+// stalling the routine clock step on repeat rather than refusing cleanly.
+func TestSelectTendNeverPicksAPatientAsItsOwnDoctor(t *testing.T) {
+	self := tendDoctor("self", 10)
+	other := tendDoctor("other", 10)
+	selfAsPatient := tendPatient("self", 10)
+	doctor, patient, ok := SelectTend([]TendDoctorFacts{self, other}, []TendPatientFacts{selfAsPatient})
+	if !ok || doctor != "other" || patient != "self" {
+		t.Fatal(doctor, patient, ok)
+	}
+	if _, _, ok := SelectTend([]TendDoctorFacts{self}, []TendPatientFacts{selfAsPatient}); ok {
+		t.Fatal("selected a pawn as its own doctor")
+	}
+}

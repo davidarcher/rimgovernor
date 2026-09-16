@@ -15,7 +15,8 @@ namespace HomeBridge.BridgeTools
         public async Task<object> Setup(IRimBridgeContext ctx, CancellationToken cancellationToken,
             [ToolParameter(Description = "Include two initial flu patients.", DefaultValue = true)] bool disease = true,
             [ToolParameter(Description = "Set the disposable native recipe success factor to zero to exercise real surgical failure.", DefaultValue = false)] bool failSurgery = false,
-            [ToolParameter(Description = "Disable routine Doctor work to exercise repeated explicit native tending.", DefaultValue = false)] bool manualTending = false)
+            [ToolParameter(Description = "Disable routine Doctor work to exercise repeated explicit native tending.", DefaultValue = false)] bool manualTending = false,
+            [ToolParameter(Description = "Force the surgical patient into the high-severity withdrawal stage of GoJuiceAddiction, instead of waiting on real decay/timing.", DefaultValue = false)] bool withdrawal = false)
         {
             return await ctx.MainThread.InvokeAsync<object>(() => {
                 var stage = "colony";
@@ -23,7 +24,7 @@ namespace HomeBridge.BridgeTools
                 var map = Find.CurrentMap;
                 if (map == null || !Find.TickManager.Paused) throw new InvalidOperationException("Paused disposable colony required");
                 var people = map.mapPawns.FreeColonistsSpawned.OrderBy(p => p.thingIDNumber).ToList();
-                if (people.Count < 4) throw new InvalidOperationException("Four colonists required");
+                if (people.Count < 3) throw new InvalidOperationException("Three colonists required");
                 Current.Game.storyteller = new Storyteller(Find.Storyteller.def, DefDatabase<DifficultyDef>.GetNamed("Peaceful"));
                 var center = people[0].Position;
                 stage = "staff";
@@ -69,9 +70,28 @@ namespace HomeBridge.BridgeTools
                 stage = "missing leg";
                 var leg = surgical.health.hediffSet.GetNotMissingParts().First(p => p.def.defName == "Leg");
                 surgical.health.AddHediff(HediffDefOf.MissingBodyPart, leg);
+                string withdrawalPatient = null;
+                if (withdrawal) {
+                    stage = "withdrawal";
+                    // Reuses the surgical patient rather than requiring a fourth colonist: the
+                    // standard debug-game-ready scenario only spawns three, and nothing about
+                    // Hediff_Addiction conflicts with the unrelated missing-leg hediff already on
+                    // this pawn.
+                    var addict = surgical;
+                    // Hediff_Addiction.CurStageIndex switches to the "withdrawal" stage once
+                    // Severity reaches its floor, not via a stage-declared minSeverity (GoJuiceAddiction's
+                    // withdrawal stage has none) -- setting it to zero here forces the stage
+                    // immediately, mirroring the disposable flu.Severity assignment above rather
+                    // than waiting on the real SeverityPerDay decay this addiction otherwise needs
+                    // roughly eleven days of real abstinence to reach.
+                    var addiction = HediffMaker.MakeHediff(HediffDef.Named("GoJuiceAddiction"), addict);
+                    addiction.Severity = 0f;
+                    addict.health.AddHediff(addiction);
+                    withdrawalPatient = addict.GetUniqueLoadID();
+                }
                 return new { success = true, setupOnly = true, completedWorkInjected = false, failSurgery,
                     patients = people.Take(2).Select(p => p.GetUniqueLoadID()).ToArray(), surgical = surgical.GetUniqueLoadID(),
-                    part = surgical.RaceProps.body.AllParts.IndexOf(leg), tick = Find.TickManager.TicksGame };
+                    part = surgical.RaceProps.body.AllParts.IndexOf(leg), withdrawalPatient, tick = Find.TickManager.TicksGame };
                 } catch (Exception error) { return new { success = false, stage, error = error.ToString() }; }
             }, cancellationToken).ConfigureAwait(false);
         }
