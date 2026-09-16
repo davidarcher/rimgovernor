@@ -7,8 +7,11 @@
 - Keep changes scoped to the task. Coordinate shared-file changes and integration;
   do not merge into an actively edited checkout without coordination.
 - Commit each completed iteration after relevant checks. Local checkpoint commits
-  are authorized; do not ask again. Report the branch and commit hash. Landing on
-  main includes syncing and pushing origin/main; no separate push approval is needed.
+  are authorized; do not ask again. Report the branch and commit hash.
+- Pull requests are disabled on this project; GitHub is used only for issue
+  tracking. Never open a PR. All work lands on the local `main` branch: prefer a
+  fast-forward rebase onto `main`, but a merge commit is acceptable. Do not push
+  to GitHub; the maintainer pushes `main` manually.
 - Keep generated builds, logs, saves, databases and temporary scripts out of commits.
 
 ## Delivery speed and coordination

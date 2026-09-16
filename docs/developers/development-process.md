@@ -82,9 +82,9 @@ Keep failed evidence and report unavailable platform, model or gameplay coverage
 Review ownership, failure handling, compatibility and unnecessary abstractions.
 Commit each completed iteration with its checks and limitations. Keep generated
 builds, logs, saves, databases and temporary scripts out of commits. Report the
-branch and commit. Each authorized main landing includes pulling origin/main
-before integration and pushing main afterward, following the sync and race
-handling rules in [AGENTS.md](../../AGENTS.md). Recheck the target checkout before
+branch and commit. Land authorized work on local `main` (fast-forward rebase
+preferred, merge acceptable) following the rules in [AGENTS.md](../../AGENTS.md);
+pull requests are disabled and the maintainer pushes `main` manually. Recheck the target checkout before
 integration and rerun affected checks if conflict resolution changes tested code.
 
 ## Keep deployment and docs maintainable
