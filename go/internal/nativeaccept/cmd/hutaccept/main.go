@@ -618,7 +618,9 @@ func abs(v int32) int32 {
 	return v
 }
 
-// waitBed polls every plan for a completed Bed placement inside the hut.
+// waitBed polls every plan for a completed sleeping placement inside the
+// hut: the initial-shelter routine furnishes with sleeping spots, later
+// comfort work with beds; native lists both as beds.
 func waitBed(ctx context.Context, st *store.Store, sh *shell, wait time.Duration) (domain.PlanID, []domain.Cell, error) {
 	inside := map[domain.Cell]bool{}
 	for _, c := range sh.footprint.Interior() {
@@ -633,7 +635,7 @@ func waitBed(ctx context.Context, st *store.Store, sh *shell, wait time.Duration
 				actions := plan.Spec.Actions()
 				for i, a := range actions {
 					b, ok := a.Building()
-					if !ok || b.Definition() != "Bed" || i >= len(plan.Progress) {
+					if !ok || b.Definition() != "SleepingSpot" && b.Definition() != "Bed" || i >= len(plan.Progress) {
 						continue
 					}
 					v := plan.Progress[i].View()
