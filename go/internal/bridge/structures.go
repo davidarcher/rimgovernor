@@ -10,8 +10,8 @@ import (
 )
 
 const (
-	structuresPageLimit = 512
-	structuresMaxPages  = 16
+	structuresPageLimit = 256
+	structuresMaxPages  = 32
 )
 
 // Structure is one player building, blueprint or frame of a requested
