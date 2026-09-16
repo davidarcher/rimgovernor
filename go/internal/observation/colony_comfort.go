@@ -21,13 +21,13 @@ func colonyComfort(v *o.ColonyFactsSnapshot) domain.Fact[policy.ComfortObservati
 	facilities := func(values []*o.ComfortFacility) []policy.ComfortFacility {
 		rows := make([]policy.ComfortFacility, 0, len(values))
 		for _, f := range values {
-			rows = append(rows, policy.ComfortFacility{ID: f.GetId(), AccessibleTo: ids(f.AccessibleTo), Users: ids(f.Users)})
+			rows = append(rows, policy.ComfortFacility{ID: f.GetId(), RoomID: f.GetRoomId(), AccessibleTo: ids(f.AccessibleTo), Users: ids(f.Users)})
 		}
 		return rows
 	}
 	r := policy.ComfortObservation{People: ids(value.People), Dining: facilities(value.Dining), Recreation: facilities(value.Recreation)}
 	for _, s := range value.Surfaces {
-		row := policy.DiningSurface{ID: s.GetId()}
+		row := policy.DiningSurface{ID: s.GetId(), RoomID: s.GetRoomId()}
 		for _, c := range s.Adjacent {
 			row.Adjacent = append(row.Adjacent, domain.Cell{X: c.GetX(), Z: c.GetZ()})
 		}

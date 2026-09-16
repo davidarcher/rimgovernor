@@ -34,7 +34,7 @@ func validateColonyUpkeep(v *o.UpkeepFacts, size *o.MapSize) error {
 	}
 	surfaces := map[string]bool{}
 	for _, surface := range comfort.Surfaces {
-		if surface == nil || validID(surface.GetId()) != nil || surfaces[surface.GetId()] || len(surface.Adjacent) > 4096 {
+		if surface == nil || validID(surface.GetId()) != nil || surfaces[surface.GetId()] || len(surface.Adjacent) > 4096 || surface.RoomId != nil && validID(surface.GetRoomId()) != nil {
 			return contract("invalid dining surface")
 		}
 		surfaces[surface.GetId()] = true
@@ -50,7 +50,7 @@ func validateColonyUpkeep(v *o.UpkeepFacts, size *o.MapSize) error {
 	for kind, facilities := range [][]*o.ComfortFacility{comfort.Dining, comfort.Recreation} {
 		seen := map[string]bool{}
 		for _, f := range facilities {
-			if f == nil || validID(f.GetId()) != nil || seen[f.GetId()] || kind == 0 && f.Kind != nil || kind == 1 && validID(f.GetKind()) != nil {
+			if f == nil || validID(f.GetId()) != nil || seen[f.GetId()] || kind == 0 && f.Kind != nil || kind == 1 && validID(f.GetKind()) != nil || f.RoomId != nil && validID(f.GetRoomId()) != nil {
 				return contract("invalid comfort facility")
 			}
 			seen[f.GetId()] = true

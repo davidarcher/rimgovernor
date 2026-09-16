@@ -488,7 +488,15 @@ Furnishing still requires observed roofed indoor space. Unfinished or cancelled
 shells grant no roofing budget. The `cooking` family independently
 compiles campfires at the same boundary. The `comfort` family enables
 table, adjacent dining chair and recreation furniture compilation after startup
-needs recover and development ranking selects comfort. Native observations retain
+needs recover and development ranking selects comfort. Dining and recreation are
+native-role facilities (issue #4): a table, chair or horseshoes pin counts only
+while it stands in a proper room whose native `Room.Role` the facility catalog
+(`policy.FacilityCatalog`) hosts — DiningRoom, RecRoom or a generic Room, so one
+shared room serves both — and furnishing previews are restricted to those rooms'
+cells. With no hosting room the comfort planner stages the same 9×9 starter
+shell shelter uses (method `comfort-shell`) and furnishes it once roofed. The
+catalog lists every installed RoomRoleDef with its planner status; every other
+role is an explicit pending row. Native observations retain
 facility-specific dining/recreation use through Manual and restart; replacement
 facilities require new use. After observed construction, at most 10,000 ticks in
 the same load permit ordinary use, observed in windows of at most 120 ticks.
@@ -509,15 +517,15 @@ The paused gear read is compared against native upkeep for the exact pawn/loadou
 census, deficit flags, eligible candidate identities and gains, and replacement
 needs. `MaintainEquipment` remains visible as `method_unavailable` until its
 execution family is connected; it does not consume an optional development slot.
-The `--comfort-methods` variant needs private `GuardedConstructionFixture`,
-`RoutineSleepingFixture`, `UpkeepFixture` and `ScenarioStartFixture` builds. It
-uses a seeded naturally mild settlement and prepares hunger/recreation needs once
-the three ordinary buildings exist. It never orders their use. Native use,
-one-time fixture activation, Manual history retention and disabled restart are
-separate assertions; inspect the retained report before claiming acceptance.
+`go run ./internal/nativeaccept/cmd/facilityaccept -root <abs .rimgovernor/bridge>
+-rimgovernor <abs binary> -output <fresh dir>` runs the autonomous service on the
+tribal8 baseline save and watches `EnsureComfort` until it recovers. After the
+service stops it audits the journal's dining/recreation use proofs against live
+`home/colony_facts` and `home/list_rooms`: each proof facility must sit in a room
+whose native role hosts it, and every eligible colonist needs an accessible
+hosted facility of each kind. Blueprints and labels prove nothing there.
 Recreation previews require native playing-cell access, separate from placement
-legality. The variant also captures populated native fire, supply, repair and
-cleaning facts after Manual. Replay its `upkeep-replay.json` through the Go
+legality. Replay a captured `upkeep-replay.json` through the Go
 boundary and durable journal with `RIMBOT_NATIVE_UPKEEP_REPLAY=<absolute-path>`
 and `go test ./internal/observation -run TestNativeUpkeepReplay -count=1` from `go/`.
 The replay checks target ordering and metrics, all five direct upkeep needs,

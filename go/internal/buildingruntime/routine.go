@@ -67,7 +67,7 @@ func NewRoutineReviewer(player *Player, native observation.RoutineSource, clock 
 		}
 	}
 	reviewer := &RoutineReviewer{methods: methods, player: player, native: native, clock: clock, policy: thresholds, maxAge: maxAge, rules: append([]policy.ResourceRule(nil), rules...), longitude: longitude}
-	if reviewer.temperatureEnabled() {
+	if reviewer.roomsEnabled() {
 		if _, ok := native.(observation.TemperatureSource); !ok {
 			return nil, ErrControl
 		}
@@ -144,8 +144,8 @@ func (r *RoutineReviewer) step(ctx, epoch context.Context, arbiter *stepArbiter)
 		return store.RoutineReviewResult{}, err
 	}
 	observe := observation.ObserveRoutineOwned
-	if r.temperatureEnabled() {
-		observe = observation.ObserveRoutineTemperature
+	if r.roomsEnabled() {
+		observe = observation.ObserveRoutineRooms
 	}
 	reading, err := observe(ctx, r.native, r.clock, expected, r.maxAge, claims, definitions...)
 	if err != nil {

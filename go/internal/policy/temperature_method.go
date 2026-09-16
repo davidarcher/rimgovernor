@@ -10,22 +10,6 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 )
 
-// Room identity and cells are same-tick native observations. Only the selected
-// building's admitted footprint becomes a reservation.
-type TemperatureRoom struct {
-	ID          string
-	Enclosed    domain.Fact[bool]
-	Temperature domain.Fact[float64]
-	Beds        []string
-	Contents    domain.Fact[[]Amount]
-	Cells       []domain.Cell
-}
-
-type TemperatureObservation struct {
-	Rooms        []TemperatureRoom
-	EligibleBeds domain.Fact[[]string]
-}
-
 type TemperatureMethod string
 
 const (
@@ -44,7 +28,7 @@ type TemperatureProposal struct {
 	Cells  []domain.Cell
 }
 
-func (v TemperatureObservation) Validate() error {
+func (v RoomObservation) Validate() error {
 	if len(v.Rooms) > 256 {
 		return errors.New("temperature room census exceeds bound")
 	}
@@ -103,7 +87,7 @@ func (v TemperatureObservation) Validate() error {
 // TemperatureRange uses actual sleeping rooms, including beds whose safe
 // reachability disappears during a temperature emergency. Missing room evidence
 // cannot become a comfortable temperature or a reason to claim recovery.
-func TemperatureRange(fact domain.Fact[TemperatureObservation]) (minimum, maximum domain.Fact[float64]) {
+func TemperatureRange(fact domain.Fact[RoomObservation]) (minimum, maximum domain.Fact[float64]) {
 	v, known := fact.Value()
 	if !known || v.Validate() != nil {
 		return
@@ -150,7 +134,7 @@ func TemperatureRange(fact domain.Fact[TemperatureObservation]) (minimum, maximu
 
 // SelectTemperatureMethod reuses existing thermal facilities before proposing
 // one ordinary campfire or passive cooler. Native temperature proves recovery.
-func SelectTemperatureMethod(fact domain.Fact[TemperatureObservation], limits RoutinePolicy, latches RoutineLatches) (TemperatureProposal, error) {
+func SelectTemperatureMethod(fact domain.Fact[RoomObservation], limits RoutinePolicy, latches RoutineLatches) (TemperatureProposal, error) {
 	if err := limits.Validate(); err != nil {
 		return TemperatureProposal{}, err
 	}
@@ -173,7 +157,7 @@ func SelectTemperatureMethod(fact domain.Fact[TemperatureObservation], limits Ro
 		wanted[id] = true
 	}
 	type candidate struct {
-		room   TemperatureRoom
+		room   Room
 		bed    string
 		method TemperatureMethod
 	}

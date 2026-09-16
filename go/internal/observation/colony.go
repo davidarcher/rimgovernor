@@ -35,7 +35,7 @@ type ColonyProjection struct {
 	FieldCapacityCrops                     domain.Fact[[]policy.FieldCrop]
 	CookingBenches                         domain.Fact[[]CookingBench]
 	PowerPlanning                          domain.Fact[policy.PowerTopology]
-	TemperaturePlanning                    domain.Fact[policy.TemperatureObservation]
+	Rooms                                  domain.Fact[policy.RoomObservation]
 	Identity                               Identity
 	Facts                                  policy.RoutineFacts
 	Workers                                domain.Fact[int]

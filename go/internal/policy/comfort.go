@@ -7,13 +7,15 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 )
 
+// RoomID names the proper indoor room hosting a facility, as the native room
+// census identifies it; empty when the facility stands outdoors.
 type ComfortFacility struct {
-	ID                  string
+	ID, RoomID          string
 	AccessibleTo, Users []PawnID
 }
 type DiningSurface struct {
-	ID       string
-	Adjacent []domain.Cell
+	ID, RoomID string
+	Adjacent   []domain.Cell
 }
 type ComfortObservation struct {
 	People             []PawnID
@@ -210,4 +212,46 @@ func SelectComfortMethod(v ComfortObservation, r ComfortReview) (ComfortMethod, 
 		return ComfortWait, nil
 	}
 	return ComfortNoMethod, nil
+}
+
+// HostedComfort keeps only the facilities and surfaces standing in a room
+// whose native role the facility catalog lets host that function. A table in
+// a barracks seats nobody for this purpose: the game scores that room a
+// Barracks, so it never becomes the dining room the colony is missing, and a
+// planner counting it would never stage one. Unknown rooms drop the facility
+// rather than certify it.
+func HostedComfort(v ComfortObservation, rooms RoomObservation) (ComfortObservation, error) {
+	dining, err := Facility(RoomRoleDiningRoom)
+	if err != nil {
+		return ComfortObservation{}, err
+	}
+	recreation, err := Facility(RoomRoleRecRoom)
+	if err != nil {
+		return ComfortObservation{}, err
+	}
+	hosted := func(f FacilityRequirement, roomID string) bool {
+		room, ok := rooms.Room(roomID)
+		if roomID == "" || !ok {
+			return false
+		}
+		role, known := room.Role.Value()
+		return known && f.Hosts(role)
+	}
+	result := ComfortObservation{People: v.People}
+	for _, s := range v.Surfaces {
+		if hosted(dining, s.RoomID) {
+			result.Surfaces = append(result.Surfaces, s)
+		}
+	}
+	for _, f := range v.Dining {
+		if hosted(dining, f.RoomID) {
+			result.Dining = append(result.Dining, f)
+		}
+	}
+	for _, f := range v.Recreation {
+		if hosted(recreation, f.RoomID) {
+			result.Recreation = append(result.Recreation, f)
+		}
+	}
+	return result, nil
 }

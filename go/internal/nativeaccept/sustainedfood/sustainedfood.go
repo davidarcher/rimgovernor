@@ -54,6 +54,17 @@ type RunConfig struct {
 	// ticks -- and more chances for EnsureFoodSupply to actually progress --
 	// into the same cfg.Watch duration.
 	ClockSpeed string
+	// Families is serve's RIMGOVERNOR_ROUTINE_FAMILIES value; empty composes
+	// only EnsureFoodSupply's own pipeline and "all" the autonomous default. Goal is the maintained goal the
+	// timeline samples (default EnsureFoodSupply). Until, when set, ends the
+	// watch window early once a sample satisfies it. Audit, when set, runs
+	// against a fresh bridge session after the service has stopped and
+	// before the game is stopped, so a harness can compare the durable
+	// journal against live native facts.
+	Families string
+	Goal     policy.GoalID
+	Until    func(sample map[string]any) bool
+	Audit    func(ctx context.Context, h *na.Harness, report na.Report) error
 }
 
 // Run executes exactly one variant: it must be called with a fresh, empty
@@ -208,7 +219,16 @@ func Run(ctx context.Context, cfg RunConfig, report na.Report) ([]map[string]any
 	// capability is wired up -- the acquire-anchor below dispatches through
 	// it. With no --routine-resource-reserve/--routine-resource-stop the
 	// planner it also enables stays a no-op.
-	cmd.Env = append(os.Environ(), "RIMGOVERNOR_ROUTINE_FAMILIES=field,food-storage,acquisition,cooking,supply,production-policy")
+	// "all" composes serve's autonomous default (an empty selection enables
+	// every family); empty keeps EnsureFoodSupply's own pipeline.
+	families := cfg.Families
+	switch families {
+	case "":
+		families = "field,food-storage,acquisition,cooking,supply,production-policy"
+	case "all":
+		families = ""
+	}
+	cmd.Env = append(os.Environ(), "RIMGOVERNOR_ROUTINE_FAMILIES="+families)
 	stdoutPipe, err := cmd.StdoutPipe()
 	if err != nil {
 		return nil, err
@@ -418,9 +438,13 @@ func Run(ctx context.Context, cfg RunConfig, report na.Report) ([]map[string]any
 	var events []map[string]any
 	lastMethodCount := -1
 	lastNeed := domain.NeedState("")
+	goalID := cfg.Goal
+	if goalID == "" {
+		goalID = policy.EnsureFoodSupply
+	}
 	watchDeadline := time.Now().Add(cfg.Watch)
 	for time.Now().Before(watchDeadline) {
-		sample, err := sampleFoodGoal(ctx, verifyStore)
+		sample, err := SampleGoal(ctx, verifyStore, goalID)
 		if err != nil {
 			sample = map[string]any{"error": err.Error(), "at": time.Now().UTC().Format(time.RFC3339)}
 		}
@@ -430,6 +454,10 @@ func Run(ctx context.Context, cfg RunConfig, report na.Report) ([]map[string]any
 		if methodCount != lastMethodCount || domain.NeedState(need) != lastNeed {
 			events = append(events, sample)
 			lastMethodCount, lastNeed = methodCount, domain.NeedState(need)
+		}
+		if cfg.Until != nil && err == nil && cfg.Until(sample) {
+			report["watch_ended_early"] = true
+			break
 		}
 		select {
 		case <-ctx.Done():
@@ -464,6 +492,11 @@ func Run(ctx context.Context, cfg RunConfig, report na.Report) ([]map[string]any
 	// Deferred LIFO: stop the game while the session is still open, then close.
 	defer finalClient.Close()
 	defer stopGame(finalClient)
+	if cfg.Audit != nil {
+		if err := cfg.Audit(ctx, na.NewHarness(finalClient, output), report); err != nil {
+			return timeline, err
+		}
+	}
 
 	logData, err := os.ReadFile(naCfg.StartupLogPath())
 	if err != nil {
@@ -475,11 +508,11 @@ func Run(ctx context.Context, cfg RunConfig, report na.Report) ([]map[string]any
 	return timeline, nil
 }
 
-// sampleFoodGoal reads the current EnsureFoodSupply goal binding (if any) and
-// its committed methods' plan stages, mirroring exactly what
-// buildingruntime.RoutineFieldPlanner.step itself reads: review.Goals for the
-// EnsureFoodSupply Need, then that goal's Status/Need/Priority/Methods.
-func sampleFoodGoal(ctx context.Context, s *store.Store) (map[string]any, error) {
+// SampleGoal reads one maintained goal's current binding (if any) and its
+// committed methods' plan stages, mirroring exactly what a routine planner's
+// step itself reads: review.Goals for the Need, then that goal's
+// Status/Need/Priority/Methods.
+func SampleGoal(ctx context.Context, s *store.Store, need policy.GoalID) (map[string]any, error) {
 	sample := map[string]any{"at": time.Now().UTC().Format(time.RFC3339), "method_count": 0}
 	review, err := s.LoadRoutineReview(ctx)
 	if err != nil {
@@ -490,7 +523,7 @@ func sampleFoodGoal(ctx context.Context, s *store.Store) (map[string]any, error)
 	sample["latch_food"] = review.Latches.Food
 	var goalID domain.GoalID
 	for _, binding := range review.Goals {
-		if binding.Need == policy.EnsureFoodSupply {
+		if binding.Need == need {
 			goalID = binding.Goal
 			break
 		}

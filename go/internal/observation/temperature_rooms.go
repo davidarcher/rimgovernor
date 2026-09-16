@@ -16,7 +16,7 @@ type TemperatureSource interface {
 }
 
 func (s *routineBracket) readTemperature(ctx context.Context, id *c.Identity, colony *o.ColonyFactsReply) error {
-	if !s.temperatureEnabled {
+	if !s.roomsEnabled {
 		return nil
 	}
 	source, ok := s.RoutineSource.(TemperatureSource)
@@ -50,8 +50,8 @@ func (s *routineBracket) readTemperature(ctx context.Context, id *c.Identity, co
 	return nil
 }
 
-func temperatureRooms(rooms *o.RoomsSnapshot, sleeping domain.Fact[policy.SleepingObservation]) domain.Fact[policy.TemperatureObservation] {
-	result := policy.TemperatureObservation{}
+func temperatureRooms(rooms *o.RoomsSnapshot, sleeping domain.Fact[policy.SleepingObservation]) domain.Fact[policy.RoomObservation] {
+	result := policy.RoomObservation{}
 	if known, ok := sleeping.Value(); ok {
 		eligible := []string{}
 		complete := true
@@ -72,7 +72,7 @@ func temperatureRooms(rooms *o.RoomsSnapshot, sleeping domain.Fact[policy.Sleepi
 		}
 	}
 	for _, room := range rooms.Rooms {
-		row := policy.TemperatureRoom{ID: room.GetId(), Temperature: optional(room.TemperatureC), Enclosed: domain.Known(room.GetProperRoom() && !room.GetDoorway() && !room.GetOutdoors() && !room.GetPsychologicallyOutdoors() && !room.GetTouchesMapEdge() && room.GetOpenRoofCount() == 0)}
+		row := policy.Room{ID: room.GetId(), Role: roomRole(room), Temperature: optional(room.TemperatureC), Enclosed: domain.Known(room.GetProperRoom() && !room.GetDoorway() && !room.GetOutdoors() && !room.GetPsychologicallyOutdoors() && !room.GetTouchesMapEdge() && room.GetOpenRoofCount() == 0)}
 		for _, bed := range room.Beds {
 			row.Beds = append(row.Beds, bed.Building.GetId())
 		}
@@ -87,4 +87,13 @@ func temperatureRooms(rooms *o.RoomsSnapshot, sleeping domain.Fact[policy.Sleepi
 		result.Rooms = append(result.Rooms, row)
 	}
 	return domain.Known(result)
+}
+
+// The native census names Room.Role by RoomRoleDef defName; a missing role is
+// an unknown fact, never a generic room.
+func roomRole(room *o.RoomState) domain.Fact[policy.RoomRole] {
+	if room.Role == nil {
+		return domain.Unknown[policy.RoomRole]()
+	}
+	return domain.Known(policy.RoomRole(room.GetRole()))
 }

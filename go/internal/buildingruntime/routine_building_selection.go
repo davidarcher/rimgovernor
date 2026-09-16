@@ -76,6 +76,9 @@ func (r *RoutineBuildingPlanner) selection(facts observation.ColonyProjection) (
 		}
 		return 0, "", BuildingMethodUnknown
 	case policy.EnsureComfort:
+		if r.shelter {
+			return 32, "comfort-shell", ""
+		}
 		return 1, domain.MethodID("comfort-" + r.definition), ""
 	case policy.EnsureInitialShelter, policy.EnsureExpansion:
 		capacity, known := facts.Facts.IndoorCapacity.Value()

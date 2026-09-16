@@ -18763,6 +18763,7 @@ type ComfortSurface struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Id            *string                `protobuf:"bytes,1,opt,name=id,proto3,oneof" json:"id,omitempty"`
 	Adjacent      []*commonpb.Cell       `protobuf:"bytes,2,rep,name=adjacent,proto3" json:"adjacent,omitempty"`
+	RoomId        *string                `protobuf:"bytes,3,opt,name=room_id,json=roomId,proto3,oneof" json:"room_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -18811,12 +18812,20 @@ func (x *ComfortSurface) GetAdjacent() []*commonpb.Cell {
 	return nil
 }
 
+func (x *ComfortSurface) GetRoomId() string {
+	if x != nil && x.RoomId != nil {
+		return *x.RoomId
+	}
+	return ""
+}
+
 type ComfortFacility struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Id            *string                `protobuf:"bytes,1,opt,name=id,proto3,oneof" json:"id,omitempty"`
 	Kind          *string                `protobuf:"bytes,2,opt,name=kind,proto3,oneof" json:"kind,omitempty"`
 	AccessibleTo  []string               `protobuf:"bytes,3,rep,name=accessible_to,json=accessibleTo,proto3" json:"accessible_to,omitempty"`
 	Users         []string               `protobuf:"bytes,4,rep,name=users,proto3" json:"users,omitempty"`
+	RoomId        *string                `protobuf:"bytes,5,opt,name=room_id,json=roomId,proto3,oneof" json:"room_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -18877,6 +18886,13 @@ func (x *ComfortFacility) GetUsers() []string {
 		return x.Users
 	}
 	return nil
+}
+
+func (x *ComfortFacility) GetRoomId() string {
+	if x != nil && x.RoomId != nil {
+		return *x.RoomId
+	}
+	return ""
 }
 
 type ComfortFacts struct {
@@ -27363,18 +27379,24 @@ const file_observations_proto_rawDesc = "" +
 	"\x14combined_food_supply\x18\x02 \x01(\v2,.rimgovernor.observations.v1.FoodSupplyFactsR\x12combinedFoodSupply\x12?\n" +
 	"\x05crops\x18\x03 \x03(\v2).rimgovernor.observations.v1.CropForecastR\x05crops\x12H\n" +
 	"\bpatients\x18\x04 \x03(\v2,.rimgovernor.observations.v1.PatientForecastR\bpatients\x12M\n" +
-	"\fcompleteness\x18\x05 \x01(\v2).rimgovernor.observations.v1.CompletenessR\fcompleteness\"e\n" +
+	"\fcompleteness\x18\x05 \x01(\v2).rimgovernor.observations.v1.CompletenessR\fcompleteness\"\x8f\x01\n" +
 	"\x0eComfortSurface\x12\x13\n" +
 	"\x02id\x18\x01 \x01(\tH\x00R\x02id\x88\x01\x01\x127\n" +
-	"\badjacent\x18\x02 \x03(\v2\x1b.rimgovernor.common.v1.CellR\badjacentB\x05\n" +
-	"\x03_id\"\x8a\x01\n" +
+	"\badjacent\x18\x02 \x03(\v2\x1b.rimgovernor.common.v1.CellR\badjacent\x12\x1c\n" +
+	"\aroom_id\x18\x03 \x01(\tH\x01R\x06roomId\x88\x01\x01B\x05\n" +
+	"\x03_idB\n" +
+	"\n" +
+	"\b_room_id\"\xb4\x01\n" +
 	"\x0fComfortFacility\x12\x13\n" +
 	"\x02id\x18\x01 \x01(\tH\x00R\x02id\x88\x01\x01\x12\x17\n" +
 	"\x04kind\x18\x02 \x01(\tH\x01R\x04kind\x88\x01\x01\x12#\n" +
 	"\raccessible_to\x18\x03 \x03(\tR\faccessibleTo\x12\x14\n" +
-	"\x05users\x18\x04 \x03(\tR\x05usersB\x05\n" +
+	"\x05users\x18\x04 \x03(\tR\x05users\x12\x1c\n" +
+	"\aroom_id\x18\x05 \x01(\tH\x02R\x06roomId\x88\x01\x01B\x05\n" +
 	"\x03_idB\a\n" +
-	"\x05_kind\"\xd2\x02\n" +
+	"\x05_kindB\n" +
+	"\n" +
+	"\b_room_id\"\xd2\x02\n" +
 	"\fComfortFacts\x12\x16\n" +
 	"\x06people\x18\x01 \x03(\tR\x06people\x12G\n" +
 	"\bsurfaces\x18\x02 \x03(\v2+.rimgovernor.observations.v1.ComfortSurfaceR\bsurfaces\x12D\n" +

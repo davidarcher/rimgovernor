@@ -116,7 +116,9 @@ their own narrow typed receipts, without an import cycle.
 - UpkeepFacts.cs / ComfortFacts.cs: exact items/rot/deterioration/storage, beds and
   owners/users/access, storage cells and item-specific unreserved covered capacity,
   structures/repair/fire/filth/home protection, people/thermal comfort, animal feed
-  and pen eligibility, dining/recreation/surface access. Helper errors identify
+  and pen eligibility, dining/recreation/surface access with each indoor
+  facility's host `room_id` (joins to the typed room census and its native
+  `Room.Role`). Helper errors identify
   missing sections rather than producing healthy empty lists.
 - ConstructionLineage.cs / HaulTracking.cs / WallUpgradeTool.cs /
   HomeCoverageTool.cs: explicit construction/haul/wall-removal records and Home

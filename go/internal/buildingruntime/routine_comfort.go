@@ -32,6 +32,10 @@ func comfortUseAllowance(ctx context.Context, journal *store.Store, goal domain.
 	return ticks, nil
 }
 
+// NewRoutineComfortPlanner furnishes a room whose native role can host
+// dining or recreation; when no such room exists it stages a starter shell
+// the same way shelter does, and furnishes it once the census reports it as
+// a proper room. The typed room census is read in the same bracket.
 func NewRoutineComfortPlanner(reviewer *RoutineReviewer, native RoutineBuildingSource) (*RoutineBuildingPlanner, error) {
 	if reviewer == nil || native == nil {
 		return nil, ErrControl
@@ -39,7 +43,10 @@ func NewRoutineComfortPlanner(reviewer *RoutineReviewer, native RoutineBuildingS
 	if _, ok := native.(observation.RoutineSource); !ok {
 		return nil, ErrControl
 	}
-	return &RoutineBuildingPlanner{reviewer: reviewer, native: native, goal: policy.EnsureComfort}, nil
+	if _, ok := native.(observation.TemperatureSource); !ok {
+		return nil, ErrControl
+	}
+	return &RoutineBuildingPlanner{reviewer: reviewer, native: native, goal: policy.EnsureComfort, definition: "Wall", shelter: true}, nil
 }
 
 // Skilled furniture must have a qualified, assigned builder in the same native
@@ -88,9 +95,15 @@ func (r *RoutineBuildingPlanner) selectComfort(facts observation.ColonyProjectio
 	resolved := *r
 	resolved.definition = string(method)
 	resolved.environment = policy.PlacementIndoors
+	role := policy.RoomRoleDiningRoom
 	if method == policy.ComfortBuildRecreation {
-		resolved.environment = policy.PlacementAnywhere
+		role = policy.RoomRoleRecRoom
 	}
+	facility, err := policy.Facility(role)
+	if err != nil {
+		return nil, "", err
+	}
+	resolved.facility = &facility
 	if method == policy.ComfortBuildChair {
 		for _, s := range v.Surfaces {
 			resolved.adjacent = append(resolved.adjacent, s.Adjacent...)

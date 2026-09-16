@@ -35,10 +35,11 @@ namespace HomeBridge.BridgeTools
             var v = ReadProtocol(map);
             return new {
                 people = v.People.ToList(),
-                surfaces = v.Surfaces.Select(s => new { id = s.Id,
+                surfaces = v.Surfaces.Select(s => new { id = s.Id, roomId = s.HasRoomId ? s.RoomId : null,
                     adjacent = s.Adjacent.Select(c => new { x = c.X, z = c.Z }).ToList() }).ToList(),
-                dining = v.Dining.Select(f => new { id = f.Id, accessibleTo = f.AccessibleTo.ToList(), users = f.Users.ToList() }).ToList(),
-                recreation = v.Recreation.Select(f => new { id = f.Id, kind = f.Kind,
+                dining = v.Dining.Select(f => new { id = f.Id, roomId = f.HasRoomId ? f.RoomId : null,
+                    accessibleTo = f.AccessibleTo.ToList(), users = f.Users.ToList() }).ToList(),
+                recreation = v.Recreation.Select(f => new { id = f.Id, kind = f.Kind, roomId = f.HasRoomId ? f.RoomId : null,
                     accessibleTo = f.AccessibleTo.ToList(), users = f.Users.ToList() }).ToList()
             };
         }
@@ -56,6 +57,10 @@ namespace HomeBridge.BridgeTools
                     || p.playerSettings.AreaRestrictionInPawnCurrentMap[b.Position]);
             bool Indoors(Building b) => b.GetRoom() != null && b.GetRoom().ProperRoom
                 && !b.GetRoom().PsychologicallyOutdoors && b.OccupiedRect().All(c => c.Roofed(map));
+            // The hosting room is the same Room.ID the typed room census reports, so
+            // the controller can join a facility to that room's native role. Only a
+            // proper indoor room is named; an outdoor facility has no host.
+            string? HostRoom(Building b) => Indoors(b) ? Id(b.GetRoom().ID.ToString(System.Globalization.CultureInfo.InvariantCulture)) : null;
             var seats = buildings.Where(b => b.def.building.isSittable && Indoors(b)
                 && b.OccupiedRect().Any(c => GenAdj.CardinalDirections.Any(d => (c+d).InBounds(map)
                     && (c+d).GetEdifice(map)?.def.surfaceType == SurfaceType.Eat))).ToList();
@@ -72,10 +77,12 @@ namespace HomeBridge.BridgeTools
                     .OrderBy(c => c.z).ThenBy(c => c.x).ToList();
                 if (adjacent.Count > 4096) throw new InvalidOperationException("Dining adjacency exceeds bound.");
                 var row = new Obs.ComfortSurface { Id = Id(b.GetUniqueLoadID()) };
+                if (HostRoom(b) is string surfaceRoom) row.RoomId = surfaceRoom;
                 row.Adjacent.Add(adjacent.Select(Cell)); result.Surfaces.Add(row);
             }
             foreach (var b in seats) {
                 var row = new Obs.ComfortFacility { Id = Id(b.GetUniqueLoadID()) };
+                if (HostRoom(b) is string seatRoom) row.RoomId = seatRoom;
                 row.AccessibleTo.Add(people.Where(p => Safe(p, b)).Select(p => Id(p.GetUniqueLoadID())));
                 row.Users.Add(people.Where(p => p.CurJob?.def == JobDefOf.Ingest && b.OccupiedRect().Contains(p.Position))
                     .Select(p => Id(p.GetUniqueLoadID())));
@@ -86,6 +93,7 @@ namespace HomeBridge.BridgeTools
                     ? WatchBuildingUtility.CalculateWatchCells(b.def, b.Position, b.Rotation, map).Take(4097).ToList() : null;
                 if (watchCells?.Count > 4096) throw new InvalidOperationException("Recreation watch geometry exceeds bound.");
                 var row = new Obs.ComfortFacility { Id = Id(b.GetUniqueLoadID()), Kind = Id(b.def.building.joyKind.defName) };
+                if (HostRoom(b) is string playRoom) row.RoomId = playRoom;
                 row.AccessibleTo.Add(people.Where(p => !b.IsForbidden(p) && b.IsSociallyProper(p)
                     && p.CanReach(b, PathEndMode.Touch, Danger.None)
                     && (watchCells == null || watchCells.Any(c => WatchCellAccessible(p, c)))
