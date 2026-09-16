@@ -703,7 +703,7 @@ func TestRoutineShelterAdoptsTheBestMatchedShapeOrWaits(t *testing.T) {
 			}
 		}
 	}
-	planner, err := NewRoutineShelterPlanner(r.reviewer, n)
+	planner, err := NewRoutineShelterPlanner(r.reviewer, n, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
