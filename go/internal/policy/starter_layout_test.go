@@ -229,3 +229,37 @@ func TestStarterHutNarrowsThenGrowsFootprint(t *testing.T) {
 		t.Fatal("grown footprint depends on input order")
 	}
 }
+
+func TestShellShapesAtDoorReproduceStarterShells(t *testing.T) {
+	center := domain.Cell{X: 40, Z: 40}
+	huts := HutTemplateShells(center)
+	if len(huts) != len(hutTemplates) {
+		t.Fatalf("templates %d", len(huts))
+	}
+	for i, hut := range huts {
+		shapes := ShellShapesAtDoor(hut.Door(), ShelterHut)
+		found := false
+		for _, s := range shapes {
+			found = found || domain.SameRoomFootprint(s, hut)
+		}
+		if !found {
+			t.Fatalf("template %d not reproduced from its door %v", i, hut.Door())
+		}
+		for _, s := range shapes {
+			if s.Door() != hut.Door() {
+				t.Fatalf("shape door %v want %v", s.Door(), hut.Door())
+			}
+		}
+	}
+	rect, err := domain.RectangleFootprint(domain.RoomBounds{X: 16, Z: 16, Width: 9, Height: 9}, domain.South)
+	if err != nil {
+		t.Fatal(err)
+	}
+	shapes := ShellShapesAtDoor(rect.Door(), ShelterRectangle)
+	if len(shapes) != 1 || !domain.SameRoomFootprint(shapes[0], rect) {
+		t.Fatalf("rectangle style shapes %d", len(shapes))
+	}
+	if shapes := ShellShapesAtDoor(domain.Cell{X: 1, Z: 0}, ShelterHut); len(shapes) != 0 {
+		t.Fatalf("map-edge door produced %d shapes", len(shapes))
+	}
+}

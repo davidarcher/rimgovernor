@@ -321,3 +321,37 @@ func HutTemplateShells(c domain.Cell) []domain.RoomFootprint {
 	}
 	return shells
 }
+
+// ShellShapesAtDoor returns every starter shell shape whose south door would
+// stand on door: the hut templates for the hut style, then the 9x9
+// rectangle. A shell planner uses it to recognise a shell it began earlier
+// from the door still standing natively, so a restart reissues only the
+// cells that shell is missing instead of siting a second one. Grown
+// irregular shells have no template and are not recognised this way.
+func ShellShapesAtDoor(door domain.Cell, style ShelterStyle) []domain.RoomFootprint {
+	var shells []domain.RoomFootprint
+	if style == ShelterHut {
+		for _, template := range hutTemplates {
+			// A south door sits just below the interior, near the centre
+			// column but off it where a diagonal ring is two cells thick, so
+			// every centre within the longer radius of the door is tried.
+			reach := max(template.radiusX, template.radiusZ) + 1
+			found := false
+			for dz := int32(2); dz <= reach && !found; dz++ {
+				for dx := int32(-2); dx <= 2 && !found; dx++ {
+					center := domain.Cell{X: door.X + dx, Z: door.Z + dz}
+					shell, err := domain.EllipseFootprint(center, template.radiusX, template.radiusZ, template.orientation, domain.South)
+					if err == nil && shell.Door() == door {
+						shells = append(shells, shell)
+						found = true
+					}
+				}
+			}
+		}
+	}
+	shell, err := domain.RectangleFootprint(domain.RoomBounds{X: door.X - 4, Z: door.Z, Width: 9, Height: 9}, domain.South)
+	if err == nil && shell.Door() == door {
+		shells = append(shells, shell)
+	}
+	return shells
+}

@@ -369,9 +369,18 @@ func (r *RoutineBuildingPlanner) step(call, epoch context.Context, arbiter *step
 	}
 	actions := make([]domain.Action, len(selected))
 	var dependencies []domain.ActionDependency
+	// A shell's walls wait for its door so the room is never sealed before it
+	// has an entrance; an adopted shell whose door already stands has no such
+	// gate and its walls are independent.
+	doorFirst := false
+	if r.shelter && len(selected) > 0 {
+		if first, ok := selected[0].Action.Building(); ok {
+			doorFirst = first.Definition() == "Door"
+		}
+	}
 	for i, v := range selected {
 		actions[i] = v.Action
-		if r.shelter && i > 0 {
+		if doorFirst && i > 0 {
 			dependencies = append(dependencies, domain.ActionDependency{Action: v.Action.ID(), Requires: selected[0].Action.ID()})
 		}
 	}

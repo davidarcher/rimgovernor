@@ -29,6 +29,7 @@ import (
 	"os"
 	"path/filepath"
 	"sort"
+	"strings"
 	"time"
 
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
@@ -149,16 +150,51 @@ func run(ctx context.Context, cfg liveservice.Config, buildWait, furnishWait tim
 		return err
 	}
 
-	// Run 2: reconcile, reissue only the cancelled cell, finish and furnish.
+	// Run 2: resuming control invalidates the routine goals and cancels their
+	// plans, so the controller must recognise the half-built shell natively
+	// and reissue exactly the cells it is missing: everything run 1 never
+	// ordered plus the cancelled wall, and nothing that still stands.
 	service, err = prepared.Start(ctx, report)
 	if err != nil {
 		return err
 	}
-	if err := waitStages(ctx, st, sh.planID, buildWait, func(s stageCount) bool { return s.completed == s.total }); err != nil {
+	ordered, undecided, err := run1Placements(ctx, st, sh, cancelled)
+	if err != nil {
+		service.Stop()
+		return err
+	}
+	report["run1_ordered_cells"] = len(ordered)
+	report["run1_undecided_cells"] = cellList(undecided)
+	adopted, err := waitAdoptedShell(ctx, st, sh, buildWait)
+	if err != nil {
+		service.Stop()
+		return fmt.Errorf("run 2 did not reissue the shell: %w", err)
+	}
+	reissued := map[domain.Cell]bool{}
+	for _, a := range adopted.Spec.Actions() {
+		b, _ := a.Building()
+		if ordered[b.Cell()] && b.Cell() != cancelled && !undecided[b.Cell()] {
+			service.Stop()
+			return fmt.Errorf("run 2 reissued %s at %v, which run 1 already ordered", b.Definition(), b.Cell())
+		}
+		reissued[b.Cell()] = true
+	}
+	for _, w := range sh.footprint.Walls() {
+		if (!ordered[w] || w == cancelled) && !reissued[w] {
+			service.Stop()
+			return fmt.Errorf("run 2 left the missing cell %v unordered", w)
+		}
+	}
+	if !reissued[cancelled] {
+		service.Stop()
+		return fmt.Errorf("run 2 did not reissue the cancelled wall %v", cancelled)
+	}
+	report["run2_shell"] = map[string]any{"plan": string(adopted.Spec.ID()), "reissued_cells": len(reissued), "cancelled_reissued": true}
+	if err := waitStages(ctx, st, adopted.Spec.ID(), buildWait, func(s stageCount) bool { return s.completed == s.total }); err != nil {
 		service.Stop()
 		return fmt.Errorf("run 2 did not complete the shell: %w", err)
 	}
-	plan, err := st.LoadPlan(ctx, sh.planID)
+	plan, err := st.LoadPlan(ctx, adopted.Spec.ID())
 	if err != nil {
 		service.Stop()
 		return err
@@ -168,31 +204,18 @@ func run(ctx context.Context, cfg liveservice.Config, buildWait, furnishWait tim
 		v := p.View()
 		b, _ := plan.Spec.Actions()[i].Building()
 		attempts[fmt.Sprintf("%d,%d", b.Cell().X, b.Cell().Z)] = int(v.Attempt)
-		want := domain.AttemptID(1)
-		if b.Cell() == cancelled {
-			want = 2
-		}
-		if v.Attempt != want || v.Stage != domain.Completed {
+		if v.Attempt != 1 || v.Stage != domain.Completed {
 			service.Stop()
-			return fmt.Errorf("action %d at %v: attempt %d stage %s, want attempt %d completed", i, b.Cell(), v.Attempt, v.Stage, want)
+			return fmt.Errorf("run 2 action %d at %v: attempt %d stage %s, want one completed attempt", i, b.Cell(), v.Attempt, v.Stage)
 		}
 	}
-	report["shell_attempts"] = attempts
-	goal, err := st.LoadGoal(ctx, sh.goalID)
+	report["run2_shell_attempts"] = attempts
+	old, err := st.LoadGoal(ctx, sh.goalID)
 	if err != nil {
 		service.Stop()
 		return err
 	}
-	shellPlans := 0
-	for _, m := range goal.Methods {
-		if p, err := st.LoadPlan(ctx, m.Plan); err == nil && isShellPlan(p) {
-			shellPlans++
-		}
-	}
-	if shellPlans != 1 {
-		service.Stop()
-		return fmt.Errorf("shelter goal holds %d shell plans after restart, want exactly one", shellPlans)
-	}
+	report["run1_goal_status_after_restart"] = string(old.Goal.Status)
 	// Furnishing: a bed completed inside the hut.
 	bedPlan, bedCells, err := waitBed(ctx, st, sh, furnishWait)
 	report["run2_keepalive"] = service.Stop()
@@ -212,6 +235,77 @@ func run(ctx context.Context, cfg liveservice.Config, buildWait, furnishWait tim
 	}
 	client.Close()
 	return prepared.Finish(ctx, report)
+}
+
+// run1Placements reports which shell cells run 1 had ordered natively by the
+// time it stopped: every action with a dispatch attempt. A dispatch whose
+// receipt never arrived may or may not have reached the game, so those cells
+// are undecided and run 2 may legitimately reissue or skip them.
+func run1Placements(ctx context.Context, st *store.Store, sh *shell, cancelled domain.Cell) (map[domain.Cell]bool, map[domain.Cell]bool, error) {
+	plan, err := st.LoadPlan(ctx, sh.planID)
+	if err != nil {
+		return nil, nil, err
+	}
+	ordered, undecided := map[domain.Cell]bool{}, map[domain.Cell]bool{}
+	for i, p := range plan.Progress {
+		v := p.View()
+		if v.Attempt == 0 {
+			continue
+		}
+		b, _ := plan.Spec.Actions()[i].Building()
+		ordered[b.Cell()] = true
+		if _, known := v.Receipt.Value(); !known || v.Unresolved {
+			undecided[b.Cell()] = true
+		}
+	}
+	return ordered, undecided, nil
+}
+
+func cellList(set map[domain.Cell]bool) []domain.Cell {
+	out := make([]domain.Cell, 0, len(set))
+	for c := range set {
+		out = append(out, c)
+	}
+	sort.Slice(out, func(i, j int) bool { return out[i].Z < out[j].Z || out[i].Z == out[j].Z && out[i].X < out[j].X })
+	return out
+}
+
+// waitAdoptedShell polls for the shell plan the restarted controller admits:
+// a plan of wall (and possibly door) placements other than run 1's whose
+// cells all lie on run 1's shell ring.
+func waitAdoptedShell(ctx context.Context, st *store.Store, sh *shell, wait time.Duration) (store.PlanState, error) {
+	ring := map[domain.Cell]bool{}
+	for _, w := range sh.footprint.Walls() {
+		ring[w] = true
+	}
+	deadline := time.Now().Add(wait)
+	for {
+		plans, err := st.LoadPlans(ctx, 256)
+		if err == nil {
+			for _, plan := range plans {
+				if plan.Spec.ID() == sh.planID || plan.Retired || !strings.HasPrefix(string(plan.Spec.ID()), "routine-shell-") {
+					continue
+				}
+				onRing := len(plan.Spec.Actions()) > 0
+				for _, a := range plan.Spec.Actions() {
+					b, ok := a.Building()
+					onRing = onRing && ok && b.Stuff() == "WoodLog" && (b.Definition() == "Wall" || b.Definition() == "Door") && ring[b.Cell()]
+				}
+				if onRing {
+					return plan, nil
+				}
+				return store.PlanState{}, fmt.Errorf("restarted controller admitted a shell plan %s off run 1's ring (a second shell)", plan.Spec.ID())
+			}
+		}
+		if time.Now().After(deadline) {
+			return store.PlanState{}, errors.New("no shell plan admitted after restart in time")
+		}
+		select {
+		case <-ctx.Done():
+			return store.PlanState{}, ctx.Err()
+		case <-time.After(2 * time.Second):
+		}
+	}
 }
 
 // designateTrees marks the nearest mature wild trees for cutting through the
@@ -647,6 +741,48 @@ func verifyNative(ctx context.Context, h *na.Harness, p *liveservice.Prepared, s
 	}
 	report["native_beds"] = bedReport
 	report["planned_bed_cells"] = bedCells
+	// No second shell: every player wall or door anywhere near this hut
+	// stands on its ring, one per cell, and none is still a blueprint or
+	// frame.
+	b := sh.footprint.Bounds()
+	listed, err := h.Call(ctx, "walls-after", "home/list_buildings", map[string]any{
+		"status": "all", "playerOnly": true, "aggregate": false,
+		"x": b.X + b.Width/2, "z": b.Z + b.Height/2, "radius": 64,
+	})
+	if err != nil {
+		return err
+	}
+	ring := map[domain.Cell]bool{}
+	for _, w := range sh.footprint.Walls() {
+		ring[w] = true
+	}
+	standing := map[domain.Cell]string{}
+	for _, raw := range na.AsSlice(listed["buildings"]) {
+		row, _ := na.AsMap(raw)
+		def := na.AsString(row["buildDefName"])
+		if def == "" {
+			def = na.AsString(row["defName"])
+		}
+		if def != "Wall" && def != "Door" {
+			continue
+		}
+		pos, _ := na.AsMap(row["position"])
+		c := domain.Cell{X: int32(na.AsNumber(pos["x"])), Z: int32(na.AsNumber(pos["z"]))}
+		if !ring[c] {
+			return fmt.Errorf("player %s at %v stands off the hut ring: a second shell was ordered", def, c)
+		}
+		if na.AsString(row["status"]) != "built" {
+			return fmt.Errorf("%s at %v is still %s", def, c, row["status"])
+		}
+		if _, dup := standing[c]; dup {
+			return fmt.Errorf("two structures at %v", c)
+		}
+		standing[c] = def
+	}
+	if len(standing) != len(ring) {
+		return fmt.Errorf("%d walls and doors stand on a ring of %d cells", len(standing), len(ring))
+	}
+	report["native_ring"] = map[string]any{"cells": len(ring), "built": len(standing)}
 	return nil
 }
 
