@@ -280,6 +280,8 @@ namespace HomeBridge.BridgeTools
                     row.Production.Add(production);
                 }
                 for(var index=0;index<bench.BillStack.Count;index++)row.Bills.Add(NativeProductionBills.BillRow(bench.BillStack.Bills[index],index));
+                var cookingRoom = bench.GetRoom();
+                if (cookingRoom != null) row.RoomId = cookingRoom.ID.ToString(System.Globalization.CultureInfo.InvariantCulture);
                 result.Cooking.Add(row);
             }
             foreach(var bench in things.Where(t=>t.Faction==Faction.OfPlayer&&t is IBillGiver&&reachable(t)&&t.def.AllRecipes.Any(r=>r.defName=="ButcherCorpseFlesh")).OrderBy(t=>t.thingIDNumber)){
@@ -287,6 +289,8 @@ namespace HomeBridge.BridgeTools
                 var row=new Obs.ButcheringFacts{Bench=new Obs.EntityRef{Id=bench.GetUniqueLoadID(),DefName=bench.def.defName,MapId=map.uniqueID,Position=Cell(bench.Position),Snapshot=NativeProductionBills.Snapshot(bench,giver,result.Context)},Usable=NativeProductionBills.Usable(bench)};
                 foreach(var recipe in bench.def.AllRecipes.Where(r=>r.defName=="ButcherCorpseFlesh"))row.Recipes.Add(NativeProductionBills.RecipeRow(bench,recipe));
                 for(var index=0;index<giver.BillStack.Count;index++)row.Bills.Add(NativeProductionBills.BillRow(giver.BillStack.Bills[index],index));
+                var butcherRoom = bench.GetRoom();
+                if (butcherRoom != null) row.RoomId = butcherRoom.ID.ToString(System.Globalization.CultureInfo.InvariantCulture);
                 result.Butchering.Add(row);
             }
 

@@ -12,7 +12,7 @@ func upkeepWire() *o.UpkeepFacts {
 	entity := func(id string) *o.EntityRef {
 		return &o.EntityRef{Id: proto.String(id), DefName: proto.String("Thing"), MapId: proto.Int32(3), Position: &c.Cell{X: proto.Int32(1), Z: proto.Int32(2)}}
 	}
-	return &o.UpkeepFacts{Items: []*o.UpkeepItem{{Item: entity("item"), Count: proto.Int64(2), Roofed: proto.Bool(false), InStorage: proto.Bool(false), Forbidden: proto.Bool(false), Medicine: proto.Bool(false), BaseDeteriorationRate: proto.Float64(1)}}, Structures: []*o.UpkeepStructure{{Building: &o.BuildingState{Building: entity("wall"), HitPoints: proto.Int32(5), MaxHitPoints: proto.Int32(10)}, Home: proto.Bool(true), RepairPriority: proto.Int32(1)}}, Fires: []*o.FireState{{Fire: entity("fire"), Home: proto.Bool(true), Size: proto.Float64(.5)}}, Filth: []*o.FilthState{{Filth: entity("filth"), Home: proto.Bool(true), Thickness: proto.Uint32(1)}}}
+	return &o.UpkeepFacts{Items: []*o.UpkeepItem{{Item: entity("item"), Count: proto.Int64(2), Roofed: proto.Bool(false), InStorage: proto.Bool(false), Forbidden: proto.Bool(false), Medicine: proto.Bool(false), BaseDeteriorationRate: proto.Float64(1)}}, Structures: []*o.UpkeepStructure{{Building: &o.BuildingState{Building: entity("wall"), HitPoints: proto.Int32(5), MaxHitPoints: proto.Int32(10)}, Home: proto.Bool(true), RepairPriority: proto.Int32(1)}}, Fires: []*o.FireState{{Fire: entity("fire"), Home: proto.Bool(true), Size: proto.Float64(.5)}}, Filth: []*o.FilthState{{Filth: entity("filth"), Home: proto.Bool(true), Thickness: proto.Uint32(1), RoomRole: proto.String("Kitchen"), RoomId: proto.String("7")}}}
 }
 func TestDirectUpkeepBoundary(t *testing.T) {
 	size := &o.MapSize{Width: proto.Uint32(50), Height: proto.Uint32(50)}

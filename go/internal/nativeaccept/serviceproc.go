@@ -501,7 +501,7 @@ func WaitGoalMethod(ctx context.Context, s *store.Store, need policy.GoalID, pre
 				}
 			}
 			for _, method := range methods {
-				if previous == nil || method.Method != previous.Method {
+				if previous == nil || method.Method != previous.Method || method.Plan != previous.Plan {
 					return goalID, method, nil
 				}
 			}
@@ -532,7 +532,10 @@ func WaitPlanTerminal(ctx context.Context, s *store.Store, planID domain.PlanID)
 			case domain.Unsuccessful:
 				return state, false, fmt.Errorf("plan %s reached unsuccessful instead of completed", planID)
 			case domain.Cancelled:
-				if effect, known := view.Effect.Value(); known && effect == domain.EffectAbsent {
+				// Never dispatched, or dispatched with a known absent effect:
+				// the executor's own no-effect rule (executor/accounting.go).
+				effect, known := view.Effect.Value()
+				if !view.Unresolved && (view.Attempt == 0 || known && effect == domain.EffectAbsent) {
 					return state, true, nil
 				}
 				return state, false, fmt.Errorf("plan %s reached cancelled instead of completed", planID)

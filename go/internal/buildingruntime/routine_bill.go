@@ -130,6 +130,19 @@ func (r *RoutineBillPlanner) step(call, epoch context.Context, arbiter *stepArbi
 		if !dk || !ak || armed <= 0 || days >= r.reviewer.policy.FoodTargetDays {
 			return RoutineBillResult{Reason: BuildingMethodUnknown}, nil
 		}
+		// A butcher bench that shares a cooking room feeds the colony but keeps
+		// the kitchen dirty (issue #6 slice 2). While every bench is co-located
+		// the separated-spot build owns the goal: the bill waits until that
+		// method has been tried (admitted, completed or failed) and then
+		// prefers whichever bench stands apart. A forever bill would otherwise
+		// hold the goal open until a corpse arrives.
+		if rows, known := projection.ProductionBenches.Value(); known && policy.AllButchersColocated(rows) {
+			if _, loadErr := p.journal.LoadGoalMethod(call, goal.Goal.ID, goal.Goal.Epoch, "butcher-spot-separated"); errors.Is(loadErr, store.ErrNotFound) {
+				return RoutineBillResult{Reason: BuildingMethodSeparation}, nil
+			} else if loadErr != nil {
+				return RoutineBillResult{}, loadErr
+			}
+		}
 	}
 	selected, known := policy.SelectProductionBill(r.purpose, projection.ProductionBenches, projection.Facts.Colonists, projection.Facts.FoodDays, projection.FoodAtRiskNutrition, r.reviewer.policy.FoodTargetDays)
 	if !known {
@@ -161,6 +174,13 @@ func (r *RoutineBillPlanner) step(call, epoch context.Context, arbiter *stepArbi
 		return RoutineBillResult{}, err
 	}
 	preview, _, err := r.native.PreviewBill(call, boundary.Identity(state.Snapshot), value)
+	var refused *bridge.NativeFailure
+	if errors.As(err, &refused) {
+		// A native refusal is a planning outcome for this bench, not a step
+		// failure: the sibling planners of the same step keep their turn.
+		clockSchedulerLog("%s: bill preview refused bench=%s recipe=%s code=%v detail=%q", goal.Goal.ID, selected.Bench, selected.Recipe, refused.Value.GetCode(), refused.Value.GetDetail())
+		return RoutineBillResult{Reason: BuildingMethodRefused}, nil
+	}
 	if err != nil {
 		return RoutineBillResult{}, err
 	}

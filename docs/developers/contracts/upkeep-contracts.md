@@ -112,8 +112,25 @@ Methods inspect at most eight targets and eight enabled, available workers in a
 review. Stable target and pawn IDs break ties. Medicine and rot deadlines rank
 hauling; native medical beds, temperature controls and generators lead repairs,
 followed by roof holders, beds and worktables. Relative damage ranks each category
-before cosmetic repairs. Kitchen, hospital and laboratory filth
-ranks before other home cleaning. Methods preserve forbidden items, player work
+before cosmetic repairs. Cleaning targets only filth inside a
+workspace (enclosed kitchen, hospital, laboratory, or any enclosed room with a
+cooking bench) whose native room Cleanliness stat has latched dirty (enter below
+-1, release at -0.25; the per-room latch, keyed by the room's lowest cell
+since native room IDs change on every region rebuild, and its entry tick
+persist in `routine_review`), and only after a 30,000-tick grace with a Cleaning-enabled
+colonist present or at once with none. A clean order is player-forced: any
+colonist not incapable of Cleaning carries it whatever their Work-tab priority
+says, and the native worker cleans the ordered filth plus whatever the
+installed WorkGiver queues beside it. The typed filth census covers the home
+area only (at most 256 rows), the only filth an upkeep order may target. Filth
+outdoors, in other rooms, and in
+inherently dirty rooms (barns, rooms holding a butcher bench) is ordinary
+colonist work. Butcher placements never enter a cooking bench's room and cooking
+placements never enter a butcher bench's room; a colony whose every butcher bench
+shares a cooking room is admitted one more `ButcherSpot` outside; the butcher
+bill waits until that `butcher-spot-separated` method has been tried (admitted,
+completed or failed) and then prefers the separated bench, so a forever bill on
+the shared bench never holds the food-supply goal open. Methods preserve forbidden items, player work
 overrides, schedules, drafts, existing player-forced jobs, storage filters and home
 areas. Native cleaning eligibility determines whether fresh filth can be worked;
 the controller does not encode a filth-age threshold. Deterioration and growing

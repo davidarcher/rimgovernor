@@ -144,3 +144,52 @@ func TestSelectProductionBillPreserveFoodIgnoresForeverReservation(t *testing.T)
 		t.Fatal(selection, ok)
 	}
 }
+
+func TestSelectProductionBillPrefersSeparatedButcherBench(t *testing.T) {
+	butcher := func(id, room string) ProductionBench {
+		bench := ProductionBench{ID: id, Definition: "ButcherSpot", Token: domain.Known("t-" + id), Usable: domain.Known(true), Butcher: true, Recipes: []ProductionRecipe{{Name: "ButcherCorpseFlesh", Available: domain.Known(true)}}}
+		if room != "" {
+			bench.Room = domain.Known(room)
+		}
+		return bench
+	}
+	stove := ProductionBench{ID: "stove", Definition: "FueledStove", Token: domain.Known("t-stove"), Usable: domain.Known(true), Room: domain.Known("kitchen")}
+	// Alphabetically "a" would win; the separated bench "b" wins instead, and
+	// an unknown room is never certified separated.
+	benches := domain.Known([]ProductionBench{butcher("a", "kitchen"), butcher("b", "yard"), butcher("c", ""), stove})
+	selection, ok := SelectProductionBill(ButcherFood, benches, domain.Known(int64(3)), domain.Unknown[float64](), domain.Unknown[float64](), 7)
+	if !ok || selection.Bench != "b" || selection.Mode != domain.ButcherForever {
+		t.Fatal(selection, ok)
+	}
+	benches = domain.Known([]ProductionBench{butcher("a", "kitchen"), butcher("c", ""), stove})
+	if selection, ok := SelectProductionBill(ButcherFood, benches, domain.Known(int64(3)), domain.Unknown[float64](), domain.Unknown[float64](), 7); !ok || selection.Bench != "a" {
+		t.Fatal(selection, ok)
+	}
+}
+
+func TestAllButchersColocated(t *testing.T) {
+	butcher := func(id, room string) ProductionBench {
+		bench := ProductionBench{ID: id, Definition: "ButcherSpot", Butcher: true}
+		if room != "" {
+			bench.Room = domain.Known(room)
+		}
+		return bench
+	}
+	stove := ProductionBench{ID: "stove", Definition: "FueledStove", Room: domain.Known("kitchen")}
+	cases := []struct {
+		name    string
+		benches []ProductionBench
+		want    bool
+	}{
+		{"shared only", []ProductionBench{butcher("a", "kitchen"), stove}, true},
+		{"one apart", []ProductionBench{butcher("a", "kitchen"), butcher("b", "yard"), stove}, false},
+		{"unknown room", []ProductionBench{butcher("a", "kitchen"), butcher("c", ""), stove}, false},
+		{"no butcher", []ProductionBench{stove}, false},
+		{"no cooking", []ProductionBench{butcher("a", "yard")}, false},
+	}
+	for _, tc := range cases {
+		if got := AllButchersColocated(tc.benches); got != tc.want {
+			t.Errorf("%s: got %v want %v", tc.name, got, tc.want)
+		}
+	}
+}

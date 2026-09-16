@@ -19538,6 +19538,7 @@ type FilthState struct {
 	Thickness     *uint32                `protobuf:"varint,3,opt,name=thickness,proto3,oneof" json:"thickness,omitempty"`
 	RoomRole      *string                `protobuf:"bytes,4,opt,name=room_role,json=roomRole,proto3,oneof" json:"room_role,omitempty"`
 	Cleanable     *bool                  `protobuf:"varint,5,opt,name=cleanable,proto3,oneof" json:"cleanable,omitempty"`
+	RoomId        *string                `protobuf:"bytes,6,opt,name=room_id,json=roomId,proto3,oneof" json:"room_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -19605,6 +19606,13 @@ func (x *FilthState) GetCleanable() bool {
 		return *x.Cleanable
 	}
 	return false
+}
+
+func (x *FilthState) GetRoomId() string {
+	if x != nil && x.RoomId != nil {
+		return *x.RoomId
+	}
+	return ""
 }
 
 type ProtectedCell struct {
@@ -21318,6 +21326,7 @@ type CookingFacts struct {
 	Recipes       []*RecipeState         `protobuf:"bytes,3,rep,name=recipes,proto3" json:"recipes,omitempty"`
 	Bills         []*BillState           `protobuf:"bytes,4,rep,name=bills,proto3" json:"bills,omitempty"`
 	Production    []*FoodProduction      `protobuf:"bytes,5,rep,name=production,proto3" json:"production,omitempty"`
+	RoomId        *string                `protobuf:"bytes,6,opt,name=room_id,json=roomId,proto3,oneof" json:"room_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -21385,6 +21394,13 @@ func (x *CookingFacts) GetProduction() []*FoodProduction {
 		return x.Production
 	}
 	return nil
+}
+
+func (x *CookingFacts) GetRoomId() string {
+	if x != nil && x.RoomId != nil {
+		return *x.RoomId
+	}
+	return ""
 }
 
 type AcquisitionFacts struct {
@@ -21493,6 +21509,7 @@ type ButcheringFacts struct {
 	Bills         []*BillState           `protobuf:"bytes,2,rep,name=bills,proto3" json:"bills,omitempty"`
 	Usable        *bool                  `protobuf:"varint,3,opt,name=usable,proto3,oneof" json:"usable,omitempty"`
 	Recipes       []*RecipeState         `protobuf:"bytes,4,rep,name=recipes,proto3" json:"recipes,omitempty"`
+	RoomId        *string                `protobuf:"bytes,5,opt,name=room_id,json=roomId,proto3,oneof" json:"room_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -21553,6 +21570,13 @@ func (x *ButcheringFacts) GetRecipes() []*RecipeState {
 		return x.Recipes
 	}
 	return nil
+}
+
+func (x *ButcheringFacts) GetRoomId() string {
+	if x != nil && x.RoomId != nil {
+		return *x.RoomId
+	}
+	return ""
 }
 
 type FoodCorpse struct {
@@ -28113,21 +28137,24 @@ const file_observations_proto_rawDesc = "" +
 	"\x04home\x18\x03 \x01(\bH\x01R\x04home\x88\x01\x01\x12!\n" +
 	"\fsafe_workers\x18\x04 \x03(\tR\vsafeWorkersB\a\n" +
 	"\x05_sizeB\a\n" +
-	"\x05_home\"\xfe\x01\n" +
+	"\x05_home\"\xa8\x02\n" +
 	"\n" +
 	"FilthState\x12<\n" +
 	"\x05filth\x18\x01 \x01(\v2&.rimgovernor.observations.v1.EntityRefR\x05filth\x12\x17\n" +
 	"\x04home\x18\x02 \x01(\bH\x00R\x04home\x88\x01\x01\x12!\n" +
 	"\tthickness\x18\x03 \x01(\rH\x01R\tthickness\x88\x01\x01\x12 \n" +
 	"\troom_role\x18\x04 \x01(\tH\x02R\broomRole\x88\x01\x01\x12!\n" +
-	"\tcleanable\x18\x05 \x01(\bH\x03R\tcleanable\x88\x01\x01B\a\n" +
+	"\tcleanable\x18\x05 \x01(\bH\x03R\tcleanable\x88\x01\x01\x12\x1c\n" +
+	"\aroom_id\x18\x06 \x01(\tH\x04R\x06roomId\x88\x01\x01B\a\n" +
 	"\x05_homeB\f\n" +
 	"\n" +
 	"_thicknessB\f\n" +
 	"\n" +
 	"_room_roleB\f\n" +
 	"\n" +
-	"_cleanable\"\x8a\x01\n" +
+	"_cleanableB\n" +
+	"\n" +
+	"\b_room_id\"\x8a\x01\n" +
 	"\rProtectedCell\x12/\n" +
 	"\x04cell\x18\x01 \x01(\v2\x1b.rimgovernor.common.v1.CellR\x04cell\x12\x17\n" +
 	"\x04home\x18\x02 \x01(\bH\x00R\x04home\x88\x01\x01\x12\x1b\n" +
@@ -28402,7 +28429,7 @@ const file_observations_proto_rawDesc = "" +
 	"\bproducts\x18\x03 \x03(\v2(.rimgovernor.observations.v1.FoodProductR\bproductsB\t\n" +
 	"\a_recipeB\f\n" +
 	"\n" +
-	"_available\"\xc3\x02\n" +
+	"_available\"\xed\x02\n" +
 	"\fCookingFacts\x12<\n" +
 	"\x05bench\x18\x01 \x01(\v2&.rimgovernor.observations.v1.EntityRefR\x05bench\x12\x1b\n" +
 	"\x06usable\x18\x02 \x01(\bH\x00R\x06usable\x88\x01\x01\x12B\n" +
@@ -28410,8 +28437,11 @@ const file_observations_proto_rawDesc = "" +
 	"\x05bills\x18\x04 \x03(\v2&.rimgovernor.observations.v1.BillStateR\x05bills\x12K\n" +
 	"\n" +
 	"production\x18\x05 \x03(\v2+.rimgovernor.observations.v1.FoodProductionR\n" +
-	"productionB\t\n" +
-	"\a_usable\"\x81\x03\n" +
+	"production\x12\x1c\n" +
+	"\aroom_id\x18\x06 \x01(\tH\x01R\x06roomId\x88\x01\x01B\t\n" +
+	"\a_usableB\n" +
+	"\n" +
+	"\b_room_id\"\x81\x03\n" +
 	"\x10AcquisitionFacts\x12>\n" +
 	"\x06source\x18\x01 \x01(\v2&.rimgovernor.observations.v1.EntityRefR\x06source\x12\x1f\n" +
 	"\bresource\x18\x02 \x01(\tH\x00R\bresource\x88\x01\x01\x12\x17\n" +
@@ -28429,13 +28459,16 @@ const file_observations_proto_rawDesc = "" +
 	"\x06_yieldB\x12\n" +
 	"\x10_nutrition_yieldB\r\n" +
 	"\v_designatedB\a\n" +
-	"\x05_hunt\"\xf9\x01\n" +
+	"\x05_hunt\"\xa3\x02\n" +
 	"\x0fButcheringFacts\x12<\n" +
 	"\x05bench\x18\x01 \x01(\v2&.rimgovernor.observations.v1.EntityRefR\x05bench\x12<\n" +
 	"\x05bills\x18\x02 \x03(\v2&.rimgovernor.observations.v1.BillStateR\x05bills\x12\x1b\n" +
 	"\x06usable\x18\x03 \x01(\bH\x00R\x06usable\x88\x01\x01\x12B\n" +
-	"\arecipes\x18\x04 \x03(\v2(.rimgovernor.observations.v1.RecipeStateR\arecipesB\t\n" +
-	"\a_usable\"\x93\x02\n" +
+	"\arecipes\x18\x04 \x03(\v2(.rimgovernor.observations.v1.RecipeStateR\arecipes\x12\x1c\n" +
+	"\aroom_id\x18\x05 \x01(\tH\x01R\x06roomId\x88\x01\x01B\t\n" +
+	"\a_usableB\n" +
+	"\n" +
+	"\b_room_id\"\x93\x02\n" +
 	"\n" +
 	"FoodCorpse\x12@\n" +
 	"\x06corpse\x18\x01 \x01(\v2(.rimgovernor.observations.v1.CorpseStateR\x06corpse\x12\x19\n" +

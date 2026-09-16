@@ -416,6 +416,30 @@ priority 2 so it bypasses ranked development: spoilage is a bounded loss the
 colony is already paying for. Targeted acceptance is `refrigerationaccept
 -scenario build|setpoint|power` against `RefrigerationFixture`.
 
+`MaintainCleanFacilities` is a bounded response to failed work coverage, not a
+janitor. The typed room census carries RimWorld's own room `Cleanliness` stat
+and each filth row its room; a workspace (an enclosed kitchen, hospital or
+laboratory, or any enclosed room holding a cooking bench) latches dirty below
+-1 and releases at -0.25, and the latch (`UpkeepHistory.DirtyRooms`, keyed by
+the room's lowest cell because native room IDs are renumbered on every region
+rebuild, with its
+entry tick) persists across restarts. A latched room's filth becomes a direct
+clean target only after 30,000 ticks of grace with a Cleaning-enabled colonist
+present, or at once when no colonist has Cleaning enabled; at most eight
+targets a review, dirtiest room first. The order is player-forced, so any
+colonist not incapable of Cleaning may carry it whatever their Work-tab
+priority says. Filth elsewhere, in unlatched rooms and
+in inherently dirty rooms (barns, and any room holding a butcher bench) stays
+ordinary colonist work. Kitchen/butcher separation: butcher placements protect
+every cell of every room holding a cooking bench and cooking placements the
+reverse; when every butcher bench shares a room with a cooking bench the
+`butcher-spot-separated` method admits a fresh `ButcherSpot` outside; the
+butcher bill defers (`butcher_separation_pending`) until that method has been
+tried and then prefers a bench whose room holds no cooking bench. Deconstructing
+the co-located bench needs a generic deconstruct action the tree lacks
+(follow-up under #6). Targeted acceptance is `cleanaccept -scenario
+filthy|separation` against `CleanlinessFixture`.
+
 Routine reviews also read native pawn needs and thought targets. Per-pawn mood
 goals retain break-threshold and food/rest/recreation hysteresis through Manual and
 restart; missing pawns and unknown reads cannot certify recovery. `MoodMethods`

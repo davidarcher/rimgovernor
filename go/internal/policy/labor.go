@@ -16,6 +16,7 @@ const (
 	WorkCrafting     WorkType = "Crafting"
 	WorkHauling      WorkType = "Hauling"
 	WorkCleaning     WorkType = "Cleaning"
+	WorkBasic        WorkType = "BasicWorker"
 	WorkHandling     WorkType = "Handling"
 	WorkFirefighter  WorkType = "Firefighter"
 )
@@ -41,7 +42,10 @@ func GoalLabor(id GoalID) LaborProfile {
 	case SecureSupplies, MaintainStorage, MaintainWaste:
 		return LaborProfile{WorkHauling}
 	case MaintainCleanFacilities:
-		return LaborProfile{WorkCleaning}
+		// The bounded cleaning response is a player-forced order any basic
+		// worker not incapable of Cleaning can carry, and it exists for the
+		// case where nobody has Cleaning at priority > 0.
+		return LaborProfile{WorkCleaning, WorkBasic}
 	case MaintainHerd, MaintainAnimalFeed:
 		return LaborProfile{WorkHandling}
 	case MaintainFireSafety:

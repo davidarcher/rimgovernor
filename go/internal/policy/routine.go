@@ -47,6 +47,7 @@ type RoutinePolicy struct {
 	AnimalUpkeep                                  AnimalUpkeepPolicy
 	MedicalReserve                                MedicalReservePolicy
 	FoodStorage                                   FoodStoragePolicy
+	Cleanliness                                   CleanlinessPolicy
 	MaxDevelopmentProjects                        int
 	FoodMinDays, FoodTargetDays, FootholdFoodDays float64
 	ColdEnter, ColdExit, HotExit, HotEnter        float64
@@ -111,7 +112,7 @@ type RoutinePolicy struct {
 }
 
 func DefaultRoutinePolicy() RoutinePolicy {
-	return RoutinePolicy{AnimalUpkeep: DefaultAnimalUpkeepPolicy(), MedicalReserve: DefaultMedicalReservePolicy(), FoodStorage: DefaultFoodStoragePolicy(), MaxDevelopmentProjects: 2, FoodMinDays: 3, FoodTargetDays: 7, FootholdFoodDays: 3,
+	return RoutinePolicy{AnimalUpkeep: DefaultAnimalUpkeepPolicy(), MedicalReserve: DefaultMedicalReservePolicy(), FoodStorage: DefaultFoodStoragePolicy(), Cleanliness: DefaultCleanlinessPolicy(), MaxDevelopmentProjects: 2, FoodMinDays: 3, FoodTargetDays: 7, FootholdFoodDays: 3,
 		ColdEnter: 12, ColdExit: 16, HotExit: 28, HotEnter: 32, WoodMin: 120, WoodTarget: 350, WoodMax: 500, HuntStallTicks: 6000}
 }
 
@@ -124,6 +125,9 @@ func (p RoutinePolicy) Validate() error {
 	}
 	if !p.FoodStorage.valid() {
 		return errors.New("invalid food storage thresholds")
+	}
+	if !p.Cleanliness.valid() {
+		return errors.New("invalid cleanliness thresholds")
 	}
 	if p.MaxDevelopmentProjects < 1 || p.MaxDevelopmentProjects > 8 {
 		return errors.New("invalid development project limit")
@@ -382,7 +386,7 @@ func DetectRoutine(f RoutineFacts, previous RoutineLatches, p RoutinePolicy) (Ro
 	if err != nil {
 		return RoutineNeeds{}, err
 	}
-	upkeep, err := ReviewUpkeep(f.Upkeep, previous.Upkeep, f.UpkeepIssued)
+	upkeep, err := ReviewUpkeepWith(f.Upkeep, previous.Upkeep, f.UpkeepIssued, p.Cleanliness)
 	if err != nil {
 		return RoutineNeeds{}, err
 	}

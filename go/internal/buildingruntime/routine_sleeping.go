@@ -31,6 +31,9 @@ const (
 	BuildingMethodRefused      RoutineBuildingReason = "shared_admission_refused"
 	BuildingMethodExhausted    RoutineBuildingReason = "retry_bound_exhausted"
 	BuildingMethodAdmitted     RoutineBuildingReason = "admitted"
+	// BuildingMethodSeparation defers a butcher bill while the separated
+	// butcher spot build still owns the food-supply goal.
+	BuildingMethodSeparation RoutineBuildingReason = "butcher_separation_pending"
 )
 
 type RoutineBuildingResult struct {
@@ -168,10 +171,16 @@ func (r *RoutineBuildingPlanner) step(call, epoch context.Context, arbiter *step
 		definitions = []string{"Wall", "Door"}
 	}
 	var reading observation.ColonyReading
-	if r.goal == policy.EnsureTemperatureSafety || r.goal == policy.EnsureComfort || r.goal == policy.MaintainRefrigeration {
+	_, routineSource := r.native.(observation.RoutineSource)
+	_, roomSource := r.native.(observation.TemperatureSource)
+	separation := (r.goal == policy.EnsureFoodSupply || r.goal == policy.EnsureCooking) && routineSource && roomSource
+	if r.goal == policy.EnsureTemperatureSafety || r.goal == policy.EnsureComfort || r.goal == policy.MaintainRefrigeration || separation {
+		// Cooking and butcher placements read rooms too when the source can
+		// serve them, so kitchen/butcher separation protects each other's
+		// rooms (issue #6 slice 2); without a census nothing is protected.
 		full, readErr := observation.ObserveRoutineRooms(call, r.native.(observation.RoutineSource), r.reviewer.clock, expected, r.reviewer.maxAge, domain.Unknown[[]policy.ConstructionClaim](), definitions...)
 		reading, err = full.ColonyReading, readErr
-	} else if r.goal == policy.EnsureBasicPower || r.goal == policy.EnsureFoodSupply {
+	} else if r.goal == policy.EnsureBasicPower {
 		full, readErr := observation.ObserveRoutine(call, r.native.(observation.RoutineSource), r.reviewer.clock, expected, r.reviewer.maxAge, definitions...)
 		reading, err = full.ColonyReading, readErr
 	} else {
@@ -439,6 +448,9 @@ func (r *RoutineBuildingPlanner) previewMethod(call context.Context, snapshot do
 	}
 	if r.shelter {
 		return r.previewShell(call, snapshot, facts, protected, check)
+	}
+	if r.definition == "ButcherSpot" || r.goal == policy.EnsureCooking {
+		protected = append(append([]domain.Cell(nil), protected...), policy.SeparationProtectedCells(facts.Rooms, r.definition == "ButcherSpot")...)
 	}
 	var cells []policy.SiteCell
 	adjacent := map[domain.Cell]bool{}
