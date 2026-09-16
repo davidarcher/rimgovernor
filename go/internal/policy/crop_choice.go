@@ -127,69 +127,18 @@ func FieldTarget(colonists domain.Fact[int64], crop CropChoice, reserve float64)
 	return domain.Known(int(target))
 }
 
-// GrowthFields adds up to 32 disjoint patches, preserving occupied soil, player
-// footprints and existing zones. Missing cells never become free land.
-func GrowthFields(bounds Bounds, anchor domain.Cell, cells []SiteCell, protected []domain.Cell, crop CropChoice, target domain.Fact[int], coverage domain.Fact[float64]) []Rectangle {
+// GrowthFields plans the expansion patches that lift edible coverage to the
+// target through the shared farm site score. Missing cells never become free
+// land; the caller's protected footprints and existing zones are preserved.
+func GrowthFields(bounds Bounds, anchor domain.Cell, storage domain.Fact[domain.Cell], cells []SiteCell, protected []domain.Cell, zones []FarmZone, crop CropChoice, target domain.Fact[int], coverage domain.Fact[float64]) FarmSitePlan {
 	count, ck := target.Value()
 	fraction, fk := coverage.Value()
-	minimum, mk := crop.FertilityMin.Value()
-	if !ck || count <= 0 || count > 65536 || !fk || !foodNumber(fraction) || !mk || !fieldPositive(minimum) || len(cells) > 65536 || len(protected) > 65536 || bounds.Width <= 0 || bounds.Height <= 0 || bounds.Width > 4096 || bounds.Height > 4096 {
-		return nil
-	}
-	seen := map[domain.Cell]bool{}
-	for _, cell := range cells {
-		if seen[cell.Cell] {
-			return nil
-		}
-		seen[cell.Cell] = true
+	if !ck || count <= 0 || count > 65536 || !fk || !foodNumber(fraction) {
+		return FarmSitePlan{}
 	}
 	needed := int(math.Ceil(float64(count)*(1-fraction) - 1e-9))
 	if needed <= 0 {
-		return nil
+		return FarmSitePlan{}
 	}
-	blocked := map[domain.Cell]bool{}
-	for _, c := range protected {
-		blocked[c] = true
-	}
-	free := map[domain.Cell]bool{}
-	var ordered []domain.Cell
-	for _, cell := range cells {
-		if cell.Cell.X < 0 || cell.Cell.Z < 0 || cell.Cell.X >= bounds.Width || cell.Cell.Z >= bounds.Height || free[cell.Cell] {
-			continue
-		}
-		if _, ok := freeCropSoil(cell, minimum, blocked); ok {
-			free[cell.Cell] = true
-			ordered = append(ordered, cell.Cell)
-		}
-	}
-	sort.Slice(ordered, func(i, j int) bool {
-		a, b := squaredDistance(ordered[i], anchor), squaredDistance(ordered[j], anchor)
-		if a != b {
-			return a < b
-		}
-		return cellLess(ordered[i], ordered[j])
-	})
-	selected := map[domain.Cell]bool{}
-	var patches []Rectangle
-	for _, size := range []int32{4, 3, 2, 1} {
-		for _, cell := range ordered {
-			if len(selected) >= needed || len(patches) == 32 {
-				return patches
-			}
-			patch := Rectangle{X: cell.X, Z: cell.Z, Width: size, Height: size}
-			footprint := rectCells(patch)
-			ok := true
-			for _, c := range footprint {
-				ok = ok && free[c] && !selected[c]
-			}
-			if !ok {
-				continue
-			}
-			patches = append(patches, patch)
-			for _, c := range footprint {
-				selected[c] = true
-			}
-		}
-	}
-	return patches
+	return PlanFarmSites(FarmSiteRequest{Bounds: bounds, Anchor: anchor, Storage: storage, Cells: cells, Protected: protected, Zones: zones, Crop: crop, Needed: needed})
 }

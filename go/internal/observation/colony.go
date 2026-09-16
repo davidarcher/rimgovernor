@@ -42,10 +42,14 @@ type ColonyProjection struct {
 	Bounds                                 policy.Bounds
 	Center                                 domain.Cell
 	Cells                                  []policy.SiteCell
-	Definitions                            []PlanningDefinition
-	FoodSupply                             domain.Fact[policy.FoodSupply]
-	CombinedFoodSupply                     domain.Fact[policy.FoodSupply]
+	// Farms lists observed growing zones by native id and current crop.
+	Farms              []FarmZoneFact
+	Definitions        []PlanningDefinition
+	FoodSupply         domain.Fact[policy.FoodSupply]
+	CombinedFoodSupply domain.Fact[policy.FoodSupply]
 }
+
+type FarmZoneFact struct{ ID, Crop string }
 
 type CookingBench struct {
 	Definition string
@@ -264,7 +268,14 @@ func DecodeColony(reply *o.ColonyFactsReply, expected Identity) (ColonyProjectio
 			if row.Fogged == nil || row.GetFogged() {
 				continue
 			}
-			r.Cells = append(r.Cells, policy.SiteCell{Cell: domain.Cell{X: row.Cell.GetX(), Z: row.Cell.GetZ()}, Walkable: optional(row.Walkable), Occupied: optional(row.Occupied), Zone: nativePresence(row.ZoneId, row.Issues, "zone_id"), Roofed: nativePresence(row.Roof, row.Issues, "roof"), Indoors: optional(row.Indoors), SupportsLight: optional(row.SupportsLight), Fertility: optional(row.Fertility), StorageEmpty: optional(row.StorageEmpty)})
+			r.Cells = append(r.Cells, policy.SiteCell{Cell: domain.Cell{X: row.Cell.GetX(), Z: row.Cell.GetZ()}, Walkable: optional(row.Walkable), Occupied: optional(row.Occupied), Zone: nativePresence(row.ZoneId, row.Issues, "zone_id"), Roofed: nativePresence(row.Roof, row.Issues, "roof"), Indoors: optional(row.Indoors), SupportsLight: optional(row.SupportsLight), Fertility: optional(row.Fertility), StorageEmpty: optional(row.StorageEmpty), ZoneID: optional(row.ZoneId)})
+		}
+	}
+	if !hasIssue(v.Issues, "farms") {
+		for _, farm := range v.Farms {
+			if farm.ZoneId != nil && farm.Crop != nil {
+				r.Farms = append(r.Farms, FarmZoneFact{ID: farm.GetZoneId(), Crop: farm.GetCrop()})
+			}
 		}
 	}
 	r.FieldCrops = colonyFieldCrops(v, r.Definitions)

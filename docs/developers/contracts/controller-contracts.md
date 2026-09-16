@@ -183,9 +183,18 @@ establish that the event caused them.
 ### Shared compilation
 
 Methods compile small batches of semantic construction/zone/native actions. Starter
-templates rank nearby legal shelter sites and disjoint fertile farm patches, then use
-bounded native previews. Fragmented soil can use smaller patches within the same zone
-budget; insufficient farmland does not reject an otherwise legal shelter. Selected field
+templates rank nearby legal shelter sites, then use bounded native previews. Starter
+farms and food-supply expansion share one farm site score (`policy.PlanFarmSites`):
+each square patch (4x4 down to 2x2) is rewarded by the crop's fertility-adjusted
+nutrition rate and charged, as fractions of a normal cell's daily output, for walked
+travel from the anchor, hauling to storage and fragmentation (per patch and per edge
+cell), so distant rich soil loses to suitable local soil. A patch adjoining a
+controller-created zone growing the same crop is a contiguous addition and earns a
+credit instead of the fragment charge; player zones, occupied, roofed, protected,
+unreachable and undescribed cells never become free land. Isolated 1x1 cells are used
+only when no larger patch meets the crop's fertility floor. Each selected patch keeps
+its scored terms (`FarmSitePlan.Explain`) so acceptance evidence can say why a site
+won. Insufficient farmland does not reject an otherwise legal shelter. Selected field
 capacity remains separate from observed growing cells and the production gate. Work
 allocation uses observed capabilities/skills, job load and stable identity tie breaks;
 it respects the game's checkbox versus manual-priority modes and explicit player

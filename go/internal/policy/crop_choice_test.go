@@ -30,7 +30,7 @@ func TestCropSeasonRunwaySoilAndProtectedPatches(t *testing.T) {
 	if _, ok := ChooseCrop([]CropChoice{rice, corn}, climate, domain.Known(1.0), cells, nil); ok {
 		t.Fatal("winter crop")
 	}
-	patches := GrowthFields(Bounds{8, 8}, domain.Cell{}, cells, []domain.Cell{{X: 0, Z: 0}}, rice, domain.Known(30), domain.Known(0.0))
+	patches := GrowthFields(Bounds{8, 8}, domain.Cell{X: 1, Z: 1}, domain.Unknown[domain.Cell](), cells, []domain.Cell{{X: 0, Z: 0}}, nil, rice, domain.Known(30), domain.Known(0.0)).Patches
 	seen := map[domain.Cell]bool{}
 	for _, p := range patches {
 		for _, c := range rectCells(p) {
@@ -43,10 +43,10 @@ func TestCropSeasonRunwaySoilAndProtectedPatches(t *testing.T) {
 	if len(seen) < 30 || len(patches) > 32 {
 		t.Fatal(patches)
 	}
-	if p := GrowthFields(Bounds{8, 8}, domain.Cell{}, append(cells, cells[0]), nil, rice, domain.Known(30), domain.Known(0.0)); len(p) != 0 {
+	if p := GrowthFields(Bounds{8, 8}, domain.Cell{}, domain.Unknown[domain.Cell](), append(cells, cells[0]), nil, nil, rice, domain.Known(30), domain.Known(0.0)); len(p.Patches) != 0 {
 		t.Fatal("duplicate census")
 	}
-	if p := GrowthFields(Bounds{8, 8}, domain.Cell{}, cells, nil, rice, domain.Known(30), domain.Unknown[float64]()); len(p) != 0 {
+	if p := GrowthFields(Bounds{8, 8}, domain.Cell{}, domain.Unknown[domain.Cell](), cells, nil, nil, rice, domain.Known(30), domain.Unknown[float64]()); len(p.Patches) != 0 {
 		t.Fatal("unknown coverage")
 	}
 }

@@ -112,17 +112,17 @@ func TestFieldPlannerReservationsCASAndManual(t *testing.T) {
 	}
 	n.reply.GetObserved().Context.Tick = proto.Int64(int64(tick + 1))
 	facts := observation.ColonyProjection{Identity: observation.Identity{Tick: tick + 1}, Definitions: []observation.PlanningDefinition{{Name: "Plant_Rice", GrowDays: domain.Known(3.0)}}}
-	allowance, err := planner.fieldAllowance(ctx, goal, session.State().Snapshot, facts)
-	if err != nil || allowance == 0 {
-		t.Fatal("growth budget", allowance, err)
+	allowance, managed, err := planner.fieldAllowance(ctx, goal, session.State().Snapshot, facts)
+	if err != nil || allowance == 0 || len(managed) != 1 {
+		t.Fatal("growth budget", allowance, managed, err)
 	}
 	facts.Identity.Tick += domain.Tick(allowance)
-	if wait, err := planner.fieldAllowance(ctx, goal, session.State().Snapshot, facts); err != nil || wait != 0 {
+	if wait, _, err := planner.fieldAllowance(ctx, goal, session.State().Snapshot, facts); err != nil || wait != 0 {
 		t.Fatal("deadline renewed", wait, err)
 	}
 	facts.Identity.Tick = tick + 1
 	planner.native.(*fieldTestNative).changed = true
-	if wait, err := planner.fieldAllowance(ctx, goal, session.State().Snapshot, facts); err != nil || wait != 0 {
+	if wait, _, err := planner.fieldAllowance(ctx, goal, session.State().Snapshot, facts); err != nil || wait != 0 {
 		t.Fatal("changed field granted time", wait, err)
 	}
 

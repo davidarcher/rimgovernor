@@ -13,6 +13,8 @@ type SiteCell struct {
 	Cell                                                                   domain.Cell
 	Walkable, Occupied, Zone, Roofed, Indoors, SupportsLight, StorageEmpty domain.Fact[bool]
 	Fertility                                                              domain.Fact[float64]
+	// ZoneID names the native zone covering the cell when Zone is true.
+	ZoneID domain.Fact[string]
 }
 type StarterRequest struct {
 	Bounds Bounds
@@ -21,10 +23,15 @@ type StarterRequest struct {
 	// Protected contains accepted footprints, player exclusions and walkways.
 	Protected                                                     []domain.Cell
 	NutritionPerDay, CropGrowDays, HarvestNutrition, FertilityMin domain.Fact[float64]
+	// Crop, when known, replaces the bare crop facts above for farm scoring.
+	Crop domain.Fact[CropChoice]
+	// Zones lists existing growing zones so farms can extend managed ones.
+	Zones []FarmZone
 }
 type StarterLayout struct {
 	Room, Storage Rectangle
 	Farms         []Rectangle
+	FarmSites     FarmSitePlan
 	Score         int64
 	SelectedCells int
 	TargetCells   domain.Fact[int]
@@ -64,7 +71,6 @@ func StarterLayouts(r StarterRequest) ([]StarterLayout, error) {
 	n, nk := r.NutritionPerDay.Value()
 	days, dk := r.CropGrowDays.Value()
 	yield, yk := r.HarvestNutrition.Value()
-	fertility, fk := r.FertilityMin.Value()
 	target := 0
 	targetFact := domain.Unknown[int]()
 	if nk && dk && yk && days > 0 && yield > 0 {
@@ -75,6 +81,11 @@ func StarterLayouts(r StarterRequest) ([]StarterLayout, error) {
 		target = int(v)
 		targetFact = domain.Known(target)
 	}
+	crop, ck := r.Crop.Value()
+	if !ck {
+		crop = CropChoice{GrowDays: r.CropGrowDays, HarvestNutrition: r.HarvestNutrition, FertilityMin: r.FertilityMin, FertilitySensitivity: domain.Known(1.0)}
+	}
+	_, fk := crop.FertilityMin.Value()
 	cells := make(map[domain.Cell]SiteCell, len(r.Cells))
 	ordered := make([]domain.Cell, 0, len(r.Cells))
 	for _, c := range r.Cells {
@@ -147,47 +158,20 @@ func StarterLayouts(r StarterRequest) ([]StarterLayout, error) {
 				reserved[p] = true
 			}
 		}
-		farmland := append([]domain.Cell(nil), ordered...)
-		center := domain.Cell{X: x + 4, Z: z + 4}
-		sort.Slice(farmland, func(i, j int) bool {
-			a, b := squaredDistance(farmland[i], center), squaredDistance(farmland[j], center)
-			if a != b {
-				return a < b
-			}
-			return cellLess(farmland[i], farmland[j])
-		})
 		layout := StarterLayout{Room: Rectangle{x, z, 9, 9}, Storage: Rectangle{x + 3, z + 5, 3, 3}, Score: site.score, TargetCells: targetFact}
-		chosen := map[domain.Cell]bool{}
-		for _, size := range []int32{4, 3, 2, 1} {
-			if !fk || len(chosen) >= target || len(layout.Farms) >= 32 {
-				break
+		chosen := 0
+		if fk && target > 0 {
+			protectedCells := append([]domain.Cell(nil), r.Protected...)
+			for p := range reserved {
+				protectedCells = append(protectedCells, p)
 			}
-			for _, anchor := range farmland {
-				patch := Rectangle{anchor.X, anchor.Z, size, size}
-				points := rectCells(patch)
-				legal := true
-				for _, p := range points {
-					c := cells[p]
-					f, k := c.Fertility.Value()
-					if reserved[p] || chosen[p] || !free(p) || !positive(measured(c.Roofed, func(v bool) bool { return !v })) || !k || f < fertility {
-						legal = false
-						break
-					}
-				}
-				if !legal {
-					continue
-				}
-				layout.Farms = append(layout.Farms, patch)
-				for _, p := range points {
-					chosen[p] = true
-				}
-				if len(chosen) >= target || len(layout.Farms) >= 32 {
-					break
-				}
-			}
+			farms := PlanFarmSites(FarmSiteRequest{Bounds: r.Bounds, Anchor: domain.Cell{X: x + 4, Z: z + 4}, Storage: domain.Known(domain.Cell{X: x + 4, Z: z + 6}), Cells: r.Cells, Protected: protectedCells, Zones: r.Zones, Crop: crop, Needed: target})
+			layout.Farms = farms.Patches
+			layout.FarmSites = farms
+			chosen = farms.Cells
 		}
-		layout.SelectedCells = len(chosen)
-		layout.Score += int64(max(0, target-len(chosen))) * 2
+		layout.SelectedCells = chosen
+		layout.Score += int64(max(0, target-chosen)) * 2
 		layouts = append(layouts, layout)
 	}
 	sort.Slice(layouts, func(i, j int) bool {
