@@ -696,11 +696,11 @@ func serveBuildingWithBridge(ctx context.Context, config serveConfig, out io.Wri
 			return err
 		}
 		defer func() { result = errors.Join(result, modelClient.Close()) }()
-		interp, err := interpreter.NewLocal(interpreter.Config{ContextTokens: config.chatContextTokens, MaxOutputTokens: config.chatMaxOutputTokens, MaxActions: 1}, modelClient)
+		interp, err := interpreter.NewLocal(interpreter.Config{ContextTokens: config.chatContextTokens, MaxOutputTokens: config.chatMaxOutputTokens}, modelClient)
 		if err != nil {
 			return err
 		}
-		server.EnableChat(interp, raw)
+		server.EnableChat(interp, raw, database)
 	}
 	pollDone = make(chan struct{})
 	go func() { defer close(pollDone); reads.Poll(lifetime, config.refresh) }()

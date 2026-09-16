@@ -4,16 +4,21 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"github.com/davidarcher/RimGovernor/go/internal/domain"
-	"github.com/davidarcher/RimGovernor/go/internal/model"
 	"net/http"
 	"net/http/httptest"
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/davidarcher/RimGovernor/go/internal/domain"
+	"github.com/davidarcher/RimGovernor/go/internal/model"
 )
 
-const valid = `{"command":"build","buildings":[{"defName":"Wall","x":2,"z":3,"rotation":"north","stuff":"Granite"}]}`
+const (
+	explainOnly  = `{"explanation":"The autopilot is growing rice because food runway is four days.","guidance":null}`
+	activateGoal = `{"explanation":"Prioritising food.","guidance":{"kind":"activate_goal","goal":"EnsureFoodSupply"}}`
+	valid        = activateGoal
+)
 
 type completeFunc func(context.Context, model.Request) (model.Response, error)
 
@@ -21,16 +26,28 @@ func (f completeFunc) Complete(c context.Context, r model.Request) (model.Respon
 	return f(c, r)
 }
 func inputFixture() Input {
-	generation := domain.GenerationSnapshot{Colony: "colony", Map: 1, Load: "load", Plan: "player-plan", Revision: 2, Native: 4}
-	return Input{UserRequest: "Build a granite wall at (2,3).", ExplicitPlayerRequest: true, Current: generation, Facts: Snapshot{Generation: generation, Width: 20, Height: 20, Definitions: []Definition{{DefName: "Wall", Stuff: []string{"Granite"}}}, Cells: []domain.Cell{{X: 2, Z: 3}}}, ActionIDs: []domain.ActionID{"a1"}}
+	generation := domain.GenerationSnapshot{Colony: "colony", Map: 1, Load: "load", Plan: "root", Revision: 2, Native: 4}
+	return Input{UserRequest: "What are you doing about food?", Current: generation, Facts: Facts{
+		Generation:      generation,
+		Colony:          Colony{Tick: 100, ColonistCount: 3, Resources: []Resource{{"Steel", 120}, {"WoodLog", 300}}},
+		Pawns:           []Pawn{{ID: "Thing_Human1", Label: "Bob", Colonist: true}, {ID: "Thing_Human9", Downed: true}},
+		Goals:           []Goal{{ID: "goal-food", Kind: "EnsureFoodSupply", Source: domain.AutopilotGoal, Status: domain.GoalActive, Need: domain.NeedDeficit, Priority: 1}},
+		PolicyResources: []string{"Silver"},
+	}}
 }
 func clientFixture(t *testing.T, fn completeFunc) *Interpreter {
 	t.Helper()
-	i, err := New(Config{ContextTokens: 16384, MaxOutputTokens: 1024, MaxActions: 4}, fn)
+	i, err := New(Config{ContextTokens: 16384, MaxOutputTokens: 1024}, fn)
 	if err != nil {
 		t.Fatal(err)
 	}
 	return i
+}
+func replying(t *testing.T, text string) *Interpreter {
+	t.Helper()
+	return clientFixture(t, func(context.Context, model.Request) (model.Response, error) {
+		return model.Response{Text: text, FinishReason: model.Stop}, nil
+	})
 }
 func assertKind(t *testing.T, err error, kind FailureKind) {
 	t.Helper()
@@ -39,7 +56,7 @@ func assertKind(t *testing.T, err error, kind FailureKind) {
 		t.Fatalf("got %v want %s", err, kind)
 	}
 }
-func TestProposalFromActualLocalHTTP(t *testing.T) {
+func TestGuidanceFromActualLocalHTTP(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		var request struct {
 			Messages  []model.Message `json:"messages"`
@@ -51,8 +68,10 @@ func TestProposalFromActualLocalHTTP(t *testing.T) {
 		if request.MaxTokens != 1024 || request.Messages[len(request.Messages)-1].Content != inputFixture().UserRequest {
 			t.Error("request or reservation changed")
 		}
-		response := `{"choices":[{"index":0,"message":{"role":"assistant","content":` + string(mustJSON(valid)) + `},"finish_reason":"stop"}]}`
-		w.Write([]byte(response))
+		if !strings.Contains(request.Messages[1].Content, `"goal-food"`) || !strings.Contains(request.Messages[1].Content, `"Bob"`) {
+			t.Error("facts not supplied as data")
+		}
+		w.Write([]byte(`{"choices":[{"index":0,"message":{"role":"assistant","content":` + string(mustJSON(activateGoal)) + `},"finish_reason":"stop"}]}`))
 	}))
 	defer server.Close()
 	transport, err := model.NewClient(model.Config{BaseURL: server.URL + "/v1", Model: "local", Timeout: time.Second, MaxResponseBytes: 65536})
@@ -60,24 +79,66 @@ func TestProposalFromActualLocalHTTP(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer transport.Close()
-	i, err := New(Config{32768, 1024, 4}, transport)
+	i, err := New(Config{32768, 1024}, transport)
 	if err != nil {
 		t.Fatal(err)
 	}
-	proposal, err := i.Interpret(context.Background(), inputFixture())
+	guidance, err := i.Interpret(context.Background(), inputFixture())
 	if err != nil {
 		t.Fatal(err)
 	}
-	if proposal.Plan.ID() != "player-plan" || proposal.Plan.Revision() != 2 || !proposal.Generation.Matches(inputFixture().Current) {
-		t.Fatal("lost caller identity")
-	}
-	actions := proposal.Plan.Actions()
-	b, ok := actions[0].Building()
-	if !ok || b.Definition() != "Wall" || b.Stuff() != "Granite" || b.Cell() != (domain.Cell{X: 2, Z: 3}) || actions[0].ID() != "a1" {
-		t.Fatal("incorrect typed proposal")
+	if guidance.Kind != ActivateGoal || guidance.ActivateGoal != domain.EnsureFoodSupplyGoal || guidance.Explanation != "Prioritising food." || !guidance.Generation.Matches(inputFixture().Current) {
+		t.Fatalf("%+v", guidance)
 	}
 }
 func mustJSON(value string) []byte { data, _ := json.Marshal(value); return data }
+
+func TestExplainOnlyCarriesNoNudge(t *testing.T) {
+	guidance, err := replying(t, explainOnly).Interpret(context.Background(), inputFixture())
+	if err != nil || guidance.Kind != Explain || guidance.ActivateGoal != "" || guidance.CancelGoal != "" || guidance.PopulationPolicy.Set() || !guidance.ExpeditionPolicy.Empty() || guidance.PopulationDecision.Set() || !guidance.ResourcePolicy.Empty() {
+		t.Fatalf("%+v %v", guidance, err)
+	}
+	if !strings.Contains(guidance.Explanation, "rice") {
+		t.Fatal(guidance.Explanation)
+	}
+}
+
+func TestEveryNudgeKindDecodesToItsPolicyInput(t *testing.T) {
+	wrap := func(g string) string { return `{"explanation":"ok","guidance":` + g + `}` }
+	for _, tc := range []struct {
+		name, guidance string
+		check          func(Guidance) bool
+	}{
+		{"cancel", `{"kind":"cancel_goal","goalId":"goal-food"}`, func(g Guidance) bool { return g.Kind == CancelGoal && g.CancelGoal == "goal-food" }},
+		{"population policy", `{"kind":"set_population_policy","maximum":8,"foodDays":20}`, func(g Guidance) bool {
+			return g.Kind == SetPopulationPolicy && g.PopulationPolicy.Maximum() == 8 && g.PopulationPolicy.FoodDays() == 20
+		}},
+		{"expedition", `{"kind":"set_expedition_policy","maximumTravelDays":3,"keepHomeDoctor":true}`, func(g Guidance) bool {
+			days, ok := g.ExpeditionPolicy.MaximumTravelDays.Get()
+			doctor, ok2 := g.ExpeditionPolicy.KeepHomeDoctor.Get()
+			return g.Kind == SetExpeditionPolicy && ok && days == 3 && ok2 && doctor && !g.ExpeditionPolicy.MaximumCaravans.Present()
+		}},
+		{"decision", `{"kind":"set_population_decision","pawn":"Thing_Human9","decision":"rescue"}`, func(g Guidance) bool {
+			return g.Kind == SetPopulationDecision && g.PopulationDecision.Pawn() == "Thing_Human9" && g.PopulationDecision.Decision() == domain.PopulationRescue
+		}},
+		{"spending", `{"kind":"set_resource_policy","resource":"Steel","spending":"stop"}`, func(g Guidance) bool {
+			s, ok := g.ResourcePolicy.Spending.Get()
+			return g.Kind == SetResourcePolicy && g.ResourcePolicy.Resource == "Steel" && ok && s == domain.ResourceSpendingStop && !g.ResourcePolicy.Reserve.Present()
+		}},
+		{"reserve on policy resource", `{"kind":"set_resource_policy","resource":"Silver","reserve":250}`, func(g Guidance) bool {
+			r, ok := g.ResourcePolicy.Reserve.Get()
+			return g.Kind == SetResourcePolicy && g.ResourcePolicy.Resource == "Silver" && ok && r == 250 && !g.ResourcePolicy.Spending.Present()
+		}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			guidance, err := replying(t, wrap(tc.guidance)).Interpret(context.Background(), inputFixture())
+			if err != nil || !tc.check(guidance) || guidance.Explanation != "ok" {
+				t.Fatalf("%+v %v", guidance, err)
+			}
+		})
+	}
+}
+
 func TestContextTrimsOnlyOptionalOldestEntries(t *testing.T) {
 	i := clientFixture(t, func(_ context.Context, r model.Request) (model.Response, error) {
 		if r.Messages[0].Role != model.System || r.Messages[len(r.Messages)-1].Content != inputFixture().UserRequest {
@@ -90,15 +151,15 @@ func TestContextTrimsOnlyOptionalOldestEntries(t *testing.T) {
 		if strings.Contains(all, "old-context") || !strings.Contains(all, "new-context") {
 			t.Fatal("wrong context trimmed")
 		}
-		return model.Response{Text: valid, FinishReason: model.Stop}, nil
+		return model.Response{Text: explainOnly, FinishReason: model.Stop}, nil
 	})
 	input := inputFixture()
 	input.Context = []string{strings.Repeat("old-context", 2000), "new-context"}
-	proposal, err := i.Interpret(context.Background(), input)
+	guidance, err := i.Interpret(context.Background(), input)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if proposal.Budget.DroppedContext != 1 || proposal.Budget.ChargedUnits > proposal.Budget.InputAllowance || proposal.Budget.OriginalUnits <= proposal.Budget.ChargedUnits {
+	if guidance.Budget.DroppedContext != 1 || guidance.Budget.ChargedUnits > guidance.Budget.InputAllowance || guidance.Budget.OriginalUnits <= guidance.Budget.ChargedUnits {
 		t.Fatal("incorrect budget reporting")
 	}
 }
@@ -112,11 +173,15 @@ func TestInvalidInputNeverCallsModel(t *testing.T) {
 		edit func(*Input)
 		kind FailureKind
 	}{
-		{"no authority", func(in *Input) { in.ExplicitPlayerRequest = false }, NoAuthority},
 		{"stale", func(in *Input) { in.Facts.Generation.Native++ }, StaleFacts},
 		{"budget", func(in *Input) { in.UserRequest = strings.Repeat("x", 20000) }, BudgetExceeded},
-		{"duplicate IDs", func(in *Input) { in.ActionIDs = []domain.ActionID{"a1", "a1"} }, InvalidInput},
-		{"no facts", func(in *Input) { in.Facts.Cells = nil }, InvalidInput},
+		{"empty request", func(in *Input) { in.UserRequest = "  " }, InvalidInput},
+		{"duplicate pawn", func(in *Input) { in.Facts.Pawns = append(in.Facts.Pawns, in.Facts.Pawns[0]) }, InvalidInput},
+		{"duplicate goal", func(in *Input) { in.Facts.Goals = append(in.Facts.Goals, in.Facts.Goals[0]) }, InvalidInput},
+		{"bad goal priority", func(in *Input) { in.Facts.Goals[0].Priority = 9 }, InvalidInput},
+		{"bad population policy fact", func(in *Input) { in.Facts.PopulationPolicy = &PopulationPolicy{Maximum: 0, FoodDays: 1} }, InvalidInput},
+		{"negative stock", func(in *Input) { in.Facts.Colony.Resources[0].Units = -1 }, InvalidInput},
+		{"bad current", func(in *Input) { in.Current.Colony = ""; in.Facts.Generation.Colony = "" }, InvalidInput},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			input := inputFixture()
@@ -126,39 +191,46 @@ func TestInvalidInputNeverCallsModel(t *testing.T) {
 		})
 	}
 }
-func TestRefusesUnresolvedOrMalformedCommands(t *testing.T) {
+func TestRefusesUnresolvedOrMalformedReplies(t *testing.T) {
+	wrap := func(g string) string { return `{"explanation":"ok","guidance":` + g + `}` }
 	for _, tc := range []struct {
 		name, text string
 		kind       FailureKind
 	}{
-		{"malformed", "{", InvalidCommand}, {"tool", `{"command":"tool","name":"spawn"}`, UnsupportedCommand},
-		{"unknown root", strings.Replace(valid, `"command":"build"`, `"command":"build","tool_calls":[]`, 1), InvalidCommand},
-		{"duplicate", strings.Replace(valid, `"x":2`, `"x":2,"x":2`, 1), InvalidCommand},
-		{"case", strings.Replace(valid, `"defName"`, `"DefName"`, 1), InvalidCommand},
-		{"null", strings.Replace(valid, `"stuff":"Granite"`, `"stuff":null`, 1), InvalidCommand},
-		{"fraction", strings.Replace(valid, `"x":2`, `"x":2.0`, 1), InvalidCommand},
-		{"unobserved replacement text", strings.Replace(valid, "Wall", `\ud800`, 1), UnknownFacts},
-		{"unknown definition", strings.Replace(valid, "Wall", "Invented", 1), UnknownFacts},
-		{"unknown material", strings.Replace(valid, "Granite", "Steel", 1), UnknownFacts},
-		{"default material", strings.Replace(valid, "Granite", "", 1), UnknownFacts},
-		{"unobserved cell", strings.Replace(valid, `"x":2`, `"x":4`, 1), UnknownFacts},
-		{"map bounds", strings.Replace(valid, `"x":2`, `"x":20`, 1), UnknownFacts},
-		{"rotation", strings.Replace(valid, "north", "up", 1), InvalidCommand},
-		{"too large", strings.Repeat(" ", 65537), InvalidCommand},
+		{"malformed", "{", InvalidGuidance},
+		{"no explanation", `{"guidance":null}`, InvalidGuidance},
+		{"blank explanation", `{"explanation":" ","guidance":null}`, InvalidGuidance},
+		{"extra root", `{"explanation":"x","guidance":null,"tool_calls":[]}`, InvalidGuidance},
+		{"old command shape", `{"command":"build","buildings":[]}`, InvalidGuidance},
+		{"unknown kind", wrap(`{"kind":"build","defName":"Wall"}`), InvalidGuidance},
+		{"research", wrap(`{"kind":"research","project":"Microelectronics"}`), InvalidGuidance},
+		{"duplicate key", wrap(`{"kind":"activate_goal","goal":"EnsureFoodSupply","goal":"EnsureFoodSupply"}`), InvalidGuidance},
+		{"unknown goal kind", wrap(`{"kind":"activate_goal","goal":"ConquerWorld"}`), InvalidGuidance},
+		{"cancel by kind name", wrap(`{"kind":"cancel_goal","goalId":"EnsureFoodSupply"}`), UnknownFacts},
+		{"cancel with extra field", wrap(`{"kind":"cancel_goal","goalId":"goal-food","revision":1}`), InvalidGuidance},
+		{"population out of range", wrap(`{"kind":"set_population_policy","maximum":500,"foodDays":20}`), InvalidGuidance},
+		{"population fraction", wrap(`{"kind":"set_population_policy","maximum":5.5,"foodDays":20}`), InvalidGuidance},
+		{"expedition unknown limit", wrap(`{"kind":"set_expedition_policy","maximumWalkingDays":3}`), InvalidGuidance},
+		{"expedition empty", wrap(`{"kind":"set_expedition_policy"}`), InvalidGuidance},
+		{"expedition out of range", wrap(`{"kind":"set_expedition_policy","maximumCaravans":99}`), InvalidGuidance},
+		{"unknown pawn", wrap(`{"kind":"set_population_decision","pawn":"Bob","decision":"rescue"}`), UnknownFacts},
+		{"unknown decision", wrap(`{"kind":"set_population_decision","pawn":"Thing_Human9","decision":"execute"}`), InvalidGuidance},
+		{"unknown resource", wrap(`{"kind":"set_resource_policy","resource":"Plasteel","spending":"stop"}`), UnknownFacts},
+		{"both resource halves", wrap(`{"kind":"set_resource_policy","resource":"Steel","spending":"stop","reserve":1}`), InvalidGuidance},
+		{"reserve out of range", wrap(`{"kind":"set_resource_policy","resource":"Steel","reserve":99999}`), InvalidGuidance},
+		{"unknown spending", wrap(`{"kind":"set_resource_policy","resource":"Steel","spending":"hoard"}`), InvalidGuidance},
+		{"too large", strings.Repeat(" ", 65537), InvalidGuidance},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			i := clientFixture(t, func(context.Context, model.Request) (model.Response, error) {
-				return model.Response{Text: tc.text, FinishReason: model.Stop}, nil
-			})
-			p, err := i.Interpret(context.Background(), inputFixture())
+			g, err := replying(t, tc.text).Interpret(context.Background(), inputFixture())
 			assertKind(t, err, tc.kind)
-			if len(p.Plan.Actions()) != 0 {
-				t.Fatal("failure exposed partial plan")
+			if g.Kind != "" || g.Explanation != "" {
+				t.Fatal("failure exposed partial guidance")
 			}
 		})
 	}
 }
-func TestModelFailureAndCancellationNeverPropose(t *testing.T) {
+func TestModelFailureAndCancellationNeverGuide(t *testing.T) {
 	for _, tc := range []struct {
 		name     string
 		response model.Response
@@ -166,10 +238,10 @@ func TestModelFailureAndCancellationNeverPropose(t *testing.T) {
 	}{{"length", model.Response{Text: valid, FinishReason: model.Length}, nil}, {"missing finish", model.Response{Text: valid}, nil}, {"refusal", model.Response{Text: valid, FinishReason: model.Stop}, model.ErrRefusal}, {"toolcalls", model.Response{}, model.ErrToolCalls}} {
 		t.Run(tc.name, func(t *testing.T) {
 			i := clientFixture(t, func(context.Context, model.Request) (model.Response, error) { return tc.response, tc.err })
-			p, err := i.Interpret(context.Background(), inputFixture())
+			g, err := i.Interpret(context.Background(), inputFixture())
 			assertKind(t, err, ModelFailure)
-			if len(p.Plan.Actions()) != 0 {
-				t.Fatal("failure exposed plan")
+			if g.Kind != "" {
+				t.Fatal("failure exposed guidance")
 			}
 		})
 	}
@@ -188,308 +260,12 @@ func TestModelFailureAndCancellationNeverPropose(t *testing.T) {
 func TestCallerRefreshCannotChangeCapturedFacts(t *testing.T) {
 	input := inputFixture()
 	i := clientFixture(t, func(context.Context, model.Request) (model.Response, error) {
-		input.Facts.Definitions[0].Stuff[0] = "Steel"
-		input.Facts.Cells[0] = domain.Cell{X: 9, Z: 9}
-		input.ActionIDs[0] = "changed"
-		return model.Response{Text: valid, FinishReason: model.Stop}, nil
+		input.Facts.Goals[0].ID = "changed"
+		input.Facts.Pawns[1].ID = "changed"
+		return model.Response{Text: `{"explanation":"ok","guidance":{"kind":"cancel_goal","goalId":"goal-food"}}`, FinishReason: model.Stop}, nil
 	})
-	proposal, err := i.Interpret(context.Background(), input)
-	if err != nil || proposal.Plan.Actions()[0].ID() != "a1" {
+	guidance, err := i.Interpret(context.Background(), input)
+	if err != nil || guidance.CancelGoal != "goal-food" {
 		t.Fatalf("snapshot changed: %v", err)
 	}
-}
-
-func TestActionCountAndExplicitDefaultMaterial(t *testing.T) {
-	i := clientFixture(t, func(context.Context, model.Request) (model.Response, error) {
-		return model.Response{Text: valid, FinishReason: model.Stop}, nil
-	})
-	input := inputFixture()
-	input.ActionIDs = append(input.ActionIDs, "a2")
-	_, err := i.Interpret(context.Background(), input)
-	assertKind(t, err, InvalidCommand)
-	i = clientFixture(t, func(context.Context, model.Request) (model.Response, error) {
-		return model.Response{Text: strings.Replace(valid, "Granite", "", 1), FinishReason: model.Stop}, nil
-	})
-	input = inputFixture()
-	input.Facts.Definitions[0].AllowDefaultStuff = true
-	if _, err := i.Interpret(context.Background(), input); err != nil {
-		t.Fatal(err)
-	}
-}
-
-func TestResearchProposal(t *testing.T) {
-	i := clientFixture(t, func(context.Context, model.Request) (model.Response, error) {
-		return model.Response{Text: `{"command":"research","project":"Electricity"}`, FinishReason: model.Stop}, nil
-	})
-	input := inputFixture()
-	input.Facts.ResearchProjects = []string{"Electricity"}
-	proposal, err := i.Interpret(context.Background(), input)
-	if err != nil {
-		t.Fatal(err)
-	}
-	actions := proposal.Plan.Actions()
-	if len(actions) != 1 || actions[0].ID() != "a1" {
-		t.Fatal("incorrect research action identity")
-	}
-	research, ok := actions[0].ResearchSelect()
-	if !ok || research.Project() != "Electricity" {
-		t.Fatal("incorrect typed research proposal")
-	}
-}
-
-func TestResearchRefusesUnknownProjectOrWrongActionCount(t *testing.T) {
-	response := func(context.Context, model.Request) (model.Response, error) {
-		return model.Response{Text: `{"command":"research","project":"Electricity"}`, FinishReason: model.Stop}, nil
-	}
-	i := clientFixture(t, response)
-	input := inputFixture()
-	// No selectable research facts supplied: the requested project is unknown.
-	_, err := i.Interpret(context.Background(), input)
-	assertKind(t, err, UnknownFacts)
-
-	input = inputFixture()
-	input.Facts.ResearchProjects = []string{"Electricity"}
-	input.ActionIDs = append(input.ActionIDs, "a2")
-	i = clientFixture(t, response)
-	_, err = i.Interpret(context.Background(), input)
-	assertKind(t, err, InvalidCommand)
-}
-
-func TestResearchProjectsValidatedAndBounded(t *testing.T) {
-	i := clientFixture(t, func(context.Context, model.Request) (model.Response, error) {
-		t.Fatal("model called")
-		return model.Response{}, nil
-	})
-	input := inputFixture()
-	input.Facts.ResearchProjects = []string{"Electricity", "Electricity"}
-	_, err := i.Interpret(context.Background(), input)
-	assertKind(t, err, InvalidInput)
-
-	input = inputFixture()
-	input.Facts.ResearchProjects = []string{""}
-	_, err = i.Interpret(context.Background(), input)
-	assertKind(t, err, InvalidInput)
-}
-
-func zoneCellFacts() []domain.Cell { return []domain.Cell{{X: 0, Z: 0}, {X: 1, Z: 0}} }
-
-// A population policy is colony configuration, not a plan of native actions:
-// the proposal carries the typed policy and no plan at all.
-func TestSetPopulationPolicyProposalCarriesNoPlan(t *testing.T) {
-	response := func(context.Context, model.Request) (model.Response, error) {
-		return model.Response{Text: `{"command":"set_population_policy","maximum":12,"foodDays":30.5}`, FinishReason: model.Stop}, nil
-	}
-	proposal, err := clientFixture(t, response).Interpret(context.Background(), inputFixture())
-	if err != nil {
-		t.Fatal(err)
-	}
-	if !proposal.PopulationPolicy.Set() || proposal.PopulationPolicy.Maximum() != 12 || proposal.PopulationPolicy.FoodDays() != 30.5 {
-		t.Fatal("incorrect typed population policy proposal", proposal.PopulationPolicy)
-	}
-	if len(proposal.Plan.Actions()) != 0 {
-		t.Fatal("a population policy must propose no actions")
-	}
-	if proposal.Generation != inputFixture().Current {
-		t.Fatal("population policy must resolve against the input generation")
-	}
-}
-
-func TestSetPopulationPolicyRefusesOutOfRangeValues(t *testing.T) {
-	for _, text := range []string{
-		`{"command":"set_population_policy","maximum":0,"foodDays":30}`,
-		`{"command":"set_population_policy","maximum":101,"foodDays":30}`,
-		`{"command":"set_population_policy","maximum":-1,"foodDays":30}`,
-		`{"command":"set_population_policy","maximum":12,"foodDays":0}`,
-		`{"command":"set_population_policy","maximum":12,"foodDays":121}`,
-	} {
-		t.Run(text, func(t *testing.T) {
-			response := func(context.Context, model.Request) (model.Response, error) {
-				return model.Response{Text: text, FinishReason: model.Stop}, nil
-			}
-			_, err := clientFixture(t, response).Interpret(context.Background(), inputFixture())
-			assertKind(t, err, InvalidCommand)
-		})
-	}
-}
-
-// An expedition policy is configuration too, and is carried as the partial
-// patch the player asked for: the interpreter cannot see the limits in force,
-// so it must not invent values for the limits the request leaves alone.
-func TestSetExpeditionPolicyProposalCarriesOnlyRequestedLimits(t *testing.T) {
-	response := func(context.Context, model.Request) (model.Response, error) {
-		return model.Response{Text: `{"command":"set_expedition_policy","maximumTravelDays":9.5,"keepHomeDoctor":false}`, FinishReason: model.Stop}, nil
-	}
-	proposal, err := clientFixture(t, response).Interpret(context.Background(), inputFixture())
-	if err != nil {
-		t.Fatal(err)
-	}
-	if proposal.ExpeditionPolicy.Empty() {
-		t.Fatal("an expedition policy proposal must carry the request")
-	}
-	if value, ok := proposal.ExpeditionPolicy.MaximumTravelDays.Get(); !ok || value != 9.5 {
-		t.Fatal("incorrect typed expedition policy proposal", proposal.ExpeditionPolicy)
-	}
-	if value, ok := proposal.ExpeditionPolicy.KeepHomeDoctor.Get(); !ok || value {
-		t.Fatal("an explicit false must survive as a supplied value", proposal.ExpeditionPolicy)
-	}
-	// Everything the request did not name must stay absent so the store can
-	// preserve whatever is already in force.
-	if proposal.ExpeditionPolicy.MinimumHomeColonists.Present() || proposal.ExpeditionPolicy.RequireReturnStorage.Present() {
-		t.Fatal("unrequested limits must not be invented", proposal.ExpeditionPolicy)
-	}
-	if len(proposal.Plan.Actions()) != 0 || proposal.PopulationPolicy.Set() {
-		t.Fatal("an expedition policy must propose no actions and no other policy")
-	}
-	if proposal.Generation != inputFixture().Current {
-		t.Fatal("expedition policy must resolve against the input generation")
-	}
-	// A later merge is the store's job; the proposal preserves the earlier
-	// value by omission alone.
-	merged, err := proposal.ExpeditionPolicy.Apply(domain.DefaultExpeditionPolicy())
-	if err != nil || merged.MaximumTravelDays() != 9.5 || merged.KeepHomeDoctor() ||
-		merged.MinimumHomeColonists() != 1 || !merged.RequireReturnStorage() {
-		t.Fatal(merged, err)
-	}
-}
-
-func TestSetExpeditionPolicyRefusesOutOfRangeValues(t *testing.T) {
-	for _, text := range []string{
-		`{"command":"set_expedition_policy","minimumHomeColonists":0}`,
-		`{"command":"set_expedition_policy","minimumHomeColonists":101}`,
-		`{"command":"set_expedition_policy","minimumHomeFoodDays":61}`,
-		`{"command":"set_expedition_policy","travelFoodMarginDays":-1}`,
-		`{"command":"set_expedition_policy","maximumTravelDays":0}`,
-		`{"command":"set_expedition_policy","maximumTravelDays":61}`,
-		`{"command":"set_expedition_policy","maximumCaravans":21}`,
-		`{"command":"set_expedition_policy","minimumGoodwill":101}`,
-		`{"command":"set_expedition_policy","minimumDestinationTemperature":51}`,
-		`{"command":"set_expedition_policy","maximumDestinationTemperature":-51}`,
-		// Both ends supplied at once are cross-checked here, where both are
-		// known; a lone end is cross-checked at merge time instead.
-		`{"command":"set_expedition_policy","minimumDestinationTemperature":40,"maximumDestinationTemperature":10}`,
-	} {
-		t.Run(text, func(t *testing.T) {
-			response := func(context.Context, model.Request) (model.Response, error) {
-				return model.Response{Text: text, FinishReason: model.Stop}, nil
-			}
-			_, err := clientFixture(t, response).Interpret(context.Background(), inputFixture())
-			assertKind(t, err, InvalidCommand)
-		})
-	}
-}
-
-// A per-pawn population decision proposes no actions either, but unlike the
-// two policies it names an individual, so the pawn is bounded against facts.
-func TestSetPopulationDecisionProposalCarriesNoPlan(t *testing.T) {
-	response := func(context.Context, model.Request) (model.Response, error) {
-		return model.Response{Text: `{"command":"set_population_decision","pawn":"Thing_A","decision":"capture"}`, FinishReason: model.Stop}, nil
-	}
-	input := inputFixture()
-	input.Facts.Pawns = []domain.PawnID{"Thing_A", "Thing_B"}
-	proposal, err := clientFixture(t, response).Interpret(context.Background(), input)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if !proposal.PopulationDecision.Set() || proposal.PopulationDecision.Pawn() != "Thing_A" ||
-		proposal.PopulationDecision.Decision() != domain.PopulationCapture {
-		t.Fatal("incorrect typed population decision proposal", proposal.PopulationDecision)
-	}
-	if len(proposal.Plan.Actions()) != 0 || proposal.PopulationPolicy.Set() || !proposal.ExpeditionPolicy.Empty() {
-		t.Fatal("a population decision must propose no actions and no policy")
-	}
-	if proposal.Generation != input.Current {
-		t.Fatal("population decision must resolve against the input generation")
-	}
-}
-
-func TestSetPopulationDecisionBoundsPawnAndDecision(t *testing.T) {
-	input := inputFixture()
-	input.Facts.Pawns = []domain.PawnID{"Thing_A"}
-	unknown := func(context.Context, model.Request) (model.Response, error) {
-		return model.Response{Text: `{"command":"set_population_decision","pawn":"Thing_Missing","decision":"rescue"}`, FinishReason: model.Stop}, nil
-	}
-	_, err := clientFixture(t, unknown).Interpret(context.Background(), input)
-	assertKind(t, err, UnknownFacts)
-
-	unsupported := func(context.Context, model.Request) (model.Response, error) {
-		return model.Response{Text: `{"command":"set_population_decision","pawn":"Thing_A","decision":"release"}`, FinishReason: model.Stop}, nil
-	}
-	_, err = clientFixture(t, unsupported).Interpret(context.Background(), input)
-	assertKind(t, err, InvalidCommand)
-}
-
-func TestResourcePolicyProposalsCarryNoPlan(t *testing.T) {
-	input := inputFixture()
-	input.Facts.ResourceDefinitions = []string{"Steel", "WoodLog"}
-	spending := func(context.Context, model.Request) (model.Response, error) {
-		return model.Response{Text: `{"command":"modify_resource_policy","resource":"Steel","spending":"defense_only"}`, FinishReason: model.Stop}, nil
-	}
-	proposal, err := clientFixture(t, spending).Interpret(context.Background(), input)
-	if err != nil {
-		t.Fatal(err)
-	}
-	value, ok := proposal.ResourcePolicy.Spending.Get()
-	if proposal.ResourcePolicy.Resource != "Steel" || !ok || value != domain.ResourceSpendingDefenseOnly || proposal.ResourcePolicy.Reserve.Present() {
-		t.Fatal("incorrect typed resource spending proposal", proposal.ResourcePolicy)
-	}
-	if len(proposal.Plan.Actions()) != 0 || proposal.PopulationPolicy.Set() || !proposal.ExpeditionPolicy.Empty() || proposal.PopulationDecision.Set() {
-		t.Fatal("a resource policy must propose no actions and no other policy")
-	}
-	if proposal.Generation != input.Current {
-		t.Fatal("resource policy must resolve against the input generation")
-	}
-
-	reserve := func(context.Context, model.Request) (model.Response, error) {
-		return model.Response{Text: `{"command":"set_resource_reserve","resource":"WoodLog","reserve":250}`, FinishReason: model.Stop}, nil
-	}
-	proposal, err = clientFixture(t, reserve).Interpret(context.Background(), input)
-	if err != nil {
-		t.Fatal(err)
-	}
-	amount, ok := proposal.ResourcePolicy.Reserve.Get()
-	if proposal.ResourcePolicy.Resource != "WoodLog" || !ok || amount != 250 || proposal.ResourcePolicy.Spending.Present() {
-		t.Fatal("incorrect typed resource reserve proposal", proposal.ResourcePolicy)
-	}
-}
-
-func TestResourcePolicyBoundsResourceAndRange(t *testing.T) {
-	input := inputFixture()
-	input.Facts.ResourceDefinitions = []string{"Steel"}
-	for _, text := range []string{
-		`{"command":"modify_resource_policy","resource":"Plasteel","spending":"stop"}`,
-		`{"command":"set_resource_reserve","resource":"Plasteel","reserve":10}`,
-	} {
-		response := func(context.Context, model.Request) (model.Response, error) {
-			return model.Response{Text: text, FinishReason: model.Stop}, nil
-		}
-		_, err := clientFixture(t, response).Interpret(context.Background(), input)
-		assertKind(t, err, UnknownFacts)
-	}
-	for _, text := range []string{
-		`{"command":"modify_resource_policy","resource":"Steel","spending":"hoard"}`,
-		`{"command":"set_resource_reserve","resource":"Steel","reserve":-1}`,
-		`{"command":"set_resource_reserve","resource":"Steel","reserve":10001}`,
-	} {
-		response := func(context.Context, model.Request) (model.Response, error) {
-			return model.Response{Text: text, FinishReason: model.Stop}, nil
-		}
-		_, err := clientFixture(t, response).Interpret(context.Background(), input)
-		assertKind(t, err, InvalidCommand)
-	}
-}
-
-func TestResourcePolicyFactsValidatedAndBounded(t *testing.T) {
-	i := clientFixture(t, func(context.Context, model.Request) (model.Response, error) {
-		t.Fatal("model called")
-		return model.Response{}, nil
-	})
-	input := inputFixture()
-	input.Facts.ResourceDefinitions = []string{"Steel", "Steel"}
-	_, err := i.Interpret(context.Background(), input)
-	assertKind(t, err, InvalidInput)
-
-	input = inputFixture()
-	input.Facts.ResourceDefinitions = []string{" "}
-	_, err = i.Interpret(context.Background(), input)
-	assertKind(t, err, InvalidInput)
 }

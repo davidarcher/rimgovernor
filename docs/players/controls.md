@@ -26,10 +26,12 @@ Viewing a colony does not take control of it.
 
 ## Give a request
 
-Chat needs the configured local model in LM Studio. Ask for an outcome, such as
-building a room, selecting research or maintaining a food target. Accepted
-requests appear in the same plan as automated work. Pawns still need to carry
-out the orders, so check Work for completion and blockers.
+Chat needs the configured local model in LM Studio. Ask what the autopilot is
+doing and why, or nudge it: activate or cancel a maintained goal, cap the
+population, set expedition limits, decide for a named pawn, or reserve or
+restrict a resource. Each reply explains, and shows the one policy change it
+applied, if any. Chat never places buildings or issues orders; the autopilot
+reads the changed policy on its next review, so check Work for the result.
 
 Manual permits explicit player requests while routine automation stays off.
 Cancelling a goal stops further pursuit but leaves issued game orders in place.

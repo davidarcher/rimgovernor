@@ -148,27 +148,27 @@ it('shows initial bootstrap failure and retries without sending a POST',async()=
  await act(async()=>{await vi.advanceTimersByTimeAsync(1500);});expect(calls).toBe(2);expect(fetcher.mock.calls.every(([,options])=>options?.method==='GET')).toBe(true);
 });
 
-it('submits a chat message, decodes the interpreted command and resumes the bot',async()=>{
+it('submits a chat message, shows the adviser reply with its applied guidance and resumes the bot',async()=>{
  const fetcher=setup(async(url,options)=>{
-  if(url==='/api/chats/plans')return response({requestId:'request-1',command:'research',building:null,research:{requestId:'request-1',expected:world,select:{project:'Microelectronics'},planId:'plan',actionId:'action',revision:'1'}},201);
+  if(url==='/api/chat')return response({requestId:'request-1',expected:world,explanation:'Capping the colony at eight.',guidance:{kind:'set_population_policy',populationPolicy:{maximum:8,foodDays:20}}},201);
   if(url==='/api/player/control/resume')return response({record:{requestId:'request-2',kind:'resume',expected:world,phase:'running',nativeGeneration:'2'},state,error:null});
   throw Error(url+JSON.stringify(options));
  });
  await act(async()=>{render(<PlayerControls observation={observation} observationFresh/>);});
- fireEvent.change(screen.getByLabelText('Message'),{target:{value:'research microelectronics'}});
+ fireEvent.change(screen.getByLabelText('Message'),{target:{value:'keep the colony small'}});
  await act(async()=>{fireEvent.click(screen.getByRole('button',{name:'Send'}));});
- expect(screen.getByText('Select research project Microelectronics')).toBeVisible();expect(screen.getByText('Plan plan · Revision 1')).toBeVisible();
- expect(fetcher).toHaveBeenCalledWith('/api/chats/plans',expect.objectContaining({body:JSON.stringify({requestId:'request-1',expected:world,message:'research microelectronics'})}));
+ expect(screen.getByText('Capping the colony at eight.')).toBeVisible();expect(screen.getByText('Applied: Population policy: up to 8 colonists, 20 food days')).toBeVisible();
+ expect(fetcher).toHaveBeenCalledWith('/api/chat',expect.objectContaining({body:JSON.stringify({requestId:'request-1',expected:world,message:'keep the colony small'})}));
  expect(screen.getByLabelText('Message')).toHaveValue('');
  await act(async()=>{fireEvent.click(screen.getByRole('button',{name:'Resume'}));});
  expect(fetcher).toHaveBeenCalledWith('/api/player/control/resume',expect.objectContaining({body:JSON.stringify({requestId:'request-2',expected:world})}));
 });
 it('hides chat once the server reports it disabled, without disturbing other forms',async()=>{
- const fetcher=setup(async url=>{if(url==='/api/chats/plans')return response({code:'unsupported',detail:'Chat is not enabled on this controller'},501);throw Error(url);});
+ const fetcher=setup(async url=>{if(url==='/api/chat')return response({code:'unsupported',detail:'Chat is not enabled on this controller'},501);throw Error(url);});
  await act(async()=>{render(<PlayerControls observation={observation} observationFresh/>);});
  expect(screen.getByText('Chat')).toBeVisible();
- fireEvent.change(screen.getByLabelText('Message'),{target:{value:'research microelectronics'}});
+ fireEvent.change(screen.getByLabelText('Message'),{target:{value:'why is nobody cooking?'}});
  await act(async()=>{fireEvent.click(screen.getByRole('button',{name:'Send'}));});
  expect(screen.queryByText('Chat')).toBeNull();expect(screen.getByLabelText('Definition name')).toHaveValue('');
- expect(fetcher.mock.calls.filter(([url])=>url==='/api/chats/plans')).toHaveLength(1);
+ expect(fetcher.mock.calls.filter(([url])=>url==='/api/chat')).toHaveLength(1);
 });

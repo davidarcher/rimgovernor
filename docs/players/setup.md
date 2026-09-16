@@ -11,9 +11,9 @@ The current launcher uses a prepared colony fixture. A clean checkout needs:
 - The required `RimGovernor-tribal8-baseline.rws` in an existing RimWorld profile.
 
 Game files, GABS and the baseline save are not in Git; setup does not download them.
-There is no local-model requirement: the Go controller's autopilot (routine work)
-needs no model, and there is currently no chat path in either runtime (see
-[issue #46](https://github.com/davidarcher/rimgovernor/issues/46)).
+There is no local-model requirement: the autopilot (routine work) needs no
+model. Chat is optional and needs LM Studio serving the model named by
+`--chat-model`.
 
 ## Build and prepare
 

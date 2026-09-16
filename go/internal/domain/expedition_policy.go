@@ -79,11 +79,9 @@ type ExpeditionPolicyFields struct {
 // Like PopulationPolicy it deliberately has no ActionKind, no action
 // constructor and no executor/bridge boundary. Setting expedition limits
 // issues no native RimWorld call, so there is no CAS token to hold, no
-// receipt to verify and no completing Observation to require; the Python
-// controller does exactly one assignment into
-// plan.control['expedition_policy']. See store.SubmitExpeditionPolicy for the
-// persistence side and interpreter.Proposal.ExpeditionPolicy for how it
-// leaves the interpreter without a plan.
+// receipt to verify and no completing Observation to require. See store.SubmitExpeditionPolicy for the
+// persistence side and interpreter.Guidance.ExpeditionPolicy for the chat
+// nudge that feeds it.
 //
 // This is a distinct concept from policy.CaravanDeparturePolicy and
 // policy.WorldEvaluationPolicy. Those two are hardcoded, read-only, narrower

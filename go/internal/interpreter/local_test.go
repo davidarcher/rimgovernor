@@ -29,7 +29,7 @@ func TestLocalCapacityRefreshAndBudget(t *testing.T) {
 		t.Fatal(e)
 	}
 	defer client.Close()
-	i, e := NewLocal(Config{65536, 8192, 1}, client)
+	i, e := NewLocal(Config{65536, 8192}, client)
 	if e != nil {
 		t.Fatal(e)
 	}

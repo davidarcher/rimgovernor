@@ -25,7 +25,7 @@ control uses these routes.
 | GET | `/api/buildings/submission?requestId=…` | Read a building submission |
 | POST | `/api/research-selects/plans` | Store one research-selection intent |
 | GET | `/api/research-selects/submission?requestId=…` | Read a research-selection submission |
-| POST | `/api/chats/plans` | Interpret one plain-language request into a build or research submission |
+| POST | `/api/chat` | Answer one plain-language message with an explanation and at most one applied policy nudge (goal activate/cancel, population, expedition, resource policy, population decision); never a build or order |
 | GET/POST | `/api/player/goals`, `/api/player/goals/activate`, `/api/player/goals/cancel` | Maintained goal activation and cancellation |
 | GET/POST | `/api/player/population-policy`, `…/replace` | Population capacity policy |
 | GET/POST | `/api/player/expedition-policy`, `…/update` | Expedition risk limits |

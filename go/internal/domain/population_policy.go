@@ -28,8 +28,7 @@ const maxPopulationFoodDays = 120
 // Action/Progress would require fabricating an inspection, a dispatch
 // attempt, a receipt and a completing Observation for a native call that
 // never happens. See store.SubmitPopulationPolicy for the persistence side
-// and interpreter.Proposal.PopulationPolicy for how it leaves the
-// interpreter without a plan.
+// and interpreter.Guidance.PopulationPolicy for the chat nudge that feeds it.
 type PopulationPolicy struct {
 	maximum  int32
 	foodDays float64

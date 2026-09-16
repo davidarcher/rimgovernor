@@ -51,8 +51,8 @@ the controller.
   (event polling, epoch renewal, bounded supervised windows: 600 ticks, 30-second
   lease), durable routine reviews with method execution across every routine
   planner family, caravan journey tracking and world evaluation. Free-text
-  player chat (`POST /api/chats/plans`, through a local OpenAI-compatible model
-  such as LM Studio) turns on when `--chat-model` is set; 501 otherwise.
+  player chat (`POST /api/chat`, through a local OpenAI-compatible model such
+  as LM Studio) turns on when `--chat-model` is set; 501 otherwise.
 - `serve --observe ...` is **observation only**: read the running game, never
   acquire control or write to it. Tuning flags and chat are rejected.
 
@@ -112,10 +112,13 @@ draft, husbandry, recovery service, bed assignment, movement, building
 temperature, surgery, caravans, quests, settlement gifts, trade, zone edits and
 room shells were removed in
 [issue #54](https://github.com/davidarcher/rimgovernor/issues/54); those
-families are reached only through the routine planners. Chat dispatches build
-(one building per message) and research selection, and decodes the
-configuration commands; re-scoping the interpreter to guidance is
-[issue #56](https://github.com/davidarcher/rimgovernor/issues/56).
+families are reached only through the routine planners. Chat (`POST /api/chat`) is
+guidance only: the local model reads bounded colony and policy facts, answers
+with an explanation and at most one nudge (activate or cancel a goal, set the
+population, expedition or resource policy, or a per-pawn population decision),
+and the nudge is applied through the same store submission the matching policy
+route uses. Chat never places buildings, selects research or issues orders
+([issue #56](https://github.com/davidarcher/rimgovernor/issues/56)).
 
 Three player commands are configuration rather than plans of native actions and
 live outside the plan/action tables, each with request-ID replay safety and one

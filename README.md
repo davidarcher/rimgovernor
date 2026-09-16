@@ -3,8 +3,8 @@
 A local RimWorld colony controller. Autopilot handles routine colony needs and
 building/draft/routine player control. The dashboard shows priorities, plans
 and colonists while RimWorld runs the simulation. Natural-language player chat
-is not currently available in either runtime (see
-[issue #46](https://github.com/davidarcher/rimgovernor/issues/46)).
+(a local model that explains the autopilot and nudges its policies) turns on
+with `--chat-model`.
 
 ## Play
 
