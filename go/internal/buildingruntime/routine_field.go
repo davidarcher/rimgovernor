@@ -89,7 +89,10 @@ func (r *RoutineFieldPlanner) step(call, epoch context.Context, arbiter *stepArb
 		if err != nil {
 			return RoutineFieldResult{}, err
 		}
-		if domain.GoalWorkOpen(plan.Progress) {
+		// Only open field work blocks another field batch. Hunting and
+		// foraging plans under the same goal share no cells or resources
+		// with a growing zone and would otherwise starve crops indefinitely.
+		if fieldBlockingWork(plan.Progress) {
 			return RoutineFieldResult{Reason: BuildingMethodExistingWork}, nil
 		}
 	}
@@ -123,12 +126,13 @@ func (r *RoutineFieldPlanner) step(call, epoch context.Context, arbiter *stepArb
 		return RoutineFieldResult{}, err
 	}
 	projection := read.Projection
-	wait, err := r.fieldAllowance(call, goal.Goal, state.Snapshot, projection)
+	wait, managed, err := r.fieldAllowance(call, goal.Goal, state.Snapshot, projection)
 	if err != nil {
 		return RoutineFieldResult{}, err
 	}
 	token, known := projection.ZoneMapToken.Value()
 	if !known {
+		clockSchedulerLog("Fields: zone map token unknown")
 		return RoutineFieldResult{Reason: BuildingMethodUnknown, NativeWorkTicks: wait}, nil
 	}
 	held, err := p.journal.BuildingReservations(call, state.Snapshot)
@@ -143,15 +147,24 @@ func (r *RoutineFieldPlanner) step(call, epoch context.Context, arbiter *stepArb
 	for _, d := range projection.Definitions {
 		choices = append(choices, policy.CropChoice{Name: d.Name, Available: d.Available, Edible: d.Edible, GrowDays: d.GrowDays, FertilityMin: d.FertilityMin, FertilitySensitivity: d.FertilitySensitivity, HarvestNutrition: d.HarvestNutrition, Demand: d.NutritionDemandPerDay})
 	}
-	crop, known := policy.ChooseCrop(choices, projection.CropClimate, projection.Facts.FoodDays, projection.Cells, protected)
+	coverage := policy.FieldCoverage(projection.Facts.Colonists, projection.FieldCapacityCrops, r.reviewer.policy.FoodTargetDays)
+	var zones []policy.FarmZone
+	for _, farm := range projection.Farms {
+		zones = append(zones, policy.FarmZone{ID: farm.ID, Crop: farm.Crop, Managed: managed[farm.ID]})
+	}
+	field, known := policy.PlanField(policy.FieldRequest{Choices: choices, Climate: projection.CropClimate, Runway: projection.Facts.FoodDays, Colonists: projection.Facts.Colonists, ReserveDays: r.reviewer.policy.FoodTargetDays, Coverage: coverage, Site: policy.FarmSiteRequest{Bounds: projection.Bounds, Anchor: projection.Center, Storage: domain.Unknown[domain.Cell](), Cells: projection.Cells, Protected: protected, Zones: zones}})
 	if !known {
+		clockSchedulerLog("Fields: no plan (cells=%d choices=%d climate=%+v runway=%+v colonists=%+v coverage=%+v zones=%d): %s", len(projection.Cells), len(choices), projection.CropClimate, projection.Facts.FoodDays, projection.Facts.Colonists, coverage, len(zones), field.Explain())
 		return RoutineFieldResult{Reason: BuildingMethodUnknown, NativeWorkTicks: wait}, nil
 	}
-	coverage := policy.FieldCoverage(projection.Facts.Colonists, projection.FieldCapacityCrops, r.reviewer.policy.FoodTargetDays)
-	patches := policy.GrowthFields(projection.Bounds, projection.Center, projection.Cells, protected, crop, policy.FieldTarget(projection.Facts.Colonists, crop, r.reviewer.policy.FoodTargetDays), coverage)
-	if len(patches) == 0 {
-		return RoutineFieldResult{Reason: BuildingMethodUsed, NativeWorkTicks: wait}, nil
+	// Each patch costs one native preview inside the shared step budget, so a
+	// large plan is committed over several batches; the next batch starts once
+	// this one's zone work has completed and the coverage facts have moved.
+	crop, patches := field.Crop, field.Sites.Patches
+	if len(patches) > fieldBatchPatches {
+		patches = patches[:fieldBatchPatches]
 	}
+	clockSchedulerLog("Fields plan: %s | %s", field.Explain(), field.Sites.Explain())
 	hash := sha256.New()
 	fmt.Fprintf(hash, "%s/%v", crop.Name, patches)
 	method := domain.MethodID(fmt.Sprintf("fields-%x", hash.Sum(nil)[:16]))
@@ -228,6 +241,17 @@ func (r *RoutineFieldPlanner) step(call, epoch context.Context, arbiter *stepArb
 	}
 	return RoutineFieldResult{Reason: reason, Plan: id}, nil
 }
+
+const fieldBatchPatches = 6
+
+func fieldBlockingWork(progress []domain.Progress) bool {
+	for _, p := range progress {
+		if _, ok := p.Action().ZoneCreate(); ok && domain.GoalWorkOpen([]domain.Progress{p}) {
+			return true
+		}
+	}
+	return false
+}
 func uniqueFieldDefinitions(values []string) []string {
 	seen := map[string]bool{}
 	out := []string{}
@@ -242,27 +266,30 @@ func uniqueFieldDefinitions(values []string) []string {
 
 // Growth time belongs to an exact completed zone in this goal epoch. Its deadline
 // starts at durable creation and cannot be renewed by polling or restarting.
-func (r *RoutineFieldPlanner) fieldAllowance(ctx context.Context, goal domain.Goal, current domain.GenerationSnapshot, facts observation.ColonyProjection) (uint32, error) {
+// The native zone ids of every observed controller-created growing zone are
+// returned so expansion can treat them as managed farms.
+func (r *RoutineFieldPlanner) fieldAllowance(ctx context.Context, goal domain.Goal, current domain.GenerationSnapshot, facts observation.ColonyProjection) (uint32, map[string]bool, error) {
 	native, ok := r.native.(interface {
 		LookupZone(context.Context, bridge.ZoneAttempt) (*receipts.LookupReply, bridge.Result, error)
 		ObserveZone(context.Context, bridge.ZoneAttempt, *receipts.Receipt) (*receipts.ProgressReply, bridge.Result, error)
 	})
 	if !ok {
-		return 0, nil
+		return 0, nil, nil
 	}
 	methods, err := r.reviewer.player.journal.LoadGoalMethods(ctx, goal.ID, goal.Epoch)
 	if err != nil {
-		return 0, err
+		return 0, nil, err
 	}
 	namespace, err := r.reviewer.player.journal.Identity(ctx)
 	if err != nil {
-		return 0, err
+		return 0, nil, err
 	}
 	var remaining uint32
+	managed := map[string]bool{}
 	for _, method := range methods {
 		plan, err := r.reviewer.player.journal.LoadPlan(ctx, method.Plan)
 		if err != nil {
-			return 0, err
+			return 0, nil, err
 		}
 		snapshot := current
 		snapshot.Plan = plan.Spec.ID()
@@ -297,14 +324,14 @@ func (r *RoutineFieldPlanner) fieldAllowance(ctx context.Context, goal domain.Go
 			attempt := bridge.ZoneAttempt{Identity: boundary.Identity(snapshot), Attempt: &c.AttemptKey{ControllerSessionId: proto.String(string(namespace)), ActionId: proto.String(string(v.Action)), AttemptId: proto.Uint64(uint64(v.Attempt))}, Generation: uint64(snapshot.Native), Token: token, Zone: zone}
 			lookup, _, err := native.LookupZone(ctx, attempt)
 			if err != nil {
-				return 0, err
+				return 0, nil, err
 			}
 			if lookup.GetReceipt() == nil {
 				continue
 			}
 			observed, _, err := native.ObserveZone(ctx, attempt, lookup.GetReceipt())
 			if err != nil {
-				return 0, err
+				return 0, nil, err
 			}
 			p := observed.GetProgress()
 			if p == nil || p.GetCompleted() == nil || !p.GetCompleteInspection() || domain.Tick(p.Context.GetTick()) != facts.Identity.Tick {
@@ -314,8 +341,9 @@ func (r *RoutineFieldPlanner) fieldAllowance(ctx context.Context, goal domain.Go
 			if err != nil || !matches {
 				continue
 			}
+			managed[p.GetCompleted().GetEvidence().GetZone().GetZoneId()] = true
 			remaining = max(remaining, uint32(budget-(facts.Identity.Tick-v.Tick)))
 		}
 	}
-	return remaining, nil
+	return remaining, managed, nil
 }

@@ -10,7 +10,9 @@ import (
 )
 
 // Recorded from colony_policy.starter_layouts at db2223f0 with starterFixture's
-// exact 40x40 native facts. This checks every retained site's geometry and order.
+// exact 40x40 native facts. This checks every retained site's room and storage
+// geometry and order; farms come from the shared PlanFarmSites score instead
+// of the recorded distance-first packing.
 func TestStarterPythonReplay(t *testing.T) {
 	data, err := os.ReadFile("testdata/starter-python.json")
 	if err != nil {
@@ -32,7 +34,7 @@ func TestStarterPythonReplay(t *testing.T) {
 	}
 	for i, layout := range actual {
 		want := expected[i]
-		if layout.Room != want.Room || layout.Storage != want.Storage || !reflect.DeepEqual(layout.Farms, want.Farms) {
+		if layout.Room != want.Room || layout.Storage != want.Storage {
 			t.Fatalf("candidate %d differs: %+v / %+v", i, layout, want)
 		}
 	}

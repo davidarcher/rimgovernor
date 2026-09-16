@@ -7,6 +7,38 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
 )
 
+// fieldOpenWorkExempt is the mirror of acquisitionOpenWorkExempt: a method made
+// only of growing-zone creations may be committed while the goal's open work is
+// nothing but dispatched acquisitions or production bills. Sowing a field and
+// gathering wild food are independent answers to the same food deficit, and
+// the acquisition batch is refreshed every review, so waiting for it to drain
+// would starve the field planner indefinitely. Open zone work (an earlier
+// field batch still being created) or any other family's open work still
+// blocks, so field batches remain strictly sequential.
+func fieldOpenWorkExempt(ctx context.Context, tx *sql.Tx, goal GoalState, plan domain.PlanSpec) (bool, error) {
+	if len(plan.Actions()) == 0 {
+		return false, nil
+	}
+	for _, action := range plan.Actions() {
+		if zone, ok := action.ZoneCreate(); !ok || zone.Kind() != domain.GrowingZone {
+			return false, nil
+		}
+	}
+	for _, m := range goal.Methods {
+		p, err := load(ctx, tx, m.Plan)
+		if err != nil {
+			return false, err
+		}
+		for _, progress := range p.Progress {
+			kind := progress.Action().Kind()
+			if kind != domain.AcquisitionAction && kind != domain.ProductionBillAction && domain.GoalWorkOpen([]domain.Progress{progress}) {
+				return false, nil
+			}
+		}
+	}
+	return true, nil
+}
+
 func admitZoneMethod(ctx context.Context, tx *sql.Tx, goal GoalState, plan domain.PlanSpec) error {
 	hasWork := false
 	stockpile := false

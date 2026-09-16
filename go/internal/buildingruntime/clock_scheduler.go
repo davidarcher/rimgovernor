@@ -834,10 +834,13 @@ func (s *ClockScheduler) stepPlanners(call, gctx, epoch context.Context, out *Cl
 	}
 	if s.config.Fields != nil {
 		g.Go(func() error {
+			started := time.Now()
 			method, err := s.config.Fields.step(gctx, epoch, arbiter)
 			if err != nil {
+				clockSchedulerLog("Fields.step failed after %s: %v", time.Since(started), err)
 				return fmt.Errorf("fields: %w", err)
 			}
+			clockSchedulerLog("Fields.step result: reason=%v plan=%s wait=%d", method.Reason, method.Plan, method.NativeWorkTicks)
 			out.Fields = &method
 			return nil
 		})

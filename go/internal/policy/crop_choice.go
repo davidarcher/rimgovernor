@@ -1,9 +1,12 @@
 package policy
 
 import (
-	"github.com/davidarcher/RimGovernor/go/internal/domain"
+	"fmt"
 	"math"
 	"sort"
+	"strings"
+
+	"github.com/davidarcher/RimGovernor/go/internal/domain"
 )
 
 type CropClimate struct {
@@ -16,93 +19,162 @@ type CropChoice struct {
 	GrowDays, FertilityMin, FertilitySensitivity, HarvestNutrition, Demand domain.Fact[float64]
 }
 
-// ChooseCrop uses native yield, free soil and the remaining seasonal budget.
-// A short stored-food runway prefers the fastest viable crop; future yield
-// remains capacity and cannot recover the stored-food need.
-func ChooseCrop(choices []CropChoice, climate CropClimate, runway domain.Fact[float64], cells []SiteCell, protected []domain.Cell) (CropChoice, bool) {
-	sowing, sk := climate.Sowing.Value()
-	season, dk := climate.DaysRemaining.Value()
-	if !sk || !sowing || !dk || !fieldPositive(season) || len(choices) > 256 || len(cells) > 65536 || len(protected) > 65536 {
-		return CropChoice{}, false
+// FieldRequest is one expansion decision: which edible crop to sow, and where,
+// so that observed coverage reaches the reserve target.
+type FieldRequest struct {
+	Choices   []CropChoice
+	Climate   CropClimate
+	Runway    domain.Fact[float64]
+	Colonists domain.Fact[int64]
+	// ReserveDays is the stored-food buffer FieldTarget budgets beyond one cycle.
+	ReserveDays float64
+	// Coverage is the fraction of the target already growing (FieldCoverage).
+	Coverage domain.Fact[float64]
+	Site     FarmSiteRequest
+}
+
+// FieldCandidate is one crop's plan over the soil it would actually use.
+// Score is the plan's net nutrition per day divided by the cells the crop
+// needs, so a crop that cannot fill its own target is penalized.
+type FieldCandidate struct {
+	Crop   CropChoice
+	Needed int
+	Sites  FarmSitePlan
+	Score  float64
+	Urgent bool
+	Reason string
+}
+
+type FieldPlan struct {
+	Crop       CropChoice
+	Needed     int
+	Sites      FarmSitePlan
+	Urgent     bool
+	Candidates []FieldCandidate
+}
+
+func (p FieldPlan) Explain() string {
+	var b strings.Builder
+	fmt.Fprintf(&b, "%s needed=%d urgent=%t", p.Crop.Name, p.Needed, p.Urgent)
+	for _, c := range p.Candidates {
+		fmt.Fprintf(&b, "\n %s needed=%d cells=%d score=%.4f %s", c.Crop.Name, c.Needed, c.Sites.Cells, c.Score, c.Reason)
 	}
-	seenCells := map[domain.Cell]bool{}
-	for _, cell := range cells {
-		if seenCells[cell.Cell] {
-			return CropChoice{}, false
+	return b.String()
+}
+
+// PlanField chooses the crop and patches jointly. Every available edible crop
+// with complete native facts is a candidate; its patches come from
+// PlanFarmSites over the crop's own fertility floor, so a fertility-tolerant
+// crop wins on poor soil where a richer crop would find no land. A remaining
+// season shorter than 2.5 grow cycles excludes a crop; an unknown remaining
+// season while sowing is possible is treated as short, so the fastest crop
+// that can plant is chosen rather than nothing. A stored-food runway shorter
+// than 2.5 cycles of the fastest crop is urgent and also prefers the fastest
+// crop. Existing zones are never re-cropped: the plan only adds patches.
+func PlanField(r FieldRequest) (FieldPlan, bool) {
+	sowing, sk := r.Climate.Sowing.Value()
+	season, seasonKnown := r.Climate.DaysRemaining.Value()
+	fraction, fk := r.Coverage.Value()
+	if !sk || !sowing || len(r.Choices) > 256 || !fk || !foodNumber(fraction) || seasonKnown && !fieldPositive(season) {
+		return FieldPlan{}, false
+	}
+	seen := map[string]bool{}
+	for _, crop := range r.Choices {
+		if seen[crop.Name] {
+			return FieldPlan{}, false
 		}
-		seenCells[cell.Cell] = true
+		seen[crop.Name] = true
 	}
-	seenNames := map[string]bool{}
-	for _, crop := range choices {
-		if seenNames[crop.Name] {
-			return CropChoice{}, false
-		}
-		seenNames[crop.Name] = true
+	type viable struct {
+		crop   CropChoice
+		days   float64
+		needed int
 	}
-	blocked := map[domain.Cell]bool{}
-	for _, cell := range protected {
-		blocked[cell] = true
+	var viables []viable
+	plan := FieldPlan{}
+	excluded := func(crop CropChoice, reason string) {
+		plan.Candidates = append(plan.Candidates, FieldCandidate{Crop: crop, Reason: reason})
 	}
-	type candidate struct {
-		crop       CropChoice
-		rate, days float64
-	}
-	var candidates []candidate
-	for _, crop := range choices {
-		if crop.Name != "Plant_Rice" && crop.Name != "Plant_Potato" && crop.Name != "Plant_Corn" {
-			continue
-		}
+	for _, crop := range r.Choices {
 		available, ak := crop.Available.Value()
 		edible, ek := crop.Edible.Value()
 		days, gk := crop.GrowDays.Value()
-		yield, yk := crop.HarvestNutrition.Value()
-		minimum, mk := crop.FertilityMin.Value()
-		sensitivity, fk := crop.FertilitySensitivity.Value()
-		if !ak || !available || !ek || !edible || !gk || !yk || !mk || !fk || !fieldPositive(days) || !fieldPositive(yield) || !fieldPositive(minimum) || !foodNumber(sensitivity) || days*2.5 > season {
+		switch {
+		case !ak || !ek || !gk || !fieldPositive(days):
+			excluded(crop, "incomplete crop facts")
+			continue
+		case !available || !edible:
+			excluded(crop, "not an available edible crop")
+			continue
+		case seasonKnown && days*2.5 > season:
+			excluded(crop, "season too short")
 			continue
 		}
-		total := 0.0
-		count := 0
-		for _, cell := range cells {
-			if soil, ok := freeCropSoil(cell, minimum, blocked); ok {
-				total += soil
-				count++
+		count, known := FieldTarget(r.Colonists, crop, r.ReserveDays).Value()
+		if !known {
+			excluded(crop, "field target unknown")
+			continue
+		}
+		needed := int(math.Ceil(float64(count)*(1-fraction) - 1e-9))
+		if needed <= 0 {
+			return FieldPlan{}, false
+		}
+		viables = append(viables, viable{crop, days, needed})
+	}
+	if len(viables) == 0 {
+		return plan, false
+	}
+	fastest := viables[0].days
+	for _, v := range viables {
+		fastest = min(fastest, v.days)
+	}
+	foodDays, runwayKnown := r.Runway.Value()
+	urgent := !seasonKnown || runwayKnown && foodNumber(foodDays) && foodDays < fastest*2.5
+	plan.Urgent = urgent
+	for _, v := range viables {
+		site := r.Site
+		site.Crop = v.crop
+		site.Needed = v.needed
+		sites := PlanFarmSites(site)
+		c := FieldCandidate{Crop: v.crop, Needed: v.needed, Sites: sites, Urgent: urgent}
+		if sites.Cells == 0 {
+			c.Reason = "no plantable soil"
+		} else {
+			total := 0.0
+			for _, s := range sites.Selected {
+				total += s.Score
 			}
+			c.Score = total / float64(v.needed)
+			c.Reason = fmt.Sprintf("net %.4f/day over %d patches", total, len(sites.Patches))
 		}
-		if count == 0 {
-			continue
-		}
-		factor := math.Max(0, 1+(total/float64(count)-1)*sensitivity)
-		rate := yield * factor / days
-		if !foodNumber(rate) || rate == 0 {
-			continue
-		}
-		candidates = append(candidates, candidate{crop, rate, days})
+		plan.Candidates = append(plan.Candidates, c)
 	}
-	if len(candidates) == 0 {
-		return CropChoice{}, false
-	}
-	fastest := candidates[0].days
-	for _, c := range candidates {
-		fastest = min(fastest, c.days)
-	}
-	foodDays, known := runway.Value()
-	urgent := known && foodNumber(foodDays) && foodDays < fastest*2.5
-	sort.Slice(candidates, func(i, j int) bool {
-		a, b := candidates[i], candidates[j]
-		if urgent && a.days != b.days {
-			return a.days < b.days
+	sort.Slice(plan.Candidates, func(i, j int) bool {
+		a, b := plan.Candidates[i], plan.Candidates[j]
+		if (a.Sites.Cells > 0) != (b.Sites.Cells > 0) {
+			return a.Sites.Cells > 0
 		}
-		if a.rate != b.rate {
-			return a.rate > b.rate
+		ad, _ := a.Crop.GrowDays.Value()
+		bd, _ := b.Crop.GrowDays.Value()
+		if urgent && ad != bd {
+			return ad < bd
 		}
-		if a.days != b.days {
-			return a.days < b.days
+		if a.Score != b.Score {
+			return a.Score > b.Score
 		}
-		return a.crop.Name < b.crop.Name
+		if ad != bd {
+			return ad < bd
+		}
+		return a.Crop.Name < b.Crop.Name
 	})
-	return candidates[0].crop, true
+	best := plan.Candidates[0]
+	if best.Sites.Cells == 0 {
+		return plan, false
+	}
+	plan.Crop, plan.Needed, plan.Sites = best.Crop, best.Needed, best.Sites
+	return plan, true
 }
+
 func freeCropSoil(cell SiteCell, minimum float64, blocked map[domain.Cell]bool) (float64, bool) {
 	walk, wk := cell.Walkable.Value()
 	occupied, ok := cell.Occupied.Value()
@@ -125,71 +197,4 @@ func FieldTarget(colonists domain.Fact[int64], crop CropChoice, reserve float64)
 		return domain.Unknown[int]()
 	}
 	return domain.Known(int(target))
-}
-
-// GrowthFields adds up to 32 disjoint patches, preserving occupied soil, player
-// footprints and existing zones. Missing cells never become free land.
-func GrowthFields(bounds Bounds, anchor domain.Cell, cells []SiteCell, protected []domain.Cell, crop CropChoice, target domain.Fact[int], coverage domain.Fact[float64]) []Rectangle {
-	count, ck := target.Value()
-	fraction, fk := coverage.Value()
-	minimum, mk := crop.FertilityMin.Value()
-	if !ck || count <= 0 || count > 65536 || !fk || !foodNumber(fraction) || !mk || !fieldPositive(minimum) || len(cells) > 65536 || len(protected) > 65536 || bounds.Width <= 0 || bounds.Height <= 0 || bounds.Width > 4096 || bounds.Height > 4096 {
-		return nil
-	}
-	seen := map[domain.Cell]bool{}
-	for _, cell := range cells {
-		if seen[cell.Cell] {
-			return nil
-		}
-		seen[cell.Cell] = true
-	}
-	needed := int(math.Ceil(float64(count)*(1-fraction) - 1e-9))
-	if needed <= 0 {
-		return nil
-	}
-	blocked := map[domain.Cell]bool{}
-	for _, c := range protected {
-		blocked[c] = true
-	}
-	free := map[domain.Cell]bool{}
-	var ordered []domain.Cell
-	for _, cell := range cells {
-		if cell.Cell.X < 0 || cell.Cell.Z < 0 || cell.Cell.X >= bounds.Width || cell.Cell.Z >= bounds.Height || free[cell.Cell] {
-			continue
-		}
-		if _, ok := freeCropSoil(cell, minimum, blocked); ok {
-			free[cell.Cell] = true
-			ordered = append(ordered, cell.Cell)
-		}
-	}
-	sort.Slice(ordered, func(i, j int) bool {
-		a, b := squaredDistance(ordered[i], anchor), squaredDistance(ordered[j], anchor)
-		if a != b {
-			return a < b
-		}
-		return cellLess(ordered[i], ordered[j])
-	})
-	selected := map[domain.Cell]bool{}
-	var patches []Rectangle
-	for _, size := range []int32{4, 3, 2, 1} {
-		for _, cell := range ordered {
-			if len(selected) >= needed || len(patches) == 32 {
-				return patches
-			}
-			patch := Rectangle{X: cell.X, Z: cell.Z, Width: size, Height: size}
-			footprint := rectCells(patch)
-			ok := true
-			for _, c := range footprint {
-				ok = ok && free[c] && !selected[c]
-			}
-			if !ok {
-				continue
-			}
-			patches = append(patches, patch)
-			for _, c := range footprint {
-				selected[c] = true
-			}
-		}
-	}
-	return patches
 }

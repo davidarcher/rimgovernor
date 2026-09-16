@@ -174,6 +174,7 @@ func (w *ClockWorker) stepLoop() {
 		result, err := w.step(call)
 		cancel()
 		key := clockWorkerKey(result, err)
+		clockSchedulerLog("step done: err=%v", err)
 		// Unconditionally surface which planner failed and why -- stepPlanners
 		// wraps each planner's error with its own name (clock_scheduler.go), so
 		// this is diagnosable without RIMGOVERNOR_CLOCK_DEBUG=1. Gated on state
