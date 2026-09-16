@@ -135,14 +135,21 @@ func run(ctx context.Context, cfg liveservice.Config, buildWait, furnishWait tim
 		"interior_cells": len(sh.footprint.Interior()), "wall_cells": len(sh.footprint.Walls()),
 		"roof_supported": sh.footprint.RoofSupported(), "bounds": sh.footprint.Bounds(),
 	}
-	if err := waitStages(ctx, st, sh.planID, buildWait, func(s stageCount) bool {
-		return s.dispatchedOrLater >= 4 && s.completed < s.total
+	if err := waitLineage(ctx, st, sh, buildWait, func(l lineage) bool {
+		return len(l.ordered) >= 4 && l.live != nil && !l.liveComplete()
 	}); err != nil {
 		service.Stop()
 		return fmt.Errorf("run 1 did not reach mid-construction: %w", err)
 	}
 	report["run1_keepalive"] = service.Stop()
-	report["run1_stages"] = stagesOf(ctx, st, sh.planID)
+	before, err := shellLineage(ctx, st, sh)
+	if err != nil {
+		return err
+	}
+	report["run1_stages"] = stagesOf(ctx, st, before.live.Spec.ID())
+	report["run1_shell_plans"] = before.planIDs()
+	report["run1_ordered_cells"] = len(before.ordered)
+	report["run1_undecided_cells"] = cellList(before.undecided)
 
 	// Player edit while the controller is down: cancel one pending wall.
 	cancelled, err := cancelOneWall(ctx, prepared, sh, report)
@@ -158,29 +165,28 @@ func run(ctx context.Context, cfg liveservice.Config, buildWait, furnishWait tim
 	if err != nil {
 		return err
 	}
-	ordered, undecided, err := run1Placements(ctx, st, sh, cancelled)
-	if err != nil {
-		service.Stop()
-		return err
-	}
-	report["run1_ordered_cells"] = len(ordered)
-	report["run1_undecided_cells"] = cellList(undecided)
-	adopted, err := waitAdoptedShell(ctx, st, sh, buildWait)
-	if err != nil {
+	var adopted store.PlanState
+	if err := waitLineage(ctx, st, sh, buildWait, func(l lineage) bool {
+		if l.live == nil || before.plans[l.live.Spec.ID()] {
+			return false
+		}
+		adopted = *l.live
+		return true
+	}); err != nil {
 		service.Stop()
 		return fmt.Errorf("run 2 did not reissue the shell: %w", err)
 	}
 	reissued := map[domain.Cell]bool{}
 	for _, a := range adopted.Spec.Actions() {
 		b, _ := a.Building()
-		if ordered[b.Cell()] && b.Cell() != cancelled && !undecided[b.Cell()] {
+		if before.ordered[b.Cell()] && b.Cell() != cancelled && !before.undecided[b.Cell()] {
 			service.Stop()
 			return fmt.Errorf("run 2 reissued %s at %v, which run 1 already ordered", b.Definition(), b.Cell())
 		}
 		reissued[b.Cell()] = true
 	}
 	for _, w := range sh.footprint.Walls() {
-		if (!ordered[w] || w == cancelled) && !reissued[w] {
+		if (!before.ordered[w] || w == cancelled) && !reissued[w] {
 			service.Stop()
 			return fmt.Errorf("run 2 left the missing cell %v unordered", w)
 		}
@@ -190,23 +196,34 @@ func run(ctx context.Context, cfg liveservice.Config, buildWait, furnishWait tim
 		return fmt.Errorf("run 2 did not reissue the cancelled wall %v", cancelled)
 	}
 	report["run2_shell"] = map[string]any{"plan": string(adopted.Spec.ID()), "reissued_cells": len(reissued), "cancelled_reissued": true}
-	if err := waitStages(ctx, st, adopted.Spec.ID(), buildWait, func(s stageCount) bool { return s.completed == s.total }); err != nil {
+	// Completion follows the live plan: a world interruption (a letter pause)
+	// invalidates the goal and the shell is adopted again from the game.
+	var final store.PlanState
+	if err := waitLineage(ctx, st, sh, buildWait, func(l lineage) bool {
+		if l.live == nil || !l.liveComplete() {
+			return false
+		}
+		final = *l.live
+		return true
+	}); err != nil {
 		service.Stop()
 		return fmt.Errorf("run 2 did not complete the shell: %w", err)
 	}
-	plan, err := st.LoadPlan(ctx, adopted.Spec.ID())
+	after, err := shellLineage(ctx, st, sh)
 	if err != nil {
 		service.Stop()
 		return err
 	}
+	report["run2_shell_plans"] = after.planIDs()
+	report["run2_interruptions"] = len(after.plans) - len(before.plans) - 1
 	attempts := map[string]int{}
-	for i, p := range plan.Progress {
+	for i, p := range final.Progress {
 		v := p.View()
-		b, _ := plan.Spec.Actions()[i].Building()
+		b, _ := final.Spec.Actions()[i].Building()
 		attempts[fmt.Sprintf("%d,%d", b.Cell().X, b.Cell().Z)] = int(v.Attempt)
 		if v.Attempt != 1 || v.Stage != domain.Completed {
 			service.Stop()
-			return fmt.Errorf("run 2 action %d at %v: attempt %d stage %s, want one completed attempt", i, b.Cell(), v.Attempt, v.Stage)
+			return fmt.Errorf("shell action %d at %v: attempt %d stage %s, want one completed attempt", i, b.Cell(), v.Attempt, v.Stage)
 		}
 	}
 	report["run2_shell_attempts"] = attempts
@@ -237,28 +254,106 @@ func run(ctx context.Context, cfg liveservice.Config, buildWait, furnishWait tim
 	return prepared.Finish(ctx, report)
 }
 
-// run1Placements reports which shell cells run 1 had ordered natively by the
-// time it stopped: every action with a dispatch attempt. A dispatch whose
-// receipt never arrived may or may not have reached the game, so those cells
-// are undecided and run 2 may legitimately reissue or skip them.
-func run1Placements(ctx context.Context, st *store.Store, sh *shell, cancelled domain.Cell) (map[domain.Cell]bool, map[domain.Cell]bool, error) {
-	plan, err := st.LoadPlan(ctx, sh.planID)
-	if err != nil {
-		return nil, nil, err
+// lineage is every shell plan the controller has issued on run 1's ring. A
+// world interruption or a restart invalidates the shelter goal and cancels
+// its plan; the next review adopts the standing walls and issues a successor
+// for the missing cells, so the shell's history is a chain of plans, at most
+// one of them live. Cells ordered natively are the union of every dispatch
+// attempt; a dispatch whose receipt never arrived, or whose effect was never
+// observed, may or may not stand in the game and is undecided.
+type lineage struct {
+	plans     map[domain.PlanID]bool
+	ordered   map[domain.Cell]bool
+	undecided map[domain.Cell]bool
+	live      *store.PlanState
+}
+
+func (l lineage) planIDs() []string {
+	out := make([]string, 0, len(l.plans))
+	for id := range l.plans {
+		out = append(out, string(id))
 	}
-	ordered, undecided := map[domain.Cell]bool{}, map[domain.Cell]bool{}
-	for i, p := range plan.Progress {
-		v := p.View()
-		if v.Attempt == 0 {
+	sort.Strings(out)
+	return out
+}
+
+func (l lineage) liveComplete() bool {
+	for _, p := range l.live.Progress {
+		if p.View().Stage != domain.Completed {
+			return false
+		}
+	}
+	return true
+}
+
+// shellLineage reads the lineage from the store. Any shell plan with a cell
+// off run 1's ring is a second shell and fails the run.
+func shellLineage(ctx context.Context, st *store.Store, sh *shell) (lineage, error) {
+	plans, err := st.LoadPlans(ctx, 256)
+	if err != nil {
+		return lineage{}, err
+	}
+	l := lineage{plans: map[domain.PlanID]bool{}, ordered: map[domain.Cell]bool{}, undecided: map[domain.Cell]bool{}}
+	for _, plan := range plans {
+		if !strings.HasPrefix(string(plan.Spec.ID()), "routine-shell-") {
 			continue
 		}
-		b, _ := plan.Spec.Actions()[i].Building()
-		ordered[b.Cell()] = true
-		if _, known := v.Receipt.Value(); !known || v.Unresolved {
-			undecided[b.Cell()] = true
+		cancelled := false
+		for i, a := range plan.Spec.Actions() {
+			b, ok := a.Building()
+			if !ok || b.Stuff() != "WoodLog" || (b.Definition() != "Wall" && b.Definition() != "Door") {
+				return lineage{}, fmt.Errorf("shell plan %s holds a non-shell action", plan.Spec.ID())
+			}
+			if _, onRing := sh.cells[b.Cell()]; !onRing {
+				return lineage{}, fmt.Errorf("shell plan %s orders %v off run 1's ring (a second shell)", plan.Spec.ID(), b.Cell())
+			}
+			v := plan.Progress[i].View()
+			if v.Stage == domain.Cancelled {
+				cancelled = true
+			}
+			if v.Attempt == 0 {
+				continue
+			}
+			l.ordered[b.Cell()] = true
+			if _, known := v.Receipt.Value(); !known || v.Unresolved || v.Stage != domain.Completed {
+				l.undecided[b.Cell()] = true
+			}
+		}
+		l.plans[plan.Spec.ID()] = true
+		if !plan.Retired && !cancelled {
+			if l.live != nil {
+				return lineage{}, fmt.Errorf("two live shell plans: %s and %s", l.live.Spec.ID(), plan.Spec.ID())
+			}
+			p := plan
+			l.live = &p
 		}
 	}
-	return ordered, undecided, nil
+	return l, nil
+}
+
+func waitLineage(ctx context.Context, st *store.Store, sh *shell, wait time.Duration, done func(lineage) bool) error {
+	deadline := time.Now().Add(wait)
+	for {
+		l, err := shellLineage(ctx, st, sh)
+		if err != nil {
+			return err
+		}
+		if done(l) {
+			return nil
+		}
+		if time.Now().After(deadline) {
+			live := "none"
+			if l.live != nil {
+				live = fmt.Sprintf("%s %+v", l.live.Spec.ID(), stagesOf(ctx, st, l.live.Spec.ID()))
+			}
+			return fmt.Errorf("timed out: plans=%d ordered=%d live=%s", len(l.plans), len(l.ordered), live)
+		}
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		case <-time.After(2 * time.Second):
+		}
+	}
 }
 
 func cellList(set map[domain.Cell]bool) []domain.Cell {
@@ -270,50 +365,6 @@ func cellList(set map[domain.Cell]bool) []domain.Cell {
 	return out
 }
 
-// waitAdoptedShell polls for the shell plan the restarted controller admits:
-// a plan of wall (and possibly door) placements other than run 1's whose
-// cells all lie on run 1's shell ring.
-func waitAdoptedShell(ctx context.Context, st *store.Store, sh *shell, wait time.Duration) (store.PlanState, error) {
-	ring := map[domain.Cell]bool{}
-	for _, w := range sh.footprint.Walls() {
-		ring[w] = true
-	}
-	deadline := time.Now().Add(wait)
-	for {
-		plans, err := st.LoadPlans(ctx, 256)
-		if err == nil {
-			for _, plan := range plans {
-				if plan.Spec.ID() == sh.planID || plan.Retired || !strings.HasPrefix(string(plan.Spec.ID()), "routine-shell-") {
-					continue
-				}
-				onRing := len(plan.Spec.Actions()) > 0
-				for _, a := range plan.Spec.Actions() {
-					b, ok := a.Building()
-					onRing = onRing && ok && b.Stuff() == "WoodLog" && (b.Definition() == "Wall" || b.Definition() == "Door") && ring[b.Cell()]
-				}
-				if onRing {
-					return plan, nil
-				}
-				return store.PlanState{}, fmt.Errorf("restarted controller admitted a shell plan %s off run 1's ring (a second shell)", plan.Spec.ID())
-			}
-		}
-		if time.Now().After(deadline) {
-			return store.PlanState{}, errors.New("no shell plan admitted after restart in time")
-		}
-		select {
-		case <-ctx.Done():
-			return store.PlanState{}, ctx.Err()
-		case <-time.After(2 * time.Second):
-		}
-	}
-}
-
-// designateTrees marks the nearest mature wild trees for cutting through the
-// game's own designator until their estimated yield covers target WoodLog.
-// The tribal baseline starts with less wood than a hut shell costs; felling
-// is the acquisition family's job, which this harness leaves out to keep the
-// per-step native budget on the shell, so the wood order is placed here as
-// an explicit player edit before the controller starts.
 func designateTrees(ctx context.Context, h *na.Harness, identity, facts map[string]any, target int, report na.Report) error {
 	center, _ := na.AsMap(facts["center"])
 	cx, cz := na.AsNumber(center["x"]), na.AsNumber(center["z"])
@@ -483,8 +534,6 @@ func classify(plan store.PlanState) (*shell, error) {
 	return sh, nil
 }
 
-type stageCount struct{ total, completed, dispatchedOrLater int }
-
 func stagesOf(ctx context.Context, st *store.Store, id domain.PlanID) map[string]int {
 	out := map[string]int{}
 	plan, err := st.LoadPlan(ctx, id)
@@ -495,41 +544,6 @@ func stagesOf(ctx context.Context, st *store.Store, id domain.PlanID) map[string
 		out[string(p.View().Stage)]++
 	}
 	return out
-}
-
-func waitStages(ctx context.Context, st *store.Store, id domain.PlanID, wait time.Duration, done func(stageCount) bool) error {
-	deadline := time.Now().Add(wait)
-	var last stageCount
-	for {
-		plan, err := st.LoadPlan(ctx, id)
-		if err == nil {
-			var s stageCount
-			s.total = len(plan.Spec.Actions())
-			for _, p := range plan.Progress {
-				switch p.View().Stage {
-				case domain.Completed:
-					s.completed++
-					s.dispatchedOrLater++
-				case domain.Dispatched, domain.AwaitingObservation:
-					s.dispatchedOrLater++
-				case domain.Cancelled:
-					return fmt.Errorf("shell action cancelled: %v", p.View())
-				}
-			}
-			last = s
-			if done(s) {
-				return nil
-			}
-		}
-		if time.Now().After(deadline) {
-			return fmt.Errorf("timed out: %+v", last)
-		}
-		select {
-		case <-ctx.Done():
-			return ctx.Err()
-		case <-time.After(2 * time.Second):
-		}
-	}
 }
 
 // cancelOneWall cancels the pending wall order nearest the door through the
