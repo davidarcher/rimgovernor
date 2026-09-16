@@ -90,13 +90,13 @@ namespace HomeBridge.BridgeTools
                 var prior = MiningGuard.State().Drills.FirstOrDefault(r => r.MapId == map.uniqueID && r.X == x && r.Z == z);
                 if (prior != null && (prior.Resource != row[3] || prior.Definition != row[0]))
                     throw new ArgumentException("Retained extraction facility requires inspection");
-                if (prior == null && new IntVec3(x, 0, z).GetThingList(map).Any(t => t.TryGetComp<CompDeepDrill>() != null))
-                    throw new ArgumentException("An existing player drill cannot be adopted by a construction policy");
+                var existing = new IntVec3(x, 0, z).GetThingList(map).FirstOrDefault(t => t.TryGetComp<CompDeepDrill>() != null
+                    && t.def.defName == row[0]);
                 var pending = new IntVec3(x, 0, z).GetThingList(map).FirstOrDefault(t => (t is Blueprint || t is Frame)
                     && t.def.entityDefToBuild?.defName == row[0]);
-                if (prior == null && pending == null) throw new ArgumentException("A confirmed native construction target is required for drill ownership");
+                if (prior == null && existing == null && pending == null) throw new ArgumentException("A confirmed native construction target is required for drill ownership");
                 records.Add(new DrillingRecord { MapId = map.uniqueID, Definition = row[0], X = x, Z = z, Resource = row[3], Target = target,
-                    PendingId = pending?.ThingID });
+                    ThingId = existing?.ThingID, PendingId = pending?.ThingID });
             }
             if (records.Count > 32) throw new ArgumentException("Bounded drilling facility limit exceeded");
             if (MiningGuard.State().Drills.Count + records.Count(r => !MiningGuard.State().Drills.Any(p =>

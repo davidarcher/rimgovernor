@@ -14,12 +14,11 @@ const GearReplacePawnUnavailable Reason = "gear_replace_pawn_unavailable"
 // GearReplacePawnFacts describes the one already-selected undrafted pawn
 // gear_upkeep.compile_upkeep chose a replacement for.
 type GearReplacePawnFacts struct {
-	Pawn                      domain.PawnID
-	SnapshotToken             string
-	Dead, Downed, Drafted     domain.Fact[bool]
-	MentalState, PlayerForced domain.Fact[bool]
-	QueuedJobs                domain.Fact[uint32]
-	ExistingJobDef            domain.Fact[string]
+	Pawn                  domain.PawnID
+	SnapshotToken         string
+	Dead, Downed, Drafted domain.Fact[bool]
+	MentalState           domain.Fact[bool]
+	ExistingJobDef        domain.Fact[string]
 }
 
 type GearReplaceFacts struct {
@@ -69,27 +68,22 @@ func EvaluateGearReplace(r GearReplaceRequest) DraftDecision {
 	if f.Pawn.Pawn != replace.Pawn() || !validToken(f.Pawn.SnapshotToken) || !validToken(f.ThingSnapshotToken) || !validToken(f.LoadoutToken) {
 		return refuse(UnknownFacts)
 	}
-	for _, fact := range []domain.Fact[bool]{f.Pawn.Dead, f.Pawn.Downed, f.Pawn.Drafted, f.Pawn.MentalState, f.Pawn.PlayerForced} {
+	for _, fact := range []domain.Fact[bool]{f.Pawn.Dead, f.Pawn.Downed, f.Pawn.Drafted, f.Pawn.MentalState} {
 		if _, known := fact.Value(); !known {
 			return refuse(UnknownFacts)
 		}
 	}
-	queued, known := f.Pawn.QueuedJobs.Value()
-	if !known {
-		return refuse(UnknownFacts)
-	}
-	if _, known = f.Pawn.ExistingJobDef.Value(); !known {
+	if _, known := f.Pawn.ExistingJobDef.Value(); !known {
 		return refuse(UnknownFacts)
 	}
 	dead, _ := f.Pawn.Dead.Value()
 	downed, _ := f.Pawn.Downed.Value()
 	drafted, _ := f.Pawn.Drafted.Value()
 	mental, _ := f.Pawn.MentalState.Value()
-	forced, _ := f.Pawn.PlayerForced.Value()
 	if dead || downed {
 		return refuse(GearReplacePawnUnavailable)
 	}
-	if drafted || mental || forced || queued != 0 {
+	if drafted || mental {
 		return refuse(PlayerOrder)
 	}
 	eligible, known := f.NativeCanTry.Value()

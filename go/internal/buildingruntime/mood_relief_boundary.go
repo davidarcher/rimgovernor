@@ -94,9 +94,6 @@ func moodReliefJobDomain(job bridge.MoodReliefExpectedJob) (domain.MoodReliefJob
 
 func moodReliefPawnFacts(pawn domain.PawnID, row *n.PawnState, token string, absTicks int64, longitude float64, longitudeKnown bool) policy.MoodReliefPawnFacts {
 	facts := policy.MoodReliefPawnFacts{Pawn: pawn, SnapshotToken: token, Dead: boundary.FactBool(row.Dead), Downed: boundary.FactBool(row.Downed), Drafted: boundary.FactBool(row.Drafted), Mental: boundary.FactPresence(row.MentalState, row.Issues, "mental_state")}
-	if row.Job != nil && !boundary.IssueField(row.Job.Issues, "player_forced") {
-		facts.PlayerForced = boundary.FactBool(row.Job.PlayerForced)
-	}
 	if longitudeKnown {
 		if job, def, ok := moodReliefDispatchFacts(row, absTicks, longitude); ok {
 			if value, ok := moodReliefJobDomain(job); ok {
@@ -202,7 +199,7 @@ func (b *MoodReliefBoundary) ManageMoodRelief(ctx context.Context, dispatch exec
 	if err = ctx.Err(); err != nil {
 		return out, err
 	}
-	pre := &a.WritePrecondition{Identity: attempt.Identity, Attempt: attempt.Attempt, ExpectedGeneration: proto.Uint64(attempt.Generation),}
+	pre := &a.WritePrecondition{Identity: attempt.Identity, Attempt: attempt.Attempt, ExpectedGeneration: proto.Uint64(attempt.Generation)}
 	reply, _, err := b.writer.ApplyMoodRelief(ctx, pre, attempt.Pawn, attempt.PawnToken, attempt.Need, attempt.ExpectedJob, attempt.ExpectedScheduleDef)
 	var refused *bridge.NativeFailure
 	if errors.As(err, &refused) && refused.Value != nil && refused.Value.GetCode() != c.FailureCode_FAILURE_CODE_ATTEMPT_CONFLICT {

@@ -79,7 +79,7 @@ namespace HomeBridge.BridgeTools
                     var missing = cells.Where(c => !map.areaManager.Home[c]).ToList();
                     if (missing.Count == 0) continue;
                     var row = new Obs.HomeCoverageTarget { Id = Id(target), ShapeToken = HomeCoverage.Shape(target, cells),
-                        MissingCells = checked((uint)missing.Count), ExcludedCells = checked((uint)missing.Count(c => state.Excluded[c])) };
+                        MissingCells = checked((uint)missing.Count) };
                     row.Cells.AddRange(cells.Select(Cell));
                     facts.Targets.Add(row);
                 }

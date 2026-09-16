@@ -92,3 +92,66 @@ func TestAcquisitionPlannerBoundsWoodAndPreservesManual(t *testing.T) {
 		}
 	}
 }
+
+// dispatchedHunt builds a single dispatched, unresolved Hunt acquisition
+// Progress, as native.HuntingSafety.RouteSafe leaves it while a hunter's
+// route stays unsafe: prepared and dispatched, never observed.
+func dispatchedHunt(t *testing.T, action domain.ActionID, thing string, tick domain.Tick) domain.Progress {
+	t.Helper()
+	value, err := domain.NewAcquisition(thing, "Deer", domain.Cell{X: 1, Z: 1})
+	if err != nil {
+		t.Fatal(err)
+	}
+	a, err := domain.NewAcquisitionAction(action, value)
+	if err != nil {
+		t.Fatal(err)
+	}
+	spec, err := domain.NewPlan("hunt-plan", 1, []domain.Action{a})
+	if err != nil {
+		t.Fatal(err)
+	}
+	p, err := domain.NewProgress(spec, action)
+	if err != nil {
+		t.Fatal(err)
+	}
+	snapshot := domain.GenerationSnapshot{Colony: "colony", Map: 1, Load: "load", Direction: 1, Plan: spec.ID(), Revision: spec.Revision(), Native: 1}
+	if p, err = p.Prepare(snapshot, tick); err != nil {
+		t.Fatal(err)
+	}
+	if p, err = p.MarkDispatched(snapshot, tick); err != nil {
+		t.Fatal(err)
+	}
+	return p
+}
+
+func TestStalledHuntActionsGracePeriod(t *testing.T) {
+	t.Parallel()
+	hunt := dispatchedHunt(t, "hunt-deer", "deer", 100)
+	sources := map[string]bool{"deer": true}
+	if got := stalledHuntActions([]domain.Progress{hunt}, sources, 100+5999, 6000); got != nil {
+		t.Fatal("stalled before grace elapses", got)
+	}
+	got := stalledHuntActions([]domain.Progress{hunt}, sources, 100+6000, 6000)
+	if len(got) != 1 || got[0] != "hunt-deer" {
+		t.Fatal("did not report stalled hunt", got)
+	}
+	if got := stalledHuntActions([]domain.Progress{hunt}, sources, 100+6000, 0); got != nil {
+		t.Fatal("zero grace must disable stall detection", got)
+	}
+}
+
+func TestStalledHuntActionsIgnoresResolvedAndNonHuntWork(t *testing.T) {
+	t.Parallel()
+	hunt := dispatchedHunt(t, "hunt-deer", "deer", 100)
+	sources := map[string]bool{"deer": true}
+	if got := stalledHuntActions([]domain.Progress{hunt}, map[string]bool{}, 100+6000, 6000); got != nil {
+		t.Fatal("unlisted source must not be treated as a stalled hunt", got)
+	}
+	resolved, err := hunt.Observe(domain.Observation{Action: hunt.View().Action, Attempt: hunt.View().Attempt, Snapshot: hunt.View().Snapshot, Tick: 100, Causality: domain.AfterDispatch, Effect: domain.EffectCompleted}, hunt.View().Snapshot)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := stalledHuntActions([]domain.Progress{resolved}, sources, 100+6000, 6000); got != nil {
+		t.Fatal("resolved hunt action must not be reported as stalled", got)
+	}
+}

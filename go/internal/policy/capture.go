@@ -130,14 +130,10 @@ func EvaluateCapture(r CaptureRequest) DraftDecision {
 			return refuse(UnsupportedThreat)
 		}
 	}
-	for _, fact := range []domain.Fact[bool]{f.Capturer.Dead, f.Capturer.Downed, f.Capturer.Drafted, f.Capturer.MentalState, f.Capturer.PlayerForced} {
+	for _, fact := range []domain.Fact[bool]{f.Capturer.Dead, f.Capturer.Downed, f.Capturer.Drafted, f.Capturer.MentalState} {
 		if _, known := fact.Value(); !known {
 			return refuse(UnknownFacts)
 		}
-	}
-	queued, known := f.Capturer.QueuedJobs.Value()
-	if !known {
-		return refuse(UnknownFacts)
 	}
 	existingCapturerJob, known := f.Capturer.ExistingJobDef.Value()
 	if !known {
@@ -147,11 +143,10 @@ func EvaluateCapture(r CaptureRequest) DraftDecision {
 	downed, _ := f.Capturer.Downed.Value()
 	drafted, _ := f.Capturer.Drafted.Value()
 	mental, _ := f.Capturer.MentalState.Value()
-	forced, _ := f.Capturer.PlayerForced.Value()
 	if dead || downed {
 		return refuse(CriticalMedical)
 	}
-	if drafted || mental || forced || queued != 0 {
+	if drafted || mental {
 		return refuse(PlayerOrder)
 	}
 	if existingCapturerJob == "Capture" {

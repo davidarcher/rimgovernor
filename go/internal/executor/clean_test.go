@@ -21,7 +21,7 @@ type cleanEnvironment struct {
 
 func (n *cleanEnvironment) cleanFacts(target Target) policy.CleanFacts {
 	clean, _ := target.Action.Clean()
-	pawn := policy.CleanPawnFacts{Pawn: clean.Pawn(), SnapshotToken: "pawn-token", Dead: domain.Known(false), Downed: domain.Known(false), Drafted: domain.Known(false), MentalState: domain.Known(false), PlayerForced: domain.Known(false), QueuedJobs: domain.Known(uint32(0)), ExistingJobDef: domain.Known("")}
+	pawn := policy.CleanPawnFacts{Pawn: clean.Pawn(), SnapshotToken: "pawn-token", Dead: domain.Known(false), Downed: domain.Known(false), Drafted: domain.Known(false), MentalState: domain.Known(false), ExistingJobDef: domain.Known("")}
 	filth := policy.CleanFilthFacts{Filth: clean.Filth(), SnapshotToken: "filth-token", Exists: domain.Known(true)}
 	return policy.CleanFacts{Snapshot: target.Snapshot, PawnTick: n.tick, PreviewTick: n.tick, NativeCanTry: domain.Known(true), Pawn: pawn, Filth: filth}
 }

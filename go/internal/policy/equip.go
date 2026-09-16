@@ -18,10 +18,10 @@ const EquipPawnUnavailable Reason = "equip_pawn_unavailable"
 // its goal (EnsureBasicDefense caps this at two pawns; single-raider defense
 // arms exactly one).
 type EquipCandidatePawn struct {
-	Pawn                                          domain.PawnID
-	Dead, Downed, Drafted, MentalState             domain.Fact[bool]
-	IncapableOfViolence, Armed                     domain.Fact[bool]
-	Position                                       domain.Cell
+	Pawn                               domain.PawnID
+	Dead, Downed, Drafted, MentalState domain.Fact[bool]
+	IncapableOfViolence, Armed         domain.Fact[bool]
+	Position                           domain.Cell
 }
 
 // EquipCandidateWeapon describes one already-observed loose weapon.
@@ -88,12 +88,11 @@ func distanceSquared(a, b domain.Cell) int64 {
 
 // EquipPawnFacts describes the one already-selected undrafted pawn.
 type EquipPawnFacts struct {
-	Pawn                      domain.PawnID
-	SnapshotToken             string
-	Dead, Downed, Drafted     domain.Fact[bool]
-	MentalState, PlayerForced domain.Fact[bool]
-	QueuedJobs                domain.Fact[uint32]
-	ExistingJobDef            domain.Fact[string]
+	Pawn                  domain.PawnID
+	SnapshotToken         string
+	Dead, Downed, Drafted domain.Fact[bool]
+	MentalState           domain.Fact[bool]
+	ExistingJobDef        domain.Fact[string]
 }
 
 type EquipFacts struct {
@@ -142,14 +141,10 @@ func EvaluateEquip(r EquipRequest) DraftDecision {
 	if f.Pawn.Pawn != equip.Pawn() || !validToken(f.Pawn.SnapshotToken) || !validToken(f.ThingSnapshotToken) {
 		return refuse(UnknownFacts)
 	}
-	for _, fact := range []domain.Fact[bool]{f.Pawn.Dead, f.Pawn.Downed, f.Pawn.Drafted, f.Pawn.MentalState, f.Pawn.PlayerForced} {
+	for _, fact := range []domain.Fact[bool]{f.Pawn.Dead, f.Pawn.Downed, f.Pawn.Drafted, f.Pawn.MentalState} {
 		if _, known := fact.Value(); !known {
 			return refuse(UnknownFacts)
 		}
-	}
-	queued, known := f.Pawn.QueuedJobs.Value()
-	if !known {
-		return refuse(UnknownFacts)
 	}
 	existingJob, known := f.Pawn.ExistingJobDef.Value()
 	if !known {
@@ -159,11 +154,10 @@ func EvaluateEquip(r EquipRequest) DraftDecision {
 	downed, _ := f.Pawn.Downed.Value()
 	drafted, _ := f.Pawn.Drafted.Value()
 	mental, _ := f.Pawn.MentalState.Value()
-	forced, _ := f.Pawn.PlayerForced.Value()
 	if dead || downed {
 		return refuse(EquipPawnUnavailable)
 	}
-	if drafted || mental || forced || queued != 0 {
+	if drafted || mental {
 		return refuse(PlayerOrder)
 	}
 	if existingJob == "Equip" {

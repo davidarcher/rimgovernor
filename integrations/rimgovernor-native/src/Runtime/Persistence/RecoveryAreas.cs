@@ -25,22 +25,18 @@ namespace HomeBridge.BridgeTools
     public sealed class RecoveryAreas : GameComponent
     {
         public List<RecoveryAreaClaim> Claims = new List<RecoveryAreaClaim>();
-        public List<Pawn> Overrides = new List<Pawn>();
         public RecoveryAreas(Game game) { }
         public override void ExposeData()
         {
             Scribe_Collections.Look(ref Claims, "rimgovernorRecoveryAreas", LookMode.Deep);
-            Scribe_Collections.Look(ref Overrides, "rimgovernorRecoveryAreaOverrides", LookMode.Reference);
             if (Scribe.mode == LoadSaveMode.PostLoadInit)
             {
                 if (Claims == null) Claims = new List<RecoveryAreaClaim>();
-                if (Overrides == null) Overrides = new List<Pawn>();
             }
         }
         public override void GameComponentTick()
         {
             if (Claims == null) Claims = new List<RecoveryAreaClaim>();
-            if (Overrides == null) Overrides = new List<Pawn>();
             foreach (var claim in Claims.ToList())
             {
                 var pawn = claim.Pawn;
@@ -48,7 +44,7 @@ namespace HomeBridge.BridgeTools
                 // Keep the old map's lease until return; never write its area into a different map.
                 if (pawn.Map != claim.Assigned.Map) continue;
                 var current = pawn.playerSettings.AreaRestrictionInPawnCurrentMap;
-                if (current != claim.Assigned) { Overrides.Add(pawn); Claims.Remove(claim); continue; }
+                if (current != claim.Assigned) { Claims.Remove(claim); continue; }
                 var conditions = new List<GameCondition>();
                 pawn.Map.gameConditionManager.GetAllGameConditionsAffectingMap(pawn.Map, conditions);
                 bool expired = claim.Until <= Find.TickManager.TicksGame

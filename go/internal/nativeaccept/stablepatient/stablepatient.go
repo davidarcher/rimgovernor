@@ -1,12 +1,19 @@
-// Package sustainedfood holds the single-run mechanics behind
-// sustainedfoodaccept and sustainedmatrixaccept (issue #1's sustained-matrix
-// acceptance): load a save, launch the live Go player service with the food
-// pipeline's routine families, acquire player authority, and poll
-// EnsureFoodSupply's durable goal state over a wall-clock window. It exists
-// as its own package (rather than living only in cmd/sustainedfoodaccept) so
-// sustainedmatrixaccept can drive the exact same mechanics across a save
-// variant list without duplicating them.
-package sustainedfood
+// Package stablepatient holds the single-run mechanics behind
+// stablepatientaccept (issue #1's "extend stable-patient feeding acceptance
+// to withdrawal recovery and concurrent food production"): start a fresh
+// debug game, use the disposable test/medical_management_setup and
+// test/routine_production_prepare fixtures to build a deterministic stable
+// scenario (two tendable Flu patients, a missing-leg surgical patient never
+// exercised here, and a fourth colonist forced into GoJuiceAddiction's
+// withdrawal stage) plus a concurrent food-production site, launch the live
+// Go player-control service with both the tend/medical and food routine
+// families enabled, and poll the durable store's CriticalMedicine and
+// EnsureFoodSupply goal states over a wall-clock window. This is the
+// sustainedfood package's own run shape (load/launch/acquire/poll-the-store)
+// reused for a fixture-seeded colony instead of the tribal8 baseline save,
+// since medical_management_setup's disposable patients -- not natural colony
+// generation -- are what this milestone needs to be deterministic.
+package stablepatient
 
 import (
 	"bufio"
@@ -31,36 +38,24 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/store"
 )
 
-// RunConfig is one variant's run parameters: which save to load and how long
-// to observe it. Root/Output/GameID/Headless/RimgovernorBinary mirror
-// na.Config's fields; Save/Watch/Poll/NativeTimeout vary per matrix row.
+// RunConfig mirrors sustainedfood.RunConfig; there is no Save field since
+// this run always starts a fresh debug game and seeds it through fixtures.
 type RunConfig struct {
 	Root              string
 	Output            string
 	GameID            string
 	Headless          bool
 	RimgovernorBinary string
-	Save              string
 	Watch             time.Duration
 	Poll              time.Duration
 	NativeTimeout     time.Duration
-	// RequestPrefix disambiguates the anchor-plan/acquire/keep-alive
-	// requestIds across variants sharing one -root's HTTP log; defaults to
-	// "sustained-food" when empty.
-	RequestPrefix string
-	// ClockSpeed is serve's --clock-speed value (Normal, Fast or Superfast);
-	// defaults to Normal when empty. A watch window measures wall-clock
-	// minutes, not ticks, so requesting Fast/Superfast packs more simulated
-	// ticks -- and more chances for EnsureFoodSupply to actually progress --
-	// into the same cfg.Watch duration.
-	ClockSpeed string
+	RequestPrefix     string
+	ClockSpeed        string
 }
 
-// Run executes exactly one variant: it must be called with a fresh, empty
-// cfg.Output directory. Every finding goes into report (mutated in place),
-// matching every other native acceptance binary's convention; the timeline
-// samples are also returned directly so a caller (sustainedmatrixaccept) can
-// derive cross-variant metrics without re-reading result.json.
+// Run executes one run against a fresh fixture-seeded debug game. cfg.Output
+// must be a fresh, empty directory. Every finding goes into report (mutated
+// in place); the timeline samples are also returned directly.
 func Run(ctx context.Context, cfg RunConfig, report na.Report) ([]map[string]any, error) {
 	root, output := cfg.Root, cfg.Output
 	if abs, err := filepath.Abs(root); err == nil {
@@ -71,7 +66,7 @@ func Run(ctx context.Context, cfg RunConfig, report na.Report) ([]map[string]any
 	}
 	prefix := cfg.RequestPrefix
 	if prefix == "" {
-		prefix = "sustained-food"
+		prefix = "stable-patient"
 	}
 	naCfg := &na.Config{Root: root, Output: output, Headless: cfg.Headless, GameID: cfg.GameID}
 	if err := naCfg.PrepareConfig(); err != nil {
@@ -91,10 +86,11 @@ func Run(ctx context.Context, cfg RunConfig, report na.Report) ([]map[string]any
 		return nil, err
 	}
 
-	// Sequential native sessions, exactly like routinehaulaccept: this
-	// harness's own session loads the save and reads identity, then closes
-	// (without games_stop) to free the sole GABP slot for the service. A
-	// fresh session is reopened at the very end for the final games_stop.
+	// Sequential native sessions, exactly like sustainedfood.Run: this
+	// harness's own session starts the debug game and seeds the fixtures,
+	// then closes (without games_stop) to free the sole GABP slot for the
+	// service. A fresh session is reopened at the end for the final
+	// games_stop.
 	openHarness := func() (*bridge.Client, *na.Harness, error) {
 		c, err := na.OpenSession(ctx, gabsExecutable, naCfg.Configuration, cfg.GameID, 60*time.Second)
 		if err != nil {
@@ -117,42 +113,14 @@ func Run(ctx context.Context, cfg RunConfig, report na.Report) ([]map[string]any
 		return nil, err
 	}
 
-	if _, err := h.Call(ctx, "load-save", "rimworld/load_game_ready", map[string]any{
-		"saveName": cfg.Save, "readiness": "visual", "timeoutMs": 90000, "ignoreModCompatibility": false,
+	if _, err := h.Call(ctx, "new-game", "rimworld/start_debug_game_ready", map[string]any{
+		"readiness": "visual", "pauseIfNeeded": true, "timeoutMs": 120000,
 	}); err != nil {
 		return nil, err
 	}
 	if _, err := h.Call(ctx, "pause", "rimworld/set_time_speed", map[string]any{"speed": "Paused", "ultraSpeedBoost": false}); err != nil {
 		return nil, err
 	}
-
-	// A fresh load can leave the initial faction/settlement naming dialog
-	// open; ConfirmColonyNames (priority 0) is treated as a global emergency
-	// that blocks every other goal, including EnsureFoodSupply, until
-	// resolved -- see policy.RankDevelopment / routine.go. Dismiss it here,
-	// same as routinehaulaccept.
-	facts, err := h.Call(ctx, "colony-facts", "home/colony_facts", map[string]any{})
-	if err != nil {
-		return nil, err
-	}
-	if naming, ok := na.AsMap(facts["colonyNaming"]); ok && naming != nil {
-		confirmed, err := h.Call(ctx, "confirm-colony-names", "home/confirm_colony_names", map[string]any{
-			"windowId":       int(na.AsNumber(naming["windowId"])),
-			"factionName":    na.AsString(naming["factionName"]),
-			"settlementName": na.AsString(naming["settlementName"]),
-			"dryRun":         false,
-		})
-		if err != nil {
-			return nil, err
-		}
-		if success, _ := na.AsBool(confirmed["success"]); !success {
-			return nil, fmt.Errorf("confirm_colony_names refused: %#v", confirmed)
-		}
-		report["confirmed_colony_names"] = confirmed
-	} else {
-		report["confirmed_colony_names"] = "no pending naming dialog"
-	}
-
 	identityReply, err := h.Wire(ctx, "identity", "lifecycle_read_identity", map[string]any{})
 	if err != nil {
 		return nil, err
@@ -169,8 +137,33 @@ func Run(ctx context.Context, cfg RunConfig, report na.Report) ([]map[string]any
 			na.AsNumber(v["mapId"]) == na.AsNumber(identity["mapId"])
 	}
 
+	medicalPrepared, err := h.Call(ctx, "medical-setup", "test/medical_management_setup", map[string]any{
+		"disease": true, "failSurgery": false, "manualTending": false, "withdrawal": true,
+	})
+	if err != nil {
+		return nil, err
+	}
+	if success, _ := na.AsBool(medicalPrepared["success"]); !success {
+		return nil, fmt.Errorf("medical_management_setup refused: %#v", medicalPrepared)
+	}
+	report["medical_prepared"] = medicalPrepared
+	withdrawalPatient := na.AsString(medicalPrepared["withdrawalPatient"])
+	if withdrawalPatient == "" {
+		return nil, fmt.Errorf("medical_management_setup: missing withdrawalPatient identifier: %#v", medicalPrepared)
+	}
+
+	productionPrepared, err := h.Call(ctx, "production-setup", "test/routine_production_prepare", map[string]any{})
+	if err != nil {
+		return nil, err
+	}
+	if success, _ := na.AsBool(productionPrepared["success"]); !success {
+		return nil, fmt.Errorf("routine_production_prepare refused: %#v", productionPrepared)
+	}
+	report["production_prepared"] = productionPrepared
+
 	// Free the sole GABP slot before the service starts its own bridge
-	// session; this does NOT call games_stop, so the loaded save survives.
+	// session; this does NOT call games_stop, so the fixture-seeded colony
+	// survives.
 	if err := client.Close(); err != nil {
 		return nil, fmt.Errorf("close fixture-prep bridge session: %w", err)
 	}
@@ -184,20 +177,6 @@ func Run(ctx context.Context, cfg RunConfig, report na.Report) ([]map[string]any
 	if err := os.MkdirAll(serviceDir, 0755); err != nil {
 		return nil, err
 	}
-	// Explicit food-pipeline routine plans only -- NOT the "name zero
-	// --routine-*-plans flags to enable every family" composed default.
-	// --routine-recovery-plans (and likely others gated the same way) is
-	// unusable in that composed-default combination: RecoverDisasterServices
-	// is only added to DetectRoutine's recognized-assessments set when
-	// r.Disaster != nil (routine.go:751), which is never true during
-	// NewRoutineReviewer's empty-facts capability validation call
-	// (routine.go:59), so the service fails immediately with "invalid
-	// routine method capability" whenever recovery-plans is combined with
-	// every other family this way. That's a narrow pre-existing gap
-	// unrelated to food/crop logic and out of this milestone's scope --
-	// sidestep it by requesting only what EnsureFoodSupply's own pipeline
-	// needs: field growing (the goal under diagnosis), food storage,
-	// harvest/wood acquisition, cooking bills, and starting supplies.
 	clockSpeed := cfg.ClockSpeed
 	if clockSpeed == "" {
 		clockSpeed = "Normal"
@@ -205,15 +184,16 @@ func Run(ctx context.Context, cfg RunConfig, report na.Report) ([]map[string]any
 	argv := []string{
 		"serve", "--player-control", "--clock-control", "--clock-speed", clockSpeed,
 		"--routine-reviews", "--routine-methods",
+		// Medical: dispatch tend for the two Flu patients and the forced
+		// withdrawal patient's CriticalMedicine deficit, plus medicine-reserve
+		// replenishment so tend never runs the fixture's stocked medicine dry.
+		"--routine-tend-plans", "--routine-medical-plans",
+		// Food: the same EnsureFoodSupply pipeline sustainedfood exercises,
+		// needed here to prove the pre-seeded growing zone/campfire bill
+		// (test/routine_production_prepare) keeps advancing concurrently with
+		// medical dispatch rather than losing pawn time to it.
 		"--routine-field-plans", "--routine-food-storage-plans", "--routine-acquisition-plans",
 		"--routine-cooking-plans", "--routine-supply-plans",
-		// Needed only so the executor's ProductionPolicy capability is wired up
-		// at all (serve_building.go gates it on this same flag) -- the
-		// acquire-anchor below dispatches through that capability. With no
-		// --routine-resource-reserve/--routine-resource-stop configured, the
-		// routine planner it also enables stays a no-op (see
-		// RoutineProductionPolicyPlanner's doc comment: its target
-		// floors/stopped set is entirely operator-config-derived).
 		"--routine-production-policy-plans",
 		"--profile", profileDir,
 		"--gabs", gabsExecutable,
@@ -345,7 +325,7 @@ func Run(ctx context.Context, cfg RunConfig, report na.Report) ([]map[string]any
 			}
 		}
 		if time.Now().After(deadline) {
-			return nil, fmt.Errorf("service did not attach to the loaded save's identity in time: %#v", state)
+			return nil, fmt.Errorf("service did not attach to the fixture-seeded save's identity in time: %#v", state)
 		}
 		select {
 		case <-ctx.Done():
@@ -355,24 +335,10 @@ func Run(ctx context.Context, cfg RunConfig, report na.Report) ([]map[string]any
 	}
 	report["service_state_attached"] = state
 
-	// Acquire needs an anchor plan purely because /api/player/control/acquire
-	// requires a planId/revision to attach to (store.checkedControl looks the
-	// plan up in the shared submissions table) -- it exists only for that.
-	// Any submission kind works here since AcquireControl does not care what
-	// the plan does, only that it exists, so this uses a resource-policy
-	// submission: it commits its own one-action plan the same way a building
-	// or zone does (see ResourcePolicySubmissionRequest's doc comment), but
-	// unlike either of those its native effect (SetProductionPolicy) is a
-	// pure settings write with no pawn labor and no persistent map object --
-	// no travel, no haul, no structure or zone left behind. Earlier versions
-	// anchored on a real Wall building (which a solo colony's only pawn
-	// travels to, hauls for, and builds, competing with EnsureFoodSupply for
-	// the one pawn's time -- issue #1) and then on a NothingPreset stockpile
-	// zone (still a stockpile zone in principle, and still left a spurious
-	// designation on the map for the run's duration). Setting Silver's
-	// spending to its own default ("normal") is a genuine no-op: it changes
-	// nothing about the colony, just gives AcquireControl something real to
-	// attach to.
+	// Anchor plan for acquire, same shape and rationale as
+	// sustainedfood.Run's own resource-policy anchor: a pure settings write
+	// with no pawn labor and no persistent map object, so it never competes
+	// with EnsureFoodSupply or CriticalMedicine for pawn time.
 	submission, status, err := apiCall("POST", "/api/player/resource-policy/update", map[string]any{
 		"requestId": prefix + "-anchor-1",
 		"expected":  identity,
@@ -414,12 +380,6 @@ func Run(ctx context.Context, cfg RunConfig, report na.Report) ([]map[string]any
 	}
 	defer verifyStore.Close()
 
-	// Keeps player authority granted for the full watch window: native
-	// authority is a bounded generation that legitimately lapses (tick
-	// budget exhaustion, an unrecognized native clock event), and nothing
-	// re-acquires it automatically -- see routinehaulaccept's
-	// authorityKeepAlive doc comment for the full mechanism, reused verbatim
-	// here since a multi-minute observation window needs the same recovery.
 	keepAlive := &authorityKeepAlive{apiCall: apiCall, identity: identity, planID: planID, revision: revision, token: token, prefix: prefix}
 	keepAlive.direction = na.AsString(acquiredRecord["direction"])
 	keepAliveCtx, stopKeepAlive := context.WithCancel(ctx)
@@ -432,8 +392,6 @@ func Run(ctx context.Context, cfg RunConfig, report na.Report) ([]map[string]any
 		report["authority_reacquisitions"] = keepAlive.snapshot()
 	}()
 
-	// Confirm the scheduler actually reaches automate and a routine review
-	// gets persisted before starting the real observation window.
 	diagDeadline := time.Now().Add(60 * time.Second)
 	sawAutomate := false
 	var review store.RoutineReview
@@ -461,28 +419,40 @@ func Run(ctx context.Context, cfg RunConfig, report na.Report) ([]map[string]any
 		return nil, fmt.Errorf("service reached automate mode but the routine review was never persisted")
 	}
 
-	// The observation window: sample EnsureFoodSupply's goal state and the
-	// stage of every one of its committed methods' plans, at cfg.Poll
-	// intervals, for cfg.Watch wall-clock duration. Every sample is retained
-	// (report["timeline"]); "events" additionally isolates the moments that
-	// actually changed (a method count change or a Need transition) so the
-	// failure mode is readable without wading through every sample.
+	// The observation window: sample both CriticalMedicine (the Flu and
+	// withdrawal patients' tend deficit) and EnsureFoodSupply (the
+	// pre-seeded concurrent growing zone/campfire bill) goal states at
+	// cfg.Poll intervals, for cfg.Watch wall-clock duration -- proving tend
+	// dispatch and food production progress in the same window rather than
+	// one starving the other of pawn time.
 	var timeline []map[string]any
 	var events []map[string]any
-	lastMethodCount := -1
-	lastNeed := domain.NeedState("")
+	lastMedicalMethods, lastFoodMethods := -1, -1
+	lastMedicalNeed, lastFoodNeed := domain.NeedState(""), domain.NeedState("")
 	watchDeadline := time.Now().Add(cfg.Watch)
 	for time.Now().Before(watchDeadline) {
-		sample, err := sampleFoodGoal(ctx, verifyStore)
-		if err != nil {
-			sample = map[string]any{"error": err.Error(), "at": time.Now().UTC().Format(time.RFC3339)}
+		medicalSample, medicalErr := sampleGoal(ctx, verifyStore, policy.CriticalMedicine)
+		if medicalErr != nil {
+			medicalSample = map[string]any{"error": medicalErr.Error()}
+		}
+		foodSample, foodErr := sampleGoal(ctx, verifyStore, policy.EnsureFoodSupply)
+		if foodErr != nil {
+			foodSample = map[string]any{"error": foodErr.Error()}
+		}
+		sample := map[string]any{
+			"at": time.Now().UTC().Format(time.RFC3339),
+			"medical": medicalSample, "food": foodSample,
 		}
 		timeline = append(timeline, sample)
-		methodCount, _ := sample["method_count"].(int)
-		need, _ := sample["need"].(string)
-		if methodCount != lastMethodCount || domain.NeedState(need) != lastNeed {
+		medicalMethods, _ := medicalSample["method_count"].(int)
+		foodMethods, _ := foodSample["method_count"].(int)
+		medicalNeed, _ := medicalSample["need"].(string)
+		foodNeed, _ := foodSample["need"].(string)
+		if medicalMethods != lastMedicalMethods || domain.NeedState(medicalNeed) != lastMedicalNeed ||
+			foodMethods != lastFoodMethods || domain.NeedState(foodNeed) != lastFoodNeed {
 			events = append(events, sample)
-			lastMethodCount, lastNeed = methodCount, domain.NeedState(need)
+			lastMedicalMethods, lastFoodMethods = medicalMethods, foodMethods
+			lastMedicalNeed, lastFoodNeed = domain.NeedState(medicalNeed), domain.NeedState(foodNeed)
 		}
 		select {
 		case <-ctx.Done():
@@ -527,22 +497,21 @@ func Run(ctx context.Context, cfg RunConfig, report na.Report) ([]map[string]any
 	return timeline, nil
 }
 
-// sampleFoodGoal reads the current EnsureFoodSupply goal binding (if any) and
-// its committed methods' plan stages, mirroring exactly what
-// buildingruntime.RoutineFieldPlanner.step itself reads: review.Goals for the
-// EnsureFoodSupply Need, then that goal's Status/Need/Priority/Methods.
-func sampleFoodGoal(ctx context.Context, s *store.Store) (map[string]any, error) {
-	sample := map[string]any{"at": time.Now().UTC().Format(time.RFC3339), "method_count": 0}
+// sampleGoal reads one Need's current goal binding (if any) and its
+// committed methods' plan stages, the same shape sustainedfood's own
+// sampleFoodGoal reads for EnsureFoodSupply, generalized here to also cover
+// CriticalMedicine (RoutineTendPlanner's own goal, routine_tend.go).
+func sampleGoal(ctx context.Context, s *store.Store, need policy.GoalID) (map[string]any, error) {
+	sample := map[string]any{"method_count": 0}
 	review, err := s.LoadRoutineReview(ctx)
 	if err != nil {
 		return sample, err
 	}
 	sample["review_revision"] = review.Revision
 	sample["review_tick"] = uint64(review.Tick)
-	sample["latch_food"] = review.Latches.Food
 	var goalID domain.GoalID
 	for _, binding := range review.Goals {
-		if binding.Need == policy.EnsureFoodSupply {
+		if binding.Need == need {
 			goalID = binding.Goal
 			break
 		}
@@ -581,9 +550,7 @@ func sampleFoodGoal(ctx context.Context, s *store.Store) (map[string]any, error)
 	return sample, nil
 }
 
-// authorityKeepAlive is routinehaulaccept's keep-alive, unmodified except for
-// a prefix field so concurrent-looking requestIds across matrix variants
-// (sharing one -root's HTTP/service logs) stay distinguishable: a
+// authorityKeepAlive is sustainedfood's own keep-alive, unmodified: a
 // multi-minute observation window needs the same continuous re-acquisition
 // and hold-acknowledgment a real continuously-automating caller would do.
 type authorityKeepAlive struct {

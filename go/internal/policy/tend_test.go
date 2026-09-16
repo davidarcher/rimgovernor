@@ -77,11 +77,8 @@ func TestTendDefenseHolds(t *testing.T) {
 		{"wrong patient", func(r *TendRequest) { r.Facts.Patient.Pawn = "other" }},
 		{"doctor dead", func(r *TendRequest) { r.Facts.Doctor.Dead = domain.Known(true) }},
 		{"doctor downed", func(r *TendRequest) { r.Facts.Doctor.Downed = domain.Known(true) }},
-		{"doctor drafted", func(r *TendRequest) { r.Facts.Doctor.Drafted = domain.Known(true) }},
+		{"doctor drafted unknown", func(r *TendRequest) { r.Facts.Doctor.Drafted = domain.Unknown[bool]() }},
 		{"doctor mental state", func(r *TendRequest) { r.Facts.Doctor.MentalState = domain.Known(true) }},
-		{"doctor player forced", func(r *TendRequest) { r.Facts.Doctor.PlayerForced = domain.Known(true) }},
-		{"doctor queued", func(r *TendRequest) { r.Facts.Doctor.QueuedJobs = domain.Known(uint32(1)) }},
-		{"doctor unknown queue", func(r *TendRequest) { r.Facts.Doctor.QueuedJobs = domain.Unknown[uint32]() }},
 		{"doctor already tending", func(r *TendRequest) { r.Facts.Doctor.ExistingJobDef = domain.Known("TendPatient") }},
 		{"doctor unknown skill", func(r *TendRequest) { r.Facts.Doctor.MedicineSkill = domain.Unknown[int32]() }},
 		{"doctor skill disabled", func(r *TendRequest) { r.Facts.Doctor.MedicineSkillDisabled = domain.Known(true) }},
@@ -119,6 +116,31 @@ func TestTendIgnoresItsOwnCriticalMedicalHold(t *testing.T) {
 	}
 }
 
+// A drafted doctor is the controller's own fallback for the deadlock the
+// issue describes: every doctor drafted (e.g. for defense) while a hostile
+// remains anywhere on the map. Native's own job-acceptance check (NativeCanTry)
+// stays the live safety authority; RimGovernor's colony-wide hostile gate does
+// not block this doctor the way it still blocks an undrafted one.
+func TestTendAdmitsDraftedDoctorDespiteHostile(t *testing.T) {
+	r := tendRequest(t)
+	r.Facts.Doctor.Drafted = domain.Known(true)
+	r.Facts.Emergency.facts.Threats = append(r.Facts.Emergency.facts.Threats, EmergencyThreat{ID: "raider", Kind: Hostile, Dead: domain.Known(false), Downed: domain.Known(false)})
+	if d := EvaluateTend(r); !d.Admitted {
+		t.Fatal("drafted doctor refused despite controller-owned fallback", d)
+	}
+}
+
+// An undrafted doctor still cannot tend while a hostile remains -- only the
+// drafted fallback exempts the colony-wide hostile gate.
+func TestTendStillBlocksUndraftedDoctorDuringHostile(t *testing.T) {
+	r := tendRequest(t)
+	r.Facts.Emergency.facts.Threats = append(r.Facts.Emergency.facts.Threats, EmergencyThreat{ID: "raider", Kind: Hostile, Dead: domain.Known(false), Downed: domain.Known(false)})
+	d := EvaluateTend(r)
+	if d.Admitted || len(d.Refused) != 1 || d.Refused[0].Reason != UnsupportedThreat {
+		t.Fatal(d)
+	}
+}
+
 func tendDoctor(id domain.PawnID, skill int32) TendDoctorFacts {
 	return TendDoctorFacts{Pawn: id, Dead: domain.Known(false), Downed: domain.Known(false), Drafted: domain.Known(false), MentalState: domain.Known(false), PlayerForced: domain.Known(false), QueuedJobs: domain.Known(uint32(0)), ExistingJobDef: domain.Known(""), MedicineSkill: domain.Known(skill), MedicineSkillDisabled: domain.Known(false), DoctorWorkEnabled: domain.Known(true), DoctorWorkOverrideDisabled: domain.Known(false)}
 }
@@ -149,10 +171,43 @@ func TestSelectTendExcludesIneligibleCandidates(t *testing.T) {
 	if !ok || doctor != "fine" || patient != "sick" {
 		t.Fatal(doctor, patient, ok)
 	}
-	if _, _, ok := SelectTend([]TendDoctorFacts{busy, drafted}, []TendPatientFacts{sick}); ok {
-		t.Fatal("selected an ineligible doctor")
-	}
 	if _, _, ok := SelectTend([]TendDoctorFacts{fine}, []TendPatientFacts{recovered, noCare}); ok {
 		t.Fatal("selected an ineligible patient")
+	}
+}
+
+// With no undrafted doctor eligible at all, SelectTend falls back to a
+// drafted one rather than leaving the patient untreated.
+func TestSelectTendFallsBackToDraftedDoctor(t *testing.T) {
+	busy := tendDoctor("busy", 10)
+	busy.ExistingJobDef = domain.Known("TendPatient")
+	drafted := tendDoctor("drafted", 10)
+	drafted.Drafted = domain.Known(true)
+	sick := tendPatient("sick", 10)
+	doctor, patient, ok := SelectTend([]TendDoctorFacts{busy, drafted}, []TendPatientFacts{sick})
+	if !ok || doctor != "drafted" || patient != "sick" {
+		t.Fatal(doctor, patient, ok)
+	}
+	if _, _, ok := SelectTend([]TendDoctorFacts{busy}, []TendPatientFacts{sick}); ok {
+		t.Fatal("selected an ineligible doctor")
+	}
+}
+
+// A mildly ill pawn (not dead, downed or mentally broken) is nominally an
+// eligible doctor by TendDoctorFacts alone, but must never be selected as its
+// own doctor: domain.NewTend refuses equal doctor/patient identities, and
+// live acceptance evidence (three colonists all mildly ill with equal
+// Medicine skill, so the same lowest-ID pawn topped both pools) showed this
+// stalling the routine clock step on repeat rather than refusing cleanly.
+func TestSelectTendNeverPicksAPatientAsItsOwnDoctor(t *testing.T) {
+	self := tendDoctor("self", 10)
+	other := tendDoctor("other", 10)
+	selfAsPatient := tendPatient("self", 10)
+	doctor, patient, ok := SelectTend([]TendDoctorFacts{self, other}, []TendPatientFacts{selfAsPatient})
+	if !ok || doctor != "other" || patient != "self" {
+		t.Fatal(doctor, patient, ok)
+	}
+	if _, _, ok := SelectTend([]TendDoctorFacts{self}, []TendPatientFacts{selfAsPatient}); ok {
+		t.Fatal("selected a pawn as its own doctor")
 	}
 }

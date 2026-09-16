@@ -9,14 +9,13 @@ type MeleeDraftOwner struct {
 }
 
 type MeleePawnFacts struct {
-	Pawn                                domain.PawnID
-	SnapshotToken                       string
-	Dead, Downed, Bleeding, NeedsTend   domain.Fact[bool]
-	HealthFraction                      domain.Fact[float64]
-	FreeColonist, Drafted, PlayerForced domain.Fact[bool]
-	QueuedJobs                          domain.Fact[uint32]
-	ViolenceCapable, EquipmentKnown     domain.Fact[bool]
-	Owner                               domain.Fact[MeleeDraftOwner]
+	Pawn                              domain.PawnID
+	SnapshotToken                     string
+	Dead, Downed, Bleeding, NeedsTend domain.Fact[bool]
+	HealthFraction                    domain.Fact[float64]
+	FreeColonist, Drafted             domain.Fact[bool]
+	ViolenceCapable, EquipmentKnown   domain.Fact[bool]
+	Owner                             domain.Fact[MeleeDraftOwner]
 }
 
 type MeleeTargetFacts struct {

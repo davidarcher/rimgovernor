@@ -11,12 +11,11 @@ type MovementDraftOwner struct {
 }
 
 type MovementPawnFacts struct {
-	Pawn                                domain.PawnID
-	SnapshotToken                       string
-	Dead, Downed, Bleeding, NeedsTend   domain.Fact[bool]
-	FreeColonist, Drafted, PlayerForced domain.Fact[bool]
-	QueuedJobs                          domain.Fact[uint32]
-	Owner                               domain.Fact[MovementDraftOwner]
+	Pawn                              domain.PawnID
+	SnapshotToken                     string
+	Dead, Downed, Bleeding, NeedsTend domain.Fact[bool]
+	FreeColonist, Drafted             domain.Fact[bool]
+	Owner                             domain.Fact[MovementDraftOwner]
 }
 
 type MovementFacts struct {

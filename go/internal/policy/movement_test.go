@@ -40,7 +40,7 @@ func movementRequest(t *testing.T) MovementRequest {
 	if err != nil {
 		t.Fatal(err)
 	}
-	return MovementRequest{Action: a, Progress: p, DraftProgress: d, Current: s, MinimumTick: 11, Facts: MovementFacts{Snapshot: s, PawnTick: 12, PreviewTick: 13, Emergency: e, NativeCanTry: domain.Known(true), Pawn: MovementPawnFacts{Pawn: "pawn", SnapshotToken: "pawn-cas", Dead: domain.Known(false), Downed: domain.Known(false), Bleeding: domain.Known(false), NeedsTend: domain.Known(false), FreeColonist: domain.Known(true), Drafted: domain.Known(true), PlayerForced: domain.Known(false), QueuedJobs: domain.Known(uint32(0)), Owner: domain.Known(MovementDraftOwner{Claim: "claim", Session: "session", Direction: 1})}}}
+	return MovementRequest{Action: a, Progress: p, DraftProgress: d, Current: s, MinimumTick: 11, Facts: MovementFacts{Snapshot: s, PawnTick: 12, PreviewTick: 13, Emergency: e, NativeCanTry: domain.Known(true), Pawn: MovementPawnFacts{Pawn: "pawn", SnapshotToken: "pawn-cas", Dead: domain.Known(false), Downed: domain.Known(false), Bleeding: domain.Known(false), NeedsTend: domain.Known(false), FreeColonist: domain.Known(true), Drafted: domain.Known(true), Owner: domain.Known(MovementDraftOwner{Claim: "claim", Session: "session", Direction: 1})}}}
 }
 
 func TestMovementAdmission(t *testing.T) {
@@ -98,9 +98,6 @@ func TestMovementHolds(t *testing.T) {
 		{"bleeding", func(r *MovementRequest) { r.Facts.Pawn.Bleeding = domain.Known(true) }},
 		{"not free", func(r *MovementRequest) { r.Facts.Pawn.FreeColonist = domain.Known(false) }},
 		{"undrafted", func(r *MovementRequest) { r.Facts.Pawn.Drafted = domain.Known(false) }},
-		{"player order", func(r *MovementRequest) { r.Facts.Pawn.PlayerForced = domain.Known(true) }},
-		{"queue", func(r *MovementRequest) { r.Facts.Pawn.QueuedJobs = domain.Known(uint32(1)) }},
-		{"unknown queue", func(r *MovementRequest) { r.Facts.Pawn.QueuedJobs = domain.Unknown[uint32]() }},
 		{"preview refusal", func(r *MovementRequest) { r.Facts.NativeCanTry = domain.Known(false) }},
 		{"census incomplete", func(r *MovementRequest) { r.Facts.Emergency.facts.ThreatsComplete = domain.Known(false) }},
 		{"critical medical", func(r *MovementRequest) {

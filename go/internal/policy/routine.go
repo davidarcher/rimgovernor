@@ -46,6 +46,15 @@ type RoutinePolicy struct {
 	FoodMinDays, FoodTargetDays, FootholdFoodDays float64
 	ColdEnter, ColdExit, HotExit, HotEnter        float64
 	WoodMin, WoodTarget, WoodMax                  int64
+	// HuntStallTicks bounds how long a dispatched Hunt-kind acquisition action
+	// may sit unresolved before RoutineAcquisitionPlanner abandons it and lets
+	// a fresh SelectAcquisition pass propose something else. Native's own
+	// HuntingSafety.RouteSafe guard can repeatedly interrupt the shared game
+	// clock while a hunter's route stays unsafe (issue #1); that guard stays
+	// fully authoritative, but without this grace the stuck action reads as
+	// open work forever and blocks the planner from ever trying a different
+	// prey or a non-hunt source.
+	HuntStallTicks int64
 	// ResearchTarget is an operator-declared desired native ResearchProjectDef
 	// name; empty disables EnsureResearch's routine dispatch. Unlike
 	// research.py's needs(), which derives targets from every other active
@@ -96,7 +105,7 @@ type RoutinePolicy struct {
 
 func DefaultRoutinePolicy() RoutinePolicy {
 	return RoutinePolicy{AnimalUpkeep: DefaultAnimalUpkeepPolicy(), MedicalReserve: DefaultMedicalReservePolicy(), FoodStorage: DefaultFoodStoragePolicy(), MaxDevelopmentProjects: 2, FoodMinDays: 3, FoodTargetDays: 7, FootholdFoodDays: 3,
-		ColdEnter: 12, ColdExit: 16, HotExit: 28, HotEnter: 32, WoodMin: 120, WoodTarget: 350, WoodMax: 500}
+		ColdEnter: 12, ColdExit: 16, HotExit: 28, HotEnter: 32, WoodMin: 120, WoodTarget: 350, WoodMax: 500, HuntStallTicks: 6000}
 }
 
 func (p RoutinePolicy) Validate() error {
@@ -121,6 +130,9 @@ func (p RoutinePolicy) Validate() error {
 		p.ColdEnter >= p.ColdExit || p.ColdExit >= p.HotExit || p.HotExit >= p.HotEnter ||
 		p.WoodMin < 0 || p.WoodTarget <= p.WoodMin || p.WoodMax < p.WoodTarget {
 		return errors.New("unordered routine thresholds")
+	}
+	if p.HuntStallTicks <= 0 {
+		return errors.New("invalid hunt stall grace")
 	}
 	if p.ResearchTarget != "" && !validResource(Resource(p.ResearchTarget)) {
 		return errors.New("invalid research target")

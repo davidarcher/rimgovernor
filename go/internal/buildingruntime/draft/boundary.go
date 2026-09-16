@@ -146,10 +146,6 @@ func (b *DraftBoundary) InspectDraft(ctx context.Context, target executor.Target
 			out.Pawn.Unowned = domain.Known(false)
 		}
 	}
-	if row.Job != nil {
-		out.Pawn.PlayerForced = boundary.FactBool(row.Job.PlayerForced)
-		out.Pawn.QueuedJobs = boundary.FactUint(row.Job.QueuedJobs)
-	}
 	if err = ctx.Err(); err != nil {
 		return out, err
 	}

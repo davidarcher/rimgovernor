@@ -2,8 +2,10 @@ package domain
 
 import "errors"
 
-// Tend is explicit intent. Neither pawn is drafted; native eligibility, current
-// health facts and job availability are established at inspection, not here.
+// Tend is explicit intent. The patient is never drafted; the doctor may be
+// drafted (the controller's own fallback when no undrafted doctor exists).
+// Native eligibility, current health facts and job availability are
+// established at inspection, not here.
 type Tend struct {
 	doctor, patient PawnID
 }

@@ -67,7 +67,6 @@ namespace HomeBridge.BridgeTools
                 if (!area.ActiveCells.Any(c => person.CanReach(c, PathEndMode.OnCell, Danger.None)))
                     return Refuse("Roofed refuge inaccessible");
                 var leases = Current.Game.GetComponent<RecoveryAreas>();
-                if (leases.Overrides.Contains(person)) return Refuse("Player owns this pawn's work-area choice");
                 var claim = leases.Claims.FirstOrDefault(c => c.Pawn == person && c.Assigned?.Map == map);
                 if (claim != null && prior != claim.Assigned) return Refuse("Player replaced recovery restriction");
                 if (!dryRun && prior != area)

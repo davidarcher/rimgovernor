@@ -42,7 +42,7 @@ func meleeRequest(t *testing.T) MeleeDefenseRequest {
 	if err != nil {
 		t.Fatal(err)
 	}
-	return MeleeDefenseRequest{Action: a, Progress: p, DraftProgress: d, Current: s, MinimumTick: 11, Facts: MeleeDefenseFacts{Snapshot: s, PawnTick: 12, PreviewTick: 13, Emergency: e, NativeCanTry: domain.Known(true), Pawn: MeleePawnFacts{Pawn: "pawn", SnapshotToken: "pawn-cas", Dead: domain.Known(false), Downed: domain.Known(false), Bleeding: domain.Known(false), NeedsTend: domain.Known(false), HealthFraction: domain.Known(1.0), FreeColonist: domain.Known(true), Drafted: domain.Known(true), PlayerForced: domain.Known(false), QueuedJobs: domain.Known(uint32(0)), ViolenceCapable: domain.Known(true), EquipmentKnown: domain.Known(true), Owner: domain.Known(MeleeDraftOwner{Claim: "claim", Session: "session", Direction: 1})}, Target: MeleeTargetFacts{Pawn: "target", SnapshotToken: "target-cas", Dead: domain.Known(false), Downed: domain.Known(false), Hostile: domain.Known(true)}}}
+	return MeleeDefenseRequest{Action: a, Progress: p, DraftProgress: d, Current: s, MinimumTick: 11, Facts: MeleeDefenseFacts{Snapshot: s, PawnTick: 12, PreviewTick: 13, Emergency: e, NativeCanTry: domain.Known(true), Pawn: MeleePawnFacts{Pawn: "pawn", SnapshotToken: "pawn-cas", Dead: domain.Known(false), Downed: domain.Known(false), Bleeding: domain.Known(false), NeedsTend: domain.Known(false), HealthFraction: domain.Known(1.0), FreeColonist: domain.Known(true), Drafted: domain.Known(true), ViolenceCapable: domain.Known(true), EquipmentKnown: domain.Known(true), Owner: domain.Known(MeleeDraftOwner{Claim: "claim", Session: "session", Direction: 1})}, Target: MeleeTargetFacts{Pawn: "target", SnapshotToken: "target-cas", Dead: domain.Known(false), Downed: domain.Known(false), Hostile: domain.Known(true)}}}
 }
 
 func TestMeleeDefenseAdmission(t *testing.T) {
@@ -120,9 +120,6 @@ func TestMeleeDefenseHolds(t *testing.T) {
 		{"equipment incomplete", func(r *MeleeDefenseRequest) { r.Facts.Pawn.EquipmentKnown = domain.Known(false) }},
 		{"not free", func(r *MeleeDefenseRequest) { r.Facts.Pawn.FreeColonist = domain.Known(false) }},
 		{"undrafted", func(r *MeleeDefenseRequest) { r.Facts.Pawn.Drafted = domain.Known(false) }},
-		{"player order", func(r *MeleeDefenseRequest) { r.Facts.Pawn.PlayerForced = domain.Known(true) }},
-		{"queue", func(r *MeleeDefenseRequest) { r.Facts.Pawn.QueuedJobs = domain.Known(uint32(1)) }},
-		{"unknown queue", func(r *MeleeDefenseRequest) { r.Facts.Pawn.QueuedJobs = domain.Unknown[uint32]() }},
 		{"target downed", func(r *MeleeDefenseRequest) { r.Facts.Target.Downed = domain.Known(true) }},
 		{"target neutral", func(r *MeleeDefenseRequest) { r.Facts.Target.Hostile = domain.Known(false) }},
 		{"preview refusal", func(r *MeleeDefenseRequest) { r.Facts.NativeCanTry = domain.Known(false) }},

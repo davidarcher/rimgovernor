@@ -17,7 +17,7 @@ func caravanDepartureRequest(t *testing.T) CaravanDepartureRequest {
 	s := domain.GenerationSnapshot{Colony: "colony", Map: 0, Load: "load", Direction: 1, Plan: plan.ID(), Revision: 1, Native: 1}
 	p, _ := domain.NewProgress(plan, a.ID())
 	member := func(pawn domain.PawnID) CaravanCrewFacts {
-		return CaravanCrewFacts{Pawn: pawn, SnapshotToken: "cas-" + string(pawn), Dead: domain.Known(false), Downed: domain.Known(false), Drafted: domain.Known(false), MentalState: domain.Known(false), PlayerForced: domain.Known(false), QueuedJobs: domain.Known(uint32(0))}
+		return CaravanCrewFacts{Pawn: pawn, SnapshotToken: "cas-" + string(pawn), Dead: domain.Known(false), Downed: domain.Known(false), Drafted: domain.Known(false), MentalState: domain.Known(false)}
 	}
 	facts := CaravanDepartureFacts{
 		Snapshot: s, PawnTick: 12, PreviewTick: 13,
@@ -98,9 +98,6 @@ func TestCaravanDepartureDefenseHolds(t *testing.T) {
 		{"crew downed", func(r *CaravanDepartureRequest) { r.Facts.Crew[0].Downed = domain.Known(true) }, CaravanCrewUnavailable},
 		{"crew drafted", func(r *CaravanDepartureRequest) { r.Facts.Crew[0].Drafted = domain.Known(true) }, PlayerOrder},
 		{"crew mental state", func(r *CaravanDepartureRequest) { r.Facts.Crew[0].MentalState = domain.Known(true) }, PlayerOrder},
-		{"crew player forced", func(r *CaravanDepartureRequest) { r.Facts.Crew[0].PlayerForced = domain.Known(true) }, PlayerOrder},
-		{"crew queued", func(r *CaravanDepartureRequest) { r.Facts.Crew[0].QueuedJobs = domain.Known(uint32(1)) }, PlayerOrder},
-		{"crew unknown queue", func(r *CaravanDepartureRequest) { r.Facts.Crew[0].QueuedJobs = domain.Unknown[uint32]() }, UnknownFacts},
 		{"unknown home colonists", func(r *CaravanDepartureRequest) { r.Facts.RemainingHomeColonists = domain.Unknown[uint32]() }, UnknownFacts},
 		{"insufficient home colonists", func(r *CaravanDepartureRequest) { r.Facts.RemainingHomeColonists = domain.Known(uint32(0)) }, CaravanHomeStaffingInsufficient},
 		{"unknown home doctor", func(r *CaravanDepartureRequest) { r.Facts.HomeDoctorAvailable = domain.Unknown[bool]() }, UnknownFacts},

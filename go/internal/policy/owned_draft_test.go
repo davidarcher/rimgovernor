@@ -28,7 +28,7 @@ func draftPolicyRequest(t *testing.T) DraftRequest {
 	if err != nil {
 		t.Fatal(err)
 	}
-	return DraftRequest{Action: action, Progress: progress, Current: current, Tick: 10, Emergency: emergency, Pawn: DraftPawnFacts{Pawn: "pawn", Drafted: domain.Known(false), Unowned: domain.Known(true), PlayerForced: domain.Known(false), QueuedJobs: domain.Known(uint32(0)), NativeCanTry: domain.Known(true)}}
+	return DraftRequest{Action: action, Progress: progress, Current: current, Tick: 10, Emergency: emergency, Pawn: DraftPawnFacts{Pawn: "pawn", Drafted: domain.Known(false), Unowned: domain.Known(true), NativeCanTry: domain.Known(true)}}
 }
 func replaceDraftEmergency(t *testing.T, r *DraftRequest, change func(*EmergencyFacts)) {
 	t.Helper()
@@ -75,13 +75,9 @@ func TestOwnedDraftRefusesUnknownUnsafeOrStaleFacts(t *testing.T) {
 	}{
 		{"draft unknown", UnknownFacts, func(r *DraftRequest) { r.Pawn.Drafted = domain.Unknown[bool]() }},
 		{"ownership unknown", UnknownFacts, func(r *DraftRequest) { r.Pawn.Unowned = domain.Unknown[bool]() }},
-		{"player flag unknown", UnknownFacts, func(r *DraftRequest) { r.Pawn.PlayerForced = domain.Unknown[bool]() }},
-		{"queue unknown", UnknownFacts, func(r *DraftRequest) { r.Pawn.QueuedJobs = domain.Unknown[uint32]() }},
 		{"eligibility unknown", UnknownFacts, func(r *DraftRequest) { r.Pawn.NativeCanTry = domain.Unknown[bool]() }},
 		{"player drafted", DraftOwnership, func(r *DraftRequest) { r.Pawn.Drafted = domain.Known(true) }},
 		{"owned elsewhere", DraftOwnership, func(r *DraftRequest) { r.Pawn.Unowned = domain.Known(false) }},
-		{"forced job", PlayerOrder, func(r *DraftRequest) { r.Pawn.PlayerForced = domain.Known(true) }},
-		{"queued job", PlayerOrder, func(r *DraftRequest) { r.Pawn.QueuedJobs = domain.Known(uint32(1)) }},
 		{"native refusal", NativeIneligible, func(r *DraftRequest) { r.Pawn.NativeCanTry = domain.Known(false) }},
 		{"wrong pawn evidence", UnknownFacts, func(r *DraftRequest) { r.Pawn.Pawn = "other" }},
 		{"missing selected pawn", UnknownFacts, func(r *DraftRequest) { replaceDraftEmergency(t, r, func(f *EmergencyFacts) { f.Colonists = nil }) }},

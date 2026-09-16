@@ -22,7 +22,7 @@ func (n *caravanDepartureEnvironment) caravanDepartureFacts(target Target) polic
 	departure, _ := target.Action.CaravanDeparture()
 	crew := make([]policy.CaravanCrewFacts, 0, len(departure.Crew()))
 	for _, pawn := range departure.Crew() {
-		crew = append(crew, policy.CaravanCrewFacts{Pawn: pawn, SnapshotToken: "crew-token-" + string(pawn), Dead: domain.Known(false), Downed: domain.Known(false), Drafted: domain.Known(false), MentalState: domain.Known(false), PlayerForced: domain.Known(false), QueuedJobs: domain.Known(uint32(0))})
+		crew = append(crew, policy.CaravanCrewFacts{Pawn: pawn, SnapshotToken: "crew-token-" + string(pawn), Dead: domain.Known(false), Downed: domain.Known(false), Drafted: domain.Known(false), MentalState: domain.Known(false)})
 	}
 	return policy.CaravanDepartureFacts{Snapshot: target.Snapshot, PawnTick: n.tick, PreviewTick: n.tick, Crew: crew, CatalogToken: "catalog-token", RemainingHomeColonists: domain.Known(uint32(5)), HomeDoctorAvailable: domain.Known(true), HomeFoodRunwayDays: domain.Known(30.0), RouteReachable: domain.Known(true), RouteTemperatureC: domain.Known(15.0), RouteHostile: domain.Known(false), RouteFactionID: "faction-1", RouteGoodwill: domain.Known(int32(0)), RouteFoodRotDays: domain.Known(9.0), NativeCanTry: domain.Known(!n.ineligible)}
 }
