@@ -16,6 +16,28 @@ rerun the affected harness; expand coverage only when the changed behavior or
 failure justifies it. Do not duplicate tests or reviews already supported by
 applicable evidence.
 
+## Stage the precondition, do not play into it
+
+A native acceptance harness should open on a colony that is already in the
+state the assertion needs and then advance only the ticks the assertion itself
+consumes. Do not start from a baseline/foothold save and let the colony grow,
+research, build or starve its way into the precondition: a run that spends
+20-30 minutes of game time getting ready is a fixture problem, and it makes
+the harness too slow to rerun after a fix. Reach for, in order of preference:
+
+- a prepared `.rws` save committed with the harness's fixture set, opened
+  directly by the harness;
+- a `test/*_prepare` op in the test fixture mod (see the existing
+  `cleanliness_prepare`, `power_prepare`, `refrigeration_prepare`,
+  `storage_haul_prepare`, `guarded_construction_prepare` families) that spawns
+  the buildings, pawns, items and conditions the test needs in one call;
+- `variantsavegen` / `ScenarioStartFixture` for a programmatic scenario start
+  when the stressor is map- or start-level (seed, biome, season, scarcity).
+
+Budget a targeted harness at minutes. If the precondition is the slow part,
+build the fixture before writing the assertion, and review the generated save
+once so later runs can trust it.
+
 Passing evidence follows relevant code, dependencies, inputs and environment,
 not the main HEAD hash. Unrelated main commits, clean cherry-picks and rebases
 do not invalidate it. Inspect the relevant diff and reuse applicable results
