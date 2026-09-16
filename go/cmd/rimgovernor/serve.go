@@ -93,64 +93,21 @@ type serveConfig struct {
 	chatMaxOutputTokens             int
 }
 
+// routineFamiliesEnv names the environment variable that narrows the routine
+// planner families an autonomous serve composes, for targeted/debug runs. It
+// is a comma-separated list of the names in routineFamilies; empty or unset
+// composes every family.
+const routineFamiliesEnv = "RIMGOVERNOR_ROUTINE_FAMILIES"
+
+// lookupEnv is os.LookupEnv, replaceable by tests.
+var lookupEnv = os.LookupEnv
+
 func parseServe(args []string, diagnostics io.Writer) (serveConfig, error) {
 	var c serveConfig
 	flags := flag.NewFlagSet("serve", flag.ContinueOnError)
 	flags.SetOutput(diagnostics)
-	readOnly := flags.Bool("read-only", false, "observe an already running game; game writes are unavailable")
-	flags.BoolVar(&c.playerControl, "player-control", false, "enable explicit player building and draft controls; never acquire on startup")
-	flags.BoolVar(&c.clockControl, "clock-control", false, "supervise finite game-clock windows for enabled player work")
-	flags.BoolVar(&c.routineReviews, "routine-reviews", false, "review routine needs at paused clock boundaries")
-	flags.IntVar(&c.routineProjectLimit, "routine-project-limit", 2, "maximum concurrent optional projects, also bounded by observed workers (1..8)")
-	flags.BoolVar(&c.routineSleepingPlans, "routine-sleeping-plans", false, "compile reviewed indoor sleeping needs into pending shared plans")
-	flags.BoolVar(&c.routineBillPlans, "routine-bill-plans", false, "compile ordinary cooking, preservation and butcher bills with bench prerequisites")
-	flags.BoolVar(&c.routineFieldPlans, "routine-field-plans", false, "compile native crop selection and protected growing patches into shared plans")
-	flags.BoolVar(&c.routineFoodStoragePlans, "routine-food-storage-plans", false, "compile a protected food stockpile zone into the completed starter shell through shared plans")
-	flags.BoolVar(&c.routineAcquisitionPlans, "routine-acquisition-plans", false, "compile safe food harvest and wood acquisition into shared plans")
-	flags.BoolVar(&c.routineWorkPlans, "routine-work-plans", false, "compile saved work preferences into shared pawn settings plans")
-	flags.BoolVar(&c.routineSupplyPlans, "routine-supply-plans", false, "compile original starting supplies into bounded shared Allow plans")
-	flags.BoolVar(&c.routineCookingPlans, "routine-cooking-plans", false, "compile reviewed cooking deficits into pending campfire plans")
-	flags.BoolVar(&c.routineShelterPlans, "routine-shelter-plans", false, "compile indoor sleeping or a starter wall-and-door shell into shared plans")
-	flags.BoolVar(&c.routineComfortPlans, "routine-comfort-plans", false, "compile reviewed dining and recreation deficits into shared building plans")
-	flags.BoolVar(&c.routineExpansionPlans, "routine-expansion-plans", false, "compile one spare indoor sleeping place through shared building plans")
-	flags.BoolVar(&c.routineTemperaturePlans, "routine-temperature-plans", false, "compile sleeping-room heating and cooling through shared building plans")
-	flags.BoolVar(&c.routinePowerPlans, "routine-power-plans", false, "compile network generation and conduit deficits through shared building plans")
-	flags.BoolVar(&c.routineDefensePlans, "routine-defense-plans", false, "compile bounded squad defense against observed hostiles into shared plans")
-	flags.BoolVar(&c.routineTendPlans, "routine-tend-plans", false, "compile native-approved doctor/patient tend selection into shared plans")
-	flags.BoolVar(&c.routineRescuePlans, "routine-rescue-plans", false, "compile downed-colonist rescue selection into shared plans")
-	flags.BoolVar(&c.routineEquipPlans, "routine-equip-plans", false, "compile unarmed-colonist weapon equip selection into shared plans")
-	flags.BoolVar(&c.routineSecureSuppliesPlans, "routine-secure-supplies-plans", false, "compile a vulnerable-item haul selection into shared plans")
-	flags.BoolVar(&c.routineRepairPlans, "routine-repair-plans", false, "compile a damaged-structure repair selection into shared plans")
-	flags.BoolVar(&c.routineCleanPlans, "routine-clean-plans", false, "compile a filth cleaning selection into shared plans")
-	flags.BoolVar(&c.routineWastePlans, "routine-waste-plans", false, "compile an exposed waste item haul/burial selection into shared plans")
-	flags.BoolVar(&c.routineMoodPlans, "routine-mood-plans", false, "compile EnsureMood-* native need-relief dispatch into shared plans")
-	flags.BoolVar(&c.routineHaulPlans, "routine-haul-plans", false, "compile an ordinary unstored-item haul selection into shared plans")
-	flags.BoolVar(&c.routineGearPlans, "routine-gear-plans", false, "compile existing-gear wear replacement selection into shared plans")
-	flags.BoolVar(&c.routineMedicalPlans, "routine-medical-plans", false, "compile medicine reserve replenishment bill selection into shared plans")
-	flags.BoolVar(&c.routineFoodStorageUpkeepPlans, "routine-food-storage-upkeep-plans", false, "compile perishable food storage/production replenishment selection into shared plans")
-	flags.BoolVar(&c.routineAnimalContainmentPlans, "routine-animal-containment-plans", false, "compile animal pen shell/marker containment method selection into shared plans")
-	flags.BoolVar(&c.routineRecoveryPlans, "routine-recovery-plans", false, "compile disaster-recovery repair/breakdown/refuel service selection into shared plans")
-	flags.BoolVar(&c.routineHusbandryPlans, "routine-husbandry-plans", false, "compile herd recursive-training selection into shared plans")
-	flags.BoolVar(&c.routineAllowSlaughter, "routine-allow-slaughter", false, "operator opt-in letting MaintainHerd's routine planner also propose a slaughter write for a surplus animal once --routine-herd-population-max is declared; slaughter is irreversible and stays off unless explicitly set")
-	flags.Var(&c.routineHerdPopulationMax, "routine-herd-population-max", "repeatable RACE:MAX native animal definition population ceiling MaintainHerd's routine planner slaughters surplus toward, only once --routine-allow-slaughter is also set")
-	flags.BoolVar(&c.routinePrisonerInteractionPlans, "routine-prisoner-interaction-plans", false, "compile recruitable-prisoner recruit-interaction selection into shared plans")
-	flags.BoolVar(&c.routinePopulationCustodyPlans, "routine-population-custody-plans", false, "compile downed-hostile capture and unadmitted-guest rescue custody selection into shared plans")
-	flags.BoolVar(&c.routineHomeCoveragePlans, "routine-home-coverage-plans", false, "compile native Home-area extension over owned facilities/stockpiles into shared plans")
-	flags.BoolVar(&c.routineStoneShellPlans, "routine-stone-shell-plans", false, "compile guarded flammable-wall stone replacement bundles into shared plans")
-	flags.BoolVar(&c.routineNamingPlans, "routine-naming-plans", false, "compile confirmation of the initial faction/settlement naming dialog's exact observed suggestions into shared plans")
-	flags.StringVar(&c.routineResearchTarget, "routine-research-target", "", "operator-declared native ResearchProjectDef name EnsureResearch's routine planner selects prerequisite-ordered toward, once no research project is already current")
-	flags.BoolVar(&c.routineResourcePlans, "routine-resource-plans", false, "compile MaintainResource bench/recipe replenishment bill selection into shared plans")
-	flags.Var(&c.routineResourceTargets, "routine-resource-target", "repeatable RESOURCE:TARGET native stock floor MaintainResource's dynamic-target selection dispatches a production bill toward")
-	flags.BoolVar(&c.routineAnimalFeedPlans, "routine-animal-feed-plans", false, "compile MaintainAnimalFeed shared-feed-stock replenishment selection into shared plans")
-	flags.BoolVar(&c.routineProductionPolicyPlans, "routine-production-policy-plans", false, "compile ProductionPolicy resource floor/stop replacement into shared plans")
-	flags.Var(&c.routineResourceReserves, "routine-resource-reserve", "repeatable RESOURCE:FLOOR native stock floor ProductionPolicy's routine planner replaces into the current native production policy")
-	flags.Var(&c.routineStoppedResources, "routine-resource-stop", "repeatable RESOURCE name ProductionPolicy's routine planner keeps stopped in the current native production policy")
-	flags.BoolVar(&c.routineMethods, "routine-methods", false, "execute reviewed routine building methods under the current player direction")
-	flags.BoolVar(&c.caravanJourneyTracking, "caravan-journey-tracking", false, "poll world progression each clock step and resolve tracked caravans that have returned home")
-	flags.BoolVar(&c.worldEvaluation, "world-evaluation", false, "expose a read-only /api/player/world-evaluation caravan-recovery and quest-deficit advisory report")
-	flags.Float64Var(&c.worldEvaluationFoodMarginDays, "world-evaluation-food-margin-days", 0.5, "days of caravan food required beyond its home route's estimated travel time before it is reported as needing recovery")
-	flags.Var(&c.resourceRules, "resource-rule", "repeatable RESOURCE:allow|stop|defense_only:RESERVE for building admission and dispatch")
-	flags.StringVar(&c.profile, "profile", "", "absolute shared game profile directory for player control")
+	observe := flags.Bool("observe", false, "observe an already running game without acquiring control or writing to it")
+	flags.StringVar(&c.profile, "profile", "", "absolute shared game profile directory (required unless --observe)")
 	flags.StringVar(&c.bridge.Executable, "gabs", "", "absolute GABS executable")
 	flags.StringVar(&c.bridge.ConfigDir, "config", "", "absolute GABS configuration directory")
 	flags.StringVar(&c.bridge.GameID, "game", "", "configured game ID")
@@ -158,94 +115,67 @@ func parseServe(args []string, diagnostics io.Writer) (serveConfig, error) {
 	flags.StringVar(&c.assets, "assets", "", "absolute built dashboard directory (optional)")
 	flags.StringVar(&c.listen, "listen", "127.0.0.1:0", "loopback IP:port; 0 selects an available port")
 	flags.DurationVar(&c.refresh, "refresh", 3*time.Second, "observation refresh interval")
-	flags.StringVar(&c.clockSpeed, "clock-speed", "Normal", "requested native game-clock speed while --clock-control holds a window: Normal, Fast or Superfast")
 	flags.DurationVar(&c.bridge.Timeout, "timeout", 15*time.Second, "native call timeout")
+	flags.StringVar(&c.clockSpeed, "clock-speed", "Normal", "requested native game-clock speed while a supervised window is held: Normal, Fast or Superfast")
 	flags.StringVar(&c.flightRecorder, "flight-recorder", "", "absolute path recording every native request/response/error (optional; opt-in diagnostics)")
-	flags.BoolVar(&c.chat, "chat", false, "expose /api/chats/plans: interpret a free-text player message into a build/research/tend/rescue/draft/husbandry command via a local OpenAI-compatible model")
-	flags.StringVar(&c.chatModel, "chat-model", "", "model name as loaded by the local OpenAI-compatible server (required with --chat)")
+	flags.IntVar(&c.routineProjectLimit, "routine-project-limit", 2, "maximum concurrent optional projects, also bounded by observed workers (1..8)")
+	flags.StringVar(&c.routineResearchTarget, "routine-research-target", "", "native ResearchProjectDef name EnsureResearch selects prerequisite-ordered toward once no research project is current")
+	flags.Var(&c.routineResourceTargets, "routine-resource-target", "repeatable RESOURCE:TARGET native stock floor MaintainResource dispatches a production bill toward")
+	flags.Var(&c.routineResourceReserves, "routine-resource-reserve", "repeatable RESOURCE:FLOOR native stock floor ProductionPolicy replaces into the current native production policy")
+	flags.Var(&c.routineStoppedResources, "routine-resource-stop", "repeatable RESOURCE name ProductionPolicy keeps stopped in the current native production policy")
+	flags.BoolVar(&c.routineAllowSlaughter, "routine-allow-slaughter", false, "let MaintainHerd propose a slaughter write for a surplus animal once --routine-herd-population-max is declared; slaughter is irreversible and stays off unless explicitly set")
+	flags.Var(&c.routineHerdPopulationMax, "routine-herd-population-max", "repeatable RACE:MAX native animal definition population ceiling MaintainHerd slaughters surplus toward, only once --routine-allow-slaughter is also set")
+	flags.Var(&c.resourceRules, "resource-rule", "repeatable RESOURCE:allow|stop|defense_only:RESERVE for building admission and dispatch")
+	flags.Float64Var(&c.worldEvaluationFoodMarginDays, "world-evaluation-food-margin-days", 0.5, "days of caravan food required beyond its home route's estimated travel time before it is reported as needing recovery")
+	flags.StringVar(&c.chatModel, "chat-model", "", "model name as loaded by the local OpenAI-compatible server; enables POST /api/chats/plans")
 	flags.StringVar(&c.chatBaseURL, "chat-base-url", "http://127.0.0.1:1234/v1", "local OpenAI-compatible base URL (e.g. LM Studio) chat sends completions to")
 	flags.IntVar(&c.chatContextTokens, "chat-context-tokens", 8192, "approximate model context window chat budgets prompts against (4096..16777216)")
 	flags.IntVar(&c.chatMaxOutputTokens, "chat-max-output-tokens", 1024, "maximum output tokens chat requests per completion")
 	if err := flags.Parse(args); err != nil {
 		return c, err
 	}
-	if flags.NArg() != 0 || *readOnly == c.playerControl {
-		return c, errors.New("serve requires exactly one of --read-only or --player-control")
+	if flags.NArg() != 0 {
+		return c, errors.New("serve takes no positional arguments")
 	}
-	projectLimitExplicit := false
-	explicitPlan := false
-	flags.Visit(func(f *flag.Flag) {
-		projectLimitExplicit = projectLimitExplicit || f.Name == "routine-project-limit"
-		explicitPlan = explicitPlan || strings.HasPrefix(f.Name, "routine-") && strings.HasSuffix(f.Name, "-plans")
-	})
-	if c.routineProjectLimit < 1 || c.routineProjectLimit > 8 || projectLimitExplicit && !c.routineReviews {
-		return c, errors.New("--routine-project-limit requires --routine-reviews and a value from 1 through 8")
-	}
-	// Composed default: an operator who asks for --routine-methods without
-	// naming any individual --routine-*-plans flag gets every implemented and
-	// tested planner family at once, instead of having to enumerate ~30 flags.
-	// Naming even one --routine-*-plans flag opts out of this default and
-	// falls back to exactly the named families (existing targeted/debug use).
-	if c.routineMethods && !explicitPlan {
-		for _, entry := range routinePlanFlags(&c) {
-			*entry.Enabled = true
+	explicit := map[string]bool{}
+	flags.Visit(func(f *flag.Flag) { explicit[f.Name] = true })
+	if *observe {
+		for _, name := range []string{"profile", "clock-speed", "routine-project-limit", "routine-research-target", "routine-resource-target", "routine-resource-reserve", "routine-resource-stop", "routine-allow-slaughter", "routine-herd-population-max", "resource-rule", "world-evaluation-food-margin-days", "chat-model", "chat-base-url", "chat-context-tokens", "chat-max-output-tokens"} {
+			if explicit[name] {
+				return c, fmt.Errorf("--%s does not apply to --observe", name)
+			}
+		}
+		if _, set := lookupEnv(routineFamiliesEnv); set {
+			return c, fmt.Errorf("%s does not apply to --observe", routineFamiliesEnv)
+		}
+	} else {
+		c.playerControl, c.clockControl, c.routineReviews, c.routineMethods = true, true, true, true
+		c.caravanJourneyTracking, c.worldEvaluation = true, true
+		c.chat = c.chatModel != ""
+		if err := c.selectRoutineFamilies(lookupEnv(routineFamiliesEnv)); err != nil {
+			return c, err
+		}
+		if !filepath.IsAbs(c.profile) {
+			return c, errors.New("serve requires an absolute --profile (or --observe)")
 		}
 	}
-	if len(c.resourceRules) > 0 && !c.playerControl {
-		return c, errors.New("--resource-rule requires --player-control")
-	}
-	if c.clockControl && !c.playerControl {
-		return c, errors.New("--clock-control requires --player-control")
+	if c.routineProjectLimit < 1 || c.routineProjectLimit > 8 {
+		return c, errors.New("--routine-project-limit must be 1 through 8")
 	}
 	if c.clockSpeed != "Normal" && c.clockSpeed != "Fast" && c.clockSpeed != "Superfast" {
 		return c, errors.New("--clock-speed must be Normal, Fast or Superfast")
 	}
-	if c.clockSpeed != "Normal" && !c.clockControl {
-		return c, errors.New("--clock-speed requires --clock-control")
-	}
-	if c.routineReviews && !c.clockControl {
-		return c, errors.New("--routine-reviews requires --clock-control")
-	}
-	if c.caravanJourneyTracking && !c.clockControl {
-		return c, errors.New("--caravan-journey-tracking requires --clock-control")
-	}
-	if c.worldEvaluation && !c.playerControl {
-		return c, errors.New("--world-evaluation requires --player-control")
-	}
-	marginDaysExplicit := false
-	flags.Visit(func(f *flag.Flag) {
-		marginDaysExplicit = marginDaysExplicit || f.Name == "world-evaluation-food-margin-days"
-	})
-	if marginDaysExplicit && !c.worldEvaluation {
-		return c, errors.New("--world-evaluation-food-margin-days requires --world-evaluation")
-	}
 	if c.worldEvaluationFoodMarginDays < 0 {
 		return c, errors.New("--world-evaluation-food-margin-days must be non-negative")
 	}
-	if (c.routineBillPlans || c.routineFieldPlans || c.routineFoodStoragePlans || c.routineAcquisitionPlans || c.routineWorkPlans || c.routineSupplyPlans || c.routineSleepingPlans || c.routineCookingPlans || c.routineShelterPlans || c.routineComfortPlans || c.routineExpansionPlans || c.routinePowerPlans || c.routineTemperaturePlans || c.routineDefensePlans || c.routineTendPlans || c.routineRescuePlans || c.routineEquipPlans || c.routineSecureSuppliesPlans || c.routineRepairPlans || c.routineCleanPlans || c.routineWastePlans || c.routineMoodPlans || c.routineHaulPlans || c.routineGearPlans || c.routineMedicalPlans || c.routineFoodStorageUpkeepPlans || c.routineAnimalContainmentPlans || c.routineRecoveryPlans || c.routineHusbandryPlans || c.routinePrisonerInteractionPlans || c.routinePopulationCustodyPlans || c.routineHomeCoveragePlans || c.routineStoneShellPlans || c.routineNamingPlans || c.routineResearchTarget != "" || c.routineResourcePlans || c.routineAnimalFeedPlans || c.routineProductionPolicyPlans) && !c.routineReviews {
-		return c, errors.New("routine building plans require --routine-reviews")
-	}
-	if c.routineMethods && !c.routineBillPlans && !c.routineFieldPlans && !c.routineFoodStoragePlans && !c.routineAcquisitionPlans && !c.routineWorkPlans && !c.routineSupplyPlans && !c.routineSleepingPlans && !c.routineCookingPlans && !c.routineShelterPlans && !c.routineComfortPlans && !c.routineExpansionPlans && !c.routinePowerPlans && !c.routineTemperaturePlans && !c.routineDefensePlans && !c.routineTendPlans && !c.routineRescuePlans && !c.routineEquipPlans && !c.routineSecureSuppliesPlans && !c.routineRepairPlans && !c.routineCleanPlans && !c.routineWastePlans && !c.routineMoodPlans && !c.routineHaulPlans && !c.routineGearPlans && !c.routineMedicalPlans && !c.routineFoodStorageUpkeepPlans && !c.routineAnimalContainmentPlans && !c.routineRecoveryPlans && !c.routineHusbandryPlans && !c.routinePrisonerInteractionPlans && !c.routinePopulationCustodyPlans && !c.routineHomeCoveragePlans && !c.routineStoneShellPlans && !c.routineNamingPlans && c.routineResearchTarget == "" && !c.routineResourcePlans && !c.routineAnimalFeedPlans && !c.routineProductionPolicyPlans {
-		return c, errors.New("--routine-methods requires a routine building planner")
-	}
-	// Defense/tend/rescue/equip/secure-supplies/repair/clean/waste/mood/haul/gear/medical/animal-containment/recovery/husbandry/prisoner-interaction/population-custody/home-coverage/stone-shell/research/resource/animal-feed/production-policy
-	// plans never become the literal current plan (see clockSchedulerWork); they
-	// can only run through the RoutineMethods concurrent-authorization path, so
-	// without it their committed plans would never be authorized or dispatched.
-	if (c.routineDefensePlans || c.routineTendPlans || c.routineRescuePlans || c.routineEquipPlans || c.routineSecureSuppliesPlans || c.routineRepairPlans || c.routineCleanPlans || c.routineWastePlans || c.routineMoodPlans || c.routineHaulPlans || c.routineGearPlans || c.routineMedicalPlans || c.routineFoodStorageUpkeepPlans || c.routineAnimalContainmentPlans || c.routineRecoveryPlans || c.routineHusbandryPlans || c.routinePrisonerInteractionPlans || c.routinePopulationCustodyPlans || c.routineHomeCoveragePlans || c.routineStoneShellPlans || c.routineNamingPlans || c.routineResearchTarget != "" || c.routineResourcePlans || c.routineAnimalFeedPlans || c.routineProductionPolicyPlans) && !c.routineMethods {
-		return c, errors.New("--routine-defense-plans, --routine-tend-plans, --routine-rescue-plans, --routine-equip-plans, --routine-secure-supplies-plans, --routine-repair-plans, --routine-clean-plans, --routine-waste-plans, --routine-mood-plans, --routine-haul-plans, --routine-gear-plans, --routine-medical-plans, --routine-animal-containment-plans, --routine-recovery-plans, --routine-husbandry-plans, --routine-prisoner-interaction-plans, --routine-population-custody-plans, --routine-home-coverage-plans, --routine-stone-shell-plans, --routine-research-target, --routine-resource-plans, --routine-animal-feed-plans and --routine-production-policy-plans require --routine-methods")
-	}
 	if len(c.routineResourceTargets) > 0 && !c.routineResourcePlans {
-		return c, errors.New("--routine-resource-target requires --routine-resource-plans")
+		return c, errors.New("--routine-resource-target requires the resource routine family")
 	}
 	if (len(c.routineResourceReserves) > 0 || len(c.routineStoppedResources) > 0) && !c.routineProductionPolicyPlans {
-		return c, errors.New("--routine-resource-reserve and --routine-resource-stop require --routine-production-policy-plans")
+		return c, errors.New("--routine-resource-reserve and --routine-resource-stop require the production-policy routine family")
 	}
 	if (c.routineAllowSlaughter || len(c.routineHerdPopulationMax) > 0) && !c.routineHusbandryPlans {
-		return c, errors.New("--routine-allow-slaughter and --routine-herd-population-max require --routine-husbandry-plans")
-	}
-	if c.playerControl && !filepath.IsAbs(c.profile) || !c.playerControl && c.profile != "" {
-		return c, errors.New("--player-control requires an absolute --profile; read-only mode takes no profile")
+		return c, errors.New("--routine-allow-slaughter and --routine-herd-population-max require the husbandry routine family")
 	}
 	if !filepath.IsAbs(c.state) || !filepath.IsAbs(c.bridge.Executable) || !filepath.IsAbs(c.bridge.ConfigDir) || c.bridge.GameID == "" {
 		return c, errors.New("absolute --state, --gabs, --config and a --game ID are required")
@@ -268,18 +198,8 @@ func parseServe(args []string, diagnostics io.Writer) (serveConfig, error) {
 	if c.flightRecorder != "" && !filepath.IsAbs(c.flightRecorder) {
 		return c, errors.New("--flight-recorder requires an absolute path")
 	}
-	chatOptionExplicit := false
-	flags.Visit(func(f *flag.Flag) {
-		chatOptionExplicit = chatOptionExplicit || f.Name == "chat-model" || f.Name == "chat-base-url" || f.Name == "chat-context-tokens" || f.Name == "chat-max-output-tokens"
-	})
-	if c.chat && !c.playerControl {
-		return c, errors.New("--chat requires --player-control")
-	}
-	if c.chat && strings.TrimSpace(c.chatModel) == "" {
-		return c, errors.New("--chat requires --chat-model")
-	}
-	if !c.chat && chatOptionExplicit {
-		return c, errors.New("--chat-model, --chat-base-url, --chat-context-tokens and --chat-max-output-tokens require --chat")
+	if !c.chat && (explicit["chat-base-url"] || explicit["chat-context-tokens"] || explicit["chat-max-output-tokens"]) {
+		return c, errors.New("--chat-base-url, --chat-context-tokens and --chat-max-output-tokens require --chat-model")
 	}
 	if c.chatContextTokens < 4096 || c.chatContextTokens > 1<<24 {
 		return c, errors.New("--chat-context-tokens must be 4096..16777216")
@@ -290,64 +210,89 @@ func parseServe(args []string, diagnostics io.Writer) (serveConfig, error) {
 	return c, nil
 }
 
-// routinePlanFlag names one "--routine-*-plans" boolean flag alongside a
-// pointer into the serveConfig it was parsed into.
-type routinePlanFlag struct {
+// selectRoutineFamilies enables every routine planner family, or exactly the
+// comma-separated names in selection when it is non-empty.
+func (c *serveConfig) selectRoutineFamilies(selection string, set bool) error {
+	families := routineFamilies(c)
+	if !set || strings.TrimSpace(selection) == "" {
+		for _, entry := range families {
+			*entry.Enabled = true
+		}
+		return nil
+	}
+	byName := map[string]*bool{}
+	for _, entry := range families {
+		byName[entry.Name] = entry.Enabled
+	}
+	for _, name := range strings.Split(selection, ",") {
+		name = strings.TrimSpace(name)
+		enabled, ok := byName[name]
+		if !ok {
+			return fmt.Errorf("%s: unknown routine family %q", routineFamiliesEnv, name)
+		}
+		*enabled = true
+	}
+	return nil
+}
+
+// routineFamily names one routine planner family alongside a pointer into
+// the serveConfig that enables it.
+type routineFamily struct {
 	Name    string
 	Enabled *bool
 }
 
-// routinePlanFlags lists every "--routine-*-plans" boolean flag, in
-// registration order. It backs both the composed default (parseServe turns
-// every one of these on when --routine-methods is set and none of them was
-// named explicitly) and the /api/routines diagnostics family list, so the two
-// stay in lockstep with the flag registrations above.
-func routinePlanFlags(c *serveConfig) []routinePlanFlag {
-	return []routinePlanFlag{
-		{"routine-sleeping-plans", &c.routineSleepingPlans},
-		{"routine-bill-plans", &c.routineBillPlans},
-		{"routine-field-plans", &c.routineFieldPlans},
-		{"routine-food-storage-plans", &c.routineFoodStoragePlans},
-		{"routine-acquisition-plans", &c.routineAcquisitionPlans},
-		{"routine-work-plans", &c.routineWorkPlans},
-		{"routine-supply-plans", &c.routineSupplyPlans},
-		{"routine-cooking-plans", &c.routineCookingPlans},
-		{"routine-shelter-plans", &c.routineShelterPlans},
-		{"routine-comfort-plans", &c.routineComfortPlans},
-		{"routine-expansion-plans", &c.routineExpansionPlans},
-		{"routine-temperature-plans", &c.routineTemperaturePlans},
-		{"routine-power-plans", &c.routinePowerPlans},
-		{"routine-defense-plans", &c.routineDefensePlans},
-		{"routine-tend-plans", &c.routineTendPlans},
-		{"routine-rescue-plans", &c.routineRescuePlans},
-		{"routine-equip-plans", &c.routineEquipPlans},
-		{"routine-secure-supplies-plans", &c.routineSecureSuppliesPlans},
-		{"routine-repair-plans", &c.routineRepairPlans},
-		{"routine-clean-plans", &c.routineCleanPlans},
-		{"routine-haul-plans", &c.routineHaulPlans},
-		{"routine-gear-plans", &c.routineGearPlans},
-		{"routine-medical-plans", &c.routineMedicalPlans},
-		{"routine-food-storage-upkeep-plans", &c.routineFoodStorageUpkeepPlans},
-		{"routine-animal-containment-plans", &c.routineAnimalContainmentPlans},
-		{"routine-recovery-plans", &c.routineRecoveryPlans},
-		{"routine-husbandry-plans", &c.routineHusbandryPlans},
-		{"routine-prisoner-interaction-plans", &c.routinePrisonerInteractionPlans},
-		{"routine-population-custody-plans", &c.routinePopulationCustodyPlans},
-		{"routine-home-coverage-plans", &c.routineHomeCoveragePlans},
-		{"routine-stone-shell-plans", &c.routineStoneShellPlans},
-		{"routine-naming-plans", &c.routineNamingPlans},
-		{"routine-resource-plans", &c.routineResourcePlans},
-		{"routine-animal-feed-plans", &c.routineAnimalFeedPlans},
-		{"routine-production-policy-plans", &c.routineProductionPolicyPlans},
+// routineFamilies lists every routine planner family, in composition order.
+// It backs the autonomous default (every family on), RIMGOVERNOR_ROUTINE_FAMILIES
+// selection and the /api/routines diagnostics family list.
+func routineFamilies(c *serveConfig) []routineFamily {
+	return []routineFamily{
+		{"sleeping", &c.routineSleepingPlans},
+		{"bill", &c.routineBillPlans},
+		{"field", &c.routineFieldPlans},
+		{"food-storage", &c.routineFoodStoragePlans},
+		{"acquisition", &c.routineAcquisitionPlans},
+		{"work", &c.routineWorkPlans},
+		{"supply", &c.routineSupplyPlans},
+		{"cooking", &c.routineCookingPlans},
+		{"shelter", &c.routineShelterPlans},
+		{"comfort", &c.routineComfortPlans},
+		{"expansion", &c.routineExpansionPlans},
+		{"temperature", &c.routineTemperaturePlans},
+		{"power", &c.routinePowerPlans},
+		{"defense", &c.routineDefensePlans},
+		{"tend", &c.routineTendPlans},
+		{"rescue", &c.routineRescuePlans},
+		{"equip", &c.routineEquipPlans},
+		{"secure-supplies", &c.routineSecureSuppliesPlans},
+		{"repair", &c.routineRepairPlans},
+		{"clean", &c.routineCleanPlans},
+		{"waste", &c.routineWastePlans},
+		{"mood", &c.routineMoodPlans},
+		{"haul", &c.routineHaulPlans},
+		{"gear", &c.routineGearPlans},
+		{"medical", &c.routineMedicalPlans},
+		{"food-storage-upkeep", &c.routineFoodStorageUpkeepPlans},
+		{"animal-containment", &c.routineAnimalContainmentPlans},
+		{"recovery", &c.routineRecoveryPlans},
+		{"husbandry", &c.routineHusbandryPlans},
+		{"prisoner-interaction", &c.routinePrisonerInteractionPlans},
+		{"population-custody", &c.routinePopulationCustodyPlans},
+		{"home-coverage", &c.routineHomeCoveragePlans},
+		{"stone-shell", &c.routineStoneShellPlans},
+		{"naming", &c.routineNamingPlans},
+		{"resource", &c.routineResourcePlans},
+		{"animal-feed", &c.routineAnimalFeedPlans},
+		{"production-policy", &c.routineProductionPolicyPlans},
 	}
 }
 
-// activeRoutineFamilies reports the flag names of every routine planner
-// family this configuration enabled, for runtime diagnostics.
+// activeRoutineFamilies reports the name of every routine planner family this
+// configuration enabled, for runtime diagnostics.
 func (c serveConfig) activeRoutineFamilies() []string {
 	cp := c
 	var names []string
-	for _, entry := range routinePlanFlags(&cp) {
+	for _, entry := range routineFamilies(&cp) {
 		if *entry.Enabled {
 			names = append(names, entry.Name)
 		}

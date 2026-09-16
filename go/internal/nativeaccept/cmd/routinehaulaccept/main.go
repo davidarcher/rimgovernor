@@ -305,8 +305,7 @@ func run(ctx context.Context, root, output, gameID string, headless bool, rimgov
 		return err
 	}
 	argv := []string{
-		"serve", "--player-control", "--clock-control", "--routine-reviews",
-		"--routine-haul-plans", "--routine-methods",
+		"serve",
 		"--profile", profileDir,
 		"--gabs", gabsExecutable,
 		"--config", cfg.Configuration,
@@ -321,7 +320,8 @@ func run(ctx context.Context, root, output, gameID string, headless bool, rimgov
 	// TEMPORARY: surface ClockScheduler.Step()'s branch tracing while
 	// root-causing why the routine review never persists (G01.07b). Remove
 	// this env injection once resolved.
-	cmd.Env = append(os.Environ(), "RIMGOVERNOR_CLOCK_DEBUG=1")
+	// Compose only the haul family so the receipt under test is unambiguous.
+	cmd.Env = append(os.Environ(), "RIMGOVERNOR_CLOCK_DEBUG=1", "RIMGOVERNOR_ROUTINE_FAMILIES=haul")
 	stdoutPipe, err := cmd.StdoutPipe()
 	if err != nil {
 		return err

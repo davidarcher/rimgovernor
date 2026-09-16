@@ -24,7 +24,7 @@ import (
 
 func TestServeRequiresExplicitReadOnlyLocalConfiguration(t *testing.T) {
 	dir := t.TempDir()
-	base := []string{"--read-only", "--gabs", filepath.Join(dir, "gabs"), "--config", dir, "--game", "trial", "--state", filepath.Join(dir, "state.db")}
+	base := []string{"--observe", "--gabs", filepath.Join(dir, "gabs"), "--config", dir, "--game", "trial", "--state", filepath.Join(dir, "state.db")}
 	if _, err := parseServe(base, io.Discard); err != nil {
 		t.Fatal(err)
 	}
@@ -37,7 +37,7 @@ func TestServeRequiresExplicitReadOnlyLocalConfiguration(t *testing.T) {
 
 func TestServeRejectsRelativeFlightRecorderPath(t *testing.T) {
 	dir := t.TempDir()
-	base := []string{"--read-only", "--gabs", filepath.Join(dir, "gabs"), "--config", dir, "--game", "trial", "--state", filepath.Join(dir, "state.db")}
+	base := []string{"--observe", "--gabs", filepath.Join(dir, "gabs"), "--config", dir, "--game", "trial", "--state", filepath.Join(dir, "state.db")}
 	if _, err := parseServe(append(append([]string{}, base...), "--flight-recorder", "relative.jsonl"), io.Discard); err == nil {
 		t.Fatal("accepted relative --flight-recorder path")
 	}
@@ -52,28 +52,20 @@ func TestServeRejectsRelativeFlightRecorderPath(t *testing.T) {
 
 func TestServeWorldEvaluationFlagValidation(t *testing.T) {
 	dir := t.TempDir()
-	base := []string{"--player-control", "--profile", dir, "--gabs", filepath.Join(dir, "gabs"), "--config", dir, "--game", "trial", "--state", filepath.Join(dir, "state.db")}
-	if _, err := parseServe(append(append([]string(nil), base...), "--world-evaluation"), io.Discard); err != nil {
-		t.Fatal(err)
+	withRoutineFamilies(t, "", false)
+	base := append(serveBase(dir), "--profile", dir)
+	c, err := parseServe(append(append([]string(nil), base...), "--world-evaluation-food-margin-days", "1.5"), io.Discard)
+	if err != nil || !c.worldEvaluation || c.worldEvaluationFoodMarginDays != 1.5 {
+		t.Fatal(c, err)
 	}
-	if _, err := parseServe(append(append([]string(nil), base...), "--world-evaluation", "--world-evaluation-food-margin-days", "1.5"), io.Discard); err != nil {
-		t.Fatal(err)
-	}
-	readOnly := []string{"--read-only", "--gabs", filepath.Join(dir, "gabs"), "--config", dir, "--game", "trial", "--state", filepath.Join(dir, "state.db")}
-	if _, err := parseServe(append(append([]string(nil), readOnly...), "--world-evaluation"), io.Discard); err == nil {
-		t.Fatal("world evaluation without player control accepted")
-	}
-	if _, err := parseServe(append(append([]string(nil), base...), "--world-evaluation-food-margin-days", "1"), io.Discard); err == nil {
-		t.Fatal("food margin days without world evaluation accepted")
-	}
-	if _, err := parseServe(append(append([]string(nil), base...), "--world-evaluation", "--world-evaluation-food-margin-days", "-1"), io.Discard); err == nil {
+	if _, err := parseServe(append(append([]string(nil), base...), "--world-evaluation-food-margin-days", "-1"), io.Discard); err == nil {
 		t.Fatal("negative food margin days accepted")
 	}
 }
 
 func TestServeRejectsNonNumericPortsAndInvalidAssets(t *testing.T) {
 	dir := t.TempDir()
-	base := []string{"--read-only", "--gabs", filepath.Join(dir, "gabs"), "--config", dir, "--game", "trial", "--state", filepath.Join(dir, "state.db")}
+	base := []string{"--observe", "--gabs", filepath.Join(dir, "gabs"), "--config", dir, "--game", "trial", "--state", filepath.Join(dir, "state.db")}
 	for _, port := range []string{"http", "", "-1", "+80", "65536", " 80"} {
 		if _, err := parseServe(append(append([]string{}, base...), "--listen", "127.0.0.1:"+port), io.Discard); err == nil {
 			t.Errorf("accepted port %q", port)

@@ -184,37 +184,15 @@ func Run(ctx context.Context, cfg RunConfig, report na.Report) ([]map[string]any
 	if err := os.MkdirAll(serviceDir, 0755); err != nil {
 		return nil, err
 	}
-	// Explicit food-pipeline routine plans only -- NOT the "name zero
-	// --routine-*-plans flags to enable every family" composed default.
-	// --routine-recovery-plans (and likely others gated the same way) is
-	// unusable in that composed-default combination: RecoverDisasterServices
-	// is only added to DetectRoutine's recognized-assessments set when
-	// r.Disaster != nil (routine.go:751), which is never true during
-	// NewRoutineReviewer's empty-facts capability validation call
-	// (routine.go:59), so the service fails immediately with "invalid
-	// routine method capability" whenever recovery-plans is combined with
-	// every other family this way. That's a narrow pre-existing gap
-	// unrelated to food/crop logic and out of this milestone's scope --
-	// sidestep it by requesting only what EnsureFoodSupply's own pipeline
-	// needs: field growing (the goal under diagnosis), food storage,
-	// harvest/wood acquisition, cooking bills, and starting supplies.
+	// Compose only EnsureFoodSupply's own pipeline so the food outcome under
+	// diagnosis is not confounded by other families: field growing, food
+	// storage, harvest/wood acquisition, cooking bills and starting supplies.
 	clockSpeed := cfg.ClockSpeed
 	if clockSpeed == "" {
 		clockSpeed = "Normal"
 	}
 	argv := []string{
-		"serve", "--player-control", "--clock-control", "--clock-speed", clockSpeed,
-		"--routine-reviews", "--routine-methods",
-		"--routine-field-plans", "--routine-food-storage-plans", "--routine-acquisition-plans",
-		"--routine-cooking-plans", "--routine-supply-plans",
-		// Needed only so the executor's ProductionPolicy capability is wired up
-		// at all (serve_building.go gates it on this same flag) -- the
-		// acquire-anchor below dispatches through that capability. With no
-		// --routine-resource-reserve/--routine-resource-stop configured, the
-		// routine planner it also enables stays a no-op (see
-		// RoutineProductionPolicyPlanner's doc comment: its target
-		// floors/stopped set is entirely operator-config-derived).
-		"--routine-production-policy-plans",
+		"serve", "--clock-speed", clockSpeed,
 		"--profile", profileDir,
 		"--gabs", gabsExecutable,
 		"--config", naCfg.Configuration,
@@ -226,6 +204,11 @@ func Run(ctx context.Context, cfg RunConfig, report na.Report) ([]map[string]any
 	}
 	report["service_argv"] = append([]string{cfg.RimgovernorBinary}, argv...)
 	cmd := exec.CommandContext(ctx, cfg.RimgovernorBinary, argv...)
+	// production-policy is composed only so the executor's ProductionPolicy
+	// capability is wired up -- the acquire-anchor below dispatches through
+	// it. With no --routine-resource-reserve/--routine-resource-stop the
+	// planner it also enables stays a no-op.
+	cmd.Env = append(os.Environ(), "RIMGOVERNOR_ROUTINE_FAMILIES=field,food-storage,acquisition,cooking,supply,production-policy")
 	stdoutPipe, err := cmd.StdoutPipe()
 	if err != nil {
 		return nil, err

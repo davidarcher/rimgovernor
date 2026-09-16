@@ -1,12 +1,11 @@
 [CmdletBinding()]
-# Starts the Go controller binary directly: no Python interpreter anywhere in
-# this path (G01.13). Player-control building/draft/routine execution is the
-# default; pass -ReadOnly for observation only. Natural-language player chat is
-# not currently available in either runtime — see go/README.md for the current
-# capability boundary.
+# Starts the Go controller binary. Autonomous play is the default; pass
+# -Observe for observation only. Extra arguments pass through to `serve`
+# (see `rimgovernor serve -h`); RIMGOVERNOR_ROUTINE_FAMILIES narrows the
+# composed routine families for debug runs.
 param(
   [int]$Port = 8787,
-  [switch]$ReadOnly,
+  [switch]$Observe,
   [string]$Profile = '',
   [string]$Gabs = '',
   [string]$Config = '',
@@ -15,7 +14,7 @@ param(
   [string]$Assets = '',
   [switch]$NoBrowser,
   [switch]$Rebuild,
-  [Parameter(ValueFromRemainingArguments = $true)][string[]]$RoutineArgs
+  [Parameter(ValueFromRemainingArguments = $true)][string[]]$ServeArgs
 )
 $ErrorActionPreference = 'Stop'
 Set-Location -LiteralPath $PSScriptRoot
@@ -62,12 +61,12 @@ if (!$State) {
 New-Item -ItemType Directory -Force -Path (Split-Path -Parent $State) | Out-Null
 
 $arguments = @('serve')
-if ($ReadOnly) {
-  $arguments += '--read-only'
+if ($Observe) {
+  $arguments += '--observe'
 } else {
   if (!$Profile) { $Profile = Join-Path $PSScriptRoot '.rimgovernor/bridge/profile' }
-  if (!(Test-Path -LiteralPath $Profile)) { throw 'Player control requires an existing --profile directory; see docs/players/setup.md. Pass -ReadOnly for observation only.' }
-  $arguments += @('--player-control', '--profile', (Resolve-Path -LiteralPath $Profile).Path)
+  if (!(Test-Path -LiteralPath $Profile)) { throw 'Autonomous play requires an existing --profile directory; see docs/players/setup.md. Pass -Observe for observation only.' }
+  $arguments += @('--profile', (Resolve-Path -LiteralPath $Profile).Path)
 }
 $arguments += @(
   '--gabs', (Resolve-Path -LiteralPath $Gabs).Path,
@@ -77,7 +76,7 @@ $arguments += @(
   '--assets', (Resolve-Path -LiteralPath $Assets).Path,
   '--listen', "127.0.0.1:$Port"
 )
-if ($RoutineArgs) { $arguments += $RoutineArgs }
+if ($ServeArgs) { $arguments += $ServeArgs }
 
 $taskStamp = Get-Date -Format 'yyyyMMdd-HHmmss'
 $taskRoot = Join-Path $PSScriptRoot '.rimgovernor/go'

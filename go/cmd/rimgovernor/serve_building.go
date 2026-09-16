@@ -669,7 +669,7 @@ func serveBuildingWithBridge(ctx context.Context, config serveConfig, out io.Wri
 	}
 	owner = player
 	if config.clockControl {
-		if err = startServiceClock(lifetime, player, session, client.clockReads, database, config.profile, config.clockSpeed, callTimeout, config.routineReviews, config.routineSleepingPlans, config.routineCookingPlans, config.routineShelterPlans, config.routineComfortPlans, config.routineExpansionPlans, config.routinePowerPlans, config.routineTemperaturePlans, config.routineProjectLimit, config.routineSupplyPlans, config.routineWorkPlans, config.routineAcquisitionPlans, config.routineDefensePlans, config.routineTendPlans, config.routineRescuePlans, config.routineEquipPlans, config.routineSecureSuppliesPlans, config.routineRepairPlans, config.routineCleanPlans, config.routineGearPlans, config.routineMedicalPlans, config.routineFoodStorageUpkeepPlans, config.routineAnimalContainmentPlans, config.routineRecoveryPlans, config.routineHusbandryPlans, config.routineHomeCoveragePlans, config.caravanJourneyTracking, config.routineResearchTarget, config.routineResourceTargets.Map(), config.routineAllowSlaughter, config.routineHerdPopulationMax.Map(), config.routineAnimalFeedPlans, config.routineProductionPolicyPlans, config.routineResourceReserves.Map(), config.routineStoppedResources.Slice(), config.routineFieldPlans, config.routineBillPlans, config.routineFoodStoragePlans, config.routinePrisonerInteractionPlans, config.routinePopulationCustodyPlans, config.routineStoneShellPlans, config.routineHaulPlans, config.routineWastePlans, config.routineMoodPlans, config.routineNamingPlans); err != nil {
+		if err = startServiceClock(lifetime, player, session, client.clockReads, database, config, callTimeout); err != nil {
 			return err
 		}
 	}
@@ -722,7 +722,7 @@ func serveBuildingWithBridge(ctx context.Context, config serveConfig, out io.Wri
 	if config.chat {
 		raw, ok := client.reads.(*bridge.Client)
 		if !ok {
-			return errors.New("--chat requires a live native bridge client")
+			return errors.New("chat requires a live native bridge client")
 		}
 		modelClient, err := model.NewClient(model.Config{Model: config.chatModel, BaseURL: config.chatBaseURL, Timeout: 20 * time.Second, MaxResponseBytes: 1 << 20})
 		if err != nil {

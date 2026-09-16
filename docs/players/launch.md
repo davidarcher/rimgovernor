@@ -10,13 +10,13 @@ needs no model and no player text input; run:
 ```
 
 This builds `go/cmd/rimgovernor` if missing, reuses the built dashboard assets, and
-opens http://127.0.0.1:8787 with player building/draft/routine control enabled.
+opens http://127.0.0.1:8787 in autonomous play.
 Enable Run in background in RimWorld. `launch-bridge.ps1` forwards to the same
 launcher. Launch uses the prepared GABS profile and preserves your normal saves and
 mod selection — see [setup](setup.md) to prepare it first.
 
 ```powershell
-.\launch.cmd -ReadOnly      # Observation-only dashboard; no player writes
+.\launch.cmd -Observe       # Observation-only dashboard; no player writes
 .\launch.cmd -NoBrowser
 .\launch.cmd -Port 8788     # Use a different local port
 .\launch.cmd -Rebuild       # Force-rebuild the Go binary before starting

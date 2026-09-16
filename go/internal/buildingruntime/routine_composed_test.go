@@ -21,8 +21,8 @@ import (
 // composedFamilyPlanners are the three routine planner families this file
 // composes in one process: AllowStartingSupplies (supply), MaintainWood
 // (acquisition) and EnsureWorkAssignments (work) all attach to the same
-// RoutineReviewer/Player/journal, the way G01.10's composed --routine-methods
-// default runs every implemented family together instead of one at a time.
+// RoutineReviewer/Player/journal, the way autonomous play
+// runs every implemented family together instead of one at a time.
 type composedFamilyPlanners struct {
 	supply      *RoutineSupplyPlanner
 	acquisition *RoutineAcquisitionPlanner

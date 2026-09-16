@@ -22,8 +22,8 @@ func TestHelpListsExplicitModesAndReplay(t *testing.T) {
 		var out, errors bytes.Buffer
 		if got := run(args, &out, &errors); got != 0 || errors.Len() != 0 ||
 			!strings.Contains(out.String(), "replay <expected.json> <actual.json>") ||
-			!strings.Contains(out.String(), "--player-control --profile PATH") ||
-			!strings.Contains(out.String(), "Native writes require explicit player-control mode and player acquisition") {
+			!strings.Contains(out.String(), "serve --profile PATH") ||
+			!strings.Contains(out.String(), "serve --observe") {
 			t.Fatalf("%q: exit=%d stdout=%q stderr=%q", args, got, &out, &errors)
 		}
 	}
@@ -111,7 +111,7 @@ func TestReplayUsage(t *testing.T) {
 
 func TestVersionReportsExplicitBuildingControls(t *testing.T) {
 	var out, errors bytes.Buffer
-	if run([]string{"version"}, &out, &errors) != 0 || !strings.Contains(out.String(), "explicit player controls") {
+	if run([]string{"version"}, &out, &errors) != 0 || !strings.Contains(out.String(), "autonomous play") {
 		t.Fatalf("stdout=%q stderr=%q", &out, &errors)
 	}
 }

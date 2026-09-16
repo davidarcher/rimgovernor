@@ -34,8 +34,8 @@ separate tests.
 **Windows**, from the repository root:
 
 ```powershell
-.\launch.cmd                    # production default: player control, browser opens
-.\launch-go.ps1 -ReadOnly       # observation-only dashboard, no writes
+.\launch.cmd                    # autonomous play, browser opens
+.\launch-go.ps1 -Observe        # observation-only dashboard, no writes
 ```
 
 `launch.cmd` builds the binary if missing, builds the dashboard's static assets
@@ -43,31 +43,39 @@ separate tests.
 ([setup](../docs/players/setup.md)). GABS is a native executable dependency of
 the controller.
 
-`rimgovernor serve` composes the runtime from flags; `serve -h` is the
-authoritative list. The important ones:
+`rimgovernor serve` has two modes; `serve -h` is the authoritative flag list.
+
+- `serve --profile PATH ...` is **autonomous play**: player control (building,
+  owned draft/melee execution, lifecycle save/load, presentation/media, the
+  typed player endpoints under `internal/httpapi/player.go`), the clock worker
+  (event polling, epoch renewal, bounded supervised windows: 600 ticks, 30-second
+  lease), durable routine reviews with method execution across every routine
+  planner family, caravan journey tracking and world evaluation. Free-text
+  player chat (`POST /api/chats/plans`, through a local OpenAI-compatible model
+  such as LM Studio) turns on when `--chat-model` is set; 501 otherwise.
+- `serve --observe ...` is **observation only**: read the running game, never
+  acquire control or write to it. Tuning flags and chat are rejected.
 
 | Flag | Effect |
 | --- | --- |
-| `--gabs`, `--config`, `--game`, `--state`, `--profile` | Absolute GABS, config and state paths, the configured game ID and the shared game profile. |
-| `--assets`, `--listen` | Built dashboard directory; loopback listen address (default `127.0.0.1:0`, prints the URL). |
-| `--read-only` | Observation only; starts in Manual and cannot issue orders. |
-| `--player-control` | Building, owned draft/melee execution, lifecycle save/load, presentation/media and the typed player submission endpoints under `internal/httpapi/player.go`. |
-| `--clock-control` | Attach the clock worker: event polling, epoch renewal and bounded supervised play windows (normal speed, 600-tick windows, 30-second lease). |
-| `--routine-reviews`, `--routine-methods` | Run durable routine reviews and let routine methods execute. |
-| `--routine-*-plans` | Per-family routine planners. Naming none of them turns all of them on; naming any opts back out to exactly the named families. `GET /api/routines` reports what a running process composed. |
-| `--chat --chat-model <name>` | `POST /api/chats/plans`: interpret a free-text player message through a local OpenAI-compatible model (LM Studio; `--chat-base-url`, `--chat-context-tokens`, `--chat-max-output-tokens`). Requires `--player-control`; 501 when off. |
+| `--gabs`, `--config`, `--game`, `--state` | Absolute GABS, config and state paths and the configured game ID (both modes). |
+| `--profile` | Absolute shared game profile; required for autonomous play. |
+| `--assets`, `--listen`, `--refresh`, `--timeout` | Built dashboard directory; loopback listen address (default `127.0.0.1:0`, prints the URL); observation refresh and native call timeout. |
+| `--clock-speed` | Native speed while a supervised window is held: `Normal` (default), `Fast`, `Superfast`. |
+| `--routine-project-limit`, `--routine-research-target`, `--routine-resource-*`, `--routine-allow-slaughter`, `--routine-herd-population-max` | Routine tuning: optional project concurrency, research goal, resource production targets/reserves/stops and herd ceilings. |
+| `--resource-rule`, `--world-evaluation-food-margin-days` | Resource reservation rules for building admission; caravan food margin. |
+| `--chat-model`, `--chat-base-url`, `--chat-context-tokens`, `--chat-max-output-tokens` | Local model chat; the last three require `--chat-model`. |
 | `--flight-recorder <path>` | Record every native request/response/error (see [Native request diagnostics](#native-request-diagnostics)). |
-| `--resource-rule`, `--routine-resource-*`, `--world-evaluation*`, `--caravan-journey-tracking` | Resource reservation rules, resource production targets, world evaluation and caravan tracking. |
 
-`serve --player-control --clock-control --routine-reviews --routine-methods` is
-the full autonomous composition. Startup reconciliation (durable holds and goal
-admission on process start) is generation/goal-keyed rather than per-flag.
-Collapsing this flag matrix is [issue #58](https://github.com/davidarcher/rimgovernor/issues/58).
+`RIMGOVERNOR_ROUTINE_FAMILIES=haul,field,...` narrows autonomous play to the
+named routine planner families (short names as listed by `GET /api/routines`,
+which reports what a running process composed). It exists for targeted
+acceptance and debugging; unset composes every family. Startup reconciliation
+(durable holds and goal admission on process start) is generation/goal-keyed.
 
-**Known defects:** with `--clock-control --routine-reviews` the native clock
-can fail to ever start ([issue #45](https://github.com/davidarcher/rimgovernor/issues/45))
-or restart in short thrashing bursts ([issue #42](https://github.com/davidarcher/rimgovernor/issues/42)).
-`--player-control` alone (the launcher default) is unaffected.
+**Known defects:** in autonomous play the native clock can fail to ever start
+([issue #45](https://github.com/davidarcher/rimgovernor/issues/45)) or restart
+in short thrashing bursts ([issue #42](https://github.com/davidarcher/rimgovernor/issues/42)).
 
 **Docker**: `containers/Dockerfile`'s `go-controller` target builds the binary
 and packages the dashboard assets:
@@ -77,7 +85,7 @@ docker build -f containers/Dockerfile --target go-controller -t rimgovernor-go:l
 docker run --rm rimgovernor-go:local version
 ```
 
-`containers/go-controller.compose.yaml` runs a real `serve --read-only` session
+`containers/go-controller.compose.yaml` runs a real `serve --observe` session
 with bind-mounted GABS/config/state inputs using `network_mode: host`, because
 `--listen` only accepts a loopback address (the compose file's comments cover
 the Docker Desktop caveat).
@@ -152,7 +160,7 @@ Medical reserves use a separate maintained need with one medicine per colonist a
 its entry threshold and three as its recovery target. Native usable resource counts
 are capped against observed unexpired, allowed medicine stacks. Unknown reads
 preserve the reserve latch; Manual preserves it, while world replacement or tick
-rewind resets it. `RoutineMedicalPlanner` (behind `--routine-medical-plans`)
+rewind resets it. `RoutineMedicalPlanner` (the `medical` family)
 proposes a `ProductionBillAction` through the shared GearProduce bench/recipe
 census.
 
@@ -161,25 +169,23 @@ Fresh reads can shrink that cohort, but later player forbids cannot expand or
 revive it. Unknown reads preserve pending cells without proving recovery; Manual
 and direction changes preserve the cohort. World replacement and tick rewind
 initialize a new cohort. The current journal requires fresh schema-37 state.
-`--routine-supply-plans` compiles at most eight exact native item snapshots from
-retained cells into a shared Allow plan. `--routine-methods` enables its Hands
-handler under the existing player direction; both switches default off. Each
+The `supply` family compiles at most eight exact native item snapshots from
+retained cells into a shared Allow plan; its Hands handler runs under the
+existing player direction. Each
 write requires fresh CAS, preview, emergency and authority checks. Durable item
 claims prevent re-admission after cancellation or later player forbidding. Lost
 replies are observed without retry; receipts alone do not complete the action,
 and missing items remain unknown. Allow requires no game tick window.
 
-`--routine-work-plans` compiles changed work priorities in batches of at most eight
-pawns, using saved overrides and required project skills. It requires routine reviews;
-`--routine-methods` enables execution. Each action retains the original work snapshot,
+The `work` family compiles changed work priorities in batches of at most eight
+pawns, using saved overrides and required project skills. Each action retains the original work snapshot,
 so changed settings cannot be silently adopted on retry. Preference changes cancel
 pending methods; direct native work-tab edits revoke controller authority. Readback
 checks actual priorities as well as the correlated native outcome. Settings updates
 need no simulation ticks and do not certify that pawn production occurred.
 
-`--routine-field-plans` selects rice, potatoes or corn from native season, yield
-and soil facts, preferring a faster viable crop when stored food is short. It
-requires routine reviews; `--routine-methods` enables execution. Up to 32 connected
+The `field` family selects rice, potatoes or corn from native season, yield
+and soil facts, preferring a faster viable crop when stored food is short. Up to 32 connected
 patches share construction footprint reservations. Each creation refreshes the
 zone map CAS and ordinary native placement checks. Exact zone cells and crop
 settings must match on readback; an uncertain write is only observed. Player crop,
@@ -188,9 +194,8 @@ healthy-colony growth window from their durable completion tick, only while fres
 readback still matches. Field capacity and expected harvest never increase edible
 stock.
 
-`--routine-acquisition-plans` compiles safe wild-plant food, bounded hunting and wood acquisition
-in batches of at most eight sources. It requires routine reviews; execution uses
-`--routine-methods`. Native pending yield reduces new designations but never
+The `acquisition` family compiles safe wild-plant food, bounded hunting and wood acquisition
+in batches of at most eight sources. Native pending yield reduces new designations but never
 increases stock or food runway. Food selection uses the existing diet, rot and
 competing-consumer forecast. Wild plants in growing zones are excluded, outdoor
 writes hold during roof-collapse hazards, and native enabled workers and ordinary
@@ -220,7 +225,7 @@ use bounded native deficit fractions. Accepted player projects and unresolved
 optional methods consume capacity across shared plans; admission rechecks new
 commitments in the same transaction as the method. Manual clears selections;
 world/direction changes or tick rewinds reset age. Unknown worker counts admit no
-optional work. Configure `serve --routine-reviews --routine-project-limit 1` to
+optional work. Configure `serve --routine-project-limit 1` to
 limit optional concurrency (1–8, default 2), also bounded by observed workers.
 Accepted work remains tracked when capacity falls. Persisted ranking does not
 create missing action families or replace native resource/placement admission.
@@ -341,9 +346,9 @@ consumers remain deficits, while no consumers means no electrical requirement.
 Enabled, unforbidden consumers without power also remain recovery targets. Missing
 census or service facts preserve unknown coverage. These reads issue no power orders.
 The same bounded census carries native trader footprints, conduit positions and
-active map conditions for power planning. `serve --routine-power-plans` compiles
+active map conditions for power planning. The `power` family compiles
 network-local generation or up to eight conduit cells through shared building
-admission; `--routine-methods` enables their existing Hands execution. Installed
+admission and existing Hands execution. Installed
 capacity waits for ordinary refueling/output. Solar flares and player-disabled
 equipment hold proposals. Completed methods lend at most 10,000 ticks for native
 power recovery, scoped to the current direction; native consumer power establishes
@@ -353,10 +358,9 @@ consumer recovery, correlated construction, Manual and disabled restart. Replay
 uses `RIMGOVERNOR_NATIVE_POWER_METHODS_CAPTURE=<capture-directory> go test
 ./internal/observation -run TestNativePowerMethodsReplay`.
 
-`serve --routine-temperature-plans` adds complete indoor room reads to the paused
+The `temperature` family adds complete indoor room reads to the paused
 routine bracket and compiles one ordinary campfire or passive cooler in an affected
-player sleeping room. It requires `--routine-reviews`; `--routine-methods` enables
-shared Hands execution. Eligible bed identities select rooms even when unsafe
+player sleeping room through shared Hands execution. Eligible bed identities select rooms even when unsafe
 temperatures remove safe reachability. Complete room geometry constrains the whole
 native building footprint, while shared admission reserves only that footprint.
 Existing thermal facilities wait for native temperature change. Entry thresholds
@@ -442,7 +446,7 @@ or already committed campfire work. Native previews and shared reservations deci
 geometry and cost. Building the campfire does not certify a food bill or cooked
 food; bill/upkeep methods remain separate action-family work.
 
-Configure shared spending rules with repeatable `serve --player-control`
+Configure shared spending rules with repeatable `serve`
 options such as `--resource-rule WoodLog:allow:50` or
 `--resource-rule Steel:defense_only:100`. Each rule names a native resource,
 `allow`, `stop` or `defense_only`, and a nonnegative reserve. Duplicate resources
@@ -461,13 +465,12 @@ certify pawn completion. `native_building_service_acceptance.py
 --construction-accounting` exercises two shared player projects under a reserve
 that permits exactly two walls, including unfinished work and restart.
 
-Add `--routine-reviews` to `serve --player-control --clock-control` to attach the
-reviewer to the service clock worker. It uses the default routine thresholds and
-requires typed colony observations. Startup remains disabled. This option journals
-needs. Add `--routine-sleeping-plans` to compile eligible shelter deficits into pending
-methods at that same paused boundary. It requires routine reviews and uses the same
-player gate; a failed preview prevents a new clock window. Startup remains disabled
-and this option does not execute methods. `--routine-shelter-plans` includes indoor
+Autonomous play attaches the reviewer to the service clock worker. It uses the
+default routine thresholds and requires typed colony observations. Startup
+remains disabled. The reviewer journals needs; the `sleeping` family compiles
+eligible shelter deficits into pending methods at that same paused boundary
+under the player gate, and a failed preview prevents a new clock window. The
+`shelter` family includes indoor
 furnishing and falls back to a bounded 9×9 starter shell when the whole sleeping
 method lacks verified space. Native definitions must support one-cell wood walls
 and doors; every piece needs a safe exact footprint and the complete project must
@@ -477,9 +480,8 @@ roofing; that budget derives from durable completion and cannot renew on restart
 It remains available after furnishing until native indoor capacity recovers or
 the budget expires: roofed spot footprints alone do not prove a fully roofed room.
 Furnishing still requires observed roofed indoor space. Unfinished or cancelled
-shells grant no roofing budget. `--routine-methods` is also required to execute
-the method or advance its roofing wait. `--routine-cooking-plans` independently
-enables campfire compilation at the same boundary. `--routine-comfort-plans` enables
+shells grant no roofing budget. The `cooking` family independently
+compiles campfires at the same boundary. The `comfort` family enables
 table, adjacent dining chair and recreation furniture compilation after startup
 needs recover and development ranking selects comfort. Native observations retain
 facility-specific dining/recreation use through Manual and restart; replacement
@@ -489,8 +491,8 @@ Skilled furniture requires a qualified assigned builder from the same native
 observation bracket, honoring saved player work preferences.
 Unknown access, existing inaccessible
 facilities and exhausted waits cannot certify recovery or create duplicate furniture.
-Add `--routine-methods` to let the shared
-Hands worker execute reviewed building and starting-supply methods under the existing player direction.
+The shared Hands worker executes reviewed building and starting-supply methods
+under the existing player direction.
 Each dispatch rechecks the journal binding, active known deficit, epoch, world and
 native generation. Pending player work takes priority; Manual stops routine writes
 without changing the selected player plan or acquiring another lease. Clock windows
@@ -575,9 +577,8 @@ construction and verifies that cooking still needs a bill after the building
 completes. Its `--resource-rule WoodLog:stop:0` variant uses the same room fixture
 and compile-only cooking to verify pending player work, no routine admissions or
 construction orders, Manual and disabled restart. Normal authorized clock windows
-remain available under spending restrictions. The separate
-`scripts/native_go_clock_acceptance.py --routine-reviews` scenario additionally
-requires a healthy colony and verifies clock advancement and construction.
+remain available under spending restrictions. Clock acceptance additionally requires a healthy colony and verifies clock
+advancement and construction.
 
 ## Local interpretation
 
@@ -586,9 +587,9 @@ interpretation and uses the smaller of its loaded context window and the configu
 budget. Missing or ambiguous instances fail explicitly. It does not load or switch
 models. Proposals remain unsubmitted until a player runtime admits them.
 
-## Read-only service
+## Observation service
 
-Build the executable above, then use `rimgovernor serve --read-only` with absolute
+Build the executable above, then use `rimgovernor serve --observe` with absolute
 `--gabs`, `--config` and `--state` paths plus the configured `--game` ID. It attaches
 through GABS to the running game and opens a fresh Go SQLite database. An optional
 absolute `--assets` directory serves a built dashboard containing `index.html`.
@@ -635,7 +636,7 @@ unbounded. See `internal/flightrecorder` for the writer and `ReadTimeline` reade
 
 ## Guarded player components
 
-`rimgovernor serve --player-control --profile <absolute-game-profile>` selects
+`rimgovernor serve --profile <absolute-game-profile>` (autonomous play) includes
 the building and temporary-draft service. Supply the same `--gabs`, `--config`, `--game`, `--state`,
 `--listen` and optional `--assets` arguments as the observation service. The profile
 must be the shared game profile, so another controller cannot acquire its process
@@ -756,7 +757,7 @@ The internal clock scheduler can perform one finite healthy-colony scheduling st
 through the shared session. Its durable window admission binds current review and
 native cursor evidence to dispatch, and repeated unchanged decisions retain their
 request identity. An optional attached clock worker runs event polling, epoch
-renewal and scheduling independently, with joined retryable shutdown. Add `--clock-control` to `serve --player-control` to attach this worker. It uses normal speed, 600-tick windows and a 30-second owned lease; startup remains disabled. Interruptions hold execution without automatic acknowledgement. The player panel displays interruption review and explicit acknowledgement; this never enables orders. Event-history maintenance checkpoints reviewed evidence while retaining interruption holds and acknowledgement replay. Actual Go clock acceptance remains pending. See the
+renewal and scheduling independently, with joined retryable shutdown. Autonomous play attaches this worker. It uses normal speed, 600-tick windows and a 30-second owned lease; startup remains disabled. Interruptions hold execution without automatic acknowledgement. The player panel displays interruption review and explicit acknowledgement; this never enables orders. Event-history maintenance checkpoints reviewed evidence while retaining interruption holds and acknowledgement replay. Actual Go clock acceptance remains pending. See the
 [clock recovery contract](../docs/developers/contracts/go-clock-recovery.md).
 
 ## Isolated building acceptance
@@ -795,8 +796,8 @@ behavior tests. Follow the
 [G01 issues](https://github.com/davidarcher/rimgovernor/issues?q=is%3Aissue+is%3Aopen+label%3A%22area%3AG01%22)
 for active owners, dependencies and completion gates.
 
-`serve --routine-expansion-plans` maintains one spare indoor sleeping place beyond
-the observed population. It requires routine reviews and uses the shared furnishing
+The `expansion` family maintains one spare indoor sleeping place beyond
+the observed population. It uses the shared furnishing
 and whole-shell planner, project limits, resource reservations and player authority.
 Expansion waits until existing housing meets current needs and until pending beds
 finish. Targeted native acceptance covers the additional indoor place; whole-shell

@@ -10,7 +10,7 @@ action families.
 
 ## Routes and intent
 
-`rimgovernor serve --player-control` selects the explicit player service. Shared
+`rimgovernor serve --profile PATH` (autonomous play) includes the explicit player service. Shared
 control uses these routes; building submission routes remain family-specific.
 
 | Method | Route | Result |

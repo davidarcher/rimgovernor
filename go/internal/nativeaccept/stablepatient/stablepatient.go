@@ -182,19 +182,7 @@ func Run(ctx context.Context, cfg RunConfig, report na.Report) ([]map[string]any
 		clockSpeed = "Normal"
 	}
 	argv := []string{
-		"serve", "--player-control", "--clock-control", "--clock-speed", clockSpeed,
-		"--routine-reviews", "--routine-methods",
-		// Medical: dispatch tend for the two Flu patients and the forced
-		// withdrawal patient's CriticalMedicine deficit, plus medicine-reserve
-		// replenishment so tend never runs the fixture's stocked medicine dry.
-		"--routine-tend-plans", "--routine-medical-plans",
-		// Food: the same EnsureFoodSupply pipeline sustainedfood exercises,
-		// needed here to prove the pre-seeded growing zone/campfire bill
-		// (test/routine_production_prepare) keeps advancing concurrently with
-		// medical dispatch rather than losing pawn time to it.
-		"--routine-field-plans", "--routine-food-storage-plans", "--routine-acquisition-plans",
-		"--routine-cooking-plans", "--routine-supply-plans",
-		"--routine-production-policy-plans",
+		"serve", "--clock-speed", clockSpeed,
 		"--profile", profileDir,
 		"--gabs", gabsExecutable,
 		"--config", naCfg.Configuration,
@@ -206,6 +194,13 @@ func Run(ctx context.Context, cfg RunConfig, report na.Report) ([]map[string]any
 	}
 	report["service_argv"] = append([]string{cfg.RimgovernorBinary}, argv...)
 	cmd := exec.CommandContext(ctx, cfg.RimgovernorBinary, argv...)
+	// Medical: tend for the two Flu patients and the forced withdrawal
+	// patient's CriticalMedicine deficit, plus medicine-reserve replenishment
+	// so tend never runs the fixture's stocked medicine dry. Food: the same
+	// EnsureFoodSupply pipeline sustainedfood exercises, to prove the
+	// pre-seeded growing zone/campfire bill keeps advancing concurrently with
+	// medical dispatch.
+	cmd.Env = append(os.Environ(), "RIMGOVERNOR_ROUTINE_FAMILIES=tend,medical,field,food-storage,acquisition,cooking,supply,production-policy")
 	stdoutPipe, err := cmd.StdoutPipe()
 	if err != nil {
 		return nil, err
@@ -440,7 +435,7 @@ func Run(ctx context.Context, cfg RunConfig, report na.Report) ([]map[string]any
 			foodSample = map[string]any{"error": foodErr.Error()}
 		}
 		sample := map[string]any{
-			"at": time.Now().UTC().Format(time.RFC3339),
+			"at":      time.Now().UTC().Format(time.RFC3339),
 			"medical": medicalSample, "food": foodSample,
 		}
 		timeline = append(timeline, sample)

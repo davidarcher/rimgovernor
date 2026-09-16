@@ -24,14 +24,14 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
-func TestBuildingServeRequiresExclusiveExplicitModeAndProfile(t *testing.T) {
+func TestBuildingServeRequiresAbsoluteProfile(t *testing.T) {
 	dir := t.TempDir()
-	base := []string{"--player-control", "--profile", dir, "--gabs", filepath.Join(dir, "gabs"), "--config", dir, "--game", "game", "--state", filepath.Join(dir, "state.db")}
-	config, err := parseServe(base, io.Discard)
+	withRoutineFamilies(t, "", false)
+	config, err := parseServe(append(serveBase(dir), "--profile", dir), io.Discard)
 	if err != nil || !config.playerControl || config.profile != dir {
 		t.Fatalf("config: %+v %v", config, err)
 	}
-	for _, args := range [][]string{append(append([]string{}, base...), "--read-only"), append(append([]string{}, base...), "--profile", "relative"), append([]string{"--player-control"}, base[3:]...), append([]string{"--read-only"}, base[1:]...)} {
+	for _, args := range [][]string{append(serveBase(dir), "--profile", "relative"), serveBase(dir)} {
 		if _, err := parseServe(args, io.Discard); err == nil {
 			t.Fatalf("accepted %v", args)
 		}

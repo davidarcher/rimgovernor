@@ -31,7 +31,6 @@ func main() {
 	image := flag.String("image", "rimgovernor-worker:local", "worker image tag")
 	noBuild := flag.Bool("no-build", false, "use an existing image instead of building")
 	noNativeBuild := flag.Bool("no-native-build", false, "mount -mods as-is instead of rebuilding a fresh native package from -source")
-	clockControl := flag.Bool("clock-control", false, "start the worker with --clock-control (autopilot ticking)")
 	output := flag.String("output", "", "fresh output directory")
 	startupTimeout := flag.Duration("startup-timeout", 240*time.Second, "worker connected-session startup timeout")
 	flag.Parse()
@@ -62,7 +61,7 @@ func main() {
 		source: *source, game: *game, mods: *mods, profile: *profile, gabs: *gabs,
 		configTemplate: *configTemplate, gameID: *gameID, image: *image, noBuild: *noBuild,
 		noNativeBuild: *noNativeBuild,
-		clockControl:  *clockControl, output: *output, startupTimeout: *startupTimeout,
+		output:        *output, startupTimeout: *startupTimeout,
 	}, report)
 	if err != nil {
 		report["error"] = err.Error()
@@ -74,7 +73,7 @@ func main() {
 
 type runConfig struct {
 	source, game, mods, profile, gabs, configTemplate, gameID, image, output string
-	noBuild, noNativeBuild, clockControl                                     bool
+	noBuild, noNativeBuild                                                   bool
 	startupTimeout                                                           time.Duration
 }
 
@@ -108,7 +107,6 @@ func run(ctx context.Context, cfg runConfig, report na.Report) error {
 		Root:            root,
 		Name:            "rimgovernor-dockerworkeraccept-" + filepath.Base(cfg.output),
 		GameID:          cfg.gameID,
-		ClockControl:    cfg.clockControl,
 		StartupTimeout:  cfg.startupTimeout,
 		Source:          cfg.source,
 		SkipNativeBuild: cfg.noNativeBuild,

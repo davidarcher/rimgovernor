@@ -3,8 +3,8 @@
 [Subsystem contracts](README.md) · [Canonical clock schema](../../../contracts/proto/clock.proto)
 
 The Go bridge and store validate clock commands and recovered evidence against the
-canonical native producer. The player service composes the scheduler and workers
-behind `--clock-control`; validation never restores permission after restart.
+canonical native producer. Autonomous play (`serve --profile`) composes the scheduler and workers;
+validation never restores permission after restart.
 See native service acceptance
 for the game-level verification procedure.
 
@@ -200,7 +200,7 @@ current plan work and complete attempt/epoch catalogs before collecting fresh na
 facts. Unchanged decision inputs retain the same request ID across repeated calls;
 an undispatched stale preparation cannot prevent a fresh decision. Disabled sessions
 perform owned cleanup and cannot start. A valid running window is left unchanged.
-The step itself has no polling loop; the player service attaches ClockWorker with --clock-control.
+The step itself has no polling loop; autonomous play attaches ClockWorker.
 
 ## Independent clock workers
 
@@ -228,7 +228,7 @@ joins the loops and their cancellation handler before releasing native handles,
 the journal or profile owner. Concurrent Stop calls serialize, successful cleanup
 is cached, and failed cleanup remains retryable. Worker intervals and call budgets
 are bounded below the native lease duration; unchanged scheduling decisions back
-off. The player service opts in with `--clock-control`.
+off. Autonomous play attaches the worker; `--observe` does not.
 
 A fresh worker over reopened state remains disabled while recovering original
 attempts and pausing retained ownership; it does not acquire authority or issue a

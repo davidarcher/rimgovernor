@@ -35,12 +35,12 @@ services:
         target: /state
         bind:
           create_host_path: false
-    # --read-only is the safe default: it never acquires or writes to the game.
-    # Override `command` for --player-control, additional --routine-* flags or a
-    # non-default --game ID; see go/cmd/rimgovernor's `help` output.
+    # --observe is the safe default: it never acquires or writes to the game.
+    # Override `command` for autonomous play (drop --observe, add --profile) or
+    # a non-default --game ID; see go/cmd/rimgovernor's `help` output.
     command:
       - "serve"
-      - "--read-only"
+      - "--observe"
       - "--gabs"
       - "/inputs/gabs/gabs"
       - "--config"

@@ -15,7 +15,7 @@ type RoutineProvider interface {
 }
 
 // RoutineStatus is a runtime snapshot of the composed routine runtime.
-// ActiveFamilies names every "--routine-*-plans" flag this process enabled
+// ActiveFamilies names every routine planner family this process enabled
 // (composed default or explicit), regardless of whether it currently has
 // pending work; LastReviewTick is the durable review cursor's most recent
 // reviewed tick, known once at least one review has run.

@@ -2,7 +2,6 @@ package main
 
 import (
 	"io"
-	"path/filepath"
 	"reflect"
 	"testing"
 
@@ -27,13 +26,10 @@ func TestResourceRuleFlagsValidateAndPreservePreviousRules(t *testing.T) {
 	}
 }
 
-func TestServeResourceRulesRequirePlayerControl(t *testing.T) {
+func TestServeResourceRules(t *testing.T) {
 	dir := t.TempDir()
-	base := []string{"--gabs", filepath.Join(dir, "gabs"), "--config", dir, "--game", "game", "--state", filepath.Join(dir, "state.db"), "--resource-rule", "WoodLog:stop:10"}
-	if _, err := parseServe(append(base, "--read-only"), io.Discard); err == nil {
-		t.Fatal("read-only spending configuration accepted")
-	}
-	config, err := parseServe(append(base, "--player-control", "--profile", dir), io.Discard)
+	withRoutineFamilies(t, "", false)
+	config, err := parseServe(append(serveBase(dir), "--profile", dir, "--resource-rule", "WoodLog:stop:10"), io.Discard)
 	if err != nil || len(config.resourceRules) != 1 || config.resourceRules[0].Reserve != 10 {
 		t.Fatal(config, err)
 	}
@@ -41,16 +37,13 @@ func TestServeResourceRulesRequirePlayerControl(t *testing.T) {
 
 func TestServeRoutineProjectLimit(t *testing.T) {
 	dir := t.TempDir()
-	base := []string{"--gabs", filepath.Join(dir, "gabs"), "--config", dir, "--game", "game", "--state", filepath.Join(dir, "state.db"), "--player-control", "--profile", dir, "--clock-control"}
-	if _, err := parseServe(append(append([]string(nil), base...), "--routine-project-limit", "2"), io.Discard); err == nil {
-		t.Fatal("limit without routine reviews accepted")
-	}
+	withRoutineFamilies(t, "", false)
 	for _, value := range []string{"0", "9", "-1", "two"} {
-		if _, err := parseServe(append(append([]string(nil), base...), "--routine-reviews", "--routine-project-limit", value), io.Discard); err == nil {
+		if _, err := parseServe(append(serveBase(dir), "--profile", dir, "--routine-project-limit", value), io.Discard); err == nil {
 			t.Fatal(value)
 		}
 	}
-	c, err := parseServe(append(base, "--routine-reviews", "--routine-project-limit", "1"), io.Discard)
+	c, err := parseServe(append(serveBase(dir), "--profile", dir, "--routine-project-limit", "1"), io.Discard)
 	if err != nil || c.routineProjectLimit != 1 {
 		t.Fatal(c, err)
 	}

@@ -18,11 +18,11 @@ func run(args []string, out, errors io.Writer) int {
 
 func runContext(ctx context.Context, args []string, out, errors io.Writer) int {
 	if len(args) == 0 || (len(args) == 1 && (args[0] == "help" || args[0] == "--help")) {
-		fmt.Fprintln(out, "RimGovernor Go controller\nUsage: rimgovernor version\n       rimgovernor replay <expected.json> <actual.json>\n       rimgovernor serve --read-only --gabs PATH --config PATH --game ID --state PATH [--assets DIST] [--listen IP:PORT]\n       rimgovernor serve --player-control --profile PATH --gabs PATH --config PATH --game ID --state PATH [--assets DIST] [--listen IP:PORT]\nNative writes require explicit player-control mode and player acquisition.")
+		fmt.Fprintln(out, "RimGovernor Go controller\nUsage: rimgovernor version\n       rimgovernor replay <expected.json> <actual.json>\n       rimgovernor serve --profile PATH --gabs PATH --config PATH --game ID --state PATH [--assets DIST] [--listen IP:PORT]   autonomous play\n       rimgovernor serve --observe --gabs PATH --config PATH --game ID --state PATH [--assets DIST] [--listen IP:PORT]   observation only, no writes\nSee serve -h for tuning flags; RIMGOVERNOR_ROUTINE_FAMILIES narrows the composed routine families.")
 		return 0
 	}
 	if len(args) == 1 && args[0] == "version" {
-		fmt.Fprintln(out, "RimGovernor Go controller (development; explicit player controls)")
+		fmt.Fprintln(out, "RimGovernor Go controller (autonomous play)")
 		return 0
 	}
 	if args[0] == "serve" {

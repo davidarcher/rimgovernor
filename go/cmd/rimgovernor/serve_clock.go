@@ -88,10 +88,18 @@ func serviceClockConfig(profile string, speed k.Speed) buildingruntime.ClockSche
 
 // Session owns the attached worker's drain, including failed startup cleanup.
 // Starting these loops does not enable Player or acquire native authority.
-func startServiceClock(ctx context.Context, player *buildingruntime.Player, session *buildingruntime.Session, reads serviceClockReads, journal *store.Store, profile string, clockSpeed string, timeout time.Duration, routine, sleeping, cooking, shelter, comfort, expansion, power, temperature bool, projectLimit int, supplies, work, acquisition, defense, tend, rescue, equip, secureSupplies, repair, clean, gear, medical, foodStorageUpkeep, animalContainment, recovery, husbandry, homeCoverage, caravanJourneyTracking bool, researchTarget string, resourceTargets map[policy.Resource]int64, allowSlaughter bool, herdPopulationMax map[policy.Resource]int64, animalFeedPlans bool, productionPolicyPlans bool, productionReserves map[policy.Resource]int64, productionStopped []policy.Resource, fieldOptions ...bool) error {
-	// fieldOptions carries the field/bill/foodStorage/prisonerInteraction/
-	// populationCustody/stoneShell/haul/waste/mood/naming flags, in that fixed
-	// order, appended by the caller.
+func startServiceClock(ctx context.Context, player *buildingruntime.Player, session *buildingruntime.Session, reads serviceClockReads, journal *store.Store, sc serveConfig, timeout time.Duration) error {
+	profile, clockSpeed, routine, projectLimit := sc.profile, sc.clockSpeed, sc.routineReviews, sc.routineProjectLimit
+	sleeping, cooking, shelter, comfort, expansion, power, temperature := sc.routineSleepingPlans, sc.routineCookingPlans, sc.routineShelterPlans, sc.routineComfortPlans, sc.routineExpansionPlans, sc.routinePowerPlans, sc.routineTemperaturePlans
+	supplies, work, acquisition, defense, tend, rescue, equip := sc.routineSupplyPlans, sc.routineWorkPlans, sc.routineAcquisitionPlans, sc.routineDefensePlans, sc.routineTendPlans, sc.routineRescuePlans, sc.routineEquipPlans
+	secureSupplies, repair, clean, gear, medical, foodStorageUpkeep := sc.routineSecureSuppliesPlans, sc.routineRepairPlans, sc.routineCleanPlans, sc.routineGearPlans, sc.routineMedicalPlans, sc.routineFoodStorageUpkeepPlans
+	animalContainment, recovery, husbandry, homeCoverage := sc.routineAnimalContainmentPlans, sc.routineRecoveryPlans, sc.routineHusbandryPlans, sc.routineHomeCoveragePlans
+	caravanJourneyTracking, researchTarget, resourceTargets := sc.caravanJourneyTracking, sc.routineResearchTarget, sc.routineResourceTargets.Map()
+	allowSlaughter, herdPopulationMax := sc.routineAllowSlaughter, sc.routineHerdPopulationMax.Map()
+	animalFeedPlans, productionPolicyPlans, productionReserves, productionStopped := sc.routineAnimalFeedPlans, sc.routineProductionPolicyPlans, sc.routineResourceReserves.Map(), sc.routineStoppedResources.Slice()
+	fields, bills, foodStorage := sc.routineFieldPlans, sc.routineBillPlans, sc.routineFoodStoragePlans
+	prisonerInteraction, populationCustody, stoneShell := sc.routinePrisonerInteractionPlans, sc.routinePopulationCustodyPlans, sc.routineStoneShellPlans
+	haul, waste, moodRelief, naming := sc.routineHaulPlans, sc.routineWastePlans, sc.routineMoodPlans, sc.routineNamingPlans
 	config := serviceClockConfig(profile, parseClockSpeed(clockSpeed))
 	config.RoutineMethods = session.RoutineMethodsEnabled()
 	if caravanJourneyTracking {
@@ -104,19 +112,6 @@ func startServiceClock(ctx context.Context, player *buildingruntime.Player, sess
 			return err
 		}
 		config.CaravanJourney = tracker
-	}
-	fields := len(fieldOptions) >= 1 && fieldOptions[0]
-	bills := len(fieldOptions) >= 2 && fieldOptions[1]
-	foodStorage := len(fieldOptions) >= 3 && fieldOptions[2]
-	prisonerInteraction := len(fieldOptions) >= 4 && fieldOptions[3]
-	populationCustody := len(fieldOptions) >= 5 && fieldOptions[4]
-	stoneShell := len(fieldOptions) >= 6 && fieldOptions[5]
-	haul := len(fieldOptions) >= 7 && fieldOptions[6]
-	waste := len(fieldOptions) >= 8 && fieldOptions[7]
-	moodRelief := len(fieldOptions) >= 9 && fieldOptions[8]
-	naming := len(fieldOptions) == 10 && fieldOptions[9]
-	if len(fieldOptions) > 10 {
-		return errors.New("invalid field option")
 	}
 	if (bills || fields || foodStorage || acquisition || work || supplies || sleeping || cooking || shelter || comfort || expansion || power || temperature || defense || tend || rescue || equip || secureSupplies || repair || clean || haul || waste || moodRelief || gear || medical || foodStorageUpkeep || animalContainment || recovery || husbandry || prisonerInteraction || populationCustody || homeCoverage || stoneShell || naming || researchTarget != "" || len(resourceTargets) > 0 || animalFeedPlans || productionPolicyPlans) && !routine {
 		return errors.New("building plans require routine reviews")

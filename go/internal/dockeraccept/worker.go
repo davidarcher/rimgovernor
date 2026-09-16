@@ -63,7 +63,6 @@ type WorkerConfig struct {
 	Root           string // host output dir; becomes /worker (read-write)
 	Name           string // unique container name
 	GameID         string
-	ClockControl   bool
 	StartupTimeout time.Duration
 	// Source is the host-absolute repository root containing
 	// scripts/build_native_mod.ps1 and integrations/rimgovernor-native, used
@@ -264,7 +263,6 @@ func StartWorker(ctx context.Context, cfg WorkerConfig) (*Worker, error) {
 		cfg.Image, "serve",
 	)
 	args = append(args,
-		"--player-control",
 		"--profile", "/worker/profile",
 		"--gabs", "/inputs/gabs/gabs",
 		"--config", "/worker/config",
@@ -275,9 +273,6 @@ func StartWorker(ctx context.Context, cfg WorkerConfig) (*Worker, error) {
 		"--flight-recorder", "/worker/flight.jsonl",
 		"--timeout", "60s",
 	)
-	if cfg.ClockControl {
-		args = append(args, "--clock-control")
-	}
 	cmd := exec.CommandContext(ctx, cfg.Docker, args...)
 	if out, err := cmd.CombinedOutput(); err != nil {
 		return nil, fmt.Errorf("docker run: %w: %s", err, out)

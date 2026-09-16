@@ -814,6 +814,10 @@ func DetectRoutine(f RoutineFacts, previous RoutineLatches, p RoutinePolicy) (Ro
 		for _, assessment := range r.Assessments {
 			recognized[assessment.ID] = true
 		}
+		// Disaster recovery is only assessed once a disaster history exists,
+		// but its method capability is declared at composition time, before
+		// any facts are read; it must validate against empty facts too.
+		recognized[RecoverDisasterServices] = true
 		if len(methods) > 32 {
 			return RoutineNeeds{}, errors.New("too many routine method capabilities")
 		}
