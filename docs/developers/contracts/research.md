@@ -46,13 +46,9 @@ methods blocked on research resume only after fresh definition availability. A n
 selection receipt, a completed prerequisite, or a zero-length queue with an unresolved
 capability cannot certify the requested unlock.
 
-The Python regression suite and `research_acceptance.py` scenario this section once
-described (native pawn research from zero points in a private Docker worker with a
-prepared ordinary research bench, verifying guarded Hands selection, actual
-completion and the newly available building definition) were removed with the
-rest of the Python acceptance toolchain in
-[G01.13](https://github.com/davidarcher/rimgovernor/issues/33); equivalent Go
-coverage is tracked in
+Research acceptance (native pawn research from zero points with a prepared
+ordinary research bench, verifying guarded Hands selection, actual completion
+and the newly available building definition) is Go native acceptance tracked in
 [issue #38](https://github.com/davidarcher/rimgovernor/issues/38). Laboratory
 construction, advanced facility installation, all research projects and sustained
 colony development remain separately uncertified either way.

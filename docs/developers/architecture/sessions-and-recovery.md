@@ -19,10 +19,8 @@ uncertain actions retain their recovery requirements. A checkpoint is a restart
 boundary; it does not record every simulation step or guarantee identical future
 pawn behavior. Attached sessions have a separate unchanged-game reconnect contract.
 
-See [save and resume](../../players/save-and-resume.md),
-checkpoint acceptance (the Python harness was removed in G01.13; see
-[issue #38](https://github.com/davidarcher/rimgovernor/issues/38)) and
-[session migration](../legacy-migration.md).
+See [save and resume](../../players/save-and-resume.md); checkpoint acceptance
+is tracked in [issue #38](https://github.com/davidarcher/rimgovernor/issues/38).
 
 ## Archives and cleanup
 

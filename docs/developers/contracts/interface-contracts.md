@@ -110,8 +110,8 @@ viewer leases; headless sessions cannot supply video.
 
 ## Frame-bound transport
 
-Watch uses same-origin `/api/video/frames` WebSocket delivery when the `video` Python
-extra and native `home/video_stream` are present. The connection requires the
+Watch uses same-origin `/api/video/frames` WebSocket delivery when native
+`home/video_stream` is present. The connection requires the
 `rimgovernor-view-v1` subprotocol and current session identity. Up to four viewers share one
 native framebuffer. NVIDIA NVENC supplies independent H.264 frames to WebCodecs-capable
 browsers; unavailable hardware or decoding falls back to JPEG. Each packet carries its

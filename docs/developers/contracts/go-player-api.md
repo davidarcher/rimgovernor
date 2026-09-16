@@ -6,7 +6,7 @@ This is the fixed interface for G01.07a.2f.2–3. Service availability and nativ
 acceptance remain tracked in
 [G01.08](https://github.com/davidarcher/rimgovernor/issues/29). The gated player
 service uses one Player, session, writer and current-control coordinator for all
-action families. Production launchers remain on Python until the runtime switch.
+action families.
 
 ## Routes and intent
 
@@ -98,11 +98,7 @@ toggle. The UI has no general undraft, claim-adoption or native-token input.
 
 ## Native draft acceptance
 
-The Python `scripts/native_go_draft_acceptance.py`/`container_scenario.py`
-scenario this section once described (`GuardedConstructionFixture` draft
-claim/release evidence for ordinary completion, player override, transport-error
-recovery, HTTP response-body loss followed by lookup, and disabled
-same-database restarts) was removed with the rest of the Python acceptance
-toolchain in [G01.13](https://github.com/davidarcher/rimgovernor/issues/33);
-equivalent Go coverage is tracked in
+Draft claim/release evidence (ordinary completion, player override,
+transport-error recovery, HTTP response-body loss followed by lookup, and
+disabled same-database restarts) is Go native acceptance tracked in
 [issue #38](https://github.com/davidarcher/rimgovernor/issues/38).

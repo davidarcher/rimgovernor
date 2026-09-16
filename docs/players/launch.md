@@ -29,10 +29,7 @@ session (or pick a different `-Port`) before starting a new one.
 ## Natural-language chat is not currently available
 
 The Go dashboard shows colony state and structured building/routine/player controls
-(no free-text message box); it does not call a local model. The Python controller
-that previously served interactive chat was removed in G01.13
-([issue #33](https://github.com/davidarcher/rimgovernor/issues/33)); there is
-currently no local-model chat path in either runtime. See
+(no free-text message box); it does not call a local model. See
 [issue #46](https://github.com/davidarcher/rimgovernor/issues/46) for the
 status of rebuilding it in Go.
 

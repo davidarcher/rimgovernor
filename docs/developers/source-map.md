@@ -4,8 +4,7 @@
 
 The runtime is Go (`go/`), the dashboard is React (`dashboard/`), and native
 operations pass through GABS/RimBridgeServer and the colony bridge companion
-(`integrations/rimgovernor-native`). There is no Python runtime in the
-repository as of [G01.13](https://github.com/davidarcher/rimgovernor/issues/33).
+(`integrations/rimgovernor-native`).
 
 ```mermaid
 flowchart LR
@@ -32,7 +31,7 @@ flowchart LR
 | Native boundary | [go/internal/bridge](../../go/internal/bridge) talks to GABS over MCP; [go/internal/observation](../../go/internal/observation) decodes native reads into typed facts. |
 | Interpreter | [go/internal/interpreter](../../go/internal/interpreter) decodes chat-shaped commands into typed proposals; not yet wired into `serve`'s HTTP server (see [issue #46](https://github.com/davidarcher/rimgovernor/issues/46)). |
 | HTTP API | [go/internal/httpapi](../../go/internal/httpapi) serves dashboard state, player command endpoints, checkpoints, media and diagnostics, and the built dashboard assets. |
-| Native acceptance | [go/internal/nativeaccept](../../go/internal/nativeaccept) holds Go harnesses (`cmd/*`) verified against a real headless RimWorld instance; the broader Python acceptance toolchain was removed in G01.13 and is being rebuilt in Go ([issue #38](https://github.com/davidarcher/rimgovernor/issues/38)). |
+| Native acceptance | [go/internal/nativeaccept](../../go/internal/nativeaccept) holds Go harnesses (`cmd/*`) verified against a real headless RimWorld instance; coverage gaps are tracked in [issue #38](https://github.com/davidarcher/rimgovernor/issues/38). |
 | Game integration | [integrations/rimgovernor-native/src/Bridge](../../integrations/rimgovernor-native/src/Bridge) supplies colony/status, pawn, item, building, room, zone, cell, research and world reads; construction, installation, settings, bills, orders, trade and dialog actions; clock supervision and rendering demand. The separate identity assembly persists colony identity in saves. RimBridgeServer supplies general game/UI tools. |
 | Dashboard | [dashboard/src](../../dashboard/src) is the React/TypeScript UI; it detects the Go backend (`GET /api/health`) and renders structured observation/player controls. |
 

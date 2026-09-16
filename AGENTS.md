@@ -58,9 +58,8 @@
   and the [backlog issues](https://github.com/davidarcher/rimgovernor/issues).
   Read the component guide and contracts for the subsystem being changed.
   Runtime: Go (`go/`), React (`dashboard/`), GABS/RimBridgeServer and
-  `integrations/rimgovernor-native`. New native acceptance tooling is Go, not
-  Python — see [issue #38](https://github.com/davidarcher/rimgovernor/issues/38)
-  for the state of rebuilding it.
+  `integrations/rimgovernor-native`. Native acceptance tooling is Go; see
+  [issue #38](https://github.com/davidarcher/rimgovernor/issues/38) for coverage gaps.
 - Keep one shared goal/action system and deterministic Hands. Routine control is
   deterministic; player chat interprets explicit semantic requests. Advisers cannot
   write game orders or own colony invariants.
@@ -100,12 +99,9 @@
 - Native behavior changes need targeted game-level acceptance before completion.
   Documentation-only edits need no game session. The full affected suite means
   the applicable automated suite, not the entire gameplay scenario matrix.
-- The broader Python Docker/scenario acceptance toolchain (`controller_tests/`,
-  `scripts/*_acceptance.py`, the `worker`/`controller-tests` Docker targets) was
-  removed in G01.13 ([issue #33](https://github.com/davidarcher/rimgovernor/issues/33))
-  and is being rebuilt in Go; see
-  [issue #38](https://github.com/davidarcher/rimgovernor/issues/38) for current
-  coverage and gaps before assuming a check described in old history still exists.
+- Checks named in old commits or issues may no longer exist; trust
+  `go/internal/nativeaccept/cmd/` and
+  [issue #38](https://github.com/davidarcher/rimgovernor/issues/38) over history.
 
 ## Documentation and comments
 

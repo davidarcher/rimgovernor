@@ -27,10 +27,8 @@ controls, saving and troubleshooting. Broader survival coverage remains tracked 
 Use the [developer guide](docs/developers/README.md) to find the architecture,
 source and checks for your change. Go runs the production controller
 (`launch.cmd`/`launch-go.ps1`); React/TypeScript runs the dashboard, and C#
-supplies native game tools through GABS/RimBridgeServer. There is no Python
-runtime anywhere in the repository as of
-[G01.13](https://github.com/davidarcher/rimgovernor/issues/33). See
-[the Go module guide](go/README.md) for the current capability boundary.
+supplies native game tools through GABS/RimBridgeServer. See
+[the Go module guide](go/README.md) for building, running and testing it.
 
 You can run checks without installing the game from `go/`:
 

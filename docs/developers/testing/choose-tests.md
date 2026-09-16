@@ -50,11 +50,8 @@ Use an isolated task worktree when peers may be active. A worktree does not inhe
 the main checkout's build artifacts; run `go test`/`go build` and `pnpm install`
 there for local checks.
 
-The Python controller, `controller_tests/` and the Docker `controller-tests`/
-`tests`/`worker` targets referenced by older commits and issues were removed in
-G01.13 ([issue #33](https://github.com/davidarcher/rimgovernor/issues/33)). Native
-acceptance tooling is Go-only going forward; see
-[issue #38](https://github.com/davidarcher/rimgovernor/issues/38) for the current
-migration slice, and `go/internal/nativeaccept/cmd/` for the actual current set of
+Native acceptance tooling is Go-only; see
+[issue #38](https://github.com/davidarcher/rimgovernor/issues/38) for coverage
+gaps, and `go/internal/nativeaccept/cmd/` for the actual current set of
 harnesses (issue #38's own description can lag newly landed families — trust the
 directory listing over the issue body when they disagree).

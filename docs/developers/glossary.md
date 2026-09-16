@@ -17,9 +17,9 @@
 | Native receipt | A tool response describing an order or operation; not automatically proof of subsequent pawn labor. |
 | Postcondition | The observed state required to consider a tracked action complete. |
 | Uncertain write | An operation whose native effect is not confirmed; observation is required before considering further action. |
-| Clock lease | Renewable permission for supervised simulation, enforced by native code independently of the next Python review. |
+| Clock lease | Renewable permission for supervised simulation, enforced by native code independently of the next controller review. |
 | Paired checkpoint | A native save, controller database backup and hash manifest kept together as a resume boundary. |
-| Fixture | A declared test input or scenario setup. A native-shaped Python fixture is not a live game observation. |
+| Fixture | A declared test input or scenario setup. A native-shaped JSON fixture is not a live game observation. |
 | GABS | The process used to discover and call the installed game bridge tools. |
 | RimBridgeServer | The native bridge providing general game and UI tools; the colony companion extends its capabilities. |
 | Outpost | The dashboard's display name; repository and package names remain RimGovernor. |

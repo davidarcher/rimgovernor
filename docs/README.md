@@ -17,16 +17,14 @@ its contracts and run the relevant checks.
 - [Architecture](developers/architecture/overview.md) and [source map](developers/source-map.md)
 - [Development workflow](developers/development-process.md)
 - [Subsystem contracts](developers/contracts/README.md) and
-  [migration coverage](../contracts/README.md)
+  [wire contracts](../contracts/README.md)
 - [Generated wire contracts](../contracts/schema-generation.md)
-- [Go controller development](../go/README.md), including its testing pyramid
-  (the Python Docker/scenario acceptance docs were removed in G01.13; native
-  acceptance tooling is being rebuilt in Go — see
-  [issue #38](https://github.com/davidarcher/rimgovernor/issues/38))
+- [Go controller development](../go/README.md), including its testing pyramid;
+  native acceptance tooling is tracked in
+  [issue #38](https://github.com/davidarcher/rimgovernor/issues/38)
 - [Backlog issues](https://github.com/davidarcher/rimgovernor/issues): unfinished
-  features, migrations and acceptance, labeled by priority (`priority:P0`/`P1`/`P2`)
-  or rewrite area (`area:G01`/`N01`/`tooling`)
-- [Go migration review](developers/go-migration-review.md): source-based capability assessment and evidence limits
+  features and acceptance, labeled by priority (`priority:P0`/`P1`/`P2`)
+  or area (`area:G01`/`N01`/`simplify`/`tooling`)
 
 Keep docs close to the reader's task. Explain current behavior, give the commands
 or contracts they need, and link to detail. Put unfinished work in the backlog

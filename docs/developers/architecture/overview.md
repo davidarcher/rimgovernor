@@ -20,16 +20,16 @@ flowchart LR
 
 | Component | Owns |
 | --- | --- |
-| Python controller | Observations, goals, resource accounting, execution, recovery and local API. |
+| Go controller | Observations, goals, resource accounting, execution, recovery and local API. |
 | React dashboard | Player direction and views of controller state; drafts and last good data survive refreshes. |
 | GABS / RimBridgeServer | Tool discovery and calls into the game. |
 | Native colony bridge | Colony-specific observations, guarded operations and saved identity. |
 | RimWorld | Simulation, legal placement and ordinary pawn work. |
 
-The Go controller and unified native mod are gated migrations; see the
-[G01](https://github.com/davidarcher/rimgovernor/issues?q=is%3Aissue+is%3Aopen+label%3A%22area%3AG01%22)
+Open [G01](https://github.com/davidarcher/rimgovernor/issues?q=is%3Aissue+is%3Aopen+label%3A%22area%3AG01%22)
 and [N01](https://github.com/davidarcher/rimgovernor/issues?q=is%3Aissue+is%3Aopen+label%3A%22area%3AN01%22)
-issues before changing runtime ownership.
+issues track remaining controller and native mod work; check them before changing
+runtime ownership.
 
 ## Execution rules
 

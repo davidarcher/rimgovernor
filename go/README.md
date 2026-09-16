@@ -1,13 +1,12 @@
 # Go controller development
 
-The module provides local observation and explicit player services, version/help
-and offline replay.
-`launch.cmd`/`launch-go.ps1` and the `go-controller` Docker target (below) start
-this binary directly; there is no Python interpreter, venv or `controller/`
-package anywhere in the repository as of G01.13
-([issue #33](https://github.com/davidarcher/rimgovernor/issues/33)). Go starts
-with fresh state; importing historical Python databases and matching historical
-save formats are not rewrite gates.
+`go/` is the RimGovernor runtime: it observes the colony through
+GABS/RimBridgeServer, runs deterministic routine policy, executes admitted work
+through Hands, and serves the dashboard and player API. `launch.cmd` /
+`launch-go.ps1` and the Docker `go-controller` target start this binary
+directly. Start from the [source map](../docs/developers/source-map.md) and
+[architecture overview](../docs/developers/architecture/overview.md); this page
+covers building, running and testing the module.
 
 Use Go **1.27.1** from `.go-version`. From this directory:
 
@@ -19,573 +18,123 @@ go vet ./...
 go build -o ../.rimgovernor/go/rimgovernor.exe ./cmd/rimgovernor
 ```
 
-The shared Protobuf checks compile generated C# with .NET SDK 8.0.424 and locked
-NuGet packages; binary/ProtoJSON exchanges run on .NET Framework and Linux Mono.
-Linux Go race checks use CGO/GCC. Windows
-race checks are not claimed without a compatible C compiler.
+Linux Go race checks use CGO/GCC; Windows race checks are not claimed without a
+compatible C compiler. Module dependencies and checksums are pinned in
+`go.mod`/`go.sum`; see the [source notices](../THIRD_PARTY.md).
 
-[Canonical schemas and generation](../contracts/schema-generation.md) use official
-Protobuf tools. The generated Go wire module and its proof module have separate
-checks documented in [the Go generation guide](../tools/protobuf/go/README.md).
-Generated parsing preserves transport presence; domain validation enforces bounds,
-scope and authority. Native adapters and observed game effects need separate tests.
+Wire contracts are generated from the [canonical Protobuf schemas](../contracts/schema-generation.md)
+with official Protobuf tools; the generated Go wire module and its proof module
+have separate checks in [the Go generation guide](../tools/protobuf/go/README.md).
+Generated parsing preserves transport presence; domain validation enforces
+bounds, scope and authority. Native adapters and observed game effects need
+separate tests.
 
-Module dependencies and checksums are pinned in `go.mod`/`go.sum`; see the
-[source notices](../THIRD_PARTY.md). The MCP and pure-Go SQLite adapters are
-exercised with real SDK sessions and temporary databases as their slices land.
-Media dependencies are selected with their actual presentation consumers.
-
-## Go launch and packaging, the production default (G01.11, G01.12)
-
-`go/cmd/rimgovernor`'s `serve` command is a real standalone binary: it needs no
-Python interpreter, venv or `controller/` package, and `launch.cmd` now starts
-it by default. It covers building, owned draft/melee execution, the routine
-planner families wired in `serve_clock.go`, lifecycle save/load, presentation
-and media (camera, pawn images, notifications, video streaming), and the ~30
-typed player submission endpoints under `internal/httpapi/player.go` (research,
-tend, rescue, caravan departure/hold/route, husbandry, recovery service, bed
-assignment, movement, building temperature, surgery, quest accept/fulfill,
-settlement gift, trade, zone create/edit, build/adopt room, cancel/relocate
-construction and more). The dashboard detects the Go backend
-(`GET /api/health` reports `backend: "go"`) and serves a dedicated observation
-and structured-control UI (`ObservationDashboard`/`PlayerControls`) instead of
-the Python controller's free-text chat UI. Natural-language player chat is
-wired end to end for six command families — `POST /api/chats/plans` decodes a
-free-text message, gathers a bounded fact snapshot from the live native
-bridge, runs it through `internal/interpreter` against a local
-OpenAI-compatible model (LM Studio or similar), and dispatches the resulting
-single-action proposal to the same submission stores the structured
-build/research/tend/rescue/draft/husbandry endpoints use. It is opt-in behind
-`serve --chat --chat-model <name>` (requires `--player-control`; see
-`--chat-base-url`, `--chat-context-tokens`, `--chat-max-output-tokens`) and
-returns 501 when not enabled. Every other command family `interpreter/decode.go`
-understands is still not wired into chat's dispatch — see **Remaining scope**
-below — and the dashboard has no chat UI yet (issue #46). See
-[the migration review](../docs/developers/go-migration-review.md) for exact
-remaining boundaries. Caravan departure and travel, quest accept/fulfill,
-settlement gifting and trade all have native acceptance harnesses verified
-against a real headless RimWorld instance (G01.07f;
-[issue #28](https://github.com/davidarcher/rimgovernor/issues/28)).
+## Running
 
 **Windows**, from the repository root:
 
 ```powershell
 .\launch.cmd                    # production default: player control, browser opens
 .\launch-go.ps1 -ReadOnly       # observation-only dashboard, no writes
-.\launch-go.ps1 ...              # add --routine-*-plans/--routine-methods flags for routine execution
 ```
 
-`serve --player-control --clock-control --routine-reviews --routine-methods`
-composes every implemented and tested routine planner family (G01.10) instead
-of requiring an operator to enumerate the ~30 individual
-`--routine-*-plans`/`--routine-methods` flags: naming zero of those flags turns
-all of them on. Naming even one opts back out to exactly the named families,
-for targeted/debug runs. `GET /api/routines` reports which families a running
-process composed, whether reviews/methods execution are enabled, and the
-durable review cursor's last reviewed tick — a runtime-queryable view of the
-capability table below. Startup reconciliation (durable holds and goal
-admission on process start) is generation/goal-keyed rather than per-flag, so
-it already covers whatever set of families a given invocation composes.
+`launch.cmd` builds the binary if missing, builds the dashboard's static assets
+(`dashboard/dist`, with `pnpm`) and requires prepared GABS/config/profile inputs
+([setup](../docs/players/setup.md)). GABS is a native executable dependency of
+the controller.
 
-**Known defect:** targeted G01.12 acceptance of `--clock-control
---routine-reviews` found the native clock can fail to ever start
-(`clock_start` never issued despite an outstanding work plan and acquired
-control) — see [issue #45](https://github.com/davidarcher/rimgovernor/issues/45).
-`--player-control` alone (this launcher's default, no `--clock-control`) is
-unaffected. Related: [issue #42](https://github.com/davidarcher/rimgovernor/issues/42)
-covers the clock restarting in short, thrashing bursts once running.
+`rimgovernor serve` composes the runtime from flags; `serve -h` is the
+authoritative list. The important ones:
 
-It builds the binary if missing, builds the dashboard's static assets
-(`dashboard/dist`, built with `pnpm`, no Python) and requires prepared
-GABS/config/profile inputs (`docs/players/setup.md`) — GABS is a native
-executable dependency of the controller itself, not a Python one.
+| Flag | Effect |
+| --- | --- |
+| `--gabs`, `--config`, `--game`, `--state`, `--profile` | Absolute GABS, config and state paths, the configured game ID and the shared game profile. |
+| `--assets`, `--listen` | Built dashboard directory; loopback listen address (default `127.0.0.1:0`, prints the URL). |
+| `--read-only` | Observation only; starts in Manual and cannot issue orders. |
+| `--player-control` | Building, owned draft/melee execution, lifecycle save/load, presentation/media and the typed player submission endpoints under `internal/httpapi/player.go`. |
+| `--clock-control` | Attach the clock worker: event polling, epoch renewal and bounded supervised play windows (normal speed, 600-tick windows, 30-second lease). |
+| `--routine-reviews`, `--routine-methods` | Run durable routine reviews and let routine methods execute. |
+| `--routine-*-plans` | Per-family routine planners. Naming none of them turns all of them on; naming any opts back out to exactly the named families. `GET /api/routines` reports what a running process composed. |
+| `--chat --chat-model <name>` | `POST /api/chats/plans`: interpret a free-text player message through a local OpenAI-compatible model (LM Studio; `--chat-base-url`, `--chat-context-tokens`, `--chat-max-output-tokens`). Requires `--player-control`; 501 when off. |
+| `--flight-recorder <path>` | Record every native request/response/error (see [Native request diagnostics](#native-request-diagnostics)). |
+| `--resource-rule`, `--routine-resource-*`, `--world-evaluation*`, `--caravan-journey-tracking` | Resource reservation rules, resource production targets, world evaluation and caravan tracking. |
 
-**Docker**: `containers/Dockerfile`'s `go-controller` target builds the Go
-binary and packages the same dashboard assets, with no Python runtime or
-`pip install` step:
+`serve --player-control --clock-control --routine-reviews --routine-methods` is
+the full autonomous composition. Startup reconciliation (durable holds and goal
+admission on process start) is generation/goal-keyed rather than per-flag.
+Collapsing this flag matrix is [issue #58](https://github.com/davidarcher/rimgovernor/issues/58).
+
+**Known defects:** with `--clock-control --routine-reviews` the native clock
+can fail to ever start ([issue #45](https://github.com/davidarcher/rimgovernor/issues/45))
+or restart in short thrashing bursts ([issue #42](https://github.com/davidarcher/rimgovernor/issues/42)).
+`--player-control` alone (the launcher default) is unaffected.
+
+**Docker**: `containers/Dockerfile`'s `go-controller` target builds the binary
+and packages the dashboard assets:
 
 ```powershell
 docker build -f containers/Dockerfile --target go-controller -t rimgovernor-go:local .
-docker run --rm rimgovernor-go:local version   # confirms the image without game files
-docker run --rm rimgovernor-go:local help
+docker run --rm rimgovernor-go:local version
 ```
 
-`containers/go-controller.compose.yaml` runs a real `serve --read-only`
-session with bind-mounted GABS/config/state inputs, following the
-`containers/compose.yaml` worker's bind-mount conventions. Because `--listen`
-only accepts a loopback address, it uses `network_mode: host` instead of
-bridge port publishing (the compose file's comments explain why and its
-Windows/macOS Docker Desktop caveat).
+`containers/go-controller.compose.yaml` runs a real `serve --read-only` session
+with bind-mounted GABS/config/state inputs using `network_mode: host`, because
+`--listen` only accepts a loopback address (the compose file's comments cover
+the Docker Desktop caveat).
 
 **No licensed game files here**: without a real GABS build and prepared save,
 `serve` fails at the native bridge handshake (`bridge transport failure:
-initialize: ...`). That failure, `go build ./...`, `go vet ./...`,
-`go test ./cmd/...` and an image build/`docker run` reaching that same clean
-failure are compilation/protocol/wiring checks, not gameplay evidence — they
-confirm the packaging path is wired correctly, not that a colony runs.
+initialize: ...`). That failure, `go build`, `go vet`, `go test ./cmd/...` and
+an image build reaching the same clean failure are compilation/protocol/wiring
+checks, not gameplay evidence.
 
-**Remaining scope**, tracked separately from this item:
-- Natural-language player chat and local-model command interpretation
-  (G01.08, chat HTTP wiring closed by [issue #46](https://github.com/davidarcher/rimgovernor/issues/46)):
-  `POST /api/chats/plans` (behind `serve --chat --chat-model <name>`) covers
-  build (single building per message — `interpreter`'s exact
-  ActionID-count check means a chat message can only place one building),
-  research selection, tend, rescue, draft and husbandry. `interpreter/decode.go`
-  additionally decodes move_pawn (two ActionIDs, out of scope for chat's
-  single-action budget), caravan departure/hold/route, recovery service, bed
-  assignment, movement, building temperature, surgery, quest accept/fulfill,
-  settlement gift, zone creation, zone edit (add/remove cells, delete;
-  crop/filter edits are deferred pending SettingsField zone evidence
-  coverage), population policy, expedition policy, per-pawn population
-  decision, per-resource production policy
-  (`modify_resource_policy`/`set_resource_reserve`), maintained goal
-  activation/cancellation (`create_goal`/`cancel_goal`), room shells
-  (`build_room`), room adoption (`adopt_room`), construction cancellation
-  (`cancel_construction`), construction relocation
-  (`relocate_construction`) and read-only world evaluation
-  (`evaluate_world`) proposals, none of which chat dispatches yet. The
-  dashboard also has no chat UI yet — the structured `ObservationDashboard`/
-  `PlayerControls` panels are the only player-facing UI Go serves today.
-  `set_population_policy` is the first interpreted command that is colony
-  configuration rather than a plan of native actions: it issues no native
-  call, so it carries no `domain.Action`, no bridge boundary and no
-  executor state machine. `interpreter.Proposal` returns the typed
-  `domain.PopulationPolicy` with an empty plan, and
-  `store.SubmitPopulationPolicy` keeps request-ID replay safety plus one
-  current value per colony/load/map, outside the plan/action tables —
-  `POST /api/player/population-policy/replace`,
-  `GET /api/player/population-policy?colonyId=&loadToken=&mapId=` and
-  `GET /api/player/population-policy/submission?requestId=`.
-  `set_expedition_policy` follows the same configuration-only path, with one
-  difference: it is a **partial patch**, mirroring Python's
-  `model_dump(exclude_unset=True)` merge. A request names only the limits it
-  changes; `store.SubmitExpeditionPolicy` merges it over the limits in force
-  (or over `domain.DefaultExpeditionPolicy` for a world that has never had
-  one), validates the merged whole including the
-  `minimumDestinationTemperature <= maximumDestinationTemperature` check, and
-  stores both the patch and the policy it produced so a replay reports what
-  that request did without re-merging it onto a newer current value.
-  `interpreter.Proposal.ExpeditionPolicy` therefore carries a
-  `domain.ExpeditionPolicyPatch`, not a whole policy —
-  `POST /api/player/expedition-policy/update` (named `/update`, not
-  `/replace`, precisely because unnamed limits are preserved),
-  `GET /api/player/expedition-policy?colonyId=&loadToken=&mapId=` and
-  `GET /api/player/expedition-policy/submission?requestId=`.
-  `domain.ExpeditionPolicy` is the writable player-facing whole and is
-  deliberately **not** unified with `policy.CaravanDeparturePolicy` or
-  `policy.WorldEvaluationPolicy`, which stay hardcoded read-only subsets
-  consumed by internal admission/evaluation functions; making those read
-  this store is a separate refactor.
-  `set_population_decision` is the third record-only command and the first
-  that names an observed entity: one player-sourced direction per pawn
-  (`rescue`, `capture`, `recruit` or `ignore`), Python's per-pawn
-  `ColonyGoal(source='PLAYER', …)` keyed by `population.goal_id(pawn)`. The
-  pawn is bounded against `Snapshot.Pawns` like draft/tend/rescue;
-  `store.SubmitPopulationDecision` keeps request-ID replay safety plus one
-  current directive per colony/load/map/pawn, and requires an established
-  population policy for the three custody decisions (reporting `ErrNotFound`
-  otherwise) while `ignore` never does, matching the Python handler —
-  `POST /api/player/population-decision/replace`,
-  `GET /api/player/population-decision?colonyId=&loadToken=&mapId=` and
-  `GET /api/player/population-decision/submission?requestId=`.
-  It carries no `domain.Action` on purpose: rescue and capture already have
-  one-shot player commands (`rescue`) and their own autopilot upkeep
-  (`policy.CustodyDeficit`/`SelectCustodyMethod` dispatched by
-  `buildingruntime.RoutinePopulationCustodyPlanner`), and recruitment has
-  `RoutinePrisonerInteractionPlanner`. Teaching that autopilot custody
-  selection to prefer or suppress individuals named here is a separate,
-  behaviour-changing slice.
-  `modify_resource_policy` and `set_resource_reserve` are the first player
-  commands that are *both* persistent configuration *and* a real native
-  dispatch. They share one handler, one persistent per-resource policy and one
-  `SetProductionPolicy` write, exactly as Python's shared
-  `isinstance(request,(ModifyResourcePolicy,SetResourceReserve))` branch does.
-  Each command patches one half of one resource — spending preserving the
-  reserve, reserve preserving the spending — so
-  `interpreter.Proposal.ResourcePolicy` carries a
-  `domain.ResourcePolicyPatch`, not a whole policy, for the same reason
-  `set_expedition_policy` does: the interpreter does not hold the other
-  resources' established values. `store.SubmitResourcePolicy` merges the patch
-  over the resource's directive in force (or `{reserve 0, spending normal}`),
-  folds the world's **whole** set into one `domain.ProductionPolicy`
-  (`ResourceProductionPolicy`: strictly positive reserves become floors,
-  any non-`normal` spending becomes a stopped def — `production_budgets`
-  verbatim) and commits a one-action plan through `createPlan` directly. That
-  is deliberately the `CreateZone` shape, not a new pipeline: the entire
-  autopilot production-policy stack (`domain.ProductionPolicyAction`,
-  `bridge/production_policy*.go`, `executor/production_policy*.go`,
-  `store.PrepareProductionPolicy`) is reused **unchanged**, and the
-  autopilot-goal-bound `CommitGoalMethod` admission
-  `RoutineProductionPolicyPlanner` commits through is bypassed rather than
-  widened. The `Commitments`/`Drills` rows another system owns are still read
-  fresh and resent verbatim at dispatch, so a player patch can never clobber
-  them. `resource` is bounded against `Snapshot.ResourceDefinitions`, the Go
-  form of the Python handler's observed `known` set —
-  `POST /api/player/resource-policy/update`,
-  `GET /api/player/resource-policy?colonyId=&loadToken=&mapId=` and
-  `GET /api/player/resource-policy/submission?requestId=`. Python's second
-  source of floors (outstanding construction-bundle costs from
-  `plan.control['costs']`, sent as `commitments`) stays unported, the same
-  disclosed narrowing `policy.ProductionFloors` already carries.
-  `create_goal` and `cancel_goal` add no goal machinery at all; they make the
-  machinery that already exists reachable from a player path. Every kind
-  Python's `CreateGoal` whitelists is already an autopilot-managed goal with
-  fixed `policy.GoalID` constants and deterministic deficit assessment
-  (`policy.DetectRoutine`), and `domain.Goal` already carried a `PlayerGoal`
-  source. So activation is exactly: create (or reuse) a player-sourced
-  `domain.Goal` for that kind and review it at `NeedDeficit` — explicit player
-  direction *is* the deficit assertion, overriding what the autopilot's own
-  review currently observes. `store.SubmitGoalCreate` keeps request-ID replay
-  safety plus one goal identity per colony/load/map/kind. Reusing a live goal
-  lets `domain.ReviewGoal`'s own epoch rule do what Python's
-  `reopen_methods`/`attempts` does; a cancelled or invalidated goal is never
-  resurrected (cancellation is terminal in `ReviewGoal`), so the binding moves
-  to a fresh identity and the superseded goal keeps its history. Nothing about
-  the autopilot's lifecycle is widened: `admitRoutineDevelopment` already
-  exempted non-autopilot goals from the development arbitration gate,
-  `routineCommitments` already counted `PlayerGoal` open work against the
-  autopilot's concurrent-project capacity, and `retireRoutineGoals` only ever
-  retires invalidated autopilot goals. `cancel_goal` calls the unchanged
-  `store.CancelGoal` body through `CancelPlayerGoal`, which adds a world bound
-  and the same local CAS revision — method cancellation and progress-journal
-  cancellation are untouched. Python's fuzzy `resolve_goal_id` is deliberately
-  **not** ported: the identity is bounded against `Snapshot.ObservedGoals`
-  exactly as `edit_zone` bounds its `zoneId`, so a prefix or a kind name is
-  refused rather than guessed —
-  `POST /api/player/goals/activate`, `POST /api/player/goals/cancel`,
-  `GET /api/player/goals?colonyId=&loadToken=&mapId=` and
-  `GET /api/player/goals/submission?requestId=`.
-  **Deferred, deliberately:** Python's per-goal `target` configuration —
-  `EnsureFoodSupply`'s `food_days`, `MaintainResource`'s
-  `resource`/`quantity`/`deep_extraction` and `MaintainWaste`'s
-  `unwanted`/`bury`. `domain.Goal` has no free-form target dict, and the Go
-  equivalents of these values (`policy.RoutinePolicy`'s
-  `FoodTargetDays`/`FoodMinDays` and `ResourceTargets`) are process-level
-  operator CLI flags captured once when `NewRoutineReviewer` is constructed,
-  not per-world stored state; `MaintainWaste` has no Go target at all, because
-  native authority owns waste eligibility (`policy.WasteItem.Eligible`).
-  Making any of them player-settable means converting `RoutinePolicy` from
-  immutable process config into per-world stored config the routine review
-  re-reads each pass — a change to the autopilot's own configuration model
-  larger than this command, and one autopilot does not consume from the store
-  today. `MaintainWaste` also still has no composed dispatch method (G01.07e);
-  activating it makes the goal visible and player-sourced, not dispatchable.
-  Both gaps are separately tracked.
-  `build_room` is the first player command that is construction-shaped. It adds
-  no native plumbing: the placement dispatch, preview, receipt verification and
-  executor state machine the autopilot's own shelter routine uses
-  (`bridge.PreviewBuilding`/`placement.go`, `domain.BuildingAction`,
-  `buildingruntime.RoutineBuildingPlanner`) already do everything a room needs.
-  What was missing in Go was the geometry: Python's `spatial.room_placements`
-  expands a `RoomShell` rectangle into the perimeter-wall-plus-one-door
-  placement list, and nothing here had ported it (the routine shelter planner
-  generates its own fixed starter perimeter inline, always a south door, always
-  `Wall`/`Door` in `WoodLog`). `domain.RoomShell` now carries that port —
-  `Door()` is `spatial.room_entrance`'s side midpoint and `Placements()` is
-  `room_placements`, door first, then the remaining perimeter in Python's
-  `RoomBounds.cells()` order, walls facing north, interior cells deliberately
-  absent (a shell, not a floor). Unlike the Python contract it holds one
-  material rather than a preference list, because `domain.Building` resolves
-  exactly one stuff and later entries could never be dispatched. Submission
-  follows `SubmitZoneCreate`'s shape — player-command-driven, bypassing the
-  autopilot-goal-bound `admitZoneMethod`-family gates, committing its own plan
-  immediately — with one difference: that plan holds *many* actions, one
-  ordinary `BuildingAction` per perimeter cell (252 at the 64×64 maximum, within
-  the 256-action bound). That is also why `interpreter.Proposal` carries
-  `BuildRoom`/`BuildRoomIntent` instead of a `Plan`: `Config.MaxActions` is at
-  most 16 and even a 7×7 room expands to 24 placements, so the shell travels and
-  is expanded once at submission. Wall/door definitions and material are bounded
-  against `Snapshot.Definitions` exactly as a `build` placement's, and every
-  expanded cell against `Snapshot.Cells` exactly as a `create_zone` footprint's —
-  `POST /api/build-rooms/plans` and
-  `GET /api/build-rooms/submission?requestId=`.
-  `store.LookupBuildRoomIntent` resolves a world-scoped `intent_id` back to its
-  committed plan and placements, the Go stand-in for Python's
-  `plan.control['player_intents']` mapping.
-  `cancel_construction` withdraws one such construction and is the first player
-  command that is *un*-construction-shaped. Unlike `build_room` it does add new
-  native plumbing, because nothing in Go had ever issued the
-  `operations.proto` `CancelConstruction` operation (as with `EditZone`, the
-  proto existed with zero Go callers; unlike `CreateZone`/`BuildRoom`, which
-  reused placement plumbing): `domain.ConstructionCancel` and a new
-  `ConstructionCancelAction`, `bridge/construction_cancel.go`,
-  `store/constructioncancel` with its typed admission, and
-  `executor/construction_cancel.go`. The problem it solves is that a pending
-  construction order has **no stable native identity** — a blueprint's thing ID
-  changes when it becomes a frame and vanishes when it is built, and
-  `ProgressView.Construction` is only populated for *completed* buildings — so
-  the action carries the placement's stable `(defName, cell, stuff)` triple and
-  the executor resolves it to a live thing ID plus CAS token at inspection, via
-  `home/list_buildings` over a 1×1 region filtered to `blueprint`/`frame`.
-  That is Python's `construction_cancellation.capture_targets` query, ambiguity
-  refusal included. Cancellation covers the **whole named intent**, matching
-  Python's one-`intent_id`-per-call semantics (there is no per-placement
-  granularity on either side); `store.LookupBuildRoomIntent` above is the hook,
-  and per placement the store decides what is still cancellable: never
-  dispatched or refused means nothing was placed, completed/cancelled/
-  unsuccessful is preserved untouched, and a dispatch whose receipt is missing
-  or unknown refuses the whole request ("uncertain receipt; reconcile it before
-  cancellation"). If *every* placement has already resolved that is a success,
-  not an error: the submission commits with `observedAbsent` true and no plan
-  at all, Python's `'observed_absent': True` result. That outcome is why this
-  family keeps its own `cancel_construction_submissions` table with nullable
-  `plan_id`/`action_id` rather than the shared `submissions` header, which
-  requires exactly one committed action per request. The executor mirrors
-  `zone_edit.go`'s two-phase shape (inspect twice, typed-prepare, dispatch,
-  verify the order is absent or `CONSTRUCTION_STAGE_CANCELLED`) with one extra
-  terminating branch: a target already gone at inspection cancels the action
-  outright instead of dispatching against a stale identity, so a replacement
-  placed since is never destroyed. In the interpreter the intent is bounded
-  against `Snapshot.ObservedConstructionIntents` exactly as `cancel_goal` bounds
-  its goal; Python's `validate_player_authorization`/`requests_relocation`
-  chat-message scanning is deliberately **not** ported, being specific to that
-  conversational flow —
-  `POST /api/cancel-constructions/plans` and
-  `GET /api/cancel-constructions/submission?requestId=`.
-  `adopt_room` claims an **already-built** native room — walls, door and roof
-  already complete, whether the autopilot built it, an earlier `build_room` did,
-  or the player did by hand — as satisfying `EnsureInitialShelter`. It is the
-  only command in this family that issues no native call *and* opens no work:
-  Python's own reply is "Existing construction preserved; no new construction
-  issued", and the Go reply repeats it verbatim. It reuses the `RoomBounds`,
-  `Rotation` entrance and `ValidateRoomIntent` vocabulary `build_room`
-  introduced; `domain.RoomAdoption` adds only what adoption needs, which is
-  Python `AdoptRoom`'s `geometry` validator ported whole, nonrectangular support
-  included: `interior_cells`/`entrance_cell` are supplied together or not at
-  all, every cell lies strictly inside the inspected bounds with no duplicate,
-  the entrance cell is outside the interior with the cell beyond it also outside
-  (a boundary facing out, not an interior aisle), and the interior is one
-  connected region — `connectedCells` is the port of `shell_site.connected_cells`.
-  The rectangular form derives the same side-midpoint door `RoomShell.Door`
-  places, so adopting a room this controller built names that room's own door.
+## Player API and chat
 
-  **Goal completion with evidence** is the design question this slice answers.
-  `domain.Goal` has no evidence or target field — the same constraint the
-  `create_goal` slice documented for its own per-goal configuration — so
-  Python's `goal.evidence['adoption']` (native room id, cell count, native role)
-  has nowhere to live on the goal. Rather than widen a type the whole autopilot
-  goal lifecycle validates, the evidence is stored beside the goal in the
-  adoption's own table, the config-only shape `set_population_policy` and
-  `modify_resource_policy` already use. The goal itself is completed through the
-  **unchanged** lifecycle: `Goal.Validate` refuses `GoalSatisfied` unless
-  `Need == NeedRecovered` and `RecoveryObserved`, and `domain.ReviewGoal` reaches
-  exactly that from a fresh goal in one call — reviewing at `NeedRecovered` with
-  no open work sets both together. So adoption is `NewGoal` then one
-  `ReviewGoal(…, NeedRecovered, false, false)`, the player's explicit inspection
-  standing as the recovery observation exactly as `create_goal` treats their
-  direction as the deficit assertion. No invariant is weakened and no new status
-  is invented. A shelter goal with **open work** is refused rather than completed
-  ("cancel it before adopting a finished room"): a room still being built is not
-  a room the player can have inspected as finished. `player_goals` is now the one
-  per-world, per-kind binding shared by both commands (it carries a `command`
-  column and no foreign key, since `request_id` may name either request table),
-  so adoption completes the same goal `create_goal` would have activated instead
-  of leaving a second, contradictory player goal. `adopted_shelters` is Python's
-  `plan.control['preferred_shelter']`; its
-  `suppressed_goals['EnsureInitialShelter']` clear has no counterpart, this
-  controller having no goal-suppression map. Python's "existing construction
-  history must remain intact" refusal is ported against
-  `build_room_submissions`, which is where an intent's construction history
-  lives here —
-  `POST /api/player/adopt-room/claim`,
-  `GET /api/player/adopt-room?colonyId=&loadToken=&mapId=` and
-  `GET /api/player/adopt-room/submission?requestId=`.
+The dashboard detects the Go backend (`GET /api/health` reports
+`backend: "go"`) and renders `ObservationDashboard`/`PlayerControls`. The
+structured player endpoints are listed in
+[the player API contract](../docs/developers/contracts/go-player-api.md) and
+[player actions](../docs/developers/contracts/player-actions.md). Chat dispatches
+build (one building per message), research selection, tend, rescue, draft and
+husbandry; `interpreter/decode.go` decodes further families that chat does not
+dispatch yet, and the dashboard has no chat UI
+([issue #46](https://github.com/davidarcher/rimgovernor/issues/46)).
+Re-scoping the interpreter to guidance is
+[issue #56](https://github.com/davidarcher/rimgovernor/issues/56) and shrinking
+the per-command player surface is
+[issue #54](https://github.com/davidarcher/rimgovernor/issues/54).
 
-  **Deferred in `adopt_room`, deliberately:** Python's submission-time
-  re-observation (`room_adoption.verified_room`/`verify_entrance`) is **not**
-  ported, for two independent reasons. First, there is no seam for it: a
-  `buildingruntime.Player` holds a journal and a `WorldSource` (colony/load/map
-  identity only), never a bridge client, so *every* player command in this
-  family takes already-observed geometry on the player's word — `build_room`
-  says so explicitly — and giving this one command native reads would widen the
-  whole player surface. Second, the pawn-route half cannot be built at all yet:
-  `home/spatial_access` exists natively only as the legacy tool
-  (`integrations/rimgovernor-native/src/Bridge/SpatialAccessTool.cs`), and
-  although `observations.proto` declares `ReadSpatialAccess`, no typed
-  `rimgovernor/observations_read_spatial_access` tool is registered, so a Go
-  bridge adapter for it would call nothing. The roof/enclosure and doorway
-  checks *are* portable against existing typed reads
-  (`rimgovernor/observations_list_rooms` with `include_boundary`/
-  `include_outdoors` gives `RoomState.proper_room`, `open_roof_count`,
-  `psychologically_outdoors` and `doorway`; note the typed contract has no
-  `doorDef`, so the `doorway` flag plus a completed non-blueprint/non-frame
-  building at the cell is the typed equivalent of Python's def-name match), but
-  wiring them with no caller would be dead code. What the store *does* enforce
-  is that the player's own evidence is self-consistent: the reported native cell
-  count must equal the interior they described. Re-verification belongs with a
-  reviewer that already holds a bridge client — the port of Python's
-  `validate_adoption`, which re-runs `verify_entrance` on each review — and is
-  tracked separately.
+Three player commands are configuration rather than plans of native actions and
+live outside the plan/action tables, each with request-ID replay safety and one
+current value per colony/load/map: population policy (`/api/player/population-policy/*`,
+whole replace), expedition policy (`/api/player/expedition-policy/update`, a
+partial patch merged over the limits in force, validated as a whole) and per-pawn
+population decisions (`/api/player/population-decision/*`; custody decisions
+require an established population policy, `ignore` never does). Resource policy
+(`/api/player/resource-policy/*`) is both persistent configuration and a native
+`SetProductionPolicy` dispatch. Player goals (`/api/player/goals/*`) activate or
+cancel autopilot-managed maintained goals by exact goal ID.
 
-  `relocate_construction` moves an already-named construction somewhere else,
-  and is the first command here that is two of the others at once: it names an
-  existing intent the way `cancel_construction` does *and* carries a whole shell
-  the way `build_room` does, and bounds both halves accordingly (the intent
-  against `Snapshot.ObservedConstructionIntents`, the replacement's definitions,
-  material and every expanded cell against `Snapshot.Definitions`/`Cells`). The
-  design question it answers is **ordering across two commands**, and the answer
-  is `domain.ActionDependency`, the generic action-ordering primitive
-  `domain.NewPlan` has always accepted and nothing had used across a command
-  boundary: it is plan-local, so the withdrawal of the old orders and the
-  placement of the new ones travel in **one** committed plan rather than two,
-  with `PlanSpec.CheckDependencies`/`ErrDependency` holding every replacement
-  placement out of admission until the withdrawals have completed in the current
-  world. That is Python's `PlanStep.after=[{'step':removal_id,'when':'complete'}]`
-  with the same coarse granularity: the withdrawals run in a chain and every
-  placement requires the last of them, mirroring Python's monolithic
-  removal-then-replacement rather than pairing cells — pairing each new cell to
-  each old one is 63504 edges at the 64×64 maximum, against domain's 4096 bound,
-  where the chain is at most 503.
+Multi-instance colony directory serving (`--colonies`) does not exist in Go
+([issue #47](https://github.com/davidarcher/rimgovernor/issues/47)).
 
-  There are two paths, Python's own split. On the **fast path** nothing of the
-  original was ever dispatched, so there is no native order to withdraw and the
-  plan holds the replacement's placements alone (`fastPath` on the wire); Python
-  re-invokes `BuildRoom` under the same `intent_id` there, and this is the same
-  thing without the re-entrancy. On the **combined path** something was issued,
-  and then *every* issued placement must still be cleanly withdrawable — a
-  completed or independently removed one refuses the whole relocation rather
-  than moving half a room, Python's "completed or missing construction is
-  preserved", reusing `cancellableTargets` unchanged from the cancellation
-  slice. Both paths additionally cancel the source's **never-dispatched**
-  placements in this controller's own journal, which is the one respect in
-  which relocation is more than cancel-plus-build: `cancel_construction` leaves
-  them alone because withdrawing native orders is all it promises, but a
-  relocation that left them live would go on to build the old room beside the
-  new one.
+## Testing pyramid
 
-  **Intent supersession is append-only.** `build_room_submissions` is never
-  rewritten — that row is what `request_id` replay resolves to, and rewriting it
-  would break BuildRoom's own guarantee — so each relocation instead records the
-  plan it supersedes in `relocate_construction_submissions`, unique per
-  `(world, intent, source_plan)`, and `store.LookupConstructionIntent` walks that
-  chain forwards to the current head. `SubmitCancelConstruction` now resolves
-  through it rather than calling `LookupBuildRoomIntent` directly, so cancelling
-  a relocated intent withdraws where the construction stands, not where it was
-  first ordered; with no relocation on record the head *is* the build-room
-  submission, so nothing changes for an intent that was never moved —
-  `POST /api/relocate-constructions/plans` and
-  `GET /api/relocate-constructions/submission?requestId=`.
+- Many fast unit tests: `go test ./...` (no game needed). Native reply fixtures
+  under `contracts/fixtures` and captured payloads replayed through
+  `RIMGOVERNOR_NATIVE_*_CAPTURE` environment variables (see the component
+  sections below) establish parsing and durable review, not native outcomes.
+- Fewer integration tests inside packages (`clock_worker_integration_test.go`
+  and similar) against in-memory MCP sessions and temporary SQLite databases.
+- A small set of native acceptance harnesses under `internal/nativeaccept/cmd/*`
+  verified against a real headless RimWorld instance; see
+  [choose-tests.md](../docs/developers/testing/choose-tests.md) for when to run
+  them and [issue #38](https://github.com/davidarcher/rimgovernor/issues/38)
+  for coverage gaps. `internal/buildingruntime/cmd/{buildingsmoke,billsmoke,haulsmoke}`
+  are single-family native smoke hosts.
 
-  **Simplified, deliberately:** Python's replacement is a `RoomShell | Buildings`
-  union and its handler refuses a replacement of a different kind than the
-  original ("Relocation must preserve the construction kind"). Here the
-  replacement is a room shell and nothing else, because `build_room` is the only
-  player command in this family that issues construction, so the kind can never
-  differ and the check is a tautology the Go decode already enforces at its field
-  type. `PlaceBuildings`, Python's raw-placement-list sibling, is not in this
-  issue's tracked backlog and is not built here; if it ever lands, the kind check
-  comes back with it. Python's "dependent work references this construction"
-  refusal *is* ported (`dependentOnSource`) but is currently **vacuous**:
-  `ActionDependency` is plan-local, `build_room` commits its plan with no
-  dependencies at all, and a relocation's own edges point at its withdrawals
-  rather than at its placements, so nothing can hold such an edge today. It is
-  kept because it is two loops over data already in hand and it is what makes
-  adding a dependent command later safe by default. Python's
-  `validate_player_authorization`/chat-revision re-check is not ported, for the
-  same reason the cancellation slice did not port it.
-- Media/camera/portrait/video/recording and save/load are closed and wired
-  into `serve`'s HTTP server — G01.09/G01.10 (`internal/httpapi/presentation.go`,
-  `presentation_media.go`, `video_stream.go`, `lifecycle.go`).
-- World progression remaining scope: closed, except the documented
-  `SetTradeLines`/`AcceptTrade`/`EndTrade` acceptance-harness gap below —
-  G01.07f ([issue #28](https://github.com/davidarcher/rimgovernor/issues/28)).
-  `evaluate_expedition` (`controller/rimgovernor/expedition_policy.py`) is
-  now ported: `WorldRoute` (`contracts/proto/observations.proto`) and
-  `RoutePreparation` (`contracts/proto/operations.proto`) carry destination
-  temperature, hostility, goodwill and faction id, populated in
-  `NativeCaravanCatalog.RouteFacts`/`NativeCaravanOperations.Preview`
-  (`integrations/rimgovernor-native/src/Bridge/Protocol`) and enforced by
-  `policy.EvaluateCaravanDeparture` (`go/internal/policy/caravan_departure_admit.go`)
-  as `CaravanDestinationTemperatureOutOfRange`, `CaravanDestinationHostile`
-  and `CaravanDestinationGoodwillInsufficient` refusals — this vertical only
-  ever represents a 'form' action, so these always take Python's
-  non-'return' (blocking) branch. `route.get('foodRotDays')` is threaded
-  through as `CaravanDepartureFacts.RouteFoodRotDays` but, matching Python,
-  stays a non-blocking, informational-only signal: it never produces a
-  refusal here.
-  Caravan departure/travel, quest accept/fulfill, settlement gift and trade
-  themselves are closed, each with domain/policy/store/executor/bridge and
-  httpapi wiring. Trade's `set_lines`/`accept`/`end` sub-operations resolve
-  their open session by one of two durable bindings, never a native read
-  (`executor.resolveTradeDependency`): the plan's own same-plan
-  `ActionDependency`, or failing that a cross-plan
-  `trade_session_references` row bound to the dependent action's own
-  identity at submission time (`go/internal/store/trade_session_reference.go`).
-  Either way resolution ends in the same never-plan-scoped
-  `LookupTradeSession` (`go/internal/store/trade_session.go`), so an Open
-  that has not been observed complete still holds on
-  `TradeSessionUnresolved` rather than guessing a session.
-  Through the direct single-action submission surface
-  (`POST /api/trades/plans`, mirroring `SubmitQuestFulfill`'s shape) only
-  `trade_open` resolves end to end, since a lone `set_lines`/`accept`/`end`
-  carries neither binding. The whole four-phase negotiation instead runs as
-  the player `trade_economy` command (`POST /api/trade-economies/plans`,
-  looked up at `/api/trade-economies/submission`): it ports Python's
-  `select_trade`/`economic_reserves` (`policy/trade_select.go`) over a
-  complete paginated sheet read (`bridge.ReadTradeSheet`) and drives
-  open → set_lines → accept/end as separate one-action plans stitched by
-  the cross-plan binding above (`store/trade_negotiation.go`,
-  `buildingruntime/trade_economy.go`). It is an optional httpapi surface
-  like `WorldEvaluation`, answering 404 when not enabled.
-  Caravan departure and travel, quest accept, settlement gift and
-  trade open now all have native acceptance harnesses
-  (`nativeaccept/cmd/caravandepartureaccept`,
-  `nativeaccept/cmd/caravancontrolaccept`, `nativeaccept/cmd/questacceptaccept`,
-  `nativeaccept/cmd/settlementgiftaccept`, `nativeaccept/cmd/tradeaccept`),
-  each verified end to end against a real headless RimWorld instance:
-  native admission, CAS-token refusal (stale/corrupted identity, and for
-  trade an owner-conflict re-open while a session is still live), preview
-  non-mutation, replay idempotency and durable receipt lookup. Per the
-  direct-submission limitation above, `tradeaccept` exercises OpenTrade
-  alone; `SetTradeLines`/`AcceptTrade`/`EndTrade` still have no acceptance
-  harness, since a raw wire harness cannot honestly submit them as a
-  standalone action without fabricating one of the two session bindings
-  they require — that remains a documented gap, not a closed vertical. The
-  read-only `evaluate_world` advisory (caravan recovery, quest resource
-  deficits/carried cargo) is also in Go, served at
-  `GET /api/player/world-evaluation` behind `--world-evaluation`
-  (`buildingruntime.WorldEvaluation`, `policy.EvaluateWorld`), and is now
-  reachable through the player-command path as well: `evaluate_world` is a
-  decodable interpreter command that sets `interpreter.Proposal.EvaluateWorld`
-  and carries nothing else. That flag is the emptiest proposal in the family —
-  no plan, no configuration, no named entity — because Python's `EvaluateWorld`
-  contract is a bare kind discriminator with no parameters. The evaluation
-  itself is deliberately not recomputed there: the interpreter holds no native
-  surface and no expedition policy, so a consumer that sees the flag answers
-  the player from the same `buildingruntime.WorldEvaluation.Read` the GET route
-  already calls. The GET route therefore stays, and is not redundant — it is
-  the single place the advisory is computed, and the only one with a native
-  surface to compute it from. There is no `/submission` counterpart for the
-  same reason there is no `Acknowledge`: the command writes nothing, so there
-  is no state to make consistent under a CAS token.
-- Most routine workflows beyond construction: cooking/butcher bill execution,
-  care/tend/rescue/defense dispatch beyond compiled plans, and other
-  non-building executable actions — G01.05/G01.07a–c/e (many `--routine-*-plans`
-  flags compile shared plans today without an executable action family yet).
-  Equipment wear/replace, gear/medical production, research selection and
-  resource-target production dispatch through Go are closed (G01.07d).
-- Native scenario/acceptance tooling: G01.13
-  ([issue #33](https://github.com/davidarcher/rimgovernor/issues/33)) removed
-  the Python production runtime, `controller_tests/` and the Python
-  scenario/acceptance scripts entirely, along with the Docker
-  `controller-tests`/`tests`/`worker` build targets that ran them. Native
-  acceptance tooling is being rebuilt in Go — see
-  [issue #38](https://github.com/davidarcher/rimgovernor/issues/38). Until
-  then, only the `nativeaccept/cmd/*` Go harnesses listed above exercise a
-  real headless RimWorld instance.
-- Natural-language player chat: the Python server that used to serve
-  `POST /api/chat` was removed in G01.13 and was not ported. Go instead serves
-  chat natively at `POST /api/chats/plans` (opt-in via `serve --chat
-  --chat-model <name>`), covering build (single building), research
-  selection, tend, rescue, draft and husbandry — see **Remaining scope**
-  above for the command families chat does not dispatch yet
-  ([issue #46](https://github.com/davidarcher/rimgovernor/issues/46)). The Go
-  dashboard still exposes only structured player controls
-  (`ObservationDashboard`/`PlayerControls`); it has no free-text chat UI.
-- `--colonies` multi-instance directory serving was Python-only and was
-  removed, unported, in G01.13; see
-  [issue #47](https://github.com/davidarcher/rimgovernor/issues/47) tracking
-  a possible Go implementation.
+Receipts do not prove pawn work completed; every harness asserts a native
+postcondition.
 
 ## Routine policy components
 
@@ -597,7 +146,7 @@ need. A tracked patient who disappears, dies, or has incomplete health remains
 unresolved until fresh living health proves recovery. Patient identities persist
 through restart, Manual and direction changes; world replacement or a tick rewind
 resets them. The care need does not issue
-medical orders or authorize surgery; execution remains tracked in G01.07a.
+medical orders or authorize surgery.
 
 Medical reserves use a separate maintained need with one medicine per colonist as
 its entry threshold and three as its recovery target. Native usable resource counts
@@ -605,7 +154,7 @@ are capped against observed unexpired, allowed medicine stacks. Unknown reads
 preserve the reserve latch; Manual preserves it, while world replacement or tick
 rewind resets it. `RoutineMedicalPlanner` (behind `--routine-medical-plans`)
 proposes a `ProductionBillAction` through the shared GearProduce bench/recipe
-census, closing replenishment execution (G01.07d).
+census.
 
 Startup supply reviews retain the first known native forbidden-supply census.
 Fresh reads can shrink that cohort, but later player forbids cannot expand or
@@ -618,8 +167,7 @@ handler under the existing player direction; both switches default off. Each
 write requires fresh CAS, preview, emergency and authority checks. Durable item
 claims prevent re-admission after cancellation or later player forbidding. Lost
 replies are observed without retry; receipts alone do not complete the action,
-and missing items remain unknown. Allow requires no game tick window. Native
-gameplay acceptance remains deferred to G01.12.
+and missing items remain unknown. Allow requires no game tick window.
 
 `--routine-work-plans` compiles changed work priorities in batches of at most eight
 pawns, using saved overrides and required project skills. It requires routine reviews;
@@ -638,7 +186,7 @@ settings must match on readback; an uncertain write is only observed. Player cro
 zone and sow/cut edits revoke authority. Completed fields can support a bounded
 healthy-colony growth window from their durable completion tick, only while fresh
 readback still matches. Field capacity and expected harvest never increase edible
-stock. Native harvest/storage acceptance remains in G01.12.
+stock.
 
 `--routine-acquisition-plans` compiles safe wild-plant food, bounded hunting and wood acquisition
 in batches of at most eight sources. It requires routine reviews; execution uses
@@ -655,7 +203,6 @@ Hunting follows plant food, allows at most two outstanding designations, and
 requires a native safe hunter route, an ordinary non-explosive ranged weapon and
 a usable butchering bill. Exact fresh corpses complete material acquisition;
 expected meat, pending hunts and fresh carcasses never become edible stock.
-Gameplay acceptance of this path remains in G01.12.
 
 `RankDevelopment` preserves accepted shared-action commitments while ranking new
 projects by deficit, player preference, native-tick age and selection hysteresis.
@@ -741,11 +288,11 @@ private inventory, shared animal demand and native rot deadlines. It consumes th
 earliest-expiring allocation first and reports usable and at-risk nutrition. Unknown
 ownership, eligibility, quantities or deadlines cannot certify runway. Native human
 food supply is projected through `DecodeFoodSupply`, including holder ownership and
-eligible eaters; paused native parity and Go/Python replay cover populated stock.
+eligible eaters; paused native parity and capture replay cover populated stock.
 The combined census includes animal competition and supplies routine `FoodDays`
 for the selected human consumers. Cross-section census and demand conflicts are
 rejected; incomplete quantities retain unknown runway. Native replay compares
-both forecasts with Python using `RIMGOVERNOR_NATIVE_FOOD_FORECAST` and
+both forecasts against the `RIMGOVERNOR_NATIVE_FOOD_FORECAST` and
 `RIMGOVERNOR_NATIVE_COMBINED_FOOD_FORECAST` reference files.
 
 `buildingruntime.RoutineReviewer.Step` serializes observation and durable review
@@ -830,7 +377,7 @@ records one bounded relief proposal and its measured need benefit, preserving an
 unknown future mood benefit. Active or unverified mental breaks hold new clock
 windows until observed clearance. Player-forced work, draft and medical availability
 remain guards; relief action execution is not enabled. The isolated `--mood-review
-food|forced|mental` variants compare native inputs with Python and durable Go needs.
+food|forced|mental` variants compare native inputs with durable Go needs.
 Replay with `RIMGOVERNOR_NATIVE_MOOD_CAPTURE=<capture-directory> go test
 ./internal/observation -run TestNativeRoutineMoodReplay`.
 
@@ -844,10 +391,8 @@ action dispatch remains unavailable. `Recovery` retains typed proposal inputs an
 at most eight candidates for existing roofed areas or ordinary service work. Player
 restrictions, availability and used shared methods constrain selection; native
 admission is still required. Manual clears these candidates. See the
-[contract](../docs/developers/contracts/disaster-planning.md); the Python
-acceptance commands this once linked to were removed in G01.13
-([issue #38](https://github.com/davidarcher/rimgovernor/issues/38) tracks
-their Go rebuild).
+[contract](../docs/developers/contracts/disaster-planning.md); native acceptance
+is tracked in [issue #38](https://github.com/davidarcher/rimgovernor/issues/38).
 
 `ReadRoutinePawns` adds the work-only detail selection to the same exact-ID read,
 plus schedule (`TimetableSlot`) detail: the whole routine census is shared across
@@ -861,12 +406,12 @@ Open selected player buildings and admitted shared projects supply the maximum
 native construction-skill requirement. Missing project definitions are read inside
 the same paused bracket without replacing default crop inputs. Unknown skills
 preserve unknown coverage; unresolved cancelled orders retain their requirements
-until native observation settles them. Other action families' requirements remain
-in G01.05. Player work preferences persist with the explicit player plan and feed
+until native observation settles them. Player work preferences persist with the
+explicit player plan and feed
 every review. Updates atomically invalidate the previous review and linked methods;
 the next review records the preference revision and rejects stale inputs. Missing
-native work types or capabilities preserve unknown work coverage. Native work captures and
-the Python reference replay with `RIMGOVERNOR_NATIVE_WORK_CAPTURE=<capture directory>`.
+native work types or capabilities preserve unknown work coverage. Native work
+captures replay with `RIMGOVERNOR_NATIVE_WORK_CAPTURE=<capture directory>`.
 The native routine scenario's `--work-project` option checks a HospitalBed project
 outside the default definition census; it verifies work review, not construction.
 
@@ -949,12 +494,10 @@ Hands worker execute reviewed building and starting-supply methods under the exi
 Each dispatch rechecks the journal binding, active known deficit, epoch, world and
 native generation. Pending player work takes priority; Manual stops routine writes
 without changing the selected player plan or acquiring another lease. Clock windows
-include eligible routine work after the player plan settles. Remaining fact projection,
-method selection and execution composition remain in G01.05.
-`scripts/native_go_routine_acceptance.py`, run through the documented container
-scenario launcher with the private construction fixture and verified Go binary,
-covers the live SDK read trace, durable goals, urgent and ongoing medical needs,
-unknown food forecast, Manual invalidation, joined shutdown and disabled restart.
+include eligible routine work after the player plan settles.
+Routine acceptance covers the live SDK read trace, durable goals, urgent and
+ongoing medical needs, unknown food forecast, Manual invalidation, joined
+shutdown and disabled restart.
 The paused gear read is compared against native upkeep for the exact pawn/loadout
 census, deficit flags, eligible candidate identities and gains, and replacement
 needs. `MaintainEquipment` remains visible as `method_unavailable` until its
@@ -970,7 +513,7 @@ legality. The variant also captures populated native fire, supply, repair and
 cleaning facts after Manual. Replay its `upkeep-replay.json` through the Go
 boundary and durable journal with `RIMBOT_NATIVE_UPKEEP_REPLAY=<absolute-path>`
 and `go test ./internal/observation -run TestNativeUpkeepReplay -count=1` from `go/`.
-The replay checks Python target ordering and metrics, all five direct upkeep needs,
+The replay checks target ordering and metrics, all five direct upkeep needs,
 and, when captured, medical reserve entry/recovery policy and its maintained need. It checks
 Manual invalidation and retained needs after reopening the database.
 Animal reference captures additionally check pen state, reachable feed, shared
@@ -1055,8 +598,7 @@ loopback IP addresses and numeric ports are accepted.
 The service exposes health/state/plan reads and retains last-good observations
 when refresh fails, marking them stale. It starts in Manual and cannot issue game
 orders. Interrupting the process cancels and joins polling before closing its SDK,
-database and asset handles. Native read acceptance is tracked separately in G01.03;
-this command does not switch the production launcher from Python.
+database and asset handles.
 
 The presentation read interface uses `GET /api/presentation/camera`,
 `/api/presentation/selection` and `/api/presentation/colonists`, without query
@@ -1079,8 +621,7 @@ old results. Native notification production still requires game-level acceptance
 ### Native request diagnostics
 
 `serve --flight-recorder <absolute-path>` opt-in-records every native
-request/response/error, including background reads, replacing
-`controller/rimgovernor/flight_recorder.py`. It is off by default; a service
+request/response/error, including background reads. It is off by default; a service
 started without the flag records nothing. Requests and errors are fsynced
 before the call returns; a response row is written unsynced and becomes
 durable only at the next durable record or segment rotation, so a crash can
@@ -1131,7 +672,7 @@ while held; the controller does not release their reservations or invent a retry
 `bridge.Client.ReadPawns` reads 1–256 exact pawn IDs, including dead pawns, with
 optional detail families disabled. It preserves native snapshot and draft-claim
 availability. Missing pawns or unsupported claims cannot establish ownership or
-release. Native draft service acceptance remains tracked in G01.07a.2f.4.
+release.
 
 The owned-draft domain retains cleanup responsibility independently of ordinary
 action completion. Native adapters provide temporary drafting, attempt reads and
@@ -1207,10 +748,9 @@ pawn construction. Unsuccessful outcomes remain distinct from unknown effects.
 `Executor.Stop` cancels work and joins native dispatch plus receipt persistence.
 A failed drain requires retaining the process lock, bridge and database until a
 later successful drain, verified by native acceptance covering ordinary pawn
-completion and disabled same-database restart through the HTTP service (the
-Python acceptance commands this once linked to were removed in G01.13;
-[issue #38](https://github.com/davidarcher/rimgovernor/issues/38) tracks their
-Go rebuild). Supervised Go clock control remains a separate G01.10 integration.
+completion and disabled same-database restart through the HTTP service
+([issue #38](https://github.com/davidarcher/rimgovernor/issues/38) tracks
+coverage gaps).
 
 The internal clock scheduler can perform one finite healthy-colony scheduling step
 through the shared session. Its durable window admission binds current review and

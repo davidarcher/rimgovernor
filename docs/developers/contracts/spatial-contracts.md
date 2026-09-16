@@ -25,7 +25,7 @@ construction. Exact three-cell native reads require walkable, passable, unfogged
 approaches immediately inside and outside the doorway. Hands refreshes these checks for
 every unissued shell placement, preserving existing receipts on refusal. These reads do
 not predict future blueprint obstruction or prove a route to colonists, and native input
-is not atomic with Python validation.
+is not atomic with controller validation.
 
 ## Bounded connectivity
 

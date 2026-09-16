@@ -1,18 +1,14 @@
 # Implemented native operation variants
 
-N01.00e source audit at `4d8edbc3`, covering the 55 production tools in
-[`domain-inventory.json`](domain-inventory.json)'s `native_surface.tools`.
-For each tool below, join by its exact name to that table and by
-`domain_item_id` to `items`; those rows own existing schema, fixture and scenario
-links. `native_surface.source_baseline.exports` retains signatures and advertised
-defaults. This page supplements those declarations with implementation branches;
-it does not duplicate Python call sites or establish actual SDK binder behavior.
+Source audit of the production native tools under
+`integrations/rimgovernor-native/src/Bridge`. This page records implementation
+branches, selectors, defaults and aliases; it does not establish actual SDK
+binder behavior.
 
 All rows are **source-audited, migration acceptance pending**. G01.02 owns the
 shared schemas. N01.02 owns the first typed boundary, N01.03 observation migration,
 N01.04 gameplay operations, and N01.05 clock/presentation operations, as specified
-below. Original native-surface owner assignments remain the inventory join point;
-these phase owners identify the subsequent implementation and acceptance work.
+below; these phase owners identify the subsequent implementation and acceptance work.
 
 Source links refer to the compiled implementation, including helpers embedded in
 `PawnConfigTool.cs` and `ZoneCellsTool.cs`. The identically named extracted helper

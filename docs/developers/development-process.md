@@ -52,14 +52,13 @@ Make cancellation, concurrency and resource cleanup explicit.
 | Go | Concrete structs, distinct IDs, explicit variants and small interfaces. Keep `map[string]any`, reflection dispatch and unchecked assertions out of domain logic. Test handler coverage. |
 | TypeScript | Keep `strict`; use discriminated unions and typed API models. Validate external `unknown` values. Avoid `any`, double casts and assertions that hide missing contracts. |
 | C# | Concrete DTOs and typed operations with explicit null/error handling compatible with `net472` and installed Unity/Mono. |
-| Python | Annotate changed interfaces; use validated models, dataclasses, enums and narrow protocols. Keep dictionary decoding at boundaries. Do not add new production Python subsystems during the Go migration. |
 
 Distinguish unknown from zero/false, absent from null, and refusal from an uncertain
 write. Use integer game ticks and distinct colony, map, load, action and direction
 identities. Validate bounds and variants at entry; unsupported mutations fail closed.
 Discover native definitions instead of hard-coding modded game facts.
 
-Version shared schemas and generate language models as migration gates land.
+Version shared schemas and generate language models from them.
 Generated types still need runtime decoding validation. Keep unavoidable typing
 escapes inside a documented adapter with a boundary test; no blanket suppressions.
 

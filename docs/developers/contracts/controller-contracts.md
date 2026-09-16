@@ -268,7 +268,7 @@ remain uncertain. Native evidence requires an enabled, ranged hunter with a
 Danger.None path avoiding predators by 25 cells and an ordinary prey death action.
 Supervised play pauses when an active hunt loses that route. Future prey movement
 and shooting positions remain uncertain; native external inputs are not atomic
-with the Python checks.
+with controller checks.
 
 ## Wild-plant acquisition
 

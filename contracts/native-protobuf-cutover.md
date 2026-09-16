@@ -37,8 +37,7 @@ one `payload` ProtoJSON string plus host operation metadata.
 Paths are under `integrations/rimgovernor-native/src/Bridge`. The shared
 `Protocol/ProtoBoundary.cs` validates original outer arguments and uses official
 Protobuf parsing/formatting. Generated compile inputs come from
-`contracts/generated/protobuf/csharp`; their fingerprints and project membership
-are included in `domain-inventory.json.native_surface.source_baseline`.
+`contracts/generated/protobuf/csharp`.
 
 `Operations/Preview` and `Operations/Execute` implement ordinary `PlaceBuilding`
 and temporary `SetDrafted` plus exact `MovePawn` and guarded `AttackTarget` under an existing owned draft;
@@ -64,9 +63,7 @@ The private `scripts/fixtures/GuardedConstructionFixture.cs` supplies
 `test/guarded_construction_prepare` and `test/guarded_construction_control` under
 the fixture compile condition. Both require exclusion from production discovery.
 
-`home/placement_previews` has been removed, with no alias. Its historical Python
-consumer row remains in the 97-entry domain inventory because that inventory
-records the porting baseline, not current installed discovery. `home/colony_identity`
+`home/placement_previews` has been removed, with no alias. `home/colony_identity`
 and `home/status` remain separately exported old surfaces pending their consumers'
 cutover; they are not aliases implemented by the new adapters. All other retained
 production exports keep their current source ownership entries.
@@ -170,32 +167,10 @@ remain separate acceptance work; compiled tests cover their attribution guards.
 The same package also passes native melee death and ownership recovery. Interrupted
 notification/health trials remain failure evidence alongside the successful runs.
 
-Current source inventory: 80 production exports, 56 fixture exports, 150 handwritten
-C# source files and nine generated Protobuf compile inputs. Source declarations do
-not establish gameplay acceptance. Actual installed discovery must match the private
-build and prove fixture exclusion; pending native acceptance remains explicit in
-each ownership row.
-
-Run the inventory checks:
-
-```powershell
-python scripts/check_native_inventory.py --check --self-test
-python scripts/check_domain_inventory.py --check
-python scripts/check_go_coverage.py
-```
-
-The checker rejects missing/new exports without ownership, the retired placement
-alias, mismatched canonical method/schema links, changed native signatures or
-fingerprints, and changed generated compile inputs. The runtime source index is
-navigation for handwritten native ownership, not a second generated schema.
-
-The Python acceptance scripts this section once described
-(`native_package_acceptance.py`, `container_scenario.py`,
-`native_protobuf_acceptance.py`, `native_compatibility_acceptance.py`) exercised
-identity, authority readback, placement and the saved-game/wire compatibility
-baseline through these fixed Protobuf capabilities. They were removed with the
-rest of the Python acceptance toolchain in
-[G01.13](https://github.com/davidarcher/rimgovernor/issues/33); equivalent Go
-coverage is tracked in
+Source declarations do not establish gameplay acceptance. Actual installed
+discovery must match the private build and prove fixture exclusion. Generated
+compile inputs are checked by `.github/workflows/protobuf.yml`; identity,
+authority readback, placement and wire acceptance through these fixed Protobuf
+capabilities is Go native acceptance tracked in
 [issue #38](https://github.com/davidarcher/rimgovernor/issues/38). No saved-game
-compatibility acceptance is required for this active-dev slice.
+compatibility acceptance is required.

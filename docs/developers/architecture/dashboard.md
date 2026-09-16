@@ -28,18 +28,13 @@ Help remains reachable even before the controller is detected — the
 pre-connect screen carries its own Help link and plain-language launch
 instructions, not just a spinner.
 
-The multi-instance local colony directory (`--colonies`, and the
-dashboard's own `/colonies` route into it) was Python-only and was removed
-with the rest of the Python runtime in
-[G01.13](https://github.com/davidarcher/rimgovernor/issues/33); see
-[issue #47](https://github.com/davidarcher/rimgovernor/issues/47) for the
-status of a possible Go implementation.
+There is no multi-instance local colony directory (`--colonies`) or `/colonies`
+route; see [issue #47](https://github.com/davidarcher/rimgovernor/issues/47).
 
 Colony currently shows what `GET /api/presentation/colonists` actually
 returns: colonist id, name, map and position. Full dossiers (worn gear,
-biography, skills, health, mood, job history) existed in the retired
-Python/BridgeColony dashboard but have no Go backend equivalent yet — this is
-a tracked gap, not a UI omission.
+biography, skills, health, mood, job history) have no backend read model yet —
+this is a tracked gap (issue #50), not a UI omission.
 
 ## Video and simulation are independent
 
@@ -51,8 +46,8 @@ issue a game-time command.
 Live video is a lease → render-demand → short-lived ticket → binary WebSocket
 sequence against the Go controller's own `internal/httpapi` video-stream
 routes (`/api/presentation/video-lease`, `/api/presentation/render-demand`,
-`/api/presentation/video-stream/ticket`, `/api/presentation/video-stream`) —
-not the old Python server's WebRTC/framebuffer path. Frames carry a strictly
+`/api/presentation/video-stream/ticket`, `/api/presentation/video-stream`).
+Frames carry a strictly
 increasing sequence number so the client can drop stale or duplicate frames.
 There is currently no still-image fallback for the main viewport when video
 is unsupported (`GameVideoGo.tsx` shows a status message instead); a
@@ -80,14 +75,11 @@ and transport details.
 
 ## Retired: chat, notebook, player-authored projects, autopilot settings, visual review, local colony directory
 
-The earlier Python/BridgeColony dashboard also had a chat-driven command
-surface, a colonist notebook/memories feature, a player-authored project
-list, savable autopilot settings, an automated visual-review reviewer (which
-examined the player viewport for concerns without taking control of the
-camera), and the local colony directory described above. None of these have
-a Go backend equivalent today (`POST /api/chat` currently returns `501`; the
-rest have no route at all), so the ported dashboard does not show them
-rather than fake the data. See issues
+A chat-driven command surface, a colonist notebook/memories feature, a
+player-authored project list, savable autopilot settings, an automated
+visual-review reviewer and the local colony directory described above have no
+backend today (`POST /api/chat` currently returns `501`; the rest have no route
+at all), so the dashboard does not show them rather than fake the data. See issues
 [#46](https://github.com/davidarcher/rimgovernor/issues/46),
 [#47](https://github.com/davidarcher/rimgovernor/issues/47),
 [#49](https://github.com/davidarcher/rimgovernor/issues/49), and
