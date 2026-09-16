@@ -224,17 +224,20 @@ type RoutineFacts struct {
 	// to dispatch containment/burial candidates from.
 	Waste domain.Fact[[]WasteItem]
 	// AvailableMethods is supplied by the configured runtime, never native facts.
-	AvailableMethods                                                           domain.Fact[[]GoalID]
-	Upkeep                                                                     UpkeepObservation
-	UpkeepIssued                                                               map[GoalID]bool
-	Gear                                                                       domain.Fact[GearObservation]
-	Comfort                                                                    domain.Fact[ComfortObservation]
-	ComfortRecovered                                                           domain.Fact[bool]
-	ComfortDeficit                                                             domain.Fact[float64]
-	StartingSupplyCells                                                        domain.Fact[[]domain.Cell]
-	MedicalPawns                                                               domain.Fact[[]CarePawn]
-	MedicalCareRecovered                                                       domain.Fact[bool]
-	Workers                                                                    domain.Fact[int]
+	AvailableMethods     domain.Fact[[]GoalID]
+	Upkeep               UpkeepObservation
+	UpkeepIssued         map[GoalID]bool
+	Gear                 domain.Fact[GearObservation]
+	Comfort              domain.Fact[ComfortObservation]
+	ComfortRecovered     domain.Fact[bool]
+	ComfortDeficit       domain.Fact[float64]
+	StartingSupplyCells  domain.Fact[[]domain.Cell]
+	MedicalPawns         domain.Fact[[]CarePawn]
+	MedicalCareRecovered domain.Fact[bool]
+	Workers              domain.Fact[int]
+	// Labor is the per-work-type census of the same pawns Workers counts
+	// (RoutineLabor); unknown labor leaves only the coarse worker bound.
+	Labor                                                                      domain.Fact[map[WorkType]int]
 	Colonists, HousingTarget, BedCapacity, IndoorCapacity, GrowingCells, Armed domain.Fact[int64]
 	FoodDays, PopulationFoodDays, FieldCoverage                                domain.Fact[float64]
 	SleepingMin, SleepingMax, OutdoorTemperature, PowerHeadroom                domain.Fact[float64]
@@ -246,10 +249,10 @@ type RoutineFacts struct {
 	// Research is the native research state read inside the same paused
 	// identity bracket as the other routine facts. Unknown when the source
 	// cannot read research; missing facts never recover EnsureResearch.
-	Research domain.Fact[ResearchFacts]
-	Hostiles, CriticalPatients                                                 domain.Fact[int64]
-	AllPatientsResting, ColonyNaming, CleanupPawns, ForbiddenSupplies          domain.Fact[bool]
-	FoodStorage, Cooking, WorkCoverage, PowerRequired, DisabledConsumers       domain.Fact[bool]
+	Research                                                             domain.Fact[ResearchFacts]
+	Hostiles, CriticalPatients                                           domain.Fact[int64]
+	AllPatientsResting, ColonyNaming, CleanupPawns, ForbiddenSupplies    domain.Fact[bool]
+	FoodStorage, Cooking, WorkCoverage, PowerRequired, DisabledConsumers domain.Fact[bool]
 }
 
 type FootholdGates struct {
@@ -456,7 +459,7 @@ func DetectRoutine(f RoutineFacts, previous RoutineLatches, p RoutinePolicy) (Ro
 	}
 	r := RoutineNeeds{Gates: g, Latches: l}
 	addGoal := func(id GoalID, priority int) {
-		r.Goals = append(r.Goals, DevelopmentGoal{ID: id, Source: AutopilotGoal, Priority: priority, Deficit: RoutineDevelopmentDeficit(id, f, p)})
+		r.Goals = append(r.Goals, DevelopmentGoal{ID: id, Source: AutopilotGoal, Priority: priority, Deficit: RoutineDevelopmentDeficit(id, f, p), Labor: GoalLabor(id)})
 	}
 	if positive(f.ColonyNaming) {
 		addGoal(ConfirmColonyNames, 0)

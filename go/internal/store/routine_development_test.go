@@ -227,3 +227,47 @@ func TestRoutineDevelopmentConfiguredTargetsAndExemptPush(t *testing.T) {
 		t.Fatal(out.Goals)
 	}
 }
+
+// A labor census persists with the ranking and reloads unchanged; a goal
+// whose only work type is occupied by a committed player project defers
+// with the bottleneck named rather than counting as capacity-deferred.
+func TestRoutineDevelopmentLaborPersistsAndDefers(t *testing.T) {
+	t.Parallel()
+	ctx := context.Background()
+	path := filepath.Join(t.TempDir(), "development-labor.db")
+	s := open(t, path)
+	r := routineRequest()
+	r.Policy.MaxDevelopmentProjects = 4
+	r.Policy.ResearchTarget = "Stonecutting"
+	r.Facts.Research = domain.Known(policy.ResearchFacts{Projects: []policy.ResearchProjectID{"Stonecutting"}})
+	r.Facts.Workers = domain.Known(4)
+	r.Facts.Labor = domain.Known(map[policy.WorkType]int{policy.WorkConstruction: 1, policy.WorkResearch: 1, policy.WorkPlantCutting: 1})
+	r.Facts.Colonists, r.Facts.IndoorCapacity, r.Facts.BedCapacity = domain.Known(int64(3)), domain.Known(int64(3)), domain.Known(int64(3))
+	first := reviewRoutine(t, s, &r)
+	if first.Review.Development.Labor[policy.WorkResearch] != 1 || developmentRow(t, first.Review, policy.EnsureResearch).Bottleneck != "" {
+		t.Fatal(first.Review.Development)
+	}
+	s.Close()
+	s = open(t, path)
+	defer s.Close()
+	loaded, err := s.LoadRoutineReview(ctx)
+	if err != nil || !reflect.DeepEqual(loaded, first.Review) {
+		t.Fatal(loaded, err)
+	}
+	if _, _, err = s.SubmitBuilding(ctx, submissionRequest(t, "builder")); err != nil {
+		t.Fatal(err)
+	}
+	r.Facts.Colonists, r.Facts.IndoorCapacity = domain.Known(int64(3)), domain.Known(int64(2))
+	second := reviewRoutine(t, s, &r)
+	expansion := developmentRow(t, second.Review, policy.EnsureExpansion)
+	if expansion.Selected || expansion.Reason != policy.DevelopmentLabor || expansion.Bottleneck != policy.WorkConstruction {
+		t.Fatal(expansion)
+	}
+	if !developmentRow(t, second.Review, policy.EnsureResearch).Selected || !developmentRow(t, second.Review, policy.MaintainWood).Selected {
+		t.Fatal(second.Review.Development.Rows)
+	}
+	g := routineGoal(t, second, policy.EnsureExpansion)
+	if _, err = s.CommitGoalMethod(ctx, g.Goal.ID, g.Revision, "wall", plan(t, "wall", "wall-action")); !errors.Is(err, ErrConflict) {
+		t.Fatal("labor-deferred goal admitted", err)
+	}
+}

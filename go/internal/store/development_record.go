@@ -10,6 +10,7 @@ type RoutineDevelopment struct {
 	Snapshot  domain.GenerationSnapshot
 	Tick      domain.Tick
 	Workers   *int
+	Labor     map[policy.WorkType]int `json:",omitempty"`
 	Capacity  int
 	Committed []domain.GoalID
 	Rows      []RoutineDevelopmentRow
@@ -21,6 +22,7 @@ type RoutineDevelopmentRow struct {
 	WaitingSince        domain.Tick
 	Selected, Committed bool
 	Reason              policy.DevelopmentReason
+	Bottleneck          policy.WorkType `json:",omitempty"`
 }
 
 func developmentRecord(s policy.DevelopmentState) RoutineDevelopment {
@@ -28,8 +30,14 @@ func developmentRecord(s policy.DevelopmentState) RoutineDevelopment {
 	if v, k := s.Workers.Value(); k {
 		r.Workers = &v
 	}
+	if labor, k := s.Labor.Value(); k {
+		r.Labor = map[policy.WorkType]int{}
+		for w, n := range labor {
+			r.Labor[w] = n
+		}
+	}
 	for _, row := range s.Rows {
-		v := RoutineDevelopmentRow{Goal: row.Goal, Score: row.Score, WaitingSince: row.WaitingSince, Selected: row.Selected, Committed: row.Committed, Reason: row.Reason}
+		v := RoutineDevelopmentRow{Goal: row.Goal, Score: row.Score, WaitingSince: row.WaitingSince, Selected: row.Selected, Committed: row.Committed, Reason: row.Reason, Bottleneck: row.Bottleneck}
 		if deficit, k := row.Deficit.Value(); k {
 			v.Deficit = &deficit
 		}
@@ -42,8 +50,15 @@ func (r RoutineDevelopment) state() policy.DevelopmentState {
 	if r.Workers != nil {
 		s.Workers = domain.Known(*r.Workers)
 	}
+	if r.Labor != nil {
+		labor := map[policy.WorkType]int{}
+		for w, n := range r.Labor {
+			labor[w] = n
+		}
+		s.Labor = domain.Known(labor)
+	}
 	for _, row := range r.Rows {
-		v := policy.DevelopmentRow{Goal: row.Goal, Score: row.Score, WaitingSince: row.WaitingSince, Selected: row.Selected, Committed: row.Committed, Reason: row.Reason}
+		v := policy.DevelopmentRow{Goal: row.Goal, Score: row.Score, WaitingSince: row.WaitingSince, Selected: row.Selected, Committed: row.Committed, Reason: row.Reason, Bottleneck: row.Bottleneck}
 		if row.Deficit != nil {
 			v.Deficit = domain.Known(*row.Deficit)
 		}

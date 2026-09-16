@@ -25,6 +25,8 @@ type DevelopmentGoal struct {
 	Deficit                     domain.Fact[float64]
 	Cancelled, Blocked, Comfort bool
 	MethodUnavailable           bool
+	// Labor is the goal's profile (GoalLabor); nil means no pawn work.
+	Labor LaborProfile
 }
 
 // Commitment refers to existing shared action progress, never a receipt-derived
@@ -34,6 +36,9 @@ type Commitment struct {
 	Source   GoalSource
 	Priority int
 	Progress domain.Progress
+	// Labor is the work the open commitment already occupies (GoalLabor for
+	// routine goals, construction for player building projects).
+	Labor LaborProfile
 }
 
 type DevelopmentReason string
@@ -50,6 +55,9 @@ const (
 	DevelopmentUnknown           DevelopmentReason = "deficit_unknown"
 	DevelopmentCapacity          DevelopmentReason = "capacity_committed"
 	DevelopmentMethodUnavailable DevelopmentReason = "method_unavailable"
+	// DevelopmentLabor: every work type in the goal's profile is already
+	// occupied by committed work or has no enabled pawn; Bottleneck names one.
+	DevelopmentLabor DevelopmentReason = "labor_unavailable"
 )
 
 type DevelopmentRow struct {
@@ -59,14 +67,18 @@ type DevelopmentRow struct {
 	WaitingSince        domain.Tick
 	Selected, Committed bool
 	Reason              DevelopmentReason
+	Bottleneck          WorkType
 }
 
 // DevelopmentState is a value snapshot owned by the review caller. Context and
 // direction changes or tick rewinds discard age and selection history.
 type DevelopmentState struct {
-	Snapshot  domain.GenerationSnapshot
-	Tick      domain.Tick
-	Workers   domain.Fact[int]
+	Snapshot domain.GenerationSnapshot
+	Tick     domain.Tick
+	Workers  domain.Fact[int]
+	// Labor is the observed per-work-type pawn census the ranking used;
+	// unknown labor falls back to the coarse worker bound alone.
+	Labor     domain.Fact[map[WorkType]int]
 	Capacity  int
 	Committed []GoalID
 	Rows      []DevelopmentRow
@@ -76,6 +88,7 @@ type DevelopmentRequest struct {
 	Snapshot    domain.GenerationSnapshot
 	Tick        domain.Tick
 	Workers     domain.Fact[int]
+	Labor       domain.Fact[map[WorkType]int]
 	Limit       int
 	Goals       []DevelopmentGoal
 	Commitments []Commitment
@@ -96,7 +109,18 @@ func RankDevelopment(r DevelopmentRequest) (DevelopmentState, error) {
 	if knownWorkers && (workers < 0 || workers > 4096) {
 		return DevelopmentState{}, errors.New("invalid worker count")
 	}
-	result := DevelopmentState{Snapshot: r.Snapshot, Tick: r.Tick, Workers: r.Workers, Capacity: min(r.Limit, workers)}
+	if labor, known := r.Labor.Value(); known {
+		if len(labor) > 256 {
+			return DevelopmentState{}, errors.New("invalid labor census")
+		}
+		for w, n := range labor {
+			if !validResource(Resource(w)) || n < 0 || n > 4096 {
+				return DevelopmentState{}, errors.New("invalid labor census")
+			}
+		}
+	}
+	result := DevelopmentState{Snapshot: r.Snapshot, Tick: r.Tick, Workers: r.Workers, Labor: r.Labor, Capacity: min(r.Limit, workers)}
+	ledger := newLaborLedger(r.Labor)
 	old := map[GoalID]DevelopmentRow{}
 	if sameWorld(r.Previous.Snapshot, r.Snapshot) && r.Previous.Snapshot.Direction == r.Snapshot.Direction && r.Tick >= r.Previous.Tick {
 		for _, row := range r.Previous.Rows {
@@ -113,7 +137,7 @@ func RankDevelopment(r DevelopmentRequest) (DevelopmentState, error) {
 	seenActions := map[domain.ActionID]bool{}
 	for _, c := range r.Commitments {
 		v := c.Progress.View()
-		if !validGoal(c.Goal, c.Source, c.Priority) || v.Stage == "" || seenActions[v.Action] {
+		if !validGoal(c.Goal, c.Source, c.Priority) || v.Stage == "" || seenActions[v.Action] || !validLabor(c.Labor) {
 			return DevelopmentState{}, errors.New("invalid development commitment")
 		}
 		seenActions[v.Action] = true
@@ -123,6 +147,9 @@ func RankDevelopment(r DevelopmentRequest) (DevelopmentState, error) {
 		// Unknown effects retain capacity even after cancellation. A terminal
 		// observed failure/absence releases it; a command receipt never does.
 		if v.Unresolved || v.Stage == domain.Pending || v.Stage == domain.Prepared || v.Stage == domain.Dispatched || v.Stage == domain.AwaitingObservation {
+			if !committed[c.Goal] {
+				ledger.take(c.Labor)
+			}
 			committed[c.Goal] = true
 		}
 	}
@@ -134,7 +161,7 @@ func RankDevelopment(r DevelopmentRequest) (DevelopmentState, error) {
 	seen := map[GoalID]bool{}
 	for _, g := range r.Goals {
 		fraction, known := g.Deficit.Value()
-		if !validGoal(g.ID, g.Source, g.Priority) || seen[g.ID] || known && (math.IsNaN(fraction) || math.IsInf(fraction, 0) || fraction < 0 || fraction > 1) {
+		if !validGoal(g.ID, g.Source, g.Priority) || seen[g.ID] || !validLabor(g.Labor) || known && (math.IsNaN(fraction) || math.IsInf(fraction, 0) || fraction < 0 || fraction > 1) {
 			return DevelopmentState{}, errors.New("invalid development goal")
 		}
 		seen[g.ID] = true
@@ -193,18 +220,26 @@ func RankDevelopment(r DevelopmentRequest) (DevelopmentState, error) {
 		}
 		return a.Goal < b.Goal
 	})
+	profiles := map[GoalID]LaborProfile{}
+	for _, g := range r.Goals {
+		profiles[g.ID] = g.Labor
+	}
 	free := max(0, result.Capacity-len(committed))
 	for i := range result.Rows {
 		row := &result.Rows[i]
 		if row.Reason != "" {
 			continue
 		}
-		if free > 0 {
-			row.Selected = true
-			free--
-		} else {
+		if free == 0 {
 			row.Reason = DevelopmentCapacity
+			continue
 		}
+		if bottleneck, ok := ledger.take(profiles[row.Goal]); !ok {
+			row.Reason, row.Bottleneck = DevelopmentLabor, bottleneck
+			continue
+		}
+		row.Selected = true
+		free--
 	}
 	return result, nil
 }
@@ -220,6 +255,9 @@ func YieldDevelopment(state DevelopmentState, goal GoalID) DevelopmentState {
 		}
 		state.Rows[i].Selected = false
 		state.Rows[i].Reason = DevelopmentMethodUnavailable
+		// The freed slot goes to the next capacity-deferred candidate; labor
+		// released by the yielding goal is unknown here, so a labor-deferred
+		// candidate waits for the next review's fresh census.
 		for j := range state.Rows {
 			if state.Rows[j].Reason == DevelopmentCapacity {
 				state.Rows[j].Selected = true

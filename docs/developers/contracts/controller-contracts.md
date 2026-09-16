@@ -78,18 +78,27 @@ not development work: it is admitted without a ranking row and holds no slot.
 `max_development_projects` defaults to two and accepts integer values from one through
 eight through the versioned player settings API. Available capacity is the smaller of
 that limit and the freshly observed undrafted, living, non-downed workers without a
-mental state whose work settings apply. This is a coarse concurrency bound, not a
-profession-specific labor forecast. Accepted player projects and unfinished development
-actions consume slots; unresolved issued actions remain counted even when blocked or
-cancelled. Completed actions release their slot. Falling capacity never deletes or
-rewrites accepted orders, and explicit player work is not rejected by this optional-work
-limit. Native admission, material reservations and Hands dispatch guards still apply.
+mental state whose work settings apply. Within that bound, each goal declares a labor
+profile of native work types its methods put pawns to (construction for comfort,
+expansion, defense and repairs; research; mining, plant cutting or crafting for resource
+targets; hauling, cleaning, handling or firefighting for upkeep). The same pawns are
+counted per enabled work type, committed work occupies one pawn of its profile, and a
+candidate whose every profile type is occupied defers with `labor_unavailable` naming
+the bottleneck work type instead of taking a slot. An unknown work-settings census
+leaves only the coarse worker bound; an empty profile is never labor-gated. This is a
+scheduling bound on concurrent projects, not a labor forecast or completion estimate.
+Accepted player projects and unfinished development actions consume slots; unresolved
+issued actions remain counted even when blocked or cancelled. Completed actions release
+their slot. Falling capacity never deletes or rewrites accepted orders, and explicit
+player work is not rejected by this optional-work limit. Native admission, material
+reservations and Hands dispatch guards still apply.
 
-Methods that cannot produce new work yield their admission slot to the next eligible
-candidate in the same review. Waiting age advances only with native ticks and resets
+Methods that cannot produce new work yield their admission slot to the next
+capacity-deferred candidate in the same review; labor-deferred candidates wait for the
+next review's fresh census. Waiting age advances only with native ticks and resets
 for committed work; context/direction changes and tick rewinds reset ranking history.
-The shared plan retains the ranking, observed worker count and explicit deferral reasons
-under `control.development`; the dashboard displays them. Native labor forecasts remain
+The shared plan retains the ranking, observed worker and per-work-type labor counts and
+explicit deferral reasons in the routine review's development record. Native labor forecasts remain
 evidence with unknown completion times. Native gameplay acceptance of competing
 comfort, research, resource and expansion demands is tracked in
 [issue #9](https://github.com/davidarcher/rimgovernor/issues/9).
