@@ -6,6 +6,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"errors"
+	"fmt"
 
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 )
@@ -16,7 +17,7 @@ func insertAction(ctx context.Context, tx *sql.Tx, plan domain.PlanID, ordinal i
 		return err
 	}
 	if reserved != 0 {
-		return ErrConflict
+		return fmt.Errorf("%w: action %s already reserved by a clock attempt", ErrConflict, a.ID())
 	}
 	var err error
 	if b, ok := a.ProductionBill(); ok {

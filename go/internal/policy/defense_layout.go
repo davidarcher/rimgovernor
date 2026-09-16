@@ -28,7 +28,7 @@ type DefenseLine struct {
 // DefenseDefinitions names the native buildings each tier places. Stuff
 // empty requests the native default material.
 type DefenseDefinitions struct {
-	Sandbag, Wall, WallStuff, Fence, FenceStuff, Trap, TrapStuff string
+	Sandbag, SandbagStuff, Wall, WallStuff, Fence, FenceStuff, Trap, TrapStuff string
 }
 
 type DefenseRequest struct {
@@ -358,12 +358,15 @@ func DefenseLayouts(r DefenseRequest) (DefenseLayout, error) {
 			}
 		}
 	}
-	// Trap corridor: contiguous traps on the trap lane, fences on alternate
-	// safe-lane cells so raiders path through the traps while colonists,
-	// who see them, cross the fences. The entry pair stays open.
+	// Trap corridor: traps on every other trap-lane row (RimWorld's
+	// PlaceWorker_NeverAdjacentTrap refuses a trap beside another, including
+	// diagonally, so a contiguous lane cannot be built), fences on the
+	// safe-lane cell of the same rows so raiders, who do not see the traps,
+	// path through them rather than pay the fence crossing, while colonists,
+	// who avoid their own traps, cross the fences. The entry pair stays open.
 	var corridor []domain.Building
 	trapCells := map[domain.Cell]bool{}
-	for k := 1; k < defenseCorridorLength; k++ {
+	for k := 1; k < defenseCorridorLength; k += 2 {
 		t := layout.TrapLane[k]
 		if !s.free(t) {
 			return DefenseLayout{}, errors.New("trap cell is not buildable")
@@ -374,7 +377,7 @@ func DefenseLayouts(r DefenseRequest) (DefenseLayout, error) {
 		}
 		corridor = append(corridor, b)
 		trapCells[t] = true
-		if k%2 == 1 {
+		{
 			f := layout.SafeLane[k]
 			if !s.free(f) {
 				return DefenseLayout{}, errors.New("fence cell is not buildable")
@@ -417,7 +420,7 @@ func DefenseLayouts(r DefenseRequest) (DefenseLayout, error) {
 			if known && !los {
 				continue
 			}
-			b, err := domain.NewBuilding(r.Definitions.Sandbag, cover, domain.North, "")
+			b, err := domain.NewBuilding(r.Definitions.Sandbag, cover, domain.North, r.Definitions.SandbagStuff)
 			if err != nil {
 				return DefenseLayout{}, err
 			}

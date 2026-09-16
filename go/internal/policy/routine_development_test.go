@@ -27,3 +27,12 @@ func TestRoutineDevelopmentNativeFractionsAndWorkers(t *testing.T) {
 		t.Fatal("missing availability increased capacity")
 	}
 }
+
+func TestRoutineDevelopmentDeficitDefensiveLayoutFollowsOptIn(t *testing.T) {
+	if _, known := RoutineDevelopmentDeficit(EnsureDefensiveLayout, RoutineFacts{}, RoutinePolicy{}).Value(); known {
+		t.Fatal("opted-out layout must rank deficit_unknown")
+	}
+	if v, known := RoutineDevelopmentDeficit(EnsureDefensiveLayout, RoutineFacts{}, RoutinePolicy{DefensiveLayout: true}).Value(); !known || v != 1 {
+		t.Fatalf("opted-in layout deficit = %v,%v; want 1,true", v, known)
+	}
+}

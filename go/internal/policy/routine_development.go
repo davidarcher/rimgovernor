@@ -40,6 +40,16 @@ func RoutineDevelopmentDeficit(id GoalID, f RoutineFacts, p RoutinePolicy) domai
 		target = min(target, 2)
 		stock, known = f.Armed.Value()
 		known = known && countKnown
+	case EnsureDefensiveLayout:
+		// Config-only opt-in (see RoutinePolicy.DefensiveLayout): while
+		// opted in the layout counts as a full deficit so development
+		// arbitration can select it; the planner itself reports no deficit
+		// once the stored layout is complete. Without this the goal ranks
+		// deficit_unknown and every tier admission conflicts.
+		if !p.DefensiveLayout {
+			return domain.Unknown[float64]()
+		}
+		return domain.Known(1.0)
 	case MaintainWaste:
 		// Census-driven, not stock/target: any exposed, eligible item still
 		// pending is a full deficit: there's no partial-credit fraction for

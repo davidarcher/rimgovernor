@@ -294,15 +294,6 @@ func (r *RoutineDefensePlanner) holdTheLine(call, epoch context.Context, goal st
 		if err != nil {
 			return RoutineDefenseResult{}, err
 		}
-		moveID := domain.ActionID(fmt.Sprintf("%s-move-%s", id, a.Defender))
-		movement, err := domain.NewMovement(a.Defender, a.Cell, draftID)
-		if err != nil {
-			return RoutineDefenseResult{}, err
-		}
-		moveAction, err := domain.NewMovementAction(moveID, movement)
-		if err != nil {
-			return RoutineDefenseResult{}, err
-		}
 		attackID := domain.ActionID(fmt.Sprintf("%s-attack-%s-%s", id, a.Defender, a.Target))
 		intent, err := domain.NewRangedAttack(a.Defender, domain.PawnID(a.Target), draftID)
 		if err != nil {
@@ -312,8 +303,11 @@ func (r *RoutineDefensePlanner) holdTheLine(call, epoch context.Context, goal st
 		if err != nil {
 			return RoutineDefenseResult{}, err
 		}
-		actions = append(actions, draftAction, moveAction, attackAction)
-		dependencies = append(dependencies, domain.ActionDependency{Action: attackID, Requires: moveID})
+		// Positioning on the firing cell needs the movement action family,
+		// removed with the player command slices (#54); until it returns as
+		// a routine family, defenders fire from where they stand.
+		actions = append(actions, draftAction, attackAction)
+		dependencies = append(dependencies, domain.ActionDependency{Action: attackID, Requires: draftID})
 	}
 	plan, err := domain.NewPlan(id, 1, actions, dependencies...)
 	if err != nil {

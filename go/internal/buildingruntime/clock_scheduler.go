@@ -467,7 +467,7 @@ func (s *ClockScheduler) Step(ctx context.Context) (ClockSchedulerResult, error)
 		g.Go(func() error {
 			method, err := s.config.SecureSupplies.step(gctx, epoch, arbiter)
 			if err != nil {
-				return err
+				return fmt.Errorf("secureSupplies: %w", err)
 			}
 			out.SecureSupplies = &method
 			return nil
@@ -477,7 +477,7 @@ func (s *ClockScheduler) Step(ctx context.Context) (ClockSchedulerResult, error)
 		g.Go(func() error {
 			method, err := s.config.Repair.step(gctx, epoch, arbiter)
 			if err != nil {
-				return err
+				return fmt.Errorf("repair: %w", err)
 			}
 			out.Repair = &method
 			return nil
@@ -487,7 +487,7 @@ func (s *ClockScheduler) Step(ctx context.Context) (ClockSchedulerResult, error)
 		g.Go(func() error {
 			method, err := s.config.Clean.step(gctx, epoch, arbiter)
 			if err != nil {
-				return err
+				return fmt.Errorf("clean: %w", err)
 			}
 			out.Clean = &method
 			return nil
@@ -497,7 +497,7 @@ func (s *ClockScheduler) Step(ctx context.Context) (ClockSchedulerResult, error)
 		g.Go(func() error {
 			method, err := s.config.Waste.step(gctx, epoch, arbiter)
 			if err != nil {
-				return err
+				return fmt.Errorf("waste: %w", err)
 			}
 			out.Waste = &method
 			return nil
@@ -507,7 +507,7 @@ func (s *ClockScheduler) Step(ctx context.Context) (ClockSchedulerResult, error)
 		g.Go(func() error {
 			method, err := s.config.MoodRelief.step(gctx, epoch, arbiter)
 			if err != nil {
-				return err
+				return fmt.Errorf("moodRelief: %w", err)
 			}
 			out.MoodRelief = &method
 			return nil
@@ -517,7 +517,7 @@ func (s *ClockScheduler) Step(ctx context.Context) (ClockSchedulerResult, error)
 		g.Go(func() error {
 			method, err := s.config.Haul.step(gctx, epoch, arbiter)
 			if err != nil {
-				return err
+				return fmt.Errorf("haul: %w", err)
 			}
 			clockSchedulerLog("Haul.step result: reason=%v plan=%s", method.Reason, method.Plan)
 			out.Haul = &method
@@ -528,7 +528,7 @@ func (s *ClockScheduler) Step(ctx context.Context) (ClockSchedulerResult, error)
 		g.Go(func() error {
 			method, err := s.config.Gear.step(gctx, epoch, arbiter)
 			if err != nil {
-				return err
+				return fmt.Errorf("gear: %w", err)
 			}
 			out.Gear = &method
 			return nil
@@ -538,7 +538,7 @@ func (s *ClockScheduler) Step(ctx context.Context) (ClockSchedulerResult, error)
 		g.Go(func() error {
 			method, err := s.config.Medical.step(gctx, epoch, arbiter)
 			if err != nil {
-				return err
+				return fmt.Errorf("medical: %w", err)
 			}
 			out.Medical = &method
 			return nil
@@ -548,7 +548,7 @@ func (s *ClockScheduler) Step(ctx context.Context) (ClockSchedulerResult, error)
 		g.Go(func() error {
 			method, err := s.config.FoodStorageUpkeep.step(gctx, epoch, arbiter)
 			if err != nil {
-				return err
+				return fmt.Errorf("foodStorageUpkeep: %w", err)
 			}
 			out.FoodStorageUpkeep = &method
 			return nil
@@ -558,7 +558,7 @@ func (s *ClockScheduler) Step(ctx context.Context) (ClockSchedulerResult, error)
 		g.Go(func() error {
 			method, err := s.config.AnimalContainment.step(gctx, epoch, arbiter)
 			if err != nil {
-				return err
+				return fmt.Errorf("animalContainment: %w", err)
 			}
 			out.AnimalContainment = &method
 			return nil
@@ -568,7 +568,7 @@ func (s *ClockScheduler) Step(ctx context.Context) (ClockSchedulerResult, error)
 		g.Go(func() error {
 			method, err := s.config.Recovery.step(gctx, epoch, arbiter)
 			if err != nil {
-				return err
+				return fmt.Errorf("recovery: %w", err)
 			}
 			out.Recovery = &method
 			return nil
@@ -578,7 +578,7 @@ func (s *ClockScheduler) Step(ctx context.Context) (ClockSchedulerResult, error)
 		g.Go(func() error {
 			method, err := s.config.Husbandry.step(gctx, epoch, arbiter)
 			if err != nil {
-				return err
+				return fmt.Errorf("husbandry: %w", err)
 			}
 			out.Husbandry = &method
 			return nil
@@ -588,7 +588,7 @@ func (s *ClockScheduler) Step(ctx context.Context) (ClockSchedulerResult, error)
 		g.Go(func() error {
 			method, err := s.config.PrisonerInteraction.step(gctx, epoch, arbiter)
 			if err != nil {
-				return err
+				return fmt.Errorf("prisonerInteraction: %w", err)
 			}
 			out.PrisonerInteraction = &method
 			return nil
@@ -598,7 +598,7 @@ func (s *ClockScheduler) Step(ctx context.Context) (ClockSchedulerResult, error)
 		g.Go(func() error {
 			method, err := s.config.PopulationCustody.step(gctx, epoch, arbiter)
 			if err != nil {
-				return err
+				return fmt.Errorf("populationCustody: %w", err)
 			}
 			out.PopulationCustody = &method
 			return nil
@@ -608,7 +608,7 @@ func (s *ClockScheduler) Step(ctx context.Context) (ClockSchedulerResult, error)
 		g.Go(func() error {
 			method, err := s.config.Research.step(gctx, epoch, arbiter)
 			if err != nil {
-				return err
+				return fmt.Errorf("research: %w", err)
 			}
 			out.Research = &method
 			return nil
@@ -618,7 +618,7 @@ func (s *ClockScheduler) Step(ctx context.Context) (ClockSchedulerResult, error)
 		g.Go(func() error {
 			method, err := s.config.Naming.step(gctx, epoch, arbiter)
 			if err != nil {
-				return err
+				return fmt.Errorf("naming: %w", err)
 			}
 			out.Naming = &method
 			return nil
@@ -628,7 +628,7 @@ func (s *ClockScheduler) Step(ctx context.Context) (ClockSchedulerResult, error)
 		g.Go(func() error {
 			method, err := s.config.Resource.step(gctx, epoch, arbiter)
 			if err != nil {
-				return err
+				return fmt.Errorf("resource: %w", err)
 			}
 			out.Resource = &method
 			return nil
@@ -638,7 +638,7 @@ func (s *ClockScheduler) Step(ctx context.Context) (ClockSchedulerResult, error)
 		g.Go(func() error {
 			method, err := s.config.AnimalFeed.step(gctx, epoch, arbiter)
 			if err != nil {
-				return err
+				return fmt.Errorf("animalFeed: %w", err)
 			}
 			out.AnimalFeed = &method
 			return nil
@@ -648,7 +648,7 @@ func (s *ClockScheduler) Step(ctx context.Context) (ClockSchedulerResult, error)
 		g.Go(func() error {
 			method, err := s.config.ProductionPolicy.step(gctx, epoch, arbiter)
 			if err != nil {
-				return err
+				return fmt.Errorf("productionPolicy: %w", err)
 			}
 			out.ProductionPolicy = &method
 			return nil
@@ -658,7 +658,7 @@ func (s *ClockScheduler) Step(ctx context.Context) (ClockSchedulerResult, error)
 		g.Go(func() error {
 			method, err := s.config.CaravanJourney.step(gctx, epoch, arbiter)
 			if err != nil {
-				return err
+				return fmt.Errorf("caravanJourney: %w", err)
 			}
 			out.CaravanJourney = &method
 			return nil
@@ -668,7 +668,7 @@ func (s *ClockScheduler) Step(ctx context.Context) (ClockSchedulerResult, error)
 		g.Go(func() error {
 			method, err := s.config.HomeCoverage.step(gctx, epoch, arbiter)
 			if err != nil {
-				return err
+				return fmt.Errorf("homeCoverage: %w", err)
 			}
 			out.HomeCoverage = &method
 			return nil
@@ -678,7 +678,7 @@ func (s *ClockScheduler) Step(ctx context.Context) (ClockSchedulerResult, error)
 		g.Go(func() error {
 			method, err := s.config.StoneShell.step(gctx, epoch, arbiter)
 			if err != nil {
-				return err
+				return fmt.Errorf("stoneShell: %w", err)
 			}
 			out.StoneShell = &method
 			return nil
@@ -688,8 +688,9 @@ func (s *ClockScheduler) Step(ctx context.Context) (ClockSchedulerResult, error)
 		g.Go(func() error {
 			method, err := s.config.DefenseLayout.step(gctx, epoch)
 			if err != nil {
-				return err
+				return fmt.Errorf("defenseLayout: %w", err)
 			}
+			clockSchedulerLog("defense-layout.step: reason=%s tier=%s plan=%s", method.Reason, method.Tier, method.Plan)
 			out.DefenseLayout = &method
 			return nil
 		})

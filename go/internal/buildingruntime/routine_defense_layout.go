@@ -22,9 +22,10 @@ import (
 const defenseSiteHalfExtent = 22
 
 // defenseDefinitions are the native buildings each tier places. Wood keeps
-// the first layout affordable; MaintainStoneShell upgrades flammable walls
-// afterwards through its own goal.
-var defenseDefinitions = policy.DefenseDefinitions{Sandbag: "Sandbags", Wall: "Wall", WallStuff: "WoodLog", Fence: "Fence", FenceStuff: "WoodLog", Trap: "TrapSpike", TrapStuff: "WoodLog"}
+// the first layout affordable (native Sandbags need fabric or leather, which
+// a young colony rarely holds; a wooden Barricade gives the same 0.55 cover);
+// MaintainStoneShell upgrades flammable walls afterwards through its own goal.
+var defenseDefinitions = policy.DefenseDefinitions{Sandbag: "Barricade", SandbagStuff: "WoodLog", Wall: "Wall", WallStuff: "WoodLog", Fence: "Fence", FenceStuff: "WoodLog", Trap: "TrapSpike", TrapStuff: "WoodLog"}
 
 // defenseTierOrder is the staged construction order; a tier without
 // placements (the chokepoint reuses existing geometry) is complete as-is.
@@ -68,8 +69,15 @@ func (r *RoutineDefenseLayoutPlanner) Step(ctx context.Context) (RoutineDefenseL
 	return r.step(call, epoch)
 }
 
-func defenseTierMethodID(tier policy.DefenseTierName) domain.MethodID {
-	return domain.MethodID("defense-" + string(tier))
+// A tier's method is keyed by tier and attempt: a plan cancelled by an
+// authority discontinuity (a letter pause) or refused natively is retried
+// with a fresh method rather than counted as built, up to a small bound.
+const maxDefenseTierAttempts = 4
+
+func defenseTierPrefix(tier policy.DefenseTierName) string { return "defense-" + string(tier) + "-" }
+
+func defenseTierMethodID(tier policy.DefenseTierName, attempt int) domain.MethodID {
+	return domain.MethodID(fmt.Sprintf("%s%d", defenseTierPrefix(tier), attempt))
 }
 
 // defenseLayoutGoal finds the goal the planner serves: the review binding
@@ -101,7 +109,7 @@ func (r *RoutineDefenseLayoutPlanner) step(call, epoch context.Context) (Routine
 		return RoutineDefenseLayoutResult{Reason: BuildingMethodDisabled}, nil
 	}
 	if !state.ObservationKnown || state.Snapshot.Validate() != nil {
-		return RoutineDefenseLayoutResult{}, ErrControl
+		return RoutineDefenseLayoutResult{}, defenseControlErr(113)
 	}
 	review, err := p.journal.LoadRoutineReview(call)
 	if err != nil {
@@ -118,7 +126,6 @@ func (r *RoutineDefenseLayoutPlanner) step(call, epoch context.Context) (Routine
 	if !found || goal.Goal.Status != domain.GoalActive || goal.Goal.Need != domain.NeedDeficit {
 		return RoutineDefenseLayoutResult{Reason: BuildingMethodNoDeficit}, nil
 	}
-	done := map[domain.MethodID]bool{}
 	for _, method := range goal.Methods {
 		plan, err := p.journal.LoadPlan(call, method.Plan)
 		if err != nil {
@@ -127,16 +134,38 @@ func (r *RoutineDefenseLayoutPlanner) step(call, epoch context.Context) (Routine
 		if domain.GoalWorkOpen(plan.Progress) {
 			return RoutineDefenseLayoutResult{Reason: BuildingMethodExistingWork}, nil
 		}
-		done[method.Method] = true
+	}
+	// EnsureDefensiveLayout competes for the bounded concurrent-project
+	// capacity with the other priority>=3 autopilot goals; admission would
+	// conflict unless this review's arbitration selected it. Checked after
+	// the existing-work loop: an in-flight tier is Committed, never
+	// re-Selected, so an earlier check would refuse its own open work.
+	selected := false
+	for _, row := range review.Development.Rows {
+		selected = selected || row.Goal == policy.EnsureDefensiveLayout && row.Selected
+	}
+	if !selected {
+		return RoutineDefenseLayoutResult{Reason: BuildingMethodRefused}, nil
 	}
 	record, stored, err := p.journal.LoadDefenseLayout(call, world)
 	if err != nil {
 		return RoutineDefenseLayoutResult{}, err
 	}
 	if stored && (record.Goal != goal.Goal.ID || record.Epoch != goal.Goal.Epoch) {
-		// A new goal epoch (cancelled and re-created) plans afresh against
-		// the current census rather than reusing the retired epoch's geometry.
-		stored = false
+		// A new goal epoch (cancelled and re-created, e.g. by a letter pause)
+		// keeps the stored geometry: re-proposing against a census that
+		// already holds the earlier epoch's walls shifts the corridor by a
+		// cell and lands traps beside the old ones, which can never place.
+		// Built tiers stay built; pending tiers get a fresh retry budget.
+		record.Goal, record.Epoch = goal.Goal.ID, goal.Goal.Epoch
+		for i := range record.Tiers {
+			if !record.Tiers[i].Built {
+				record.Tiers[i].Attempts = 0
+			}
+		}
+		if err = p.journal.SaveDefenseLayout(call, record); err != nil {
+			return RoutineDefenseLayoutResult{}, err
+		}
 	}
 	if stored && record.Complete {
 		return RoutineDefenseLayoutResult{Reason: BuildingMethodNoDeficit}, nil
@@ -150,7 +179,7 @@ func (r *RoutineDefenseLayoutPlanner) step(call, epoch context.Context) (Routine
 		return RoutineDefenseLayoutResult{}, err
 	}
 	if !routineBuildingBoundary(expected, state.Snapshot, review.Tick) {
-		return RoutineDefenseLayoutResult{}, ErrControl
+		return RoutineDefenseLayoutResult{}, defenseControlErr(168)
 	}
 	claims, err := p.journal.ConstructionClaims(call, state.Snapshot, expected.Tick)
 	if err != nil {
@@ -176,18 +205,73 @@ func (r *RoutineDefenseLayoutPlanner) step(call, epoch context.Context) (Routine
 			return RoutineDefenseLayoutResult{}, err
 		}
 	}
+	// A tier counts as built only once every one of its buildings is
+	// observed standing; a cancelled or unsuccessful attempt leaves it
+	// pending for retry. Settled plans retire out of goal.Methods, so the
+	// census, not the journal, is the source of truth.
+	if err = r.observeTiers(call, state, read, &record); err != nil {
+		return RoutineDefenseLayoutResult{}, err
+	}
 	for _, name := range defenseTierOrder {
 		tier, buildings, ok := record.Tier(name)
-		if !ok || len(buildings) == 0 || done[defenseTierMethodID(name)] {
+		if !ok || len(buildings) == 0 || tier.Built {
 			continue
 		}
-		return r.admit(call, epoch, goal, state, read, record, tier, buildings)
+		if tier.Attempts >= maxDefenseTierAttempts {
+			return RoutineDefenseLayoutResult{Reason: BuildingMethodExhausted, Tier: name}, nil
+		}
+		return r.admit(call, epoch, goal, state, read, record, tier, buildings, defenseTierMethodID(name, tier.Attempts))
 	}
 	record.Complete = true
 	if err = p.journal.SaveDefenseLayout(call, record); err != nil {
 		return RoutineDefenseLayoutResult{}, err
 	}
 	return RoutineDefenseLayoutResult{Reason: BuildingMethodNoDeficit}, nil
+}
+
+// observeTiers reads the layout's census once and marks every tier whose
+// buildings all stand as Built, saving the record when anything changed.
+func (r *RoutineDefenseLayoutPlanner) observeTiers(call context.Context, state ControlState, read observation.RoutineReading, record *store.DefenseLayoutRecord) error {
+	pending := false
+	for _, tier := range record.Tiers {
+		pending = pending || !tier.Built && len(tier.Buildings) > 0
+	}
+	if !pending {
+		return nil
+	}
+	projection := read.Projection
+	site, _, err := r.native.ReadDefenseSite(call, boundary.Identity(state.Snapshot), defenseRegion(projection.Center, projection.Bounds))
+	if err != nil {
+		return err
+	}
+	if err = r.sameTick(site.Context, state, projection.Identity.Tick); err != nil {
+		return err
+	}
+	edifice := map[domain.Cell]string{}
+	for _, cell := range site.Cells {
+		if !cell.Fogged {
+			edifice[cell.Cell] = cell.EdificeDefName
+		}
+	}
+	changed := false
+	for _, tier := range record.Tiers {
+		if tier.Built || len(tier.Buildings) == 0 {
+			continue
+		}
+		standing := true
+		for _, b := range tier.Buildings {
+			standing = standing && edifice[b.Cell] == b.Definition
+		}
+		if standing {
+			tier.Built = true
+			record.SetTier(tier)
+			changed = true
+		}
+	}
+	if !changed {
+		return nil
+	}
+	return r.reviewer.player.journal.SaveDefenseLayout(call, *record)
 }
 
 // propose reads the census around the colony centre, the defenders' gear and
@@ -226,7 +310,7 @@ func (r *RoutineDefenseLayoutPlanner) propose(call context.Context, state Contro
 	}
 	observed := reply.GetObserved()
 	if observed == nil || len(observed.Pawns) != len(ids) {
-		return policy.DefenseLayout{}, nil, false, ErrControl
+		return policy.DefenseLayout{}, nil, false, defenseControlErr(248)
 	}
 	if err = r.sameTick(observed.Context, state, projection.Identity.Tick); err != nil {
 		return policy.DefenseLayout{}, nil, false, err
@@ -267,17 +351,16 @@ func (r *RoutineDefenseLayoutPlanner) propose(call context.Context, state Contro
 // admit previews one tier's placements, audits colonist access with every
 // tier's footprint impassable, and admits the tier as one Defense-purpose
 // building method.
-func (r *RoutineDefenseLayoutPlanner) admit(call, epoch context.Context, goal store.GoalState, state ControlState, read observation.RoutineReading, record store.DefenseLayoutRecord, tier store.DefenseTierRecord, buildings []domain.Building) (RoutineDefenseLayoutResult, error) {
+func (r *RoutineDefenseLayoutPlanner) admit(call, epoch context.Context, goal store.GoalState, state ControlState, read observation.RoutineReading, record store.DefenseLayoutRecord, tier store.DefenseTierRecord, buildings []domain.Building, key domain.MethodID) (RoutineDefenseLayoutResult, error) {
 	p := r.reviewer.player
 	projection := read.Projection
-	key := defenseTierMethodID(tier.Name)
 	digest := sha256.Sum256([]byte(fmt.Sprintf("%s/%d/%s", goal.Goal.ID, goal.Goal.Epoch, key)))
 	id := domain.PlanID(fmt.Sprintf("routine-defense-layout-%x", digest[:16]))
 	snapshot := state.Snapshot
 	snapshot.Plan, snapshot.Revision = id, 1
 	var actions []domain.Action
 	var previews []policy.Preview
-	var stock policy.StockObservation
+	stock := policy.StockObservation{Snapshot: snapshot, Tick: projection.Identity.Tick}
 	for i, building := range buildings {
 		action, err := domain.NewBuildingAction(domain.ActionID(fmt.Sprintf("%s-%d", id, i)), building)
 		if err != nil {
@@ -296,10 +379,18 @@ func (r *RoutineDefenseLayoutPlanner) admit(call, epoch context.Context, goal st
 			return RoutineDefenseLayoutResult{}, err
 		}
 	}
+	// The audit blocks every impassable placement of the whole layout (walls
+	// and fences), not the traps: a spike trap stays walkable and colonists
+	// cross their own with a negligible spring chance, while the fenced safe
+	// lane leaves no trap-free route by design. Trap cells are kept off the
+	// colonists' resting positions separately.
 	blocked := map[domain.Cell]bool{}
 	var blockedCells []domain.Cell
 	for _, t := range record.Tiers {
 		for _, b := range t.Buildings {
+			if b.Definition == defenseDefinitions.Trap {
+				continue
+			}
 			if !blocked[b.Cell] {
 				blocked[b.Cell] = true
 				blockedCells = append(blockedCells, b.Cell)
@@ -329,7 +420,7 @@ func (r *RoutineDefenseLayoutPlanner) admit(call, epoch context.Context, goal st
 		return RoutineDefenseLayoutResult{}, err
 	}
 	if p.session.State() != state {
-		return RoutineDefenseLayoutResult{}, ErrControl
+		return RoutineDefenseLayoutResult{}, defenseControlErr(358)
 	}
 	last, _, err := r.reviewer.native.Identity(call)
 	if err != nil {
@@ -337,7 +428,7 @@ func (r *RoutineDefenseLayoutPlanner) admit(call, epoch context.Context, goal st
 	}
 	actual, err := observation.DecodeIdentity(last)
 	if err != nil || !routineBuildingBoundary(actual, state.Snapshot, projection.Identity.Tick) {
-		return RoutineDefenseLayoutResult{}, ErrControl
+		return RoutineDefenseLayoutResult{}, defenseControlErr(366)
 	}
 	now := r.reviewer.clock.Now()
 	if now.Before(read.StartedAt) || now.Sub(read.StartedAt) > r.reviewer.maxAge {
@@ -350,14 +441,27 @@ func (r *RoutineDefenseLayoutPlanner) admit(call, epoch context.Context, goal st
 	reason := BuildingMethodRefused
 	if decision.Admitted {
 		reason = BuildingMethodAdmitted
+		tier.Attempts++
+		record.SetTier(tier)
+		if err = p.journal.SaveDefenseLayout(call, record); err != nil {
+			return RoutineDefenseLayoutResult{}, err
+		}
+	} else {
+		clockSchedulerLog("defense-layout.admit: tier=%s refused=%+v", tier.Name, decision.Refused)
 	}
 	return RoutineDefenseLayoutResult{Reason: reason, Plan: id, Tier: tier.Name}, nil
+}
+
+// defenseControlErr tags a control refusal with its source line so a sustained
+// silent refusal is diagnosable from the clock worker's single log line.
+func defenseControlErr(line int) error {
+	return fmt.Errorf("%w (defense-layout:%d)", ErrControl, line)
 }
 
 func (r *RoutineDefenseLayoutPlanner) sameTick(observed *c.ObservationContext, state ControlState, tick domain.Tick) error {
 	current, err := boundary.Context(observed, state.Snapshot)
 	if err != nil || current.Native != state.Snapshot.Native || domain.Tick(observed.GetTick()) != tick {
-		return ErrControl
+		return defenseControlErr(388)
 	}
 	return nil
 }
@@ -369,7 +473,7 @@ func (r *RoutineDefenseLayoutPlanner) preview(ctx context.Context, action domain
 	}
 	v := preview.Preview
 	if v.Action != action || !v.Snapshot.Matches(snapshot) || v.Tick != tick || !preview.Stock.Snapshot.Matches(snapshot) || preview.Stock.Tick != tick {
-		return bridge.BuildingPreview{}, false, ErrControl
+		return bridge.BuildingPreview{}, false, defenseControlErr(400)
 	}
 	footprint, fk := v.Footprint.Value()
 	legal, lk := v.CanPlace.Value()

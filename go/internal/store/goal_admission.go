@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"errors"
+	"fmt"
 
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
@@ -65,7 +66,7 @@ func (s *Store) AdmitBuildingMethod(ctx context.Context, r BuildingMethodRequest
 		return BuildingMethodDecision{}, err
 	}
 	if goal.Revision != r.Revision {
-		return BuildingMethodDecision{}, ErrConflict
+		return BuildingMethodDecision{}, fmt.Errorf("%w: goal %s revision %d, method scoped to %d", ErrConflict, r.Goal, goal.Revision, r.Revision)
 	}
 	g := goal.Goal
 	old := g.Snapshot

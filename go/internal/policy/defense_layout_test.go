@@ -69,7 +69,8 @@ func TestDefenseLayoutCorridorAtNarrowestChokepoint(t *testing.T) {
 	corridor, _ := layout.Tier(TierTrapCorridor)
 	got := placed(t, corridor)
 	want := map[domain.Cell]string{}
-	for _, c := range cells(9, 15, 9, 16, 9, 17, 9, 18, 9, 19) {
+	// Traps skip every other row: RimWorld refuses adjacent traps.
+	for _, c := range cells(9, 15, 9, 17, 9, 19) {
 		want[c] = "TrapSpike"
 	}
 	for _, c := range cells(8, 15, 8, 17, 8, 19) {
@@ -90,7 +91,7 @@ func TestDefenseLayoutCorridorAtNarrowestChokepoint(t *testing.T) {
 	if v, k := funnel.Costs.Value(); !k || !reflect.DeepEqual(v, []Amount{{Resource: "BlocksGranite", Count: 60}}) {
 		t.Fatal(funnel.Costs)
 	}
-	if v, k := corridor.Costs.Value(); !k || !reflect.DeepEqual(v, []Amount{{Resource: "WoodLog", Count: 231}}) {
+	if v, k := corridor.Costs.Value(); !k || !reflect.DeepEqual(v, []Amount{{Resource: "WoodLog", Count: 141}}) {
 		t.Fatal(corridor.Costs)
 	}
 	choke, _ := layout.Tier(TierChokepoint)

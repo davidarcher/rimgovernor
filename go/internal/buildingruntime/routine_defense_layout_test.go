@@ -6,6 +6,7 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/bridge"
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
+	"github.com/davidarcher/RimGovernor/go/internal/store"
 	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
 	o "github.com/davidarcher/RimGovernor/go/internal/wire/observationspb"
 	"google.golang.org/protobuf/proto"
@@ -84,5 +85,27 @@ func TestDefensiveThreatFactsKeepMissingLordUnknown(t *testing.T) {
 	}
 	if _, ok := policy.SelectDefensivePositions([]domain.Cell{{X: 1, Z: 1}}, []policy.DefensiveThreatFacts{facts}, nil); ok {
 		t.Fatal("positioned on unknown lord evidence")
+	}
+}
+
+func TestDefenseTierStateLivesInRecord(t *testing.T) {
+	t.Parallel()
+	// Settled routine plans retire out of the goal's method list, so the
+	// attempt count and built flag are kept on the stored tier record.
+	record := store.DefenseLayoutRecord{Tiers: []store.DefenseTierRecord{{Name: policy.TierFiringLine}, {Name: policy.TierFunnel}}}
+	tier, _, ok := record.Tier(policy.TierFunnel)
+	if !ok || tier.Attempts != 0 || tier.Built {
+		t.Fatal(tier)
+	}
+	tier.Attempts++
+	record.SetTier(tier)
+	tier.Built = true
+	record.SetTier(store.DefenseTierRecord{Name: policy.TierFiringLine, Built: true})
+	record.SetTier(store.DefenseTierRecord{Name: "unknown", Built: true})
+	if record.Tiers[0].Name != policy.TierFiringLine || !record.Tiers[0].Built || record.Tiers[1].Attempts != 1 || record.Tiers[1].Built || len(record.Tiers) != 2 {
+		t.Fatalf("%+v", record.Tiers)
+	}
+	if defenseTierMethodID(policy.TierFunnel, record.Tiers[1].Attempts) != "defense-funnel-1" {
+		t.Fatal(defenseTierMethodID(policy.TierFunnel, 1))
 	}
 }

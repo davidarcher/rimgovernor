@@ -24,6 +24,11 @@ type DefenseTierRecord struct {
 	Name      policy.DefenseTierName
 	Buildings []DefenseBuilding
 	Reserved  []domain.Cell
+	// Attempts counts admitted methods for the tier; settled routine plans
+	// retire out of the goal's method list, so the record keeps the count.
+	Attempts int
+	// Built records that every building of the tier was observed standing.
+	Built bool
 }
 
 // DefenseLayoutRecord is the one layout the colony committed to for one
@@ -61,7 +66,7 @@ func (r DefenseLayoutRecord) Validate() error {
 	}
 	seen := map[policy.DefenseTierName]bool{}
 	for _, tier := range r.Tiers {
-		if tier.Name == "" || seen[tier.Name] || len(tier.Buildings) > 512 || len(tier.Reserved) > 512 {
+		if tier.Name == "" || seen[tier.Name] || len(tier.Buildings) > 512 || len(tier.Reserved) > 512 || tier.Attempts < 0 || tier.Attempts > 64 {
 			return errors.New("defense layout tier invalid")
 		}
 		seen[tier.Name] = true
@@ -91,6 +96,15 @@ func (r DefenseLayoutRecord) Tier(name policy.DefenseTierName) (DefenseTierRecor
 		return tier, out, true
 	}
 	return DefenseTierRecord{}, nil, false
+}
+
+// SetTier replaces the named tier's record in place; unknown names are ignored.
+func (r *DefenseLayoutRecord) SetTier(tier DefenseTierRecord) {
+	for i := range r.Tiers {
+		if r.Tiers[i].Name == tier.Name {
+			r.Tiers[i] = tier
+		}
+	}
 }
 
 func validIdentity(s string) bool { return s != "" && len(s) <= 256 }
