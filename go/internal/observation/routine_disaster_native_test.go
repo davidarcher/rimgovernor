@@ -98,7 +98,7 @@ func TestNativeRoutineDisasterReplay(t *testing.T) {
 	if !known {
 		t.Fatal("missing native generation")
 	}
-	request := store.RoutineReviewRequest{Current: domain.GenerationSnapshot{Colony: id.Colony, Load: id.Load, Map: id.Map, Native: native, Plan: "disaster-native-replay", Revision: 1, Direction: 1}, Tick: id.Tick, Enabled: true, Policy: policy.DefaultRoutinePolicy(), Facts: projection.Facts}
+	request := store.RoutineReviewRequest{Current: domain.GenerationSnapshot{Colony: id.Colony, Load: id.Load, Map: id.Map, Native: native, Plan: "disaster-native-replay", Revision: 1}, Tick: id.Tick, Enabled: true, Policy: policy.DefaultRoutinePolicy(), Facts: projection.Facts}
 	emergencyObservation, err := bridge.DecodeEmergencyStatus(s, v.Context.Identity)
 	if err != nil {
 		t.Fatal(err)

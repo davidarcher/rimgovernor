@@ -54,7 +54,7 @@ Make cancellation, concurrency and resource cleanup explicit.
 | C# | Concrete DTOs and typed operations with explicit null/error handling compatible with `net472` and installed Unity/Mono. |
 
 Distinguish unknown from zero/false, absent from null, and refusal from an uncertain
-write. Use integer game ticks and distinct colony, map, load, action and direction
+write. Use integer game ticks and distinct colony, map, load and action
 identities. Validate bounds and variants at entry; unsupported mutations fail closed.
 Discover native definitions instead of hard-coding modded game facts.
 

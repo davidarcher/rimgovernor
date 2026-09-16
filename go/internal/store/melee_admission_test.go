@@ -25,7 +25,7 @@ func meleeStoreFixture(t *testing.T, completed bool) (*Store, string, MeleeAdmis
 	if err = s.CreatePlan(ctx, plan); err != nil {
 		t.Fatal(err)
 	}
-	snapshot := domain.GenerationSnapshot{Colony: "colony", Load: "load", Map: 0, Plan: "plan", Revision: 1, Direction: 1, Native: 2}
+	snapshot := domain.GenerationSnapshot{Colony: "colony", Load: "load", Map: 0, Plan: "plan", Revision: 1, Native: 2}
 	session, err := s.Identity(ctx)
 	if err != nil {
 		t.Fatal(err)
@@ -187,7 +187,7 @@ func TestMeleeAdmissionRequiresVerifiedMatchingClaimAndFreshTokens(t *testing.T)
 		func(v *MeleeAdmission) { v.DraftClaim.Session = "foreign" },
 		func(v *MeleeAdmission) { v.DraftClaim.Attempt++ },
 		func(v *MeleeAdmission) { v.Snapshot.Load = "replacement"; v.DraftClaim.Origin = v.Snapshot },
-		func(v *MeleeAdmission) { v.Snapshot.Direction++; v.DraftClaim.Origin = v.Snapshot },
+		func(v *MeleeAdmission) { v.Snapshot.Native++; v.DraftClaim.Origin = v.Snapshot },
 		func(v *MeleeAdmission) { v.Snapshot.Native++; v.DraftClaim.Origin = v.Snapshot },
 		func(v *MeleeAdmission) { v.PawnSnapshotToken = "" },
 		func(v *MeleeAdmission) { v.TargetSnapshotToken = "\x00" },

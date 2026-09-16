@@ -52,7 +52,7 @@ func EvaluateOwnedDraft(request DraftRequest) DraftDecision {
 		return refuse(NotReady)
 	}
 	view := request.Progress.View()
-	if request.Current.Validate() != nil || request.Current.Native == 0 || request.Current.Direction == 0 || request.Tick < 0 {
+	if request.Current.Validate() != nil || request.Current.Native == 0 || request.Tick < 0 {
 		return refuse(StaleFacts)
 	}
 	if request.Progress.Action() != request.Action || view.Action != request.Action.ID() || view.Plan != request.Current.Plan || view.Revision != request.Current.Revision || view.Unresolved || (view.Stage != domain.Pending && view.Stage != domain.Prepared) {

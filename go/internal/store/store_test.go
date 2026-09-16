@@ -35,7 +35,7 @@ func plan(t *testing.T, id domain.PlanID, ids ...domain.ActionID) domain.PlanSpe
 	return p
 }
 func scope() domain.GenerationSnapshot {
-	return domain.GenerationSnapshot{Colony: "colony", Map: 0, Load: "load", Plan: "p", Revision: domain.PlanRevision(^uint64(0)), Direction: domain.DirectionID(^uint64(0))}
+	return domain.GenerationSnapshot{Colony: "colony", Map: 0, Load: "load", Plan: "p", Revision: domain.PlanRevision(^uint64(0))}
 }
 func open(t *testing.T, path string) *Store {
 	t.Helper()

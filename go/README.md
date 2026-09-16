@@ -157,7 +157,7 @@ Ongoing medical care is distinct from urgent tending: complete native health
 reads keep bad conditions and medical rest visible as a priority-2 maintained
 need. A tracked patient who disappears, dies, or has incomplete health remains
 unresolved until fresh living health proves recovery. Patient identities persist
-through restart, Manual and direction changes; world replacement or a tick rewind
+through restart and Manual; world replacement or a tick rewind
 resets them. The care need does not issue
 medical orders or authorize surgery.
 
@@ -172,11 +172,11 @@ census.
 Startup supply reviews retain the first known native forbidden-supply census.
 Fresh reads can shrink that cohort, but later player forbids cannot expand or
 revive it. Unknown reads preserve pending cells without proving recovery; Manual
-and direction changes preserve the cohort. World replacement and tick rewind
+preserves the cohort. World replacement and tick rewind
 initialize a new cohort. The current journal requires fresh schema-37 state.
 The `supply` family compiles at most eight exact native item snapshots from
 retained cells into a shared Allow plan; its Hands handler runs under the
-existing player direction. Each
+current load token and tick. Each
 write requires fresh CAS, preview, emergency and authority checks. Durable item
 claims prevent re-admission after cancellation or later player forbidding. Lost
 replies are observed without retry; receipts alone do not complete the action,
@@ -229,7 +229,7 @@ selection history alongside need assessments. Current wood and defense deficits
 use bounded native deficit fractions. Accepted player projects and unresolved
 optional methods consume capacity across shared plans; admission rechecks new
 commitments in the same transaction as the method. Manual clears selections;
-world/direction changes or tick rewinds reset age. Unknown worker counts admit no
+world changes or tick rewinds reset age. Unknown worker counts admit no
 optional work. Configure `serve --routine-project-limit 1` to
 limit optional concurrency (1–8, default 2), also bounded by observed workers.
 Accepted work remains tracked when capacity falls. Persisted ranking does not
@@ -262,10 +262,10 @@ and observations predating completion cannot release the reservation.
 `Store.ReviewRoutine` commits explicit deficit/unknown/recovered assessments and
 food, wood and temperature latch history with all maintained-goal reviews in one
 transaction. A review cursor rejects stale writers. Manual invalidates linked
-work without needing valid native facts; world/direction changes and tick rewinds
+work without needing valid native facts; world changes and tick rewinds
 give subsequent goals new identities while preserving old action evidence and
 player cancellations. Unknown threats suspend new routine work until observed safe.
-Manual and direction changes retain recovery targets; world replacement and tick
+Manual retains recovery targets; world replacement and tick
 rewinds reset latches. Superseded invalidated autopilot goals leave the bounded
 active catalog only after all linked work is observed and cleanup is settled.
 Retired goals remain readable with their original IDs, methods and receipts, and
@@ -287,7 +287,7 @@ core and planning geometry. Missing optional fields remain unknown, and a change
 tick/world is refused. Raw food runway never becomes policy `FoodDays`.
 `observation.ObserveColony` brackets this read with paused identities at the same
 tick and known native generation, rejects expired/cancelled reads, and publishes
-no projection on failure. Callers must separately validate player direction.
+no projection on failure. Callers must separately validate the load token and tick.
 Native acceptance compares the core and every selected cell against existing native
 reads. To replay a retained official payload through Go and durable review, set
 `RIMGOVERNOR_NATIVE_COLONY_CAPTURE` and run
@@ -356,7 +356,7 @@ network-local generation or up to eight conduit cells through shared building
 admission and existing Hands execution. Installed
 capacity waits for ordinary refueling/output. Solar flares and player-disabled
 equipment hold proposals. Completed methods lend at most 10,000 ticks for native
-power recovery, scoped to the current direction; native consumer power establishes
+power recovery, scoped to the current load token; native consumer power establishes
 recovery. Targeted gameplay acceptance uses `native_go_routine_acceptance.py
 --power-methods generation` or `--power-methods conduit` with ForecastFixture. Both scenarios verify native
 consumer recovery, correlated construction, Manual and disabled restart. Replay
@@ -370,7 +370,7 @@ temperatures remove safe reachability. Complete room geometry constrains the who
 native building footprint, while shared admission reserves only that footprint.
 Existing thermal facilities wait for native temperature change. Entry thresholds
 are 12/32 C and recovery thresholds are 16/28 C; unknown room evidence cannot prove
-recovery. Completed current-direction methods lend at most 10,000 ticks for ordinary
+recovery. Completed methods in the current load lend at most 10,000 ticks for ordinary
 refueling and heat exchange. Method identity follows the bed and thermal definition,
 so regenerated native room IDs cannot duplicate a method in the same goal epoch.
 The isolated acceptance variants are `native_go_routine_acceptance.py
@@ -491,13 +491,13 @@ table, adjacent dining chair and recreation furniture compilation after startup
 needs recover and development ranking selects comfort. Native observations retain
 facility-specific dining/recreation use through Manual and restart; replacement
 facilities require new use. After observed construction, at most 10,000 ticks in
-the same direction permit ordinary use, observed in windows of at most 120 ticks.
+the same load permit ordinary use, observed in windows of at most 120 ticks.
 Skilled furniture requires a qualified assigned builder from the same native
 observation bracket, honoring saved player work preferences.
 Unknown access, existing inaccessible
 facilities and exhausted waits cannot certify recovery or create duplicate furniture.
 The shared Hands worker executes reviewed building and starting-supply methods
-under the existing player direction.
+under the current load token and tick.
 Each dispatch rechecks the journal binding, active known deficit, epoch, world and
 native generation. Pending player work takes priority; Manual stops routine writes
 without changing the selected player plan or acquiring another lease. Clock windows
@@ -651,7 +651,7 @@ With built dashboard assets, player controls accept a building definition,
 material, map coordinates and rotation. Submitting stores intent; enabling its
 plan separately acquires permission. **Manual — stop orders** remains available
 while acquisition is pending. The building and chat forms share current
-permission and direction CAS. Form drafts and request IDs survive background
+permission and control history. Form drafts and request IDs survive background
 refreshes, and result checks only read the recorded request.
 Player controls are hidden when the service runs read-only.
 
@@ -661,7 +661,7 @@ acquire that plan through `POST /api/player/control/acquire`. Manual uses
 cleanup. These routes require JSON and the process token returned by
 `GET /api/player/session` in the `X-RimGovernor-Player` header. Tokens remain in
 memory. Requests bind exact colony/load/map identity and stable request IDs;
-acquisition also checks the current direction.
+control intents are journaled in order without a compare-and-swap.
 
 Owned drafts are produced only by routine planners (defense, medical); a
 completed draft plan releases its own temporary claim, and plan views show

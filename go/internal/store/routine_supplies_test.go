@@ -41,7 +41,7 @@ func TestRoutineSuppliesRestartManualAndLaterForbids(t *testing.T) {
 		t.Fatal("Manual discarded cohort", out)
 	}
 	r.Enabled = true
-	r.Current.Direction++
+	r.Current.Native++
 	r.Facts.StartingSupplyCells = domain.Known([]domain.Cell{a, b, later})
 	out = reviewRoutine(t, s, &r)
 	if !reflect.DeepEqual(out.Review.StartingSupplies.Pending, []domain.Cell{b}) {

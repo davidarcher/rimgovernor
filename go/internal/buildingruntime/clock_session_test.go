@@ -138,7 +138,7 @@ func TestClockSessionRestartRecoversWithoutAcquiringPermission(t *testing.T) {
 func TestControlCleanupFailurePreventsReacquire(t *testing.T) {
 	t.Parallel()
 	control, native, _, _ := controlFixture(t, nil)
-	snapshot := domain.GenerationSnapshot{Colony: "colony", Map: 0, Load: "load", Direction: 1, Plan: "plan", Revision: 1, Native: 1}
+	snapshot := domain.GenerationSnapshot{Colony: "colony", Map: 0, Load: "load", Plan: "plan", Revision: 1, Native: 1}
 	if _, err := control.Acquire(context.Background(), snapshot); err != nil {
 		t.Fatal(err)
 	}

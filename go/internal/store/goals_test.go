@@ -157,7 +157,7 @@ func TestGoalObservedRecoveryThenRenewalKeepsOldPlan(t *testing.T) {
 		t.Fatal(old, e)
 	}
 }
-func TestGoalDirectionInvalidationCancelsPendingPlan(t *testing.T) {
+func TestGoalWorldInvalidationCancelsPendingPlan(t *testing.T) {
 	t.Parallel()
 	ctx := context.Background()
 	s, _, g := goalFixture(t)
@@ -166,7 +166,7 @@ func TestGoalDirectionInvalidationCancelsPendingPlan(t *testing.T) {
 		t.Fatal(e)
 	}
 	changed := scope()
-	changed.Direction--
+	changed.Load = "other"
 	g, e = s.ReviewGoal(ctx, g.Goal.ID, g.Revision, changed, 11, domain.NeedDeficit, false)
 	if e != nil || g.Goal.Status != domain.GoalInvalidated {
 		t.Fatal(g, e)

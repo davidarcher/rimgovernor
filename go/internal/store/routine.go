@@ -238,7 +238,7 @@ func reviewRoutineTx(ctx context.Context, tx *sql.Tx, request RoutineReviewReque
 		return RoutineReviewResult{}, ErrCapacity
 	}
 	a, b := previous.Snapshot, request.Current
-	changed := previous.Revision != 0 && (a.Colony != b.Colony || a.Load != b.Load || a.Map != b.Map || a.Direction != b.Direction || request.Tick < previous.Tick)
+	changed := previous.Revision != 0 && (a.Colony != b.Colony || a.Load != b.Load || a.Map != b.Map || request.Tick < previous.Tick)
 	// Player direction invalidates work, not an observed shortage's recovery
 	// target. Only world replacement or time rewind discards latch history.
 	reset := previous.Revision == 0 || a.Colony != b.Colony || a.Load != b.Load || a.Map != b.Map || request.Tick < previous.Tick
@@ -380,7 +380,7 @@ func reviewRoutineTx(ctx context.Context, tx *sql.Tx, request RoutineReviewReque
 			if !exists || g.Goal.Status == domain.GoalInvalidated {
 				// Include the durable review revision so tick rewinds cannot reuse
 				// invalidated identities, even in an otherwise identical world.
-				digest := sha256.Sum256([]byte(fmt.Sprintf("%s/%s/%d/%d/%d", b.Colony, b.Load, b.Map, b.Direction, r.Revision)))
+				digest := sha256.Sum256([]byte(fmt.Sprintf("%s/%s/%d/%d", b.Colony, b.Load, b.Map, r.Revision)))
 				id := domain.GoalID(fmt.Sprintf("routine-%x-%s", digest[:8], n.ID))
 				goal, err := domain.NewGoal(id, domain.AutopilotGoal, n.Priority, b, request.Tick)
 				if err != nil {

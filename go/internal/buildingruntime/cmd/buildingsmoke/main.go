@@ -302,9 +302,8 @@ func perform(opts options, out *report) (err error) {
 	if !known || generation == 0 {
 		return errors.New("native authority generation unavailable")
 	}
-	snapshot := domain.GenerationSnapshot{Colony: observed.Colony, Map: observed.Map, Load: observed.Load, Native: generation, Direction: 1, Plan: planID, Revision: 1}
+	snapshot := domain.GenerationSnapshot{Colony: observed.Colony, Map: observed.Map, Load: observed.Load, Native: generation, Plan: planID, Revision: 1}
 	if opts.mode == "observe" {
-		snapshot.Direction = view.Snapshot.Direction
 		if snapshot.Colony != view.Snapshot.Colony || snapshot.Map != view.Snapshot.Map || snapshot.Load != view.Snapshot.Load {
 			return errors.New("fixture world/load changed")
 		}
@@ -364,11 +363,11 @@ func (n *recordingNative) ObserveBuildingProgress(ctx context.Context, receipt *
 }
 
 type snapshotReport struct {
-	Colony                      domain.ColonyID
-	Map                         domain.MapID
-	Load                        domain.LoadID
-	Direction, Revision, Native string
-	Plan                        domain.PlanID
+	Colony           domain.ColonyID
+	Map              domain.MapID
+	Load             domain.LoadID
+	Revision, Native string
+	Plan             domain.PlanID
 }
 type progressReport struct {
 	Action             domain.ActionID
@@ -385,7 +384,7 @@ type progressReport struct {
 }
 
 func project(v domain.ProgressView) progressReport {
-	out := progressReport{Action: v.Action, Attempt: strconv.FormatUint(uint64(v.Attempt), 10), Plan: v.Plan, Revision: strconv.FormatUint(uint64(v.Revision), 10), Stage: v.Stage, Tick: strconv.FormatInt(int64(v.Tick), 10), Unresolved: v.Unresolved, Snapshot: snapshotReport{Colony: v.Snapshot.Colony, Map: v.Snapshot.Map, Load: v.Snapshot.Load, Direction: strconv.FormatUint(uint64(v.Snapshot.Direction), 10), Plan: v.Snapshot.Plan, Revision: strconv.FormatUint(uint64(v.Snapshot.Revision), 10), Native: strconv.FormatUint(uint64(v.Snapshot.Native), 10)}}
+	out := progressReport{Action: v.Action, Attempt: strconv.FormatUint(uint64(v.Attempt), 10), Plan: v.Plan, Revision: strconv.FormatUint(uint64(v.Revision), 10), Stage: v.Stage, Tick: strconv.FormatInt(int64(v.Tick), 10), Unresolved: v.Unresolved, Snapshot: snapshotReport{Colony: v.Snapshot.Colony, Map: v.Snapshot.Map, Load: v.Snapshot.Load, Plan: v.Snapshot.Plan, Revision: strconv.FormatUint(uint64(v.Snapshot.Revision), 10), Native: strconv.FormatUint(uint64(v.Snapshot.Native), 10)}}
 	if value, known := v.Receipt.Value(); known {
 		out.Receipt = &value
 	}

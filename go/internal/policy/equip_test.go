@@ -14,7 +14,7 @@ func equipRequest(t *testing.T) EquipRequest {
 	if err != nil {
 		t.Fatal(err)
 	}
-	s := domain.GenerationSnapshot{Colony: "colony", Map: 0, Load: "load", Direction: 1, Plan: plan.ID(), Revision: 1, Native: 1}
+	s := domain.GenerationSnapshot{Colony: "colony", Map: 0, Load: "load", Plan: plan.ID(), Revision: 1, Native: 1}
 	p, _ := domain.NewProgress(plan, a.ID())
 	pawn := EquipPawnFacts{Pawn: "unarmed", SnapshotToken: "pawn-cas", Dead: domain.Known(false), Downed: domain.Known(false), Drafted: domain.Known(false), MentalState: domain.Known(false), ExistingJobDef: domain.Known("")}
 	return EquipRequest{Action: a, Progress: p, Current: s, MinimumTick: 11, Facts: EquipFacts{Snapshot: s, PawnTick: 12, PreviewTick: 13, Pawn: pawn, ThingSnapshotToken: "thing-cas", NativeCanTry: domain.Known(true)}}
@@ -53,7 +53,6 @@ func TestEquipDefenseHolds(t *testing.T) {
 		{"reversed interval", func(r *EquipRequest) { r.Facts.PreviewTick = 11 }},
 		{"zero generation", func(r *EquipRequest) { r.Current.Native = 0 }},
 		{"native", func(r *EquipRequest) { r.Current.Native++ }},
-		{"direction", func(r *EquipRequest) { r.Current.Direction++ }},
 		{"colony", func(r *EquipRequest) { r.Current.Colony = "other" }},
 		{"load", func(r *EquipRequest) { r.Current.Load = "other" }},
 		{"map", func(r *EquipRequest) { r.Current.Map++ }},

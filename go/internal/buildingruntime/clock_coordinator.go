@@ -52,7 +52,7 @@ func NewClockCoordinator(journal *store.Store, native ClockNative, writer ClockW
 	return &ClockCoordinator{gate: make(chan struct{}, 1), journal: journal, native: native, writer: writer, leases: leases, clock: clock, config: config, generation: generation, invalidate: cancel}, nil
 }
 func (q *ClockCoordinator) UpdateAuthority(value executor.Authority) error {
-	if value.Enabled && (value.Snapshot.Validate() != nil || value.Snapshot.Native == 0 || value.Snapshot.Direction == 0 || value.Snapshot.Revision == 0) {
+	if value.Enabled && (value.Snapshot.Validate() != nil || value.Snapshot.Native == 0 || value.Snapshot.Revision == 0) {
 		return executor.ErrAuthority
 	}
 	q.mu.Lock()

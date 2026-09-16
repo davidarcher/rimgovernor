@@ -10,7 +10,7 @@ import (
 
 func developmentFixture() DevelopmentRequest {
 	return DevelopmentRequest{
-		Snapshot: domain.GenerationSnapshot{Colony: "colony", Map: 1, Load: "load", Plan: "plan", Direction: 1}, Tick: 100,
+		Snapshot: domain.GenerationSnapshot{Colony: "colony", Map: 1, Load: "load", Plan: "plan"}, Tick: 100,
 		Workers: domain.Known(3), Limit: 1,
 		Goals: []DevelopmentGoal{
 			{ID: "storage", Source: AutopilotGoal, Priority: 3, Deficit: domain.Known(1.0)},
@@ -130,12 +130,10 @@ func TestDevelopmentPlayerPreferenceAgeAndReset(t *testing.T) {
 	r.Previous = s
 	r.Commitments = nil
 	requireSelected(t, rank(t, r), "storage")
-	for _, change := range []string{"direction", "load", "map", "rewind"} {
+	for _, change := range []string{"load", "map", "rewind"} {
 		t.Run(change, func(t *testing.T) {
 			q := r
 			switch change {
-			case "direction":
-				q.Snapshot.Direction++
 			case "load":
 				q.Snapshot.Load = "other"
 			case "map":

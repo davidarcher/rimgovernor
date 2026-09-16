@@ -70,7 +70,7 @@ func TestTemperatureNativeWorkBudgetRequiresCompletedCurrentDirection(t *testing
 		action, _ := domain.NewBuildingAction("thermal", building)
 		spec, _ := domain.NewPlan("thermal-plan", 1, []domain.Action{action})
 		progress, _ := domain.NewProgress(spec, action.ID())
-		snapshot := domain.GenerationSnapshot{Colony: "colony", Load: "load", Map: 0, Native: 1, Plan: spec.ID(), Revision: 1, Direction: 1}
+		snapshot := domain.GenerationSnapshot{Colony: "colony", Load: "load", Map: 0, Native: 1, Plan: spec.ID(), Revision: 1}
 		state := store.PlanState{Spec: spec, Progress: []domain.Progress{progress}}
 		if temperatureNativeWorkTicks(state, snapshot, 100) != 0 {
 			t.Fatal("pending construction granted time")
@@ -109,7 +109,7 @@ func TestTemperatureNativeWorkBudgetRequiresCompletedCurrentDirection(t *testing
 				t.Fatal(definition, row, got)
 			}
 		}
-		snapshot.Direction++
+		snapshot.Native++
 		if temperatureNativeWorkTicks(state, snapshot, 100) != 0 {
 			t.Fatal("new direction inherited heat-exchange budget")
 		}

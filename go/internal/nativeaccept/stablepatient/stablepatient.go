@@ -354,7 +354,7 @@ func Run(ctx context.Context, cfg RunConfig, report na.Report) ([]map[string]any
 
 	acquireBody := map[string]any{
 		"requestId": prefix + "-acquire-1", "expected": identity,
-		"planId": planID, "revision": revision, "expectedDirection": "0",
+		"planId": planID, "revision": revision,
 	}
 	acquired, status, err := apiCall("POST", "/api/player/control/acquire", acquireBody, token)
 	if err != nil {
@@ -376,7 +376,6 @@ func Run(ctx context.Context, cfg RunConfig, report na.Report) ([]map[string]any
 	defer verifyStore.Close()
 
 	keepAlive := &authorityKeepAlive{apiCall: apiCall, identity: identity, planID: planID, revision: revision, token: token, prefix: prefix}
-	keepAlive.direction = na.AsString(acquiredRecord["direction"])
 	keepAliveCtx, stopKeepAlive := context.WithCancel(ctx)
 	var keepAliveWG sync.WaitGroup
 	keepAliveWG.Add(1)
@@ -558,7 +557,6 @@ type authorityKeepAlive struct {
 	prefix   string
 
 	mu                sync.Mutex
-	direction         string
 	attempts          int
 	reacquired        int
 	acknowledged      int
@@ -570,7 +568,7 @@ func (k *authorityKeepAlive) snapshot() map[string]any {
 	k.mu.Lock()
 	defer k.mu.Unlock()
 	out := map[string]any{
-		"attempts": k.attempts, "reacquired": k.reacquired, "final_direction": k.direction,
+		"attempts": k.attempts, "reacquired": k.reacquired,
 		"acknowledged": k.acknowledged, "acknowledge_failed": k.acknowledgeFailed,
 	}
 	if k.lastError != "" {
@@ -617,13 +615,11 @@ func (k *authorityKeepAlive) run(ctx context.Context) {
 			}
 		}
 		k.mu.Lock()
-		direction := k.direction
 		k.attempts++
 		k.mu.Unlock()
 		body := map[string]any{
 			"requestId": fmt.Sprintf("%s-reacquire-%d", k.prefix, time.Now().UnixNano()),
 			"expected":  k.identity, "planId": k.planID, "revision": k.revision,
-			"expectedDirection": direction,
 		}
 		acquired, status, err := k.apiCall("POST", "/api/player/control/acquire", body, k.token)
 		if err != nil {
@@ -633,19 +629,6 @@ func (k *authorityKeepAlive) run(ctx context.Context) {
 			continue
 		}
 		record, _ := na.AsMap(acquired["record"])
-		if observed := na.AsString(record["direction"]); observed != "" {
-			k.mu.Lock()
-			k.direction = observed
-			k.mu.Unlock()
-		} else if state, ok := na.AsMap(acquired["state"]); ok {
-			if generation, ok := na.AsMap(state["generation"]); ok {
-				if observed := na.AsString(generation["direction"]); observed != "" {
-					k.mu.Lock()
-					k.direction = observed
-					k.mu.Unlock()
-				}
-			}
-		}
 		if status != 200 {
 			k.mu.Lock()
 			k.lastError = fmt.Sprintf("reacquire status=%d body=%#v", status, acquired)

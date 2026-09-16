@@ -40,7 +40,7 @@ player direction and timetable changes.
 
 Hands records intent before dispatch. `need_recovered` requires a fresh native
 need level of at least 0.5; an accepted job is only a receipt. Readback is scoped to
-the persisted load and player-direction identities. A lost receipt can be resolved
+the persisted load and plan identities. A lost receipt can be resolved
 by observed recovery without replaying the order or fabricating a receipt. Active
 breaks and player orders interrupt recovery. Missing reads remain unverified, and
 the shared no-progress watchdog bounds issued work. Each need method is attempted

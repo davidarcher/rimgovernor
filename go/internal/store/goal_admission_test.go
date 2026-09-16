@@ -134,7 +134,7 @@ func TestBuildingMethodRejectsUnknownCostsFloorsAndGeometry(t *testing.T) {
 			case "overlap":
 				r.Previews[1].Footprint = r.Previews[0].Footprint
 			case "direction":
-				r.Current.Direction--
+				r.Current.Native--
 			}
 			d, e := s.AdmitBuildingMethod(context.Background(), r)
 			if e == nil && d.Admitted {

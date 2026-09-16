@@ -172,7 +172,7 @@ func TestRoutineReviewerRejectsAuthorityChangesDuringRead(t *testing.T) {
 				defer session.mu.Unlock()
 				switch change {
 				case "direction":
-					session.state.Snapshot.Direction++
+					session.state.Snapshot.Native++
 				case "disabled":
 					session.state.Enabled = false
 				case "native":

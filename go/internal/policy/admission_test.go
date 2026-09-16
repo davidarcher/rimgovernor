@@ -99,7 +99,7 @@ func TestUnknownUnsafeAndStaleFactsRefuse(t *testing.T) {
 	} {
 		t.Run(name, func(t *testing.T) { r := request(candidate(t, "a", 1, 10)); change(&r); reason(t, r, UnknownFacts) })
 	}
-	for _, change := range []func(*Request){func(r *Request) { r.Stock.Tick-- }, func(r *Request) { r.Candidates[0].Preview.Tick-- }, func(r *Request) { r.Candidates[0].Preview.Snapshot.Direction++ }, func(r *Request) { r.Stock.Snapshot.Load = "other" }, func(r *Request) { r.Candidates[0].Preview.Action = candidate(t, "other", 1, 10).Action }} {
+	for _, change := range []func(*Request){func(r *Request) { r.Stock.Tick-- }, func(r *Request) { r.Candidates[0].Preview.Tick-- }, func(r *Request) { r.Candidates[0].Preview.Snapshot.Native++ }, func(r *Request) { r.Stock.Snapshot.Load = "other" }, func(r *Request) { r.Candidates[0].Preview.Action = candidate(t, "other", 1, 10).Action }} {
 		r := request(candidate(t, "a", 1, 10))
 		change(&r)
 		reason(t, r, StaleFacts)
@@ -317,7 +317,7 @@ func TestPreparedRestartRevalidatesWithoutDoubleReservation(t *testing.T) {
 	reason(t, r, InsufficientStock)
 	for _, change := range []func(*Request){
 		func(r *Request) {
-			r.Current.Direction++
+			r.Current.Native++
 			r.Stock.Snapshot = r.Current
 			r.Candidates[0].Preview.Snapshot = r.Current
 		},

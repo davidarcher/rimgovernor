@@ -87,6 +87,7 @@ func TestObservedSnapshotPreservesFalseAndZero(t *testing.T) {
 		t.Fatalf("lost known fact: %s", body)
 	}
 }
+
 type routineStatusFunc func(context.Context) (RoutineStatus, error)
 
 func (f routineStatusFunc) RoutineStatus(ctx context.Context) (RoutineStatus, error) { return f(ctx) }
@@ -166,7 +167,7 @@ func TestPlanReadsRealFreshStore(t *testing.T) {
 		t.Fatalf("unknown reason lost: %s", body)
 	}
 	ctx := context.Background()
-	scope := domain.GenerationSnapshot{Colony: "colony", Map: 0, Load: "load", Direction: 1, Plan: spec.ID(), Revision: spec.Revision()}
+	scope := domain.GenerationSnapshot{Colony: "colony", Map: 0, Load: "load", Plan: spec.ID(), Revision: spec.Revision()}
 	if _, err := database.Prepare(ctx, spec.ID(), action.ID(), scope, 10); err != nil {
 		t.Fatal(err)
 	}

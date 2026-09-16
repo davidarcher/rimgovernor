@@ -4,8 +4,12 @@
 
 Colony identity and map scope durable intent; a load token identifies the loaded
 instance. Reloading can preserve goals while invalidating old in-flight operations.
-Observation revisions, player direction and native context are separate: background
-refreshes cannot authorize new work. Recheck context and direction before writes.
+There is one author of orders, so no per-request direction counter or compare-and-swap
+exists: authority is the load token (which world instance), the native tick (no rewind)
+and the native order generation (no native order-history drift), plus a pause flag.
+Observation revisions and native context are separate from authority: background
+refreshes cannot authorize new work. Recheck load token, tick and generation before
+writes.
 
 ## Paired checkpoints
 

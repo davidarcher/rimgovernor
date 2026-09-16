@@ -185,7 +185,7 @@ type fixedControl struct{ value buildingruntime.ControlState }
 func (s *fixedControl) State() buildingruntime.ControlState { return s.value }
 func TestBuildingSnapshotUsesCurrentPermissionAndMatchingWorld(t *testing.T) {
 	identity := observation.Identity{Colony: "colony", Map: 0, Load: "load", Tick: 1}
-	control := &fixedControl{value: buildingruntime.ControlState{Enabled: true, ObservationKnown: true, Snapshot: domain.GenerationSnapshot{Colony: "colony", Map: 0, Load: "load", Plan: "plan", Revision: 1, Direction: 1, Native: 2}}}
+	control := &fixedControl{value: buildingruntime.ControlState{Enabled: true, ObservationKnown: true, Snapshot: domain.GenerationSnapshot{Colony: "colony", Map: 0, Load: "load", Plan: "plan", Revision: 1, Native: 2}}}
 	view := buildingSnapshots{fixedSnapshots{httpapi.Snapshot{Connected: true, Identity: domain.Known(identity)}}, control}
 	state, err := view.Snapshot(context.Background())
 	if err != nil || state.Mode != "automate" {

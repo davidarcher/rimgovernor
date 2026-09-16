@@ -6,7 +6,6 @@ import (
 	"errors"
 	"fmt"
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
-	"math"
 	"strconv"
 )
 
@@ -28,16 +27,18 @@ const (
 )
 
 type ControlRequest struct {
-	RequestID         string
-	Kind              ControlKind
-	World             World
-	Plan              domain.PlanID
-	Revision          domain.PlanRevision
-	ExpectedDirection domain.DirectionID
+	RequestID string
+	Kind      ControlKind
+	World     World
+	Plan      domain.PlanID
+	Revision  domain.PlanRevision
 }
+
+// ControlRecord journals one control intent and its outcome. Records are
+// ordered by insertion; there is no compare-and-swap between them because
+// there is one author of orders.
 type ControlRecord struct {
 	Request          ControlRequest
-	Direction        domain.DirectionID
 	Phase            ControlPhase
 	NativeGeneration domain.NativeGeneration
 }
@@ -58,8 +59,8 @@ func (q ControlRequest) validate() error {
 			return errors.New("control requires plan revision")
 		}
 	case ManualControl:
-		if q.Plan != "" || q.Revision != 0 || q.ExpectedDirection != 0 {
-			return errors.New("Manual cannot target plan or CAS")
+		if q.Plan != "" || q.Revision != 0 {
+			return errors.New("Manual cannot target a plan")
 		}
 	default:
 		return errors.New("unknown control kind")
@@ -78,20 +79,20 @@ func validControlResult(kind ControlKind, phase ControlPhase, g domain.NativeGen
 	return false
 }
 
-const controlColumns = "request_id,kind,colony,load_token,map_id,plan_id,revision,expected_direction,direction,phase,native_generation"
+const controlColumns = "request_id,kind,colony,load_token,map_id,plan_id,revision,phase,native_generation"
 
 func scanControl(row *sql.Row) (ControlRecord, error) {
 	var r ControlRecord
-	var revision, expected, direction, generation string
-	err := row.Scan(&r.Request.RequestID, &r.Request.Kind, &r.Request.World.Colony, &r.Request.World.Load, &r.Request.World.Map, &r.Request.Plan, &revision, &expected, &direction, &r.Phase, &generation)
+	var revision, generation string
+	err := row.Scan(&r.Request.RequestID, &r.Request.Kind, &r.Request.World.Colony, &r.Request.World.Load, &r.Request.World.Map, &r.Request.Plan, &revision, &r.Phase, &generation)
 	if errors.Is(err, sql.ErrNoRows) {
 		return r, ErrNotFound
 	}
 	if err != nil {
 		return r, err
 	}
-	values := []string{revision, expected, direction, generation}
-	parsed := make([]uint64, 4)
+	values := []string{revision, generation}
+	parsed := make([]uint64, 2)
 	for i, v := range values {
 		n, e := strconv.ParseUint(v, 10, 64)
 		if e != nil || strconv.FormatUint(n, 10) != v {
@@ -100,13 +101,11 @@ func scanControl(row *sql.Row) (ControlRecord, error) {
 		parsed[i] = n
 	}
 	r.Request.Revision = domain.PlanRevision(parsed[0])
-	r.Request.ExpectedDirection = domain.DirectionID(parsed[1])
-	r.Direction = domain.DirectionID(parsed[2])
-	r.NativeGeneration = domain.NativeGeneration(parsed[3])
+	r.NativeGeneration = domain.NativeGeneration(parsed[1])
 	if err = r.Request.validate(); err != nil {
 		return ControlRecord{}, err
 	}
-	if r.Direction == 0 || (r.Phase == PendingControl && r.NativeGeneration != 0) || (r.Phase != PendingControl && !validControlResult(r.Request.Kind, r.Phase, r.NativeGeneration)) {
+	if (r.Phase == PendingControl && r.NativeGeneration != 0) || (r.Phase != PendingControl && !validControlResult(r.Request.Kind, r.Phase, r.NativeGeneration)) {
 		return ControlRecord{}, errors.New("corrupt control result")
 	}
 	return r, nil
@@ -116,7 +115,7 @@ func lookupControl(ctx context.Context, tx *sql.Tx, id string) (ControlRecord, e
 	return checkedControl(ctx, tx, record, err)
 }
 func currentControl(ctx context.Context, tx *sql.Tx) (ControlRecord, error) {
-	record, err := scanControl(tx.QueryRowContext(ctx, "SELECT "+controlColumns+" FROM control_intents ORDER BY length(direction) DESC,direction DESC LIMIT 1"))
+	record, err := scanControl(tx.QueryRowContext(ctx, "SELECT "+controlColumns+" FROM control_intents ORDER BY rowid DESC LIMIT 1"))
 	return checkedControl(ctx, tx, record, err)
 }
 func checkedControl(ctx context.Context, tx *sql.Tx, record ControlRecord, err error) (ControlRecord, error) {
@@ -160,14 +159,7 @@ func (s *Store) BeginControl(ctx context.Context, q ControlRequest) (ControlReco
 	if !errors.Is(err, ErrNotFound) {
 		return ControlRecord{}, false, err
 	}
-	current, err := currentControl(ctx, tx)
-	if err != nil && !errors.Is(err, ErrNotFound) {
-		return ControlRecord{}, false, err
-	}
 	if q.Kind == AcquireControl {
-		if q.ExpectedDirection != current.Direction {
-			return ControlRecord{}, false, ErrConflict
-		}
 		var submissionID string
 		if err = tx.QueryRowContext(ctx, "SELECT request_id FROM submissions WHERE plan_id=?", q.Plan).Scan(&submissionID); errors.Is(err, sql.ErrNoRows) {
 			return ControlRecord{}, false, ErrNotFound
@@ -189,11 +181,8 @@ func (s *Store) BeginControl(ctx context.Context, q ControlRequest) (ControlReco
 	if count >= 4096 {
 		return ControlRecord{}, false, ErrCapacity
 	}
-	if uint64(current.Direction) == math.MaxUint64 {
-		return ControlRecord{}, false, errors.New("control direction exhausted")
-	}
-	result := ControlRecord{Request: q, Direction: current.Direction + 1, Phase: PendingControl}
-	_, err = tx.ExecContext(ctx, "INSERT INTO control_intents("+controlColumns+") VALUES(?,?,?,?,?,?,?,?,?,?,?)", q.RequestID, q.Kind, q.World.Colony, q.World.Load, q.World.Map, q.Plan, fmt.Sprint(q.Revision), fmt.Sprint(q.ExpectedDirection), fmt.Sprint(result.Direction), PendingControl, "0")
+	result := ControlRecord{Request: q, Phase: PendingControl}
+	_, err = tx.ExecContext(ctx, "INSERT INTO control_intents("+controlColumns+") VALUES(?,?,?,?,?,?,?,?,?)", q.RequestID, q.Kind, q.World.Colony, q.World.Load, q.World.Map, q.Plan, fmt.Sprint(q.Revision), PendingControl, "0")
 	if err != nil {
 		return ControlRecord{}, false, err
 	}

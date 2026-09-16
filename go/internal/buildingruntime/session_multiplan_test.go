@@ -123,7 +123,7 @@ func TestSessionOtherStoredPlanHoldSurvivesManualAndRestart(t *testing.T) {
 	}
 	requestedB := currentA
 	requestedB.Plan = planB.ID()
-	requestedB.Direction++
+	requestedB.Native++
 	currentB, err := session.Acquire(ctx, requestedB)
 	if err != nil {
 		t.Fatal(err)

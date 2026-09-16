@@ -46,7 +46,7 @@ func TestRoutineMedicalRestartRecoveryRenewalAndCancellation(t *testing.T) {
 		t.Fatal(out)
 	}
 	r.Enabled = true
-	r.Current.Direction++
+	r.Current.Native++
 	out = reviewRoutine(t, s, &r)
 	if routineGoal(t, out, policy.MaintainMedicalCare).Goal.Need != domain.NeedUnknown {
 		t.Fatal("new direction claimed recovery", out)

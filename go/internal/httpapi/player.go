@@ -59,15 +59,13 @@ type submissionDTO struct {
 	Revision  domain.PlanRevision `json:"revision,string"`
 }
 type controlRecordDTO struct {
-	RequestID         string                  `json:"requestId"`
-	Kind              store.ControlKind       `json:"kind"`
-	Expected          Identity                `json:"expected"`
-	PlanID            *domain.PlanID          `json:"planId"`
-	Revision          domain.PlanRevision     `json:"revision,string"`
-	ExpectedDirection domain.DirectionID      `json:"expectedDirection,string"`
-	Direction         domain.DirectionID      `json:"direction,string"`
-	Phase             store.ControlPhase      `json:"phase"`
-	NativeGeneration  domain.NativeGeneration `json:"nativeGeneration,string"`
+	RequestID        string                  `json:"requestId"`
+	Kind             store.ControlKind       `json:"kind"`
+	Expected         Identity                `json:"expected"`
+	PlanID           *domain.PlanID          `json:"planId"`
+	Revision         domain.PlanRevision     `json:"revision,string"`
+	Phase            store.ControlPhase      `json:"phase"`
+	NativeGeneration domain.NativeGeneration `json:"nativeGeneration,string"`
 }
 type playerStateDTO struct {
 	Enabled          bool        `json:"enabled"`
@@ -99,7 +97,7 @@ func projectControl(v store.ControlRecord) (*controlRecordDTO, error) {
 		return nil, nil
 	}
 	q := v.Request
-	if buildingRequestID(q.RequestID) != nil || q.World.Validate() != nil || v.Direction == 0 {
+	if buildingRequestID(q.RequestID) != nil || q.World.Validate() != nil {
 		return nil, errors.New("invalid control record")
 	}
 	var plan *domain.PlanID
@@ -110,7 +108,7 @@ func projectControl(v store.ControlRecord) (*controlRecordDTO, error) {
 		}
 		plan = &q.Plan
 	case store.ManualControl:
-		if q.Plan != "" || q.Revision != 0 || q.ExpectedDirection != 0 {
+		if q.Plan != "" || q.Revision != 0 {
 			return nil, errors.New("invalid manual record")
 		}
 	default:
@@ -132,7 +130,7 @@ func projectControl(v store.ControlRecord) (*controlRecordDTO, error) {
 	default:
 		return nil, errors.New("unknown control phase")
 	}
-	return &controlRecordDTO{q.RequestID, q.Kind, playerWorldDTO(q.World), plan, q.Revision, q.ExpectedDirection, v.Direction, v.Phase, v.NativeGeneration}, nil
+	return &controlRecordDTO{q.RequestID, q.Kind, playerWorldDTO(q.World), plan, q.Revision, v.Phase, v.NativeGeneration}, nil
 }
 func projectPlayerState(v buildingruntime.ControlState) (playerStateDTO, error) {
 	out := playerStateDTO{Enabled: v.Enabled, ObservationKnown: v.ObservationKnown}
@@ -145,7 +143,7 @@ func projectPlayerState(v buildingruntime.ControlState) (playerStateDTO, error) 
 	if err := v.Snapshot.Validate(); err != nil {
 		return out, err
 	}
-	if v.Enabled && (v.Snapshot.Native == 0 || v.Snapshot.Direction == 0 || v.Snapshot.Revision == 0) {
+	if v.Enabled && (v.Snapshot.Native == 0 || v.Snapshot.Revision == 0) {
 		return out, errors.New("invalid live authority")
 	}
 	out.Generation = generation(v.Snapshot)

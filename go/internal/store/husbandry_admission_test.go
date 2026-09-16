@@ -23,7 +23,7 @@ func husbandryStoreFixture(t *testing.T) (*Store, string, HusbandryAdmission) {
 	if err = s.CreatePlan(ctx, plan); err != nil {
 		t.Fatal(err)
 	}
-	snapshot := domain.GenerationSnapshot{Colony: "colony", Load: "load", Map: 0, Plan: "plan", Revision: 1, Direction: 1, Native: 2}
+	snapshot := domain.GenerationSnapshot{Colony: "colony", Load: "load", Map: 0, Plan: "plan", Revision: 1, Native: 2}
 	v := HusbandryAdmission{Snapshot: snapshot, Tick: 12, Animal: "animal", Method: domain.HusbandryTrain, TrainableDef: "Trainability_Advanced", AnimalSnapshotToken: "animal-cas", CensusToken: "census-cas"}
 	return s, path, v
 }

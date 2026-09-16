@@ -481,7 +481,7 @@ func run(ctx context.Context, root, output, gameID string, headless bool, rimgov
 
 	acquireBody := map[string]any{
 		"requestId": "routine-haul-acquire-1", "expected": identity,
-		"planId": planID, "revision": revision, "expectedDirection": "0",
+		"planId": planID, "revision": revision,
 	}
 	acquired, status, err := apiCall("POST", "/api/player/control/acquire", acquireBody, token)
 	if err != nil {
@@ -523,7 +523,6 @@ func run(ctx context.Context, root, output, gameID string, headless bool, rimgov
 	// acquire so it can recover from an interruption at any point, including
 	// during the startup diagnostic window below.
 	keepAlive := &authorityKeepAlive{apiCall: apiCall, identity: identity, planID: planID, revision: revision, token: token}
-	keepAlive.direction = na.AsString(acquiredRecord["direction"])
 	keepAliveCtx, stopKeepAlive := context.WithCancel(ctx)
 	var keepAliveWG sync.WaitGroup
 	keepAliveWG.Add(1)
@@ -790,7 +789,6 @@ type authorityKeepAlive struct {
 	token    string
 
 	mu                sync.Mutex
-	direction         string
 	attempts          int
 	reacquired        int
 	acknowledged      int
@@ -802,7 +800,7 @@ func (k *authorityKeepAlive) snapshot() map[string]any {
 	k.mu.Lock()
 	defer k.mu.Unlock()
 	out := map[string]any{
-		"attempts": k.attempts, "reacquired": k.reacquired, "final_direction": k.direction,
+		"attempts": k.attempts, "reacquired": k.reacquired,
 		"acknowledged": k.acknowledged, "acknowledge_failed": k.acknowledgeFailed,
 	}
 	if k.lastError != "" {
@@ -860,13 +858,11 @@ func (k *authorityKeepAlive) run(ctx context.Context) {
 			}
 		}
 		k.mu.Lock()
-		direction := k.direction
 		k.attempts++
 		k.mu.Unlock()
 		body := map[string]any{
 			"requestId": fmt.Sprintf("routine-haul-reacquire-%d", time.Now().UnixNano()),
 			"expected":  k.identity, "planId": k.planID, "revision": k.revision,
-			"expectedDirection": direction,
 		}
 		acquired, status, err := k.apiCall("POST", "/api/player/control/acquire", body, k.token)
 		if err != nil {
@@ -875,27 +871,7 @@ func (k *authorityKeepAlive) run(ctx context.Context) {
 			k.mu.Unlock()
 			continue
 		}
-		// Acquire bumps the stored Direction as soon as its CAS check passes,
-		// before native even decides whether to grant it (store/control.go's
-		// INSERT records result.Direction unconditionally) -- so a response
-		// that reflects a *new* current direction, whether from a successful
-		// grant's own record or from a 409 conflict's echoed current state,
-		// must be adopted here. Failing to do so wedges every subsequent
-		// attempt into the same stale-expectedDirection conflict forever.
 		record, _ := na.AsMap(acquired["record"])
-		if observed := na.AsString(record["direction"]); observed != "" {
-			k.mu.Lock()
-			k.direction = observed
-			k.mu.Unlock()
-		} else if state, ok := na.AsMap(acquired["state"]); ok {
-			if generation, ok := na.AsMap(state["generation"]); ok {
-				if observed := na.AsString(generation["direction"]); observed != "" {
-					k.mu.Lock()
-					k.direction = observed
-					k.mu.Unlock()
-				}
-			}
-		}
 		if status != 200 {
 			k.mu.Lock()
 			k.lastError = fmt.Sprintf("reacquire status=%d body=%#v", status, acquired)
@@ -960,7 +936,7 @@ func waitHaulMethod(ctx context.Context, s *store.Store, knownGoal domain.GoalID
 // Cancelled needs a closer look: domain.Progress.observe (go/internal/domain/progress.go)
 // sets Stage=Cancelled from its EffectAbsent branch specifically when the
 // action's *dispatch-time* GenerationSnapshot no longer matches the current
-// one -- e.g. because DirectionID advanced. That happens whenever this
+// one -- e.g. because the load token or native generation advanced. That happens whenever this
 // harness's own authorityKeepAlive reacquires player authority mid-dispatch,
 // which live observation confirms a disposable headless colony can trigger
 // well before either haul even begins (an incidental native interruption --

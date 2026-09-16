@@ -107,10 +107,10 @@ func playerAcquire(t *testing.T, p *Player) store.ControlRequest {
 
 func TestPlayerExactReplayAndChangedRequestConflict(t *testing.T) {
 	t.Parallel()
-	p, db, s, worlds := playerFixture(t)
+	p, _, s, worlds := playerFixture(t)
 	q := playerAcquire(t, p)
 	record, err := p.Acquire(context.Background(), q)
-	if err != nil || record.Phase != store.GrantedControl || record.Direction != 1 {
+	if err != nil || record.Phase != store.GrantedControl {
 		t.Fatal(record, err)
 	}
 	worlds.err = errors.New("native now unavailable")
@@ -127,15 +127,6 @@ func TestPlayerExactReplayAndChangedRequestConflict(t *testing.T) {
 	submission, created, err := p.Submit(context.Background(), playerSubmission())
 	if err != nil || created || submission.Plan != q.Plan {
 		t.Fatal(submission, created, err)
-	}
-	worlds.err = nil
-	stale := q
-	stale.RequestID = "stale"
-	if _, err = p.Acquire(context.Background(), stale); !errors.Is(err, store.ErrConflict) || s.acquires.Load() != 1 || p.State().Enabled {
-		t.Fatal(err, p.State())
-	}
-	if _, err = db.LookupControl(context.Background(), stale.RequestID); !errors.Is(err, store.ErrNotFound) {
-		t.Fatal(err)
 	}
 }
 
@@ -214,7 +205,6 @@ func TestPlayerManualPreemptsActiveAndQueuedAcquire(t *testing.T) {
 	queuedCtx := &queuedPlayerContext{Context: context.Background(), entered: make(chan struct{}), done: make(chan struct{})}
 	queuedRequest := q
 	queuedRequest.RequestID = "queued"
-	queuedRequest.ExpectedDirection = 1
 	queued := make(chan error, 1)
 	go func() { _, err := p.Acquire(queuedCtx, queuedRequest); queued <- err }()
 	<-queuedCtx.entered
@@ -374,15 +364,14 @@ func TestPlayerActualSessionCleansPriorOwnedLeaseAndRejectsForeignOwner(t *testi
 	}
 	defer p.Close(ctx)
 	q := playerAcquire(t, p)
-	first, err := p.Acquire(ctx, q)
+	_, err = p.Acquire(ctx, q)
 	if err != nil {
 		t.Fatal(err)
 	}
 	second := q
 	second.RequestID = "second"
-	second.ExpectedDirection = first.Direction
 	got, err := p.Acquire(ctx, second)
-	if err != nil || got.Direction != 2 || authority.acquires.Load() != 2 || authority.revokes.Load() != 1 || !p.State().Enabled {
+	if err != nil || got.Phase != store.GrantedControl || authority.acquires.Load() != 2 || authority.revokes.Load() != 1 || !p.State().Enabled {
 		t.Fatal(got, err)
 	}
 	// Simulate the native side reporting Auto authority whose generation counter
@@ -393,7 +382,6 @@ func TestPlayerActualSessionCleansPriorOwnedLeaseAndRejectsForeignOwner(t *testi
 	authority.mu.Unlock()
 	third := q
 	third.RequestID = "third"
-	third.ExpectedDirection = 2
 	got, err = p.Acquire(ctx, third)
 	if err == nil || got.Phase != store.UncertainControl || authority.revokes.Load() != 1 || authority.acquires.Load() != 2 || p.State().Enabled {
 		t.Fatal(got, err)

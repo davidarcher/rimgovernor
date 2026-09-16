@@ -27,7 +27,7 @@ func TestControlReplayRestartAndHistoricalCompletion(t *testing.T) {
 	}
 	q := controlRequest(t, s)
 	first, created, e := s.BeginControl(ctx, q)
-	if e != nil || !created || first.Direction != 1 || first.Phase != PendingControl {
+	if e != nil || !created || first.Phase != PendingControl {
 		t.Fatal(first, e)
 	}
 	s.Close()
@@ -43,7 +43,7 @@ func TestControlReplayRestartAndHistoricalCompletion(t *testing.T) {
 	}
 	manual := ControlRequest{RequestID: "manual", Kind: ManualControl, World: q.World}
 	last, created, e := s.BeginControl(ctx, manual)
-	if e != nil || !created || last.Direction != 2 {
+	if e != nil || !created || last.Phase != PendingControl {
 		t.Fatal(last, e)
 	}
 	completed, e := s.CompleteControl(ctx, q.RequestID, GrantedControl, 5)
@@ -66,7 +66,7 @@ func TestControlReplayRestartAndHistoricalCompletion(t *testing.T) {
 		t.Fatal(old, e)
 	}
 }
-func TestControlConcurrentCASAndRollback(t *testing.T) {
+func TestControlConcurrentBeginAndRollback(t *testing.T) {
 	t.Parallel()
 	ctx := context.Background()
 	path := filepath.Join(t.TempDir(), "c.db")
@@ -87,18 +87,15 @@ func TestControlConcurrentCASAndRollback(t *testing.T) {
 	}
 	wg.Wait()
 	close(results)
-	ok, conflicts := 0, 0
+	// One author: concurrent intents are journaled in order, never refused.
 	for e := range results {
-		if e == nil {
-			ok++
-		} else if errors.Is(e, ErrConflict) {
-			conflicts++
-		} else {
+		if e != nil {
 			t.Fatal(e)
 		}
 	}
-	if ok != 1 || conflicts != 1 {
-		t.Fatal(ok, conflicts)
+	latest, e := a.CurrentControl(ctx)
+	if e != nil || latest.Request.Kind != AcquireControl || latest.Phase != PendingControl {
+		t.Fatal(latest, e)
 	}
 	if _, e := a.db.Exec("CREATE TRIGGER control_fail BEFORE INSERT ON control_intents BEGIN SELECT RAISE(ABORT,'fixture'); END"); e != nil {
 		t.Fatal(e)
@@ -108,7 +105,7 @@ func TestControlConcurrentCASAndRollback(t *testing.T) {
 		t.Fatal("expected failure")
 	}
 	current, e := a.CurrentControl(ctx)
-	if e != nil || current.Direction != 1 {
+	if e != nil || current != latest {
 		t.Fatal(current, e)
 	}
 	if _, e = a.LookupControl(ctx, "failed"); !errors.Is(e, ErrNotFound) {
@@ -120,7 +117,7 @@ func TestControlValidationCapacityOverflowAndCorruption(t *testing.T) {
 	ctx := context.Background()
 	s := open(t, filepath.Join(t.TempDir(), "c.db"))
 	q := controlRequest(t, s)
-	for _, change := range []func(*ControlRequest){func(r *ControlRequest) { r.World.Map++ }, func(r *ControlRequest) { r.Revision++ }, func(r *ControlRequest) { r.Plan = "missing" }, func(r *ControlRequest) { r.ExpectedDirection = 1 }, func(r *ControlRequest) { r.Kind = "bad" }, func(r *ControlRequest) { r.RequestID = "" }} {
+	for _, change := range []func(*ControlRequest){func(r *ControlRequest) { r.World.Map++ }, func(r *ControlRequest) { r.Revision++ }, func(r *ControlRequest) { r.Plan = "missing" }, func(r *ControlRequest) { r.Kind = "bad" }, func(r *ControlRequest) { r.RequestID = "" }} {
 		bad := q
 		change(&bad)
 		if _, _, e := s.BeginControl(ctx, bad); e == nil {
@@ -143,7 +140,7 @@ func TestControlValidationCapacityOverflowAndCorruption(t *testing.T) {
 		t.Fatal("uncertain generation")
 	}
 	// Fill the bounded history atomically without performing thousands of separate fsyncs.
-	_, e = s.db.Exec(`WITH RECURSIVE n(x) AS (SELECT 2 UNION ALL SELECT x+1 FROM n WHERE x<4096) INSERT INTO control_intents SELECT 'manual-'||x,'manual','colony','load',0,'','0','0',CAST(x AS TEXT),'pending','0' FROM n`)
+	_, e = s.db.Exec(`WITH RECURSIVE n(x) AS (SELECT 2 UNION ALL SELECT x+1 FROM n WHERE x<4096) INSERT INTO control_intents SELECT 'manual-'||x,'manual','colony','load',0,'','0','pending','0' FROM n`)
 	if e != nil {
 		t.Fatal(e)
 	}
@@ -157,14 +154,8 @@ func TestControlValidationCapacityOverflowAndCorruption(t *testing.T) {
 	if _, e = s.db.Exec("DELETE FROM control_intents WHERE request_id!=?", q.RequestID); e != nil {
 		t.Fatal(e)
 	}
-	if _, e = s.db.Exec("UPDATE control_intents SET direction='18446744073709551615'"); e != nil {
-		t.Fatal(e)
-	}
-	if _, _, e = s.BeginControl(ctx, manual); e == nil {
-		t.Fatal("direction overflow")
-	}
-	for _, assignment := range []string{"direction='01'", "direction='18446744073709551616'", "phase='bad'", "native_generation='1'", "kind='bad'"} {
-		if _, e = s.db.Exec("UPDATE control_intents SET direction='1',phase='pending',native_generation='0',kind='acquire'"); e != nil {
+	for _, assignment := range []string{"revision='01'", "revision='18446744073709551616'", "phase='bad'", "native_generation='1'", "kind='bad'"} {
+		if _, e = s.db.Exec("UPDATE control_intents SET revision='1',phase='pending',native_generation='0',kind='acquire'"); e != nil {
 			t.Fatal(e)
 		}
 		if _, e = s.db.Exec("UPDATE control_intents SET " + assignment); e != nil {

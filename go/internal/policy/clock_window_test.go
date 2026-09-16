@@ -10,7 +10,7 @@ import (
 func clockWindowFixture(t *testing.T) (ClockWindowFacts, ClockWindowLimits) {
 	t.Helper()
 	now := time.Unix(100, 0)
-	snapshot := domain.GenerationSnapshot{Colony: "colony", Load: "load", Map: 0, Direction: 1, Plan: "plan", Revision: 1, Native: 2}
+	snapshot := domain.GenerationSnapshot{Colony: "colony", Load: "load", Map: 0, Plan: "plan", Revision: 1, Native: 2}
 	emergency, err := NewEmergencySnapshot(snapshot, 10, EmergencyFacts{ColonistsComplete: domain.Known(true), ThreatsComplete: domain.Known(true), Colonists: []EmergencyPawn{{ID: "pawn", Dead: domain.Known(false), Downed: domain.Known(false), Bleeding: domain.Known(false), NeedsTend: domain.Known(false)}}})
 	if err != nil {
 		t.Fatal(err)
@@ -34,7 +34,6 @@ func TestClockWindowConservativeHolds(t *testing.T) {
 		edit   func(*ClockWindowFacts, *ClockWindowLimits)
 		reason ClockWindowReason
 	}{
-		"authority zero":     {func(f *ClockWindowFacts, _ *ClockWindowLimits) { f.Current.Direction = 0 }, ClockWindowUnknown},
 		"native zero":        {func(f *ClockWindowFacts, _ *ClockWindowLimits) { f.Current.Native = 0 }, ClockWindowUnknown},
 		"revision zero":      {func(f *ClockWindowFacts, _ *ClockWindowLimits) { f.Current.Revision = 0 }, ClockWindowUnknown},
 		"invalid world":      {func(f *ClockWindowFacts, _ *ClockWindowLimits) { f.Current.Colony = "" }, ClockWindowUnknown},

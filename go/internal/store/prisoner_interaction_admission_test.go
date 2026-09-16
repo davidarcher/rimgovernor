@@ -23,7 +23,7 @@ func prisonerInteractionStoreFixture(t *testing.T) (*Store, string, PrisonerInte
 	if err = s.CreatePlan(ctx, plan); err != nil {
 		t.Fatal(err)
 	}
-	snapshot := domain.GenerationSnapshot{Colony: "colony", Load: "load", Map: 0, Plan: "plan", Revision: 1, Direction: 1, Native: 2}
+	snapshot := domain.GenerationSnapshot{Colony: "colony", Load: "load", Map: 0, Plan: "plan", Revision: 1, Native: 2}
 	v := PrisonerInteractionAdmission{Snapshot: snapshot, Tick: 12, Pawn: "prisoner", Interaction: domain.PrisonerInteractionRecruit, PawnSnapshotToken: "prisoner-cas"}
 	return s, path, v
 }

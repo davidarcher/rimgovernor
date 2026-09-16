@@ -20,7 +20,7 @@ func EvaluateClockWindow(f ClockWindowFacts, limits ClockWindowLimits) ClockWind
 	if limits.Now.IsZero() || limits.MaxAge <= 0 || limits.MaxTicks == 0 || limits.MaxTicks > 1800000 || f.Tick >= 0 && int64(f.Tick) > math.MaxInt64-int64(limits.MaxTicks) {
 		hold(ClockWindowInvalidLimits)
 	}
-	if f.Current.Validate() != nil || f.Current.Direction == 0 || f.Current.Revision == 0 || f.Current.Native == 0 || f.Tick < 0 {
+	if f.Current.Validate() != nil || f.Current.Revision == 0 || f.Current.Native == 0 || f.Tick < 0 {
 		hold(ClockWindowUnknown)
 	}
 	if f.Status.Snapshot != f.Current || f.Status.Tick != f.Tick {

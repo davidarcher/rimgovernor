@@ -114,7 +114,7 @@ func TestRoutineBuildingNativeUseBudgetRequiresOutcomeAndCurrentDirection(t *tes
 					t.Fatal(row, got, want)
 				}
 			}
-			current.Direction++
+			current.Native++
 			if budget(state, current, 100) != 0 {
 				t.Fatal("new direction inherited time")
 			}

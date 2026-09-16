@@ -17,7 +17,7 @@ func rangedRequest(t *testing.T) RangedDefenseRequest {
 	if err != nil {
 		t.Fatal(err)
 	}
-	s := domain.GenerationSnapshot{Colony: "colony", Map: 0, Load: "load", Direction: 1, Plan: plan.ID(), Revision: 1, Native: 1}
+	s := domain.GenerationSnapshot{Colony: "colony", Map: 0, Load: "load", Plan: plan.ID(), Revision: 1, Native: 1}
 	d, _ := domain.NewProgress(plan, da.ID())
 	d, err = d.Prepare(s, 10)
 	if err != nil {
@@ -41,7 +41,7 @@ func rangedRequest(t *testing.T) RangedDefenseRequest {
 	if err != nil {
 		t.Fatal(err)
 	}
-	return RangedDefenseRequest{Action: a, Progress: p, DraftProgress: d, Current: s, MinimumTick: 11, Facts: RangedDefenseFacts{Snapshot: s, PawnTick: 12, PreviewTick: 13, Emergency: e, NativeCanTry: domain.Known(true), Pawn: RangedPawnFacts{Pawn: "pawn", SnapshotToken: "pawn-cas", Dead: domain.Known(false), Downed: domain.Known(false), Bleeding: domain.Known(false), NeedsTend: domain.Known(false), HealthFraction: domain.Known(1.0), FreeColonist: domain.Known(true), Drafted: domain.Known(true), ViolenceCapable: domain.Known(true), RangedWeaponEquipped: domain.Known(true), Owner: domain.Known(MeleeDraftOwner{Claim: "claim", Session: "session", Direction: 1})}, Target: RangedTargetFacts{Pawn: "target", SnapshotToken: "target-cas", Dead: domain.Known(false), Downed: domain.Known(false), Hostile: domain.Known(true)}}}
+	return RangedDefenseRequest{Action: a, Progress: p, DraftProgress: d, Current: s, MinimumTick: 11, Facts: RangedDefenseFacts{Snapshot: s, PawnTick: 12, PreviewTick: 13, Emergency: e, NativeCanTry: domain.Known(true), Pawn: RangedPawnFacts{Pawn: "pawn", SnapshotToken: "pawn-cas", Dead: domain.Known(false), Downed: domain.Known(false), Bleeding: domain.Known(false), NeedsTend: domain.Known(false), HealthFraction: domain.Known(1.0), FreeColonist: domain.Known(true), Drafted: domain.Known(true), ViolenceCapable: domain.Known(true), RangedWeaponEquipped: domain.Known(true), Owner: domain.Known(MeleeDraftOwner{Claim: "claim", Session: "session"})}, Target: RangedTargetFacts{Pawn: "target", SnapshotToken: "target-cas", Dead: domain.Known(false), Downed: domain.Known(false), Hostile: domain.Known(true)}}}
 }
 
 func TestRangedDefenseAdmission(t *testing.T) {
@@ -87,7 +87,6 @@ func TestRangedDefenseHolds(t *testing.T) {
 		{"old emergency", func(r *RangedDefenseRequest) { r.Facts.Emergency.tick = 12 }},
 		{"zero generation", func(r *RangedDefenseRequest) { r.Current.Native = 0 }},
 		{"native", func(r *RangedDefenseRequest) { r.Current.Native++ }},
-		{"direction", func(r *RangedDefenseRequest) { r.Current.Direction++ }},
 		{"colony", func(r *RangedDefenseRequest) { r.Current.Colony = "other" }},
 		{"load", func(r *RangedDefenseRequest) { r.Current.Load = "other" }},
 		{"map", func(r *RangedDefenseRequest) { r.Current.Map++ }},

@@ -44,7 +44,6 @@ func TestGoalCreateActivatesPlayerSourcedGoalAndReplays(t *testing.T) {
 	for _, change := range []func(*GoalCreateSubmissionRequest){
 		func(v *GoalCreateSubmissionRequest) { v.Kind = domain.MaintainWoodGoal },
 		func(v *GoalCreateSubmissionRequest) { v.Tick = 11 },
-		func(v *GoalCreateSubmissionRequest) { v.Snapshot.Direction = 3 },
 		func(v *GoalCreateSubmissionRequest) { v.Snapshot.Load = "other" },
 	} {
 		changed := q
@@ -134,32 +133,6 @@ func TestGoalCreateReopensLiveGoalAndReplacesCancelledOne(t *testing.T) {
 	replay, err := s.LookupGoalCreateSubmission(ctx, "create")
 	if err != nil || replay.Goal != first.Goal {
 		t.Fatal(replay, err)
-	}
-}
-
-// A direction change under a live player goal invalidates its captured work
-// exactly as ReviewGoal's own invalidation does, and the player's fresh
-// direction gets a fresh identity rather than reusing an invalidated one.
-func TestGoalCreateReplacesGoalInvalidatedByNewDirection(t *testing.T) {
-	t.Parallel()
-	ctx := context.Background()
-	s := open(t, filepath.Join(t.TempDir(), "player-goals-direction.db"))
-	first, _, err := s.SubmitGoalCreate(ctx, goalCreateRequest("create", domain.EnsureCookingGoal))
-	if err != nil {
-		t.Fatal(err)
-	}
-	moved := scope()
-	moved.Direction = scope().Direction - 1
-	next, created, err := s.SubmitGoalCreate(ctx, GoalCreateSubmissionRequest{RequestID: "moved", Kind: domain.EnsureCookingGoal, Snapshot: moved, Tick: 11})
-	if err != nil || !created || next.Goal == first.Goal {
-		t.Fatal(next, created, err)
-	}
-	if next.State.Goal.Snapshot != moved || next.State.Goal.Status != domain.GoalActive || next.State.Goal.Need != domain.NeedDeficit {
-		t.Fatal(next.State.Goal)
-	}
-	old, err := s.LoadGoal(ctx, first.Goal)
-	if err != nil || old.Goal.Status != domain.GoalInvalidated {
-		t.Fatal("superseded goal not invalidated", old, err)
 	}
 }
 

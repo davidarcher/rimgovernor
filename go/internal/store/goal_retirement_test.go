@@ -2,6 +2,7 @@ package store
 
 import (
 	"context"
+	"fmt"
 	"path/filepath"
 	"testing"
 
@@ -9,7 +10,7 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
 )
 
-func TestRoutineGoalRetirementSurvivesRepeatedDirectionsAndRestart(t *testing.T) {
+func TestRoutineGoalRetirementSurvivesRepeatedReloadsAndRestart(t *testing.T) {
 	t.Parallel()
 	ctx := context.Background()
 	path := filepath.Join(t.TempDir(), "routine.db")
@@ -18,7 +19,7 @@ func TestRoutineGoalRetirementSurvivesRepeatedDirectionsAndRestart(t *testing.T)
 	first := reviewRoutine(t, s, &r)
 	old := routineGoal(t, first, policy.MaintainWood)
 	for i := 0; i < 32; i++ {
-		r.Current.Direction--
+		r.Current.Load = domain.LoadID(fmt.Sprintf("load-%d", i))
 		out := reviewRoutine(t, s, &r)
 		if len(out.Goals) != 36 {
 			t.Fatal(out)
@@ -68,7 +69,7 @@ func TestRoutineGoalRetirementWaitsForObservedEffects(t *testing.T) {
 	if _, err := s.Dispatch(ctx, "p", "a", scope(), 10); err != nil {
 		t.Fatal(err)
 	}
-	r.Current.Direction--
+	r.Current.Load = "other"
 	r.Current.Plan = "other"
 	reviewRoutine(t, s, &r)
 	before, err := s.LoadGoal(ctx, g.Goal.ID)
@@ -110,7 +111,7 @@ func TestRoutineGoalRetirementRollsBackWithReview(t *testing.T) {
 	if _, err := s.db.ExecContext(ctx, `CREATE TRIGGER fail_review BEFORE UPDATE ON routine_review BEGIN SELECT RAISE(ABORT,'review failure'); END`); err != nil {
 		t.Fatal(err)
 	}
-	r.Current.Direction--
+	r.Current.Load = "other"
 	if _, err := s.ReviewRoutine(ctx, r); err == nil {
 		t.Fatal("injected failure ignored")
 	}
@@ -154,7 +155,7 @@ func TestRoutineGoalRetirementRetainsCompletedOwnedDraft(t *testing.T) {
 	if err != nil || progress.View().Stage != domain.Completed || progress.View().Unresolved {
 		t.Fatal(progress, err)
 	}
-	r.Current.Direction--
+	r.Current.Load = "other"
 	r.Current.Plan = "other"
 	reviewRoutine(t, s, &r)
 	g, err = s.LoadGoal(ctx, g.Goal.ID)

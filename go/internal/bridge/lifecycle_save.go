@@ -20,7 +20,9 @@ type SaveUncertain struct {
 	Receipt Result
 }
 
-func (e *SaveUncertain) Error() string { return "native save outcome uncertain: " + e.Value.GetDetail() }
+func (e *SaveUncertain) Error() string {
+	return "native save outcome uncertain: " + e.Value.GetDetail()
+}
 func (e *SaveUncertain) Unwrap() error { return ErrSaveUncertain }
 
 // LifecycleSave is a separately held mutation capability, mirroring
@@ -113,6 +115,12 @@ func interpretSaveOutcome(reply *l.SaveReply, requestID *string, raw Result) err
 	}
 	return nil
 }
+
+// LifecycleDirection is the fixed player_direction the controller sends on
+// lifecycle save/load. The native protocol still requires the field to be
+// nonzero and echoes it back; the controller itself has no direction counter
+// (there is one author of orders), so the value carries no meaning here.
+const LifecycleDirection uint64 = 1
 
 func validateSaveRequest(request *l.SaveRequest) error {
 	if request == nil || request.Player == nil {

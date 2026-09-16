@@ -43,7 +43,7 @@ func penShellPlan(t *testing.T, id domain.PlanID, originX, originZ int32, comple
 	}
 	var progress []domain.Progress
 	if complete {
-		snapshot := domain.GenerationSnapshot{Colony: "colony", Load: "load", Map: 0, Direction: 1, Native: 1, Plan: id, Revision: 1}
+		snapshot := domain.GenerationSnapshot{Colony: "colony", Load: "load", Map: 0, Native: 1, Plan: id, Revision: 1}
 		for _, a := range actions {
 			progress = append(progress, completedProgress(t, spec, a.ID(), snapshot))
 		}

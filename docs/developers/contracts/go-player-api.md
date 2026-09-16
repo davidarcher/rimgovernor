@@ -64,8 +64,8 @@ only as routine-planner output; the routes, store tables and executor states for
 their player submissions were removed in
 [issue #54](https://github.com/davidarcher/rimgovernor/issues/54).
 
-Acquire and Manual retain the existing exact-world, direction-CAS and durable
-request semantics. Acquire does not negotiate a lease or an owner identity —
+Acquire and Manual retain the existing exact-world and durable request
+semantics; there is no direction compare-and-swap, intents are journaled in order. Acquire does not negotiate a lease or an owner identity —
 there is exactly one bot and one local human player, so Acquire is simply an
 explicit dashboard trigger that tells the sole bot to switch its own Mode to
 Auto for an exact stored plan revision; the bot's native side still resolves
@@ -101,10 +101,10 @@ same Player and store used by the worker.
 
 ## Dashboard behavior
 
-The building and chat forms share token bootstrap, current permission, direction
-CAS, Manual and acquisition history. An outstanding acquisition from either
+The building and chat forms share token bootstrap, current permission, Manual
+and acquisition history. An outstanding acquisition from either
 form still prevents a competing acquisition — there is still exactly one
-bot, so a second Acquire for a different plan/direction while one is already
+bot, so a second Acquire for a different plan while one is already
 in flight is rejected the same way it always was, just without any Owner
 identity involved; Manual remains available regardless. Background refresh
 preserves both forms, request IDs and last-good data. Session/world changes

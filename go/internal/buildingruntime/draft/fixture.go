@@ -40,7 +40,7 @@ func NewFixture(t *testing.T) (*DraftBoundary, *Fixture) {
 	t.Helper()
 	draft, _ := domain.NewOwnedDraft("pawn")
 	action, _ := domain.NewOwnedDraftAction("action", draft)
-	snapshot := domain.GenerationSnapshot{Colony: "colony", Load: "load", Map: 0, Plan: "plan", Revision: 1, Direction: 1, Native: 2}
+	snapshot := domain.GenerationSnapshot{Colony: "colony", Load: "load", Map: 0, Plan: "plan", Revision: 1, Native: 2}
 	p := executor.Placement{Action: action, Snapshot: snapshot, Attempt: 1, Tick: 10}
 	ctx := &c.ObservationContext{Identity: boundary.Identity(snapshot), Tick: proto.Int64(10), NativeGeneration: proto.Uint64(2)}
 	ref := &n.SnapshotRef{Context: proto.Clone(ctx).(*c.ObservationContext), EntityId: proto.String("pawn"), Token: proto.String("cas")}

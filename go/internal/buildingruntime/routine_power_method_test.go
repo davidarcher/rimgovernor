@@ -171,7 +171,7 @@ func TestRoutinePowerRejectsUnsafeIncompleteAndUnaffordableRoutes(t *testing.T) 
 						preview.Stock.Values[0].Available = domain.Known(int64(2))
 					case "cancelled":
 						p.reviewer.player.session.(*playerFakeSession).mu.Lock()
-						p.reviewer.player.session.(*playerFakeSession).state.Snapshot.Direction++
+						p.reviewer.player.session.(*playerFakeSession).state.Snapshot.Native++
 						p.reviewer.player.session.(*playerFakeSession).mu.Unlock()
 					}
 				}

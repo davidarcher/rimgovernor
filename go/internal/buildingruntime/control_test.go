@@ -54,7 +54,7 @@ type controlNative struct {
 }
 
 func controlScope() domain.GenerationSnapshot {
-	return domain.GenerationSnapshot{Colony: "colony", Map: 0, Load: "load", Plan: "plan", Revision: 1, Direction: 3}
+	return domain.GenerationSnapshot{Colony: "colony", Map: 0, Load: "load", Plan: "plan", Revision: 1}
 }
 func (n *controlNative) ReadAuthority(ctx context.Context, id *c.Identity) (*a.StatusReply, bridge.Result, error) {
 	if n.onRead != nil {
@@ -143,7 +143,7 @@ func TestControlOwnsProfileAndExplicitLease(t *testing.T) {
 		t.Fatal(lease, err)
 	}
 	wrong := snapshot
-	wrong.Direction++
+	wrong.Native++
 	if _, err := control.Lease(wrong); err == nil {
 		t.Fatal("wrong direction got lease")
 	}
@@ -263,7 +263,7 @@ func TestControlRefreshRetainsDisabledCurrentGeneration(t *testing.T) {
 	sink.mu.Lock()
 	value = sink.value
 	sink.mu.Unlock()
-	if value.Enabled || value.Snapshot.Native != 4 || value.Snapshot.Direction != 3 || n.acquires.Load() != 1 {
+	if value.Enabled || value.Snapshot.Native != 4 || n.acquires.Load() != 1 {
 		t.Fatal("read refresh adopted authority", value)
 	}
 }

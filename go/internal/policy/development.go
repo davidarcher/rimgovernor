@@ -122,7 +122,7 @@ func RankDevelopment(r DevelopmentRequest) (DevelopmentState, error) {
 	result := DevelopmentState{Snapshot: r.Snapshot, Tick: r.Tick, Workers: r.Workers, Labor: r.Labor, Capacity: min(r.Limit, workers)}
 	ledger := newLaborLedger(r.Labor)
 	old := map[GoalID]DevelopmentRow{}
-	if sameWorld(r.Previous.Snapshot, r.Snapshot) && r.Previous.Snapshot.Direction == r.Snapshot.Direction && r.Tick >= r.Previous.Tick {
+	if sameWorld(r.Previous.Snapshot, r.Snapshot) && r.Tick >= r.Previous.Tick {
 		for _, row := range r.Previous.Rows {
 			if row.WaitingSince < 0 || row.WaitingSince > r.Previous.Tick {
 				return DevelopmentState{}, errors.New("invalid development history")

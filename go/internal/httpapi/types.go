@@ -82,13 +82,12 @@ type Game struct {
 	Stale      bool         `json:"stale"`
 }
 type Generation struct {
-	Colony    domain.ColonyID         `json:"colony"`
-	Map       domain.MapID            `json:"map"`
-	Load      domain.LoadID           `json:"load"`
-	Direction domain.DirectionID      `json:"direction,string"`
-	Plan      domain.PlanID           `json:"plan"`
-	Revision  domain.PlanRevision     `json:"revision,string"`
-	Native    domain.NativeGeneration `json:"native,string"`
+	Colony   domain.ColonyID         `json:"colony"`
+	Map      domain.MapID            `json:"map"`
+	Load     domain.LoadID           `json:"load"`
+	Plan     domain.PlanID           `json:"plan"`
+	Revision domain.PlanRevision     `json:"revision,string"`
+	Native   domain.NativeGeneration `json:"native,string"`
 }
 type Plan struct {
 	ID       domain.PlanID       `json:"id"`
@@ -207,5 +206,5 @@ func value[T any](fact domain.Fact[T]) *T {
 	return &v
 }
 func generation(s domain.GenerationSnapshot) *Generation {
-	return &Generation{s.Colony, s.Map, s.Load, s.Direction, s.Plan, s.Revision, s.Native}
+	return &Generation{s.Colony, s.Map, s.Load, s.Plan, s.Revision, s.Native}
 }

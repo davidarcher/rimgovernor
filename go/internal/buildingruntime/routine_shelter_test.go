@@ -123,7 +123,7 @@ func TestRoutineShelterNeverCommitsPartialOrUnknownShell(t *testing.T) {
 				case "direction":
 					session := r.reviewer.player.session.(*playerFakeSession)
 					session.mu.Lock()
-					session.state.Snapshot.Direction++
+					session.state.Snapshot.Native++
 					session.mu.Unlock()
 				}
 			}
@@ -228,7 +228,7 @@ func TestShelterRoofingBudgetRequiresObservedCompletionAndDoesNotRenew(t *testin
 			t.Fatal(test, got)
 		}
 	}
-	current.Direction++
+	current.Native++
 	if shelterNativeWorkTicks(plan, current, 100) != 0 {
 		t.Fatal("old direction renewed roofing budget")
 	}

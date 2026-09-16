@@ -79,7 +79,7 @@ func TestComfortUseAllowanceRetainsRetiredMethodAndExpires(t *testing.T) {
 		}
 	}
 	changed := current
-	changed.Direction++
+	changed.Native++
 	if got, err := comfortUseAllowance(ctx, db, g.Goal, changed, 7); err != nil || got != 0 {
 		t.Fatal("changed direction inherited allowance", got, err)
 	}

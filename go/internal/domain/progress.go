@@ -303,7 +303,7 @@ func (p Progress) MarkDispatched(current GenerationSnapshot, tick Tick) (Progres
 	if p.draftCleanupOutstanding() {
 		return p, errors.New("draft cleanup remains outstanding")
 	}
-	if p.action.kind == OwnedDraftAction && (current.Native == 0 || current.Direction == 0) {
+	if p.action.kind == OwnedDraftAction && (current.Native == 0) {
 		return p, errors.New("draft dispatch requires native generation and player direction")
 	}
 	p.view.Attempt++

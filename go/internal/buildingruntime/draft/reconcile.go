@@ -226,7 +226,7 @@ func (b *DraftBoundary) ReleaseDraft(ctx context.Context, release domain.DraftRe
 	out := executor.DraftCleanupReceipt{Release: release, Outcome: domain.DraftReleaseUncertain}
 	q := release.Request
 	claim := q.Claim
-	if release.Sequence == 0 || q.Tick < 0 || q.Observed.Validate() != nil || q.Observed.Native == 0 || claim.Origin.Validate() != nil || claim.Origin.Native == 0 || claim.Origin.Direction == 0 || claim.Attempt == 0 || !boundary.World(q.Observed, claim.Origin) || q.Observed.Native < claim.Origin.Native || !boundary.ValidID(string(claim.Action)) || !boundary.ValidID(string(claim.Pawn)) || !boundary.ValidID(string(claim.Claim)) || string(claim.Session) != b.session || !boundary.ValidID(q.PawnSnapshotToken) {
+	if release.Sequence == 0 || q.Tick < 0 || q.Observed.Validate() != nil || q.Observed.Native == 0 || claim.Origin.Validate() != nil || claim.Origin.Native == 0 || claim.Attempt == 0 || !boundary.World(q.Observed, claim.Origin) || q.Observed.Native < claim.Origin.Native || !boundary.ValidID(string(claim.Action)) || !boundary.ValidID(string(claim.Pawn)) || !boundary.ValidID(string(claim.Claim)) || string(claim.Session) != b.session || !boundary.ValidID(q.PawnSnapshotToken) {
 		return out, executor.ErrEvidence
 	}
 	request := &o.ReleaseOwnedDraftRequest{Identity: boundary.Identity(claim.Origin), Pawn: &o.EntityPrecondition{EntityId: proto.String(string(claim.Pawn)), ExpectedSnapshotToken: proto.String(q.PawnSnapshotToken)}, ExpectedClaimId: proto.String(string(claim.Claim))}

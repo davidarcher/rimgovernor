@@ -21,7 +21,7 @@ func (f completeFunc) Complete(c context.Context, r model.Request) (model.Respon
 	return f(c, r)
 }
 func inputFixture() Input {
-	generation := domain.GenerationSnapshot{Colony: "colony", Map: 1, Load: "load", Plan: "player-plan", Revision: 2, Direction: 3, Native: 4}
+	generation := domain.GenerationSnapshot{Colony: "colony", Map: 1, Load: "load", Plan: "player-plan", Revision: 2, Native: 4}
 	return Input{UserRequest: "Build a granite wall at (2,3).", ExplicitPlayerRequest: true, Current: generation, Facts: Snapshot{Generation: generation, Width: 20, Height: 20, Definitions: []Definition{{DefName: "Wall", Stuff: []string{"Granite"}}}, Cells: []domain.Cell{{X: 2, Z: 3}}}, ActionIDs: []domain.ActionID{"a1"}}
 }
 func clientFixture(t *testing.T, fn completeFunc) *Interpreter {

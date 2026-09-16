@@ -259,7 +259,7 @@ func TestComposedRoutineFamiliesWorldChangeRejectsAllWithoutCrossLeak(t *testing
 // composedAcquire submits a distinct building and acquires control under a
 // unique request id, mirroring playerAcquire but safe to call twice against
 // the same durable store across a simulated process restart.
-func composedAcquire(t *testing.T, p *Player, requestID string, x, z int32, expectedDirection domain.DirectionID) store.ControlRequest {
+func composedAcquire(t *testing.T, p *Player, requestID string, x, z int32) store.ControlRequest {
 	t.Helper()
 	building, err := domain.NewBuilding("Wall", domain.Cell{X: x, Z: z}, domain.North, "WoodLog")
 	if err != nil {
@@ -269,7 +269,7 @@ func composedAcquire(t *testing.T, p *Player, requestID string, x, z int32, expe
 	if err != nil || !created {
 		t.Fatal(submission, created, err)
 	}
-	return store.ControlRequest{RequestID: requestID + "-acquire", Kind: store.AcquireControl, World: submission.Request.World, Plan: submission.Plan, Revision: submission.Revision, ExpectedDirection: expectedDirection}
+	return store.ControlRequest{RequestID: requestID + "-acquire", Kind: store.AcquireControl, World: submission.Request.World, Plan: submission.Plan, Revision: submission.Revision}
 }
 
 func composedNativeFixture(t *testing.T) *routineNative {
@@ -308,7 +308,7 @@ func TestComposedRoutineFamiliesFreshStartReconciliationRecoversIndependently(t 
 	if err != nil {
 		t.Fatal(err)
 	}
-	request1 := composedAcquire(t, p1, "composed-restart-first", 1, 1, 0)
+	request1 := composedAcquire(t, p1, "composed-restart-first", 1, 1)
 	if _, err = p1.Acquire(ctx, request1); err != nil {
 		t.Fatal(err)
 	}
@@ -379,11 +379,11 @@ func TestComposedRoutineFamiliesFreshStartReconciliationRecoversIndependently(t 
 	// against a brand new, never-enabled local session), so it first issues
 	// its own Manual to clear the orphaned grant before acquiring fresh
 	// authority, the way a real restarted controller reconciles a stale world.
-	released, err := p2.Manual(ctx, store.ControlRequest{RequestID: "composed-restart-release", Kind: store.ManualControl, World: request1.World})
+	_, err = p2.Manual(ctx, store.ControlRequest{RequestID: "composed-restart-release", Kind: store.ManualControl, World: request1.World})
 	if err != nil {
 		t.Fatal(err)
 	}
-	request2 := composedAcquire(t, p2, "composed-restart-second", 2, 2, released.Direction)
+	request2 := composedAcquire(t, p2, "composed-restart-second", 2, 2)
 	if _, err = p2.Acquire(ctx, request2); err != nil {
 		t.Fatal(err)
 	}

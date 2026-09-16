@@ -173,7 +173,6 @@ func TestBoundaryRestartReadsWithoutLeaseAndChecksCompletion(t *testing.T) {
 	b, f := NewFixture(t)
 	f.LeaseErr = executor.ErrAuthority
 	current := f.Placement.Snapshot
-	current.Direction = 2
 	current.Native = 2
 	f.Progress.Context.NativeGeneration = proto.Uint64(2)
 	out, err := b.Observe(context.Background(), f.Placement, current)

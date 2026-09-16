@@ -38,7 +38,7 @@ import (
 	"modernc.org/sqlite"
 )
 
-const schemaVersion = 70
+const schemaVersion = 71
 const applicationID = 0x52474f31
 
 var ErrConflict = core.ErrConflict
@@ -233,7 +233,7 @@ CREATE TABLE resource_policies(colony TEXT NOT NULL, load_token TEXT NOT NULL, m
 			return err
 		}
 		var entropy [32]byte
-		if _, err = tx.ExecContext(ctx, `CREATE TABLE control_intents(request_id TEXT PRIMARY KEY, kind TEXT NOT NULL, colony TEXT NOT NULL, load_token TEXT NOT NULL, map_id INTEGER NOT NULL, plan_id TEXT NOT NULL, revision TEXT NOT NULL, expected_direction TEXT NOT NULL, direction TEXT NOT NULL UNIQUE, phase TEXT NOT NULL, native_generation TEXT NOT NULL) STRICT`); err != nil {
+		if _, err = tx.ExecContext(ctx, `CREATE TABLE control_intents(request_id TEXT PRIMARY KEY, kind TEXT NOT NULL, colony TEXT NOT NULL, load_token TEXT NOT NULL, map_id INTEGER NOT NULL, plan_id TEXT NOT NULL, revision TEXT NOT NULL, phase TEXT NOT NULL, native_generation TEXT NOT NULL) STRICT`); err != nil {
 			return err
 		}
 		if _, err = rand.Read(entropy[:]); err != nil {

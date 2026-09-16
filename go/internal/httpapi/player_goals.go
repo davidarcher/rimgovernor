@@ -71,7 +71,7 @@ func goalStateWire(v store.GoalState) goalStateDTO {
 // generation the goal is then judged against.
 func decodeGoalCreate(reader io.Reader) (store.GoalCreateSubmissionRequest, error) {
 	var q store.GoalCreateSubmissionRequest
-	fields, err := buildingRequest(reader, "requestId", "expected", "expectedDirection", "planId", "goal", "tick")
+	fields, err := buildingRequest(reader, "requestId", "expected", "planId", "goal", "tick")
 	if err != nil {
 		return q, err
 	}
@@ -92,10 +92,6 @@ func decodeGoalCreate(reader io.Reader) (store.GoalCreateSubmissionRequest, erro
 	if q.Kind, err = domain.NewGoalKind(kind); err != nil {
 		return q, err
 	}
-	direction, err := buildingUint(fields["expectedDirection"])
-	if err != nil || direction == 0 {
-		return q, errors.New("expectedDirection must be a positive canonical uint64 string")
-	}
 	var plan domain.PlanID
 	if err = json.Unmarshal(fields["planId"], &plan); err != nil {
 		return q, err
@@ -112,7 +108,7 @@ func decodeGoalCreate(reader io.Reader) (store.GoalCreateSubmissionRequest, erro
 		return q, errors.New("tick must be a nonnegative integer")
 	}
 	q.Tick = domain.Tick(n)
-	q.Snapshot = domain.GenerationSnapshot{Colony: world.Colony, Load: world.Load, Map: world.Map, Direction: domain.DirectionID(direction), Plan: plan}
+	q.Snapshot = domain.GenerationSnapshot{Colony: world.Colony, Load: world.Load, Map: world.Map, Plan: plan}
 	if q.World() != world {
 		return store.GoalCreateSubmissionRequest{}, errors.New("goal activation names two worlds")
 	}

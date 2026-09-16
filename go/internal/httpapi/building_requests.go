@@ -48,7 +48,7 @@ func decodeBuildingSubmission(reader io.Reader) (store.SubmissionRequest, error)
 }
 func decodeBuildingAcquire(reader io.Reader) (store.ControlRequest, error) {
 	result := store.ControlRequest{Kind: store.AcquireControl}
-	fields, err := buildingRequest(reader, "requestId", "expected", "planId", "revision", "expectedDirection")
+	fields, err := buildingRequest(reader, "requestId", "expected", "planId", "revision")
 	if err != nil {
 		return result, err
 	}
@@ -71,12 +71,7 @@ func decodeBuildingAcquire(reader io.Reader) (store.ControlRequest, error) {
 	if err != nil || revision == 0 {
 		return result, errors.New("revision must be a positive canonical uint64 string")
 	}
-	direction, err := buildingUint(fields["expectedDirection"])
-	if err != nil {
-		return result, err
-	}
 	result.Revision = domain.PlanRevision(revision)
-	result.ExpectedDirection = domain.DirectionID(direction)
 	return result, nil
 }
 func decodeBuildingManual(reader io.Reader) (store.ControlRequest, error) {

@@ -39,7 +39,7 @@ func ValidateAdmission(a domain.Action, p domain.Progress, admission Admission) 
 		return errors.New("admission plan or tick mismatch")
 	}
 	bill, ok := a.ProductionBill()
-	if !ok || string(bill.Bench()) != admission.Bench || idShaped(admission.SnapshotToken) != nil || admission.SnapshotToken != bill.BeforeToken() || admission.Snapshot.Native == 0 || admission.Snapshot.Direction == 0 {
+	if !ok || string(bill.Bench()) != admission.Bench || idShaped(admission.SnapshotToken) != nil || admission.SnapshotToken != bill.BeforeToken() || admission.Snapshot.Native == 0 {
 		return errors.New("invalid bill admission")
 	}
 	return nil

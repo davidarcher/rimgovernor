@@ -12,7 +12,7 @@ import (
 
 func TestRoutineProjectWorkTracksSharedLifecycleAndWorld(t *testing.T) {
 	t.Parallel()
-	current := domain.GenerationSnapshot{Colony: "colony", Load: "load", Map: 0, Plan: "selected", Revision: 1, Native: 1, Direction: 1}
+	current := domain.GenerationSnapshot{Colony: "colony", Load: "load", Map: 0, Plan: "selected", Revision: 1, Native: 1}
 	makePlan := func(id domain.PlanID, name string, admitted bool) store.PlanState {
 		b, _ := domain.NewBuilding(name, domain.Cell{X: 1, Z: 1}, domain.North, "")
 		a, _ := domain.NewBuildingAction(domain.ActionID(id), b)

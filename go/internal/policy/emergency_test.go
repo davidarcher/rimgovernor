@@ -8,7 +8,7 @@ import (
 )
 
 func emergencyScope() domain.GenerationSnapshot {
-	return domain.GenerationSnapshot{Colony: "colony", Map: 0, Load: "load", Plan: "plan", Revision: 1, Direction: 2, Native: 3}
+	return domain.GenerationSnapshot{Colony: "colony", Map: 0, Load: "load", Plan: "plan", Revision: 1, Native: 3}
 }
 func healthyPawn(id PawnID) EmergencyPawn {
 	return EmergencyPawn{ID: id, Dead: domain.Known(false), Downed: domain.Known(false), Bleeding: domain.Known(false), NeedsTend: domain.Known(false)}
@@ -134,7 +134,7 @@ func TestEmergencyFreshnessAndValidation(t *testing.T) {
 	if e != nil {
 		t.Fatal(e)
 	}
-	for _, mutate := range []func(*domain.GenerationSnapshot){func(v *domain.GenerationSnapshot) { v.Colony = "other" }, func(v *domain.GenerationSnapshot) { v.Map++ }, func(v *domain.GenerationSnapshot) { v.Load = "other" }, func(v *domain.GenerationSnapshot) { v.Plan = "other" }, func(v *domain.GenerationSnapshot) { v.Revision++ }, func(v *domain.GenerationSnapshot) { v.Direction++ }, func(v *domain.GenerationSnapshot) { v.Native++ }} {
+	for _, mutate := range []func(*domain.GenerationSnapshot){func(v *domain.GenerationSnapshot) { v.Colony = "other" }, func(v *domain.GenerationSnapshot) { v.Map++ }, func(v *domain.GenerationSnapshot) { v.Load = "other" }, func(v *domain.GenerationSnapshot) { v.Plan = "other" }, func(v *domain.GenerationSnapshot) { v.Revision++ }, func(v *domain.GenerationSnapshot) { v.Native++ }, func(v *domain.GenerationSnapshot) { v.Native++ }} {
 		changed := scope
 		mutate(&changed)
 		if !hasEmergencyHold(EvaluateEmergency(s, changed, 10), EmergencyStaleFacts, "") {

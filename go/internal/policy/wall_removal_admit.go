@@ -46,7 +46,7 @@ func EvaluateWallRemoval(r WallRemovalRequest) DraftDecision {
 	}
 	v := r.Progress.View()
 	f := r.Facts
-	if r.Current.Validate() != nil || r.Current.Native == 0 || r.Current.Direction == 0 || !f.Snapshot.Matches(r.Current) {
+	if r.Current.Validate() != nil || r.Current.Native == 0 || !f.Snapshot.Matches(r.Current) {
 		return refuse(StaleFacts)
 	}
 	if r.Progress.Action() != r.Action || v.Plan != r.Current.Plan || v.Revision != r.Current.Revision || v.Unresolved || (v.Stage != domain.Pending && v.Stage != domain.Prepared) {

@@ -130,7 +130,7 @@ func TestRoutineSleepingRejectsIncompleteAndChangedEvidence(t *testing.T) {
 						v.Stock.Values = []policy.Stock{{Resource: "WoodLog", Available: domain.Known(int64(50))}}
 					case "direction":
 						session.mu.Lock()
-						session.state.Snapshot.Direction++
+						session.state.Snapshot.Native++
 						session.mu.Unlock()
 					case "tick":
 						n.reply.GetObserved().Context.Tick = proto.Int64(8)

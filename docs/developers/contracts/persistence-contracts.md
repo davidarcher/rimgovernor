@@ -49,7 +49,7 @@ not bound ledger disk growth or discard method deduplication evidence.
 
 Chat request IDs deduplicate lost HTTP acknowledgments within a colony. The
 dashboard retains the ID for an unchanged failed submission and sends its load
-identity. History, player direction, runtime snapshot and acknowledgment commit
+identity. History, control intents, runtime snapshot and acknowledgment commit
 together in SQLite. Requests interrupted by reconnect/load remain visible with
 an explicit interruption notice; they are not automatically replayed.
 Native clock reads journal fetched events and source cursor together before

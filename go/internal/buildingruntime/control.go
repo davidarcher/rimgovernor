@@ -109,16 +109,14 @@ func NewControl(ctx context.Context, config ControlConfig, identity SessionIdent
 }
 
 // Acquire must be called only by an authenticated explicit-player entrypoint.
-// A requested direction is scoped intent, not authentication -- it stays a
-// domain-level concept for goal invalidation across acquisitions (see
-// domain.GenerationSnapshot) and is never sent over the wire any more; the
-// wire contract only carries identity, generation and the requested Mode.
+// The wire contract carries identity, generation and the requested Mode; the
+// requested snapshot's plan/revision are scoped intent, not authentication.
 // Fresh native CAS replaces the requested native generation.
 func (control *Control) Acquire(ctx context.Context, requested domain.GenerationSnapshot) (domain.GenerationSnapshot, error) {
 	if err := requested.Validate(); err != nil {
 		return domain.GenerationSnapshot{}, err
 	}
-	if requested.Direction == 0 || requested.Revision == 0 {
+	if requested.Revision == 0 {
 		return domain.GenerationSnapshot{}, ErrControl
 	}
 	control.mu.Lock()

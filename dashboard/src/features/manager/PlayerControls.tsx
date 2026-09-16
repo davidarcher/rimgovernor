@@ -14,7 +14,7 @@ function describeChat(value: ChatSubmission): string {
 }
 function submissionMatches(value: Submission, request: SubmissionRequest): boolean {return value.requestId === request.requestId && sameWorld(value.expected, request.expected) && Object.entries(request.building).every(([key, item]) => Object.entries(value.building).some(([other, actual]) => key === other && item === actual));}
 function recordMatches(value: ControlRecord, request: AcquireRequest | ManualRequest, kind: 'acquire' | 'manual'): boolean {
-  return value.requestId === request.requestId && value.kind === kind && sameWorld(value.expected, request.expected) && (!('planId' in request) || value.planId === request.planId && value.revision === request.revision && value.expectedDirection === request.expectedDirection);
+  return value.requestId === request.requestId && value.kind === kind && sameWorld(value.expected, request.expected) && (!('planId' in request) || value.planId === request.planId && value.revision === request.revision);
 }
 
 export default function PlayerControls({observation, observationFresh}: {observation: ObservationState | null; observationFresh: boolean}) {
@@ -84,7 +84,7 @@ export default function PlayerControls({observation, observationFresh}: {observa
     if (expected === version.current) {
       // Only current reply state describes permission. A historical grant does not.
       setCurrent(previous => ({record: previous?.record ?? null, state: reply.state, error: reply.error}));
-      setCurrentFresh(false); // Refresh the current journal direction before a new CAS.
+      setCurrentFresh(false); // Refresh the current journal record before a new intent.
       setError(reply.error?.detail ?? '');
     }
   };
@@ -106,7 +106,7 @@ export default function PlayerControls({observation, observationFresh}: {observa
   const acquire = async (selected: Submission | ChatSubmission) => {
     if (!canAcquire(selected) || !token || busyAcquire.current && acquireIntent && sameWorld(acquireIntent.expected, selected.expected)) return;
     const expected = ++version.current;
-    const request: AcquireRequest = {requestId: crypto.randomUUID(), expected: {...selected.expected}, planId: selected.planId, revision: selected.revision, expectedDirection: current?.record?.direction ?? '0'};
+    const request: AcquireRequest = {requestId: crypto.randomUUID(), expected: {...selected.expected}, planId: selected.planId, revision: selected.revision};
     if (acquireIntent) setHistory(previous => [...previous, {kind: 'acquire', request: acquireIntent, record: acquireRecord}]);
     activeRequests.current.acquire = request.requestId;
     busyAcquire.current = true; setAcquiring(true); setAcquireIntent(request); setAcquireRecord(null); setCurrentFresh(false); setError('');
@@ -149,7 +149,7 @@ export default function PlayerControls({observation, observationFresh}: {observa
   };
   const freshWorld = observationFresh && observation?.connected && !observation.game.stale && observation.identity !== null;
   const sameSubmissionWorld = Boolean(submission && observation?.identity && sameWorld(submission.expected, observation.identity));
-  const laterManual = current?.record?.kind === 'manual' && current.record.phase === 'disabled' && !current.state.enabled && acquireIntent !== null && sameWorld(current.record.expected, acquireIntent.expected) && BigInt(current.record.direction) > BigInt(acquireRecord?.direction ?? acquireIntent.expectedDirection);
+  const laterManual = current?.record?.kind === 'manual' && current.record.phase === 'disabled' && !current.state.enabled && acquireIntent !== null && sameWorld(current.record.expected, acquireIntent.expected) && current.record.requestId !== acquireIntent.requestId && acquireRecord !== null; // Records are journaled in order: a current Manual after a journaled Acquire supersedes it.
   const acquireInWorld = Boolean(acquireIntent && observation?.identity && sameWorld(acquireIntent.expected, observation.identity));
   const unresolvedAcquire = acquireInWorld && acquireIntent !== null && !rejectedRequests.includes(acquireIntent.requestId) && (!acquireRecord || ['pending', 'uncertain'].includes(acquireRecord.phase)) && !laterManual;
   const canAcquire = (selected: Submission | ChatSubmission) => Boolean(token && freshWorld && currentFresh && observation?.identity && sameWorld(selected.expected, observation.identity) && !submitting && !chatSubmitting && !(acquiring && acquireInWorld) && !manualPending && !unresolvedAcquire);

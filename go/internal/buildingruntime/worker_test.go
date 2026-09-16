@@ -66,7 +66,7 @@ func workerPending(t *testing.T, w *Worker, id string, unresolved bool) domain.P
 	if err != nil {
 		t.Fatal(err)
 	}
-	snapshot := domain.GenerationSnapshot{Colony: q.World.Colony, Load: q.World.Load, Map: q.World.Map, Plan: submission.Plan, Revision: 1, Direction: 1, Native: 1}
+	snapshot := domain.GenerationSnapshot{Colony: q.World.Colony, Load: q.World.Load, Map: q.World.Map, Plan: submission.Plan, Revision: 1, Native: 1}
 	if unresolved {
 		_, err = w.player.journal.ReserveAndPrepare(context.Background(), submission.Plan, submission.Action, store.Admission{Snapshot: snapshot, Tick: 1, Costs: []store.MaterialCost{}, Footprint: []domain.Cell{q.Building.Cell()}})
 		if err != nil {
@@ -168,7 +168,7 @@ func TestWorkerRefusalRequiresNewExplicitDirection(t *testing.T) {
 	if workerEligible(plan, progress.View(), scope, playerWorld(v.Snapshot)) {
 		t.Fatal("same activation retried refusal")
 	}
-	scope.Snapshot.Direction++
+	scope.Snapshot.Native++
 	if !workerEligible(plan, progress.View(), scope, playerWorld(v.Snapshot)) {
 		t.Fatal("new explicit intent could not retry no-effect refusal")
 	}
@@ -315,7 +315,6 @@ func TestWorkerRealSessionReopensUncertainAttemptWithoutAcquire(t *testing.T) {
 		t.Fatal("same activation retried known refusal", fixture.Places)
 	}
 	request.RequestID = "acquire-again"
-	request.ExpectedDirection = current.Direction
 	if _, err = player.Acquire(ctx, request); err != nil {
 		t.Fatal(err)
 	}

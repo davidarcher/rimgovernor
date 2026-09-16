@@ -411,7 +411,7 @@ func guardGoalWork(ctx context.Context, tx *sql.Tx, plan domain.PlanID, current 
 	g := state.Goal
 	s := g.Snapshot
 	if g.Status != domain.GoalActive || g.Need == domain.NeedUnknown || g.Source == domain.AdviserGoal || epoch != strconv.FormatUint(g.Epoch, 10) ||
-		s.Colony != current.Colony || s.Map != current.Map || s.Load != current.Load || s.Direction != current.Direction || tick < g.Tick {
+		s.Colony != current.Colony || s.Map != current.Map || s.Load != current.Load || tick < g.Tick {
 		return errors.New("maintained goal does not admit current work")
 	}
 	return nil

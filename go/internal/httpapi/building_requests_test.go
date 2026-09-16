@@ -11,7 +11,7 @@ import (
 
 const requestWorld = `{"colonyId":"colony","loadToken":"load","mapId":0}`
 const submissionJSON = `{"requestId":"request","expected":` + requestWorld + `,"building":{"defName":"Wall","x":0,"z":0,"rotation":"north","stuff":""}}`
-const acquireJSON = `{"requestId":"request","expected":` + requestWorld + `,"planId":"plan","revision":"18446744073709551615","expectedDirection":"0"}`
+const acquireJSON = `{"requestId":"request","expected":` + requestWorld + `,"planId":"plan","revision":"18446744073709551615"}`
 const manualJSON = `{"requestId":"request","expected":` + requestWorld + `}`
 
 func TestBuildingRequestTypedMapping(t *testing.T) {
@@ -20,11 +20,11 @@ func TestBuildingRequestTypedMapping(t *testing.T) {
 		t.Fatal(s, e)
 	}
 	a, e := decodeBuildingAcquire(strings.NewReader(acquireJSON))
-	if e != nil || a.Kind != store.AcquireControl || a.Plan != "plan" || a.Revision != domain.PlanRevision(^uint64(0)) || a.ExpectedDirection != 0 || a.World != s.World || a.RequestID != s.RequestID {
+	if e != nil || a.Kind != store.AcquireControl || a.Plan != "plan" || a.Revision != domain.PlanRevision(^uint64(0)) || a.World != s.World || a.RequestID != s.RequestID {
 		t.Fatal(a, e)
 	}
 	m, e := decodeBuildingManual(strings.NewReader(manualJSON))
-	if e != nil || m.Kind != store.ManualControl || m.Plan != "" || m.Revision != 0 || m.ExpectedDirection != 0 || m.World != s.World {
+	if e != nil || m.Kind != store.ManualControl || m.Plan != "" || m.Revision != 0 || m.World != s.World {
 		t.Fatal(m, e)
 	}
 	for _, rotation := range []string{"north", "east", "south", "west"} {
@@ -56,11 +56,6 @@ func TestBuildingRequestRejectMalformed(t *testing.T) {
 	}
 	for _, n := range []string{`0`, `null`, `"0"`, `"01"`, `"+1"`, `"18446744073709551616"`} {
 		if _, e := decodeBuildingAcquire(strings.NewReader(strings.Replace(acquireJSON, `"18446744073709551615"`, n, 1))); e == nil {
-			t.Fatal(n)
-		}
-	}
-	for _, n := range []string{`0`, `null`, `"-1"`, `"01"`, `"18446744073709551616"`} {
-		if _, e := decodeBuildingAcquire(strings.NewReader(strings.Replace(acquireJSON, `"expectedDirection":"0"`, `"expectedDirection":`+n, 1))); e == nil {
 			t.Fatal(n)
 		}
 	}

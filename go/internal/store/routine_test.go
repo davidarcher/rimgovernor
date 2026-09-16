@@ -81,7 +81,7 @@ func TestRoutineReviewRestartUnknownRecoveryAndRenewal(t *testing.T) {
 
 func TestRoutineReviewInvalidatesLinkedWorkAndPreservesCancellation(t *testing.T) {
 	t.Parallel()
-	for _, change := range []string{"manual", "direction", "load", "map", "rewind"} {
+	for _, change := range []string{"manual", "load", "map", "rewind"} {
 		t.Run(change, func(t *testing.T) {
 			ctx := context.Background()
 			s := open(t, filepath.Join(t.TempDir(), "routine.db"))
@@ -106,8 +106,6 @@ func TestRoutineReviewInvalidatesLinkedWorkAndPreservesCancellation(t *testing.T
 				r.Enabled = false
 				r.Policy = policy.RoutinePolicy{}
 				r.Facts.Wood = domain.Known(int64(-1))
-			case "direction":
-				r.Current.Direction++
 			case "load":
 				r.Current.Load = "replacement"
 			case "map":
@@ -199,7 +197,7 @@ func TestRoutineDirectionAndManualDoNotEraseRecoveryTarget(t *testing.T) {
 	r := routineRequest()
 	reviewRoutine(t, s, &r)
 	r.Facts.Wood = domain.Known(int64(200))
-	r.Current.Direction++
+	r.Current.Native++
 	out := reviewRoutine(t, s, &r)
 	if !out.Review.Latches.Wood || routineGoal(t, out, policy.MaintainWood).Goal.Need != domain.NeedDeficit {
 		t.Fatal("direction erased known recovery target")

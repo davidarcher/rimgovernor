@@ -14,7 +14,7 @@ func wasteDispatchRequest(t *testing.T) WasteDispatchRequest {
 	if err != nil {
 		t.Fatal(err)
 	}
-	s := domain.GenerationSnapshot{Colony: "colony", Map: 0, Load: "load", Direction: 1, Plan: plan.ID(), Revision: 1, Native: 1}
+	s := domain.GenerationSnapshot{Colony: "colony", Map: 0, Load: "load", Plan: plan.ID(), Revision: 1, Native: 1}
 	p, _ := domain.NewProgress(plan, a.ID())
 	pawn := WastePawnFacts{Pawn: "hauler", SnapshotToken: "pawn-cas", Dead: domain.Known(false), Downed: domain.Known(false), Drafted: domain.Known(false), MentalState: domain.Known(false), ExistingJobDef: domain.Known("")}
 	item := WasteItemDispatchFacts{Item: "item", SnapshotToken: "item-cas", Exists: domain.Known(true)}
@@ -54,7 +54,6 @@ func TestWasteDefenseHolds(t *testing.T) {
 		{"reversed interval", func(r *WasteDispatchRequest) { r.Facts.PreviewTick = 11 }},
 		{"zero generation", func(r *WasteDispatchRequest) { r.Current.Native = 0 }},
 		{"native", func(r *WasteDispatchRequest) { r.Current.Native++ }},
-		{"direction", func(r *WasteDispatchRequest) { r.Current.Direction++ }},
 		{"colony", func(r *WasteDispatchRequest) { r.Current.Colony = "other" }},
 		{"load", func(r *WasteDispatchRequest) { r.Current.Load = "other" }},
 		{"map", func(r *WasteDispatchRequest) { r.Current.Map++ }},

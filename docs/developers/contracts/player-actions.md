@@ -22,7 +22,7 @@ records tested DLL hashes and schemas is tracked in
 | Reverse designators | Identified in selected gizmo rows; they must not be treated as ordinary immediate toggles. Architect designators have their own discovered placement contracts. No arbitrary reverse-designator fallback is admitted. |
 | Queued jobs | `home/order` has no explicit queue parameter. Live clicks accept Shift, but contextual option execution supplies neither a queue identity nor a queue postcondition. Current-job readback does not establish queued-job completion. |
 
-Captured UI targets retain the current load, player-direction revision and exact
+Captured UI targets retain the current load, plan revision and exact
 selection identities. Dispatch rereads selection and refuses changed or incomplete
 selection. Other writes invalidate cached UI targets; a click/scroll consumes its
 capture even on uncertainty. After a click, both native UI state and selection are

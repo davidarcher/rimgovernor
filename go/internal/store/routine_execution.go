@@ -10,7 +10,7 @@ import (
 // AuthorizeRoutinePlan verifies a method under the existing player direction.
 // It grants no lease and never changes the selected player plan.
 func (s *Store) AuthorizeRoutinePlan(ctx context.Context, root, target domain.GenerationSnapshot) error {
-	if root.Validate() != nil || target.Validate() != nil || root.Native == 0 || root.Direction == 0 || root.Plan == target.Plan {
+	if root.Validate() != nil || target.Validate() != nil || root.Native == 0 || root.Plan == target.Plan {
 		return ErrConflict
 	}
 	matching := target

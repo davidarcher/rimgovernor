@@ -25,7 +25,7 @@ func (p *playerFixture) LookupGoalCreateSubmission(ctx context.Context, id strin
 	return p.journal.LookupGoalCreateSubmission(ctx, id)
 }
 
-const goalExpected = `"expected":{"colonyId":"colony","loadToken":"load","mapId":0},"expectedDirection":"1","planId":"plan"`
+const goalExpected = `"expected":{"colonyId":"colony","loadToken":"load","mapId":0},"planId":"plan"`
 
 func TestPlayerGoalsHTTPActivateReplayReadAndCancel(t *testing.T) {
 	s, p := playerAPI(t)
@@ -98,8 +98,7 @@ func TestPlayerGoalsHTTPRejectsBadRequests(t *testing.T) {
 		`{"requestId":"r",` + goalExpected + `,"goal":"EnsureFoodSupply","tick":-1}`,
 		`{"requestId":"r",` + goalExpected + `,"goal":"EnsureFoodSupply","tick":1.5}`,
 		`{"requestId":"r",` + goalExpected + `,"goal":"EnsureFoodSupply"}`,
-		`{"requestId":"r","expected":{"colonyId":"colony","loadToken":"load","mapId":0},"expectedDirection":"0","planId":"plan","goal":"EnsureFoodSupply","tick":1}`,
-		`{"requestId":"r","expected":{"colonyId":"colony","loadToken":"load","mapId":0},"expectedDirection":"1","planId":"","goal":"EnsureFoodSupply","tick":1}`,
+		`{"requestId":"r","expected":{"colonyId":"colony","loadToken":"load","mapId":0},"planId":"","goal":"EnsureFoodSupply","tick":1}`,
 		`{"requestId":"",` + goalExpected + `,"goal":"EnsureFoodSupply","tick":1}`,
 		`{"goal":"EnsureFoodSupply","tick":1}`,
 	} {

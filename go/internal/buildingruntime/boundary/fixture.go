@@ -46,7 +46,7 @@ func NewFixture(t *testing.T) (*Boundary, *Fixture) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	snapshot := domain.GenerationSnapshot{Colony: "colony", Map: 0, Load: "load", Direction: 1, Plan: "plan", Revision: 1, Native: 1}
+	snapshot := domain.GenerationSnapshot{Colony: "colony", Map: 0, Load: "load", Plan: "plan", Revision: 1, Native: 1}
 	f := &Fixture{Placement: executor.Placement{Action: action, Snapshot: snapshot, Attempt: 1, Tick: 10}}
 	ctx := &c.ObservationContext{Identity: Identity(snapshot), Tick: proto.Int64(10), NativeGeneration: proto.Uint64(1)}
 	f.Bounds = bridge.MapBounds{Context: proto.Clone(ctx).(*c.ObservationContext), Bounds: policy.Bounds{Width: 100, Height: 100}}

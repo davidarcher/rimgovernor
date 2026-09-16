@@ -15,13 +15,13 @@ const HomeCoverageGeometryChanged Reason = "home_coverage_geometry_changed"
 const HomeCoverageExcluded Reason = "home_coverage_excluded"
 
 type HomeCoverageFacts struct {
-	Snapshot    domain.GenerationSnapshot
+	Snapshot                     domain.GenerationSnapshot
 	ObservationTick, PreviewTick domain.Tick
-	CurrentShape domain.Fact[string]
-	Revision     domain.Fact[int64]
-	Excluded     domain.Fact[int64]
-	Missing      domain.Fact[int64]
-	NativeCanTry domain.Fact[bool]
+	CurrentShape                 domain.Fact[string]
+	Revision                     domain.Fact[int64]
+	Excluded                     domain.Fact[int64]
+	Missing                      domain.Fact[int64]
+	NativeCanTry                 domain.Fact[bool]
 }
 
 type HomeCoverageRequest struct {
@@ -47,7 +47,7 @@ func EvaluateHomeCoverage(r HomeCoverageRequest) DraftDecision {
 	}
 	v := r.Progress.View()
 	f := r.Facts
-	if r.Current.Validate() != nil || r.Current.Native == 0 || r.Current.Direction == 0 || !f.Snapshot.Matches(r.Current) || r.MinimumTick < 0 || f.ObservationTick < r.MinimumTick || f.PreviewTick < f.ObservationTick {
+	if r.Current.Validate() != nil || r.Current.Native == 0 || !f.Snapshot.Matches(r.Current) || r.MinimumTick < 0 || f.ObservationTick < r.MinimumTick || f.PreviewTick < f.ObservationTick {
 		return refuse(StaleFacts)
 	}
 	if r.Progress.Action() != r.Action || v.Plan != r.Current.Plan || v.Revision != r.Current.Revision || v.Unresolved || (v.Stage != domain.Pending && v.Stage != domain.Prepared) {

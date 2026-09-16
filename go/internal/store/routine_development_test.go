@@ -79,7 +79,7 @@ func TestRoutineDevelopmentPersistsAgeAndRechecksPlayerCapacity(t *testing.T) {
 	}
 }
 
-func TestRoutineDevelopmentUnknownWorkersAndDirectionReset(t *testing.T) {
+func TestRoutineDevelopmentUnknownWorkersAndReloadReset(t *testing.T) {
 	t.Parallel()
 	s := open(t, filepath.Join(t.TempDir(), "development.db"))
 	defer s.Close()
@@ -93,7 +93,7 @@ func TestRoutineDevelopmentUnknownWorkersAndDirectionReset(t *testing.T) {
 		t.Fatal(unknown)
 	}
 	r.Facts.Workers = domain.Known(2)
-	r.Current.Direction = 1
+	r.Current.Load = "reloaded"
 	changed := reviewRoutine(t, s, &r)
 	row = developmentRow(t, changed.Review, policy.MaintainWood)
 	if row.WaitingSince != changed.Review.Tick || !row.Selected {

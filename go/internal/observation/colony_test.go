@@ -186,7 +186,7 @@ func TestColonyNativeCaptureReachesRoutineReview(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer s.Close()
-	current := domain.GenerationSnapshot{Colony: identity.Colony, Load: identity.Load, Map: identity.Map, Direction: 1, Plan: "native-review", Revision: 1, Native: 1}
+	current := domain.GenerationSnapshot{Colony: identity.Colony, Load: identity.Load, Map: identity.Map, Plan: "native-review", Revision: 1, Native: 1}
 	out, err := s.ReviewRoutine(context.Background(), store.RoutineReviewRequest{Current: current, Tick: identity.Tick, Enabled: true, Policy: policy.DefaultRoutinePolicy(), Facts: p.Facts})
 	if err != nil {
 		t.Fatal(err)

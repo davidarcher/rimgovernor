@@ -122,7 +122,7 @@ func newFixture(t *testing.T) *fixture {
 	if err != nil {
 		t.Fatal(err)
 	}
-	authority := Authority{Enabled: true, Snapshot: domain.GenerationSnapshot{Colony: "colony", Map: 0, Load: "load", Direction: 1, Plan: plan.ID(), Revision: plan.Revision(), Native: 1}}
+	authority := Authority{Enabled: true, Snapshot: domain.GenerationSnapshot{Colony: "colony", Map: 0, Load: "load", Plan: plan.ID(), Revision: plan.Revision(), Native: 1}}
 	if err = executor.UpdateAuthority(authority); err != nil {
 		t.Fatal(err)
 	}
@@ -217,7 +217,7 @@ func TestResourcesLostDuringPreparationHoldPrepared(t *testing.T) {
 }
 
 func TestInvalidationAndFreshnessPreventNativeWrites(t *testing.T) {
-	for _, change := range []func(*Authority){func(a *Authority) { a.Enabled = false }, func(a *Authority) { a.Snapshot.Load = "new-load" }, func(a *Authority) { a.Snapshot.Map++ }, func(a *Authority) { a.Snapshot.Direction++ }, func(a *Authority) { a.Snapshot.Revision++ }} {
+	for _, change := range []func(*Authority){func(a *Authority) { a.Enabled = false }, func(a *Authority) { a.Snapshot.Load = "new-load" }, func(a *Authority) { a.Snapshot.Map++ }, func(a *Authority) { a.Snapshot.Native++ }, func(a *Authority) { a.Snapshot.Revision++ }} {
 		f := newFixture(t)
 		f.env.onInspect = func(_ int, in Inspection) Inspection {
 			next := f.authority

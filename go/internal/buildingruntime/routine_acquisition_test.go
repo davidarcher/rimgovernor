@@ -114,7 +114,7 @@ func dispatchedHunt(t *testing.T, action domain.ActionID, thing string, tick dom
 	if err != nil {
 		t.Fatal(err)
 	}
-	snapshot := domain.GenerationSnapshot{Colony: "colony", Map: 1, Load: "load", Direction: 1, Plan: spec.ID(), Revision: spec.Revision(), Native: 1}
+	snapshot := domain.GenerationSnapshot{Colony: "colony", Map: 1, Load: "load", Plan: spec.ID(), Revision: spec.Revision(), Native: 1}
 	if p, err = p.Prepare(snapshot, tick); err != nil {
 		t.Fatal(err)
 	}

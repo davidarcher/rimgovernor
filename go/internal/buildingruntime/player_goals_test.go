@@ -14,7 +14,7 @@ func playerGoalRequest(id string, kind domain.GoalKind) store.GoalCreateSubmissi
 	return store.GoalCreateSubmissionRequest{
 		RequestID: id,
 		Kind:      kind,
-		Snapshot:  domain.GenerationSnapshot{Colony: w.Colony, Load: w.Load, Map: w.Map, Plan: "plan", Direction: 1},
+		Snapshot:  domain.GenerationSnapshot{Colony: w.Colony, Load: w.Load, Map: w.Map, Plan: "plan"},
 		Tick:      10,
 	}
 }

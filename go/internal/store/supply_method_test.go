@@ -85,7 +85,7 @@ func TestSupplyClaimSurvivesCancellationRestartAndDirectionChange(t *testing.T) 
 	}
 	s.Close()
 	s = open(t, path)
-	request.Current.Direction++
+	request.Current.Native++
 	review = reviewRoutine(t, s, &request)
 	goal = routineGoal(t, review, policy.AllowStartingSupplies)
 	if _, err = s.CommitGoalMethod(ctx, goal.Goal.ID, goal.Revision, "allow-again", supplyPlan(t, "second", 1, domain.Cell{X: 1, Z: 2})); err == nil {

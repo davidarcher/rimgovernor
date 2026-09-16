@@ -17,13 +17,13 @@ import (
 // evidence, not a lease, so the executor must inspect and prepare again
 // before dispatch after restart.
 type HomeCoverageAdmission struct {
-	Snapshot      domain.GenerationSnapshot
-	Tick          domain.Tick
-	Target        string
-	Shape         string
-	Revision      int64
-	Missing       int64
-	Excluded      int64
+	Snapshot domain.GenerationSnapshot
+	Tick     domain.Tick
+	Target   string
+	Shape    string
+	Revision int64
+	Missing  int64
+	Excluded int64
 }
 type ActionHomeCoverageAdmission struct {
 	Action    domain.ActionID
@@ -35,7 +35,7 @@ func validateHomeCoverageAdmission(a domain.Action, p domain.Progress, admission
 		return err
 	}
 	v := p.View()
-	if admission.Snapshot.Plan != v.Plan || admission.Snapshot.Revision != v.Revision || admission.Snapshot.Native == 0 || admission.Snapshot.Direction == 0 || admission.Tick < 0 {
+	if admission.Snapshot.Plan != v.Plan || admission.Snapshot.Revision != v.Revision || admission.Snapshot.Native == 0 || admission.Tick < 0 {
 		return errors.New("admission plan or tick mismatch")
 	}
 	coverage, ok := a.HomeCoverage()

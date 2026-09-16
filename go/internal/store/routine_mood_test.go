@@ -51,7 +51,7 @@ func TestRoutineMoodDurableLifecycleAndRetirement(t *testing.T) {
 		t.Fatal(err)
 	}
 	r.Enabled = true
-	r.Current.Direction++
+	r.Current.Native++
 	out = reviewRoutine(t, s, &r)
 	if routineGoal(t, out, id).Goal.Need != domain.NeedUnknown {
 		t.Fatal("Manual recovered missing pawn")

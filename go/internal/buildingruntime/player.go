@@ -230,7 +230,7 @@ func (p *Player) Acquire(ctx context.Context, request store.ControlRequest) (sto
 	if err = p.current(call, epoch); err != nil {
 		return p.uncertain(record, err)
 	}
-	snapshot := domain.GenerationSnapshot{Colony: request.World.Colony, Load: request.World.Load, Map: request.World.Map, Plan: request.Plan, Revision: request.Revision, Direction: record.Direction}
+	snapshot := domain.GenerationSnapshot{Colony: request.World.Colony, Load: request.World.Load, Map: request.World.Map, Plan: request.Plan, Revision: request.Revision}
 	granted, err := p.session.Acquire(call, snapshot)
 	if err != nil {
 		return p.uncertain(record, err)

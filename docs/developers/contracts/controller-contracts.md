@@ -36,15 +36,15 @@ uses ordinary native need jobs and completes only from observed need recovery.
 
 Startup supplies use the first known native forbidden-supply census. Later
 observations can remove released cells but cannot add later player forbids or
-revive released cells. The Go reviewer persists that cohort through Manual,
-direction changes and restart; unavailable reads leave it unresolved. A different
+revive released cells. The Go reviewer persists that cohort through Manual
+and restart; unavailable reads leave it unresolved. A different
 world or rewound tick starts a new cohort. This need history does not establish
 item ownership, reserve those cells, or authorize an Allow order.
 
 Go comfort reviews require a complete native census of eligible people, dining
 surfaces, seating and recreation access. Each kind needs capacity for every
 eligible person and observed use of a still-accessible facility. Use history
-survives Manual, direction changes and restart; world changes and tick rewinds
+survives Manual and restart; world changes and tick rewinds
 reset it. Replacement furniture cannot inherit a previous facility's use.
 The opt-in compiler builds a table, an adjacent chair or recreation furniture
 through shared building admission after startup and development selection permit
@@ -96,7 +96,7 @@ reservations and Hands dispatch guards still apply.
 Methods that cannot produce new work yield their admission slot to the next
 capacity-deferred candidate in the same review; labor-deferred candidates wait for the
 next review's fresh census. Waiting age advances only with native ticks and resets
-for committed work; context/direction changes and tick rewinds reset ranking history.
+for committed work; world changes and tick rewinds reset ranking history.
 The shared plan retains the ranking, observed worker and per-work-type labor counts and
 explicit deferral reasons in the routine review's development record. Native labor forecasts remain
 evidence with unknown completion times. Native gameplay acceptance of competing
@@ -196,10 +196,10 @@ construction commitments apply only during a supervised clock lease; native
 blueprint/frame deficits are counted directly. Player bill filters and suspension
 settings remain unchanged. Exact native ingredient alternatives include quantity
 conversion and are not truncated with display rows. Dispatch ingests buffered and fresh
-native clock events before using a captured direction and again after preparation. A
-busy writer cannot defer a known player hold or danger event until after an old order
-has been sent. External holds advance the durable player-direction counter independently
-of routine observation and review revisions.
+native clock events before using a captured load token/tick and again after
+preparation. A busy writer cannot defer a known player hold or danger event until after
+an old order has been sent. External holds are recorded as clock holds independently of
+routine observation and review revisions; there is no player-direction counter.
 
 ## Native execution
 
@@ -242,7 +242,7 @@ labor, medical, mood and power projections and their input limits.
 ## Progress, capacity and bootstrap dialogs
 
 Goals record selected methods, attempts, step IDs and observable progress.
-Native events or player direction arriving during method selection retain a pending
+Native events or a pause arriving during method selection retain a pending
 review; neither a refusal nor a no-op acknowledges newer evidence from an old read.
 Invalid templates have a bounded alternative-site search; unknown or failed native actions
 become explicit blockers. A no-progress watchdog prevents silent indefinite waiting.

@@ -87,7 +87,7 @@ func (p Progress) bindDraftClaim(value Fact[DraftClaim]) (Progress, error) {
 	if !known {
 		return p, nil
 	}
-	if claim.Action != p.view.Action || claim.Attempt != p.view.Attempt || claim.Attempt == 0 || claim.Pawn != p.action.draft.pawn || claim.Origin != p.view.Snapshot || claim.Origin.Native == 0 || claim.Origin.Direction == 0 || !validID(string(claim.Claim)) || !validID(string(claim.Session)) {
+	if claim.Action != p.view.Action || claim.Attempt != p.view.Attempt || claim.Attempt == 0 || claim.Pawn != p.action.draft.pawn || claim.Origin != p.view.Snapshot || claim.Origin.Native == 0 || !validID(string(claim.Claim)) || !validID(string(claim.Session)) {
 		return p, errors.New("claim does not identify original draft attempt")
 	}
 	if prior, known := cleanup.Claim.Value(); known {

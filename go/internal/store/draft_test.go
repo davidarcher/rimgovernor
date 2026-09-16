@@ -36,7 +36,7 @@ func draftFixture(t *testing.T) (*Store, string, draftPlan, DraftAdmission) {
 		t.Fatal(e)
 	}
 	v := draftPlan{Plan: "draft-plan", Action: "draft-action"}
-	return s, path, v, DraftAdmission{Snapshot: domain.GenerationSnapshot{Colony: "colony", Load: "load", Map: 0, Plan: v.Plan, Revision: 1, Direction: 1, Native: 2}, Tick: 10, Pawn: "pawn", PawnSnapshotToken: "cas"}
+	return s, path, v, DraftAdmission{Snapshot: domain.GenerationSnapshot{Colony: "colony", Load: "load", Map: 0, Plan: v.Plan, Revision: 1, Native: 2}, Tick: 10, Pawn: "pawn", PawnSnapshotToken: "cas"}
 }
 func draftDispatch(t *testing.T, s *Store, v draftPlan, a DraftAdmission) domain.DraftClaim {
 	t.Helper()
@@ -248,7 +248,7 @@ func TestDraftPreparedAdmissionRefreshAndCancellation(t *testing.T) {
 		t.Fatal(e)
 	}
 	wrong := fresh
-	wrong.Snapshot.Direction++
+	wrong.Snapshot.Native++
 	if _, e := s.PrepareDraft(ctx, v.Plan, v.Action, wrong); e == nil {
 		t.Fatal("changed authority")
 	}

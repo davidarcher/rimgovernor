@@ -3,9 +3,8 @@ package policy
 import "github.com/davidarcher/RimGovernor/go/internal/domain"
 
 type MeleeDraftOwner struct {
-	Claim     domain.DraftClaimID
-	Session   domain.ControllerSessionID
-	Direction domain.DirectionID
+	Claim   domain.DraftClaimID
+	Session domain.ControllerSessionID
 }
 
 type MeleePawnFacts struct {

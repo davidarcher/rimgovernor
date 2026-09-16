@@ -38,7 +38,7 @@ func ValidateAdmission(a domain.Action, p domain.Progress, admission Admission) 
 		return errors.New("admission plan or tick mismatch")
 	}
 	_, ok := a.ZoneCreate()
-	if !ok || idShaped(admission.SnapshotToken) != nil || admission.Snapshot.Native == 0 || admission.Snapshot.Direction == 0 {
+	if !ok || idShaped(admission.SnapshotToken) != nil || admission.Snapshot.Native == 0 {
 		return errors.New("invalid zone admission")
 	}
 	return nil

@@ -234,7 +234,7 @@ func TestCancellationRetainsUncertaintyAndNeverReactivates(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			s.Direction++
+			s.Native++
 			p, err = p.Observe(Observation{Action: "a1", Attempt: 1, Snapshot: s, Tick: 11, Effect: effect}, s)
 			if err != nil {
 				t.Fatal(err)
@@ -257,7 +257,7 @@ func TestStaleEvidenceAndAuthorityPreserveProgress(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	for _, change := range []func(*GenerationSnapshot){func(s *GenerationSnapshot) { s.Colony = "other" }, func(s *GenerationSnapshot) { s.Map++ }, func(s *GenerationSnapshot) { s.Load = "other" }, func(s *GenerationSnapshot) { s.Direction++ }, func(s *GenerationSnapshot) { s.Revision++ }, func(s *GenerationSnapshot) { s.Native++ }} {
+	for _, change := range []func(*GenerationSnapshot){func(s *GenerationSnapshot) { s.Colony = "other" }, func(s *GenerationSnapshot) { s.Map++ }, func(s *GenerationSnapshot) { s.Load = "other" }, func(s *GenerationSnapshot) { s.Native++ }, func(s *GenerationSnapshot) { s.Revision++ }, func(s *GenerationSnapshot) { s.Native++ }} {
 		stale := s
 		change(&stale)
 		got, err := p.MarkDispatched(stale, 10)
@@ -284,7 +284,7 @@ func TestStaleEvidenceAndAuthorityPreserveProgress(t *testing.T) {
 		}
 	}
 	changed := s
-	changed.Direction++
+	changed.Native++
 	p, err = p.Observe(Observation{Action: "a1", Attempt: 1, Snapshot: changed, Tick: 11, Effect: EffectAbsent}, changed)
 	if err != nil {
 		t.Fatal(err)

@@ -6,7 +6,7 @@
 | --- | --- |
 | Colony identity | Native identity used to scope persistent goals, policies and history. |
 | Load token | Identity of the current loaded game context; old in-flight work cannot carry it into another load. |
-| Player direction | The current authorization and intent supplied by the player; its revision is distinct from ordinary reviews. |
+| Player direction | The intent supplied by the player. There is one author of orders, so no direction counter or compare-and-swap exists; authority is the load token, native tick, native order generation and a pause flag. |
 | Goal | A desired outcome, often maintained over time, such as sufficient food supply. |
 | Method | A selected way to pursue a goal, retaining its attempts and step associations. |
 | Step / action | An accepted unit of work with a stable identity, specification and execution progress. Exact completion depends on its action contract. |

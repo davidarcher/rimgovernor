@@ -43,7 +43,7 @@ func TestMeleeBoundaryReceiptTickAcrossObservations(t *testing.T) {
 			want = domain.EffectCompleted
 			if unknown {
 				current.Native++
-				current.Direction++
+				current.Native++
 				f.Progress.Context.NativeGeneration = proto.Uint64(uint64(current.Native))
 				evidence.GetJob().Drafted = proto.Bool(false)
 				evidence.GetJob().DraftOwner = nil

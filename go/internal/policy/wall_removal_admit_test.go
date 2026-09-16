@@ -14,7 +14,7 @@ func wallRemovalRequest(t *testing.T) WallRemovalRequest {
 	if err != nil {
 		t.Fatal(err)
 	}
-	s := domain.GenerationSnapshot{Colony: "colony", Map: 0, Load: "load", Direction: 1, Plan: plan.ID(), Revision: 1, Native: 1}
+	s := domain.GenerationSnapshot{Colony: "colony", Map: 0, Load: "load", Plan: plan.ID(), Revision: 1, Native: 1}
 	p, _ := domain.NewProgress(plan, a.ID())
 	facts := WallRemovalFacts{
 		Snapshot:        s,
@@ -35,7 +35,7 @@ func backupWallRemovalRequest(t *testing.T) WallRemovalRequest {
 	if err != nil {
 		t.Fatal(err)
 	}
-	s := domain.GenerationSnapshot{Colony: "colony", Map: 0, Load: "load", Direction: 1, Plan: plan.ID(), Revision: 1, Native: 1}
+	s := domain.GenerationSnapshot{Colony: "colony", Map: 0, Load: "load", Plan: plan.ID(), Revision: 1, Native: 1}
 	p, _ := domain.NewProgress(plan, a.ID())
 	facts := WallRemovalFacts{
 		Snapshot:        s,
@@ -78,7 +78,6 @@ func TestWallRemovalDefenseHolds(t *testing.T) {
 		{"cancelled", func(r *WallRemovalRequest) { r.Progress, _ = r.Progress.Cancel() }},
 		{"zero generation", func(r *WallRemovalRequest) { r.Current.Native = 0 }},
 		{"native", func(r *WallRemovalRequest) { r.Current.Native++ }},
-		{"direction", func(r *WallRemovalRequest) { r.Current.Direction++ }},
 		{"colony", func(r *WallRemovalRequest) { r.Current.Colony = "other" }},
 		{"load", func(r *WallRemovalRequest) { r.Current.Load = "other" }},
 		{"map", func(r *WallRemovalRequest) { r.Current.Map++ }},

@@ -69,7 +69,7 @@ func (s *Store) AdmitBuildingMethod(ctx context.Context, r BuildingMethodRequest
 	}
 	g := goal.Goal
 	old := g.Snapshot
-	if old.Colony != r.Current.Colony || old.Load != r.Current.Load || old.Map != r.Current.Map || old.Direction != r.Current.Direction || r.Tick < g.Tick {
+	if old.Colony != r.Current.Colony || old.Load != r.Current.Load || old.Map != r.Current.Map || r.Tick < g.Tick {
 		return BuildingMethodDecision{}, errors.New("method observation differs from reviewed goal")
 	}
 	var candidates []policy.Candidate

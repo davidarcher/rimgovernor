@@ -63,7 +63,7 @@ player direction blocks completion. Interrupted jobs and missing observations
 cannot certify success. The shared watchdog bounds lack of progress.
 
 Ordinary `pawn_equipped` weapon orders use the same passive completion recovery.
-The pre-write record retains observation time, load and player direction even
+The pre-write record retains observation time, load and plan revision even
 when the native reply is lost. A later exact weapon observation can complete a
 blocked order without sending it again. Changed context, cancelled work, unknown
 pawn health and a different equipped item cannot clear the hold.

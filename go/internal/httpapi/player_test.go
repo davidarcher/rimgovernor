@@ -147,7 +147,7 @@ func TestPlayerHTTPDurableRecoveryAndLiveState(t *testing.T) {
 	if e := json.Unmarshal(w.Body.Bytes(), &submission); e != nil || w.Code != 200 || submission.Building.Stuff != "" || submission.Revision != 1 {
 		t.Fatal(w.Body.String(), e)
 	}
-	acquire := `{"requestId":"control","expected":` + requestWorld + `,"planId":"` + string(submission.PlanID) + `","revision":"1","expectedDirection":"0"}`
+	acquire := `{"requestId":"control","expected":` + requestWorld + `,"planId":"` + string(submission.PlanID) + `","revision":"1"}`
 	f.uncertain = true
 	w = playerCall(s, "POST", "/api/player/control/acquire", acquire, token)
 	var result controlDTO
@@ -187,10 +187,10 @@ func TestPlayerHTTPProjectionGuards(t *testing.T) {
 		t.Fatal("fabricated authority")
 	}
 	q := store.ControlRequest{RequestID: "a", Kind: store.ManualControl, World: store.World{Colony: "colony", Load: "load"}}
-	if _, e := projectControl(store.ControlRecord{Request: q, Direction: 1, Phase: "invented"}); e == nil {
+	if _, e := projectControl(store.ControlRecord{Request: q, Phase: "invented"}); e == nil {
 		t.Fatal("unknown phase")
 	}
-	if _, e := projectControl(store.ControlRecord{Request: q, Direction: 1, Phase: store.GrantedControl, NativeGeneration: 3}); e == nil {
+	if _, e := projectControl(store.ControlRecord{Request: q, Phase: store.GrantedControl, NativeGeneration: 3}); e == nil {
 		t.Fatal("Manual grant")
 	}
 	ctx, cancel := context.WithCancel(context.Background())

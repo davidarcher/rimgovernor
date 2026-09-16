@@ -41,7 +41,7 @@ it('keeps Manual independent of pending Acquire and ignores its late permission 
  const fetcher=setup(async(url)=>{
   if(url==='/api/buildings/plans')return response({requestId:'request-1',expected:world,building,planId:'plan',actionId:'action',revision:'1'});
   if(url==='/api/player/control/acquire')return new Promise<Response>(resolve=>{finish=resolve;});
-  if(url==='/api/player/control/manual')return response({record:{requestId:'request-3',kind:'manual',expected:world,planId:null,revision:'0',expectedDirection:'0',direction:'2',phase:'disabled',nativeGeneration:'0'},state,error:null});
+  if(url==='/api/player/control/manual')return response({record:{requestId:'request-3',kind:'manual',expected:world,planId:null,revision:'0',phase:'disabled',nativeGeneration:'0'},state,error:null});
   throw Error(url);
  });
  await act(async()=>{render(<PlayerControls observation={observation} observationFresh/>);});fill();await act(async()=>{fireEvent.click(screen.getByRole('button',{name:'Submit building plan'}));});
@@ -49,7 +49,7 @@ it('keeps Manual independent of pending Acquire and ignores its late permission 
  expect(screen.getByRole('button',{name:'Manual — stop orders'})).toBeEnabled();
  await act(async()=>{fireEvent.click(screen.getByRole('button',{name:'Manual — stop orders'}));});
  expect(fetcher.mock.calls.filter(([url])=>url==='/api/player/control/manual')).toHaveLength(1);
- await act(async()=>{finish?.(response({record:{requestId:'request-2',kind:'acquire',expected:world,planId:'plan',revision:'1',expectedDirection:'0',direction:'1',phase:'granted',nativeGeneration:'2'},state:{enabled:true,observationKnown:true,generation:{colony:'colony',load:'load',map:0,direction:'1',plan:'plan',revision:'1',native:'2'}},error:null}));});
+ await act(async()=>{finish?.(response({record:{requestId:'request-2',kind:'acquire',expected:world,planId:'plan',revision:'1',phase:'granted',nativeGeneration:'2'},state:{enabled:true,observationKnown:true,generation:{colony:'colony',load:'load',map:0,plan:'plan',revision:'1',native:'2'}},error:null}));});
  expect(screen.queryByText('Current permission: orders enabled')).toBeNull();expect(screen.getByText(/Historical result: granted/)).toBeVisible();
 });
 it('refetches memory token after server session change without reposting pending intent',async()=>{
@@ -58,10 +58,9 @@ it('refetches memory token after server session change without reposting pending
  await act(async()=>{view.rerender(<PlayerControls observation={{...observation,sessionId:'new-server',identity:{...world,loadToken:'new-load'}}} observationFresh/>);});
  expect(fetcher.mock.calls.filter(([url])=>url==='/api/player/session')).toHaveLength(2);expect(fetcher.mock.calls.filter(([,options])=>options?.method==='POST')).toHaveLength(1);expect(screen.getByLabelText('Definition name')).toHaveValue('Wall');expect(screen.getByText('request-1')).toBeVisible();
 });
-it('sends uint64 CAS unchanged and retains503 uncertainty through read recovery',async()=>{
- const direction='18446744073709551614';
- const historical={record:{requestId:'previous',kind:'manual',expected:world,planId:null,revision:'0',expectedDirection:'0',direction,phase:'disabled',nativeGeneration:'0'},state,error:null};
- const uncertain={record:{requestId:'request-2',kind:'acquire',expected:world,planId:'plan',revision:'9007199254740993',expectedDirection:direction,direction:'18446744073709551615',phase:'uncertain',nativeGeneration:'0'},state,error:{code:'uncertain',detail:'Inspect this request'}};
+it('sends uint64 revision unchanged and retains503 uncertainty through read recovery',async()=>{
+ const historical={record:{requestId:'previous',kind:'manual',expected:world,planId:null,revision:'0',phase:'disabled',nativeGeneration:'0'},state,error:null};
+ const uncertain={record:{requestId:'request-2',kind:'acquire',expected:world,planId:'plan',revision:'9007199254740993',phase:'uncertain',nativeGeneration:'0'},state,error:{code:'uncertain',detail:'Inspect this request'}};
  const fetcher=setup(async(url)=>{
   if(url==='/api/buildings/plans')return response({requestId:'request-1',expected:world,building,planId:'plan',actionId:'action',revision:'9007199254740993'});
   if(url==='/api/player/control/acquire')return response(uncertain,503);
@@ -70,7 +69,7 @@ it('sends uint64 CAS unchanged and retains503 uncertainty through read recovery'
  },()=>historical);
  await act(async()=>{render(<PlayerControls observation={observation} observationFresh/>);});fill();await act(async()=>{fireEvent.click(screen.getByRole('button',{name:'Submit building plan'}));});
  await act(async()=>{fireEvent.click(screen.getByRole('button',{name:'Enable this plan'}));});
- expect(fetcher).toHaveBeenCalledWith('/api/player/control/acquire',expect.objectContaining({body:JSON.stringify({requestId:'request-2',expected:world,planId:'plan',revision:'9007199254740993',expectedDirection:direction})}));
+ expect(fetcher).toHaveBeenCalledWith('/api/player/control/acquire',expect.objectContaining({body:JSON.stringify({requestId:'request-2',expected:world,planId:'plan',revision:'9007199254740993'})}));
  expect(screen.getByText(/Historical result: uncertain/)).toBeVisible();expect(screen.getByRole('button',{name:'Enable this plan'})).toBeDisabled();
  await act(async()=>{fireEvent.click(screen.getByRole('button',{name:'Check acquire result'}));});
  expect(fetcher.mock.calls.filter(([url])=>url==='/api/player/control/acquire')).toHaveLength(1);expect(screen.queryByText('Current permission: orders enabled')).toBeNull();
@@ -94,10 +93,10 @@ it('allows a new explicitAcquire after fresh later Manual, retaining the frozen 
  const fetcher=setup(async(url,options)=>{
   if(url==='/api/buildings/plans')return response({requestId:'request-1',expected:world,building,planId:'plan',actionId:'action',revision:'1'});
   if(url==='/api/player/control/acquire'){
-   if(options.body===JSON.stringify({requestId:'request-2',expected:world,planId:'plan',revision:'1',expectedDirection:'0'}))return response({record:{requestId:'request-2',kind:'acquire',expected:world,planId:'plan',revision:'1',expectedDirection:'0',direction:'1',phase:'uncertain',nativeGeneration:'0'},state,error:{code:'uncertain',detail:'Inspect request'}},503);
-   return response({record:{requestId:'request-4',kind:'acquire',expected:world,planId:'plan',revision:'1',expectedDirection:'2',direction:'3',phase:'granted',nativeGeneration:'4'},state,error:null});
+   if(options.body===JSON.stringify({requestId:'request-2',expected:world,planId:'plan',revision:'1'}))return response({record:{requestId:'request-2',kind:'acquire',expected:world,planId:'plan',revision:'1',phase:'uncertain',nativeGeneration:'0'},state,error:{code:'uncertain',detail:'Inspect request'}},503);
+   return response({record:{requestId:'request-4',kind:'acquire',expected:world,planId:'plan',revision:'1',phase:'granted',nativeGeneration:'4'},state,error:null});
   }
-  if(url==='/api/player/control/manual'){latest={record:{requestId:'request-3',kind:'manual',expected:world,planId:null,revision:'0',expectedDirection:'0',direction:'2',phase:'disabled',nativeGeneration:'0'},state,error:null};return response(latest);}
+  if(url==='/api/player/control/manual'){latest={record:{requestId:'request-3',kind:'manual',expected:world,planId:null,revision:'0',phase:'disabled',nativeGeneration:'0'},state,error:null};return response(latest);}
   throw Error(url);
  },()=>latest);
  await act(async()=>{render(<PlayerControls observation={observation} observationFresh/>);});fill();await act(async()=>{fireEvent.click(screen.getByRole('button',{name:'Submit building plan'}));});
@@ -108,7 +107,7 @@ it('allows a new explicitAcquire after fresh later Manual, retaining the frozen 
  await act(async()=>{await vi.advanceTimersByTimeAsync(1500);});expect(screen.getByRole('button',{name:'Enable this plan'})).toBeEnabled();
  expect(fetcher.mock.calls.filter(([url])=>url==='/api/player/control/acquire')).toHaveLength(1);
  await act(async()=>{fireEvent.click(screen.getByRole('button',{name:'Enable this plan'}));});
- expect(fetcher).toHaveBeenCalledWith('/api/player/control/acquire',expect.objectContaining({body:JSON.stringify({requestId:'request-4',expected:world,planId:'plan',revision:'1',expectedDirection:'2'})}));
+ expect(fetcher).toHaveBeenCalledWith('/api/player/control/acquire',expect.objectContaining({body:JSON.stringify({requestId:'request-4',expected:world,planId:'plan',revision:'1'})}));
  expect(screen.getByText('request-2')).toBeVisible();expect(screen.getByText(/Previous acquire request:/)).toHaveTextContent('Historical result: uncertain');
 });
 
@@ -123,9 +122,9 @@ it.each([[409,'conflict'],[403,'player_auth']] as const)('releases submission af
  expect(posts).toBe(2);expect(screen.getByText('request-1')).toBeVisible();expect(screen.getByText('Plan plan · Revision 1')).toBeVisible();
  expect(fetcher.mock.calls.filter(([,options])=>options?.method==='POST')[1][1]?.body).toContain('"requestId":"request-2"');
 });
-it('releases a no-record Acquire CAS conflict after refreshing current direction',async()=>{
+it('releases a no-record Acquire conflict after refreshing current control',async()=>{
  vi.useFakeTimers();let posts=0;
- const latest={record:{requestId:'other',kind:'manual',expected:world,planId:null,revision:'0',expectedDirection:'0',direction:'5',phase:'disabled',nativeGeneration:'0'},state,error:null};
+ const latest={record:{requestId:'other',kind:'manual',expected:world,planId:null,revision:'0',phase:'disabled',nativeGeneration:'0'},state,error:null};
  let next:unknown=current;
  const fetcher=setup(async(url)=>{if(url==='/api/buildings/plans')return response({requestId:'request-1',expected:world,building,planId:'plan',actionId:'action',revision:'1'});if(url==='/api/player/control/acquire'){posts++;next=latest;return response({record:null,state,error:{code:'conflict',detail:'CAS changed'}},409);}throw Error(url);},()=>next);
  await act(async()=>{render(<PlayerControls observation={observation} observationFresh/>);});fill();await act(async()=>{fireEvent.click(screen.getByRole('button',{name:'Submit building plan'}));});
@@ -133,7 +132,7 @@ it('releases a no-record Acquire CAS conflict after refreshing current direction
  expect(posts).toBe(1);expect(screen.getByRole('button',{name:'Enable this plan'})).toBeDisabled();
  await act(async()=>{await vi.advanceTimersByTimeAsync(1500);});expect(screen.getByRole('button',{name:'Enable this plan'})).toBeEnabled();expect(posts).toBe(1);
  await act(async()=>{fireEvent.click(screen.getByRole('button',{name:'Enable this plan'}));});
- expect(fetcher.mock.calls.filter(([url])=>url==='/api/player/control/acquire')[1][1]?.body).toContain('"expectedDirection":"5"');
+ expect(posts).toBe(2);expect(fetcher.mock.calls.filter(([url])=>url==='/api/player/control/acquire')[1][1]?.body).toContain('"requestId":"request-3"');
 });
 it.each(['transport','malformed','unavailable'])('keeps %s submission outcome frozen even after lookup404',async(kind)=>{
  const fetcher=setup(async(url)=>{if(url==='/api/buildings/plans'){if(kind==='transport')throw Error('Lost reply');return kind==='malformed'?response({code:'conflict',detail:'Bad',extra:true},409):response({code:'unavailable',detail:'Check request'},503);}return response({code:'not_found',detail:'No row yet'},404);});
@@ -152,7 +151,7 @@ it('shows initial bootstrap failure and retries without sending a POST',async()=
 it('submits a chat message, decodes the interpreted command and enables its plan',async()=>{
  const fetcher=setup(async(url,options)=>{
   if(url==='/api/chats/plans')return response({requestId:'request-1',command:'research',building:null,research:{requestId:'request-1',expected:world,select:{project:'Microelectronics'},planId:'plan',actionId:'action',revision:'1'}},201);
-  if(url==='/api/player/control/acquire')return response({record:{requestId:'request-2',kind:'acquire',expected:world,planId:'plan',revision:'1',expectedDirection:'0',direction:'1',phase:'granted',nativeGeneration:'2'},state,error:null});
+  if(url==='/api/player/control/acquire')return response({record:{requestId:'request-2',kind:'acquire',expected:world,planId:'plan',revision:'1',phase:'granted',nativeGeneration:'2'},state,error:null});
   throw Error(url+JSON.stringify(options));
  });
  await act(async()=>{render(<PlayerControls observation={observation} observationFresh/>);});
@@ -162,7 +161,7 @@ it('submits a chat message, decodes the interpreted command and enables its plan
  expect(fetcher).toHaveBeenCalledWith('/api/chats/plans',expect.objectContaining({body:JSON.stringify({requestId:'request-1',expected:world,message:'research microelectronics'})}));
  expect(screen.getByLabelText('Message')).toHaveValue('');
  await act(async()=>{fireEvent.click(screen.getByRole('button',{name:'Enable this plan'}));});
- expect(fetcher).toHaveBeenCalledWith('/api/player/control/acquire',expect.objectContaining({body:JSON.stringify({requestId:'request-2',expected:world,planId:'plan',revision:'1',expectedDirection:'0'})}));
+ expect(fetcher).toHaveBeenCalledWith('/api/player/control/acquire',expect.objectContaining({body:JSON.stringify({requestId:'request-2',expected:world,planId:'plan',revision:'1'})}));
 });
 it('hides chat once the server reports it disabled, without disturbing other forms',async()=>{
  const fetcher=setup(async url=>{if(url==='/api/chats/plans')return response({code:'unsupported',detail:'Chat is not enabled on this controller'},501);throw Error(url);});

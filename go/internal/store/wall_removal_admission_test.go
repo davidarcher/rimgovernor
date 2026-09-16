@@ -22,7 +22,7 @@ func wallRemovalStoreFixture(t *testing.T) (*Store, string, WallRemovalAdmission
 	if err = s.CreatePlan(ctx, plan); err != nil {
 		t.Fatal(err)
 	}
-	snapshot := domain.GenerationSnapshot{Colony: "colony", Load: "load", Map: 0, Plan: "plan", Revision: 1, Direction: 1, Native: 2}
+	snapshot := domain.GenerationSnapshot{Colony: "colony", Load: "load", Map: 0, Plan: "plan", Revision: 1, Native: 2}
 	v := WallRemovalAdmission{Snapshot: snapshot, Tick: 12, Original: "original-wall", TargetIdentity: "original-wall", SiteEligible: true}
 	return s, path, v
 }
@@ -79,7 +79,7 @@ func backupWallRemovalStoreFixture(t *testing.T) (*Store, domain.GenerationSnaps
 	if err = s.CreatePlan(ctx, plan); err != nil {
 		t.Fatal(err)
 	}
-	scope := domain.GenerationSnapshot{Colony: "colony", Load: "load", Map: 0, Plan: "plan", Revision: 1, Direction: 1, Native: 2}
+	scope := domain.GenerationSnapshot{Colony: "colony", Load: "load", Map: 0, Plan: "plan", Revision: 1, Native: 2}
 	return s, scope
 }
 
