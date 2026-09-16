@@ -514,8 +514,9 @@ func Run(ctx context.Context, cfg RunConfig, report na.Report) ([]map[string]any
 		case <-time.After(time.Second):
 		}
 	}
-	defer stopGame(finalClient)
+	// Deferred LIFO: stop the game while the session is still open, then close.
 	defer finalClient.Close()
+	defer stopGame(finalClient)
 
 	logData, err := os.ReadFile(naCfg.StartupLogPath())
 	if err != nil {

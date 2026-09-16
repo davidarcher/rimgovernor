@@ -96,6 +96,13 @@
   compilation/protocol checks from actual gameplay validation.
 - Never replace installed DLLs while any RimWorld instance is running, including
   another worktree's tests. Isolated tests must restore temporarily swapped DLLs.
+- Never kill `RimWorldWin64.exe` or `gabs.exe` by image name (`taskkill /IM`,
+  `Stop-Process -Name`): several worktrees run headless RimWorld concurrently
+  on one machine, and an image-name kill ends every other session's game
+  mid-run (it surfaces there as GABS's tool catalog going empty,
+  `availableTotal: 0`). Stop your own game with `games_stop`; if you must kill a
+  stray, select only processes whose command line contains your own `-root`
+  path (e.g. `Get-CimInstance Win32_Process` filtered on `-savedatafolder=`).
 - Native behavior changes need targeted game-level acceptance before completion.
   Documentation-only edits need no game session. The full affected suite means
   the applicable automated suite, not the entire gameplay scenario matrix.
