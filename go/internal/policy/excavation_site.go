@@ -34,7 +34,10 @@ const excavationSupportSpan = 11
 const excavationMaxCells = 64
 
 type ExcavationSiteRequest struct {
-	Bounds    Bounds
+	Bounds Bounds
+	// Region is the observed window: a cell absent from Cells inside it is
+	// fogged (unknown); outside it nothing was read, so no target may touch it.
+	Region    Rectangle
 	Anchor    domain.Cell
 	Cells     []SiteCell
 	Protected []domain.Cell
@@ -150,10 +153,16 @@ func ExcavationSites(r ExcavationSiteRequest) ([]ExcavationTarget, error) {
 		return nil, errors.New("invalid excavation interior")
 	}
 	inBounds := func(c domain.Cell) bool { return c.X >= 0 && c.Z >= 0 && c.X < r.Bounds.Width && c.Z < r.Bounds.Height }
+	if r.Region.Width <= 0 || r.Region.Height <= 0 || !inBounds(domain.Cell{X: r.Region.X, Z: r.Region.Z}) || !inBounds(domain.Cell{X: r.Region.X + r.Region.Width - 1, Z: r.Region.Z + r.Region.Height - 1}) {
+		return nil, errors.New("invalid observed region")
+	}
+	observed := func(c domain.Cell) bool {
+		return c.X >= r.Region.X && c.Z >= r.Region.Z && c.X < r.Region.X+r.Region.Width && c.Z < r.Region.Z+r.Region.Height
+	}
 	// Digging against the map edge would open the room to the outside and
 	// leaves no rock to hold the roof there.
 	interior := func(c domain.Cell) bool {
-		return c.X >= 1 && c.Z >= 1 && c.X < r.Bounds.Width-1 && c.Z < r.Bounds.Height-1
+		return observed(c) && c.X >= 1 && c.Z >= 1 && c.X < r.Bounds.Width-1 && c.Z < r.Bounds.Height-1
 	}
 	if !inBounds(r.Anchor) {
 		return nil, errors.New("invalid colony anchor")
@@ -193,7 +202,7 @@ func ExcavationSites(r ExcavationSiteRequest) ([]ExcavationTarget, error) {
 	// sealed: a bordering cell that is unknown or known impassable keeps the
 	// room enclosed once dug.
 	sealed := func(p domain.Cell) bool {
-		if !inBounds(p) {
+		if !inBounds(p) || !observed(p) {
 			return false
 		}
 		c, exists := cells[p]
@@ -285,15 +294,22 @@ func ExcavationSites(r ExcavationSiteRequest) ([]ExcavationTarget, error) {
 	return targets, nil
 }
 
+// excavationReach bounds how far from the colony anchor an excavated room
+// may sit before the open-site shell is preferred; it matches the native
+// planning window so every candidate the policy can see is also reachable
+// without a long trek.
+const excavationReach = 22
+
 // ChooseExcavation decides between the open-site starter shell and digging
-// in, deterministically and without a tuning knob: dig when no clean shell
-// site exists, or when the excavated room's centre would be nearer the
-// colony anchor than the shell's.
+// in, deterministically and without a tuning knob. A rock room needs no wall
+// material and holds its own roof, so a verified site within reach of the
+// anchor wins outright; farther sites win only when no clean shell exists,
+// and a shell nearer the anchor than a far site keeps the shell.
 func ChooseExcavation(anchor domain.Cell, shell *StarterLayout, site *ExcavationTarget) bool {
 	if site == nil {
 		return false
 	}
-	if shell == nil {
+	if shell == nil || squaredDistance(site.Center(), anchor) <= excavationReach*excavationReach {
 		return true
 	}
 	shellCenter := domain.Cell{X: shell.Room.X + shell.Room.Width/2, Z: shell.Room.Z + shell.Room.Height/2}

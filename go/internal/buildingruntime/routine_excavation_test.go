@@ -49,14 +49,15 @@ func (n *excavationNative) ReadExcavationSite(ctx context.Context, _ *c.Identity
 }
 
 // excavationFixture extends the 9×9 open shelter site with a visible granite
-// face two cells deep at x=9..10 whose interior beyond is fogged. The anchor
-// sits inside the mountain so the excavated room beats the wooden shell.
+// face two cells deep at x=9..10 whose interior beyond is fogged; the whole
+// 30×20 window is the observed region. The anchor sits near the face so the
+// excavated room is within reach and beats the wooden shell.
 func excavationFixture(t *testing.T) (*RoutineBuildingPlanner, *store.Store, *excavationNative) {
 	t.Helper()
 	planner, db, n := shelterFixture(t)
 	x := &excavationNative{sleepingNative: n, rock: map[domain.Cell]string{}, fogged: map[domain.Cell]bool{}, support: policy.ExcavationSupportSupported, worker: true}
 	planning := n.reply.GetObserved().Planning.GetObserved()
-	planning.Cells.Region.Maximum = &c.Cell{X: proto.Int32(10), Z: proto.Int32(8)}
+	planning.Cells.Region.Maximum = &c.Cell{X: proto.Int32(29), Z: proto.Int32(19)}
 	for gx := int32(9); gx <= 10; gx++ {
 		for z := int32(0); z < 9; z++ {
 			planning.Cells.Cells = append(planning.Cells.Cells, &o.CellState{Cell: &c.Cell{X: proto.Int32(gx), Z: proto.Int32(z)}, Roof: proto.String("RoofRockThick"), Indoors: proto.Bool(false), Fogged: proto.Bool(false), Walkable: proto.Bool(false), Occupied: proto.Bool(true), SupportsLight: proto.Bool(false), Issues: []*o.ReadIssue{
@@ -65,7 +66,7 @@ func excavationFixture(t *testing.T) (*RoutineBuildingPlanner, *store.Store, *ex
 			x.rock[domain.Cell{X: gx, Z: z}] = "Granite"
 		}
 	}
-	planning.Cells.Completeness.Matched, planning.Cells.Completeness.Returned = proto.Uint64(99), proto.Uint64(99)
+	planning.Cells.Completeness.Matched, planning.Cells.Completeness.Returned, planning.Cells.Completeness.Filtered = proto.Uint64(99), proto.Uint64(99), proto.Uint64(501)
 	for gx := int32(11); gx < 30; gx++ {
 		for z := int32(0); z < 20; z++ {
 			x.fogged[domain.Cell{X: gx, Z: z}] = true
@@ -248,7 +249,20 @@ func TestRoutineExcavationDigsStagesThenDoorThenRests(t *testing.T) {
 func TestRoutineExcavationPrefersNearerShell(t *testing.T) {
 	t.Parallel()
 	r, db, x := excavationFixture(t)
-	x.reply.GetObserved().Center = &c.Cell{X: proto.Int32(2), Z: proto.Int32(2)}
+	// The colony sits far down the map: the dig is out of reach and the
+	// shell next to the colonists wins.
+	x.reply.GetObserved().Center = &c.Cell{X: proto.Int32(2), Z: proto.Int32(40)}
+	planning := x.reply.GetObserved().Planning.GetObserved()
+	planning.Cells.Region.Maximum = &c.Cell{X: proto.Int32(29), Z: proto.Int32(50)}
+	planning.Cells.Completeness.Matched, planning.Cells.Completeness.Returned, planning.Cells.Completeness.Filtered = proto.Uint64(180), proto.Uint64(180), proto.Uint64(1350)
+	for gx := int32(0); gx < 9; gx++ {
+		for z := int32(36); z < 45; z++ {
+			planning.Cells.Cells = append(planning.Cells.Cells, &o.CellState{Cell: &c.Cell{X: proto.Int32(gx), Z: proto.Int32(z)}, Indoors: proto.Bool(false), Fogged: proto.Bool(false), Walkable: proto.Bool(true), Occupied: proto.Bool(false), SupportsLight: proto.Bool(true), Issues: []*o.ReadIssue{
+				{Field: proto.String("zone_id"), Unavailable: &c.Unavailable{Reason: c.UnavailableReason_UNAVAILABLE_REASON_NOT_APPLICABLE.Enum()}},
+				{Field: proto.String("roof"), Unavailable: &c.Unavailable{Reason: c.UnavailableReason_UNAVAILABLE_REASON_NOT_APPLICABLE.Enum()}},
+			}})
+		}
+	}
 	result, err := r.Step(context.Background())
 	if err != nil || result.Reason != BuildingMethodAdmitted || x.sleepingNative.previews != 32 {
 		t.Fatal(result, err, x.sleepingNative.previews)
@@ -322,6 +336,13 @@ func TestExcavationPlanTargetRoundTrip(t *testing.T) {
 		if err != nil || target.Key() != excavationTestTarget.Key() || target.Door != excavationTestTarget.Door {
 			t.Fatal(suffix, target, err)
 		}
+	}
+	west, err := policy.ParseExcavationKey("20.15.-1.0.3.10.12.7.7")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if back, err := excavationPlanTarget(excavationPlanID(west, "4")); err != nil || back.Key() != west.Key() || back.Corridor[0] != (domain.Cell{X: 19, Z: 15}) {
+		t.Fatal(back, err)
 	}
 	for _, bad := range []domain.PlanID{"routine-shell-abc", "routine-excavation-", "routine-excavation-x-0"} {
 		if _, err := excavationPlanTarget(bad); err == nil {

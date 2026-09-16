@@ -20,7 +20,7 @@ func mountainSite() ExcavationSiteRequest {
 			}
 		}
 	}
-	return ExcavationSiteRequest{Bounds: Bounds{Width: 30, Height: 30}, Anchor: domain.Cell{X: 5, Z: 15}, Cells: cells, Interior: Bounds{Width: 7, Height: 7}, MinCorridor: 2, MaxCorridor: 4}
+	return ExcavationSiteRequest{Bounds: Bounds{Width: 30, Height: 30}, Region: Rectangle{X: 0, Z: 0, Width: 30, Height: 30}, Anchor: domain.Cell{X: 5, Z: 15}, Cells: cells, Interior: Bounds{Width: 7, Height: 7}, MinCorridor: 2, MaxCorridor: 4}
 }
 
 func TestExcavationSitesFindsFaceNearAnchor(t *testing.T) {
@@ -122,9 +122,30 @@ func TestExcavationSitesRequiresRockRoof(t *testing.T) {
 	}
 }
 
+func TestExcavationSitesStaysInsideObservedRegion(t *testing.T) {
+	r := mountainSite()
+	r.Region = Rectangle{X: 0, Z: 0, Width: 16, Height: 30}
+	targets, err := ExcavationSites(r)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, target := range targets {
+		for _, c := range target.Cells() {
+			if c.X >= 15 {
+				t.Fatal("target touches unobserved cells", target)
+			}
+		}
+	}
+	r.Region = Rectangle{X: 0, Z: 0, Width: 40, Height: 30}
+	if _, err := ExcavationSites(r); err == nil {
+		t.Fatal("region beyond bounds accepted")
+	}
+}
+
 func TestExcavationSitesAvoidsMapEdge(t *testing.T) {
 	r := mountainSite()
 	r.Bounds = Bounds{Width: 16, Height: 30}
+	r.Region = Rectangle{X: 0, Z: 0, Width: 16, Height: 30}
 	targets, err := ExcavationSites(r)
 	if err != nil {
 		t.Fatal(err)
@@ -172,12 +193,19 @@ func TestChooseExcavation(t *testing.T) {
 		t.Fatal("no shell means dig")
 	}
 	near := &StarterLayout{Room: Rectangle{X: 2, Z: 12, Width: 9, Height: 9}}
-	far := &StarterLayout{Room: Rectangle{X: 20, Z: 20, Width: 9, Height: 9}}
-	if ChooseExcavation(anchor, near, site) {
-		t.Fatal("nearer shell should win")
+	far := &StarterLayout{Room: Rectangle{X: 60, Z: 60, Width: 9, Height: 9}}
+	if !ChooseExcavation(anchor, near, site) {
+		t.Fatal("a rock room within reach should win over any shell")
 	}
-	if !ChooseExcavation(anchor, far, site) {
-		t.Fatal("nearer excavation should win")
+	distant := &ExcavationTarget{Interior: Rectangle{X: 40, Z: 40, Width: 7, Height: 7}}
+	if ChooseExcavation(anchor, near, distant) {
+		t.Fatal("nearer shell should win over a distant dig")
+	}
+	if !ChooseExcavation(anchor, far, distant) {
+		t.Fatal("nearer dig should win over a distant shell")
+	}
+	if !ChooseExcavation(anchor, nil, distant) {
+		t.Fatal("no shell means dig")
 	}
 }
 

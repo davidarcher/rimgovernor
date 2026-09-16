@@ -41,10 +41,13 @@ type ColonyProjection struct {
 	Workers                                domain.Fact[int]
 	Bounds                                 policy.Bounds
 	Center                                 domain.Cell
-	Cells                                  []policy.SiteCell
-	Definitions                            []PlanningDefinition
-	FoodSupply                             domain.Fact[policy.FoodSupply]
-	CombinedFoodSupply                     domain.Fact[policy.FoodSupply]
+	// Region is the observed planning window; cells absent inside it are
+	// fogged, cells outside it were never read.
+	Region             policy.Rectangle
+	Cells              []policy.SiteCell
+	Definitions        []PlanningDefinition
+	FoodSupply         domain.Fact[policy.FoodSupply]
+	CombinedFoodSupply domain.Fact[policy.FoodSupply]
 }
 
 type CookingBench struct {
@@ -251,6 +254,9 @@ func DecodeColony(reply *o.ColonyFactsReply, expected Identity) (ColonyProjectio
 				d.Costs = domain.Known(costs)
 			}
 			r.Definitions = append(r.Definitions, d)
+		}
+		if region := planning.Cells.GetRegion(); region != nil && region.Minimum != nil && region.Maximum != nil {
+			r.Region = policy.Rectangle{X: region.Minimum.GetX(), Z: region.Minimum.GetZ(), Width: region.Maximum.GetX() - region.Minimum.GetX() + 1, Height: region.Maximum.GetZ() - region.Minimum.GetZ() + 1}
 		}
 		for _, row := range planning.Cells.Cells {
 			// Missing visibility is not evidence that a cell is safe to plan on.

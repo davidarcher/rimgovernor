@@ -100,7 +100,7 @@ func (r *RoutineBuildingPlanner) readExcavationSite(call context.Context, snapsh
 // counterfactual removal is not known to be unsupported, and a miner can
 // reach the access cell now.
 func (r *RoutineBuildingPlanner) excavationCandidate(call context.Context, snapshot domain.GenerationSnapshot, facts observation.ColonyProjection, protected []domain.Cell, check func() error) (*policy.ExcavationTarget, error) {
-	targets, err := policy.ExcavationSites(policy.ExcavationSiteRequest{Bounds: facts.Bounds, Anchor: facts.Center, Cells: facts.Cells, Protected: protected, Interior: policy.Bounds{Width: excavationInteriorSize, Height: excavationInteriorSize}, MinCorridor: 2, MaxCorridor: 4})
+	targets, err := policy.ExcavationSites(policy.ExcavationSiteRequest{Bounds: facts.Bounds, Region: facts.Region, Anchor: facts.Center, Cells: facts.Cells, Protected: protected, Interior: policy.Bounds{Width: excavationInteriorSize, Height: excavationInteriorSize}, MinCorridor: 2, MaxCorridor: 4})
 	if err != nil {
 		return nil, err
 	}
