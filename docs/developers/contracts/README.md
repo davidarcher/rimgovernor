@@ -16,7 +16,7 @@ Current rules, payloads and completion criteria. Open the topic that owns your c
 - [Medical care contracts](medical-care.md)
 - [Material extraction contracts](mining-contracts.md)
 - [Mood relief contracts](mood-control.md)
-- [Persistence and archive contracts](persistence-contracts.md)
+- [Persistence contracts](persistence-contracts.md)
 - [Player action coverage](player-actions.md)
 - [Population commitments](population-contracts.md)
 - [Recovery and uncertain-write contracts](recovery-contracts.md)

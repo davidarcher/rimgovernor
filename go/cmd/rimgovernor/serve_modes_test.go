@@ -60,7 +60,7 @@ func TestServeObserveTakesNoControlOptions(t *testing.T) {
 	if err != nil || c.playerControl || c.clockControl || c.routineReviews || c.routineMethods || c.profile != "" || len(c.activeRoutineFamilies()) != 0 {
 		t.Fatalf("observe configuration: %+v %v", c, err)
 	}
-	for _, extra := range [][]string{{"--profile", dir}, {"--resource-rule", "WoodLog:stop:10"}, {"--routine-project-limit", "2"}, {"--chat-model", "m"}, {"--clock-speed", "Fast"}, {"--world-evaluation-food-margin-days", "1"}, {"unexpected"}} {
+	for _, extra := range [][]string{{"--profile", dir}, {"--resource-rule", "WoodLog:stop:10"}, {"--routine-project-limit", "2"}, {"--chat-model", "m"}, {"--resume"}, {"--clock-speed", "Fast"}, {"--world-evaluation-food-margin-days", "1"}, {"unexpected"}} {
 		if _, err := parseServe(append(append(serveBase(dir), "--observe"), extra...), io.Discard); err == nil {
 			t.Fatalf("observe accepted %v", extra)
 		}
@@ -100,6 +100,18 @@ func TestServeRoutineFamiliesSelection(t *testing.T) {
 	withRoutineFamilies(t, "", true)
 	c, err = parseServe(append(serveBase(dir), "--profile", dir, "--routine-resource-target", "Steel:100"), io.Discard)
 	if err != nil || len(c.routineResourceTargets) != 1 {
+		t.Fatal(c, err)
+	}
+}
+
+func TestServeResumeFlag(t *testing.T) {
+	dir := t.TempDir()
+	withRoutineFamilies(t, "", false)
+	c, err := parseServe(append(serveBase(dir), "--profile", dir), io.Discard)
+	if err != nil || c.resume {
+		t.Fatal(c, err)
+	}
+	if c, err = parseServe(append(serveBase(dir), "--profile", dir, "--resume"), io.Discard); err != nil || !c.resume {
 		t.Fatal(c, err)
 	}
 }

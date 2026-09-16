@@ -64,6 +64,7 @@ the controller.
 | `--clock-speed` | Native speed while a supervised window is held: `Normal` (default), `Fast`, `Superfast`. |
 | `--routine-project-limit`, `--routine-research-target`, `--routine-resource-*`, `--routine-allow-slaughter`, `--routine-herd-population-max` | Routine tuning: optional project concurrency, research goal, resource production targets/reserves/stops and herd ceilings. |
 | `--resource-rule`, `--world-evaluation-food-margin-days` | Resource reservation rules for building admission; caravan food margin. |
+| `--resume` | Run the bot for the observed world at startup and after every native load, without a dashboard Resume. |
 | `--chat-model`, `--chat-base-url`, `--chat-context-tokens`, `--chat-max-output-tokens` | Local model chat; the last three require `--chat-model`. |
 | `--flight-recorder <path>` | Record every native request/response/error (see [Native request diagnostics](#native-request-diagnostics)). |
 
@@ -147,7 +148,9 @@ Multi-instance colony directory serving (`--colonies`) does not exist in Go
   [choose-tests.md](../docs/developers/testing/choose-tests.md) for when to run
   them and [issue #38](https://github.com/davidarcher/rimgovernor/issues/38)
   for coverage gaps. `internal/buildingruntime/cmd/{buildingsmoke,billsmoke,haulsmoke}`
-  are single-family native smoke hosts.
+  are single-family native smoke hosts. `restartaccept` is the kill-and-restart
+  acceptance: `serve --resume` plays with no HTTP write, is killed, and a
+  restart on the same state resumes autonomous play for the same world.
 
 Receipts do not prove pawn work completed; every harness asserts a native
 postcondition.

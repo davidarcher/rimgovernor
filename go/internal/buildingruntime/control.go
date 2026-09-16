@@ -125,7 +125,7 @@ func (control *Control) Acquire(ctx context.Context, requested domain.Generation
 		return domain.GenerationSnapshot{}, ErrControl
 	}
 	err := control.invalidateLocked()
-	epoch := control.epoch
+	epoch, everTargeted := control.epoch, control.haveTarget
 	control.mu.Unlock()
 	if err != nil {
 		return domain.GenerationSnapshot{}, err
@@ -150,12 +150,31 @@ func (control *Control) Acquire(ctx context.Context, requested domain.Generation
 	if err := call.Err(); err != nil {
 		return domain.GenerationSnapshot{}, err
 	}
-	if status.GetStatus().GetInactive() == nil {
-		return domain.GenerationSnapshot{}, ErrControl
-	}
 	generation := status.GetStatus().Context.GetNativeGeneration()
 	if generation == ^uint64(0) {
 		return domain.GenerationSnapshot{}, ErrControl
+	}
+	if status.GetStatus().GetInactive() == nil {
+		// Auto authority observed before this process ever targeted the world
+		// is what a killed controller leaves behind. This process owns the
+		// profile lock, so it is the only author: reclaim by revoking at the
+		// observed generation and acquiring fresh, rather than staying
+		// unresumable until a local player interrupts the game. Once this
+		// process has targeted the world, an unexpected Active is its own
+		// uncertain grant, which only Manual reconciles.
+		active := status.GetStatus().GetActive()
+		if everTargeted || active == nil || active.GetMode() != a.Mode_MODE_AUTO {
+			return domain.GenerationSnapshot{}, ErrControl
+		}
+		result, _, err := control.native.Revoke(call, &a.Revoke{Identity: controlIdentity(requested), ExpectedGeneration: proto.Uint64(generation), Reason: a.RevocationReason_REVOCATION_REASON_MANUAL.Enum()})
+		if err != nil {
+			return domain.GenerationSnapshot{}, control.failedObservation(epoch, err)
+		}
+		revoked := result.GetRevoked()
+		if revoked == nil || bridge.ValidateContext(revoked.Context) != nil || !proto.Equal(revoked.Context.Identity, controlIdentity(requested)) || revoked.Context.NativeGeneration == nil || revoked.Context.GetNativeGeneration() != generation+1 || generation+1 == ^uint64(0) {
+			return domain.GenerationSnapshot{}, ErrControl
+		}
+		generation = revoked.Context.GetNativeGeneration()
 	}
 	requested.Native = domain.NativeGeneration(generation)
 	control.mu.Lock()

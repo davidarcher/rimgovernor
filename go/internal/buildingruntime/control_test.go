@@ -416,3 +416,37 @@ func TestControlAcquireSupersedesBlockedObserveTarget(t *testing.T) {
 		t.Fatal("old read disabled new acquisition", err)
 	}
 }
+
+// A killed controller leaves native in Auto. The next process, which has
+// never targeted the world, reclaims it with one revoke at the observed
+// generation and a fresh grant; a process that already targeted the world
+// still refuses an unexpected Active (its own uncertain grant).
+func TestControlAcquireReclaimsStaleAutoFromDeadProcess(t *testing.T) {
+	t.Parallel()
+	control, n, sink, _ := controlFixture(t, nil)
+	n.mu.Lock()
+	n.generation = 7
+	n.active = true
+	n.mu.Unlock()
+	granted, err := control.Acquire(context.Background(), controlScope())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if n.revokes.Load() != 1 || n.acquires.Load() != 1 || !sink.enabled() || granted.Native != 9 {
+		t.Fatal("stale auto not reclaimed", n.revokes.Load(), n.acquires.Load(), granted)
+	}
+	if _, err := control.Lease(granted); err != nil {
+		t.Fatal(err)
+	}
+	if err := control.Manual(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	// Now the process has targeted the world: an Active it did not grant is
+	// not reclaimed.
+	n.mu.Lock()
+	n.active = true
+	n.mu.Unlock()
+	if _, err := control.Acquire(context.Background(), controlScope()); !errors.Is(err, ErrControl) || n.revokes.Load() != 2 || n.acquires.Load() != 1 {
+		t.Fatal("targeted process reclaimed foreign auto", err, n.revokes.Load(), n.acquires.Load())
+	}
+}

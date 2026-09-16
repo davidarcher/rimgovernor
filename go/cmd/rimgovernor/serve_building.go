@@ -704,6 +704,15 @@ func serveBuildingWithBridge(ctx context.Context, config serveConfig, out io.Wri
 	}
 	pollDone = make(chan struct{})
 	go func() { defer close(pollDone); reads.Poll(lifetime, config.refresh) }()
+	if config.resume {
+		resumer, err := newAutoResumer(buildingSnapshots{reads, player}, player, out)
+		if err != nil {
+			return err
+		}
+		resumeDone := make(chan struct{})
+		defer func() { <-resumeDone }()
+		go func() { defer close(resumeDone); resumer.run(lifetime, config.refresh) }()
+	}
 	if _, err = fmt.Fprintf(out, "RimGovernor Go player service: http://%s\n", listener.Addr()); err != nil {
 		return err
 	}
