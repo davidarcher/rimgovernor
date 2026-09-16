@@ -440,6 +440,21 @@ the co-located bench needs a generic deconstruct action the tree lacks
 (follow-up under #6). Targeted acceptance is `cleanaccept -scenario
 filthy|separation` against `CleanlinessFixture`.
 
+`MaintainLighting` (`lighting` family, issue #6 slice 3) keeps work-bench
+interaction cells lit from the measured native glow: `UpkeepFacts.lighting`
+lists every colonist work table/research bench interaction cell with its
+ground glow, roof and room, and every `CompGlower` fixture with radius, lit
+flag and service state. A roofed cell under 0.3 latches its bench
+(`RoutineLatches.Lighting`); an unknown census keeps the latch. The planner
+defers to an in-range fixture that is merely unserviced (`lamp_power_needed`,
+`lamp_fuel_needed`, `lamp_repair_needed`, `lamp_switched_off`; a lit one that
+still leaves the cell dark is `lamp_lit_but_cell_dark`), else previews the
+policy's candidate cells nearest first -- free, walkable, unzoned cells of the
+same room within two of the interaction cell -- and admits one `StandingLamp`
+(only with an active power source) or `TorchLamp`. The latch releases on the
+next measured census, never on the receipt. Targeted acceptance is `lightaccept
+-scenario dark|outage` against `LightingFixture`.
+
 Routine reviews also read native pawn needs and thought targets. Per-pawn mood
 goals retain break-threshold and food/rest/recreation hysteresis through Manual and
 restart; missing pawns and unknown reads cannot certify recovery. `MoodMethods`

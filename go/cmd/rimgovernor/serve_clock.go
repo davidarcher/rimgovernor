@@ -99,6 +99,7 @@ func startServiceClock(ctx context.Context, player *buildingruntime.Player, sess
 	supplies, work, acquisition, defense, tend, rescue, equip := sc.routineSupplyPlans, sc.routineWorkPlans, sc.routineAcquisitionPlans, sc.routineDefensePlans, sc.routineTendPlans, sc.routineRescuePlans, sc.routineEquipPlans
 	secureSupplies, repair, clean, gear, medical, foodStorageUpkeep := sc.routineSecureSuppliesPlans, sc.routineRepairPlans, sc.routineCleanPlans, sc.routineGearPlans, sc.routineMedicalPlans, sc.routineFoodStorageUpkeepPlans
 	refrigeration := sc.routineRefrigerationPlans
+	lighting := sc.routineLightingPlans
 	animalContainment, recovery, husbandry, homeCoverage := sc.routineAnimalContainmentPlans, sc.routineRecoveryPlans, sc.routineHusbandryPlans, sc.routineHomeCoveragePlans
 	caravanJourneyTracking, researchTarget, resourceTargets := sc.caravanJourneyTracking, sc.routineResearchTarget, sc.routineResourceTargets.Map()
 	allowSlaughter, herdPopulationMax := sc.routineAllowSlaughter, sc.routineHerdPopulationMax.Map()
@@ -119,7 +120,7 @@ func startServiceClock(ctx context.Context, player *buildingruntime.Player, sess
 		}
 		config.CaravanJourney = tracker
 	}
-	if (bills || fields || foodStorage || acquisition || work || supplies || sleeping || cooking || shelter || comfort || expansion || power || temperature || defense || tend || rescue || equip || secureSupplies || repair || clean || haul || waste || moodRelief || gear || medical || foodStorageUpkeep || refrigeration || animalContainment || recovery || husbandry || prisonerInteraction || populationCustody || homeCoverage || stoneShell || defensiveLayout || naming || researchTarget != "" || len(resourceTargets) > 0 || animalFeedPlans || productionPolicyPlans) && !routine {
+	if (bills || fields || foodStorage || acquisition || work || supplies || sleeping || cooking || shelter || comfort || expansion || power || temperature || defense || tend || rescue || equip || secureSupplies || repair || clean || haul || waste || moodRelief || gear || medical || foodStorageUpkeep || refrigeration || lighting || animalContainment || recovery || husbandry || prisonerInteraction || populationCustody || homeCoverage || stoneShell || defensiveLayout || naming || researchTarget != "" || len(resourceTargets) > 0 || animalFeedPlans || productionPolicyPlans) && !routine {
 		return errors.New("building plans require routine reviews")
 	}
 	if routine {
@@ -150,6 +151,9 @@ func startServiceClock(ctx context.Context, player *buildingruntime.Player, sess
 		}
 		if refrigeration {
 			capabilities.Methods = append(capabilities.Methods, policy.MaintainRefrigeration)
+		}
+		if lighting {
+			capabilities.Methods = append(capabilities.Methods, policy.MaintainLighting)
 		}
 		if comfort {
 			capabilities.Methods = append(capabilities.Methods, policy.EnsureComfort)
@@ -534,7 +538,7 @@ func startServiceClock(ctx context.Context, player *buildingruntime.Player, sess
 				return err
 			}
 		}
-		if sleeping || cooking || shelter || comfort || expansion || power || temperature || refrigeration {
+		if sleeping || cooking || shelter || comfort || expansion || power || temperature || refrigeration || lighting {
 			source, ok := reads.(buildingruntime.RoutineBuildingSource)
 			if !ok {
 				return errors.New("building plans require typed placement previews")
@@ -564,6 +568,12 @@ func startServiceClock(ctx context.Context, player *buildingruntime.Player, sess
 			}
 			if refrigeration {
 				config.Refrigeration, err = buildingruntime.NewRoutineRefrigerationPlanner(reviewer, source)
+				if err != nil {
+					return err
+				}
+			}
+			if lighting {
+				config.Lighting, err = buildingruntime.NewRoutineLightingPlanner(reviewer, source)
 				if err != nil {
 					return err
 				}

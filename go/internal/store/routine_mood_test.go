@@ -109,7 +109,7 @@ func TestRoutineMoodWorldResetWhileDisabled(t *testing.T) {
 	r.Enabled = true
 	r.Facts.MoodPawns = domain.Known([]policy.MoodPawn{})
 	out = reviewRoutine(t, s, &r)
-	if len(out.Review.Goals) != 38 {
+	if len(out.Review.Goals) != 39 {
 		t.Fatal("old dynamic binding retained", len(out.Review.Goals))
 	}
 }
@@ -125,7 +125,7 @@ func TestRoutineMoodCompleteBoundedCohort(t *testing.T) {
 	}
 	r.Facts.MoodPawns = domain.Known(rows)
 	out := reviewRoutine(t, s, &r)
-	if len(out.Review.Goals) != 294 {
+	if len(out.Review.Goals) != 295 {
 		t.Fatal(len(out.Review.Goals))
 	}
 	if _, err := s.LoadRoutineReview(context.Background()); err != nil {

@@ -44,11 +44,15 @@ const foodStorageUpkeepPriority = 3
 // development queue (see DetectRoutine's comment at its point of use).
 const refrigerationPriority = 2
 
+// lightingPriority ranks MaintainLighting with the other upkeep projects.
+const lightingPriority = 3
+
 type RoutinePolicy struct {
 	AnimalUpkeep                                  AnimalUpkeepPolicy
 	MedicalReserve                                MedicalReservePolicy
 	FoodStorage                                   FoodStoragePolicy
 	Cleanliness                                   CleanlinessPolicy
+	Lighting                                      LightingPolicy
 	MaxDevelopmentProjects                        int
 	FoodMinDays, FoodTargetDays, FootholdFoodDays float64
 	ColdEnter, ColdExit, HotExit, HotEnter        float64
@@ -120,7 +124,7 @@ type RoutinePolicy struct {
 }
 
 func DefaultRoutinePolicy() RoutinePolicy {
-	return RoutinePolicy{AnimalUpkeep: DefaultAnimalUpkeepPolicy(), MedicalReserve: DefaultMedicalReservePolicy(), FoodStorage: DefaultFoodStoragePolicy(), Cleanliness: DefaultCleanlinessPolicy(), MaxDevelopmentProjects: 2, FoodMinDays: 3, FoodTargetDays: 7, FootholdFoodDays: 3,
+	return RoutinePolicy{AnimalUpkeep: DefaultAnimalUpkeepPolicy(), MedicalReserve: DefaultMedicalReservePolicy(), FoodStorage: DefaultFoodStoragePolicy(), Cleanliness: DefaultCleanlinessPolicy(), Lighting: DefaultLightingPolicy(), MaxDevelopmentProjects: 2, FoodMinDays: 3, FoodTargetDays: 7, FootholdFoodDays: 3,
 		ColdEnter: 12, ColdExit: 16, HotExit: 28, HotEnter: 32, WoodMin: 120, WoodTarget: 350, WoodMax: 500, HuntStallTicks: 6000}
 }
 
@@ -289,8 +293,10 @@ type RoutineLatches struct {
 	MedicalReserve           bool
 	FoodStorage              bool
 	Refrigeration            bool
-	Food, Cold, Hot, Wood    bool
-	Upkeep                   UpkeepHistory
+	// Lighting holds the bench IDs MaintainLighting last measured dark.
+	Lighting              []string
+	Food, Cold, Hot, Wood bool
+	Upkeep                UpkeepHistory
 }
 type RoutineNeeds struct {
 	Disaster    *DisasterHistory
@@ -398,6 +404,10 @@ func DetectRoutine(f RoutineFacts, previous RoutineLatches, p RoutinePolicy) (Ro
 	if err != nil {
 		return RoutineNeeds{}, err
 	}
+	lighting, err := ReviewLighting(f.Upkeep.Lighting, previous.Lighting, p.Lighting)
+	if err != nil {
+		return RoutineNeeds{}, err
+	}
 	gear, err := ReviewGear(f.Gear)
 	if err != nil {
 		return RoutineNeeds{}, err
@@ -471,6 +481,7 @@ func DetectRoutine(f RoutineFacts, previous RoutineLatches, p RoutinePolicy) (Ro
 		MedicalReserve: medicine.Active,
 		FoodStorage:    foodStorage.Active,
 		Refrigeration:  refrigeration.Active,
+		Lighting:       lighting.Dark,
 		Upkeep:         upkeep.History,
 		Food:           latchValue(previous.Food, f.FoodDays, p.FoodMinDays, p.FoodTargetDays, false),
 		Cold:           latchValue(previous.Cold, fallback(f.SleepingMin, f.OutdoorTemperature), p.ColdEnter, p.ColdExit, false),
@@ -757,6 +768,23 @@ func DetectRoutine(f RoutineFacts, previous RoutineLatches, p RoutinePolicy) (Ro
 		addGoal(MaintainRefrigeration, refrigerationPriority)
 		if nutrition, known := refrigeration.WarmNutrition.Value(); known && p.FoodStorage.AtRiskNutritionThreshold > 0 {
 			r.Goals[len(r.Goals)-1].Deficit = domain.Known(min(1, nutrition/p.FoodStorage.AtRiskNutritionThreshold))
+		}
+	}
+	// Lighting is a ranked development project: a dark bench costs work
+	// speed and mood, not lives, so it competes for a project slot like the
+	// other upkeep needs. The deficit is the measured dark fraction.
+	lightingRecovered := domain.Unknown[bool]()
+	lightingPriority := lightingPriority
+	if lighting.Known {
+		lightingRecovered = domain.Known(!lighting.Active)
+	} else if !lighting.Active {
+		lightingPriority = 4
+	}
+	addAssessment(MaintainLighting, lightingPriority, lightingRecovered)
+	if !positive(lightingRecovered) {
+		addGoal(MaintainLighting, lightingPriority)
+		if lighting.Known {
+			r.Goals[len(r.Goals)-1].Deficit = domain.Known(1.0)
 		}
 	}
 	animalContainment := domain.Unknown[bool]()

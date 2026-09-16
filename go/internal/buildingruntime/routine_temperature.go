@@ -31,7 +31,7 @@ func (r *RoutineReviewer) temperatureEnabled() bool {
 // room heat, comfort plans need each facility's hosting room role and
 // cleaning plans need each room's measured cleanliness.
 func (r *RoutineReviewer) roomsEnabled() bool {
-	return r.temperatureEnabled() || r.methodEnabled(policy.EnsureComfort) || r.methodEnabled(policy.MaintainRefrigeration) || r.methodEnabled(policy.MaintainCleanFacilities)
+	return r.temperatureEnabled() || r.methodEnabled(policy.EnsureComfort) || r.methodEnabled(policy.MaintainRefrigeration) || r.methodEnabled(policy.MaintainCleanFacilities) || r.methodEnabled(policy.MaintainLighting)
 }
 
 func (r *RoutineReviewer) methodEnabled(goal policy.GoalID) bool {

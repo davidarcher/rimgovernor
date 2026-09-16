@@ -280,6 +280,25 @@ ordinary pawn work) and treats a powered network draining its batteries in
 under a day as a deficit, sizing the next generator to connected load and
 choosing its definition from native availability and fuel stock.
 
+`MaintainLighting` (issue #6 slice 3) reasons from illumination at the cell a
+pawn stands on, not from fixture counts. Native reports every colonist work
+table and research bench's interaction cell with its measured ground glow
+(`UpkeepFacts.lighting`), plus every glowing fixture with its radius, native
+lit flag and service state. A roofed work cell measuring under 0.3 (RimWorld's
+own lit threshold) latches its bench; unroofed cells are ignored because sky
+glow would flap the latch with the day, and an unknown census preserves the
+previous latch. The goal ranks as an ordinary development project. Its method
+first looks for a fixture whose radius reaches the cell: one that is not lit
+defers to power, refuelling, repair or flicking (`lamp_power_needed`,
+`lamp_fuel_needed`, `lamp_repair_needed`, `lamp_switched_off`) rather than
+doubling up, and a lit one that still leaves the cell dark is reported
+blocked. Otherwise it places the first affordable lamp -- a `StandingLamp`
+only while some network has an active source, else a `TorchLamp` -- on the
+nearest free, walkable, unzoned cell of the same room within two cells of the
+interaction cell (never the cell itself), each candidate validated by the
+native placement preview. A build receipt never clears the deficit: the next
+measured census must read the cell lit.
+
 `EnsureComfort` maintains dining and recreation after startup survival work.
 Its deficit remains visible during emergencies; admission waits rather than
 claiming the facilities complete. Sleeping upgrades belong to `MaintainSleeping`.

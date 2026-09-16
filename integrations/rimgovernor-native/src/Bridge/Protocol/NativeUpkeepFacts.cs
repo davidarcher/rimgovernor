@@ -94,6 +94,44 @@ namespace HomeBridge.BridgeTools
                 facts.Completeness = Complete(facts.Targets.Count);
                 result.HomeCoverage = new Obs.HomeCoverageSection { Observed = facts };
             });
+            Read("lighting", result, () => {
+                // Work cells are the interaction cells of colonist benches (work
+                // tables and research benches): the cell a pawn stands on while
+                // working, which is what RimWorld's darkness penalties measure.
+                var benches = things.OfType<Building>().Where(b => b.Faction == Faction.OfPlayerSilentFail && b.def.hasInteractionCell
+                    && (b is Building_WorkTable || b is Building_ResearchBench)).OrderBy(b => b.thingIDNumber).ToList();
+                var lamps = things.OfType<Building>().Where(b => b.Faction == Faction.OfPlayerSilentFail && b.TryGetComp<CompGlower>() != null)
+                    .OrderBy(b => b.thingIDNumber).ToList();
+                Require(benches.Count, 256); Require(lamps.Count, 256);
+                var facts = new Obs.LightingFacts();
+                foreach (var b in benches) {
+                    var cell = b.InteractionCell;
+                    var row = new Obs.WorkLightCell { Bench = Ref(b), Cell = Cell(cell), Glow = Number(map.glowGrid.GroundGlowAt(cell)), Roofed = cell.Roofed(map) };
+                    var room = cell.GetRoom(map);
+                    if (room != null) row.RoomId = room.ID.ToString(System.Globalization.CultureInfo.InvariantCulture);
+                    facts.WorkCells.Add(row);
+                }
+                foreach (var b in lamps) {
+                    var glower = b.TryGetComp<CompGlower>();
+                    var service = new Obs.BuildingServiceState { SwitchedOn = b.TryGetComp<CompFlickable>()?.SwitchIsOn ?? true };
+                    var power = b.TryGetComp<CompPowerTrader>();
+                    if (power != null) { service.Connected = power.PowerNet != null; service.PowerOn = power.PowerOn; service.PowerOutputW = Number(power.PowerOutput); }
+                    service.BrokenDown = b.TryGetComp<CompBreakdownable>()?.BrokenDown ?? false;
+                    var fuel = b.TryGetComp<CompRefuelable>();
+                    if (fuel != null) {
+                        service.Fuel = Number(fuel.Fuel); service.TargetFuel = Number(fuel.TargetFuelLevel); service.OutOfFuel = !fuel.HasFuel;
+                        var defs = fuel.Props.fuelFilter.AllowedThingDefs.Select(d => d.defName).OrderBy(d => d, StringComparer.Ordinal).ToList();
+                        Require(defs.Count, 256); service.AllowedFuelDefs.Add(defs);
+                    }
+                    var row = new Obs.LampState { Building = new Obs.BuildingState { Building = Ref(b), Service = service },
+                        GlowRadius = Number(glower.Props.glowRadius), Lit = glower.Glows };
+                    var room = b.Position.GetRoom(map);
+                    if (room != null) row.RoomId = room.ID.ToString(System.Globalization.CultureInfo.InvariantCulture);
+                    facts.Lamps.Add(row);
+                }
+                facts.Completeness = Complete(benches.Count + lamps.Count);
+                result.Lighting = new Obs.LightingSection { Observed = facts };
+            });
             Read("people", result, () => {
                 var people = map.mapPawns.AllPawnsSpawned.Where(p => p.IsFreeColonist && !p.Dead).OrderBy(p => p.thingIDNumber).ToList();
                 Require(people.Count, 256);

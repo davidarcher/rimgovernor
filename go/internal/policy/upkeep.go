@@ -37,6 +37,9 @@ type UpkeepObservation struct {
 	Rooms           domain.Fact[RoomObservation]
 	CleaningWorkers domain.Fact[int]
 	Tick            domain.Tick
+	// Lighting is the measured work-cell illumination census MaintainLighting
+	// reviews (see lighting.go); unknown when native could not read it.
+	Lighting domain.Fact[LightingObservation]
 }
 type UpkeepItem struct {
 	ID                           string

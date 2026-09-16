@@ -271,6 +271,13 @@ func (p *ServiceProcess) SubmitAndResume(prefix string, identity map[string]any,
 		return "", fmt.Errorf("unexpected building submission: %#v", submission)
 	}
 	report["submission"] = submission
+	return p.Resume(prefix, identity, token, report)
+}
+
+// Resume enters automate mode without an anchor plan: authority is the
+// world's own root plan, created on first resume (SIMP02, #55). It returns
+// that root plan id.
+func (p *ServiceProcess) Resume(prefix string, identity map[string]any, token string, report Report) (rootPlanID string, err error) {
 	resumed, status, err := p.API("POST", "/api/player/control/resume", map[string]any{
 		"requestId": prefix + "-resume-1", "expected": identity,
 	}, token)

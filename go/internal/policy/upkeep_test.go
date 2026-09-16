@@ -9,7 +9,7 @@ import (
 )
 
 func emptyUpkeep() UpkeepObservation {
-	return UpkeepObservation{Items: domain.Known([]UpkeepItem{}), Structures: domain.Known([]UpkeepStructure{}), Fires: domain.Known([]UpkeepFire{}), Filth: domain.Known([]UpkeepFilth{})}
+	return UpkeepObservation{Items: domain.Known([]UpkeepItem{}), Structures: domain.Known([]UpkeepStructure{}), Fires: domain.Known([]UpkeepFire{}), Filth: domain.Known([]UpkeepFilth{}), Lighting: domain.Known(LightingObservation{})}
 }
 func TestUpkeepNativeTargetOrderAndMetrics(t *testing.T) {
 	v := emptyUpkeep()
