@@ -2,6 +2,7 @@ package buildingruntime
 
 import (
 	"context"
+	"crypto/sha256"
 	"errors"
 	"fmt"
 	"strings"
@@ -38,8 +39,12 @@ func excavationStageMethod(stage int) domain.MethodID {
 	return domain.MethodID(fmt.Sprintf("%s%d", excavationStagePrefix, stage))
 }
 
-func excavationPlanID(target policy.ExcavationTarget, suffix string) domain.PlanID {
-	return domain.PlanID(fmt.Sprintf("%s-%s-%s", excavationPlanPrefix, target.Key(), suffix))
+// excavationPlanID scopes a stage plan to the goal epoch that admitted it:
+// an invalidated goal's successor re-adopts the same target (same key) and
+// must not collide with the retired stage plans.
+func excavationPlanID(goal store.GoalState, target policy.ExcavationTarget, suffix string) domain.PlanID {
+	digest := sha256.Sum256([]byte(fmt.Sprintf("%s/%d", goal.Goal.ID, goal.Goal.Epoch)))
+	return domain.PlanID(fmt.Sprintf("%s-%s-%x-%s", excavationPlanPrefix, target.Key(), digest[:4], suffix))
 }
 
 // excavationPlanTarget recovers the target from a stage plan identity so an
@@ -50,11 +55,28 @@ func excavationPlanTarget(plan domain.PlanID) (policy.ExcavationTarget, error) {
 	if !ok {
 		return policy.ExcavationTarget{}, errors.New("not an excavation plan")
 	}
-	i := strings.LastIndex(rest, "-")
-	if i <= 0 {
+	parts := strings.Split(rest, "-")
+	if len(parts) < 3 {
 		return policy.ExcavationTarget{}, errors.New("not an excavation plan")
 	}
-	return policy.ParseExcavationKey(rest[:i])
+	return policy.ParseExcavationKey(strings.Join(parts[:len(parts)-2], "-"))
+}
+
+// ExcavationPlanTarget exposes the stage plan identity scheme to acceptance
+// tooling that verifies excavation projects from the durable journal alone.
+func ExcavationPlanTarget(plan domain.PlanID) (policy.ExcavationTarget, error) {
+	return excavationPlanTarget(plan)
+}
+
+// ExcavationStageMethod and ExcavationDoorMethod name the per-stage and door
+// methods an excavation project commits under its goal.
+func ExcavationStageMethod(stage int) domain.MethodID { return excavationStageMethod(stage) }
+func ExcavationDoorMethod() domain.MethodID           { return excavationDoorMethod }
+
+// IsExcavationPlan reports whether plan belongs to the routine excavation
+// planner (stage or door).
+func IsExcavationPlan(plan domain.PlanID) bool {
+	return strings.HasPrefix(string(plan), excavationPlanPrefix+"-")
 }
 
 // excavationProject reports the target of the goal's current excavation
@@ -100,6 +122,21 @@ func (r *RoutineBuildingPlanner) readExcavationSite(call context.Context, snapsh
 // counterfactual removal is not known to be unsupported, and a miner can
 // reach the access cell now.
 func (r *RoutineBuildingPlanner) excavationCandidate(call context.Context, snapshot domain.GenerationSnapshot, facts observation.ColonyProjection, protected []domain.Cell, check func() error) (*policy.ExcavationTarget, error) {
+	// A project whose goal was replaced mid-way is resumed from its durable
+	// stage plans before any fresh face is considered: the colony window
+	// follows the pawns, so a half-dug room can fall outside the geometry
+	// search entirely while the native site read still verifies it.
+	if previous, err := r.previousExcavation(call); err != nil {
+		return nil, err
+	} else if previous != nil {
+		verified, err := r.verifyExcavation(call, snapshot, facts.Identity.Tick, *previous, check)
+		if err != nil {
+			return nil, err
+		}
+		if verified {
+			return previous, nil
+		}
+	}
 	targets, err := policy.ExcavationSites(policy.ExcavationSiteRequest{Bounds: facts.Bounds, Region: facts.Region, Anchor: facts.Center, Cells: facts.Cells, Protected: protected, Interior: policy.Bounds{Width: excavationInteriorSize, Height: excavationInteriorSize}, MinCorridor: 2, MaxCorridor: 4})
 	if err != nil {
 		return nil, err
@@ -108,25 +145,75 @@ func (r *RoutineBuildingPlanner) excavationCandidate(call context.Context, snaps
 		if i >= excavationCandidates {
 			break
 		}
-		site, err := r.readExcavationSite(call, snapshot, facts.Identity.Tick, target.Cells(), target.Access, check)
+		verified, err := r.verifyExcavation(call, snapshot, facts.Identity.Tick, target, check)
 		if err != nil {
 			return nil, err
 		}
-		if site.Support == policy.ExcavationSupportUnsupported || !site.WorkerAvailable || !site.AccessReachable {
-			continue
-		}
-		clean := true
-		for _, cell := range site.Cells {
-			if !cell.Fogged && !cell.Eligible {
-				clean = false
-				break
-			}
-		}
-		if clean {
+		if verified {
 			return &target, nil
 		}
 	}
 	return nil, nil
+}
+
+// previousExcavation is the target of the most recently planned excavation
+// plan under any goal, or nil when none was ever planned or the latest is a
+// door plan whose every action completed: that project is finished, and a
+// later shelter need starts a new one.
+func (r *RoutineBuildingPlanner) previousExcavation(call context.Context) (*policy.ExcavationTarget, error) {
+	journal := r.reviewer.player.journal
+	plan, err := journal.LatestPlanWithPrefix(call, excavationPlanPrefix+"-")
+	if errors.Is(err, store.ErrNotFound) {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, err
+	}
+	target, err := excavationPlanTarget(plan)
+	if err != nil {
+		return nil, ErrControl
+	}
+	if strings.HasSuffix(string(plan), "-door") {
+		state, err := journal.LoadPlan(call, plan)
+		if err != nil {
+			return nil, err
+		}
+		finished := len(state.Progress) > 0
+		for _, progress := range state.Progress {
+			if effect, known := progress.View().Effect.Value(); !known || effect != domain.EffectCompleted {
+				finished = false
+			}
+		}
+		if finished {
+			return nil, nil
+		}
+	}
+	return &target, nil
+}
+
+// verifyExcavation reads the target under the current observation. It is
+// acceptable when every visible cell is eligible rock or already cleared,
+// the counterfactual removal is not known to be unsupported, and a miner
+// can reach the access cell now. A resumed project may be fully cleared
+// (its door is still owed); a fresh candidate is only proposed by geometry
+// that saw rock.
+func (r *RoutineBuildingPlanner) verifyExcavation(call context.Context, snapshot domain.GenerationSnapshot, tick domain.Tick, target policy.ExcavationTarget, check func() error) (bool, error) {
+	site, err := r.readExcavationSite(call, snapshot, tick, target.Cells(), target.Access, check)
+	if err != nil {
+		return false, err
+	}
+	if site.Support == policy.ExcavationSupportUnsupported || !site.WorkerAvailable || !site.AccessReachable {
+		clockSchedulerLog("excavation target %s rejected: support=%d (%s) worker=%v access=%v", target.Key(), site.Support, site.SupportBlocker, site.WorkerAvailable, site.AccessReachable)
+		return false, nil
+	}
+	for _, cell := range site.Cells {
+		// Cleared cells (earlier work) are not diggable but not a blocker.
+		if !cell.Fogged && !cell.Eligible && cell.Definition != "" {
+			clockSchedulerLog("excavation target %s rejected: cell %d,%d %s: %s", target.Key(), cell.Cell.X, cell.Cell.Z, cell.Definition, cell.Blocker)
+			return false, nil
+		}
+	}
+	return true, nil
 }
 
 // previewShelter chooses between the open-site starter shell and an
@@ -246,10 +333,11 @@ func (r *RoutineBuildingPlanner) stepExcavation(call, epoch context.Context, s e
 		cleared = cleared && !cell.Fogged && cell.Definition == ""
 	}
 	if cleared {
-		snapshot.Plan = excavationPlanID(s.target, "door")
+		snapshot.Plan = excavationPlanID(s.goal, s.target, "door")
 		return r.admitExcavationDoor(call, epoch, s, snapshot, check)
 	}
 	next, _, unknown := policy.ExcavationFrontier(s.target, states, excavationStageLimit)
+	clockSchedulerLog("excavation stage %d for %s: next=%v unknown=%v support=%d worker=%v access=%v", stage, s.target.Key(), next, unknown, site.Support, site.WorkerAvailable, site.AccessReachable)
 	if len(next) == 0 {
 		if unknown {
 			return RoutineBuildingResult{Reason: BuildingMethodUnknown}, nil
@@ -263,6 +351,7 @@ func (r *RoutineBuildingPlanner) stepExcavation(call, epoch context.Context, s e
 		if err != nil {
 			return RoutineBuildingResult{}, err
 		}
+		clockSchedulerLog("excavation stage %d support=%d (%s)", stage, stageSite.Support, stageSite.SupportBlocker)
 		switch stageSite.Support {
 		case policy.ExcavationSupportSupported:
 		case policy.ExcavationSupportUnsupported:
@@ -274,7 +363,7 @@ func (r *RoutineBuildingPlanner) stepExcavation(call, epoch context.Context, s e
 	if !site.WorkerAvailable || !site.AccessReachable {
 		return RoutineBuildingResult{Reason: BuildingMethodUnknown}, nil
 	}
-	snapshot.Plan = excavationPlanID(s.target, fmt.Sprint(stage))
+	snapshot.Plan = excavationPlanID(s.goal, s.target, fmt.Sprint(stage))
 	actions := make([]domain.Action, 0, len(next))
 	for i, cell := range next {
 		excavation, err := domain.NewExcavation(cell, definitions[cell])

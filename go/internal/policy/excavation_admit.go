@@ -75,6 +75,12 @@ func EvaluateExcavation(r ExcavationRequest) DraftDecision {
 	if !known || !eligibleKnown {
 		return refuse(UnknownFacts)
 	}
+	// A cell the pawns already cleared (a designation the controller no
+	// longer tracks, finished between planning and dispatch) is adopted as
+	// done: dispatch records the cleared evidence instead of designating.
+	if definition == "" {
+		return DraftDecision{Admitted: true}
+	}
 	if definition != excavation.Definition() || !eligible {
 		return refuse(ExcavationGeometryChanged)
 	}

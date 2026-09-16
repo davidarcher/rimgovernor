@@ -345,9 +345,57 @@ func (q *ClockCoordinator) reconcileLocked(call context.Context, id string) (sto
 	if v.SupersededAt != nil || v.Phase != store.ClockDispatched && v.Phase != store.ClockUncertain {
 		return v, nil
 	}
-	reply, _, err := q.native.ReadClockAttempt(call, &k.AttemptRequest{Identity: boundary.Identity(v.Intent.Snapshot), Attempt: v.NativeAttempt})
-	if err != nil || reply.GetReceipt() == nil {
+	identity := boundary.Identity(v.Intent.Snapshot)
+	reply, _, err := q.native.ReadClockAttempt(call, &k.AttemptRequest{Identity: identity, Attempt: v.NativeAttempt})
+	if err != nil {
 		return q.uncertain(v, errors.Join(err, call.Err(), executor.ErrHeld))
 	}
+	if reply.GetReceipt() == nil {
+		if reply.GetUnknown() != nil && v.Intent.Command.Start != nil {
+			if absent, err := q.startAbsent(call, v, identity); err != nil {
+				return q.uncertain(v, errors.Join(err, call.Err(), executor.ErrHeld))
+			} else if absent {
+				return q.record(v, &k.ControlReply{Outcome: &k.ControlReply_Failure{Failure: &c.Failure{
+					Code: c.FailureCode_FAILURE_CODE_NOT_FOUND.Enum(), Detail: proto.String("start never admitted: native ledger unknown and no newer clock epoch")}}}, call.Err())
+			}
+		}
+		return q.uncertain(v, errors.Join(call.Err(), executor.ErrHeld))
+	}
 	return q.record(v, &k.ControlReply{Outcome: &k.ControlReply_Receipt{Receipt: reply.GetReceipt()}}, call.Err())
+}
+
+// startAbsent turns a native-unknown start into positive no-effect evidence. The
+// native ledger is unsaved per load, so under the same load token an unknown key
+// was never admitted; a start that had taken effect would have produced a newer
+// epoch owned by this session, and the clock status always carries the latest
+// epoch. Both must agree before the journal records the refusal.
+func (q *ClockCoordinator) startAbsent(ctx context.Context, v store.ClockAttempt, identity *c.Identity) (bool, error) {
+	reply, _, err := q.native.ReadClockStatus(ctx, identity)
+	if err != nil {
+		return false, err
+	}
+	status := reply.GetStatus()
+	if err = bridge.ValidateClockStatus(status, identity); err != nil {
+		return false, err
+	}
+	if status.GetUnavailable() != nil || !proto.Equal(status.Context.Identity, identity) {
+		return false, nil
+	}
+	actual := clockCoordinatorEpoch(status)
+	if actual == nil {
+		return status.GetNeverStarted() != nil, nil
+	}
+	if actual.Owner.GetControllerSessionId() != v.NativeAttempt.GetControllerSessionId() {
+		return true, nil
+	}
+	epochs, err := q.journal.LoadClockEpochs(ctx, 4096)
+	if err != nil {
+		return false, err
+	}
+	for _, known := range epochs {
+		if known.StartRequestID != v.Intent.RequestID && known.Epoch != nil && known.Epoch.Owner.GetEpoch() >= actual.Owner.GetEpoch() {
+			return true, nil
+		}
+	}
+	return false, nil
 }

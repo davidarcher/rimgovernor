@@ -66,6 +66,15 @@ the original start's complete snapshot and a freshly observed matching running e
 Only a prepared attempt can dispatch. Recovery reads the exact original attempt;
 unknown results never authorize replay or adoption from clock status.
 
+An unknown start is resolved only by two independent native facts under the
+original identity: the native attempt ledger (unsaved per load, so unknown under
+the same load token means never admitted) and a clock status whose latest epoch
+is not new — never started, owned by another session, or an epoch this journal
+already holds. Then the journal records a `NOT_FOUND` refusal, which frees the
+next start; the status is never adopted as an epoch. A status carrying a newer
+epoch owned by this session keeps the attempt uncertain: only its receipt can
+resolve it.
+
 ## Owned epochs and pause cleanup
 
 An applied start and its required cleanup obligation are stored in one transaction.

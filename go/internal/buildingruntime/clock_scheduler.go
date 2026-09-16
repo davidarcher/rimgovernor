@@ -888,6 +888,7 @@ func (s *ClockScheduler) stepPlanners(call, gctx, epoch context.Context, out *Cl
 			if err != nil {
 				return fmt.Errorf("sleeping: %w", err)
 			}
+			clockSchedulerLog("sleeping.step: reason=%s admitted=%v refused=%v", method.Reason, method.Decision.Admitted, method.Decision.Refused)
 			out.Sleeping = &method
 			return nil
 		})

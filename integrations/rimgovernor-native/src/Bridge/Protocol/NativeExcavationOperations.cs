@@ -59,6 +59,13 @@ namespace HomeBridge.BridgeTools
                 row.Snapshot = new Obs.SnapshotRef { Context = context.Clone(), EntityId = rock.GetUniqueLoadID(),
                     Token = Token(context.Identity, cell, rock.def.defName, rock.HitPoints, row.MineDesignated) };
             }
+            else if (row.Walkable)
+            {
+                // Already cleared (pawns finished a designation the controller
+                // no longer tracks): the snapshot lets an excavation of this
+                // cell be adopted as done rather than held as changed geometry.
+                row.Snapshot = new Obs.SnapshotRef { Context = context.Clone(), EntityId = "cleared", Token = Token(context.Identity, cell, "", 0, row.MineDesignated) };
+            }
             var blocker = ExcavationTools.CellBlocker(cell, map);
             row.Eligible = blocker == null && ExcavationTools.Eligible(cell, map);
             if (blocker != null) row.Blocker = blocker;
@@ -139,15 +146,24 @@ namespace HomeBridge.BridgeTools
             && command.Cell.X >= 0 && command.Cell.Z >= 0 && command.HasExpectedMineableDefName && ProtoBoundary.IsIdentifier(command.ExpectedMineableDefName)
             && command.HasExpectedSnapshotToken && command.ExpectedSnapshotToken.Length > 0;
 
-        private static bool Prepare(Operations.ExcavateCell command, Common.ObservationContext context, out Mineable? rock, out Common.Failure failure)
+        private static bool Prepare(Operations.ExcavateCell command, Common.ObservationContext context, out Mineable? rock, out bool cleared, out Common.Failure failure)
         {
-            rock = null; failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Excavation requires an exact visible rock cell snapshot, supported roof geometry and an eligible miner.");
+            rock = null; cleared = false; failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Excavation requires an exact visible rock cell snapshot, supported roof geometry and an eligible miner.");
             if (!Valid(command)) return false;
             var map = Find.CurrentMap;
             if (map == null || Find.TickManager.CurTimeSpeed != TimeSpeed.Paused) { failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Paused current map required."); return false; }
             if (map.roofCollapseBuffer.CellsMarkedToCollapse.Count > 0) { failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Roof collapse is pending on this map."); return false; }
             var cell = new IntVec3(command.Cell.X, 0, command.Cell.Z);
             rock = ExcavationTools.RockAt(cell, map);
+            if (rock == null && cell.InBounds(map) && !cell.Fogged(map) && cell.Walkable(map))
+            {
+                // Adopt a cell the pawns already cleared: the snapshot must
+                // still describe open ground, and nothing is designated.
+                if (NativeExcavationSite.Token(context.Identity, cell, "", 0, ExcavationTools.Designated(cell, map)) != command.ExpectedSnapshotToken)
+                { failure = ProtoBoundary.Fail(Common.FailureCode.StaleIdentity, "Cell snapshot changed; observe before new admission."); return false; }
+                cleared = true;
+                return true;
+            }
             if (rock == null || cell.Fogged(map) || rock.def.defName != command.ExpectedMineableDefName) { rock = null; failure = ProtoBoundary.Fail(Common.FailureCode.NotFound, "Expected rock is not visible at the cell."); return false; }
             var designated = ExcavationTools.Designated(cell, map);
             if (NativeExcavationSite.Token(context.Identity, cell, rock.def.defName, rock.HitPoints, designated) != command.ExpectedSnapshotToken)
@@ -161,7 +177,7 @@ namespace HomeBridge.BridgeTools
 
         internal static Operations.PreviewReply Preview(Operations.ExcavateCell command, Common.ObservationContext context)
         {
-            if (!Prepare(command, context, out _, out var failure)) return new Operations.PreviewReply { Failure = failure };
+            if (!Prepare(command, context, out _, out _, out var failure)) return new Operations.PreviewReply { Failure = failure };
             return new Operations.PreviewReply { Evaluated = new Operations.PreviewEvaluation { Context = context.Clone(), Accepted = true } };
         }
 
@@ -171,7 +187,7 @@ namespace HomeBridge.BridgeTools
             var pre = request.Precondition; var command = request.Operation.ExcavateCell;
             try
             {
-                if (!Prepare(command, context, out var rock, out var failure)) return new Operations.ExecuteReply { Failure = failure };
+                if (!Prepare(command, context, out var rock, out var cleared, out var failure)) return new Operations.ExecuteReply { Failure = failure };
                 if (!NativeControlAuthority.TryGetForGame(Current.Game, out var authority) || authority == null)
                     return new Operations.ExecuteReply { Failure = ProtoBoundary.Fail(Common.FailureCode.AuthorityRequired, "Native authority is required.") };
                 var guard = authority.Check(pre.ExpectedGeneration);
@@ -180,14 +196,24 @@ namespace HomeBridge.BridgeTools
                 var admitted = state.Ledger.Admit("rimgovernor.operations.v1.Operations/Execute", request, context);
                 if (admitted.Kind != NativeAttemptLedger.DecisionKind.Admitted) return admitted.Reply!;
                 handle = admitted.Handle;
-                var map = rock!.Map; var cell = rock.Position;
+                var map = Find.CurrentMap; var cell = new IntVec3(command.Cell.X, 0, command.Cell.Z);
+                if (cleared)
+                {
+                    // Nothing to designate: the receipt carries the cleared
+                    // evidence and observation completes the action.
+                    var done = new NativeExcavationRecord(map, cell, command.ExpectedMineableDefName, false);
+                    state.Excavation.Add(pre.Attempt.Clone(), done);
+                    evidence = new Receipts.EffectEvidence { Excavation = done.Evidence() };
+                    if (!evidence.Excavation.Cleared) throw new InvalidOperationException("Cleared excavation cell was not observed.");
+                    return new Operations.ExecuteReply { Receipt = NativeOperationEnvelope.Applied(state.Ledger, handle, pre.Attempt, context, evidence) };
+                }
                 var adopted = ExcavationTools.Designated(cell, map);
-                var record = new NativeExcavationRecord(map, cell, rock.def.defName, adopted);
+                var record = new NativeExcavationRecord(map, cell, rock!.def.defName, adopted);
                 state.Excavation.Add(pre.Attempt.Clone(), record);
                 using (authority.Owned())
                 {
                     if (!authority.Check(pre.ExpectedGeneration).Success
-                        || !Prepare(command, context, out var checkedRock, out failure) || !ReferenceEquals(rock, checkedRock)) throw new InvalidOperationException("Excavation target changed before designation.");
+                        || !Prepare(command, context, out var checkedRock, out _, out failure) || !ReferenceEquals(rock, checkedRock)) throw new InvalidOperationException("Excavation target changed before designation.");
                     if (MiningGuard.OpenExcavation(map, cell) == null)
                         MiningGuard.State().Excavations.Add(new ExcavationRecord { MapId = map.uniqueID, X = cell.x, Z = cell.z, Definition = rock.def.defName, Started = Find.TickManager.TicksGame });
                     if (!adopted) new Designator_Mine().DesignateSingleCell(cell);

@@ -8,12 +8,32 @@ contains one excavation target, or at most eight plant sources, and accounts for
 including sources beyond the displayed census. Estimated yield cannot satisfy a stock
 target. Fresh observations select another deposit after depletion.
 
-Surface mining requires a capable colonist with safe native reachability. Excavation
-refuses unknown cells or any roof within the installed game's roof-support radius,
-pending roof collapse, adjacent structures, blueprints, frames, zones or home area.
-This deliberately excludes supported tunnels as well as unsafe excavations. Native
+Surface mining requires a capable colonist with safe native reachability. Resource
+mining refuses unknown cells or any roof within the installed game's roof-support
+radius, pending roof collapse, adjacent structures, blueprints, frames, zones or home
+area. This deliberately excludes supported tunnels as well as unsafe excavations. Native
 eligibility and exact colony/load/map, source identity and coordinates are rechecked
 while paused before designation.
+
+## Excavation
+
+Rooms and corridors are excavated through a separate contract that never relaxes the
+resource guard above. An excavation is keyed by cell and rock definition, never by
+ThingID, and completes when the cell no longer holds a mineable: yield is incidental.
+The typed site read (`rimgovernor/observations_read_excavation_site`) reports, for up
+to 64 cells, fog, rock, roof, designation and per-cell eligibility, plus a site-level
+counterfactual roof-support verdict for removing the whole set, a pending-collapse
+flag, miner availability and reachability of the access cell. A fogged cell is
+unknown, never eligible and never a support witness, so support is reported unknown
+until the pawns have opened enough rock to see. `ExcavateCell` prepares against that
+read while paused, rejects any pending collapse or an unsupported single-cell removal,
+adopts an existing Mine designation idempotently (reported as adopted), adopts a cell
+the pawns already cleared as done (applied with cleared evidence and no designation),
+and records a save-persistent excavation record. The excavation guard rechecks cell eligibility and
+set-based support before each pick hit and ends the job with the blocker when the
+surroundings change; it does not apply the resource radius rule. Designation, job
+completion and clearance remain native outcomes; a receipt is not a certificate of a
+usable room.
 
 Owned designations retain a save-persistent mining record. A native guard rechecks
 geometry before each pick hit, stopping the current job when the surroundings become

@@ -29,6 +29,11 @@ var rockRoofs = map[string]bool{"RoofRockThin": true, "RoofRockThick": true}
 // corridor trivially satisfies it.
 const excavationSupportSpan = 11
 
+// excavationSunkWorkWeight is the score credit per already-open target cell,
+// larger than any squared distance within the observed window so a target
+// with sunk work always ranks first.
+const excavationSunkWorkWeight = 4096
+
 // excavationMaxCells matches NativeExcavationSite.MaxCells so a whole target
 // fits in one site read.
 const excavationMaxCells = 64
@@ -141,6 +146,18 @@ func rockCell(c SiteCell) bool {
 	return ok && occupied && wk && !walkable && rk && rockRoofs[roof]
 }
 
+// excavatedCell is open ground still under a natural rock roof that is not
+// part of a proper room: rock that has already been dug (or a natural
+// pocket). A project whose goal was invalidated mid-way is re-planned over
+// the same cells instead of abandoning the half-dug room.
+func excavatedCell(c SiteCell) bool {
+	occupied, ok := c.Occupied.Value()
+	walkable, wk := c.Walkable.Value()
+	roof, rk := c.Roof.Value()
+	indoors, ik := c.Indoors.Value()
+	return ok && !occupied && wk && walkable && rk && rockRoofs[roof] && (!ik || !indoors)
+}
+
 // ExcavationSites proposes corridor+room targets for every visible rock face
 // reachable from a free access cell, best first. A target is rejected when
 // any known cell inside it is not rock, when any known cell bordering it
@@ -191,13 +208,14 @@ func ExcavationSites(r ExcavationSiteRequest) ([]ExcavationTarget, error) {
 		c, exists := cells[p]
 		return exists && !protected[p] && positive(c.Walkable) && positive(measured(c.Occupied, func(v bool) bool { return !v }))
 	}
-	// diggable: unknown (fogged) or visible rock, never protected.
+	// diggable: unknown (fogged), visible rock or already excavated, never
+	// protected.
 	diggable := func(p domain.Cell) bool {
 		if !interior(p) || protected[p] {
 			return false
 		}
 		c, exists := cells[p]
-		return !exists || rockCell(c)
+		return !exists || rockCell(c) || excavatedCell(c)
 	}
 	// sealed: a bordering cell that is unknown or known impassable keeps the
 	// room enclosed once dug.
@@ -222,7 +240,7 @@ func ExcavationSites(r ExcavationSiteRequest) ([]ExcavationTarget, error) {
 		for _, d := range directions {
 			face := domain.Cell{X: access.X + d.X, Z: access.Z + d.Z}
 			c, exists := cells[face]
-			if !exists || !rockCell(c) {
+			if !exists || !(rockCell(c) || excavatedCell(c)) {
 				continue
 			}
 			for length := r.MinCorridor; length <= r.MaxCorridor; length++ {
@@ -238,15 +256,21 @@ func ExcavationSites(r ExcavationSiteRequest) ([]ExcavationTarget, error) {
 				seen[t.Key()] = true
 				target := t.Cells()
 				inside := make(map[domain.Cell]bool, len(target))
-				legal := true
+				legal, work, done := true, false, int64(0)
 				for _, p := range target {
 					if !diggable(p) {
 						legal = false
 						break
 					}
 					inside[p] = true
+					if c, exists := cells[p]; !exists || rockCell(c) {
+						work = true
+					} else {
+						done++
+					}
 				}
-				if !legal {
+				// An already-open target is not an excavation.
+				if !legal || !work {
 					continue
 				}
 				// The room must be sealed on all eight sides (its door is
@@ -271,7 +295,10 @@ func ExcavationSites(r ExcavationSiteRequest) ([]ExcavationTarget, error) {
 				if !legal {
 					continue
 				}
-				t.Score = squaredDistance(t.Center(), r.Anchor) + 4*int64(length)
+				// Work already done outweighs distance: the colony anchor
+				// drifts with the pawns, and a half-dug room must win over
+				// a fresh face a cell nearer.
+				t.Score = squaredDistance(t.Center(), r.Anchor) + 4*int64(length) - done*excavationSunkWorkWeight
 				targets = append(targets, t)
 				// A longer corridor from the same face only helps when the
 				// shorter one was illegal.

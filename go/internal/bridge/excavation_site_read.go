@@ -105,6 +105,11 @@ func (client *Client) ReadExcavationSite(ctx context.Context, identity *c.Identi
 		if !item.Fogged && item.Definition != "" && (validID(item.Definition) != nil || validID(item.Token) != nil) {
 			return ExcavationSite{}, raw, contract("excavation cell snapshot unavailable")
 		}
+		// An open cell carries a snapshot too, so an excavation of a cell the
+		// pawns already cleared can be adopted as done.
+		if !item.Fogged && item.Definition == "" && item.Token != "" && validID(item.Token) != nil {
+			return ExcavationSite{}, raw, contract("excavation cell snapshot unavailable")
+		}
 		if item.Eligible && (item.Definition == "" || item.Blocker != "") {
 			return ExcavationSite{}, raw, contract("inconsistent excavation eligibility")
 		}

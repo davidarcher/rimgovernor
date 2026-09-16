@@ -111,7 +111,9 @@ func excavationReceipt(v *r.Receipt, w ExcavationAttempt) error {
 		if err := ValidateExcavationEffect(out.Applied.GetObserved(), w.Excavation); err != nil {
 			return err
 		}
-		if !out.Applied.GetObserved().GetExcavation().GetDesignated() {
+		// Either the cell is now designated or it was already cleared and
+		// adopted as done.
+		if d := out.Applied.GetObserved().GetExcavation(); !d.GetDesignated() && !d.GetCleared() {
 			return contract("excavation designation missing")
 		}
 		return nil

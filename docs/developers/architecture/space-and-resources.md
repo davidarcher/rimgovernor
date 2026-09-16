@@ -45,6 +45,15 @@ Future phases reserve no land. A player can adopt an inspected existing room,
 including an irregular shelter, and furnish it while preserving connected access.
 Repairs use normal construction before the room can count as habitable.
 
+Digging into a mountain is chosen, not configured. Rock holds its own roof and
+costs no wall material, so a verified rock face within reach of the colonists beats
+the wooden starter shell deterministically. Fog is the reason excavation is staged:
+the game only reveals rock as neighbouring rock is cleared, so each stage designates
+what pawns can currently see and reach, and the next stage is planned from the
+geometry they actually exposed. Support is a property of the whole removed set, not
+of one cell, which is why the site read evaluates the counterfactual removal and why
+an unknown verdict holds the project instead of failing it.
+
 ## Reservations prevent competing promises
 
 At admission, material accounting considers accepted commitments together. At dispatch,

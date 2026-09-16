@@ -472,7 +472,12 @@ eligible shelter deficits into pending methods at that same paused boundary
 under the player gate, and a failed preview prevents a new clock window. The
 `shelter` family includes indoor
 furnishing and falls back to a bounded 9×9 starter shell when the whole sleeping
-method lacks verified space. Native definitions must support one-cell wood walls
+method lacks verified space, or digs a corridor and room into a visible rock face
+when the typed excavation site read verifies a supported, reachable target within
+reach of the colony (see [spatial contracts](../docs/developers/contracts/spatial-contracts.md)).
+Excavation runs as bounded `excavation-stage-<n>` methods of at most eight cleared
+cells followed by an `excavation-door` method; each stage is re-read natively before
+admission and after a restart. Native definitions must support one-cell wood walls
 and doors; every piece needs a safe exact footprint and the complete project must
 fit shared stock and reservations. The door's observed completion gates all walls.
 After all shell pieces complete, up to 10,000 game ticks allow ordinary automatic

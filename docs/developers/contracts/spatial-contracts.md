@@ -74,6 +74,31 @@ for observed indoor sleeping capacity; urgent cooking, food acquisition, medical
 care and temperature control retain their priorities. Future phases own no cells
 or game orders.
 
+When the initial shelter is due, the planner compares the open-site starter shell
+with a staged excavation into a visible rock face. An excavation target is an ordered
+cell set: a one-wide corridor of two to four cells from a known walkable access cell,
+then a rectangular interior past the door cell, sized so every cell stays within the
+native roof-support span of untouched rock. Every target cell must be visible rock
+under a natural rock roof or fogged (unknown) inside the observed planning window;
+any known open, indoor or protected cell inside or beside the room rejects it, and
+nothing outside the observed window is planned. A verified site within the planning
+reach of the colony anchor wins over any shell; farther sites win only when no clean
+shell exists or when nearer than the shell. Work proceeds in stages of at most eight
+visible, eligible, frontier-adjacent cells, each admitted only after a fresh native
+site read reports the stage supported with a miner able to reach the access cell;
+the next stage waits for the previous stage's observed completion and re-reads the
+geometry, so revealed pockets, changed support or a lost miner hold the project
+rather than the planner assuming the fogged interior. The door is built only after
+every target cell is observed cleared, and furnishing follows the ordinary indoor
+sleeping method. A restarted controller whose goal survives rediscovers the project
+from its durable stage plans; when the goal was invalidated (for example by a control
+hand-back before the restart) the successor goal resumes the most recently planned
+target from those same plans, verified by a fresh native site read that still shows
+rock to dig, before any new face is considered — the colony window follows the pawns
+and may no longer show a half-dug room at all. Either way a cleared cell is never
+re-designated; a project the read reports unsupported or fully cleared is dropped
+and the review plans from the geometry the pawns actually opened.
+
 Adoption can describe a connected nonrectangular interior of at most 3844 unique
 cells inside the inspected bounds, with an exact boundary entrance and direction.
 Both `interior_cells` and `entrance_cell` must be supplied together. Native room

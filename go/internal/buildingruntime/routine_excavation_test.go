@@ -21,6 +21,7 @@ type excavationNative struct {
 	*sleepingNative
 	rock    map[domain.Cell]string
 	fogged  map[domain.Cell]bool
+	blocked map[domain.Cell]bool
 	support policy.ExcavationSupport
 	worker  bool
 	reads   int
@@ -39,7 +40,7 @@ func (n *excavationNative) ReadExcavationSite(ctx context.Context, _ *c.Identity
 		if n.fogged[cell] {
 			row.Fogged = true
 		} else if def := n.rock[cell]; def != "" {
-			row.Definition, row.Roof, row.HoldsRoof, row.Eligible, row.Token = def, "RoofRockThick", true, true, "tok-"+def
+			row.Definition, row.Roof, row.HoldsRoof, row.Eligible, row.Token = def, "RoofRockThick", true, !n.blocked[cell], "tok-"+def
 		} else {
 			row.Walkable, row.Roof = true, "RoofRockThick"
 		}
@@ -55,7 +56,7 @@ func (n *excavationNative) ReadExcavationSite(ctx context.Context, _ *c.Identity
 func excavationFixture(t *testing.T) (*RoutineBuildingPlanner, *store.Store, *excavationNative) {
 	t.Helper()
 	planner, db, n := shelterFixture(t)
-	x := &excavationNative{sleepingNative: n, rock: map[domain.Cell]string{}, fogged: map[domain.Cell]bool{}, support: policy.ExcavationSupportSupported, worker: true}
+	x := &excavationNative{sleepingNative: n, rock: map[domain.Cell]string{}, fogged: map[domain.Cell]bool{}, blocked: map[domain.Cell]bool{}, support: policy.ExcavationSupportSupported, worker: true}
 	planning := n.reply.GetObserved().Planning.GetObserved()
 	planning.Cells.Region.Maximum = &c.Cell{X: proto.Int32(29), Z: proto.Int32(19)}
 	for gx := int32(9); gx <= 10; gx++ {
@@ -156,7 +157,7 @@ func TestRoutineExcavationDigsStagesThenDoorThenRests(t *testing.T) {
 		t.Fatal(result, err)
 	}
 	planID, cells := excavationCells(t, db, result.Decision, excavationStageMethod(0))
-	if planID != excavationPlanID(excavationTestTarget, "0") || len(cells) != 2 || cells[0] != (domain.Cell{X: 9, Z: 4}) || cells[1] != (domain.Cell{X: 10, Z: 4}) {
+	if planID != excavationPlanID(result.Decision.Goal, excavationTestTarget, "0") || len(cells) != 2 || cells[0] != (domain.Cell{X: 9, Z: 4}) || cells[1] != (domain.Cell{X: 10, Z: 4}) {
 		t.Fatal(planID, cells)
 	}
 	if result.Decision.Goal.Methods[0].Method != excavationStageMethod(0) || x.sleepingNative.previews != 32 || x.reads < 1 {
@@ -176,7 +177,7 @@ func TestRoutineExcavationDigsStagesThenDoorThenRests(t *testing.T) {
 		t.Fatal(result, err)
 	}
 	planID, cells = excavationCells(t, db, result.Decision, excavationStageMethod(1))
-	if planID != excavationPlanID(excavationTestTarget, "1") || len(cells) != 7 || cells[0] != (domain.Cell{X: 11, Z: 4}) {
+	if planID != excavationPlanID(result.Decision.Goal, excavationTestTarget, "1") || len(cells) != 7 || cells[0] != (domain.Cell{X: 11, Z: 4}) {
 		t.Fatal(planID, cells)
 	}
 	if x.sleepingNative.previews != 32 {
@@ -197,7 +198,7 @@ func TestRoutineExcavationDigsStagesThenDoorThenRests(t *testing.T) {
 			t.Fatal(stage, result, err)
 		}
 		planID, cells = excavationCells(t, db, result.Decision, excavationStageMethod(stage))
-		if planID != excavationPlanID(excavationTestTarget, strconv.Itoa(stage)) || len(cells) == 0 || len(cells) > excavationStageLimit {
+		if planID != excavationPlanID(result.Decision.Goal, excavationTestTarget, strconv.Itoa(stage)) || len(cells) == 0 || len(cells) > excavationStageLimit {
 			t.Fatal(planID, cells)
 		}
 		completeExcavation(t, db, result.Decision, excavationStageMethod(stage), x)
@@ -221,7 +222,7 @@ func TestRoutineExcavationDigsStagesThenDoorThenRests(t *testing.T) {
 	}
 	doorPlan := methodPlan(t, result.Decision, excavationDoorMethod)
 	plan, err := db.LoadPlan(ctx, doorPlan)
-	if err != nil || doorPlan != excavationPlanID(excavationTestTarget, "door") || len(plan.Spec.Actions()) != 1 {
+	if err != nil || doorPlan != excavationPlanID(result.Decision.Goal, excavationTestTarget, "door") || len(plan.Spec.Actions()) != 1 {
 		t.Fatal(doorPlan, plan, err)
 	}
 	door, _ := plan.Spec.Actions()[0].Building()
@@ -286,17 +287,18 @@ func TestRoutineExcavationNeverStartsWithoutNativeSupportOrMiner(t *testing.T) {
 			case "no-miner":
 				x.worker = false
 			case "ineligible":
-				// Native sees the inner column already cleared: no candidate
-				// through it is clean rock.
+				// Native refuses the inner column (faction-owned rock, a
+				// frame, a map-edge neighbour): no candidate through it is
+				// clean.
 				for z := int32(0); z < 9; z++ {
-					delete(x.rock, domain.Cell{X: 10, Z: z})
+					x.blocked[domain.Cell{X: 10, Z: z}] = true
 				}
 			}
 			result, err := r.Step(context.Background())
 			if err != nil {
 				t.Fatal(err)
 			}
-			plan, loadErr := db.LoadPlan(context.Background(), excavationPlanID(excavationTestTarget, "0"))
+			plan, loadErr := db.LoadPlan(context.Background(), excavationPlanID(result.Decision.Goal, excavationTestTarget, "0"))
 			switch change {
 			case "unknown-support":
 				// Unknown support is not a refusal for the site choice; the
@@ -331,8 +333,14 @@ func TestRoutineExcavationHoldsWhenFrontierUnknown(t *testing.T) {
 
 func TestExcavationPlanTargetRoundTrip(t *testing.T) {
 	t.Parallel()
+	// A successor goal re-adopting the same target gets distinct plans.
+	a := excavationPlanID(store.GoalState{Goal: domain.Goal{ID: "routine-a-EnsureInitialShelter"}}, excavationTestTarget, "0")
+	b := excavationPlanID(store.GoalState{Goal: domain.Goal{ID: "routine-b-EnsureInitialShelter"}}, excavationTestTarget, "0")
+	if a == b || !IsExcavationPlan(a) {
+		t.Fatal(a, b)
+	}
 	for _, suffix := range []string{"0", "17", "door"} {
-		target, err := excavationPlanTarget(excavationPlanID(excavationTestTarget, suffix))
+		target, err := excavationPlanTarget(excavationPlanID(store.GoalState{}, excavationTestTarget, suffix))
 		if err != nil || target.Key() != excavationTestTarget.Key() || target.Door != excavationTestTarget.Door {
 			t.Fatal(suffix, target, err)
 		}
@@ -341,12 +349,128 @@ func TestExcavationPlanTargetRoundTrip(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if back, err := excavationPlanTarget(excavationPlanID(west, "4")); err != nil || back.Key() != west.Key() || back.Corridor[0] != (domain.Cell{X: 19, Z: 15}) {
+	if back, err := excavationPlanTarget(excavationPlanID(store.GoalState{}, west, "4")); err != nil || back.Key() != west.Key() || back.Corridor[0] != (domain.Cell{X: 19, Z: 15}) {
 		t.Fatal(back, err)
 	}
 	for _, bad := range []domain.PlanID{"routine-shell-abc", "routine-excavation-", "routine-excavation-x-0"} {
 		if _, err := excavationPlanTarget(bad); err == nil {
 			t.Fatal("accepted", bad)
 		}
+	}
+}
+
+func TestRoutineExcavationReadoptsHalfDugTarget(t *testing.T) {
+	t.Parallel()
+	// The corridor was dug under an earlier, since invalidated, goal: the
+	// observation shows it open under rock roof and native reports it
+	// cleared. The planner re-adopts the same target and designates only
+	// the next frontier cell, never the cleared corridor.
+	r, db, x := excavationFixture(t)
+	planning := x.reply.GetObserved().Planning.GetObserved()
+	for _, row := range planning.Cells.Cells {
+		if row.Cell.GetZ() == 4 && (row.Cell.GetX() == 9 || row.Cell.GetX() == 10) {
+			row.Walkable, row.Occupied = proto.Bool(true), proto.Bool(false)
+			delete(x.rock, domain.Cell{X: row.Cell.GetX(), Z: 4})
+		}
+	}
+	delete(x.fogged, domain.Cell{X: 11, Z: 4})
+	x.rock[domain.Cell{X: 11, Z: 4}] = "Granite"
+	result, err := r.Step(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if result.Reason != BuildingMethodAdmitted {
+		t.Fatal(result)
+	}
+	planID, cells := excavationCells(t, db, result.Decision, excavationStageMethod(0))
+	if planID != excavationPlanID(result.Decision.Goal, excavationTestTarget, "0") {
+		t.Fatal("re-planned a different target", planID)
+	}
+	if len(cells) != 1 || cells[0] != (domain.Cell{X: 11, Z: 4}) {
+		t.Fatal("stage should hold only the frontier cell", cells)
+	}
+}
+
+func TestRoutineExcavationResumesProjectOutsideColonyWindow(t *testing.T) {
+	t.Parallel()
+	// Stage 0 was planned; then the goal was replaced (any authority
+	// re-acquire) while the pawns wandered so far that the colony window no
+	// longer shows the block at all. The successor goal resumes the same
+	// target from the durable stage plan, verified by the native site read,
+	// instead of proposing a fresh face or the wooden shell.
+	r, db, x := excavationFixture(t)
+	ctx := context.Background()
+	result, err := r.Step(ctx)
+	if err != nil || result.Reason != BuildingMethodAdmitted {
+		t.Fatal(result, err)
+	}
+	first := result.Decision.Goal.Goal.ID
+	completeExcavation(t, db, result.Decision, excavationStageMethod(0), x)
+	for z := int32(1); z <= 7; z++ {
+		delete(x.fogged, domain.Cell{X: 11, Z: z})
+		x.rock[domain.Cell{X: 11, Z: z}] = "Granite"
+	}
+	session := r.reviewer.player.session.(*playerFakeSession)
+	session.mu.Lock()
+	session.state.Snapshot.Direction++
+	session.mu.Unlock()
+	observed := x.sleepingNative.reply.GetObserved()
+	planning := observed.Planning.GetObserved()
+	planning.Cells.Region.Minimum = &c.Cell{X: proto.Int32(40), Z: proto.Int32(40)}
+	planning.Cells.Region.Maximum = &c.Cell{X: proto.Int32(60), Z: proto.Int32(59)}
+	planning.Cells.Cells = nil
+	planning.Cells.Completeness.Matched, planning.Cells.Completeness.Returned, planning.Cells.Completeness.Filtered = proto.Uint64(0), proto.Uint64(0), proto.Uint64(420)
+	observed.Center = &c.Cell{X: proto.Int32(50), Z: proto.Int32(50)}
+	if _, err := r.reviewer.Step(ctx); err != nil {
+		t.Fatal(err)
+	}
+	result, err = r.Step(ctx)
+	if err != nil || result.Reason != BuildingMethodAdmitted {
+		t.Fatal(result, err)
+	}
+	if result.Decision.Goal.Goal.ID == first {
+		t.Fatal("goal was not replaced")
+	}
+	planID, cells := excavationCells(t, db, result.Decision, excavationStageMethod(0))
+	if planID != excavationPlanID(result.Decision.Goal, excavationTestTarget, "0") || len(cells) != 7 || cells[0] != (domain.Cell{X: 11, Z: 4}) {
+		t.Fatal(planID, cells)
+	}
+}
+
+func TestRoutineExcavationResumedProjectStillOwesDoor(t *testing.T) {
+	t.Parallel()
+	// Every cell was cleared under earlier goals; the successor goal owes the
+	// door even though the target now holds no rock and the geometry search
+	// would never propose an open pocket.
+	r, db, x := excavationFixture(t)
+	ctx := context.Background()
+	result, err := r.Step(ctx)
+	if err != nil || result.Reason != BuildingMethodAdmitted {
+		t.Fatal(result, err)
+	}
+	completeExcavation(t, db, result.Decision, excavationStageMethod(0), x)
+	for gx := int32(11); gx <= 17; gx++ {
+		for z := int32(1); z <= 7; z++ {
+			delete(x.fogged, domain.Cell{X: gx, Z: z})
+		}
+	}
+	session := r.reviewer.player.session.(*playerFakeSession)
+	session.mu.Lock()
+	session.state.Snapshot.Direction++
+	session.mu.Unlock()
+	if _, err := r.reviewer.Step(ctx); err != nil {
+		t.Fatal(err)
+	}
+	result, err = r.Step(ctx)
+	if err != nil || result.Reason != BuildingMethodAdmitted {
+		t.Fatal(result, err)
+	}
+	if plan := methodPlan(t, result.Decision, excavationDoorMethod); plan != excavationPlanID(result.Decision.Goal, excavationTestTarget, "door") {
+		t.Fatal(plan)
+	}
+	// Once the door plan completed, a later shelter need starts afresh.
+	completeExcavation(t, db, result.Decision, excavationDoorMethod, x)
+	if previous, err := r.previousExcavation(ctx); err != nil || previous != nil {
+		t.Fatal(previous, err)
 	}
 }

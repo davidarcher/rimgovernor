@@ -170,6 +170,65 @@ func TestClockCoordinatorUnknownDoesNotAdoptStatus(t *testing.T) {
 		t.Fatal(err)
 	}
 }
+func TestClockCoordinatorUnknownStartWithoutEpochIsRefused(t *testing.T) {
+	t.Parallel()
+	q, db, f, intent := clockCoreFixture(t)
+	_ = q.UpdateAuthority(executor.Authority{Snapshot: intent.Snapshot, Enabled: true})
+	f.lost = true
+	_, _ = q.Command(context.Background(), intent)
+	// The native never admitted the start: its ledger is unknown and the clock
+	// still reports never started, so the journal records a refusal and the
+	// next start is no longer held behind it.
+	f.receipt = nil
+	f.status.State = &k.Status_NeverStarted{NeverStarted: &k.NeverStarted{}}
+	v, err := q.Reconcile(context.Background(), intent.RequestID)
+	if err != nil || v.Phase != store.ClockRefused {
+		t.Fatal(v.Phase, err)
+	}
+	if epochs, _ := db.LoadClockEpochs(context.Background(), 4096); len(epochs) != 0 {
+		t.Fatal("adopted status")
+	}
+	f.lost = false
+	other := intent
+	other.RequestID = clockTestNextID(t, db)
+	if v, err = q.Command(context.Background(), other); err != nil || v.Phase != store.ClockApplied || f.writes != 2 {
+		t.Fatal(v.Phase, err, f.writes)
+	}
+}
+func TestClockCoordinatorUnknownStartBehindKnownEpochIsRefused(t *testing.T) {
+	t.Parallel()
+	q, db, f, intent := clockCoreFixture(t)
+	_ = q.UpdateAuthority(executor.Authority{Snapshot: intent.Snapshot, Enabled: true})
+	if _, err := q.Command(context.Background(), intent); err != nil {
+		t.Fatal(err)
+	}
+	epochs, _ := db.LoadClockEpochs(context.Background(), 4096)
+	if len(epochs) != 1 {
+		t.Fatal(epochs)
+	}
+	// The first epoch ran out and stopped; the journal retires its obligation.
+	f.status.State = &k.Status_Stopped{Stopped: &k.Stopped{Epoch: epochs[0].Epoch, Reason: k.StopReason_STOP_REASON_TICK_BUDGET.Enum(), ActualPaused: proto.Bool(true), PauseVerified: proto.Bool(true), PauseRequested: proto.Bool(false), StoppedAtUnixMs: proto.Int64(1)}}
+	if err := q.Cleanup(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	// A second start is lost in transport before admission: the status still
+	// carries the first epoch, so the lost start had no effect.
+	f.lost = true
+	second := intent
+	second.RequestID = clockTestNextID(t, db)
+	if v, err := q.Command(context.Background(), second); err == nil || v.Phase != store.ClockUncertain {
+		t.Fatal(v.Phase, err)
+	}
+	f.receipt = nil
+	f.status.State = &k.Status_Stopped{Stopped: &k.Stopped{Epoch: epochs[0].Epoch, Reason: k.StopReason_STOP_REASON_TICK_BUDGET.Enum(), ActualPaused: proto.Bool(true), PauseVerified: proto.Bool(true), PauseRequested: proto.Bool(false), StoppedAtUnixMs: proto.Int64(1)}}
+	v, err := q.Reconcile(context.Background(), second.RequestID)
+	if err != nil || v.Phase != store.ClockRefused {
+		t.Fatal(v.Phase, err)
+	}
+	if epochs, _ = db.LoadClockEpochs(context.Background(), 4096); len(epochs) != 1 {
+		t.Fatal(epochs)
+	}
+}
 func TestClockCoordinatorRenewRequiresOriginalProofAndFreshSpeed(t *testing.T) {
 	t.Parallel()
 	q, db, f, intent := clockCoreFixture(t)

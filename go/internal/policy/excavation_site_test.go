@@ -269,3 +269,50 @@ func TestExcavationFrontier(t *testing.T) {
 		t.Fatal(stage, remaining, unknown)
 	}
 }
+
+func TestExcavationSitesReadoptsPartlyDugTarget(t *testing.T) {
+	// A corridor and the first interior column already dug (open under
+	// rock roof, no room yet) are re-planned as the same target, ranked
+	// first, so an invalidated goal resumes the half-dug room.
+	r := mountainSite()
+	dug := map[domain.Cell]bool{{X: 10, Z: 15}: true, {X: 11, Z: 15}: true, {X: 12, Z: 14}: true, {X: 12, Z: 15}: true, {X: 12, Z: 16}: true}
+	for i := range r.Cells {
+		if dug[r.Cells[i].Cell] {
+			r.Cells[i] = SiteCell{Cell: r.Cells[i].Cell, Walkable: domain.Known(true), Occupied: domain.Known(false), Roofed: domain.Known(true), Roof: domain.Known("RoofRockThick"), Indoors: domain.Known(false)}
+		}
+	}
+	// The anchor drifts with the pawns; sunk work still wins.
+	r.Anchor = domain.Cell{X: 5, Z: 20}
+	targets, err := ExcavationSites(r)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(targets) == 0 || targets[0].Key() != "9.15.1.0.2.12.12.7.7" {
+		t.Fatal(targets)
+	}
+	// Open ground that already forms a proper room is somebody's building,
+	// never a target cell.
+	for i := range r.Cells {
+		if dug[r.Cells[i].Cell] {
+			r.Cells[i].Indoors = domain.Known(true)
+		}
+	}
+	targets, _ = ExcavationSites(r)
+	for _, target := range targets {
+		if target.Key() == "9.15.1.0.2.12.12.7.7" {
+			t.Fatal("re-planned through a proper room")
+		}
+	}
+	// A target with nothing left to dig is not an excavation.
+	r = mountainSite()
+	for i := range r.Cells {
+		if r.Cells[i].Cell.X >= 10 {
+			r.Cells[i] = SiteCell{Cell: r.Cells[i].Cell, Walkable: domain.Known(true), Occupied: domain.Known(false), Roofed: domain.Known(true), Roof: domain.Known("RoofRockThick"), Indoors: domain.Known(false)}
+		}
+	}
+	r.Region = Rectangle{X: 0, Z: 0, Width: 12, Height: 30}
+	targets, _ = ExcavationSites(r)
+	if len(targets) != 0 {
+		t.Fatal("open pocket planned as excavation", targets[0])
+	}
+}

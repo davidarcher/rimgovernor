@@ -51,7 +51,6 @@ func TestExcavationRefusals(t *testing.T) {
 		"fogged":             {func(r *ExcavationRequest) { r.Facts.Fogged = domain.Known(true) }, UnknownFacts},
 		"fog unknown":        {func(r *ExcavationRequest) { r.Facts.Fogged = domain.Unknown[bool]() }, UnknownFacts},
 		"definition unknown": {func(r *ExcavationRequest) { r.Facts.Definition = domain.Unknown[string]() }, UnknownFacts},
-		"rock gone":          {func(r *ExcavationRequest) { r.Facts.Definition = domain.Known("") }, ExcavationGeometryChanged},
 		"other rock":         {func(r *ExcavationRequest) { r.Facts.Definition = domain.Known("Marble") }, ExcavationGeometryChanged},
 		"ineligible":         {func(r *ExcavationRequest) { r.Facts.Eligible = domain.Known(false) }, ExcavationGeometryChanged},
 		"unsupported":        {func(r *ExcavationRequest) { r.Facts.Support = ExcavationSupportUnsupported }, ExcavationUnsupported},
@@ -75,6 +74,17 @@ func TestExcavationRefusals(t *testing.T) {
 				t.Fatal(d)
 			}
 		})
+	}
+}
+
+func TestExcavationAdoptsClearedCell(t *testing.T) {
+	// Pawns finished the cell between planning and dispatch: adopted as
+	// done regardless of eligibility, support or worker facts.
+	r := excavationRequest(t)
+	r.Facts.Definition, r.Facts.Eligible = domain.Known(""), domain.Known(false)
+	r.Facts.Support, r.Facts.WorkerAvailable = ExcavationSupportUnknown, domain.Known(false)
+	if d := EvaluateExcavation(r); !d.Admitted {
+		t.Fatal(d)
 	}
 }
 

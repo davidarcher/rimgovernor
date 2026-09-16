@@ -63,3 +63,27 @@ func loadPlans(ctx context.Context, tx *sql.Tx, limit int) ([]PlanState, error) 
 	}
 	return states, nil
 }
+
+// LatestPlanWithPrefix returns the most recently committed plan ID, retired or
+// not, whose ID starts with prefix: a planner rediscovers a durable project
+// (an excavation target carried in its stage plan IDs) from here after its
+// goal was replaced. ErrNotFound when no such plan was ever committed.
+func (s *Store) LatestPlanWithPrefix(ctx context.Context, prefix string) (domain.PlanID, error) {
+	if prefix == "" {
+		return "", errors.New("plan prefix required")
+	}
+	tx, err := s.begin(ctx)
+	if err != nil {
+		return "", err
+	}
+	defer tx.Rollback()
+	var id domain.PlanID
+	err = tx.QueryRowContext(ctx, "SELECT id FROM plans WHERE substr(id,1,?)=? ORDER BY rowid DESC LIMIT 1", len(prefix), prefix).Scan(&id)
+	if errors.Is(err, sql.ErrNoRows) {
+		return "", ErrNotFound
+	}
+	if err != nil {
+		return "", err
+	}
+	return id, tx.Commit()
+}

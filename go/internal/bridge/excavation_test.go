@@ -51,6 +51,14 @@ func TestExcavationFixedWriteAndExactAdmission(t *testing.T) {
 			t.Fatal("foreign, undesignated or inconsistent excavation admitted", v)
 		}
 	}
+	// An already cleared cell is adopted as done: applied without a
+	// designation but with the cleared evidence.
+	adopted := proto.Clone(receipt).(*r.Receipt)
+	adopted.GetApplied().Observed.GetExcavation().Designated = proto.Bool(false)
+	adopted.GetApplied().Observed.GetExcavation().Cleared = proto.Bool(true)
+	if err := excavationReceipt(adopted, want); err != nil {
+		t.Fatal(err)
+	}
 }
 
 func TestValidateExcavationEffectRejectsContradictoryStates(t *testing.T) {

@@ -34,6 +34,23 @@ func OpenSession(ctx context.Context, gabsExecutable, configDir, gameID string, 
 	return client, nil
 }
 
+// OpenSessionWithTakeover attaches even when another GABS session of the same
+// root still owns the game. Only for stopping a game whose controller stalled;
+// the caller owns both sessions.
+func OpenSessionWithTakeover(ctx context.Context, gabsExecutable, configDir, gameID string, timeout time.Duration) (*bridge.Client, error) {
+	client, err := bridge.Open(ctx, bridge.ProcessConfig{
+		Executable: gabsExecutable, ConfigDir: configDir, GameID: gameID, Timeout: timeout,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("open GABS session: %w", err)
+	}
+	if _, err := client.ConnectGameWithTakeover(ctx); err != nil {
+		_ = client.Close()
+		return nil, fmt.Errorf("connect with takeover: %w", err)
+	}
+	return client, nil
+}
+
 // Report is the shared JSON report shape every acceptance binary writes: a dynamic
 // bag of fields (mirroring the Python scripts' plain dict report), always including
 // "passed", "scope" and, on failure, "error".
