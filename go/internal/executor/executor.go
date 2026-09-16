@@ -127,8 +127,6 @@ type Executor struct {
 	gearReplaceJournal         GearReplaceJournal
 	repair                     RepairBoundary
 	repairJournal              RepairJournal
-	caravanDeparture           CaravanDepartureBoundary
-	caravanDepartureJournal    CaravanDepartureJournal
 	clean                      CleanBoundary
 	cleanJournal               CleanJournal
 	waste                      WasteBoundary
@@ -137,10 +135,6 @@ type Executor struct {
 	moodReliefJournal          MoodReliefJournal
 	recoveryService            RecoveryServiceBoundary
 	recoveryServiceJournal     RecoveryServiceJournal
-	surgery                    SurgeryBoundary
-	surgeryJournal             SurgeryJournal
-	bedAssign                  BedAssignBoundary
-	bedAssignJournal           BedAssignJournal
 	researchSelect             ResearchSelectBoundary
 	researchSelectJournal      ResearchSelectJournal
 	naming                     ConfirmColonyNamesBoundary
@@ -153,28 +147,12 @@ type Executor struct {
 	wallRemovalJournal         WallRemovalJournal
 	prisonerInteraction        PrisonerInteractionBoundary
 	prisonerInteractionJournal PrisonerInteractionJournal
-	questAccept                QuestAcceptBoundary
-	questAcceptJournal         QuestAcceptJournal
-	settlementGift             SettlementGiftBoundary
-	settlementGiftJournal      SettlementGiftJournal
-	questFulfill               QuestFulfillBoundary
-	questFulfillJournal        QuestFulfillJournal
-	trade                      TradeBoundary
-	tradeJournal               TradeJournal
 	mineAcquisition            AcquisitionBoundary
 	mineAcquisitionJournal     MineAcquisitionJournal
 	productionPolicy           ProductionPolicyBoundary
 	productionPolicyJournal    ProductionPolicyJournal
 	ranged                     RangedBoundary
 	rangedJournal              RangedJournal
-	movement                   MovementBoundary
-	movementJournal            MovementJournal
-	buildingTemperature        BuildingTemperatureBoundary
-	buildingTemperatureJournal BuildingTemperatureJournal
-	zoneEdit                   ZoneEditBoundary
-	zoneEditJournal            ZoneEditJournal
-	constructionCancel         ConstructionCancelBoundary
-	constructionCancelJournal  ConstructionCancelJournal
 	routineScope               RoutineScope
 	journal                    Journal
 	draftJournal               DraftJournal
@@ -372,9 +350,6 @@ func (e *Executor) Run(ctx context.Context, plan domain.PlanID, actionID domain.
 	if action.Kind() == domain.RangedAttackAction && e.ranged != nil {
 		return e.runRangedAttack(ctx, action, progress, authority, generation)
 	}
-	if action.Kind() == domain.MovementAction && e.movement != nil {
-		return e.runMovement(ctx, action, progress, authority, generation)
-	}
 	if action.Kind() == domain.HaulAction && e.haul != nil {
 		return e.runHaul(ctx, action, progress, authority, generation)
 	}
@@ -387,9 +362,6 @@ func (e *Executor) Run(ctx context.Context, plan domain.PlanID, actionID domain.
 	if action.Kind() == domain.RepairAction && e.repair != nil {
 		return e.runRepair(ctx, action, progress, authority, generation)
 	}
-	if action.Kind() == domain.CaravanDepartureAction && e.caravanDeparture != nil {
-		return e.runCaravanDeparture(ctx, action, progress, authority, generation)
-	}
 	if action.Kind() == domain.CleanAction && e.clean != nil {
 		return e.runClean(ctx, action, progress, authority, generation)
 	}
@@ -401,12 +373,6 @@ func (e *Executor) Run(ctx context.Context, plan domain.PlanID, actionID domain.
 	}
 	if action.Kind() == domain.RecoveryServiceAction && e.recoveryService != nil {
 		return e.runRecoveryService(ctx, action, progress, authority, generation)
-	}
-	if action.Kind() == domain.SurgeryAction && e.surgery != nil {
-		return e.runSurgery(ctx, action, progress, authority, generation)
-	}
-	if action.Kind() == domain.BedAssignAction && e.bedAssign != nil {
-		return e.runBedAssign(ctx, action, progress, authority, generation)
 	}
 	if action.Kind() == domain.ResearchSelectAction && e.researchSelect != nil {
 		return e.runResearchSelect(ctx, action, progress, authority, generation)
@@ -423,18 +389,6 @@ func (e *Executor) Run(ctx context.Context, plan domain.PlanID, actionID domain.
 	if action.Kind() == domain.PrisonerInteractionAction && e.prisonerInteraction != nil {
 		return e.runPrisonerInteraction(ctx, action, progress, authority, generation)
 	}
-	if action.Kind() == domain.QuestAcceptAction && e.questAccept != nil {
-		return e.runQuestAccept(ctx, action, progress, authority, generation)
-	}
-	if action.Kind() == domain.SettlementGiftAction && e.settlementGift != nil {
-		return e.runSettlementGift(ctx, action, progress, authority, generation)
-	}
-	if action.Kind() == domain.QuestFulfillAction && e.questFulfill != nil {
-		return e.runQuestFulfill(ctx, action, progress, authority, generation)
-	}
-	if action.Kind() == domain.TradeAction && e.trade != nil {
-		return e.runTrade(ctx, action, progress, authority, generation)
-	}
 	if action.Kind() == domain.WallRemovalAction && e.wallRemoval != nil {
 		return e.runWallRemoval(ctx, action, progress, authority, generation)
 	}
@@ -446,15 +400,6 @@ func (e *Executor) Run(ctx context.Context, plan domain.PlanID, actionID domain.
 	}
 	if action.Kind() == domain.ProductionPolicyAction && e.productionPolicy != nil {
 		return e.runProductionPolicy(ctx, action, progress, authority, generation)
-	}
-	if action.Kind() == domain.BuildingTemperatureAction && e.buildingTemperature != nil {
-		return e.runBuildingTemperature(ctx, action, progress, authority, generation)
-	}
-	if action.Kind() == domain.ZoneEditAction && e.zoneEdit != nil {
-		return e.runZoneEdit(ctx, action, progress, authority, generation)
-	}
-	if action.Kind() == domain.ConstructionCancelAction && e.constructionCancel != nil {
-		return e.runConstructionCancel(ctx, action, progress, authority, generation)
 	}
 	if action.Kind() != domain.BuildingAction {
 		return Result{}, errors.New("missing or unsupported building action")

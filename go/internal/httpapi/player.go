@@ -17,57 +17,17 @@ import (
 )
 
 type PlayerBuildings interface {
-	SubmitDraft(context.Context, store.DraftSubmissionRequest) (store.DraftSubmission, bool, error)
 	Submit(context.Context, store.SubmissionRequest) (store.Submission, bool, error)
-	SubmitCaravanDeparture(context.Context, store.CaravanDepartureSubmissionRequest) (store.CaravanDepartureSubmission, bool, error)
-	SubmitQuestAccept(context.Context, store.QuestAcceptSubmissionRequest) (store.QuestAcceptSubmission, bool, error)
-	SubmitSettlementGift(context.Context, store.SettlementGiftSubmissionRequest) (store.SettlementGiftSubmission, bool, error)
-	SubmitQuestFulfill(context.Context, store.QuestFulfillSubmissionRequest) (store.QuestFulfillSubmission, bool, error)
-	SubmitTrade(context.Context, store.TradeSubmissionRequest) (store.TradeSubmission, bool, error)
-	SubmitZoneCreate(context.Context, store.ZoneCreateSubmissionRequest) (store.ZoneCreateSubmission, bool, error)
-	SubmitZoneEdit(context.Context, store.ZoneEditSubmissionRequest) (store.ZoneEditSubmission, bool, error)
 	SubmitResearchSelect(context.Context, store.ResearchSelectSubmissionRequest) (store.ResearchSelectSubmission, bool, error)
-	SubmitTravelCaravan(context.Context, store.TravelCaravanSubmissionRequest) (store.TravelCaravanSubmission, bool, error)
-	SubmitBuildRoom(context.Context, store.BuildRoomSubmissionRequest) (store.BuildRoomSubmission, bool, error)
-	SubmitCancelConstruction(context.Context, store.CancelConstructionSubmissionRequest) (store.CancelConstructionSubmission, bool, error)
-	SubmitRelocateConstruction(context.Context, store.RelocateConstructionSubmissionRequest) (store.RelocateConstructionSubmission, bool, error)
-	SubmitTend(context.Context, store.TendSubmissionRequest) (store.TendSubmission, bool, error)
-	SubmitRescue(context.Context, store.RescueSubmissionRequest) (store.RescueSubmission, bool, error)
-	SubmitHusbandry(context.Context, store.HusbandrySubmissionRequest) (store.HusbandrySubmission, bool, error)
-	SubmitRecoveryService(context.Context, store.RecoveryServiceSubmissionRequest) (store.RecoveryServiceSubmission, bool, error)
-	SubmitBedAssign(context.Context, store.BedAssignSubmissionRequest) (store.BedAssignSubmission, bool, error)
-	SubmitBuildingTemperature(context.Context, store.BuildingTemperatureSubmissionRequest) (store.BuildingTemperatureSubmission, bool, error)
-	SubmitSurgery(context.Context, store.SurgerySubmissionRequest) (store.SurgerySubmission, bool, error)
-	SubmitMovement(context.Context, store.MovementSubmissionRequest) (store.MovementSubmission, bool, error)
 	Acquire(context.Context, store.ControlRequest) (store.ControlRecord, error)
 	Manual(context.Context, store.ControlRequest) (store.ControlRecord, error)
 	State() buildingruntime.ControlState
 }
 type ControlReader interface {
-	LookupDraftSubmission(context.Context, string) (store.DraftSubmission, error)
 	CurrentControl(context.Context) (store.ControlRecord, error)
 	LookupControl(context.Context, string) (store.ControlRecord, error)
 	LookupSubmission(context.Context, string) (store.Submission, error)
-	LookupCaravanDepartureSubmission(context.Context, string) (store.CaravanDepartureSubmission, error)
-	LookupQuestAcceptSubmission(context.Context, string) (store.QuestAcceptSubmission, error)
-	LookupSettlementGiftSubmission(context.Context, string) (store.SettlementGiftSubmission, error)
-	LookupQuestFulfillSubmission(context.Context, string) (store.QuestFulfillSubmission, error)
-	LookupTradeSubmission(context.Context, string) (store.TradeSubmission, error)
-	LookupZoneCreateSubmission(context.Context, string) (store.ZoneCreateSubmission, error)
-	LookupZoneEditSubmission(context.Context, string) (store.ZoneEditSubmission, error)
 	LookupResearchSelectSubmission(context.Context, string) (store.ResearchSelectSubmission, error)
-	LookupTravelCaravanSubmission(context.Context, string) (store.TravelCaravanSubmission, error)
-	LookupBuildRoomSubmission(context.Context, string) (store.BuildRoomSubmission, error)
-	LookupCancelConstructionSubmission(context.Context, string) (store.CancelConstructionSubmission, error)
-	LookupRelocateConstructionSubmission(context.Context, string) (store.RelocateConstructionSubmission, error)
-	LookupTendSubmission(context.Context, string) (store.TendSubmission, error)
-	LookupRescueSubmission(context.Context, string) (store.RescueSubmission, error)
-	LookupHusbandrySubmission(context.Context, string) (store.HusbandrySubmission, error)
-	LookupRecoveryServiceSubmission(context.Context, string) (store.RecoveryServiceSubmission, error)
-	LookupBedAssignSubmission(context.Context, string) (store.BedAssignSubmission, error)
-	LookupBuildingTemperatureSubmission(context.Context, string) (store.BuildingTemperatureSubmission, error)
-	LookupSurgerySubmission(context.Context, string) (store.SurgerySubmission, error)
-	LookupMovementSubmission(context.Context, string) (store.MovementSubmission, error)
 }
 
 // NewWithPlayer explicitly enables authenticated player intent. Dependencies and
@@ -230,8 +190,8 @@ func (s *Server) handlePlayer(w http.ResponseWriter, r *http.Request) bool {
 		return false
 	}
 	path := r.URL.Path
-	read := path == "/api/player/session" || path == "/api/player/control" || (path == "/api/buildings/submission" || path == "/api/drafts/submission") || path == "/api/player/clock" || path == "/api/player/world-evaluation" || path == "/api/player/work-preferences" || path == "/api/caravan-departures/submission" || path == "/api/quest-accepts/submission" || path == "/api/settlement-gifts/submission" || path == "/api/quest-fulfills/submission" || path == "/api/trades/submission" || path == "/api/trade-economies/submission" || path == "/api/zone-creates/submission" || path == "/api/zone-edits/submission" || path == "/api/research-selects/submission" || path == "/api/travel-caravans/submission" || path == "/api/player/population-policy" || path == "/api/player/population-policy/submission" || path == "/api/player/expedition-policy" || path == "/api/player/expedition-policy/submission" || path == "/api/player/population-decision" || path == "/api/player/population-decision/submission" || path == "/api/player/resource-policy" || path == "/api/player/resource-policy/submission" || path == "/api/player/goals" || path == "/api/player/goals/submission" || path == "/api/player/adopt-room" || path == "/api/player/adopt-room/submission" || path == "/api/build-rooms/submission" || path == "/api/cancel-constructions/submission" || path == "/api/relocate-constructions/submission" || path == "/api/tends/submission" || path == "/api/rescues/submission" || path == "/api/husbandries/submission" || path == "/api/recovery-services/submission" || path == "/api/bed-assigns/submission" || path == "/api/building-temperatures/submission" || path == "/api/surgeries/submission" || path == "/api/movements/submission"
-	write := path == "/api/chats/plans" || path == "/api/drafts/plans" || path == "/api/buildings/plans" || path == "/api/player/control/acquire" || path == "/api/player/control/manual" || path == "/api/player/clock/acknowledge" || path == "/api/player/work-preferences/replace" || path == "/api/caravan-departures/plans" || path == "/api/quest-accepts/plans" || path == "/api/settlement-gifts/plans" || path == "/api/quest-fulfills/plans" || path == "/api/trades/plans" || path == "/api/trade-economies/plans" || path == "/api/zone-creates/plans" || path == "/api/zone-edits/plans" || path == "/api/research-selects/plans" || path == "/api/travel-caravans/plans" || path == "/api/player/population-policy/replace" || path == "/api/player/expedition-policy/update" || path == "/api/player/population-decision/replace" || path == "/api/player/resource-policy/update" || path == "/api/player/goals/activate" || path == "/api/player/goals/cancel" || path == "/api/player/adopt-room/claim" || path == "/api/build-rooms/plans" || path == "/api/cancel-constructions/plans" || path == "/api/relocate-constructions/plans" || path == "/api/tends/plans" || path == "/api/rescues/plans" || path == "/api/husbandries/plans" || path == "/api/recovery-services/plans" || path == "/api/bed-assigns/plans" || path == "/api/building-temperatures/plans" || path == "/api/surgeries/plans" || path == "/api/movements/plans"
+	read := path == "/api/player/session" || path == "/api/player/control" || path == "/api/buildings/submission" || path == "/api/player/clock" || path == "/api/player/world-evaluation" || path == "/api/player/work-preferences" || path == "/api/research-selects/submission" || path == "/api/player/population-policy" || path == "/api/player/population-policy/submission" || path == "/api/player/expedition-policy" || path == "/api/player/expedition-policy/submission" || path == "/api/player/population-decision" || path == "/api/player/population-decision/submission" || path == "/api/player/resource-policy" || path == "/api/player/resource-policy/submission" || path == "/api/player/goals" || path == "/api/player/goals/submission"
+	write := path == "/api/chats/plans" || path == "/api/buildings/plans" || path == "/api/player/control/acquire" || path == "/api/player/control/manual" || path == "/api/player/clock/acknowledge" || path == "/api/player/work-preferences/replace" || path == "/api/research-selects/plans" || path == "/api/player/population-policy/replace" || path == "/api/player/expedition-policy/update" || path == "/api/player/population-decision/replace" || path == "/api/player/resource-policy/update" || path == "/api/player/goals/activate" || path == "/api/player/goals/cancel"
 	if !read && !write {
 		return false
 	}
@@ -294,10 +254,6 @@ func (s *Server) handlePlayer(w http.ResponseWriter, r *http.Request) bool {
 		s.handleResourcePolicy(ctx, w, r, query, path)
 		return true
 	}
-	if strings.HasPrefix(path, "/api/player/adopt-room") {
-		s.handleAdoptRoom(ctx, w, r, query, path)
-		return true
-	}
 	if strings.HasPrefix(path, "/api/player/goals") {
 		s.handlePlayerGoals(ctx, w, r, query, path)
 		return true
@@ -331,10 +287,6 @@ func (s *Server) handlePlayer(w http.ResponseWriter, r *http.Request) bool {
 			s.submitChat(w, r, ctx)
 			return true
 		}
-		if path == "/api/drafts/plans" {
-			s.submitDraft(w, r, ctx)
-			return true
-		}
 		if path == "/api/buildings/plans" {
 			q, err := decodeBuildingSubmission(r.Body)
 			if err != nil {
@@ -363,88 +315,8 @@ func (s *Server) handlePlayer(w http.ResponseWriter, r *http.Request) bool {
 			s.write(w, r, status, dto)
 			return true
 		}
-		if path == "/api/caravan-departures/plans" {
-			s.submitCaravanDeparture(w, r, ctx)
-			return true
-		}
-		if path == "/api/quest-accepts/plans" {
-			s.submitQuestAccept(w, r, ctx)
-			return true
-		}
-		if path == "/api/settlement-gifts/plans" {
-			s.submitSettlementGift(w, r, ctx)
-			return true
-		}
-		if path == "/api/quest-fulfills/plans" {
-			s.submitQuestFulfill(w, r, ctx)
-			return true
-		}
-		if path == "/api/trades/plans" {
-			s.submitTrade(w, r, ctx)
-			return true
-		}
-		if path == "/api/trade-economies/plans" {
-			s.submitTradeEconomy(w, r, ctx)
-			return true
-		}
-		if path == "/api/zone-creates/plans" {
-			s.submitZoneCreate(w, r, ctx)
-			return true
-		}
-		if path == "/api/zone-edits/plans" {
-			s.submitZoneEdit(w, r, ctx)
-			return true
-		}
-		if path == "/api/cancel-constructions/plans" {
-			s.submitCancelConstruction(w, r, ctx)
-			return true
-		}
-		if path == "/api/relocate-constructions/plans" {
-			s.submitRelocateConstruction(w, r, ctx)
-			return true
-		}
 		if path == "/api/research-selects/plans" {
 			s.submitResearchSelect(w, r, ctx)
-			return true
-		}
-		if path == "/api/travel-caravans/plans" {
-			s.submitTravelCaravan(w, r, ctx)
-			return true
-		}
-		if path == "/api/tends/plans" {
-			s.submitTend(w, r, ctx)
-			return true
-		}
-		if path == "/api/rescues/plans" {
-			s.submitRescue(w, r, ctx)
-			return true
-		}
-		if path == "/api/husbandries/plans" {
-			s.submitHusbandry(w, r, ctx)
-			return true
-		}
-		if path == "/api/recovery-services/plans" {
-			s.submitRecoveryService(w, r, ctx)
-			return true
-		}
-		if path == "/api/bed-assigns/plans" {
-			s.submitBedAssign(w, r, ctx)
-			return true
-		}
-		if path == "/api/building-temperatures/plans" {
-			s.submitBuildingTemperature(w, r, ctx)
-			return true
-		}
-		if path == "/api/surgeries/plans" {
-			s.submitSurgery(w, r, ctx)
-			return true
-		}
-		if path == "/api/movements/plans" {
-			s.submitMovement(w, r, ctx)
-			return true
-		}
-		if path == "/api/build-rooms/plans" {
-			s.submitBuildRoom(w, r, ctx)
 			return true
 		}
 		var q store.ControlRequest
@@ -486,97 +358,13 @@ func (s *Server) handlePlayer(w http.ResponseWriter, r *http.Request) bool {
 		return true
 	}
 	ids := query["requestId"]
-	submissionLookup := path == "/api/buildings/submission" || path == "/api/drafts/submission" || path == "/api/caravan-departures/submission" || path == "/api/quest-accepts/submission" || path == "/api/settlement-gifts/submission" || path == "/api/quest-fulfills/submission" || path == "/api/trades/submission" || path == "/api/trade-economies/submission" || path == "/api/zone-creates/submission" || path == "/api/zone-edits/submission" || path == "/api/research-selects/submission" || path == "/api/travel-caravans/submission" || path == "/api/build-rooms/submission" || path == "/api/cancel-constructions/submission" || path == "/api/relocate-constructions/submission" || path == "/api/tends/submission" || path == "/api/rescues/submission" || path == "/api/husbandries/submission" || path == "/api/recovery-services/submission" || path == "/api/bed-assigns/submission" || path == "/api/building-temperatures/submission" || path == "/api/surgeries/submission" || path == "/api/movements/submission"
+	submissionLookup := path == "/api/buildings/submission" || path == "/api/research-selects/submission"
 	if (len(query) != 0 && (len(query) != 1 || len(ids) != 1 || buildingRequestID(ids[0]) != nil)) || (submissionLookup && len(ids) != 1) {
 		s.failure(w, r, 400, "invalid_query", "One requestId is required")
 		return true
 	}
-	if path == "/api/drafts/submission" {
-		s.lookupDraft(w, r, ctx, ids[0])
-		return true
-	}
-	if path == "/api/caravan-departures/submission" {
-		s.lookupCaravanDeparture(w, r, ctx, ids[0])
-		return true
-	}
-	if path == "/api/quest-accepts/submission" {
-		s.lookupQuestAccept(w, r, ctx, ids[0])
-		return true
-	}
-	if path == "/api/settlement-gifts/submission" {
-		s.lookupSettlementGift(w, r, ctx, ids[0])
-		return true
-	}
-	if path == "/api/quest-fulfills/submission" {
-		s.lookupQuestFulfill(w, r, ctx, ids[0])
-		return true
-	}
-	if path == "/api/trades/submission" {
-		s.lookupTrade(w, r, ctx, ids[0])
-		return true
-	}
-	if path == "/api/trade-economies/submission" {
-		s.lookupTradeEconomy(w, r, ctx, ids[0])
-		return true
-	}
-	if path == "/api/zone-creates/submission" {
-		s.lookupZoneCreate(w, r, ctx, ids[0])
-		return true
-	}
 	if path == "/api/research-selects/submission" {
 		s.lookupResearchSelect(w, r, ctx, ids[0])
-		return true
-	}
-	if path == "/api/zone-edits/submission" {
-		s.lookupZoneEdit(w, r, ctx, ids[0])
-		return true
-	}
-	if path == "/api/travel-caravans/submission" {
-		s.lookupTravelCaravan(w, r, ctx, ids[0])
-		return true
-	}
-	if path == "/api/tends/submission" {
-		s.lookupTend(w, r, ctx, ids[0])
-		return true
-	}
-	if path == "/api/rescues/submission" {
-		s.lookupRescue(w, r, ctx, ids[0])
-		return true
-	}
-	if path == "/api/husbandries/submission" {
-		s.lookupHusbandry(w, r, ctx, ids[0])
-		return true
-	}
-	if path == "/api/recovery-services/submission" {
-		s.lookupRecoveryService(w, r, ctx, ids[0])
-		return true
-	}
-	if path == "/api/bed-assigns/submission" {
-		s.lookupBedAssign(w, r, ctx, ids[0])
-		return true
-	}
-	if path == "/api/building-temperatures/submission" {
-		s.lookupBuildingTemperature(w, r, ctx, ids[0])
-		return true
-	}
-	if path == "/api/surgeries/submission" {
-		s.lookupSurgery(w, r, ctx, ids[0])
-		return true
-	}
-	if path == "/api/movements/submission" {
-		s.lookupMovement(w, r, ctx, ids[0])
-		return true
-	}
-	if path == "/api/build-rooms/submission" {
-		s.lookupBuildRoom(w, r, ctx, ids[0])
-		return true
-	}
-	if path == "/api/cancel-constructions/submission" {
-		s.lookupCancelConstruction(w, r, ctx, ids[0])
-		return true
-	}
-	if path == "/api/relocate-constructions/submission" {
-		s.lookupRelocateConstruction(w, r, ctx, ids[0])
 		return true
 	}
 	if path == "/api/buildings/submission" {

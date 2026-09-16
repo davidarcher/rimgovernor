@@ -40,9 +40,3 @@ it('classifies only validated explicit rejection codes as non-admission',async()
  }
 });
 
-it('accepts only the closed temporary draft submission shape',async()=>{
- const {readDraftSubmission}=await import('./playerData');
- const value={requestId:'draft',expected:world,draft:{pawnId:'Pawn_42'},planId:'p',actionId:'a',revision:'1'};
- expect(readDraftSubmission(value)).toEqual(value);
- for(const bad of [{...value,building},{...value,draft:{pawnId:''}},{...value,draft:{pawnId:'Pawn_42',owned:true}},{...value,draft:null},{...value,revision:'0'}])expect(()=>readDraftSubmission(bad)).toThrow();
-});

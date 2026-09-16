@@ -39,22 +39,6 @@ import (
 	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
 )
 
-// defaultCaravanDeparturePolicy is the fixed admission threshold for the
-// unconditional player-command CaravanDeparture vertical: leave at least one
-// colonist and five days of food home, keep a doctor among the stayers, and
-// block departures to a destination outside [-10, 40] Celsius, a hostile
-// settlement, or a settlement whose goodwill is below -50 -- the same
-// defaults Python's ExpeditionPolicy model ships. Not yet
-// operator-configurable; no CLI flag exists for it.
-var defaultCaravanDeparturePolicy = policy.CaravanDeparturePolicy{
-	MinimumHomeColonists:           1,
-	MinimumHomeFoodDays:            5,
-	KeepHomeDoctor:                 true,
-	MinimumDestinationTemperatureC: -10,
-	MaximumDestinationTemperatureC: 40,
-	MinimumGoodwill:                -50,
-}
-
 // moodReliefWorldSource is the narrow slice of *bridge.Client that
 // readMoodReliefLongitude needs to find the colony's home tile and read its
 // longitude: the world-progression census (for the home map's Tile) and
@@ -143,10 +127,6 @@ type buildingServiceBridge struct {
 	research            *buildingruntime.ResearchSelectCapabilities
 	naming              *buildingruntime.ConfirmColonyNamesCapabilities
 	production          *buildingruntime.ProductionPolicyCapabilities
-	questAccept         *buildingruntime.QuestAcceptCapabilities
-	settlementGift      *buildingruntime.SettlementGiftCapabilities
-	questFulfill        *buildingruntime.QuestFulfillCapabilities
-	caravanDeparture    *buildingruntime.CaravanDepartureCapabilities
 	presentationMedia   *bridge.PresentationMedia
 	lifecycle           lifecycleCapability
 }
@@ -261,22 +241,6 @@ func openBuildingService(ctx context.Context, config bridge.ProcessConfig) (buil
 	if err != nil {
 		return buildingServiceBridge{}, errors.Join(err, client.Close())
 	}
-	questAccept, err := bridge.NewQuestAcceptWriter(client)
-	if err != nil {
-		return buildingServiceBridge{}, errors.Join(err, client.Close())
-	}
-	settlementGift, err := bridge.NewSettlementGiftWriter(client)
-	if err != nil {
-		return buildingServiceBridge{}, errors.Join(err, client.Close())
-	}
-	questFulfill, err := bridge.NewQuestFulfillWriter(client)
-	if err != nil {
-		return buildingServiceBridge{}, errors.Join(err, client.Close())
-	}
-	caravanDeparture, err := bridge.NewCaravanDepartureWriter(client)
-	if err != nil {
-		return buildingServiceBridge{}, errors.Join(err, client.Close())
-	}
 	presentationMedia, err := bridge.NewPresentationMedia(client)
 	if err != nil {
 		return buildingServiceBridge{}, errors.Join(err, client.Close())
@@ -316,10 +280,6 @@ func openBuildingService(ctx context.Context, config bridge.ProcessConfig) (buil
 		research:            &buildingruntime.ResearchSelectCapabilities{Native: client, Writer: researchSelect},
 		naming:              &buildingruntime.ConfirmColonyNamesCapabilities{Native: client, Writer: namingControl},
 		production:          &buildingruntime.ProductionPolicyCapabilities{Native: client, Writer: productionPolicyWriter},
-		questAccept:         &buildingruntime.QuestAcceptCapabilities{Native: client, Writer: questAccept},
-		settlementGift:      &buildingruntime.SettlementGiftCapabilities{Native: client, Writer: settlementGift},
-		questFulfill:        &buildingruntime.QuestFulfillCapabilities{Native: client, Writer: questFulfill},
-		caravanDeparture:    &buildingruntime.CaravanDepartureCapabilities{Native: client, Writer: caravanDeparture, Policy: defaultCaravanDeparturePolicy},
 		presentationMedia:   presentationMedia,
 		lifecycle:           lifecycleCapability{lifecycleSave, lifecycleLoad}}, nil
 }
@@ -416,12 +376,6 @@ func serveBuildingWithBridge(ctx context.Context, config serveConfig, out io.Wri
 	defer func() { result = errors.Join(result, client.reads.Close()) }()
 	if client.native == nil || client.authority == nil || client.writes == nil || client.draft == nil || client.draft.Native == nil || client.draft.Writer == nil || client.draft.Cleanup == nil {
 		return errors.New("player service requires complete building and draft capabilities")
-	}
-	if client.questAccept == nil || client.questAccept.Native == nil || client.questAccept.Writer == nil || client.settlementGift == nil || client.settlementGift.Native == nil || client.settlementGift.Writer == nil {
-		return errors.New("player service requires complete quest accept and settlement gift capabilities")
-	}
-	if client.caravanDeparture == nil || client.caravanDeparture.Native == nil || client.caravanDeparture.Writer == nil {
-		return errors.New("player service requires complete caravan departure capabilities")
 	}
 	started, err := client.reads.GamesStart(lifetime)
 	if err != nil {
@@ -646,10 +600,6 @@ func serveBuildingWithBridge(ctx context.Context, config serveConfig, out io.Wri
 		ResearchSelect:      researchSelectCapabilities,
 		ConfirmColonyNames:  namingCapabilities,
 		ProductionPolicy:    productionPolicyCapabilities,
-		QuestAccept:         client.questAccept,
-		SettlementGift:      client.settlementGift,
-		QuestFulfill:        client.questFulfill,
-		CaravanDeparture:    client.caravanDeparture,
 	}, database, client.native, client.authority, client.writes, wallClock{})
 	if err != nil {
 		return err

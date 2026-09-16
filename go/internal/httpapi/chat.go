@@ -15,8 +15,8 @@ import (
 
 // chatCommandActionID is the single action ID chat allocates for every model
 // call. Chat supports only single-action commands (build a single building,
-// research, tend, rescue, draft, husbandry): each self-commits its own fresh
-// plan at dispatch (see store.TendSubmissionRequest et al.), so nothing
+// research): each self-commits its own fresh
+// plan at dispatch (see store.ResearchSelectSubmissionRequest), so nothing
 // downstream reads this identifier back -- it exists only to satisfy
 // interpreter.Interpret's requirement of a nonempty bounded ActionIDs pool.
 const chatCommandActionID = domain.ActionID("chat-1")
@@ -26,10 +26,6 @@ type chatResponseDTO struct {
 	Command   string                       `json:"command"`
 	Building  *submissionDTO               `json:"building,omitempty"`
 	Research  *researchSelectSubmissionDTO `json:"research,omitempty"`
-	Tend      *tendSubmissionDTO           `json:"tend,omitempty"`
-	Rescue    *rescueSubmissionDTO         `json:"rescue,omitempty"`
-	Draft     *draftSubmissionDTO          `json:"draft,omitempty"`
-	Husbandry *husbandrySubmissionDTO      `json:"husbandry,omitempty"`
 }
 
 func decodeChatRequest(reader io.Reader) (requestID string, world store.World, message string, err error) {
@@ -143,66 +139,6 @@ func (s *Server) submitChat(w http.ResponseWriter, r *http.Request, ctx context.
 				return
 			}
 			resp.Command, resp.Research = "research", &dto
-		}
-	} else if tend, ok := action.Tend(); ok {
-		v, _, err := s.player.SubmitTend(ctx, store.TendSubmissionRequest{RequestID: requestID, World: world, Tend: tend})
-		if err == nil {
-			err = ctx.Err()
-		}
-		if err != nil {
-			status, failure = playerFailure(err)
-		} else {
-			dto, projectErr := projectTendSubmission(v)
-			if projectErr != nil {
-				s.readFailure(w, r, projectErr)
-				return
-			}
-			resp.Command, resp.Tend = "tend", &dto
-		}
-	} else if rescue, ok := action.Rescue(); ok {
-		v, _, err := s.player.SubmitRescue(ctx, store.RescueSubmissionRequest{RequestID: requestID, World: world, Rescue: rescue})
-		if err == nil {
-			err = ctx.Err()
-		}
-		if err != nil {
-			status, failure = playerFailure(err)
-		} else {
-			dto, projectErr := projectRescueSubmission(v)
-			if projectErr != nil {
-				s.readFailure(w, r, projectErr)
-				return
-			}
-			resp.Command, resp.Rescue = "rescue", &dto
-		}
-	} else if draft, ok := action.OwnedDraft(); ok {
-		v, _, err := s.player.SubmitDraft(ctx, store.DraftSubmissionRequest{RequestID: requestID, World: world, Draft: draft})
-		if err == nil {
-			err = ctx.Err()
-		}
-		if err != nil {
-			status, failure = playerFailure(err)
-		} else {
-			dto, projectErr := projectDraftSubmission(v)
-			if projectErr != nil {
-				s.readFailure(w, r, projectErr)
-				return
-			}
-			resp.Command, resp.Draft = "draft", &dto
-		}
-	} else if husbandry, ok := action.Husbandry(); ok {
-		v, _, err := s.player.SubmitHusbandry(ctx, store.HusbandrySubmissionRequest{RequestID: requestID, World: world, Husbandry: husbandry})
-		if err == nil {
-			err = ctx.Err()
-		}
-		if err != nil {
-			status, failure = playerFailure(err)
-		} else {
-			dto, projectErr := projectHusbandrySubmission(v)
-			if projectErr != nil {
-				s.readFailure(w, r, projectErr)
-				return
-			}
-			resp.Command, resp.Husbandry = "husbandry", &dto
 		}
 	} else {
 		s.failure(w, r, 422, "unsupported_command", "That request needs a command chat does not support yet")

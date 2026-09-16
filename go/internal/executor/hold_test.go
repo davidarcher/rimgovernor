@@ -17,15 +17,15 @@ func allKnownReasons() []policy.Reason {
 		policy.NotReady, policy.AlreadyReserved, policy.UnsafePlacement, policy.MaterialRequired,
 		policy.DependencyBlocked, policy.GeometryBlocked, policy.SpendingBlocked, policy.InsufficientStock,
 		policy.InvalidHeld, policy.ArithmeticOverflow,
-		policy.BedAssignPawnUnavailable, policy.CaravanCrewUnavailable, policy.CaravanHomeFoodInsufficient,
-		policy.CaravanHomeStaffingInsufficient, policy.CaravanRouteUnavailable, policy.CleanerUnavailable,
+
+		policy.CleanerUnavailable,
 		policy.DoctorUnavailable, policy.DraftOwnership, policy.EquipPawnUnavailable, policy.FilthIneligible,
 		policy.GearReplacePawnUnavailable, policy.HaulerUnavailable, policy.HomeCoverageExcluded,
-		policy.HomeCoverageGeometryChanged, policy.HusbandryAnimalUnavailable, policy.InsufficientReserve,
+		policy.HomeCoverageGeometryChanged, policy.HusbandryAnimalUnavailable,
 		policy.NativeIneligible, policy.PatientIneligible, policy.PlayerOrder, policy.PrisonerUnavailable,
-		policy.ProductionPolicySatisfied, policy.QuestUnavailable, policy.RecoveryServicePawnUnavailable,
+		policy.ProductionPolicySatisfied, policy.RecoveryServicePawnUnavailable,
 		policy.RepairerUnavailable, policy.RescuerUnavailable, policy.ResearchProjectClaimed,
-		policy.SettlementUnavailable, policy.StructureIneligible, policy.UnsuitableEquipment,
+		policy.StructureIneligible, policy.UnsuitableEquipment,
 		policy.UnsupportedThreat, policy.WallRemovalGeometryChanged, policy.WallRemovalTargetChanged,
 	}
 }

@@ -82,36 +82,6 @@ func unusedDrafts() *draft.DraftCapabilities {
 	return &draft.DraftCapabilities{Native: caps, Writer: caps, Cleanup: caps}
 }
 
-type unusedQuestAcceptCapabilities struct {
-	buildingruntime.QuestAcceptNative
-	buildingruntime.QuestAcceptWriter
-}
-
-func unusedQuestAccept() *buildingruntime.QuestAcceptCapabilities {
-	caps := unusedQuestAcceptCapabilities{}
-	return &buildingruntime.QuestAcceptCapabilities{Native: caps, Writer: caps}
-}
-
-type unusedSettlementGiftCapabilities struct {
-	buildingruntime.SettlementGiftNative
-	buildingruntime.SettlementGiftWriter
-}
-
-func unusedSettlementGift() *buildingruntime.SettlementGiftCapabilities {
-	caps := unusedSettlementGiftCapabilities{}
-	return &buildingruntime.SettlementGiftCapabilities{Native: caps, Writer: caps}
-}
-
-type unusedCaravanDepartureCapabilities struct {
-	buildingruntime.CaravanDepartureNative
-	buildingruntime.CaravanDepartureWriter
-}
-
-func unusedCaravanDeparture() *buildingruntime.CaravanDepartureCapabilities {
-	caps := unusedCaravanDepartureCapabilities{}
-	return &buildingruntime.CaravanDepartureCapabilities{Native: caps, Writer: caps, Policy: defaultCaravanDeparturePolicy}
-}
-
 func TestBuildingServiceSubmissionDoesNotAcquireAndShutdownJoins(t *testing.T) {
 	dir := t.TempDir()
 	fake := &buildingReadFake{serviceFake: serviceFake{entered: make(chan struct{}, 2)}}
@@ -123,7 +93,7 @@ func TestBuildingServiceSubmissionDoesNotAcquireAndShutdownJoins(t *testing.T) {
 	done := make(chan error, 1)
 	go func() {
 		done <- serveBuildingWithBridge(ctx, config, addresses, func(context.Context, bridge.ProcessConfig) (buildingServiceBridge, error) {
-			return buildingServiceBridge{reads: fake, native: caps, authority: caps, writes: caps, draft: unusedDrafts(), questAccept: unusedQuestAccept(), settlementGift: unusedSettlementGift(), caravanDeparture: unusedCaravanDeparture()}, nil
+			return buildingServiceBridge{reads: fake, native: caps, authority: caps, writes: caps, draft: unusedDrafts()}, nil
 		})
 	}()
 	var address string
@@ -173,32 +143,6 @@ func TestBuildingServiceSubmissionDoesNotAcquireAndShutdownJoins(t *testing.T) {
 	}
 	if !strings.Contains(string(read("/api/buildings/submission?requestId=submit-one")), `"requestId":"submit-one"`) {
 		t.Fatal("submission not durable")
-	}
-	draftPayload := `{"requestId":"submit-draft","expected":{"colonyId":"colony","loadToken":"load","mapId":0},"draft":{"pawnId":"pawn-one"}}`
-	request, _ = http.NewRequest(http.MethodPost, address+"/api/drafts/plans", strings.NewReader(draftPayload))
-	request.Header.Set("Content-Type", "application/json")
-	request.Header.Set("X-RimGovernor-Player", bootstrap.Token)
-	response, err = client.Do(request)
-	if err != nil {
-		t.Fatal(err)
-	}
-	data, err = io.ReadAll(response.Body)
-	response.Body.Close()
-	if err != nil || response.StatusCode != 201 {
-		t.Fatalf("draft submission %d %s %v", response.StatusCode, data, err)
-	}
-	var draft struct {
-		PlanID string `json:"planId"`
-	}
-	if err = json.Unmarshal(data, &draft); err != nil || draft.PlanID == "" {
-		t.Fatal("draft plan", err)
-	}
-	if !strings.Contains(string(read("/api/drafts/submission?requestId=submit-draft")), `"pawnId":"pawn-one"`) {
-		t.Fatal("draft submission not durable")
-	}
-	plan := string(read("/api/plan?id=" + draft.PlanID))
-	if !strings.Contains(plan, `"kind":"owned_draft"`) || !strings.Contains(plan, `"stage":"pending"`) || strings.Contains(plan, `"building":`) {
-		t.Fatal("draft projection", plan)
 	}
 	if !strings.Contains(string(read("/api/player/control")), `"enabled":false`) {
 		t.Fatal("submission enabled authority")

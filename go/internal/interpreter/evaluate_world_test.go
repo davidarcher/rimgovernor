@@ -42,13 +42,12 @@ func TestEvaluateWorldProposalCarriesNothingButTheFlag(t *testing.T) {
 		t.Fatal("evaluate_world must set its own proposal flag")
 	}
 	// It is the emptiest proposal in the family: no plan, no configuration, no
-	// named entity, no construction. The advisory itself is read from
+	// named entity. The advisory itself is read from
 	// buildingruntime.WorldEvaluation by the consumer, never composed here.
 	if len(proposal.Plan.Actions()) != 0 || proposal.PopulationPolicy.Set() || !proposal.ExpeditionPolicy.Empty() ||
 		proposal.PopulationDecision.Set() || !proposal.ResourcePolicy.Empty() || proposal.CreateGoal.Set() ||
-		proposal.CancelGoal != "" || proposal.BuildRoom.Set() || proposal.AdoptRoom.Set() ||
-		proposal.CancelConstructionIntent != "" || proposal.RelocateConstructionIntent != "" {
-		t.Fatal("world evaluation must propose no actions, policy, goal or construction")
+		proposal.CancelGoal != "" {
+		t.Fatal("world evaluation must propose no actions, policy or goal")
 	}
 	if proposal.Generation != input.Current {
 		t.Fatal("world evaluation must resolve against the input generation")

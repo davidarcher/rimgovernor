@@ -1,8 +1,12 @@
 # Player action coverage
 
-Player chat commits semantic requests through the shared ColonyPlan and Hands.
-Native settings readback establishes settings, not subsequent sowing, hauling,
-production, training or treatment. Native eligibility remains authoritative.
+Player guidance commits one building placement or research selection through
+the shared plan and Hands, or records colony configuration (goals, population,
+expedition and resource policies, per-pawn population decisions, work
+preferences). Per-pawn orders are not a player surface; the action families
+below reach the executor only as routine-planner output. Native settings
+readback establishes settings, not subsequent sowing, hauling, production,
+training or treatment. Native eligibility remains authoritative.
 
 ## Native capability audit
 
@@ -25,14 +29,13 @@ capture even on uncertainty. After a click, both native UI state and selection a
 read again. Native target validation still owns control lifetime and click legality;
 Controller checks do not make external player input atomic.
 
-## Supported zone and bill requests
+## Routine zone and bill actions
 
-`EditZone` takes an observed numeric zone ID and one operation: add explicit cells,
-remove explicit cells, delete, set crop, or edit a stockpile filter/priority. Native
-preview rejects unavailable crops, invalid cells and unknown filters before plan
-admission. Shared execution rechecks native eligibility and compares fresh zone
-geometry, crop or filter with the actual native edit. Deletion removes a designation,
-not stored items. Partial or uncertain writes require inspection before retrying.
+Zone creation and bill creation are routine-planner actions, not player commands.
+Native preview rejects unavailable crops, invalid cells and unknown filters before
+plan admission. Shared execution rechecks native eligibility and compares fresh
+zone geometry, crop or filter with the actual native write. Partial or uncertain
+writes require inspection before retrying.
 
 Storage filters accept existing presets, categories and definitions. The native
 filter summary additionally lists configurable `SpecialThingFilterDef` names,
@@ -52,7 +55,7 @@ bill read. Recipe ingredient rules and production resource policies still apply.
 
 | Domain | Existing native support | Remaining extension |
 | --- | --- | --- |
-| Animals | Allowed area, trained master, following, recursive training requests and slaughter designation with native eligibility; animal/training reads. Maintained population, breeder reserve, training and feed targets use [husbandry contracts](husbandry-contracts.md). | Individual master/area/following chat commands; tame/release/sterilize/pen and explicit pair-separation workflows. |
+| Animals | Allowed area, trained master, following, recursive training requests and slaughter designation with native eligibility; animal/training reads. Maintained population, breeder reserve, training and feed targets use [husbandry contracts](husbandry-contracts.md). | Tame/release/sterilize/pen and explicit pair-separation workflows. |
 | Medical | Care category, self-tend, medical beds, native tend/rescue orders and patient outcome predicates. | Surgery bills, operation-body-part eligibility and completed operations. |
 | Prisoners | Eligible prisoner-bed configuration and pawn/health inspection. | Capture, prisoner interaction/recruitment settings and observed prisoner outcomes. |
 | Food/drug/apparel policies | Bill ingredient filters and stockpile filters; native pawn settings inspection. | Typed policy creation/edit/assignment and readback, including restriction versus actual consumption/wearing. |

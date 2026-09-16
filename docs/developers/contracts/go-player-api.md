@@ -5,13 +5,14 @@
 This is the fixed interface for G01.07a.2f.2–3. Service availability and native
 acceptance remain tracked in
 [G01.08](https://github.com/davidarcher/rimgovernor/issues/29). The gated player
-service uses one Player, session, writer and current-control coordinator for all
-action families.
+service uses one Player, session, writer and current-control coordinator. The
+surface is guidance: building placement and research selection are the only
+typed plan submissions; the rest is colony configuration and control.
 
 ## Routes and intent
 
 `rimgovernor serve --profile PATH` (autonomous play) includes the explicit player service. Shared
-control uses these routes; building submission routes remain family-specific.
+control uses these routes.
 
 | Method | Route | Result |
 | --- | --- | --- |
@@ -22,29 +23,46 @@ control uses these routes; building submission routes remain family-specific.
 | POST | `/api/player/control/manual` | Invalidate local permission and clean up owned work |
 | POST | `/api/buildings/plans` | Store one building intent |
 | GET | `/api/buildings/submission?requestId=…` | Read a building submission |
-| POST | `/api/drafts/plans` | Store one temporary-draft intent |
-| GET | `/api/drafts/submission?requestId=…` | Read a draft submission |
+| POST | `/api/research-selects/plans` | Store one research-selection intent |
+| GET | `/api/research-selects/submission?requestId=…` | Read a research-selection submission |
+| POST | `/api/chats/plans` | Interpret one plain-language request into a build or research submission |
+| GET/POST | `/api/player/goals`, `/api/player/goals/activate`, `/api/player/goals/cancel` | Maintained goal activation and cancellation |
+| GET/POST | `/api/player/population-policy`, `…/replace` | Population capacity policy |
+| GET/POST | `/api/player/expedition-policy`, `…/update` | Expedition risk limits |
+| GET/POST | `/api/player/population-decision`, `…/replace` | Per-pawn population decision |
+| GET/POST | `/api/player/resource-policy`, `…/update` | Resource reserve and spending restriction |
+| GET/POST | `/api/player/work-preferences`, `…/replace` | Work preferences |
+| GET/POST | `/api/player/clock`, `/api/player/clock/acknowledge` | Clock review |
+| GET | `/api/player/world-evaluation` | Read-only caravan/quest evaluation |
 
 Mutations require JSON and the process token in `X-RimGovernor-Player`. The
 read-only service exposes none of these player routes. Old building control
 routes and the old control flag have no aliases.
 
-Draft submission accepts exactly this shape:
+Building submission accepts exactly this shape:
 
 ```json
 {
   "requestId": "player-request-id",
   "expected": {"colonyId": "colony", "loadToken": "load", "mapId": 0},
-  "draft": {"pawnId": "exact-pawn-id"}
+  "building": {"defName": "Wall", "stuff": "WoodLog", "x": 0, "z": 0, "rotation": "north"}
 }
 ```
 
-Its response echoes those fields and adds `planId`, `actionId` and `revision`
-(a positive canonical decimal uint64 string). A newly stored request returns 201;
-an exact replay or successful lookup returns 200. Request IDs share one namespace
-across action families. Conflicting reuse returns 409. Submission never acquires
-authority or drafts a pawn; native eligibility and CAS are resolved by fresh
-executor inspection when a player enables the plan.
+Research selection uses the same envelope with `select: {"project": "exact defName"}`
+in place of `building`. Each response echoes those fields and adds `planId`,
+`actionId` and `revision` (a positive canonical decimal uint64 string). A newly
+stored request returns 201; an exact replay or successful lookup returns 200.
+Request IDs share one namespace across submission kinds. Conflicting reuse returns
+409. Submission never acquires authority; native eligibility and CAS are resolved
+by fresh executor inspection when a player enables the plan.
+
+There is no per-pawn order surface (draft, tend, rescue, movement, surgery, bed
+assignment, husbandry, recovery service, building temperature, caravans, quests,
+settlement gifts, trade, zone edits or room shells). Those action families exist
+only as routine-planner output; the routes, store tables and executor states for
+their player submissions were removed in
+[issue #54](https://github.com/davidarcher/rimgovernor/issues/54).
 
 Acquire and Manual retain the existing exact-world, direction-CAS and durable
 request semantics. Acquire does not negotiate a lease or an owner identity —
@@ -63,27 +81,29 @@ no effect; clients recover by reading the same request ID without automatic POST
 `GET /api/plan?id=…` returns the existing plan envelope. Each action is one of:
 
 - `kind: "building"` with `building` and no `draft` payload.
-- `kind: "owned_draft"` with `draft: {"pawnId": "…"}` and no `building` payload.
+- `kind: "owned_draft"` (routine-produced) with `draft: {"pawnId": "…"}` and no
+  `building` payload.
+- any other routine kind with neither payload.
 
 Ordinary `progress` keeps its current fields. When draft cleanup evidence exists,
 it also contains `draftCleanup: {"stage": "…"}`. The field is absent before draft
-dispatch and for buildings. Stages are `awaiting_claim`, `not_acquired`, `required`,
+dispatch and for every other kind. Stages are `awaiting_claim`, `not_acquired`, `required`,
 `dispatched`, `uncertain`, `released` or `superseded`. Cleanup does not change an
 already recorded ordinary outcome. The public projection omits claim IDs, leases,
 native tokens and controller-session ownership data.
 
-The Go player surface adds `SubmitDraft(context.Context,
-store.DraftSubmissionRequest) (store.DraftSubmission, bool, error)` alongside
-existing building submission and common Acquire/Manual/State methods. Its reader
-adds `LookupDraftSubmission(context.Context, string) (store.DraftSubmission,
-error)`. HTTP accepts these fixed capabilities; production service composition
-supplies the same Player and store used by the worker.
+The Go player surface (`httpapi.PlayerBuildings`) is `Submit`,
+`SubmitResearchSelect`, `Acquire`, `Manual` and `State`; its reader
+(`httpapi.ControlReader`) is `CurrentControl`, `LookupControl`,
+`LookupSubmission` and `LookupResearchSelectSubmission`. Configuration routes
+have their own narrow interfaces. Production service composition supplies the
+same Player and store used by the worker.
 
 ## Dashboard behavior
 
-Building and draft forms share token bootstrap, current permission, direction
-CAS, Manual and acquisition history. An outstanding acquisition in either
-family still prevents a competing acquisition — there is still exactly one
+The building and chat forms share token bootstrap, current permission, direction
+CAS, Manual and acquisition history. An outstanding acquisition from either
+form still prevents a competing acquisition — there is still exactly one
 bot, so a second Acquire for a different plan/direction while one is already
 in flight is rejected the same way it always was, just without any Owner
 identity involved; Manual remains available regardless. Background refresh
@@ -91,9 +111,9 @@ preserves both forms, request IDs and last-good data. Session/world changes
 exclude stale permission and responses without silently resubmitting either
 intent.
 
-Show ordinary progress and cleanup separately. Explain that a standalone temporary
-draft releases its owned claim when the plan finishes; it is not a persistent draft
-toggle. The UI has no general undraft, claim-adoption or native-token input.
+Show ordinary progress and cleanup separately. A routine-produced owned draft
+releases its claim when its plan finishes; it is not a persistent draft toggle.
+The UI has no draft, undraft, claim-adoption or native-token input.
 
 
 ## Native draft acceptance

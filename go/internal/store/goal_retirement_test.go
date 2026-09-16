@@ -144,7 +144,7 @@ func TestRoutineGoalRetirementRetainsCompletedOwnedDraft(t *testing.T) {
 	if _, err = s.CommitGoalMethod(ctx, g.Goal.ID, g.Revision, "owned", p); err != nil {
 		t.Fatal(err)
 	}
-	v := DraftSubmission{Plan: "p", Action: "draft"}
+	v := draftPlan{Plan: "p", Action: "draft"}
 	observed := scope()
 	observed.Native = 2
 	a := DraftAdmission{Snapshot: observed, Tick: 10, Pawn: "pawn", PawnSnapshotToken: "cas"}

@@ -45,7 +45,7 @@ stack counts in the same main-thread operation as the exchange and refuses
 protected exports. Unknown or truncated inventory prevents selection. A policy
 with no eligible affordable lines cancels its own session without an exchange;
 the retained policy evidence explains each target. Neither cancellation nor
-acceptance takes a trader quest. See [economic command fields](command-contracts.md).
+acceptance takes a trader quest. Trade is routine-only; there is no player trade command.
 
 Direct orbital opening is refused. Ordinary orbital input requires the comms
 console's native menu, a powered reachable interaction cell and capable negotiator,

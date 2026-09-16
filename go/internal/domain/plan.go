@@ -106,29 +106,17 @@ type Action struct {
 	equip               Equip
 	gearReplace         GearReplace
 	repair              Repair
-	caravanDeparture    CaravanDeparture
 	clean               Clean
 	waste               Waste
 	recoveryService     RecoveryService
-	movement            Movement
-	buildingTemperature BuildingTemperature
-	surgery             Surgery
-	bedAssign           BedAssign
 	researchSelect      ResearchSelect
 	husbandry           Husbandry
 	homeCoverage        HomeCoverage
 	prisonerInteraction PrisonerInteraction
-	questAccept         QuestAccept
-	settlementGift      SettlementGift
-	questFulfill        QuestFulfill
 	mineAcquisition     Acquisition
 	wallRemoval         WallRemoval
 	productionPolicy    ProductionPolicy
-	travelCaravan       TravelCaravan
 	moodRelief          MoodRelief
-	trade               Trade
-	zoneEdit            ZoneEdit
-	constructionCancel  ConstructionCancel
 	namingConfirmation  NamingConfirmation
 }
 
@@ -145,12 +133,12 @@ func (a Action) ID() ActionID               { return a.id }
 func (a Action) Kind() ActionKind           { return a.kind }
 func (a Action) Building() (Building, bool) { return a.building, a.kind == BuildingAction }
 func SupportedActionKinds() []ActionKind {
-	return []ActionKind{BuildingAction, OwnedDraftAction, MeleeAttackAction, SupplyAllowAction, WorkAssignmentAction, AcquisitionAction, ZoneCreateAction, TendAction, RescueAction, CaptureAction, RangedAttackAction, ProductionBillAction, HaulAction, EquipAction, GearReplaceAction, RepairAction, CaravanDepartureAction, CleanAction, WasteAction, RecoveryServiceAction, MovementAction, SurgeryAction, BedAssignAction, ResearchSelectAction, HusbandryAction, HomeCoverageAction, PrisonerInteractionAction, QuestAcceptAction, SettlementGiftAction, QuestFulfillAction, MineAcquisitionAction, WallRemovalAction, BuildingTemperatureAction, ProductionPolicyAction, TravelCaravanAction, MoodReliefAction, TradeAction, ZoneEditAction, ConstructionCancelAction, NamingConfirmationAction}
+	return []ActionKind{BuildingAction, OwnedDraftAction, MeleeAttackAction, SupplyAllowAction, WorkAssignmentAction, AcquisitionAction, ZoneCreateAction, TendAction, RescueAction, CaptureAction, RangedAttackAction, ProductionBillAction, HaulAction, EquipAction, GearReplaceAction, RepairAction, CleanAction, WasteAction, RecoveryServiceAction, ResearchSelectAction, HusbandryAction, HomeCoverageAction, PrisonerInteractionAction, MineAcquisitionAction, WallRemovalAction, ProductionPolicyAction, MoodReliefAction, NamingConfirmationAction}
 }
 func ValidateHandlerCoverage(kinds []ActionKind) error {
 	seen := make(map[ActionKind]bool)
 	for _, kind := range kinds {
-		if (kind != BuildingAction && kind != OwnedDraftAction && kind != MeleeAttackAction && kind != SupplyAllowAction && kind != WorkAssignmentAction && kind != AcquisitionAction && kind != ZoneCreateAction && kind != TendAction && kind != RescueAction && kind != CaptureAction && kind != RangedAttackAction && kind != ProductionBillAction && kind != HaulAction && kind != EquipAction && kind != GearReplaceAction && kind != RepairAction && kind != CaravanDepartureAction && kind != CleanAction && kind != WasteAction && kind != RecoveryServiceAction && kind != MovementAction && kind != SurgeryAction && kind != BedAssignAction && kind != ResearchSelectAction && kind != HusbandryAction && kind != HomeCoverageAction && kind != PrisonerInteractionAction && kind != QuestAcceptAction && kind != SettlementGiftAction && kind != QuestFulfillAction && kind != MineAcquisitionAction && kind != WallRemovalAction && kind != BuildingTemperatureAction && kind != ProductionPolicyAction && kind != TravelCaravanAction && kind != MoodReliefAction && kind != TradeAction && kind != ZoneEditAction && kind != ConstructionCancelAction && kind != NamingConfirmationAction) || seen[kind] {
+		if (kind != BuildingAction && kind != OwnedDraftAction && kind != MeleeAttackAction && kind != SupplyAllowAction && kind != WorkAssignmentAction && kind != AcquisitionAction && kind != ZoneCreateAction && kind != TendAction && kind != RescueAction && kind != CaptureAction && kind != RangedAttackAction && kind != ProductionBillAction && kind != HaulAction && kind != EquipAction && kind != GearReplaceAction && kind != RepairAction && kind != CleanAction && kind != WasteAction && kind != RecoveryServiceAction && kind != ResearchSelectAction && kind != HusbandryAction && kind != HomeCoverageAction && kind != PrisonerInteractionAction && kind != MineAcquisitionAction && kind != WallRemovalAction && kind != ProductionPolicyAction && kind != MoodReliefAction && kind != NamingConfirmationAction) || seen[kind] {
 			return fmt.Errorf("unknown or duplicate action handler %q", kind)
 		}
 		seen[kind] = true
@@ -216,22 +204,12 @@ func NewPlan(id PlanID, revision PlanRevision, actions []Action, dependencies ..
 			canonical, err = NewGearReplaceAction(a.id, a.gearReplace)
 		case RepairAction:
 			canonical, err = NewRepairAction(a.id, a.repair)
-		case CaravanDepartureAction:
-			canonical, err = NewCaravanDepartureAction(a.id, a.caravanDeparture)
 		case CleanAction:
 			canonical, err = NewCleanAction(a.id, a.clean)
 		case WasteAction:
 			canonical, err = NewWasteAction(a.id, a.waste)
 		case RecoveryServiceAction:
 			canonical, err = NewRecoveryServiceAction(a.id, a.recoveryService)
-		case MovementAction:
-			canonical, err = NewMovementAction(a.id, a.movement)
-		case BuildingTemperatureAction:
-			canonical, err = NewBuildingTemperatureAction(a.id, a.buildingTemperature)
-		case SurgeryAction:
-			canonical, err = NewSurgeryAction(a.id, a.surgery)
-		case BedAssignAction:
-			canonical, err = NewBedAssignAction(a.id, a.bedAssign)
 		case ResearchSelectAction:
 			canonical, err = NewResearchSelectAction(a.id, a.researchSelect)
 		case HusbandryAction:
@@ -240,28 +218,14 @@ func NewPlan(id PlanID, revision PlanRevision, actions []Action, dependencies ..
 			canonical, err = NewHomeCoverageAction(a.id, a.homeCoverage)
 		case PrisonerInteractionAction:
 			canonical, err = NewPrisonerInteractionAction(a.id, a.prisonerInteraction)
-		case QuestAcceptAction:
-			canonical, err = NewQuestAcceptAction(a.id, a.questAccept)
-		case SettlementGiftAction:
-			canonical, err = NewSettlementGiftAction(a.id, a.settlementGift)
-		case QuestFulfillAction:
-			canonical, err = NewQuestFulfillAction(a.id, a.questFulfill)
 		case MineAcquisitionAction:
 			canonical, err = NewMineAcquisitionAction(a.id, a.mineAcquisition)
 		case WallRemovalAction:
 			canonical, err = NewWallRemovalAction(a.id, a.wallRemoval)
 		case ProductionPolicyAction:
 			canonical, err = NewProductionPolicyAction(a.id, a.productionPolicy)
-		case TravelCaravanAction:
-			canonical, err = NewTravelCaravanAction(a.id, a.travelCaravan)
 		case MoodReliefAction:
 			canonical, err = NewMoodReliefAction(a.id, a.moodRelief)
-		case TradeAction:
-			canonical, err = NewTradeAction(a.id, a.trade)
-		case ZoneEditAction:
-			canonical, err = NewZoneEditAction(a.id, a.zoneEdit)
-		case ConstructionCancelAction:
-			canonical, err = NewConstructionCancelAction(a.id, a.constructionCancel)
 		case NamingConfirmationAction:
 			canonical, err = NewNamingConfirmationAction(a.id, a.namingConfirmation)
 		default:
@@ -293,12 +257,6 @@ func NewPlan(id PlanID, revision PlanRevision, actions []Action, dependencies ..
 			building, isBuilding := prerequisite.Building()
 			if !exists || !isBuilding || building.Definition() != "Wall" {
 				return PlanSpec{}, errors.New("backup wall removal requires its preceding backup wall in the same bundle")
-			}
-		}
-		if a.kind == MovementAction {
-			prerequisite, exists := seen[a.movement.draftAction]
-			if !exists || prerequisite.kind != OwnedDraftAction || prerequisite.draft.pawn != a.movement.pawn {
-				return PlanSpec{}, errors.New("movement requires its preceding owned draft for the same pawn")
 			}
 		}
 		seen[a.id] = a
@@ -352,9 +310,6 @@ func validateDependencies(actions map[ActionID]Action, dependencies []ActionDepe
 		}
 		if removal, k := a.WallRemoval(); k && removal.BackupOf() != "" {
 			graph[id] = append(graph[id], removal.BackupOf())
-		}
-		if movement, k := a.Movement(); k {
-			graph[id] = append(graph[id], movement.DraftAction())
 		}
 	}
 	visiting, done := map[ActionID]bool{}, map[ActionID]bool{}

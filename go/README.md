@@ -102,15 +102,20 @@ The dashboard detects the Go backend (`GET /api/health` reports
 `backend: "go"`) and renders `ObservationDashboard`/`PlayerControls`. The
 structured player endpoints are listed in
 [the player API contract](../docs/developers/contracts/go-player-api.md) and
-[player actions](../docs/developers/contracts/player-actions.md). Chat dispatches
-build (one building per message), research selection, tend, rescue, draft and
-husbandry; `interpreter/decode.go` decodes further families that chat does not
-dispatch yet, and the dashboard has no chat UI
-([issue #46](https://github.com/davidarcher/rimgovernor/issues/46)).
-Re-scoping the interpreter to guidance is
-[issue #56](https://github.com/davidarcher/rimgovernor/issues/56) and shrinking
-the per-command player surface is
-[issue #54](https://github.com/davidarcher/rimgovernor/issues/54).
+[player actions](../docs/developers/contracts/player-actions.md). The player
+surface is guidance, not per-pawn orders: one building placement and one
+research selection remain as typed plan submissions, and everything else is
+colony configuration (goals, population/expedition/resource policies, per-pawn
+population decisions, work preferences) or control (acquire/manual, clock
+acknowledgement, world evaluation). Per-command player slices for tend, rescue,
+draft, husbandry, recovery service, bed assignment, movement, building
+temperature, surgery, caravans, quests, settlement gifts, trade, zone edits and
+room shells were removed in
+[issue #54](https://github.com/davidarcher/rimgovernor/issues/54); those
+families are reached only through the routine planners. Chat dispatches build
+(one building per message) and research selection, and decodes the
+configuration commands; re-scoping the interpreter to guidance is
+[issue #56](https://github.com/davidarcher/rimgovernor/issues/56).
 
 Three player commands are configuration rather than plans of native actions and
 live outside the plan/action tables, each with request-ID replay safety and one
@@ -637,17 +642,17 @@ unbounded. See `internal/flightrecorder` for the writer and `ReadTimeline` reade
 ## Guarded player components
 
 `rimgovernor serve --profile <absolute-game-profile>` (autonomous play) includes
-the building and temporary-draft service. Supply the same `--gabs`, `--config`, `--game`, `--state`,
+the building service. Supply the same `--gabs`, `--config`, `--game`, `--state`,
 `--listen` and optional `--assets` arguments as the observation service. The profile
 must be the shared game profile, so another controller cannot acquire its process
 lock. The service starts in Manual; it never restores a live lease from SQLite.
 
 With built dashboard assets, player controls accept a building definition,
-material, map coordinates and rotation, or an exact pawn ID for temporary drafting.
-Submitting stores intent; enabling its plan separately acquires permission.
-**Manual — stop orders** remains available while acquisition is pending. Both
-forms share current permission and direction CAS. Form drafts and request IDs
-survive background refreshes, and result checks only read the recorded request.
+material, map coordinates and rotation. Submitting stores intent; enabling its
+plan separately acquires permission. **Manual — stop orders** remains available
+while acquisition is pending. The building and chat forms share current
+permission and direction CAS. Form drafts and request IDs survive background
+refreshes, and result checks only read the recorded request.
 Player controls are hidden when the service runs read-only.
 
 Submit a single building through `POST /api/buildings/plans`, then explicitly
@@ -658,11 +663,9 @@ cleanup. These routes require JSON and the process token returned by
 memory. Requests bind exact colony/load/map identity and stable request IDs;
 acquisition also checks the current direction.
 
-Draft submission uses `POST /api/drafts/plans` with request ID, expected world and
-`draft.pawnId`. No native token or claim is accepted from a player. Its result is
-read through `GET /api/drafts/submission?requestId=...`. A completed standalone
-draft plan releases its own temporary claim; this is not a persistent draft toggle.
-Plan views show ordinary progress and cleanup status independently. See the
+Owned drafts are produced only by routine planners (defense, medical); a
+completed draft plan releases its own temporary claim, and plan views show
+ordinary progress and cleanup status independently. See the
 [fixed player API](../docs/developers/contracts/go-player-api.md) for exact shapes.
 
 Both building admission checks require fresh, complete threat and basic pawn
