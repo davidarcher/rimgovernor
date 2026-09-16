@@ -12,6 +12,9 @@
   tracking. Never open a PR. All work lands on the local `main` branch: prefer a
   fast-forward rebase onto `main`, but a merge commit is acceptable. Do not push
   to GitHub; the maintainer pushes `main` manually.
+- Close the GitHub issue as soon as its work has merged into local `main`, with
+  a terse comment naming the merge commit. Closure does not wait for the
+  maintainer to push `origin/main` and does not need maintainer confirmation.
 - Keep generated builds, logs, saves, databases and temporary scripts out of commits.
 
 ## Delivery speed and coordination
