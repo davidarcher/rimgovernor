@@ -143,6 +143,16 @@ their own narrow typed receipts, without an import cycle.
   blocked pawns can still have equipment needs. Complete candidate and replacement
   lists belong to that exact loadout token. Planning read issues distinguish an
   unavailable gear census from a complete census with no eligible replacements.
+- PlanningFacts.environment is the controlled-growing census inside the 45x45
+  planning region: sun lamps with the native growth cells (specialDisplayRadius,
+  not glow radius), power draw, schedule-aware lit_now and network; plant growers
+  with fertility, sow tag, current crop and can_sow; proper indoor rooms with
+  temperature, open-roof and lit cell counts; and every power network's current
+  generation split into solar and wind, consumption, stored and capacity
+  watt-days. Planning definitions add sow_tags and grow_min_glow for plants and
+  power_w, glow_radius, sow_tag and grower_fertility for buildings. An
+  `environment` section issue withholds the census; row counts are bounded and
+  a lit cell count never exceeds the room's cells.
 - The current colony upkeep projection includes independent complete visible item,
   structure, fire and filth censuses, each bounded to 256 rows. A section issue
   requires no rows and prevents recovery; missing required row fields remain

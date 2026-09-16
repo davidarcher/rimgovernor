@@ -18,6 +18,11 @@ type PlanningDefinition struct {
 	Costs                                                                                 domain.Fact[[]policy.Amount]
 	Size                                                                                  domain.Fact[policy.Bounds]
 	GrowDays, FertilityMin, FertilitySensitivity, HarvestNutrition, NutritionDemandPerDay domain.Fact[float64]
+	// Crop sow tags and minimum glow; grower sow tag and fertility; building
+	// power draw and glow radius, as the native definition declares them.
+	SowTags                                          domain.Fact[[]string]
+	GrowMinGlow, PowerW, GrowerFertility, GlowRadius domain.Fact[float64]
+	SowTag                                           domain.Fact[string]
 }
 type ColonyProjection struct {
 	ProductionBenches   domain.Fact[[]policy.ProductionBench]
@@ -43,10 +48,12 @@ type ColonyProjection struct {
 	Center                                 domain.Cell
 	Cells                                  []policy.SiteCell
 	// Farms lists observed growing zones by native id and current crop.
-	Farms                                  []FarmZoneFact
-	Definitions                            []PlanningDefinition
-	FoodSupply                             domain.Fact[policy.FoodSupply]
-	CombinedFoodSupply                     domain.Fact[policy.FoodSupply]
+	Farms []FarmZoneFact
+	// Environment is the controlled-growing census inside the planning region.
+	Environment        domain.Fact[policy.ControlledEnvironment]
+	Definitions        []PlanningDefinition
+	FoodSupply         domain.Fact[policy.FoodSupply]
+	CombinedFoodSupply domain.Fact[policy.FoodSupply]
 	// Resources is the accessible colony stock census by definition; a
 	// definition absent from a known census is known zero.
 	Resources domain.Fact[map[policy.Resource]int64]
@@ -285,7 +292,10 @@ func DecodeColony(reply *o.ColonyFactsReply, expected Identity) (ColonyProjectio
 			r.ZoneMapToken = domain.Known(planning.ZoneMapSnapshot.GetToken())
 		}
 		for _, row := range planning.Definitions {
-			d := PlanningDefinition{Edible: optional(row.Edible), Name: row.Definition.GetDefName(), Stuff: optional(row.Stuff), Available: optional(row.Available), ConstructionSkill: optional(row.ConstructionSkill), GrowDays: optional(row.GrowDays), FertilityMin: optional(row.FertilityMin), FertilitySensitivity: optional(row.FertilitySensitivity), HarvestNutrition: optional(row.HarvestNutrition), NutritionDemandPerDay: optional(row.NutritionDemandPerDay)}
+			d := PlanningDefinition{Edible: optional(row.Edible), Name: row.Definition.GetDefName(), Stuff: optional(row.Stuff), Available: optional(row.Available), ConstructionSkill: optional(row.ConstructionSkill), GrowDays: optional(row.GrowDays), FertilityMin: optional(row.FertilityMin), FertilitySensitivity: optional(row.FertilitySensitivity), HarvestNutrition: optional(row.HarvestNutrition), NutritionDemandPerDay: optional(row.NutritionDemandPerDay), GrowMinGlow: optional(row.GrowMinGlow), PowerW: optional(row.PowerW), GrowerFertility: optional(row.GrowerFertility), GlowRadius: optional(row.GlowRadius), SowTag: optional(row.SowTag)}
+			if row.GrowDays != nil {
+				d.SowTags = domain.Known(append([]string{}, row.SowTags...))
+			}
 			if row.Size != nil {
 				d.Size = domain.Known(policy.Bounds{Width: int32(row.Size.GetWidth()), Height: int32(row.Size.GetHeight())})
 			}
@@ -310,6 +320,9 @@ func DecodeColony(reply *o.ColonyFactsReply, expected Identity) (ColonyProjectio
 			r.Cells = append(r.Cells, policy.SiteCell{Cell: domain.Cell{X: row.Cell.GetX(), Z: row.Cell.GetZ()}, Walkable: optional(row.Walkable), Occupied: optional(row.Occupied), Zone: nativePresence(row.ZoneId, row.Issues, "zone_id"), Roofed: nativePresence(row.Roof, row.Issues, "roof"), Indoors: optional(row.Indoors), SupportsLight: optional(row.SupportsLight), Fertility: optional(row.Fertility), StorageEmpty: optional(row.StorageEmpty), ZoneID: optional(row.ZoneId)})
 		}
 	}
+	if planning := v.GetPlanning().GetObserved(); planning != nil && planning.Environment != nil && !hasIssue(planning.Issues, "environment") {
+		r.Environment = domain.Known(colonyEnvironment(planning.Environment))
+	}
 	if !hasIssue(v.Issues, "farms") {
 		for _, farm := range v.Farms {
 			if farm.ZoneId != nil && farm.Crop != nil {
@@ -321,4 +334,41 @@ func DecodeColony(reply *o.ColonyFactsReply, expected Identity) (ColonyProjectio
 	r.FieldCapacityCrops = colonyFieldCrops(v, r.Definitions, true)
 	r.Facts.Gear = colonyGear(v)
 	return r, nil
+}
+
+func cellsOf(rows []*c.Cell) []domain.Cell {
+	out := make([]domain.Cell, 0, len(rows))
+	for _, row := range rows {
+		out = append(out, domain.Cell{X: row.GetX(), Z: row.GetZ()})
+	}
+	return out
+}
+
+// colonyEnvironment decodes the native controlled-growing census. Rows keep
+// their native order (ids ascending); every scalar stays unknown when the
+// native side omitted it.
+func colonyEnvironment(v *o.ControlledEnvironment) policy.ControlledEnvironment {
+	e := policy.ControlledEnvironment{OutdoorTemperatureC: optional(v.OutdoorTemperatureC), Daylight: optional(v.Daylight)}
+	for _, row := range v.Lights {
+		ref := row.Building
+		e.Lights = append(e.Lights, policy.GrowLight{ID: ref.GetId(), Definition: ref.GetDefName(), Cell: domain.Cell{X: ref.GetPosition().GetX(), Z: ref.GetPosition().GetZ()}, Room: optional(row.RoomId), Network: optional(row.PowerNetId), Powered: optional(row.Powered), PowerW: optional(row.PowerW), LitNow: optional(row.LitNow), GrowthCells: cellsOf(row.GrowthCells)})
+	}
+	for _, row := range v.Growers {
+		ref := row.Building
+		e.Growers = append(e.Growers, policy.PlantGrower{ID: ref.GetId(), Definition: ref.GetDefName(), Cell: domain.Cell{X: ref.GetPosition().GetX(), Z: ref.GetPosition().GetZ()}, Room: optional(row.RoomId), Network: optional(row.PowerNetId), Powered: optional(row.Powered), PowerW: optional(row.PowerW), Fertility: optional(row.Fertility), SowTag: optional(row.SowTag), Crop: optional(row.CropDefName), CanSow: optional(row.CanSow), Cells: cellsOf(row.PlantCells)})
+	}
+	for _, row := range v.Rooms {
+		e.Rooms = append(e.Rooms, policy.GrowRoom{ID: row.GetRoomId(), TemperatureC: optional(row.TemperatureC), Cells: count(row.CellCount), OpenRoof: count(row.OpenRoofCount), Lit: count(row.LitCells), Proper: optional(row.ProperRoom), Outdoors: optional(row.PsychologicallyOutdoors)})
+	}
+	for _, row := range v.Networks {
+		e.Networks = append(e.Networks, policy.PowerHeadroom{ID: row.GetId(), GenerationW: optional(row.GenerationW), SolarW: optional(row.SolarW), WindW: optional(row.WindW), ConsumptionW: optional(row.ConsumptionW), StoredWattDays: optional(row.StoredWattDays), CapacityWattDays: optional(row.CapacityWattDays), ActiveSource: optional(row.HasActiveSource)})
+	}
+	return e
+}
+
+func count(p *uint32) domain.Fact[int] {
+	if p == nil {
+		return domain.Unknown[int]()
+	}
+	return domain.Known(int(*p))
 }

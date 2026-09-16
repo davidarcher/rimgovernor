@@ -212,7 +212,12 @@ never re-cropped. Open hunting or foraging under EnsureFoodSupply does not block
 batch and a sown field does not block acquisition (the store exempts each from the
 other's open work, mirroring the acquisition-over-bill exemption); a second field batch
 still waits for the first to resolve. Each batch previews at most six patches inside the
-shared step budget. Insufficient farmland does not reject an otherwise legal
+shared step budget. The field planner also requests `SunLamp` and `HydroponicsBasin`
+definitions and decodes `PlanningFacts.environment` into `ColonyProjection.Environment`
+(`policy.ControlledEnvironment`: lamps with native growth cells, growers with sow tags,
+indoor rooms, per-network headroom with `NightHeadroomW`/`CalmNightHeadroomW`); it is
+observed only, unknown when the native side withholds it, and site-type selection
+consumes it. Insufficient farmland does not reject an otherwise legal
 shelter. Selected field capacity remains separate from observed growing cells and the
 production gate. Work
 allocation uses observed capabilities/skills, job load and stable identity tie breaks;

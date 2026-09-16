@@ -17,6 +17,10 @@ type CropChoice struct {
 	Name                                                                   string
 	Available, Edible                                                      domain.Fact[bool]
 	GrowDays, FertilityMin, FertilitySensitivity, HarvestNutrition, Demand domain.Fact[float64]
+	// SowTags are the native sow tags ("Ground", "Hydroponic"); MinGlow is the
+	// native minimum light for growth, zero for cave crops.
+	SowTags domain.Fact[[]string]
+	MinGlow domain.Fact[float64]
 }
 
 // FieldRequest is one expansion decision: which edible crop to sow, and where,

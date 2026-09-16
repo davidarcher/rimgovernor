@@ -331,8 +331,14 @@ namespace HomeBridge.BridgeTools
                     foreach (var cost in costs) row.Costs.Add(new Obs.Quantity { DefName = cost.thingDef.defName, Units = cost.count });
                     if (def.building?.bed_humanlike == true) row.RestEffectiveness = Finite(def.GetStatValueAbstract(StatDefOf.BedRestEffectiveness, stuff));
                 }
+                var powerProps = def.GetCompProperties<CompProperties_Power>();
+                if (powerProps != null) row.PowerW = Finite(powerProps.PowerConsumption);
+                var glowProps = def.GetCompProperties<CompProperties_Glower>();
+                if (glowProps != null) row.GlowRadius = Finite(glowProps.glowRadius);
+                if (def.building?.sowTag != null) { row.SowTag = def.building.sowTag; if (def.fertility >= 0f) row.GrowerFertility = Finite(def.fertility); }
                 if (def.plant != null) {
                     row.GrowDays = Finite(def.plant.growDays); row.FertilityMin = Finite(def.plant.fertilityMin); row.FertilitySensitivity = Finite(def.plant.fertilitySensitivity);
+                    row.GrowMinGlow = Finite(def.plant.growMinGlow); row.SowTags.Add(def.plant.sowTags ?? new List<string>());
                     var product = def.plant.harvestedThingDef;
                     if (product != null) {
                         row.Edible = product.IsNutritionGivingIngestible && !product.IsDrug;
@@ -365,6 +371,86 @@ namespace HomeBridge.BridgeTools
             }
             cells.Completeness = Complete(cells.Cells.Count, fogged);
             result.Cells = cells;
+            try { result.Environment = Environment(map, min, max, limit); }
+            catch (ReadLimit) { throw; }
+            catch (Exception) { result.Issues.Add(Issue("environment", Common.UnavailableReason.ReadFailed, "Controlled-environment growing facts are unavailable.")); }
+            return result;
+        }
+        // Sun lamps, plant growers and rooms inside the planning region plus every
+        // power network's headroom split by source. Lamp growth cells are the
+        // native Building_SunLamp radius, not the glow radius, so the controller
+        // never plants where the game would not grow.
+        // The native sun lamp class is internal; its def names the class and carries the growth radius as specialDisplayRadius.
+        private static bool IsSunLamp(Building b) => b.def.thingClass?.Name == "Building_SunLamp" && b.def.specialDisplayRadius > 0f;
+        private static Obs.ControlledEnvironment Environment(Map map, IntVec3 min, IntVec3 max, int limit)
+        {
+            var result = new Obs.ControlledEnvironment { OutdoorTemperatureC = Finite(map.mapTemperature.OutdoorTemp), Daylight = GenCelestial.CurCelestialSunGlow(map) >= 0.3f };
+            bool Inside(IntVec3 c) => c.x >= min.x && c.x <= max.x && c.z >= min.z && c.z <= max.z;
+            string? NetId(CompPowerTrader? power) => power?.PowerNet == null ? null : power.PowerNet.GetHashCode().ToString(System.Globalization.CultureInfo.InvariantCulture);
+            var rooms = new Dictionary<int, Room>();
+            void Note(Room? room) { if (room != null && !room.PsychologicallyOutdoors && room.ProperRoom) rooms[room.ID] = room; }
+            var buildings = map.listerBuildings.allBuildingsColonist.Where(b => Inside(b.Position)).OrderBy(b => b.GetUniqueLoadID(), StringComparer.Ordinal).ToList();
+            Bound(buildings.Count(b => IsSunLamp(b) || b is Building_PlantGrower), limit);
+            foreach (var building in buildings) {
+                var power = building.TryGetComp<CompPowerTrader>();
+                var room = building.GetRoom();
+                if (IsSunLamp(building)) { var lamp = building;
+                    var row = new Obs.GrowLight { Building = new Obs.EntityRef { Id = lamp.GetUniqueLoadID(), MapId = map.uniqueID, DefName = lamp.def.defName, Position = Cell(lamp.Position) } };
+                    if (power != null) { row.Powered = power.PowerOn; row.PowerW = Finite(power.Props.PowerConsumption); var id = NetId(power); if (id != null) row.PowerNetId = id; }
+                    else row.Issues.Add(Issue("powered", Common.UnavailableReason.NotApplicable, "Lamp has no power trader."));
+                    var schedule = lamp.TryGetComp<CompSchedule>();
+                    row.LitNow = (power == null || power.PowerOn) && (schedule == null || schedule.Allowed);
+                    foreach (var c in GenRadial.RadialCellsAround(lamp.Position, lamp.def.specialDisplayRadius, true).Where(c => c.InBounds(map))) row.GrowthCells.Add(Cell(c));
+                    if (room != null) { row.RoomId = room.ID.ToString(System.Globalization.CultureInfo.InvariantCulture); Note(room); }
+                    result.Lights.Add(row);
+                } else if (building is Building_PlantGrower grower) {
+                    var row = new Obs.PlantGrower { Building = new Obs.EntityRef { Id = grower.GetUniqueLoadID(), MapId = map.uniqueID, DefName = grower.def.defName, Position = Cell(grower.Position) },
+                        CanSow = grower.CanAcceptSowNow() };
+                    if (grower.def.fertility >= 0f) row.Fertility = Finite(grower.def.fertility);
+                    if (grower.def.building?.sowTag != null) row.SowTag = grower.def.building.sowTag;
+                    var crop = grower.GetPlantDefToGrow();
+                    if (crop != null) row.CropDefName = crop.defName;
+                    if (power != null) { row.Powered = power.PowerOn; row.PowerW = Finite(power.Props.PowerConsumption); var id = NetId(power); if (id != null) row.PowerNetId = id; }
+                    foreach (var c in ((IPlantToGrowSettable)grower).Cells) row.PlantCells.Add(Cell(c));
+                    if (room != null) { row.RoomId = room.ID.ToString(System.Globalization.CultureInfo.InvariantCulture); Note(room); }
+                    result.Growers.Add(row);
+                }
+            }
+            for (int z = min.z; z <= max.z; z++) for (int x = min.x; x <= max.x; x++) {
+                var c = new IntVec3(x, 0, z);
+                if (!c.Fogged(map)) Note(c.GetRoom(map));
+            }
+            Bound(rooms.Count, limit);
+            foreach (var room in rooms.Values.OrderBy(r => r.ID)) {
+                var row = new Obs.GrowRoom { RoomId = room.ID.ToString(System.Globalization.CultureInfo.InvariantCulture), TemperatureC = Finite(room.Temperature), CellCount = (uint)room.CellCount,
+                    OpenRoofCount = (uint)room.OpenRoofCount, ProperRoom = room.ProperRoom, PsychologicallyOutdoors = room.PsychologicallyOutdoors };
+                uint lit = 0;
+                foreach (var c in room.Cells) if (map.glowGrid.GroundGlowAt(c) >= 0.3f) lit++;
+                row.LitCells = lit;
+                result.Rooms.Add(row);
+            }
+            var nets = map.powerNetManager?.AllNetsListForReading ?? new List<PowerNet>();
+            Bound(nets.Count, limit);
+            foreach (var net in nets.OrderBy(n => n.GetHashCode())) {
+                var row = new Obs.PowerHeadroom { Id = net.GetHashCode().ToString(System.Globalization.CultureInfo.InvariantCulture), HasActiveSource = net.HasActivePowerSource };
+                double generation = 0, solar = 0, wind = 0, consumption = 0;
+                foreach (var trader in net.powerComps ?? new List<CompPowerTrader>()) {
+                    if (trader == null) continue;
+                    var output = Finite(trader.PowerOutput);
+                    if (trader.Props != null && trader.Props.PowerConsumption < 0f) {
+                        if (output <= 0) continue;
+                        generation += output;
+                        if (trader.parent.TryGetComp<CompPowerPlantSolar>() != null) solar += output;
+                        else if (trader.parent.TryGetComp<CompPowerPlantWind>() != null) wind += output;
+                    } else if (output < 0) consumption -= output;
+                }
+                double capacity = 0;
+                foreach (var battery in net.batteryComps ?? new List<CompPowerBattery>()) if (battery?.Props != null) capacity += Finite(battery.Props.storedEnergyMax);
+                row.GenerationW = generation; row.SolarW = solar; row.WindW = wind; row.ConsumptionW = consumption;
+                row.StoredWattDays = Finite(net.CurrentStoredEnergy()); row.CapacityWattDays = capacity;
+                result.Networks.Add(row);
+            }
+            result.Completeness = Complete(result.Lights.Count + result.Growers.Count + result.Rooms.Count + result.Networks.Count);
             return result;
         }
         private static Common.Cell Cell(IntVec3 c) => new Common.Cell { X = c.x, Z = c.z };

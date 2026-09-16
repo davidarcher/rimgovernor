@@ -104,7 +104,7 @@ func (r *RoutineFieldPlanner) step(call, epoch context.Context, arbiter *stepArb
 	if err != nil {
 		return RoutineFieldResult{}, err
 	}
-	definitions := append(routineProjectDefinitions(plans, state.Snapshot, playerPlans), "Plant_Rice", "Plant_Potato", "Plant_Corn")
+	definitions := append(routineProjectDefinitions(plans, state.Snapshot, playerPlans), "Plant_Rice", "Plant_Potato", "Plant_Corn", "SunLamp", "HydroponicsBasin")
 	definitions = uniqueFieldDefinitions(definitions)
 	identity, _, err := r.reviewer.native.Identity(call)
 	if err != nil {
@@ -145,7 +145,7 @@ func (r *RoutineFieldPlanner) step(call, epoch context.Context, arbiter *stepArb
 	}
 	var choices []policy.CropChoice
 	for _, d := range projection.Definitions {
-		choices = append(choices, policy.CropChoice{Name: d.Name, Available: d.Available, Edible: d.Edible, GrowDays: d.GrowDays, FertilityMin: d.FertilityMin, FertilitySensitivity: d.FertilitySensitivity, HarvestNutrition: d.HarvestNutrition, Demand: d.NutritionDemandPerDay})
+		choices = append(choices, policy.CropChoice{Name: d.Name, Available: d.Available, Edible: d.Edible, GrowDays: d.GrowDays, FertilityMin: d.FertilityMin, FertilitySensitivity: d.FertilitySensitivity, HarvestNutrition: d.HarvestNutrition, Demand: d.NutritionDemandPerDay, SowTags: d.SowTags, MinGlow: d.GrowMinGlow})
 	}
 	coverage := policy.FieldCoverage(projection.Facts.Colonists, projection.FieldCapacityCrops, r.reviewer.policy.FoodTargetDays)
 	var zones []policy.FarmZone
@@ -165,6 +165,11 @@ func (r *RoutineFieldPlanner) step(call, epoch context.Context, arbiter *stepArb
 		patches = patches[:fieldBatchPatches]
 	}
 	clockSchedulerLog("Fields plan: %s | %s", field.Explain(), field.Sites.Explain())
+	if env, known := projection.Environment.Value(); known {
+		clockSchedulerLog("Fields environment: lights=%d growers=%d rooms=%d networks=%d daylight=%v outdoorC=%v", len(env.Lights), len(env.Growers), len(env.Rooms), len(env.Networks), env.Daylight, env.OutdoorTemperatureC)
+	} else {
+		clockSchedulerLog("Fields environment: unknown")
+	}
 	hash := sha256.New()
 	fmt.Fprintf(hash, "%s/%v", crop.Name, patches)
 	method := domain.MethodID(fmt.Sprintf("fields-%x", hash.Sum(nil)[:16]))
