@@ -71,7 +71,9 @@ Sources in this table are under
 | CellsPlusTool.cs / get_cells_plus | GetCells; CellState, CellThing, DesignationState | bridge_game, spatial, construction_preflight, hands |
 | ResearchTool.cs / research without set | ReadResearch; ResearchSnapshot, ResearchProject, Researcher, ResearchSlot | research_control, research_intent, development |
 | ColonyFactsTool.cs / colony_facts | ReadColonyFacts; concrete composition described below | colony_controller, food_forecast, colony_upkeep, development |
-| SpatialAccessTool.cs / spatial_access | ReadSpatialAccess; PawnAccess and AccessTarget | spatial, spatial_site, construction_preflight |
+| SpatialAccessTool.cs / spatial_access; NativeSpatialAccessTool.cs / observations_read_spatial_access | ReadSpatialAccess; PawnAccess and AccessTarget (proto port registered for the defense layout access audit) | spatial, spatial_site, construction_preflight, defense layout (B06c) |
+| NativeDefenseObservationTools.cs / observations_read_defense_site | ReadDefenseSite; DefenseCell cover fill, sight blocking, natural rock, door, home area and native map-edge reachability over at most 2048 cells | defense layout (B06c) |
+| NativeDefenseObservationTools.cs / observations_read_lines_of_fire | ReadLinesOfFire; native GenSight line of sight and CoverUtility block chance per (firing, approach) pair, at most 64×64 | defense layout, defensive positioning (B06c) |
 | RoofSupportTool.cs / roof_support | ReadRoofSupport; exact target, RoofSupportCell | wall/room upkeep and roof safety |
 | ExcavationTool.cs / read_excavation_site | ReadExcavationSite; ExcavationCell per requested cell (fogged = unknown), site-level ExcavationSupport after counterfactual removal, worker/access evidence | staged room/corridor excavation (B06f) |
 | WallUpgradeTool.cs / wall_upgrade_sites | ListWallUpgradeSites; WallUpgradeSite, material and worker evidence | wall_upgrade, colony_upkeep |
@@ -117,7 +119,9 @@ their own narrow typed receipts, without an import cycle.
 - UpkeepFacts.cs / ComfortFacts.cs: exact items/rot/deterioration/storage, beds and
   owners/users/access, storage cells and item-specific unreserved covered capacity,
   structures/repair/fire/filth/home protection, people/thermal comfort, animal feed
-  and pen eligibility, dining/recreation/surface access. Helper errors identify
+  and pen eligibility, dining/recreation/surface access with each indoor
+  facility's host `room_id` (joins to the typed room census and its native
+  `Room.Role`). Helper errors identify
   missing sections rather than producing healthy empty lists.
 - ConstructionLineage.cs / HaulTracking.cs / WallUpgradeTool.cs /
   HomeCoverageTool.cs: explicit construction/haul/wall-removal records and Home
@@ -129,8 +133,11 @@ their own narrow typed receipts, without an import cycle.
   policy definition labels, environment conditions, climate/growing inputs,
   farm productivity, cooking products/nutrition/rot and bills, butchering bills,
   harvestable acquisition items, food corpses, Boolean qualifying food storage,
-  forbidden supply cells, and planning definitions/cells. Source's hardcoded
-  starter definition list is replaced by explicit requested open definition names.
+  forbidden supply cells, the player faction's tech level (`player_tech_level`,
+  which selects the starter shelter's shape), and planning definitions/cells
+  including per-cell `doorway` (a door, door blueprint or door frame) so indoor
+  furnishing keeps entrance aisles clear. Source's hardcoded starter definition
+  list is replaced by explicit requested open definition names.
 - NeedReliefTool.cs consumers require current needs, queued/current job identity,
   player-forced/interruptibility/native priority, timetable, carry/fire/draft/
   mental/dead/downed and medical rest facts. PawnState/Settings/JobEvidence carries
@@ -142,6 +149,16 @@ their own narrow typed receipts, without an import cycle.
   blocked pawns can still have equipment needs. Complete candidate and replacement
   lists belong to that exact loadout token. Planning read issues distinguish an
   unavailable gear census from a complete census with no eligible replacements.
+- PlanningFacts.environment is the controlled-growing census inside the 45x45
+  planning region: sun lamps with the native growth cells (specialDisplayRadius,
+  not glow radius), power draw, schedule-aware lit_now and network; plant growers
+  with fertility, sow tag, current crop and can_sow; proper indoor rooms with
+  temperature, open-roof and lit cell counts; and every power network's current
+  generation split into solar and wind, consumption, stored and capacity
+  watt-days. Planning definitions add sow_tags and grow_min_glow for plants and
+  power_w, glow_radius, sow_tag and grower_fertility for buildings. An
+  `environment` section issue withholds the census; row counts are bounded and
+  a lit cell count never exceeds the room's cells.
 - The current colony upkeep projection includes independent complete visible item,
   structure, fire and filth censuses, each bounded to 256 rows. A section issue
   requires no rows and prevents recovery; missing required row fields remain

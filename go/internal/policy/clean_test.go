@@ -14,7 +14,7 @@ func cleanRequest(t *testing.T) CleanRequest {
 	if err != nil {
 		t.Fatal(err)
 	}
-	s := domain.GenerationSnapshot{Colony: "colony", Map: 0, Load: "load", Direction: 1, Plan: plan.ID(), Revision: 1, Native: 1}
+	s := domain.GenerationSnapshot{Colony: "colony", Map: 0, Load: "load", Plan: plan.ID(), Revision: 1, Native: 1}
 	p, _ := domain.NewProgress(plan, a.ID())
 	pawn := CleanPawnFacts{Pawn: "cleaner", SnapshotToken: "pawn-cas", Dead: domain.Known(false), Downed: domain.Known(false), Drafted: domain.Known(false), MentalState: domain.Known(false), ExistingJobDef: domain.Known("")}
 	filth := CleanFilthFacts{Filth: "filth", SnapshotToken: "filth-cas", Exists: domain.Known(true)}
@@ -54,7 +54,6 @@ func TestCleanDefenseHolds(t *testing.T) {
 		{"reversed interval", func(r *CleanRequest) { r.Facts.PreviewTick = 11 }},
 		{"zero generation", func(r *CleanRequest) { r.Current.Native = 0 }},
 		{"native", func(r *CleanRequest) { r.Current.Native++ }},
-		{"direction", func(r *CleanRequest) { r.Current.Direction++ }},
 		{"colony", func(r *CleanRequest) { r.Current.Colony = "other" }},
 		{"load", func(r *CleanRequest) { r.Current.Load = "other" }},
 		{"map", func(r *CleanRequest) { r.Current.Map++ }},

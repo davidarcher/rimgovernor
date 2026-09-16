@@ -18,15 +18,15 @@ function setup(handler:(url:string,options:RequestInit)=>Promise<Response>, read
 }
 afterEach(()=>{cleanup();vi.useRealTimers();vi.unstubAllGlobals();});
 it('hides controls on read-only bootstrap',async()=>{vi.stubGlobal('fetch',vi.fn(async()=>response({code:'not_found',detail:'Missing'},404)));await act(async()=>{render(<PlayerControls observation={observation} observationFresh/>);});expect(screen.queryByRole('button')).toBeNull();});
-it('submits an immutable explicit plan without acquiring and preserves editable draft',async()=>{
+it('submits an immutable explicit plan without resuming and preserves editable draft',async()=>{
  const fetcher=setup(async(url)=>{if(url==='/api/buildings/plans')return response({requestId:'request-1',expected:world,building,planId:'plan',actionId:'action',revision:'9007199254740993'},201);throw Error(url);});
  const view=render(<PlayerControls observation={observation} observationFresh/>);await act(async()=>{});fill();
  await act(async()=>{fireEvent.click(screen.getByRole('button',{name:'Submit building plan'}));});
  expect(screen.getByText('Plan plan · Revision 9007199254740993')).toBeVisible();expect(screen.getByLabelText('Definition name')).toHaveValue('Wall');
  expect(fetcher).toHaveBeenCalledWith('/api/buildings/plans',expect.objectContaining({headers:{'Content-Type':'application/json','X-RimGovernor-Player':'secret'},body:JSON.stringify({requestId:'request-1',expected:world,building})}));
- expect(fetcher.mock.calls.filter(([url])=>url.includes('/acquire'))).toHaveLength(0);
+ expect(fetcher.mock.calls.filter(([url])=>url.includes('/resume'))).toHaveLength(0);
  view.rerender(<PlayerControls observation={{...observation,connected:false,game:{...observation.game,stale:true}}} observationFresh={false}/>);
- expect(screen.getByLabelText('Definition name')).toHaveValue('Wall');expect(screen.getByRole('button',{name:'Enable this plan'})).toBeDisabled();expect(screen.getByRole('button',{name:'Manual — stop orders'})).toBeEnabled();
+ expect(screen.getByLabelText('Definition name')).toHaveValue('Wall');expect(screen.getByRole('button',{name:'Resume'})).toBeDisabled();expect(screen.getByRole('button',{name:'Pause'})).toBeEnabled();
 });
 it('recovers a lost submission through GET without another POST or request ID',async()=>{
  const fetcher=setup(async(url)=>{if(url==='/api/buildings/plans')throw Error('Lost response');if(url==='/api/buildings/submission?requestId=request-1')return response({requestId:'request-1',expected:world,building,planId:'plan',actionId:'action',revision:'1'});throw Error(url);});
@@ -36,21 +36,21 @@ it('recovers a lost submission through GET without another POST or request ID',a
  await act(async()=>{fireEvent.click(screen.getByRole('button',{name:'Check submission result'}));});
  expect(screen.getByText('Plan plan · Revision 1')).toBeVisible();expect(fetcher.mock.calls.filter(([,options])=>options?.method==='POST')).toHaveLength(1);
 });
-it('keeps Manual independent of pending Acquire and ignores its late permission state',async()=>{
+it('keeps Pause independent of pending Resume and ignores its late permission state',async()=>{
  let finish:((response:Response)=>void)|undefined;
  const fetcher=setup(async(url)=>{
   if(url==='/api/buildings/plans')return response({requestId:'request-1',expected:world,building,planId:'plan',actionId:'action',revision:'1'});
-  if(url==='/api/player/control/acquire')return new Promise<Response>(resolve=>{finish=resolve;});
-  if(url==='/api/player/control/manual')return response({record:{requestId:'request-3',kind:'manual',expected:world,planId:null,revision:'0',expectedDirection:'0',direction:'2',phase:'disabled',nativeGeneration:'0'},state,error:null});
+  if(url==='/api/player/control/resume')return new Promise<Response>(resolve=>{finish=resolve;});
+  if(url==='/api/player/control/pause')return response({record:{requestId:'request-3',kind:'pause',expected:world,phase:'paused',nativeGeneration:'0'},state,error:null});
   throw Error(url);
  });
  await act(async()=>{render(<PlayerControls observation={observation} observationFresh/>);});fill();await act(async()=>{fireEvent.click(screen.getByRole('button',{name:'Submit building plan'}));});
- await act(async()=>{fireEvent.click(screen.getByRole('button',{name:'Enable this plan'}));});
- expect(screen.getByRole('button',{name:'Manual — stop orders'})).toBeEnabled();
- await act(async()=>{fireEvent.click(screen.getByRole('button',{name:'Manual — stop orders'}));});
- expect(fetcher.mock.calls.filter(([url])=>url==='/api/player/control/manual')).toHaveLength(1);
- await act(async()=>{finish?.(response({record:{requestId:'request-2',kind:'acquire',expected:world,planId:'plan',revision:'1',expectedDirection:'0',direction:'1',phase:'granted',nativeGeneration:'2'},state:{enabled:true,observationKnown:true,generation:{colony:'colony',load:'load',map:0,direction:'1',plan:'plan',revision:'1',native:'2'}},error:null}));});
- expect(screen.queryByText('Current permission: orders enabled')).toBeNull();expect(screen.getByText(/Historical result: granted/)).toBeVisible();
+ await act(async()=>{fireEvent.click(screen.getByRole('button',{name:'Resume'}));});
+ expect(screen.getByRole('button',{name:'Pause'})).toBeEnabled();
+ await act(async()=>{fireEvent.click(screen.getByRole('button',{name:'Pause'}));});
+ expect(fetcher.mock.calls.filter(([url])=>url==='/api/player/control/pause')).toHaveLength(1);
+ await act(async()=>{finish?.(response({record:{requestId:'request-2',kind:'resume',expected:world,phase:'running',nativeGeneration:'2'},state:{enabled:true,observationKnown:true,generation:{colony:'colony',load:'load',map:0,plan:'root/colony/load/0',revision:'1',native:'2'}},error:null}));});
+ expect(screen.queryByText('Bot running: orders enabled')).toBeNull();expect(screen.getByText(/Historical result: running/)).toBeVisible();
 });
 it('refetches memory token after server session change without reposting pending intent',async()=>{
  const fetcher=setup(async()=>{throw Error('Disconnected');});
@@ -58,22 +58,21 @@ it('refetches memory token after server session change without reposting pending
  await act(async()=>{view.rerender(<PlayerControls observation={{...observation,sessionId:'new-server',identity:{...world,loadToken:'new-load'}}} observationFresh/>);});
  expect(fetcher.mock.calls.filter(([url])=>url==='/api/player/session')).toHaveLength(2);expect(fetcher.mock.calls.filter(([,options])=>options?.method==='POST')).toHaveLength(1);expect(screen.getByLabelText('Definition name')).toHaveValue('Wall');expect(screen.getByText('request-1')).toBeVisible();
 });
-it('sends uint64 CAS unchanged and retains503 uncertainty through read recovery',async()=>{
- const direction='18446744073709551614';
- const historical={record:{requestId:'previous',kind:'manual',expected:world,planId:null,revision:'0',expectedDirection:'0',direction,phase:'disabled',nativeGeneration:'0'},state,error:null};
- const uncertain={record:{requestId:'request-2',kind:'acquire',expected:world,planId:'plan',revision:'9007199254740993',expectedDirection:direction,direction:'18446744073709551615',phase:'uncertain',nativeGeneration:'0'},state,error:{code:'uncertain',detail:'Inspect this request'}};
+it('retains503 uncertainty through read recovery',async()=>{
+ const historical={record:{requestId:'previous',kind:'pause',expected:world,phase:'paused',nativeGeneration:'0'},state,error:null};
+ const uncertain={record:{requestId:'request-2',kind:'resume',expected:world,phase:'uncertain',nativeGeneration:'0'},state,error:{code:'uncertain',detail:'Inspect this request'}};
  const fetcher=setup(async(url)=>{
   if(url==='/api/buildings/plans')return response({requestId:'request-1',expected:world,building,planId:'plan',actionId:'action',revision:'9007199254740993'});
-  if(url==='/api/player/control/acquire')return response(uncertain,503);
+  if(url==='/api/player/control/resume')return response(uncertain,503);
   if(url==='/api/player/control?requestId=request-2')return response({...uncertain,error:null});
   throw Error(url);
  },()=>historical);
  await act(async()=>{render(<PlayerControls observation={observation} observationFresh/>);});fill();await act(async()=>{fireEvent.click(screen.getByRole('button',{name:'Submit building plan'}));});
- await act(async()=>{fireEvent.click(screen.getByRole('button',{name:'Enable this plan'}));});
- expect(fetcher).toHaveBeenCalledWith('/api/player/control/acquire',expect.objectContaining({body:JSON.stringify({requestId:'request-2',expected:world,planId:'plan',revision:'9007199254740993',expectedDirection:direction})}));
- expect(screen.getByText(/Historical result: uncertain/)).toBeVisible();expect(screen.getByRole('button',{name:'Enable this plan'})).toBeDisabled();
- await act(async()=>{fireEvent.click(screen.getByRole('button',{name:'Check acquire result'}));});
- expect(fetcher.mock.calls.filter(([url])=>url==='/api/player/control/acquire')).toHaveLength(1);expect(screen.queryByText('Current permission: orders enabled')).toBeNull();
+ await act(async()=>{fireEvent.click(screen.getByRole('button',{name:'Resume'}));});
+ expect(fetcher).toHaveBeenCalledWith('/api/player/control/resume',expect.objectContaining({body:JSON.stringify({requestId:'request-2',expected:world})}));
+ expect(screen.getByText(/Historical result: uncertain/)).toBeVisible();expect(screen.getByRole('button',{name:'Resume'})).toBeDisabled();
+ await act(async()=>{fireEvent.click(screen.getByRole('button',{name:'Check resume result'}));});
+ expect(fetcher.mock.calls.filter(([url])=>url==='/api/player/control/resume')).toHaveLength(1);expect(screen.queryByText('Bot running: orders enabled')).toBeNull();
 });
 it('rebootstraps after403 without automatically reposting the frozen request',async()=>{
  const fetcher=setup(async()=>response({code:'player_auth',detail:'Token expired'},403));
@@ -86,30 +85,30 @@ it('preserves draft and submission on malformed control refresh, and never stops
  const fetcher=setup(async()=>response({requestId:'request-1',expected:world,building,planId:'plan',actionId:'action',revision:'1'}),()=>malformed?{...current,state:{enabled:true,observationKnown:false,generation:null}}:current);
  const view=render(<PlayerControls observation={observation} observationFresh/>);await act(async()=>{});fill();await act(async()=>{fireEvent.click(screen.getByRole('button',{name:'Submit building plan'}));});
  malformed=true;await act(async()=>{await vi.advanceTimersByTimeAsync(1500);});
- expect(screen.getByText('Plan plan · Revision 1')).toBeVisible();expect(screen.getByLabelText('Definition name')).toHaveValue('Wall');expect(screen.getByRole('button',{name:'Enable this plan'})).toBeDisabled();
- view.unmount();expect(fetcher.mock.calls.filter(([url])=>url==='/api/player/control/manual')).toHaveLength(0);
+ expect(screen.getByText('Plan plan · Revision 1')).toBeVisible();expect(screen.getByLabelText('Definition name')).toHaveValue('Wall');expect(screen.getByRole('button',{name:'Resume'})).toBeDisabled();
+ view.unmount();expect(fetcher.mock.calls.filter(([url])=>url==='/api/player/control/pause')).toHaveLength(0);
 });
-it('allows a new explicitAcquire after fresh later Manual, retaining the frozen uncertain request',async()=>{
+it('allows a new explicit Resume after fresh later Pause, retaining the frozen uncertain request',async()=>{
  vi.useFakeTimers();let latest:unknown=current;
  const fetcher=setup(async(url,options)=>{
   if(url==='/api/buildings/plans')return response({requestId:'request-1',expected:world,building,planId:'plan',actionId:'action',revision:'1'});
-  if(url==='/api/player/control/acquire'){
-   if(options.body===JSON.stringify({requestId:'request-2',expected:world,planId:'plan',revision:'1',expectedDirection:'0'}))return response({record:{requestId:'request-2',kind:'acquire',expected:world,planId:'plan',revision:'1',expectedDirection:'0',direction:'1',phase:'uncertain',nativeGeneration:'0'},state,error:{code:'uncertain',detail:'Inspect request'}},503);
-   return response({record:{requestId:'request-4',kind:'acquire',expected:world,planId:'plan',revision:'1',expectedDirection:'2',direction:'3',phase:'granted',nativeGeneration:'4'},state,error:null});
+  if(url==='/api/player/control/resume'){
+   if(options.body===JSON.stringify({requestId:'request-2',expected:world}))return response({record:{requestId:'request-2',kind:'resume',expected:world,phase:'uncertain',nativeGeneration:'0'},state,error:{code:'uncertain',detail:'Inspect request'}},503);
+   return response({record:{requestId:'request-4',kind:'resume',expected:world,phase:'running',nativeGeneration:'4'},state,error:null});
   }
-  if(url==='/api/player/control/manual'){latest={record:{requestId:'request-3',kind:'manual',expected:world,planId:null,revision:'0',expectedDirection:'0',direction:'2',phase:'disabled',nativeGeneration:'0'},state,error:null};return response(latest);}
+  if(url==='/api/player/control/pause'){latest={record:{requestId:'request-3',kind:'pause',expected:world,phase:'paused',nativeGeneration:'0'},state,error:null};return response(latest);}
   throw Error(url);
  },()=>latest);
  await act(async()=>{render(<PlayerControls observation={observation} observationFresh/>);});fill();await act(async()=>{fireEvent.click(screen.getByRole('button',{name:'Submit building plan'}));});
- await act(async()=>{fireEvent.click(screen.getByRole('button',{name:'Enable this plan'}));});
- expect(screen.getByRole('button',{name:'Enable this plan'})).toBeDisabled();
- await act(async()=>{fireEvent.click(screen.getByRole('button',{name:'Manual — stop orders'}));});
- expect(screen.getByRole('button',{name:'Enable this plan'})).toBeDisabled();
- await act(async()=>{await vi.advanceTimersByTimeAsync(1500);});expect(screen.getByRole('button',{name:'Enable this plan'})).toBeEnabled();
- expect(fetcher.mock.calls.filter(([url])=>url==='/api/player/control/acquire')).toHaveLength(1);
- await act(async()=>{fireEvent.click(screen.getByRole('button',{name:'Enable this plan'}));});
- expect(fetcher).toHaveBeenCalledWith('/api/player/control/acquire',expect.objectContaining({body:JSON.stringify({requestId:'request-4',expected:world,planId:'plan',revision:'1',expectedDirection:'2'})}));
- expect(screen.getByText('request-2')).toBeVisible();expect(screen.getByText(/Previous acquire request:/)).toHaveTextContent('Historical result: uncertain');
+ await act(async()=>{fireEvent.click(screen.getByRole('button',{name:'Resume'}));});
+ expect(screen.getByRole('button',{name:'Resume'})).toBeDisabled();
+ await act(async()=>{fireEvent.click(screen.getByRole('button',{name:'Pause'}));});
+ expect(screen.getByRole('button',{name:'Resume'})).toBeDisabled();
+ await act(async()=>{await vi.advanceTimersByTimeAsync(1500);});expect(screen.getByRole('button',{name:'Resume'})).toBeEnabled();
+ expect(fetcher.mock.calls.filter(([url])=>url==='/api/player/control/resume')).toHaveLength(1);
+ await act(async()=>{fireEvent.click(screen.getByRole('button',{name:'Resume'}));});
+ expect(fetcher).toHaveBeenCalledWith('/api/player/control/resume',expect.objectContaining({body:JSON.stringify({requestId:'request-4',expected:world})}));
+ expect(screen.getByText('request-2')).toBeVisible();expect(screen.getByText(/Previous resume request:/)).toHaveTextContent('Historical result: uncertain');
 });
 
 it.each([[409,'conflict'],[403,'player_auth']] as const)('releases submission after definite %s rejection only for a new explicit POST',async(status,code)=>{
@@ -123,17 +122,17 @@ it.each([[409,'conflict'],[403,'player_auth']] as const)('releases submission af
  expect(posts).toBe(2);expect(screen.getByText('request-1')).toBeVisible();expect(screen.getByText('Plan plan · Revision 1')).toBeVisible();
  expect(fetcher.mock.calls.filter(([,options])=>options?.method==='POST')[1][1]?.body).toContain('"requestId":"request-2"');
 });
-it('releases a no-record Acquire CAS conflict after refreshing current direction',async()=>{
+it('releases a no-record Resume conflict after refreshing current control',async()=>{
  vi.useFakeTimers();let posts=0;
- const latest={record:{requestId:'other',kind:'manual',expected:world,planId:null,revision:'0',expectedDirection:'0',direction:'5',phase:'disabled',nativeGeneration:'0'},state,error:null};
+ const latest={record:{requestId:'other',kind:'pause',expected:world,phase:'paused',nativeGeneration:'0'},state,error:null};
  let next:unknown=current;
- const fetcher=setup(async(url)=>{if(url==='/api/buildings/plans')return response({requestId:'request-1',expected:world,building,planId:'plan',actionId:'action',revision:'1'});if(url==='/api/player/control/acquire'){posts++;next=latest;return response({record:null,state,error:{code:'conflict',detail:'CAS changed'}},409);}throw Error(url);},()=>next);
+ const fetcher=setup(async(url)=>{if(url==='/api/buildings/plans')return response({requestId:'request-1',expected:world,building,planId:'plan',actionId:'action',revision:'1'});if(url==='/api/player/control/resume'){posts++;next=latest;return response({record:null,state,error:{code:'conflict',detail:'CAS changed'}},409);}throw Error(url);},()=>next);
  await act(async()=>{render(<PlayerControls observation={observation} observationFresh/>);});fill();await act(async()=>{fireEvent.click(screen.getByRole('button',{name:'Submit building plan'}));});
- await act(async()=>{fireEvent.click(screen.getByRole('button',{name:'Enable this plan'}));});
- expect(posts).toBe(1);expect(screen.getByRole('button',{name:'Enable this plan'})).toBeDisabled();
- await act(async()=>{await vi.advanceTimersByTimeAsync(1500);});expect(screen.getByRole('button',{name:'Enable this plan'})).toBeEnabled();expect(posts).toBe(1);
- await act(async()=>{fireEvent.click(screen.getByRole('button',{name:'Enable this plan'}));});
- expect(fetcher.mock.calls.filter(([url])=>url==='/api/player/control/acquire')[1][1]?.body).toContain('"expectedDirection":"5"');
+ await act(async()=>{fireEvent.click(screen.getByRole('button',{name:'Resume'}));});
+ expect(posts).toBe(1);expect(screen.getByRole('button',{name:'Resume'})).toBeDisabled();
+ await act(async()=>{await vi.advanceTimersByTimeAsync(1500);});expect(screen.getByRole('button',{name:'Resume'})).toBeEnabled();expect(posts).toBe(1);
+ await act(async()=>{fireEvent.click(screen.getByRole('button',{name:'Resume'}));});
+ expect(posts).toBe(2);expect(fetcher.mock.calls.filter(([url])=>url==='/api/player/control/resume')[1][1]?.body).toContain('"requestId":"request-3"');
 });
 it.each(['transport','malformed','unavailable'])('keeps %s submission outcome frozen even after lookup404',async(kind)=>{
  const fetcher=setup(async(url)=>{if(url==='/api/buildings/plans'){if(kind==='transport')throw Error('Lost reply');return kind==='malformed'?response({code:'conflict',detail:'Bad',extra:true},409):response({code:'unavailable',detail:'Check request'},503);}return response({code:'not_found',detail:'No row yet'},404);});
@@ -149,108 +148,27 @@ it('shows initial bootstrap failure and retries without sending a POST',async()=
  await act(async()=>{await vi.advanceTimersByTimeAsync(1500);});expect(calls).toBe(2);expect(fetcher.mock.calls.every(([,options])=>options?.method==='GET')).toBe(true);
 });
 
-it('recovers draft submission without reposting and preserves both forms across a new world',async()=>{
- const fetcher=setup(async(url)=>{
-  if(url==='/api/drafts/plans')throw Error('Lost reply');
-  if(url==='/api/drafts/submission?requestId=request-1')return response({requestId:'request-1',expected:world,draft:{pawnId:'Pawn_42'},planId:'draft-plan',actionId:'draft-action',revision:'1'});
-  throw Error(url);
- });
- const view=render(<PlayerControls observation={observation} observationFresh/>);await act(async()=>{});fill();
- fireEvent.change(screen.getByLabelText('Pawn ID'),{target:{value:'Pawn_42'}});
- await act(async()=>{fireEvent.click(screen.getByRole('button',{name:'Submit temporary draft plan'}));});
- expect(screen.getByRole('button',{name:'Submit temporary draft plan'})).toBeDisabled();
- fireEvent.change(screen.getByLabelText('Pawn ID'),{target:{value:'Pawn_99'}});
- await act(async()=>{fireEvent.click(screen.getByRole('button',{name:'Check draft submission result'}));});
- expect(screen.getByText('Pawn Pawn_42')).toBeVisible();
- await act(async()=>{view.rerender(<PlayerControls observation={{...observation,sessionId:'new',identity:{...world,loadToken:'replacement'}}} observationFresh/>);});
- expect(screen.getByLabelText('Pawn ID')).toHaveValue('Pawn_99');expect(screen.getByLabelText('Definition name')).toHaveValue('Wall');
- expect(screen.getByText('request-1')).toBeVisible();expect(screen.getByRole('button',{name:'Enable draft plan'})).toBeDisabled();
- expect(fetcher.mock.calls.filter(([,options])=>options?.method==='POST')).toHaveLength(1);
- expect(fetcher).toHaveBeenCalledWith('/api/drafts/plans',expect.objectContaining({body:JSON.stringify({requestId:'request-1',expected:world,draft:{pawnId:'Pawn_42'}})}));
-});
-it.each(['building','draft'])('shares pending %s acquisition, token, Manual and direction across both families',async(family)=>{
- vi.useFakeTimers();let latest:unknown=current;let finish:((value:Response)=>void)|undefined;
+it('submits a chat message, shows the adviser reply with its applied guidance and resumes the bot',async()=>{
  const fetcher=setup(async(url,options)=>{
-  const request=options.body?JSON.parse(options.body as string):null;
-  if(url==='/api/buildings/plans'||url==='/api/drafts/plans')return response({...request,planId:url.includes('drafts')?'draft-plan':'building-plan',actionId:'action',revision:'1'});
-  if(url==='/api/player/control/acquire')return new Promise<Response>(resolve=>{finish=resolve;});
-  if(url==='/api/player/control/manual'){latest={record:{...request,kind:'manual',planId:null,revision:'0',expectedDirection:'0',direction:'2',phase:'disabled',nativeGeneration:'0'},state,error:null};return response(latest);}
-  throw Error(url);
- },()=>latest);
- await act(async()=>{render(<PlayerControls observation={observation} observationFresh/>);});fill();
- fireEvent.change(screen.getByLabelText('Pawn ID'),{target:{value:'Pawn_42'}});
- await act(async()=>{fireEvent.click(screen.getByRole('button',{name:'Submit building plan'}));});
- await act(async()=>{fireEvent.click(screen.getByRole('button',{name:'Submit temporary draft plan'}));});
- await act(async()=>{fireEvent.click(screen.getByRole('button',{name:family==='building'?'Enable this plan':'Enable draft plan'}));});
- expect(screen.getByRole('button',{name:'Acquiring…'})).toBeDisabled();expect(screen.getByRole('button',{name:'Draft acquisition unavailable'})).toBeDisabled();
- expect(screen.getAllByRole('button',{name:'Manual — stop orders'})).toHaveLength(1);
- await act(async()=>{fireEvent.click(screen.getByRole('button',{name:'Manual — stop orders'}));});
- const planId=family==='building'?'building-plan':'draft-plan';
- await act(async()=>{finish?.(response({record:{requestId:'request-3',kind:'acquire',expected:world,planId,revision:'1',expectedDirection:'0',direction:'1',phase:'granted',nativeGeneration:'2'},state:{enabled:true,observationKnown:true,generation:{colony:'colony',load:'load',map:0,direction:'1',plan:planId,revision:'1',native:'2'}},error:null}));});
- expect(screen.queryByText('Current permission: orders enabled')).toBeNull();
- await act(async()=>{await vi.advanceTimersByTimeAsync(1500);});
- expect(screen.getByRole('button',{name:'Enable this plan'})).toBeEnabled();expect(screen.getByRole('button',{name:'Enable draft plan'})).toBeEnabled();
- await act(async()=>{fireEvent.click(screen.getByRole('button',{name:family==='building'?'Enable draft plan':'Enable this plan'}));});
- const calls=fetcher.mock.calls.filter(([url])=>url==='/api/player/control/acquire');
- expect(calls).toHaveLength(2);expect(JSON.parse(calls[1][1]?.body as string)).toMatchObject({expectedDirection:'2',planId:family==='building'?'draft-plan':'building-plan'});
- expect(screen.getByText(/Previous acquire request:/)).toHaveTextContent('request-3');
- expect(fetcher.mock.calls.filter(([url])=>url==='/api/player/session')).toHaveLength(1);
-});
-
-it('invalidates same-session old-world permission and permits a new-world plan using the global direction',async()=>{
- const replacement={...world,loadToken:'replacement'};let finish:((value:Response)=>void)|undefined;
- let latest:unknown={record:{requestId:'prior',kind:'acquire',expected:world,planId:'prior-plan',revision:'1',expectedDirection:'0',direction:'1',phase:'granted',nativeGeneration:'2'},state:{enabled:true,observationKnown:true,generation:{colony:world.colonyId,load:world.loadToken,map:0,direction:'1',plan:'prior-plan',revision:'1',native:'2'}},error:null};
- const fetcher=setup(async(url,options)=>{
-  const request=JSON.parse(options.body as string);
-  if(url==='/api/buildings/plans'||url==='/api/drafts/plans')return response({...request,planId:url.includes('drafts')?'new-plan':'old-plan',actionId:'a',revision:'1'});
-  if(url==='/api/player/control/acquire'&&request.planId==='old-plan')return new Promise<Response>(resolve=>{finish=resolve;});
-  if(url==='/api/player/control/acquire')return response({record:{...request,kind:'acquire',direction:'4',phase:'uncertain',nativeGeneration:'0'},state,error:{code:'uncertain',detail:'Inspect new request'}},503);
-  throw Error(url);
- },()=>latest);
- const view=render(<PlayerControls observation={observation} observationFresh/>);await act(async()=>{});
- expect(screen.getByText('Current permission: orders enabled')).toBeVisible();fill();
- fireEvent.change(screen.getByLabelText('Pawn ID'),{target:{value:'Pawn_42'}});
- await act(async()=>{fireEvent.click(screen.getByRole('button',{name:'Submit building plan'}));});
- await act(async()=>{fireEvent.click(screen.getByRole('button',{name:'Enable this plan'}));});
- // A fresh global journal can still belong to the previous world. Its direction remains the CAS.
- latest={record:{requestId:'old-manual',kind:'manual',expected:world,planId:null,revision:'0',expectedDirection:'0',direction:'3',phase:'disabled',nativeGeneration:'0'},state,error:null};
- await act(async()=>{view.rerender(<PlayerControls observation={{...observation,identity:replacement}} observationFresh/>);});
- expect(screen.queryByText('Current permission: orders enabled')).toBeNull();
- await act(async()=>{fireEvent.click(screen.getByRole('button',{name:'Submit temporary draft plan'}));});
- expect(screen.getByRole('button',{name:'Enable draft plan'})).toBeEnabled();
- await act(async()=>{fireEvent.click(screen.getByRole('button',{name:'Enable draft plan'}));});
- expect(fetcher.mock.calls.filter(([url])=>url==='/api/player/control/acquire')).toHaveLength(2);
- const body=JSON.parse(fetcher.mock.calls.filter(([url])=>url==='/api/player/control/acquire')[1][1]?.body as string);
- expect(body).toMatchObject({expected:replacement,expectedDirection:'3',planId:'new-plan'});
- await act(async()=>{finish?.(response({record:{requestId:'request-2',kind:'acquire',expected:world,planId:'old-plan',revision:'1',expectedDirection:'1',direction:'2',phase:'granted',nativeGeneration:'2'},state:{enabled:true,observationKnown:true,generation:{colony:world.colonyId,load:world.loadToken,map:0,direction:'2',plan:'old-plan',revision:'1',native:'2'}},error:null}));});
- expect(screen.queryByText('Current permission: orders enabled')).toBeNull();
- expect(screen.getByText(/Previous acquire request:/)).toHaveTextContent('request-2');
- expect(screen.getByLabelText('Definition name')).toHaveValue('Wall');expect(screen.getByLabelText('Pawn ID')).toHaveValue('Pawn_42');
- expect(screen.getByText('request-1')).toBeVisible();expect(screen.getByText('request-3')).toBeVisible();
- expect(screen.getByRole('button',{name:'Enable draft plan'})).toBeDisabled();
-});
-
-it('submits a chat message, decodes the interpreted command and enables its plan',async()=>{
- const fetcher=setup(async(url,options)=>{
-  if(url==='/api/chats/plans')return response({requestId:'request-1',command:'tend',building:null,research:null,tend:{requestId:'request-1',expected:world,tend:{doctor:'Pawn_1',patient:'Pawn_2'},planId:'plan',actionId:'action',revision:'1'},rescue:null,draft:null,husbandry:null},201);
-  if(url==='/api/player/control/acquire')return response({record:{requestId:'request-2',kind:'acquire',expected:world,planId:'plan',revision:'1',expectedDirection:'0',direction:'1',phase:'granted',nativeGeneration:'2'},state,error:null});
+  if(url==='/api/chat')return response({requestId:'request-1',expected:world,explanation:'Capping the colony at eight.',guidance:{kind:'set_population_policy',populationPolicy:{maximum:8,foodDays:20}}},201);
+  if(url==='/api/player/control/resume')return response({record:{requestId:'request-2',kind:'resume',expected:world,phase:'running',nativeGeneration:'2'},state,error:null});
   throw Error(url+JSON.stringify(options));
  });
  await act(async()=>{render(<PlayerControls observation={observation} observationFresh/>);});
- fireEvent.change(screen.getByLabelText('Message'),{target:{value:'tend to Pawn_2'}});
+ fireEvent.change(screen.getByLabelText('Message'),{target:{value:'keep the colony small'}});
  await act(async()=>{fireEvent.click(screen.getByRole('button',{name:'Send'}));});
- expect(screen.getByText('Doctor Pawn_1 tends patient Pawn_2')).toBeVisible();expect(screen.getByText('Plan plan · Revision 1')).toBeVisible();
- expect(fetcher).toHaveBeenCalledWith('/api/chats/plans',expect.objectContaining({body:JSON.stringify({requestId:'request-1',expected:world,message:'tend to Pawn_2'})}));
+ expect(screen.getByText('Capping the colony at eight.')).toBeVisible();expect(screen.getByText('Applied: Population policy: up to 8 colonists, 20 food days')).toBeVisible();
+ expect(fetcher).toHaveBeenCalledWith('/api/chat',expect.objectContaining({body:JSON.stringify({requestId:'request-1',expected:world,message:'keep the colony small'})}));
  expect(screen.getByLabelText('Message')).toHaveValue('');
- await act(async()=>{fireEvent.click(screen.getByRole('button',{name:'Enable this plan'}));});
- expect(fetcher).toHaveBeenCalledWith('/api/player/control/acquire',expect.objectContaining({body:JSON.stringify({requestId:'request-2',expected:world,planId:'plan',revision:'1',expectedDirection:'0'})}));
+ await act(async()=>{fireEvent.click(screen.getByRole('button',{name:'Resume'}));});
+ expect(fetcher).toHaveBeenCalledWith('/api/player/control/resume',expect.objectContaining({body:JSON.stringify({requestId:'request-2',expected:world})}));
 });
 it('hides chat once the server reports it disabled, without disturbing other forms',async()=>{
- const fetcher=setup(async url=>{if(url==='/api/chats/plans')return response({code:'unsupported',detail:'Chat is not enabled on this controller'},501);throw Error(url);});
+ const fetcher=setup(async url=>{if(url==='/api/chat')return response({code:'unsupported',detail:'Chat is not enabled on this controller'},501);throw Error(url);});
  await act(async()=>{render(<PlayerControls observation={observation} observationFresh/>);});
  expect(screen.getByText('Chat')).toBeVisible();
- fireEvent.change(screen.getByLabelText('Message'),{target:{value:'tend to Pawn_2'}});
+ fireEvent.change(screen.getByLabelText('Message'),{target:{value:'why is nobody cooking?'}});
  await act(async()=>{fireEvent.click(screen.getByRole('button',{name:'Send'}));});
  expect(screen.queryByText('Chat')).toBeNull();expect(screen.getByLabelText('Definition name')).toHaveValue('');
- expect(fetcher.mock.calls.filter(([url])=>url==='/api/chats/plans')).toHaveLength(1);
+ expect(fetcher.mock.calls.filter(([url])=>url==='/api/chat')).toHaveLength(1);
 });

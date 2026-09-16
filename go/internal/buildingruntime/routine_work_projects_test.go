@@ -12,7 +12,7 @@ import (
 
 func TestRoutineProjectWorkTracksSharedLifecycleAndWorld(t *testing.T) {
 	t.Parallel()
-	current := domain.GenerationSnapshot{Colony: "colony", Load: "load", Map: 0, Plan: "selected", Revision: 1, Native: 1, Direction: 1}
+	current := domain.GenerationSnapshot{Colony: "colony", Load: "load", Map: 0, Plan: "selected", Revision: 1, Native: 1}
 	makePlan := func(id domain.PlanID, name string, admitted bool) store.PlanState {
 		b, _ := domain.NewBuilding(name, domain.Cell{X: 1, Z: 1}, domain.North, "")
 		a, _ := domain.NewBuildingAction(domain.ActionID(id), b)
@@ -35,13 +35,21 @@ func TestRoutineProjectWorkTracksSharedLifecycleAndWorld(t *testing.T) {
 	otherWorld := makePlan("other", "Door", true)
 	otherWorld.Admissions[0].Admission.Snapshot.Load = "previous"
 	plans := []store.PlanState{shared, selected, unselected, otherWorld}
+	player := map[domain.PlanID]uint64{}
 	check := func(want ...string) {
 		t.Helper()
-		if got := routineProjectDefinitions(plans, current); !reflect.DeepEqual(got, want) {
+		if got := routineProjectDefinitions(plans, current, player); !reflect.DeepEqual(got, want) {
 			t.Fatal(got, want)
 		}
 	}
 	check("HospitalBed", "Wall")
+	// Player guidance under the root counts as selected intent at its
+	// submitted revision only.
+	player["unselected"] = 2
+	check("HospitalBed", "Wall")
+	player["unselected"] = 1
+	check("HospitalBed", "RoyalBed", "Wall")
+	delete(player, "unselected")
 	p := shared.Progress[0]
 	scope := shared.Admissions[0].Admission.Snapshot
 	p, err := p.Prepare(scope, 1)

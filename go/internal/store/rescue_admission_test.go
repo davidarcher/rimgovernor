@@ -23,7 +23,7 @@ func rescueStoreFixture(t *testing.T) (*Store, string, RescueAdmission) {
 	if err = s.CreatePlan(ctx, plan); err != nil {
 		t.Fatal(err)
 	}
-	snapshot := domain.GenerationSnapshot{Colony: "colony", Load: "load", Map: 0, Plan: "plan", Revision: 1, Direction: 1, Native: 2}
+	snapshot := domain.GenerationSnapshot{Colony: "colony", Load: "load", Map: 0, Plan: "plan", Revision: 1, Native: 2}
 	v := RescueAdmission{Snapshot: snapshot, Tick: 12, Rescuer: "rescuer", Patient: "patient", RescuerSnapshotToken: "rescuer-cas", PatientSnapshotToken: "patient-cas"}
 	return s, path, v
 }

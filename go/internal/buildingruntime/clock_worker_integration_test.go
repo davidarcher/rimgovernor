@@ -3,7 +3,6 @@ package buildingruntime
 import (
 	"context"
 	"github.com/davidarcher/RimGovernor/go/internal/bridge"
-	"github.com/davidarcher/RimGovernor/go/internal/runtimeowner"
 	k "github.com/davidarcher/RimGovernor/go/internal/wire/clockpb"
 	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
 	l "github.com/davidarcher/RimGovernor/go/internal/wire/lifecyclepb"
@@ -164,7 +163,7 @@ func TestClockWorkerActualSessionInterruptionAndJoinedClose(t *testing.T) {
 	}
 	<-s.player.gate
 	held = false
-	owner, err := runtimeowner.Acquire(context.Background(), s.config.Profile)
+	owner, err := AcquireProfile(context.Background(), s.config.Profile)
 	if err != nil {
 		t.Fatal("profile retained after successful joined close", err)
 	}

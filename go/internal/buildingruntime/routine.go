@@ -67,7 +67,7 @@ func NewRoutineReviewer(player *Player, native observation.RoutineSource, clock 
 		}
 	}
 	reviewer := &RoutineReviewer{methods: methods, player: player, native: native, clock: clock, policy: thresholds, maxAge: maxAge, rules: append([]policy.ResourceRule(nil), rules...), longitude: longitude}
-	if reviewer.temperatureEnabled() {
+	if reviewer.roomsEnabled() {
 		if _, ok := native.(observation.TemperatureSource); !ok {
 			return nil, ErrControl
 		}
@@ -121,7 +121,11 @@ func (r *RoutineReviewer) step(ctx, epoch context.Context, arbiter *stepArbiter)
 	if err != nil {
 		return store.RoutineReviewResult{}, err
 	}
-	definitions := routineProjectDefinitions(plans, state.Snapshot)
+	playerPlans, err := p.journal.PlayerPlans(ctx, playerWorld(state.Snapshot))
+	if err != nil {
+		return store.RoutineReviewResult{}, err
+	}
+	definitions := routineProjectDefinitions(plans, state.Snapshot, playerPlans)
 	preferences, err := p.journal.LoadWorkPreferences(ctx, state.Snapshot.Plan)
 	if errors.Is(err, store.ErrNotFound) {
 		// Directly created plans have no player submission or saved overrides.
@@ -140,8 +144,8 @@ func (r *RoutineReviewer) step(ctx, epoch context.Context, arbiter *stepArbiter)
 		return store.RoutineReviewResult{}, err
 	}
 	observe := observation.ObserveRoutineOwned
-	if r.temperatureEnabled() {
-		observe = observation.ObserveRoutineTemperature
+	if r.roomsEnabled() {
+		observe = observation.ObserveRoutineRooms
 	}
 	reading, err := observe(ctx, r.native, r.clock, expected, r.maxAge, claims, definitions...)
 	if err != nil {
@@ -166,6 +170,7 @@ func (r *RoutineReviewer) step(ctx, epoch context.Context, arbiter *stepArbiter)
 	reading.Projection.ApplyFieldBudget(r.policy.FoodTargetDays)
 	if pawns, known := reading.Projection.WorkPawns.Value(); known {
 		reading.Projection.Facts.Workers = policy.RoutineWorkers(pawns)
+		reading.Projection.Facts.Labor = policy.RoutineLabor(pawns)
 		required, known := routineProjectWork(definitions, reading.Projection.Definitions).Value()
 		if known {
 			work, err := policy.AssignWork(pawns, required, preferences.Overrides)
@@ -174,6 +179,8 @@ func (r *RoutineReviewer) step(ctx, epoch context.Context, arbiter *stepArbiter)
 			}
 		}
 	}
+	reading.Projection.Facts.Upkeep.Rooms = reading.Projection.Rooms
+	reading.Projection.Facts.CleaningContext(reading.Projection.Identity.Tick)
 	if err = p.current(ctx, epoch); err != nil {
 		clockSchedulerLog("routine.step: p.current err=%v", err)
 		return store.RoutineReviewResult{}, err

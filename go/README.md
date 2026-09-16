@@ -51,8 +51,8 @@ the controller.
   (event polling, epoch renewal, bounded supervised windows: 600 ticks, 30-second
   lease), durable routine reviews with method execution across every routine
   planner family, caravan journey tracking and world evaluation. Free-text
-  player chat (`POST /api/chats/plans`, through a local OpenAI-compatible model
-  such as LM Studio) turns on when `--chat-model` is set; 501 otherwise.
+  player chat (`POST /api/chat`, through a local OpenAI-compatible model such
+  as LM Studio) turns on when `--chat-model` is set; 501 otherwise.
 - `serve --observe ...` is **observation only**: read the running game, never
   acquire control or write to it. Tuning flags and chat are rejected.
 
@@ -64,6 +64,7 @@ the controller.
 | `--clock-speed` | Native speed while a supervised window is held: `Normal` (default), `Fast`, `Superfast`. |
 | `--routine-project-limit`, `--routine-research-target`, `--routine-resource-*`, `--routine-allow-slaughter`, `--routine-herd-population-max` | Routine tuning: optional project concurrency, research goal, resource production targets/reserves/stops and herd ceilings. |
 | `--resource-rule`, `--world-evaluation-food-margin-days` | Resource reservation rules for building admission; caravan food margin. |
+| `--resume` | Run the bot for the observed world at startup and after every native load, without a dashboard Resume. |
 | `--chat-model`, `--chat-base-url`, `--chat-context-tokens`, `--chat-max-output-tokens` | Local model chat; the last three require `--chat-model`. |
 | `--flight-recorder <path>` | Record every native request/response/error (see [Native request diagnostics](#native-request-diagnostics)). |
 
@@ -101,16 +102,23 @@ checks, not gameplay evidence.
 The dashboard detects the Go backend (`GET /api/health` reports
 `backend: "go"`) and renders `ObservationDashboard`/`PlayerControls`. The
 structured player endpoints are listed in
-[the player API contract](../docs/developers/contracts/go-player-api.md) and
-[player actions](../docs/developers/contracts/player-actions.md). Chat dispatches
-build (one building per message), research selection, tend, rescue, draft and
-husbandry; `interpreter/decode.go` decodes further families that chat does not
-dispatch yet, and the dashboard has no chat UI
-([issue #46](https://github.com/davidarcher/rimgovernor/issues/46)).
-Re-scoping the interpreter to guidance is
-[issue #56](https://github.com/davidarcher/rimgovernor/issues/56) and shrinking
-the per-command player surface is
-[issue #54](https://github.com/davidarcher/rimgovernor/issues/54).
+[the player API contract](../docs/developers/contracts/go-player-api.md). The player
+surface is guidance, not per-pawn orders: one building placement and one
+research selection remain as typed plan submissions, and everything else is
+colony configuration (goals, population/expedition/resource policies, per-pawn
+population decisions, work preferences) or control (resume/pause, clock
+acknowledgement, world evaluation). Per-command player slices for tend, rescue,
+draft, husbandry, recovery service, bed assignment, movement, building
+temperature, surgery, caravans, quests, settlement gifts, trade, zone edits and
+room shells were removed in
+[issue #54](https://github.com/davidarcher/rimgovernor/issues/54); those
+families are reached only through the routine planners. Chat (`POST /api/chat`) is
+guidance only: the local model reads bounded colony and policy facts, answers
+with an explanation and at most one nudge (activate or cancel a goal, set the
+population, expedition or resource policy, or a per-pawn population decision),
+and the nudge is applied through the same store submission the matching policy
+route uses. Chat never places buildings, selects research or issues orders
+([issue #56](https://github.com/davidarcher/rimgovernor/issues/56)).
 
 Three player commands are configuration rather than plans of native actions and
 live outside the plan/action tables, each with request-ID replay safety and one
@@ -139,7 +147,9 @@ Multi-instance colony directory serving (`--colonies`) does not exist in Go
   [choose-tests.md](../docs/developers/testing/choose-tests.md) for when to run
   them and [issue #38](https://github.com/davidarcher/rimgovernor/issues/38)
   for coverage gaps. `internal/buildingruntime/cmd/{buildingsmoke,billsmoke,haulsmoke}`
-  are single-family native smoke hosts.
+  are single-family native smoke hosts. `restartaccept` is the kill-and-restart
+  acceptance: `serve --resume` plays with no HTTP write, is killed, and a
+  restart on the same state resumes autonomous play for the same world.
 
 Receipts do not prove pawn work completed; every harness asserts a native
 postcondition.
@@ -152,7 +162,7 @@ Ongoing medical care is distinct from urgent tending: complete native health
 reads keep bad conditions and medical rest visible as a priority-2 maintained
 need. A tracked patient who disappears, dies, or has incomplete health remains
 unresolved until fresh living health proves recovery. Patient identities persist
-through restart, Manual and direction changes; world replacement or a tick rewind
+through restart and Manual; world replacement or a tick rewind
 resets them. The care need does not issue
 medical orders or authorize surgery.
 
@@ -167,11 +177,11 @@ census.
 Startup supply reviews retain the first known native forbidden-supply census.
 Fresh reads can shrink that cohort, but later player forbids cannot expand or
 revive it. Unknown reads preserve pending cells without proving recovery; Manual
-and direction changes preserve the cohort. World replacement and tick rewind
+preserves the cohort. World replacement and tick rewind
 initialize a new cohort. The current journal requires fresh schema-37 state.
 The `supply` family compiles at most eight exact native item snapshots from
 retained cells into a shared Allow plan; its Hands handler runs under the
-existing player direction. Each
+current load token and tick. Each
 write requires fresh CAS, preview, emergency and authority checks. Durable item
 claims prevent re-admission after cancellation or later player forbidding. Lost
 replies are observed without retry; receipts alone do not complete the action,
@@ -224,7 +234,7 @@ selection history alongside need assessments. Current wood and defense deficits
 use bounded native deficit fractions. Accepted player projects and unresolved
 optional methods consume capacity across shared plans; admission rechecks new
 commitments in the same transaction as the method. Manual clears selections;
-world/direction changes or tick rewinds reset age. Unknown worker counts admit no
+world changes or tick rewinds reset age. Unknown worker counts admit no
 optional work. Configure `serve --routine-project-limit 1` to
 limit optional concurrency (1–8, default 2), also bounded by observed workers.
 Accepted work remains tracked when capacity falls. Persisted ranking does not
@@ -257,10 +267,10 @@ and observations predating completion cannot release the reservation.
 `Store.ReviewRoutine` commits explicit deficit/unknown/recovered assessments and
 food, wood and temperature latch history with all maintained-goal reviews in one
 transaction. A review cursor rejects stale writers. Manual invalidates linked
-work without needing valid native facts; world/direction changes and tick rewinds
+work without needing valid native facts; world changes and tick rewinds
 give subsequent goals new identities while preserving old action evidence and
 player cancellations. Unknown threats suspend new routine work until observed safe.
-Manual and direction changes retain recovery targets; world replacement and tick
+Manual retains recovery targets; world replacement and tick
 rewinds reset latches. Superseded invalidated autopilot goals leave the bounded
 active catalog only after all linked work is observed and cleanup is settled.
 Retired goals remain readable with their original IDs, methods and receipts, and
@@ -282,7 +292,7 @@ core and planning geometry. Missing optional fields remain unknown, and a change
 tick/world is refused. Raw food runway never becomes policy `FoodDays`.
 `observation.ObserveColony` brackets this read with paused identities at the same
 tick and known native generation, rejects expired/cancelled reads, and publishes
-no projection on failure. Callers must separately validate player direction.
+no projection on failure. Callers must separately validate the load token and tick.
 Native acceptance compares the core and every selected cell against existing native
 reads. To replay a retained official payload through Go and durable review, set
 `RIMGOVERNOR_NATIVE_COLONY_CAPTURE` and run
@@ -339,23 +349,34 @@ colonists count. Missing gear or inconsistent colony/pawn censuses leave readine
 unknown; tick or generation changes reject the review. This supplies the maintained
 defense need without issuing equipment or combat orders.
 
-The colony development section supplies a complete, bounded power-trader census.
-Routine power coverage uses each consumer's own native network and output watts;
-generation on unrelated networks does not cover a deficit. Disconnected or unpowered
-consumers remain deficits, while no consumers means no electrical requirement.
-Enabled, unforbidden consumers without power also remain recovery targets. Missing
-census or service facts preserve unknown coverage. These reads issue no power orders.
-The same bounded census carries native trader footprints, conduit positions and
-active map conditions for power planning. The `power` family compiles
-network-local generation or up to eight conduit cells through shared building
-admission and existing Hands execution. Installed
-capacity waits for ordinary refueling/output. Solar flares and player-disabled
-equipment hold proposals. Completed methods lend at most 10,000 ticks for native
-power recovery, scoped to the current direction; native consumer power establishes
-recovery. Targeted gameplay acceptance uses `native_go_routine_acceptance.py
---power-methods generation` or `--power-methods conduit` with ForecastFixture. Both scenarios verify native
-consumer recovery, correlated construction, Manual and disabled restart. Replay
-uses `RIMGOVERNOR_NATIVE_POWER_METHODS_CAPTURE=<capture-directory> go test
+The colony development section supplies a complete, bounded power census:
+every trader with its refuelable (fuel, target, out-of-fuel, allowed fuels) and
+breakdown service facts, every battery as a zero-load row with stored and
+capacity watt-days, and a per-network summary (generation, consumption, stored
+and capacity energy). Routine power coverage uses each consumer's own native
+network and output watts; generation on unrelated networks does not cover a
+deficit. Disconnected or unpowered consumers remain deficits, while no consumers
+means no electrical requirement. Enabled, unforbidden consumers without power also
+remain recovery targets. Missing census or service facts preserve unknown
+coverage. These reads issue no power orders. The same bounded census carries
+native trader footprints, conduit positions and active map conditions for power
+planning. The `power` family compiles network-local generation or up to eight
+conduit cells through shared building admission and existing Hands execution. A
+producer that is out of fuel or broken down holds the proposal
+(`waiting_for_refuel`, `waiting_for_repair`): refuelling and repair are other
+families' ordinary pawn work, never a second generator. A powered network whose
+stored reserve would drain in under `PowerPlanning.ReserveMinDays` (default one
+day) is a deficit too, so generation is sized to connected load rather than
+momentary surplus. The generator definition comes from native planning
+availability and fuel stock (solar, then wood with wood on hand, then chemfuel),
+not a hardcoded wood-fired default. Solar flares and player-disabled equipment
+hold proposals. Completed methods lend at most 10,000 ticks for native power
+recovery, scoped to the current load token; native consumer power establishes
+recovery. Targeted gameplay acceptance is `poweraccept -scenario fuel`
+(out-of-fuel generator: hold, colonists refuel, consumer recovers) and
+`-scenario reserve` (draining battery: one more generator admitted and built),
+against `PowerFixture`. Replay of captured generation/conduit scenarios uses
+`RIMGOVERNOR_NATIVE_POWER_METHODS_CAPTURE=<capture-directory> go test
 ./internal/observation -run TestNativePowerMethodsReplay`.
 
 The `temperature` family adds complete indoor room reads to the paused
@@ -365,14 +386,74 @@ temperatures remove safe reachability. Complete room geometry constrains the who
 native building footprint, while shared admission reserves only that footprint.
 Existing thermal facilities wait for native temperature change. Entry thresholds
 are 12/32 C and recovery thresholds are 16/28 C; unknown room evidence cannot prove
-recovery. Completed current-direction methods lend at most 10,000 ticks for ordinary
+recovery. Completed methods in the current load lend at most 10,000 ticks for ordinary
 refueling and heat exchange. Method identity follows the bed and thermal definition,
 so regenerated native room IDs cannot duplicate a method in the same goal epoch.
-The isolated acceptance variants are `native_go_routine_acceptance.py
---temperature-methods cold` and `--temperature-methods hot`, with ForecastFixture,
-RoutineSleepingFixture and ScenarioStartFixture. Replay uses
+The cold and hot variants use ForecastFixture, RoutineSleepingFixture and
+ScenarioStartFixture. Replay uses
 `RIMGOVERNOR_NATIVE_TEMPERATURE_CAPTURE=<capture-directory> go test
 ./internal/observation -run TestNativeTemperatureMethodsReplay`.
+
+The `refrigeration` family maintains `MaintainRefrigeration`. The typed food
+census now carries each stock's roof, measured temperature and room, so
+`MaintainFoodStorage` counts a stock as stored when it is roofed and either
+chilled (at or under 10 C) or has at least five days of rot runway, and the
+refrigeration review latches on roofed perishable nutrition that is warmer than
+that, inside a known room, and short of runway (enter at the food-storage at-risk
+threshold, release once every such stock reads 5 C or colder). Per affected room,
+in deterministic order, the method is: report `enclosed_storage_room_needed` for
+an unenclosed room; hold `cooler_power_needed` when the room's serving cooler is
+disconnected or unpowered (the `power` family's deficit); hold
+`cooler_heat_rejection_blocked` when its hot side vents indoors; patch a
+warm-setpoint serving cooler to the freezer target (-5 C) through the shared
+building-temperature action; otherwise wait for native cooling. With no serving
+cooler, or after a completed cooler method's 120,000-tick allowance elapsed
+without release, it compiles one `Cooler` on the lowest-sorted wall cell of the
+room that has a straight inside-wall-outdoors line, front outward, gated on
+native `Cooler` planning availability (`cooler_research_needed`). A cooler's
+cold and hot sides derive from its rotation on the Go side. The goal runs at
+priority 2 so it bypasses ranked development: spoilage is a bounded loss the
+colony is already paying for. Targeted acceptance is `refrigerationaccept
+-scenario build|setpoint|power` against `RefrigerationFixture`.
+
+`MaintainCleanFacilities` is a bounded response to failed work coverage, not a
+janitor. The typed room census carries RimWorld's own room `Cleanliness` stat
+and each filth row its room; a workspace (an enclosed kitchen, hospital or
+laboratory, or any enclosed room holding a cooking bench) latches dirty below
+-1 and releases at -0.25, and the latch (`UpkeepHistory.DirtyRooms`, keyed by
+the room's lowest cell because native room IDs are renumbered on every region
+rebuild, with its
+entry tick) persists across restarts. A latched room's filth becomes a direct
+clean target only after 30,000 ticks of grace with a Cleaning-enabled colonist
+present, or at once when no colonist has Cleaning enabled; at most eight
+targets a review, dirtiest room first. The order is player-forced, so any
+colonist not incapable of Cleaning may carry it whatever their Work-tab
+priority says. Filth elsewhere, in unlatched rooms and
+in inherently dirty rooms (barns, and any room holding a butcher bench) stays
+ordinary colonist work. Kitchen/butcher separation: butcher placements protect
+every cell of every room holding a cooking bench and cooking placements the
+reverse; when every butcher bench shares a room with a cooking bench the
+`butcher-spot-separated` method admits a fresh `ButcherSpot` outside; the
+butcher bill defers (`butcher_separation_pending`) until that method has been
+tried and then prefers a bench whose room holds no cooking bench. Deconstructing
+the co-located bench needs a generic deconstruct action the tree lacks
+(follow-up under #6). Targeted acceptance is `cleanaccept -scenario
+filthy|separation` against `CleanlinessFixture`.
+
+`MaintainLighting` (`lighting` family, issue #6 slice 3) keeps work-bench
+interaction cells lit from the measured native glow: `UpkeepFacts.lighting`
+lists every colonist work table/research bench interaction cell with its
+ground glow, roof and room, and every `CompGlower` fixture with radius, lit
+flag and service state. A roofed cell under 0.3 latches its bench
+(`RoutineLatches.Lighting`); an unknown census keeps the latch. The planner
+defers to an in-range fixture that is merely unserviced (`lamp_power_needed`,
+`lamp_fuel_needed`, `lamp_repair_needed`, `lamp_switched_off`; a lit one that
+still leaves the cell dark is `lamp_lit_but_cell_dark`), else previews the
+policy's candidate cells nearest first -- free, walkable, unzoned cells of the
+same room within two of the interaction cell -- and admits one `StandingLamp`
+(only with an active power source) or `TorchLamp`. The latch releases on the
+next measured census, never on the receipt. Targeted acceptance is `lightaccept
+-scenario dark|outage` against `LightingFixture`.
 
 Routine reviews also read native pawn needs and thought targets. Per-pawn mood
 goals retain break-threshold and food/rest/recreation hysteresis through Manual and
@@ -461,9 +542,9 @@ Go retains its footprint but lets net stock from a later game tick replace its
 original cost reservation. Repeated pending reads retain the first proof tick;
 unknown evidence clears it. Same-tick stock, unobserved writes and gross stock keep
 the original cost hold. The proof replays from the fresh Go journal; it does not
-certify pawn completion. `native_building_service_acceptance.py
---construction-accounting` exercises two shared player projects under a reserve
-that permits exactly two walls, including unfinished work and restart.
+certify pawn completion. The construction-accounting scenario is two shared
+player projects under a reserve that permits exactly two walls, including
+unfinished work and restart; it has no Go acceptance binary yet.
 
 Autonomous play attaches the reviewer to the service clock worker. It uses the
 default routine thresholds and requires typed colony observations. Startup
@@ -488,16 +569,24 @@ Furnishing still requires observed roofed indoor space. Unfinished or cancelled
 shells grant no roofing budget. The `cooking` family independently
 compiles campfires at the same boundary. The `comfort` family enables
 table, adjacent dining chair and recreation furniture compilation after startup
-needs recover and development ranking selects comfort. Native observations retain
+needs recover and development ranking selects comfort. Dining and recreation are
+native-role facilities (issue #4): a table, chair or horseshoes pin counts only
+while it stands in a proper room whose native `Room.Role` the facility catalog
+(`policy.FacilityCatalog`) hosts — DiningRoom, RecRoom or a generic Room, so one
+shared room serves both — and furnishing previews are restricted to those rooms'
+cells. With no hosting room the comfort planner stages the same 9×9 starter
+shell shelter uses (method `comfort-shell`) and furnishes it once roofed. The
+catalog lists every installed RoomRoleDef with its planner status; every other
+role is an explicit pending row. Native observations retain
 facility-specific dining/recreation use through Manual and restart; replacement
 facilities require new use. After observed construction, at most 10,000 ticks in
-the same direction permit ordinary use, observed in windows of at most 120 ticks.
+the same load permit ordinary use, observed in windows of at most 120 ticks.
 Skilled furniture requires a qualified assigned builder from the same native
 observation bracket, honoring saved player work preferences.
 Unknown access, existing inaccessible
 facilities and exhausted waits cannot certify recovery or create duplicate furniture.
 The shared Hands worker executes reviewed building and starting-supply methods
-under the existing player direction.
+under the current load token and tick.
 Each dispatch rechecks the journal binding, active known deficit, epoch, world and
 native generation. Pending player work takes priority; Manual stops routine writes
 without changing the selected player plan or acquiring another lease. Clock windows
@@ -509,15 +598,15 @@ The paused gear read is compared against native upkeep for the exact pawn/loadou
 census, deficit flags, eligible candidate identities and gains, and replacement
 needs. `MaintainEquipment` remains visible as `method_unavailable` until its
 execution family is connected; it does not consume an optional development slot.
-The `--comfort-methods` variant needs private `GuardedConstructionFixture`,
-`RoutineSleepingFixture`, `UpkeepFixture` and `ScenarioStartFixture` builds. It
-uses a seeded naturally mild settlement and prepares hunger/recreation needs once
-the three ordinary buildings exist. It never orders their use. Native use,
-one-time fixture activation, Manual history retention and disabled restart are
-separate assertions; inspect the retained report before claiming acceptance.
+`go run ./internal/nativeaccept/cmd/facilityaccept -root <abs .rimgovernor/bridge>
+-rimgovernor <abs binary> -output <fresh dir>` runs the autonomous service on the
+tribal8 baseline save and watches `EnsureComfort` until it recovers. After the
+service stops it audits the journal's dining/recreation use proofs against live
+`home/colony_facts` and `home/list_rooms`: each proof facility must sit in a room
+whose native role hosts it, and every eligible colonist needs an accessible
+hosted facility of each kind. Blueprints and labels prove nothing there.
 Recreation previews require native playing-cell access, separate from placement
-legality. The variant also captures populated native fire, supply, repair and
-cleaning facts after Manual. Replay its `upkeep-replay.json` through the Go
+legality. Replay a captured `upkeep-replay.json` through the Go
 boundary and durable journal with `RIMBOT_NATIVE_UPKEEP_REPLAY=<absolute-path>`
 and `go test ./internal/observation -run TestNativeUpkeepReplay -count=1` from `go/`.
 The replay checks target ordering and metrics, all five direct upkeep needs,
@@ -538,8 +627,8 @@ Unknown queries preserve established needs. Home exclusions remain explicit;
 Home/stone execution and stockpile ownership await their shared action families.
 The ownership census is bounded to 256 method records and 256 completed buildings;
 larger histories produce unknown ownership instead of silently truncating it.
-`native_go_routine_acceptance.py --shelter-methods --facility-upkeep` uses the
-existing `UpkeepFixture` to remove one Home cell after normal shell construction.
+The facility-upkeep scenario uses the existing `UpkeepFixture` to remove one
+Home cell after normal shell construction.
 Replay the captured native facts against its real journal backup with
 `RIMBOT_NATIVE_FACILITY_REPLAY=<absolute-output-directory>` and
 `go test ./internal/observation -run TestNativeFacilityUpkeepReplay -count=1`.
@@ -637,37 +726,36 @@ the newest) once the active segment reaches its size bound; the oldest segment
 is dropped on rotation. Oversized payloads are replaced with a truncated
 summary (SHA-256, original size, a bounded preview and, when present, the
 correlating `request`/`tool`/`category` fields) rather than growing the file
-unbounded. See `internal/flightrecorder` for the writer and `ReadTimeline` reader.
+unbounded. See `bridge.FlightRecorder` for the writer and `bridge.ReadTimeline` for the reader.
 
 ## Guarded player components
 
 `rimgovernor serve --profile <absolute-game-profile>` (autonomous play) includes
-the building and temporary-draft service. Supply the same `--gabs`, `--config`, `--game`, `--state`,
+the building service. Supply the same `--gabs`, `--config`, `--game`, `--state`,
 `--listen` and optional `--assets` arguments as the observation service. The profile
 must be the shared game profile, so another controller cannot acquire its process
-lock. The service starts in Manual; it never restores a live lease from SQLite.
+lock. The service starts paused; it never restores a live lease from SQLite.
 
 With built dashboard assets, player controls accept a building definition,
-material, map coordinates and rotation, or an exact pawn ID for temporary drafting.
-Submitting stores intent; enabling its plan separately acquires permission.
-**Manual — stop orders** remains available while acquisition is pending. Both
-forms share current permission and direction CAS. Form drafts and request IDs
-survive background refreshes, and result checks only read the recorded request.
+material, map coordinates and rotation. Submitting stores guidance; **Resume**
+runs the bot for the observed world and **Pause** stops it, and Pause remains
+available while a resume is pending. The building and chat forms share current
+permission and control history. Form drafts and request IDs survive background
+refreshes, and result checks only read the recorded request.
 Player controls are hidden when the service runs read-only.
 
-Submit a single building through `POST /api/buildings/plans`, then explicitly
-acquire that plan through `POST /api/player/control/acquire`. Manual uses
-`POST /api/player/control/manual` and stops local work before waiting for native
+Submit a single building through `POST /api/buildings/plans`; the running bot
+dispatches it under the world's root plan. Resume uses
+`POST /api/player/control/resume` and Pause uses
+`POST /api/player/control/pause`, which stops local work before waiting for native
 cleanup. These routes require JSON and the process token returned by
 `GET /api/player/session` in the `X-RimGovernor-Player` header. Tokens remain in
 memory. Requests bind exact colony/load/map identity and stable request IDs;
-acquisition also checks the current direction.
+control intents are journaled in order without a compare-and-swap.
 
-Draft submission uses `POST /api/drafts/plans` with request ID, expected world and
-`draft.pawnId`. No native token or claim is accepted from a player. Its result is
-read through `GET /api/drafts/submission?requestId=...`. A completed standalone
-draft plan releases its own temporary claim; this is not a persistent draft toggle.
-Plan views show ordinary progress and cleanup status independently. See the
+Owned drafts are produced only by routine planners (defense, medical); a
+completed draft plan releases its own temporary claim, and plan views show
+ordinary progress and cleanup status independently. See the
 [fixed player API](../docs/developers/contracts/go-player-api.md) for exact shapes.
 
 Both building admission checks require fresh, complete threat and basic pawn

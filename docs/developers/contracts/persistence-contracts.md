@@ -1,76 +1,53 @@
-# Persistence and archive contracts
+# Persistence contracts
 
 [Documentation](../../README.md)
 
-Archival reduces the live working set while preserving exact identities and evidence. It
-does not bound the entire database.
+The Go controller keeps one SQLite database per run (`--state`). It is a
+cache of the autopilot's own bookkeeping plus the journals that must survive a
+restart; the colony itself lives only in the game and its saves. There are no
+paired backups, manifests or archive tables.
 
-## Actions and methods
+## What must survive
 
-Completed actions removed from the active specification move to a compressed,
-colony-scoped SQLite archive. Their exact specification, progress/receipts and cost
-metadata are committed atomically with the compact live snapshot before in-memory
-removal. Current combat references remain live until released. The archive participates
-in paired database backups and rejects reused identities after restart; missing archive
-data blocks admission. `inspect_plan` retrieves archived records by exact ID. The last
-twelve plan revisions remain in the live history; immutable archive storage grows with
-completed work. Method-to-action references whose actions are all archived move into a
-separate immutable SQLite table in the same snapshot transaction. Goal deduplication
-checks both live method entries and that table. Each natural goal reopening advances a
-method epoch, allowing new work without deleting archived associations. Pending methods
-remain live, and a missing method archive blocks replay after restart.
+- **Receipts for uncertain writes.** Every native write is journaled before
+  dispatch and settled by observation, never by transport replay. A reply
+  lost after dispatch leaves the action uncertain; it is reconciled from the
+  next observation, and its plan stays live until that happens.
+- **Request-ID replay.** Player submissions (goals, policies, decisions,
+  building and research intents, control intents, clock acknowledgements,
+  chat) are keyed by the caller's request ID within a world. Repeating an ID
+  returns the recorded outcome; a changed body under the same ID is a
+  conflict.
+- **The routine review cursor and policy inputs.** Latches, recovery
+  histories and the current goal bindings let the next review continue where
+  the last one stopped; population, expedition and resource policies and
+  per-pawn decisions are what the reviewer reads.
+- **Clock inbox and source cursors.** Native clock reads journal fetched
+  events with their source cursor before advancing; delivery consumes the
+  inbox atomically with the review. Colony-scoped cursors survive load
+  changes; history beyond a bounded tail is retired once reviewed.
 
-## Player command capacity
+## What is re-derived
 
-When an append would exceed 72 live steps, eligible completed PLAYER commands
-also retire. Active player goal references and combat references remain live;
-unfinished work is never discarded to fit the 80-step limit. Player intent records
-retain their exact request and archived action identity. Repeating an archived
-intent observes its completed state; changed intent requires a new explicit ID.
-An explicit new research, production-policy, pawn-setting or building-setting
-command can restore an earlier value after the old command completed. The old
-setting receipt archives before the new action executes. Pending settings and
-non-idempotent operations retain duplicate-intent protection.
+Routine goals are re-derived from observation every review. A world change
+(new load token, or a tick rewind in the same load) invalidates the previous
+bindings, cancels their pending work and starts a fresh review under the new
+world's root plan; only work already dispatched keeps its recovery
+requirement. Missing facts cannot recover goals, so nothing here needs a
+restore step.
 
-## Goal evidence and history indexes
+## Bounded working set
 
-Hunting target metadata follows its completed action into an immutable goal-evidence
-table in the same snapshot transaction. Pending targets remain live; metadata from older
-snapshots whose actions were already archived is migrated without altering the original
-receipts. Per-action bounded recovery histories remain in their exact action archive.
-These tables preserve evidence while the live working set compacts; their disk usage
-still grows with completed work.
-
-Recent event reads use colony/sequence indexes, including a partial index for
-non-diagnostic history. Index migration preserves every event and its identity; it does
-not bound ledger disk growth or discard method deduplication evidence.
-
-## Event delivery
-
-Chat request IDs deduplicate lost HTTP acknowledgments within a colony. The
-dashboard retains the ID for an unchanged failed submission and sends its load
-identity. History, player direction, runtime snapshot and acknowledgment commit
-together in SQLite. Requests interrupted by reconnect/load remain visible with
-an explicit interruption notice; they are not automatically replayed.
-Native clock reads journal fetched events and source cursor together before
-advancing the in-memory cursor. Delivery consumes that inbox atomically with the
-runtime snapshot and history. In-memory archive compaction waits for the outermost
-transaction commit. Failed delivery retains its inbox, enters Manual and invalidates
-old writes. Colony-scoped source cursors and unconsumed inboxes survive load changes.
-
-The native supervisor retains immutable, consecutively numbered XML events under
-the private profile's `RimGovernorClockEvents` directory. Each row carries colony/map/load
-identity. A flushed temporary row is published by rename; a complete staged row is
-recovered after process restart. Partial rows, conflicting publication and sequence
-gaps fail closed. A journal-write failure pauses the current game and disarms the
-lease. Event reads page the retained files, including history beyond 128 entries.
-The journal grows with events and must remain with its profile; it is not simulation
-state and is not rolled back by loading a save. Older companions retain their
-bounded source history and enter Manual if it overflows.
-Hands remains the durable action outbox: uncertain game writes require observation,
-never transport replay.
+Settled autopilot plans and superseded invalidated goals are marked retired
+rather than deleted: their IDs, methods and receipts stay readable for
+duplicate prevention (a method that completed in the current goal epoch is
+not proposed again) and for `inspect`-style reads, but they leave active
+capacity and cannot be modified or reused. Retirement records a per-world
+observation-tick floor so an older observation cannot make retired
+reservations spendable again. The database still grows with completed work;
+each launch opens a fresh database by default, which is the retention bound.
 
 ## Related reading
 
-Read [sessions and recovery](../architecture/sessions-and-recovery.md) and audit
-retained evidence.
+[Sessions and recovery](../architecture/sessions-and-recovery.md) ·
+[Save and resume](../../players/save-and-resume.md)

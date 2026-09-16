@@ -6,10 +6,40 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 )
 
+// riskyStock is perishable food close to rotting; stored ones sit roofed
+// and chilled, unstored ones warm and uncovered.
 func riskyStock(id string, nutrition float64, stored bool) FoodStorageStock {
+	temperature := 25.0
+	if stored {
+		temperature = 2
+	}
 	return FoodStorageStock{
-		Stock: FoodStock{ID: id, Nutrition: domain.Known(nutrition), Perishable: domain.Known(true), RotTicks: domain.Known(int64(1000))},
-		Stored: domain.Known(stored),
+		Stock: FoodStock{ID: id, Nutrition: domain.Known(nutrition), Perishable: domain.Known(true), RotTicks: domain.Known(int64(1000)), Roofed: domain.Known(stored), TemperatureC: domain.Known(temperature)},
+	}
+}
+
+func TestFoodStorageStoredNeedsCoverAndColdOrRunway(t *testing.T) {
+	p := DefaultFoodStoragePolicy()
+	stock := func(roofed bool, temperature float64, ticks int64) FoodStorageStock {
+		return FoodStorageStock{Stock: FoodStock{Roofed: domain.Known(roofed), TemperatureC: domain.Known(temperature), RotTicks: domain.Known(ticks)}}
+	}
+	for _, tc := range []struct {
+		name  string
+		stock FoodStorageStock
+		want  bool
+	}{
+		{"unroofed", stock(false, -5, 1000), false},
+		{"warm-rotting-soon", stock(true, 20, 1000), false},
+		{"chilled", stock(true, 5, 1000), true},
+		{"warm-long-runway", stock(true, 20, 6*ticksPerDay), true},
+	} {
+		if got, known := tc.stock.stored(p).Value(); !known || got != tc.want {
+			t.Fatalf("%s: stored = %v (known %v), want %v", tc.name, got, known, tc.want)
+		}
+	}
+	unknown := FoodStorageStock{Stock: FoodStock{Roofed: domain.Known(true), RotTicks: domain.Known(int64(1))}}
+	if _, known := unknown.stored(p).Value(); known {
+		t.Fatal("unknown temperature reported as known storage")
 	}
 }
 
@@ -79,9 +109,9 @@ func TestFoodStorageReviewUnknownFactsPreserveLatch(t *testing.T) {
 		t.Fatal(r, err)
 	}
 
-	// An unknown Stored fact on any at-risk stock also preserves the latch.
+	// An unknown temperature (so unknown storage) on any at-risk stock also preserves the latch.
 	obs = FoodStorageObservation{Stocks: domain.Known([]FoodStorageStock{
-		{Stock: FoodStock{ID: "a", Nutrition: domain.Known(50.0), Perishable: domain.Known(true), RotTicks: domain.Known(int64(500))}, Stored: domain.Unknown[bool]()},
+		{Stock: FoodStock{ID: "a", Nutrition: domain.Known(50.0), Perishable: domain.Known(true), RotTicks: domain.Known(int64(500)), Roofed: domain.Known(true)}},
 	})}
 	r, err = ReviewFoodStorage(obs, true, DefaultFoodStoragePolicy())
 	if err != nil || !r.Active {
@@ -95,9 +125,9 @@ func TestFoodStorageReviewUnknownFactsPreserveLatch(t *testing.T) {
 func TestFoodStorageReviewIgnoresNonPerishableAndRotted(t *testing.T) {
 	obs := FoodStorageObservation{Stocks: domain.Known([]FoodStorageStock{
 		// Non-perishable: never counted.
-		{Stock: FoodStock{ID: "meals", Nutrition: domain.Known(1000.0), Perishable: domain.Known(false)}, Stored: domain.Known(false)},
+		{Stock: FoodStock{ID: "meals", Nutrition: domain.Known(1000.0), Perishable: domain.Known(false), Roofed: domain.Known(false)}},
 		// Already rotted (RotTicks == 0): never counted.
-		{Stock: FoodStock{ID: "rotten", Nutrition: domain.Known(1000.0), Perishable: domain.Known(true), RotTicks: domain.Known(int64(0))}, Stored: domain.Known(false)},
+		{Stock: FoodStock{ID: "rotten", Nutrition: domain.Known(1000.0), Perishable: domain.Known(true), RotTicks: domain.Known(int64(0)), Roofed: domain.Known(false)}},
 	})}
 	r, err := ReviewFoodStorage(obs, false, DefaultFoodStoragePolicy())
 	if err != nil {
@@ -112,7 +142,7 @@ func TestFoodStorageReviewIgnoresNonPerishableAndRotted(t *testing.T) {
 }
 
 func TestFoodStorageReviewRejectsInvalidFacts(t *testing.T) {
-	if _, err := ReviewFoodStorage(FoodStorageObservation{}, false, FoodStoragePolicy{0.9, 0.5, 5}); err == nil {
+	if _, err := ReviewFoodStorage(FoodStorageObservation{}, false, FoodStoragePolicy{0.9, 0.5, 5, 10, 5, 5, -5}); err == nil {
 		t.Fatal("unordered thresholds must be rejected")
 	}
 	dup := FoodStorageObservation{Stocks: domain.Known([]FoodStorageStock{
@@ -122,7 +152,7 @@ func TestFoodStorageReviewRejectsInvalidFacts(t *testing.T) {
 		t.Fatal("duplicate stock IDs must be rejected")
 	}
 	negTicks := FoodStorageObservation{Stocks: domain.Known([]FoodStorageStock{
-		{Stock: FoodStock{ID: "a", Nutrition: domain.Known(10.0), Perishable: domain.Known(true), RotTicks: domain.Known(int64(-1))}, Stored: domain.Known(false)},
+		{Stock: FoodStock{ID: "a", Nutrition: domain.Known(10.0), Perishable: domain.Known(true), RotTicks: domain.Known(int64(-1)), Roofed: domain.Known(false)}},
 	})}
 	if _, err := ReviewFoodStorage(negTicks, false, DefaultFoodStoragePolicy()); err == nil {
 		t.Fatal("negative rot ticks must be rejected")

@@ -95,7 +95,7 @@ func TestAdmissionAtomicRollbackAndPreparedReplacement(t *testing.T) {
 		t.Fatal("admission tick moved backwards")
 	}
 	changed := evidence(20, 60)
-	changed.Snapshot.Direction++
+	changed.Snapshot.Native++
 	if _, err = s.ReserveAndPrepare(ctx, "p", "a", changed); err == nil {
 		t.Fatal("revalidation changed authority")
 	}

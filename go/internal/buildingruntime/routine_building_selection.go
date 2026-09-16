@@ -55,7 +55,15 @@ func (r *RoutineBuildingPlanner) selection(facts observation.ColonyProjection) (
 			return 0, "", BuildingMethodUnknown
 		}
 		if len(benches) > 0 {
-			return 0, "", BuildingExistingFacility
+			// A butcher bench that shares a room with a cooking bench keeps
+			// the colony fed but not clean (issue #6 slice 2): when every
+			// bench is co-located and the census can say so, a separate
+			// butcher spot is admitted outside. Deconstructing the shared
+			// one needs a generic deconstruct action (follow-up).
+			if !butchersAllColocated(benches, facts.Rooms) {
+				return 0, "", BuildingExistingFacility
+			}
+			return 1, "butcher-spot-separated", ""
 		}
 		return 1, "butcher-spot", ""
 
@@ -64,6 +72,16 @@ func (r *RoutineBuildingPlanner) selection(facts observation.ColonyProjection) (
 			return 0, "", BuildingMethodUnknown
 		}
 		return 1, r.temperature.Key, ""
+	case policy.MaintainRefrigeration:
+		if r.refrigeration == nil || r.refrigeration.Method != policy.RefrigerationBuild {
+			return 0, "", BuildingMethodUnknown
+		}
+		return 1, r.refrigeration.Key, ""
+	case policy.MaintainLighting:
+		if r.lighting == nil || r.lighting.Method != policy.LightingBuild {
+			return 0, "", BuildingMethodUnknown
+		}
+		return 1, r.lighting.Key, ""
 	case policy.EnsureBasicPower:
 		if r.power == nil {
 			return 0, "", BuildingMethodUnknown
@@ -76,6 +94,9 @@ func (r *RoutineBuildingPlanner) selection(facts observation.ColonyProjection) (
 		}
 		return 0, "", BuildingMethodUnknown
 	case policy.EnsureComfort:
+		if r.shelter {
+			return 32, "comfort-shell", ""
+		}
 		return 1, domain.MethodID("comfort-" + r.definition), ""
 	case policy.EnsureInitialShelter, policy.EnsureExpansion:
 		capacity, known := facts.Facts.IndoorCapacity.Value()
@@ -128,4 +149,25 @@ func (r *RoutineBuildingPlanner) selection(facts observation.ColonyProjection) (
 	default:
 		return 0, "", BuildingMethodUnknown
 	}
+}
+
+// butchersAllColocated is true only when the room census is known and every
+// butcher bench stands in a room that also holds a cooking bench. An unknown
+// room keeps the bench counted as a facility.
+func butchersAllColocated(benches []observation.CookingBench, rooms domain.Fact[policy.RoomObservation]) bool {
+	shared, known := policy.KitchenSeparation(rooms).Value()
+	if !known || len(benches) == 0 {
+		return false
+	}
+	colocated := map[string]bool{}
+	for _, room := range shared {
+		colocated[room.ID] = true
+	}
+	for _, bench := range benches {
+		room, known := bench.Room.Value()
+		if !known || !colocated[room] {
+			return false
+		}
+	}
+	return true
 }

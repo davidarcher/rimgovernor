@@ -14,7 +14,7 @@ func rescueRequest(t *testing.T) RescueRequest {
 	if err != nil {
 		t.Fatal(err)
 	}
-	s := domain.GenerationSnapshot{Colony: "colony", Map: 0, Load: "load", Direction: 1, Plan: plan.ID(), Revision: 1, Native: 1}
+	s := domain.GenerationSnapshot{Colony: "colony", Map: 0, Load: "load", Plan: plan.ID(), Revision: 1, Native: 1}
 	p, _ := domain.NewProgress(plan, a.ID())
 	e, err := NewEmergencySnapshot(s, 13, EmergencyFacts{
 		ColonistsComplete: domain.Known(true), ThreatsComplete: domain.Known(true),
@@ -65,7 +65,6 @@ func TestRescueDefenseHolds(t *testing.T) {
 		{"old emergency", func(r *RescueRequest) { r.Facts.Emergency.tick = 12 }},
 		{"zero generation", func(r *RescueRequest) { r.Current.Native = 0 }},
 		{"native", func(r *RescueRequest) { r.Current.Native++ }},
-		{"direction", func(r *RescueRequest) { r.Current.Direction++ }},
 		{"colony", func(r *RescueRequest) { r.Current.Colony = "other" }},
 		{"load", func(r *RescueRequest) { r.Current.Load = "other" }},
 		{"map", func(r *RescueRequest) { r.Current.Map++ }},

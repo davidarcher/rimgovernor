@@ -23,8 +23,7 @@
 // checks -- proven live here, not just by a receipt.
 //
 // Uses the disposable test/waste_fixture fixture (scripts/fixtures/
-// WasteFixture.cs), which already existed for the retired Python
-// waste_acceptance.py script: one hauling-capable colonist, one rotten
+// WasteFixture.cs): one hauling-capable colonist, one rotten
 // anonymous corpse, one unwanted WoodLog, one forbidden (protected) Steel
 // stack, and a player-designated dirty outdoor dumping stockpile -- mirroring
 // every other vertical's fixture-first pattern since deterministic dirty/

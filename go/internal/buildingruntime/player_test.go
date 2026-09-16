@@ -96,46 +96,62 @@ func playerSubmission() store.SubmissionRequest {
 	b, _ := domain.NewBuilding("Wall", domain.Cell{X: 1, Z: 2}, domain.North, "WoodLog")
 	return store.SubmissionRequest{RequestID: "submit", World: store.World{Colony: "colony", Load: "load", Map: 0}, Building: b}
 }
+
+// playerAcquire submits one building as player guidance and returns the
+// Resume request that enables autonomous play for its world. The submitted
+// plan is dispatched under the root plan's authority (see playerPlan).
 func playerAcquire(t *testing.T, p *Player) store.ControlRequest {
 	t.Helper()
 	s, created, err := p.Submit(context.Background(), playerSubmission())
 	if err != nil || !created {
 		t.Fatal(s, created, err)
 	}
-	return store.ControlRequest{RequestID: "acquire", Kind: store.AcquireControl, World: s.Request.World, Plan: s.Plan, Revision: s.Revision}
+	return store.ControlRequest{RequestID: "acquire", Kind: store.ResumeControl, World: s.Request.World}
+}
+
+// playerPlan returns the submitted guidance plan created by playerAcquire.
+func playerPlan(t *testing.T, db *store.Store) store.PlanState {
+	t.Helper()
+	return submittedPlan(t, db, playerSubmission().RequestID)
+}
+
+// submittedPlan loads the plan behind one building submission: the player's
+// guidance plan, which dispatches under the root plan's authority.
+func submittedPlan(t *testing.T, db *store.Store, requestID string) store.PlanState {
+	t.Helper()
+	s, err := db.LookupSubmission(context.Background(), requestID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	plan, err := db.LoadPlan(context.Background(), s.Plan)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return plan
 }
 
 func TestPlayerExactReplayAndChangedRequestConflict(t *testing.T) {
 	t.Parallel()
-	p, db, s, worlds := playerFixture(t)
+	p, _, s, worlds := playerFixture(t)
 	q := playerAcquire(t, p)
-	record, err := p.Acquire(context.Background(), q)
-	if err != nil || record.Phase != store.GrantedControl || record.Direction != 1 {
+	record, err := p.Resume(context.Background(), q)
+	if err != nil || record.Phase != store.RunningControl {
 		t.Fatal(record, err)
 	}
 	worlds.err = errors.New("native now unavailable")
 	before := s.disables.Load()
-	replay, err := p.Acquire(context.Background(), q)
+	replay, err := p.Resume(context.Background(), q)
 	if err != nil || replay != record || s.acquires.Load() != 1 || s.disables.Load() != before {
 		t.Fatal(replay, err)
 	}
 	changed := q
-	changed.Revision++
-	if _, err = p.Acquire(context.Background(), changed); !errors.Is(err, store.ErrConflict) || s.acquires.Load() != 1 {
+	changed.World.Map++
+	if _, err = p.Resume(context.Background(), changed); !errors.Is(err, store.ErrConflict) || s.acquires.Load() != 1 {
 		t.Fatal(err)
 	}
 	submission, created, err := p.Submit(context.Background(), playerSubmission())
-	if err != nil || created || submission.Plan != q.Plan {
+	if err != nil || created || submission.Plan != playerPlan(t, p.journal).Spec.ID() {
 		t.Fatal(submission, created, err)
-	}
-	worlds.err = nil
-	stale := q
-	stale.RequestID = "stale"
-	if _, err = p.Acquire(context.Background(), stale); !errors.Is(err, store.ErrConflict) || s.acquires.Load() != 1 || p.State().Enabled {
-		t.Fatal(err, p.State())
-	}
-	if _, err = db.LookupControl(context.Background(), stale.RequestID); !errors.Is(err, store.ErrNotFound) {
-		t.Fatal(err)
 	}
 }
 
@@ -143,23 +159,23 @@ func TestPlayerManualStaleWorldStopsLocallyAndReplayDoesNotCleanAgain(t *testing
 	t.Parallel()
 	p, _, s, worlds := playerFixture(t)
 	q := playerAcquire(t, p)
-	if _, err := p.Acquire(context.Background(), q); err != nil {
+	if _, err := p.Resume(context.Background(), q); err != nil {
 		t.Fatal(err)
 	}
 	worlds.world.Load = "replacement"
-	manual := store.ControlRequest{RequestID: "manual-stale", Kind: store.ManualControl, World: q.World}
-	record, err := p.Manual(context.Background(), manual)
+	manual := store.ControlRequest{RequestID: "manual-stale", Kind: store.PauseControl, World: q.World}
+	record, err := p.Pause(context.Background(), manual)
 	if !errors.Is(err, store.ErrConflict) || record.Phase != store.RefusedControl || p.State().Enabled || s.manuals.Load() != 0 {
 		t.Fatal(record, err, p.State())
 	}
 	before := s.disables.Load()
-	replay, err := p.Manual(context.Background(), manual)
+	replay, err := p.Pause(context.Background(), manual)
 	if err != nil || replay != record || s.disables.Load() != before+1 || s.manuals.Load() != 0 {
 		t.Fatal(replay, err)
 	}
 	changed := manual
 	changed.World = worlds.world
-	if _, err = p.Manual(context.Background(), changed); !errors.Is(err, store.ErrConflict) {
+	if _, err = p.Pause(context.Background(), changed); !errors.Is(err, store.ErrConflict) {
 		t.Fatal(err)
 	}
 }
@@ -168,18 +184,18 @@ func TestPlayerHistoricalReplayCannotChangeControlMethod(t *testing.T) {
 	t.Parallel()
 	p, _, session, _ := playerFixture(t)
 	acquire := playerAcquire(t, p)
-	if _, err := p.Acquire(context.Background(), acquire); err != nil {
+	if _, err := p.Resume(context.Background(), acquire); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := p.Manual(context.Background(), acquire); !errors.Is(err, store.ErrConflict) || p.State().Enabled || session.manuals.Load() != 0 {
+	if _, err := p.Pause(context.Background(), acquire); !errors.Is(err, store.ErrConflict) || p.State().Enabled || session.manuals.Load() != 0 {
 		t.Fatal("Acquire replay accepted by Manual", err)
 	}
-	manual := store.ControlRequest{RequestID: "manual", Kind: store.ManualControl, World: acquire.World}
-	if _, err := p.Manual(context.Background(), manual); err != nil {
+	manual := store.ControlRequest{RequestID: "manual", Kind: store.PauseControl, World: acquire.World}
+	if _, err := p.Pause(context.Background(), manual); err != nil {
 		t.Fatal(err)
 	}
 	before := session.disables.Load()
-	if _, err := p.Acquire(context.Background(), manual); !errors.Is(err, store.ErrConflict) || session.acquires.Load() != 1 || session.disables.Load() != before {
+	if _, err := p.Resume(context.Background(), manual); !errors.Is(err, store.ErrConflict) || session.acquires.Load() != 1 || session.disables.Load() != before {
 		t.Fatal("Manual replay accepted by Acquire", err)
 	}
 }
@@ -209,19 +225,18 @@ func TestPlayerManualPreemptsActiveAndQueuedAcquire(t *testing.T) {
 		return snapshot, nil
 	}
 	active := make(chan error, 1)
-	go func() { _, err := p.Acquire(context.Background(), q); active <- err }()
+	go func() { _, err := p.Resume(context.Background(), q); active <- err }()
 	<-entered
 	queuedCtx := &queuedPlayerContext{Context: context.Background(), entered: make(chan struct{}), done: make(chan struct{})}
 	queuedRequest := q
 	queuedRequest.RequestID = "queued"
-	queuedRequest.ExpectedDirection = 1
 	queued := make(chan error, 1)
-	go func() { _, err := p.Acquire(queuedCtx, queuedRequest); queued <- err }()
+	go func() { _, err := p.Resume(queuedCtx, queuedRequest); queued <- err }()
 	<-queuedCtx.entered
 	manual := make(chan error, 1)
 	before := s.disables.Load()
 	go func() {
-		_, err := p.Manual(context.Background(), store.ControlRequest{RequestID: "manual", Kind: store.ManualControl, World: q.World})
+		_, err := p.Pause(context.Background(), store.ControlRequest{RequestID: "manual", Kind: store.PauseControl, World: q.World})
 		manual <- err
 	}()
 	// Observe synchronous local disable before allowing the deliberately late grant.
@@ -271,7 +286,7 @@ func TestPlayerDroppedContextFinishesAdmittedControl(t *testing.T) {
 		cancel()
 		return domain.GenerationSnapshot{}, context.Canceled
 	}
-	record, err := p.Acquire(ctx, q)
+	record, err := p.Resume(ctx, q)
 	if !errors.Is(err, context.Canceled) || record.Phase != store.UncertainControl || p.State().Enabled {
 		t.Fatal(record, err)
 	}
@@ -294,7 +309,7 @@ func TestPlayerWorldReplacementAfterIntentPreventsAcquire(t *testing.T) {
 		}
 		return world, nil
 	})
-	record, err := p.Acquire(context.Background(), q)
+	record, err := p.Resume(context.Background(), q)
 	if !errors.Is(err, store.ErrConflict) || record.Phase != store.UncertainControl || session.acquires.Load() != 0 || session.manuals.Load() != 0 {
 		t.Fatal(record, err)
 	}
@@ -306,7 +321,7 @@ func TestPlayerWorldReplacementAfterIntentPreventsAcquire(t *testing.T) {
 
 func TestPlayerRestartHistoricalPendingAndGrantedNeverEnable(t *testing.T) {
 	t.Parallel()
-	for _, phase := range []store.ControlPhase{store.PendingControl, store.GrantedControl} {
+	for _, phase := range []store.ControlPhase{store.PendingControl, store.RunningControl} {
 		t.Run(string(phase), func(t *testing.T) {
 			ctx := context.Background()
 			path := filepath.Join(t.TempDir(), "state.sqlite")
@@ -318,12 +333,12 @@ func TestPlayerRestartHistoricalPendingAndGrantedNeverEnable(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			q := store.ControlRequest{RequestID: "request", Kind: store.AcquireControl, World: submission.Request.World, Plan: submission.Plan, Revision: 1}
+			q := store.ControlRequest{RequestID: "request", Kind: store.ResumeControl, World: submission.Request.World}
 			record, _, err := db.BeginControl(ctx, q)
 			if err != nil {
 				t.Fatal(err)
 			}
-			if phase == store.GrantedControl {
+			if phase == store.RunningControl {
 				record, err = db.CompleteControl(ctx, q.RequestID, phase, 3)
 				if err != nil {
 					t.Fatal(err)
@@ -344,7 +359,7 @@ func TestPlayerRestartHistoricalPendingAndGrantedNeverEnable(t *testing.T) {
 				t.Fatal(err)
 			}
 			defer p.Close(ctx)
-			replay, err := p.Acquire(ctx, q)
+			replay, err := p.Resume(ctx, q)
 			if err != nil || replay != record || p.State().Enabled || session.acquires.Load() != 0 || worlds.calls != 0 {
 				t.Fatal(replay, err)
 			}
@@ -374,15 +389,14 @@ func TestPlayerActualSessionCleansPriorOwnedLeaseAndRejectsForeignOwner(t *testi
 	}
 	defer p.Close(ctx)
 	q := playerAcquire(t, p)
-	first, err := p.Acquire(ctx, q)
+	_, err = p.Resume(ctx, q)
 	if err != nil {
 		t.Fatal(err)
 	}
 	second := q
 	second.RequestID = "second"
-	second.ExpectedDirection = first.Direction
-	got, err := p.Acquire(ctx, second)
-	if err != nil || got.Direction != 2 || authority.acquires.Load() != 2 || authority.revokes.Load() != 1 || !p.State().Enabled {
+	got, err := p.Resume(ctx, second)
+	if err != nil || got.Phase != store.RunningControl || authority.acquires.Load() != 2 || authority.revokes.Load() != 1 || !p.State().Enabled {
 		t.Fatal(got, err)
 	}
 	// Simulate the native side reporting Auto authority whose generation counter
@@ -393,8 +407,7 @@ func TestPlayerActualSessionCleansPriorOwnedLeaseAndRejectsForeignOwner(t *testi
 	authority.mu.Unlock()
 	third := q
 	third.RequestID = "third"
-	third.ExpectedDirection = 2
-	got, err = p.Acquire(ctx, third)
+	got, err = p.Resume(ctx, third)
 	if err == nil || got.Phase != store.UncertainControl || authority.revokes.Load() != 1 || authority.acquires.Load() != 2 || p.State().Enabled {
 		t.Fatal(got, err)
 	}
@@ -426,7 +439,7 @@ func TestPlayerCloseDrainsBeforeSessionCloseAndRetriesFailure(t *testing.T) {
 		return domain.GenerationSnapshot{}, errors.New("late failure")
 	}
 	active := make(chan error, 1)
-	go func() { _, err := p.Acquire(context.Background(), q); active <- err }()
+	go func() { _, err := p.Resume(context.Background(), q); active <- err }()
 	<-entered
 	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Millisecond)
 	defer cancel()
@@ -473,11 +486,11 @@ func TestPlayerCompletionJournalFailureDisablesGrantedLease(t *testing.T) {
 	}
 	defer p.Close(ctx)
 	q := playerAcquire(t, p)
-	result, err := p.Acquire(ctx, q)
+	result, err := p.Resume(ctx, q)
 	if err == nil || result.Phase != store.PendingControl || p.State().Enabled || session.acquires.Load() != 1 {
 		t.Fatal(result, err)
 	}
-	replay, err := p.Acquire(ctx, q)
+	replay, err := p.Resume(ctx, q)
 	if err != nil || replay.Phase != store.PendingControl || session.acquires.Load() != 1 || p.State().Enabled {
 		t.Fatal(replay, err)
 	}

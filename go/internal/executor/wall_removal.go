@@ -181,7 +181,7 @@ func (e *Executor) reconcileWallRemoval(ctx context.Context, result Result, gene
 	return result, nil
 }
 
-// cascadeWallRemovalRetirement mirrors wall_upgrade.py's retire_batch: native
+// cascadeWallRemovalRetirement retires the batch: native
 // invalidated a pending demolition or backup removal, so same-plan actions
 // that transitively require it can no longer proceed as planned and are
 // cancelled rather than left to admit against a step that will never

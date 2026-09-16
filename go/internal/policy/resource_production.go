@@ -9,10 +9,9 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 )
 
-// MaintainResource-* pure primitives ported from
-// controller/rimgovernor/production_policy.py's
-// ingredient_deficits/observe_mining_progress/resource_method/
-// production_budgets. The dispatch vertical built on top of these
+// MaintainResource-* pure primitives:
+// ingredient deficits, mining progress, resource method,
+// production budgets. The dispatch vertical built on top of these
 // (buildingruntime.RoutineResourcePlanner) is a single
 // config-only policy.MaintainResource goal, mirroring EnsureResearch's
 // posture, whose method is a generic bench/recipe StockTarget production
@@ -32,8 +31,7 @@ type ResourceRequirement struct {
 }
 
 // ResourceRecipeDeficits computes, per ingredient slot alternative, the exact
-// native-required amount and the deficit against current stock. Mirrors
-// production_policy.py's ingredient_deficits: unknown per-alternative native
+// native-required amount and the deficit against current stock. Unknown per-alternative native
 // ingredient quantities (an unreadable recipe) can never be guessed at, so an
 // Unknown ingredients fact is refused rather than treated as zero-cost. The
 // [][]Amount shape matches policy.GearRecipe.Ingredients so both gear and
@@ -74,10 +72,9 @@ type DrillingProgress struct {
 
 // ResourceExtractionAdvanced reports whether excavation (a designated mine's
 // hit points decreasing) or drilling (an owned drill's progress increasing)
-// has advanced since the previously observed tick, mirroring
-// production_policy.py's observe_mining_progress. A tick at or before the
-// last observed progress can never itself establish an advance, matching the
-// Python guard against replaying stale native reads as new progress.
+// has advanced since the previously observed tick. A tick at or before the
+// last observed progress can never itself establish an advance, which guards
+// against replaying stale native reads as new progress.
 func ResourceExtractionAdvanced(tick, lastProgressTick domain.Tick, mining, priorMining []MiningProgress, drilling, priorDrilling []DrillingProgress) bool {
 	if tick < lastProgressTick {
 		return false
@@ -103,14 +100,12 @@ func ResourceExtractionAdvanced(tick, lastProgressTick domain.Tick, mining, prio
 	return false
 }
 
-// ProductionFloors mirrors production_policy.py's production_budgets reserve
-// half only: given RoutinePolicy's operator-declared per-resource reserve
-// floors and stopped-spending set, it returns the exact floors map (zero
-// reserves omitted, matching Python's "if v" filter) and the stopped
-// definitions sorted for deterministic dispatch. Python's production_budgets
-// also folds in a second source of floors -- outstanding, unconfirmed
-// construction-bundle ingredient costs from plan.control['costs'] -- which
-// has no Go equivalent yet; that half depends on the still-unported
+// ProductionFloors is the reserve half of the production budget only: given
+// RoutinePolicy's operator-declared per-resource reserve floors and
+// stopped-spending set, it returns the exact floors map (zero reserves
+// omitted) and the stopped definitions sorted for deterministic dispatch. A
+// second source of floors -- outstanding, unconfirmed construction-bundle
+// ingredient costs -- has no Go equivalent yet; that half depends on the still-unported
 // multi-step staged-bundle admission model MaintainStoneShell already needs
 // dedicated design work for, so it is not attempted here. This is a pure
 // primitive: nothing yet calls it, pending the native SetProductionPolicy
@@ -177,8 +172,7 @@ type ResourceSource struct {
 
 // SelectResourceSources chooses, nearest first, the undesignated sources
 // whose combined yield covers the outstanding deficit (target minus current
-// stock minus already-pending acquisition), mirroring
-// production_policy.py's resource_method acquisition loop. At most one
+// stock minus already-pending acquisition). At most one
 // "mine" source is ever selected per call — one excavation identity per
 // method preserves cancellation across a changing stock target without
 // retaining an unbounded second source ledger — and it is the last source
@@ -224,8 +218,7 @@ func SelectResourceSources(sources []ResourceSource, target, stock, pending int6
 }
 
 // ResourceStorage mirrors one native home/resource_sources "storage" payload
-// (NativeResourceSourcesTool.Storage, porting ResourceAcquisitionTools.Storage
-// exactly): production_policy.py's resource_method storage branch keys off
+// (NativeResourceSourcesTool.Storage): the storage branch keys off
 // exactly these fields (haulers/capacity/stackLimit/candidates) to decide
 // whether hauling a selected mine source's yield needs a new covered
 // stockpile zone. Candidates are native's own hauler-reachable, roofed,
@@ -237,8 +230,8 @@ type ResourceStorage struct {
 	Capacity   int64
 	Stored     int64
 	StackLimit int64
-	// Haulers is the count of eligible haulers native found (matching
-	// Python's `not storage.get('haulers')` emptiness check); the haulers'
+	// Haulers is the count of eligible haulers native found (only its
+	// emptiness is checked); the haulers'
 	// own identities are not threaded further since nothing here dispatches
 	// hauling jobs directly.
 	Haulers    int64
@@ -246,20 +239,19 @@ type ResourceStorage struct {
 }
 
 // ResourceStorageZone is the exact new allow-listed stockpile zone the
-// material-storage fallback should build, mirroring production_policy.py's
-// resource_method storage branch's create_zone operation.
+// material-storage fallback should build (the storage branch's create_zone
+// operation).
 type ResourceStorageZone struct {
 	Cells []domain.Cell
 }
 
 // SelectResourceStorageZone decides whether hauling a selection of resource
 // sources (from SelectResourceSources) needs a new covered stockpile zone,
-// mirroring production_policy.py's resource_method exactly: the check only
-// ever applies when at least one selected source is a "mine" source (an
-// ordinary harvest/hunt yield needs no dedicated storage zone the way
-// Python's own branch guard requires). blocked is true when there is no
-// route to funding storage at all this tick (no eligible hauler, or no free
-// candidate cell covers the shortfall) -- mirroring Python's SkillBlocked, a
+// as follows: the check only ever applies when at least one selected source
+// is a "mine" source (an ordinary harvest/hunt yield needs no dedicated
+// storage zone). blocked is true when there is no route to funding storage at
+// all this tick (no eligible hauler, or no free candidate cell covers the
+// shortfall) -- a
 // caller should treat this as a hard stop rather than silently proceeding as
 // if storage were adequate. needed is true only when blocked is false and a
 // new zone must be built; existing capacity already covering the deficit (or
@@ -314,13 +306,11 @@ func SelectResourceStorageZone(selected []ResourceSource, pending int64, storage
 // stock census, it picks the single resource whose stock is furthest below
 // its own target (by proportion, so a small target is not starved behind a
 // large one merely stuck a few units short), the same way one plan-wide
-// review would attend to its worst-covered floor first. Unlike
-// production_policy.py's policyResources gate (which refuses to act on a
-// resource native does not itself recognize as stocked at all), a configured
+// review would attend to its worst-covered floor first. A configured
 // resource absent from the census is treated as fully unstocked rather than
-// refused — Go has no decode of native policyResources yet to tell "unknown
+// refused — there is no decode of native policyResources yet to tell "unknown
 // definition" apart from "currently zero", a disclosed narrowing matching
-// medical_reserves.py's hardcoded-resource narrowing in
+// the hardcoded-resource narrowing in
 // buildingruntime.medicineResourceDefinition. ok is false when stock is not
 // yet known, no resource is configured, or every configured resource already
 // meets its target — there is nothing to dispatch a method for this tick.
@@ -420,7 +410,7 @@ func resourceMethodID(resource Resource, bench, recipe string) domain.MethodID {
 // at least Target units of Resource in stock, mirroring SelectMedicineMethod
 // exactly but over whichever resource SelectResourceTarget dynamically chose
 // rather than one hardcoded definition. It covers only the bench/recipe
-// production path of production_policy.py's resource_method — the native
+// production path of the resource method — the native
 // mine/harvest source-acquisition branch (SelectResourceSources above) and
 // the extraction-development branch are not dispatched from here; a resource
 // with no producing recipe and no covering bill is simply Blocked, matching

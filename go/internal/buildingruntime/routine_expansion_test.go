@@ -53,9 +53,8 @@ func TestExpansionAdmitsSparePlaceAndManualCancels(t *testing.T) {
 	if again, err := r.Step(ctx); err != nil || again.Reason != BuildingMethodExistingWork {
 		t.Fatal(again, err)
 	}
-	request.Kind, request.RequestID = store.ManualControl, "manual-expansion"
-	request.Plan, request.Revision = "", 0
-	if _, err = r.reviewer.player.Manual(ctx, request); err != nil {
+	request.Kind, request.RequestID = store.PauseControl, "manual-expansion"
+	if _, err = r.reviewer.player.Pause(ctx, request); err != nil {
 		t.Fatal(err)
 	}
 	plan, err = db.LoadPlan(ctx, plan.Spec.ID())

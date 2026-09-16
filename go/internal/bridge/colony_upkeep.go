@@ -11,6 +11,9 @@ func validateDirectUpkeep(v *o.UpkeepFacts, size *o.MapSize, mapID int32) error 
 	if v.HomeCoverage != nil {
 		counts["home_coverage"] = 1
 	}
+	if v.Lighting != nil {
+		counts["lighting"] = 1
+	}
 	for _, n := range counts {
 		if n > 256 {
 			return contract("upkeep census exceeds bound")
@@ -55,7 +58,7 @@ func validateDirectUpkeep(v *o.UpkeepFacts, size *o.MapSize, mapID int32) error 
 	}
 	seen = map[string]bool{}
 	for _, row := range v.Filth {
-		if row == nil || !entity(row.Filth, seen) || row.RoomRole != nil && validID(row.GetRoomRole()) != nil || !proto.Equal(row, &o.FilthState{Filth: row.Filth, Home: row.Home, Thickness: row.Thickness, RoomRole: row.RoomRole}) {
+		if row == nil || !entity(row.Filth, seen) || row.RoomRole != nil && validID(row.GetRoomRole()) != nil || row.RoomId != nil && validID(row.GetRoomId()) != nil || !proto.Equal(row, &o.FilthState{Filth: row.Filth, Home: row.Home, Thickness: row.Thickness, RoomRole: row.RoomRole, RoomId: row.RoomId}) {
 			return contract("invalid upkeep filth")
 		}
 	}
@@ -133,6 +136,61 @@ func validateDirectUpkeep(v *o.UpkeepFacts, size *o.MapSize, mapID int32) error 
 					return contract("Home deficit exceeds footprint")
 				}
 			}
+		}
+	}
+	if v.Lighting != nil {
+		if err := validateLighting(v.Lighting, size, mapID, entity); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// validateLighting checks the lighting section: work cells are unique bench
+// refs at in-map cells with a unit glow, lamps are unique building states
+// carrying only the service detail the power census also allows.
+func validateLighting(section *o.LightingSection, size *o.MapSize, mapID int32, entity func(*o.EntityRef, map[string]bool) bool) error {
+	l := section.GetObserved()
+	if l == nil {
+		return validateUnavailable(section.GetUnavailable())
+	}
+	if colonyCounts(l.Completeness, len(l.WorkCells)+len(l.Lamps), 512) != nil || len(l.WorkCells) > 256 || len(l.Lamps) > 256 {
+		return contract("invalid lighting census")
+	}
+	benches := map[string]bool{}
+	for _, row := range l.WorkCells {
+		if row == nil || !entity(row.Bench, benches) || !colonyCell(row.Cell, size) || row.RoomId != nil && validID(row.GetRoomId()) != nil || !proto.Equal(row, &o.WorkLightCell{Bench: row.Bench, Cell: row.Cell, Glow: row.Glow, Roofed: row.Roofed, RoomId: row.RoomId}) {
+			return contract("invalid lighting work cell")
+		}
+		if row.Glow != nil && (math.IsNaN(row.GetGlow()) || row.GetGlow() < 0 || row.GetGlow() > 1) {
+			return contract("invalid lighting glow")
+		}
+	}
+	lamps := map[string]bool{}
+	for _, row := range l.Lamps {
+		b := row.GetBuilding()
+		if row == nil || b == nil || !entity(b.Building, lamps) || row.RoomId != nil && validID(row.GetRoomId()) != nil || !proto.Equal(row, &o.LampState{Building: b, GlowRadius: row.GlowRadius, Lit: row.Lit, RoomId: row.RoomId}) || !proto.Equal(b, &o.BuildingState{Building: b.Building, Service: b.Service}) {
+			return contract("invalid lighting lamp")
+		}
+		if row.GlowRadius != nil && (math.IsNaN(row.GetGlowRadius()) || row.GetGlowRadius() < 0 || row.GetGlowRadius() > 1e3) {
+			return contract("invalid lamp glow radius")
+		}
+		s := b.Service
+		if s == nil || !proto.Equal(s, &o.BuildingServiceState{Connected: s.Connected, PowerOn: s.PowerOn, PowerOutputW: s.PowerOutputW, SwitchedOn: s.SwitchedOn, Fuel: s.Fuel, TargetFuel: s.TargetFuel, OutOfFuel: s.OutOfFuel, BrokenDown: s.BrokenDown, AllowedFuelDefs: s.AllowedFuelDefs}) || len(s.AllowedFuelDefs) > 256 {
+			return contract("unsupported lamp service detail")
+		}
+		for _, def := range s.AllowedFuelDefs {
+			if validID(def) != nil {
+				return contract("invalid lamp fuel definition")
+			}
+		}
+		for _, value := range []*float64{s.Fuel, s.TargetFuel} {
+			if value != nil && (math.IsNaN(*value) || math.IsInf(*value, 0) || *value < 0 || *value > 1e12) {
+				return contract("invalid lamp service quantity")
+			}
+		}
+		if s.PowerOutputW != nil && (math.IsNaN(s.GetPowerOutputW()) || math.IsInf(s.GetPowerOutputW(), 0) || math.Abs(s.GetPowerOutputW()) > 1e12) {
+			return contract("invalid lamp wattage")
 		}
 	}
 	return nil

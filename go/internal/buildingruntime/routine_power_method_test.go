@@ -123,8 +123,8 @@ func TestRoutinePowerAdmitsSharedWorkAndManualCancels(t *testing.T) {
 			if next, err := p.Step(context.Background()); err != nil || next.Reason != BuildingMethodExistingWork || n.previews != want {
 				t.Fatal(next, err)
 			}
-			request.Kind, request.RequestID, request.Plan, request.Revision = store.ManualControl, "manual-power", "", 0
-			if _, err = p.reviewer.player.Manual(context.Background(), request); err != nil {
+			request.Kind, request.RequestID = store.PauseControl, "manual-power"
+			if _, err = p.reviewer.player.Pause(context.Background(), request); err != nil {
 				t.Fatal(err)
 			}
 			plan, err = db.LoadPlan(context.Background(), plan.Spec.ID())
@@ -171,7 +171,7 @@ func TestRoutinePowerRejectsUnsafeIncompleteAndUnaffordableRoutes(t *testing.T) 
 						preview.Stock.Values[0].Available = domain.Known(int64(2))
 					case "cancelled":
 						p.reviewer.player.session.(*playerFakeSession).mu.Lock()
-						p.reviewer.player.session.(*playerFakeSession).state.Snapshot.Direction++
+						p.reviewer.player.session.(*playerFakeSession).state.Snapshot.Native++
 						p.reviewer.player.session.(*playerFakeSession).mu.Unlock()
 					}
 				}
@@ -181,7 +181,7 @@ func TestRoutinePowerRejectsUnsafeIncompleteAndUnaffordableRoutes(t *testing.T) 
 				t.Fatal("invalid power work admitted", result)
 			}
 			plans, err := db.LoadPlans(context.Background(), 256)
-			if err != nil || len(plans) != 1 {
+			if err != nil || len(plans) != 2 {
 				t.Fatal("partial power method", plans, err)
 			}
 		})
@@ -202,7 +202,7 @@ func TestRoutinePowerMissingNativeComponentsPreventsGeneration(t *testing.T) {
 		t.Fatal(result, err)
 	}
 	plans, err := db.LoadPlans(context.Background(), 256)
-	if err != nil || len(plans) != 1 {
+	if err != nil || len(plans) != 2 { // the guidance submission and the empty root plan
 		t.Fatal("unfunded generation was journaled", plans, err)
 	}
 }

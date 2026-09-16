@@ -15,11 +15,6 @@ type WorkerConfig struct {
 	RoutineMethods                        bool
 	StepInterval, MaxBackoff, StepTimeout time.Duration
 	RenewInterval, RenewTimeout           time.Duration
-	// PlayerPriorityGrace bounds how long the acquired plan's own pending work
-	// may hold exclusive priority over routine dispatch (see step's use of
-	// playerPendingSince). Zero means unbounded priority, matching prior
-	// behavior.
-	PlayerPriorityGrace time.Duration
 }
 
 // routineExecutableKind lists every action kind the worker (and, for a
@@ -33,9 +28,9 @@ func routineExecutableKind(kind domain.ActionKind) bool {
 	case domain.BuildingAction, domain.OwnedDraftAction, domain.MeleeAttackAction, domain.RangedAttackAction,
 		domain.SupplyAllowAction, domain.WorkAssignmentAction, domain.AcquisitionAction, domain.ZoneCreateAction,
 		domain.ProductionBillAction, domain.TendAction, domain.RescueAction, domain.CaptureAction, domain.HaulAction, domain.EquipAction,
-		domain.GearReplaceAction, domain.RecoveryServiceAction, domain.BedAssignAction, domain.HusbandryAction,
+		domain.GearReplaceAction, domain.RecoveryServiceAction, domain.HusbandryAction,
 		domain.PrisonerInteractionAction, domain.RepairAction, domain.CleanAction, domain.MineAcquisitionAction,
-		domain.ProductionPolicyAction, domain.SurgeryAction, domain.ExcavationAction:
+		domain.ProductionPolicyAction, domain.BuildingTemperatureAction, domain.ExcavationAction:
 		return true
 	default:
 		return false
@@ -61,9 +56,8 @@ type Worker struct {
 	done        chan struct{}
 	stopContext func() bool
 	// Only the step loop accesses scheduling state. The catalog bounds this map.
-	waits              map[domain.ActionID]workerWait
-	cursor             domain.ActionID
-	playerPendingSince time.Time
+	waits  map[domain.ActionID]workerWait
+	cursor domain.ActionID
 }
 
 type workerCandidate struct {
@@ -89,7 +83,7 @@ func NewWorker(ctx context.Context, config WorkerConfig, player *Player, session
 	return newWorker(ctx, config, player, session)
 }
 func newWorker(ctx context.Context, config WorkerConfig, player *Player, session workerSession) (*Worker, error) {
-	if player == nil || session == nil || player.session != session || config.StepInterval <= 0 || config.MaxBackoff < config.StepInterval || config.MaxBackoff > time.Minute || config.StepTimeout <= 0 || config.StepTimeout > player.config.CallTimeout || config.PlayerPriorityGrace < 0 {
+	if player == nil || session == nil || player.session != session || config.StepInterval <= 0 || config.MaxBackoff < config.StepInterval || config.MaxBackoff > time.Minute || config.StepTimeout <= 0 || config.StepTimeout > player.config.CallTimeout {
 		return nil, ErrControl
 	}
 	player.mu.Lock()
@@ -144,7 +138,9 @@ func (w *Worker) steps() {
 		if w.ctx.Err() != nil {
 			return
 		}
-		_ = w.step(w.ctx, time.Now())
+		if err := w.step(w.ctx, time.Now()); err != nil {
+			clockSchedulerLog("worker step: %v", err)
+		}
 		select {
 		case <-w.ctx.Done():
 			return
@@ -188,48 +184,27 @@ func (w *Worker) step(ctx context.Context, now time.Time) error {
 	}
 	live := make(map[domain.ActionID]bool)
 	var candidates []workerCandidate
-	playerPending := false
-	for _, plan := range plans {
-		if plan.Spec.ID() != scope.Snapshot.Plan {
-			continue
-		}
-		for _, progress := range plan.Progress {
-			v := progress.View()
-			if !v.Unresolved && workerEligible(plan, v, scope, world) {
-				playerPending = true
-			}
-		}
-	}
-	// playerPending's own eligible-but-undispatched work takes priority over
-	// routine dispatch below, but only until PlayerPriorityGrace elapses: an
-	// acquired plan action that can never resolve (missing material, blocked
-	// tile, ...) would otherwise starve every routine family indefinitely.
-	// A zero grace preserves that unbounded priority for callers that rely on
-	// it (see TestRoutineWorkerPreservesPlayerPriorityAndCancellation).
-	if playerPending {
-		if w.playerPendingSince.IsZero() {
-			w.playerPendingSince = now
-		}
-	} else {
-		w.playerPendingSince = time.Time{}
-	}
-	priorityExpired := playerPending && w.config.PlayerPriorityGrace > 0 && now.Sub(w.playerPendingSince) >= w.config.PlayerPriorityGrace
+	// One author: the root plan carries authority, and every other plan --
+	// routine method or player submission -- is dispatched under it once
+	// authorized. There is no priority arbitration between them.
 	for _, plan := range plans {
 		planScope := scope
-		if w.config.RoutineMethods && scope.Enabled && scope.ObservationKnown && plan.Spec.ID() != scope.Snapshot.Plan {
+		if scope.Enabled && scope.ObservationKnown && plan.Spec.ID() != scope.Snapshot.Plan {
 			target := scope.Snapshot
 			target.Plan, target.Revision = plan.Spec.ID(), plan.Spec.Revision()
-			if err := w.player.journal.AuthorizeRoutinePlan(call, scope.Snapshot, target); err == nil {
+			if (planAuthorizer{w.player.journal, w.config.RoutineMethods}).AuthorizeRoutinePlan(call, scope.Snapshot, target) == nil {
 				planScope.Snapshot = target
+			} else if clockSchedulerDebug {
+				clockSchedulerLog("worker: authorize plan=%s root=%+v err=%v", plan.Spec.ID(), scope.Snapshot, err)
 			}
 		}
 		for _, progress := range plan.Progress {
 			v := progress.View()
-			if playerPending && !priorityExpired && planScope.Snapshot != scope.Snapshot && routineExecutableKind(progress.Action().Kind()) && !v.Unresolved {
-				continue
-			}
 			cleanup := workerCleanupEligible(plan, v, scope, world)
 			routineObservation := w.config.RoutineMethods && v.Unresolved && routineExecutableKind(progress.Action().Kind()) && playerWorld(v.Snapshot) == world
+			if clockSchedulerDebug && progress.Action().Kind() == domain.BuildingTemperatureAction {
+				clockSchedulerLog("worker: temperature candidate action=%s stage=%v authorized=%v eligible=%v worldErr=%v", v.Action, v.Stage, planScope.Snapshot != scope.Snapshot, workerEligible(plan, v, planScope, world), worldErr)
+			}
 			if cleanup || worldErr == nil && (routineObservation || workerEligible(plan, v, planScope, world)) {
 				live[v.Action] = true
 				candidates = append(candidates, workerCandidate{view: v, cleanup: cleanup})
@@ -279,6 +254,9 @@ func (w *Worker) step(ctx context.Context, now time.Time) error {
 		if result.Progress.View().Action == v.Action {
 			after = result.Progress.View()
 		}
+		if clockSchedulerDebug {
+			clockSchedulerLog("worker: action=%s kind=%v cleanup=%v stage=%v->%v err=%v", v.Action, candidate.view.Plan, candidate.cleanup, v.Stage, after.Stage, err)
+		}
 		delay := w.config.StepInterval
 		if after == v && wait.view == v && wait.scope == workerScope(scope) && wait.cleanup == candidate.cleanup {
 			delay = wait.delay * 2
@@ -287,6 +265,7 @@ func (w *Worker) step(ctx context.Context, now time.Time) error {
 			}
 		}
 		w.waits[v.Action] = workerWait{cleanup: candidate.cleanup, view: after, scope: workerScope(w.session.State()), delay: delay, until: now.Add(delay)}
+		clockSchedulerLog("worker ran %s: stage %s -> %s attempt %d err=%v", v.Action, v.Stage, after.Stage, after.Attempt, err)
 		return errors.Join(worldErr, err)
 	}
 	return worldErr
@@ -321,11 +300,12 @@ func workerEligible(plan store.PlanState, v domain.ProgressView, scope ControlSt
 	if v.Attempt == 0 {
 		return v.Stage != domain.Prepared || v.Snapshot == scope.Snapshot
 	}
-	// A trusted refusal is a no-effect proof. Only a new explicit direction can
-	// authorize another attempt; an unknown receipt always stays reconciliation.
+	// A trusted refusal is a no-effect proof. Only a later resume (a newer
+	// native generation) authorizes another attempt; an unknown receipt always
+	// stays reconciliation.
 	receipt, known := v.Receipt.Value()
 	effect, effectKnown := v.Effect.Value()
-	return v.Stage == domain.Pending && known && receipt == domain.ReceiptRefused && effectKnown && effect == domain.EffectAbsent && playerWorld(v.Snapshot) == world && scope.Snapshot.Direction > v.Snapshot.Direction
+	return v.Stage == domain.Pending && known && receipt == domain.ReceiptRefused && effectKnown && effect == domain.EffectAbsent && playerWorld(v.Snapshot) == world && scope.Snapshot.Native > v.Snapshot.Native
 }
 
 // Read reconciliation may rotate plan targets without changing world authority.
@@ -334,7 +314,6 @@ func workerScope(scope ControlState) ControlState {
 	if !scope.Enabled {
 		scope.Snapshot.Plan = ""
 		scope.Snapshot.Revision = 0
-		scope.Snapshot.Direction = 0
 	}
 	return scope
 }

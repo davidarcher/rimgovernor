@@ -1,5 +1,4 @@
-// Command guardedconstructionaccept replaces scripts/native_guarded_construction_
-// acceptance.py: disposable ordinary WoodLog Wall construction under guarded
+// Command guardedconstructionaccept proves disposable ordinary WoodLog Wall construction under guarded
 // authority, external-authority-revocation semantics (manual/external-order/
 // player-control/lease-expiry), attempt-conflict and replay idempotency, and Go
 // durable restart reconciliation (cmd/buildingsmoke) against a private game running
@@ -410,7 +409,7 @@ func run(ctx context.Context, root, output, gameID, buildingSmoke, expectedOutco
 	if na.AsString(construction["stage"]) != "CONSTRUCTION_STAGE_BLUEPRINT" {
 		return fmt.Errorf("place-cancel-site: expected a Blueprint stage, got %#v", construction)
 	}
-	if err := typedBuilding("typed-python-blueprint", site1, "blueprint", na.AsString(construction["currentThingId"])); err != nil {
+	if err := typedBuilding("typed-blueprint", site1, "blueprint", na.AsString(construction["currentThingId"])); err != nil {
 		return err
 	}
 	attempt := attemptRef(identity, request)
@@ -520,7 +519,7 @@ func run(ctx context.Context, root, output, gameID, buildingSmoke, expectedOutco
 	if _, ok := cancelProgress["unsuccessful"]; !ok {
 		return fmt.Errorf("cancel-progress: expected an unsuccessful outcome, got %#v", cancelProgress)
 	}
-	if err := typedBuilding("typed-python-cancelled-empty", site1, "", ""); err != nil {
+	if err := typedBuilding("typed-cancelled-empty", site1, "", ""); err != nil {
 		return err
 	}
 
@@ -849,8 +848,7 @@ func unwrapPayload(structured map[string]any) (map[string]any, error) {
 
 // placeRequest builds an operations_execute placeBuilding request under grant's
 // lease for site (already a full placement: defName/stuff/rotation/x/z, as returned
-// by test/guarded_construction_prepare), mirroring native_guarded_construction_
-// acceptance.py's execute().
+// by test/guarded_construction_prepare).
 func placeRequest(identity, grant map[string]any, number int, site map[string]any) map[string]any {
 	grantContext, _ := na.AsMap(grant["context"])
 	return map[string]any{
@@ -917,8 +915,7 @@ func flattenIdentity(identity map[string]any, extra map[string]any) map[string]a
 	return out
 }
 
-// acquireWithLease acquires a fresh authority grant with an explicit leaseMs,
-// mirroring native_guarded_construction_acceptance.py's acquire(label, duration)
+// acquireWithLease acquires a fresh authority grant with an explicit leaseMs
 // for its one non-default-duration case (the lease-expiry scenario).
 func acquireWithLease(ctx context.Context, h *na.Harness, identity map[string]any, owner, label string, leaseMs int) (map[string]any, error) {
 	statusReply, err := h.Wire(ctx, label+"-status", "authority_read_status", map[string]any{"identity": identity})
@@ -942,7 +939,7 @@ func acquireWithLease(ctx context.Context, h *na.Harness, identity map[string]an
 }
 
 // equalExcept reports whether a and b are deeply equal after dropping key from
-// both, mirroring the Python before/after dict-comprehension comparison.
+// both.
 func equalExcept(a, b map[string]any, key string) bool {
 	left, right := map[string]any{}, map[string]any{}
 	for k, v := range a {
@@ -958,8 +955,7 @@ func equalExcept(a, b map[string]any, key string) bool {
 	return na.DeepEqual(left, right)
 }
 
-// goPhase spawns a fresh cmd/buildingsmoke process in mode ("place" or "observe"),
-// mirroring native_guarded_construction_acceptance.py's go_phase(). state is
+// goPhase spawns a fresh cmd/buildingsmoke process in mode ("place" or "observe"). state is
 // reused across both phases (place creates it, observe reopens it).
 func goPhase(ctx context.Context, binary, gabsExecutable, configuration, profile, state, output, gameID,
 	mode, expectedOutcome, requestPath string, report na.Report) (map[string]any, error) {

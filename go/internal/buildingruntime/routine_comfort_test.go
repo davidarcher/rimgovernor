@@ -114,7 +114,7 @@ func TestRoutineBuildingNativeUseBudgetRequiresOutcomeAndCurrentDirection(t *tes
 					t.Fatal(row, got, want)
 				}
 			}
-			current.Direction++
+			current.Native++
 			if budget(state, current, 100) != 0 {
 				t.Fatal("new direction inherited time")
 			}
@@ -165,7 +165,7 @@ func TestComfortCompilerResolvesNativeMaterialAndDiningAdjacency(t *testing.T) {
 	census := policy.ComfortObservation{People: people}
 	facts := observation.ColonyProjection{Facts: policy.RoutineFacts{Comfort: domain.Known(census)}, Definitions: []observation.PlanningDefinition{{Name: "Table1x2c", Stuff: domain.Known("WoodLog")}, {Name: "DiningChair", Stuff: domain.Known("WoodLog")}}}
 	selected, reason, err := planner.selectComfort(facts, policy.ComfortHistory{})
-	if err != nil || reason != "" || selected.definition != "Table1x2c" || selected.stuff != "WoodLog" || selected.environment != policy.PlacementIndoors {
+	if err != nil || reason != "" || selected.definition != "Table1x2c" || selected.stuff != "WoodLog" || selected.environment != policy.PlacementIndoors || selected.facility == nil || selected.facility.Role != policy.RoomRoleDiningRoom {
 		t.Fatal(selected, reason, err)
 	}
 	census.Surfaces = []policy.DiningSurface{{ID: "table", Adjacent: []domain.Cell{{X: 2, Z: 3}}}}
@@ -177,7 +177,7 @@ func TestComfortCompilerResolvesNativeMaterialAndDiningAdjacency(t *testing.T) {
 	census.Dining = []policy.ComfortFacility{{ID: "chair", AccessibleTo: people}}
 	facts.Facts.Comfort = domain.Known(census)
 	selected, reason, err = planner.selectComfort(facts, policy.ComfortHistory{})
-	if err != nil || reason != "" || selected.definition != "HorseshoesPin" || selected.environment != policy.PlacementAnywhere {
+	if err != nil || reason != "" || selected.definition != "HorseshoesPin" || selected.environment != policy.PlacementIndoors || selected.facility == nil || selected.facility.Role != policy.RoomRoleRecRoom {
 		t.Fatal(selected, reason, err)
 	}
 	census.Recreation = []policy.ComfortFacility{{ID: "hoop", AccessibleTo: people}}
@@ -188,5 +188,57 @@ func TestComfortCompilerResolvesNativeMaterialAndDiningAdjacency(t *testing.T) {
 	}
 	if planner.definition != "" || planner.stuff != "" || len(planner.adjacent) != 0 {
 		t.Fatal("selection mutated reusable compiler", planner)
+	}
+}
+
+func TestComfortFurnishingOnlyPreviewsHostingRoomsAndFallsBackToShell(t *testing.T) {
+	t.Parallel()
+	dining, _ := policy.Facility(policy.RoomRoleDiningRoom)
+	site := func(cells ...domain.Cell) []policy.SiteCell {
+		var rows []policy.SiteCell
+		for _, c := range cells {
+			rows = append(rows, policy.SiteCell{Cell: c, Walkable: domain.Known(true), Occupied: domain.Known(false), Zone: domain.Known(false), Roofed: domain.Known(true), Indoors: domain.Known(true)})
+		}
+		return rows
+	}
+	barracks, hosting := domain.Cell{X: 2, Z: 2}, domain.Cell{X: 3, Z: 2}
+	for _, test := range []struct {
+		name   string
+		rooms  domain.Fact[policy.RoomObservation]
+		reason RoutineBuildingReason
+		cell   domain.Cell
+	}{
+		{"hosting room only", domain.Known(policy.RoomObservation{Rooms: []policy.Room{{ID: "b", Role: domain.Known(policy.RoomRoleBarracks), Cells: []domain.Cell{barracks}}, {ID: "d", Role: domain.Known(policy.RoomRoleRecRoom), Cells: []domain.Cell{hosting}}}}), "", hosting},
+		{"no hosting room", domain.Known(policy.RoomObservation{Rooms: []policy.Room{{ID: "b", Role: domain.Known(policy.RoomRoleBarracks), Cells: []domain.Cell{barracks, hosting}}}}), BuildingMethodNoSpace, domain.Cell{}},
+		{"census unknown", domain.Unknown[policy.RoomObservation](), BuildingMethodUnknown, domain.Cell{}},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			planner, _, session, _, native := sleepingFixture(t)
+			planner.goal, planner.definition, planner.environment, planner.facility = policy.EnsureComfort, "Table1x2c", policy.PlacementIndoors, &dining
+			native.onPreview = func(_ context.Context, p *bridge.BuildingPreview) {
+				b, _ := p.Preview.Action.Building()
+				p.Preview.Footprint = domain.Known([]domain.Cell{b.Cell()})
+			}
+			facts := observation.ColonyProjection{Bounds: policy.Bounds{Width: 10, Height: 10}, Center: domain.Cell{X: 2, Z: 2}, Identity: observation.Identity{Tick: domain.Tick(native.reply.GetObserved().Context.GetTick())}, Cells: site(barracks, hosting), Rooms: test.rooms}
+			selected, _, reason, err := planner.previewMethod(context.Background(), session.State().Snapshot, facts, nil, 1, func() error { return nil })
+			if err != nil || reason != test.reason {
+				t.Fatal(selected, reason, err)
+			}
+			if reason != "" {
+				if native.previews != 0 {
+					t.Fatal("previewed outside a hosting room", native.previews)
+				}
+				return
+			}
+			b, _ := selected[0].Action.Building()
+			if len(selected) != 1 || b.Cell() != test.cell || native.previews != 1 {
+				t.Fatal(selected, native.previews)
+			}
+		})
+	}
+	shell := &RoutineBuildingPlanner{goal: policy.EnsureComfort, definition: "Wall", shelter: true}
+	facts := observation.ColonyProjection{Facts: policy.RoutineFacts{Colonists: domain.Known(int64(2))}}
+	if missing, method, reason := shell.selection(facts); missing != 32 || method != "comfort-shell" || reason != "" {
+		t.Fatal(missing, method, reason)
 	}
 }

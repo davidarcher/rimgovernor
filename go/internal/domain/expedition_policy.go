@@ -5,10 +5,8 @@ import (
 	"math"
 )
 
-// Expedition policy bounds mirror Python
-// controller/rimgovernor/expedition_policy.py's ExpeditionPolicy field
-// constraints exactly, including maximumTravelDays' exclusive lower bound
-// (pydantic gt=0) and the two asymmetric destination-temperature windows.
+// Expedition policy bounds, including maximumTravelDays' exclusive lower bound
+// and the two asymmetric destination-temperature windows.
 const (
 	minExpeditionHomeColonists    int32 = 1
 	maxExpeditionHomeColonists    int32 = 100
@@ -79,15 +77,13 @@ type ExpeditionPolicyFields struct {
 // Like PopulationPolicy it deliberately has no ActionKind, no action
 // constructor and no executor/bridge boundary. Setting expedition limits
 // issues no native RimWorld call, so there is no CAS token to hold, no
-// receipt to verify and no completing Observation to require; the Python
-// controller does exactly one assignment into
-// plan.control['expedition_policy']. See store.SubmitExpeditionPolicy for the
-// persistence side and interpreter.Proposal.ExpeditionPolicy for how it
-// leaves the interpreter without a plan.
+// receipt to verify and no completing Observation to require. See store.SubmitExpeditionPolicy for the
+// persistence side and interpreter.Guidance.ExpeditionPolicy for the chat
+// nudge that feeds it.
 //
 // This is a distinct concept from policy.CaravanDeparturePolicy and
 // policy.WorldEvaluationPolicy. Those two are hardcoded, read-only, narrower
-// subsets of the same Python contract, each consumed by one internal
+// subsets of the same contract, each consumed by one internal
 // admission or evaluation function. This value is the writable player-facing
 // whole. Making those two read from this store is a separate refactor and is
 // deliberately not attempted here.
@@ -95,9 +91,8 @@ type ExpeditionPolicy struct {
 	fields ExpeditionPolicyFields
 }
 
-// DefaultExpeditionPolicyFields mirrors the Python contract's field defaults,
-// which are what policy_for(plan) yields when the player has never set a
-// policy for the plan at all.
+// DefaultExpeditionPolicyFields are the defaults in force when the player has
+// never set a policy for the plan at all.
 func DefaultExpeditionPolicyFields() ExpeditionPolicyFields {
 	return ExpeditionPolicyFields{
 		MinimumHomeColonists:          1,
@@ -193,8 +188,8 @@ func (p ExpeditionPolicy) KeepHomeDoctor() bool       { return p.fields.KeepHome
 func (p ExpeditionPolicy) RequireReturnStorage() bool { return p.fields.RequireReturnStorage }
 
 // ExpeditionPolicyPatch is one explicit player request to change some of the
-// expedition limits. Unlike PopulationPolicy's full replacement, the Python
-// SetExpeditionPolicy command applies model_dump(exclude_unset=True) over the
+// expedition limits. Unlike PopulationPolicy's full replacement, the patch
+// is merged over the
 // policy in force, so a request that names only maximumTravelDays must leave
 // every other limit exactly as it stands. Absence is therefore meaningful and
 // is carried here by Optional rather than by a sentinel value.
@@ -272,8 +267,7 @@ func optionalFloat(o Optional[float64], low, high float64, exclusiveLow bool, na
 // Apply merges the request over the policy in force and validates the whole
 // result, which is what makes an unset field keep its established value. An
 // unset base (a world whose player has never submitted a policy) merges over
-// DefaultExpeditionPolicy, mirroring Python's
-// ExpeditionPolicy.model_validate(plan.control.get('expedition_policy', {})).
+// DefaultExpeditionPolicy.
 func (q ExpeditionPolicyPatch) Apply(base ExpeditionPolicy) (ExpeditionPolicy, error) {
 	if err := q.Validate(); err != nil {
 		return ExpeditionPolicy{}, err

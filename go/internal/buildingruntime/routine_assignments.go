@@ -85,7 +85,11 @@ func (r *RoutineWorkPlanner) step(call, epoch context.Context, arbiter *stepArbi
 	if err != nil {
 		return RoutineWorkResult{}, err
 	}
-	definitions := routineProjectDefinitions(plans, state.Snapshot)
+	playerPlans, err := p.journal.PlayerPlans(call, playerWorld(state.Snapshot))
+	if err != nil {
+		return RoutineWorkResult{}, err
+	}
+	definitions := routineProjectDefinitions(plans, state.Snapshot, playerPlans)
 	identity, _, err := r.reviewer.native.Identity(call)
 	if err != nil {
 		return RoutineWorkResult{}, err
@@ -144,8 +148,16 @@ func (r *RoutineWorkPlanner) step(call, epoch context.Context, arbiter *stepArbi
 			if !ok {
 				return RoutineWorkResult{}, ErrControl
 			}
-			if old != setting.Priority {
-				changed = append(changed, domain.WorkSetting{Definition: string(setting.Work), Priority: int32(setting.Priority)})
+			// Checkbox mode (manual priorities off) only knows enabled (3)
+			// or disabled (0): the numbered ranks the policy chooses collapse
+			// to that pair, matching how policy.AssignWork judges Matches and
+			// what domain.NewWorkAssignment admits for a non-manual pawn.
+			want := setting.Priority
+			if !manual && want > 0 {
+				want = 3
+			}
+			if old != want {
+				changed = append(changed, domain.WorkSetting{Definition: string(setting.Work), Priority: int32(want)})
 			}
 		}
 		if len(changed) == 0 {

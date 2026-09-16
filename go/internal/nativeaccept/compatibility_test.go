@@ -116,7 +116,7 @@ func TestBinderObservationDoesNotMistakeLegacyDropForValidation(t *testing.T) {
 	}
 }
 
-// writeSaveXML mirrors test_native_compatibility_acceptance.py's save_xml() fixture.
+// writeSaveXML writes a save fixture with optional duplicate or missing components.
 func writeSaveXML(t *testing.T, path string, duplicateGame, duplicateMap, missing bool) {
 	t.Helper()
 	games := make([]string, 0, len(GameComponents))

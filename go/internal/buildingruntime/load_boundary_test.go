@@ -186,7 +186,6 @@ func TestLoadBoundaryRejectsInvalidRequestShape(t *testing.T) {
 	for name, request := range map[string]LoadRequest{
 		"empty request id": {RequestID: "", SaveName: "save-1"},
 		"empty save name":  {RequestID: "req-1", SaveName: ""},
-		"zero direction":   {RequestID: "req-1", SaveName: "save-1", HasPlayerDirection: true, PlayerDirection: 0},
 		"empty colony":     {RequestID: "req-1", SaveName: "save-1", HasExpectedColony: true, ExpectedColony: ""},
 		"deadline passed":  {RequestID: "req-1", SaveName: "save-1", Deadline: time.Now().Add(-time.Second)},
 	} {

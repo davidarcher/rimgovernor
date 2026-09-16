@@ -57,7 +57,7 @@ func (s *ClockScheduler) RenewEpoch(ctx context.Context) (ClockRenewResult, erro
 	if owned == nil {
 		return out, nil
 	}
-	if !state.Enabled || !state.ObservationKnown || state.Snapshot.Validate() != nil || state.Snapshot.Native == 0 || state.Snapshot.Direction == 0 || state.Snapshot.Revision == 0 {
+	if !state.Enabled || !state.ObservationKnown || state.Snapshot.Validate() != nil || state.Snapshot.Native == 0 || state.Snapshot.Revision == 0 {
 		return out, s.renewalHold(executor.ErrAuthority)
 	}
 	if owned.Stage != store.ClockEpochRequired {

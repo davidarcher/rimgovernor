@@ -1,4 +1,4 @@
-// Command roomsaccept replaces scripts/native_rooms_acceptance.py: full disposable-
+// Command roomsaccept proves the full disposable-
 // worker lifecycle plus typed room reads (geometry, native stats, contents, cells)
 // compared against the legacy home/list_rooms getter on a naturally generated map.
 package main

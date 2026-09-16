@@ -78,8 +78,7 @@ func TestResourcePolicySubmissionReplayConflictAndReopen(t *testing.T) {
 }
 
 // Each command patches one half of one resource and dispatches the world's
-// whole merged policy, exactly as Python's policy_arguments rebuilds the full
-// floors/stopped arguments from the whole of plan.control['resource_policy'].
+// whole merged policy, rebuilt from every recorded directive.
 func TestResourcePolicyMergesHalvesAndDispatchesWholeSet(t *testing.T) {
 	t.Parallel()
 	ctx := context.Background()

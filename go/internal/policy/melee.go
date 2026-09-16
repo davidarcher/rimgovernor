@@ -26,7 +26,7 @@ func EvaluateMeleeDefense(r MeleeDefenseRequest) DraftDecision {
 	}
 	v, d := r.Progress.View(), r.DraftProgress.View()
 	f := r.Facts
-	if r.Current.Validate() != nil || r.Current.Native == 0 || r.Current.Direction == 0 || !f.Snapshot.Matches(r.Current) || r.MinimumTick < 0 || f.PawnTick < r.MinimumTick || f.PreviewTick < f.PawnTick {
+	if r.Current.Validate() != nil || r.Current.Native == 0 || !f.Snapshot.Matches(r.Current) || r.MinimumTick < 0 || f.PawnTick < r.MinimumTick || f.PreviewTick < f.PawnTick {
 		return refuse(StaleFacts)
 	}
 	if r.Progress.Action() != r.Action || v.Plan != r.Current.Plan || v.Revision != r.Current.Revision || v.Unresolved || (v.Stage != domain.Pending && v.Stage != domain.Prepared) {
@@ -42,7 +42,7 @@ func EvaluateMeleeDefense(r MeleeDefenseRequest) DraftDecision {
 	cleanup, known := d.DraftCleanup.Value()
 	claim, claimed := cleanup.Claim.Value()
 	owner, owned := f.Pawn.Owner.Value()
-	if !known || cleanup.Stage != domain.DraftCleanupRequired || !claimed || !owned || claim.Action != d.Action || claim.Attempt != d.Attempt || claim.Pawn != m.Pawn() || !claim.Origin.Matches(r.Current) || owner.Claim != claim.Claim || owner.Session != claim.Session || owner.Direction != claim.Origin.Direction {
+	if !known || cleanup.Stage != domain.DraftCleanupRequired || !claimed || !owned || claim.Action != d.Action || claim.Attempt != d.Attempt || claim.Pawn != m.Pawn() || !claim.Origin.Matches(r.Current) || owner.Claim != claim.Claim || owner.Session != claim.Session {
 		return refuse(DraftOwnership)
 	}
 	if f.PawnTick < d.Tick {

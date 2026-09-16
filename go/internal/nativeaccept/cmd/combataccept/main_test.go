@@ -6,7 +6,7 @@ import (
 	na "github.com/davidarcher/RimGovernor/go/internal/nativeaccept"
 )
 
-// combatPawn mirrors test_native_combat_acceptance.py's pawn() fixture: a healthy,
+// combatPawn is the fixture pawn: a healthy,
 // undrafted, violence-capable colonist.
 func combatPawn() map[string]any {
 	return map[string]any{
@@ -78,7 +78,7 @@ func TestAttackRequestPreservesExactCASAndExplicitGuards(t *testing.T) {
 	}
 }
 
-// combatFixture mirrors test_native_combat_acceptance.py's combat() fixture: a
+// combatFixture is the fixture combat: a
 // terminal, causally-verified melee kill.
 func combatFixture() (receipt, progress, victim map[string]any) {
 	effect := map[string]any{

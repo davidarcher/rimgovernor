@@ -107,7 +107,7 @@ func routineFixture(t *testing.T) (*RoutineReviewer, *store.Store, *playerFakeSe
 	t.Helper()
 	p, db, session, _ := playerFixture(t)
 	request := playerAcquire(t, p)
-	if _, err := p.Acquire(context.Background(), request); err != nil {
+	if _, err := p.Resume(context.Background(), request); err != nil {
 		t.Fatal(err)
 	}
 	data, err := os.ReadFile("../../../contracts/fixtures/colony-core.json")
@@ -132,7 +132,7 @@ func TestRoutineReviewerPersistsNeedsAndManualInvalidatesWithoutRead(t *testing.
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(got.Goals) != 36 || got.Review.Revision != 1 || !got.Review.Enabled {
+	if len(got.Goals) != 39 || got.Review.Revision != 1 || !got.Review.Enabled {
 		t.Fatal(got)
 	}
 	for _, binding := range got.Review.Goals {
@@ -143,11 +143,10 @@ func TestRoutineReviewerPersistsNeedsAndManualInvalidatesWithoutRead(t *testing.
 			}
 		}
 	}
-	request.Kind = store.ManualControl
-	request.Plan, request.Revision = "", 0
+	request.Kind = store.PauseControl
 	request.RequestID = "manual-routine"
 	request.World.Load = "stale-browser"
-	if _, err = r.player.Manual(context.Background(), request); err == nil {
+	if _, err = r.player.Pause(context.Background(), request); err == nil {
 		t.Fatal("stale browser accepted")
 	}
 	stored, err := db.LoadRoutineReview(context.Background())
@@ -172,7 +171,7 @@ func TestRoutineReviewerRejectsAuthorityChangesDuringRead(t *testing.T) {
 				defer session.mu.Unlock()
 				switch change {
 				case "direction":
-					session.state.Snapshot.Direction++
+					session.state.Snapshot.Native++
 				case "disabled":
 					session.state.Enabled = false
 				case "native":
@@ -204,9 +203,8 @@ func TestRoutineReviewerManualCancelsBlockedNativeRead(t *testing.T) {
 	case <-time.After(time.Second):
 		t.Fatal("read not entered")
 	}
-	request.Kind, request.RequestID = store.ManualControl, "manual-blocked"
-	request.Plan, request.Revision = "", 0
-	if _, err := r.player.Manual(context.Background(), request); err != nil {
+	request.Kind, request.RequestID = store.PauseControl, "manual-blocked"
+	if _, err := r.player.Pause(context.Background(), request); err != nil {
 		t.Fatal(err)
 	}
 	if err := <-reviewDone; err == nil {

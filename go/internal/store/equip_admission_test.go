@@ -24,7 +24,7 @@ func equipStoreFixture(t *testing.T) (*Store, string, EquipAdmission) {
 	if err = s.CreatePlan(ctx, plan); err != nil {
 		t.Fatal(err)
 	}
-	snapshot := domain.GenerationSnapshot{Colony: "colony", Load: "load", Map: 0, Plan: "plan", Revision: 1, Direction: 1, Native: 2}
+	snapshot := domain.GenerationSnapshot{Colony: "colony", Load: "load", Map: 0, Plan: "plan", Revision: 1, Native: 2}
 	v := EquipAdmission{Snapshot: snapshot, Tick: 12, Pawn: "unarmed", Thing: "thing", Definition: "Gun_Revolver", Cell: cell, PawnSnapshotToken: "pawn-cas", ThingSnapshotToken: "thing-cas"}
 	return s, path, v
 }

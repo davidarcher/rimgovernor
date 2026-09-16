@@ -5,6 +5,7 @@ import (
 	"crypto/sha256"
 	"fmt"
 	"sort"
+	"time"
 
 	"github.com/davidarcher/RimGovernor/go/internal/bridge"
 	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/boundary"
@@ -157,6 +158,11 @@ func (r *RoutineDefensePlanner) step(call, epoch context.Context, arbiter *stepA
 		}
 		threats = append(threats, squadThreatFacts(row))
 	}
+	// A complete defensive layout against an ordinary edge assault sends the
+	// ranged line to its firing cells first; anything else is squad defense.
+	if held, err := r.holdTheLine(call, epoch, goal, state, started, arbiter, hostileIDs, rows, defenders); err != nil || held.Reason != "" {
+		return held, err
+	}
 	var assignments []policy.SquadAssignment
 	var ok bool
 	if len(threats) == 1 {
@@ -239,4 +245,103 @@ func (r *RoutineDefensePlanner) step(call, epoch context.Context, arbiter *stepA
 		return RoutineDefenseResult{}, err
 	}
 	return RoutineDefenseResult{Reason: BuildingMethodAdmitted, Plan: id}, nil
+}
+
+// holdTheLine returns a zero Reason when the stored layout is absent or
+// incomplete or the threat is not an edge assault, so the caller continues
+// with squad defense. Otherwise it commits draft, movement to the firing cell
+// and ranged attack for every positioned defender.
+func (r *RoutineDefensePlanner) holdTheLine(call, epoch context.Context, goal store.GoalState, state ControlState, started time.Time, arbiter *stepArbiter, hostileIDs []string, rows map[string]*n.PawnState, defenders []policy.SquadDefenderFacts) (RoutineDefenseResult, error) {
+	p := r.reviewer.player
+	layout, ok, err := p.journal.LoadDefenseLayout(call, store.World{Colony: state.Snapshot.Colony, Load: state.Snapshot.Load, Map: state.Snapshot.Map})
+	if err != nil {
+		return RoutineDefenseResult{}, err
+	}
+	if !ok || !layout.Complete {
+		return RoutineDefenseResult{}, nil
+	}
+	threats := make([]policy.DefensiveThreatFacts, 0, len(hostileIDs))
+	for _, id := range hostileIDs {
+		threats = append(threats, defensiveThreatFacts(rows[id]))
+	}
+	positions, ok := policy.SelectDefensivePositions(layout.Firing, threats, defenders)
+	if !ok {
+		return RoutineDefenseResult{}, nil
+	}
+	defenderIDs := make([]domain.PawnID, 0, len(positions))
+	for _, a := range positions {
+		defenderIDs = append(defenderIDs, a.Defender)
+	}
+	if !arbiter.tryClaim(defenderIDs) {
+		return RoutineDefenseResult{Reason: BuildingMethodUsed}, nil
+	}
+	hash := sha256.New()
+	for _, a := range positions {
+		fmt.Fprintf(hash, "%s/%d/%d/%s\n", a.Defender, a.Cell.X, a.Cell.Z, a.Target)
+	}
+	method := domain.MethodID(fmt.Sprintf("hold-%x", hash.Sum(nil)[:16]))
+	digest := sha256.Sum256([]byte(fmt.Sprintf("%s/%d/%s", goal.Goal.ID, goal.Goal.Epoch, method)))
+	id := domain.PlanID(fmt.Sprintf("routine-defense-%x", digest[:16]))
+	var actions []domain.Action
+	var dependencies []domain.ActionDependency
+	for _, a := range positions {
+		draftID := domain.ActionID(fmt.Sprintf("%s-draft-%s", id, a.Defender))
+		draft, err := domain.NewOwnedDraft(a.Defender)
+		if err != nil {
+			return RoutineDefenseResult{}, err
+		}
+		draftAction, err := domain.NewOwnedDraftAction(draftID, draft)
+		if err != nil {
+			return RoutineDefenseResult{}, err
+		}
+		attackID := domain.ActionID(fmt.Sprintf("%s-attack-%s-%s", id, a.Defender, a.Target))
+		intent, err := domain.NewRangedAttack(a.Defender, domain.PawnID(a.Target), draftID)
+		if err != nil {
+			return RoutineDefenseResult{}, err
+		}
+		attackAction, err := domain.NewRangedAttackAction(attackID, intent)
+		if err != nil {
+			return RoutineDefenseResult{}, err
+		}
+		// Positioning on the firing cell needs the movement action family,
+		// removed with the player command slices (#54); until it returns as
+		// a routine family, defenders fire from where they stand.
+		actions = append(actions, draftAction, attackAction)
+		dependencies = append(dependencies, domain.ActionDependency{Action: attackID, Requires: draftID})
+	}
+	plan, err := domain.NewPlan(id, 1, actions, dependencies...)
+	if err != nil {
+		return RoutineDefenseResult{}, err
+	}
+	if err = p.current(call, epoch); err != nil {
+		return RoutineDefenseResult{}, err
+	}
+	elapsed := r.reviewer.clock.Now().Sub(started)
+	if p.session.State() != state || elapsed < 0 || elapsed > r.reviewer.maxAge {
+		return RoutineDefenseResult{}, ErrControl
+	}
+	if _, err = p.journal.CommitGoalMethod(call, goal.Goal.ID, goal.Revision, method, plan); err != nil {
+		return RoutineDefenseResult{}, err
+	}
+	return RoutineDefenseResult{Reason: BuildingMethodAdmitted, Plan: id}, nil
+}
+
+// defensiveThreatFacts reads the lord and distance evidence a hostile row
+// carries; a missing field stays unknown so positions are never taken on a
+// guess about how the raid arrives.
+func defensiveThreatFacts(row *n.PawnState) policy.DefensiveThreatFacts {
+	facts := policy.DefensiveThreatFacts{ID: policy.PawnID(row.Pawn.GetId()), Dead: boundary.FactBool(row.Dead), Downed: boundary.FactBool(row.Downed)}
+	if row.Humanlike != nil {
+		facts.Humanlike = domain.Known(row.GetHumanlike())
+	}
+	if row.LordJobClass != nil && !boundary.IssueField(row.Issues, "lord_job_class") {
+		facts.LordJobClass = domain.Known(row.GetLordJobClass())
+	}
+	if row.LordToilClass != nil && !boundary.IssueField(row.Issues, "lord_toil_class") {
+		facts.LordToilClass = domain.Known(row.GetLordToilClass())
+	}
+	if row.NearestColonistDistance != nil && !boundary.IssueField(row.Issues, "nearest_colonist_distance") {
+		facts.NearestColonistDistance = domain.Known(row.GetNearestColonistDistance())
+	}
+	return facts
 }

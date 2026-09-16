@@ -3,15 +3,20 @@ package store
 import (
 	"context"
 	"encoding/json"
-	"errors"
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"path/filepath"
 	"strings"
-	"sync"
 	"testing"
 )
 
-func draftFixture(t *testing.T) (*Store, string, DraftSubmission, DraftAdmission) {
+// draftPlan names the plan/action a draft fixture created directly through
+// CreatePlan, the way routine defense composes owned drafts.
+type draftPlan struct {
+	Plan   domain.PlanID
+	Action domain.ActionID
+}
+
+func draftFixture(t *testing.T) (*Store, string, draftPlan, DraftAdmission) {
 	t.Helper()
 	path := filepath.Join(t.TempDir(), "draft.db")
 	s := open(t, path)
@@ -19,13 +24,21 @@ func draftFixture(t *testing.T) (*Store, string, DraftSubmission, DraftAdmission
 	if e != nil {
 		t.Fatal(e)
 	}
-	v, created, e := s.SubmitDraft(context.Background(), DraftSubmissionRequest{RequestID: "draft", World: World{"colony", "load", 0}, Draft: d})
-	if e != nil || !created {
+	action, e := domain.NewOwnedDraftAction("draft-action", d)
+	if e != nil {
 		t.Fatal(e)
 	}
-	return s, path, v, DraftAdmission{Snapshot: domain.GenerationSnapshot{Colony: "colony", Load: "load", Map: 0, Plan: v.Plan, Revision: 1, Direction: 1, Native: 2}, Tick: 10, Pawn: "pawn", PawnSnapshotToken: "cas"}
+	plan, e := domain.NewPlan("draft-plan", 1, []domain.Action{action})
+	if e != nil {
+		t.Fatal(e)
+	}
+	if e = s.CreatePlan(context.Background(), plan); e != nil {
+		t.Fatal(e)
+	}
+	v := draftPlan{Plan: "draft-plan", Action: "draft-action"}
+	return s, path, v, DraftAdmission{Snapshot: domain.GenerationSnapshot{Colony: "colony", Load: "load", Map: 0, Plan: v.Plan, Revision: 1, Native: 2}, Tick: 10, Pawn: "pawn", PawnSnapshotToken: "cas"}
 }
-func draftDispatch(t *testing.T, s *Store, v DraftSubmission, a DraftAdmission) domain.DraftClaim {
+func draftDispatch(t *testing.T, s *Store, v draftPlan, a DraftAdmission) domain.DraftClaim {
 	t.Helper()
 	ctx := context.Background()
 	if _, e := s.PrepareDraft(ctx, v.Plan, v.Action, a); e != nil {
@@ -40,52 +53,13 @@ func draftDispatch(t *testing.T, s *Store, v DraftSubmission, a DraftAdmission) 
 	}
 	return domain.DraftClaim{Action: v.Action, Attempt: 1, Pawn: a.Pawn, Claim: "claim", Session: domain.ControllerSessionID(id), Origin: a.Snapshot}
 }
-func draftProgress(t *testing.T, s *Store, v DraftSubmission) domain.Progress {
+func draftProgress(t *testing.T, s *Store, v draftPlan) domain.Progress {
 	t.Helper()
 	state, e := s.LoadPlan(context.Background(), v.Plan)
 	if e != nil {
 		t.Fatal(e)
 	}
 	return state.Progress[0]
-}
-func TestDraftSubmissionSharedNamespaceAndControl(t *testing.T) {
-	t.Parallel()
-	s, path, v, _ := draftFixture(t)
-	ctx := context.Background()
-	if got, created, e := s.SubmitDraft(ctx, v.Request); e != nil || created || got != v {
-		t.Fatal(got, e)
-	}
-	q := submissionRequest(t, v.Request.RequestID)
-	if _, _, e := s.SubmitBuilding(ctx, q); !errors.Is(e, ErrConflict) {
-		t.Fatal(e)
-	}
-	q.RequestID = "building"
-	if _, _, e := s.SubmitBuilding(ctx, q); e != nil {
-		t.Fatal(e)
-	}
-	dq := v.Request
-	dq.RequestID = q.RequestID
-	if _, _, e := s.SubmitDraft(ctx, dq); !errors.Is(e, ErrConflict) {
-		t.Fatal(e)
-	}
-	control := ControlRequest{RequestID: "acquire-draft", Kind: AcquireControl, World: v.Request.World, Plan: v.Plan, Revision: 1}
-	if _, created, e := s.BeginControl(ctx, control); e != nil || !created {
-		t.Fatal(e)
-	}
-	s.Close()
-	s = open(t, path)
-	if got, e := s.LookupDraftSubmission(ctx, v.Request.RequestID); e != nil || got != v {
-		t.Fatal(got, e)
-	}
-	if _, e := s.CurrentControl(ctx); e != nil {
-		t.Fatal(e)
-	}
-	if _, e := s.db.Exec("UPDATE draft_submissions SET pawn='different'"); e != nil {
-		t.Fatal(e)
-	}
-	if _, e := s.LookupDraftSubmission(ctx, v.Request.RequestID); e == nil {
-		t.Fatal("corrupt intent accepted")
-	}
 }
 func TestDraftCleanupReopenPreservesExactRequestAndSequence(t *testing.T) {
 	t.Parallel()
@@ -274,7 +248,7 @@ func TestDraftPreparedAdmissionRefreshAndCancellation(t *testing.T) {
 		t.Fatal(e)
 	}
 	wrong := fresh
-	wrong.Snapshot.Direction++
+	wrong.Snapshot.Native++
 	if _, e := s.PrepareDraft(ctx, v.Plan, v.Action, wrong); e == nil {
 		t.Fatal("changed authority")
 	}
@@ -303,116 +277,5 @@ func TestDraftPreparedAdmissionRefreshAndCancellation(t *testing.T) {
 	cleanup, _ := p.View().DraftCleanup.Value()
 	if p.View().Stage != domain.Cancelled || cleanup.Stage != domain.DraftSuperseded {
 		t.Fatal(p.View())
-	}
-}
-
-func TestDraftSubmissionAndPreparationRollback(t *testing.T) {
-	t.Parallel()
-	ctx := context.Background()
-	s, _, v, a := draftFixture(t)
-	if _, e := s.db.Exec("CREATE TRIGGER fail_prepare BEFORE INSERT ON transitions BEGIN SELECT RAISE(ABORT,'injected'); END"); e != nil {
-		t.Fatal(e)
-	}
-	if _, e := s.PrepareDraft(ctx, v.Plan, v.Action, a); e == nil {
-		t.Fatal("expected rollback")
-	}
-	var n int
-	s.db.QueryRow("SELECT count(*) FROM draft_admissions").Scan(&n)
-	if n != 0 {
-		t.Fatal("partial admission")
-	}
-	if _, e := s.db.Exec("DROP TRIGGER fail_prepare"); e != nil {
-		t.Fatal(e)
-	}
-	if _, e := s.db.Exec("CREATE TRIGGER fail_draft_submission BEFORE INSERT ON draft_submissions BEGIN SELECT RAISE(ABORT,'injected'); END"); e != nil {
-		t.Fatal(e)
-	}
-	q := v.Request
-	q.RequestID = "failed"
-	if _, _, e := s.SubmitDraft(ctx, q); e == nil {
-		t.Fatal("expected rollback")
-	}
-	for _, table := range []string{"plans", "actions", "submissions", "draft_submissions"} {
-		if e := s.db.QueryRow("SELECT count(*) FROM " + table).Scan(&n); e != nil || n != 1 {
-			t.Fatal(table, n, e)
-		}
-	}
-}
-
-func TestDraftSubmissionConcurrentConnections(t *testing.T) {
-	t.Parallel()
-	s, path, v, _ := draftFixture(t)
-	other := open(t, path)
-	q := v.Request
-	q.RequestID = "concurrent"
-	var wg sync.WaitGroup
-	results := make(chan DraftSubmission, 2)
-	created := make(chan bool, 2)
-	errs := make(chan error, 2)
-	for _, db := range []*Store{s, other} {
-		wg.Add(1)
-		go func(db *Store) {
-			defer wg.Done()
-			v, c, e := db.SubmitDraft(context.Background(), q)
-			results <- v
-			created <- c
-			errs <- e
-		}(db)
-	}
-	wg.Wait()
-	if e := <-errs; e != nil {
-		t.Fatal(e)
-	}
-	if e := <-errs; e != nil {
-		t.Fatal(e)
-	}
-	a, b := <-results, <-results
-	if a != b {
-		t.Fatal("duplicate plans")
-	}
-	if (<-created) == (<-created) {
-		t.Fatal("expected exactly one created plan")
-	}
-}
-
-func TestDraftCorruptAdmissionAndSubmissionHeader(t *testing.T) {
-	t.Parallel()
-	for _, kind := range []string{"admission-field", "missing-admission", "header-revision", "action-kind"} {
-		t.Run(kind, func(t *testing.T) {
-			s, _, v, a := draftFixture(t)
-			ctx := context.Background()
-			if _, e := s.PrepareDraft(ctx, v.Plan, v.Action, a); e != nil {
-				t.Fatal(e)
-			}
-			switch kind {
-			case "admission-field":
-				var data []byte
-				if e := s.db.QueryRow("SELECT payload FROM draft_admissions").Scan(&data); e != nil {
-					t.Fatal(e)
-				}
-				data = append(data[:len(data)-1], []byte(",\"Unknown\":true}")...)
-				if _, e := s.db.Exec("UPDATE draft_admissions SET payload=?", data); e != nil {
-					t.Fatal(e)
-				}
-			case "missing-admission":
-				if _, e := s.db.Exec("DELETE FROM draft_admissions"); e != nil {
-					t.Fatal(e)
-				}
-			case "header-revision":
-				if _, e := s.db.Exec("UPDATE submissions SET revision='01'"); e != nil {
-					t.Fatal(e)
-				}
-			case "action-kind":
-				if _, e := s.db.Exec("PRAGMA ignore_check_constraints=ON"); e != nil {
-					t.Fatal(e)
-				}
-				if _, e := s.db.Exec("UPDATE actions SET kind='other'"); e != nil {
-					t.Fatal(e)
-				}
-			}
-			if _, e := s.LookupDraftSubmission(ctx, v.Request.RequestID); e == nil {
-				t.Fatal("corrupt storage accepted")
-			}
-		})
 	}
 }

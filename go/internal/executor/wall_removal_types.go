@@ -25,7 +25,7 @@ type WallRemovalDispatch struct {
 	Admission store.WallRemovalAdmission
 }
 
-// WallRemovalEvidence's Retired mirrors wall_upgrade.py's reconcile(): native
+// WallRemovalEvidence's Retired is the reconcile outcome: native
 // cancelled this pending demolition (player interference, a safety change)
 // rather than completing or leaving it pending. The executor cancels this
 // step's not-yet-dispatched same-plan dependents when it sees Retired, since

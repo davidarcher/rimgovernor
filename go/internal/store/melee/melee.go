@@ -34,7 +34,7 @@ func idShaped(id string) error { _, err := domain.NewPlan(domain.PlanID(id), 1, 
 func ValidateAdmission(a domain.Action, p domain.Progress, v Admission) error {
 	m, ok := a.MeleeAttack()
 	progress := p.View()
-	if !ok || v.Snapshot.Validate() != nil || v.Snapshot.Plan != progress.Plan || v.Snapshot.Revision != progress.Revision || v.Snapshot.Native == 0 || v.Snapshot.Direction == 0 || v.Tick < 0 || v.Pawn != m.Pawn() || v.Target != m.Target() || idShaped(v.PawnSnapshotToken) != nil || idShaped(v.TargetSnapshotToken) != nil {
+	if !ok || v.Snapshot.Validate() != nil || v.Snapshot.Plan != progress.Plan || v.Snapshot.Revision != progress.Revision || v.Snapshot.Native == 0 || v.Tick < 0 || v.Pawn != m.Pawn() || v.Target != m.Target() || idShaped(v.PawnSnapshotToken) != nil || idShaped(v.TargetSnapshotToken) != nil {
 		return errors.New("invalid melee admission")
 	}
 	claim := v.DraftClaim

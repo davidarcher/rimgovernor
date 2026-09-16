@@ -5,8 +5,7 @@ import (
 	"math"
 )
 
-// AnimalFeedReason names MaintainAnimalFeed's resource-selection outcome,
-// ported from husbandry.py's update_feed_goal.
+// AnimalFeedReason names MaintainAnimalFeed's resource-selection outcome.
 type AnimalFeedReason string
 
 const (
@@ -30,19 +29,17 @@ type AnimalFeedMethod struct {
 
 const maxAnimalFeedTarget = 10000
 
-// SelectAnimalFeedMethod ports husbandry.py's update_feed_goal: among the
+// SelectAnimalFeedMethod picks the feed stock for a deficit herd: among the
 // worst-affected deficit race's animals (AnimalFeedTarget is already sorted
 // worst-runway-first by ReviewAnimalUpkeep), pick the shared (unheld),
 // edible feed stock every one of them can eat, lowest (defName, id) first,
 // and require enough stock to cover their combined missing nutrition.
-// Unlike Python's per-herd goal ownership bookkeeping, this recomputes fresh
-// every tick from the current deficit and stock census -- idempotent,
-// content-addressed dispatch like every other RoutineXPlanner. A resource
-// under player spending restriction (StoppedResources) is skipped, mirroring
-// production_policy.py's resource_policy spending gate. Disclosed narrowing:
-// Python selects across the whole herd's future demand; this only covers the
-// animals presently below threshold, since Go's AnimalFeedTarget census
-// carries only deficit rows.
+// The selection is recomputed fresh every tick from the current deficit and
+// stock census -- idempotent, content-addressed dispatch like every other
+// RoutineXPlanner. A resource
+// under player spending restriction (StoppedResources) is skipped, the same
+// gate the resource-policy planner applies. Only the animals presently below
+// threshold are covered, since AnimalFeedTarget carries only deficit rows.
 func SelectAnimalFeedMethod(targets []AnimalFeedTarget, stocks []FoodStock, have map[Resource]int64, stopped []Resource) (AnimalFeedMethod, error) {
 	if len(targets) > 256 || len(stocks) > 4096 || len(have) > 4096 {
 		return AnimalFeedMethod{}, errors.New("animal feed inputs exceed bound")

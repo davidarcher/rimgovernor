@@ -342,8 +342,8 @@ func run(ctx context.Context, root, output, gameID string, headless bool, report
 
 	// Observe: run real game time forward at Fast until native work selection
 	// carries the practitioner through the queued bill and the hediff change
-	// is observed, matching Python's own "outcome must be observed separately"
-	// contract; absence of a bill never proves completion by itself.
+	// is observed: the outcome must be observed separately; absence of a bill
+	// never proves completion by itself.
 	if _, err := h.Call(ctx, "resume", "rimworld/set_time_speed", map[string]any{"speed": "Fast", "ultraSpeedBoost": false}); err != nil {
 		return err
 	}

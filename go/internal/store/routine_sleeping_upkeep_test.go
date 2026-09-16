@@ -30,7 +30,7 @@ func TestSleepingUseSurvivesManualRestartAndResetsWithWorld(t *testing.T) {
 		t.Fatal(saved, err)
 	}
 	r.Enabled = true
-	r.Current.Direction++
+	r.Current.Native++
 	v.Beds[0].Users = nil
 	r.Facts.Sleeping = domain.Known(v)
 	out = reviewRoutine(t, s, &r)

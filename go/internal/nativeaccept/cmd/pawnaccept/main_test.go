@@ -22,7 +22,7 @@ func pawnContext() map[string]any {
 	return map[string]any{"identity": map[string]any{"colonyId": "c", "loadToken": "l", "mapId": 0.0}, "tick": "1", "nativeGeneration": "2"}
 }
 
-// controlledPawnRow mirrors test_native_pawn_acceptance.py's controlled_snapshot()
+// controlledPawnRow is the controlled-snapshot
 // fixture: one drafted-or-unowned colonist with an exact CAS snapshot.
 func controlledPawnRow(context map[string]any, owned bool) map[string]any {
 	ref := map[string]any{"context": copyAny(context), "entityId": "Thing_Human42", "token": "opaque-native-token"}
@@ -104,7 +104,7 @@ func TestDraftControlOwnedClaimRequiresExactNativeBindingAndOriginalOwner(t *tes
 	}
 }
 
-// animalPawnRow mirrors test_native_pawn_acceptance.py's animal_snapshot() fixture: a
+// animalPawnRow is the animal-snapshot fixture: a
 // dead, unspawned animal with an explicit unavailable draft claim and no snapshot.
 func animalPawnRow(context map[string]any) map[string]any {
 	row := controlledPawnRow(context, false)

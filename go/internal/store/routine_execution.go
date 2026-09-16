@@ -10,7 +10,7 @@ import (
 // AuthorizeRoutinePlan verifies a method under the existing player direction.
 // It grants no lease and never changes the selected player plan.
 func (s *Store) AuthorizeRoutinePlan(ctx context.Context, root, target domain.GenerationSnapshot) error {
-	if root.Validate() != nil || target.Validate() != nil || root.Native == 0 || root.Direction == 0 || root.Plan == target.Plan {
+	if root.Validate() != nil || target.Validate() != nil || root.Native == 0 || root.Plan == target.Plan {
 		return ErrConflict
 	}
 	matching := target
@@ -86,9 +86,9 @@ func (s *Store) AuthorizeRoutinePlan(ctx context.Context, root, target domain.Ge
 		case domain.BuildingAction, domain.SupplyAllowAction, domain.WorkAssignmentAction, domain.AcquisitionAction,
 			domain.ZoneCreateAction, domain.ProductionBillAction, domain.OwnedDraftAction, domain.MeleeAttackAction,
 			domain.RangedAttackAction, domain.TendAction, domain.RescueAction, domain.CaptureAction, domain.HaulAction, domain.EquipAction,
-			domain.GearReplaceAction, domain.RecoveryServiceAction, domain.BedAssignAction, domain.HusbandryAction,
+			domain.GearReplaceAction, domain.RecoveryServiceAction, domain.HusbandryAction,
 			domain.PrisonerInteractionAction, domain.RepairAction, domain.CleanAction, domain.MineAcquisitionAction,
-			domain.ProductionPolicyAction, domain.ExcavationAction:
+			domain.ProductionPolicyAction, domain.BuildingTemperatureAction, domain.ExcavationAction:
 		default:
 			return errors.New("routine execution requires supported routine methods")
 		}

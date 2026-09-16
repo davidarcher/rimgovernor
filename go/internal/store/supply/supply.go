@@ -37,7 +37,7 @@ func ValidateAdmission(a domain.Action, p domain.Progress, admission Admission) 
 		return errors.New("admission plan or tick mismatch")
 	}
 	supply, ok := a.SupplyAllow()
-	if !ok || supply.Thing() != admission.Thing || idShaped(admission.SnapshotToken) != nil || admission.Snapshot.Native == 0 || admission.Snapshot.Direction == 0 {
+	if !ok || supply.Thing() != admission.Thing || idShaped(admission.SnapshotToken) != nil || admission.Snapshot.Native == 0 {
 		return errors.New("invalid supply admission")
 	}
 	return nil

@@ -125,7 +125,7 @@ func pawnsSnapshotSelected(v *o.PawnSnapshot, id *c.Identity, requested map[stri
 				return err
 			}
 		}
-		for _, value := range []*string{row.KindDefName, row.FactionId, row.MentalState, row.OwnedBedId} {
+		for _, value := range []*string{row.KindDefName, row.FactionId, row.MentalState, row.OwnedBedId, row.LordJobClass, row.LordToilClass} {
 			if value != nil {
 				if err := validID(*value); err != nil {
 					return err

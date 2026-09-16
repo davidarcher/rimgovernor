@@ -23,7 +23,7 @@ func draftPolicyRequest(t *testing.T) DraftRequest {
 	if err != nil {
 		t.Fatal(err)
 	}
-	current := domain.GenerationSnapshot{Colony: "colony", Map: 0, Load: "load", Direction: 1, Plan: "plan", Revision: 1, Native: 1}
+	current := domain.GenerationSnapshot{Colony: "colony", Map: 0, Load: "load", Plan: "plan", Revision: 1, Native: 1}
 	emergency, err := NewEmergencySnapshot(current, 11, EmergencyFacts{ColonistsComplete: domain.Known(true), ThreatsComplete: domain.Known(true), Colonists: []EmergencyPawn{{ID: "pawn", Dead: domain.Known(false), Downed: domain.Known(false), Bleeding: domain.Known(false), NeedsTend: domain.Known(false)}}})
 	if err != nil {
 		t.Fatal(err)
@@ -106,7 +106,6 @@ func TestOwnedDraftRefusesUnknownUnsafeOrStaleFacts(t *testing.T) {
 		{"future minimum tick", StaleFacts, func(r *DraftRequest) { r.Tick = 12 }},
 		{"changed native generation", StaleFacts, func(r *DraftRequest) { r.Current.Native++ }},
 		{"zero generation", StaleFacts, func(r *DraftRequest) { r.Current.Native = 0 }},
-		{"zero direction", StaleFacts, func(r *DraftRequest) { r.Current.Direction = 0 }},
 		{"changed world", StaleFacts, func(r *DraftRequest) { r.Current.Load = "other" }},
 		{"wrong plan", NotReady, func(r *DraftRequest) { r.Current.Plan = "other" }},
 		{"wrong revision", NotReady, func(r *DraftRequest) { r.Current.Revision++ }},
@@ -140,7 +139,7 @@ func TestOwnedDraftProgressAndOutstandingCleanup(t *testing.T) {
 				t.Fatal(err)
 			}
 			if stage == "prepared stale" {
-				r.Current.Direction++
+				r.Current.Native++
 				r.Progress = p
 				if EvaluateOwnedDraft(r).Admitted {
 					t.Fatal("stale prepared authority")

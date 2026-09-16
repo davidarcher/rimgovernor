@@ -52,7 +52,7 @@ func OpenSessionWithTakeover(ctx context.Context, gabsExecutable, configDir, gam
 }
 
 // Report is the shared JSON report shape every acceptance binary writes: a dynamic
-// bag of fields (mirroring the Python scripts' plain dict report), always including
+// bag of fields, always including
 // "passed", "scope" and, on failure, "error".
 type Report map[string]any
 

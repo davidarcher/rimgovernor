@@ -111,7 +111,7 @@ func lifecycleAPIWithConfig(t *testing.T, mode string, knownIdentity bool, fa *f
 	snapshot := Snapshot{Connected: true, Mode: mode}
 	if knownIdentity {
 		snapshot.Identity = domain.Known(observation.Identity{Colony: "colony", Load: "load", Map: 0, Tick: 42})
-		snapshot.Generation = domain.Known(domain.GenerationSnapshot{Colony: "colony", Load: "load", Map: 0, Direction: 1, Plan: "plan", Revision: 1, Native: 1})
+		snapshot.Generation = domain.Known(domain.GenerationSnapshot{Colony: "colony", Load: "load", Map: 0, Plan: "plan", Revision: 1, Native: 1})
 		snapshot.Tick = domain.Known(domain.Tick(42))
 	}
 	if fa == nil {
@@ -138,7 +138,7 @@ func TestLifecycleSave(t *testing.T) {
 		t.Fatal(out.Code, out.Body.String())
 	}
 	var dto saveReplyDTO
-	if err := json.Unmarshal(out.Body.Bytes(), &dto); err != nil || dto.RequestID != "save-1" || dto.SaveName != "checkpoint" || !dto.Paused || dto.Identity.ColonyID != "colony" || dto.Tick != 42 || dto.Direction != 1 || dto.ByteLength != 1024 {
+	if err := json.Unmarshal(out.Body.Bytes(), &dto); err != nil || dto.RequestID != "save-1" || dto.SaveName != "checkpoint" || !dto.Paused || dto.Identity.ColonyID != "colony" || dto.Tick != 42 || dto.ByteLength != 1024 {
 		t.Fatal(out.Body.String(), err)
 	}
 	if f.seenSave.GetPlayer().GetIdentity().GetColonyId() != "colony" || f.seenSave.GetPlayer().GetPlayerDirection() != 1 || f.seenSave.GetPlayer().GetRequestId() != "save-1" || f.seenSave.GetSaveName() != "checkpoint" || f.seenSave.GetExpectedTick() != 42 {

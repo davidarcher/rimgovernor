@@ -18,18 +18,19 @@ func assessment(t *testing.T, r RoutineNeeds, id GoalID) domain.NeedState {
 
 func TestRoutineAssessmentsDoNotInferRecoveryFromAbsentWork(t *testing.T) {
 	r := needs(t, RoutineFacts{}, RoutineLatches{})
-	if len(r.Assessments) != 36 {
+	if len(r.Assessments) != 39 {
 		t.Fatal(r)
 	}
 	for _, n := range r.Assessments {
-		// EnsureResearch, MaintainResource and ProductionPolicy are the
-		// assessments derived from operator config
-		// (RoutinePolicy.ResearchTarget/ResourceTargets/ResourceReserves/
-		// StoppedResources) rather than a native RoutineFacts field, so
-		// DefaultRoutinePolicy's empty target/map is itself known evidence
-		// ("no target configured" is certain, not unobserved) even though
-		// every other assessment here is correctly still Unknown.
-		if n.ID == EnsureResearch || n.ID == MaintainResource || n.ID == ProductionPolicy {
+		// EnsureResearch, MaintainResource and ProductionPolicy are gated on
+		// operator config (RoutinePolicy.ResearchTarget/ResourceTargets/
+		// ResourceReserves/StoppedResources): DefaultRoutinePolicy's empty
+		// target/map is itself known evidence ("no target configured" is
+		// certain, not unobserved) even though every other assessment here
+		// is correctly still Unknown. With a target configured, research and
+		// resource needs are measured from native facts (see
+		// TestConfiguredTargetsRankForDevelopment).
+		if n.ID == EnsureResearch || n.ID == MaintainResource || n.ID == ProductionPolicy || n.ID == EnsureDefensiveLayout {
 			continue
 		}
 		if n.Need != domain.NeedUnknown {

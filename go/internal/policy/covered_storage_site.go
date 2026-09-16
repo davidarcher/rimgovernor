@@ -7,7 +7,7 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 )
 
-// CoveredStorageRequest ports upkeep_storage.py's covered_storage free-cell
+// CoveredStorageRequest is the free-cell
 // census for a 2x2 covered-storage patch: only roofed, walkable, unoccupied,
 // unzoned cells with empty native storage may host the allow-list stockpile
 // zone SecureSupplies falls back to once ordinary hauling has no destination.

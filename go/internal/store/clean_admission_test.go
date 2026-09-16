@@ -23,7 +23,7 @@ func cleanStoreFixture(t *testing.T) (*Store, string, CleanAdmission) {
 	if err = s.CreatePlan(ctx, plan); err != nil {
 		t.Fatal(err)
 	}
-	snapshot := domain.GenerationSnapshot{Colony: "colony", Load: "load", Map: 0, Plan: "plan", Revision: 1, Direction: 1, Native: 2}
+	snapshot := domain.GenerationSnapshot{Colony: "colony", Load: "load", Map: 0, Plan: "plan", Revision: 1, Native: 2}
 	v := CleanAdmission{Snapshot: snapshot, Tick: 12, Pawn: "pawn", Filth: "filth", Cell: domain.Cell{X: 3, Z: 4}, PawnSnapshotToken: "pawn-cas", FilthSnapshotToken: "filth-cas"}
 	return s, path, v
 }

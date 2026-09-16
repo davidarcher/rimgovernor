@@ -26,7 +26,7 @@ func workerDraft(t *testing.T, db *store.Store, id string, stage domain.Stage, s
 	if err := db.CreatePlan(ctx, plan); err != nil {
 		t.Fatal(err)
 	}
-	snapshot := domain.GenerationSnapshot{Colony: "colony", Load: "load", Map: 0, Plan: plan.ID(), Revision: 1, Direction: 1, Native: 1}
+	snapshot := domain.GenerationSnapshot{Colony: "colony", Load: "load", Map: 0, Plan: plan.ID(), Revision: 1, Native: 1}
 	if stage != domain.Pending {
 		if _, err := db.PrepareDraft(ctx, plan.ID(), action.ID(), store.DraftAdmission{Snapshot: snapshot, Tick: 1, Pawn: draft.Pawn(), PawnSnapshotToken: "token"}); err != nil {
 			t.Fatal(err)
@@ -104,7 +104,7 @@ func TestWorkerDraftLiveAndCleanupEligibility(t *testing.T) {
 			v := workerDraft(t, db, "draft", stage, multi)
 			scope := v.Snapshot
 			if kind == "direction" {
-				scope.Direction++
+				scope.Native++
 			}
 			if kind == "plan" {
 				scope.Plan = "another"

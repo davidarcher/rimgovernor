@@ -44,7 +44,6 @@ func TestGoalCreateActivatesPlayerSourcedGoalAndReplays(t *testing.T) {
 	for _, change := range []func(*GoalCreateSubmissionRequest){
 		func(v *GoalCreateSubmissionRequest) { v.Kind = domain.MaintainWoodGoal },
 		func(v *GoalCreateSubmissionRequest) { v.Tick = 11 },
-		func(v *GoalCreateSubmissionRequest) { v.Snapshot.Direction = 3 },
 		func(v *GoalCreateSubmissionRequest) { v.Snapshot.Load = "other" },
 	} {
 		changed := q
@@ -88,7 +87,7 @@ func TestGoalCreateRejectsUnsupportedKindAndInvalidScope(t *testing.T) {
 }
 
 // Re-activating a live player goal reuses its identity and lets ReviewGoal's
-// own epoch rule do the work Python's reopen_methods/attempts does; a cancelled
+// own epoch rule do the reopening work; a cancelled
 // one is never resurrected, because cancellation is terminal in ReviewGoal.
 func TestGoalCreateReopensLiveGoalAndReplacesCancelledOne(t *testing.T) {
 	t.Parallel()
@@ -137,32 +136,6 @@ func TestGoalCreateReopensLiveGoalAndReplacesCancelledOne(t *testing.T) {
 	}
 }
 
-// A direction change under a live player goal invalidates its captured work
-// exactly as ReviewGoal's own invalidation does, and the player's fresh
-// direction gets a fresh identity rather than reusing an invalidated one.
-func TestGoalCreateReplacesGoalInvalidatedByNewDirection(t *testing.T) {
-	t.Parallel()
-	ctx := context.Background()
-	s := open(t, filepath.Join(t.TempDir(), "player-goals-direction.db"))
-	first, _, err := s.SubmitGoalCreate(ctx, goalCreateRequest("create", domain.EnsureCookingGoal))
-	if err != nil {
-		t.Fatal(err)
-	}
-	moved := scope()
-	moved.Direction = scope().Direction - 1
-	next, created, err := s.SubmitGoalCreate(ctx, GoalCreateSubmissionRequest{RequestID: "moved", Kind: domain.EnsureCookingGoal, Snapshot: moved, Tick: 11})
-	if err != nil || !created || next.Goal == first.Goal {
-		t.Fatal(next, created, err)
-	}
-	if next.State.Goal.Snapshot != moved || next.State.Goal.Status != domain.GoalActive || next.State.Goal.Need != domain.NeedDeficit {
-		t.Fatal(next.State.Goal)
-	}
-	old, err := s.LoadGoal(ctx, first.Goal)
-	if err != nil || old.Goal.Status != domain.GoalInvalidated {
-		t.Fatal("superseded goal not invalidated", old, err)
-	}
-}
-
 // Cancellation reuses the unchanged store cancellation body; the player path
 // adds a world bound and the same local CAS token, not new semantics.
 func TestCancelPlayerGoalBoundsWorldAndRevision(t *testing.T) {
@@ -196,8 +169,8 @@ func TestCancelPlayerGoalBoundsWorldAndRevision(t *testing.T) {
 	}
 }
 
-// An autopilot goal is cancellable through the same player path, matching
-// Python's CancelGoal, which resolves any recorded goal ID.
+// An autopilot goal is cancellable through the same player path: any
+// recorded goal ID resolves.
 func TestCancelPlayerGoalCancelsAutopilotGoalInSameWorld(t *testing.T) {
 	t.Parallel()
 	ctx := context.Background()

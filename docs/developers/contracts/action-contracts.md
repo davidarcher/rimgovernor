@@ -24,6 +24,7 @@ what each action must observe.
 | Caravan formation and travel | Exact living crew with observed loaded departure, destination arrival or home-map return; assembly and route receipts alone do not complete travel. |
 | Quest acceptance | Fresh scoped acceptance tick; native quest success remains a separate observed state. |
 | `clock`, `stand_down` | Native clock control or verified release of selected current-load AI-owned drafts; neither certifies combat victory. |
+| `building_temperature` (PatchBuilding target temperature) | CAS-gated setpoint patch on one exact `CompTempControl` building; the receipt's after-token must match a fresh building read. When `MaintainRefrigeration` commits it as a routine method, the patch completing never clears the goal: the stock's measured temperature must be observed at or under the release threshold on a later native tick. |
 
 ## Trades
 
@@ -45,7 +46,7 @@ stack counts in the same main-thread operation as the exchange and refuses
 protected exports. Unknown or truncated inventory prevents selection. A policy
 with no eligible affordable lines cancels its own session without an exchange;
 the retained policy evidence explains each target. Neither cancellation nor
-acceptance takes a trader quest. See [economic command fields](command-contracts.md).
+acceptance takes a trader quest. Trade is routine-only; there is no player trade command.
 
 Direct orbital opening is refused. Ordinary orbital input requires the comms
 console's native menu, a powered reachable interaction cell and capable negotiator,
@@ -67,6 +68,6 @@ the plan.
 
 ## Related reading
 
-See [spatial contracts](spatial-contracts.md), [recovery
-contracts](recovery-contracts.md), and [plans and
+See [spatial contracts](spatial-contracts.md), [sessions and
+recovery](../architecture/sessions-and-recovery.md), and [plans and
 Hands](../architecture/plans-and-hands.md).

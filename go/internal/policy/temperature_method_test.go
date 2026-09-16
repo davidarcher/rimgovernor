@@ -7,8 +7,8 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 )
 
-func thermalRoom(id, bed string, temp float64, x int32) TemperatureRoom {
-	return TemperatureRoom{ID: id, Beds: []string{bed}, Temperature: domain.Known(temp), Enclosed: domain.Known(true), Contents: domain.Known([]Amount{}), Cells: []domain.Cell{{X: x, Z: 2}}}
+func thermalRoom(id, bed string, temp float64, x int32) Room {
+	return Room{ID: id, Beds: []string{bed}, Temperature: domain.Known(temp), Enclosed: domain.Known(true), Contents: domain.Known([]Amount{}), Cells: []domain.Cell{{X: x, Z: 2}}}
 }
 
 func TestTemperatureMethodThresholdsAndHysteresis(t *testing.T) {
@@ -20,7 +20,7 @@ func TestTemperatureMethodThresholdsAndHysteresis(t *testing.T) {
 		{11.9, false, false, TemperatureHeat}, {12, false, false, TemperatureNoMethod}, {15.9, true, false, TemperatureHeat}, {16, true, false, TemperatureNoMethod},
 		{32, false, false, TemperatureNoMethod}, {32.1, false, false, TemperatureCool}, {28.1, false, true, TemperatureCool}, {28, false, true, TemperatureNoMethod},
 	} {
-		v := TemperatureObservation{EligibleBeds: domain.Known([]string{"bed"}), Rooms: []TemperatureRoom{thermalRoom("room", "bed", tc.temp, 2)}}
+		v := RoomObservation{EligibleBeds: domain.Known([]string{"bed"}), Rooms: []Room{thermalRoom("room", "bed", tc.temp, 2)}}
 		got, err := SelectTemperatureMethod(domain.Known(v), DefaultRoutinePolicy(), RoutineLatches{Cold: tc.cold, Hot: tc.hot})
 		if err != nil || got.Method != tc.want {
 			t.Fatalf("%+v: %+v %v", tc, got, err)
@@ -29,7 +29,7 @@ func TestTemperatureMethodThresholdsAndHysteresis(t *testing.T) {
 }
 
 func TestTemperatureMethodTargetsPlayerSleepingRoomAndReusesFacilities(t *testing.T) {
-	v := TemperatureObservation{EligibleBeds: domain.Known([]string{"hot-bed", "cold-bed"}), Rooms: []TemperatureRoom{thermalRoom("hot", "hot-bed", 36, 1), thermalRoom("cold", "cold-bed", 5, 2), thermalRoom("enemy", "enemy-bed", -30, 3)}}
+	v := RoomObservation{EligibleBeds: domain.Known([]string{"hot-bed", "cold-bed"}), Rooms: []Room{thermalRoom("hot", "hot-bed", 36, 1), thermalRoom("cold", "cold-bed", 5, 2), thermalRoom("enemy", "enemy-bed", -30, 3)}}
 	first, err := SelectTemperatureMethod(domain.Known(v), DefaultRoutinePolicy(), RoutineLatches{})
 	if err != nil || first.Method != TemperatureHeat || first.Room != "cold" || len(first.Cells) != 1 || first.Cells[0].X != 2 {
 		t.Fatal(first, err)
@@ -73,7 +73,7 @@ func TestTemperatureMethodTargetsPlayerSleepingRoomAndReusesFacilities(t *testin
 func TestTemperatureUnknownAndInvalidEvidence(t *testing.T) {
 	for _, mode := range []string{"unknown", "beds", "missing-room", "temperature", "enclosure", "contents", "no-beds", "unroofed", "duplicate-room", "duplicate-bed", "overlap", "nan"} {
 		t.Run(mode, func(t *testing.T) {
-			v := TemperatureObservation{EligibleBeds: domain.Known([]string{"bed"}), Rooms: []TemperatureRoom{thermalRoom("room", "bed", 5, 2)}}
+			v := RoomObservation{EligibleBeds: domain.Known([]string{"bed"}), Rooms: []Room{thermalRoom("room", "bed", 5, 2)}}
 			invalid := false
 			want := TemperatureUnknown
 			switch mode {
@@ -108,7 +108,7 @@ func TestTemperatureUnknownAndInvalidEvidence(t *testing.T) {
 			}
 			fact := domain.Known(v)
 			if mode == "unknown" {
-				fact = domain.Unknown[TemperatureObservation]()
+				fact = domain.Unknown[RoomObservation]()
 			}
 			got, err := SelectTemperatureMethod(fact, DefaultRoutinePolicy(), RoutineLatches{})
 			if invalid {

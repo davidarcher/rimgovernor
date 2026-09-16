@@ -16,7 +16,7 @@ import (
 	"google.golang.org/protobuf/encoding/protojson"
 )
 
-// The scenario emits this same-tick native/Python pair after ordinary comfort
+// The scenario emits this same-tick native/reference pair after ordinary comfort
 // use. Replaying it here exercises the actual Go boundary and durable journal.
 func TestNativeUpkeepReplay(t *testing.T) {
 	path := os.Getenv("RIMBOT_NATIVE_UPKEEP_REPLAY")

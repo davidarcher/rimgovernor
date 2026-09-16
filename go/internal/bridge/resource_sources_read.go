@@ -29,15 +29,14 @@ type ResourceSourceRow = policy.ResourceSource
 // ReadResourceSources is a fresh, uncached read of one resource definition's
 // reachable native mine/harvest sources via the typed
 // rimgovernor/observations_list_resource_sources RPC (ListResourceSources),
-// mirroring production_policy.py's resource_method reading
-// home/resource_sources before its acquisition-selection loop. It requires a
+// before the acquisition-selection loop. It requires a
 // single complete page, like ReadHusbandryTarget/ReadPrisonerInteractionTarget
 // -- pagination is unsupported by the native read adapter this calls, and any
 // oversized native collection is reported Unavailable rather than silently
 // truncated. Extraction-development detail is never requested. The returned
 // policy.ResourceStorage mirrors the reply's always-populated StorageCapacity
-// payload (NativeResourceSourcesTool.Storage): production_policy.py's
-// resource_method storage branch (material-storage zoning) reads it whenever
+// payload (NativeResourceSourcesTool.Storage): the resource method's
+// storage branch (material-storage zoning) reads it whenever
 // a selected source is a "mine" source -- see policy.SelectResourceStorageZone.
 func (client *Client) ReadResourceSources(ctx context.Context, identity *c.Identity, resource string) ([]ResourceSourceRow, policy.ResourceStorage, Result, error) {
 	if err := ValidateIdentity(identity); err != nil {

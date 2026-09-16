@@ -14,7 +14,7 @@ func prisonerInteractionRequest(t *testing.T) PrisonerInteractionRequest {
 	if err != nil {
 		t.Fatal(err)
 	}
-	s := domain.GenerationSnapshot{Colony: "colony", Map: 0, Load: "load", Direction: 1, Plan: plan.ID(), Revision: 1, Native: 1}
+	s := domain.GenerationSnapshot{Colony: "colony", Map: 0, Load: "load", Plan: plan.ID(), Revision: 1, Native: 1}
 	p, _ := domain.NewProgress(plan, a.ID())
 	pawn := PrisonerFacts{Pawn: "prisoner", SnapshotToken: "prisoner-cas", Dead: domain.Known(false), Prisoner: domain.Known(true), Recruitable: domain.Known(true), CurrentInteraction: domain.Known(domain.PrisonerInteractionMaintain)}
 	return PrisonerInteractionRequest{Action: a, Progress: p, Current: s, MinimumTick: 11, Facts: PrisonerInteractionFacts{Snapshot: s, PawnTick: 12, PreviewTick: 13, Pawn: pawn, NativeCanTry: domain.Known(true)}}
@@ -47,7 +47,7 @@ func TestPrisonerInteractionMaintainAdmissionDoesNotRequireRecruitable(t *testin
 	if err != nil {
 		t.Fatal(err)
 	}
-	s := domain.GenerationSnapshot{Colony: "colony", Map: 0, Load: "load", Direction: 1, Plan: plan.ID(), Revision: 1, Native: 1}
+	s := domain.GenerationSnapshot{Colony: "colony", Map: 0, Load: "load", Plan: plan.ID(), Revision: 1, Native: 1}
 	p, _ := domain.NewProgress(plan, a.ID())
 	pawn := PrisonerFacts{Pawn: "prisoner", SnapshotToken: "prisoner-cas", Dead: domain.Known(false), Prisoner: domain.Known(true), Recruitable: domain.Unknown[bool](), CurrentInteraction: domain.Known(domain.PrisonerInteractionRecruit)}
 	r := PrisonerInteractionRequest{Action: a, Progress: p, Current: s, MinimumTick: 11, Facts: PrisonerInteractionFacts{Snapshot: s, PawnTick: 12, PreviewTick: 13, Pawn: pawn, NativeCanTry: domain.Known(true)}}
@@ -69,7 +69,6 @@ func TestPrisonerInteractionDefenseHolds(t *testing.T) {
 		{"reversed interval", func(r *PrisonerInteractionRequest) { r.Facts.PreviewTick = 11 }},
 		{"zero generation", func(r *PrisonerInteractionRequest) { r.Current.Native = 0 }},
 		{"native", func(r *PrisonerInteractionRequest) { r.Current.Native++ }},
-		{"direction", func(r *PrisonerInteractionRequest) { r.Current.Direction++ }},
 		{"colony", func(r *PrisonerInteractionRequest) { r.Current.Colony = "other" }},
 		{"load", func(r *PrisonerInteractionRequest) { r.Current.Load = "other" }},
 		{"map", func(r *PrisonerInteractionRequest) { r.Current.Map++ }},
@@ -81,8 +80,12 @@ func TestPrisonerInteractionDefenseHolds(t *testing.T) {
 		{"dead", func(r *PrisonerInteractionRequest) { r.Facts.Pawn.Dead = domain.Known(true) }},
 		{"unknown prisoner", func(r *PrisonerInteractionRequest) { r.Facts.Pawn.Prisoner = domain.Unknown[bool]() }},
 		{"not a prisoner", func(r *PrisonerInteractionRequest) { r.Facts.Pawn.Prisoner = domain.Known(false) }},
-		{"unknown current interaction", func(r *PrisonerInteractionRequest) { r.Facts.Pawn.CurrentInteraction = domain.Unknown[domain.PrisonerInteractionMode]() }},
-		{"already settled", func(r *PrisonerInteractionRequest) { r.Facts.Pawn.CurrentInteraction = domain.Known(domain.PrisonerInteractionRecruit) }},
+		{"unknown current interaction", func(r *PrisonerInteractionRequest) {
+			r.Facts.Pawn.CurrentInteraction = domain.Unknown[domain.PrisonerInteractionMode]()
+		}},
+		{"already settled", func(r *PrisonerInteractionRequest) {
+			r.Facts.Pawn.CurrentInteraction = domain.Known(domain.PrisonerInteractionRecruit)
+		}},
 		{"unknown recruitable", func(r *PrisonerInteractionRequest) { r.Facts.Pawn.Recruitable = domain.Unknown[bool]() }},
 		{"not recruitable", func(r *PrisonerInteractionRequest) { r.Facts.Pawn.Recruitable = domain.Known(false) }},
 		{"preview refusal", func(r *PrisonerInteractionRequest) { r.Facts.NativeCanTry = domain.Known(false) }},

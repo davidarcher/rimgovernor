@@ -2,7 +2,7 @@
 
 Each canonical Protobuf RPC has one fixed MCP tool name: `rimgovernor/<family>_<snake_case_rpc>`. The family is the middle component of `rimgovernor.<family>.v1`; RPC names are converted from PascalCase to lowercase words separated by underscores. Service names remain part of the descriptor identity but are not repeated in tool names. Consequently, RPC names must remain unique across services within one family, including the three presentation services.
 
-This table comes from the nine official compiled C# `FileDescriptor` objects, not a parallel schema parser or source generator. All 79 methods have unique MCP names, and the longest name is 51 characters, below the 64-character ceiling. `common.proto` contributes shared messages but no RPCs. The table fixes capability identity; it does not claim an adapter is installed or native acceptance has passed.
+This table comes from the nine official compiled C# `FileDescriptor` objects, not a parallel schema parser or source generator. All 81 methods have unique MCP names, and the longest name is 51 characters, below the 64-character ceiling. `common.proto` contributes shared messages but no RPCs. The table fixes capability identity; it does not claim an adapter is installed or native acceptance has passed.
 
 ## Wrapper and dispatch
 
@@ -78,9 +78,11 @@ Use [shared rules](README.md) and the family coverage documents for exact valida
 | `rimgovernor/observations_read_building_settings` | `rimgovernor.observations.v1.Observations/ReadBuildingSettings` | `rimgovernor.observations.v1.BuildingSettingsRequest` | `rimgovernor.observations.v1.BuildingSettingsReply` |
 | `rimgovernor/observations_read_caravan_catalog` | `rimgovernor.observations.v1.Observations/ReadCaravanCatalog` | `rimgovernor.observations.v1.CaravanCatalogRequest` | `rimgovernor.observations.v1.CaravanCatalogReply` |
 | `rimgovernor/observations_read_colony_facts` | `rimgovernor.observations.v1.Observations/ReadColonyFacts` | `rimgovernor.observations.v1.ColonyFactsRequest` | `rimgovernor.observations.v1.ColonyFactsReply` |
+| `rimgovernor/observations_read_defense_site` | `rimgovernor.observations.v1.Observations/ReadDefenseSite` | `rimgovernor.observations.v1.DefenseSiteRequest` | `rimgovernor.observations.v1.DefenseSiteReply` |
 | `rimgovernor/observations_read_gear` | `rimgovernor.observations.v1.Observations/ReadGear` | `rimgovernor.observations.v1.GearRequest` | `rimgovernor.observations.v1.GearReply` |
 | `rimgovernor/observations_read_husbandry` | `rimgovernor.observations.v1.Observations/ReadHusbandry` | `rimgovernor.observations.v1.HusbandryRequest` | `rimgovernor.observations.v1.HusbandryReply` |
 | `rimgovernor/observations_read_install_status` | `rimgovernor.observations.v1.Observations/ReadInstallStatus` | `rimgovernor.observations.v1.InstallStatusRequest` | `rimgovernor.observations.v1.InstallStatusReply` |
+| `rimgovernor/observations_read_lines_of_fire` | `rimgovernor.observations.v1.Observations/ReadLinesOfFire` | `rimgovernor.observations.v1.LinesOfFireRequest` | `rimgovernor.observations.v1.LinesOfFireReply` |
 | `rimgovernor/observations_read_medical_catalog` | `rimgovernor.observations.v1.Observations/ReadMedicalCatalog` | `rimgovernor.observations.v1.MedicalCatalogRequest` | `rimgovernor.observations.v1.MedicalCatalogReply` |
 | `rimgovernor/observations_read_observation_batch` | `rimgovernor.observations.v1.Observations/ReadObservationBatch` | `rimgovernor.observations.v1.ObservationBatchRequest` | `rimgovernor.observations.v1.ObservationBatchReply` |
 | `rimgovernor/observations_read_pawn_settings` | `rimgovernor.observations.v1.Observations/ReadPawnSettings` | `rimgovernor.observations.v1.PawnSettingsRequest` | `rimgovernor.observations.v1.PawnSettingsReply` |

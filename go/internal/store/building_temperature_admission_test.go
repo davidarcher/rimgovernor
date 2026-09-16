@@ -23,7 +23,7 @@ func buildingTemperatureStoreFixture(t *testing.T) (*Store, string, BuildingTemp
 	if err = s.CreatePlan(ctx, plan); err != nil {
 		t.Fatal(err)
 	}
-	snapshot := domain.GenerationSnapshot{Colony: "colony", Load: "load", Map: 0, Plan: "plan", Revision: 1, Direction: 1, Native: 2}
+	snapshot := domain.GenerationSnapshot{Colony: "colony", Load: "load", Map: 0, Plan: "plan", Revision: 1, Native: 2}
 	v := BuildingTemperatureAdmission{Snapshot: snapshot, Tick: 12, Thing: "heater", SnapshotToken: "before-cas"}
 	return s, path, v
 }

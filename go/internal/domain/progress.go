@@ -85,40 +85,32 @@ const (
 	HeldInvalidHeld        HeldReason = "held_reservation_unverifiable"
 	HeldArithmeticOverflow HeldReason = "arithmetic_overflow"
 
-	HeldBedAssignPawnUnavailable        HeldReason = "bed_assign_pawn_unavailable"
-	HeldCaravanCrewUnavailable          HeldReason = "caravan_crew_unavailable"
-	HeldCaravanHomeFoodInsufficient     HeldReason = "caravan_home_food_insufficient"
-	HeldCaravanHomeStaffingInsufficient HeldReason = "caravan_home_staffing_insufficient"
-	HeldCaravanRouteUnavailable         HeldReason = "caravan_route_unavailable"
-	HeldCleanerUnavailable              HeldReason = "cleaner_unavailable"
-	HeldDoctorUnavailable               HeldReason = "doctor_unavailable"
-	HeldDraftOwnership                  HeldReason = "draft_ownership"
-	HeldEquipPawnUnavailable            HeldReason = "equip_pawn_unavailable"
-	HeldFilthIneligible                 HeldReason = "filth_ineligible"
-	HeldGearReplacePawnUnavailable      HeldReason = "gear_replace_pawn_unavailable"
-	HeldHaulerUnavailable               HeldReason = "hauler_unavailable"
-	HeldHomeCoverageExcluded            HeldReason = "home_coverage_excluded"
-	HeldHomeCoverageGeometryChanged     HeldReason = "home_coverage_geometry_changed"
-	HeldHusbandryAnimalUnavailable      HeldReason = "husbandry_animal_unavailable"
-	HeldInsufficientReserve             HeldReason = "insufficient_reserve"
-	HeldNativeIneligible                HeldReason = "native_ineligible"
-	HeldPatientIneligible               HeldReason = "patient_ineligible"
-	HeldPlayerOrder                     HeldReason = "player_order"
-	HeldPrisonerUnavailable             HeldReason = "prisoner_unavailable"
-	HeldProductionPolicySatisfied       HeldReason = "production_policy_satisfied"
-	HeldQuestUnavailable                HeldReason = "quest_unavailable"
-	HeldRecoveryServicePawnUnavailable  HeldReason = "recovery_service_pawn_unavailable"
-	HeldRepairerUnavailable             HeldReason = "repairer_unavailable"
-	HeldRescuerUnavailable              HeldReason = "rescuer_unavailable"
-	HeldResearchProjectClaimed          HeldReason = "research_project_claimed"
-	HeldSettlementUnavailable           HeldReason = "settlement_unavailable"
-	HeldStructureIneligible             HeldReason = "structure_ineligible"
-	HeldUnsuitableEquipment             HeldReason = "unsuitable_equipment"
-	HeldUnsupportedThreat               HeldReason = "unsupported_threat"
-	HeldWallRemovalGeometryChanged      HeldReason = "wall_removal_geometry_changed"
-	HeldWallRemovalTargetChanged        HeldReason = "wall_removal_target_changed"
-	HeldExcavationUnsupported           HeldReason = "excavation_unsupported"
-	HeldExcavationGeometryChanged       HeldReason = "excavation_geometry_changed"
+	HeldCleanerUnavailable             HeldReason = "cleaner_unavailable"
+	HeldDoctorUnavailable              HeldReason = "doctor_unavailable"
+	HeldDraftOwnership                 HeldReason = "draft_ownership"
+	HeldEquipPawnUnavailable           HeldReason = "equip_pawn_unavailable"
+	HeldFilthIneligible                HeldReason = "filth_ineligible"
+	HeldGearReplacePawnUnavailable     HeldReason = "gear_replace_pawn_unavailable"
+	HeldHaulerUnavailable              HeldReason = "hauler_unavailable"
+	HeldHomeCoverageExcluded           HeldReason = "home_coverage_excluded"
+	HeldHomeCoverageGeometryChanged    HeldReason = "home_coverage_geometry_changed"
+	HeldHusbandryAnimalUnavailable     HeldReason = "husbandry_animal_unavailable"
+	HeldNativeIneligible               HeldReason = "native_ineligible"
+	HeldPatientIneligible              HeldReason = "patient_ineligible"
+	HeldPlayerOrder                    HeldReason = "player_order"
+	HeldPrisonerUnavailable            HeldReason = "prisoner_unavailable"
+	HeldProductionPolicySatisfied      HeldReason = "production_policy_satisfied"
+	HeldRecoveryServicePawnUnavailable HeldReason = "recovery_service_pawn_unavailable"
+	HeldRepairerUnavailable            HeldReason = "repairer_unavailable"
+	HeldRescuerUnavailable             HeldReason = "rescuer_unavailable"
+	HeldResearchProjectClaimed         HeldReason = "research_project_claimed"
+	HeldStructureIneligible            HeldReason = "structure_ineligible"
+	HeldUnsuitableEquipment            HeldReason = "unsuitable_equipment"
+	HeldUnsupportedThreat              HeldReason = "unsupported_threat"
+	HeldWallRemovalGeometryChanged     HeldReason = "wall_removal_geometry_changed"
+	HeldWallRemovalTargetChanged       HeldReason = "wall_removal_target_changed"
+	HeldExcavationUnsupported          HeldReason = "excavation_unsupported"
+	HeldExcavationGeometryChanged      HeldReason = "excavation_geometry_changed"
 )
 
 // orderedHeldReasons lists every reason in the fixed, deterministic order
@@ -129,15 +121,14 @@ var orderedHeldReasons = []HeldReason{
 	HeldNotReady, HeldAlreadyReserved, HeldUnsafePlacement, HeldMaterialRequired,
 	HeldDependencyBlocked, HeldGeometryBlocked, HeldSpendingBlocked, HeldInsufficientStock,
 	HeldInvalidHeld, HeldArithmeticOverflow,
-	HeldBedAssignPawnUnavailable, HeldCaravanCrewUnavailable, HeldCaravanHomeFoodInsufficient,
-	HeldCaravanHomeStaffingInsufficient, HeldCaravanRouteUnavailable, HeldCleanerUnavailable,
+	HeldCleanerUnavailable,
 	HeldDoctorUnavailable, HeldDraftOwnership, HeldEquipPawnUnavailable, HeldFilthIneligible,
 	HeldGearReplacePawnUnavailable, HeldHaulerUnavailable, HeldHomeCoverageExcluded,
-	HeldHomeCoverageGeometryChanged, HeldHusbandryAnimalUnavailable, HeldInsufficientReserve,
+	HeldHomeCoverageGeometryChanged, HeldHusbandryAnimalUnavailable,
 	HeldNativeIneligible, HeldPatientIneligible, HeldPlayerOrder, HeldPrisonerUnavailable,
-	HeldProductionPolicySatisfied, HeldQuestUnavailable, HeldRecoveryServicePawnUnavailable,
+	HeldProductionPolicySatisfied, HeldRecoveryServicePawnUnavailable,
 	HeldRepairerUnavailable, HeldRescuerUnavailable, HeldResearchProjectClaimed,
-	HeldSettlementUnavailable, HeldStructureIneligible, HeldUnsuitableEquipment,
+	HeldStructureIneligible, HeldUnsuitableEquipment,
 	HeldUnsupportedThreat, HeldWallRemovalGeometryChanged, HeldWallRemovalTargetChanged,
 	HeldExcavationUnsupported, HeldExcavationGeometryChanged,
 }
@@ -315,7 +306,7 @@ func (p Progress) MarkDispatched(current GenerationSnapshot, tick Tick) (Progres
 	if p.draftCleanupOutstanding() {
 		return p, errors.New("draft cleanup remains outstanding")
 	}
-	if p.action.kind == OwnedDraftAction && (current.Native == 0 || current.Direction == 0) {
+	if p.action.kind == OwnedDraftAction && (current.Native == 0) {
 		return p, errors.New("draft dispatch requires native generation and player direction")
 	}
 	p.view.Attempt++

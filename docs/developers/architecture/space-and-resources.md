@@ -45,6 +45,25 @@ Future phases reserve no land. A player can adopt an inspected existing room,
 including an irregular shelter, and furnish it while preserving connected access.
 Repairs use normal construction before the room can count as habitable.
 
+Room functions are the game's own `Room.Role`, read from the typed room census;
+the controller never assigns a role, it only observes which one the game scored.
+The facility catalog (`policy.FacilityCatalog`) is the per-role matrix over every
+installed RoomRoleDef: which roles a planner pursues, which other roles may host
+the same function as a shared room, and the furniture that gives the room its
+role. Each implemented role follows one ladder — reuse a room the game already
+scores as hosting the function, then furnish an existing hosting room, then stage
+a starter shell and furnish it once roofed. Dining and recreation are the first
+implemented rows; every other role is an explicit pending row, and content-gated
+roles are pursued only when their definitions exist in the planning census.
+
+The first shelter's shape is chosen from the native player-faction tech level:
+Neolithic colonies raise a circular or oval hut, others a 9x9 rectangle, and
+constrained terrain grows a connected irregular footprint when no template fits
+(see the room footprint contract in [spatial contracts](../contracts/spatial-contracts.md)).
+Resuming control invalidates routine goals, so a restart mid-construction
+recognises the half-built shell from the walls and door standing natively and
+reissues only its missing cells rather than siting a second shell.
+
 Digging into a mountain is chosen, not configured. Rock holds its own roof and
 costs no wall material, so a verified rock face within reach of the colonists beats
 the wooden starter shell deterministically. Fog is the reason excavation is staged:
@@ -86,6 +105,6 @@ rather than declaring success when a bill is accepted.
 
 The relevant source is [go/internal/policy](../../../go/internal/policy) and
 [go/internal/store](../../../go/internal/store). Use [spatial
-contracts](../contracts/spatial-contracts.md) for exact geometry bounds and [command
-contracts](../contracts/command-contracts.md#provenance-and-resource-policies) for
-resource-policy semantics.
+contracts](../contracts/spatial-contracts.md) for exact geometry bounds and [the Go player
+API](../contracts/go-player-api.md#colony-configuration) for resource-policy
+semantics.

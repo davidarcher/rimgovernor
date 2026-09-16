@@ -23,7 +23,7 @@ func draftDispatched(t *testing.T) (Progress, GenerationSnapshot, DraftClaim) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	s := GenerationSnapshot{Colony: "colony", Map: 0, Load: "load", Direction: 1, Plan: "plan", Revision: 1, Native: 1}
+	s := GenerationSnapshot{Colony: "colony", Map: 0, Load: "load", Plan: "plan", Revision: 1, Native: 1}
 	p, err = p.Prepare(s, 10)
 	if err != nil {
 		t.Fatal(err)
@@ -73,7 +73,7 @@ func TestDraftRequiresAtomicFamilyTransitions(t *testing.T) {
 	if next, err := p.Observe(draftObservation(p, s, EffectAbsent), s); err == nil || next != p {
 		t.Fatal("generic observation bypass")
 	}
-	for _, change := range []func(*DraftClaim){func(c *DraftClaim) { c.Pawn = "other" }, func(c *DraftClaim) { c.Attempt = 2 }, func(c *DraftClaim) { c.Session = "" }, func(c *DraftClaim) { c.Origin.Direction = 2 }, func(c *DraftClaim) { c.Claim = "" }} {
+	for _, change := range []func(*DraftClaim){func(c *DraftClaim) { c.Pawn = "other" }, func(c *DraftClaim) { c.Attempt = 2 }, func(c *DraftClaim) { c.Session = "" }, func(c *DraftClaim) { c.Claim = "" }} {
 		bad := claim
 		change(&bad)
 		if next, err := p.RecordDraftReceipt(1, ReceiptAccepted, Known(bad)); err == nil || next != p {
@@ -110,7 +110,6 @@ func TestDraftCompletedAndCancelledKeepCleanup(t *testing.T) {
 			t.Fatal(p)
 		}
 		newer := s
-		newer.Direction = 2
 		newer.Native = 2
 		request := DraftReleaseRequest{Claim: claim, PawnSnapshotToken: "fresh", Observed: newer, Tick: 12}
 		p, err = p.BeginDraftCleanup(request)

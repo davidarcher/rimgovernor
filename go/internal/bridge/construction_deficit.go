@@ -16,13 +16,11 @@ const (
 // ConstructionDeficitRead is native's own view of what the colony's still
 // unbuilt player orders are still short of: for every blueprint and frame on
 // the map, the sum of its ConstructionState.resources[].still_needed by
-// definition. It is the Go form of the `resourceDeficit` list Python's
-// economic_reserves reads from home/list_buildings and adds to its economic
-// floors, so a trade never sells material a construction already in flight is
-// waiting on.
+// definition. It is the `resourceDeficit` list home/list_buildings reports,
+// which the economic floors add so a trade never sells material a
+// construction already in flight is waiting on.
 //
-// Completeness is a precondition: Python raises when the deficit list is not a
-// list at all, and this read likewise refuses a truncated or partially
+// Completeness is a precondition: this read refuses a truncated or partially
 // unreadable census rather than under-reporting a commitment.
 type ConstructionDeficitRead struct {
 	Context    *c.ObservationContext
@@ -106,7 +104,7 @@ func (client *Client) ReadConstructionDeficits(ctx context.Context, identity *c.
 				}
 				// An absent still_needed is not zero: it is unknown, and
 				// silently treating it as satisfied would under-protect the
-				// material. Python's own number() raises on the same shape.
+				// material.
 				if need.StillNeeded == nil || need.GetStillNeeded() < 0 {
 					return ConstructionDeficitRead{}, raw, contract("construction material deficit unknown")
 				}

@@ -51,3 +51,46 @@ func TestTemperatureProjectionUsesOnlyEligibleBedsAndPreservesUnknown(t *testing
 		})
 	}
 }
+
+func TestRoomProjectionCarriesNativeRoleAndComfortHostingNeedsBothCensuses(t *testing.T) {
+	rooms := &o.RoomsSnapshot{Rooms: []*o.RoomState{
+		{Id: proto.String("dining"), Role: proto.String("DiningRoom"), ProperRoom: proto.Bool(true), Cells: []*c.Cell{{X: proto.Int32(1), Z: proto.Int32(1)}}},
+		{Id: proto.String("unroled"), ProperRoom: proto.Bool(true)}}}
+	census := temperatureRooms(rooms, domain.Unknown[policy.SleepingObservation]())
+	v, known := census.Value()
+	if !known || len(v.Rooms) != 2 || v.Rooms[0].Role != domain.Known(policy.RoomRoleDiningRoom) || v.Rooms[1].Role != domain.Unknown[policy.RoomRole]() {
+		t.Fatal(census)
+	}
+	people := []policy.PawnID{"a"}
+	comfort := policy.ComfortObservation{People: people, Dining: []policy.ComfortFacility{{ID: "hosted", RoomID: "dining", AccessibleTo: people}, {ID: "stray", RoomID: "unroled", AccessibleTo: people}}}
+	hosted, known := hostedComfort(domain.Known(comfort), census).Value()
+	if !known || len(hosted.Dining) != 1 || hosted.Dining[0].ID != "hosted" {
+		t.Fatal(hosted, known)
+	}
+	if _, known := hostedComfort(domain.Known(comfort), domain.Unknown[policy.RoomObservation]()).Value(); known {
+		t.Fatal("missing room census certified comfort")
+	}
+	if _, known := hostedComfort(domain.Unknown[policy.ComfortObservation](), census).Value(); known {
+		t.Fatal("missing comfort census certified comfort")
+	}
+}
+
+func TestTemperatureRoomsDecodesCleanlinessStat(t *testing.T) {
+	rooms := &o.RoomsSnapshot{Rooms: []*o.RoomState{
+		{Id: proto.String("clean"), ProperRoom: proto.Bool(true), Stats: []*o.RoomStat{{DefName: proto.String("Cleanliness"), Value: proto.Float64(-2.5)}}},
+		{Id: proto.String("unavailable"), ProperRoom: proto.Bool(true), Stats: []*o.RoomStat{{DefName: proto.String("Cleanliness"), Unavailable: &c.Unavailable{}}}},
+		{Id: proto.String("missing"), ProperRoom: proto.Bool(true), Stats: []*o.RoomStat{{DefName: proto.String("Impressiveness"), Value: proto.Float64(1)}}},
+	}}
+	census, known := temperatureRooms(rooms, domain.Unknown[policy.SleepingObservation]()).Value()
+	if !known || len(census.Rooms) != 3 {
+		t.Fatal(census, known)
+	}
+	if v, ok := census.Rooms[0].Cleanliness.Value(); !ok || v != -2.5 {
+		t.Fatal(census.Rooms[0])
+	}
+	for _, room := range census.Rooms[1:] {
+		if _, ok := room.Cleanliness.Value(); ok {
+			t.Fatal(room)
+		}
+	}
+}

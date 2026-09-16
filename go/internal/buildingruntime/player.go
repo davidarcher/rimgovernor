@@ -186,13 +186,15 @@ func (p *Player) finish(record store.ControlRecord, phase store.ControlPhase, ge
 func (p *Player) uncertain(record store.ControlRecord, cause error) (store.ControlRecord, error) {
 	return p.finish(record, store.UncertainControl, 0, errors.Join(cause, p.session.Disable()))
 }
-func (p *Player) Acquire(ctx context.Context, request store.ControlRequest) (store.ControlRecord, error) {
+
+// Resume enables autonomous play for the requested world under its root plan.
+func (p *Player) Resume(ctx context.Context, request store.ControlRequest) (store.ControlRecord, error) {
 	call, epoch, done, err := p.enter(ctx, false)
 	if err != nil {
 		return store.ControlRecord{}, err
 	}
 	defer done()
-	if request.Kind != store.AcquireControl {
+	if request.Kind != store.ResumeControl {
 		return store.ControlRecord{}, store.ErrConflict
 	}
 	if old, found, err := p.lookup(call, request); err != nil || found {
@@ -230,7 +232,11 @@ func (p *Player) Acquire(ctx context.Context, request store.ControlRequest) (sto
 	if err = p.current(call, epoch); err != nil {
 		return p.uncertain(record, err)
 	}
-	snapshot := domain.GenerationSnapshot{Colony: request.World.Colony, Load: request.World.Load, Map: request.World.Map, Plan: request.Plan, Revision: request.Revision, Direction: record.Direction}
+	root, err := p.journal.EnsureRootPlan(call, request.World)
+	if err != nil {
+		return p.uncertain(record, err)
+	}
+	snapshot := domain.GenerationSnapshot{Colony: request.World.Colony, Load: request.World.Load, Map: request.World.Map, Plan: root.Spec.ID(), Revision: root.Spec.Revision()}
 	granted, err := p.session.Acquire(call, snapshot)
 	if err != nil {
 		return p.uncertain(record, err)
@@ -244,15 +250,15 @@ func (p *Player) Acquire(ctx context.Context, request store.ControlRequest) (sto
 	if granted.Native == 0 || granted != expected || !actual.Enabled || !actual.ObservationKnown || actual.Snapshot != granted {
 		return p.uncertain(record, ErrControl)
 	}
-	return p.finish(record, store.GrantedControl, granted.Native, nil)
+	return p.finish(record, store.RunningControl, granted.Native, nil)
 }
 func playerWorld(snapshot domain.GenerationSnapshot) store.World {
 	return store.World{Colony: snapshot.Colony, Load: snapshot.Load, Map: snapshot.Map}
 }
 
-// Manual always stops local writes first, including on historical replay or a
+// Pause always stops local writes first, including on historical replay or a
 // stale browser world. Only fresh matching scope permits native cleanup.
-func (p *Player) Manual(ctx context.Context, request store.ControlRequest) (store.ControlRecord, error) {
+func (p *Player) Pause(ctx context.Context, request store.ControlRequest) (store.ControlRecord, error) {
 	call, epoch, done, err := p.enter(ctx, true)
 	if err != nil {
 		return store.ControlRecord{}, err
@@ -261,7 +267,7 @@ func (p *Player) Manual(ctx context.Context, request store.ControlRequest) (stor
 	if _, err = p.stopRoutine(call); err != nil {
 		return store.ControlRecord{}, err
 	}
-	if request.Kind != store.ManualControl {
+	if request.Kind != store.PauseControl {
 		return store.ControlRecord{}, store.ErrConflict
 	}
 	if old, found, err := p.lookup(call, request); err != nil || found {
@@ -286,7 +292,7 @@ func (p *Player) Manual(ctx context.Context, request store.ControlRequest) (stor
 	if err = p.current(call, epoch); err != nil {
 		return p.uncertain(record, err)
 	}
-	return p.finish(record, store.DisabledControl, 0, nil)
+	return p.finish(record, store.PausedControl, 0, nil)
 }
 
 // Close retains Session and caller-owned bridge/store handles on failed drain.

@@ -102,9 +102,8 @@ func (s *Server) handlePopulationDecision(ctx context.Context, w http.ResponseWr
 			err = ctx.Err()
 		}
 		if err != nil {
-			// A missing population policy reports ErrNotFound, the same
-			// precondition Python states as "Set an explicit population
-			// maximum and food reserve first".
+			// A missing population policy reports ErrNotFound: set an explicit
+			// population maximum and food reserve first.
 			status, failure := playerFailure(err)
 			s.write(w, r, status, failure)
 			return

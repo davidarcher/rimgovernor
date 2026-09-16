@@ -30,7 +30,7 @@ RUN go mod download
 ENV CGO_ENABLED=0
 RUN go build -o /out/rimgovernor ./cmd/rimgovernor
 
-# Docker acceptance worker (go/internal/dockeraccept): the same rimgovernor
+# Docker acceptance worker (go/internal/nativeaccept/docker): the same rimgovernor
 # binary as go-controller, plus the shared-library set a headless (or Xvfb-
 # rendered) Unity/RimWorld process needs, which go-controller has no reason to
 # carry. Game, mods and GABS binary are bind-mounted read-only at run time
@@ -38,7 +38,7 @@ RUN go build -o /out/rimgovernor ./cmd/rimgovernor
 # image. Kept before go-controller so a plain `docker build` with no --target
 # still builds go-controller by default.
 #
-# dockeraccept.StartWorker builds /worker/game entirely out of individual
+# docker.StartWorker builds /worker/game entirely out of individual
 # read-only `-v` bind mounts -- one per game top-level entry, plus one for
 # Mods -- rather than one mount for the whole game directory. RimWorld's
 # Unity engine resolves its install directory from the *real* path of its
@@ -50,7 +50,7 @@ RUN go build -o /out/rimgovernor ./cmd/rimgovernor
 FROM debian:bookworm-slim AS worker
 # curl: Docker Desktop's --network host (Windows/macOS) runs containers
 # inside its own VM and does not bridge to the true host loopback, so
-# go/internal/dockeraccept.Worker's HTTP health/state checks run through
+# go/internal/nativeaccept/docker.Worker's HTTP health/state checks run through
 # `docker exec ... curl` instead of a direct host-side connection -- that
 # works uniformly there and under Linux's real host networking.
 RUN apt-get update && apt-get install -y --no-install-recommends ca-certificates curl \

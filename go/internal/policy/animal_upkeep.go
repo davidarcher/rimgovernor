@@ -27,7 +27,7 @@ type UpkeepAnimal struct {
 // HusbandryTrainable is one trainable definition's recursive-training
 // eligibility for one animal, ported from AnimalState.TrainingEntry.
 type HusbandryTrainable struct {
-	Def              string
+	Def                string
 	Available, Learned domain.Fact[bool]
 }
 type AnimalUpkeepObservation struct {
@@ -196,7 +196,7 @@ const (
 	ContainmentBuildShell    AnimalContainmentReason = "build_pen_shell"
 	ContainmentAwaitingShell AnimalContainmentReason = "awaiting_shell_completion"
 	ContainmentPlaceMarker   AnimalContainmentReason = "place_pen_marker"
-	// ContainmentMarkerExhausted mirrors the Python SkillBlocked once a marker
+	// ContainmentMarkerExhausted is the blocked outcome once a marker
 	// method was already attempted with no observed suitable enclosure yet.
 	ContainmentMarkerExhausted AnimalContainmentReason = "marker_placed_awaiting_native_pen"
 )

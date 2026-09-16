@@ -13,11 +13,11 @@ import (
 )
 
 type saveFake struct {
-	calls   int
-	last    *l.SaveRequest
-	reply   *l.SaveReply
-	err     error
-	onCall  func(*l.SaveRequest)
+	calls  int
+	last   *l.SaveRequest
+	reply  *l.SaveReply
+	err    error
+	onCall func(*l.SaveRequest)
 }
 
 func (f *saveFake) Save(_ context.Context, request *l.SaveRequest) (*l.SaveReply, bridge.Result, error) {
@@ -61,7 +61,7 @@ func TestCheckpointHappyPathDrainsAndSaves(t *testing.T) {
 	if result.SaveName != "checkpoint-1" || !result.Paused || result.Tick != 10 {
 		t.Fatalf("unexpected result: %+v", result)
 	}
-	if save.last.Player.GetPlayerDirection() != uint64(scope.Direction) {
+	if save.last.Player.GetPlayerDirection() != bridge.LifecycleDirection {
 		t.Fatal("wrong direction sent")
 	}
 }
@@ -78,7 +78,7 @@ func TestCheckpointRefusesWithoutLiveAuthority(t *testing.T) {
 	}
 }
 
-func TestCheckpointRefusesStaleDirectionOrForeignWorld(t *testing.T) {
+func TestCheckpointRefusesForeignWorld(t *testing.T) {
 	t.Parallel()
 	control, _, _, _ := controlFixture(t, nil)
 	scope := controlScope()
@@ -87,15 +87,14 @@ func TestCheckpointRefusesStaleDirectionOrForeignWorld(t *testing.T) {
 	}
 	save := &saveFake{}
 	for name, mutate := range map[string]func(domain.GenerationSnapshot) domain.GenerationSnapshot{
-		"wrong direction": func(s domain.GenerationSnapshot) domain.GenerationSnapshot { s.Direction++; return s },
-		"wrong colony":    func(s domain.GenerationSnapshot) domain.GenerationSnapshot { s.Colony = "foreign"; return s },
-		"wrong map":       func(s domain.GenerationSnapshot) domain.GenerationSnapshot { s.Map++; return s },
-		"wrong load":      func(s domain.GenerationSnapshot) domain.GenerationSnapshot { s.Load = "foreign"; return s },
+		"wrong colony": func(s domain.GenerationSnapshot) domain.GenerationSnapshot { s.Colony = "foreign"; return s },
+		"wrong map":    func(s domain.GenerationSnapshot) domain.GenerationSnapshot { s.Map++; return s },
+		"wrong load":   func(s domain.GenerationSnapshot) domain.GenerationSnapshot { s.Load = "foreign"; return s },
 	} {
 		t.Run(name, func(t *testing.T) {
 			expected := mutate(scope)
 			if _, err := control.Checkpoint(context.Background(), save, CheckpointRequest{Expected: expected, SaveName: "checkpoint-1"}); !errors.Is(err, ErrCheckpoint) {
-				t.Fatal("stale direction or foreign instance admitted")
+				t.Fatal("foreign instance admitted")
 			}
 		})
 	}
@@ -113,9 +112,8 @@ func TestCheckpointRejectsInvalidRequestShape(t *testing.T) {
 	}
 	save := &saveFake{}
 	for name, request := range map[string]CheckpointRequest{
-		"no direction": {Expected: func() domain.GenerationSnapshot { s := scope; s.Direction = 0; return s }(), SaveName: "checkpoint-1"},
-		"empty name":   {Expected: scope, SaveName: ""},
-		"nil save":     {Expected: scope, SaveName: "checkpoint-1"},
+		"empty name": {Expected: scope, SaveName: ""},
+		"nil save":   {Expected: scope, SaveName: "checkpoint-1"},
 	} {
 		t.Run(name, func(t *testing.T) {
 			var err error

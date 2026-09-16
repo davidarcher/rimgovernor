@@ -54,7 +54,7 @@ func TestRoutineRecoveryProposalRestartManualAndCancellation(t *testing.T) {
 		t.Fatal(loaded, err)
 	}
 	r.Enabled = true
-	r.Current.Direction++
+	r.Current.Native++
 	out = reviewRoutine(t, s, &r)
 	if out.Review.Recovery == nil || out.Review.Recovery.Goal == first.Goal {
 		t.Fatal("new direction reused prior executable identity")

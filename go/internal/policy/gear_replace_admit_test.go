@@ -14,7 +14,7 @@ func gearReplaceRequest(t *testing.T) GearReplaceRequest {
 	if err != nil {
 		t.Fatal(err)
 	}
-	s := domain.GenerationSnapshot{Colony: "colony", Map: 0, Load: "load", Direction: 1, Plan: plan.ID(), Revision: 1, Native: 1}
+	s := domain.GenerationSnapshot{Colony: "colony", Map: 0, Load: "load", Plan: plan.ID(), Revision: 1, Native: 1}
 	p, _ := domain.NewProgress(plan, a.ID())
 	pawn := GearReplacePawnFacts{Pawn: "unarmed", SnapshotToken: "pawn-cas", Dead: domain.Known(false), Downed: domain.Known(false), Drafted: domain.Known(false), MentalState: domain.Known(false), ExistingJobDef: domain.Known("")}
 	return GearReplaceRequest{Action: a, Progress: p, Current: s, MinimumTick: 11, Facts: GearReplaceFacts{Snapshot: s, PawnTick: 12, PreviewTick: 13, Pawn: pawn, ThingSnapshotToken: "thing-cas", LoadoutToken: "loadout-cas", NativeCanTry: domain.Known(true)}}
@@ -53,7 +53,6 @@ func TestGearReplaceDefenseHolds(t *testing.T) {
 		{"reversed interval", func(r *GearReplaceRequest) { r.Facts.PreviewTick = 11 }},
 		{"zero generation", func(r *GearReplaceRequest) { r.Current.Native = 0 }},
 		{"native", func(r *GearReplaceRequest) { r.Current.Native++ }},
-		{"direction", func(r *GearReplaceRequest) { r.Current.Direction++ }},
 		{"colony", func(r *GearReplaceRequest) { r.Current.Colony = "other" }},
 		{"load", func(r *GearReplaceRequest) { r.Current.Load = "other" }},
 		{"map", func(r *GearReplaceRequest) { r.Current.Map++ }},

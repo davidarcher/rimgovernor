@@ -14,7 +14,7 @@ func homeCoverageRequest(t *testing.T) HomeCoverageRequest {
 	if err != nil {
 		t.Fatal(err)
 	}
-	s := domain.GenerationSnapshot{Colony: "colony", Map: 0, Load: "load", Direction: 1, Plan: plan.ID(), Revision: 1, Native: 1}
+	s := domain.GenerationSnapshot{Colony: "colony", Map: 0, Load: "load", Plan: plan.ID(), Revision: 1, Native: 1}
 	p, _ := domain.NewProgress(plan, a.ID())
 	facts := HomeCoverageFacts{
 		Snapshot:        s,
@@ -62,7 +62,6 @@ func TestHomeCoverageDefenseHolds(t *testing.T) {
 		{"reversed interval", func(r *HomeCoverageRequest) { r.Facts.PreviewTick = 11 }},
 		{"zero generation", func(r *HomeCoverageRequest) { r.Current.Native = 0 }},
 		{"native", func(r *HomeCoverageRequest) { r.Current.Native++ }},
-		{"direction", func(r *HomeCoverageRequest) { r.Current.Direction++ }},
 		{"colony", func(r *HomeCoverageRequest) { r.Current.Colony = "other" }},
 		{"load", func(r *HomeCoverageRequest) { r.Current.Load = "other" }},
 		{"map", func(r *HomeCoverageRequest) { r.Current.Map++ }},

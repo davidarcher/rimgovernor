@@ -29,7 +29,7 @@ func validateConfirmColonyNamesAdmission(a domain.Action, p domain.Progress, adm
 		return err
 	}
 	v := p.View()
-	if admission.Snapshot.Plan != v.Plan || admission.Snapshot.Revision != v.Revision || admission.Snapshot.Native == 0 || admission.Snapshot.Direction == 0 || admission.Tick < 0 {
+	if admission.Snapshot.Plan != v.Plan || admission.Snapshot.Revision != v.Revision || admission.Snapshot.Native == 0 || admission.Tick < 0 {
 		return errors.New("admission plan or tick mismatch")
 	}
 	value, ok := a.NamingConfirmation()

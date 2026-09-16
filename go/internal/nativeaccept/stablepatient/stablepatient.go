@@ -330,33 +330,12 @@ func Run(ctx context.Context, cfg RunConfig, report na.Report) ([]map[string]any
 	}
 	report["service_state_attached"] = state
 
-	// Anchor plan for acquire, same shape and rationale as
-	// sustainedfood.Run's own resource-policy anchor: a pure settings write
-	// with no pawn labor and no persistent map object, so it never competes
-	// with EnsureFoodSupply or CriticalMedicine for pawn time.
-	submission, status, err := apiCall("POST", "/api/player/resource-policy/update", map[string]any{
-		"requestId": prefix + "-anchor-1",
-		"expected":  identity,
-		"policy":    map[string]any{"resource": "Silver", "spending": "normal"},
-	}, token)
-	if err != nil {
-		return nil, err
-	}
-	if status != 200 && status != 201 {
-		return nil, fmt.Errorf("unexpected anchor plan submission status=%d body=%#v", status, submission)
-	}
-	planID := na.AsString(submission["planId"])
-	revision := na.AsString(submission["revision"])
-	if planID == "" || revision == "" {
-		return nil, fmt.Errorf("unexpected anchor plan submission: %#v", submission)
-	}
-	report["anchor_submission"] = submission
-
+	// Resume needs no anchor plan: authority is the world's own root plan,
+	// created on first resume (SIMP02, #55).
 	acquireBody := map[string]any{
-		"requestId": prefix + "-acquire-1", "expected": identity,
-		"planId": planID, "revision": revision, "expectedDirection": "0",
+		"requestId": prefix + "-resume-1", "expected": identity,
 	}
-	acquired, status, err := apiCall("POST", "/api/player/control/acquire", acquireBody, token)
+	acquired, status, err := apiCall("POST", "/api/player/control/resume", acquireBody, token)
 	if err != nil {
 		return nil, err
 	}
@@ -364,8 +343,8 @@ func Run(ctx context.Context, cfg RunConfig, report na.Report) ([]map[string]any
 		return nil, fmt.Errorf("unexpected acquire status=%d body=%#v", status, acquired)
 	}
 	acquiredRecord, _ := na.AsMap(acquired["record"])
-	if na.AsString(acquiredRecord["phase"]) != "granted" {
-		return nil, fmt.Errorf("acquire was not granted: %#v", acquired)
+	if na.AsString(acquiredRecord["phase"]) != "running" {
+		return nil, fmt.Errorf("resume was not running: %#v", acquired)
 	}
 	report["acquired"] = acquired
 
@@ -375,8 +354,7 @@ func Run(ctx context.Context, cfg RunConfig, report na.Report) ([]map[string]any
 	}
 	defer verifyStore.Close()
 
-	keepAlive := &authorityKeepAlive{apiCall: apiCall, identity: identity, planID: planID, revision: revision, token: token, prefix: prefix}
-	keepAlive.direction = na.AsString(acquiredRecord["direction"])
+	keepAlive := &authorityKeepAlive{apiCall: apiCall, identity: identity, token: token, prefix: prefix}
 	keepAliveCtx, stopKeepAlive := context.WithCancel(ctx)
 	var keepAliveWG sync.WaitGroup
 	keepAliveWG.Add(1)
@@ -552,13 +530,10 @@ func sampleGoal(ctx context.Context, s *store.Store, need policy.GoalID) (map[st
 type authorityKeepAlive struct {
 	apiCall  func(method, path string, body map[string]any, token string) (map[string]any, int, error)
 	identity map[string]any
-	planID   string
-	revision string
 	token    string
 	prefix   string
 
 	mu                sync.Mutex
-	direction         string
 	attempts          int
 	reacquired        int
 	acknowledged      int
@@ -570,7 +545,7 @@ func (k *authorityKeepAlive) snapshot() map[string]any {
 	k.mu.Lock()
 	defer k.mu.Unlock()
 	out := map[string]any{
-		"attempts": k.attempts, "reacquired": k.reacquired, "final_direction": k.direction,
+		"attempts": k.attempts, "reacquired": k.reacquired,
 		"acknowledged": k.acknowledged, "acknowledge_failed": k.acknowledgeFailed,
 	}
 	if k.lastError != "" {
@@ -617,15 +592,13 @@ func (k *authorityKeepAlive) run(ctx context.Context) {
 			}
 		}
 		k.mu.Lock()
-		direction := k.direction
 		k.attempts++
 		k.mu.Unlock()
 		body := map[string]any{
 			"requestId": fmt.Sprintf("%s-reacquire-%d", k.prefix, time.Now().UnixNano()),
-			"expected":  k.identity, "planId": k.planID, "revision": k.revision,
-			"expectedDirection": direction,
+			"expected":  k.identity,
 		}
-		acquired, status, err := k.apiCall("POST", "/api/player/control/acquire", body, k.token)
+		acquired, status, err := k.apiCall("POST", "/api/player/control/resume", body, k.token)
 		if err != nil {
 			k.mu.Lock()
 			k.lastError = err.Error()
@@ -633,28 +606,15 @@ func (k *authorityKeepAlive) run(ctx context.Context) {
 			continue
 		}
 		record, _ := na.AsMap(acquired["record"])
-		if observed := na.AsString(record["direction"]); observed != "" {
-			k.mu.Lock()
-			k.direction = observed
-			k.mu.Unlock()
-		} else if state, ok := na.AsMap(acquired["state"]); ok {
-			if generation, ok := na.AsMap(state["generation"]); ok {
-				if observed := na.AsString(generation["direction"]); observed != "" {
-					k.mu.Lock()
-					k.direction = observed
-					k.mu.Unlock()
-				}
-			}
-		}
 		if status != 200 {
 			k.mu.Lock()
 			k.lastError = fmt.Sprintf("reacquire status=%d body=%#v", status, acquired)
 			k.mu.Unlock()
 			continue
 		}
-		if na.AsString(record["phase"]) != "granted" {
+		if na.AsString(record["phase"]) != "running" {
 			k.mu.Lock()
-			k.lastError = fmt.Sprintf("reacquire not granted: %#v", acquired)
+			k.lastError = fmt.Sprintf("reacquire not running: %#v", acquired)
 			k.mu.Unlock()
 			continue
 		}

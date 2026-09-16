@@ -37,6 +37,7 @@ namespace HomeBridge.BridgeTools
         internal readonly Dictionary<Common.AttemptKey, NativePrisonerInteractionRecord> PrisonerInteractions = new Dictionary<Common.AttemptKey, NativePrisonerInteractionRecord>();
         internal readonly Dictionary<Common.AttemptKey, NativeWasteRecord> Waste = new Dictionary<Common.AttemptKey, NativeWasteRecord>();
         internal readonly Dictionary<Common.AttemptKey, NativeEquipRecord> Equips = new Dictionary<Common.AttemptKey, NativeEquipRecord>();
+        internal readonly Dictionary<Common.AttemptKey, NativeCleanRecord> Cleans = new Dictionary<Common.AttemptKey, NativeCleanRecord>();
         internal readonly Dictionary<Common.AttemptKey, NativeTradeRecord> Trade = new Dictionary<Common.AttemptKey, NativeTradeRecord>();
         internal readonly Dictionary<Common.AttemptKey, NativeCaravanRecord> Caravans = new Dictionary<Common.AttemptKey, NativeCaravanRecord>();
         internal readonly Dictionary<Common.AttemptKey, NativeQuestRecord> Quests = new Dictionary<Common.AttemptKey, NativeQuestRecord>();
@@ -118,7 +119,8 @@ namespace HomeBridge.BridgeTools
                     case Operations.PawnOrderKind.Haul: return NativeHaulOperations.Execute(state, request, context);
                     case Operations.PawnOrderKind.Capture:
                     case Operations.PawnOrderKind.Rescue: return NativeCustodyOperations.Execute(state, request, context);
-                    default: return Refuse(Common.FailureCode.Unsupported, "This native adapter implements Equip, Haul, Capture and Rescue pawn-target orders.");
+                    case Operations.PawnOrderKind.Clean: return NativeCleanOperations.Execute(state, request, context);
+                    default: return Refuse(Common.FailureCode.Unsupported, "This native adapter implements Equip, Haul, Capture, Rescue and Clean pawn-target orders.");
                 }
             }
             if (request.Operation.CommandCase == Operations.Operation.CommandOneofCase.RecoverService)
@@ -248,7 +250,8 @@ namespace HomeBridge.BridgeTools
                         case Operations.PawnOrderKind.Haul: return ProtoBoundary.Encode(NativeHaulOperations.Preview(parsed.Operation.PawnTargetOrder, context));
                         case Operations.PawnOrderKind.Capture:
                         case Operations.PawnOrderKind.Rescue: return ProtoBoundary.Encode(NativeCustodyOperations.Preview(parsed.Operation.PawnTargetOrder, context));
-                        default: return ProtoBoundary.Encode(new Operations.PreviewReply { Failure = ProtoBoundary.Fail(Common.FailureCode.Unsupported, "Preview implements Equip, Haul, Capture and Rescue pawn-target orders.") });
+                        case Operations.PawnOrderKind.Clean: return ProtoBoundary.Encode(NativeCleanOperations.Preview(parsed.Operation.PawnTargetOrder, context));
+                        default: return ProtoBoundary.Encode(new Operations.PreviewReply { Failure = ProtoBoundary.Fail(Common.FailureCode.Unsupported, "Preview implements Equip, Haul, Capture, Rescue and Clean pawn-target orders.") });
                     }
                 }
                 if (parsed.Operation?.CommandCase == Operations.Operation.CommandOneofCase.RecoverService)
@@ -392,6 +395,9 @@ namespace HomeBridge.BridgeTools
                     NativeEquipRecord equip;
                     if (state.Equips.TryGetValue(parsed.Attempt, out equip))
                         return ProtoBoundary.Encode(NativeOperationEnvelope.Progress(new Receipts.ProgressReply { Progress = equip.Observe(parsed.Attempt, context) }));
+                    NativeCleanRecord clean;
+                    if (state.Cleans.TryGetValue(parsed.Attempt, out clean))
+                        return ProtoBoundary.Encode(NativeOperationEnvelope.Progress(new Receipts.ProgressReply { Progress = clean.Observe(parsed.Attempt, context) }));
                     NativeTradeRecord trade;
                     if (state.Trade.TryGetValue(parsed.Attempt, out trade))
                         return ProtoBoundary.Encode(NativeOperationEnvelope.Progress(new Receipts.ProgressReply { Progress = trade.Observe(parsed.Attempt, context) }));

@@ -79,7 +79,7 @@ func TestRoutineDevelopmentPersistsAgeAndRechecksPlayerCapacity(t *testing.T) {
 	}
 }
 
-func TestRoutineDevelopmentUnknownWorkersAndDirectionReset(t *testing.T) {
+func TestRoutineDevelopmentUnknownWorkersAndReloadReset(t *testing.T) {
 	t.Parallel()
 	s := open(t, filepath.Join(t.TempDir(), "development.db"))
 	defer s.Close()
@@ -93,7 +93,7 @@ func TestRoutineDevelopmentUnknownWorkersAndDirectionReset(t *testing.T) {
 		t.Fatal(unknown)
 	}
 	r.Facts.Workers = domain.Known(2)
-	r.Current.Direction = 1
+	r.Current.Load = "reloaded"
 	changed := reviewRoutine(t, s, &r)
 	row = developmentRow(t, changed.Review, policy.MaintainWood)
 	if row.WaitingSince != changed.Review.Tick || !row.Selected {
@@ -173,5 +173,116 @@ func TestRoutineDevelopmentCountsCancelledUncertainPlayerWork(t *testing.T) {
 	released := reviewRoutine(t, s, &r)
 	if !developmentRow(t, released.Review, policy.MaintainWood).Selected {
 		t.Fatal(released)
+	}
+}
+
+// Configured research/resource targets rank with a measured deficit, and a
+// production policy push is admitted without holding a development slot.
+func TestRoutineDevelopmentConfiguredTargetsAndExemptPush(t *testing.T) {
+	t.Parallel()
+	ctx := context.Background()
+	s := open(t, filepath.Join(t.TempDir(), "development-targets.db"))
+	r := routineRequest()
+	r.Policy.MaxDevelopmentProjects = 1
+	r.Policy.ResearchTarget = "Stonecutting"
+	r.Policy.ResourceTargets = map[policy.Resource]int64{"Steel": 100}
+	r.Policy.ResourceReserves = map[policy.Resource]int64{"WoodLog": 50}
+	r.Facts.Research = domain.Known(policy.ResearchFacts{Projects: []policy.ResearchProjectID{"Stonecutting"}})
+	r.Facts.Resources = domain.Known([]policy.Amount{{Resource: "Steel", Count: 50}})
+	out := reviewRoutine(t, s, &r)
+	research := developmentRow(t, out.Review, policy.EnsureResearch)
+	resource := developmentRow(t, out.Review, policy.MaintainResource)
+	if research.Deficit == nil || *research.Deficit != 1 || resource.Deficit == nil || *resource.Deficit != 0.5 {
+		t.Fatal(research, resource)
+	}
+	if !research.Selected || resource.Selected || resource.Reason != policy.DevelopmentCapacity {
+		t.Fatal(research, resource)
+	}
+	for _, row := range out.Review.Development.Rows {
+		if row.Goal == policy.ProductionPolicy {
+			t.Fatal("configuration push must not rank for development")
+		}
+	}
+	g := routineGoal(t, out, policy.ProductionPolicy)
+	if g.Goal.Need != domain.NeedDeficit {
+		t.Fatal(g.Goal)
+	}
+	if _, err := s.CommitGoalMethod(ctx, g.Goal.ID, g.Revision, "push", plan(t, "push", "push-action")); err != nil {
+		t.Fatal("exempt push refused", err)
+	}
+	g = routineGoal(t, out, policy.MaintainResource)
+	if _, err := s.CommitGoalMethod(ctx, g.Goal.ID, g.Revision, "steel", plan(t, "steel", "steel-action")); !errors.Is(err, ErrConflict) {
+		t.Fatal("unselected resource goal admitted", err)
+	}
+	// Recovered facts retire the goals; missing facts leave them unknown.
+	r.Facts.Research = domain.Known(policy.ResearchFacts{Current: "Stonecutting", Projects: []policy.ResearchProjectID{"Stonecutting"}})
+	r.Facts.Resources = domain.Known([]policy.Amount{{Resource: "Steel", Count: 120}})
+	out = reviewRoutine(t, s, &r)
+	if routineGoal(t, out, policy.EnsureResearch).Goal.Need != domain.NeedRecovered || routineGoal(t, out, policy.MaintainResource).Goal.Need != domain.NeedRecovered {
+		t.Fatal(out.Goals)
+	}
+	r.Facts.Research, r.Facts.Resources = domain.Unknown[policy.ResearchFacts](), domain.Unknown[[]policy.Amount]()
+	out = reviewRoutine(t, s, &r)
+	if routineGoal(t, out, policy.EnsureResearch).Goal.Need != domain.NeedUnknown || routineGoal(t, out, policy.MaintainResource).Goal.Need != domain.NeedUnknown {
+		t.Fatal(out.Goals)
+	}
+}
+
+// A labor census persists with the ranking and reloads unchanged; a goal
+// whose only work type is occupied by a committed player project defers
+// with the bottleneck named rather than counting as capacity-deferred.
+func TestRoutineDevelopmentLaborPersistsAndDefers(t *testing.T) {
+	t.Parallel()
+	ctx := context.Background()
+	path := filepath.Join(t.TempDir(), "development-labor.db")
+	s := open(t, path)
+	r := routineRequest()
+	r.Policy.MaxDevelopmentProjects = 4
+	r.Policy.ResearchTarget = "Stonecutting"
+	r.Facts.Research = domain.Known(policy.ResearchFacts{Projects: []policy.ResearchProjectID{"Stonecutting"}})
+	r.Facts.Workers = domain.Known(4)
+	r.Facts.Labor = domain.Known(map[policy.WorkType]int{policy.WorkConstruction: 1, policy.WorkResearch: 1, policy.WorkPlantCutting: 1})
+	r.Facts.Colonists, r.Facts.IndoorCapacity, r.Facts.BedCapacity = domain.Known(int64(3)), domain.Known(int64(3)), domain.Known(int64(3))
+	first := reviewRoutine(t, s, &r)
+	if first.Review.Development.Labor[policy.WorkResearch] != 1 || developmentRow(t, first.Review, policy.EnsureResearch).Bottleneck != "" {
+		t.Fatal(first.Review.Development)
+	}
+	s.Close()
+	s = open(t, path)
+	defer s.Close()
+	loaded, err := s.LoadRoutineReview(ctx)
+	if err != nil || !reflect.DeepEqual(loaded, first.Review) {
+		t.Fatal(loaded, err)
+	}
+	if _, _, err = s.SubmitBuilding(ctx, submissionRequest(t, "builder")); err != nil {
+		t.Fatal(err)
+	}
+	r.Facts.Colonists, r.Facts.IndoorCapacity = domain.Known(int64(3)), domain.Known(int64(2))
+	second := reviewRoutine(t, s, &r)
+	expansion := developmentRow(t, second.Review, policy.EnsureExpansion)
+	if expansion.Selected || expansion.Reason != policy.DevelopmentLabor || expansion.Bottleneck != policy.WorkConstruction {
+		t.Fatal(expansion)
+	}
+	if !developmentRow(t, second.Review, policy.EnsureResearch).Selected || !developmentRow(t, second.Review, policy.MaintainWood).Selected {
+		t.Fatal(second.Review.Development.Rows)
+	}
+	g := routineGoal(t, second, policy.EnsureExpansion)
+	if _, err = s.CommitGoalMethod(ctx, g.Goal.ID, g.Revision, "wall", plan(t, "wall", "wall-action")); !errors.Is(err, ErrConflict) {
+		t.Fatal("labor-deferred goal admitted", err)
+	}
+	// An observed outdoor hazard defers outdoor work ahead of labor accounting
+	// and the measured risk persists with the row.
+	r.Facts.DisasterConditions = domain.Known([]policy.DisasterCondition{{ID: "1", Definition: "ToxicFallout"}})
+	third := reviewRoutine(t, s, &r)
+	expansion = developmentRow(t, third.Review, policy.EnsureExpansion)
+	if expansion.Reason != policy.DevelopmentRisk || expansion.Risk == nil || *expansion.Risk != 1 || expansion.Bottleneck != "" {
+		t.Fatal(expansion)
+	}
+	if research := developmentRow(t, third.Review, policy.EnsureResearch); !research.Selected || research.Risk == nil || *research.Risk != 0 {
+		t.Fatal(research)
+	}
+	loaded, err = s.LoadRoutineReview(ctx)
+	if err != nil || !reflect.DeepEqual(loaded, third.Review) {
+		t.Fatal(loaded, err)
 	}
 }

@@ -38,7 +38,7 @@ func validateExcavationAdmission(a domain.Action, p domain.Progress, admission E
 		return errors.New("admission plan or tick mismatch")
 	}
 	excavation, ok := a.Excavation()
-	if !ok || excavation.Cell() != admission.Cell || excavation.Definition() != admission.Definition || submissionID(admission.SnapshotToken) != nil || admission.Snapshot.Native == 0 || admission.Snapshot.Direction == 0 {
+	if !ok || excavation.Cell() != admission.Cell || excavation.Definition() != admission.Definition || submissionID(admission.SnapshotToken) != nil || admission.Snapshot.Native == 0 {
 		return errors.New("invalid excavation admission")
 	}
 	return nil

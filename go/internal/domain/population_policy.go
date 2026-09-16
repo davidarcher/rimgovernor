@@ -23,13 +23,11 @@ const maxPopulationFoodDays = 120
 // a native RimWorld call whose receipt and effect evidence the executor
 // must verify. Setting a population policy issues no native call at all:
 // it only overwrites a stored current value that population and food-
-// reserve policy read later (the Python controller does exactly this, one
-// assignment into plan.control['population_policy']). Routing it through
+// reserve policy read later. Routing it through
 // Action/Progress would require fabricating an inspection, a dispatch
 // attempt, a receipt and a completing Observation for a native call that
 // never happens. See store.SubmitPopulationPolicy for the persistence side
-// and interpreter.Proposal.PopulationPolicy for how it leaves the
-// interpreter without a plan.
+// and interpreter.Guidance.PopulationPolicy for the chat nudge that feeds it.
 type PopulationPolicy struct {
 	maximum  int32
 	foodDays float64
@@ -52,6 +50,5 @@ func (p PopulationPolicy) FoodDays() float64 { return p.foodDays }
 
 // Set reports whether a policy has been established. The zero value is not
 // constructible through NewPopulationPolicy, so it unambiguously means "no
-// policy", the same way an absent plan.control entry does in the Python
-// controller.
+// policy".
 func (p PopulationPolicy) Set() bool { return p != PopulationPolicy{} }

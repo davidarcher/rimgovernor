@@ -5,22 +5,15 @@ import (
 	"fmt"
 )
 
-// SupervisedPlayClock is a bounded Go port of controller/rimgovernor/clock_control.py's
-// PlayClock, covering only the store=None/context=None code paths
-// scripts/native_tick_budget_acceptance.py actually exercises: Change("Paused"),
-// Change(speed, maxTicks) for the ordinary colony-mode start/replace flow, and Poll's
-// heartbeat/event-cursor bookkeeping. It intentionally omits: durable cursor/epoch
-// persistence (PlayClock's store/context constructor arguments, always None here, so
-// record()/the reloaded-journal-gap recovery path are dead code for this caller);
-// pause_for_dialog (no dialog acceptance calls PlayClock at all yet); combat mode,
-// ignored-hostile/downed IDs, surgical/medical-rest monitoring and test acceleration
-// (native_tick_budget_acceptance.py's PlayClock always runs plain colony-mode with no
-// pawn lists); and the BridgeError owner/epoch-mismatch race-recovery branch inside
-// change()'s Paused case (only reachable if the native tick callback finishes between
-// this clock's status read and its own pause call — native_tick_budget_acceptance.py's
-// Paused calls always target a clock this instance either just started or never
-// started, so that race is not reachable here). A future caller needing any of these
-// should extend this type rather than reimplement PlayClock from scratch.
+// SupervisedPlayClock is the bounded supervised clock cmd/tickbudgetaccept
+// drives: Change("Paused"), Change(speed, maxTicks) for the ordinary colony-mode
+// start/replace flow, and Poll's heartbeat/event-cursor bookkeeping. It
+// intentionally omits durable cursor/epoch persistence, dialog pausing, combat
+// mode, ignored-hostile/downed IDs, surgical/medical-rest monitoring, test
+// acceleration, and any owner/epoch-mismatch race recovery inside the Paused
+// case (Paused calls always target a clock this instance either just started
+// or never started, so that race is not reachable here). A future caller
+// needing any of these should extend this type rather than start over.
 type SupervisedPlayClock struct {
 	Owner string
 	Hold  string

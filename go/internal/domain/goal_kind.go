@@ -11,11 +11,10 @@ import "errors"
 // deficit right now, overriding whatever the autopilot's own review currently
 // observes.
 //
-// The whitelist is the Go form of Python CreateGoal's `goal` Literal. Unlike
-// Python's ColonyGoal, domain.Goal carries no free-form target dict, so the
-// per-goal configuration Python stores there -- EnsureFoodSupply's food_days,
+// The whitelist is the set of kinds a player may create. domain.Goal carries
+// no free-form target dict, so per-goal configuration -- EnsureFoodSupply's food_days,
 // MaintainResource's resource/quantity/deep_extraction and MaintainWaste's
-// unwanted/bury -- is deliberately NOT carried here. Their Go equivalents
+// unwanted/bury -- is deliberately NOT carried here. Their equivalents
 // (policy.RoutinePolicy's FoodTargetDays/FoodMinDays and ResourceTargets) are
 // process-level operator configuration captured once when the routine reviewer
 // is constructed, not per-world stored state the player can move, and
@@ -38,14 +37,15 @@ const (
 	MaintainWoodGoal            GoalKind = "MaintainWood"
 	MaintainResourceGoal        GoalKind = "MaintainResource"
 	MaintainWasteGoal           GoalKind = "MaintainWaste"
+	EnsureDefensiveLayoutGoal   GoalKind = "EnsureDefensiveLayout"
 )
 
-// GoalKinds is every kind CreateGoal accepts, in the order Python's Literal
-// lists them. Callers must not retain or mutate the returned slice's backing
+// GoalKinds is every kind CreateGoal accepts, in declaration order.
+// Callers must not retain or mutate the returned slice's backing
 // array; it is freshly allocated per call.
 func GoalKinds() []GoalKind {
 	return []GoalKind{EnsureFoodSupplyGoal, EnsureInitialShelterGoal, EnsureFoodStorageGoal, EnsureCookingGoal,
-		EnsureTemperatureSafetyGoal, EnsureBasicPowerGoal, EnsureBasicDefenseGoal, MaintainWoodGoal, MaintainResourceGoal, MaintainWasteGoal}
+		EnsureTemperatureSafetyGoal, EnsureBasicPowerGoal, EnsureBasicDefenseGoal, MaintainWoodGoal, MaintainResourceGoal, MaintainWasteGoal, EnsureDefensiveLayoutGoal}
 }
 
 // NewGoalKind validates one requested kind against the whitelist.
@@ -70,12 +70,12 @@ func (k GoalKind) Validate() error {
 // PopulationDirective.Set offers for its own optional Proposal field.
 func (k GoalKind) Set() bool { return k != "" }
 
-// Priority is the goal priority a player-created goal of this kind starts at,
-// mirroring Python's CreateGoal handler: priority_class 2 for every kind, and 3
+// Priority is the goal priority a player-created goal of this kind starts at:
+// priority_class 2 for every kind, and 3
 // for MaintainWaste alone. Goal priority is a scheduling class, not authority;
 // see Goal.Validate for its permitted range.
 func (k GoalKind) Priority() int {
-	if k == MaintainWasteGoal {
+	if k == MaintainWasteGoal || k == EnsureDefensiveLayoutGoal {
 		return 3
 	}
 	return 2

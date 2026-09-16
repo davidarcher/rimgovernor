@@ -14,7 +14,7 @@ func husbandryRequest(t *testing.T) HusbandryRequest {
 	if err != nil {
 		t.Fatal(err)
 	}
-	s := domain.GenerationSnapshot{Colony: "colony", Map: 0, Load: "load", Direction: 1, Plan: plan.ID(), Revision: 1, Native: 1}
+	s := domain.GenerationSnapshot{Colony: "colony", Map: 0, Load: "load", Plan: plan.ID(), Revision: 1, Native: 1}
 	p, _ := domain.NewProgress(plan, a.ID())
 	animal := HusbandryAnimalFacts{Animal: "animal", SnapshotToken: "animal-cas", Dead: domain.Known(false), CanTrain: domain.Known(true), Learned: domain.Known(false), SafeToSlaughter: domain.Known(true)}
 	return HusbandryRequest{Action: a, Progress: p, Current: s, MinimumTick: 11, Facts: HusbandryFacts{Snapshot: s, PawnTick: 12, PreviewTick: 13, Animal: animal, CensusToken: "census-cas", NativeCanTry: domain.Known(true)}}
@@ -47,7 +47,7 @@ func TestHusbandrySlaughterAdmission(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	s := domain.GenerationSnapshot{Colony: "colony", Map: 0, Load: "load", Direction: 1, Plan: plan.ID(), Revision: 1, Native: 1}
+	s := domain.GenerationSnapshot{Colony: "colony", Map: 0, Load: "load", Plan: plan.ID(), Revision: 1, Native: 1}
 	p, _ := domain.NewProgress(plan, a.ID())
 	animal := HusbandryAnimalFacts{Animal: "animal", SnapshotToken: "animal-cas", Dead: domain.Known(false), SafeToSlaughter: domain.Known(true)}
 	r := HusbandryRequest{Action: a, Progress: p, Current: s, MinimumTick: 11, Facts: HusbandryFacts{Snapshot: s, PawnTick: 12, PreviewTick: 13, Animal: animal, CensusToken: "census-cas", NativeCanTry: domain.Known(true)}}
@@ -73,7 +73,6 @@ func TestHusbandryDefenseHolds(t *testing.T) {
 		{"reversed interval", func(r *HusbandryRequest) { r.Facts.PreviewTick = 11 }},
 		{"zero generation", func(r *HusbandryRequest) { r.Current.Native = 0 }},
 		{"native", func(r *HusbandryRequest) { r.Current.Native++ }},
-		{"direction", func(r *HusbandryRequest) { r.Current.Direction++ }},
 		{"colony", func(r *HusbandryRequest) { r.Current.Colony = "other" }},
 		{"load", func(r *HusbandryRequest) { r.Current.Load = "other" }},
 		{"map", func(r *HusbandryRequest) { r.Current.Map++ }},

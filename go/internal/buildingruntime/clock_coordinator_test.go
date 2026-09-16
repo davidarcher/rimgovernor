@@ -81,7 +81,7 @@ func clockCoreFixture(t *testing.T) (*ClockCoordinator, *store.Store, *clockCore
 		t.Fatal(err)
 	}
 	t.Cleanup(func() { db.Close() })
-	snapshot := domain.GenerationSnapshot{Colony: "colony", Load: "load", Map: 0, Plan: "plan", Revision: 1, Direction: 1, Native: 7}
+	snapshot := domain.GenerationSnapshot{Colony: "colony", Load: "load", Map: 0, Plan: "plan", Revision: 1, Native: 7}
 	policy := &k.WatchPolicy{Mode: k.WatchMode_WATCH_MODE_COLONY.Enum(), HealthDropFraction: proto.Float32(.1), MinHealthFraction: proto.Float32(.2), HostileWithin: proto.Float32(20), InjuryStopCooldownMs: proto.Uint32(0)}
 	intent := store.ClockIntent{RequestID: clockTestNextID(t, db), Snapshot: snapshot, Command: bridge.ClockCommand{Start: &bridge.ClockStart{Speed: k.Speed_SPEED_NORMAL, Policy: policy, LeaseMS: 1000, MaxTicks: 100}}}
 	fake := &clockCoreFake{status: &k.Status{Context: &c.ObservationContext{Identity: boundary.Identity(snapshot), Tick: proto.Int64(12), NativeGeneration: proto.Uint64(7)}, State: &k.Status_NeverStarted{NeverStarted: &k.NeverStarted{}}, ActualPaused: proto.Bool(true), ObservedSpeed: k.ObservedSpeed_OBSERVED_SPEED_PAUSED.Enum(), NativeTickBoundary: proto.Bool(true), DurableEvents: proto.Bool(false), NewestCursor: proto.Int64(0), EvidenceCompleteness: &c.PageInfo{Complete: proto.Bool(true)}}}
@@ -289,22 +289,6 @@ func TestClockCoordinatorStopJoinsUncertainWrite(t *testing.T) {
 	v, err := db.LookupClockAttempt(context.Background(), intent.RequestID)
 	if err != nil || v.Phase != store.ClockUncertain {
 		t.Fatal(v.Phase, err)
-	}
-}
-
-func TestClockCoordinatorRejectsChangedDirectionForOwnedEpoch(t *testing.T) {
-	t.Parallel()
-	q, db, f, intent := clockCoreFixture(t)
-	_ = q.UpdateAuthority(executor.Authority{Snapshot: intent.Snapshot, Enabled: true})
-	if _, err := q.Command(context.Background(), intent); err != nil {
-		t.Fatal(err)
-	}
-	epochs, _ := db.LoadClockEpochs(context.Background(), 4096)
-	intent.Snapshot.Direction++
-	_ = q.UpdateAuthority(executor.Authority{Snapshot: intent.Snapshot, Enabled: true})
-	speed := store.ClockIntent{RequestID: clockTestNextID(t, db), Snapshot: intent.Snapshot, Command: bridge.ClockCommand{Speed: &bridge.ClockSpeed{Original: epochs[0].Epoch, Speed: k.Speed_SPEED_FAST}}}
-	if _, err := q.Command(context.Background(), speed); !errors.Is(err, executor.ErrHeld) || f.writes != 1 {
-		t.Fatal(err, f.writes)
 	}
 }
 

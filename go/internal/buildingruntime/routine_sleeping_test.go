@@ -85,9 +85,8 @@ func TestRoutineSleepingAdmitsWholePendingMethodAndManualInvalidates(t *testing.
 	if next, err := r.Step(context.Background()); err != nil || next.Reason != BuildingMethodExistingWork || n.previews != 2 {
 		t.Fatal(next, err)
 	}
-	request.Kind, request.RequestID = store.ManualControl, "manual-sleep"
-	request.Plan, request.Revision = "", 0
-	if _, err = r.reviewer.player.Manual(context.Background(), request); err != nil {
+	request.Kind, request.RequestID = store.PauseControl, "manual-sleep"
+	if _, err = r.reviewer.player.Pause(context.Background(), request); err != nil {
 		t.Fatal(err)
 	}
 	p, err = db.LoadPlan(context.Background(), p.Spec.ID())
@@ -130,7 +129,7 @@ func TestRoutineSleepingRejectsIncompleteAndChangedEvidence(t *testing.T) {
 						v.Stock.Values = []policy.Stock{{Resource: "WoodLog", Available: domain.Known(int64(50))}}
 					case "direction":
 						session.mu.Lock()
-						session.state.Snapshot.Direction++
+						session.state.Snapshot.Native++
 						session.mu.Unlock()
 					case "tick":
 						n.reply.GetObserved().Context.Tick = proto.Int64(8)
@@ -144,7 +143,7 @@ func TestRoutineSleepingRejectsIncompleteAndChangedEvidence(t *testing.T) {
 				t.Fatal("invalid method admitted", change)
 			}
 			plans, err := db.LoadPlans(context.Background(), 256)
-			if err != nil || len(plans) != 1 {
+			if err != nil || len(plans) != 2 {
 				t.Fatal("partial method committed", plans, err)
 			}
 		})
@@ -305,16 +304,45 @@ func TestRoutineSleepingManualCancelsBlockedPreview(t *testing.T) {
 	case <-time.After(time.Second):
 		t.Fatal("preview not entered")
 	}
-	request.Kind, request.RequestID = store.ManualControl, "manual-preview"
-	request.Plan, request.Revision = "", 0
-	if _, err := r.reviewer.player.Manual(context.Background(), request); err != nil {
+	request.Kind, request.RequestID = store.PauseControl, "manual-preview"
+	if _, err := r.reviewer.player.Pause(context.Background(), request); err != nil {
 		t.Fatal(err)
 	}
 	if err := <-finished; err == nil {
 		t.Fatal("cancelled compilation succeeded")
 	}
 	plans, err := db.LoadPlans(context.Background(), 256)
-	if err != nil || len(plans) != 1 || session.State().Enabled {
+	if err != nil || len(plans) != 2 || session.State().Enabled {
 		t.Fatal(plans, err)
+	}
+}
+
+func TestRoutineSleepingKeepsDoorwayAislesClear(t *testing.T) {
+	t.Parallel()
+	r, db, _, _, n := sleepingFixture(t)
+	// A door on the room's south wall at (2,0): the cell just inside it and
+	// the cells beside it are the entrance aisle, never furniture, even when
+	// the colony centre makes the aisle the nearest candidate.
+	n.reply.GetObserved().Center = &c.Cell{X: proto.Int32(2), Z: proto.Int32(1)}
+	for _, row := range n.reply.GetObserved().Planning.GetObserved().Cells.Cells {
+		if row.Cell.GetX() == 2 && row.Cell.GetZ() == 0 {
+			row.Doorway, row.Occupied, row.Walkable = proto.Bool(true), proto.Bool(true), proto.Bool(true)
+		}
+	}
+	result, err := r.Step(context.Background())
+	if err != nil || result.Reason != BuildingMethodAdmitted {
+		t.Fatal(result, err)
+	}
+	compiled, err := db.LoadPlan(context.Background(), result.Decision.Goal.Methods[0].Plan)
+	if err != nil {
+		t.Fatal(err)
+	}
+	aisle := map[domain.Cell]bool{{X: 2, Z: 1}: true, {X: 1, Z: 0}: true, {X: 3, Z: 0}: true, {X: 2, Z: 0}: true}
+	for _, record := range compiled.Admissions {
+		for _, cell := range record.Admission.Footprint {
+			if aisle[cell] {
+				t.Fatal("furniture blocks the doorway aisle", cell)
+			}
+		}
 	}
 }

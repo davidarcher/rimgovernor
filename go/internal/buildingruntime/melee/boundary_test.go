@@ -22,7 +22,7 @@ func TestMeleeBoundaryInspectAndExactDispatch(t *testing.T) {
 		t.Fatal(v, err, f.Ids)
 	}
 	owner, known := v.Facts.Pawn.Owner.Value()
-	if !known || owner.Claim != "claim" || owner.Session != "session" || owner.Direction != 1 {
+	if !known || owner.Claim != "claim" || owner.Session != "session" {
 		t.Fatal(owner, known)
 	}
 	receipt, err := b.AttackMelee(context.Background(), d)
@@ -41,7 +41,7 @@ func TestMeleeBoundaryRejectsNegativeAdmissionTick(t *testing.T) {
 
 func TestMeleeBoundaryInspectMissingAndChangedFacts(t *testing.T) {
 	t.Parallel()
-	for _, kind := range []string{"generation", "pawn CAS", "target CAS", "preview past", "emergency past", "claim direction", "violent", "missing health", "missing equipment"} {
+	for _, kind := range []string{"generation", "pawn CAS", "target CAS", "preview past", "emergency past", "violent", "missing health", "missing equipment"} {
 		t.Run(kind, func(t *testing.T) {
 			b, f, d := NewFixture(t)
 			reject := false
@@ -61,9 +61,6 @@ func TestMeleeBoundaryInspectMissingAndChangedFacts(t *testing.T) {
 			case "emergency past":
 				f.PreviewTick = 11
 				reject = true
-			case "claim direction":
-				d.Attempt.Snapshot.Direction = 9
-				d.Admission.DraftClaim.Origin.Direction = 9
 			case "violent":
 				f.Row.Biography.DisabledWorkTags = []string{"Violent"}
 			case "missing health":
@@ -82,11 +79,6 @@ func TestMeleeBoundaryInspectMissingAndChangedFacts(t *testing.T) {
 				t.Fatal(err)
 			}
 			switch kind {
-			case "claim direction":
-				owner, known := v.Facts.Pawn.Owner.Value()
-				if !known || owner.Direction != 9 {
-					t.Fatal("invented original owner", owner)
-				}
 			case "violent":
 				if v.Facts.Pawn.ViolenceCapable != domain.Known(false) {
 					t.Fatal(v)
@@ -132,7 +124,6 @@ func TestMeleeBoundaryRecoveryAfterManualAndUnknownReceipt(t *testing.T) {
 		}
 		current := d.Attempt.Snapshot
 		current.Native = 9
-		current.Direction = 2
 		f.Progress.Context.NativeGeneration = proto.Uint64(9)
 		job := f.Progress.GetCompleted().Evidence.GetJob()
 		job.Drafted = proto.Bool(false)

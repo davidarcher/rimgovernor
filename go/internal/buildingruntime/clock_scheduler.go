@@ -47,6 +47,8 @@ type ClockSchedulerConfig struct {
 	Expansion                        *RoutineBuildingPlanner
 	Power                            *RoutineBuildingPlanner
 	Temperature                      *RoutineBuildingPlanner
+	Refrigeration                    *RoutineBuildingPlanner
+	Lighting                         *RoutineBuildingPlanner
 	Defense                          *RoutineDefensePlanner
 	Tend                             *RoutineTendPlanner
 	Rescue                           *RoutineRescuePlanner
@@ -70,6 +72,7 @@ type ClockSchedulerConfig struct {
 	CaravanJourney                   *CaravanJourneyTracker
 	HomeCoverage                     *RoutineHomeCoveragePlanner
 	StoneShell                       *RoutineStoneShellPlanner
+	DefenseLayout                    *RoutineDefenseLayoutPlanner
 	Waste                            *RoutineWastePlanner
 	MoodRelief                       *RoutineMoodReliefPlanner
 	Naming                           *RoutineNamingPlanner
@@ -92,6 +95,8 @@ type ClockSchedulerResult struct {
 	Expansion                                     *RoutineBuildingResult
 	Power                                         *RoutineBuildingResult
 	Temperature                                   *RoutineBuildingResult
+	Refrigeration                                 *RoutineBuildingResult
+	Lighting                                      *RoutineBuildingResult
 	Defense                                       *RoutineDefenseResult
 	Tend                                          *RoutineTendResult
 	Rescue                                        *RoutineRescueResult
@@ -115,6 +120,7 @@ type ClockSchedulerResult struct {
 	CaravanJourney                                *CaravanJourneyResult
 	HomeCoverage                                  *RoutineHomeCoverageResult
 	StoneShell                                    *RoutineStoneShellResult
+	DefenseLayout                                 *RoutineDefenseLayoutResult
 	Waste                                         *RoutineWasteResult
 	MoodRelief                                    *RoutineMoodReliefResult
 	Naming                                        *RoutineNamingResult
@@ -199,6 +205,12 @@ func NewClockScheduler(player *Player, session *Session, native ClockWindowNativ
 	if config.Temperature != nil && (config.Routine == nil || config.Temperature.reviewer != config.Routine || config.Temperature.goal != policy.EnsureTemperatureSafety) {
 		return nil, ErrControl
 	}
+	if config.Refrigeration != nil && (config.Routine == nil || config.Refrigeration.reviewer != config.Routine || config.Refrigeration.goal != policy.MaintainRefrigeration) {
+		return nil, ErrControl
+	}
+	if config.Lighting != nil && (config.Routine == nil || config.Lighting.reviewer != config.Routine || config.Lighting.goal != policy.MaintainLighting) {
+		return nil, ErrControl
+	}
 	if config.Defense != nil && (config.Routine == nil || config.Defense.reviewer != config.Routine) {
 		return nil, ErrControl
 	}
@@ -269,6 +281,9 @@ func NewClockScheduler(player *Player, session *Session, native ClockWindowNativ
 		return nil, ErrControl
 	}
 	if config.StoneShell != nil && (config.Routine == nil || config.StoneShell.reviewer != config.Routine) {
+		return nil, ErrControl
+	}
+	if config.DefenseLayout != nil && (config.Routine == nil || config.DefenseLayout.reviewer != config.Routine) {
 		return nil, ErrControl
 	}
 	if config.ProductionPolicy != nil && (config.Routine == nil || config.ProductionPolicy.reviewer != config.Routine) {
@@ -457,7 +472,7 @@ func (s *ClockScheduler) Step(ctx context.Context) (ClockSchedulerResult, error)
 		g.Go(func() error {
 			method, err := s.config.SecureSupplies.step(gctx, epoch, arbiter)
 			if err != nil {
-				return err
+				return fmt.Errorf("secureSupplies: %w", err)
 			}
 			out.SecureSupplies = &method
 			return nil
@@ -467,7 +482,7 @@ func (s *ClockScheduler) Step(ctx context.Context) (ClockSchedulerResult, error)
 		g.Go(func() error {
 			method, err := s.config.Repair.step(gctx, epoch, arbiter)
 			if err != nil {
-				return err
+				return fmt.Errorf("repair: %w", err)
 			}
 			out.Repair = &method
 			return nil
@@ -477,7 +492,7 @@ func (s *ClockScheduler) Step(ctx context.Context) (ClockSchedulerResult, error)
 		g.Go(func() error {
 			method, err := s.config.Clean.step(gctx, epoch, arbiter)
 			if err != nil {
-				return err
+				return fmt.Errorf("clean: %w", err)
 			}
 			out.Clean = &method
 			return nil
@@ -487,7 +502,7 @@ func (s *ClockScheduler) Step(ctx context.Context) (ClockSchedulerResult, error)
 		g.Go(func() error {
 			method, err := s.config.Waste.step(gctx, epoch, arbiter)
 			if err != nil {
-				return err
+				return fmt.Errorf("waste: %w", err)
 			}
 			out.Waste = &method
 			return nil
@@ -497,7 +512,7 @@ func (s *ClockScheduler) Step(ctx context.Context) (ClockSchedulerResult, error)
 		g.Go(func() error {
 			method, err := s.config.MoodRelief.step(gctx, epoch, arbiter)
 			if err != nil {
-				return err
+				return fmt.Errorf("moodRelief: %w", err)
 			}
 			out.MoodRelief = &method
 			return nil
@@ -507,7 +522,7 @@ func (s *ClockScheduler) Step(ctx context.Context) (ClockSchedulerResult, error)
 		g.Go(func() error {
 			method, err := s.config.Haul.step(gctx, epoch, arbiter)
 			if err != nil {
-				return err
+				return fmt.Errorf("haul: %w", err)
 			}
 			clockSchedulerLog("Haul.step result: reason=%v plan=%s", method.Reason, method.Plan)
 			out.Haul = &method
@@ -518,7 +533,7 @@ func (s *ClockScheduler) Step(ctx context.Context) (ClockSchedulerResult, error)
 		g.Go(func() error {
 			method, err := s.config.Gear.step(gctx, epoch, arbiter)
 			if err != nil {
-				return err
+				return fmt.Errorf("gear: %w", err)
 			}
 			out.Gear = &method
 			return nil
@@ -528,7 +543,7 @@ func (s *ClockScheduler) Step(ctx context.Context) (ClockSchedulerResult, error)
 		g.Go(func() error {
 			method, err := s.config.Medical.step(gctx, epoch, arbiter)
 			if err != nil {
-				return err
+				return fmt.Errorf("medical: %w", err)
 			}
 			out.Medical = &method
 			return nil
@@ -538,7 +553,7 @@ func (s *ClockScheduler) Step(ctx context.Context) (ClockSchedulerResult, error)
 		g.Go(func() error {
 			method, err := s.config.FoodStorageUpkeep.step(gctx, epoch, arbiter)
 			if err != nil {
-				return err
+				return fmt.Errorf("foodStorageUpkeep: %w", err)
 			}
 			out.FoodStorageUpkeep = &method
 			return nil
@@ -548,7 +563,7 @@ func (s *ClockScheduler) Step(ctx context.Context) (ClockSchedulerResult, error)
 		g.Go(func() error {
 			method, err := s.config.AnimalContainment.step(gctx, epoch, arbiter)
 			if err != nil {
-				return err
+				return fmt.Errorf("animalContainment: %w", err)
 			}
 			out.AnimalContainment = &method
 			return nil
@@ -558,7 +573,7 @@ func (s *ClockScheduler) Step(ctx context.Context) (ClockSchedulerResult, error)
 		g.Go(func() error {
 			method, err := s.config.Recovery.step(gctx, epoch, arbiter)
 			if err != nil {
-				return err
+				return fmt.Errorf("recovery: %w", err)
 			}
 			out.Recovery = &method
 			return nil
@@ -568,7 +583,7 @@ func (s *ClockScheduler) Step(ctx context.Context) (ClockSchedulerResult, error)
 		g.Go(func() error {
 			method, err := s.config.Husbandry.step(gctx, epoch, arbiter)
 			if err != nil {
-				return err
+				return fmt.Errorf("husbandry: %w", err)
 			}
 			out.Husbandry = &method
 			return nil
@@ -578,7 +593,7 @@ func (s *ClockScheduler) Step(ctx context.Context) (ClockSchedulerResult, error)
 		g.Go(func() error {
 			method, err := s.config.PrisonerInteraction.step(gctx, epoch, arbiter)
 			if err != nil {
-				return err
+				return fmt.Errorf("prisonerInteraction: %w", err)
 			}
 			out.PrisonerInteraction = &method
 			return nil
@@ -588,7 +603,7 @@ func (s *ClockScheduler) Step(ctx context.Context) (ClockSchedulerResult, error)
 		g.Go(func() error {
 			method, err := s.config.PopulationCustody.step(gctx, epoch, arbiter)
 			if err != nil {
-				return err
+				return fmt.Errorf("populationCustody: %w", err)
 			}
 			out.PopulationCustody = &method
 			return nil
@@ -598,7 +613,7 @@ func (s *ClockScheduler) Step(ctx context.Context) (ClockSchedulerResult, error)
 		g.Go(func() error {
 			method, err := s.config.Research.step(gctx, epoch, arbiter)
 			if err != nil {
-				return err
+				return fmt.Errorf("research: %w", err)
 			}
 			out.Research = &method
 			return nil
@@ -608,7 +623,7 @@ func (s *ClockScheduler) Step(ctx context.Context) (ClockSchedulerResult, error)
 		g.Go(func() error {
 			method, err := s.config.Naming.step(gctx, epoch, arbiter)
 			if err != nil {
-				return err
+				return fmt.Errorf("naming: %w", err)
 			}
 			out.Naming = &method
 			return nil
@@ -618,7 +633,7 @@ func (s *ClockScheduler) Step(ctx context.Context) (ClockSchedulerResult, error)
 		g.Go(func() error {
 			method, err := s.config.Resource.step(gctx, epoch, arbiter)
 			if err != nil {
-				return err
+				return fmt.Errorf("resource: %w", err)
 			}
 			out.Resource = &method
 			return nil
@@ -628,7 +643,7 @@ func (s *ClockScheduler) Step(ctx context.Context) (ClockSchedulerResult, error)
 		g.Go(func() error {
 			method, err := s.config.AnimalFeed.step(gctx, epoch, arbiter)
 			if err != nil {
-				return err
+				return fmt.Errorf("animalFeed: %w", err)
 			}
 			out.AnimalFeed = &method
 			return nil
@@ -638,7 +653,7 @@ func (s *ClockScheduler) Step(ctx context.Context) (ClockSchedulerResult, error)
 		g.Go(func() error {
 			method, err := s.config.ProductionPolicy.step(gctx, epoch, arbiter)
 			if err != nil {
-				return err
+				return fmt.Errorf("productionPolicy: %w", err)
 			}
 			out.ProductionPolicy = &method
 			return nil
@@ -648,7 +663,7 @@ func (s *ClockScheduler) Step(ctx context.Context) (ClockSchedulerResult, error)
 		g.Go(func() error {
 			method, err := s.config.CaravanJourney.step(gctx, epoch, arbiter)
 			if err != nil {
-				return err
+				return fmt.Errorf("caravanJourney: %w", err)
 			}
 			out.CaravanJourney = &method
 			return nil
@@ -658,7 +673,7 @@ func (s *ClockScheduler) Step(ctx context.Context) (ClockSchedulerResult, error)
 		g.Go(func() error {
 			method, err := s.config.HomeCoverage.step(gctx, epoch, arbiter)
 			if err != nil {
-				return err
+				return fmt.Errorf("homeCoverage: %w", err)
 			}
 			out.HomeCoverage = &method
 			return nil
@@ -668,9 +683,20 @@ func (s *ClockScheduler) Step(ctx context.Context) (ClockSchedulerResult, error)
 		g.Go(func() error {
 			method, err := s.config.StoneShell.step(gctx, epoch, arbiter)
 			if err != nil {
-				return err
+				return fmt.Errorf("stoneShell: %w", err)
 			}
 			out.StoneShell = &method
+			return nil
+		})
+	}
+	if s.config.DefenseLayout != nil {
+		g.Go(func() error {
+			method, err := s.config.DefenseLayout.step(gctx, epoch)
+			if err != nil {
+				return fmt.Errorf("defenseLayout: %w", err)
+			}
+			clockSchedulerLog("defense-layout.step: reason=%s tier=%s plan=%s", method.Reason, method.Tier, method.Plan)
+			out.DefenseLayout = &method
 			return nil
 		})
 	}
@@ -700,7 +726,7 @@ func (s *ClockScheduler) Step(ctx context.Context) (ClockSchedulerResult, error)
 	if err != nil {
 		return out, err
 	}
-	if s.config.RoutineMethods {
+	{
 		plans, err := s.player.journal.LoadPlans(call, 256)
 		if err != nil {
 			return out, err
@@ -711,7 +737,7 @@ func (s *ClockScheduler) Step(ctx context.Context) (ClockSchedulerResult, error)
 			}
 			target := state.Snapshot
 			target.Plan, target.Revision = method.Spec.ID(), method.Spec.Revision()
-			if err := s.player.journal.AuthorizeRoutinePlan(call, state.Snapshot, target); err != nil {
+			if err := (planAuthorizer{s.player.journal, s.config.RoutineMethods}).AuthorizeRoutinePlan(call, state.Snapshot, target); err != nil {
 				continue
 			}
 			remaining, items, err := clockSchedulerWork(method, target)
@@ -728,7 +754,7 @@ func (s *ClockScheduler) Step(ctx context.Context) (ClockSchedulerResult, error)
 	if out.Fields != nil {
 		nativeWorkTicks = out.Fields.NativeWorkTicks
 	}
-	for _, result := range []*RoutineBuildingResult{out.Sleeping, out.Comfort, out.Expansion, out.Power, out.Temperature} {
+	for _, result := range []*RoutineBuildingResult{out.Sleeping, out.Comfort, out.Expansion, out.Power, out.Temperature, out.Refrigeration, out.Lighting} {
 		if result != nil {
 			nativeWorkTicks = max(nativeWorkTicks, result.NativeWorkTicks)
 		}
@@ -834,10 +860,13 @@ func (s *ClockScheduler) stepPlanners(call, gctx, epoch context.Context, out *Cl
 	}
 	if s.config.Fields != nil {
 		g.Go(func() error {
+			started := time.Now()
 			method, err := s.config.Fields.step(gctx, epoch, arbiter)
 			if err != nil {
+				clockSchedulerLog("Fields.step failed after %s: %v", time.Since(started), err)
 				return fmt.Errorf("fields: %w", err)
 			}
+			clockSchedulerLog("Fields.step result: reason=%v plan=%s wait=%d", method.Reason, method.Plan, method.NativeWorkTicks)
 			out.Fields = &method
 			return nil
 		})
@@ -888,7 +917,7 @@ func (s *ClockScheduler) stepPlanners(call, gctx, epoch context.Context, out *Cl
 			if err != nil {
 				return fmt.Errorf("sleeping: %w", err)
 			}
-			clockSchedulerLog("sleeping.step: reason=%s admitted=%v refused=%v", method.Reason, method.Decision.Admitted, method.Decision.Refused)
+			clockSchedulerLog("Sleeping.step result: reason=%v admitted=%v refused=%v", method.Reason, method.Decision.Admitted, method.Decision.Refused)
 			out.Sleeping = &method
 			return nil
 		})
@@ -899,6 +928,7 @@ func (s *ClockScheduler) stepPlanners(call, gctx, epoch context.Context, out *Cl
 			if err != nil {
 				return fmt.Errorf("power: %w", err)
 			}
+			clockSchedulerLog("Power.step result: reason=%v decision=%+v nativeWorkTicks=%d", method.Reason, method.Decision, method.NativeWorkTicks)
 			out.Power = &method
 			return nil
 		})
@@ -910,6 +940,28 @@ func (s *ClockScheduler) stepPlanners(call, gctx, epoch context.Context, out *Cl
 				return fmt.Errorf("temperature: %w", err)
 			}
 			out.Temperature = &method
+			return nil
+		})
+	}
+	if s.config.Refrigeration != nil {
+		g.Go(func() error {
+			method, err := s.config.Refrigeration.step(gctx, epoch, arbiter)
+			if err != nil {
+				return fmt.Errorf("refrigeration: %w", err)
+			}
+			clockSchedulerLog("Refrigeration.step result: reason=%v decision=%+v nativeWorkTicks=%d", method.Reason, method.Decision, method.NativeWorkTicks)
+			out.Refrigeration = &method
+			return nil
+		})
+	}
+	if s.config.Lighting != nil {
+		g.Go(func() error {
+			method, err := s.config.Lighting.step(gctx, epoch, arbiter)
+			if err != nil {
+				return fmt.Errorf("lighting: %w", err)
+			}
+			clockSchedulerLog("Lighting.step result: reason=%v decision=%+v nativeWorkTicks=%d", method.Reason, method.Decision, method.NativeWorkTicks)
+			out.Lighting = &method
 			return nil
 		})
 	}
@@ -1033,8 +1085,9 @@ func clockSchedulerWork(plan store.PlanState, current domain.GenerationSnapshot)
 		if v.Stage == domain.Cancelled || v.Stage == domain.Unsuccessful || !v.Unresolved && v.Stage == domain.Completed {
 			continue
 		}
-		// Allow is an immediate designation and needs no simulation window.
-		if p.Action().Kind() == domain.SupplyAllowAction || p.Action().Kind() == domain.WorkAssignmentAction || p.Action().Kind() == domain.ZoneCreateAction {
+		// Allow, work settings, zones and a building's temperature target are
+		// immediate designations and need no simulation window.
+		if p.Action().Kind() == domain.SupplyAllowAction || p.Action().Kind() == domain.WorkAssignmentAction || p.Action().Kind() == domain.ZoneCreateAction || p.Action().Kind() == domain.BuildingTemperatureAction {
 			continue
 		}
 		// Construction, native plant labor, and the routine-dispatched action
@@ -1045,8 +1098,8 @@ func clockSchedulerWork(plan store.PlanState, current domain.GenerationSnapshot)
 			case domain.AcquisitionAction, domain.ProductionBillAction, domain.OwnedDraftAction,
 				domain.MeleeAttackAction, domain.RangedAttackAction, domain.TendAction, domain.RescueAction, domain.CaptureAction,
 				domain.HaulAction, domain.EquipAction, domain.GearReplaceAction, domain.RecoveryServiceAction,
-				domain.BedAssignAction, domain.HusbandryAction, domain.PrisonerInteractionAction,
-				domain.RepairAction, domain.CleanAction, domain.WasteAction, domain.MineAcquisitionAction, domain.ProductionPolicyAction, domain.SurgeryAction, domain.MoodReliefAction, domain.ExcavationAction:
+				domain.HusbandryAction, domain.PrisonerInteractionAction,
+				domain.RepairAction, domain.CleanAction, domain.WasteAction, domain.MineAcquisitionAction, domain.ProductionPolicyAction, domain.MoodReliefAction, domain.ExcavationAction:
 			default:
 				return false, nil, executor.ErrHeld
 			}

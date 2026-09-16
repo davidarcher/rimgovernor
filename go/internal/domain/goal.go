@@ -92,7 +92,7 @@ func ReviewGoal(g Goal, current GenerationSnapshot, tick Tick, need NeedState, e
 	if g.Status == GoalCancelled || g.Status == GoalInvalidated {
 		return g, nil
 	}
-	if !g.Snapshot.sameWorld(current) || g.Snapshot.Direction != current.Direction || tick < g.Tick {
+	if !g.Snapshot.sameWorld(current) || tick < g.Tick {
 		g.Status = GoalInvalidated
 		return g, nil
 	}

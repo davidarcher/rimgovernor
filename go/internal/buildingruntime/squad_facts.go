@@ -29,8 +29,7 @@ func meleeCapable(equipment *n.PawnEquipment) domain.Fact[bool] {
 
 // squadThreatFacts populates what the shared pawn snapshot carries, including
 // the animal detail (BodySize) requested alongside combat pawn reads and the
-// manhunter mental state exact-matched the same way Python's squad_defense
-// compared mentalState against ('Manhunter','ManhunterPermanent').
+// manhunter mental state exact-matched against Manhunter/ManhunterPermanent.
 func squadThreatFacts(row *n.PawnState) policy.SquadThreatFacts {
 	facts := policy.SquadThreatFacts{ID: policy.PawnID(row.Pawn.GetId()), Dead: boundary.FactBool(row.Dead), Downed: boundary.FactBool(row.Downed)}
 	if row.Humanlike != nil {
@@ -47,7 +46,7 @@ func squadThreatFacts(row *n.PawnState) policy.SquadThreatFacts {
 	return facts
 }
 
-// manhunterFact mirrors combat_method.py's exact mentalState comparison
+// manhunterFact is an exact mentalState comparison
 // rather than the looser substring match NativePawnObservationTools.cs uses
 // for HostileReason: only the two Manhunter mental-state defNames count.
 func manhunterFact(state *string, issues []*n.ReadIssue) domain.Fact[bool] {

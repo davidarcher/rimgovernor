@@ -10,7 +10,7 @@ import (
 
 // SubmitResourcePolicy stores explicit player intent to change one resource's
 // spending restriction or protected reserve, under the shared player gate.
-// Both Python commands (ModifyResourcePolicy and SetResourceReserve) land here:
+// Both commands (ModifyResourcePolicy and SetResourceReserve) land here:
 // they share one handler, one persistent per-resource policy and one native
 // SetProductionPolicy dispatch of the whole merged set.
 //

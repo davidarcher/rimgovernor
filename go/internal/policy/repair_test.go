@@ -14,7 +14,7 @@ func repairRequest(t *testing.T) RepairRequest {
 	if err != nil {
 		t.Fatal(err)
 	}
-	s := domain.GenerationSnapshot{Colony: "colony", Map: 0, Load: "load", Direction: 1, Plan: plan.ID(), Revision: 1, Native: 1}
+	s := domain.GenerationSnapshot{Colony: "colony", Map: 0, Load: "load", Plan: plan.ID(), Revision: 1, Native: 1}
 	p, _ := domain.NewProgress(plan, a.ID())
 	pawn := RepairPawnFacts{Pawn: "repairer", SnapshotToken: "pawn-cas", Dead: domain.Known(false), Downed: domain.Known(false), Drafted: domain.Known(false), MentalState: domain.Known(false), ExistingJobDef: domain.Known("")}
 	structure := RepairStructureFacts{Structure: "wall", SnapshotToken: "wall-cas", Exists: domain.Known(true), Damaged: domain.Known(true)}
@@ -54,7 +54,6 @@ func TestRepairDefenseHolds(t *testing.T) {
 		{"reversed interval", func(r *RepairRequest) { r.Facts.PreviewTick = 11 }},
 		{"zero generation", func(r *RepairRequest) { r.Current.Native = 0 }},
 		{"native", func(r *RepairRequest) { r.Current.Native++ }},
-		{"direction", func(r *RepairRequest) { r.Current.Direction++ }},
 		{"colony", func(r *RepairRequest) { r.Current.Colony = "other" }},
 		{"load", func(r *RepairRequest) { r.Current.Load = "other" }},
 		{"map", func(r *RepairRequest) { r.Current.Map++ }},

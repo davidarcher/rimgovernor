@@ -43,7 +43,7 @@ func validateClockIntent(v Attempt) error {
 	if _, err := parseClockRequestID(ControllerSessionID(v.NativeAttempt.GetControllerSessionId()), v.Intent.RequestID); err != nil {
 		return err
 	}
-	if s.Validate() != nil || s.Direction == 0 || s.Native == 0 || s.Revision == 0 {
+	if s.Validate() != nil || s.Native == 0 || s.Revision == 0 {
 		return errors.New("invalid clock admission snapshot")
 	}
 	if v.NativeAttempt == nil || v.NativeAttempt.GetAttemptId() != 1 {

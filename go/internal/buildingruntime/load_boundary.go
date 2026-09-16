@@ -51,8 +51,6 @@ type LoadRequest struct {
 	ExpectedColony         domain.ColonyID
 	HasExpectedColony      bool
 	ExpectedInstanceID     string
-	PlayerDirection        domain.DirectionID
-	HasPlayerDirection     bool
 	Deadline               time.Time
 	RequireVisualReadiness bool
 }
@@ -81,9 +79,6 @@ func (boundary_ *LoadBoundary) Load(ctx context.Context, request LoadRequest) (L
 	if request.HasExpectedColony && !boundary.ValidID(string(request.ExpectedColony)) {
 		return LoadResult{}, ErrLoad
 	}
-	if request.HasPlayerDirection && request.PlayerDirection == 0 {
-		return LoadResult{}, ErrLoad
-	}
 	if !request.Deadline.IsZero() && !time.Now().Before(request.Deadline) {
 		return LoadResult{}, ErrLoad
 	}
@@ -98,9 +93,6 @@ func (boundary_ *LoadBoundary) Load(ctx context.Context, request LoadRequest) (L
 	}
 	if request.ExpectedInstanceID != "" {
 		req.ExpectedInstanceId = proto.String(request.ExpectedInstanceID)
-	}
-	if request.HasPlayerDirection {
-		req.PlayerDirection = proto.Uint64(uint64(request.PlayerDirection))
 	}
 	reply, _, err := boundary_.Native.Load(ctx, req)
 	if err != nil {

@@ -7,7 +7,7 @@ import (
 )
 
 func TestFieldCoverageMixedCropsAndReserve(t *testing.T) {
-	// Python field_target: rice=ceil(5*(3*2.5+7))=73,
+	// field_target: rice=ceil(5*(3*2.5+7))=73,
 	// corn=ceil(5*(10*2.5+7)/2)=80. Rice covers one target, corn half.
 	rice := FieldCrop{Edible: domain.Known(true), GrowingCells: domain.Known(int64(73)), Demand: domain.Known(5.0), GrowDays: domain.Known(3.0), HarvestNutrition: domain.Known(1.0)}
 	corn := rice

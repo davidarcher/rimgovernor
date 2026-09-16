@@ -38,6 +38,7 @@ func initializeGoals(ctx context.Context, tx *sql.Tx) error {
 CREATE INDEX active_goals ON goals(id) WHERE retired=0;
 CREATE TABLE goal_methods(goal_id TEXT NOT NULL REFERENCES goals(id), epoch TEXT NOT NULL, method_id TEXT NOT NULL, plan_id TEXT NOT NULL UNIQUE REFERENCES plans(id), PRIMARY KEY(goal_id,epoch,method_id)) STRICT;
 CREATE TABLE routine_review(singleton INTEGER PRIMARY KEY CHECK(singleton=1), payload BLOB NOT NULL) STRICT;
+CREATE TABLE defense_layout(singleton INTEGER PRIMARY KEY CHECK(singleton=1), payload BLOB NOT NULL) STRICT;
 CREATE TABLE goal_create_submissions(request_id TEXT PRIMARY KEY, colony TEXT NOT NULL, load_token TEXT NOT NULL, map_id INTEGER NOT NULL, kind TEXT NOT NULL, goal_id TEXT NOT NULL REFERENCES goals(id), payload BLOB NOT NULL) STRICT;
 CREATE TABLE player_goals(colony TEXT NOT NULL, load_token TEXT NOT NULL, map_id INTEGER NOT NULL, kind TEXT NOT NULL, command TEXT NOT NULL CHECK(command IN ('create_goal','adopt_room')), request_id TEXT NOT NULL, goal_id TEXT NOT NULL REFERENCES goals(id), PRIMARY KEY(colony,load_token,map_id,kind)) STRICT;`)
 	return err
@@ -279,6 +280,12 @@ func commitGoalMethod(ctx context.Context, tx *sql.Tx, id domain.GoalID, revisio
 			return GoalState{}, err
 		}
 		if !exempt {
+			exempt, err = fieldOpenWorkExempt(ctx, tx, state, plan)
+			if err != nil {
+				return GoalState{}, err
+			}
+		}
+		if !exempt {
 			return GoalState{}, errors.New("existing method requires observation")
 		}
 	}
@@ -411,7 +418,7 @@ func guardGoalWork(ctx context.Context, tx *sql.Tx, plan domain.PlanID, current 
 	g := state.Goal
 	s := g.Snapshot
 	if g.Status != domain.GoalActive || g.Need == domain.NeedUnknown || g.Source == domain.AdviserGoal || epoch != strconv.FormatUint(g.Epoch, 10) ||
-		s.Colony != current.Colony || s.Map != current.Map || s.Load != current.Load || s.Direction != current.Direction || tick < g.Tick {
+		s.Colony != current.Colony || s.Map != current.Map || s.Load != current.Load || tick < g.Tick {
 		return errors.New("maintained goal does not admit current work")
 	}
 	return nil

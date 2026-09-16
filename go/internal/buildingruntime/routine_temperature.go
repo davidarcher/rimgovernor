@@ -23,9 +23,21 @@ func NewRoutineTemperaturePlanner(reviewer *RoutineReviewer, native RoutineBuild
 }
 
 func (r *RoutineReviewer) temperatureEnabled() bool {
+	return r.methodEnabled(policy.EnsureTemperatureSafety)
+}
+
+// roomsEnabled reports whether any composed family reads the typed room
+// census inside the review bracket: temperature and refrigeration plans need
+// room heat, comfort plans need each facility's hosting room role and
+// cleaning plans need each room's measured cleanliness.
+func (r *RoutineReviewer) roomsEnabled() bool {
+	return r.temperatureEnabled() || r.methodEnabled(policy.EnsureComfort) || r.methodEnabled(policy.MaintainRefrigeration) || r.methodEnabled(policy.MaintainCleanFacilities) || r.methodEnabled(policy.MaintainLighting)
+}
+
+func (r *RoutineReviewer) methodEnabled(goal policy.GoalID) bool {
 	methods, _ := r.methods.Value()
 	for _, method := range methods {
-		if method == policy.EnsureTemperatureSafety {
+		if method == goal {
 			return true
 		}
 	}
@@ -33,7 +45,7 @@ func (r *RoutineReviewer) temperatureEnabled() bool {
 }
 
 func (r *RoutineBuildingPlanner) selectTemperature(facts observation.ColonyProjection, latches policy.RoutineLatches) (*RoutineBuildingPlanner, RoutineBuildingReason, error) {
-	proposal, err := policy.SelectTemperatureMethod(facts.TemperaturePlanning, r.reviewer.policy, latches)
+	proposal, err := policy.SelectTemperatureMethod(facts.Rooms, r.reviewer.policy, latches)
 	if err != nil {
 		return nil, "", err
 	}

@@ -37,7 +37,7 @@ func ValidateAdmission(a domain.Action, p domain.Progress, admission Admission) 
 		return errors.New("admission plan or tick mismatch")
 	}
 	acquisition, ok := a.Acquisition()
-	if !ok || acquisition.Thing() != admission.Thing || idShaped(admission.SnapshotToken) != nil || admission.Snapshot.Native == 0 || admission.Snapshot.Direction == 0 {
+	if !ok || acquisition.Thing() != admission.Thing || idShaped(admission.SnapshotToken) != nil || admission.Snapshot.Native == 0 {
 		return errors.New("invalid acquisition admission")
 	}
 	return nil

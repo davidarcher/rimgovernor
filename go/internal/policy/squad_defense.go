@@ -62,6 +62,28 @@ const (
 // re-validate each chosen (defender, target) pair against fresh facts before
 // dispatch, and downed/dead opponents drop out at that point without being
 // re-selected here.
+// squadDefenderEligible is the shared combat_health_hold gate: every fact
+// known, idle, undrafted, violence-capable, not needing tending and above
+// the native combat-health threshold.
+func squadDefenderEligible(d SquadDefenderFacts) bool {
+	dead, dk := d.Dead.Value()
+	downed, wk := d.Downed.Value()
+	drafted, tk := d.Drafted.Value()
+	mental, mk := d.MentalState.Value()
+	forced, fk := d.PlayerForced.Value()
+	queued, qk := d.QueuedJobs.Value()
+	violent, vk := d.ViolenceCapable.Value()
+	needsTend, nk := d.NeedsTend.Value()
+	health, hk := d.HealthFraction.Value()
+	if !dk || !wk || !tk || !mk || !fk || !qk || !vk || !nk || !hk {
+		return false
+	}
+	if dead || downed || drafted || mental || forced || queued != 0 || !violent || needsTend {
+		return false
+	}
+	return health > float64(float32(0.5005))
+}
+
 func SelectSquadDefense(threats []SquadThreatFacts, defenders []SquadDefenderFacts) ([]SquadAssignment, bool) {
 	eligibleThreat := func(t SquadThreatFacts) bool {
 		dead, dk := t.Dead.Value()
@@ -84,24 +106,7 @@ func SelectSquadDefense(threats []SquadThreatFacts, defenders []SquadDefenderFac
 		}
 		return size > 0 && size <= 4
 	}
-	eligibleDefender := func(d SquadDefenderFacts) bool {
-		dead, dk := d.Dead.Value()
-		downed, wk := d.Downed.Value()
-		drafted, tk := d.Drafted.Value()
-		mental, mk := d.MentalState.Value()
-		forced, fk := d.PlayerForced.Value()
-		queued, qk := d.QueuedJobs.Value()
-		violent, vk := d.ViolenceCapable.Value()
-		needsTend, nk := d.NeedsTend.Value()
-		health, hk := d.HealthFraction.Value()
-		if !dk || !wk || !tk || !mk || !fk || !qk || !vk || !nk || !hk {
-			return false
-		}
-		if dead || downed || drafted || mental || forced || queued != 0 || !violent || needsTend {
-			return false
-		}
-		return health > float64(float32(0.5005))
-	}
+	eligibleDefender := squadDefenderEligible
 
 	var threatPool []SquadThreatFacts
 	for _, t := range threats {
@@ -182,8 +187,8 @@ func SelectSquadDefense(threats []SquadThreatFacts, defenders []SquadDefenderFac
 // SelectTribalRaiderDefense mirrors single_raider_defense's tribal branch: a
 // lone humanlike, non-ranged opponent is bounded tighter than the general
 // N-opponent case above — three healthy (>=85%, not needing tend) already-
-// armed defenders instead of two. Unlike Python's synchronous per-encounter
-// weapon fetch, an unarmed candidate is simply excluded here rather than
+// armed defenders instead of two. There is no synchronous per-encounter
+// weapon fetch: an unarmed candidate is simply excluded here rather than
 // equipped inline: EnsureBasicDefense arms colonists on its own
 // independently-scheduled goal (see RoutineEquipPlanner), so this method
 // just holds — via the caller falling back to SelectSquadDefense's general,

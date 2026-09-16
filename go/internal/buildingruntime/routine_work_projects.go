@@ -9,9 +9,10 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/store"
 )
 
-// Include selected player intent before admission and admitted shared projects.
+// Include player guidance before admission and admitted shared projects.
 // A cancelled, unresolved native order can still need a qualified builder.
-func routineProjectDefinitions(plans []store.PlanState, current domain.GenerationSnapshot) []string {
+// player maps each submitted plan for the current world to its revision.
+func routineProjectDefinitions(plans []store.PlanState, current domain.GenerationSnapshot, player map[domain.PlanID]uint64) []string {
 	names := map[string]bool{}
 	for _, plan := range plans {
 		if plan.Retired {
@@ -28,7 +29,7 @@ func routineProjectDefinitions(plans []store.PlanState, current domain.Generatio
 			}
 			v := progress.View()
 			scope, admitted := admissions[v.Action]
-			selected := v.Plan == current.Plan && v.Revision == current.Revision
+			selected := v.Plan == current.Plan && v.Revision == current.Revision || domain.PlanRevision(player[v.Plan]) == v.Revision
 			if !admitted && !selected {
 				continue
 			}

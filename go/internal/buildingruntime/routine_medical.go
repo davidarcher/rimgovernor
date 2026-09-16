@@ -17,13 +17,12 @@ import (
 )
 
 // medicineResourceDefinition is the one native resource definition
-// MaintainMedicalReserves replenishes, matching medical_reserves.py's
-// reserve_method hardcoded 'MedicineHerbal' target (guarded there by a
-// native policyResources presence check this Go boundary has no equivalent
-// decode for yet -- PolicyResources stays deliberately unread, see
-// bridge.ValidateColonyFacts). Recipe-product matching in
+// MaintainMedicalReserves replenishes: a hardcoded MedicineHerbal target. A
+// native policyResources presence check would be the right guard, but this
+// boundary has no decode for it yet -- PolicyResources stays deliberately
+// unread, see bridge.ValidateColonyFacts. Recipe-product matching in
 // policy.SelectMedicineMethod already refuses to guess when no bench
-// produces it, the same refusal shape.
+// produces it.
 const medicineResourceDefinition = policy.Resource("MedicineHerbal")
 
 // RoutineMedicalSource is the native census RoutineMedicalPlanner reads

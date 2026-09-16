@@ -44,6 +44,8 @@ func pawnOrderJobDefs(kind o.PawnOrderKind) []string {
 		return []string{"HaulToCell", "HaulToContainer"}
 	case o.PawnOrderKind_PAWN_ORDER_KIND_EQUIP:
 		return []string{"Equip"}
+	case o.PawnOrderKind_PAWN_ORDER_KIND_CLEAN:
+		return []string{"Clean"}
 	default:
 		return nil
 	}

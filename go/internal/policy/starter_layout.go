@@ -12,9 +12,27 @@ type Rectangle struct{ X, Z, Width, Height int32 }
 type SiteCell struct {
 	Cell                                                                   domain.Cell
 	Walkable, Occupied, Zone, Roofed, Indoors, SupportsLight, StorageEmpty domain.Fact[bool]
-	Fertility                                                              domain.Fact[float64]
-	Roof                                                                   domain.Fact[string]
+	// Doorway reports a door, or a door blueprint or frame, on the cell;
+	// indoor furnishing keeps the cells beside a doorway clear as its aisle.
+	Doorway   domain.Fact[bool]
+	Fertility domain.Fact[float64]
+	// Roof names the native roof def over the cell (rock roofs mark a
+	// mountain face for excavation).
+	Roof domain.Fact[string]
+	// ZoneID names the native zone covering the cell when Zone is true.
+	ZoneID domain.Fact[string]
 }
+
+// ShelterStyle selects the starter shell's shape family. The rectangle is
+// the 9x9 template; the hut style prefers the circular and oval templates a
+// neolithic colony builds and falls back to the rectangle when none fits.
+type ShelterStyle string
+
+const (
+	ShelterRectangle ShelterStyle = "rectangle"
+	ShelterHut       ShelterStyle = "hut"
+)
+
 type StarterRequest struct {
 	Bounds Bounds
 	Anchor domain.Cell
@@ -22,13 +40,78 @@ type StarterRequest struct {
 	// Protected contains accepted footprints, player exclusions and walkways.
 	Protected                                                     []domain.Cell
 	NutritionPerDay, CropGrowDays, HarvestNutrition, FertilityMin domain.Fact[float64]
+	// Shelter is the preferred shape family; empty means the rectangle.
+	Shelter ShelterStyle
+	// Crop, when known, replaces the bare crop facts above for farm scoring.
+	Crop domain.Fact[CropChoice]
+	// Zones lists existing growing zones so farms can extend managed ones.
+	Zones []FarmZone
 }
 type StarterLayout struct {
+	// Room is the shell's bounding rectangle, walls included; Shell is its
+	// exact geometry, which for the rectangle style is Room's own perimeter.
 	Room, Storage Rectangle
+	Shell         domain.RoomFootprint
 	Farms         []Rectangle
+	FarmSites     FarmSitePlan
 	Score         int64
 	SelectedCells int
 	TargetCells   domain.Fact[int]
+}
+
+// starterInterior is the rectangle template's interior cell count and the
+// size an irregular footprint grows to when no template fits.
+const starterInterior = 49
+
+// hutTemplates are tried in order at every candidate centre; the first that
+// fits is that centre's hut. Radii keep every interior cell within roof
+// support so the finished hut roofs itself.
+type hutTemplate struct {
+	radiusX, radiusZ int32
+	orientation      domain.EllipseOrientation
+}
+
+var hutTemplates = []hutTemplate{
+	{4, 4, domain.EllipseNorthSouth},
+	{3, 5, domain.EllipseNorthSouth},
+	{3, 5, domain.EllipseEastWest},
+	{3, 5, domain.EllipseNorthEast},
+	{3, 5, domain.EllipseNorthWest},
+	{3, 3, domain.EllipseNorthSouth},
+}
+
+// starterStorage is the 3x3 indoor stockpile: the rectangle template's
+// fixed upper-middle patch, or for any other shape the 3x3 nearest that
+// position whose cells all lie in the interior.
+func starterStorage(shell domain.RoomFootprint) Rectangle {
+	b := shell.Bounds()
+	inside := map[domain.Cell]bool{}
+	for _, c := range shell.Interior() {
+		inside[c] = true
+	}
+	fits := func(r Rectangle) bool {
+		for _, p := range rectCells(r) {
+			if !inside[p] {
+				return false
+			}
+		}
+		return true
+	}
+	want := Rectangle{b.X + b.Width/2 - 1, b.Z + b.Height/2 + 1, 3, 3}
+	if fits(want) {
+		return want
+	}
+	best, found := Rectangle{}, false
+	for _, c := range shell.Interior() {
+		r := Rectangle{c.X, c.Z, 3, 3}
+		if !fits(r) {
+			continue
+		}
+		if !found || squaredDistance(domain.Cell{X: r.X, Z: r.Z}, domain.Cell{X: want.X, Z: want.Z}) < squaredDistance(domain.Cell{X: best.X, Z: best.Z}, domain.Cell{X: want.X, Z: want.Z}) {
+			best, found = r, true
+		}
+	}
+	return best
 }
 
 func rectCells(r Rectangle) []domain.Cell {
@@ -65,7 +148,6 @@ func StarterLayouts(r StarterRequest) ([]StarterLayout, error) {
 	n, nk := r.NutritionPerDay.Value()
 	days, dk := r.CropGrowDays.Value()
 	yield, yk := r.HarvestNutrition.Value()
-	fertility, fk := r.FertilityMin.Value()
 	target := 0
 	targetFact := domain.Unknown[int]()
 	if nk && dk && yk && days > 0 && yield > 0 {
@@ -76,6 +158,11 @@ func StarterLayouts(r StarterRequest) ([]StarterLayout, error) {
 		target = int(v)
 		targetFact = domain.Known(target)
 	}
+	crop, ck := r.Crop.Value()
+	if !ck {
+		crop = CropChoice{GrowDays: r.CropGrowDays, HarvestNutrition: r.HarvestNutrition, FertilityMin: r.FertilityMin, FertilitySensitivity: domain.Known(1.0)}
+	}
+	_, fk := crop.FertilityMin.Value()
 	cells := make(map[domain.Cell]SiteCell, len(r.Cells))
 	ordered := make([]domain.Cell, 0, len(r.Cells))
 	for _, c := range r.Cells {
@@ -105,90 +192,110 @@ func StarterLayouts(r StarterRequest) ([]StarterLayout, error) {
 	}
 	type site struct {
 		score int64
-		cell  domain.Cell
+		shell domain.RoomFootprint
 	}
-	var sites []site
-	for _, c := range ordered {
-		if c.X+9 > r.Bounds.Width || c.Z+9 > r.Bounds.Height {
-			continue
-		}
-		legal := true
-		for _, p := range rectCells(Rectangle{c.X, c.Z, 9, 9}) {
+	buildable := func(shell domain.RoomFootprint) bool {
+		for _, p := range shell.Cells() {
 			if !free(p) || !positive(cells[p].SupportsLight) {
-				legal = false
-				break
+				return false
 			}
 		}
-		if !legal {
-			continue
-		}
-		score := squaredDistance(domain.Cell{X: c.X + 4, Z: c.Z + 4}, r.Anchor)
-		for _, p := range rectCells(Rectangle{c.X, c.Z - 4, 9, 3}) {
+		return true
+	}
+	// A site scores by its centre's distance to the anchor plus three per
+	// blocked cell in the three-row yard south of the shell.
+	score := func(shell domain.RoomFootprint) int64 {
+		b := shell.Bounds()
+		score := squaredDistance(domain.Cell{X: b.X + b.Width/2, Z: b.Z + b.Height/2}, r.Anchor)
+		for _, p := range rectCells(Rectangle{b.X, b.Z - 4, b.Width, 3}) {
 			if !free(p) {
 				score += 3
 			}
 		}
-		sites = append(sites, site{score, c})
+		return score
+	}
+	var sites []site
+	if r.Shelter == ShelterHut {
+		for _, c := range ordered {
+			for _, template := range hutTemplates {
+				shell, err := domain.EllipseFootprint(c, template.radiusX, template.radiusZ, template.orientation, domain.South)
+				if err != nil || !buildable(shell) {
+					continue
+				}
+				sites = append(sites, site{score(shell), shell})
+				break
+			}
+		}
+	}
+	if len(sites) == 0 {
+		for _, c := range ordered {
+			if c.X+9 > r.Bounds.Width || c.Z+9 > r.Bounds.Height {
+				continue
+			}
+			shell, err := domain.RectangleFootprint(domain.RoomBounds{X: c.X, Z: c.Z, Width: 9, Height: 9}, domain.South)
+			if err != nil || !buildable(shell) {
+				continue
+			}
+			sites = append(sites, site{score(shell), shell})
+		}
+	}
+	if len(sites) == 0 {
+		// Constrained terrain: grow one connected footprint from the free cell
+		// nearest the anchor instead of giving up on a shelter.
+		seeds := append([]domain.Cell(nil), ordered...)
+		sort.Slice(seeds, func(i, j int) bool {
+			a, b := squaredDistance(seeds[i], r.Anchor), squaredDistance(seeds[j], r.Anchor)
+			if a != b {
+				return a < b
+			}
+			return cellLess(seeds[i], seeds[j])
+		})
+		lit := func(p domain.Cell) bool { return free(p) && positive(cells[p].SupportsLight) }
+		for _, seed := range seeds {
+			if !lit(seed) {
+				continue
+			}
+			if shell, ok := domain.GrowFootprint(seed, lit, starterInterior); ok {
+				sites = append(sites, site{score(shell), shell})
+				break
+			}
+		}
 	}
 	sort.Slice(sites, func(i, j int) bool {
 		if sites[i].score != sites[j].score {
 			return sites[i].score < sites[j].score
 		}
-		return cellLess(sites[i].cell, sites[j].cell)
+		a, b := sites[i].shell.Bounds(), sites[j].shell.Bounds()
+		return cellLess(domain.Cell{X: a.X, Z: a.Z}, domain.Cell{X: b.X, Z: b.Z})
 	})
 	if len(sites) > 24 {
 		sites = sites[:24]
 	}
 	var layouts []StarterLayout
 	for _, site := range sites {
-		x, z := site.cell.X, site.cell.Z
+		b := site.shell.Bounds()
+		x, z, room := b.X, b.Z, Rectangle{b.X, b.Z, b.Width, b.Height}
 		reserved := map[domain.Cell]bool{}
-		for _, r := range []Rectangle{{x - 1, z - 1, 11, 11}, {x, z - 5, 9, 4}} {
+		for _, r := range []Rectangle{{x - 1, z - 1, room.Width + 2, room.Height + 2}, {x, z - 5, room.Width, 4}} {
 			for _, p := range rectCells(r) {
 				reserved[p] = true
 			}
 		}
-		farmland := append([]domain.Cell(nil), ordered...)
-		center := domain.Cell{X: x + 4, Z: z + 4}
-		sort.Slice(farmland, func(i, j int) bool {
-			a, b := squaredDistance(farmland[i], center), squaredDistance(farmland[j], center)
-			if a != b {
-				return a < b
+		storage := starterStorage(site.shell)
+		layout := StarterLayout{Room: room, Storage: storage, Shell: site.shell, Score: site.score, TargetCells: targetFact}
+		chosen := 0
+		if fk && target > 0 {
+			protectedCells := append([]domain.Cell(nil), r.Protected...)
+			for p := range reserved {
+				protectedCells = append(protectedCells, p)
 			}
-			return cellLess(farmland[i], farmland[j])
-		})
-		layout := StarterLayout{Room: Rectangle{x, z, 9, 9}, Storage: Rectangle{x + 3, z + 5, 3, 3}, Score: site.score, TargetCells: targetFact}
-		chosen := map[domain.Cell]bool{}
-		for _, size := range []int32{4, 3, 2, 1} {
-			if !fk || len(chosen) >= target || len(layout.Farms) >= 32 {
-				break
-			}
-			for _, anchor := range farmland {
-				patch := Rectangle{anchor.X, anchor.Z, size, size}
-				points := rectCells(patch)
-				legal := true
-				for _, p := range points {
-					c := cells[p]
-					f, k := c.Fertility.Value()
-					if reserved[p] || chosen[p] || !free(p) || !positive(measured(c.Roofed, func(v bool) bool { return !v })) || !k || f < fertility {
-						legal = false
-						break
-					}
-				}
-				if !legal {
-					continue
-				}
-				layout.Farms = append(layout.Farms, patch)
-				for _, p := range points {
-					chosen[p] = true
-				}
-				if len(chosen) >= target || len(layout.Farms) >= 32 {
-					break
-				}
-			}
+			farms := PlanFarmSites(FarmSiteRequest{Bounds: r.Bounds, Anchor: domain.Cell{X: x + room.Width/2, Z: z + room.Height/2}, Storage: domain.Known(domain.Cell{X: storage.X + storage.Width/2, Z: storage.Z + storage.Height/2}), Cells: r.Cells, Protected: protectedCells, Zones: r.Zones, Crop: crop, Needed: target})
+			layout.Farms = farms.Patches
+			layout.FarmSites = farms
+			chosen = farms.Cells
 		}
-		layout.SelectedCells = len(chosen)
-		layout.Score += int64(max(0, target-len(chosen))) * 2
+		layout.SelectedCells = chosen
+		layout.Score += int64(max(0, target-chosen)) * 2
 		layouts = append(layouts, layout)
 	}
 	sort.Slice(layouts, func(i, j int) bool {
@@ -202,4 +309,52 @@ func StarterLayouts(r StarterRequest) ([]StarterLayout, error) {
 		layouts = layouts[:12]
 	}
 	return layouts, nil
+}
+
+// HutTemplateShells returns every hut template centred on c with a south
+// entrance, in the order the starter search tries them, so acceptance tooling
+// can recognise a native shell as one of the shapes this policy issues.
+func HutTemplateShells(c domain.Cell) []domain.RoomFootprint {
+	var shells []domain.RoomFootprint
+	for _, template := range hutTemplates {
+		shell, err := domain.EllipseFootprint(c, template.radiusX, template.radiusZ, template.orientation, domain.South)
+		if err == nil {
+			shells = append(shells, shell)
+		}
+	}
+	return shells
+}
+
+// ShellShapesAtDoor returns every starter shell shape whose south door would
+// stand on door: the hut templates for the hut style, then the 9x9
+// rectangle. A shell planner uses it to recognise a shell it began earlier
+// from the door still standing natively, so a restart reissues only the
+// cells that shell is missing instead of siting a second one. Grown
+// irregular shells have no template and are not recognised this way.
+func ShellShapesAtDoor(door domain.Cell, style ShelterStyle) []domain.RoomFootprint {
+	var shells []domain.RoomFootprint
+	if style == ShelterHut {
+		for _, template := range hutTemplates {
+			// A south door sits just below the interior, near the centre
+			// column but off it where a diagonal ring is two cells thick, so
+			// every centre within the longer radius of the door is tried.
+			reach := max(template.radiusX, template.radiusZ) + 1
+			found := false
+			for dz := int32(2); dz <= reach && !found; dz++ {
+				for dx := int32(-2); dx <= 2 && !found; dx++ {
+					center := domain.Cell{X: door.X + dx, Z: door.Z + dz}
+					shell, err := domain.EllipseFootprint(center, template.radiusX, template.radiusZ, template.orientation, domain.South)
+					if err == nil && shell.Door() == door {
+						shells = append(shells, shell)
+						found = true
+					}
+				}
+			}
+		}
+	}
+	shell, err := domain.RectangleFootprint(domain.RoomBounds{X: door.X - 4, Z: door.Z, Width: 9, Height: 9}, domain.South)
+	if err == nil && shell.Door() == door {
+		shells = append(shells, shell)
+	}
+	return shells
 }

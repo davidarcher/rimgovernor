@@ -67,13 +67,12 @@ type saveRequestDTO struct {
 	SaveName  string `json:"saveName"`
 }
 type saveReplyDTO struct {
-	RequestID  string             `json:"requestId"`
-	SaveName   string             `json:"saveName"`
-	Identity   Identity           `json:"identity"`
-	Tick       domain.Tick        `json:"tick,string"`
-	Paused     bool               `json:"paused"`
-	Direction  domain.DirectionID `json:"direction,string"`
-	ByteLength uint64             `json:"byteLength,string"`
+	RequestID  string      `json:"requestId"`
+	SaveName   string      `json:"saveName"`
+	Identity   Identity    `json:"identity"`
+	Tick       domain.Tick `json:"tick,string"`
+	Paused     bool        `json:"paused"`
+	ByteLength uint64      `json:"byteLength,string"`
 }
 type loadRequestDTO struct {
 	RequestID string `json:"requestId"`
@@ -194,22 +193,22 @@ func (s *Server) handleLifecycleRead(w http.ResponseWriter, r *http.Request) {
 	s.write(w, r, 200, dto)
 }
 
-// currentLifecycleIdentity reads the fresh, matching, manual-eligible player
-// direction and identity this controller currently observes. Save and Load
+// currentLifecycleIdentity reads the fresh, matching identity and control mode
+// this controller currently observes. Save and Load
 // both require a live, non-stale, matching generation; the caller decides
 // whether Save's additional manual-mode requirement also applies.
-func (s *Server) currentLifecycleIdentity(ctx context.Context) (*c.Identity, domain.DirectionID, string, error) {
+func (s *Server) currentLifecycleIdentity(ctx context.Context) (*c.Identity, string, error) {
 	snapshot, err := s.snapshots.Snapshot(ctx)
 	if err != nil {
-		return nil, 0, "", err
+		return nil, "", err
 	}
 	identity, knownIdentity := snapshot.Identity.Value()
-	generation, knownGeneration := snapshot.Generation.Value()
-	if !snapshot.Connected || snapshot.Stale || !knownIdentity || !knownGeneration || generation.Direction == 0 {
-		return nil, 0, "", errNoLifecycleIdentity
+	_, knownGeneration := snapshot.Generation.Value()
+	if !snapshot.Connected || snapshot.Stale || !knownIdentity || !knownGeneration {
+		return nil, "", errNoLifecycleIdentity
 	}
 	wire := &c.Identity{ColonyId: proto.String(string(identity.Colony)), LoadToken: proto.String(string(identity.Load)), MapId: proto.Int32(int32(identity.Map))}
-	return wire, generation.Direction, snapshot.Mode, nil
+	return wire, snapshot.Mode, nil
 }
 
 func (s *Server) handleLifecycleSave(w http.ResponseWriter, r *http.Request, ctx context.Context) {
@@ -222,7 +221,7 @@ func (s *Server) handleLifecycleSave(w http.ResponseWriter, r *http.Request, ctx
 		s.readFailure(w, r, err)
 		return
 	}
-	wire, direction, mode, err := s.currentLifecycleIdentity(ctx)
+	wire, mode, err := s.currentLifecycleIdentity(ctx)
 	if err != nil {
 		s.readFailure(w, r, err)
 		return
@@ -242,7 +241,7 @@ func (s *Server) handleLifecycleSave(w http.ResponseWriter, r *http.Request, ctx
 		return
 	}
 	request := &l.SaveRequest{
-		Player:       &l.PlayerLifecycleContext{Identity: wire, PlayerDirection: proto.Uint64(uint64(direction)), RequestId: proto.String(body.RequestID)},
+		Player:       &l.PlayerLifecycleContext{Identity: wire, PlayerDirection: proto.Uint64(bridgepkg.LifecycleDirection), RequestId: proto.String(body.RequestID)},
 		SaveName:     proto.String(body.SaveName),
 		ExpectedTick: proto.Int64(int64(tick)),
 	}
@@ -283,12 +282,12 @@ func (s *Server) handleLifecycleLoad(w http.ResponseWriter, r *http.Request, ctx
 	// optional (see validateLoadRequest in internal/bridge/lifecycle_load.go).
 	// Any other read failure still aborts the request.
 	var expectedPlayer *l.PlayerLifecycleContext
-	wire, direction, _, err := s.currentLifecycleIdentity(ctx)
+	wire, _, err := s.currentLifecycleIdentity(ctx)
 	switch {
 	case err == nil:
 		expectedPlayer = &l.PlayerLifecycleContext{
 			Identity:        wire,
-			PlayerDirection: proto.Uint64(uint64(direction)),
+			PlayerDirection: proto.Uint64(bridgepkg.LifecycleDirection),
 			RequestId:       proto.String(body.RequestID),
 		}
 	case errors.Is(err, errNoLifecycleIdentity):
@@ -338,7 +337,6 @@ func projectSaveCompleted(v *l.SaveCompleted) saveReplyDTO {
 		Identity:   Identity{ColonyID: identity.GetColonyId(), MapID: identity.GetMapId(), LoadToken: identity.GetLoadToken()},
 		Tick:       domain.Tick(observed.GetTick()),
 		Paused:     v.GetPaused(),
-		Direction:  domain.DirectionID(v.GetPlayerDirection()),
 		ByteLength: v.GetByteLength(),
 	}
 }

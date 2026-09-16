@@ -25,7 +25,7 @@ func (p *playerFixture) LookupGoalCreateSubmission(ctx context.Context, id strin
 	return p.journal.LookupGoalCreateSubmission(ctx, id)
 }
 
-const goalExpected = `"expected":{"colonyId":"colony","loadToken":"load","mapId":0},"expectedDirection":"1","planId":"plan"`
+const goalExpected = `"expected":{"colonyId":"colony","loadToken":"load","mapId":0},"planId":"plan"`
 
 func TestPlayerGoalsHTTPActivateReplayReadAndCancel(t *testing.T) {
 	s, p := playerAPI(t)
@@ -89,8 +89,8 @@ func TestPlayerGoalsHTTPRejectsBadRequests(t *testing.T) {
 	s, _ := playerAPI(t)
 	const activate = "/api/player/goals/activate"
 	for _, body := range []string{
-		// Unwhitelisted or absent kinds, and Python's per-goal target fields,
-		// which have no Go counterpart and are not silently dropped.
+		// Unwhitelisted or absent kinds, and per-goal target fields, which
+		// have no counterpart and are not silently dropped.
 		`{"requestId":"r",` + goalExpected + `,"goal":"EnsureComfort","tick":1}`,
 		`{"requestId":"r",` + goalExpected + `,"goal":"","tick":1}`,
 		`{"requestId":"r",` + goalExpected + `,"tick":1}`,
@@ -98,8 +98,7 @@ func TestPlayerGoalsHTTPRejectsBadRequests(t *testing.T) {
 		`{"requestId":"r",` + goalExpected + `,"goal":"EnsureFoodSupply","tick":-1}`,
 		`{"requestId":"r",` + goalExpected + `,"goal":"EnsureFoodSupply","tick":1.5}`,
 		`{"requestId":"r",` + goalExpected + `,"goal":"EnsureFoodSupply"}`,
-		`{"requestId":"r","expected":{"colonyId":"colony","loadToken":"load","mapId":0},"expectedDirection":"0","planId":"plan","goal":"EnsureFoodSupply","tick":1}`,
-		`{"requestId":"r","expected":{"colonyId":"colony","loadToken":"load","mapId":0},"expectedDirection":"1","planId":"","goal":"EnsureFoodSupply","tick":1}`,
+		`{"requestId":"r","expected":{"colonyId":"colony","loadToken":"load","mapId":0},"planId":"","goal":"EnsureFoodSupply","tick":1}`,
 		`{"requestId":"",` + goalExpected + `,"goal":"EnsureFoodSupply","tick":1}`,
 		`{"goal":"EnsureFoodSupply","tick":1}`,
 	} {

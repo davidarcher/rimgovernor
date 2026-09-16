@@ -10,7 +10,7 @@ import (
 // xmlItem is one ordered child of an xmlElem: either an element or literal text.
 // RimWorld's config XML (ModsConfig.xml) mixes indentation whitespace with elements,
 // so a plain encoding/xml struct mapping cannot round-trip it losslessly; this minimal
-// mutable tree mirrors what Python's xml.etree.ElementTree gives native/headless.py.
+// mutable tree keeps elements and whitespace in document order.
 type xmlItem struct {
 	elem *xmlElem
 	text string

@@ -5,7 +5,6 @@
 Current rules, payloads and completion criteria. Open the topic that owns your change.
 
 - [Action completion contracts](action-contracts.md)
-- [Player command contracts](command-contracts.md)
 - [Controller and colony contracts](controller-contracts.md)
 - [Equipment and apparel upkeep](equipment-upkeep.md)
 - [Native forecast contracts](forecast-contracts.md)
@@ -16,10 +15,8 @@ Current rules, payloads and completion criteria. Open the topic that owns your c
 - [Medical care contracts](medical-care.md)
 - [Material extraction contracts](mining-contracts.md)
 - [Mood relief contracts](mood-control.md)
-- [Persistence and archive contracts](persistence-contracts.md)
-- [Player action coverage](player-actions.md)
+- [Persistence contracts](persistence-contracts.md)
 - [Population commitments](population-contracts.md)
-- [Recovery and uncertain-write contracts](recovery-contracts.md)
 - [Disaster planning](disaster-planning.md)
 - [Research tied to colony needs](research.md)
 - [Spatial contracts](spatial-contracts.md)

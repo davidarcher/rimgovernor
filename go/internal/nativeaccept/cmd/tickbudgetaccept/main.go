@@ -1,4 +1,4 @@
-// Command tickbudgetaccept replaces scripts/native_tick_budget_acceptance.py: exact
+// Command tickbudgetaccept proves exact
 // native execution tick boundaries and external clock ownership in a private game.
 package main
 

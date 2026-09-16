@@ -18,7 +18,7 @@ func meleeRequest(t *testing.T) MeleeDefenseRequest {
 	if err != nil {
 		t.Fatal(err)
 	}
-	s := domain.GenerationSnapshot{Colony: "colony", Map: 0, Load: "load", Direction: 1, Plan: plan.ID(), Revision: 1, Native: 1}
+	s := domain.GenerationSnapshot{Colony: "colony", Map: 0, Load: "load", Plan: plan.ID(), Revision: 1, Native: 1}
 	d, _ := domain.NewProgress(plan, da.ID())
 	d, err = d.Prepare(s, 10)
 	if err != nil {
@@ -42,7 +42,7 @@ func meleeRequest(t *testing.T) MeleeDefenseRequest {
 	if err != nil {
 		t.Fatal(err)
 	}
-	return MeleeDefenseRequest{Action: a, Progress: p, DraftProgress: d, Current: s, MinimumTick: 11, Facts: MeleeDefenseFacts{Snapshot: s, PawnTick: 12, PreviewTick: 13, Emergency: e, NativeCanTry: domain.Known(true), Pawn: MeleePawnFacts{Pawn: "pawn", SnapshotToken: "pawn-cas", Dead: domain.Known(false), Downed: domain.Known(false), Bleeding: domain.Known(false), NeedsTend: domain.Known(false), HealthFraction: domain.Known(1.0), FreeColonist: domain.Known(true), Drafted: domain.Known(true), ViolenceCapable: domain.Known(true), EquipmentKnown: domain.Known(true), Owner: domain.Known(MeleeDraftOwner{Claim: "claim", Session: "session", Direction: 1})}, Target: MeleeTargetFacts{Pawn: "target", SnapshotToken: "target-cas", Dead: domain.Known(false), Downed: domain.Known(false), Hostile: domain.Known(true)}}}
+	return MeleeDefenseRequest{Action: a, Progress: p, DraftProgress: d, Current: s, MinimumTick: 11, Facts: MeleeDefenseFacts{Snapshot: s, PawnTick: 12, PreviewTick: 13, Emergency: e, NativeCanTry: domain.Known(true), Pawn: MeleePawnFacts{Pawn: "pawn", SnapshotToken: "pawn-cas", Dead: domain.Known(false), Downed: domain.Known(false), Bleeding: domain.Known(false), NeedsTend: domain.Known(false), HealthFraction: domain.Known(1.0), FreeColonist: domain.Known(true), Drafted: domain.Known(true), ViolenceCapable: domain.Known(true), EquipmentKnown: domain.Known(true), Owner: domain.Known(MeleeDraftOwner{Claim: "claim", Session: "session"})}, Target: MeleeTargetFacts{Pawn: "target", SnapshotToken: "target-cas", Dead: domain.Known(false), Downed: domain.Known(false), Hostile: domain.Known(true)}}}
 }
 
 func TestMeleeDefenseAdmission(t *testing.T) {
@@ -88,7 +88,6 @@ func TestMeleeDefenseHolds(t *testing.T) {
 		{"old emergency", func(r *MeleeDefenseRequest) { r.Facts.Emergency.tick = 12 }},
 		{"zero generation", func(r *MeleeDefenseRequest) { r.Current.Native = 0 }},
 		{"native", func(r *MeleeDefenseRequest) { r.Current.Native++ }},
-		{"direction", func(r *MeleeDefenseRequest) { r.Current.Direction++ }},
 		{"colony", func(r *MeleeDefenseRequest) { r.Current.Colony = "other" }},
 		{"load", func(r *MeleeDefenseRequest) { r.Current.Load = "other" }},
 		{"map", func(r *MeleeDefenseRequest) { r.Current.Map++ }},
@@ -97,13 +96,10 @@ func TestMeleeDefenseHolds(t *testing.T) {
 		{"draft missing", func(r *MeleeDefenseRequest) { r.DraftProgress = domain.Progress{} }},
 		{"claim unknown", func(r *MeleeDefenseRequest) { r.Facts.Pawn.Owner = domain.Unknown[MeleeDraftOwner]() }},
 		{"claim replaced", func(r *MeleeDefenseRequest) {
-			r.Facts.Pawn.Owner = domain.Known(MeleeDraftOwner{Claim: "other", Session: "session", Direction: 1})
+			r.Facts.Pawn.Owner = domain.Known(MeleeDraftOwner{Claim: "other", Session: "session"})
 		}},
 		{"foreign session", func(r *MeleeDefenseRequest) {
-			r.Facts.Pawn.Owner = domain.Known(MeleeDraftOwner{Claim: "claim", Session: "other", Direction: 1})
-		}},
-		{"old owner direction", func(r *MeleeDefenseRequest) {
-			r.Facts.Pawn.Owner = domain.Known(MeleeDraftOwner{Claim: "claim", Session: "session", Direction: 2})
+			r.Facts.Pawn.Owner = domain.Known(MeleeDraftOwner{Claim: "claim", Session: "other"})
 		}},
 		{"pawn CAS", func(r *MeleeDefenseRequest) { r.Facts.Pawn.SnapshotToken = "" }},
 		{"target CAS", func(r *MeleeDefenseRequest) { r.Facts.Target.SnapshotToken = strings.Repeat("x", 257) }},

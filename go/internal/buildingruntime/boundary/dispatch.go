@@ -3,6 +3,8 @@ package boundary
 import (
 	"context"
 	"errors"
+	"fmt"
+	"os"
 
 	"github.com/davidarcher/RimGovernor/go/internal/bridge"
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
@@ -55,6 +57,11 @@ func DispatchPawnOrder(ctx context.Context, leases LeaseSource, writer PawnOrder
 	var refused *bridge.NativeFailure
 	if errors.As(err, &refused) && refused.Value != nil && refused.Value.GetCode() != c.FailureCode_FAILURE_CODE_ATTEMPT_CONFLICT {
 		out.Kind = domain.ReceiptRefused
+		if os.Getenv("RIMGOVERNOR_CLOCK_DEBUG") != "" {
+			// Native refusals are a receipt kind, not an error; surface the
+			// native detail for harness diagnosis without changing the receipt.
+			fmt.Fprintf(os.Stderr, "[pawn-order] refused action=%s kind=%v code=%v detail=%q\n", p.Action.ID(), attempt.Kind, refused.Value.GetCode(), refused.Value.GetDetail())
+		}
 		return out, nil
 	}
 	if err != nil {

@@ -33,7 +33,7 @@ The normal controller dashboard keeps its existing interactive contracts.
 
 ## Time, camera and player control
 
-`dashboard_controls.py` adds session-bound player time and camera endpoints. Time
+The dashboard adds session-bound player time and camera endpoints. Time
 controls enter Manual, invalidate pending execution, verify a native pause and release
 owned drafts before requesting Normal, Fast or Superfast through the existing
 supervisor. An in-flight review must finish before a play request; Pause remains
@@ -197,7 +197,7 @@ periodic reviewer. Source PNGs are retained by SHA-256 under the private runtime
 bounds. Concern rectangles always use full-source normalized coordinates.
 The activity journal displays numbered concerns on that exact historical image,
 with confidence and native facts to verify. Missing sources never fall back to
-the live camera. Paired checkpoint restore does not copy image archives; unavailable
+the live camera. A load does not carry image archives across; unavailable
 images remain explicitly unavailable. Visual, scout and consultation reports join
 native results in the bounded review-local evidence index for exact recall after
 conversation compaction. Recall is historical evidence, not renewed native truth.

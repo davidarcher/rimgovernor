@@ -60,6 +60,50 @@ read does not move it. The audit is bounded to 262144 map cells, 32 mobile colon
 admission. Future danger, door locking and actual pawn labor remain simulation
 outcomes.
 
+## Room footprints
+
+Every planned shell is an exact-cell `RoomFootprint`: a 4-connected interior of
+1..3844 cells away from the map edge, a wall ring of every non-interior cell
+that touches the interior orthogonally or diagonally, and one door on the ring
+whose inward neighbour is interior and whose outward neighbour is neither. The
+door is placed first, then walls in north-facing, z-outer/x-inner order, so a
+door dependency on placement zero holds for any shape. Rectangles keep their
+former cells exactly. Ovals use integer membership on the axis-aligned or 45°
+diagonal ellipse (long axis north-south, east-west, north-east or north-west,
+radii 2..30) and are only generated when every interior cell lies within
+Euclidean distance six of a wall, so the finished hut roofs itself without
+columns.
+
+The first shelter's shape follows the colony's observed player faction tech
+level: a Neolithic colony tries the hut templates (circle r4, ovals 3x5 in the
+four orientations, circle r3) at each candidate centre before the 9x9
+rectangle; any other tech level, or an unknown one, keeps the rectangle. When
+no template fits the lit free ground near the anchor, the routine grows a
+connected footprint from the nearest free seed over cells whose eight
+neighbours are all free, stopping at the rectangle's 49 interior cells or
+sooner when the terrain runs out (minimum nine), and walls its ring; that is
+how narrow connectors and concave rooms around rock arise. Site score,
+reserved yard and indoor storage placement are computed from the footprint,
+not a fixed rectangle.
+
+Resuming control, like any clock interruption (a letter pause), invalidates
+every routine goal and cancels its plans, and the executor cancels the
+cancelled plan's native blueprints and frames; the walls and door already
+completed natively are then the only durable record of a shell in progress.
+Before siting a shell, the routine reads the player wall and door census
+within 64 cells of the colony centre and, for each player door nearest the
+centre first, tries every starter shape whose south door lands on that cell
+(the hut templates for the hut style, then the 9x9 rectangle). A shape is
+adopted when the door stands on it and every other ring cell either stands
+already or is placeable now; the admitted plan holds only the missing cells,
+and its walls do not wait for a door that already stands. A blocked ring
+cell or a grown irregular shell (which has no template) is not adopted and
+the routine sites afresh.
+
+Indoor furnishing treats the four orthogonal neighbours of every observed
+doorway (a door, or a door blueprint or frame) as protected: the entrance
+aisle is never a furniture candidate.
+
 ## Site selection and development
 
 Site selection compares up to the configured method-attempt limit using native

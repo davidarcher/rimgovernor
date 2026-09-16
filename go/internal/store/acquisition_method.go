@@ -8,11 +8,12 @@ import (
 )
 
 // acquisitionOpenWorkExempt lets a purely-acquisition method be committed
-// alongside a goal's already-dispatched production bill: the bill may be
-// waiting on exactly the ingredient this acquisition fetches, so its open,
-// unresolved bill progress must not block the acquisition the same way any
-// other family's open work would. Any other open work still blocks, same as
-// every other goal-method family.
+// alongside a goal's already-dispatched production bill or growing field:
+// the bill may be waiting on exactly the ingredient this acquisition fetches,
+// and a sown field feeds the colony on a different horizon than harvesting
+// wild food does, so neither's open progress blocks the acquisition the way
+// any other family's open work would. Any other open work still blocks, same
+// as every other goal-method family.
 func acquisitionOpenWorkExempt(ctx context.Context, tx *sql.Tx, goal GoalState, plan domain.PlanSpec) (bool, error) {
 	if len(plan.Actions()) == 0 {
 		return false, nil
@@ -28,12 +29,22 @@ func acquisitionOpenWorkExempt(ctx context.Context, tx *sql.Tx, goal GoalState, 
 			return false, err
 		}
 		for _, progress := range p.Progress {
-			if progress.Action().Kind() != domain.ProductionBillAction && domain.GoalWorkOpen([]domain.Progress{progress}) {
+			if !acquisitionIndependentWork(progress.Action()) && domain.GoalWorkOpen([]domain.Progress{progress}) {
 				return false, nil
 			}
 		}
 	}
 	return true, nil
+}
+
+// acquisitionIndependentWork reports the action kinds whose open progress does
+// not block a fresh acquisition method for the same goal.
+func acquisitionIndependentWork(action domain.Action) bool {
+	if action.Kind() == domain.ProductionBillAction {
+		return true
+	}
+	zone, ok := action.ZoneCreate()
+	return ok && zone.Kind() == domain.GrowingZone
 }
 
 func admitAcquisitionMethod(ctx context.Context, tx *sql.Tx, goal GoalState, plan domain.PlanSpec) error {

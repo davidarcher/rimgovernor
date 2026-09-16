@@ -46,7 +46,7 @@ func TestNativePowerMethodsReplay(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		proposal, err := policy.SelectPowerMethod(facts.PowerPlanning, facts.Bounds, facts.Cells, nil)
+		proposal, err := policy.SelectPowerMethod(facts.PowerPlanning, facts.Bounds, facts.Cells, nil, policy.DefaultPowerPlanning())
 		if err != nil {
 			t.Fatal(err)
 		}

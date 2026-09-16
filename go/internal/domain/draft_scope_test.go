@@ -14,7 +14,6 @@ func TestDraftUnknownScopeSupersessionRetainsOrdinaryOutcome(t *testing.T) {
 		observed := origin
 		change(&observed)
 		observed.Native = 0
-		observed.Direction = 0
 		p, err = p.ObserveDraftScopeSupersession(DraftScopeSupersession{Action: before.Action, Attempt: 1, Origin: origin, Observed: observed, Tick: 0})
 		if err != nil {
 			t.Fatal(err)
@@ -39,14 +38,13 @@ func TestDraftScopeSupersessionRejectsUnprovenOrUnrelatedScope(t *testing.T) {
 	observed.Load = "replacement"
 	valid := DraftScopeSupersession{Action: p.View().Action, Attempt: 1, Origin: origin, Observed: observed, Tick: 0}
 	for name, change := range map[string]func(*DraftScopeSupersession){
-		"same world":               func(v *DraftScopeSupersession) { v.Observed = origin; v.Observed.Native = 0 },
-		"different direction only": func(v *DraftScopeSupersession) { v.Observed = origin; v.Observed.Direction++ },
-		"different action":         func(v *DraftScopeSupersession) { v.Action = "other" },
-		"different attempt":        func(v *DraftScopeSupersession) { v.Attempt++ },
-		"missing attempt":          func(v *DraftScopeSupersession) { v.Attempt = 0 },
-		"different origin":         func(v *DraftScopeSupersession) { v.Origin.Native++ },
-		"missing world":            func(v *DraftScopeSupersession) { v.Observed.Colony = "" },
-		"negative tick":            func(v *DraftScopeSupersession) { v.Tick = -1 },
+		"same world":        func(v *DraftScopeSupersession) { v.Observed = origin; v.Observed.Native = 0 },
+		"different action":  func(v *DraftScopeSupersession) { v.Action = "other" },
+		"different attempt": func(v *DraftScopeSupersession) { v.Attempt++ },
+		"missing attempt":   func(v *DraftScopeSupersession) { v.Attempt = 0 },
+		"different origin":  func(v *DraftScopeSupersession) { v.Origin.Native++ },
+		"missing world":     func(v *DraftScopeSupersession) { v.Observed.Colony = "" },
+		"negative tick":     func(v *DraftScopeSupersession) { v.Tick = -1 },
 	} {
 		t.Run(name, func(t *testing.T) {
 			v := valid

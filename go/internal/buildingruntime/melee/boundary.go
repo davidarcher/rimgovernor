@@ -50,7 +50,7 @@ func meleeCommand(pawn, target, pawnToken, targetToken string) *o.AttackTarget {
 }
 func meleeClaim(action domain.Action, snapshot domain.GenerationSnapshot, claim domain.DraftClaim, session string) error {
 	m, ok := action.MeleeAttack()
-	if !ok || snapshot.Validate() != nil || snapshot.Native == 0 || snapshot.Direction == 0 || snapshot.Revision == 0 || claim.Action != m.DraftAction() || claim.Pawn != m.Pawn() || claim.Origin != snapshot || claim.Attempt == 0 || string(claim.Session) != session || !boundary.ValidID(string(claim.Claim)) {
+	if !ok || snapshot.Validate() != nil || snapshot.Native == 0 || snapshot.Revision == 0 || claim.Action != m.DraftAction() || claim.Pawn != m.Pawn() || claim.Origin != snapshot || claim.Attempt == 0 || string(claim.Session) != session || !boundary.ValidID(string(claim.Claim)) {
 		return executor.ErrEvidence
 	}
 	return nil
@@ -151,7 +151,7 @@ func (b *MeleeBoundary) InspectMelee(ctx context.Context, target executor.Target
 	// observations.proto's OwnedDraftClaim), so an observed claim is by
 	// construction ours in the current epoch.
 	if owned := pawn.GetDraftClaim().GetOwned(); owned != nil && boundary.ValidID(owned.GetClaimId()) && owned.PawnSnapshot != nil && proto.Equal(owned.PawnSnapshot, pawn.Pawn.Snapshot) {
-		facts.Pawn.Owner = domain.Known(policy.MeleeDraftOwner{Claim: domain.DraftClaimID(owned.GetClaimId()), Session: domain.ControllerSessionID(b.session), Direction: current.Direction})
+		facts.Pawn.Owner = domain.Known(policy.MeleeDraftOwner{Claim: domain.DraftClaimID(owned.GetClaimId()), Session: domain.ControllerSessionID(b.session)})
 	}
 	if biography := pawn.Biography; biography != nil && !boundary.IssueField(biography.Issues, "disabled_work_tags") {
 		capable := true

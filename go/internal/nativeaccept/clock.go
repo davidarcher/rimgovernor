@@ -35,8 +35,7 @@ var clockClocks = map[string]bool{
 
 // ClockAudit asserts a native operation-event history is gapless from baseline and
 // every attributed event belongs to the allowed capability set for the Go-owned
-// supervised clock, then returns the ordered operation names, mirroring
-// native_go_clock_acceptance.py's audit(): a disabled restart must never expose
+// supervised clock, then returns the ordered operation names: a disabled restart must never expose
 // clock_start/clock_renew/authority_control/operations_execute, and a running
 // (non-restart) session must show at least one clock_start, clock_pause, and
 // operations_execute, plus observations_read_colony_facts when routine reviews
@@ -141,8 +140,7 @@ func sortBySequence(rows []map[string]any) {
 }
 
 // InterruptedByLetter asserts a Go-supervised clock's event stream shows exactly
-// one real LetterStack interruption for the scheduled letter, mirroring
-// native_go_clock_acceptance.py's interrupted_by_letter().
+// one real LetterStack interruption for the scheduled letter.
 func InterruptedByLetter(events []map[string]any, letterID string) (map[string]any, error) {
 	var matching []map[string]any
 	for _, event := range events {
@@ -166,8 +164,7 @@ func explicitFalse(v any) bool {
 
 // RequireHealthyColonists asserts a fresh observations_list_pawns reply is a
 // complete, fully-matched census of colonists with none dead, downed, bleeding,
-// or needing tend, mirroring native_go_clock_acceptance.py's
-// require_healthy_colonists(): a missing health fact is never treated as healthy,
+// or needing tend: a missing health fact is never treated as healthy,
 // only an explicit false is.
 func RequireHealthyColonists(reply map[string]any) error {
 	_, observed, err := Outcome(reply, "observed")
@@ -260,8 +257,7 @@ func truthyAny(v any) bool {
 // exactly the fixed native goal set (plus any mood/disaster goals its own snapshot
 // declares), that every bound goal is autopilot-sourced, scoped to the review's own
 // snapshot, no newer than the review's own tick, and (while disabled) left
-// invalidated or cancelled, mirroring native_go_clock_acceptance.py's
-// routine_evidence(). It never treats a bound goal it cannot read, or a review that
+// invalidated or cancelled. It never treats a bound goal it cannot read, or a review that
 // silently created methods when none were expected, as a pass.
 func RoutineEvidence(databasePath string, identity map[string]any, enabled bool, expectedFoodNeed *string, allowMethods bool) (map[string]any, error) {
 	uri := "file:" + filepath.ToSlash(databasePath) + "?mode=ro"

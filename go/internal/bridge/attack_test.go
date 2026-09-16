@@ -3,6 +3,7 @@ package bridge
 import (
 	"context"
 	"errors"
+	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
 	o "github.com/davidarcher/RimGovernor/go/internal/wire/operationspb"
 	r "github.com/davidarcher/RimGovernor/go/internal/wire/receiptspb"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
@@ -11,6 +12,13 @@ import (
 	"time"
 )
 
+// gotoTestProgress is a completed pawn-job progress reply (a Goto job that
+// has already been issued and finished); the attack boundary must reject it
+// because it carries no attack evidence.
+func gotoTestProgress() *r.Progress {
+	j := &r.JobEffect{PawnId: proto.String("pawn"), JobDef: proto.String("Goto"), JobId: proto.Int32(42), TargetA: &r.JobTarget{Target: &r.JobTarget_Cell{Cell: &c.Cell{X: proto.Int32(4), Z: proto.Int32(5)}}}, CanTry: proto.Bool(true), Issued: proto.Bool(false), Verified: proto.Bool(true)}
+	return &r.Progress{Attempt: buildingPre().Attempt, Context: buildingAdmission().AdmittedContext, CompleteInspection: proto.Bool(true), Effect: &r.Progress_Completed{Completed: &r.CompletedEffect{Evidence: &r.EffectEvidence{Effect: &r.EffectEvidence_Job{Job: j}}}}}
+}
 func attackTestCommand() *o.AttackTarget {
 	return &o.AttackTarget{Pawn: draftTestPawn(), Target: &o.EntityPrecondition{EntityId: proto.String("enemy"), ExpectedSnapshotToken: proto.String("enemy-before")}, Mode: o.AttackMode_ATTACK_MODE_MELEE.Enum(), RequireHostile: proto.Bool(true), RequireStanding: proto.Bool(true), RequireCombatHealth: proto.Bool(true)}
 }
@@ -27,7 +35,7 @@ func attackTestReceipt() *r.Receipt {
 	return v
 }
 func attackTestProgress() *r.Progress {
-	v := movementTestProgress(false)
+	v := gotoTestProgress()
 	j := proto.Clone(draftObserved(attackTestReceipt())).(*r.JobEffect)
 	j.Issued = proto.Bool(false)
 	v.GetCompleted().Evidence = &r.EffectEvidence{Effect: &r.EffectEvidence_Job{Job: j}}
@@ -103,7 +111,7 @@ func TestAttackFixedRangedSDK(t *testing.T) {
 			return pbResult(&r.LookupReply{Outcome: &r.LookupReply_Receipt{Receipt: rangedTestReceipt()}}), nil
 		case "rimgovernor/receipts_observe_progress":
 			draftTestRequest(t, arg, &r.ProgressRequest{Identity: pbIdentity(), Attempt: buildingPre().Attempt})
-			progress := movementTestProgress(false)
+			progress := gotoTestProgress()
 			j := proto.Clone(draftObserved(rangedTestReceipt())).(*r.JobEffect)
 			j.Issued = proto.Bool(false)
 			progress.GetCompleted().Evidence = &r.EffectEvidence{Effect: &r.EffectEvidence_Job{Job: j}}

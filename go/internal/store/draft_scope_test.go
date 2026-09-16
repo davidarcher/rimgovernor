@@ -82,7 +82,7 @@ func TestDraftScopeSupersessionRollbackAndInvalidEvidence(t *testing.T) {
 		t.Fatal(err)
 	}
 	invalid := event
-	invalid.Origin.Direction++
+	invalid.Origin.Native++
 	if _, err := s.ObserveDraftScopeSupersession(ctx, v.Plan, invalid); err == nil {
 		t.Fatal("wrong origin accepted")
 	}

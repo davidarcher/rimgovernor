@@ -130,8 +130,8 @@ type MedicineMethod struct {
 }
 
 // MedicinePlanningRequest names the one resource MaintainMedicalReserves
-// replenishes (MedicineHerbal, per medical_reserves.py's reserve_method,
-// which refuses to run without native confirmation that definition exists)
+// replenishes (MedicineHerbal; the planner refuses to run without native
+// confirmation that definition exists)
 // and reuses the exact bench/recipe census shape GearProduce established
 // (policy.GearBench/GearRecipe): bridge.ReadGearBenches/ReadSupplyStock are
 // fully generic native reads, not specific to gear-crafting benches, so no

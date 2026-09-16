@@ -11,9 +11,8 @@ import (
 // trainable, plus -- only once an operator has explicitly opted in via
 // RoutinePolicy.AllowSlaughter and declared a HerdPopulationMax for a race --
 // any surplus animal of that race safe to slaughter. Disclosed narrowing:
-// Python's per-race protected-id, breeding-reserve and feed-reservation
-// richness (controller/rimgovernor/husbandry.py's assess_herd) has no Go
-// equivalent yet; surplus eligibility relies entirely on native's own
+// there is no per-race protected-id, breeding-reserve or feed-reservation
+// bookkeeping; surplus eligibility relies entirely on native's own
 // SafeToSlaughter fact (which already excludes bonded/master animals per
 // RimWorld's own rules) rather than a re-derived protected-IDs set, and there
 // is no separate breeding-reserve carve-out. Slaughter is irreversible, so
@@ -98,7 +97,7 @@ func AnimalHerdDeficit(animals domain.Fact[[]UpkeepAnimal], allowSlaughter bool,
 	return domain.Known(deficit)
 }
 
-// herdSlaughterCandidates ports husbandry.py's assess_herd surplus math
+// herdSlaughterCandidates computes the herd surplus
 // (surplus = len(animals) - target.maximum - pending) per tracked race,
 // narrowed to a single global opt-in with no protected-id/breeding-reserve
 // carve-out: eligibility is taken entirely from native's own SafeToSlaughter

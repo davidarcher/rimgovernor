@@ -137,12 +137,18 @@ func (w *ClockWorker) renewLoop() {
 }
 
 type clockStepKey struct {
-	request, phase, reasons              string
+	request, phase, reasons, failure     string
 	failed, running, reconciled, cleaned bool
 }
 
 func clockWorkerKey(result ClockSchedulerResult, err error) clockStepKey {
 	key := clockStepKey{failed: err != nil, running: result.Running, reconciled: result.Reconciled, cleaned: result.Cleaned}
+	if err != nil {
+		// A different failure is a state change worth one more log line:
+		// otherwise a planner error that follows the routine startup
+		// authority refusal is never surfaced at all.
+		key.failure = err.Error()
+	}
 	if result.Attempt != nil {
 		key.request = result.Attempt.Intent.RequestID
 		key.phase = string(result.Attempt.Phase)
@@ -168,12 +174,13 @@ func (w *ClockWorker) stepLoop() {
 		result, err := w.step(call)
 		cancel()
 		key := clockWorkerKey(result, err)
+		clockSchedulerLog("step done: err=%v", err)
 		// Unconditionally surface which planner failed and why -- stepPlanners
 		// wraps each planner's error with its own name (clock_scheduler.go), so
 		// this is diagnosable without RIMGOVERNOR_CLOCK_DEBUG=1. Gated on state
 		// change (like the backoff decision below) so a sustained failure logs
 		// once, not every StepInterval. See issue #45.
-		if err != nil && (!havePrevious || key != previous) {
+		if err != nil && (!havePrevious || key != previous || clockSchedulerDebug) {
 			fmt.Fprintf(os.Stderr, "[clock-worker] step failed: %v\n", err)
 		}
 		if havePrevious && key == previous {

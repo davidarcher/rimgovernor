@@ -29,6 +29,12 @@ type FoodStock struct {
 	// reads them, so unknown/zero values never affect forecast validity.
 	DefName Resource
 	Count   domain.Fact[int64]
+	// Roofed, TemperatureC and Room describe where the stock sits at
+	// observation time; ForecastFood ignores them, storage upkeep and
+	// refrigeration policy read them.
+	Roofed       domain.Fact[bool]
+	TemperatureC domain.Fact[float64]
+	Room         domain.Fact[string]
 }
 type FoodSupply struct {
 	Complete  domain.Fact[bool]

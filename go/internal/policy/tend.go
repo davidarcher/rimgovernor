@@ -10,7 +10,7 @@ import (
 )
 
 const (
-	// DoctorUnavailable mirrors the Python patient_outcome failure of the same name.
+	// DoctorUnavailable is the patient outcome failure of the same name.
 	DoctorUnavailable Reason = "doctor_unavailable"
 	PatientIneligible Reason = "patient_ineligible"
 )
@@ -183,7 +183,7 @@ func EvaluateTend(r TendRequest) DraftDecision {
 	}
 	v := r.Progress.View()
 	f := r.Facts
-	if r.Current.Validate() != nil || r.Current.Native == 0 || r.Current.Direction == 0 || !f.Snapshot.Matches(r.Current) || r.MinimumTick < 0 || f.PawnTick < r.MinimumTick || f.PreviewTick < f.PawnTick {
+	if r.Current.Validate() != nil || r.Current.Native == 0 || !f.Snapshot.Matches(r.Current) || r.MinimumTick < 0 || f.PawnTick < r.MinimumTick || f.PreviewTick < f.PawnTick {
 		return refuse(StaleFacts)
 	}
 	if r.Progress.Action() != r.Action || v.Plan != r.Current.Plan || v.Revision != r.Current.Revision || v.Unresolved || (v.Stage != domain.Pending && v.Stage != domain.Prepared) {
@@ -205,8 +205,8 @@ func EvaluateTend(r TendRequest) DraftDecision {
 	// EmergencyCriticalMedical fires for any bleeding/downed/untended colonist,
 	// including the patient this action exists to treat, so it is deliberately
 	// excluded here. Combat safety (EmergencyUnsafeThreat) gates an undrafted
-	// doctor's dispatch: ordinary triage only proceeds once threats_cleared,
-	// matching the Python reference. A drafted doctor is exempted -- the
+	// doctor's dispatch: ordinary triage only proceeds once threats_cleared.
+	// A drafted doctor is exempted -- the
 	// controller drafted them itself, so sending them to tend a dying colonist
 	// is the same class of decision as drafting a healthy pawn during a threat
 	// elsewhere (see EvaluateOwnedDraft): native's own job-acceptance check

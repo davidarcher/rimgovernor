@@ -16,12 +16,10 @@ func TestAcquisitionPlannerBoundsWoodAndPreservesManual(t *testing.T) {
 	t.Parallel()
 	ctx := context.Background()
 	reviewer, db, session, request, native := routineFixture(t)
-	rootPlan, err := db.LoadPlan(ctx, session.State().Snapshot.Plan)
-	if err != nil {
-		t.Fatal(err)
-	}
-	for _, action := range rootPlan.Spec.Actions() {
-		if _, err = db.Cancel(ctx, rootPlan.Spec.ID(), action.ID()); err != nil {
+	submitted := playerPlan(t, db)
+	var err error
+	for _, action := range submitted.Spec.Actions() {
+		if _, err = db.Cancel(ctx, submitted.Spec.ID(), action.ID()); err != nil {
 			t.Fatal(err)
 		}
 	}
@@ -78,8 +76,8 @@ func TestAcquisitionPlannerBoundsWoodAndPreservesManual(t *testing.T) {
 	if next, err := planner.Step(ctx); err != nil || next.Reason != BuildingMethodExistingWork {
 		t.Fatal(next, err)
 	}
-	request.Kind, request.RequestID, request.Plan, request.Revision = store.ManualControl, "manual-acquisition", "", 0
-	if _, err = reviewer.player.Manual(ctx, request); err != nil {
+	request.Kind, request.RequestID = store.PauseControl, "manual-acquisition"
+	if _, err = reviewer.player.Pause(ctx, request); err != nil {
 		t.Fatal(err)
 	}
 	plan, err = db.LoadPlan(ctx, result.Plan)
@@ -114,7 +112,7 @@ func dispatchedHunt(t *testing.T, action domain.ActionID, thing string, tick dom
 	if err != nil {
 		t.Fatal(err)
 	}
-	snapshot := domain.GenerationSnapshot{Colony: "colony", Map: 1, Load: "load", Direction: 1, Plan: spec.ID(), Revision: spec.Revision(), Native: 1}
+	snapshot := domain.GenerationSnapshot{Colony: "colony", Map: 1, Load: "load", Plan: spec.ID(), Revision: spec.Revision(), Native: 1}
 	if p, err = p.Prepare(snapshot, tick); err != nil {
 		t.Fatal(err)
 	}

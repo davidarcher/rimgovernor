@@ -16,7 +16,7 @@ func TestRoutineExecutionRequiresCurrentReviewedMethod(t *testing.T) {
 			ctx := context.Background()
 			s := open(t, filepath.Join(t.TempDir(), "routine.db"))
 			r := routineRequest()
-			r.Current.Direction, r.Current.Native = 1, 2
+			r.Current.Native = 2
 			g := routineGoal(t, reviewRoutine(t, s, &r), policy.MaintainWood)
 			q := methodRequest(t, g, "method", 10)
 			d, err := s.AdmitBuildingMethod(ctx, q)
@@ -26,7 +26,7 @@ func TestRoutineExecutionRequiresCurrentReviewedMethod(t *testing.T) {
 			root, target := r.Current, q.Current
 			switch change {
 			case "direction":
-				target.Direction++
+				target.Native++
 			case "native":
 				target.Native++
 			case "load":

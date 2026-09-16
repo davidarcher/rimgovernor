@@ -24,8 +24,18 @@ fresh, pass it explicitly:
 .\launch-go.ps1 -State .rimgovernor\go\state-<timestamp>.sqlite
 ```
 
-Resume starts in Manual; choose Automate when ready. Keep the installed game DLLs
-unchanged until all sessions have closed.
+By default the controller starts paused; choose **Resume** in the dashboard
+when ready. Pass `--resume` to run the bot for the loaded colony automatically
+at startup and again after every load:
+
+```powershell
+.\launch.cmd --resume
+```
+
+Loading a save (from the dashboard or in-game) starts a fresh review of the
+loaded colony; goals are re-derived from what the controller observes, and
+only orders that were already issued but never confirmed are followed up.
+Keep the installed game DLLs unchanged until all sessions have closed.
 
 ## Attached sessions
 

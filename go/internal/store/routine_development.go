@@ -61,7 +61,11 @@ func routineCommitments(ctx context.Context, tx *sql.Tx, current domain.Generati
 		if world != (World{Colony: current.Colony, Load: current.Load, Map: current.Map}) {
 			continue
 		}
-		result = append(result, policy.Commitment{Goal: goalID, Source: source, Priority: priority, Progress: open})
+		labor := policy.GoalLabor(goalID)
+		if source == domain.PlayerGoal && labor == nil {
+			labor = policy.LaborProfile{policy.WorkConstruction}
+		}
+		result = append(result, policy.Commitment{Goal: goalID, Source: source, Priority: priority, Progress: open, Labor: labor})
 	}
 	return result, nil
 }
@@ -85,7 +89,7 @@ func rankRoutineDevelopment(ctx context.Context, tx *sql.Tx, r RoutineReviewRequ
 			}
 		}
 	}
-	return policy.RankDevelopment(policy.DevelopmentRequest{Snapshot: r.Current, Tick: r.Tick, Workers: r.Facts.Workers, Limit: r.Policy.MaxDevelopmentProjects, Goals: goals, Commitments: commitments, Previous: previous})
+	return policy.RankDevelopment(policy.DevelopmentRequest{Snapshot: r.Current, Tick: r.Tick, Workers: r.Facts.Workers, Labor: r.Facts.Labor, Limit: r.Policy.MaxDevelopmentProjects, Goals: goals, Commitments: commitments, Previous: previous})
 }
 
 // Recheck current commitments inside method admission: a player project accepted
@@ -107,6 +111,9 @@ func admitRoutineDevelopment(ctx context.Context, tx *sql.Tx, g domain.Goal) err
 			need = b.Need
 			break
 		}
+	}
+	if policy.DevelopmentExempt(need) {
+		return nil
 	}
 	selected := false
 	for _, row := range review.Development.Rows {

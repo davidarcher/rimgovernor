@@ -24,6 +24,7 @@ func TestPlayerGoalKindsMatchRoutineGoals(t *testing.T) {
 		domain.MaintainWoodGoal:            MaintainWood,
 		domain.MaintainResourceGoal:        MaintainResource,
 		domain.MaintainWasteGoal:           MaintainWaste,
+		domain.EnsureDefensiveLayoutGoal:   EnsureDefensiveLayout,
 	}
 	kinds := domain.GoalKinds()
 	if len(routine) != len(kinds) {

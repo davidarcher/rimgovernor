@@ -167,3 +167,91 @@ func TestCommitStockpileZoneMethodRejectsOverlappingCells(t *testing.T) {
 		t.Fatal("expected rejection of overlapping stockpile cells")
 	}
 }
+
+// A dispatched acquisition batch is refreshed every review and must not
+// starve the field planner: a growing-zone method commits alongside open
+// acquisition work, while a second field batch still waits for the first.
+func TestCommitFieldMethodExemptFromAcquisitionOpenWork(t *testing.T) {
+	t.Parallel()
+	ctx := context.Background()
+	s := open(t, filepath.Join(t.TempDir(), "routine.db"))
+	r := foodDeficitRoutineRequest()
+	tick := r.Tick
+	out := reviewRoutine(t, s, &r)
+	g := routineGoal(t, out, policy.EnsureFoodSupply)
+	if _, err := s.CommitGoalMethod(ctx, g.Goal.ID, g.Revision, "acquire-1", acquisitionPlan(t, "acquire-plan-1", "WoodLog")); err != nil {
+		t.Fatal(err)
+	}
+	target := r.Current
+	target.Plan, target.Revision = "acquire-plan-1", 1
+	if _, err := s.PrepareAcquisition(ctx, "acquire-plan-1", "acquire-plan-1-a", AcquisitionAdmission{Snapshot: target, Tick: tick, Thing: "acq-WoodLog", SnapshotToken: "acq-cas"}); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := s.Dispatch(ctx, "acquire-plan-1", "acquire-plan-1-a", target, tick); err != nil {
+		t.Fatal(err)
+	}
+	g, err := s.LoadGoal(ctx, g.Goal.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	field := growingPlan(t, "field-plan-1", []domain.Cell{{X: 0, Z: 0}, {X: 1, Z: 0}})
+	if g, err = s.CommitGoalMethod(ctx, g.Goal.ID, g.Revision, "field-1", field); err != nil {
+		t.Fatal("open acquisition blocked a field method", err)
+	}
+	// The committed field batch is open until its zone resolves, so another
+	// field batch waits.
+	second := growingPlan(t, "field-plan-2", []domain.Cell{{X: 5, Z: 5}})
+	if _, err = s.CommitGoalMethod(ctx, g.Goal.ID, g.Revision, "field-2", second); err == nil {
+		t.Fatal("open field work did not block a second field batch")
+	}
+}
+
+// A field batch made of farm infrastructure (a sun lamp) shares the
+// exemption; any other building does not.
+func TestCommitFieldInfrastructureExemptFromAcquisitionOpenWork(t *testing.T) {
+	t.Parallel()
+	ctx := context.Background()
+	s := open(t, filepath.Join(t.TempDir(), "routine.db"))
+	r := foodDeficitRoutineRequest()
+	tick := r.Tick
+	out := reviewRoutine(t, s, &r)
+	g := routineGoal(t, out, policy.EnsureFoodSupply)
+	if _, err := s.CommitGoalMethod(ctx, g.Goal.ID, g.Revision, "acquire-1", acquisitionPlan(t, "acquire-plan-1", "WoodLog")); err != nil {
+		t.Fatal(err)
+	}
+	target := r.Current
+	target.Plan, target.Revision = "acquire-plan-1", 1
+	if _, err := s.PrepareAcquisition(ctx, "acquire-plan-1", "acquire-plan-1-a", AcquisitionAdmission{Snapshot: target, Tick: tick, Thing: "acq-WoodLog", SnapshotToken: "acq-cas"}); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := s.Dispatch(ctx, "acquire-plan-1", "acquire-plan-1-a", target, tick); err != nil {
+		t.Fatal(err)
+	}
+	g, err := s.LoadGoal(ctx, g.Goal.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err = s.CommitGoalMethod(ctx, g.Goal.ID, g.Revision, "wall-1", buildingOnlyPlan(t, "wall-plan-1", "Wall")); err == nil {
+		t.Fatal("open acquisition did not block an unrelated building")
+	}
+	if _, err = s.CommitGoalMethod(ctx, g.Goal.ID, g.Revision, "lamp-1", buildingOnlyPlan(t, "lamp-plan-1", "SunLamp")); err != nil {
+		t.Fatal("open acquisition blocked a sun lamp field batch", err)
+	}
+}
+
+func buildingOnlyPlan(t *testing.T, id, definition string) domain.PlanSpec {
+	t.Helper()
+	b, err := domain.NewBuilding(definition, domain.Cell{X: 3, Z: 3}, domain.North, "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	a, err := domain.NewBuildingAction(domain.ActionID(id+"-0"), b)
+	if err != nil {
+		t.Fatal(err)
+	}
+	plan, err := domain.NewPlan(domain.PlanID(id), 1, []domain.Action{a})
+	if err != nil {
+		t.Fatal(err)
+	}
+	return plan
+}

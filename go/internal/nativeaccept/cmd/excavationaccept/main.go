@@ -292,24 +292,23 @@ func run(ctx context.Context, root, output, gameID string, headless bool, rimgov
 		return fmt.Errorf("unexpected building submission: %#v", submission)
 	}
 	report["submission"] = submission
-	acquired, status, err := svc.api("POST", "/api/player/control/acquire", map[string]any{
-		"requestId": "excavation-acquire-1", "expected": identity,
-		"planId": planID, "revision": revision, "expectedDirection": "0",
+	// Resume enters automate mode under the world's root plan (#55).
+	acquired, status, err := svc.api("POST", "/api/player/control/resume", map[string]any{
+		"requestId": "excavation-resume-1", "expected": identity,
 	}, svc.token())
 	if err != nil {
 		return err
 	}
 	if status != 200 {
-		return fmt.Errorf("unexpected acquire status=%d body=%#v", status, acquired)
+		return fmt.Errorf("unexpected resume status=%d body=%#v", status, acquired)
 	}
 	acquiredRecord, _ := na.AsMap(acquired["record"])
-	if na.AsString(acquiredRecord["phase"]) != "granted" {
-		return fmt.Errorf("acquire was not granted: %#v", acquired)
+	if na.AsString(acquiredRecord["phase"]) != "running" {
+		return fmt.Errorf("resume was not running: %#v", acquired)
 	}
-	report["acquired"] = acquired
+	report["resumed"] = acquired
 
-	keepAlive := &authorityKeepAlive{svc: svc, identity: identity, planID: planID, revision: revision}
-	keepAlive.direction = na.AsString(acquiredRecord["direction"])
+	keepAlive := &authorityKeepAlive{svc: svc, identity: identity}
 	keepAliveCtx, stopKeepAlive := context.WithCancel(ctx)
 	var keepAliveWG sync.WaitGroup
 	keepAliveWG.Add(1)
@@ -369,12 +368,11 @@ func run(ctx context.Context, root, output, gameID string, headless bool, rimgov
 	var stages []map[string]any
 	restarted := false
 	stage := 0
-	// Every acquire (the hand-back before the restart, and any re-acquire
-	// after a letter pause revokes automation) changes the control
-	// direction and invalidates every routine goal. The next review then
-	// re-plans from the geometry the pawns actually opened: the same target
-	// is re-adopted with its cleared cells, and no cleared cell is ever
-	// re-designated. The harness follows that lineage.
+	// A world-changing review invalidates every routine goal (a resume
+	// alone keeps them). The next review then re-plans from the geometry
+	// the pawns actually opened: the same target is re-adopted with its
+	// cleared cells, and no cleared cell is ever re-designated. The
+	// harness follows that lineage whenever it happens.
 	var lineage []map[string]any
 	followLineage := func() error {
 		var next domain.GoalID
@@ -459,16 +457,13 @@ func run(ctx context.Context, root, output, gameID string, headless bool, rimgov
 					break
 				}
 				var status int
-				released, status, err = svc.api("POST", "/api/player/control/manual", map[string]any{
+				released, status, err = svc.api("POST", "/api/player/control/pause", map[string]any{
 					"requestId": fmt.Sprintf("excavation-release-before-restart-%d", attempt), "expected": identity,
 				}, svc.token())
 				if err != nil {
 					return fmt.Errorf("release before restart: %w", err)
 				}
 				if status == 200 {
-					if record, _ := na.AsMap(released["record"]); na.AsString(record["direction"]) != "" {
-						keepAlive.adopt(na.AsString(record["direction"]))
-					}
 					break
 				}
 				if attempt >= 10 {
@@ -886,12 +881,9 @@ func (s *service) api(method, path string, body map[string]any, token string) (m
 type authorityKeepAlive struct {
 	svc      *service
 	identity map[string]any
-	planID   string
-	revision string
 
 	mu                sync.Mutex
 	paused            bool
-	direction         string
 	attempts          int
 	reacquired        int
 	acknowledged      int
@@ -903,7 +895,7 @@ func (k *authorityKeepAlive) snapshot() map[string]any {
 	k.mu.Lock()
 	defer k.mu.Unlock()
 	out := map[string]any{
-		"attempts": k.attempts, "reacquired": k.reacquired, "final_direction": k.direction,
+		"attempts": k.attempts, "reacquired": k.reacquired,
 		"acknowledged": k.acknowledged, "acknowledge_failed": k.acknowledgeFailed,
 	}
 	if k.lastError != "" {
@@ -916,12 +908,6 @@ func (k *authorityKeepAlive) pause(paused bool) {
 	k.mu.Lock()
 	defer k.mu.Unlock()
 	k.paused = paused
-}
-
-func (k *authorityKeepAlive) adopt(direction string) {
-	k.mu.Lock()
-	defer k.mu.Unlock()
-	k.direction = direction
 }
 
 func (k *authorityKeepAlive) run(ctx context.Context) {
@@ -970,15 +956,13 @@ func (k *authorityKeepAlive) run(ctx context.Context) {
 			}
 		}
 		k.mu.Lock()
-		direction := k.direction
 		k.attempts++
 		k.mu.Unlock()
 		body := map[string]any{
-			"requestId": fmt.Sprintf("excavation-reacquire-%d", time.Now().UnixNano()),
-			"expected":  k.identity, "planId": k.planID, "revision": k.revision,
-			"expectedDirection": direction,
+			"requestId": fmt.Sprintf("excavation-resume-%d", time.Now().UnixNano()),
+			"expected":  k.identity,
 		}
-		acquired, status, err := k.svc.api("POST", "/api/player/control/acquire", body, token)
+		acquired, status, err := k.svc.api("POST", "/api/player/control/resume", body, token)
 		if err != nil {
 			k.mu.Lock()
 			k.lastError = err.Error()
@@ -986,25 +970,12 @@ func (k *authorityKeepAlive) run(ctx context.Context) {
 			continue
 		}
 		record, _ := na.AsMap(acquired["record"])
-		if observed := na.AsString(record["direction"]); observed != "" {
-			k.mu.Lock()
-			k.direction = observed
-			k.mu.Unlock()
-		} else if state, ok := na.AsMap(acquired["state"]); ok {
-			if generation, ok := na.AsMap(state["generation"]); ok {
-				if observed := na.AsString(generation["direction"]); observed != "" {
-					k.mu.Lock()
-					k.direction = observed
-					k.mu.Unlock()
-				}
-			}
-		}
 		k.mu.Lock()
 		switch {
 		case status != 200:
-			k.lastError = fmt.Sprintf("reacquire status=%d body=%#v", status, acquired)
-		case na.AsString(record["phase"]) != "granted":
-			k.lastError = fmt.Sprintf("reacquire not granted: %#v", acquired)
+			k.lastError = fmt.Sprintf("resume status=%d body=%#v", status, acquired)
+		case na.AsString(record["phase"]) != "running":
+			k.lastError = fmt.Sprintf("resume not running: %#v", acquired)
 		default:
 			k.reacquired++
 			k.lastError = ""

@@ -89,8 +89,8 @@ func (q GoalCreateSubmissionRequest) validate() error {
 // through the same createGoal every autopilot goal uses, then one
 // domain.ReviewGoal at NeedDeficit -- the player's explicit direction is the
 // deficit assertion. A kind whose player goal is still live is re-reviewed at
-// NeedDeficit instead, so ReviewGoal's own epoch rule does the work Python's
-// reopen_methods/attempts does: an already-recovered goal with no open work
+// NeedDeficit instead, so ReviewGoal's own epoch rule does the reopening
+// work: an already-recovered goal with no open work
 // starts a new epoch, and open work is left alone for observation. A player
 // goal that is cancelled or invalidated is never resurrected -- cancellation is
 // terminal by design in ReviewGoal -- so the binding is replaced by a fresh
@@ -206,8 +206,8 @@ func activatePlayerGoal(ctx context.Context, tx *sql.Tx, q GoalCreateSubmissionR
 // unchanged store cancellation, which invalidates unissued work and marks
 // issued work cancelled in the ordinary progress journal.
 //
-// It deliberately cancels autopilot-sourced goals too, matching Python's
-// CancelGoal, which resolves any ID in plan.colony_goals. The world check is
+// It deliberately cancels autopilot-sourced goals too: any recorded goal ID
+// resolves. The world check is
 // what bounds it: a goal whose snapshot names a different colony, load or map
 // is not this world's goal and returns ErrNotFound rather than being cancelled
 // across worlds. Revision is the same local CAS token ReviewGoal uses; a stale

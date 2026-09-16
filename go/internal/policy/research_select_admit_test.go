@@ -14,7 +14,7 @@ func researchSelectRequest(t *testing.T) ResearchSelectRequest {
 	if err != nil {
 		t.Fatal(err)
 	}
-	s := domain.GenerationSnapshot{Colony: "colony", Map: 0, Load: "load", Direction: 1, Plan: plan.ID(), Revision: 1, Native: 1}
+	s := domain.GenerationSnapshot{Colony: "colony", Map: 0, Load: "load", Plan: plan.ID(), Revision: 1, Native: 1}
 	p, _ := domain.NewProgress(plan, a.ID())
 	return ResearchSelectRequest{Action: a, Progress: p, Current: s, MinimumTick: 11, Facts: ResearchSelectFacts{Snapshot: s, Tick: 12, Current: domain.Known("")}}
 }
@@ -51,7 +51,6 @@ func TestResearchSelectDefenseHolds(t *testing.T) {
 		{"negative minimum", func(r *ResearchSelectRequest) { r.MinimumTick = -1 }},
 		{"zero generation", func(r *ResearchSelectRequest) { r.Current.Native = 0 }},
 		{"native", func(r *ResearchSelectRequest) { r.Current.Native++ }},
-		{"direction", func(r *ResearchSelectRequest) { r.Current.Direction++ }},
 		{"colony", func(r *ResearchSelectRequest) { r.Current.Colony = "other" }},
 		{"load", func(r *ResearchSelectRequest) { r.Current.Load = "other" }},
 		{"map", func(r *ResearchSelectRequest) { r.Current.Map++ }},

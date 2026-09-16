@@ -13,7 +13,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/davidarcher/RimGovernor/go/internal/flightrecorder"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 )
 
@@ -36,9 +35,9 @@ type ProcessConfig struct {
 	Timeout    time.Duration
 	Stderr     io.Writer
 	// Recorder, when set, durably records every native request/response/error
-	// including background reads, replacing controller/rimgovernor/flight_recorder.py.
+	// including background reads.
 	// It is opt-in: a nil Recorder records nothing and costs nothing.
-	Recorder *flightrecorder.Recorder
+	Recorder *FlightRecorder
 }
 
 // Result retains the complete MCP receipt at the transport boundary. Structured
@@ -133,14 +132,13 @@ type Client struct {
 	timeout    time.Duration
 	gate       chan struct{}
 
-	recorder         *flightrecorder.Recorder
+	recorder         *FlightRecorder
 	recordingContext func() map[string]any
 }
 
 // SetRecordingContext installs a callback read once per recorded call and
-// attached to every flight-recorder row it produces, mirroring the Python
-// BridgeClient.recording_context hook (colony/plan/direction identity, not
-// authority). It has no effect when the Client has no Recorder.
+// attached to every flight-recorder row it produces (colony/plan/direction
+// identity, not authority). It has no effect when the Client has no Recorder.
 func (c *Client) SetRecordingContext(context func() map[string]any) {
 	c.mu.Lock()
 	c.recordingContext = context
@@ -166,7 +164,7 @@ func Open(ctx context.Context, config ProcessConfig) (*Client, error) {
 	})
 }
 
-func open(ctx context.Context, gameID string, timeout time.Duration, recorder *flightrecorder.Recorder, factory transportFactory) (*Client, error) {
+func open(ctx context.Context, gameID string, timeout time.Duration, recorder *FlightRecorder, factory transportFactory) (*Client, error) {
 	if gameID == "" || len(gameID) > 256 {
 		return nil, fmt.Errorf("%w: invalid game ID", ErrContract)
 	}
@@ -359,7 +357,7 @@ func (c *Client) operation(ctx context.Context, run func(context.Context, *liveS
 
 // snapshotRecordingContext reads the installed recording-context callback (if
 // any) once per call and merges in any action/goal correlation the caller
-// attached to ctx via flightrecorder.WithAction.
+// attached to ctx via WithFlightAction.
 func (c *Client) snapshotRecordingContext(ctx context.Context) map[string]any {
 	c.mu.Lock()
 	callback := c.recordingContext
@@ -370,7 +368,7 @@ func (c *Client) snapshotRecordingContext(ctx context.Context) map[string]any {
 			merged[k] = v
 		}
 	}
-	for k, v := range flightrecorder.ActionFrom(ctx) {
+	for k, v := range flightActionFrom(ctx) {
 		merged[k] = v
 	}
 	return merged

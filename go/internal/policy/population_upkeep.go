@@ -12,9 +12,7 @@ import (
 // this only ever proposes the Recruit write, matching the native default of
 // MaintainOnly -- a prisoner is only ever switched toward recruitment, never
 // released, executed or otherwise redirected autonomously; those remain
-// player-only orders through SetPopulationDecision (population.py has no
-// autonomous equivalent at all, so there is no richer reference contract to
-// preserve beyond this one safe direction). Native eligibility (recruitable,
+// player-only orders through SetPopulationDecision. Native eligibility (recruitable,
 // alive, prisoner, not a wild man barred from the mode) is still
 // re-validated by EvaluatePrisonerInteraction immediately before dispatch;
 // this only decides which already-observed candidate to try.

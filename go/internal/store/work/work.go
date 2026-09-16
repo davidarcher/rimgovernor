@@ -39,7 +39,7 @@ func ValidateAdmission(a domain.Action, p domain.Progress, admission Admission) 
 		return errors.New("admission plan or tick mismatch")
 	}
 	wa, ok := a.WorkAssignment()
-	if !ok || string(wa.Pawn()) != admission.Pawn || idShaped(admission.SnapshotToken) != nil || admission.SnapshotToken != wa.BeforeToken() || admission.Snapshot.Native == 0 || admission.Snapshot.Direction == 0 {
+	if !ok || string(wa.Pawn()) != admission.Pawn || idShaped(admission.SnapshotToken) != nil || admission.SnapshotToken != wa.BeforeToken() || admission.Snapshot.Native == 0 {
 		return errors.New("invalid work admission")
 	}
 	return nil

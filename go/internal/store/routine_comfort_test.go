@@ -42,7 +42,7 @@ func TestRoutineComfortUseSurvivesRestartManualButNotReplacement(t *testing.T) {
 	r.Enabled = false
 	reviewRoutine(t, s, &r)
 	r.Enabled = true
-	r.Current.Direction++
+	r.Current.Native++
 	r.Facts.Comfort = domain.Unknown[policy.ComfortObservation]()
 	r.Facts.ComfortRecovered = domain.Known(true)
 	out = reviewRoutine(t, s, &r)

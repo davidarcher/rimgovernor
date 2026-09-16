@@ -63,11 +63,41 @@ func colonyUpkeep(v *o.ColonyFactsSnapshot) policy.UpkeepObservation {
 				known = false
 				break
 			}
-			rows = append(rows, policy.UpkeepFilth{ID: item.Filth.GetId(), Cell: domain.Cell{X: item.Filth.GetPosition().GetX(), Z: item.Filth.GetPosition().GetZ()}, Home: item.GetHome(), Room: item.GetRoomRole(), Thickness: item.GetThickness()})
+			rows = append(rows, policy.UpkeepFilth{ID: item.Filth.GetId(), Definition: item.Filth.GetDefName(), Cell: domain.Cell{X: item.Filth.GetPosition().GetX(), Z: item.Filth.GetPosition().GetZ()}, Home: item.GetHome(), Room: item.GetRoomRole(), RoomID: optional(item.RoomId), Thickness: item.GetThickness()})
 		}
 		if known {
 			r.Filth = domain.Known(rows)
 		}
 	}
+	if !hasIssue(u.Issues, "lighting") {
+		r.Lighting = colonyLighting(u.Lighting)
+	}
 	return r
+}
+
+// colonyLighting decodes the lighting section; any row missing a measured
+// glow, roof or lit flag leaves the whole census unknown so MaintainLighting
+// keeps its previous latch instead of reasoning from half a map.
+func colonyLighting(section *o.LightingSection) domain.Fact[policy.LightingObservation] {
+	l := section.GetObserved()
+	if l == nil {
+		return domain.Fact[policy.LightingObservation]{}
+	}
+	r := policy.LightingObservation{WorkCells: []policy.WorkLightCell{}, Lamps: []policy.Lamp{}}
+	for _, row := range l.WorkCells {
+		if row.Glow == nil || row.Roofed == nil {
+			return domain.Fact[policy.LightingObservation]{}
+		}
+		r.WorkCells = append(r.WorkCells, policy.WorkLightCell{Bench: row.Bench.GetId(), Definition: row.Bench.GetDefName(), Cell: domain.Cell{X: row.Cell.GetX(), Z: row.Cell.GetZ()}, Glow: row.GetGlow(), Roofed: row.GetRoofed(), Room: optional(row.RoomId)})
+	}
+	for _, row := range l.Lamps {
+		b := row.GetBuilding()
+		s := b.GetService()
+		if row.GlowRadius == nil || row.Lit == nil {
+			return domain.Fact[policy.LightingObservation]{}
+		}
+		r.Lamps = append(r.Lamps, policy.Lamp{ID: b.GetBuilding().GetId(), Definition: b.GetBuilding().GetDefName(), Cell: domain.Cell{X: b.GetBuilding().GetPosition().GetX(), Z: b.GetBuilding().GetPosition().GetZ()}, Radius: row.GetGlowRadius(), Lit: row.GetLit(), Room: optional(row.RoomId),
+			Powered: optional(s.PowerOn), Connected: optional(s.Connected), SwitchedOn: optional(s.SwitchedOn), OutOfFuel: optional(s.OutOfFuel), BrokenDown: optional(s.BrokenDown), FuelDefinitions: append([]string(nil), s.GetAllowedFuelDefs()...)})
+	}
+	return domain.Known(r)
 }

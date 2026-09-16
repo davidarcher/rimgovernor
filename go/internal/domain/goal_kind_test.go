@@ -2,13 +2,12 @@ package domain
 
 import "testing"
 
-func TestGoalKindWhitelistMatchesPythonContract(t *testing.T) {
+func TestGoalKindWhitelistIsStable(t *testing.T) {
 	t.Parallel()
-	// The exact Literal from controller/rimgovernor/player_commands.py's
-	// CreateGoal, in order. A kind added on one side and not the other is a
-	// silent divergence between the two controllers.
+	// The exact whitelist, in order. A kind added to the dashboard or docs
+	// and not here is a silent divergence.
 	want := []string{"EnsureFoodSupply", "EnsureInitialShelter", "EnsureFoodStorage", "EnsureCooking",
-		"EnsureTemperatureSafety", "EnsureBasicPower", "EnsureBasicDefense", "MaintainWood", "MaintainResource", "MaintainWaste"}
+		"EnsureTemperatureSafety", "EnsureBasicPower", "EnsureBasicDefense", "MaintainWood", "MaintainResource", "MaintainWaste", "EnsureDefensiveLayout"}
 	kinds := GoalKinds()
 	if len(kinds) != len(want) {
 		t.Fatal("goal kind whitelist changed size", kinds)
@@ -29,7 +28,7 @@ func TestGoalKindWhitelistMatchesPythonContract(t *testing.T) {
 	}
 }
 
-func TestGoalKindRejectsUnlistedAndCarriesPythonPriority(t *testing.T) {
+func TestGoalKindRejectsUnlistedAndCarriesPriority(t *testing.T) {
 	t.Parallel()
 	for _, name := range []string{"", "EnsureComfort", "MaintainHerd", "ensurefoodsupply", "EnsureFoodSupply ", "routine-EnsureFoodSupply"} {
 		if kind, err := NewGoalKind(name); err == nil || kind != "" {
@@ -39,11 +38,10 @@ func TestGoalKindRejectsUnlistedAndCarriesPythonPriority(t *testing.T) {
 	if GoalKind("").Set() {
 		t.Fatal("unset kind reported as set")
 	}
-	// Python's handler uses priority_class 2 for every kind and raises
-	// MaintainWaste alone to 3.
+	// priority_class 2 for every kind; MaintainWaste alone starts at 3.
 	for _, kind := range GoalKinds() {
 		want := 2
-		if kind == MaintainWasteGoal {
+		if kind == MaintainWasteGoal || kind == EnsureDefensiveLayoutGoal {
 			want = 3
 		}
 		if kind.Priority() != want {

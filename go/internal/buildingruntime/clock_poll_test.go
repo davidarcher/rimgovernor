@@ -116,7 +116,7 @@ func TestClockPollDoesNotInvalidateAcquireDuringEventRead(t *testing.T) {
 			native.before = func() {
 				previous := s.session.State()
 				next := previous.Snapshot
-				next.Direction++
+				next.Native++
 				granted, err := s.session.Acquire(ctx, next)
 				if err != nil {
 					t.Fatal(err)

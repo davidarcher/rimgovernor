@@ -39,7 +39,7 @@ func validateMineAcquisitionAdmission(a domain.Action, p domain.Progress, admiss
 		return errors.New("admission plan or tick mismatch")
 	}
 	acquisition, ok := a.MineAcquisition()
-	if !ok || acquisition.Thing() != admission.Thing || submissionID(admission.SnapshotToken) != nil || admission.Snapshot.Native == 0 || admission.Snapshot.Direction == 0 {
+	if !ok || acquisition.Thing() != admission.Thing || submissionID(admission.SnapshotToken) != nil || admission.Snapshot.Native == 0 {
 		return errors.New("invalid mine acquisition admission")
 	}
 	return nil

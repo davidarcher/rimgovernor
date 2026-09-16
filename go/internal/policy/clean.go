@@ -68,7 +68,7 @@ func EvaluateClean(r CleanRequest) DraftDecision {
 	}
 	v := r.Progress.View()
 	f := r.Facts
-	if r.Current.Validate() != nil || r.Current.Native == 0 || r.Current.Direction == 0 || !f.Snapshot.Matches(r.Current) || r.MinimumTick < 0 || f.PawnTick < r.MinimumTick || f.PreviewTick < f.PawnTick {
+	if r.Current.Validate() != nil || r.Current.Native == 0 || !f.Snapshot.Matches(r.Current) || r.MinimumTick < 0 || f.PawnTick < r.MinimumTick || f.PreviewTick < f.PawnTick {
 		return refuse(StaleFacts)
 	}
 	if r.Progress.Action() != r.Action || v.Plan != r.Current.Plan || v.Revision != r.Current.Revision || v.Unresolved || (v.Stage != domain.Pending && v.Stage != domain.Prepared) {
@@ -123,9 +123,10 @@ func EvaluateClean(r CleanRequest) DraftDecision {
 }
 
 // CleanCandidateFacts mirrors SecureSuppliesHaulerFacts' eligibility inputs,
-// substituting colony_upkeep.py's Cleaning work-type gate for Hauling: an
-// enabled, non-zero-priority Cleaning work type and a healthy pawn (no
-// needed tend, no bleeding). EvaluateClean re-validates the exact chosen
+// substituting a Cleaning work-type gate for Hauling: Cleaning not disabled
+// (priority may be 0: the order is player-forced and the bounded response
+// targets exactly the colonies whose priority coverage failed) and a healthy
+// pawn (no needed tend, no bleeding). EvaluateClean re-validates the exact chosen
 // pawn/filth pair again immediately before dispatch; this only narrows which
 // already-selected filth and pawn become one Clean proposal.
 type CleanCandidateFacts struct {

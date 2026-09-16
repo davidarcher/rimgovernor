@@ -51,7 +51,7 @@ func NewDraftBoundary(native DraftNative, writer DraftWriter, cleanup DraftClean
 }
 func draftPawn(action domain.Action, snapshot domain.GenerationSnapshot) (string, error) {
 	d, ok := action.OwnedDraft()
-	if !ok || snapshot.Validate() != nil || snapshot.Native == 0 || snapshot.Direction == 0 || snapshot.Revision == 0 || !boundary.ValidID(string(action.ID())) || !boundary.ValidID(string(d.Pawn())) {
+	if !ok || snapshot.Validate() != nil || snapshot.Native == 0 || snapshot.Revision == 0 || !boundary.ValidID(string(action.ID())) || !boundary.ValidID(string(d.Pawn())) {
 		return "", executor.ErrEvidence
 	}
 	return string(d.Pawn()), nil

@@ -103,7 +103,7 @@ func TestReportDoesNotConflateAcceptanceCompletionOrUnknown(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	snapshot := domain.GenerationSnapshot{Colony: "colony", Map: 0, Load: "load", Plan: planID, Revision: 1, Direction: 1, Native: 1}
+	snapshot := domain.GenerationSnapshot{Colony: "colony", Map: 0, Load: "load", Plan: planID, Revision: 1, Native: 1}
 	progress, err = progress.Prepare(snapshot, 10)
 	if err != nil {
 		t.Fatal(err)
@@ -164,7 +164,7 @@ func TestExpectedOutcomeParserAndExactTerminalObservation(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	snapshot := domain.GenerationSnapshot{Colony: "colony", Map: 0, Load: "load", Plan: planID, Revision: 1, Direction: 1, Native: 1}
+	snapshot := domain.GenerationSnapshot{Colony: "colony", Map: 0, Load: "load", Plan: planID, Revision: 1, Native: 1}
 	for _, reason := range []domain.UnsuccessfulReason{domain.NativeCancelled, domain.NativeInterrupted, domain.NativeFailure, domain.NativeExpired} {
 		progress, err := domain.NewProgress(spec, actionID)
 		if err != nil {

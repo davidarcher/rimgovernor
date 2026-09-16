@@ -393,11 +393,12 @@ func TestRoutineExcavationReadoptsHalfDugTarget(t *testing.T) {
 
 func TestRoutineExcavationResumesProjectOutsideColonyWindow(t *testing.T) {
 	t.Parallel()
-	// Stage 0 was planned; then the goal was replaced (any authority
-	// re-acquire) while the pawns wandered so far that the colony window no
-	// longer shows the block at all. The successor goal resumes the same
-	// target from the durable stage plan, verified by the native site read,
-	// instead of proposing a fresh face or the wooden shell.
+	// Stage 0 was planned; then authority was re-acquired while the pawns
+	// wandered so far that the colony window no longer shows the block at
+	// all. The goal (or, after a world-changing review, its successor)
+	// resumes the same target from the durable stage plan, verified by the
+	// native site read, instead of proposing a fresh face or the wooden
+	// shell.
 	r, db, x := excavationFixture(t)
 	ctx := context.Background()
 	result, err := r.Step(ctx)
@@ -412,8 +413,12 @@ func TestRoutineExcavationResumesProjectOutsideColonyWindow(t *testing.T) {
 	}
 	session := r.reviewer.player.session.(*playerFakeSession)
 	session.mu.Lock()
-	session.state.Snapshot.Direction++
+	session.state.Snapshot.Native++
+	generation := uint64(session.state.Snapshot.Native)
 	session.mu.Unlock()
+	observedReply := x.sleepingNative.reply.GetObserved()
+	observedReply.Context.NativeGeneration = proto.Uint64(generation)
+	observedReply.Planning.GetObserved().Cells.Context.NativeGeneration = proto.Uint64(generation)
 	observed := x.sleepingNative.reply.GetObserved()
 	planning := observed.Planning.GetObserved()
 	planning.Cells.Region.Minimum = &c.Cell{X: proto.Int32(40), Z: proto.Int32(40)}
@@ -428,11 +433,13 @@ func TestRoutineExcavationResumesProjectOutsideColonyWindow(t *testing.T) {
 	if err != nil || result.Reason != BuildingMethodAdmitted {
 		t.Fatal(result, err)
 	}
-	if result.Decision.Goal.Goal.ID == first {
-		t.Fatal("goal was not replaced")
+	// A re-acquire alone keeps the goal, so the project continues at the
+	// next stage under the same target key.
+	if result.Decision.Goal.Goal.ID != first {
+		t.Fatal("goal was replaced by a re-acquire")
 	}
-	planID, cells := excavationCells(t, db, result.Decision, excavationStageMethod(0))
-	if planID != excavationPlanID(result.Decision.Goal, excavationTestTarget, "0") || len(cells) != 7 || cells[0] != (domain.Cell{X: 11, Z: 4}) {
+	planID, cells := excavationCells(t, db, result.Decision, excavationStageMethod(1))
+	if planID != excavationPlanID(result.Decision.Goal, excavationTestTarget, "1") || len(cells) != 7 || cells[0] != (domain.Cell{X: 11, Z: 4}) {
 		t.Fatal(planID, cells)
 	}
 }
@@ -456,8 +463,12 @@ func TestRoutineExcavationResumedProjectStillOwesDoor(t *testing.T) {
 	}
 	session := r.reviewer.player.session.(*playerFakeSession)
 	session.mu.Lock()
-	session.state.Snapshot.Direction++
+	session.state.Snapshot.Native++
+	generation := uint64(session.state.Snapshot.Native)
 	session.mu.Unlock()
+	observedReply := x.sleepingNative.reply.GetObserved()
+	observedReply.Context.NativeGeneration = proto.Uint64(generation)
+	observedReply.Planning.GetObserved().Cells.Context.NativeGeneration = proto.Uint64(generation)
 	if _, err := r.reviewer.Step(ctx); err != nil {
 		t.Fatal(err)
 	}

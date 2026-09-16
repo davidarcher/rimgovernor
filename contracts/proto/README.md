@@ -62,11 +62,18 @@ The native generation is optional only when no authority observation is availabl
 An identity change invalidates pending reads, pages and commands. Page cursors are
 opaque and scoped to the producing observation, never coordinate reservations.
 
-The current native colony adapter projects `DevelopmentFacts.power` only. Its
-completeness describes the power-trader census; omitted furniture and research
-remain unported, not observed empty. Power building references carry identity only,
-without operation-precondition snapshot tokens. Network IDs group one observation
-and must not be retained as stable cross-load identities.
+The current native colony adapter projects `DevelopmentFacts.power`, conduit
+`furniture` and per-network `networks`. Its completeness describes the
+power-trader and conduit census; omitted research remains unported, not observed
+empty. Power rows carry refuelable service facts (`fuel`, `target_fuel`,
+`out_of_fuel`, `allowed_fuel_defs`, `broken_down`) when the building has the
+matching component, and batteries appear as `base_w = 0` rows with
+`stored_watt_days`/`capacity_watt_days`. `networks` summarises each native
+power net's generation, consumption, stored and capacity energy. Power building
+references carry identity only, without operation-precondition snapshot tokens.
+Network IDs group one observation and must not be retained as stable cross-load
+identities. `FoodStock.room_id` names the native room holding an item at
+observation time, so storage-temperature policy can join stock to room reads.
 
 Authority acquisition is produced by the explicit player-control path. Status
 does not acquire authority, and renewal cannot resurrect an expired or revoked

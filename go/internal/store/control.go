@@ -6,38 +6,39 @@ import (
 	"errors"
 	"fmt"
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
-	"math"
 	"strconv"
 )
 
 type ControlKind string
 
+// There is one author of orders. Control is a pause flag: Resume enables
+// autonomous play for a world, Pause halts it.
 const (
-	AcquireControl ControlKind = "acquire"
-	ManualControl  ControlKind = "manual"
+	ResumeControl ControlKind = "resume"
+	PauseControl  ControlKind = "pause"
 )
 
 type ControlPhase string
 
 const (
 	PendingControl   ControlPhase = "pending"
-	GrantedControl   ControlPhase = "granted"
-	DisabledControl  ControlPhase = "disabled"
+	RunningControl   ControlPhase = "running"
+	PausedControl    ControlPhase = "paused"
 	RefusedControl   ControlPhase = "refused"
 	UncertainControl ControlPhase = "uncertain"
 )
 
 type ControlRequest struct {
-	RequestID         string
-	Kind              ControlKind
-	World             World
-	Plan              domain.PlanID
-	Revision          domain.PlanRevision
-	ExpectedDirection domain.DirectionID
+	RequestID string
+	Kind      ControlKind
+	World     World
 }
+
+// ControlRecord journals one control intent and its outcome. Records are
+// ordered by insertion; there is no compare-and-swap between them because
+// there is one author of orders.
 type ControlRecord struct {
 	Request          ControlRequest
-	Direction        domain.DirectionID
 	Phase            ControlPhase
 	NativeGeneration domain.NativeGeneration
 }
@@ -50,93 +51,53 @@ func (q ControlRequest) validate() error {
 		return err
 	}
 	switch q.Kind {
-	case AcquireControl:
-		if err := submissionID(string(q.Plan)); err != nil {
-			return err
-		}
-		if q.Revision == 0 {
-			return errors.New("control requires plan revision")
-		}
-	case ManualControl:
-		if q.Plan != "" || q.Revision != 0 || q.ExpectedDirection != 0 {
-			return errors.New("Manual cannot target plan or CAS")
-		}
-	default:
-		return errors.New("unknown control kind")
+	case ResumeControl, PauseControl:
+		return nil
 	}
-	return nil
+	return errors.New("unknown control kind")
 }
 func validControlResult(kind ControlKind, phase ControlPhase, g domain.NativeGeneration) bool {
 	switch phase {
-	case GrantedControl:
-		return kind == AcquireControl && g > 0
-	case DisabledControl:
-		return kind == ManualControl && g == 0
+	case RunningControl:
+		return kind == ResumeControl && g > 0
+	case PausedControl:
+		return kind == PauseControl && g == 0
 	case RefusedControl, UncertainControl:
 		return g == 0
 	}
 	return false
 }
 
-const controlColumns = "request_id,kind,colony,load_token,map_id,plan_id,revision,expected_direction,direction,phase,native_generation"
+const controlColumns = "request_id,kind,colony,load_token,map_id,phase,native_generation"
 
 func scanControl(row *sql.Row) (ControlRecord, error) {
 	var r ControlRecord
-	var revision, expected, direction, generation string
-	err := row.Scan(&r.Request.RequestID, &r.Request.Kind, &r.Request.World.Colony, &r.Request.World.Load, &r.Request.World.Map, &r.Request.Plan, &revision, &expected, &direction, &r.Phase, &generation)
+	var generation string
+	err := row.Scan(&r.Request.RequestID, &r.Request.Kind, &r.Request.World.Colony, &r.Request.World.Load, &r.Request.World.Map, &r.Phase, &generation)
 	if errors.Is(err, sql.ErrNoRows) {
 		return r, ErrNotFound
 	}
 	if err != nil {
 		return r, err
 	}
-	values := []string{revision, expected, direction, generation}
-	parsed := make([]uint64, 4)
-	for i, v := range values {
-		n, e := strconv.ParseUint(v, 10, 64)
-		if e != nil || strconv.FormatUint(n, 10) != v {
-			return ControlRecord{}, errors.New("corrupt control integer")
-		}
-		parsed[i] = n
+	n, e := strconv.ParseUint(generation, 10, 64)
+	if e != nil || strconv.FormatUint(n, 10) != generation {
+		return ControlRecord{}, errors.New("corrupt control integer")
 	}
-	r.Request.Revision = domain.PlanRevision(parsed[0])
-	r.Request.ExpectedDirection = domain.DirectionID(parsed[1])
-	r.Direction = domain.DirectionID(parsed[2])
-	r.NativeGeneration = domain.NativeGeneration(parsed[3])
+	r.NativeGeneration = domain.NativeGeneration(n)
 	if err = r.Request.validate(); err != nil {
 		return ControlRecord{}, err
 	}
-	if r.Direction == 0 || (r.Phase == PendingControl && r.NativeGeneration != 0) || (r.Phase != PendingControl && !validControlResult(r.Request.Kind, r.Phase, r.NativeGeneration)) {
+	if (r.Phase == PendingControl && r.NativeGeneration != 0) || (r.Phase != PendingControl && !validControlResult(r.Request.Kind, r.Phase, r.NativeGeneration)) {
 		return ControlRecord{}, errors.New("corrupt control result")
 	}
 	return r, nil
 }
 func lookupControl(ctx context.Context, tx *sql.Tx, id string) (ControlRecord, error) {
-	record, err := scanControl(tx.QueryRowContext(ctx, "SELECT "+controlColumns+" FROM control_intents WHERE request_id=?", id))
-	return checkedControl(ctx, tx, record, err)
+	return scanControl(tx.QueryRowContext(ctx, "SELECT "+controlColumns+" FROM control_intents WHERE request_id=?", id))
 }
 func currentControl(ctx context.Context, tx *sql.Tx) (ControlRecord, error) {
-	record, err := scanControl(tx.QueryRowContext(ctx, "SELECT "+controlColumns+" FROM control_intents ORDER BY length(direction) DESC,direction DESC LIMIT 1"))
-	return checkedControl(ctx, tx, record, err)
-}
-func checkedControl(ctx context.Context, tx *sql.Tx, record ControlRecord, err error) (ControlRecord, error) {
-	if err != nil {
-		return ControlRecord{}, err
-	}
-	if record.Request.Kind == AcquireControl {
-		var id string
-		if err = tx.QueryRowContext(ctx, "SELECT request_id FROM submissions WHERE plan_id=?", record.Request.Plan).Scan(&id); err != nil {
-			return ControlRecord{}, err
-		}
-		submitted, err := lookupAnySubmission(ctx, tx, id)
-		if err != nil {
-			return ControlRecord{}, err
-		}
-		if submitted.World != record.Request.World || submitted.Revision != record.Request.Revision {
-			return ControlRecord{}, errors.New("corrupt control submission")
-		}
-	}
-	return record, nil
+	return scanControl(tx.QueryRowContext(ctx, "SELECT "+controlColumns+" FROM control_intents ORDER BY rowid DESC LIMIT 1"))
 }
 
 // BeginControl journals intent before native work. Replay is historical evidence,
@@ -160,28 +121,6 @@ func (s *Store) BeginControl(ctx context.Context, q ControlRequest) (ControlReco
 	if !errors.Is(err, ErrNotFound) {
 		return ControlRecord{}, false, err
 	}
-	current, err := currentControl(ctx, tx)
-	if err != nil && !errors.Is(err, ErrNotFound) {
-		return ControlRecord{}, false, err
-	}
-	if q.Kind == AcquireControl {
-		if q.ExpectedDirection != current.Direction {
-			return ControlRecord{}, false, ErrConflict
-		}
-		var submissionID string
-		if err = tx.QueryRowContext(ctx, "SELECT request_id FROM submissions WHERE plan_id=?", q.Plan).Scan(&submissionID); errors.Is(err, sql.ErrNoRows) {
-			return ControlRecord{}, false, ErrNotFound
-		} else if err != nil {
-			return ControlRecord{}, false, err
-		}
-		submitted, e := lookupAnySubmission(ctx, tx, submissionID)
-		if e != nil {
-			return ControlRecord{}, false, e
-		}
-		if submitted.World != q.World || submitted.Revision != q.Revision {
-			return ControlRecord{}, false, ErrConflict
-		}
-	}
 	var count int
 	if err = tx.QueryRowContext(ctx, "SELECT count(*) FROM control_intents").Scan(&count); err != nil {
 		return ControlRecord{}, false, err
@@ -189,11 +128,8 @@ func (s *Store) BeginControl(ctx context.Context, q ControlRequest) (ControlReco
 	if count >= 4096 {
 		return ControlRecord{}, false, ErrCapacity
 	}
-	if uint64(current.Direction) == math.MaxUint64 {
-		return ControlRecord{}, false, errors.New("control direction exhausted")
-	}
-	result := ControlRecord{Request: q, Direction: current.Direction + 1, Phase: PendingControl}
-	_, err = tx.ExecContext(ctx, "INSERT INTO control_intents("+controlColumns+") VALUES(?,?,?,?,?,?,?,?,?,?,?)", q.RequestID, q.Kind, q.World.Colony, q.World.Load, q.World.Map, q.Plan, fmt.Sprint(q.Revision), fmt.Sprint(q.ExpectedDirection), fmt.Sprint(result.Direction), PendingControl, "0")
+	result := ControlRecord{Request: q, Phase: PendingControl}
+	_, err = tx.ExecContext(ctx, "INSERT INTO control_intents("+controlColumns+") VALUES(?,?,?,?,?,?,?)", q.RequestID, q.Kind, q.World.Colony, q.World.Load, q.World.Map, PendingControl, "0")
 	if err != nil {
 		return ControlRecord{}, false, err
 	}
@@ -256,4 +192,56 @@ func (s *Store) CompleteControl(ctx context.Context, id string, phase ControlPha
 	r.Phase = phase
 	r.NativeGeneration = generation
 	return r, tx.Commit()
+}
+
+// RootPlanID names the empty plan whose identity carries autonomous authority
+// for one world. Routine methods and player submissions are authorized
+// against it; it never holds actions of its own.
+func RootPlanID(w World) domain.PlanID {
+	return domain.PlanID(fmt.Sprintf("root/%s/%s/%d", w.Colony, w.Load, w.Map))
+}
+
+// EnsureRootPlan returns the world's root plan, creating it on first Resume.
+func (s *Store) EnsureRootPlan(ctx context.Context, w World) (PlanState, error) {
+	if err := w.Validate(); err != nil {
+		return PlanState{}, err
+	}
+	id := RootPlanID(w)
+	tx, err := s.begin(ctx)
+	if err != nil {
+		return PlanState{}, err
+	}
+	defer tx.Rollback()
+	state, err := load(ctx, tx, id)
+	if err == nil {
+		return state, tx.Commit()
+	}
+	if !errors.Is(err, ErrNotFound) {
+		return PlanState{}, err
+	}
+	plan, err := domain.NewPlan(id, 1, nil)
+	if err != nil {
+		return PlanState{}, err
+	}
+	if err = createPlan(ctx, tx, plan); err != nil {
+		return PlanState{}, err
+	}
+	if _, err = tx.ExecContext(ctx, "INSERT INTO root_plans(plan_id,colony,load_token,map_id) VALUES(?,?,?,?)", id, w.Colony, w.Load, w.Map); err != nil {
+		return PlanState{}, err
+	}
+	if state, err = load(ctx, tx, id); err != nil {
+		return PlanState{}, err
+	}
+	return state, tx.Commit()
+}
+
+// planWorld resolves the world a plan belongs to: the root plan's own world or
+// the submission that produced a player plan.
+func planWorld(ctx context.Context, tx *sql.Tx, plan domain.PlanID) (World, error) {
+	var world World
+	err := tx.QueryRowContext(ctx, "SELECT colony,load_token,map_id FROM root_plans WHERE plan_id=? UNION ALL SELECT colony,load_token,map_id FROM submissions WHERE plan_id=?", plan, plan).Scan(&world.Colony, &world.Load, &world.Map)
+	if errors.Is(err, sql.ErrNoRows) {
+		return World{}, ErrNotFound
+	}
+	return world, err
 }

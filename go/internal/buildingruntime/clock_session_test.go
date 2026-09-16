@@ -9,7 +9,6 @@ import (
 
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"github.com/davidarcher/RimGovernor/go/internal/executor"
-	"github.com/davidarcher/RimGovernor/go/internal/runtimeowner"
 	"github.com/davidarcher/RimGovernor/go/internal/store"
 )
 
@@ -87,7 +86,7 @@ func TestClockSessionCloseRetainsOwnerUntilPauseConfirmed(t *testing.T) {
 	if err = s.Close(context.Background()); err == nil {
 		t.Fatal("failed pause released ownership")
 	}
-	if owner, err := runtimeowner.Acquire(context.Background(), dir); err == nil {
+	if owner, err := AcquireProfile(context.Background(), dir); err == nil {
 		owner.Close()
 		t.Fatal("profile released before cleanup")
 	}
@@ -98,7 +97,7 @@ func TestClockSessionCloseRetainsOwnerUntilPauseConfirmed(t *testing.T) {
 	if fake.pauses != 2 {
 		t.Fatal(fake.pauses)
 	}
-	owner, err := runtimeowner.Acquire(context.Background(), dir)
+	owner, err := AcquireProfile(context.Background(), dir)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -138,7 +137,7 @@ func TestClockSessionRestartRecoversWithoutAcquiringPermission(t *testing.T) {
 func TestControlCleanupFailurePreventsReacquire(t *testing.T) {
 	t.Parallel()
 	control, native, _, _ := controlFixture(t, nil)
-	snapshot := domain.GenerationSnapshot{Colony: "colony", Map: 0, Load: "load", Direction: 1, Plan: "plan", Revision: 1, Native: 1}
+	snapshot := domain.GenerationSnapshot{Colony: "colony", Map: 0, Load: "load", Plan: "plan", Revision: 1, Native: 1}
 	if _, err := control.Acquire(context.Background(), snapshot); err != nil {
 		t.Fatal(err)
 	}

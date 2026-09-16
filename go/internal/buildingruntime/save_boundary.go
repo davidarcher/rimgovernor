@@ -24,7 +24,7 @@ type LifecycleSaver interface {
 	Save(context.Context, *l.SaveRequest) (*l.SaveReply, bridge.Result, error)
 }
 
-// CheckpointRequest names the caller's expected live world/direction and the
+// CheckpointRequest names the caller's expected live world and the
 // native save name. ExpectedTick is optional; when present it is asserted
 // against the currently observed tick before native persists anything.
 type CheckpointRequest struct {
@@ -43,15 +43,14 @@ type CheckpointResult struct {
 	Paused   bool
 }
 
-// Checkpoint drains owned writers under the control gate, refuses a stale
-// direction or foreign colony/load/map, requests one native save and
+// Checkpoint drains owned writers under the control gate, refuses a foreign
+// colony/load/map, requests one native save and
 // validates the reply before returning success. Authority is never revoked
 // and the profile lock is never released: play continues in Manual after a
 // checkpoint. An uncertain native outcome is always reported as a refusal,
-// never silently accepted, matching the Python "checkpoint was not
-// published" behavior this replaces.
+// never silently accepted.
 func (control *Control) Checkpoint(ctx context.Context, save LifecycleSaver, request CheckpointRequest) (CheckpointResult, error) {
-	if save == nil || request.Expected.Validate() != nil || request.Expected.Direction == 0 || !boundary.ValidID(request.SaveName) {
+	if save == nil || request.Expected.Validate() != nil || !boundary.ValidID(request.SaveName) {
 		return CheckpointResult{}, ErrCheckpoint
 	}
 	control.mu.Lock()
@@ -61,7 +60,7 @@ func (control *Control) Checkpoint(ctx context.Context, save LifecycleSaver, req
 	}
 	current, epoch := control.snapshot, control.epoch
 	control.mu.Unlock()
-	if !boundary.World(current, request.Expected) || current.Direction != request.Expected.Direction {
+	if !boundary.World(current, request.Expected) {
 		return CheckpointResult{}, ErrCheckpoint
 	}
 	call, done, err := control.enter(ctx, epoch)
@@ -80,7 +79,7 @@ func (control *Control) Checkpoint(ctx context.Context, save LifecycleSaver, req
 	req := &l.SaveRequest{
 		Player: &l.PlayerLifecycleContext{
 			Identity:        controlIdentity(current),
-			PlayerDirection: proto.Uint64(uint64(current.Direction)),
+			PlayerDirection: proto.Uint64(bridge.LifecycleDirection),
 			RequestId:       proto.String(fmt.Sprintf("checkpoint-%s-%d", control.namespace, time.Now().UnixNano())),
 		},
 		SaveName: proto.String(request.SaveName),

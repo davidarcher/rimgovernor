@@ -16,7 +16,7 @@ recovery.
 
 ## Chat entry
 
-Only a new human chat revision invokes `planner.py`. Mode changes and routine native
+Only a new human chat message invokes the interpreter. Mode changes and routine native
 events do not invoke inference. Model failure is reported to the player while
 deterministic operation can continue.
 
@@ -36,15 +36,15 @@ uses ordinary native need jobs and completes only from observed need recovery.
 
 Startup supplies use the first known native forbidden-supply census. Later
 observations can remove released cells but cannot add later player forbids or
-revive released cells. The Go reviewer persists that cohort through Manual,
-direction changes and restart; unavailable reads leave it unresolved. A different
+revive released cells. The Go reviewer persists that cohort through Manual
+and restart; unavailable reads leave it unresolved. A different
 world or rewound tick starts a new cohort. This need history does not establish
 item ownership, reserve those cells, or authorize an Allow order.
 
 Go comfort reviews require a complete native census of eligible people, dining
 surfaces, seating and recreation access. Each kind needs capacity for every
 eligible person and observed use of a still-accessible facility. Use history
-survives Manual, direction changes and restart; world changes and tick rewinds
+survives Manual and restart; world changes and tick rewinds
 reset it. Replacement furniture cannot inherit a previous facility's use.
 The opt-in compiler builds a table, an adjacent chair or recreation furniture
 through shared building admission after startup and development selection permit
@@ -59,30 +59,75 @@ the entrance aisle and existing zones. Nine valid cells may form several patches
 when service furniture prevents a complete rectangle. Native readback still
 establishes the storage gate.
 
-Priority-class 3 goals for basic equipment defense, wood and maintained
-player resource targets share a deterministic admission order. Scores combine a
-0–100 observed deficit fraction, a 100-point player-target preference, one point per
-2,500 waiting game ticks and a 20-point selection hysteresis bonus. Stable goal IDs
-break ties. These weights are policy ordering, not measured benefit or time estimates.
-Unknown resource stock cannot admit a new project. Emergencies retain precedence.
+Optional goals (priority class 3 and 4: basic equipment defense, wood, comfort,
+expansion, maintained research and resource targets) share a deterministic admission
+order. Scores combine a 0–100 observed deficit fraction, a 100-point player-target
+preference, one point per 1,000 waiting game ticks, a 20-point selection hysteresis
+bonus, a bottleneck penalty of up to 30 points and a risk penalty of up to 40 points
+(`policy.DefaultDevelopmentWeights`). Stable goal IDs break ties. These weights are
+policy ordering, not measured benefit or time estimates. Emergencies retain precedence,
+and comfort waits for startup-survival goals.
+
+The age weight is the starvation bound: an eligible optional goal overtakes any
+persistently larger deficit within 100,000 waiting ticks (under two game days), and the
+gap is usually smaller because committed work resets the incumbent's waiting age. The
+bound is verified by replayed ranking simulations (`development_simulation_test.go`)
+covering competing constant deficits, capacity loss and recovery, player interruption,
+uncertain cancelled writes and load/map/tick resets. Those replays establish bounded
+admission and retained waiting identities, not pawn progress or completion times.
+
+The bottleneck penalty is lead-time evidence: it scales with how contested a goal's
+labor profile is (free pawns of its work types after commitments, against the eligible
+goals sharing those types), so an uncontested goal can be admitted ahead of one that
+would wait on the same scarce builder. Risk is observed exposure of outdoor work
+(construction, mining, plant cutting): an active cold or hot latch halves that work's
+priority weight, and an observed outdoor hazard condition such as toxic fallout defers
+it with `risk_deferred`. Neither term is a safety guard; native danger checks and Hands
+dispatch guards still apply.
+
+Every ranked deficit is measured from the review's native facts. A configured research
+target is a full deficit while the research tab is idle and the target unfinished; any
+current project (including one the player chose) or a finished target counts as
+recovered. A resource target's deficit is the worst-covered target's shortfall against
+the reachable, unforbidden item census. Unknown stock or research state cannot admit a
+new project and never counts as recovery. The production-policy push is configuration,
+not development work: it is admitted without a ranking row and holds no slot.
 
 `max_development_projects` defaults to two and accepts integer values from one through
 eight through the versioned player settings API. Available capacity is the smaller of
 that limit and the freshly observed undrafted, living, non-downed workers without a
-mental state whose work settings apply. This is a coarse concurrency bound, not a
-profession-specific labor forecast. Accepted player projects and unfinished development
-actions consume slots; unresolved issued actions remain counted even when blocked or
-cancelled. Completed actions release their slot. Falling capacity never deletes or
-rewrites accepted orders, and explicit player work is not rejected by this optional-work
-limit. Native admission, material reservations and Hands dispatch guards still apply.
+mental state whose work settings apply. Within that bound, each goal declares a labor
+profile of native work types its methods put pawns to (construction for comfort,
+expansion, defense and repairs; research; mining, plant cutting or crafting for resource
+targets; hauling, cleaning, handling or firefighting for upkeep). The same pawns are
+counted per enabled work type, committed work occupies one pawn of its profile, and a
+candidate whose every profile type is occupied defers with `labor_unavailable` naming
+the bottleneck work type instead of taking a slot. An unknown work-settings census
+leaves only the coarse worker bound; an empty profile is never labor-gated. This is a
+scheduling bound on concurrent projects, not a labor forecast or completion estimate.
+Accepted player projects and unfinished development actions consume slots; unresolved
+issued actions remain counted even when blocked or cancelled. Completed actions release
+their slot. Falling capacity never deletes or rewrites accepted orders, and explicit
+player work is not rejected by this optional-work limit. Native admission, material
+reservations and Hands dispatch guards still apply.
 
-Methods that cannot produce new work yield their admission slot to the next eligible
-candidate in the same review. Waiting age advances only with native ticks and resets
-for committed work; context/direction changes and tick rewinds reset ranking history.
-The shared plan retains the ranking, observed worker count and explicit deferral reasons
-under `control.development`; the dashboard displays them. Native labor forecasts remain
-evidence with unknown completion times. This ordering does not implement comfort,
-research or expansion methods, or establish their native gameplay acceptance.
+Methods that cannot produce new work yield their admission slot to the next
+capacity-deferred candidate in the same review; labor-deferred candidates wait for the
+next review's fresh census. Waiting age advances only with native ticks and resets
+for committed work; world changes and tick rewinds reset ranking history.
+The shared plan retains the ranking, observed worker and per-work-type labor counts and
+explicit deferral reasons in the routine review's development record. `GET /api/routines`
+returns that record under `development` (null until a review has ranked): reviewed tick,
+capacity, nullable worker count, sorted free-labor rows, committed goal IDs and one row
+per optional goal with score, nullable deficit and risk, `waitingSince`, selection and
+commitment flags, the deferral reason and, for `labor_unavailable`, the bottleneck work
+type. The dashboard's Work view renders it read-only as "Development priorities"; the
+panel hides itself when routine diagnostics are disabled. Native labor forecasts remain
+evidence with unknown completion times. `cmd/developmentaccept` samples this record
+from a resumed controller across a kill-and-restart pair and asserts the bounds,
+reasons, review-time research measurement and retained waiting ages above; pawn
+progress on the admitted projects is campaign evidence from `cmd/sustainedmatrixaccept`,
+tracked in [issue #9](https://github.com/davidarcher/rimgovernor/issues/9).
 
 ## Method compilation and work allocation
 
@@ -154,10 +199,53 @@ establish that the event caused them.
 ### Shared compilation
 
 Methods compile small batches of semantic construction/zone/native actions. Starter
-templates rank nearby legal shelter sites and disjoint fertile farm patches, then use
-bounded native previews. Fragmented soil can use smaller patches within the same zone
-budget; insufficient farmland does not reject an otherwise legal shelter. Selected field
-capacity remains separate from observed growing cells and the production gate. Work
+templates rank nearby legal shelter sites, then use bounded native previews. Starter
+farms and food-supply expansion share one farm site score (`policy.PlanFarmSites`):
+each square patch (4x4 down to 2x2) is rewarded by the crop's fertility-adjusted
+nutrition rate and charged, as fractions of a normal cell's daily output, for walked
+travel from the anchor, hauling to storage and fragmentation (per patch and per edge
+cell), so distant rich soil loses to suitable local soil. A patch adjoining a
+controller-created zone growing the same crop is a contiguous addition and earns a
+credit instead of the fragment charge; player zones, occupied, roofed, protected,
+unreachable and undescribed cells never become free land. Isolated 1x1 cells are used
+only when no larger patch meets the crop's fertility floor. Each selected patch keeps
+its scored terms (`FarmSitePlan.Explain`) so acceptance evidence can say why a site
+won. Expansion chooses crop and patches jointly (`policy.PlanField`): every available
+edible crop with complete native facts is planned over its own fertility floor and ranked
+by net nutrition per needed cell, so a fertility-tolerant crop wins on poor soil; a
+remaining season under 2.5 grow cycles excludes a crop, an unknown remaining season while
+sowing is possible is treated as short, and a stored-food runway under 2.5 cycles of the
+fastest crop is urgent — both prefer the fastest crop that can plant. Existing zones are
+never re-cropped. Open hunting or foraging under EnsureFoodSupply does not block a field
+batch and a sown field does not block acquisition (the store exempts each from the
+other's open work, mirroring the acquisition-over-bill exemption); a second field batch
+still waits for the first to resolve. Each batch previews at most six patches inside the
+shared step budget. The field planner also requests `SunLamp`, `HydroponicsBasin` and
+`Heater` definitions and decodes `PlanningFacts.environment` into
+`ColonyProjection.Environment` (`policy.ControlledEnvironment`: lamps with native growth
+cells, growers with sow tags, indoor rooms, per-network headroom with
+`NightHeadroomW`/`CalmNightHeadroomW`); it is observed only and unknown when the native
+side withholds it. Site-type selection (`policy.PlanSiteType`) ranks every crop under
+outdoor, greenhouse-reuse (roofed soil a running lamp lights), greenhouse-new (roofed
+indoor soil plus one lamp placed where its growth disc covers the most soil),
+hydroponics (new basins on lit roofed floor, only for the basin's native default crop
+with the `Hydroponic` sow tag, since growers cannot be re-cropped natively) and
+dark-room (unlit roofed indoor soil for a zero-glow crop) by the same net-nutrition-per-
+needed-cell score, charging construction per building and power per added kilowatt
+against the best network's day headroom (lamps) or night/calm-night headroom (basins,
+heaters), and a heater per room or outdoors below 10C; a kind without the power,
+heater, infrastructure or crop compatibility it needs stays in the candidate list with
+its reason, and an unknown environment leaves only outdoor candidates. Controlled kinds
+ignore the outdoor season. Candidates are enacted in score order: zone kinds preview
+growing zones, construction kinds preview the lamp or basins as building actions
+(the lit soil is planted by a later batch once the game reports it), and a candidate the
+game refuses to place or the store cannot reserve falls through to the next, at most
+three per step. Open farm-infrastructure work blocks the next batch like open zone work,
+and the store's field exemption covers `SunLamp`/`HydroponicsBasin`/`Heater` plans.
+`nativeaccept/cmd/farmselectaccept` asserts the traced selection kind/crop, the
+winner's term breakdown and every loser's reason. Insufficient farmland does not reject an otherwise legal
+shelter. Selected field capacity remains separate from observed growing cells and the
+production gate. Work
 allocation uses observed capabilities/skills, job load and stable identity tie breaks;
 it respects the game's checkbox versus manual-priority modes and explicit player
 overrides.
@@ -177,19 +265,19 @@ construction commitments apply only during a supervised clock lease; native
 blueprint/frame deficits are counted directly. Player bill filters and suspension
 settings remain unchanged. Exact native ingredient alternatives include quantity
 conversion and are not truncated with display rows. Dispatch ingests buffered and fresh
-native clock events before using a captured direction and again after preparation. A
-busy writer cannot defer a known player hold or danger event until after an old order
-has been sent. External holds advance the durable player-direction counter independently
-of routine observation and review revisions.
+native clock events before using a captured load token/tick and again after
+preparation. A busy writer cannot defer a known player hold or danger event until after
+an old order has been sent. External holds are recorded as clock holds independently of
+routine observation and review revisions; there is no player-direction counter.
 
 ## Native execution
 
 New growing zones validate crop identity and pollution compatibility before
 registration, and configure the crop in the same native operation. Hands records intent
 before writes, retains partial progress and verifies native outcomes. Routine execution
-yields after 12 operations. An explicit current player request may dispatch through the
-same Hands in Manual, while the clock stays paused; it does not dispatch unrelated
-autonomous work.
+yields after 12 operations. Nothing dispatches while paused: player submissions are
+guidance executed under the world's root plan only while the bot is running, the same
+way routine methods are.
 
 ## Foothold gates and forecast limits
 
@@ -223,7 +311,7 @@ labor, medical, mood and power projections and their input limits.
 ## Progress, capacity and bootstrap dialogs
 
 Goals record selected methods, attempts, step IDs and observable progress.
-Native events or player direction arriving during method selection retain a pending
+Native events or a pause arriving during method selection retain a pending
 review; neither a refusal nor a no-op acknowledges newer evidence from an old read.
 Invalid templates have a bounded alternative-site search; unknown or failed native actions
 become explicit blockers. A no-progress watchdog prevents silent indefinite waiting.

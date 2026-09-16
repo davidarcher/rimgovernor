@@ -23,7 +23,7 @@ func homeCoverageStoreFixture(t *testing.T) (*Store, string, HomeCoverageAdmissi
 	if err = s.CreatePlan(ctx, plan); err != nil {
 		t.Fatal(err)
 	}
-	snapshot := domain.GenerationSnapshot{Colony: "colony", Load: "load", Map: 0, Plan: "plan", Revision: 1, Direction: 1, Native: 2}
+	snapshot := domain.GenerationSnapshot{Colony: "colony", Load: "load", Map: 0, Plan: "plan", Revision: 1, Native: 2}
 	v := HomeCoverageAdmission{Snapshot: snapshot, Tick: 12, Target: "building-1", Shape: "shape-token", Revision: 4, Missing: 3, Excluded: 0}
 	return s, path, v
 }

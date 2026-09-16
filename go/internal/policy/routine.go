@@ -25,12 +25,14 @@ const (
 	MaintainMedicalCare     GoalID = "MaintainMedicalCare"
 	MaintainMedicalReserves GoalID = "MaintainMedicalReserves"
 	MaintainFoodStorage     GoalID = "MaintainFoodStorage"
+	MaintainRefrigeration   GoalID = "MaintainRefrigeration"
 	EnsureComfort           GoalID = "EnsureComfort"
 	EnsureExpansion         GoalID = "EnsureExpansion"
 	MaintainEquipment       GoalID = "MaintainEquipment"
 	EnsureResearch          GoalID = "EnsureResearch"
 	MaintainResource        GoalID = "MaintainResource"
 	ProductionPolicy        GoalID = "ProductionPolicy"
+	EnsureDefensiveLayout   GoalID = "EnsureDefensiveLayout"
 )
 
 // foodStorageUpkeepPriority is MaintainFoodStorage's entry development
@@ -38,10 +40,19 @@ const (
 // const, at its own point of use below) starts MaintainMedicalReserves at.
 const foodStorageUpkeepPriority = 3
 
+// refrigerationPriority keeps MaintainRefrigeration out of the ranked
+// development queue (see DetectRoutine's comment at its point of use).
+const refrigerationPriority = 2
+
+// lightingPriority ranks MaintainLighting with the other upkeep projects.
+const lightingPriority = 3
+
 type RoutinePolicy struct {
 	AnimalUpkeep                                  AnimalUpkeepPolicy
 	MedicalReserve                                MedicalReservePolicy
 	FoodStorage                                   FoodStoragePolicy
+	Cleanliness                                   CleanlinessPolicy
+	Lighting                                      LightingPolicy
 	MaxDevelopmentProjects                        int
 	FoodMinDays, FoodTargetDays, FootholdFoodDays float64
 	ColdEnter, ColdExit, HotExit, HotEnter        float64
@@ -56,31 +67,34 @@ type RoutinePolicy struct {
 	// prey or a non-hunt source.
 	HuntStallTicks int64
 	// ResearchTarget is an operator-declared desired native ResearchProjectDef
-	// name; empty disables EnsureResearch's routine dispatch. Unlike
-	// research.py's needs(), which derives targets from every other active
-	// goal's own observed capability gaps, this only supports one explicit
+	// name; empty disables EnsureResearch's routine dispatch. The need is
+	// measured against RoutineFacts.Research each review (idle tab with the
+	// target unfinished is a deficit; any current project or a finished
+	// target is recovered). Targets are not derived from every other active
+	// goal's own observed capability gaps; this only supports one explicit
 	// target -- deriving targets from other goals' evidence generically
 	// remains an open gap (no Go goal family yet records the
 	// UnavailableThings/BlockedRecipes evidence ResearchNeeds expects).
 	ResearchTarget string
 	// ResourceTargets is an operator-declared map of native resource
 	// definition name to the native stock floor MaintainResource should keep
-	// it above; an empty map disables the goal entirely, the same config-only
-	// posture ResearchTarget uses for EnsureResearch. Unlike
-	// production_policy.py's plan-wide resource_policy (many simultaneously
-	// tracked floors driving both goal creation and the native
-	// SetProductionPolicy push), this only supports
+	// it above; an empty map disables the goal entirely. The deficit is
+	// measured against RoutineFacts.Resources each review as the worst-covered
+	// target's shortfall fraction. There is no plan-wide resource policy
+	// (many simultaneously tracked floors driving both goal creation and the
+	// native SetProductionPolicy push); this only supports
 	// policy.SelectResourceTarget's own single-goal dynamic-target selection
 	// across these targets and issues no SetProductionPolicy push at all.
 	ResourceTargets map[Resource]int64
 	// ResourceReserves and StoppedResources are operator-declared inputs to
-	// ProductionFloors, mirroring production_policy.py's plan.control
-	// resource_policy reserve/spending-stopped configuration. Unlike
+	// ProductionFloors: the per-resource reserve/spending-stopped
+	// configuration. Unlike
 	// ResourceTargets (which drives MaintainResource's own goal/method
-	// selection), these drive the ProductionPolicy goal's own config-only
+	// selection), these drive the ProductionPolicy goal's config-only
 	// posture: RoutineProductionPolicyPlanner dispatches ProductionFloors's
 	// computed floors/stopped rows through the native SetProductionPolicy
-	// write whenever they diverge from a fresh ReadProductionPolicy.
+	// write whenever they diverge from a fresh ReadProductionPolicy. The push
+	// is not development work and holds no development slot (DevelopmentExempt).
 	ResourceReserves map[Resource]int64
 	StoppedResources []Resource
 	// AllowSlaughter is an operator-declared, explicit opt-in for
@@ -96,15 +110,21 @@ type RoutinePolicy struct {
 	// uses) to the population maximum MaintainHerd should keep that race at
 	// or under; an empty map (the default) tracks no race at all, so
 	// AllowSlaughter alone is not enough to dispatch a slaughter write --
-	// both must be set. Unlike Python's husbandry.py per-race target (which
-	// also carries a minimum, protected-id set and breeding-reserve count),
-	// this only supports the maximum half of that target, narrowed the same
-	// way ResearchTarget's doc comment discloses its own gap.
+	// both must be set. Only the maximum half of a per-race target is
+	// supported (no minimum, protected-id set or breeding-reserve count),
+	// narrowed the same way ResearchTarget's doc comment discloses its own gap.
 	HerdPopulationMax map[Resource]int64
+	// DefensiveLayout is an operator-declared opt-in for EnsureDefensiveLayout
+	// (issue #5): the staged chokepoint/firing-line/funnel/trap-corridor
+	// construction RoutineDefenseLayoutPlanner proposes from a fresh native
+	// defense-site census. It keeps the same config-only posture as
+	// ResearchTarget: the review does not derive layout completeness from a
+	// census, the planner decides per tier from its own admitted plans.
+	DefensiveLayout bool
 }
 
 func DefaultRoutinePolicy() RoutinePolicy {
-	return RoutinePolicy{AnimalUpkeep: DefaultAnimalUpkeepPolicy(), MedicalReserve: DefaultMedicalReservePolicy(), FoodStorage: DefaultFoodStoragePolicy(), MaxDevelopmentProjects: 2, FoodMinDays: 3, FoodTargetDays: 7, FootholdFoodDays: 3,
+	return RoutinePolicy{AnimalUpkeep: DefaultAnimalUpkeepPolicy(), MedicalReserve: DefaultMedicalReservePolicy(), FoodStorage: DefaultFoodStoragePolicy(), Cleanliness: DefaultCleanlinessPolicy(), Lighting: DefaultLightingPolicy(), MaxDevelopmentProjects: 2, FoodMinDays: 3, FoodTargetDays: 7, FootholdFoodDays: 3,
 		ColdEnter: 12, ColdExit: 16, HotExit: 28, HotEnter: 32, WoodMin: 120, WoodTarget: 350, WoodMax: 500, HuntStallTicks: 6000}
 }
 
@@ -117,6 +137,9 @@ func (p RoutinePolicy) Validate() error {
 	}
 	if !p.FoodStorage.valid() {
 		return errors.New("invalid food storage thresholds")
+	}
+	if !p.Cleanliness.valid() {
+		return errors.New("invalid cleanliness thresholds")
 	}
 	if p.MaxDevelopmentProjects < 1 || p.MaxDevelopmentProjects > 8 {
 		return errors.New("invalid development project limit")
@@ -219,24 +242,35 @@ type RoutineFacts struct {
 	// to dispatch containment/burial candidates from.
 	Waste domain.Fact[[]WasteItem]
 	// AvailableMethods is supplied by the configured runtime, never native facts.
-	AvailableMethods                                                           domain.Fact[[]GoalID]
-	Upkeep                                                                     UpkeepObservation
-	UpkeepIssued                                                               map[GoalID]bool
-	Gear                                                                       domain.Fact[GearObservation]
-	Comfort                                                                    domain.Fact[ComfortObservation]
-	ComfortRecovered                                                           domain.Fact[bool]
-	ComfortDeficit                                                             domain.Fact[float64]
-	StartingSupplyCells                                                        domain.Fact[[]domain.Cell]
-	MedicalPawns                                                               domain.Fact[[]CarePawn]
-	MedicalCareRecovered                                                       domain.Fact[bool]
-	Workers                                                                    domain.Fact[int]
+	AvailableMethods     domain.Fact[[]GoalID]
+	Upkeep               UpkeepObservation
+	UpkeepIssued         map[GoalID]bool
+	Gear                 domain.Fact[GearObservation]
+	Comfort              domain.Fact[ComfortObservation]
+	ComfortRecovered     domain.Fact[bool]
+	ComfortDeficit       domain.Fact[float64]
+	StartingSupplyCells  domain.Fact[[]domain.Cell]
+	MedicalPawns         domain.Fact[[]CarePawn]
+	MedicalCareRecovered domain.Fact[bool]
+	Workers              domain.Fact[int]
+	// Labor is the per-work-type census of the same pawns Workers counts
+	// (RoutineLabor); unknown labor leaves only the coarse worker bound.
+	Labor                                                                      domain.Fact[map[WorkType]int]
 	Colonists, HousingTarget, BedCapacity, IndoorCapacity, GrowingCells, Armed domain.Fact[int64]
 	FoodDays, PopulationFoodDays, FieldCoverage                                domain.Fact[float64]
 	SleepingMin, SleepingMax, OutdoorTemperature, PowerHeadroom                domain.Fact[float64]
 	Wood                                                                       domain.Fact[int64]
-	Hostiles, CriticalPatients                                                 domain.Fact[int64]
-	AllPatientsResting, ColonyNaming, CleanupPawns, ForbiddenSupplies          domain.Fact[bool]
-	FoodStorage, Cooking, WorkCoverage, PowerRequired, DisabledConsumers       domain.Fact[bool]
+	// Resources is the generic reachable, unforbidden player item census
+	// (the same colony facts rows Wood is taken from), so MaintainResource's
+	// deficit is measured at review time instead of assumed from config.
+	Resources domain.Fact[[]Amount]
+	// Research is the native research state read inside the same paused
+	// identity bracket as the other routine facts. Unknown when the source
+	// cannot read research; missing facts never recover EnsureResearch.
+	Research                                                             domain.Fact[ResearchFacts]
+	Hostiles, CriticalPatients                                           domain.Fact[int64]
+	AllPatientsResting, ColonyNaming, CleanupPawns, ForbiddenSupplies    domain.Fact[bool]
+	FoodStorage, Cooking, WorkCoverage, PowerRequired, DisabledConsumers domain.Fact[bool]
 }
 
 type FootholdGates struct {
@@ -258,8 +292,11 @@ type RoutineLatches struct {
 	Animals                  AnimalUpkeepHistory
 	MedicalReserve           bool
 	FoodStorage              bool
-	Food, Cold, Hot, Wood    bool
-	Upkeep                   UpkeepHistory
+	Refrigeration            bool
+	// Lighting holds the bench IDs MaintainLighting last measured dark.
+	Lighting              []string
+	Food, Cold, Hot, Wood bool
+	Upkeep                UpkeepHistory
 }
 type RoutineNeeds struct {
 	Disaster    *DisasterHistory
@@ -359,7 +396,15 @@ func DetectRoutine(f RoutineFacts, previous RoutineLatches, p RoutinePolicy) (Ro
 	if err != nil {
 		return RoutineNeeds{}, err
 	}
-	upkeep, err := ReviewUpkeep(f.Upkeep, previous.Upkeep, f.UpkeepIssued)
+	refrigeration, err := ReviewRefrigeration(f.FoodStorageUpkeep, previous.Refrigeration, p.FoodStorage)
+	if err != nil {
+		return RoutineNeeds{}, err
+	}
+	upkeep, err := ReviewUpkeepWith(f.Upkeep, previous.Upkeep, f.UpkeepIssued, p.Cleanliness)
+	if err != nil {
+		return RoutineNeeds{}, err
+	}
+	lighting, err := ReviewLighting(f.Upkeep.Lighting, previous.Lighting, p.Lighting)
 	if err != nil {
 		return RoutineNeeds{}, err
 	}
@@ -435,6 +480,8 @@ func DetectRoutine(f RoutineFacts, previous RoutineLatches, p RoutinePolicy) (Ro
 		Animals:        animals.History,
 		MedicalReserve: medicine.Active,
 		FoodStorage:    foodStorage.Active,
+		Refrigeration:  refrigeration.Active,
+		Lighting:       lighting.Dark,
 		Upkeep:         upkeep.History,
 		Food:           latchValue(previous.Food, f.FoodDays, p.FoodMinDays, p.FoodTargetDays, false),
 		Cold:           latchValue(previous.Cold, fallback(f.SleepingMin, f.OutdoorTemperature), p.ColdEnter, p.ColdExit, false),
@@ -443,7 +490,7 @@ func DetectRoutine(f RoutineFacts, previous RoutineLatches, p RoutinePolicy) (Ro
 	}
 	r := RoutineNeeds{Gates: g, Latches: l}
 	addGoal := func(id GoalID, priority int) {
-		r.Goals = append(r.Goals, DevelopmentGoal{ID: id, Source: AutopilotGoal, Priority: priority, Deficit: RoutineDevelopmentDeficit(id, f, p)})
+		r.Goals = append(r.Goals, DevelopmentGoal{ID: id, Source: AutopilotGoal, Priority: priority, Deficit: RoutineDevelopmentDeficit(id, f, p), Labor: GoalLabor(id), Risk: RoutineDevelopmentRisk(id, f, l)})
 	}
 	if positive(f.ColonyNaming) {
 		addGoal(ConfirmColonyNames, 0)
@@ -570,42 +617,38 @@ func DetectRoutine(f RoutineFacts, previous RoutineLatches, p RoutinePolicy) (Ro
 	addAssessment(EnsureComfort, 4, f.ComfortRecovered)
 	addAssessment(EnsureExpansion, 4, expansion)
 	addAssessment(MaintainEquipment, 3, gear.Recovered)
-	// EnsureResearch stays config-only: unlike every other goal above, its
-	// recovered/deficit state is not derived from a review-time native
-	// census (no RoutineFacts field records the current research project),
-	// only from whether an operator declared a ResearchTarget at all. The
-	// routine planner performs its own fresh native read to decide whether
-	// a project is already selected before ever proposing a method; see
-	// RoutinePolicy.ResearchTarget's doc comment for the disclosed gap this
-	// narrows around (no cross-goal needs-driven target derivation).
-	researchRecovered := domain.Known(p.ResearchTarget == "")
+	// EnsureResearch and MaintainResource are operator-configured targets whose
+	// deficit is measured against native facts read in this review: no target
+	// configured is certain recovery, a configured target with missing facts is
+	// unknown, and RoutineResearchPlanner/RoutineResourcePlanner still re-read
+	// native state immediately before proposing a method.
+	researchRecovered, researchDeficit := ResearchTargetNeed(p.ResearchTarget, f.Research)
 	if !positive(researchRecovered) {
 		addGoal(EnsureResearch, 4)
+		r.Goals[len(r.Goals)-1].Deficit = researchDeficit
 	}
 	addAssessment(EnsureResearch, 4, researchRecovered)
-	// MaintainResource stays config-only, the same posture as EnsureResearch
-	// just above: recovered/deficit state is not derived from a review-time
-	// native resource census (RoutineFacts carries none), only from whether
-	// an operator declared any ResourceTargets at all. RoutineResourcePlanner
-	// performs its own fresh native read and policy.SelectResourceTarget's
-	// dynamic-target selection immediately before proposing a method.
-	resourceRecovered := domain.Known(len(p.ResourceTargets) == 0)
+	resourceRecovered, resourceDeficit := ResourceTargetNeed(p.ResourceTargets, f.Resources)
 	if !positive(resourceRecovered) {
 		addGoal(MaintainResource, 4)
+		r.Goals[len(r.Goals)-1].Deficit = resourceDeficit
 	}
 	addAssessment(MaintainResource, 4, resourceRecovered)
-	// ProductionPolicy stays config-only, the same posture as EnsureResearch
-	// and MaintainResource above: recovered/deficit state is not derived
-	// from a review-time native census (RoutineFacts carries none), only
-	// from whether an operator declared any ResourceReserves/StoppedResources
-	// at all. RoutineProductionPolicyPlanner performs its own fresh
-	// ReadProductionPolicy and policy.ProductionFloors comparison immediately
-	// before proposing a method.
+	// ProductionPolicy is a configuration push, not development work: it needs
+	// no pawn labor and holds no optional capacity slot, so it is assessed (and
+	// admitted) outside the development ranking. Its recovered state is
+	// config-only: RoutineProductionPolicyPlanner performs its own fresh
+	// ReadProductionPolicy comparison before proposing a method.
 	productionPolicyRecovered := domain.Known(len(p.ResourceReserves) == 0 && len(p.StoppedResources) == 0)
-	if !positive(productionPolicyRecovered) {
-		addGoal(ProductionPolicy, 4)
-	}
 	addAssessment(ProductionPolicy, 4, productionPolicyRecovered)
+	// EnsureDefensiveLayout is config-only like EnsureResearch above: opt-in
+	// activates the goal at priority 3 (after the storage gate) and the
+	// planner reports no work once every tier stands.
+	defensiveLayoutRecovered := domain.Known(!p.DefensiveLayout)
+	if !positive(defensiveLayoutRecovered) {
+		addGoal(EnsureDefensiveLayout, 3)
+	}
+	addAssessment(EnsureDefensiveLayout, 3, defensiveLayoutRecovered)
 	for _, n := range upkeep.Needs {
 		recovered := domain.Unknown[bool]()
 		targetsKnown := false
@@ -661,7 +704,14 @@ func DetectRoutine(f RoutineFacts, previous RoutineLatches, p RoutinePolicy) (Ro
 		addAssessment(facility.id, priority, recovered)
 		if !positive(recovered) {
 			addGoal(facility.id, priority)
-			r.Goals[len(r.Goals)-1].MethodUnavailable = true
+			// Binary need, like the upkeep.Needs goals above: a confirmed
+			// deficit ranks at Known(1.0); an unknown census stays
+			// DevelopmentUnknown. Method availability follows the composed
+			// capability list (AvailableMethods below), since both the
+			// MaintainHomeCoverage and MaintainStoneShell verticals dispatch.
+			if _, known := recovered.Value(); known {
+				r.Goals[len(r.Goals)-1].Deficit = domain.Known(1.0)
+			}
 		}
 	}
 	sleepingRecovered := f.SleepingRecovered
@@ -702,6 +752,40 @@ func DetectRoutine(f RoutineFacts, previous RoutineLatches, p RoutinePolicy) (Ro
 	if !positive(foodStorageRecovered) {
 		addGoal(MaintainFoodStorage, foodStoragePriority)
 		r.Goals[len(r.Goals)-1].MethodUnavailable = true
+	}
+	// Refrigeration answers the same at-risk perishable nutrition as
+	// MaintainFoodStorage by cooling the room the food already sits in. It
+	// runs at foothold priority like EnsureTemperatureSafety rather than as a
+	// ranked development project: the review only latches on food inside
+	// SafeRotDays of spoiling, and a cooler queued behind the project limit
+	// arrives after the food is gone.
+	refrigerationRecovered := domain.Unknown[bool]()
+	if _, known := refrigeration.WarmNutrition.Value(); known {
+		refrigerationRecovered = domain.Known(!refrigeration.Active)
+	}
+	addAssessment(MaintainRefrigeration, refrigerationPriority, refrigerationRecovered)
+	if !positive(refrigerationRecovered) {
+		addGoal(MaintainRefrigeration, refrigerationPriority)
+		if nutrition, known := refrigeration.WarmNutrition.Value(); known && p.FoodStorage.AtRiskNutritionThreshold > 0 {
+			r.Goals[len(r.Goals)-1].Deficit = domain.Known(min(1, nutrition/p.FoodStorage.AtRiskNutritionThreshold))
+		}
+	}
+	// Lighting is a ranked development project: a dark bench costs work
+	// speed and mood, not lives, so it competes for a project slot like the
+	// other upkeep needs. The deficit is the measured dark fraction.
+	lightingRecovered := domain.Unknown[bool]()
+	lightingPriority := lightingPriority
+	if lighting.Known {
+		lightingRecovered = domain.Known(!lighting.Active)
+	} else if !lighting.Active {
+		lightingPriority = 4
+	}
+	addAssessment(MaintainLighting, lightingPriority, lightingRecovered)
+	if !positive(lightingRecovered) {
+		addGoal(MaintainLighting, lightingPriority)
+		if lighting.Known {
+			r.Goals[len(r.Goals)-1].Deficit = domain.Known(1.0)
+		}
 	}
 	animalContainment := domain.Unknown[bool]()
 	if targets, known := animals.Containment.Value(); known {

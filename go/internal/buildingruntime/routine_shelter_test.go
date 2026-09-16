@@ -123,7 +123,7 @@ func TestRoutineShelterNeverCommitsPartialOrUnknownShell(t *testing.T) {
 				case "direction":
 					session := r.reviewer.player.session.(*playerFakeSession)
 					session.mu.Lock()
-					session.state.Snapshot.Direction++
+					session.state.Snapshot.Native++
 					session.mu.Unlock()
 				}
 			}
@@ -148,7 +148,7 @@ func TestRoutineShelterNeverCommitsPartialOrUnknownShell(t *testing.T) {
 				t.Fatal("invalid shell admitted", change)
 			}
 			plans, err := db.LoadPlans(context.Background(), 256)
-			if err != nil || len(plans) != 1 {
+			if err != nil || len(plans) != 2 {
 				t.Fatal("partial shell committed", plans, err)
 			}
 		})
@@ -228,7 +228,7 @@ func TestShelterRoofingBudgetRequiresObservedCompletionAndDoesNotRenew(t *testin
 			t.Fatal(test, got)
 		}
 	}
-	current.Direction++
+	current.Native++
 	if shelterNativeWorkTicks(plan, current, 100) != 0 {
 		t.Fatal("old direction renewed roofing budget")
 	}
@@ -245,8 +245,8 @@ func TestRoutineShelterManualCancelsWholePendingShell(t *testing.T) {
 	if err != nil || !result.Decision.Admitted {
 		t.Fatal(result, err)
 	}
-	request := store.ControlRequest{RequestID: "manual-shell", Kind: store.ManualControl, World: playerWorld(result.Decision.Goal.Goal.Snapshot)}
-	if _, err := r.reviewer.player.Manual(ctx, request); err != nil {
+	request := store.ControlRequest{RequestID: "manual-shell", Kind: store.PauseControl, World: playerWorld(result.Decision.Goal.Goal.Snapshot)}
+	if _, err := r.reviewer.player.Pause(ctx, request); err != nil {
 		t.Fatal(err)
 	}
 	plan, err := db.LoadPlan(ctx, result.Decision.Goal.Methods[0].Plan)
@@ -346,5 +346,313 @@ func TestShelterRoofingContinuesAfterFurnishingUntilNativeCapacityRecovers(t *te
 	remaining, err = r.Step(ctx)
 	if err != nil || remaining.Reason != BuildingMethodNoDeficit || remaining.NativeWorkTicks != 0 {
 		t.Fatal(remaining, err)
+	}
+}
+
+// hutCells replaces the fixture's 9x9 census with a square of the given
+// side, optionally limiting which cells support light, and stocks enough
+// wood for a shell larger than the 9x9 rectangle.
+func hutCells(n *sleepingNative, side int32, lit func(x, z int32) bool) {
+	preview := n.onPreview
+	n.onPreview = func(ctx context.Context, v *bridge.BuildingPreview) {
+		preview(ctx, v)
+		if len(v.Stock.Values) > 0 {
+			v.Stock.Values = []policy.Stock{{Resource: "WoodLog", Available: domain.Known(int64(600))}}
+		}
+	}
+	planning := n.reply.GetObserved().Planning.GetObserved()
+	planning.Cells.Region.Maximum = &c.Cell{X: proto.Int32(side - 1), Z: proto.Int32(side - 1)}
+	planning.Cells.Completeness.Matched, planning.Cells.Completeness.Returned = proto.Uint64(uint64(side*side)), proto.Uint64(uint64(side*side))
+	planning.Cells.Cells = nil
+	for x := int32(0); x < side; x++ {
+		for z := int32(0); z < side; z++ {
+			planning.Cells.Cells = append(planning.Cells.Cells, &o.CellState{Cell: &c.Cell{X: proto.Int32(x), Z: proto.Int32(z)}, Indoors: proto.Bool(false), Fogged: proto.Bool(false), Walkable: proto.Bool(true), Occupied: proto.Bool(false), SupportsLight: proto.Bool(lit(x, z)), Issues: []*o.ReadIssue{
+				{Field: proto.String("zone_id"), Unavailable: &c.Unavailable{Reason: c.UnavailableReason_UNAVAILABLE_REASON_NOT_APPLICABLE.Enum()}},
+				{Field: proto.String("roof"), Unavailable: &c.Unavailable{Reason: c.UnavailableReason_UNAVAILABLE_REASON_NOT_APPLICABLE.Enum()}},
+			}})
+		}
+	}
+}
+
+func shellCells(t *testing.T, plan store.PlanState) (domain.Building, map[domain.Cell]bool) {
+	t.Helper()
+	cells := map[domain.Cell]bool{}
+	actions := plan.Spec.Actions()
+	door, _ := actions[0].Building()
+	for i, action := range actions {
+		b, ok := action.Building()
+		if !ok || b.Stuff() != "WoodLog" || (i == 0) != (b.Definition() == "Door") || cells[b.Cell()] {
+			t.Fatal(action)
+		}
+		cells[b.Cell()] = true
+		if i > 0 && plan.Spec.Dependencies()[i-1].Requires != actions[0].ID() {
+			t.Fatal("wall does not depend on the door", action)
+		}
+	}
+	return door, cells
+}
+
+func TestRoutineShelterRaisesOvalHutForNeolithicColony(t *testing.T) {
+	t.Parallel()
+	r, db, n := shelterFixture(t)
+	n.reply.GetObserved().PlayerTechLevel = proto.String("Neolithic")
+	n.reply.GetObserved().Center = &c.Cell{X: proto.Int32(10), Z: proto.Int32(10)}
+	hutCells(n, 21, func(int32, int32) bool { return true })
+	result, err := r.Step(context.Background())
+	if err != nil || result.Reason != BuildingMethodAdmitted {
+		t.Fatal(result, err)
+	}
+	plan, err := db.LoadPlan(context.Background(), result.Decision.Goal.Methods[0].Plan)
+	if err != nil {
+		t.Fatal(err)
+	}
+	want, err := domain.EllipseFootprint(domain.Cell{X: 10, Z: 10}, 4, 4, domain.EllipseNorthSouth, domain.South)
+	if err != nil {
+		t.Fatal(err)
+	}
+	door, cells := shellCells(t, plan)
+	if door.Cell() != want.Door() || door.Rotation() != domain.South || len(cells) != len(want.Walls()) || n.previews != len(want.Walls()) {
+		t.Fatal(door, len(cells), n.previews)
+	}
+	for _, w := range want.Walls() {
+		if !cells[w] {
+			t.Fatal("missing hut wall", w)
+		}
+	}
+	if len(plan.Progress) != len(cells) || len(plan.Spec.Dependencies()) != len(cells)-1 {
+		t.Fatal(len(plan.Progress), len(plan.Spec.Dependencies()))
+	}
+	// Roofing budget accepts a shell of any size once every wall is complete.
+	current := result.Decision.Goal.Goal.Snapshot
+	snapshot := current
+	snapshot.Plan, snapshot.Revision = plan.Spec.ID(), plan.Spec.Revision()
+	for i, p := range plan.Progress {
+		for _, step := range []func() (domain.Progress, error){
+			func() (domain.Progress, error) { return p.Prepare(snapshot, 7) },
+			func() (domain.Progress, error) { return p.MarkDispatched(snapshot, 7) },
+			func() (domain.Progress, error) { return p.RecordReceipt(1, domain.ReceiptAccepted) },
+			func() (domain.Progress, error) {
+				return p.Observe(domain.Observation{Action: p.Action().ID(), Attempt: 1, Snapshot: snapshot, Tick: 100, Effect: domain.EffectCompleted, Causality: domain.AfterDispatch}, snapshot)
+			},
+		} {
+			if p, err = step(); err != nil {
+				t.Fatal(err)
+			}
+		}
+		plan.Progress[i] = p
+	}
+	if got := shelterNativeWorkTicks(plan, current, 100); got != 10000 {
+		t.Fatal("hut completion granted no roofing budget", got)
+	}
+	if again, err := r.Step(context.Background()); err != nil || again.Reason != BuildingMethodExistingWork {
+		t.Fatal(again, err)
+	}
+}
+
+func TestRoutineShelterKeepsRectangleWithoutNeolithicTechLevel(t *testing.T) {
+	t.Parallel()
+	for _, level := range []*string{nil, proto.String("Industrial")} {
+		r, db, n := shelterFixture(t)
+		n.reply.GetObserved().PlayerTechLevel = level
+		n.reply.GetObserved().Center = &c.Cell{X: proto.Int32(10), Z: proto.Int32(10)}
+		hutCells(n, 21, func(int32, int32) bool { return true })
+		result, err := r.Step(context.Background())
+		if err != nil || result.Reason != BuildingMethodAdmitted || n.previews != 32 {
+			t.Fatal(result, err, n.previews)
+		}
+		plan, err := db.LoadPlan(context.Background(), result.Decision.Goal.Methods[0].Plan)
+		if err != nil {
+			t.Fatal(err)
+		}
+		door, cells := shellCells(t, plan)
+		if len(cells) != 32 || door.Cell() != (domain.Cell{X: 10, Z: 6}) {
+			t.Fatal(door, len(cells))
+		}
+	}
+}
+
+func TestRoutineShelterGrowsIrregularShellOverConstrainedTerrain(t *testing.T) {
+	t.Parallel()
+	r, db, n := shelterFixture(t)
+	n.reply.GetObserved().PlayerTechLevel = proto.String("Neolithic")
+	n.reply.GetObserved().Center = &c.Cell{X: proto.Int32(10), Z: proto.Int32(10)}
+	// An L-shaped lit strip five cells wide: no oval or rectangle template
+	// fits, so a concave connected footprint is grown and admitted whole.
+	lit := func(x, z int32) bool { return x >= 8 && x <= 12 && z >= 1 || z >= 8 && z <= 12 && x >= 8 }
+	hutCells(n, 21, lit)
+	result, err := r.Step(context.Background())
+	if err != nil || result.Reason != BuildingMethodAdmitted {
+		t.Fatal(result, err)
+	}
+	plan, err := db.LoadPlan(context.Background(), result.Decision.Goal.Methods[0].Plan)
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, cells := shellCells(t, plan)
+	if len(cells) < 20 || n.previews != len(cells) {
+		t.Fatal(len(cells), n.previews)
+	}
+	minX, maxX, minZ, maxZ := int32(99), int32(0), int32(99), int32(0)
+	for cell := range cells {
+		if !lit(cell.X, cell.Z) {
+			t.Fatal("wall placed on unlit ground", cell)
+		}
+		minX, maxX, minZ, maxZ = min(minX, cell.X), max(maxX, cell.X), min(minZ, cell.Z), max(maxZ, cell.Z)
+	}
+	// The room bends around the corner of the L: its bounding box spans both
+	// arms yet contains unlit ground no wall was placed on.
+	concave := false
+	for x := minX; x <= maxX; x++ {
+		for z := minZ; z <= maxZ; z++ {
+			concave = concave || !lit(x, z)
+		}
+	}
+	if maxX-minX+1 <= 5 || maxZ-minZ+1 <= 5 || !concave {
+		t.Fatal("grown shell is not the concave corner room", minX, maxX, minZ, maxZ)
+	}
+}
+
+// adoptingNative adds the wall-and-door census a shell planner uses to
+// recognise a shell it began earlier.
+type adoptingNative struct {
+	*sleepingNative
+	standing []bridge.Structure
+	censuses int
+	last     domain.GenerationSnapshot
+}
+
+func (n *adoptingNative) ReadStructures(_ context.Context, _ *c.Identity, minimum, maximum domain.Cell, definitions []string) (bridge.StructureRead, bridge.Result, error) {
+	n.censuses++
+	out := bridge.StructureRead{Tick: domain.Tick(n.reply.GetObserved().Context.GetTick()), Generation: uint64(n.last.Native)}
+	for _, s := range n.standing {
+		if s.Cell.X >= minimum.X && s.Cell.X <= maximum.X && s.Cell.Z >= minimum.Z && s.Cell.Z <= maximum.Z {
+			out.Structures = append(out.Structures, s)
+		}
+	}
+	return out, bridge.Result{}, nil
+}
+
+func (n *adoptingNative) PreviewBuilding(ctx context.Context, a domain.Action, s domain.GenerationSnapshot) (bridge.BuildingPreview, bridge.Result, error) {
+	n.last = s
+	return n.sleepingNative.PreviewBuilding(ctx, a, s)
+}
+
+func TestRoutineShelterReissuesOnlyTheMissingCellsOfAnEarlierShell(t *testing.T) {
+	t.Parallel()
+	r, db, base := shelterFixture(t)
+	base.reply.GetObserved().PlayerTechLevel = proto.String("Neolithic")
+	base.reply.GetObserved().Center = &c.Cell{X: proto.Int32(10), Z: proto.Int32(10)}
+	hutCells(base, 21, func(int32, int32) bool { return true })
+	want, err := domain.EllipseFootprint(domain.Cell{X: 10, Z: 10}, 4, 4, domain.EllipseNorthSouth, domain.South)
+	if err != nil {
+		t.Fatal(err)
+	}
+	// A restart left the door built, two walls framed and one blueprinted;
+	// the rest of the ring was never ordered.
+	n := &adoptingNative{sleepingNative: base}
+	walls := want.Walls()
+	standing := map[domain.Cell]bool{want.Door(): true}
+	n.standing = []bridge.Structure{{ID: "door", Definition: "Door", Cell: want.Door(), Status: "built"}}
+	for i, status := range []string{"frame", "frame", "blueprint"} {
+		w := walls[len(walls)-1-i]
+		if w == want.Door() {
+			t.Fatal("fixture picked the door")
+		}
+		standing[w] = true
+		n.standing = append(n.standing, bridge.Structure{ID: status, Definition: "Wall", Cell: w, Status: status})
+	}
+	// The census must not be able to place on standing cells; the planner
+	// must skip them without asking.
+	preview := base.onPreview
+	base.onPreview = func(ctx context.Context, v *bridge.BuildingPreview) {
+		preview(ctx, v)
+		if b, _ := v.Preview.Action.Building(); standing[b.Cell()] {
+			t.Errorf("previewed a standing cell %v", b.Cell())
+		}
+	}
+	// The planner reads the census through the same source it previews with.
+	planner, err := NewRoutineShelterPlanner(r.reviewer, n, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	// Prime the generation the fake census echoes.
+	n.last = r.reviewer.player.session.State().Snapshot
+	result, err := planner.Step(context.Background())
+	if err != nil || result.Reason != BuildingMethodAdmitted {
+		t.Fatal(result, err)
+	}
+	if n.censuses == 0 {
+		t.Fatal("no structure census")
+	}
+	plan, err := db.LoadPlan(context.Background(), result.Decision.Goal.Methods[0].Plan)
+	if err != nil {
+		t.Fatal(err)
+	}
+	got := map[domain.Cell]bool{}
+	for _, action := range plan.Spec.Actions() {
+		b, ok := action.Building()
+		if !ok || b.Definition() != "Wall" || b.Stuff() != "WoodLog" || standing[b.Cell()] || got[b.Cell()] {
+			t.Fatal("unexpected reissued action", action)
+		}
+		got[b.Cell()] = true
+	}
+	if len(got) != len(walls)-len(standing) {
+		t.Fatalf("reissued %d cells, want %d", len(got), len(walls)-len(standing))
+	}
+	for _, w := range walls {
+		if !standing[w] && !got[w] {
+			t.Fatal("missing cell not reissued", w)
+		}
+	}
+	if len(plan.Spec.Dependencies()) != 0 {
+		t.Fatal("walls of an adopted shell must not wait for a door that already stands")
+	}
+	if base.previews != len(got) {
+		t.Fatalf("previews %d, want one per missing cell %d", base.previews, len(got))
+	}
+}
+
+func TestRoutineShelterAdoptsALoneDoor(t *testing.T) {
+	t.Parallel()
+	r, db, base := shelterFixture(t)
+	base.reply.GetObserved().PlayerTechLevel = proto.String("Neolithic")
+	base.reply.GetObserved().Center = &c.Cell{X: proto.Int32(10), Z: proto.Int32(10)}
+	hutCells(base, 21, func(int32, int32) bool { return true })
+	// An interrupted shell's blueprints and frames are cancelled natively;
+	// only the door it had finished survives, and it is the shell's record.
+	door := domain.Cell{X: 4, Z: 3}
+	n := &adoptingNative{sleepingNative: base, standing: []bridge.Structure{{ID: "door", Definition: "Door", Cell: door, Status: "built"}}}
+	planner, err := NewRoutineShelterPlanner(r.reviewer, n, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	n.last = r.reviewer.player.session.State().Snapshot
+	result, err := planner.Step(context.Background())
+	if err != nil || result.Reason != BuildingMethodAdmitted {
+		t.Fatal(result, err)
+	}
+	plan, err := db.LoadPlan(context.Background(), result.Decision.Goal.Methods[0].Plan)
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := policy.ShellShapesAtDoor(door, policy.ShelterHut)[0]
+	got := map[domain.Cell]bool{}
+	for _, action := range plan.Spec.Actions() {
+		b, ok := action.Building()
+		if !ok || b.Definition() != "Wall" || b.Cell() == door || got[b.Cell()] {
+			t.Fatal("unexpected action around a lone door", action)
+		}
+		got[b.Cell()] = true
+	}
+	if len(got) != len(want.Walls())-1 {
+		t.Fatalf("reissued %d cells, want the %d walls of the first shape at the door", len(got), len(want.Walls())-1)
+	}
+	for _, w := range want.Walls() {
+		if w != door && !got[w] {
+			t.Fatal("missing wall not reissued", w)
+		}
+	}
+	if len(plan.Spec.Dependencies()) != 0 {
+		t.Fatal("walls of an adopted shell must not wait for a door that already stands")
 	}
 }

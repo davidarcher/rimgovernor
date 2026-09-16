@@ -11,7 +11,6 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/bridge"
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"github.com/davidarcher/RimGovernor/go/internal/executor"
-	"github.com/davidarcher/RimGovernor/go/internal/runtimeowner"
 	"github.com/davidarcher/RimGovernor/go/internal/store"
 	a "github.com/davidarcher/RimGovernor/go/internal/wire/authoritypb"
 	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
@@ -66,7 +65,7 @@ type Control struct {
 	native           NativeAuthority
 	sink             AuthoritySink
 	namespace        store.ControllerSessionID
-	owner            *runtimeowner.Owner
+	owner            *ProfileOwner
 	lifetime         context.Context
 	epoch            context.Context
 	cancelEpoch      context.CancelFunc
@@ -82,7 +81,7 @@ func NewControl(ctx context.Context, config ControlConfig, identity SessionIdent
 	if identity == nil || native == nil || sink == nil || config.StopWrites == nil || config.CallTimeout <= 0 || config.CallTimeout > time.Minute {
 		return nil, ErrControl
 	}
-	owner, err := runtimeowner.Acquire(ctx, config.ProfileDirectory)
+	owner, err := AcquireProfile(ctx, config.ProfileDirectory)
 	if err != nil {
 		return nil, err
 	}
@@ -109,16 +108,14 @@ func NewControl(ctx context.Context, config ControlConfig, identity SessionIdent
 }
 
 // Acquire must be called only by an authenticated explicit-player entrypoint.
-// A requested direction is scoped intent, not authentication -- it stays a
-// domain-level concept for goal invalidation across acquisitions (see
-// domain.GenerationSnapshot) and is never sent over the wire any more; the
-// wire contract only carries identity, generation and the requested Mode.
+// The wire contract carries identity, generation and the requested Mode; the
+// requested snapshot's plan/revision are scoped intent, not authentication.
 // Fresh native CAS replaces the requested native generation.
 func (control *Control) Acquire(ctx context.Context, requested domain.GenerationSnapshot) (domain.GenerationSnapshot, error) {
 	if err := requested.Validate(); err != nil {
 		return domain.GenerationSnapshot{}, err
 	}
-	if requested.Direction == 0 || requested.Revision == 0 {
+	if requested.Revision == 0 {
 		return domain.GenerationSnapshot{}, ErrControl
 	}
 	control.mu.Lock()
@@ -127,7 +124,7 @@ func (control *Control) Acquire(ctx context.Context, requested domain.Generation
 		return domain.GenerationSnapshot{}, ErrControl
 	}
 	err := control.invalidateLocked()
-	epoch := control.epoch
+	epoch, everTargeted := control.epoch, control.haveTarget
 	control.mu.Unlock()
 	if err != nil {
 		return domain.GenerationSnapshot{}, err
@@ -152,12 +149,31 @@ func (control *Control) Acquire(ctx context.Context, requested domain.Generation
 	if err := call.Err(); err != nil {
 		return domain.GenerationSnapshot{}, err
 	}
-	if status.GetStatus().GetInactive() == nil {
-		return domain.GenerationSnapshot{}, ErrControl
-	}
 	generation := status.GetStatus().Context.GetNativeGeneration()
 	if generation == ^uint64(0) {
 		return domain.GenerationSnapshot{}, ErrControl
+	}
+	if status.GetStatus().GetInactive() == nil {
+		// Auto authority observed before this process ever targeted the world
+		// is what a killed controller leaves behind. This process owns the
+		// profile lock, so it is the only author: reclaim by revoking at the
+		// observed generation and acquiring fresh, rather than staying
+		// unresumable until a local player interrupts the game. Once this
+		// process has targeted the world, an unexpected Active is its own
+		// uncertain grant, which only Manual reconciles.
+		active := status.GetStatus().GetActive()
+		if everTargeted || active == nil || active.GetMode() != a.Mode_MODE_AUTO {
+			return domain.GenerationSnapshot{}, ErrControl
+		}
+		result, _, err := control.native.Revoke(call, &a.Revoke{Identity: controlIdentity(requested), ExpectedGeneration: proto.Uint64(generation), Reason: a.RevocationReason_REVOCATION_REASON_MANUAL.Enum()})
+		if err != nil {
+			return domain.GenerationSnapshot{}, control.failedObservation(epoch, err)
+		}
+		revoked := result.GetRevoked()
+		if revoked == nil || bridge.ValidateContext(revoked.Context) != nil || !proto.Equal(revoked.Context.Identity, controlIdentity(requested)) || revoked.Context.NativeGeneration == nil || revoked.Context.GetNativeGeneration() != generation+1 || generation+1 == ^uint64(0) {
+			return domain.GenerationSnapshot{}, ErrControl
+		}
+		generation = revoked.Context.GetNativeGeneration()
 	}
 	requested.Native = domain.NativeGeneration(generation)
 	control.mu.Lock()

@@ -18,6 +18,11 @@ type PlanningDefinition struct {
 	Costs                                                                                 domain.Fact[[]policy.Amount]
 	Size                                                                                  domain.Fact[policy.Bounds]
 	GrowDays, FertilityMin, FertilitySensitivity, HarvestNutrition, NutritionDemandPerDay domain.Fact[float64]
+	// Crop sow tags and minimum glow; grower sow tag and fertility; building
+	// power draw and glow radius, as the native definition declares them.
+	SowTags                                          domain.Fact[[]string]
+	GrowMinGlow, PowerW, GrowerFertility, GlowRadius domain.Fact[float64]
+	SowTag                                           domain.Fact[string]
 }
 type ColonyProjection struct {
 	ProductionBenches   domain.Fact[[]policy.ProductionBench]
@@ -35,24 +40,64 @@ type ColonyProjection struct {
 	FieldCapacityCrops                     domain.Fact[[]policy.FieldCrop]
 	CookingBenches                         domain.Fact[[]CookingBench]
 	PowerPlanning                          domain.Fact[policy.PowerTopology]
-	TemperaturePlanning                    domain.Fact[policy.TemperatureObservation]
+	Rooms                                  domain.Fact[policy.RoomObservation]
 	Identity                               Identity
-	Facts                                  policy.RoutineFacts
-	Workers                                domain.Fact[int]
-	Bounds                                 policy.Bounds
-	Center                                 domain.Cell
+	// PlayerTechLevel is the player faction's native TechLevel name, which
+	// selects the starter shelter's shape family.
+	PlayerTechLevel domain.Fact[string]
+	Facts           policy.RoutineFacts
+	Workers         domain.Fact[int]
+	Bounds          policy.Bounds
+	Center          domain.Cell
 	// Region is the observed planning window; cells absent inside it are
 	// fogged, cells outside it were never read.
-	Region             policy.Rectangle
-	Cells              []policy.SiteCell
+	Region policy.Rectangle
+	Cells  []policy.SiteCell
+	// Farms lists observed growing zones by native id and current crop.
+	Farms []FarmZoneFact
+	// Environment is the controlled-growing census inside the planning region.
+	Environment        domain.Fact[policy.ControlledEnvironment]
 	Definitions        []PlanningDefinition
 	FoodSupply         domain.Fact[policy.FoodSupply]
 	CombinedFoodSupply domain.Fact[policy.FoodSupply]
+	// Resources is the accessible colony stock census by definition; a
+	// definition absent from a known census is known zero.
+	Resources domain.Fact[map[policy.Resource]int64]
 }
 
+// ResourceStock reports the accessible stock of one definition, unknown when
+// the census itself is unknown.
+func (r ColonyProjection) ResourceStock(name policy.Resource) domain.Fact[int64] {
+	stock, known := r.Resources.Value()
+	if !known {
+		return domain.Unknown[int64]()
+	}
+	return domain.Known(stock[name])
+}
+
+// GeneratorOptions pairs the power family's generator definitions with their
+// native availability and observed fuel stock.
+func (r ColonyProjection) GeneratorOptions() []policy.GeneratorOption {
+	available := map[string]domain.Fact[bool]{}
+	for _, d := range r.Definitions {
+		available[d.Name] = d.Available
+	}
+	return policy.DefaultGeneratorOptions(func(name string) domain.Fact[bool] {
+		if fact, ok := available[name]; ok {
+			return fact
+		}
+		return domain.Unknown[bool]()
+	}, r.ResourceStock)
+}
+
+type FarmZoneFact struct{ ID, Crop string }
+
 type CookingBench struct {
-	Definition string
-	Usable     domain.Fact[bool]
+	ID, Definition string
+	Usable         domain.Fact[bool]
+	// Room is the native room census identity the bench stands in, unknown
+	// for a bench outdoors or when the native read left it out.
+	Room domain.Fact[string]
 }
 
 func optional[T any](p *T) domain.Fact[T] {
@@ -120,6 +165,7 @@ func DecodeColony(reply *o.ColonyFactsReply, expected Identity) (ColonyProjectio
 		}
 	}
 	r := ColonyProjection{Identity: identity, Bounds: policy.Bounds{Width: int32(v.MapSize.GetWidth()), Height: int32(v.MapSize.GetHeight())}, Center: domain.Cell{X: v.Center.GetX(), Z: v.Center.GetZ()}}
+	r.PlayerTechLevel = optional(v.PlayerTechLevel)
 	r.Facts = policy.RoutineFacts{Colonists: countFact(v.ColonistCount), BedCapacity: countFact(v.BedCapacity), IndoorCapacity: countFact(v.IndoorSleepingCapacity), SleepingMin: optional(v.SleepingTemperatureMinC), SleepingMax: optional(v.SleepingTemperatureMaxC), OutdoorTemperature: optional(v.OutdoorTemperatureC), FoodStorage: optional(v.FoodStorage)}
 	if development := v.GetDevelopment().GetObserved(); development != nil {
 		power := make([]policy.PowerBuilding, 0, len(development.Power))
@@ -134,7 +180,9 @@ func DecodeColony(reply *o.ColonyFactsReply, expected Identity) (ColonyProjectio
 		}
 		for _, row := range development.Power {
 			s := row.Building.Service
-			power = append(power, policy.PowerBuilding{BaseW: optional(row.BaseW), OutputW: optional(s.PowerOutputW), Powered: optional(s.PowerOn), Connected: optional(s.Connected), Network: optional(s.PowerNetId), Forbidden: optional(row.Building.Settings.Forbidden), SwitchedOn: optional(s.SwitchedOn)})
+			power = append(power, policy.PowerBuilding{BaseW: optional(row.BaseW), OutputW: optional(s.PowerOutputW), Powered: optional(s.PowerOn), Connected: optional(s.Connected), Network: optional(s.PowerNetId), Forbidden: optional(row.Building.Settings.Forbidden), SwitchedOn: optional(s.SwitchedOn),
+				Fuel: optional(s.Fuel), TargetFuel: optional(s.TargetFuel), OutOfFuel: optional(s.OutOfFuel), BrokenDown: optional(s.BrokenDown), FuelDefinitions: append([]string(nil), s.AllowedFuelDefs...),
+				Stored: optional(row.StoredWattDays), Capacity: optional(row.CapacityWattDays)})
 			ref := row.Building.Building
 			geometryKnown = geometryKnown && ref.DefName != nil && ref.Position != nil && len(row.Building.OccupiedCells) > 0
 			site := policy.PowerSite{ID: ref.GetId(), Definition: ref.GetDefName(), Cell: domain.Cell{X: ref.GetPosition().GetX(), Z: ref.GetPosition().GetZ()}, PowerBuilding: power[len(power)-1]}
@@ -145,6 +193,9 @@ func DecodeColony(reply *o.ColonyFactsReply, expected Identity) (ColonyProjectio
 		}
 		for _, row := range development.Furniture {
 			topology.Conduits = append(topology.Conduits, domain.Cell{X: row.Building.Position.GetX(), Z: row.Building.Position.GetZ()})
+		}
+		for _, row := range development.Networks {
+			topology.Networks = append(topology.Networks, policy.PowerNetworkFact{ID: row.GetId(), GenerationW: optional(row.GenerationW), ConsumptionW: optional(row.ConsumptionW), StoredWD: optional(row.StoredWattDays), CapacityWD: optional(row.CapacityWattDays)})
 		}
 		if geometryKnown {
 			r.PowerPlanning = domain.Known(topology)
@@ -160,7 +211,7 @@ func DecodeColony(reply *o.ColonyFactsReply, expected Identity) (ColonyProjectio
 	if !hasIssue(v.Issues, "butchering") {
 		benches := []CookingBench{}
 		for _, b := range v.Butchering {
-			benches = append(benches, CookingBench{Definition: b.Bench.GetDefName(), Usable: optional(b.Usable)})
+			benches = append(benches, CookingBench{ID: b.Bench.GetId(), Definition: b.Bench.GetDefName(), Usable: optional(b.Usable), Room: optional(b.RoomId)})
 		}
 		r.ButcheringBenches = domain.Known(benches)
 	}
@@ -185,7 +236,7 @@ func DecodeColony(reply *o.ColonyFactsReply, expected Identity) (ColonyProjectio
 	if !hasIssue(v.Issues, "cooking") {
 		benches := []CookingBench{}
 		for _, bench := range v.Cooking {
-			benches = append(benches, CookingBench{Definition: bench.Bench.GetDefName(), Usable: optional(bench.Usable)})
+			benches = append(benches, CookingBench{ID: bench.Bench.GetId(), Definition: bench.Bench.GetDefName(), Usable: optional(bench.Usable), Room: optional(bench.RoomId)})
 		}
 		r.CookingBenches = domain.Known(benches)
 	}
@@ -195,6 +246,7 @@ func DecodeColony(reply *o.ColonyFactsReply, expected Identity) (ColonyProjectio
 			return ColonyProjection{}, err
 		}
 		r.FoodSupply = domain.Known(supply)
+		r.Facts.FoodStorageUpkeep = policy.FoodStorageStocks(supply)
 	}
 	if forecast := v.GetForecast().GetObserved(); forecast != nil {
 		combined, err := DecodeFoodSupply(forecast.CombinedFoodSupply)
@@ -219,11 +271,23 @@ func DecodeColony(reply *o.ColonyFactsReply, expected Identity) (ColonyProjectio
 	}
 	if !hasIssue(v.Issues, "resources") {
 		r.Facts.Wood = domain.Known(int64(0))
+		rows := make([]policy.Amount, 0, len(v.Resources))
+		complete := true
+		stock := map[policy.Resource]int64{}
 		for _, q := range v.Resources {
 			if q.GetDefName() == "WoodLog" {
 				r.Facts.Wood = optional(q.Units)
 			}
+			complete = complete && q.Units != nil
+			rows = append(rows, policy.Amount{Resource: policy.Resource(q.GetDefName()), Count: q.GetUnits()})
+			if q.Units != nil {
+				stock[policy.Resource(q.GetDefName())] += q.GetUnits()
+			}
 		}
+		if complete {
+			r.Facts.Resources = domain.Known(rows)
+		}
+		r.Resources = domain.Known(stock)
 	}
 	if !hasIssue(v.Issues, "forbidden_supplies") {
 		r.Facts.ForbiddenSupplies = domain.Known(len(v.ForbiddenSupplies) > 0)
@@ -238,7 +302,10 @@ func DecodeColony(reply *o.ColonyFactsReply, expected Identity) (ColonyProjectio
 			r.ZoneMapToken = domain.Known(planning.ZoneMapSnapshot.GetToken())
 		}
 		for _, row := range planning.Definitions {
-			d := PlanningDefinition{Edible: optional(row.Edible), Name: row.Definition.GetDefName(), Stuff: optional(row.Stuff), Available: optional(row.Available), ConstructionSkill: optional(row.ConstructionSkill), GrowDays: optional(row.GrowDays), FertilityMin: optional(row.FertilityMin), FertilitySensitivity: optional(row.FertilitySensitivity), HarvestNutrition: optional(row.HarvestNutrition), NutritionDemandPerDay: optional(row.NutritionDemandPerDay)}
+			d := PlanningDefinition{Edible: optional(row.Edible), Name: row.Definition.GetDefName(), Stuff: optional(row.Stuff), Available: optional(row.Available), ConstructionSkill: optional(row.ConstructionSkill), GrowDays: optional(row.GrowDays), FertilityMin: optional(row.FertilityMin), FertilitySensitivity: optional(row.FertilitySensitivity), HarvestNutrition: optional(row.HarvestNutrition), NutritionDemandPerDay: optional(row.NutritionDemandPerDay), GrowMinGlow: optional(row.GrowMinGlow), PowerW: optional(row.PowerW), GrowerFertility: optional(row.GrowerFertility), GlowRadius: optional(row.GlowRadius), SowTag: optional(row.SowTag)}
+			if row.GrowDays != nil {
+				d.SowTags = domain.Known(append([]string{}, row.SowTags...))
+			}
 			if row.Size != nil {
 				d.Size = domain.Known(policy.Bounds{Width: int32(row.Size.GetWidth()), Height: int32(row.Size.GetHeight())})
 			}
@@ -263,11 +330,58 @@ func DecodeColony(reply *o.ColonyFactsReply, expected Identity) (ColonyProjectio
 			if row.Fogged == nil || row.GetFogged() {
 				continue
 			}
-			r.Cells = append(r.Cells, policy.SiteCell{Cell: domain.Cell{X: row.Cell.GetX(), Z: row.Cell.GetZ()}, Walkable: optional(row.Walkable), Occupied: optional(row.Occupied), Zone: nativePresence(row.ZoneId, row.Issues, "zone_id"), Roofed: nativePresence(row.Roof, row.Issues, "roof"), Roof: optional(row.Roof), Indoors: optional(row.Indoors), SupportsLight: optional(row.SupportsLight), Fertility: optional(row.Fertility), StorageEmpty: optional(row.StorageEmpty)})
+			r.Cells = append(r.Cells, policy.SiteCell{Cell: domain.Cell{X: row.Cell.GetX(), Z: row.Cell.GetZ()}, Walkable: optional(row.Walkable), Occupied: optional(row.Occupied), Zone: nativePresence(row.ZoneId, row.Issues, "zone_id"), Roofed: nativePresence(row.Roof, row.Issues, "roof"), Roof: optional(row.Roof), Indoors: optional(row.Indoors), SupportsLight: optional(row.SupportsLight), Doorway: optional(row.Doorway), Fertility: optional(row.Fertility), StorageEmpty: optional(row.StorageEmpty), ZoneID: optional(row.ZoneId)})
+		}
+	}
+	if planning := v.GetPlanning().GetObserved(); planning != nil && planning.Environment != nil && !hasIssue(planning.Issues, "environment") {
+		r.Environment = domain.Known(colonyEnvironment(planning.Environment))
+	}
+	if !hasIssue(v.Issues, "farms") {
+		for _, farm := range v.Farms {
+			if farm.ZoneId != nil && farm.Crop != nil {
+				r.Farms = append(r.Farms, FarmZoneFact{ID: farm.GetZoneId(), Crop: farm.GetCrop()})
+			}
 		}
 	}
 	r.FieldCrops = colonyFieldCrops(v, r.Definitions)
 	r.FieldCapacityCrops = colonyFieldCrops(v, r.Definitions, true)
 	r.Facts.Gear = colonyGear(v)
 	return r, nil
+}
+
+func cellsOf(rows []*c.Cell) []domain.Cell {
+	out := make([]domain.Cell, 0, len(rows))
+	for _, row := range rows {
+		out = append(out, domain.Cell{X: row.GetX(), Z: row.GetZ()})
+	}
+	return out
+}
+
+// colonyEnvironment decodes the native controlled-growing census. Rows keep
+// their native order (ids ascending); every scalar stays unknown when the
+// native side omitted it.
+func colonyEnvironment(v *o.ControlledEnvironment) policy.ControlledEnvironment {
+	e := policy.ControlledEnvironment{OutdoorTemperatureC: optional(v.OutdoorTemperatureC), Daylight: optional(v.Daylight)}
+	for _, row := range v.Lights {
+		ref := row.Building
+		e.Lights = append(e.Lights, policy.GrowLight{ID: ref.GetId(), Definition: ref.GetDefName(), Cell: domain.Cell{X: ref.GetPosition().GetX(), Z: ref.GetPosition().GetZ()}, Room: optional(row.RoomId), Network: optional(row.PowerNetId), Powered: optional(row.Powered), PowerW: optional(row.PowerW), LitNow: optional(row.LitNow), GrowthCells: cellsOf(row.GrowthCells)})
+	}
+	for _, row := range v.Growers {
+		ref := row.Building
+		e.Growers = append(e.Growers, policy.PlantGrower{ID: ref.GetId(), Definition: ref.GetDefName(), Cell: domain.Cell{X: ref.GetPosition().GetX(), Z: ref.GetPosition().GetZ()}, Room: optional(row.RoomId), Network: optional(row.PowerNetId), Powered: optional(row.Powered), PowerW: optional(row.PowerW), Fertility: optional(row.Fertility), SowTag: optional(row.SowTag), Crop: optional(row.CropDefName), CanSow: optional(row.CanSow), Cells: cellsOf(row.PlantCells)})
+	}
+	for _, row := range v.Rooms {
+		e.Rooms = append(e.Rooms, policy.GrowRoom{ID: row.GetRoomId(), TemperatureC: optional(row.TemperatureC), Cells: count(row.CellCount), OpenRoof: count(row.OpenRoofCount), Lit: count(row.LitCells), Proper: optional(row.ProperRoom), Outdoors: optional(row.PsychologicallyOutdoors)})
+	}
+	for _, row := range v.Networks {
+		e.Networks = append(e.Networks, policy.PowerHeadroom{ID: row.GetId(), GenerationW: optional(row.GenerationW), SolarW: optional(row.SolarW), WindW: optional(row.WindW), ConsumptionW: optional(row.ConsumptionW), StoredWattDays: optional(row.StoredWattDays), CapacityWattDays: optional(row.CapacityWattDays), ActiveSource: optional(row.HasActiveSource)})
+	}
+	return e
+}
+
+func count(p *uint32) domain.Fact[int] {
+	if p == nil {
+		return domain.Unknown[int]()
+	}
+	return domain.Known(int(*p))
 }

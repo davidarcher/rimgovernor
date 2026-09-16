@@ -51,7 +51,7 @@ func TestRoutineMoodDurableLifecycleAndRetirement(t *testing.T) {
 		t.Fatal(err)
 	}
 	r.Enabled = true
-	r.Current.Direction++
+	r.Current.Native++
 	out = reviewRoutine(t, s, &r)
 	if routineGoal(t, out, id).Goal.Need != domain.NeedUnknown {
 		t.Fatal("Manual recovered missing pawn")
@@ -109,7 +109,7 @@ func TestRoutineMoodWorldResetWhileDisabled(t *testing.T) {
 	r.Enabled = true
 	r.Facts.MoodPawns = domain.Known([]policy.MoodPawn{})
 	out = reviewRoutine(t, s, &r)
-	if len(out.Review.Goals) != 36 {
+	if len(out.Review.Goals) != 39 {
 		t.Fatal("old dynamic binding retained", len(out.Review.Goals))
 	}
 }
@@ -125,7 +125,7 @@ func TestRoutineMoodCompleteBoundedCohort(t *testing.T) {
 	}
 	r.Facts.MoodPawns = domain.Known(rows)
 	out := reviewRoutine(t, s, &r)
-	if len(out.Review.Goals) != 292 {
+	if len(out.Review.Goals) != 295 {
 		t.Fatal(len(out.Review.Goals))
 	}
 	if _, err := s.LoadRoutineReview(context.Background()); err != nil {

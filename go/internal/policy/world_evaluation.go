@@ -2,8 +2,8 @@ package policy
 
 import "strings"
 
-// WorldEvaluationPolicy is the bounded subset of Python's ExpeditionPolicy
-// evaluate_world reads: the travel food margin a caravan must keep in
+// WorldEvaluationPolicy is the bounded input to EvaluateWorld: the travel
+// food margin a caravan must keep in
 // reserve past its home route's estimated travel time before it counts as
 // stranded and needing player recovery attention. Richer expedition-risk
 // scoring (temperature, goodwill, hostile settlements, concurrent caravan
@@ -31,7 +31,7 @@ type WorldEvaluationRouteFact struct {
 // WorldEvaluationPawnFact is one caravan crew member's dead/downed status.
 // A caller passes DeadKnown/DownedKnown false only when native's own
 // optional fields were absent; EvaluateWorld treats that the same as
-// Python's `p.get('dead') is False` -- not proven alive, not healthy.
+// "not proven alive" -- not healthy.
 type WorldEvaluationPawnFact struct {
 	Dead, DeadKnown     bool
 	Downed, DownedKnown bool
@@ -40,10 +40,8 @@ type WorldEvaluationPawnFact struct {
 // WorldEvaluationCaravanFact is one in-flight caravan's read-only census
 // row: its crew's health, its native home routes, its remaining travel
 // food, and its full carried cargo (bridge.CaravanJourney.Inventory,
-// native's caravan-level aggregate across every pawn aboard). Python's
-// original summed each pawn's own inventory list instead; both read the
-// same native aggregate, so this is a narrower read of equivalent data, not
-// a behavioral change -- see bridge.CaravanJourney's Inventory doc comment.
+// native's caravan-level aggregate across every pawn aboard -- see
+// bridge.CaravanJourney's Inventory doc comment).
 type WorldEvaluationCaravanFact struct {
 	ID            string
 	FoodDays      float64
@@ -75,7 +73,7 @@ type WorldEvaluationQuestFact struct {
 // WorldEvaluationFacts is everything EvaluateWorld reads: a same-tick world
 // census (Readable false whenever that census was incomplete -- native
 // success/complete/ResultWasTruncated evidence a caller checks before
-// calling this, mirroring Python's own guard), the observed caravans and
+// calling this), the observed caravans and
 // quests, and the home colony's current resource stock
 // (bridge.ReadColonyFacts's Resources census, reused rather than a second
 // native resource read).
@@ -96,7 +94,7 @@ type WorldEvaluationCaravanReport struct {
 	FoodDaysKnown    bool
 	// ReachableHome is nil when no home route qualifies (unreachable,
 	// unknown or negative travel time); otherwise the shortest qualifying
-	// route, the same selection Python's evaluate_world makes.
+	// route.
 	ReachableHome  *WorldEvaluationRouteFact
 	Recommendation string
 }
@@ -128,7 +126,7 @@ type WorldEvaluationReport struct {
 	Scope    string
 }
 
-// EvaluateWorld ports Python's expedition_policy.evaluate_world: a pure,
+// EvaluateWorld is a pure,
 // read-only report over an already-observed world census plus home
 // resource stock. It performs no writes and makes no decisions -- every
 // Recommendation is advisory text for a human, never an instruction this

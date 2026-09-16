@@ -12,7 +12,7 @@ func isCloseFloat(a, b float64) bool {
 }
 
 // Listing asserts a completeness/count block reports exactly count rows with no
-// truncation, mirroring native_presentation_acceptance.py's listing(): a listing
+// truncation: a listing
 // missing any of its four declared fields, or reporting a different count, is never
 // treated as an implicit pass.
 func Listing(value map[string]any, count int) error {
@@ -35,8 +35,7 @@ func nonZero(m map[string]any, keys ...string) map[string]any {
 
 // CameraMatches asserts a typed presentation_camera reply reproduces the native
 // camera state's finite root/zoom sizes, map position, zoom range, extension flag,
-// and signed viewport bounds, mirroring native_presentation_acceptance.py's
-// camera_matches(). Viewport coordinates may legitimately be negative, so the
+// and signed viewport bounds. Viewport coordinates may legitimately be negative, so the
 // comparison preserves signed native bounds rather than treating zero specially
 // except to drop fields ProtoJSON would have omitted.
 func CameraMatches(typed, native map[string]any) error {
@@ -87,8 +86,7 @@ func CameraMatches(typed, native map[string]any) error {
 
 // RosterMatches asserts a typed presentation_colonists reply names exactly the
 // native colonist set, each spawned with its exact name and non-zero-filtered
-// position, and stamped with the caller's single loaded map, mirroring
-// native_presentation_acceptance.py's roster_matches(). A row for a pawn id the
+// position, and stamped with the caller's single loaded map. A row for a pawn id the
 // native roster never reported, or a native colonist the typed roster silently
 // dropped, is never treated as an implicit pass.
 func RosterMatches(typed, native, identity map[string]any) error {
@@ -144,8 +142,7 @@ func RosterMatches(typed, native, identity map[string]any) error {
 
 // SelectionMatches asserts a typed presentation_selection reply names exactly the
 // one selected native pawn, with its exact kind/type/label/defName/map/position and
-// none of the fingerprint/gizmo/inspect fields a presentation read must never leak,
-// mirroring native_presentation_acceptance.py's selection_matches().
+// none of the fingerprint/gizmo/inspect fields a presentation read must never leak.
 func SelectionMatches(typed, native map[string]any, pawnID string, identity map[string]any) error {
 	success, ok := AsBool(native["success"])
 	selectedCount := AsNumber(native["selectedCount"])

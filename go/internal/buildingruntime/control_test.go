@@ -12,7 +12,6 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/bridge"
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"github.com/davidarcher/RimGovernor/go/internal/executor"
-	"github.com/davidarcher/RimGovernor/go/internal/runtimeowner"
 	"github.com/davidarcher/RimGovernor/go/internal/store"
 	a "github.com/davidarcher/RimGovernor/go/internal/wire/authoritypb"
 	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
@@ -54,7 +53,7 @@ type controlNative struct {
 }
 
 func controlScope() domain.GenerationSnapshot {
-	return domain.GenerationSnapshot{Colony: "colony", Map: 0, Load: "load", Plan: "plan", Revision: 1, Direction: 3}
+	return domain.GenerationSnapshot{Colony: "colony", Map: 0, Load: "load", Plan: "plan", Revision: 1}
 }
 func (n *controlNative) ReadAuthority(ctx context.Context, id *c.Identity) (*a.StatusReply, bridge.Result, error) {
 	if n.onRead != nil {
@@ -126,7 +125,7 @@ func controlFixture(t *testing.T, stop func(context.Context) error) (*Control, *
 func TestControlOwnsProfileAndExplicitLease(t *testing.T) {
 	t.Parallel()
 	control, n, sink, dir := controlFixture(t, nil)
-	if other, err := runtimeowner.Acquire(context.Background(), dir); err == nil {
+	if other, err := AcquireProfile(context.Background(), dir); err == nil {
 		other.Close()
 		t.Fatal("competing owner admitted")
 	}
@@ -143,7 +142,7 @@ func TestControlOwnsProfileAndExplicitLease(t *testing.T) {
 		t.Fatal(lease, err)
 	}
 	wrong := snapshot
-	wrong.Direction++
+	wrong.Native++
 	if _, err := control.Lease(wrong); err == nil {
 		t.Fatal("wrong direction got lease")
 	}
@@ -161,7 +160,7 @@ func TestControlOwnsProfileAndExplicitLease(t *testing.T) {
 	if err := control.Close(context.Background()); err != nil {
 		t.Fatal(err)
 	}
-	other, err := runtimeowner.Acquire(context.Background(), dir)
+	other, err := AcquireProfile(context.Background(), dir)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -224,7 +223,7 @@ func TestControlCloseRetainsLockUntilWritersDrain(t *testing.T) {
 	if err := control.Close(context.Background()); err == nil || sink.enabled() {
 		t.Fatal("failed drain released authority")
 	}
-	if other, err := runtimeowner.Acquire(context.Background(), dir); err == nil {
+	if other, err := AcquireProfile(context.Background(), dir); err == nil {
 		other.Close()
 		t.Fatal("failed drain released lock")
 	}
@@ -232,7 +231,7 @@ func TestControlCloseRetainsLockUntilWritersDrain(t *testing.T) {
 	if err := control.Close(context.Background()); err != nil {
 		t.Fatal(err)
 	}
-	other, err := runtimeowner.Acquire(context.Background(), dir)
+	other, err := AcquireProfile(context.Background(), dir)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -263,7 +262,7 @@ func TestControlRefreshRetainsDisabledCurrentGeneration(t *testing.T) {
 	sink.mu.Lock()
 	value = sink.value
 	sink.mu.Unlock()
-	if value.Enabled || value.Snapshot.Native != 4 || value.Snapshot.Direction != 3 || n.acquires.Load() != 1 {
+	if value.Enabled || value.Snapshot.Native != 4 || n.acquires.Load() != 1 {
 		t.Fatal("read refresh adopted authority", value)
 	}
 }
@@ -414,5 +413,39 @@ func TestControlAcquireSupersedesBlockedObserveTarget(t *testing.T) {
 	}
 	if lease, err := control.Lease(snapshot); err != nil || lease == "" || !sink.enabled() {
 		t.Fatal("old read disabled new acquisition", err)
+	}
+}
+
+// A killed controller leaves native in Auto. The next process, which has
+// never targeted the world, reclaims it with one revoke at the observed
+// generation and a fresh grant; a process that already targeted the world
+// still refuses an unexpected Active (its own uncertain grant).
+func TestControlAcquireReclaimsStaleAutoFromDeadProcess(t *testing.T) {
+	t.Parallel()
+	control, n, sink, _ := controlFixture(t, nil)
+	n.mu.Lock()
+	n.generation = 7
+	n.active = true
+	n.mu.Unlock()
+	granted, err := control.Acquire(context.Background(), controlScope())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if n.revokes.Load() != 1 || n.acquires.Load() != 1 || !sink.enabled() || granted.Native != 9 {
+		t.Fatal("stale auto not reclaimed", n.revokes.Load(), n.acquires.Load(), granted)
+	}
+	if _, err := control.Lease(granted); err != nil {
+		t.Fatal(err)
+	}
+	if err := control.Manual(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	// Now the process has targeted the world: an Active it did not grant is
+	// not reclaimed.
+	n.mu.Lock()
+	n.active = true
+	n.mu.Unlock()
+	if _, err := control.Acquire(context.Background(), controlScope()); !errors.Is(err, ErrControl) || n.revokes.Load() != 2 || n.acquires.Load() != 1 {
+		t.Fatal("targeted process reclaimed foreign auto", err, n.revokes.Load(), n.acquires.Load())
 	}
 }

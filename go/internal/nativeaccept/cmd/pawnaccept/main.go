@@ -1,4 +1,4 @@
-// Command pawnaccept replaces scripts/native_pawn_acceptance.py: it owns the full
+// Command pawnaccept owns the full
 // disposable-worker lifecycle (prepare profile, launch GABS, start/connect the game,
 // start a fresh debug game, read typed pawn rows, stop) and asserts the typed pawn
 // read facts against the legacy home/list_pawns reads and each other.
@@ -308,8 +308,7 @@ func run(ctx context.Context, root, output, gameID string, headless bool, report
 	// call can never fire for a valid request (Validate already bounds page.limit to
 	// 1..256, so page.Count never exceeds it), and Encode()'s 1 MiB check does not
 	// apply to a single-row reply either. Assert the real truncation behavior
-	// instead of the untested unavailable-refusal assumption this test previously
-	// carried over from the Python original.
+	// instead of an untested unavailable-refusal assumption.
 	overflow, err := h.Wire(ctx, "whole-query-limit", "observations_list_pawns", nativeaccept.Merge(scope, map[string]any{"page": map[string]any{"limit": 1}}))
 	if err != nil {
 		return err
