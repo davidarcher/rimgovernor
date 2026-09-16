@@ -135,27 +135,11 @@ func (r RoomShell) Placements() []Building {
 	if !r.Set() {
 		return nil
 	}
-	b, door := r.bounds, r.Door()
-	placements := make([]Building, 0, 2*b.Width+2*(b.Height-2))
-	first, err := NewBuilding(r.doorDef, door, r.entrance, r.material)
+	footprint, err := RectangleFootprint(r.bounds, r.entrance)
 	if err != nil {
 		return nil
 	}
-	placements = append(placements, first)
-	for z := b.Z; z < b.Z+b.Height; z++ {
-		for x := b.X; x < b.X+b.Width; x++ {
-			cell := Cell{X: x, Z: z}
-			if cell == door || (x != b.X && x != b.X+b.Width-1 && z != b.Z && z != b.Z+b.Height-1) {
-				continue
-			}
-			wall, err := NewBuilding(r.wallDef, cell, North, r.material)
-			if err != nil {
-				return nil
-			}
-			placements = append(placements, wall)
-		}
-	}
-	return placements
+	return footprint.Placements(r.wallDef, r.doorDef, r.material)
 }
 
 // ValidateRoomIntent enforces Python BuildRoom.intent_id's exact pattern,
