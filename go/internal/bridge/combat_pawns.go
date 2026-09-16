@@ -176,6 +176,11 @@ func combatDetails(row *o.PawnState, ctx *c.ObservationContext) error {
 						return contract("invalid gear number")
 					}
 				}
+				// Range is a ranged weapon's own verb range; a melee item
+				// claiming one, or a nonpositive range, is a native defect.
+				if g.Range != nil && (!combatNumber(g.Range, true) || g.GetRange() <= 0 || !g.GetRanged()) {
+					return contract("invalid gear range")
+				}
 				if err := combatIDs(g.ApparelLayers); err != nil {
 					return err
 				}

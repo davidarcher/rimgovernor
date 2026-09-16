@@ -83,6 +83,7 @@ message GearItem {
   optional bool weapon = 9; optional bool apparel = 10; optional bool ranged = 11; optional bool melee = 12;
   optional bool forced = 13; optional bool locked = 14; optional double armor_sharp = 15; optional double armor_blunt = 16;
   optional double insulation_cold = 17; optional double insulation_heat = 18;
+  optional double range = 19; // Ranged primary verb range in cells; absent for melee or unknown.
 }
 message PawnEquipment {
   optional string primary_id = 1; repeated GearItem equipped = 2; repeated GearItem apparel = 3;
@@ -132,6 +133,10 @@ message PawnState {
   DraftClaimObservation draft_claim = 34;
   optional string owned_bed_id = 35;
   SnapshotRef snapshot = 36;
+  // Native lord evidence for hostile groups: the LordJob and current LordToil
+  // class names (e.g. LordJob_AssaultColony / LordToil_AssaultColonySappers,
+  // LordJob_Siege). Absent when the pawn has no lord; never inferred.
+  optional string lord_job_class = 37; optional string lord_toil_class = 38;
 }
 message NoOwnedDraftClaim {}
 // owner (rimgovernor.authority.v1.Owner) was removed: a claim is either held by
@@ -304,6 +309,29 @@ message PawnAccess { EntityRef pawn = 1; optional uint32 current_cells = 2; opti
 message SpatialAccessSnapshot { rimgovernor.common.v1.ObservationContext context = 1; repeated PawnAccess pawns = 2; optional uint32 map_cells = 3; optional uint32 observed_walkable_cells = 4; Completeness completeness = 5; }
 message SpatialAccessRequest { ReadScope scope = 1; repeated rimgovernor.common.v1.Cell blocked_cells = 2; repeated rimgovernor.common.v1.Cell target_cells = 3; repeated string pawn_ids = 4; }
 message SpatialAccessReply { oneof outcome { SpatialAccessSnapshot observed = 1; rimgovernor.common.v1.Unavailable unavailable = 2; rimgovernor.common.v1.Failure failure = 3; } }
+// Defense site census: bounded terrain, cover and raider-approach facts for
+// layout planning. cover_fill is the native edifice/cover fillPercent the
+// shooting model uses (0 when open); edge_reachable is native ground
+// reachability from the cell to any map edge without opening doors, the
+// ordinary walk-in raid approach. At most 2048 cells per read (the 1 MiB
+// reply bound); callers tile larger regions. No paging.
+message DefenseCell {
+  rimgovernor.common.v1.Cell cell = 1; optional bool fogged = 2; optional bool walkable = 3; optional bool passable = 4;
+  optional double cover_fill = 5; optional bool blocks_sight = 6; optional string edifice_def_name = 7; optional bool player_owned = 8;
+  optional bool natural_rock = 9; optional bool edge_reachable = 10; optional bool home_area = 11; optional string terrain = 12;
+  optional bool door = 13; repeated ReadIssue issues = 14;
+}
+message DefenseSiteSnapshot { rimgovernor.common.v1.ObservationContext context = 1; MapSize map_size = 2; Rectangle region = 3; repeated DefenseCell cells = 4; Completeness completeness = 5; }
+message DefenseSiteRequest { ReadScope scope = 1; Rectangle region = 2; }
+message DefenseSiteReply { oneof outcome { DefenseSiteSnapshot observed = 1; rimgovernor.common.v1.Unavailable unavailable = 2; rimgovernor.common.v1.Failure failure = 3; } }
+// Lines of fire: native GenSight line of sight and CoverUtility overall block
+// chance for every (firing, approach) pair. target_cover is the chance a
+// target at `to` is protected from a shooter at `from`; shooter_cover is the
+// reverse. At most 64 firing and 64 approach cells (4096 pairs) per read.
+message LineOfFire { rimgovernor.common.v1.Cell from = 1; rimgovernor.common.v1.Cell to = 2; optional bool line_of_sight = 3; optional double target_cover = 4; optional double shooter_cover = 5; optional double distance = 6; repeated ReadIssue issues = 7; }
+message LinesOfFireSnapshot { rimgovernor.common.v1.ObservationContext context = 1; repeated LineOfFire lines = 2; Completeness completeness = 3; }
+message LinesOfFireRequest { ReadScope scope = 1; repeated rimgovernor.common.v1.Cell firing_cells = 2; repeated rimgovernor.common.v1.Cell approach_cells = 3; }
+message LinesOfFireReply { oneof outcome { LinesOfFireSnapshot observed = 1; rimgovernor.common.v1.Unavailable unavailable = 2; rimgovernor.common.v1.Failure failure = 3; } }
 message RoofSupportCell { rimgovernor.common.v1.Cell cell = 1; optional string roof_def_name = 2; optional bool supported_without_target = 3; optional string blocker = 4; }
 message RoofSupportSnapshot { rimgovernor.common.v1.ObservationContext context = 1; EntityRef target = 2; repeated RoofSupportCell roofs = 3; Completeness completeness = 4; }
 message RoofSupportRequest { ReadScope scope = 1; optional string target_id = 2; }
@@ -576,6 +604,8 @@ service Observations {
   rpc ReadColonyFacts(ColonyFactsRequest) returns (ColonyFactsReply);
   rpc ReadSpatialAccess(SpatialAccessRequest) returns (SpatialAccessReply);
   rpc ReadRoofSupport(RoofSupportRequest) returns (RoofSupportReply);
+  rpc ReadDefenseSite(DefenseSiteRequest) returns (DefenseSiteReply);
+  rpc ReadLinesOfFire(LinesOfFireRequest) returns (LinesOfFireReply);
   rpc ListWallUpgradeSites(WallUpgradeSitesRequest) returns (WallUpgradeSitesReply);
   rpc ListResourceSources(ResourceSourcesRequest) returns (ResourceSourcesReply);
   rpc ReadHusbandry(HusbandryRequest) returns (HusbandryReply);

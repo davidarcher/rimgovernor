@@ -9,6 +9,7 @@ using Google.Protobuf;
 using RimBridgeServer.Sdk;
 using RimWorld;
 using Verse;
+using Verse.AI.Group;
 using Common = RimGovernor.Protocol.Common;
 using Obs = RimGovernor.Protocol.Observations;
 
@@ -191,6 +192,11 @@ namespace HomeBridge.BridgeTools
                 Predator=pawn.RaceProps.predator, ManhunterOnDamageChance=Finite(pawn.RaceProps.manhunterOnDamageChance) };
             if (pawn.Faction != null) row.FactionId=Identifier(pawn.Faction.GetUniqueLoadID());
             if (pawn.MentalStateDef != null) row.MentalState=Identifier(pawn.MentalStateDef.defName);
+            // Lord evidence is the game's own group-AI class names: a raid's job
+            // (assault/siege/stage-then-attack) and its current toil (the sapper
+            // and breach toils are distinct classes). No lord means no field.
+            var lord = pawn.GetLord();
+            if (lord?.LordJob != null) { row.LordJobClass=Identifier(lord.LordJob.GetType().Name); if (lord.CurLordToil != null) row.LordToilClass=Identifier(lord.CurLordToil.GetType().Name); }
             if (pawn.jobs?.jobQueue != null) row.Job=JobRow(pawn.CurJob, pawn.jobs.jobQueue.Count);
             else row.Issues.Add(Issue("job",Common.UnavailableReason.NativeComponentMissing,"Pawn job tracker or queue is unavailable."));
             NativePawnControlObservation.Apply(pawn, row, context);

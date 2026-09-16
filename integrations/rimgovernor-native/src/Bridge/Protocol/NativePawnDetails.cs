@@ -160,10 +160,21 @@ namespace HomeBridge.BridgeTools
                     row.Issues.Add(Unsupported(collection+"."+field,"Gear ownership and protection stats are not projected."));
             return row;
         }
+        // Range of the primary non-melee verb of a ranged weapon def, the
+        // distance the defensive-position planner compares firing cells
+        // against. Melee weapons and defs without a ranged verb report nothing.
+        internal static double? WeaponRange(Thing thing)
+        {
+            if(!thing.def.IsRangedWeapon || thing.def.Verbs==null) return null;
+            var verb=thing.def.Verbs.FirstOrDefault(v=>!v.IsMeleeAttack && v.range>0);
+            if(verb==null || float.IsNaN(verb.range) || float.IsInfinity(verb.range)) return null;
+            return verb.range;
+        }
         private static Obs.GearItem Gear(Thing thing)
         {
             var row=new Obs.GearItem {Thing=Entity(thing),Weapon=thing.def.IsWeapon,Apparel=thing.def.IsApparel,Ranged=thing.def.IsRangedWeapon,Melee=thing.def.IsMeleeWeapon};
             if(thing.Stuff!=null) row.Stuff=Id(thing.Stuff.defName);
+            var range=WeaponRange(thing); if(range.HasValue) row.Range=range.Value;
             if(thing.TryGetQuality(out var quality)) row.Quality=quality.ToString();
             if(thing.def.useHitPoints) {
                 if(thing.MaxHitPoints<=0 || thing.HitPoints<0) throw new InvalidOperationException("Invalid native hit points.");

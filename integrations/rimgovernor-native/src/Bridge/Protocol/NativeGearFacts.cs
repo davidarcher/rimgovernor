@@ -82,6 +82,7 @@ namespace HomeBridge.BridgeTools
                 ArmorSharp = Number(thing.GetStatValue(StatDefOf.ArmorRating_Sharp)), ArmorBlunt = Number(thing.GetStatValue(StatDefOf.ArmorRating_Blunt)),
                 InsulationCold = Number(thing.GetStatValue(StatDefOf.Insulation_Cold)), InsulationHeat = Number(thing.GetStatValue(StatDefOf.Insulation_Heat)) };
             if (thing.Stuff != null) row.Stuff = Id(thing.Stuff.defName);
+            var range = NativePawnDetails.WeaponRange(thing); if (range.HasValue) row.Range = range.Value;
             if (thing.TryGetQuality(out var quality)) row.Quality = quality.ToString();
             if (thing.def.useHitPoints) {
                 row.HitPoints = thing.HitPoints; row.MaxHitPoints = thing.MaxHitPoints;
