@@ -642,27 +642,60 @@ func waitBed(ctx context.Context, st *store.Store, sh *shell, wait time.Duration
 	}
 	deadline := time.Now().Add(wait)
 	var seen string
+	// Settled plans retire at the next review and leave the live catalog, so
+	// every sleeping plan listed, and every plan bound to a shelter goal, is
+	// remembered and reloaded by id.
+	known := map[domain.PlanID]bool{}
 	for {
-		plans, err := st.LoadPlans(ctx, 512)
-		if err == nil {
+		if plans, err := st.LoadPlans(ctx, 256); err == nil {
 			for _, plan := range plans {
-				actions := plan.Spec.Actions()
-				for i, a := range actions {
-					b, ok := a.Building()
-					if !ok || b.Definition() != "SleepingSpot" && b.Definition() != "Bed" || i >= len(plan.Progress) {
-						continue
-					}
-					v := plan.Progress[i].View()
-					seen = fmt.Sprintf("%s at %v stage %s", plan.Spec.ID(), b.Cell(), v.Stage)
-					if v.Stage != domain.Completed || !inside[b.Cell()] {
-						continue
-					}
-					return plan.Spec.ID(), []domain.Cell{b.Cell()}, nil
+				if strings.HasPrefix(string(plan.Spec.ID()), "routine-sleep-") {
+					known[plan.Spec.ID()] = true
 				}
 			}
 		}
+		if review, err := st.LoadRoutineReview(ctx); err == nil {
+			for _, binding := range review.Goals {
+				if binding.Need != policy.EnsureInitialShelter {
+					continue
+				}
+				if goal, err := st.LoadGoal(ctx, binding.Goal); err == nil {
+					for _, m := range goal.Methods {
+						if strings.HasPrefix(string(m.Plan), "routine-sleep-") {
+							known[m.Plan] = true
+						}
+					}
+				}
+			}
+		}
+		for id := range known {
+			plan, err := st.LoadPlan(ctx, id)
+			if err != nil {
+				continue
+			}
+			actions := plan.Spec.Actions()
+			var cells []domain.Cell
+			complete := len(actions) > 0
+			for i, a := range actions {
+				b, ok := a.Building()
+				if !ok || b.Definition() != "SleepingSpot" && b.Definition() != "Bed" || i >= len(plan.Progress) {
+					complete = false
+					break
+				}
+				v := plan.Progress[i].View()
+				seen = fmt.Sprintf("%s at %v stage %s", plan.Spec.ID(), b.Cell(), v.Stage)
+				if v.Stage != domain.Completed || !inside[b.Cell()] {
+					complete = false
+					break
+				}
+				cells = append(cells, b.Cell())
+			}
+			if complete {
+				return plan.Spec.ID(), cells, nil
+			}
+		}
 		if time.Now().After(deadline) {
-			return "", nil, fmt.Errorf("no completed bed inside the hut in time (last seen: %s)", seen)
+			return "", nil, fmt.Errorf("no completed sleeping plan inside the hut in time (last seen: %s)", seen)
 		}
 		select {
 		case <-ctx.Done():
