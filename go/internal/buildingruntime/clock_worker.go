@@ -179,7 +179,7 @@ func (w *ClockWorker) stepLoop() {
 		// this is diagnosable without RIMGOVERNOR_CLOCK_DEBUG=1. Gated on state
 		// change (like the backoff decision below) so a sustained failure logs
 		// once, not every StepInterval. See issue #45.
-		if err != nil && (!havePrevious || key != previous) {
+		if err != nil && (!havePrevious || key != previous || clockSchedulerDebug) {
 			fmt.Fprintf(os.Stderr, "[clock-worker] step failed: %v\n", err)
 		}
 		if havePrevious && key == previous {

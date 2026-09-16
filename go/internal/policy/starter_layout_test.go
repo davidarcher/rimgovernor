@@ -130,3 +130,100 @@ func TestStarterUnknownGeometryAndCrop(t *testing.T) {
 		t.Fatal("duplicate cell accepted")
 	}
 }
+
+func TestStarterHutStylePrefersOvalTemplates(t *testing.T) {
+	r := starterFixture()
+	r.Shelter = ShelterHut
+	layouts, err := StarterLayouts(r)
+	if err != nil || len(layouts) == 0 {
+		t.Fatal(layouts, err)
+	}
+	want, _ := domain.EllipseFootprint(domain.Cell{X: 20, Z: 20}, 4, 4, domain.EllipseNorthSouth, domain.South)
+	first := layouts[0]
+	if !domain.SameRoomFootprint(first.Shell, want) {
+		t.Fatalf("first hut %+v, want circle at the anchor", first.Shell.Bounds())
+	}
+	if first.Room != (Rectangle{15, 15, 11, 11}) {
+		t.Fatalf("hut bounds %v", first.Room)
+	}
+	inside := map[domain.Cell]bool{}
+	for _, c := range first.Shell.Interior() {
+		inside[c] = true
+	}
+	for _, p := range rectCells(first.Storage) {
+		if !inside[p] {
+			t.Fatalf("storage cell %v outside the hut", p)
+		}
+	}
+	for _, l := range layouts {
+		if !l.Shell.RoofSupported() || l.Shell.Entrance() != domain.South {
+			t.Fatal("hut must roof itself and face south", l.Shell.Bounds())
+		}
+		for _, patch := range l.Farms {
+			for _, p := range rectCells(patch) {
+				if inside[p] {
+					t.Fatal("farm inside hut", p)
+				}
+			}
+		}
+	}
+	// Rectangle style is untouched by the new field.
+	r.Shelter = ShelterRectangle
+	plain, err := StarterLayouts(r)
+	if err != nil || plain[0].Room != (Rectangle{16, 16, 9, 9}) {
+		t.Fatal(plain, err)
+	}
+	rect, _ := domain.RectangleFootprint(domain.RoomBounds{X: 16, Z: 16, Width: 9, Height: 9}, domain.South)
+	if !domain.SameRoomFootprint(plain[0].Shell, rect) {
+		t.Fatal("rectangle shell differs from its bounds")
+	}
+}
+
+func TestStarterHutNarrowsThenGrowsFootprint(t *testing.T) {
+	// Only a nine-wide strip of light-supporting ground: the circle of radius
+	// four fails and the narrow north-south oval is taken.
+	r := starterFixture()
+	r.Shelter = ShelterHut
+	for i := range r.Cells {
+		if r.Cells[i].Cell.X < 15 || r.Cells[i].Cell.X > 23 {
+			r.Cells[i].SupportsLight = domain.Known(false)
+		}
+	}
+	layouts, err := StarterLayouts(r)
+	if err != nil || len(layouts) == 0 {
+		t.Fatal(layouts, err)
+	}
+	narrow, _ := domain.EllipseFootprint(domain.Cell{X: 19, Z: 20}, 3, 5, domain.EllipseNorthSouth, domain.South)
+	if !domain.SameRoomFootprint(layouts[0].Shell, narrow) {
+		t.Fatalf("expected the narrow oval, got %v", layouts[0].Room)
+	}
+	// A five-wide corridor fits neither template: grow an irregular footprint.
+	for i := range r.Cells {
+		if r.Cells[i].Cell.X < 15 || r.Cells[i].Cell.X > 19 {
+			r.Cells[i].SupportsLight = domain.Known(false)
+		}
+	}
+	layouts, err = StarterLayouts(r)
+	if err != nil || len(layouts) != 1 {
+		t.Fatal(layouts, err)
+	}
+	grown := layouts[0]
+	if grown.Room.Width != 5 || len(grown.Shell.Interior()) != starterInterior || !grown.Shell.RoofSupported() {
+		t.Fatalf("grown shell %v interior %d", grown.Room, len(grown.Shell.Interior()))
+	}
+	for _, c := range grown.Shell.Cells() {
+		if c.X < 15 || c.X > 19 {
+			t.Fatalf("grown shell cell %v off the lit strip", c)
+		}
+	}
+	if grown.Storage.Width != 3 || grown.Storage.X < 16 || grown.Storage.X+3 > 19 {
+		t.Fatalf("storage %v not inside the grown room", grown.Storage)
+	}
+	for i, j := 0, len(r.Cells)-1; i < j; i, j = i+1, j-1 {
+		r.Cells[i], r.Cells[j] = r.Cells[j], r.Cells[i]
+	}
+	again, err := StarterLayouts(r)
+	if err != nil || !reflect.DeepEqual(layouts, again) {
+		t.Fatal("grown footprint depends on input order")
+	}
+}

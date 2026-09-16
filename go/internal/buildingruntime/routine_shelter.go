@@ -28,11 +28,22 @@ func NewRoutineExpansionPlanner(reviewer *RoutineReviewer, native RoutineBuildin
 	return &RoutineBuildingPlanner{reviewer: reviewer, native: native, goal: policy.EnsureExpansion, definition: "Wall", shelter: true}, nil
 }
 
+// shelterStyle maps the player faction's native tech level to a shell shape:
+// a neolithic colony raises circular and oval huts, everyone else the
+// rectangle. An unknown tech level keeps the rectangle.
+func shelterStyle(facts observation.ColonyProjection) policy.ShelterStyle {
+	if level, known := facts.PlayerTechLevel.Value(); known && level == "Neolithic" {
+		return policy.ShelterHut
+	}
+	return policy.ShelterRectangle
+}
+
 // A completed starter shell may trigger RimWorld's normal automatic roofing.
 // Give that work at most four in-game hours from the durable completion tick.
-// Polling, restarting or cancelling cannot renew this budget.
+// Polling, restarting or cancelling cannot renew this budget. Shells vary in
+// size by shape, so any nonempty fully completed plan qualifies.
 func shelterNativeWorkTicks(plan store.PlanState, current domain.GenerationSnapshot, tick domain.Tick) uint32 {
-	if len(plan.Progress) != 32 {
+	if len(plan.Progress) == 0 {
 		return 0
 	}
 	current.Plan, current.Revision = plan.Spec.ID(), plan.Spec.Revision()
@@ -83,36 +94,22 @@ func (r *RoutineBuildingPlanner) previewShell(ctx context.Context, snapshot doma
 			cells = append(cells, c)
 		}
 	}
-	layouts, err := policy.StarterLayouts(policy.StarterRequest{Bounds: facts.Bounds, Anchor: facts.Center, Cells: cells, Protected: protected})
+	layouts, err := policy.StarterLayouts(policy.StarterRequest{Bounds: facts.Bounds, Anchor: facts.Center, Cells: cells, Protected: protected, Shelter: shelterStyle(facts)})
 	if err != nil {
 		return nil, policy.StockObservation{}, "", err
 	}
 	for candidate, layout := range layouts {
-		room := layout.Room
-		door := domain.Cell{X: room.X + room.Width/2, Z: room.Z}
-		perimeter := []domain.Cell{door}
-		for x := room.X; x < room.X+room.Width; x++ {
-			for z := room.Z; z < room.Z+room.Height; z++ {
-				cell := domain.Cell{X: x, Z: z}
-				if cell != door && (x == room.X || x == room.X+room.Width-1 || z == room.Z || z == room.Z+room.Height-1) {
-					perimeter = append(perimeter, cell)
-				}
-			}
+		perimeter := layout.Shell.Placements("Wall", "Door", "WoodLog")
+		if len(perimeter) == 0 {
+			return nil, policy.StockObservation{}, "", ErrControl
 		}
 		stock := policy.StockObservation{Snapshot: snapshot, Tick: facts.Identity.Tick}
 		var selected []policy.Preview
-		for i, cell := range perimeter {
+		for i, building := range perimeter {
 			if err := check(); err != nil {
 				return nil, policy.StockObservation{}, "", err
 			}
-			definition := "Wall"
-			if i == 0 {
-				definition = "Door"
-			}
-			building, err := domain.NewBuilding(definition, cell, domain.North, "WoodLog")
-			if err != nil {
-				return nil, policy.StockObservation{}, "", err
-			}
+			cell := building.Cell()
 			action, err := domain.NewBuildingAction(domain.ActionID(fmt.Sprintf("%s-%d-%d", snapshot.Plan, candidate, i)), building)
 			if err != nil {
 				return nil, policy.StockObservation{}, "", err

@@ -8026,6 +8026,7 @@ type CellState struct {
 	SupportsLight *bool                  `protobuf:"varint,16,opt,name=supports_light,json=supportsLight,proto3,oneof" json:"supports_light,omitempty"`
 	Issues        []*ReadIssue           `protobuf:"bytes,17,rep,name=issues,proto3" json:"issues,omitempty"`
 	Occupied      *bool                  `protobuf:"varint,18,opt,name=occupied,proto3,oneof" json:"occupied,omitempty"` // Native edifice, blueprint or frame occupies this cell.
+	Doorway       *bool                  `protobuf:"varint,19,opt,name=doorway,proto3,oneof" json:"doorway,omitempty"`   // A door, or a door blueprint or frame, occupies this cell.
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -8182,6 +8183,13 @@ func (x *CellState) GetIssues() []*ReadIssue {
 func (x *CellState) GetOccupied() bool {
 	if x != nil && x.Occupied != nil {
 		return *x.Occupied
+	}
+	return false
+}
+
+func (x *CellState) GetDoorway() bool {
+	if x != nil && x.Doorway != nil {
+		return *x.Doorway
 	}
 	return false
 }
@@ -22748,8 +22756,10 @@ type ColonyFactsSnapshot struct {
 	Issues                  []*ReadIssue                 `protobuf:"bytes,36,rep,name=issues,proto3" json:"issues,omitempty"`
 	PendingWoodUnits        *float64                     `protobuf:"fixed64,37,opt,name=pending_wood_units,json=pendingWoodUnits,proto3,oneof" json:"pending_wood_units,omitempty"`
 	PendingHunts            *uint32                      `protobuf:"varint,38,opt,name=pending_hunts,json=pendingHunts,proto3,oneof" json:"pending_hunts,omitempty"`
-	unknownFields           protoimpl.UnknownFields
-	sizeCache               protoimpl.SizeCache
+	// Player faction TechLevel name (e.g. Neolithic, Industrial); shapes the starter shelter.
+	PlayerTechLevel *string `protobuf:"bytes,39,opt,name=player_tech_level,json=playerTechLevel,proto3,oneof" json:"player_tech_level,omitempty"`
+	unknownFields   protoimpl.UnknownFields
+	sizeCache       protoimpl.SizeCache
 }
 
 func (x *ColonyFactsSnapshot) Reset() {
@@ -23046,6 +23056,13 @@ func (x *ColonyFactsSnapshot) GetPendingHunts() uint32 {
 		return *x.PendingHunts
 	}
 	return 0
+}
+
+func (x *ColonyFactsSnapshot) GetPlayerTechLevel() string {
+	if x != nil && x.PlayerTechLevel != nil {
+		return *x.PlayerTechLevel
+	}
+	return ""
 }
 
 type ColonyFactsRequest struct {
@@ -26078,7 +26095,7 @@ const file_observations_proto_rawDesc = "" +
 	"\x0f_build_def_nameB\f\n" +
 	"\n" +
 	"_blueprintB\b\n" +
-	"\x06_frame\"\x90\a\n" +
+	"\x06_frame\"\xbb\a\n" +
 	"\tCellState\x12/\n" +
 	"\x04cell\x18\x01 \x01(\v2\x1b.rimgovernor.common.v1.CellR\x04cell\x12\x1d\n" +
 	"\aterrain\x18\x02 \x01(\tH\x00R\aterrain\x88\x01\x01\x12\x17\n" +
@@ -26099,7 +26116,8 @@ const file_observations_proto_rawDesc = "" +
 	"R\fstorageEmpty\x88\x01\x01\x12*\n" +
 	"\x0esupports_light\x18\x10 \x01(\bH\vR\rsupportsLight\x88\x01\x01\x12>\n" +
 	"\x06issues\x18\x11 \x03(\v2&.rimgovernor.observations.v1.ReadIssueR\x06issues\x12\x1f\n" +
-	"\boccupied\x18\x12 \x01(\bH\fR\boccupied\x88\x01\x01B\n" +
+	"\boccupied\x18\x12 \x01(\bH\fR\boccupied\x88\x01\x01\x12\x1d\n" +
+	"\adoorway\x18\x13 \x01(\bH\rR\adoorway\x88\x01\x01B\n" +
 	"\n" +
 	"\b_terrainB\a\n" +
 	"\x05_roofB\t\n" +
@@ -26117,7 +26135,9 @@ const file_observations_proto_rawDesc = "" +
 	"\b_indoorsB\x10\n" +
 	"\x0e_storage_emptyB\x11\n" +
 	"\x0f_supports_lightB\v\n" +
-	"\t_occupied\"\xb1\x03\n" +
+	"\t_occupiedB\n" +
+	"\n" +
+	"\b_doorway\"\xb1\x03\n" +
 	"\n" +
 	"CellFields\x12\x1d\n" +
 	"\aterrain\x18\x01 \x01(\bH\x00R\aterrain\x88\x01\x01\x12\x17\n" +
@@ -27881,7 +27901,7 @@ const file_observations_proto_rawDesc = "" +
 	"\rUpkeepSection\x12F\n" +
 	"\bobserved\x18\x01 \x01(\v2(.rimgovernor.observations.v1.UpkeepFactsH\x00R\bobserved\x12F\n" +
 	"\vunavailable\x18\x02 \x01(\v2\".rimgovernor.common.v1.UnavailableH\x00R\vunavailableB\t\n" +
-	"\aoutcome\"\xc3\x15\n" +
+	"\aoutcome\"\x8a\x16\n" +
 	"\x13ColonyFactsSnapshot\x12C\n" +
 	"\acontext\x18\x01 \x01(\v2).rimgovernor.common.v1.ObservationContextR\acontext\x12A\n" +
 	"\x06naming\x18\x02 \x01(\v2).rimgovernor.observations.v1.ColonyNamingR\x06naming\x12*\n" +
@@ -27925,7 +27945,8 @@ const file_observations_proto_rawDesc = "" +
 	"\fcompleteness\x18# \x01(\v2).rimgovernor.observations.v1.CompletenessR\fcompleteness\x12>\n" +
 	"\x06issues\x18$ \x03(\v2&.rimgovernor.observations.v1.ReadIssueR\x06issues\x121\n" +
 	"\x12pending_wood_units\x18% \x01(\x01H\rR\x10pendingWoodUnits\x88\x01\x01\x12(\n" +
-	"\rpending_hunts\x18& \x01(\rH\x0eR\fpendingHunts\x88\x01\x01B\x11\n" +
+	"\rpending_hunts\x18& \x01(\rH\x0eR\fpendingHunts\x88\x01\x01\x12/\n" +
+	"\x11player_tech_level\x18' \x01(\tH\x0fR\x0fplayerTechLevel\x88\x01\x01B\x11\n" +
 	"\x0f_colonist_countB\x0f\n" +
 	"\r_worker_countB\b\n" +
 	"\x06_biomeB\x11\n" +
@@ -27940,7 +27961,8 @@ const file_observations_proto_rawDesc = "" +
 	"\x16_outdoor_temperature_cB\x0f\n" +
 	"\r_food_storageB\x15\n" +
 	"\x13_pending_wood_unitsB\x10\n" +
-	"\x0e_pending_hunts\"\xf6\x01\n" +
+	"\x0e_pending_huntsB\x14\n" +
+	"\x12_player_tech_level\"\xf6\x01\n" +
 	"\x12ColonyFactsRequest\x12<\n" +
 	"\x05scope\x18\x01 \x01(\v2&.rimgovernor.observations.v1.ReadScopeR\x05scope\x12\x1f\n" +
 	"\bplanning\x18\x02 \x01(\bH\x00R\bplanning\x88\x01\x01\x12<\n" +

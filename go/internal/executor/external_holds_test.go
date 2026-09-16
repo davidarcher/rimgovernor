@@ -78,3 +78,42 @@ func TestExternalHoldsRejectPartialOrMalformedCatalog(t *testing.T) {
 		t.Fatal("missing admission became empty resource hold")
 	}
 }
+
+// A dispatched action of a kind that never records a building admission
+// (supply, acquisition, policy, ...) holds no resources or cells, so another
+// plan's construction must not be held on its behalf.
+func TestExternalHoldsIgnoreDispatchedNonBuildingActions(t *testing.T) {
+	f, _ := multiple(t)
+	ctx := context.Background()
+	supply, err := domain.NewSupplyAllow("Thing_WoodLog1", "WoodLog", domain.Cell{X: 5, Z: 5})
+	if err != nil {
+		t.Fatal(err)
+	}
+	allow, err := domain.NewSupplyAllowAction("allow", supply)
+	if err != nil {
+		t.Fatal(err)
+	}
+	other, err := domain.NewPlan("supply", 1, []domain.Action{allow})
+	if err != nil {
+		t.Fatal(err)
+	}
+	progress, err := domain.NewProgress(other, allow.ID())
+	if err != nil {
+		t.Fatal(err)
+	}
+	snapshot := f.authority.Snapshot
+	snapshot.Plan, snapshot.Revision = other.ID(), other.Revision()
+	if progress, err = progress.Prepare(snapshot, 100); err != nil {
+		t.Fatal(err)
+	}
+	if progress, err = progress.MarkDispatched(snapshot, 100); err != nil {
+		t.Fatal(err)
+	}
+	state := store.PlanState{Spec: other, Progress: []domain.Progress{progress}}
+	current := f.authority.Snapshot
+	current.Plan = "target"
+	got, err := ExternalHolds(ctx, brokenCatalog{states: []store.PlanState{state}}, current)
+	if err != nil || len(got) != 0 {
+		t.Fatalf("dispatched supply action held construction: holds=%v err=%v", got, err)
+	}
+}

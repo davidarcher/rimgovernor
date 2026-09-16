@@ -45,6 +45,7 @@ Future phases reserve no land. A player can adopt an inspected existing room,
 including an irregular shelter, and furnish it while preserving connected access.
 Repairs use normal construction before the room can count as habitable.
 
+<<<<<<< HEAD
 Room functions are the game's own `Room.Role`, read from the typed room census;
 the controller never assigns a role, it only observes which one the game scored.
 The facility catalog (`policy.FacilityCatalog`) is the per-role matrix over every
@@ -55,6 +56,12 @@ scores as hosting the function, then furnish an existing hosting room, then stag
 a starter shell and furnish it once roofed. Dining and recreation are the first
 implemented rows; every other role is an explicit pending row, and content-gated
 roles are pursued only when their definitions exist in the planning census.
+=======
+The first shelter's shape is chosen from the native player-faction tech level:
+Neolithic colonies raise a circular or oval hut, others a 9x9 rectangle, and
+constrained terrain grows a connected irregular footprint when no template fits
+(see the room footprint contract in [spatial contracts](../contracts/spatial-contracts.md)).
+>>>>>>> claude/rimgovernor-issue-7-da74ea
 
 ## Reservations prevent competing promises
 

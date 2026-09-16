@@ -432,7 +432,7 @@ func (r *RoutineBuildingPlanner) previewMethod(call context.Context, snapshot do
 			cells = append(cells, c)
 		}
 	}
-	searchRequest := policy.PlacementSearchRequest{Snapshot: snapshot, Tick: facts.Identity.Tick, Bounds: facts.Bounds, Center: facts.Center, Cells: cells, Protected: protected, Environment: policy.PlacementIndoors, Radius: 22, Limit: 64}
+	searchRequest := policy.PlacementSearchRequest{Snapshot: snapshot, Tick: facts.Identity.Tick, Bounds: facts.Bounds, Center: facts.Center, Cells: cells, Protected: append(append([]domain.Cell(nil), protected...), policy.DoorwayAisles(facts.Bounds, facts.Cells)...), Environment: policy.PlacementIndoors, Radius: 22, Limit: 64}
 	if r.power != nil {
 		searchRequest.Center, searchRequest.Radius = r.power.Center, 6
 	}

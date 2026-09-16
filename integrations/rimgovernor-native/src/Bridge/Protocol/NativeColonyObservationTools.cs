@@ -90,6 +90,7 @@ namespace HomeBridge.BridgeTools
             var demand = people.Sum(p => p.needs?.food == null ? 0.0 : p.needs.food.FoodFallPerTickAssumingCategory(HungerCategory.Fed, true) * 60000.0);
             var result = new Obs.ColonyFactsSnapshot { Context = context, ColonistCount = (uint)people.Count,
                 WorkerCount = (uint)workers.Count, Center = Cell(center), MapSize = Size(map), Biome = map.Biome.defName,
+                PlayerTechLevel = player.def.techLevel.ToString(),
                 BedCapacity = checked((uint)beds.Sum(b => b.SleepingSlotsCount)), IndoorSleepingCapacity = checked((uint)indoorBeds.Sum(b => b.SleepingSlotsCount)),
                 FoodNutrition = Finite(nutrition), NutritionPerDay = Finite(demand), OutdoorTemperatureC = Finite(map.mapTemperature.OutdoorTemp),
                 Completeness = Complete(1),
@@ -302,6 +303,8 @@ namespace HomeBridge.BridgeTools
                 var row = new Obs.CellState { Cell = Cell(c), Terrain = terrain.defName, Fogged = false, Walkable = c.Walkable(map), Passable = !c.Impassable(map),
                     Fertility = Finite(map.fertilityGrid.FertilityAt(c)), SupportsLight = terrain.affordances.Contains(TerrainAffordanceDefOf.Light),
                     Occupied = c.GetEdifice(map) != null || c.GetThingList(map).Any(t => t is Blueprint || t is Frame),
+                    Doorway = c.GetDoor(map) != null || c.GetThingList(map).Any(t => (t is Blueprint || t is Frame)
+                        && t.def.entityDefToBuild is ThingDef built && typeof(Building_Door).IsAssignableFrom(built.thingClass)),
                     Indoors = room != null && room.ProperRoom && !room.PsychologicallyOutdoors,
                     StorageEmpty = !c.GetThingList(map).Any(t => t is Plant || t is Building || t is Blueprint || t is Frame || t.def.category == ThingCategory.Item) };
                 if (roof != null) row.Roof = roof.defName; else row.Issues.Add(Issue("roof", Common.UnavailableReason.NotApplicable, "No roof."));

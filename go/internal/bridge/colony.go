@@ -133,6 +133,9 @@ func ValidateColonyFacts(v *o.ColonyFactsSnapshot, identity *c.Identity) error {
 	if v.Biome != nil && validID(v.GetBiome()) != nil {
 		return contract("invalid biome")
 	}
+	if v.PlayerTechLevel != nil && validID(v.GetPlayerTechLevel()) != nil {
+		return contract("invalid player tech level")
+	}
 	if len(v.ForbiddenSupplies) > 256 {
 		return contract("forbidden supplies exceed bound")
 	}

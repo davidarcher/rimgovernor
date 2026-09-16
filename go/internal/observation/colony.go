@@ -37,14 +37,17 @@ type ColonyProjection struct {
 	PowerPlanning                          domain.Fact[policy.PowerTopology]
 	Rooms                                  domain.Fact[policy.RoomObservation]
 	Identity                               Identity
-	Facts                                  policy.RoutineFacts
-	Workers                                domain.Fact[int]
-	Bounds                                 policy.Bounds
-	Center                                 domain.Cell
-	Cells                                  []policy.SiteCell
-	Definitions                            []PlanningDefinition
-	FoodSupply                             domain.Fact[policy.FoodSupply]
-	CombinedFoodSupply                     domain.Fact[policy.FoodSupply]
+	// PlayerTechLevel is the player faction's native TechLevel name, which
+	// selects the starter shelter's shape family.
+	PlayerTechLevel    domain.Fact[string]
+	Facts              policy.RoutineFacts
+	Workers            domain.Fact[int]
+	Bounds             policy.Bounds
+	Center             domain.Cell
+	Cells              []policy.SiteCell
+	Definitions        []PlanningDefinition
+	FoodSupply         domain.Fact[policy.FoodSupply]
+	CombinedFoodSupply domain.Fact[policy.FoodSupply]
 }
 
 type CookingBench struct {
@@ -117,6 +120,7 @@ func DecodeColony(reply *o.ColonyFactsReply, expected Identity) (ColonyProjectio
 		}
 	}
 	r := ColonyProjection{Identity: identity, Bounds: policy.Bounds{Width: int32(v.MapSize.GetWidth()), Height: int32(v.MapSize.GetHeight())}, Center: domain.Cell{X: v.Center.GetX(), Z: v.Center.GetZ()}}
+	r.PlayerTechLevel = optional(v.PlayerTechLevel)
 	r.Facts = policy.RoutineFacts{Colonists: countFact(v.ColonistCount), BedCapacity: countFact(v.BedCapacity), IndoorCapacity: countFact(v.IndoorSleepingCapacity), SleepingMin: optional(v.SleepingTemperatureMinC), SleepingMax: optional(v.SleepingTemperatureMaxC), OutdoorTemperature: optional(v.OutdoorTemperatureC), FoodStorage: optional(v.FoodStorage)}
 	if development := v.GetDevelopment().GetObserved(); development != nil {
 		power := make([]policy.PowerBuilding, 0, len(development.Power))
@@ -264,7 +268,7 @@ func DecodeColony(reply *o.ColonyFactsReply, expected Identity) (ColonyProjectio
 			if row.Fogged == nil || row.GetFogged() {
 				continue
 			}
-			r.Cells = append(r.Cells, policy.SiteCell{Cell: domain.Cell{X: row.Cell.GetX(), Z: row.Cell.GetZ()}, Walkable: optional(row.Walkable), Occupied: optional(row.Occupied), Zone: nativePresence(row.ZoneId, row.Issues, "zone_id"), Roofed: nativePresence(row.Roof, row.Issues, "roof"), Indoors: optional(row.Indoors), SupportsLight: optional(row.SupportsLight), Fertility: optional(row.Fertility), StorageEmpty: optional(row.StorageEmpty)})
+			r.Cells = append(r.Cells, policy.SiteCell{Cell: domain.Cell{X: row.Cell.GetX(), Z: row.Cell.GetZ()}, Walkable: optional(row.Walkable), Occupied: optional(row.Occupied), Zone: nativePresence(row.ZoneId, row.Issues, "zone_id"), Roofed: nativePresence(row.Roof, row.Issues, "roof"), Indoors: optional(row.Indoors), SupportsLight: optional(row.SupportsLight), Doorway: optional(row.Doorway), Fertility: optional(row.Fertility), StorageEmpty: optional(row.StorageEmpty)})
 		}
 	}
 	r.FieldCrops = colonyFieldCrops(v, r.Definitions)

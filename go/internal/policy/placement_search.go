@@ -94,6 +94,25 @@ func NewPlacementSearch(r PlacementSearchRequest) (PlacementSearch, error) {
 	return s, nil
 }
 
+// DoorwayAisles lists the four cells beside every observed doorway so indoor
+// furnishing never blocks a room's entrance from either side; interaction
+// cells of the furniture itself are the native preview's to check.
+func DoorwayAisles(bounds Bounds, cells []SiteCell) []domain.Cell {
+	var aisles []domain.Cell
+	for _, row := range cells {
+		if !positive(row.Doorway) {
+			continue
+		}
+		c := row.Cell
+		for _, n := range []domain.Cell{{X: c.X + 1, Z: c.Z}, {X: c.X - 1, Z: c.Z}, {X: c.X, Z: c.Z + 1}, {X: c.X, Z: c.Z - 1}} {
+			if n.X >= 0 && n.Z >= 0 && n.X < bounds.Width && n.Z < bounds.Height {
+				aisles = append(aisles, n)
+			}
+		}
+	}
+	return aisles
+}
+
 func (s PlacementSearch) Candidates() []domain.Cell { return append([]domain.Cell(nil), s.sites...) }
 
 // Select chooses the nearest fully inspected footprint for the requested native

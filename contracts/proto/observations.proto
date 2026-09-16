@@ -274,6 +274,7 @@ message CellState {
   optional double fertility = 12; optional double temperature_c = 13; optional bool indoors = 14;
   optional bool storage_empty = 15; optional bool supports_light = 16; repeated ReadIssue issues = 17;
   optional bool occupied = 18; // Native edifice, blueprint or frame occupies this cell.
+  optional bool doorway = 19; // A door, or a door blueprint or frame, occupies this cell.
 }
 message CellFields { optional bool terrain = 1; optional bool roof = 2; optional bool visibility = 3; optional bool traversal = 4; optional bool zone = 5; optional bool areas = 6; optional bool things = 7; optional bool designations = 8; optional bool room = 9; optional bool growth = 10; }
 message CellsSnapshot { rimgovernor.common.v1.ObservationContext context = 1; MapSize map_size = 2; Rectangle region = 3; repeated CellState cells = 4; Completeness completeness = 5; CellFields applied_fields = 6; SnapshotRef map_snapshot = 7; }
@@ -504,6 +505,8 @@ message ColonyFactsSnapshot {
   PlanningSection planning = 32; RecoveryReply recovery = 33; WasteReply waste = 34; Completeness completeness = 35; repeated ReadIssue issues = 36;
   optional double pending_wood_units = 37;
   optional uint32 pending_hunts = 38;
+  // Player faction TechLevel name (e.g. Neolithic, Industrial); shapes the starter shelter.
+  optional string player_tech_level = 39;
 }
 message ColonyFactsRequest { ReadScope scope = 1; optional bool planning = 2; repeated string requested_definition_names = 3; rimgovernor.common.v1.PageRequest page = 4; }
 message ColonyFactsReply { oneof outcome { ColonyFactsSnapshot observed = 1; rimgovernor.common.v1.Unavailable unavailable = 2; rimgovernor.common.v1.Failure failure = 3; } }

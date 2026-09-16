@@ -138,7 +138,9 @@ func (w *Worker) steps() {
 		if w.ctx.Err() != nil {
 			return
 		}
-		_ = w.step(w.ctx, time.Now())
+		if err := w.step(w.ctx, time.Now()); err != nil {
+			clockSchedulerLog("worker step: %v", err)
+		}
 		select {
 		case <-w.ctx.Done():
 			return
@@ -255,6 +257,7 @@ func (w *Worker) step(ctx context.Context, now time.Time) error {
 			}
 		}
 		w.waits[v.Action] = workerWait{cleanup: candidate.cleanup, view: after, scope: workerScope(w.session.State()), delay: delay, until: now.Add(delay)}
+		clockSchedulerLog("worker ran %s: stage %s -> %s attempt %d err=%v", v.Action, v.Stage, after.Stage, after.Attempt, err)
 		return errors.Join(worldErr, err)
 	}
 	return worldErr

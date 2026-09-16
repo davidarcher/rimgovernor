@@ -316,3 +316,33 @@ func TestRoutineSleepingManualCancelsBlockedPreview(t *testing.T) {
 		t.Fatal(plans, err)
 	}
 }
+
+func TestRoutineSleepingKeepsDoorwayAislesClear(t *testing.T) {
+	t.Parallel()
+	r, db, _, _, n := sleepingFixture(t)
+	// A door on the room's south wall at (2,0): the cell just inside it and
+	// the cells beside it are the entrance aisle, never furniture, even when
+	// the colony centre makes the aisle the nearest candidate.
+	n.reply.GetObserved().Center = &c.Cell{X: proto.Int32(2), Z: proto.Int32(1)}
+	for _, row := range n.reply.GetObserved().Planning.GetObserved().Cells.Cells {
+		if row.Cell.GetX() == 2 && row.Cell.GetZ() == 0 {
+			row.Doorway, row.Occupied, row.Walkable = proto.Bool(true), proto.Bool(true), proto.Bool(true)
+		}
+	}
+	result, err := r.Step(context.Background())
+	if err != nil || result.Reason != BuildingMethodAdmitted {
+		t.Fatal(result, err)
+	}
+	compiled, err := db.LoadPlan(context.Background(), result.Decision.Goal.Methods[0].Plan)
+	if err != nil {
+		t.Fatal(err)
+	}
+	aisle := map[domain.Cell]bool{{X: 2, Z: 1}: true, {X: 1, Z: 0}: true, {X: 3, Z: 0}: true, {X: 2, Z: 0}: true}
+	for _, record := range compiled.Admissions {
+		for _, cell := range record.Admission.Footprint {
+			if aisle[cell] {
+				t.Fatal("furniture blocks the doorway aisle", cell)
+			}
+		}
+	}
+}
