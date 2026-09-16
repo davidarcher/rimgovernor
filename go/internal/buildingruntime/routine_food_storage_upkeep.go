@@ -9,6 +9,7 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/bridge"
 	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/boundary"
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
+	"github.com/davidarcher/RimGovernor/go/internal/observation"
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
 	"github.com/davidarcher/RimGovernor/go/internal/store"
 	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
@@ -70,52 +71,19 @@ func (r *RoutineFoodStorageUpkeepPlanner) Step(ctx context.Context) (RoutineFood
 	return r.step(call, epoch, newStepArbiter())
 }
 
-// foodStorageOptionalFloat mirrors medicalOptionalTicks's generic
-// pointer-to-Fact lift, for the one float64 field
-// (FoodStock.Nutrition) this boundary decodes that medicalOptionalBool/
-// medicalOptionalTicks don't already cover.
-func foodStorageOptionalFloat(v *float64) domain.Fact[float64] {
-	if v == nil {
-		return domain.Unknown[float64]()
-	}
-	return domain.Known(*v)
-}
-
-// foodStorageObservationFacts decodes the same food-supply section
-// observation.DecodeFoodSupply does, from a freshly read ColonyFactsSnapshot
-// rather than the cached routine review snapshot, plus one field
-// DecodeFoodSupply does not map: FoodStock.Roofed becomes each row's Stored
-// fact, the same roofed-only "covered" convention
-// covered_storage_site.go's CoveredStorageSites already applies
-// (positive(c.Roofed)). This is duplicated here (rather than exported from
-// the observation package) for the same reason
-// medicalReserveObservationFacts duplicates colonyMedicalReserve's decode:
-// this planner reads a fresh census of its own immediately before proposing
-// a method, rather than reusing the review's cached facts.
+// foodStorageObservationFacts decodes the freshly read colony census with
+// the same observation.DecodeFoodSupply the routine review uses, so the
+// planner and the review agree on every stock's cover and temperature facts.
 func foodStorageObservationFacts(v *o.ColonyFactsSnapshot) policy.FoodStorageObservation {
 	food := v.GetFoodSupply().GetObserved()
 	if food == nil {
 		return policy.FoodStorageObservation{}
 	}
-	rows := make([]policy.FoodStorageStock, 0, len(food.Stocks))
-	for _, row := range food.Stocks {
-		stock := policy.FoodStock{
-			ID:         row.Item.GetId(),
-			Holder:     domain.Known(policy.PawnID(row.GetHolderId())),
-			Nutrition:  foodStorageOptionalFloat(row.Nutrition),
-			Perishable: medicalOptionalBool(row.Perishable),
-			RotTicks:   medicalOptionalTicks(row.RotTicks),
-			DefName:    policy.Resource(row.Item.GetDefName()),
-		}
-		for _, eater := range row.EaterIds {
-			stock.Eaters = append(stock.Eaters, policy.PawnID(eater))
-		}
-		if row.Count != nil {
-			stock.Count = domain.Known(int64(row.GetCount()))
-		}
-		rows = append(rows, policy.FoodStorageStock{Stock: stock, Stored: medicalOptionalBool(row.Roofed)})
+	supply, err := observation.DecodeFoodSupply(food)
+	if err != nil {
+		return policy.FoodStorageObservation{}
 	}
-	return policy.FoodStorageObservation{Stocks: domain.Known(rows)}
+	return policy.FoodStorageStocks(supply)
 }
 
 // foodStorageDefNames collects the distinct native resource definition names
@@ -125,20 +93,14 @@ func foodStorageObservationFacts(v *o.ColonyFactsSnapshot) policy.FoodStorageObs
 // given food resource definition" (see FoodStorageSite's own doc comment),
 // not a summed-across-items site, matching how SecureSupplies/upkeep already
 // treat storage capacities as per-definition.
-func foodStorageDefNames(observed policy.FoodStorageObservation) []string {
+func foodStorageDefNames(observed policy.FoodStorageObservation, p policy.FoodStoragePolicy) []string {
 	stocks, known := observed.Stocks.Value()
 	if !known {
 		return nil
 	}
 	names := map[string]bool{}
 	for _, entry := range stocks {
-		stored, sk := entry.Stored.Value()
-		if !sk || stored {
-			continue
-		}
-		perishable, pk := entry.Stock.Perishable.Value()
-		ticks, tk := entry.Stock.RotTicks.Value()
-		if !pk || !perishable || !tk || ticks <= 0 {
+		if !policy.FoodStorageUnstored(entry, p) {
 			continue
 		}
 		if name := string(entry.Stock.DefName); name != "" {
@@ -224,7 +186,7 @@ func (r *RoutineFoodStorageUpkeepPlanner) step(call, epoch context.Context, arbi
 	for _, method := range goal.Methods {
 		seen = append(seen, method.Method)
 	}
-	names := foodStorageDefNames(facts)
+	names := foodStorageDefNames(facts, r.reviewer.policy.FoodStorage)
 	sites := make([]policy.FoodStorageSite, 0, len(names))
 	for _, name := range names {
 		_, storage, _, err := r.native.ReadResourceSources(call, identity, name)

@@ -16,7 +16,7 @@ func DecodeFoodSupply(v *o.FoodSupplyFacts) (policy.FoodSupply, error) {
 		supply.Consumers = append(supply.Consumers, policy.FoodConsumer{ID: policy.PawnID(row.GetPawnId()), NutritionPerDay: optional(row.NutritionPerDay)})
 	}
 	for _, row := range v.Stocks {
-		stock := policy.FoodStock{ID: row.Item.GetId(), Holder: domain.Known(policy.PawnID(row.GetHolderId())), Nutrition: optional(row.Nutrition), Perishable: optional(row.Perishable), RotTicks: optional(row.RotTicks), DefName: policy.Resource(row.Item.GetDefName())}
+		stock := policy.FoodStock{ID: row.Item.GetId(), Holder: domain.Known(policy.PawnID(row.GetHolderId())), Nutrition: optional(row.Nutrition), Perishable: optional(row.Perishable), RotTicks: optional(row.RotTicks), DefName: policy.Resource(row.Item.GetDefName()), Roofed: optional(row.Roofed), TemperatureC: optional(row.TemperatureC), Room: optional(row.RoomId)}
 		if row.Count != nil {
 			stock.Count = domain.Known(int64(row.GetCount()))
 		}

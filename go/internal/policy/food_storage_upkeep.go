@@ -11,14 +11,57 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 )
 
-// FoodStorageStock pairs an observed FoodStock (reused as-is from
-// food_forecast.go) with whether that stock already sits in an adequately
-// enclosed/cold or covered stockpile. There is no native room-temperature
-// read yet, so Stored is modelled as an already-computed boolean fact; the
-// native read that produces it belongs to a later task, not this one.
+// FoodStorageStock wraps an observed FoodStock (reused as-is from
+// food_forecast.go). Whether the stock counts as adequately stored is derived
+// per review from its Roofed/TemperatureC/RotTicks facts by stored below, so
+// the storage and refrigeration policies share one definition.
 type FoodStorageStock struct {
-	Stock  FoodStock
-	Stored domain.Fact[bool]
+	Stock FoodStock
+}
+
+// FoodStorageStocks lifts a food-supply census into the storage-upkeep census.
+func FoodStorageStocks(supply FoodSupply) FoodStorageObservation {
+	rows := make([]FoodStorageStock, 0, len(supply.Stocks))
+	for _, stock := range supply.Stocks {
+		rows = append(rows, FoodStorageStock{Stock: stock})
+	}
+	return FoodStorageObservation{Stocks: domain.Known(rows)}
+}
+
+// stored reports whether a perishable stock sits in adequate storage: roofed,
+// and either chilled to ChilledMaxC or with at least SafeRotDays of runway
+// left at its current temperature. A roofed-but-warm stockpile is adequate
+// for food that will be eaten long before it rots; only warm food close to
+// spoiling is at risk. Unknown when any needed fact is unknown.
+func (s FoodStorageStock) stored(p FoodStoragePolicy) domain.Fact[bool] {
+	roofed, rk := s.Stock.Roofed.Value()
+	if !rk {
+		return domain.Unknown[bool]()
+	}
+	if !roofed {
+		return domain.Known(false)
+	}
+	temperature, tk := s.Stock.TemperatureC.Value()
+	ticks, kk := s.Stock.RotTicks.Value()
+	if !tk || !kk {
+		return domain.Unknown[bool]()
+	}
+	return domain.Known(temperature <= p.ChilledMaxC || float64(ticks) >= p.SafeRotDays*ticksPerDay)
+}
+
+// ticksPerDay is RimWorld's fixed tick count per in-game day.
+const ticksPerDay = 60000
+
+// FoodStorageUnstored reports whether a stock is known perishable, not yet
+// rotted and known not adequately stored under p.
+func FoodStorageUnstored(s FoodStorageStock, p FoodStoragePolicy) bool {
+	perishable, pk := s.Stock.Perishable.Value()
+	ticks, tk := s.Stock.RotTicks.Value()
+	if !pk || !perishable || !tk || ticks <= 0 {
+		return false
+	}
+	stored, sk := s.stored(p).Value()
+	return sk && !stored
 }
 
 // FoodStorageObservation is the complete per-cycle census MaintainFoodStorage
@@ -36,14 +79,20 @@ type FoodStorageObservation struct {
 type FoodStoragePolicy struct {
 	MinimumStoredFraction, TargetStoredFraction float64
 	AtRiskNutritionThreshold                    float64
+	// ChilledMaxC is the storage temperature at or below which perishable
+	// stock counts as refrigerated (RimWorld slows rot under 10 C and stops
+	// it under 0 C); SafeRotDays is the rot runway that makes warm roofed
+	// stock acceptable anyway.
+	ChilledMaxC, SafeRotDays float64
 }
 
 func DefaultFoodStoragePolicy() FoodStoragePolicy {
-	return FoodStoragePolicy{MinimumStoredFraction: 0.5, TargetStoredFraction: 0.9, AtRiskNutritionThreshold: 5}
+	return FoodStoragePolicy{MinimumStoredFraction: 0.5, TargetStoredFraction: 0.9, AtRiskNutritionThreshold: 5, ChilledMaxC: 10, SafeRotDays: 5}
 }
 
 func (p FoodStoragePolicy) valid() bool {
 	return foodNumber(p.MinimumStoredFraction) && foodNumber(p.TargetStoredFraction) && foodNumber(p.AtRiskNutritionThreshold) &&
+		foodNumber(p.ChilledMaxC) && foodNumber(p.SafeRotDays) && p.SafeRotDays >= 0 &&
 		p.MinimumStoredFraction < p.TargetStoredFraction && p.TargetStoredFraction <= 1
 }
 
@@ -101,7 +150,7 @@ func ReviewFoodStorage(v FoodStorageObservation, active bool, p FoodStoragePolic
 		if !tk || ticks <= 0 {
 			continue
 		}
-		storedFact, sk := entry.Stored.Value()
+		storedFact, sk := entry.stored(p).Value()
 		if !sk {
 			return r, nil
 		}

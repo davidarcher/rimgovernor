@@ -229,6 +229,7 @@ func DecodeColony(reply *o.ColonyFactsReply, expected Identity) (ColonyProjectio
 			return ColonyProjection{}, err
 		}
 		r.FoodSupply = domain.Known(supply)
+		r.Facts.FoodStorageUpkeep = policy.FoodStorageStocks(supply)
 	}
 	if forecast := v.GetForecast().GetObserved(); forecast != nil {
 		combined, err := DecodeFoodSupply(forecast.CombinedFoodSupply)
