@@ -123,9 +123,11 @@ per optional goal with score, nullable deficit and risk, `waitingSince`, selecti
 commitment flags, the deferral reason and, for `labor_unavailable`, the bottleneck work
 type. The dashboard's Work view renders it read-only as "Development priorities"; the
 panel hides itself when routine diagnostics are disabled. Native labor forecasts remain
-evidence with unknown completion times. Native gameplay acceptance of competing
-comfort, research, resource and expansion demands is tracked in
-[issue #9](https://github.com/davidarcher/rimgovernor/issues/9).
+evidence with unknown completion times. `cmd/developmentaccept` samples this record
+from a resumed controller across a kill-and-restart pair and asserts the bounds,
+reasons, review-time research measurement and retained waiting ages above; pawn
+progress on the admitted projects is campaign evidence from `cmd/sustainedmatrixaccept`,
+tracked in [issue #9](https://github.com/davidarcher/rimgovernor/issues/9).
 
 ## Method compilation and work allocation
 
