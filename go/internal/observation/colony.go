@@ -43,10 +43,38 @@ type ColonyProjection struct {
 	Center                                 domain.Cell
 	Cells                                  []policy.SiteCell
 	// Farms lists observed growing zones by native id and current crop.
-	Farms              []FarmZoneFact
-	Definitions        []PlanningDefinition
-	FoodSupply         domain.Fact[policy.FoodSupply]
-	CombinedFoodSupply domain.Fact[policy.FoodSupply]
+	Farms                                  []FarmZoneFact
+	Definitions                            []PlanningDefinition
+	FoodSupply                             domain.Fact[policy.FoodSupply]
+	CombinedFoodSupply                     domain.Fact[policy.FoodSupply]
+	// Resources is the accessible colony stock census by definition; a
+	// definition absent from a known census is known zero.
+	Resources domain.Fact[map[policy.Resource]int64]
+}
+
+// ResourceStock reports the accessible stock of one definition, unknown when
+// the census itself is unknown.
+func (r ColonyProjection) ResourceStock(name policy.Resource) domain.Fact[int64] {
+	stock, known := r.Resources.Value()
+	if !known {
+		return domain.Unknown[int64]()
+	}
+	return domain.Known(stock[name])
+}
+
+// GeneratorOptions pairs the power family's generator definitions with their
+// native availability and observed fuel stock.
+func (r ColonyProjection) GeneratorOptions() []policy.GeneratorOption {
+	available := map[string]domain.Fact[bool]{}
+	for _, d := range r.Definitions {
+		available[d.Name] = d.Available
+	}
+	return policy.DefaultGeneratorOptions(func(name string) domain.Fact[bool] {
+		if fact, ok := available[name]; ok {
+			return fact
+		}
+		return domain.Unknown[bool]()
+	}, r.ResourceStock)
 }
 
 type FarmZoneFact struct{ ID, Crop string }
@@ -135,7 +163,9 @@ func DecodeColony(reply *o.ColonyFactsReply, expected Identity) (ColonyProjectio
 		}
 		for _, row := range development.Power {
 			s := row.Building.Service
-			power = append(power, policy.PowerBuilding{BaseW: optional(row.BaseW), OutputW: optional(s.PowerOutputW), Powered: optional(s.PowerOn), Connected: optional(s.Connected), Network: optional(s.PowerNetId), Forbidden: optional(row.Building.Settings.Forbidden), SwitchedOn: optional(s.SwitchedOn)})
+			power = append(power, policy.PowerBuilding{BaseW: optional(row.BaseW), OutputW: optional(s.PowerOutputW), Powered: optional(s.PowerOn), Connected: optional(s.Connected), Network: optional(s.PowerNetId), Forbidden: optional(row.Building.Settings.Forbidden), SwitchedOn: optional(s.SwitchedOn),
+				Fuel: optional(s.Fuel), TargetFuel: optional(s.TargetFuel), OutOfFuel: optional(s.OutOfFuel), BrokenDown: optional(s.BrokenDown), FuelDefinitions: append([]string(nil), s.AllowedFuelDefs...),
+				Stored: optional(row.StoredWattDays), Capacity: optional(row.CapacityWattDays)})
 			ref := row.Building.Building
 			geometryKnown = geometryKnown && ref.DefName != nil && ref.Position != nil && len(row.Building.OccupiedCells) > 0
 			site := policy.PowerSite{ID: ref.GetId(), Definition: ref.GetDefName(), Cell: domain.Cell{X: ref.GetPosition().GetX(), Z: ref.GetPosition().GetZ()}, PowerBuilding: power[len(power)-1]}
@@ -146,6 +176,9 @@ func DecodeColony(reply *o.ColonyFactsReply, expected Identity) (ColonyProjectio
 		}
 		for _, row := range development.Furniture {
 			topology.Conduits = append(topology.Conduits, domain.Cell{X: row.Building.Position.GetX(), Z: row.Building.Position.GetZ()})
+		}
+		for _, row := range development.Networks {
+			topology.Networks = append(topology.Networks, policy.PowerNetworkFact{ID: row.GetId(), GenerationW: optional(row.GenerationW), ConsumptionW: optional(row.ConsumptionW), StoredWD: optional(row.StoredWattDays), CapacityWD: optional(row.CapacityWattDays)})
 		}
 		if geometryKnown {
 			r.PowerPlanning = domain.Known(topology)
@@ -222,16 +255,21 @@ func DecodeColony(reply *o.ColonyFactsReply, expected Identity) (ColonyProjectio
 		r.Facts.Wood = domain.Known(int64(0))
 		rows := make([]policy.Amount, 0, len(v.Resources))
 		complete := true
+		stock := map[policy.Resource]int64{}
 		for _, q := range v.Resources {
 			if q.GetDefName() == "WoodLog" {
 				r.Facts.Wood = optional(q.Units)
 			}
 			complete = complete && q.Units != nil
 			rows = append(rows, policy.Amount{Resource: policy.Resource(q.GetDefName()), Count: q.GetUnits()})
+			if q.Units != nil {
+				stock[policy.Resource(q.GetDefName())] += q.GetUnits()
+			}
 		}
 		if complete {
 			r.Facts.Resources = domain.Known(rows)
 		}
+		r.Resources = domain.Known(stock)
 	}
 	if !hasIssue(v.Issues, "forbidden_supplies") {
 		r.Facts.ForbiddenSupplies = domain.Known(len(v.ForbiddenSupplies) > 0)

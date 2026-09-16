@@ -155,7 +155,7 @@ func (r *RoutineBuildingPlanner) step(call, epoch context.Context, arbiter *step
 		definitions = []string{"Table1x2c", "DiningChair", "HorseshoesPin"}
 	}
 	if r.goal == policy.EnsureBasicPower {
-		definitions = []string{"WoodFiredGenerator", "PowerConduit"}
+		definitions = append([]string{"PowerConduit"}, policy.GeneratorDefinitions...)
 	}
 	if r.goal == policy.EnsureTemperatureSafety {
 		definitions = []string{"Campfire", "PassiveCooler"}
@@ -301,7 +301,12 @@ func (r *RoutineBuildingPlanner) step(call, epoch context.Context, arbiter *step
 				return pendingFacility(progress, "PassiveCooler") || pendingFacility(progress, "Cooler")
 			}
 			if r.goal == policy.EnsureBasicPower {
-				return pendingFacility(progress, "PowerConduit") || pendingFacility(progress, "WoodFiredGenerator")
+				for _, name := range policy.GeneratorDefinitions {
+					if pendingFacility(progress, name) {
+						return true
+					}
+				}
+				return pendingFacility(progress, "PowerConduit")
 			}
 			if r.goal == policy.EnsureExpansion {
 				return pendingFacility(progress, "SleepingSpot") || pendingFacility(progress, "Bed") || pendingFacility(progress, "DoubleBed") || pendingFacility(progress, "RoyalBed")

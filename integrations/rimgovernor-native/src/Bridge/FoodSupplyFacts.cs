@@ -62,7 +62,8 @@ namespace HomeBridge.BridgeTools
                 eaters = eaters.Select(p => p.GetUniqueLoadID()).ToList(),
                 perishable = perishable, rotTicks = perishable ? (int?)Math.Max(0, rot.TicksUntilRotAtCurrentTemp) : null,
                 temperature = thing.AmbientTemperature,
-                roofed = thing.Spawned ? (bool?)thing.Position.Roofed(thing.Map) : null };
+                roofed = thing.Spawned ? (bool?)thing.Position.Roofed(thing.Map) : null,
+                roomId = thing.Spawned ? thing.Position.GetRoom(thing.Map)?.ID.ToString(System.Globalization.CultureInfo.InvariantCulture) : null };
         }
 
         // Shared typed source for the compatibility JSON and protobuf projections.
@@ -87,6 +88,7 @@ namespace HomeBridge.BridgeTools
             public int? rotTicks { get; set; }
             public float temperature { get; set; }
             public bool? roofed { get; set; }
+            public string roomId { get; set; }
         }
     }
 }

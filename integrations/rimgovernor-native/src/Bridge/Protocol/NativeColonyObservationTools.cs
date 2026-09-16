@@ -20,7 +20,7 @@ namespace HomeBridge.BridgeTools
         private const string ToolName = "rimgovernor/observations_read_colony_facts";
         private static readonly string[] StarterDefinitions = {
             "Wall", "Door", "Bed", "SleepingSpot", "Campfire", "ButcherSpot", "FueledStove", "Heater",
-            "PassiveCooler", "Cooler", "WoodFiredGenerator", "PowerConduit", "Sandbags", "Barricade",
+            "PassiveCooler", "Cooler", "WoodFiredGenerator", "SolarGenerator", "ChemfuelPoweredGenerator", "Battery", "PowerConduit", "Sandbags", "Barricade",
             "StandingLamp", "SimpleResearchBench", "Table1x2c", "DiningChair", "HorseshoesPin",
             "Plant_Rice", "Plant_Potato", "Plant_Corn", "TableStonecutter", "Fence", "FenceGate", "PenMarker"
         };
@@ -160,29 +160,81 @@ namespace HomeBridge.BridgeTools
 
         private static Obs.DevelopmentFacts ReadPower(Map map, int limit)
         {
+            // Traders (consumers and generators) and batteries share one census so
+            // Go's power topology sees every network member that matters for
+            // coverage and reserve: batteries carry base_w = 0 plus stored/capacity
+            // energy, generators carry their refuelable and breakdown service facts.
             var traders = map.listerBuildings.allBuildingsColonist.Select(b => b.TryGetComp<CompPowerTrader>())
+                .Where(p => p != null).OrderBy(p => p.parent.thingIDNumber).ToList();
+            var batteries = map.listerBuildings.allBuildingsColonist.Select(b => b.TryGetComp<CompPowerBattery>())
                 .Where(p => p != null).OrderBy(p => p.parent.thingIDNumber).ToList();
             var conduits = map.listerBuildings.allBuildingsColonist.Where(b => b.def.defName == "PowerConduit")
                 .OrderBy(b => b.thingIDNumber).ToList();
-            Bound(traders.Count + conduits.Count, limit);
-            var result = new Obs.DevelopmentFacts { Completeness = Complete(traders.Count + conduits.Count) };
+            var nets = map.powerNetManager.AllNetsListForReading.OrderBy(n => n.GetHashCode()).ToList();
+            Bound(traders.Count + batteries.Count + conduits.Count + nets.Count, limit);
+            var result = new Obs.DevelopmentFacts { Completeness = Complete(traders.Count + batteries.Count + conduits.Count) };
             foreach (var power in traders) {
                 var building = power.parent;
                 var service = new Obs.BuildingServiceState { Connected = power.PowerNet != null, PowerOn = power.PowerOn,
                     PowerOutputW = Finite(power.PowerOutput), SwitchedOn = building.TryGetComp<CompFlickable>()?.SwitchIsOn ?? true };
-                if (power.PowerNet != null) service.PowerNetId = power.PowerNet.GetHashCode().ToString(System.Globalization.CultureInfo.InvariantCulture);
-                var state = new Obs.BuildingState { Building = new Obs.EntityRef { Id = building.GetUniqueLoadID(), MapId = map.uniqueID,
-                        DefName = building.def.defName, Position = Cell(building.Position) },
-                    Service = service, Settings = new Obs.BuildingSettings { Forbidden = building.IsForbidden(Faction.OfPlayer) } };
-                var occupied = building.OccupiedRect().Cells.ToList();
-                Bound(occupied.Count, 4096);
-                foreach (var cell in occupied) state.OccupiedCells.Add(Cell(cell));
-                result.Power.Add(new Obs.DevelopmentPower { BaseW = Finite(-power.Props.PowerConsumption), Building = state });
+                if (power.PowerNet != null) service.PowerNetId = NetId(power.PowerNet);
+                Service(building, service);
+                result.Power.Add(new Obs.DevelopmentPower { BaseW = Finite(-power.Props.PowerConsumption), Building = PowerState(map, building, service) });
+            }
+            foreach (var battery in batteries) {
+                var building = battery.parent;
+                var service = new Obs.BuildingServiceState { Connected = battery.PowerNet != null, PowerOn = battery.PowerNet != null,
+                    PowerOutputW = 0, SwitchedOn = building.TryGetComp<CompFlickable>()?.SwitchIsOn ?? true };
+                if (battery.PowerNet != null) service.PowerNetId = NetId(battery.PowerNet);
+                Service(building, service);
+                result.Power.Add(new Obs.DevelopmentPower { BaseW = 0, Building = PowerState(map, building, service),
+                    StoredWattDays = Finite(battery.StoredEnergy), CapacityWattDays = Finite(battery.Props.storedEnergyMax) });
             }
             foreach (var conduit in conduits)
                 result.Furniture.Add(new Obs.DevelopmentFurniture { Building = new Obs.EntityRef { Id = conduit.GetUniqueLoadID(),
                     MapId = map.uniqueID, DefName = conduit.def.defName, Position = Cell(conduit.Position) } });
+            foreach (var net in nets) {
+                var generation = net.powerComps.Where(p => p.PowerOn && p.PowerOutput > 0).Sum(p => (double)p.PowerOutput);
+                var consumption = net.powerComps.Where(p => p.PowerOn && p.PowerOutput < 0).Sum(p => (double)-p.PowerOutput);
+                result.Networks.Add(new Obs.PowerNetwork { Id = NetId(net),
+                    Producers = (uint)net.powerComps.Count(p => p.Props.PowerConsumption < 0),
+                    Consumers = (uint)net.powerComps.Count(p => p.Props.PowerConsumption > 0),
+                    Batteries = (uint)net.batteryComps.Count, Transmitters = (uint)net.transmitters.Count, Connectors = (uint)net.connectors.Count,
+                    GenerationW = Finite(generation), ConsumptionW = Finite(consumption), NetW = Finite(generation - consumption),
+                    StoredWattDays = Finite(net.CurrentStoredEnergy()),
+                    CapacityWattDays = Finite(net.batteryComps.Sum(b => (double)b.Props.storedEnergyMax)),
+                    HasSource = net.powerComps.Any(p => p.Props.PowerConsumption < 0),
+                    HasActiveSource = net.powerComps.Any(p => p.PowerOn && p.PowerOutput > 0),
+                    Completeness = Complete(net.powerComps.Count + net.batteryComps.Count) });
+            }
             return result;
+        }
+
+        private static string NetId(PowerNet net) => net.GetHashCode().ToString(System.Globalization.CultureInfo.InvariantCulture);
+
+        // Refuelable and breakdown service facts mirror NativeRecoveryFacts so the
+        // power planner can distinguish "waiting for ordinary refueling/repair"
+        // from "no producer" without a second census.
+        private static void Service(Building building, Obs.BuildingServiceState service)
+        {
+            service.BrokenDown = building.TryGetComp<CompBreakdownable>()?.BrokenDown ?? false;
+            var fuel = building.TryGetComp<CompRefuelable>();
+            if (fuel == null) return;
+            service.Fuel = Finite(fuel.Fuel); service.TargetFuel = Finite(fuel.TargetFuelLevel); service.OutOfFuel = !fuel.HasFuel;
+            var defs = fuel.Props.fuelFilter.AllowedThingDefs.Select(d => d.defName).OrderBy(d => d, StringComparer.Ordinal).ToList();
+            Bound(defs.Count, 256);
+            service.AllowedFuelDefs.Add(defs);
+        }
+
+        private static Obs.BuildingState PowerState(Map map, Building building, Obs.BuildingServiceState service)
+        {
+            var state = new Obs.BuildingState { Building = new Obs.EntityRef { Id = building.GetUniqueLoadID(), MapId = map.uniqueID,
+                    DefName = building.def.defName, Position = Cell(building.Position) },
+                Service = service, Settings = new Obs.BuildingSettings { Forbidden = building.IsForbidden(Faction.OfPlayer) } };
+            var occupied = building.OccupiedRect().Cells.ToList();
+            Bound(occupied.Count, 4096);
+            foreach (var cell in occupied) state.OccupiedCells.Add(Cell(cell));
+            return state;
         }
 
         private static void ReadProduction(Obs.ColonyFactsSnapshot result, Map map, List<Pawn> people,
@@ -363,6 +415,7 @@ namespace HomeBridge.BridgeTools
                 if (stock.holder != null) row.HolderId = stock.holder;
                 if (stock.rotTicks.HasValue) row.RotTicks = stock.rotTicks.Value;
                 if (stock.roofed.HasValue) row.Roofed = stock.roofed.Value;
+                if (stock.roomId != null) row.RoomId = stock.roomId;
                 result.Stocks.Add(row);
             }
             return result;
