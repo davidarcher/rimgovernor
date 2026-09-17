@@ -719,8 +719,11 @@ func serveBuildingWithBridge(ctx context.Context, config serveConfig, out io.Wri
 	}
 	pollDone = make(chan struct{})
 	go func() { defer close(pollDone); reads.Poll(lifetime, config.refresh) }()
+	superviseDone := make(chan struct{})
+	defer func() { <-superviseDone }()
+	go func() { defer close(superviseDone); superviseBridge(lifetime, client.reads, out) }()
 	if config.resume {
-		resumer, err := newAutoResumer(buildingSnapshots{reads, player}, player, out)
+		resumer, err := newAutoResumer(buildingSnapshots{reads, player}, player, database, out)
 		if err != nil {
 			return err
 		}

@@ -16,9 +16,15 @@ import (
 // discoverable (ConnectWithPoll). On any failure it closes the GABS process before
 // returning, so callers never leak a half-open session.
 func OpenSession(ctx context.Context, gabsExecutable, configDir, gameID string, timeout time.Duration) (*bridge.Client, error) {
-	client, err := bridge.Open(ctx, bridge.ProcessConfig{
+	return OpenSessionWith(ctx, bridge.ProcessConfig{
 		Executable: gabsExecutable, ConfigDir: configDir, GameID: gameID, Timeout: timeout,
 	})
+}
+
+// OpenSessionWith is OpenSession for a caller that needs the full
+// bridge.ProcessConfig (a flight recorder, or the Spawned PID hook).
+func OpenSessionWith(ctx context.Context, config bridge.ProcessConfig) (*bridge.Client, error) {
+	client, err := bridge.Open(ctx, config)
 	if err != nil {
 		return nil, fmt.Errorf("open GABS session: %w", err)
 	}

@@ -38,6 +38,10 @@ type ProcessConfig struct {
 	// including background reads.
 	// It is opt-in: a nil Recorder records nothing and costs nothing.
 	Recorder *FlightRecorder
+	// Spawned, when set, is told the PID of each GABS process this Client
+	// starts (Open and every Reconnect/Reattach). Acceptance harnesses use it
+	// to end exactly their own GABS and prove recovery; it grants nothing.
+	Spawned func(pid int)
 }
 
 // Result retains the complete MCP receipt at the transport boundary. Structured
@@ -120,7 +124,11 @@ const maxConcurrentCalls = 8
 
 // Client owns a single session. Up to maxConcurrentCalls calls may be in
 // flight at once; Close cancels in-flight and queued work. Reconnect is
-// explicit and never repeats a native call.
+// explicit and never repeats a native call. A session whose transport dies
+// (GABS exiting, its stdio closing) is dropped as soon as the SDK observes
+// it: calls then fail fast with ErrDisconnected instead of each discovering
+// the dead pipe, Disconnected reports the loss, and Reattach is the bounded
+// recovery a supervisor drives.
 type Client struct {
 	lifecycle  chan struct{}
 	mu         sync.Mutex
@@ -160,8 +168,24 @@ func Open(ctx context.Context, config ProcessConfig) (*Client, error) {
 	return open(ctx, config.GameID, config.Timeout, config.Recorder, func() mcp.Transport {
 		cmd := exec.Command(config.Executable, "server", "stdio", "--configDir", config.ConfigDir, "--log-level", config.LogLevel)
 		cmd.Stderr = config.Stderr
-		return &mcp.CommandTransport{Command: cmd, TerminateDuration: time.Second}
+		return &spawnedTransport{Transport: &mcp.CommandTransport{Command: cmd, TerminateDuration: time.Second}, cmd: cmd, spawned: config.Spawned}
 	})
+}
+
+// spawnedTransport reports the PID of the process a CommandTransport started
+// once its Connect has started it.
+type spawnedTransport struct {
+	mcp.Transport
+	cmd     *exec.Cmd
+	spawned func(pid int)
+}
+
+func (t *spawnedTransport) Connect(ctx context.Context) (mcp.Connection, error) {
+	connection, err := t.Transport.Connect(ctx)
+	if err == nil && t.spawned != nil && t.cmd.Process != nil {
+		t.spawned(t.cmd.Process.Pid)
+	}
+	return connection, err
 }
 
 func open(ctx context.Context, gameID string, timeout time.Duration, recorder *FlightRecorder, factory transportFactory) (*Client, error) {
@@ -257,8 +281,59 @@ func (c *Client) Reconnect(ctx context.Context) error {
 		_ = session.Close()
 		return ErrClosed
 	}
-	c.live = &liveSession{sdk: session, owner: owner, ctx: liveCtx, cancel: liveCancel, discovery: discovery}
+	live := &liveSession{sdk: session, owner: owner, ctx: liveCtx, cancel: liveCancel, discovery: discovery}
+	c.live = live
 	c.mu.Unlock()
+	go c.watch(live)
+	return nil
+}
+
+// watch drops live once its transport has ended for any reason. Reconnect and
+// Close end sessions themselves, in which case live is already superseded or
+// nil and this is a no-op; a session GABS ended is what makes the Client
+// disconnected.
+func (c *Client) watch(live *liveSession) {
+	_ = live.sdk.Wait()
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	if c.live == live {
+		c.live = nil
+		live.cancel()
+	}
+}
+
+// Disconnected is closed once the current session has been lost or the
+// Client closed. Without a live session it is already closed. A successful
+// Reattach/Reconnect starts a fresh session with a fresh channel.
+func (c *Client) Disconnected() <-chan struct{} {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	if c.live == nil || c.closed {
+		return closedChannel
+	}
+	return c.live.ctx.Done()
+}
+
+var closedChannel = func() chan struct{} { ch := make(chan struct{}); close(ch); return ch }()
+
+// Reattach restores service after the GABS session was lost: a fresh GABS
+// process, then games_start and ConnectWithPoll against the game that kept
+// running, exactly as a restarted controller attaches. It is bounded by ctx
+// and the connect deadlines, never repeats a native call, and leaves the
+// Client disconnected when any step fails so the caller can retry.
+func (c *Client) Reattach(ctx context.Context) error {
+	if err := c.Reconnect(ctx); err != nil {
+		return err
+	}
+	started, err := c.GamesStart(ctx)
+	if err != nil {
+		_ = c.closeLive()
+		return fmt.Errorf("reattach: games_start: %w", err)
+	}
+	if _, err := c.ConnectWithPoll(ctx, started); err != nil {
+		_ = c.closeLive()
+		return fmt.Errorf("reattach: connect: %w", err)
+	}
 	return nil
 }
 

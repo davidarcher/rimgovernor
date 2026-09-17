@@ -37,6 +37,18 @@ startup and again after every load without a dashboard click; otherwise it
 waits for **Resume**. Attached sessions have a separate unchanged-game
 reconnect contract.
 
+A GABS session lost while the service runs (the GABS process exiting, its
+stdio closing) is recovered in-process: the bridge client drops the session as
+soon as the SDK observes the end of its transport, later native calls fail
+fast as disconnected, and a supervisor reattaches with bounded backoff --
+a fresh GABS process, then the same start/connect handshake a restarted
+controller uses against the game that kept running. Nothing is retried across
+the gap. Native meanwhile revokes authority as `DISCONNECT` once the typed
+clock lease lapses; because that is not the player's Pause, `--resume`
+re-acquires it (one bounded resume cycle per loss) while the journal's current
+control intent is still a running Resume for that world. A player's Pause
+record stands.
+
 See [save and resume](../../players/save-and-resume.md).
 
 ## Cleanup

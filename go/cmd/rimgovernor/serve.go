@@ -365,6 +365,7 @@ func serveReadOnly(ctx context.Context, config serveConfig, out io.Writer) (resu
 
 type serviceBridge interface {
 	observation.Source
+	bridgeReattacher
 	GamesStart(context.Context) (bridge.Result, error)
 	ConnectWithPoll(context.Context, bridge.Result) (bridge.Result, error)
 	Close() error
@@ -416,7 +417,9 @@ func serveWithBridge(ctx context.Context, config serveConfig, out io.Writer, ope
 	pollCtx, cancel := context.WithCancel(ctx)
 	done := make(chan struct{})
 	go func() { defer close(done); snapshots.Poll(pollCtx, config.refresh) }()
-	defer func() { cancel(); <-done }()
+	superviseDone := make(chan struct{})
+	go func() { defer close(superviseDone); superviseBridge(pollCtx, client, out) }()
+	defer func() { cancel(); <-done; <-superviseDone }()
 	if _, err := fmt.Fprintf(out, "RimGovernor Go read-only service: http://%s\n", listener.Addr()); err != nil {
 		return err
 	}
