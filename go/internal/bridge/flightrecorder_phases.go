@@ -54,15 +54,17 @@ type PhaseSummary struct {
 // StepSample aggregates the "clock_step" rows a ClockScheduler step publishes
 // from its ReadTally: how many steps the timeline covers, the native round
 // trips they issued in total and at most, the reads the step cache served
-// instead, and the round trips per tool summed over all steps (divide by
-// Steps for a per-step mean). Rows are absent when the controller ran
-// without a scheduler, leaving Steps at 0.
+// instead, the reads the cross-step FactCache served (ParentHits), and the
+// round trips per tool summed over all steps (divide by Steps for a
+// per-step mean). Rows are absent when the controller ran without a
+// scheduler, leaving Steps at 0.
 type StepSample struct {
-	Steps     uint64            `json:"steps"`
-	Reads     uint64            `json:"reads"`
-	MaxReads  uint64            `json:"max_reads"`
-	CacheHits uint64            `json:"cache_hits"`
-	Tools     map[string]uint64 `json:"tools,omitempty"`
+	Steps      uint64            `json:"steps"`
+	Reads      uint64            `json:"reads"`
+	MaxReads   uint64            `json:"max_reads"`
+	CacheHits  uint64            `json:"cache_hits"`
+	ParentHits uint64            `json:"parent_hits"`
+	Tools      map[string]uint64 `json:"tools,omitempty"`
 }
 
 // ClockSample is wall TPS derived from the observation-context ticks carried
@@ -159,6 +161,7 @@ func SummarizePhases(records []TimelineRecord) PhaseSummary {
 			steps.Reads += reads
 			steps.MaxReads = max(steps.MaxReads, reads)
 			steps.CacheHits += uint64(field(row.Payload, "cache_hits"))
+			steps.ParentHits += uint64(field(row.Payload, "parent_hits"))
 			if tools, ok := row.Payload["tools"].(map[string]any); ok {
 				if steps.Tools == nil {
 					steps.Tools = map[string]uint64{}
@@ -291,7 +294,7 @@ func WritePhaseReport(w io.Writer, summary PhaseSummary) {
 		fmt.Fprintln(w)
 	}
 	if steps := summary.Steps; steps.Steps > 0 {
-		fmt.Fprintf(w, "steps: %d, reads/step mean %.1f max %d, cache hits/step %.1f", steps.Steps, float64(steps.Reads)/float64(steps.Steps), steps.MaxReads, float64(steps.CacheHits)/float64(steps.Steps))
+		fmt.Fprintf(w, "steps: %d, reads/step mean %.1f max %d, cache hits/step %.1f, parent hits/step %.1f", steps.Steps, float64(steps.Reads)/float64(steps.Steps), steps.MaxReads, float64(steps.CacheHits)/float64(steps.Steps), float64(steps.ParentHits)/float64(steps.Steps))
 		names := make([]string, 0, len(steps.Tools))
 		for tool := range steps.Tools {
 			names = append(names, tool)

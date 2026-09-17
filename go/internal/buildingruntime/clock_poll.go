@@ -126,6 +126,7 @@ func (s *ClockScheduler) PollEvents(ctx context.Context, native ClockEventNative
 	}
 	if out.Captured {
 		out.Wake, out.AuthorityChanged = clockPageWake(page)
+		s.facts.apply(page)
 	}
 	review, err = s.player.journal.ReadClockReview(call, s.config.Profile)
 	if err != nil {

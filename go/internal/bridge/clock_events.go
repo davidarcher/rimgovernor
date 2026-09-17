@@ -169,6 +169,16 @@ func clockEvent(event *k.Event) error {
 		if a == nil || a.Generation == nil || a.GetGeneration() == 0 || (a.PreviousGeneration != nil && a.GetPreviousGeneration() >= a.GetGeneration()) || !diagnostic(a.Reason) {
 			return contract("clock authority change evidence")
 		}
+	case *k.Event_ObservationInvalidated:
+		o := v.ObservationInvalidated
+		if o == nil || len(o.Families) == 0 || len(o.Families) > len(FactFamilies()) || !diagnostic(o.Reason) {
+			return contract("clock observation invalidation evidence")
+		}
+		for _, family := range o.Families {
+			if _, ok := FactFamilyFromWire(family); !ok {
+				return contract("clock observation invalidation family")
+			}
+		}
 	default:
 		return contract("clock event variant missing")
 	}

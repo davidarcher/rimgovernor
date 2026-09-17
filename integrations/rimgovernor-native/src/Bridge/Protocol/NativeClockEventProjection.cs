@@ -117,6 +117,10 @@ namespace HomeBridge.BridgeTools
                     if (P().TryGetValue("previousGeneration", out previous) && previous != null) result.AuthorityChanged.PreviousGeneration = checked((ulong)Convert.ToInt64(previous));
                     if (P().TryGetValue("reason", out reason) && reason != null) result.AuthorityChanged.Reason = Text((string)reason);
                     break;
+                case "observation_invalidated":
+                    result.ObservationInvalidated = new Clock.ObservationInvalidated { Reason = Text(String(P(), "reason")) };
+                    result.ObservationInvalidated.Families.Add(FamilyNames(P()));
+                    break;
                 case "started": result.Started = new Clock.EpochStarted { Epoch = (started ?? throw new ArgumentNullException(nameof(started))).Clone() }; break;
                 case "speed_changed": result.SpeedChanged = new Clock.SpeedChanged { Speed = ParseSpeed(String(P(), "speed")) }; break;
                 case "notification_new": result.Notification = P().ContainsKey("label") ? new Clock.Notification { Letter = Letter(P()) } : new Clock.Notification { Message = Message(P()) }; break;
@@ -145,6 +149,29 @@ namespace HomeBridge.BridgeTools
                     result.Stopped = stop; break;
             }
             return result;
+        }
+        // Fact family names as the FactCache spells them (Go bridge.FactFamily).
+        internal static Clock.FactFamily Family(string name)
+        {
+            switch (name)
+            {
+                case "definitions": return Clock.FactFamily.Definitions;
+                case "world": return Clock.FactFamily.World;
+                case "identity": return Clock.FactFamily.Identity;
+                case "colony": return Clock.FactFamily.Colony;
+                case "pawns": return Clock.FactFamily.Pawns;
+                case "emergency": return Clock.FactFamily.Emergency;
+                case "rooms": return Clock.FactFamily.Rooms;
+                case "research": return Clock.FactFamily.Research;
+                default: throw new InvalidOperationException("Unknown fact family: " + name);
+            }
+        }
+        private static IEnumerable<Clock.FactFamily> FamilyNames(Dictionary<string, object?> row)
+        {
+            var names = ((IEnumerable)Required(row, "families")).Cast<object?>();
+            var families = names.Select(name => Family(name as string ?? throw new InvalidOperationException("Fact family is not a name"))).Distinct().ToList();
+            if (families.Count == 0) throw new InvalidOperationException("Observation invalidation names no family");
+            return families;
         }
         // The outcome is retained as the ProtoJSON the watch produced, so the
         // receipts evidence inside it round-trips exactly.

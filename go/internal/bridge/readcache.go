@@ -28,22 +28,28 @@ import (
 // exactly as they validate a native reply.
 //
 // The cache is meant to live for one step and be dropped; it never spans
-// steps or ticks.
+// steps or ticks. A parent FactCache (NewChildReadCache) is what carries
+// facts between steps: once a native reply has established the step's
+// scope, a miss here is served from the parent when it holds a row valid
+// under that scope, and every reply stored here is stored there too.
 type StepReadCache struct {
 	mu      sync.Mutex
 	scope   readScope
 	epoch   uint64
 	entries map[readCacheKey]*readCacheEntry
 	stats   StepReadCacheStats
+	parent  *FactCache
 }
 
 // StepReadCacheStats counts a cache's outcomes. Hits were served locally;
 // Misses went to native (whether or not the reply was then cached);
-// Coalesced hits waited on an identical read already in flight; Invalidations
-// are the times the rows were discarded because a reply reported a new
-// observation scope or a write went through the cached context.
+// Coalesced hits waited on an identical read already in flight; ParentHits
+// are step misses the parent FactCache served without a round trip (not
+// counted in Hits or Misses); Invalidations are the times the rows were
+// discarded because a reply reported a new observation scope or a write
+// went through the cached context.
 type StepReadCacheStats struct {
-	Hits, Misses, Coalesced, Invalidations uint64
+	Hits, Misses, Coalesced, ParentHits, Invalidations uint64
 }
 
 type readScope struct {
@@ -72,6 +78,14 @@ func NewStepReadCache() *StepReadCache {
 	return &StepReadCache{entries: map[readCacheKey]*readCacheEntry{}}
 }
 
+// NewChildReadCache returns a step cache that fills from and stores into
+// parent; a nil parent is the plain step cache.
+func NewChildReadCache(parent *FactCache) *StepReadCache {
+	cache := NewStepReadCache()
+	cache.parent = parent
+	return cache
+}
+
 // WithStepReadCache attaches cache to ctx so Client's reviewed reads consult
 // it. Contexts derived from ctx carry it too, which is how a step's parallel
 // planners share one cache.
@@ -98,7 +112,9 @@ func (s *StepReadCache) Stats() StepReadCacheStats {
 	return s.stats
 }
 
-// Invalidate discards every row. Reads already in flight will not be stored.
+// Invalidate discards every row, in the parent too: it is the write hook,
+// and a write may change any fact. Reads already in flight will not be
+// stored.
 func (s *StepReadCache) Invalidate() {
 	if s == nil {
 		return
@@ -106,6 +122,7 @@ func (s *StepReadCache) Invalidate() {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.invalidateLocked()
+	s.parent.Invalidate()
 }
 
 func (s *StepReadCache) invalidateLocked() {
@@ -161,6 +178,30 @@ func (s *StepReadCache) complete(key readCacheKey, entry *readCacheEntry, scope 
 		s.entries[key] = entry
 	}
 	entry.payload, entry.result, entry.ok = payload, result, true
+	s.parent.store(key, *scope, payload, result)
+}
+
+// fromParent serves a leader's miss from the parent when the step's scope
+// is already established and the parent holds a row valid under it. On a
+// parent hit the entry is completed for the followers as a native reply
+// would be, without touching the parent again.
+func (s *StepReadCache) fromParent(key readCacheKey, entry *readCacheEntry) ([]byte, Result, bool) {
+	if s.parent == nil {
+		return nil, Result{}, false
+	}
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if s.scope == (readScope{}) || entry.epoch != s.epoch {
+		return nil, Result{}, false
+	}
+	payload, result, ok := s.parent.lookup(key, s.scope)
+	if !ok {
+		return nil, Result{}, false
+	}
+	defer close(entry.done)
+	entry.payload, entry.result, entry.ok = payload, result, true
+	s.stats.ParentHits++
+	return payload, result, true
 }
 
 // wait blocks a follower until the leader completes or ctx ends. It returns

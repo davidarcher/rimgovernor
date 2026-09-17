@@ -320,6 +320,24 @@ message StopEvent {
   }
 }
 message EpochStarted { Epoch epoch = 1; }
+// A group of observation reads that go stale together. Definitions and world
+// facts survive a tick advance; the rest are facts of one paused tick.
+enum FactFamily {
+  FACT_FAMILY_UNSPECIFIED = 0;
+  FACT_FAMILY_DEFINITIONS = 1;
+  FACT_FAMILY_WORLD = 2;
+  FACT_FAMILY_IDENTITY = 3;
+  FACT_FAMILY_COLONY = 4;
+  FACT_FAMILY_PAWNS = 5;
+  FACT_FAMILY_EMERGENCY = 6;
+  FACT_FAMILY_ROOMS = 7;
+  FACT_FAMILY_RESEARCH = 8;
+}
+// Native noticed the named fact families change under a running epoch
+// without a controller write or a stop (a research project finished, faction
+// relations moved): a controller holding cached rows of those families
+// discards them. Never empty.
+message ObservationInvalidated { repeated FactFamily families = 1; optional string reason = 2; }
 message SpeedChanged { optional Speed speed = 1; }
 message PauseFailed { StopEvent pending = 1; }
 message ForcePauseWaiting {
@@ -352,10 +370,8 @@ message Event {
     ForcePauseCleared force_pause_cleared = 15;
     OperationOutcome operation_outcome = 16;
     AuthorityChanged authority_changed = 17;
+    ObservationInvalidated observation_invalidated = 18;
   }
-  // Targeted observation refresh (issue #10 milestone 2).
-  reserved 18;
-  reserved "observation_invalidated";
 }
 message EventsRequest {
   rimgovernor.common.v1.Identity identity = 1;

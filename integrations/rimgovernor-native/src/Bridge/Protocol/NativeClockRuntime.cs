@@ -391,6 +391,8 @@ namespace HomeBridge.BridgeTools
                 && value.Started.Epoch.Owner.Equals(value.Owner) && value.Started.Epoch.Origin != null;
             if (value.SpeedChanged != null) return value.SpeedChanged.HasSpeed && OrdinarySpeed(value.SpeedChanged.Speed);
             if (value.Notification != null) return value.Notification.SourceCase != Clock.Notification.SourceOneofCase.None;
+            if (value.ObservationInvalidated != null) return value.ObservationInvalidated.Families.Count > 0 && value.ObservationInvalidated.Families.Count <= 8
+                && value.ObservationInvalidated.Families.All(family => family != Clock.FactFamily.Unspecified && Enum.IsDefined(typeof(Clock.FactFamily), family));
             return true;
         }
         private static bool ValidStoredStop(Clock.StopEvent value) => value.HasReason && value.Reason != Clock.StopReason.Unspecified

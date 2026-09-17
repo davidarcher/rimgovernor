@@ -48,6 +48,7 @@ func main() {
 	scenario := flag.String("scenario", "dark", "dark or outage")
 	hold := flag.Duration("hold", 4*time.Minute, "outage: how long the service must hold without committing a lighting method")
 	timeout := flag.Duration("timeout", 25*time.Minute, "overall run timeout")
+	flightRecorder := flag.Bool("flight-recorder", false, "record the service's native timeline (flight.jsonl) and summarize its phases (reads/step, cache and parent hits) into the report")
 	flag.Parse()
 	if *root == "" || *binary == "" || !filepath.IsAbs(*binary) {
 		fmt.Fprintln(os.Stderr, "-root and an absolute -rimgovernor are required")
@@ -74,16 +75,17 @@ func main() {
 		"confirmed by an independent native read.", !*rendered)
 	ctx, cancel := context.WithTimeout(context.Background(), *timeout)
 	defer cancel()
-	err := run(ctx, *root, *output, *game, !*rendered, *binary, *scenario, *hold, report)
+	err := run(ctx, *root, *output, *game, !*rendered, *binary, *scenario, *hold, *flightRecorder, report)
 	if err != nil {
 		report["error"] = err.Error()
 	} else {
 		report["passed"] = true
 	}
+	na.ReportPhases(report, *output, *flightRecorder)
 	os.Exit(report.Finalize(*output))
 }
 
-func run(ctx context.Context, root, output, gameID string, headless bool, binary, scenario string, hold time.Duration, report na.Report) error {
+func run(ctx context.Context, root, output, gameID string, headless bool, binary, scenario string, hold time.Duration, flightRecorder bool, report na.Report) error {
 	if abs, err := filepath.Abs(root); err == nil {
 		root = abs
 	}
@@ -229,7 +231,7 @@ func run(ctx context.Context, root, output, gameID string, headless bool, binary
 	// "work" rides along because every building method's builder check
 	// requires the colony's work priorities to match the controller's own
 	// assignment, which only the work family applies.
-	service, err = na.LaunchService(ctx, cfg, gabsExecutable, na.ServiceLaunch{Binary: binary, Families: []string{"lighting", "work"}, Extra: []string{"--clock-speed", na.ClockSpeed()}}, report)
+	service, err = na.LaunchService(ctx, cfg, gabsExecutable, na.ServiceLaunch{Binary: binary, Families: []string{"lighting", "work"}, Extra: append([]string{"--clock-speed", na.ClockSpeed()}, na.FlightRecorderArgs(cfg.Output, flightRecorder)...)}, report)
 	if err != nil {
 		return err
 	}

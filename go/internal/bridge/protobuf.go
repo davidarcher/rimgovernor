@@ -246,6 +246,13 @@ func (caller *Client) cachedRead(ctx context.Context, cache *StepReadCache, name
 		// The leader failed or its reply was uncacheable: read natively.
 		return caller.protoCall(ctx, name, request, reply)
 	}
+	if payload, result, ok := cache.fromParent(key, entry); ok {
+		if err = proto.Unmarshal(payload, reply); err == nil {
+			caller.recordCacheHit(ctx, name)
+			return result, nil
+		}
+		return Result{}, contract("cached reply decoding: %v", err)
+	}
 	result, err := caller.protoCall(ctx, name, request, reply)
 	if err != nil {
 		cache.complete(key, entry, nil, nil, Result{})

@@ -153,6 +153,8 @@ type ClockScheduler struct {
 	config              ClockSchedulerConfig
 	clock               executor.Clock
 	pollGate, renewGate chan struct{}
+	// facts carries reviewed observations between steps; see clockFacts.
+	facts *clockFacts
 
 	// tickTrace is a TEMPORARY diagnostic aid (RIMGOVERNOR_CLOCK_DEBUG=1),
 	// read and written only from Step() which the ClockWorker's stepLoop
@@ -356,7 +358,7 @@ func NewClockScheduler(player *Player, session *Session, native ClockWindowNativ
 		return nil, err
 	}
 	config.Profile = inbox.Profile
-	return &ClockScheduler{player: player, session: session, native: native, config: config, clock: clock, pollGate: make(chan struct{}, 1), renewGate: make(chan struct{}, 1)}, nil
+	return &ClockScheduler{player: player, session: session, native: native, config: config, clock: clock, pollGate: make(chan struct{}, 1), renewGate: make(chan struct{}, 1), facts: newClockFacts()}, nil
 }
 
 var clockSchedulerDebug = os.Getenv("RIMGOVERNOR_CLOCK_DEBUG") != ""
@@ -388,8 +390,12 @@ func (s *ClockScheduler) Step(ctx context.Context) (ClockSchedulerResult, error)
 	// reads below, the routine census and each planner's own reads -- goes
 	// through one cache that lives exactly as long as the step, so the
 	// facts the planners share are read from native once per tick. A write
-	// within the step discards it; see bridge.StepReadCache.
-	cache := bridge.NewStepReadCache()
+	// within the step discards it; see bridge.StepReadCache. Its parent
+	// outlives the step: once the identity read has fixed this step's
+	// scope, facts an earlier step read under the same load, generation
+	// and tick (or a tick-independent family) are served from it, and the
+	// typed events PollEvents ingests drop what they make stale.
+	cache := bridge.NewChildReadCache(s.facts.cache)
 	call = bridge.WithStepReadCache(call, cache)
 	// The round trips that still cross the bridge (cache misses, the
 	// uncacheable reads, writes) are tallied by tool so the cost of the
@@ -402,8 +408,8 @@ func (s *ClockScheduler) Step(ctx context.Context) (ClockSchedulerResult, error)
 	defer func() {
 		elapsed := time.Since(stepBegan)
 		stats := cache.Stats()
-		clockSchedulerLog("step reads: %s cache hits=%d misses=%d coalesced=%d invalidations=%d running=%v elapsed=%s", reads, stats.Hits, stats.Misses, stats.Coalesced, stats.Invalidations, out.Running, elapsed.Round(time.Millisecond))
-		reads.Publish(call, map[string]any{"cache_hits": stats.Hits, "running": out.Running, "elapsed_ms": float64(elapsed) / float64(time.Millisecond)})
+		clockSchedulerLog("step reads: %s cache hits=%d misses=%d coalesced=%d parent_hits=%d invalidations=%d running=%v elapsed=%s", reads, stats.Hits, stats.Misses, stats.Coalesced, stats.ParentHits, stats.Invalidations, out.Running, elapsed.Round(time.Millisecond))
+		reads.Publish(call, map[string]any{"cache_hits": stats.Hits, "parent_hits": stats.ParentHits, "running": out.Running, "elapsed_ms": float64(elapsed) / float64(time.Millisecond)})
 	}()
 	attempts, err := s.player.journal.LoadClockAttempts(call, 4096)
 	if err != nil {
@@ -883,6 +889,7 @@ func (s *ClockScheduler) Step(ctx context.Context) (ClockSchedulerResult, error)
 	}
 	start.Policy.WatchedAttempts = clockSchedulerWatches(fingerprint, string(namespace))
 	out.Watched = len(start.Policy.WatchedAttempts)
+	s.facts.remember(fingerprint)
 	if out.Decision.Mode == policy.ClockWindowCombat {
 		// The native watcher stops on any unacknowledged hostile within
 		// HostileWithin; a combat window acknowledges exactly the live

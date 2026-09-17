@@ -155,7 +155,12 @@ generation seam with `epoch = 0` and no owner. `OperationOutcome` rows carry an
 attempt key, the latching tick and exactly one receipts effect; an
 `OperationOutcome` immediately precedes its `STOP_REASON_WATCH_LATCHED` stop on
 the same tick, and the stop's `WatchLatched` evidence repeats the outcome with
-the window's tick deadline.
+the window's tick deadline. `ObservationInvalidated` rows name one to eight
+distinct `FactFamily` values (never unspecified) that changed under a running
+epoch without a controller write or a stop; the native supervisor publishes
+them from its probe when a research project finishes (`research`,
+`definitions`) or a faction's relation, goodwill or defeat state moves
+(`world`). Like outcomes and authority changes they are facts, not holds.
 
 An empty journal can report `oldest_cursor = 0` and `newest_cursor = 0`. An absent
 oldest cursor is also valid. A positive oldest cursor requires a nonempty journal;
@@ -272,8 +277,26 @@ authority, presentation, receipt and preview reads are never cached, nor are
 refusals or unavailability. A hit is decoded into a fresh reply, so the typed
 adapters and the same-bracket identity guards validate it as they would a
 native reply. `RIMGOVERNOR_CLOCK_DEBUG=1` logs the step's hit/miss/coalesced/
-invalidation counts and the flight recorder reports hits per method (the
-`cached` column of `rimgovernor phases`). Nothing is cached across steps.
+parent-hit/invalidation counts and the flight recorder reports hits per method
+(the `cached` column of `rimgovernor phases`).
+
+Across steps the scheduler keeps one `bridge.FactCache`, the parent of every
+step cache. Each cacheable method belongs to a fact family
+(`bridge.FactFamilyOf`): `definitions` (recipes) and `world` (world tile and
+settlements) survive a tick advance; `identity`, `colony`, `pawns`,
+`emergency`, `rooms` and `research` are facts of one paused tick. Once a
+step's first native reply (the identity read, always native) has fixed its
+(load, generation, tick) scope, a step miss is served from the parent when
+the row was read under the same load and generation and is either
+tick-independent or from that same tick, so a timer step under a stopped
+clock costs one round trip. Rows are dropped by any write through a step
+context (all), by a reply from another (load, generation) scope (all), and
+by the typed events `PollEvents` commits: `AuthorityChanged`, `EpochStarted`
+and a stop drop everything; an `OperationOutcome` drops the families its
+operation kind changes (construction: `colony`, `rooms`, `pawns`; an attempt
+the scheduler did not arm drops everything); `ObservationInvalidated` drops
+the families it names. The step's `clock_step` row carries `parent_hits`,
+which `rimgovernor phases` reports as parent hits/step.
 
 ## Independent clock workers
 

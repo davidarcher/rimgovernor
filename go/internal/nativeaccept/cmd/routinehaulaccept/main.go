@@ -69,6 +69,7 @@ func main() {
 	game := flag.String("game", "rimgovernor-trial", "configured game ID")
 	rimgovernorBinary := flag.String("rimgovernor", "", "absolute path to a prebuilt rimgovernor binary (go build ./go/cmd/rimgovernor)")
 	timeout := flag.Duration("timeout", 25*time.Minute, "overall run timeout")
+	flightRecorder := flag.Bool("flight-recorder", false, "record the service's native timeline (flight.jsonl) and summarize its phases (reads/step, cache and parent hits) into the report")
 	flag.Parse()
 	if *root == "" {
 		fmt.Fprintln(os.Stderr, "-root is required")
@@ -101,16 +102,17 @@ func main() {
 		"overriding player intent or double-issuing.", !*rendered)
 	ctx, cancel := context.WithTimeout(context.Background(), *timeout)
 	defer cancel()
-	err := run(ctx, *root, *output, *game, !*rendered, *rimgovernorBinary, report)
+	err := run(ctx, *root, *output, *game, !*rendered, *rimgovernorBinary, *flightRecorder, report)
 	if err != nil {
 		report["error"] = err.Error()
 	} else {
 		report["passed"] = true
 	}
+	na.ReportPhases(report, *output, *flightRecorder)
 	os.Exit(report.Finalize(*output))
 }
 
-func run(ctx context.Context, root, output, gameID string, headless bool, rimgovernorBinary string, report na.Report) error {
+func run(ctx context.Context, root, output, gameID string, headless bool, rimgovernorBinary string, flightRecorder bool, report na.Report) error {
 	if abs, err := filepath.Abs(root); err == nil {
 		root = abs
 	}
@@ -311,6 +313,7 @@ func run(ctx context.Context, root, output, gameID string, headless bool, rimgov
 		"--refresh", "1s",
 		"--timeout", "15s",
 	}
+	argv = append(argv, na.FlightRecorderArgs(output, flightRecorder)...)
 	report["service_argv"] = append([]string{rimgovernorBinary}, argv...)
 	cmd := exec.CommandContext(ctx, rimgovernorBinary, argv...)
 	// TEMPORARY: surface ClockScheduler.Step()'s branch tracing while

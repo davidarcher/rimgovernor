@@ -96,12 +96,13 @@ func BenignStop(reason k.StopReason) bool {
 	return false
 }
 
-// EventInterrupts classifies one journal event. Operation outcomes and
-// authority changes are typed facts the controller reacts to, not holds. It
+// EventInterrupts classifies one journal event. Operation outcomes,
+// authority changes and observation invalidations are typed facts the
+// controller reacts to, not holds. It
 // is shared with the poll loop so both classifications cannot drift.
 func EventInterrupts(event *k.Event) bool {
 	switch e := event.Event.(type) {
-	case *k.Event_Started, *k.Event_SpeedChanged, *k.Event_HostilesCleared, *k.Event_ForcePauseCleared, *k.Event_OperationOutcome, *k.Event_AuthorityChanged:
+	case *k.Event_Started, *k.Event_SpeedChanged, *k.Event_HostilesCleared, *k.Event_ForcePauseCleared, *k.Event_OperationOutcome, *k.Event_AuthorityChanged, *k.Event_ObservationInvalidated:
 		return false
 	case *k.Event_Stopped:
 		return !BenignStop(e.Stopped.GetReason())

@@ -21,6 +21,7 @@ import (
 // clock pause as the step's write.
 type readCacheServer struct {
 	generation  atomic.Uint64
+	tick        atomic.Int64
 	calls       map[string]*atomic.Int64
 	release     chan struct{}
 	unavailable atomic.Bool
@@ -28,15 +29,16 @@ type readCacheServer struct {
 
 func newReadCacheServer() *readCacheServer {
 	s := &readCacheServer{calls: map[string]*atomic.Int64{}}
-	for _, name := range []string{"rimgovernor/lifecycle_read_identity", "rimgovernor/observations_read_world", "rimgovernor/clock_pause"} {
+	for _, name := range []string{"rimgovernor/lifecycle_read_identity", "rimgovernor/observations_read_world", "rimgovernor/observations_list_rooms", "rimgovernor/clock_pause"} {
 		s.calls[name] = &atomic.Int64{}
 	}
 	s.generation.Store(1)
+	s.tick.Store(1000)
 	return s
 }
 
 func (s *readCacheServer) context() *c.ObservationContext {
-	return &c.ObservationContext{Identity: pbIdentity(), Tick: proto.Int64(1000), NativeGeneration: proto.Uint64(s.generation.Load())}
+	return &c.ObservationContext{Identity: pbIdentity(), Tick: proto.Int64(s.tick.Load()), NativeGeneration: proto.Uint64(s.generation.Load())}
 }
 
 func (s *readCacheServer) handle(_ context.Context, arg nativeArgument) (*mcp.CallToolResult, error) {
@@ -57,6 +59,10 @@ func (s *readCacheServer) handle(_ context.Context, arg nativeArgument) (*mcp.Ca
 		snapshot.Context = s.context()
 		snapshot.Tile = &o.WorldTile{Longitude: proto.Float64(-73.5)}
 		return pbResult(&o.WorldReply{Outcome: &o.WorldReply_Observed{Observed: snapshot}}), nil
+	case "rimgovernor/observations_list_rooms":
+		snapshot := temperatureTestSnapshot()
+		snapshot.Context = s.context()
+		return pbResult(&o.ListRoomsReply{Outcome: &o.ListRoomsReply_Observed{Observed: snapshot}}), nil
 	case "rimgovernor/clock_pause":
 		s.generation.Add(1)
 		status := clockTestStopped()

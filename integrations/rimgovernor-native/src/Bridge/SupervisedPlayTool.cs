@@ -253,6 +253,7 @@ namespace HomeBridge.BridgeTools
                         { "secondsRemaining", (int)((owed + 999) / 1000) } });
                 }
                 _state = s;
+                PublishFactChanges(s);
                 var hit = Probe(s);
                 if (hit != null)
                 {
@@ -426,6 +427,7 @@ namespace HomeBridge.BridgeTools
                     s.LastProbeTick = tm.TicksGame;
                     s.ProbeCount++;
                     s.LastProbeMs = NowMs();
+                    PublishFactChanges(s);
                     var hit = Probe(s);
                     if (hit != null) Stop(s, hit.Kind, hit.Detail, true, hit.Payload);
                 }
@@ -558,6 +560,48 @@ namespace HomeBridge.BridgeTools
         private static readonly HashSet<string> NonStoppingMessageTypes = new HashSet<string>(StringComparer.Ordinal) {
             "NeutralEvent", "PositiveEvent", "HistoricalEvent", "NegativeEvent", "NegativeHealthEvent", "SituationResolved" };
 
+        /// Facts that change under a running epoch without a controller write
+        /// or a stop, and that the controller's cross-step FactCache would
+        /// otherwise keep serving: a research project finishing changes the
+        /// research and definitions families (recipes and buildables it
+        /// unlocks); a faction relation or goodwill move changes the world
+        /// family. The first probe of an epoch only baselines; each later
+        /// change appends one observation_invalidated row naming the stale
+        /// families, coalesced per probe.
+        private static void PublishFactChanges(State s)
+        {
+            var research = ResearchDigest();
+            var world = WorldDigest();
+            var families = new List<string>();
+            var reasons = new List<string>();
+            if (s.ResearchDigest != null && s.ResearchDigest != research) { families.Add("research"); families.Add("definitions"); reasons.Add("research " + research); }
+            if (s.WorldDigest != null && s.WorldDigest != world) { families.Add("world"); reasons.Add("faction relations changed"); }
+            s.ResearchDigest = research; s.WorldDigest = world;
+            if (families.Count == 0) return;
+            Add("observation_invalidated", "Observed facts changed: " + string.Join("; ", reasons) + ".", s,
+                new Dictionary<string, object?> { { "families", families }, { "reason", string.Join("; ", reasons) } });
+        }
+        private static string ResearchDigest()
+        {
+            var manager = Find.ResearchManager;
+            if (manager == null) return "";
+            var finished = 0;
+            foreach (var project in DefDatabase<ResearchProjectDef>.AllDefsListForReading) if (project.IsFinished) finished++;
+            var current = manager.GetProject();
+            return finished + ":" + (current != null ? current.defName : "");
+        }
+        private static string WorldDigest()
+        {
+            var factions = Find.FactionManager;
+            if (factions == null) return "";
+            var parts = new List<string>();
+            foreach (var faction in factions.AllFactionsListForReading)
+            {
+                if (faction.IsPlayer) continue;
+                parts.Add(faction.loadID + "=" + faction.PlayerRelationKind + "/" + faction.PlayerGoodwill + "/" + (faction.defeated ? "d" : "a"));
+            }
+            return string.Join(",", parts);
+        }
         private static Hit? Probe(State s)
         {
             var newLetters = new List<Dictionary<string, object?>>();
@@ -1095,6 +1139,8 @@ namespace HomeBridge.BridgeTools
             public bool? PauseVerified; public bool PauseFailureReported;
             public string? StopReason; public string? StopDetail;
             public string? PendingKind; public string? PendingDetail;
+            // null until the epoch's first probe baselined them; see PublishFactChanges.
+            public string? ResearchDigest; public string? WorldDigest;
             // Wall-clock ms at which a windowless force pause began, 0 when none.
             public long ForcePauseSinceMs; public string? ForcePauseKind;
             public Dictionary<string, object?>? PendingPayload;
