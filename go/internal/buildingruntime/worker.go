@@ -218,7 +218,7 @@ func (w *Worker) step(ctx context.Context, now time.Time) error {
 		}
 		for _, progress := range plan.Progress {
 			v := progress.View()
-			cleanup := workerCleanupEligible(plan, v, scope, world)
+			cleanup := workerCleanupEligible(plan, v, planScope, world)
 			routineObservation := w.config.RoutineMethods && v.Unresolved && routineExecutableKind(progress.Action().Kind()) && playerWorld(v.Snapshot) == world
 			if clockSchedulerDebug && progress.Action().Kind() == domain.BuildingTemperatureAction {
 				clockSchedulerLog("worker: temperature candidate action=%s stage=%v authorized=%v eligible=%v worldErr=%v", v.Action, v.Stage, planScope.Snapshot != scope.Snapshot, workerEligible(plan, v, planScope, world), worldErr)
