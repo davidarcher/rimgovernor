@@ -96,16 +96,27 @@ namespace HomeBridge.BridgeTools
                 case "hunting_route_unsafe": return Clock.StopReason.HuntingRouteUnsafe;
                 case "colonist_health": return Clock.StopReason.ColonistHealth;
                 case "colonist_injury": return Clock.StopReason.ColonistInjury;
+                case "watch_latched": return Clock.StopReason.WatchLatched;
                 default: throw new InvalidOperationException("Unknown native clock stop kind: " + kind);
             }
         }
         internal static Clock.Event Event(string kind, string? detail, Dictionary<string, object?>? payload, Common.ObservationContext context,
-            Clock.EpochOwner owner, long cursor, long observedAt, Clock.Epoch? started, Func<int, string> resolvePawn)
+            Clock.EpochOwner? owner, long cursor, long observedAt, Clock.Epoch? started, Func<int, string> resolvePawn)
         {
             Dictionary<string, object?> P() => payload ?? throw new InvalidOperationException("Missing clock evidence for " + kind);
-            var result = new Clock.Event { Cursor = cursor, Owner = owner.Clone(), Context = context.Clone(), ObservedAtUnixMs = observedAt, Detail = Text(detail) };
+            var result = new Clock.Event { Cursor = cursor, Context = context.Clone(), ObservedAtUnixMs = observedAt, Detail = Text(detail) };
+            // Only an authority change observed outside an epoch has no owner.
+            if (owner != null) result.Owner = owner.Clone();
+            else if (kind != "authority_changed") throw new InvalidOperationException("Clock event " + kind + " requires an epoch owner");
             switch (kind)
             {
+                case "operation_outcome": result.OperationOutcome = Outcome(P()); break;
+                case "authority_changed":
+                    result.AuthorityChanged = new Clock.AuthorityChanged { Generation = checked((ulong)Number(P(), "generation")), Active = Bool(P(), "active") };
+                    object? previous, reason;
+                    if (P().TryGetValue("previousGeneration", out previous) && previous != null) result.AuthorityChanged.PreviousGeneration = checked((ulong)Convert.ToInt64(previous));
+                    if (P().TryGetValue("reason", out reason) && reason != null) result.AuthorityChanged.Reason = Text((string)reason);
+                    break;
                 case "started": result.Started = new Clock.EpochStarted { Epoch = (started ?? throw new ArgumentNullException(nameof(started))).Clone() }; break;
                 case "speed_changed": result.SpeedChanged = new Clock.SpeedChanged { Speed = ParseSpeed(String(P(), "speed")) }; break;
                 case "notification_new": result.Notification = P().ContainsKey("label") ? new Clock.Notification { Letter = Letter(P()) } : new Clock.Notification { Message = Message(P()) }; break;
@@ -126,6 +137,7 @@ namespace HomeBridge.BridgeTools
                         stop.Notifications = new Clock.NotificationBatch { Completeness = new Common.PageInfo { Complete = true } };
                         stop.Notifications.Letters.Add(Rows(P(), "letters").Select(Letter)); stop.Notifications.Messages.Add(Rows(P(), "messages").Select(Message));
                     }
+                    else if (kind == "watch_latched") stop.Watch = new Clock.WatchLatched { Outcome = Outcome(P()), TickDeadline = Number(P(), "tickDeadline") };
                     else if (kind == "colonist_injury") stop.Injury = Injury(P(), resolvePawn);
                     else if (kind == "colonist_health") stop.Health = new Clock.HealthThreshold { Pawn = Pawn(P(), resolvePawn), HealthAtStart = Real(P(), "healthAtStart"), HealthNow = Real(P(), "healthNow"), MinHealthFraction = Real(P(), "minHealthFraction"), HealthDropFraction = Real(P(), "healthDropFraction") };
                     else if (payload != null && payload.ContainsKey("pawnId")) stop.Pawn = Pawn(P(), resolvePawn);
@@ -134,6 +146,10 @@ namespace HomeBridge.BridgeTools
             }
             return result;
         }
+        // The outcome is retained as the ProtoJSON the watch produced, so the
+        // receipts evidence inside it round-trips exactly.
+        private static Clock.OperationOutcome Outcome(Dictionary<string, object?> row)
+            => Clock.OperationOutcome.Parser.ParseJson((string)Required(row, "outcome"));
         private static Clock.Speed ParseSpeed(string value) => value == "Normal" ? Clock.Speed.Normal : value == "Fast" ? Clock.Speed.Fast : value == "Superfast" ? Clock.Speed.Superfast : throw new InvalidOperationException("Nonordinary clock speed");
     }
 }

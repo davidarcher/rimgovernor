@@ -27,15 +27,36 @@ namespace HomeBridge.BridgeTools
 
         [Tool("rimgovernor/clock_read_events", Title = "Read owned clock events", Description = "Read immutable event ownership/context using an explicit nonnegative cursor and limit1..128; legacy or incomplete history is unavailable.")]
         [ToolResponse("payload", "string", "Official clock EventsReply ProtoJSON.", Always = true)]
-        public Task<object> ReadEvents(IRimBridgeContext ctx, CancellationToken cancellationToken,
+        public async Task<object> ReadEvents(IRimBridgeContext ctx, CancellationToken cancellationToken,
             [ToolParameter(Description = "Official clock EventsRequest ProtoJSON string.")] object? request = null)
-            => Dispatch(ctx, cancellationToken, "rimgovernor/clock_read_events", request, Clock.EventsRequest.Parser,
-                failure => new Clock.EventsReply { Failure = failure }, parsed => {
-                    if (!parsed.HasAfterCursor || parsed.AfterCursor < 0 || !parsed.HasLimit || parsed.Limit < 1 || parsed.Limit > 128)
-                        return new Clock.EventsReply { Failure = Invalid("Event reads require explicit cursor>=0 and limit1..128.") };
-                    if (!ProtoBoundary.ValidateIdentity(parsed.Identity, out var context, out var failure)) return new Clock.EventsReply { Failure = failure };
-                    return Supervisor.TypedEvents(parsed, context);
-                });
+        {
+            const string tool = "rimgovernor/clock_read_events";
+            if (!ProtoBoundary.TryParse(ctx, tool, request, Clock.EventsRequest.Parser, out var parsed, out var failure))
+                return ProtoBoundary.Encode(new Clock.EventsReply { Failure = failure });
+            if (!parsed.HasAfterCursor || parsed.AfterCursor < 0 || !parsed.HasLimit || parsed.Limit < 1 || parsed.Limit > 128
+                || (parsed.HasWaitMs && parsed.WaitMs > MaxWaitMs))
+                return ProtoBoundary.Encode(new Clock.EventsReply { Failure = Invalid("Event reads require explicit cursor>=0, limit1..128 and wait_ms<=" + MaxWaitMs + ".") });
+            // Long poll: the first main-thread hop reads and, when the page is
+            // empty, registers a waiter under the same lock. The wait itself
+            // runs off the main thread; a wake (or timeout) is followed by one
+            // more hop that reads without waiting. Timing covers the last hop.
+            var waitMs = parsed.HasWaitMs ? (int)parsed.WaitMs : 0;
+            Task<bool>? wake = null;
+            var first = await ProtoBoundary.OnMainThread(ctx, () => Events(parsed, waitMs, out wake), cancellationToken).ConfigureAwait(false);
+            if (wake == null) return first;
+            await Supervisor.AwaitWake(wake, waitMs, cancellationToken).ConfigureAwait(false);
+            return await ProtoBoundary.OnMainThread(ctx, () => Events(parsed, 0, out _), cancellationToken).ConfigureAwait(false);
+        }
+        internal const uint MaxWaitMs = 5000;
+        private static object Events(Clock.EventsRequest parsed, int waitMs, out Task<bool>? wake)
+        {
+            wake = null;
+            if (!ProtoBoundary.ValidateIdentity(parsed.Identity, out var context, out var failure)) return ProtoBoundary.Encode(new Clock.EventsReply { Failure = failure });
+            var reply = Supervisor.TypedEvents(parsed, context, waitMs, out wake);
+            if (Fits(reply)) return ProtoBoundary.Encode(reply);
+            wake = null;
+            return ProtoBoundary.Encode(new Clock.EventsReply { Failure = ProtoBoundary.Fail(Common.FailureCode.CapacityExhausted, "Clock read exceeds the bounded reply envelope; no rows were omitted.") });
+        }
 
         [Tool("rimgovernor/clock_start", Title = "Start guarded owned clock", Description = "Admit one ordinary supervised epoch under current authority, a bounded tick budget and monotonic lease. Exact attempts replay; never reacquires authority.")]
         [ToolResponse("payload", "string", "Official clock ControlReply ProtoJSON.", Always = true)]

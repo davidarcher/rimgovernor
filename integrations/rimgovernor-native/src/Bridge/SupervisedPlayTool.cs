@@ -169,6 +169,7 @@ namespace HomeBridge.BridgeTools
                 var tickInfo = Harmony.GetPatchInfo(tick);
                 if (tickInfo == null || !tickInfo.Owners.Contains("homebridge.supervised-play"))
                     throw new InvalidOperationException("Native tick boundary patch was not installed.");
+                NativeControlAuthority.GenerationChanged += OnAuthorityChanged;
                 _patchError = null;
             }
             catch (Exception ex)
@@ -371,6 +372,7 @@ namespace HomeBridge.BridgeTools
                 s.LastTick = tm.TicksGame;
                 CaptureTypedContext(s);
                 if (StopInvalidTypedAuthority(s)) return;
+                if (CheckWatches(s)) return;
                 // Preserve player and letter attribution if the final tick also
                 // changed the clock. The frame watcher handles those stops.
                 if (tm.CurTimeSpeed != s.RequestedSpeed) return;
@@ -944,7 +946,7 @@ namespace HomeBridge.BridgeTools
                 { "kind", kind }, { "detail", detail }, { "event", payload },
                 { "colonyId", identity?.ColonyId }, { "loadToken", identity?.LoadToken }, { "mapId", s.Map.uniqueID },
                 { "tick", Find.TickManager != null ? Find.TickManager.TicksGame : s.LastTick }, { "atMs", NowMs() } };
-            try { AttachTypedEvent(row, kind, detail, s, payload); journal.Append(row); _cursor = journal.Newest; }
+            try { AttachTypedEvent(row, kind, detail, s, payload); AppendRow(journal, row); }
             catch
             {
                 var sameContext = ReferenceEquals(Current.Game, s.Session) && ReferenceEquals(Find.CurrentMap, s.Map);
@@ -962,6 +964,47 @@ namespace HomeBridge.BridgeTools
                     if (sameContext && !s.PausedAtStop) { s.Active = true; s.PendingKind = "event_journal_error"; s.PendingDetail = s.StopDetail; }
                 }
                 throw;
+            }
+        }
+        // The only journal writer. Appending can re-enter through the authority
+        // seam (a context read may revoke, which publishes), so a publication
+        // that arrives mid-append is queued and written right after this row
+        // instead of racing it for the same cursor.
+        private static bool _appending;
+        private static readonly List<Action> DeferredPublications = new List<Action>();
+        private static void AppendRow(ClockEventJournal journal, Dictionary<string, object?> row)
+        {
+            if (_appending) throw new InvalidOperationException("Reentrant clock journal append");
+            _appending = true;
+            try { journal.Append(row); _cursor = journal.Newest; SignalWaiters(journal.Newest); }
+            finally { _appending = false; }
+            while (DeferredPublications.Count != 0)
+            {
+                var next = DeferredPublications[0]; DeferredPublications.RemoveAt(0);
+                next();
+            }
+        }
+        // Epoch-less producers (authority changes observed while no epoch is
+        // running). The row carries no owner; the current map supplies its
+        // context. Nothing is armed, so a failed publication only logs.
+        private static void Publish(string kind, string? detail, Dictionary<string, object?>? payload)
+        {
+            lock (Gate)
+            {
+                if (_appending) { DeferredPublications.Add(() => Publish(kind, detail, payload)); return; }
+                try
+                {
+                    var journal = EnsureJournal();
+                    if (Current.Game == null || Find.CurrentMap == null) return;
+                    var identity = Current.Game.GetComponent<ColonyIdentity>();
+                    var row = new Dictionary<string, object?> { { "cursor", _cursor + 1 }, { "epoch", 0L },
+                        { "kind", kind }, { "detail", detail }, { "event", payload },
+                        { "colonyId", identity?.ColonyId }, { "loadToken", identity?.LoadToken }, { "mapId", Find.CurrentMap.uniqueID },
+                        { "tick", Find.TickManager != null ? Find.TickManager.TicksGame : 0 }, { "atMs", NowMs() } };
+                    if (!AttachOwnerlessEvent(row, kind, detail, payload)) return;
+                    AppendRow(journal, row);
+                }
+                catch (Exception error) { Log.Warning("RimGovernor clock publication of " + kind + " failed: " + error.GetType().Name); }
             }
         }
         private static object Snapshot(State? s, bool success)

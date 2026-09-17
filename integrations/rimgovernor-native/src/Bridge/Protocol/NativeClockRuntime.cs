@@ -2,6 +2,8 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Diagnostics.CodeAnalysis;
+using System.Threading.Tasks;
 using System.Linq;
 using Google.Protobuf;
 using HarmonyLib;
@@ -27,6 +29,7 @@ namespace HomeBridge.BridgeTools
             { Owner = owner; Origin = origin; LastObservation = origin.Clone(); Authority = authority; Policy = policy; LeaseMs = leaseMs; }
             internal bool PauseRequested;
             internal bool StopPauseVerified;
+            internal readonly List<ArmedWatch> Watches = new List<ArmedWatch>();
         }
         private static TypedEpoch? pendingTyped;
         private static bool typedSpeedCall;
@@ -99,7 +102,7 @@ namespace HomeBridge.BridgeTools
                     foreach (var ids in PolicyIds(request.Policy)) ResolveIds(ProtoBoundary.ResolveMap(request.Authority.Identity) ?? throw new InvalidOperationException("The requested map is not loaded."), ids);
                 }
                 catch (Exception) { return ProtoBoundary.Fail(Common.FailureCode.Unavailable, "Native watcher, journal or exact policy pawn identity is unavailable."); }
-                return null;
+                return ValidWatchedAttempts(request.Policy, request.Authority.Identity);
             }
         }
 
@@ -120,6 +123,7 @@ namespace HomeBridge.BridgeTools
                         ResolveIds(ProtoBoundary.LoadedMap(context), policy.AcknowledgedDownedColonistIds), ResolveIds(ProtoBoundary.LoadedMap(context), policy.AcknowledgedInjuredColonistIds),
                         (int)policy.InjuryStopCooldownMs, (int)request.MaxTicks, ResolveIds(ProtoBoundary.LoadedMap(context), policy.SurgicalRecoveryIds), false, ResolveIds(ProtoBoundary.LoadedMap(context), policy.MedicalRestIds));
                     if (_state == null || !ReferenceEquals(_state.Typed, metadata)) throw new InvalidOperationException("Native start did not create the admitted epoch");
+                    ArmWatches(_state, context);
                     return TypedStatus(context);
                 }
                 finally { pendingTyped = null; }
@@ -249,6 +253,22 @@ namespace HomeBridge.BridgeTools
             TickDeadline = Deadline(s), LastTick = s.LastTick, LeaseRemainingMs = s.Active ? (uint)Math.Min(30000, Math.Max(0, s.LeaseExpiresMs - LeaseNow(s))) : 0 };
 
         internal static Clock.EventsReply TypedEvents(Clock.EventsRequest request, Common.ObservationContext context)
+            => TypedEvents(request, context, 0, out _);
+        // A long poll registers its waiter in the same Gate section that found
+        // the page empty; the caller awaits `wake` off the main thread and then
+        // reads again without waiting. A page with rows or loss never waits.
+        internal static Clock.EventsReply TypedEvents(Clock.EventsRequest request, Common.ObservationContext context, int waitMs, out Task<bool>? wake)
+        {
+            wake = null;
+            lock (Gate)
+            {
+                var reply = TypedEventsPage(request, context);
+                if (waitMs > 0 && reply.Page != null && reply.Page.Events.Count == 0 && !reply.Page.Gap
+                    && TryRegisterWaiter(request.AfterCursor, out var registered)) wake = registered;
+                return reply;
+            }
+        }
+        private static Clock.EventsReply TypedEventsPage(Clock.EventsRequest request, Common.ObservationContext context)
         {
             lock (Gate)
             {
@@ -277,6 +297,33 @@ namespace HomeBridge.BridgeTools
                 }
                 catch (Exception) { return new Clock.EventsReply { Failure = ProtoBoundary.Fail(Common.FailureCode.Unavailable, "Clock event journal could not establish complete cursor continuity.") }; }
             }
+        }
+        private static ulong _publishedGeneration;
+        private static void OnAuthorityChanged(NativeControlAuthority authority, NativeControlSnapshot snapshot, ulong previous)
+        {
+            lock (Gate)
+            {
+                // Coalesce: the newest retained row already names this generation.
+                if (snapshot.Generation == _publishedGeneration) return;
+                _publishedGeneration = snapshot.Generation;
+                Publish("authority_changed", "Native authority generation " + previous + " -> " + snapshot.Generation + " (" + snapshot.Reason + ").",
+                    new Dictionary<string, object?> { { "generation", checked((long)snapshot.Generation) }, { "previousGeneration", checked((long)previous) },
+                        { "reason", snapshot.Reason.ToString() }, { "active", snapshot.Active } });
+            }
+        }
+        // Epoch-less rows carry no owner and take their context from the
+        // current map. False means no complete context exists to publish under.
+        private static bool AttachOwnerlessEvent(Dictionary<string, object?> row, string kind, string? detail, Dictionary<string, object?>? payload)
+        {
+            if (!ProtoBoundary.TryReadContext(Find.CurrentMap, out var observed, out _)) return false;
+            var result = NativeClockEventProjection.Event(kind, detail, payload, observed, null, checked(_cursor + 1), NowMs(), null,
+                number => throw new InvalidOperationException("Ownerless clock events carry no pawn evidence"));
+            if (!ValidStoredEvent(result)) throw new InvalidOperationException("Ownerless clock event is incomplete");
+            var encoded = JsonFormatter.Default.Format(result);
+            if (new System.Text.UTF8Encoding(false, true).GetByteCount(encoded) > ProtoBoundary.MaximumEnvelopeBytes)
+                throw new InvalidOperationException("Canonical clock event exceeds the bounded envelope");
+            row["canonicalClockEvent"] = encoded;
+            return true;
         }
         private static void AttachTypedEvent(Dictionary<string, object?> row, string kind, string? detail, State s, Dictionary<string, object?>? payload)
         {
@@ -332,9 +379,13 @@ namespace HomeBridge.BridgeTools
                 || !identity.HasLoadToken || !ProtoBoundary.IsIdentifier(identity.LoadToken)
                 || !identity.HasMapId || identity.MapId < 0 || !value.Context.HasTick || value.Context.Tick < 0
                 || !value.Context.HasNativeGeneration || value.Context.NativeGeneration == 0
-                || value.Owner == null || !value.Owner.HasControllerSessionId || !ProtoBoundary.IsIdentifier(value.Owner.ControllerSessionId)
-                || !value.Owner.HasEpoch || value.Owner.Epoch <= 0 || !value.HasObservedAtUnixMs || value.ObservedAtUnixMs < 0
+                || !value.HasObservedAtUnixMs || value.ObservedAtUnixMs < 0
                 || value.EventCase == Clock.Event.EventOneofCase.None) return false;
+            if (value.Owner == null ? value.AuthorityChanged == null
+                : !value.Owner.HasControllerSessionId || !ProtoBoundary.IsIdentifier(value.Owner.ControllerSessionId) || !value.Owner.HasEpoch || value.Owner.Epoch <= 0) return false;
+            if (value.AuthorityChanged != null) return value.AuthorityChanged.HasGeneration && value.AuthorityChanged.Generation > 0
+                && (!value.AuthorityChanged.HasPreviousGeneration || value.AuthorityChanged.PreviousGeneration < value.AuthorityChanged.Generation);
+            if (value.OperationOutcome != null) return ValidStoredOutcome(value.OperationOutcome);
             if (value.Stopped != null) return ValidStoredStop(value.Stopped);
             if (value.PauseFailed != null) return value.PauseFailed.Pending != null && ValidStoredStop(value.PauseFailed.Pending);
             if (value.Started != null) return value.Started.Epoch != null && value.Started.Epoch.Owner != null
@@ -344,7 +395,12 @@ namespace HomeBridge.BridgeTools
             return true;
         }
         private static bool ValidStoredStop(Clock.StopEvent value) => value.HasReason && value.Reason != Clock.StopReason.Unspecified
-            && Enum.IsDefined(typeof(Clock.StopReason), value.Reason) && value.EvidenceCase != Clock.StopEvent.EvidenceOneofCase.None;
+            && Enum.IsDefined(typeof(Clock.StopReason), value.Reason) && value.EvidenceCase != Clock.StopEvent.EvidenceOneofCase.None
+            && (value.Watch == null || value.Watch.Outcome != null && ValidStoredOutcome(value.Watch.Outcome) && value.Watch.HasTickDeadline && value.Watch.TickDeadline > 0);
+        private static bool ValidStoredOutcome(Clock.OperationOutcome value) => ValidWatchKey(value.Attempt) && value.HasLatchedTick && value.LatchedTick >= 0
+            && value.OutcomeCase != Clock.OperationOutcome.OutcomeOneofCase.None;
+        private static bool ValidWatchKey([NotNullWhen(true)] Common.AttemptKey? key) => key != null && key.HasControllerSessionId && ProtoBoundary.IsIdentifier(key.ControllerSessionId)
+            && key.HasActionId && ProtoBoundary.IsIdentifier(key.ActionId) && key.HasAttemptId && key.AttemptId > 0;
         internal static bool OrdinarySpeed(Clock.Speed speed) => speed == Clock.Speed.Normal || speed == Clock.Speed.Fast || speed == Clock.Speed.Superfast;
         private static TimeSpeed NativeSpeed(Clock.Speed speed) => speed == Clock.Speed.Normal ? TimeSpeed.Normal : speed == Clock.Speed.Fast ? TimeSpeed.Fast : speed == Clock.Speed.Superfast ? TimeSpeed.Superfast : throw new ArgumentOutOfRangeException(nameof(speed));
         private static Clock.Speed WireSpeed(TimeSpeed speed) => speed == TimeSpeed.Normal ? Clock.Speed.Normal : speed == TimeSpeed.Fast ? Clock.Speed.Fast : speed == TimeSpeed.Superfast ? Clock.Speed.Superfast : throw new InvalidOperationException("Nonordinary owned epoch");
@@ -368,6 +424,8 @@ namespace HomeBridge.BridgeTools
                 && policy.HasHostileWithin && !float.IsNaN(policy.HostileWithin) && policy.HostileWithin >= 1 && policy.HostileWithin <= 250
                 && policy.HasInjuryStopCooldownMs && policy.InjuryStopCooldownMs <= 1800000
                 && (policy.MedicalRestIds.Count == 0 || maxTicks <= 600)
+                && policy.WatchedAttempts.Count <= MaxWatchedAttempts && policy.WatchedAttempts.All(ValidWatchKey)
+                && policy.WatchedAttempts.Distinct().Count() == policy.WatchedAttempts.Count
                 && PolicyIds(policy).All(ids => ids.Count() <= 256 && ids.All(ProtoBoundary.IsIdentifier) && ids.Distinct(StringComparer.Ordinal).Count() == ids.Count());
         }
         private static bool Fraction(float value) => !float.IsNaN(value) && value >= 0.01f && value <= 1;

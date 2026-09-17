@@ -106,6 +106,19 @@ namespace HomeBridge.BridgeTools
         private ulong ownedGeneration;
         private NativeControlRevocationReason reason = NativeControlRevocationReason.HooksUnavailable;
         private string? reasonDetail;
+        private ulong notifiedGeneration;
+        private bool notifying;
+
+        /// <summary>
+        /// Raised on the owning main thread after any public operation that
+        /// advanced the generation (grant, revoke, external order, context
+        /// loss), with the final snapshot and the generation it replaced. It
+        /// fires after the operation settles, never from inside Refresh, so
+        /// handlers may read <see cref="Status"/> safely. Runtime cannot
+        /// reference the bridge; this is the seam by which the clock journal
+        /// learns of authority changes that happen outside an epoch.
+        /// </summary>
+        public static event Action<NativeControlAuthority, NativeControlSnapshot, ulong>? GenerationChanged;
 
         public static NativeControlAuthority ForGame(Game game)
         {
@@ -127,6 +140,7 @@ namespace HomeBridge.BridgeTools
             this.clock = clock ?? throw new ArgumentNullException(nameof(clock));
             if (initialGeneration == 0) throw new ArgumentOutOfRangeException(nameof(initialGeneration));
             generation = initialGeneration;
+            notifiedGeneration = initialGeneration;
             thread = Thread.CurrentThread.ManagedThreadId;
         }
 
@@ -363,7 +377,28 @@ namespace HomeBridge.BridgeTools
             try { reasonDetail = detail?.Invoke(); } catch (Exception error) { reasonDetail = "detail unavailable: " + error.GetType().Name; }
         }
 
-        private NativeControlSnapshot Snapshot() => new NativeControlSnapshot(contextValid ? identity : null, generation, Available, active, reason, reasonDetail);
+        private NativeControlSnapshot Snapshot()
+        {
+            var snapshot = new NativeControlSnapshot(contextValid ? identity : null, generation, Available, active, reason, reasonDetail);
+            Notify(snapshot);
+            return snapshot;
+        }
         private NativeControlResult Result(NativeControlError error) => new NativeControlResult(error, Snapshot());
+        // Every public operation ends in Snapshot(), after Refresh and any
+        // Invalidate have settled, so this is the one place a change is
+        // announced. Re-entrant reads from a handler see the already-notified
+        // generation and announce nothing.
+        private void Notify(NativeControlSnapshot snapshot)
+        {
+            if (notifying || generation == notifiedGeneration) return;
+            var previous = notifiedGeneration;
+            notifiedGeneration = generation;
+            var handlers = GenerationChanged;
+            if (handlers == null) return;
+            notifying = true;
+            try { handlers(this, snapshot, previous); }
+            catch (Exception) { }
+            finally { notifying = false; }
+        }
     }
 }
