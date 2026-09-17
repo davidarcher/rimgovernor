@@ -257,7 +257,7 @@ func (b *DraftBoundary) ReleaseDraft(ctx context.Context, release domain.DraftRe
 		return out, executor.ErrEvidence
 	}
 	job := result.Observed
-	if job == nil || job.PawnId == nil || job.GetPawnId() != string(claim.Pawn) || job.Drafted == nil || job.GetDrafted() || job.Verified == nil || !job.GetVerified() || job.Issued == nil || job.GetIssued() != issued || job.GetDraftClaimId() != string(claim.Claim) || job.GetDraftOwner() != string(claim.Session) || !boundary.ValidID(job.GetResultingSnapshotToken()) {
+	if job == nil || job.PawnId == nil || job.GetPawnId() != string(claim.Pawn) || job.Drafted == nil || job.GetDrafted() || job.Verified == nil || !job.GetVerified() || job.Issued == nil || job.GetIssued() != issued || job.GetDraftClaimId() != string(claim.Claim) || !boundary.ValidID(job.GetResultingSnapshotToken()) {
 		return out, executor.ErrEvidence
 	}
 	out.Outcome = domain.DraftReleaseConfirmed

@@ -24,7 +24,7 @@ func husbandryStoreFixture(t *testing.T) (*Store, string, HusbandryAdmission) {
 		t.Fatal(err)
 	}
 	snapshot := domain.GenerationSnapshot{Colony: "colony", Load: "load", Map: 0, Plan: "plan", Revision: 1, Native: 2}
-	v := HusbandryAdmission{Snapshot: snapshot, Tick: 12, Animal: "animal", Method: domain.HusbandryTrain, TrainableDef: "Trainability_Advanced", AnimalSnapshotToken: "animal-cas", CensusToken: "census-cas"}
+	v := HusbandryAdmission{Snapshot: snapshot, Tick: 12, Animal: "animal", Method: domain.HusbandryTrain, Argument: "Trainability_Advanced", AnimalSnapshotToken: "animal-cas", CensusToken: "census-cas"}
 	return s, path, v
 }
 
@@ -118,5 +118,33 @@ func TestHusbandryAdmissionPreparedRefreshThenCancelRetainsEvidence(t *testing.T
 	state, err := s.LoadPlan(ctx, "plan")
 	if err != nil || state.Progress[0].View().Stage != domain.Cancelled || state.HusbandryAdmissions[0].Admission != v {
 		t.Fatal(state, err)
+	}
+}
+
+func TestHusbandryTameAndReleaseActionsRoundTrip(t *testing.T) {
+	ctx := context.Background()
+	s := open(t, filepath.Join(t.TempDir(), "husbandry-designations.db"))
+	arguments := map[domain.HusbandryMethod]string{domain.HusbandryAllowedArea: "Area_3", domain.HusbandryFollowDrafted: "true", domain.HusbandryFollowFieldwork: "false"}
+	for i, method := range []domain.HusbandryMethod{domain.HusbandryTame, domain.HusbandryRelease, domain.HusbandryAllowedArea, domain.HusbandryMaster, domain.HusbandryFollowDrafted, domain.HusbandryFollowFieldwork} {
+		// master with an empty argument round-trips the NULL-as-clear column.
+		h, _ := domain.NewHusbandry("animal", method, arguments[method])
+		id := domain.ActionID("husbandry-" + string(method))
+		a, _ := domain.NewHusbandryAction(id, h)
+		planID := domain.PlanID("plan-" + string(method))
+		plan, err := domain.NewPlan(planID, 1, []domain.Action{a})
+		if err != nil {
+			t.Fatal(err)
+		}
+		if err = s.CreatePlan(ctx, plan); err != nil {
+			t.Fatal(i, err)
+		}
+		state, err := s.LoadPlan(ctx, planID)
+		if err != nil {
+			t.Fatal(err)
+		}
+		got, ok := state.Spec.Actions()[0].Husbandry()
+		if !ok || got != h {
+			t.Fatal(method, got, ok)
+		}
 	}
 }

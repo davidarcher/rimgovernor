@@ -278,7 +278,7 @@ func draftReceipt(v *r.Receipt, expected DraftAttempt) error {
 	if err != nil {
 		return err
 	}
-	if complete && (job.Drafted == nil || !job.GetDrafted() || job.Verified == nil || !job.GetVerified() || job.Issued == nil || job.GetIssued() != issued || job.DraftClaimId == nil || job.DraftOwner == nil || job.ResultingSnapshotToken == nil) {
+	if complete && (job.Drafted == nil || !job.GetDrafted() || job.Verified == nil || !job.GetVerified() || job.Issued == nil || job.GetIssued() != issued || job.DraftClaimId == nil || job.ResultingSnapshotToken == nil) {
 		return contract("verified owned draft facts missing")
 	}
 	return nil
@@ -289,11 +289,11 @@ func draftEvidence(evidence *r.EffectEvidence, pawn string) (*r.JobEffect, error
 		return nil, contract("draft pawn effect mismatch")
 	}
 	// Draft evidence cannot smuggle a different job, target or other operation.
-	allowed := &r.JobEffect{PawnId: job.PawnId, Drafted: job.Drafted, Issued: job.Issued, Verified: job.Verified, VerifiedReason: job.VerifiedReason, DraftOwner: job.DraftOwner, ResultingSnapshotToken: job.ResultingSnapshotToken, DraftClaimId: job.DraftClaimId}
+	allowed := &r.JobEffect{PawnId: job.PawnId, Drafted: job.Drafted, Issued: job.Issued, Verified: job.Verified, VerifiedReason: job.VerifiedReason, ResultingSnapshotToken: job.ResultingSnapshotToken, DraftClaimId: job.DraftClaimId}
 	if !proto.Equal(job, allowed) || !diagnostic(job.VerifiedReason) {
 		return nil, contract("unexpected draft effect fields")
 	}
-	for _, id := range []*string{job.DraftOwner, job.DraftClaimId, job.ResultingSnapshotToken} {
+	for _, id := range []*string{job.DraftClaimId, job.ResultingSnapshotToken} {
 		if id != nil {
 			if err := validID(*id); err != nil {
 				return nil, err
@@ -371,7 +371,7 @@ func draftProgress(v *r.Progress, expected DraftAttempt, admitted *r.Receipt) er
 	if err != nil {
 		return err
 	}
-	if completed && (job.Drafted == nil || !job.GetDrafted() || job.Verified == nil || !job.GetVerified() || job.DraftClaimId == nil || job.DraftOwner == nil || job.ResultingSnapshotToken == nil) {
+	if completed && (job.Drafted == nil || !job.GetDrafted() || job.Verified == nil || !job.GetVerified() || job.DraftClaimId == nil || job.ResultingSnapshotToken == nil) {
 		return contract("draft completion facts missing")
 	}
 	if original := draftObserved(admitted); original != nil && original.DraftClaimId != nil && job.DraftClaimId != nil && original.GetDraftClaimId() != job.GetDraftClaimId() {
@@ -390,7 +390,7 @@ func draftRelease(v *o.DraftRelease, request *o.ReleaseOwnedDraftRequest, issued
 	if err != nil {
 		return err
 	}
-	if job.Drafted == nil || job.GetDrafted() || job.Verified == nil || !job.GetVerified() || job.Issued == nil || job.GetIssued() != issued || job.GetDraftClaimId() != request.GetExpectedClaimId() || job.DraftOwner == nil || job.ResultingSnapshotToken == nil {
+	if job.Drafted == nil || job.GetDrafted() || job.Verified == nil || !job.GetVerified() || job.Issued == nil || job.GetIssued() != issued || job.GetDraftClaimId() != request.GetExpectedClaimId() || job.ResultingSnapshotToken == nil {
 		return contract("draft release readback mismatch")
 	}
 	return nil

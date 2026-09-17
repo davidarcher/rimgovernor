@@ -66,7 +66,9 @@ type serveConfig struct {
 	routineRecoveryPlans            bool
 	routineHusbandryPlans           bool
 	routineAllowSlaughter           bool
+	routineAllowRelease             bool
 	routineHerdPopulationMax        herdPopulationMaxFlags
+	routineHerdPopulationMin        herdPopulationMaxFlags
 	routinePrisonerInteractionPlans bool
 	routinePopulationCustodyPlans   bool
 	routineHomeCoveragePlans        bool
@@ -127,7 +129,9 @@ func parseServe(args []string, diagnostics io.Writer) (serveConfig, error) {
 	flags.Var(&c.routineResourceReserves, "routine-resource-reserve", "repeatable RESOURCE:FLOOR native stock floor ProductionPolicy replaces into the current native production policy")
 	flags.Var(&c.routineStoppedResources, "routine-resource-stop", "repeatable RESOURCE name ProductionPolicy keeps stopped in the current native production policy")
 	flags.BoolVar(&c.routineAllowSlaughter, "routine-allow-slaughter", false, "let MaintainHerd propose a slaughter write for a surplus animal once --routine-herd-population-max is declared; slaughter is irreversible and stays off unless explicitly set")
-	flags.Var(&c.routineHerdPopulationMax, "routine-herd-population-max", "repeatable RACE:MAX native animal definition population ceiling MaintainHerd slaughters surplus toward, only once --routine-allow-slaughter is also set")
+	flags.BoolVar(&c.routineAllowRelease, "routine-allow-release", false, "let MaintainHerd propose a release-to-wild write for a surplus animal once --routine-herd-population-max is declared; preferred over slaughter when both are set")
+	flags.Var(&c.routineHerdPopulationMax, "routine-herd-population-max", "repeatable RACE:MAX native animal definition population ceiling MaintainHerd removes surplus toward, only once --routine-allow-release or --routine-allow-slaughter is also set")
+	flags.Var(&c.routineHerdPopulationMin, "routine-herd-population-min", "repeatable RACE:MIN native animal definition population floor MaintainHerd designates tameable wild animals toward")
 	flags.Var(&c.resourceRules, "resource-rule", "repeatable RESOURCE:allow|stop|defense_only:RESERVE for building admission and dispatch")
 	flags.Float64Var(&c.worldEvaluationFoodMarginDays, "world-evaluation-food-margin-days", 0.5, "days of caravan food required beyond its home route's estimated travel time before it is reported as needing recovery")
 	flags.BoolVar(&c.resume, "resume", false, "run the bot for the observed world at startup and again after every native load, without a dashboard Resume")
@@ -178,8 +182,13 @@ func parseServe(args []string, diagnostics io.Writer) (serveConfig, error) {
 	if (len(c.routineResourceReserves) > 0 || len(c.routineStoppedResources) > 0) && !c.routineProductionPolicyPlans {
 		return c, errors.New("--routine-resource-reserve and --routine-resource-stop require the production-policy routine family")
 	}
-	if (c.routineAllowSlaughter || len(c.routineHerdPopulationMax) > 0) && !c.routineHusbandryPlans {
-		return c, errors.New("--routine-allow-slaughter and --routine-herd-population-max require the husbandry routine family")
+	if (c.routineAllowSlaughter || c.routineAllowRelease || len(c.routineHerdPopulationMax) > 0 || len(c.routineHerdPopulationMin) > 0) && !c.routineHusbandryPlans {
+		return c, errors.New("--routine-allow-slaughter, --routine-allow-release, --routine-herd-population-max and --routine-herd-population-min require the husbandry routine family")
+	}
+	for race, minimum := range c.routineHerdPopulationMin {
+		if max, ok := c.routineHerdPopulationMax[race]; ok && minimum > max {
+			return c, errors.New("--routine-herd-population-min exceeds --routine-herd-population-max for " + string(race))
+		}
 	}
 	if !filepath.IsAbs(c.state) || !filepath.IsAbs(c.bridge.Executable) || !filepath.IsAbs(c.bridge.ConfigDir) || c.bridge.GameID == "" {
 		return c, errors.New("absolute --state, --gabs, --config and a --game ID are required")

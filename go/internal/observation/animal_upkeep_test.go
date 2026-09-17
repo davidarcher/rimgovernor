@@ -36,3 +36,33 @@ func TestAnimalCensusPreservesUnknownAndKnownFalse(t *testing.T) {
 		t.Fatal("missing upkeep became empty")
 	}
 }
+
+func TestWildAnimalCensusDecodesTameFactsAndIssues(t *testing.T) {
+	u := &o.UpkeepFacts{WildAnimals: []*o.AnimalFeed{{Pawn: &o.PawnState{Pawn: &o.EntityRef{Id: proto.String("wild"), DefName: proto.String("Muffalo")}, Wild: proto.Bool(true), AnimalState: &o.AnimalState{Tameable: proto.Bool(true), Tame: proto.Bool(false)}}}}}
+	v := &o.ColonyFactsSnapshot{Upkeep: &o.UpkeepSection{Outcome: &o.UpkeepSection_Observed{Observed: u}}}
+	rows, known := colonyWildAnimals(v).Value()
+	if !known || len(rows) != 1 || rows[0].ID != "wild" || rows[0].Definition != "Muffalo" {
+		t.Fatal(rows, known)
+	}
+	if tameable, known := rows[0].Tameable.Value(); !known || !tameable {
+		t.Fatal("tameable lost")
+	}
+	if designated, known := rows[0].Tame.Value(); !known || designated {
+		t.Fatal("tame designation lost")
+	}
+	if release, known := rows[0].Release.Value(); !known || release {
+		t.Fatal("a wild animal is never release-designated")
+	}
+	u.WildAnimals[0].Pawn.AnimalState.Tameable = nil
+	rows, _ = colonyWildAnimals(v).Value()
+	if _, known := rows[0].Tameable.Value(); known {
+		t.Fatal("absent tameable became known")
+	}
+	u.Issues = []*o.ReadIssue{{Field: proto.String("wild_animals")}}
+	if _, known := colonyWildAnimals(v).Value(); known {
+		t.Fatal("unavailable wild census became empty")
+	}
+	if _, known := colonyAnimals(v).Value(); !known {
+		t.Fatal("a wild census issue must not poison the player census")
+	}
+}

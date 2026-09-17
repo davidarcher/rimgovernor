@@ -87,9 +87,9 @@ func Path(t testing.TB) string {
 	}
 	t.Cleanup(func() { _ = keeper.Close() })
 	ctx := context.Background()
-	// VACUUM INTO copies the template's pages into the empty database the
-	// keeper holds; the schema is not parsed again.
-	if _, err = template.db.ExecContext(ctx, "VACUUM INTO '"+uri+"'"); err != nil {
+	// The online backup copies the template's pages into the empty database
+	// the keeper holds; VACUUM INTO would re-run the schema DDL in the copy.
+	if err = store.CopyPages(ctx, template.db, uri); err != nil {
 		t.Fatal("storetest clone:", err)
 	}
 	// Migration minted the template's controller identity; each copy gets

@@ -320,7 +320,10 @@ goal while subsequent reviews continue. Changed worker jobs, cargo, health, work
 settings, equipment, stock or upkeep evidence permit a fresh selection; a
 2,500-tick window also rechecks routes. Unknown failures and dispatched writes
 retain their existing reconciliation requirements. This never retries an uncertain
-write or relaxes native interruption guards.
+write or relaxes native interruption guards. A write the transport proves it never
+issued (it failed before the native call, `domain.ErrWriteUnsent`) is not uncertain:
+it records `ReceiptUnsent`, a no-effect proof the same authority may retry, rather
+than reconciling against a native ledger entry that never existed.
 Need-recovery admission previews likewise retain native refusals on the mood goal
 and can consider another measured need. GABS errors retain the requested tool identity
 even when the native payload omits it. Dispatch failures remain subject to Hands'

@@ -121,7 +121,7 @@ func (e *Executor) runConfirmColonyNames(ctx context.Context, action domain.Acti
 	receipt, err := e.naming.ConfirmColonyNames(ctx, ConfirmColonyNamesDispatch{attempt, value.WindowID(), value.FactionName(), value.SettlementName()})
 	kind := receipt.Kind
 	if err != nil {
-		kind = domain.ReceiptUnknown
+		kind = receiptAfterCallError(err)
 	} else if receipt.Action != action.ID() || receipt.Attempt != attempt.Attempt || receipt.Snapshot != expected {
 		kind, err = domain.ReceiptUnknown, ErrEvidence
 	}

@@ -163,7 +163,7 @@ namespace HomeBridge.BridgeTools
             return definition!=null;
         }
         private static bool Resolve(Operations.AttackTarget command,Common.ObservationContext context,out NativeControlIdentity identity,
-            out Pawn? pawn,out Pawn? target,out NativePawnSnapshot? snapshot,out JobDef? definition,out Verb? verb,out Common.Failure failure)
+            out Pawn? pawn,out Pawn? target,out NativePawnSnapshot? snapshot,out JobDef? definition,out Verb? verb,out Common.Failure failure,bool requireLegal=true)
         {
             identity=new NativeControlIdentity(Current.Game, ProtoBoundary.LoadedMap(context),context.Identity.ColonyId,context.Identity.LoadToken);
             pawn=null;target=null;snapshot=null;definition=null;verb=null;
@@ -181,7 +181,7 @@ namespace HomeBridge.BridgeTools
             if(check!=NativePawnControlResult.Ready){failure=NativeDraftProtocol.Failure(check,context);return false;}
             check=NativePawnControlState.Check(identity,target,command.Target.ExpectedSnapshotToken,out _);
             if(check!=NativePawnControlResult.Ready){failure=NativeDraftProtocol.Failure(check,context);return false;}
-            if(!Legal(command,pawn,target,out definition,out verb)){failure=ProtoBoundary.Fail(Common.FailureCode.InvalidRequest,"Native attack weapon, reach, target or requested combat predicates refuse this order.");return false;}
+            if(!Legal(command,pawn,target,out definition,out verb) && requireLegal){failure=ProtoBoundary.Fail(Common.FailureCode.InvalidRequest,"Native attack weapon, reach, target or requested combat predicates refuse this order.");return false;}
             return true;
         }
         internal static Operations.ExecuteReply Execute(NativeOperationState state,Operations.ExecuteRequest request,Common.ObservationContext context)
@@ -229,11 +229,15 @@ namespace HomeBridge.BridgeTools
         {
             if(!Valid(command))return new Operations.PreviewReply {Failure=ProtoBoundary.Fail(Common.FailureCode.InvalidRequest,"Attack requires exact snapshots and explicit supported mode.")};
             try {
-                if(!Resolve(command,context,out _,out _,out _,out var snapshot,out var definition,out _,out var failure))return new Operations.PreviewReply {Failure=failure};
-                bool accepted=snapshot!.Eligible && snapshot.Drafted && snapshot.Claim!=null;
+                // An order the weapon, reach or target predicates refuse is an
+                // evaluated preview the controller can hold on, not a malformed request.
+                if(!Resolve(command,context,out _,out var pawn,out _,out var snapshot,out var definition,out _,out var failure,requireLegal:false))return new Operations.PreviewReply {Failure=failure};
+                bool legal=definition!=null;
+                definition??=Ranged(command,pawn!)?JobDefOf.AttackStatic:JobDefOf.AttackMelee;
+                bool accepted=legal && snapshot!.Eligible && snapshot.Drafted && snapshot.Claim!=null;
                 return NativeOperationEnvelope.Preview(new Operations.PreviewReply {Evaluated=new Operations.PreviewEvaluation {Context=context.Clone(),Accepted=accepted,
-                    Reason=accepted?"Native attack predicates hold; execution requires matching current authority.":"An eligible attacker with existing native draft claim is required.",
-                    Projected=new Receipts.EffectEvidence {Job=new Receipts.JobEffect {PawnId=snapshot.PawnId,JobDef=definition!.defName,
+                    Reason=accepted?"Native attack predicates hold; execution requires matching current authority.":legal?"An eligible attacker with existing native draft claim is required.":"Native attack weapon, reach, target or requested combat predicates refuse this order.",
+                    Projected=new Receipts.EffectEvidence {Job=new Receipts.JobEffect {PawnId=snapshot!.PawnId,JobDef=definition.defName,
                         TargetA=new Receipts.JobTarget {ThingId=command.Target.EntityId},CanTry=accepted,Issued=false,Verified=false}}}});
             }catch(Exception error){return new Operations.PreviewReply {Failure=ProtoBoundary.Fail(Common.FailureCode.NativeFailure,"Attack preview failed: "+error.GetType().Name)};}
         }

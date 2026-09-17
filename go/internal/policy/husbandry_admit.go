@@ -20,6 +20,12 @@ type HusbandryAnimalFacts struct {
 	CanTrain        domain.Fact[bool]
 	Learned         domain.Fact[bool]
 	SafeToSlaughter domain.Fact[bool]
+	Tameable        domain.Fact[bool]
+	SafeToRelease   domain.Fact[bool]
+	// Obedient (learned Obedience) gates master and follow writes;
+	// SupportsAreas gates the allowed-area write.
+	Obedient      domain.Fact[bool]
+	SupportsAreas domain.Fact[bool]
 }
 
 type HusbandryFacts struct {
@@ -97,6 +103,38 @@ func EvaluateHusbandry(r HusbandryRequest) DraftDecision {
 			return refuse(UnknownFacts)
 		}
 		if !safe {
+			return refuse(NativeIneligible)
+		}
+	case domain.HusbandryTame:
+		tameable, known := f.Animal.Tameable.Value()
+		if !known {
+			return refuse(UnknownFacts)
+		}
+		if !tameable {
+			return refuse(NativeIneligible)
+		}
+	case domain.HusbandryRelease:
+		safe, known := f.Animal.SafeToRelease.Value()
+		if !known {
+			return refuse(UnknownFacts)
+		}
+		if !safe {
+			return refuse(NativeIneligible)
+		}
+	case domain.HusbandryAllowedArea:
+		supports, known := f.Animal.SupportsAreas.Value()
+		if !known {
+			return refuse(UnknownFacts)
+		}
+		if !supports {
+			return refuse(NativeIneligible)
+		}
+	case domain.HusbandryMaster, domain.HusbandryFollowDrafted, domain.HusbandryFollowFieldwork:
+		obedient, known := f.Animal.Obedient.Value()
+		if !known {
+			return refuse(UnknownFacts)
+		}
+		if !obedient {
 			return refuse(NativeIneligible)
 		}
 	default:

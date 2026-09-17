@@ -170,7 +170,7 @@ func (e *Executor) runAcquisition(ctx context.Context, action domain.Action, p d
 	receipt, err := e.acquisition.Acquire(ctx, AcquisitionDispatch{attempt, inspection.SnapshotToken})
 	kind := receipt.Kind
 	if err != nil {
-		kind = domain.ReceiptUnknown
+		kind = receiptAfterCallError(err)
 	} else if receipt.Action != action.ID() || receipt.Attempt != attempt.Attempt || receipt.Snapshot != expected {
 		kind, err = domain.ReceiptUnknown, ErrEvidence
 	}

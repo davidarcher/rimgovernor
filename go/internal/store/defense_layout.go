@@ -147,8 +147,12 @@ func loadDefenseLayout(ctx context.Context, tx *sql.Tx) (DefenseLayoutRecord, bo
 	return r, true, nil
 }
 
-// LoadDefenseLayout returns the stored layout for w, false when none or when
-// the stored record belongs to another world.
+// LoadDefenseLayout returns the stored layout for w's colony and map, false
+// when none or when the stored record belongs to another colony or map. The
+// record's World.Load may differ from w.Load: the geometry outlives a reload
+// of the same colony (the walls and traps are on the map either way), and
+// the layout planner adopts it under the new load after re-observing the
+// tiers, and combat holds a Complete record's line under any load.
 func (s *Store) LoadDefenseLayout(ctx context.Context, w World) (DefenseLayoutRecord, bool, error) {
 	tx, err := s.begin(ctx)
 	if err != nil {
@@ -159,15 +163,15 @@ func (s *Store) LoadDefenseLayout(ctx context.Context, w World) (DefenseLayoutRe
 	if err != nil {
 		return DefenseLayoutRecord{}, false, err
 	}
-	if !ok || r.World != w {
+	if !ok || r.World.Colony != w.Colony || r.World.Map != w.Map {
 		return DefenseLayoutRecord{}, false, tx.Commit()
 	}
 	return r, true, tx.Commit()
 }
 
 // SaveDefenseLayout replaces the stored layout. The singleton holds one
-// world's layout: a new world overwrites, so a stale layout never survives
-// a reload.
+// colony's layout: a new colony overwrites, so a stale layout never survives
+// a switch of colony or map.
 func (s *Store) SaveDefenseLayout(ctx context.Context, r DefenseLayoutRecord) error {
 	if err := r.Validate(); err != nil {
 		return err

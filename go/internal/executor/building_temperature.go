@@ -161,7 +161,7 @@ func (e *Executor) runBuildingTemperature(ctx context.Context, action domain.Act
 	receipt, err := e.buildingTemperature.ApplyBuildingTemperature(ctx, BuildingTemperatureDispatch{attempt, inspection.SnapshotToken})
 	kind := receipt.Kind
 	if err != nil {
-		kind = domain.ReceiptUnknown
+		kind = receiptAfterCallError(err)
 	} else if receipt.Action != action.ID() || receipt.Attempt != attempt.Attempt || receipt.Snapshot != expected {
 		kind, err = domain.ReceiptUnknown, ErrEvidence
 	}

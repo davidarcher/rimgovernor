@@ -56,7 +56,12 @@ func (e *Executor) runDraft(ctx context.Context, action domain.Action, progress 
 	}
 	expected := authority.Snapshot
 	if expected.Plan != v.Plan || expected.Revision != v.Revision {
-		return result, ErrAuthority
+		// A routine method plan (e.g. hold-the-line) runs under the root
+		// authority; guard re-authorizes it before every native call.
+		if e.routineScope == nil {
+			return result, ErrAuthority
+		}
+		expected.Plan, expected.Revision = v.Plan, v.Revision
 	}
 	var inspection DraftInspection
 	for range 2 {
@@ -72,6 +77,11 @@ func (e *Executor) runDraft(ctx context.Context, action domain.Action, progress 
 			return result, err
 		}
 		if !inspection.Current.Matches(expected) || !e.fresh(inspection.StartedAt, inspection.ObservedAt) {
+			// A generation mismatch or a stale read is a StaleFacts hold, not
+			// a silent one: record it so the journal shows why the draft
+			// never reached prepare (issue #70).
+			result.Refused = []policy.Refusal{{Action: v.Action, Reason: policy.StaleFacts}}
+			result.Progress = e.holdRefusal(ctx, v.Plan, v.Action, result.Refused, max(v.Tick, inspection.Tick), result.Progress)
 			return result, ErrHeld
 		}
 		decision := policy.EvaluateOwnedDraft(policy.DraftRequest{Action: action, Progress: result.Progress, Current: inspection.Current, Tick: inspection.Tick, Pawn: inspection.Pawn, Emergency: inspection.Emergency})
@@ -79,6 +89,8 @@ func (e *Executor) runDraft(ctx context.Context, action domain.Action, progress 
 		if !decision.Admitted {
 			if len(decision.Emergency.Holds) > 0 {
 				result.Progress = e.holdEmergency(ctx, v.Plan, v.Action, decision.Emergency, inspection.Tick, result.Progress)
+			} else {
+				result.Progress = e.holdRefusal(ctx, v.Plan, v.Action, decision.Refused, max(v.Tick, inspection.Tick), result.Progress)
 			}
 			return result, ErrHeld
 		}
@@ -111,7 +123,7 @@ func (e *Executor) runDraft(ctx context.Context, action domain.Action, progress 
 	receipt, err := e.draft.Draft(ctx, DraftDispatch{attempt, inspection.PawnSnapshotToken})
 	kind, claim := receipt.Receipt.Kind, receipt.Claim
 	if err != nil {
-		kind = domain.ReceiptUnknown
+		kind = receiptAfterCallError(err)
 		claim = domain.Unknown[domain.DraftClaim]()
 	} else if receipt.Receipt.Action != v.Action || receipt.Receipt.Attempt != attempt.Attempt || receipt.Receipt.Snapshot != expected {
 		err = ErrEvidence

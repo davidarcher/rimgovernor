@@ -3,6 +3,9 @@ package buildingruntime
 import (
 	"context"
 	"errors"
+	"fmt"
+	"os"
+	"strings"
 	"sync"
 	"time"
 
@@ -71,6 +74,21 @@ type workerWait struct {
 	scope   ControlState
 	delay   time.Duration
 	until   time.Time
+	// outcome is the last surfaced "stage/refusals/error" of this action, so
+	// a sustained hold logs once instead of every step (see issue #70).
+	outcome string
+}
+
+// workerOutcome keys one action run by what a reader of the log needs to
+// diagnose a stuck action: its stage, the executor's refusal reasons and the
+// error. Refusal reasons matter most -- an owned draft held before prepare
+// otherwise leaves no trace but a bare "building execution held".
+func workerOutcome(after domain.ProgressView, result executor.Result, err error) string {
+	reasons := make([]string, 0, len(result.Refused))
+	for _, r := range result.Refused {
+		reasons = append(reasons, string(r.Reason))
+	}
+	return fmt.Sprintf("stage=%s attempt=%d refused=[%s] err=%v", after.Stage, after.Attempt, strings.Join(reasons, ","), err)
 }
 
 func NewWorker(ctx context.Context, config WorkerConfig, player *Player, session *Session) (*Worker, error) {
@@ -200,7 +218,7 @@ func (w *Worker) step(ctx context.Context, now time.Time) error {
 		}
 		for _, progress := range plan.Progress {
 			v := progress.View()
-			cleanup := workerCleanupEligible(plan, v, scope, world)
+			cleanup := workerCleanupEligible(plan, v, planScope, world)
 			routineObservation := w.config.RoutineMethods && v.Unresolved && routineExecutableKind(progress.Action().Kind()) && playerWorld(v.Snapshot) == world
 			if clockSchedulerDebug && progress.Action().Kind() == domain.BuildingTemperatureAction {
 				clockSchedulerLog("worker: temperature candidate action=%s stage=%v authorized=%v eligible=%v worldErr=%v", v.Action, v.Stage, planScope.Snapshot != scope.Snapshot, workerEligible(plan, v, planScope, world), worldErr)
@@ -264,7 +282,11 @@ func (w *Worker) step(ctx context.Context, now time.Time) error {
 				delay = w.config.MaxBackoff
 			}
 		}
-		w.waits[v.Action] = workerWait{cleanup: candidate.cleanup, view: after, scope: workerScope(w.session.State()), delay: delay, until: now.Add(delay)}
+		outcome := workerOutcome(after, result, err)
+		if err != nil && outcome != wait.outcome {
+			fmt.Fprintf(os.Stderr, "[worker] %s %s\n", v.Action, outcome)
+		}
+		w.waits[v.Action] = workerWait{cleanup: candidate.cleanup, view: after, scope: workerScope(w.session.State()), delay: delay, until: now.Add(delay), outcome: outcome}
 		clockSchedulerLog("worker ran %s: stage %s -> %s attempt %d err=%v", v.Action, v.Stage, after.Stage, after.Attempt, err)
 		return errors.Join(worldErr, err)
 	}
@@ -302,10 +324,14 @@ func workerEligible(plan store.PlanState, v domain.ProgressView, scope ControlSt
 	}
 	// A trusted refusal is a no-effect proof. Only a later resume (a newer
 	// native generation) authorizes another attempt; an unknown receipt always
-	// stays reconciliation.
+	// stays reconciliation. A write the transport never issued refused
+	// nothing, so the same generation may retry it.
 	receipt, known := v.Receipt.Value()
 	effect, effectKnown := v.Effect.Value()
-	return v.Stage == domain.Pending && known && receipt == domain.ReceiptRefused && effectKnown && effect == domain.EffectAbsent && playerWorld(v.Snapshot) == world && scope.Snapshot.Native > v.Snapshot.Native
+	if v.Stage != domain.Pending || !known || !effectKnown || effect != domain.EffectAbsent || playerWorld(v.Snapshot) != world {
+		return false
+	}
+	return receipt == domain.ReceiptUnsent || receipt == domain.ReceiptRefused && scope.Snapshot.Native > v.Snapshot.Native
 }
 
 // Read reconciliation may rotate plan targets without changing world authority.

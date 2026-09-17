@@ -130,8 +130,7 @@ namespace HomeBridge.BridgeTools
                 return NativeRecoveryOperations.Execute(state, request, context);
             if (request.Operation.CommandCase == Operations.Operation.CommandOneofCase.RelieveNeed)
                 return NativeMoodReliefOperations.Execute(state, request, context);
-            if (request.Operation.CommandCase == Operations.Operation.CommandOneofCase.SetAnimalTraining
-                || request.Operation.CommandCase == Operations.Operation.CommandOneofCase.SlaughterAnimal)
+            if (NativeHusbandryOperations.TryKind(request.Operation, out _))
                 return NativeHusbandryOperations.Execute(state, request, context);
             if (request.Operation.CommandCase == Operations.Operation.CommandOneofCase.SetPrisonerInteraction)
                 return NativePrisonerInteractionOperations.Execute(state, request, context);
@@ -264,8 +263,7 @@ namespace HomeBridge.BridgeTools
                     return ProtoBoundary.Encode(NativeRecoveryOperations.Preview(parsed.Operation.RecoverService, context));
                 if (parsed.Operation?.CommandCase == Operations.Operation.CommandOneofCase.RelieveNeed)
                     return ProtoBoundary.Encode(NativeMoodReliefOperations.Preview(parsed.Operation.RelieveNeed, context));
-                if (parsed.Operation?.CommandCase == Operations.Operation.CommandOneofCase.SetAnimalTraining
-                    || parsed.Operation?.CommandCase == Operations.Operation.CommandOneofCase.SlaughterAnimal)
+                if (parsed.Operation != null && NativeHusbandryOperations.TryKind(parsed.Operation, out _))
                     return ProtoBoundary.Encode(NativeHusbandryOperations.Preview(parsed.Operation, context));
                 if (parsed.Operation?.CommandCase == Operations.Operation.CommandOneofCase.SetPrisonerInteraction)
                     return ProtoBoundary.Encode(NativePrisonerInteractionOperations.Preview(parsed.Operation.SetPrisonerInteraction, context));

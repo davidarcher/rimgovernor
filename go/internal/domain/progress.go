@@ -20,8 +20,18 @@ const (
 	ReceiptAccepted Receipt = "accepted"
 	// ReceiptRefused is trusted pre-admission no-effect proof, never a transport refusal.
 	ReceiptRefused Receipt = "refused"
+	// ReceiptUnsent is the transport's proof that the write never left the
+	// controller (it failed before the native call was issued), so nothing
+	// was admitted: no-effect, and the same authority may retry.
+	ReceiptUnsent  Receipt = "unsent"
 	ReceiptUnknown Receipt = "unknown"
 )
+
+// ErrWriteUnsent marks a native write failure that happened before the call
+// was issued. The transport wraps it; executors record ReceiptUnsent instead
+// of an uncertain receipt that could only reconcile through a native ledger
+// entry that never existed (issue #70).
+var ErrWriteUnsent = errors.New("native write never sent")
 
 type Effect string
 
@@ -354,7 +364,7 @@ func (p Progress) recordReceipt(attempt AttemptID, receipt Receipt) (Progress, e
 		return p, errors.New("receipt requires dispatched action")
 	}
 	switch receipt {
-	case ReceiptAccepted, ReceiptRefused, ReceiptUnknown:
+	case ReceiptAccepted, ReceiptRefused, ReceiptUnsent, ReceiptUnknown:
 	default:
 		return p, errors.New("invalid receipt")
 	}
@@ -363,7 +373,7 @@ func (p Progress) recordReceipt(attempt AttemptID, receipt Receipt) (Progress, e
 	}
 	p.view.Receipt = Known(receipt)
 	p.view.HeldReason = Unknown[HoldEvidence]()
-	if receipt == ReceiptRefused {
+	if receipt == ReceiptRefused || receipt == ReceiptUnsent {
 		p.view.Unresolved = false
 		p.view.Effect = Known(EffectAbsent)
 		if p.view.Stage != Cancelled {

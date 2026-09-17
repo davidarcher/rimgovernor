@@ -188,7 +188,7 @@ func (e *Executor) runMovement(ctx context.Context, action domain.Action, progre
 	receipt, err := e.movement.MoveTo(ctx, MovementDispatch{attempt, admission})
 	kind := receipt.Kind
 	if err != nil {
-		kind = domain.ReceiptUnknown
+		kind = receiptAfterCallError(err)
 	} else if receipt.Action != v.Action || receipt.Attempt != attempt.Attempt || receipt.Snapshot != expected {
 		kind, err = domain.ReceiptUnknown, ErrEvidence
 	}

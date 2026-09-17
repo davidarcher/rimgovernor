@@ -11,15 +11,15 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/store"
 )
 
-// RoutineHusbandryPlanner proposes one Husbandry training or slaughter write
-// for MaintainHerd's deficit: policy.AnimalHerdDeficit/SelectHusbandryMethod
-// already recognize and pick from the same generic animal census
-// MaintainAnimalContainment reads (AnimalState already carries training and
-// safe-to-slaughter facts, so no dedicated per-cycle husbandry read is
-// needed to detect or select). Slaughter is only ever proposed once the
-// operator-declared RoutinePolicy.AllowSlaughter/HerdPopulationMax opt-in is
-// set — see policy.MaintainHerd's doc comment for the disclosed narrowing
-// this still carries (no protected-id/breeding-reserve richness).
+// RoutineHusbandryPlanner proposes one Husbandry training, tame, release or
+// slaughter write for MaintainHerd's deficit: policy.AnimalHerdDeficit/
+// SelectHusbandryMethod already recognize and pick from the same generic
+// animal census MaintainAnimalContainment reads (AnimalState already
+// carries training, tame and removal eligibility facts, so no dedicated
+// per-cycle husbandry read is needed to detect or select). Tame and removal
+// are only ever proposed once the operator-declared RoutinePolicy herd
+// opt-ins are set — see policy.MaintainHerd's doc comment for the disclosed
+// narrowing this still carries (no protected-id/breeding-reserve richness).
 type RoutineHusbandryPlanner struct {
 	reviewer *RoutineReviewer
 }
@@ -100,7 +100,7 @@ func (r *RoutineHusbandryPlanner) step(call, epoch context.Context, arbiter *ste
 		return RoutineHusbandryResult{}, err
 	}
 	animals := read.Projection.Facts.AnimalUpkeep.Animals
-	choice := policy.SelectHusbandryMethod(animals, r.reviewer.policy.AllowSlaughter, r.reviewer.policy.HerdPopulationMax)
+	choice := policy.SelectHusbandryMethod(animals, read.Projection.Facts.AnimalUpkeep.WildAnimals, r.reviewer.policy.Herd())
 	switch choice.Reason {
 	case policy.HusbandryNoDeficit:
 		return RoutineHusbandryResult{Reason: BuildingMethodUsed}, nil

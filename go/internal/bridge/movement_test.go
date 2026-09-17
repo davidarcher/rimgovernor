@@ -113,7 +113,6 @@ func TestMovementPendingInterruptionAndUnknownSDK(t *testing.T) {
 			case "pending":
 				v.Effect = &r.Progress_Pending{Pending: &r.PendingEffect{Evidence: e}}
 			case "interrupted":
-				e.GetJob().DraftOwner = nil
 				e.GetJob().DraftClaimId = nil
 				e.GetJob().Drafted = proto.Bool(false)
 				e.GetJob().Verified = proto.Bool(false)

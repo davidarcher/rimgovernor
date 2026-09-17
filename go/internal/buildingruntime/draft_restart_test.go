@@ -43,9 +43,7 @@ func TestDraftRestartPreservesPlayerReplacementThroughRealJournalAndExecutor(t *
 					t.Fatal(err)
 				}
 				native.Receipt.Attempt.ControllerSessionId = proto.String(session)
-				boundary.ReceiptJob(native.Receipt).DraftOwner = proto.String(session)
 				native.Progress.Attempt.ControllerSessionId = proto.String(session)
-				native.Progress.GetCompleted().GetEvidence().GetJob().DraftOwner = proto.String(session)
 				if replacement == "unowned" {
 					native.Row.Drafted = proto.Bool(false)
 					native.Row.DraftClaim = &n.DraftClaimObservation{State: &n.DraftClaimObservation_Unowned{Unowned: &n.NoOwnedDraftClaim{}}}

@@ -130,6 +130,14 @@ func StartDebugGameSized(ctx context.Context, h *Harness, names []string, mode Q
 	if err != nil {
 		return nil, err
 	}
+	cached := CachedStart() && startCache.root != ""
+	name := cachedStartName(start)
+	if _, have := cachedStartPath(name); cached && have {
+		if err := loadCachedStart(ctx, h, name); err != nil {
+			return nil, err
+		}
+		return applyQuiet(ctx, h, apply)
+	}
 	if Contains(names, DebugStartTool) {
 		if err := start.Validate(); err != nil {
 			return nil, err
@@ -147,6 +155,16 @@ func StartDebugGameSized(ctx context.Context, h *Harness, names []string, mode Q
 	}); err != nil {
 		return nil, err
 	}
+	if cached {
+		if err := saveCachedStart(ctx, h, name); err != nil {
+			return nil, err
+		}
+	}
+	return applyQuiet(ctx, h, apply)
+}
+
+// applyQuiet applies the quiet storyteller when the mode asked for it.
+func applyQuiet(ctx context.Context, h *Harness, apply bool) (map[string]any, error) {
 	if !apply {
 		return nil, nil
 	}

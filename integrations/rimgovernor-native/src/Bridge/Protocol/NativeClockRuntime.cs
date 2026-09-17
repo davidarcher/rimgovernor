@@ -53,7 +53,9 @@ namespace HomeBridge.BridgeTools
             var kind = reason == NativeControlRevocationReason.IdentityChanged ? "session_changed"
                 : reason == NativeControlRevocationReason.HooksUnavailable || reason == NativeControlRevocationReason.GenerationExhausted
                     || reason == NativeControlRevocationReason.ClockUnavailable || !TypedHooksReady() ? "unavailable" : "external_pause";
-            Stop(s, kind, "Authorizing native authority stopped: " + reason + "; " + result.Error, true, null);
+            var detail = result.Snapshot.Detail;
+            Stop(s, kind, "Authorizing native authority stopped: " + reason + "; " + result.Error
+                + (string.IsNullOrEmpty(detail) ? "" : "; " + detail), true, null);
             return true;
         }
         // A typed epoch's lease lapsing is the only native-observable sign that

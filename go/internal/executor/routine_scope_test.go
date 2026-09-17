@@ -50,3 +50,38 @@ func TestRoutineScopeRecheckedBeforeDispatchWithoutChangingAuthority(t *testing.
 		}
 	}
 }
+
+// A routine method plan's draft and ranged attack (the hold-the-line
+// response) must dispatch under the root authority the same way building
+// and tend already do, rather than refusing with ErrAuthority because the
+// root snapshot names the player's plan (issue #70).
+func TestRoutineScopeAuthorizesDraftAndRangedAttack(t *testing.T) {
+	routine := func(f *fixture) {
+		root := f.authority
+		root.Snapshot.Plan = "player-plan"
+		if err := f.executor.UpdateAuthority(root); err != nil {
+			t.Fatal(err)
+		}
+		f.executor.routineScope = routineScopeFunc(func(_ context.Context, actual, target domain.GenerationSnapshot) error {
+			if actual != root.Snapshot || target != f.authority.Snapshot {
+				return ErrAuthority
+			}
+			return nil
+		})
+	}
+	f, d := newDraftFixture(t)
+	routine(f)
+	r, err := f.run()
+	if err != nil || d.calls != 1 || !r.Progress.View().Unresolved {
+		t.Fatal(r, err, d)
+	}
+	f, _, m := newRangedFixture(t)
+	routine(f)
+	r, err = f.run()
+	if err != nil || m.writes != 1 || !r.Progress.View().Unresolved {
+		t.Fatal(r, err, m)
+	}
+	if f.executor.current().Snapshot.Plan != "player-plan" {
+		t.Fatal("routine execution changed player authority")
+	}
+}

@@ -170,7 +170,7 @@ func (e *Executor) runBill(ctx context.Context, action domain.Action, p domain.P
 	receipt, err := e.bill.AddBill(ctx, BillDispatch{attempt, inspection.SnapshotToken})
 	kind := receipt.Kind
 	if err != nil {
-		kind = domain.ReceiptUnknown
+		kind = receiptAfterCallError(err)
 	} else if receipt.Action != action.ID() || receipt.Attempt != attempt.Attempt || receipt.Snapshot != expected {
 		kind, err = domain.ReceiptUnknown, ErrEvidence
 	}

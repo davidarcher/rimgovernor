@@ -85,7 +85,7 @@ func (e *Executor) runProductionPolicy(ctx context.Context, action domain.Action
 	receipt, err := e.productionPolicy.SetProductionPolicy(ctx, ProductionPolicyDispatch{attempt, admission})
 	kind := receipt.Kind
 	if err != nil {
-		kind = domain.ReceiptUnknown
+		kind = receiptAfterCallError(err)
 	} else if receipt.Action != v.Action || receipt.Attempt != attempt.Attempt || receipt.Snapshot != expected {
 		kind, err = domain.ReceiptUnknown, ErrEvidence
 	}

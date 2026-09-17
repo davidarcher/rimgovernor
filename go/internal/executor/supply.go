@@ -164,7 +164,7 @@ func (e *Executor) runSupply(ctx context.Context, action domain.Action, p domain
 	receipt, err := e.supply.AllowSupply(ctx, SupplyDispatch{attempt, inspection.SnapshotToken})
 	kind := receipt.Kind
 	if err != nil {
-		kind = domain.ReceiptUnknown
+		kind = receiptAfterCallError(err)
 	} else if receipt.Action != action.ID() || receipt.Attempt != attempt.Attempt || receipt.Snapshot != expected {
 		kind, err = domain.ReceiptUnknown, ErrEvidence
 	}

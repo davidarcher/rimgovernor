@@ -13,7 +13,7 @@ func pawnOrderEvidence(evidence *r.EffectEvidence, expected PawnOrderAttempt) (*
 	if job == nil || job.PawnId == nil || job.GetPawnId() != expected.PawnID || job.TargetA == nil || job.TargetA.GetThingId() != expected.TargetID {
 		return nil, contract("pawn order pawn or target mismatch")
 	}
-	allowed := &r.JobEffect{PawnId: job.PawnId, JobId: job.JobId, JobDef: job.JobDef, TargetA: job.TargetA, Drafted: job.Drafted, Issued: job.Issued, Verified: job.Verified, VerifiedReason: job.VerifiedReason, DraftOwner: job.DraftOwner, DraftClaimId: job.DraftClaimId, ResultingSnapshotToken: job.ResultingSnapshotToken}
+	allowed := &r.JobEffect{PawnId: job.PawnId, JobId: job.JobId, JobDef: job.JobDef, TargetA: job.TargetA, Drafted: job.Drafted, Issued: job.Issued, Verified: job.Verified, VerifiedReason: job.VerifiedReason, DraftClaimId: job.DraftClaimId, ResultingSnapshotToken: job.ResultingSnapshotToken}
 	if !proto.Equal(job, allowed) || !diagnostic(job.VerifiedReason) || job.Issued == nil || job.Verified == nil || job.ResultingSnapshotToken == nil {
 		return nil, contract("pawn order effect fields missing or unsupported")
 	}

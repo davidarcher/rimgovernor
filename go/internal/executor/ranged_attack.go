@@ -49,7 +49,12 @@ func (e *Executor) runRangedAttack(ctx context.Context, action domain.Action, pr
 	}
 	expected := authority.Snapshot
 	if expected.Plan != v.Plan || expected.Revision != v.Revision {
-		return result, ErrAuthority
+		// A routine method plan (e.g. hold-the-line) runs under the root
+		// authority; guard re-authorizes it before every native call.
+		if e.routineScope == nil {
+			return result, ErrAuthority
+		}
+		expected.Plan, expected.Revision = v.Plan, v.Revision
 	}
 	minimum := v.Tick
 	var inspection RangedInspection
@@ -129,7 +134,7 @@ func (e *Executor) runRangedAttack(ctx context.Context, action domain.Action, pr
 	receipt, err := e.ranged.AttackRanged(ctx, RangedDispatch{attempt, admission})
 	kind := receipt.Kind
 	if err != nil {
-		kind = domain.ReceiptUnknown
+		kind = receiptAfterCallError(err)
 	} else if receipt.Action != v.Action || receipt.Attempt != attempt.Attempt || receipt.Snapshot != expected {
 		kind, err = domain.ReceiptUnknown, ErrEvidence
 	}

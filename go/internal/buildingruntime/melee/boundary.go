@@ -198,7 +198,7 @@ func meleeJob(job *r.JobEffect, dispatch executor.MeleeDispatch) error {
 	if job.GetPawnId() != string(m.Pawn()) || job.GetTargetA().GetThingId() != string(m.Target()) || job.GetJobDef() != "AttackMelee" || job.JobId == nil || job.GetJobId() < 0 {
 		return executor.ErrEvidence
 	}
-	if job.DraftClaimId != nil && job.GetDraftClaimId() != string(dispatch.Admission.DraftClaim.Claim) || job.DraftOwner != nil && job.GetDraftOwner() != string(dispatch.Admission.DraftClaim.Session) {
+	if job.DraftClaimId != nil && job.GetDraftClaimId() != string(dispatch.Admission.DraftClaim.Claim) {
 		return executor.ErrEvidence
 	}
 	return nil

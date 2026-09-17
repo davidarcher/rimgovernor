@@ -27,10 +27,10 @@ func (b *DraftBoundary) historicalClaim(p executor.Placement, receipt *r.Receipt
 	}
 	job := boundary.ReceiptJob(receipt)
 	pawn, _ := p.Action.OwnedDraft()
-	if job == nil || job.GetPawnId() != string(pawn.Pawn()) || job.Drafted == nil || !job.GetDrafted() || job.Verified == nil || !job.GetVerified() || job.Issued == nil || job.GetIssued() != issued || job.GetDraftOwner() != b.session || !boundary.ValidID(job.GetDraftClaimId()) || !boundary.ValidID(job.GetResultingSnapshotToken()) {
+	if job == nil || job.GetPawnId() != string(pawn.Pawn()) || job.Drafted == nil || !job.GetDrafted() || job.Verified == nil || !job.GetVerified() || job.Issued == nil || job.GetIssued() != issued || !boundary.ValidID(job.GetDraftClaimId()) || !boundary.ValidID(job.GetResultingSnapshotToken()) {
 		return unknown, executor.ErrEvidence
 	}
-	allowed := &r.JobEffect{PawnId: job.PawnId, Drafted: job.Drafted, Issued: job.Issued, Verified: job.Verified, VerifiedReason: job.VerifiedReason, DraftOwner: job.DraftOwner, DraftClaimId: job.DraftClaimId, ResultingSnapshotToken: job.ResultingSnapshotToken}
+	allowed := &r.JobEffect{PawnId: job.PawnId, Drafted: job.Drafted, Issued: job.Issued, Verified: job.Verified, VerifiedReason: job.VerifiedReason, DraftClaimId: job.DraftClaimId, ResultingSnapshotToken: job.ResultingSnapshotToken}
 	if !proto.Equal(job, allowed) {
 		return unknown, executor.ErrEvidence
 	}

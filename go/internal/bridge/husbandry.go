@@ -10,11 +10,13 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
-// HusbandryMethod names MaintainHerd-*'s two direct-write animal management
-// orders: recursive training request and slaughter designation. The native
-// contract is NativeHusbandryOperations.cs
-// (integrations/rimgovernor-native/src/Bridge/Protocol), wired onto
-// Operation_SetAnimalTraining/Operation_SlaughterAnimal in
+// HusbandryMethod names the direct-write animal management orders:
+// recursive training request, the slaughter, tame and release-to-wild
+// designations, and the Animals-tab settings (allowed area, master, follow
+// flags). The native contract is
+// NativeHusbandryOperations.cs (integrations/rimgovernor-native/src/Bridge/Protocol),
+// wired onto Operation_SetAnimalTraining/SlaughterAnimal/TameAnimal/
+// ReleaseAnimal/SetAnimalArea/SetAnimalMaster/SetAnimalFollowing in
 // NativeOperationTools.cs's Execute/Preview dispatch. It ports the legacy
 // JSON home/husbandry_config tool's (HusbandryTools.Configure) eligibility
 // checks behind the typed boundary: an accepted order is a direct settings
@@ -25,9 +27,25 @@ const (
 	HusbandryMethodUnspecified HusbandryMethod = iota
 	HusbandryMethodTrain
 	HusbandryMethodSlaughter
+	HusbandryMethodTame
+	HusbandryMethodRelease
+	HusbandryMethodAllowedArea
+	HusbandryMethodMaster
+	HusbandryMethodFollowDrafted
+	HusbandryMethodFollowFieldwork
 )
 
-var husbandryMethodValid = map[HusbandryMethod]bool{HusbandryMethodTrain: true, HusbandryMethodSlaughter: true}
+var husbandryMethodValid = map[HusbandryMethod]bool{HusbandryMethodTrain: true, HusbandryMethodSlaughter: true, HusbandryMethodTame: true, HusbandryMethodRelease: true,
+	HusbandryMethodAllowedArea: true, HusbandryMethodMaster: true, HusbandryMethodFollowDrafted: true, HusbandryMethodFollowFieldwork: true}
+
+// husbandryAssignment is the Assignment an allowed_area/master argument
+// encodes: an entity identity, or Clear for the empty argument.
+func husbandryAssignment(argument string) *o.Assignment {
+	if argument == "" {
+		return &o.Assignment{Value: &o.Assignment_Clear{Clear: &o.Clear{}}}
+	}
+	return &o.Assignment{Value: &o.Assignment_EntityId{EntityId: argument}}
+}
 
 type HusbandryAttempt struct {
 	Identity            *c.Identity
@@ -36,26 +54,50 @@ type HusbandryAttempt struct {
 	Animal, AnimalToken string
 	ExpectedCensusToken string
 	Method              HusbandryMethod
-	TrainableDef        string
+	Argument            string
 }
 
-func husbandryOperation(animal, animalToken, census, trainableDef string, method HusbandryMethod) *o.Operation {
+func husbandryOperation(animal, animalToken, census, argument string, method HusbandryMethod) *o.Operation {
 	entity := gearEntity(animal, animalToken)
 	switch method {
 	case HusbandryMethodTrain:
 		return &o.Operation{Command: &o.Operation_SetAnimalTraining{SetAnimalTraining: &o.SetAnimalTraining{
-			Animal: entity, ExpectedCensusToken: proto.String(census), TrainableDef: proto.String(trainableDef),
+			Animal: entity, ExpectedCensusToken: proto.String(census), TrainableDef: proto.String(argument),
 		}}}
 	case HusbandryMethodSlaughter:
 		return &o.Operation{Command: &o.Operation_SlaughterAnimal{SlaughterAnimal: &o.SlaughterAnimal{
 			Animal: entity, ExpectedCensusToken: proto.String(census),
+		}}}
+	case HusbandryMethodTame:
+		return &o.Operation{Command: &o.Operation_TameAnimal{TameAnimal: &o.TameAnimal{
+			Animal: entity, ExpectedCensusToken: proto.String(census),
+		}}}
+	case HusbandryMethodRelease:
+		return &o.Operation{Command: &o.Operation_ReleaseAnimal{ReleaseAnimal: &o.ReleaseAnimal{
+			Animal: entity, ExpectedCensusToken: proto.String(census),
+		}}}
+	case HusbandryMethodAllowedArea:
+		return &o.Operation{Command: &o.Operation_SetAnimalArea{SetAnimalArea: &o.SetAnimalArea{
+			Animal: entity, ExpectedCensusToken: proto.String(census), Area: husbandryAssignment(argument),
+		}}}
+	case HusbandryMethodMaster:
+		return &o.Operation{Command: &o.Operation_SetAnimalMaster{SetAnimalMaster: &o.SetAnimalMaster{
+			Animal: entity, ExpectedCensusToken: proto.String(census), Master: husbandryAssignment(argument),
+		}}}
+	case HusbandryMethodFollowDrafted:
+		return &o.Operation{Command: &o.Operation_SetAnimalFollowing{SetAnimalFollowing: &o.SetAnimalFollowing{
+			Animal: entity, ExpectedCensusToken: proto.String(census), FollowDrafted: proto.Bool(argument == "true"),
+		}}}
+	case HusbandryMethodFollowFieldwork:
+		return &o.Operation{Command: &o.Operation_SetAnimalFollowing{SetAnimalFollowing: &o.SetAnimalFollowing{
+			Animal: entity, ExpectedCensusToken: proto.String(census), FollowFieldwork: proto.Bool(argument == "true"),
 		}}}
 	default:
 		return &o.Operation{}
 	}
 }
 
-func husbandryCommand(animal, animalToken, census string, method HusbandryMethod, trainableDef string) error {
+func husbandryCommand(animal, animalToken, census string, method HusbandryMethod, argument string) error {
 	if validID(animal) != nil || validID(animalToken) != nil || validID(census) != nil {
 		return contract("invalid husbandry command")
 	}
@@ -64,29 +106,37 @@ func husbandryCommand(animal, animalToken, census string, method HusbandryMethod
 	}
 	switch method {
 	case HusbandryMethodTrain:
-		if validID(trainableDef) != nil {
+		if validID(argument) != nil {
 			return contract("invalid husbandry trainable def")
 		}
-	case HusbandryMethodSlaughter:
-		if trainableDef != "" {
-			return contract("slaughter does not take a trainable def")
+	case HusbandryMethodSlaughter, HusbandryMethodTame, HusbandryMethodRelease:
+		if argument != "" {
+			return contract("animal designation does not take an argument")
+		}
+	case HusbandryMethodAllowedArea, HusbandryMethodMaster:
+		if argument != "" && validID(argument) != nil {
+			return contract("invalid husbandry assignment target")
+		}
+	case HusbandryMethodFollowDrafted, HusbandryMethodFollowFieldwork:
+		if argument != "true" && argument != "false" {
+			return contract("invalid husbandry follow flag")
 		}
 	}
 	return nil
 }
 
 // PreviewHusbandry checks an exact already-selected training request or
-// slaughter designation; acceptance is not authority.
-func (client *Client) PreviewHusbandry(ctx context.Context, identity *c.Identity, animal, animalToken, census string, method HusbandryMethod, trainableDef string) (*o.PreviewReply, Result, error) {
+// slaughter/tame/release designation; acceptance is not authority.
+func (client *Client) PreviewHusbandry(ctx context.Context, identity *c.Identity, animal, animalToken, census string, method HusbandryMethod, argument string) (*o.PreviewReply, Result, error) {
 	if err := ValidateIdentity(identity); err != nil {
 		return nil, Result{}, err
 	}
-	if err := husbandryCommand(animal, animalToken, census, method, trainableDef); err != nil {
+	if err := husbandryCommand(animal, animalToken, census, method, argument); err != nil {
 		return nil, Result{}, err
 	}
 	identity = proto.Clone(identity).(*c.Identity)
 	reply := &o.PreviewReply{}
-	raw, err := client.protoRead(ctx, "rimgovernor/operations_preview", &o.PreviewRequest{Identity: identity, Operation: husbandryOperation(animal, animalToken, census, trainableDef, method)}, reply)
+	raw, err := client.protoRead(ctx, "rimgovernor/operations_preview", &o.PreviewRequest{Identity: identity, Operation: husbandryOperation(animal, animalToken, census, argument, method)}, reply)
 	if err != nil {
 		return nil, raw, err
 	}
@@ -128,7 +178,7 @@ func husbandryAttempt(v HusbandryAttempt) (HusbandryAttempt, error) {
 	if v.Generation == 0 {
 		return HusbandryAttempt{}, contract("husbandry admission owner or generation mismatch")
 	}
-	if err := husbandryCommand(v.Animal, v.AnimalToken, v.ExpectedCensusToken, v.Method, v.TrainableDef); err != nil {
+	if err := husbandryCommand(v.Animal, v.AnimalToken, v.ExpectedCensusToken, v.Method, v.Argument); err != nil {
 		return HusbandryAttempt{}, err
 	}
 	v.Identity = proto.Clone(v.Identity).(*c.Identity)
@@ -140,15 +190,25 @@ func husbandryEvidence(effect *r.AnimalEffect, expected HusbandryAttempt) (*r.An
 	if effect == nil || effect.Animal.GetEntityId() != expected.Animal {
 		return nil, contract("husbandry animal mismatch")
 	}
-	switch expected.Method {
-	case HusbandryMethodTrain:
-		if effect.GetTrainableDef() != expected.TrainableDef || effect.SlaughterDesignated != nil {
-			return nil, contract("husbandry training effect fields missing or unsupported")
+	// Each method reports exactly its own effect field; any other field set
+	// means the native side answered a different order.
+	fields := map[string]bool{
+		"trainable": effect.TrainableDef != nil || effect.Wanted != nil,
+		"slaughter": effect.SlaughterDesignated != nil, "tame": effect.TameDesignated != nil, "release": effect.ReleaseDesignated != nil,
+		"area": effect.AllowedAreaId != nil, "master": effect.MasterId != nil,
+		"followDrafted": effect.FollowDrafted != nil, "followFieldwork": effect.FollowFieldwork != nil,
+	}
+	own := map[HusbandryMethod]string{
+		HusbandryMethodTrain: "trainable", HusbandryMethodSlaughter: "slaughter", HusbandryMethodTame: "tame", HusbandryMethodRelease: "release",
+		HusbandryMethodAllowedArea: "area", HusbandryMethodMaster: "master", HusbandryMethodFollowDrafted: "followDrafted", HusbandryMethodFollowFieldwork: "followFieldwork",
+	}[expected.Method]
+	for name, set := range fields {
+		if set != (name == own) {
+			return nil, contract("husbandry %s effect fields missing or unsupported", own)
 		}
-	case HusbandryMethodSlaughter:
-		if effect.TrainableDef != nil || effect.Wanted != nil {
-			return nil, contract("husbandry slaughter effect fields missing or unsupported")
-		}
+	}
+	if expected.Method == HusbandryMethodTrain && effect.GetTrainableDef() != expected.Argument {
+		return nil, contract("husbandry training effect fields missing or unsupported")
 	}
 	return effect, nil
 }
@@ -191,21 +251,21 @@ func NewHusbandryWriter(client *Client) (*HusbandryWriter, error) {
 }
 
 // ApplyHusbandry dispatches one already-admitted training request or
-// slaughter designation.
-func (writer *HusbandryWriter) ApplyHusbandry(ctx context.Context, pre *a.WritePrecondition, animal, animalToken, census string, method HusbandryMethod, trainableDef string) (*o.ExecuteReply, Result, error) {
+// slaughter/tame/release designation.
+func (writer *HusbandryWriter) ApplyHusbandry(ctx context.Context, pre *a.WritePrecondition, animal, animalToken, census string, method HusbandryMethod, argument string) (*o.ExecuteReply, Result, error) {
 	if writer == nil || writer.client == nil || pre == nil || buildingUnknown(pre) != nil || ValidateIdentity(pre.Identity) != nil || buildingAttempt(pre.Attempt) != nil || pre.GetExpectedGeneration() == 0 {
 		return nil, Result{}, contract("invalid husbandry execution")
 	}
-	if err := husbandryCommand(animal, animalToken, census, method, trainableDef); err != nil {
+	if err := husbandryCommand(animal, animalToken, census, method, argument); err != nil {
 		return nil, Result{}, err
 	}
-	expected, err := husbandryAttempt(HusbandryAttempt{Identity: pre.Identity, Attempt: pre.Attempt, Generation: pre.GetExpectedGeneration(), Animal: animal, AnimalToken: animalToken, ExpectedCensusToken: census, Method: method, TrainableDef: trainableDef})
+	expected, err := husbandryAttempt(HusbandryAttempt{Identity: pre.Identity, Attempt: pre.Attempt, Generation: pre.GetExpectedGeneration(), Animal: animal, AnimalToken: animalToken, ExpectedCensusToken: census, Method: method, Argument: argument})
 	if err != nil {
 		return nil, Result{}, err
 	}
 	pre = proto.Clone(pre).(*a.WritePrecondition)
 	reply := &o.ExecuteReply{}
-	raw, err := writer.client.protoCall(ctx, "rimgovernor/operations_execute", &o.ExecuteRequest{Precondition: pre, Operation: husbandryOperation(animal, animalToken, census, trainableDef, method)}, reply)
+	raw, err := writer.client.protoCall(ctx, "rimgovernor/operations_execute", &o.ExecuteRequest{Precondition: pre, Operation: husbandryOperation(animal, animalToken, census, argument, method)}, reply)
 	if err != nil {
 		return nil, raw, err
 	}

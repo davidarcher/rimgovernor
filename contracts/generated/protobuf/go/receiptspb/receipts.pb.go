@@ -3082,6 +3082,12 @@ type AnimalEffect struct {
 	TrainableDef        *string                `protobuf:"bytes,3,opt,name=trainable_def,json=trainableDef,proto3,oneof" json:"trainable_def,omitempty"`
 	Wanted              *bool                  `protobuf:"varint,4,opt,name=wanted,proto3,oneof" json:"wanted,omitempty"`
 	SlaughterDesignated *bool                  `protobuf:"varint,5,opt,name=slaughter_designated,json=slaughterDesignated,proto3,oneof" json:"slaughter_designated,omitempty"`
+	TameDesignated      *bool                  `protobuf:"varint,6,opt,name=tame_designated,json=tameDesignated,proto3,oneof" json:"tame_designated,omitempty"`
+	ReleaseDesignated   *bool                  `protobuf:"varint,7,opt,name=release_designated,json=releaseDesignated,proto3,oneof" json:"release_designated,omitempty"`
+	AllowedAreaId       *string                `protobuf:"bytes,8,opt,name=allowed_area_id,json=allowedAreaId,proto3,oneof" json:"allowed_area_id,omitempty"`
+	MasterId            *string                `protobuf:"bytes,9,opt,name=master_id,json=masterId,proto3,oneof" json:"master_id,omitempty"`
+	FollowDrafted       *bool                  `protobuf:"varint,10,opt,name=follow_drafted,json=followDrafted,proto3,oneof" json:"follow_drafted,omitempty"`
+	FollowFieldwork     *bool                  `protobuf:"varint,11,opt,name=follow_fieldwork,json=followFieldwork,proto3,oneof" json:"follow_fieldwork,omitempty"`
 	unknownFields       protoimpl.UnknownFields
 	sizeCache           protoimpl.SizeCache
 }
@@ -3147,6 +3153,48 @@ func (x *AnimalEffect) GetWanted() bool {
 func (x *AnimalEffect) GetSlaughterDesignated() bool {
 	if x != nil && x.SlaughterDesignated != nil {
 		return *x.SlaughterDesignated
+	}
+	return false
+}
+
+func (x *AnimalEffect) GetTameDesignated() bool {
+	if x != nil && x.TameDesignated != nil {
+		return *x.TameDesignated
+	}
+	return false
+}
+
+func (x *AnimalEffect) GetReleaseDesignated() bool {
+	if x != nil && x.ReleaseDesignated != nil {
+		return *x.ReleaseDesignated
+	}
+	return false
+}
+
+func (x *AnimalEffect) GetAllowedAreaId() string {
+	if x != nil && x.AllowedAreaId != nil {
+		return *x.AllowedAreaId
+	}
+	return ""
+}
+
+func (x *AnimalEffect) GetMasterId() string {
+	if x != nil && x.MasterId != nil {
+		return *x.MasterId
+	}
+	return ""
+}
+
+func (x *AnimalEffect) GetFollowDrafted() bool {
+	if x != nil && x.FollowDrafted != nil {
+		return *x.FollowDrafted
+	}
+	return false
+}
+
+func (x *AnimalEffect) GetFollowFieldwork() bool {
+	if x != nil && x.FollowFieldwork != nil {
+		return *x.FollowFieldwork
 	}
 	return false
 }
@@ -4763,17 +4811,31 @@ const file_receipts_proto_rawDesc = "" +
 	"\n" +
 	"\b_bill_idB\t\n" +
 	"\a_queuedB\x0f\n" +
-	"\r_health_token\"\xbf\x02\n" +
+	"\r_health_token\"\xc1\x05\n" +
 	"\fAnimalEffect\x12A\n" +
 	"\x06animal\x18\x01 \x01(\v2).rimgovernor.receipts.v1.SnapshotEvidenceR\x06animal\x12&\n" +
 	"\fcensus_token\x18\x02 \x01(\tH\x00R\vcensusToken\x88\x01\x01\x12(\n" +
 	"\rtrainable_def\x18\x03 \x01(\tH\x01R\ftrainableDef\x88\x01\x01\x12\x1b\n" +
 	"\x06wanted\x18\x04 \x01(\bH\x02R\x06wanted\x88\x01\x01\x126\n" +
-	"\x14slaughter_designated\x18\x05 \x01(\bH\x03R\x13slaughterDesignated\x88\x01\x01B\x0f\n" +
+	"\x14slaughter_designated\x18\x05 \x01(\bH\x03R\x13slaughterDesignated\x88\x01\x01\x12,\n" +
+	"\x0ftame_designated\x18\x06 \x01(\bH\x04R\x0etameDesignated\x88\x01\x01\x122\n" +
+	"\x12release_designated\x18\a \x01(\bH\x05R\x11releaseDesignated\x88\x01\x01\x12+\n" +
+	"\x0fallowed_area_id\x18\b \x01(\tH\x06R\rallowedAreaId\x88\x01\x01\x12 \n" +
+	"\tmaster_id\x18\t \x01(\tH\aR\bmasterId\x88\x01\x01\x12*\n" +
+	"\x0efollow_drafted\x18\n" +
+	" \x01(\bH\bR\rfollowDrafted\x88\x01\x01\x12.\n" +
+	"\x10follow_fieldwork\x18\v \x01(\bH\tR\x0ffollowFieldwork\x88\x01\x01B\x0f\n" +
 	"\r_census_tokenB\x10\n" +
 	"\x0e_trainable_defB\t\n" +
 	"\a_wantedB\x17\n" +
-	"\x15_slaughter_designated\"\xbc\x01\n" +
+	"\x15_slaughter_designatedB\x12\n" +
+	"\x10_tame_designatedB\x15\n" +
+	"\x13_release_designatedB\x12\n" +
+	"\x10_allowed_area_idB\f\n" +
+	"\n" +
+	"_master_idB\x11\n" +
+	"\x0f_follow_draftedB\x13\n" +
+	"\x11_follow_fieldwork\"\xbc\x01\n" +
 	"\x0ePrisonerEffect\x12=\n" +
 	"\x04pawn\x18\x01 \x01(\v2).rimgovernor.receipts.v1.SnapshotEvidenceR\x04pawn\x12,\n" +
 	"\x0finteraction_def\x18\x02 \x01(\tH\x00R\x0einteractionDef\x88\x01\x01\x12\x1d\n" +

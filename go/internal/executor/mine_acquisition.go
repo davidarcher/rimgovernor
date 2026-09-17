@@ -149,7 +149,7 @@ func (e *Executor) runMineAcquisition(ctx context.Context, action domain.Action,
 	receipt, err := e.mineAcquisition.Acquire(ctx, AcquisitionDispatch{attempt, inspection.SnapshotToken})
 	kind := receipt.Kind
 	if err != nil {
-		kind = domain.ReceiptUnknown
+		kind = receiptAfterCallError(err)
 	} else if receipt.Action != action.ID() || receipt.Attempt != attempt.Attempt || receipt.Snapshot != expected {
 		kind, err = domain.ReceiptUnknown, ErrEvidence
 	}

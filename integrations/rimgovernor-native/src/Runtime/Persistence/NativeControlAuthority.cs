@@ -39,13 +39,15 @@ namespace HomeBridge.BridgeTools
     public sealed class NativeControlSnapshot
     {
         internal NativeControlSnapshot(NativeControlIdentity? identity, ulong generation, bool available,
-            bool active, NativeControlRevocationReason reason)
-        { Identity = identity; Generation = generation; Available = available; Active = active; Reason = reason; }
+            bool active, NativeControlRevocationReason reason, string? detail)
+        { Identity = identity; Generation = generation; Available = available; Active = active; Reason = reason; Detail = detail; }
         public NativeControlIdentity? Identity { get; }
         public ulong Generation { get; }
         public bool Available { get; }
         public bool Active { get; }
         public NativeControlRevocationReason Reason { get; }
+        /// <summary>What the hook saw when Reason was set by an external action; null otherwise.</summary>
+        public string? Detail { get; }
     }
 
     /// <summary>
@@ -103,6 +105,7 @@ namespace HomeBridge.BridgeTools
         private NativeControlIdentity? ownedIdentity;
         private ulong ownedGeneration;
         private NativeControlRevocationReason reason = NativeControlRevocationReason.HooksUnavailable;
+        private string? reasonDetail;
 
         public static NativeControlAuthority ForGame(Game game)
         {
@@ -166,7 +169,7 @@ namespace HomeBridge.BridgeTools
             var error = Guard(expectedGeneration);
             if (error != NativeControlError.None) return Result(error);
             if (!Advance()) return Result(NativeControlError.GenerationExhausted);
-            if (mode == NativeControlMode.Auto) { active = true; reason = NativeControlRevocationReason.None; }
+            if (mode == NativeControlMode.Auto) { active = true; reason = NativeControlRevocationReason.None; reasonDetail = null; }
             else { active = false; reason = NativeControlRevocationReason.Manual; }
             return Result(NativeControlError.None);
         }
@@ -188,12 +191,17 @@ namespace HomeBridge.BridgeTools
             return Result(exhausted ? NativeControlError.GenerationExhausted : NativeControlError.None);
         }
 
-        /// <summary>Actual native player actions revoke even without a caller lease.</summary>
-        public NativeControlSnapshot RevokeExternal(NativeControlRevocationReason revokeReason)
+        /// <summary>
+        /// Actual native player actions revoke even without a caller lease.
+        /// <paramref name="detail"/> names what the hook saw (pawn, job, caller)
+        /// and is evaluated only when the revocation actually lands, so the
+        /// clock stop and authority status can say which action it was.
+        /// </summary>
+        public NativeControlSnapshot RevokeExternal(NativeControlRevocationReason revokeReason, Func<string>? detail = null)
         {
             Refresh();
             if (contextValid && !IsOwned && !(revokeReason == NativeControlRevocationReason.ExternalOrder && HasCausalOwnedScope()))
-                Invalidate(revokeReason);
+                Invalidate(revokeReason, detail);
             return Snapshot();
         }
 
@@ -347,13 +355,15 @@ namespace HomeBridge.BridgeTools
             return true;
         }
 
-        private void Invalidate(NativeControlRevocationReason revokeReason)
+        private void Invalidate(NativeControlRevocationReason revokeReason, Func<string>? detail = null)
         {
             active = false;
-            if (Advance()) reason = revokeReason;
+            if (!Advance()) return;
+            reason = revokeReason;
+            try { reasonDetail = detail?.Invoke(); } catch (Exception error) { reasonDetail = "detail unavailable: " + error.GetType().Name; }
         }
 
-        private NativeControlSnapshot Snapshot() => new NativeControlSnapshot(contextValid ? identity : null, generation, Available, active, reason);
+        private NativeControlSnapshot Snapshot() => new NativeControlSnapshot(contextValid ? identity : null, generation, Available, active, reason, reasonDetail);
         private NativeControlResult Result(NativeControlError error) => new NativeControlResult(error, Snapshot());
     }
 }

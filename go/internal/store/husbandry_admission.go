@@ -17,7 +17,7 @@ type HusbandryAdmission struct {
 	Tick                domain.Tick
 	Animal              domain.PawnID
 	Method              domain.HusbandryMethod
-	TrainableDef        string
+	Argument            string
 	AnimalSnapshotToken string
 	CensusToken         string
 }
@@ -35,7 +35,7 @@ func validateHusbandryAdmission(a domain.Action, p domain.Progress, admission Hu
 		return errors.New("admission plan or tick mismatch")
 	}
 	husbandry, ok := a.Husbandry()
-	if !ok || husbandry.Animal() != admission.Animal || husbandry.Method() != admission.Method || husbandry.TrainableDef() != admission.TrainableDef || submissionID(admission.AnimalSnapshotToken) != nil || submissionID(admission.CensusToken) != nil {
+	if !ok || husbandry.Animal() != admission.Animal || husbandry.Method() != admission.Method || husbandry.Argument() != admission.Argument || submissionID(admission.AnimalSnapshotToken) != nil || submissionID(admission.CensusToken) != nil {
 		return errors.New("invalid husbandry admission")
 	}
 	return nil

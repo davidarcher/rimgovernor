@@ -109,7 +109,7 @@ func (p Progress) RecordDraftReceipt(attempt AttemptID, receipt Receipt, claim F
 	if err != nil {
 		return p, err
 	}
-	if receipt == ReceiptRefused {
+	if receipt == ReceiptRefused || receipt == ReceiptUnsent {
 		if c, _ := next.view.DraftCleanup.Value(); c.Claim.known {
 			return p, errors.New("refusal contradicts acquired claim")
 		}
@@ -118,7 +118,7 @@ func (p Progress) RecordDraftReceipt(attempt AttemptID, receipt Receipt, claim F
 	if err != nil {
 		return p, err
 	}
-	if receipt == ReceiptRefused {
+	if receipt == ReceiptRefused || receipt == ReceiptUnsent {
 		next.view.DraftCleanup = Known(DraftCleanup{Stage: DraftNotAcquired})
 	}
 	return next, nil

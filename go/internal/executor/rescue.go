@@ -89,7 +89,7 @@ func (e *Executor) runRescue(ctx context.Context, action domain.Action, p domain
 	receipt, err := e.rescue.RescuePatient(ctx, RescueDispatch{attempt, admission})
 	kind := receipt.Kind
 	if err != nil {
-		kind = domain.ReceiptUnknown
+		kind = receiptAfterCallError(err)
 	} else if receipt.Action != v.Action || receipt.Attempt != attempt.Attempt || receipt.Snapshot != expected {
 		kind, err = domain.ReceiptUnknown, ErrEvidence
 	}

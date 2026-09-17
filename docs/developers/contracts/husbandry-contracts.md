@@ -3,10 +3,50 @@
 [Documentation](../../README.md) · [Controller contracts](controller-contracts.md)
 
 `MaintainHerd` creates a persistent, player-owned `MaintainHerd-<race>` goal in
-ColonyPlan. It accepts an observed native race, population minimum/maximum, stored
-feed reserve days, optional feed resource, native training targets, protected animal
-IDs, breeder-pair reserve and explicit permission to slaughter surplus. Slaughter
-defaults off. A population target alone does not authorize killing animals.
+ColonyPlan. It accepts an observed native race, native training targets and the
+operator's herd policy (`RoutinePolicy`, set by `rimgovernor serve` flags):
+
+| Field | Flag | Effect |
+| --- | --- | --- |
+| `HerdPopulationMin` | `--routine-herd-population-min RACE:MIN` | Below the floor, designate the lowest-ID tameable wild animal of that race (`tame`). |
+| `HerdPopulationMax` | `--routine-herd-population-max RACE:MAX` | Above the ceiling, remove the lowest-ID eligible surplus animal — only with one of the two opt-ins below. |
+| `AllowRelease` | `--routine-allow-release` | Remove surplus by release-to-wild (`release`); preferred when both opt-ins are set. |
+| `AllowSlaughter` | `--routine-allow-slaughter` | Remove surplus by slaughter (`slaughter`). |
+
+All default off. A ceiling alone never removes an animal; a floor alone does
+propose taming. A race in both maps must have minimum ≤ maximum. There is no
+per-race protected-ID list, breeder-pair reserve or feed-reserve bookkeeping:
+eligibility relies on native's own `SafeToSlaughter`, `SafeToRelease` and
+`Tameable` facts.
+
+## Methods
+
+Every method is one direct settings write on one exact animal through the same
+preview → CAS token → dispatch path, so admission is the effect; native handler
+labor afterwards (taming, walking an animal off-map, training steps) is observed
+through the animal's own state, never inferred from the receipt.
+
+| Method | Target | Native write | Completed when |
+| --- | --- | --- | --- |
+| `train` | player animal | `SetWantedRecursive` | trainable still wanted (learned state tracked separately) |
+| `slaughter` | player animal | `Slaughter` designation | designation present |
+| `release` | player animal | `ReleaseAnimalToWild` designation | designation present |
+| `tame` | wild animal | `Tame` designation | designation present, or the animal now reads as a player animal (the taming job consumed it) |
+| `allowed_area` | player animal | `AreaRestrictionInPawnCurrentMap` (argument: area id, empty clears) | animal's allowed area reads back equal |
+| `master` | player animal | `PlayerSettings.Master` (argument: colonist id, empty clears) | master reads back equal |
+| `follow_drafted` | player animal | `followDrafted` (argument: `true`/`false`) | flag reads back equal |
+| `follow_fieldwork` | player animal | `followFieldwork` (argument: `true`/`false`) | flag reads back equal |
+
+Admission facts: `allowed_area` needs `SupportsAllowedAreas`; `master` and the
+follow flags need `Obedient` (learned Obedience; native refuses otherwise). An
+area or master id the map does not carry is refused as not found. Each follow
+method writes only its own flag.
+
+Selection order each cycle is train, then tame, then surplus removal; one write
+per cycle. No routine planner yet produces the settings methods; they are
+available to any planner through the same husbandry action. Pen containment is not a husbandry method: pens are built by
+`MaintainAnimalContainment` and native handlers rope pen animals into any
+suitable pen on their own.
 
 ## Ownership and population
 
@@ -16,26 +56,34 @@ Hands previews and dispatches through the normal writer lock and direction guard
 The native callback requires a paused matching context and rejects changed settings
 or population. Unconfirmed requests remain blocked for inspection, without retry.
 
-Surplus selection subtracts existing slaughter/release designations and preserves
-the requested number of fertile adult males and females. Native slaughter eligibility
-is checked again at dispatch; bonded, mastered, pregnant, downed, released and
-explicitly protected animals are excluded. The controller preserves native masters,
-areas, following, sterilization and player breeding separation. It never forces
-mating or removes those restrictions to meet a population target.
+Surplus and shortfall counts subtract animals already designated for
+slaughter or release and add wild animals already designated for taming, so a
+pending write is never duplicated. Native eligibility is checked again at
+dispatch: bonded, mastered, pregnant, downed and already-designated animals are
+excluded from removal by RimWorld's own designator rules plus the master/bond
+exclusions `SafeToSlaughter`/`SafeToRelease` add; a tame candidate must pass
+`TameUtility.CanTame` and carry no tame or hunt designation. Masters, allowed
+areas, following, sterilization and breeding separation are ordinary game
+settings: while native authority reads Auto the controller may change any of
+them, including ones the player just set (see the working agreement). Masters,
+areas and following are written through the methods above; sterilization is
+not yet written.
 
-Below-minimum populations wait for ordinary births when a pregnancy or fertile pair
-is observed. Otherwise the goal reports a missing breeding prerequisite. Pregnancy
-and mating eligibility never count as new animals. Renewing a target cancels its
-uncompleted controller steps; cancellation leaves previously issued game orders in
-place, following the shared goal cancellation contract.
+Births are never counted as pending: a shortfall with no tameable wild animal
+of the race on the map simply reports no candidate until one appears. Renewing
+a target cancels its uncompleted controller steps; cancellation leaves
+previously issued game orders in place, following the shared goal cancellation
+contract.
 
 ## Training and products
 
 Training requests use native `CanAssignToTrain` and `SetWantedRecursive`; native
-`learned` and step counts track progress separately from settings receipts. Once the
-controller changes a setting, it retains the returned settings token. Later player
-changes require explicit target renewal before the controller can change that animal
-again. Protected or removal-designated animals receive no training changes.
+`learned` and step counts track progress separately from settings receipts. The
+per-animal settings token and herd census token are compare-and-swap guards
+against stale in-flight snapshots: they are re-read immediately before preview
+and dispatch, and a mismatch (player edit, birth, death) fails that attempt so
+the next cycle plans from fresh state. They never block the controller from
+changing an animal again. Removal-designated animals receive no training changes.
 
 Handling joins shared deterministic work allocation with the observed native minimum
 skill. Player work overrides remain authoritative. The herd observation retains safe

@@ -150,7 +150,6 @@ func TestAttackCompletionAfterManualAndLostReadback(t *testing.T) {
 				progress.Context.NativeGeneration = proto.Uint64(9)
 				j := progress.GetCompleted().Evidence.GetJob()
 				j.Drafted = proto.Bool(false)
-				j.DraftOwner = nil
 				j.DraftClaimId = nil
 			}
 			client := testClient(t, &testServer{schema: protoSchema, handler: func(_ context.Context, _ nativeArgument) (*mcp.CallToolResult, error) {

@@ -47,27 +47,6 @@ namespace HomeBridge.BridgeTools
         internal NativePawnSnapshot? After { get; set; }
     }
 
-    internal sealed class NativePawnJobFacts
-    {
-        private readonly Job? job;
-        private readonly JobDef? definition;
-        private readonly LocalTargetInfo a, b, c;
-        private readonly LocalTargetInfo[] targetsA, targetsB;
-        private readonly bool forced;
-        private readonly int count, loadId;
-        internal NativePawnJobFacts(Job? value)
-        {
-            job = value; definition = value?.def; forced = value?.playerForced ?? false;
-            a = value?.targetA ?? LocalTargetInfo.Invalid; b = value?.targetB ?? LocalTargetInfo.Invalid; c = value?.targetC ?? LocalTargetInfo.Invalid;
-            targetsA = value?.targetQueueA?.ToArray() ?? Array.Empty<LocalTargetInfo>();
-            targetsB = value?.targetQueueB?.ToArray() ?? Array.Empty<LocalTargetInfo>();
-            count = value?.count ?? 0; loadId = value?.loadID ?? 0;
-            if (targetsA.Length > 256 || targetsB.Length > 256) throw new InvalidOperationException("Pawn job target collection exceeds bound.");
-        }
-        internal bool Same(NativePawnJobFacts other) => ReferenceEquals(job, other.job) && ReferenceEquals(definition, other.definition)
-            && forced == other.forced && count == other.count && loadId == other.loadId && a == other.a && b == other.b && c == other.c
-            && targetsA.SequenceEqual(other.targetsA) && targetsB.SequenceEqual(other.targetsB);
-    }
     internal sealed class NativePawnFacts
     {
         internal NativeControlIdentity Identity = null!;
@@ -79,19 +58,21 @@ namespace HomeBridge.BridgeTools
         internal bool Drafted, Dead, Downed, Spawned, PlayerControlled, Mental;
         internal MentalState? MentalState;
         internal ulong DraftRevision, OrderRevision, ContextRevision;
-        internal NativePawnJobFacts Job = null!;
-        internal NativePawnJobFacts[] Queue = Array.Empty<NativePawnJobFacts>();
         internal bool Eligible => Drafter != null && Spawned && !Dead && !Downed && !Mental && PlayerControlled;
         internal bool SameIdentity(NativePawnFacts other) => ReferenceEquals(Pawn, other.Pawn) && PawnId == other.PawnId
             && SameIdentity(Identity, other.Identity) && ContextRevision == other.ContextRevision;
         internal static bool SameIdentity(NativeControlIdentity a, NativeControlIdentity b) => ReferenceEquals(a.Game, b.Game)
             && ReferenceEquals(a.Map, b.Map) && a.MapId == b.MapId && a.ColonyId == b.ColonyId && a.LoadToken == b.LoadToken;
+        // Position is observed but never part of the token, and the current
+        // job is not observed at all: the clock runs during combat windows
+        // (#69), so a walking colonist or a re-issued Wait_Combat would
+        // otherwise turn the token over between a preview and its execute
+        // (#70). Orders this mod did not issue still bump OrderRevision.
         internal bool SameEligibility(NativePawnFacts other) => SameIdentity(other) && ReferenceEquals(Drafter, other.Drafter)
-            && ReferenceEquals(Faction, other.Faction) && Position == other.Position && Dead == other.Dead && Downed == other.Downed
+            && ReferenceEquals(Faction, other.Faction) && Dead == other.Dead && Downed == other.Downed
             && Spawned == other.Spawned && PlayerControlled == other.PlayerControlled && Mental == other.Mental && ReferenceEquals(MentalState, other.MentalState);
         internal bool Same(NativePawnFacts other) => SameEligibility(other) && Drafted == other.Drafted && DraftRevision == other.DraftRevision
-            && OrderRevision == other.OrderRevision && Job.Same(other.Job) && Queue.Length == other.Queue.Length
-            && Queue.Zip(other.Queue, (a,b) => a.Same(b)).All(value => value);
+            && OrderRevision == other.OrderRevision;
     }
 
     // This record owns only one current pawn snapshot/claim and one latest cleanup.
@@ -265,12 +246,11 @@ namespace HomeBridge.BridgeTools
                     record = new NativePawnControlRecord(); game.Pawns.Add(pawn,record);
                 }
                 var revision = pawn.drafter == null ? (ulong?)0 : DraftOwnership.Revision(pawn);
-                if (!revision.HasValue || pawn.jobs == null || pawn.jobs.jobQueue == null || pawn.jobs.jobQueue.Count > 256) return NativePawnControlResult.Unavailable;
+                if (!revision.HasValue || pawn.jobs == null) return NativePawnControlResult.Unavailable;
                 var facts = new NativePawnFacts { Identity = identity, Pawn = pawn, PawnId = pawn.GetUniqueLoadID(), Drafter = pawn.drafter,
                     Faction = pawn.Faction, Position = pawn.Position, Drafted = pawn.drafter?.Drafted == true, Dead = pawn.Dead, Downed = pawn.Downed,
                     Spawned = pawn.Spawned, PlayerControlled = pawn.IsColonistPlayerControlled, Mental = pawn.InMentalState, MentalState = pawn.MentalState,
-                    DraftRevision = revision.Value, OrderRevision = record.OrderRevision, ContextRevision = checked((ulong)Volatile.Read(ref game.ContextRevision)),
-                    Job = new NativePawnJobFacts(pawn.CurJob), Queue = pawn.jobs.jobQueue.Select(q => new NativePawnJobFacts(q.job)).ToArray() };
+                    DraftRevision = revision.Value, OrderRevision = record.OrderRevision, ContextRevision = checked((ulong)Volatile.Read(ref game.ContextRevision)) };
                 if (!ProtoBoundary.IsIdentifier(facts.PawnId)) return NativePawnControlResult.Unavailable;
                 snapshot = record.Observe(facts);
                 return NativePawnControlResult.Ready;

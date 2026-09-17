@@ -117,7 +117,13 @@ message AnimalState {
   optional string pen_id = 8; optional bool contained = 9; repeated string parent_ids = 10;
   repeated TrainingEntry training = 11; optional bool release = 12; optional bool slaughter = 13;
   optional bool safe_to_slaughter = 14; optional int32 minimum_handling_skill = 15; repeated ReadIssue issues = 16;
-  optional double body_size = 17;
+  optional double body_size = 17; optional bool tameable = 18; optional bool tame = 19; optional bool safe_to_release = 20;
+  // Player-animal settings the SetAnimalArea/Master/Following writes target:
+  // the current allowed area and master (empty when unassigned), the follow
+  // flags, whether Obedience is learned (master/follow eligibility) and
+  // whether native lets this animal carry an allowed area at all.
+  optional string allowed_area_id = 21; optional string master_id = 22; optional bool follow_drafted = 23; optional bool follow_fieldwork = 24;
+  optional bool obedient = 25; optional bool supports_allowed_areas = 26;
 }
 message PawnState {
   EntityRef pawn = 1; optional string kind_def_name = 2; optional string faction_id = 3;
@@ -391,7 +397,7 @@ message ResourceSourcesReply { oneof outcome { ResourceSourcesSnapshot observed 
 message HandlerState { EntityRef pawn = 1; optional int32 skill = 2; optional int32 priority = 3; optional bool eligible = 4; optional string reason = 5; }
 message HusbandryAnimal { PawnState pawn = 1; SnapshotRef settings_snapshot = 2; AnimalState animal = 3; repeated HandlerState handlers = 4; SnapshotRef census_snapshot = 5; }
 message HusbandrySnapshot { rimgovernor.common.v1.ObservationContext context = 1; SnapshotRef census = 2; repeated HusbandryAnimal animals = 3; Completeness completeness = 4; }
-message HusbandryRequest { ReadScope scope = 1; rimgovernor.common.v1.PageRequest page = 2; }
+message HusbandryRequest { ReadScope scope = 1; rimgovernor.common.v1.PageRequest page = 2; optional bool include_wild = 3; }
 message HusbandryReply { oneof outcome { HusbandrySnapshot observed = 1; rimgovernor.common.v1.Unavailable unavailable = 2; rimgovernor.common.v1.Failure failure = 3; } }
 enum WasteLocation { WASTE_LOCATION_UNSPECIFIED = 0; WASTE_LOCATION_EXPOSED = 1; WASTE_LOCATION_RELOCATED = 2; WASTE_LOCATION_BURIED = 3; }
 message WasteItem { EntityRef thing = 1; optional int64 count = 2; optional WasteLocation state = 3; optional string zone_id = 4; optional string grave_id = 5; optional string rot_stage = 6; optional string kind = 7; optional bool eligible = 8; optional string protected_reason = 9; }
@@ -558,6 +564,7 @@ message UpkeepFacts {
   repeated ProtectedCell protected_cells = 10; repeated UpkeepPerson people = 11; repeated FeedDefinition feed_definitions = 12;
   repeated AnimalFeed animals = 13; Completeness completeness = 14; repeated ReadIssue issues = 15;
   HaulingSection hauling = 16; WallRemovalSection wall_removal = 17; HomeCoverageSection home_coverage = 18; LightingSection lighting = 19;
+  repeated AnimalFeed wild_animals = 20;
 }
 message UpkeepSection { oneof outcome { UpkeepFacts observed = 1; rimgovernor.common.v1.Unavailable unavailable = 2; } }
 message ColonyFactsSnapshot {

@@ -628,7 +628,9 @@ func routineCapabilities(sc serveConfig) (policy.RoutinePolicy, buildingruntime.
 	}
 	if sc.routineHusbandryPlans {
 		thresholds.AllowSlaughter = sc.routineAllowSlaughter
+		thresholds.AllowRelease = sc.routineAllowRelease
 		thresholds.HerdPopulationMax = sc.routineHerdPopulationMax.Map()
+		thresholds.HerdPopulationMin = sc.routineHerdPopulationMin.Map()
 		capabilities.Methods = append(capabilities.Methods, policy.MaintainHerd)
 	}
 	if sc.routinePrisonerInteractionPlans || sc.routinePopulationCustodyPlans {

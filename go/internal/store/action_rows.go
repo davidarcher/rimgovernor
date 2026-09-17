@@ -82,11 +82,13 @@ func insertAction(ctx context.Context, tx *sql.Tx, plan domain.PlanID, ordinal i
 	} else if research, ok := a.ResearchSelect(); ok {
 		_, err = tx.ExecContext(ctx, "INSERT INTO actions(id,plan_id,ordinal,kind,definition) VALUES(?,?,?,'research_select',?)", a.ID(), plan, ordinal, research.Project())
 	} else if husbandry, ok := a.Husbandry(); ok {
-		var trainableDef sql.NullString
-		if husbandry.TrainableDef() != "" {
-			trainableDef = sql.NullString{String: husbandry.TrainableDef(), Valid: true}
+		// stuff carries the method argument; an empty argument (a designation,
+		// or an allowed-area/master clear) is stored as NULL.
+		var argument sql.NullString
+		if husbandry.Argument() != "" {
+			argument = sql.NullString{String: husbandry.Argument(), Valid: true}
 		}
-		_, err = tx.ExecContext(ctx, "INSERT INTO actions(id,plan_id,ordinal,kind,target,definition,stuff) VALUES(?,?,?,'husbandry',?,?,?)", a.ID(), plan, ordinal, husbandry.Animal(), string(husbandry.Method()), trainableDef)
+		_, err = tx.ExecContext(ctx, "INSERT INTO actions(id,plan_id,ordinal,kind,target,definition,stuff) VALUES(?,?,?,'husbandry',?,?,?)", a.ID(), plan, ordinal, husbandry.Animal(), string(husbandry.Method()), argument)
 	} else if interaction, ok := a.PrisonerInteraction(); ok {
 		_, err = tx.ExecContext(ctx, "INSERT INTO actions(id,plan_id,ordinal,kind,target,definition) VALUES(?,?,?,'prisoner_interaction',?,?)", a.ID(), plan, ordinal, interaction.Pawn(), string(interaction.Interaction()))
 	} else if removal, ok := a.WallRemoval(); ok {
@@ -446,11 +448,11 @@ func scanAction(rows *sql.Rows) (domain.Action, int, error) {
 		return a, ordinal, err
 	}
 	if kind == "husbandry" && target.Valid && def.Valid && !pawn.Valid && !x.Valid && !z.Valid && !rotation.Valid && !draftAction.Valid {
-		trainableDef := ""
+		argument := ""
 		if stuff.Valid {
-			trainableDef = stuff.String
+			argument = stuff.String
 		}
-		h, err := domain.NewHusbandry(domain.PawnID(target.String), domain.HusbandryMethod(def.String), trainableDef)
+		h, err := domain.NewHusbandry(domain.PawnID(target.String), domain.HusbandryMethod(def.String), argument)
 		if err != nil {
 			return domain.Action{}, 0, err
 		}

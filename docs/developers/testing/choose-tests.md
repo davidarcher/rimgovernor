@@ -249,6 +249,18 @@ that fails still leaves the process at the menu, and a harness that dies
 without reaching `Close` leaves a game loaded, which the next `OpenGame`
 unloads.
 
+### Loading the debug start instead of generating it
+
+`RIMGOVERNOR_ACCEPT_CACHED_START=1` makes `StartDebugGame` load a saved
+copy of the quick start (`RimGovernor-debug-<size>-<coverage>[-<dlc>]`
+in `profile/Saves`, written by the first start that misses it) instead
+of generating a world and map: ~2.7s against ~5.4s on a warm process,
+surgeryaccept 14s to 10s on a kept game. It is opt-in: the loaded colony
+is the same one every run rather than a new world, so a harness that is
+about world generation or a first-load identity runs without it, and
+the save must be deleted to pick up a fixture or start change that
+alters the colony.
+
 ### Running harnesses in parallel
 
 `suiteaccept -root <root> -output <out> -bin <bin> -workers N -harnesses a,b,c`
@@ -257,8 +269,10 @@ into N worker roots (`na.IsolatedRoot`: own GABS state, config and profile,
 same game installation), gives each worker a queue of harnesses chained on
 one kept process, and stops every worker's game at the end. The suite's
 `result.json` lists each harness's exit, wall time, `game_reuse` and error;
-it passes only when every harness did. Measured: six short harnesses on
-two workers in 68s against about 125s in sequence. The installed mod build
+it passes only when every harness did. `-order <earlier result.json>`
+starts harnesses longest-first by that run's wall times, so a slow one
+does not land last. Measured: six short harnesses on two workers in 68s
+unordered, 58s ordered, against about 125s in sequence. The installed mod build
 must carry every fixture the list needs, and each harness must fit the
 step budget with N-1 peer games running (#73 measured three).
 
@@ -275,6 +289,20 @@ case whose assertion depends on one of those, and any case run as static-
 state or fresh-Go-session evidence, stays in fresh-process mode. Manifest
 variants (`-manifest`) that are missing are generated before the reused game
 opens, so `-reuse-game` works in both modes.
+
+## Checkpointing a slow precondition
+
+A harness whose late scenario depends on minutes of earlier play (the
+defense layout build before its raid) checkpoints the precondition as a
+prepared save instead of replaying it: `defenselayoutaccept -checkpoint
+<name>` saves the game once the layout is built and audited, writing
+`<name>.rws` and `<name>.checkpoint.json` (the layout record and site the
+raid assertions need) to `root/profile/Saves` and to the committed
+[scripts/fixtures/saves](../../../scripts/fixtures/saves/). A later
+`-from-checkpoint <name>` run stages those files into the root when it
+lacks them, loads the save, re-runs the cheap layout audits and goes
+straight to the raid; the checkpoint is fixture-mod state, so rebuild it
+after fixture or save-format changes.
 
 ## Available checks
 

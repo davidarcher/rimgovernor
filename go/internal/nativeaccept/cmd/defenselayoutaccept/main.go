@@ -62,6 +62,9 @@ func main() {
 	layoutTimeout := flag.Duration("layout-timeout", 20*time.Minute, "budget for the layout to be built natively")
 	raidTimeout := flag.Duration("raid-timeout", 8*time.Minute, "budget for the raid response and resolution")
 	timeout := flag.Duration("timeout", 45*time.Minute, "overall run timeout")
+	checkpoint := flag.String("checkpoint", "", "after the layout is built and audited, save the game under this name (root/profile/Saves/<name>.rws plus <name>.checkpoint.json) so later runs can start at the raid")
+	fromCheckpoint := flag.String("from-checkpoint", "", "load this checkpoint instead of building the layout: re-audits the saved layout, then stages the raid")
+	checkpoints := flag.String("checkpoints", "scripts/fixtures/saves", "committed checkpoint directory: -checkpoint also writes the save and its .checkpoint.json here, -from-checkpoint stages them from here into root/profile/Saves when the root lacks them")
 	flag.Parse()
 	if *root == "" || *rimgovernorBinary == "" || !filepath.IsAbs(*rimgovernorBinary) {
 		fmt.Fprintln(os.Stderr, "-root and an absolute -rimgovernor are required")
@@ -83,7 +86,20 @@ func main() {
 		"trap-cell reads, and a real RaidEnemy incident is answered with hold-the-line (edge assault) or squad defense (bypass).", !*rendered)
 	ctx, cancel := context.WithTimeout(context.Background(), *timeout)
 	defer cancel()
-	opts := options{strategy: *strategy, arrival: *arrival, save: *save, bypass: *bypass, layoutTimeout: *layoutTimeout, raidTimeout: *raidTimeout}
+	if *checkpoint != "" && *fromCheckpoint != "" {
+		fmt.Fprintln(os.Stderr, "-checkpoint and -from-checkpoint are exclusive")
+		os.Exit(2)
+	}
+	if *fromCheckpoint != "" {
+		*save = *fromCheckpoint
+	}
+	opts := options{strategy: *strategy, arrival: *arrival, save: *save, bypass: *bypass, layoutTimeout: *layoutTimeout, raidTimeout: *raidTimeout, checkpoint: *checkpoint, fromCheckpoint: *fromCheckpoint, checkpoints: *checkpoints}
+	if opts.fromCheckpoint != "" {
+		if err := stageCheckpoint(*root, opts.checkpoints, opts.fromCheckpoint); err != nil {
+			fmt.Fprintln(os.Stderr, err)
+			os.Exit(2)
+		}
+	}
 	if err := run(ctx, *root, *output, *game, !*rendered, *rimgovernorBinary, opts, report); err != nil {
 		report["error"] = err.Error()
 	} else {
@@ -96,6 +112,48 @@ type options struct {
 	strategy, arrival, save    string
 	bypass                     bool
 	layoutTimeout, raidTimeout time.Duration
+	// checkpoint names the save written once the layout is built and
+	// audited; fromCheckpoint names one to resume from, skipping the
+	// fixture setup and the layout scenario (AGENTS.md: stage the slow
+	// precondition, then advance only the ticks the assertion needs).
+	checkpoint, fromCheckpoint string
+	// checkpoints is the committed directory the checkpoint files also
+	// live in (scripts/fixtures/saves), so a fresh checkout can resume.
+	checkpoints string
+}
+
+// layoutCheckpoint is what a raid-only run needs besides the save itself:
+// the layout the service built (the raid assertions compare the hold plan
+// against it) and the guarded-construction site the service is pointed at.
+type layoutCheckpoint struct {
+	Layout      store.DefenseLayoutRecord `json:"layout"`
+	SiteX       int                       `json:"siteX"`
+	SiteZ       int                       `json:"siteZ"`
+	SavedAtTick int64                     `json:"savedAtTick"`
+}
+
+func checkpointPath(root, name string) string {
+	return filepath.Join(root, "profile", "Saves", name+".checkpoint.json")
+}
+
+// stageCheckpoint copies a committed checkpoint into root/profile/Saves when
+// the root does not already hold both files; Prepare then copies them into
+// the headless profile like any other save.
+func stageCheckpoint(root, checkpoints, name string) error {
+	for _, file := range []string{name + ".rws", name + ".checkpoint.json"} {
+		target := filepath.Join(root, "profile", "Saves", file)
+		if _, err := os.Stat(target); err == nil {
+			continue
+		}
+		source := filepath.Join(checkpoints, file)
+		if _, err := os.Stat(source); err != nil {
+			return fmt.Errorf("checkpoint %s: %s missing from both %s and %s (run once with -checkpoint %s)", name, file, filepath.Join(root, "profile", "Saves"), checkpoints, name)
+		}
+		if err := copyFile(source, target); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 type apiFunc func(method, path string, body map[string]any, token string) (map[string]any, int, error)
@@ -130,8 +188,8 @@ func (s *service) stop() {
 	// service leaves the native side in auto mode under its dead session,
 	// and the next service's acquire would resolve uncertain against it.
 	if s.keepAlive != nil && s.api != nil {
-		_, _, _ = s.api("POST", "/api/player/control/manual", map[string]any{
-			"requestId": fmt.Sprintf("defense-%s-manual-%d", s.keepAlive.name, time.Now().UnixNano()), "expected": s.keepAlive.identity,
+		_, _, _ = s.api("POST", "/api/player/control/pause", map[string]any{
+			"requestId": fmt.Sprintf("defense-%s-pause-%d", s.keepAlive.name, time.Now().UnixNano()), "expected": s.keepAlive.identity,
 		}, s.token)
 	}
 	if s.store != nil {
@@ -340,68 +398,105 @@ func run(ctx context.Context, root, output, gameID string, headless bool, rimgov
 		}
 		return out, nil
 	}
-	terrain, err := fixture("terrain", map[string]any{"op": "terrain"})
-	if err != nil {
-		return err
-	}
-	report["terrain"] = terrain
-	if _, err = fixture("stock", map[string]any{"op": "stock"}); err != nil {
-		return err
-	}
-	ranged, err := fixture("ranged", map[string]any{"op": "ranged", "rifles": 3})
-	if err != nil {
-		return err
-	}
-	report["ranged"] = ranged
-	construction, err := h.Call(ctx, "prepare-construction", "test/guarded_construction_prepare", map[string]any{"siteCount": 1})
-	if err != nil {
-		return err
-	}
-	if success, _ := na.AsBool(construction["success"]); !success || !matchesIdentity(construction) {
-		return fmt.Errorf("guarded_construction_prepare refused or identity mismatch: %#v", construction)
-	}
-	sites := na.AsSlice(construction["sites"])
-	if len(sites) != 1 {
-		return fmt.Errorf("guarded_construction_prepare: expected exactly one site, got %#v", construction)
-	}
-	site0, _ := na.AsMap(sites[0])
-	siteX, siteZ := int(na.AsNumber(site0["x"])), int(na.AsNumber(site0["z"]))
-	before, err := fixture("inspect-before", map[string]any{"op": "inspect"})
-	if err != nil {
-		return err
-	}
-	report["inspect_before"] = before
-	if int(na.AsNumber(before["traps"])) != 0 {
-		return fmt.Errorf("fresh colony already has traps: %#v", before)
-	}
-	if err := closeClient(); err != nil {
-		return fmt.Errorf("close fixture-prep bridge session: %w", err)
-	}
-
+	var layout store.DefenseLayoutRecord
+	var siteX, siteZ int
 	statePath := filepath.Join(output, "service.sqlite")
+	var svc *service
 	launch := func(name string) (*service, error) {
 		return launchService(ctx, output, name, rimgovernorBinary, gabsExecutable, cfg.Configuration, gameID, statePath, identity, matchesIdentity, siteX, siteZ, report)
 	}
+	if opts.fromCheckpoint != "" {
+		data, err := os.ReadFile(checkpointPath(root, opts.fromCheckpoint))
+		if err != nil {
+			return fmt.Errorf("read checkpoint: %w", err)
+		}
+		var cp layoutCheckpoint
+		if err := json.Unmarshal(data, &cp); err != nil {
+			return fmt.Errorf("decode checkpoint: %w", err)
+		}
+		layout, siteX, siteZ = cp.Layout, cp.SiteX, cp.SiteZ
+		report["checkpoint"] = map[string]any{"name": opts.fromCheckpoint, "savedAtTick": cp.SavedAtTick}
+		// The raid service starts on a fresh state file; seed it with the
+		// record exactly as the layout session stored it, under the load it
+		// was built in. The reload minted a new load token, so the layout
+		// review must adopt the record and re-observe its tiers before combat
+		// holds the line -- the same path a player's save/reload takes.
+		seed, err := store.Open(ctx, statePath)
+		if err != nil {
+			return fmt.Errorf("seed layout store: %w", err)
+		}
+		err = seed.SaveDefenseLayout(ctx, layout)
+		if closeErr := seed.Close(); err == nil {
+			err = closeErr
+		}
+		if err != nil {
+			return fmt.Errorf("seed layout: %w", err)
+		}
+		// Storyteller comps come back with the load; silence them again.
+		if _, err := fixture("quiet", map[string]any{"op": "quiet"}); err != nil {
+			return err
+		}
+	} else {
+		terrain, err := fixture("terrain", map[string]any{"op": "terrain"})
+		if err != nil {
+			return err
+		}
+		report["terrain"] = terrain
+		if _, err = fixture("stock", map[string]any{"op": "stock"}); err != nil {
+			return err
+		}
+		ranged, err := fixture("ranged", map[string]any{"op": "ranged", "rifles": 3})
+		if err != nil {
+			return err
+		}
+		report["ranged"] = ranged
+		construction, err := h.Call(ctx, "prepare-construction", "test/guarded_construction_prepare", map[string]any{"siteCount": 1})
+		if err != nil {
+			return err
+		}
+		if success, _ := na.AsBool(construction["success"]); !success || !matchesIdentity(construction) {
+			return fmt.Errorf("guarded_construction_prepare refused or identity mismatch: %#v", construction)
+		}
+		sites := na.AsSlice(construction["sites"])
+		if len(sites) != 1 {
+			return fmt.Errorf("guarded_construction_prepare: expected exactly one site, got %#v", construction)
+		}
+		site0, _ := na.AsMap(sites[0])
+		siteX, siteZ = int(na.AsNumber(site0["x"])), int(na.AsNumber(site0["z"]))
+		before, err := fixture("inspect-before", map[string]any{"op": "inspect"})
+		if err != nil {
+			return err
+		}
+		report["inspect_before"] = before
+		if int(na.AsNumber(before["traps"])) != 0 {
+			return fmt.Errorf("fresh colony already has traps: %#v", before)
+		}
+		if err := closeClient(); err != nil {
+			return fmt.Errorf("close fixture-prep bridge session: %w", err)
+		}
 
-	// Scenario 1: the layout is planned on the constrained site and every
-	// tier is built natively under the live routine reviewer/planner.
-	svc, err := launch("layout")
-	if err != nil {
-		return err
-	}
-	defer svc.stop()
-	layout, err := waitLayoutComplete(ctx, svc.store, world, svc.wait(opts.layoutTimeout), report)
-	if err != nil {
-		return fmt.Errorf("layout: %w", err)
-	}
-	svc.stop()
-	report["layout_authority"] = svc.keepAlive.snapshot()
+		// Scenario 1: the layout is planned on the constrained site and every
+		// tier is built natively under the live routine reviewer/planner.
+		svc, err = launch("layout")
+		if err != nil {
+			return err
+		}
+		defer svc.stop()
+		layout, err = waitLayoutComplete(ctx, svc.store, world, svc.wait(opts.layoutTimeout), report)
+		if err != nil {
+			return fmt.Errorf("layout: %w", err)
+		}
+		svc.stop()
+		report["layout_authority"] = svc.keepAlive.snapshot()
 
-	client, h, err = reopenHarness()
-	if err != nil {
-		return err
+		client, h, err = reopenHarness()
+		if err != nil {
+			return err
+		}
+		open = client
 	}
-	open = client
+	// The audits below run on a resumed checkpoint too: they are cheap
+	// reads, and they prove the save still carries the layout it claims.
 	after, err := fixture("inspect-after-layout", map[string]any{"op": "inspect"})
 	if err != nil {
 		return err
@@ -455,6 +550,12 @@ func run(ctx context.Context, root, output, gameID string, headless bool, rimgov
 	report["lines_of_fire_after_layout"] = fire
 	if err := assertCover(fire, layout); err != nil {
 		return fmt.Errorf("lines of fire after layout: %w", err)
+	}
+	if opts.checkpoint != "" {
+		if err := writeCheckpoint(ctx, h, root, opts.checkpoints, opts.checkpoint, layoutCheckpoint{Layout: layout, SiteX: siteX, SiteZ: siteZ, SavedAtTick: int64(na.AsNumber(after["tick"]))}); err != nil {
+			return fmt.Errorf("checkpoint: %w", err)
+		}
+		report["checkpoint"] = map[string]any{"name": opts.checkpoint, "path": checkpointPath(root, opts.checkpoint), "committed": opts.checkpoints}
 	}
 
 	// Scenario 2/3: a real raid.
@@ -527,7 +628,16 @@ func run(ctx context.Context, root, output, gameID string, headless bool, rimgov
 		return fmt.Errorf("colonists standing on trap cells after raid: %v", on)
 	}
 	if !opts.bypass {
-		if int(na.AsNumber(final["sprung"])) == 0 {
+		// A spike trap is trapDestroyOnSpring: springing destroys it (its
+		// auto-rebuild blueprint is not a colonist building), so a trap
+		// missing since the layout audit is a sprung trap; the fixture's
+		// armed-state count only covers rearmable traps.
+		sprung := int(na.AsNumber(final["sprung"]))
+		if lost := int(na.AsNumber(after["traps"])) - int(na.AsNumber(final["traps"])); lost > 0 {
+			sprung += lost
+		}
+		report["traps_sprung"] = sprung
+		if sprung == 0 {
 			return fmt.Errorf("no trap sprung during the edge raid: %#v", final)
 		}
 		neutralised := 0
@@ -556,6 +666,68 @@ func run(ctx context.Context, root, output, gameID string, headless bool, rimgov
 // harness session must be closed), waits for it to attach to the fixture's
 // identity, submits the one player building plan the routine arbitration
 // slot needs, acquires authority and keeps it alive, and opens the journal.
+// writeCheckpoint saves the running game and stages the save beside the
+// baseline under root/profile/Saves, where Prepare copies every save into the
+// headless profile, so a later -from-checkpoint run loads it like any other;
+// the same two files go to the committed checkpoint directory when set.
+// The game writes into the active profile's Saves directory: headless runs
+// use root/headless-profile, rendered runs root/profile itself.
+func writeCheckpoint(ctx context.Context, h *na.Harness, root, checkpoints, name string, cp layoutCheckpoint) error {
+	started := time.Now()
+	if _, err := h.Call(ctx, "save-checkpoint", "rimworld/save_game", map[string]any{"saveName": name}); err != nil {
+		return err
+	}
+	staged := filepath.Join(root, "profile", "Saves", name+".rws")
+	deadline := started.Add(60 * time.Second)
+	for {
+		for _, profile := range []string{"headless-profile", "profile"} {
+			candidate := filepath.Join(root, profile, "Saves", name+".rws")
+			info, err := os.Stat(candidate)
+			if err != nil || info.Size() == 0 || info.ModTime().Before(started.Add(-time.Second)) {
+				continue
+			}
+			if candidate != staged {
+				if err := copyFile(candidate, staged); err != nil {
+					return err
+				}
+			}
+			data, err := json.MarshalIndent(cp, "", "  ")
+			if err != nil {
+				return err
+			}
+			if err := os.WriteFile(checkpointPath(root, name), data, 0644); err != nil {
+				return err
+			}
+			if checkpoints == "" {
+				return nil
+			}
+			if err := os.MkdirAll(checkpoints, 0755); err != nil {
+				return err
+			}
+			if err := copyFile(staged, filepath.Join(checkpoints, name+".rws")); err != nil {
+				return err
+			}
+			return os.WriteFile(filepath.Join(checkpoints, name+".checkpoint.json"), data, 0644)
+		}
+		if time.Now().After(deadline) {
+			return fmt.Errorf("save %s.rws did not appear under root/headless-profile/Saves or root/profile/Saves", name)
+		}
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		case <-time.After(time.Second):
+		}
+	}
+}
+
+func copyFile(src, dst string) error {
+	data, err := os.ReadFile(src)
+	if err != nil {
+		return err
+	}
+	return os.WriteFile(dst, data, 0644)
+}
+
 func launchService(ctx context.Context, output, name, binary, gabs, config, gameID, statePath string, identity map[string]any, matchesIdentity func(map[string]any) bool, siteX, siteZ int, report na.Report) (*service, error) {
 	// One profile for every service: the state journal binds its clock
 	// inbox to the first profile path and refuses any other.
@@ -705,13 +877,12 @@ func launchService(ctx context.Context, output, name, binary, gabs, config, game
 	if status != 200 && status != 201 {
 		return fail(fmt.Errorf("unexpected building submission status=%d body=%#v", status, submission))
 	}
-	planID, revision := na.AsString(submission["planId"]), na.AsString(submission["revision"])
-	if planID == "" || revision == "" {
+	if na.AsString(submission["planId"]) == "" || na.AsString(submission["revision"]) == "" {
 		return fail(fmt.Errorf("unexpected building submission: %#v", submission))
 	}
 	report["submission_"+name] = submission
-	keep := &authorityKeepAlive{apiCall: svc.api, identity: identity, planID: planID, revision: revision, token: svc.token, name: name}
-	if err := keep.acquire(); err != nil {
+	keep := &authorityKeepAlive{apiCall: svc.api, identity: identity, token: svc.token, name: name}
+	if err := keep.start(); err != nil {
 		return fail(err)
 	}
 	keepCtx, stopKeep := context.WithCancel(ctx)
@@ -1104,19 +1275,18 @@ func assertCover(reply map[string]any, layout store.DefenseLayoutRecord) error {
 	return nil
 }
 
-// authorityKeepAlive re-acquires bounded native player authority whenever the
-// service drops out of automate mode (a letter hold, generation exhaustion),
-// acknowledging clock holds first; see routinehaulaccept for the rationale.
+// authorityKeepAlive resumes player control whenever the service has actually
+// dropped it (a letter hold, generation exhaustion), acknowledging clock holds
+// first. A stale observation alone leaves automate mode without disabling
+// control; resuming then would bump the native generation and invalidate the
+// in-flight routine goals (#65), so it is not a trigger.
 type authorityKeepAlive struct {
 	apiCall  apiFunc
 	identity map[string]any
-	planID   string
-	revision string
 	token    string
 	name     string
 
 	mu                sync.Mutex
-	direction         string
 	attempts          int
 	reacquired        int
 	acknowledged      int
@@ -1124,39 +1294,30 @@ type authorityKeepAlive struct {
 	lastError         string
 }
 
-func (k *authorityKeepAlive) acquire() error {
-	// The state journal is shared by every service the harness launches,
-	// so the acquire must expect the journal's current direction, not 0.
-	current, status, err := k.apiCall("GET", "/api/player/control", nil, "")
-	if err != nil {
-		return err
-	}
-	if status != 200 {
-		return fmt.Errorf("read current control: status=%d body=%#v", status, current)
-	}
-	expected := "0"
-	if record, ok := na.AsMap(current["record"]); ok && na.AsString(record["direction"]) != "" {
-		expected = na.AsString(record["direction"])
-	}
-	acquired, status, err := k.apiCall("POST", "/api/player/control/acquire", map[string]any{
-		"requestId": fmt.Sprintf("defense-%s-acquire-%d", k.name, time.Now().UnixNano()), "expected": k.identity,
-		"planId": k.planID, "revision": k.revision, "expectedDirection": expected,
+// resume enters automate mode under the world's own root plan (#55); the
+// state journal is shared by every service the harness launches, so a fresh
+// requestId is used each time rather than replaying an earlier record.
+func (k *authorityKeepAlive) resume(label string) (map[string]any, int, error) {
+	return k.apiCall("POST", "/api/player/control/resume", map[string]any{
+		"requestId": fmt.Sprintf("defense-%s-%s-%d", k.name, label, time.Now().UnixNano()), "expected": k.identity,
 	}, k.token)
+}
+func (k *authorityKeepAlive) start() error {
+	resumed, status, err := k.resume("resume")
 	if err != nil {
 		return err
 	}
-	record, _ := na.AsMap(acquired["record"])
-	if status != 200 || na.AsString(record["phase"]) != "granted" {
-		return fmt.Errorf("acquire not granted: status=%d body=%#v", status, acquired)
+	record, _ := na.AsMap(resumed["record"])
+	if status != 200 || na.AsString(record["phase"]) != "running" {
+		return fmt.Errorf("resume was not running: status=%d body=%#v", status, resumed)
 	}
-	k.direction = na.AsString(record["direction"])
 	return nil
 }
 
 func (k *authorityKeepAlive) snapshot() map[string]any {
 	k.mu.Lock()
 	defer k.mu.Unlock()
-	out := map[string]any{"attempts": k.attempts, "reacquired": k.reacquired, "final_direction": k.direction, "acknowledged": k.acknowledged, "acknowledge_failed": k.acknowledgeFailed}
+	out := map[string]any{"attempts": k.attempts, "reacquired": k.reacquired, "acknowledged": k.acknowledged, "acknowledge_failed": k.acknowledgeFailed}
 	if k.lastError != "" {
 		out["last_error"] = k.lastError
 	}
@@ -1191,40 +1352,27 @@ func (k *authorityKeepAlive) run(ctx context.Context) {
 				k.mu.Unlock()
 			}
 		}
+		control, controlStatus, controlErr := k.apiCall("GET", "/api/player/control", nil, "")
+		if controlErr == nil && controlStatus == 200 {
+			live, _ := na.AsMap(control["state"])
+			if enabled, _ := na.AsBool(live["enabled"]); enabled {
+				continue
+			}
+		}
 		k.mu.Lock()
-		direction := k.direction
 		k.attempts++
 		k.mu.Unlock()
-		body := map[string]any{
-			"requestId": fmt.Sprintf("defense-%s-reacquire-%d", k.name, time.Now().UnixNano()),
-			"expected":  k.identity, "planId": k.planID, "revision": k.revision, "expectedDirection": direction,
-		}
-		acquired, status, err := k.apiCall("POST", "/api/player/control/acquire", body, k.token)
+		acquired, status, err := k.resume("reresume")
 		if err != nil {
 			k.mu.Lock()
 			k.lastError = err.Error()
 			k.mu.Unlock()
 			continue
 		}
-		// Acquire bumps the stored direction before native decides; adopt
-		// whatever current direction the reply reflects.
 		record, _ := na.AsMap(acquired["record"])
-		if observed := na.AsString(record["direction"]); observed != "" {
-			k.mu.Lock()
-			k.direction = observed
-			k.mu.Unlock()
-		} else if state, ok := na.AsMap(acquired["state"]); ok {
-			if generation, ok := na.AsMap(state["generation"]); ok {
-				if observed := na.AsString(generation["direction"]); observed != "" {
-					k.mu.Lock()
-					k.direction = observed
-					k.mu.Unlock()
-				}
-			}
-		}
 		k.mu.Lock()
-		if status != 200 || na.AsString(record["phase"]) != "granted" {
-			k.lastError = fmt.Sprintf("reacquire status=%d body=%#v", status, acquired)
+		if status != 200 || na.AsString(record["phase"]) != "running" {
+			k.lastError = fmt.Sprintf("reresume status=%d body=%#v", status, acquired)
 		} else {
 			k.reacquired++
 			k.lastError = ""

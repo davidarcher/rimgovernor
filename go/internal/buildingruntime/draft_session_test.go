@@ -9,7 +9,6 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/executor"
 	"github.com/davidarcher/RimGovernor/go/internal/store"
 	"github.com/davidarcher/RimGovernor/go/internal/store/storetest"
-	o "github.com/davidarcher/RimGovernor/go/internal/wire/operationspb"
 	"google.golang.org/protobuf/proto"
 	"sync"
 	"testing"
@@ -32,13 +31,6 @@ func draftSessionFixture(t *testing.T, unknown bool) (*Session, *draft.Fixture, 
 	}
 	native.Receipt.Attempt.ControllerSessionId = proto.String(string(namespace))
 	native.Progress.Attempt.ControllerSessionId = proto.String(string(namespace))
-	boundary.ReceiptJob(native.Receipt).DraftOwner = proto.String(string(namespace))
-	native.Progress.GetCompleted().GetEvidence().GetJob().DraftOwner = proto.String(string(namespace))
-	native.MutateRelease = func(reply *o.ReleaseOwnedDraftReply) {
-		if released := reply.GetReleased(); released != nil && released.Observed != nil {
-			released.Observed.DraftOwner = proto.String(string(namespace))
-		}
-	}
 	plan, err := domain.NewPlan("plan", 1, []domain.Action{native.P.Action})
 	if err != nil {
 		t.Fatal(err)

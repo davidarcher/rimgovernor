@@ -41,7 +41,8 @@ namespace HomeBridge.BridgeTools
                     case "raid": return Raid(map, strategy, arrival, points);
                     case "damage": return Damage(map, wall);
                     case "inspect": return Inspect(map, player);
-                    default: return Refuse("Use terrain, stock, ranged, raid, damage or inspect.");
+                    case "quiet": return Quiet();
+                    default: return Refuse("Use terrain, stock, ranged, raid, damage, inspect or quiet.");
                 }
             }, cancellationToken).ConfigureAwait(false);
         }
@@ -89,6 +90,9 @@ namespace HomeBridge.BridgeTools
                 gapDirection = "north", corridorWidth = 2 * GapHalfWidth + 1, corridorLength = Half - BandInner + 1 };
         }
 
+        // Stock also provisions the colonists for the multi-hour build: fed and
+        // rested now, with pemmican within reach, so a starvation mental break
+        // does not hold the clock (and the layout) before the raid is staged.
         private static object Stock(Map map, IntVec3 center)
         {
             var wood = ThingDefOf.WoodLog; var spawned = 0;
@@ -97,7 +101,20 @@ namespace HomeBridge.BridgeTools
                 if (!GenPlace.TryPlaceThing(thing, center, map, ThingPlaceMode.Near)) return Refuse("Fixture wood placement failed.");
                 thing.SetForbidden(false, false); spawned += thing.stackCount;
             }
-            return new { success = true, spawned, resource = wood.defName };
+            var pemmican = DefDatabase<ThingDef>.GetNamed("Pemmican"); var food = 0;
+            for (var left = 300; left > 0;) {
+                var thing = ThingMaker.MakeThing(pemmican); thing.stackCount = Math.Min(pemmican.stackLimit, left); left -= thing.stackCount;
+                if (!GenPlace.TryPlaceThing(thing, center, map, ThingPlaceMode.Near)) return Refuse("Fixture food placement failed.");
+                thing.SetForbidden(false, false); food += thing.stackCount;
+            }
+            Quiet();
+            var provisioned = 0;
+            foreach (var pawn in map.mapPawns.FreeColonistsSpawned.Where(p => p.needs != null)) {
+                if (pawn.needs.food != null) pawn.needs.food.CurLevelPercentage = 1f;
+                if (pawn.needs.rest != null) pawn.needs.rest.CurLevelPercentage = 1f;
+                provisioned++;
+            }
+            return new { success = true, spawned, resource = wood.defName, food, provisioned };
         }
 
         private static object Ranged(Map map, List<Pawn> colonists, int rifles)
@@ -114,6 +131,22 @@ namespace HomeBridge.BridgeTools
             return new { success = armed.Count > 0, armed };
         }
 
+        // The storyteller only offers a strategy where its selection curve is
+        // positive, and the strategy's pawn generation assumes that floor:
+        // sappers below 700 points generate nothing and the incident refuses.
+        private static float StrategyPointFloor(IncidentDef def, RaidStrategyDef strategy, Faction faction)
+        {
+            var floor = Math.Max(def.minThreatPoints, faction.def.MinPointsToGeneratePawnGroup(PawnGroupKindDefOf.Combat));
+            floor = Math.Max(floor, strategy.Worker.MinimumPoints(faction, PawnGroupKindDefOf.Combat));
+            CurvePoint? previous = null;
+            foreach (var point in strategy.selectionWeightPerPointsCurve)
+            {
+                if (point.y > 0f) return Math.Max(floor, previous.HasValue ? previous.Value.x + 1f : point.x);
+                previous = point;
+            }
+            return floor;
+        }
+
         private static object Raid(Map map, string strategy, string arrival, int points)
         {
             var def = DefDatabase<IncidentDef>.GetNamed("RaidEnemy");
@@ -123,8 +156,8 @@ namespace HomeBridge.BridgeTools
                 .OrderBy(f => f.def.techLevel).ThenBy(f => f.def.MinPointsToGeneratePawnGroup(PawnGroupKindDefOf.Combat)).FirstOrDefault();
             if (faction == null) return Refuse("No currently eligible hostile humanlike faction.");
             parms.faction = faction;
-            parms.points = Math.Max(points, Math.Max(def.minThreatPoints, faction.def.MinPointsToGeneratePawnGroup(PawnGroupKindDefOf.Combat)));
             parms.raidStrategy = DefDatabase<RaidStrategyDef>.GetNamed(strategy);
+            parms.points = Math.Max(points, StrategyPointFloor(def, parms.raidStrategy, faction));
             parms.raidArrivalMode = DefDatabase<PawnsArrivalModeDef>.GetNamed(arrival);
             parms.forced = true;
             var before = new HashSet<string>(map.mapPawns.AllPawnsSpawned.Select(p => p.GetUniqueLoadID()));
@@ -142,6 +175,17 @@ namespace HomeBridge.BridgeTools
             var before = target.HitPoints;
             target.TakeDamage(new DamageInfo(DamageDefOf.Blunt, Math.Max(1, target.MaxHitPoints / 2)));
             return new { success = !target.Destroyed && target.HitPoints < before, before, after = target.HitPoints, max = target.MaxHitPoints };
+        }
+
+        // The scenario stages its own raid; a storyteller incident or quest
+        // letter meanwhile pauses the game and cancels the layout plans. The
+        // comps are rebuilt from the storyteller def on every load, so a run
+        // resumed from a checkpoint save calls this op again.
+        private static object Quiet()
+        {
+            Find.Storyteller.storytellerComps.Clear();
+            Find.Storyteller.incidentQueue.Clear();
+            return new { success = true };
         }
 
         private static object Inspect(Map map, Faction player)

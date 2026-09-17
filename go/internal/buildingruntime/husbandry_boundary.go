@@ -22,6 +22,18 @@ func husbandryMethodWire(method domain.HusbandryMethod) bridge.HusbandryMethod {
 		return bridge.HusbandryMethodTrain
 	case domain.HusbandrySlaughter:
 		return bridge.HusbandryMethodSlaughter
+	case domain.HusbandryTame:
+		return bridge.HusbandryMethodTame
+	case domain.HusbandryRelease:
+		return bridge.HusbandryMethodRelease
+	case domain.HusbandryAllowedArea:
+		return bridge.HusbandryMethodAllowedArea
+	case domain.HusbandryMaster:
+		return bridge.HusbandryMethodMaster
+	case domain.HusbandryFollowDrafted:
+		return bridge.HusbandryMethodFollowDrafted
+	case domain.HusbandryFollowFieldwork:
+		return bridge.HusbandryMethodFollowFieldwork
 	default:
 		return bridge.HusbandryMethodUnspecified
 	}
@@ -32,7 +44,7 @@ func husbandryMethodWire(method domain.HusbandryMethod) bridge.HusbandryMethod {
 // search is needed to dispatch one already-selected animal/method pair, only
 // to refresh CAS tokens immediately before dispatch (see RecoveryServiceNative).
 type HusbandryNative interface {
-	ReadHusbandryTarget(context.Context, *c.Identity, string, string) (bridge.HusbandryTarget, bridge.Result, error)
+	ReadHusbandryTarget(context.Context, *c.Identity, string, string, bool) (bridge.HusbandryTarget, bridge.Result, error)
 	PreviewHusbandry(context.Context, *c.Identity, string, string, string, bridge.HusbandryMethod, string) (*o.PreviewReply, bridge.Result, error)
 	LookupHusbandry(context.Context, bridge.HusbandryAttempt) (*r.LookupReply, bridge.Result, error)
 	ObserveHusbandryProgress(context.Context, bridge.HusbandryAttempt, *r.Receipt) (*r.ProgressReply, bridge.Result, error)
@@ -65,7 +77,7 @@ func (b *HusbandryBoundary) InspectHusbandry(ctx context.Context, target executo
 	if !ok {
 		return out, executor.ErrEvidence
 	}
-	read, _, err := b.native.ReadHusbandryTarget(ctx, boundary.Identity(target.Snapshot), string(husbandry.Animal()), husbandry.TrainableDef())
+	read, _, err := b.native.ReadHusbandryTarget(ctx, boundary.Identity(target.Snapshot), string(husbandry.Animal()), husbandry.TrainableDef(), husbandry.Method() == domain.HusbandryTame)
 	if err != nil {
 		return out, err
 	}
@@ -76,7 +88,7 @@ func (b *HusbandryBoundary) InspectHusbandry(ctx context.Context, target executo
 	if err != nil {
 		return out, err
 	}
-	preview, _, err := b.native.PreviewHusbandry(ctx, boundary.Identity(observedContext), string(husbandry.Animal()), read.SettingsToken, read.CensusToken, husbandryMethodWire(husbandry.Method()), husbandry.TrainableDef())
+	preview, _, err := b.native.PreviewHusbandry(ctx, boundary.Identity(observedContext), string(husbandry.Animal()), read.SettingsToken, read.CensusToken, husbandryMethodWire(husbandry.Method()), husbandry.Argument())
 	if err != nil {
 		return out, err
 	}
@@ -105,6 +117,18 @@ func (b *HusbandryBoundary) InspectHusbandry(ctx context.Context, target executo
 	if read.SafeToSlaughterKnown {
 		facts.Animal.SafeToSlaughter = domain.Known(read.SafeToSlaughter)
 	}
+	if read.TameableKnown {
+		facts.Animal.Tameable = domain.Known(read.Tameable)
+	}
+	if read.SafeToReleaseKnown {
+		facts.Animal.SafeToRelease = domain.Known(read.SafeToRelease)
+	}
+	if read.ObedientKnown {
+		facts.Animal.Obedient = domain.Known(read.Obedient)
+	}
+	if read.SupportsAreasKnown {
+		facts.Animal.SupportsAreas = domain.Known(read.SupportsAreas)
+	}
 	out.Facts, out.ObservedAt = facts, b.clock.Now()
 	return out, ctx.Err()
 }
@@ -112,7 +136,7 @@ func (b *HusbandryBoundary) InspectHusbandry(ctx context.Context, target executo
 func (b *HusbandryBoundary) attempt(dispatch executor.HusbandryDispatch) (bridge.HusbandryAttempt, error) {
 	p, admission := dispatch.Attempt, dispatch.Admission
 	husbandry, ok := p.Action.Husbandry()
-	if !ok || p.Attempt == 0 || p.Tick < 0 || admission.Snapshot != p.Snapshot || admission.Animal != husbandry.Animal() || admission.Method != husbandry.Method() || admission.TrainableDef != husbandry.TrainableDef() || admission.Tick > p.Tick || !boundary.ValidID(admission.AnimalSnapshotToken) || !boundary.ValidID(admission.CensusToken) {
+	if !ok || p.Attempt == 0 || p.Tick < 0 || admission.Snapshot != p.Snapshot || admission.Animal != husbandry.Animal() || admission.Method != husbandry.Method() || admission.Argument != husbandry.Argument() || admission.Tick > p.Tick || !boundary.ValidID(admission.AnimalSnapshotToken) || !boundary.ValidID(admission.CensusToken) {
 		return bridge.HusbandryAttempt{}, executor.ErrEvidence
 	}
 	return bridge.HusbandryAttempt{
@@ -123,7 +147,7 @@ func (b *HusbandryBoundary) attempt(dispatch executor.HusbandryDispatch) (bridge
 		AnimalToken:         admission.AnimalSnapshotToken,
 		ExpectedCensusToken: admission.CensusToken,
 		Method:              husbandryMethodWire(husbandry.Method()),
-		TrainableDef:        husbandry.TrainableDef(),
+		Argument:            husbandry.Argument(),
 	}, nil
 }
 
@@ -145,7 +169,7 @@ func (b *HusbandryBoundary) WriteHusbandry(ctx context.Context, dispatch executo
 		return out, err
 	}
 	pre := &a.WritePrecondition{Identity: attempt.Identity, Attempt: attempt.Attempt, ExpectedGeneration: proto.Uint64(attempt.Generation)}
-	reply, _, err := b.writer.ApplyHusbandry(ctx, pre, attempt.Animal, attempt.AnimalToken, attempt.ExpectedCensusToken, attempt.Method, attempt.TrainableDef)
+	reply, _, err := b.writer.ApplyHusbandry(ctx, pre, attempt.Animal, attempt.AnimalToken, attempt.ExpectedCensusToken, attempt.Method, attempt.Argument)
 	var refused *bridge.NativeFailure
 	if errors.As(err, &refused) && refused.Value != nil && refused.Value.GetCode() != c.FailureCode_FAILURE_CODE_ATTEMPT_CONFLICT {
 		out.Kind = domain.ReceiptRefused

@@ -164,7 +164,7 @@ func (e *Executor) runWork(ctx context.Context, action domain.Action, p domain.P
 	receipt, err := e.work.AssignWork(ctx, WorkDispatch{attempt, inspection.SnapshotToken})
 	kind := receipt.Kind
 	if err != nil {
-		kind = domain.ReceiptUnknown
+		kind = receiptAfterCallError(err)
 	} else if receipt.Action != action.ID() || receipt.Attempt != attempt.Attempt || receipt.Snapshot != expected {
 		kind, err = domain.ReceiptUnknown, ErrEvidence
 	}
