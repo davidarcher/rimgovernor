@@ -4,6 +4,7 @@ import (
 	"reflect"
 	"testing"
 
+	"github.com/davidarcher/RimGovernor/go/internal/bridge"
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"github.com/davidarcher/RimGovernor/go/internal/observation"
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
@@ -94,5 +95,58 @@ func TestRoutineProjectSkillRequirementsUseMaximumAndPreserveUnknown(t *testing.
 	}
 	if got, known := routineProjectWork(nil, nil).Value(); !known || len(got) != 0 {
 		t.Fatal(got, known)
+	}
+}
+
+func TestRoutineBillWorkResolvesBenchWorkTypeAndMergesWithConstruction(t *testing.T) {
+	t.Parallel()
+	current := domain.GenerationSnapshot{Colony: "colony", Load: "load", Map: 0, Plan: "selected", Revision: 1, Native: 1}
+	bill, err := domain.NewProductionBill("spot", "Make_MeleeWeapon_Club", "token", domain.StockTarget, 3)
+	if err != nil {
+		t.Fatal(err)
+	}
+	a, err := domain.NewProductionBillAction("club", bill)
+	if err != nil {
+		t.Fatal(err)
+	}
+	spec, err := domain.NewPlan("selected", 1, []domain.Action{a})
+	if err != nil {
+		t.Fatal(err)
+	}
+	p, _ := domain.NewProgress(spec, a.ID())
+	plans := []store.PlanState{{Spec: spec, Progress: []domain.Progress{p}}}
+	bills := routineProjectBills(plans, current, nil)
+	if !reflect.DeepEqual(bills, []routineProjectBill{{Bench: "spot", Recipe: "Make_MeleeWeapon_Club"}}) {
+		t.Fatal(bills)
+	}
+	if got := routineProjectDefinitions(plans, current, nil); len(got) != 0 {
+		t.Fatal("bill counted as a building", got)
+	}
+	crafting := policy.WorkRequirement{Work: "Crafting", Skill: "Crafting", Minimum: 2}
+	recipe := policy.GearRecipe{Definition: "Make_MeleeWeapon_Club", Products: []policy.Resource{"MeleeWeapon_Club"}, RequiredWork: domain.Known([]policy.WorkRequirement{crafting})}
+	census := []bridge.GearBenchRead{{Token: "token", Bench: policy.GearBench{ID: "spot", Recipes: domain.Known([]policy.GearRecipe{recipe})}}}
+	work, known := routineBillWork(bills, census).Value()
+	if !known || !reflect.DeepEqual(work, []policy.WorkRequirement{crafting}) {
+		t.Fatal(work, known)
+	}
+	construction := []policy.WorkRequirement{{Work: "Construction", Skill: "Construction", Minimum: 4}}
+	merged := mergeWorkRequirements(construction, work)
+	if !reflect.DeepEqual(merged, []policy.WorkRequirement{construction[0], crafting}) {
+		t.Fatal(merged)
+	}
+	if merged = mergeWorkRequirements(merged, []policy.WorkRequirement{{Work: "Crafting", Minimum: 5}}); merged[1].Minimum != 5 || merged[1].Skill != "Crafting" || len(merged) != 2 {
+		t.Fatal(merged)
+	}
+	for name, rows := range map[string][]bridge.GearBenchRead{
+		"missing bench":  nil,
+		"missing recipe": {{Token: "token", Bench: policy.GearBench{ID: "spot", Recipes: domain.Known([]policy.GearRecipe{})}}},
+		"unknown work":   {{Token: "token", Bench: policy.GearBench{ID: "spot", Recipes: domain.Known([]policy.GearRecipe{{Definition: "Make_MeleeWeapon_Club"}})}}},
+	} {
+		if _, known := routineBillWork(bills, rows).Value(); known {
+			t.Fatal(name, "known")
+		}
+	}
+	if work, known := routineBillWork(nil, nil).Value(); !known || len(work) != 0 {
+		t.Fatal("no bills should require nothing", work, known)
 	}
 }

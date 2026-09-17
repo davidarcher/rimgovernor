@@ -6,13 +6,27 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+
+	"github.com/davidarcher/RimGovernor/go/internal/bridge"
+	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/boundary"
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"github.com/davidarcher/RimGovernor/go/internal/observation"
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
 	"github.com/davidarcher/RimGovernor/go/internal/store"
+	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
 )
 
-type RoutineWorkPlanner struct{ reviewer *RoutineReviewer }
+// RoutineWorkBenchSource is the optional fresh bench census a work planner
+// resolves open production bills against; without it bills contribute no
+// work requirement (Construction alone, the pre-bill behaviour).
+type RoutineWorkBenchSource interface {
+	ReadGearBenches(context.Context, *c.Identity) ([]bridge.GearBenchRead, bridge.Result, error)
+}
+
+type RoutineWorkPlanner struct {
+	reviewer *RoutineReviewer
+	benches  RoutineWorkBenchSource
+}
 type RoutineWorkResult struct {
 	Reason RoutineBuildingReason
 	Plan   domain.PlanID
@@ -22,7 +36,8 @@ func NewRoutineWorkPlanner(reviewer *RoutineReviewer) (*RoutineWorkPlanner, erro
 	if reviewer == nil {
 		return nil, ErrControl
 	}
-	return &RoutineWorkPlanner{reviewer}, nil
+	benches, _ := reviewer.native.(RoutineWorkBenchSource)
+	return &RoutineWorkPlanner{reviewer: reviewer, benches: benches}, nil
 }
 func (r *RoutineWorkPlanner) Step(ctx context.Context) (RoutineWorkResult, error) {
 	call, epoch, done, err := r.reviewer.player.enter(ctx, false)
@@ -90,6 +105,10 @@ func (r *RoutineWorkPlanner) step(call, epoch context.Context, arbiter *stepArbi
 		return RoutineWorkResult{}, err
 	}
 	definitions := routineProjectDefinitions(plans, state.Snapshot, playerPlans)
+	var bills []routineProjectBill
+	if r.benches != nil {
+		bills = routineProjectBills(plans, state.Snapshot, playerPlans)
+	}
 	identity, _, err := r.reviewer.native.Identity(call)
 	if err != nil {
 		return RoutineWorkResult{}, err
@@ -116,6 +135,17 @@ func (r *RoutineWorkPlanner) step(call, epoch context.Context, arbiter *stepArbi
 	required, known := routineProjectWork(definitions, read.Projection.Definitions).Value()
 	if !known {
 		return RoutineWorkResult{Reason: BuildingMethodUnknown}, nil
+	}
+	if len(bills) > 0 {
+		census, _, err := r.benches.ReadGearBenches(call, boundary.Identity(state.Snapshot))
+		if err != nil {
+			return RoutineWorkResult{}, err
+		}
+		billWork, known := routineBillWork(bills, census).Value()
+		if !known {
+			return RoutineWorkResult{Reason: BuildingMethodUnknown}, nil
+		}
+		required = mergeWorkRequirements(required, billWork)
 	}
 	decision, err := policy.AssignWork(pawns, required, preferences.Overrides)
 	if err != nil {
