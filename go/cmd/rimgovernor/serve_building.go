@@ -372,6 +372,14 @@ func drainBuilding(owner buildingCloser) error {
 	}
 }
 
+// billExecutorRequired reports whether the composition dispatches production
+// bill actions: the cooking bill family, or MaintainResource toward a stock
+// target (routine_resource.go). Without the bill executor an admitted bill
+// action fails "missing or unsupported building action" on every worker pass.
+func billExecutorRequired(config serveConfig) bool {
+	return config.routineBillPlans || len(config.routineResourceTargets) > 0
+}
+
 func serveBuildingControl(ctx context.Context, config serveConfig, out io.Writer) error {
 	return serveBuildingWithBridge(ctx, config, out, openBuildingService)
 }
@@ -426,9 +434,9 @@ func serveBuildingWithBridge(ctx context.Context, config serveConfig, out io.Wri
 		supplyCapabilities = client.supplies
 	}
 	var billCapabilities *bill.BillCapabilities
-	if config.routineBillPlans {
+	if billExecutorRequired(config) {
 		if client.bills == nil {
-			return errors.New("bill plans require typed capabilities")
+			return errors.New("bill plans and resource targets require typed bill capabilities")
 		}
 		billCapabilities = client.bills
 	}
