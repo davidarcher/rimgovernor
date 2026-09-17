@@ -312,6 +312,38 @@ interaction cell (never the cell itself), each candidate validated by the
 native placement preview. A build receipt never clears the deficit: the next
 measured census must read the cell lit.
 
+`MaintainFlooring` (issue #6 slice 4) reasons from the terrain under each
+room cell and that terrain's native stats, never from what was last ordered.
+Native reports every proper indoor home room (`UpkeepFacts.flooring`) with
+its role, the terrain def under each cell and the floor already ordered there
+(a blueprint or frame), alongside one table of every terrain named with its
+cleanliness, beauty, path cost, flammability and `natural` flag; the planning
+census reports a requested `TerrainDef` as a one-cell definition carrying the
+same stats, its cost list and research availability. A clean workspace
+(kitchen, hospital, laboratory, or an enclosed room holding a cooking bench,
+the same classification the cleanliness slice uses) is deficient while any
+cell's terrain cleanliness is negative; a living room (bedroom, barracks,
+dining, recreation) while any cell is natural ground. Barns, butcher rooms
+and every other role carry no requirement. There is no hysteresis: terrain
+does not flap. A cell whose floor is already ordered still counts as
+deficient, so the latch holds until the floor is laid, but it is never
+ordered twice; an unknown census preserves the previous latch. The goal ranks
+as an ordinary development project, clean workspaces before living rooms.
+Its method chooses from the policy's floor list the known-available terrain
+that meets the tier (non-negative cleanliness for clean, non-negative beauty
+for living), preferring the one whose cost list the colony stock pays for
+over the most cells of a bounded batch and then the tier's weighted score
+over cleanliness, beauty, path cost, flammability and cost; no available
+floor defers to research, no affordable one to materials, and a room whose
+deficient cells are all ordered waits on them. Every cell is validated by
+the native placement preview and admitted as its own action; the typed
+construction path lays a `TerrainDef` through the ordinary blueprint and
+frame, and completion is observed as the terrain grid reading the admitted
+floor at the cell rather than a successor thing. A build receipt never
+clears the deficit: the next measured census must read every cell of the
+room floored. Flooring of measured traffic bottlenecks is deferred to the
+routes slice, which supplies the travel evidence it needs.
+
 `EnsureComfort` maintains dining and recreation after startup survival work.
 Its deficit remains visible during emergencies; admission waits rather than
 claiming the facilities complete. Sleeping upgrades belong to `MaintainSleeping`.

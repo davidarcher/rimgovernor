@@ -14,6 +14,9 @@ func validateDirectUpkeep(v *o.UpkeepFacts, size *o.MapSize, mapID int32) error 
 	if v.Lighting != nil {
 		counts["lighting"] = 1
 	}
+	if v.Flooring != nil {
+		counts["flooring"] = 1
+	}
 	for _, n := range counts {
 		if n > 256 {
 			return contract("upkeep census exceeds bound")
@@ -154,6 +157,63 @@ func validateDirectUpkeep(v *o.UpkeepFacts, size *o.MapSize, mapID int32) error 
 	if v.Lighting != nil {
 		if err := validateLighting(v.Lighting, size, mapID, entity); err != nil {
 			return err
+		}
+	}
+	if v.Flooring != nil {
+		if err := validateFlooring(v.Flooring, size); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// validateFlooring checks the flooring section: unique rooms of unique
+// in-map cells, each naming a terrain listed once in the terrain table,
+// whose stats are finite numbers.
+func validateFlooring(section *o.FlooringSection, size *o.MapSize) error {
+	f := section.GetObserved()
+	if f == nil {
+		return validateUnavailable(section.GetUnavailable())
+	}
+	if colonyCounts(f.Completeness, len(f.Rooms), 256) != nil || len(f.Terrains) > 256 {
+		return contract("invalid flooring census")
+	}
+	terrains := map[string]bool{}
+	for _, row := range f.Terrains {
+		if row == nil || validID(row.GetDefName()) != nil || terrains[row.GetDefName()] || !proto.Equal(row, &o.FloorTerrain{DefName: row.DefName, Cleanliness: row.Cleanliness, PathCost: row.PathCost, Beauty: row.Beauty, Flammability: row.Flammability, Natural: row.Natural}) {
+			return contract("invalid flooring terrain")
+		}
+		terrains[row.GetDefName()] = true
+		for _, value := range []*float64{row.Cleanliness, row.Beauty, row.Flammability} {
+			if value != nil && (math.IsNaN(*value) || math.IsInf(*value, 0) || math.Abs(*value) > 1e6) {
+				return contract("invalid flooring terrain stat")
+			}
+		}
+		if row.PathCost != nil && (row.GetPathCost() < 0 || row.GetPathCost() > 10000) {
+			return contract("invalid flooring path cost")
+		}
+	}
+	rooms := map[string]bool{}
+	cells := map[[2]int32]bool{}
+	total := 0
+	for _, room := range f.Rooms {
+		if room == nil || validID(room.GetRoomId()) != nil || rooms[room.GetRoomId()] || room.Role != nil && validID(room.GetRole()) != nil || !proto.Equal(room, &o.FloorRoom{RoomId: room.RoomId, Role: room.Role, Cells: room.Cells}) {
+			return contract("invalid flooring room")
+		}
+		rooms[room.GetRoomId()] = true
+		total += len(room.Cells)
+		if total > 4096 {
+			return contract("flooring census exceeds bound")
+		}
+		for _, cell := range room.Cells {
+			if cell == nil || !colonyCell(cell.Cell, size) || cell.Terrain == nil || !terrains[cell.GetTerrain()] || cell.Pending != nil && validID(cell.GetPending()) != nil || !proto.Equal(cell, &o.FloorCell{Cell: cell.Cell, Terrain: cell.Terrain, Pending: cell.Pending}) {
+				return contract("invalid flooring cell")
+			}
+			key := [2]int32{cell.Cell.GetX(), cell.Cell.GetZ()}
+			if cells[key] {
+				return contract("flooring cells overlap")
+			}
+			cells[key] = true
 		}
 	}
 	return nil

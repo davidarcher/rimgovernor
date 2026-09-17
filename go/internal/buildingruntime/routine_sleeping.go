@@ -65,6 +65,7 @@ type RoutineBuildingPlanner struct {
 	temperature   *policy.TemperatureProposal
 	refrigeration *policy.RefrigerationProposal
 	lighting      *policy.LightingProposal
+	flooring      *policy.FlooringProposal
 	// facility restricts furnishing to rooms whose native role can host the
 	// function; with none observed, furnishing has no verified space and the
 	// same planner falls back to staging a starter shell for it.
@@ -148,7 +149,7 @@ func (r *RoutineBuildingPlanner) step(call, epoch context.Context, arbiter *step
 			return RoutineBuildingResult{Reason: BuildingShellBlocked}, nil
 		}
 	}
-	if r.goal == policy.EnsureComfort || r.goal == policy.EnsureExpansion || r.goal == policy.MaintainLighting || r.goal == policy.MaintainResource {
+	if r.goal == policy.EnsureComfort || r.goal == policy.EnsureExpansion || r.goal == policy.MaintainLighting || r.goal == policy.MaintainFlooring || r.goal == policy.MaintainResource {
 		selected := false
 		for _, row := range review.Development.Rows {
 			selected = selected || row.Goal == r.goal && row.Selected
@@ -205,6 +206,9 @@ func (r *RoutineBuildingPlanner) step(call, epoch context.Context, arbiter *step
 	if r.goal == policy.MaintainLighting {
 		definitions = r.lightingDefinitions()
 	}
+	if r.goal == policy.MaintainFlooring {
+		definitions = r.flooringDefinitions()
+	}
 	if r.shelter {
 		definitions = []string{"Wall", "Door"}
 	}
@@ -212,7 +216,7 @@ func (r *RoutineBuildingPlanner) step(call, epoch context.Context, arbiter *step
 	_, routineSource := r.native.(observation.RoutineSource)
 	_, roomSource := r.native.(observation.TemperatureSource)
 	separation := (r.goal == policy.EnsureFoodSupply || r.goal == policy.EnsureCooking) && routineSource && roomSource
-	if r.goal == policy.EnsureTemperatureSafety || r.goal == policy.EnsureComfort || r.goal == policy.MaintainResource || r.goal == policy.MaintainRefrigeration || r.goal == policy.MaintainLighting || separation {
+	if r.goal == policy.EnsureTemperatureSafety || r.goal == policy.EnsureComfort || r.goal == policy.MaintainResource || r.goal == policy.MaintainRefrigeration || r.goal == policy.MaintainLighting || r.goal == policy.MaintainFlooring || separation {
 		// Cooking and butcher placements read rooms too when the source can
 		// serve them, so kitchen/butcher separation protects each other's
 		// rooms (issue #6 slice 2); without a census nothing is protected.
@@ -228,7 +232,7 @@ func (r *RoutineBuildingPlanner) step(call, epoch context.Context, arbiter *step
 		return RoutineBuildingResult{}, err
 	}
 	facts := reading.Projection
-	if (r.goal == policy.EnsureComfort || r.goal == policy.MaintainResource) && !r.shelter || r.goal == policy.EnsureBasicPower || r.goal == policy.EnsureTemperatureSafety || r.goal == policy.MaintainRefrigeration || r.goal == policy.MaintainLighting {
+	if (r.goal == policy.EnsureComfort || r.goal == policy.MaintainResource) && !r.shelter || r.goal == policy.EnsureBasicPower || r.goal == policy.EnsureTemperatureSafety || r.goal == policy.MaintainRefrigeration || r.goal == policy.MaintainLighting || r.goal == policy.MaintainFlooring {
 		var resolved *RoutineBuildingPlanner
 		var reason RoutineBuildingReason
 		var coolingAllowance uint32
@@ -245,6 +249,8 @@ func (r *RoutineBuildingPlanner) step(call, epoch context.Context, arbiter *step
 			resolved, reason, err = r.selectPower(facts)
 		} else if r.goal == policy.MaintainLighting {
 			resolved, reason, err = r.selectLighting(facts, review.Latches)
+		} else if r.goal == policy.MaintainFlooring {
+			resolved, reason, err = r.selectFlooring(facts, review.Latches)
 		} else if r.goal == policy.MaintainResource {
 			resolved, reason, err = r.selectWorkshop(facts)
 		} else {
@@ -319,7 +325,7 @@ func (r *RoutineBuildingPlanner) step(call, epoch context.Context, arbiter *step
 		}
 	}
 	available := routineDefinitionsAvailable(facts, definitions, r.shelter)
-	if (r.goal == policy.EnsureComfort || r.goal == policy.MaintainResource) && !r.shelter || r.goal == policy.EnsureBasicPower || r.goal == policy.EnsureTemperatureSafety || r.goal == policy.MaintainRefrigeration || r.goal == policy.MaintainLighting {
+	if (r.goal == policy.EnsureComfort || r.goal == policy.MaintainResource) && !r.shelter || r.goal == policy.EnsureBasicPower || r.goal == policy.EnsureTemperatureSafety || r.goal == policy.MaintainRefrigeration || r.goal == policy.MaintainLighting || r.goal == policy.MaintainFlooring {
 		preferences, loadErr := p.journal.LoadWorkPreferences(call, state.Snapshot.Plan)
 		if loadErr != nil && !errors.Is(loadErr, store.ErrNotFound) {
 			return RoutineBuildingResult{}, loadErr
@@ -381,6 +387,9 @@ func (r *RoutineBuildingPlanner) step(call, epoch context.Context, arbiter *step
 	if r.goal == policy.MaintainLighting {
 		prefix = "routine-lighting"
 	}
+	if r.goal == policy.MaintainFlooring {
+		prefix = "routine-flooring"
+	}
 	if r.goal == policy.MaintainResource {
 		prefix = "routine-workshop"
 	}
@@ -395,7 +404,7 @@ func (r *RoutineBuildingPlanner) step(call, epoch context.Context, arbiter *step
 	if err != nil {
 		return RoutineBuildingResult{}, err
 	}
-	if !r.shelter && (r.goal == policy.EnsureFoodSupply || r.goal == policy.EnsureCooking || r.goal == policy.EnsureComfort || r.goal == policy.MaintainResource || r.goal == policy.EnsureExpansion || r.goal == policy.EnsureBasicPower || r.goal == policy.EnsureTemperatureSafety || r.goal == policy.MaintainRefrigeration || r.goal == policy.MaintainLighting) {
+	if !r.shelter && (r.goal == policy.EnsureFoodSupply || r.goal == policy.EnsureCooking || r.goal == policy.EnsureComfort || r.goal == policy.MaintainResource || r.goal == policy.EnsureExpansion || r.goal == policy.EnsureBasicPower || r.goal == policy.EnsureTemperatureSafety || r.goal == policy.MaintainRefrigeration || r.goal == policy.MaintainLighting || r.goal == policy.MaintainFlooring) {
 		pending := func(progress domain.Progress) bool {
 			if r.goal == policy.EnsureTemperatureSafety {
 				if r.temperature.Method == policy.TemperatureHeat {
@@ -526,6 +535,9 @@ func (r *RoutineBuildingPlanner) previewMethod(call context.Context, snapshot do
 	}
 	if r.lighting != nil {
 		return r.previewLighting(call, snapshot, facts, protected, check)
+	}
+	if r.flooring != nil {
+		return r.previewFlooring(call, snapshot, facts, protected, check)
 	}
 	if r.shelter {
 		return r.previewShell(call, snapshot, facts, protected, check)

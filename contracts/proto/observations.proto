@@ -516,7 +516,10 @@ message DevelopmentFacts { repeated DevelopmentPower power = 1; repeated Develop
 message EnvironmentCondition { optional string id = 1; optional string def_name = 2; optional string implementation = 3; optional string label = 4; optional bool permanent = 5; optional int64 ticks_left = 6; }
 message FoodClimate { optional double growing_days = 1; optional double growing_days_remaining = 2; repeated ReadIssue issues = 3; optional bool sowing_now = 4; }
 message FarmFacts { optional string zone_id = 1; optional string crop = 2; optional uint32 usable_cells = 3; optional uint32 planted_cells = 4; optional uint32 growing_cells = 5; optional bool edible_crop = 6; optional double harvest_lower_bound_days = 7; optional double nutrition_per_harvest_cell = 8; optional bool sowing_now = 9; }
-message PlanningDefinition { DefinitionRef definition = 1; optional string stuff = 2; optional bool available = 3; repeated string research_prerequisites = 4; optional int32 construction_skill = 5; MapSize size = 6; repeated Quantity costs = 7; optional double rest_effectiveness = 8; optional double grow_days = 9; optional double fertility_min = 10; optional double fertility_sensitivity = 11; optional double harvest_nutrition = 12; optional double nutrition_demand_per_day = 13; optional bool edible = 14; repeated ReadIssue issues = 15; repeated string sow_tags = 16; optional double grow_min_glow = 17; optional double power_w = 18; /* native base draw: positive consumes, negative generates */ optional double grower_fertility = 19; optional string sow_tag = 20; optional double glow_radius = 21; optional bool needs_power = 22; }
+message PlanningDefinition { DefinitionRef definition = 1; optional string stuff = 2; optional bool available = 3; repeated string research_prerequisites = 4; optional int32 construction_skill = 5; MapSize size = 6; repeated Quantity costs = 7; optional double rest_effectiveness = 8; optional double grow_days = 9; optional double fertility_min = 10; optional double fertility_sensitivity = 11; optional double harvest_nutrition = 12; optional double nutrition_demand_per_day = 13; optional bool edible = 14; repeated ReadIssue issues = 15; repeated string sow_tags = 16; optional double grow_min_glow = 17; optional double power_w = 18; /* native base draw: positive consumes, negative generates */ optional double grower_fertility = 19; optional string sow_tag = 20; optional double glow_radius = 21; optional bool needs_power = 22;
+  // Floor (TerrainDef) facts: set only when the definition is a terrain. The
+  // stats are the native abstract stat values a laid floor would carry.
+  optional bool terrain = 23; optional double cleanliness = 24; optional int32 path_cost = 25; optional double beauty = 26; optional double flammability = 27; }
 // Controlled-environment growing facts within the planning region: sun lamps
 // with the exact cells they grow, plant growers (hydroponics) with their
 // fertility and sow tag, roofed rooms with temperature, and per-network
@@ -562,6 +565,17 @@ message WorkLightCell { EntityRef bench = 1; rimgovernor.common.v1.Cell cell = 2
 message LampState { BuildingState building = 1; optional double glow_radius = 2; optional bool lit = 3; optional string room_id = 4; }
 message LightingFacts { repeated WorkLightCell work_cells = 1; repeated LampState lamps = 2; Completeness completeness = 3; }
 message LightingSection { oneof outcome { LightingFacts observed = 1; rimgovernor.common.v1.Unavailable unavailable = 2; } }
+// Flooring facts: every proper indoor home room with the terrain under each
+// of its cells, plus one row per distinct terrain with the native stats
+// MaintainFlooring scores (cleanliness, path cost, beauty, flammability) and
+// whether the terrain is natural ground rather than a laid floor. A cell
+// whose floor is already ordered carries the pending floor definition so the
+// planner never doubles an open blueprint or frame.
+message FloorCell { rimgovernor.common.v1.Cell cell = 1; optional string terrain = 2; optional string pending = 3; }
+message FloorRoom { optional string room_id = 1; optional string role = 2; repeated FloorCell cells = 3; }
+message FloorTerrain { optional string def_name = 1; optional double cleanliness = 2; optional int32 path_cost = 3; optional double beauty = 4; optional double flammability = 5; optional bool natural = 6; }
+message FlooringFacts { repeated FloorRoom rooms = 1; repeated FloorTerrain terrains = 2; Completeness completeness = 3; }
+message FlooringSection { oneof outcome { FlooringFacts observed = 1; rimgovernor.common.v1.Unavailable unavailable = 2; } }
 message UpkeepFacts {
   ComfortSection comfort = 1; ConstructionSection construction = 2; repeated UpkeepItem items = 3;
   repeated UpkeepBed beds = 4; repeated StorageCell storage_cells = 5; repeated ItemStorageCapacity storage_capacity = 6;
@@ -569,7 +583,7 @@ message UpkeepFacts {
   repeated ProtectedCell protected_cells = 10; repeated UpkeepPerson people = 11; repeated FeedDefinition feed_definitions = 12;
   repeated AnimalFeed animals = 13; Completeness completeness = 14; repeated ReadIssue issues = 15;
   HaulingSection hauling = 16; WallRemovalSection wall_removal = 17; HomeCoverageSection home_coverage = 18; LightingSection lighting = 19;
-  repeated AnimalFeed wild_animals = 20;
+  repeated AnimalFeed wild_animals = 20; FlooringSection flooring = 21;
 }
 message UpkeepSection { oneof outcome { UpkeepFacts observed = 1; rimgovernor.common.v1.Unavailable unavailable = 2; } }
 message ColonyFactsSnapshot {

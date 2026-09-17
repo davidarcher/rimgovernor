@@ -78,6 +78,11 @@ func (r *RoutineBuildingPlanner) selection(facts observation.ColonyProjection) (
 			return 0, "", BuildingMethodUnknown
 		}
 		return 1, r.lighting.Key, ""
+	case policy.MaintainFlooring:
+		if r.flooring == nil || r.flooring.Method != policy.FlooringBuild {
+			return 0, "", BuildingMethodUnknown
+		}
+		return int64(len(r.flooring.Cells)), r.flooring.Key, ""
 	case policy.EnsureBasicPower:
 		if r.power == nil {
 			return 0, "", BuildingMethodUnknown

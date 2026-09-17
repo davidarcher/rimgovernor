@@ -53,6 +53,7 @@ type ClockSchedulerConfig struct {
 	Temperature                      *RoutineBuildingPlanner
 	Refrigeration                    *RoutineBuildingPlanner
 	Lighting                         *RoutineBuildingPlanner
+	Flooring                         *RoutineBuildingPlanner
 	Defense                          *RoutineDefensePlanner
 	Tend                             *RoutineTendPlanner
 	Rescue                           *RoutineRescuePlanner
@@ -103,6 +104,7 @@ type ClockSchedulerResult struct {
 	Temperature                                   *RoutineBuildingResult
 	Refrigeration                                 *RoutineBuildingResult
 	Lighting                                      *RoutineBuildingResult
+	Flooring                                      *RoutineBuildingResult
 	Defense                                       *RoutineDefenseResult
 	Tend                                          *RoutineTendResult
 	Rescue                                        *RoutineRescueResult
@@ -226,6 +228,9 @@ func NewClockScheduler(player *Player, session *Session, native ClockWindowNativ
 		return nil, ErrControl
 	}
 	if config.Lighting != nil && (config.Routine == nil || config.Lighting.reviewer != config.Routine || config.Lighting.goal != policy.MaintainLighting) {
+		return nil, ErrControl
+	}
+	if config.Flooring != nil && (config.Routine == nil || config.Flooring.reviewer != config.Routine || config.Flooring.goal != policy.MaintainFlooring) {
 		return nil, ErrControl
 	}
 	if config.Defense != nil && (config.Routine == nil || config.Defense.reviewer != config.Routine) {
@@ -829,7 +834,7 @@ func (s *ClockScheduler) Step(ctx context.Context) (ClockSchedulerResult, error)
 	if out.Fields != nil {
 		nativeWorkTicks = out.Fields.NativeWorkTicks
 	}
-	for _, result := range []*RoutineBuildingResult{out.Sleeping, out.Comfort, out.Workshop, out.Expansion, out.Power, out.Temperature, out.Refrigeration, out.Lighting} {
+	for _, result := range []*RoutineBuildingResult{out.Sleeping, out.Comfort, out.Workshop, out.Expansion, out.Power, out.Temperature, out.Refrigeration, out.Lighting, out.Flooring} {
 		if result != nil {
 			nativeWorkTicks = max(nativeWorkTicks, result.NativeWorkTicks)
 		}
@@ -1055,6 +1060,17 @@ func (s *ClockScheduler) stepPlanners(call, epoch context.Context, out *ClockSch
 			}
 			clockSchedulerLog("Lighting.step result: reason=%v decision=%+v nativeWorkTicks=%d", method.Reason, method.Decision, method.NativeWorkTicks)
 			out.Lighting = &method
+			return nil
+		})
+	}
+	if s.config.Flooring != nil {
+		g.Go(plannerMaintenance, func() error {
+			method, err := s.config.Flooring.step(gctx, epoch, arbiter)
+			if err != nil {
+				return fmt.Errorf("flooring: %w", err)
+			}
+			clockSchedulerLog("Flooring.step result: reason=%v decision=%+v nativeWorkTicks=%d", method.Reason, method.Decision, method.NativeWorkTicks)
+			out.Flooring = &method
 			return nil
 		})
 	}

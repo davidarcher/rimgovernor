@@ -107,6 +107,7 @@ func TestDevelopmentHolds(t *testing.T) {
 		})
 	}
 }
+
 // A mental break's mood goal is priority 1 yet not an emergency: it ends
 // only as ticks pass, so development keeps its slot.
 func TestDevelopmentMentalBreakIsNotAnEmergency(t *testing.T) {

@@ -72,7 +72,41 @@ func colonyUpkeep(v *o.ColonyFactsSnapshot) policy.UpkeepObservation {
 	if !hasIssue(u.Issues, "lighting") {
 		r.Lighting = colonyLighting(u.Lighting)
 	}
+	if !hasIssue(u.Issues, "flooring") {
+		r.Flooring = colonyFlooring(u.Flooring)
+	}
 	return r
+}
+
+// colonyFlooring decodes the flooring section; a terrain row missing any
+// stat or a cell missing its terrain leaves the whole census unknown so
+// MaintainFlooring keeps its previous latch.
+func colonyFlooring(section *o.FlooringSection) domain.Fact[policy.FlooringObservation] {
+	f := section.GetObserved()
+	if f == nil {
+		return domain.Fact[policy.FlooringObservation]{}
+	}
+	r := policy.FlooringObservation{Rooms: []policy.FloorRoom{}, Terrains: map[string]policy.FloorTerrain{}}
+	for _, row := range f.Terrains {
+		if row.Cleanliness == nil || row.Beauty == nil || row.Flammability == nil || row.PathCost == nil || row.Natural == nil {
+			return domain.Fact[policy.FlooringObservation]{}
+		}
+		r.Terrains[row.GetDefName()] = policy.FloorTerrain{Cleanliness: row.GetCleanliness(), Beauty: row.GetBeauty(), Flammability: row.GetFlammability(), PathCost: row.GetPathCost(), Natural: row.GetNatural()}
+	}
+	for _, room := range f.Rooms {
+		out := policy.FloorRoom{ID: room.GetRoomId(), Cells: []policy.FloorCell{}}
+		if room.Role != nil {
+			out.Role = domain.Known(policy.RoomRole(room.GetRole()))
+		}
+		for _, cell := range room.Cells {
+			if cell.Terrain == nil {
+				return domain.Fact[policy.FlooringObservation]{}
+			}
+			out.Cells = append(out.Cells, policy.FloorCell{Cell: domain.Cell{X: cell.Cell.GetX(), Z: cell.Cell.GetZ()}, Terrain: cell.GetTerrain(), Pending: cell.GetPending()})
+		}
+		r.Rooms = append(r.Rooms, out)
+	}
+	return domain.Known(r)
 }
 
 // colonyLighting decodes the lighting section; any row missing a measured

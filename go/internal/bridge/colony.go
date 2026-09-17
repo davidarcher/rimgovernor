@@ -280,9 +280,15 @@ func validateColonyPlanning(p *o.PlanningFacts, ctx *c.ObservationContext, size 
 				return contract("invalid planning definition number %d for %s", i, d.Definition.GetDefName())
 			}
 		}
-		// A generator's native base draw is negative.
-		if !combatNumber(d.PowerW, false) {
-			return contract("invalid planning definition number")
+		// A generator's native base draw is negative, as are the beauty and
+		// cleanliness of natural ground.
+		for _, number := range []*float64{d.PowerW, d.Cleanliness, d.Beauty} {
+			if !combatNumber(number, false) {
+				return contract("invalid planning definition number")
+			}
+		}
+		if !combatNumber(d.Flammability, true) || d.PathCost != nil && (d.GetPathCost() < 0 || d.GetPathCost() > 10000) {
+			return contract("invalid planning definition floor facts")
 		}
 		if len(d.SowTags) > 32 || d.SowTag != nil && validID(d.GetSowTag()) != nil {
 			return contract("invalid planning definition sow tags")

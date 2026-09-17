@@ -49,6 +49,59 @@ func lightingWire() *o.LightingSection {
 	}}}
 }
 
+func flooringWire() *o.FlooringSection {
+	cell := func(x, z int32) *c.Cell { return &c.Cell{X: proto.Int32(x), Z: proto.Int32(z)} }
+	terrain := func(name string, cleanliness float64, natural bool) *o.FloorTerrain {
+		return &o.FloorTerrain{DefName: proto.String(name), Cleanliness: proto.Float64(cleanliness), PathCost: proto.Int32(0), Beauty: proto.Float64(0), Flammability: proto.Float64(0), Natural: proto.Bool(natural)}
+	}
+	return &o.FlooringSection{Outcome: &o.FlooringSection_Observed{Observed: &o.FlooringFacts{
+		Rooms: []*o.FloorRoom{{RoomId: proto.String("7"), Role: proto.String("Kitchen"), Cells: []*o.FloorCell{
+			{Cell: cell(10, 10), Terrain: proto.String("Soil")},
+			{Cell: cell(11, 10), Terrain: proto.String("Soil"), Pending: proto.String("WoodPlankFloor")},
+		}}},
+		Terrains:     []*o.FloorTerrain{terrain("Soil", -1, true), terrain("WoodPlankFloor", 0, false)},
+		Completeness: &o.Completeness{Page: &c.PageInfo{Complete: proto.Bool(true)}, Matched: proto.Uint64(1), Returned: proto.Uint64(1), Filtered: proto.Uint64(0), Unreadable: proto.Uint64(0)},
+	}}}
+}
+
+func TestDirectUpkeepFlooringBoundary(t *testing.T) {
+	size := &o.MapSize{Width: proto.Uint32(50), Height: proto.Uint32(50)}
+	v := upkeepWire()
+	v.Flooring = flooringWire()
+	if err := validateDirectUpkeep(v, size, 3); err != nil {
+		t.Fatal(err)
+	}
+	for _, mutate := range []func(*o.FlooringFacts){
+		func(f *o.FlooringFacts) { f.Rooms[0].Cells[0].Cell.X = proto.Int32(50) },
+		func(f *o.FlooringFacts) { f.Rooms[0].Cells[0].Terrain = nil },
+		func(f *o.FlooringFacts) { f.Rooms[0].Cells[0].Terrain = proto.String("Lava") },
+		func(f *o.FlooringFacts) { f.Rooms[0].Cells[0].Pending = proto.String("") },
+		func(f *o.FlooringFacts) { f.Rooms[0].Cells = append(f.Rooms[0].Cells, f.Rooms[0].Cells[0]) },
+		func(f *o.FlooringFacts) { f.Rooms = append(f.Rooms, f.Rooms[0]) },
+		func(f *o.FlooringFacts) { f.Rooms[0].RoomId = proto.String("") },
+		func(f *o.FlooringFacts) { f.Rooms[0].Role = proto.String("") },
+		func(f *o.FlooringFacts) { f.Terrains = append(f.Terrains, f.Terrains[0]) },
+		func(f *o.FlooringFacts) { f.Terrains[0].Cleanliness = proto.Float64(math.NaN()) },
+		func(f *o.FlooringFacts) { f.Terrains[0].Beauty = proto.Float64(math.Inf(1)) },
+		func(f *o.FlooringFacts) { f.Terrains[0].PathCost = proto.Int32(-1) },
+		func(f *o.FlooringFacts) { f.Terrains[0].DefName = nil },
+		func(f *o.FlooringFacts) { f.Completeness = nil },
+	} {
+		v := upkeepWire()
+		v.Flooring = flooringWire()
+		mutate(v.Flooring.GetObserved())
+		if err := validateDirectUpkeep(v, size, 3); err == nil {
+			t.Fatal("accepted invalid flooring section")
+		}
+	}
+	v = upkeepWire()
+	v.Flooring = flooringWire()
+	v.Issues = []*o.ReadIssue{{Field: proto.String("flooring")}}
+	if err := validateDirectUpkeep(v, size, 3); err == nil {
+		t.Fatal("accepted rows under a failed flooring section")
+	}
+}
+
 func TestDirectUpkeepLightingBoundary(t *testing.T) {
 	size := &o.MapSize{Width: proto.Uint32(50), Height: proto.Uint32(50)}
 	v := upkeepWire()

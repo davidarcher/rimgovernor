@@ -47,12 +47,17 @@ const refrigerationPriority = 2
 // lightingPriority ranks MaintainLighting with the other upkeep projects.
 const lightingPriority = 3
 
+// flooringPriority ranks MaintainFlooring while a clean workspace is short
+// of floor; living-room flooring alone ranks one step lower.
+const flooringPriority = 3
+
 type RoutinePolicy struct {
 	AnimalUpkeep                                  AnimalUpkeepPolicy
 	MedicalReserve                                MedicalReservePolicy
 	FoodStorage                                   FoodStoragePolicy
 	Cleanliness                                   CleanlinessPolicy
 	Lighting                                      LightingPolicy
+	Flooring                                      FlooringPolicy
 	MaxDevelopmentProjects                        int
 	FoodMinDays, FoodTargetDays, FootholdFoodDays float64
 	ColdEnter, ColdExit, HotExit, HotEnter        float64
@@ -142,7 +147,7 @@ type RoutinePolicy struct {
 }
 
 func DefaultRoutinePolicy() RoutinePolicy {
-	return RoutinePolicy{AnimalUpkeep: DefaultAnimalUpkeepPolicy(), MedicalReserve: DefaultMedicalReservePolicy(), FoodStorage: DefaultFoodStoragePolicy(), Cleanliness: DefaultCleanlinessPolicy(), Lighting: DefaultLightingPolicy(), MaxDevelopmentProjects: 2, FoodMinDays: 3, FoodTargetDays: 7, FootholdFoodDays: 3,
+	return RoutinePolicy{AnimalUpkeep: DefaultAnimalUpkeepPolicy(), MedicalReserve: DefaultMedicalReservePolicy(), FoodStorage: DefaultFoodStoragePolicy(), Cleanliness: DefaultCleanlinessPolicy(), Lighting: DefaultLightingPolicy(), Flooring: DefaultFlooringPolicy(), MaxDevelopmentProjects: 2, FoodMinDays: 3, FoodTargetDays: 7, FootholdFoodDays: 3,
 		ColdEnter: 12, ColdExit: 16, HotExit: 28, HotEnter: 32, WoodMin: 120, WoodTarget: 350, WoodMax: 500, HuntStallTicks: 6000, HaulStallTicks: 2500}
 }
 
@@ -328,7 +333,9 @@ type RoutineLatches struct {
 	FoodStorage              bool
 	Refrigeration            bool
 	// Lighting holds the bench IDs MaintainLighting last measured dark.
-	Lighting              []string
+	Lighting []string
+	// Flooring holds the room keys MaintainFlooring last measured short.
+	Flooring              []string
 	Food, Cold, Hot, Wood bool
 	Upkeep                UpkeepHistory
 }
@@ -442,6 +449,10 @@ func DetectRoutine(f RoutineFacts, previous RoutineLatches, p RoutinePolicy) (Ro
 	if err != nil {
 		return RoutineNeeds{}, err
 	}
+	flooring, err := ReviewFlooring(f.Upkeep.Flooring, f.Upkeep.Rooms, previous.Flooring, p.Flooring)
+	if err != nil {
+		return RoutineNeeds{}, err
+	}
 	gear, err := ReviewGear(f.Gear)
 	if err != nil {
 		return RoutineNeeds{}, err
@@ -516,6 +527,7 @@ func DetectRoutine(f RoutineFacts, previous RoutineLatches, p RoutinePolicy) (Ro
 		FoodStorage:    foodStorage.Active,
 		Refrigeration:  refrigeration.Active,
 		Lighting:       lighting.Dark,
+		Flooring:       flooring.Latched,
 		Upkeep:         upkeep.History,
 		Food:           latchValue(previous.Food, f.FoodDays, p.FoodMinDays, p.FoodTargetDays, false),
 		Cold:           latchValue(previous.Cold, fallback(f.SleepingMin, f.OutdoorTemperature), p.ColdEnter, p.ColdExit, false),
@@ -817,6 +829,25 @@ func DetectRoutine(f RoutineFacts, previous RoutineLatches, p RoutinePolicy) (Ro
 	if !positive(lightingRecovered) {
 		addGoal(MaintainLighting, lightingPriority)
 		if lighting.Known {
+			r.Goals[len(r.Goals)-1].Deficit = domain.Known(1.0)
+		}
+	}
+	// Flooring is likewise a ranked project. A clean workspace on bare
+	// ground ranks with lighting; living rooms alone rank one step lower.
+	flooringRecovered := domain.Unknown[bool]()
+	flooringPriority := flooringPriority
+	if flooring.Known {
+		flooringRecovered = domain.Known(!flooring.Active)
+		if flooring.Active && flooring.Deficits[0].Tier != FloorTierClean {
+			flooringPriority++
+		}
+	} else if !flooring.Active {
+		flooringPriority = 4
+	}
+	addAssessment(MaintainFlooring, flooringPriority, flooringRecovered)
+	if !positive(flooringRecovered) {
+		addGoal(MaintainFlooring, flooringPriority)
+		if flooring.Known {
 			r.Goals[len(r.Goals)-1].Deficit = domain.Known(1.0)
 		}
 	}

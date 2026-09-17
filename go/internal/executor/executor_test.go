@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"path/filepath"
 	"sync"
 	"testing"
 	"time"
@@ -99,12 +98,6 @@ func newFixture(t *testing.T) *fixture {
 	return newFixtureAt(t, storetest.Path(t))
 }
 
-// newFileFixture backs the fixture with a real file for a test that closes
-// and reopens the store by path.
-func newFileFixture(t *testing.T) *fixture {
-	t.Helper()
-	return newFixtureAt(t, filepath.Join(t.TempDir(), "state.sqlite"))
-}
 func newFixtureAt(t *testing.T, path string) *fixture {
 	t.Helper()
 	ctx := context.Background()

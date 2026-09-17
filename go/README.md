@@ -465,6 +465,29 @@ same room within two of the interaction cell -- and admits one `StandingLamp`
 next measured census, never on the receipt. Targeted acceptance is `lightaccept
 -scenario dark|outage` against `LightingFixture`.
 
+`MaintainFlooring` (`flooring` family, issue #6 slice 4) lays role-driven
+floors from the measured terrain under each room cell: `UpkeepFacts.flooring`
+lists every proper indoor home room with the terrain name under each cell and
+any floor already ordered there, plus a table of every named terrain's native
+cleanliness, beauty, path cost, flammability and natural flag. Clean
+workspaces (kitchen, hospital, laboratory, or any enclosed room holding a
+cooking bench) are deficient while a cell's terrain cleanliness is negative;
+living rooms (bedroom, barracks, dining, recreation) while a cell is still
+natural ground; barns, butcher rooms and every other role have no
+requirement. A deficient room latches by its lowest cell
+(`RoutineLatches.Flooring`); an unknown census keeps the latch. The planner
+serves clean workspaces first and picks from the policy's floor list
+(`SterileTile`, stone tiles, `PavedTile`, `Concrete`, `WoodPlankFloor`) the
+known-available terrain that meets the tier and pays for the most cells of a
+bounded batch (24), then the tier's score over native stats and cost list;
+`floor_research_needed`, `floor_materials_needed` and `floor_pending` defer.
+Each cell is previewed as a one-cell placement and admitted as its own action
+of one plan; native lays it through the typed construction path, whose
+completion is the terrain grid reading the admitted floor. The latch releases
+on the next measured census, never on the receipt. Traffic-bottleneck
+flooring waits for slice 5's route evidence. Targeted acceptance is
+`flooraccept` against `FlooringFixture`.
+
 Routine reviews also read native pawn needs and thought targets. Per-pawn mood
 goals retain break-threshold and food/rest/recreation hysteresis through Manual and
 restart; missing pawns and unknown reads cannot certify recovery. `MoodMethods`

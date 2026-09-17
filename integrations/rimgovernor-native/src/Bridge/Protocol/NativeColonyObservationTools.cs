@@ -314,6 +314,7 @@ namespace HomeBridge.BridgeTools
                 var row = new Obs.PlanningDefinition { Definition = new Obs.DefinitionRef { DefName = name } };
                 result.Definitions.Add(row);
                 var def = DefDatabase<ThingDef>.GetNamedSilentFail(name);
+                if (def == null && Terrain(row, DefDatabase<TerrainDef>.GetNamedSilentFail(name))) continue;
                 if (def == null) {
                     row.Available = false;
                     row.Issues.Add(Issue("costs", Common.UnavailableReason.NotApplicable, "Native definition does not exist."));
@@ -389,6 +390,26 @@ namespace HomeBridge.BridgeTools
             catch (ReadLimit) { throw; }
             catch (Exception) { result.Issues.Add(Issue("environment", Common.UnavailableReason.ReadFailed, "Controlled-environment growing facts are unavailable.")); }
             return result;
+        }
+        // A floor definition: research availability, its cost list and the
+        // abstract stats a laid floor carries (MaintainFlooring scores these).
+        // TerrainDefs are never made from stuff.
+        private static bool Terrain(Obs.PlanningDefinition row, TerrainDef? def)
+        {
+            if (def == null) return false;
+            row.Definition.Label = PlacementPreviewOperation.Diagnostic(def.label);
+            row.Terrain = true;
+            row.Available = def.BuildableByPlayer && (def.researchPrerequisites == null || def.researchPrerequisites.All(r => r.IsFinished));
+            row.ResearchPrerequisites.Add((def.researchPrerequisites ?? new List<ResearchProjectDef>()).Select(r => r.defName));
+            row.ConstructionSkill = def.constructionSkillPrerequisite;
+            row.Size = new Obs.MapSize { Width = 1, Height = 1 };
+            var costs = def.CostListAdjusted(null, false); Bound(costs.Count, 256);
+            foreach (var cost in costs) row.Costs.Add(new Obs.Quantity { DefName = cost.thingDef.defName, Units = cost.count });
+            row.Cleanliness = Finite(def.GetStatValueAbstract(StatDefOf.Cleanliness));
+            row.PathCost = def.pathCost;
+            row.Beauty = Finite(def.GetStatValueAbstract(StatDefOf.Beauty));
+            row.Flammability = Finite(def.GetStatValueAbstract(StatDefOf.Flammability));
+            return true;
         }
         // Sun lamps, plant growers and rooms inside the planning region plus every
         // power network's headroom split by source. Lamp growth cells are the

@@ -147,6 +147,41 @@ namespace HomeBridge.BridgeTools
                 facts.Completeness = Complete(benches.Count + lamps.Count);
                 result.Lighting = new Obs.LightingSection { Observed = facts };
             });
+            Read("flooring", result, () => {
+                // Every proper indoor room the colony lives in (any cell in
+                // the home area, not psychologically outdoors) with the
+                // terrain under each cell; the terrain table carries the
+                // abstract stats MaintainFlooring scores. A floor blueprint
+                // or frame on a cell is reported as its pending terrain so
+                // the planner never doubles an open order.
+                var rooms = map.regionGrid.AllRooms.Where(r => r.ProperRoom && !r.PsychologicallyOutdoors && !r.TouchesMapEdge
+                    && !r.Fogged && r.Cells.Any(c => map.areaManager.Home[c])).OrderBy(r => r.ID).ToList();
+                Require(rooms.Count, 256);
+                var facts = new Obs.FlooringFacts();
+                var terrains = new System.Collections.Generic.SortedDictionary<string, TerrainDef>(StringComparer.Ordinal);
+                var cells = 0;
+                foreach (var r in rooms) {
+                    var row = new Obs.FloorRoom { RoomId = r.ID.ToString(System.Globalization.CultureInfo.InvariantCulture) };
+                    if (r.Role != null) row.Role = Id(r.Role.defName);
+                    foreach (var c in r.Cells.OrderBy(c => c.z).ThenBy(c => c.x)) {
+                        var terrain = c.GetTerrain(map);
+                        var cell = new Obs.FloorCell { Cell = Cell(c), Terrain = Id(terrain.defName) };
+                        terrains[terrain.defName] = terrain;
+                        var pending = c.GetThingList(map).FirstOrDefault(t => (t is Blueprint || t is Frame) && t.def.entityDefToBuild is TerrainDef);
+                        if (pending != null) cell.Pending = Id(pending.def.entityDefToBuild.defName);
+                        row.Cells.Add(cell);
+                    }
+                    cells += row.Cells.Count;
+                    Require(cells, 4096);
+                    facts.Rooms.Add(row);
+                }
+                foreach (var terrain in terrains.Values)
+                    facts.Terrains.Add(new Obs.FloorTerrain { DefName = Id(terrain.defName), Natural = terrain.natural, PathCost = terrain.pathCost,
+                        Cleanliness = Number(terrain.GetStatValueAbstract(StatDefOf.Cleanliness)), Beauty = Number(terrain.GetStatValueAbstract(StatDefOf.Beauty)),
+                        Flammability = Number(terrain.GetStatValueAbstract(StatDefOf.Flammability)) });
+                facts.Completeness = Complete(rooms.Count);
+                result.Flooring = new Obs.FlooringSection { Observed = facts };
+            });
             Read("people", result, () => {
                 var people = map.mapPawns.AllPawnsSpawned.Where(p => p.IsFreeColonist && !p.Dead).OrderBy(p => p.thingIDNumber).ToList();
                 Require(people.Count, 256);

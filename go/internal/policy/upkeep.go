@@ -40,6 +40,9 @@ type UpkeepObservation struct {
 	// Lighting is the measured work-cell illumination census MaintainLighting
 	// reviews (see lighting.go); unknown when native could not read it.
 	Lighting domain.Fact[LightingObservation]
+	// Flooring is the measured room terrain census MaintainFlooring reviews
+	// (see flooring.go); unknown when native could not read it.
+	Flooring domain.Fact[FlooringObservation]
 }
 type UpkeepItem struct {
 	ID                           string

@@ -3,6 +3,7 @@ package bridge
 import (
 	"context"
 	"encoding/json"
+	"math"
 	"os"
 	"testing"
 	"time"
@@ -57,7 +58,7 @@ func TestColonyFixedReadOwnsSelectionAndPreservesOptionalFacts(t *testing.T) {
 	}
 }
 func TestColonyRefusesMalformedAndIncompleteNativeFacts(t *testing.T) {
-	for _, change := range []string{"world", "stock", "duplicate", "partial", "geometry", "cell-duplicate", "issue", "unavailable", "numbers", "environment-count", "environment-cell", "environment-room"} {
+	for _, change := range []string{"world", "stock", "duplicate", "partial", "geometry", "cell-duplicate", "issue", "unavailable", "numbers", "environment-count", "environment-cell", "environment-room", "floor-cleanliness", "floor-flammability", "floor-path-cost"} {
 		t.Run(change, func(t *testing.T) {
 			r := colonyFixture(t).GetObserved()
 			id := proto.Clone(r.Context.Identity).(*c.Identity)
@@ -85,6 +86,12 @@ func TestColonyRefusesMalformedAndIncompleteNativeFacts(t *testing.T) {
 				r.Planning.GetObserved().Environment = &o.ControlledEnvironment{Networks: []*o.PowerHeadroom{{Id: proto.String("net")}}, Completeness: &o.Completeness{Page: &c.PageInfo{Complete: proto.Bool(true)}, Matched: proto.Uint64(2), Returned: proto.Uint64(2), Filtered: proto.Uint64(0), Unreadable: proto.Uint64(0)}}
 			case "environment-cell":
 				r.Planning.GetObserved().Environment = &o.ControlledEnvironment{Lights: []*o.GrowLight{{Building: &o.EntityRef{Id: proto.String("lamp"), DefName: proto.String("SunLamp"), Position: &c.Cell{X: proto.Int32(1), Z: proto.Int32(1)}}, GrowthCells: []*c.Cell{{X: proto.Int32(-1), Z: proto.Int32(0)}}}}, Completeness: &o.Completeness{Page: &c.PageInfo{Complete: proto.Bool(true)}, Matched: proto.Uint64(1), Returned: proto.Uint64(1), Filtered: proto.Uint64(0), Unreadable: proto.Uint64(0)}}
+			case "floor-cleanliness":
+				r.Planning.GetObserved().Definitions[0].Cleanliness = proto.Float64(math.NaN())
+			case "floor-flammability":
+				r.Planning.GetObserved().Definitions[0].Flammability = proto.Float64(-1)
+			case "floor-path-cost":
+				r.Planning.GetObserved().Definitions[0].PathCost = proto.Int32(-1)
 			case "environment-room":
 				r.Planning.GetObserved().Environment = &o.ControlledEnvironment{Rooms: []*o.GrowRoom{{RoomId: proto.String("7"), CellCount: proto.Uint32(4), LitCells: proto.Uint32(5)}}, Completeness: &o.Completeness{Page: &c.PageInfo{Complete: proto.Bool(true)}, Matched: proto.Uint64(1), Returned: proto.Uint64(1), Filtered: proto.Uint64(0), Unreadable: proto.Uint64(0)}}
 			}

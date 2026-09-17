@@ -62,6 +62,53 @@ func TestUpkeepFilthCarriesRoomIdentity(t *testing.T) {
 	}
 }
 
+func TestUpkeepProjectionDecodesFlooring(t *testing.T) {
+	cell := func(x, z int32) *c.Cell { return &c.Cell{X: proto.Int32(x), Z: proto.Int32(z)} }
+	terrain := func(name string, cleanliness float64, natural bool) *o.FloorTerrain {
+		return &o.FloorTerrain{DefName: proto.String(name), Cleanliness: proto.Float64(cleanliness), PathCost: proto.Int32(2), Beauty: proto.Float64(-3), Flammability: proto.Float64(0), Natural: proto.Bool(natural)}
+	}
+	flooring := &o.FlooringFacts{
+		Rooms: []*o.FloorRoom{{RoomId: proto.String("7"), Role: proto.String("Kitchen"), Cells: []*o.FloorCell{
+			{Cell: cell(10, 10), Terrain: proto.String("Soil")},
+			{Cell: cell(11, 10), Terrain: proto.String("Soil"), Pending: proto.String("WoodPlankFloor")},
+		}}, {RoomId: proto.String("8"), Cells: []*o.FloorCell{{Cell: cell(20, 20), Terrain: proto.String("WoodPlankFloor")}}}},
+		Terrains: []*o.FloorTerrain{terrain("Soil", -1, true), terrain("WoodPlankFloor", 0, false)},
+	}
+	u := &o.UpkeepFacts{Flooring: &o.FlooringSection{Outcome: &o.FlooringSection_Observed{Observed: flooring}}}
+	v := &o.ColonyFactsSnapshot{Upkeep: &o.UpkeepSection{Outcome: &o.UpkeepSection_Observed{Observed: u}}}
+	f, known := colonyUpkeep(v).Flooring.Value()
+	if !known || len(f.Rooms) != 2 || len(f.Terrains) != 2 {
+		t.Fatal(f, known)
+	}
+	r := f.Rooms[0]
+	if r.ID != "7" || r.Role != domain.Known(policy.RoomRoleKitchen) || len(r.Cells) != 2 || r.Cells[0] != (policy.FloorCell{Cell: domain.Cell{X: 10, Z: 10}, Terrain: "Soil"}) || r.Cells[1].Pending != "WoodPlankFloor" {
+		t.Fatal(r)
+	}
+	if _, ok := f.Rooms[1].Role.Value(); ok {
+		t.Fatal("roleless room gained a role", f.Rooms[1])
+	}
+	if f.Terrains["Soil"] != (policy.FloorTerrain{Cleanliness: -1, Beauty: -3, PathCost: 2, Natural: true}) || f.Terrains["WoodPlankFloor"].Natural {
+		t.Fatal(f.Terrains)
+	}
+	flooring.Terrains[0].Natural = nil
+	if _, known := colonyUpkeep(v).Flooring.Value(); known {
+		t.Fatal("unmeasured terrain became known")
+	}
+	flooring.Terrains[0].Natural = proto.Bool(true)
+	flooring.Rooms[0].Cells[0].Terrain = nil
+	if _, known := colonyUpkeep(v).Flooring.Value(); known {
+		t.Fatal("unmeasured cell became known")
+	}
+	u.Flooring = nil
+	if _, known := colonyUpkeep(v).Flooring.Value(); known {
+		t.Fatal("absent section became known")
+	}
+	u.Flooring = &o.FlooringSection{Outcome: &o.FlooringSection_Observed{Observed: &o.FlooringFacts{}}}
+	if f, known := colonyUpkeep(v).Flooring.Value(); !known || len(f.Rooms) != 0 {
+		t.Fatal("empty census is a known census", f, known)
+	}
+}
+
 func TestUpkeepProjectionDecodesLighting(t *testing.T) {
 	cell := func(x, z int32) *c.Cell { return &c.Cell{X: proto.Int32(x), Z: proto.Int32(z)} }
 	lighting := &o.LightingFacts{

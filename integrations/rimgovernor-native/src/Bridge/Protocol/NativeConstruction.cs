@@ -16,15 +16,18 @@ namespace HomeBridge.BridgeTools
     internal sealed class NativeConstructionPlan
     {
         internal readonly Map Map;
-        internal readonly ThingDef Definition;
+        internal readonly BuildableDef Definition;
+        // Terrain is set when the plan lays a floor (a TerrainDef): the frame
+        // completes into terrain at the cell, never into a successor Thing.
+        internal readonly TerrainDef? Terrain;
         internal readonly ThingDef? Stuff; // Null unless the definition is made from stuff.
         internal readonly IntVec3 Cell;
         internal readonly Rot4 Rotation;
         internal readonly Faction Player;
         internal readonly bool Instant;
-        internal NativeConstructionPlan(Map map, ThingDef definition, ThingDef? stuff, IntVec3 cell, Rot4 rotation, Faction player)
+        internal NativeConstructionPlan(Map map, BuildableDef definition, ThingDef? stuff, IntVec3 cell, Rot4 rotation, Faction player)
         {
-            Map = map; Definition = definition; Stuff = stuff; Cell = cell; Rotation = rotation; Player = player;
+            Map = map; Definition = definition; Terrain = definition as TerrainDef; Stuff = stuff; Cell = cell; Rotation = rotation; Player = player;
             Instant = definition.GetStatValueAbstract(StatDefOf.WorkToBuild, stuff) == 0f;
         }
 
@@ -46,10 +49,14 @@ namespace HomeBridge.BridgeTools
                 failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Construction requires one cardinal rotation.");
                 return false;
             }
-            var definition = PlacementPreviewOperation.ResolveThingDef(candidate.DefName);
-            if (definition == null)
+            if (!PlacementPreviewOperation.TryResolveBuildable(candidate.DefName, out var definition, out _) || definition == null)
             {
-                failure = ProtoBoundary.Fail(Common.FailureCode.Unsupported, "This construction adapter requires a ThingDef building.");
+                failure = ProtoBoundary.Fail(Common.FailureCode.Unsupported, "This construction adapter requires a ThingDef building or a TerrainDef floor.");
+                return false;
+            }
+            if (definition is TerrainDef && definition.GetStatValueAbstract(StatDefOf.WorkToBuild) == 0f)
+            {
+                failure = ProtoBoundary.Fail(Common.FailureCode.Unsupported, "This construction adapter lays floors through an ordinary blueprint and frame only.");
                 return false;
             }
             if (!preview.CanPlace)
@@ -95,7 +102,7 @@ namespace HomeBridge.BridgeTools
                     if (wiped[index].Destroyed) observed.WipedThingIds.Add(ids[index]);
             }
             if (!Instant) return GenConstruct.PlaceBlueprintForBuild(Definition, Cell, Map, Rotation, Player, Stuff);
-            var building = ThingMaker.MakeThing(Definition, Stuff);
+            var building = ThingMaker.MakeThing((ThingDef)Definition, Stuff);
             building.SetFactionDirect(Player);
             return GenSpawn.Spawn(building, Cell, Map, Rotation);
         }
@@ -117,6 +124,10 @@ namespace HomeBridge.BridgeTools
         internal Thing Current;
         internal string? Uncertain;
         internal bool Cancelled;
+        // Laid: the tracked frame completed into the plan's terrain at its
+        // cell. Current then stays the destroyed frame, the last native object
+        // of the lineage, and the floor itself is re-read on every inspection.
+        internal bool Laid;
         internal NativeConstructionRecord(Game game, NativeConstructionPlan plan, Thing thing, Receipts.ConstructionEffect effect)
         {
             Game = game; Map = plan.Map; Plan = plan; Current = thing; Effect = effect.Clone();
@@ -127,6 +138,13 @@ namespace HomeBridge.BridgeTools
             && thing.Position == Plan.Cell && thing.Rotation == Plan.Rotation && thing.Faction == Plan.Player
             && (thing is Blueprint || thing is Frame ? thing.def.entityDefToBuild : thing.def) == Plan.Definition
             && (thing is Blueprint_Build blueprint ? blueprint.EntityToBuildStuff() : thing.Stuff) == Plan.Stuff;
+        internal void Lay()
+        {
+            Laid = true;
+            Effect.Stage = Receipts.ConstructionStage.Building;
+            Effect.Present = true; Effect.Started = true; Effect.Failed = false;
+        }
+        internal bool FloorPresent() => Plan.Terrain != null && Plan.Cell.InBounds(Map) && Map.terrainGrid.TerrainAt(Plan.Cell) == Plan.Terrain;
         internal void Update(Thing thing)
         {
             Current = thing;
@@ -141,6 +159,16 @@ namespace HomeBridge.BridgeTools
             if (!ReferenceEquals(Game, Verse.Current.Game) || !ReferenceEquals(Map, ProtoBoundary.ResolveMap(context)) || Uncertain != null)
             {
                 progress.Unknown = new Receipts.UnknownEffect { Reason = Uncertain ?? "Construction context changed." };
+                return progress;
+            }
+            if (Laid)
+            {
+                if (FloorPresent())
+                {
+                    progress.CompleteInspection = true;
+                    progress.Completed = new Receipts.CompletedEffect { Evidence = new Receipts.EffectEvidence { Construction = Effect.Clone() } };
+                }
+                else progress.Unknown = new Receipts.UnknownEffect { Reason = "Laid floor is no longer the admitted terrain at its cell." };
                 return progress;
             }
             if (Cancelled && Current.Destroyed)
@@ -255,16 +283,18 @@ namespace HomeBridge.BridgeTools
             internal readonly NativeConstructionRecord? Record; // Null for an untracked nested frame call.
             internal readonly Frame Frame;
             internal readonly ThingDef? ExpectedDefinition;
-            internal Completion(NativeConstructionRecord? record, Frame frame, ThingDef? expectedDefinition)
-            { Record = record; Frame = frame; ExpectedDefinition = expectedDefinition; }
+            internal readonly bool Failing;
+            internal Completion(NativeConstructionRecord? record, Frame frame, ThingDef? expectedDefinition, bool failing)
+            { Record = record; Frame = frame; ExpectedDefinition = expectedDefinition; Failing = failing; }
             internal readonly NativeConstructionCausality Causality = new NativeConstructionCausality();
         }
         private static void Begin(Frame __instance, System.Reflection.MethodBase __originalMethod, out Completion __state)
         {
             Tracked.TryGetValue(__instance, out var record);
             // Even an untracked nested frame call hides its effects from a parent.
-            __state = new Completion(record, __instance, __originalMethod.Name == nameof(Frame.FailConstruction)
-                ? __instance.def.entityDefToBuild?.blueprintDef : __instance.def.entityDefToBuild as ThingDef);
+            var failing = __originalMethod.Name == nameof(Frame.FailConstruction);
+            __state = new Completion(record, __instance, failing
+                ? __instance.def.entityDefToBuild?.blueprintDef : __instance.def.entityDefToBuild as ThingDef, failing);
             Completions.Add(__state);
         }
         private static void Created(Thing? __result)
@@ -285,6 +315,15 @@ namespace HomeBridge.BridgeTools
             if (__state == null) return;
             Completions.Remove(__state);
             if (__state.Record == null) return;
+            if (__state.Record.Plan.Terrain != null && !__state.Failing)
+            {
+                // A floor frame completes by setting the terrain grid and
+                // vanishing; there is no successor object to follow.
+                if (__exception != null || !__state.Frame.Destroyed || !ReferenceEquals(__state.Record.Current, __state.Frame) || !__state.Record.FloorPresent())
+                { __state.Record.Uncertain = "Floor completion did not lay the admitted terrain."; return; }
+                __state.Record.Lay();
+                return;
+            }
             if (!__state.Causality.TryComplete(__state.Frame.Destroyed, __exception, out var successor)
                 || !(successor is Thing thing) || !__state.Record.Matches(thing)
                 || !(thing is Building || thing is Blueprint_Build))
