@@ -49,7 +49,14 @@ type NativeFailure struct {
 	Receipt Result
 }
 
-func (e *NativeFailure) Error() string { return "native read refused: " + e.Value.GetCode().String() }
+// The native detail names the rule that refused, so a controller log is
+// diagnosable without the game log; it is bounded native diagnostic text.
+func (e *NativeFailure) Error() string {
+	if detail := e.Value.GetDetail(); detail != "" {
+		return "native read refused: " + e.Value.GetCode().String() + ": " + detail
+	}
+	return "native read refused: " + e.Value.GetCode().String()
+}
 func (e *NativeFailure) Unwrap() error { return ErrRefused }
 
 type NativeUnavailable struct {
