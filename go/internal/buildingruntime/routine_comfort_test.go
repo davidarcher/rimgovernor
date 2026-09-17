@@ -242,3 +242,38 @@ func TestComfortFurnishingOnlyPreviewsHostingRoomsAndFallsBackToShell(t *testing
 		t.Fatal(missing, method, reason)
 	}
 }
+
+func TestUnskilledBuilderNeedsOnlyOneEnabledConstructionPawn(t *testing.T) {
+	t.Parallel()
+	builder := policy.WorkPawn{ID: "builder", Available: domain.Known(true), Applies: domain.Known(true), Manual: domain.Known(false), Ranged: domain.Known(false),
+		Skills: domain.Known([]policy.WorkSkill{{Name: "Construction", Level: 0, Passion: "None"}}),
+		Work:   domain.Known([]policy.WorkPriority{{Work: "Construction", Priority: 3}, {Work: "Doctor", Priority: 0}})}
+	// A second pawn whose settings still differ from the allocator's decision
+	// must not hold an unskilled bench.
+	other := policy.WorkPawn{ID: "other", Available: domain.Known(true), Applies: domain.Known(true), Manual: domain.Known(false), Ranged: domain.Known(false),
+		Skills: domain.Known([]policy.WorkSkill{{Name: "Medicine", Level: 8, Passion: "None"}}),
+		Work:   domain.Known([]policy.WorkPriority{{Work: "Construction", Priority: 0}, {Work: "Doctor", Priority: 0}, {Work: "Hauling", Priority: 3}})}
+	facts := observation.ColonyProjection{WorkPawns: domain.Known([]policy.WorkPawn{builder, other}), Definitions: []observation.PlanningDefinition{{Name: "CraftingSpot", Available: domain.Known(true), ConstructionSkill: domain.Known(int32(0))}}}
+	if !comfortBuilderAvailable(facts, "CraftingSpot", nil) {
+		t.Fatal("unskilled bench held behind the colony-wide work match")
+	}
+	if comfortBuilderAvailable(facts, "CraftingSpot", []policy.WorkOverride{{Pawn: "builder", Work: "Construction", Priority: 0}}) {
+		t.Fatal("player disabled builder was ignored")
+	}
+	builder.Work = domain.Known([]policy.WorkPriority{{Work: "Construction", Priority: 0}})
+	facts.WorkPawns = domain.Known([]policy.WorkPawn{builder, other})
+	if comfortBuilderAvailable(facts, "CraftingSpot", nil) {
+		t.Fatal("no pawn has construction enabled")
+	}
+	builder.Work = domain.Known([]policy.WorkPriority{{Work: "Construction", Priority: 3, Disabled: true}})
+	facts.WorkPawns = domain.Known([]policy.WorkPawn{builder, other})
+	if comfortBuilderAvailable(facts, "CraftingSpot", nil) {
+		t.Fatal("natively disabled construction accepted")
+	}
+	builder.Available = domain.Known(false)
+	builder.Work = domain.Known([]policy.WorkPriority{{Work: "Construction", Priority: 3}})
+	facts.WorkPawns = domain.Known([]policy.WorkPawn{builder, other})
+	if comfortBuilderAvailable(facts, "CraftingSpot", nil) {
+		t.Fatal("unavailable builder accepted")
+	}
+}

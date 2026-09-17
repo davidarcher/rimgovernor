@@ -51,7 +51,12 @@ func NewRoutineComfortPlanner(reviewer *RoutineReviewer, native RoutineBuildingS
 }
 
 // Skilled furniture must have a qualified, assigned builder in the same native
-// observation bracket. This comparison never writes work settings.
+// observation bracket. Unskilled furniture (native construction minimum 0,
+// such as a crafting spot) only needs one available pawn whose observed
+// Construction setting is enabled: waiting for the whole colony's settings to
+// match the allocator would hold a bench behind an unrelated pawn whose
+// settings cannot be applied (a mental break, an unobservable pawn). This
+// comparison never writes work settings.
 func comfortBuilderAvailable(facts observation.ColonyProjection, definition string, overrides []policy.WorkOverride) bool {
 	for _, d := range facts.Definitions {
 		if d.Name != definition {
@@ -65,6 +70,9 @@ func comfortBuilderAvailable(facts observation.ColonyProjection, definition stri
 		pawns, known := facts.WorkPawns.Value()
 		if !known {
 			return false
+		}
+		if minimum == 0 {
+			return unskilledBuilderAvailable(pawns, overrides)
 		}
 		decision, err := policy.AssignWork(pawns, []policy.WorkRequirement{{Work: "Construction", Skill: "Construction", Minimum: int(minimum)}}, overrides)
 		if clockSchedulerDebug {
@@ -148,6 +156,36 @@ func comfortNativeWorkTicks(plan store.PlanState, current domain.GenerationSnaps
 // workMismatches lists pawn/work pairs whose observed enablement differs from
 // the allocator's decision, the diagnostic behind a "builder unavailable"
 // wait (RIMGOVERNOR_CLOCK_DEBUG=1 only).
+// unskilledBuilderAvailable reports whether some available pawn has
+// Construction enabled in its observed settings and no player override
+// disabling it. Skill levels are irrelevant: the definition needs none.
+func unskilledBuilderAvailable(pawns []policy.WorkPawn, overrides []policy.WorkOverride) bool {
+	for _, pawn := range pawns {
+		if pawn.Available != domain.Known(true) || pawn.Applies != domain.Known(true) {
+			continue
+		}
+		disabled := false
+		for _, override := range overrides {
+			if override.Pawn == pawn.ID && override.Work == "Construction" && override.Priority == 0 {
+				disabled = true
+			}
+		}
+		if disabled {
+			continue
+		}
+		settings, known := pawn.Work.Value()
+		if !known {
+			continue
+		}
+		for _, setting := range settings {
+			if setting.Work == "Construction" && !setting.Disabled && setting.Priority > 0 {
+				return true
+			}
+		}
+	}
+	return false
+}
+
 func workMismatches(pawns []policy.WorkPawn, decision policy.WorkDecision) []string {
 	observed := map[policy.PawnID]map[policy.WorkType]policy.WorkPriority{}
 	for _, pawn := range pawns {

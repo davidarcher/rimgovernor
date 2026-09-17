@@ -592,7 +592,9 @@ facility-specific dining/recreation use through Manual and restart; replacement
 facilities require new use. After observed construction, at most 10,000 ticks in
 the same load permit ordinary use, observed in windows of at most 120 ticks.
 Skilled furniture requires a qualified assigned builder from the same native
-observation bracket, honoring saved player work preferences. The `workshop`
+observation bracket, honoring saved player work preferences; furniture with no
+native construction skill requirement (a crafting spot) needs only one
+available pawn with Construction enabled. The `workshop`
 family (issue #4 M2) applies the same ladder to production: when a
 `--routine-resource-target` deficit has no reachable bench hosting an available
 recipe, it reads the native recipe catalog for the product, previews the first

@@ -418,7 +418,8 @@ powered connected loads, observed research progress/completion and indoor capaci
 establish outcomes; blueprint receipts do not. Changed native prerequisites can release
 a development blocker without discarding existing projects or player selections.
 Development placement requires an available assigned builder meeting the native
-construction skill requirement. Construction assignment selects the strongest
+construction skill requirement; a definition requiring no skill needs only one
+available pawn with Construction enabled. Construction assignment selects the strongest
 available skill before balancing other work; player overrides remain authoritative.
 Research assignment weighs native Intellectual skill and, in checkbox mode, removes
 routine hauling/cleaning from the selected researcher so those earlier jobs cannot
