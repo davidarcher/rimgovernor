@@ -1,0 +1,255 @@
+package bridge
+
+import (
+	"encoding/json"
+	"fmt"
+	"io"
+	"sort"
+	"strings"
+)
+
+// ToolPhases aggregates the recorded call phases for one native tool.
+// Milliseconds are summed over Calls; divide for means. NativeTool is the
+// inner rimgovernor/* method for games_call_tool and games_tool_detail rows,
+// so describe round trips for a method appear under the same name with
+// Wrapper "games_tool_detail".
+type ToolPhases struct {
+	NativeTool    string  `json:"native_tool"`
+	Wrapper       string  `json:"wrapper"`
+	Calls         uint64  `json:"calls"`
+	Errors        uint64  `json:"errors"`
+	GateWaitMs    float64 `json:"gate_wait_ms"`
+	CallMs        float64 `json:"call_ms"`
+	DecodeMs      float64 `json:"decode_ms"`
+	ProtoDecodeMs float64 `json:"proto_decode_ms"`
+	TotalMs       float64 `json:"total_ms"`
+	ResponseBytes uint64  `json:"response_bytes"`
+}
+
+// PhaseSummary is a read-only aggregation of one flight-recorder timeline:
+// per-tool phase totals plus the game-clock progress visible in observation
+// replies. It changes nothing in the game and needs no authority.
+type PhaseSummary struct {
+	Records   uint64       `json:"records"`
+	Gaps      uint64       `json:"gaps"`
+	Untimed   uint64       `json:"untimed_calls"`
+	WallSecs  float64      `json:"wall_seconds"`
+	Tools     []ToolPhases `json:"tools"`
+	Clock     ClockSample  `json:"clock"`
+	FirstWall float64      `json:"first_wall_time"`
+	LastWall  float64      `json:"last_wall_time"`
+}
+
+// ClockSample is wall TPS derived from the observation-context ticks carried
+// by native replies, excluding intervals where the tick went backwards
+// (load, rewind, map change), plus the paused fraction of clock_read_status
+// samples. Wall TPS includes paused time by construction.
+type ClockSample struct {
+	TickSamples   uint64  `json:"tick_samples"`
+	TicksAdvanced int64   `json:"ticks_advanced"`
+	WallSecs      float64 `json:"wall_seconds"`
+	WallTPS       float64 `json:"wall_tps"`
+	Resets        uint64  `json:"resets"`
+	PausedSamples uint64  `json:"paused_samples"`
+	ClockSamples  uint64  `json:"clock_samples"`
+}
+
+// SummarizePhases aggregates rows produced by Client (native_response,
+// native_error, native_decode). Rows recorded before phase timing existed
+// count as Untimed and contribute only to Calls.
+func SummarizePhases(records []TimelineRecord) PhaseSummary {
+	summary := PhaseSummary{}
+	tools := map[string]*ToolPhases{}
+	requestTool := map[uint64]string{}
+	var lastTick int64
+	haveTick := false
+	var tickWall float64
+	for _, row := range records {
+		summary.Records++
+		if row.Kind == "recording_gap" {
+			summary.Gaps++
+			continue
+		}
+		if summary.FirstWall == 0 || row.WallTime < summary.FirstWall {
+			summary.FirstWall = row.WallTime
+		}
+		if row.WallTime > summary.LastWall {
+			summary.LastWall = row.WallTime
+		}
+		switch row.Kind {
+		case "native_response", "native_error":
+			key, entry := phaseEntry(tools, row)
+			entry.Calls++
+			if row.Kind == "native_error" {
+				entry.Errors++
+			}
+			if request, ok := number(row.Payload["request"]); ok {
+				requestTool[uint64(request)] = key
+			}
+			timing, ok := row.Payload["timing"].(map[string]any)
+			if !ok {
+				summary.Untimed++
+			} else {
+				entry.GateWaitMs += field(timing, "gate_wait_ms")
+				entry.CallMs += field(timing, "call_ms")
+				entry.DecodeMs += field(timing, "decode_ms")
+				entry.TotalMs += field(timing, "total_ms")
+				entry.ResponseBytes += uint64(field(timing, "response_bytes"))
+			}
+			if row.Kind != "native_response" || entry.Wrapper != "games_call_tool" {
+				continue
+			}
+			tick, paused, hasTick, hasPaused := replyClock(row.Payload["result"])
+			if hasPaused {
+				summary.Clock.ClockSamples++
+				if paused {
+					summary.Clock.PausedSamples++
+				}
+			}
+			if !hasTick {
+				continue
+			}
+			summary.Clock.TickSamples++
+			if haveTick {
+				if tick < lastTick {
+					summary.Clock.Resets++
+				} else {
+					summary.Clock.TicksAdvanced += tick - lastTick
+					summary.Clock.WallSecs += row.WallTime - tickWall
+				}
+			}
+			lastTick, tickWall, haveTick = tick, row.WallTime, true
+		case "native_decode":
+			request, ok := number(row.Payload["request"])
+			if !ok {
+				continue
+			}
+			key, known := requestTool[uint64(request)]
+			if !known {
+				continue
+			}
+			tools[key].ProtoDecodeMs += field(row.Payload, "proto_decode_ms")
+		}
+	}
+	for _, entry := range tools {
+		summary.Tools = append(summary.Tools, *entry)
+	}
+	sort.Slice(summary.Tools, func(i, j int) bool {
+		if summary.Tools[i].TotalMs != summary.Tools[j].TotalMs {
+			return summary.Tools[i].TotalMs > summary.Tools[j].TotalMs
+		}
+		return summary.Tools[i].NativeTool+summary.Tools[i].Wrapper < summary.Tools[j].NativeTool+summary.Tools[j].Wrapper
+	})
+	summary.WallSecs = summary.LastWall - summary.FirstWall
+	if summary.Clock.WallSecs > 0 {
+		summary.Clock.WallTPS = float64(summary.Clock.TicksAdvanced) / summary.Clock.WallSecs
+	}
+	return summary
+}
+
+func phaseEntry(tools map[string]*ToolPhases, row TimelineRecord) (string, *ToolPhases) {
+	wrapper, _ := row.Payload["tool"].(string)
+	native, _ := row.Payload["native_tool"].(string)
+	if native == "" {
+		native = wrapper
+	}
+	key := wrapper + "\x00" + native
+	entry := tools[key]
+	if entry == nil {
+		entry = &ToolPhases{NativeTool: native, Wrapper: wrapper}
+		tools[key] = entry
+	}
+	return key, entry
+}
+
+func field(m map[string]any, key string) float64 {
+	value, _ := number(m[key])
+	return value
+}
+
+func number(value any) (float64, bool) {
+	switch v := value.(type) {
+	case float64:
+		return v, true
+	case json.Number:
+		f, err := v.Float64()
+		return f, err == nil
+	default:
+		return 0, false
+	}
+}
+
+// replyClock reads the observation tick and, for clock status replies, the
+// actual-paused flag out of a recorded games_call_tool result. The recorded
+// result is the ProtoBoundary wrapper {"payload": "<ProtoJSON>"}; the tick
+// lives at <reply>.<outcome>.context.tick for observation replies and at
+// <reply>.status.context.tick for clock status.
+func replyClock(result any) (tick int64, paused bool, hasTick bool, hasPaused bool) {
+	wrapper, ok := result.(map[string]any)
+	if !ok {
+		return
+	}
+	payload, ok := wrapper["payload"].(string)
+	if !ok || len(payload) > maxProtoBytes {
+		return
+	}
+	var reply map[string]any
+	if json.Unmarshal([]byte(payload), &reply) != nil {
+		return
+	}
+	for _, outcome := range reply {
+		body, ok := outcome.(map[string]any)
+		if !ok {
+			continue
+		}
+		if context, ok := body["context"].(map[string]any); ok {
+			if value, ok := tickValue(context["tick"]); ok {
+				tick, hasTick = value, true
+			}
+		}
+		if value, ok := body["actualPaused"].(bool); ok {
+			paused, hasPaused = value, true
+		}
+	}
+	return
+}
+
+// tickValue accepts ProtoJSON int64 encodings: a JSON string or a number.
+func tickValue(value any) (int64, bool) {
+	switch v := value.(type) {
+	case string:
+		var tick int64
+		if _, err := fmt.Sscan(v, &tick); err != nil {
+			return 0, false
+		}
+		return tick, true
+	case float64:
+		return int64(v), true
+	default:
+		return 0, false
+	}
+}
+
+// WritePhaseReport prints a PhaseSummary as an aligned table with per-call
+// means, the format the rimgovernor phases subcommand shows by default.
+func WritePhaseReport(w io.Writer, summary PhaseSummary) {
+	fmt.Fprintf(w, "records %d (gaps %d, untimed calls %d), wall %.1fs\n", summary.Records, summary.Gaps, summary.Untimed, summary.WallSecs)
+	clock := summary.Clock
+	if clock.TickSamples > 0 {
+		fmt.Fprintf(w, "clock: %d ticks over %.1fs = %.1f wall TPS (%d tick samples, %d resets)", clock.TicksAdvanced, clock.WallSecs, clock.WallTPS, clock.TickSamples, clock.Resets)
+		if clock.ClockSamples > 0 {
+			fmt.Fprintf(w, ", paused %d/%d status samples", clock.PausedSamples, clock.ClockSamples)
+		}
+		fmt.Fprintln(w)
+	}
+	fmt.Fprintf(w, "%-52s %-17s %6s %4s %9s %9s %9s %9s %9s %9s\n", "native tool", "wrapper", "calls", "err", "total ms", "gate ms", "call ms", "decode ms", "proto ms", "avg KiB")
+	for _, tool := range summary.Tools {
+		calls := float64(tool.Calls)
+		if calls == 0 {
+			calls = 1
+		}
+		wrapper := strings.TrimPrefix(tool.Wrapper, "games_")
+		fmt.Fprintf(w, "%-52s %-17s %6d %4d %9.1f %9.1f %9.1f %9.2f %9.2f %9.1f\n", tool.NativeTool, wrapper, tool.Calls, tool.Errors,
+			tool.TotalMs/calls, tool.GateWaitMs/calls, tool.CallMs/calls, tool.DecodeMs/calls, tool.ProtoDecodeMs/calls, float64(tool.ResponseBytes)/calls/1024)
+	}
+}

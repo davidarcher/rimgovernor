@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"io"
 	"strings"
+	"time"
 	"unicode/utf8"
 
 	a "github.com/davidarcher/RimGovernor/go/internal/wire/authoritypb"
@@ -197,6 +198,8 @@ func (caller *Client) protoCall(ctx context.Context, name string, request, reply
 		Request string `json:"request"`
 	}{string(inner)})
 	invoked := false
+	var recordCtx map[string]any
+	var requestRow uint64
 	result, err := caller.operation(ctx, func(ctx context.Context, live *liveSession) (Result, error) {
 		detail, err := caller.describe(ctx, live, name)
 		if err != nil {
@@ -206,12 +209,20 @@ func (caller *Client) protoCall(ctx context.Context, name string, request, reply
 			return Result{}, fmt.Errorf("describe %s: %w", name, err)
 		}
 		invoked = true
-		return caller.core(ctx, live, "games_call_tool", encode(nativeArgument{caller.gameID, name, args}))
+		if caller.recorder != nil {
+			recordCtx = caller.snapshotRecordingContext(ctx)
+		}
+		result, err := caller.core(ctx, live, "games_call_tool", encode(nativeArgument{caller.gameID, name, args}))
+		if timing := callTimingFrom(ctx); timing != nil {
+			requestRow = timing.request
+		}
+		return result, err
 	})
 	callErr := err
 	if err != nil && (!errors.Is(err, ErrRefused) || !invoked) {
 		return result, err
 	}
+	decodeBegan := time.Now()
 	payload, err := decodePayload(result.Structured)
 	if err != nil {
 		if callErr != nil {
@@ -219,7 +230,13 @@ func (caller *Client) protoCall(ctx context.Context, name string, request, reply
 		}
 		return result, err
 	}
-	if err = (protojson.UnmarshalOptions{DiscardUnknown: false, RecursionLimit: 64}).Unmarshal(payload, reply); err != nil {
+	err = (protojson.UnmarshalOptions{DiscardUnknown: false, RecursionLimit: 64}).Unmarshal(payload, reply)
+	if caller.recorder != nil && invoked {
+		// ProtoJSON decoding is the typed adapter's own cost, after the raw
+		// receipt row; it is correlated to that row by request sequence.
+		caller.recorder.Event("native_decode", recordCtx, false, map[string]any{"request": requestRow, "native_tool": name, "proto_decode_ms": millis(time.Since(decodeBegan)), "payload_bytes": len(payload), "ok": err == nil})
+	}
+	if err != nil {
 		if callErr != nil {
 			return result, callErr
 		}

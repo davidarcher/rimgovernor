@@ -343,16 +343,18 @@ func (c *Client) operation(ctx context.Context, run func(context.Context, *liveS
 	}
 	stop := context.AfterFunc(live.ctx, cancel)
 	defer stop()
+	timing := &callTiming{began: time.Now()}
 	select {
 	case c.gate <- struct{}{}:
 		defer func() { <-c.gate }()
 	case <-ctx.Done():
 		return Result{}, ctx.Err()
 	}
+	timing.gateWait = time.Since(timing.began)
 	if err := ctx.Err(); err != nil {
 		return Result{}, err
 	}
-	return run(ctx, live)
+	return run(withCallTiming(ctx, timing), live)
 }
 
 // snapshotRecordingContext reads the installed recording-context callback (if
@@ -392,8 +394,25 @@ func (c *Client) core(ctx context.Context, live *liveSession, name string, argum
 		recordCtx = c.snapshotRecordingContext(ctx)
 		request, _ = c.recorder.Event("native_request", recordCtx, true, map[string]any{"tool": name, "arguments": arguments})
 	}
+	timing := callTimingFrom(ctx)
+	if timing != nil {
+		timing.request = request
+	}
 	waiter := make(chan receiptOutcome, 1)
+	callBegan := time.Now()
 	result, err := live.sdk.CallTool(withReceiptWaiter(ctx, waiter), &mcp.CallToolParams{Name: name, Arguments: arguments})
+	callElapsed := time.Since(callBegan)
+	// phases is attached to the response/error row so a timeline consumer can
+	// split the call without re-deriving it from wall clocks.
+	phases := func(decode time.Duration, bytes int) map[string]any {
+		out := map[string]any{"call_ms": millis(callElapsed), "decode_ms": millis(decode), "response_bytes": bytes}
+		if timing != nil {
+			out["gate_wait_ms"] = millis(timing.gateWait)
+			out["total_ms"] = millis(time.Since(timing.began))
+		}
+		return out
+	}
+	nativeTool := nativeToolOf(name, arguments)
 	var raw json.RawMessage
 	var receiptErr error
 	select {
@@ -406,22 +425,24 @@ func (c *Client) core(ctx context.Context, live *liveSession, name string, argum
 	}
 	if receiptErr != nil {
 		if recording {
-			c.recorder.Event("native_error", recordCtx, true, map[string]any{"request": request, "tool": name, "error": receiptErr.Error()})
+			c.recorder.Event("native_error", recordCtx, true, map[string]any{"request": request, "tool": name, "native_tool": nativeTool, "error": receiptErr.Error(), "timing": phases(0, len(raw))})
 		}
 		return Result{}, receiptErr
 	}
 	if err != nil {
 		if recording {
-			c.recorder.Event("native_error", recordCtx, true, map[string]any{"request": request, "tool": name, "error": err.Error()})
+			c.recorder.Event("native_error", recordCtx, true, map[string]any{"request": request, "tool": name, "native_tool": nativeTool, "error": err.Error(), "timing": phases(0, len(raw))})
 		}
 		return Result{}, fmt.Errorf("%w: %s: %w", ErrTransport, name, err)
 	}
+	decodeBegan := time.Now()
 	decoded, decodeErr := decodeReceipt(name, raw, result)
+	decodeElapsed := time.Since(decodeBegan)
 	if recording {
 		if decodeErr != nil {
-			c.recorder.Event("native_error", recordCtx, true, map[string]any{"request": request, "tool": name, "error": decodeErr.Error()})
+			c.recorder.Event("native_error", recordCtx, true, map[string]any{"request": request, "tool": name, "native_tool": nativeTool, "error": decodeErr.Error(), "timing": phases(decodeElapsed, len(raw))})
 		} else {
-			c.recorder.Event("native_response", recordCtx, false, map[string]any{"request": request, "tool": name, "result": decoded.Structured})
+			c.recorder.Event("native_response", recordCtx, false, map[string]any{"request": request, "tool": name, "native_tool": nativeTool, "result": decoded.Structured, "timing": phases(decodeElapsed, len(raw))})
 		}
 	}
 	return decoded, decodeErr
