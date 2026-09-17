@@ -6,11 +6,13 @@ func rowContext() map[string]any {
 	return map[string]any{"identity": map[string]any{"colonyId": "c"}, "tick": "10"}
 }
 
-func pawnRowFixture(drafted bool, ownedBy map[string]any) map[string]any {
+// pawnRowFixture builds a pawn row; owned selects an owned draft claim (claims
+// carry no owner token since #52: existence is the ownership proof).
+func pawnRowFixture(drafted bool, owned bool) map[string]any {
 	snapshot := map[string]any{"entityId": "pawn-1", "token": "tok-1", "context": rowContext()}
 	claim := map[string]any{"unowned": map[string]any{}}
-	if ownedBy != nil {
-		claim = map[string]any{"owned": map[string]any{"claimId": "claim-1", "owner": ownedBy, "pawnSnapshot": snapshot}}
+	if owned {
+		claim = map[string]any{"owned": map[string]any{"claimId": "claim-1", "pawnSnapshot": snapshot}}
 	}
 	return map[string]any{
 		"pawn":       map[string]any{"id": "pawn-1", "snapshot": snapshot},
@@ -30,7 +32,7 @@ func observedReply(row map[string]any) map[string]any {
 
 func TestPawnRowAcceptsUnownedRow(t *testing.T) {
 	identity := map[string]any{"colonyId": "c"}
-	row := pawnRowFixture(false, nil)
+	row := pawnRowFixture(false, false)
 	reply := observedReply(row)
 	got, err := PawnRow(reply, identity, "pawn-1")
 	if err != nil {
@@ -43,7 +45,7 @@ func TestPawnRowAcceptsUnownedRow(t *testing.T) {
 
 func TestPawnRowRejectsWrongPawnID(t *testing.T) {
 	identity := map[string]any{"colonyId": "c"}
-	reply := observedReply(pawnRowFixture(false, nil))
+	reply := observedReply(pawnRowFixture(false, false))
 	if _, err := PawnRow(reply, identity, "other-pawn"); err == nil {
 		t.Fatal("expected an error for a pawn id mismatch")
 	}
@@ -51,7 +53,7 @@ func TestPawnRowRejectsWrongPawnID(t *testing.T) {
 
 func TestPawnRowRejectsMultipleDraftClaimCases(t *testing.T) {
 	identity := map[string]any{"colonyId": "c"}
-	row := pawnRowFixture(false, nil)
+	row := pawnRowFixture(false, false)
 	row["draftClaim"] = map[string]any{"unowned": map[string]any{}, "owned": map[string]any{}}
 	if _, err := PawnRow(observedReply(row), identity, ""); err == nil {
 		t.Fatal("expected an error for a draftClaim with more than one case")
@@ -59,45 +61,43 @@ func TestPawnRowRejectsMultipleDraftClaimCases(t *testing.T) {
 }
 
 func TestSameControlDetectsDraftedChange(t *testing.T) {
-	before := pawnRowFixture(false, nil)
-	after := pawnRowFixture(true, Owner)
+	before := pawnRowFixture(false, false)
+	after := pawnRowFixture(true, true)
 	if err := SameControl(before, after); err == nil {
 		t.Fatal("expected an error for a changed drafted flag")
 	}
 }
 
 func TestSameControlAcceptsIdenticalRows(t *testing.T) {
-	row := pawnRowFixture(true, Owner)
+	row := pawnRowFixture(true, true)
 	if err := SameControl(row, row); err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
 }
 
-func TestReleaseRequestRequiresOwnedByOwner(t *testing.T) {
+func TestReleaseRequestRequiresOwnedClaim(t *testing.T) {
 	identity := map[string]any{"colonyId": "c"}
-	unowned := pawnRowFixture(false, nil)
+	unowned := pawnRowFixture(false, false)
 	if _, err := ReleaseRequest(identity, unowned); err == nil {
 		t.Fatal("expected an error releasing an unowned row")
 	}
-	ownedByOther := pawnRowFixture(true, map[string]any{"controllerSessionId": "someone-else"})
-	if _, err := ReleaseRequest(identity, ownedByOther); err == nil {
-		t.Fatal("expected an error releasing a row owned by a different controller")
-	}
-	ownedByUs := pawnRowFixture(true, Owner)
-	request, err := ReleaseRequest(identity, ownedByUs)
+	request, err := ReleaseRequest(identity, pawnRowFixture(true, true))
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
 	if AsString(request["expectedClaimId"]) != "claim-1" {
 		t.Fatalf("wrong expectedClaimId: %#v", request)
 	}
+	if _, legacy := request["originalOwner"]; legacy {
+		t.Fatalf("release must not carry the removed originalOwner: %#v", request)
+	}
 }
 
 func TestOwnedEffectRejectsMismatchedPawn(t *testing.T) {
-	row := pawnRowFixture(true, Owner)
+	row := pawnRowFixture(true, true)
 	receipt := map[string]any{"applied": map[string]any{"observed": map[string]any{"job": map[string]any{
 		"pawnId": "someone-else", "drafted": true, "verified": true, "issued": true,
-		"draftClaimId": "claim-1", "draftOwner": "native-draft-acceptance", "resultingSnapshotToken": "tok-1",
+		"draftClaimId": "claim-1", "resultingSnapshotToken": "tok-1",
 	}}}}
 	if err := OwnedEffect(receipt, row, "applied", true); err == nil {
 		t.Fatal("expected an error for a mismatched pawnId")
@@ -105,10 +105,10 @@ func TestOwnedEffectRejectsMismatchedPawn(t *testing.T) {
 }
 
 func TestOwnedEffectAcceptsMatchingReceipt(t *testing.T) {
-	row := pawnRowFixture(true, Owner)
+	row := pawnRowFixture(true, true)
 	receipt := map[string]any{"applied": map[string]any{"observed": map[string]any{"job": map[string]any{
 		"pawnId": "pawn-1", "drafted": true, "verified": true, "issued": true,
-		"draftClaimId": "claim-1", "draftOwner": "native-draft-acceptance", "resultingSnapshotToken": "tok-1",
+		"draftClaimId": "claim-1", "resultingSnapshotToken": "tok-1",
 	}}}}
 	if err := OwnedEffect(receipt, row, "applied", true); err != nil {
 		t.Fatalf("unexpected error: %v", err)
@@ -116,7 +116,7 @@ func TestOwnedEffectAcceptsMatchingReceipt(t *testing.T) {
 }
 
 func TestActualOrderRejectsUnacceptedFixture(t *testing.T) {
-	row := pawnRowFixture(false, nil)
+	row := pawnRowFixture(false, false)
 	external := map[string]any{"success": true, "accepted": false}
 	if err := ActualOrder(external, row); err == nil {
 		t.Fatal("expected an error for an unaccepted external order")
@@ -129,7 +129,7 @@ func draftReply() map[string]any {
 	snapshot := map[string]any{"context": deepCopyMap(context), "entityId": "Human1", "token": "token"}
 	row := map[string]any{
 		"pawn": map[string]any{"id": "Human1", "snapshot": snapshot}, "drafted": true,
-		"draftClaim": map[string]any{"owned": map[string]any{"claimId": "claim", "owner": deepCopyMap(Owner), "pawnSnapshot": deepCopyMap(snapshot)}},
+		"draftClaim": map[string]any{"owned": map[string]any{"claimId": "claim", "pawnSnapshot": deepCopyMap(snapshot)}},
 	}
 	return map[string]any{"observed": map[string]any{"context": context, "pawns": []any{row}, "completeness": map[string]any{
 		"page": map[string]any{"complete": true}, "matched": "1", "returned": "1", "unreadable": "0",
@@ -208,13 +208,13 @@ func TestPawnRowRejectsPartialOrFabricatedCorrelation(t *testing.T) {
 	}
 }
 
-func TestExecuteRequestUsesExactNativeTokenAndOriginalOwner(t *testing.T) {
+func TestExecuteRequestUsesExactNativeTokenAndGeneration(t *testing.T) {
 	row := draftRow(t)
 	pawn, _ := AsMap(row["pawn"])
 	snapshot, _ := AsMap(pawn["snapshot"])
 	snapshotContext, _ := AsMap(snapshot["context"])
 	identity, _ := AsMap(snapshotContext["identity"])
-	grant := map[string]any{"context": map[string]any{"nativeGeneration": "9"}, "leaseId": "lease"}
+	grant := map[string]any{"context": map[string]any{"nativeGeneration": "9"}, "authority": map[string]any{"mode": "MODE_AUTO"}}
 	request := ExecuteRequest(identity, grant, row, 7)
 	operation, _ := AsMap(request["operation"])
 	setDrafted, _ := AsMap(operation["setDrafted"])
@@ -225,19 +225,18 @@ func TestExecuteRequestUsesExactNativeTokenAndOriginalOwner(t *testing.T) {
 	if AsString(precondition["expectedGeneration"]) != "9" {
 		t.Fatalf("expected precondition to carry the grant's nativeGeneration: %#v", precondition)
 	}
+	if _, legacy := precondition["leaseId"]; legacy {
+		t.Fatalf("precondition must not carry the removed leaseId: %#v", precondition)
+	}
+	if AsString(dig(precondition, "attempt", "controllerSessionId")) != Controller {
+		t.Fatalf("attempt must be keyed by Controller: %#v", precondition)
+	}
 	cleanup, err := ReleaseRequest(identity, row)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	if !DeepEqual(cleanup["originalOwner"], Owner) {
-		t.Fatalf("expected release_request to capture the original Owner: %#v", cleanup["originalOwner"])
-	}
-	claim, _ := AsMap(row["draftClaim"])
-	owned, _ := AsMap(claim["owned"])
-	owner, _ := AsMap(owned["owner"])
-	owner["playerDirection"] = "2"
-	if _, err := ReleaseRequest(identity, row); err == nil {
-		t.Fatal("expected an error releasing a row whose owner no longer matches Owner")
+	if AsString(cleanup["expectedClaimId"]) != "claim" || !DeepEqual(cleanup["pawn"], Target(row)) {
+		t.Fatalf("unexpected cleanup request: %#v", cleanup)
 	}
 }
 
@@ -269,7 +268,7 @@ func TestOwnedEffectNoChangeMustBeVerifiedWithoutIssuingSetter(t *testing.T) {
 	row := draftRow(t)
 	effect := map[string]any{
 		"pawnId": "Human1", "drafted": true, "verified": true, "issued": false,
-		"draftClaimId": "claim", "draftOwner": Owner["controllerSessionId"], "resultingSnapshotToken": "token",
+		"draftClaimId": "claim", "resultingSnapshotToken": "token",
 	}
 	receipt := map[string]any{"noChange": map[string]any{"observed": map[string]any{"job": effect}}}
 	if err := OwnedEffect(receipt, row, "noChange", false); err != nil {

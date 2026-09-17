@@ -96,6 +96,14 @@ func (h *Harness) Wire(ctx context.Context, label, method string, request any) (
 	return message, nil
 }
 
+// WireFunc adapts Wire to the map-typed WireFunc the authority helpers and
+// ScenarioClock take.
+func (h *Harness) WireFunc() WireFunc {
+	return func(ctx context.Context, label, method string, request map[string]any) (map[string]any, error) {
+		return h.Wire(ctx, label, method, request)
+	}
+}
+
 // Outcome asserts the wire reply is exactly the single-field oneof named case and
 // returns its value.
 func Outcome(message map[string]any, cases ...string) (string, map[string]any, error) {

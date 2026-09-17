@@ -1,5 +1,6 @@
 #nullable enable
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using RimWorld;
 using Verse;
@@ -38,14 +39,20 @@ namespace HomeBridge.BridgeTools
         }
         internal void AlreadyAtDestination(NativePawnSnapshot snapshot)
         {order=snapshot.Facts.OrderRevision;started=true;noChange=true;}
+        // RimWorld pools Job instances (JobMaker.ReturnToPool): once the issued
+        // Goto ends, the very same object can come back as this pawn's next job
+        // (a Wait_Combat after arrival, say) under a new loadID, so reference
+        // identity alone never proves the issued order is still current or queued.
+        private bool Live()=>job.loadID==jobId && job.def==JobDefOf.Goto && job.targetA.Cell==destination;
+        private bool Current()=>Live() && ReferenceEquals(pawn.CurJob,job);
+        private bool Queued()=>Live() && pawn.jobs.jobQueue.Any(q=>ReferenceEquals(q.job,job));
         internal bool Capture(NativePawnSnapshot snapshot,NativePawnSnapshot before)
         {
             if(before.Facts.OrderRevision==ulong.MaxValue || snapshot.Facts.OrderRevision!=before.Facts.OrderRevision+1
                 || snapshot.Facts.DraftRevision!=before.Facts.DraftRevision)return false;
             if(snapshot.Claim?.ClaimId!=claim.ClaimId)return false;
-            bool current=ReferenceEquals(pawn.CurJob,job),queued=pawn.jobs.jobQueue.Any(q=>ReferenceEquals(q.job,job));
+            bool current=Current(),queued=Queued();
             if(!current && !queued)return false;
-            if(job.loadID!=jobId || job.def!=JobDefOf.Goto || job.targetA.Cell!=destination)return false;
             order=snapshot.Facts.OrderRevision;started=current;return true;
         }
         internal Receipts.EffectEvidence Evidence(NativePawnSnapshot snapshot,bool issued,bool verified)
@@ -68,18 +75,21 @@ namespace HomeBridge.BridgeTools
                     NativePawnControlState.Observe(identity,pawn,out var snapshot)!=NativePawnControlResult.Ready || snapshot==null)
                     throw new InvalidOperationException("Current movement pawn context cannot be inspected.");
                 if(!order.HasValue)Capture(snapshot,before);
-                bool current=ReferenceEquals(pawn.CurJob,job), queued=pawn.jobs.jobQueue.Any(q=>ReferenceEquals(q.job,job));
-                bool unchanged=context.NativeGeneration==admitted.NativeGeneration && snapshot.Eligible && snapshot.Drafted
-                    && snapshot.Claim?.ClaimId==claim.ClaimId
-                    && snapshot.Facts.OrderRevision==order && (noChange || (!current && !queued)
-                        || job.loadID==jobId && job.def==JobDefOf.Goto && job.targetA.Cell==destination);
+                bool current=Current(),queued=Queued();
+                var changed=new List<string>();
+                if(context.NativeGeneration!=admitted.NativeGeneration)changed.Add("authority generation");
+                if(!snapshot.Eligible)changed.Add("eligibility");
+                if(!snapshot.Drafted)changed.Add("draft");
+                if(snapshot.Claim?.ClaimId!=claim.ClaimId)changed.Add("claim");
+                if(snapshot.Facts.OrderRevision!=order)changed.Add("native order revision ("+snapshot.Facts.OrderRevision+" vs "+order+")");
+                bool unchanged=changed.Count==0;
                 if(current && unchanged)started=true;
                 var phase=Classify(order.HasValue,unchanged,current,queued,started,pawn.Position==destination);
                 var evidence=Evidence(snapshot,false,phase==NativeMovementPhase.Completed || phase==NativeMovementPhase.Pending);
                 if(phase==NativeMovementPhase.Pending){result.CompleteInspection=true;result.Pending=new Receipts.PendingEffect {Evidence=evidence};}
                 else if(phase==NativeMovementPhase.Completed){result.CompleteInspection=true;result.Completed=new Receipts.CompletedEffect {Evidence=evidence};}
                 else if(phase==NativeMovementPhase.Interrupted){result.CompleteInspection=true;result.Unsuccessful=new Receipts.UnsuccessfulEffect {
-                    Reason=Receipts.UnsuccessfulReason.Interrupted,Evidence=evidence,Detail="Authority generation, claim, eligibility or native order changed."};}
+                    Reason=Receipts.UnsuccessfulReason.Interrupted,Evidence=evidence,Detail="Changed since admission: "+string.Join(", ",changed.ToArray())+"."};}
                 else result.Unknown=new Receipts.UnknownEffect {Reason="The exact issued job has no verified current movement or arrival evidence."};
             } catch(Exception error) {result.CompleteInspection=false;result.Unknown=new Receipts.UnknownEffect {Reason="Movement inspection unavailable: "+error.GetType().Name};}
             return result;

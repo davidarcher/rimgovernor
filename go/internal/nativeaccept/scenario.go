@@ -309,9 +309,10 @@ type ScenarioClock struct {
 	// to WATCH_MODE_COMBAT with these acknowledged hostiles.
 	CombatTargets []string
 
-	// Grant is the current authority grant (acquire/renew's "granted" body).
-	// Exported so callers can seed or recover it
-	// (e.g. after AdvanceGame renews authority mid-run).
+	// Grant is the current authority grant (SetMode(Auto)'s "granted" body:
+	// {context, authority}); its context.nativeGeneration is the generation
+	// every owned write below is admitted against. Exported so callers can
+	// seed or recover it.
 	Grant map[string]any
 	// OnStarted, when set, runs after Change() admits a fresh clock_start receipt
 	// but before AdvanceGame observes it — e.g. to revoke authority mid-window.
@@ -332,7 +333,6 @@ func (s *ScenarioClock) precondition() map[string]any {
 	return map[string]any{
 		"identity":           s.Identity,
 		"expectedGeneration": dig(s.Grant, "context", "nativeGeneration"),
-		"leaseId":            s.Grant["leaseId"],
 		"attempt": map[string]any{
 			"controllerSessionId": s.Owner,
 			"actionId":            "typed-clock-" + strconv.Itoa(s.counter),
@@ -353,27 +353,11 @@ func dig(m map[string]any, path ...string) any {
 	return current
 }
 
-// Acquire acquires a fresh authority grant for Owner, mirroring
-// TypedScenarioClock.acquire().
+// Acquire grants Auto (SetMode(MODE_AUTO)) at the current native generation
+// and records the granted body as Grant. The name predates #52's collapse of
+// the acquire/renew lease handshake; there is no lease, only the generation.
 func (s *ScenarioClock) Acquire(ctx context.Context, label string) (map[string]any, error) {
-	statusReply, err := s.Wire(ctx, label+"-status", "authority_read_status", map[string]any{"identity": s.Identity})
-	if err != nil {
-		return nil, err
-	}
-	_, status, err := Outcome(statusReply, "status")
-	if err != nil {
-		return nil, err
-	}
-	grantReply, err := s.Wire(ctx, label, "authority_control", map[string]any{"acquire": map[string]any{
-		"identity":           s.Identity,
-		"expectedGeneration": dig(status, "context", "nativeGeneration"),
-		"owner":              map[string]any{"controllerSessionId": s.Owner, "playerDirection": strconv.Itoa(s.counter + 1)},
-		"leaseMs":            30000,
-	}})
-	if err != nil {
-		return nil, err
-	}
-	_, grant, err := Outcome(grantReply, "granted")
+	grant, err := GrantAuto(ctx, s.Wire, label, s.Identity)
 	if err != nil {
 		return nil, err
 	}
@@ -381,27 +365,26 @@ func (s *ScenarioClock) Acquire(ctx context.Context, label string) (map[string]a
 	return grant, nil
 }
 
-// RenewAuthority renews the current grant in place, mirroring
-// TypedScenarioClock.renew_authority().
+// RenewAuthority proves Grant is still the live authority: Active(Auto) at
+// exactly Grant's generation. Authority no longer lapses on its own (#52), so
+// "renewing" means confirming generation continuity rather than extending a
+// lease; it deliberately does not re-issue SetMode, which would advance the
+// generation and interrupt every attempt admitted under the current one.
+// Callers that need authority back after it moved re-Acquire.
 func (s *ScenarioClock) RenewAuthority(ctx context.Context) error {
 	if s.Grant == nil {
 		return fmt.Errorf("renew requires an existing authority grant")
 	}
-	reply, err := s.Wire(ctx, "authority-renew", "authority_control", map[string]any{"renew": map[string]any{
-		"identity":            s.Identity,
-		"expectedGeneration":  dig(s.Grant, "context", "nativeGeneration"),
-		"controllerSessionId": s.Owner,
-		"leaseId":             s.Grant["leaseId"],
-		"leaseMs":             30000,
-	}})
+	status, generation, err := AuthorityStatus(ctx, s.Wire, "authority-renew", s.Identity)
 	if err != nil {
 		return err
 	}
-	_, grant, err := Outcome(reply, "granted")
-	if err != nil {
-		return err
+	if AsString(dig(status, "active", "mode")) != "MODE_AUTO" {
+		return fmt.Errorf("authority is no longer Auto: %#v", status)
 	}
-	s.Grant = grant
+	if generation != GrantGeneration(s.Grant) {
+		return fmt.Errorf("authority generation moved from %d to %d", GrantGeneration(s.Grant), generation)
+	}
 	return nil
 }
 
@@ -434,9 +417,6 @@ func (s *ScenarioClock) Control(ctx context.Context, method string, request map[
 	}
 	if !DeepEqual(dig(receipt, "admittedContext", "identity"), s.Identity) {
 		return nil, fmt.Errorf("clock receipt identity mismatch: %#v", receipt)
-	}
-	if AsString(dig(receipt, "authorizingOwner", "controllerSessionId")) != s.Owner {
-		return nil, fmt.Errorf("clock receipt owner mismatch: %#v", receipt)
 	}
 	var appliedCase map[string]any
 	if v, ok := receipt["applied"]; ok {

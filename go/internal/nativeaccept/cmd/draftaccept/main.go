@@ -148,35 +148,14 @@ func run(ctx context.Context, root, output, gameID string, headless bool, report
 		return row, nil
 	}
 
-	acquire := func(label string, leaseMs int) (map[string]any, error) {
-		statusReply, err := h.Wire(ctx, label+"-status", "authority_read_status", map[string]any{"identity": identity})
-		if err != nil {
-			return nil, err
-		}
-		_, status, err := na.Outcome(statusReply, "status")
-		if err != nil {
-			return nil, err
-		}
-		statusContext, _ := na.AsMap(status["context"])
-		grantReply, err := h.Wire(ctx, label, "authority_control", map[string]any{"acquire": map[string]any{
-			"identity": identity, "expectedGeneration": statusContext["nativeGeneration"], "owner": na.Owner, "leaseMs": leaseMs,
-		}})
-		if err != nil {
-			return nil, err
-		}
-		_, grant, err := na.Outcome(grantReply, "granted")
-		return grant, err
+	// Authority is SetMode(Auto|Manual)/Revoke plus generation continuity
+	// (#52): grant returns the "granted" body whose context.nativeGeneration
+	// every later WritePrecondition carries; there is no lease to renew.
+	grantAuto := func(label string) (map[string]any, error) {
+		return na.GrantAuto(ctx, h.WireFunc(), label, identity)
 	}
-
 	revoke := func(label string, grant map[string]any) error {
-		grantContext, _ := na.AsMap(grant["context"])
-		reply, err := h.Wire(ctx, label, "authority_control", map[string]any{"revoke": map[string]any{
-			"identity": identity, "expectedGeneration": grantContext["nativeGeneration"], "reason": "REVOCATION_REASON_MANUAL",
-		}})
-		if err != nil {
-			return err
-		}
-		_, _, err = na.Outcome(reply, "revoked")
+		_, err := na.RevokeManual(ctx, h.WireFunc(), label, identity, grant)
 		return err
 	}
 
@@ -224,7 +203,7 @@ func run(ctx context.Context, root, output, gameID string, headless bool, report
 		return fmt.Errorf("idle pawn unexpectedly has a job loadId")
 	}
 
-	grant, err := acquire("acquire", 30000)
+	grant, err := grantAuto("grant")
 	if err != nil {
 		return err
 	}
@@ -449,7 +428,7 @@ func run(ctx context.Context, root, output, gameID string, headless bool, report
 	// reply after dispatch may conceal an accepted order: retain intent and
 	// inspect the game before retrying"). The earlier "lookup" step above only
 	// proved receipts_lookup echoes the original receipt while the authorizing
-	// lease was still active. Here authority has since been fully revoked
+	// Auto grant was still active. Here authority has since been fully revoked
 	// (Manual, above) and the owned claim already released and cleaned up --
 	// so a lookup keyed only by the original attempt, with zero live authority
 	// anywhere in hand, still recovers the exact original committed receipt.
@@ -470,80 +449,17 @@ func run(ctx context.Context, root, output, gameID string, headless bool, report
 		return fmt.Errorf("lookup-after-cleanup returned a different receipt than the original execute")
 	}
 
-	// Lease expiry: a short-lived lease must lapse under REVOCATION_REASON_LEASE_EXPIRED
-	// even while the simulation stays paused (monotonic lease time only).
-	expiring, err := acquire("expiry-acquire", 1000)
-	if err != nil {
-		return err
-	}
-	expiryReceiptReply, err := h.Wire(ctx, "expiry-draft", "operations_execute", na.ExecuteRequest(identity, expiring, undrafted, 6))
-	if err != nil {
-		return err
-	}
-	_, expiryReceipt, err := na.Outcome(expiryReceiptReply, "receipt")
-	if err != nil {
-		return err
-	}
-	expiryOwned, err := read("expiry-owned", pawnID)
-	if err != nil {
-		return err
-	}
-	if err := na.OwnedEffect(expiryReceipt, expiryOwned, "applied", true); err != nil {
-		return err
-	}
-	time.Sleep(1200 * time.Millisecond)
-	expiryStatusReply, err := h.Wire(ctx, "expiry-status", "authority_read_status", map[string]any{"identity": identity})
-	if err != nil {
-		return err
-	}
-	_, expiryStatus, err := na.Outcome(expiryStatusReply, "status")
-	if err != nil {
-		return err
-	}
-	expiryInactive, _ := na.AsMap(expiryStatus["inactive"])
-	if na.AsString(expiryInactive["reason"]) != "REVOCATION_REASON_LEASE_EXPIRED" {
-		return fmt.Errorf("expiry-status: expected REVOCATION_REASON_LEASE_EXPIRED, got %#v", expiryStatus)
-	}
-	expiryFreshSnapshot, err := read("expiry-fresh-snapshot", pawnID)
-	if err != nil {
-		return err
-	}
-	expiryCleanup, err := na.ReleaseRequest(identity, expiryFreshSnapshot)
-	if err != nil {
-		return err
-	}
-	expiryReleaseReply, err := h.Wire(ctx, "expiry-cleanup", "operations_release_owned_draft", expiryCleanup)
-	if err != nil {
-		return err
-	}
-	_, expiryRelease, err := na.Outcome(expiryReleaseReply, "released")
-	if err != nil {
-		return err
-	}
-	if !na.DeepEqual(expiryRelease["request"], expiryCleanup) {
-		return fmt.Errorf("expiry-cleanup did not echo the cleanup request")
-	}
-	expiryReleaseObserved, _ := na.AsMap(expiryRelease["observed"])
-	if verified, _ := expiryReleaseObserved["verified"].(bool); !verified {
-		return fmt.Errorf("expiry-cleanup was not verified")
-	}
-	if drafted, _ := expiryReleaseObserved["drafted"].(bool); drafted {
-		return fmt.Errorf("expiry-cleanup did not clear drafted")
-	}
-	undrafted, err = read("expiry-undrafted", pawnID)
-	if err != nil {
-		return err
-	}
-	if drafted, _ := undrafted["drafted"].(bool); drafted {
-		return fmt.Errorf("pawn is still drafted after expiry cleanup")
-	}
-	if !na.DeepEqual(undrafted["draftClaim"], map[string]any{"unowned": map[string]any{}}) {
-		return fmt.Errorf("pawn does not have an unowned draft claim after expiry cleanup")
-	}
+	// There is no authority-lease expiry case any more: #52 removed the timed
+	// lease (REVOCATION_REASON_LEASE_EXPIRED no longer exists). The only
+	// native-observable lapse is a typed clock lease running out, which needs
+	// the simulation to tick and is covered by cmd/disconnectaccept and
+	// cmd/movementaccept; every read here asserts the paused tick is unchanged.
+	// Owned cleanup after authority is gone is already proven by the Manual
+	// section above.
 
 	// Player-order override: an owned draft must be dropped when the (simulated)
 	// player issues a direct order, and the stale owned cleanup for it must be refused.
-	grant, err = acquire("override-acquire", 30000)
+	grant, err = grantAuto("override-grant")
 	if err != nil {
 		return err
 	}
@@ -620,7 +536,7 @@ func run(ctx context.Context, root, output, gameID string, headless bool, report
 	if !na.DeepEqual(player["draftClaim"], map[string]any{"unowned": map[string]any{}}) {
 		return fmt.Errorf("player draft is unexpectedly owned")
 	}
-	grant, err = acquire("unowned-acquire", 30000)
+	grant, err = grantAuto("unowned-grant")
 	if err != nil {
 		return err
 	}
@@ -655,7 +571,7 @@ func run(ctx context.Context, root, output, gameID string, headless bool, report
 	if err != nil {
 		return err
 	}
-	ledgerGrant, err := acquire("ledger-acquire", 30000)
+	ledgerGrant, err := grantAuto("ledger-grant")
 	if err != nil {
 		return err
 	}
@@ -676,23 +592,6 @@ func run(ctx context.Context, root, output, gameID string, headless bool, report
 		return err
 	}
 
-	renewLedgerLease := func() error {
-		grantContext, _ := na.AsMap(ledgerGrant["context"])
-		reply, err := h.Wire(ctx, "ledger-renew", "authority_control", map[string]any{"renew": map[string]any{
-			"identity": identity, "expectedGeneration": grantContext["nativeGeneration"],
-			"controllerSessionId": na.Owner["controllerSessionId"], "leaseId": ledgerGrant["leaseId"], "leaseMs": 30000,
-		}})
-		if err != nil {
-			return err
-		}
-		_, renewed, err := na.Outcome(reply, "granted")
-		if err != nil {
-			return err
-		}
-		ledgerGrant = renewed
-		return nil
-	}
-
 	fillRequest := func(n int) map[string]any {
 		// Each fill reuses the post-draft (already-owned) snapshot token, matching
 		// the same-pawn no-change path exercised once above by "owned-no-op": a
@@ -701,12 +600,9 @@ func run(ctx context.Context, root, output, gameID string, headless bool, report
 	}
 
 	exhaustedAt := -1
+	// Authority no longer lapses on wall-clock time (#52), so the ~4k fill
+	// round trips need no periodic renewal; the generation stays put throughout.
 	for n := 1; n < ledgerCapacity+16; n++ {
-		if n%25 == 0 {
-			if err := renewLedgerLease(); err != nil {
-				return err
-			}
-		}
 		reply, err := rawWire(ctx, client, "operations_execute", fillRequest(n))
 		if err != nil {
 			return fmt.Errorf("ledger fill %d: %w", n, err)
