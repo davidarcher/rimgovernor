@@ -75,8 +75,11 @@ type workerWait struct {
 	delay   time.Duration
 	until   time.Time
 	// outcome is the last surfaced "stage/refusals/error" of this action, so
-	// a sustained hold logs once instead of every step (see issue #70).
+	// a sustained hold logs once instead of every step (see issue #70);
+	// repeats counts the unlogged runs that restated it, reported when the
+	// outcome next changes so a reader can see how long the hold lasted.
 	outcome string
+	repeats int
 }
 
 // workerOutcome keys one action run by what a reader of the log needs to
@@ -152,12 +155,23 @@ func (w *Worker) Close(ctx context.Context) error {
 func (w *Worker) steps() {
 	ticker := time.NewTicker(w.config.StepInterval)
 	defer ticker.Stop()
+	// The per-action outcome line already names the failing action; the
+	// step-level error only adds information when it changes.
+	previous, repeats := "", 0
 	for {
 		if w.ctx.Err() != nil {
 			return
 		}
-		if err := w.step(w.ctx, time.Now()); err != nil {
-			clockSchedulerLog("worker step: %v", err)
+		err := w.step(w.ctx, time.Now())
+		message := ""
+		if err != nil {
+			message = err.Error()
+		}
+		if message != previous {
+			clockSchedulerLog("worker step: err=%v%s", err, workerRepeats(repeats))
+			previous, repeats = message, 0
+		} else {
+			repeats++
 		}
 		select {
 		case <-w.ctx.Done():
@@ -272,22 +286,38 @@ func (w *Worker) step(ctx context.Context, now time.Time) error {
 		if result.Progress.View().Action == v.Action {
 			after = result.Progress.View()
 		}
-		if clockSchedulerDebug {
-			clockSchedulerLog("worker: action=%s kind=%v cleanup=%v stage=%v->%v err=%v", v.Action, candidate.view.Plan, candidate.cleanup, v.Stage, after.Stage, err)
-		}
 		delay := w.config.StepInterval
 		if workerSameView(after, v) && workerSameView(wait.view, v) && wait.scope == workerScope(scope) && wait.cleanup == candidate.cleanup {
 			delay = min(wait.delay*2, workerBackoffCap(w.config, after))
 		}
+		// One line per change of outcome, in either log: a refusal that
+		// repeats verbatim on every retry (a CAS token that never matches, a
+		// native read refused for the same reason) would otherwise dominate
+		// the run's log without adding anything a reader can act on (#100).
 		outcome := workerOutcome(after, result, err)
-		if err != nil && outcome != wait.outcome {
-			fmt.Fprintf(os.Stderr, "[worker] %s %s\n", v.Action, outcome)
+		repeats := wait.repeats
+		if outcome != wait.outcome {
+			if err != nil {
+				fmt.Fprintf(os.Stderr, "[worker] %s %s%s\n", v.Action, outcome, workerRepeats(repeats))
+			} else {
+				clockSchedulerLog("worker ran %s: stage %s -> %s%s", v.Action, v.Stage, outcome, workerRepeats(repeats))
+			}
+			repeats = 0
+		} else {
+			repeats++
 		}
-		w.waits[v.Action] = workerWait{cleanup: candidate.cleanup, view: after, scope: workerScope(w.session.State()), delay: delay, until: now.Add(delay), outcome: outcome}
-		clockSchedulerLog("worker ran %s: stage %s -> %s attempt %d err=%v", v.Action, v.Stage, after.Stage, after.Attempt, err)
+		w.waits[v.Action] = workerWait{cleanup: candidate.cleanup, view: after, scope: workerScope(w.session.State()), delay: delay, until: now.Add(delay), outcome: outcome, repeats: repeats}
 		return errors.Join(worldErr, err)
 	}
 	return worldErr
+}
+
+// workerRepeats renders how many unlogged runs restated the previous outcome.
+func workerRepeats(n int) string {
+	if n == 0 {
+		return ""
+	}
+	return fmt.Sprintf(" (previous outcome repeated %d more times)", n)
 }
 
 // workerSameView reports whether two views of one action describe the same

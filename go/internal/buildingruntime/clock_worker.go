@@ -181,18 +181,26 @@ func (w *ClockWorker) stepLoop() {
 	delay := w.config.StepInterval
 	var previous clockStepKey
 	havePrevious := false
+	repeats := 0
 	for w.ctx.Err() == nil {
 		call, cancel := context.WithTimeout(w.ctx, w.config.StepTimeout)
 		result, err := w.step(call)
 		cancel()
 		key := clockWorkerKey(result, err)
-		clockSchedulerLog("step done: err=%v", err)
+		changed := !havePrevious || key != previous
+		if changed {
+			clockSchedulerLog("step done: err=%v planner failures=%v%s", err, errors.Join(result.PlannerFailures...), workerRepeats(repeats))
+			repeats = 0
+		} else {
+			repeats++
+		}
 		// Unconditionally surface which planner failed and why -- stepPlanners
 		// wraps each planner's error with its own name (clock_scheduler.go), so
 		// this is diagnosable without RIMGOVERNOR_CLOCK_DEBUG=1. Gated on state
 		// change (like the backoff decision below) so a sustained failure logs
-		// once, not every StepInterval. See issue #45.
-		if err != nil && (!havePrevious || key != previous || clockSchedulerDebug) {
+		// once, not every StepInterval; the debug line above carries the
+		// repeat count. See issues #45 and #100.
+		if err != nil && changed {
 			fmt.Fprintf(os.Stderr, "[clock-worker] step failed: %v\n", err)
 		}
 		// A combat window is short by design and the raid is re-planned

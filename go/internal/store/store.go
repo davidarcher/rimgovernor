@@ -45,6 +45,7 @@ const schemaVersion = 78
 const applicationID = 0x52474f31
 
 var ErrConflict = core.ErrConflict
+var ErrNotAdmitted = core.ErrNotAdmitted
 var ErrNotFound = core.ErrNotFound
 
 type Store struct{ db *sql.DB }

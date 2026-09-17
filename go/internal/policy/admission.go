@@ -122,6 +122,9 @@ const (
 	InsufficientStock  Reason = "insufficient_stock"
 	InvalidHeld        Reason = "held_reservation_unverifiable"
 	ArithmeticOverflow Reason = "arithmetic_overflow"
+	// NoDevelopmentSlot refuses a routine goal method whose goal the routine
+	// review has not selected for development (store.ErrNotAdmitted).
+	NoDevelopmentSlot Reason = "no_development_slot"
 )
 
 type Refusal struct {

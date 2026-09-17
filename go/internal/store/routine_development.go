@@ -102,8 +102,11 @@ func admitRoutineDevelopment(ctx context.Context, tx *sql.Tx, g domain.Goal) err
 	if err != nil {
 		return err
 	}
-	if !review.Enabled || review.Snapshot != g.Snapshot {
-		return ErrConflict
+	if !review.Enabled {
+		return fmt.Errorf("%w: routine review disabled", ErrNotAdmitted)
+	}
+	if review.Snapshot != g.Snapshot {
+		return fmt.Errorf("%w: goal %s reviewed under snapshot %+v, current review is %+v", ErrNotAdmitted, g.ID, g.Snapshot, review.Snapshot)
 	}
 	var need domain.GoalID
 	for _, b := range review.Goals {
@@ -122,7 +125,7 @@ func admitRoutineDevelopment(ctx context.Context, tx *sql.Tx, g domain.Goal) err
 		}
 	}
 	if !selected {
-		return ErrConflict
+		return fmt.Errorf("%w: goal %s (%s) holds no development slot", ErrNotAdmitted, g.ID, need)
 	}
 	commitments, err := routineCommitments(ctx, tx, review.Snapshot, review.Goals)
 	if err != nil {
@@ -135,7 +138,7 @@ func admitRoutineDevelopment(ctx context.Context, tx *sql.Tx, g domain.Goal) err
 		}
 	}
 	if len(ids) >= review.Development.Capacity {
-		return ErrConflict
+		return fmt.Errorf("%w: development capacity %d already committed", ErrNotAdmitted, review.Development.Capacity)
 	}
 	return nil
 }

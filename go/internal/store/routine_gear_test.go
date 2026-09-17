@@ -40,7 +40,7 @@ func TestRoutineGearNeedsPersistUnknownRecoveryRenewalAndManual(t *testing.T) {
 		t.Fatal("native replacement did not reopen equipment need", g)
 	}
 	method := plan(t, "gear-pending", "gear-action")
-	if _, err := db.CommitGoalMethod(context.Background(), g.Goal.ID, g.Revision, "method", method); !errors.Is(err, ErrConflict) {
+	if _, err := db.CommitGoalMethod(context.Background(), g.Goal.ID, g.Revision, "method", method); !errors.Is(err, ErrNotAdmitted) {
 		t.Fatal("unavailable gear execution family admitted a method", err)
 	}
 	r.Enabled = false

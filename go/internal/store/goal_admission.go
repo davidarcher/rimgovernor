@@ -115,6 +115,12 @@ func (s *Store) AdmitBuildingMethod(ctx context.Context, r BuildingMethodRequest
 		return BuildingMethodDecision{Goal: goal, Refused: decision.Refused}, nil
 	}
 	goal, err = commitGoalMethod(ctx, tx, r.Goal, r.Revision, r.Method, r.Plan)
+	if errors.Is(err, ErrNotAdmitted) {
+		// The review no longer grants this goal a development slot: refuse
+		// the method like any other policy outcome so the planner reports a
+		// reason and waits for the next review instead of failing every step.
+		return BuildingMethodDecision{Goal: goal, Refused: []policy.Refusal{{Reason: policy.NoDevelopmentSlot}}}, nil
+	}
 	if err != nil {
 		return BuildingMethodDecision{}, err
 	}

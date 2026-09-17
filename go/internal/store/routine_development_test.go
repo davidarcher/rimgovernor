@@ -45,7 +45,7 @@ func TestRoutineDevelopmentPersistsAgeAndRechecksPlayerCapacity(t *testing.T) {
 		t.Fatal(err)
 	}
 	g := routineGoal(t, first, policy.MaintainWood)
-	if _, err = s.CommitGoalMethod(ctx, g.Goal.ID, g.Revision, "wood", plan(t, "wood", "wood-action")); !errors.Is(err, ErrConflict) {
+	if _, err = s.CommitGoalMethod(ctx, g.Goal.ID, g.Revision, "wood", plan(t, "wood", "wood-action")); !errors.Is(err, ErrNotAdmitted) {
 		t.Fatal(err)
 	}
 	r.Tick = 2510
@@ -210,8 +210,14 @@ func TestRoutineDevelopmentConfiguredTargetsAndExemptPush(t *testing.T) {
 		t.Fatal("exempt push refused", err)
 	}
 	g = routineGoal(t, out, policy.MaintainResource)
-	if _, err := s.CommitGoalMethod(ctx, g.Goal.ID, g.Revision, "steel", plan(t, "steel", "steel-action")); !errors.Is(err, ErrConflict) {
+	if _, err := s.CommitGoalMethod(ctx, g.Goal.ID, g.Revision, "steel", plan(t, "steel", "steel-action")); !errors.Is(err, ErrNotAdmitted) {
 		t.Fatal("unselected resource goal admitted", err)
+	}
+	// Building admission reports the missing slot as a refusal reason, not
+	// an error the planner would retry every step (#100).
+	d, err := s.AdmitBuildingMethod(ctx, methodRequest(t, g, "sw", 10))
+	if err != nil || d.Admitted || len(d.Refused) != 1 || d.Refused[0].Reason != policy.NoDevelopmentSlot {
+		t.Fatal("unselected resource goal building admission", d, err)
 	}
 	// Recovered facts retire the goals; missing facts leave them unknown.
 	r.Facts.Research = domain.Known(policy.ResearchFacts{Current: "Stonecutting", Projects: []policy.ResearchProjectID{"Stonecutting"}})
@@ -266,7 +272,7 @@ func TestRoutineDevelopmentLaborPersistsAndDefers(t *testing.T) {
 		t.Fatal(second.Review.Development.Rows)
 	}
 	g := routineGoal(t, second, policy.EnsureExpansion)
-	if _, err = s.CommitGoalMethod(ctx, g.Goal.ID, g.Revision, "wall", plan(t, "wall", "wall-action")); !errors.Is(err, ErrConflict) {
+	if _, err = s.CommitGoalMethod(ctx, g.Goal.ID, g.Revision, "wall", plan(t, "wall", "wall-action")); !errors.Is(err, ErrNotAdmitted) {
 		t.Fatal("labor-deferred goal admitted", err)
 	}
 	// An observed outdoor hazard defers outdoor work ahead of labor accounting
