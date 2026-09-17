@@ -5,10 +5,12 @@ import (
 	"errors"
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/davidarcher/RimGovernor/go/internal/bridge"
 	"github.com/davidarcher/RimGovernor/go/internal/executor"
 	"github.com/davidarcher/RimGovernor/go/internal/store"
+	"github.com/davidarcher/RimGovernor/go/internal/store/clock"
 	k "github.com/davidarcher/RimGovernor/go/internal/wire/clockpb"
 	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
 	"google.golang.org/protobuf/proto"
@@ -16,7 +18,7 @@ import (
 
 // PollEvents never waits for the player gate. Interruption invalidation precedes
 // persistence and owned cleanup, which may need to join an active command.
-func (s *ClockScheduler) PollEvents(ctx context.Context, native ClockEventNative, limit uint32) (out ClockPollResult, err error) {
+func (s *ClockScheduler) PollEvents(ctx context.Context, native ClockEventNative, limit uint32, wait time.Duration) (out ClockPollResult, err error) {
 	fail := func(cause error) (ClockPollResult, error) {
 		out.Interrupted = true
 		disabled := s.session.Disable()
@@ -24,7 +26,7 @@ func (s *ClockScheduler) PollEvents(ctx context.Context, native ClockEventNative
 		defer cancel()
 		return out, errors.Join(cause, disabled, s.session.CleanupClock(cleanup))
 	}
-	if native == nil || limit < 1 || limit > 128 {
+	if native == nil || limit < 1 || limit > 128 || wait < 0 || wait > bridge.ClockEventsMaxWaitMs*time.Millisecond {
 		return fail(ErrControl)
 	}
 	select {
@@ -76,6 +78,9 @@ func (s *ClockScheduler) PollEvents(ctx context.Context, native ClockEventNative
 		out.Interrupted = true
 	}
 	request := &k.EventsRequest{Identity: current.Identity, AfterCursor: proto.Int64(review.InboxCursor), Limit: proto.Uint32(limit)}
+	if wait > 0 {
+		request.WaitMs = proto.Uint32(uint32(wait / time.Millisecond))
+	}
 	reply, _, err := native.ReadClockEvents(call, request)
 	if err != nil {
 		return fail(err)
@@ -118,6 +123,9 @@ func (s *ClockScheduler) PollEvents(ctx context.Context, native ClockEventNative
 	_, out.Captured, err = s.player.journal.AppendClockEvents(call, s.config.Profile, request, page)
 	if err != nil {
 		return fail(err)
+	}
+	if out.Captured {
+		out.Wake, out.AuthorityChanged = clockPageWake(page)
 	}
 	review, err = s.player.journal.ReadClockReview(call, s.config.Profile)
 	if err != nil {
@@ -164,13 +172,7 @@ func clockPollEventKinds(page *k.EventsPage) string {
 }
 func clockPollInterrupts(page *k.EventsPage) bool {
 	for _, event := range page.Events {
-		switch v := event.Event.(type) {
-		case *k.Event_Started, *k.Event_SpeedChanged, *k.Event_HostilesCleared, *k.Event_ForcePauseCleared:
-		case *k.Event_Stopped:
-			if v.Stopped.GetReason() != k.StopReason_STOP_REASON_TICK_BUDGET && v.Stopped.GetReason() != k.StopReason_STOP_REASON_REQUESTED_PAUSE {
-				return true
-			}
-		default:
+		if clock.EventInterrupts(event) {
 			return true
 		}
 	}

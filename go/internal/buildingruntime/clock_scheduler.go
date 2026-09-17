@@ -141,6 +141,8 @@ type ClockSchedulerResult struct {
 	// wrapped with the planner's name. A failed planner does not abort the
 	// step: its peers still run and the clock window is still evaluated (#62).
 	PlannerFailures []error
+	// Watched counts the attempts the admitted window watches natively.
+	Watched int
 }
 type ClockScheduler struct {
 	player              *Player
@@ -865,11 +867,17 @@ func (s *ClockScheduler) Step(ctx context.Context) (ClockSchedulerResult, error)
 	}
 	combatMaxTicks := min(s.config.CombatMaxTicks, start.MaxTicks)
 	out.Decision = policy.EvaluateClockWindow(facts, policy.ClockWindowLimits{Now: s.clock.Now(), MaxAge: s.config.MaxAge, MaxTicks: start.MaxTicks, CombatMaxTicks: combatMaxTicks})
-	clockSchedulerLog("EvaluateClockWindow: work=%v combatPlan=%v admitted=%v mode=%s hostiles=%v refused=%v", work, combatPlan, out.Decision.Admitted, out.Decision.Mode, out.Decision.Hostiles, out.Decision.Refused)
+	clockSchedulerLog("EvaluateClockWindow: work=%v combatPlan=%v admitted=%v mode=%s hostiles=%v refused=%v watched=%d", work, combatPlan, out.Decision.Admitted, out.Decision.Mode, out.Decision.Hostiles, out.Decision.Refused, len(clockSchedulerWatches(fingerprint, "")))
 	if !out.Decision.Admitted {
 		return out, executor.ErrHeld
 	}
 	start.Policy = proto.Clone(start.Policy).(*k.WatchPolicy)
+	namespace, err := s.player.journal.Identity(call)
+	if err != nil {
+		return out, err
+	}
+	start.Policy.WatchedAttempts = clockSchedulerWatches(fingerprint, string(namespace))
+	out.Watched = len(start.Policy.WatchedAttempts)
 	if out.Decision.Mode == policy.ClockWindowCombat {
 		// The native watcher stops on any unacknowledged hostile within
 		// HostileWithin; a combat window acknowledges exactly the live
@@ -1200,6 +1208,24 @@ type clockWorkItem struct {
 	Stage      domain.Stage
 	Attempt    domain.AttemptID
 	Unresolved bool
+}
+
+// clockSchedulerWatches names the dispatched construction attempts the
+// native clock watches for this window, in catalog order and bounded. A
+// latched terminal outcome stops the window at once instead of running out
+// the tick budget. Construction is the only watched family so far.
+func clockSchedulerWatches(items []clockWorkItem, namespace string) []*c.AttemptKey {
+	var watched []*c.AttemptKey
+	for _, item := range items {
+		if item.Kind != domain.BuildingAction || item.Attempt == 0 || item.Stage != domain.Dispatched && item.Stage != domain.AwaitingObservation {
+			continue
+		}
+		if len(watched) == bridge.ClockWatchedAttemptsMax {
+			break
+		}
+		watched = append(watched, &c.AttemptKey{ControllerSessionId: proto.String(namespace), ActionId: proto.String(string(item.Action)), AttemptId: proto.Uint64(uint64(item.Attempt))})
+	}
+	return watched
 }
 
 func clockSchedulerWork(plan store.PlanState, current domain.GenerationSnapshot) (bool, []clockWorkItem, error) {

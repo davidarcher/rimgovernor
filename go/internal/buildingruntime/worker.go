@@ -18,6 +18,10 @@ type WorkerConfig struct {
 	RoutineMethods                        bool
 	StepInterval, MaxBackoff, StepTimeout time.Duration
 	RenewInterval, RenewTimeout           time.Duration
+	// Wake names attempts whose outcome the native clock latched; the next
+	// step reconciles them first and ignores their backoff. Nil keeps the
+	// ticker cadence.
+	Wake *WakeSignal
 }
 
 // routineExecutableKind lists every action kind the worker (and, for a
@@ -61,6 +65,8 @@ type Worker struct {
 	// Only the step loop accesses scheduling state. The catalog bounds this map.
 	waits  map[domain.ActionID]workerWait
 	cursor domain.ActionID
+	// focus holds woken actions not yet reconciled since the wake.
+	focus map[domain.ActionID]WakeOutcome
 }
 
 type workerCandidate struct {
@@ -183,14 +189,42 @@ func (w *Worker) steps() {
 		} else {
 			repeats++
 		}
+		// A wake steps at once; while focused actions remain, keep stepping
+		// so each of them is reconciled without waiting a StepInterval.
+		if len(w.focus) > 0 {
+			continue
+		}
 		select {
 		case <-w.ctx.Done():
 			return
 		case <-ticker.C:
+		case <-w.config.Wake.C():
 		}
 	}
 }
+
+// workerFocusMax bounds the woken set a single step carries forward.
+const workerFocusMax = 64
+
+func (w *Worker) takeWake() {
+	woken, _ := w.config.Wake.Take()
+	if len(woken) == 0 {
+		return
+	}
+	if w.focus == nil {
+		w.focus = map[domain.ActionID]WakeOutcome{}
+	}
+	for id, outcome := range woken {
+		if len(w.focus) >= workerFocusMax {
+			break
+		}
+		w.focus[id] = outcome
+		delete(w.waits, id)
+	}
+}
+func (w *Worker) focusNamed(id domain.ActionID) bool { _, ok := w.focus[id]; return ok }
 func (w *Worker) step(ctx context.Context, now time.Time) error {
+	w.takeWake()
 	call, cancel := context.WithTimeout(ctx, w.config.StepTimeout)
 	defer cancel()
 	call, epoch, done, err := w.player.enter(call, false)
@@ -258,8 +292,15 @@ func (w *Worker) step(ctx context.Context, now time.Time) error {
 			delete(w.waits, id)
 		}
 	}
+	for id := range w.focus {
+		if !live[id] {
+			delete(w.focus, id)
+		}
+	}
 	// Catalog order is stable; rotate by the last selected action, including on
 	// failed reads, so an unavailable attempt cannot monopolize reconciliation.
+	// Woken actions come first: the native clock latched their outcome, so
+	// reconciling them is the reason this step runs.
 	start := 0
 	for i, v := range candidates {
 		if v.view.Action == w.cursor {
@@ -267,13 +308,22 @@ func (w *Worker) step(ctx context.Context, now time.Time) error {
 			break
 		}
 	}
-	for n := 0; n < len(candidates); n++ {
-		candidate := candidates[(start+n)%len(candidates)]
+	ordered := make([]workerCandidate, 0, len(candidates))
+	for _, focused := range []bool{true, false} {
+		for n := 0; n < len(candidates); n++ {
+			if candidate := candidates[(start+n)%len(candidates)]; w.focusNamed(candidate.view.Action) == focused {
+				ordered = append(ordered, candidate)
+			}
+		}
+	}
+	for _, candidate := range ordered {
 		v := candidate.view
 		wait := w.waits[v.Action]
-		if workerSameView(wait.view, v) && wait.scope == workerScope(scope) && wait.cleanup == candidate.cleanup && now.Before(wait.until) {
+		focused := w.focusNamed(v.Action)
+		if !focused && workerSameView(wait.view, v) && wait.scope == workerScope(scope) && wait.cleanup == candidate.cleanup && now.Before(wait.until) {
 			continue
 		}
+		delete(w.focus, v.Action)
 		w.cursor = v.Action
 		if err = w.player.current(call, epoch); err != nil {
 			return err

@@ -104,7 +104,7 @@ func (s *ClockScheduler) RenewEpoch(ctx context.Context) (ClockRenewResult, erro
 	}
 	// A completed finite window needs event review and scheduler cleanup, not a
 	// renewal. Those paths retain the stop evidence before admitting another window.
-	if clockBudgetFinished(status, original) && status.Context.GetTick() >= current.GetTick() {
+	if clockWindowFinished(status, original) && status.Context.GetTick() >= current.GetTick() {
 		return out, nil
 	}
 	actual := status.GetRunning().GetEpoch()
@@ -176,7 +176,7 @@ func (s *ClockScheduler) RenewEpoch(ctx context.Context) (ClockRenewResult, erro
 			observed := latest.GetStatus()
 			if readErr == nil && bridge.ValidateClockStatus(observed, current.Identity) == nil {
 				_, scopeErr := boundary.Context(observed.Context, state.Snapshot)
-				if scopeErr == nil && clockBudgetFinished(observed, original) && observed.Context.GetTick() >= status.Context.GetTick() && call.Err() == nil && s.session.State() == state {
+				if scopeErr == nil && clockWindowFinished(observed, original) && observed.Context.GetTick() >= status.Context.GetTick() && call.Err() == nil && s.session.State() == state {
 					return out, nil
 				}
 			}
@@ -187,9 +187,25 @@ func (s *ClockScheduler) RenewEpoch(ctx context.Context) (ClockRenewResult, erro
 	return out, nil
 }
 
-func clockBudgetFinished(status *k.Status, original *k.Epoch) bool {
+// clockWindowFinished recognizes a window that ended on the controller's own
+// terms: the tick budget exactly, or a latched watch anywhere inside it.
+func clockWindowFinished(status *k.Status, original *k.Epoch) bool {
 	stopped := status.GetStopped()
 	actual := stopped.GetEpoch()
-	return stopped != nil && stopped.GetReason() == k.StopReason_STOP_REASON_TICK_BUDGET && status.GetActualPaused() && status.GetNativeTickBoundary() && stopped.GetPauseVerified() &&
-		clockCoordinatorSameEpoch(original, actual) && actual.GetRequestedSpeed() == original.GetRequestedSpeed() && actual.GetLastTick() == original.GetTickDeadline() && status.GetContext().GetTick() >= actual.GetLastTick()
+	if stopped == nil || !status.GetActualPaused() || !status.GetNativeTickBoundary() || !stopped.GetPauseVerified() {
+		return false
+	}
+	switch stopped.GetReason() {
+	case k.StopReason_STOP_REASON_TICK_BUDGET:
+		if actual.GetLastTick() != original.GetTickDeadline() {
+			return false
+		}
+	case k.StopReason_STOP_REASON_WATCH_LATCHED:
+		if actual.GetLastTick() > original.GetTickDeadline() {
+			return false
+		}
+	default:
+		return false
+	}
+	return clockCoordinatorSameEpoch(original, actual) && actual.GetRequestedSpeed() == original.GetRequestedSpeed() && status.GetContext().GetTick() >= actual.GetLastTick()
 }

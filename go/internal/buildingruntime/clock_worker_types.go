@@ -15,6 +15,10 @@ type ClockEventNative interface {
 type ClockPollResult struct {
 	Review                store.ClockReviewState
 	Captured, Interrupted bool
+	// Wake and AuthorityChanged summarize evidence the journal committed in
+	// this poll; they are empty when nothing was captured.
+	Wake             []WakeOutcome
+	AuthorityChanged bool
 }
 
 type ClockRenewResult struct {
@@ -31,4 +35,11 @@ type ClockWorkerConfig struct {
 	PollInterval, RenewInterval, StepInterval, MaxBackoff time.Duration
 	PollTimeout, RenewTimeout, StepTimeout                time.Duration
 	PageLimit                                             uint32
+	// PollWait is the long-poll bound passed to the native journal read: the
+	// call returns as soon as an event lands or after PollWait. Zero polls at
+	// PollInterval only. It must leave a second of PollTimeout for the read.
+	PollWait time.Duration
+	// Wake receives committed poll evidence and shortcuts the step loop's
+	// backoff; nil keeps the timer cadence.
+	Wake *WakeSignal
 }

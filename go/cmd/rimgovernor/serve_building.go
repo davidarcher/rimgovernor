@@ -651,14 +651,17 @@ func serveBuildingWithBridge(ctx context.Context, config serveConfig, out io.Wri
 		return err
 	}
 	owner = player
+	// One wake signal joins the clock poll loop to the step loop and the
+	// worker: committed journal evidence steps both at once.
+	wake := buildingruntime.NewWakeSignal()
 	if config.clockControl {
-		if err = startServiceClock(lifetime, player, session, client.clockReads, database, config, serviceClockTimeouts(callTimeout)); err != nil {
+		if err = startServiceClock(lifetime, player, session, client.clockReads, database, config, serviceClockTimeouts(callTimeout), wake); err != nil {
 			return err
 		}
 	}
 	worker, err := buildingruntime.NewWorker(lifetime, buildingruntime.WorkerConfig{RoutineMethods: config.routineMethods,
 		StepInterval: time.Second, MaxBackoff: 10 * time.Second, StepTimeout: min(config.bridge.Timeout, 8*time.Second),
-		RenewInterval: 5 * time.Second, RenewTimeout: 5 * time.Second,
+		RenewInterval: 5 * time.Second, RenewTimeout: 5 * time.Second, Wake: wake,
 	}, player, session)
 	if err != nil {
 		return err

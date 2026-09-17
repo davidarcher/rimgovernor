@@ -4,6 +4,7 @@ option csharp_namespace = "RimGovernor.Protocol.Clock";
 option go_package = "github.com/davidarcher/RimGovernor/go/internal/wire/clockpb;clockpb";
 import "common.proto";
 import "authority.proto";
+import "receipts.proto";
 
 // Ordinary production speeds. Fixture acceleration is outside this capability.
 enum Speed {
@@ -48,6 +49,9 @@ enum StopReason {
   STOP_REASON_HUNTING_ROUTE_UNSAFE = 19;
   STOP_REASON_COLONIST_HEALTH = 20;
   STOP_REASON_COLONIST_INJURY = 21;
+  // An armed watched attempt reached a terminal outcome; the epoch stopped at
+  // the next tick boundary so the controller can react at once.
+  STOP_REASON_WATCH_LATCHED = 22;
 }
 
 message WatchPolicy {
@@ -61,6 +65,12 @@ message WatchPolicy {
   optional uint32 injury_stop_cooldown_ms = 8;
   repeated string surgical_recovery_ids = 9;
   repeated string medical_rest_ids = 10;
+  // Attempts whose terminal progress stops the epoch at the next tick boundary
+  // (STOP_REASON_WATCH_LATCHED). At most 16, distinct, complete keys, each an
+  // attempt the native ledger admitted for this identity. An attempt that is
+  // already terminal at Start is reported once as OperationOutcome and is not
+  // armed; it never burns the window.
+  repeated rimgovernor.common.v1.AttemptKey watched_attempts = 11;
 }
 
 // Epoch ownership is distinct from automation authority and viewer/input leases.
@@ -270,6 +280,32 @@ message PauseEvidence {
   optional Speed requested_speed = 7;
   optional ObservedSpeed actual_speed = 8;
 }
+// Terminal progress of an armed watched attempt, latched at a tick boundary.
+// The outcome mirrors receipts.v1.Progress so the controller reconciles the
+// same attempt through receipts_observe_progress and finds agreement.
+message OperationOutcome {
+  rimgovernor.common.v1.AttemptKey attempt = 1;
+  optional int64 latched_tick = 2;
+  oneof outcome {
+    rimgovernor.receipts.v1.CompletedEffect completed = 3;
+    rimgovernor.receipts.v1.UnsuccessfulEffect unsuccessful = 4;
+    rimgovernor.receipts.v1.AbsentEffect absent = 5;
+    rimgovernor.receipts.v1.UnknownEffect unknown = 6;
+  }
+}
+// The native authority generation moved. Observed with or without an epoch;
+// this is the only event whose Event.owner may be absent.
+message AuthorityChanged {
+  optional uint64 generation = 1;
+  optional uint64 previous_generation = 2;
+  // NativeControlRevocationReason name, or "acquired".
+  optional string reason = 3;
+  optional bool active = 4;
+}
+message WatchLatched {
+  OperationOutcome outcome = 1;
+  optional int64 tick_deadline = 2;
+}
 message StopEvent {
   optional StopReason reason = 1;
   oneof evidence {
@@ -280,6 +316,7 @@ message StopEvent {
     BudgetReached budget = 6;
     PauseEvidence pause = 7;
     rimgovernor.common.v1.Unavailable unavailable = 8;
+    WatchLatched watch = 9;
   }
 }
 message EpochStarted { Epoch epoch = 1; }
@@ -297,6 +334,7 @@ message ForcePauseCleared {
 }
 message Event {
   optional int64 cursor = 1;
+  // Absent only for an AuthorityChanged event observed outside any epoch.
   EpochOwner owner = 2;
   rimgovernor.common.v1.ObservationContext context = 3;
   optional int64 observed_at_unix_ms = 4;
@@ -312,12 +350,21 @@ message Event {
     PauseFailed pause_failed = 13;
     ForcePauseWaiting force_pause_waiting = 14;
     ForcePauseCleared force_pause_cleared = 15;
+    OperationOutcome operation_outcome = 16;
+    AuthorityChanged authority_changed = 17;
   }
+  // Targeted observation refresh (issue #10 milestone 2).
+  reserved 18;
+  reserved "observation_invalidated";
 }
 message EventsRequest {
   rimgovernor.common.v1.Identity identity = 1;
   optional int64 after_cursor = 2;
   optional uint32 limit = 3;
+  // Long poll: when no event follows after_cursor, the reader waits up to
+  // wait_ms (0..5000) for one before answering. It never waits when a page is
+  // already available, and the bound stays well under the call ceiling.
+  optional uint32 wait_ms = 4;
 }
 message EventsPage {
   rimgovernor.common.v1.ObservationContext context = 1;

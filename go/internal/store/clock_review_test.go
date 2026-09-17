@@ -95,7 +95,7 @@ func TestClockReviewEmptyAckDoesNotCoverNewEvents(t *testing.T) {
 }
 func TestClockReviewEventClassification(t *testing.T) {
 	t.Parallel()
-	benign := []*k.Event{{Event: &k.Event_Started{}}, {Event: &k.Event_SpeedChanged{}}, {Event: &k.Event_HostilesCleared{}}, {Event: &k.Event_ForcePauseCleared{}}}
+	benign := []*k.Event{{Event: &k.Event_Started{}}, {Event: &k.Event_SpeedChanged{}}, {Event: &k.Event_HostilesCleared{}}, {Event: &k.Event_ForcePauseCleared{}}, {Event: &k.Event_OperationOutcome{}}, {Event: &k.Event_AuthorityChanged{}}}
 	for _, event := range benign {
 		if clock.EventInterrupts(event) {
 			t.Fatal(event)
@@ -107,8 +107,8 @@ func TestClockReviewEventClassification(t *testing.T) {
 		}
 		reason := k.StopReason(number)
 		event := &k.Event{Event: &k.Event_Stopped{Stopped: &k.StopEvent{Reason: reason.Enum()}}}
-		want := reason != k.StopReason_STOP_REASON_TICK_BUDGET && reason != k.StopReason_STOP_REASON_REQUESTED_PAUSE
-		if clock.EventInterrupts(event) != want {
+		want := reason != k.StopReason_STOP_REASON_TICK_BUDGET && reason != k.StopReason_STOP_REASON_REQUESTED_PAUSE && reason != k.StopReason_STOP_REASON_WATCH_LATCHED
+		if clock.EventInterrupts(event) != want || clock.BenignStop(reason) == want {
 			t.Fatal(reason)
 		}
 	}

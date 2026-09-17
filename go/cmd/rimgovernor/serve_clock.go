@@ -107,14 +107,17 @@ const serviceClockStepTimeout = 30 * time.Second
 // enough to let the native epoch lapse. The step has no lease constraint.
 func serviceClockTimeouts(callTimeout time.Duration) serviceClockTimeoutConfig {
 	lease := min(callTimeout, 7*time.Second)
-	return serviceClockTimeoutConfig{Poll: lease, Renew: lease, Step: serviceClockStepTimeout}
+	// The journal long-poll waits up to 4s inside the poll call and always
+	// leaves the read itself a second of the call timeout.
+	wait := max(0, min(4*time.Second, lease-time.Second))
+	return serviceClockTimeoutConfig{Poll: lease, Renew: lease, Step: serviceClockStepTimeout, PollWait: wait}
 }
 
-type serviceClockTimeoutConfig struct{ Poll, Renew, Step time.Duration }
+type serviceClockTimeoutConfig struct{ Poll, Renew, Step, PollWait time.Duration }
 
 // Session owns the attached worker's drain, including failed startup cleanup.
 // Starting these loops does not enable Player or acquire native authority.
-func startServiceClock(ctx context.Context, player *buildingruntime.Player, session *buildingruntime.Session, reads serviceClockReads, journal *store.Store, sc serveConfig, timeouts serviceClockTimeoutConfig) error {
+func startServiceClock(ctx context.Context, player *buildingruntime.Player, session *buildingruntime.Session, reads serviceClockReads, journal *store.Store, sc serveConfig, timeouts serviceClockTimeoutConfig, wake *buildingruntime.WakeSignal) error {
 	profile, clockSpeed, routine := sc.profile, sc.clockSpeed, sc.routineReviews
 	sleeping, cooking, shelter, comfort, expansion, power, temperature := sc.routineSleepingPlans, sc.routineCookingPlans, sc.routineShelterPlans, sc.routineComfortPlans, sc.routineExpansionPlans, sc.routinePowerPlans, sc.routineTemperaturePlans
 	workshop := sc.routineWorkshopPlans && len(sc.routineResourceTargets.Map()) > 0
@@ -573,6 +576,7 @@ func startServiceClock(ctx context.Context, player *buildingruntime.Player, sess
 	_, err = buildingruntime.NewClockWorker(ctx, scheduler, reads, buildingruntime.ClockWorkerConfig{
 		PollInterval: time.Second, RenewInterval: 5 * time.Second, StepInterval: time.Second,
 		MaxBackoff: 10 * time.Second, PollTimeout: timeouts.Poll, RenewTimeout: timeouts.Renew, StepTimeout: timeouts.Step, PageLimit: 128,
+		PollWait: timeouts.PollWait, Wake: wake,
 	})
 	return err
 }

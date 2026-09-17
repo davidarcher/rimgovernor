@@ -93,7 +93,7 @@ func TestClockPollPersistsAndReviewsWithoutPlayerGate(t *testing.T) {
 	s.player.gate <- struct{}{}
 	defer func() { <-s.player.gate }()
 	native := &clockPollNative{page: clockPollPage(f, 0, "alert")}
-	result, err := s.PollEvents(context.Background(), native, 128)
+	result, err := s.PollEvents(context.Background(), native, 128, 0)
 	if err == nil || !result.Interrupted || !result.Captured || result.Review.ReviewedCursor != 1 || len(result.Review.Holds) != 1 || s.session.State().Enabled || f.pauses != 1 {
 		t.Fatal(result, err, f.pauses)
 	}
@@ -128,7 +128,7 @@ func TestClockPollDoesNotInvalidateAcquireDuringEventRead(t *testing.T) {
 					native.page.Context.NativeGeneration = proto.Uint64(uint64(granted.Native))
 				}
 			}
-			result, err := s.PollEvents(ctx, native, 128)
+			result, err := s.PollEvents(ctx, native, 128, 0)
 			if result.Interrupted || !s.session.State().Enabled || (freshPage && err != nil) {
 				t.Fatal("poll disabled a newer acquisition", result, err, s.session.State())
 			}
@@ -147,7 +147,7 @@ func TestClockPollPersistenceFailuresAndReviewOrder(t *testing.T) {
 			if _, err := db.Exec("CREATE TRIGGER fail_poll BEFORE " + operation + " ON " + table + " BEGIN SELECT RAISE(ABORT,'fixture'); END"); err != nil {
 				t.Fatal(err)
 			}
-			result, err := s.PollEvents(context.Background(), &clockPollNative{page: clockPollPage(f, 0, "benign")}, 128)
+			result, err := s.PollEvents(context.Background(), &clockPollNative{page: clockPollPage(f, 0, "benign")}, 128, 0)
 			if err == nil || !result.Interrupted || s.session.State().Enabled {
 				t.Fatal(result, err)
 			}
@@ -168,11 +168,11 @@ func TestClockPollPersistenceFailuresAndReviewOrder(t *testing.T) {
 func TestClockPollGapExistingHoldEmptyAndDisabled(t *testing.T) {
 	t.Parallel()
 	s, f, _ := clockPollFixture(t)
-	result, err := s.PollEvents(context.Background(), &clockPollNative{page: clockPollPage(f, 0, "gap")}, 128)
+	result, err := s.PollEvents(context.Background(), &clockPollNative{page: clockPollPage(f, 0, "gap")}, 128, 0)
 	if err == nil || !result.Interrupted || len(result.Review.Holds) != 1 {
 		t.Fatal(result, err)
 	}
-	result, err = s.PollEvents(context.Background(), &clockPollNative{page: clockPollPage(f, 1, "empty")}, 128)
+	result, err = s.PollEvents(context.Background(), &clockPollNative{page: clockPollPage(f, 1, "empty")}, 128, 0)
 	if err == nil || result.Captured || !result.Interrupted || len(result.Review.Holds) != 1 || result.Review.AcknowledgedCursor != 0 {
 		t.Fatal(result, err)
 	}
@@ -182,7 +182,7 @@ func TestClockPollGapExistingHoldEmptyAndDisabled(t *testing.T) {
 	}
 	page := clockPollPage(f, 1, "benign")
 	page.Events[0].Context.Identity.LoadToken = proto.String("historical")
-	result, err = s.PollEvents(context.Background(), &clockPollNative{page: page}, 128)
+	result, err = s.PollEvents(context.Background(), &clockPollNative{page: page}, 128, 0)
 	if err != nil || !result.Captured || result.Review.ReviewedCursor != 2 || s.session.State().Enabled {
 		t.Fatal(result, err)
 	}
@@ -212,7 +212,7 @@ func TestClockPollReadFailureAndCancellationCleanup(t *testing.T) {
 			case "backlog":
 				native.page.NewestCursor = proto.Int64(2)
 			}
-			result, err := s.PollEvents(ctx, native, 128)
+			result, err := s.PollEvents(ctx, native, 128, 0)
 			if err == nil || !result.Interrupted || s.session.State().Enabled || f.pauses != 1 {
 				t.Fatal(result, err, f.pauses)
 			}

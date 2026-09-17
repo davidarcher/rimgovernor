@@ -8,6 +8,8 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/davidarcher/RimGovernor/go/internal/bridge"
 )
 
 // ClockWorker owns only its three loops. Session retains native capabilities,
@@ -48,10 +50,14 @@ func NewClockWorker(ctx context.Context, scheduler *ClockScheduler, nativeEvents
 	if config.PollTimeout <= 0 || config.PollTimeout > lease/4 || config.PollTimeout > playerTimeout || config.RenewTimeout <= 0 || config.RenewTimeout > lease/4 || config.RenewTimeout > playerTimeout || config.StepTimeout <= 0 || config.StepTimeout > playerTimeout {
 		return nil, ErrControl
 	}
+	// A long poll must still leave the read itself a second under its timeout.
+	if config.PollWait < 0 || config.PollWait > bridge.ClockEventsMaxWaitMs*time.Millisecond || (config.PollWait > 0 && config.PollWait+time.Second > config.PollTimeout) {
+		return nil, ErrControl
+	}
 	lifetime, cancel := context.WithCancel(ctx)
 	w := &ClockWorker{ctx: lifetime, cancel: cancel, config: config, done: make(chan struct{}), ready: make(chan struct{}), stopGate: make(chan struct{}, 1), disable: scheduler.session.disableClockWorker, cleanup: scheduler.session.CleanupClock, step: scheduler.Step, renew: scheduler.RenewEpoch}
 	w.poll = func(ctx context.Context) (ClockPollResult, error) {
-		return scheduler.PollEvents(ctx, nativeEvents, config.PageLimit)
+		return scheduler.PollEvents(ctx, nativeEvents, config.PageLimit, config.PollWait)
 	}
 	w.stopParent = context.AfterFunc(scheduler.player.lifetime, cancel)
 	if err := errors.Join(ctx.Err(), scheduler.player.lifetime.Err()); err != nil {
@@ -111,24 +117,49 @@ func (w *ClockWorker) Stop(ctx context.Context) error {
 }
 
 func (w *ClockWorker) wait(delay time.Duration) bool {
+	woken, alive := w.waitOrWake(delay, nil)
+	return alive && !woken
+}
+
+// waitOrWake sleeps for delay unless the wake signal fires first. It reports
+// whether the wake fired and whether the worker is still alive.
+func (w *ClockWorker) waitOrWake(delay time.Duration, wake <-chan struct{}) (woken, alive bool) {
 	timer := time.NewTimer(delay)
 	defer timer.Stop()
 	select {
 	case <-w.ctx.Done():
-		return false
+		return false, false
 	case <-timer.C:
-		return w.ctx.Err() == nil
+		return false, w.ctx.Err() == nil
+	case <-wake:
+		return true, w.ctx.Err() == nil
 	}
 }
+
+// pollLoop long-polls the native journal. A call that waited (it returned
+// no sooner than half of PollWait) or that captured evidence is followed by
+// the next poll at once; a call that returned early against a native build
+// that ignores wait_ms falls back to the PollInterval cadence.
 func (w *ClockWorker) pollLoop() {
 	ready := false
 	for w.ctx.Err() == nil {
 		call, cancel := context.WithTimeout(w.ctx, w.config.PollTimeout)
-		_, err := w.poll(call)
+		started := time.Now()
+		result, err := w.poll(call)
 		cancel()
 		if err == nil && !ready && w.ctx.Err() == nil {
 			close(w.ready)
 			ready = true
+		}
+		if err == nil && (result.Captured || len(result.Wake) > 0 || result.AuthorityChanged) {
+			w.config.Wake.Notify(result.Wake, result.AuthorityChanged)
+		}
+		waited := w.config.PollWait > 0 && time.Since(started) >= w.config.PollWait/2
+		if err == nil && (waited || result.Captured) {
+			if w.ctx.Err() != nil {
+				return
+			}
+			continue
 		}
 		if !w.wait(w.config.PollInterval) {
 			return
@@ -224,8 +255,16 @@ func (w *ClockWorker) stepLoop() {
 			continue
 		}
 		skipped = false
-		if !w.wait(delay) {
+		// Committed clock evidence (a latched outcome, an authority change)
+		// wakes the step at once and resets the backoff: the decision inputs
+		// changed, so the unchanged-key backoff no longer applies.
+		woken, alive := w.waitOrWake(delay, w.config.Wake.C())
+		if !alive {
 			return
+		}
+		if woken {
+			delay = w.config.StepInterval
+			havePrevious = false
 		}
 	}
 }

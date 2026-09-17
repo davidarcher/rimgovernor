@@ -84,16 +84,32 @@ func clockReviewBoundary(inbox Inbox, cursor int64) bool {
 	}
 	return false
 }
-func clockEventInterrupts(event *k.Event) bool {
+
+// BenignStop reports whether a stop reason is the controller's own doing (a
+// budget, a requested pause or a latched watch) rather than an interruption
+// that needs review before time may resume.
+func BenignStop(reason k.StopReason) bool {
+	switch reason {
+	case k.StopReason_STOP_REASON_TICK_BUDGET, k.StopReason_STOP_REASON_REQUESTED_PAUSE, k.StopReason_STOP_REASON_WATCH_LATCHED:
+		return true
+	}
+	return false
+}
+
+// EventInterrupts classifies one journal event. Operation outcomes and
+// authority changes are typed facts the controller reacts to, not holds. It
+// is shared with the poll loop so both classifications cannot drift.
+func EventInterrupts(event *k.Event) bool {
 	switch e := event.Event.(type) {
-	case *k.Event_Started, *k.Event_SpeedChanged, *k.Event_HostilesCleared, *k.Event_ForcePauseCleared:
+	case *k.Event_Started, *k.Event_SpeedChanged, *k.Event_HostilesCleared, *k.Event_ForcePauseCleared, *k.Event_OperationOutcome, *k.Event_AuthorityChanged:
 		return false
 	case *k.Event_Stopped:
-		return e.Stopped.GetReason() != k.StopReason_STOP_REASON_TICK_BUDGET && e.Stopped.GetReason() != k.StopReason_STOP_REASON_REQUESTED_PAUSE
+		return !BenignStop(e.Stopped.GetReason())
 	default:
 		return true
 	}
 }
+func clockEventInterrupts(event *k.Event) bool { return EventInterrupts(event) }
 func clockReviewState(head clockReviewHead, inbox Inbox, cursor int64) ReviewState {
 	state := ReviewState{Revision: head.Revision, InboxCursor: cursor, ReviewedCursor: head.Reviewed, AcknowledgedCursor: head.Acknowledged, Holds: []Hold{}}
 	for _, p := range inbox.Pages {

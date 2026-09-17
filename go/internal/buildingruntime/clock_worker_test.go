@@ -55,6 +55,12 @@ func TestClockWorkerConstructorRejectsInvalidAndCancelledWithoutAttachment(t *te
 			t.Fatal("unsafe loop timeout accepted", unsafe)
 		}
 	}
+	// A long poll must leave the read a second of its timeout.
+	bad = cfg
+	bad.PollWait = cfg.PollTimeout
+	if _, err := NewClockWorker(context.Background(), s, clockWorkerEventUnavailable{}, bad); err == nil {
+		t.Fatal("poll wait consumed the whole poll timeout")
+	}
 	// A step budget far above lease/4 is valid.
 	cfg.StepTimeout = 10 * time.Second
 	w, err := NewClockWorker(context.Background(), s, clockWorkerEventUnavailable{}, cfg)

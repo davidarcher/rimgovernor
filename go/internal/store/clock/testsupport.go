@@ -5,7 +5,6 @@ import (
 	"database/sql"
 
 	"github.com/davidarcher/RimGovernor/go/internal/bridge"
-	k "github.com/davidarcher/RimGovernor/go/internal/wire/clockpb"
 	"google.golang.org/protobuf/proto"
 )
 
@@ -21,7 +20,6 @@ func ActionAvailable(ctx context.Context, tx *sql.Tx, action string) error {
 func EncodeIntent(v Attempt) ([]byte, error)         { return encodeClockIntent(v) }
 func Binary(m proto.Message) ([]byte, error)         { return clockBinary(m) }
 func CanonicalBytes(m proto.Message) ([]byte, error) { return canonicalClockBytes(m) }
-func EventInterrupts(e *k.Event) bool                { return clockEventInterrupts(e) }
 
 type SequenceHead = clockSequenceHead
 type IntentRecord = clockIntentRecord

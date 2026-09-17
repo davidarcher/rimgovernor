@@ -6,8 +6,13 @@ import (
 
 	k "github.com/davidarcher/RimGovernor/go/internal/wire/clockpb"
 	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
+	r "github.com/davidarcher/RimGovernor/go/internal/wire/receiptspb"
 	"google.golang.org/protobuf/proto"
 )
+
+// ClockEventsMaxWaitMs bounds a long-poll read so that the wait plus two
+// main-thread hops stays under the native call ceiling.
+const ClockEventsMaxWaitMs = 5000
 
 // ReadClockEvents preserves journal loss, partial evidence and original event
 // contexts. Reading does not acknowledge an interruption or authorize resuming.
@@ -22,6 +27,9 @@ func (client *Client) ReadClockEvents(ctx context.Context, request *k.EventsRequ
 	}
 	if request.AfterCursor == nil || request.GetAfterCursor() < 0 || request.Limit == nil || request.GetLimit() < 1 || request.GetLimit() > 128 {
 		return nil, Result{}, contract("clock events cursor/limit")
+	}
+	if request.GetWaitMs() > ClockEventsMaxWaitMs {
+		return nil, Result{}, contract("clock events wait bound")
 	}
 	reply := &k.EventsReply{}
 	raw, err := client.protoRead(ctx, "rimgovernor/clock_read_events", request, reply)
@@ -81,7 +89,14 @@ func clockEvent(event *k.Event) error {
 	if event == nil {
 		return contract("clock event required")
 	}
-	if err := errors.Join(clockOwner(event.Owner), ValidateContext(event.Context)); err != nil {
+	// Only an authority change observed outside any epoch has no owner.
+	_, authority := event.Event.(*k.Event_AuthorityChanged)
+	if event.Owner != nil || !authority {
+		if err := clockOwner(event.Owner); err != nil {
+			return err
+		}
+	}
+	if err := ValidateContext(event.Context); err != nil {
 		return err
 	}
 	if event.Cursor == nil || event.GetCursor() <= 0 || event.ObservedAtUnixMs == nil || event.GetObservedAtUnixMs() < 0 || !diagnostic(event.Detail) {
@@ -147,8 +162,60 @@ func clockEvent(event *k.Event) error {
 		if v.ForcePauseCleared == nil || !diagnostic(v.ForcePauseCleared.ForcePauseKind) {
 			return contract("clock force pause clear evidence")
 		}
+	case *k.Event_OperationOutcome:
+		return clockOperationOutcome(v.OperationOutcome)
+	case *k.Event_AuthorityChanged:
+		a := v.AuthorityChanged
+		if a == nil || a.Generation == nil || a.GetGeneration() == 0 || (a.PreviousGeneration != nil && a.GetPreviousGeneration() >= a.GetGeneration()) || !diagnostic(a.Reason) {
+			return contract("clock authority change evidence")
+		}
 	default:
 		return contract("clock event variant missing")
+	}
+	return nil
+}
+
+// clockAttemptKey accepts a complete attempt key; unknown fields were already
+// rejected by the enclosing clockWire walk.
+func clockAttemptKey(attempt *c.AttemptKey) error {
+	if attempt == nil || attempt.ControllerSessionId == nil || attempt.ActionId == nil || attempt.AttemptId == nil || attempt.GetAttemptId() == 0 || validID(attempt.GetControllerSessionId()) != nil || validID(attempt.GetActionId()) != nil {
+		return contract("clock attempt key presence")
+	}
+	return nil
+}
+
+// clockOperationOutcome accepts a terminal outcome of a watched attempt. The
+// effect evidence itself is family specific and is re-observed by the
+// controller through receipts_observe_progress, so only the shape is checked.
+func clockOperationOutcome(v *k.OperationOutcome) error {
+	if v == nil {
+		return contract("clock operation outcome required")
+	}
+	if err := clockAttemptKey(v.Attempt); err != nil {
+		return err
+	}
+	if v.LatchedTick == nil || v.GetLatchedTick() < 0 {
+		return contract("clock operation outcome tick")
+	}
+	switch o := v.Outcome.(type) {
+	case *k.OperationOutcome_Completed:
+		if o.Completed == nil || o.Completed.Evidence == nil || o.Completed.Evidence.Effect == nil {
+			return contract("clock completed outcome evidence")
+		}
+	case *k.OperationOutcome_Unsuccessful:
+		if o.Unsuccessful == nil || o.Unsuccessful.Reason == nil || o.Unsuccessful.GetReason() < 1 || o.Unsuccessful.GetReason() > r.UnsuccessfulReason(6) || !diagnostic(o.Unsuccessful.Detail) {
+			return contract("clock unsuccessful outcome evidence")
+		}
+	case *k.OperationOutcome_Absent:
+		if o.Absent == nil || o.Absent.InspectionToken == nil || validID(o.Absent.GetInspectionToken()) != nil {
+			return contract("clock absent outcome evidence")
+		}
+	case *k.OperationOutcome_Unknown:
+		if o.Unknown == nil || !diagnostic(o.Unknown.Reason) {
+			return contract("clock unknown outcome evidence")
+		}
+	default:
+		return contract("clock operation outcome variant missing")
 	}
 	return nil
 }
@@ -276,6 +343,11 @@ func clockStopEvent(v *k.StopEvent) error {
 		return clockPauseEvidence(e.Pause)
 	case *k.StopEvent_Unavailable:
 		return validateUnavailable(e.Unavailable)
+	case *k.StopEvent_Watch:
+		if e.Watch == nil || e.Watch.TickDeadline == nil || e.Watch.GetTickDeadline() <= 0 {
+			return contract("clock watch stop evidence")
+		}
+		return clockOperationOutcome(e.Watch.Outcome)
 	default:
 		return contract("clock stop evidence required")
 	}

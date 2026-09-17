@@ -38,7 +38,7 @@ func TestClockPollMaintainsAttemptsWithoutPlayerGate(t *testing.T) {
 	// Maintenance must remain available while player work is blocked.
 	s.player.gate <- struct{}{}
 	defer func() { <-s.player.gate }()
-	result, err := s.PollEvents(ctx, &clockPollNative{page: clockPollPage(f, 0, "empty")}, 128)
+	result, err := s.PollEvents(ctx, &clockPollNative{page: clockPollPage(f, 0, "empty")}, 128, 0)
 	if err != nil || result.Interrupted {
 		t.Fatal(result, err)
 	}
@@ -81,7 +81,7 @@ func TestClockMaintenanceFailureDisablesAndRollsBack(t *testing.T) {
 	if _, err := db.Exec(`CREATE TRIGGER fail_retirement BEFORE DELETE ON clock_attempts BEGIN SELECT RAISE(ABORT,'fixture'); END`); err != nil {
 		t.Fatal(err)
 	}
-	result, err := s.PollEvents(ctx, &clockPollNative{page: clockPollPage(f, 0, "empty")}, 128)
+	result, err := s.PollEvents(ctx, &clockPollNative{page: clockPollPage(f, 0, "empty")}, 128, 0)
 	if err == nil || !result.Interrupted || s.session.State().Enabled {
 		t.Fatal(result, err, s.session.State())
 	}
@@ -107,7 +107,7 @@ func TestClockPollCompactsReviewedEventsAndFailsClosed(t *testing.T) {
 	// those two pages land on top of it.
 	const polls = tail + 2
 	for i := range polls {
-		result, err := s.PollEvents(ctx, &clockPollNative{page: clockPollPage(f, int64(i), "benign")}, 128)
+		result, err := s.PollEvents(ctx, &clockPollNative{page: clockPollPage(f, int64(i), "benign")}, 128, 0)
 		if err != nil || result.Interrupted || result.Review.ReviewedCursor != int64(i+1) {
 			t.Fatal(i, result, err)
 		}
@@ -119,7 +119,7 @@ func TestClockPollCompactsReviewedEventsAndFailsClosed(t *testing.T) {
 	if _, err = db.Exec("DELETE FROM clock_history_checkpoint"); err != nil {
 		t.Fatal(err)
 	}
-	result, err := s.PollEvents(ctx, &clockPollNative{page: clockPollPage(f, polls, "empty")}, 128)
+	result, err := s.PollEvents(ctx, &clockPollNative{page: clockPollPage(f, polls, "empty")}, 128, 0)
 	if err == nil || !result.Interrupted || s.session.State().Enabled {
 		t.Fatal(result, err)
 	}
