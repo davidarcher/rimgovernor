@@ -94,7 +94,10 @@ func (client *Client) PreviewBedAssign(ctx context.Context, identity *c.Identity
 			err = contract("bed assign preview facts missing")
 			break
 		}
-		expected := &r.BedEffect{PawnId: proto.String(pawn), BedId: proto.String(bed), PreviousBedId: bedAssignPreviousBedID(previous), Assigned: proto.Bool(value.GetAccepted())}
+		// The native projection also reports whether the pawn is in that bed
+		// right now (sleeping); the pair, previous bed and acceptance are the
+		// contract, so only those are compared.
+		expected := &r.BedEffect{PawnId: proto.String(pawn), BedId: proto.String(bed), PreviousBedId: bedAssignPreviousBedID(previous), Assigned: proto.Bool(value.GetAccepted()), Sleeping: effect.Sleeping}
 		if !proto.Equal(effect, expected) {
 			err = contract("bed assign preview projection mismatch")
 		}
