@@ -21,87 +21,152 @@ namespace HomeBridge.BridgeTools
         public string Detail { get; }
     }
 
-    /// <summary>Native invalidation only. No hook acquires or renews authority.</summary>
+    /// <summary>One required hook's installation state, for diagnostics.</summary>
+    public sealed class NativeAuthorityHookStatus
+    {
+        internal NativeAuthorityHookStatus(string name, MethodBase? method, bool installed, string error)
+        { Name = name; Method = method; Installed = installed; Error = error; }
+        public string Name { get; }
+        /// <summary>The patched game method, or null when it could not be resolved.</summary>
+        public MethodBase? Method { get; }
+        public bool Installed { get; }
+        public string Error { get; }
+    }
+
+    /// <summary>
+    /// Native invalidation only. No hook acquires or renews authority.
+    /// Installation is per hook and re-attemptable: a hook that failed to
+    /// resolve or patch at startup, or was removed since, is retried by
+    /// <see cref="Install"/> without touching the hooks already in place, so a
+    /// partial install recovers on the next admission instead of needing a
+    /// game restart.
+    /// </summary>
     [StaticConstructorOnStartup]
     public static class NativeAuthorityHooks
     {
-        private const string Owner = "rimgovernor.native.authority";
-        private sealed class Target
+        public const string Owner = "rimgovernor.native.authority";
+        private sealed class Spec
         {
-            internal Target(MethodBase method, MethodInfo? prefix, MethodInfo? postfix)
-            { Method = method; Prefix = prefix; Postfix = postfix; }
-            internal readonly MethodBase Method;
-            internal readonly MethodInfo? Prefix;
-            internal readonly MethodInfo? Postfix;
+            internal Spec(string name, Func<MethodBase?> resolve, string? prefix, string? postfix)
+            { Name = name; Resolve = resolve; Prefix = prefix; Postfix = postfix; }
+            internal readonly string Name;
+            internal readonly Func<MethodBase?> Resolve;
+            internal readonly string? Prefix;
+            internal readonly string? Postfix;
+            internal MethodBase? Method;
+            internal string Error = "";
         }
-        private static readonly List<Target> Targets = new List<Target>();
-        private const int Required = 21;
-        private static string installationFailure = "";
-        static NativeAuthorityHooks()
+        private static readonly object Sync = new object();
+        private static readonly List<Spec> Specs = new List<Spec>
         {
-            try
+            new Spec("Pawn_JobTracker.TryTakeOrderedJob", () => AccessTools.Method(typeof(Pawn_JobTracker), "TryTakeOrderedJob", new[] { typeof(Job), typeof(JobTag?), typeof(bool) }), null, nameof(OrderedJob)),
+            new Spec("Pawn_WorkSettings.SetPriority", () => AccessTools.Method(typeof(Pawn_WorkSettings), "SetPriority", new[] { typeof(WorkTypeDef), typeof(int) }), nameof(BeforeWork), nameof(AfterWork)),
+            new Spec("Zone_Growing.SetPlantDefToGrow", () => AccessTools.Method(typeof(Zone_Growing), "SetPlantDefToGrow", new[] { typeof(ThingDef) }), nameof(BeforeCrop), nameof(AfterCrop)),
+            new Spec("Zone.AddCell", () => AccessTools.Method(typeof(Zone), "AddCell", new[] { typeof(IntVec3) }), nameof(BeforeZoneCell), nameof(AfterZoneCell)),
+            new Spec("Zone.RemoveCell", () => AccessTools.Method(typeof(Zone), "RemoveCell", new[] { typeof(IntVec3) }), nameof(BeforeZoneCell), nameof(AfterZoneCell)),
+            new Spec("ZoneManager.DeregisterZone", () => AccessTools.Method(typeof(ZoneManager), "DeregisterZone", new[] { typeof(Zone) }), nameof(BeforeZoneRemoval), nameof(AfterZoneRemoval)),
+            new Spec("Command_Toggle.ProcessInput", () => AccessTools.Method(typeof(Command_Toggle), "ProcessInput", new[] { AccessTools.TypeByName("UnityEngine.Event") ?? throw new TypeLoadException("UnityEngine.Event") }), null, nameof(PlayerToggle)),
+            new Spec("Pawn_DraftController.Drafted", () => AccessTools.PropertySetter(typeof(Pawn_DraftController), "Drafted"), nameof(BeforeDraft), nameof(AfterDraft)),
+            new Spec("GenConstruct.PlaceBlueprintForBuild", () => AccessTools.Method(typeof(GenConstruct), "PlaceBlueprintForBuild", new[] { typeof(BuildableDef), typeof(IntVec3), typeof(Map), typeof(Rot4), typeof(Faction), typeof(ThingDef), typeof(Precept_ThingStyle), typeof(ThingStyleDef), typeof(bool) }), null, nameof(Built)),
+            new Spec("GenConstruct.PlaceBlueprintForInstall", () => AccessTools.Method(typeof(GenConstruct), "PlaceBlueprintForInstall", new[] { typeof(MinifiedThing), typeof(IntVec3), typeof(Map), typeof(Rot4), typeof(Faction), typeof(bool) }), null, nameof(Installed)),
+            new Spec("GenConstruct.PlaceBlueprintForReinstall", () => AccessTools.Method(typeof(GenConstruct), "PlaceBlueprintForReinstall", new[] { typeof(Building), typeof(IntVec3), typeof(Map), typeof(Rot4), typeof(Faction), typeof(bool) }), null, nameof(Installed)),
+            new Spec("Designator_Cancel.DesignateThing", () => AccessTools.Method(typeof(Designator_Cancel), "DesignateThing", new[] { typeof(Thing) }), nameof(BeforeCancelThing), nameof(AfterCancelThing)),
+            new Spec("Designator_Cancel.DesignateSingleCell", () => AccessTools.Method(typeof(Designator_Cancel), "DesignateSingleCell", new[] { typeof(IntVec3) }), nameof(BeforeCancelCell), nameof(AfterCancelCell)),
+            new Spec("Current.Game", () => AccessTools.PropertySetter(typeof(Current), "Game"), nameof(BeforeGame), nameof(AfterGame)),
+            new Spec("Game.CurrentMap", () => AccessTools.PropertySetter(typeof(Game), "CurrentMap"), nameof(BeforeMap), nameof(AfterMap)),
+            new Spec("Game.UpdatePlay", () => AccessTools.Method(typeof(Game), "UpdatePlay", Type.EmptyTypes), nameof(Update), null),
+            // Bills: RimGovernor's own writes (NativeProductionBills.Execute) run inside authority.Owned(),
+            // which suppresses these; any other caller (player UI, home/bills) is treated as external.
+            new Spec("BillStack.AddBill", () => AccessTools.Method(typeof(BillStack), "AddBill", new[] { typeof(Bill) }), null, nameof(ExternalBillWrite)),
+            new Spec("BillStack.Delete", () => AccessTools.Method(typeof(BillStack), "Delete", new[] { typeof(Bill) }), null, nameof(ExternalBillWrite)),
+            new Spec("BillStack.Reorder", () => AccessTools.Method(typeof(BillStack), "Reorder", new[] { typeof(Bill), typeof(int) }), null, nameof(ExternalBillWrite)),
+            // Bill.suspended has no setter; DoInterface's row toggle is the only mutation point outside the config dialog.
+            new Spec("Bill.DoInterface", () => AccessTools.Method(typeof(Bill), "DoInterface", new[] { typeof(float), typeof(float), typeof(float), typeof(int) }), nameof(BeforeBillInterface), nameof(AfterBillInterface)),
+            // Dialog_BillConfig writes every other Bill_Production field directly with no setters; snapshot-diff the whole config.
+            new Spec("Dialog_BillConfig.DoWindowContents", () => AccessTools.Method(typeof(Dialog_BillConfig), "DoWindowContents", new[] { typeof(Rect) }), nameof(BeforeBillConfig), nameof(AfterBillConfig)),
+        };
+        private static int Required => Specs.Count;
+        static NativeAuthorityHooks() => Install();
+
+        /// <summary>
+        /// Patch every required hook that is not currently in place. Hooks
+        /// already verified are left alone; each failure is recorded on its
+        /// own hook and never blocks the rest. A target that failed to resolve
+        /// is not retried: game assemblies do not change within a process, so
+        /// that is a restart-required fault, and runtime_health says so.
+        /// Returns the resulting health.
+        /// </summary>
+        public static NativeAuthorityHookHealth Install()
+        {
+            lock (Sync)
             {
                 var harmony = new Harmony(Owner);
-                Add(harmony, AccessTools.Method(typeof(Pawn_JobTracker), "TryTakeOrderedJob", new[] { typeof(Job), typeof(JobTag?), typeof(bool) }), null, nameof(OrderedJob));
-                Add(harmony, AccessTools.Method(typeof(Pawn_WorkSettings), "SetPriority", new[] { typeof(WorkTypeDef), typeof(int) }), nameof(BeforeWork), nameof(AfterWork));
-                Add(harmony, AccessTools.Method(typeof(Zone_Growing), "SetPlantDefToGrow", new[] { typeof(ThingDef) }), nameof(BeforeCrop), nameof(AfterCrop));
-                Add(harmony, AccessTools.Method(typeof(Zone), "AddCell", new[] { typeof(IntVec3) }), nameof(BeforeZoneCell), nameof(AfterZoneCell));
-                Add(harmony, AccessTools.Method(typeof(Zone), "RemoveCell", new[] { typeof(IntVec3) }), nameof(BeforeZoneCell), nameof(AfterZoneCell));
-                Add(harmony, AccessTools.Method(typeof(ZoneManager), "DeregisterZone", new[] { typeof(Zone) }), nameof(BeforeZoneRemoval), nameof(AfterZoneRemoval));
-                Add(harmony, AccessTools.Method(typeof(Command_Toggle), "ProcessInput", new[] { AccessTools.TypeByName("UnityEngine.Event") ?? throw new TypeLoadException("UnityEngine.Event") }), null, nameof(PlayerToggle));
-                Add(harmony, AccessTools.PropertySetter(typeof(Pawn_DraftController), "Drafted"), nameof(BeforeDraft), nameof(AfterDraft));
-                Add(harmony, AccessTools.Method(typeof(GenConstruct), "PlaceBlueprintForBuild", new[] { typeof(BuildableDef), typeof(IntVec3), typeof(Map), typeof(Rot4), typeof(Faction), typeof(ThingDef), typeof(Precept_ThingStyle), typeof(ThingStyleDef), typeof(bool) }), null, nameof(Built));
-                Add(harmony, AccessTools.Method(typeof(GenConstruct), "PlaceBlueprintForInstall", new[] { typeof(MinifiedThing), typeof(IntVec3), typeof(Map), typeof(Rot4), typeof(Faction), typeof(bool) }), null, nameof(Installed));
-                Add(harmony, AccessTools.Method(typeof(GenConstruct), "PlaceBlueprintForReinstall", new[] { typeof(Building), typeof(IntVec3), typeof(Map), typeof(Rot4), typeof(Faction), typeof(bool) }), null, nameof(Installed));
-                Add(harmony, AccessTools.Method(typeof(Designator_Cancel), "DesignateThing", new[] { typeof(Thing) }), nameof(BeforeCancelThing), nameof(AfterCancelThing));
-                Add(harmony, AccessTools.Method(typeof(Designator_Cancel), "DesignateSingleCell", new[] { typeof(IntVec3) }), nameof(BeforeCancelCell), nameof(AfterCancelCell));
-                Add(harmony, AccessTools.PropertySetter(typeof(Current), "Game"), nameof(BeforeGame), nameof(AfterGame));
-                Add(harmony, AccessTools.PropertySetter(typeof(Game), "CurrentMap"), nameof(BeforeMap), nameof(AfterMap));
-                Add(harmony, AccessTools.Method(typeof(Game), "UpdatePlay", Type.EmptyTypes), nameof(Update), null);
-                // Bills: RimGovernor's own writes (NativeProductionBills.Execute) run inside authority.Owned(),
-                // which suppresses these; any other caller (player UI, home/bills) is treated as external.
-                Add(harmony, AccessTools.Method(typeof(BillStack), "AddBill", new[] { typeof(Bill) }), null, nameof(ExternalBillWrite));
-                Add(harmony, AccessTools.Method(typeof(BillStack), "Delete", new[] { typeof(Bill) }), null, nameof(ExternalBillWrite));
-                Add(harmony, AccessTools.Method(typeof(BillStack), "Reorder", new[] { typeof(Bill), typeof(int) }), null, nameof(ExternalBillWrite));
-                // Bill.suspended has no setter; DoInterface's row toggle is the only mutation point outside the config dialog.
-                Add(harmony, AccessTools.Method(typeof(Bill), "DoInterface", new[] { typeof(float), typeof(float), typeof(float), typeof(int) }), nameof(BeforeBillInterface), nameof(AfterBillInterface));
-                // Dialog_BillConfig writes every other Bill_Production field directly with no setters; snapshot-diff the whole config.
-                Add(harmony, AccessTools.Method(typeof(Dialog_BillConfig), "DoWindowContents", new[] { typeof(Rect) }), nameof(BeforeBillConfig), nameof(AfterBillConfig));
-            }
-            catch (Exception ex)
-            {
-                installationFailure = "Authority invalidation hook installation failed: " + ex.GetType().Name;
-                Log.Error("[RimGovernor] " + installationFailure + "\n" + ex);
+                foreach (var spec in Specs)
+                {
+                    if (spec.Method == null && spec.Error.Length > 0) continue;
+                    try
+                    {
+                        if (spec.Method == null) spec.Method = spec.Resolve() ?? throw new MissingMethodException("Required native authority hook target missing: " + spec.Name);
+                        if (Verified(spec)) { spec.Error = ""; continue; }
+                        var before = spec.Prefix == null ? null : AccessTools.Method(typeof(NativeAuthorityHooks), spec.Prefix);
+                        var after = spec.Postfix == null ? null : AccessTools.Method(typeof(NativeAuthorityHooks), spec.Postfix);
+                        harmony.Patch(spec.Method, before == null ? null : new HarmonyMethod(before), after == null ? null : new HarmonyMethod(after));
+                        spec.Error = Verified(spec) ? "" : "Patched but not verified";
+                    }
+                    catch (Exception ex)
+                    {
+                        var error = ex.GetType().Name + ": " + ex.Message;
+                        if (error != spec.Error) Log.Error("[RimGovernor] Authority invalidation hook " + spec.Name + " installation failed: " + ex);
+                        spec.Error = error;
+                    }
+                }
+                return Health;
             }
         }
 
-        private static void Add(Harmony harmony, MethodBase? method, string? prefix, string? postfix)
+        private static bool Verified(Spec spec)
         {
-            if (method == null) throw new MissingMethodException("Required native authority hook target missing");
-            var before = prefix == null ? null : AccessTools.Method(typeof(NativeAuthorityHooks), prefix);
-            var after = postfix == null ? null : AccessTools.Method(typeof(NativeAuthorityHooks), postfix);
-            harmony.Patch(method, before == null ? null : new HarmonyMethod(before), after == null ? null : new HarmonyMethod(after));
-            Targets.Add(new Target(method, before, after));
+            if (spec.Method == null) return false;
+            var patches = Harmony.GetPatchInfo(spec.Method);
+            if (patches == null) return false;
+            var before = spec.Prefix == null ? null : AccessTools.Method(typeof(NativeAuthorityHooks), spec.Prefix);
+            var after = spec.Postfix == null ? null : AccessTools.Method(typeof(NativeAuthorityHooks), spec.Postfix);
+            return (before == null || patches.Prefixes.Any(p => p.owner == Owner && p.PatchMethod == before))
+                && (after == null || patches.Postfixes.Any(p => p.owner == Owner && p.PatchMethod == after));
+        }
+
+        /// <summary>Per-hook state, in installation order. Reads never install.</summary>
+        public static IReadOnlyList<NativeAuthorityHookStatus> Statuses
+        {
+            get
+            {
+                lock (Sync)
+                {
+                    var rows = new List<NativeAuthorityHookStatus>(Specs.Count);
+                    foreach (var spec in Specs)
+                    {
+                        bool installed;
+                        try { installed = Verified(spec); } catch { installed = false; }
+                        rows.Add(new NativeAuthorityHookStatus(spec.Name, spec.Method, installed, spec.Error));
+                    }
+                    return rows;
+                }
+            }
         }
 
         public static NativeAuthorityHookHealth Health
         {
             get
             {
-                int verified = 0;
                 try
                 {
-                    foreach (var target in Targets)
-                    {
-                        var patches = Harmony.GetPatchInfo(target.Method);
-                        if (patches != null
-                            && (target.Prefix == null || patches.Prefixes.Any(p => p.owner == Owner && p.PatchMethod == target.Prefix))
-                            && (target.Postfix == null || patches.Postfixes.Any(p => p.owner == Owner && p.PatchMethod == target.Postfix))) verified++;
-                    }
+                    var rows = Statuses;
+                    var verified = rows.Count(r => r.Installed);
+                    var firstError = rows.FirstOrDefault(r => !r.Installed && r.Error.Length > 0);
+                    return new NativeAuthorityHookHealth(verified, Required, verified == Required ? "" :
+                        firstError == null ? "Required native authority hooks are not installed" : firstError.Name + ": " + firstError.Error);
                 }
                 catch { return new NativeAuthorityHookHealth(0, Required, "Native authority hook verification failed"); }
-                return new NativeAuthorityHookHealth(verified, Required, verified == Required ? "" :
-                    installationFailure.Length == 0 ? "Required native authority hooks are not installed" : installationFailure);
             }
         }
 
@@ -110,7 +175,19 @@ namespace HomeBridge.BridgeTools
         {
             if (!UnityData.IsInMainThread) throw new InvalidOperationException("Authority initialization requires the game thread");
             var game = Current.Game;
-            return game == null ? null : NativeControlAuthority.ForGame(game).SetHookHealth(Health.Ready);
+            if (game == null) return null;
+            // A missing hook is retried here, once per admission or update poll,
+            // so a partial startup install or a removed patch recovers in place.
+            // The gap is reported before the repair: a player action during it
+            // went unobserved, so any active authority must be invalidated.
+            var authority = NativeControlAuthority.ForGame(game);
+            var health = Health;
+            if (!health.Ready)
+            {
+                authority.SetHookHealth(false);
+                health = Install();
+            }
+            return authority.SetHookHealth(health.Ready);
         }
 
         private static void Update() => InitializeForCurrentGame();

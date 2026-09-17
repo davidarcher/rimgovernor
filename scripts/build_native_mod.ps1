@@ -9,7 +9,7 @@ param(
         'MoodFixture', 'PopulationFixture', 'HusbandryFixture', 'MedicalManagementFixture',
         'MiningFixture', 'FoodObservationFixture', 'UpkeepFixture', 'TradeFixture',
         'ScenarioStartFixture', 'ConstructionLedgerFixture', 'EmergencyDevelopmentFixture',
-        'InstallFixture', 'ForecastFixture', 'InspectorFixture', 'ModalFixture', 'CampaignMetricsFixture', 'DraftFaultFixture', 'QuestFulfillFixture', 'BuildingTemperatureFixture', 'SurgeryFixture', 'CaravanControlFixture', 'CaravanDepartureFixture', 'RecoveryServiceFixture', 'QuestAcceptFixture', 'SettlementGiftFixture', 'RecoveryAreaFixture', 'BedAssignFixture', 'ZoneDeleteFixture', 'RefrigerationFixture', 'PowerFixture', 'CleanlinessFixture', 'DefenseFixture', 'LightingFixture', 'MountainFixture')]
+        'InstallFixture', 'ForecastFixture', 'InspectorFixture', 'ModalFixture', 'CampaignMetricsFixture', 'DraftFaultFixture', 'RuntimeFaultFixture', 'QuestFulfillFixture', 'BuildingTemperatureFixture', 'SurgeryFixture', 'CaravanControlFixture', 'CaravanDepartureFixture', 'RecoveryServiceFixture', 'QuestAcceptFixture', 'SettlementGiftFixture', 'RecoveryAreaFixture', 'BedAssignFixture', 'ZoneDeleteFixture', 'RefrigerationFixture', 'PowerFixture', 'CleanlinessFixture', 'DefenseFixture', 'LightingFixture', 'MountainFixture')]
     [string[]]$Fixture = @()
 )
 $ErrorActionPreference = 'Stop'

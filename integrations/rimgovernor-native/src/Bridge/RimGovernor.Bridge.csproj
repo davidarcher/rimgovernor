@@ -50,6 +50,7 @@
     <Compile Include="../../../../scripts/fixtures/ConstructionLedgerFixture.cs" Condition="'$(ConstructionLedgerFixture)' == 'true'" />
     <Compile Include="../../../../scripts/fixtures/EmergencyDevelopmentFixture.cs" Condition="'$(EmergencyDevelopmentFixture)' == 'true'" />
     <Compile Include="../../../../scripts/fixtures/DraftFaultFixture.cs" Condition="'$(DraftFaultFixture)' == 'true'" />
+    <Compile Include="../../../../scripts/fixtures/RuntimeFaultFixture.cs" Condition="'$(RuntimeFaultFixture)' == 'true'" />
     <Compile Include="../../../../scripts/fixtures/InstallFixture.cs" Condition="'$(InstallFixture)' == 'true'" />
     <Compile Include="../../../../scripts/fixtures/ForecastFixture.cs" Condition="'$(ForecastFixture)' == 'true'" />
     <Compile Include="../../../../scripts/fixtures/InspectorFixture.cs" Condition="'$(InspectorFixture)' == 'true'" />
