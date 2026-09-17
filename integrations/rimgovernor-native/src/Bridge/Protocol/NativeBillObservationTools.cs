@@ -61,7 +61,7 @@ namespace HomeBridge.BridgeTools
                     return Encode(new Obs.BillsReply { Observed = snapshot });
                 }
                 catch (ReadLimit e) { return ProtoBoundary.Encode(new Obs.BillsReply { Unavailable = Missing(Common.UnavailableReason.LimitExceeded, e.Message) }); }
-                catch (Exception) { return ProtoBoundary.Encode(new Obs.BillsReply { Unavailable = Missing(Common.UnavailableReason.ReadFailed, "Bill stacks could not be read completely.") }); }
+                catch (Exception e) { return ProtoBoundary.Encode(new Obs.BillsReply { Unavailable = Missing(Common.UnavailableReason.ReadFailed, Failed("Bill stacks", e)) }); }
             }, cancellationToken).ConfigureAwait(false);
         }
 
@@ -111,7 +111,7 @@ namespace HomeBridge.BridgeTools
                     return Encode(new Obs.RecipesReply { Observed = snapshot });
                 }
                 catch (ReadLimit e) { return ProtoBoundary.Encode(new Obs.RecipesReply { Unavailable = Missing(Common.UnavailableReason.LimitExceeded, e.Message) }); }
-                catch (Exception) { return ProtoBoundary.Encode(new Obs.RecipesReply { Unavailable = Missing(Common.UnavailableReason.ReadFailed, "Recipes could not be read completely.") }); }
+                catch (Exception e) { return ProtoBoundary.Encode(new Obs.RecipesReply { Unavailable = Missing(Common.UnavailableReason.ReadFailed, Failed("Recipes", e)) }); }
             }, cancellationToken).ConfigureAwait(false);
         }
 
@@ -155,7 +155,12 @@ namespace HomeBridge.BridgeTools
 
         internal static Obs.RecipeState Row(RecipeDef recipe, ThingDef benchDef, Thing? bench)
         {
-            var row = new Obs.RecipeState { Recipe = Definition(recipe), AvailableNow = recipe.AvailableNow, WorkAmount = Number(recipe.workAmount) };
+            var row = new Obs.RecipeState { Recipe = Definition(recipe), AvailableNow = recipe.AvailableNow };
+            // workAmount is -1 when the work comes from the product's own
+            // WorkToMake (every stuff-made item); resolve it the way the
+            // game does, stuff-agnostic, and leave it unset if that fails.
+            if (recipe.workAmount >= 0) row.WorkAmount = Number(recipe.workAmount);
+            else { try { row.WorkAmount = Number(recipe.WorkAmountTotal(null)); } catch (Exception) { } }
             if (bench != null) row.AvailableOnBench = recipe.AvailableOnNow(bench);
             if (recipe.workSkill != null) row.WorkSkill = Id(recipe.workSkill.defName);
             var work = WorkType(benchDef, recipe);
@@ -201,6 +206,13 @@ namespace HomeBridge.BridgeTools
         private static double Number(double value) { if (double.IsNaN(value) || double.IsInfinity(value) || value < 0) throw new InvalidOperationException("Invalid recipe quantity."); return value; }
         private static void Bound(int count) { if (count > Limit) throw new ReadLimit("Recipe child collection exceeds 256."); }
         private static string Id(string value) => ProtoBoundary.IsIdentifier(value) ? value : throw new InvalidOperationException("Invalid bill identifier.");
+        // The detail names the failure so a controller log is diagnosable
+        // without the game log; the full trace still goes to the game log.
+        private static string Failed(string what, Exception e)
+        {
+            Log.Warning("[RimGovernor] " + what + " read failed: " + e);
+            return what + " could not be read completely: " + PlacementPreviewOperation.Diagnostic(e.GetType().Name + ": " + e.Message);
+        }
         private static Common.Unavailable Missing(Common.UnavailableReason reason, string detail) => new Common.Unavailable { Reason = reason, Detail = detail };
         private static Obs.Completeness Complete(int count, int filtered) => new Obs.Completeness { Page = new Common.PageInfo { Complete = true }, Matched = (ulong)count, Returned = (ulong)count, Filtered = (ulong)filtered, Unreadable = 0 };
         private sealed class ReadLimit : Exception { internal ReadLimit(string message) : base(message) { } }
