@@ -6,11 +6,18 @@ import (
 	"time"
 )
 
-// RunSpeed is the speed a harness runs the game at while it waits for the
-// game to do something (issue #91): the fastest ordinary speed, so a wait
-// stated in ticks costs the least wall clock. Waits bounded in ticks mean
-// the same at any speed, so nothing about the assertion depends on it.
-const RunSpeed = "Superfast"
+// RunSpeed and RunBoost are how a harness runs the game while it waits for
+// the game to do something (issue #91): Ultrafast with RimWorld's dev
+// tick boost, which drops the per-frame tick cap. Measured on the debug
+// colony: Fast 168 ticks/s, Superfast 348, Ultrafast 899, boosted ~7000,
+// so a wait stated in ticks costs the least wall clock. Neither needs
+// Prefs.devMode (which would add a 35s def check to every boot). Waits
+// bounded in ticks mean the same at any speed, so nothing about the
+// assertion depends on it.
+const (
+	RunSpeed = "Ultrafast"
+	RunBoost = true
+)
 
 // RunInterval is RunUntil's default pause between probes.
 const RunInterval = 250 * time.Millisecond
@@ -39,12 +46,12 @@ func RunUntil(ctx context.Context, h *Harness, label string, ticks uint64, w Wai
 	if ticks == 0 {
 		return 0, fmt.Errorf("%s: a tick budget is required", label)
 	}
-	if _, err := h.Call(ctx, label+"-run", "rimworld/set_time_speed", map[string]any{"speed": RunSpeed, "ultraSpeedBoost": false}); err != nil {
+	if _, err := h.Call(ctx, label+"-run", "rimworld/set_time_speed", map[string]any{"speed": RunSpeed, "ultraSpeedBoost": RunBoost}); err != nil {
 		return 0, err
 	}
-	// A probe is a ~100ms round trip and the game runs ~360 ticks/s here,
-	// so WaitProgress's 2s default is ~700 ticks of overshoot per wait,
-	// most of a short harness's run; poll often instead.
+	// A probe is a ~100ms round trip and the game runs thousands of ticks
+	// a second here, so WaitProgress's 2s default is most of a short
+	// harness's run in overshoot; poll often instead.
 	if w.Interval <= 0 {
 		w.Interval = RunInterval
 	}

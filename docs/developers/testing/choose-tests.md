@@ -84,16 +84,20 @@ were not. A reviewer holds a new harness to it.
    assertion covers too much; split it.
 7. **Advance by ticks, at speed.** A wait for something the game itself
    must do (a haul, a surgery, a pen, a capture) is bounded in ticks, not
-   wall clock: `na.RunUntil` runs at `na.RunSpeed` (Superfast), polls under a
-   `na.Wait{Ticks: 2*na.TicksPerDay}` budget every 250ms (`na.RunInterval`;
-   the 2s default is ~700 ticks of overshoot at Superfast) and pauses again;
-   `na.ObserveCompleted` is the receipt-observing form (`receipts_observe_progress`
-   until Completed). A tick budget means the same at every speed and on
-   every machine; the stall budget still catches a game that stops ticking
-   (a pausing letter) and the wall ceiling a run that never finishes. Serve-
-   driven harnesses keep `--clock-speed Fast`: at Superfast the worker's
-   step budget starves the bridge calls and the clock holds (refrigeration
-   held at tick 1225 under Superfast, passed in 74s at Fast).
+   wall clock: `na.RunUntil` runs at `na.RunSpeed` with `na.RunBoost`
+   (Ultrafast plus RimWorld's dev tick boost, ~7000 ticks/s measured on the
+   debug colony against 348 at Superfast and 168 at Fast; no `devMode`
+   pref needed, and that pref adds a 35s def check to every boot), polls
+   under a `na.Wait{Ticks: 2*na.TicksPerDay}` budget every 250ms
+   (`na.RunInterval`) and pauses again; `na.ObserveCompleted` is the
+   receipt-observing form (`receipts_observe_progress` until Completed). A
+   tick budget means the same at every speed and on every machine; the
+   stall budget still catches a game that stops ticking (a pausing letter)
+   and the wall ceiling a run that never finishes. Serve-driven harnesses
+   keep `--clock-speed Fast`: the clock wire admits speeds 1-3 only, and
+   the executor holds an action whose inspection snapshot no longer
+   matches or is older than its `MaxAge` (refrigeration held at tick 1225
+   under Superfast, passed in 74s at Fast).
 8. **One fixture call, not a script.** Spawn, forbid, damage, assign and
    settle in one `test/*_prepare` op rather than a sequence of production ops
    each paying a bridge round trip; production ops are for the behavior under
