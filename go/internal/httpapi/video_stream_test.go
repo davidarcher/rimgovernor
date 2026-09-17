@@ -169,9 +169,7 @@ func TestVideoStreamConnectAndForwardsFrames(t *testing.T) {
 	if sequences[0] != 1 || sequences[1] != 2 {
 		t.Fatal("expected strictly increasing sequence, no duplicates", sequences)
 	}
-	if f.ackCalls < 2 {
-		t.Fatal("expected an AcknowledgeFrame call per forwarded frame", f.ackCalls)
-	}
+	awaitAcks(t, f, 2) // one AcknowledgeFrame per forwarded frame
 }
 func TestVideoStreamTicketIsSingleUse(t *testing.T) {
 	server, _, token := videoStreamServer(t)
@@ -336,7 +334,7 @@ func TestVideoStreamReadsSharedMemoryAfterFirstFrame(t *testing.T) {
 	if f.frameCalls != 1 {
 		t.Fatal("shared frames must not cost ReadFrame round trips within the reconcile window", f.frameCalls)
 	}
-	if f.ackCalls != 1 {
+	if f.acks() != 1 {
 		t.Fatal("only the ReadFrame-delivered frame is acknowledged", f.ackCalls)
 	}
 }
@@ -404,9 +402,7 @@ func TestVideoStreamFallsBackToReadFrameWhenSharedMemoryIsUnavailable(t *testing
 			t.Fatal(want, sequence)
 		}
 	}
-	if f.ackCalls < 2 {
-		t.Fatal("RPC-delivered frames are still acknowledged", f.ackCalls)
-	}
+	awaitAcks(t, f, 2) // RPC-delivered frames are still acknowledged
 }
 
 func TestVideoLeaseForwardsSourceAndStopBySourceID(t *testing.T) {
