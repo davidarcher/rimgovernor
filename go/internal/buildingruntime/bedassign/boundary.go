@@ -26,8 +26,9 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
-// Native reuses the generic pawn read for the pawn's CAS token and
-// eligibility facts plus the exact-ID bed lookup for the bed's token; the
+// Native reuses the generic pawn read for the pawn's row-level pawn-state
+// CAS token (not the draft-control token on its EntityRef) and eligibility
+// facts plus the exact-ID bed lookup for the bed's row-level token; the
 // upkeep census strips tokens from its rows, so both are refreshed
 // immediately before dispatch.
 type Native interface {
@@ -86,7 +87,7 @@ func (b *Boundary) InspectBedAssign(ctx context.Context, target executor.Target)
 	if row == nil || row.Pawn == nil || row.Pawn.GetId() != string(assign.Pawn()) {
 		return out, executor.ErrEvidence
 	}
-	pawnToken, err := boundary.PawnToken(row, observed.Context)
+	pawnToken, err := boundary.PawnStateToken(row, observed.Context)
 	if err != nil {
 		return out, err
 	}

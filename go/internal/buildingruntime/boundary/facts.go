@@ -56,6 +56,19 @@ func PawnToken(row *n.PawnState, ctx *c.ObservationContext) (string, error) {
 	return ref.GetToken(), nil
 }
 
+// PawnStateToken is the row-level pawn-state CAS ref
+// (NativePawnObservationTools.PawnSnapshotToken: dead/downed/drafted/in
+// bed/hostility/mental state/faction), the token the native AssignBed
+// operation compares its expected pawn token against. PawnToken above is the
+// draft-control token on the EntityRef, which pawn-order operations use.
+func PawnStateToken(row *n.PawnState, ctx *c.ObservationContext) (string, error) {
+	ref := row.GetSnapshot()
+	if ref == nil || ref.GetEntityId() != row.Pawn.GetId() || !proto.Equal(ref.Context, ctx) || !ValidID(ref.GetToken()) {
+		return "", executor.ErrHeld
+	}
+	return ref.GetToken(), nil
+}
+
 func ReceiptJob(receipt *r.Receipt) *r.JobEffect {
 	if receipt == nil {
 		return nil
