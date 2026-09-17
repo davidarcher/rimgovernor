@@ -170,7 +170,7 @@ func TestRoutineMoodRejectsCorruptHistoryAndProposals(t *testing.T) {
 // clock with no work and never let it end.
 func TestRoutineMentalBreakDoesNotSuspendOtherGoals(t *testing.T) {
 	t.Parallel()
-	s := open(t, filepath.Join(t.TempDir(), "mood.db"))
+	s := open(t, memoryPath(t))
 	r := routineRequest()
 	p := moodPerson()
 	p.Mental = domain.Known(true)
