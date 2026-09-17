@@ -97,6 +97,9 @@ message Operation {
     ExcavateCell excavate_cell = 47;
     TameAnimal tame_animal = 48;
     ReleaseAnimal release_animal = 49;
+    SetAnimalArea set_animal_area = 50;
+    SetAnimalMaster set_animal_master = 51;
+    SetAnimalFollowing set_animal_following = 52;
   }
 }
 
@@ -234,6 +237,13 @@ message SetAnimalTraining { EntityPrecondition animal = 1; optional string expec
 message SlaughterAnimal { EntityPrecondition animal = 1; optional string expected_census_token = 2; }
 message TameAnimal { EntityPrecondition animal = 1; optional string expected_census_token = 2; }
 message ReleaseAnimal { EntityPrecondition animal = 1; optional string expected_census_token = 2; }
+// Player-animal settings writes on the same settings/census tokens: an
+// allowed-area or master assignment (Clear unassigns), and the obedience
+// follow flags (at least one must be present). Master and following require
+// Obedience already learned, exactly as the native animals tab does.
+message SetAnimalArea { EntityPrecondition animal = 1; optional string expected_census_token = 2; Assignment area = 3; }
+message SetAnimalMaster { EntityPrecondition animal = 1; optional string expected_census_token = 2; Assignment master = 3; }
+message SetAnimalFollowing { EntityPrecondition animal = 1; optional string expected_census_token = 2; optional bool follow_drafted = 3; optional bool follow_fieldwork = 4; }
 // Exclusive prisoner interaction modes. REDUCE_RESISTANCE and RELEASE are
 // Core; ENSLAVE and CONVERT resolve only while Ideology is active and are
 // refused as unsupported otherwise. Execution and non-exclusive modes stay

@@ -33,6 +33,10 @@ type HusbandryTarget struct {
 	TameableKnown        bool
 	SafeToRelease        bool
 	SafeToReleaseKnown   bool
+	Obedient             bool
+	ObedientKnown        bool
+	SupportsAreas        bool
+	SupportsAreasKnown   bool
 }
 
 // ReadHusbandryTarget reads the whole herd census via the dedicated
@@ -101,6 +105,12 @@ func (client *Client) ReadHusbandryTarget(ctx context.Context, identity *c.Ident
 		}
 		if state.SafeToRelease != nil {
 			out.SafeToReleaseKnown, out.SafeToRelease = true, state.GetSafeToRelease()
+		}
+		if state.Obedient != nil {
+			out.ObedientKnown, out.Obedient = true, state.GetObedient()
+		}
+		if state.SupportsAllowedAreas != nil {
+			out.SupportsAreasKnown, out.SupportsAreas = true, state.GetSupportsAllowedAreas()
 		}
 		if trainableDef != "" {
 			for _, entry := range state.Training {

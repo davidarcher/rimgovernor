@@ -75,7 +75,7 @@ Source files below are under `integrations/rimgovernor-native/src/Bridge`. Read-
 | NeedReliefTool.cs | RelieveNeed | Expected job or idle + schedule; preview admission only; ordinary AI job and later need recovery. |
 | GearUpkeepTool.cs | ImproveGear | Expected loadout, ordinary equip/wear job; observe actual equipped/apparel ID. |
 | MedicalOperationsTool.cs | QueueSurgery | Explicit current player intent required; recipe/part/health/care and native materials/worker checks; bill is not surgery success. |
-| HusbandryTool.cs | SetAnimalTraining/SlaughterAnimal | Settings+census tokens; recursive training or eligible slaughter designation; later animal outcome. |
+| HusbandryTool.cs | SetAnimalTraining/SlaughterAnimal/TameAnimal/ReleaseAnimal/SetAnimalArea/SetAnimalMaster/SetAnimalFollowing | Settings+census tokens; recursive training, eligible designation, or allowed-area/master/follow settings (master and follow need learned Obedience); later animal outcome. |
 | PopulationTool.cs | SetPrisonerInteraction | AttemptRecruit/MaintainOnly/ReduceResistance/Release, plus Enslave/Convert with Ideology; no instant recruitment. Progress reads actual custody outcome (`PrisonerEffect.outcome`). |
 | OrderTool.cs | SetDrafted/MovePawn/AttackTarget/PawnTargetOrder | Equip/rescue/capture/tend/haul/work/repair/clean, native job readback; exact owned draft cleanup, preserve player orders. Resolve is observation. |
 | TradeTool.cs | OpenTrade/SetTradeLines/AcceptTrade/EndTrade | Native adjacent session/deal signature, absolute signed line counts, economic floors; asset/session/quest readback. Pawn trade requires explicit consent. Sheet/status/list/preview reads separate. |

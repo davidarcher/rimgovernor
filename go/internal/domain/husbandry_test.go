@@ -96,3 +96,35 @@ func TestHusbandryTameAndReleaseVariants(t *testing.T) {
 		t.Fatal("unknown method accepted")
 	}
 }
+
+func TestHusbandrySettingsVariants(t *testing.T) {
+	for _, c := range []struct {
+		method HusbandryMethod
+		good   []string
+		bad    []string
+	}{
+		{HusbandryAllowedArea, []string{"Area_Allowed_3", ""}, []string{" ", "bad\x00id"}},
+		{HusbandryMaster, []string{"Thing_Human_12", ""}, []string{"bad\x00id"}},
+		{HusbandryFollowDrafted, []string{"true", "false"}, []string{"", "yes", "True"}},
+		{HusbandryFollowFieldwork, []string{"true", "false"}, []string{"", "1"}},
+	} {
+		for _, argument := range c.good {
+			h, err := NewHusbandry("animal", c.method, argument)
+			if err != nil || h.Argument() != argument || h.TrainableDef() != "" {
+				t.Fatal(c.method, argument, h, err)
+			}
+			if _, err := NewHusbandryAction("husbandry-1", h); err != nil {
+				t.Fatal(c.method, argument, err)
+			}
+		}
+		for _, argument := range c.bad {
+			if _, err := NewHusbandry("animal", c.method, argument); err == nil {
+				t.Fatal(c.method, "accepted", argument)
+			}
+		}
+	}
+	train, _ := NewHusbandry("animal", HusbandryTrain, "Obedience")
+	if train.TrainableDef() != "Obedience" || train.Argument() != "Obedience" {
+		t.Fatal(train)
+	}
+}

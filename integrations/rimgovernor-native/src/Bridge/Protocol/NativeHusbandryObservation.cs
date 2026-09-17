@@ -98,6 +98,15 @@ namespace HomeBridge.BridgeTools
             row.SafeToSlaughter = NativeHusbandryOperations.Eligible(animal) && NativeHusbandryOperations.SafeToSlaughter(animal);
             row.SafeToRelease = NativeHusbandryOperations.Eligible(animal) && NativeHusbandryOperations.SafeToRelease(animal);
             row.Tameable = NativeHusbandryOperations.Tameable(animal);
+            if (NativeHusbandryOperations.Eligible(animal))
+            {
+                row.AllowedAreaId = NativeHusbandryOperations.AreaId(animal);
+                row.MasterId = NativeHusbandryOperations.MasterId(animal);
+                row.FollowDrafted = animal.playerSettings?.followDrafted ?? false;
+                row.FollowFieldwork = animal.playerSettings?.followFieldwork ?? false;
+                row.Obedient = NativeHusbandryOperations.Obedient(animal);
+                row.SupportsAllowedAreas = NativeHusbandryOperations.SupportsAllowedAreas(animal);
+            }
             var pregnancy = animal.health?.hediffSet?.hediffs.OfType<Hediff_Pregnant>().FirstOrDefault();
             if (pregnancy != null) { row.Pregnant = true; row.Gestation = Number(pregnancy.Severity); }
             var milk = animal.GetComp<CompMilkable>(); if (milk != null) row.MilkFullness = Number(milk.Fullness);

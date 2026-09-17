@@ -113,10 +113,23 @@ func TestHusbandryTameAndReleaseAdmission(t *testing.T) {
 		{domain.HusbandryRelease, func(ok bool) HusbandryAnimalFacts {
 			return HusbandryAnimalFacts{Animal: "animal", SnapshotToken: "animal-cas", Dead: domain.Known(false), SafeToRelease: domain.Known(ok)}
 		}},
+		{domain.HusbandryAllowedArea, func(ok bool) HusbandryAnimalFacts {
+			return HusbandryAnimalFacts{Animal: "animal", SnapshotToken: "animal-cas", Dead: domain.Known(false), SupportsAreas: domain.Known(ok)}
+		}},
+		{domain.HusbandryMaster, func(ok bool) HusbandryAnimalFacts {
+			return HusbandryAnimalFacts{Animal: "animal", SnapshotToken: "animal-cas", Dead: domain.Known(false), Obedient: domain.Known(ok)}
+		}},
+		{domain.HusbandryFollowDrafted, func(ok bool) HusbandryAnimalFacts {
+			return HusbandryAnimalFacts{Animal: "animal", SnapshotToken: "animal-cas", Dead: domain.Known(false), Obedient: domain.Known(ok)}
+		}},
+		{domain.HusbandryFollowFieldwork, func(ok bool) HusbandryAnimalFacts {
+			return HusbandryAnimalFacts{Animal: "animal", SnapshotToken: "animal-cas", Dead: domain.Known(false), Obedient: domain.Known(ok)}
+		}},
 	}
+	arguments := map[domain.HusbandryMethod]string{domain.HusbandryFollowDrafted: "true", domain.HusbandryFollowFieldwork: "false"}
 	for _, c := range cases {
 		t.Run(string(c.method), func(t *testing.T) {
-			h, _ := domain.NewHusbandry("animal", c.method, "")
+			h, _ := domain.NewHusbandry("animal", c.method, arguments[c.method])
 			a, _ := domain.NewHusbandryAction("husbandry-1", h)
 			plan, err := domain.NewPlan("plan", 1, []domain.Action{a})
 			if err != nil {

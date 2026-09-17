@@ -32,9 +32,19 @@ through the animal's own state, never inferred from the receipt.
 | `slaughter` | player animal | `Slaughter` designation | designation present |
 | `release` | player animal | `ReleaseAnimalToWild` designation | designation present |
 | `tame` | wild animal | `Tame` designation | designation present, or the animal now reads as a player animal (the taming job consumed it) |
+| `allowed_area` | player animal | `AreaRestrictionInPawnCurrentMap` (argument: area id, empty clears) | animal's allowed area reads back equal |
+| `master` | player animal | `PlayerSettings.Master` (argument: colonist id, empty clears) | master reads back equal |
+| `follow_drafted` | player animal | `followDrafted` (argument: `true`/`false`) | flag reads back equal |
+| `follow_fieldwork` | player animal | `followFieldwork` (argument: `true`/`false`) | flag reads back equal |
+
+Admission facts: `allowed_area` needs `SupportsAllowedAreas`; `master` and the
+follow flags need `Obedient` (learned Obedience; native refuses otherwise). An
+area or master id the map does not carry is refused as not found. Each follow
+method writes only its own flag.
 
 Selection order each cycle is train, then tame, then surplus removal; one write
-per cycle. Pen containment is not a husbandry method: pens are built by
+per cycle. No routine planner yet produces the settings methods; they are
+available to any planner through the same husbandry action. Pen containment is not a husbandry method: pens are built by
 `MaintainAnimalContainment` and native handlers rope pen animals into any
 suitable pen on their own.
 
@@ -55,8 +65,9 @@ exclusions `SafeToSlaughter`/`SafeToRelease` add; a tame candidate must pass
 `TameUtility.CanTame` and carry no tame or hunt designation. Masters, allowed
 areas, following, sterilization and breeding separation are ordinary game
 settings: while native authority reads Auto the controller may change any of
-them, including ones the player just set (see the working agreement). It does
-not yet write them; that is missing coverage (issue #17), not a hands-off rule.
+them, including ones the player just set (see the working agreement). Masters,
+areas and following are written through the methods above; sterilization is
+not yet written.
 
 Births are never counted as pending: a shortfall with no tameable wild animal
 of the race on the map simply reports no candidate until one appears. Renewing

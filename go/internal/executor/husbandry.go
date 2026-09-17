@@ -58,7 +58,7 @@ func (e *Executor) runHusbandry(ctx context.Context, action domain.Action, p dom
 			result.Progress = e.holdRefusal(ctx, v.Plan, v.Action, decision.Refused, minimum, result.Progress)
 			return result, ErrHeld
 		}
-		admission := store.HusbandryAdmission{Snapshot: expected, Tick: facts.PreviewTick, Animal: husbandry.Animal(), Method: husbandry.Method(), TrainableDef: husbandry.TrainableDef(), AnimalSnapshotToken: facts.Animal.SnapshotToken, CensusToken: facts.CensusToken}
+		admission := store.HusbandryAdmission{Snapshot: expected, Tick: facts.PreviewTick, Animal: husbandry.Animal(), Method: husbandry.Method(), Argument: husbandry.Argument(), AnimalSnapshotToken: facts.Animal.SnapshotToken, CensusToken: facts.CensusToken}
 		next, err := e.husbandryJournal.PrepareHusbandry(ctx, v.Plan, v.Action, admission)
 		if err != nil {
 			return result, err
@@ -78,7 +78,7 @@ func (e *Executor) runHusbandry(ctx context.Context, action domain.Action, p dom
 	}
 	result.Progress = next
 	attempt := Placement{action, next.View().Attempt, expected, inspection.Facts.PreviewTick}
-	admission := store.HusbandryAdmission{Snapshot: expected, Tick: inspection.Facts.PreviewTick, Animal: husbandry.Animal(), Method: husbandry.Method(), TrainableDef: husbandry.TrainableDef(), AnimalSnapshotToken: inspection.Facts.Animal.SnapshotToken, CensusToken: inspection.Facts.CensusToken}
+	admission := store.HusbandryAdmission{Snapshot: expected, Tick: inspection.Facts.PreviewTick, Animal: husbandry.Animal(), Method: husbandry.Method(), Argument: husbandry.Argument(), AnimalSnapshotToken: inspection.Facts.Animal.SnapshotToken, CensusToken: inspection.Facts.CensusToken}
 	if err = e.guard(ctx, expected, generation); err != nil {
 		return e.record(result, v.Plan, attempt, domain.ReceiptUnknown, err)
 	}

@@ -1,13 +1,13 @@
 // Command husbandryaccept exercises the MaintainHerd-* native husbandry
 // dispatch vertical (G01.07e, issues #27 and #17) end to end against a live
-// game: the four direct-write animal management orders (SetAnimalTraining,
-// SlaughterAnimal, TameAnimal, ReleaseAnimal -- NativeHusbandryOperations.cs)
-// issued through the same
+// game: the direct-write animal management orders (SetAnimalTraining,
+// SlaughterAnimal, TameAnimal, ReleaseAnimal, SetAnimalArea, SetAnimalMaster,
+// SetAnimalFollowing -- NativeHusbandryOperations.cs) issued through the same
 // typed rimgovernor/operations_execute wire contract Go's
 // executor.runHusbandry drives via bridge.HusbandryWriter, against animals
 // read live through rimgovernor/observations_read_husbandry
 // (bridge.ReadHusbandryTarget's own read). Unlike the job-issuing
-// verticals (mood relief, recovery service), all four orders are immediate
+// verticals (mood relief, recovery service), all of them are immediate
 // settings writes with no native job (NativeHusbandryOperations.cs's own
 // doc comment), so completion is observed as a settings readback, not a
 // tick-driven need/effect recovery. Uses a private disposable fixture
@@ -58,7 +58,8 @@ func main() {
 	report := na.NewReport("Native MaintainHerd-* husbandry dispatch vertical: actual SetAnimalTraining/"+
 		"SlaughterAnimal/TameAnimal/ReleaseAnimal writes issued through the typed operations contract, exact "+
 		"settings/census staleness, pregnant-animal-protected and wrong-faction refusals, immediate settings "+
-		"readback (not a native job), the wild census the tame planner reads, replay idempotency and durable lookup.", !*rendered)
+		"readback (not a native job), the wild census the tame planner reads, allowed-area/master/following settings "+
+		"writes with their obedience and area-existence refusals, replay idempotency and durable lookup.", !*rendered)
 	ctx, cancel := context.WithTimeout(context.Background(), *timeout)
 	defer cancel()
 	err := run(ctx, *root, *output, *game, !*rendered, report)
@@ -140,9 +141,14 @@ func run(ctx context.Context, root, output, gameID string, headless bool, report
 	cowID := na.AsString(prepared["cow"])
 	dogID := na.AsString(prepared["dog"])
 	wildID := na.AsString(prepared["wild"])
-	if motherID == "" || fatherID == "" || cowID == "" || dogID == "" || wildID == "" {
-		return fmt.Errorf("prepare: missing fixture animal ids: %#v", prepared)
+	guardID := na.AsString(prepared["guard"])
+	handlerID := na.AsString(prepared["handler"])
+	areaID := na.AsString(prepared["area"])
+	if motherID == "" || fatherID == "" || cowID == "" || dogID == "" || wildID == "" || guardID == "" || handlerID == "" || areaID == "" {
+		return fmt.Errorf("prepare: missing fixture ids: %#v", prepared)
 	}
+	report["fixture_guard"] = guardID
+	report["fixture_area"] = areaID
 	report["fixture_mother"] = motherID
 	report["fixture_father"] = fatherID
 	report["fixture_cow"] = cowID
@@ -673,6 +679,230 @@ func run(ctx context.Context, root, output, gameID string, headless bool, report
 	} else if !na.DeepEqual(releaseLookup, releaseReceipt) {
 		return fmt.Errorf("lookup-release: expected the same receipt as execute, got %#v", releaseLookup)
 	}
+
+	// --- Animals-tab settings: allowed area, master and following on the
+	// obedient guard; the same immediate-write shape with a settings
+	// readback through AnimalState. Each write's evidence is the animal's
+	// actual post-write value, so a Clear assignment reads back empty. ---
+	settingsOperation := func(command, animalID, settingsToken, censusToken string, extra map[string]any) map[string]any {
+		body := map[string]any{"animal": entity(animalID, settingsToken), "expectedCensusToken": censusToken}
+		for k, v := range extra {
+			body[k] = v
+		}
+		return map[string]any{command: body}
+	}
+	assignment := func(id string) map[string]any {
+		if id == "" {
+			return map[string]any{"clear": map[string]any{}}
+		}
+		return map[string]any{"entityId": id}
+	}
+	executeSettings := func(label, actionID string, operation map[string]any) (map[string]any, map[string]any, error) {
+		request := buildRequest(actionID, operation)
+		reply, err := h.Wire(ctx, label, "operations_execute", request)
+		if err != nil {
+			return nil, nil, err
+		}
+		_, receipt, err := na.Outcome(reply, "receipt")
+		if err != nil {
+			return nil, nil, err
+		}
+		applied, ok := na.AsMap(receipt["applied"])
+		if !ok {
+			return nil, nil, fmt.Errorf("%s: expected an applied outcome, got %#v", label, receipt)
+		}
+		observed, _ := na.AsMap(applied["observed"])
+		effect, _ := na.AsMap(observed["animal"])
+		return request, effect, nil
+	}
+	guardRow, err := herdRow("guard-before", guardID)
+	if err != nil {
+		return err
+	}
+	guardAnimal, _ := na.AsMap(guardRow["animal"])
+	if obedient, _ := na.AsBool(guardAnimal["obedient"]); !obedient {
+		return fmt.Errorf("guard-before: expected the fixture guard to read as obedient, got %#v", guardAnimal)
+	}
+	if supports, _ := na.AsBool(guardAnimal["supportsAllowedAreas"]); !supports {
+		return fmt.Errorf("guard-before: expected the guard to support allowed areas, got %#v", guardAnimal)
+	}
+	if na.AsString(guardAnimal["allowedAreaId"]) != "" || na.AsString(guardAnimal["masterId"]) != "" {
+		return fmt.Errorf("guard-before: expected no pre-existing area or master, got %#v", guardAnimal)
+	}
+	guardSettingsToken, guardCensusToken, err := tokens(guardRow)
+	if err != nil {
+		return fmt.Errorf("guard-before: %w", err)
+	}
+	// The dog has not learned Obedience: master and following are refused
+	// before any write, and the untrained dog reads as not obedient.
+	dogNowRow, err := herdRow("dog-settings", dogID)
+	if err != nil {
+		return err
+	}
+	dogAnimal, _ := na.AsMap(dogNowRow["animal"])
+	if obedient, _ := na.AsBool(dogAnimal["obedient"]); obedient {
+		return fmt.Errorf("dog-settings: expected the untrained dog to read as not obedient, got %#v", dogAnimal)
+	}
+	dogSettingsToken, dogCensusToken, err = tokens(dogNowRow)
+	if err != nil {
+		return fmt.Errorf("dog-settings: %w", err)
+	}
+	if code, err := failureCode("master-untrained", buildRequest("husbandry-master-untrained", settingsOperation("setAnimalMaster", dogID, dogSettingsToken, dogCensusToken, map[string]any{"master": assignment(handlerID)}))); err != nil {
+		return err
+	} else if code != "FAILURE_CODE_INVALID_REQUEST" {
+		return fmt.Errorf("master-untrained: expected FAILURE_CODE_INVALID_REQUEST, got %q", code)
+	}
+	if code, err := failureCode("follow-untrained", buildRequest("husbandry-follow-untrained", settingsOperation("setAnimalFollowing", dogID, dogSettingsToken, dogCensusToken, map[string]any{"followDrafted": true}))); err != nil {
+		return err
+	} else if code != "FAILURE_CODE_INVALID_REQUEST" {
+		return fmt.Errorf("follow-untrained: expected FAILURE_CODE_INVALID_REQUEST, got %q", code)
+	}
+	// An area id the map does not carry is refused as not found.
+	if code, err := failureCode("area-missing", buildRequest("husbandry-area-missing", settingsOperation("setAnimalArea", guardID, guardSettingsToken, guardCensusToken, map[string]any{"area": assignment("Area_Allowed_999999")}))); err != nil {
+		return err
+	} else if code != "FAILURE_CODE_NOT_FOUND" {
+		return fmt.Errorf("area-missing: expected FAILURE_CODE_NOT_FOUND, got %q", code)
+	}
+	report["negative_settings_refusals"] = true
+
+	// Area assign, then readback and Clear.
+	areaRequest, areaEffect, err := executeSettings("execute-area", "husbandry-area-execute", settingsOperation("setAnimalArea", guardID, guardSettingsToken, guardCensusToken, map[string]any{"area": assignment(areaID)}))
+	if err != nil {
+		return err
+	}
+	if na.AsString(areaEffect["allowedAreaId"]) != areaID {
+		return fmt.Errorf("execute-area: expected allowedAreaId %s in the effect, got %#v", areaID, areaEffect)
+	}
+	afterAreaRow, err := herdRow("guard-after-area", guardID)
+	if err != nil {
+		return err
+	}
+	afterAreaAnimal, _ := na.AsMap(afterAreaRow["animal"])
+	if na.AsString(afterAreaAnimal["allowedAreaId"]) != areaID {
+		return fmt.Errorf("guard-after-area: expected the area to be observable, got %#v", afterAreaAnimal)
+	}
+	areaReplayReply, err := h.Wire(ctx, "replay-area", "operations_execute", areaRequest)
+	if err != nil {
+		return err
+	}
+	if _, areaReplay, err := na.Outcome(areaReplayReply, "receipt"); err != nil {
+		return err
+	} else if replayed, _ := na.AsMap(areaReplay["applied"]); replayed == nil {
+		return fmt.Errorf("replay-area: expected an applied receipt on replay, got %#v", areaReplay)
+	}
+	areaProgressReply, err := h.Wire(ctx, "progress-area", "receipts_observe_progress", attemptRef(areaRequest))
+	if err != nil {
+		return err
+	}
+	if _, areaProgress, err := na.Outcome(areaProgressReply, "progress"); err != nil {
+		return err
+	} else if _, ok := na.AsMap(areaProgress["completed"]); !ok {
+		return fmt.Errorf("progress-area: expected an immediately completed progress, got %#v", areaProgress)
+	}
+	guardSettingsToken, guardCensusToken, err = tokens(afterAreaRow)
+	if err != nil {
+		return fmt.Errorf("guard-after-area: %w", err)
+	}
+	_, clearEffect, err := executeSettings("execute-area-clear", "husbandry-area-clear", settingsOperation("setAnimalArea", guardID, guardSettingsToken, guardCensusToken, map[string]any{"area": assignment("")}))
+	if err != nil {
+		return err
+	}
+	if v, present := clearEffect["allowedAreaId"]; !present || na.AsString(v) != "" {
+		return fmt.Errorf("execute-area-clear: expected an empty allowedAreaId in the effect, got %#v", clearEffect)
+	}
+	afterClearRow, err := herdRow("guard-after-area-clear", guardID)
+	if err != nil {
+		return err
+	}
+	afterClearAnimal, _ := na.AsMap(afterClearRow["animal"])
+	if na.AsString(afterClearAnimal["allowedAreaId"]) != "" {
+		return fmt.Errorf("guard-after-area-clear: expected no area after clearing, got %#v", afterClearAnimal)
+	}
+	report["area_dispatched"] = true
+
+	// Master: the handler becomes the guard's master.
+	guardSettingsToken, guardCensusToken, err = tokens(afterClearRow)
+	if err != nil {
+		return fmt.Errorf("guard-after-area-clear: %w", err)
+	}
+	masterRequest, masterEffect, err := executeSettings("execute-master", "husbandry-master-execute", settingsOperation("setAnimalMaster", guardID, guardSettingsToken, guardCensusToken, map[string]any{"master": assignment(handlerID)}))
+	if err != nil {
+		return err
+	}
+	if na.AsString(masterEffect["masterId"]) != handlerID {
+		return fmt.Errorf("execute-master: expected masterId %s in the effect, got %#v", handlerID, masterEffect)
+	}
+	afterMasterRow, err := herdRow("guard-after-master", guardID)
+	if err != nil {
+		return err
+	}
+	afterMasterAnimal, _ := na.AsMap(afterMasterRow["animal"])
+	if na.AsString(afterMasterAnimal["masterId"]) != handlerID {
+		return fmt.Errorf("guard-after-master: expected the master to be observable, got %#v", afterMasterAnimal)
+	}
+	masterLookupReply, err := h.Wire(ctx, "lookup-master", "receipts_lookup", attemptRef(masterRequest))
+	if err != nil {
+		return err
+	}
+	if _, masterLookup, err := na.Outcome(masterLookupReply, "receipt"); err != nil {
+		return err
+	} else if lookedUp, _ := na.AsMap(masterLookup["applied"]); lookedUp == nil {
+		return fmt.Errorf("lookup-master: expected the applied receipt, got %#v", masterLookup)
+	}
+	report["master_dispatched"] = true
+
+	// Following: each flag is written on its own and the other is untouched.
+	guardSettingsToken, guardCensusToken, err = tokens(afterMasterRow)
+	if err != nil {
+		return fmt.Errorf("guard-after-master: %w", err)
+	}
+	_, draftedEffect, err := executeSettings("execute-follow-drafted", "husbandry-follow-drafted", settingsOperation("setAnimalFollowing", guardID, guardSettingsToken, guardCensusToken, map[string]any{"followDrafted": true}))
+	if err != nil {
+		return err
+	}
+	if drafted, _ := na.AsBool(draftedEffect["followDrafted"]); !drafted {
+		return fmt.Errorf("execute-follow-drafted: expected followDrafted in the effect, got %#v", draftedEffect)
+	}
+	afterDraftedRow, err := herdRow("guard-after-follow-drafted", guardID)
+	if err != nil {
+		return err
+	}
+	afterDraftedAnimal, _ := na.AsMap(afterDraftedRow["animal"])
+	if drafted, _ := na.AsBool(afterDraftedAnimal["followDrafted"]); !drafted {
+		return fmt.Errorf("guard-after-follow-drafted: expected followDrafted to be observable, got %#v", afterDraftedAnimal)
+	}
+	if fieldwork, _ := na.AsBool(afterDraftedAnimal["followFieldwork"]); fieldwork {
+		return fmt.Errorf("guard-after-follow-drafted: followFieldwork must be untouched, got %#v", afterDraftedAnimal)
+	}
+	guardSettingsToken, guardCensusToken, err = tokens(afterDraftedRow)
+	if err != nil {
+		return fmt.Errorf("guard-after-follow-drafted: %w", err)
+	}
+	_, fieldworkEffect, err := executeSettings("execute-follow-fieldwork", "husbandry-follow-fieldwork", settingsOperation("setAnimalFollowing", guardID, guardSettingsToken, guardCensusToken, map[string]any{"followFieldwork": true}))
+	if err != nil {
+		return err
+	}
+	if fieldwork, _ := na.AsBool(fieldworkEffect["followFieldwork"]); !fieldwork {
+		return fmt.Errorf("execute-follow-fieldwork: expected followFieldwork in the effect, got %#v", fieldworkEffect)
+	}
+	afterFieldworkRow, err := herdRow("guard-after-follow-fieldwork", guardID)
+	if err != nil {
+		return err
+	}
+	afterFieldworkAnimal, _ := na.AsMap(afterFieldworkRow["animal"])
+	drafted, _ := na.AsBool(afterFieldworkAnimal["followDrafted"])
+	fieldwork, _ := na.AsBool(afterFieldworkAnimal["followFieldwork"])
+	if !drafted || !fieldwork {
+		return fmt.Errorf("guard-after-follow-fieldwork: expected both follow flags set, got %#v", afterFieldworkAnimal)
+	}
+	// The settings token moved with every write above; the pre-area token
+	// is now stale and refused.
+	if code, err := failureCode("follow-stale-settings", buildRequest("husbandry-follow-stale", settingsOperation("setAnimalFollowing", guardID, guardSettingsToken, guardCensusToken, map[string]any{"followDrafted": false}))); err != nil {
+		return err
+	} else if code != "FAILURE_CODE_INVALID_REQUEST" {
+		return fmt.Errorf("follow-stale-settings: expected FAILURE_CODE_INVALID_REQUEST, got %q", code)
+	}
+	report["following_dispatched"] = true
 
 	logData, err := os.ReadFile(cfg.StartupLogPath())
 	if err != nil {

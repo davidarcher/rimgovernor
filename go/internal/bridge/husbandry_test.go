@@ -10,16 +10,22 @@ import (
 
 func TestHusbandryOperationPerMethod(t *testing.T) {
 	cases := map[HusbandryMethod]func(*o.Operation) *o.EntityPrecondition{
-		HusbandryMethodTrain:     func(op *o.Operation) *o.EntityPrecondition { return op.GetSetAnimalTraining().GetAnimal() },
-		HusbandryMethodSlaughter: func(op *o.Operation) *o.EntityPrecondition { return op.GetSlaughterAnimal().GetAnimal() },
-		HusbandryMethodTame:      func(op *o.Operation) *o.EntityPrecondition { return op.GetTameAnimal().GetAnimal() },
-		HusbandryMethodRelease:   func(op *o.Operation) *o.EntityPrecondition { return op.GetReleaseAnimal().GetAnimal() },
+		HusbandryMethodTrain:       func(op *o.Operation) *o.EntityPrecondition { return op.GetSetAnimalTraining().GetAnimal() },
+		HusbandryMethodSlaughter:   func(op *o.Operation) *o.EntityPrecondition { return op.GetSlaughterAnimal().GetAnimal() },
+		HusbandryMethodTame:        func(op *o.Operation) *o.EntityPrecondition { return op.GetTameAnimal().GetAnimal() },
+		HusbandryMethodRelease:     func(op *o.Operation) *o.EntityPrecondition { return op.GetReleaseAnimal().GetAnimal() },
+		HusbandryMethodAllowedArea: func(op *o.Operation) *o.EntityPrecondition { return op.GetSetAnimalArea().GetAnimal() },
+		HusbandryMethodMaster:      func(op *o.Operation) *o.EntityPrecondition { return op.GetSetAnimalMaster().GetAnimal() },
+		HusbandryMethodFollowDrafted: func(op *o.Operation) *o.EntityPrecondition {
+			return op.GetSetAnimalFollowing().GetAnimal()
+		},
+		HusbandryMethodFollowFieldwork: func(op *o.Operation) *o.EntityPrecondition {
+			return op.GetSetAnimalFollowing().GetAnimal()
+		},
 	}
+	arguments := map[HusbandryMethod]string{HusbandryMethodTrain: "Obedience", HusbandryMethodAllowedArea: "Area_3", HusbandryMethodMaster: "Thing_Human_1", HusbandryMethodFollowDrafted: "true", HusbandryMethodFollowFieldwork: "false"}
 	for method, entity := range cases {
-		trainable := ""
-		if method == HusbandryMethodTrain {
-			trainable = "Obedience"
-		}
+		trainable := arguments[method]
 		if err := husbandryCommand("animal", "animal-cas", "census-cas", method, trainable); err != nil {
 			t.Fatal(method, err)
 		}
@@ -27,11 +33,30 @@ func TestHusbandryOperationPerMethod(t *testing.T) {
 		if e := entity(op); e.GetEntityId() != "animal" || e.GetExpectedSnapshotToken() != "animal-cas" {
 			t.Fatal(method, op)
 		}
-		if method != HusbandryMethodTrain {
+		switch method {
+		case HusbandryMethodSlaughter, HusbandryMethodTame, HusbandryMethodRelease:
 			if err := husbandryCommand("animal", "animal-cas", "census-cas", method, "Obedience"); err == nil {
-				t.Fatal(method, "accepted a trainable def")
+				t.Fatal(method, "accepted an argument")
+			}
+		case HusbandryMethodFollowDrafted, HusbandryMethodFollowFieldwork:
+			if err := husbandryCommand("animal", "animal-cas", "census-cas", method, "yes"); err == nil {
+				t.Fatal(method, "accepted a non-boolean flag")
 			}
 		}
+	}
+	// Assignments: an empty argument clears, a non-empty one names the entity.
+	if v := husbandryOperation("animal", "animal-cas", "census-cas", "", HusbandryMethodAllowedArea).GetSetAnimalArea().GetArea(); v.GetClear() == nil {
+		t.Fatal("empty area argument did not clear", v)
+	}
+	if v := husbandryOperation("animal", "animal-cas", "census-cas", "Thing_Human_1", HusbandryMethodMaster).GetSetAnimalMaster().GetMaster(); v.GetEntityId() != "Thing_Human_1" {
+		t.Fatal("master argument lost", v)
+	}
+	// Each follow method sets only its own flag.
+	if f := husbandryOperation("animal", "animal-cas", "census-cas", "true", HusbandryMethodFollowDrafted).GetSetAnimalFollowing(); f.FollowDrafted == nil || !f.GetFollowDrafted() || f.FollowFieldwork != nil {
+		t.Fatal(f)
+	}
+	if f := husbandryOperation("animal", "animal-cas", "census-cas", "false", HusbandryMethodFollowFieldwork).GetSetAnimalFollowing(); f.FollowFieldwork == nil || f.GetFollowFieldwork() || f.FollowDrafted != nil {
+		t.Fatal(f)
 	}
 	if err := husbandryCommand("animal", "animal-cas", "census-cas", HusbandryMethod(99), ""); err == nil {
 		t.Fatal("unknown method accepted")
@@ -47,15 +72,19 @@ func TestHusbandryEvidenceRequiresExactlyTheMethodField(t *testing.T) {
 	expect := func(method HusbandryMethod) HusbandryAttempt {
 		a := HusbandryAttempt{Animal: "animal", Method: method}
 		if method == HusbandryMethodTrain {
-			a.TrainableDef = "Obedience"
+			a.Argument = "Obedience"
 		}
 		return a
 	}
 	good := map[HusbandryMethod]func(*r.AnimalEffect){
-		HusbandryMethodTrain:     func(e *r.AnimalEffect) { e.TrainableDef = proto.String("Obedience"); e.Wanted = proto.Bool(true) },
-		HusbandryMethodSlaughter: func(e *r.AnimalEffect) { e.SlaughterDesignated = proto.Bool(true) },
-		HusbandryMethodTame:      func(e *r.AnimalEffect) { e.TameDesignated = proto.Bool(true) },
-		HusbandryMethodRelease:   func(e *r.AnimalEffect) { e.ReleaseDesignated = proto.Bool(true) },
+		HusbandryMethodTrain:           func(e *r.AnimalEffect) { e.TrainableDef = proto.String("Obedience"); e.Wanted = proto.Bool(true) },
+		HusbandryMethodSlaughter:       func(e *r.AnimalEffect) { e.SlaughterDesignated = proto.Bool(true) },
+		HusbandryMethodTame:            func(e *r.AnimalEffect) { e.TameDesignated = proto.Bool(true) },
+		HusbandryMethodRelease:         func(e *r.AnimalEffect) { e.ReleaseDesignated = proto.Bool(true) },
+		HusbandryMethodAllowedArea:     func(e *r.AnimalEffect) { e.AllowedAreaId = proto.String("Area_3") },
+		HusbandryMethodMaster:          func(e *r.AnimalEffect) { e.MasterId = proto.String("") },
+		HusbandryMethodFollowDrafted:   func(e *r.AnimalEffect) { e.FollowDrafted = proto.Bool(true) },
+		HusbandryMethodFollowFieldwork: func(e *r.AnimalEffect) { e.FollowFieldwork = proto.Bool(false) },
 	}
 	for method, mutate := range good {
 		if _, err := husbandryEvidence(effect(mutate), expect(method)); err != nil {

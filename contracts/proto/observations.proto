@@ -118,6 +118,12 @@ message AnimalState {
   repeated TrainingEntry training = 11; optional bool release = 12; optional bool slaughter = 13;
   optional bool safe_to_slaughter = 14; optional int32 minimum_handling_skill = 15; repeated ReadIssue issues = 16;
   optional double body_size = 17; optional bool tameable = 18; optional bool tame = 19; optional bool safe_to_release = 20;
+  // Player-animal settings the SetAnimalArea/Master/Following writes target:
+  // the current allowed area and master (empty when unassigned), the follow
+  // flags, whether Obedience is learned (master/follow eligibility) and
+  // whether native lets this animal carry an allowed area at all.
+  optional string allowed_area_id = 21; optional string master_id = 22; optional bool follow_drafted = 23; optional bool follow_fieldwork = 24;
+  optional bool obedient = 25; optional bool supports_allowed_areas = 26;
 }
 message PawnState {
   EntityRef pawn = 1; optional string kind_def_name = 2; optional string faction_id = 3;

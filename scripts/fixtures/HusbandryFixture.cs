@@ -23,10 +23,10 @@ namespace HomeBridge.BridgeTools
                     ?? throw new InvalidOperationException("husbandry fixture: no spawned colonist can do Handling");
                 var removed = map.mapPawns.FreeColonistsSpawned.Where(p => p != handler).ToArray();
                 foreach (var other in removed) { other.jobs.StopAll(); other.DeSpawn(); }
-                // The debug-start map is random; sweep well beyond the handler's
-                // landing spot so a rough or fogged neighbourhood does not
-                // starve the enclosure of an 11x11 heavy-affordance clearing.
-                var clearing = GenRadial.RadialCellsAround(handler.Position, GenRadial.MaxRadialPatternRadius - 1, true).Where(c =>
+                // The debug-start map is random; sweep the whole map nearest
+                // first so a rough or fogged neighbourhood does not starve the
+                // enclosure of an 11x11 heavy-affordance clearing.
+                var clearing = map.AllCells.OrderBy(c => c.DistanceToSquared(handler.Position)).Where(c =>
                     CellRect.FromLimits(c, c + new IntVec3(10, 0, 10)).Cells.All(p => p.InBounds(map)
                         && !p.Fogged(map) && p.Standable(map) && p.GetEdifice(map) == null
                         && p.GetTerrain(map).affordances.Contains(TerrainAffordanceDefOf.Heavy))).Select(c => (IntVec3?)c).FirstOrDefault();
@@ -82,6 +82,19 @@ namespace HomeBridge.BridgeTools
                 GenSpawn.Spawn(wild, origin + new IntVec3(12, 0, 5), map);
                 var trainingSteps = (DefMap<TrainableDef, int>)AccessTools.Field(typeof(Pawn_TrainingTracker), "steps").GetValue(dog.training);
                 trainingSteps[TrainableDefOf.Obedience] = TrainableDefOf.Obedience.steps - 1;
+                // A second husky that already knows Obedience: the master and
+                // following writes require it (PlayerSettings.Master refuses
+                // otherwise), and the dog above must stay one step short so
+                // the training vertical keeps a real request to make.
+                var guard = animal("Husky", Gender.Male, 8);
+                guard.training.Train(TrainableDefOf.Obedience, handler, true);
+                if (!guard.training.HasLearned(TrainableDefOf.Obedience)) throw new InvalidOperationException("husbandry fixture: guard did not learn Obedience");
+                // Learning Obedience auto-assigns the trainer as master; start unmastered so the master write is observed.
+                guard.playerSettings.Master = null;
+                // A fresh allowed area covering the enclosure interior for the
+                // allowed-area write; the area write refuses ids it cannot find.
+                if (!map.areaManager.TryMakeNewAllowed(out var area)) throw new InvalidOperationException("husbandry fixture: could not make an allowed area");
+                foreach (var cell in CellRect.FromLimits(origin + new IntVec3(1, 0, 1), origin + new IntVec3(9, 0, 9)).Cells) area[cell] = true;
                 for (var z = 2; z <= 8; z++)
                 {
                     var hay = ThingMaker.MakeThing(ThingDef.Named("Hay")); hay.stackCount = hay.def.stackLimit;
@@ -97,8 +110,9 @@ namespace HomeBridge.BridgeTools
                 created = true;
                 return new { success = true, mother = mother.GetUniqueLoadID(), father = father.GetUniqueLoadID(),
                     cow = cow.GetUniqueLoadID(), dog = dog.GetUniqueLoadID(), wild = wild.GetUniqueLoadID(), handler = handler.GetUniqueLoadID(),
+                    guard = guard.GetUniqueLoadID(), area = area.GetUniqueLoadID(),
                     removedColonists = removed.Select(p => p.GetUniqueLoadID()).ToArray(),
-                    setup = "Single-handler fixture: other colonists despawned; roofed enclosure, bed, food and full initial handler needs. Mature full-producing animals, near-term pregnancy, one remaining training step and one factionless tameable muffalo outside. No completed outcome credited to setup; subsequent needs and work use normal rules." };
+                    setup = "Single-handler fixture: other colonists despawned; roofed enclosure, bed, food and full initial handler needs. Mature full-producing animals, near-term pregnancy, one remaining training step, an obedient guard husky, an allowed area over the enclosure and one factionless tameable muffalo outside. No completed outcome credited to setup; subsequent needs and work use normal rules." };
             }, cancellationToken);
         }
     }

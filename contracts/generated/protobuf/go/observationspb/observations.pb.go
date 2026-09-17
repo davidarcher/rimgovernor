@@ -2748,6 +2748,16 @@ type AnimalState struct {
 	Tameable             *bool                  `protobuf:"varint,18,opt,name=tameable,proto3,oneof" json:"tameable,omitempty"`
 	Tame                 *bool                  `protobuf:"varint,19,opt,name=tame,proto3,oneof" json:"tame,omitempty"`
 	SafeToRelease        *bool                  `protobuf:"varint,20,opt,name=safe_to_release,json=safeToRelease,proto3,oneof" json:"safe_to_release,omitempty"`
+	// Player-animal settings the SetAnimalArea/Master/Following writes target:
+	// the current allowed area and master (empty when unassigned), the follow
+	// flags, whether Obedience is learned (master/follow eligibility) and
+	// whether native lets this animal carry an allowed area at all.
+	AllowedAreaId        *string `protobuf:"bytes,21,opt,name=allowed_area_id,json=allowedAreaId,proto3,oneof" json:"allowed_area_id,omitempty"`
+	MasterId             *string `protobuf:"bytes,22,opt,name=master_id,json=masterId,proto3,oneof" json:"master_id,omitempty"`
+	FollowDrafted        *bool   `protobuf:"varint,23,opt,name=follow_drafted,json=followDrafted,proto3,oneof" json:"follow_drafted,omitempty"`
+	FollowFieldwork      *bool   `protobuf:"varint,24,opt,name=follow_fieldwork,json=followFieldwork,proto3,oneof" json:"follow_fieldwork,omitempty"`
+	Obedient             *bool   `protobuf:"varint,25,opt,name=obedient,proto3,oneof" json:"obedient,omitempty"`
+	SupportsAllowedAreas *bool   `protobuf:"varint,26,opt,name=supports_allowed_areas,json=supportsAllowedAreas,proto3,oneof" json:"supports_allowed_areas,omitempty"`
 	unknownFields        protoimpl.UnknownFields
 	sizeCache            protoimpl.SizeCache
 }
@@ -2918,6 +2928,48 @@ func (x *AnimalState) GetTame() bool {
 func (x *AnimalState) GetSafeToRelease() bool {
 	if x != nil && x.SafeToRelease != nil {
 		return *x.SafeToRelease
+	}
+	return false
+}
+
+func (x *AnimalState) GetAllowedAreaId() string {
+	if x != nil && x.AllowedAreaId != nil {
+		return *x.AllowedAreaId
+	}
+	return ""
+}
+
+func (x *AnimalState) GetMasterId() string {
+	if x != nil && x.MasterId != nil {
+		return *x.MasterId
+	}
+	return ""
+}
+
+func (x *AnimalState) GetFollowDrafted() bool {
+	if x != nil && x.FollowDrafted != nil {
+		return *x.FollowDrafted
+	}
+	return false
+}
+
+func (x *AnimalState) GetFollowFieldwork() bool {
+	if x != nil && x.FollowFieldwork != nil {
+		return *x.FollowFieldwork
+	}
+	return false
+}
+
+func (x *AnimalState) GetObedient() bool {
+	if x != nil && x.Obedient != nil {
+		return *x.Obedient
+	}
+	return false
+}
+
+func (x *AnimalState) GetSupportsAllowedAreas() bool {
+	if x != nil && x.SupportsAllowedAreas != nil {
+		return *x.SupportsAllowedAreas
 	}
 	return false
 }
@@ -27399,7 +27451,7 @@ const file_observations_proto_rawDesc = "" +
 	"\a_wantedB\f\n" +
 	"\n" +
 	"_availableB\t\n" +
-	"\a_reason\"\xb1\b\n" +
+	"\a_reason\"\xaa\v\n" +
 	"\vAnimalState\x12\x1b\n" +
 	"\x06gender\x18\x01 \x01(\tH\x00R\x06gender\x88\x01\x01\x12 \n" +
 	"\tage_years\x18\x02 \x01(\x01H\x01R\bageYears\x88\x01\x01\x12(\n" +
@@ -27423,7 +27475,13 @@ const file_observations_proto_rawDesc = "" +
 	"\tbody_size\x18\x11 \x01(\x01H\rR\bbodySize\x88\x01\x01\x12\x1f\n" +
 	"\btameable\x18\x12 \x01(\bH\x0eR\btameable\x88\x01\x01\x12\x17\n" +
 	"\x04tame\x18\x13 \x01(\bH\x0fR\x04tame\x88\x01\x01\x12+\n" +
-	"\x0fsafe_to_release\x18\x14 \x01(\bH\x10R\rsafeToRelease\x88\x01\x01B\t\n" +
+	"\x0fsafe_to_release\x18\x14 \x01(\bH\x10R\rsafeToRelease\x88\x01\x01\x12+\n" +
+	"\x0fallowed_area_id\x18\x15 \x01(\tH\x11R\rallowedAreaId\x88\x01\x01\x12 \n" +
+	"\tmaster_id\x18\x16 \x01(\tH\x12R\bmasterId\x88\x01\x01\x12*\n" +
+	"\x0efollow_drafted\x18\x17 \x01(\bH\x13R\rfollowDrafted\x88\x01\x01\x12.\n" +
+	"\x10follow_fieldwork\x18\x18 \x01(\bH\x14R\x0ffollowFieldwork\x88\x01\x01\x12\x1f\n" +
+	"\bobedient\x18\x19 \x01(\bH\x15R\bobedient\x88\x01\x01\x129\n" +
+	"\x16supports_allowed_areas\x18\x1a \x01(\bH\x16R\x14supportsAllowedAreas\x88\x01\x01B\t\n" +
 	"\a_genderB\f\n" +
 	"\n" +
 	"_age_yearsB\x10\n" +
@@ -27446,7 +27504,14 @@ const file_observations_proto_rawDesc = "" +
 	"_body_sizeB\v\n" +
 	"\t_tameableB\a\n" +
 	"\x05_tameB\x12\n" +
-	"\x10_safe_to_release\"\xc4\x11\n" +
+	"\x10_safe_to_releaseB\x12\n" +
+	"\x10_allowed_area_idB\f\n" +
+	"\n" +
+	"_master_idB\x11\n" +
+	"\x0f_follow_draftedB\x13\n" +
+	"\x11_follow_fieldworkB\v\n" +
+	"\t_obedientB\x19\n" +
+	"\x17_supports_allowed_areas\"\xc4\x11\n" +
 	"\tPawnState\x12:\n" +
 	"\x04pawn\x18\x01 \x01(\v2&.rimgovernor.observations.v1.EntityRefR\x04pawn\x12'\n" +
 	"\rkind_def_name\x18\x02 \x01(\tH\x00R\vkindDefName\x88\x01\x01\x12\"\n" +
