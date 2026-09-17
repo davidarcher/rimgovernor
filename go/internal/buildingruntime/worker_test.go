@@ -539,3 +539,28 @@ func (f *workerFake) CleanupDraft(ctx context.Context, p domain.PlanID, a domain
 	}
 	return executor.Result{}, executor.ErrHeld
 }
+
+func TestWorkerBackoffIgnoresTickAndStretchesForUnknownEffects(t *testing.T) {
+	t.Parallel()
+	before := domain.ProgressView{Action: "a", Attempt: 1, Stage: domain.AwaitingObservation, Tick: 100, Effect: domain.Known(domain.EffectUnknown), ConstructionObserved: domain.Known(domain.Tick(90))}
+	after := before
+	after.Tick, after.ConstructionObserved = 700, domain.Unknown[domain.Tick]()
+	if !workerSameView(before, after) {
+		t.Fatal("a re-read at a later tick is not a changed view")
+	}
+	after.Effect = domain.Known(domain.EffectPending)
+	if workerSameView(before, after) {
+		t.Fatal("a changed effect is a changed view")
+	}
+	config := WorkerConfig{StepInterval: time.Second, MaxBackoff: 10 * time.Second}
+	if got := workerBackoffCap(config, before); got != time.Minute {
+		t.Fatal("unknown effect cap", got)
+	}
+	if got := workerBackoffCap(config, after); got != 10*time.Second {
+		t.Fatal("pending effect cap", got)
+	}
+	config.MaxBackoff = time.Minute
+	if got := workerBackoffCap(config, before); got != time.Minute {
+		t.Fatal("cap never exceeds a minute", got)
+	}
+}

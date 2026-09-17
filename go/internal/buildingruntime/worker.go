@@ -247,7 +247,7 @@ func (w *Worker) step(ctx context.Context, now time.Time) error {
 		candidate := candidates[(start+n)%len(candidates)]
 		v := candidate.view
 		wait := w.waits[v.Action]
-		if wait.view == v && wait.scope == workerScope(scope) && wait.cleanup == candidate.cleanup && now.Before(wait.until) {
+		if workerSameView(wait.view, v) && wait.scope == workerScope(scope) && wait.cleanup == candidate.cleanup && now.Before(wait.until) {
 			continue
 		}
 		w.cursor = v.Action
@@ -276,11 +276,8 @@ func (w *Worker) step(ctx context.Context, now time.Time) error {
 			clockSchedulerLog("worker: action=%s kind=%v cleanup=%v stage=%v->%v err=%v", v.Action, candidate.view.Plan, candidate.cleanup, v.Stage, after.Stage, err)
 		}
 		delay := w.config.StepInterval
-		if after == v && wait.view == v && wait.scope == workerScope(scope) && wait.cleanup == candidate.cleanup {
-			delay = wait.delay * 2
-			if delay > w.config.MaxBackoff {
-				delay = w.config.MaxBackoff
-			}
+		if workerSameView(after, v) && workerSameView(wait.view, v) && wait.scope == workerScope(scope) && wait.cleanup == candidate.cleanup {
+			delay = min(wait.delay*2, workerBackoffCap(w.config, after))
 		}
 		outcome := workerOutcome(after, result, err)
 		if err != nil && outcome != wait.outcome {
@@ -292,6 +289,31 @@ func (w *Worker) step(ctx context.Context, now time.Time) error {
 	}
 	return worldErr
 }
+
+// workerSameView reports whether two views of one action describe the same
+// reconciliation state. The observed tick advances with every read of a
+// running game, so it is not a change; a read that only restated an
+// unresolved effect must back off like any other unchanged attempt, or a
+// handful of unresolvable observations monopolise the one-action-per-step
+// rotation and starve the plans that could progress.
+func workerSameView(a, b domain.ProgressView) bool {
+	a.Tick, b.Tick = 0, 0
+	a.ConstructionObserved, b.ConstructionObserved = domain.Unknown[domain.Tick](), domain.Unknown[domain.Tick]()
+	return a == b
+}
+
+// workerBackoffCap bounds the retry delay of an unchanged attempt. An
+// observation the native side could not classify (EffectUnknown: the source
+// or output is gone, the pawn is unobservable) rarely resolves within the
+// ordinary cap and is rechecked at most once a minute; everything else keeps
+// the configured cap so pending work is noticed promptly.
+func workerBackoffCap(config WorkerConfig, v domain.ProgressView) time.Duration {
+	if effect, known := v.Effect.Value(); known && effect == domain.EffectUnknown && v.Stage == domain.AwaitingObservation {
+		return max(config.MaxBackoff, min(6*config.MaxBackoff, time.Minute))
+	}
+	return config.MaxBackoff
+}
+
 func workerEligible(plan store.PlanState, v domain.ProgressView, scope ControlState, world store.World) bool {
 	supported := false
 	for _, action := range plan.Spec.Actions() {
