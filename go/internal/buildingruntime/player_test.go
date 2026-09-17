@@ -85,7 +85,10 @@ func playerFixture(t *testing.T) (*Player, *store.Store, *playerFakeSession, *pl
 	}
 	session := &playerFakeSession{}
 	worlds := &playerWorldSource{world: store.World{Colony: "colony", Load: "load", Map: 0}}
-	p, err := newPlayer(context.Background(), PlayerConfig{CallTimeout: time.Second, JournalTimeout: time.Second}, db, session, worlds)
+	// Upper bounds only: no test on this fixture waits for them to expire,
+	// and the routine planners' previews and journal writes ran past a 1s
+	// call budget under CPU contention.
+	p, err := newPlayer(context.Background(), PlayerConfig{CallTimeout: 10 * time.Second, JournalTimeout: 10 * time.Second}, db, session, worlds)
 	if err != nil {
 		t.Fatal(err)
 	}
