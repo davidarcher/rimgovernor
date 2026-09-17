@@ -21,6 +21,7 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/draft"
 	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/equip"
 	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/excavation"
+	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/growercrop"
 	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/haul"
 	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/melee"
 	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/mineacquisition"
@@ -135,6 +136,7 @@ type buildingServiceBridge struct {
 	production          *buildingruntime.ProductionPolicyCapabilities
 	buildingTemperature *buildingtemperature.Capabilities
 	bedMedical          *bedmedical.Capabilities
+	growerCrop          *growercrop.Capabilities
 	presentationMedia   *bridge.PresentationMedia
 	lifecycle           lifecycleCapability
 }
@@ -265,6 +267,10 @@ func openBuildingService(ctx context.Context, config bridge.ProcessConfig) (buil
 	if err != nil {
 		return buildingServiceBridge{}, errors.Join(err, client.Close())
 	}
+	growerCropControl, err := bridge.NewGrowerCropControl(client)
+	if err != nil {
+		return buildingServiceBridge{}, errors.Join(err, client.Close())
+	}
 	presentationMedia, err := bridge.NewPresentationMedia(client)
 	if err != nil {
 		return buildingServiceBridge{}, errors.Join(err, client.Close())
@@ -308,6 +314,7 @@ func openBuildingService(ctx context.Context, config bridge.ProcessConfig) (buil
 		production:          &buildingruntime.ProductionPolicyCapabilities{Native: client, Writer: productionPolicyWriter},
 		buildingTemperature: &buildingtemperature.Capabilities{Native: client, Writer: buildingTemperatureControl},
 		bedMedical:          &bedmedical.Capabilities{Native: client, Writer: bedMedicalControl},
+		growerCrop:          &growercrop.Capabilities{Native: client, Writer: growerCropControl},
 		presentationMedia:   presentationMedia,
 		lifecycle:           lifecycleCapability{lifecycleSave, lifecycleLoad}}, nil
 }
@@ -623,6 +630,14 @@ func serveBuildingWithBridge(ctx context.Context, config serveConfig, out io.Wri
 		}
 		bedMedicalCapabilities = client.bedMedical
 	}
+	// The field family re-crops plant growers through the shared executor.
+	var growerCropCapabilities *growercrop.Capabilities
+	if config.routineFieldPlans {
+		if client.growerCrop == nil {
+			return errors.New("field plans require typed capabilities")
+		}
+		growerCropCapabilities = client.growerCrop
+	}
 	session, err := buildingruntime.NewSession(lifetime, buildingruntime.SessionConfig{RoutineMethods: config.routineMethods,
 		Rules:               config.resourceRules,
 		Control:             buildingruntime.ControlConfig{ProfileDirectory: config.profile, CallTimeout: callTimeout, Worlds: buildingWorldSource{client.reads}},
@@ -657,6 +672,7 @@ func serveBuildingWithBridge(ctx context.Context, config serveConfig, out io.Wri
 		ProductionPolicy:    productionPolicyCapabilities,
 		BuildingTemperature: buildingTemperatureCapabilities,
 		BedMedical:          bedMedicalCapabilities,
+		GrowerCrop:          growerCropCapabilities,
 	}, database, client.native, client.authority, client.writes, wallClock{})
 	if err != nil {
 		return err

@@ -65,11 +65,13 @@ type SiteTypeRequest struct {
 	Heater      domain.Fact[Infrastructure]
 	// LampGrowthRadius is the native Building_SunLamp growth radius in cells.
 	LampGrowthRadius float64
-	// BasinCrop is the crop a new grower sows by default; growers cannot be
-	// re-cropped natively, so hydroponics only ever grows it.
-	BasinCrop string
-	Weights   SiteTypeWeights
+	Weights          SiteTypeWeights
 }
+
+// siteHydroponicTag is the native sow tag a HydroponicsBasin accepts. A new
+// basin sows its definition's default crop; PlanGrowerCrops re-crops it to
+// the candidate's crop once it is built.
+const siteHydroponicTag = "Hydroponic"
 
 // SiteBuilding is one placement a construction kind needs before its cells
 // can grow.
@@ -422,9 +424,9 @@ func siteCandidate(r SiteTypeRequest, w SiteTypeWeights, env ControlledEnvironme
 	return c
 }
 
-// siteHydroponics places basins on lit roofed floor under a running lamp.
-// Basins ignore soil and draw all night, so the count is capped by the best
-// network's night headroom; travel is the walked-step proxy of Manhattan
+// siteHydroponics places basins on lit roofed floor under a running lamp
+// for any crop carrying the Hydroponic sow tag. Basins ignore soil and draw
+// all night, so the count is capped by the best network's night headroom; travel is the walked-step proxy of Manhattan
 // distance from the anchor since basins are not square patches.
 func siteHydroponics(r SiteTypeRequest, w SiteTypeWeights, env ControlledEnvironment, v viableCrop, c SiteTypeCandidate, lit map[domain.Cell]string, unit float64) SiteTypeCandidate {
 	basin, bk := r.Basin.Value()
@@ -435,8 +437,8 @@ func siteHydroponics(r SiteTypeRequest, w SiteTypeWeights, env ControlledEnviron
 		return c
 	}
 	tags, tk := v.crop.SowTags.Value()
-	if v.crop.Name != r.BasinCrop || !tk || !containsString(tags, "Hydroponic") {
-		c.Reason = "crop is not the basin's native crop"
+	if !tk || !containsString(tags, siteHydroponicTag) {
+		c.Reason = "crop cannot be sown in a basin"
 		return c
 	}
 	if len(lit) == 0 {

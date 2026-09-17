@@ -103,3 +103,20 @@ func admitZoneMethod(ctx context.Context, tx *sql.Tx, goal GoalState, plan domai
 	}
 	return nil
 }
+
+// growerCropOpenWorkExempt: a method made only of grower re-crops may be
+// committed under any open work. It re-crops a grower that already stands,
+// shares no cells or stock with the basin batch that built it, and that
+// batch stays open until its last basin does; the planner commits one such
+// method per grower per goal epoch.
+func growerCropOpenWorkExempt(plan domain.PlanSpec) bool {
+	if len(plan.Actions()) == 0 {
+		return false
+	}
+	for _, action := range plan.Actions() {
+		if action.Kind() != domain.GrowerCropAction {
+			return false
+		}
+	}
+	return true
+}

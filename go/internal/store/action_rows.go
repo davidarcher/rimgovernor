@@ -110,6 +110,9 @@ func insertAction(ctx context.Context, tx *sql.Tx, plan domain.PlanID, ordinal i
 			return encodeErr
 		}
 		_, err = tx.ExecContext(ctx, "INSERT INTO actions(id,plan_id,ordinal,kind,target,building_temperature_payload) VALUES(?,?,?,'building_temperature',?,?)", a.ID(), plan, ordinal, temperature.Thing(), data)
+	} else if crop, ok := a.GrowerCrop(); ok {
+		// definition carries the wanted crop, stuff the CAS token.
+		_, err = tx.ExecContext(ctx, "INSERT INTO actions(id,plan_id,ordinal,kind,target,definition,stuff) VALUES(?,?,?,'grower_crop',?,?,?)", a.ID(), plan, ordinal, crop.Thing(), crop.Crop(), crop.BeforeToken())
 	} else if medical, ok := a.BedMedical(); ok {
 		// definition carries the wanted flag, stuff the CAS token.
 		_, err = tx.ExecContext(ctx, "INSERT INTO actions(id,plan_id,ordinal,kind,target,definition,stuff) VALUES(?,?,?,'bed_medical',?,?,?)", a.ID(), plan, ordinal, medical.Thing(), strconv.FormatBool(medical.Medical()), medical.BeforeToken())
@@ -449,6 +452,14 @@ func scanAction(rows *sql.Rows) (domain.Action, int, error) {
 			return domain.Action{}, 0, err
 		}
 		a, err := domain.NewResearchSelectAction(id, v)
+		return a, ordinal, err
+	}
+	if kind == "grower_crop" && target.Valid && def.Valid && stuff.Valid && !pawn.Valid && !x.Valid && !z.Valid && !rotation.Valid && !draftAction.Valid {
+		crop, err := domain.NewGrowerCrop(target.String, def.String, stuff.String)
+		if err != nil {
+			return domain.Action{}, 0, err
+		}
+		a, err := domain.NewGrowerCropAction(id, crop)
 		return a, ordinal, err
 	}
 	if kind == "bed_medical" && target.Valid && def.Valid && stuff.Valid && !pawn.Valid && !x.Valid && !z.Valid && !rotation.Valid && !draftAction.Valid && (def.String == "true" || def.String == "false") {

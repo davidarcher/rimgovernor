@@ -62,17 +62,19 @@ namespace HomeBridge.BridgeTools
                                 w.Write(row.Construction.PercentComplete); w.Write(row.Construction.ResourcesComplete);
                             })
                             : Token(thing, context);
-                        // Only the two implemented PatchBuilding fields carry a
+                        // Only the implemented PatchBuilding fields carry a
                         // settings row with their own dedicated CAS snapshot:
-                        // target_temperature_c (NativeBuildingTemperature) and a
-                        // humanlike bed's medical flag (NativeBedMedical).
-                        // forbidden/power/owner remain the "settings" unsupported
-                        // issue below.
+                        // target_temperature_c (NativeBuildingTemperature), a
+                        // humanlike bed's medical flag (NativeBedMedical) and a
+                        // plant grower's crop (NativeGrowerCrop). forbidden/
+                        // power/owner remain the "settings" unsupported issue below.
                         var tempControl = thing.TryGetComp<CompTempControl>();
                         if (tempControl != null)
                             row.Settings = new Obs.BuildingSettings { Snapshot = NativeBuildingTemperature.Snapshot(thing, context), TargetTemperatureC = tempControl.targetTemperature };
                         else if (NativeBedMedical.Eligible(thing))
                             row.Settings = NativeBedMedical.Settings((Building_Bed)thing, context);
+                        else if (NativeGrowerCrop.Eligible(thing))
+                            row.Settings = NativeGrowerCrop.Settings((Building_PlantGrower)thing, context);
                         cells = checked(cells + row.OccupiedCells.Count);
                         Require(cells <= 4096, "Complete building geometry exceeds 4096 cells.");
                         snapshot.Buildings.Add(row);
@@ -184,11 +186,12 @@ namespace HomeBridge.BridgeTools
             else row.Issues.Add(Issue("construction", Common.UnavailableReason.NotApplicable, "Completed building is not a construction site."));
             // "settings" is reported unsupported wholesale only when this thing
             // carries no settings row; a temp-controlled thing gets
-            // target_temperature_c and a humanlike bed its medical flag, each
-            // with its own snapshot, filled in by the caller below (see
-            // NativeBuildingTemperature, NativeBedMedical) -- forbidden/power/
-            // owner/forPrisoners remain unimplemented either way.
-            var fields = thing.TryGetComp<CompTempControl>() != null || NativeBedMedical.Eligible(thing)
+            // target_temperature_c, a humanlike bed its medical flag and a
+            // plant grower its crop, each with its own snapshot, filled in by
+            // the caller below (see NativeBuildingTemperature, NativeBedMedical,
+            // NativeGrowerCrop) -- forbidden/power/owner/forPrisoners remain
+            // unimplemented either way.
+            var fields = thing.TryGetComp<CompTempControl>() != null || NativeBedMedical.Eligible(thing) || NativeGrowerCrop.Eligible(thing)
                 ? new[] { "service", "thermal_sides", "bills" }
                 : new[] { "settings", "service", "thermal_sides", "bills" };
             foreach (var field in fields)

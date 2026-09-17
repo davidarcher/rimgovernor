@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
@@ -25,8 +26,8 @@ namespace HomeBridge.BridgeTools
     // zone or building: that is the field planner's own work.
     public sealed class FarmEnvironmentFixture
     {
-        [Tool("test/farm_environment_prepare", Description = "UNSAFE FOR MODEL EXECUTION. Private disposable fixture: build one enclosed roofed room with a powered sun lamp and heaters on its own fuelled generators, register a cold snap and dress the colonists; scenario 'greenhouse' floors it with soil, 'hydroponics' with concrete and finishes Hydroponics research with basin stock.")]
-        public async Task<object> Prepare(IRimBridgeContext ctx, CancellationToken cancellationToken, string scenario = "greenhouse")
+        [Tool("test/farm_environment_prepare", Description = "UNSAFE FOR MODEL EXECUTION. Private disposable fixture: build one enclosed roofed room with a powered sun lamp and heaters on its own fuelled generators, register a cold snap and dress the colonists; scenario 'greenhouse' floors it with soil, 'hydroponics' with concrete and finishes Hydroponics research with basin stock. unavailableCrops (comma-separated plant defs) gates those crops behind an unfinished research project for this game only, so a scenario can make another basin crop win.")]
+        public async Task<object> Prepare(IRimBridgeContext ctx, CancellationToken cancellationToken, string scenario = "greenhouse", string unavailableCrops = "")
         {
             return await ctx.MainThread.InvokeAsync<object>(() => {
                 var map = Find.CurrentMap; var player = Faction.OfPlayerSilentFail;
@@ -63,6 +64,21 @@ namespace HomeBridge.BridgeTools
                 foreach (var def in researched)
                     foreach (var project in def.researchPrerequisites ?? new List<ResearchProjectDef>()) Finish(project);
                 if (researched.Any(d => !d.IsResearchFinished)) return Refuse("Fixture research did not finish.");
+                // A crop named in unavailableCrops is gated behind an unfinished
+                // project on both the definition (the planner's census reads
+                // researchPrerequisites) and its sowing (the game's own
+                // set-plant gizmo rule), for this disposable game only.
+                var gated = new List<string>();
+                foreach (var name in (unavailableCrops ?? string.Empty).Split(',').Select(n => n.Trim()).Where(n => n.Length > 0))
+                {
+                    var crop = DefDatabase<ThingDef>.GetNamedSilentFail(name);
+                    if (crop?.plant == null) return Refuse("unavailableCrops names a definition that is not a plant: " + name);
+                    var unfinished = DefDatabase<ResearchProjectDef>.AllDefsListForReading.OrderBy(p => p.defName, StringComparer.Ordinal).FirstOrDefault(p => !p.IsFinished);
+                    if (unfinished == null) return Refuse("No unfinished research project is left to gate " + name + " behind.");
+                    crop.researchPrerequisites = new List<ResearchProjectDef> { unfinished };
+                    crop.plant.sowResearchPrerequisites = new List<ResearchProjectDef> { unfinished };
+                    gated.Add(name + "<-" + unfinished.defName);
+                }
 
                 // 15x12 clearing near the colonist centroid: the room at
                 // (0..10, 0..10) with its lamp at (5,5), a conduit column at
@@ -189,7 +205,7 @@ namespace HomeBridge.BridgeTools
                     roomId = inside.ID, roomTemperatureC = inside.Temperature, outdoorTemperatureC = map.mapTemperature.OutdoorTemp, coldSnaps = snaps,
                     lamp = lamp.GetUniqueLoadID(), lampPowered = lamp.TryGetComp<CompPowerTrader>().PowerOn, lampScheduled = schedule == null || schedule.Allowed,
                     lampGrowthRadius = lampDef.specialDisplayRadius, heaters = heaters.Select(h => h.GetUniqueLoadID()).ToList(),
-                    generators, stock, dressed,
+                    generators, stock, dressed, unavailableCrops = gated,
                     setup = "Test-only greenhouse; the growing zone or basin placement remains the field planner's own work.",
                 };
             }, cancellationToken).ConfigureAwait(false);
@@ -212,7 +228,8 @@ namespace HomeBridge.BridgeTools
                         if (thing.Position != cell) continue;
                         var def = thing is Blueprint b ? b.def.entityDefToBuild as ThingDef : thing is Frame f ? f.def.entityDefToBuild as ThingDef : thing.def;
                         if (def?.defName != "HydroponicsBasin") continue;
-                        basins.Add(new { id = thing.GetUniqueLoadID(), stage = thing is Blueprint ? "blueprint" : thing is Frame ? "frame" : "built", x = cell.x, z = cell.z });
+                        basins.Add(new { id = thing.GetUniqueLoadID(), stage = thing is Blueprint ? "blueprint" : thing is Frame ? "frame" : "built", x = cell.x, z = cell.z,
+                            crop = (thing as Building_PlantGrower)?.GetPlantDefToGrow()?.defName });
                     }
                 return new { success = true, tick = Find.TickManager.TicksGame, zones, basins, outdoorTemperatureC = map.mapTemperature.OutdoorTemp };
             }, cancellationToken).ConfigureAwait(false);

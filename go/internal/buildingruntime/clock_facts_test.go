@@ -65,7 +65,7 @@ func TestClockPageInvalidation(t *testing.T) {
 func TestClockFactsRememberBounded(t *testing.T) {
 	facts := newClockFacts()
 	for i := 0; i < clockFactsWatchedMax+5; i++ {
-		facts.remember([]clockWorkItem{{Action: domain.ActionID(string(rune('a' + i%26)) + string(rune('a' + i/26))), Kind: domain.BuildingAction, Attempt: 1}})
+		facts.remember([]clockWorkItem{{Action: domain.ActionID(string(rune('a'+i%26)) + string(rune('a'+i/26))), Kind: domain.BuildingAction, Attempt: 1}})
 	}
 	if n := len(facts.watched); n == 0 || n > clockFactsWatchedMax {
 		t.Fatal(n)

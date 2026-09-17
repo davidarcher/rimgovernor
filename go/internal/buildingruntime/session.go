@@ -15,6 +15,7 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/draft"
 	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/equip"
 	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/excavation"
+	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/growercrop"
 	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/haul"
 	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/melee"
 	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/mineacquisition"
@@ -62,7 +63,10 @@ type SessionConfig struct {
 	BuildingTemperature *buildingtemperature.Capabilities
 	// BedMedical backs the hospital family's medical-bed patch, the same
 	// one-shot CAS write shape as BuildingTemperature.
-	BedMedical          *bedmedical.Capabilities
+	BedMedical *bedmedical.Capabilities
+	// GrowerCrop backs the field family's basin re-crop, the same one-shot
+	// CAS write shape as BedMedical.
+	GrowerCrop          *growercrop.Capabilities
 	ResearchSelect      *ResearchSelectCapabilities
 	ConfirmColonyNames  *ConfirmColonyNamesCapabilities
 	Husbandry           *HusbandryCapabilities
@@ -343,6 +347,9 @@ func NewSession(ctx context.Context, config SessionConfig, journal *store.Store,
 	if config.BedMedical != nil && (config.BedMedical.Native == nil || config.BedMedical.Writer == nil) {
 		return cleanup(ErrControl)
 	}
+	if config.GrowerCrop != nil && (config.GrowerCrop.Native == nil || config.GrowerCrop.Writer == nil) {
+		return cleanup(ErrControl)
+	}
 	if config.ResearchSelect != nil && (config.ResearchSelect.Native == nil || config.ResearchSelect.Writer == nil) {
 		return cleanup(ErrControl)
 	}
@@ -407,6 +414,11 @@ func NewSession(ctx context.Context, config SessionConfig, journal *store.Store,
 	}
 	if config.BedMedical != nil {
 		if err := worker.EnableBedMedical(bedmedical.NewBoundary(place, *config.BedMedical)); err != nil {
+			return cleanup(err)
+		}
+	}
+	if config.GrowerCrop != nil {
+		if err := worker.EnableGrowerCrop(growercrop.NewBoundary(place, *config.GrowerCrop)); err != nil {
 			return cleanup(err)
 		}
 	}

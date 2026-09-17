@@ -84,17 +84,23 @@ func (r *RoutineFieldPlanner) step(call, epoch context.Context, arbiter *stepArb
 			return RoutineFieldResult{Reason: BuildingMethodRefused}, nil
 		}
 	}
+	// Only open field work blocks another field batch. Hunting and
+	// foraging plans under the same goal share no cells or resources
+	// with a growing zone and would otherwise starve crops indefinitely.
+	// A batch of basins stays open until its last basin stands, so a
+	// grower that finished under it is re-cropped below without waiting
+	// for the batch; without one, the step ends here without observing.
+	blocked, grown := false, false
 	for _, method := range goal.Methods {
 		plan, err := p.journal.LoadPlan(call, method.Plan)
 		if err != nil {
 			return RoutineFieldResult{}, err
 		}
-		// Only open field work blocks another field batch. Hunting and
-		// foraging plans under the same goal share no cells or resources
-		// with a growing zone and would otherwise starve crops indefinitely.
-		if fieldBlockingWork(plan.Progress) {
-			return RoutineFieldResult{Reason: BuildingMethodExistingWork}, nil
-		}
+		blocked = blocked || fieldBlockingWork(plan.Progress)
+		grown = grown || fieldGrowerBuilt(plan.Progress)
+	}
+	if blocked && !grown {
+		return RoutineFieldResult{Reason: BuildingMethodExistingWork}, nil
 	}
 	plans, err := p.journal.LoadPlans(call, 256)
 	if err != nil {
@@ -158,7 +164,7 @@ func (r *RoutineFieldPlanner) step(call, epoch context.Context, arbiter *stepArb
 		zones = append(zones, policy.FarmZone{ID: farm.ID, Crop: farm.Crop, Managed: managed[farm.ID]})
 	}
 	site := policy.FarmSiteRequest{Bounds: projection.Bounds, Anchor: projection.Center, Storage: domain.Unknown[domain.Cell](), Cells: projection.Cells, Protected: protected, Zones: zones}
-	request := policy.SiteTypeRequest{Field: policy.FieldRequest{Choices: choices, Climate: projection.CropClimate, Runway: projection.Facts.FoodDays, Colonists: projection.Facts.Colonists, ReserveDays: r.reviewer.policy.FoodTargetDays, Coverage: coverage, Site: site}, Environment: projection.Environment, LampGrowthRadius: fieldLampGrowthRadius, BasinCrop: fieldBasinCrop}
+	request := policy.SiteTypeRequest{Field: policy.FieldRequest{Choices: choices, Climate: projection.CropClimate, Runway: projection.Facts.FoodDays, Colonists: projection.Facts.Colonists, ReserveDays: r.reviewer.policy.FoodTargetDays, Coverage: coverage, Site: site}, Environment: projection.Environment, LampGrowthRadius: fieldLampGrowthRadius}
 	for _, d := range projection.Definitions {
 		infrastructure := domain.Known(policy.Infrastructure{Name: d.Name, Available: d.Available, PowerW: d.PowerW, Fertility: d.GrowerFertility})
 		switch d.Name {
@@ -175,6 +181,21 @@ func (r *RoutineFieldPlanner) step(call, epoch context.Context, arbiter *stepArb
 		clockSchedulerLog("Fields environment: lights=%d growers=%d rooms=%d networks=%d daylight=%v outdoorC=%v", len(env.Lights), len(env.Growers), len(env.Rooms), len(env.Networks), env.Daylight, env.OutdoorTemperatureC)
 	} else {
 		clockSchedulerLog("Fields environment: unknown")
+	}
+	// Existing growers first: a basin sows its definition's default crop
+	// when built, so the crop the candidate scored is applied here once the
+	// game reports the grower, and a better crop re-crops it the same way.
+	if env, ok := projection.Environment.Value(); ok {
+		recrops := policy.PlanGrowerCrops(policy.GrowerCropRequest{Choices: choices, Growers: env.Growers, Urgent: selection.Urgent})
+		for _, recrop := range recrops {
+			result, tried, err := r.recrop(call, epoch, state, goal, projection, read, wait, recrop, arbiter)
+			if err != nil || tried {
+				return result, err
+			}
+		}
+	}
+	if blocked {
+		return RoutineFieldResult{Reason: BuildingMethodExistingWork, NativeWorkTicks: wait}, nil
 	}
 	if !known {
 		clockSchedulerLog("Fields: no plan (cells=%d choices=%d climate=%+v runway=%+v colonists=%+v coverage=%+v zones=%d): %s", len(projection.Cells), len(choices), projection.CropClimate, projection.Facts.FoodDays, projection.Facts.Colonists, coverage, len(zones), selection.Explain())
@@ -203,8 +224,6 @@ func (r *RoutineFieldPlanner) step(call, epoch context.Context, arbiter *stepArb
 const (
 	// fieldLampGrowthRadius is the native Building_SunLamp growth radius.
 	fieldLampGrowthRadius = 5.8
-	// fieldBasinCrop is the crop a new HydroponicsBasin sows by default.
-	fieldBasinCrop = "Plant_Rice"
 	// fieldCandidateAttempts bounds the native previews one step spends
 	// falling through refused candidates.
 	fieldCandidateAttempts = 3
@@ -360,6 +379,81 @@ func (r *RoutineFieldPlanner) enact(call, epoch context.Context, state ControlSt
 
 const fieldBatchPatches = 6
 
+// recrop previews and commits one grower's crop change as a one-shot
+// GrowerCrop plan, once per grower per goal epoch: a method that already
+// ran this epoch (the patch was refused, or a player changed the crop back)
+// is not retried until the next epoch. tried reports whether the grower
+// reached commitment; a grower whose native read or preview refuses is not
+// tried so the caller moves on to the next one.
+func (r *RoutineFieldPlanner) recrop(call, epoch context.Context, state ControlState, goal store.GoalState, projection observation.ColonyProjection, read observation.RoutineReading, wait uint32, choice policy.GrowerCropChoice, arbiter *stepArbiter) (RoutineFieldResult, bool, error) {
+	native, ok := r.native.(interface {
+		ReadGrowerCropTarget(context.Context, *c.Identity, string) (bridge.GrowerCropTarget, bridge.Result, error)
+		PreviewGrowerCrop(context.Context, *c.Identity, domain.GrowerCrop) (*op.PreviewReply, bridge.Result, error)
+	})
+	if !ok {
+		return RoutineFieldResult{Reason: BuildingMethodRefused, NativeWorkTicks: wait}, false, nil
+	}
+	p := r.reviewer.player
+	method := domain.MethodID("fields-recrop-" + choice.Grower)
+	if _, err := p.journal.LoadGoalMethod(call, goal.Goal.ID, goal.Goal.Epoch, method); err == nil {
+		return RoutineFieldResult{Reason: BuildingMethodUsed, NativeWorkTicks: wait}, false, nil
+	} else if !errors.Is(err, store.ErrNotFound) {
+		return RoutineFieldResult{}, false, err
+	}
+	target, _, err := native.ReadGrowerCropTarget(call, boundary.Identity(state.Snapshot), choice.Grower)
+	if err != nil {
+		return RoutineFieldResult{}, false, err
+	}
+	if _, err = boundary.Context(target.Context, state.Snapshot); err != nil || target.Context.GetTick() < int64(projection.Identity.Tick) {
+		return RoutineFieldResult{}, false, ErrControl
+	}
+	if target.Crop != choice.Current {
+		clockSchedulerLog("Fields: grower %s crop moved (%s -> %s) since the census", choice.Grower, choice.Current, target.Crop)
+		return RoutineFieldResult{Reason: BuildingMethodUnknown, NativeWorkTicks: wait}, false, nil
+	}
+	patch, err := domain.NewGrowerCrop(choice.Grower, choice.Crop.Name, target.Token)
+	if err != nil {
+		return RoutineFieldResult{}, false, err
+	}
+	preview, _, err := native.PreviewGrowerCrop(call, boundary.Identity(state.Snapshot), patch)
+	if err != nil {
+		return RoutineFieldResult{}, false, err
+	}
+	evaluated := preview.GetEvaluated()
+	if evaluated == nil || !evaluated.GetAccepted() {
+		clockSchedulerLog("Fields: grower %s crop %s refused at preview: %s", choice.Grower, choice.Crop.Name, preview.GetFailure().GetDetail())
+		return RoutineFieldResult{Reason: BuildingMethodRefused, NativeWorkTicks: wait}, false, nil
+	}
+	if _, err = boundary.Context(evaluated.Context, state.Snapshot); err != nil {
+		return RoutineFieldResult{}, false, ErrControl
+	}
+	if !arbiter.tryClaim(nil, "grower:"+choice.Grower) {
+		return RoutineFieldResult{Reason: BuildingMethodUsed, NativeWorkTicks: wait}, false, nil
+	}
+	digest := sha256.Sum256([]byte(fmt.Sprintf("%s/%d/%s", goal.Goal.ID, goal.Goal.Epoch, method)))
+	id := domain.PlanID(fmt.Sprintf("routine-fields-%x", digest[:16]))
+	action, err := domain.NewGrowerCropAction(domain.ActionID(fmt.Sprintf("%s-0", id)), patch)
+	if err != nil {
+		return RoutineFieldResult{}, false, err
+	}
+	plan, err := domain.NewPlan(id, 1, []domain.Action{action})
+	if err != nil {
+		return RoutineFieldResult{}, false, err
+	}
+	if err = p.current(call, epoch); err != nil {
+		return RoutineFieldResult{}, false, err
+	}
+	now := r.reviewer.clock.Now()
+	if p.session.State() != state || now.Before(read.StartedAt) || now.Sub(read.StartedAt) > r.reviewer.maxAge {
+		return RoutineFieldResult{}, false, ErrControl
+	}
+	clockSchedulerLog("Fields recrop: grower=%s %s -> %s | %s", choice.Grower, choice.Current, choice.Crop.Name, choice.Reason)
+	if _, err = p.journal.CommitGoalMethod(call, goal.Goal.ID, goal.Revision, method, plan); err != nil {
+		return RoutineFieldResult{}, false, err
+	}
+	return RoutineFieldResult{Reason: BuildingMethodAdmitted, Plan: id}, true, nil
+}
+
 func fieldCosts(v policy.Preview) []policy.Amount {
 	costs, _ := v.Costs.Value()
 	return costs
@@ -393,6 +487,19 @@ func fieldBlockingWork(progress []domain.Progress) bool {
 	}
 	return false
 }
+
+// fieldGrowerBuilt reports a completed plant-grower construction in the
+// plan: the built grower sows its definition's default crop until re-cropped.
+func fieldGrowerBuilt(progress []domain.Progress) bool {
+	for _, p := range progress {
+		b, ok := p.Action().Building()
+		if ok && b.Definition() == "HydroponicsBasin" && p.View().Stage == domain.Completed {
+			return true
+		}
+	}
+	return false
+}
+
 func uniqueFieldDefinitions(values []string) []string {
 	seen := map[string]bool{}
 	out := []string{}

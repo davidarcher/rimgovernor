@@ -831,10 +831,10 @@ func clockSchedulerWork(plan store.PlanState, current domain.GenerationSnapshot)
 		if v.Stage == domain.Cancelled || v.Stage == domain.Unsuccessful || !v.Unresolved && v.Stage == domain.Completed {
 			continue
 		}
-		// Allow, work settings, zones, a building's temperature target and a
-		// bed's medical flag are immediate designations and need no
-		// simulation window.
-		if p.Action().Kind() == domain.SupplyAllowAction || p.Action().Kind() == domain.WorkAssignmentAction || p.Action().Kind() == domain.ZoneCreateAction || p.Action().Kind() == domain.BuildingTemperatureAction || p.Action().Kind() == domain.BedMedicalAction {
+		// Allow, work settings, zones, a building's temperature target, a
+		// bed's medical flag and a grower's crop are immediate designations
+		// and need no simulation window.
+		if p.Action().Kind() == domain.SupplyAllowAction || p.Action().Kind() == domain.WorkAssignmentAction || p.Action().Kind() == domain.ZoneCreateAction || p.Action().Kind() == domain.BuildingTemperatureAction || p.Action().Kind() == domain.BedMedicalAction || p.Action().Kind() == domain.GrowerCropAction {
 			continue
 		}
 		// Construction, native plant labor, and the routine-dispatched action

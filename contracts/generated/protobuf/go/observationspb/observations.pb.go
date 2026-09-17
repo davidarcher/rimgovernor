@@ -5395,8 +5395,10 @@ type BuildingSettings struct {
 	AssigningCandidates  []*EntityRef           `protobuf:"bytes,15,rep,name=assigning_candidates,json=assigningCandidates,proto3" json:"assigning_candidates,omitempty"`
 	RoomCanBePrisonCell  *bool                  `protobuf:"varint,16,opt,name=room_can_be_prison_cell,json=roomCanBePrisonCell,proto3,oneof" json:"room_can_be_prison_cell,omitempty"`
 	Issues               []*ReadIssue           `protobuf:"bytes,17,rep,name=issues,proto3" json:"issues,omitempty"`
-	unknownFields        protoimpl.UnknownFields
-	sizeCache            protoimpl.SizeCache
+	// crop_def_name is a plant grower's current crop beside its own CAS snapshot (PatchBuilding.plant_def).
+	CropDefName   *string `protobuf:"bytes,18,opt,name=crop_def_name,json=cropDefName,proto3,oneof" json:"crop_def_name,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *BuildingSettings) Reset() {
@@ -5546,6 +5548,13 @@ func (x *BuildingSettings) GetIssues() []*ReadIssue {
 		return x.Issues
 	}
 	return nil
+}
+
+func (x *BuildingSettings) GetCropDefName() string {
+	if x != nil && x.CropDefName != nil {
+		return *x.CropDefName
+	}
+	return ""
 }
 
 type MaterialDeficit struct {
@@ -28812,7 +28821,7 @@ const file_observations_proto_rawDesc = "" +
 	"\f_work_amountB\r\n" +
 	"\v_work_skillB\f\n" +
 	"\n" +
-	"_work_type\"\xbb\b\n" +
+	"_work_type\"\xf6\b\n" +
 	"\x10BuildingSettings\x12D\n" +
 	"\bsnapshot\x18\x01 \x01(\v2(.rimgovernor.observations.v1.SnapshotRefR\bsnapshot\x12!\n" +
 	"\tforbidden\x18\x02 \x01(\bH\x00R\tforbidden\x88\x01\x01\x12!\n" +
@@ -28832,7 +28841,8 @@ const file_observations_proto_rawDesc = "" +
 	"\x16maximum_assigned_pawns\x18\x0e \x01(\rH\vR\x14maximumAssignedPawns\x88\x01\x01\x12Y\n" +
 	"\x14assigning_candidates\x18\x0f \x03(\v2&.rimgovernor.observations.v1.EntityRefR\x13assigningCandidates\x129\n" +
 	"\x17room_can_be_prison_cell\x18\x10 \x01(\bH\fR\x13roomCanBePrisonCell\x88\x01\x01\x12>\n" +
-	"\x06issues\x18\x11 \x03(\v2&.rimgovernor.observations.v1.ReadIssueR\x06issuesB\f\n" +
+	"\x06issues\x18\x11 \x03(\v2&.rimgovernor.observations.v1.ReadIssueR\x06issues\x12'\n" +
+	"\rcrop_def_name\x18\x12 \x01(\tH\rR\vcropDefName\x88\x01\x01B\f\n" +
 	"\n" +
 	"_forbiddenB\f\n" +
 	"\n" +
@@ -28851,7 +28861,8 @@ const file_observations_proto_rawDesc = "" +
 	"\x0e_for_prisonersB\x11\n" +
 	"\x0f_bed_owner_typeB\x19\n" +
 	"\x17_maximum_assigned_pawnsB\x1a\n" +
-	"\x18_room_can_be_prison_cell\"\xbb\x01\n" +
+	"\x18_room_can_be_prison_cellB\x10\n" +
+	"\x0e_crop_def_name\"\xbb\x01\n" +
 	"\x0fMaterialDeficit\x12\x1e\n" +
 	"\bdef_name\x18\x01 \x01(\tH\x00R\adefName\x88\x01\x01\x12\x17\n" +
 	"\x04need\x18\x02 \x01(\x03H\x01R\x04need\x88\x01\x01\x12\x17\n" +

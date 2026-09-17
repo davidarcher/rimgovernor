@@ -16,6 +16,13 @@
 // (hydroponics). The audit then reads the zones or basin placements inside
 // the fixture room so the selection is shown enacted, not only traced.
 //
+// -unavailable-crops gates crops behind unfinished research in the fixture
+// game, so -environment hydroponics -unavailable-crops Plant_Rice
+// -expect-crop Plant_Potato proves the basin candidate scores every
+// Hydroponic crop and that a built basin is re-cropped from its default
+// rice to the winner through the grower-crop patch (#102): with
+// -expect-crop the hydroponics audit requires a built basin sowing it.
+//
 // The run mechanics (profile, launch, authority, watch window) are shared
 // with sustainedfoodaccept through go/internal/nativeaccept/sustainedfood.
 package main
@@ -56,9 +63,14 @@ func main() {
 	minCells := flag.Int("expect-min-cells", 1, "minimum cells every traced selection must plant")
 	families := flag.String("families", "field", "serve's RIMGOVERNOR_ROUTINE_FAMILIES; the field family alone keeps the whole step budget for the selection under test")
 	environment := flag.String("environment", "", "stage a controlled environment before the service starts: greenhouse (lit soil room) or hydroponics (lit concrete room with basin research); empty runs the save as is")
+	unavailableCrops := flag.String("unavailable-crops", "", "comma-separated plant defs the fixture gates behind unfinished research (requires -environment)")
 	flag.Parse()
 	if *environment != "" && *environment != "greenhouse" && *environment != "hydroponics" {
 		fmt.Fprintln(os.Stderr, "-environment must be empty, greenhouse or hydroponics")
+		os.Exit(2)
+	}
+	if *unavailableCrops != "" && *environment == "" {
+		fmt.Fprintln(os.Stderr, "-unavailable-crops requires -environment")
 		os.Exit(2)
 	}
 	if *root == "" || *rimgovernorBinary == "" || !filepath.IsAbs(*rimgovernorBinary) {
@@ -102,7 +114,7 @@ func main() {
 			if !na.Contains(names, fixturePrepare) {
 				return fmt.Errorf("missing %s in discovery; rebuild the native mod with -Fixture FarmEnvironmentFixture", fixturePrepare)
 			}
-			prepared, err := h.Call(ctx, "prepare", fixturePrepare, map[string]any{"scenario": *environment})
+			prepared, err := h.Call(ctx, "prepare", fixturePrepare, map[string]any{"scenario": *environment, "unavailableCrops": *unavailableCrops})
 			if err != nil {
 				return err
 			}
@@ -143,6 +155,9 @@ func main() {
 				if len(na.AsSlice(observed["basins"])) == 0 {
 					return fmt.Errorf("no hydroponics basin placed inside the fixture room after the watch: %#v", observed)
 				}
+				if *expectCrop != "" {
+					return basinSows(na.AsSlice(observed["basins"]), *expectCrop)
+				}
 			}
 			return nil
 		}
@@ -172,4 +187,25 @@ func main() {
 		report["passed"] = true
 	}
 	os.Exit(report.Finalize(*output))
+}
+
+// basinSows requires at least one built basin sowing the expected crop: a
+// new basin sows its definition's default, so a built basin still on
+// another crop means the re-crop patch never landed.
+func basinSows(basins []any, crop string) error {
+	built := 0
+	for _, row := range basins {
+		basin, _ := na.AsMap(row)
+		if basin["stage"] != "built" {
+			continue
+		}
+		built++
+		if basin["crop"] == crop {
+			return nil
+		}
+	}
+	if built == 0 {
+		return fmt.Errorf("no basin finished construction inside the fixture room during the watch; %d placed: %#v", len(basins), basins)
+	}
+	return fmt.Errorf("%d built basins but none sows %s: %#v", built, crop, basins)
 }

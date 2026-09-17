@@ -1,7 +1,7 @@
 // Package buildingtemperature holds the admission record, validation and
-// load logic shared by the two building-patch action families (a building's
-// target temperature and a bed's medical flag: one exact thing, one CAS
-// token), split out of internal/store for independent build/test caching --
+// load logic shared by the building-patch action families (a building's
+// target temperature, a bed's medical flag and a plant grower's crop: one
+// exact thing, one CAS token), split out of internal/store for independent build/test caching --
 // mirroring internal/store/work.
 package buildingtemperature
 
@@ -56,13 +56,16 @@ func Patched(a domain.Action) (thing, before string, ok bool) {
 	if bm, ok := a.BedMedical(); ok {
 		return bm.Thing(), bm.BeforeToken(), true
 	}
+	if gc, ok := a.GrowerCrop(); ok {
+		return gc.Thing(), gc.BeforeToken(), true
+	}
 	return "", "", false
 }
 
 // Kind reports whether the action is one of the building-patch kinds this
 // admission record guards.
 func Kind(kind domain.ActionKind) bool {
-	return kind == domain.BuildingTemperatureAction || kind == domain.BedMedicalAction
+	return kind == domain.BuildingTemperatureAction || kind == domain.BedMedicalAction || kind == domain.GrowerCropAction
 }
 
 func LoadAdmission(ctx context.Context, tx *sql.Tx, a domain.Action, p domain.Progress) (Admission, bool, error) {

@@ -136,6 +136,10 @@ message PatchBuilding {
   optional bool medical = 5;
   Assignment owner = 6;
   optional bool for_prisoners = 7;
+  // plant_def re-crops one exact Building_PlantGrower (SetPlantDefToGrow);
+  // the crop must carry the grower's sow tag and its sow research must be
+  // finished, the game's own gizmo rules.
+  optional string plant_def = 8;
 }
 enum MedicalCare {
   MEDICAL_CARE_UNSPECIFIED = 0; MEDICAL_CARE_NO_CARE = 1; MEDICAL_CARE_NO_MEDICINE = 2;

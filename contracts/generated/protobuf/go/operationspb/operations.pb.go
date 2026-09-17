@@ -3493,8 +3493,12 @@ type PatchBuilding struct {
 	Medical           *bool                  `protobuf:"varint,5,opt,name=medical,proto3,oneof" json:"medical,omitempty"`
 	Owner             *Assignment            `protobuf:"bytes,6,opt,name=owner,proto3" json:"owner,omitempty"`
 	ForPrisoners      *bool                  `protobuf:"varint,7,opt,name=for_prisoners,json=forPrisoners,proto3,oneof" json:"for_prisoners,omitempty"`
-	unknownFields     protoimpl.UnknownFields
-	sizeCache         protoimpl.SizeCache
+	// plant_def re-crops one exact Building_PlantGrower (SetPlantDefToGrow);
+	// the crop must carry the grower's sow tag and its sow research must be
+	// finished, the game's own gizmo rules.
+	PlantDef      *string `protobuf:"bytes,8,opt,name=plant_def,json=plantDef,proto3,oneof" json:"plant_def,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *PatchBuilding) Reset() {
@@ -3574,6 +3578,13 @@ func (x *PatchBuilding) GetForPrisoners() bool {
 		return *x.ForPrisoners
 	}
 	return false
+}
+
+func (x *PatchBuilding) GetPlantDef() string {
+	if x != nil && x.PlantDef != nil {
+		return *x.PlantDef
+	}
+	return ""
 }
 
 type WorkPriority struct {
@@ -8090,7 +8101,7 @@ const file_operations_proto_rawDesc = "" +
 	"\x0eDesignateThing\x12E\n" +
 	"\x06target\x18\x01 \x01(\v2-.rimgovernor.operations.v1.EntityPreconditionR\x06target\x12R\n" +
 	"\vdesignation\x18\x02 \x01(\x0e2+.rimgovernor.operations.v1.ThingDesignationH\x00R\vdesignation\x88\x01\x01B\x0e\n" +
-	"\f_designation\"\xc8\x03\n" +
+	"\f_designation\"\xf8\x03\n" +
 	"\rPatchBuilding\x12I\n" +
 	"\bbuilding\x18\x01 \x01(\v2-.rimgovernor.operations.v1.EntityPreconditionR\bbuilding\x12!\n" +
 	"\tforbidden\x18\x02 \x01(\bH\x00R\tforbidden\x88\x01\x01\x12B\n" +
@@ -8098,14 +8109,17 @@ const file_operations_proto_rawDesc = "" +
 	"\x12target_temperature\x18\x04 \x01(\x02H\x02R\x11targetTemperature\x88\x01\x01\x12\x1d\n" +
 	"\amedical\x18\x05 \x01(\bH\x03R\amedical\x88\x01\x01\x12;\n" +
 	"\x05owner\x18\x06 \x01(\v2%.rimgovernor.operations.v1.AssignmentR\x05owner\x12(\n" +
-	"\rfor_prisoners\x18\a \x01(\bH\x04R\fforPrisoners\x88\x01\x01B\f\n" +
+	"\rfor_prisoners\x18\a \x01(\bH\x04R\fforPrisoners\x88\x01\x01\x12 \n" +
+	"\tplant_def\x18\b \x01(\tH\x05R\bplantDef\x88\x01\x01B\f\n" +
 	"\n" +
 	"_forbiddenB\b\n" +
 	"\x06_powerB\x15\n" +
 	"\x13_target_temperatureB\n" +
 	"\n" +
 	"\b_medicalB\x10\n" +
-	"\x0e_for_prisoners\"w\n" +
+	"\x0e_for_prisonersB\f\n" +
+	"\n" +
+	"_plant_def\"w\n" +
 	"\fWorkPriority\x12'\n" +
 	"\rwork_type_def\x18\x01 \x01(\tH\x00R\vworkTypeDef\x88\x01\x01\x12\x1f\n" +
 	"\bpriority\x18\x02 \x01(\x05H\x01R\bpriority\x88\x01\x01B\x10\n" +

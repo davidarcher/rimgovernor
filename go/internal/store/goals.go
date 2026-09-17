@@ -287,6 +287,9 @@ func commitGoalMethod(ctx context.Context, tx *sql.Tx, id domain.GoalID, revisio
 			}
 		}
 		if !exempt {
+			exempt = growerCropOpenWorkExempt(plan)
+		}
+		if !exempt {
 			return GoalState{}, errors.New("existing method requires observation")
 		}
 	}

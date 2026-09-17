@@ -222,6 +222,8 @@ message BuildingSettings {
   optional double target_temperature_c = 9; optional bool medical = 10; optional bool for_prisoners = 11; optional string bed_owner_type = 12;
   repeated string assigned_pawn_ids = 13; optional uint32 maximum_assigned_pawns = 14; repeated EntityRef assigning_candidates = 15;
   optional bool room_can_be_prison_cell = 16; repeated ReadIssue issues = 17;
+  // crop_def_name is a plant grower's current crop beside its own CAS snapshot (PatchBuilding.plant_def).
+  optional string crop_def_name = 18;
 }
 message MaterialDeficit { optional string def_name = 1; optional int64 need = 2; optional int64 have = 3; optional int64 still_needed = 4; }
 message ConstructionState { optional double total_work = 1; optional double work_left = 2; optional double percent_complete = 3; repeated MaterialDeficit resources = 4; optional bool resources_complete = 5; optional bool completable_ever = 6; repeated ReadIssue issues = 7; }

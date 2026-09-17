@@ -30,8 +30,9 @@ namespace HomeBridge.BridgeTools
         internal readonly Dictionary<Common.AttemptKey, NativeStockpilePatchRecord> StockpilePatches = new Dictionary<Common.AttemptKey, NativeStockpilePatchRecord>();
         internal readonly Dictionary<Common.AttemptKey, INativeAcquisitionRecord> Acquisition = new Dictionary<Common.AttemptKey, INativeAcquisitionRecord>();
         internal readonly Dictionary<Common.AttemptKey, Operations.PatchPawn> WorkSettings = new Dictionary<Common.AttemptKey, Operations.PatchPawn>();
-        // PatchBuilding admissions of either implemented field (target_temperature via
-        // NativeBuildingTemperature, medical via NativeBedMedical), observed by field.
+        // PatchBuilding admissions of any implemented field (target_temperature via
+        // NativeBuildingTemperature, medical via NativeBedMedical, plant_def via
+        // NativeGrowerCrop), observed by field.
         internal readonly Dictionary<Common.AttemptKey, Operations.PatchBuilding> BuildingPatches = new Dictionary<Common.AttemptKey, Operations.PatchBuilding>();
         internal readonly Dictionary<Common.AttemptKey, Receipts.DesignationEffect> AllowedSupplies = new Dictionary<Common.AttemptKey, Receipts.DesignationEffect>();
         internal readonly Dictionary<Common.AttemptKey, NativeHaulRecord> Hauls = new Dictionary<Common.AttemptKey, NativeHaulRecord>();
@@ -108,7 +109,9 @@ namespace HomeBridge.BridgeTools
             if (request.Operation.CommandCase == Operations.Operation.CommandOneofCase.PatchBuilding)
                 return request.Operation.PatchBuilding.HasMedical
                     ? NativeBedMedical.Execute(state, request, context)
-                    : NativeBuildingTemperature.Execute(state, request, context);
+                    : request.Operation.PatchBuilding.HasPlantDef
+                        ? NativeGrowerCrop.Execute(state, request, context)
+                        : NativeBuildingTemperature.Execute(state, request, context);
             if (request.Operation.CommandCase == Operations.Operation.CommandOneofCase.DesignateThing)
                 return NativeSupplyAllow.Execute(state, request, context);
             if (request.Operation.CommandCase == Operations.Operation.CommandOneofCase.SetDrafted)
@@ -245,7 +248,9 @@ namespace HomeBridge.BridgeTools
                 if (parsed.Operation?.CommandCase == Operations.Operation.CommandOneofCase.PatchBuilding)
                     return ProtoBoundary.Encode(parsed.Operation.PatchBuilding.HasMedical
                         ? NativeBedMedical.Preview(parsed.Operation.PatchBuilding, context)
-                        : NativeBuildingTemperature.Preview(parsed.Operation.PatchBuilding, context));
+                        : parsed.Operation.PatchBuilding.HasPlantDef
+                            ? NativeGrowerCrop.Preview(parsed.Operation.PatchBuilding, context)
+                            : NativeBuildingTemperature.Preview(parsed.Operation.PatchBuilding, context));
                 if (parsed.Operation?.CommandCase == Operations.Operation.CommandOneofCase.DesignateThing)
                     return ProtoBoundary.Encode(NativeSupplyAllow.Preview(parsed.Operation.DesignateThing, context));
                 if (parsed.Operation?.CommandCase == Operations.Operation.CommandOneofCase.MovePawn)
@@ -373,7 +378,9 @@ namespace HomeBridge.BridgeTools
                     if (state.BuildingPatches.TryGetValue(parsed.Attempt, out buildingPatch))
                         return ProtoBoundary.Encode(NativeOperationEnvelope.Progress(new Receipts.ProgressReply { Progress = buildingPatch.HasMedical
                             ? NativeBedMedical.Observe(parsed.Attempt, context, buildingPatch)
-                            : NativeBuildingTemperature.Observe(parsed.Attempt, context, buildingPatch) }));
+                            : buildingPatch.HasPlantDef
+                                ? NativeGrowerCrop.Observe(parsed.Attempt, context, buildingPatch)
+                                : NativeBuildingTemperature.Observe(parsed.Attempt, context, buildingPatch) }));
                     NativeCombatRecord combat;
                     if (state.Combat.TryGetValue(parsed.Attempt, out combat))
                         return ProtoBoundary.Encode(NativeOperationEnvelope.Progress(new Receipts.ProgressReply { Progress = combat.Observe(parsed.Attempt, context) }));

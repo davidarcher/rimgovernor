@@ -35,6 +35,7 @@ const RecoveryServiceAction ActionKind = "recovery_service"
 const MovementAction ActionKind = "movement"
 const BuildingTemperatureAction ActionKind = "building_temperature"
 const BedMedicalAction ActionKind = "bed_medical"
+const GrowerCropAction ActionKind = "grower_crop"
 
 // ZoneEditAction is declared in zone_edit.go alongside its ZoneEdit payload.
 
@@ -113,6 +114,7 @@ type Action struct {
 	recoveryService     RecoveryService
 	buildingTemperature BuildingTemperature
 	bedMedical          BedMedical
+	growerCrop          GrowerCrop
 	researchSelect      ResearchSelect
 	husbandry           Husbandry
 	homeCoverage        HomeCoverage
@@ -138,12 +140,12 @@ func (a Action) ID() ActionID               { return a.id }
 func (a Action) Kind() ActionKind           { return a.kind }
 func (a Action) Building() (Building, bool) { return a.building, a.kind == BuildingAction }
 func SupportedActionKinds() []ActionKind {
-	return []ActionKind{BuildingAction, OwnedDraftAction, MeleeAttackAction, SupplyAllowAction, WorkAssignmentAction, AcquisitionAction, ZoneCreateAction, TendAction, RescueAction, CaptureAction, RangedAttackAction, ProductionBillAction, HaulAction, EquipAction, GearReplaceAction, RepairAction, CleanAction, WasteAction, RecoveryServiceAction, MovementAction, BuildingTemperatureAction, BedMedicalAction, ResearchSelectAction, HusbandryAction, HomeCoverageAction, PrisonerInteractionAction, MineAcquisitionAction, WallRemovalAction, ExcavationAction, ProductionPolicyAction, MoodReliefAction, NamingConfirmationAction}
+	return []ActionKind{BuildingAction, OwnedDraftAction, MeleeAttackAction, SupplyAllowAction, WorkAssignmentAction, AcquisitionAction, ZoneCreateAction, TendAction, RescueAction, CaptureAction, RangedAttackAction, ProductionBillAction, HaulAction, EquipAction, GearReplaceAction, RepairAction, CleanAction, WasteAction, RecoveryServiceAction, MovementAction, BuildingTemperatureAction, BedMedicalAction, GrowerCropAction, ResearchSelectAction, HusbandryAction, HomeCoverageAction, PrisonerInteractionAction, MineAcquisitionAction, WallRemovalAction, ExcavationAction, ProductionPolicyAction, MoodReliefAction, NamingConfirmationAction}
 }
 func ValidateHandlerCoverage(kinds []ActionKind) error {
 	seen := make(map[ActionKind]bool)
 	for _, kind := range kinds {
-		if (kind != BuildingAction && kind != OwnedDraftAction && kind != MeleeAttackAction && kind != SupplyAllowAction && kind != WorkAssignmentAction && kind != AcquisitionAction && kind != ZoneCreateAction && kind != TendAction && kind != RescueAction && kind != CaptureAction && kind != RangedAttackAction && kind != ProductionBillAction && kind != HaulAction && kind != EquipAction && kind != GearReplaceAction && kind != RepairAction && kind != CleanAction && kind != WasteAction && kind != RecoveryServiceAction && kind != MovementAction && kind != BuildingTemperatureAction && kind != BedMedicalAction && kind != ResearchSelectAction && kind != HusbandryAction && kind != HomeCoverageAction && kind != PrisonerInteractionAction && kind != MineAcquisitionAction && kind != WallRemovalAction && kind != ExcavationAction && kind != ProductionPolicyAction && kind != MoodReliefAction && kind != NamingConfirmationAction) || seen[kind] {
+		if (kind != BuildingAction && kind != OwnedDraftAction && kind != MeleeAttackAction && kind != SupplyAllowAction && kind != WorkAssignmentAction && kind != AcquisitionAction && kind != ZoneCreateAction && kind != TendAction && kind != RescueAction && kind != CaptureAction && kind != RangedAttackAction && kind != ProductionBillAction && kind != HaulAction && kind != EquipAction && kind != GearReplaceAction && kind != RepairAction && kind != CleanAction && kind != WasteAction && kind != RecoveryServiceAction && kind != MovementAction && kind != BuildingTemperatureAction && kind != BedMedicalAction && kind != GrowerCropAction && kind != ResearchSelectAction && kind != HusbandryAction && kind != HomeCoverageAction && kind != PrisonerInteractionAction && kind != MineAcquisitionAction && kind != WallRemovalAction && kind != ExcavationAction && kind != ProductionPolicyAction && kind != MoodReliefAction && kind != NamingConfirmationAction) || seen[kind] {
 			return fmt.Errorf("unknown or duplicate action handler %q", kind)
 		}
 		seen[kind] = true
@@ -221,6 +223,8 @@ func NewPlan(id PlanID, revision PlanRevision, actions []Action, dependencies ..
 			canonical, err = NewBuildingTemperatureAction(a.id, a.buildingTemperature)
 		case BedMedicalAction:
 			canonical, err = NewBedMedicalAction(a.id, a.bedMedical)
+		case GrowerCropAction:
+			canonical, err = NewGrowerCropAction(a.id, a.growerCrop)
 		case ResearchSelectAction:
 			canonical, err = NewResearchSelectAction(a.id, a.researchSelect)
 		case HusbandryAction:

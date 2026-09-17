@@ -20,14 +20,16 @@ func siteFixture(outdoor float64) SiteTypeRequest {
 			c.Fertility = domain.Known(1.0)
 		}
 	}
+	// Rice and potato carry the vanilla Hydroponic tag; corn is soil-only.
 	for i := range f.Choices {
 		f.Choices[i].SowTags = domain.Known([]string{"Ground", "Hydroponic"})
 		f.Choices[i].MinGlow = domain.Known(0.3)
 	}
+	f.Choices[1].SowTags = domain.Known([]string{"Ground"})
 	lamp := Infrastructure{Name: "SunLamp", Available: domain.Known(true), PowerW: domain.Known(2900.0)}
 	basin := Infrastructure{Name: "HydroponicsBasin", Available: domain.Known(true), PowerW: domain.Known(70.0), Fertility: domain.Known(2.8)}
 	heater := Infrastructure{Name: "Heater", Available: domain.Known(true), PowerW: domain.Known(175.0)}
-	return SiteTypeRequest{Field: f, Lamp: domain.Known(lamp), Basin: domain.Known(basin), Heater: domain.Known(heater), LampGrowthRadius: 5.8, BasinCrop: "Plant_Rice"}
+	return SiteTypeRequest{Field: f, Lamp: domain.Known(lamp), Basin: domain.Known(basin), Heater: domain.Known(heater), LampGrowthRadius: 5.8}
 }
 
 func siteNetwork(generation, solar, consumption float64) PowerHeadroom {
@@ -184,7 +186,7 @@ func TestPlanSiteTypeWinterHeatingAndOutage(t *testing.T) {
 	}
 }
 
-func TestPlanSiteTypeHydroponicsOnlyForBasinCrop(t *testing.T) {
+func TestPlanSiteTypeHydroponicsScoresEveryHydroponicCrop(t *testing.T) {
 	r := siteFixture(0.1)
 	r.Field.Climate = CropClimate{Sowing: domain.Known(false), DaysRemaining: domain.Unknown[float64]()}
 	// The room floor has no soil: only basins can use the lit cells.
@@ -213,18 +215,24 @@ func TestPlanSiteTypeHydroponicsOnlyForBasinCrop(t *testing.T) {
 			}
 		}
 	}
-	if c := siteCandidateOf(plan, SiteHydroponics, "Plant_Corn"); c.Reason != "crop is not the basin's native crop" {
+	// Every crop with the Hydroponic tag is scored under the kind; rice wins
+	// on its rate over basin fertility and potato is ranked below it, while
+	// soil-only corn is excluded with its reason.
+	if c := siteCandidateOf(plan, SiteHydroponics, "Plant_Potato"); c.Cells == 0 || c.Score >= siteCandidateOf(plan, SiteHydroponics, "Plant_Rice").Score {
+		t.Fatal(c.Reason, c.Score)
+	}
+	if c := siteCandidateOf(plan, SiteHydroponics, "Plant_Corn"); c.Reason != "crop cannot be sown in a basin" {
 		t.Fatal(c.Reason)
 	}
 	// Night headroom caps the basin count: 3000-1700-600 = 700W night, 10 basins.
 	if len(plan.Buildings) > 10 {
 		t.Fatal(len(plan.Buildings))
 	}
-	// A crop without the Hydroponic sow tag is incompatible even as the default.
+	// Without any Hydroponic crop nothing can plant.
 	for i := range r.Field.Choices {
 		r.Field.Choices[i].SowTags = domain.Known([]string{"Ground"})
 	}
-	if plan, ok = PlanSiteType(r); ok || siteCandidateOf(plan, SiteHydroponics, "Plant_Rice").Reason != "crop is not the basin's native crop" {
+	if plan, ok = PlanSiteType(r); ok || siteCandidateOf(plan, SiteHydroponics, "Plant_Rice").Reason != "crop cannot be sown in a basin" {
 		t.Fatal(plan.Explain())
 	}
 }

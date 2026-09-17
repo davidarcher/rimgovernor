@@ -61,7 +61,7 @@ Source files below are under `integrations/rimgovernor-native/src/Bridge`. Read-
 | ResourceAcquisitionTool.cs | AcquireResource | Exact product/source/cell, ordinary plant/mining designation, later actual output. Current unresolved mining ledger max256. |
 | ExcavationTool.cs | ExcavateCell | Exact cell and rock def, ordinary Mine designation (adopts an existing one idempotently), single-cell counterfactual roof support and a separate per-pick guard that never relaxes MiningBlocker. Completion requires the cell actually cleared; yield is never evidence. |
 | Upstream apply_architect_designator | DesignateThing allow/forbid/hunt/harvest/deconstruct | Exact inspected thing with native CanDesignate; no generic designator-string dispatch. Cell/roof variants are not silently invented. |
-| BuildingConfigTool.cs | PatchBuilding | Forbidden,power,temperature,medical,owner,prisoner flags; field result + exact before/after snapshot. Gizmos are reads. |
+| BuildingConfigTool.cs | PatchBuilding | Forbidden,power,temperature,medical,owner,prisoner flags and a plant grower's crop (`plant_def`, NativeGrowerCrop); field result + exact before/after snapshot. Gizmos are reads. |
 | PawnConfigTool.cs | PatchPawn | Work,schedule,care,hostility,self-tend,follow,area,master,training/slaughter/release; cascaded changes in snapshot. Drop/nickname excluded from automation. |
 | BillsTool.cs | AddBill/PatchBill/DeleteBill/MoveBill | Native bill ID plus expected bench stack; optional repeat/filter/worker/store fields; exact stack readback. Index alone is not identity. Production is later observation. |
 | ResearchTool.cs | SelectResearch | Native eligible project selection, never finish research; current/progress/capability reads separate. |

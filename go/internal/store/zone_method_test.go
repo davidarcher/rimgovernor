@@ -285,3 +285,44 @@ func buildingOnlyPlan(t *testing.T, id, definition string) domain.PlanSpec {
 	}
 	return plan
 }
+
+// A basin batch stays open until its last basin stands; the re-crop of a
+// basin that already finished must not wait for it (#102).
+func TestCommitGrowerCropExemptFromOpenFieldWork(t *testing.T) {
+	t.Parallel()
+	ctx := context.Background()
+	s := open(t, memoryPath(t))
+	r := foodDeficitRoutineRequest()
+	out := reviewRoutine(t, s, &r)
+	g := routineGoal(t, out, policy.EnsureFoodSupply)
+	if _, err := s.CommitGoalMethod(ctx, g.Goal.ID, g.Revision, "basin-1", buildingOnlyPlan(t, "basin-plan-1", "HydroponicsBasin")); err != nil {
+		t.Fatal(err)
+	}
+	g, err := s.LoadGoal(ctx, g.Goal.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err = s.CommitGoalMethod(ctx, g.Goal.ID, g.Revision, "wall-1", buildingOnlyPlan(t, "wall-plan-1", "Wall")); err == nil {
+		t.Fatal("open basin batch did not block an unrelated building")
+	}
+	if _, err = s.CommitGoalMethod(ctx, g.Goal.ID, g.Revision, "fields-recrop-basin-1", growerCropPlan(t, "recrop-plan-1")); err != nil {
+		t.Fatal("open basin batch blocked a re-crop", err)
+	}
+}
+
+func growerCropPlan(t *testing.T, id string) domain.PlanSpec {
+	t.Helper()
+	g, err := domain.NewGrowerCrop("Thing_HydroponicsBasin1", "Plant_Potato", "crop-before")
+	if err != nil {
+		t.Fatal(err)
+	}
+	a, err := domain.NewGrowerCropAction(domain.ActionID(id+"-0"), g)
+	if err != nil {
+		t.Fatal(err)
+	}
+	plan, err := domain.NewPlan(domain.PlanID(id), 1, []domain.Action{a})
+	if err != nil {
+		t.Fatal(err)
+	}
+	return plan
+}

@@ -231,8 +231,8 @@ cells, growers with sow tags, indoor rooms, per-network headroom with
 side withholds it. Site-type selection (`policy.PlanSiteType`) ranks every crop under
 outdoor, greenhouse-reuse (roofed soil a running lamp lights), greenhouse-new (roofed
 indoor soil plus one lamp placed where its growth disc covers the most soil),
-hydroponics (new basins on lit roofed floor, only for the basin's native default crop
-with the `Hydroponic` sow tag, since growers cannot be re-cropped natively) and
+hydroponics (new basins on lit roofed floor, for every crop with the `Hydroponic` sow
+tag) and
 dark-room (unlit roofed indoor soil for a zero-glow crop) by the same net-nutrition-per-
 needed-cell score, charging construction per building and power per added kilowatt
 against the best network's day headroom (lamps) or night/calm-night headroom (basins,
@@ -248,10 +248,17 @@ at what the preview's observed stock can pay for, and a basin's footprint is the
 centred 1x4 rect), and a candidate the game refuses to place or the store cannot reserve
 falls through to the next, at most three per step. Open farm-infrastructure work blocks the next batch like open zone work,
 and the store's field exemption covers `SunLamp`/`HydroponicsBasin`/`Heater` plans.
-`nativeaccept/cmd/farmselectaccept` asserts the traced selection kind/crop, the
-winner's term breakdown and every loser's reason; `-environment greenhouse|hydroponics`
-stages a lit, heated room under a cold snap through `FarmEnvironmentFixture` and
-audits the zones or basin placements inside it. Insufficient farmland does not reject an otherwise legal
+A built basin sows its definition's default crop, so before selecting new sites each
+step ranks every observed grower that can sow (`policy.PlanGrowerCrops`: the available
+edible crops carrying the grower's sow tag by nutrition rate over its fertility, the
+fastest first under urgency) and commits a one-shot `grower_crop` patch
+(PatchBuilding `plant_def`, CAS-gated on the grower's current crop) for a grower not
+on the winner, once per grower per goal epoch. `nativeaccept/cmd/farmselectaccept`
+asserts the traced selection kind/crop, the winner's term breakdown and every loser's
+reason; `-environment greenhouse|hydroponics` stages a lit, heated room under a cold
+snap through `FarmEnvironmentFixture` and audits the zones or basin placements inside
+it, and `-environment hydroponics -unavailable-crops Plant_Rice -expect-crop
+Plant_Potato` proves a built basin re-cropped to the winner. Insufficient farmland does not reject an otherwise legal
 shelter. Selected field capacity remains separate from observed growing cells and the
 production gate. Work
 allocation uses observed capabilities/skills, job load and stable identity tie breaks;

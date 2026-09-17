@@ -127,7 +127,7 @@ func TestFactCacheServesAcrossSteps(t *testing.T) {
 	}
 	// The write moved the native generation: rows read afterwards belong
 	// to the new scope, and a later step at that scope is served again.
-	cache, ctx = step(t)
+	_, ctx = step(t)
 	read(t, ctx)
 	if id, world, rooms := counts(); id != 5 || world != 3 || rooms != 3 {
 		t.Fatal(id, world, rooms)
