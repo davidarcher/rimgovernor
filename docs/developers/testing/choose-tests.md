@@ -257,8 +257,10 @@ into N worker roots (`na.IsolatedRoot`: own GABS state, config and profile,
 same game installation), gives each worker a queue of harnesses chained on
 one kept process, and stops every worker's game at the end. The suite's
 `result.json` lists each harness's exit, wall time, `game_reuse` and error;
-it passes only when every harness did. Measured: six short harnesses on
-two workers in 68s against about 125s in sequence. The installed mod build
+it passes only when every harness did. `-order <earlier result.json>`
+starts harnesses longest-first by that run's wall times, so a slow one
+does not land last. Measured: six short harnesses on two workers in 68s
+unordered, 58s ordered, against about 125s in sequence. The installed mod build
 must carry every fixture the list needs, and each harness must fit the
 step budget with N-1 peer games running (#73 measured three).
 

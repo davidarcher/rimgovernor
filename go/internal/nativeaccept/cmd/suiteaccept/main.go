@@ -19,6 +19,11 @@
 // defaulting to <bin>/<name>.exe, args appended after -root/-output).
 // -rimgovernor is passed to any harness whose args mention it as
 // "{rimgovernor}".
+//
+// -order names an earlier suite's result.json: harnesses then start
+// longest-first by that run's wall times (ones it did not time go first,
+// as if long), so a slow harness does not land last and leave the other
+// workers idle for its whole run.
 package main
 
 import (
@@ -30,6 +35,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"sort"
 	"strings"
 	"sync"
 	"time"
@@ -51,6 +57,7 @@ func main() {
 	suite := flag.String("suite", "", "JSON suite file (array of {name, binary, args}); mutually exclusive with -harnesses")
 	workers := flag.Int("workers", 2, "private game copies to run at once")
 	game := flag.String("game", "rimgovernor-trial", "configured game ID")
+	order := flag.String("order", "", "earlier suite result.json whose wall times order the queue longest-first")
 	rimgovernor := flag.String("rimgovernor", "", "prebuilt rimgovernor binary substituted for {rimgovernor} in suite args")
 	timeout := flag.Duration("timeout", 2*time.Hour, "overall suite timeout")
 	flag.Parse()
@@ -96,6 +103,13 @@ func main() {
 
 	report := na.NewReport(fmt.Sprintf("%d native acceptance harnesses across %d private game copies, one kept process per worker", len(list), *workers), true)
 	report["workers"] = *workers
+	if *order != "" {
+		if err := orderLongestFirst(list, *order); err != nil {
+			report["error"] = err.Error()
+			os.Exit(report.Finalize(*output))
+		}
+		report["order"] = *order
+	}
 	ctx, cancel := context.WithTimeout(context.Background(), *timeout)
 	defer cancel()
 
@@ -241,6 +255,44 @@ func loadSuite(names, path string) ([]harness, error) {
 		return nil, errors.New("no harnesses listed")
 	}
 	return list, nil
+}
+
+// orderLongestFirst sorts list by the wall times an earlier suite's
+// result.json recorded, longest first; harnesses that run did not time sort
+// before every timed one. The sort is stable, so equal or untimed ones keep
+// their listed order.
+func orderLongestFirst(list []harness, path string) error {
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return fmt.Errorf("-order: %w", err)
+	}
+	var prior struct {
+		Harnesses []struct {
+			Name   string  `json:"name"`
+			WallMs float64 `json:"wall_ms"`
+		} `json:"harnesses"`
+	}
+	if err := json.Unmarshal(data, &prior); err != nil {
+		return fmt.Errorf("-order: %s is not a suite result.json: %w", path, err)
+	}
+	wall := map[string]float64{}
+	for _, h := range prior.Harnesses {
+		wall[h.Name] = h.WallMs
+	}
+	rank := func(h harness) float64 {
+		if ms, ok := wall[h.Name]; ok {
+			return ms
+		}
+		return -1 // untimed: treat as longest
+	}
+	sort.SliceStable(list, func(i, j int) bool {
+		a, b := rank(list[i]), rank(list[j])
+		if a < 0 || b < 0 {
+			return a < 0 && b >= 0
+		}
+		return a > b
+	})
+	return nil
 }
 
 func mustAbs(path string) string {
