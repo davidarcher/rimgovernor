@@ -155,30 +155,11 @@ func run(ctx context.Context, root, output, gameID string, headless bool, report
 	// stale-token/preview/execute sequence is enough -- unlike
 	// animalcontainmentaccept/populationcustodyaccept's multi-dispatch runs,
 	// there is no need for a renewOrAcquire fallback here.
-	var grant map[string]any
 	acquire := func(label string) error {
-		statusReply, err := h.Wire(ctx, label+"-status", "authority_read_status", map[string]any{"identity": identity})
-		if err != nil {
-			return err
-		}
-		_, status, err := na.Outcome(statusReply, "status")
-		if err != nil {
-			return err
-		}
-		statusContext, _ := na.AsMap(status["context"])
-		grantReply, err := h.Wire(ctx, label, "authority_control", map[string]any{"acquire": map[string]any{
-			"identity": identity, "expectedGeneration": statusContext["nativeGeneration"],
-			"owner": map[string]any{"controllerSessionId": sessionOwner, "playerDirection": "1"}, "leaseMs": 30000,
-		}})
-		if err != nil {
-			return err
-		}
-		_, newGrant, err := na.Outcome(grantReply, "granted")
-		if err != nil {
-			return err
-		}
-		grant = newGrant
-		return nil
+		// SetMode(Auto) at the current generation (#52): no lease, the
+		// granted body's context.nativeGeneration is what preconditions carry.
+		_, err := na.GrantAuto(ctx, h.WireFunc(), label, identity)
+		return err
 	}
 	if err := acquire("acquire"); err != nil {
 		return err
@@ -324,7 +305,7 @@ func run(ctx context.Context, root, output, gameID string, headless bool, report
 	buildRequest := func(actionID string, generation any, operation map[string]any) map[string]any {
 		return map[string]any{
 			"precondition": map[string]any{
-				"identity": identity, "expectedGeneration": generation, "leaseId": grant["leaseId"],
+				"identity": identity, "expectedGeneration": generation,
 				"attempt": map[string]any{"controllerSessionId": sessionOwner, "actionId": actionID, "attemptId": "1"},
 			},
 			"operation": operation,
@@ -454,13 +435,7 @@ func run(ctx context.Context, root, output, gameID string, headless bool, report
 	// Observe: run real game time forward until the fixture's damaged wall
 	// is actually restored to full HitPoints by the real native repair job,
 	// not merely inferred from the issued-job receipt.
-	if _, err := h.Call(ctx, "resume-repair", "rimworld/set_time_speed", map[string]any{"speed": "Fast", "ultraSpeedBoost": false}); err != nil {
-		return err
-	}
-	if err := pollCompleted(ctx, h, executeAttempt, 15*time.Minute); err != nil {
-		return fmt.Errorf("observe-repair: %w", err)
-	}
-	if _, err := h.Call(ctx, "pause-after-repair", "rimworld/set_time_speed", map[string]any{"speed": "Paused", "ultraSpeedBoost": false}); err != nil {
+	if _, err := na.ObserveCompleted(ctx, h, "observe-repair", 3*na.TicksPerDay, executeAttempt); err != nil {
 		return err
 	}
 	afterHitPoints, afterMax, err := wallState("wall-after-complete")
@@ -502,31 +477,4 @@ func run(ctx context.Context, root, output, gameID string, headless bool, report
 		return fmt.Errorf("read startup log: %w", err)
 	}
 	return na.CheckStartupLog(string(logData), headless)
-}
-
-// pollCompleted polls receipts_observe_progress until the attempt is
-// observed Completed, matching populationcustodyaccept's own poll loop. It
-// fails fast if the attempt is instead observed Unsuccessful.
-func pollCompleted(ctx context.Context, h *na.Harness, attempt map[string]any, budget time.Duration) error {
-	deadline := time.Now().Add(budget)
-	for {
-		if time.Now().After(deadline) {
-			return fmt.Errorf("attempt did not complete within the polling deadline")
-		}
-		progressReply, err := h.Wire(ctx, "observe-poll", "receipts_observe_progress", attempt)
-		if err != nil {
-			return err
-		}
-		_, progress, err := na.Outcome(progressReply, "progress")
-		if err != nil {
-			return err
-		}
-		if unsuccessful, ok := na.AsMap(progress["unsuccessful"]); ok {
-			return fmt.Errorf("attempt became unsuccessful before completion: %#v", unsuccessful)
-		}
-		if _, ok := na.AsMap(progress["completed"]); ok {
-			return nil
-		}
-		time.Sleep(2 * time.Second)
-	}
 }

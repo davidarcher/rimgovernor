@@ -82,9 +82,17 @@ were not. A reviewer holds a new harness to it.
    run plus margin, not the worst run seen. If the honest default exceeds
    ~15 minutes, the precondition is not staged well enough (item 1) or the
    assertion covers too much; split it.
-7. **Advance by ticks, at speed.** Run at `Fast` (or the clock's
-   `tickDeadline`) and bound game-time waits by ticks where the assertion
-   allows, so wall-clock is spent on the assertion, not on watching the game.
+7. **Advance by ticks, at speed.** A wait for something the game itself
+   must do (a haul, a surgery, a pen, a capture) is bounded in ticks, not
+   wall clock: `na.RunUntil` runs at `na.RunSpeed` (Superfast), polls under a
+   `na.Wait{Ticks: 2*na.TicksPerDay}` budget and pauses again;
+   `na.ObserveCompleted` is the receipt-observing form (`receipts_observe_progress`
+   until Completed). A tick budget means the same at every speed and on
+   every machine; the stall budget still catches a game that stops ticking
+   (a pausing letter) and the wall ceiling a run that never finishes. Serve-
+   driven harnesses keep `--clock-speed Fast`: at Superfast the worker's
+   step budget starves the bridge calls and the clock holds (refrigeration
+   held at tick 1225 under Superfast, passed in 74s at Fast).
 8. **One fixture call, not a script.** Spawn, forbid, damage, assign and
    settle in one `test/*_prepare` op rather than a sequence of production ops
    each paying a bridge round trip; production ops are for the behavior under
@@ -185,8 +193,8 @@ plan's stages, with `PlanSignature`), `WaitGoalMethod`, `WaitPlanTerminal`
 and `WaitRoutineReview` already do this
 with `na.StallBudget()` (10 minutes, `RIMGOVERNOR_ACCEPT_STALL` overrides);
 harnesses with their own loops take a `-stall` flag defaulting to the same.
-Issue #91 tracks the remaining speed work (ticks at speed, a parallel suite
-driver, a trimmed headless `Prefs.xml`).
+Issue #91 tracks the remaining speed work (a parallel suite driver, a
+trimmed headless `Prefs.xml`).
 
 Passing evidence follows relevant code, dependencies, inputs and environment,
 not the main HEAD hash. Unrelated main commits, clean cherry-picks and rebases

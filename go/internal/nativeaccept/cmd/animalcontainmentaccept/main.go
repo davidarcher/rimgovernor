@@ -272,13 +272,7 @@ func run(ctx context.Context, root, output, gameID string, headless bool, report
 	// actually built by the fixture's prepared handler/builder, not just
 	// issued; absence of the blueprint stage never proves completion by
 	// itself.
-	if _, err := h.Call(ctx, "resume-shell", "rimworld/set_time_speed", map[string]any{"speed": "Fast", "ultraSpeedBoost": false}); err != nil {
-		return err
-	}
-	if err := pollAllCompleted(ctx, h, shellAttempts, "shell", 20*time.Minute); err != nil {
-		return fmt.Errorf("observe-shell: %w", err)
-	}
-	if _, err := h.Call(ctx, "pause-after-shell", "rimworld/set_time_speed", map[string]any{"speed": "Paused", "ultraSpeedBoost": false}); err != nil {
+	if _, err := na.ObserveCompleted(ctx, h, "observe-shell", 4*na.TicksPerDay, shellAttempts...); err != nil {
 		return err
 	}
 	report["shell_built"] = true
@@ -312,13 +306,7 @@ func run(ctx context.Context, root, output, gameID string, headless bool, report
 	}
 	markerAttempt := attemptRef(markerRequest)
 
-	if _, err := h.Call(ctx, "resume-marker", "rimworld/set_time_speed", map[string]any{"speed": "Fast", "ultraSpeedBoost": false}); err != nil {
-		return err
-	}
-	if err := pollAllCompleted(ctx, h, []map[string]any{markerAttempt}, "marker", 5*time.Minute); err != nil {
-		return fmt.Errorf("observe-marker: %w", err)
-	}
-	if _, err := h.Call(ctx, "pause-after-marker", "rimworld/set_time_speed", map[string]any{"speed": "Paused", "ultraSpeedBoost": false}); err != nil {
+	if _, err := na.ObserveCompleted(ctx, h, "observe-marker", na.TicksPerDay, markerAttempt); err != nil {
 		return err
 	}
 	report["marker_built"] = true
@@ -378,29 +366,21 @@ func run(ctx context.Context, root, output, gameID string, headless bool, report
 		return nil, fmt.Errorf("%s: animal %s not found in upkeep census", label, id)
 	}
 
-	if _, err := h.Call(ctx, "resume-contain", "rimworld/set_time_speed", map[string]any{"speed": "Fast", "ultraSpeedBoost": false}); err != nil {
-		return err
-	}
 	var animalContained map[string]any
-	deadline := time.Now().Add(15 * time.Minute)
-	for {
+	if _, err := na.RunUntil(ctx, h, "observe-contain", 3*na.TicksPerDay, na.Wait{Stall: na.StallBudget()}, func(ctx context.Context) (string, bool, error) {
 		row, err := animalRow("contain-poll", animalID)
 		if err != nil {
-			return err
+			return "", false, err
 		}
 		pawnState, _ := na.AsMap(row["pawn"])
 		animalState, _ := na.AsMap(pawnState["animalState"])
 		if contained, _ := na.AsBool(animalState["contained"]); contained && na.AsString(animalState["penId"]) != "" {
 			animalContained = row
-			break
+			return "", true, nil
 		}
-		if time.Now().After(deadline) {
-			return fmt.Errorf("observe-contain: animal did not become contained within the polling deadline, last row: %#v", row)
-		}
-		time.Sleep(2 * time.Second)
-	}
-	if _, err := h.Call(ctx, "pause-after-contain", "rimworld/set_time_speed", map[string]any{"speed": "Paused", "ultraSpeedBoost": false}); err != nil {
-		return err
+		return "", false, nil
+	}); err != nil {
+		return fmt.Errorf("observe-contain: animal did not become contained: %w", err)
 	}
 	animalPawnState, _ := na.AsMap(animalContained["pawn"])
 	animalState, _ := na.AsMap(animalPawnState["animalState"])
@@ -434,40 +414,4 @@ func run(ctx context.Context, root, output, gameID string, headless bool, report
 		return fmt.Errorf("read startup log: %w", err)
 	}
 	return na.CheckStartupLog(string(logData), headless)
-}
-
-// pollAllCompleted polls receipts_observe_progress for every attempt in
-// attempts until each independently reports Completed, mirroring
-// populationcustodyaccept's pollCompleted for a whole batch of attempts at
-// once. It fails fast if any attempt is instead observed Unsuccessful.
-func pollAllCompleted(ctx context.Context, h *na.Harness, attempts []map[string]any, label string, budget time.Duration) error {
-	remaining := append([]map[string]any(nil), attempts...)
-	deadline := time.Now().Add(budget)
-	for len(remaining) > 0 {
-		if time.Now().After(deadline) {
-			return fmt.Errorf("%d of %d %s attempts did not complete within the polling deadline", len(remaining), len(attempts), label)
-		}
-		var stillPending []map[string]any
-		for i, attempt := range remaining {
-			progressReply, err := h.Wire(ctx, fmt.Sprintf("%s-observe-%d", label, i), "receipts_observe_progress", attempt)
-			if err != nil {
-				return err
-			}
-			_, progress, err := na.Outcome(progressReply, "progress")
-			if err != nil {
-				return err
-			}
-			if unsuccessful, ok := na.AsMap(progress["unsuccessful"]); ok {
-				return fmt.Errorf("%s attempt became unsuccessful before completion: %#v", label, unsuccessful)
-			}
-			if _, ok := na.AsMap(progress["completed"]); !ok {
-				stillPending = append(stillPending, attempt)
-			}
-		}
-		remaining = stillPending
-		if len(remaining) > 0 {
-			time.Sleep(2 * time.Second)
-		}
-	}
-	return nil
 }
