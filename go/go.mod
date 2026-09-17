@@ -6,7 +6,6 @@ require (
 	github.com/coder/websocket v1.8.15
 	github.com/davidarcher/RimGovernor/go/internal/wire v0.0.0
 	github.com/modelcontextprotocol/go-sdk v1.7.0
-	golang.org/x/sync v0.22.0
 	golang.org/x/sys v0.47.0
 	google.golang.org/protobuf v1.36.11
 	modernc.org/sqlite v1.58.0
@@ -26,6 +25,7 @@ require (
 	golang.org/x/exp/typeparams v0.0.0-20231108232855-2478ac86f678 // indirect
 	golang.org/x/mod v0.38.0 // indirect
 	golang.org/x/oauth2 v0.35.0 // indirect
+	golang.org/x/sync v0.22.0 // indirect
 	golang.org/x/time v0.15.0 // indirect
 	golang.org/x/tools v0.48.0 // indirect
 	honnef.co/go/tools v0.8.1 // indirect
