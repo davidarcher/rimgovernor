@@ -58,9 +58,21 @@ namespace HomeBridge.BridgeTools
     }
     internal static class LetterPauseHook { internal static void EnsurePatched() { } }
 
+    // native-clock's construction-record double: Observe answers with whatever
+    // progress the fixture last set, so a watched attempt can be driven to
+    // pending, completed or unknown without a live map.
+    internal sealed class NativeConstructionRecord
+    {
+        internal RimGovernor.Protocol.Receipts.Progress Next = new RimGovernor.Protocol.Receipts.Progress
+        { Pending = new RimGovernor.Protocol.Receipts.PendingEffect { Evidence = new RimGovernor.Protocol.Receipts.EffectEvidence
+            { Construction = new RimGovernor.Protocol.Receipts.ConstructionEffect { DefName = "Wall", Stage = RimGovernor.Protocol.Receipts.ConstructionStage.Blueprint, Present = true, Started = true } } } };
+        internal RimGovernor.Protocol.Receipts.Progress Observe(RimGovernor.Protocol.Common.AttemptKey attempt, RimGovernor.Protocol.Common.ObservationContext context)
+        { var progress = Next.Clone(); progress.Attempt = attempt.Clone(); progress.Context = context.Clone(); return progress; }
+    }
     internal sealed class NativeOperationState
     {
         internal NativeAttemptLedger Ledger;
+        internal readonly Dictionary<RimGovernor.Protocol.Common.AttemptKey, NativeConstructionRecord> Construction = new Dictionary<RimGovernor.Protocol.Common.AttemptKey, NativeConstructionRecord>();
         private static readonly System.Runtime.CompilerServices.ConditionalWeakTable<Verse.Game, NativeOperationState> States = new System.Runtime.CompilerServices.ConditionalWeakTable<Verse.Game, NativeOperationState>();
         internal static NativeOperationState ForAdmission(RimGovernor.Protocol.Common.Identity identity) => States.GetValue(Verse.Current.Game, _ => new NativeOperationState { Ledger = new NativeAttemptLedger(identity) });
         internal static bool TryGet(RimGovernor.Protocol.Common.Identity identity, out NativeOperationState state) => States.TryGetValue(Verse.Current.Game, out state);
@@ -91,6 +103,7 @@ namespace HomeBridge.BridgeTools
                 Active = true, Epoch = ++_epoch, Session = Verse.Current.Game, Map = Verse.Find.CurrentMap, RequestedSpeed = speed,
                 StartTick = Verse.Find.TickManager.TicksGame, TickDeadline = Verse.Find.TickManager.TicksGame + maxTicks, LastTick = Verse.Find.TickManager.TicksGame
             };
+            EnsureJournal();
             AttachTypedEpoch(s); _state = s;
             if (InitialStop != null) Stop(s, InitialStop, "Initial safety probe stopped", true, null);
             else { Verse.Find.TickManager.CurTimeSpeed = speed; Add("started", "Started", s, null); }
@@ -115,7 +128,16 @@ namespace HomeBridge.BridgeTools
             Add(kind, detail, s, payload);
         }
         private static void Add(string kind, string detail, State s, Dictionary<string, object> payload)
-        { EnsureJournal(); var row = new Dictionary<string, object> { ["cursor"] = checked(_cursor + 1) }; AttachTypedEvent(row, kind, detail, s, payload); Journal.Append(row); _cursor = Journal.Newest; }
+        { EnsureJournal(); var row = new Dictionary<string, object> { ["cursor"] = checked(_cursor + 1) }; AttachTypedEvent(row, kind, detail, s, payload); Journal.Append(row); _cursor = Journal.Newest; SignalWaiters(_cursor); }
+        private static void Publish(string kind, string detail, Dictionary<string, object> payload)
+        {
+            lock (Gate)
+            {
+                EnsureJournal(); var row = new Dictionary<string, object> { ["cursor"] = checked(_cursor + 1), ["epoch"] = 0L };
+                if (!AttachOwnerlessEvent(row, kind, detail, payload)) return;
+                Journal.Append(row); _cursor = Journal.Newest; SignalWaiters(_cursor);
+            }
+        }
         private sealed class State
         {
             internal TypedEpoch Typed; internal bool Active; internal object Session; internal Verse.Map Map; internal long Epoch;
@@ -139,6 +161,7 @@ namespace HomeBridge.BridgeTools
             s.LastTick = Verse.Find.TickManager.TicksGame; CaptureTypedContext(s);
             if (s.PendingKind != null) { Stop(s, s.PendingKind, s.PendingDetail, true, null); return; }
             if (StopInvalidTypedAuthority(s)) return;
+            if (CheckWatches(s)) return;
             if (s.LastTick >= s.TickDeadline) Stop(s, "tick_budget", "Budget", true, null);
         }
     }

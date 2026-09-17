@@ -71,6 +71,8 @@
     <Compile Include="$(NativeSourceRoot)/Bridge/Protocol/NativeClockEventProjection.cs" Link="Production/NativeClockEventProjection.cs" />
     <Compile Include="$(NativeSourceRoot)/Bridge/Protocol/NativeClockRuntime.cs" Link="Production/NativeClockRuntime.cs" />
     <Compile Include="$(NativeSourceRoot)/Bridge/Protocol/NativeClockTools.cs" Link="Production/NativeClockTools.cs" />
+    <Compile Include="$(NativeSourceRoot)/Bridge/Protocol/NativeClockWaiters.cs" Link="Production/NativeClockWaiters.cs" />
+    <Compile Include="$(NativeSourceRoot)/Bridge/Protocol/NativeClockWatch.cs" Link="Production/NativeClockWatch.cs" />
     <Compile Include="$(NativeSourceRoot)/Bridge/Protocol/NativeConstructionCausality.cs" Link="Production/NativeConstructionCausality.cs" />
   </ItemGroup>
 
