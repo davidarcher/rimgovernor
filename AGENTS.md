@@ -34,6 +34,13 @@
   a decision, or a ready handoff. Batch questions; hand off a commit, affected
   paths and concise verification evidence. No acknowledgment loops, status
   polling, relay chains or coordination-only agents without a concrete need.
+- `main` moves constantly. After each commit on a task branch, check whether
+  local `main` has moved (`git rev-parse main` vs your merge base) and, if it
+  has, pull it in immediately by rebasing onto the exact tip SHA. Also do this
+  at the start of each work session and before every acceptance run. Small,
+  frequent rebases keep conflicts trivial; a branch that waits until it is
+  "done" to catch up inherits days of divergence at once. Never
+  `reset --soft main` to squash; rebase onto the tip and check the diff file list.
 - When landing is authorized, stream small verified commits into main as they
   become ready. Assume main is continuously updated: validate the task and merge;
   do not chase each new HEAD with a rebase/retest cycle. Do not wait for unrelated
