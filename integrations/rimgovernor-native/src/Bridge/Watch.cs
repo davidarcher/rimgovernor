@@ -152,6 +152,7 @@ namespace HomeBridge.BridgeTools
                 MainThread = ctx == null ? null : ctx.MainThread
             };
 
+            PresentationLifecycle.EnsurePatched();
             Session previous;
             lock (Sync)
             {
@@ -507,6 +508,19 @@ namespace HomeBridge.BridgeTools
         }
 
         // ================================================================ close
+
+        /// <summary>Any thread. Forget the open session without touching the
+        /// screen: the game or map it was opened against is gone, so there is
+        /// nothing of ours left to undo and the scheduled close must not run
+        /// against whatever replaced it.</summary>
+        internal static void Abandon()
+        {
+            lock (Sync)
+            {
+                if (Current != null) Current.Closed = true;
+                Current = null;
+            }
+        }
 
         /// <summary>Wait, then hop back onto the main thread and close. The
         /// operation token is deliberately not passed: it is cancelled the

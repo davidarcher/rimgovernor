@@ -72,6 +72,7 @@ namespace HomeBridge.BridgeTools
                 throw new InvalidOperationException("Pawn images require a rendered game");
             if (Session() != session) throw new InvalidOperationException("Loaded colony changed");
             if (pending != null) throw new InvalidOperationException("Pawn image capture is busy");
+            PresentationLifecycle.EnsurePatched();
             if (instance == null)
             {
                 instance = new GameObject("RimGovernorPawnImages").AddComponent<PawnImageCapture>();
@@ -83,6 +84,8 @@ namespace HomeBridge.BridgeTools
                     finalizer: new HarmonyMethod(typeof(PawnImageCapture), nameof(DrawFinished)));
                 harmony.Patch(AccessTools.PropertyGetter(typeof(CameraDriver), "CurrentViewRect"),
                     postfix: new HarmonyMethod(typeof(PawnImageCapture), nameof(ViewRect)));
+                harmony.Patch(AccessTools.Method(typeof(Thing), nameof(Thing.Destroy)),
+                    prefix: new HarmonyMethod(typeof(PawnImageCapture), nameof(Destroying)));
             }
             pawnId = id; sessionId = session; view = kind;
             deadline = Time.realtimeSinceStartup + 4;
@@ -103,6 +106,21 @@ namespace HomeBridge.BridgeTools
             var request = pending;
             pending = null; extraView = null; pawn = null;
             request?.TrySetException(new InvalidOperationException(message));
+        }
+
+        /// <summary>Any thread. The game or map the request was made against is
+        /// gone; fail it now rather than at the deadline.</summary>
+        internal static void Abandon(string reason)
+        {
+            if (pending != null) Fail(reason);
+        }
+
+        /// <summary>The requested colonist is being destroyed before its frame
+        /// was drawn; fail now rather than waiting for the next draw.</summary>
+        public static void Destroying(Thing __instance)
+        {
+            if (pending == null || pawnId == null || !(__instance is Pawn)) return;
+            if (__instance.GetUniqueLoadID() == pawnId) Fail("Colonist was destroyed before it could be captured");
         }
 
         public static void BeforeDraw()

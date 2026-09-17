@@ -38,7 +38,7 @@ func main() {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(2)
 	}
-	report := na.NewReport("RenderState zero-side-effect read, DemandRendering lease reflected by a subsequent RenderState, CapturePawn portrait and follow against a real spawned colonist, and an unknown-pawn-id typed failure. LeaseVideo/ReadFrame/AcknowledgeFrame, CaptureScreenshot and the whole PlayerPresentation service are out of scope and not exercised.", false)
+	report := na.NewReport("RenderState zero-side-effect read, DemandRendering lease reflected by a subsequent RenderState, CapturePawn portrait and follow against a real spawned colonist, an unknown-pawn-id typed failure, and presentation state across a native load: a long-hold Research watch and a capture in flight when the colony is replaced must not strand the new game (the watch closes as nothing, the capture fails with a typed reason) and both work again against the loaded colony. LeaseVideo/ReadFrame/AcknowledgeFrame, CaptureScreenshot and the whole PlayerPresentation service are out of scope and not exercised.", false)
 	ctx, cancel := context.WithTimeout(context.Background(), *timeout)
 	defer cancel()
 	err := run(ctx, *root, *output, *game, report)
@@ -240,6 +240,17 @@ func run(ctx context.Context, root, output, gameID string, report na.Report) err
 		report["case_capture_unknown_failure_code"] = code
 	}
 
+	// Case 7: presentation state across a native load. A Research watch with a
+	// 60-second hold is open, and a capture is started while the load is in
+	// flight, when the colony is replaced. Neither may act on or block the new
+	// game: the watch is abandoned (its scheduled close undoes nothing there),
+	// the capture fails with a typed reason instead of holding the one capture
+	// slot to its deadline, and a fresh watch and capture then succeed against
+	// the loaded colony.
+	if err := acrossLoad(ctx, h, identity, report); err != nil {
+		return fmt.Errorf("across-load: %w", err)
+	}
+
 	logData, err := os.ReadFile(cfg.StartupLogPath())
 	if err != nil {
 		return fmt.Errorf("read startup log: %w", err)
@@ -248,6 +259,154 @@ func run(ctx context.Context, root, output, gameID string, report na.Report) err
 		return err
 	}
 	return nil
+}
+
+func acrossLoad(ctx context.Context, h *na.Harness, identity map[string]any, report na.Report) error {
+	projects, err := h.Call(ctx, "research-read", "home/research", map[string]any{})
+	if err != nil {
+		return fmt.Errorf("research-read: %w", err)
+	}
+	available := na.AsSlice(projects["available"])
+	if len(available) == 0 {
+		return fmt.Errorf("research-read: no available project to select")
+	}
+	firstProject, _ := na.AsMap(available[0])
+	project := na.AsString(firstProject["defName"])
+	watchBefore, err := h.Call(ctx, "research-watch-before", "home/research", map[string]any{
+		"set": project, "dryRun": false, "watch": true, "watchSeconds": 60,
+	})
+	if err != nil {
+		return fmt.Errorf("research-watch-before: %w", err)
+	}
+	if applied, _ := na.AsBool(watchBefore["applied"]); !applied {
+		return fmt.Errorf("research-watch-before: project %q was not applied: %v", project, watchBefore)
+	}
+	shownBefore, _ := na.AsMap(watchBefore["watch"])
+	if shown, _ := na.AsBool(shownBefore["shown"]); !shown {
+		return fmt.Errorf("research-watch-before: the Research watch showed nothing: %v", shownBefore)
+	}
+	report["case_across_load_watch_before"] = shownBefore
+
+	saveName := fmt.Sprintf("presentationmediaaccept-%d", time.Now().UnixNano())
+	saveReply, err := h.Wire(ctx, "save", "lifecycle_save", map[string]any{
+		"player":   map[string]any{"identity": identity, "playerDirection": 1, "requestId": saveName + "-save"},
+		"saveName": saveName,
+	})
+	if err != nil {
+		return fmt.Errorf("save: %w", err)
+	}
+	if _, _, err := na.Outcome(saveReply, "completed"); err != nil {
+		return fmt.Errorf("save: expected a completed save: %w", err)
+	}
+
+	pawnID := na.AsString(report["pawn_id"])
+	loadRequestID := saveName + "-load"
+	loadReply, err := h.Wire(ctx, "load-start", "lifecycle_load", map[string]any{
+		"requestId":       loadRequestID,
+		"saveName":        saveName,
+		"readiness":       "READINESS_VISUAL",
+		"expectedPlayer":  map[string]any{"identity": identity, "playerDirection": 1, "requestId": loadRequestID},
+		"playerDirection": 1,
+	})
+	if err != nil {
+		return fmt.Errorf("load-start: %w", err)
+	}
+	// The capture races the load on purpose. Whichever side of the colony
+	// swap Begin lands on, the reply must be a typed failure, never an image
+	// of the old colony and never a hang past the capture deadline.
+	type captured struct {
+		reply   map[string]any
+		elapsed time.Duration
+		err     error
+	}
+	inFlight := make(chan captured, 1)
+	go func() {
+		started := time.Now()
+		reply, err := h.Wire(ctx, "capture-during-load", "presentation_capture_pawn", map[string]any{
+			"identity": identity, "pawnId": pawnID, "view": "PAWN_VIEW_PORTRAIT",
+		})
+		inFlight <- captured{reply: reply, elapsed: time.Since(started), err: err}
+	}()
+	completed, err := pollLoad(ctx, h, loadReply, loadRequestID, "load-poll")
+	if err != nil {
+		return err
+	}
+	loadedIdentity, _ := na.AsMap(completed["loaded"])
+	loadedContext, _ := na.AsMap(loadedIdentity["context"])
+	afterIdentity, _ := na.AsMap(loadedContext["identity"])
+	if na.AsString(afterIdentity["loadToken"]) == "" || na.AsString(afterIdentity["loadToken"]) == na.AsString(identity["loadToken"]) {
+		return fmt.Errorf("load: loaded map did not receive a fresh load token")
+	}
+	during := <-inFlight
+	if during.err != nil {
+		return fmt.Errorf("capture-during-load: %w", during.err)
+	}
+	code, failed := na.FailureCode(during.reply)
+	if !failed {
+		return fmt.Errorf("capture-during-load: expected a typed failure, got %v", during.reply)
+	}
+	if during.elapsed >= 6*time.Second {
+		return fmt.Errorf("capture-during-load: took %s, past the capture deadline", during.elapsed)
+	}
+	failure, _ := na.AsMap(during.reply["failure"])
+	report["case_across_load_capture_during"] = map[string]any{"code": code, "detail": failure["detail"], "elapsedMs": during.elapsed.Milliseconds()}
+
+	// The new colony: a capture must not find the slot busy, and a fresh
+	// watch must open on the new game's own UI.
+	afterReply, err := h.Wire(ctx, "capture-after-load", "presentation_capture_pawn", map[string]any{
+		"identity": afterIdentity, "pawnId": pawnID, "view": "PAWN_VIEW_PORTRAIT",
+	})
+	if err != nil {
+		return fmt.Errorf("capture-after-load: %w", err)
+	}
+	_, afterImage, err := na.Outcome(afterReply, "image")
+	if err != nil {
+		return fmt.Errorf("capture-after-load: expected an image outcome: %w", err)
+	}
+	if err := checkFrame(afterImage, pawnID, "PAWN_VIEW_PORTRAIT", 192, 192, "CAPTURE_METHOD_PORTRAIT"); err != nil {
+		return fmt.Errorf("capture-after-load: %w", err)
+	}
+	watchAfter, err := h.Call(ctx, "research-watch-after", "home/research", map[string]any{
+		"set": project, "dryRun": false, "watch": true, "watchSeconds": 1,
+	})
+	if err != nil {
+		return fmt.Errorf("research-watch-after: %w", err)
+	}
+	shownAfter, _ := na.AsMap(watchAfter["watch"])
+	if shown, _ := na.AsBool(shownAfter["shown"]); !shown {
+		return fmt.Errorf("research-watch-after: the Research watch showed nothing on the loaded colony: %v", shownAfter)
+	}
+	report["case_across_load_watch_after"] = shownAfter
+	return nil
+}
+
+func pollLoad(ctx context.Context, h *na.Harness, first map[string]any, requestID, label string) (map[string]any, error) {
+	reply := first
+	for attempt := 0; attempt < 300; attempt++ {
+		if _, completed, err := na.Outcome(reply, "completed"); err == nil {
+			return completed, nil
+		}
+		if _, superseded, err := na.Outcome(reply, "superseded"); err == nil {
+			return nil, fmt.Errorf("load was superseded: %v", superseded["detail"])
+		}
+		if code, ok := na.FailureCode(reply); ok {
+			return nil, fmt.Errorf("load failed: %s", code)
+		}
+		if _, _, err := na.Outcome(reply, "pending"); err != nil {
+			return nil, fmt.Errorf("unexpected load reply shape: %v", reply)
+		}
+		select {
+		case <-ctx.Done():
+			return nil, ctx.Err()
+		case <-time.After(200 * time.Millisecond):
+		}
+		next, err := h.Wire(ctx, fmt.Sprintf("%s-%d", label, attempt), "lifecycle_read_load", map[string]any{"requestId": requestID})
+		if err != nil {
+			return nil, err
+		}
+		reply = next
+	}
+	return nil, fmt.Errorf("load did not complete within the polling budget")
 }
 
 func checkFrame(image map[string]any, wantPawnID, wantView string, wantWidth, wantHeight float64, wantMethod string) error {
