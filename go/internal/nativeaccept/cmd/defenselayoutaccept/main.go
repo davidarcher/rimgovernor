@@ -106,6 +106,8 @@ type service struct {
 	cmd       *exec.Cmd
 	done      chan error
 	stopped   bool
+	exited    bool
+	exit      error
 	api       apiFunc
 	token     string
 	url       string
@@ -135,10 +137,36 @@ func (s *service) stop() {
 	if s.store != nil {
 		s.store.Close()
 	}
+	if s.exited {
+		return
+	}
 	if s.cmd.ProcessState == nil {
 		_ = s.cmd.Process.Kill()
 	}
 	<-s.done
+}
+
+// exitedErr is the journal waits' na.Wait.Terminal: a service that died on
+// its own ends a wait at once.
+func (s *service) exitedErr() error {
+	if !s.exited {
+		select {
+		case s.exit = <-s.done:
+			s.exited = true
+		default:
+			return nil
+		}
+	}
+	if s.exit == nil {
+		return fmt.Errorf("service %d exited with status 0", s.cmd.Process.Pid)
+	}
+	return fmt.Errorf("service %d exited: %w", s.cmd.Process.Pid, s.exit)
+}
+
+// wait bounds a journal poll by budget, the shared stall budget and the
+// service's own exit.
+func (s *service) wait(budget time.Duration) na.Wait {
+	return na.Wait{Ceiling: budget, Stall: na.StallBudget(), Terminal: s.exitedErr}
 }
 
 func run(ctx context.Context, root, output, gameID string, headless bool, rimgovernorBinary string, opts options, report na.Report) error {
@@ -362,7 +390,7 @@ func run(ctx context.Context, root, output, gameID string, headless bool, rimgov
 		return err
 	}
 	defer svc.stop()
-	layout, err := waitLayoutComplete(ctx, svc.store, world, opts.layoutTimeout, report)
+	layout, err := waitLayoutComplete(ctx, svc.store, world, svc.wait(opts.layoutTimeout), report)
 	if err != nil {
 		return fmt.Errorf("layout: %w", err)
 	}
@@ -447,7 +475,7 @@ func run(ctx context.Context, root, output, gameID string, headless bool, rimgov
 	if opts.bypass {
 		wantPrefix = "squad-"
 	}
-	method, err := waitCombatMethod(ctx, svc.store, opts.raidTimeout, report)
+	method, err := waitCombatMethod(ctx, svc.store, svc.wait(opts.raidTimeout), report)
 	if err != nil {
 		return fmt.Errorf("combat response: %w", err)
 	}
@@ -471,12 +499,12 @@ func run(ctx context.Context, root, output, gameID string, headless bool, rimgov
 		// hostiles, re-planning between them, until the ActiveCombat goal
 		// recovers. The fixture can only inspect from the harness session,
 		// so the outcome is read natively once the service is gone.
-		dispatched, err := waitHoldDispatched(ctx, svc.store, method.Plan, opts.raidTimeout/2)
+		dispatched, err := waitHoldDispatched(ctx, svc.store, method.Plan, svc.wait(opts.raidTimeout/2))
 		report["hold_plan_dispatch"] = dispatched
 		if err != nil {
 			return fmt.Errorf("hold dispatch: %w", err)
 		}
-		resolved, err := waitRaidResolved(ctx, svc.store, method.Plan, opts.raidTimeout)
+		resolved, err := waitRaidResolved(ctx, svc.store, method.Plan, svc.wait(opts.raidTimeout))
 		report["raid_resolution"] = resolved
 		if err != nil {
 			return fmt.Errorf("raid resolution: %w", err)
@@ -698,12 +726,14 @@ func launchService(ctx context.Context, output, name, binary, gabs, config, game
 }
 
 // waitLayoutComplete polls the journal until the stored layout for world is
-// Complete, recording each tier method's plan and its final stage.
-func waitLayoutComplete(ctx context.Context, s *store.Store, world store.World, budget time.Duration, report na.Report) (store.DefenseLayoutRecord, error) {
-	deadline := time.Now().Add(budget)
+// Complete, recording each tier method's plan and its final stage. The
+// progress signature is the tier methods' plan stages and the stored record.
+func waitLayoutComplete(ctx context.Context, s *store.Store, world store.World, w na.Wait, report na.Report) (store.DefenseLayoutRecord, error) {
 	var goalID domain.GoalID
+	var record store.DefenseLayoutRecord
+	var stored bool
 	tiers := map[string]any{}
-	for {
+	err := na.WaitProgress(ctx, w, func(ctx context.Context) (string, bool, error) {
 		review, err := s.LoadRoutineReview(ctx)
 		if err == nil && goalID == "" {
 			for _, binding := range review.Goals {
@@ -725,71 +755,65 @@ func waitLayoutComplete(ctx context.Context, s *store.Store, world store.World, 
 				report["layout_tier_methods"] = tiers
 			}
 		}
-		record, ok, err := s.LoadDefenseLayout(ctx, world)
+		r, ok, err := s.LoadDefenseLayout(ctx, world)
 		if err == nil && ok {
+			record, stored = r, true
 			data, _ := json.Marshal(record)
 			report["layout_record"] = json.RawMessage(data)
 			if record.Complete {
 				if len(record.TrapLane) == 0 || len(record.Firing) == 0 {
-					return record, fmt.Errorf("complete layout without trap lane or firing cells: %+v", record)
+					return "", false, fmt.Errorf("complete layout without trap lane or firing cells: %+v", record)
 				}
-				return record, nil
+				return "", true, nil
 			}
 		}
-		if time.Now().After(deadline) {
-			return record, fmt.Errorf("layout not complete within %s (goal=%q stored=%v)", budget, goalID, ok)
-		}
-		select {
-		case <-ctx.Done():
-			return record, ctx.Err()
-		case <-time.After(2 * time.Second):
-		}
+		return na.Signature(goalID, tiers, stored, record.Complete), false, nil
+	})
+	if err != nil {
+		return record, fmt.Errorf("layout not complete (goal=%q stored=%v): %w", goalID, stored, err)
 	}
+	return record, nil
 }
 
 // waitCombatMethod polls the journal for the ActiveCombat goal's first
 // committed method after the raid.
-func waitCombatMethod(ctx context.Context, s *store.Store, budget time.Duration, report na.Report) (domain.GoalMethod, error) {
-	deadline := time.Now().Add(budget)
-	for {
+func waitCombatMethod(ctx context.Context, s *store.Store, w na.Wait, report na.Report) (domain.GoalMethod, error) {
+	var found domain.GoalMethod
+	err := na.WaitProgress(ctx, w, func(ctx context.Context) (string, bool, error) {
 		review, err := s.LoadRoutineReview(ctx)
-		if err == nil {
-			for _, binding := range review.Goals {
-				if binding.Need != policy.ActiveCombat {
-					continue
-				}
-				goal, err := s.LoadGoal(ctx, binding.Goal)
-				if err != nil && !errors.Is(err, store.ErrNotFound) {
-					return domain.GoalMethod{}, err
-				}
-				if len(goal.Methods) > 0 {
-					report["combat_goal"] = string(binding.Goal)
-					report["combat_method"] = string(goal.Methods[0].Method)
-					return goal.Methods[0], nil
-				}
+		if err != nil {
+			return na.Signature("no-review"), false, nil
+		}
+		for _, binding := range review.Goals {
+			if binding.Need != policy.ActiveCombat {
+				continue
 			}
+			goal, err := s.LoadGoal(ctx, binding.Goal)
+			if err != nil && !errors.Is(err, store.ErrNotFound) {
+				return "", false, err
+			}
+			if len(goal.Methods) > 0 {
+				report["combat_goal"] = string(binding.Goal)
+				report["combat_method"] = string(goal.Methods[0].Method)
+				found = goal.Methods[0]
+				return "", true, nil
+			}
+			return na.Signature("bound", binding.Goal, goal.Goal.Epoch), false, nil
 		}
-		if time.Now().After(deadline) {
-			return domain.GoalMethod{}, fmt.Errorf("no ActiveCombat method within %s", budget)
-		}
-		select {
-		case <-ctx.Done():
-			return domain.GoalMethod{}, ctx.Err()
-		case <-time.After(time.Second):
-		}
+		return na.Signature("unbound", len(review.Goals)), false, nil
+	})
+	if err != nil {
+		return domain.GoalMethod{}, fmt.Errorf("no ActiveCombat method: %w", err)
 	}
+	return found, nil
 }
 
 // waitHoldDispatched waits until every draft in the hold plan is completed
 // and every move to a firing cell has been attempted natively: the furthest
 // the plan can get before the first combat window lets ticks pass.
-func waitHoldDispatched(ctx context.Context, s *store.Store, id domain.PlanID, budget time.Duration) (map[string]any, error) {
-	deadline := time.Now().Add(budget)
-	for {
-		state, err := s.LoadPlan(ctx, id)
-		if err != nil {
-			return nil, err
-		}
+func waitHoldDispatched(ctx context.Context, s *store.Store, id domain.PlanID, w na.Wait) (map[string]any, error) {
+	var out map[string]any
+	_, err := na.WaitPlan(ctx, s, w, id, func(state store.PlanState) (string, bool, error) {
 		st := stages(state.Progress)
 		drafts, moves, attacks, ready := 0, 0, 0, true
 		for _, p := range state.Progress {
@@ -805,24 +829,23 @@ func waitHoldDispatched(ctx context.Context, s *store.Store, id domain.PlanID, b
 				attacks++
 			}
 		}
+		out = map[string]any{"stages": st}
 		if drafts == 0 || moves == 0 || attacks == 0 {
-			return map[string]any{"stages": st}, fmt.Errorf("hold plan has %d drafts, %d moves and %d attacks: %v", drafts, moves, attacks, st)
+			return "", false, fmt.Errorf("hold plan has %d drafts, %d moves and %d attacks: %v", drafts, moves, attacks, st)
 		}
 		if ready {
-			return map[string]any{"stages": st, "drafts": drafts, "moves": moves, "attacks": attacks}, nil
+			out = map[string]any{"stages": st, "drafts": drafts, "moves": moves, "attacks": attacks}
+			return "", true, nil
 		}
 		if !domain.GoalWorkOpen(state.Progress) {
-			return map[string]any{"stages": st}, fmt.Errorf("hold plan settled before dispatch: %v", st)
+			return "", false, fmt.Errorf("hold plan settled before dispatch: %v", st)
 		}
-		if time.Now().After(deadline) {
-			return map[string]any{"stages": st}, fmt.Errorf("hold plan not dispatched after %s: %v", budget, st)
-		}
-		select {
-		case <-ctx.Done():
-			return nil, ctx.Err()
-		case <-time.After(2 * time.Second):
-		}
+		return na.PlanSignature(state), false, nil
+	})
+	if err != nil {
+		return out, fmt.Errorf("hold plan not dispatched: %w", err)
 	}
+	return out, nil
 }
 
 // waitRaidResolved polls the journal while the service fights the raid: it
@@ -831,16 +854,16 @@ func waitHoldDispatched(ctx context.Context, s *store.Store, id domain.PlanID, b
 // At least one combat window must have run, and at least one defender must
 // have been observed arriving on its firing cell (a completed movement in
 // the first hold plan or any hold plan the goal re-planned after it); the
-// harness never steps the clock natively.
-func waitRaidResolved(ctx context.Context, s *store.Store, first domain.PlanID, budget time.Duration) (map[string]any, error) {
-	deadline := time.Now().Add(budget)
+// harness never steps the clock natively. The progress signature is the
+// window counts, the goal's binding and the defenders on the line.
+func waitRaidResolved(ctx context.Context, s *store.Store, first domain.PlanID, w na.Wait) (map[string]any, error) {
 	out := map[string]any{}
 	holdPlans := map[domain.PlanID]bool{first: true}
 	onLine := map[domain.PawnID]bool{}
-	for {
+	err := na.WaitProgress(ctx, w, func(ctx context.Context) (string, bool, error) {
 		attempts, err := s.LoadClockAttempts(ctx, 4096)
 		if err != nil {
-			return out, err
+			return "", false, err
 		}
 		combatWindows, colonyWindows := 0, 0
 		var lastPhase string
@@ -864,7 +887,7 @@ func waitRaidResolved(ctx context.Context, s *store.Store, first domain.PlanID, 
 		out["last_applied_phase"] = lastPhase
 		review, err := s.LoadRoutineReview(ctx)
 		if err != nil {
-			return out, err
+			return "", false, err
 		}
 		bound := false
 		need := ""
@@ -875,7 +898,7 @@ func waitRaidResolved(ctx context.Context, s *store.Store, first domain.PlanID, 
 			bound = true
 			goal, err := s.LoadGoal(ctx, binding.Goal)
 			if err != nil && !errors.Is(err, store.ErrNotFound) {
-				return out, err
+				return "", false, err
 			}
 			need = string(goal.Goal.Need)
 			for _, m := range goal.Methods {
@@ -887,7 +910,7 @@ func waitRaidResolved(ctx context.Context, s *store.Store, first domain.PlanID, 
 		for id := range holdPlans {
 			state, err := s.LoadPlan(ctx, id)
 			if err != nil {
-				return out, err
+				return "", false, err
 			}
 			for _, p := range state.Progress {
 				if m, ok := p.Action().Movement(); ok && p.View().Stage == domain.Completed {
@@ -905,19 +928,16 @@ func waitRaidResolved(ctx context.Context, s *store.Store, first domain.PlanID, 
 		out["combat_goal_need"] = need
 		if combatWindows > 0 && (!bound || need == string(domain.NeedRecovered)) {
 			if len(line) == 0 {
-				return out, fmt.Errorf("no defender completed its move to a firing cell during the raid: %#v", out)
+				return "", false, fmt.Errorf("no defender completed its move to a firing cell during the raid: %#v", out)
 			}
-			return out, nil
+			return "", true, nil
 		}
-		if time.Now().After(deadline) {
-			return out, fmt.Errorf("raid not resolved under the service within %s: %#v", budget, out)
-		}
-		select {
-		case <-ctx.Done():
-			return out, ctx.Err()
-		case <-time.After(2 * time.Second):
-		}
+		return na.Signature(combatWindows, colonyWindows, bound, need, len(holdPlans), line), false, nil
+	})
+	if err != nil {
+		return out, fmt.Errorf("raid not resolved under the service (%#v): %w", out, err)
 	}
+	return out, nil
 }
 
 func stages(progress []domain.Progress) []string {

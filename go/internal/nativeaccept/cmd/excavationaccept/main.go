@@ -630,25 +630,21 @@ func run(ctx context.Context, root, output, gameID string, headless bool, rimgov
 	if _, err := finalHarness.Call(ctx, "run-fast", "rimworld/set_time_speed", map[string]any{"speed": "Superfast", "ultraSpeedBoost": false}); err != nil {
 		return err
 	}
-	sleepDeadline := time.Now().Add(12 * time.Minute)
+	// Game time has to pass here, so the progress signature is the game tick
+	// (the inspect reply's tick): a clock held by a letter stalls the wait
+	// instead of running out the ceiling.
 	var slept map[string]any
-	for {
+	sleepWait := storeWait()
+	sleepWait.Ceiling, sleepWait.Interval = 12*time.Minute, 5*time.Second
+	if err := na.WaitProgress(ctx, sleepWait, func(ctx context.Context) (string, bool, error) {
 		row, err := inspect("sleepers", center)
 		if err != nil {
-			return err
+			return "", false, err
 		}
-		if len(na.AsSlice(row["sleepers"])) > 0 {
-			slept = row
-			break
-		}
-		if time.Now().After(sleepDeadline) {
-			return fmt.Errorf("no colonist slept in the excavated room: %#v", row)
-		}
-		select {
-		case <-ctx.Done():
-			return ctx.Err()
-		case <-time.After(5 * time.Second):
-		}
+		slept = row
+		return na.Signature(row["tick"], len(na.AsSlice(row["sleepers"]))), len(na.AsSlice(row["sleepers"])) > 0, nil
+	}); err != nil {
+		return fmt.Errorf("no colonist slept in the excavated room (%#v): %w", slept, err)
 	}
 	report["slept"] = slept
 	if _, err := finalHarness.Call(ctx, "pause-end", "rimworld/set_time_speed", map[string]any{"speed": "Paused", "ultraSpeedBoost": false}); err != nil {

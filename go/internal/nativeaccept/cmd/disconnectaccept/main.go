@@ -318,28 +318,25 @@ func grant(ctx context.Context, h *na.Harness, label string, identity map[string
 
 // waitStopped polls clock_read_status until the typed epoch reports Stopped.
 func waitStopped(ctx context.Context, h *na.Harness, identity map[string]any, label string) (map[string]any, error) {
-	deadline := time.Now().Add(20 * time.Second)
-	for attempt := 0; ; attempt++ {
+	var stopped, status map[string]any
+	attempt := 0
+	err := na.WaitProgress(ctx, na.Wait{Ceiling: 20 * time.Second, Interval: 250 * time.Millisecond}, func(ctx context.Context) (string, bool, error) {
 		reply, err := h.Wire(ctx, fmt.Sprintf("%s-%d", label, attempt), "clock_read_status", map[string]any{"identity": identity})
+		attempt++
 		if err != nil {
-			return nil, fmt.Errorf("%s: %w", label, err)
+			return "", false, fmt.Errorf("%s: %w", label, err)
 		}
-		_, status, err := na.Outcome(reply, "status")
-		if err != nil {
-			return nil, fmt.Errorf("%s: expected a status outcome: %w", label, err)
+		if _, status, err = na.Outcome(reply, "status"); err != nil {
+			return "", false, fmt.Errorf("%s: expected a status outcome: %w", label, err)
 		}
-		if stopped, ok := na.AsMap(status["stopped"]); ok {
-			return stopped, nil
-		}
-		if time.Now().After(deadline) {
-			return nil, fmt.Errorf("%s: epoch did not stop in time: %v", label, status)
-		}
-		select {
-		case <-ctx.Done():
-			return nil, ctx.Err()
-		case <-time.After(250 * time.Millisecond):
-		}
+		var ok bool
+		stopped, ok = na.AsMap(status["stopped"])
+		return na.Signature(status), ok, nil
+	})
+	if err != nil {
+		return nil, fmt.Errorf("%s: epoch did not stop (%v): %w", label, status, err)
 	}
+	return stopped, nil
 }
 
 // transportDrop starts a typed epoch at generation, kills the harness's own

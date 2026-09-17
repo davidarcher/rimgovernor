@@ -334,18 +334,39 @@ func run(ctx context.Context, root, output, gameID string, headless bool, rimgov
 	report["service_pid"] = cmd.Process.Pid
 	serviceDone := make(chan error, 1)
 	go func() { serviceDone <- cmd.Wait() }()
-	serviceStopped := false
+	serviceStopped, serviceExited := false, false
+	var serviceExit error
+	// exited is the journal waits' na.Wait.Terminal: a service that died on
+	// its own ends a wait at once instead of letting it stall out.
+	exited := func() error {
+		if !serviceExited {
+			select {
+			case serviceExit = <-serviceDone:
+				serviceExited = true
+			default:
+				return nil
+			}
+		}
+		if serviceExit == nil {
+			return fmt.Errorf("service %d exited with status 0", cmd.Process.Pid)
+		}
+		return fmt.Errorf("service %d exited: %w", cmd.Process.Pid, serviceExit)
+	}
 	stopService := func() {
 		if serviceStopped {
 			return
 		}
 		serviceStopped = true
+		if serviceExited {
+			return
+		}
 		if cmd.ProcessState == nil {
 			_ = cmd.Process.Kill()
 		}
 		<-serviceDone
 	}
 	defer stopService()
+	w := na.Wait{Stall: na.StallBudget(), Terminal: exited}
 
 	reader := bufio.NewReader(stdoutPipe)
 	firstLine, err := reader.ReadString('\n')
@@ -587,12 +608,12 @@ func run(ctx context.Context, root, output, gameID string, headless bool, rimgov
 	// and its Completed stage -- these transitions are set only by the
 	// production executor's own native observation of completion, the same
 	// mechanism the live game and the live service just exercised for real.
-	goalID, method1, err := waitHaulMethod(ctx, verifyStore, "", nil)
+	goalID, method1, err := waitHaulMethod(ctx, verifyStore, w, "", nil)
 	if err != nil {
 		return fmt.Errorf("first haul method: %w", err)
 	}
 	report["goal_id"] = string(goalID)
-	item1, method1, renewals1, err := waitHaulItem(ctx, verifyStore, goalID, method1)
+	item1, method1, renewals1, err := waitHaulItem(ctx, verifyStore, w, goalID, method1)
 	if err != nil {
 		return fmt.Errorf("first haul completion: %w", err)
 	}
@@ -678,11 +699,11 @@ func run(ctx context.Context, root, output, gameID string, headless bool, rimgov
 	}
 	report["restored_hauling"] = restored
 
-	_, method2, err := waitHaulMethod(ctx, verifyStore, goalID, &method1)
+	_, method2, err := waitHaulMethod(ctx, verifyStore, w, goalID, &method1)
 	if err != nil {
 		return fmt.Errorf("second haul method: %w", err)
 	}
-	item2, _, renewals2, err := waitHaulItem(ctx, verifyStore, goalID, method2)
+	item2, _, renewals2, err := waitHaulItem(ctx, verifyStore, w, goalID, method2)
 	if err != nil {
 		return fmt.Errorf("second haul completion: %w", err)
 	}
@@ -896,11 +917,13 @@ func (k *authorityKeepAlive) run(ctx context.Context) {
 // the MaintainStorage Need, then that goal's Methods. previousMethod, when
 // non-nil, is excluded so this waits specifically for a fresh renewal rather
 // than re-observing the same method.
-func waitHaulMethod(ctx context.Context, s *store.Store, knownGoal domain.GoalID, previousMethod *domain.GoalMethod) (domain.GoalID, domain.GoalMethod, error) {
-	for {
+func waitHaulMethod(ctx context.Context, s *store.Store, w na.Wait, knownGoal domain.GoalID, previousMethod *domain.GoalMethod) (domain.GoalID, domain.GoalMethod, error) {
+	var foundGoal domain.GoalID
+	var found domain.GoalMethod
+	err := na.WaitProgress(ctx, w, func(ctx context.Context) (string, bool, error) {
 		review, err := s.LoadRoutineReview(ctx)
 		if err != nil {
-			return "", domain.GoalMethod{}, err
+			return "", false, err
 		}
 		var goalID domain.GoalID
 		for _, binding := range review.Goals {
@@ -909,23 +932,25 @@ func waitHaulMethod(ctx context.Context, s *store.Store, knownGoal domain.GoalID
 				break
 			}
 		}
-		if goalID != "" && (knownGoal == "" || goalID == knownGoal) {
-			goal, err := s.LoadGoal(ctx, goalID)
-			if err != nil && !errors.Is(err, store.ErrNotFound) {
-				return "", domain.GoalMethod{}, err
-			}
-			for _, method := range goal.Methods {
-				if previousMethod == nil || method.Method != previousMethod.Method {
-					return goalID, method, nil
-				}
+		if goalID == "" || knownGoal != "" && goalID != knownGoal {
+			return na.Signature("goal", goalID), false, nil
+		}
+		goal, err := s.LoadGoal(ctx, goalID)
+		if err != nil && !errors.Is(err, store.ErrNotFound) {
+			return "", false, err
+		}
+		for _, method := range goal.Methods {
+			if previousMethod == nil || method.Method != previousMethod.Method {
+				foundGoal, found = goalID, method
+				return "", true, nil
 			}
 		}
-		select {
-		case <-ctx.Done():
-			return "", domain.GoalMethod{}, ctx.Err()
-		case <-time.After(time.Second):
-		}
+		return na.Signature("goal", goalID, goal.Goal.Epoch, len(goal.Methods)), false, nil
+	})
+	if err != nil {
+		return "", domain.GoalMethod{}, err
 	}
+	return foundGoal, found, nil
 }
 
 // waitHaulCompleted polls one haul plan until its single action reaches a
@@ -951,12 +976,8 @@ func waitHaulMethod(ctx context.Context, s *store.Store, knownGoal domain.GoalID
 //
 // Any other Cancelled shape (Effect not observed as Absent) is treated as a
 // genuine failure, same as Unsuccessful.
-func waitHaulCompleted(ctx context.Context, s *store.Store, planID domain.PlanID) (item string, incidentalCancel bool, err error) {
-	for {
-		state, err := s.LoadPlan(ctx, planID)
-		if err != nil {
-			return "", false, err
-		}
+func waitHaulCompleted(ctx context.Context, s *store.Store, w na.Wait, planID domain.PlanID) (item string, incidentalCancel bool, err error) {
+	_, err = na.WaitPlan(ctx, s, w, planID, func(state store.PlanState) (string, bool, error) {
 		actions := state.Spec.Actions()
 		if len(actions) != 1 || len(state.Progress) != 1 {
 			return "", false, fmt.Errorf("unexpected haul plan shape: %d actions, %d progress", len(actions), len(state.Progress))
@@ -968,21 +989,23 @@ func waitHaulCompleted(ctx context.Context, s *store.Store, planID domain.PlanID
 		view := state.Progress[0].View()
 		switch view.Stage {
 		case domain.Completed:
-			return haul.Thing(), false, nil
+			item = haul.Thing()
+			return "", true, nil
 		case domain.Unsuccessful:
 			return "", false, fmt.Errorf("haul plan %s reached unsuccessful instead of completed", planID)
 		case domain.Cancelled:
 			if effect, known := view.Effect.Value(); known && effect == domain.EffectAbsent {
+				incidentalCancel = true
 				return "", true, nil
 			}
 			return "", false, fmt.Errorf("haul plan %s reached cancelled instead of completed", planID)
 		}
-		select {
-		case <-ctx.Done():
-			return "", false, ctx.Err()
-		case <-time.After(time.Second):
-		}
+		return na.PlanSignature(state), false, nil
+	})
+	if err != nil {
+		return "", false, err
 	}
+	return item, incidentalCancel, nil
 }
 
 // waitHaulItem waits for method's plan to complete, transparently following
@@ -994,9 +1017,9 @@ func waitHaulCompleted(ctx context.Context, s *store.Store, planID domain.PlanID
 // actually completed (which differs from the one passed in whenever a
 // renewal occurred), and how many incidental renewals were absorbed so
 // callers can adjust their own method-count bookkeeping.
-func waitHaulItem(ctx context.Context, s *store.Store, goalID domain.GoalID, method domain.GoalMethod) (item string, final domain.GoalMethod, renewals int, err error) {
+func waitHaulItem(ctx context.Context, s *store.Store, w na.Wait, goalID domain.GoalID, method domain.GoalMethod) (item string, final domain.GoalMethod, renewals int, err error) {
 	for {
-		item, incidental, err := waitHaulCompleted(ctx, s, method.Plan)
+		item, incidental, err := waitHaulCompleted(ctx, s, w, method.Plan)
 		if err != nil {
 			return "", method, renewals, err
 		}
@@ -1004,7 +1027,7 @@ func waitHaulItem(ctx context.Context, s *store.Store, goalID domain.GoalID, met
 			return item, method, renewals, nil
 		}
 		renewals++
-		_, next, err := waitHaulMethod(ctx, s, goalID, &method)
+		_, next, err := waitHaulMethod(ctx, s, w, goalID, &method)
 		if err != nil {
 			return "", method, renewals, fmt.Errorf("waiting for renewed haul method after incidental interruption #%d: %w", renewals, err)
 		}

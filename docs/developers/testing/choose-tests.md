@@ -58,8 +58,9 @@ were not. A reviewer holds a new harness to it.
    `test/configure_start` is quiet unless told otherwise.
 4. **Every wait is stall-bounded.** Poll through `na.WaitProgress` with a
    signature over the thing that must move and `Terminal: service.Exited`
-   when a serve subprocess is involved; use the shared `WaitGoalMethod`,
-   `WaitPlanTerminal` and `WaitRoutineReview` where they fit. No bare
+   when a serve subprocess is involved; use the shared `WaitReview`,
+   `WaitPlan`, `WaitGoalMethod`, `WaitPlanTerminal` and `WaitRoutineReview`
+   where they fit. No bare
    `for { ...; time.Sleep }` loops bounded only by the run timeout, and no
    per-phase ceilings measured in tens of minutes: a ceiling is the safety
    net, the stall budget (`-stall`, default `na.StallBudget()`) is what ends a
@@ -122,7 +123,9 @@ not changed for the stall budget. Leave the game tick out of the signature
 unless the wait tolerates a plan that is not moving while the game runs.
 `Terminal` fails fast on a signal that nothing can recover from, typically
 the serve subprocess having exited (`service.Exited`). The shared
-`WaitGoalMethod`, `WaitPlanTerminal` and `WaitRoutineReview` already do this
+`WaitReview` (a latch or binding on the routine review), `WaitPlan` (a
+plan's stages, with `PlanSignature`), `WaitGoalMethod`, `WaitPlanTerminal`
+and `WaitRoutineReview` already do this
 with `na.StallBudget()` (10 minutes, `RIMGOVERNOR_ACCEPT_STALL` overrides);
 harnesses with their own loops take a `-stall` flag defaulting to the same.
 Issues #91 and #92 track the remaining speed and quiet work (small maps,

@@ -52,6 +52,7 @@ namespace HomeBridge.BridgeTools
             }
             return new {
                 success = true,
+                tick = Find.TickManager.TicksGame,
                 fogged = cell.Fogged(map),
                 mineable = rock?.def.defName,
                 hitPoints = rock?.HitPoints ?? 0,

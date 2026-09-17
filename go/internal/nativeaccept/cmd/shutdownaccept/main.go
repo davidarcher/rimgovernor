@@ -253,33 +253,38 @@ func grant(ctx context.Context, h *na.Harness, label string, identity map[string
 // the live game as active or fail unavailable while the maps are being torn
 // down; the last reply is reported if the deadline passes.
 func waitShutdown(ctx context.Context, h *na.Harness, identity map[string]any, label string) (uint64, map[string]any, int64, error) {
-	deadline := time.Now().Add(30 * time.Second)
-	for attempt := 0; ; attempt++ {
+	var generation uint64
+	var inactive, last map[string]any
+	var tick int64
+	attempt := 0
+	err := na.WaitProgress(ctx, na.Wait{Ceiling: 30 * time.Second, Interval: 250 * time.Millisecond}, func(ctx context.Context) (string, bool, error) {
 		reply, err := h.Wire(ctx, fmt.Sprintf("%s-%d", label, attempt), "authority_read_status", map[string]any{"identity": identity})
+		attempt++
 		if err != nil {
-			return 0, nil, 0, fmt.Errorf("%s: %w", label, err)
+			return "", false, fmt.Errorf("%s: %w", label, err)
 		}
+		last = reply
 		if _, status, err := na.Outcome(reply, "status"); err == nil {
-			if inactive, ok := na.AsMap(status["inactive"]); ok {
+			var ok bool
+			if inactive, ok = na.AsMap(status["inactive"]); ok {
 				context, _ := na.AsMap(status["context"])
 				if !na.DeepEqual(context["identity"], identity) {
-					return 0, nil, 0, fmt.Errorf("%s: retained context names %v, not the ended game's %v", label, context["identity"], identity)
+					return "", false, fmt.Errorf("%s: retained context names %v, not the ended game's %v", label, context["identity"], identity)
 				}
-				return uint64(na.AsNumber(context["nativeGeneration"])), inactive, int64(na.AsNumber(context["tick"])), nil
+				generation, tick = uint64(na.AsNumber(context["nativeGeneration"])), int64(na.AsNumber(context["tick"]))
+				return "", true, nil
 			}
 			if _, ok := status["active"]; !ok {
-				return 0, nil, 0, fmt.Errorf("%s: expected active-then-inactive, got %v", label, status)
+				return "", false, fmt.Errorf("%s: expected active-then-inactive, got %v", label, status)
 			}
+			return na.Signature("active"), false, nil
 		} else if code, failed := na.FailureCode(reply); !failed || code != "FAILURE_CODE_UNAVAILABLE" {
-			return 0, nil, 0, fmt.Errorf("%s: expected a status outcome or a transient unavailable failure, got %v", label, reply)
+			return "", false, fmt.Errorf("%s: expected a status outcome or a transient unavailable failure, got %v", label, reply)
 		}
-		if time.Now().After(deadline) {
-			return 0, nil, 0, fmt.Errorf("%s: the ended game never reported inactive authority; last reply %v", label, reply)
-		}
-		select {
-		case <-ctx.Done():
-			return 0, nil, 0, ctx.Err()
-		case <-time.After(250 * time.Millisecond):
-		}
+		return na.Signature("unavailable"), false, nil
+	})
+	if err != nil {
+		return 0, nil, 0, fmt.Errorf("%s: the ended game never reported inactive authority; last reply %v: %w", label, last, err)
 	}
+	return generation, inactive, tick, nil
 }

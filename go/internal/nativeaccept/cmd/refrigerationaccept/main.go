@@ -293,7 +293,7 @@ func run(ctx context.Context, root, output, gameID string, headless bool, binary
 
 	// The review must latch refrigeration and bind MaintainRefrigeration.
 	waitCtx, waitCancel := context.WithTimeout(ctx, 3*time.Minute)
-	latched, err := waitLatch(waitCtx, journal)
+	latched, err := waitLatch(waitCtx, journal, service)
 	waitCancel()
 	if err != nil {
 		return fmt.Errorf("refrigeration latch: %w", err)
@@ -400,7 +400,7 @@ func run(ctx context.Context, root, output, gameID string, headless bool, binary
 	// measured temperature falls to ChilledExitC, and the goal is then
 	// retired. Wait for that release from the journal itself.
 	coolCtx, coolCancel := context.WithTimeout(ctx, 12*time.Minute)
-	released, err := waitRelease(coolCtx, journal)
+	released, err := waitRelease(coolCtx, journal, service)
 	coolCancel()
 	if err != nil {
 		return fmt.Errorf("refrigeration release: %w", err)
@@ -590,42 +590,36 @@ func readCoolers(ctx context.Context, h *na.Harness, identity map[string]any) ([
 	return rows, nil
 }
 
-func waitLatch(ctx context.Context, s *store.Store) (store.RoutineReview, error) {
-	for {
-		review, err := s.LoadRoutineReview(ctx)
-		if err != nil {
-			return review, err
-		}
-		if review.Latches.Refrigeration {
-			for _, binding := range review.Goals {
-				if binding.Need == policy.MaintainRefrigeration {
-					return review, nil
-				}
-			}
-		}
-		select {
-		case <-ctx.Done():
-			return review, fmt.Errorf("review never latched refrigeration with a bound goal (revision %d, latches %+v): %w", review.Revision, review.Latches, ctx.Err())
-		case <-time.After(time.Second):
-		}
-	}
+// storeWait bounds the journal polls below: the shared stall budget, and
+// the service exiting on its own ends a wait at once.
+func storeWait(service *na.ServiceProcess) na.Wait {
+	return na.Wait{Stall: na.StallBudget(), Terminal: service.Exited}
 }
 
-func waitRelease(ctx context.Context, s *store.Store) (store.RoutineReview, error) {
-	for {
-		review, err := s.LoadRoutineReview(ctx)
-		if err != nil {
-			return review, err
+func waitLatch(ctx context.Context, s *store.Store, service *na.ServiceProcess) (store.RoutineReview, error) {
+	review, err := na.WaitReview(ctx, s, storeWait(service), func(r store.RoutineReview) bool {
+		if !r.Latches.Refrigeration {
+			return false
 		}
-		if !review.Latches.Refrigeration {
-			return review, nil
+		for _, binding := range r.Goals {
+			if binding.Need == policy.MaintainRefrigeration {
+				return true
+			}
 		}
-		select {
-		case <-ctx.Done():
-			return review, fmt.Errorf("review never released the refrigeration latch (revision %d): %w", review.Revision, ctx.Err())
-		case <-time.After(2 * time.Second):
-		}
+		return false
+	})
+	if err != nil {
+		return review, fmt.Errorf("review never latched refrigeration with a bound goal (revision %d, latches %+v): %w", review.Revision, review.Latches, err)
 	}
+	return review, nil
+}
+
+func waitRelease(ctx context.Context, s *store.Store, service *na.ServiceProcess) (store.RoutineReview, error) {
+	review, err := na.WaitReview(ctx, s, storeWait(service), func(r store.RoutineReview) bool { return !r.Latches.Refrigeration })
+	if err != nil {
+		return review, fmt.Errorf("review never released the refrigeration latch (revision %d): %w", review.Revision, err)
+	}
+	return review, nil
 }
 
 // refrigerationMethods lists every method ever committed on a

@@ -525,6 +525,62 @@ func (p *ServiceProcess) WaitRoutineReview(ctx context.Context, s *store.Store, 
 	return review, diagnostics, fmt.Errorf("service reached automate mode but the routine review was never persisted (revision 0): %w", err)
 }
 
+// WaitReview polls the durable routine review under w until ready accepts
+// it. The progress signature is the review's latches and goal bindings, so
+// a review that keeps revising without moving either stalls.
+func WaitReview(ctx context.Context, s *store.Store, w Wait, ready func(store.RoutineReview) bool) (store.RoutineReview, error) {
+	var review store.RoutineReview
+	if w.Interval <= 0 {
+		w.Interval = time.Second
+	}
+	err := WaitProgress(ctx, w, func(ctx context.Context) (string, bool, error) {
+		r, err := s.LoadRoutineReview(ctx)
+		if err != nil {
+			return "", false, err
+		}
+		review = r
+		if ready(r) {
+			return "", true, nil
+		}
+		needs := make([]string, 0, len(r.Goals))
+		for _, binding := range r.Goals {
+			needs = append(needs, string(binding.Need)+"="+string(binding.Goal))
+		}
+		return Signature(fmt.Sprintf("%+v", r.Latches), needs), false, nil
+	})
+	return review, err
+}
+
+// WaitPlan polls plan under w until check accepts its state; check's
+// signature is whatever of the plan must move (usually its action stages
+// and attempts, see PlanSignature).
+func WaitPlan(ctx context.Context, s *store.Store, w Wait, planID domain.PlanID, check func(store.PlanState) (signature string, done bool, err error)) (store.PlanState, error) {
+	var state store.PlanState
+	if w.Interval <= 0 {
+		w.Interval = time.Second
+	}
+	err := WaitProgress(ctx, w, func(ctx context.Context) (string, bool, error) {
+		st, err := s.LoadPlan(ctx, planID)
+		if err != nil {
+			return "", false, err
+		}
+		state = st
+		return check(st)
+	})
+	return state, err
+}
+
+// PlanSignature is each action's stage, attempt and receipt.
+func PlanSignature(state store.PlanState) string {
+	parts := make([]any, 0, 3*len(state.Progress))
+	for _, p := range state.Progress {
+		v := p.View()
+		receipt, _ := v.Receipt.Value()
+		parts = append(parts, v.Stage, v.Attempt, receipt)
+	}
+	return Signature(parts...)
+}
+
 // WaitGoalMethod polls the durable routine review for need's goal binding
 // and a committed method on it other than previous, exactly what the
 // building planners themselves read (review.Goals then the goal's Methods).

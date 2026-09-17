@@ -327,9 +327,9 @@ func run(ctx context.Context, root, output, gameID string, headless bool, binary
 	report["routine_review_first"] = json.RawMessage(reviewData)
 
 	if scenario == "filthy" {
-		err = runFilthy(ctx, journal, report, kitchenID, butcheryID, kitchenFilth, inKitchen, cleanliness)
+		err = runFilthy(ctx, journal, service, report, kitchenID, butcheryID, kitchenFilth, inKitchen, cleanliness)
 	} else {
-		err = runSeparation(ctx, journal, report, inKitchen)
+		err = runSeparation(ctx, journal, service, report, inKitchen)
 	}
 	if err != nil {
 		return err
@@ -417,9 +417,9 @@ func run(ctx context.Context, root, output, gameID string, headless bool, binary
 // period (zero cleaners means there is no coverage to wait for), every order
 // targets kitchen filth, and the latch releases once the room's measured
 // cleanliness recovers.
-func runFilthy(ctx context.Context, journal *store.Store, report na.Report, kitchenID, butcheryID string, kitchenFilth map[string]bool, inKitchen func(domain.Cell) bool, p policy.CleanlinessPolicy) error {
+func runFilthy(ctx context.Context, journal *store.Store, service *na.ServiceProcess, report na.Report, kitchenID, butcheryID string, kitchenFilth map[string]bool, inKitchen func(domain.Cell) bool, p policy.CleanlinessPolicy) error {
 	latchCtx, latchCancel := context.WithTimeout(ctx, 4*time.Minute)
-	latched, since, err := waitDirtyRoom(latchCtx, journal, kitchenID)
+	latched, since, err := waitDirtyRoom(latchCtx, journal, service, kitchenID)
 	latchCancel()
 	if err != nil {
 		return fmt.Errorf("kitchen latch: %w", err)
@@ -500,7 +500,7 @@ func runFilthy(ctx context.Context, journal *store.Store, report na.Report, kitc
 		report["clean_orders_completed"] = orders
 		report["incidental_renewals"] = renewals
 		releaseCtx, releaseCancel := context.WithTimeout(ctx, 90*time.Second)
-		released, releaseErr := waitRelease(releaseCtx, journal, kitchenID)
+		released, releaseErr := waitRelease(releaseCtx, journal, service, kitchenID)
 		releaseCancel()
 		if releaseErr == nil {
 			report["released_review_revision"] = released.Revision
@@ -522,7 +522,7 @@ func runFilthy(ctx context.Context, journal *store.Store, report na.Report, kitc
 // runSeparation follows the food-supply family: a ButcherSpot build outside
 // the kitchen rectangle, its completion, then a butcher bill on the new
 // bench (recorded in report["butcher_bill_bench"] for the native check).
-func runSeparation(ctx context.Context, journal *store.Store, report na.Report, inKitchen func(domain.Cell) bool) error {
+func runSeparation(ctx context.Context, journal *store.Store, service *na.ServiceProcess, report na.Report, inKitchen func(domain.Cell) bool) error {
 	methodCtx, methodCancel := context.WithTimeout(ctx, 8*time.Minute)
 	defer methodCancel()
 	var previous *domain.GoalMethod
@@ -590,7 +590,7 @@ func runSeparation(ctx context.Context, journal *store.Store, report na.Report, 
 			// processed, which the fixture never supplies: the accepted
 			// receipt plus the native bench read below are the evidence.
 			doneCtx, doneCancel := context.WithTimeout(ctx, 3*time.Minute)
-			err := waitAcceptedReceipt(doneCtx, journal, method.Plan)
+			err := waitAcceptedReceipt(doneCtx, journal, service, method.Plan)
 			doneCancel()
 			if err != nil {
 				return fmt.Errorf("butcher bill plan: %w", err)
@@ -751,75 +751,63 @@ func readColonyFacts(ctx context.Context, h *na.Harness, identity map[string]any
 	return observed, err
 }
 
-// waitDirtyRoom polls until the review's upkeep latch lists room, returning
-// the review and the latch's entry tick.
-func waitDirtyRoom(ctx context.Context, s *store.Store, room string) (store.RoutineReview, domain.Tick, error) {
-	for {
-		review, err := s.LoadRoutineReview(ctx)
-		if err != nil {
-			return review, 0, err
-		}
-		for _, dirty := range review.Latches.Upkeep.DirtyRooms {
-			if dirty.Key == room {
-				return review, dirty.Since, nil
-			}
-		}
-		select {
-		case <-ctx.Done():
-			return review, 0, fmt.Errorf("review never latched room %s dirty (revision %d, latches %+v): %w", room, review.Revision, review.Latches.Upkeep.DirtyRooms, ctx.Err())
-		case <-time.After(time.Second):
-		}
-	}
+// storeWait bounds the journal polls below: the shared stall budget, and
+// the service exiting on its own ends a wait at once.
+func storeWait(service *na.ServiceProcess) na.Wait {
+	return na.Wait{Stall: na.StallBudget(), Terminal: service.Exited}
 }
 
-func waitRelease(ctx context.Context, s *store.Store, room string) (store.RoutineReview, error) {
-	for {
-		review, err := s.LoadRoutineReview(ctx)
-		if err != nil {
-			return review, err
+// waitDirtyRoom polls until the review's upkeep latch lists room, returning
+// the review and the latch's entry tick.
+func waitDirtyRoom(ctx context.Context, s *store.Store, service *na.ServiceProcess, room string) (store.RoutineReview, domain.Tick, error) {
+	var since domain.Tick
+	review, err := na.WaitReview(ctx, s, storeWait(service), func(r store.RoutineReview) bool {
+		for _, dirty := range r.Latches.Upkeep.DirtyRooms {
+			if dirty.Key == room {
+				since = dirty.Since
+				return true
+			}
 		}
-		latched := false
-		for _, dirty := range review.Latches.Upkeep.DirtyRooms {
-			latched = latched || dirty.Key == room
-		}
-		if !latched {
-			return review, nil
-		}
-		select {
-		case <-ctx.Done():
-			return review, fmt.Errorf("room %s still latched (revision %d): %w", room, review.Revision, ctx.Err())
-		case <-time.After(2 * time.Second):
-		}
+		return false
+	})
+	if err != nil {
+		return review, 0, fmt.Errorf("review never latched room %s dirty (revision %d, latches %+v): %w", room, review.Revision, review.Latches.Upkeep.DirtyRooms, err)
 	}
+	return review, since, nil
+}
+
+func waitRelease(ctx context.Context, s *store.Store, service *na.ServiceProcess, room string) (store.RoutineReview, error) {
+	review, err := na.WaitReview(ctx, s, storeWait(service), func(r store.RoutineReview) bool {
+		for _, dirty := range r.Latches.Upkeep.DirtyRooms {
+			if dirty.Key == room {
+				return false
+			}
+		}
+		return true
+	})
+	if err != nil {
+		return review, fmt.Errorf("room %s still latched (revision %d): %w", room, review.Revision, err)
+	}
+	return review, nil
 }
 
 // waitAcceptedReceipt polls until every action of plan has an accepted
 // receipt (or has completed); an unsuccessful or cancelled action fails.
-func waitAcceptedReceipt(ctx context.Context, s *store.Store, planID domain.PlanID) error {
-	for {
-		state, err := s.LoadPlan(ctx, planID)
-		if err != nil {
-			return err
-		}
+func waitAcceptedReceipt(ctx context.Context, s *store.Store, service *na.ServiceProcess, planID domain.PlanID) error {
+	_, err := na.WaitPlan(ctx, s, storeWait(service), planID, func(state store.PlanState) (string, bool, error) {
 		accepted := len(state.Progress) > 0
 		for _, progress := range state.Progress {
 			view := progress.View()
 			switch view.Stage {
 			case domain.Unsuccessful, domain.Cancelled:
-				return fmt.Errorf("plan %s reached %s before its receipt", planID, view.Stage)
+				return "", false, fmt.Errorf("plan %s reached %s before its receipt", planID, view.Stage)
 			case domain.Completed:
 			default:
 				receipt, known := view.Receipt.Value()
 				accepted = accepted && known && receipt == domain.ReceiptAccepted
 			}
 		}
-		if accepted {
-			return nil
-		}
-		select {
-		case <-ctx.Done():
-			return ctx.Err()
-		case <-time.After(time.Second):
-		}
-	}
+		return na.PlanSignature(state), accepted, nil
+	})
+	return err
 }

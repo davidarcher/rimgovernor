@@ -269,7 +269,7 @@ func run(ctx context.Context, root, output, gameID string, headless bool, binary
 
 	// The review must latch the stove and bind MaintainLighting.
 	waitCtx, waitCancel := context.WithTimeout(ctx, 3*time.Minute)
-	latched, err := waitLatch(waitCtx, journal, stoveID)
+	latched, err := waitLatch(waitCtx, journal, service, stoveID)
 	waitCancel()
 	if err != nil {
 		return fmt.Errorf("lighting latch: %w", err)
@@ -399,7 +399,7 @@ func run(ctx context.Context, root, output, gameID string, headless bool, binary
 
 	// The measured census releases the latch once the cell reads lit.
 	releaseCtx, releaseCancel := context.WithTimeout(ctx, 5*time.Minute)
-	released, err := waitRelease(releaseCtx, journal, stoveID)
+	released, err := waitRelease(releaseCtx, journal, service, stoveID)
 	releaseCancel()
 	if err != nil {
 		return fmt.Errorf("lighting release: %w", err)
@@ -571,42 +571,36 @@ func latchedOn(review store.RoutineReview, bench string) bool {
 	return false
 }
 
-func waitLatch(ctx context.Context, s *store.Store, bench string) (store.RoutineReview, error) {
-	for {
-		review, err := s.LoadRoutineReview(ctx)
-		if err != nil {
-			return review, err
-		}
-		if latchedOn(review, bench) {
-			for _, binding := range review.Goals {
-				if binding.Need == policy.MaintainLighting {
-					return review, nil
-				}
-			}
-		}
-		select {
-		case <-ctx.Done():
-			return review, fmt.Errorf("review never latched %s with a bound MaintainLighting goal (revision %d, latches %+v): %w", bench, review.Revision, review.Latches.Lighting, ctx.Err())
-		case <-time.After(time.Second):
-		}
-	}
+// storeWait bounds the journal polls below: the shared stall budget, and
+// the service exiting on its own ends a wait at once.
+func storeWait(service *na.ServiceProcess) na.Wait {
+	return na.Wait{Stall: na.StallBudget(), Terminal: service.Exited}
 }
 
-func waitRelease(ctx context.Context, s *store.Store, bench string) (store.RoutineReview, error) {
-	for {
-		review, err := s.LoadRoutineReview(ctx)
-		if err != nil {
-			return review, err
+func waitLatch(ctx context.Context, s *store.Store, service *na.ServiceProcess, bench string) (store.RoutineReview, error) {
+	review, err := na.WaitReview(ctx, s, storeWait(service), func(r store.RoutineReview) bool {
+		if !latchedOn(r, bench) {
+			return false
 		}
-		if !latchedOn(review, bench) {
-			return review, nil
+		for _, binding := range r.Goals {
+			if binding.Need == policy.MaintainLighting {
+				return true
+			}
 		}
-		select {
-		case <-ctx.Done():
-			return review, fmt.Errorf("review never released the lighting latch on %s (revision %d): %w", bench, review.Revision, ctx.Err())
-		case <-time.After(2 * time.Second):
-		}
+		return false
+	})
+	if err != nil {
+		return review, fmt.Errorf("review never latched %s with a bound MaintainLighting goal (revision %d, latches %+v): %w", bench, review.Revision, review.Latches.Lighting, err)
 	}
+	return review, nil
+}
+
+func waitRelease(ctx context.Context, s *store.Store, service *na.ServiceProcess, bench string) (store.RoutineReview, error) {
+	review, err := na.WaitReview(ctx, s, storeWait(service), func(r store.RoutineReview) bool { return !latchedOn(r, bench) })
+	if err != nil {
+		return review, fmt.Errorf("review never released the lighting latch on %s (revision %d): %w", bench, review.Revision, err)
+	}
+	return review, nil
 }
 
 // lightingMethods lists every method ever committed on a MaintainLighting
