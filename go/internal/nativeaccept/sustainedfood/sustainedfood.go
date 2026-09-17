@@ -517,7 +517,7 @@ func Run(ctx context.Context, cfg RunConfig, report na.Report) (timeline []map[s
 		// The service was killed, not shut down, so the authority it held
 		// stays granted until its tick budget lapses; EndCase would retire
 		// the game over it. Revoke at the current generation.
-		if revoked, err := releaseAuthority(ctx, finalHarness, identity); err != nil {
+		if revoked, err := na.ReleaseAuthority(ctx, finalHarness, identity); err != nil {
 			return timeline, err
 		} else if revoked != nil {
 			report["authority_released"] = revoked
@@ -557,26 +557,6 @@ func Run(ctx context.Context, cfg RunConfig, report na.Report) (timeline []map[s
 		return timeline, err
 	}
 	return timeline, nil
-}
-
-// releaseAuthority revokes an active authority grant at the generation the
-// game reports now (the keep-alive may have re-acquired since the first
-// grant). Returns nil when nothing was active.
-func releaseAuthority(ctx context.Context, h *na.Harness, identity map[string]any) (map[string]any, error) {
-	statusReply, err := h.Wire(ctx, "release-authority-status", "authority_read_status", map[string]any{"identity": identity})
-	if err != nil {
-		return nil, err
-	}
-	_, status, err := na.Outcome(statusReply, "status")
-	if err != nil {
-		return nil, fmt.Errorf("authority status: %w", err)
-	}
-	if _, active := status["active"]; !active {
-		return nil, nil
-	}
-	statusContext, _ := na.AsMap(status["context"])
-	grant := map[string]any{"context": map[string]any{"nativeGeneration": statusContext["nativeGeneration"]}}
-	return na.RevokeManual(ctx, h.WireFunc(), "release-authority", identity, grant)
 }
 
 // SampleGoal reads one maintained goal's current binding (if any) and its

@@ -45,6 +45,12 @@
 // The harness's own bridge session and the service's are used sequentially,
 // never concurrently (one GABP slot). Needs the native mod built with
 // -Fixture UpkeepFixture,ForecastFixture,RoutineSleepingFixture.
+//
+// -scenario takes a comma-separated list (or "all"); each scenario then runs
+// under <output>/<scenario> with a summary result.json at <output>. -reuse
+// launches RimWorld once and reloads the tribal8 baseline save for every
+// scenario (issue #22's GameReuse), so the multi-minute boot is paid once;
+// a failed or unclean case retires the game and the next scenario relaunches.
 package main
 
 import (
@@ -150,27 +156,61 @@ func scenarios() map[string]*scenario {
 	return s
 }
 
+// reuseSave is the save every reuse case reloads before its fixture stages
+// the deficit (issue #22): one launch per invocation instead of one per
+// scenario, with GameReuse's reset contract guarding the shared process.
+// Fresh-process mode keeps rimworld/start_debug_game_ready so a rolled map
+// stays available for scenarios that want one.
+const reuseSave = "RimGovernor-tribal8-baseline"
+
+// scenarioOrder is the -scenario all expansion, cheapest deficit first.
+var scenarioOrder = []string{"scattered", "storage-missing", "blocked", "fire", "medicine", "feed", "sleeping", "cold"}
+
 func main() {
 	root := flag.String("root", "", "absolute disposable worker root (e.g. .rimgovernor/bridge)")
-	output := flag.String("output", "", "fresh output directory (default <root>/native-upkeep-acceptance-<scenario>)")
+	output := flag.String("output", "", "fresh output directory (default <root>/native-upkeep-acceptance-<scenario>, or <root>/native-upkeep-acceptance for a multi-scenario run)")
 	rendered := flag.Bool("rendered", false, "use the windowed profile instead of headless")
 	game := flag.String("game", "rimgovernor-trial", "configured game ID")
 	binary := flag.String("rimgovernor", "", "absolute path to a prebuilt rimgovernor binary (go build ./go/cmd/rimgovernor)")
-	name := flag.String("scenario", "scattered", "scattered, storage-missing, blocked, fire, medicine, feed, sleeping or cold")
-	timeout := flag.Duration("timeout", 40*time.Minute, "overall run timeout")
+	names := flag.String("scenario", "scattered", "comma-separated list of scattered, storage-missing, blocked, fire, medicine, feed, sleeping, cold (or all)")
+	timeout := flag.Duration("timeout", 40*time.Minute, "per-scenario timeout")
 	debug := flag.Bool("debug", false, "record every native call (flight.jsonl) and the clock/worker diagnostic log")
+	reuseGame := flag.Bool("reuse", false, "launch RimWorld once and reload "+reuseSave+" for every scenario (issue #22); a failed scenario retires the game and the next one relaunches")
 	flag.Parse()
 	if *root == "" || *binary == "" || !filepath.IsAbs(*binary) {
 		fmt.Fprintln(os.Stderr, "-root and an absolute -rimgovernor are required")
 		os.Exit(2)
 	}
-	sc, ok := scenarios()[*name]
-	if !ok {
-		fmt.Fprintln(os.Stderr, "-scenario must be scattered, storage-missing, blocked, fire, medicine, feed, sleeping or cold")
+	all := scenarios()
+	var selected []*scenario
+	for _, name := range strings.Split(*names, ",") {
+		name = strings.TrimSpace(name)
+		if name == "all" {
+			for _, n := range scenarioOrder {
+				selected = append(selected, all[n])
+			}
+			continue
+		}
+		sc, ok := all[name]
+		if !ok {
+			fmt.Fprintln(os.Stderr, "-scenario must list scattered, storage-missing, blocked, fire, medicine, feed, sleeping or cold")
+			os.Exit(2)
+		}
+		selected = append(selected, sc)
+	}
+	if len(selected) == 0 {
+		fmt.Fprintln(os.Stderr, "-scenario names nothing")
 		os.Exit(2)
 	}
 	if *output == "" {
-		*output = *root + "/native-upkeep-acceptance-" + *name
+		if len(selected) == 1 {
+			*output = *root + "/native-upkeep-acceptance-" + selected[0].name
+		} else {
+			*output = *root + "/native-upkeep-acceptance"
+		}
+	}
+	if abs, err := filepath.Abs(*output); err == nil {
+		*output = abs
 	}
 	if err := os.MkdirAll(*output, 0755); err != nil {
 		fmt.Fprintln(os.Stderr, err)
@@ -180,22 +220,110 @@ func main() {
 		fmt.Fprintln(os.Stderr, "-output must be a fresh, empty directory")
 		os.Exit(2)
 	}
-	report := na.NewReport("Native colony upkeep vertical ("+*name+", issue #2 B04h): a staged deficit is reviewed, "+
-		"its method dispatched through the live service, recovery observed on the native postcondition rather than a "+
-		"receipt, and the outcome confirmed by an independent native read.", !*rendered)
-	report["scenario"] = *name
-	ctx, cancel := context.WithTimeout(context.Background(), *timeout)
-	defer cancel()
-	err := run(ctx, *root, *output, *game, !*rendered, *binary, sc, *debug, report)
-	if err != nil {
-		report["error"] = err.Error()
-	} else {
-		report["passed"] = true
+	if len(selected) == 1 && !*reuseGame {
+		report := newScenarioReport(selected[0].name, !*rendered)
+		ctx, cancel := context.WithTimeout(context.Background(), *timeout)
+		defer cancel()
+		err := run(ctx, *root, *output, *game, !*rendered, *binary, selected[0], *debug, report, nil)
+		if err != nil {
+			report["error"] = err.Error()
+		} else {
+			report["passed"] = true
+		}
+		os.Exit(report.Finalize(*output))
 	}
-	os.Exit(report.Finalize(*output))
+	os.Exit(runMany(*root, *output, *game, !*rendered, *binary, selected, *debug, *reuseGame, *timeout))
 }
 
-func run(ctx context.Context, root, output, gameID string, headless bool, binary string, sc *scenario, debug bool, report na.Report) error {
+func newScenarioReport(name string, headless bool) na.Report {
+	report := na.NewReport("Native colony upkeep vertical ("+name+", issue #2 B04h): a staged deficit is reviewed, "+
+		"its method dispatched through the live service, recovery observed on the native postcondition rather than a "+
+		"receipt, and the outcome confirmed by an independent native read.", headless)
+	report["scenario"] = name
+	return report
+}
+
+// runMany runs each scenario under <output>/<scenario> with its own
+// result.json and writes a summary result.json at output. With reuse, one
+// game serves every scenario until a case fails or leaves the game unclean,
+// after which the next scenario pays for a relaunch; without it every
+// scenario is its own fresh process.
+func runMany(root, output, gameID string, headless bool, binary string, selected []*scenario, debug, reuseGame bool, timeout time.Duration) int {
+	summary := na.NewReport("Native colony upkeep matrix (issue #2 B04h): every listed scenario run in sequence, "+
+		"each under its own directory with its own result.json.", headless)
+	summary["reuse_game"] = reuseGame
+	var rows []map[string]any
+	var lifecycles []map[string]any
+	passed := true
+	var reuse *na.GameReuse
+	retireReuse := func(reason string) {
+		if reuse == nil {
+			return
+		}
+		retireCtx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
+		defer cancel()
+		_ = reuse.Retire(retireCtx, reason)
+		lifecycles = append(lifecycles, map[string]any{"rows": reuse.Rows()})
+		reuse = nil
+	}
+	for _, sc := range selected {
+		caseOutput := filepath.Join(output, sc.name)
+		report := newScenarioReport(sc.name, headless)
+		ctx, cancel := context.WithTimeout(context.Background(), timeout)
+		if reuseGame && reuse == nil {
+			cfg := &na.Config{Root: root, Output: output, Headless: headless, GameID: gameID}
+			err := cfg.UseSaveExpansions(reuseSave)
+			if err == nil {
+				err = cfg.PrepareConfig()
+			}
+			if err != nil {
+				report["error"] = "prepare reuse profile: " + err.Error()
+			} else if gabsExecutable, err := na.GABSExecutable(root, cfg.Configuration); err != nil {
+				report["error"] = err.Error()
+			} else if opened, err := na.OpenReusableGame(ctx, cfg, gabsExecutable); err != nil {
+				report["error"] = "open reusable game: " + err.Error()
+			} else {
+				reuse = opened
+			}
+		}
+		if _, failed := report["error"]; !failed {
+			if err := os.MkdirAll(caseOutput, 0755); err != nil {
+				report["error"] = err.Error()
+			} else if err := run(ctx, root, caseOutput, gameID, headless, binary, sc, debug, report, reuse); err != nil {
+				report["error"] = err.Error()
+			} else {
+				report["passed"] = true
+			}
+		}
+		cancel()
+		code := report.Finalize(caseOutput)
+		row := map[string]any{"scenario": sc.name, "passed": code == 0, "output": caseOutput}
+		if err, ok := report["error"]; ok {
+			row["error"] = err
+		}
+		if reuse != nil {
+			if retired, reason := reuse.Retired(); retired {
+				row["reuse_retired"] = reason
+				retireReuse(reason)
+			}
+		}
+		rows = append(rows, row)
+		passed = passed && code == 0
+	}
+	retireReuse("matrix complete")
+	summary["scenarios"] = rows
+	summary["reuse"] = lifecycles
+	summary["passed"] = passed
+	return summary.Finalize(output)
+}
+
+// run executes one scenario. With reuse != nil the scenario is a reuse case:
+// the shared game reloads the baseline save, the case borrows the shared
+// harness session (released while the service owns the GABP slot) and
+// EndCase verifies quiescence; the game is stopped only on retirement.
+// Without it the run owns a fresh process from start_debug_game_ready to
+// games_stop.
+func run(ctx context.Context, root, output, gameID string, headless bool, binary string, sc *scenario, debug bool, report na.Report, reuse *na.GameReuse) (err error) {
 	if abs, err := filepath.Abs(root); err == nil {
 		root = abs
 	}
@@ -203,7 +331,9 @@ func run(ctx context.Context, root, output, gameID string, headless bool, binary
 		output = abs
 	}
 	cfg := &na.Config{Root: root, Output: output, Headless: headless, GameID: gameID}
-	if err := cfg.PrepareConfig(); err != nil {
+	if reuse != nil {
+		cfg = reuse.Config
+	} else if err := cfg.PrepareConfig(); err != nil {
 		return fmt.Errorf("prepare profile: %w", err)
 	}
 	game, err := cfg.GameSection()
@@ -219,55 +349,115 @@ func run(ctx context.Context, root, output, gameID string, headless bool, binary
 	if err != nil {
 		return err
 	}
-	client, err := na.OpenSession(ctx, gabsExecutable, cfg.Configuration, gameID, 120*time.Second)
-	if err != nil {
-		return err
-	}
-	h := na.NewHarness(client, output)
-	sessionOpen := true
+
+	var h *na.Harness
 	var service *na.ServiceProcess
 	var postmortem map[string]any
-	stopped := false
-	stopGame := func() {
-		if stopped {
+	// readPostmortem records the deficit facts as the game last saw them
+	// when a scenario fails after the service took over the slot.
+	readPostmortem := func(stopCtx context.Context, ph *na.Harness) {
+		if postmortem == nil || ph == nil {
 			return
 		}
-		stopped = true
-		if service != nil {
-			service.Stop()
+		if upkeep, err := readUpkeep(stopCtx, ph, postmortem, "upkeep-postmortem"); err == nil {
+			report["upkeep_postmortem"] = upkeep
+		} else {
+			report["upkeep_postmortem_error"] = err.Error()
 		}
-		stopCtx, stopCancel := context.WithTimeout(context.Background(), 90*time.Second)
-		defer stopCancel()
-		if !sessionOpen {
-			reopened, err := na.ReopenSession(stopCtx, gabsExecutable, cfg.Configuration, gameID)
+	}
+	// The fixture-prep session is released while the service owns the
+	// single GABP slot and reacquired for the independent read afterwards.
+	var releaseSession func() error
+	var reacquireSession func() (*na.Harness, error)
+	stopped := false
+	if reuse != nil {
+		reuseCase, err := reuse.BeginCase(ctx, sc.name, reuseSave, output)
+		if err != nil {
+			return err
+		}
+		h = reuseCase.Harness
+		report["reuse_case"] = map[string]any{"loadToken": reuseCase.Reset.LoadToken, "tick": reuseCase.Reset.Tick}
+		releaseSession = reuse.ReleaseSession
+		reacquireSession = func() (*na.Harness, error) {
+			rh, err := reuse.Session(ctx)
 			if err != nil {
-				report["stop_error"] = "reopen session for games_stop: " + err.Error()
+				return nil, err
+			}
+			rh.Output = output
+			return rh, nil
+		}
+		defer func() {
+			if stopped {
 				return
 			}
-			client, sessionOpen = reopened, true
-			if postmortem != nil {
-				ph := na.NewHarness(client, output)
-				if upkeep, err := readUpkeep(stopCtx, ph, postmortem, "upkeep-postmortem"); err == nil {
-					report["upkeep_postmortem"] = upkeep
-				} else {
-					report["upkeep_postmortem_error"] = err.Error()
+			stopped = true
+			if service != nil {
+				service.Stop()
+			}
+			endCtx, endCancel := context.WithTimeout(context.Background(), 2*time.Minute)
+			defer endCancel()
+			if err != nil {
+				if ph, sessionErr := reuse.Session(endCtx); sessionErr == nil {
+					ph.Output = output
+					readPostmortem(endCtx, ph)
 				}
 			}
+			if endErr := reuse.EndCase(endCtx, reuseCase, err != nil); endErr != nil && err == nil {
+				err = endErr
+			}
+		}()
+	} else {
+		client, err := na.OpenSession(ctx, gabsExecutable, cfg.Configuration, gameID, 120*time.Second)
+		if err != nil {
+			return err
 		}
-		if s, err := client.GamesStop(stopCtx); err == nil {
-			report["stop"] = string(s.Envelope)
-		} else {
-			report["stop_error"] = err.Error()
+		h = na.NewHarness(client, output)
+		sessionOpen := true
+		releaseSession = func() error {
+			sessionOpen = false
+			return client.Close()
 		}
-		_ = client.Close()
+		reacquireSession = func() (*na.Harness, error) {
+			reopened, err := na.ReopenSession(ctx, gabsExecutable, cfg.Configuration, gameID)
+			if err != nil {
+				return nil, fmt.Errorf("reopen harness session after service stop: %w", err)
+			}
+			client, sessionOpen = reopened, true
+			return na.NewHarness(client, output), nil
+		}
+		defer func() {
+			if stopped {
+				return
+			}
+			stopped = true
+			if service != nil {
+				service.Stop()
+			}
+			stopCtx, stopCancel := context.WithTimeout(context.Background(), 90*time.Second)
+			defer stopCancel()
+			if !sessionOpen {
+				reopened, err := na.ReopenSession(stopCtx, gabsExecutable, cfg.Configuration, gameID)
+				if err != nil {
+					report["stop_error"] = "reopen session for games_stop: " + err.Error()
+					return
+				}
+				client, sessionOpen = reopened, true
+				readPostmortem(stopCtx, na.NewHarness(client, output))
+			}
+			if s, err := client.GamesStop(stopCtx); err == nil {
+				report["stop"] = string(s.Envelope)
+			} else {
+				report["stop_error"] = err.Error()
+			}
+			_ = client.Close()
+		}()
+		if _, err := h.Call(ctx, "new-game", "rimworld/start_debug_game_ready", map[string]any{
+			"readiness": "visual", "pauseIfNeeded": true, "timeoutMs": 120000,
+		}); err != nil {
+			return err
+		}
 	}
-	defer stopGame()
 
-	if _, err := h.Call(ctx, "new-game", "rimworld/start_debug_game_ready", map[string]any{
-		"readiness": "visual", "pauseIfNeeded": true, "timeoutMs": 120000,
-	}); err != nil {
-		return err
-	}
 	if _, err := h.Call(ctx, "pause", "rimworld/set_time_speed", map[string]any{"speed": "Paused", "ultraSpeedBoost": false}); err != nil {
 		return err
 	}
@@ -303,10 +493,9 @@ func run(ctx context.Context, root, output, gameID string, headless bool, binary
 		return err
 	}
 	report["upkeep_before"] = before
-	if err := client.Close(); err != nil {
+	if err := releaseSession(); err != nil {
 		return fmt.Errorf("close fixture-prep bridge session: %w", err)
 	}
-	sessionOpen = false
 
 	extra := append([]string{"--clock-speed", "Fast"}, sc.extra...)
 	var env []string
@@ -374,12 +563,20 @@ func run(ctx context.Context, root, output, gameID string, headless bool, binary
 	// Independent native read after the service releases the game slot.
 	journal.Close()
 	service.Stop()
-	client, err = na.ReopenSession(ctx, gabsExecutable, cfg.Configuration, gameID)
+	h, err = reacquireSession()
 	if err != nil {
-		return fmt.Errorf("reopen harness session after service stop: %w", err)
+		return err
 	}
-	sessionOpen = true
-	h = na.NewHarness(client, output)
+	if reuse != nil {
+		// The service was stopped, not shut down, so its authority grant
+		// lingers until the tick budget lapses; EndCase would retire the
+		// game over it.
+		if revoked, err := na.ReleaseAuthority(ctx, h, identity); err != nil {
+			return err
+		} else if revoked != nil {
+			report["authority_released"] = revoked
+		}
+	}
 	if _, err := h.Call(ctx, "pause-after", "rimworld/set_time_speed", map[string]any{"speed": "Paused", "ultraSpeedBoost": false}); err != nil {
 		return err
 	}

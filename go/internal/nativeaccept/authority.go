@@ -95,3 +95,25 @@ func RequireInactive(status map[string]any, reason string) (map[string]any, erro
 	}
 	return inactive, nil
 }
+
+// ReleaseAuthority revokes an active authority grant at the generation the
+// game reports now (a keep-alive may have re-acquired since the first
+// grant). Returns nil when nothing was active. A harness that kills its
+// service rather than shutting it down uses this before a reuse EndCase,
+// which otherwise retires the game over the lingering grant.
+func ReleaseAuthority(ctx context.Context, h *Harness, identity map[string]any) (map[string]any, error) {
+	statusReply, err := h.Wire(ctx, "release-authority-status", "authority_read_status", map[string]any{"identity": identity})
+	if err != nil {
+		return nil, err
+	}
+	_, status, err := Outcome(statusReply, "status")
+	if err != nil {
+		return nil, fmt.Errorf("authority status: %w", err)
+	}
+	if _, active := status["active"]; !active {
+		return nil, nil
+	}
+	statusContext, _ := AsMap(status["context"])
+	grant := map[string]any{"context": map[string]any{"nativeGeneration": statusContext["nativeGeneration"]}}
+	return RevokeManual(ctx, h.WireFunc(), "release-authority", identity, grant)
+}

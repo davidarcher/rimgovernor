@@ -68,6 +68,37 @@ func TestCommitStockpileZoneMethodBindsToFoodStorageGoal(t *testing.T) {
 	}
 }
 
+// SecureSupplies' covered-storage fallback (routine_secure_supplies.go) is
+// the other stockpile-zone method: a goal bound to SecureSupplies commits an
+// allow-list stockpile plan exactly as EnsureFoodStorage does.
+func TestCommitStockpileZoneMethodBindsToSecureSuppliesGoal(t *testing.T) {
+	ctx := context.Background()
+	s := open(t, memoryPath(t))
+	r := routineRequest()
+	r.Current.Native = 2
+	r.Facts.Upkeep.Items = domain.Known([]policy.UpkeepItem{{ID: "Thing_MedicineHerbal1", Definition: "MedicineHerbal", Cell: domain.Cell{X: 3, Z: 3}, Deterioration: 2, Medicine: true, Count: 5}})
+	out := reviewRoutine(t, s, &r)
+	g := routineGoal(t, out, policy.SecureSupplies)
+	if g.Goal.Need != domain.NeedDeficit {
+		t.Fatal(g)
+	}
+	zone, err := domain.NewAllowListStockpileZone(domain.ImportantPriority, []string{"MedicineHerbal"}, []domain.Cell{{X: 4, Z: 6}, {X: 5, Z: 6}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	action, err := domain.NewZoneCreateAction("supplies-zone-a", zone)
+	if err != nil {
+		t.Fatal(err)
+	}
+	plan, err := domain.NewPlan("supplies-zone", 1, []domain.Action{action})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := s.CommitGoalMethod(ctx, g.Goal.ID, g.Revision, "secure-supplies-zone-0", plan); err != nil {
+		t.Fatal(err)
+	}
+}
+
 // A stockpile zone is created once per colony in this slice: a plan proposing
 // more than one stockpile action for the bound goal must be refused, unlike
 // growing-field plans which may batch many patches per method.
