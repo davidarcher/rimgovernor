@@ -115,6 +115,15 @@ the first. A controller restarted with an empty journal recognises template
 shells from the census alone; a grown shell is then not recognised and the
 routine sites afresh.
 
+A shell plan that settles with a cell unsuccessful (a wall the player
+cancelled in-game, a failed frame) leaves a gap the goal alone would never
+close, since a suspended-and-resumed goal keeps its epoch and its bound
+method. The shell planner therefore walks a repair chain under the epoch --
+`<method>`, `<method>-repair-1`, `-2`, ... up to eight -- and once the latest
+bound plan has settled short of every cell completed, binds the next repair
+method to a plan produced by the same adoption path, which reissues exactly
+the cells not standing.
+
 Indoor furnishing treats the four orthogonal neighbours of every observed
 doorway (a door, or a door blueprint or frame) as protected: the entrance
 aisle is never a furniture candidate.

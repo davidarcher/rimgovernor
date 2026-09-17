@@ -2,6 +2,7 @@ package buildingruntime
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"sort"
 
@@ -398,4 +399,51 @@ func mergeRoutineStock(stock *policy.StockObservation, next policy.StockObservat
 		return ErrControl
 	}
 	return nil
+}
+
+// shellRepairLimit bounds how many times one shell is repaired under one
+// goal epoch; a ring the player keeps cancelling is not fought forever.
+const shellRepairLimit = 8
+
+// shellRepairMethod walks a shell's method chain under the goal's current
+// epoch: method, then method-repair-1, -2, ... Each bound plan is the
+// method in use while it has open work or every cell completed, and hands
+// on to the next repair method once it settled with a cell unsuccessful.
+// It returns the method the next shell plan should bind, or the plan in use
+// when one already covers the shell (including the chain's limit).
+func (r *RoutineBuildingPlanner) shellRepairMethod(call context.Context, goal store.GoalState, method domain.MethodID) (domain.MethodID, *store.PlanState, error) {
+	journal := r.reviewer.player.journal
+	base := method
+	for repair := 0; ; repair++ {
+		bound, err := journal.LoadGoalMethod(call, goal.Goal.ID, goal.Goal.Epoch, method)
+		if errors.Is(err, store.ErrNotFound) {
+			return method, nil, nil
+		}
+		if err != nil {
+			return "", nil, err
+		}
+		plan, err := journal.LoadPlan(call, bound.Plan)
+		if err != nil {
+			return "", nil, err
+		}
+		if domain.GoalWorkOpen(plan.Progress) || !shellSettledWithGap(plan) || repair >= shellRepairLimit {
+			return method, &plan, nil
+		}
+		method = domain.MethodID(fmt.Sprintf("%s-repair-%d", base, repair+1))
+	}
+}
+
+// shellSettledWithGap reports a settled shell plan that did not complete
+// every cell: some wall or door effect was unsuccessful, so the ring has a
+// gap only a further plan can close.
+func shellSettledWithGap(plan store.PlanState) bool {
+	gap := false
+	for _, p := range plan.Progress {
+		v := p.View()
+		effect, known := v.Effect.Value()
+		if v.Stage != domain.Completed || !known || effect != domain.EffectCompleted {
+			gap = true
+		}
+	}
+	return gap
 }

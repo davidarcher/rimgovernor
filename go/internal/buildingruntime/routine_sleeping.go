@@ -361,22 +361,30 @@ func (r *RoutineBuildingPlanner) step(call, epoch context.Context, arbiter *step
 		}
 		return RoutineBuildingResult{Reason: BuildingMethodUnknown}, nil
 	}
-	if existing, loadErr := p.journal.LoadGoalMethod(call, goal.Goal.ID, goal.Goal.Epoch, method); loadErr == nil {
-		result := RoutineBuildingResult{Reason: BuildingMethodUsed}
-		if r.shelter {
-			plan, err := p.journal.LoadPlan(call, existing.Plan)
-			if err != nil {
-				return RoutineBuildingResult{}, err
-			}
+	if r.shelter {
+		// A shell plan that settled with a cell unsuccessful (a wall the
+		// player cancelled in-game, a frame that failed) leaves a gap in the
+		// ring, and a suspended-and-resumed goal keeps its epoch, so nobody
+		// would ever reorder the cell. Walk the shell's repair chain: the
+		// latest bound plan still working, or whole, is the method in use;
+		// one settled with a gap hands its method to the next repair, which
+		// the adoption path below fills from the ring on record.
+		repaired, used, err := r.shellRepairMethod(call, goal, method)
+		if err != nil {
+			return RoutineBuildingResult{}, err
+		}
+		if used != nil {
 			if err := p.current(call, epoch); err != nil {
 				return RoutineBuildingResult{}, err
 			}
 			if p.session.State() != state {
 				return RoutineBuildingResult{}, ErrControl
 			}
-			result.NativeWorkTicks = shelterNativeWorkTicks(plan, state.Snapshot, facts.Identity.Tick)
+			return RoutineBuildingResult{Reason: BuildingMethodUsed, NativeWorkTicks: shelterNativeWorkTicks(*used, state.Snapshot, facts.Identity.Tick)}, nil
 		}
-		return result, nil
+		method = repaired
+	} else if _, loadErr := p.journal.LoadGoalMethod(call, goal.Goal.ID, goal.Goal.Epoch, method); loadErr == nil {
+		return RoutineBuildingResult{Reason: BuildingMethodUsed}, nil
 	} else if !errors.Is(loadErr, store.ErrNotFound) {
 		return RoutineBuildingResult{}, loadErr
 	}

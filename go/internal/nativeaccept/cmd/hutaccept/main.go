@@ -13,9 +13,10 @@
 //  2. the service is stopped; through a private bridge session the harness
 //     cancels one pending wall blueprint/frame in-game (a player edit while
 //     the controller is down).
-//  3. run 2: the same state path; the routine must reissue exactly the
-//     cancelled cell (attempt 2) and nothing else (attempt 1), then complete
-//     the shell and, under the sleeping family, furnish it.
+//  3. run 2: the same state path; run 1's plan resumes and the cancelled
+//     cell settles unsuccessful in it; the routine must reissue exactly that
+//     cell (and nothing that stands) in a repair plan under the same goal,
+//     complete the shell and, under the sleeping family, furnish it.
 //  4. the service is stopped; the bridge reads observations_list_rooms with
 //     cells: the hut is a proper room, cells == interior, open_roof_count 0,
 //     the door cell is a doorway room, beds sit inside and off the aisle.
@@ -175,27 +176,38 @@ func run(ctx context.Context, cfg liveservice.Config, w waits, report na.Report)
 		return err
 	}
 
-	// Run 2: resuming control invalidates the routine goals and cancels their
-	// plans, so the controller must recognise the half-built shell natively
-	// and reissue exactly the cells it is missing: everything run 1 never
-	// ordered plus the cancelled wall, and nothing that still stands.
+	// Run 2: a paired restart suspends and resumes the routine goals with
+	// their plans open (#65), so run 1's plan carries on and the cancelled
+	// wall settles unsuccessful in it. The controller must then close the
+	// gap from the ring on record: a further shell plan under the same goal
+	// epoch that reissues exactly the cells not standing -- the cancelled
+	// wall and any cell run 1 never decided -- and nothing that stands. A
+	// world interruption (a letter pause) instead invalidates the goal and
+	// the ring is adopted the same way under a fresh goal.
 	service, err = prepared.Start(ctx, report)
 	if err != nil {
 		return err
 	}
-	var adopted store.PlanState
+	var repair store.PlanState
 	if err := waitLineage(ctx, st, sh, w.wait(w.build, service), func(l lineage) bool {
-		if l.live == nil || before.plans[l.live.Spec.ID()] {
-			return false
+		for id, plan := range l.byID {
+			if before.plans[id] {
+				continue
+			}
+			for _, a := range plan.Spec.Actions() {
+				if b, _ := a.Building(); b.Cell() == cancelled {
+					repair = plan
+					return true
+				}
+			}
 		}
-		adopted = *l.live
-		return true
+		return false
 	}); err != nil {
 		service.Stop()
-		return fmt.Errorf("run 2 did not reissue the shell: %w", err)
+		return fmt.Errorf("run 2 did not reissue the cancelled wall: %w", err)
 	}
 	reissued := map[domain.Cell]bool{}
-	for _, a := range adopted.Spec.Actions() {
+	for _, a := range repair.Spec.Actions() {
 		b, _ := a.Building()
 		if before.ordered[b.Cell()] && b.Cell() != cancelled && !before.undecided[b.Cell()] {
 			service.Stop()
@@ -203,45 +215,40 @@ func run(ctx context.Context, cfg liveservice.Config, w waits, report na.Report)
 		}
 		reissued[b.Cell()] = true
 	}
-	for _, w := range sh.footprint.Walls() {
-		if (!before.ordered[w] || w == cancelled) && !reissued[w] {
-			service.Stop()
-			return fmt.Errorf("run 2 left the missing cell %v unordered", w)
-		}
-	}
-	if !reissued[cancelled] {
-		service.Stop()
-		return fmt.Errorf("run 2 did not reissue the cancelled wall %v", cancelled)
-	}
-	report["run2_shell"] = map[string]any{"plan": string(adopted.Spec.ID()), "reissued_cells": len(reissued), "cancelled_reissued": true}
-	// Completion follows the live plan: a world interruption (a letter pause)
-	// invalidates the goal and the shell is adopted again from the game.
-	var final store.PlanState
+	report["run2_shell"] = map[string]any{"plan": string(repair.Spec.ID()), "reissued_cells": len(reissued), "cancelled_reissued": true}
+	// Completion: every ring cell completed exactly once across the lineage.
+	var final lineage
 	if err := waitLineage(ctx, st, sh, w.wait(w.build, service), func(l lineage) bool {
-		if l.live == nil || !l.liveComplete() {
-			return false
+		for _, w := range sh.footprint.Walls() {
+			if !l.completed[w] {
+				return false
+			}
 		}
-		final = *l.live
+		final = l
 		return true
 	}); err != nil {
 		service.Stop()
 		return fmt.Errorf("run 2 did not complete the shell: %w", err)
 	}
-	after, err := shellLineage(ctx, st, sh)
-	if err != nil {
-		service.Stop()
-		return err
-	}
-	report["run2_shell_plans"] = after.planIDs()
-	report["run2_interruptions"] = len(after.plans) - len(before.plans) - 1
+	report["run2_shell_plans"] = final.planIDs()
+	report["run2_interruptions"] = len(final.plans) - len(before.plans) - 1
 	attempts := map[string]int{}
-	for i, p := range final.Progress {
-		v := p.View()
-		b, _ := final.Spec.Actions()[i].Building()
-		attempts[fmt.Sprintf("%d,%d", b.Cell().X, b.Cell().Z)] = int(v.Attempt)
-		if v.Attempt != 1 || v.Stage != domain.Completed {
-			service.Stop()
-			return fmt.Errorf("shell action %d at %v: attempt %d stage %s, want one completed attempt", i, b.Cell(), v.Attempt, v.Stage)
+	for id, plan := range final.byID {
+		for i, p := range plan.Progress {
+			v := p.View()
+			b, _ := plan.Spec.Actions()[i].Building()
+			key := fmt.Sprintf("%d,%d", b.Cell().X, b.Cell().Z)
+			if v.Stage == domain.Completed {
+				if _, twice := attempts[key]; twice {
+					service.Stop()
+					return fmt.Errorf("shell cell %v completed twice", b.Cell())
+				}
+				attempts[key] = int(v.Attempt)
+			}
+			if v.Attempt > 1 || v.Stage != domain.Completed && !(id == before.live.Spec.ID() && reissued[b.Cell()]) {
+				service.Stop()
+				return fmt.Errorf("shell action %s/%d at %v: attempt %d stage %s, want one completed attempt", id, i, b.Cell(), v.Attempt, v.Stage)
+			}
 		}
 	}
 	report["run2_shell_attempts"] = attempts
@@ -280,8 +287,10 @@ func run(ctx context.Context, cfg liveservice.Config, w waits, report na.Report)
 // observed, may or may not stand in the game and is undecided.
 type lineage struct {
 	plans     map[domain.PlanID]bool
+	byID      map[domain.PlanID]store.PlanState
 	ordered   map[domain.Cell]bool
 	undecided map[domain.Cell]bool
+	completed map[domain.Cell]bool
 	live      *store.PlanState
 }
 
@@ -325,9 +334,9 @@ func shellLineage(ctx context.Context, st *store.Store, sh *shell) (lineage, err
 		}
 		plans = append(plans, plan)
 	}
-	l := lineage{plans: map[domain.PlanID]bool{}, ordered: map[domain.Cell]bool{}, undecided: map[domain.Cell]bool{}}
+	l := lineage{plans: map[domain.PlanID]bool{}, byID: map[domain.PlanID]store.PlanState{}, ordered: map[domain.Cell]bool{}, undecided: map[domain.Cell]bool{}, completed: map[domain.Cell]bool{}}
 	for _, plan := range plans {
-		cancelled := false
+		cancelled, gap := false, false
 		for i, a := range plan.Spec.Actions() {
 			b, ok := a.Building()
 			if !ok || b.Stuff() != "WoodLog" || (b.Definition() != "Wall" && b.Definition() != "Door") {
@@ -340,6 +349,11 @@ func shellLineage(ctx context.Context, st *store.Store, sh *shell) (lineage, err
 			if v.Stage == domain.Cancelled {
 				cancelled = true
 			}
+			if v.Stage == domain.Completed {
+				l.completed[b.Cell()] = true
+			} else if !domain.GoalWorkOpen([]domain.Progress{plan.Progress[i]}) {
+				gap = true
+			}
 			if v.Attempt == 0 {
 				continue
 			}
@@ -349,7 +363,10 @@ func shellLineage(ctx context.Context, st *store.Store, sh *shell) (lineage, err
 			}
 		}
 		l.plans[plan.Spec.ID()] = true
-		if !plan.Retired && !cancelled {
+		l.byID[plan.Spec.ID()] = plan
+		// A plan settled with a gap (a cell unsuccessful) is history: the
+		// repair that closes it is the live plan.
+		if !plan.Retired && !cancelled && !(gap && !domain.GoalWorkOpen(plan.Progress)) {
 			if l.live != nil {
 				return lineage{}, fmt.Errorf("two live shell plans: %s and %s", l.live.Spec.ID(), plan.Spec.ID())
 			}

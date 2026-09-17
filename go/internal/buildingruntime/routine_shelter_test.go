@@ -923,3 +923,80 @@ func TestRoutineShelterIgnoresEarlierShellsNothingStandingMatches(t *testing.T) 
 		t.Fatal("re-adopted a ring nothing standing matches")
 	}
 }
+
+func TestRoutineShelterRepairsAGapLeftByAnUnsuccessfulCellUnderTheSameEpoch(t *testing.T) {
+	t.Parallel()
+	r, db, base := shelterFixture(t)
+	base.reply.GetObserved().PlayerTechLevel = proto.String("Neolithic")
+	base.reply.GetObserved().Center = &c.Cell{X: proto.Int32(10), Z: proto.Int32(10)}
+	hutCells(base, 21, func(int32, int32) bool { return true })
+	n := &adoptingNative{sleepingNative: base}
+	planner, err := NewRoutineShelterPlanner(r.reviewer, n, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	ctx := context.Background()
+	n.last = r.reviewer.player.session.State().Snapshot
+	first, err := planner.Step(ctx)
+	if err != nil || first.Reason != BuildingMethodAdmitted {
+		t.Fatal(first, err)
+	}
+	// The shell settles with one wall unsuccessful (the player cancelled its
+	// frame in-game); the goal keeps its epoch, so the bound method alone
+	// would leave the gap forever.
+	plan, err := db.LoadPlan(ctx, first.Decision.Goal.Methods[0].Plan)
+	if err != nil {
+		t.Fatal(err)
+	}
+	snapshot := first.Decision.Goal.Goal.Snapshot
+	snapshot.Plan, snapshot.Revision = plan.Spec.ID(), plan.Spec.Revision()
+	actions := plan.Spec.Actions()
+	gap, _ := actions[len(actions)-1].Building()
+	for i, action := range actions {
+		if _, err := db.ReserveAndPrepare(ctx, plan.Spec.ID(), action.ID(), plan.Admissions[i].Admission); err != nil {
+			t.Fatal(err)
+		}
+		if _, err := db.Dispatch(ctx, plan.Spec.ID(), action.ID(), snapshot, 7); err != nil {
+			t.Fatal(err)
+		}
+		observation := domain.Observation{Action: action.ID(), Attempt: 1, Snapshot: snapshot, Tick: 7, Effect: domain.EffectCompleted, Causality: domain.AfterDispatch}
+		b, _ := action.Building()
+		if b.Cell() == gap.Cell() {
+			observation.Effect, observation.UnsuccessfulReason = domain.EffectUnsuccessful, domain.NativeCancelled
+		} else {
+			n.standing = append(n.standing, bridge.Structure{ID: strconv.Itoa(i), Definition: b.Definition(), Cell: b.Cell(), Status: "built"})
+		}
+		if _, err := db.Observe(ctx, plan.Spec.ID(), observation, snapshot); err != nil {
+			t.Fatal(err)
+		}
+	}
+	n.last = r.reviewer.player.session.State().Snapshot
+	second, err := planner.Step(ctx)
+	if err != nil || second.Reason != BuildingMethodAdmitted {
+		t.Fatal("a settled shell with a gap must be repaired:", second, err)
+	}
+	var repair *domain.GoalMethod
+	for _, m := range second.Decision.Goal.Methods {
+		if m.Method == "starter-shell-repair-1" {
+			m := m
+			repair = &m
+		}
+	}
+	if repair == nil || repair.Epoch != first.Decision.Goal.Goal.Epoch {
+		t.Fatal("repair not bound under the same epoch:", second.Decision.Goal.Methods)
+	}
+	repaired, err := db.LoadPlan(ctx, repair.Plan)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := repaired.Spec.Actions(); len(got) != 1 {
+		t.Fatal("repair must reissue only the gap", got)
+	} else if b, _ := got[0].Building(); b.Cell() != gap.Cell() || b.Definition() != gap.Definition() {
+		t.Fatal("repair reissued the wrong cell", b, gap)
+	}
+	// While the repair is open the goal has work and nothing more is sited.
+	third, err := planner.Step(ctx)
+	if err != nil || third.Reason != BuildingMethodExistingWork {
+		t.Fatal(third, err)
+	}
+}
