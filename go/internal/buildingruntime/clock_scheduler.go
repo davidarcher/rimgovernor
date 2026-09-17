@@ -19,7 +19,6 @@ import (
 	k "github.com/davidarcher/RimGovernor/go/internal/wire/clockpb"
 	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
 	l "github.com/davidarcher/RimGovernor/go/internal/wire/lifecyclepb"
-	"golang.org/x/sync/errgroup"
 	"google.golang.org/protobuf/proto"
 )
 
@@ -132,6 +131,10 @@ type ClockSchedulerResult struct {
 	// Combat is set while a combat watch window was admitted or is running,
 	// so the worker keeps its short poll instead of backing off.
 	Combat bool
+	// PlannerFailures holds the errors of planners that failed this step, each
+	// wrapped with the planner's name. A failed planner does not abort the
+	// step: its peers still run and the clock window is still evaluated (#62).
+	PlannerFailures []error
 }
 type ClockScheduler struct {
 	player              *Player
@@ -476,8 +479,9 @@ func (s *ClockScheduler) Step(ctx context.Context) (ClockSchedulerResult, error)
 	}
 	clockSchedulerLog("reached stepPlanners")
 	arbiter := newStepArbiter()
-	g, gctx := errgroup.WithContext(call)
-	if err = s.stepPlanners(call, gctx, epoch, &out, g, arbiter); err != nil {
+	g := newPlannerGroup(call)
+	gctx := call
+	if err = s.stepPlanners(call, epoch, &out, g, arbiter); err != nil {
 		return out, err
 	}
 	if s.config.SecureSupplies != nil {
@@ -715,6 +719,13 @@ func (s *ClockScheduler) Step(ctx context.Context) (ClockSchedulerResult, error)
 	if err = g.Wait(); err != nil {
 		return out, err
 	}
+	// A failed planner is reported, not fatal: the step still evaluates the
+	// clock window on what the other planners committed, and the failed
+	// planner retries next step (#62).
+	out.PlannerFailures = g.Failures()
+	for _, failure := range out.PlannerFailures {
+		clockSchedulerLog("planner failed (isolated): %v", failure)
+	}
 	emergency, _, err := s.native.ReadEmergency(call, loaded.Context.Identity)
 	if err != nil {
 		return out, err
@@ -861,8 +872,10 @@ func (s *ClockScheduler) Step(ctx context.Context) (ClockSchedulerResult, error)
 // planner left nil in config is simply skipped, matching how Step selected
 // planners inline before this was extracted. Routine's own error (or a
 // mental-risk refusal from the reviewer) aborts before anything is queued;
-// an error from a queued planner surfaces later, from g.Wait().
-func (s *ClockScheduler) stepPlanners(call, gctx, epoch context.Context, out *ClockSchedulerResult, g *errgroup.Group, arbiter *stepArbiter) error {
+// an error from a queued planner is isolated by g and surfaces later, from
+// g.Failures(), without stopping the step.
+func (s *ClockScheduler) stepPlanners(call, epoch context.Context, out *ClockSchedulerResult, g *plannerGroup, arbiter *stepArbiter) error {
+	gctx := call
 	if s.config.Routine != nil {
 		review, err := s.config.Routine.step(call, epoch, arbiter)
 		if err != nil {

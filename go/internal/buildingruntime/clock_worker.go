@@ -149,6 +149,11 @@ func clockWorkerKey(result ClockSchedulerResult, err error) clockStepKey {
 		// authority refusal is never surfaced at all.
 		key.failure = err.Error()
 	}
+	if len(result.PlannerFailures) > 0 {
+		// Isolated planner failures do not fail the step (#62) but are still a
+		// state change: a changed set logs once more.
+		key.failure += "; " + errors.Join(result.PlannerFailures...).Error()
+	}
 	if result.Attempt != nil {
 		key.request = result.Attempt.Intent.RequestID
 		key.phase = string(result.Attempt.Phase)

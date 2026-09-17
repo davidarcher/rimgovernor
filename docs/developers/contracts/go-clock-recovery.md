@@ -223,6 +223,13 @@ current plan work and complete attempt/epoch catalogs before collecting fresh na
 facts. Unchanged decision inputs retain the same request ID across repeated calls;
 an undispatched stale preparation cannot prevent a fresh decision. Disabled sessions
 perform owned cleanup and cannot start. A valid running window is left unchanged.
+The routine reviewer runs first and its failure (or a mental-risk hold) aborts the
+step; every other composed planner then runs as one concurrent wave whose failures
+are isolated: a planner whose native read is refused or whose preview is stale
+commits nothing and is reported in `ClockSchedulerResult.PlannerFailures` (the
+clock worker logs each changed set once), but its peers finish and the window is
+still evaluated on what they committed, so one broken family cannot keep the
+clock from ever starting. Only the step's own context ending fails the wave.
 The step itself has no polling loop; autonomous play attaches ClockWorker.
 
 ## Independent clock workers

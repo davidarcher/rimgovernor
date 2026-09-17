@@ -48,7 +48,7 @@ func TestStepArbiterTryClaimAllOrNothing(t *testing.T) {
 
 // TestStepArbiterConcurrentClaimsOnSamePawnAreSerialized is the race
 // regression this type exists for: ClockScheduler.Step now runs many
-// planners as concurrent goroutines (golang.org/x/sync/errgroup) sharing one
+// planners as concurrent goroutines (plannerGroup) sharing one
 // stepArbiter, so two "planners" -- here, goroutines standing in for two
 // real planners such as RoutineTendPlanner and RoutineRescuePlanner -- racing
 // to claim the same pawn must never both win, the same way two real planners
