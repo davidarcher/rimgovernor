@@ -96,6 +96,10 @@ const (
 	DevelopmentLabor DevelopmentReason = "labor_unavailable"
 	// DevelopmentRisk: the goal's work is observed unsafe (risk 1) this review.
 	DevelopmentRisk DevelopmentReason = "risk_deferred"
+	// DevelopmentDisabled: the review ran without authority (Manual, a
+	// player interruption, a restart before authority returned); the row
+	// keeps its waiting age from the last ranking but nothing is selected.
+	DevelopmentDisabled DevelopmentReason = "control_disabled"
 )
 
 type DevelopmentRow struct {

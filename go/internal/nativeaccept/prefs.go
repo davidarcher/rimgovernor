@@ -40,24 +40,36 @@ var HeadlessPrefs = map[string]string{
 // present is replaced in place, each absent one is added before
 // </PrefsData>. Anything else in the file is kept as the player set it.
 func TrimPrefs(path string) error {
+	return SetPrefs(path, HeadlessPrefs)
+}
+
+// SetPrefs rewrites the Prefs.xml at path with the given elements, the way
+// TrimPrefs applies HeadlessPrefs. A harness that must play through letters
+// the profile would pause on (a save whose threats arrive within the run)
+// sets automaticPauseMode here before the game launches, since a paused
+// major threat is a player interruption the controller never acknowledges
+// on its own.
+func SetPrefs(path string, prefs map[string]string) error {
 	data, err := os.ReadFile(path)
 	if err != nil {
 		return err
 	}
-	text, err := trimPrefsText(string(data))
+	text, err := setPrefsText(string(data), prefs)
 	if err != nil {
 		return fmt.Errorf("%s: %w", path, err)
 	}
 	return os.WriteFile(path, []byte(text), 0644)
 }
 
-func trimPrefsText(text string) (string, error) {
+func trimPrefsText(text string) (string, error) { return setPrefsText(text, HeadlessPrefs) }
+
+func setPrefsText(text string, prefs map[string]string) (string, error) {
 	const end = "</PrefsData>"
 	if !strings.Contains(text, end) {
 		return "", fmt.Errorf("not a Prefs.xml: no %s", end)
 	}
 	var missing []string
-	for name, value := range HeadlessPrefs {
+	for name, value := range prefs {
 		pattern := regexp.MustCompile(`<` + name + `>[^<]*</` + name + `>`)
 		replacement := "<" + name + ">" + value + "</" + name + ">"
 		if pattern.MatchString(text) {

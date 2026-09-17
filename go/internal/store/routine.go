@@ -129,11 +129,16 @@ func loadRoutine(ctx context.Context, tx *sql.Tx) (RoutineReview, error) {
 		if r.Development.Snapshot != r.Snapshot || r.Development.Tick != r.Tick || policy.ValidateDevelopmentState(r.Development.State()) != nil {
 			return RoutineReview{}, errors.New("invalid routine development history")
 		}
-	} else {
-		actual, _ := json.Marshal(r.Development)
-		empty, _ := json.Marshal(RoutineDevelopment{})
-		if !bytes.Equal(actual, empty) {
-			return RoutineReview{}, errors.New("disabled routine retains development selection")
+	} else if len(r.Development.Rows) > 0 || r.Development.Workers != nil {
+		// A disabled review keeps the last ranking (waiting ages) but
+		// selects nothing: methods cannot be committed without authority.
+		if r.Development.Tick > r.Tick || policy.ValidateDevelopmentState(r.Development.State()) != nil {
+			return RoutineReview{}, errors.New("invalid routine development history")
+		}
+		for _, row := range r.Development.Rows {
+			if row.Selected {
+				return RoutineReview{}, errors.New("disabled routine retains development selection")
+			}
 		}
 	}
 	known, _ := policy.DetectRoutine(policy.RoutineFacts{Mood: r.moodHistory(), Disaster: r.Disaster, DisasterTick: r.Tick}, policy.RoutineLatches{}, policy.DefaultRoutinePolicy())
@@ -377,6 +382,17 @@ func reviewRoutineTx(ctx context.Context, tx *sql.Tx, request RoutineReviewReque
 		r.WorkPreferenceRevision = previous.WorkPreferenceRevision
 		r.Goals = previous.Goals
 		r.Latches = latches
+		// Manual mode, a player interruption or a restart's first review
+		// before authority returns does not rank; the last ranking stays
+		// so waiting ages survive it. Only a world change or tick rewind
+		// resets ranking history.
+		r.Development = previous.Development
+		r.Development.Rows = append([]RoutineDevelopmentRow(nil), previous.Development.Rows...)
+		for i := range r.Development.Rows {
+			if row := &r.Development.Rows[i]; row.Selected || row.Reason == "" {
+				row.Selected, row.Reason = false, policy.DevelopmentDisabled
+			}
+		}
 		for _, binding := range r.Goals {
 			result.Goals = append(result.Goals, old[binding.Need])
 		}

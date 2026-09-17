@@ -6,7 +6,7 @@ import {fetchRoutineStatus, RoutineHTTPError, type DevelopmentReason, type Routi
 export const reasonLabels: Record<DevelopmentReason, string> = {
   '': 'Eligible', cancelled: 'Cancelled', adviser: 'Adviser hold', emergency: 'Emergency precedence', startup_survival: 'Startup survival precedence', blocked: 'Blocked',
   existing_commitment: 'Already committed', workers_unknown: 'Worker count unknown', no_workers: 'No workers', deficit_unknown: 'Deficit unknown',
-  capacity_committed: 'Waiting for capacity', method_unavailable: 'No method available', labor_unavailable: 'Waiting for labor', risk_deferred: 'Deferred: outdoor risk',
+  capacity_committed: 'Waiting for capacity', method_unavailable: 'No method available', labor_unavailable: 'Waiting for labor', risk_deferred: 'Deferred: outdoor risk', control_disabled: 'Controller not in control',
 };
 type Reading = {value: RoutineStatus | null; stale: boolean; hidden: boolean; error: string};
 const percent = (v: number | null) => v === null ? 'unknown' : `${Math.round(v * 100)}%`;

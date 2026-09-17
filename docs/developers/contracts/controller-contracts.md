@@ -114,7 +114,10 @@ reservations and Hands dispatch guards still apply.
 Methods that cannot produce new work yield their admission slot to the next
 capacity-deferred candidate in the same review; labor-deferred candidates wait for the
 next review's fresh census. Waiting age advances only with native ticks and resets
-for committed work; world changes and tick rewinds reset ranking history.
+for committed work; world changes and tick rewinds reset ranking history. A review
+without authority (Manual, a player interruption, a restart before authority returns)
+keeps the last ranking with nothing selected and `control_disabled` on the rows it
+un-selects, so waiting ages survive it.
 The shared plan retains the ranking, observed worker and per-work-type labor counts and
 explicit deferral reasons in the routine review's development record. `GET /api/routines`
 returns that record under `development` (null until a review has ranked): reviewed tick,

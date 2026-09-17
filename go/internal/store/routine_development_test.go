@@ -71,10 +71,27 @@ func TestRoutineDevelopmentPersistsAgeAndRechecksPlayerCapacity(t *testing.T) {
 	if row.Selected || !row.Committed || row.Reason != policy.DevelopmentCommitted {
 		t.Fatal(committed)
 	}
+	// A disabled review (Manual, an interruption, a restart before
+	// authority returns) keeps the last ranking so waiting ages survive it.
 	r.Enabled = false
+	r.Tick += 500
 	stopped := reviewRoutine(t, s, &r)
-	if len(stopped.Review.Development.Rows) != 0 || stopped.Review.Development.Workers != nil {
+	if stopped.Review.Development.Tick != committed.Review.Tick || len(stopped.Review.Development.Rows) != len(committed.Review.Development.Rows) {
 		t.Fatal(stopped)
+	}
+	for _, row := range stopped.Review.Development.Rows {
+		if row.Selected || row.Reason == "" {
+			t.Fatalf("disabled review left %s selected or unexplained", row.Goal)
+		}
+	}
+	r.Enabled = true
+	r.Tick += 500
+	resumed := reviewRoutine(t, s, &r)
+	for _, want := range committed.Review.Development.Rows {
+		got := developmentRow(t, resumed.Review, want.Goal)
+		if !want.Committed && !got.Committed && got.WaitingSince != want.WaitingSince {
+			t.Fatalf("%s waiting age rewritten across a disabled review: %d -> %d", want.Goal, want.WaitingSince, got.WaitingSince)
+		}
 	}
 }
 

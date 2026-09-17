@@ -40,6 +40,7 @@ func main() {
 	researchTarget := flag.String("research-target", "MicroelectronicsBasics", "serve's --routine-research-target; empty leaves research unranked")
 	resourceTargets := flag.String("resource-targets", "WoodLog:400", "comma-separated RESOURCE:TARGET list for --routine-resource-target (requires the resource family)")
 	clockSpeed := flag.String("clock-speed", "Fast", "serve's --clock-speed")
+	pauseMode := flag.String("pause-mode", "Never", "headless profile's automaticPauseMode (Never, MajorThreat, AnyThreat, AnyLetter); a letter that pauses is a player interruption the controller waits on, so the default lets the ranking play through the save's threats")
 	nativeTimeout := flag.Duration("native-timeout", 15*time.Second, "serve's --timeout (native call budget per clock step)")
 	watch := flag.Duration("watch", 6*time.Minute, "maximum wall-clock sampling window before the restart; ends early once -min-reviews distinct review ticks were sampled")
 	afterRestart := flag.Duration("after-restart", 3*time.Minute, "maximum wall-clock sampling window after the restart; ends early once a review beyond the pre-kill tick was sampled")
@@ -63,7 +64,7 @@ func main() {
 	}
 	report := na.NewReport("Development priorities (#9): a resumed controller's recorded ranking is sampled through /api/routines across a kill-and-restart pair; admission stays within the project limit, worker count and free labor, every deferral carries a reason, a configured research target is measured at review time, and waiting ages survive the restart. Pawn progress is out of scope.", !*rendered)
 	cfg := runConfig{root: *root, output: *output, gameID: *game, headless: !*rendered, binary: *binary, save: *save, families: *families, limit: *limit, minReviews: *minReviews,
-		researchTarget: *researchTarget, resourceTargets: *resourceTargets, clockSpeed: *clockSpeed, nativeTimeout: *nativeTimeout, watch: *watch, afterRestart: *afterRestart, poll: *poll}
+		researchTarget: *researchTarget, resourceTargets: *resourceTargets, clockSpeed: *clockSpeed, pauseMode: *pauseMode, nativeTimeout: *nativeTimeout, watch: *watch, afterRestart: *afterRestart, poll: *poll}
 	ctx, cancel := context.WithTimeout(context.Background(), *timeout)
 	defer cancel()
 	err := run(ctx, cfg, report)
@@ -76,10 +77,10 @@ func main() {
 }
 
 type runConfig struct {
-	root, output, gameID, binary, save, families, researchTarget, resourceTargets, clockSpeed string
-	headless                                                                                  bool
-	limit, minReviews                                                                         int
-	nativeTimeout, watch, afterRestart, poll                                                  time.Duration
+	root, output, gameID, binary, save, families, researchTarget, resourceTargets, clockSpeed, pauseMode string
+	headless                                                                                             bool
+	limit, minReviews                                                                                    int
+	nativeTimeout, watch, afterRestart, poll                                                             time.Duration
 }
 
 func run(ctx context.Context, c runConfig, report na.Report) error {
@@ -97,6 +98,11 @@ func run(ctx context.Context, c runConfig, report na.Report) error {
 	}
 	if err := cfg.PrepareConfig(); err != nil {
 		return fmt.Errorf("prepare profile: %w", err)
+	}
+	if c.headless && c.pauseMode != "" {
+		if err := na.SetPrefs(filepath.Join(root, "headless-profile", "Config", "Prefs.xml"), map[string]string{"automaticPauseMode": c.pauseMode}); err != nil {
+			return fmt.Errorf("set pause mode: %w", err)
+		}
 	}
 	game, err := cfg.GameSection()
 	if err != nil {
@@ -242,9 +248,32 @@ func run(ctx context.Context, c runConfig, report na.Report) error {
 	// sampleFor polls until window elapses or enough has been seen: the
 	// windows are ceilings, so a healthy box finishes as soon as the clock
 	// has produced the reviews the verdict needs.
+	// A threat letter (the tribal8 baseline discovers an ancient danger
+	// within its first day) is a player interruption: the clock records a
+	// hold, the poll loop disables authority and the auto resumer keeps
+	// re-acquiring until the hold is acknowledged through the player API.
+	// Standing in for the player keeps the ranking playing; a count of the
+	// acknowledgements is recorded, not asserted.
+	acknowledged := 0
+	acknowledgeHolds := func() {
+		clk, code, err := service.API("GET", "/api/player/clock", nil, "")
+		if err != nil || code != 200 || len(na.AsSlice(clk["holds"])) == 0 {
+			return
+		}
+		token, err := service.SessionToken()
+		if err != nil {
+			return
+		}
+		body := map[string]any{"requestId": fmt.Sprintf("development-ack-%d", time.Now().UnixNano()), "expectedRevision": na.AsString(clk["revision"]), "throughCursor": na.AsString(clk["inboxCursor"])}
+		if _, code, err = service.API("POST", "/api/player/clock/acknowledge", body, token); err == nil && code == 200 {
+			acknowledged++
+			report["holds_acknowledged"] = acknowledged
+		}
+	}
 	sampleFor := func(phase string, window time.Duration, enough func() bool) error {
 		deadline := time.Now().Add(window)
 		for time.Now().Before(deadline) && !enough() {
+			acknowledgeHolds()
 			status, code, err := service.API("GET", "/api/routines", nil, "")
 			if err != nil {
 				return fmt.Errorf("%s: /api/routines: %w", phase, err)
@@ -327,6 +356,7 @@ func run(ctx context.Context, c runConfig, report na.Report) error {
 		if time.Now().After(deadline) {
 			return fmt.Errorf("restarted controller did not advance the review past revision %d", first.Revision)
 		}
+		acknowledgeHolds()
 		second, _, err = service.WaitRoutineReview(ctx, journal, time.Until(deadline))
 		if err != nil {
 			return fmt.Errorf("restarted controller never resumed autonomous play: %w", err)
