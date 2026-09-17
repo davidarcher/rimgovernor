@@ -1,4 +1,3 @@
-#nullable disable // Legacy Scribe state predating nullable enforcement; annotate and remove per #85.
 using System.Collections.Generic;
 using System.Linq;
 using RimWorld;
@@ -8,14 +7,15 @@ namespace HomeBridge.BridgeTools
 {
     public sealed class MiningRecord : IExposable
     {
-        public string ThingId, SourceId, Definition, Resource, Blocker;
+        public string ThingId = "", Definition = "", Resource = "";
+        public string? SourceId, Blocker; // SourceId is absent in saves predating source identity.
         public int MapId, X, Z, Started, Finished = -1, Recovered;
         public bool Cancelled, RebindVerified;
         public int SavedHitPoints;
         public void ExposeData()
         {
-            Scribe_Values.Look(ref ThingId, "thingId"); Scribe_Values.Look(ref Resource, "resource");
-            Scribe_Values.Look(ref SourceId, "sourceId"); Scribe_Values.Look(ref Definition, "definition");
+            Scribe_Values.Look(ref ThingId, "thingId", ""); Scribe_Values.Look(ref Resource, "resource", "");
+            Scribe_Values.Look(ref SourceId, "sourceId"); Scribe_Values.Look(ref Definition, "definition", "");
             Scribe_Values.Look(ref RebindVerified, "rebindVerified"); Scribe_Values.Look(ref SavedHitPoints, "savedHitPoints");
             Scribe_Values.Look(ref Blocker, "blocker"); Scribe_Values.Look(ref MapId, "mapId");
             Scribe_Values.Look(ref X, "x"); Scribe_Values.Look(ref Z, "z");
@@ -78,12 +78,13 @@ namespace HomeBridge.BridgeTools
     // rechecks excavation safety before each pick hit while the record is open.
     public sealed class ExcavationRecord : IExposable
     {
-        public string Definition, Blocker;
+        public string Definition = "";
+        public string? Blocker;
         public int MapId, X, Z, Started, Finished = -1;
         public bool Cancelled;
         public void ExposeData()
         {
-            Scribe_Values.Look(ref Definition, "definition"); Scribe_Values.Look(ref Blocker, "blocker");
+            Scribe_Values.Look(ref Definition, "definition", ""); Scribe_Values.Look(ref Blocker, "blocker");
             Scribe_Values.Look(ref MapId, "mapId"); Scribe_Values.Look(ref X, "x"); Scribe_Values.Look(ref Z, "z");
             Scribe_Values.Look(ref Started, "started"); Scribe_Values.Look(ref Finished, "finished", -1);
             Scribe_Values.Look(ref Cancelled, "cancelled");
@@ -92,12 +93,13 @@ namespace HomeBridge.BridgeTools
 
     public sealed class DrillingRecord : IExposable
     {
-        public string Definition, Resource, ThingId, PendingId;
+        public string Definition = "", Resource = "";
+        public string? ThingId, PendingId; // Built drill, or the blueprint/frame still pending; either may be unknown.
         public int MapId, X, Z, Recovered;
         public int Target; // Re-admitted before each supervised lease; never restored as authority.
         public void ExposeData()
         {
-            Scribe_Values.Look(ref Definition, "definition"); Scribe_Values.Look(ref Resource, "resource");
+            Scribe_Values.Look(ref Definition, "definition", ""); Scribe_Values.Look(ref Resource, "resource", "");
             Scribe_Values.Look(ref ThingId, "thingId"); Scribe_Values.Look(ref MapId, "mapId");
             Scribe_Values.Look(ref PendingId, "pendingId");
             Scribe_Values.Look(ref X, "x"); Scribe_Values.Look(ref Z, "z");

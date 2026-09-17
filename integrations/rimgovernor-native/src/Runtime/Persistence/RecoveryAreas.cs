@@ -1,4 +1,3 @@
-#nullable disable // Legacy Scribe state predating nullable enforcement; annotate and remove per #85.
 using System.Collections.Generic;
 using System.Linq;
 using RimWorld;
@@ -8,16 +7,16 @@ namespace HomeBridge.BridgeTools
 {
     public sealed class RecoveryAreaClaim : IExposable
     {
-        public Pawn Pawn;
-        public Area Before, Assigned;
-        public string Owner;
+        public Pawn? Pawn;
+        public Area? Before, Assigned; // Before is null when the pawn was unrestricted.
+        public string Owner = "";
         public int Until;
         public void ExposeData()
         {
             Scribe_References.Look(ref Pawn, "pawn");
             Scribe_References.Look(ref Before, "before");
             Scribe_References.Look(ref Assigned, "assigned");
-            Scribe_Values.Look(ref Owner, "owner");
+            Scribe_Values.Look(ref Owner, "owner", "");
             Scribe_Values.Look(ref Until, "until");
         }
     }
