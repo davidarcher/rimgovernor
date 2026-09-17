@@ -131,6 +131,22 @@ namespace HomeBridge.BridgeTools
             return new { success = armed.Count > 0, armed };
         }
 
+        // The storyteller only offers a strategy where its selection curve is
+        // positive, and the strategy's pawn generation assumes that floor:
+        // sappers below 700 points generate nothing and the incident refuses.
+        private static float StrategyPointFloor(IncidentDef def, RaidStrategyDef strategy, Faction faction)
+        {
+            var floor = Math.Max(def.minThreatPoints, faction.def.MinPointsToGeneratePawnGroup(PawnGroupKindDefOf.Combat));
+            floor = Math.Max(floor, strategy.Worker.MinimumPoints(faction, PawnGroupKindDefOf.Combat));
+            CurvePoint? previous = null;
+            foreach (var point in strategy.selectionWeightPerPointsCurve)
+            {
+                if (point.y > 0f) return Math.Max(floor, previous.HasValue ? previous.Value.x + 1f : point.x);
+                previous = point;
+            }
+            return floor;
+        }
+
         private static object Raid(Map map, string strategy, string arrival, int points)
         {
             var def = DefDatabase<IncidentDef>.GetNamed("RaidEnemy");
@@ -140,8 +156,8 @@ namespace HomeBridge.BridgeTools
                 .OrderBy(f => f.def.techLevel).ThenBy(f => f.def.MinPointsToGeneratePawnGroup(PawnGroupKindDefOf.Combat)).FirstOrDefault();
             if (faction == null) return Refuse("No currently eligible hostile humanlike faction.");
             parms.faction = faction;
-            parms.points = Math.Max(points, Math.Max(def.minThreatPoints, faction.def.MinPointsToGeneratePawnGroup(PawnGroupKindDefOf.Combat)));
             parms.raidStrategy = DefDatabase<RaidStrategyDef>.GetNamed(strategy);
+            parms.points = Math.Max(points, StrategyPointFloor(def, parms.raidStrategy, faction));
             parms.raidArrivalMode = DefDatabase<PawnsArrivalModeDef>.GetNamed(arrival);
             parms.forced = true;
             var before = new HashSet<string>(map.mapPawns.AllPawnsSpawned.Select(p => p.GetUniqueLoadID()));
