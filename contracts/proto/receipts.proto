@@ -171,7 +171,11 @@ message JobEffect {
 }
 message SurgeryEffect { optional string patient_id = 1; optional string recipe_def = 2; optional int32 part_index = 3; optional string bill_id = 4; optional bool queued = 5; optional string health_token = 6; SnapshotEvidence bill_stack = 7; }
 message AnimalEffect { SnapshotEvidence animal = 1; optional string census_token = 2; optional string trainable_def = 3; optional bool wanted = 4; optional bool slaughter_designated = 5; }
-message PrisonerEffect { SnapshotEvidence pawn = 1; optional string interaction_def = 2; }
+// outcome is the pawn's actual custody state read from native at observation:
+// held (still a colony prisoner), recruited, enslaved, converted, released,
+// escaped or died. It is the evidence a completed or unsuccessful progress
+// rests on; the interaction_def readback alone only proves the setting.
+message PrisonerEffect { SnapshotEvidence pawn = 1; optional string interaction_def = 2; optional string outcome = 3; }
 message TradeLineEffect { optional string line_id = 1; optional int32 before_count = 2; optional int32 after_count = 3; }
 message TradeEffect {
   optional string session_id = 1;
