@@ -1566,16 +1566,58 @@ func (k *authorityKeepAlive) resume(label string) (map[string]any, int, error) {
 		"requestId": fmt.Sprintf("defense-%s-%s-%d", k.name, label, time.Now().UnixNano()), "expected": k.identity,
 	}, k.token)
 }
+
+// start makes the first resume. A service launched into a world whose
+// journal still carries the previous phase's clock events (the fixture's
+// own pause between phases is an external stop) may review those events
+// while the resume is in flight, disable authority and leave the record
+// uncertain; the holds are acknowledged and the resume repeated, bounded,
+// exactly as the keep-alive loop would after start.
 func (k *authorityKeepAlive) start() error {
-	resumed, status, err := k.resume("resume")
-	if err != nil {
-		return err
+	var last error
+	for attempt := 1; attempt <= 5; attempt++ {
+		if attempt > 1 {
+			k.acknowledgeHolds()
+			time.Sleep(time.Second)
+		}
+		resumed, status, err := k.resume(fmt.Sprintf("resume-%d", attempt))
+		if err != nil {
+			last = err
+			continue
+		}
+		record, _ := na.AsMap(resumed["record"])
+		if status == 200 && na.AsString(record["phase"]) == "running" {
+			return nil
+		}
+		last = fmt.Errorf("resume was not running: status=%d body=%#v", status, resumed)
 	}
-	record, _ := na.AsMap(resumed["record"])
-	if status != 200 || na.AsString(record["phase"]) != "running" {
-		return fmt.Errorf("resume was not running: status=%d body=%#v", status, resumed)
+	return last
+}
+
+// acknowledgeHolds acknowledges every outstanding clock hold; the count of
+// successes and failures lands on the report through snapshot.
+func (k *authorityKeepAlive) acknowledgeHolds() {
+	clk, clkStatus, clkErr := k.apiCall("GET", "/api/player/clock", nil, "")
+	if clkErr != nil || clkStatus != 200 {
+		return
 	}
-	return nil
+	holds := na.AsSlice(clk["holds"])
+	if len(holds) == 0 {
+		return
+	}
+	ackBody := map[string]any{
+		"requestId":        fmt.Sprintf("defense-%s-ack-%d", k.name, time.Now().UnixNano()),
+		"expectedRevision": na.AsString(clk["revision"]), "throughCursor": na.AsString(clk["inboxCursor"]),
+	}
+	_, ackStatus, ackErr := k.apiCall("POST", "/api/player/clock/acknowledge", ackBody, k.token)
+	k.mu.Lock()
+	defer k.mu.Unlock()
+	if ackErr != nil || ackStatus != 200 {
+		k.acknowledgeFailed++
+		k.lastError = fmt.Sprintf("acknowledge status=%d err=%v", ackStatus, ackErr)
+	} else {
+		k.acknowledged++
+	}
 }
 
 func (k *authorityKeepAlive) snapshot() map[string]any {
@@ -1599,23 +1641,7 @@ func (k *authorityKeepAlive) run(ctx context.Context) {
 		if err != nil || status != 200 || na.AsString(state["mode"]) == "automate" {
 			continue
 		}
-		if clk, clkStatus, clkErr := k.apiCall("GET", "/api/player/clock", nil, ""); clkErr == nil && clkStatus == 200 {
-			if holds := na.AsSlice(clk["holds"]); len(holds) > 0 {
-				ackBody := map[string]any{
-					"requestId":        fmt.Sprintf("defense-%s-ack-%d", k.name, time.Now().UnixNano()),
-					"expectedRevision": na.AsString(clk["revision"]), "throughCursor": na.AsString(clk["inboxCursor"]),
-				}
-				_, ackStatus, ackErr := k.apiCall("POST", "/api/player/clock/acknowledge", ackBody, k.token)
-				k.mu.Lock()
-				if ackErr != nil || ackStatus != 200 {
-					k.acknowledgeFailed++
-					k.lastError = fmt.Sprintf("acknowledge status=%d err=%v", ackStatus, ackErr)
-				} else {
-					k.acknowledged++
-				}
-				k.mu.Unlock()
-			}
-		}
+		k.acknowledgeHolds()
 		control, controlStatus, controlErr := k.apiCall("GET", "/api/player/control", nil, "")
 		if controlErr == nil && controlStatus == 200 {
 			live, _ := na.AsMap(control["state"])

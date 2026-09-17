@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/sha256"
 	"fmt"
+	"hash"
 	"sort"
 	"time"
 
@@ -77,6 +78,19 @@ func (r *RoutineDefensePlanner) step(call, epoch context.Context, arbiter *stepA
 	for _, method := range goal.Methods {
 		plan, err := p.journal.LoadPlan(call, method.Plan)
 		if err != nil {
+			return RoutineDefenseResult{}, err
+		}
+		// A Manual cycle mid-raid (an interruption hold, then a resume)
+		// releases every owned draft; the moves and attacks layered on
+		// those drafts can then never dispatch, and while they stay open
+		// the goal would never re-plan (#5 scenario 2). Cancel them so a
+		// fresh hold or squad method is admitted against the live raid.
+		for _, orphan := range orphanedDraftDependents(plan.Spec, plan.Progress) {
+			if _, err = p.journal.Cancel(call, method.Plan, orphan); err != nil {
+				return RoutineDefenseResult{}, err
+			}
+		}
+		if plan, err = p.journal.LoadPlan(call, method.Plan); err != nil {
 			return RoutineDefenseResult{}, err
 		}
 		if domain.GoalWorkOpen(plan.Progress) {
@@ -191,9 +205,7 @@ func (r *RoutineDefensePlanner) step(call, epoch context.Context, arbiter *stepA
 	for _, a := range assignments {
 		fmt.Fprintf(hash, "%s/%s/%d\n", a.Defender, a.Target, a.Mode)
 	}
-	method := domain.MethodID(fmt.Sprintf("squad-%x", hash.Sum(nil)[:16]))
-	digest := sha256.Sum256([]byte(fmt.Sprintf("%s/%d/%s", goal.Goal.ID, goal.Goal.Epoch, method)))
-	id := domain.PlanID(fmt.Sprintf("routine-defense-%x", digest[:16]))
+	method, id := defenseMethodIDs("squad", goal, hash)
 	var actions []domain.Action
 	for _, a := range assignments {
 		draftID := domain.ActionID(fmt.Sprintf("%s-draft-%s", id, a.Defender))
@@ -284,9 +296,7 @@ func (r *RoutineDefensePlanner) holdTheLine(call, epoch context.Context, goal st
 	for _, a := range positions {
 		fmt.Fprintf(hash, "%s/%d/%d/%s\n", a.Defender, a.Cell.X, a.Cell.Z, a.Target)
 	}
-	method := domain.MethodID(fmt.Sprintf("hold-%x", hash.Sum(nil)[:16]))
-	digest := sha256.Sum256([]byte(fmt.Sprintf("%s/%d/%s", goal.Goal.ID, goal.Goal.Epoch, method)))
-	id := domain.PlanID(fmt.Sprintf("routine-defense-%x", digest[:16]))
+	method, id := defenseMethodIDs("hold", goal, hash)
 	var actions []domain.Action
 	var dependencies []domain.ActionDependency
 	for _, a := range positions {
@@ -357,4 +367,68 @@ func defensiveThreatFacts(row *n.PawnState) policy.DefensiveThreatFacts {
 		facts.NearestColonistDistance = domain.Known(row.GetNearestColonistDistance())
 	}
 	return facts
+}
+
+// defenseMethodIDs names one admission of a defense method. The method
+// count salts the hash so that re-planning the same assignments after an
+// earlier method's actions were cancelled admits a new plan instead of
+// colliding with the retired one's identity.
+func defenseMethodIDs(prefix string, goal store.GoalState, hash hash.Hash) (domain.MethodID, domain.PlanID) {
+	fmt.Fprintf(hash, "#%d\n", len(goal.Methods))
+	method := domain.MethodID(fmt.Sprintf("%s-%x", prefix, hash.Sum(nil)[:16]))
+	digest := sha256.Sum256([]byte(fmt.Sprintf("%s/%d/%s", goal.Goal.ID, goal.Goal.Epoch, method)))
+	return method, domain.PlanID(fmt.Sprintf("routine-defense-%x", digest[:16]))
+}
+
+// orphanedDraftDependents lists the unissued movement and attack actions
+// whose owned-draft prerequisite can no longer carry them: the draft's
+// claim was released or superseded, or the draft (or, for an attack, the
+// move it waits on) ended without completing. Only pending and prepared
+// actions are named; anything native may still be executing is left to
+// its own reconciliation.
+func orphanedDraftDependents(spec domain.PlanSpec, progress []domain.Progress) []domain.ActionID {
+	views := make(map[domain.ActionID]domain.ProgressView, len(progress))
+	for _, p := range progress {
+		views[p.View().Action] = p.View()
+	}
+	dead := func(id domain.ActionID) bool {
+		v, ok := views[id]
+		if !ok {
+			return false
+		}
+		if v.Stage == domain.Unsuccessful || v.Stage == domain.Cancelled {
+			return true
+		}
+		cleanup, known := v.DraftCleanup.Value()
+		return known && (cleanup.Stage == domain.DraftReleased || cleanup.Stage == domain.DraftSuperseded)
+	}
+	requires := map[domain.ActionID][]domain.ActionID{}
+	for _, d := range spec.Dependencies() {
+		requires[d.Action] = append(requires[d.Action], d.Requires)
+	}
+	var out []domain.ActionID
+	for _, action := range spec.Actions() {
+		v, ok := views[action.ID()]
+		if !ok || v.Stage != domain.Pending && v.Stage != domain.Prepared {
+			continue
+		}
+		var draft domain.ActionID
+		if m, ok := action.Movement(); ok {
+			draft = m.DraftAction()
+		} else if a, ok := action.RangedAttack(); ok {
+			draft = a.DraftAction()
+		} else if a, ok := action.MeleeAttack(); ok {
+			draft = a.DraftAction()
+		} else {
+			continue
+		}
+		orphan := dead(draft)
+		for _, req := range requires[action.ID()] {
+			orphan = orphan || dead(req)
+		}
+		if orphan {
+			out = append(out, action.ID())
+		}
+	}
+	return out
 }
