@@ -174,11 +174,14 @@ namespace HomeBridge.BridgeTools
                 admitted=true;
                 // Foundation stores the exact pending cleanup before this setter;
                 // no ordinary attempt slot or active lease is required for cleanup.
+                // Releasing the bot's own claim is still the bot's action: under
+                // active authority the setter runs in an owned scope so the draft
+                // hook does not read the undraft as player control and revoke.
                 Exception? effectError=null;
                 try {
                     if(!NativePawnControlState.IsReady || NativePawnControlState.Check(identity,pawn,request.Pawn.ExpectedSnapshotToken,out _)!=NativePawnControlResult.Ready)
                         throw new InvalidOperationException("Pawn cleanup state changed before effect.");
-                    pawn.drafter.Drafted=false;
+                    using(CleanupScope()) pawn.drafter.Drafted=false;
                 }
                 catch(Exception error) {effectError=error;}
                 var completed=NativePawnControlState.CompleteRelease(ticket!,out observed);
@@ -192,6 +195,13 @@ namespace HomeBridge.BridgeTools
                 return admitted ? ReleaseUncertain(request,context,"Admitted cleanup requires observation: "+error.GetType().Name)
                     : new Operations.ReleaseOwnedDraftReply {Failure=ProtoBoundary.Fail(Common.FailureCode.NativeFailure,"Cleanup validation failed: "+error.GetType().Name)};
             }
+        }
+
+        private static IDisposable? CleanupScope()
+        {
+            if(!NativeControlAuthority.TryGetForGame(Current.Game,out var authority) || authority==null) return null;
+            var status=authority.Status();
+            return status.Available && status.Active ? authority.Owned() : null;
         }
 
         private static Operations.DraftRelease Released(Operations.ReleaseOwnedDraftRequest request,Common.ObservationContext context,NativePawnSnapshot snapshot,bool issued)

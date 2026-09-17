@@ -191,13 +191,35 @@ namespace HomeBridge.BridgeTools
         }
 
         private static void Update() => InitializeForCurrentGame();
-        private static void Revoke(NativeControlRevocationReason reason)
+        private static void Revoke(NativeControlRevocationReason reason, Func<string>? detail = null)
         {
             var game = Current.Game;
-            if (game != null && NativeControlAuthority.TryGetForGame(game, out var state)) state!.RevokeExternal(reason);
+            if (game != null && NativeControlAuthority.TryGetForGame(game, out var state)) state!.RevokeExternal(reason, detail);
         }
-        private static void OrderedJob(bool __result)
-        { if (__result) Revoke(NativeControlRevocationReason.ExternalOrder); }
+        // Names the pawn, the job and the first frame outside this mod and
+        // Harmony, so a revocation that lands with no bot write in flight can
+        // be traced to whatever game or mod code issued the order.
+        private static string Describe(Pawn? pawn, string action)
+        {
+            var who = pawn == null ? "?" : pawn.ThingID + " (" + (pawn.Faction?.Name ?? "no faction") + (pawn.Drafted ? ", drafted" : "") + ")";
+            string caller;
+            try
+            {
+                var frames = new System.Diagnostics.StackTrace(2, false).GetFrames() ?? Array.Empty<System.Diagnostics.StackFrame>();
+                caller = frames.Select(f => f.GetMethod()).Where(m => m != null && m.DeclaringType != null)
+                    .Select(m => m!.DeclaringType!.FullName + "." + m.Name)
+                    .FirstOrDefault(n => !n.StartsWith("HomeBridge.", StringComparison.Ordinal) && !n.StartsWith("HarmonyLib.", StringComparison.Ordinal)
+                        && !n.Contains("_Patch")) ?? "unknown";
+            }
+            catch (Exception error) { caller = "stack unavailable: " + error.GetType().Name; }
+            return action + " on " + who + " from " + caller;
+        }
+        private static void OrderedJob(Pawn_JobTracker __instance, Job __0, bool __result)
+        {
+            if (!__result) return;
+            var pawn = Traverse.Create(__instance).Field("pawn").GetValue<Pawn>();
+            Revoke(NativeControlRevocationReason.ExternalOrder, () => Describe(pawn, "ordered job " + (__0?.def?.defName ?? "?")));
+        }
         private static void BeforeWork(Pawn_WorkSettings __instance, WorkTypeDef __0, out int __state) => __state = __instance.Initialized ? __instance.GetPriority(__0) : -1;
         private static void AfterWork(Pawn_WorkSettings __instance, WorkTypeDef __0, int __state)
         { if (__instance.Initialized && __state != __instance.GetPriority(__0)) Revoke(NativeControlRevocationReason.PlayerControl); }
@@ -215,11 +237,20 @@ namespace HomeBridge.BridgeTools
         { if (__state && !__instance.AllZones.Contains(__0)) Revoke(NativeControlRevocationReason.PlayerControl); }
         private static void BeforeDraft(Pawn_DraftController __instance, out bool __state) => __state = __instance.Drafted;
         private static void AfterDraft(Pawn_DraftController __instance, bool __state)
-        { if (__state != __instance.Drafted) Revoke(NativeControlRevocationReason.PlayerControl); }
+        {
+            if (__state == __instance.Drafted) return;
+            Revoke(NativeControlRevocationReason.PlayerControl, () => Describe(__instance.pawn, __instance.Drafted ? "draft" : "undraft"));
+        }
         private static void Built(Blueprint_Build __result, Faction faction)
-        { if (__result != null && faction == Faction.OfPlayer) Revoke(NativeControlRevocationReason.ExternalOrder); }
+        {
+            if (__result == null || faction != Faction.OfPlayer) return;
+            Revoke(NativeControlRevocationReason.ExternalOrder, () => Describe(null, "blueprint " + (__result.def?.entityDefToBuild?.defName ?? "?") + " at " + __result.Position));
+        }
         private static void Installed(Blueprint_Install __result, Faction faction)
-        { if (__result != null && faction == Faction.OfPlayer) Revoke(NativeControlRevocationReason.ExternalOrder); }
+        {
+            if (__result == null || faction != Faction.OfPlayer) return;
+            Revoke(NativeControlRevocationReason.ExternalOrder, () => Describe(null, "install blueprint at " + __result.Position));
+        }
 
         private sealed class Cancellation
         {
