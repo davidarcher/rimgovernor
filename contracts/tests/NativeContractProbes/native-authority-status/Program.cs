@@ -91,6 +91,55 @@ internal static class NativeAuthorityStatusProbe
         Check(known.Status.StateCase == Wire.Status.StateOneofCase.Unavailable
             && !existing.Status().Available && !existing.Status().Active, "Read enabled unverified authority");
     }
+    // Orderly exit (#88): an unloaded game's final authority stays readable for
+    // its own identity once no game is loaded, as Inactive(SHUTDOWN) at the
+    // revoking generation; an already inactive authority keeps its reason, and
+    // any other identity still fails as before.
+    private static void Shutdown()
+    {
+        var game = new Game(); Current.Game = game; Find.CurrentMap = new Map { uniqueID = 0 };
+        Find.TickManager = new TickManager { TicksGame = 0 };
+        var identity = new NativeControlIdentity(game, Find.CurrentMap, "colony", "load");
+        var state = new NativeControlAuthority(game, () => Current.Game == game ? identity : null, () => 0);
+        state.SetHookHealth(true);
+        Check(state.SetMode(1, NativeControlMode.Auto).Success, "Shutdown fixture grant");
+        var revoked = state.RevokeShutdown(42);
+        Check(!revoked.Active && revoked.Generation == 3 && revoked.Reason == NativeControlRevocationReason.Shutdown,
+            "Active authority revoked as Shutdown at the next generation");
+        var retained = NativeControlAuthority.LastShutdown;
+        Check(retained != null && retained.Matches("colony", "load", 0) && retained.Tick == 42 && retained.Generation == 3
+            && retained.Reason == NativeControlRevocationReason.Shutdown, "Final state retained for the unloaded identity");
+        Check(state.RevokeShutdown(43).Generation == 3 && NativeControlAuthority.LastShutdown!.Tick == 43,
+            "A second shutdown neither advances the generation nor loses the reason");
+
+        Current.Game = null; Find.CurrentMap = null; Find.TickManager = null;
+        var endpoint = new NativeAuthorityTools(); var ctx = new ContextStub();
+        var request = JsonFormatter.Default.Format(new Wire.StatusRequest { Identity = Context.Identity.Clone() });
+        ctx.Arguments!["request"] = request;
+        var read = Decode(endpoint.ReadStatus(ctx, CancellationToken.None, request).GetAwaiter().GetResult());
+        Check(read.OutcomeCase == Wire.StatusReply.OutcomeOneofCase.Status && read.Status.StateCase == Wire.Status.StateOneofCase.Inactive
+            && read.Status.Inactive.Reason == Wire.RevocationReason.Shutdown, "Unloaded game reads Inactive(SHUTDOWN)");
+        Check(read.Status.Context.Identity.Equals(Context.Identity) && read.Status.Context.HasTick && read.Status.Context.Tick == 43
+            && read.Status.Context.NativeGeneration == 3, "Retained context carries the final identity, tick and generation");
+        var other = JsonFormatter.Default.Format(new Wire.StatusRequest { Identity = new Common.Identity
+            { ColonyId = "colony", LoadToken = "other", MapId = 0 } });
+        ctx.Arguments["request"] = other;
+        var unknown = Decode(endpoint.ReadStatus(ctx, CancellationToken.None, other).GetAwaiter().GetResult());
+        Check(unknown.OutcomeCase == Wire.StatusReply.OutcomeOneofCase.Failure && unknown.Failure.Code == Common.FailureCode.Unavailable,
+            "Another identity still fails with no game loaded");
+
+        // Manual before the unload: the retained reason is Manual, not Shutdown.
+        var next = new Game(); Current.Game = next; Find.CurrentMap = new Map { uniqueID = 1 };
+        Find.TickManager = new TickManager { TicksGame = 7 };
+        var nextIdentity = new NativeControlIdentity(next, Find.CurrentMap, "colony", "reload");
+        var manual = new NativeControlAuthority(next, () => Current.Game == next ? nextIdentity : null, () => 0);
+        manual.SetHookHealth(true);
+        Check(manual.SetMode(1, NativeControlMode.Auto).Success && manual.SetMode(2, NativeControlMode.Manual).Success, "Manual fixture");
+        Check(manual.RevokeShutdown(7).Generation == 3 && NativeControlAuthority.LastShutdown!.Reason == NativeControlRevocationReason.Manual
+            && NativeControlAuthority.LastShutdown.Matches("colony", "reload", 1), "Inactive authority keeps its reason through unload");
+        Current.Game = null; Find.CurrentMap = null; Find.TickManager = null;
+    }
+
     internal static void Invoke()
     {
         var game = new Game(); var map = new Map { uniqueID = 0 };
@@ -134,6 +183,7 @@ internal static class NativeAuthorityStatusProbe
         var unknown = Project(new NativeControlSnapshot(identity, 7, true, false, (NativeControlRevocationReason)999));
         Check(unknown.StateCase == Wire.Status.StateOneofCase.Unavailable, "Unknown internal enum leaked onto wire");
         EndpointAdmission();
+        Shutdown();
         Console.WriteLine("Native authority status passed " + checks + " projection and endpoint-boundary assertions; SDK transport/native gameplay remain separate.");
     }
 }

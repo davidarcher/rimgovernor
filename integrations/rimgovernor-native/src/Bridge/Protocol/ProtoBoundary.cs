@@ -172,7 +172,7 @@ namespace HomeBridge.BridgeTools
             catch (EncoderFallbackException) { return false; }
         }
 
-        private static bool Complete(Common.Identity expected) => expected != null && expected.HasColonyId && expected.HasLoadToken
+        internal static bool Complete(Common.Identity expected) => expected != null && expected.HasColonyId && expected.HasLoadToken
             && expected.HasMapId && IsIdentifier(expected.ColonyId) && IsIdentifier(expected.LoadToken) && expected.MapId >= 0;
 
         /// <summary>
