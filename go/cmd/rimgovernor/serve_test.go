@@ -369,3 +369,32 @@ func TestServePresentationUsesOptionalAttachedClient(t *testing.T) {
 		}
 	}
 }
+
+// --clock-window-ticks sizes the colony window (default 2500) within
+// 1..maxClockWindowTicks; the combat window never exceeds it.
+func TestServeClockWindowTicksFlag(t *testing.T) {
+	dir := t.TempDir()
+	withRoutineFamilies(t, "", false)
+	base := append(serveBase(dir), "--profile", dir)
+	c, err := parseServe(base, io.Discard)
+	if err != nil || c.clockWindowTicks != defaultClockWindowTicks {
+		t.Fatal(c.clockWindowTicks, err)
+	}
+	c, err = parseServe(append(append([]string(nil), base...), "--clock-window-ticks", "15000"), io.Discard)
+	if err != nil || c.clockWindowTicks != 15000 {
+		t.Fatal(c.clockWindowTicks, err)
+	}
+	for _, bad := range []string{"0", "60001"} {
+		if _, err := parseServe(append(append([]string(nil), base...), "--clock-window-ticks", bad), io.Discard); err == nil {
+			t.Fatal("accepted --clock-window-ticks", bad)
+		}
+	}
+	config := serviceClockConfig(dir, parseClockSpeed("Normal"), 200)
+	if config.Start.MaxTicks != 200 || config.CombatMaxTicks != 200 {
+		t.Fatal(config.Start.MaxTicks, config.CombatMaxTicks)
+	}
+	config = serviceClockConfig(dir, parseClockSpeed("Normal"), defaultClockWindowTicks)
+	if config.Start.MaxTicks != defaultClockWindowTicks || config.CombatMaxTicks != combatClockWindowTicks {
+		t.Fatal(config.Start.MaxTicks, config.CombatMaxTicks)
+	}
+}

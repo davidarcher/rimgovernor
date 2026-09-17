@@ -98,7 +98,7 @@ were not. A reviewer holds a new harness to it.
    `RIMGOVERNOR_ACCEPT_CLOCK_SPEED`; the clock wire admits Normal, Fast and
    Superfast only). Their wall time is the controller's cadence, not the
    game's: lightaccept spends ~6s of ~21s of supervised play ticking (two
-   600-tick windows) and the rest in ~1s scheduler steps of native reads
+   windows) and the rest in ~1s scheduler steps of native reads
    plus the worker's 1s-to-10s backoff, so Superfast passes but measures no
    faster (36s vs 31s). The refrigerationaccept "held at tick 1225"
    failure once blamed on Superfast is a stock-in-transit deadlock (#66,

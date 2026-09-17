@@ -62,6 +62,7 @@ the controller.
 | `--profile` | Absolute shared game profile; required for autonomous play. |
 | `--assets`, `--listen`, `--refresh`, `--timeout` | Built dashboard directory; loopback listen address (default `127.0.0.1:0`, prints the URL); observation refresh and native call timeout. |
 | `--clock-speed` | Native speed while a supervised window is held: `Normal` (default), `Fast`, `Superfast`. |
+| `--clock-window-ticks` | Game ticks one colony window runs before it pauses for a full review: `2500` (default) up to `60000`; combat windows stay at 300. Watched outcomes, danger and player input stop a window earlier regardless. |
 | `--routine-project-limit`, `--routine-research-target`, `--routine-resource-*`, `--routine-allow-slaughter`, `--routine-herd-population-max` | Routine tuning: optional project concurrency, research goal, resource production targets/reserves/stops and herd ceilings. |
 | `--resource-rule`, `--world-evaluation-food-margin-days` | Resource reservation rules for building admission; caravan food margin. |
 | `--resume` | Run the bot for the observed world at startup and after every native load, without a dashboard Resume. |

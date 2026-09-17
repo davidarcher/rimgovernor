@@ -74,19 +74,29 @@ func parseClockSpeed(speed string) k.Speed {
 	}
 }
 
-func serviceClockConfig(profile string, speed k.Speed) buildingruntime.ClockSchedulerConfig {
+// Window policy. A colony window runs defaultClockWindowTicks (a little
+// over one game hour) before it pauses for a full review; --clock-window-ticks
+// widens or narrows it up to maxClockWindowTicks (one game day), never
+// unbounded. Watched outcomes, danger and player input stop a window early
+// regardless, so a wider window costs review latency only while nothing
+// happens. A raid runs in combatClockWindowTicks windows so the defense
+// planner re-targets between them.
+const (
+	defaultClockWindowTicks = 2500
+	maxClockWindowTicks     = 60000
+	combatClockWindowTicks  = 300
+)
+
+func serviceClockConfig(profile string, speed k.Speed, windowTicks uint32) buildingruntime.ClockSchedulerConfig {
 	return buildingruntime.ClockSchedulerConfig{
-		// MaxAge bounds how stale the facts read during Step() may be by the
-		// time EvaluateClockWindow admits a window. It must cover the whole
-		// step budget (serviceClockTimeouts): the routine census plus every
-		// composed planner's native reads run inside one step, and facts read
-		// at its start are admitted at its end. A MaxAge shorter than the
-		// step refuses with stale_facts before the write is ever attempted.
+		// MaxAge bounds how stale the admission reads (status, emergency)
+		// may be by the time EvaluateClockWindow admits a window. The
+		// planner facts are bound by tick instead (FactsTick), so the step
+		// budget no longer constrains it; it stays at the step timeout so
+		// a slow admission read under peer load still admits.
 		Profile: profile, MaxAge: serviceClockStepTimeout,
-		// A raid runs in 300-tick combat windows so the defense planner can
-		// re-target between them; colony windows keep the 600-tick budget.
-		CombatMaxTicks: 300,
-		Start: bridge.ClockStart{Speed: speed, LeaseMS: 30000, MaxTicks: 600,
+		CombatMaxTicks: min(combatClockWindowTicks, windowTicks),
+		Start: bridge.ClockStart{Speed: speed, LeaseMS: 30000, MaxTicks: windowTicks,
 			Policy: &k.WatchPolicy{Mode: k.WatchMode_WATCH_MODE_COLONY.Enum(),
 				HealthDropFraction: proto.Float32(.1), MinHealthFraction: proto.Float32(.5),
 				HostileWithin: proto.Float32(20), InjuryStopCooldownMs: proto.Uint32(0)}},
@@ -139,7 +149,7 @@ func startServiceClock(ctx context.Context, player *buildingruntime.Player, sess
 	fields, bills, foodStorage := sc.routineFieldPlans, sc.routineBillPlans, sc.routineFoodStoragePlans
 	prisonerInteraction, populationCustody, stoneShell, defensiveLayout := sc.routinePrisonerInteractionPlans, sc.routinePopulationCustodyPlans, sc.routineStoneShellPlans, sc.routineDefensiveLayoutPlans
 	haul, waste, moodRelief, naming := sc.routineHaulPlans, sc.routineWastePlans, sc.routineMoodPlans, sc.routineNamingPlans
-	config := serviceClockConfig(profile, parseClockSpeed(clockSpeed))
+	config := serviceClockConfig(profile, parseClockSpeed(clockSpeed), uint32(sc.clockWindowTicks))
 	config.RoutineMethods = session.RoutineMethodsEnabled()
 	if caravanJourneyTracking {
 		native, ok := reads.(buildingruntime.CaravanJourneyNative)
