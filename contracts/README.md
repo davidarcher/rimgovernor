@@ -7,7 +7,7 @@ native ownership references that explain what those contracts cover.
 
 [Schema generation](schema-generation.md) defines the canonical Protobuf inputs
 under `proto/`, the strict boundary rules and the versioned outputs under
-`generated/`. `.github/workflows/protobuf.yml` regenerates and cross-checks the
+`generated/`. `task protobuf:build` and `task protobuf:test` (run by `.github/workflows/ci.yml`) regenerate and cross-checks the
 C# and Go outputs on every change; hand-editing generated code is never correct.
 [Native Protobuf cutover](native-protobuf-cutover.md) lists which native tools
 run on those fixed schemas and how the boundary validates arguments.

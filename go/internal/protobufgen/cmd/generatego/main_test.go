@@ -52,7 +52,7 @@ func TestRelativeFilesMissingDirIsEmpty(t *testing.T) {
 func TestPrivateEnvOverridesInheritedCaches(t *testing.T) {
 	t.Setenv("GOCACHE", "/inherited")
 	t.Setenv("GOTOOLCHAIN", "")
-	env := privateEnv(filepath.FromSlash("/run"))
+	env := privateEnv(filepath.FromSlash("/run"), filepath.FromSlash("/run/modcache"))
 	seen := map[string]int{}
 	for _, entry := range env {
 		key, value, _ := strings.Cut(entry, "=")

@@ -3,10 +3,10 @@ package main
 // Descriptor reflection is confined to test-fixture generation. Runtime consumers
 // must use concrete generated types and ordinary semantic validation.
 import (
-	"encoding/csv"
+	"bufio"
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
-	"io"
 	"os"
 	"path/filepath"
 	"sort"
@@ -22,6 +22,18 @@ import (
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/reflect/protoreflect"
 	"google.golang.org/protobuf/reflect/protoregistry"
+)
+
+// manifestHeader names the shape manifest columns. Every fixture travels inline
+// in its manifest row: ProtoJSON text and the base64 binary encoding. One file
+// per fixture set keeps the exchange to a handful of files instead of tens of
+// thousands of tiny ones.
+const manifestHeader = "id\tmessage\tprotojson\tbinary-base64"
+
+const (
+	maxManifestRows    = 100000
+	maxFixtureBytes    = 4 << 20
+	maxManifestLineLen = 3 * maxFixtureBytes
 )
 
 type shapeCase struct {
@@ -160,21 +172,100 @@ func messageShapes(kind protoreflect.MessageType) []shapeCase {
 	}
 	return cases
 }
-func writeManifest(path string, rows [][]string) error {
-	file, err := os.Create(path)
+
+// manifestRow is one inline fixture: the message name, its ProtoJSON text and
+// its binary encoding.
+type manifestRow struct {
+	id      string
+	message string
+	json    []byte
+	binary  []byte
+}
+
+// encodePair encodes a message both ways and proves the encodings agree with
+// each other and with the source before the row leaves memory.
+func encodePair(id, name string, message proto.Message) (manifestRow, error) {
+	j, err := protojson.Marshal(message)
+	if err != nil {
+		return manifestRow{}, err
+	}
+	b, err := proto.Marshal(message)
+	if err != nil {
+		return manifestRow{}, err
+	}
+	decoded, err := decodeRow(message.ProtoReflect().Type(), j, b)
+	if err != nil {
+		return manifestRow{}, fmt.Errorf("%s: %w", id, err)
+	}
+	if !proto.Equal(decoded, message) {
+		return manifestRow{}, fmt.Errorf("%s roundtrip differs", id)
+	}
+	if strings.ContainsAny(string(j), "\t\r\n") {
+		return manifestRow{}, fmt.Errorf("%s ProtoJSON contains a manifest delimiter", id)
+	}
+	return manifestRow{id: id, message: name, json: j, binary: b}, nil
+}
+
+// decodeRow parses both encodings and requires them to agree.
+func decodeRow(kind protoreflect.MessageType, j, b []byte) (proto.Message, error) {
+	fromJSON, fromBinary := kind.New().Interface(), kind.New().Interface()
+	if err := protojson.Unmarshal(j, fromJSON); err != nil {
+		return nil, err
+	}
+	if err := proto.Unmarshal(b, fromBinary); err != nil {
+		return nil, err
+	}
+	if !proto.Equal(fromJSON, fromBinary) {
+		return nil, fmt.Errorf("JSON/binary differ")
+	}
+	return fromJSON, nil
+}
+
+func formatRow(row manifestRow) string {
+	return row.id + "\t" + row.message + "\t" + string(row.json) + "\t" + base64.StdEncoding.EncodeToString(row.binary)
+}
+
+func writeManifest(path string, rows []manifestRow) error {
+	return writeManifestLines(path, rows, true)
+}
+
+func appendManifest(path string, rows []manifestRow) error {
+	info, err := os.Stat(path)
+	if err != nil && !os.IsNotExist(err) {
+		return err
+	}
+	return writeManifestLines(path, rows, err != nil || info.Size() == 0)
+}
+
+func writeManifestLines(path string, rows []manifestRow, header bool) error {
+	flags := os.O_CREATE | os.O_WRONLY | os.O_TRUNC
+	if !header {
+		flags = os.O_CREATE | os.O_WRONLY | os.O_APPEND
+	}
+	file, err := os.OpenFile(path, flags, 0600)
 	if err != nil {
 		return err
 	}
-	writer := csv.NewWriter(file)
-	writer.Comma = '\t'
-	writer.WriteAll(rows)
-	err = writer.Error()
+	writer := bufio.NewWriterSize(file, 1<<20)
+	if header {
+		_, err = writer.WriteString(manifestHeader + "\n")
+	}
+	for _, row := range rows {
+		if err != nil {
+			break
+		}
+		_, err = writer.WriteString(formatRow(row) + "\n")
+	}
+	if err == nil {
+		err = writer.Flush()
+	}
 	closeErr := file.Close()
 	if err != nil {
 		return err
 	}
 	return closeErr
 }
+
 func emitShapes(output string) error {
 	types := []protoreflect.MessageType{}
 	protoregistry.GlobalTypes.RangeMessages(func(kind protoreflect.MessageType) bool {
@@ -184,7 +275,7 @@ func emitShapes(output string) error {
 		return true
 	})
 	sort.Slice(types, func(i, j int) bool { return types[i].Descriptor().FullName() < types[j].Descriptor().FullName() })
-	rows := [][]string{{"id", "message", "json", "binary"}}
+	rows := []manifestRow{}
 	coverage := []shapeCoverage{}
 	index := 0
 	for _, kind := range types {
@@ -193,10 +284,11 @@ func emitShapes(output string) error {
 		for _, fixture := range cases {
 			index++
 			id := fmt.Sprintf("go-shape-%05d", index)
-			if err := writePair(output, id, fixture.message); err != nil {
+			row, err := encodePair(id, entry.Message, fixture.message)
+			if err != nil {
 				return fmt.Errorf("%s %s: %w", entry.Message, fixture.variant, err)
 			}
-			rows = append(rows, []string{id, entry.Message, id + ".json", id + ".bin"})
+			rows = append(rows, row)
 			entry.Variants = append(entry.Variants, fixture.variant)
 		}
 		coverage = append(coverage, entry)
@@ -214,28 +306,6 @@ func emitShapes(output string) error {
 	fmt.Printf("Generated %d shape cases for %d registered canonical messages\n", index, len(types))
 	return nil
 }
-func manifestPath(directory, name string) (string, error) {
-	if name == "" || filepath.IsAbs(name) {
-		return "", fmt.Errorf("manifest file must be relative")
-	}
-	base, err := filepath.EvalSymlinks(directory)
-	if err != nil {
-		return "", err
-	}
-	base, err = filepath.Abs(base)
-	if err != nil {
-		return "", err
-	}
-	target, err := filepath.EvalSymlinks(filepath.Join(base, name))
-	if err != nil {
-		return "", err
-	}
-	relative, err := filepath.Rel(base, target)
-	if err != nil || relative == ".." || strings.HasPrefix(relative, ".."+string(filepath.Separator)) {
-		return "", fmt.Errorf("manifest path escapes fixture directory")
-	}
-	return target, nil
-}
 
 type shapeRecord struct {
 	name    string
@@ -248,78 +318,50 @@ func readShapeManifest(input, manifest string) (map[string]shapeRecord, error) {
 		return nil, err
 	}
 	defer file.Close()
-	info, err := file.Stat()
-	if err != nil {
-		return nil, err
-	}
-	if info.Size() > 16<<20 {
-		return nil, fmt.Errorf("shape manifest too large")
-	}
-	reader := csv.NewReader(file)
-	reader.Comma = '\t'
-	reader.FieldsPerRecord = 4
-	header, err := reader.Read()
-	if len(header) > 0 {
-		header[0] = strings.TrimPrefix(header[0], "\ufeff")
-	}
-	if err != nil || strings.Join(header, "\t") != "id\tmessage\tjson\tbinary" {
+	scanner := bufio.NewScanner(file)
+	scanner.Buffer(make([]byte, 0, 1<<20), maxManifestLineLen)
+	if !scanner.Scan() || strings.TrimPrefix(scanner.Text(), string(rune(0xFEFF))) != manifestHeader {
 		return nil, fmt.Errorf("invalid shape manifest header")
 	}
 	records := map[string]shapeRecord{}
-	seen := map[string]bool{}
-	for index := 0; ; index++ {
-		row, err := reader.Read()
-		if err == io.EOF {
-			break
-		}
-		if err != nil {
-			return nil, err
-		}
-		if index >= 100000 {
+	for index := 0; scanner.Scan(); index++ {
+		if index >= maxManifestRows {
 			return nil, fmt.Errorf("shape manifest too large")
 		}
-		id := row[0]
-		if id == "" || strings.Trim(id, "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-_") != "" || seen[id] {
-			return nil, fmt.Errorf("invalid/duplicate shape id")
+		row := strings.Split(strings.TrimSuffix(scanner.Text(), "\r"), "\t")
+		if len(row) != 4 {
+			return nil, fmt.Errorf("shape manifest row needs four columns")
 		}
-		seen[id] = true
-		kind, err := protoregistry.GlobalTypes.FindMessageByName(protoreflect.FullName(row[1]))
-		if err != nil {
-			return nil, err
+		id := row[0]
+		if id == "" || strings.Trim(id, "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-_") != "" {
+			return nil, fmt.Errorf("invalid shape id")
+		}
+		if _, seen := records[id]; seen {
+			return nil, fmt.Errorf("duplicate shape id %s", id)
 		}
 		if !strings.HasPrefix(row[1], "rimgovernor.") {
 			return nil, fmt.Errorf("noncanonical shape message")
 		}
-		jsonPath, err := manifestPath(input, row[2])
+		kind, err := protoregistry.GlobalTypes.FindMessageByName(protoreflect.FullName(row[1]))
 		if err != nil {
 			return nil, err
 		}
-		binaryPath, err := manifestPath(input, row[3])
+		j := []byte(row[2])
+		b, err := base64.StdEncoding.DecodeString(row[3])
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("shape %s binary: %w", id, err)
 		}
-		j, err := os.ReadFile(jsonPath)
-		if err != nil {
-			return nil, err
-		}
-		b, err := os.ReadFile(binaryPath)
-		if err != nil {
-			return nil, err
-		}
-		if len(j) > 4<<20 || len(b) > 4<<20 {
+		if len(j) > maxFixtureBytes || len(b) > maxFixtureBytes {
 			return nil, fmt.Errorf("oversized shape fixture")
 		}
-		fromJSON, fromBinary := kind.New().Interface(), kind.New().Interface()
-		if err = protojson.Unmarshal(j, fromJSON); err != nil {
-			return nil, err
+		message, err := decodeRow(kind, j, b)
+		if err != nil {
+			return nil, fmt.Errorf("shape %s: %w", id, err)
 		}
-		if err = proto.Unmarshal(b, fromBinary); err != nil {
-			return nil, err
-		}
-		if !proto.Equal(fromJSON, fromBinary) {
-			return nil, fmt.Errorf("shape %s JSON/binary differ", id)
-		}
-		records[id] = shapeRecord{row[1], fromJSON}
+		records[id] = shapeRecord{row[1], message}
+	}
+	if err := scanner.Err(); err != nil {
+		return nil, err
 	}
 	if len(records) == 0 {
 		return nil, fmt.Errorf("empty shape manifest")
@@ -361,14 +403,14 @@ func verifyShapeManifest(input, output string) error {
 		ids = append(ids, id)
 	}
 	sort.Strings(ids)
-	rows := [][]string{{"id", "message", "json", "binary"}}
+	rows := make([]manifestRow, 0, len(ids))
 	for _, id := range ids {
 		record := records[id]
-		echo := "csharp-echo-" + id
-		if err := writePair(output, echo, record.message); err != nil {
+		row, err := encodePair("csharp-echo-"+id, record.name, record.message)
+		if err != nil {
 			return err
 		}
-		rows = append(rows, []string{echo, record.name, echo + ".json", echo + ".bin"})
+		rows = append(rows, row)
 	}
 	if err := writeManifest(filepath.Join(output, "csharp-echo-manifest.tsv"), rows); err != nil {
 		return err
@@ -428,28 +470,4 @@ func verifyGoShapeEcho(input, original string) error {
 	}
 	fmt.Printf("Verified %d Go/C#/Go manifest cases against original typed messages\n", len(expected))
 	return nil
-}
-
-func appendManifest(path string, rows [][]string) error {
-	file, err := os.OpenFile(path, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0600)
-	if err != nil {
-		return err
-	}
-	info, err := file.Stat()
-	if err != nil {
-		file.Close()
-		return err
-	}
-	writer := csv.NewWriter(file)
-	writer.Comma = '\t'
-	if info.Size() > 0 {
-		rows = rows[1:]
-	}
-	writer.WriteAll(rows)
-	err = writer.Error()
-	closeErr := file.Close()
-	if err != nil {
-		return err
-	}
-	return closeErr
 }

@@ -65,20 +65,33 @@ escapes inside a documented adapter with a boundary test; no blanket suppression
 
 ### What is enforced and what is policy
 
-`pwsh scripts/ci.ps1` is the gate (GitHub Actions is retired; the workflow files
-under `.github/workflows` remain as reference only). Run it before landing on
-`main`; `-Stage go,dashboard,protobuf,native` selects stages. Everything in the
-first table fails the gate; everything in the second is reviewed by hand.
+`task build && task test` from the repository root is the gate; CI
+(`.github/workflows/ci.yml`, Ubuntu and Windows) runs exactly those targets,
+one step per project, so a run's step timings are the per-project timings.
+[Task](https://taskfile.dev) installs with `winget install Task.Task` or
+`go install github.com/go-task/task/v3/cmd/task@latest`. The root
+`Taskfile.yml` pins `GOTOOLCHAIN`, `GOWORK=off` and `CGO_ENABLED=0` and
+includes every project; each project directory ships its own `Taskfile.yml`
+with `build` (compilation plus the static gates that fail a build) and `test`
+(tests only), so `task go:build`, `task dashboard:test` and so on run one
+project. Projects with nothing to test say so. Projects that need
+machine-local inputs (the game's managed assemblies, Harmony, the
+RimBridgeServer SDK) report `unavailable` naming the missing path instead of
+passing; override the defaults with `RIMWORLD_MANAGED_DIR`, `HARMONY_ASSEMBLY`
+and `RIMBRIDGE_SDK_DIR`. Outputs and evidence land under `.rimgovernor/task/`;
+the protobuf exchange and the native build are checksum-skipped while their
+inputs are unchanged (`task --force` reruns them). Everything in the first
+table fails the gate; everything in the second is reviewed by hand.
 
-| Enforced by `scripts/ci.ps1` | Mechanism |
+| Enforced by `task build` / `task test` | Project (`Taskfile.yml`) |
 | --- | --- |
-| Go toolchain pinned to `go/.go-version`; gofmt; `go mod verify` and `tidy -diff`; `go vet` | `go` stage |
-| Go static analysis: unused code, always-true comparisons, dead assignments, same-type assertions, error-string style | `go tool staticcheck`, pinned in `go/go.mod` |
-| Go tests under a 10 s per-test budget; `-race` when a C compiler is present | `checktesttimes`, `go test -race` |
-| TypeScript `strict`; no `any`, `@ts-ignore`, `@ts-nocheck`, unsafe `any` flow, unnecessary or object-literal assertions, or `as unknown as` double casts; `@ts-expect-error` only with a description | `dashboard/eslint.config.js` (typescript-eslint, type-checked) plus `tsc --noEmit` |
-| Dashboard dependencies locked | `pnpm install --frozen-lockfile` |
-| Generated protobuf C#/Go match the checked-in outputs; C#→Go→C# exchange is byte-identical | `protobuf` stage |
-| C# `TreatWarningsAsErrors` and `RestoreLockedMode` on Bridge, Runtime, contract probes and both fixture projects; nullable reference types on Runtime | `native` stage |
+| Go toolchain pinned to `go/.go-version` and the root `GOTOOLCHAIN`; gofmt; `go mod verify` and `tidy -diff`; `go vet` | `go`, `wire` (`contracts/generated/protobuf/go`), `protobuf-go` (`tools/protobuf/go`) |
+| Go static analysis: unused code, always-true comparisons, dead assignments, same-type assertions, error-string style | `go` (`go tool staticcheck`, pinned in `go/go.mod`) |
+| Go tests under a 10 s per-test budget; `-race` when a C compiler is present | `go` (`checktesttimes`, `go test -race`) |
+| TypeScript `strict`; no `any`, `@ts-ignore`, `@ts-nocheck`, unsafe `any` flow, unnecessary or object-literal assertions, or `as unknown as` double casts; `@ts-expect-error` only with a description | `dashboard` (`dashboard/eslint.config.js`, typescript-eslint type-checked, plus `tsc --noEmit`) |
+| Dashboard dependencies locked | `dashboard` (`pnpm install --frozen-lockfile`) |
+| Generated protobuf C#/Go match the checked-in outputs; C#→Go→C# exchange is byte-identical | `protobuf` (`tools/protobuf`) |
+| C# `TreatWarningsAsErrors` and `RestoreLockedMode` on Bridge, Runtime, contract probes and both fixture projects; nullable reference types on Runtime | `native`, `probes` (`contracts/tests`, ungated probes only), `fixtures` (`scripts/fixtures`) |
 
 | Policy only (review by hand) | Notes |
 | --- | --- |
@@ -88,8 +101,8 @@ first table fails the gate; everything in the second is reviewed by hand.
 ## Verify and commit
 
 Use the [testing pyramid and evidence rules](testing/choose-tests.md#testing-budget-and-evidence-reuse).
-Run `pwsh scripts/ci.ps1` (or just the stages the change touches) before
-landing. During iteration, run affected files and
+Run `task build && task test` (or just the projects the change touches,
+`task go:test`) before landing. During iteration, run affected files and
 contract neighbors. Before handoff, run the full affected suite once. Reuse
 successful results when the relevant source and environment are unchanged.
 

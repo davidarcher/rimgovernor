@@ -15,7 +15,12 @@ using Control = RimGovernor.Protocol.Authority;
 internal static class Program
 {
     private static int checks;
-    private static readonly List<string> manifest = new List<string> { "id\tmessage\tjson\tbinary" };
+    // Generated shape fixtures travel inline in manifest.tsv (ProtoJSON text and
+    // base64 binary per row) so an exchange is a handful of files, not tens of
+    // thousands. The Go proof reads and writes the same layout.
+    private const string ManifestHeader = "id\tmessage\tprotojson\tbinary-base64";
+    private static readonly List<string> manifest = new List<string> { ManifestHeader };
+    private static readonly HashSet<string> emitted = new HashSet<string>(StringComparer.Ordinal);
     private static void Require(bool condition, string message)
     {
         checks++;
@@ -119,19 +124,17 @@ internal static class Program
         return message;
     }
 
-    private static void Emit(IMessage message, string id, string output)
+    private static void Emit(IMessage message, string id)
     {
         Require(!string.IsNullOrEmpty(id) && id.All(c => (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z')
             || (c >= '0' && c <= '9') || c == '-' || c == '_' || c == '.'), "Safe fixture identifier");
-        Require(!File.Exists(Path.Combine(output, id + ".json")) && !File.Exists(Path.Combine(output, id + ".bin")),
-            "Fixture identifier does not overwrite an independent sample: " + id);
+        Require(emitted.Add(id), "Fixture identifier does not overwrite an independent sample: " + id);
         var json = JsonFormatter.Default.Format(message);
         var binary = message.ToByteArray();
         Require(message.Equals(message.Descriptor.Parser.ParseJson(json)), id + " reflected ProtoJSON round trip");
         Require(message.Equals(message.Descriptor.Parser.ParseFrom(binary)), id + " reflected binary round trip");
-        File.WriteAllText(Path.Combine(output, id + ".json"), json, new UTF8Encoding(false));
-        File.WriteAllBytes(Path.Combine(output, id + ".bin"), binary);
-        manifest.Add(id + "\t" + message.Descriptor.FullName + "\t" + id + ".json\t" + id + ".bin");
+        Require(json.IndexOfAny(new[] { '\t', '\r', '\n' }) < 0, id + " ProtoJSON is free of manifest delimiters");
+        manifest.Add(id + "\t" + message.Descriptor.FullName + "\t" + json + "\t" + Convert.ToBase64String(binary));
     }
 
     private static void FullPackage(Dictionary<string, MessageDescriptor> descriptors, string output)
@@ -139,7 +142,7 @@ internal static class Program
         int index = 0;
         foreach (var descriptor in descriptors.Values.OrderBy(d => d.FullName, StringComparer.Ordinal))
         {
-            Action<IMessage> emit = m => Emit(m, "csharp-shape-" + (++index).ToString("D5"), output);
+            Action<IMessage> emit = m => Emit(m, "csharp-shape-" + (++index).ToString("D5"));
             emit(descriptor.Parser.ParseFrom(Array.Empty<byte>()));
             for (int variant = 0; variant < 4; variant++)
                 emit(Populate(descriptor, variant, 0, new HashSet<string>(StringComparer.Ordinal)));
@@ -171,30 +174,30 @@ internal static class Program
         Console.WriteLine("Reflected " + descriptors.Count + " concrete canonical messages; emitted " + index + " serialization shapes (not domain-admission fixtures).");
     }
 
-    private static void Example(Dictionary<string, MessageDescriptor> descriptors, string type, string json, string id, string output)
+    private static void Example(Dictionary<string, MessageDescriptor> descriptors, string type, string json, string id)
     {
         if (!descriptors.TryGetValue(type, out var descriptor))
             throw new InvalidOperationException("Required canonical fixture type missing: " + type);
-        Emit(descriptor.Parser.ParseJson(json), id, output);
+        Emit(descriptor.Parser.ParseJson(json), id);
     }
 
-    private static void FamilyExamples(Dictionary<string, MessageDescriptor> descriptors, string output)
+    private static void FamilyExamples(Dictionary<string, MessageDescriptor> descriptors)
     {
         Example(descriptors, "rimgovernor.authority.v1.ControlRequest",
             @"{""setMode"":{""identity"":{""colonyId"":""colony"",""loadToken"":""load"",""mapId"":0},""expectedGeneration"":""18446744073709551615"",""mode"":""MODE_AUTO""}}",
-            "csharp-authority-boundary", output);
+            "csharp-authority-boundary");
         Example(descriptors, "rimgovernor.clock.v1.ControlReceipt",
             @"{""attempt"":{""controllerSessionId"":""session"",""actionId"":""clock"",""attemptId"":""1""},""admittedContext"":{""identity"":{""colonyId"":""colony"",""loadToken"":""load"",""mapId"":0},""tick"":""0"",""nativeGeneration"":""1""},""uncertain"":{""detail"":""Clock effect requires fresh inspection""}}",
-            "csharp-clock-uncertain", output);
+            "csharp-clock-uncertain");
         Example(descriptors, "rimgovernor.lifecycle.v1.LoadReply",
             @"{""pending"":{""requestId"":""load-request"",""saveName"":""save"",""processConnected"":true,""mapReady"":false,""visualReady"":false}}",
-            "csharp-load-pending", output);
+            "csharp-load-pending");
         Example(descriptors, "rimgovernor.operations.v1.ExecuteRequest",
             @"{""precondition"":{""identity"":{""colonyId"":""colony"",""loadToken"":""load"",""mapId"":0},""expectedGeneration"":""1"",""attempt"":{""controllerSessionId"":""session"",""actionId"":""settings"",""attemptId"":""1""}},""operation"":{""patchPawn"":{""pawn"":{""entityId"":""Thing_Pawn1"",""expectedSnapshotToken"":""snapshot""},""selfTend"":false}}}",
-            "csharp-operation-present-false", output);
+            "csharp-operation-present-false");
         Example(descriptors, "rimgovernor.receipts.v1.Receipt",
             @"{""attempt"":{""controllerSessionId"":""session"",""actionId"":""settings"",""attemptId"":""1""},""admittedContext"":{""identity"":{""colonyId"":""colony"",""loadToken"":""load"",""mapId"":0},""tick"":""42"",""nativeGeneration"":""1""},""applied"":{""observed"":{""settings"":{""snapshot"":{""entityId"":""Thing_Pawn1"",""beforeToken"":""before"",""afterToken"":""after""}}}}}",
-            "csharp-attributed-settings", output);
+            "csharp-attributed-settings");
         Refuse(() => Shared.AttemptKey.Parser.ParseJson(@"{""attemptId"":""18446744073709551616""}"), "Overflow uint64 accepted");
         Refuse(() => Shared.AttemptKey.Parser.ParseJson(@"{""attemptId"":""-1""}"), "Negative uint64 accepted");
         Refuse(() => Shared.Identity.Parser.ParseFrom(new byte[] { 10, 5, 65 }), "Truncated binary string accepted");
@@ -211,40 +214,23 @@ internal static class Program
         Require(unknownBinary.ToByteArray().SequenceEqual(new byte[] { 160, 6, 1 }), "Unknown binary fields are retained; mutation admission must reject them separately");
     }
 
-    private static string FixturePath(string directory, string file)
+    private static void IncomingManifest(Dictionary<string, MessageDescriptor> descriptors, string incoming)
     {
-        if (string.IsNullOrWhiteSpace(file) || Path.GetFileName(file) != file || file.Contains("/") || file.Contains("\\"))
-            throw new InvalidOperationException("Manifest fixture path must be a filename");
-        return Path.Combine(directory, file);
-    }
-
-    private static void IncomingManifest(Dictionary<string, MessageDescriptor> descriptors, string incoming, string output)
-    {
-        var path = Path.Combine(incoming, "manifest.tsv");
-        if (!File.Exists(path)) throw new InvalidOperationException("Full-package exchange requires manifest.tsv");
-        var lines = File.ReadAllLines(path);
-        Require(lines.Length > 1 && lines[0] == "id\tmessage\tjson\tbinary", "Cross-language manifest header");
-        var ids = new HashSet<string>(StringComparer.Ordinal);
-        foreach (var line in lines.Skip(1))
+        if (!File.Exists(Path.Combine(incoming, "manifest.tsv")))
+            throw new InvalidOperationException("Full-package exchange requires manifest.tsv");
+        foreach (var record in ReadManifest(incoming, "manifest.tsv").Values)
         {
-            var parts = line.Split('\t');
-            Require(parts.Length == 4 && ids.Add(parts[0]), "Unique manifest fixture ID and four columns");
             // A Go exchange directory also retains echoes of C# origins. Those
             // are verified by VerifyReturn, not turned into second-generation echoes.
-            if (parts[0].StartsWith("csharp-echo-", StringComparison.Ordinal)) continue;
-            if (!descriptors.TryGetValue(parts[1], out var descriptor))
-                throw new InvalidOperationException("Incoming unrecognized canonical message: " + parts[1]);
-            var json = descriptor.Parser.ParseJson(File.ReadAllText(FixturePath(incoming, parts[2])));
-            var binary = descriptor.Parser.ParseFrom(File.ReadAllBytes(FixturePath(incoming, parts[3])));
-            Require(json.Equals(binary), "Go ProtoJSON/binary agree: " + parts[0]);
-            Emit(json, "go-echo-" + parts[0], output);
+            if (record[0].StartsWith("csharp-echo-", StringComparison.Ordinal)) continue;
+            Emit(ReadFixture(descriptors, record), "go-echo-" + record[0]);
         }
     }
 
     private static Dictionary<string, string[]> ReadManifest(string directory, string filename)
     {
         var lines = File.ReadAllLines(Path.Combine(directory, filename));
-        Require(lines.Length > 1 && lines[0] == "id\tmessage\tjson\tbinary", filename + " header and nonempty fixtures");
+        Require(lines.Length > 1 && lines[0] == ManifestHeader, filename + " header and nonempty fixtures");
         var records = new Dictionary<string, string[]>(StringComparer.Ordinal);
         foreach (var line in lines.Skip(1))
         {
@@ -256,12 +242,12 @@ internal static class Program
         return records;
     }
 
-    private static IMessage ReadFixture(Dictionary<string, MessageDescriptor> descriptors, string directory, string[] record)
+    private static IMessage ReadFixture(Dictionary<string, MessageDescriptor> descriptors, string[] record)
     {
         if (!descriptors.TryGetValue(record[1], out var descriptor))
             throw new InvalidOperationException("Unknown canonical fixture message: " + record[1]);
-        var json = descriptor.Parser.ParseJson(File.ReadAllText(FixturePath(directory, record[2])));
-        var binary = descriptor.Parser.ParseFrom(File.ReadAllBytes(FixturePath(directory, record[3])));
+        var json = descriptor.Parser.ParseJson(record[2]);
+        var binary = descriptor.Parser.ParseFrom(Convert.FromBase64String(record[3]));
         Require(json.Equals(binary), "Manifest JSON/binary agreement: " + record[0]);
         return json;
     }
@@ -284,8 +270,8 @@ internal static class Program
                 throw new InvalidOperationException("Unexpected returned fixture: " + record[0]);
             Require(seen.Add(originId), "Returned original ID is unique");
             Require(source[1] == record[1], "Returned fully qualified message type matches: " + originId);
-            var expected = ReadFixture(descriptors, originDirectory, source);
-            var actual = ReadFixture(descriptors, returnDirectory, record);
+            var expected = ReadFixture(descriptors, source);
+            var actual = ReadFixture(descriptors, record);
             Require(expected.Equals(actual), "Returned value matches original including optional presence: " + originId);
         }
         Require(seen.SetEquals(original.Keys), "No original fixture omitted from reciprocal return");
@@ -385,7 +371,7 @@ internal static class Program
         RoundTrip(setMode, Control.ControlRequest.Parser, "csharp-authority-set-mode", output);
         var descriptors = CanonicalMessages();
         FullPackage(descriptors, output);
-        FamilyExamples(descriptors, output);
+        FamilyExamples(descriptors);
         if (args.Length == 2)
         {
             var incoming = args[1];
@@ -407,7 +393,7 @@ internal static class Program
                 && goContext.Identity.HasMapId && goContext.Identity.MapId == 0,
                 "Official Go native context preserves identity presence and numeric extremes in C#");
             RoundTrip(goContext, Shared.ObservationContext.Parser, "go-echo-context", output);
-            IncomingManifest(descriptors, incoming, output);
+            IncomingManifest(descriptors, incoming);
         }
         File.WriteAllLines(Path.Combine(output, "manifest.tsv"), manifest, new UTF8Encoding(false));
         Console.WriteLine("Official Protobuf net472 proof passed: " + checks + " checks; artifacts " + output);

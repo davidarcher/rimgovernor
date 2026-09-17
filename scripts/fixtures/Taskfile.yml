@@ -1,0 +1,39 @@
+# Test-fixture BridgeTools (CombatFixtures, InterruptionFixtures). Both compile
+# against the game's managed assemblies and the RimBridgeServer SDK; without
+# them the build reports `unavailable` naming the missing path.
+version: '3'
+
+vars:
+  REPO: '{{.TASKFILE_DIR}}/../..'
+  EVIDENCE: '{{.REPO}}/.rimgovernor/task/fixtures'
+  RIMWORLD_MANAGED_DIR: '{{.RIMWORLD_MANAGED_DIR | default "C:/Program Files (x86)/Steam/steamapps/common/RimWorld/RimWorldWin64_Data/Managed"}}'
+  HARMONY_ASSEMBLY: '{{.HARMONY_ASSEMBLY | default "C:/Program Files (x86)/Steam/steamapps/workshop/content/294100/2009463077/Current/Assemblies/0Harmony.dll"}}'
+  RIMBRIDGE_SDK_DIR: '{{.RIMBRIDGE_SDK_DIR | default "C:/Program Files (x86)/Steam/steamapps/common/RimWorld/Mods/RimBridgeServer/1.6/Assemblies"}}'
+
+tasks:
+  build:
+    desc: Every fixture project with warnings as errors and a locked restore
+    cmds:
+      - |
+        missing=""
+        for input in "{{.RIMWORLD_MANAGED_DIR}}/Assembly-CSharp.dll" "{{.RIMBRIDGE_SDK_DIR}}/RimBridgeServer.Sdk.dll"; do
+          [ -f "$input" ] || missing="$missing $input"
+        done
+        if [ -n "$missing" ]; then
+          echo "fixtures build: unavailable (missing$missing)"
+          exit 0
+        fi
+        # Independent projects: build every one so a single stale project does not hide the others.
+        failed=""
+        for project in CombatFixtures InterruptionFixtures; do
+          dotnet build "$project.csproj" -c Release -v minimal -nologo -p:RestoreLockedMode=true \
+            "-p:OutputPath={{.EVIDENCE}}/$project/bin/" "-p:BaseIntermediateOutputPath={{.EVIDENCE}}/$project/obj/" \
+            "-p:RimWorldManagedDir={{.RIMWORLD_MANAGED_DIR}}" "-p:HarmonyAssembly={{.HARMONY_ASSEMBLY}}" "-p:RimBridgeSdkDir={{.RIMBRIDGE_SDK_DIR}}" \
+            || failed="$failed $project"
+        done
+        if [ -n "$failed" ]; then echo "fixture projects failed:$failed"; exit 1; fi
+
+  test:
+    desc: No unit tests; fixtures are loaded into the game by the native acceptance harnesses
+    cmds:
+      - 'echo "fixtures test: no unit tests (fixture ops run inside the game under go/internal/nativeaccept)"'

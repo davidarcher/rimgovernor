@@ -34,25 +34,30 @@ func TestShapePresenceAndArms(t *testing.T) {
 		}
 	}
 }
+
+func row(t *testing.T, id, name string, message proto.Message) manifestRow {
+	t.Helper()
+	r, err := encodePair(id, name, message)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return r
+}
+
+const identityName = "rimgovernor.common.v1.Identity"
+
 func TestManifestConsumesIndependentFixture(t *testing.T) {
 	input, output := t.TempDir(), t.TempDir()
 	m := &c.Identity{ColonyId: proto.String("test"), LoadToken: proto.String("load"), MapId: proto.Int32(0)}
-	if err := writePair(input, "origin", m); err != nil {
-		t.Fatal(err)
-	}
-	rows := [][]string{{"id", "message", "json", "binary"}, {"csharp-shape-00001", "rimgovernor.common.v1.Identity", "origin.json", "origin.bin"}}
+	rows := []manifestRow{row(t, "csharp-shape-00001", identityName, m)}
 	index := 1
 	protoregistry.GlobalTypes.RangeMessages(func(kind protoreflect.MessageType) bool {
 		name := string(kind.Descriptor().FullName())
-		if !strings.HasPrefix(name, "rimgovernor.") || name == "rimgovernor.common.v1.Identity" || kind.Descriptor().IsMapEntry() {
+		if !strings.HasPrefix(name, "rimgovernor.") || name == identityName || kind.Descriptor().IsMapEntry() {
 			return true
 		}
 		index++
-		id := fmt.Sprintf("csharp-shape-%05d", index)
-		if err := writePair(input, id, kind.New().Interface()); err != nil {
-			t.Fatal(err)
-		}
-		rows = append(rows, []string{id, name, id + ".json", id + ".bin"})
+		rows = append(rows, row(t, fmt.Sprintf("csharp-shape-%05d", index), name, kind.New().Interface()))
 		return true
 	})
 	if err := writeManifest(filepath.Join(input, "manifest.tsv"), rows); err != nil {
@@ -61,15 +66,19 @@ func TestManifestConsumesIndependentFixture(t *testing.T) {
 	if err := verifyShapeManifest(input, output); err != nil {
 		t.Fatal(err)
 	}
-	echo, err := decodePair(output, "csharp-echo-csharp-shape-00001", m)
-	if err != nil || !proto.Equal(echo, m) {
-		t.Fatalf("echo %v", err)
+	echoes, err := readShapeManifest(output, "csharp-echo-manifest.tsv")
+	if err != nil {
+		t.Fatal(err)
 	}
-	data, err := os.ReadFile(filepath.Join(output, "csharp-echo-manifest.tsv"))
-	if err != nil || !strings.Contains(string(data), "rimgovernor.common.v1.Identity") {
-		t.Fatalf("manifest %v", err)
+	echo, ok := echoes["csharp-echo-csharp-shape-00001"]
+	if !ok || echo.name != identityName || !proto.Equal(echo.message, m) {
+		t.Fatalf("echo %v", echo)
 	}
-	rows = append(rows, rows[1])
+	data, err := os.ReadFile(filepath.Join(output, "manifest.tsv"))
+	if err != nil || !strings.HasPrefix(string(data), manifestHeader+"\n") || !strings.Contains(string(data), "\ncsharp-echo-csharp-shape-00001\t") {
+		t.Fatalf("combined manifest %v", err)
+	}
+	rows = append(rows, rows[0])
 	if err = writeManifest(filepath.Join(input, "manifest.tsv"), rows); err != nil {
 		t.Fatal(err)
 	}
@@ -77,38 +86,59 @@ func TestManifestConsumesIndependentFixture(t *testing.T) {
 		t.Fatal("duplicate IDs accepted")
 	}
 }
-func TestManifestRejectsEscapingFile(t *testing.T) {
-	if _, err := manifestPath(t.TempDir(), "../outside.json"); err == nil {
-		t.Fatal("escaping path accepted")
+
+func TestManifestRejectsMalformedRows(t *testing.T) {
+	good := formatRow(row(t, "csharp-shape-00001", identityName, &c.Identity{}))
+	columns := strings.Split(good, "\t")
+	for name, lines := range map[string][]string{
+		"header":     {"id\tmessage\tjson\tbinary", good},
+		"columns":    {manifestHeader, columns[0] + "\t" + columns[1] + "\t" + columns[2]},
+		"id":         {manifestHeader, "../escape\t" + columns[1] + "\t" + columns[2] + "\t" + columns[3]},
+		"message":    {manifestHeader, columns[0] + "\tgoogle.protobuf.Empty\t{}\t"},
+		"base64":     {manifestHeader, columns[0] + "\t" + columns[1] + "\t" + columns[2] + "\t!!"},
+		"json":       {manifestHeader, columns[0] + "\t" + columns[1] + "\t{\"unknown\":1}\t" + columns[3]},
+		"disagree":   {manifestHeader, columns[0] + "\t" + columns[1] + "\t{\"mapId\":1}\t" + columns[3]},
+		"empty":      {manifestHeader},
+		"headerOnly": {},
+	} {
+		t.Run(name, func(t *testing.T) {
+			input := t.TempDir()
+			if err := os.WriteFile(filepath.Join(input, "manifest.tsv"), []byte(strings.Join(lines, "\n")+"\n"), 0600); err != nil {
+				t.Fatal(err)
+			}
+			if _, err := readShapeManifest(input, "manifest.tsv"); err == nil {
+				t.Fatal("malformed manifest accepted")
+			}
+		})
+	}
+	input := t.TempDir()
+	if err := os.WriteFile(filepath.Join(input, "manifest.tsv"), []byte(string(rune(0xFEFF))+manifestHeader+"\r\n"+good+"\r\n"), 0600); err != nil {
+		t.Fatal(err)
+	}
+	if records, err := readShapeManifest(input, "manifest.tsv"); err != nil || len(records) != 1 {
+		t.Fatalf("BOM and CRLF manifest rejected: %v", err)
 	}
 }
 
 func TestGoShapeEchoRejectsConsistentValueLossAndSetErrors(t *testing.T) {
 	original, input := t.TempDir(), t.TempDir()
 	wanted := &c.Identity{ColonyId: proto.String("colony"), LoadToken: proto.String("load"), MapId: proto.Int32(0)}
-	if err := writePair(original, "go-shape-00001", wanted); err != nil {
+	if err := writeManifest(filepath.Join(original, "manifest.tsv"), []manifestRow{row(t, "go-shape-00001", identityName, wanted)}); err != nil {
 		t.Fatal(err)
 	}
-	header := []string{"id", "message", "json", "binary"}
-	originalRow := []string{"go-shape-00001", "rimgovernor.common.v1.Identity", "go-shape-00001.json", "go-shape-00001.bin"}
-	if err := writeManifest(filepath.Join(original, "manifest.tsv"), [][]string{header, originalRow}); err != nil {
-		t.Fatal(err)
-	}
-	echoRow := []string{"go-echo-go-shape-00001", "rimgovernor.common.v1.Identity", "echo.json", "echo.bin"}
-	if err := writePair(input, "echo", wanted); err != nil {
-		t.Fatal(err)
-	}
-	if err := writeManifest(filepath.Join(input, "manifest.tsv"), [][]string{header, echoRow}); err != nil {
+	echoRow := row(t, "go-echo-go-shape-00001", identityName, wanted)
+	if err := writeManifest(filepath.Join(input, "manifest.tsv"), []manifestRow{echoRow}); err != nil {
 		t.Fatal(err)
 	}
 	if err := verifyGoShapeEcho(input, original); err != nil {
 		t.Fatal(err)
 	}
-	for name, rows := range map[string][][]string{
-		"empty":     {header},
-		"duplicate": {header, echoRow, echoRow},
-		"missing":   {header, {"go-echo-go-shape-00002", echoRow[1], echoRow[2], echoRow[3]}},
-		"extra":     {header, echoRow, {"go-echo-go-shape-00002", echoRow[1], echoRow[2], echoRow[3]}},
+	other := row(t, "go-echo-go-shape-00002", identityName, wanted)
+	for name, rows := range map[string][]manifestRow{
+		"empty":     {},
+		"duplicate": {echoRow, echoRow},
+		"missing":   {other},
+		"extra":     {echoRow, other},
 	} {
 		t.Run(name, func(t *testing.T) {
 			if err := writeManifest(filepath.Join(input, "manifest.tsv"), rows); err != nil {
@@ -119,10 +149,8 @@ func TestGoShapeEchoRejectsConsistentValueLossAndSetErrors(t *testing.T) {
 			}
 		})
 	}
-	if err := writePair(input, "echo", &c.Identity{ColonyId: proto.String("colony"), LoadToken: proto.String("load")}); err != nil {
-		t.Fatal(err)
-	}
-	if err := writeManifest(filepath.Join(input, "manifest.tsv"), [][]string{header, echoRow}); err != nil {
+	lost := row(t, "go-echo-go-shape-00001", identityName, &c.Identity{ColonyId: proto.String("colony"), LoadToken: proto.String("load")})
+	if err := writeManifest(filepath.Join(input, "manifest.tsv"), []manifestRow{lost}); err != nil {
 		t.Fatal(err)
 	}
 	if err := verifyGoShapeEcho(input, original); err == nil {
@@ -134,10 +162,7 @@ func TestGoShapeEchoRejectsConsistentValueLossAndSetErrors(t *testing.T) {
 }
 func TestOriginManifestRequiresAllMessages(t *testing.T) {
 	input := t.TempDir()
-	if err := writePair(input, "one", &c.Identity{}); err != nil {
-		t.Fatal(err)
-	}
-	if err := writeManifest(filepath.Join(input, "manifest.tsv"), [][]string{{"id", "message", "json", "binary"}, {"csharp-shape-1", "rimgovernor.common.v1.Identity", "one.json", "one.bin"}}); err != nil {
+	if err := writeManifest(filepath.Join(input, "manifest.tsv"), []manifestRow{row(t, "csharp-shape-1", identityName, &c.Identity{})}); err != nil {
 		t.Fatal(err)
 	}
 	if err := verifyShapeManifest(input, t.TempDir()); err == nil {

@@ -43,6 +43,7 @@ type options struct {
 	output    string
 	check     bool
 	goTool    string
+	modCache  string
 }
 
 // evidence is result.json; keys appear in the order the run produces them.
@@ -73,6 +74,7 @@ func main() {
 	flag.StringVar(&opts.output, "output", "", "fresh private artifact directory (required)")
 	flag.BoolVar(&opts.check, "check", false, "fail on generated drift without changing checked-in files")
 	flag.StringVar(&opts.goTool, "go", "go", "pinned repository Go executable")
+	flag.StringVar(&opts.modCache, "modcache", "", "reusable GOMODCACHE for the plugin install (default: private to this run)")
 	flag.Parse()
 	if opts.protoc == "" || opts.output == "" {
 		fmt.Fprintln(os.Stderr, "-protoc and -output are required")
@@ -165,7 +167,13 @@ func run(opts options) (err error) {
 	if err := os.MkdirAll(output, 0o755); err != nil {
 		return err
 	}
-	r := &runner{env: privateEnv(output), evidence: &evidence{PluginVersion: pluginVersion, Commands: []commandRecord{}}}
+	modCache := opts.modCache
+	if modCache == "" {
+		modCache = filepath.Join(output, "modcache")
+	} else if modCache, err = filepath.Abs(modCache); err != nil {
+		return err
+	}
+	r := &runner{env: privateEnv(output, modCache), evidence: &evidence{PluginVersion: pluginVersion, Commands: []commandRecord{}}}
 	defer func() {
 		if writeErr := writeEvidence(filepath.Join(output, "result.json"), r.evidence); writeErr != nil && err == nil {
 			err = writeErr
@@ -174,8 +182,10 @@ func run(opts options) (err error) {
 	return r.generate(protoc, protoRoot, output, opts)
 }
 
-// privateEnv keeps the plugin install and module caches inside the run.
-func privateEnv(output string) []string {
+// privateEnv keeps the plugin install and build cache inside the run; the module
+// cache is private too unless the caller supplies a reusable one (go.sum still
+// verifies its contents).
+func privateEnv(output, modCache string) []string {
 	env := os.Environ()
 	set := func(key, value string) {
 		prefix := key + "="
@@ -193,7 +203,7 @@ func privateEnv(output string) []string {
 	set("GOWORK", "off")
 	set("GOBIN", filepath.Join(output, "bin"))
 	set("GOCACHE", filepath.Join(output, "cache"))
-	set("GOMODCACHE", filepath.Join(output, "modcache"))
+	set("GOMODCACHE", modCache)
 	return env
 }
 

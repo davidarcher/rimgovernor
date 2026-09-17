@@ -1,0 +1,49 @@
+# Native mod (Bridge + Runtime) packaged by scripts/build_native_mod.ps1.
+# Needs the game's managed assemblies, Harmony and the RimBridgeServer SDK;
+# without them the build reports `unavailable` naming the missing path.
+version: '3'
+
+vars:
+  REPO: '{{.TASKFILE_DIR}}/../..'
+  EVIDENCE: '{{.REPO}}/.rimgovernor/task/native'
+  RIMWORLD_MANAGED_DIR: '{{.RIMWORLD_MANAGED_DIR | default "C:/Program Files (x86)/Steam/steamapps/common/RimWorld/RimWorldWin64_Data/Managed"}}'
+  HARMONY_ASSEMBLY: '{{.HARMONY_ASSEMBLY | default "C:/Program Files (x86)/Steam/steamapps/workshop/content/294100/2009463077/Current/Assemblies/0Harmony.dll"}}'
+  RIMBRIDGE_SDK_DIR: '{{.RIMBRIDGE_SDK_DIR | default "C:/Program Files (x86)/Steam/steamapps/common/RimWorld/Mods/RimBridgeServer/1.6/Assemblies"}}'
+
+tasks:
+  build:
+    desc: Bridge and Runtime with warnings as errors and a locked restore, packaged with notices
+    sources:
+      - 'src/**/*'
+      - 'About/**/*'
+      - 'Notices/**/*'
+      - '{{.REPO}}/contracts/proto/**/*'
+      - '{{.REPO}}/contracts/generated/protobuf/csharp/**/*'
+      - '{{.REPO}}/scripts/build_native_mod.ps1'
+      - '{{.RIMWORLD_MANAGED_DIR}}/*.dll'
+      - '{{.HARMONY_ASSEMBLY}}'
+      - '{{.RIMBRIDGE_SDK_DIR}}/*.dll'
+      - exclude: '**/bin/**'
+      - exclude: '**/obj/**'
+    generates:
+      - '{{.EVIDENCE}}/mod/RimGovernor/native-manifest.json'
+    cmds:
+      - |
+        missing=""
+        for input in "{{.RIMWORLD_MANAGED_DIR}}/Assembly-CSharp.dll" "{{.HARMONY_ASSEMBLY}}" "{{.RIMBRIDGE_SDK_DIR}}/RimBridgeServer.Sdk.dll"; do
+          [ -f "$input" ] || missing="$missing $input"
+        done
+        if [ -n "$missing" ]; then
+          echo "native build: unavailable (missing$missing)"
+          exit 0
+        fi
+        rm -rf "{{.EVIDENCE}}/mod"
+        mkdir -p "{{.EVIDENCE}}"
+        pwsh -NoProfile -File "{{.REPO}}/scripts/build_native_mod.ps1" \
+          -RimWorldManagedDir "{{.RIMWORLD_MANAGED_DIR}}" -HarmonyAssembly "{{.HARMONY_ASSEMBLY}}" \
+          -RimBridgeSdkDir "{{.RIMBRIDGE_SDK_DIR}}" -OutputRoot "{{.EVIDENCE}}/mod"
+
+  test:
+    desc: No unit tests; native behavior is verified by go/internal/nativeaccept harnesses against a real game
+    cmds:
+      - 'echo "native test: no unit tests (game-level acceptance lives in go/internal/nativeaccept/cmd)"'

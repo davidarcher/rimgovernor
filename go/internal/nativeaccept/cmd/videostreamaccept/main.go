@@ -260,8 +260,6 @@ func run(ctx context.Context, root, output, gameID string, report na.Report) err
 	if sharedRate < 10 {
 		return fmt.Errorf("shared-memory-read: %.1f frames/s is no better than the ReadFrame poll", sharedRate)
 	}
-	lastShared := sharedSequences[len(sharedSequences)-1]
-
 	// Case 3: AcknowledgeFrame for the most recently observed frame.
 	ackReply, err := h.Wire(ctx, "acknowledge-frame", "presentation_acknowledge_frame", map[string]any{
 		"viewer":          viewer,
@@ -317,11 +315,11 @@ func run(ctx context.Context, root, output, gameID string, report na.Report) err
 	// Case 5b: the released buffer publishes nothing further; a reader that
 	// still holds the mapping sees no new sequence past the one current once
 	// the stop returned (frames kept landing between the window and the stop).
-	if current, ok, err := shared.Read(0); err != nil || !ok {
+	current, ok, err := shared.Read(0)
+	if err != nil || !ok {
 		return fmt.Errorf("shared-memory-read-after-stop: no current frame (%v)", err)
-	} else {
-		lastShared = current.Sequence
 	}
+	lastShared := current.Sequence
 	time.Sleep(300 * time.Millisecond)
 	if _, ok, err := shared.Read(lastShared); err != nil {
 		return fmt.Errorf("shared-memory-read-after-stop: %w", err)

@@ -169,7 +169,7 @@ notification/health trials remain failure evidence alongside the successful runs
 
 Source declarations do not establish gameplay acceptance. Actual installed
 discovery must match the private build and prove fixture exclusion. Generated
-compile inputs are checked by `.github/workflows/protobuf.yml`; identity,
+compile inputs are checked by `task protobuf:build` (`.github/workflows/ci.yml`); identity,
 authority readback, placement and wire acceptance through these fixed Protobuf
 capabilities is Go native acceptance tracked in
 [issue #38](https://github.com/davidarcher/rimgovernor/issues/38). No saved-game

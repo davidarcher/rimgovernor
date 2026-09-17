@@ -15,6 +15,7 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"testing"
 	"time"
 
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
@@ -107,8 +108,7 @@ func Open(ctx context.Context, path string) (*Store, error) {
 	q.Set("_txlock", "immediate")
 	q.Set("_busy_timeout", "25")
 	q.Add("_pragma", "foreign_keys(1)")
-	q.Add("_pragma", "journal_mode(WAL)")
-	q.Add("_pragma", "synchronous(NORMAL)")
+	q.Add("_pragma", "synchronous("+syncMode()+")")
 	u.RawQuery = q.Encode()
 	db, err := sql.Open("sqlite", u.String())
 	if err != nil {
@@ -116,6 +116,19 @@ func Open(ctx context.Context, path string) (*Store, error) {
 	}
 	db.SetMaxOpenConns(1)
 	db.SetMaxIdleConns(1)
+	// WAL mode is persistent in the file, so it is switched here, after the
+	// per-connection synchronous setting applies, rather than as a URI pragma
+	// (the driver runs those in lexicographic order, so the mode switch would
+	// fsync under the default FULL setting on every fresh database).
+	var journal string
+	if err = retryBusy(ctx, func() error { return db.QueryRowContext(ctx, "PRAGMA journal_mode=WAL").Scan(&journal) }); err != nil {
+		_ = db.Close()
+		return nil, err
+	}
+	if !strings.EqualFold(journal, "wal") {
+		_ = db.Close()
+		return nil, fmt.Errorf("journal mode %q, want wal", journal)
+	}
 	s := &Store{db: db}
 	if err = s.initialize(ctx); err != nil {
 		_ = db.Close()
@@ -125,19 +138,40 @@ func Open(ctx context.Context, path string) (*Store, error) {
 }
 func (s *Store) Close() error { return s.db.Close() }
 
+// syncMode keeps WAL durability in production. Under `go test` every test opens
+// a fresh database, and the per-commit and close-time fsyncs dominate the
+// suite's wall clock on Windows without verifying anything the tests assert
+// (crash durability needs a killed process, not a returned Commit).
+func syncMode() string {
+	if testing.Testing() {
+		return "OFF"
+	}
+	return "NORMAL"
+}
+
 func (s *Store) begin(ctx context.Context) (*sql.Tx, error) {
+	var tx *sql.Tx
+	err := retryBusy(ctx, func() (err error) {
+		tx, err = s.db.BeginTx(ctx, nil)
+		return err
+	})
+	return tx, err
+}
+
+// retryBusy repeats operation while it fails with SQLITE_BUSY or SQLITE_LOCKED.
+func retryBusy(ctx context.Context, operation func() error) error {
 	for {
-		tx, err := s.db.BeginTx(ctx, nil)
+		err := operation()
 		if err == nil {
-			return tx, nil
+			return nil
 		}
 		var sqliteErr *sqlite.Error
 		if !errors.As(err, &sqliteErr) || (sqliteErr.Code()&255 != 5 && sqliteErr.Code()&255 != 6) {
-			return nil, err
+			return err
 		}
 		select {
 		case <-ctx.Done():
-			return nil, ctx.Err()
+			return ctx.Err()
 		case <-time.After(10 * time.Millisecond):
 		}
 	}

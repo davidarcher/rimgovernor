@@ -1,0 +1,19 @@
+# Generated Go wire module (protoc-gen-go output plus maintained module metadata).
+# Generation drift against contracts/proto is checked by tools/protobuf:build.
+version: '3'
+
+tasks:
+  build:
+    desc: gofmt, module integrity, vet and compile of the generated wire module
+    cmds:
+      - |
+        unformatted="$(gofmt -l .)"
+        if [ -n "$unformatted" ]; then echo "gofmt -l: $unformatted"; exit 1; fi
+      - go mod verify
+      - go vet -mod=readonly ./...
+      - go build -mod=readonly ./...
+
+  test:
+    desc: No tests of its own; generated code is exercised by tools/protobuf:test
+    cmds:
+      - go test -mod=readonly ./...
