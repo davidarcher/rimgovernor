@@ -63,6 +63,13 @@ func (r *RoutineSecureSuppliesPlanner) Step(ctx context.Context) (RoutineSecureS
 	defer done()
 	return r.step(call, epoch, newStepArbiter())
 }
+// maxSecureSuppliesHaulAttempts bounds direct hauls of one item per goal
+// episode before SecureSupplies tries its covered-storage fallbacks. Two is
+// enough: a haul that native refuses for a whole stall grace (no storage
+// accepts the item) is cancelled by cancelStaleHaulMethods, and a second
+// identical refusal means the map, not the hauler, is the problem.
+const maxSecureSuppliesHaulAttempts = 2
+
 func (r *RoutineSecureSuppliesPlanner) step(call, epoch context.Context, arbiter *stepArbiter) (RoutineSecureSuppliesResult, error) {
 	p := r.reviewer.player
 	state := p.session.State()
@@ -133,7 +140,7 @@ func (r *RoutineSecureSuppliesPlanner) step(call, epoch context.Context, arbiter
 	if len(targetIDs) == 0 {
 		return RoutineSecureSuppliesResult{Reason: BuildingMethodUsed}, nil
 	}
-	if open, err := cancelStaleHaulMethods(call, p.journal, goal, targetIDs); err != nil {
+	if open, err := cancelStaleHaulMethods(call, p.journal, goal, targetIDs, review.Tick, r.reviewer.policy.HaulStallTicks); err != nil {
 		return RoutineSecureSuppliesResult{}, err
 	} else if open {
 		return RoutineSecureSuppliesResult{Reason: BuildingMethodExistingWork}, nil
@@ -226,7 +233,7 @@ func (r *RoutineSecureSuppliesPlanner) step(call, epoch context.Context, arbiter
 	// interrupted or refused try picks whichever hauler is currently best.
 	prefix := fmt.Sprintf("secure-supplies-%s-", item.ID)
 	attempt := medicalAttemptCount(goal.Methods, goal.Goal.Epoch, prefix)
-	if attempt >= maxMedicalAttemptsPerPatient {
+	if attempt >= maxSecureSuppliesHaulAttempts {
 		fallback, err := r.coveredStorageFallback(call, epoch, state, goal, reading.Projection, item, started, arbiter)
 		if err != nil {
 			return RoutineSecureSuppliesResult{}, err

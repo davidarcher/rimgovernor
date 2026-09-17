@@ -138,7 +138,7 @@ func (r *RoutineHaulPlanner) step(call, epoch context.Context, arbiter *stepArbi
 	if len(targetIDs) == 0 {
 		return RoutineHaulResult{Reason: BuildingMethodUsed}, nil
 	}
-	if open, err := cancelStaleHaulMethods(call, p.journal, goal, targetIDs); err != nil {
+	if open, err := cancelStaleHaulMethods(call, p.journal, goal, targetIDs, review.Tick, r.reviewer.policy.HaulStallTicks); err != nil {
 		return RoutineHaulResult{}, err
 	} else if open {
 		return RoutineHaulResult{Reason: BuildingMethodExistingWork}, nil

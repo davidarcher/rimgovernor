@@ -162,6 +162,10 @@ type HoldEvidence struct {
 	Plan     PlanID
 	Revision PlanRevision
 	Tick     Tick
+	// Since is the tick this exact reason set was first recorded on this
+	// plan revision; a repeated identical hold keeps it, so planners can
+	// tell a long-stalled hold from a fresh one.
+	Since Tick
 }
 
 // Reasons decodes the packed bits back into their canonical, deduplicated,
@@ -280,7 +284,11 @@ func (p Progress) Hold(reasons []HeldReason, tick Tick) (Progress, error) {
 		}
 		bits |= bit
 	}
-	p.view.HeldReason = Known(HoldEvidence{reasons: bits, Plan: p.view.Plan, Revision: p.view.Revision, Tick: tick})
+	since := tick
+	if previous, known := p.view.HeldReason.Value(); known && previous.Plan == p.view.Plan && previous.Revision == p.view.Revision && previous.reasons == bits && previous.Since <= tick {
+		since = previous.Since
+	}
+	p.view.HeldReason = Known(HoldEvidence{reasons: bits, Plan: p.view.Plan, Revision: p.view.Revision, Tick: tick, Since: since})
 	return p, nil
 }
 
@@ -288,14 +296,24 @@ func (p Progress) Hold(reasons []HeldReason, tick Tick) (Progress, error) {
 // it, rather than trusting the stored Fact alone. Any DTO projection must go
 // through this instead of reading HeldReason directly.
 func (v ProgressView) FreshHeldReason() ([]HeldReason, bool) {
-	if v.Stage != Pending && v.Stage != Prepared || v.Unresolved {
-		return nil, false
-	}
-	evidence, known := v.HeldReason.Value()
-	if !known || evidence.Plan != v.Plan || evidence.Revision != v.Revision || evidence.Tick < v.Tick {
+	evidence, ok := v.FreshHold()
+	if !ok {
 		return nil, false
 	}
 	return evidence.Reasons(), true
+}
+
+// FreshHold is FreshHeldReason's evidence form, for callers that also need
+// how long the current reason set has persisted (Since).
+func (v ProgressView) FreshHold() (HoldEvidence, bool) {
+	if v.Stage != Pending && v.Stage != Prepared || v.Unresolved {
+		return HoldEvidence{}, false
+	}
+	evidence, known := v.HeldReason.Value()
+	if !known || evidence.Plan != v.Plan || evidence.Revision != v.Revision || evidence.Tick < v.Tick {
+		return HoldEvidence{}, false
+	}
+	return evidence, true
 }
 func (p Progress) MarkDispatched(current GenerationSnapshot, tick Tick) (Progress, error) {
 	if p.view.Stage != Prepared || !p.view.Snapshot.Matches(current) || tick < p.view.Tick {

@@ -66,6 +66,12 @@ type RoutinePolicy struct {
 	// open work forever and blocks the planner from ever trying a different
 	// prey or a non-hunt source.
 	HuntStallTicks int64
+	// HaulStallTicks bounds how long a proposed haul may stay held as
+	// native_ineligible (no storage accepts the thing, no hauler can reach
+	// it) before the planner cancels it so the attempt count advances toward
+	// the covered-storage fallback instead of re-inspecting the same refusal
+	// forever.
+	HaulStallTicks int64
 	// ResearchTarget is an operator-declared desired native ResearchProjectDef
 	// name; empty disables EnsureResearch's routine dispatch. The need is
 	// measured against RoutineFacts.Research each review (idle tab with the
@@ -125,7 +131,7 @@ type RoutinePolicy struct {
 
 func DefaultRoutinePolicy() RoutinePolicy {
 	return RoutinePolicy{AnimalUpkeep: DefaultAnimalUpkeepPolicy(), MedicalReserve: DefaultMedicalReservePolicy(), FoodStorage: DefaultFoodStoragePolicy(), Cleanliness: DefaultCleanlinessPolicy(), Lighting: DefaultLightingPolicy(), MaxDevelopmentProjects: 2, FoodMinDays: 3, FoodTargetDays: 7, FootholdFoodDays: 3,
-		ColdEnter: 12, ColdExit: 16, HotExit: 28, HotEnter: 32, WoodMin: 120, WoodTarget: 350, WoodMax: 500, HuntStallTicks: 6000}
+		ColdEnter: 12, ColdExit: 16, HotExit: 28, HotEnter: 32, WoodMin: 120, WoodTarget: 350, WoodMax: 500, HuntStallTicks: 6000, HaulStallTicks: 2500}
 }
 
 func (p RoutinePolicy) Validate() error {
@@ -156,6 +162,9 @@ func (p RoutinePolicy) Validate() error {
 	}
 	if p.HuntStallTicks <= 0 {
 		return errors.New("invalid hunt stall grace")
+	}
+	if p.HaulStallTicks <= 0 {
+		return errors.New("invalid haul stall grace")
 	}
 	if p.ResearchTarget != "" && !validResource(Resource(p.ResearchTarget)) {
 		return errors.New("invalid research target")

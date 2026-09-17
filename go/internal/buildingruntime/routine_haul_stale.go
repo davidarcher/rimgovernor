@@ -12,8 +12,11 @@ import (
 // colonists (or the player) already stored, consumed or forbade it, so the
 // proposal can never complete and would otherwise hold the goal's only
 // method slot forever (EvaluateHaul keeps refusing it as thing_absent). It
-// reports whether any open work remains after the cancellations.
-func cancelStaleHaulMethods(ctx context.Context, journal *store.Store, goal store.GoalState, targets []string) (bool, error) {
+// A haul held as native_ineligible for stallTicks or longer (no storage
+// accepts the thing, nobody can reach it) is cancelled the same way so the
+// goal's attempt count advances toward its fallbacks. It reports whether any
+// open work remains after the cancellations.
+func cancelStaleHaulMethods(ctx context.Context, journal *store.Store, goal store.GoalState, targets []string, now domain.Tick, stallTicks int64) (bool, error) {
 	current := map[string]bool{}
 	for _, id := range targets {
 		current[id] = true
@@ -37,7 +40,10 @@ func cancelStaleHaulMethods(ctx context.Context, journal *store.Store, goal stor
 		for _, progress := range plan.Progress {
 			v := progress.View()
 			haul, ok := hauls[v.Action]
-			if !ok || current[haul.Thing()] || v.Stage != domain.Pending && v.Stage != domain.Prepared {
+			if !ok || v.Stage != domain.Pending && v.Stage != domain.Prepared {
+				continue
+			}
+			if current[haul.Thing()] && !haulStalled(v, now, stallTicks) {
 				continue
 			}
 			if _, err = journal.Cancel(ctx, method.Plan, v.Action); err != nil {
@@ -53,4 +59,20 @@ func cancelStaleHaulMethods(ctx context.Context, journal *store.Store, goal stor
 		open = open || domain.GoalWorkOpen(plan.Progress)
 	}
 	return open, nil
+}
+
+func haulStalled(v domain.ProgressView, now domain.Tick, stallTicks int64) bool {
+	if stallTicks <= 0 {
+		return false
+	}
+	hold, ok := v.FreshHold()
+	if !ok {
+		return false
+	}
+	for _, reason := range hold.Reasons() {
+		if reason == domain.HeldNativeIneligible && int64(now-hold.Since) >= stallTicks {
+			return true
+		}
+	}
+	return false
 }
