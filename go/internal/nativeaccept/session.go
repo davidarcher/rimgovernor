@@ -117,6 +117,7 @@ func (c *Config) PrepareConfig() error {
 		return err
 	}
 	c.Configuration = configuration
+	startCache.root, startCache.headless, startCache.expansions = mustAbs(c.Root), c.Headless, expansions
 	return nil
 }
 

@@ -249,6 +249,18 @@ that fails still leaves the process at the menu, and a harness that dies
 without reaching `Close` leaves a game loaded, which the next `OpenGame`
 unloads.
 
+### Loading the debug start instead of generating it
+
+`RIMGOVERNOR_ACCEPT_CACHED_START=1` makes `StartDebugGame` load a saved
+copy of the quick start (`RimGovernor-debug-<size>-<coverage>[-<dlc>]`
+in `profile/Saves`, written by the first start that misses it) instead
+of generating a world and map: ~2.7s against ~5.4s on a warm process,
+surgeryaccept 14s to 10s on a kept game. It is opt-in: the loaded colony
+is the same one every run rather than a new world, so a harness that is
+about world generation or a first-load identity runs without it, and
+the save must be deleted to pick up a fixture or start change that
+alters the colony.
+
 ### Running harnesses in parallel
 
 `suiteaccept -root <root> -output <out> -bin <bin> -workers N -harnesses a,b,c`
