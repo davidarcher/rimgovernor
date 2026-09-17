@@ -199,12 +199,16 @@ func (r *RoutineSleepingUpkeepPlanner) step(call, epoch context.Context, arbiter
 	}
 	// Assign: one pawn, one bed, once per goal epoch. A method that already
 	// ran this epoch (the native side refused it, or the player undid it) is
-	// not retried; the next epoch reconsiders.
-	method := domain.MethodID(fmt.Sprintf("sleeping-assign-%s-%s", choice.Pawn, choice.Bed))
-	if _, err = p.journal.LoadGoalMethod(call, goal.Goal.ID, goal.Goal.Epoch, method); err == nil {
-		return RoutineBuildingResult{Reason: BuildingMethodUsed}, nil
-	} else if !errors.Is(err, store.ErrNotFound) {
+	// not retried; the next epoch reconsiders. The one exception is an
+	// attempt the native side never admitted (the pawn's CAS token moves
+	// whenever the colonist lies down between inspection and write): that
+	// leaves no effect behind, so a bounded number of fresh attempts follow.
+	method, err := r.assignMethod(call, goal, choice)
+	if err != nil {
 		return RoutineBuildingResult{}, err
+	}
+	if method == "" {
+		return RoutineBuildingResult{Reason: BuildingMethodUsed}, nil
 	}
 	previous := domain.ClearPreviousBed()
 	if choice.PreviousBed != "" {
@@ -247,4 +251,52 @@ func (r *RoutineSleepingUpkeepPlanner) step(call, epoch context.Context, arbiter
 		return RoutineBuildingResult{}, err
 	}
 	return RoutineBuildingResult{Reason: BuildingMethodAdmitted}, nil
+}
+
+// sleepingAssignAttempts bounds the unadmitted assignment attempts one goal
+// epoch may make for the same pawn and bed.
+const sleepingAssignAttempts = 3
+
+// assignMethod returns the method ID for the next assignment attempt of this
+// epoch, or "" when the pair was already attempted and admitted (or the
+// attempt bound is spent).
+func (r *RoutineSleepingUpkeepPlanner) assignMethod(call context.Context, goal store.GoalState, choice policy.SleepingChoice) (domain.MethodID, error) {
+	p := r.reviewer.player
+	base := fmt.Sprintf("sleeping-assign-%s-%s", choice.Pawn, choice.Bed)
+	for try := 0; try < sleepingAssignAttempts; try++ {
+		method := domain.MethodID(base)
+		if try > 0 {
+			method = domain.MethodID(fmt.Sprintf("%s-retry%d", base, try))
+		}
+		existing, err := p.journal.LoadGoalMethod(call, goal.Goal.ID, goal.Goal.Epoch, method)
+		if errors.Is(err, store.ErrNotFound) {
+			return method, nil
+		}
+		if err != nil {
+			return "", err
+		}
+		plan, err := p.journal.LoadPlan(call, existing.Plan)
+		if err != nil {
+			return "", err
+		}
+		if !sleepingAssignUnadmitted(plan.Progress) {
+			return "", nil
+		}
+	}
+	return "", nil
+}
+
+// sleepingAssignUnadmitted reports a settled plan whose every action ended
+// absent: the native side refused it before admission, so nothing changed.
+func sleepingAssignUnadmitted(progress []domain.Progress) bool {
+	if len(progress) == 0 || domain.GoalWorkOpen(progress) {
+		return false
+	}
+	for _, pr := range progress {
+		effect, known := pr.View().Effect.Value()
+		if !known || effect != domain.EffectAbsent {
+			return false
+		}
+	}
+	return true
 }

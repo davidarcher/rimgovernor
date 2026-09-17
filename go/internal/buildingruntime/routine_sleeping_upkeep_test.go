@@ -145,6 +145,86 @@ func TestSleepingUpkeepAssignsVacantBedOncePerEpoch(t *testing.T) {
 	}
 }
 
+// An assignment the native side refused before admission (a pawn CAS token
+// that moved between inspection and write, observed absent) leaves nothing
+// behind, so the epoch retries it a bounded number of times; an attempt that
+// was admitted is never repeated.
+func TestSleepingUpkeepRetriesUnadmittedAssignment(t *testing.T) {
+	t.Parallel()
+	ctx := context.Background()
+	planner, db, _ := sleepingUpkeepFixture(t)
+	review, err := db.LoadRoutineReview(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	settle := func(method domain.MethodID, effect domain.Effect) {
+		t.Helper()
+		goal := sleepingGoal(t, db)
+		var plan domain.PlanID
+		for _, m := range goal.Methods {
+			if m.Method == method {
+				plan = m.Plan
+			}
+		}
+		if plan == "" {
+			t.Fatal(method, goal.Methods)
+		}
+		state, err := db.LoadPlan(ctx, plan)
+		if err != nil || len(state.Progress) != 1 {
+			t.Fatal(state, err)
+		}
+		action := state.Progress[0].Action().ID()
+		snapshot := review.Snapshot
+		snapshot.Plan, snapshot.Revision = plan, state.Spec.Revision()
+		v := store.BedAssignAdmission{Snapshot: snapshot, Tick: review.Tick, Pawn: "patient", Bed: "bed", PreviousBedClear: true, PawnSnapshotToken: "pawn-cas", BedSnapshotToken: "bed-cas"}
+		if _, err = db.PrepareBedAssign(ctx, plan, action, v); err != nil {
+			t.Fatal(err)
+		}
+		if _, err = db.Dispatch(ctx, plan, action, snapshot, review.Tick); err != nil {
+			t.Fatal(err)
+		}
+		if _, err = db.RecordReceipt(ctx, plan, action, 1, domain.ReceiptUnknown); err != nil {
+			t.Fatal(err)
+		}
+		if _, err = db.Observe(ctx, plan, domain.Observation{Action: action, Attempt: 1, Snapshot: snapshot, Tick: review.Tick + 1, Causality: domain.AfterDispatch, Effect: effect}, snapshot); err != nil {
+			t.Fatal(err)
+		}
+		// The worker retires an absent attempt by cancelling it (the live
+		// run's "stage=cancelled effect=absent").
+		if effect == domain.EffectAbsent {
+			if _, err = db.Cancel(ctx, plan, action); err != nil {
+				t.Fatal(err)
+			}
+		}
+	}
+	for i, method := range []domain.MethodID{"sleeping-assign-patient-bed", "sleeping-assign-patient-bed-retry1", "sleeping-assign-patient-bed-retry2"} {
+		result, err := planner.Step(ctx)
+		if err != nil || result.Reason != BuildingMethodAdmitted {
+			t.Fatal(i, result, err)
+		}
+		if goal := sleepingGoal(t, db); len(goal.Methods) != i+1 || goal.Methods[i].Method != method {
+			t.Fatal(i, goal.Methods)
+		}
+		settle(method, domain.EffectAbsent)
+	}
+	if result, err := planner.Step(ctx); err != nil || result.Reason != BuildingMethodUsed {
+		t.Fatal("fourth attempt", result, err)
+	}
+	// A completed (admitted) attempt is final for the epoch even when the
+	// bed still reads vacant.
+	planner, db, _ = sleepingUpkeepFixture(t)
+	if review, err = db.LoadRoutineReview(ctx); err != nil {
+		t.Fatal(err)
+	}
+	if result, err := planner.Step(ctx); err != nil || result.Reason != BuildingMethodAdmitted {
+		t.Fatal(result, err)
+	}
+	settle("sleeping-assign-patient-bed", domain.EffectCompleted)
+	if result, err := planner.Step(ctx); err != nil || result.Reason != BuildingMethodUsed {
+		t.Fatal(result, err)
+	}
+}
+
 func TestSleepingUpkeepAssignmentNeverCompletesTheGoal(t *testing.T) {
 	t.Parallel()
 	ctx := context.Background()

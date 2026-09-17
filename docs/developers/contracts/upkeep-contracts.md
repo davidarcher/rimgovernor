@@ -212,7 +212,10 @@ use of one) from the upkeep census against the retained use history. The method
 assigns first: the lowest waiting colonist with a vacant suitable bed receives
 the lowest such bed through the typed `bed_assign` operation, one assignment per
 goal epoch, carrying that colonist's expected previous bed so a player change
-since the review is refused rather than overwritten. The native side re-checks
+since the review is refused rather than overwritten. An attempt the native side
+never admitted (its CAS token moved between inspection and write, so the
+observation is absent and nothing changed) is retried up to three times in the
+epoch; an admitted attempt is final for it. The native side re-checks
 vacancy, humanlike/non-medical/non-prisoner eligibility, roof, forbidden state,
 allowed area, reach and the pawn's comfortable temperature band together before
 transferring ownership; it never evicts another owner. Only when nobody can be
