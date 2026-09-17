@@ -177,7 +177,7 @@ func (e *Executor) runExcavation(ctx context.Context, action domain.Action, p do
 	receipt, err := e.excavation.Excavate(ctx, ExcavationDispatch{attempt, inspection.SnapshotToken})
 	kind := receipt.Kind
 	if err != nil {
-		kind = domain.ReceiptUnknown
+		kind = receiptAfterCallError(err)
 	} else if receipt.Action != action.ID() || receipt.Attempt != attempt.Attempt || receipt.Snapshot != expected {
 		kind, err = domain.ReceiptUnknown, ErrEvidence
 	}

@@ -324,10 +324,14 @@ func workerEligible(plan store.PlanState, v domain.ProgressView, scope ControlSt
 	}
 	// A trusted refusal is a no-effect proof. Only a later resume (a newer
 	// native generation) authorizes another attempt; an unknown receipt always
-	// stays reconciliation.
+	// stays reconciliation. A write the transport never issued refused
+	// nothing, so the same generation may retry it.
 	receipt, known := v.Receipt.Value()
 	effect, effectKnown := v.Effect.Value()
-	return v.Stage == domain.Pending && known && receipt == domain.ReceiptRefused && effectKnown && effect == domain.EffectAbsent && playerWorld(v.Snapshot) == world && scope.Snapshot.Native > v.Snapshot.Native
+	if v.Stage != domain.Pending || !known || !effectKnown || effect != domain.EffectAbsent || playerWorld(v.Snapshot) != world {
+		return false
+	}
+	return receipt == domain.ReceiptUnsent || receipt == domain.ReceiptRefused && scope.Snapshot.Native > v.Snapshot.Native
 }
 
 // Read reconciliation may rotate plan targets without changing world authority.

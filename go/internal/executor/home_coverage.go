@@ -95,7 +95,7 @@ func (e *Executor) runHomeCoverage(ctx context.Context, action domain.Action, p 
 	receipt, err := e.homeCoverage.ExtendHomeCoverage(ctx, HomeCoverageDispatch{attempt, admission})
 	kind := receipt.Kind
 	if err != nil {
-		kind = domain.ReceiptUnknown
+		kind = receiptAfterCallError(err)
 	} else if receipt.Action != v.Action || receipt.Attempt != attempt.Attempt || receipt.Snapshot != expected {
 		kind, err = domain.ReceiptUnknown, ErrEvidence
 	}

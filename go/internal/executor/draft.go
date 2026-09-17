@@ -123,7 +123,7 @@ func (e *Executor) runDraft(ctx context.Context, action domain.Action, progress 
 	receipt, err := e.draft.Draft(ctx, DraftDispatch{attempt, inspection.PawnSnapshotToken})
 	kind, claim := receipt.Receipt.Kind, receipt.Claim
 	if err != nil {
-		kind = domain.ReceiptUnknown
+		kind = receiptAfterCallError(err)
 		claim = domain.Unknown[domain.DraftClaim]()
 	} else if receipt.Receipt.Action != v.Action || receipt.Receipt.Attempt != attempt.Attempt || receipt.Receipt.Snapshot != expected {
 		err = ErrEvidence

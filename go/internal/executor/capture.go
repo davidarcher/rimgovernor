@@ -89,7 +89,7 @@ func (e *Executor) runCapture(ctx context.Context, action domain.Action, p domai
 	receipt, err := e.capture.CapturePatient(ctx, CaptureDispatch{attempt, admission})
 	kind := receipt.Kind
 	if err != nil {
-		kind = domain.ReceiptUnknown
+		kind = receiptAfterCallError(err)
 	} else if receipt.Action != v.Action || receipt.Attempt != attempt.Attempt || receipt.Snapshot != expected {
 		kind, err = domain.ReceiptUnknown, ErrEvidence
 	}

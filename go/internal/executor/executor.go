@@ -489,7 +489,7 @@ func (e *Executor) Run(ctx context.Context, plan domain.PlanID, actionID domain.
 	receipt, callErr := e.boundary.Place(ctx, placement)
 	kind := receipt.Kind
 	if callErr != nil {
-		kind = domain.ReceiptUnknown
+		kind = receiptAfterCallError(callErr)
 	} else if receipt.Action != actionID || receipt.Attempt != placement.Attempt || !receipt.Snapshot.Matches(expected) {
 		kind = domain.ReceiptUnknown
 		callErr = ErrEvidence
@@ -603,6 +603,16 @@ func (e *Executor) holdEmergency(ctx context.Context, plan domain.PlanID, action
 		return next
 	}
 	return progress
+}
+
+// receiptAfterCallError classifies a failed native write: a failure the
+// transport proves happened before the call was issued is a no-effect
+// ReceiptUnsent; anything else is uncertain and must reconcile.
+func receiptAfterCallError(err error) domain.Receipt {
+	if errors.Is(err, domain.ErrWriteUnsent) {
+		return domain.ReceiptUnsent
+	}
+	return domain.ReceiptUnknown
 }
 
 func (e *Executor) fresh(start, end time.Time) bool {

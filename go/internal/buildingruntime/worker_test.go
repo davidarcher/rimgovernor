@@ -177,6 +177,29 @@ func TestWorkerRefusalRequiresNewExplicitDirection(t *testing.T) {
 		t.Fatal("fresh native generation rejected")
 	}
 }
+func TestWorkerUnsentWriteRetriesUnderSameDirection(t *testing.T) {
+	t.Parallel()
+	w, _, db := workerFixture(t)
+	v := workerPending(t, w, "unsent", true)
+	progress, err := db.RecordReceipt(context.Background(), v.Plan, v.Action, v.Attempt, domain.ReceiptUnsent)
+	if err != nil {
+		t.Fatal(err)
+	}
+	plan, err := db.LoadPlan(context.Background(), v.Plan)
+	if err != nil {
+		t.Fatal(err)
+	}
+	scope := ControlState{Snapshot: v.Snapshot, ObservationKnown: true, Enabled: true}
+	if view := progress.View(); view.Unresolved || view.Stage != domain.Pending {
+		t.Fatalf("unsent write left uncertain: %+v", view)
+	}
+	if !workerEligible(plan, progress.View(), scope, playerWorld(v.Snapshot)) {
+		t.Fatal("same activation could not retry a write that was never sent")
+	}
+	if workerEligible(plan, progress.View(), scope, store.World{Colony: "other", Load: "load", Map: 0}) {
+		t.Fatal("wrong world retried")
+	}
+}
 func TestWorkerManualCancelsRun(t *testing.T) {
 	t.Parallel()
 	w, f, _ := workerFixture(t)

@@ -121,7 +121,7 @@ func (e *Executor) runResearchSelect(ctx context.Context, action domain.Action, 
 	receipt, err := e.researchSelect.SelectResearch(ctx, ResearchSelectDispatch{attempt, value.Project(), inspection.Token})
 	kind := receipt.Kind
 	if err != nil {
-		kind = domain.ReceiptUnknown
+		kind = receiptAfterCallError(err)
 	} else if receipt.Action != action.ID() || receipt.Attempt != attempt.Attempt || receipt.Snapshot != expected {
 		kind, err = domain.ReceiptUnknown, ErrEvidence
 	}

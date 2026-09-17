@@ -89,7 +89,7 @@ func (e *Executor) runGearReplace(ctx context.Context, action domain.Action, p d
 	receipt, err := e.gearReplace.GearReplacePawn(ctx, GearReplaceDispatch{attempt, admission})
 	kind := receipt.Kind
 	if err != nil {
-		kind = domain.ReceiptUnknown
+		kind = receiptAfterCallError(err)
 	} else if receipt.Action != v.Action || receipt.Attempt != attempt.Attempt || receipt.Snapshot != expected {
 		kind, err = domain.ReceiptUnknown, ErrEvidence
 	}

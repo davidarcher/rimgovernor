@@ -89,7 +89,7 @@ func (e *Executor) runHusbandry(ctx context.Context, action domain.Action, p dom
 	receipt, err := e.husbandry.WriteHusbandry(ctx, HusbandryDispatch{attempt, admission})
 	kind := receipt.Kind
 	if err != nil {
-		kind = domain.ReceiptUnknown
+		kind = receiptAfterCallError(err)
 	} else if receipt.Action != v.Action || receipt.Attempt != attempt.Attempt || receipt.Snapshot != expected {
 		kind, err = domain.ReceiptUnknown, ErrEvidence
 	}

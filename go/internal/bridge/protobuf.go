@@ -11,6 +11,7 @@ import (
 	"time"
 	"unicode/utf8"
 
+	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	a "github.com/davidarcher/RimGovernor/go/internal/wire/authoritypb"
 	k "github.com/davidarcher/RimGovernor/go/internal/wire/clockpb"
 	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
@@ -301,8 +302,10 @@ func (caller *Client) protoCall(ctx context.Context, name string, request, reply
 	var recordCtx map[string]any
 	var requestRow uint64
 	result, err := caller.operation(ctx, func(ctx context.Context, live *liveSession) (Result, error) {
+		// Nothing before games_call_tool reaches native: a failure here is
+		// proof the write was never issued (domain.ErrWriteUnsent).
 		if detail, err := caller.ensureDescribed(ctx, live, name); err != nil {
-			return detail, err
+			return detail, fmt.Errorf("%w: %w", domain.ErrWriteUnsent, err)
 		}
 		invoked = true
 		if caller.recorder != nil {

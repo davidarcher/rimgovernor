@@ -3,6 +3,7 @@ package executor
 import (
 	"context"
 	"errors"
+	"fmt"
 	"path/filepath"
 	"sync"
 	"testing"
@@ -319,6 +320,35 @@ func TestCancelledNativeCallRetainsAttempt(t *testing.T) {
 	}
 	if _, calls, observations := f.env.counts(); calls != 1 || observations != 1 {
 		t.Fatal("next invocation retried instead of observing")
+	}
+}
+
+// A write the transport never issued (domain.ErrWriteUnsent) is no-effect
+// proof: the attempt records ReceiptUnsent and the next run retries with a
+// fresh dispatch instead of reconciling against a ledger entry that never
+// existed (issue #70).
+func TestUnsentWriteRetriesWithoutReconciliation(t *testing.T) {
+	f := newFixture(t)
+	unsent := fmt.Errorf("%w: describe operations_execute: deadline", domain.ErrWriteUnsent)
+	f.env.onPlace = func(context.Context, Placement) (Receipt, error) { return Receipt{}, unsent }
+	if result, err := f.run(); !errors.Is(err, domain.ErrWriteUnsent) || !result.NativeCalled {
+		t.Fatal("unsent write not surfaced", err)
+	}
+	view := f.progress(t)
+	receipt, known := view.Receipt.Value()
+	effect, effectKnown := view.Effect.Value()
+	if view.Unresolved || view.Stage != domain.Pending || view.Attempt != 1 || !known || receipt != domain.ReceiptUnsent || !effectKnown || effect != domain.EffectAbsent {
+		t.Fatalf("unsent write left uncertain: %+v", view)
+	}
+	f.env.onPlace = nil
+	if _, err := f.run(); err != nil {
+		t.Fatal(err)
+	}
+	if _, calls, observations := f.env.counts(); calls != 2 || observations != 0 {
+		t.Fatal("next invocation observed instead of retrying", calls, observations)
+	}
+	if view := f.progress(t); view.Attempt != 2 || view.Stage != domain.AwaitingObservation {
+		t.Fatalf("retry not dispatched: %+v", view)
 	}
 }
 

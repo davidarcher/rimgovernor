@@ -1016,7 +1016,7 @@ func advanceInTransaction(ctx context.Context, tx *sql.Tx, plan domain.PlanID, a
 		}
 		// A trusted refusal proves no bill was created, leaving the bench+recipe pair
 		// claimable again; only an accepted or uncertain write may have produced one.
-		if event.Kind == "receipt" && event.Receipt != domain.ReceiptRefused {
+		if event.Kind == "receipt" && event.Receipt != domain.ReceiptRefused && event.Receipt != domain.ReceiptUnsent {
 			bill, _ := current.Action().ProductionBill()
 			snapshot := current.View().Snapshot
 			// A reopened retry (e.g. an uncertain write later observed absent) claims the
