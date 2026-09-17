@@ -919,8 +919,8 @@ func (s *ClockScheduler) Step(ctx context.Context) (ClockSchedulerResult, error)
 // onto the same g before calling g.Wait(), so the whole non-Routine batch —
 // this function's planners and Step's own — runs as one concurrent wave. A
 // planner left nil in config is simply skipped, matching how Step selected
-// planners inline before this was extracted. Routine's own error (or a
-// mental-risk refusal from the reviewer) aborts before anything is queued;
+// planners inline before this was extracted. Routine's own error aborts
+// before anything is queued;
 // an error from a queued planner is isolated by g and surfaces later, from
 // g.Failures(), without stopping the step.
 func (s *ClockScheduler) stepPlanners(call, epoch context.Context, out *ClockSchedulerResult, g *plannerGroup, arbiter *stepArbiter) error {
@@ -931,13 +931,10 @@ func (s *ClockScheduler) stepPlanners(call, epoch context.Context, out *ClockSch
 			return fmt.Errorf("routine: %w", err)
 		}
 		out.Routine = &review
-		if review.Review.Mood != nil {
-			for _, state := range review.Review.Mood.States {
-				if state.Active && state.MentalRisk {
-					return fmt.Errorf("%w: mental break risk for %s", executor.ErrHeld, state.Pawn.ID)
-				}
-			}
-		}
+		// A mental break is not a hold: it only ends with ticks, so refusing
+		// every window while one is observed stopped the clock for good in
+		// autonomous play. The break stays visible through the pawn's mood
+		// goal and the native hazard supervisor keeps its authority.
 	}
 	if s.config.Work != nil {
 		g.Go(plannerFoothold, func() error {

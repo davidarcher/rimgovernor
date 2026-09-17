@@ -50,7 +50,8 @@ facilities or freed reservations to become eligible. The progress watchdog uses
 per-pawn need high-water marks so unrelated observations or falling needs cannot
 keep stalled work alive.
 
-An active mental break creates an emergency hold and suspends routine development.
-The controller does not force recovery, draft the pawn, arrest it or accelerate time
-through the break. Fresh observations release the hold when the break ends; player
-control and the existing native hazard supervisor retain authority over time.
+An active mental break keeps its pawn's mood goal in deficit but is neither a
+clock hold nor an emergency that suspends routine development: a break only ends
+as ticks pass, so a hold could never observe its clearance. The controller does not
+force recovery, draft the pawn or arrest it; other goals' work still opens ordinary
+windows, and the existing native hazard supervisor retains authority over time.

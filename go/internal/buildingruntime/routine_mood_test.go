@@ -2,13 +2,11 @@ package buildingruntime
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"testing"
 
 	"github.com/davidarcher/RimGovernor/go/internal/bridge"
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
-	"github.com/davidarcher/RimGovernor/go/internal/executor"
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
 	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
 	o "github.com/davidarcher/RimGovernor/go/internal/wire/observationspb"
@@ -42,21 +40,23 @@ func (n *moodRoutineNative) ReadRoutinePawns(ctx context.Context, id *c.Identity
 	return &o.ListPawnsReply{Outcome: &o.ListPawnsReply_Observed{Observed: s}}, bridge.Result{}, ctx.Err()
 }
 
-func TestRoutineMoodMentalHoldRequiresObservedClearance(t *testing.T) {
+// A mental break only ends as ticks pass, so it must not hold the step: the
+// window is still evaluated while the break is observed or unverified. (The
+// store proves it declares no emergency either.)
+func TestRoutineMoodMentalBreakDoesNotHoldTheClock(t *testing.T) {
 	t.Parallel()
 	s, f := schedulerFixture(t)
 	base := schedulerRoutine(t, s, f)
 	n := &moodRoutineNative{routineNative: base, mode: "mental"}
 	s.config.Routine.native = n
-	for _, mode := range []string{"mental", "unknown", "clear"} {
+	for _, mode := range []string{"mental", "unknown"} {
 		n.mode = mode
 		out, err := s.Step(context.Background())
-		if mode != "clear" {
-			if !errors.Is(err, executor.ErrHeld) || out.Routine == nil || f.writes != 0 || out.Routine.Review.Mood == nil || !out.Routine.Review.Mood.States[0].MentalRisk {
-				t.Fatal(mode, out, err, f.writes)
-			}
-		} else if err != nil || f.writes != 1 || out.Routine.Review.Mood.States[0].Active {
+		if err != nil || f.writes != 1 {
 			t.Fatal(mode, out, err, f.writes)
+		}
+		if mode == "mental" && (out.Routine == nil || out.Routine.Review.Mood == nil || !out.Routine.Review.Mood.States[0].MentalRisk || !out.Routine.Review.Mood.States[0].Active) {
+			t.Fatal(mode, out.Routine)
 		}
 	}
 }

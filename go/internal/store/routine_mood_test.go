@@ -164,3 +164,22 @@ func TestRoutineMoodRejectsCorruptHistoryAndProposals(t *testing.T) {
 		})
 	}
 }
+
+// A mental break is a priority-1 mood goal, but it is not an emergency: it
+// clears only as ticks pass, so suspending the other goals would leave the
+// clock with no work and never let it end.
+func TestRoutineMentalBreakDoesNotSuspendOtherGoals(t *testing.T) {
+	t.Parallel()
+	s := open(t, filepath.Join(t.TempDir(), "mood.db"))
+	r := routineRequest()
+	p := moodPerson()
+	p.Mental = domain.Known(true)
+	r.Facts.MoodPawns = domain.Known([]policy.MoodPawn{p})
+	out := reviewRoutine(t, s, &r)
+	if g := routineGoal(t, out, policy.MoodGoal(p.ID)); g.Goal.Priority != 1 || g.Goal.Need != domain.NeedDeficit {
+		t.Fatal(g)
+	}
+	if g := routineGoal(t, out, policy.MaintainWood); g.Goal.Status == domain.GoalSuspended {
+		t.Fatal(g)
+	}
+}

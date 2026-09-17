@@ -469,8 +469,10 @@ Routine reviews also read native pawn needs and thought targets. Per-pawn mood
 goals retain break-threshold and food/rest/recreation hysteresis through Manual and
 restart; missing pawns and unknown reads cannot certify recovery. `MoodMethods`
 records one bounded relief proposal and its measured need benefit, preserving an
-unknown future mood benefit. Active or unverified mental breaks hold new clock
-windows until observed clearance. Player-forced work, draft and medical availability
+unknown future mood benefit. An active or unverified mental break neither holds
+new clock windows nor declares an emergency: it only ends as ticks pass, so the
+window is still evaluated on the other goals' work while the break is observed.
+Player-forced work, draft and medical availability
 remain guards; relief action execution is not enabled. The isolated `--mood-review
 food|forced|mental` variants compare native inputs with durable Go needs.
 Replay with `RIMGOVERNOR_NATIVE_MOOD_CAPTURE=<capture-directory> go test

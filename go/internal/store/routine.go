@@ -381,9 +381,12 @@ func reviewRoutineTx(ctx context.Context, tx *sql.Tx, request RoutineReviewReque
 			result.Goals = append(result.Goals, old[binding.Need])
 		}
 	} else {
+		// A mental break (a priority-1 mood goal) is not an emergency: it
+		// clears only as ticks pass, so suspending every other goal would
+		// leave the clock with no work and never let the break end.
 		emergency := false
 		for _, n := range needs.Assessments {
-			if n.Priority < 2 && n.ID != policy.ConfirmColonyNames && n.Need != domain.NeedRecovered {
+			if n.Priority < 2 && n.ID != policy.ConfirmColonyNames && !policy.IsMoodGoal(n.ID) && n.Need != domain.NeedRecovered {
 				emergency = true
 			}
 		}
