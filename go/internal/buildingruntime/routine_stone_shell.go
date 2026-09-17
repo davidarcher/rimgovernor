@@ -41,7 +41,7 @@ func NewRoutineStoneShellPlanner(reviewer *RoutineReviewer, native RoutineStoneS
 	if reviewer == nil || native == nil {
 		return nil, ErrControl
 	}
-	if _, ok := reviewer.native.(observation.RoutineSource); !ok {
+	if reviewer.native == nil {
 		return nil, ErrControl
 	}
 	return &RoutineStoneShellPlanner{reviewer, native}, nil

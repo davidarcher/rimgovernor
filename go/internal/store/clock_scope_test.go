@@ -23,15 +23,15 @@ func TestClockScopeRetirementPersistsWithoutChangingOutcome(t *testing.T) {
 	ctx := context.Background()
 	path := filepath.Join(t.TempDir(), "clock.db")
 	s := open(t, path)
-	v, _, err := s.PrepareClock(ctx, clockIntent(clockTestID(t, s, "start")))
+	_, _, err := s.PrepareClock(ctx, clockIntent(clockTestID(t, s, "start")))
 	if err != nil {
 		t.Fatal(err)
 	}
-	v, err = s.DispatchClock(ctx, clockTestID(t, s, "start"))
+	_, err = s.DispatchClock(ctx, clockTestID(t, s, "start"))
 	if err != nil {
 		t.Fatal(err)
 	}
-	v, err = s.MarkClockUncertain(ctx, clockTestID(t, s, "start"))
+	v, err := s.MarkClockUncertain(ctx, clockTestID(t, s, "start"))
 	if err != nil {
 		t.Fatal(err)
 	}

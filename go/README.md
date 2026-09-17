@@ -68,11 +68,21 @@ the controller.
 | `--chat-model`, `--chat-base-url`, `--chat-context-tokens`, `--chat-max-output-tokens` | Local model chat; the last three require `--chat-model`. |
 | `--flight-recorder <path>` | Record every native request/response/error (see [Native request diagnostics](#native-request-diagnostics)). |
 
-`RIMGOVERNOR_ROUTINE_FAMILIES=haul,field,...` narrows autonomous play to the
-named routine planner families (short names as listed by `GET /api/routines`,
-which reports what a running process composed). It exists for targeted
-acceptance and debugging; unset composes every family. Startup reconciliation
-(durable holds and goal admission on process start) is generation/goal-keyed.
+**Configuration sources and precedence.** `serve` reads exactly two sources,
+in this order: command-line flags, then process environment. There is no
+configuration file, and player preferences and colony state live in the SQLite
+`--state` database, not in either source. A flag's compiled default applies
+only when neither is set; environment variables never override an explicit
+flag. Every value is validated at `parseServe` before anything connects.
+
+| Environment variable | Read by | Effect |
+| --- | --- | --- |
+| `RIMGOVERNOR_ROUTINE_FAMILIES` | `parseServe` (autonomous play only) | Comma-separated short names (as listed by `GET /api/routines`) narrowing the routine planner families composed; unset composes every family. Rejected with `--observe`. |
+| `RIMGOVERNOR_CLOCK_DEBUG` | `internal/buildingruntime` at package init | Any non-empty value turns on temporary stderr tracing of clock scheduler steps and refused pawn orders. Diagnostic only; no behavior change. |
+| `RIMGOVERNOR_NATIVE_*_CAPTURE`, `RIMGOVERNOR_NATIVE_*_FORECAST`, `RIMGOVERNOR_NATIVE_*_REFERENCE`, `RIMGOVERNOR_NATIVE_NAMING` | `go test` only | Replay captured native evidence through component tests (see each component's section below). Never read by `serve`. |
+
+Startup reconciliation (durable holds and goal admission on process start) is
+generation/goal-keyed.
 
 **Known defects:** in autonomous play the native clock can fail to ever start
 ([issue #45](https://github.com/davidarcher/rimgovernor/issues/45)) or restart

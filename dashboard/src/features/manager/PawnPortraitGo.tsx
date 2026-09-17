@@ -20,7 +20,7 @@ export default function PawnPortraitGo({token, pawnId, name, active}: {token: st
         if (retained.current) URL.revokeObjectURL(retained.current);
         retained.current = next; setFrame(next); setError('');
       } catch (reason) {if (!stopped) setError(reason instanceof Error ? reason.message : 'Portrait unavailable');}
-      if (!stopped) timer = setTimeout(poll, 15000);
+      if (!stopped) timer = setTimeout(() => void poll(), 15000);
     };
     void poll();
     return () => {stopped = true; controller.abort(); if (timer) clearTimeout(timer);};

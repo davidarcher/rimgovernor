@@ -42,9 +42,9 @@ func TestMoodReliefDispatchFactsUnknownCases(t *testing.T) {
 	cases := []*n.PawnState{
 		nil,
 		{Issues: []*n.ReadIssue{{Field: proto.String("job")}}, Job: knownJob, Settings: &n.PawnSettings{Schedule: knownSchedule}}, // job tracker unavailable
-		moodReliefFactsRow(nil, knownSchedule),                     // no job evidence at all
-		moodReliefFactsRow(knownJob, nil),                          // no settings/schedule at all is unknown, not "no slots"
-		{Job: knownJob},                                            // settings entirely missing
+		moodReliefFactsRow(nil, knownSchedule), // no job evidence at all
+		moodReliefFactsRow(knownJob, nil),      // no settings/schedule at all is unknown, not "no slots"
+		{Job: knownJob},                        // settings entirely missing
 	}
 	for i, row := range cases {
 		if _, _, ok := moodReliefDispatchFacts(row, 0, 0); ok {

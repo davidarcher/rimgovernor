@@ -140,7 +140,7 @@ func TestAddBillDispatchAndSnapshotMismatch(t *testing.T) {
 	if err != nil || out.Kind != domain.ReceiptAccepted || f.adds != 1 {
 		t.Fatal(err, out)
 	}
-	bb, f, _, placement, bill = newBillBoundaryFixture(t)
+	bb, f, _, placement, _ = newBillBoundaryFixture(t)
 	if _, err = bb.AddBill(context.Background(), executor.BillDispatch{Attempt: placement, SnapshotToken: "stale"}); !errors.Is(err, executor.ErrEvidence) || f.adds != 0 {
 		t.Fatal("stale snapshot token dispatched", err)
 	}

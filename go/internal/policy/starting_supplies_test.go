@@ -35,6 +35,9 @@ func TestStartingSuppliesOnlyOriginalCohort(t *testing.T) {
 	}
 	// A successful empty first read is still an initialized cohort.
 	s, _, err := ReviewStartingSupplies(domain.Known([]domain.Cell{}), StartingSupplies{})
+	if err != nil {
+		t.Fatal(err)
+	}
 	s, need, err := ReviewStartingSupplies(domain.Known([]domain.Cell{a}), s)
 	if err != nil || len(s.Pending) != 0 || need != domain.Known(false) {
 		t.Fatal(s, need, err)

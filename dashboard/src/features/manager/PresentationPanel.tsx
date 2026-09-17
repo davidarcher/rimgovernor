@@ -18,7 +18,7 @@ function useReading<T extends {context: PresentationContext}>(kind: 'camera' | '
         if (!stopped) setState({key, value, fresh: true, hidden: false, error: ''});
       } catch (error) {
         if (!stopped) setState(previous => ({key, value: previous.key === key ? previous.value : null, fresh: false, hidden: error instanceof PresentationHTTPError && error.status === 404, error: error instanceof Error ? error.message : 'Presentation unavailable'}));
-      } finally {if (!stopped) timer = setTimeout(poll, 1500);}
+      } finally {if (!stopped) timer = setTimeout(() => void poll(), 1500);}
     };
     void poll(); return () => {stopped = true; controller.abort(); if (timer) clearTimeout(timer);};
   }, [key, enabled, kind, read]); // Key contains every field used to scope this read.

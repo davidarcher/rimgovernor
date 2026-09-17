@@ -113,7 +113,6 @@ func (s *Server) writePresentation(w http.ResponseWriter, r *http.Request, ctx c
 		return
 	}
 	s.write(w, r, 200, json.RawMessage(payload))
-	return
 }
 func (s *Server) presentationIdentity(ctx context.Context) (observation.Identity, error) {
 	if err := ctx.Err(); err != nil {

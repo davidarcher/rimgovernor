@@ -35,8 +35,8 @@ function usePlayerToken(sessionId: string): string | null {
     const poll = async () => {
       try {
         const next = await readPlayerSession(AbortSignal.any([controller.signal, AbortSignal.timeout(5000)]));
-        if (!stopped) {setToken(next); timer = setTimeout(poll, 15000);}
-      } catch { if (!stopped) timer = setTimeout(poll, 3000); }
+        if (!stopped) {setToken(next); timer = setTimeout(() => void poll(), 15000);}
+      } catch { if (!stopped) timer = setTimeout(() => void poll(), 3000); }
     };
     void poll();
     return () => {stopped = true; controller.abort(); if (timer) clearTimeout(timer);};
@@ -72,7 +72,7 @@ function ColonyPortraits({token, active}: {token: string | null; active: boolean
         const next = await fetchPresentation('colonists', readRoster, AbortSignal.any([controller.signal, AbortSignal.timeout(5000)]));
         if (!stopped) setRoster(next);
       } catch { /* PresentationPanel above already surfaces roster read errors */ }
-      if (!stopped) timer = setTimeout(poll, 5000);
+      if (!stopped) timer = setTimeout(() => void poll(), 5000);
     };
     void poll();
     return () => {stopped = true; controller.abort(); if (timer) clearTimeout(timer);};
@@ -118,7 +118,7 @@ export default function ObservationDashboard() {
         setError('');
       } catch (reason) {
         if (!stopped) setError(reason instanceof Error ? reason.message : 'Refresh unavailable');
-      } finally {if (!stopped) timer = setTimeout(poll, 1500);}
+      } finally {if (!stopped) timer = setTimeout(() => void poll(), 1500);}
     };
     void poll();
     return () => {stopped = true; controller.abort(); if (timer) clearTimeout(timer);};

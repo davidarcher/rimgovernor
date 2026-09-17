@@ -1,3 +1,4 @@
+#nullable disable // Legacy Scribe state predating nullable enforcement; annotate and remove per #85.
 using System.Collections.Generic;
 using Verse;
 

@@ -146,6 +146,7 @@ func (s *ClockScheduler) PollEvents(ctx context.Context, native ClockEventNative
 func clockPollMatchesAuthority(observed *c.ObservationContext, state ControlState) bool {
 	return !state.Enabled || state.ObservationKnown && proto.Equal(observed.Identity, controlIdentity(state.Snapshot)) && observed.NativeGeneration != nil && observed.GetNativeGeneration() == uint64(state.Snapshot.Native)
 }
+
 // clockPollEventKinds is a TEMPORARY diagnostic aid (RIMGOVERNOR_CLOCK_DEBUG=1)
 // for issue #42: it names which event(s) in a page tripped clockPollInterrupts,
 // since that function itself only returns a bool.

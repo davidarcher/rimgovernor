@@ -95,6 +95,7 @@ func researchSelectEffect(v *r.EffectEvidence, project string, applied bool) err
 	}
 	return nil
 }
+
 // ValidateResearchSelectEffect checks a lookup/progress ResearchEffect against
 // the project this attempt targeted; see ValidateAcquisitionEffect for the
 // analogous CAS-token direct-write shape.

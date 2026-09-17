@@ -60,8 +60,8 @@ func TestDefenseSiteReadsCompleteCensus(t *testing.T) {
 func TestDefenseSiteFoggedCellCarriesNoFacts(t *testing.T) {
 	fixture := defenseSiteFixture()
 	fixture.Cells[0] = &o.DefenseCell{Cell: fixture.Cells[0].Cell, Fogged: proto.Bool(true), Issues: []*o.ReadIssue{{Field: proto.String("terrain"), Unavailable: &c.Unavailable{Reason: c.UnavailableReason_UNAVAILABLE_REASON_NOT_APPLICABLE.Enum()}}}}
-	client := defenseServer(t, "rimgovernor/observations_read_defense_site", nil, &o.DefenseSiteReply{Outcome: &o.DefenseSiteReply_Observed{Observed: fixture}})
-	client = testClient(t, &testServer{schema: protoSchema, handler: func(_ context.Context, arg nativeArgument) (*mcp.CallToolResult, error) {
+	defenseServer(t, "rimgovernor/observations_read_defense_site", nil, &o.DefenseSiteReply{Outcome: &o.DefenseSiteReply_Observed{Observed: fixture}})
+	client := testClient(t, &testServer{schema: protoSchema, handler: func(_ context.Context, arg nativeArgument) (*mcp.CallToolResult, error) {
 		return pbResult(&o.DefenseSiteReply{Outcome: &o.DefenseSiteReply_Observed{Observed: fixture}}), nil
 	}}, time.Second)
 	site, _, err := client.ReadDefenseSite(context.Background(), pbIdentity(), defenseRegion())

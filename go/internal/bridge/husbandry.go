@@ -30,13 +30,13 @@ const (
 var husbandryMethodValid = map[HusbandryMethod]bool{HusbandryMethodTrain: true, HusbandryMethodSlaughter: true}
 
 type HusbandryAttempt struct {
-	Identity             *c.Identity
-	Attempt              *c.AttemptKey
-	Generation           uint64
-	Animal, AnimalToken  string
-	ExpectedCensusToken  string
-	Method               HusbandryMethod
-	TrainableDef         string
+	Identity            *c.Identity
+	Attempt             *c.AttemptKey
+	Generation          uint64
+	Animal, AnimalToken string
+	ExpectedCensusToken string
+	Method              HusbandryMethod
+	TrainableDef        string
 }
 
 func husbandryOperation(animal, animalToken, census, trainableDef string, method HusbandryMethod) *o.Operation {

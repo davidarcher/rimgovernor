@@ -62,10 +62,34 @@ Version shared schemas and generate language models from them.
 Generated types still need runtime decoding validation. Keep unavoidable typing
 escapes inside a documented adapter with a boundary test; no blanket suppressions.
 
+### What is enforced and what is policy
+
+`pwsh scripts/ci.ps1` is the gate (GitHub Actions is retired; the workflow files
+under `.github/workflows` remain as reference only). Run it before landing on
+`main`; `-Stage go,dashboard,protobuf,native` selects stages. Everything in the
+first table fails the gate; everything in the second is reviewed by hand.
+
+| Enforced by `scripts/ci.ps1` | Mechanism |
+| --- | --- |
+| Go toolchain pinned to `go/.go-version`; gofmt; `go mod verify` and `tidy -diff`; `go vet` | `go` stage |
+| Go static analysis: unused code, always-true comparisons, dead assignments, same-type assertions, error-string style | `go tool staticcheck`, pinned in `go/go.mod` |
+| Go tests under a 10 s per-test budget; `-race` when a C compiler is present | `checktesttimes`, `go test -race` |
+| TypeScript `strict`; no `any`, `@ts-ignore`, `@ts-nocheck`, unsafe `any` flow, unnecessary or object-literal assertions, or `as unknown as` double casts; `@ts-expect-error` only with a description | `dashboard/eslint.config.js` (typescript-eslint, type-checked) plus `tsc --noEmit` |
+| Dashboard dependencies locked | `pnpm install --frozen-lockfile` |
+| Generated protobuf C#/Go match the checked-in outputs; C#→Go→C# exchange is byte-identical | `protobuf` stage |
+| C# `TreatWarningsAsErrors` and `RestoreLockedMode` on Bridge, Runtime, contract probes and both fixture projects; nullable reference types on Runtime | `native` stage |
+
+| Policy only (review by hand) | Notes |
+| --- | --- |
+| Go: no `map[string]any`, reflection dispatch or unchecked assertions in domain logic | Telemetry maps stay inside `internal/bridge` flight recording; `internal/nativeaccept` harnesses are the excluded legacy path. |
+| C# nullable on `RimGovernor.Bridge` and the contract probes; five Runtime persistence files carry a `#nullable disable` header | [#85](https://github.com/davidarcher/rimgovernor/issues/85) |
+| Python generator scripts | Being rewritten in Go ([#80](https://github.com/davidarcher/rimgovernor/issues/80)); until then the `protobuf` stage runs them unchecked. |
+
 ## Verify and commit
 
 Use the [testing pyramid and evidence rules](testing/choose-tests.md#testing-budget-and-evidence-reuse).
-During iteration, run affected files and
+Run `pwsh scripts/ci.ps1` (or just the stages the change touches) before
+landing. During iteration, run affected files and
 contract neighbors. Before handoff, run the full affected suite once. Reuse
 successful results when the relevant source and environment are unchanged.
 

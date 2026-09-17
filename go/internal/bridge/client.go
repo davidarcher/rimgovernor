@@ -453,17 +453,6 @@ func (c *Client) core(ctx context.Context, live *liveSession, name string, argum
 	return decoded, decodeErr
 }
 
-func decodeResult(name string, result *mcp.CallToolResult) (Result, error) {
-	if result == nil {
-		return Result{}, fmt.Errorf("%w: missing result", ErrContract)
-	}
-	envelope, err := json.Marshal(result)
-	if err != nil || len(envelope) > maxResponseBytes {
-		return Result{}, fmt.Errorf("%w: invalid or oversized result", ErrContract)
-	}
-	return decodeReceipt(name, envelope, result)
-}
-
 func decodeReceipt(name string, envelope json.RawMessage, result *mcp.CallToolResult) (Result, error) {
 	if result == nil || len(envelope) == 0 || len(envelope) > maxResponseBytes {
 		return Result{}, fmt.Errorf("%w: raw MCP receipt missing or oversized", ErrContract)

@@ -169,10 +169,9 @@ func TestRecoverySelectionStableBoundedAndNonAliasing(t *testing.T) {
 	}
 }
 func TestRecoveryRoofHazardMaintainsNeedWithoutDamagedBuildings(t *testing.T) {
-	p, h := recoveryPlanning(t, true)
+	p, _ := recoveryPlanning(t, true)
 	p.Buildings = domain.Known([]RecoveryBuilding{})
-	var err error
-	h, err = ReviewDisaster(domain.Known([]DisasterCondition{{"event", "ToxicFallout"}}), p.Buildings, disasterGates(), nil, 10)
+	h, err := ReviewDisaster(domain.Known([]DisasterCondition{{"event", "ToxicFallout"}}), p.Buildings, disasterGates(), nil, 10)
 	if err != nil {
 		t.Fatal(err)
 	}

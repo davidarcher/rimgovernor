@@ -246,7 +246,7 @@ func run(ctx context.Context, root, output, gameID string, headless bool, report
 
 	buildOperation := func(pToken, hToken, care string) map[string]any {
 		return map[string]any{"queueSurgery": map[string]any{
-			"patient": map[string]any{"entityId": patientID, "expectedSnapshotToken": pToken},
+			"patient":   map[string]any{"entityId": patientID, "expectedSnapshotToken": pToken},
 			"recipeDef": recipe, "partIndex": part,
 			"expectedHealthToken": hToken, "expectedCare": care,
 		}}

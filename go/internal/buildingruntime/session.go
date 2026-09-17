@@ -30,30 +30,30 @@ import (
 )
 
 type SessionConfig struct {
-	Bills               *bill.BillCapabilities
-	Zones               *zone.ZoneCapabilities
-	Work                *work.WorkCapabilities
-	Acquisition         *acquisition.AcquisitionCapabilities
-	Supplies            *supply.SupplyCapabilities
-	RoutineMethods      bool
-	Control             ControlConfig
-	Executor            executor.Limits
-	Rules               []policy.ResourceRule
-	Draft               *draft.DraftCapabilities
-	Clock               *ClockCapabilities
-	Melee               *melee.MeleeCapabilities
-	Haul                *haul.HaulCapabilities
-	Ranged              *ranged.RangedCapabilities
-	Tend                *tend.TendCapabilities
-	Rescue              *rescue.RescueCapabilities
-	Capture             *capture.CaptureCapabilities
-	Equip               *equip.EquipCapabilities
-	GearReplace         *GearReplaceCapabilities
-	Repair              *RepairCapabilities
-	Clean               *CleanCapabilities
-	Waste               *WasteCapabilities
-	MoodRelief          *MoodReliefCapabilities
-	RecoveryService     *RecoveryServiceCapabilities
+	Bills           *bill.BillCapabilities
+	Zones           *zone.ZoneCapabilities
+	Work            *work.WorkCapabilities
+	Acquisition     *acquisition.AcquisitionCapabilities
+	Supplies        *supply.SupplyCapabilities
+	RoutineMethods  bool
+	Control         ControlConfig
+	Executor        executor.Limits
+	Rules           []policy.ResourceRule
+	Draft           *draft.DraftCapabilities
+	Clock           *ClockCapabilities
+	Melee           *melee.MeleeCapabilities
+	Haul            *haul.HaulCapabilities
+	Ranged          *ranged.RangedCapabilities
+	Tend            *tend.TendCapabilities
+	Rescue          *rescue.RescueCapabilities
+	Capture         *capture.CaptureCapabilities
+	Equip           *equip.EquipCapabilities
+	GearReplace     *GearReplaceCapabilities
+	Repair          *RepairCapabilities
+	Clean           *CleanCapabilities
+	Waste           *WasteCapabilities
+	MoodRelief      *MoodReliefCapabilities
+	RecoveryService *RecoveryServiceCapabilities
 	// BuildingTemperature backs the refrigeration family's cooler setpoint
 	// patch; the one-shot CAS write shares the placement boundary's lease.
 	BuildingTemperature *buildingtemperature.Capabilities

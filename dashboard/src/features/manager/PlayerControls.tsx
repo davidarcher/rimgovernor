@@ -54,7 +54,7 @@ export default function PlayerControls({observation, observationFresh}: {observa
         if (stopped) return;
         setToken(next); setAvailable(next !== null); setRefreshError('');
       } catch (reason) {
-        if (!stopped) {setRefreshError(message(reason)); timer = setTimeout(bootstrap, 1500);}
+        if (!stopped) {setRefreshError(message(reason)); timer = setTimeout(() => void bootstrap(), 1500);}
       }
     };
     void bootstrap(); return () => {stopped = true; controller.abort(); if (timer) clearTimeout(timer);};
@@ -68,7 +68,7 @@ export default function PlayerControls({observation, observationFresh}: {observa
         const next = await readCurrentControl(AbortSignal.any([controller.signal, AbortSignal.timeout(5000)]));
         if (!stopped && expected === version.current) {setCurrent(next); setCurrentFresh(next.error === null); setRefreshError(next.error?.detail ?? '');}
       } catch (reason) {if (!stopped && expected === version.current) {setCurrentFresh(false); setRefreshError(message(reason));}}
-      finally {if (!stopped) timer = setTimeout(poll, 1500);}
+      finally {if (!stopped) timer = setTimeout(() => void poll(), 1500);}
     };
     void poll(); return () => {stopped = true; controller.abort(); if (timer) clearTimeout(timer);};
   }, [token, worldKey]);

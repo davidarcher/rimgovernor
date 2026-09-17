@@ -5,8 +5,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"strings"
-
-	"github.com/google/jsonschema-go/jsonschema"
 )
 
 func encode(value any) json.RawMessage {
@@ -116,39 +114,4 @@ func (c *Client) Describe(ctx context.Context, name string) (Result, error) {
 }
 func (c *Client) describe(ctx context.Context, live *liveSession, name string) (Result, error) {
 	return c.core(ctx, live, "games_tool_detail", encode(detailArgument{c.gameID, name}))
-}
-
-func validateInput(detail, args json.RawMessage) error {
-	var envelope struct {
-		InputSchema json.RawMessage `json:"inputSchema"`
-	}
-	if json.Unmarshal(detail, &envelope) != nil || len(envelope.InputSchema) == 0 {
-		return fmt.Errorf("%w: native input schema missing", ErrContract)
-	}
-	var schema jsonschema.Schema
-	if err := json.Unmarshal(envelope.InputSchema, &schema); err != nil {
-		return fmt.Errorf("%w: native input schema: %w", ErrContract, err)
-	}
-	if schema.Type != "object" {
-		return fmt.Errorf("%w: native input schema must be object", ErrContract)
-	}
-	// The SDK accepts JSON-shaped values here. Keep this dynamic representation
-	// inside the adapter, after typed read construction and before dispatch.
-	var value map[string]any
-	if err := json.Unmarshal(args, &value); err != nil || value == nil {
-		return fmt.Errorf("%w: invalid argument object", ErrContract)
-	}
-	for key := range value {
-		if schema.Properties[key] == nil {
-			return fmt.Errorf("%w: unknown native argument %s", ErrContract, key)
-		}
-	}
-	resolved, err := schema.Resolve(nil) // no network schema loader
-	if err != nil {
-		return fmt.Errorf("%w: resolve native schema: %w", ErrContract, err)
-	}
-	if err = resolved.Validate(value); err != nil {
-		return fmt.Errorf("%w: native arguments: %w", ErrContract, err)
-	}
-	return nil
 }

@@ -1,6 +1,7 @@
 package bridge
 
 import (
+	"errors"
 	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
 	p "github.com/davidarcher/RimGovernor/go/internal/wire/placementpb"
 )
@@ -55,10 +56,8 @@ func validatePlacementBatch(request *p.PlacementRequest, batch *p.PlacementBatch
 		}
 		switch v := row.Outcome.(type) {
 		case *p.CandidateReply_Failure:
-			if err := failure(v.Failure, Result{}); err != nil {
-				if _, ok := err.(*NativeFailure); !ok {
-					return err
-				}
+			if err := failure(v.Failure, Result{}); !errors.As(err, new(*NativeFailure)) {
+				return err
 			}
 		case *p.CandidateReply_Evaluated:
 			if err := validateEvaluated(request.Placements[index], v.Evaluated); err != nil {

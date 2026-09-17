@@ -22,7 +22,7 @@ export default function App(){
         if(typeof health!=='object'||health===null||!('service' in health)||health.service!=='rimgovernor')throw Error('Unrecognized colony service');
         if(!stopped){setConnected(true);setError('');}
       }catch(reason){if(!stopped){setConnected(false);setError(reason instanceof Error?reason.message:'Connection unavailable');}}
-      if(!stopped)timer=setTimeout(detect,2000);
+      if(!stopped)timer=setTimeout(() => void detect(), 2000);
     };
     void detect();return()=>{stopped=true;controller.abort();if(timer)clearTimeout(timer);};
   },[]);

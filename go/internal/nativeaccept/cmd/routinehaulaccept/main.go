@@ -62,8 +62,6 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/store"
 )
 
-const sessionOwner = "native-routine-haul-acceptance"
-
 func main() {
 	root := flag.String("root", "", "absolute disposable worker root (e.g. .rimgovernor/bridge)")
 	output := flag.String("output", "", "fresh output directory (default <root>/native-routine-haul-acceptance)")
@@ -686,7 +684,7 @@ func run(ctx context.Context, root, output, gameID string, headless bool, rimgov
 	if err != nil {
 		return fmt.Errorf("second haul method: %w", err)
 	}
-	item2, method2, renewals2, err := waitHaulItem(ctx, verifyStore, goalID, method2)
+	item2, _, renewals2, err := waitHaulItem(ctx, verifyStore, goalID, method2)
 	if err != nil {
 		return fmt.Errorf("second haul completion: %w", err)
 	}

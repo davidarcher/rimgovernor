@@ -16,7 +16,7 @@ MODULE = "github.com/davidarcher/RimGovernor/go/internal/wire"
 def run(protoc: Path, proto_root: Path, output: Path, check: bool, go: str) -> None:
     output.mkdir(parents=True, exist_ok=False)
     evidence: dict[str, object] = {"plugin_version": VERSION, "commands": []}
-    env = dict(os.environ, GOTOOLCHAIN="local", GOWORK="off", GOBIN=str(output / "bin"),
+    env = dict(os.environ, GOTOOLCHAIN=os.environ.get("GOTOOLCHAIN", "local"), GOWORK="off", GOBIN=str(output / "bin"),
                GOCACHE=str(output / "cache"), GOMODCACHE=str(output / "modcache"))
 
     def command(args: list[str], cwd: Path) -> str:

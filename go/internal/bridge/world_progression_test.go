@@ -122,11 +122,13 @@ func TestReadWorldProgressionMalformedEvidence(t *testing.T) {
 		"pawn on two maps": func(v *o.WorldProgressionSnapshot) {
 			v.Maps[1].Pawns = append(v.Maps[1].Pawns, v.Maps[0].Pawns[0])
 		},
-		"missing caravan id":  func(v *o.WorldProgressionSnapshot) { v.Caravans[0].Caravan.Id = nil },
-		"duplicate caravan":   func(v *o.WorldProgressionSnapshot) { v.Caravans = append(v.Caravans, v.Caravans[0]) },
+		"missing caravan id":    func(v *o.WorldProgressionSnapshot) { v.Caravans[0].Caravan.Id = nil },
+		"duplicate caravan":     func(v *o.WorldProgressionSnapshot) { v.Caravans = append(v.Caravans, v.Caravans[0]) },
 		"negative caravan tile": func(v *o.WorldProgressionSnapshot) { v.Caravans[0].Tile = proto.Int32(-1) },
-		"missing pawn id":     func(v *o.WorldProgressionSnapshot) { v.Caravans[0].Pawns[0].Pawn.Id = nil },
-		"duplicate pawn":      func(v *o.WorldProgressionSnapshot) { v.Caravans[0].Pawns = append(v.Caravans[0].Pawns, v.Caravans[0].Pawns[0]) },
+		"missing pawn id":       func(v *o.WorldProgressionSnapshot) { v.Caravans[0].Pawns[0].Pawn.Id = nil },
+		"duplicate pawn": func(v *o.WorldProgressionSnapshot) {
+			v.Caravans[0].Pawns = append(v.Caravans[0].Pawns, v.Caravans[0].Pawns[0])
+		},
 		"missing quest id":    func(v *o.WorldProgressionSnapshot) { v.Quests[0].Id = nil },
 		"duplicate quest":     func(v *o.WorldProgressionSnapshot) { v.Quests = append(v.Quests, v.Quests[0]) },
 		"missing quest state": func(v *o.WorldProgressionSnapshot) { v.Quests[0].State = nil },
@@ -149,10 +151,12 @@ func TestReadWorldProgressionMalformedEvidence(t *testing.T) {
 		"duplicate eligible quest pawn": func(v *o.WorldProgressionSnapshot) {
 			v.Quests[0].EligiblePawns = append(v.Quests[0].EligiblePawns, v.Quests[0].EligiblePawns[0])
 		},
-		"negative food days":         func(v *o.WorldProgressionSnapshot) { v.Caravans[0].FoodDays = proto.Float64(-1) },
-		"duplicate inventory def":    func(v *o.WorldProgressionSnapshot) { v.Caravans[0].Inventory = append(v.Caravans[0].Inventory, v.Caravans[0].Inventory[0]) },
-		"missing inventory units":    func(v *o.WorldProgressionSnapshot) { v.Caravans[0].Inventory[0].Units = nil },
-		"negative inventory units":   func(v *o.WorldProgressionSnapshot) { v.Caravans[0].Inventory[0].Units = proto.Int64(-1) },
+		"negative food days": func(v *o.WorldProgressionSnapshot) { v.Caravans[0].FoodDays = proto.Float64(-1) },
+		"duplicate inventory def": func(v *o.WorldProgressionSnapshot) {
+			v.Caravans[0].Inventory = append(v.Caravans[0].Inventory, v.Caravans[0].Inventory[0])
+		},
+		"missing inventory units":  func(v *o.WorldProgressionSnapshot) { v.Caravans[0].Inventory[0].Units = nil },
+		"negative inventory units": func(v *o.WorldProgressionSnapshot) { v.Caravans[0].Inventory[0].Units = proto.Int64(-1) },
 		"missing home route destination": func(v *o.WorldProgressionSnapshot) {
 			v.Caravans[0].HomeRoutes[0].Destination = nil
 		},

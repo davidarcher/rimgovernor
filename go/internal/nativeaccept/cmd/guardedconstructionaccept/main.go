@@ -486,7 +486,7 @@ func run(ctx context.Context, root, output, gameID, buildingSmoke, expectedOutco
 		return fmt.Errorf("refusal-not-admitted: %w", err)
 	}
 
-	grant, err = supervisor.Acquire(ctx, "cancel-authority")
+	_, err = supervisor.Acquire(ctx, "cancel-authority")
 	if err != nil {
 		return err
 	}
@@ -995,7 +995,7 @@ func goPhase(ctx context.Context, binary, gabsExecutable, configuration, profile
 		record["exit_code"] = cmd.ProcessState.ExitCode()
 	}
 	if runErr != nil {
-		return nil, fmt.Errorf("Go %s failed; see %s/go-%s-{stdout,stderr}.txt: %w", mode, output, mode, runErr)
+		return nil, fmt.Errorf("go %s failed; see %s/go-%s-{stdout,stderr}.txt: %w", mode, output, mode, runErr)
 	}
 	data, err := os.ReadFile(filepath.Join(destination, "report.json"))
 	if err != nil {
@@ -1003,27 +1003,27 @@ func goPhase(ctx context.Context, binary, gabsExecutable, configuration, profile
 	}
 	var result map[string]any
 	if err := json.Unmarshal(data, &result); err != nil {
-		return nil, fmt.Errorf("Go %s report.json: %w", mode, err)
+		return nil, fmt.Errorf("go %s report.json: %w", mode, err)
 	}
 	if passed, _ := na.AsBool(result["passed"]); !passed {
-		return nil, fmt.Errorf("Go %s did not pass: %#v", mode, result)
+		return nil, fmt.Errorf("go %s did not pass: %#v", mode, result)
 	}
 	nativeCalled, _ := na.AsBool(result["nativeCalled"])
 	if nativeCalled != (mode == "place") {
-		return nil, fmt.Errorf("Go %s: expected nativeCalled=%v, got %#v", mode, mode == "place", result)
+		return nil, fmt.Errorf("go %s: expected nativeCalled=%v, got %#v", mode, mode == "place", result)
 	}
 	if mode == "observe" {
 		if na.AsString(result["expectedOutcome"]) != expectedOutcome {
-			return nil, fmt.Errorf("Go observe: expected expectedOutcome=%q, got %#v", expectedOutcome, result)
+			return nil, fmt.Errorf("go observe: expected expectedOutcome=%q, got %#v", expectedOutcome, result)
 		}
 		progress, _ := na.AsMap(result["progress"])
 		if unresolved, _ := na.AsBool(progress["Unresolved"]); unresolved {
-			return nil, fmt.Errorf("Go observe: expected a resolved progress view, got %#v", progress)
+			return nil, fmt.Errorf("go observe: expected a resolved progress view, got %#v", progress)
 		}
 		for _, raw := range na.AsSlice(result["calls"]) {
 			row, _ := na.AsMap(raw)
 			if na.AsString(row["Name"]) == "operations_execute" {
-				return nil, fmt.Errorf("Go observe: unexpectedly called operations_execute")
+				return nil, fmt.Errorf("go observe: unexpectedly called operations_execute")
 			}
 		}
 	}

@@ -76,7 +76,7 @@ func TestBuildingInvalidInputsNeverDispatch(t *testing.T) {
 	s := &testServer{schema: protoSchema}
 	cap, _ := NewBuildingControl(testClient(t, s, time.Second))
 	for _, change := range []func(*a.WritePrecondition){func(v *a.WritePrecondition) { v.ExpectedGeneration = nil }, func(v *a.WritePrecondition) { v.ExpectedGeneration = proto.Uint64(0) },
- func(v *a.WritePrecondition) { v.Attempt.AttemptId = nil }, func(v *a.WritePrecondition) { v.Identity.ProtoReflect().SetUnknown([]byte{0x20, 1}) }, func(v *a.WritePrecondition) { v.Attempt.ControllerSessionId = proto.String("bad\x00") }} {
+		func(v *a.WritePrecondition) { v.Attempt.AttemptId = nil }, func(v *a.WritePrecondition) { v.Identity.ProtoReflect().SetUnknown([]byte{0x20, 1}) }, func(v *a.WritePrecondition) { v.Attempt.ControllerSessionId = proto.String("bad\x00") }} {
 		v := buildingPre()
 		change(v)
 		if _, _, err := cap.PlaceBuilding(context.Background(), v, pbRequest().Placements[0]); !errors.Is(err, ErrContract) {

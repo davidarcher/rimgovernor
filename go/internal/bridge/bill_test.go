@@ -302,9 +302,12 @@ func TestLookupAndObserveBill(t *testing.T) {
 		t.Fatal("completed progress rejected", err)
 	}
 	for name, change := range map[string]func(*r.Progress){
-		"incomplete inspection":   func(v *r.Progress) { v.CompleteInspection = proto.Bool(false) },
-		"configuration drifted":   func(v *r.Progress) { v.GetCompleted().Evidence.GetBill().ConfigurationMatches = proto.Bool(false) },
-		"no iterations":           func(v *r.Progress) { v.GetCompleted().Evidence.GetBill().Iterations = proto.Uint32(0); v.GetCompleted().Evidence.GetBill().Outputs = nil },
+		"incomplete inspection": func(v *r.Progress) { v.CompleteInspection = proto.Bool(false) },
+		"configuration drifted": func(v *r.Progress) { v.GetCompleted().Evidence.GetBill().ConfigurationMatches = proto.Bool(false) },
+		"no iterations": func(v *r.Progress) {
+			v.GetCompleted().Evidence.GetBill().Iterations = proto.Uint32(0)
+			v.GetCompleted().Evidence.GetBill().Outputs = nil
+		},
 		"output not observed":     func(v *r.Progress) { v.GetCompleted().Evidence.GetBill().OutputObserved = proto.Bool(false) },
 		"stale tick before admit": func(v *r.Progress) { v.Context.Tick = proto.Int64(1) },
 	} {

@@ -199,6 +199,7 @@ func authorityRequest(identity *c.Identity, generation *uint64) error {
 	}
 	return nil
 }
+
 // authorityDuration bounds a requested lease duration in milliseconds. It is
 // no longer used by the authority domain itself (Mode has no time-based
 // expiry), but the clock domain's own, unrelated lease-duration requests
