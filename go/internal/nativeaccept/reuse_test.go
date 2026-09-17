@@ -1,6 +1,7 @@
 package nativeaccept
 
 import (
+	"context"
 	"strings"
 	"testing"
 )
@@ -84,13 +85,13 @@ func TestCheckResetReportsEveryProblemAtOnce(t *testing.T) {
 
 func TestRetiredLifecycleRefusesCases(t *testing.T) {
 	g := &GameReuse{retired: true, reason: "test"}
-	if _, err := g.BeginCase(nil, "x", "save", t.TempDir()); err != ErrReuseRetired {
+	if _, err := g.BeginCase(context.Background(), "x", "save", t.TempDir()); err != ErrReuseRetired {
 		t.Fatalf("BeginCase after retirement: %v", err)
 	}
-	if _, err := g.Session(nil); err != ErrReuseRetired {
+	if _, err := g.Session(context.Background()); err != ErrReuseRetired {
 		t.Fatalf("Session after retirement: %v", err)
 	}
-	if err := g.Retire(nil, "again"); err != nil {
+	if err := g.Retire(context.Background(), "again"); err != nil {
 		t.Fatalf("Retire must be idempotent: %v", err)
 	}
 	if retired, reason := g.Retired(); !retired || reason != "test" {

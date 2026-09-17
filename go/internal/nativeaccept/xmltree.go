@@ -89,20 +89,6 @@ func (e *xmlElem) attr(name string) string {
 	return ""
 }
 
-// li returns the text of every direct <li> child element, in document order.
-func (e *xmlElem) li() []string {
-	var out []string
-	if e == nil {
-		return out
-	}
-	for _, kid := range e.kids {
-		if kid.elem != nil && kid.elem.name.Local == "li" {
-			out = append(out, kid.elem.text())
-		}
-	}
-	return out
-}
-
 func (e *xmlElem) text() string {
 	var out bytes.Buffer
 	for _, kid := range e.kids {

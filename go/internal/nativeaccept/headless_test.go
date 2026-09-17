@@ -413,3 +413,17 @@ func TestGABSExecutableDefaultsToRelativePath(t *testing.T) {
 		t.Fatalf("GABSExecutable = %q, want %q", got, want)
 	}
 }
+
+// li returns the text of every direct <li> child element, in document order.
+func (e *xmlElem) li() []string {
+	var out []string
+	if e == nil {
+		return out
+	}
+	for _, kid := range e.kids {
+		if kid.elem != nil && kid.elem.name.Local == "li" {
+			out = append(out, kid.elem.text())
+		}
+	}
+	return out
+}
