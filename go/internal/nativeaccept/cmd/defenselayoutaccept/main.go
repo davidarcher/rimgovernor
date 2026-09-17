@@ -130,8 +130,8 @@ func (s *service) stop() {
 	// service leaves the native side in auto mode under its dead session,
 	// and the next service's acquire would resolve uncertain against it.
 	if s.keepAlive != nil && s.api != nil {
-		_, _, _ = s.api("POST", "/api/player/control/manual", map[string]any{
-			"requestId": fmt.Sprintf("defense-%s-manual-%d", s.keepAlive.name, time.Now().UnixNano()), "expected": s.keepAlive.identity,
+		_, _, _ = s.api("POST", "/api/player/control/pause", map[string]any{
+			"requestId": fmt.Sprintf("defense-%s-pause-%d", s.keepAlive.name, time.Now().UnixNano()), "expected": s.keepAlive.identity,
 		}, s.token)
 	}
 	if s.store != nil {
@@ -705,13 +705,12 @@ func launchService(ctx context.Context, output, name, binary, gabs, config, game
 	if status != 200 && status != 201 {
 		return fail(fmt.Errorf("unexpected building submission status=%d body=%#v", status, submission))
 	}
-	planID, revision := na.AsString(submission["planId"]), na.AsString(submission["revision"])
-	if planID == "" || revision == "" {
+	if na.AsString(submission["planId"]) == "" || na.AsString(submission["revision"]) == "" {
 		return fail(fmt.Errorf("unexpected building submission: %#v", submission))
 	}
 	report["submission_"+name] = submission
-	keep := &authorityKeepAlive{apiCall: svc.api, identity: identity, planID: planID, revision: revision, token: svc.token, name: name}
-	if err := keep.acquire(); err != nil {
+	keep := &authorityKeepAlive{apiCall: svc.api, identity: identity, token: svc.token, name: name}
+	if err := keep.start(); err != nil {
 		return fail(err)
 	}
 	keepCtx, stopKeep := context.WithCancel(ctx)
@@ -1110,13 +1109,10 @@ func assertCover(reply map[string]any, layout store.DefenseLayoutRecord) error {
 type authorityKeepAlive struct {
 	apiCall  apiFunc
 	identity map[string]any
-	planID   string
-	revision string
 	token    string
 	name     string
 
 	mu                sync.Mutex
-	direction         string
 	attempts          int
 	reacquired        int
 	acknowledged      int
@@ -1124,39 +1120,30 @@ type authorityKeepAlive struct {
 	lastError         string
 }
 
-func (k *authorityKeepAlive) acquire() error {
-	// The state journal is shared by every service the harness launches,
-	// so the acquire must expect the journal's current direction, not 0.
-	current, status, err := k.apiCall("GET", "/api/player/control", nil, "")
-	if err != nil {
-		return err
-	}
-	if status != 200 {
-		return fmt.Errorf("read current control: status=%d body=%#v", status, current)
-	}
-	expected := "0"
-	if record, ok := na.AsMap(current["record"]); ok && na.AsString(record["direction"]) != "" {
-		expected = na.AsString(record["direction"])
-	}
-	acquired, status, err := k.apiCall("POST", "/api/player/control/acquire", map[string]any{
-		"requestId": fmt.Sprintf("defense-%s-acquire-%d", k.name, time.Now().UnixNano()), "expected": k.identity,
-		"planId": k.planID, "revision": k.revision, "expectedDirection": expected,
+// resume enters automate mode under the world's own root plan (#55); the
+// state journal is shared by every service the harness launches, so a fresh
+// requestId is used each time rather than replaying an earlier record.
+func (k *authorityKeepAlive) resume(label string) (map[string]any, int, error) {
+	return k.apiCall("POST", "/api/player/control/resume", map[string]any{
+		"requestId": fmt.Sprintf("defense-%s-%s-%d", k.name, label, time.Now().UnixNano()), "expected": k.identity,
 	}, k.token)
+}
+func (k *authorityKeepAlive) start() error {
+	resumed, status, err := k.resume("resume")
 	if err != nil {
 		return err
 	}
-	record, _ := na.AsMap(acquired["record"])
-	if status != 200 || na.AsString(record["phase"]) != "granted" {
-		return fmt.Errorf("acquire not granted: status=%d body=%#v", status, acquired)
+	record, _ := na.AsMap(resumed["record"])
+	if status != 200 || na.AsString(record["phase"]) != "running" {
+		return fmt.Errorf("resume was not running: status=%d body=%#v", status, resumed)
 	}
-	k.direction = na.AsString(record["direction"])
 	return nil
 }
 
 func (k *authorityKeepAlive) snapshot() map[string]any {
 	k.mu.Lock()
 	defer k.mu.Unlock()
-	out := map[string]any{"attempts": k.attempts, "reacquired": k.reacquired, "final_direction": k.direction, "acknowledged": k.acknowledged, "acknowledge_failed": k.acknowledgeFailed}
+	out := map[string]any{"attempts": k.attempts, "reacquired": k.reacquired, "acknowledged": k.acknowledged, "acknowledge_failed": k.acknowledgeFailed}
 	if k.lastError != "" {
 		out["last_error"] = k.lastError
 	}
@@ -1192,39 +1179,19 @@ func (k *authorityKeepAlive) run(ctx context.Context) {
 			}
 		}
 		k.mu.Lock()
-		direction := k.direction
 		k.attempts++
 		k.mu.Unlock()
-		body := map[string]any{
-			"requestId": fmt.Sprintf("defense-%s-reacquire-%d", k.name, time.Now().UnixNano()),
-			"expected":  k.identity, "planId": k.planID, "revision": k.revision, "expectedDirection": direction,
-		}
-		acquired, status, err := k.apiCall("POST", "/api/player/control/acquire", body, k.token)
+		acquired, status, err := k.resume("reresume")
 		if err != nil {
 			k.mu.Lock()
 			k.lastError = err.Error()
 			k.mu.Unlock()
 			continue
 		}
-		// Acquire bumps the stored direction before native decides; adopt
-		// whatever current direction the reply reflects.
 		record, _ := na.AsMap(acquired["record"])
-		if observed := na.AsString(record["direction"]); observed != "" {
-			k.mu.Lock()
-			k.direction = observed
-			k.mu.Unlock()
-		} else if state, ok := na.AsMap(acquired["state"]); ok {
-			if generation, ok := na.AsMap(state["generation"]); ok {
-				if observed := na.AsString(generation["direction"]); observed != "" {
-					k.mu.Lock()
-					k.direction = observed
-					k.mu.Unlock()
-				}
-			}
-		}
 		k.mu.Lock()
-		if status != 200 || na.AsString(record["phase"]) != "granted" {
-			k.lastError = fmt.Sprintf("reacquire status=%d body=%#v", status, acquired)
+		if status != 200 || na.AsString(record["phase"]) != "running" {
+			k.lastError = fmt.Sprintf("reresume status=%d body=%#v", status, acquired)
 		} else {
 			k.reacquired++
 			k.lastError = ""
