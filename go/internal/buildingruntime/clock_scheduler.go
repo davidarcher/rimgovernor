@@ -1114,6 +1114,7 @@ func (s *ClockScheduler) stepPlanners(call, epoch context.Context, out *ClockSch
 			if err != nil {
 				return fmt.Errorf("workshop: %w", err)
 			}
+			clockSchedulerLog("Workshop.step result: reason=%v admitted=%v refused=%v", method.Reason, method.Decision.Admitted, method.Decision.Refused)
 			out.Workshop = &method
 			return nil
 		})

@@ -3,6 +3,7 @@ package buildingruntime
 import (
 	"context"
 	"errors"
+	"fmt"
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"github.com/davidarcher/RimGovernor/go/internal/observation"
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
@@ -66,6 +67,9 @@ func comfortBuilderAvailable(facts observation.ColonyProjection, definition stri
 			return false
 		}
 		decision, err := policy.AssignWork(pawns, []policy.WorkRequirement{{Work: "Construction", Skill: "Construction", Minimum: int(minimum)}}, overrides)
+		if clockSchedulerDebug {
+			clockSchedulerLog("%s builder gate: err=%v capacity=%v matches=%v mismatches=%v", definition, err, decision.Capacity, decision.Matches, workMismatches(pawns, decision))
+		}
 		return err == nil && decision.Capacity == domain.Known(true) && decision.Matches == domain.Known(true)
 	}
 	return false
@@ -139,4 +143,27 @@ func comfortNativeWorkTicks(plan store.PlanState, current domain.GenerationSnaps
 	// Dining jobs can finish inside a normal construction window. Observe use
 	// frequently while preserving the original, non-renewable completion deadline.
 	return min(uint32(120), uint32(10000-(tick-v.Tick)))
+}
+
+// workMismatches lists pawn/work pairs whose observed enablement differs from
+// the allocator's decision, the diagnostic behind a "builder unavailable"
+// wait (RIMGOVERNOR_CLOCK_DEBUG=1 only).
+func workMismatches(pawns []policy.WorkPawn, decision policy.WorkDecision) []string {
+	observed := map[policy.PawnID]map[policy.WorkType]policy.WorkPriority{}
+	for _, pawn := range pawns {
+		settings, _ := pawn.Work.Value()
+		observed[pawn.ID] = map[policy.WorkType]policy.WorkPriority{}
+		for _, setting := range settings {
+			observed[pawn.ID][setting.Work] = setting
+		}
+	}
+	var out []string
+	for _, assignment := range decision.Assignments {
+		for _, want := range assignment.Priorities {
+			if have, ok := observed[assignment.Pawn][want.Work]; ok && (have.Priority > 0) != (want.Priority > 0) {
+				out = append(out, fmt.Sprintf("%s/%s observed=%d wanted=%d", assignment.Pawn, want.Work, have.Priority, want.Priority))
+			}
+		}
+	}
+	return out
 }
