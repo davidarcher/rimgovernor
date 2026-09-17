@@ -137,10 +137,14 @@ namespace HomeBridge.BridgeTools
             {
                 crop = DefDatabase<ThingDef>.GetNamedSilentFail(command.Growing.PlantDef);
                 if (crop?.plant == null || !crop.plant.Sowable || crop.plant.harvestedThingDef?.IsNutritionGivingIngestible != true
-                    || crop.researchPrerequisites?.Any(r => !r.IsFinished) == true || !PlantUtility.GrowthSeasonNow(map, crop)) return false;
+                    || crop.researchPrerequisites?.Any(r => !r.IsFinished) == true) return false;
                 var designator = new Designator_ZoneAdd_Growing();
                 var wanted = crop;
-                return cells.All(c => c.InBounds(map) && !c.Fogged(map) && c.Walkable(map) && !c.Roofed(map)
+                // The growing season is each cell's own temperature, so a
+                // heated greenhouse under a roof sows in winter while open
+                // ground follows the outdoor season; the controller decides
+                // whether a roofed cell is lit enough to be worth planting.
+                return cells.All(c => c.InBounds(map) && !c.Fogged(map) && c.Walkable(map) && PlantUtility.GrowthSeasonNow(c, map, wanted)
                     && c.GetEdifice(map) == null && !c.GetThingList(map).Any(t => t is Blueprint || t is Frame) && map.zoneManager.ZoneAt(c) == null && !map.zoneManager.AllZones.Any(z => z.Cells.Contains(c))
                     && !map.roofCollapseBuffer.IsMarkedToCollapse(c) && map.fertilityGrid.FertilityAt(c) >= wanted.plant.fertilityMin
                     && designator.CanDesignateCell(c).Accepted);

@@ -534,10 +534,13 @@ func siteWithin(a, center domain.Cell, radius float64) bool {
 	return math.Sqrt(dx*dx+dz*dz) <= radius
 }
 
-// siteBasinFootprint is a north-facing 1x4 basin anchored at its lowest cell.
+// siteBasinFootprint is the native occupied rect of a north-facing 1x4 basin
+// placed at anchor: RimWorld centres an even-length footprint one cell
+// below the placement cell (GenAdj.OccupiedRect), so the basin spans z-1
+// through z+2.
 func siteBasinFootprint(anchor domain.Cell) []domain.Cell {
 	out := make([]domain.Cell, 0, siteBasinCells)
-	for i := int32(0); i < siteBasinCells; i++ {
+	for i := int32(-(siteBasinCells - 1) / 2); i < siteBasinCells-(siteBasinCells-1)/2; i++ {
 		out = append(out, domain.Cell{X: anchor.X, Z: anchor.Z + i})
 	}
 	return out

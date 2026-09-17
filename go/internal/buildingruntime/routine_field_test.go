@@ -250,3 +250,28 @@ func TestFieldBlockingWorkIgnoresAcquisition(t *testing.T) {
 		t.Fatal("cancelled zone blocked fields")
 	}
 }
+
+// An infrastructure batch is trimmed to what the preview's own stock scan can
+// pay for once earlier placements are counted; an unknown availability is
+// left to admission.
+func TestFieldAffordableStopsAtObservedStock(t *testing.T) {
+	steel := policy.Resource("Steel")
+	basin := policy.Preview{Costs: domain.Known([]policy.Amount{{Resource: steel, Count: 100}, {Resource: "ComponentIndustrial", Count: 1}})}
+	stock := policy.StockObservation{Values: []policy.Stock{{Resource: steel, Available: domain.Known(int64(300))}, {Resource: "ComponentIndustrial", Available: domain.Known(int64(10))}}}
+	spent := map[policy.Resource]int64{}
+	for i := 0; i < 3; i++ {
+		if !fieldAffordable(spent, basin, stock) {
+			t.Fatalf("basin %d should fit 300 steel", i)
+		}
+		for _, cost := range fieldCosts(basin) {
+			spent[cost.Resource] += cost.Count
+		}
+	}
+	if fieldAffordable(spent, basin, stock) {
+		t.Fatal("a fourth basin exceeds 300 steel")
+	}
+	unknown := policy.StockObservation{Values: []policy.Stock{{Resource: steel}}}
+	if !fieldAffordable(spent, basin, unknown) {
+		t.Fatal("unknown availability is admission's call")
+	}
+}

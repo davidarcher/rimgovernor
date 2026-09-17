@@ -201,7 +201,13 @@ func TestPlanSiteTypeHydroponicsOnlyForBasinCrop(t *testing.T) {
 	env, _ := r.Environment.Value()
 	lit := env.LitCells()
 	for _, b := range plan.Buildings {
-		for _, c := range siteBasinFootprint(b.Cell) {
+		// The native occupied rect of a north-facing 1x4 basin is z-1..z+2
+		// around its placement cell; every cell of it must be lit.
+		footprint := siteBasinFootprint(b.Cell)
+		if len(footprint) != 4 || footprint[0].Z != b.Cell.Z-1 || footprint[3].Z != b.Cell.Z+2 {
+			t.Fatal("basin footprint is not the native centred rect", b, footprint)
+		}
+		for _, c := range footprint {
 			if _, ok := lit[c]; !ok || b.Definition != "HydroponicsBasin" {
 				t.Fatal("basin outside lamp coverage", b)
 			}

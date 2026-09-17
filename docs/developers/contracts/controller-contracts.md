@@ -236,14 +236,19 @@ against the best network's day headroom (lamps) or night/calm-night headroom (ba
 heaters), and a heater per room or outdoors below 10C; a kind without the power,
 heater, infrastructure or crop compatibility it needs stays in the candidate list with
 its reason, and an unknown environment leaves only outdoor candidates. Controlled kinds
-ignore the outdoor season. Candidates are enacted in score order: zone kinds preview
+ignore the outdoor season, and native growing-zone creation checks each cell's own
+growing season (its room temperature) rather than the map's, so a heated roofed
+greenhouse sows in winter. Candidates are enacted in score order: zone kinds preview
 growing zones, construction kinds preview the lamp or basins as building actions
-(the lit soil is planted by a later batch once the game reports it), and a candidate the
-game refuses to place or the store cannot reserve falls through to the next, at most
-three per step. Open farm-infrastructure work blocks the next batch like open zone work,
+(the lit soil is planted by a later batch once the game reports it; a building batch stops
+at what the preview's observed stock can pay for, and a basin's footprint is the native
+centred 1x4 rect), and a candidate the game refuses to place or the store cannot reserve
+falls through to the next, at most three per step. Open farm-infrastructure work blocks the next batch like open zone work,
 and the store's field exemption covers `SunLamp`/`HydroponicsBasin`/`Heater` plans.
 `nativeaccept/cmd/farmselectaccept` asserts the traced selection kind/crop, the
-winner's term breakdown and every loser's reason. Insufficient farmland does not reject an otherwise legal
+winner's term breakdown and every loser's reason; `-environment greenhouse|hydroponics`
+stages a lit, heated room under a cold snap through `FarmEnvironmentFixture` and
+audits the zones or basin placements inside it. Insufficient farmland does not reject an otherwise legal
 shelter. Selected field capacity remains separate from observed growing cells and the
 production gate. Work
 allocation uses observed capabilities/skills, job load and stable identity tie breaks;

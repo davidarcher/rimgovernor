@@ -180,7 +180,8 @@ func (r *RoutineFieldPlanner) step(call, epoch context.Context, arbiter *stepArb
 		clockSchedulerLog("Fields: no plan (cells=%d choices=%d climate=%+v runway=%+v colonists=%+v coverage=%+v zones=%d): %s", len(projection.Cells), len(choices), projection.CropClimate, projection.Facts.FoodDays, projection.Facts.Colonists, coverage, len(zones), selection.Explain())
 		return RoutineFieldResult{Reason: BuildingMethodUnknown, NativeWorkTicks: wait}, nil
 	}
-	clockSchedulerLog("Fields select: kind=%s crop=%s cells=%d buildings=%d | %s", selection.Kind, selection.Crop.Name, selection.Sites.Cells, len(selection.Buildings), selection.Explain())
+	// The winner's cells: basin kinds carry them on the candidate, not a site plan.
+	clockSchedulerLog("Fields select: kind=%s crop=%s cells=%d buildings=%d | %s", selection.Kind, selection.Crop.Name, selection.Candidates[0].Cells, len(selection.Buildings), selection.Explain())
 	// Candidates are tried in score order; a construction kind whose
 	// placements the game refuses, or whose costs the store cannot reserve,
 	// falls through to the next plantable candidate within the same step.
@@ -244,6 +245,10 @@ func (r *RoutineFieldPlanner) enact(call, epoch context.Context, state ControlSt
 		if len(buildings) > fieldBatchPatches {
 			buildings = buildings[:fieldBatchPatches]
 		}
+		// The batch stops at what the observed stock can pay for: admission
+		// reserves the whole batch or none, and a basin count sized by lit
+		// floor and night headroom usually outruns the colony's steel.
+		spent := map[policy.Resource]int64{}
 		for i, b := range buildings {
 			building, err := domain.NewBuilding(b.Definition, b.Cell, b.Rotation, "")
 			if err != nil {
@@ -271,6 +276,12 @@ func (r *RoutineFieldPlanner) enact(call, epoch context.Context, state ControlSt
 			}
 			if err = mergeRoutineStock(&stock, preview.Stock, i == 0); err != nil {
 				return RoutineFieldResult{}, false, err
+			}
+			if i > 0 && !fieldAffordable(spent, v, preview.Stock) {
+				break
+			}
+			for _, cost := range fieldCosts(v) {
+				spent[cost.Resource] += cost.Count
 			}
 			actions = append(actions, action)
 			previews = append(previews, v)
@@ -348,6 +359,27 @@ func (r *RoutineFieldPlanner) enact(call, epoch context.Context, state ControlSt
 }
 
 const fieldBatchPatches = 6
+
+func fieldCosts(v policy.Preview) []policy.Amount {
+	costs, _ := v.Costs.Value()
+	return costs
+}
+
+// fieldAffordable reports whether the preview's costs fit the stock its own
+// scan observed once the batch's earlier placements are paid for; an unknown
+// availability never refuses here, admission decides that.
+func fieldAffordable(spent map[policy.Resource]int64, v policy.Preview, stock policy.StockObservation) bool {
+	available := map[policy.Resource]domain.Fact[int64]{}
+	for _, s := range stock.Values {
+		available[s.Resource] = s.Available
+	}
+	for _, cost := range fieldCosts(v) {
+		if have, known := available[cost.Resource].Value(); known && spent[cost.Resource]+cost.Count > have {
+			return false
+		}
+	}
+	return true
+}
 
 // fieldBlockingWork is open zone or farm-infrastructure work under the goal:
 // a lamp still under construction must light its soil before the next batch.
