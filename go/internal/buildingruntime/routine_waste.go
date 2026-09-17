@@ -112,7 +112,7 @@ func (r *RoutineWastePlanner) step(call, epoch context.Context, arbiter *stepArb
 		return RoutineWasteResult{}, ErrControl
 	}
 	started := r.reviewer.clock.Now()
-	reading, err := observation.ObserveColony(call, r.native, r.reviewer.clock, expected, r.reviewer.maxAge, true, nil)
+	reading, err := r.reviewer.observeColony(call, r.native, expected, nil)
 	if err != nil {
 		return RoutineWasteResult{}, err
 	}

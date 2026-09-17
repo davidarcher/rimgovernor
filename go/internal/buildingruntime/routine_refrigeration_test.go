@@ -185,6 +185,10 @@ func TestRefrigerationDefersUnpoweredCoolerToPowerFamily(t *testing.T) {
 	p, _, n, _ := refrigerationFixture(t, true)
 	power := n.reply.GetObserved().Development.GetObserved().Power
 	power[len(power)-1].Building.Service.PowerOn = proto.Bool(false)
+	// Planners plan from the review's census (#75): refresh it first.
+	if _, err := p.reviewer.Step(context.Background()); err != nil {
+		t.Fatal(err)
+	}
 	result, err := p.Step(context.Background())
 	if err != nil || result.Reason != RoutineBuildingReason(policy.RefrigerationPowerNeeded) || result.Decision.Admitted {
 		t.Fatal(result, err)

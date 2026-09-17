@@ -121,7 +121,7 @@ func (r *RoutineFieldPlanner) step(call, epoch context.Context, arbiter *stepArb
 	if err != nil {
 		return RoutineFieldResult{}, err
 	}
-	read, err := observation.ObserveRoutineOwned(call, r.reviewer.native, r.reviewer.clock, expected, r.reviewer.maxAge, claims, definitions...)
+	read, err := r.reviewer.observeOwned(call, r.reviewer.native, expected, claims, definitions...)
 	if err != nil {
 		return RoutineFieldResult{}, err
 	}

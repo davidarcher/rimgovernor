@@ -234,12 +234,18 @@ func TestTemperatureUnknownExistingFacilityAndRecoveredRoom(t *testing.T) {
 					preview.Stock.Values[0].Available = domain.Known(int64(0))
 				}
 			}
-			result, err := p.Step(context.Background())
-			if mode == "stale" {
+			// Planners plan from the review's census, so the review must
+			// observe the mutation before the planner steps (#75).
+			if _, err := p.reviewer.Step(context.Background()); mode == "stale" {
 				if err == nil {
-					t.Fatal("stale room admitted")
+					t.Fatal("stale room reviewed")
 				}
+				return
 			} else if err != nil {
+				t.Fatal(err)
+			}
+			result, err := p.Step(context.Background())
+			if err != nil {
 				t.Fatal(err)
 			}
 			if result.Decision.Admitted || result.NativeWorkTicks != 0 {

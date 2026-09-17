@@ -111,7 +111,7 @@ func (r *RoutineFoodStoragePlanner) step(call, epoch context.Context, arbiter *s
 	if !known {
 		return RoutineFoodStorageResult{Reason: BuildingMethodNoSpace}, nil
 	}
-	read, err := observation.ObserveRoutineOwned(call, r.reviewer.native, r.reviewer.clock, expected, r.reviewer.maxAge, claims)
+	read, err := r.reviewer.observeOwned(call, r.reviewer.native, expected, claims)
 	if err != nil {
 		return RoutineFoodStorageResult{}, err
 	}

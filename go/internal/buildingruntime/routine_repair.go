@@ -112,7 +112,7 @@ func (r *RoutineRepairPlanner) step(call, epoch context.Context, arbiter *stepAr
 		return RoutineRepairResult{}, ErrControl
 	}
 	started := r.reviewer.clock.Now()
-	reading, err := observation.ObserveColony(call, r.native, r.reviewer.clock, expected, r.reviewer.maxAge, true, nil)
+	reading, err := r.reviewer.observeColony(call, r.native, expected, nil)
 	if err != nil {
 		return RoutineRepairResult{}, err
 	}

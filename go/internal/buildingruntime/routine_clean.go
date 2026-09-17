@@ -113,7 +113,7 @@ func (r *RoutineCleanPlanner) step(call, epoch context.Context, arbiter *stepArb
 		return RoutineCleanResult{}, ErrControl
 	}
 	started := r.reviewer.clock.Now()
-	reading, err := observation.ObserveRoutineRooms(call, r.native.(observation.RoutineSource), r.reviewer.clock, expected, r.reviewer.maxAge, domain.Unknown[[]policy.ConstructionClaim]())
+	reading, err := r.reviewer.observeRooms(call, r.native.(observation.RoutineSource), expected, domain.Unknown[[]policy.ConstructionClaim]())
 	if err != nil {
 		return RoutineCleanResult{}, err
 	}

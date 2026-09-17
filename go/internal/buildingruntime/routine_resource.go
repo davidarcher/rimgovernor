@@ -409,7 +409,7 @@ func (r *RoutineResourcePlanner) materialStorageZoneFallback(call, epoch context
 	if !routineBuildingBoundary(expected, state.Snapshot, reviewTick) {
 		return RoutineResourceResult{}, false, ErrControl
 	}
-	reading, err := observation.ObserveColony(call, r.native, r.reviewer.clock, expected, r.reviewer.maxAge, true, nil)
+	reading, err := r.reviewer.observeColony(call, r.native, expected, nil)
 	if err != nil {
 		return RoutineResourceResult{}, false, err
 	}
