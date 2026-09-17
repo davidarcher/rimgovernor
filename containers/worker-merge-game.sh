@@ -33,19 +33,46 @@
 # rimgovernor process is a valid, if coarse, way to keep re-attempting
 # games_connect until the bridge is actually ready -- no need to poll
 # games_status separately first.
+#
+# The retry loop means rimgovernor cannot simply be exec'd, so `docker stop`'s
+# SIGTERM (via --init) lands on this shell, not on rimgovernor. It is
+# forwarded explicitly: rimgovernor handles SIGTERM by closing its SQLite
+# state cleanly, which is what lets docker.Worker.Stop export a checkpointed
+# database instead of one with a live WAL, and a forwarded stop must not be
+# retried as a failed attempt.
 set -e
 if [ -n "$GABS_BIN" ] && [ -n "$GAME_ID" ] && [ -n "$GABS_CONFIG_DIR" ]; then
     "$GABS_BIN" games start "$GAME_ID" --configDir "$GABS_CONFIG_DIR"
 fi
+stopping=""
+child=""
+forward() {
+    stopping=1
+    if [ -n "$child" ]; then
+        kill -TERM "$child" 2>/dev/null || true
+    fi
+}
+trap forward TERM INT
 attempt=1
 max_attempts=8
 while [ "$attempt" -le "$max_attempts" ]; do
-    if ./rimgovernor "$@"; then
+    ./rimgovernor "$@" &
+    child=$!
+    status=0
+    wait "$child" || status=$?
+    # A signal interrupts the first wait; wait again for the child's real exit.
+    if [ -n "$stopping" ]; then
+        wait "$child" 2>/dev/null || true
         exit 0
     fi
-    status=$?
+    if [ "$status" -eq 0 ]; then
+        exit 0
+    fi
     echo "rimgovernor attempt $attempt/$max_attempts exited $status; retrying" >&2
     attempt=$((attempt + 1))
     sleep 15
+    if [ -n "$stopping" ]; then
+        exit 0
+    fi
 done
 exit "$status"
