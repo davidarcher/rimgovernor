@@ -253,7 +253,7 @@ func run(ctx context.Context, root, output, gameID string, headless bool, binary
 	}
 	sessionOpen = false
 
-	service, err = na.LaunchService(ctx, cfg, gabsExecutable, na.ServiceLaunch{Binary: binary, Families: []string{"power", "work"}, Extra: []string{"--clock-speed", "Fast"}}, report)
+	service, err = na.LaunchService(ctx, cfg, gabsExecutable, na.ServiceLaunch{Binary: binary, Families: []string{"power", "work"}, Extra: []string{"--clock-speed", na.ClockSpeed()}}, report)
 	if err != nil {
 		return err
 	}

@@ -3,6 +3,7 @@ package nativeaccept
 import (
 	"context"
 	"fmt"
+	"os"
 	"time"
 )
 
@@ -118,4 +119,17 @@ func ObserveCompleted(ctx context.Context, h *Harness, label string, ticks uint6
 		return nil, fmt.Errorf("%s: %w", label, err)
 	}
 	return completed, nil
+}
+
+// ClockSpeedEnv overrides the clock speed a serve-driven harness passes to
+// rimgovernor serve (--clock-speed); the default is Fast. The clock wire
+// admits Normal, Fast and Superfast only.
+const ClockSpeedEnv = "RIMGOVERNOR_ACCEPT_CLOCK_SPEED"
+
+// ClockSpeed is ClockSpeedEnv or Fast.
+func ClockSpeed() string {
+	if v := os.Getenv(ClockSpeedEnv); v != "" {
+		return v
+	}
+	return "Fast"
 }
