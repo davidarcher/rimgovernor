@@ -7,8 +7,8 @@
 # errors, locked restores); `test` is tests only and runs every project
 # concurrently. Projects needing machine-local inputs (game DLLs) report
 # `unavailable` with the missing path rather than pass.
-# Build outputs and evidence land under .rimgovernor/task; CI starts from a
-# clean checkout so nothing there is reused.
+# Build outputs and evidence land under .rimgovernor/task. There is no hosted
+# CI; the gate runs locally before work lands on main.
 #
 # Install: `winget install Task.Task` or
 # `go install github.com/go-task/task/v3/cmd/task@latest`.

@@ -65,9 +65,12 @@ escapes inside a documented adapter with a boundary test; no blanket suppression
 
 ### What is enforced and what is policy
 
-`task build && task test` from the repository root is the gate; CI
-(`.github/workflows/ci.yml`, Ubuntu and Windows) runs exactly those targets,
-one step per project, so a run's step timings are the per-project timings.
+`task build && task test` from the repository root is the gate. There is no
+hosted CI: the gate runs on the developer's machine before work lands on
+`main`, and `go:test` runs the `-race` pass alongside the plain pass whenever a
+C compiler (`gcc`, e.g. WinLibs MinGW-w64 via `winget`) is on `PATH`. The race
+runtime is several times slower on Windows than on Linux, so test deadlines
+that gate on wall-clock time allow at least 5s.
 [Task](https://taskfile.dev) installs with `winget install Task.Task` or
 `go install github.com/go-task/task/v3/cmd/task@latest`. The root
 `Taskfile.yml` pins `GOTOOLCHAIN`, `GOWORK=off` and `CGO_ENABLED=0` and
