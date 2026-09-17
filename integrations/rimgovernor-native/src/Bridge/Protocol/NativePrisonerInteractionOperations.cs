@@ -58,7 +58,7 @@ namespace HomeBridge.BridgeTools
             pawn = null; def = null;
             failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Prisoner interaction requires an exact current prisoner settings snapshot and a supported interaction.");
             if (!ValidCommand(command)) return false;
-            pawn = ProtoBoundary.ResolveMap(context).mapPawns.AllPawnsSpawned.SingleOrDefault(p => p.GetUniqueLoadID() == command.Pawn.EntityId);
+            pawn = ProtoBoundary.LoadedMap(context).mapPawns.AllPawnsSpawned.SingleOrDefault(p => p.GetUniqueLoadID() == command.Pawn.EntityId);
             if (pawn == null || !Eligible(pawn)) { failure = ProtoBoundary.Fail(Common.FailureCode.NotFound, "Exact eligible current-map colony prisoner is unavailable."); return false; }
             if (Settings(pawn) != command.Pawn.ExpectedSnapshotToken)
             { failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Prisoner interaction settings changed; observe before new admission."); return false; }
@@ -102,8 +102,8 @@ namespace HomeBridge.BridgeTools
                 context.NativeGeneration = guard.Snapshot.Generation;
                 if (!guard.Success) return new Operations.ExecuteReply { Failure = NativeAuthorityControlTools.Refusal(guard.Error, context) };
                 var admission = state.Ledger.Admit("rimgovernor.operations.v1.Operations/Execute", request, context);
-                if (admission.Kind != NativeAttemptLedger.DecisionKind.Admitted) return admission.Reply!;
-                handle = admission.Handle!;
+                if (admission.Kind != NativeAttemptLedger.DecisionKind.Admitted) return admission.DecidedReply;
+                handle = admission.AdmittedHandle;
                 using (authority.Owned())
                 {
                     var current = authority.Check(pre.ExpectedGeneration);
@@ -122,7 +122,7 @@ namespace HomeBridge.BridgeTools
             {
                 return handle == null
                     ? Refuse(Common.FailureCode.NativeFailure, "Prisoner interaction validation failed: " + error.GetType().Name)
-                    : new Operations.ExecuteReply { Receipt = NativeOperationEnvelope.Uncertain(state.Ledger, handle, pre.Attempt, context, evidence!, "Admitted prisoner interaction order requires observation: " + error.GetType().Name) };
+                    : new Operations.ExecuteReply { Receipt = NativeOperationEnvelope.Uncertain(state.Ledger, handle, pre.Attempt, context, evidence, "Admitted prisoner interaction order requires observation: " + error.GetType().Name) };
             }
         }
 
@@ -131,7 +131,7 @@ namespace HomeBridge.BridgeTools
             var result = new Receipts.Progress { Attempt = attempt.Clone(), Context = context.Clone(), CompleteInspection = false };
             try
             {
-                var pawn = ProtoBoundary.ResolveMap(context).mapPawns.AllPawnsSpawned.SingleOrDefault(p => p.GetUniqueLoadID() == record.PawnId);
+                var pawn = ProtoBoundary.LoadedMap(context).mapPawns.AllPawnsSpawned.SingleOrDefault(p => p.GetUniqueLoadID() == record.PawnId);
                 if (pawn == null || !Eligible(pawn))
                 {
                     result.Unknown = new Receipts.UnknownEffect { Reason = "The exact prisoner is no longer observable; absence does not prove the setting held." };

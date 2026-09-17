@@ -147,7 +147,7 @@ namespace HomeBridge.BridgeTools
         {
             crop = null; failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Zone creation requires fresh free ground, an available configuration and an exact map snapshot.");
             if (!Valid(command)) return false;
-            var map = ProtoBoundary.ResolveMap(context);
+            var map = ProtoBoundary.LoadedMap(context);
             if (MapSnapshot(map, context).Token != command.ExpectedMapSnapshotToken) return false;
             var cells = command.Cells.ExplicitCells.Cells.Select(c => new IntVec3(c.X, 0, c.Z)).ToArray();
             var selected = new HashSet<IntVec3>(cells);
@@ -191,10 +191,10 @@ namespace HomeBridge.BridgeTools
                 var guard = authority.Check(pre.ExpectedGeneration); context.NativeGeneration = guard.Snapshot.Generation;
                 if (!guard.Success) return new Operations.ExecuteReply { Failure = NativeAuthorityControlTools.Refusal(guard.Error, context) };
                 var admitted = state.Ledger.Admit("rimgovernor.operations.v1.Operations/Execute", request, context);
-                if (admitted.Kind != NativeAttemptLedger.DecisionKind.Admitted) return admitted.Reply!; handle = admitted.Handle;
+                if (admitted.Kind != NativeAttemptLedger.DecisionKind.Admitted) return admitted.DecidedReply; handle = admitted.AdmittedHandle;
                 using (authority.Owned()) {
                     if (!authority.Check(pre.ExpectedGeneration).Success || !Prepare(command, context, out crop, out failure)) throw new InvalidOperationException("Zone scope changed before creation.");
-                    var map = ProtoBoundary.ResolveMap(context);
+                    var map = ProtoBoundary.LoadedMap(context);
                     NativeZoneRecord record;
                     if (command.Type == Operations.ZoneType.Growing) {
                         var growing = new Zone_Growing(map.zoneManager);
@@ -220,7 +220,7 @@ namespace HomeBridge.BridgeTools
             }
             catch (Exception error) {
                 return handle == null ? new Operations.ExecuteReply { Failure = ProtoBoundary.Fail(Common.FailureCode.NativeFailure, "Zone admission failed: " + error.GetType().Name) }
-                    : new Operations.ExecuteReply { Receipt = NativeOperationEnvelope.Uncertain(state.Ledger, handle, pre.Attempt, context, evidence!, "Created zone requires inspection: " + error.GetType().Name) };
+                    : new Operations.ExecuteReply { Receipt = NativeOperationEnvelope.Uncertain(state.Ledger, handle, pre.Attempt, context, evidence, "Created zone requires inspection: " + error.GetType().Name) };
             }
         }
     }

@@ -128,8 +128,8 @@ namespace HomeBridge.BridgeTools
                 context.NativeGeneration = guard.Snapshot.Generation;
                 if (!guard.Success) return new Operations.ExecuteReply { Failure = NativeAuthorityControlTools.Refusal(guard.Error, context) };
                 var admission = state.Ledger.Admit("rimgovernor.operations.v1.Operations/Execute", request, context);
-                if (admission.Kind != NativeAttemptLedger.DecisionKind.Admitted) return admission.Reply!;
-                handle = admission.Handle!;
+                if (admission.Kind != NativeAttemptLedger.DecisionKind.Admitted) return admission.DecidedReply;
+                handle = admission.AdmittedHandle;
                 using (authority.Owned())
                 {
                     var current = authority.Check(pre.ExpectedGeneration);
@@ -178,7 +178,7 @@ namespace HomeBridge.BridgeTools
             {
                 return handle == null
                     ? Refuse(Common.FailureCode.NativeFailure, "Settlement gift validation failed: " + error.GetType().Name)
-                    : new Operations.ExecuteReply { Receipt = NativeOperationEnvelope.Uncertain(state.Ledger, handle, pre.Attempt, context, evidence!, "Admitted settlement gift requires observation: " + error.GetType().Name) };
+                    : new Operations.ExecuteReply { Receipt = NativeOperationEnvelope.Uncertain(state.Ledger, handle, pre.Attempt, context, evidence, "Admitted settlement gift requires observation: " + error.GetType().Name) };
             }
         }
 

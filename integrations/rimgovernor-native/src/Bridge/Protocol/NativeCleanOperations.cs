@@ -92,11 +92,11 @@ namespace HomeBridge.BridgeTools
         private static bool Prepare(Operations.PawnTargetOrder command, Common.ObservationContext context, out NativeControlIdentity identity,
             out Pawn? pawn, out Filth? filth, out NativePawnSnapshot? snapshot, out Common.Failure failure)
         {
-            identity = new NativeControlIdentity(Current.Game, ProtoBoundary.ResolveMap(context), context.Identity.ColonyId, context.Identity.LoadToken);
+            identity = new NativeControlIdentity(Current.Game, ProtoBoundary.LoadedMap(context), context.Identity.ColonyId, context.Identity.LoadToken);
             pawn = null; filth = null; snapshot = null;
             failure = ProtoBoundary.Fail(Common.FailureCode.Unavailable, "Live native pawn control hooks are required.");
             if (!NativePawnControlState.IsReady) return false;
-            var map = ProtoBoundary.ResolveMap(context);
+            var map = ProtoBoundary.LoadedMap(context);
             pawn = map.mapPawns.AllPawnsSpawned.SingleOrDefault(p => p.GetUniqueLoadID() == command.Pawn.EntityId);
             if (pawn == null) { failure = ProtoBoundary.Fail(Common.FailureCode.NotFound, "Exact pawn is not spawned on this map."); return false; }
             var check = NativePawnControlState.Check(identity, pawn, command.Pawn.ExpectedSnapshotToken, out snapshot);
@@ -151,8 +151,8 @@ namespace HomeBridge.BridgeTools
                 context.NativeGeneration = guard.Snapshot.Generation;
                 if (!guard.Success) return new Operations.ExecuteReply { Failure = NativeAuthorityControlTools.Refusal(guard.Error, context) };
                 var admission = state.Ledger.Admit("rimgovernor.operations.v1.Operations/Execute", request, context);
-                if (admission.Kind != NativeAttemptLedger.DecisionKind.Admitted) return admission.Reply!;
-                handle = admission.Handle!;
+                if (admission.Kind != NativeAttemptLedger.DecisionKind.Admitted) return admission.DecidedReply;
+                handle = admission.AdmittedHandle;
                 bool accepted = false; Exception? effectError = null;
                 using (authority.Owned())
                 {
@@ -178,7 +178,7 @@ namespace HomeBridge.BridgeTools
             {
                 return handle == null
                     ? Refuse(Common.FailureCode.NativeFailure, "Clean validation failed: " + error.GetType().Name)
-                    : new Operations.ExecuteReply { Receipt = NativeOperationEnvelope.Uncertain(state.Ledger, handle, pre.Attempt, context, evidence!, "Admitted clean order requires observation: " + error.GetType().Name) };
+                    : new Operations.ExecuteReply { Receipt = NativeOperationEnvelope.Uncertain(state.Ledger, handle, pre.Attempt, context, evidence, "Admitted clean order requires observation: " + error.GetType().Name) };
             }
         }
 

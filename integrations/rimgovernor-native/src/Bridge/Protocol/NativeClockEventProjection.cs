@@ -1,3 +1,4 @@
+#nullable enable
 using System;
 using System.Collections;
 using System.Collections.Generic;
@@ -98,12 +99,12 @@ namespace HomeBridge.BridgeTools
             }
         }
         internal static Clock.Event Event(string kind, string detail, Dictionary<string, object> payload, Common.ObservationContext context,
-            Clock.EpochOwner owner, long cursor, long observedAt, Clock.Epoch started, Func<int, string> resolvePawn)
+            Clock.EpochOwner owner, long cursor, long observedAt, Clock.Epoch? started, Func<int, string> resolvePawn)
         {
             var result = new Clock.Event { Cursor = cursor, Owner = owner.Clone(), Context = context.Clone(), ObservedAtUnixMs = observedAt, Detail = Text(detail) };
             switch (kind)
             {
-                case "started": result.Started = new Clock.EpochStarted { Epoch = started.Clone() }; break;
+                case "started": result.Started = new Clock.EpochStarted { Epoch = (started ?? throw new ArgumentNullException(nameof(started))).Clone() }; break;
                 case "speed_changed": result.SpeedChanged = new Clock.SpeedChanged { Speed = ParseSpeed(String(payload, "speed")) }; break;
                 case "notification_new": result.Notification = payload.ContainsKey("label") ? new Clock.Notification { Letter = Letter(payload) } : new Clock.Notification { Message = Message(payload) }; break;
                 case "alert_new": result.Alert = Alert(payload); break;

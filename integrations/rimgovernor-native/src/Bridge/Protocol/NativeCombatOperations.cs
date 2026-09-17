@@ -165,12 +165,12 @@ namespace HomeBridge.BridgeTools
         private static bool Resolve(Operations.AttackTarget command,Common.ObservationContext context,out NativeControlIdentity identity,
             out Pawn? pawn,out Pawn? target,out NativePawnSnapshot? snapshot,out JobDef? definition,out Verb? verb,out Common.Failure failure)
         {
-            identity=new NativeControlIdentity(Current.Game,ProtoBoundary.ResolveMap(context),context.Identity.ColonyId,context.Identity.LoadToken);
+            identity=new NativeControlIdentity(Current.Game, ProtoBoundary.LoadedMap(context),context.Identity.ColonyId,context.Identity.LoadToken);
             pawn=null;target=null;snapshot=null;definition=null;verb=null;
             failure=ProtoBoundary.Fail(Common.FailureCode.Unavailable,"Live canonical pawn snapshot and combat attribution hooks are required.");
             if(!NativePawnControlState.IsReady)return false;
-            pawn=ProtoBoundary.ResolveMap(context).mapPawns.AllPawnsSpawned.SingleOrDefault(p=>p.GetUniqueLoadID()==command.Pawn.EntityId);
-            target=ProtoBoundary.ResolveMap(context).mapPawns.AllPawnsSpawned.SingleOrDefault(p=>p.GetUniqueLoadID()==command.Target.EntityId);
+            pawn=ProtoBoundary.LoadedMap(context).mapPawns.AllPawnsSpawned.SingleOrDefault(p=>p.GetUniqueLoadID()==command.Pawn.EntityId);
+            target=ProtoBoundary.LoadedMap(context).mapPawns.AllPawnsSpawned.SingleOrDefault(p=>p.GetUniqueLoadID()==command.Target.EntityId);
             if(pawn==null){failure=ProtoBoundary.Fail(Common.FailureCode.NotFound,"Exact attacker is not spawned on this map.");return false;}
             if(target==null){failure=ProtoBoundary.Fail(Common.FailureCode.Unsupported,"This attack adapter requires a spawned pawn target with canonical pawn CAS.");return false;}
             bool ranged=Ranged(command,pawn);
@@ -202,8 +202,8 @@ namespace HomeBridge.BridgeTools
                 guard=authority.Check(pre.ExpectedGeneration);
                 if(!guard.Success)return new Operations.ExecuteReply {Failure=NativeAuthorityControlTools.Refusal(guard.Error,context)};
                 var admission=state.Ledger.Admit("rimgovernor.operations.v1.Operations/Execute",request,context);
-                if(admission.Kind!=NativeAttemptLedger.DecisionKind.Admitted)return admission.Reply!;
-                handle=admission.Handle!;
+                if(admission.Kind!=NativeAttemptLedger.DecisionKind.Admitted)return admission.DecidedReply;
+                handle=admission.AdmittedHandle;
                 var record=new NativeCombatRecord(identity,pawn!,target!,job,before!,context,command.RequireStanding,pre,authority);
                 state.Combat.Add(pre.Attempt.Clone(),record);
                 bool accepted=false;Exception? effectError=null;
@@ -223,7 +223,7 @@ namespace HomeBridge.BridgeTools
                 }
                 return new Operations.ExecuteReply {Receipt=NativeOperationEnvelope.Applied(state.Ledger,handle,pre.Attempt,context,evidence!)};
             }catch(Exception error){return handle==null?Refuse(Common.FailureCode.NativeFailure,"Attack validation failed: "+error.GetType().Name)
-                :new Operations.ExecuteReply {Receipt=NativeOperationEnvelope.Uncertain(state.Ledger,handle,pre.Attempt,context,evidence!,"Admitted attack requires observation: "+error.GetType().Name)};}
+                :new Operations.ExecuteReply {Receipt=NativeOperationEnvelope.Uncertain(state.Ledger,handle,pre.Attempt,context,evidence,"Admitted attack requires observation: "+error.GetType().Name)};}
         }
         internal static Operations.PreviewReply Preview(Operations.AttackTarget command,Common.ObservationContext context)
         {

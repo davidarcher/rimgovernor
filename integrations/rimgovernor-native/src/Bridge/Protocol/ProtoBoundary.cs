@@ -1,4 +1,6 @@
+#nullable enable
 using System;
+using System.Diagnostics.CodeAnalysis;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
@@ -19,11 +21,11 @@ namespace HomeBridge.BridgeTools
         internal const int MaximumEnvelopeBytes = 1024 * 1024;
         private static readonly Encoding Utf8 = new UTF8Encoding(false, true);
 
-        internal static bool TryParse<T>(IRimBridgeContext ctx, string toolName, object request,
-            MessageParser<T> parser, out T value, out Common.Failure failure) where T : IMessage<T>
+        internal static bool TryParse<T>(IRimBridgeContext ctx, string toolName, object? request,
+            MessageParser<T> parser, [NotNullWhen(true)] out T? value, [NotNullWhen(false)] out Common.Failure? failure) where T : class, IMessage<T>
         {
-            value = default(T);
-            string unavailable;
+            value = null;
+            string? unavailable;
             var arguments = BridgeCommon.RawArguments(ctx, out unavailable);
             if (arguments == null)
             {
@@ -38,10 +40,8 @@ namespace HomeBridge.BridgeTools
                     return false;
                 }
             }
-            object raw;
-            string json;
-            if (!arguments.TryGetValue("request", out raw) || !TryString(raw, out json)
-                || !(request is string) || !string.Equals(json, (string)request, StringComparison.Ordinal))
+            if (!arguments.TryGetValue("request", out var raw) || !TryString(raw, out var json)
+                || !(request is string expected) || !string.Equals(json, expected, StringComparison.Ordinal))
             {
                 failure = Fail(Common.FailureCode.InvalidRequest, "request must be a ProtoJSON string.");
                 return false;
@@ -74,7 +74,7 @@ namespace HomeBridge.BridgeTools
             }
         }
 
-        private static bool TryString(object raw, out string value)
+        private static bool TryString(object? raw, [NotNullWhen(true)] out string? value)
         {
             value = raw as string;
             if (value != null) return true;
@@ -172,7 +172,7 @@ namespace HomeBridge.BridgeTools
             catch (EncoderFallbackException) { return false; }
         }
 
-        internal static bool Complete(Common.Identity expected) => expected != null && expected.HasColonyId && expected.HasLoadToken
+        internal static bool Complete([NotNullWhen(true)] Common.Identity? expected) => expected != null && expected.HasColonyId && expected.HasLoadToken
             && expected.HasMapId && IsIdentifier(expected.ColonyId) && IsIdentifier(expected.LoadToken) && expected.MapId >= 0;
 
         /// <summary>
@@ -180,7 +180,7 @@ namespace HomeBridge.BridgeTools
         /// operation is scoped to this map, never to whichever map the player
         /// happens to be viewing. Call only on the game thread.
         /// </summary>
-        internal static Map ResolveMap(Common.Identity expected)
+        internal static Map? ResolveMap(Common.Identity? expected)
         {
             if (!Complete(expected) || Current.Game == null || Find.Maps == null) return null;
             foreach (var map in Find.Maps)
@@ -188,31 +188,49 @@ namespace HomeBridge.BridgeTools
             return null;
         }
 
-        internal static Map ResolveMap(Common.ObservationContext context) => ResolveMap(context?.Identity);
+        internal static Map? ResolveMap(Common.ObservationContext? context) => ResolveMap(context?.Identity);
+
+        /// <summary>
+        /// The map an already validated or admitted context names. Validation
+        /// proved it loaded on this game thread; a missing map here is an
+        /// invariant failure, not a caller error.
+        /// </summary>
+        internal static Map LoadedMap(Common.ObservationContext context) => ResolveMap(context.Identity)
+            ?? throw new InvalidOperationException("The validated map is no longer loaded.");
 
         /// <summary>True while the map is one of the game's loaded maps.</summary>
-        internal static bool IsLoaded(Map map)
+        internal static bool IsLoaded([NotNullWhen(true)] Map? map)
         {
             if (map == null || Current.Game == null || Find.Maps == null) return false;
             foreach (var loaded in Find.Maps) if (ReferenceEquals(loaded, map)) return true;
             return false;
         }
 
-        internal static bool ValidateIdentity(Common.Identity expected,
-            out Common.ObservationContext context, out Common.Failure failure)
+        internal static bool ValidateIdentity(Common.Identity? expected,
+            [NotNullWhen(true)] out Common.ObservationContext? context, [NotNullWhen(false)] out Common.Failure? failure)
             => ValidateIdentity(expected, ResolveMap(expected), out context, out failure);
+
+        /// <summary>Resolves and validates in one step; the map is non-null exactly when validation succeeds.</summary>
+        internal static bool ValidateIdentity(Common.Identity? expected, [NotNullWhen(true)] out Map? map,
+            [NotNullWhen(true)] out Common.ObservationContext? context, [NotNullWhen(false)] out Common.Failure? failure)
+        {
+            var resolved = ResolveMap(expected);
+            var valid = ValidateIdentity(expected, resolved, out context, out failure);
+            map = valid ? resolved : null;
+            return valid && map != null;
+        }
 
         /// <summary>
         /// For presentation state that lives on the viewed map (selection,
         /// camera, capture): the identity must name the map the player is
         /// looking at, otherwise StaleIdentity carrying the viewed context.
         /// </summary>
-        internal static bool ValidateViewedIdentity(Common.Identity expected,
-            out Common.ObservationContext context, out Common.Failure failure)
+        internal static bool ValidateViewedIdentity(Common.Identity? expected,
+            [NotNullWhen(true)] out Common.ObservationContext? context, [NotNullWhen(false)] out Common.Failure? failure)
             => ValidateIdentity(expected, Find.CurrentMap, out context, out failure);
 
-        internal static bool ValidateIdentity(Common.Identity expected, Map map,
-            out Common.ObservationContext context, out Common.Failure failure)
+        internal static bool ValidateIdentity(Common.Identity? expected, Map? map,
+            [NotNullWhen(true)] out Common.ObservationContext? context, [NotNullWhen(false)] out Common.Failure? failure)
         {
             context = null;
             if (!Complete(expected))
@@ -220,8 +238,7 @@ namespace HomeBridge.BridgeTools
                 failure = Fail(Common.FailureCode.InvalidRequest, "A complete valid colony, load and map identity is required.");
                 return false;
             }
-            Common.Unavailable unavailable;
-            if (map == null && Current.Game != null && TryReadContext(Find.CurrentMap, out context, out unavailable))
+            if (map == null && Current.Game != null && TryReadContext(Find.CurrentMap, out context, out _))
             {
                 // The named map is no longer loaded but the game is: stale, with
                 // the viewed map's context so the caller can re-anchor.
@@ -230,7 +247,7 @@ namespace HomeBridge.BridgeTools
                 context = null;
                 return false;
             }
-            if (!TryReadContext(map, out context, out unavailable))
+            if (!TryReadContext(map, out context, out var unavailable))
             {
                 failure = Fail(Common.FailureCode.Unavailable, unavailable.Detail);
                 return false;
@@ -247,8 +264,8 @@ namespace HomeBridge.BridgeTools
 
         // Call only on the game thread. Reading never attaches or repairs game components.
         // Any loaded map is a valid context; the viewed map is not special here.
-        internal static bool TryReadContext(Map map, out Common.ObservationContext context,
-            out Common.Unavailable unavailable)
+        internal static bool TryReadContext(Map? map, [NotNullWhen(true)] out Common.ObservationContext? context,
+            [NotNullWhen(false)] out Common.Unavailable? unavailable)
         {
             context = null;
             if (Current.Game == null || map == null || !IsLoaded(map) || Find.TickManager == null)
@@ -269,8 +286,7 @@ namespace HomeBridge.BridgeTools
                 Identity = new Common.Identity { ColonyId = identity.ColonyId, LoadToken = identity.LoadToken, MapId = map.uniqueID },
                 Tick = Find.TickManager.TicksGame
             };
-            NativeControlAuthority authority;
-            if (NativeControlAuthority.TryGetForGame(Current.Game, out authority))
+            if (NativeControlAuthority.TryGetForGame(Current.Game, out var authority) && authority != null)
                 context.NativeGeneration = authority.Status().Generation;
             unavailable = null;
             return true;

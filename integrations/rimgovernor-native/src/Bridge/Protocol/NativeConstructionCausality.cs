@@ -1,3 +1,4 @@
+#nullable enable
 using System;
 using System.Collections.Generic;
 using System.Runtime.CompilerServices;
@@ -18,13 +19,13 @@ namespace HomeBridge.BridgeTools
         private readonly HashSet<object> spawned = new HashSet<object>(ReferenceComparer.Instance);
         private bool replaced;
         internal void Created(object value) { if (value != null) created.Add(value); }
-        internal void Spawned(object input, object result)
+        internal void Spawned(object input, object? result)
         {
             if (input == null || !created.Contains(input)) return;
             if (!ReferenceEquals(input, result)) { replaced = true; return; }
             spawned.Add(result);
         }
-        internal bool TryComplete(bool previousDestroyed, Exception error, out object successor)
+        internal bool TryComplete(bool previousDestroyed, Exception? error, out object? successor)
         {
             successor = null;
             if (!previousDestroyed || error != null || replaced || created.Count != 1 || spawned.Count != 1) return false;

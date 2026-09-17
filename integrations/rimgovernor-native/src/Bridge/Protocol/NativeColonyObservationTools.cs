@@ -33,8 +33,7 @@ namespace HomeBridge.BridgeTools
             if (!ProtoBoundary.TryParse(ctx, ToolName, request!, Obs.ColonyFactsRequest.Parser, out var parsed, out var failure)
                 || !Validate(parsed, out failure)) return ProtoBoundary.Encode(new Obs.ColonyFactsReply { Failure = failure });
             return await ProtoBoundary.OnMainThread(ctx, () => {
-                var map = ProtoBoundary.ResolveMap(parsed.Scope.ExpectedIdentity);
-                if (!ProtoBoundary.ValidateIdentity(parsed.Scope.ExpectedIdentity, map, out var context, out failure))
+                if (!ProtoBoundary.ValidateIdentity(parsed.Scope?.ExpectedIdentity, out var map, out var context, out failure))
                     return ProtoBoundary.Encode(new Obs.ColonyFactsReply { Failure = failure });
                 try {
                     var reply = new Obs.ColonyFactsReply { Observed = Read(map, parsed, context) };

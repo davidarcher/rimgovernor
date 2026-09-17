@@ -91,7 +91,7 @@ namespace HomeBridge.BridgeTools
                     return ProtoBoundary.Encode(new Presentation.ColonistRosterReply { Failure = error });
                 try
                 {
-                    var maps = parsed.CurrentMapOnly ? new[] { ProtoBoundary.ResolveMap(context) } : Find.Maps.ToArray();
+                    var maps = parsed.CurrentMapOnly ? new[] { ProtoBoundary.LoadedMap(context) } : Find.Maps.ToArray();
                     var pawns = maps.SelectMany(m => m.mapPawns.FreeColonistsSpawned).Distinct().OrderBy(p => p.GetUniqueLoadID(), StringComparer.Ordinal).ToList();
                     Require(pawns.Count <= 256, "Colonist roster exceeds 256 objects.");
                     var roster = new Presentation.ColonistRoster { Context = context, Listing = Listing(pawns.Count) };

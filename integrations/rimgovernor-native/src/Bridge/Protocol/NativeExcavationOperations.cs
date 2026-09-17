@@ -194,9 +194,9 @@ namespace HomeBridge.BridgeTools
                 context.NativeGeneration = guard.Snapshot.Generation;
                 if (!guard.Success) return new Operations.ExecuteReply { Failure = NativeAuthorityControlTools.Refusal(guard.Error, context) };
                 var admitted = state.Ledger.Admit("rimgovernor.operations.v1.Operations/Execute", request, context);
-                if (admitted.Kind != NativeAttemptLedger.DecisionKind.Admitted) return admitted.Reply!;
-                handle = admitted.Handle;
-                var map = ProtoBoundary.ResolveMap(context); var cell = new IntVec3(command.Cell.X, 0, command.Cell.Z);
+                if (admitted.Kind != NativeAttemptLedger.DecisionKind.Admitted) return admitted.DecidedReply;
+                handle = admitted.AdmittedHandle;
+                var map = ProtoBoundary.LoadedMap(context); var cell = new IntVec3(command.Cell.X, 0, command.Cell.Z);
                 if (cleared)
                 {
                     // Nothing to designate: the receipt carries the cleared
@@ -224,7 +224,7 @@ namespace HomeBridge.BridgeTools
             }
             catch (Exception error)
             {
-                if (handle != null) return new Operations.ExecuteReply { Receipt = NativeOperationEnvelope.Uncertain(state.Ledger, handle, pre.Attempt, context, evidence!, "Excavation write interrupted: " + error.GetType().Name) };
+                if (handle != null) return new Operations.ExecuteReply { Receipt = NativeOperationEnvelope.Uncertain(state.Ledger, handle, pre.Attempt, context, evidence, "Excavation write interrupted: " + error.GetType().Name) };
                 return new Operations.ExecuteReply { Failure = ProtoBoundary.Fail(Common.FailureCode.NativeFailure, "Excavation failed: " + error.GetType().Name) };
             }
         }

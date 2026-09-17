@@ -37,8 +37,7 @@ namespace HomeBridge.BridgeTools
             if (!ProtoBoundary.TryParse(ctx, "rimgovernor/observations_read_spatial_access", request!, Obs.SpatialAccessRequest.Parser, out var parsed, out var failure)
                 || !Validate(parsed, out failure)) return ProtoBoundary.Encode(new Obs.SpatialAccessReply { Failure = failure });
             return await ProtoBoundary.OnMainThread(ctx, () => {
-                var map = ProtoBoundary.ResolveMap(parsed.Scope?.ExpectedIdentity!);
-                if (!ProtoBoundary.ValidateIdentity(parsed.Scope?.ExpectedIdentity!, map, out var context, out failure))
+                if (!ProtoBoundary.ValidateIdentity(parsed.Scope?.ExpectedIdentity, out var map, out var context, out failure))
                     return ProtoBoundary.Encode(new Obs.SpatialAccessReply { Failure = failure });
                 if (Find.TickManager.CurTimeSpeed != TimeSpeed.Paused)
                     return ProtoBoundary.Encode(new Obs.SpatialAccessReply { Unavailable = Unavailable(Common.UnavailableReason.NotApplicable, "Spatial access requires a paused map.") });

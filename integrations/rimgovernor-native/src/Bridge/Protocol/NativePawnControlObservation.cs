@@ -18,7 +18,7 @@ namespace HomeBridge.BridgeTools
             }
             else
             {
-                var identity = new NativeControlIdentity(Current.Game, ProtoBoundary.ResolveMap(context), context.Identity.ColonyId, context.Identity.LoadToken);
+                var identity = new NativeControlIdentity(Current.Game, ProtoBoundary.LoadedMap(context), context.Identity.ColonyId, context.Identity.LoadToken);
                 var result = NativePawnControlState.Observe(identity, pawn, out var snapshot);
                 if (result == NativePawnControlResult.Ready && snapshot != null)
                 {

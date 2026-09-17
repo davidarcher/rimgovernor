@@ -1,4 +1,6 @@
+#nullable enable
 using System;
+using System.Diagnostics.CodeAnalysis;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
@@ -31,20 +33,19 @@ namespace HomeBridge.BridgeTools
 
         private sealed class Entry
         {
-            public string RequestId;
-            public DateTime RecordedUtc;
-            public Lifecycle.SaveReply Reply;
+            public readonly string RequestId;
+            public readonly DateTime RecordedUtc;
+            public readonly Lifecycle.SaveReply Reply;
+            public Entry(string requestId, DateTime recordedUtc, Lifecycle.SaveReply reply) { RequestId = requestId; RecordedUtc = recordedUtc; Reply = reply; }
         }
 
         [Tool(ToolName, Title = "Trusted native save checkpoint",
             Description = "Verify identity/tick/pause, perform a single native save and re-verify nothing moved.")]
         [ToolResponse("payload", "string", "Official ProtoJSON rimgovernor.lifecycle.v1.SaveReply.", Always = true)]
         public async Task<object> Save(IRimBridgeContext ctx, CancellationToken cancellationToken,
-            [ToolParameter(Description = "Official lifecycle SaveRequest ProtoJSON string.")] object request = null)
+            [ToolParameter(Description = "Official lifecycle SaveRequest ProtoJSON string.")] object? request = null)
         {
-            Lifecycle.SaveRequest parsed;
-            Common.Failure failure;
-            if (!ProtoBoundary.TryParse(ctx, ToolName, request, Lifecycle.SaveRequest.Parser, out parsed, out failure))
+            if (!ProtoBoundary.TryParse(ctx, ToolName, request, Lifecycle.SaveRequest.Parser, out var parsed, out var failure))
                 return ProtoBoundary.Encode(new Lifecycle.SaveReply { Failure = failure });
 
             return await ProtoBoundary.OnMainThreadEncoded(ctx, () => Apply(parsed), cancellationToken).ConfigureAwait(false);
@@ -54,11 +55,9 @@ namespace HomeBridge.BridgeTools
             Description = "Re-read a rimgovernor/lifecycle_save request_id's exact SaveCompleted/SaveUncertain/Failure outcome after a lost reply.")]
         [ToolResponse("payload", "string", "Official ProtoJSON rimgovernor.lifecycle.v1.SaveReply.", Always = true)]
         public async Task<object> ReadSave(IRimBridgeContext ctx, CancellationToken cancellationToken,
-            [ToolParameter(Description = "Official lifecycle RequestStatus ProtoJSON string.")] object request = null)
+            [ToolParameter(Description = "Official lifecycle RequestStatus ProtoJSON string.")] object? request = null)
         {
-            Lifecycle.RequestStatus parsed;
-            Common.Failure failure;
-            if (!ProtoBoundary.TryParse(ctx, ReadToolName, request, Lifecycle.RequestStatus.Parser, out parsed, out failure))
+            if (!ProtoBoundary.TryParse(ctx, ReadToolName, request, Lifecycle.RequestStatus.Parser, out var parsed, out var failure))
                 return ProtoBoundary.Encode(new Lifecycle.SaveReply { Failure = failure });
 
             return await ProtoBoundary.OnMainThreadEncoded(ctx, () => PollSave(parsed), cancellationToken).ConfigureAwait(false);
@@ -67,16 +66,14 @@ namespace HomeBridge.BridgeTools
         // Call only on the game thread.
         internal static Lifecycle.SaveReply Apply(Lifecycle.SaveRequest request)
         {
-            var player = request?.Player;
+            var player = request.Player;
             if (player == null || !ValidIdentity(player.Identity) || !player.HasPlayerDirection || player.PlayerDirection == 0
                 || !player.HasRequestId || !ProtoBoundary.IsIdentifier(player.RequestId)
                 || !request.HasSaveName || !ProtoBoundary.IsIdentifier(request.SaveName))
                 return new Lifecycle.SaveReply { Failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest,
                     "Save requires a complete player identity, direction, request id and save name.") };
 
-            Common.ObservationContext context;
-            Common.Unavailable unavailable;
-            if (!ProtoBoundary.TryReadContext(Find.CurrentMap, out context, out unavailable))
+            if (!ProtoBoundary.TryReadContext(Find.CurrentMap, out var context, out var unavailable))
                 return new Lifecycle.SaveReply { Failure = ProtoBoundary.Fail(Common.FailureCode.Unavailable, unavailable.Detail) };
 
             // A mismatch here is a race with the caller's own expectation, not a
@@ -102,9 +99,7 @@ namespace HomeBridge.BridgeTools
                     "Native save failed: " + error.GetType().Name) };
             }
 
-            Common.ObservationContext after;
-            Common.Unavailable afterUnavailable;
-            if (!ProtoBoundary.TryReadContext(Find.CurrentMap, out after, out afterUnavailable))
+            if (!ProtoBoundary.TryReadContext(Find.CurrentMap, out var after, out var afterUnavailable))
                 return Record(player.RequestId, new Lifecycle.SaveReply { Uncertain = new Lifecycle.SaveUncertain
                 {
                     RequestId = player.RequestId, SaveName = request.SaveName,
@@ -147,7 +142,7 @@ namespace HomeBridge.BridgeTools
             lock (Lock)
             {
                 Prune();
-                Entries[requestId] = new Entry { RequestId = requestId, RecordedUtc = DateTime.UtcNow, Reply = reply };
+                Entries[requestId] = new Entry(requestId, DateTime.UtcNow, reply);
             }
             return reply;
         }
@@ -155,7 +150,7 @@ namespace HomeBridge.BridgeTools
         private static void Prune()
         {
             if (Entries.Count < MaxEntries) return;
-            string oldest = null;
+            string? oldest = null;
             var oldestTime = DateTime.MaxValue;
             foreach (var pair in Entries)
             {
@@ -169,7 +164,7 @@ namespace HomeBridge.BridgeTools
                 Entries.Remove(oldest);
         }
 
-        private static bool ValidIdentity(Common.Identity identity) =>
+        private static bool ValidIdentity([NotNullWhen(true)] Common.Identity? identity) =>
             identity != null && identity.HasColonyId && identity.HasLoadToken && identity.HasMapId
             && ProtoBoundary.IsIdentifier(identity.ColonyId) && ProtoBoundary.IsIdentifier(identity.LoadToken) && identity.MapId >= 0;
     }

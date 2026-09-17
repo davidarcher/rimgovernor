@@ -1,5 +1,6 @@
 #nullable enable
 using System;
+using System.Diagnostics.CodeAnalysis;
 using System.Threading;
 using System.Threading.Tasks;
 using Google.Protobuf;
@@ -178,7 +179,7 @@ namespace HomeBridge.BridgeTools
         }
 
         // Absent source means the presented screen, as before sources existed.
-        private static bool TryParseSource(Presentation.VideoSource? source, out VideoSourceSpec spec, out string? reason)
+        private static bool TryParseSource(Presentation.VideoSource? source, out VideoSourceSpec spec, [NotNullWhen(false)] out string? reason)
         {
             var kind = source?.Kind ?? Presentation.VideoSourceKind.Screen;
             VideoSourceKind native;

@@ -1,4 +1,6 @@
+#nullable enable
 using System;
+using System.Diagnostics.CodeAnalysis;
 using System.Collections.Generic;
 using System.Linq;
 using System.Runtime.CompilerServices;
@@ -15,24 +17,25 @@ namespace HomeBridge.BridgeTools
     {
         internal readonly Map Map;
         internal readonly ThingDef Definition;
-        internal readonly ThingDef Stuff;
+        internal readonly ThingDef? Stuff; // Null unless the definition is made from stuff.
         internal readonly IntVec3 Cell;
         internal readonly Rot4 Rotation;
         internal readonly Faction Player;
         internal readonly bool Instant;
-        internal NativeConstructionPlan(Map map, ThingDef definition, ThingDef stuff, IntVec3 cell, Rot4 rotation, Faction player)
+        internal NativeConstructionPlan(Map map, ThingDef definition, ThingDef? stuff, IntVec3 cell, Rot4 rotation, Faction player)
         {
             Map = map; Definition = definition; Stuff = stuff; Cell = cell; Rotation = rotation; Player = player;
             Instant = definition.GetStatValueAbstract(StatDefOf.WorkToBuild, stuff) == 0f;
         }
 
-        internal static bool Prepare(Map map, Placement.PlacementCandidate candidate, Common.ObservationContext context,
-            out NativeConstructionPlan plan, out Placement.PlacementEvaluated preview, out Common.Failure failure)
+        internal static bool Prepare(Map map, Placement.PlacementCandidate? candidate, Common.ObservationContext context,
+            [NotNullWhen(true)] out NativeConstructionPlan? plan, [NotNullWhen(true)] out Placement.PlacementEvaluated? preview, [NotNullWhen(false)] out Common.Failure? failure)
         {
             plan = null; preview = null;
             var validation = new Placement.PlacementRequest { Identity = context.Identity };
             if (candidate != null) validation.Placements.Add(candidate);
             if (!PlacementProtocol.Validate(validation, out failure)) return false;
+            if (candidate == null) { failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Construction requires one placement candidate."); return false; }
             var query = new PlacementQuery(candidate.DefName, candidate.X, candidate.Z,
                 PlacementProtocol.RotationName(candidate.Rotation), candidate.HasStuff ? candidate.Stuff : null);
             var result = PlacementProtocol.Map(PlacementPreviewOperation.Evaluate(map, query), context);
@@ -112,7 +115,7 @@ namespace HomeBridge.BridgeTools
         internal readonly NativeConstructionPlan Plan;
         internal readonly Receipts.ConstructionEffect Effect;
         internal Thing Current;
-        internal string Uncertain;
+        internal string? Uncertain;
         internal bool Cancelled;
         internal NativeConstructionRecord(Game game, NativeConstructionPlan plan, Thing thing, Receipts.ConstructionEffect effect)
         {
@@ -120,7 +123,7 @@ namespace HomeBridge.BridgeTools
             Effect.OriginThingId = thing.GetUniqueLoadID();
             Update(thing);
         }
-        internal bool Matches(Thing thing) => thing != null && thing.Spawned && ReferenceEquals(thing.Map, Map)
+        internal bool Matches(Thing? thing) => thing != null && thing.Spawned && ReferenceEquals(thing.Map, Map)
             && thing.Position == Plan.Cell && thing.Rotation == Plan.Rotation && thing.Faction == Plan.Player
             && (thing is Blueprint || thing is Frame ? thing.def.entityDefToBuild : thing.def) == Plan.Definition
             && (thing is Blueprint_Build blueprint ? blueprint.EntityToBuildStuff() : thing.Stuff) == Plan.Stuff;
@@ -227,10 +230,9 @@ namespace HomeBridge.BridgeTools
         }
         // MakeSolidThing returns an unspawned, unfactioned frame. Its enclosing
         // method supplies placement/faction and exposes the exact created object.
-        private static void Transition(Blueprint __instance, bool __result, Thing createdThing, Exception __exception)
+        private static void Transition(Blueprint __instance, bool __result, Thing? createdThing, Exception? __exception)
         {
-            NativeConstructionRecord record;
-            if (!Tracked.TryGetValue(__instance, out record)) return;
+            if (!Tracked.TryGetValue(__instance, out var record)) return;
             if (__exception == null && !__result && createdThing == null && record.Matches(__instance)) return;
             if (__exception != null || !__result || !__instance.Destroyed || !record.Matches(createdThing)
                 || !(createdThing is Frame))
@@ -238,54 +240,52 @@ namespace HomeBridge.BridgeTools
             Tracked.Remove(__instance); Tracked.Add(createdThing, record); record.Update(createdThing);
         }
         private static void Cancelled(Thing __instance, DestroyMode mode,
-            System.Reflection.MethodBase __originalMethod, Exception __exception)
+            System.Reflection.MethodBase __originalMethod, Exception? __exception)
         {
             if (mode != DestroyMode.Cancel || __exception != null || !__instance.Destroyed) return;
             // Base Destroy may succeed before a derived override or component
             // throws. Only the outermost concrete virtual implementation confirms.
             if (!NativeConstructionHookSet.SameMethod(
                 AccessTools.Method(__instance.GetType(), nameof(Thing.Destroy), new[] { typeof(DestroyMode) }), __originalMethod)) return;
-            NativeConstructionRecord record;
-            if (Tracked.TryGetValue(__instance, out record) && ReferenceEquals(record.Current, __instance))
+            if (Tracked.TryGetValue(__instance, out var record) && ReferenceEquals(record.Current, __instance))
                 record.Cancelled = true;
         }
         private sealed class Completion
         {
-            internal NativeConstructionRecord Record;
-            internal Frame Frame;
-            internal ThingDef ExpectedDefinition;
+            internal readonly NativeConstructionRecord? Record; // Null for an untracked nested frame call.
+            internal readonly Frame Frame;
+            internal readonly ThingDef? ExpectedDefinition;
+            internal Completion(NativeConstructionRecord? record, Frame frame, ThingDef? expectedDefinition)
+            { Record = record; Frame = frame; ExpectedDefinition = expectedDefinition; }
             internal readonly NativeConstructionCausality Causality = new NativeConstructionCausality();
         }
         private static void Begin(Frame __instance, System.Reflection.MethodBase __originalMethod, out Completion __state)
         {
-            NativeConstructionRecord record;
-            Tracked.TryGetValue(__instance, out record);
+            Tracked.TryGetValue(__instance, out var record);
             // Even an untracked nested frame call hides its effects from a parent.
-            __state = new Completion { Record = record, Frame = __instance,
-                ExpectedDefinition = __originalMethod.Name == nameof(Frame.FailConstruction)
-                    ? __instance.def.entityDefToBuild.blueprintDef : __instance.def.entityDefToBuild as ThingDef };
+            __state = new Completion(record, __instance, __originalMethod.Name == nameof(Frame.FailConstruction)
+                ? __instance.def.entityDefToBuild?.blueprintDef : __instance.def.entityDefToBuild as ThingDef);
             Completions.Add(__state);
         }
-        private static void Created(Thing __result)
+        private static void Created(Thing? __result)
         {
             if (Completions.Count == 0 || __result == null) return;
             var completion = Completions[Completions.Count - 1];
             if (completion.Record != null && __result.def == completion.ExpectedDefinition)
                 completion.Causality.Created(__result);
         }
-        private static void Spawned(Thing __0, Thing __result)
+        private static void Spawned(Thing __0, Thing? __result)
         {
             if (Completions.Count == 0) return;
             var completion = Completions[Completions.Count - 1];
             if (completion.Record != null) completion.Causality.Spawned(__0, __result);
         }
-        private static void End(Completion __state, Exception __exception)
+        private static void End(Completion? __state, Exception? __exception)
         {
             if (__state == null) return;
             Completions.Remove(__state);
             if (__state.Record == null) return;
-            object successor;
-            if (!__state.Causality.TryComplete(__state.Frame.Destroyed, __exception, out successor)
+            if (!__state.Causality.TryComplete(__state.Frame.Destroyed, __exception, out var successor)
                 || !(successor is Thing thing) || !__state.Record.Matches(thing)
                 || !(thing is Building || thing is Blueprint_Build))
             { __state.Record.Uncertain = "Construction transition identity could not be established."; return; }

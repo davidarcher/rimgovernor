@@ -85,7 +85,7 @@ namespace HomeBridge.BridgeTools
                 + "(remove), and a contiguous result unless allow_split is set.");
             if (!Valid(command)) return false;
 
-            var map = ProtoBoundary.ResolveMap(context);
+            var map = ProtoBoundary.LoadedMap(context);
             var candidate = map.zoneManager.AllZones.FirstOrDefault(z => z.GetUniqueLoadID() == command.Zone.EntityId);
             if (candidate == null || candidate.Cells.Count == 0) return false;
             if (NativeZoneObservationTools.Token(candidate, context).Token != command.Zone.ExpectedSnapshotToken) return false;
@@ -155,13 +155,13 @@ namespace HomeBridge.BridgeTools
                 var guard = authority.Check(pre.ExpectedGeneration); context.NativeGeneration = guard.Snapshot.Generation;
                 if (!guard.Success) return new Operations.ExecuteReply { Failure = NativeAuthorityControlTools.Refusal(guard.Error, context) };
                 var admitted = state.Ledger.Admit("rimgovernor.operations.v1.Operations/Execute", request, context);
-                if (admitted.Kind != NativeAttemptLedger.DecisionKind.Admitted) return admitted.Reply!; handle = admitted.Handle;
+                if (admitted.Kind != NativeAttemptLedger.DecisionKind.Admitted) return admitted.DecidedReply; handle = admitted.AdmittedHandle;
                 using (authority.Owned())
                 {
                     if (!authority.Check(pre.ExpectedGeneration).Success
                         || !Prepare(command, context, out zone, out finalCells, out needsSplit, out failure))
                         throw new InvalidOperationException("Zone scope changed before cell edit.");
-                    var map = ProtoBoundary.ResolveMap(context);
+                    var map = ProtoBoundary.LoadedMap(context);
                     var requested = command.Cells.ExplicitCells.Cells.Select(c => new IntVec3(c.X, 0, c.Z)).ToArray();
                     var record = new NativeZoneEditRecord(zone!, map, command.Zone.ExpectedSnapshotToken, finalCells!);
                     state.ZoneEdits.Add(pre.Attempt.Clone(), record);
@@ -180,7 +180,7 @@ namespace HomeBridge.BridgeTools
             catch (Exception error)
             {
                 return handle == null ? new Operations.ExecuteReply { Failure = ProtoBoundary.Fail(Common.FailureCode.NativeFailure, "Zone cell edit admission failed: " + error.GetType().Name) }
-                    : new Operations.ExecuteReply { Receipt = NativeOperationEnvelope.Uncertain(state.Ledger, handle, pre.Attempt, context, evidence!, "Edited zone requires inspection: " + error.GetType().Name) };
+                    : new Operations.ExecuteReply { Receipt = NativeOperationEnvelope.Uncertain(state.Ledger, handle, pre.Attempt, context, evidence, "Edited zone requires inspection: " + error.GetType().Name) };
             }
         }
     }

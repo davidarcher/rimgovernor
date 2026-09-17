@@ -1,3 +1,4 @@
+#nullable enable
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -16,16 +17,18 @@ namespace HomeBridge.BridgeTools
     {
         private sealed class TypedEpoch
         {
-            internal Clock.EpochOwner Owner;
-            internal Common.ObservationContext Origin;
+            internal readonly Clock.EpochOwner Owner;
+            internal readonly Common.ObservationContext Origin;
             internal Common.ObservationContext LastObservation;
-            internal Authority.WritePrecondition Authority;
-            internal Clock.WatchPolicy Policy;
-            internal int LeaseMs;
+            internal readonly Authority.WritePrecondition Authority;
+            internal readonly Clock.WatchPolicy Policy;
+            internal readonly int LeaseMs;
+            internal TypedEpoch(Clock.EpochOwner owner, Common.ObservationContext origin, Authority.WritePrecondition authority, Clock.WatchPolicy policy, int leaseMs)
+            { Owner = owner; Origin = origin; LastObservation = origin.Clone(); Authority = authority; Policy = policy; LeaseMs = leaseMs; }
             internal bool PauseRequested;
             internal bool StopPauseVerified;
         }
-        private static TypedEpoch pendingTyped;
+        private static TypedEpoch? pendingTyped;
         private static bool typedSpeedCall;
         private static readonly Stopwatch TypedClock = Stopwatch.StartNew();
         private static long LeaseNow(State s) => s.Typed == null ? NowMs() : TypedClock.ElapsedMilliseconds;
@@ -40,9 +43,8 @@ namespace HomeBridge.BridgeTools
         {
             if (s.Typed == null) return false;
             if (LeaseNow(s) >= s.LeaseExpiresMs) { Stop(s, "lease_expired", "Owned clock lease expired.", true, null); return true; }
-            NativeControlAuthority authority;
             var pre = s.Typed.Authority;
-            if (!NativeControlAuthority.TryGetForGame(Current.Game, out authority) || authority == null)
+            if (!NativeControlAuthority.TryGetForGame(Current.Game, out var authority) || authority == null)
             { Stop(s, "unavailable", "Authorizing native authority is unavailable.", true, null); return true; }
             var result = authority.Check(pre.ExpectedGeneration);
             if (result.Success && TypedHooksReady()) return false;
@@ -63,19 +65,17 @@ namespace HomeBridge.BridgeTools
         private static void RevokeDisconnected(State s)
         {
             if (s.Typed == null || !ReferenceEquals(Current.Game, s.Session)) return;
-            NativeControlAuthority authority;
-            if (NativeControlAuthority.TryGetForGame(Current.Game, out authority) && authority != null)
+            if (NativeControlAuthority.TryGetForGame(Current.Game, out var authority) && authority != null)
                 authority.RevokeExternal(NativeControlRevocationReason.Disconnect);
         }
         private static void CaptureTypedContext(State s)
         {
             if (s.Typed == null) return;
-            Common.ObservationContext observed; Common.Unavailable unavailable;
             if (ReferenceEquals(Current.Game, s.Session) && ReferenceEquals(Find.CurrentMap, s.Map)
-                && ProtoBoundary.TryReadContext(s.Map, out observed, out unavailable)) s.Typed.LastObservation = observed;
+                && ProtoBoundary.TryReadContext(s.Map, out var observed, out _)) s.Typed.LastObservation = observed;
         }
 
-        internal static Common.Failure ValidateTypedStart(Clock.StartRequest request)
+        internal static Common.Failure? ValidateTypedStart(Clock.StartRequest request)
         {
             if (!request.HasSpeed || !OrdinarySpeed(request.Speed) || !request.HasLeaseMs || request.LeaseMs < 1000 || request.LeaseMs > 30000
                 || !request.HasMaxTicks || request.MaxTicks < 1 || request.MaxTicks > 1800000 || !ValidPolicy(request.Policy, request.MaxTicks))
@@ -93,7 +93,7 @@ namespace HomeBridge.BridgeTools
                     if (!TypedHooksReady()) return ProtoBoundary.Fail(Common.FailureCode.Unavailable, "Exact native clock hooks are unavailable.");
                     EnsureJournal();
                     if (_epoch == long.MaxValue || _cursor == long.MaxValue) return ProtoBoundary.Fail(Common.FailureCode.CapacityExhausted, "Native clock epoch or cursor is exhausted.");
-                    foreach (var ids in PolicyIds(request.Policy)) ResolveIds(ProtoBoundary.ResolveMap(request.Authority.Identity), ids);
+                    foreach (var ids in PolicyIds(request.Policy)) ResolveIds(ProtoBoundary.ResolveMap(request.Authority.Identity) ?? throw new InvalidOperationException("The requested map is not loaded."), ids);
                 }
                 catch (Exception) { return ProtoBoundary.Fail(Common.FailureCode.Unavailable, "Native watcher, journal or exact policy pawn identity is unavailable."); }
                 return null;
@@ -106,16 +106,16 @@ namespace HomeBridge.BridgeTools
             {
                 if (pendingTyped != null) throw new InvalidOperationException("Reentrant clock start");
                 var policy = request.Policy;
-                pendingTyped = new TypedEpoch { Owner = new Clock.EpochOwner { ControllerSessionId = request.Authority.Attempt.ControllerSessionId },
-                    Origin = context.Clone(), LastObservation = context.Clone(), Authority = request.Authority.Clone(), Policy = policy.Clone(), LeaseMs = (int)request.LeaseMs };
+                pendingTyped = new TypedEpoch(new Clock.EpochOwner { ControllerSessionId = request.Authority.Attempt.ControllerSessionId },
+                    context.Clone(), request.Authority.Clone(), policy.Clone(), (int)request.LeaseMs);
                 var metadata = pendingTyped;
                 try
                 {
                     Start(metadata.Owner.ControllerSessionId, NativeSpeed(request.Speed), (int)request.LeaseMs,
                         policy.Mode == Clock.WatchMode.Colony ? "colony" : "combat", policy.HealthDropFraction,
-                        policy.MinHealthFraction, policy.HostileWithin, ResolveIds(ProtoBoundary.ResolveMap(context), policy.AcknowledgedHostileIds),
-                        ResolveIds(ProtoBoundary.ResolveMap(context), policy.AcknowledgedDownedColonistIds), ResolveIds(ProtoBoundary.ResolveMap(context), policy.AcknowledgedInjuredColonistIds),
-                        (int)policy.InjuryStopCooldownMs, (int)request.MaxTicks, ResolveIds(ProtoBoundary.ResolveMap(context), policy.SurgicalRecoveryIds), false, ResolveIds(ProtoBoundary.ResolveMap(context), policy.MedicalRestIds));
+                        policy.MinHealthFraction, policy.HostileWithin, ResolveIds(ProtoBoundary.LoadedMap(context), policy.AcknowledgedHostileIds),
+                        ResolveIds(ProtoBoundary.LoadedMap(context), policy.AcknowledgedDownedColonistIds), ResolveIds(ProtoBoundary.LoadedMap(context), policy.AcknowledgedInjuredColonistIds),
+                        (int)policy.InjuryStopCooldownMs, (int)request.MaxTicks, ResolveIds(ProtoBoundary.LoadedMap(context), policy.SurgicalRecoveryIds), false, ResolveIds(ProtoBoundary.LoadedMap(context), policy.MedicalRestIds));
                     if (_state == null || !ReferenceEquals(_state.Typed, metadata)) throw new InvalidOperationException("Native start did not create the admitted epoch");
                     return TypedStatus(context);
                 }
@@ -123,7 +123,7 @@ namespace HomeBridge.BridgeTools
             }
         }
 
-        internal static Common.Failure ValidateTypedOwner(Clock.OwnedRequest request, bool active)
+        internal static Common.Failure? ValidateTypedOwner(Clock.OwnedRequest request, bool active)
         {
             lock (Gate)
             {
@@ -167,14 +167,14 @@ namespace HomeBridge.BridgeTools
         }
         // An epoch belongs to the grant which started it. Reacquisition, even by
         // the same controller before the next watcher tick, cannot adopt old work.
-        internal static Common.Failure ValidateTypedGrant(Authority.WritePrecondition requested)
+        internal static Common.Failure? ValidateTypedGrant(Authority.WritePrecondition? requested)
         {
             lock (Gate)
             {
-                var original = _state?.Typed?.Authority;
-                if (original == null || requested == null)
+                var state = _state; var original = state?.Typed?.Authority;
+                if (state == null || original == null || requested == null)
                     return ProtoBoundary.Fail(Common.FailureCode.AuthorityRequired, "The epoch has no matching authorizing grant.");
-                if (!_state.Active || _state.PendingKind != null || LeaseNow(_state) >= _state.LeaseExpiresMs)
+                if (!state.Active || state.PendingKind != null || LeaseNow(state) >= state.LeaseExpiresMs)
                     return ProtoBoundary.Fail(Common.FailureCode.AuthorityRequired, "The original epoch is stopped, stopping or expired.");
                 try
                 {
@@ -238,9 +238,11 @@ namespace HomeBridge.BridgeTools
                 return result;
             }
         }
+        // Typed starts always carry a tick budget, so a typed epoch always has a deadline.
+        private static long Deadline(State s) => s.TickDeadline ?? throw new InvalidOperationException("Typed epoch has no tick deadline.");
         private static Clock.Epoch Epoch(State s) => new Clock.Epoch { Owner = s.Typed.Owner.Clone(), Origin = s.Typed.Origin.Clone(),
             RequestedSpeed = WireSpeed(s.RequestedSpeed), Policy = s.Typed.Policy.Clone(), StartTick = s.StartTick,
-            TickDeadline = s.TickDeadline.Value, LastTick = s.LastTick, LeaseRemainingMs = s.Active ? (uint)Math.Min(30000, Math.Max(0, s.LeaseExpiresMs - LeaseNow(s))) : 0 };
+            TickDeadline = Deadline(s), LastTick = s.LastTick, LeaseRemainingMs = s.Active ? (uint)Math.Min(30000, Math.Max(0, s.LeaseExpiresMs - LeaseNow(s))) : 0 };
 
         internal static Clock.EventsReply TypedEvents(Clock.EventsRequest request, Common.ObservationContext context)
         {
@@ -275,18 +277,18 @@ namespace HomeBridge.BridgeTools
         private static void AttachTypedEvent(Dictionary<string, object> row, string kind, string detail, State s, Dictionary<string, object> payload)
         {
             if (s.Typed == null) return;
-            Common.ObservationContext observed = s.Typed.LastObservation.Clone();
+            var observed = s.Typed.LastObservation.Clone();
             // The old epoch's last observed tick stays attached to its old identity during replacement.
             if (ReferenceEquals(Current.Game, s.Session) && ReferenceEquals(Find.CurrentMap, s.Map))
             {
-                Common.Unavailable unavailable;
-                if (!ProtoBoundary.TryReadContext(s.Map, out observed, out unavailable)) throw new InvalidOperationException("Clock event context unavailable");
+                if (!ProtoBoundary.TryReadContext(s.Map, out var current, out _)) throw new InvalidOperationException("Clock event context unavailable");
+                observed = current;
             }
             s.Typed.LastObservation = observed.Clone();
             var result = NativeClockEventProjection.Event(kind, detail, payload, observed, s.Typed.Owner, checked(_cursor + 1), NowMs(),
                 kind == "started" ? Epoch(s) : null, number => s.Map.mapPawns.AllPawns.Single(p => p.thingIDNumber == number).GetUniqueLoadID());
             if (kind == "pause_failed") result.PauseFailed.Pending.Reason = StopReason(s.PendingKind);
-            if (kind == "tick_budget") result.Stopped.Budget = new Clock.BudgetReached { StartTick = s.StartTick, TickDeadline = s.TickDeadline.Value, ActualTick = s.LastTick };
+            if (kind == "tick_budget") result.Stopped.Budget = new Clock.BudgetReached { StartTick = s.StartTick, TickDeadline = Deadline(s), ActualTick = s.LastTick };
             if (result.Stopped != null && result.Stopped.EvidenceCase == Clock.StopEvent.EvidenceOneofCase.Unavailable
                 && ReferenceEquals(Current.Game, s.Session) && ReferenceEquals(Find.CurrentMap, s.Map))
             {

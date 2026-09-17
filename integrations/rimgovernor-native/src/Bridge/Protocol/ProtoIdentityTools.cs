@@ -1,3 +1,4 @@
+#nullable enable
 using System.Threading;
 using System.Threading.Tasks;
 using RimBridgeServer.Sdk;
@@ -13,19 +14,15 @@ namespace HomeBridge.BridgeTools
             Description = "Read the current colony, load, map and native contract capabilities.")]
         [ToolResponse("payload", "string", "Official ProtoJSON rimgovernor.lifecycle.v1.IdentityReply.", Always = true)]
         public async Task<object> ReadIdentity(IRimBridgeContext ctx, CancellationToken cancellationToken,
-            [ToolParameter(Description = "Official lifecycle IdentityRequest ProtoJSON string.")] object request = null)
+            [ToolParameter(Description = "Official lifecycle IdentityRequest ProtoJSON string.")] object? request = null)
         {
-            Lifecycle.IdentityRequest parsed;
-            Common.Failure failure;
             if (!ProtoBoundary.TryParse(ctx, "rimgovernor/lifecycle_read_identity", request,
-                Lifecycle.IdentityRequest.Parser, out parsed, out failure))
+                Lifecycle.IdentityRequest.Parser, out var parsed, out var failure))
                 return ProtoBoundary.Encode(new Lifecycle.IdentityReply { Failure = failure });
 
             return await ProtoBoundary.OnMainThreadEncoded(ctx, () =>
             {
-                Common.ObservationContext context;
-                Common.Unavailable unavailable;
-                if (!ProtoBoundary.TryReadContext(Find.CurrentMap, out context, out unavailable))
+                if (!ProtoBoundary.TryReadContext(Find.CurrentMap, out var context, out var unavailable))
                     return new Lifecycle.IdentityReply { Unavailable = unavailable };
                 var loaded = new Lifecycle.LoadedIdentity { Context = context, Paused = Find.TickManager.Paused };
                 loaded.Capabilities.Add(new Lifecycle.Capability

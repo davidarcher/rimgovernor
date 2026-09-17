@@ -1,3 +1,4 @@
+#nullable enable
 using System.Threading;
 using System.Threading.Tasks;
 using RimBridgeServer.Sdk;
@@ -16,11 +17,9 @@ namespace HomeBridge.BridgeTools
         [Tool(ToolName, Title = "Native player control authority", Description = "Trusted host player-control path only. Set or revoke native authority mode using exact identity and generation.")]
         [ToolResponse("payload", "string", "Official ProtoJSON rimgovernor.authority.v1.ControlReply.", Always = true)]
         public async Task<object> Control(IRimBridgeContext ctx, CancellationToken cancellationToken,
-            [ToolParameter(Description = "Official ProtoJSON ControlRequest. Never exposed to model dispatch.")] object request = null)
+            [ToolParameter(Description = "Official ProtoJSON ControlRequest. Never exposed to model dispatch.")] object? request = null)
         {
-            Authority.ControlRequest parsed;
-            Common.Failure failure;
-            if (!ProtoBoundary.TryParse(ctx, ToolName, request, Authority.ControlRequest.Parser, out parsed, out failure))
+            if (!ProtoBoundary.TryParse(ctx, ToolName, request, Authority.ControlRequest.Parser, out var parsed, out var failure))
                 return ProtoBoundary.Encode(new Authority.ControlReply { Failure = failure });
             return await ProtoBoundary.OnMainThread(ctx, () => ProtoBoundary.Encode(Apply(parsed)), cancellationToken).ConfigureAwait(false);
         }
@@ -44,16 +43,13 @@ namespace HomeBridge.BridgeTools
                     break;
                 default: return Invalid();
             }
-            Common.ObservationContext context;
-            Common.Failure failure;
-            if (!ProtoBoundary.ValidateIdentity(identity, out context, out failure))
+            if (!ProtoBoundary.ValidateIdentity(identity, out var context, out var failure))
                 return new Authority.ControlReply { Failure = failure };
             bool settingAuto = request.OperationCase == Authority.ControlRequest.OperationOneofCase.SetMode
                 && request.SetMode.Mode == Authority.Mode.Auto;
             if (settingAuto)
                 NativeAuthorityHooks.InitializeForCurrentGame();
-            NativeControlAuthority state;
-            if (!NativeControlAuthority.TryGetForGame(Current.Game, out state) || state == null)
+            if (!NativeControlAuthority.TryGetForGame(Current.Game, out var state) || state == null)
                 return new Authority.ControlReply { Failure = ProtoBoundary.Fail(Common.FailureCode.Unavailable,
                     "Native authority hooks are not initialized.") };
             NativeControlResult result;

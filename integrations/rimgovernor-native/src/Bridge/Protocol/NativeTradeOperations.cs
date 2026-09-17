@@ -1,5 +1,6 @@
 #nullable enable
 using System;
+using System.Diagnostics.CodeAnalysis;
 using System.Collections.Generic;
 using System.Linq;
 using System.Security.Cryptography;
@@ -397,9 +398,8 @@ namespace HomeBridge.BridgeTools
                 if (operation.CommandCase == Operations.Operation.CommandOneofCase.OpenTrade)
                 {
                     if (!PrepareOpen(operation.OpenTrade, identity, out var trader, out var negotiator, out failure)) return new Operations.ExecuteReply { Failure = failure };
-                    var admitReply = Admit(state, request, context, out handle, out var authority);
-                    if (admitReply != null) return admitReply;
-                    using (authority!.Owned())
+                    if (!TryAdmit(state, request, context, out handle, out var authority, out var refusal)) return refusal;
+                    using (authority.Owned())
                     {
                         if (!PrepareOpen(operation.OpenTrade, identity, out trader, out negotiator, out failure) || trader == null || negotiator == null)
                             throw new InvalidOperationException("Open prerequisites changed after admission.");
@@ -419,9 +419,8 @@ namespace HomeBridge.BridgeTools
                 {
                     var all0 = RequireSession(identity, out failure) ? _sessionDeal!.AllTradeables : new List<Tradeable>();
                     if (!PrepareLines(operation.SetTradeLines, identity, all0, out var prepared, out failure)) return new Operations.ExecuteReply { Failure = failure };
-                    var admitReply = Admit(state, request, context, out handle, out var authority);
-                    if (admitReply != null) return admitReply;
-                    using (authority!.Owned())
+                    if (!TryAdmit(state, request, context, out handle, out var authority, out var refusal)) return refusal;
+                    using (authority.Owned())
                     {
                         var deal = _sessionDeal; if (deal == null) throw new InvalidOperationException("Trade session closed before native effect.");
                         var all = deal.AllTradeables;
@@ -448,9 +447,8 @@ namespace HomeBridge.BridgeTools
                 if (operation.CommandCase == Operations.Operation.CommandOneofCase.AcceptTrade)
                 {
                     if (!PrepareAccept(operation.AcceptTrade, identity, out failure)) return new Operations.ExecuteReply { Failure = failure };
-                    var admitReply = Admit(state, request, context, out handle, out var authority);
-                    if (admitReply != null) return admitReply;
-                    using (authority!.Owned())
+                    if (!TryAdmit(state, request, context, out handle, out var authority, out var refusal)) return refusal;
+                    using (authority.Owned())
                     {
                         if (!PrepareAccept(operation.AcceptTrade, identity, out failure)) throw new InvalidOperationException("Accept prerequisites changed after admission.");
                         var deal = _sessionDeal!; var traderPawn = _sessionTrader; var faction = traderPawn?.Faction;
@@ -492,9 +490,8 @@ namespace HomeBridge.BridgeTools
                 if (operation.CommandCase == Operations.Operation.CommandOneofCase.EndTrade)
                 {
                     if (!PrepareEnd(operation.EndTrade, identity, out failure)) return new Operations.ExecuteReply { Failure = failure };
-                    var admitReply = Admit(state, request, context, out handle, out var authority);
-                    if (admitReply != null) return admitReply;
-                    using (authority!.Owned())
+                    if (!TryAdmit(state, request, context, out handle, out var authority, out var refusal)) return refusal;
+                    using (authority.Owned())
                     {
                         if (!PrepareEnd(operation.EndTrade, identity, out failure)) throw new InvalidOperationException("End prerequisites changed after admission.");
                         var closedOurSession = false;
@@ -527,7 +524,7 @@ namespace HomeBridge.BridgeTools
             {
                 return handle == null
                     ? Refuse(Common.FailureCode.NativeFailure, "Trade validation failed: " + error.GetType().Name)
-                    : new Operations.ExecuteReply { Receipt = NativeOperationEnvelope.Uncertain(state.Ledger, handle, pre.Attempt, context, evidence!, "Admitted trade order requires observation: " + error.GetType().Name) };
+                    : new Operations.ExecuteReply { Receipt = NativeOperationEnvelope.Uncertain(state.Ledger, handle, pre.Attempt, context, evidence, "Admitted trade order requires observation: " + error.GetType().Name) };
             }
         }
 
@@ -535,20 +532,21 @@ namespace HomeBridge.BridgeTools
         // the caller should proceed into authority.Owned()), or the exact
         // reply to return immediately otherwise -- an authority refusal or
         // the ledger's own retry/duplicate/conflict reply.
-        private static Operations.ExecuteReply? Admit(NativeOperationState state, Operations.ExecuteRequest request, Common.ObservationContext context,
-            out NativeAttemptLedger.Admission? handle, out NativeControlAuthority? authority)
+        private static bool TryAdmit(NativeOperationState state, Operations.ExecuteRequest request, Common.ObservationContext context,
+            [NotNullWhen(true)] out NativeAttemptLedger.Admission? handle, [NotNullWhen(true)] out NativeControlAuthority? authority,
+            [NotNullWhen(false)] out Operations.ExecuteReply? refusal)
         {
-            handle = null; authority = null;
+            handle = null; authority = null; refusal = null;
             var pre = request.Precondition;
             if (!NativeControlAuthority.TryGetForGame(Current.Game, out authority) || authority == null)
-                return Refuse(Common.FailureCode.AuthorityRequired, "Current native authority is required.");
+            { refusal = Refuse(Common.FailureCode.AuthorityRequired, "Current native authority is required."); return false; }
             var guard = authority.Check(pre.ExpectedGeneration);
             context.NativeGeneration = guard.Snapshot.Generation;
-            if (!guard.Success) return new Operations.ExecuteReply { Failure = NativeAuthorityControlTools.Refusal(guard.Error, context) };
+            if (!guard.Success) { refusal = new Operations.ExecuteReply { Failure = NativeAuthorityControlTools.Refusal(guard.Error, context) }; return false; }
             var admission = state.Ledger.Admit("rimgovernor.operations.v1.Operations/Execute", request, context);
-            if (admission.Kind != NativeAttemptLedger.DecisionKind.Admitted) return admission.Reply;
-            handle = admission.Handle;
-            return null;
+            if (admission.Kind != NativeAttemptLedger.DecisionKind.Admitted) { refusal = admission.DecidedReply; return false; }
+            handle = admission.AdmittedHandle;
+            return true;
         }
 
         // -------------------------------------------------------- preview

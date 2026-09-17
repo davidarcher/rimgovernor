@@ -99,7 +99,7 @@ namespace HomeBridge.BridgeTools
         {
             prey = null; failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Hunting requires an exact safe prey snapshot, enabled hunter, butcher bill and fewer than two outstanding hunts.");
             if (!NativePlantAcquisition.Valid(command)) return false;
-            var map = ProtoBoundary.ResolveMap(context);
+            var map = ProtoBoundary.LoadedMap(context);
             if (Pending(map) >= 2 || map.AllCells.Any(c => map.roofCollapseBuffer.IsMarkedToCollapse(c))) return false;
             prey = map.mapPawns.AllPawnsSpawned.SingleOrDefault(p => p.GetUniqueLoadID() == command.Source.EntityId);
             return prey != null && Eligible(prey) && !Designated(prey) && prey.Position.x == command.Cell.X && prey.Position.z == command.Cell.Z
@@ -124,8 +124,8 @@ namespace HomeBridge.BridgeTools
                 context.NativeGeneration = guard.Snapshot.Generation;
                 if (!guard.Success) return new Operations.ExecuteReply { Failure = NativeAuthorityControlTools.Refusal(guard.Error, context) };
                 var admitted = state.Ledger.Admit("rimgovernor.operations.v1.Operations/Execute", request, context);
-                if (admitted.Kind != NativeAttemptLedger.DecisionKind.Admitted) return admitted.Reply!;
-                handle = admitted.Handle;
+                if (admitted.Kind != NativeAttemptLedger.DecisionKind.Admitted) return admitted.DecidedReply;
+                handle = admitted.AdmittedHandle;
                 var record = new NativeHuntRecord(prey!); state.Acquisition.Add(pre.Attempt.Clone(), record);
                 using (authority.Owned())
                 {
@@ -139,7 +139,7 @@ namespace HomeBridge.BridgeTools
             }
             catch (Exception error)
             {
-                if (handle != null) return new Operations.ExecuteReply { Receipt = NativeOperationEnvelope.Uncertain(state.Ledger, handle, pre.Attempt, context, evidence!, "Hunting write interrupted: " + error.GetType().Name) };
+                if (handle != null) return new Operations.ExecuteReply { Receipt = NativeOperationEnvelope.Uncertain(state.Ledger, handle, pre.Attempt, context, evidence, "Hunting write interrupted: " + error.GetType().Name) };
                 return new Operations.ExecuteReply { Failure = ProtoBoundary.Fail(Common.FailureCode.NativeFailure, "Hunting failed: " + error.GetType().Name) };
             }
         }

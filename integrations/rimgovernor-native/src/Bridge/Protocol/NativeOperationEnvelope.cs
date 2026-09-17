@@ -1,3 +1,4 @@
+#nullable enable
 using System;
 using System.Text;
 using Google.Protobuf;
@@ -27,7 +28,7 @@ namespace HomeBridge.BridgeTools
         }
 
         internal static Receipts.Receipt Uncertain(NativeAttemptLedger ledger, NativeAttemptLedger.Admission handle,
-            Common.AttemptKey attempt, Common.ObservationContext context, Receipts.EffectEvidence evidence, string detail)
+            Common.AttemptKey attempt, Common.ObservationContext context, Receipts.EffectEvidence? evidence, string detail)
         {
             var candidate = Header(attempt, context);
             candidate.Uncertain = new Receipts.Uncertain { LastObserved = evidence, Detail = detail };
@@ -45,7 +46,7 @@ namespace HomeBridge.BridgeTools
         private static Receipts.Receipt Header(Common.AttemptKey attempt, Common.ObservationContext context) =>
             new Receipts.Receipt { Attempt = attempt, AdmittedContext = context };
 
-        private static Common.Failure Capacity(Common.ObservationContext context) => new Common.Failure
+        private static Common.Failure Capacity(Common.ObservationContext? context) => new Common.Failure
             { Code = Common.FailureCode.CapacityExhausted, Detail = "Complete native reply cannot fit the one MiB envelope.", ObservedContext = context };
     }
 }

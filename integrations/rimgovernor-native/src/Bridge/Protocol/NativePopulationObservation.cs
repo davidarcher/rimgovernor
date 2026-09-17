@@ -34,8 +34,7 @@ namespace HomeBridge.BridgeTools
             if (!ProtoBoundary.TryParse(ctx, "rimgovernor/observations_read_population", request!, Obs.PopulationRequest.Parser, out var parsed, out var failure)
                 || !ValidatePopulation(parsed, out failure)) return ProtoBoundary.Encode(new Obs.PopulationReply { Failure = failure });
             return await ProtoBoundary.OnMainThread(ctx, () => {
-                var map = ProtoBoundary.ResolveMap(parsed.Scope?.ExpectedIdentity!);
-                if (!ProtoBoundary.ValidateIdentity(parsed.Scope?.ExpectedIdentity!, map, out var context, out failure))
+                if (!ProtoBoundary.ValidateIdentity(parsed.Scope?.ExpectedIdentity, out var map, out var context, out failure))
                     return ProtoBoundary.Encode(new Obs.PopulationReply { Failure = failure });
                 try { return Encode(new Obs.PopulationReply { Observed = Population(map, parsed, context) }); }
                 catch (ReadLimit error) { return ProtoBoundary.Encode(new Obs.PopulationReply { Unavailable = Unavailable(Common.UnavailableReason.LimitExceeded, error.Message) }); }
