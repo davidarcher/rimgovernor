@@ -99,7 +99,11 @@ namespace HomeBridge.BridgeTools
                     var crop = BridgeCommon.PrivateInstanceField(typeof(Zone_Growing), "plantDefToGrow").GetValue(growing) as ThingDef;
                     w.Write(crop?.defName ?? ""); w.Write(growing.allowSow); w.Write(growing.allowCut);
                 }
-                else if (zone is Zone_Stockpile stockpile) w.Write((int)stockpile.settings.Priority);
+                else if (zone is Zone_Stockpile stockpile)
+                {
+                    w.Write((int)stockpile.settings.Priority);
+                    NativeStockpileSettings.WriteSignature(w, stockpile.settings.filter);
+                }
             });
 
         private static Obs.ZoneState Project(Zone zone, Map map, Common.ObservationContext context, Obs.ListZonesRequest request)
@@ -137,10 +141,13 @@ namespace HomeBridge.BridgeTools
             {
                 row.Priority = stockpile.settings.Priority.ToString();
                 row.Issues.Add(Issue("crop_def_name", Common.UnavailableReason.NotApplicable, "Stockpile zones have no crop."));
+                if (request.IncludeFilter) row.Filter = NativeStockpileSettings.Project(stockpile.settings.filter);
+                else row.Issues.Add(Issue("filter", Common.UnavailableReason.NotRequested, "The stockpile filter is not requested."));
             }
             else row.Issues.Add(Issue("type", Common.UnavailableReason.Unsupported, "Zone subtype is not a growing or stockpile zone."));
 
-            foreach (var field in new[] { "filter", "contents", "anomalies", "free_cells", "blocked_cells", "impassable_cells", "crop_plants_in_listed_cells", "crop_plants_in_grid_cells", "slot_group_cells", "haul_grid_cells" })
+            if (!(zone is Zone_Stockpile)) row.Issues.Add(Issue("filter", Common.UnavailableReason.NotApplicable, "Only stockpile zones have a filter."));
+            foreach (var field in new[] { "contents", "anomalies", "free_cells", "blocked_cells", "impassable_cells", "crop_plants_in_listed_cells", "crop_plants_in_grid_cells", "slot_group_cells", "haul_grid_cells" })
                 row.Issues.Add(Issue(field, Common.UnavailableReason.Unsupported, "Typed fact is not implemented by this read adapter."));
             return row;
         }

@@ -162,6 +162,11 @@ message FilterPatch {
   SelectorList replace = 1;
   repeated FilterSelector allow = 2;
   repeated FilterSelector disallow = 3;
+  // Hit-point range as fractions in [0, 1] (the storage tab's percent slider)
+  // and quality range by QualityCategory name (Awful..Legendary); both ends
+  // of a range are required together. Absent ranges are preserved.
+  optional double hit_points_min = 4; optional double hit_points_max = 5;
+  optional string quality_min = 6; optional string quality_max = 7;
 }
 enum RepeatMode { REPEAT_MODE_UNSPECIFIED = 0; REPEAT_MODE_FOREVER = 1; REPEAT_MODE_COUNT = 2; REPEAT_MODE_TARGET = 3; }
 enum StoreMode { STORE_MODE_UNSPECIFIED = 0; STORE_MODE_BEST_STOCKPILE = 1; STORE_MODE_DROP_ON_FLOOR = 2; }

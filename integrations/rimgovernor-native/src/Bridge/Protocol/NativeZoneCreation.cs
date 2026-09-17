@@ -41,13 +41,12 @@ namespace HomeBridge.BridgeTools
             }
             else if (Zone is Zone_Stockpile stockpile)
             {
-                var universe = StockpileFilter.StorableDefs(stockpile);
-                var priority = NativeZoneCreation.ToWirePriority(BridgeCommon.TryN(() => stockpile.settings.Priority));
-                var filter = BridgeCommon.Try(() => stockpile.settings.filter, (ThingFilter?)null);
-                var matchesFood = priority.HasValue && NativeZoneCreation.MatchesFoodPreset(filter, universe);
-                if (matchesFood) result.Snapshot.AfterToken = NativeZoneCreation.ConfigurationToken(new Operations.CreateZone {
-                    Type = Operations.ZoneType.Stockpile, Label = Zone.label, Cells = new Operations.Cells { ExplicitCells = new Operations.CellList() },
-                    Stockpile = new Operations.StockpileSettings { Priority = priority!.Value, Preset = Operations.FilterPreset.Food } }, cells);
+                // The after-token is the admitted configuration only while the
+                // live settings still equal it; a player-edited filter or
+                // priority reports no after-token rather than a false match.
+                var resolved = BridgeCommon.Try(() => NativeStockpileSettings.Resolve(Desired.Stockpile, StockpileFilter.StorableDefs(stockpile)), null);
+                var matches = resolved != null && Zone.label == Desired.Label && BridgeCommon.Try(() => NativeStockpileSettings.Matches(stockpile, resolved), false);
+                if (matches) result.Snapshot.AfterToken = NativeZoneCreation.ConfigurationToken(Desired, cells);
             }
             return result;
         }
@@ -104,29 +103,6 @@ namespace HomeBridge.BridgeTools
                 default: return null;
             }
         }
-        internal static Operations.StoragePriority? ToWirePriority(RimWorld.StoragePriority? priority)
-        {
-            if (!priority.HasValue) return null;
-            switch (priority.Value)
-            {
-                case RimWorld.StoragePriority.Low: return Operations.StoragePriority.Low;
-                case RimWorld.StoragePriority.Normal: return Operations.StoragePriority.Normal;
-                case RimWorld.StoragePriority.Preferred: return Operations.StoragePriority.Preferred;
-                case RimWorld.StoragePriority.Important: return Operations.StoragePriority.Important;
-                case RimWorld.StoragePriority.Critical: return Operations.StoragePriority.Critical;
-                default: return null;
-            }
-        }
-        // True only when the live filter's allowed set exactly equals the food
-        // preset's def set over the same universe -- a partial or player-edited
-        // filter must never be reported as matching a preset it does not equal.
-        internal static bool MatchesFoodPreset(ThingFilter? filter, List<ThingDef> universe)
-        {
-            if (filter == null) return false;
-            var expected = new HashSet<ThingDef>(StockpileFilter.PresetDefs("food", universe));
-            var actual = StockpileFilter.AllowedSet(filter);
-            return expected.SetEquals(actual);
-        }
         internal static bool Valid(Operations.CreateZone? command)
         {
             if (command == null || !command.HasExpectedMapSnapshotToken || !ProtoBoundary.IsIdentifier(command.ExpectedMapSnapshotToken)
@@ -137,10 +113,11 @@ namespace HomeBridge.BridgeTools
                 return command.Label == "RimGovernor crops" && command.Stockpile == null && !command.RequireCoveredEmpty
                     && command.Growing != null && command.Growing.HasPlantDef && ProtoBoundary.IsIdentifier(command.Growing.PlantDef)
                     && command.Growing.HasAllowSow && command.Growing.AllowSow && command.Growing.HasAllowCut && command.Growing.AllowCut;
+            // A stockpile takes any label and any typed settings body; the
+            // selectors resolve against the def database in Prepare.
             if (command.Type == Operations.ZoneType.Stockpile)
-                return command.Label == "RimGovernor food storage" && command.Growing == null && !command.RequireCoveredEmpty
-                    && command.Stockpile != null && command.Stockpile.HasPriority && command.Stockpile.Priority == Operations.StoragePriority.Important
-                    && command.Stockpile.HasPreset && command.Stockpile.Preset == Operations.FilterPreset.Food && command.Stockpile.Filter == null;
+                return command.HasLabel && ProtoBoundary.IsIdentifier(command.Label) && command.Growing == null && !command.RequireCoveredEmpty
+                    && command.Stockpile != null && command.Stockpile.HasPriority && NativeStockpileSettings.Valid(command.Stockpile);
             return false;
         }
         private static bool Prepare(Operations.CreateZone command, Common.ObservationContext context, out ThingDef? crop, out Common.Failure failure)
@@ -168,7 +145,8 @@ namespace HomeBridge.BridgeTools
                     && !map.roofCollapseBuffer.IsMarkedToCollapse(c) && map.fertilityGrid.FertilityAt(c) >= wanted.plant.fertilityMin
                     && designator.CanDesignateCell(c).Accepted);
             }
-            // A protected food store needs a roof and clear, empty, walkable floor;
+            if (NativeStockpileSettings.Resolve(command.Stockpile, StockpileFilter.StorableDefs(null)) == null) return false;
+            // A protected store needs a roof and clear, empty, walkable floor;
             // the caller (a verified room) is responsible for the roof already
             // existing -- this only refuses ground that is not actually safe.
             return cells.All(c => c.InBounds(map) && !c.Fogged(map) && c.Walkable(map) && c.Roofed(map)
@@ -209,10 +187,10 @@ namespace HomeBridge.BridgeTools
                         state.Zones.Add(pre.Attempt.Clone(), record);
                         map.zoneManager.RegisterZone(stockpile); stockpile.label = command.Label;
                         foreach (var c in command.Cells.ExplicitCells.Cells) stockpile.AddCell(new IntVec3(c.X, 0, c.Z));
-                        var priority = ToNativePriority(command.Stockpile.Priority);
-                        if (priority.HasValue) stockpile.settings.Priority = priority.Value;
-                        var universe = StockpileFilter.StorableDefs(stockpile);
-                        StockpileFilter.Apply(stockpile.settings.filter, "food", new StockpileFilter.Resolved(), new StockpileFilter.Resolved(), StockpileFilter.ParentFilter(stockpile), universe, null);
+                        var resolved = NativeStockpileSettings.Resolve(command.Stockpile, StockpileFilter.StorableDefs(stockpile))
+                            ?? throw new InvalidOperationException("Stockpile settings stopped resolving.");
+                        stockpile.settings.Priority = resolved.Priority!.Value;
+                        NativeStockpileSettings.Apply(stockpile.settings.filter, resolved, StockpileFilter.ParentFilter(stockpile), StockpileFilter.StorableDefs(stockpile));
                     }
                     evidence = new Receipts.EffectEvidence { Zone = record.Evidence() };
                 }
