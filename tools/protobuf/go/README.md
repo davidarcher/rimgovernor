@@ -8,9 +8,13 @@ explicitly; use the repository Go version from `go/.go-version` (currently 1.27.
 From the repository root:
 
 ```text
-python scripts/generate_protobuf_go.py --protoc <official-protoc> --output .rimgovernor/go-protobuf-generate-01
-python scripts/generate_protobuf_go.py --protoc <official-protoc> --output .rimgovernor/go-protobuf-check-01 --check
+go -C go run ./internal/protobufgen/cmd/generatego --protoc <official-protoc> --output .rimgovernor/go-protobuf-generate-01
+go -C go run ./internal/protobufgen/cmd/generatego --protoc <official-protoc> --output .rimgovernor/go-protobuf-check-01 --check
 ```
+
+The wrapper is a stdlib-only Go program under the repository Go module. It
+locates the repository root by walking up from the working directory (`--root`
+overrides) and resolves relative paths there.
 
 `--go` selects an explicit Go executable. `--proto-root` selects a coordinated
 schema snapshot; it defaults to the canonical directory. Every artifact directory

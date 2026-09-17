@@ -73,7 +73,8 @@ foreach ($taskContractDirectory in @('contracts/proto', 'contracts/generated/pro
 $taskScripts = Join-Path $taskCopyRoot 'scripts'
 New-Item -ItemType Directory -Path $taskScripts -Force | Out-Null
 Copy-Item -LiteralPath $PSCommandPath -Destination $taskScripts
-Copy-Item -LiteralPath (Join-Path $taskRepo 'scripts/generate_protobuf.py') -Destination $taskScripts
+# The C# generator is a self-contained stdlib Go program: `go run scripts/generate_protobuf.go`.
+Copy-Item -LiteralPath (Join-Path $taskRepo 'go/internal/protobufgen/cmd/generatecsharp/main.go') -Destination (Join-Path $taskScripts 'generate_protobuf.go')
 $taskFixtureSource = Join-Path $taskRepo 'scripts/fixtures'
 foreach ($taskFile in Get-ChildItem -LiteralPath $taskFixtureSource -Recurse -File | Where-Object {
     $_.Extension -in @('.cs', '.csproj') -and $_.FullName -notmatch '[\\/](obj|bin)[\\/]'

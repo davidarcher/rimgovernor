@@ -31,10 +31,10 @@ Dependencies remain beside `RimGovernor.Bridge.dll` for RimBridgeServer's scoped
 assembly resolver. Do not move them into the mod's general `Assemblies` directory.
 
 The private build and bundled source include canonical `contracts/proto`, official
-C# outputs, and `scripts/generate_protobuf.py` with its pinned tool project/lock.
+C# outputs, and `scripts/generate_protobuf.go` with its pinned tool project/lock.
 Native compilation consumes those checked-in official outputs directly; it does
 not invoke an experimental JSON generator. Regenerate/check with the included
-Python script and pinned .NET tooling, then rebuild using the included native
+Go program (`go run scripts/generate_protobuf.go`) and pinned .NET tooling, then rebuild using the included native
 script and your installed game/SDK/Harmony dependencies. Native restore is locked.
 A standalone Mono proof needs the standard netstandard framework facade; installed
 game loading and round trips require the fresh native acceptance run.

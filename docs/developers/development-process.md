@@ -83,7 +83,6 @@ first table fails the gate; everything in the second is reviewed by hand.
 | --- | --- |
 | Go: no `map[string]any`, reflection dispatch or unchecked assertions in domain logic | Telemetry maps stay inside `internal/bridge` flight recording; `internal/nativeaccept` harnesses are the excluded legacy path. |
 | C# nullable on `RimGovernor.Bridge` and the contract probes; five Runtime persistence files carry a `#nullable disable` header | [#85](https://github.com/davidarcher/rimgovernor/issues/85) |
-| Python generator scripts | Being rewritten in Go ([#80](https://github.com/davidarcher/rimgovernor/issues/80)); until then the `protobuf` stage runs them unchecked. |
 
 ## Verify and commit
 

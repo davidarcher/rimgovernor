@@ -8,11 +8,14 @@ length checks. No custom schema compiler or validation language is involved.
 From the repository root:
 
 ```powershell
-python scripts/generate_protobuf.py --dotnet <dotnet>
-python scripts/generate_protobuf.py --dotnet <dotnet> --check --proof --output .rimgovernor/protobuf-proof-01
+go -C go run ./internal/protobufgen/cmd/generatecsharp --dotnet <dotnet>
+go -C go run ./internal/protobufgen/cmd/generatecsharp --dotnet <dotnet> --check --proof --output .rimgovernor/protobuf-proof-01
 ```
 
-The script restores the committed lock in a fresh private tree, verifies the
+The generator is a stdlib-only Go program under the repository Go module, so
+gofmt, vet, staticcheck and `go test` cover it. It locates the repository root
+by walking up from the working directory (`--root` overrides) and resolves
+relative paths there. It restores the committed lock in a fresh private tree, verifies the
 compiler version, compiles every canonical `.proto`, and emits C# plus a descriptor
 set containing imports. `--check` compares generated text while allowing checkout
 line-ending differences. It does not change checked-in outputs. The compiler

@@ -10,7 +10,7 @@ Stages (all run by default; select with -Stage):
             a 10s per-test ceiling, gated build, race tests (was go.yml)
   dashboard frozen-lockfile install, typecheck, tests, build (was checks.yml)
   protobuf  official C#/Go regeneration drift and cross-language exchange
-            (was protobuf.yml); driven by the Python scripts until #80 lands
+            (was protobuf.yml); driven by go/internal/protobufgen
   native    Bridge, Runtime and contract-probe builds with warnings as errors and
             locked restore; reports unavailable when the game DLLs are missing
 
@@ -116,8 +116,8 @@ if ($Stage -contains 'dashboard') {
 
 if ($Stage -contains 'protobuf') {
     Invoke-Stage 'protobuf' {
-        if (-not (Test-Tool 'python') -or -not (Test-Tool 'dotnet')) {
-            Write-Host 'python or dotnet missing' -ForegroundColor Yellow; return 'unavailable'
+        if (-not (Test-Tool 'dotnet')) {
+            Write-Host 'dotnet missing' -ForegroundColor Yellow; return 'unavailable'
         }
         Push-Location $repo
         try {
@@ -126,17 +126,17 @@ if ($Stage -contains 'protobuf') {
             $env:GOTOOLCHAIN = 'go' + (Get-Content (Join-Path $repo 'go/.go-version')).Trim()
             $env:GOWORK = 'off'
             Invoke-Step 'official C# generation drift' {
-                python scripts/generate_protobuf.py --check --output "$scratch/protobuf-csharp-check"
+                go -C go run ./internal/protobufgen/cmd/generatecsharp --check --output "$scratch/protobuf-csharp-check"
             }
             Invoke-Step 'official Go generation drift' {
                 $protoc = "$env:USERPROFILE/.nuget/packages/grpc.tools/2.72.0/tools/windows_x64/protoc.exe"
-                python scripts/generate_protobuf_go.py --protoc $protoc --check --output "$scratch/protobuf-go-check"
+                go -C go run ./internal/protobufgen/cmd/generatego --protoc $protoc --check --output "$scratch/protobuf-go-check"
             }
             Invoke-Step 'go proof tests' { go -C tools/protobuf/go test -mod=readonly ./... }
             Invoke-Step 'go proof vet' { go -C tools/protobuf/go vet -mod=readonly ./... }
             Invoke-Step 'go origin fixtures' { go -C tools/protobuf/go run -mod=readonly . --output "$scratch/protobuf-go-origin" }
             Invoke-Step 'C# runtime exchange' {
-                python scripts/generate_protobuf.py --check --proof --cross-language-inputs "$scratch/protobuf-go-origin" --output "$scratch/protobuf-exchange"
+                go -C go run ./internal/protobufgen/cmd/generatecsharp --check --proof --cross-language-inputs "$scratch/protobuf-go-origin" --output "$scratch/protobuf-exchange"
             }
             Invoke-Step 'Go runtime exchange' {
                 go -C tools/protobuf/go run -mod=readonly . --output "$scratch/protobuf-go-return" --cross-language-inputs "$scratch/protobuf-exchange/roundtrip" --check-go-echo
