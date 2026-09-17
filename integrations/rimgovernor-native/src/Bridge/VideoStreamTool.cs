@@ -469,8 +469,13 @@ namespace HomeBridge.BridgeTools
             source.Target.Create();
         }
 
+        // The published frame is bottom-up (what ReadPixels yields). A
+        // RenderTexture read back on a top-left-origin graphics API (D3D,
+        // Metal) holds its rows top-first, for a camera render and for
+        // ScreenCapture alike, so those rows are flipped before publishing.
         void ReadbackAsync(VideoSource source, int width, int height, double captured, System.Diagnostics.Stopwatch clock, PlayerFrame view)
         {
+            bool topDown = SystemInfo.graphicsUVStartsAtTop;
             source.Pending = true;
             AsyncGPUReadback.Request(source.Target, 0, TextureFormat.RGBA32, request =>
             {
@@ -480,10 +485,23 @@ namespace HomeBridge.BridgeTools
                 try
                 {
                     var pixels = request.GetData<byte>().ToArray();
+                    if (topDown) FlipRows(pixels, width, height);
                     source.Publish(width, height, captured, clock.Elapsed.TotalMilliseconds, pixels, view);
                 }
                 catch (Exception e) { Fail(source, e); }
             });
+        }
+
+        static void FlipRows(byte[] pixels, int width, int height)
+        {
+            int stride = width * 4;
+            var row = new byte[stride];
+            for (int top = 0, bottom = height - 1; top < bottom; top++, bottom--)
+            {
+                Buffer.BlockCopy(pixels, top * stride, row, 0, stride);
+                Buffer.BlockCopy(pixels, bottom * stride, pixels, top * stride, stride);
+                Buffer.BlockCopy(row, 0, pixels, bottom * stride, stride);
+            }
         }
 
         void CapturePresented(VideoSource source, PlayerFrame view)

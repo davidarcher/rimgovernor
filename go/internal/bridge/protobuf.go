@@ -27,6 +27,19 @@ import (
 
 const maxProtoBytes = 1 << 20
 
+// maxMediaProtoBytes bounds the dedicated media ProtoJSON envelope: a raw
+// 3840x2160 RGBA32 frame base64-encoded is ~42 MiB (presentation.proto,
+// MediaFrame.data). Only the media methods below decode against it.
+const maxMediaProtoBytes = 48 << 20
+
+func payloadLimit(name string) int {
+	switch name {
+	case "rimgovernor/presentation_read_frame", "rimgovernor/presentation_capture_pawn":
+		return maxMediaProtoBytes
+	}
+	return maxProtoBytes
+}
+
 var ErrUnavailable = errors.New("native observation unavailable")
 
 // NativeFailure is an explicit typed pre-admission refusal, never a transport inference.
@@ -223,7 +236,7 @@ func (caller *Client) protoCall(ctx context.Context, name string, request, reply
 		return result, err
 	}
 	decodeBegan := time.Now()
-	payload, err := decodePayload(result.Structured)
+	payload, err := decodePayload(result.Structured, payloadLimit(name))
 	if err != nil {
 		if callErr != nil {
 			return result, callErr
@@ -314,7 +327,7 @@ func (caller *Client) protoCall(ctx context.Context, name string, request, reply
 	}
 	return result, nil
 }
-func decodePayload(raw []byte) ([]byte, error) {
+func decodePayload(raw []byte, limit int) ([]byte, error) {
 	if len(raw) == 0 || len(raw) > maxResponseBytes {
 		return nil, contract("invalid wrapper size")
 	}
@@ -359,7 +372,7 @@ func decodePayload(raw []byte) ([]byte, error) {
 	if err = protojson.Unmarshal(value, text); err != nil {
 		return nil, contract("invalid payload string")
 	}
-	if len(text.Value) > maxProtoBytes {
+	if len(text.Value) > limit {
 		return nil, contract("oversized payload")
 	}
 	return []byte(text.Value), nil

@@ -28,11 +28,11 @@ func TestNativeTimingReadsOnlyCompleteNonNegativeSplits(t *testing.T) {
 }
 
 func TestDecodePayloadAcceptsCompanionTiming(t *testing.T) {
-	payload, err := decodePayload([]byte(`{"payload":"{}","timing":{"queueMs":1,"executeMs":2}}`))
+	payload, err := decodePayload([]byte(`{"payload":"{}","timing":{"queueMs":1,"executeMs":2}}`), maxProtoBytes)
 	if err != nil || string(payload) != "{}" {
 		t.Fatalf("timed wrapper rejected: %q %v", payload, err)
 	}
-	if _, err = decodePayload([]byte(`{"payload":"{}","phases":{}}`)); err == nil {
+	if _, err = decodePayload([]byte(`{"payload":"{}","phases":{}}`), maxProtoBytes); err == nil {
 		t.Fatal("unknown wrapper field accepted")
 	}
 }

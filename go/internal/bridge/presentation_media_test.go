@@ -291,6 +291,30 @@ func TestReadFrameSuccess(t *testing.T) {
 		t.Fatal(reply, err)
 	}
 }
+
+// A whole-map or full-screen frame is several MiB; it decodes against the
+// media envelope, not the 1 MiB general payload cap.
+func TestReadFrameAcceptsAFullSizeFrame(t *testing.T) {
+	server := &testServer{schema: protoSchema, handler: func(context.Context, nativeArgument) (*mcp.CallToolResult, error) {
+		return pbResult(&p.FrameReply{Outcome: &p.FrameReply_Frame{Frame: &p.MediaFrame{
+			Frame: &p.FrameReference{SourceId: proto.String("Local\\RimGovernorVideo-abc"), Sequence: proto.Uint64(8)},
+			Width: proto.Uint32(1920), Height: proto.Uint32(1080),
+			Encoding:       p.MediaEncoding_MEDIA_ENCODING_RGBA32_BOTTOM_UP.Enum(),
+			CaptureMethod:  p.CaptureMethod_CAPTURE_METHOD_ASYNC_GPU.Enum(),
+			CapturedUnixMs: proto.Int64(1700000000000), ReadbackMs: proto.Float64(3.5),
+			Data: make([]byte, 1920*1080*4),
+		}}}), nil
+	}}
+	client := testClient(t, server, 5*time.Second)
+	media, err := NewPresentationMedia(client)
+	if err != nil {
+		t.Fatal(err)
+	}
+	reply, _, err := media.ReadFrame(context.Background(), &p.FrameRequest{Viewer: pbPlayerIdentity()})
+	if err != nil || len(reply.GetFrame().GetData()) != 1920*1080*4 {
+		t.Fatal(len(reply.GetFrame().GetData()), err)
+	}
+}
 func TestReadFrameInvalidReference(t *testing.T) {
 	server := &testServer{schema: protoSchema, handler: func(context.Context, nativeArgument) (*mcp.CallToolResult, error) {
 		return pbResult(&p.FrameReply{Outcome: &p.FrameReply_Frame{Frame: &p.MediaFrame{
