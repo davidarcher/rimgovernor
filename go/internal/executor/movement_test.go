@@ -111,6 +111,31 @@ func TestMovementDispatchThenCausalCompletion(t *testing.T) {
 	}
 }
 
+// The hold-the-line move belongs to a routine method plan, so it dispatches
+// under the root authority exactly like the draft it depends on (#70) instead
+// of refusing with ErrAuthority because the root snapshot names another plan.
+func TestMovementDispatchesRoutinePlanUnderRootAuthority(t *testing.T) {
+	f, _, m := newMovementFixture(t)
+	root := f.authority
+	root.Snapshot.Plan = "player-plan"
+	if err := f.executor.UpdateAuthority(root); err != nil {
+		t.Fatal(err)
+	}
+	f.executor.routineScope = routineScopeFunc(func(_ context.Context, actual, target domain.GenerationSnapshot) error {
+		if actual != root.Snapshot || target != f.authority.Snapshot {
+			return ErrAuthority
+		}
+		return nil
+	})
+	r, err := f.run()
+	if err != nil || m.writes != 1 || !r.Progress.View().Unresolved {
+		t.Fatal(r, err, m)
+	}
+	if f.executor.current().Snapshot.Plan != "player-plan" {
+		t.Fatal("routine execution changed player authority")
+	}
+}
+
 func TestMovementRequiresFreeColonist(t *testing.T) {
 	f, _, m := newMovementFixture(t)
 	m.freeColonist = false
