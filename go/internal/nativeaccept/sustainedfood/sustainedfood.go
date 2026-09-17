@@ -634,20 +634,35 @@ func SampleGoal(ctx context.Context, s *store.Store, need policy.GoalID) (map[st
 	sample["priority"] = goal.Goal.Priority
 	sample["epoch"] = goal.Goal.Epoch
 	sample["method_count"] = len(goal.Methods)
-	var plans []map[string]any
-	for _, method := range goal.Methods {
+	describe := func(method domain.GoalMethod) map[string]any {
 		plan, err := s.LoadPlan(ctx, method.Plan)
 		if err != nil {
-			plans = append(plans, map[string]any{"plan": string(method.Plan), "error": err.Error()})
-			continue
+			return map[string]any{"plan": string(method.Plan), "error": err.Error()}
 		}
 		stages := map[string]int{}
 		for _, p := range plan.Progress {
 			stages[string(p.View().Stage)]++
 		}
-		plans = append(plans, map[string]any{"plan": string(method.Plan), "actions": len(plan.Spec.Actions()), "stages": stages})
+		return map[string]any{"plan": string(method.Plan), "actions": len(plan.Spec.Actions()), "stages": stages}
+	}
+	var plans []map[string]any
+	active := map[domain.PlanID]bool{}
+	for _, method := range goal.Methods {
+		active[method.Plan] = true
+		plans = append(plans, describe(method))
 	}
 	sample["plans"] = plans
+	// A completed method leaves goal.Methods at the next review, so a
+	// "did the bench plan finish" question needs this epoch's history too.
+	var retired []map[string]any
+	if history, err := s.LoadGoalMethods(ctx, goalID, goal.Goal.Epoch); err == nil {
+		for _, method := range history {
+			if !active[method.Plan] {
+				retired = append(retired, describe(method))
+			}
+		}
+	}
+	sample["retired_plans"] = retired
 	return sample, nil
 }
 

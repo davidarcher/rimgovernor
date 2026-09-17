@@ -130,11 +130,14 @@ func resourceRecovered(sample map[string]any) bool {
 }
 
 // workshopBenchCompleted reports a sample whose MaintainResource goal holds
-// a workshop bench plan with every action completed: the bench stands and
-// the bill path is about to start, the point a checkpoint save is worth.
+// or held (retired_plans: a completed method leaves the goal at the next
+// review) a workshop bench plan with every action completed: the bench
+// stands and the bill path is about to start, the point a checkpoint save
+// is worth.
 func workshopBenchCompleted(sample map[string]any) bool {
 	plans, _ := sample["plans"].([]map[string]any)
-	for _, plan := range plans {
+	retired, _ := sample["retired_plans"].([]map[string]any)
+	for _, plan := range append(plans, retired...) {
 		id, _ := plan["plan"].(string)
 		actions, _ := plan["actions"].(int)
 		stages, _ := plan["stages"].(map[string]int)
