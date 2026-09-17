@@ -68,6 +68,8 @@ namespace HomeBridge.BridgeTools
                     };
                     foreach (var cell in row.occupiedCells)
                         rotation.OccupiedCells.Add(new Cell { X = cell.x, Z = cell.z });
+                    foreach (var cell in row.interactionCells)
+                        rotation.InteractionCells.Add(new Cell { X = cell.x, Z = cell.z });
                     if (row.watchCellsAccessible.HasValue) rotation.WatchCellsAccessible = row.watchCellsAccessible.Value;
                     foreach (var blocker in row.blockingThings)
                     {

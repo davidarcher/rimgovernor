@@ -106,6 +106,7 @@ namespace HomeBridge.BridgeTools
         public string reason { get; internal set; } = "";
         public bool? watchCellsAccessible { get; internal set; }
         public List<PlacementCell> occupiedCells { get; } = new List<PlacementCell>();
+        public List<PlacementCell> interactionCells { get; } = new List<PlacementCell>();
         public List<PlacementBlocker> blockingThings { get; } = new List<PlacementBlocker>();
         internal CellRect Rect { get; set; }
         internal bool IdenticalBlueprintExists { get; set; }
@@ -210,6 +211,8 @@ namespace HomeBridge.BridgeTools
             };
             if (bounded && (long)result.Rect.Width * result.Rect.Height > 4096)
                 throw new PlacementLimitException("Native footprint exceeds 4096 cells");
+            if (definition is ThingDef thingDef && thingDef.hasInteractionCell)
+                result.interactionCells.Add(new PlacementCell(ThingUtility.InteractionCellWhenAt(thingDef, center, rotation, map)));
             var seen = new HashSet<int>();
             foreach (var cell in result.Rect)
             {

@@ -832,8 +832,12 @@ type PlacementRotation struct {
 	// colonist. Absent is unavailable/not applicable; false is known unusable.
 	// Does not change normal-game placement legality or certify future pawn use.
 	WatchCellsAccessible *bool `protobuf:"varint,6,opt,name=watch_cells_accessible,json=watchCellsAccessible,proto3,oneof" json:"watch_cells_accessible,omitempty"`
-	unknownFields        protoimpl.UnknownFields
-	sizeCache            protoimpl.SizeCache
+	// The definition's interaction cell at this rotation (empty when it has
+	// none): the cell a worker must stand on, outside occupied_cells, which a
+	// later placement there would block.
+	InteractionCells []*commonpb.Cell `protobuf:"bytes,7,rep,name=interaction_cells,json=interactionCells,proto3" json:"interaction_cells,omitempty"`
+	unknownFields    protoimpl.UnknownFields
+	sizeCache        protoimpl.SizeCache
 }
 
 func (x *PlacementRotation) Reset() {
@@ -906,6 +910,13 @@ func (x *PlacementRotation) GetWatchCellsAccessible() bool {
 		return *x.WatchCellsAccessible
 	}
 	return false
+}
+
+func (x *PlacementRotation) GetInteractionCells() []*commonpb.Cell {
+	if x != nil {
+		return x.InteractionCells
+	}
+	return nil
 }
 
 type PlacementBlocker struct {
@@ -1050,14 +1061,15 @@ const file_placement_proto_rawDesc = "" +
 	"\tavailable\x18\x02 \x01(\x05H\x01R\tavailable\x88\x01\x01B\v\n" +
 	"\t_def_nameB\f\n" +
 	"\n" +
-	"_available\"\xaa\x03\n" +
+	"_available\"\xf4\x03\n" +
 	"\x11PlacementRotation\x12C\n" +
 	"\brotation\x18\x01 \x01(\x0e2\".rimgovernor.placement.v1.RotationH\x00R\brotation\x88\x01\x01\x12\x1f\n" +
 	"\baccepted\x18\x02 \x01(\bH\x01R\baccepted\x88\x01\x01\x12\x1b\n" +
 	"\x06reason\x18\x03 \x01(\tH\x02R\x06reason\x88\x01\x01\x12B\n" +
 	"\x0eoccupied_cells\x18\x04 \x03(\v2\x1b.rimgovernor.common.v1.CellR\roccupiedCells\x12S\n" +
 	"\x0fblocking_things\x18\x05 \x03(\v2*.rimgovernor.placement.v1.PlacementBlockerR\x0eblockingThings\x129\n" +
-	"\x16watch_cells_accessible\x18\x06 \x01(\bH\x03R\x14watchCellsAccessible\x88\x01\x01B\v\n" +
+	"\x16watch_cells_accessible\x18\x06 \x01(\bH\x03R\x14watchCellsAccessible\x88\x01\x01\x12H\n" +
+	"\x11interaction_cells\x18\a \x03(\v2\x1b.rimgovernor.common.v1.CellR\x10interactionCellsB\v\n" +
 	"\t_rotationB\v\n" +
 	"\t_acceptedB\t\n" +
 	"\a_reasonB\x19\n" +
@@ -1143,13 +1155,14 @@ var file_placement_proto_depIdxs = []int32{
 	0,  // 16: rimgovernor.placement.v1.PlacementRotation.rotation:type_name -> rimgovernor.placement.v1.Rotation
 	18, // 17: rimgovernor.placement.v1.PlacementRotation.occupied_cells:type_name -> rimgovernor.common.v1.Cell
 	13, // 18: rimgovernor.placement.v1.PlacementRotation.blocking_things:type_name -> rimgovernor.placement.v1.PlacementBlocker
-	2,  // 19: rimgovernor.placement.v1.Placement.Preview:input_type -> rimgovernor.placement.v1.PlacementRequest
-	4,  // 20: rimgovernor.placement.v1.Placement.Preview:output_type -> rimgovernor.placement.v1.PlacementReply
-	20, // [20:21] is the sub-list for method output_type
-	19, // [19:20] is the sub-list for method input_type
-	19, // [19:19] is the sub-list for extension type_name
-	19, // [19:19] is the sub-list for extension extendee
-	0,  // [0:19] is the sub-list for field type_name
+	18, // 19: rimgovernor.placement.v1.PlacementRotation.interaction_cells:type_name -> rimgovernor.common.v1.Cell
+	2,  // 20: rimgovernor.placement.v1.Placement.Preview:input_type -> rimgovernor.placement.v1.PlacementRequest
+	4,  // 21: rimgovernor.placement.v1.Placement.Preview:output_type -> rimgovernor.placement.v1.PlacementReply
+	21, // [21:22] is the sub-list for method output_type
+	20, // [20:21] is the sub-list for method input_type
+	20, // [20:20] is the sub-list for extension type_name
+	20, // [20:20] is the sub-list for extension extendee
+	0,  // [0:20] is the sub-list for field type_name
 }
 
 func init() { file_placement_proto_init() }

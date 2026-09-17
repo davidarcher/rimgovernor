@@ -90,6 +90,10 @@ message PlacementRotation {
   // colonist. Absent is unavailable/not applicable; false is known unusable.
   // Does not change normal-game placement legality or certify future pawn use.
   optional bool watch_cells_accessible = 6;
+  // The definition's interaction cell at this rotation (empty when it has
+  // none): the cell a worker must stand on, outside occupied_cells, which a
+  // later placement there would block.
+  repeated rimgovernor.common.v1.Cell interaction_cells = 7;
 }
 message PlacementBlocker {
   optional string category = 1;

@@ -63,31 +63,33 @@ namespace RimGovernor.Protocol.Placement {
             "CzIwLnJpbWdvdmVybm9yLnBsYWNlbWVudC52MS5QbGFjZW1lbnRNYXRlcmlh",
             "bFN0b2NrImIKFlBsYWNlbWVudE1hdGVyaWFsU3RvY2sSFQoIZGVmX25hbWUY",
             "ASABKAlIAIgBARIWCglhdmFpbGFibGUYAiABKAVIAYgBAUILCglfZGVmX25h",
-            "bWVCDAoKX2F2YWlsYWJsZSLZAgoRUGxhY2VtZW50Um90YXRpb24SOQoIcm90",
+            "bWVCDAoKX2F2YWlsYWJsZSKRAwoRUGxhY2VtZW50Um90YXRpb24SOQoIcm90",
             "YXRpb24YASABKA4yIi5yaW1nb3Zlcm5vci5wbGFjZW1lbnQudjEuUm90YXRp",
             "b25IAIgBARIVCghhY2NlcHRlZBgCIAEoCEgBiAEBEhMKBnJlYXNvbhgDIAEo",
             "CUgCiAEBEjMKDm9jY3VwaWVkX2NlbGxzGAQgAygLMhsucmltZ292ZXJub3Iu",
             "Y29tbW9uLnYxLkNlbGwSQwoPYmxvY2tpbmdfdGhpbmdzGAUgAygLMioucmlt",
             "Z292ZXJub3IucGxhY2VtZW50LnYxLlBsYWNlbWVudEJsb2NrZXISIwoWd2F0",
-            "Y2hfY2VsbHNfYWNjZXNzaWJsZRgGIAEoCEgDiAEBQgsKCV9yb3RhdGlvbkIL",
-            "CglfYWNjZXB0ZWRCCQoHX3JlYXNvbkIZChdfd2F0Y2hfY2VsbHNfYWNjZXNz",
-            "aWJsZSL6AQoQUGxhY2VtZW50QmxvY2tlchIVCghjYXRlZ29yeRgBIAEoCUgA",
-            "iAEBEhkKDGlzX2JsdWVwcmludBgCIAEoCEgBiAEBEhUKCGlzX2ZyYW1lGAMg",
-            "ASgISAKIAQESGwoOd291bGRfYmVfd2lwZWQYBCABKAhIA4gBARIlChhmcmFt",
-            "ZV93b3VsZF9iZV9jYW5jZWxsZWQYBSABKAhIBIgBAUILCglfY2F0ZWdvcnlC",
-            "DwoNX2lzX2JsdWVwcmludEILCglfaXNfZnJhbWVCEQoPX3dvdWxkX2JlX3dp",
-            "cGVkQhsKGV9mcmFtZV93b3VsZF9iZV9jYW5jZWxsZWQqhAEKCFJvdGF0aW9u",
-            "EhgKFFJPVEFUSU9OX1VOU1BFQ0lGSUVEEAASEgoOUk9UQVRJT05fTk9SVEgQ",
-            "ARIRCg1ST1RBVElPTl9FQVNUEAISEgoOUk9UQVRJT05fU09VVEgQAxIRCg1S",
-            "T1RBVElPTl9XRVNUEAQSEAoMUk9UQVRJT05fQUxMEAUqhAEKC1Bhc3NhYmls",
-            "aXR5EhsKF1BBU1NBQklMSVRZX1VOU1BFQ0lGSUVEEAASGQoVUEFTU0FCSUxJ",
-            "VFlfU1RBTkRBQkxFEAESIQodUEFTU0FCSUxJVFlfUEFTU19USFJPVUdIX09O",
-            "TFkQAhIaChZQQVNTQUJJTElUWV9JTVBBU1NBQkxFEAMybAoJUGxhY2VtZW50",
-            "El8KB1ByZXZpZXcSKi5yaW1nb3Zlcm5vci5wbGFjZW1lbnQudjEuUGxhY2Vt",
-            "ZW50UmVxdWVzdBooLnJpbWdvdmVybm9yLnBsYWNlbWVudC52MS5QbGFjZW1l",
-            "bnRSZXBseUJuWktnaXRodWIuY29tL2RhdmlkYXJjaGVyL1JpbUdvdmVybm9y",
-            "L2dvL2ludGVybmFsL3dpcmUvcGxhY2VtZW50cGI7cGxhY2VtZW50cGKqAh5S",
-            "aW1Hb3Zlcm5vci5Qcm90b2NvbC5QbGFjZW1lbnRiBnByb3RvMw=="));
+            "Y2hfY2VsbHNfYWNjZXNzaWJsZRgGIAEoCEgDiAEBEjYKEWludGVyYWN0aW9u",
+            "X2NlbGxzGAcgAygLMhsucmltZ292ZXJub3IuY29tbW9uLnYxLkNlbGxCCwoJ",
+            "X3JvdGF0aW9uQgsKCV9hY2NlcHRlZEIJCgdfcmVhc29uQhkKF193YXRjaF9j",
+            "ZWxsc19hY2Nlc3NpYmxlIvoBChBQbGFjZW1lbnRCbG9ja2VyEhUKCGNhdGVn",
+            "b3J5GAEgASgJSACIAQESGQoMaXNfYmx1ZXByaW50GAIgASgISAGIAQESFQoI",
+            "aXNfZnJhbWUYAyABKAhIAogBARIbCg53b3VsZF9iZV93aXBlZBgEIAEoCEgD",
+            "iAEBEiUKGGZyYW1lX3dvdWxkX2JlX2NhbmNlbGxlZBgFIAEoCEgEiAEBQgsK",
+            "CV9jYXRlZ29yeUIPCg1faXNfYmx1ZXByaW50QgsKCV9pc19mcmFtZUIRCg9f",
+            "d291bGRfYmVfd2lwZWRCGwoZX2ZyYW1lX3dvdWxkX2JlX2NhbmNlbGxlZCqE",
+            "AQoIUm90YXRpb24SGAoUUk9UQVRJT05fVU5TUEVDSUZJRUQQABISCg5ST1RB",
+            "VElPTl9OT1JUSBABEhEKDVJPVEFUSU9OX0VBU1QQAhISCg5ST1RBVElPTl9T",
+            "T1VUSBADEhEKDVJPVEFUSU9OX1dFU1QQBBIQCgxST1RBVElPTl9BTEwQBSqE",
+            "AQoLUGFzc2FiaWxpdHkSGwoXUEFTU0FCSUxJVFlfVU5TUEVDSUZJRUQQABIZ",
+            "ChVQQVNTQUJJTElUWV9TVEFOREFCTEUQARIhCh1QQVNTQUJJTElUWV9QQVNT",
+            "X1RIUk9VR0hfT05MWRACEhoKFlBBU1NBQklMSVRZX0lNUEFTU0FCTEUQAzJs",
+            "CglQbGFjZW1lbnQSXwoHUHJldmlldxIqLnJpbWdvdmVybm9yLnBsYWNlbWVu",
+            "dC52MS5QbGFjZW1lbnRSZXF1ZXN0GigucmltZ292ZXJub3IucGxhY2VtZW50",
+            "LnYxLlBsYWNlbWVudFJlcGx5Qm5aS2dpdGh1Yi5jb20vZGF2aWRhcmNoZXIv",
+            "UmltR292ZXJub3IvZ28vaW50ZXJuYWwvd2lyZS9wbGFjZW1lbnRwYjtwbGFj",
+            "ZW1lbnRwYqoCHlJpbUdvdmVybm9yLlByb3RvY29sLlBsYWNlbWVudGIGcHJv",
+            "dG8z"));
       descriptor = pbr::FileDescriptor.FromGeneratedCode(descriptorData,
           new pbr::FileDescriptor[] { global::RimGovernor.Protocol.Common.CommonReflection.Descriptor, },
           new pbr::GeneratedClrTypeInfo(new[] {typeof(global::RimGovernor.Protocol.Placement.Rotation), typeof(global::RimGovernor.Protocol.Placement.Passability), }, null, new pbr::GeneratedClrTypeInfo[] {
@@ -101,7 +103,7 @@ namespace RimGovernor.Protocol.Placement {
             new pbr::GeneratedClrTypeInfo(typeof(global::RimGovernor.Protocol.Placement.PlacementMaterials), global::RimGovernor.Protocol.Placement.PlacementMaterials.Parser, new[]{ "Known", "Unavailable" }, new[]{ "Availability" }, null, null, null),
             new pbr::GeneratedClrTypeInfo(typeof(global::RimGovernor.Protocol.Placement.MaterialRows), global::RimGovernor.Protocol.Placement.MaterialRows.Parser, new[]{ "Rows" }, null, null, null, null),
             new pbr::GeneratedClrTypeInfo(typeof(global::RimGovernor.Protocol.Placement.PlacementMaterialStock), global::RimGovernor.Protocol.Placement.PlacementMaterialStock.Parser, new[]{ "DefName", "Available" }, new[]{ "DefName", "Available" }, null, null, null),
-            new pbr::GeneratedClrTypeInfo(typeof(global::RimGovernor.Protocol.Placement.PlacementRotation), global::RimGovernor.Protocol.Placement.PlacementRotation.Parser, new[]{ "Rotation", "Accepted", "Reason", "OccupiedCells", "BlockingThings", "WatchCellsAccessible" }, new[]{ "Rotation", "Accepted", "Reason", "WatchCellsAccessible" }, null, null, null),
+            new pbr::GeneratedClrTypeInfo(typeof(global::RimGovernor.Protocol.Placement.PlacementRotation), global::RimGovernor.Protocol.Placement.PlacementRotation.Parser, new[]{ "Rotation", "Accepted", "Reason", "OccupiedCells", "BlockingThings", "WatchCellsAccessible", "InteractionCells" }, new[]{ "Rotation", "Accepted", "Reason", "WatchCellsAccessible" }, null, null, null),
             new pbr::GeneratedClrTypeInfo(typeof(global::RimGovernor.Protocol.Placement.PlacementBlocker), global::RimGovernor.Protocol.Placement.PlacementBlocker.Parser, new[]{ "Category", "IsBlueprint", "IsFrame", "WouldBeWiped", "FrameWouldBeCancelled" }, new[]{ "Category", "IsBlueprint", "IsFrame", "WouldBeWiped", "FrameWouldBeCancelled" }, null, null, null)
           }));
     }
@@ -3248,6 +3250,7 @@ namespace RimGovernor.Protocol.Placement {
       occupiedCells_ = other.occupiedCells_.Clone();
       blockingThings_ = other.blockingThings_.Clone();
       watchCellsAccessible_ = other.watchCellsAccessible_;
+      interactionCells_ = other.interactionCells_.Clone();
       _unknownFields = pb::UnknownFieldSet.Clone(other._unknownFields);
     }
 
@@ -3394,6 +3397,22 @@ namespace RimGovernor.Protocol.Placement {
       _hasBits0 &= ~4;
     }
 
+    /// <summary>Field number for the "interaction_cells" field.</summary>
+    public const int InteractionCellsFieldNumber = 7;
+    private static readonly pb::FieldCodec<global::RimGovernor.Protocol.Common.Cell> _repeated_interactionCells_codec
+        = pb::FieldCodec.ForMessage(58, global::RimGovernor.Protocol.Common.Cell.Parser);
+    private readonly pbc::RepeatedField<global::RimGovernor.Protocol.Common.Cell> interactionCells_ = new pbc::RepeatedField<global::RimGovernor.Protocol.Common.Cell>();
+    /// <summary>
+    /// The definition's interaction cell at this rotation (empty when it has
+    /// none): the cell a worker must stand on, outside occupied_cells, which a
+    /// later placement there would block.
+    /// </summary>
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public pbc::RepeatedField<global::RimGovernor.Protocol.Common.Cell> InteractionCells {
+      get { return interactionCells_; }
+    }
+
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
     public override bool Equals(object other) {
@@ -3415,6 +3434,7 @@ namespace RimGovernor.Protocol.Placement {
       if(!occupiedCells_.Equals(other.occupiedCells_)) return false;
       if(!blockingThings_.Equals(other.blockingThings_)) return false;
       if (WatchCellsAccessible != other.WatchCellsAccessible) return false;
+      if(!interactionCells_.Equals(other.interactionCells_)) return false;
       return Equals(_unknownFields, other._unknownFields);
     }
 
@@ -3428,6 +3448,7 @@ namespace RimGovernor.Protocol.Placement {
       hash ^= occupiedCells_.GetHashCode();
       hash ^= blockingThings_.GetHashCode();
       if (HasWatchCellsAccessible) hash ^= WatchCellsAccessible.GetHashCode();
+      hash ^= interactionCells_.GetHashCode();
       if (_unknownFields != null) {
         hash ^= _unknownFields.GetHashCode();
       }
@@ -3464,6 +3485,7 @@ namespace RimGovernor.Protocol.Placement {
         output.WriteRawTag(48);
         output.WriteBool(WatchCellsAccessible);
       }
+      interactionCells_.WriteTo(output, _repeated_interactionCells_codec);
       if (_unknownFields != null) {
         _unknownFields.WriteTo(output);
       }
@@ -3492,6 +3514,7 @@ namespace RimGovernor.Protocol.Placement {
         output.WriteRawTag(48);
         output.WriteBool(WatchCellsAccessible);
       }
+      interactionCells_.WriteTo(ref output, _repeated_interactionCells_codec);
       if (_unknownFields != null) {
         _unknownFields.WriteTo(ref output);
       }
@@ -3516,6 +3539,7 @@ namespace RimGovernor.Protocol.Placement {
       if (HasWatchCellsAccessible) {
         size += 1 + 1;
       }
+      size += interactionCells_.CalculateSize(_repeated_interactionCells_codec);
       if (_unknownFields != null) {
         size += _unknownFields.CalculateSize();
       }
@@ -3542,6 +3566,7 @@ namespace RimGovernor.Protocol.Placement {
       if (other.HasWatchCellsAccessible) {
         WatchCellsAccessible = other.WatchCellsAccessible;
       }
+      interactionCells_.Add(other.interactionCells_);
       _unknownFields = pb::UnknownFieldSet.MergeFrom(_unknownFields, other._unknownFields);
     }
 
@@ -3585,6 +3610,10 @@ namespace RimGovernor.Protocol.Placement {
             WatchCellsAccessible = input.ReadBool();
             break;
           }
+          case 58: {
+            interactionCells_.AddEntriesFrom(input, _repeated_interactionCells_codec);
+            break;
+          }
         }
       }
     #endif
@@ -3626,6 +3655,10 @@ namespace RimGovernor.Protocol.Placement {
           }
           case 48: {
             WatchCellsAccessible = input.ReadBool();
+            break;
+          }
+          case 58: {
+            interactionCells_.AddEntriesFrom(ref input, _repeated_interactionCells_codec);
             break;
           }
         }

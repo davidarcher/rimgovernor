@@ -31,6 +31,9 @@ func TestBuildingPreviewProjection(t *testing.T) {
 		{"unavailable materials", func(v *p.PlacementBatch) {
 			v.Results[0].GetEvaluated().Materials = &p.PlacementMaterials{Availability: &p.PlacementMaterials_Unavailable{Unavailable: &c.Unavailable{Reason: c.UnavailableReason_UNAVAILABLE_REASON_NOT_OBSERVED.Enum()}}}
 		}, false, false, false},
+		{"interaction cell claimed", func(v *p.PlacementBatch) {
+			v.Results[0].GetEvaluated().Rotations[0].InteractionCells = []*c.Cell{{X: proto.Int32(0), Z: proto.Int32(-1)}, {X: proto.Int32(0), Z: proto.Int32(0)}}
+		}, true, true, false},
 		{"new generation", func(v *p.PlacementBatch) { v.Context.NativeGeneration = proto.Uint64(3) }, false, false, true},
 		{"unknown generation", func(v *p.PlacementBatch) { v.Context.NativeGeneration = nil }, false, false, true},
 		{"changed world", func(v *p.PlacementBatch) { v.Context.Identity.LoadToken = proto.String("replacement") }, false, false, true},
@@ -81,8 +84,13 @@ func TestBuildingPreviewProjection(t *testing.T) {
 				t.Fatal("complete empty cost scan lost")
 			}
 			cells, known := result.Preview.Footprint.Value()
-			if !known || len(cells) != 1 || cells[0] != (domain.Cell{}) {
+			if !known || len(cells) < 1 || cells[0] != (domain.Cell{}) {
 				t.Fatal("map zero footprint lost")
+			}
+			// The interaction cell joins the claim once, after the occupied
+			// cells; an interaction cell inside the footprint is not repeated.
+			if want := 1 + min(len(reply.GetBatch().Results[0].GetEvaluated().Rotations[0].InteractionCells), 1); len(cells) != want || want == 2 && cells[1] != (domain.Cell{X: 0, Z: -1}) {
+				t.Fatal("interaction cell claim", cells)
 			}
 			if test.knownSafe {
 				if _, known = result.Stock.Values[0].Available.Value(); known {

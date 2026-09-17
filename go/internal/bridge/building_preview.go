@@ -82,9 +82,19 @@ func (caller *Client) PreviewBuilding(ctx context.Context, action domain.Action,
 		costs = append(costs, policy.Amount{Resource: policy.Resource(cost.GetDefName()), Count: int64(cost.GetCount())})
 	}
 	out.Preview.Costs = domain.Known(costs)
-	cells := make([]domain.Cell, 0, len(orientation.OccupiedCells))
-	for _, cell := range orientation.OccupiedCells {
-		cells = append(cells, domain.Cell{X: cell.GetX(), Z: cell.GetZ()})
+	// The footprint is the placement's claim: its occupied cells plus the
+	// interaction cell a worker must stand on, so a rival placement there is
+	// refused instead of blocking the bench for good (a campfire on a
+	// crafting spot's interaction cell held run 16 of #4 M2 forever).
+	cells := make([]domain.Cell, 0, len(orientation.OccupiedCells)+len(orientation.InteractionCells))
+	seen := map[domain.Cell]bool{}
+	for _, cell := range append(append([]*c.Cell(nil), orientation.OccupiedCells...), orientation.InteractionCells...) {
+		claim := domain.Cell{X: cell.GetX(), Z: cell.GetZ()}
+		if seen[claim] {
+			continue
+		}
+		seen[claim] = true
+		cells = append(cells, claim)
 	}
 	out.Preview.Footprint = domain.Known(cells)
 	return out, raw, nil
