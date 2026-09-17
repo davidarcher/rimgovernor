@@ -9,6 +9,7 @@ package boundary
 import (
 	"context"
 	"errors"
+	"fmt"
 	"strings"
 	"time"
 	"unicode/utf8"
@@ -194,8 +195,13 @@ func (b *Boundary) Observe(ctx context.Context, placement executor.Placement, cu
 	}
 	admitted := lookup.GetReceipt()
 	if admitted == nil {
-		return out, executor.ErrHeld
-	} // Missing ledger or in-flight is never no-effect proof.
+		absent, err := Unadmitted(lookup, placement, current)
+		if err != nil {
+			return out, err
+		}
+		out.Observation, out.Complete, out.ObservedAt = absent, true, b.Clock.Now()
+		return out, nil
+	}
 	if err = Admission(admitted, placement, b.Session); err != nil {
 		return out, err
 	}
@@ -343,6 +349,35 @@ func Admission(receipt *r.Receipt, placement executor.Placement, session string)
 		return err
 	}
 	return nil
+}
+
+// Unadmitted resolves a ledger lookup that carries no receipt. The native
+// ledger admits an attempt on the game's main thread before it schedules
+// any effect, and receipts_lookup is served on that same thread, so a lookup
+// under the attempt's own load that finds no entry proves the write never
+// reached admission: a dispatch that timed out on the controller side (#71,
+// the native call ceiling under peer load) was dropped before it ran, and
+// the controller's unknown receipt is its only trace. That is complete
+// no-effect evidence, so the action returns to Pending for a fresh attempt
+// instead of holding forever. An admitted entry still in flight stays held:
+// it will finish with a receipt of its own.
+func Unadmitted(lookup *r.LookupReply, placement executor.Placement, current domain.GenerationSnapshot) (domain.Observation, error) {
+	out := domain.Observation{Action: placement.Action.ID(), Attempt: placement.Attempt, Snapshot: current, Effect: domain.EffectUnknown}
+	switch v := lookup.GetOutcome().(type) {
+	case *r.LookupReply_InFlight:
+		return out, fmt.Errorf("%w: attempt %d is admitted and still in flight", executor.ErrHeld, placement.Attempt)
+	case *r.LookupReply_Unknown:
+		observed, err := Context(v.Unknown.GetContext(), current)
+		if err != nil {
+			return out, err
+		}
+		if v.Unknown.GetContext().GetTick() < int64(placement.Tick) {
+			return out, executor.ErrEvidence
+		}
+		out.Snapshot, out.Tick, out.Causality, out.Effect = observed, domain.Tick(v.Unknown.GetContext().GetTick()), domain.AfterDispatch, domain.EffectAbsent
+		return out, nil
+	}
+	return out, executor.ErrEvidence
 }
 
 func Origin(receipt *r.Receipt) string {

@@ -53,7 +53,7 @@ func TestDraftBoundaryOriginalAttemptAndFreshOwnerRequired(t *testing.T) {
 			}
 			out, err := b.ObserveDraft(context.Background(), f.P, f.P.Snapshot)
 			_, known := out.Claim.Value()
-			if kind == "valid" || kind == "lost-receipt" {
+			if kind == "valid" {
 				if err != nil || !known || out.Observation.Effect != domain.EffectCompleted {
 					t.Fatal(out, err)
 				}
@@ -61,8 +61,10 @@ func TestDraftBoundaryOriginalAttemptAndFreshOwnerRequired(t *testing.T) {
 				if err != nil || !known || out.Observation.Effect != domain.EffectUnknown {
 					t.Fatal(out, err)
 				}
-			} else if kind == "unknown-progress" {
-				if err != nil || known || out.Observation.Effect != domain.EffectUnknown {
+			} else if kind == "lost-receipt" || kind == "unknown-progress" {
+				// No ledger entry means the draft was never admitted (#71):
+				// complete absence, no claim, and no progress read at all.
+				if err != nil || known || out.Observation.Effect != domain.EffectAbsent || !out.Complete {
 					t.Fatal(out, err)
 				}
 			} else if err == nil {

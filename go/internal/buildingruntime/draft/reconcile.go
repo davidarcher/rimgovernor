@@ -33,6 +33,14 @@ func (b *DraftBoundary) ObserveDraft(ctx context.Context, p executor.Placement, 
 		return out, err
 	}
 	receipt := lookup.GetReceipt()
+	if receipt == nil {
+		absent, err := boundary.Unadmitted(lookup, p, current)
+		if err != nil {
+			return out, err
+		}
+		out.Observation, out.Complete, out.ObservedAt = absent, true, b.clock.Now()
+		return out, nil
+	}
 	if receipt != nil {
 		if err = boundary.Admission(receipt, p, b.session); err != nil {
 			return out, err

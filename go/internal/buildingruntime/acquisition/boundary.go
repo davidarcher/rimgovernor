@@ -124,7 +124,12 @@ func (b *AcquisitionBoundary) ObserveAcquisition(ctx context.Context, p executor
 	}
 	admitted := lookup.GetReceipt()
 	if admitted == nil {
-		return out, executor.ErrHeld
+		absent, err := boundary.Unadmitted(lookup, p, current)
+		if err != nil {
+			return out, err
+		}
+		out.Observation, out.Complete, out.ObservedAt = absent, true, b.Clock.Now()
+		return out, nil
 	}
 	if err = boundary.Admission(admitted, p, b.Session); err != nil {
 		return out, err

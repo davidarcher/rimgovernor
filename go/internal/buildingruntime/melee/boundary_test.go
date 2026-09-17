@@ -151,7 +151,14 @@ func TestMeleeBoundaryRejectsUncorrelatedRecovery(t *testing.T) {
 			case "unknown lookup":
 				f.Receipt = nil
 			}
-			if _, err := b.ObserveMelee(context.Background(), d, d.Attempt.Snapshot); err == nil {
+			out, err := b.ObserveMelee(context.Background(), d, d.Attempt.Snapshot)
+			if kind == "unknown lookup" {
+				// Never admitted (#71): complete absence rather than a completion
+				// attributed to evidence the ledger cannot correlate.
+				if err != nil || out.Observation.Effect != domain.EffectAbsent || !out.Complete {
+					t.Fatal("unadmitted attempt not resolved as absent", err, out)
+				}
+			} else if err == nil {
 				t.Fatal("accepted uncorrelated evidence")
 			}
 			if f.Leases != 0 || f.Writes != 0 {

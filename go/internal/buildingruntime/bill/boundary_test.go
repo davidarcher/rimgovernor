@@ -181,8 +181,8 @@ func TestObserveBillCompletedUnsuccessfulAndAbsent(t *testing.T) {
 func TestObserveBillRejectsInvalidEvidenceAndUnknownAdmission(t *testing.T) {
 	bb, f, _, placement, _ := newBillBoundaryFixture(t)
 	f.lookupReply = &r.LookupReply{Outcome: &r.LookupReply_Unknown{Unknown: &r.UnknownAttempt{Context: boundaryContextFor(placement.Snapshot)}}}
-	if out, err := bb.ObserveBill(context.Background(), placement, placement.Snapshot); err == nil || out.Observation.Effect != domain.EffectUnknown {
-		t.Fatal("missing admission accepted", err)
+	if out, err := bb.ObserveBill(context.Background(), placement, placement.Snapshot); err != nil || out.Observation.Effect != domain.EffectAbsent || !out.Complete {
+		t.Fatal("unadmitted attempt not resolved as absent (#71)", err, out)
 	}
 	if f.observes != 0 {
 		t.Fatal("observed without admitted receipt")

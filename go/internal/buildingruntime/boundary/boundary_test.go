@@ -183,11 +183,14 @@ func TestBoundaryRestartReadsWithoutLeaseAndChecksCompletion(t *testing.T) {
 	if out.Observation.Construction == nil || out.Observation.Construction.Origin != nativeIdentity.GetOriginThingId() || out.Observation.Construction.Current != nativeIdentity.GetCurrentThingId() {
 		t.Fatal("native completion identities discarded", out.Observation)
 	}
+	// A lookup the native ledger does not know was never admitted, so it
+	// resolves as complete no-effect evidence without a write or progress
+	// read (#71); the executor then re-dispatches a fresh attempt.
 	b, f = NewFixture(t)
 	f.Unknown = true
 	out, err = b.Observe(context.Background(), f.Placement, f.Placement.Snapshot)
-	if err == nil || out.Observation.Effect != domain.EffectUnknown || f.Places != 0 || f.Observes != 0 {
-		t.Fatal("unknown lookup retried/inferredabsence")
+	if err != nil || out.Observation.Effect != domain.EffectAbsent || !out.Complete || out.Observation.Causality != domain.AfterDispatch || out.Observation.Tick != domain.Tick(f.Progress.Context.GetTick()) || f.Places != 0 || f.Observes != 0 {
+		t.Fatal("unknown lookup not resolved as unadmitted", err, out)
 	}
 	for _, change := range []func(*Fixture){func(f *Fixture) { f.Progress.CompleteInspection = nil }, func(f *Fixture) { f.Progress.Context.Tick = proto.Int64(9) }, func(f *Fixture) { f.Progress.Context.NativeGeneration = nil }, func(f *Fixture) { f.Progress.Attempt.AttemptId = proto.Uint64(2) }, func(f *Fixture) {
 		f.Progress.GetCompleted().Evidence.GetConstruction().DefName = proto.String("Door")
@@ -248,5 +251,38 @@ func TestAttemptConflictDoesNotProveNoEffect(t *testing.T) {
 	out, err := b.Place(context.Background(), f.Placement)
 	if err == nil || out.Kind != domain.ReceiptUnknown {
 		t.Fatal("existing attempt conflict released uncertainty", err)
+	}
+}
+
+// An unknown ledger lookup is the trace of a dispatch that timed out before
+// native admission (#71): it resolves as complete absence at the lookup's
+// own tick. An admitted in-flight entry still holds, and a lookup context
+// from before the dispatch or another native generation is never evidence.
+func TestUnadmittedResolvesOnlyAnUnknownLedgerLookup(t *testing.T) {
+	t.Parallel()
+	_, f := NewFixture(t)
+	p := f.Placement
+	unknown := func(tick int64, generation uint64) *r.LookupReply {
+		return &r.LookupReply{Outcome: &r.LookupReply_Unknown{Unknown: &r.UnknownAttempt{Context: &c.ObservationContext{Identity: Identity(p.Snapshot), Tick: proto.Int64(tick), NativeGeneration: proto.Uint64(generation)}}}}
+	}
+	out, err := Unadmitted(unknown(14, 1), p, p.Snapshot)
+	if err != nil || out.Effect != domain.EffectAbsent || out.Tick != 14 || out.Causality != domain.AfterDispatch || out.Action != p.Action.ID() || out.Attempt != p.Attempt || !out.Snapshot.Matches(p.Snapshot) {
+		t.Fatal("unknown lookup not resolved as absent", err, out)
+	}
+	if out, err = Unadmitted(unknown(10, 1), p, p.Snapshot); err != nil || out.Effect != domain.EffectAbsent || out.Tick != 10 {
+		t.Fatal("same-tick lookup rejected", err, out)
+	}
+	if _, err = Unadmitted(unknown(9, 1), p, p.Snapshot); !errors.Is(err, executor.ErrEvidence) {
+		t.Fatal("pre-dispatch tick accepted", err)
+	}
+	if _, err = Unadmitted(unknown(14, 2), p, p.Snapshot); !errors.Is(err, executor.ErrAuthority) {
+		t.Fatal("foreign native generation accepted", err)
+	}
+	inFlight := &r.LookupReply{Outcome: &r.LookupReply_InFlight{InFlight: &r.InFlight{Attempt: f.Receipt.Attempt, AdmittedContext: f.Receipt.AdmittedContext}}}
+	if _, err = Unadmitted(inFlight, p, p.Snapshot); !errors.Is(err, executor.ErrHeld) {
+		t.Fatal("in-flight attempt not held", err)
+	}
+	if _, err = Unadmitted(&r.LookupReply{}, p, p.Snapshot); !errors.Is(err, executor.ErrEvidence) {
+		t.Fatal("empty lookup accepted", err)
 	}
 }

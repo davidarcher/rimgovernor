@@ -25,6 +25,14 @@ func (b *RescueBoundary) ObserveRescue(ctx context.Context, dispatch executor.Re
 		return out, err
 	}
 	receipt := lookup.GetReceipt()
+	if receipt == nil {
+		absent, err := boundary.Unadmitted(lookup, p, current)
+		if err != nil {
+			return out, err
+		}
+		out.Observation, out.Complete, out.ObservedAt = absent, true, b.clock.Now()
+		return out, nil
+	}
 	if receipt != nil {
 		if err = b.checkReceipt(receipt, dispatch); err != nil {
 			return out, err

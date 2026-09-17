@@ -323,7 +323,15 @@ retain their existing reconciliation requirements. This never retries an uncerta
 write or relaxes native interruption guards. A write the transport proves it never
 issued (it failed before the native call, `domain.ErrWriteUnsent`) is not uncertain:
 it records `ReceiptUnsent`, a no-effect proof the same authority may retry, rather
-than reconciling against a native ledger entry that never existed.
+than reconciling against a native ledger entry that never existed. A write that was
+issued but never answered (the native call timed out on the controller side) records
+`ReceiptUnknown` and reconciles through `receipts_lookup`: the native ledger admits
+an attempt on the game's main thread before scheduling any effect and serves lookups
+on that same thread, so a lookup under the attempt's own load that finds no entry
+proves the write was dropped before admission. That lookup is complete no-effect
+evidence at its own tick and the action returns to `Pending` for a fresh attempt,
+instead of holding forever (#71). An admitted entry still in flight keeps holding
+until its receipt is recorded.
 Need-recovery admission previews likewise retain native refusals on the mood goal
 and can consider another measured need. GABS errors retain the requested tool identity
 even when the native payload omits it. Dispatch failures remain subject to Hands'

@@ -91,7 +91,17 @@ func workerOutcome(after domain.ProgressView, result executor.Result, err error)
 	for _, r := range result.Refused {
 		reasons = append(reasons, string(r.Reason))
 	}
-	return fmt.Sprintf("stage=%s attempt=%d refused=[%s] err=%v", after.Stage, after.Attempt, strings.Join(reasons, ","), err)
+	// The receipt and effect name why an attempt is unresolved: an unknown
+	// receipt is a native call that timed out on the controller side (#71),
+	// and with the attempt number it identifies the native ledger entry.
+	receipt, effect := "-", "-"
+	if v, known := after.Receipt.Value(); known {
+		receipt = string(v)
+	}
+	if v, known := after.Effect.Value(); known {
+		effect = string(v)
+	}
+	return fmt.Sprintf("stage=%s attempt=%d receipt=%s effect=%s refused=[%s] err=%v", after.Stage, after.Attempt, receipt, effect, strings.Join(reasons, ","), err)
 }
 
 func NewWorker(ctx context.Context, config WorkerConfig, player *Player, session *Session) (*Worker, error) {
