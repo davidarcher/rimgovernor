@@ -103,6 +103,9 @@ namespace HomeBridge.BridgeTools
                 var allowed = new HashSet<IntVec3>(terrain.Where(c => (area == null || area[c])
                     && c.GetDangerFor(pawn, map) == Danger.None
                     && (!(c.GetEdifice(map) is Building_Door door) || door.PawnCanOpen(pawn))));
+                // The pawn is where it stands, even on a frame or a
+                // blueprint under construction that is no longer walkable.
+                allowed.Add(pawn.Position);
                 var before = Reach(pawn.Position, allowed, out _);
                 allowed.ExceptWith(blocked);
                 var origin = pawn.Position;
