@@ -488,3 +488,24 @@ func TestVideoLeaseReportsAnUnavailableSource(t *testing.T) {
 		t.Fatal(out.Body.String(), err)
 	}
 }
+
+func TestVideoLeaseForwardsTheViewerID(t *testing.T) {
+	s, f, token := presentationMediaAPI(t)
+	out := playerCall(s, "POST", "/api/presentation/video-lease", `{"leaseSeconds":8,"source":{"kind":"map"},"viewerId":"tile-1"}`, token)
+	if out.Code != 200 {
+		t.Fatal(out.Code, out.Body.String())
+	}
+	if request, ok := f.seen.(*p.VideoLeaseRequest); !ok || request.GetStart().GetViewer().GetViewerId() != "tile-1" {
+		t.Fatal(f.seen)
+	}
+	out = playerCall(s, "POST", "/api/presentation/video-lease", `{"leaseSeconds":0,"sourceId":"buffer-7","viewerId":"tile-1"}`, token)
+	if out.Code != 200 {
+		t.Fatal(out.Code, out.Body.String())
+	}
+	if request, ok := f.seen.(*p.VideoLeaseRequest); !ok || request.GetStop().GetViewer().GetViewerId() != "tile-1" {
+		t.Fatal(f.seen)
+	}
+	if out := playerCall(s, "POST", "/api/presentation/video-lease", `{"leaseSeconds":8,"viewerId":"`+strings.Repeat("v", 257)+`"}`, token); out.Code != 400 {
+		t.Fatal(out.Code, out.Body.String())
+	}
+}

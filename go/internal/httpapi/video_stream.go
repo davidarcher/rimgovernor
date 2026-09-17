@@ -10,6 +10,7 @@ import (
 	"mime"
 	"net/http"
 	"net/url"
+	"strings"
 	"time"
 
 	"github.com/coder/websocket"
@@ -44,6 +45,9 @@ type videoLeaseRequestDTO struct {
 	Source       *VideoSourceDTO `json:"source,omitempty"`
 	// SourceID selects the source a stop (leaseSeconds 0) ends; absent stops all.
 	SourceID string `json:"sourceId,omitempty"`
+	// ViewerID names the tile holding the lease: viewers of one source hold
+	// it independently, so a stop or timeout by one leaves the others' feed.
+	ViewerID string `json:"viewerId,omitempty"`
 }
 type VideoStateDTO struct {
 	Supported bool           `json:"supported"`
@@ -167,7 +171,7 @@ func (s *Server) handleVideoLease(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	var body videoLeaseRequestDTO
-	if err := decodeMediaBody(r, &body); err != nil || body.LeaseSeconds == nil || *body.LeaseSeconds > 15 || len(body.SourceID) > 256 {
+	if err := decodeMediaBody(r, &body); err != nil || body.LeaseSeconds == nil || *body.LeaseSeconds > 15 || len(body.SourceID) > 256 || len(body.ViewerID) > 256 || strings.ContainsRune(body.ViewerID, 0) {
 		s.failure(w, r, 400, "invalid_request", "leaseSeconds (0-15) is required")
 		return
 	}
@@ -185,6 +189,9 @@ func (s *Server) handleVideoLease(w http.ResponseWriter, r *http.Request) {
 	}
 	wire := &c.Identity{ColonyId: proto.String(string(identity.Colony)), LoadToken: proto.String(string(identity.Load)), MapId: proto.Int32(int32(identity.Map))}
 	viewer := &p.PlayerIdentity{Identity: wire}
+	if body.ViewerID != "" {
+		viewer.ViewerId = proto.String(body.ViewerID)
+	}
 	var request *p.VideoLeaseRequest
 	if *body.LeaseSeconds > 0 {
 		request = &p.VideoLeaseRequest{Operation: &p.VideoLeaseRequest_Start{Start: &p.VideoStart{Viewer: viewer, LeaseSeconds: proto.Uint32(*body.LeaseSeconds), Source: source}}}

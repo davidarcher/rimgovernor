@@ -150,7 +150,11 @@ loaded, is refused as `supported: true, active: false` with an `unavailable`
 detail; a running pawn feed ends when its pawn leaves the map, and every
 rendered source ends when the current map changes (a load), so `ReadFrame` on
 the old `sourceId` fails `UNAVAILABLE` and the dashboard tile re-leases and
-follows the new id. Stopping without `source_id` ends every source. The
+follows the new id. Viewers of an identical spec share one source and hold
+it independently by `viewer_id` (the dashboard sends one per tile as
+`viewerId`): a stop or timeout by one viewer leaves the others' feed, and
+the source ends with its last hold. Stopping without `source_id` drops the
+viewer's hold on every source. The
 `videofeedsmatrix` harness measures the cost: on the reference machine five
 pawn feeds cost no ticks (60 TPS, p95 frame 33 ms either way) and five pawn
 feeds plus map plus screen held 55 TPS with a 50 ms p95 frame.

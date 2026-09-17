@@ -37,3 +37,11 @@ it('reads the unavailable detail of an inactive lease', async () => {
   expect(lease.active).toBe(false);
   expect(lease.unavailable).toBe('The pawn is not spawned on the current map.');
 });
+it('sends the viewer id on lease and stop', async () => {
+  const fetcher = stub(state);
+  await leaseVideo('t', 15, {kind: 'map'}, undefined, undefined, 'tile-1');
+  expect(sentBody(fetcher)).toEqual({leaseSeconds: 15, source: {kind: 'map'}, viewerId: 'tile-1'});
+  const stopper = stub({...state, active: false, source: {kind: 'screen'}});
+  await leaseVideo('t', 0, {kind: 'map'}, undefined, 'map-1', 'tile-1');
+  expect(sentBody(stopper)).toEqual({leaseSeconds: 0, sourceId: 'map-1', viewerId: 'tile-1'});
+});

@@ -42,6 +42,11 @@ async function blitFrame(ctx: CanvasRenderingContext2D, frame: VideoFrame): Prom
 // or map source is a second camera the game renders for this tile alone.
 // Each tile owns its lease (renewed every 10s under the same source, which
 // extends the same buffer) and a WebSocket bound to that lease's sourceId.
+// One id per mounted tile, so the native driver can tell this tile's hold from another's.
+function newViewerId(): string {
+  return typeof crypto !== 'undefined' && 'randomUUID' in crypto ? crypto.randomUUID() : `tile-${Date.now()}-${Math.random().toString(16).slice(2)}`;
+}
+
 export function VideoFeed({token, active, source, label, className}: {token: string | null; active: boolean; source: VideoSource; label: string; className?: string}) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [status, setStatus] = useState<Status>('idle');
@@ -61,6 +66,7 @@ export function VideoFeed({token, active, source, label, className}: {token: str
     // The native lease may republish under a new id (e.g. after a load); the
     // renewal keeps this current and the next connection follows it.
     const sourceId = {current: ''};
+    const viewerId = newViewerId();
 
     const scheduleRetry = () => {
       if (stopped) return;
@@ -108,7 +114,7 @@ export function VideoFeed({token, active, source, label, className}: {token: str
     const start = async () => {
       try {
         setStatus('leasing');
-        const lease = await leaseVideo(token, 15, spec, lifetime.signal);
+        const lease = await leaseVideo(token, 15, spec, lifetime.signal, undefined, viewerId);
         if (stopped) return;
         if (!lease.supported) {setStatus('unsupported'); setMessage('Live video is not supported by this game session.'); return;}
         const unavailable = (state: {active: boolean; unavailable?: string}) => {
@@ -119,7 +125,7 @@ export function VideoFeed({token, active, source, label, className}: {token: str
         if (lease.active) sourceId.current = lease.sourceId; else unavailable(lease);
         await demandRendering(token, 15, lifetime.signal).catch(() => { /* best-effort; the stream still attempts to connect */ });
         renewTimer = setInterval(() => {
-          void leaseVideo(token, 15, spec, lifetime.signal).then(renewed => {
+          void leaseVideo(token, 15, spec, lifetime.signal, undefined, viewerId).then(renewed => {
             if (stopped) return;
             if (!renewed.active) {unavailable(renewed); return;}
             // The source may have been re-created (after a load, or the pawn
@@ -146,7 +152,7 @@ export function VideoFeed({token, active, source, label, className}: {token: str
       if (retryTimer) clearTimeout(retryTimer);
       if (renewTimer) clearInterval(renewTimer);
       socket?.close();
-      if (sourceId.current) void leaseVideo(token, 0, spec, undefined, sourceId.current).catch(() => { /* best-effort release on teardown */ });
+      if (sourceId.current) void leaseVideo(token, 0, spec, undefined, sourceId.current, viewerId).catch(() => { /* best-effort release on teardown */ });
     };
   }, [token, active, sourceKey]);
 

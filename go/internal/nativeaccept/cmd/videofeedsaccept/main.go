@@ -39,7 +39,7 @@ func main() {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(2)
 	}
-	report := na.NewReport("LeaseVideo with pawn and map sources beside the screen source: three concurrent buffers, per-source cadence and geometry read from shared memory, ReadFrame by source id, invalid-source typed failures, stopping one source leaves the others publishing, and stopping all is quiet.", false)
+	report := na.NewReport("LeaseVideo with pawn and map sources beside the screen source: three concurrent buffers, per-source cadence and geometry read from shared memory, ReadFrame by source id, invalid-source typed failures, stopping one source leaves the others publishing, stopping all is quiet, and two viewers of one source hold it independently.", false)
 	ctx, cancel := context.WithTimeout(context.Background(), *timeout)
 	defer cancel()
 	err := run(ctx, *root, *output, *game, report)
@@ -373,6 +373,67 @@ func run(ctx context.Context, root, output, gameID string, report na.Report) err
 		}
 	}
 	report["case_stop_all_quiet"] = true
+
+	// Case 7: two viewers of one spec share a source and hold it
+	// independently: the first viewer's stop leaves the second's feed
+	// running; the second's stop ends it.
+	viewerB := map[string]any{"identity": identity, "playerDirection": 1, "viewerId": "videofeedsaccept-b"}
+	mapSource := map[string]any{"kind": "VIDEO_SOURCE_KIND_MAP", "height": 400, "framesPerSecond": 4}
+	stateA, err := lease("lease-map-viewer-a", mapSource, 8)
+	if err != nil {
+		return err
+	}
+	replyB, err := h.Wire(ctx, "lease-map-viewer-b", "presentation_lease_video", map[string]any{
+		"start": map[string]any{"viewer": viewerB, "leaseSeconds": 8, "source": mapSource},
+	})
+	if err != nil {
+		return err
+	}
+	_, stateB, err := na.Outcome(replyB, "state")
+	if err != nil {
+		return fmt.Errorf("lease-map-viewer-b: %w", err)
+	}
+	shared := na.AsString(stateA["sourceId"])
+	if shared == "" || na.AsString(stateB["sourceId"]) != shared {
+		return fmt.Errorf("competing viewers: expected one shared source, got %q and %q", shared, na.AsString(stateB["sourceId"]))
+	}
+	sharedReader, err := videoshm.Open(shared)
+	if err != nil {
+		return fmt.Errorf("open shared map buffer %q: %w", shared, err)
+	}
+	defer sharedReader.Close()
+	if _, err := h.Wire(ctx, "stop-map-viewer-a", "presentation_lease_video", map[string]any{
+		"stop": map[string]any{"viewer": viewer, "sourceId": shared},
+	}); err != nil {
+		return err
+	}
+	time.Sleep(300 * time.Millisecond)
+	before, ok, err := sharedReader.Read(0)
+	if err != nil || !ok {
+		return fmt.Errorf("competing viewers: no frame after viewer A stopped (%v)", err)
+	}
+	time.Sleep(800 * time.Millisecond)
+	if _, ok, err := sharedReader.Read(before.Sequence); err != nil {
+		return err
+	} else if !ok {
+		return fmt.Errorf("competing viewers: viewer A's stop ended viewer B's map feed")
+	}
+	if _, err := h.Wire(ctx, "stop-map-viewer-b", "presentation_lease_video", map[string]any{
+		"stop": map[string]any{"viewer": viewerB, "sourceId": shared},
+	}); err != nil {
+		return err
+	}
+	last, ok, err := sharedReader.Read(0)
+	if err != nil || !ok {
+		return fmt.Errorf("competing viewers: no frame current at viewer B's stop (%v)", err)
+	}
+	time.Sleep(600 * time.Millisecond)
+	if _, ok, err := sharedReader.Read(last.Sequence); err != nil {
+		return err
+	} else if ok {
+		return fmt.Errorf("competing viewers: the map feed kept publishing after its last viewer stopped")
+	}
+	report["case_competing_viewers"] = map[string]any{"shared_source": shared, "sequence_after_a_stopped": before.Sequence}
 
 	logData, err := os.ReadFile(cfg.StartupLogPath())
 	if err != nil {

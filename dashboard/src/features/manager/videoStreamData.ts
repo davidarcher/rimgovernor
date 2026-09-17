@@ -53,11 +53,14 @@ function readTicket(value: unknown): VideoTicket {
 
 // leaseSeconds 0 stops a lease; the server requires it on every call (0-15). Each source is its own
 // lease and buffer; an identical source re-leased extends the same sourceId. A stop with sourceId
-// ends that source only; without it, every source.
-export function leaseVideo(token: string, leaseSeconds: number, source: VideoSource = {kind: 'screen'}, signal?: AbortSignal, sourceId?: string): Promise<VideoState> {
+// drops the viewer's hold on that source only; without it, every source.
+// viewerId names the tile holding the lease: viewers of one source hold it independently, so
+// one tile's stop or timeout leaves another's feed running.
+export function leaseVideo(token: string, leaseSeconds: number, source: VideoSource = {kind: 'screen'}, signal?: AbortSignal, sourceId?: string, viewerId?: string): Promise<VideoState> {
   const body: Record<string, unknown> = {leaseSeconds};
   if (leaseSeconds > 0) body.source = source;
   else if (sourceId) body.sourceId = sourceId;
+  if (viewerId) body.viewerId = viewerId;
   return post('/api/presentation/video-lease', token, body, readVideoState, signal);
 }
 // leaseSeconds is required on every call (0-30); forces the native window to render so frames are capturable.

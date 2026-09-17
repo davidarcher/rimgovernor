@@ -123,7 +123,7 @@ namespace HomeBridge.BridgeTools
                         return ProtoBoundary.Encode(new Presentation.VideoReply { Failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, reason) });
                 }
                 else stopSource = parsed.Stop.HasSourceId ? parsed.Stop.SourceId : null;
-                var status = VideoStreamDriver.LeaseTyped(seconds, spec, stopSource);
+                var status = VideoStreamDriver.LeaseTyped(seconds, spec, stopSource, viewer.HasViewerId ? viewer.ViewerId : "");
                 return ProtoBoundary.Encode(new Presentation.VideoReply { State = VideoStatus(context, status) });
             }, cancellationToken).ConfigureAwait(false);
         }

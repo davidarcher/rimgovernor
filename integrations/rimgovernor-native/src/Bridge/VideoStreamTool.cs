@@ -162,6 +162,9 @@ namespace HomeBridge.BridgeTools
         internal Texture2D Texture;
         internal bool Pending;
         internal Pawn FramePawn;
+        // Each viewer's lease expiry; the source lives while any viewer holds
+        // it, so one tab stopping or timing out does not end another's feed.
+        internal readonly Dictionary<string, float> Holds = new Dictionary<string, float>();
         internal float Until, Next;
         internal long Sequence;
         internal byte[] LatestFrame;
@@ -288,8 +291,8 @@ namespace HomeBridge.BridgeTools
         {
             if (!Supported) return new { supported = false, reason = "Raw video requires a rendered Windows or Linux player" };
             if (instance == null && seconds == 0) return new { supported = true, active = false };
-            var source = seconds > 0 ? Ensure().Begin(VideoSourceSpec.Screen, seconds) : null;
-            if (seconds == 0 && instance.Screen != null) instance.Stop(instance.Screen.Name);
+            var source = seconds > 0 ? Ensure().Begin(VideoSourceSpec.Screen, seconds, "") : null;
+            if (seconds == 0 && instance.Screen != null) instance.Stop(instance.Screen.Name, "");
             return new { supported = true, name = source?.Name, capacity = Capacity,
                 fps = 60, format = instance.UsePresented ? "bgra32-top-down" : "rgba32-bottom-up", error = instance.error,
                 capture = instance.UsePresented ? "private-presented-window" : instance.UseAsync ? "async-gpu" : "read-pixels",
@@ -302,30 +305,34 @@ namespace HomeBridge.BridgeTools
                 refreshRate = UnityEngine.Screen.currentResolution.refreshRateRatio.value };
         }
 
-        // Typed counterpart of Lease(): starts or extends the lease of one
-        // source and reports that source. seconds == 0 stops sourceId, or every
-        // source when sourceId is null.
-        internal static VideoLeaseStatus LeaseTyped(int seconds, VideoSourceSpec spec, string sourceId)
+        // Typed counterpart of Lease(): starts or extends one viewer's hold on
+        // a source and reports that source. seconds == 0 drops the viewer's
+        // hold on sourceId, or on every source when sourceId is null; a source
+        // ends when its last hold is gone. viewer is the caller's viewer id
+        // (empty when it sent none), so viewers with the same spec share a
+        // source without ending each other's feed.
+        internal static VideoLeaseStatus LeaseTyped(int seconds, VideoSourceSpec spec, string sourceId, string viewer)
         {
             if (!Supported)
-                return Status(null, "Raw video requires a rendered Windows or Linux player", spec);
+                return Status(null, "Raw video requires a rendered Windows or Linux player", spec, viewer);
             VideoSource source = null;
             if (seconds > 0)
             {
-                try { source = Ensure().Begin(spec, seconds); }
-                catch (VideoSourceUnavailableException e) { return Status(null, e.Message, spec, true); }
-                catch (Exception e) { return Status(null, e.Message, spec); }
+                try { source = Ensure().Begin(spec, seconds, viewer); }
+                catch (VideoSourceUnavailableException e) { return Status(null, e.Message, spec, viewer, true); }
+                catch (Exception e) { return Status(null, e.Message, spec, viewer); }
             }
-            else if (instance != null) instance.Stop(sourceId);
-            return Status(source, null, spec);
+            else if (instance != null) instance.Stop(sourceId, viewer);
+            return Status(source, null, spec, viewer);
         }
 
-        static VideoLeaseStatus Status(VideoSource source, string unavailable, VideoSourceSpec spec, bool supported = false)
+        static VideoLeaseStatus Status(VideoSource source, string unavailable, VideoSourceSpec spec, string viewer, bool supported = false)
         {
             supported = supported || unavailable == null;
             bool active = source != null && source.Open;
+            float until = active && source.Holds.TryGetValue(viewer, out var held) ? held : source?.Until ?? 0;
             return new VideoLeaseStatus(supported, unavailable, active, active ? source.Name : null,
-                active ? Mathf.Max(0, source.Until - Time.realtimeSinceStartup) : 0,
+                active ? Mathf.Max(0, until - Time.realtimeSinceStartup) : 0,
                 source?.Sequence ?? 0, active && !instance.Bgra(source), active && instance.Bgra(source),
                 active ? instance.CaptureMethod(source) : null,
                 SystemInfo.supportsAsyncGPUReadback, SystemInfo.graphicsDeviceName, Application.isFocused,
@@ -362,7 +369,7 @@ namespace HomeBridge.BridgeTools
             return instance;
         }
 
-        VideoSource Begin(VideoSourceSpec spec, int seconds)
+        VideoSource Begin(VideoSourceSpec spec, int seconds, string viewer)
         {
             var map = Find.CurrentMap;
             if (spec.Rendered && (map == null || Find.Camera == null))
@@ -382,16 +389,25 @@ namespace HomeBridge.BridgeTools
                 sources[source.Name] = source;
                 error = "";
             }
-            source.Until = Time.realtimeSinceStartup + seconds;
+            source.Holds[viewer] = Time.realtimeSinceStartup + seconds;
+            source.Until = source.Holds.Values.Max();
             RenderDemandDriver.Lease(seconds);
             return source;
         }
 
-        void Stop(string sourceId)
+        // Drops viewer's hold on sourceId (every source when null) and ends
+        // the sources nobody holds any more; a null viewer ends them outright.
+        void Stop(string sourceId, string viewer)
         {
             foreach (var name in sources.Keys.Where(k => sourceId == null || k == sourceId).ToArray())
             {
-                sources[name].Release();
+                var source = sources[name];
+                if (viewer != null)
+                {
+                    source.Holds.Remove(viewer);
+                    if (source.Holds.Count > 0) { source.Until = source.Holds.Values.Max(); continue; }
+                }
+                source.Release();
                 sources.Remove(name);
             }
             if (sources.Count == 0) RestoreDisplay();
@@ -418,7 +434,7 @@ namespace HomeBridge.BridgeTools
             var now = Time.realtimeSinceStartup;
             var map = Find.CurrentMap;
             foreach (var source in sources.Values.Where(s => now >= s.Until || (s.Spec.Rendered && !ReferenceEquals(s.Map, map))).ToArray())
-                Stop(source.Name);
+                Stop(source.Name, null);
         }
 
         IEnumerator Start()
@@ -613,7 +629,7 @@ namespace HomeBridge.BridgeTools
                 instance.due.Add(source);
                 instance.dueRects.Add(rect.Value);
             }
-            if (gone != null) foreach (var source in gone) instance.Stop(source.Name);
+            if (gone != null) foreach (var source in gone) instance.Stop(source.Name, null);
             instance.drawing = instance.due.Count > 0;
         }
 
@@ -705,7 +721,7 @@ namespace HomeBridge.BridgeTools
 
         void OnDestroy()
         {
-            Stop(null);
+            Stop(null, null);
             instance = null;
         }
     }
