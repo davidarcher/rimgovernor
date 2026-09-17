@@ -16,7 +16,8 @@ namespace HomeBridge.BridgeTools
             [ToolParameter(Description = "Include two initial flu patients.", DefaultValue = true)] bool disease = true,
             [ToolParameter(Description = "Set the disposable native recipe success factor to zero to exercise real surgical failure.", DefaultValue = false)] bool failSurgery = false,
             [ToolParameter(Description = "Disable routine Doctor work to exercise repeated explicit native tending.", DefaultValue = false)] bool manualTending = false,
-            [ToolParameter(Description = "Force the surgical patient into the high-severity withdrawal stage of GoJuiceAddiction, instead of waiting on real decay/timing.", DefaultValue = false)] bool withdrawal = false)
+            [ToolParameter(Description = "Force the surgical patient into the high-severity withdrawal stage of GoJuiceAddiction, instead of waiting on real decay/timing.", DefaultValue = false)] bool withdrawal = false,
+            [ToolParameter(Description = "Hospital planning variant: flu patients start tended, no medical sleeping spots are placed and PatientBedRest stays enabled, so the patients need a hosted medical bed the service must provide.", DefaultValue = false)] bool hospital = false)
         {
             return await ctx.MainThread.InvokeAsync<object>(() => {
                 var stage = "colony";
@@ -35,7 +36,7 @@ namespace HomeBridge.BridgeTools
                     foreach (var skill in pawn.skills.skills.Where(s => s.def == SkillDefOf.Medicine)) skill.Level = 20;
                     foreach (var work in new[] { "Doctor", "Patient", "PatientBedRest" }) {
                         var def = DefDatabase<WorkTypeDef>.GetNamed(work);
-                        if (!pawn.WorkTypeIsDisabled(def)) pawn.workSettings.SetPriority(def, (disease && work == "PatientBedRest") || (manualTending && work == "Doctor") ? 0 : 1);
+                        if (!pawn.WorkTypeIsDisabled(def)) pawn.workSettings.SetPriority(def, (disease && !hospital && work == "PatientBedRest") || (manualTending && work == "Doctor") ? 0 : 1);
                     }
                 }
                 foreach (var item in new[] { ("MealSurvivalPack", 200), ("MedicineIndustrial", 60), ("WoodLog", 100), ("SimpleProstheticLeg", 1) }) {
@@ -48,7 +49,7 @@ namespace HomeBridge.BridgeTools
                     }
                 }
                 foreach (var cell in GenRadial.RadialCellsAround(center, 12, true).Where(c => c.InBounds(map) && c.Standable(map)
-                    && !c.Fogged(map) && c.GetEdifice(map) == null && map.thingGrid.ThingsListAt(c).Count == 0).Take(4).ToArray()) {
+                    && !c.Fogged(map) && c.GetEdifice(map) == null && map.thingGrid.ThingsListAt(c).Count == 0).Take(hospital ? 0 : 4).ToArray()) {
                     stage = "bed";
                     var bed = (Building_Bed)ThingMaker.MakeThing(ThingDef.Named("SleepingSpot"));
                     bed.SetFaction(Faction.OfPlayer); GenSpawn.Spawn(bed, cell, map); bed.Medical = true;
@@ -57,6 +58,16 @@ namespace HomeBridge.BridgeTools
                     stage = "disease";
                     var flu = HediffMaker.MakeHediff(HediffDef.Named("Flu"), pawn); flu.Severity = .05f;
                     pawn.health.AddHediff(flu);
+                    // Hospital planning starts from a tended patient: an untended
+                    // hediff is a critical-medical emergency that suspends every
+                    // routine goal, and the bed is what the service must provide.
+                    if (hospital) {
+                        flu.Tended(1f, 1f);
+                        // Hold the tend for the whole run: a lapsed tend would raise the
+                        // emergency again and suspend the goal mid-conversion.
+                        var tend = flu.TryGetComp<HediffComp_TendDuration>();
+                        if (tend != null) tend.tendTicksLeft = 1000000;
+                    }
                 }
                 var surgical = people[2];
                 surgicalId = surgical.thingIDNumber;

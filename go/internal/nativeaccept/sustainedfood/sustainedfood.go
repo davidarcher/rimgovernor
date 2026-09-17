@@ -639,11 +639,12 @@ func SampleGoal(ctx context.Context, s *store.Store, need policy.GoalID) (map[st
 		if err != nil {
 			return map[string]any{"plan": string(method.Plan), "error": err.Error()}
 		}
-		stages := map[string]int{}
+		stages, kinds := map[string]int{}, map[string]int{}
 		for _, p := range plan.Progress {
 			stages[string(p.View().Stage)]++
+			kinds[string(p.Action().Kind())]++
 		}
-		return map[string]any{"plan": string(method.Plan), "actions": len(plan.Spec.Actions()), "stages": stages}
+		return map[string]any{"plan": string(method.Plan), "actions": len(plan.Spec.Actions()), "stages": stages, "kinds": kinds}
 	}
 	var plans []map[string]any
 	active := map[domain.PlanID]bool{}

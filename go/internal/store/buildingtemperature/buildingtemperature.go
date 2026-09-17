@@ -1,6 +1,8 @@
-// Package buildingtemperature holds the building-temperature action family's
-// admission record, validation and load logic, split out of internal/store
-// for independent build/test caching -- mirroring internal/store/work.
+// Package buildingtemperature holds the admission record, validation and
+// load logic shared by the two building-patch action families (a building's
+// target temperature and a bed's medical flag: one exact thing, one CAS
+// token), split out of internal/store for independent build/test caching --
+// mirroring internal/store/work.
 package buildingtemperature
 
 import (
@@ -38,11 +40,29 @@ func ValidateAdmission(a domain.Action, p domain.Progress, admission Admission) 
 	if admission.Snapshot.Plan != v.Plan || admission.Snapshot.Revision != v.Revision || admission.Tick < 0 {
 		return errors.New("admission plan or tick mismatch")
 	}
-	bt, ok := a.BuildingTemperature()
-	if !ok || bt.Thing() != admission.Thing || idShaped(admission.SnapshotToken) != nil || admission.SnapshotToken != bt.BeforeToken() || admission.Snapshot.Native == 0 {
+	thing, before, ok := Patched(a)
+	if !ok || thing != admission.Thing || idShaped(admission.SnapshotToken) != nil || admission.SnapshotToken != before || admission.Snapshot.Native == 0 {
 		return errors.New("invalid building temperature admission")
 	}
 	return nil
+}
+
+// Patched returns the exact thing and CAS token of either building-patch
+// action kind; ok is false for every other action.
+func Patched(a domain.Action) (thing, before string, ok bool) {
+	if bt, ok := a.BuildingTemperature(); ok {
+		return bt.Thing(), bt.BeforeToken(), true
+	}
+	if bm, ok := a.BedMedical(); ok {
+		return bm.Thing(), bm.BeforeToken(), true
+	}
+	return "", "", false
+}
+
+// Kind reports whether the action is one of the building-patch kinds this
+// admission record guards.
+func Kind(kind domain.ActionKind) bool {
+	return kind == domain.BuildingTemperatureAction || kind == domain.BedMedicalAction
 }
 
 func LoadAdmission(ctx context.Context, tx *sql.Tx, a domain.Action, p domain.Progress) (Admission, bool, error) {

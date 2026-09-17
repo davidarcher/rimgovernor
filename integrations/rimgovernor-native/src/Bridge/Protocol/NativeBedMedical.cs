@@ -7,71 +7,79 @@ using System.Text;
 using RimWorld;
 using Verse;
 using Common = RimGovernor.Protocol.Common;
-using Authority = RimGovernor.Protocol.Authority;
 using Obs = RimGovernor.Protocol.Observations;
 using Operations = RimGovernor.Protocol.Operations;
 using Receipts = RimGovernor.Protocol.Receipts;
 
 namespace HomeBridge.BridgeTools
 {
-    // PatchBuilding's target_temperature field only -- the typed-Operation
-    // successor of the legacy home/building_config tool's `temperature=`
-    // write (see BuildingConfigTool.cs's PlanTemperature, verified against
-    // Assembly-CSharp 1.6.9676.17735: RimWorld.CompTempControl.targetTemperature
-    // is a public settable float, clamped by the game's own -273.15..1000 C
-    // interface range). medical is NativeBedMedical's field; forbidden/power/
-    // owner/forPrisoners on PatchBuilding are not yet implemented by any
-    // adapter, and a command that sets them is refused rather than ignored.
-    internal static class NativeBuildingTemperature
+    // PatchBuilding's medical field only -- the typed-Operation successor of
+    // the legacy home/building_config tool's `medical=` write (see
+    // BuildingConfigTool.cs's PlanMedical, verified against Assembly-CSharp
+    // 1.6: RimWorld.Building_Bed.Medical's setter early-returns on an equal
+    // value, otherwise calls RemoveAllOwners() and re-scores the room role).
+    // A bed whose def has bed_canBeMedical false is refused rather than
+    // written, because the game's setter would silently ignore it. The CAS
+    // token covers the medical flag and the owner set, so an owner the
+    // planner did not see being dropped stales the admission.
+    internal static class NativeBedMedical
     {
-        private const float MinCelsius = -273.15f;
-        private const float MaxCelsius = 1000f;
-
         internal static bool Valid(Operations.PatchBuilding? command) => command != null
-            && NativeDraftProtocol.ValidEntity(command.Building) && command.HasTargetTemperature
-            && !float.IsNaN(command.TargetTemperature) && !float.IsInfinity(command.TargetTemperature)
-            && command.TargetTemperature >= MinCelsius && command.TargetTemperature <= MaxCelsius
-            && !command.HasForbidden && !command.HasPower && !command.HasMedical
+            && NativeDraftProtocol.ValidEntity(command.Building) && command.HasMedical
+            && !command.HasTargetTemperature && !command.HasForbidden && !command.HasPower
             && command.Owner == null && !command.HasForPrisoners;
 
-        internal static bool Eligible(Thing thing) => thing != null && !thing.Destroyed
-            && thing.Spawned && ProtoBoundary.IsLoaded(thing.Map) && thing.TryGetComp<CompTempControl>() != null;
+        internal static bool Eligible(Thing thing) => thing is Building_Bed bed && !bed.Destroyed && bed.Spawned
+            && ProtoBoundary.IsLoaded(bed.Map) && bed.def?.building != null && bed.def.building.bed_humanlike;
 
-        internal static string Token(Common.Identity identity, string id, float target)
+        internal static string Token(Common.Identity identity, Building_Bed bed)
         {
             using (var bytes = new MemoryStream())
             {
                 using (var writer = new BinaryWriter(bytes, Encoding.UTF8, true))
                 {
                     writer.Write(identity.ColonyId); writer.Write(identity.LoadToken); writer.Write(identity.MapId);
-                    writer.Write(id); writer.Write(target);
+                    writer.Write(bed.GetUniqueLoadID()); writer.Write(bed.Medical); writer.Write(bed.ForPrisoners);
+                    foreach (var owner in bed.OwnersForReading.Select(p => p.GetUniqueLoadID()).OrderBy(id => id, StringComparer.Ordinal))
+                        writer.Write(owner);
                 }
                 using (var hash = SHA256.Create())
-                    return "temp-" + BitConverter.ToString(hash.ComputeHash(bytes.ToArray())).Replace("-", "").ToLowerInvariant();
+                    return "bed-" + BitConverter.ToString(hash.ComputeHash(bytes.ToArray())).Replace("-", "").ToLowerInvariant();
             }
         }
 
         internal static Obs.SnapshotRef? Snapshot(Thing thing, Common.ObservationContext context)
         {
             if (!Eligible(thing)) return null;
-            var comp = thing.TryGetComp<CompTempControl>();
             return new Obs.SnapshotRef { Context = context.Clone(), EntityId = thing.GetUniqueLoadID(),
-                Token = Token(context.Identity, thing.GetUniqueLoadID(), comp.targetTemperature) };
+                Token = Token(context.Identity, (Building_Bed)thing) };
+        }
+
+        // Settings carries the bed's writable medical state beside its CAS
+        // snapshot on the building listing row; the settable flag itself is
+        // only implied (a refused preview names the gate).
+        internal static Obs.BuildingSettings Settings(Building_Bed bed, Common.ObservationContext context)
+        {
+            var settings = new Obs.BuildingSettings { Snapshot = Snapshot(bed, context), Medical = bed.Medical, ForPrisoners = bed.ForPrisoners };
+            foreach (var owner in bed.OwnersForReading) settings.AssignedPawnIds.Add(owner.GetUniqueLoadID());
+            return settings;
         }
 
         private static bool Prepare(Operations.PatchBuilding command, Common.ObservationContext context,
-            out Thing? thing, out Common.Failure failure)
+            out Building_Bed? bed, out Common.Failure failure)
         {
-            thing = null;
+            bed = null;
             failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest,
-                "Building patch requires an exact current target-temperature snapshot and only target_temperature, "
-                + "in the game's -273.15 to 1000 C interface range. forbidden/power/medical/owner/forPrisoners are not implemented by this adapter.");
+                "Bed patch requires an exact current bed snapshot and only medical. forbidden/power/owner/forPrisoners are not implemented by this adapter.");
             if (!Valid(command)) return false;
-            thing = ProtoBoundary.LoadedMap(context).listerThings.AllThings.SingleOrDefault(t => t.GetUniqueLoadID() == command.Building.EntityId);
+            var thing = ProtoBoundary.LoadedMap(context).listerThings.AllThings.SingleOrDefault(t => t.GetUniqueLoadID() == command.Building.EntityId);
             if (thing == null || !Eligible(thing))
-            { failure = ProtoBoundary.Fail(Common.FailureCode.NotFound, "Exact building with CompTempControl is unavailable."); return false; }
-            if (Snapshot(thing, context)?.Token != command.Building.ExpectedSnapshotToken)
-            { failure = ProtoBoundary.Fail(Common.FailureCode.StaleIdentity, "Building temperature snapshot changed; observe before new admission."); return false; }
+            { failure = ProtoBoundary.Fail(Common.FailureCode.NotFound, "Exact humanlike bed is unavailable."); return false; }
+            bed = (Building_Bed)thing;
+            if (command.Medical && !bed.def.building.bed_canBeMedical)
+            { failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Bed definition cannot be medical; the game's setter would ignore the write."); return false; }
+            if (Snapshot(bed, context)?.Token != command.Building.ExpectedSnapshotToken)
+            { failure = ProtoBoundary.Fail(Common.FailureCode.StaleIdentity, "Bed snapshot changed; observe before new admission."); return false; }
             return true;
         }
 
@@ -79,7 +87,7 @@ namespace HomeBridge.BridgeTools
             new Receipts.EffectEvidence { Settings = new Receipts.SettingsEffect {
                 Snapshot = new Receipts.SnapshotEvidence { EntityId = command.Building.EntityId,
                     BeforeToken = command.Building.ExpectedSnapshotToken, AfterToken = after },
-                Fields = { new Receipts.FieldResult { Field = Receipts.SettingsField.Temperature,
+                Fields = { new Receipts.FieldResult { Field = Receipts.SettingsField.MedicalBed,
                     Outcome = matches ? Receipts.FieldOutcome.Applied : Receipts.FieldOutcome.Refused } } } };
 
         internal static Operations.PreviewReply Preview(Operations.PatchBuilding command, Common.ObservationContext context)
@@ -90,7 +98,7 @@ namespace HomeBridge.BridgeTools
                 return NativeOperationEnvelope.Preview(new Operations.PreviewReply { Evaluated = new Operations.PreviewEvaluation {
                     Context = context.Clone(), Accepted = true } });
             }
-            catch (Exception error) { return new Operations.PreviewReply { Failure = ProtoBoundary.Fail(Common.FailureCode.NativeFailure, "Building temperature preview failed: " + error.GetType().Name) }; }
+            catch (Exception error) { return new Operations.PreviewReply { Failure = ProtoBoundary.Fail(Common.FailureCode.NativeFailure, "Bed medical preview failed: " + error.GetType().Name) }; }
         }
 
         internal static Operations.ExecuteReply Execute(NativeOperationState state, Operations.ExecuteRequest request, Common.ObservationContext context)
@@ -99,7 +107,7 @@ namespace HomeBridge.BridgeTools
             var pre = request.Precondition; var command = request.Operation.PatchBuilding;
             try
             {
-                if (!Prepare(command, context, out var thing, out var failure)) return new Operations.ExecuteReply { Failure = failure };
+                if (!Prepare(command, context, out var bed, out var failure)) return new Operations.ExecuteReply { Failure = failure };
                 if (!NativeControlAuthority.TryGetForGame(Current.Game, out var authority) || authority == null)
                     return new Operations.ExecuteReply { Failure = ProtoBoundary.Fail(Common.FailureCode.AuthorityRequired, "Native authority is required.") };
                 var guard = authority.Check(pre.ExpectedGeneration);
@@ -113,43 +121,36 @@ namespace HomeBridge.BridgeTools
                 using (authority.Owned())
                 {
                     if (!authority.Check(pre.ExpectedGeneration).Success
-                        || !Prepare(command, context, out var checkedThing, out failure) || !ReferenceEquals(thing, checkedThing))
-                        throw new InvalidOperationException("Building temperature admission changed before effect.");
-                    thing!.TryGetComp<CompTempControl>().targetTemperature = command.TargetTemperature;
-                    var snapshot = Snapshot(thing!, context);
-                    var matches = snapshot != null && Math.Abs(thing.TryGetComp<CompTempControl>().targetTemperature - command.TargetTemperature) < 0.001f;
-                    if (snapshot == null || !matches) throw new InvalidOperationException("Native building temperature requires readback.");
+                        || !Prepare(command, context, out var checkedBed, out failure) || !ReferenceEquals(bed, checkedBed))
+                        throw new InvalidOperationException("Bed medical admission changed before effect.");
+                    bed!.Medical = command.Medical;
+                    var snapshot = Snapshot(bed, context);
+                    if (snapshot == null || bed.Medical != command.Medical) throw new InvalidOperationException("Native bed medical requires readback.");
                     evidence = Evidence(command, snapshot.Token, true);
                 }
                 return new Operations.ExecuteReply { Receipt = NativeOperationEnvelope.Applied(state.Ledger, handle, pre.Attempt, context, evidence) };
             }
             catch (Exception error)
             {
-                return handle == null ? new Operations.ExecuteReply { Failure = ProtoBoundary.Fail(Common.FailureCode.NativeFailure, "Building temperature admission failed: " + error.GetType().Name) }
-                    : new Operations.ExecuteReply { Receipt = NativeOperationEnvelope.Uncertain(state.Ledger, handle, pre.Attempt, context, evidence, "Admitted building temperature requires observation: " + error.GetType().Name) };
+                return handle == null ? new Operations.ExecuteReply { Failure = ProtoBoundary.Fail(Common.FailureCode.NativeFailure, "Bed medical admission failed: " + error.GetType().Name) }
+                    : new Operations.ExecuteReply { Receipt = NativeOperationEnvelope.Uncertain(state.Ledger, handle, pre.Attempt, context, evidence, "Admitted bed medical patch requires observation: " + error.GetType().Name) };
             }
-        }
-
-        private static bool Matches(Thing thing, Operations.PatchBuilding command)
-        {
-            var comp = thing.TryGetComp<CompTempControl>();
-            return comp != null && Math.Abs(comp.targetTemperature - command.TargetTemperature) < 0.001f;
         }
 
         internal static Receipts.Progress Observe(Common.AttemptKey attempt, Common.ObservationContext context, Operations.PatchBuilding command)
         {
             var result = new Receipts.Progress { Attempt = attempt.Clone(), Context = context.Clone(), CompleteInspection = false,
-                Unknown = new Receipts.UnknownEffect { Reason = "Exact building target temperature is unavailable." } };
+                Unknown = new Receipts.UnknownEffect { Reason = "Exact bed medical state is unavailable." } };
             try
             {
                 var thing = ProtoBoundary.LoadedMap(context).listerThings.AllThings.SingleOrDefault(t => t.GetUniqueLoadID() == command.Building.EntityId);
                 var snapshot = thing == null ? null : Snapshot(thing, context);
                 if (snapshot == null) return result;
-                var matches = Matches(thing!, command); var evidence = Evidence(command, snapshot.Token, matches);
+                var matches = ((Building_Bed)thing!).Medical == command.Medical; var evidence = Evidence(command, snapshot.Token, matches);
                 result.CompleteInspection = true;
                 if (matches) result.Completed = new Receipts.CompletedEffect { Evidence = evidence };
                 else result.Unsuccessful = new Receipts.UnsuccessfulEffect { Reason = Receipts.UnsuccessfulReason.OutcomeNotAchieved,
-                    Evidence = evidence, Detail = "Current target temperature differs; do not restore over player changes." };
+                    Evidence = evidence, Detail = "Current medical flag differs; do not restore over player changes." };
             }
             catch (Exception) { }
             return result;

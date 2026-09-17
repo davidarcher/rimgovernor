@@ -26,6 +26,7 @@ what each action must observe.
 | `movement` (hold-the-line positioning) | Walk-to-cell order layered on the defender's owned draft, admitted only while the draft claim is current and native previews the `Goto` job. Completion is the verified job observed finished on a later native tick; the receipt alone proves nothing about arrival, and arrival certifies position, not combat outcome. The hold plan's ranged attack depends on the move. |
 | `clock`, `stand_down` | Native clock control or verified release of selected current-load AI-owned drafts; neither certifies combat victory. |
 | `building_temperature` (PatchBuilding target temperature) | CAS-gated setpoint patch on one exact `CompTempControl` building; the receipt's after-token must match a fresh building read. When `MaintainRefrigeration` commits it as a routine method, the patch completing never clears the goal: the stock's measured temperature must be observed at or under the release threshold on a later native tick. |
+| `bed_medical` (PatchBuilding medical) | CAS-gated medical flag on one exact humanlike `Building_Bed`; the token covers the flag, `ForPrisoners` and the owner set, so an owner the planner did not see is a stale admission, and a definition the game cannot make medical is refused at preview. The patch completing places a bed, not a patient: `MaintainMedicalCare` still recovers only on observed tending and rest. |
 
 ## Trades
 

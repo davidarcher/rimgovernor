@@ -107,10 +107,14 @@ const serviceClockStepTimeout = 30 * time.Second
 // enough to let the native epoch lapse. The step has no lease constraint.
 func serviceClockTimeouts(callTimeout time.Duration) serviceClockTimeoutConfig {
 	lease := min(callTimeout, 7*time.Second)
-	// The journal long-poll waits up to 4s inside the poll call and always
-	// leaves the read itself a second of the call timeout.
-	wait := max(0, min(4*time.Second, lease-time.Second))
-	return serviceClockTimeoutConfig{Poll: lease, Renew: lease, Step: serviceClockStepTimeout, PollWait: wait}
+	// The game transport answers one call at a time, so a held
+	// clock_read_events read (wait_ms) stalls every planner and worker call
+	// queued behind it for the whole wait: with a 4s hold a routine step of
+	// ~17 reads exceeded its 30s budget and no window was ever admitted
+	// (issue #115; earlier runs only passed because a stale journal backlog
+	// answered each poll at once). Until the transport can overlap a held
+	// read, the service polls at the PollInterval cadence instead.
+	return serviceClockTimeoutConfig{Poll: lease, Renew: lease, Step: serviceClockStepTimeout, PollWait: 0}
 }
 
 type serviceClockTimeoutConfig struct{ Poll, Renew, Step, PollWait time.Duration }
@@ -121,6 +125,7 @@ func startServiceClock(ctx context.Context, player *buildingruntime.Player, sess
 	profile, clockSpeed, routine := sc.profile, sc.clockSpeed, sc.routineReviews
 	sleeping, cooking, shelter, comfort, expansion, power, temperature := sc.routineSleepingPlans, sc.routineCookingPlans, sc.routineShelterPlans, sc.routineComfortPlans, sc.routineExpansionPlans, sc.routinePowerPlans, sc.routineTemperaturePlans
 	workshop := sc.routineWorkshopPlans && len(sc.routineResourceTargets.Map()) > 0
+	hospital := sc.routineHospitalPlans
 	supplies, work, acquisition, defense, tend, rescue, equip := sc.routineSupplyPlans, sc.routineWorkPlans, sc.routineAcquisitionPlans, sc.routineDefensePlans, sc.routineTendPlans, sc.routineRescuePlans, sc.routineEquipPlans
 	secureSupplies, repair, clean, gear, medical, foodStorageUpkeep := sc.routineSecureSuppliesPlans, sc.routineRepairPlans, sc.routineCleanPlans, sc.routineGearPlans, sc.routineMedicalPlans, sc.routineFoodStorageUpkeepPlans
 	refrigeration := sc.routineRefrigerationPlans
@@ -147,7 +152,7 @@ func startServiceClock(ctx context.Context, player *buildingruntime.Player, sess
 		}
 		config.CaravanJourney = tracker
 	}
-	if (bills || fields || foodStorage || acquisition || work || supplies || sleeping || cooking || shelter || comfort || expansion || power || temperature || defense || tend || rescue || equip || secureSupplies || repair || fireSafety || clean || haul || waste || moodRelief || gear || medical || foodStorageUpkeep || refrigeration || lighting || flooring || routes || animalContainment || recovery || husbandry || prisonerInteraction || populationCustody || homeCoverage || stoneShell || defensiveLayout || naming || researchTarget != "" || len(resourceTargets) > 0 || animalFeedPlans || productionPolicyPlans) && !routine {
+	if (bills || fields || foodStorage || acquisition || work || supplies || sleeping || cooking || shelter || comfort || hospital || expansion || power || temperature || defense || tend || rescue || equip || secureSupplies || repair || fireSafety || clean || haul || waste || moodRelief || gear || medical || foodStorageUpkeep || refrigeration || lighting || flooring || routes || animalContainment || recovery || husbandry || prisonerInteraction || populationCustody || homeCoverage || stoneShell || defensiveLayout || naming || researchTarget != "" || len(resourceTargets) > 0 || animalFeedPlans || productionPolicyPlans) && !routine {
 		return errors.New("building plans require routine reviews")
 	}
 	if routine {
@@ -491,7 +496,7 @@ func startServiceClock(ctx context.Context, player *buildingruntime.Player, sess
 				return err
 			}
 		}
-		if sleeping || cooking || shelter || comfort || workshop || expansion || power || temperature || refrigeration || lighting || flooring || routes {
+		if sleeping || cooking || shelter || comfort || workshop || hospital || expansion || power || temperature || refrigeration || lighting || flooring || routes {
 			source, ok := reads.(buildingruntime.RoutineBuildingSource)
 			if !ok {
 				return errors.New("building plans require typed placement previews")
@@ -570,6 +575,12 @@ func startServiceClock(ctx context.Context, player *buildingruntime.Player, sess
 			}
 			if workshop {
 				config.Workshop, err = buildingruntime.NewRoutineWorkshopPlanner(reviewer, source)
+				if err != nil {
+					return err
+				}
+			}
+			if hospital {
+				config.Hospital, err = buildingruntime.NewRoutineHospitalPlanner(reviewer, source)
 				if err != nil {
 					return err
 				}

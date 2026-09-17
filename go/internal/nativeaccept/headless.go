@@ -439,6 +439,14 @@ func Prepare(root string, expansions ...string) (string, error) {
 	if err := os.MkdirAll(filepath.Join(profile, "Saves"), 0755); err != nil {
 		return "", err
 	}
+	// The native clock journal (ClockEventJournal.cs, one XML row per event
+	// under the save-data folder) outlives the game process. A headless run
+	// is a fresh supervised session, and a service starting from cursor 1
+	// pages every stale row before it sees a live event -- thousands of them
+	// after a day of runs, enough to eat the first review's budget.
+	if err := os.RemoveAll(filepath.Join(profile, "RimGovernorClockEvents")); err != nil {
+		return "", err
+	}
 	for _, name := range []string{"Prefs.xml", "ModsConfig.xml"} {
 		if err := copyFile(filepath.Join(root, "profile", "Config", name), filepath.Join(profile, "Config", name)); err != nil {
 			return "", err

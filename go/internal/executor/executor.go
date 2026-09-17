@@ -137,6 +137,8 @@ type Executor struct {
 	recoveryServiceJournal     RecoveryServiceJournal
 	buildingTemperature        BuildingTemperatureBoundary
 	buildingTemperatureJournal BuildingTemperatureJournal
+	bedMedical                 BedMedicalBoundary
+	bedMedicalJournal          BedMedicalJournal
 	researchSelect             ResearchSelectBoundary
 	researchSelectJournal      ResearchSelectJournal
 	naming                     ConfirmColonyNamesBoundary
@@ -385,6 +387,9 @@ func (e *Executor) Run(ctx context.Context, plan domain.PlanID, actionID domain.
 	}
 	if action.Kind() == domain.BuildingTemperatureAction && e.buildingTemperature != nil {
 		return e.runBuildingTemperature(ctx, action, progress, authority, generation)
+	}
+	if action.Kind() == domain.BedMedicalAction && e.bedMedical != nil {
+		return e.runBedMedical(ctx, action, progress, authority, generation)
 	}
 	if action.Kind() == domain.ResearchSelectAction && e.researchSelect != nil {
 		return e.runResearchSelect(ctx, action, progress, authority, generation)

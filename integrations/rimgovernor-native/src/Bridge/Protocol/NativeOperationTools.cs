@@ -30,7 +30,9 @@ namespace HomeBridge.BridgeTools
         internal readonly Dictionary<Common.AttemptKey, NativeStockpilePatchRecord> StockpilePatches = new Dictionary<Common.AttemptKey, NativeStockpilePatchRecord>();
         internal readonly Dictionary<Common.AttemptKey, INativeAcquisitionRecord> Acquisition = new Dictionary<Common.AttemptKey, INativeAcquisitionRecord>();
         internal readonly Dictionary<Common.AttemptKey, Operations.PatchPawn> WorkSettings = new Dictionary<Common.AttemptKey, Operations.PatchPawn>();
-        internal readonly Dictionary<Common.AttemptKey, Operations.PatchBuilding> BuildingTemperatures = new Dictionary<Common.AttemptKey, Operations.PatchBuilding>();
+        // PatchBuilding admissions of either implemented field (target_temperature via
+        // NativeBuildingTemperature, medical via NativeBedMedical), observed by field.
+        internal readonly Dictionary<Common.AttemptKey, Operations.PatchBuilding> BuildingPatches = new Dictionary<Common.AttemptKey, Operations.PatchBuilding>();
         internal readonly Dictionary<Common.AttemptKey, Receipts.DesignationEffect> AllowedSupplies = new Dictionary<Common.AttemptKey, Receipts.DesignationEffect>();
         internal readonly Dictionary<Common.AttemptKey, NativeHaulRecord> Hauls = new Dictionary<Common.AttemptKey, NativeHaulRecord>();
         internal readonly Dictionary<Common.AttemptKey, NativeCustodyRecord> Custody = new Dictionary<Common.AttemptKey, NativeCustodyRecord>();
@@ -104,7 +106,9 @@ namespace HomeBridge.BridgeTools
             if (request.Operation.CommandCase == Operations.Operation.CommandOneofCase.PatchPawn)
                 return NativeWorkSettings.Execute(state, request, context);
             if (request.Operation.CommandCase == Operations.Operation.CommandOneofCase.PatchBuilding)
-                return NativeBuildingTemperature.Execute(state, request, context);
+                return request.Operation.PatchBuilding.HasMedical
+                    ? NativeBedMedical.Execute(state, request, context)
+                    : NativeBuildingTemperature.Execute(state, request, context);
             if (request.Operation.CommandCase == Operations.Operation.CommandOneofCase.DesignateThing)
                 return NativeSupplyAllow.Execute(state, request, context);
             if (request.Operation.CommandCase == Operations.Operation.CommandOneofCase.SetDrafted)
@@ -239,7 +243,9 @@ namespace HomeBridge.BridgeTools
                 if (parsed.Operation?.CommandCase == Operations.Operation.CommandOneofCase.PatchPawn)
                     return ProtoBoundary.Encode(NativeWorkSettings.Preview(parsed.Operation.PatchPawn, context));
                 if (parsed.Operation?.CommandCase == Operations.Operation.CommandOneofCase.PatchBuilding)
-                    return ProtoBoundary.Encode(NativeBuildingTemperature.Preview(parsed.Operation.PatchBuilding, context));
+                    return ProtoBoundary.Encode(parsed.Operation.PatchBuilding.HasMedical
+                        ? NativeBedMedical.Preview(parsed.Operation.PatchBuilding, context)
+                        : NativeBuildingTemperature.Preview(parsed.Operation.PatchBuilding, context));
                 if (parsed.Operation?.CommandCase == Operations.Operation.CommandOneofCase.DesignateThing)
                     return ProtoBoundary.Encode(NativeSupplyAllow.Preview(parsed.Operation.DesignateThing, context));
                 if (parsed.Operation?.CommandCase == Operations.Operation.CommandOneofCase.MovePawn)
@@ -363,9 +369,11 @@ namespace HomeBridge.BridgeTools
                         return ProtoBoundary.Encode(NativeOperationEnvelope.Progress(new Receipts.ProgressReply { Progress = NativeWorkSettings.Observe(parsed.Attempt, context, work) }));
                     if (state.AllowedSupplies.TryGetValue(parsed.Attempt, out allowed))
                         return ProtoBoundary.Encode(NativeOperationEnvelope.Progress(new Receipts.ProgressReply { Progress = NativeSupplyAllow.Observe(parsed.Attempt, context, allowed) }));
-                    Operations.PatchBuilding buildingTemperature;
-                    if (state.BuildingTemperatures.TryGetValue(parsed.Attempt, out buildingTemperature))
-                        return ProtoBoundary.Encode(NativeOperationEnvelope.Progress(new Receipts.ProgressReply { Progress = NativeBuildingTemperature.Observe(parsed.Attempt, context, buildingTemperature) }));
+                    Operations.PatchBuilding buildingPatch;
+                    if (state.BuildingPatches.TryGetValue(parsed.Attempt, out buildingPatch))
+                        return ProtoBoundary.Encode(NativeOperationEnvelope.Progress(new Receipts.ProgressReply { Progress = buildingPatch.HasMedical
+                            ? NativeBedMedical.Observe(parsed.Attempt, context, buildingPatch)
+                            : NativeBuildingTemperature.Observe(parsed.Attempt, context, buildingPatch) }));
                     NativeCombatRecord combat;
                     if (state.Combat.TryGetValue(parsed.Attempt, out combat))
                         return ProtoBoundary.Encode(NativeOperationEnvelope.Progress(new Receipts.ProgressReply { Progress = combat.Observe(parsed.Attempt, context) }));

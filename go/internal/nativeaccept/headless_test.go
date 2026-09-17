@@ -418,6 +418,27 @@ func TestPrepareRewritesHeadlessArgs(t *testing.T) {
 	}
 }
 
+func TestPrepareDropsStaleClockJournal(t *testing.T) {
+	source := writeSourceRoot(t)
+	root, err := IsolatedRoot(source, filepath.Join(t.TempDir(), "worker"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	journal := filepath.Join(root, "headless-profile", "RimGovernorClockEvents")
+	if err := os.MkdirAll(journal, 0755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(journal, "00000000000000000001.xml"), []byte("<row/>"), 0644); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := Prepare(root); err != nil {
+		t.Fatalf("Prepare failed: %v", err)
+	}
+	if _, err := os.Stat(journal); !os.IsNotExist(err) {
+		t.Fatalf("stale clock journal survived Prepare: %v", err)
+	}
+}
+
 func TestPrepareMirrorsEveryVariantSave(t *testing.T) {
 	source := writeSourceRoot(t)
 	destination := filepath.Join(t.TempDir(), "worker")

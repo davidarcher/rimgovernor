@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/acquisition"
+	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/bedmedical"
 	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/bill"
 	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/boundary"
 	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/buildingtemperature"
@@ -59,6 +60,9 @@ type SessionConfig struct {
 	// BuildingTemperature backs the refrigeration family's cooler setpoint
 	// patch; the one-shot CAS write shares the placement boundary's lease.
 	BuildingTemperature *buildingtemperature.Capabilities
+	// BedMedical backs the hospital family's medical-bed patch, the same
+	// one-shot CAS write shape as BuildingTemperature.
+	BedMedical          *bedmedical.Capabilities
 	ResearchSelect      *ResearchSelectCapabilities
 	ConfirmColonyNames  *ConfirmColonyNamesCapabilities
 	Husbandry           *HusbandryCapabilities
@@ -336,6 +340,9 @@ func NewSession(ctx context.Context, config SessionConfig, journal *store.Store,
 	if config.BuildingTemperature != nil && (config.BuildingTemperature.Native == nil || config.BuildingTemperature.Writer == nil) {
 		return cleanup(ErrControl)
 	}
+	if config.BedMedical != nil && (config.BedMedical.Native == nil || config.BedMedical.Writer == nil) {
+		return cleanup(ErrControl)
+	}
 	if config.ResearchSelect != nil && (config.ResearchSelect.Native == nil || config.ResearchSelect.Writer == nil) {
 		return cleanup(ErrControl)
 	}
@@ -395,6 +402,11 @@ func NewSession(ctx context.Context, config SessionConfig, journal *store.Store,
 	}
 	if config.BuildingTemperature != nil {
 		if err := worker.EnableBuildingTemperature(buildingtemperature.NewBoundary(place, *config.BuildingTemperature)); err != nil {
+			return cleanup(err)
+		}
+	}
+	if config.BedMedical != nil {
+		if err := worker.EnableBedMedical(bedmedical.NewBoundary(place, *config.BedMedical)); err != nil {
 			return cleanup(err)
 		}
 	}

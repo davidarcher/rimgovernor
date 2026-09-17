@@ -62,14 +62,17 @@ namespace HomeBridge.BridgeTools
                                 w.Write(row.Construction.PercentComplete); w.Write(row.Construction.ResourcesComplete);
                             })
                             : Token(thing, context);
-                        // Only target_temperature_c and its own dedicated CAS
-                        // snapshot are populated here; forbidden/power/medical/
-                        // owner/forPrisoners remain the "settings" unsupported
-                        // issue below. See NativeBuildingTemperature, the
-                        // PatchBuilding write this snapshot is read for.
+                        // Only the two implemented PatchBuilding fields carry a
+                        // settings row with their own dedicated CAS snapshot:
+                        // target_temperature_c (NativeBuildingTemperature) and a
+                        // humanlike bed's medical flag (NativeBedMedical).
+                        // forbidden/power/owner remain the "settings" unsupported
+                        // issue below.
                         var tempControl = thing.TryGetComp<CompTempControl>();
                         if (tempControl != null)
                             row.Settings = new Obs.BuildingSettings { Snapshot = NativeBuildingTemperature.Snapshot(thing, context), TargetTemperatureC = tempControl.targetTemperature };
+                        else if (NativeBedMedical.Eligible(thing))
+                            row.Settings = NativeBedMedical.Settings((Building_Bed)thing, context);
                         cells = checked(cells + row.OccupiedCells.Count);
                         Require(cells <= 4096, "Complete building geometry exceeds 4096 cells.");
                         snapshot.Buildings.Add(row);
@@ -179,12 +182,13 @@ namespace HomeBridge.BridgeTools
                 row.Construction = Construction(thing, buildDef, stuff);
             }
             else row.Issues.Add(Issue("construction", Common.UnavailableReason.NotApplicable, "Completed building is not a construction site."));
-            // "settings" is reported unsupported wholesale only when this thing has
-            // no CompTempControl; a temp-controlled thing gets target_temperature_c
-            // and its snapshot filled in by the caller below instead (see
-            // NativeBuildingTemperature) -- forbidden/power/medical/owner/
-            // forPrisoners remain unimplemented either way.
-            var fields = thing.TryGetComp<CompTempControl>() != null
+            // "settings" is reported unsupported wholesale only when this thing
+            // carries no settings row; a temp-controlled thing gets
+            // target_temperature_c and a humanlike bed its medical flag, each
+            // with its own snapshot, filled in by the caller below (see
+            // NativeBuildingTemperature, NativeBedMedical) -- forbidden/power/
+            // owner/forPrisoners remain unimplemented either way.
+            var fields = thing.TryGetComp<CompTempControl>() != null || NativeBedMedical.Eligible(thing)
                 ? new[] { "service", "thermal_sides", "bills" }
                 : new[] { "settings", "service", "thermal_sides", "bills" };
             foreach (var field in fields)

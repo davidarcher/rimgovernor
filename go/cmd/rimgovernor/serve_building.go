@@ -13,6 +13,7 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/bridge"
 	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime"
 	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/acquisition"
+	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/bedmedical"
 	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/bill"
 	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/boundary"
 	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/buildingtemperature"
@@ -133,6 +134,7 @@ type buildingServiceBridge struct {
 	naming              *buildingruntime.ConfirmColonyNamesCapabilities
 	production          *buildingruntime.ProductionPolicyCapabilities
 	buildingTemperature *buildingtemperature.Capabilities
+	bedMedical          *bedmedical.Capabilities
 	presentationMedia   *bridge.PresentationMedia
 	lifecycle           lifecycleCapability
 }
@@ -259,6 +261,10 @@ func openBuildingService(ctx context.Context, config bridge.ProcessConfig) (buil
 	if err != nil {
 		return buildingServiceBridge{}, errors.Join(err, client.Close())
 	}
+	bedMedicalControl, err := bridge.NewBedMedicalControl(client)
+	if err != nil {
+		return buildingServiceBridge{}, errors.Join(err, client.Close())
+	}
 	presentationMedia, err := bridge.NewPresentationMedia(client)
 	if err != nil {
 		return buildingServiceBridge{}, errors.Join(err, client.Close())
@@ -301,6 +307,7 @@ func openBuildingService(ctx context.Context, config bridge.ProcessConfig) (buil
 		naming:              &buildingruntime.ConfirmColonyNamesCapabilities{Native: client, Writer: namingControl},
 		production:          &buildingruntime.ProductionPolicyCapabilities{Native: client, Writer: productionPolicyWriter},
 		buildingTemperature: &buildingtemperature.Capabilities{Native: client, Writer: buildingTemperatureControl},
+		bedMedical:          &bedmedical.Capabilities{Native: client, Writer: bedMedicalControl},
 		presentationMedia:   presentationMedia,
 		lifecycle:           lifecycleCapability{lifecycleSave, lifecycleLoad}}, nil
 }
@@ -608,6 +615,14 @@ func serveBuildingWithBridge(ctx context.Context, config serveConfig, out io.Wri
 		}
 		buildingTemperatureCapabilities = client.buildingTemperature
 	}
+	// The hospital family patches beds medical through the shared executor.
+	var bedMedicalCapabilities *bedmedical.Capabilities
+	if config.routineHospitalPlans {
+		if client.bedMedical == nil {
+			return errors.New("hospital plans require typed capabilities")
+		}
+		bedMedicalCapabilities = client.bedMedical
+	}
 	session, err := buildingruntime.NewSession(lifetime, buildingruntime.SessionConfig{RoutineMethods: config.routineMethods,
 		Rules:               config.resourceRules,
 		Control:             buildingruntime.ControlConfig{ProfileDirectory: config.profile, CallTimeout: callTimeout, Worlds: buildingWorldSource{client.reads}},
@@ -641,6 +656,7 @@ func serveBuildingWithBridge(ctx context.Context, config serveConfig, out io.Wri
 		ConfirmColonyNames:  namingCapabilities,
 		ProductionPolicy:    productionPolicyCapabilities,
 		BuildingTemperature: buildingTemperatureCapabilities,
+		BedMedical:          bedMedicalCapabilities,
 	}, database, client.native, client.authority, client.writes, wallClock{})
 	if err != nil {
 		return err

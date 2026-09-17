@@ -52,8 +52,8 @@ installed RoomRoleDef: which roles a planner pursues, which other roles may host
 the same function as a shared room, and the furniture that gives the room its
 role. Each implemented role follows one ladder — reuse a room the game already
 scores as hosting the function, then furnish an existing hosting room, then stage
-a starter shell and furnish it once roofed. Dining, recreation and workshop are
-the implemented rows; every other role is an explicit pending row, and
+a starter shell and furnish it once roofed. Dining, recreation, workshop and hospital
+are the implemented rows; every other role is an explicit pending row, and
 content-gated roles are pursued only when their definitions exist in the
 planning census.
 
@@ -70,6 +70,22 @@ shell is staged when no such room exists. Powered and research-gated benches are
 the recipe exists the workshop planner steps aside and the resource goal's bill
 path, worker coverage for the bench's own work type, and native readback of the
 rising item count carry the deficit to recovery.
+
+The hospital row is a hosted function rather than a room of its own: the game
+scores a room as Hospital only when every bed in it is medical, so a colony's
+first medical bed stands in a Bedroom, Barracks or generic Room, and the
+catalog lists those as its hosts. Under a `MaintainMedicalCare` deficit the
+ward is sized by the living colonists who should seek medical rest (a bad
+condition such as a scar keeps the deficit but asks for no bed), counted
+against the medical, humanlike, non-prisoner beds in hosting rooms. Short of that count it flags an
+existing hosted bed medical through a one-shot CAS-gated `bed_medical` patch
+(an unowned bed first, then a bed only patients own — the game drops the owner,
+who then rests there as a patient; a healthy colonist's bed is never taken),
+and only when no bed can be spared does it walk the same ladder as the other
+rows, furnishing a bed or sleeping spot into a hosting room or staging the
+starter shell, converting the new bed on a later review. Tending, rescue, the
+medicine reserve and doctor coverage stay their own families; the bed patch
+completing never clears the deficit.
 
 The first shelter's shape is chosen from the native player-faction tech level:
 Neolithic colonies raise a circular or oval hut, others a 9x9 rectangle, and

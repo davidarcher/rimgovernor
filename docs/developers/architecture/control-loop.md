@@ -36,9 +36,12 @@ continuation. Idle/blocked work and autosave refusals use a two-second retry
 backoff; lease renewal and periodic observation remain independent of task
 completion.
 
-Delivery from the native clock is a long poll on the event journal, not a push:
-the transport is request/response only, so `clock_read_events` holds an empty
-read for up to `wait_ms` (at most 5 s) and answers as soon as a row lands. Every
+Delivery from the native clock is a poll on the event journal, not a push:
+the transport is request/response only, so `clock_read_events` can hold an
+empty read for up to `wait_ms` (at most 5 s) and answer as soon as a row lands.
+The service does not hold reads yet: the game transport answers one call at a
+time, so a held read stalls every planner and worker call behind it, and the
+service polls once a second instead. Every
 captured page wakes the scheduler step and the routine worker through one shared
 wake signal, which also resets the step backoff; a page whose events carry
 attempt outcomes names those actions so the worker reconciles them first. A

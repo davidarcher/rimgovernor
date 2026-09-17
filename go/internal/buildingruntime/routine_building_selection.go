@@ -109,6 +109,11 @@ func (r *RoutineBuildingPlanner) selection(facts observation.ColonyProjection) (
 			return 32, "workshop-shell", ""
 		}
 		return 1, domain.MethodID("workshop-" + r.definition), ""
+	case policy.MaintainMedicalCare:
+		if r.shelter {
+			return 32, "hospital-shell", ""
+		}
+		return 1, domain.MethodID("hospital-" + r.definition), ""
 	case policy.EnsureInitialShelter, policy.EnsureExpansion:
 		capacity, known := facts.Facts.IndoorCapacity.Value()
 		if !known {

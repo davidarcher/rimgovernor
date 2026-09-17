@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"strconv"
 
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 )
@@ -109,6 +110,9 @@ func insertAction(ctx context.Context, tx *sql.Tx, plan domain.PlanID, ordinal i
 			return encodeErr
 		}
 		_, err = tx.ExecContext(ctx, "INSERT INTO actions(id,plan_id,ordinal,kind,target,building_temperature_payload) VALUES(?,?,?,'building_temperature',?,?)", a.ID(), plan, ordinal, temperature.Thing(), data)
+	} else if medical, ok := a.BedMedical(); ok {
+		// definition carries the wanted flag, stuff the CAS token.
+		_, err = tx.ExecContext(ctx, "INSERT INTO actions(id,plan_id,ordinal,kind,target,definition,stuff) VALUES(?,?,?,'bed_medical',?,?,?)", a.ID(), plan, ordinal, medical.Thing(), strconv.FormatBool(medical.Medical()), medical.BeforeToken())
 	} else if relief, ok := a.MoodRelief(); ok {
 		job := relief.ExpectedJob()
 		data, encodeErr := json.Marshal(moodReliefPayload{relief.Need(), job.Idle, job.JobID, relief.ExpectedScheduleDef()})
@@ -445,6 +449,14 @@ func scanAction(rows *sql.Rows) (domain.Action, int, error) {
 			return domain.Action{}, 0, err
 		}
 		a, err := domain.NewResearchSelectAction(id, v)
+		return a, ordinal, err
+	}
+	if kind == "bed_medical" && target.Valid && def.Valid && stuff.Valid && !pawn.Valid && !x.Valid && !z.Valid && !rotation.Valid && !draftAction.Valid && (def.String == "true" || def.String == "false") {
+		medical, err := domain.NewBedMedical(target.String, def.String == "true", stuff.String)
+		if err != nil {
+			return domain.Action{}, 0, err
+		}
+		a, err := domain.NewBedMedicalAction(id, medical)
 		return a, ordinal, err
 	}
 	if kind == "husbandry" && target.Valid && def.Valid && !pawn.Valid && !x.Valid && !z.Valid && !rotation.Valid && !draftAction.Valid {

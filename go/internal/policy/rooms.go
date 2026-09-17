@@ -131,7 +131,12 @@ func FacilityCatalog() []FacilityRequirement {
 		{Role: RoomRoleBarracks, Status: FacilityPending},
 		{Role: RoomRolePrisonCell, Status: FacilityPending},
 		{Role: RoomRolePrisonBarracks, Status: FacilityPending},
-		{Role: RoomRoleHospital, Status: FacilityPending},
+		// A hospital is a hosted medical bed, not a dedicated room: the game
+		// scores a room holding any ordinary bed a Bedroom or Barracks, and a
+		// bed flagged medical inside it still draws patients, doctors and the
+		// room's cleanliness into tending (issue #4 M3). Doctor coverage is
+		// AssignWork's standing requirement; medicine is MaintainMedicalReserves.
+		{Role: RoomRoleHospital, Status: FacilityImplemented, Compatible: append([]RoomRole{RoomRoleBedroom, RoomRoleBarracks}, generic...), Furniture: HospitalBedDefinitions},
 		{Role: RoomRoleLaboratory, Status: FacilityPending},
 		// A workshop shares the starter shell: the ladder furnishes the first
 		// enclosed room rather than siting a second ring (routine_sleeping.go),

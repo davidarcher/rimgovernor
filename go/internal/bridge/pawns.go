@@ -244,7 +244,7 @@ func pawnsIssues(issues []*o.ReadIssue, message protoreflect.Message) error {
 		// Check the exact path only: an unavailable nested field does not erase its
 		// parent's other known facts.
 		if pawnsFieldPresent(message, issue.GetField()) {
-			return contract("pawn field both known and unavailable")
+			return contract("%s field %q both known and unavailable", message.Descriptor().Name(), issue.GetField())
 		}
 	}
 	return nil
