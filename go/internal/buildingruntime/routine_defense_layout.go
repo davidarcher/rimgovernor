@@ -151,6 +151,15 @@ func (r *RoutineDefenseLayoutPlanner) step(call, epoch context.Context) (Routine
 	if err != nil {
 		return RoutineDefenseLayoutResult{}, err
 	}
+	if stored && record.World != world {
+		// A reload of the same colony: the geometry is on the map, but which
+		// tiers still stand is re-observed below before the record counts as
+		// complete again (an older save may lack some of them).
+		record.World, record.Complete = world, false
+		if err = p.journal.SaveDefenseLayout(call, record); err != nil {
+			return RoutineDefenseLayoutResult{}, err
+		}
+	}
 	if stored && (record.Goal != goal.Goal.ID || record.Epoch != goal.Goal.Epoch) {
 		// A new goal epoch (cancelled and re-created, e.g. by a letter pause)
 		// keeps the stored geometry: re-proposing against a census that

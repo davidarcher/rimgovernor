@@ -36,8 +36,16 @@ func TestDefenseLayoutRoundTripPerWorld(t *testing.T) {
 	if !ok || tier.Reserved[0] != (domain.Cell{X: 3, Z: 4}) || buildings[0] != wall {
 		t.Fatalf("%+v %v", tier, buildings)
 	}
-	if _, ok, err = db.LoadDefenseLayout(context.Background(), World{Colony: "colony", Load: "reload", Map: 1}); err != nil || ok {
-		t.Fatal("stale world layout returned", ok, err)
+	// A reload of the same colony keeps the geometry under its saved load
+	// (the planner adopts it); another colony or map does not see it.
+	if reloaded, ok, err := db.LoadDefenseLayout(context.Background(), World{Colony: "colony", Load: "reload", Map: 1}); err != nil || !ok || reloaded.World != world {
+		t.Fatal("reloaded colony lost its layout", ok, err)
+	}
+	if _, ok, err = db.LoadDefenseLayout(context.Background(), World{Colony: "colony", Load: "load", Map: 2}); err != nil || ok {
+		t.Fatal("other map layout returned", ok, err)
+	}
+	if _, ok, err = db.LoadDefenseLayout(context.Background(), World{Colony: "other", Load: "load", Map: 1}); err != nil || ok {
+		t.Fatal("other colony layout returned", ok, err)
 	}
 	got.Complete = true
 	if err = db.SaveDefenseLayout(context.Background(), got); err != nil {

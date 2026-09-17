@@ -257,6 +257,11 @@ func (r *RoutineDefensePlanner) holdTheLine(call, epoch context.Context, goal st
 	if err != nil {
 		return RoutineDefenseResult{}, err
 	}
+	// A complete record from an earlier load of this colony still holds:
+	// its geometry is on the map and its completion was census-verified
+	// when written. Combat cannot wait for the layout review to adopt it
+	// (that review does not run under a raid), and a wall lost since is the
+	// same degradation a raider causes mid-session.
 	if !ok || !layout.Complete {
 		return RoutineDefenseResult{}, nil
 	}

@@ -416,6 +416,22 @@ func run(ctx context.Context, root, output, gameID string, headless bool, rimgov
 		}
 		layout, siteX, siteZ = cp.Layout, cp.SiteX, cp.SiteZ
 		report["checkpoint"] = map[string]any{"name": opts.fromCheckpoint, "savedAtTick": cp.SavedAtTick}
+		// The raid service starts on a fresh state file; seed it with the
+		// record exactly as the layout session stored it, under the load it
+		// was built in. The reload minted a new load token, so the layout
+		// review must adopt the record and re-observe its tiers before combat
+		// holds the line -- the same path a player's save/reload takes.
+		seed, err := store.Open(ctx, statePath)
+		if err != nil {
+			return fmt.Errorf("seed layout store: %w", err)
+		}
+		err = seed.SaveDefenseLayout(ctx, layout)
+		if closeErr := seed.Close(); err == nil {
+			err = closeErr
+		}
+		if err != nil {
+			return fmt.Errorf("seed layout: %w", err)
+		}
 		// Storyteller comps come back with the load; silence them again.
 		if _, err := fixture("quiet", map[string]any{"op": "quiet"}); err != nil {
 			return err
@@ -612,7 +628,16 @@ func run(ctx context.Context, root, output, gameID string, headless bool, rimgov
 		return fmt.Errorf("colonists standing on trap cells after raid: %v", on)
 	}
 	if !opts.bypass {
-		if int(na.AsNumber(final["sprung"])) == 0 {
+		// A spike trap is trapDestroyOnSpring: springing destroys it (its
+		// auto-rebuild blueprint is not a colonist building), so a trap
+		// missing since the layout audit is a sprung trap; the fixture's
+		// armed-state count only covers rearmable traps.
+		sprung := int(na.AsNumber(final["sprung"]))
+		if lost := int(na.AsNumber(after["traps"])) - int(na.AsNumber(final["traps"])); lost > 0 {
+			sprung += lost
+		}
+		report["traps_sprung"] = sprung
+		if sprung == 0 {
 			return fmt.Errorf("no trap sprung during the edge raid: %#v", final)
 		}
 		neutralised := 0
