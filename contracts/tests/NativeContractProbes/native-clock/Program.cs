@@ -16,7 +16,7 @@ internal static class NativeClockProbe
 {
     private static int checks, nextAttempt;
     private static NativeControlAuthority authority;
-    private static NativeControlSnapshot lease;
+    private static NativeControlSnapshot grant;
     private static readonly NativeClockTools Tools = new();
     private static Common.Identity Identity => new() { ColonyId = Current.Game.Identity.ColonyId, LoadToken = Current.Game.Identity.LoadToken, MapId = Find.CurrentMap.uniqueID };
     private static void Check(bool condition, string message) { checks++; if (!condition) throw new Exception(message); }
@@ -40,7 +40,7 @@ internal static class NativeClockProbe
     private static Clock.StatusReply Status() => Call(new Clock.StatusRequest { Identity = Identity }, (ctx, json) => Tools.ReadStatus(ctx, default, json), Clock.StatusReply.Parser);
     private static Clock.StatusReply Pause(Clock.OwnedRequest request) => Call(request, (ctx, json) => Tools.Pause(ctx, default, json), Clock.StatusReply.Parser);
     private static Clock.EventsReply Events(long after = 0, uint limit = 128) => Call(new Clock.EventsRequest { Identity = Identity, AfterCursor = after, Limit = limit }, (ctx, json) => Tools.ReadEvents(ctx, default, json), Clock.EventsReply.Parser);
-    private static Authority.WritePrecondition Pre() => new() { Identity = Identity, ExpectedGeneration = lease.Generation, LeaseId = lease.Lease.LeaseId,
+    private static Authority.WritePrecondition Pre() => new() { Identity = Identity, ExpectedGeneration = grant.Generation,
         Attempt = new Common.AttemptKey { ControllerSessionId = "controller", ActionId = "clock/" + ++nextAttempt, AttemptId = 1 } };
     private static Clock.StartRequest Request() => new() { Authority = Pre(), Speed = Clock.Speed.Normal, LeaseMs = 1000, MaxTicks = 10,
         Policy = new Clock.WatchPolicy { Mode = Clock.WatchMode.Colony, HealthDropFraction = .1f, MinHealthFraction = .5f, HostileWithin = 30, InjuryStopCooldownMs = 0 } };
@@ -50,8 +50,8 @@ internal static class NativeClockProbe
         GenFilePaths.SaveDataFolderPath = Path.Combine(Environment.CurrentDirectory, ".rimgovernor", "clock-tests-" + Guid.NewGuid().ToString("N"));
         Supervisor.FixtureReset(); HarmonyLib.Harmony.Healthy = true;
         authority = NativeControlAuthority.ForGame(Current.Game); authority.SetHookHealth(true);
-        lease = authority.Acquire(authority.Status().Generation, "controller", 42, 30000).Snapshot;
-        Check(lease.Active, "authority setup");
+        grant = authority.SetMode(authority.Status().Generation, NativeControlMode.Auto).Snapshot;
+        Check(grant.Active, "authority setup");
     }
     private static void Boundaries()
     {
@@ -67,7 +67,7 @@ internal static class NativeClockProbe
         Check(!Directory.Exists(GenFilePaths.SaveDataFolderPath), "status initialized journal");
         var initial = Events();
         Check(initial.Page != null && initial.Page.NewestCursor == 0 && initial.Page.Events.Count == 0, "initial event read requires clock start");
-        Check(Status().Status.NeverStarted != null && Find.TickManager.Paused && authority.Status().Generation == lease.Generation, "initial event read changed clock or authority");
+        Check(Status().Status.NeverStarted != null && Find.TickManager.Paused && authority.Status().Generation == grant.Generation, "initial event read changed clock or authority");
         foreach (var pair in new[] { (-1L, 1u), (0L, 0u), (0L, 129u), (long.MaxValue, 128u) }) Check(Events(pair.Item1, pair.Item2).Failure != null, "invalid/unavailable cursor admitted");
         foreach (Action<Clock.StartRequest> mutation in new Action<Clock.StartRequest>[] { r => r.Speed = Clock.Speed.Unspecified, r => r.LeaseMs = 999,
             r => r.LeaseMs = 30001, r => r.MaxTicks = 0, r => r.Policy = null, r => r.Policy.HealthDropFraction = float.NaN,
@@ -77,7 +77,7 @@ internal static class NativeClockProbe
     private static void OwnedLifecycle()
     {
         Reset(); var request = Request(); var reply = Start(request); var epoch = reply.Receipt.Applied.Status.Running.Epoch;
-        Check(epoch.Origin.Identity.Equals(Identity) && epoch.Origin.NativeGeneration == lease.Generation && epoch.Owner.ControllerSessionId == "controller" && epoch.StartTick == 0 && epoch.TickDeadline == 10, "owned origin not captured");
+        Check(epoch.Origin.Identity.Equals(Identity) && epoch.Origin.NativeGeneration == grant.Generation && epoch.Owner.ControllerSessionId == "controller" && epoch.StartTick == 0 && epoch.TickDeadline == 10, "owned origin not captured");
         Check(!Status().Status.ActualPaused && Status().Status.ObservedSpeed == Clock.ObservedSpeed.Normal, "actual running facts");
         var owned = new Clock.OwnedRequest { Identity = Identity, Owner = epoch.Owner.Clone() };
         var ledger = NativeOperationState.ForAdmission(Identity).Ledger;
@@ -173,14 +173,14 @@ internal static class NativeClockProbe
         Reset();
         var epoch = Start(Request()).Receipt.Applied.Status.Running.Epoch;
         var owned = new Clock.OwnedRequest { Identity = Identity, Owner = epoch.Owner.Clone() };
-        var renewedAuthority = authority.Renew(lease.Generation, lease.Lease.LeaseId, "controller", 30000);
-        Check(renewedAuthority.Success, "ordinary authority renewal failed");
         Check(Renew(new Clock.RenewRequest { Epoch = owned, Authority = Pre(), LeaseMs = 1000 }).Receipt != null,
-            "same-grant authority renewal blocked clock renewal");
+            "same-generation clock renewal refused");
         var admitted = NativeOperationState.ForAdmission(Identity).Ledger.Count;
+        // Any authority transition (here Manual then Auto again) advances the
+        // generation; the epoch stays bound to the generation that started it.
         authority.Revoke(authority.Status().Generation, NativeControlRevocationReason.Manual);
-        lease = authority.Acquire(authority.Status().Generation, "controller", 43, 30000).Snapshot;
-        Check(lease.Active && lease.Generation != epoch.Origin.NativeGeneration, "replacement grant setup failed");
+        grant = authority.SetMode(authority.Status().Generation, NativeControlMode.Auto).Snapshot;
+        Check(grant.Active && grant.Generation != epoch.Origin.NativeGeneration, "replacement grant setup failed");
         // No watcher update runs between revocation, reacquisition and these requests.
         var renewal = Renew(new Clock.RenewRequest { Epoch = owned, Authority = Pre(), LeaseMs = 30000 });
         Check(renewal.Failure?.Code == Common.FailureCode.StaleGeneration, "new grant renewed invalidated epoch before watcher update");
@@ -238,7 +238,7 @@ internal static class NativeClockProbe
         var recovered = Events().Page;
         Check(recovered != null && recovered.Events.SequenceEqual(recorded.Events) && recovered.NewestCursor == recorded.NewestCursor,
             "read before start failed to recover durable history");
-        Check(Status().Status.NeverStarted != null && Find.TickManager.Paused && authority.Status().Generation == lease.Generation,
+        Check(Status().Status.NeverStarted != null && Find.TickManager.Paused && authority.Status().Generation == grant.Generation,
             "history recovery changed clock or authority");
     }
     internal static void Invoke()

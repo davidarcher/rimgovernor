@@ -120,7 +120,7 @@ func (r *FlightRecorder) Event(kind string, context map[string]any, durable bool
 			"sha256":         hex.EncodeToString(sum[:]),
 			"preview":        string(encoded[:r.payloadBytes]),
 		}
-		for _, key := range []string{"request", "tool", "category"} {
+		for _, key := range []string{"request", "tool", "native_tool", "category", "timing"} {
 			if value, ok := payload[key]; ok && flightCorrelatable(value) {
 				correlated[key] = value
 			}
@@ -174,11 +174,23 @@ func (r *FlightRecorder) Event(kind string, context map[string]any, durable bool
 	return sequence, nil
 }
 
+// flightCorrelatable admits the small scalar keys (and one flat map of them,
+// the call's timing phases) that survive payload truncation.
 func flightCorrelatable(value any) bool {
 	switch v := value.(type) {
 	case string:
 		return len(v) <= 256
 	case int, int32, int64, uint, uint32, uint64, float64:
+		return true
+	case map[string]any:
+		if len(v) > 16 {
+			return false
+		}
+		for _, inner := range v {
+			if _, nested := inner.(map[string]any); nested || !flightCorrelatable(inner) {
+				return false
+			}
+		}
 		return true
 	default:
 		return false

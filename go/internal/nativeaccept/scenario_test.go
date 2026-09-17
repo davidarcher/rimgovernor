@@ -173,10 +173,16 @@ func TestProjectEventsRejectsReportedGap(t *testing.T) {
 type fakeWire struct {
 	replies map[string][]map[string]any
 	calls   []string
+	// sent records every request by method so tests can assert wire shapes.
+	sent map[string][]map[string]any
 }
 
-func (f *fakeWire) wire(_ context.Context, _, method string, _ map[string]any) (map[string]any, error) {
+func (f *fakeWire) wire(_ context.Context, _, method string, request map[string]any) (map[string]any, error) {
 	f.calls = append(f.calls, method)
+	if f.sent == nil {
+		f.sent = map[string][]map[string]any{}
+	}
+	f.sent[method] = append(f.sent[method], request)
 	queue := f.replies[method]
 	if len(queue) == 0 {
 		panic("no canned reply for method " + method)
@@ -185,37 +191,78 @@ func (f *fakeWire) wire(_ context.Context, _, method string, _ map[string]any) (
 	return queue[0], nil
 }
 
-func grantedReply(generation int, leaseID, owner string) map[string]any {
+func grantedReply(generation int) map[string]any {
 	return map[string]any{"granted": map[string]any{
-		"context": map[string]any{"nativeGeneration": float64(generation)},
-		"leaseId": leaseID, "owner": map[string]any{"controllerSessionId": owner},
+		"context":   map[string]any{"nativeGeneration": float64(generation)},
+		"authority": map[string]any{"mode": "MODE_AUTO"},
 	}}
 }
 
-func TestScenarioClockAcquireCapturesGrant(t *testing.T) {
+func activeStatus(generation int) map[string]any {
+	return map[string]any{"status": map[string]any{
+		"context": map[string]any{"nativeGeneration": float64(generation)},
+		"active":  map[string]any{"mode": "MODE_AUTO"},
+	}}
+}
+
+func TestScenarioClockAcquireGrantsAutoAtCurrentGeneration(t *testing.T) {
 	fw := &fakeWire{replies: map[string][]map[string]any{
-		"authority_read_status": {{"status": map[string]any{"context": map[string]any{"nativeGeneration": float64(1)}}}},
-		"authority_control":     {grantedReply(2, "lease-1", "owner-1")},
+		"authority_read_status": {{"status": map[string]any{"context": map[string]any{"nativeGeneration": float64(1)}, "inactive": map[string]any{"reason": "REVOCATION_REASON_NONE"}}}},
+		"authority_control":     {grantedReply(2)},
 	}}
 	clock := &ScenarioClock{Wire: fw.wire, Identity: scenarioIdentity(), Owner: "owner-1", Report: Report{}}
 	grant, err := clock.Acquire(context.Background(), "acquire")
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	if AsString(grant["leaseId"]) != "lease-1" {
-		t.Fatalf("unexpected grant: %#v", grant)
+	if GrantGeneration(grant) != 2 || GrantGeneration(clock.Grant) != 2 {
+		t.Fatalf("unexpected grant: %#v / %#v", grant, clock.Grant)
 	}
-	if clock.Grant["leaseId"] != "lease-1" {
-		t.Fatalf("grant not captured on clock: %#v", clock.Grant)
+	sent := fw.sent["authority_control"]
+	if len(sent) != 1 {
+		t.Fatalf("expected one authority_control call, got %#v", sent)
+	}
+	setMode, _ := AsMap(sent[0]["setMode"])
+	if AsString(setMode["expectedGeneration"]) != "1" || AsString(setMode["mode"]) != "MODE_AUTO" {
+		t.Fatalf("expected SetMode(Auto) at generation 1, got %#v", sent[0])
+	}
+	if _, legacy := sent[0]["acquire"]; legacy {
+		t.Fatalf("legacy acquire shape sent: %#v", sent[0])
+	}
+}
+
+func TestScenarioClockRenewAuthorityRequiresContinuity(t *testing.T) {
+	grant, _ := AsMap(grantedReply(2)["granted"])
+	for name, tc := range map[string]struct {
+		status map[string]any
+		ok     bool
+	}{
+		"same generation active": {activeStatus(2), true},
+		"generation moved":       {activeStatus(3), false},
+		"inactive": {map[string]any{"status": map[string]any{
+			"context":  map[string]any{"nativeGeneration": float64(3)},
+			"inactive": map[string]any{"reason": "REVOCATION_REASON_DISCONNECT"},
+		}}, false},
+	} {
+		t.Run(name, func(t *testing.T) {
+			fw := &fakeWire{replies: map[string][]map[string]any{"authority_read_status": {tc.status}}}
+			clock := &ScenarioClock{Wire: fw.wire, Identity: scenarioIdentity(), Owner: "owner-1", Report: Report{}, Grant: grant}
+			err := clock.RenewAuthority(context.Background())
+			if (err == nil) != tc.ok {
+				t.Fatalf("ok=%v, got err=%v", tc.ok, err)
+			}
+			if len(fw.sent["authority_control"]) != 0 {
+				t.Fatalf("renew must not issue authority_control (it would advance the generation): %#v", fw.sent)
+			}
+		})
 	}
 }
 
 func controlReceiptReply(owner string, epochID, startTick, lastTick, tickDeadline int, attempt map[string]any) map[string]any {
 	return map[string]any{"receipt": map[string]any{
-		"attempt":          attempt,
-		"admittedContext":  map[string]any{"identity": scenarioIdentity()},
-		"authorizingOwner": map[string]any{"controllerSessionId": owner},
-		"applied":          map[string]any{"status": runningStatus(owner, epochID, startTick, lastTick, tickDeadline, 0)},
+		"attempt":         attempt,
+		"admittedContext": map[string]any{"identity": scenarioIdentity()},
+		"applied":         map[string]any{"status": runningStatus(owner, epochID, startTick, lastTick, tickDeadline, 0)},
 	}}
 }
 
@@ -227,7 +274,7 @@ func TestScenarioClockChangeStartsFreshProfile(t *testing.T) {
 	}}
 	clock := &ScenarioClock{
 		Wire: fw.wire, Identity: scenarioIdentity(), Owner: "owner-1", Report: Report{},
-		Grant: map[string]any{"context": map[string]any{"nativeGeneration": float64(1)}, "leaseId": "lease-1"},
+		Grant: map[string]any{"context": map[string]any{"nativeGeneration": float64(1)}, "authority": map[string]any{"mode": "MODE_AUTO"}},
 	}
 	status, err := clock.Change(context.Background(), "Superfast", 60)
 	if err != nil {
@@ -322,7 +369,7 @@ func TestAdvanceGameCompletesOnTickBudget(t *testing.T) {
 	}}
 	clock := &ScenarioClock{
 		Wire: fw.wire, Identity: scenarioIdentity(), Owner: "owner-1", Report: Report{},
-		Grant: map[string]any{"context": map[string]any{"nativeGeneration": float64(1)}, "leaseId": "lease-1"},
+		Grant: map[string]any{"context": map[string]any{"nativeGeneration": float64(1)}, "authority": map[string]any{"mode": "MODE_AUTO"}},
 	}
 	rt := &ScenarioRuntime{Query: fq.query, Clock: clock, Report: Report{}}
 
@@ -379,7 +426,7 @@ func TestAdvanceGameStopsOnIdentityDrift(t *testing.T) {
 	}}
 	clock := &ScenarioClock{
 		Wire: fw.wire, Identity: scenarioIdentity(), Owner: "owner-1", Report: Report{},
-		Grant: map[string]any{"context": map[string]any{"nativeGeneration": float64(1)}, "leaseId": "lease-1"},
+		Grant: map[string]any{"context": map[string]any{"nativeGeneration": float64(1)}, "authority": map[string]any{"mode": "MODE_AUTO"}},
 	}
 	rt := &ScenarioRuntime{Query: fq.query, Clock: clock, Report: Report{}}
 	_, err := AdvanceGame(context.Background(), rt, 60)

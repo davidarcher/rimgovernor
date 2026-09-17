@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"path/filepath"
+	"sync"
 	"testing"
 	"time"
 
@@ -26,7 +27,10 @@ type presentationMediaFake struct {
 	calls      int
 	frameCalls int
 	ackCalls   int
+	mu         sync.Mutex // the relay acknowledges from its own goroutine
 	seen       proto.Message
+	// frameRequestSource records the source id of the last ReadFrame.
+	frameRequestSource string
 }
 
 func (f *presentationMediaFake) DemandRendering(ctx context.Context, q *p.RenderDemand) (*p.RenderReply, bridge.Result, error) {
@@ -48,6 +52,7 @@ func (f *presentationMediaFake) ReadFrame(ctx context.Context, q *p.FrameRequest
 	f.calls++
 	f.seen = q
 	f.frameCalls++
+	f.frameRequestSource = q.GetSourceId()
 	if len(f.frames) > 0 {
 		next := f.frames[0]
 		if len(f.frames) > 1 {
@@ -58,10 +63,32 @@ func (f *presentationMediaFake) ReadFrame(ctx context.Context, q *p.FrameRequest
 	return f.frame, bridge.Result{}, f.err
 }
 func (f *presentationMediaFake) AcknowledgeFrame(ctx context.Context, q *p.FrameAcknowledgement) (*p.FrameAcknowledgementReply, bridge.Result, error) {
+	f.mu.Lock()
 	f.calls++
 	f.seen = q
 	f.ackCalls++
+	f.mu.Unlock()
 	return &p.FrameAcknowledgementReply{Outcome: &p.FrameAcknowledgementReply_Acknowledged{Acknowledged: &p.FrameAcknowledged{Frame: q.GetFrame()}}}, bridge.Result{}, f.err
+}
+
+// acks reports AcknowledgeFrame calls so far.
+func (f *presentationMediaFake) acks() int {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	return f.ackCalls
+}
+
+// awaitAcks waits for at least n AcknowledgeFrame calls: the relay writes a
+// frame before acknowledging it, so a client can read the frame first.
+func awaitAcks(t *testing.T, f *presentationMediaFake, n int) {
+	t.Helper()
+	deadline := time.Now().Add(2 * time.Second)
+	for f.acks() < n {
+		if time.Now().After(deadline) {
+			t.Fatalf("expected %d AcknowledgeFrame calls, got %d", n, f.acks())
+		}
+		time.Sleep(5 * time.Millisecond)
+	}
 }
 func presentationMediaAPI(t *testing.T) (*Server, *presentationMediaFake, string) {
 	t.Helper()

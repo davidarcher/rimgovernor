@@ -55,7 +55,7 @@ func NewRoutineDefenseLayoutPlanner(reviewer *RoutineReviewer, native RoutineDef
 	if reviewer == nil || native == nil {
 		return nil, ErrControl
 	}
-	if _, ok := reviewer.native.(observation.RoutineSource); !ok {
+	if reviewer.native == nil {
 		return nil, ErrControl
 	}
 	return &RoutineDefenseLayoutPlanner{reviewer, native}, nil

@@ -9,7 +9,7 @@ param(
         'MoodFixture', 'PopulationFixture', 'HusbandryFixture', 'MedicalManagementFixture',
         'MiningFixture', 'FoodObservationFixture', 'UpkeepFixture', 'TradeFixture',
         'ScenarioStartFixture', 'ConstructionLedgerFixture', 'EmergencyDevelopmentFixture',
-        'InstallFixture', 'ForecastFixture', 'InspectorFixture', 'ModalFixture', 'CampaignMetricsFixture', 'DraftFaultFixture', 'QuestFulfillFixture', 'BuildingTemperatureFixture', 'SurgeryFixture', 'CaravanControlFixture', 'CaravanDepartureFixture', 'RecoveryServiceFixture', 'QuestAcceptFixture', 'SettlementGiftFixture', 'RecoveryAreaFixture', 'BedAssignFixture', 'ZoneDeleteFixture', 'RefrigerationFixture', 'PowerFixture', 'CleanlinessFixture', 'DefenseFixture', 'LightingFixture', 'MountainFixture')]
+        'InstallFixture', 'ForecastFixture', 'InspectorFixture', 'ModalFixture', 'CampaignMetricsFixture', 'DraftFaultFixture', 'RuntimeFaultFixture', 'MapScopeFixture', 'QuestFulfillFixture', 'BuildingTemperatureFixture', 'SurgeryFixture', 'CaravanControlFixture', 'CaravanDepartureFixture', 'RecoveryServiceFixture', 'QuestAcceptFixture', 'SettlementGiftFixture', 'RecoveryAreaFixture', 'BedAssignFixture', 'ZoneDeleteFixture', 'RefrigerationFixture', 'PowerFixture', 'CleanlinessFixture', 'DefenseFixture', 'LightingFixture', 'MountainFixture', 'QuietStorytellerFixture', 'DebugStartFixture', 'VideoSourceFixture', 'VideoMatrixFixture', 'WallUpgradeFixture', 'ShutdownFixture')]
     [string[]]$Fixture = @()
 )
 $ErrorActionPreference = 'Stop'
@@ -17,6 +17,9 @@ $taskRepo = Split-Path $PSScriptRoot -Parent
 $taskSource = Join-Path $taskRepo 'integrations/rimgovernor-native'
 $taskProject = Join-Path $taskSource 'src/Bridge/RimGovernor.Bridge.csproj'
 $taskFixtures = @($Fixture | Sort-Object -Unique)
+# Every fixture build carries test/quiet_storyteller: the acceptance harnesses
+# quiet the debug colony through it by default (issue #92).
+if ($taskFixtures.Count) { $taskFixtures = @(($taskFixtures + 'QuietStorytellerFixture' + 'DebugStartFixture') | Sort-Object -Unique) }
 $taskRole = if ($taskFixtures.Count) { 'fixture' } else { 'production' }
 if (-not $OutputRoot) {
     $OutputRoot = Join-Path $taskRepo ('.rimgovernor/native-builds/' + $taskRole + '-' + [guid]::NewGuid().ToString('N'))
@@ -73,7 +76,8 @@ foreach ($taskContractDirectory in @('contracts/proto', 'contracts/generated/pro
 $taskScripts = Join-Path $taskCopyRoot 'scripts'
 New-Item -ItemType Directory -Path $taskScripts -Force | Out-Null
 Copy-Item -LiteralPath $PSCommandPath -Destination $taskScripts
-Copy-Item -LiteralPath (Join-Path $taskRepo 'scripts/generate_protobuf.py') -Destination $taskScripts
+# The C# generator is a self-contained stdlib Go program: `go run scripts/generate_protobuf.go`.
+Copy-Item -LiteralPath (Join-Path $taskRepo 'go/internal/protobufgen/cmd/generatecsharp/main.go') -Destination (Join-Path $taskScripts 'generate_protobuf.go')
 $taskFixtureSource = Join-Path $taskRepo 'scripts/fixtures'
 foreach ($taskFile in Get-ChildItem -LiteralPath $taskFixtureSource -Recurse -File | Where-Object {
     $_.Extension -in @('.cs', '.csproj') -and $_.FullName -notmatch '[\\/](obj|bin)[\\/]'

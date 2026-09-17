@@ -1,0 +1,55 @@
+# Repository build/test contract (https://taskfile.dev).
+#
+# `task build` and `task test` fan out to every project with its own toolchain
+# root; each project ships a Taskfile.yml implementing both, so a missing one
+# fails to load instead of being skipped. `build` includes the static gates that
+# produce a build failure (gofmt, vet, staticcheck, tsc, eslint, warnings as
+# errors, locked restores); `test` is tests only. Projects needing machine-local
+# inputs (game DLLs) report `unavailable` with the missing path rather than pass.
+# Build outputs and evidence land under .rimgovernor/task; CI starts from a
+# clean checkout so nothing there is reused.
+#
+# Install: `winget install Task.Task` or
+# `go install github.com/go-task/task/v3/cmd/task@latest`.
+version: '3'
+
+env:
+  # Go version pin; go/.go-version and every go.mod `go` directive must agree.
+  GOTOOLCHAIN: go1.27.1
+  GOWORK: 'off'
+  CGO_ENABLED: '0'
+
+includes:
+  go: { taskfile: go, dir: go }
+  dashboard: { taskfile: dashboard, dir: dashboard }
+  wire: { taskfile: contracts/generated/protobuf/go, dir: contracts/generated/protobuf/go }
+  protobuf: { taskfile: tools/protobuf, dir: tools/protobuf }
+  protobuf-go: { taskfile: tools/protobuf/go, dir: tools/protobuf/go }
+  native: { taskfile: integrations/rimgovernor-native, dir: integrations/rimgovernor-native }
+  probes: { taskfile: contracts/tests, dir: contracts/tests }
+  fixtures: { taskfile: scripts/fixtures, dir: scripts/fixtures }
+
+tasks:
+  build:
+    desc: Static gates and builds for every project
+    cmds:
+      - task: go:build
+      - task: dashboard:build
+      - task: wire:build
+      - task: protobuf-go:build
+      - task: protobuf:build
+      - task: native:build
+      - task: probes:build
+      - task: fixtures:build
+
+  test:
+    desc: Tests for every project
+    cmds:
+      - task: go:test
+      - task: dashboard:test
+      - task: wire:test
+      - task: protobuf-go:test
+      - task: protobuf:test
+      - task: native:test
+      - task: probes:test
+      - task: fixtures:test

@@ -16,7 +16,7 @@ it('acknowledges only an explicit click using the displayed revision without ena
   const [url, options] = fetcher.mock.calls[1];
   expect(url).toBe('/api/player/clock/acknowledge');
   expect(options?.headers).toEqual({'Content-Type': 'application/json', 'X-RimGovernor-Player': 'secret'});
-  expect(JSON.parse(String(options?.body))).toMatchObject({expectedRevision: '2', throughCursor: '3'});
+  expect(JSON.parse(options?.body as string) as Record<string, unknown>).toMatchObject({expectedRevision: '2', throughCursor: '3'});
   expect(screen.getByText(/No captured clock interruptions/)).toBeTruthy();
 });
 it('rejects malformed or contradictory cursor evidence', () => {

@@ -35,10 +35,17 @@ func NewClockWorker(ctx context.Context, scheduler *ClockScheduler, nativeEvents
 	if scheduler == nil || nativeEvents == nil {
 		return nil, ErrControl
 	}
-	// The authority Mode has no time-based expiry, so the worker's cadence is
-	// bounded only by the clock's own requested lease duration.
+	// The authority Mode has no time-based expiry, so the poll and renew
+	// cadence is bounded only by the clock's own requested lease duration.
+	// The step loop never touches the lease: Step holds the Player gate, not
+	// renewGate, so a slow step cannot delay RenewEpoch, and its timeout is
+	// bounded by the Player's call timeout alone.
 	lease := time.Duration(scheduler.config.Start.LeaseMS) * time.Millisecond
-	if config.PollInterval <= 0 || config.RenewInterval <= 0 || config.StepInterval <= 0 || config.CallTimeout <= 0 || config.PollInterval > lease/4 || config.RenewInterval > lease/4 || config.CallTimeout > lease/4 || config.CallTimeout > scheduler.player.config.CallTimeout || config.MaxBackoff < config.StepInterval || config.MaxBackoff > time.Minute || config.PageLimit < 1 || config.PageLimit > 128 {
+	playerTimeout := scheduler.player.config.CallTimeout
+	if config.PollInterval <= 0 || config.RenewInterval <= 0 || config.StepInterval <= 0 || config.PollInterval > lease/4 || config.RenewInterval > lease/4 || config.MaxBackoff < config.StepInterval || config.MaxBackoff > time.Minute || config.PageLimit < 1 || config.PageLimit > 128 {
+		return nil, ErrControl
+	}
+	if config.PollTimeout <= 0 || config.PollTimeout > lease/4 || config.PollTimeout > playerTimeout || config.RenewTimeout <= 0 || config.RenewTimeout > lease/4 || config.RenewTimeout > playerTimeout || config.StepTimeout <= 0 || config.StepTimeout > playerTimeout {
 		return nil, ErrControl
 	}
 	lifetime, cancel := context.WithCancel(ctx)
@@ -116,7 +123,7 @@ func (w *ClockWorker) wait(delay time.Duration) bool {
 func (w *ClockWorker) pollLoop() {
 	ready := false
 	for w.ctx.Err() == nil {
-		call, cancel := context.WithTimeout(w.ctx, w.config.CallTimeout)
+		call, cancel := context.WithTimeout(w.ctx, w.config.PollTimeout)
 		_, err := w.poll(call)
 		cancel()
 		if err == nil && !ready && w.ctx.Err() == nil {
@@ -130,7 +137,7 @@ func (w *ClockWorker) pollLoop() {
 }
 func (w *ClockWorker) renewLoop() {
 	for w.wait(w.config.RenewInterval) {
-		call, cancel := context.WithTimeout(w.ctx, w.config.CallTimeout)
+		call, cancel := context.WithTimeout(w.ctx, w.config.RenewTimeout)
 		_, _ = w.renew(call)
 		cancel()
 	}
@@ -148,6 +155,11 @@ func clockWorkerKey(result ClockSchedulerResult, err error) clockStepKey {
 		// otherwise a planner error that follows the routine startup
 		// authority refusal is never surfaced at all.
 		key.failure = err.Error()
+	}
+	if len(result.PlannerFailures) > 0 {
+		// Isolated planner failures do not fail the step (#62) but are still a
+		// state change: a changed set logs once more.
+		key.failure += "; " + errors.Join(result.PlannerFailures...).Error()
 	}
 	if result.Attempt != nil {
 		key.request = result.Attempt.Intent.RequestID
@@ -170,7 +182,7 @@ func (w *ClockWorker) stepLoop() {
 	var previous clockStepKey
 	havePrevious := false
 	for w.ctx.Err() == nil {
-		call, cancel := context.WithTimeout(w.ctx, w.config.CallTimeout)
+		call, cancel := context.WithTimeout(w.ctx, w.config.StepTimeout)
 		result, err := w.step(call)
 		cancel()
 		key := clockWorkerKey(result, err)
@@ -183,7 +195,9 @@ func (w *ClockWorker) stepLoop() {
 		if err != nil && (!havePrevious || key != previous || clockSchedulerDebug) {
 			fmt.Fprintf(os.Stderr, "[clock-worker] step failed: %v\n", err)
 		}
-		if havePrevious && key == previous {
+		// A combat window is short by design and the raid is re-planned
+		// between windows, so an unchanged decision does not back off.
+		if havePrevious && key == previous && !result.Combat {
 			delay = min(w.config.MaxBackoff, delay*2)
 		} else {
 			delay = w.config.StepInterval

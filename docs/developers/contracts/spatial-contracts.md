@@ -86,9 +86,11 @@ how narrow connectors and concave rooms around rock arise. Site score,
 reserved yard and indoor storage placement are computed from the footprint,
 not a fixed rectangle.
 
-Resuming control, like any clock interruption (a letter pause), invalidates
-every routine goal and cancels its plans, and the executor cancels the
-cancelled plan's native blueprints and frames; the walls and door already
+Pausing and resuming control (a letter pause, a keep-alive resume, a paired
+restart) suspends every routine goal and reactivates it in the same world
+with its plans still open. A world change (load token, map, tick rewind)
+instead invalidates the goal and cancels its plans, and the executor cancels
+the cancelled plan's native blueprints and frames; the walls and door already
 completed natively are then the only durable record of a shell in progress.
 Before siting a shell, the routine reads the player wall and door census
 within 64 cells of the colony centre and, for each player door nearest the

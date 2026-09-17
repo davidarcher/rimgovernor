@@ -202,25 +202,16 @@ stock limits and player bill filters survive. Existing fixture neighbor:
 
 ## Equipment ownership
 
-Sources: [saved map](../integrations/rimgovernor-native/src/Runtime/Persistence/GearOwnership.cs),
-[equipment operations](../integrations/rimgovernor-native/src/Bridge/GearUpkeepTool.cs).
+Sources: [equipment operations](../integrations/rimgovernor-native/src/Bridge/GearUpkeepTool.cs).
 
-| Field/key | Sole target owner | Reconstructible? |
-| --- | --- | --- |
-| `Weapons/rimgovernorUpkeepWeapons` (pawn unique-load-ID -> weapon unique-load-ID) | SQL | No; equipped item is observable, who assigned it is not. |
-
-Current code still records the claim when an equip job becomes current, but
-upkeep replacement no longer requires the pawn's current primary to match a
-previously recorded claim: any pawn's weapon, controller-equipped or
-player-equipped, is eligible for replacement once it fails the quality/wear
-checks in `GearUpkeepTool.WeaponEligible`. The saved map is now informational
-history rather than an ownership gate. The component itself has no tick
-writer; native equip work can finish while disconnected. Migration: import
-claims as untrusted historical evidence into matched SQL, then remove the
-saved map. Required acceptance: lost equip receipt, player swap and
-swap-back, older branch, pending equip save/load and missing SQL; never claim
-a weapon solely because it matches an old ID. Existing entry point:
-`scripts/gear_upkeep_acceptance.py`.
+No native saved state. The former `GearOwnership` component
+(`rimgovernorUpkeepWeapons`, pawn unique-load-ID -> weapon unique-load-ID) was
+write-only: upkeep replacement never gated on a recorded claim, and any pawn's
+weapon, controller-equipped or player-equipped, is eligible for replacement
+once it fails the quality/wear checks in `GearUpkeepTool.WeaponEligible`. The
+controller's dispatch receipt is the only record of who ordered an equip; the
+equipped item itself is observable. Native equip work can finish while
+disconnected.
 
 ## Recovery areas
 

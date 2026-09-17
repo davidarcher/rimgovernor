@@ -21,7 +21,7 @@ namespace HomeBridge.BridgeTools
             if (!PlacementProtocol.Validate(parsed, out failure))
                 return ProtoBoundary.Encode(new PlacementReply { Failure = failure });
 
-            var reply = await ctx.MainThread.InvokeAsync(() => {
+            return await ProtoBoundary.OnMainThreadEncoded(ctx, () => {
                 var map = Find.CurrentMap;
                 if (!ProtoBoundary.ValidateIdentity(parsed.Identity, map, out var context, out var identityFailure))
                     return new PlacementReply { Failure = identityFailure };
@@ -33,9 +33,8 @@ namespace HomeBridge.BridgeTools
                         PlacementProtocol.RotationName(candidate.Rotation), candidate.HasStuff ? candidate.Stuff : null);
                     batch.Results.Add(PlacementProtocol.Map(PlacementPreviewOperation.Evaluate(map, query), context));
                 }
-                return new PlacementReply { Batch = batch };
+                return PlacementProtocol.Bounded(new PlacementReply { Batch = batch });
             }, cancellationToken).ConfigureAwait(false);
-            return ProtoBoundary.Encode(PlacementProtocol.Bounded(reply));
         }
     }
 }

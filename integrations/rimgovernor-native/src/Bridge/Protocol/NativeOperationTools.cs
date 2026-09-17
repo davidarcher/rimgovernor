@@ -50,6 +50,7 @@ namespace HomeBridge.BridgeTools
         internal readonly Dictionary<Common.AttemptKey, NativeNamingRecord> Naming = new Dictionary<Common.AttemptKey, NativeNamingRecord>();
         internal readonly Dictionary<Common.AttemptKey, NativeBedAssignRecord> BedAssignments = new Dictionary<Common.AttemptKey, NativeBedAssignRecord>();
         internal readonly Dictionary<Common.AttemptKey, NativeExcavationRecord> Excavation = new Dictionary<Common.AttemptKey, NativeExcavationRecord>();
+        internal readonly Dictionary<Common.AttemptKey, NativeWallRemovalRecord> WallRemovals = new Dictionary<Common.AttemptKey, NativeWallRemovalRecord>();
         private NativeOperationState(Common.Identity identity)
         { colony = identity.ColonyId; load = identity.LoadToken; Ledger = new NativeAttemptLedger(identity); }
         internal static bool TryGet(Common.Identity identity, out NativeOperationState state)
@@ -79,7 +80,7 @@ namespace HomeBridge.BridgeTools
             Operations.ExecuteRequest parsed; Common.Failure failure;
             if (!ProtoBoundary.TryParse(ctx, "rimgovernor/operations_execute", request, Operations.ExecuteRequest.Parser, out parsed, out failure))
                 return ProtoBoundary.Encode(new Operations.ExecuteReply { Failure = failure });
-            return await ctx.MainThread.InvokeAsync<object>(() => ProtoBoundary.Encode(ExecuteNative(parsed)), cancellationToken).ConfigureAwait(false);
+            return await ProtoBoundary.OnMainThread(ctx, () => ProtoBoundary.Encode(ExecuteNative(parsed)), cancellationToken).ConfigureAwait(false);
         }
 
         internal static Operations.ExecuteReply ExecuteNative(Operations.ExecuteRequest request)
@@ -89,7 +90,7 @@ namespace HomeBridge.BridgeTools
                 || !ValidAttempt(precondition.Attempt))
                 return Refuse(Common.FailureCode.InvalidRequest, "A complete authority precondition and positive attempt are required.");
             Common.ObservationContext context; Common.Failure failure;
-            if (!ProtoBoundary.ValidateIdentity(precondition.Identity, Find.CurrentMap, out context, out failure))
+            if (!ProtoBoundary.ValidateIdentity(precondition.Identity, out context, out failure))
                 return new Operations.ExecuteReply { Failure = failure };
             if (request.Operation == null || request.Operation.CommandCase == Operations.Operation.CommandOneofCase.None)
                 return Refuse(Common.FailureCode.InvalidRequest, "An operation is required.");
@@ -161,6 +162,10 @@ namespace HomeBridge.BridgeTools
                 return NativeBedAssignOperations.Execute(state, request, context);
             if (request.Operation.CommandCase == Operations.Operation.CommandOneofCase.ExcavateCell)
                 return NativeExcavationOperations.Execute(state, request, context);
+            if (request.Operation.CommandCase == Operations.Operation.CommandOneofCase.RemoveWall)
+                return NativeWallRemovalOperations.Execute(state, request, context);
+            if (request.Operation.CommandCase == Operations.Operation.CommandOneofCase.ReleaseWallRemovals)
+                return NativeWallRemovalOperations.ExecuteRelease(state, request, context);
             if (request.Operation.CommandCase == Operations.Operation.CommandOneofCase.DeleteZone)
                 return NativeZoneDeletion.Execute(state, request, context);
             if (request.Operation.CommandCase == Operations.Operation.CommandOneofCase.EditZoneCells)
@@ -178,7 +183,7 @@ namespace HomeBridge.BridgeTools
             NativeConstructionPlan plan; RimGovernor.Protocol.Placement.PlacementEvaluated preview;
             try
             {
-                if (!NativeConstructionPlan.Prepare(Find.CurrentMap, request.Operation.PlaceBuilding.Placement, context, out plan, out preview, out failure))
+                if (!NativeConstructionPlan.Prepare(ProtoBoundary.ResolveMap(context), request.Operation.PlaceBuilding.Placement, context, out plan, out preview, out failure))
                     return new Operations.ExecuteReply { Failure = failure };
             }
             catch (Exception error) { return Refuse(Common.FailureCode.NativeFailure, "Construction validation failed: " + error.GetType().Name); }
@@ -223,10 +228,10 @@ namespace HomeBridge.BridgeTools
             Operations.PreviewRequest parsed; Common.Failure failure;
             if (!ProtoBoundary.TryParse(ctx, "rimgovernor/operations_preview", request, Operations.PreviewRequest.Parser, out parsed, out failure))
                 return ProtoBoundary.Encode(new Operations.PreviewReply { Failure = failure });
-            return await ctx.MainThread.InvokeAsync<object>(() =>
+            return await ProtoBoundary.OnMainThread(ctx, () =>
             {
                 Common.ObservationContext context; Common.Failure invalid;
-                if (!ProtoBoundary.ValidateIdentity(parsed.Identity, Find.CurrentMap, out context, out invalid))
+                if (!ProtoBoundary.ValidateIdentity(parsed.Identity, out context, out invalid))
                     return ProtoBoundary.Encode(new Operations.PreviewReply { Failure = invalid });
                 if (parsed.Operation?.CommandCase == Operations.Operation.CommandOneofCase.SetDrafted)
                     return ProtoBoundary.Encode(NativeDraftOperations.Preview(parsed.Operation.SetDrafted, context));
@@ -293,6 +298,10 @@ namespace HomeBridge.BridgeTools
                     return ProtoBoundary.Encode(NativeBedAssignOperations.Preview(parsed.Operation.AssignBed, context));
                 if (parsed.Operation?.CommandCase == Operations.Operation.CommandOneofCase.ExcavateCell)
                     return ProtoBoundary.Encode(NativeExcavationOperations.Preview(parsed.Operation.ExcavateCell, context));
+                if (parsed.Operation?.CommandCase == Operations.Operation.CommandOneofCase.RemoveWall)
+                    return ProtoBoundary.Encode(NativeWallRemovalOperations.Preview(parsed.Operation.RemoveWall, context));
+                if (parsed.Operation?.CommandCase == Operations.Operation.CommandOneofCase.ReleaseWallRemovals)
+                    return ProtoBoundary.Encode(NativeWallRemovalOperations.PreviewRelease(parsed.Operation.ReleaseWallRemovals, context));
                 if (parsed.Operation?.CommandCase == Operations.Operation.CommandOneofCase.DeleteZone)
                     return ProtoBoundary.Encode(NativeZoneDeletion.Preview(parsed.Operation.DeleteZone, context));
                 if (parsed.Operation?.CommandCase == Operations.Operation.CommandOneofCase.EditZoneCells)
@@ -300,7 +309,7 @@ namespace HomeBridge.BridgeTools
                 if (parsed.Operation == null || parsed.Operation.CommandCase != Operations.Operation.CommandOneofCase.PlaceBuilding)
                     return ProtoBoundary.Encode(new Operations.PreviewReply { Failure = ProtoBoundary.Fail(Common.FailureCode.Unsupported, "Preview implements PlaceBuilding, temporary SetDrafted, exact owned MovePawn and melee, direct-bullet or supported injury-only explosive AttackTarget.") });
                 NativeConstructionPlan plan; RimGovernor.Protocol.Placement.PlacementEvaluated preview;
-                var accepted = NativeConstructionPlan.Prepare(Find.CurrentMap, parsed.Operation.PlaceBuilding.Placement, context, out plan, out preview, out invalid);
+                var accepted = NativeConstructionPlan.Prepare(ProtoBoundary.ResolveMap(context), parsed.Operation.PlaceBuilding.Placement, context, out plan, out preview, out invalid);
                 if (preview == null) return ProtoBoundary.Encode(new Operations.PreviewReply { Failure = invalid });
                 return ProtoBoundary.Encode(NativeOperationEnvelope.Preview(new Operations.PreviewReply { Evaluated = new Operations.PreviewEvaluation
                 {
@@ -317,11 +326,11 @@ namespace HomeBridge.BridgeTools
             Receipts.LookupRequest parsed; Common.Failure failure;
             if (!ProtoBoundary.TryParse(ctx, "rimgovernor/receipts_lookup", request, Receipts.LookupRequest.Parser, out parsed, out failure))
                 return ProtoBoundary.Encode(new Receipts.LookupReply { Failure = failure });
-            return await ctx.MainThread.InvokeAsync<object>(() =>
+            return await ProtoBoundary.OnMainThread(ctx, () =>
             {
                 Common.ObservationContext context; Common.Failure invalid;
                 if (!ValidAttempt(parsed.Attempt)) return ProtoBoundary.Encode(new Receipts.LookupReply { Failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "A complete attempt is required.") });
-                if (!ProtoBoundary.ValidateIdentity(parsed.Identity, Find.CurrentMap, out context, out invalid))
+                if (!ProtoBoundary.ValidateIdentity(parsed.Identity, out context, out invalid))
                     return ProtoBoundary.Encode(new Receipts.LookupReply { Failure = invalid });
                 NativeOperationState state;
                 return ProtoBoundary.Encode(NativeOperationState.TryGet(context.Identity, out state)
@@ -338,11 +347,11 @@ namespace HomeBridge.BridgeTools
             Receipts.ProgressRequest parsed; Common.Failure failure;
             if (!ProtoBoundary.TryParse(ctx, "rimgovernor/receipts_observe_progress", request, Receipts.ProgressRequest.Parser, out parsed, out failure))
                 return ProtoBoundary.Encode(new Receipts.ProgressReply { Failure = failure });
-            return await ctx.MainThread.InvokeAsync<object>(() =>
+            return await ProtoBoundary.OnMainThread(ctx, () =>
             {
                 Common.ObservationContext context; Common.Failure invalid;
                 if (!ValidAttempt(parsed.Attempt)) return ProtoBoundary.Encode(new Receipts.ProgressReply { Failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "A complete attempt is required.") });
-                if (!ProtoBoundary.ValidateIdentity(parsed.Identity, Find.CurrentMap, out context, out invalid))
+                if (!ProtoBoundary.ValidateIdentity(parsed.Identity, out context, out invalid))
                     return ProtoBoundary.Encode(new Receipts.ProgressReply { Failure = invalid });
                 NativeOperationState state; NativeConstructionRecord record;
                 if (NativeOperationState.TryGet(context.Identity, out state))
@@ -437,6 +446,9 @@ namespace HomeBridge.BridgeTools
                     NativeExcavationRecord excavation;
                     if (state.Excavation.TryGetValue(parsed.Attempt, out excavation))
                         return ProtoBoundary.Encode(NativeOperationEnvelope.Progress(new Receipts.ProgressReply { Progress = excavation.Observe(parsed.Attempt, context) }));
+                    NativeWallRemovalRecord wallRemoval;
+                    if (state.WallRemovals.TryGetValue(parsed.Attempt, out wallRemoval))
+                        return ProtoBoundary.Encode(NativeOperationEnvelope.Progress(new Receipts.ProgressReply { Progress = wallRemoval.Observe(parsed.Attempt, context) }));
                     NativeZoneEditRecord zoneEdit;
                     if (state.ZoneEdits.TryGetValue(parsed.Attempt, out zoneEdit))
                         return ProtoBoundary.Encode(NativeOperationEnvelope.Progress(new Receipts.ProgressReply { Progress = zoneEdit.Observe(parsed.Attempt, context) }));
@@ -457,7 +469,7 @@ namespace HomeBridge.BridgeTools
             Operations.ReleaseOwnedDraftRequest parsed; Common.Failure failure;
             if (!ProtoBoundary.TryParse(ctx, "rimgovernor/operations_release_owned_draft", request, Operations.ReleaseOwnedDraftRequest.Parser, out parsed, out failure))
                 return ProtoBoundary.Encode(new Operations.ReleaseOwnedDraftReply { Failure = failure });
-            return await ctx.MainThread.InvokeAsync<object>(() => ProtoBoundary.Encode(NativeDraftOperations.Release(parsed)), cancellationToken).ConfigureAwait(false);
+            return await ProtoBoundary.OnMainThread(ctx, () => ProtoBoundary.Encode(NativeDraftOperations.Release(parsed)), cancellationToken).ConfigureAwait(false);
         }
 
         private static bool ValidAttempt(Common.AttemptKey value) => value != null && value.HasControllerSessionId

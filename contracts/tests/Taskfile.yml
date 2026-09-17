@@ -1,0 +1,21 @@
+# Native contract probes. Built without game inputs: the csproj gates the five
+# probes that reference Harmony, the game assemblies or the RimBridgeServer SDK,
+# and their real types conflict with the shared fake stubs when compiled in the
+# same build (see the gating comments in NativeContractProbes.csproj), so the
+# ungated set is the only configuration that compiles as one project.
+version: '3'
+
+vars:
+  REPO: '{{.TASKFILE_DIR}}/../..'
+  EVIDENCE: '{{.REPO}}/.rimgovernor/task/probes'
+
+tasks:
+  build:
+    desc: NativeContractProbes (ungated set) with warnings as errors and a locked restore
+    cmds:
+      - dotnet build NativeContractProbes.csproj -c Release -v minimal -nologo -p:RestoreLockedMode=true "-p:OutputPath={{.EVIDENCE}}/bin/" "-p:BaseIntermediateOutputPath={{.EVIDENCE}}/obj/"
+
+  test:
+    desc: No unit tests; probes are executables driven by the native acceptance harnesses
+    cmds:
+      - 'echo "probes test: no unit tests (probe executables are driven by go/internal/nativeaccept)"'

@@ -92,9 +92,9 @@ namespace HomeBridge.BridgeTools
         {
             if (!ProtoBoundary.TryParse(ctx, NativeWorldObservation.ToolName, request!, Obs.WorldRequest.Parser, out var parsed, out var failure)
                 || !Validate(parsed, out failure)) return ProtoBoundary.Encode(new Obs.WorldReply { Failure = failure });
-            return await ctx.MainThread.InvokeAsync<object>(() =>
+            return await ProtoBoundary.OnMainThread(ctx, () =>
             {
-                var map = Find.CurrentMap;
+                var map = ProtoBoundary.ResolveMap(parsed.Scope?.ExpectedIdentity!);
                 if (!ProtoBoundary.ValidateIdentity(parsed.Scope?.ExpectedIdentity!, map, out var context, out failure))
                     return ProtoBoundary.Encode(new Obs.WorldReply { Failure = failure });
                 try

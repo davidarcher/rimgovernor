@@ -43,6 +43,8 @@ func run(r io.Reader, w io.Writer, max time.Duration) int {
 	}
 	var slowTests []slow
 	var keyOrder []testKey
+	passed := 0
+	slowest := slow{}
 	output := map[testKey][]string{}
 	failedKey := map[testKey]bool{}
 	failedPackage := map[string]bool{}
@@ -76,6 +78,10 @@ func run(r io.Reader, w io.Writer, max time.Duration) int {
 				continue
 			}
 			elapsed := time.Duration(e.Elapsed * float64(time.Second))
+			passed++
+			if elapsed > slowest.elapsed {
+				slowest = slow{name: e.Package + "." + e.Test, elapsed: elapsed}
+			}
 			if elapsed > max {
 				slowTests = append(slowTests, slow{name: e.Package + "." + e.Test, elapsed: elapsed})
 			}
@@ -121,5 +127,6 @@ func run(r io.Reader, w io.Writer, max time.Duration) int {
 	if failed || len(slowTests) > 0 {
 		return 1
 	}
+	fmt.Fprintf(w, "checktesttimes: %d tests passed within the %s budget; slowest %s took %s\n", passed, max, slowest.name, slowest.elapsed.Round(time.Millisecond))
 	return 0
 }

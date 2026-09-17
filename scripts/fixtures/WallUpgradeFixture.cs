@@ -37,6 +37,27 @@ namespace HomeBridge.BridgeTools
                 foreach (var project in projects) if (!project.IsFinished) Find.ResearchManager.FinishProject(project, false);
                 return new { success = projects.All(p => p.IsFinished), projects = projects.Select(p => p.defName).ToList() };
             }, cancellationToken).ConfigureAwait(false);
+        [Tool("test/stone_walls_spawn", Description = "UNSAFE FOR MODEL EXECUTION. Private disposable fixture: stand finished player stone Walls of one stuff at exact empty cells (\"x,z;x,z\"), standing in for completed backup or permanent walls so guarded demolition can be exercised without construction time.")]
+        public async Task<object> SpawnWalls(IRimBridgeContext ctx, CancellationToken cancellationToken, string cells, string stuff)
+            => await ctx.MainThread.InvokeAsync<object>(() => {
+                var map = Find.CurrentMap; var def = DefDatabase<ThingDef>.GetNamedSilentFail(stuff ?? "");
+                if (map == null || def?.stuffProps?.categories?.Contains(StuffCategoryDefOf.Stony) != true || !GenStuff.AllowedStuffsFor(ThingDefOf.Wall).Contains(def))
+                    return new { success = false, error = "A current map and a stony Wall stuff are required" };
+                var targets = (cells ?? "").Split(new[] { ';' }, StringSplitOptions.RemoveEmptyEntries).Select(pair => pair.Split(',')).ToList();
+                if (targets.Count == 0 || targets.Count > 8 || targets.Any(p => p.Length != 2)) return new { success = false, error = "Expected 1..8 x,z cells" };
+                var parsed = targets.Select(p => new IntVec3(int.Parse(p[0]), 0, int.Parse(p[1]))).ToList();
+                if (parsed.Any(c => !c.InBounds(map) || c.GetEdifice(map) != null || c.GetThingList(map).Any(t => t is Building || t is Blueprint || t is Frame)))
+                    return new { success = false, error = "Every cell must be in bounds and free of buildings" };
+                var ids = new System.Collections.Generic.List<string>();
+                foreach (var cell in parsed) {
+                    foreach (var thing in cell.GetThingList(map).Where(t => t is Plant || t.def.category == ThingCategory.Item).ToList()) thing.Destroy();
+                    var wall = ThingMaker.MakeThing(ThingDefOf.Wall, def);
+                    wall.SetFaction(Faction.OfPlayer);
+                    GenSpawn.Spawn(wall, cell, map);
+                    ids.Add(wall.GetUniqueLoadID());
+                }
+                return new { success = true, walls = ids, stuff = def.defName };
+            }, cancellationToken).ConfigureAwait(false);
         [Tool("test/stone_upgrade_setup", Description = "Prepare empty exterior backup cells, stone chunks and enabled workers beside a disposable controller-built room. No blocks, workbench, bill or demolition are created.")]
         public async Task<object> Setup(IRimBridgeContext ctx, CancellationToken cancellationToken, string walls, bool corner = false)
             => await ctx.MainThread.InvokeAsync<object>(() => {

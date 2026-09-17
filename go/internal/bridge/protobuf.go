@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"io"
 	"strings"
+	"time"
 	"unicode/utf8"
 
 	a "github.com/davidarcher/RimGovernor/go/internal/wire/authoritypb"
@@ -25,6 +26,19 @@ import (
 )
 
 const maxProtoBytes = 1 << 20
+
+// maxMediaProtoBytes bounds the dedicated media ProtoJSON envelope: a raw
+// 3840x2160 RGBA32 frame base64-encoded is ~42 MiB (presentation.proto,
+// MediaFrame.data). Only the media methods below decode against it.
+const maxMediaProtoBytes = 48 << 20
+
+func payloadLimit(name string) int {
+	switch name {
+	case "rimgovernor/presentation_read_frame", "rimgovernor/presentation_capture_pawn":
+		return maxMediaProtoBytes
+	}
+	return maxProtoBytes
+}
 
 var ErrUnavailable = errors.New("native observation unavailable")
 
@@ -162,15 +176,94 @@ func (caller *Client) PlacementPreviews(ctx context.Context, request *p.Placemen
 	}
 	return reply, raw, err
 }
-func (caller *Client) protoRead(ctx context.Context, name string, request, reply proto.Message) (Result, error) {
+
+// nativeReadMethod reports whether name is a reviewed read: a method with no
+// game-state side effect. Everything else protoCall admits is a write.
+func nativeReadMethod(name string) bool {
 	switch name {
 	case "rimgovernor/observations_list_supplies", "rimgovernor/observations_read_colony_facts", "rimgovernor/observations_list_buildings", "rimgovernor/observations_list_rooms", "rimgovernor/observations_read_research", "rimgovernor/observations_list_wall_upgrade_sites", "rimgovernor/observations_list_zones", "rimgovernor/observations_read_defense_site", "rimgovernor/observations_read_lines_of_fire", "rimgovernor/observations_read_spatial_access":
 	case "rimgovernor/presentation_camera", "rimgovernor/presentation_selection", "rimgovernor/presentation_colonists", "rimgovernor/presentation_notifications", "rimgovernor/presentation_render_state":
 	case "rimgovernor/clock_read_events", "rimgovernor/clock_read_status", "rimgovernor/clock_read_attempt", "rimgovernor/operations_preview", "rimgovernor/observations_list_pawns", "rimgovernor/observations_get_cells", "rimgovernor/lifecycle_read_identity", "rimgovernor/observations_read_status", "rimgovernor/placement_preview", "rimgovernor/authority_read_status", "rimgovernor/receipts_lookup", "rimgovernor/receipts_observe_progress", "rimgovernor/observations_read_caravan_catalog", "rimgovernor/observations_read_world_progression", "rimgovernor/observations_read_world", "rimgovernor/observations_read_bills", "rimgovernor/observations_read_recipes", "rimgovernor/observations_list_resource_sources", "rimgovernor/observations_read_production_policy", "rimgovernor/observations_read_population", "rimgovernor/observations_read_trade_sheet", "rimgovernor/observations_read_excavation_site":
 	default:
+		return false
+	}
+	return true
+}
+
+func (caller *Client) protoRead(ctx context.Context, name string, request, reply proto.Message) (Result, error) {
+	if !nativeReadMethod(name) {
 		return Result{}, contract("unreviewed native read")
 	}
-	return caller.protoCall(ctx, name, request, reply)
+	cache := StepReadCacheFrom(ctx)
+	if cache == nil || !cacheableRead(name) {
+		return caller.protoCall(ctx, name, request, reply)
+	}
+	return caller.cachedRead(ctx, cache, name, request, reply)
+}
+
+// cachedRead serves a pure observation read through the step's cache: the
+// first caller of a (method, request) pair reads natively and stores the
+// reply; identical reads in the same step, concurrent or later, decode the
+// stored bytes instead of crossing the bridge. A stored reply is decoded
+// into the caller's own message so validation downstream is unchanged.
+func (caller *Client) cachedRead(ctx context.Context, cache *StepReadCache, name string, request, reply proto.Message) (Result, error) {
+	encoded, err := proto.MarshalOptions{Deterministic: true}.Marshal(request)
+	if err != nil {
+		return Result{}, contract("request encoding: %v", err)
+	}
+	key := readCacheKey{method: name, request: string(encoded)}
+	entry, leader := cache.acquire(key)
+	if !leader {
+		var payload []byte
+		var result Result
+		var ok bool
+		select {
+		case <-entry.done:
+			payload, result, ok = entry.payload, entry.result, entry.ok
+			if ok {
+				cache.hit()
+			}
+		default:
+			payload, result, ok, err = cache.wait(ctx, entry)
+			if err != nil {
+				return Result{}, err
+			}
+		}
+		if ok {
+			if err = proto.Unmarshal(payload, reply); err == nil {
+				caller.recordCacheHit(ctx, name)
+				return result, nil
+			}
+		}
+		// The leader failed or its reply was uncacheable: read natively.
+		return caller.protoCall(ctx, name, request, reply)
+	}
+	result, err := caller.protoCall(ctx, name, request, reply)
+	if err != nil {
+		cache.complete(key, entry, nil, nil, Result{})
+		return result, err
+	}
+	scope, ok := replyScope(reply)
+	if !ok {
+		cache.complete(key, entry, nil, nil, Result{})
+		return result, nil
+	}
+	payload, err := proto.Marshal(reply)
+	if err != nil {
+		cache.complete(key, entry, nil, nil, Result{})
+		return result, nil
+	}
+	cache.complete(key, entry, &scope, payload, result)
+	return result, nil
+}
+
+// recordCacheHit leaves a native_cache_hit row so the phases sampler can
+// show how many reads of each method the step cache absorbed.
+func (caller *Client) recordCacheHit(ctx context.Context, name string) {
+	if caller.recorder == nil {
+		return
+	}
+	caller.recorder.Event("native_cache_hit", caller.snapshotRecordingContext(ctx), false, map[string]any{"tool": "games_call_tool", "native_tool": name})
 }
 
 // video and frame-acknowledge RPCs are active mutations (lease state, capture
@@ -186,6 +279,14 @@ func (caller *Client) protoCall(ctx context.Context, name string, request, reply
 	default:
 		return Result{}, contract("unreviewed native method")
 	}
+	// A write through a cached step context discards the step's memoized
+	// observations, both before it is issued and once it has landed, so a
+	// read in flight across the write is never served afterwards.
+	cache := StepReadCacheFrom(ctx)
+	if cache != nil && !nativeReadMethod(name) {
+		cache.Invalidate()
+		defer cache.Invalidate()
+	}
 	inner, err := protojson.Marshal(request)
 	if err != nil {
 		return Result{}, contract("request encoding: %v", err)
@@ -197,29 +298,41 @@ func (caller *Client) protoCall(ctx context.Context, name string, request, reply
 		Request string `json:"request"`
 	}{string(inner)})
 	invoked := false
+	var recordCtx map[string]any
+	var requestRow uint64
 	result, err := caller.operation(ctx, func(ctx context.Context, live *liveSession) (Result, error) {
-		detail, err := caller.describe(ctx, live, name)
-		if err != nil {
-			return detail, fmt.Errorf("describe %s: %w", name, err)
-		}
-		if err = validateOwnedStringInput(detail.Structured, "request"); err != nil {
-			return Result{}, fmt.Errorf("describe %s: %w", name, err)
+		if detail, err := caller.ensureDescribed(ctx, live, name); err != nil {
+			return detail, err
 		}
 		invoked = true
-		return caller.core(ctx, live, "games_call_tool", encode(nativeArgument{caller.gameID, name, args}))
+		if caller.recorder != nil {
+			recordCtx = caller.snapshotRecordingContext(ctx)
+		}
+		result, err := caller.core(ctx, live, "games_call_tool", encode(nativeArgument{caller.gameID, name, args}))
+		if timing := callTimingFrom(ctx); timing != nil {
+			requestRow = timing.request
+		}
+		return result, err
 	})
 	callErr := err
 	if err != nil && (!errors.Is(err, ErrRefused) || !invoked) {
 		return result, err
 	}
-	payload, err := decodePayload(result.Structured)
+	decodeBegan := time.Now()
+	payload, err := decodePayload(result.Structured, payloadLimit(name))
 	if err != nil {
 		if callErr != nil {
 			return result, callErr
 		}
 		return result, err
 	}
-	if err = (protojson.UnmarshalOptions{DiscardUnknown: false, RecursionLimit: 64}).Unmarshal(payload, reply); err != nil {
+	err = (protojson.UnmarshalOptions{DiscardUnknown: false, RecursionLimit: 64}).Unmarshal(payload, reply)
+	if caller.recorder != nil && invoked {
+		// ProtoJSON decoding is the typed adapter's own cost, after the raw
+		// receipt row; it is correlated to that row by request sequence.
+		caller.recorder.Event("native_decode", recordCtx, false, map[string]any{"request": requestRow, "native_tool": name, "proto_decode_ms": millis(time.Since(decodeBegan)), "payload_bytes": len(payload), "ok": err == nil})
+	}
+	if err != nil {
 		if callErr != nil {
 			return result, callErr
 		}
@@ -297,7 +410,34 @@ func (caller *Client) protoCall(ctx context.Context, name string, request, reply
 	}
 	return result, nil
 }
-func decodePayload(raw []byte) ([]byte, error) {
+
+// ensureDescribed validates the method's owned string-wrapper input schema
+// once per live session (liveSession.described). A failed describe is never
+// remembered, so the next call retries it.
+func (caller *Client) ensureDescribed(ctx context.Context, live *liveSession, name string) (Result, error) {
+	live.describeMu.Lock()
+	known := live.described[name]
+	live.describeMu.Unlock()
+	if known {
+		return Result{}, nil
+	}
+	detail, err := caller.describe(ctx, live, name)
+	if err != nil {
+		return detail, fmt.Errorf("describe %s: %w", name, err)
+	}
+	if err = validateOwnedStringInput(detail.Structured, "request"); err != nil {
+		return Result{}, fmt.Errorf("describe %s: %w", name, err)
+	}
+	live.describeMu.Lock()
+	if live.described == nil {
+		live.described = map[string]bool{}
+	}
+	live.described[name] = true
+	live.describeMu.Unlock()
+	return Result{}, nil
+}
+
+func decodePayload(raw []byte, limit int) ([]byte, error) {
 	if len(raw) == 0 || len(raw) > maxResponseBytes {
 		return nil, contract("invalid wrapper size")
 	}
@@ -319,7 +459,7 @@ func decodePayload(raw []byte) ([]byte, error) {
 		if _, ok = fields[key]; ok {
 			return nil, contract("duplicate wrapper key")
 		}
-		if key != "payload" && key != "operation" {
+		if key != "payload" && key != "operation" && key != "timing" {
 			return nil, contract("unknown wrapper field %s", key)
 		}
 		var value json.RawMessage
@@ -342,7 +482,7 @@ func decodePayload(raw []byte) ([]byte, error) {
 	if err = protojson.Unmarshal(value, text); err != nil {
 		return nil, contract("invalid payload string")
 	}
-	if len(text.Value) > maxProtoBytes {
+	if len(text.Value) > limit {
 		return nil, contract("oversized payload")
 	}
 	return []byte(text.Value), nil

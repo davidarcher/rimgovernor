@@ -8,9 +8,13 @@ explicitly; use the repository Go version from `go/.go-version` (currently 1.27.
 From the repository root:
 
 ```text
-python scripts/generate_protobuf_go.py --protoc <official-protoc> --output .rimgovernor/go-protobuf-generate-01
-python scripts/generate_protobuf_go.py --protoc <official-protoc> --output .rimgovernor/go-protobuf-check-01 --check
+go -C go run ./internal/protobufgen/cmd/generatego --protoc <official-protoc> --output .rimgovernor/go-protobuf-generate-01
+go -C go run ./internal/protobufgen/cmd/generatego --protoc <official-protoc> --output .rimgovernor/go-protobuf-check-01 --check
 ```
+
+The wrapper is a stdlib-only Go program under the repository Go module. It
+locates the repository root by walking up from the working directory (`--root`
+overrides) and resolves relative paths there.
 
 `--go` selects an explicit Go executable. `--proto-root` selects a coordinated
 schema snapshot; it defaults to the canonical directory. Every artifact directory
@@ -20,7 +24,10 @@ vets the generated module, and verifies downloaded module checksums. It does not
 interpret schemas or emit Go source. Generation owns only `*.pb.go` beneath the
 wire module; module metadata remains explicitly maintained. `--check` compares the
 complete owned file set without changing it, allowing checkout line-ending differences.
-Network access to Go module distribution is required for a fresh private cache.
+Network access to Go module distribution is required for a fresh private cache;
+`--modcache <directory>` points the private cache at a reusable directory
+(`task protobuf:build` keeps one under `.rimgovernor/task/protobuf/gomodcache`) so
+repeated local runs do not download the pinned modules again.
 
 The wire module is `github.com/davidarcher/RimGovernor/go/internal/wire`, located at
 `contracts/generated/protobuf/go`. This matches existing schema `go_package`
@@ -64,8 +71,9 @@ Official sources: [Go release](https://github.com/protocolbuffers/protobuf-go/re
 
 ## Full-package serialization shapes
 
-The proof emits `manifest.tsv` with `id`, `message`, `json`, `binary` tab-separated
-columns and a separate `coverage.json`. Generated test fixtures exercise every
+The proof emits `manifest.tsv` with `id`, `message`, `protojson`, `binary-base64`
+tab-separated columns (each shape's ProtoJSON and base64 binary inline, one row per
+shape, no per-shape files) and a separate `coverage.json`. Generated shapes exercise every
 registered canonical message, each real oneof arm, enum values, and absent versus
 present defaults; message nesting is bounded to three levels. Go cases use stable
 sorted `go-shape-*` IDs. These shapes test serialization only and intentionally

@@ -59,7 +59,7 @@ namespace HomeBridge.BridgeTools
                 if(!(ranged?NativeRangedCausality.IsReady:NativeCombatCausality.IsReady)
                     || requireJob && (job.loadID!=jobId || job.def?.defName!=jobDef || !ReferenceEquals(job.targetA.Thing,target)
                         || ranged && (!ReferenceEquals(job.verbToUse,attackVerb) || !ReferenceEquals(pawn.equipment?.PrimaryEq?.PrimaryVerb,attackVerb)))
-                    || Current.Game!=identity.Game || Find.CurrentMap!=identity.Map
+                    || Current.Game!=identity.Game || !ProtoBoundary.IsLoaded(identity.Map)
                     || !authority.Check(precondition.ExpectedGeneration).Success
                     || NativePawnControlState.Observe(identity,pawn,out var snapshot)!=NativePawnControlResult.Ready || snapshot==null
                     || !snapshot.Eligible || !snapshot.Drafted || snapshot.Claim?.ClaimId!=before.Claim!.ClaimId
@@ -165,12 +165,12 @@ namespace HomeBridge.BridgeTools
         private static bool Resolve(Operations.AttackTarget command,Common.ObservationContext context,out NativeControlIdentity identity,
             out Pawn? pawn,out Pawn? target,out NativePawnSnapshot? snapshot,out JobDef? definition,out Verb? verb,out Common.Failure failure)
         {
-            identity=new NativeControlIdentity(Current.Game,Find.CurrentMap,context.Identity.ColonyId,context.Identity.LoadToken);
+            identity=new NativeControlIdentity(Current.Game,ProtoBoundary.ResolveMap(context),context.Identity.ColonyId,context.Identity.LoadToken);
             pawn=null;target=null;snapshot=null;definition=null;verb=null;
             failure=ProtoBoundary.Fail(Common.FailureCode.Unavailable,"Live canonical pawn snapshot and combat attribution hooks are required.");
             if(!NativePawnControlState.IsReady)return false;
-            pawn=Find.CurrentMap.mapPawns.AllPawnsSpawned.SingleOrDefault(p=>p.GetUniqueLoadID()==command.Pawn.EntityId);
-            target=Find.CurrentMap.mapPawns.AllPawnsSpawned.SingleOrDefault(p=>p.GetUniqueLoadID()==command.Target.EntityId);
+            pawn=ProtoBoundary.ResolveMap(context).mapPawns.AllPawnsSpawned.SingleOrDefault(p=>p.GetUniqueLoadID()==command.Pawn.EntityId);
+            target=ProtoBoundary.ResolveMap(context).mapPawns.AllPawnsSpawned.SingleOrDefault(p=>p.GetUniqueLoadID()==command.Target.EntityId);
             if(pawn==null){failure=ProtoBoundary.Fail(Common.FailureCode.NotFound,"Exact attacker is not spawned on this map.");return false;}
             if(target==null){failure=ProtoBoundary.Fail(Common.FailureCode.Unsupported,"This attack adapter requires a spawned pawn target with canonical pawn CAS.");return false;}
             bool ranged=Ranged(command,pawn);

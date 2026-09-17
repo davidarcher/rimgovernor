@@ -65,6 +65,12 @@ type RunConfig struct {
 	Goal     policy.GoalID
 	Until    func(sample map[string]any) bool
 	Audit    func(ctx context.Context, h *na.Harness, report na.Report) error
+	// Reuse, when set, runs this variant as one case of an already-launched
+	// game (issue #22): the save is loaded through Reuse.BeginCase into the
+	// running process instead of a fresh games_start, and the run ends with
+	// Reuse.EndCase instead of games_stop. The caller owns the lifecycle and
+	// its final Retire. Root/GameID/Headless must match Reuse.Config.
+	Reuse *na.GameReuse
 }
 
 // Run executes exactly one variant: it must be called with a fresh, empty
@@ -72,7 +78,19 @@ type RunConfig struct {
 // matching every other native acceptance binary's convention; the timeline
 // samples are also returned directly so a caller (sustainedmatrixaccept) can
 // derive cross-variant metrics without re-reading result.json.
-func Run(ctx context.Context, cfg RunConfig, report na.Report) ([]map[string]any, error) {
+func Run(ctx context.Context, cfg RunConfig, report na.Report) (timeline []map[string]any, err error) {
+	// A reuse case that fails anywhere below retires the shared game; a
+	// successful one is verified quiescent by EndCase. This defer runs after
+	// the service's own deferred stop, so the GABP slot is free again.
+	var reuseCase *na.ReuseCase
+	defer func() {
+		if reuseCase == nil {
+			return
+		}
+		if endErr := cfg.Reuse.EndCase(ctx, reuseCase, err != nil); endErr != nil && err == nil {
+			err = endErr
+		}
+	}()
 	root, output := cfg.Root, cfg.Output
 	if abs, err := filepath.Abs(root); err == nil {
 		root = abs
@@ -85,6 +103,10 @@ func Run(ctx context.Context, cfg RunConfig, report na.Report) ([]map[string]any
 		prefix = "sustained-food"
 	}
 	naCfg := &na.Config{Root: root, Output: output, Headless: cfg.Headless, GameID: cfg.GameID}
+	// The save carries its own expansion list; a Core-only profile would refuse it.
+	if err := naCfg.UseSaveExpansions(cfg.Save); err != nil {
+		return nil, fmt.Errorf("prepare profile: %w", err)
+	}
 	if err := naCfg.PrepareConfig(); err != nil {
 		return nil, fmt.Errorf("prepare profile: %w", err)
 	}
@@ -123,18 +145,28 @@ func Run(ctx context.Context, cfg RunConfig, report na.Report) ([]map[string]any
 		}
 	}
 
-	client, h, err := openHarness()
-	if err != nil {
-		return nil, err
-	}
-
-	if _, err := h.Call(ctx, "load-save", "rimworld/load_game_ready", map[string]any{
-		"saveName": cfg.Save, "readiness": "visual", "timeoutMs": 90000, "ignoreModCompatibility": false,
-	}); err != nil {
-		return nil, err
-	}
-	if _, err := h.Call(ctx, "pause", "rimworld/set_time_speed", map[string]any{"speed": "Paused", "ultraSpeedBoost": false}); err != nil {
-		return nil, err
+	var client *bridge.Client
+	var h *na.Harness
+	if cfg.Reuse != nil {
+		reuseCase, err = cfg.Reuse.BeginCase(ctx, filepath.Base(output), cfg.Save, output)
+		if err != nil {
+			return nil, err
+		}
+		h = reuseCase.Harness
+		report["reuse_case"] = map[string]any{"loadToken": reuseCase.Reset.LoadToken, "tick": reuseCase.Reset.Tick}
+	} else {
+		client, h, err = openHarness()
+		if err != nil {
+			return nil, err
+		}
+		if _, err := h.Call(ctx, "load-save", "rimworld/load_game_ready", map[string]any{
+			"saveName": cfg.Save, "readiness": "visual", "timeoutMs": 90000, "ignoreModCompatibility": false,
+		}); err != nil {
+			return nil, err
+		}
+		if _, err := h.Call(ctx, "pause", "rimworld/set_time_speed", map[string]any{"speed": "Paused", "ultraSpeedBoost": false}); err != nil {
+			return nil, err
+		}
 	}
 
 	// A fresh load can leave the initial faction/settlement naming dialog
@@ -182,7 +214,11 @@ func Run(ctx context.Context, cfg RunConfig, report na.Report) ([]map[string]any
 
 	// Free the sole GABP slot before the service starts its own bridge
 	// session; this does NOT call games_stop, so the loaded save survives.
-	if err := client.Close(); err != nil {
+	if reuseCase != nil {
+		if err := cfg.Reuse.ReleaseSession(); err != nil {
+			return nil, fmt.Errorf("release reuse bridge session: %w", err)
+		}
+	} else if err := client.Close(); err != nil {
 		return nil, fmt.Errorf("close fixture-prep bridge session: %w", err)
 	}
 
@@ -434,7 +470,6 @@ func Run(ctx context.Context, cfg RunConfig, report na.Report) ([]map[string]any
 	// (report["timeline"]); "events" additionally isolates the moments that
 	// actually changed (a method count change or a Need transition) so the
 	// failure mode is readable without wading through every sample.
-	var timeline []map[string]any
 	var events []map[string]any
 	lastMethodCount := -1
 	lastNeed := domain.NeedState("")
@@ -473,27 +508,35 @@ func Run(ctx context.Context, cfg RunConfig, report na.Report) ([]map[string]any
 
 	verifyStore.Close()
 	stopService()
-	var finalClient *bridge.Client
-	reopenDeadline := time.Now().Add(30 * time.Second)
-	for {
-		finalClient, _, err = openHarness()
-		if err == nil {
-			break
+	var finalHarness *na.Harness
+	if reuseCase != nil {
+		finalHarness, err = cfg.Reuse.Session(ctx)
+		if err != nil {
+			return timeline, err
 		}
-		if time.Now().After(reopenDeadline) {
-			return timeline, fmt.Errorf("reopen bridge session for final games_stop: %w", err)
+	} else {
+		var finalClient *bridge.Client
+		reopenDeadline := time.Now().Add(30 * time.Second)
+		for {
+			finalClient, finalHarness, err = openHarness()
+			if err == nil {
+				break
+			}
+			if time.Now().After(reopenDeadline) {
+				return timeline, fmt.Errorf("reopen bridge session for final games_stop: %w", err)
+			}
+			select {
+			case <-ctx.Done():
+				return timeline, ctx.Err()
+			case <-time.After(time.Second):
+			}
 		}
-		select {
-		case <-ctx.Done():
-			return timeline, ctx.Err()
-		case <-time.After(time.Second):
-		}
+		// Deferred LIFO: stop the game while the session is still open, then close.
+		defer finalClient.Close()
+		defer stopGame(finalClient)
 	}
-	// Deferred LIFO: stop the game while the session is still open, then close.
-	defer finalClient.Close()
-	defer stopGame(finalClient)
 	if cfg.Audit != nil {
-		if err := cfg.Audit(ctx, na.NewHarness(finalClient, output), report); err != nil {
+		if err := cfg.Audit(ctx, finalHarness, report); err != nil {
 			return timeline, err
 		}
 	}

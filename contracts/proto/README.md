@@ -84,6 +84,12 @@ expiry uses monotonic real time rather than game ticks.
 
 External `Control.Revoke` requests permit only `MANUAL`, `PLAYER_DIRECTION`,
 `DISCONNECT`, and `SHUTDOWN`; other revocation reasons originate in native events.
+Native also raises `DISCONNECT` when a typed clock lease lapses and `SHUTDOWN`
+when the game ends in an orderly way (process exit, or a game unload such as
+quit-to-menu or loading another save) while authority is Active. An ended
+game's final authority stays readable: `authority_read_status` for its exact
+identity answers `Inactive` with that final reason, generation and tick until
+another game is loaded, after which the identity is stale as usual.
 A successful acquire or explicit revoke increments the expected generation by
 exactly one, including revoking an already inactive authority. Renewal preserves
 the generation, lease ID, session and original player direction. Overflow fails

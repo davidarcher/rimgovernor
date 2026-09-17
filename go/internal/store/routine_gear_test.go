@@ -46,9 +46,9 @@ func TestRoutineGearNeedsPersistUnknownRecoveryRenewalAndManual(t *testing.T) {
 	}
 	r.Enabled = false
 	reviewRoutine(t, db, &r)
-	invalidated, err := db.LoadGoal(context.Background(), g.Goal.ID)
-	if err != nil || invalidated.Goal.Status != domain.GoalInvalidated {
-		t.Fatal("Manual retained active equipment need", invalidated, err)
+	suspended, err := db.LoadGoal(context.Background(), g.Goal.ID)
+	if err != nil || suspended.Goal.Status != domain.GoalSuspended {
+		t.Fatal("Manual left the equipment need active", suspended, err)
 	}
 	db.Close()
 	db = open(t, path)

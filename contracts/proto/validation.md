@@ -16,7 +16,7 @@ requires recursive unknown-field rejection. Current MCP uses ProtoJSON.
 
 | Value | Required presence and bounds |
 | --- | --- |
-| Identity | colony_id, load_token, map_id; map>=0 including0. |
+| Identity | colony_id, load_token, map_id; map>=0 including0. map_id names which loaded map a read or operation is scoped to; it need not be the viewed map. A complete identity whose map is no longer loaded is STALE_IDENTITY with the viewed map's context as observed_context. Presentation state that lives on the viewed map (selection, camera, capture, watches) additionally requires map_id to be the viewed map, else STALE_IDENTITY with the viewed context. Authority is granted for the viewed map: a view change invalidates it as IDENTITY_CHANGED, one generation per change. |
 | ObservationContext | identity and nonnegative int64 tick; positive native_generation whenever authority is available. |
 | Owner | nonblank controller_session_id and positive uint64 player_direction. |
 | AttemptKey | controller_session_id, action_id and positive uint64 attempt_id. |

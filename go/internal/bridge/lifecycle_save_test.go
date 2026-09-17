@@ -14,7 +14,7 @@ import (
 
 func pbSaveRequest() *l.SaveRequest {
 	return &l.SaveRequest{
-		Player: &l.PlayerLifecycleContext{Identity: pbIdentity(), PlayerDirection: proto.Uint64(7), RequestId: proto.String("req-1")},
+		Player:   &l.PlayerLifecycleContext{Identity: pbIdentity(), PlayerDirection: proto.Uint64(7), RequestId: proto.String("req-1")},
 		SaveName: proto.String("checkpoint-1"),
 	}
 }
@@ -78,8 +78,10 @@ func TestSaveRejectsMalformedRequestBeforeDispatch(t *testing.T) {
 
 func TestSaveRejectsIncompleteOrMismatchedCompleted(t *testing.T) {
 	for name, change := range map[string]func(*l.SaveReply, *l.SaveRequest){
-		"missing context":     func(r *l.SaveReply, _ *l.SaveRequest) { r.GetCompleted().Context = nil },
-		"identity mismatch":   func(r *l.SaveReply, _ *l.SaveRequest) { r.GetCompleted().Context.Identity.LoadToken = proto.String("other") },
+		"missing context": func(r *l.SaveReply, _ *l.SaveRequest) { r.GetCompleted().Context = nil },
+		"identity mismatch": func(r *l.SaveReply, _ *l.SaveRequest) {
+			r.GetCompleted().Context.Identity.LoadToken = proto.String("other")
+		},
 		"not paused":          func(r *l.SaveReply, _ *l.SaveRequest) { r.GetCompleted().Paused = proto.Bool(false) },
 		"missing paused":      func(r *l.SaveReply, _ *l.SaveRequest) { r.GetCompleted().Paused = nil },
 		"request id mismatch": func(r *l.SaveReply, _ *l.SaveRequest) { r.GetCompleted().RequestId = proto.String("other") },

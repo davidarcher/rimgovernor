@@ -485,3 +485,110 @@ func TestRoutineExcavationResumedProjectStillOwesDoor(t *testing.T) {
 		t.Fatal(previous, err)
 	}
 }
+
+func TestRoutineExcavationDispatchedStageSurvivesPauseAndResume(t *testing.T) {
+	t.Parallel()
+	// Stage 0 was designated natively (dispatched, receipt accepted) when a
+	// letter pause revoked authority and the keep-alive resumed under a new
+	// native generation. The goal is suspended, not invalidated: the same
+	// goal resumes, waits for the pawns to finish the designated cells, and
+	// then plans stage 1 under the same target.
+	r, db, x := excavationFixture(t)
+	ctx := context.Background()
+	result, err := r.Step(ctx)
+	if err != nil || result.Reason != BuildingMethodAdmitted {
+		t.Fatal(result, err)
+	}
+	goalID := result.Decision.Goal.Goal.ID
+	planID := methodPlan(t, result.Decision, excavationStageMethod(0))
+	plan, err := db.LoadPlan(ctx, planID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	dispatched := result.Decision.Goal.Goal.Snapshot
+	dispatched.Plan, dispatched.Revision = plan.Spec.ID(), plan.Spec.Revision()
+	for _, action := range plan.Spec.Actions() {
+		excavation, _ := action.Excavation()
+		if _, err := db.PrepareExcavation(ctx, planID, action.ID(), store.ExcavationAdmission{Snapshot: dispatched, Tick: 7, Cell: excavation.Cell(), Definition: excavation.Definition(), SnapshotToken: "tok-" + excavation.Definition()}); err != nil {
+			t.Fatal(err)
+		}
+		if _, err := db.Dispatch(ctx, planID, action.ID(), dispatched, 7); err != nil {
+			t.Fatal(err)
+		}
+		if _, err := db.RecordReceipt(ctx, planID, action.ID(), 1, domain.ReceiptAccepted); err != nil {
+			t.Fatal(err)
+		}
+	}
+	player := r.reviewer.player
+	session := player.session.(*playerFakeSession)
+	world := playerWorld(session.State().Snapshot)
+	if _, err := player.Pause(ctx, store.ControlRequest{RequestID: "letter-pause", Kind: store.PauseControl, World: world}); err != nil {
+		t.Fatal(err)
+	}
+	paused, err := db.LoadGoal(ctx, goalID)
+	if err != nil || paused.Goal.Status != domain.GoalSuspended {
+		t.Fatal("pause did not suspend the goal", paused, err)
+	}
+	plan, err = db.LoadPlan(ctx, planID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, p := range plan.Progress {
+		if p.View().Stage != domain.AwaitingObservation {
+			t.Fatal("pause cancelled dispatched work", p.View())
+		}
+	}
+	if next, err := r.Step(ctx); err != nil || next.Reason != BuildingMethodDisabled {
+		t.Fatal(next, err)
+	}
+	// The resume is a fresh native grant: the generation moves on.
+	session.acquire = func(_ context.Context, requested domain.GenerationSnapshot) (domain.GenerationSnapshot, error) {
+		requested.Native = 2
+		return requested, nil
+	}
+	if _, err := player.Resume(ctx, store.ControlRequest{RequestID: "keep-alive-resume", Kind: store.ResumeControl, World: world}); err != nil {
+		t.Fatal(err)
+	}
+	resumed := session.State().Snapshot
+	if resumed.Native != 2 || !session.State().Enabled {
+		t.Fatal(session.State())
+	}
+	observedReply := x.sleepingNative.reply.GetObserved()
+	observedReply.Context.NativeGeneration = proto.Uint64(2)
+	observedReply.Planning.GetObserved().Cells.Context.NativeGeneration = proto.Uint64(2)
+	if _, err := r.reviewer.Step(ctx); err != nil {
+		t.Fatal(err)
+	}
+	active, err := db.LoadGoal(ctx, goalID)
+	if err != nil || active.Goal.Status != domain.GoalActive {
+		t.Fatal("resume did not reactivate the goal", active, err)
+	}
+	if next, err := r.Step(ctx); err != nil || next.Reason != BuildingMethodExistingWork {
+		t.Fatal("resumed goal re-planned over dispatched work", next, err)
+	}
+	// The pawns finish the designated cells under the new generation.
+	observed := resumed
+	observed.Plan, observed.Revision = plan.Spec.ID(), plan.Spec.Revision()
+	for _, action := range plan.Spec.Actions() {
+		excavation, _ := action.Excavation()
+		delete(x.rock, excavation.Cell())
+		if _, err := db.Observe(ctx, planID, domain.Observation{Action: action.ID(), Attempt: 1, Snapshot: observed, Tick: 9, Effect: domain.EffectCompleted, Causality: domain.AfterDispatch}, observed); err != nil {
+			t.Fatal(err)
+		}
+	}
+	for z := int32(1); z <= 7; z++ {
+		delete(x.fogged, domain.Cell{X: 11, Z: z})
+		x.rock[domain.Cell{X: 11, Z: z}] = "Granite"
+	}
+	if _, err := r.reviewer.Step(ctx); err != nil {
+		t.Fatal(err)
+	}
+	result, err = r.Step(ctx)
+	if err != nil || result.Reason != BuildingMethodAdmitted || result.Decision.Goal.Goal.ID != goalID {
+		t.Fatal("stage 1 did not continue under the resumed goal", result, err)
+	}
+	stage1, cells := excavationCells(t, db, result.Decision, excavationStageMethod(1))
+	if stage1 != excavationPlanID(result.Decision.Goal, excavationTestTarget, "1") || len(cells) != 7 {
+		t.Fatal(stage1, cells)
+	}
+}

@@ -28,6 +28,7 @@ func (targets *resourceTargetFlags) String() string {
 	}
 	return strings.Join(values, ";")
 }
+
 // Map returns the plain map startServiceClock's policy.Resource-keyed
 // parameter needs, without requiring every caller to import policy itself.
 func (targets resourceTargetFlags) Map() map[policy.Resource]int64 {

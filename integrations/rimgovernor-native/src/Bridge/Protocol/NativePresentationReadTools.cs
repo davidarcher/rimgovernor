@@ -24,8 +24,8 @@ namespace HomeBridge.BridgeTools
         {
             if (!ProtoBoundary.TryParse(ctx, "rimgovernor/presentation_camera", request, Presentation.ReadRequest.Parser, out var parsed, out var failure)
                 || !ValidateRead(parsed, out failure)) return ProtoBoundary.Encode(new Presentation.CameraReply { Failure = failure });
-            return await ctx.MainThread.InvokeAsync<object>(() => {
-                if (!ProtoBoundary.ValidateIdentity(parsed.Identity, Find.CurrentMap, out var context, out var error))
+            return await ProtoBoundary.OnMainThread(ctx, () => {
+                if (!ProtoBoundary.ValidateViewedIdentity(parsed.Identity, out var context, out var error))
                     return ProtoBoundary.Encode(new Presentation.CameraReply { Failure = error });
                 try
                 {
@@ -59,9 +59,9 @@ namespace HomeBridge.BridgeTools
         {
             if (!ProtoBoundary.TryParse(ctx, "rimgovernor/presentation_selection", request, Presentation.ReadRequest.Parser, out var parsed, out var failure)
                 || !ValidateRead(parsed, out failure)) return ProtoBoundary.Encode(new Presentation.SelectionReply { Failure = failure });
-            return await ctx.MainThread.InvokeAsync<object>(() => {
+            return await ProtoBoundary.OnMainThread(ctx, () => {
                 var map = Find.CurrentMap;
-                if (!ProtoBoundary.ValidateIdentity(parsed.Identity, map, out var context, out var error))
+                if (!ProtoBoundary.ValidateViewedIdentity(parsed.Identity, out var context, out var error))
                     return ProtoBoundary.Encode(new Presentation.SelectionReply { Failure = error });
                 try
                 {
@@ -86,12 +86,12 @@ namespace HomeBridge.BridgeTools
         {
             if (!ProtoBoundary.TryParse(ctx, "rimgovernor/presentation_colonists", request, Presentation.ColonistRosterRequest.Parser, out var parsed, out var failure)
                 || !ValidateColonists(parsed, out failure)) return ProtoBoundary.Encode(new Presentation.ColonistRosterReply { Failure = failure });
-            return await ctx.MainThread.InvokeAsync<object>(() => {
-                if (!ProtoBoundary.ValidateIdentity(parsed.Identity, Find.CurrentMap, out var context, out var error))
+            return await ProtoBoundary.OnMainThread(ctx, () => {
+                if (!ProtoBoundary.ValidateIdentity(parsed.Identity, out var context, out var error))
                     return ProtoBoundary.Encode(new Presentation.ColonistRosterReply { Failure = error });
                 try
                 {
-                    var maps = parsed.CurrentMapOnly ? new[] { Find.CurrentMap } : Find.Maps.ToArray();
+                    var maps = parsed.CurrentMapOnly ? new[] { ProtoBoundary.ResolveMap(context) } : Find.Maps.ToArray();
                     var pawns = maps.SelectMany(m => m.mapPawns.FreeColonistsSpawned).Distinct().OrderBy(p => p.GetUniqueLoadID(), StringComparer.Ordinal).ToList();
                     Require(pawns.Count <= 256, "Colonist roster exceeds 256 objects.");
                     var roster = new Presentation.ColonistRoster { Context = context, Listing = Listing(pawns.Count) };

@@ -22,7 +22,7 @@ const MapComponent = "HomeBridge.BridgeTools.HomeCoverageState"
 
 func init() {
 	for _, name := range []string{
-		"ColonyIdentity", "ConstructionLineageState", "GearOwnership", "HaulTrackingState",
+		"ColonyIdentity", "ConstructionLineageState", "HaulTrackingState",
 		"MiningState", "ProductionPolicyState", "RecoveryAreas", "WallRemovalState",
 	} {
 		GameComponents["HomeBridge.BridgeTools."+name] = true

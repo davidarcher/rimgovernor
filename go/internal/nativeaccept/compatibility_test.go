@@ -151,8 +151,8 @@ func TestComponentCensusScopesMapsAndRefusesMissingOrDuplicateNativeComponents(t
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	if len(census["game"]) != 8 {
-		t.Fatalf("expected 8 game components, got %d", len(census["game"]))
+	if len(census["game"]) != 7 {
+		t.Fatalf("expected 7 game components, got %d", len(census["game"]))
 	}
 	want := map[string]int{MapComponent: 1}
 	if !DeepEqual(census["map-0"], want) || !DeepEqual(census["map-1"], want) {

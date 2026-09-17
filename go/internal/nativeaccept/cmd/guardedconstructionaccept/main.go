@@ -1,6 +1,6 @@
 // Command guardedconstructionaccept proves disposable ordinary WoodLog Wall construction under guarded
 // authority, external-authority-revocation semantics (manual/external-order/
-// player-control/lease-expiry), attempt-conflict and replay idempotency, and Go
+// player-control), attempt-conflict and replay idempotency, and Go
 // durable restart reconciliation (cmd/buildingsmoke) against a private game running
 // the GuardedConstructionFixture build (build_native_mod.ps1 -Fixture
 // GuardedConstructionFixture).
@@ -104,9 +104,7 @@ func run(ctx context.Context, root, output, gameID, buildingSmoke, expectedOutco
 	}()
 	h := na.NewHarness(client, output)
 
-	if _, err := h.Call(ctx, "new-game", "rimworld/start_debug_game_ready", map[string]any{
-		"readiness": "visual", "pauseIfNeeded": true, "timeoutMs": 120000,
-	}); err != nil {
+	if _, err := na.StartDebugGame(ctx, h, nil, na.QuietRequired); err != nil {
 		return err
 	}
 	if _, err := h.Call(ctx, "pause", "rimworld/set_time_speed", map[string]any{"speed": "Paused", "ultraSpeedBoost": false}); err != nil {
@@ -385,12 +383,15 @@ func run(ctx context.Context, root, output, gameID, buildingSmoke, expectedOutco
 	if na.AsNumber(pausedContext["nativeGeneration"]) != na.AsNumber(grantContext["nativeGeneration"]) {
 		return fmt.Errorf("pause-preserves-authority: native generation changed across pause: %#v", pausedAuthority)
 	}
+	// Authority has no lease since #52; "renewing" proves generation
+	// continuity (still Auto at exactly the granted generation) and must not
+	// move the generation itself.
 	if err := supervisor.RenewAuthority(ctx); err != nil {
 		return err
 	}
 	renewed := supervisor.Grant
-	if na.AsString(renewed["leaseId"]) != na.AsString(grant["leaseId"]) {
-		return fmt.Errorf("renew: expected the same lease id, got %#v", renewed)
+	if na.GrantGeneration(renewed) != na.GrantGeneration(grant) {
+		return fmt.Errorf("renew: expected the same native generation, got %#v", renewed)
 	}
 
 	request := placeRequest(identity, renewed, 1, site1)
@@ -486,7 +487,7 @@ func run(ctx context.Context, root, output, gameID, buildingSmoke, expectedOutco
 		return fmt.Errorf("refusal-not-admitted: %w", err)
 	}
 
-	grant, err = supervisor.Acquire(ctx, "cancel-authority")
+	_, err = supervisor.Acquire(ctx, "cancel-authority")
 	if err != nil {
 		return err
 	}
@@ -575,25 +576,12 @@ func run(ctx context.Context, root, output, gameID, buildingSmoke, expectedOutco
 		return fmt.Errorf("ordered-job-revoked: expected REVOCATION_REASON_EXTERNAL_ORDER, got %#v", orderedJobRevoked)
 	}
 
-	expiredGrant, err := acquireWithLease(ctx, h, identity, sessionOwner, "expiry-authority", 1000)
-	if err != nil {
-		return err
-	}
-	select {
-	case <-ctx.Done():
-		return ctx.Err()
-	case <-time.After(1200 * time.Millisecond):
-	}
-	expired, err := status("expired")
-	if err != nil {
-		return err
-	}
-	if inactive, ok := na.AsMap(expired["inactive"]); !ok || na.AsString(inactive["reason"]) != "REVOCATION_REASON_LEASE_EXPIRED" {
-		return fmt.Errorf("expired: expected REVOCATION_REASON_LEASE_EXPIRED, got %#v", expired)
-	}
-	if err := refuse(ctx, h, "expired-blocks-new", placeRequest(identity, expiredGrant, 4, site2), "FAILURE_CODE_STALE_GENERATION"); err != nil {
-		return err
-	}
+	// There is no authority-lease expiry case any more: #52 removed the timed
+	// lease (REVOCATION_REASON_LEASE_EXPIRED no longer exists). The remaining
+	// native-observable lapse, a typed clock lease running out, needs the
+	// simulation to tick, which this pre-Go section must not do (before-go
+	// below asserts an unchanged tick); it is covered by cmd/disconnectaccept
+	// and cmd/movementaccept instead.
 
 	currentReply, err := h.Wire(ctx, "before-go", "lifecycle_read_identity", map[string]any{})
 	if err != nil {
@@ -758,8 +746,8 @@ func run(ctx context.Context, root, output, gameID, buildingSmoke, expectedOutco
 		return fmt.Errorf("construction not completed within %d simulation windows", windows)
 	}
 
-	// The construction-wait loop above kept supervisor's own authority grant
-	// continuously renewed (via clock_start/renew) through completion, so the
+	// The construction-wait loop above kept supervisor's own Auto grant live
+	// through completion, so the
 	// native writer authority is still actively held by this harness session,
 	// not Go observe's own buildingsmoke session. Go observe's ObserveTarget
 	// only admits a target whose authority is either inactive or already owned
@@ -811,14 +799,13 @@ func run(ctx context.Context, root, output, gameID, buildingSmoke, expectedOutco
 	return na.CheckStartupLog(string(logData), headless)
 }
 
-// renewOrAcquire refreshes supervisor's authority grant immediately before an
-// operations_execute or clock control call that needs it, mirroring
-// cmd/constructionaccept's helper of the same name. It prefers Renew (cheap,
-// keeps the same lease) but falls back to a fresh Acquire whenever the prior
-// lease is no longer renewable, most notably after wall-clock time elapsed
-// during the Go place subprocess (games_connect, operations_execute) already
-// lapsed supervisor's lease and advanced the native generation independently
-// of any tick simulation.
+// renewOrAcquire makes sure supervisor holds live authority immediately before
+// an operations_execute or clock control call that needs it, mirroring
+// cmd/constructionaccept's helper of the same name. It prefers RenewAuthority
+// (a read-only continuity check that leaves the generation alone) but falls
+// back to a fresh SetMode(Auto) whenever the generation has moved on, most
+// notably after the Go place subprocess granted its own Auto and so advanced
+// the native generation independently of any tick simulation.
 func renewOrAcquire(ctx context.Context, supervisor *na.ScenarioClock, label string) error {
 	if supervisor.Grant != nil {
 		if err := supervisor.RenewAuthority(ctx); err == nil {
@@ -846,16 +833,15 @@ func unwrapPayload(structured map[string]any) (map[string]any, error) {
 	return message, nil
 }
 
-// placeRequest builds an operations_execute placeBuilding request under grant's
-// lease for site (already a full placement: defName/stuff/rotation/x/z, as returned
-// by test/guarded_construction_prepare).
+// placeRequest builds an operations_execute placeBuilding request at grant's
+// native generation for site (already a full placement: defName/stuff/rotation/
+// x/z, as returned by test/guarded_construction_prepare).
 func placeRequest(identity, grant map[string]any, number int, site map[string]any) map[string]any {
 	grantContext, _ := na.AsMap(grant["context"])
 	return map[string]any{
 		"precondition": map[string]any{
 			"identity":           identity,
 			"expectedGeneration": grantContext["nativeGeneration"],
-			"leaseId":            grant["leaseId"],
 			"attempt": map[string]any{
 				"controllerSessionId": sessionOwner,
 				"actionId":            fmt.Sprintf("fixture-%d", number),
@@ -915,29 +901,6 @@ func flattenIdentity(identity map[string]any, extra map[string]any) map[string]a
 	return out
 }
 
-// acquireWithLease acquires a fresh authority grant with an explicit leaseMs
-// for its one non-default-duration case (the lease-expiry scenario).
-func acquireWithLease(ctx context.Context, h *na.Harness, identity map[string]any, owner, label string, leaseMs int) (map[string]any, error) {
-	statusReply, err := h.Wire(ctx, label+"-status", "authority_read_status", map[string]any{"identity": identity})
-	if err != nil {
-		return nil, err
-	}
-	_, status, err := na.Outcome(statusReply, "status")
-	if err != nil {
-		return nil, err
-	}
-	statusContext, _ := na.AsMap(status["context"])
-	grantReply, err := h.Wire(ctx, label, "authority_control", map[string]any{"acquire": map[string]any{
-		"identity": identity, "expectedGeneration": statusContext["nativeGeneration"],
-		"owner": map[string]any{"controllerSessionId": owner, "playerDirection": "1"}, "leaseMs": leaseMs,
-	}})
-	if err != nil {
-		return nil, err
-	}
-	_, grant, err := na.Outcome(grantReply, "granted")
-	return grant, err
-}
-
 // equalExcept reports whether a and b are deeply equal after dropping key from
 // both.
 func equalExcept(a, b map[string]any, key string) bool {
@@ -995,7 +958,7 @@ func goPhase(ctx context.Context, binary, gabsExecutable, configuration, profile
 		record["exit_code"] = cmd.ProcessState.ExitCode()
 	}
 	if runErr != nil {
-		return nil, fmt.Errorf("Go %s failed; see %s/go-%s-{stdout,stderr}.txt: %w", mode, output, mode, runErr)
+		return nil, fmt.Errorf("go %s failed; see %s/go-%s-{stdout,stderr}.txt: %w", mode, output, mode, runErr)
 	}
 	data, err := os.ReadFile(filepath.Join(destination, "report.json"))
 	if err != nil {
@@ -1003,27 +966,27 @@ func goPhase(ctx context.Context, binary, gabsExecutable, configuration, profile
 	}
 	var result map[string]any
 	if err := json.Unmarshal(data, &result); err != nil {
-		return nil, fmt.Errorf("Go %s report.json: %w", mode, err)
+		return nil, fmt.Errorf("go %s report.json: %w", mode, err)
 	}
 	if passed, _ := na.AsBool(result["passed"]); !passed {
-		return nil, fmt.Errorf("Go %s did not pass: %#v", mode, result)
+		return nil, fmt.Errorf("go %s did not pass: %#v", mode, result)
 	}
 	nativeCalled, _ := na.AsBool(result["nativeCalled"])
 	if nativeCalled != (mode == "place") {
-		return nil, fmt.Errorf("Go %s: expected nativeCalled=%v, got %#v", mode, mode == "place", result)
+		return nil, fmt.Errorf("go %s: expected nativeCalled=%v, got %#v", mode, mode == "place", result)
 	}
 	if mode == "observe" {
 		if na.AsString(result["expectedOutcome"]) != expectedOutcome {
-			return nil, fmt.Errorf("Go observe: expected expectedOutcome=%q, got %#v", expectedOutcome, result)
+			return nil, fmt.Errorf("go observe: expected expectedOutcome=%q, got %#v", expectedOutcome, result)
 		}
 		progress, _ := na.AsMap(result["progress"])
 		if unresolved, _ := na.AsBool(progress["Unresolved"]); unresolved {
-			return nil, fmt.Errorf("Go observe: expected a resolved progress view, got %#v", progress)
+			return nil, fmt.Errorf("go observe: expected a resolved progress view, got %#v", progress)
 		}
 		for _, raw := range na.AsSlice(result["calls"]) {
 			row, _ := na.AsMap(raw)
 			if na.AsString(row["Name"]) == "operations_execute" {
-				return nil, fmt.Errorf("Go observe: unexpectedly called operations_execute")
+				return nil, fmt.Errorf("go observe: unexpectedly called operations_execute")
 			}
 		}
 	}

@@ -15,13 +15,11 @@ import (
 // (either the original wall's proven identity or a same-plan backup wall's
 // own proven construction identity). The native contract is the typed
 // RemoveWall operation (contracts/proto/operations.proto), the legacy
-// home/upkeep_wall tool's typed successor; like HomeCoverage, no native
-// adapter wires Operation_RemoveWall into the typed Execute/Preview dispatch
-// yet, an open native acceptance item matching the other upkeep verticals'
-// own gaps. Unlike BedAssign, the target carries no dedicated CAS token here:
-// native re-validates the exact occupant and site geometry itself and
-// refuses if either changed, so the EntityPrecondition never sets an
-// expected snapshot token.
+// home/upkeep_wall tool's typed successor, handled natively by
+// NativeWallRemovalOperations (#83). Unlike BedAssign, the target carries no
+// dedicated CAS token here: native resolves the site from the wall identity
+// and re-validates the exact occupant and geometry itself, refusing if either
+// changed, so the EntityPrecondition never sets an expected snapshot token.
 type WallRemovalAttempt struct {
 	Identity   *c.Identity
 	Attempt    *c.AttemptKey

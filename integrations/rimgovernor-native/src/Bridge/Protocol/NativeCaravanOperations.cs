@@ -58,7 +58,7 @@ namespace HomeBridge.BridgeTools
         private static bool Prepare(Operations.FormCaravan command, Common.ObservationContext context,
             out Map? map, out Dialog_FormCaravan? dialog, out List<Pawn>? pawns, out Common.Failure failure)
         {
-            map = Find.CurrentMap; dialog = null; pawns = null;
+            map = ProtoBoundary.ResolveMap(context); dialog = null; pawns = null;
             failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest,
                 "Formation requires an exact current catalog snapshot, unique crew and cargo, and a valid destination.");
             if (!Valid(command)) return false;

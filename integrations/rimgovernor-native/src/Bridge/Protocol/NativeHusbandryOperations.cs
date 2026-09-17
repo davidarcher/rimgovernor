@@ -38,13 +38,13 @@ namespace HomeBridge.BridgeTools
                 return BitConverter.ToString(hash.ComputeHash(Encoding.UTF8.GetBytes(text))).Replace("-", "").ToLowerInvariant();
         }
 
-        private static bool Designated(Pawn animal, DesignationDef def) => Find.CurrentMap.designationManager.DesignationOn(animal, def) != null;
+        private static bool Designated(Pawn animal, DesignationDef def) => animal.Map.designationManager.DesignationOn(animal, def) != null;
 
         // Mirrors HusbandryTools.Census: same-species player animal identity,
         // gender and fertility, so a population change invalidates a stale request.
         internal static string Census(Pawn animal)
         {
-            var others = Find.CurrentMap.mapPawns.AllPawnsSpawned
+            var others = animal.Map.mapPawns.AllPawnsSpawned
                 .Where(a => a.def == animal.def && a.Faction == Faction.OfPlayer && !a.Dead)
                 .Select(a => a.GetUniqueLoadID() + ":" + a.gender + ":" + a.ageTracker.CurLifeStage.reproductive + ":" + a.Sterile())
                 .OrderBy(id => id, StringComparer.Ordinal);
@@ -66,7 +66,7 @@ namespace HomeBridge.BridgeTools
         }
 
         internal static bool Eligible(Pawn? animal) => animal != null && !animal.Destroyed && animal.Spawned
-            && animal.Map == Find.CurrentMap && animal.RaceProps.Animal && animal.Faction == Faction.OfPlayer
+            && ProtoBoundary.IsLoaded(animal.Map) && animal.RaceProps.Animal && animal.Faction == Faction.OfPlayer
             && !animal.Dead && !animal.Position.Fogged(animal.Map);
 
         // Mirrors HusbandryTools.SafeToSlaughter.
@@ -83,12 +83,12 @@ namespace HomeBridge.BridgeTools
         private static bool ValidSlaughter(Operations.SlaughterAnimal? command) => command != null
             && NativeDraftProtocol.ValidEntity(command.Animal) && command.HasExpectedCensusToken && ProtoBoundary.IsIdentifier(command.ExpectedCensusToken);
 
-        private static bool PrepareTraining(Operations.SetAnimalTraining command, out Pawn? animal, out TrainableDef? trainable, out Common.Failure failure)
+        private static bool PrepareTraining(Operations.SetAnimalTraining command, Common.ObservationContext context, out Pawn? animal, out TrainableDef? trainable, out Common.Failure failure)
         {
             animal = null; trainable = null;
             failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Training requires an exact current animal settings/census snapshot and a native TrainableDef.");
             if (!ValidTraining(command)) return false;
-            animal = Find.CurrentMap.mapPawns.AllPawnsSpawned.SingleOrDefault(p => p.GetUniqueLoadID() == command.Animal.EntityId);
+            animal = ProtoBoundary.ResolveMap(context).mapPawns.AllPawnsSpawned.SingleOrDefault(p => p.GetUniqueLoadID() == command.Animal.EntityId);
             if (animal == null || !Eligible(animal)) { failure = ProtoBoundary.Fail(Common.FailureCode.NotFound, "Exact eligible player animal is unavailable."); return false; }
             if (Settings(animal) != command.Animal.ExpectedSnapshotToken || Census(animal) != command.ExpectedCensusToken)
             { failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Animal settings or census changed; observe before new admission."); return false; }
@@ -99,12 +99,12 @@ namespace HomeBridge.BridgeTools
             return true;
         }
 
-        private static bool PrepareSlaughter(Operations.SlaughterAnimal command, out Pawn? animal, out Common.Failure failure)
+        private static bool PrepareSlaughter(Operations.SlaughterAnimal command, Common.ObservationContext context, out Pawn? animal, out Common.Failure failure)
         {
             animal = null;
             failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Slaughter requires an exact current animal settings/census snapshot.");
             if (!ValidSlaughter(command)) return false;
-            animal = Find.CurrentMap.mapPawns.AllPawnsSpawned.SingleOrDefault(p => p.GetUniqueLoadID() == command.Animal.EntityId);
+            animal = ProtoBoundary.ResolveMap(context).mapPawns.AllPawnsSpawned.SingleOrDefault(p => p.GetUniqueLoadID() == command.Animal.EntityId);
             if (animal == null || !Eligible(animal)) { failure = ProtoBoundary.Fail(Common.FailureCode.NotFound, "Exact eligible player animal is unavailable."); return false; }
             if (Settings(animal) != command.Animal.ExpectedSnapshotToken || Census(animal) != command.ExpectedCensusToken)
             { failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Animal settings or census changed; observe before new admission."); return false; }
@@ -135,14 +135,14 @@ namespace HomeBridge.BridgeTools
             {
                 if (operation.CommandCase == Operations.Operation.CommandOneofCase.SetAnimalTraining)
                 {
-                    if (!PrepareTraining(operation.SetAnimalTraining, out var animal, out _, out var failure))
+                    if (!PrepareTraining(operation.SetAnimalTraining, context, out var animal, out _, out var failure))
                         return new Operations.PreviewReply { Failure = failure };
                     return NativeOperationEnvelope.Preview(new Operations.PreviewReply { Evaluated = new Operations.PreviewEvaluation {
                         Context = context.Clone(), Accepted = true, Projected = TrainingEvidence(operation.SetAnimalTraining, Settings(animal!)) } });
                 }
                 if (operation.CommandCase == Operations.Operation.CommandOneofCase.SlaughterAnimal)
                 {
-                    if (!PrepareSlaughter(operation.SlaughterAnimal, out var animal, out var failure))
+                    if (!PrepareSlaughter(operation.SlaughterAnimal, context, out var animal, out var failure))
                         return new Operations.PreviewReply { Failure = failure };
                     return NativeOperationEnvelope.Preview(new Operations.PreviewReply { Evaluated = new Operations.PreviewEvaluation {
                         Context = context.Clone(), Accepted = true, Projected = SlaughterEvidence(operation.SlaughterAnimal, Settings(animal!)) } });
@@ -163,8 +163,8 @@ namespace HomeBridge.BridgeTools
             try
             {
                 Pawn? animal; Common.Failure failure;
-                if (training) { if (!PrepareTraining(operation.SetAnimalTraining, out animal, out _, out failure)) return new Operations.ExecuteReply { Failure = failure }; }
-                else { if (!PrepareSlaughter(operation.SlaughterAnimal, out animal, out failure)) return new Operations.ExecuteReply { Failure = failure }; }
+                if (training) { if (!PrepareTraining(operation.SetAnimalTraining, context, out animal, out _, out failure)) return new Operations.ExecuteReply { Failure = failure }; }
+                else { if (!PrepareSlaughter(operation.SlaughterAnimal, context, out animal, out failure)) return new Operations.ExecuteReply { Failure = failure }; }
                 if (!NativeControlAuthority.TryGetForGame(Current.Game, out var authority) || authority == null)
                     return Refuse(Common.FailureCode.AuthorityRequired, "Current native authority is required.");
                 var guard = authority.Check(pre.ExpectedGeneration);
@@ -179,7 +179,7 @@ namespace HomeBridge.BridgeTools
                     if (!current.Success) throw new InvalidOperationException("Husbandry authority changed before native effect.");
                     if (training)
                     {
-                        if (!PrepareTraining(operation.SetAnimalTraining, out animal, out var trainable, out failure) || animal == null)
+                        if (!PrepareTraining(operation.SetAnimalTraining, context, out animal, out var trainable, out failure) || animal == null)
                             throw new InvalidOperationException("Training prerequisites changed after admission.");
                         animal.training!.SetWantedRecursive(trainable, true);
                         var after = Settings(animal);
@@ -189,10 +189,10 @@ namespace HomeBridge.BridgeTools
                     }
                     else
                     {
-                        if (!PrepareSlaughter(operation.SlaughterAnimal, out animal, out failure) || animal == null)
+                        if (!PrepareSlaughter(operation.SlaughterAnimal, context, out animal, out failure) || animal == null)
                             throw new InvalidOperationException("Slaughter prerequisites changed after admission.");
                         if (!Designated(animal, DesignationDefOf.Slaughter))
-                            Find.CurrentMap.designationManager.AddDesignation(new Designation(animal, DesignationDefOf.Slaughter));
+                            ProtoBoundary.ResolveMap(context).designationManager.AddDesignation(new Designation(animal, DesignationDefOf.Slaughter));
                         var after = Settings(animal);
                         state.Husbandry.Add(pre.Attempt.Clone(), new NativeHusbandryRecord(animal.GetUniqueLoadID(), true, null));
                         evidence = SlaughterEvidence(operation.SlaughterAnimal, after);
@@ -214,7 +214,7 @@ namespace HomeBridge.BridgeTools
             var result = new Receipts.Progress { Attempt = attempt.Clone(), Context = context.Clone(), CompleteInspection = false };
             try
             {
-                var animal = Find.CurrentMap.mapPawns.AllPawnsSpawned.SingleOrDefault(p => p.GetUniqueLoadID() == record.AnimalId);
+                var animal = ProtoBoundary.ResolveMap(context).mapPawns.AllPawnsSpawned.SingleOrDefault(p => p.GetUniqueLoadID() == record.AnimalId);
                 if (animal == null || !Eligible(animal))
                 {
                     result.Unknown = new Receipts.UnknownEffect { Reason = "The exact animal is no longer observable; absence does not prove the setting held." };

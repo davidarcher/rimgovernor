@@ -20,7 +20,7 @@ func TestPresenceAndVariants(t *testing.T) {
 	if absent.X != nil || zero.X == nil || zero.GetX() != 0 {
 		t.Fatal("presence lost")
 	}
-	for _, raw := range []string{`{"acquire":{},"renew":{}}`, `{"acquire":{},"acquire":{}}`} {
+	for _, raw := range []string{`{"setMode":{},"revoke":{}}`, `{"setMode":{},"setMode":{}}`, `{"acquire":{}}`} {
 		if err := protojson.Unmarshal([]byte(raw), &a.ControlRequest{}); err == nil {
 			t.Fatalf("accepted %s", raw)
 		}

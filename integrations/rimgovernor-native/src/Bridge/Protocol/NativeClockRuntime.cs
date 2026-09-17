@@ -53,6 +53,20 @@ namespace HomeBridge.BridgeTools
             Stop(s, kind, "Authorizing native authority stopped: " + reason + "; " + result.Error, true, null);
             return true;
         }
+        // A typed epoch's lease lapsing is the only native-observable sign that
+        // the bot process is gone: it renews every live epoch well inside the
+        // lease, so silence past it means a crash, hang or dropped transport.
+        // Authority follows the clock down as Disconnect, so a reconnecting or
+        // restarted controller observes Inactive and grants Auto afresh instead
+        // of finding an Auto it cannot prove it owns. Legacy (untyped) epochs
+        // carry no authority precondition and are left alone.
+        private static void RevokeDisconnected(State s)
+        {
+            if (s.Typed == null || !ReferenceEquals(Current.Game, s.Session)) return;
+            NativeControlAuthority authority;
+            if (NativeControlAuthority.TryGetForGame(Current.Game, out authority) && authority != null)
+                authority.RevokeExternal(NativeControlRevocationReason.Disconnect);
+        }
         private static void CaptureTypedContext(State s)
         {
             if (s.Typed == null) return;
@@ -79,7 +93,7 @@ namespace HomeBridge.BridgeTools
                     if (!TypedHooksReady()) return ProtoBoundary.Fail(Common.FailureCode.Unavailable, "Exact native clock hooks are unavailable.");
                     EnsureJournal();
                     if (_epoch == long.MaxValue || _cursor == long.MaxValue) return ProtoBoundary.Fail(Common.FailureCode.CapacityExhausted, "Native clock epoch or cursor is exhausted.");
-                    foreach (var ids in PolicyIds(request.Policy)) ResolveIds(ids);
+                    foreach (var ids in PolicyIds(request.Policy)) ResolveIds(ProtoBoundary.ResolveMap(request.Authority.Identity), ids);
                 }
                 catch (Exception) { return ProtoBoundary.Fail(Common.FailureCode.Unavailable, "Native watcher, journal or exact policy pawn identity is unavailable."); }
                 return null;
@@ -99,9 +113,9 @@ namespace HomeBridge.BridgeTools
                 {
                     Start(metadata.Owner.ControllerSessionId, NativeSpeed(request.Speed), (int)request.LeaseMs,
                         policy.Mode == Clock.WatchMode.Colony ? "colony" : "combat", policy.HealthDropFraction,
-                        policy.MinHealthFraction, policy.HostileWithin, ResolveIds(policy.AcknowledgedHostileIds),
-                        ResolveIds(policy.AcknowledgedDownedColonistIds), ResolveIds(policy.AcknowledgedInjuredColonistIds),
-                        (int)policy.InjuryStopCooldownMs, (int)request.MaxTicks, ResolveIds(policy.SurgicalRecoveryIds), false, ResolveIds(policy.MedicalRestIds));
+                        policy.MinHealthFraction, policy.HostileWithin, ResolveIds(ProtoBoundary.ResolveMap(context), policy.AcknowledgedHostileIds),
+                        ResolveIds(ProtoBoundary.ResolveMap(context), policy.AcknowledgedDownedColonistIds), ResolveIds(ProtoBoundary.ResolveMap(context), policy.AcknowledgedInjuredColonistIds),
+                        (int)policy.InjuryStopCooldownMs, (int)request.MaxTicks, ResolveIds(ProtoBoundary.ResolveMap(context), policy.SurgicalRecoveryIds), false, ResolveIds(ProtoBoundary.ResolveMap(context), policy.MedicalRestIds));
                     if (_state == null || !ReferenceEquals(_state.Typed, metadata)) throw new InvalidOperationException("Native start did not create the admitted epoch");
                     return TypedStatus(context);
                 }
@@ -328,7 +342,7 @@ namespace HomeBridge.BridgeTools
         private static TimeSpeed NativeSpeed(Clock.Speed speed) => speed == Clock.Speed.Normal ? TimeSpeed.Normal : speed == Clock.Speed.Fast ? TimeSpeed.Fast : speed == Clock.Speed.Superfast ? TimeSpeed.Superfast : throw new ArgumentOutOfRangeException(nameof(speed));
         private static Clock.Speed WireSpeed(TimeSpeed speed) => speed == TimeSpeed.Normal ? Clock.Speed.Normal : speed == TimeSpeed.Fast ? Clock.Speed.Fast : speed == TimeSpeed.Superfast ? Clock.Speed.Superfast : throw new InvalidOperationException("Nonordinary owned epoch");
         internal static Clock.ObservedSpeed ObservedSpeed(TimeSpeed speed) => speed == TimeSpeed.Paused ? Clock.ObservedSpeed.Paused : speed == TimeSpeed.Normal ? Clock.ObservedSpeed.Normal : speed == TimeSpeed.Fast ? Clock.ObservedSpeed.Fast : speed == TimeSpeed.Superfast ? Clock.ObservedSpeed.Superfast : speed == TimeSpeed.Ultrafast ? Clock.ObservedSpeed.Ultrafast : throw new InvalidOperationException("Unknown native speed");
-        private static bool TypedHooksReady()
+        internal static bool TypedHooksReady()
         {
             return new[] { Tuple.Create("TickManagerUpdate", nameof(OnUpdate)), Tuple.Create("DoSingleTick", nameof(OnTick)) }.All(pair =>
             {
@@ -339,7 +353,7 @@ namespace HomeBridge.BridgeTools
         }
         private static IEnumerable<IEnumerable<string>> PolicyIds(Clock.WatchPolicy policy)
         { yield return policy.AcknowledgedHostileIds; yield return policy.AcknowledgedDownedColonistIds; yield return policy.AcknowledgedInjuredColonistIds; yield return policy.SurgicalRecoveryIds; yield return policy.MedicalRestIds; }
-        private static string ResolveIds(IEnumerable<string> ids) => string.Join(",", ids.Select(id => Find.CurrentMap.mapPawns.AllPawns.Single(p => p.GetUniqueLoadID() == id).thingIDNumber.ToString(System.Globalization.CultureInfo.InvariantCulture)));
+        private static string ResolveIds(Map map, IEnumerable<string> ids) => string.Join(",", ids.Select(id => map.mapPawns.AllPawns.Single(p => p.GetUniqueLoadID() == id).thingIDNumber.ToString(System.Globalization.CultureInfo.InvariantCulture)));
         private static bool ValidPolicy(Clock.WatchPolicy policy, uint maxTicks)
         {
             return policy != null && policy.HasMode && (policy.Mode == Clock.WatchMode.Colony || policy.Mode == Clock.WatchMode.Combat)

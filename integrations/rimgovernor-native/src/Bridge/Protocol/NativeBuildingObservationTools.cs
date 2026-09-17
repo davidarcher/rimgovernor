@@ -25,8 +25,8 @@ namespace HomeBridge.BridgeTools
         {
             if (!ProtoBoundary.TryParse(ctx, ToolName, request, Obs.ListBuildingsRequest.Parser, out var parsed, out var failure)
                 || !Validate(parsed, out failure)) return ProtoBoundary.Encode(new Obs.ListBuildingsReply { Failure = failure });
-            return await ctx.MainThread.InvokeAsync<object>(() => {
-                var map = Find.CurrentMap;
+            return await ProtoBoundary.OnMainThread(ctx, () => {
+                var map = ProtoBoundary.ResolveMap(parsed.Scope.ExpectedIdentity);
                 if (!ProtoBoundary.ValidateIdentity(parsed.Scope.ExpectedIdentity, map, out var context, out var error))
                     return ProtoBoundary.Encode(new Obs.ListBuildingsReply { Failure = error });
                 try

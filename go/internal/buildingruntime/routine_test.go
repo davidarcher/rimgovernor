@@ -125,7 +125,7 @@ func routineFixture(t *testing.T) (*RoutineReviewer, *store.Store, *playerFakeSe
 	return r, db, session, request, n
 }
 
-func TestRoutineReviewerPersistsNeedsAndManualInvalidatesWithoutRead(t *testing.T) {
+func TestRoutineReviewerPersistsNeedsAndManualSuspendsWithoutRead(t *testing.T) {
 	t.Parallel()
 	r, db, session, request, n := routineFixture(t)
 	got, err := r.Step(context.Background())
@@ -155,7 +155,7 @@ func TestRoutineReviewerPersistsNeedsAndManualInvalidatesWithoutRead(t *testing.
 	}
 	for _, binding := range stored.Goals {
 		g, err := db.LoadGoal(context.Background(), binding.Goal)
-		if err != nil || g.Goal.Status != domain.GoalInvalidated {
+		if err != nil || g.Goal.Status == domain.GoalActive || g.Goal.Status == domain.GoalInvalidated {
 			t.Fatal(g, err)
 		}
 	}

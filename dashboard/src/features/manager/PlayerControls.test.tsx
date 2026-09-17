@@ -113,7 +113,7 @@ it('allows a new explicit Resume after fresh later Pause, retaining the frozen u
 
 it.each([[409,'conflict'],[403,'player_auth']] as const)('releases submission after definite %s rejection only for a new explicit POST',async(status,code)=>{
  let posts=0;
- const fetcher=setup(async(url,options)=>{if(url==='/api/buildings/plans'){posts++;if(posts===1)return response({code,detail:'Not admitted'},status);const request=JSON.parse(options.body as string);return response({...request,planId:'plan',actionId:'action',revision:'1'},201);}throw Error(url);});
+ const fetcher=setup(async(url,options)=>{if(url==='/api/buildings/plans'){posts++;if(posts===1)return response({code,detail:'Not admitted'},status);const request=JSON.parse(options.body as string) as Record<string, unknown>;return response({...request,planId:'plan',actionId:'action',revision:'1'},201);}throw Error(url);});
  await act(async()=>{render(<PlayerControls observation={observation} observationFresh/>);});fill();
  await act(async()=>{fireEvent.click(screen.getByRole('button',{name:'Submit building plan'}));});
  expect(posts).toBe(1);expect(screen.getByRole('button',{name:'Submit building plan'})).toBeEnabled();expect(screen.getByText(/Rejected before admission/)).toBeVisible();

@@ -2,6 +2,7 @@ package buildingruntime
 
 import (
 	"context"
+	"strings"
 	"testing"
 
 	"github.com/davidarcher/RimGovernor/go/internal/bridge"
@@ -58,14 +59,19 @@ func TestSchedulerCompilesSleepingOnlyAtPausedReviewBoundary(t *testing.T) {
 	}
 }
 
-func TestSchedulerFailedSleepingPreviewCannotStartClock(t *testing.T) {
+// A failed sleeping preview commits nothing for that planner, but no longer
+// blocks the clock: the failure is isolated and the window still starts (#62).
+func TestSchedulerFailedSleepingPreviewIsIsolated(t *testing.T) {
 	t.Parallel()
 	s, f := schedulerFixture(t)
 	n := schedulerSleeping(t, s, f)
 	n.onPreview = func(_ context.Context, p *bridge.BuildingPreview) { p.Preview.Tick-- }
 	result, err := s.Step(context.Background())
-	if err == nil || result.Routine == nil || result.Sleeping != nil || f.writes != 0 {
+	if err != nil || result.Routine == nil || result.Sleeping != nil || f.writes != 1 {
 		t.Fatal(result, err, f.writes)
+	}
+	if len(result.PlannerFailures) != 1 || !strings.HasPrefix(result.PlannerFailures[0].Error(), "sleeping: ") {
+		t.Fatal(result.PlannerFailures)
 	}
 }
 

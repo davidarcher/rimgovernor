@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -141,6 +142,106 @@ func TestPrepareNativeModConfig(t *testing.T) {
 	}
 	if len(root.find("knownExpansions").li()) != 1 {
 		t.Fatalf("knownExpansions element was mutated")
+	}
+}
+
+const expansionModsConfig = `<?xml version='1.0' encoding='utf8'?>
+<ModsConfigData>
+  <version>1.6.4871 rev591</version>
+  <activeMods>
+    <li>brrainz.harmony</li>
+    <li>ludeon.rimworld</li>
+    <li>ludeon.rimworld.royalty</li>
+    <li>ludeon.rimworld.ideology</li>
+    <li>ludeon.rimworld.biotech</li>
+    <li>ludeon.rimworld.odyssey</li>
+    <li>redeyedev.rimapi</li>
+  </activeMods>
+  <knownExpansions>
+    <li>ludeon.rimworld.royalty</li>
+    <li>ludeon.rimworld.ideology</li>
+    <li>ludeon.rimworld.biotech</li>
+    <li>ludeon.rimworld.odyssey</li>
+  </knownExpansions>
+</ModsConfigData>`
+
+func activeModsAfter(t *testing.T, expansions ...string) []string {
+	t.Helper()
+	path := filepath.Join(t.TempDir(), "ModsConfig.xml")
+	if err := os.WriteFile(path, []byte(expansionModsConfig), 0644); err != nil {
+		t.Fatal(err)
+	}
+	if err := PrepareNativeModConfig(path, expansions...); err != nil {
+		t.Fatalf("PrepareNativeModConfig failed: %v", err)
+	}
+	data, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, root, err := parseXML(data)
+	if err != nil {
+		t.Fatalf("rewritten ModsConfig.xml did not parse: %v", err)
+	}
+	if len(root.find("knownExpansions").li()) != 4 {
+		t.Fatalf("knownExpansions element was mutated")
+	}
+	return root.find("activeMods").li()
+}
+
+func TestPrepareNativeModConfigDropsExpansionsByDefault(t *testing.T) {
+	got := activeModsAfter(t)
+	want := []string{"ludeon.rimworld", "redeyedev.rimapi", "brrainz.harmony", "brrainz.rimbridgeserver", NativePackage}
+	if strings.Join(got, ",") != strings.Join(want, ",") {
+		t.Fatalf("activeMods = %v, want %v", got, want)
+	}
+}
+
+func TestPrepareNativeModConfigKeepsRequestedExpansions(t *testing.T) {
+	// Short names and full IDs both work, duplicates collapse, and the kept
+	// expansions load directly after the core game in request order even when
+	// the profile had them inactive.
+	got := activeModsAfter(t, "biotech", "ludeon.rimworld.royalty", "Biotech", "anomaly")
+	want := []string{"ludeon.rimworld", "ludeon.rimworld.biotech", "ludeon.rimworld.royalty", "ludeon.rimworld.anomaly", "redeyedev.rimapi", "brrainz.harmony", "brrainz.rimbridgeserver", NativePackage}
+	if strings.Join(got, ",") != strings.Join(want, ",") {
+		t.Fatalf("activeMods = %v, want %v", got, want)
+	}
+}
+
+func TestPrepareNativeModConfigRejectsBadExpansion(t *testing.T) {
+	for _, bad := range []string{"", "ludeon.rimworld", "royalty.extra", "roy alty"} {
+		path := filepath.Join(t.TempDir(), "ModsConfig.xml")
+		if err := os.WriteFile(path, []byte(expansionModsConfig), 0644); err != nil {
+			t.Fatal(err)
+		}
+		if err := PrepareNativeModConfig(path, bad); err == nil {
+			t.Fatalf("expected error for expansion %q", bad)
+		}
+	}
+}
+
+func TestPrepareNativeModConfigRequiresCore(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "ModsConfig.xml")
+	if err := os.WriteFile(path, []byte("<ModsConfigData><activeMods><li>brrainz.harmony</li></activeMods></ModsConfigData>"), 0644); err != nil {
+		t.Fatal(err)
+	}
+	if err := PrepareNativeModConfig(path); err == nil {
+		t.Fatal("expected error when ludeon.rimworld is inactive")
+	}
+}
+
+func TestExpansionsFromEnv(t *testing.T) {
+	t.Setenv(ExpansionsEnv, "")
+	if got, err := ExpansionsFromEnv(); err != nil || got != nil {
+		t.Fatalf("empty env: %v, %v", got, err)
+	}
+	t.Setenv(ExpansionsEnv, " royalty, ludeon.rimworld.biotech ,")
+	got, err := ExpansionsFromEnv()
+	if err != nil || strings.Join(got, ",") != "ludeon.rimworld.royalty,ludeon.rimworld.biotech" {
+		t.Fatalf("env parse: %v, %v", got, err)
+	}
+	t.Setenv(ExpansionsEnv, "ludeon.rimworld")
+	if _, err := ExpansionsFromEnv(); err == nil {
+		t.Fatal("expected error for the core package")
 	}
 }
 
@@ -411,5 +512,58 @@ func TestGABSExecutableDefaultsToRelativePath(t *testing.T) {
 	want := filepath.Join(root, "gabs", "gabs-v1.1.1-windows-amd64", "gabs.exe")
 	if got != want {
 		t.Fatalf("GABSExecutable = %q, want %q", got, want)
+	}
+}
+
+// li returns the text of every direct <li> child element, in document order.
+func (e *xmlElem) li() []string {
+	var out []string
+	if e == nil {
+		return out
+	}
+	for _, kid := range e.kids {
+		if kid.elem != nil && kid.elem.name.Local == "li" {
+			out = append(out, kid.elem.text())
+		}
+	}
+	return out
+}
+
+func TestSaveExpansions(t *testing.T) {
+	root := t.TempDir()
+	saves := filepath.Join(root, "profile", "Saves")
+	if err := os.MkdirAll(saves, 0755); err != nil {
+		t.Fatal(err)
+	}
+	dlc := "<?xml version=\"1.0\" encoding=\"utf-8\"?>\n<savegame>\n\t<meta>\n\t\t<gameVersion>1.6.4871 rev591</gameVersion>\n\t\t<modIds>\n\t\t\t<li>ludeon.rimworld</li>\n\t\t\t<li>ludeon.rimworld.royalty</li>\n\t\t\t<li>Ludeon.RimWorld.Biotech</li>\n\t\t\t<li>brrainz.harmony</li>\n\t\t</modIds>\n\t</meta>\n</savegame>"
+	core := "<savegame><meta><modIds><li>ludeon.rimworld</li><li>brrainz.harmony</li></modIds></meta></savegame>"
+	for name, body := range map[string]string{"dlc": dlc, "core": core, "broken": "<savegame/>"} {
+		if err := os.WriteFile(filepath.Join(saves, name+".rws"), []byte(body), 0644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	got, err := SaveExpansions(root, "dlc")
+	if err != nil || strings.Join(got, ",") != "ludeon.rimworld.royalty,ludeon.rimworld.biotech" {
+		t.Fatalf("SaveExpansions(dlc) = %v, %v", got, err)
+	}
+	if got, err := SaveExpansions(root, "core"); err != nil || len(got) != 0 {
+		t.Fatalf("SaveExpansions(core) = %v, %v", got, err)
+	}
+	if _, err := SaveExpansions(root, "broken"); err == nil {
+		t.Fatal("expected error for a save without modIds")
+	}
+	if _, err := SaveExpansions(root, "missing"); err == nil {
+		t.Fatal("expected error for a missing save")
+	}
+
+	cfg := &Config{Root: root}
+	if err := cfg.UseSaveExpansions("", ""); err != nil || cfg.Expansions != nil {
+		t.Fatalf("all-empty names must leave Expansions nil: %v, %v", cfg.Expansions, err)
+	}
+	if err := cfg.UseSaveExpansions("core"); err != nil || cfg.Expansions == nil || len(cfg.Expansions) != 0 {
+		t.Fatalf("core save must pin Core-only explicitly: %#v, %v", cfg.Expansions, err)
+	}
+	if err := cfg.UseSaveExpansions("dlc", "", "dlc"); err != nil || strings.Join(cfg.Expansions, ",") != "ludeon.rimworld.royalty,ludeon.rimworld.biotech" {
+		t.Fatalf("union: %v, %v", cfg.Expansions, err)
 	}
 }

@@ -178,7 +178,7 @@ func (t *CaravanJourneyTracker) step(call, epoch context.Context, arbiter *stepA
 	if homeObserved == nil {
 		return CaravanJourneyResult{}, executor.ErrHeld
 	}
-	if current, err = boundary.Context(homeObserved.Context, current); err != nil {
+	if _, err = boundary.Context(homeObserved.Context, current); err != nil {
 		return CaravanJourneyResult{}, err
 	}
 	if homeObserved.Context.GetTick() < world.Context.GetTick() {

@@ -78,14 +78,14 @@ func (b *HomeCoverageBoundary) InspectHomeCoverage(ctx context.Context, target e
 		return out, executor.ErrEvidence
 	}
 	facts := policy.HomeCoverageFacts{
-		Snapshot:         current,
-		ObservationTick:  domain.Tick(row.Context.GetTick()),
-		PreviewTick:      domain.Tick(evaluated.Context.GetTick()),
-		CurrentShape:     domain.Known(row.Shape),
-		Revision:         domain.Known(row.Revision),
-		Missing:          domain.Known(row.Missing),
-		Excluded:         domain.Known(row.Excluded),
-		NativeCanTry:     boundary.FactBool(evaluated.Accepted),
+		Snapshot:        current,
+		ObservationTick: domain.Tick(row.Context.GetTick()),
+		PreviewTick:     domain.Tick(evaluated.Context.GetTick()),
+		CurrentShape:    domain.Known(row.Shape),
+		Revision:        domain.Known(row.Revision),
+		Missing:         domain.Known(row.Missing),
+		Excluded:        domain.Known(row.Excluded),
+		NativeCanTry:    boundary.FactBool(evaluated.Accepted),
 	}
 	out.Facts, out.ObservedAt = facts, b.clock.Now()
 	return out, ctx.Err()
@@ -117,7 +117,7 @@ func (b *HomeCoverageBoundary) ExtendHomeCoverage(ctx context.Context, dispatch 
 	if err = ctx.Err(); err != nil {
 		return out, err
 	}
-	pre := &a.WritePrecondition{Identity: attempt.Identity, Attempt: attempt.Attempt, ExpectedGeneration: proto.Uint64(attempt.Generation),}
+	pre := &a.WritePrecondition{Identity: attempt.Identity, Attempt: attempt.Attempt, ExpectedGeneration: proto.Uint64(attempt.Generation)}
 	reply, _, err := b.writer.ApplyHomeCoverage(ctx, pre, attempt.Target, attempt.Shape, attempt.Revision)
 	var refused *bridge.NativeFailure
 	if errors.As(err, &refused) && refused.Value != nil && refused.Value.GetCode() != c.FailureCode_FAILURE_CODE_ATTEMPT_CONFLICT {

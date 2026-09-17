@@ -38,7 +38,9 @@ runtime ownership.
 - Verify completed buildings, produced goods or other native postconditions.
   Accepted orders alone do not complete goals.
 - Preserve unknown observations. Forecasts select work; native facts establish results.
-- Player direction, Manual and colony/map/load changes invalidate pending work.
+- Colony/map/load changes and tick rewinds invalidate pending work. Manual
+  (pause, letter pause, restart) only suspends routine goals and their open
+  work until control resumes in the same world.
 - Keep game saves and controller checkpoints paired across recovery.
 
 For implementation detail, follow the [component guides](../README.md#component-guides)

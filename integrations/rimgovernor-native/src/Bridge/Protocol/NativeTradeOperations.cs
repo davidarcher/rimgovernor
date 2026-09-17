@@ -164,7 +164,7 @@ namespace HomeBridge.BridgeTools
             if (_sessionId == null || _sessionColonyId != identity.ColonyId || _sessionLoadToken != identity.LoadToken) return false;
             if (!TradeSession.Active || TradeSession.deal == null || !ReferenceEquals(TradeSession.deal, _sessionDeal)
                 || !ReferenceEquals(TradeSession.trader, _sessionTrader) || !ReferenceEquals(TradeSession.playerNegotiator, _sessionNegotiator)
-                || !ReferenceEquals(Find.CurrentMap, _sessionMap))
+                || !ProtoBoundary.IsLoaded(_sessionMap))
             { failure = ProtoBoundary.Fail(Common.FailureCode.StaleIdentity, "Trade session, map or load changed; do not reuse a stale session."); return false; }
             var trader = _sessionTrader!; var negotiator = _sessionNegotiator!;
             if (!trader.Spawned || trader.Map != _sessionMap || !SafeCanTradeNow(trader) || Find.TickManager == null || !Find.TickManager.Paused
@@ -200,7 +200,7 @@ namespace HomeBridge.BridgeTools
             if (OpenTradeDialog() != null) { failure = ProtoBoundary.Fail(Common.FailureCode.Unavailable, "A Dialog_Trade window is already open on screen."); return false; }
             if (TradeSession.Active) { failure = ProtoBoundary.Fail(Common.FailureCode.OwnerConflict, "A TradeSession is already open outside this adapter."); return false; }
             if (Find.TickManager == null || !Find.TickManager.Paused) { failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Pause before opening a trade."); return false; }
-            var map = Find.CurrentMap;
+            var map = ProtoBoundary.ResolveMap(identity);
             if (map == null) { failure = ProtoBoundary.Fail(Common.FailureCode.Unavailable, "No current map."); return false; }
             trader = map.mapPawns.AllPawnsSpawned.SingleOrDefault(p => p.GetUniqueLoadID() == command.Trader.EntityId && p.trader != null && p.trader.traderKind != null);
             if (trader == null) { failure = ProtoBoundary.Fail(Common.FailureCode.NotFound, "Exact map caravan trader is unavailable; this adapter does not support direct orbital open."); return false; }
@@ -407,7 +407,7 @@ namespace HomeBridge.BridgeTools
                         catch (Exception e) { throw new InvalidOperationException("TradeSession.SetupWith threw: " + e.GetType().Name, e); }
                         if (!TradeSession.Active || TradeSession.deal == null) throw new InvalidOperationException("TradeSession.SetupWith returned but the session is not active.");
                         _sessionId = Guid.NewGuid().ToString("N"); _sessionColonyId = identity.ColonyId; _sessionLoadToken = identity.LoadToken;
-                        _sessionMap = Find.CurrentMap; _sessionDeal = TradeSession.deal; _sessionTrader = trader; _sessionNegotiator = negotiator;
+                        _sessionMap = ProtoBoundary.ResolveMap(context); _sessionDeal = TradeSession.deal; _sessionTrader = trader; _sessionNegotiator = negotiator;
                         _giftMode = operation.OpenTrade.HasGiftMode && operation.OpenTrade.GiftMode;
                         evidence = OpenEvidence(trader, false);
                         state.Trade.Add(pre.Attempt.Clone(), new NativeTradeRecord(evidence));

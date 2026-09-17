@@ -1,0 +1,22 @@
+# React dashboard. Included by the repository Taskfile; runs standalone too.
+version: '3'
+
+tasks:
+  install:
+    internal: true
+    cmds:
+      - pnpm install --frozen-lockfile
+
+  build:
+    desc: Frozen-lockfile install, typecheck, typing-escape lint, production build
+    deps: [install]
+    cmds:
+      - pnpm run typecheck
+      - pnpm run lint
+      - pnpm run build
+
+  test:
+    desc: Vitest suite
+    deps: [install]
+    cmds:
+      - pnpm test

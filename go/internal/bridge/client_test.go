@@ -28,6 +28,8 @@ type testServer struct {
 	detailResult  *mcp.CallToolResult
 	schema        string
 	sessions      []*mcp.ServerSession
+	starts        int
+	details       int
 }
 
 func structured(raw string) *mcp.CallToolResult {
@@ -35,9 +37,14 @@ func structured(raw string) *mcp.CallToolResult {
 }
 func (s *testServer) server() *mcp.Server {
 	server := mcp.NewServer(&mcp.Implementation{Name: "gabs-test", Version: "1"}, nil)
-	for _, name := range []string{"games_call_tool", "games_tool_detail", "games_tool_names", "games_status", "games_connect"} {
+	for _, name := range []string{"games_call_tool", "games_tool_detail", "games_tool_names", "games_status", "games_connect", "games_start"} {
 		server.AddTool(&mcp.Tool{Name: name, InputSchema: json.RawMessage(`{"type":"object"}`)}, func(ctx context.Context, request *mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 			switch request.Params.Name {
+			case "games_start":
+				s.mu.Lock()
+				s.starts++
+				s.mu.Unlock()
+				return structured(`{"gabpConnected":true}`), nil
 			case "games_connect":
 				s.connectArgs = append(json.RawMessage(nil), request.Params.Arguments...)
 				if s.connectResult != nil {
@@ -45,6 +52,9 @@ func (s *testServer) server() *mcp.Server {
 				}
 				return structured(`{"success":true}`), nil
 			case "games_tool_detail":
+				s.mu.Lock()
+				s.details++
+				s.mu.Unlock()
 				if s.detailResult != nil {
 					return s.detailResult, nil
 				}
@@ -244,10 +254,21 @@ func TestRawReceiptPreservesInt64AndFutureFields(t *testing.T) {
 func TestLostConnectionAndMissingCapabilities(t *testing.T) {
 	s := &testServer{}
 	client := testClient(t, s, time.Second)
+	lost := client.Disconnected()
+	select {
+	case <-lost:
+		t.Fatal("live session reported disconnected")
+	default:
+	}
 	if err := s.sessions[0].Close(); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := testNativeRead(client, context.Background()); !errors.Is(err, ErrTransport) {
+	select {
+	case <-lost:
+	case <-time.After(5 * time.Second):
+		t.Fatal("session loss not observed")
+	}
+	if _, err := testNativeRead(client, context.Background()); !errors.Is(err, ErrDisconnected) {
 		t.Fatalf("lost connection: %v", err)
 	}
 	if err := client.Reconnect(context.Background()); err != nil {
@@ -255,6 +276,11 @@ func TestLostConnectionAndMissingCapabilities(t *testing.T) {
 	}
 	if _, err := testNativeRead(client, context.Background()); err != nil {
 		t.Fatal(err)
+	}
+	select {
+	case <-client.Disconnected():
+		t.Fatal("fresh session reported disconnected")
+	default:
 	}
 	server := mcp.NewServer(&mcp.Implementation{Name: "missing-capabilities", Version: "1"}, nil)
 	serverTransport, clientTransport := mcp.NewInMemoryTransports()
@@ -460,4 +486,36 @@ func assertContains(t *testing.T, values []string, want string) {
 		}
 	}
 	t.Fatalf("expected %q among %v", want, values)
+}
+
+// TestReattachAfterLostSession is the #87 recovery: once GABS is gone the
+// client is disconnected, Reattach dials a fresh process and re-runs the
+// start/connect handshake against the still-running game, and a client
+// closed meanwhile refuses to reattach.
+func TestReattachAfterLostSession(t *testing.T) {
+	s := &testServer{}
+	client := testClient(t, s, time.Second)
+	if err := s.sessions[0].Close(); err != nil {
+		t.Fatal(err)
+	}
+	<-client.Disconnected()
+	if err := client.Reattach(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	s.mu.Lock()
+	starts, sessions := s.starts, len(s.sessions)
+	s.mu.Unlock()
+	if starts != 1 || sessions != 2 {
+		t.Fatalf("reattach: %d starts, %d sessions", starts, sessions)
+	}
+	if _, err := testNativeRead(client, context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	if err := client.Close(); err != nil {
+		t.Fatal(err)
+	}
+	<-client.Disconnected()
+	if err := client.Reattach(context.Background()); !errors.Is(err, ErrClosed) {
+		t.Fatalf("reattach after close: %v", err)
+	}
 }

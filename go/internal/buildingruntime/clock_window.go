@@ -17,8 +17,22 @@ func (q *ClockCoordinator) CommandWindow(ctx context.Context, request ClockWindo
 	if intent.Window == nil || intent.Command.Start == nil || intent.Command.Renew != nil || intent.Command.Speed != nil {
 		return store.ClockAttempt{}, executor.ErrHeld
 	}
+	// Colony mode acknowledges nothing; combat mode acknowledges only the
+	// hostiles the window decision names below. Medical suppression never.
 	p := intent.Command.Start.Policy
-	if p == nil || p.GetMode() != k.WatchMode_WATCH_MODE_COLONY || len(p.AcknowledgedHostileIds)+len(p.AcknowledgedDownedColonistIds)+len(p.AcknowledgedInjuredColonistIds)+len(p.SurgicalRecoveryIds)+len(p.MedicalRestIds) != 0 || p.GetInjuryStopCooldownMs() != 0 {
+	if p == nil || len(p.AcknowledgedDownedColonistIds)+len(p.AcknowledgedInjuredColonistIds)+len(p.SurgicalRecoveryIds)+len(p.MedicalRestIds) != 0 || p.GetInjuryStopCooldownMs() != 0 {
+		return store.ClockAttempt{}, executor.ErrHeld
+	}
+	switch p.GetMode() {
+	case k.WatchMode_WATCH_MODE_COLONY:
+		if len(p.AcknowledgedHostileIds) != 0 {
+			return store.ClockAttempt{}, executor.ErrHeld
+		}
+	case k.WatchMode_WATCH_MODE_COMBAT:
+		if len(p.AcknowledgedHostileIds) == 0 {
+			return store.ClockAttempt{}, executor.ErrHeld
+		}
+	default:
 		return store.ClockAttempt{}, executor.ErrHeld
 	}
 	window, start := *intent.Window, *intent.Command.Start
@@ -30,12 +44,35 @@ func (q *ClockCoordinator) CommandWindow(ctx context.Context, request ClockWindo
 		if value.Window == nil || value.Command.Start == nil {
 			return executor.ErrHeld
 		}
-		decision := policy.EvaluateClockWindow(request.Facts, policy.ClockWindowLimits{Now: q.clock.Now(), MaxAge: request.MaxAge, MaxTicks: value.Command.Start.MaxTicks})
+		decision := policy.EvaluateClockWindow(request.Facts, policy.ClockWindowLimits{Now: q.clock.Now(), MaxAge: request.MaxAge, MaxTicks: value.Command.Start.MaxTicks, CombatMaxTicks: request.CombatMaxTicks})
 		w := value.Window
 		if !decision.Admitted || value.Snapshot != decision.Snapshot || w.Snapshot != decision.Snapshot || w.Tick != decision.Tick || w.ReviewRevision != decision.ReviewRevision || w.CapturedCursor != decision.CapturedCursor || w.MaxTicks != decision.MaxTicks {
 			return executor.ErrHeld
 		}
-		return nil
+		return clockWindowPolicyMatches(value.Command.Start.Policy, decision)
 	}
 	return q.command(ctx, intent, check)
+}
+
+// clockWindowPolicyMatches holds unless the start policy watches in the mode
+// the window decision admitted and acknowledges exactly its hostiles.
+func clockWindowPolicyMatches(p *k.WatchPolicy, decision policy.ClockWindowDecision) error {
+	var mode k.WatchMode
+	switch decision.Mode {
+	case policy.ClockWindowColony:
+		mode = k.WatchMode_WATCH_MODE_COLONY
+	case policy.ClockWindowCombat:
+		mode = k.WatchMode_WATCH_MODE_COMBAT
+	default:
+		return executor.ErrHeld
+	}
+	if p.GetMode() != mode || len(p.AcknowledgedHostileIds) != len(decision.Hostiles) {
+		return executor.ErrHeld
+	}
+	for i, id := range decision.Hostiles {
+		if p.AcknowledgedHostileIds[i] != string(id) {
+			return executor.ErrHeld
+		}
+	}
+	return nil
 }

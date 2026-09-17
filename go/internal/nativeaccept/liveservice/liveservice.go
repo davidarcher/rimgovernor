@@ -68,6 +68,8 @@ type Service struct {
 	cmd        *exec.Cmd
 	done       chan error
 	stopped    bool
+	exited     bool
+	exit       error
 	keepAlive  *authorityKeepAlive
 	stopKeep   context.CancelFunc
 	keepWG     sync.WaitGroup
@@ -95,6 +97,10 @@ func Prepare(ctx context.Context, cfg Config, report na.Report) (*Prepared, erro
 		cfg.NativeTimeout = 15 * time.Second
 	}
 	naCfg := &na.Config{Root: cfg.Root, Output: cfg.Output, Headless: cfg.Headless, GameID: cfg.GameID}
+	// The save carries its own expansion list; a Core-only profile would refuse it.
+	if err := naCfg.UseSaveExpansions(cfg.Save); err != nil {
+		return nil, fmt.Errorf("prepare profile: %w", err)
+	}
 	if err := naCfg.PrepareConfig(); err != nil {
 		return nil, fmt.Errorf("prepare profile: %w", err)
 	}
@@ -392,14 +398,33 @@ func (s *Service) Stop() map[string]any {
 		s.keepWG.Wait()
 		keep = s.keepAlive.snapshot()
 	}
-	if s.cmd.ProcessState == nil {
-		_ = s.cmd.Process.Kill()
+	if !s.exited {
+		if s.cmd.ProcessState == nil {
+			_ = s.cmd.Process.Kill()
+		}
+		<-s.done
 	}
-	<-s.done
 	for _, f := range s.logs {
 		f.Close()
 	}
 	return keep
+}
+
+// Exited reports, without blocking, whether the service has already exited
+// on its own (a na.Wait.Terminal for the harness's store polls).
+func (s *Service) Exited() error {
+	if !s.exited {
+		select {
+		case err := <-s.done:
+			s.exited, s.exit = true, err
+		default:
+			return nil
+		}
+	}
+	if s.exit == nil {
+		return fmt.Errorf("service %d exited with status 0", s.PID)
+	}
+	return fmt.Errorf("service %d exited: %w", s.PID, s.exit)
 }
 
 // OpenStore opens the service's durable journal for concurrent read-only

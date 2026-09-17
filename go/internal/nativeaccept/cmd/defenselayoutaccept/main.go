@@ -10,8 +10,11 @@
 // must respond with hold-the-line (method "hold-…") for an ordinary edge
 // assault, or with squad defense ("squad-…") when the raid bypasses the line
 // (-strategy ImmediateAttackSappers or -arrival CenterDrop). For the edge
-// raid the run also waits for the raid to resolve and asserts natively that
-// at least one trap sprung.
+// raid the service then holds the raid itself -- the scheduler admits
+// bounded combat watch windows acknowledging the live hostiles while the
+// ActiveCombat goal has an admitted plan (#69) -- and the run waits for the
+// goal to recover, then asserts natively that the raiders are dead or downed
+// and at least one trap sprung.
 //
 // Like routinehaulaccept, only one GABP client may hold the game at a time:
 // the harness's fixture session and the service's session are used strictly
@@ -43,6 +46,7 @@ import (
 	na "github.com/davidarcher/RimGovernor/go/internal/nativeaccept"
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
 	"github.com/davidarcher/RimGovernor/go/internal/store"
+	k "github.com/davidarcher/RimGovernor/go/internal/wire/clockpb"
 )
 
 func main() {
@@ -102,17 +106,15 @@ type service struct {
 	cmd       *exec.Cmd
 	done      chan error
 	stopped   bool
+	exited    bool
+	exit      error
 	api       apiFunc
 	token     string
 	url       string
 	keepAlive *authorityKeepAlive
 	stopKeep  context.CancelFunc
-	// keepAuthority leaves native authority (and every owned draft) in
-	// place when the service is killed, so drafted defenders keep their
-	// orders while the harness drives the raid natively.
-	keepAuthority bool
-	keepWG        sync.WaitGroup
-	store         *store.Store
+	keepWG    sync.WaitGroup
+	store     *store.Store
 }
 
 func (s *service) stop() {
@@ -127,7 +129,7 @@ func (s *service) stop() {
 	// Hand native authority back to manual before the kill: a killed
 	// service leaves the native side in auto mode under its dead session,
 	// and the next service's acquire would resolve uncertain against it.
-	if s.keepAlive != nil && s.api != nil && !s.keepAuthority {
+	if s.keepAlive != nil && s.api != nil {
 		_, _, _ = s.api("POST", "/api/player/control/manual", map[string]any{
 			"requestId": fmt.Sprintf("defense-%s-manual-%d", s.keepAlive.name, time.Now().UnixNano()), "expected": s.keepAlive.identity,
 		}, s.token)
@@ -135,10 +137,36 @@ func (s *service) stop() {
 	if s.store != nil {
 		s.store.Close()
 	}
+	if s.exited {
+		return
+	}
 	if s.cmd.ProcessState == nil {
 		_ = s.cmd.Process.Kill()
 	}
 	<-s.done
+}
+
+// exitedErr is the journal waits' na.Wait.Terminal: a service that died on
+// its own ends a wait at once.
+func (s *service) exitedErr() error {
+	if !s.exited {
+		select {
+		case s.exit = <-s.done:
+			s.exited = true
+		default:
+			return nil
+		}
+	}
+	if s.exit == nil {
+		return fmt.Errorf("service %d exited with status 0", s.cmd.Process.Pid)
+	}
+	return fmt.Errorf("service %d exited: %w", s.cmd.Process.Pid, s.exit)
+}
+
+// wait bounds a journal poll by budget, the shared stall budget and the
+// service's own exit.
+func (s *service) wait(budget time.Duration) na.Wait {
+	return na.Wait{Ceiling: budget, Stall: na.StallBudget(), Terminal: s.exitedErr}
 }
 
 func run(ctx context.Context, root, output, gameID string, headless bool, rimgovernorBinary string, opts options, report na.Report) error {
@@ -149,6 +177,10 @@ func run(ctx context.Context, root, output, gameID string, headless bool, rimgov
 		output = abs
 	}
 	cfg := &na.Config{Root: root, Output: output, Headless: headless, GameID: gameID}
+	// The save carries its own expansion list; a Core-only profile would refuse it.
+	if err := cfg.UseSaveExpansions(opts.save); err != nil {
+		return err
+	}
 	if err := cfg.PrepareConfig(); err != nil {
 		return fmt.Errorf("prepare profile: %w", err)
 	}
@@ -244,7 +276,7 @@ func run(ctx context.Context, root, output, gameID string, headless bool, rimgov
 		if _, err := h.Call(ctx, "load-save", "rimworld/load_game_ready", map[string]any{"saveName": opts.save, "readiness": "visual", "timeoutMs": 120000, "ignoreModCompatibility": false}); err != nil {
 			return err
 		}
-	} else if _, err := h.Call(ctx, "new-game", "rimworld/start_debug_game_ready", map[string]any{"readiness": "visual", "pauseIfNeeded": true, "timeoutMs": 120000}); err != nil {
+	} else if _, err := na.StartDebugGame(ctx, h, nil, na.Loud); err != nil {
 		return err
 	}
 	if _, err := h.Call(ctx, "pause", "rimworld/set_time_speed", map[string]any{"speed": "Paused", "ultraSpeedBoost": false}); err != nil {
@@ -358,7 +390,7 @@ func run(ctx context.Context, root, output, gameID string, headless bool, rimgov
 		return err
 	}
 	defer svc.stop()
-	layout, err := waitLayoutComplete(ctx, svc.store, world, opts.layoutTimeout, report)
+	layout, err := waitLayoutComplete(ctx, svc.store, world, svc.wait(opts.layoutTimeout), report)
 	if err != nil {
 		return fmt.Errorf("layout: %w", err)
 	}
@@ -443,7 +475,7 @@ func run(ctx context.Context, root, output, gameID string, headless bool, rimgov
 	if opts.bypass {
 		wantPrefix = "squad-"
 	}
-	method, err := waitCombatMethod(ctx, svc.store, opts.raidTimeout, report)
+	method, err := waitCombatMethod(ctx, svc.store, svc.wait(opts.raidTimeout), report)
 	if err != nil {
 		return fmt.Errorf("combat response: %w", err)
 	}
@@ -461,20 +493,22 @@ func run(ctx context.Context, root, output, gameID string, headless bool, rimgov
 	} else if err := assertNoLinePosition(plan.Spec, layout); err != nil {
 		return err
 	}
-	var dispatched map[string]any
 	if !opts.bypass {
-		// The service never runs the clock while a hostile is on the map
-		// (EvaluateClockWindow holds unsafe_colony), so under it the hold
-		// plan can only get as far as native dispatch: every defender
-		// drafted and every movement order accepted. Ticks are then driven
-		// by the harness below, with the service gone but the drafts and
-		// orders left in place.
-		dispatched, err = waitHoldDispatched(ctx, svc.store, method.Plan, opts.raidTimeout/2)
+		// The service holds the raid: with the hold plan admitted the
+		// scheduler runs bounded combat windows that acknowledge the live
+		// hostiles, re-planning between them, until the ActiveCombat goal
+		// recovers. The fixture can only inspect from the harness session,
+		// so the outcome is read natively once the service is gone.
+		dispatched, err := waitHoldDispatched(ctx, svc.store, method.Plan, svc.wait(opts.raidTimeout/2))
+		report["hold_plan_dispatch"] = dispatched
 		if err != nil {
 			return fmt.Errorf("hold dispatch: %w", err)
 		}
-		report["hold_plan_dispatch"] = dispatched
-		svc.keepAuthority = true
+		resolved, err := waitRaidResolved(ctx, svc.store, method.Plan, svc.wait(opts.raidTimeout))
+		report["raid_resolution"] = resolved
+		if err != nil {
+			return fmt.Errorf("raid resolution: %w", err)
+		}
 	}
 	svc.stop()
 	report["raid_authority"] = svc.keepAlive.snapshot()
@@ -487,12 +521,6 @@ func run(ctx context.Context, root, output, gameID string, headless bool, rimgov
 	final, err := fixture("inspect-after-raid", map[string]any{"op": "inspect"})
 	if err != nil {
 		return err
-	}
-	if !opts.bypass {
-		final, err = resolveRaid(ctx, h, fixture, layout, opts.raidTimeout, report)
-		if err != nil {
-			return err
-		}
 	}
 	report["inspect_after_raid"] = final
 	if on := na.AsSlice(final["colonistsOnTraps"]); len(on) != 0 {
@@ -698,12 +726,14 @@ func launchService(ctx context.Context, output, name, binary, gabs, config, game
 }
 
 // waitLayoutComplete polls the journal until the stored layout for world is
-// Complete, recording each tier method's plan and its final stage.
-func waitLayoutComplete(ctx context.Context, s *store.Store, world store.World, budget time.Duration, report na.Report) (store.DefenseLayoutRecord, error) {
-	deadline := time.Now().Add(budget)
+// Complete, recording each tier method's plan and its final stage. The
+// progress signature is the tier methods' plan stages and the stored record.
+func waitLayoutComplete(ctx context.Context, s *store.Store, world store.World, w na.Wait, report na.Report) (store.DefenseLayoutRecord, error) {
 	var goalID domain.GoalID
+	var record store.DefenseLayoutRecord
+	var stored bool
 	tiers := map[string]any{}
-	for {
+	err := na.WaitProgress(ctx, w, func(ctx context.Context) (string, bool, error) {
 		review, err := s.LoadRoutineReview(ctx)
 		if err == nil && goalID == "" {
 			for _, binding := range review.Goals {
@@ -725,162 +755,189 @@ func waitLayoutComplete(ctx context.Context, s *store.Store, world store.World, 
 				report["layout_tier_methods"] = tiers
 			}
 		}
-		record, ok, err := s.LoadDefenseLayout(ctx, world)
+		r, ok, err := s.LoadDefenseLayout(ctx, world)
 		if err == nil && ok {
+			record, stored = r, true
 			data, _ := json.Marshal(record)
 			report["layout_record"] = json.RawMessage(data)
 			if record.Complete {
 				if len(record.TrapLane) == 0 || len(record.Firing) == 0 {
-					return record, fmt.Errorf("complete layout without trap lane or firing cells: %+v", record)
+					return "", false, fmt.Errorf("complete layout without trap lane or firing cells: %+v", record)
 				}
-				return record, nil
+				return "", true, nil
 			}
 		}
-		if time.Now().After(deadline) {
-			return record, fmt.Errorf("layout not complete within %s (goal=%q stored=%v)", budget, goalID, ok)
-		}
-		select {
-		case <-ctx.Done():
-			return record, ctx.Err()
-		case <-time.After(2 * time.Second):
-		}
+		return na.Signature(goalID, tiers, stored, record.Complete), false, nil
+	})
+	if err != nil {
+		return record, fmt.Errorf("layout not complete (goal=%q stored=%v): %w", goalID, stored, err)
 	}
+	return record, nil
 }
 
 // waitCombatMethod polls the journal for the ActiveCombat goal's first
 // committed method after the raid.
-func waitCombatMethod(ctx context.Context, s *store.Store, budget time.Duration, report na.Report) (domain.GoalMethod, error) {
-	deadline := time.Now().Add(budget)
-	for {
+func waitCombatMethod(ctx context.Context, s *store.Store, w na.Wait, report na.Report) (domain.GoalMethod, error) {
+	var found domain.GoalMethod
+	err := na.WaitProgress(ctx, w, func(ctx context.Context) (string, bool, error) {
 		review, err := s.LoadRoutineReview(ctx)
-		if err == nil {
-			for _, binding := range review.Goals {
-				if binding.Need != policy.ActiveCombat {
-					continue
-				}
-				goal, err := s.LoadGoal(ctx, binding.Goal)
-				if err != nil && !errors.Is(err, store.ErrNotFound) {
-					return domain.GoalMethod{}, err
-				}
-				if len(goal.Methods) > 0 {
-					report["combat_goal"] = string(binding.Goal)
-					report["combat_method"] = string(goal.Methods[0].Method)
-					return goal.Methods[0], nil
-				}
+		if err != nil {
+			return na.Signature("no-review"), false, nil
+		}
+		for _, binding := range review.Goals {
+			if binding.Need != policy.ActiveCombat {
+				continue
 			}
+			goal, err := s.LoadGoal(ctx, binding.Goal)
+			if err != nil && !errors.Is(err, store.ErrNotFound) {
+				return "", false, err
+			}
+			if len(goal.Methods) > 0 {
+				report["combat_goal"] = string(binding.Goal)
+				report["combat_method"] = string(goal.Methods[0].Method)
+				found = goal.Methods[0]
+				return "", true, nil
+			}
+			return na.Signature("bound", binding.Goal, goal.Goal.Epoch), false, nil
 		}
-		if time.Now().After(deadline) {
-			return domain.GoalMethod{}, fmt.Errorf("no ActiveCombat method within %s", budget)
-		}
-		select {
-		case <-ctx.Done():
-			return domain.GoalMethod{}, ctx.Err()
-		case <-time.After(time.Second):
-		}
+		return na.Signature("unbound", len(review.Goals)), false, nil
+	})
+	if err != nil {
+		return domain.GoalMethod{}, fmt.Errorf("no ActiveCombat method: %w", err)
 	}
+	return found, nil
 }
 
-// waitHoldDispatched waits until every draft in the hold plan is completed:
-// the furthest the plan can get while the game is paused.
-func waitHoldDispatched(ctx context.Context, s *store.Store, id domain.PlanID, budget time.Duration) (map[string]any, error) {
-	deadline := time.Now().Add(budget)
-	for {
-		state, err := s.LoadPlan(ctx, id)
-		if err != nil {
-			return nil, err
-		}
+// waitHoldDispatched waits until every draft in the hold plan is completed
+// and every move to a firing cell has been attempted natively: the furthest
+// the plan can get before the first combat window lets ticks pass.
+func waitHoldDispatched(ctx context.Context, s *store.Store, id domain.PlanID, w na.Wait) (map[string]any, error) {
+	var out map[string]any
+	_, err := na.WaitPlan(ctx, s, w, id, func(state store.PlanState) (string, bool, error) {
 		st := stages(state.Progress)
-		drafts, attacks, ready := 0, 0, true
+		drafts, moves, attacks, ready := 0, 0, 0, true
 		for _, p := range state.Progress {
 			v := p.View()
 			switch p.Action().Kind() {
 			case domain.OwnedDraftAction:
 				drafts++
 				ready = ready && v.Stage == domain.Completed
+			case domain.MovementAction:
+				moves++
+				ready = ready && (v.Attempt > 0 || v.Stage == domain.Completed)
 			case domain.RangedAttackAction:
 				attacks++
 			}
 		}
-		if drafts == 0 || attacks == 0 {
-			return map[string]any{"stages": st}, fmt.Errorf("hold plan has no draft or attack actions: %v", st)
+		out = map[string]any{"stages": st}
+		if drafts == 0 || moves == 0 || attacks == 0 {
+			return "", false, fmt.Errorf("hold plan has %d drafts, %d moves and %d attacks: %v", drafts, moves, attacks, st)
 		}
 		if ready {
-			return map[string]any{"stages": st, "drafts": drafts, "attacks": attacks}, nil
+			out = map[string]any{"stages": st, "drafts": drafts, "moves": moves, "attacks": attacks}
+			return "", true, nil
 		}
 		if !domain.GoalWorkOpen(state.Progress) {
-			return map[string]any{"stages": st}, fmt.Errorf("hold plan settled before dispatch: %v", st)
+			return "", false, fmt.Errorf("hold plan settled before dispatch: %v", st)
 		}
-		if time.Now().After(deadline) {
-			return map[string]any{"stages": st}, fmt.Errorf("hold plan not dispatched after %s: %v", budget, st)
-		}
-		select {
-		case <-ctx.Done():
-			return nil, ctx.Err()
-		case <-time.After(2 * time.Second):
-		}
+		return na.PlanSignature(state), false, nil
+	})
+	if err != nil {
+		return out, fmt.Errorf("hold plan not dispatched: %w", err)
 	}
+	return out, nil
 }
 
-// resolveRaid drives the raid natively from the harness session: run the
-// game, pause, inspect, repeat until every raider is dead or downed or the
-// budget ends. The fixture inspects only while paused. It also records
-// whether a drafted defender was ever seen standing on a firing cell.
-func resolveRaid(ctx context.Context, h *na.Harness, fixture func(string, map[string]any) (map[string]any, error), layout store.DefenseLayoutRecord, budget time.Duration, report na.Report) (map[string]any, error) {
-	firing := map[domain.Cell]bool{}
-	for _, c := range layout.Firing {
-		firing[c] = true
-	}
-	deadline := time.Now().Add(budget)
-	onLine := map[string]bool{}
-	var final map[string]any
-	for round := 0; ; round++ {
-		if _, err := h.Call(ctx, fmt.Sprintf("raid-run-%d", round), "rimworld/set_time_speed", map[string]any{"speed": "Fast", "ultraSpeedBoost": false}); err != nil {
-			return nil, err
-		}
-		select {
-		case <-ctx.Done():
-			return nil, ctx.Err()
-		case <-time.After(8 * time.Second):
-		}
-		if _, err := h.Call(ctx, fmt.Sprintf("raid-pause-%d", round), "rimworld/set_time_speed", map[string]any{"speed": "Paused", "ultraSpeedBoost": false}); err != nil {
-			return nil, err
-		}
-		out, err := fixture(fmt.Sprintf("raid-inspect-%d", round), map[string]any{"op": "inspect"})
+// waitRaidResolved polls the journal while the service fights the raid: it
+// counts the combat watch windows the scheduler applied and returns once the
+// ActiveCombat goal has recovered (no live hostile) or is no longer bound.
+// At least one combat window must have run, and at least one defender must
+// have been observed arriving on its firing cell (a completed movement in
+// the first hold plan or any hold plan the goal re-planned after it); the
+// harness never steps the clock natively. The progress signature is the
+// window counts, the goal's binding and the defenders on the line.
+func waitRaidResolved(ctx context.Context, s *store.Store, first domain.PlanID, w na.Wait) (map[string]any, error) {
+	out := map[string]any{}
+	holdPlans := map[domain.PlanID]bool{first: true}
+	onLine := map[domain.PawnID]bool{}
+	err := na.WaitProgress(ctx, w, func(ctx context.Context) (string, bool, error) {
+		attempts, err := s.LoadClockAttempts(ctx, 4096)
 		if err != nil {
-			return nil, err
+			return "", false, err
 		}
-		final = out
-		for _, raw := range na.AsSlice(out["colonists"]) {
-			row, _ := na.AsMap(raw)
-			drafted, _ := na.AsBool(row["drafted"])
-			if drafted && firing[domain.Cell{X: int32(na.AsNumber(row["x"])), Z: int32(na.AsNumber(row["z"]))}] {
-				onLine[na.AsString(row["id"])] = true
+		combatWindows, colonyWindows := 0, 0
+		var lastPhase string
+		var acknowledged []string
+		for _, a := range attempts {
+			start := a.Intent.Command.Start
+			if start == nil || a.Phase != store.ClockApplied {
+				continue
+			}
+			lastPhase = string(a.Phase)
+			if start.Policy.GetMode() == k.WatchMode_WATCH_MODE_COMBAT {
+				combatWindows++
+				acknowledged = start.Policy.AcknowledgedHostileIds
+			} else {
+				colonyWindows++
 			}
 		}
-		active := 0
-		for _, raw := range na.AsSlice(out["hostiles"]) {
-			row, _ := na.AsMap(raw)
-			dead, _ := na.AsBool(row["dead"])
-			downed, _ := na.AsBool(row["downed"])
-			if !dead && !downed {
-				active++
+		out["combat_windows"] = combatWindows
+		out["colony_windows"] = colonyWindows
+		out["last_acknowledged_hostiles"] = acknowledged
+		out["last_applied_phase"] = lastPhase
+		review, err := s.LoadRoutineReview(ctx)
+		if err != nil {
+			return "", false, err
+		}
+		bound := false
+		need := ""
+		for _, binding := range review.Goals {
+			if binding.Need != policy.ActiveCombat {
+				continue
+			}
+			bound = true
+			goal, err := s.LoadGoal(ctx, binding.Goal)
+			if err != nil && !errors.Is(err, store.ErrNotFound) {
+				return "", false, err
+			}
+			need = string(goal.Goal.Need)
+			for _, m := range goal.Methods {
+				if strings.HasPrefix(string(m.Method), "hold-") {
+					holdPlans[m.Plan] = true
+				}
 			}
 		}
-		report["raid_rounds"] = round + 1
-		if active == 0 || time.Now().After(deadline) {
-			break
+		for id := range holdPlans {
+			state, err := s.LoadPlan(ctx, id)
+			if err != nil {
+				return "", false, err
+			}
+			for _, p := range state.Progress {
+				if m, ok := p.Action().Movement(); ok && p.View().Stage == domain.Completed {
+					onLine[m.Pawn()] = true
+				}
+			}
 		}
+		line := make([]string, 0, len(onLine))
+		for id := range onLine {
+			line = append(line, string(id))
+		}
+		sort.Strings(line)
+		out["defenders_on_firing_cells"] = line
+		out["combat_goal_bound"] = bound
+		out["combat_goal_need"] = need
+		if combatWindows > 0 && (!bound || need == string(domain.NeedRecovered)) {
+			if len(line) == 0 {
+				return "", false, fmt.Errorf("no defender completed its move to a firing cell during the raid: %#v", out)
+			}
+			return "", true, nil
+		}
+		return na.Signature(combatWindows, colonyWindows, bound, need, len(holdPlans), line), false, nil
+	})
+	if err != nil {
+		return out, fmt.Errorf("raid not resolved under the service (%#v): %w", out, err)
 	}
-	line := make([]string, 0, len(onLine))
-	for id := range onLine {
-		line = append(line, id)
-	}
-	sort.Strings(line)
-	report["defenders_on_firing_cells"] = line
-	if len(line) == 0 {
-		return final, fmt.Errorf("no drafted defender was seen on a firing cell during the raid: %#v", final)
-	}
-	return final, nil
+	return out, nil
 }
 
 func stages(progress []domain.Progress) []string {
@@ -891,24 +948,66 @@ func stages(progress []domain.Progress) []string {
 	return out
 }
 
-// assertHoldPlan checks a hold-the-line plan drafts each defender and has
-// every attack depend on that draft. Positioning on the firing cells needs
-// the movement action family (removed with #54), so no move is required.
+// assertHoldPlan checks a hold-the-line plan carries draft, move and ranged
+// attack per defender: every move targets one of the layout's firing cells
+// and never a trap cell, and every attack depends on that defender's move.
 func assertHoldPlan(spec domain.PlanSpec, layout store.DefenseLayoutRecord) error {
 	if len(layout.Firing) == 0 {
 		return errors.New("layout has no firing cells")
 	}
+	firing := map[domain.Cell]bool{}
+	for _, c := range layout.Firing {
+		firing[c] = true
+	}
+	traps := map[domain.Cell]bool{}
+	for _, tier := range layout.Tiers {
+		for _, b := range tier.Buildings {
+			if b.Definition == "TrapSpike" {
+				traps[b.Cell] = true
+			}
+		}
+	}
 	drafts, attacks := 0, 0
+	moves := map[domain.PawnID]domain.ActionID{}
 	for _, a := range spec.Actions() {
 		switch a.Kind() {
 		case domain.OwnedDraftAction:
 			drafts++
+		case domain.MovementAction:
+			m, _ := a.Movement()
+			if traps[m.Destination()] {
+				return fmt.Errorf("hold plan moves %s onto trap cell %+v", m.Pawn(), m.Destination())
+			}
+			if !firing[m.Destination()] {
+				return fmt.Errorf("hold plan moves %s to %+v, not a firing cell %v", m.Pawn(), m.Destination(), layout.Firing)
+			}
+			moves[m.Pawn()] = a.ID()
 		case domain.RangedAttackAction:
 			attacks++
 		}
 	}
-	if drafts == 0 || attacks == 0 {
-		return fmt.Errorf("hold plan has %d drafts and %d attacks", drafts, attacks)
+	if drafts == 0 || len(moves) == 0 || attacks == 0 {
+		return fmt.Errorf("hold plan has %d drafts, %d moves and %d attacks", drafts, len(moves), attacks)
+	}
+	requires := map[domain.ActionID]map[domain.ActionID]bool{}
+	for _, d := range spec.Dependencies() {
+		if requires[d.Action] == nil {
+			requires[d.Action] = map[domain.ActionID]bool{}
+		}
+		requires[d.Action][d.Requires] = true
+	}
+	for _, a := range spec.Actions() {
+		attack, ok := a.RangedAttack()
+		if !ok {
+			continue
+		}
+		move, positioned := moves[attack.Pawn()]
+		if !positioned {
+			return fmt.Errorf("hold plan attacks with %s without a move to a firing cell", attack.Pawn())
+		}
+		if !requires[a.ID()][move] {
+			return fmt.Errorf("hold plan attack %s does not depend on move %s", a.ID(), move)
+		}
 	}
 	return nil
 }

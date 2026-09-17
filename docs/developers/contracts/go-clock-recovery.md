@@ -189,6 +189,14 @@ boundaries and durable events must be known; a never-started clock may report
 durability as false. The admitted budget is finite and cannot overflow its tick
 deadline. Admission carries its snapshot and review revision for dispatch binding.
 
+A live, undowned hostile or hunting predator refuses the window (`unsafe_colony`)
+unless the facts say the ActiveCombat goal holds an admitted plan with open work;
+unknown plan evidence refuses as `unknown_facts`. With such a plan the decision
+is a combat watch: it names, sorted, every live hostile the window acknowledges
+and uses the combat budget (never above the colony budget). Once every hostile
+is dead or downed the decision is back in colony mode, acknowledging nothing.
+Colonist status, unknown threat status and every other hold apply in both modes.
+
 Window starts retain their exact profile, snapshot, tick, review revision, captured
 cursor and budget with the immutable clock intent. Durable dispatch checks the
 current review in the same transaction: its revision and captured/reviewed cursors
@@ -197,19 +205,54 @@ admission needed for receipt recovery.
 
 `CommandClockWindow` carries the policy facts through the serialized coordinator.
 It checks age and authority after waiting and before dispatch and native execution;
-the fresh native status must still describe the admitted paused tick and cursor.
+the fresh native status must still describe the admitted paused tick and cursor,
+and the start policy must watch in the admitted mode with exactly the admitted
+hostiles acknowledged: colony mode acknowledges no pawn, combat mode acknowledges
+only the decision's hostiles, and medical suppression lists are never accepted.
 The ordinary command entry point cannot dispatch a window-bearing intent without
 these checks. A dispatched attempt with uncertain effects is recovered by its
 original key, never by issuing a replacement start.
 
 The internal `ClockScheduler.Step` uses the player's cancellation and serialization
-scope for one decision. Its explicit start configuration permits colony watch mode
-without acknowledgement or medical suppression lists. It checks the shared profile,
+scope for one decision. Its explicit start configuration is colony watch mode
+without acknowledgement or medical suppression lists; the step derives a combat
+start (mode, acknowledged hostiles, combat budget) from the window decision when
+the current routine review binds an active ActiveCombat goal whose plan has open
+work, so a raid runs in short windows re-planned between them. It checks the shared profile,
 current plan work and complete attempt/epoch catalogs before collecting fresh native
 facts. Unchanged decision inputs retain the same request ID across repeated calls;
 an undispatched stale preparation cannot prevent a fresh decision. Disabled sessions
 perform owned cleanup and cannot start. A valid running window is left unchanged.
+The routine reviewer runs first and its failure (or a mental-risk hold) aborts the
+step; every other composed planner then runs as one concurrent wave whose failures
+are isolated: a planner whose native read is refused or whose preview is stale
+commits nothing and is reported in `ClockSchedulerResult.PlannerFailures` (the
+clock worker logs each changed set once), but its peers finish and the window is
+still evaluated on what they committed, so one broken family cannot keep the
+clock from ever starting. Only the step's own context ending fails the wave.
+The wave admits planners in goal-priority order (naming and active combat, then
+critical medicine and recovery, then foothold needs, then maintenance, then
+comfort and expansion), at most `bridge.MaxConcurrentCalls` at a time with a
+slot taken before the next planner starts, so a tight step budget is spent on
+the highest priorities first. Native reads still execute one at a time on the
+game's main thread; the wave only overlaps their round trips, so a wider
+session pool would not help.
 The step itself has no polling loop; autonomous play attaches ClockWorker.
+
+Every native observation a step issues (identity, the routine census and each
+composed planner's own reads) goes through one `bridge.StepReadCache` attached to
+the step's context and dropped at step exit. The first read of a
+`(method, request)` pair crosses the bridge; identical reads later in the step,
+or concurrent with the first, are served from it. Only `lifecycle_read_identity`
+and `observations_*` replies carrying an `ObservationContext` are memoized, keyed
+to that reply's (load token, tick, native generation): a reply from another
+scope, or any write through the step's context, discards every row. Clock,
+authority, presentation, receipt and preview reads are never cached, nor are
+refusals or unavailability. A hit is decoded into a fresh reply, so the typed
+adapters and the same-bracket identity guards validate it as they would a
+native reply. `RIMGOVERNOR_CLOCK_DEBUG=1` logs the step's hit/miss/coalesced/
+invalidation counts and the flight recorder reports hits per method (the
+`cached` column of `rimgovernor phases`). Nothing is cached across steps.
 
 ## Independent clock workers
 
@@ -235,9 +278,15 @@ does not.
 The session attaches one clock worker before its loops start. Close cancels and
 joins the loops and their cancellation handler before releasing native handles,
 the journal or profile owner. Concurrent Stop calls serialize, successful cleanup
-is cached, and failed cleanup remains retryable. Worker intervals and call budgets
-are bounded below the native lease duration; unchanged scheduling decisions back
-off. Autonomous play attaches the worker; `--observe` does not.
+is cached, and failed cleanup remains retryable. Poll and renew intervals and call
+budgets are bounded below a quarter of the native lease duration so a late renew
+can never let the epoch lapse. The step budget is independent of the lease and
+bounded only by the Player's call timeout: a step holds the Player gate, never
+`renewGate`, so a slow planner census cannot delay renewal (`serve` budgets 7s for
+poll/renew and 30s for the step, with the scheduler's `MaxAge` covering the whole
+step). Unchanged scheduling decisions back off, except while a combat window is
+admitted or running, which keeps the short poll. Autonomous play attaches the
+worker; `--observe` does not.
 
 A fresh worker over reopened state remains disabled while recovering original
 attempts and pausing retained ownership; it does not acquire authority or issue a

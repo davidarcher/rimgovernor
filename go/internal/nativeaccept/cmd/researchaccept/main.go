@@ -91,9 +91,7 @@ func run(ctx context.Context, root, output, gameID string, headless bool, report
 	if !hasFingerprint {
 		return fmt.Errorf("missing test/research_observation_fingerprint fixture in discovery")
 	}
-	if _, err := h.Call(ctx, "new-game", "rimworld/start_debug_game_ready", map[string]any{
-		"readiness": "visual", "pauseIfNeeded": true, "timeoutMs": 120000,
-	}); err != nil {
+	if _, err := na.StartDebugGame(ctx, h, names, na.QuietRequired); err != nil {
 		return err
 	}
 	if _, err := h.Call(ctx, "pause", "rimworld/set_time_speed", map[string]any{"speed": "Paused", "ultraSpeedBoost": false}); err != nil {

@@ -36,7 +36,7 @@ namespace HomeBridge.BridgeTools
                 postfix: new HarmonyMethod(typeof(WallUpgradeSafety), nameof(GuardJob)));
             installed = true;
         }
-        private static Building Wall(Map map, string id) => map?.listerBuildings.allBuildingsColonist
+        internal static Building Wall(Map map, string id) => map?.listerBuildings.allBuildingsColonist
             .FirstOrDefault(b => b.def == ThingDefOf.Wall && b.GetUniqueLoadID() == id);
         internal static bool Stone(Building b) => b?.Stuff?.stuffProps?.categories?.Contains(StuffCategoryDefOf.Stony) == true;
         private static bool At(Building b, IntVec3 cell) => b != null && b.Spawned && b.Position == cell
@@ -69,7 +69,7 @@ namespace HomeBridge.BridgeTools
                 yield return origin + normal - side; yield return origin + normal; yield return origin + normal + side;
             }
         }
-        private static string Check(WallRemovalRecord r, bool ownership = true, bool requireDesignation = true)
+        internal static string Check(WallRemovalRecord r, bool ownership = true, bool requireDesignation = true)
         {
             var map = Find.CurrentMap;
             if (map == null || map.uniqueID != r.MapId || ownership && r.Load != Load) return "Colony/load/map changed";
@@ -117,6 +117,8 @@ namespace HomeBridge.BridgeTools
         }
         private static WallRemovalRecord Claim(Thing t) => t == null ? null : State()?.Records.LastOrDefault(r =>
             r.Target == t.GetUniqueLoadID() && !r.Complete);
+        /// <summary>The ledger's open removal of this exact wall, if any; read-only for the typed census.</summary>
+        internal static WallRemovalRecord Pending(Thing t) => Claim(t);
         private static void Eligible(Thing t, ref bool __result)
         {
             var r = Claim(t); if (r == null || !__result) return;
@@ -165,8 +167,14 @@ namespace HomeBridge.BridgeTools
         }
         internal static object Release(bool dryRun)
         {
+            var released = dryRun ? (State()?.Records ?? new List<WallRemovalRecord>()).Count(r => !r.Complete) : ReleaseAll();
+            return new { success = true, accepted = true, dryRun, released };
+        }
+        /// <summary>Invalidate every open guarded removal and drop its designation; returns how many were open.</summary>
+        internal static int ReleaseAll()
+        {
             var records = (State()?.Records ?? new List<WallRemovalRecord>()).Where(r => !r.Complete).ToList();
-            if (!dryRun) foreach (var r in records) {
+            foreach (var r in records) {
                 r.Blocker = "Automation stopped; pending demolition invalidated";
                 var map = Find.CurrentMap;
                 var target = map?.uniqueID == r.MapId ? Wall(map, r.Target) : null;
@@ -176,39 +184,53 @@ namespace HomeBridge.BridgeTools
                 if (designation != null) map.designationManager.RemoveDesignation(designation);
                 r.Retired = map.designationManager.DesignationOn(target, DesignationDefOf.Deconstruct) == null;
             }
-            return new { success = true, accepted = true, dryRun, released = records.Count };
+            return records.Count;
+        }
+        internal static WallRemovalRecord NewRecord(Map map, string target, string original, string left, string right, IEnumerable<string> backup,
+            string permanent, string material, int x, int z, int nx, int nz) => new WallRemovalRecord {
+                Id = Guid.NewGuid().ToString("N"), Target = target, Original = original, Left = left, Right = right,
+                Backup = backup.ToList(), Permanent = string.IsNullOrEmpty(permanent) ? null : permanent, Material = material,
+                MapId = map.uniqueID, X = x, Z = z, Nx = nx, Nz = nz, Load = Load, UiRevision = PlayerFrame.CurrentUiRevision };
+        /// <summary>Why this record cannot be admitted now, or null with the builders who could take the job. Changes nothing.</summary>
+        internal static string Prepare(WallRemovalRecord r, out List<Pawn> workers)
+        {
+            Install();
+            workers = new List<Pawn>();
+            var map = Find.CurrentMap;
+            if (map == null || State(true).Records.Count >= 512) return "Native removal ledger unavailable";
+            var wall = Wall(map, r.Target);
+            if (wall == null) return "Exact native wall is unavailable";
+            if (map.designationManager.DesignationOn(wall, DesignationDefOf.Deconstruct) != null)
+                return "Existing demolition designation is preserved; observe its original receipt";
+            var blocker = Check(r, requireDesignation: false);
+            if (blocker != null) return blocker;
+            if (!new Designator_Deconstruct().CanDesignateThing(wall).Accepted) return "Native deconstruction designator refused";
+            workers = map.mapPawns.FreeColonistsSpawned.Where(p => !p.Downed && !p.Drafted && !p.InMentalState
+                && !p.WorkTypeIsDisabled(WorkTypeDefOf.Construction) && !p.health.HasHediffsNeedingTend()
+                && p.health.hediffSet.BleedRateTotal <= 0
+                && p.CanReserveAndReach(wall, PathEndMode.Touch, Danger.None)).ToList();
+            return workers.Count == 0 ? "No enabled available builder with safe native access" : null;
+        }
+        /// <summary>Record the guarded removal and place its native deconstruct designation; null on success.</summary>
+        internal static string Commit(WallRemovalRecord r)
+        {
+            var map = Find.CurrentMap; var wall = Wall(map, r.Target);
+            State(true).Records.Add(r);
+            try { new Designator_Deconstruct().DesignateThing(wall); }
+            catch { r.Blocker = "Native designation outcome is uncertain"; throw; }
+            return map.designationManager.DesignationOn(wall, DesignationDefOf.Deconstruct) == null
+                ? "Native demolition designation was not observed" : null;
         }
         internal static object Remove(string target, string original, string left, string right, string backup,
             string permanent, string material, int x, int z, int nx, int nz, bool dryRun)
         {
-            Install();
             object Refuse(string why) => new { success = dryRun, accepted = false, error = why, reason = why };
             var map = Find.CurrentMap;
-            if (map == null || State(true).Records.Count >= 512) return Refuse("Native removal ledger unavailable");
-            var wall = Wall(map, target);
-            if (wall == null) return Refuse("Exact native wall is unavailable");
-            if (map.designationManager.DesignationOn(wall, DesignationDefOf.Deconstruct) != null)
-                return Refuse("Existing demolition designation is preserved; observe its original receipt");
-            var r = new WallRemovalRecord { Id = Guid.NewGuid().ToString("N"), Target = target, Original = original,
-                Left = left, Right = right, Backup = (backup ?? "").Split(new[] { ';' }, StringSplitOptions.RemoveEmptyEntries).ToList(),
-                Permanent = string.IsNullOrEmpty(permanent) ? null : permanent, Material = material, MapId = map.uniqueID,
-                X = x, Z = z, Nx = nx, Nz = nz, Load = Load, UiRevision = PlayerFrame.CurrentUiRevision };
-            var blocker = Check(r, requireDesignation: false);
+            if (map == null) return Refuse("Native removal ledger unavailable");
+            var r = NewRecord(map, target, original, left, right, (backup ?? "").Split(new[] { ';' }, StringSplitOptions.RemoveEmptyEntries),
+                permanent, material, x, z, nx, nz);
+            var blocker = Prepare(r, out var workers) ?? (dryRun ? null : Commit(r));
             if (blocker != null) return Refuse(blocker);
-            var designator = new Designator_Deconstruct();
-            if (!designator.CanDesignateThing(wall).Accepted) return Refuse("Native deconstruction designator refused");
-            var workers = map.mapPawns.FreeColonistsSpawned.Where(p => !p.Downed && !p.Drafted && !p.InMentalState
-                && !p.WorkTypeIsDisabled(WorkTypeDefOf.Construction) && !p.health.HasHediffsNeedingTend()
-                && p.health.hediffSet.BleedRateTotal <= 0
-                && p.CanReserveAndReach(wall, PathEndMode.Touch, Danger.None)).ToList();
-            if (workers.Count == 0) return Refuse("No enabled available builder with safe native access");
-            if (!dryRun) {
-                State().Records.Add(r);
-                try { designator.DesignateThing(wall); }
-                catch { r.Blocker = "Native designation outcome is uncertain"; throw; }
-                if (map.designationManager.DesignationOn(wall, DesignationDefOf.Deconstruct) == null)
-                    return Refuse("Native demolition designation was not observed");
-            }
             return new { success = true, accepted = true, dryRun, removalId = dryRun ? null : r.Id,
                 target, workers = workers.Select(p => p.GetUniqueLoadID()).ToList(),
                 meaning = "Guarded native designation; completed pawn demolition is observed separately" };

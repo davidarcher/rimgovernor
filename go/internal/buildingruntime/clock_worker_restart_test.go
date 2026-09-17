@@ -88,7 +88,7 @@ func TestClockWorkerDisabledRestart(t *testing.T) {
 				t.Fatal(err)
 			}
 			t.Cleanup(func() { _ = player.Close(context.Background()) })
-			source := &schedulerNative{fake, policy.EmergencyFacts{ColonistsComplete: domain.Known(true), ThreatsComplete: domain.Known(true)}}
+			source := &schedulerNative{clockCoreFake: fake, emergency: policy.EmergencyFacts{ColonistsComplete: domain.Known(true), ThreatsComplete: domain.Known(true)}}
 			native := &joinedClockNative{source: source, started: make(chan struct{}), paused: make(chan struct{}), captured: make(chan struct{})}
 			scheduler, err := NewClockScheduler(player, session, native, ClockSchedulerConfig{Profile: profile, Start: *intent.Command.Start, MaxAge: time.Second}, boundary.FixedClock{})
 			if err != nil {
@@ -99,7 +99,7 @@ func TestClockWorkerDisabledRestart(t *testing.T) {
 			if session.State().Enabled || authority.acquires.Load() != 0 {
 				t.Fatal("restart restored permission")
 			}
-			worker, err := NewClockWorker(ctx, scheduler, native, ClockWorkerConfig{PollInterval: 10 * time.Millisecond, RenewInterval: 10 * time.Millisecond, StepInterval: 10 * time.Millisecond, MaxBackoff: 100 * time.Millisecond, CallTimeout: 200 * time.Millisecond, PageLimit: 128})
+			worker, err := NewClockWorker(ctx, scheduler, native, ClockWorkerConfig{PollInterval: 10 * time.Millisecond, RenewInterval: 10 * time.Millisecond, StepInterval: 10 * time.Millisecond, MaxBackoff: 100 * time.Millisecond, PollTimeout: 200 * time.Millisecond, RenewTimeout: 200 * time.Millisecond, StepTimeout: 200 * time.Millisecond, PageLimit: 128})
 			if err != nil {
 				t.Fatal(err)
 			}

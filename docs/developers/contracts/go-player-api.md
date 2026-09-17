@@ -17,7 +17,7 @@ control uses these routes.
 | GET | `/api/player/control` | Current control record and actual permission |
 | GET | `/api/player/control?requestId=…` | Historical request and actual permission |
 | POST | `/api/player/control/resume` | Run the bot for the exact observed world under that world's root plan |
-| POST | `/api/player/control/pause` | Stop the bot: invalidate local permission and clean up owned work |
+| POST | `/api/player/control/pause` | Stop the bot: invalidate local permission, suspend routine goals and clean up owned work |
 | POST | `/api/buildings/plans` | Store one building intent |
 | GET | `/api/buildings/submission?requestId=…` | Read a building submission |
 | POST | `/api/research-selects/plans` | Store one research-selection intent |

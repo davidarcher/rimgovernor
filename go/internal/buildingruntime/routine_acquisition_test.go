@@ -85,7 +85,7 @@ func TestAcquisitionPlannerBoundsWoodAndPreservesManual(t *testing.T) {
 		t.Fatal(err)
 	}
 	for _, progress := range plan.Progress {
-		if progress.View().Stage != domain.Cancelled {
+		if progress.View().Stage != domain.Pending {
 			t.Fatal(progress)
 		}
 	}

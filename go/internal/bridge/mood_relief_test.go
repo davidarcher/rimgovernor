@@ -213,8 +213,8 @@ func TestLookupAndObserveMoodRelief(t *testing.T) {
 		t.Fatal("completed progress rejected", err)
 	}
 	for name, change := range map[string]func(*r.Progress){
-		"incomplete inspection": func(v *r.Progress) { v.CompleteInspection = proto.Bool(false) },
-		"foreign pawn":          func(v *r.Progress) { v.GetCompleted().Evidence.GetJob().PawnId = proto.String("other") },
+		"incomplete inspection":   func(v *r.Progress) { v.CompleteInspection = proto.Bool(false) },
+		"foreign pawn":            func(v *r.Progress) { v.GetCompleted().Evidence.GetJob().PawnId = proto.String("other") },
 		"stale tick before admit": func(v *r.Progress) { v.Context.Tick = proto.Int64(1) },
 	} {
 		t.Run(name, func(t *testing.T) {

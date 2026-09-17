@@ -41,8 +41,8 @@ namespace HomeBridge.BridgeTools
         internal Receipts.Progress Observe(Common.AttemptKey attempt, Common.ObservationContext context)
         {
             var result = new Receipts.Progress { Attempt = attempt.Clone(), Context = context.Clone(), CompleteInspection = true };
-            if (pawn.Dead || !pawn.Spawned || pawn.Map != Find.CurrentMap || pawn.ownership == null
-                || bed.Destroyed || !bed.Spawned || bed.Map != Find.CurrentMap)
+            if (pawn.Dead || !pawn.Spawned || pawn.Map != ProtoBoundary.ResolveMap(context) || pawn.ownership == null
+                || bed.Destroyed || !bed.Spawned || bed.Map != ProtoBoundary.ResolveMap(context))
             {
                 result.CompleteInspection = false;
                 result.Unknown = new Receipts.UnknownEffect { Reason = "Bed assignment pawn or bed is no longer observable; absence does not prove completion." };
@@ -84,7 +84,7 @@ namespace HomeBridge.BridgeTools
             pawn = null; bed = null; assignable = null;
             failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Bed assignment requires an exact pawn, exact empty bed and observed previous bed.");
             if (!Valid(command)) return false;
-            var map = Find.CurrentMap;
+            var map = ProtoBoundary.ResolveMap(context);
             if (map == null || Find.TickManager.CurTimeSpeed != TimeSpeed.Paused)
             { failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Paused current map required."); return false; }
             pawn = map.mapPawns.FreeColonistsSpawned.SingleOrDefault(x => x.GetUniqueLoadID() == command.Pawn.EntityId);

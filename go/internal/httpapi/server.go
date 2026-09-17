@@ -32,7 +32,7 @@ type Server struct {
 	assets       *os.Root
 	closeOnce    sync.Once
 	closeErr     error
-	videoTickets sync.Map // hex ticket -> time.Time expiry; single-use, short-lived
+	videoTickets sync.Map // hex ticket -> videoTicket; single-use, short-lived
 	chat         *interpreter.Interpreter
 	chatNative   buildingruntime.ChatFactsNative
 	chatJournal  buildingruntime.ChatFactsJournal

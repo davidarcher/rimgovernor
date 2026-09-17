@@ -1,13 +1,17 @@
 using System;
 using System.Collections;
+using System.Collections.Generic;
 using System.IO.MemoryMappedFiles;
 using System.IO;
+using System.Linq;
 using System.Runtime.InteropServices;
 using System.Threading;
 using System.Threading.Tasks;
+using HarmonyLib;
 using RimBridgeServer.Sdk;
 using UnityEngine;
 using UnityEngine.Rendering;
+using Verse;
 
 namespace HomeBridge.BridgeTools
 {
@@ -22,11 +26,59 @@ namespace HomeBridge.BridgeTools
         }
     }
 
+    internal enum VideoSourceKind { Screen, Pawn, Map }
+
+    // What one lease captures. Screen is the presented framebuffer; Pawn and
+    // Map are rendered by a second camera into a feed of the given size at
+    // the given cadence. Equal specs share one source (and one buffer).
+    internal readonly struct VideoSourceSpec : IEquatable<VideoSourceSpec>
+    {
+        internal const int MinSide = 16, MaxWidth = 3840, MaxHeight = 2160;
+        internal VideoSourceSpec(VideoSourceKind kind, string pawnId, int width, int height, double framesPerSecond)
+        {
+            Kind = kind; PawnId = kind == VideoSourceKind.Pawn ? pawnId : null;
+            Width = width; Height = height; FramesPerSecond = framesPerSecond;
+        }
+        internal static readonly VideoSourceSpec Screen = new VideoSourceSpec(VideoSourceKind.Screen, null, 0, 0, 60);
+        internal VideoSourceKind Kind { get; }
+        internal string PawnId { get; }
+        internal int Width { get; }
+        internal int Height { get; }
+        internal double FramesPerSecond { get; }
+        internal bool Rendered => Kind != VideoSourceKind.Screen;
+
+        internal static double DefaultFps(VideoSourceKind kind) => kind == VideoSourceKind.Map ? 4 : kind == VideoSourceKind.Pawn ? 15 : 60;
+        internal static double MaxFps(VideoSourceKind kind) => kind == VideoSourceKind.Map ? 10 : kind == VideoSourceKind.Pawn ? 30 : 60;
+
+        // Normalizes a request: absent sizes and cadences take the kind's
+        // defaults; anything out of range is a refusal with a reason.
+        internal static bool TryCreate(VideoSourceKind kind, string pawnId, int width, int height, double fps,
+            out VideoSourceSpec spec, out string reason)
+        {
+            spec = Screen; reason = null;
+            if (kind == VideoSourceKind.Screen) return true;
+            if (kind == VideoSourceKind.Pawn && string.IsNullOrEmpty(pawnId)) { reason = "A pawn source requires pawn_id."; return false; }
+            if (width == 0) width = kind == VideoSourceKind.Map ? 0 : 320;
+            if (height == 0) height = kind == VideoSourceKind.Map ? 400 : 200;
+            if ((width != 0 && (width < MinSide || width > MaxWidth)) || height < MinSide || height > MaxHeight)
+            { reason = "Feed size must be within 16 x 16 and 3840 x 2160."; return false; }
+            if (fps == 0) fps = DefaultFps(kind);
+            if (fps < 0.5 || fps > MaxFps(kind)) { reason = "frames_per_second must be within 0.5 and " + MaxFps(kind) + " for this source."; return false; }
+            spec = new VideoSourceSpec(kind, pawnId, width, height, fps);
+            return true;
+        }
+
+        public bool Equals(VideoSourceSpec other) => Kind == other.Kind && PawnId == other.PawnId
+            && Width == other.Width && Height == other.Height && FramesPerSecond.Equals(other.FramesPerSecond);
+        public override bool Equals(object obj) => obj is VideoSourceSpec other && Equals(other);
+        public override int GetHashCode() => unchecked(((int)Kind * 397 ^ (PawnId?.GetHashCode() ?? 0)) * 397 ^ Width * 31 ^ Height);
+    }
+
     // Shared with the typed rimgovernor/presentation_lease_video and
     // rimgovernor/presentation_read_frame RPCs: a plain in-process snapshot of
-    // the same capture VideoStreamDriver already performs for the legacy mmap
+    // the same capture VideoStreamDriver already performs for the shared
     // buffer, read directly off this process's memory rather than by reopening
-    // the mmap file (which stays reserved for home/video_stream's own consumer).
+    // the buffer (which the Go relay maps for itself).
     internal readonly struct VideoFrameSnapshot
     {
         internal VideoFrameSnapshot(string sourceId, long sequence, int width, int height,
@@ -48,19 +100,26 @@ namespace HomeBridge.BridgeTools
         internal string CaptureMethod { get; }
     }
 
+    // A rendered source that cannot be opened right now: no current map, or a
+    // pawn that is not spawned on it. Capture itself is supported.
+    internal sealed class VideoSourceUnavailableException : InvalidOperationException
+    {
+        internal VideoSourceUnavailableException(string message) : base(message) { }
+    }
+
     internal readonly struct VideoLeaseStatus
     {
         internal VideoLeaseStatus(bool supported, string unavailableDetail, bool active, string sourceId,
             float remainingSeconds, long capturedFrames, bool topDown, bool bgra, string captureMethod,
             bool asyncReadbackSupported, string renderer, bool focused, int targetFrameRate, float frameSeconds,
-            int vsyncCount, double refreshRate, ulong workingSetBytes, double processCpuSeconds)
+            int vsyncCount, double refreshRate, ulong workingSetBytes, double processCpuSeconds, VideoSourceSpec source)
         {
             Supported = supported; UnavailableDetail = unavailableDetail; Active = active; SourceId = sourceId;
             RemainingSeconds = remainingSeconds; CapturedFrames = capturedFrames; TopDown = topDown; Bgra = bgra;
             CaptureMethod = captureMethod; AsyncReadbackSupported = asyncReadbackSupported; Renderer = renderer;
             Focused = focused; TargetFrameRate = targetFrameRate; FrameSeconds = frameSeconds;
             VsyncCount = vsyncCount; RefreshRate = refreshRate; WorkingSetBytes = workingSetBytes;
-            ProcessCpuSeconds = processCpuSeconds;
+            ProcessCpuSeconds = processCpuSeconds; Source = source;
         }
         internal bool Supported { get; }
         internal string UnavailableDetail { get; }
@@ -80,242 +139,64 @@ namespace HomeBridge.BridgeTools
         internal double RefreshRate { get; }
         internal ulong WorkingSetBytes { get; }
         internal double ProcessCpuSeconds { get; }
+        internal VideoSourceSpec Source { get; }
     }
 
-    public sealed class VideoStreamDriver : MonoBehaviour
+    // One leased source: its shared-memory buffer (latest RGBA32 frame behind
+    // a nonblocking cross-process lock), its lease clock and, for rendered
+    // sources, the render target the second camera draws into.
+    internal sealed class VideoSource
     {
-        // One latest RGBA32 frame, protected by a nonblocking cross-process mutex.
-        const int Capacity = 40 + 3840 * 2160 * 4;
-        static VideoStreamDriver instance;
-        string bufferName;
+        internal const int Capacity = 40 + 3840 * 2160 * 4;
+        [DllImport("libc", SetLastError = true)]
+        static extern int flock(int fd, int operation);
+
+        internal readonly VideoSourceSpec Spec;
+        internal readonly string Name;
+        internal readonly Map Map;
         MemoryMappedFile mapping;
         MemoryMappedViewAccessor buffer;
         Mutex gate;
         FileStream file;
-        [DllImport("libc", SetLastError = true)]
-        static extern int flock(int fd, int operation);
-        Texture2D texture;
-        RenderTexture target;
-        bool pending, asyncFailed;
-        float until, next;
-        long sequence;
-        string error = "";
-        // Latest captured frame, kept purely in-process for the typed RPC path;
-        // the mmap buffer above remains the legacy home/video_stream transport.
-        byte[] latestFrame;
-        int latestWidth, latestHeight;
-        double latestCapturedUnixSeconds, latestReadbackMs;
-        int? savedVsync, savedFrameRate;
-        bool UsePresented => Application.platform == RuntimePlatform.LinuxPlayer
-            && Environment.GetEnvironmentVariable("RIMGOVERNOR_PRIVATE_DISPLAY") == "1"
-            && Environment.GetEnvironmentVariable("RIMGOVERNOR_VIDEO_READBACK") != "sync"
-            && Environment.GetEnvironmentVariable("RIMGOVERNOR_VIDEO_READBACK") != "async";
-        [StructLayout(LayoutKind.Sequential)]
-        struct XImage
-        {
-            public int width, height, xoffset, format;
-            public IntPtr data;
-            public int byteOrder, bitmapUnit, bitmapBitOrder, bitmapPad, depth, bytesPerLine, bitsPerPixel;
-            public UIntPtr redMask, greenMask, blueMask;
-        }
-        [DllImport("libX11.so.6")] static extern IntPtr XGetImage(IntPtr display, UIntPtr drawable,
-            int x, int y, uint width, uint height, UIntPtr planes, int format);
-        [DllImport("libX11.so.6")] static extern int XDestroyImage(IntPtr image);
-        bool UseAsync => SystemInfo.supportsAsyncGPUReadback && !asyncFailed &&
-            (Environment.GetEnvironmentVariable("RIMGOVERNOR_VIDEO_READBACK") == "async" ||
-             (Environment.GetEnvironmentVariable("RIMGOVERNOR_VIDEO_READBACK") != "sync" &&
-              !SystemInfo.graphicsDeviceName.ToLowerInvariant().Contains("llvmpipe")));
+        internal RenderTexture Target;
+        internal Texture2D Texture;
+        internal bool Pending;
+        internal Pawn FramePawn;
+        // Each viewer's lease expiry; the source lives while any viewer holds
+        // it, so one tab stopping or timing out does not end another's feed.
+        internal readonly Dictionary<string, float> Holds = new Dictionary<string, float>();
+        internal float Until, Next;
+        internal long Sequence;
+        internal byte[] LatestFrame;
+        internal int LatestWidth, LatestHeight;
+        internal double LatestCapturedUnixSeconds, LatestReadbackMs;
 
-        public static object Lease(int seconds)
+        internal VideoSource(VideoSourceSpec spec, Map map)
         {
-            if (Application.isBatchMode || (Application.platform != RuntimePlatform.WindowsPlayer &&
-                Application.platform != RuntimePlatform.LinuxPlayer))
-                return new { supported = false, reason = "Raw video requires a rendered Windows or Linux player" };
-            if (instance == null && seconds == 0) return new { supported = true, active = false };
-            if (instance == null)
-            {
-                instance = new GameObject("RimGovernorVideoStream").AddComponent<VideoStreamDriver>();
-                DontDestroyOnLoad(instance.gameObject);
-            }
-            if (seconds > 0 && instance.mapping == null)
-            {
-                try { instance.Open(); }
-                catch { instance.Release(); throw; }
-            }
-            instance.until = Time.realtimeSinceStartup + seconds;
-            if (seconds > 0) RenderDemandDriver.Lease(seconds);
-            else instance.Release();
-            return new { supported = true, name = instance.bufferName, capacity = Capacity,
-                fps = 60, format = instance.UsePresented ? "bgra32-top-down" : "rgba32-bottom-up", error = instance.error,
-                capture = instance.UsePresented ? "private-presented-window" : instance.UseAsync ? "async-gpu" : "read-pixels",
-                capturedFrames = instance.sequence,
-                cpuSeconds = System.Diagnostics.Process.GetCurrentProcess().TotalProcessorTime.TotalSeconds,
-                workingSetBytes = System.Diagnostics.Process.GetCurrentProcess().WorkingSet64,
-                asyncReadbackSupported = SystemInfo.supportsAsyncGPUReadback, renderer = SystemInfo.graphicsDeviceName,
-                focused = Application.isFocused, targetFrameRate = Application.targetFrameRate,
-                frameSeconds = Time.unscaledDeltaTime, vSyncCount = QualitySettings.vSyncCount,
-                refreshRate = Screen.currentResolution.refreshRateRatio.value };
-        }
-
-        // Typed counterpart of Lease(), sharing the exact same capture/lease
-        // logic: only the return shape differs, so home/video_stream and the
-        // rimgovernor/presentation_lease_video RPC never diverge in behavior.
-        internal static VideoLeaseStatus LeaseTyped(int seconds)
-        {
-            if (Application.isBatchMode || (Application.platform != RuntimePlatform.WindowsPlayer &&
-                Application.platform != RuntimePlatform.LinuxPlayer))
-                return new VideoLeaseStatus(false, "Raw video requires a rendered Windows or Linux player",
-                    false, null, 0, 0, false, false, null, false, null, false, 0, 0, 0, 0, 0, 0);
-            Lease(seconds);
-            bool active = instance != null && instance.mapping != null;
-            return new VideoLeaseStatus(true, null, active, active ? instance.bufferName : null,
-                active ? Mathf.Max(0, instance.until - Time.realtimeSinceStartup) : 0,
-                instance?.sequence ?? 0, instance != null && !instance.UsePresented, instance != null && instance.UsePresented,
-                active ? (instance.UsePresented ? "private-presented-window" : instance.UseAsync ? "async-gpu" : "read-pixels") : null,
-                SystemInfo.supportsAsyncGPUReadback, SystemInfo.graphicsDeviceName, Application.isFocused,
-                Application.targetFrameRate, Time.unscaledDeltaTime, QualitySettings.vSyncCount,
-                Screen.currentResolution.refreshRateRatio.value,
-                (ulong)System.Diagnostics.Process.GetCurrentProcess().WorkingSet64,
-                System.Diagnostics.Process.GetCurrentProcess().TotalProcessorTime.TotalSeconds);
-        }
-
-        // Reads the same in-process bytes Publish() just captured; never touches
-        // the mmap file. sourceId must match the active lease's source exactly.
-        internal static bool TryReadLatestFrame(string sourceId, out VideoFrameSnapshot frame)
-        {
-            frame = default;
-            if (instance == null || instance.mapping == null || instance.latestFrame == null) return false;
-            if (sourceId != null && sourceId != instance.bufferName) return false;
-            frame = new VideoFrameSnapshot(instance.bufferName, instance.sequence, instance.latestWidth, instance.latestHeight,
-                instance.latestCapturedUnixSeconds, instance.latestReadbackMs, instance.latestFrame,
-                !instance.UsePresented, instance.UsePresented,
-                instance.UsePresented ? "private-presented-window" : instance.UseAsync ? "async-gpu" : "read-pixels");
-            return true;
-        }
-
-        void Open()
-        {
-            if (Environment.GetEnvironmentVariable("RIMGOVERNOR_PRIVATE_DISPLAY") == "1" && savedVsync == null)
-            {
-                savedVsync = QualitySettings.vSyncCount; savedFrameRate = Application.targetFrameRate;
-                QualitySettings.vSyncCount = 0; Application.targetFrameRate = 60;
-            }
+            Spec = spec; Map = map;
             if (Application.platform == RuntimePlatform.LinuxPlayer)
             {
-                bufferName = "/dev/shm/RimGovernorVideo-" + Guid.NewGuid().ToString("N");
-                file = new FileStream(bufferName, FileMode.CreateNew, FileAccess.ReadWrite, FileShare.ReadWrite);
+                Name = "/dev/shm/RimGovernorVideo-" + Guid.NewGuid().ToString("N");
+                file = new FileStream(Name, FileMode.CreateNew, FileAccess.ReadWrite, FileShare.ReadWrite);
                 file.SetLength(Capacity);
                 mapping = MemoryMappedFile.CreateFromFile(file, null, Capacity,
                     MemoryMappedFileAccess.ReadWrite, HandleInheritability.None, true);
             }
             else
             {
-                bufferName = "Local\\RimGovernorVideo-" + Guid.NewGuid().ToString("N");
-                mapping = MemoryMappedFile.CreateNew(bufferName, Capacity);
-                gate = new Mutex(false, bufferName + "-lock");
+                Name = "Local\\RimGovernorVideo-" + Guid.NewGuid().ToString("N");
+                mapping = MemoryMappedFile.CreateNew(Name, Capacity);
+                gate = new Mutex(false, Name + "-lock");
             }
             buffer = mapping.CreateViewAccessor();
-            sequence = 0;
-            error = "";
         }
 
-        IEnumerator Start()
-        {
-            var end = new WaitForEndOfFrame();
-            while (true)
-            {
-                yield return end;
-                if (Time.realtimeSinceStartup >= until) { Release(); continue; }
-                if (mapping == null || Time.realtimeSinceStartup < next) continue;
-                next = Time.realtimeSinceStartup + 1f / 60;
-                if (UsePresented)
-                {
-                    // End-of-frame state belongs to the buffer about to be
-                    // presented. On the next frame, read that front buffer before
-                    // this frame's rendering, preserving its original view stamp.
-                    var view = PlayerFrame.Capture((DateTime.UtcNow - new DateTime(1970, 1, 1)).TotalSeconds);
-                    yield return null;
-                    if (mapping == null || Time.realtimeSinceStartup >= until) continue;
-                    try { CapturePresented(view); }
-                    catch (Exception e) { error = e.Message; until = 0; Release(); }
-                    continue;
-                }
-                try { Capture(); }
-                catch (Exception e) { error = e.Message; until = 0; Release(); }
-            }
-        }
+        internal bool Open => mapping != null;
+        internal double Interval => 1.0 / Spec.FramesPerSecond;
 
-        void Capture()
+        internal void Publish(int width, int height, double captured, double readbackMs, byte[] pixels, PlayerFrame view)
         {
-            if (pending) return;
-            double captured = (DateTime.UtcNow - new DateTime(1970, 1, 1)).TotalSeconds;
-            var view = PlayerFrame.Capture(captured);
-            var captureClock = System.Diagnostics.Stopwatch.StartNew();
-            int width = Screen.width, height = Screen.height;
-            if (width < 1 || height < 1 || width > 3840 || height > 2160)
-                throw new InvalidOperationException("Video supports screen sizes up to 3840 x 2160");
-            if (UseAsync)
-            {
-                if (target == null || target.width != width || target.height != height)
-                {
-                    if (target != null) { target.Release(); Destroy(target); }
-                    target = new RenderTexture(width, height, 0, RenderTextureFormat.ARGB32);
-                    target.Create();
-                }
-                ScreenCapture.CaptureScreenshotIntoRenderTexture(target);
-                pending = true;
-                string generation = bufferName;
-                AsyncGPUReadback.Request(target, 0, TextureFormat.RGBA32, request =>
-                {
-                    pending = false;
-                    if (mapping == null || Time.realtimeSinceStartup >= until) { Release(); return; }
-                    if (generation != bufferName) return;
-                    if (request.hasError) { asyncFailed = true; return; }
-                    try
-                    {
-                        var data = request.GetData<byte>();
-                        var pixels = data.ToArray();
-                        Publish(width, height, captured, captureClock.Elapsed.TotalMilliseconds, pixels, view);
-                    }
-                    catch (Exception e) { error = e.Message; until = 0; }
-                });
-                return;
-            }
-            if (texture == null || texture.width != width || texture.height != height)
-            {
-                if (texture != null) Destroy(texture);
-                texture = new Texture2D(width, height, TextureFormat.RGBA32, false);
-            }
-            // Unity framebuffer access stays on its main thread, after UI rendering.
-            texture.ReadPixels(new Rect(0, 0, width, height), 0, 0, false);
-            byte[] pixels = texture.GetRawTextureData();
-            Publish(width, height, captured, captureClock.Elapsed.TotalMilliseconds, pixels, view);
-        }
-
-        void CapturePresented(PlayerFrame view)
-        {
-            if (view == null || view.Width != Screen.width || view.Height != Screen.height) return;
-            var clock = System.Diagnostics.Stopwatch.StartNew();
-            UIntPtr window = PrivatePlayerInput.VideoWindow(out IntPtr display);
-            IntPtr image = XGetImage(display, window, 0, 0, (uint)view.Width, (uint)view.Height, new UIntPtr(ulong.MaxValue), 2);
-            if (image == IntPtr.Zero) throw new InvalidOperationException("Private presented framebuffer unavailable");
-            try
-            {
-                var native = (XImage)Marshal.PtrToStructure(image, typeof(XImage));
-                if (native.width != view.Width || native.height != view.Height || native.bitsPerPixel != 32
-                    || native.byteOrder != 0 || native.bytesPerLine != view.Width * 4
-                    || native.redMask.ToUInt64() != 0xff0000 || native.greenMask.ToUInt64() != 0xff00
-                    || native.blueMask.ToUInt64() != 0xff)
-                    throw new InvalidOperationException("Unsupported private framebuffer layout");
-                var pixels = new byte[native.bytesPerLine * native.height];
-                Marshal.Copy(native.data, pixels, 0, pixels.Length);
-                Publish(view.Width, view.Height, view.Captured, clock.Elapsed.TotalMilliseconds, pixels, view);
-            }
-            finally { XDestroyImage(image); }
-        }
-
-        void Publish(int width, int height, double captured, double readbackMs, byte[] pixels, PlayerFrame view)
-        {
+            if (mapping == null) return;
             bool held;
             try { held = file != null ? flock(file.SafeFileHandle.DangerousGetHandle().ToInt32(), 2 | 4) == 0 : gate.WaitOne(0); }
             catch (AbandonedMutexException) { held = true; }
@@ -337,10 +218,12 @@ namespace HomeBridge.BridgeTools
                     Marshal.Copy(pixels, 0, IntPtr.Add(handle.DangerousGetHandle(), 40), pixels.Length);
                 }
                 finally { if (retained) handle.DangerousRelease(); }
-                PlayerFrame.Remember(bufferName, ++sequence, view);
-                buffer.Write(0, sequence);
-                latestFrame = pixels; latestWidth = width; latestHeight = height;
-                latestCapturedUnixSeconds = captured; latestReadbackMs = readbackMs;
+                ++Sequence;
+                // Only the screen's frames map back to player input.
+                if (view != null) PlayerFrame.Remember(Name, Sequence, view);
+                buffer.Write(0, Sequence);
+                LatestFrame = pixels; LatestWidth = width; LatestHeight = height;
+                LatestCapturedUnixSeconds = captured; LatestReadbackMs = readbackMs;
             }
             finally
             {
@@ -349,23 +232,497 @@ namespace HomeBridge.BridgeTools
             }
         }
 
-        void Release()
+        internal void Release()
         {
-            if (savedVsync.HasValue)
-            {
-                QualitySettings.vSyncCount = savedVsync.Value;
-                Application.targetFrameRate = savedFrameRate.Value;
-                savedVsync = savedFrameRate = null;
-            }
             // The GPU owns an outstanding target until its callback. Do not reuse it.
-            if (!pending && target != null) { target.Release(); Destroy(target); target = null; }
-            if (texture != null) { Destroy(texture); texture = null; }
+            if (!Pending && Target != null) { Target.Release(); UnityEngine.Object.Destroy(Target); Target = null; }
+            if (Texture != null) { UnityEngine.Object.Destroy(Texture); Texture = null; }
             buffer?.Dispose(); buffer = null;
             mapping?.Dispose(); mapping = null;
-            latestFrame = null;
+            LatestFrame = null;
             gate?.Dispose(); gate = null;
-            if (file != null) { file.Dispose(); file = null; File.Delete(bufferName); }
+            if (file != null) { file.Dispose(); file = null; File.Delete(Name); }
         }
-        void OnDestroy() { Release(); instance = null; }
+    }
+
+    public sealed class VideoStreamDriver : MonoBehaviour
+    {
+        const int Capacity = VideoSource.Capacity;
+        static VideoStreamDriver instance;
+        static bool patched;
+        static Camera feedCamera;
+        // Sources by buffer name; the screen source is the one whose spec is Screen.
+        readonly Dictionary<string, VideoSource> sources = new Dictionary<string, VideoSource>();
+        // Rendered sources due this frame, decided before the map draw so their
+        // cells are culled in and their render follows the same draw pass.
+        readonly List<VideoSource> due = new List<VideoSource>();
+        readonly List<CellRect> dueRects = new List<CellRect>();
+        bool drawing, asyncFailed;
+        string error = "";
+        int? savedVsync, savedFrameRate;
+        bool UsePresented => Application.platform == RuntimePlatform.LinuxPlayer
+            && Environment.GetEnvironmentVariable("RIMGOVERNOR_PRIVATE_DISPLAY") == "1"
+            && Environment.GetEnvironmentVariable("RIMGOVERNOR_VIDEO_READBACK") != "sync"
+            && Environment.GetEnvironmentVariable("RIMGOVERNOR_VIDEO_READBACK") != "async";
+        [StructLayout(LayoutKind.Sequential)]
+        struct XImage
+        {
+            public int width, height, xoffset, format;
+            public IntPtr data;
+            public int byteOrder, bitmapUnit, bitmapBitOrder, bitmapPad, depth, bytesPerLine, bitsPerPixel;
+            public UIntPtr redMask, greenMask, blueMask;
+        }
+        [DllImport("libX11.so.6")] static extern IntPtr XGetImage(IntPtr display, UIntPtr drawable,
+            int x, int y, uint width, uint height, UIntPtr planes, int format);
+        [DllImport("libX11.so.6")] static extern int XDestroyImage(IntPtr image);
+        bool UseAsync => SystemInfo.supportsAsyncGPUReadback && !asyncFailed &&
+            (Environment.GetEnvironmentVariable("RIMGOVERNOR_VIDEO_READBACK") == "async" ||
+             (Environment.GetEnvironmentVariable("RIMGOVERNOR_VIDEO_READBACK") != "sync" &&
+              !SystemInfo.graphicsDeviceName.ToLowerInvariant().Contains("llvmpipe")));
+
+        static bool Supported => !Application.isBatchMode && (Application.platform == RuntimePlatform.WindowsPlayer ||
+            Application.platform == RuntimePlatform.LinuxPlayer);
+        VideoSource Screen => sources.Values.FirstOrDefault(s => !s.Spec.Rendered);
+        string CaptureMethod(VideoSource source) => source.Spec.Rendered ? (UseAsync ? "async-gpu" : "read-pixels")
+            : UsePresented ? "private-presented-window" : UseAsync ? "async-gpu" : "read-pixels";
+        bool Bgra(VideoSource source) => !source.Spec.Rendered && UsePresented;
+
+        public static object Lease(int seconds)
+        {
+            if (!Supported) return new { supported = false, reason = "Raw video requires a rendered Windows or Linux player" };
+            if (instance == null && seconds == 0) return new { supported = true, active = false };
+            var source = seconds > 0 ? Ensure().Begin(VideoSourceSpec.Screen, seconds, "") : null;
+            if (seconds == 0 && instance.Screen != null) instance.Stop(instance.Screen.Name, "");
+            return new { supported = true, name = source?.Name, capacity = Capacity,
+                fps = 60, format = instance.UsePresented ? "bgra32-top-down" : "rgba32-bottom-up", error = instance.error,
+                capture = instance.UsePresented ? "private-presented-window" : instance.UseAsync ? "async-gpu" : "read-pixels",
+                capturedFrames = source?.Sequence ?? 0,
+                cpuSeconds = System.Diagnostics.Process.GetCurrentProcess().TotalProcessorTime.TotalSeconds,
+                workingSetBytes = System.Diagnostics.Process.GetCurrentProcess().WorkingSet64,
+                asyncReadbackSupported = SystemInfo.supportsAsyncGPUReadback, renderer = SystemInfo.graphicsDeviceName,
+                focused = Application.isFocused, targetFrameRate = Application.targetFrameRate,
+                frameSeconds = Time.unscaledDeltaTime, vSyncCount = QualitySettings.vSyncCount,
+                refreshRate = UnityEngine.Screen.currentResolution.refreshRateRatio.value };
+        }
+
+        // Typed counterpart of Lease(): starts or extends one viewer's hold on
+        // a source and reports that source. seconds == 0 drops the viewer's
+        // hold on sourceId, or on every source when sourceId is null; a source
+        // ends when its last hold is gone. viewer is the caller's viewer id
+        // (empty when it sent none), so viewers with the same spec share a
+        // source without ending each other's feed.
+        internal static VideoLeaseStatus LeaseTyped(int seconds, VideoSourceSpec spec, string sourceId, string viewer)
+        {
+            if (!Supported)
+                return Status(null, "Raw video requires a rendered Windows or Linux player", spec, viewer);
+            VideoSource source = null;
+            if (seconds > 0)
+            {
+                try { source = Ensure().Begin(spec, seconds, viewer); }
+                catch (VideoSourceUnavailableException e) { return Status(null, e.Message, spec, viewer, true); }
+                catch (Exception e) { return Status(null, e.Message, spec, viewer); }
+            }
+            else if (instance != null) instance.Stop(sourceId, viewer);
+            return Status(source, null, spec, viewer);
+        }
+
+        static VideoLeaseStatus Status(VideoSource source, string unavailable, VideoSourceSpec spec, string viewer, bool supported = false)
+        {
+            supported = supported || unavailable == null;
+            bool active = source != null && source.Open;
+            float until = active && source.Holds.TryGetValue(viewer, out var held) ? held : source?.Until ?? 0;
+            return new VideoLeaseStatus(supported, unavailable, active, active ? source.Name : null,
+                active ? Mathf.Max(0, until - Time.realtimeSinceStartup) : 0,
+                source?.Sequence ?? 0, active && !instance.Bgra(source), active && instance.Bgra(source),
+                active ? instance.CaptureMethod(source) : null,
+                SystemInfo.supportsAsyncGPUReadback, SystemInfo.graphicsDeviceName, Application.isFocused,
+                Application.targetFrameRate, Time.unscaledDeltaTime, QualitySettings.vSyncCount,
+                UnityEngine.Screen.currentResolution.refreshRateRatio.value,
+                (ulong)System.Diagnostics.Process.GetCurrentProcess().WorkingSet64,
+                System.Diagnostics.Process.GetCurrentProcess().TotalProcessorTime.TotalSeconds, spec);
+        }
+
+        // Reads the same in-process bytes Publish() just captured; never touches
+        // the shared buffer. A null sourceId means the screen source, or the only
+        // source when no screen is leased.
+        internal static bool TryReadLatestFrame(string sourceId, out VideoFrameSnapshot frame)
+        {
+            frame = default;
+            if (instance == null) return false;
+            VideoSource source;
+            if (sourceId != null) instance.sources.TryGetValue(sourceId, out source);
+            else source = instance.Screen ?? (instance.sources.Count == 1 ? instance.sources.Values.First() : null);
+            if (source == null || !source.Open || source.LatestFrame == null) return false;
+            frame = new VideoFrameSnapshot(source.Name, source.Sequence, source.LatestWidth, source.LatestHeight,
+                source.LatestCapturedUnixSeconds, source.LatestReadbackMs, source.LatestFrame,
+                !instance.Bgra(source), instance.Bgra(source), instance.CaptureMethod(source));
+            return true;
+        }
+
+        static VideoStreamDriver Ensure()
+        {
+            if (instance == null)
+            {
+                instance = new GameObject("RimGovernorVideoStream").AddComponent<VideoStreamDriver>();
+                DontDestroyOnLoad(instance.gameObject);
+            }
+            return instance;
+        }
+
+        VideoSource Begin(VideoSourceSpec spec, int seconds, string viewer)
+        {
+            var map = Find.CurrentMap;
+            if (spec.Rendered && (map == null || Find.Camera == null))
+                throw new VideoSourceUnavailableException("A rendered feed requires a current map.");
+            if (spec.Kind == VideoSourceKind.Pawn && FeedPawn(spec.PawnId, map) == null)
+                throw new VideoSourceUnavailableException("The pawn is not spawned on the current map.");
+            var source = sources.Values.FirstOrDefault(s => s.Spec.Equals(spec) && ReferenceEquals(s.Map, map));
+            if (source == null)
+            {
+                if (sources.Count == 0 && Environment.GetEnvironmentVariable("RIMGOVERNOR_PRIVATE_DISPLAY") == "1" && savedVsync == null)
+                {
+                    savedVsync = QualitySettings.vSyncCount; savedFrameRate = Application.targetFrameRate;
+                    QualitySettings.vSyncCount = 0; Application.targetFrameRate = 60;
+                }
+                if (spec.Rendered) InstallFeedPatches();
+                source = new VideoSource(spec, map);
+                sources[source.Name] = source;
+                error = "";
+            }
+            source.Holds[viewer] = Time.realtimeSinceStartup + seconds;
+            source.Until = source.Holds.Values.Max();
+            RenderDemandDriver.Lease(seconds);
+            return source;
+        }
+
+        // Drops viewer's hold on sourceId (every source when null) and ends
+        // the sources nobody holds any more; a null viewer ends them outright.
+        void Stop(string sourceId, string viewer)
+        {
+            foreach (var name in sources.Keys.Where(k => sourceId == null || k == sourceId).ToArray())
+            {
+                var source = sources[name];
+                if (viewer != null)
+                {
+                    source.Holds.Remove(viewer);
+                    if (source.Holds.Count > 0) { source.Until = source.Holds.Values.Max(); continue; }
+                }
+                source.Release();
+                sources.Remove(name);
+            }
+            if (sources.Count == 0) RestoreDisplay();
+        }
+
+        void RestoreDisplay()
+        {
+            if (!savedVsync.HasValue) return;
+            QualitySettings.vSyncCount = savedVsync.Value;
+            Application.targetFrameRate = savedFrameRate.Value;
+            savedVsync = savedFrameRate = null;
+        }
+
+        void Fail(VideoSource source, Exception e)
+        {
+            error = e.Message;
+            source.Until = 0;
+        }
+
+        // Ends sources past their lease, and rendered sources whose map is no
+        // longer current (a load replaced it): a viewer re-leases for the new map.
+        void Expire()
+        {
+            var now = Time.realtimeSinceStartup;
+            var map = Find.CurrentMap;
+            foreach (var source in sources.Values.Where(s => now >= s.Until || (s.Spec.Rendered && !ReferenceEquals(s.Map, map))).ToArray())
+                Stop(source.Name, null);
+        }
+
+        IEnumerator Start()
+        {
+            var end = new WaitForEndOfFrame();
+            while (true)
+            {
+                yield return end;
+                Expire();
+                var screen = Screen;
+                if (screen == null || Time.realtimeSinceStartup < screen.Next) continue;
+                screen.Next = Time.realtimeSinceStartup + 1f / 60;
+                if (UsePresented)
+                {
+                    // End-of-frame state belongs to the buffer about to be
+                    // presented. On the next frame, read that front buffer before
+                    // this frame's rendering, preserving its original view stamp.
+                    var view = PlayerFrame.Capture((DateTime.UtcNow - new DateTime(1970, 1, 1)).TotalSeconds);
+                    yield return null;
+                    if (!screen.Open || Time.realtimeSinceStartup >= screen.Until) continue;
+                    try { CapturePresented(screen, view); }
+                    catch (Exception e) { Fail(screen, e); }
+                    continue;
+                }
+                try { CaptureScreen(screen); }
+                catch (Exception e) { Fail(screen, e); }
+            }
+        }
+
+        void CaptureScreen(VideoSource source)
+        {
+            if (source.Pending) return;
+            double captured = (DateTime.UtcNow - new DateTime(1970, 1, 1)).TotalSeconds;
+            var view = PlayerFrame.Capture(captured);
+            var captureClock = System.Diagnostics.Stopwatch.StartNew();
+            int width = UnityEngine.Screen.width, height = UnityEngine.Screen.height;
+            if (width < 1 || height < 1 || width > 3840 || height > 2160)
+                throw new InvalidOperationException("Video supports screen sizes up to 3840 x 2160");
+            if (UseAsync)
+            {
+                EnsureTarget(source, width, height);
+                ScreenCapture.CaptureScreenshotIntoRenderTexture(source.Target);
+                ReadbackAsync(source, width, height, captured, captureClock, view);
+                return;
+            }
+            if (source.Texture == null || source.Texture.width != width || source.Texture.height != height)
+            {
+                if (source.Texture != null) Destroy(source.Texture);
+                source.Texture = new Texture2D(width, height, TextureFormat.RGBA32, false);
+            }
+            // Unity framebuffer access stays on its main thread, after UI rendering.
+            source.Texture.ReadPixels(new Rect(0, 0, width, height), 0, 0, false);
+            byte[] pixels = source.Texture.GetRawTextureData();
+            source.Publish(width, height, captured, captureClock.Elapsed.TotalMilliseconds, pixels, view);
+        }
+
+        static void EnsureTarget(VideoSource source, int width, int height)
+        {
+            if (source.Target != null && source.Target.width == width && source.Target.height == height) return;
+            if (source.Target != null) { source.Target.Release(); Destroy(source.Target); }
+            source.Target = new RenderTexture(width, height, source.Spec.Rendered ? 24 : 0, RenderTextureFormat.ARGB32);
+            source.Target.Create();
+        }
+
+        // The published frame is bottom-up (what ReadPixels yields). A
+        // RenderTexture read back on a top-left-origin graphics API (D3D,
+        // Metal) holds its rows top-first, for a camera render and for
+        // ScreenCapture alike, so those rows are flipped before publishing.
+        void ReadbackAsync(VideoSource source, int width, int height, double captured, System.Diagnostics.Stopwatch clock, PlayerFrame view)
+        {
+            bool topDown = SystemInfo.graphicsUVStartsAtTop;
+            source.Pending = true;
+            AsyncGPUReadback.Request(source.Target, 0, TextureFormat.RGBA32, request =>
+            {
+                source.Pending = false;
+                if (!source.Open || Time.realtimeSinceStartup >= source.Until) { source.Release(); return; }
+                if (request.hasError) { asyncFailed = true; return; }
+                try
+                {
+                    var pixels = request.GetData<byte>().ToArray();
+                    if (topDown) FlipRows(pixels, width, height);
+                    source.Publish(width, height, captured, clock.Elapsed.TotalMilliseconds, pixels, view);
+                }
+                catch (Exception e) { Fail(source, e); }
+            });
+        }
+
+        static void FlipRows(byte[] pixels, int width, int height)
+        {
+            int stride = width * 4;
+            var row = new byte[stride];
+            for (int top = 0, bottom = height - 1; top < bottom; top++, bottom--)
+            {
+                Buffer.BlockCopy(pixels, top * stride, row, 0, stride);
+                Buffer.BlockCopy(pixels, bottom * stride, pixels, top * stride, stride);
+                Buffer.BlockCopy(row, 0, pixels, bottom * stride, stride);
+            }
+        }
+
+        void CapturePresented(VideoSource source, PlayerFrame view)
+        {
+            if (view == null || view.Width != UnityEngine.Screen.width || view.Height != UnityEngine.Screen.height) return;
+            var clock = System.Diagnostics.Stopwatch.StartNew();
+            UIntPtr window = PrivatePlayerInput.VideoWindow(out IntPtr display);
+            IntPtr image = XGetImage(display, window, 0, 0, (uint)view.Width, (uint)view.Height, new UIntPtr(ulong.MaxValue), 2);
+            if (image == IntPtr.Zero) throw new InvalidOperationException("Private presented framebuffer unavailable");
+            try
+            {
+                var native = (XImage)Marshal.PtrToStructure(image, typeof(XImage));
+                if (native.width != view.Width || native.height != view.Height || native.bitsPerPixel != 32
+                    || native.byteOrder != 0 || native.bytesPerLine != view.Width * 4
+                    || native.redMask.ToUInt64() != 0xff0000 || native.greenMask.ToUInt64() != 0xff00
+                    || native.blueMask.ToUInt64() != 0xff)
+                    throw new InvalidOperationException("Unsupported private framebuffer layout");
+                var pixels = new byte[native.bytesPerLine * native.height];
+                Marshal.Copy(native.data, pixels, 0, pixels.Length);
+                source.Publish(view.Width, view.Height, view.Captured, clock.Elapsed.TotalMilliseconds, pixels, view);
+            }
+            finally { XDestroyImage(image); }
+        }
+
+        // Rendered feeds. The game's draw pass (Game.UpdatePlay) submits meshes
+        // for the cells inside CameraDriver.CurrentViewRect only, so while a
+        // feed is due that rect is widened to cover it; the feed camera then
+        // renders the same submissions right after the pass, before Unity
+        // discards them at the end of the frame.
+        static void InstallFeedPatches()
+        {
+            if (patched) return;
+            patched = true;
+            var cameraObject = new GameObject("RimGovernorVideoFeedCamera");
+            DontDestroyOnLoad(cameraObject);
+            feedCamera = cameraObject.AddComponent<Camera>();
+            feedCamera.enabled = false;
+            var harmony = new Harmony("davidarcher.rimgovernor.video-feeds");
+            harmony.Patch(AccessTools.Method(typeof(Game), "UpdatePlay"),
+                prefix: new HarmonyMethod(typeof(VideoStreamDriver), nameof(BeforeDraw)),
+                postfix: new HarmonyMethod(typeof(VideoStreamDriver), nameof(AfterDraw)),
+                finalizer: new HarmonyMethod(typeof(VideoStreamDriver), nameof(DrawFinished)));
+            harmony.Patch(AccessTools.PropertyGetter(typeof(CameraDriver), "CurrentViewRect"),
+                postfix: new HarmonyMethod(typeof(VideoStreamDriver), nameof(ViewRect)));
+        }
+
+        // The cells a feed shows: the pawn's neighbourhood at 10 cells of
+        // height, or the whole map.
+        static CellRect? FeedRect(VideoSource source, Map map, Pawn pawn)
+        {
+            if (source.Spec.Kind == VideoSourceKind.Map) return CellRect.WholeMap(map);
+            if (pawn == null) return null;
+            var cells = Mathf.CeilToInt(FeedHalfHeight * 2 * Mathf.Max(1f, (float)source.Spec.Width / source.Spec.Height)) + 4;
+            var rect = CellRect.CenteredOn(pawn.Position, cells / 2);
+            rect.ClipInsideMap(map);
+            return rect;
+        }
+        const float FeedHalfHeight = 5f;
+        // CameraDriver's minimum camera height; feeds always look down from there.
+        const float FeedCameraAltitude = 15f;
+
+        static Pawn FeedPawn(VideoSource source, Map map) => FeedPawn(source.Spec.PawnId, map);
+
+        static Pawn FeedPawn(string pawnId, Map map)
+        {
+            foreach (var pawn in map.mapPawns.AllPawnsSpawned)
+                if (pawn.GetUniqueLoadID() == pawnId) return pawn.Dead ? null : pawn;
+            return null;
+        }
+
+        public static void BeforeDraw()
+        {
+            if (instance == null) return;
+            instance.due.Clear();
+            instance.dueRects.Clear();
+            var map = Find.CurrentMap;
+            if (map == null || Find.Camera == null) return;
+            var now = Time.realtimeSinceStartup;
+            List<VideoSource> gone = null;
+            foreach (var source in instance.sources.Values)
+            {
+                if (!source.Spec.Rendered || !ReferenceEquals(source.Map, map) || source.Pending || now < source.Next) continue;
+                source.Next = now + (float)source.Interval;
+                source.FramePawn = source.Spec.Kind == VideoSourceKind.Pawn ? FeedPawn(source, map) : null;
+                if (source.Spec.Kind == VideoSourceKind.Pawn && source.FramePawn == null)
+                {
+                    // The pawn left this map (dead, removed, in a caravan): the
+                    // feed ends rather than freezing on its last frame; a viewer
+                    // that re-leases learns it is unavailable until it returns.
+                    (gone ??= new List<VideoSource>()).Add(source);
+                    continue;
+                }
+                var rect = FeedRect(source, map, source.FramePawn);
+                if (!rect.HasValue) continue;
+                instance.due.Add(source);
+                instance.dueRects.Add(rect.Value);
+            }
+            if (gone != null) foreach (var source in gone) instance.Stop(source.Name, null);
+            instance.drawing = instance.due.Count > 0;
+        }
+
+        public static void ViewRect(ref CellRect __result)
+        {
+            if (instance == null || !instance.drawing) return;
+            var result = __result;
+            foreach (var extra in instance.dueRects)
+                result = CellRect.FromLimits(Math.Min(result.minX, extra.minX), Math.Min(result.minZ, extra.minZ),
+                    Math.Max(result.maxX, extra.maxX), Math.Max(result.maxZ, extra.maxZ));
+            __result = result;
+        }
+
+        public static void AfterDraw()
+        {
+            if (instance == null || !instance.drawing) return;
+            instance.drawing = false;
+            var map = Find.CurrentMap;
+            foreach (var source in instance.due)
+            {
+                try { instance.RenderFeed(source, map); }
+                catch (Exception e) { instance.Fail(source, e); }
+            }
+            instance.due.Clear();
+            instance.dueRects.Clear();
+        }
+
+        public static Exception DrawFinished(Exception __exception)
+        {
+            if (instance != null) { instance.drawing = false; if (__exception != null) { instance.due.Clear(); instance.dueRects.Clear(); } }
+            return __exception;
+        }
+
+        void RenderFeed(VideoSource source, Map map)
+        {
+            if (!source.Open) return;
+            Vector3 center; float halfHeight;
+            if (source.Spec.Kind == VideoSourceKind.Map)
+            {
+                center = new Vector3(map.Size.x / 2f, 0f, map.Size.z / 2f);
+                halfHeight = map.Size.z / 2f;
+            }
+            else
+            {
+                var pawn = source.FramePawn;
+                if (pawn == null || !pawn.Spawned) return;
+                center = pawn.DrawPos;
+                halfHeight = FeedHalfHeight;
+            }
+            int height = source.Spec.Height;
+            int width = source.Spec.Width > 0 ? source.Spec.Width : Mathf.Clamp(Mathf.RoundToInt(height * (float)map.Size.x / map.Size.z), VideoSourceSpec.MinSide, VideoSourceSpec.MaxWidth);
+            double captured = (DateTime.UtcNow - new DateTime(1970, 1, 1)).TotalSeconds;
+            var clock = System.Diagnostics.Stopwatch.StartNew();
+            EnsureTarget(source, width, height);
+            var main = Find.Camera;
+            feedCamera.CopyFrom(main);
+            feedCamera.enabled = false;
+            feedCamera.targetTexture = source.Target;
+            feedCamera.aspect = (float)width / height;
+            feedCamera.orthographicSize = halfHeight;
+            feedCamera.transform.position = new Vector3(center.x, FeedCameraAltitude, center.z);
+            feedCamera.transform.rotation = main.transform.rotation;
+            // Silhouettes and the overlays above them are drawn at the player's
+            // zoom for the player's camera; clipping their altitudes keeps the
+            // feed showing the pawns themselves.
+            feedCamera.nearClipPlane = FeedCameraAltitude - AltitudeLayer.Silhouettes.AltitudeFor() + 0.005f;
+            feedCamera.farClipPlane = FeedCameraAltitude + 5f;
+            feedCamera.Render();
+            feedCamera.targetTexture = null;
+            if (UseAsync)
+            {
+                ReadbackAsync(source, width, height, captured, clock, null);
+                return;
+            }
+            if (source.Texture == null || source.Texture.width != width || source.Texture.height != height)
+            {
+                if (source.Texture != null) Destroy(source.Texture);
+                source.Texture = new Texture2D(width, height, TextureFormat.RGBA32, false);
+            }
+            var previous = RenderTexture.active;
+            try
+            {
+                RenderTexture.active = source.Target;
+                source.Texture.ReadPixels(new Rect(0, 0, width, height), 0, 0, false);
+            }
+            finally { RenderTexture.active = previous; }
+            source.Publish(width, height, captured, clock.Elapsed.TotalMilliseconds, source.Texture.GetRawTextureData(), null);
+        }
+
+        void OnDestroy()
+        {
+            Stop(null, null);
+            instance = null;
+        }
     }
 }

@@ -105,7 +105,11 @@ func TestClockWorkerActualSessionInterruptionAndJoinedClose(t *testing.T) {
 	s.session.clock.native = native
 	s.session.clock.writer = native
 	s.session.control.config.Worlds = clockWorldSource{native}
-	worker, err := NewClockWorker(context.Background(), s, native, ClockWorkerConfig{PollInterval: 10 * time.Millisecond, RenewInterval: 100 * time.Millisecond, StepInterval: 10 * time.Millisecond, MaxBackoff: 100 * time.Millisecond, CallTimeout: 200 * time.Millisecond, PageLimit: 128})
+	// The fake only echoes the lease, and a short CallTimeout can expire
+	// between AppendClockEvents and ReviewClockEvents on a loaded machine,
+	// letting the after=1 poll below observe an unreviewed inbox.
+	s.config.Start.LeaseMS = 30_000
+	worker, err := NewClockWorker(context.Background(), s, native, ClockWorkerConfig{PollInterval: 10 * time.Millisecond, RenewInterval: 100 * time.Millisecond, StepInterval: 10 * time.Millisecond, MaxBackoff: 100 * time.Millisecond, PollTimeout: 5 * time.Second, RenewTimeout: 5 * time.Second, StepTimeout: 5 * time.Second, PageLimit: 128})
 	if err != nil {
 		t.Fatal(err)
 	}

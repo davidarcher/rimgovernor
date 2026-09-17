@@ -60,7 +60,9 @@ The first shelter's shape is chosen from the native player-faction tech level:
 Neolithic colonies raise a circular or oval hut, others a 9x9 rectangle, and
 constrained terrain grows a connected irregular footprint when no template fits
 (see the room footprint contract in [spatial contracts](../contracts/spatial-contracts.md)).
-Resuming control invalidates routine goals, so a restart mid-construction
+Pausing and resuming control keeps the routine goal and its shell plan, so a
+restart mid-construction simply waits on the open plan. Only a world change
+(load token, map, tick rewind) invalidates the goal; the successor then
 recognises the half-built shell from the walls and door standing natively and
 reissues only its missing cells rather than siting a second shell.
 

@@ -52,7 +52,7 @@ namespace HomeBridge.BridgeTools
             var result = new Receipts.Progress { Attempt = attempt.Clone(), Context = context.Clone(), CompleteInspection = true };
             var evidence = Evidence();
             var reason = DesiredCells == null ? "Deleted zone's map is unavailable." : "Edited zone's map is unavailable.";
-            if (Map != Find.CurrentMap) { result.CompleteInspection = false; result.Unknown = new Receipts.UnknownEffect { Reason = reason }; return result; }
+            if (Map != ProtoBoundary.ResolveMap(context)) { result.CompleteInspection = false; result.Unknown = new Receipts.UnknownEffect { Reason = reason }; return result; }
 
             bool matches;
             if (DesiredCells == null || DesiredCells.Count == 0) matches = !evidence.Present;
@@ -83,7 +83,7 @@ namespace HomeBridge.BridgeTools
             zone = null;
             failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Zone deletion requires an exact zone identity, a matching CAS snapshot token, no phantom cells and a consistent haul grid.");
             if (!Valid(command)) return false;
-            var map = Find.CurrentMap;
+            var map = ProtoBoundary.ResolveMap(context);
             var candidate = map.zoneManager.AllZones.FirstOrDefault(z => z.GetUniqueLoadID() == command.Zone.EntityId);
             if (candidate == null || candidate.Cells.Count == 0) return false;
             if (NativeZoneObservationTools.Token(candidate, context).Token != command.Zone.ExpectedSnapshotToken) return false;
@@ -114,7 +114,7 @@ namespace HomeBridge.BridgeTools
                 using (authority.Owned())
                 {
                     if (!authority.Check(pre.ExpectedGeneration).Success || !Prepare(command, context, out zone, out failure)) throw new InvalidOperationException("Zone scope changed before deletion.");
-                    var record = new NativeZoneEditRecord(zone!, Find.CurrentMap, command.Zone.ExpectedSnapshotToken);
+                    var record = new NativeZoneEditRecord(zone!, ProtoBoundary.ResolveMap(context), command.Zone.ExpectedSnapshotToken);
                     state.ZoneEdits.Add(pre.Attempt.Clone(), record);
                     zone!.Delete(false);
                     evidence = new Receipts.EffectEvidence { Zone = record.Evidence() };

@@ -16,9 +16,15 @@ import (
 // discoverable (ConnectWithPoll). On any failure it closes the GABS process before
 // returning, so callers never leak a half-open session.
 func OpenSession(ctx context.Context, gabsExecutable, configDir, gameID string, timeout time.Duration) (*bridge.Client, error) {
-	client, err := bridge.Open(ctx, bridge.ProcessConfig{
+	return OpenSessionWith(ctx, bridge.ProcessConfig{
 		Executable: gabsExecutable, ConfigDir: configDir, GameID: gameID, Timeout: timeout,
 	})
+}
+
+// OpenSessionWith is OpenSession for a caller that needs the full
+// bridge.ProcessConfig (a flight recorder, or the Spawned PID hook).
+func OpenSessionWith(ctx context.Context, config bridge.ProcessConfig) (*bridge.Client, error) {
+	client, err := bridge.Open(ctx, config)
 	if err != nil {
 		return nil, fmt.Errorf("open GABS session: %w", err)
 	}
@@ -84,17 +90,28 @@ type Config struct {
 	GameID        string
 	Timeout       time.Duration
 	Configuration string // resolved by Prepare/PrepareRendered
+	// Expansions are the official expansions to keep active (short names or
+	// package IDs); nil defers to ExpansionsEnv, and either way the default is
+	// Core-only. Harnesses that test DLC content set it explicitly.
+	Expansions []string
 }
 
 // PrepareConfig runs Prepare (headless) or PrepareRendered (windowed) against Root
 // and records the resolved configuration directory.
 func (c *Config) PrepareConfig() error {
+	expansions := c.Expansions
+	if expansions == nil {
+		var err error
+		if expansions, err = ExpansionsFromEnv(); err != nil {
+			return err
+		}
+	}
 	var configuration string
 	var err error
 	if c.Headless {
-		configuration, err = Prepare(c.Root)
+		configuration, err = Prepare(c.Root, expansions...)
 	} else {
-		configuration, err = PrepareRendered(c.Root)
+		configuration, err = PrepareRendered(c.Root, expansions...)
 	}
 	if err != nil {
 		return err

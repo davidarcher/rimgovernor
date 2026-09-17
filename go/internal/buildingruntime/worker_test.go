@@ -395,17 +395,16 @@ func TestWorkerObserveTargetSerializesAcquireAndManualPreempts(t *testing.T) {
 	go func() { finished <- w.step(context.Background(), time.Now()) }()
 	<-entered
 	acquireDone := make(chan error, 1)
-	acquireStarted := make(chan struct{})
+	acquireQueued := make(chan struct{})
+	w.player.queued = func() { w.player.queued = nil; close(acquireQueued) }
 	go func() {
-		close(acquireStarted)
 		_, err := w.player.Resume(context.Background(), store.ControlRequest{RequestID: "queued", Kind: store.ResumeControl, World: playerWorld(v.Snapshot)})
 		acquireDone <- err
 	}()
-	// Give the queued Acquire a real chance to reach the epoch it must lose
-	// against before Manual runs; under scheduler contention the goroutine
-	// above can otherwise be delayed past Manual's epoch bump, read the new
-	// epoch instead of the stale one, and legitimately win the gate race.
-	<-acquireStarted
+	// The queued Acquire must have read the epoch it will lose against before
+	// Manual bumps it; a Resume that only reads the fresh epoch after Manual
+	// would legitimately win the gate and acquire.
+	<-acquireQueued
 	if f.acquires.Load() != 0 {
 		t.Fatal("Acquire passed reconciliation gate")
 	}
@@ -416,8 +415,7 @@ func TestWorkerObserveTargetSerializesAcquireAndManualPreempts(t *testing.T) {
 	if err = <-finished; err == nil {
 		t.Fatal("observation survived Manual")
 	}
-	// A queued pre-Manual Acquire must fail; even if it queues only afterward,
-	// its CAS against the now durable Manual direction cannot acquire.
+	// A queued pre-Manual Acquire must fail.
 	if err = <-acquireDone; err == nil || f.acquires.Load() != 0 {
 		t.Fatal("queued acquire escaped", err)
 	}

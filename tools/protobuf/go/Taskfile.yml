@@ -1,0 +1,23 @@
+# Go leg of the cross-language Protobuf proof. The C#/Go/C# exchange itself is
+# tools/protobuf:test.
+version: '3'
+
+vars:
+  REPO: '{{.TASKFILE_DIR}}/../../..'
+  EVIDENCE: '{{.REPO}}/.rimgovernor/task'
+
+tasks:
+  build:
+    desc: gofmt, module integrity, vet and compile
+    cmds:
+      - |
+        unformatted="$(gofmt -l .)"
+        if [ -n "$unformatted" ]; then echo "gofmt -l: $unformatted"; exit 1; fi
+      - go mod verify
+      - go vet -mod=readonly ./...
+      - go build -mod=readonly -o {{.EVIDENCE}}/protobuf-go/protobufproof{{exeExt}} .
+
+  test:
+    desc: Go proof unit tests
+    cmds:
+      - go test -mod=readonly ./...

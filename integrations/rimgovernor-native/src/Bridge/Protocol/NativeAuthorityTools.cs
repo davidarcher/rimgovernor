@@ -22,9 +22,16 @@ namespace HomeBridge.BridgeTools
                 out var parsed, out var failure))
                 return ProtoBoundary.Encode(new Authority.StatusReply { Failure = failure });
 
-            return await ctx.MainThread.InvokeAsync<object>(() =>
+            return await ProtoBoundary.OnMainThread(ctx, () =>
             {
-                if (!ProtoBoundary.ValidateIdentity(parsed.Identity, Find.CurrentMap, out var context, out var invalid))
+                // The game this identity names has exited or been unloaded: its
+                // retained final authority is the only thing left to report,
+                // and is how a controller sees REVOCATION_REASON_SHUTDOWN (#88).
+                if (Current.Game == null && ProtoBoundary.Complete(parsed.Identity)
+                    && NativeControlAuthority.LastShutdown is NativeControlShutdown shutdown
+                    && shutdown.Matches(parsed.Identity.ColonyId, parsed.Identity.LoadToken, parsed.Identity.MapId))
+                    return ProtoBoundary.Encode(new Authority.StatusReply { Status = ProjectShutdown(shutdown, parsed.Identity) });
+                if (!ProtoBoundary.ValidateIdentity(parsed.Identity, out var context, out var invalid))
                     return ProtoBoundary.Encode(new Authority.StatusReply { Failure = invalid });
                 var game = Current.Game;
                 if (game == null)
@@ -60,6 +67,25 @@ namespace HomeBridge.BridgeTools
                 return status;
             }
             if (TryReason(snapshot.Reason, out var reason))
+                status.Inactive = new Authority.InactiveAuthority { Reason = reason };
+            else
+                status.Unavailable = new Common.Unavailable
+                {
+                    Reason = Common.UnavailableReason.ReadFailed,
+                    Detail = "Native authority status could not be represented."
+                };
+            return status;
+        }
+
+        // The retained state of an exited or unloaded game: inactive with its
+        // final reason at its final generation, anchored to the tick it ended on.
+        internal static Authority.Status ProjectShutdown(NativeControlShutdown shutdown, Common.Identity identity)
+        {
+            var status = new Authority.Status { Context = new Common.ObservationContext
+            {
+                Identity = identity.Clone(), Tick = shutdown.Tick, NativeGeneration = shutdown.Generation,
+            } };
+            if (TryReason(shutdown.Reason, out var reason))
                 status.Inactive = new Authority.InactiveAuthority { Reason = reason };
             else
                 status.Unavailable = new Common.Unavailable

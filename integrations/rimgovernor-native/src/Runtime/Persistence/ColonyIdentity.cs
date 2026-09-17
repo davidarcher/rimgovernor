@@ -17,7 +17,7 @@ namespace HomeBridge.BridgeTools
         }
         public override void ExposeData()
         {
-            Scribe_Values.Look(ref ColonyId, "rimgovernorColonyId");
+            Scribe_Values.Look(ref ColonyId, "rimgovernorColonyId", "");
             if (Scribe.mode == LoadSaveMode.PostLoadInit && string.IsNullOrEmpty(ColonyId))
                 ColonyId = Guid.NewGuid().ToString("N");
         }

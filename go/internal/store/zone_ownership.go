@@ -12,11 +12,14 @@ import (
 // methods for the current world scope to find completed ZoneCreate actions of
 // kind StockpileZone, so ReviewHomeCoverage can protect player edits to a zone
 // this colony already created instead of silently reclaiming or recreating it.
+// The link query keeps only plans with an observed zone_create action, as in
+// constructionClaims.
 func stockpileClaims(ctx context.Context, tx *sql.Tx, current domain.GenerationSnapshot, tick domain.Tick) (domain.Fact[[]policy.OwnedStockpile], error) {
 	unknown := domain.Unknown[[]policy.OwnedStockpile]()
 	rows, err := tx.QueryContext(ctx, `SELECT m.plan_id,m.goal_id FROM goal_methods m JOIN goals g ON g.id=m.goal_id
  WHERE json_extract(g.payload,'$.Source')=? AND json_extract(g.payload,'$.Snapshot.Colony')=?
  AND json_extract(g.payload,'$.Snapshot.Load')=? AND json_extract(g.payload,'$.Snapshot.Map')=?
+ AND EXISTS(SELECT 1 FROM actions a JOIN transitions t ON t.action_id=a.id WHERE a.plan_id=m.plan_id AND a.kind='zone_create' AND json_extract(t.payload,'$.Kind')='observe')
  ORDER BY m.plan_id LIMIT 257`, domain.AutopilotGoal, current.Colony, current.Load, current.Map)
 	if err != nil {
 		return unknown, err
@@ -43,10 +46,14 @@ func stockpileClaims(ctx context.Context, tx *sql.Tx, current domain.GenerationS
 		return unknown, nil
 	}
 	result := []policy.OwnedStockpile{}
+	goals := map[domain.GoalID]GoalState{}
 	for _, link := range links {
-		g, err := loadGoal(ctx, tx, link.goal)
-		if err != nil {
-			return unknown, err
+		g, cached := goals[link.goal]
+		if !cached {
+			if g, err = loadGoal(ctx, tx, link.goal); err != nil {
+				return unknown, err
+			}
+			goals[link.goal] = g
 		}
 		scope := g.Goal.Snapshot
 		if g.Goal.Source != domain.AutopilotGoal || g.Goal.Status == domain.GoalCancelled || scope.Colony != current.Colony || scope.Load != current.Load || scope.Map != current.Map {

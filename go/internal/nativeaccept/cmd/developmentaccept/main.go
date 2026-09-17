@@ -41,8 +41,8 @@ func main() {
 	resourceTargets := flag.String("resource-targets", "WoodLog:400", "comma-separated RESOURCE:TARGET list for --routine-resource-target (requires the resource family)")
 	clockSpeed := flag.String("clock-speed", "Fast", "serve's --clock-speed")
 	nativeTimeout := flag.Duration("native-timeout", 15*time.Second, "serve's --timeout (native call budget per clock step)")
-	watch := flag.Duration("watch", 6*time.Minute, "wall-clock sampling window before the restart")
-	afterRestart := flag.Duration("after-restart", 3*time.Minute, "wall-clock sampling window after the restart")
+	watch := flag.Duration("watch", 6*time.Minute, "maximum wall-clock sampling window before the restart; ends early once -min-reviews distinct review ticks were sampled")
+	afterRestart := flag.Duration("after-restart", 3*time.Minute, "maximum wall-clock sampling window after the restart; ends early once a review beyond the pre-kill tick was sampled")
 	poll := flag.Duration("poll", 5*time.Second, "sampling interval")
 	timeout := flag.Duration("timeout", 30*time.Minute, "overall run timeout")
 	flag.Parse()
@@ -91,6 +91,10 @@ func run(ctx context.Context, c runConfig, report na.Report) error {
 		output = abs
 	}
 	cfg := &na.Config{Root: root, Output: output, Headless: c.headless, GameID: c.gameID}
+	// The save carries its own expansion list; a Core-only profile would refuse it.
+	if err := cfg.UseSaveExpansions(c.save); err != nil {
+		return err
+	}
 	if err := cfg.PrepareConfig(); err != nil {
 		return fmt.Errorf("prepare profile: %w", err)
 	}
@@ -150,9 +154,7 @@ func run(ctx context.Context, c runConfig, report na.Report) error {
 		}); err != nil {
 			return err
 		}
-	} else if _, err := h.Call(ctx, "new-game", "rimworld/start_debug_game_ready", map[string]any{
-		"readiness": "visual", "pauseIfNeeded": true, "timeoutMs": 120000,
-	}); err != nil {
+	} else if _, err := na.StartDebugGame(ctx, h, nil, na.QuietIfAvailable); err != nil {
 		return err
 	}
 	if _, err := h.Call(ctx, "pause", "rimworld/set_time_speed", map[string]any{"speed": "Paused", "ultraSpeedBoost": false}); err != nil {
@@ -237,9 +239,12 @@ func run(ctx context.Context, c runConfig, report na.Report) error {
 
 	var samples []Sample
 	var violations []string
-	sampleFor := func(phase string, window time.Duration) error {
+	// sampleFor polls until window elapses or enough has been seen: the
+	// windows are ceilings, so a healthy box finishes as soon as the clock
+	// has produced the reviews the verdict needs.
+	sampleFor := func(phase string, window time.Duration, enough func() bool) error {
 		deadline := time.Now().Add(window)
-		for time.Now().Before(deadline) {
+		for time.Now().Before(deadline) && !enough() {
 			status, code, err := service.API("GET", "/api/routines", nil, "")
 			if err != nil {
 				return fmt.Errorf("%s: /api/routines: %w", phase, err)
@@ -263,7 +268,16 @@ func run(ctx context.Context, c runConfig, report na.Report) error {
 		}
 		return nil
 	}
-	if err := sampleFor("before-restart", c.watch); err != nil {
+	distinctTicks := func(phase string, above int64) int {
+		seen := map[int64]bool{}
+		for _, s := range samples {
+			if s.Phase == phase && s.Development != nil && s.Development.Tick > above {
+				seen[s.Development.Tick] = true
+			}
+		}
+		return len(seen)
+	}
+	if err := sampleFor("before-restart", c.watch, func() bool { return distinctTicks("before-restart", -1) >= c.minReviews }); err != nil {
 		return err
 	}
 	var before *Development
@@ -324,7 +338,7 @@ func run(ctx context.Context, c runConfig, report na.Report) error {
 		}
 	}
 	report["restart_review_revisions"] = map[string]any{"before_kill": first.Revision, "after_restart": second.Revision}
-	if err := sampleFor("after-restart", c.afterRestart); err != nil {
+	if err := sampleFor("after-restart", c.afterRestart, func() bool { return distinctTicks("after-restart", before.Tick) >= 1 }); err != nil {
 		return err
 	}
 	var after *Development

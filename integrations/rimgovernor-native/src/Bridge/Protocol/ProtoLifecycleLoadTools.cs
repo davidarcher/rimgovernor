@@ -18,8 +18,9 @@ namespace HomeBridge.BridgeTools
     // returns LoadPending; the caller polls ReadLoad for either MAP readiness
     // (a live Find.CurrentMap with a valid identity) or, when requested,
     // VISUAL readiness (MAP readiness plus at least one actual map draw --
-    // see MapVisualReadyTracker below). Reconnect-after-disconnect, competing
-    // viewers and camera/input are separate, unimplemented capability.
+    // see MapVisualReadyTracker below). Authority re-grant after a DISCONNECT
+    // revocation is the ordinary SetMode path (#35 M1); competing viewers and
+    // Go-side transport reconnection remain separate, unimplemented capability.
     public sealed class ProtoLifecycleLoadTools
     {
         private const string LoadToolName = "rimgovernor/lifecycle_load";
@@ -58,8 +59,7 @@ namespace HomeBridge.BridgeTools
             if (!ProtoBoundary.TryParse(ctx, LoadToolName, request, Lifecycle.LoadRequest.Parser, out parsed, out failure))
                 return ProtoBoundary.Encode(new Lifecycle.LoadReply { Failure = failure });
 
-            var reply = await ctx.MainThread.InvokeAsync(() => StartLoad(parsed), cancellationToken).ConfigureAwait(false);
-            return ProtoBoundary.Encode(reply);
+            return await ProtoBoundary.OnMainThreadEncoded(ctx, () => StartLoad(parsed), cancellationToken).ConfigureAwait(false);
         }
 
         [Tool(ReadLoadToolName, Title = "Read a native load's progress",
@@ -73,8 +73,7 @@ namespace HomeBridge.BridgeTools
             if (!ProtoBoundary.TryParse(ctx, ReadLoadToolName, request, Lifecycle.RequestStatus.Parser, out parsed, out failure))
                 return ProtoBoundary.Encode(new Lifecycle.LoadReply { Failure = failure });
 
-            var reply = await ctx.MainThread.InvokeAsync(() => PollLoad(parsed), cancellationToken).ConfigureAwait(false);
-            return ProtoBoundary.Encode(reply);
+            return await ProtoBoundary.OnMainThreadEncoded(ctx, () => PollLoad(parsed), cancellationToken).ConfigureAwait(false);
         }
 
         // Call only on the game thread.

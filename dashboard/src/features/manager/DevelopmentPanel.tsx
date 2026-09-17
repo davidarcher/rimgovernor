@@ -18,7 +18,7 @@ export default function DevelopmentPanel({active}: {active: boolean}) {
     const poll = async () => {
       try {const value = await fetchRoutineStatus(AbortSignal.any([controller.signal, AbortSignal.timeout(5000)])); if (!stopped) setState({value, stale: false, hidden: false, error: ''});}
       catch (error) {if (!stopped) setState(previous => ({value: previous.value, stale: true, hidden: error instanceof RoutineHTTPError && error.status === 404, error: error instanceof Error ? error.message : 'Routine diagnostics unavailable'}));}
-      finally {if (!stopped) timer = setTimeout(poll, 3000);}
+      finally {if (!stopped) timer = setTimeout(() => void poll(), 3000);}
     };
     void poll(); return () => {stopped = true; controller.abort(); if (timer) clearTimeout(timer);};
   }, [active]);

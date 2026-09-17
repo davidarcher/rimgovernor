@@ -73,7 +73,7 @@ namespace HomeBridge.BridgeTools
 
     internal static class NativeMineAcquisition
     {
-        internal static bool IsMine(Operations.AcquireResource command) => Find.CurrentMap?.listerThings.AllThings.OfType<Mineable>().Any(m => m.GetUniqueLoadID() == command.Source?.EntityId) == true;
+        internal static bool IsMine(Operations.AcquireResource command, Common.ObservationContext context) => ProtoBoundary.ResolveMap(context)?.listerThings.AllThings.OfType<Mineable>().Any(m => m.GetUniqueLoadID() == command.Source?.EntityId) == true;
         internal static string Token(Common.Identity identity, string id, string resource, int x, int z, int hitPoints, int yield, bool designated)
         {
             using (var bytes = new MemoryStream())
@@ -90,7 +90,7 @@ namespace HomeBridge.BridgeTools
         {
             rock = null; failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Mining requires an exact safe mineable snapshot, an eligible miner and safe excavation geometry.");
             if (!NativePlantAcquisition.Valid(command)) return false;
-            var map = Find.CurrentMap;
+            var map = ProtoBoundary.ResolveMap(context);
             if (map.AllCells.Any(c => map.roofCollapseBuffer.IsMarkedToCollapse(c))) return false;
             rock = map.listerThings.AllThings.OfType<Mineable>().SingleOrDefault(m => m.GetUniqueLoadID() == command.Source.EntityId);
             return rock != null && ResourceAcquisitionTools.Eligible(rock, map) && rock.Position.x == command.Cell.X && rock.Position.z == command.Cell.Z

@@ -31,7 +31,7 @@ func TestRoutineDisasterDurableManualAndContext(t *testing.T) {
 	}
 	r.Enabled = false
 	out = reviewRoutine(t, s, &r)
-	if !reflect.DeepEqual(out.Review.Disaster, first) || routineGoal(t, out, policy.RecoverDisasterServices).Goal.Status != domain.GoalInvalidated {
+	if !reflect.DeepEqual(out.Review.Disaster, first) || routineGoal(t, out, policy.RecoverDisasterServices).Goal.Status != domain.GoalSuspended {
 		t.Fatal(out)
 	}
 	s.Close()

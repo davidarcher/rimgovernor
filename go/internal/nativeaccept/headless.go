@@ -12,6 +12,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 )
 
@@ -84,10 +85,63 @@ func packageID(aboutXMLPath string) (string, error) {
 	return strings.TrimSpace(root.childText("packageId")), nil
 }
 
-// PrepareNativeModConfig rewrites ModsConfig.xml's activeMods to include exactly
-// brrainz.harmony, brrainz.rimbridgeserver and NativePackage, removing legacy or
-// duplicate entries first.
-func PrepareNativeModConfig(modsConfigXMLPath string) error {
+// ExpansionPrefix is the package-ID prefix every official Ludeon expansion
+// (Royalty, Ideology, Biotech, Anomaly, Odyssey) shares; the base game itself
+// is exactly CorePackage.
+const (
+	CorePackage     = "ludeon.rimworld"
+	ExpansionPrefix = "ludeon.rimworld."
+)
+
+// ExpansionsEnv names the environment variable a harness run may set to opt
+// specific expansions back in (comma-separated, e.g. "royalty,biotech" or the
+// full "ludeon.rimworld.royalty") when a Config leaves Expansions nil.
+const ExpansionsEnv = "RIMGOVERNOR_ACCEPT_EXPANSIONS"
+
+// ExpansionPackage normalizes a short expansion name ("royalty") or a full
+// package ID ("ludeon.rimworld.royalty") to its casefolded package ID.
+func ExpansionPackage(name string) (string, error) {
+	folded := casefold(strings.TrimSpace(name))
+	if folded == "" || folded == CorePackage {
+		return "", fmt.Errorf("expansion name must not be empty or the core package: %q", name)
+	}
+	if !strings.HasPrefix(folded, ExpansionPrefix) {
+		folded = ExpansionPrefix + folded
+	}
+	if strings.ContainsAny(strings.TrimPrefix(folded, ExpansionPrefix), ". \t") {
+		return "", fmt.Errorf("invalid expansion name: %q", name)
+	}
+	return folded, nil
+}
+
+// ExpansionsFromEnv parses ExpansionsEnv; unset or empty means no expansions.
+func ExpansionsFromEnv() ([]string, error) {
+	raw := strings.TrimSpace(os.Getenv(ExpansionsEnv))
+	if raw == "" {
+		return nil, nil
+	}
+	var out []string
+	for _, part := range strings.Split(raw, ",") {
+		if strings.TrimSpace(part) == "" {
+			continue
+		}
+		id, err := ExpansionPackage(part)
+		if err != nil {
+			return nil, fmt.Errorf("%s: %w", ExpansionsEnv, err)
+		}
+		out = append(out, id)
+	}
+	return out, nil
+}
+
+// PrepareNativeModConfig rewrites ModsConfig.xml's activeMods to the core game,
+// only the requested expansions, and exactly brrainz.harmony,
+// brrainz.rimbridgeserver and NativePackage, removing every other official
+// expansion plus legacy or duplicate entries first. Acceptance runs are
+// Core-only by default (issue #91): each active expansion adds def loading and
+// per-tick systems no harness needs unless it tests that DLC. knownExpansions
+// is left alone so RimWorld still recognizes the installed content.
+func PrepareNativeModConfig(modsConfigXMLPath string, expansions ...string) error {
 	data, err := os.ReadFile(modsConfigXMLPath)
 	if err != nil {
 		return fmt.Errorf("read ModsConfig.xml: %w", err)
@@ -108,19 +162,51 @@ func PrepareNativeModConfig(modsConfigXMLPath string) error {
 	for id := range LegacyPackages {
 		drop[casefold(id)] = true
 	}
+	keep := map[string]bool{}
+	var wanted []string
+	for _, name := range expansions {
+		id, err := ExpansionPackage(name)
+		if err != nil {
+			return err
+		}
+		if !keep[id] {
+			keep[id] = true
+			wanted = append(wanted, id)
+		}
+	}
+	item := func(id string) xmlItem {
+		return xmlItem{elem: &xmlElem{name: xml.Name{Local: "li"}, kids: []xmlItem{{text: id}}}}
+	}
 	kept := active.kids[:0]
+	seenCore := false
 	for _, kid := range active.kids {
-		if kid.elem != nil && kid.elem.name.Local == "li" && drop[casefold(kid.elem.text())] {
-			continue
+		if kid.elem != nil && kid.elem.name.Local == "li" {
+			id := casefold(kid.elem.text())
+			if drop[id] || strings.HasPrefix(id, ExpansionPrefix) {
+				continue
+			}
+			if id == CorePackage {
+				if seenCore {
+					continue
+				}
+				seenCore = true
+				kept = append(kept, kid)
+				// Expansions load directly after the core game, as RimWorld's
+				// own mod manager orders them.
+				for _, id := range wanted {
+					kept = append(kept, item(id))
+				}
+				continue
+			}
 		}
 		kept = append(kept, kid)
 	}
+	if !seenCore {
+		return fmt.Errorf("native profile activeMods is missing %s", CorePackage)
+	}
 	active.kids = kept
 	for _, id := range required {
-		active.kids = append(active.kids, xmlItem{elem: &xmlElem{
-			name: xml.Name{Local: "li"},
-			kids: []xmlItem{{text: id}},
-		}})
+		active.kids = append(active.kids, item(id))
 	}
 	out, err := writeXML(header, root)
 	if err != nil {
@@ -291,7 +377,7 @@ func copyFile(source, destination string) error {
 
 // PrepareRendered launches the unified native package without batch-mode flags, for
 // a visible window. Returns the rewritten config directory (root/config).
-func PrepareRendered(root string) (string, error) {
+func PrepareRendered(root string, expansions ...string) (string, error) {
 	root = mustAbs(root)
 	configuration := filepath.Join(root, "config")
 	config, err := loadConfig(filepath.Join(configuration, "config.json"))
@@ -310,7 +396,7 @@ func PrepareRendered(root string) (string, error) {
 		return "", err
 	}
 	profile := filepath.Join(root, "profile")
-	if err := PrepareNativeModConfig(filepath.Join(profile, "Config", "ModsConfig.xml")); err != nil {
+	if err := PrepareNativeModConfig(filepath.Join(profile, "Config", "ModsConfig.xml"), expansions...); err != nil {
 		return "", err
 	}
 	game["args"] = []any{
@@ -326,7 +412,7 @@ func PrepareRendered(root string) (string, error) {
 // Prepare builds the headless-profile subdirectory (copying Prefs.xml/ModsConfig.xml
 // and every profile/Saves/*.rws save into it), rewrites config.json's args for batch
 // mode, writes config-headless/config.json, and returns that directory.
-func Prepare(root string) (string, error) {
+func Prepare(root string, expansions ...string) (string, error) {
 	root = mustAbs(root)
 	config, err := loadConfig(filepath.Join(root, "config", "config.json"))
 	if err != nil {
@@ -355,7 +441,7 @@ func Prepare(root string) (string, error) {
 			return "", err
 		}
 	}
-	if err := PrepareNativeModConfig(filepath.Join(profile, "Config", "ModsConfig.xml")); err != nil {
+	if err := PrepareNativeModConfig(filepath.Join(profile, "Config", "ModsConfig.xml"), expansions...); err != nil {
 		return "", err
 	}
 	// Every save under profile/Saves -- not just the tribal8 baseline -- so a
@@ -390,4 +476,75 @@ func Prepare(root string) (string, error) {
 		return "", err
 	}
 	return destination, nil
+}
+
+// SaveExpansions reads the official expansions a save at
+// root/profile/Saves/<saveName>.rws was recorded with (its <modIds> header).
+// A save refuses to load (save.missing_mods) under a profile missing any of
+// them, so a harness that loads a save passes its result to Config.Expansions
+// rather than relying on the Core-only default.
+func SaveExpansions(root, saveName string) ([]string, error) {
+	path := filepath.Join(mustAbs(root), "profile", "Saves", saveName+".rws")
+	f, err := os.Open(path)
+	if err != nil {
+		return nil, fmt.Errorf("read save header: %w", err)
+	}
+	defer f.Close()
+	// modIds sit in the first few hundred bytes of the meta block; 64 KiB
+	// bounds the scan of a multi-megabyte save.
+	head := make([]byte, 64*1024)
+	n, err := io.ReadFull(f, head)
+	if err != nil && err != io.ErrUnexpectedEOF && err != io.EOF {
+		return nil, fmt.Errorf("read save header: %w", err)
+	}
+	text := string(head[:n])
+	start := strings.Index(text, "<modIds>")
+	end := strings.Index(text, "</modIds>")
+	if start < 0 || end < start {
+		return nil, fmt.Errorf("save %s has no modIds header in its first %d bytes", saveName, n)
+	}
+	var out []string
+	for _, m := range saveModItem.FindAllStringSubmatch(text[start:end], -1) {
+		id := casefold(m[1])
+		if strings.HasPrefix(id, ExpansionPrefix) {
+			out = append(out, id)
+		}
+	}
+	return out, nil
+}
+
+var saveModItem = regexp.MustCompile(`<li>\s*([^<\s]+)\s*</li>`)
+
+// UseSaveExpansions sets Expansions to the union of the official expansions
+// the named saves were recorded with, so PrepareConfig keeps exactly those
+// active. Empty names are skipped; when every name is empty Expansions is
+// left as it was (nil: the Core-only default or ExpansionsEnv).
+func (c *Config) UseSaveExpansions(saveNames ...string) error {
+	seen := map[string]bool{}
+	var out []string
+	any := false
+	for _, name := range saveNames {
+		if name == "" {
+			continue
+		}
+		any = true
+		ids, err := SaveExpansions(c.Root, name)
+		if err != nil {
+			return err
+		}
+		for _, id := range ids {
+			if !seen[id] {
+				seen[id] = true
+				out = append(out, id)
+			}
+		}
+	}
+	if !any {
+		return nil
+	}
+	if out == nil {
+		out = []string{}
+	}
+	c.Expansions = out
+	return nil
 }

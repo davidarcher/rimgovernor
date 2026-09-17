@@ -173,9 +173,28 @@ func (s *Store) SetWorkPreferences(ctx context.Context, q WorkPreferenceRequest)
 	if err != nil {
 		return WorkPreferenceRecord{}, err
 	}
+	// New overrides replace the work assignment in flight; every other routine
+	// project keeps its goal and open work.
 	if review.Enabled && review.Snapshot.Plan == q.Plan {
-		if _, err = reviewRoutineTx(ctx, tx, RoutineReviewRequest{Revision: review.Revision, Current: review.Snapshot, Tick: review.Tick, Enabled: false}); err != nil {
-			return WorkPreferenceRecord{}, err
+		for _, binding := range review.Goals {
+			if binding.Need != policy.EnsureWorkAssignments {
+				continue
+			}
+			g, err := loadGoal(ctx, tx, binding.Goal)
+			if err != nil {
+				return WorkPreferenceRecord{}, err
+			}
+			if g.Goal.Status == domain.GoalCancelled || g.Goal.Status == domain.GoalInvalidated {
+				continue
+			}
+			if err = cancelGoalMethods(ctx, tx, g); err != nil {
+				return WorkPreferenceRecord{}, err
+			}
+			next := g.Goal
+			next.Status = domain.GoalInvalidated
+			if _, err = saveGoal(ctx, tx, g, next); err != nil {
+				return WorkPreferenceRecord{}, err
+			}
 		}
 	}
 	return r, tx.Commit()

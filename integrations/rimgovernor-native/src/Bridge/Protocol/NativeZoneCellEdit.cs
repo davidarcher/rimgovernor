@@ -85,7 +85,7 @@ namespace HomeBridge.BridgeTools
                 + "(remove), and a contiguous result unless allow_split is set.");
             if (!Valid(command)) return false;
 
-            var map = Find.CurrentMap;
+            var map = ProtoBoundary.ResolveMap(context);
             var candidate = map.zoneManager.AllZones.FirstOrDefault(z => z.GetUniqueLoadID() == command.Zone.EntityId);
             if (candidate == null || candidate.Cells.Count == 0) return false;
             if (NativeZoneObservationTools.Token(candidate, context).Token != command.Zone.ExpectedSnapshotToken) return false;
@@ -161,7 +161,7 @@ namespace HomeBridge.BridgeTools
                     if (!authority.Check(pre.ExpectedGeneration).Success
                         || !Prepare(command, context, out zone, out finalCells, out needsSplit, out failure))
                         throw new InvalidOperationException("Zone scope changed before cell edit.");
-                    var map = Find.CurrentMap;
+                    var map = ProtoBoundary.ResolveMap(context);
                     var requested = command.Cells.ExplicitCells.Cells.Select(c => new IntVec3(c.X, 0, c.Z)).ToArray();
                     var record = new NativeZoneEditRecord(zone!, map, command.Zone.ExpectedSnapshotToken, finalCells!);
                     state.ZoneEdits.Add(pre.Attempt.Clone(), record);

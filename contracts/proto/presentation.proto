@@ -416,8 +416,23 @@ message VideoState {
   optional int32 vsync_count = 15; optional double refresh_rate = 16;
   optional uint64 working_set_bytes = 17; optional double process_cpu_seconds = 18;
   rimgovernor.common.v1.Unavailable unavailable = 19;
+  VideoSource source = 20;
 }
-message VideoStart { PlayerIdentity viewer = 1; optional uint32 lease_seconds = 2; }
+// What a video lease captures. Absent means the presented screen. A pawn
+// source is a second camera following that pawn; a map source is the whole
+// identity map. width/height are the feed pixel size (screen ignores them);
+// frames_per_second caps the capture cadence (screen 60, pawn <=30, map <=10).
+enum VideoSourceKind {
+  VIDEO_SOURCE_KIND_UNSPECIFIED = 0; VIDEO_SOURCE_KIND_SCREEN = 1;
+  VIDEO_SOURCE_KIND_PAWN = 2; VIDEO_SOURCE_KIND_MAP = 3;
+}
+message VideoSource {
+  optional VideoSourceKind kind = 1; optional string pawn_id = 2;
+  optional uint32 width = 3; optional uint32 height = 4; optional double frames_per_second = 5;
+}
+// Each Start leases one source and replies with that source's state; a second
+// Start for the same source extends it. Stop without source_id ends every lease.
+message VideoStart { PlayerIdentity viewer = 1; optional uint32 lease_seconds = 2; VideoSource source = 3; }
 message VideoStop { PlayerIdentity viewer = 1; optional string source_id = 2; }
 message VideoLeaseRequest { oneof operation { VideoStart start = 1; VideoStop stop = 2; } }
 message VideoReply { oneof outcome { VideoState state = 1; rimgovernor.common.v1.Failure failure = 2; } }

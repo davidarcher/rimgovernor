@@ -35,12 +35,17 @@
     <Compile Include="../../../../scripts/fixtures/MiningFixture.cs" Condition="'$(MiningFixture)' == 'true'" />
     <Compile Include="../../../../scripts/fixtures/DeepMiningFixture.cs" Condition="'$(MiningFixture)' == 'true'" />
     <Compile Include="../../../../scripts/fixtures/MountainFixture.cs" Condition="'$(MountainFixture)' == 'true'" />
+    <Compile Include="../../../../scripts/fixtures/QuietStorytellerFixture.cs" Condition="'$(QuietStorytellerFixture)' == 'true' Or '$(MountainFixture)' == 'true' Or '$(ScenarioStartFixture)' == 'true'" />
+    <!-- build_native_mod.ps1 adds QuietStorytellerFixture and DebugStartFixture to every fixture build; the extra conditions cover direct dotnet builds of the fixtures that call into them. -->
+    <Compile Include="../../../../scripts/fixtures/DebugStartFixture.cs" Condition="'$(DebugStartFixture)' == 'true' Or '$(ScenarioStartFixture)' == 'true'" />
+    <Compile Include="../../../../scripts/fixtures/VideoSourceFixture.cs" Condition="'$(VideoSourceFixture)' == 'true'" />
+    <Compile Include="../../../../scripts/fixtures/VideoMatrixFixture.cs" Condition="'$(VideoMatrixFixture)' == 'true'" />
     <Compile Include="../../../../scripts/fixtures/FoodObservationFixture.cs" Condition="'$(FoodObservationFixture)' == 'true'" />
     <Compile Include="../../../../scripts/fixtures/UpkeepFixture.cs" Condition="'$(UpkeepFixture)' == 'true'" />
     <Compile Include="../../../../scripts/fixtures/HomeCoverageFixture.cs" Condition="'$(UpkeepFixture)' == 'true'" />
     <Compile Include="../../../../scripts/fixtures/SleepingFixture.cs" Condition="'$(UpkeepFixture)' == 'true'" />
     <Compile Include="../../../../scripts/fixtures/StoreroomFixture.cs" Condition="'$(UpkeepFixture)' == 'true'" />
-    <Compile Include="../../../../scripts/fixtures/WallUpgradeFixture.cs" Condition="'$(UpkeepFixture)' == 'true'" />
+    <Compile Include="../../../../scripts/fixtures/WallUpgradeFixture.cs" Condition="'$(UpkeepFixture)' == 'true' Or '$(WallUpgradeFixture)' == 'true'" />
     <Compile Include="../../../../scripts/fixtures/MedicineFixture.cs" Condition="'$(UpkeepFixture)' == 'true'" />
     <Compile Include="../../../../scripts/fixtures/AnimalContainmentFixture.cs" Condition="'$(UpkeepFixture)' == 'true'" />
     <Compile Include="../../../../scripts/fixtures/AnimalFeedFixture.cs" Condition="'$(UpkeepFixture)' == 'true'" />
@@ -50,6 +55,8 @@
     <Compile Include="../../../../scripts/fixtures/ConstructionLedgerFixture.cs" Condition="'$(ConstructionLedgerFixture)' == 'true'" />
     <Compile Include="../../../../scripts/fixtures/EmergencyDevelopmentFixture.cs" Condition="'$(EmergencyDevelopmentFixture)' == 'true'" />
     <Compile Include="../../../../scripts/fixtures/DraftFaultFixture.cs" Condition="'$(DraftFaultFixture)' == 'true'" />
+    <Compile Include="../../../../scripts/fixtures/RuntimeFaultFixture.cs" Condition="'$(RuntimeFaultFixture)' == 'true'" />
+    <Compile Include="../../../../scripts/fixtures/MapScopeFixture.cs" Condition="'$(MapScopeFixture)' == 'true'" />
     <Compile Include="../../../../scripts/fixtures/InstallFixture.cs" Condition="'$(InstallFixture)' == 'true'" />
     <Compile Include="../../../../scripts/fixtures/ForecastFixture.cs" Condition="'$(ForecastFixture)' == 'true'" />
     <Compile Include="../../../../scripts/fixtures/InspectorFixture.cs" Condition="'$(InspectorFixture)' == 'true'" />
@@ -70,6 +77,7 @@
     <Compile Include="../../../../scripts/fixtures/PowerFixture.cs" Condition="'$(PowerFixture)' == 'true'" />
     <Compile Include="../../../../scripts/fixtures/CleanlinessFixture.cs" Condition="'$(CleanlinessFixture)' == 'true'" />
     <Compile Include="../../../../scripts/fixtures/LightingFixture.cs" Condition="'$(LightingFixture)' == 'true'" />
+    <Compile Include="../../../../scripts/fixtures/ShutdownFixture.cs" Condition="'$(ShutdownFixture)' == 'true'" />
     <ProjectReference Include="../Runtime/RimGovernor.Runtime.csproj"><Private>false</Private></ProjectReference>
     <PackageReference Include="Microsoft.NETFramework.ReferenceAssemblies.net472" Version="1.0.3" PrivateAssets="all" />
     <Reference Include="RimBridgeServer.Sdk"><HintPath>$(RimBridgeSdkDir)/RimBridgeServer.Sdk.dll</HintPath><Private>false</Private></Reference>

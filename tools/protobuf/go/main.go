@@ -10,7 +10,6 @@ import (
 	a "github.com/davidarcher/RimGovernor/go/internal/wire/authoritypb"
 	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
 	p "github.com/davidarcher/RimGovernor/go/internal/wire/placementpb"
-	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/wrapperspb"
 )
@@ -24,6 +23,9 @@ func fixtures() map[string]proto.Message {
 	reply := &p.PlacementReply{Outcome: &p.PlacementReply_Batch{Batch: &p.PlacementBatch{Context: context, Results: []*p.CandidateReply{{Outcome: &p.CandidateReply_Evaluated{Evaluated: evaluated}}}}}}
 	return map[string]proto.Message{"request": request, "reply": reply, "u64": wrapperspb.UInt64(^uint64(0)), "context": context}
 }
+
+// decodePair reads one of the handful of named handcrafted fixture files; the
+// generated shape sets travel inline in manifest.tsv instead.
 func decodePair(directory, name string, model proto.Message) (proto.Message, error) {
 	j, err := os.ReadFile(filepath.Join(directory, name+".json"))
 	if err != nil {
@@ -33,42 +35,21 @@ func decodePair(directory, name string, model proto.Message) (proto.Message, err
 	if err != nil {
 		return nil, err
 	}
-	fromJSON := model.ProtoReflect().Type().New().Interface()
-	fromBinary := model.ProtoReflect().Type().New().Interface()
-	if err = protojson.Unmarshal(j, fromJSON); err != nil {
-		return nil, err
+	message, err := decodeRow(model.ProtoReflect().Type(), j, b)
+	if err != nil {
+		return nil, fmt.Errorf("%s: %w", name, err)
 	}
-	if err = proto.Unmarshal(b, fromBinary); err != nil {
-		return nil, err
-	}
-	if !proto.Equal(fromJSON, fromBinary) {
-		return nil, fmt.Errorf("%s JSON/binary differ", name)
-	}
-	return fromJSON, nil
+	return message, nil
 }
 func writePair(directory, name string, message proto.Message) error {
-	j, err := protojson.Marshal(message)
+	row, err := encodePair(name, "", message)
 	if err != nil {
 		return err
 	}
-	b, err := proto.Marshal(message)
-	if err != nil {
+	if err = os.WriteFile(filepath.Join(directory, name+".json"), row.json, 0600); err != nil {
 		return err
 	}
-	if err = os.WriteFile(filepath.Join(directory, name+".json"), j, 0600); err != nil {
-		return err
-	}
-	if err = os.WriteFile(filepath.Join(directory, name+".bin"), b, 0600); err != nil {
-		return err
-	}
-	decoded, err := decodePair(directory, name, message)
-	if err != nil {
-		return err
-	}
-	if !proto.Equal(decoded, message) {
-		return fmt.Errorf("%s roundtrip differs", name)
-	}
-	return nil
+	return os.WriteFile(filepath.Join(directory, name+".bin"), row.binary, 0600)
 }
 func run(output, cross string, checkEcho bool) error {
 	if err := os.Mkdir(output, 0700); err != nil {
@@ -83,7 +64,7 @@ func run(output, cross string, checkEcho bool) error {
 	if cross != "" {
 		// Independently produced C# fixtures are preserved. Go echoes receive separate
 		// names and are never substituted for the originating C# coverage.
-		origin := map[string]proto.Message{"request": &p.PlacementRequest{}, "reply": &p.PlacementReply{}, "u64": &wrapperspb.UInt64Value{}, "context": &c.ObservationContext{}, "authority-inactive": &a.Status{}, "authority-active": &a.Status{}, "authority-acquire": &a.ControlRequest{}}
+		origin := map[string]proto.Message{"request": &p.PlacementRequest{}, "reply": &p.PlacementReply{}, "u64": &wrapperspb.UInt64Value{}, "context": &c.ObservationContext{}, "authority-inactive": &a.Status{}, "authority-active": &a.Status{}, "authority-set-mode": &a.ControlRequest{}}
 		for name, model := range origin {
 			message, err := decodePair(cross, "csharp-"+name, model)
 			if err != nil {

@@ -102,6 +102,7 @@ type Action struct {
 	rescue              Rescue
 	capture             Capture
 	ranged              RangedAttack
+	movement            Movement
 	haul                Haul
 	equip               Equip
 	gearReplace         GearReplace
@@ -135,12 +136,12 @@ func (a Action) ID() ActionID               { return a.id }
 func (a Action) Kind() ActionKind           { return a.kind }
 func (a Action) Building() (Building, bool) { return a.building, a.kind == BuildingAction }
 func SupportedActionKinds() []ActionKind {
-	return []ActionKind{BuildingAction, OwnedDraftAction, MeleeAttackAction, SupplyAllowAction, WorkAssignmentAction, AcquisitionAction, ZoneCreateAction, TendAction, RescueAction, CaptureAction, RangedAttackAction, ProductionBillAction, HaulAction, EquipAction, GearReplaceAction, RepairAction, CleanAction, WasteAction, RecoveryServiceAction, BuildingTemperatureAction, ResearchSelectAction, HusbandryAction, HomeCoverageAction, PrisonerInteractionAction, MineAcquisitionAction, WallRemovalAction, ExcavationAction, ProductionPolicyAction, MoodReliefAction, NamingConfirmationAction}
+	return []ActionKind{BuildingAction, OwnedDraftAction, MeleeAttackAction, SupplyAllowAction, WorkAssignmentAction, AcquisitionAction, ZoneCreateAction, TendAction, RescueAction, CaptureAction, RangedAttackAction, ProductionBillAction, HaulAction, EquipAction, GearReplaceAction, RepairAction, CleanAction, WasteAction, RecoveryServiceAction, MovementAction, BuildingTemperatureAction, ResearchSelectAction, HusbandryAction, HomeCoverageAction, PrisonerInteractionAction, MineAcquisitionAction, WallRemovalAction, ExcavationAction, ProductionPolicyAction, MoodReliefAction, NamingConfirmationAction}
 }
 func ValidateHandlerCoverage(kinds []ActionKind) error {
 	seen := make(map[ActionKind]bool)
 	for _, kind := range kinds {
-		if (kind != BuildingAction && kind != OwnedDraftAction && kind != MeleeAttackAction && kind != SupplyAllowAction && kind != WorkAssignmentAction && kind != AcquisitionAction && kind != ZoneCreateAction && kind != TendAction && kind != RescueAction && kind != CaptureAction && kind != RangedAttackAction && kind != ProductionBillAction && kind != HaulAction && kind != EquipAction && kind != GearReplaceAction && kind != RepairAction && kind != CleanAction && kind != WasteAction && kind != RecoveryServiceAction && kind != BuildingTemperatureAction && kind != ResearchSelectAction && kind != HusbandryAction && kind != HomeCoverageAction && kind != PrisonerInteractionAction && kind != MineAcquisitionAction && kind != WallRemovalAction && kind != ExcavationAction && kind != ProductionPolicyAction && kind != MoodReliefAction && kind != NamingConfirmationAction) || seen[kind] {
+		if (kind != BuildingAction && kind != OwnedDraftAction && kind != MeleeAttackAction && kind != SupplyAllowAction && kind != WorkAssignmentAction && kind != AcquisitionAction && kind != ZoneCreateAction && kind != TendAction && kind != RescueAction && kind != CaptureAction && kind != RangedAttackAction && kind != ProductionBillAction && kind != HaulAction && kind != EquipAction && kind != GearReplaceAction && kind != RepairAction && kind != CleanAction && kind != WasteAction && kind != RecoveryServiceAction && kind != MovementAction && kind != BuildingTemperatureAction && kind != ResearchSelectAction && kind != HusbandryAction && kind != HomeCoverageAction && kind != PrisonerInteractionAction && kind != MineAcquisitionAction && kind != WallRemovalAction && kind != ExcavationAction && kind != ProductionPolicyAction && kind != MoodReliefAction && kind != NamingConfirmationAction) || seen[kind] {
 			return fmt.Errorf("unknown or duplicate action handler %q", kind)
 		}
 		seen[kind] = true
@@ -212,6 +213,8 @@ func NewPlan(id PlanID, revision PlanRevision, actions []Action, dependencies ..
 			canonical, err = NewWasteAction(a.id, a.waste)
 		case RecoveryServiceAction:
 			canonical, err = NewRecoveryServiceAction(a.id, a.recoveryService)
+		case MovementAction:
+			canonical, err = NewMovementAction(a.id, a.movement)
 		case BuildingTemperatureAction:
 			canonical, err = NewBuildingTemperatureAction(a.id, a.buildingTemperature)
 		case ResearchSelectAction:
@@ -256,6 +259,12 @@ func NewPlan(id PlanID, revision PlanRevision, actions []Action, dependencies ..
 			prerequisite, exists := seen[a.ranged.draftAction]
 			if !exists || prerequisite.kind != OwnedDraftAction || prerequisite.draft.pawn != a.ranged.pawn {
 				return PlanSpec{}, errors.New("ranged attack requires its preceding owned draft for the same pawn")
+			}
+		}
+		if a.kind == MovementAction {
+			prerequisite, exists := seen[a.movement.draftAction]
+			if !exists || prerequisite.kind != OwnedDraftAction || prerequisite.draft.pawn != a.movement.pawn {
+				return PlanSpec{}, errors.New("movement requires its preceding owned draft for the same pawn")
 			}
 		}
 		if a.kind == WallRemovalAction && a.wallRemoval.backupOf != "" {
@@ -304,7 +313,7 @@ func validateDependencies(actions map[ActionID]Action, dependencies []ActionDepe
 		}
 		graph[d.Action] = append(graph[d.Action], d.Requires)
 	}
-	// Melee and ranged attacks already have a mandatory draft prerequisite.
+	// Melee, ranged attacks and movement already have a mandatory draft prerequisite.
 	// Include it in cycle detection without changing either family's exact
 	// owned-claim checks.
 	for id, a := range actions {
@@ -313,6 +322,9 @@ func validateDependencies(actions map[ActionID]Action, dependencies []ActionDepe
 		}
 		if ranged, k := a.RangedAttack(); k {
 			graph[id] = append(graph[id], ranged.DraftAction())
+		}
+		if movement, k := a.Movement(); k {
+			graph[id] = append(graph[id], movement.DraftAction())
 		}
 		if removal, k := a.WallRemoval(); k && removal.BackupOf() != "" {
 			graph[id] = append(graph[id], removal.BackupOf())

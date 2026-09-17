@@ -221,3 +221,52 @@ func TestClockWindowInterveningEventAndManualPreventDispatch(t *testing.T) {
 		})
 	}
 }
+
+func TestClockWindowCombatPolicyMustMatchDecision(t *testing.T) {
+	t.Parallel()
+	combat := func(t *testing.T) (*ClockCoordinator, *store.Store, *clockCoreFake, ClockWindowRequest) {
+		t.Helper()
+		q, db, f, _, request := clockWindowFixture(t)
+		var err error
+		request.Facts.Emergency, err = policy.NewEmergencySnapshot(request.Intent.Snapshot, 12, policy.EmergencyFacts{ColonistsComplete: domain.Known(true), ThreatsComplete: domain.Known(true), Threats: []policy.EmergencyThreat{{ID: "raider", Kind: policy.Hostile, Dead: domain.Known(false), Downed: domain.Known(false)}}})
+		if err != nil {
+			t.Fatal(err)
+		}
+		request.Facts.CombatPlan = domain.Known(true)
+		request.CombatMaxTicks = 40
+		request.Intent.Command.Start.MaxTicks = 40
+		request.Intent.Window.MaxTicks = 40
+		request.Intent.Command.Start.Policy.Mode = k.WatchMode_WATCH_MODE_COMBAT.Enum()
+		request.Intent.Command.Start.Policy.AcknowledgedHostileIds = []string{"raider"}
+		return q, db, f, request
+	}
+	q, _, f, request := combat(t)
+	if got, err := q.CommandWindow(context.Background(), request); err != nil || got.Phase != store.ClockApplied || f.writes != 1 {
+		t.Fatal(got, err, f.writes)
+	}
+	mutations := map[string]func(*ClockWindowRequest){
+		"colony mode":  func(r *ClockWindowRequest) { r.Intent.Command.Start.Policy.Mode = k.WatchMode_WATCH_MODE_COLONY.Enum() },
+		"no plan":      func(r *ClockWindowRequest) { r.Facts.CombatPlan = domain.Known(false) },
+		"unknown plan": func(r *ClockWindowRequest) { r.Facts.CombatPlan = domain.Unknown[bool]() },
+		"extra hostile": func(r *ClockWindowRequest) {
+			r.Intent.Command.Start.Policy.AcknowledgedHostileIds = []string{"raider", "other"}
+		},
+		"different hostile": func(r *ClockWindowRequest) { r.Intent.Command.Start.Policy.AcknowledgedHostileIds = []string{"other"} },
+		"colony budget":     func(r *ClockWindowRequest) { r.Intent.Command.Start.MaxTicks, r.Intent.Window.MaxTicks = 100, 100 },
+		"downed suppression": func(r *ClockWindowRequest) {
+			r.Intent.Command.Start.Policy.AcknowledgedDownedColonistIds = []string{"pawn"}
+		},
+	}
+	for name, mutate := range mutations {
+		t.Run(name, func(t *testing.T) {
+			q, db, f, request := combat(t)
+			mutate(&request)
+			if _, err := q.CommandWindow(context.Background(), request); !errors.Is(err, executor.ErrHeld) {
+				t.Fatal(err)
+			}
+			if _, err := db.LookupClockAttempt(context.Background(), request.Intent.RequestID); !errors.Is(err, store.ErrNotFound) || f.writes != 0 {
+				t.Fatal(err, f.writes)
+			}
+		})
+	}
+}

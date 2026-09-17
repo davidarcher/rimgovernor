@@ -47,8 +47,7 @@ namespace HomeBridge.BridgeTools
             if (!ProtoBoundary.TryParse(ctx, ToolName, request, Lifecycle.SaveRequest.Parser, out parsed, out failure))
                 return ProtoBoundary.Encode(new Lifecycle.SaveReply { Failure = failure });
 
-            var reply = await ctx.MainThread.InvokeAsync(() => Apply(parsed), cancellationToken).ConfigureAwait(false);
-            return ProtoBoundary.Encode(reply);
+            return await ProtoBoundary.OnMainThreadEncoded(ctx, () => Apply(parsed), cancellationToken).ConfigureAwait(false);
         }
 
         [Tool(ReadToolName, Title = "Read a prior native save's outcome",
@@ -62,8 +61,7 @@ namespace HomeBridge.BridgeTools
             if (!ProtoBoundary.TryParse(ctx, ReadToolName, request, Lifecycle.RequestStatus.Parser, out parsed, out failure))
                 return ProtoBoundary.Encode(new Lifecycle.SaveReply { Failure = failure });
 
-            var reply = await ctx.MainThread.InvokeAsync(() => PollSave(parsed), cancellationToken).ConfigureAwait(false);
-            return ProtoBoundary.Encode(reply);
+            return await ProtoBoundary.OnMainThreadEncoded(ctx, () => PollSave(parsed), cancellationToken).ConfigureAwait(false);
         }
 
         // Call only on the game thread.

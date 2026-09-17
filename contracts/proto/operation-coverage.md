@@ -69,7 +69,7 @@ Source files below are under `integrations/rimgovernor-native/src/Bridge`. Read-
 | ZoneCellsTool.cs | CreateZone/DeleteZone/EditZoneCells/RepairZone/PatchStockpile/PatchGrowing | Exact cells, crop/sow/cut/filter/priority; per-cell refusal and complete geometry/filter readback. Repair and allow_split require explicit reviewed player maintenance. |
 | HomeCoverageTool.cs | ExtendHome | Shape/revision-bound missing cells only, preserve player exclusions. Coverage is not cleaned floor. |
 | UpkeepBedTool.cs | AssignBed | Exact prior assignment + native bed eligibility; assignment differs from sleeping. |
-| WallUpgradeTool.cs | RemoveWall/ReleaseWallRemovals | Current site snapshot supplies support/removal geometry; native continuing guard, ledger512. Completion requires actual demolition event. |
+| WallUpgradeTool.cs | RemoveWall/ReleaseWallRemovals | Native handler `NativeWallRemovalOperations.cs` resolves the site from the wall identity through the ListWallUpgradeSites census (straight original with completed same-stuff stone backups, backup of a standing stone permanent wall, or corner with covered materials; several admissible sites refuse), then the legacy continuing guard and ledger512 apply. Completion requires the guarded demolition event; `wallremovalaccept` covers it. |
 | RecoveryTools.cs | RecoveryArea/RecoverService | Fallout-safe restrictive area claim/expiry; ordinary repair/breakdown/refuel workgiver. Observe real area ownership/service recovery. |
 | WasteTools.cs | ManageWaste | Safe exact-item hauling/burial; preserve protected items/corpses/graves, avoid merged-stack false attribution. |
 | NeedReliefTool.cs | RelieveNeed | Expected job or idle + schedule; preview admission only; ordinary AI job and later need recovery. |

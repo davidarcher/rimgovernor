@@ -20,7 +20,7 @@ namespace HomeBridge.BridgeTools
         internal static bool Valid(Operations.AcquireResource? command) => command != null && NativeDraftProtocol.ValidEntity(command.Source)
             && command.HasResourceDefName && ProtoBoundary.IsIdentifier(command.ResourceDefName)
             && command.Cell != null && command.Cell.HasX && command.Cell.HasZ && command.Cell.X >= 0 && command.Cell.Z >= 0;
-        private static bool Eligible(Plant plant) => plant.Map == Find.CurrentMap && ResourceAcquisitionTools.Eligible(plant, plant.Map)
+        private static bool Eligible(Plant plant) => ProtoBoundary.IsLoaded(plant.Map) && ResourceAcquisitionTools.Eligible(plant, plant.Map)
             && !(plant.Map.zoneManager.ZoneAt(plant.Position) is Zone_Growing)
             && plant.Map.mapPawns.FreeColonistsSpawned.Any(p => p.workSettings?.Initialized == true
                 && p.workSettings.GetPriority(WorkTypeDefOf.PlantCutting) > 0 && !p.WorkTypeIsDisabled(WorkTypeDefOf.PlantCutting)
@@ -65,7 +65,7 @@ namespace HomeBridge.BridgeTools
         {
             plant = null; failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Acquisition requires an exact safe mature wild plant snapshot.");
             if (!Valid(command) || !NativeAcquisitionTracking.Ready) return false;
-            var map = Find.CurrentMap;
+            var map = ProtoBoundary.ResolveMap(context);
             if (map.AllCells.Any(c => map.roofCollapseBuffer.IsMarkedToCollapse(c))) return false;
             plant = map.listerThings.AllThings.OfType<Plant>().SingleOrDefault(p => p.GetUniqueLoadID() == command.Source.EntityId);
             return plant != null && Eligible(plant) && plant.Position.x == command.Cell.X && plant.Position.z == command.Cell.Z
@@ -76,8 +76,8 @@ namespace HomeBridge.BridgeTools
         {
             try
             {
-                if (NativeHuntAcquisition.IsHunt(command)) return NativeHuntAcquisition.Preview(command, context);
-                if (NativeMineAcquisition.IsMine(command)) return NativeMineAcquisition.Preview(command, context);
+                if (NativeHuntAcquisition.IsHunt(command, context)) return NativeHuntAcquisition.Preview(command, context);
+                if (NativeMineAcquisition.IsMine(command, context)) return NativeMineAcquisition.Preview(command, context);
                 if (!Prepare(command, context, out _, out var failure)) return new Operations.PreviewReply { Failure = failure };
                 return new Operations.PreviewReply { Evaluated = new Operations.PreviewEvaluation { Context = context.Clone(), Accepted = true } };
             }
@@ -85,8 +85,8 @@ namespace HomeBridge.BridgeTools
         }
         internal static Operations.ExecuteReply Execute(NativeOperationState state, Operations.ExecuteRequest request, Common.ObservationContext context)
         {
-            if (NativeHuntAcquisition.IsHunt(request.Operation.AcquireResource)) return NativeHuntAcquisition.Execute(state, request, context);
-            if (NativeMineAcquisition.IsMine(request.Operation.AcquireResource)) return NativeMineAcquisition.Execute(state, request, context);
+            if (NativeHuntAcquisition.IsHunt(request.Operation.AcquireResource, context)) return NativeHuntAcquisition.Execute(state, request, context);
+            if (NativeMineAcquisition.IsMine(request.Operation.AcquireResource, context)) return NativeMineAcquisition.Execute(state, request, context);
             NativeAttemptLedger.Admission? handle = null; Receipts.EffectEvidence? evidence = null;
             var pre = request.Precondition; var command = request.Operation.AcquireResource;
             try

@@ -56,6 +56,8 @@ func main() {
 	minTemperature := flag.Float64("min-temperature", -100, "single-variant mode: minimum seasonal settlement temperature")
 	maxTemperature := flag.Float64("max-temperature", 100, "single-variant mode: maximum seasonal settlement temperature")
 	worldTemperature := flag.String("world-temperature", "Normal", "single-variant mode: native OverallTemperature world-gen setting")
+	mapSize := flag.Int("map-size", na.DefaultMapSize, "single-variant mode: map edge in cells, 150..400")
+	planetCoverage := flag.Float64("planet-coverage", na.DefaultPlanetCoverage, "single-variant mode: planet coverage 0.05..1")
 
 	listScenarios := flag.Bool("list-scenarios", false, "print available ScenarioDef/DifficultyDef names (via test/list_start_scenarios) and exit without generating anything")
 	skipExisting := flag.Bool("skip-existing", false, "skip a variant whose save already exists at profile/Saves/<save>.rws instead of regenerating it")
@@ -108,7 +110,7 @@ func main() {
 		variants = []variantgen.Variant{{
 			Save: *save, Scenario: *scenario, Count: *count, Seed: *seed, Biome: *biome,
 			Difficulty: *difficulty, MinTemperature: *minTemperature, MaxTemperature: *maxTemperature,
-			WorldTemperature: *worldTemperature,
+			WorldTemperature: *worldTemperature, MapSize: *mapSize, PlanetCoverage: *planetCoverage,
 		}}
 	}
 	for _, v := range variants {

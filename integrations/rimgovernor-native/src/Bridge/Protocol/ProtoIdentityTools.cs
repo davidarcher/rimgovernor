@@ -21,7 +21,7 @@ namespace HomeBridge.BridgeTools
                 Lifecycle.IdentityRequest.Parser, out parsed, out failure))
                 return ProtoBoundary.Encode(new Lifecycle.IdentityReply { Failure = failure });
 
-            var reply = await ctx.MainThread.InvokeAsync(() =>
+            return await ProtoBoundary.OnMainThreadEncoded(ctx, () =>
             {
                 Common.ObservationContext context;
                 Common.Unavailable unavailable;
@@ -151,7 +151,6 @@ namespace HomeBridge.BridgeTools
                 });
                 return new Lifecycle.IdentityReply { Loaded = loaded };
             }, cancellationToken).ConfigureAwait(false);
-            return ProtoBoundary.Encode(reply);
         }
     }
 }

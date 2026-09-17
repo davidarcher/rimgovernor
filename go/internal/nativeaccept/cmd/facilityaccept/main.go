@@ -37,9 +37,9 @@ const baselineSave = "RimGovernor-tribal8-baseline"
 // priority-0..2 need (starting supplies, work assignments, food, shelter,
 // temperature, cooking, storage) has recovered, so those families must be
 // able to act. The full autonomous composition is not used: with every
-// family on, the gear planner fails outright (issue #62) and the parallel
-// planner step exceeds its call timeout on a shared machine, so the clock
-// never starts.
+// family on, the parallel planner step exceeds its call timeout on a shared
+// machine, so the clock never starts. (A single failing planner no longer
+// blocks the step since #62, so that is not a reason to trim families.)
 const facilityFamilies = "sleeping,shelter,temperature,comfort,work,supply,field,food-storage,acquisition,cooking,production-policy"
 
 func main() {

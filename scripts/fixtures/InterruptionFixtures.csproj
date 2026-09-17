@@ -8,6 +8,8 @@
     <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
     <DebugType>none</DebugType>
     <CopyLocalLockFileAssemblies>false</CopyLocalLockFileAssemblies>
+    <RestorePackagesWithLockFile>true</RestorePackagesWithLockFile>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
     <RimWorldDir>C:/Program Files (x86)/Steam/steamapps/common/RimWorld</RimWorldDir>
     <RimWorldManagedDir Condition="'$(RimWorldManagedDir)' == ''">$(RimWorldDir)/RimWorldWin64_Data/Managed</RimWorldManagedDir>
     <RimBridgeSdkDir Condition="'$(RimBridgeSdkDir)' == ''">$(RimWorldDir)/Mods/RimBridgeServer/1.6/Assemblies</RimBridgeSdkDir>

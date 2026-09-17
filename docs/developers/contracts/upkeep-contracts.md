@@ -89,8 +89,8 @@ remain available; stonecutter placement preserves that approach.
 comes from the actual native deconstruction job, not disappearance of a wall. The
 guard rechecks exact supporting identities, enclosure, roofs, remaining materials
 and resource policies before completion. Jobs require active supervised simulation.
-Native UI input, Manual, a load/map change or changed safety invalidates pending
-demolition. Player replacement of a designation relinquishes controller ownership.
+Native UI input, a load/map change or changed safety invalidates pending
+demolition; Manual suspends it until control resumes. Player replacement of a designation relinquishes controller ownership.
 Cleanup requires the completed permanent wall. Missing or uncertain outcomes stay
 blocked. Stopping automation removes only controller-owned pending demolition
 designations. Native evidence must confirm retirement, the surviving exact target

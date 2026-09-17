@@ -52,6 +52,7 @@ namespace HomeBridge.BridgeTools
             }
             return new {
                 success = true,
+                tick = Find.TickManager.TicksGame,
                 fogged = cell.Fogged(map),
                 mineable = rock?.def.defName,
                 hitPoints = rock?.HitPoints ?? 0,
@@ -76,25 +77,10 @@ namespace HomeBridge.BridgeTools
             var miners = people.Where(p => !p.WorkTypeIsDisabled(WorkTypeDefOf.Mining)).ToList();
             var builders = people.Where(p => !p.WorkTypeIsDisabled(WorkTypeDefOf.Construction)).ToList();
             if (miners.Count == 0 || builders.Count == 0) throw new InvalidOperationException("Require a miner and a builder.");
-            // Quiet the storyteller: raids, hunting predators and mental
-            // breaks are outside this scenario, and each of them holds the
-            // clock (unsafe_colony, mental-risk) for as long as it lasts.
-            var difficulty = Find.Storyteller.difficulty;
-            difficulty.colonistMoodOffset = 30f;
-            difficulty.threatScale = 0f;
-            difficulty.allowBigThreats = false;
-            difficulty.allowViolentQuests = false;
-            difficulty.predatorsHuntHumanlikes = false;
-            difficulty.manhunterChanceOnDamageFactor = 0f;
-            // The difficulty only scales incidents; even at zero a manhunter
-            // pack of one still fires and holds the window from a hundred
-            // cells away. No storyteller comps means no incidents at all.
-            Find.Storyteller.storytellerComps.Clear();
-            Find.Storyteller.incidentQueue.Clear();
-            // A predator or hostile already on the random map would hold the
-            // window from tick one, so every non-colony pawn leaves the map.
-            foreach (var stranger in map.mapPawns.AllPawnsSpawned.Where(p => p.Faction != Faction.OfPlayer).ToList())
-                stranger.Destroy(DestroyMode.Vanish);
+            // Raids, hunting predators and mental breaks are outside this
+            // scenario, and each of them holds the clock (unsafe_colony,
+            // mental-risk) for as long as it lasts.
+            QuietStoryteller.Apply(map);
             // Debug colonists carry random ailments; a chronic tendable one
             // (carcinoma, an addiction) keeps the medical emergency open and
             // every development goal suspended for the whole run.

@@ -8,11 +8,14 @@ length checks. No custom schema compiler or validation language is involved.
 From the repository root:
 
 ```powershell
-python scripts/generate_protobuf.py --dotnet <dotnet>
-python scripts/generate_protobuf.py --dotnet <dotnet> --check --proof --output .rimgovernor/protobuf-proof-01
+go -C go run ./internal/protobufgen/cmd/generatecsharp --dotnet <dotnet>
+go -C go run ./internal/protobufgen/cmd/generatecsharp --dotnet <dotnet> --check --proof --output .rimgovernor/protobuf-proof-01
 ```
 
-The script restores the committed lock in a fresh private tree, verifies the
+The generator is a stdlib-only Go program under the repository Go module, so
+gofmt, vet, staticcheck and `go test` cover it. It locates the repository root
+by walking up from the working directory (`--root` overrides) and resolves
+relative paths there. It restores the committed lock in a fresh private tree, verifies the
 compiler version, compiles every canonical `.proto`, and emits C# plus a descriptor
 set containing imports. `--check` compares generated text while allowing checkout
 line-ending differences. It does not change checked-in outputs. The compiler
@@ -68,9 +71,12 @@ compiler instead of editing generated code.
 ## Complete package proof
 
 The proof discovers every compiled canonical message and emits serialization
-shapes covering presence, enums and oneof variants. `manifest.tsv` lists fixture
-ID, fully qualified message, JSON filename and binary filename. These shapes test
-the official runtimes; they are not all valid native requests.
+shapes covering presence, enums and oneof variants. `manifest.tsv` carries each
+shape inline as one tab-separated row: fixture ID, fully qualified message,
+ProtoJSON and the base64 binary encoding (header `id\tmessage\tprotojson\tbinary-base64`),
+so thousands of shapes cost one file rather than one `.json`/`.bin` pair each.
+Only the handcrafted named fixtures are written as files. These shapes test the
+official runtimes; they are not all valid native requests.
 
 Run the Go proof to create independent origins, pass that output through
 `--cross-language-inputs`, then run Go again with the resulting C# directory and
@@ -78,5 +84,7 @@ Run the Go proof to create independent origins, pass that output through
 `--verify-return <csharp-origin-directory> <go-return-directory>`. This verifies
 the complete original set, message types and values including field presence,
 not only agreement between each returned JSON/binary pair. Linux uses Mono with
-the .NET Framework/netstandard facades (Debian `mono-devel`). The dedicated
-Protobuf workflow runs both platforms and preserves exchange artifacts.
+the .NET Framework/netstandard facades (Debian `mono-devel`). `task protobuf:build`
+and `task protobuf:test` (this directory's `Taskfile.yml`) run the drift checks and
+the exchange in that order; CI runs them on both platforms and preserves the
+exchange artifacts.

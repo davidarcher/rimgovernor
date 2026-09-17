@@ -50,9 +50,9 @@ reservations, supplies, area safety and non-widening restrictions. Native job an
 area-lease dispatch remain unavailable until the shared action family is connected.
 Proposals do not allocate resources, alter areas, issue jobs or prove recovery.
 
-Manual clears candidates and invalidates pending work while retaining observation
-history. New player
-direction retains the episode; colony/load/map replacement or tick rewind resets it.
+Manual clears candidates and suspends the recovery goal while retaining observation
+history; the episode survives a resume. Colony/load/map replacement or tick rewind
+resets it.
 A restored episode stays closed through unrelated later shortages and a newly
 observed condition starts a fresh episode. Routine events make no model calls.
 

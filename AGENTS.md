@@ -88,6 +88,10 @@
 - After an acceptance failure, add a fast regression test where feasible and
   rerun the affected harness. Do not duplicate tests or reviews already
   supported by applicable evidence.
+- A new acceptance harness follows the performance checklist in
+  `docs/developers/testing/choose-tests.md` (Core-only, quiet storyteller,
+  staged precondition, stall-bounded waits, minute-scale budgets); review it
+  against that list before landing.
 - Acceptance harnesses start from a save or fixture that already exercises
   the behavior under test, not from a baseline/foothold colony that must first
   be played into the right state. A single harness run that spends 20-30
@@ -98,8 +102,8 @@
   advance only the ticks the assertion itself needs. Budget a targeted harness
   at minutes, not tens of minutes; if reaching the precondition is the slow
   part, build the fixture before writing the assertion.
-- Use checks appropriate to the change; `build.ps1` runs the Go controller
-  checks (`go vet`, `go test`, `go build`) and dashboard checks. Distinguish
+- Use checks appropriate to the change; `task build && task test` runs every
+  project's gates (`go vet`, `go test`, `go build`, dashboard, protobuf, C#). Distinguish
   compilation/protocol checks from actual gameplay validation.
 - Never replace installed DLLs while any RimWorld instance is running, including
   another worktree's tests. Isolated tests must restore temporarily swapped DLLs.

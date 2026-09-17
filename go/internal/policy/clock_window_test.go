@@ -1,10 +1,12 @@
 package policy
 
 import (
-	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"math"
+	"reflect"
 	"testing"
 	"time"
+
+	"github.com/davidarcher/RimGovernor/go/internal/domain"
 )
 
 func clockWindowFixture(t *testing.T) (ClockWindowFacts, ClockWindowLimits) {
@@ -15,7 +17,7 @@ func clockWindowFixture(t *testing.T) (ClockWindowFacts, ClockWindowLimits) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	f := ClockWindowFacts{Current: snapshot, Tick: 10, StartedAt: now.Add(-time.Second), ObservedAt: now, Emergency: emergency, Review: ClockWindowReview{Revision: 3, Captured: 4, Reviewed: 4, Acknowledged: 2, HasHolds: domain.Known(false)}, Status: ClockWindowStatus{Snapshot: snapshot, Tick: 10, State: ClockStopped, ActualPaused: domain.Known(true), NativeTickBoundary: domain.Known(true), DurableEvents: domain.Known(true), NewestCursor: domain.Known(int64(4))}, Obligations: ClockWindowObligations{Complete: domain.Known(true), OwnedEpochPending: domain.Known(false), UnknownStartPending: domain.Known(false)}, WorkRemaining: domain.Known(true)}
+	f := ClockWindowFacts{Current: snapshot, Tick: 10, StartedAt: now.Add(-time.Second), ObservedAt: now, Emergency: emergency, Review: ClockWindowReview{Revision: 3, Captured: 4, Reviewed: 4, Acknowledged: 2, HasHolds: domain.Known(false)}, Status: ClockWindowStatus{Snapshot: snapshot, Tick: 10, State: ClockStopped, ActualPaused: domain.Known(true), NativeTickBoundary: domain.Known(true), DurableEvents: domain.Known(true), NewestCursor: domain.Known(int64(4))}, Obligations: ClockWindowObligations{Complete: domain.Known(true), OwnedEpochPending: domain.Known(false), UnknownStartPending: domain.Known(false)}, WorkRemaining: domain.Known(true), CombatPlan: domain.Known(false)}
 	return f, ClockWindowLimits{Now: now, MaxAge: time.Second, MaxTicks: 100}
 }
 func TestClockWindowHealthyFiniteAdmission(t *testing.T) {
@@ -24,9 +26,53 @@ func TestClockWindowHealthyFiniteAdmission(t *testing.T) {
 		f.Status.State = state
 		f.Status.DurableEvents = domain.Known(state != ClockNeverStarted)
 		d := EvaluateClockWindow(f, limits)
-		if !d.Admitted || len(d.Refused) != 0 || d.Snapshot != f.Current || d.Tick != f.Tick || d.ReviewRevision != f.Review.Revision || d.CapturedCursor != 4 || d.MaxTicks != 100 {
+		if !d.Admitted || len(d.Refused) != 0 || d.Snapshot != f.Current || d.Tick != f.Tick || d.ReviewRevision != f.Review.Revision || d.CapturedCursor != 4 || d.MaxTicks != 100 || d.Mode != ClockWindowColony || len(d.Hostiles) != 0 {
 			t.Fatal(d)
 		}
+	}
+}
+func TestClockWindowCombatPlanWatchesLiveHostiles(t *testing.T) {
+	f, l := clockWindowFixture(t)
+	l.CombatMaxTicks = 30
+	threats := func(rows ...EmergencyThreat) {
+		t.Helper()
+		var err error
+		f.Emergency, err = NewEmergencySnapshot(f.Current, f.Tick, EmergencyFacts{ColonistsComplete: domain.Known(true), ThreatsComplete: domain.Known(true), Threats: rows})
+		if err != nil {
+			t.Fatal(err)
+		}
+	}
+	live := func(id PawnID, kind ThreatKind) EmergencyThreat {
+		return EmergencyThreat{ID: id, Kind: kind, Dead: domain.Known(false), Downed: domain.Known(false)}
+	}
+	threats(live("zed", Hostile), live("abe", Hostile), live("wolf", HuntingPredator), EmergencyThreat{ID: "down", Kind: Hostile, Dead: domain.Known(false), Downed: domain.Known(true)}, live("bear", NearbyPredator))
+	// Unknown plan evidence is not permission to fight or to refuse quietly.
+	if d := EvaluateClockWindow(f, l); d.Admitted || len(d.Refused) != 1 || d.Refused[0] != ClockWindowUnsafe {
+		t.Fatal(d)
+	}
+	f.CombatPlan = domain.Unknown[bool]()
+	if d := EvaluateClockWindow(f, l); d.Admitted || len(d.Refused) != 1 || d.Refused[0] != ClockWindowUnknown {
+		t.Fatal(d)
+	}
+	f.CombatPlan = domain.Known(true)
+	d := EvaluateClockWindow(f, l)
+	if !d.Admitted || len(d.Refused) != 0 || d.Mode != ClockWindowCombat || d.MaxTicks != 30 || !reflect.DeepEqual(d.Hostiles, []PawnID{"abe", "wolf", "zed"}) {
+		t.Fatal(d)
+	}
+	// A zero combat budget keeps the colony budget; unknown hostile status
+	// still refuses even under a plan.
+	l.CombatMaxTicks = 0
+	if d := EvaluateClockWindow(f, l); !d.Admitted || d.MaxTicks != 100 || d.Mode != ClockWindowCombat {
+		t.Fatal(d)
+	}
+	threats(live("zed", Hostile), EmergencyThreat{ID: "fog", Kind: Hostile, Dead: domain.Unknown[bool](), Downed: domain.Known(false)})
+	if d := EvaluateClockWindow(f, l); d.Admitted || len(d.Refused) != 1 || d.Refused[0] != ClockWindowUnknown {
+		t.Fatal(d)
+	}
+	// Every hostile dead or downed: the plan alone does not keep combat mode.
+	threats(EmergencyThreat{ID: "zed", Kind: Hostile, Dead: domain.Known(true), Downed: domain.Known(false)}, EmergencyThreat{ID: "abe", Kind: Hostile, Dead: domain.Known(false), Downed: domain.Known(true)})
+	if d := EvaluateClockWindow(f, l); !d.Admitted || d.Mode != ClockWindowColony || len(d.Hostiles) != 0 || d.MaxTicks != 100 {
+		t.Fatal(d)
 	}
 }
 func TestClockWindowConservativeHolds(t *testing.T) {
@@ -80,6 +126,7 @@ func TestClockWindowConservativeHolds(t *testing.T) {
 		"excess budget":    {func(_ *ClockWindowFacts, l *ClockWindowLimits) { l.MaxTicks = 1800001 }, ClockWindowInvalidLimits},
 		"overflow":         {func(f *ClockWindowFacts, _ *ClockWindowLimits) { f.Tick = domain.Tick(math.MaxInt64 - 1) }, ClockWindowInvalidLimits},
 		"zero age":         {func(_ *ClockWindowFacts, l *ClockWindowLimits) { l.MaxAge = 0 }, ClockWindowInvalidLimits},
+		"combat budget":    {func(_ *ClockWindowFacts, l *ClockWindowLimits) { l.CombatMaxTicks = 101 }, ClockWindowInvalidLimits},
 		"missing now":      {func(_ *ClockWindowFacts, l *ClockWindowLimits) { l.Now = time.Time{} }, ClockWindowInvalidLimits},
 	}
 	for name, c := range cases {

@@ -23,6 +23,7 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/haul"
 	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/melee"
 	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/mineacquisition"
+	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/movement"
 	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/ranged"
 	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/rescue"
 	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/supply"
@@ -37,6 +38,7 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/observation"
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
 	"github.com/davidarcher/RimGovernor/go/internal/store"
+	"github.com/davidarcher/RimGovernor/go/internal/videoshm"
 	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
 )
 
@@ -112,6 +114,7 @@ type buildingServiceBridge struct {
 	clockReads          serviceClockReads
 	melee               *melee.MeleeCapabilities
 	ranged              *ranged.RangedCapabilities
+	movement            *movement.MovementCapabilities
 	tend                *tend.TendCapabilities
 	rescue              *rescue.RescueCapabilities
 	capture             *capture.CaptureCapabilities
@@ -208,6 +211,10 @@ func openBuildingService(ctx context.Context, config bridge.ProcessConfig) (buil
 	if err != nil {
 		return buildingServiceBridge{}, errors.Join(err, client.Close())
 	}
+	movementControl, err := bridge.NewMovementControl(client)
+	if err != nil {
+		return buildingServiceBridge{}, errors.Join(err, client.Close())
+	}
 	pawnOrder, err := bridge.NewPawnOrderControl(client)
 	if err != nil {
 		return buildingServiceBridge{}, errors.Join(err, client.Close())
@@ -276,6 +283,7 @@ func openBuildingService(ctx context.Context, config bridge.ProcessConfig) (buil
 		draft:               &draft.DraftCapabilities{Native: client, Writer: drafts, Cleanup: cleanup},
 		melee:               &melee.MeleeCapabilities{Native: client, Writer: attack},
 		ranged:              &ranged.RangedCapabilities{Native: client, Writer: attack},
+		movement:            &movement.MovementCapabilities{Native: client, Writer: movementControl},
 		tend:                &tend.TendCapabilities{Native: client, Writer: pawnOrder},
 		rescue:              &rescue.RescueCapabilities{Native: client, Writer: pawnOrder},
 		capture:             &capture.CaptureCapabilities{Native: client, Writer: pawnOrder},
@@ -409,16 +417,6 @@ func serveBuildingWithBridge(ctx context.Context, config serveConfig, out io.Wri
 			return errors.New("clock service requires complete clock capabilities")
 		}
 		clockCapabilities = client.clock
-		// ClockWorker.CallTimeout must stay under lease/4 (NewClockWorker's
-		// validation in clock_worker.go), where lease is itself capped at
-		// NewControl's 30s LeaseDuration ceiling (control.go) -- so 7.5s is
-		// the hard structural maximum here, not an arbitrary tuning knob.
-		// This used to be hardcoded to 5s with no documented rationale and
-		// no margin left for RoutineReviewer's full colony census (~2.7s
-		// alone on a real, populated map) plus any chained planner's native
-		// reads, which made every stepPlanners() call time out and the
-		// native clock never start. See issue #45.
-		callTimeout = min(callTimeout, 7*time.Second)
 	}
 	var supplyCapabilities *supply.SupplyCapabilities
 	if config.routineSupplyPlans {
@@ -471,11 +469,12 @@ func serveBuildingWithBridge(ctx context.Context, config serveConfig, out io.Wri
 	}
 	var meleeCapabilities *melee.MeleeCapabilities
 	var rangedCapabilities *ranged.RangedCapabilities
+	var movementCapabilities *movement.MovementCapabilities
 	if config.routineDefensePlans {
-		if client.melee == nil || client.ranged == nil {
-			return errors.New("defense plans require typed melee and ranged capabilities")
+		if client.melee == nil || client.ranged == nil || client.movement == nil {
+			return errors.New("defense plans require typed melee, ranged and movement capabilities")
 		}
-		meleeCapabilities, rangedCapabilities = client.melee, client.ranged
+		meleeCapabilities, rangedCapabilities, movementCapabilities = client.melee, client.ranged, client.movement
 	}
 	var tendCapabilities *tend.TendCapabilities
 	if config.routineTendPlans {
@@ -614,6 +613,7 @@ func serveBuildingWithBridge(ctx context.Context, config serveConfig, out io.Wri
 		Clock:               clockCapabilities,
 		Melee:               meleeCapabilities,
 		Ranged:              rangedCapabilities,
+		Movement:            movementCapabilities,
 		Tend:                tendCapabilities,
 		Rescue:              rescueCapabilities,
 		Capture:             captureCapabilities,
@@ -650,7 +650,7 @@ func serveBuildingWithBridge(ctx context.Context, config serveConfig, out io.Wri
 	}
 	owner = player
 	if config.clockControl {
-		if err = startServiceClock(lifetime, player, session, client.clockReads, database, config, callTimeout); err != nil {
+		if err = startServiceClock(lifetime, player, session, client.clockReads, database, config, serviceClockTimeouts(callTimeout)); err != nil {
 			return err
 		}
 	}
@@ -695,7 +695,7 @@ func serveBuildingWithBridge(ctx context.Context, config serveConfig, out io.Wri
 	if raw, ok := client.reads.(*bridge.Client); ok {
 		attention = attentionAcknowledger{raw}
 	}
-	server, err := httpapi.NewWithPlayer(httpapi.Config{ClockReview: clockReview, Routines: routines, WorldEvaluation: worldEvaluation, Notifications: notifications, Presentation: presentation, PresentationMedia: client.presentationMedia, Lifecycle: client.lifecycle, Attention: attention, AssetsDir: config.assets, ReadTimeout: 35 * time.Second, ShutdownTimeout: 5 * time.Second, MaxResponseBytes: 1 << 20}, buildingSnapshots{reads, player}, database, player, database)
+	server, err := httpapi.NewWithPlayer(httpapi.Config{ClockReview: clockReview, Routines: routines, WorldEvaluation: worldEvaluation, Notifications: notifications, Presentation: presentation, PresentationMedia: client.presentationMedia, VideoFrames: videoshm.Open, Lifecycle: client.lifecycle, Attention: attention, AssetsDir: config.assets, ReadTimeout: 35 * time.Second, ShutdownTimeout: 5 * time.Second, MaxResponseBytes: 1 << 20}, buildingSnapshots{reads, player}, database, player, database)
 	if err != nil {
 		return err
 	}
@@ -718,8 +718,11 @@ func serveBuildingWithBridge(ctx context.Context, config serveConfig, out io.Wri
 	}
 	pollDone = make(chan struct{})
 	go func() { defer close(pollDone); reads.Poll(lifetime, config.refresh) }()
+	superviseDone := make(chan struct{})
+	defer func() { <-superviseDone }()
+	go func() { defer close(superviseDone); superviseBridge(lifetime, client.reads, out) }()
 	if config.resume {
-		resumer, err := newAutoResumer(buildingSnapshots{reads, player}, player, out)
+		resumer, err := newAutoResumer(buildingSnapshots{reads, player}, player, database, out)
 		if err != nil {
 			return err
 		}

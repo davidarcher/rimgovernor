@@ -187,7 +187,7 @@ namespace HomeBridge.BridgeTools
             try
             {
                 EnsureReady();
-                if (!Prepare(command, context, Find.CurrentMap, out _, out _, out _, out _, out var failure))
+                if (!Prepare(command, context, ProtoBoundary.ResolveMap(context), out _, out _, out _, out _, out var failure))
                     return new Operations.PreviewReply { Failure = failure };
                 return NativeOperationEnvelope.Preview(new Operations.PreviewReply { Evaluated = new Operations.PreviewEvaluation {
                     Context = context.Clone(), Accepted = true } });
@@ -199,7 +199,7 @@ namespace HomeBridge.BridgeTools
         {
             NativeAttemptLedger.Admission? handle = null; Receipts.EffectEvidence? evidence = null;
             var pre = request.Precondition; var command = request.Operation.SetProductionPolicy;
-            var map = Find.CurrentMap;
+            var map = ProtoBoundary.ResolveMap(context);
             try
             {
                 EnsureReady();
@@ -244,7 +244,7 @@ namespace HomeBridge.BridgeTools
                 Unknown = new Receipts.UnknownEffect { Reason = "Exact production policy state is unavailable." } };
             try
             {
-                var map = Find.CurrentMap;
+                var map = ProtoBoundary.ResolveMap(context);
                 if (map == null) return result;
                 EnsureReady();
                 var current = Snapshot(map, context);

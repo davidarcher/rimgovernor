@@ -49,7 +49,7 @@ func TestLoadedCapacityHTTP(t *testing.T) {
 				}
 				switch mode {
 				case "redirect":
-					http.Redirect(w, r, "/elsewhere", 302)
+					http.Redirect(w, r, "/elsewhere", http.StatusFound)
 				case "large":
 					fmt.Fprint(w, strings.Repeat("x", 2048))
 				case "cancel":

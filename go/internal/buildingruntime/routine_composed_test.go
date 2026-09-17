@@ -173,8 +173,8 @@ func TestComposedRoutineFamiliesManualCancelsWithoutCrossLeak(t *testing.T) {
 			t.Fatal(name, "no progress recorded")
 		}
 		for _, p := range plan.Progress {
-			if p.View().Stage != domain.Cancelled {
-				t.Fatal(name, "not cancelled by shared manual", p)
+			if p.View().Stage != domain.Pending {
+				t.Fatal(name, "shared manual did not leave the hold pending", p)
 			}
 		}
 	}
@@ -409,72 +409,48 @@ func TestComposedRoutineFamiliesFreshStartReconciliationRecoversIndependently(t 
 		t.Fatal(err)
 	}
 
-	// A restart reconnects with a new player direction (a fresh Acquire
-	// chain), which correctly invalidates the prior run's goal bindings and
-	// cancels their now-ownerless held plans rather than leaving them
-	// dangling (see reviewRoutineTx's "changed" handling in
-	// internal/store/routine.go) — the same rule an in-process Manual or
-	// world change already enforces. Each family must independently
-	// re-derive that its need is still outstanding and admit its own fresh
-	// method, without either family's recovery interfering with the other's.
+	// A restart into the same world (same colony/load/map, no tick rewind)
+	// keeps the prior run's goal bindings and their held plans: the pause
+	// suspended them and the resume reactivates them. Each family must
+	// independently recognise only its own prior hold as existing work.
 	supplyResult2, err := supplyPlanner2.Step(ctx)
-	if err != nil || supplyResult2.Reason != BuildingMethodAdmitted {
+	if err != nil || supplyResult2.Reason != BuildingMethodExistingWork {
 		t.Fatalf("restart supply reconciliation: %+v %v", supplyResult2, err)
 	}
+	// MaintainWood is a priority>=3 project: with its hold open, the resumed
+	// review ranks it Committed rather than Selected, so the planner refuses
+	// a fresh admission before it reaches the existing-work check.
 	acquisitionResult2, err := acquisitionPlanner2.Step(ctx)
-	if err != nil || acquisitionResult2.Reason != BuildingMethodAdmitted {
+	if err != nil || acquisitionResult2.Reason != BuildingMethodRefused && acquisitionResult2.Reason != BuildingMethodExistingWork {
 		t.Fatalf("restart acquisition reconciliation: %+v %v", acquisitionResult2, err)
 	}
-	if supplyResult2.Plan == acquisitionResult2.Plan {
-		t.Fatal("restarted families collapsed onto the same re-admitted plan id")
-	}
 
-	// The prior run's holds were cancelled cleanly, not left dangling, and
-	// each family's own prior hold was cancelled independently of the
-	// other's.
-	priorSupplyPlan, err := db2.LoadPlan(ctx, supplyResult1.Plan)
-	if err != nil || len(priorSupplyPlan.Progress) == 0 {
-		t.Fatal("prior supply hold lost across restart", err)
-	}
-	priorAcquisitionPlan, err := db2.LoadPlan(ctx, acquisitionResult1.Plan)
-	if err != nil || len(priorAcquisitionPlan.Progress) == 0 {
-		t.Fatal("prior acquisition hold lost across restart", err)
-	}
-	for _, p := range priorSupplyPlan.Progress {
-		if p.View().Stage != domain.Cancelled {
-			t.Fatal("restart left the orphaned prior-run supply hold open", p)
+	// The prior run's holds survived the restart pending, each still under
+	// its own family's goal; no fresh plan was admitted beside them.
+	for name, id := range map[string]domain.PlanID{"supply": supplyResult1.Plan, "acquisition": acquisitionResult1.Plan} {
+		plan, err := db2.LoadPlan(ctx, id)
+		if err != nil || len(plan.Progress) == 0 {
+			t.Fatal(name, "prior hold lost across restart", err)
+		}
+		for _, p := range plan.Progress {
+			if p.View().Stage != domain.Pending {
+				t.Fatal(name, "restart did not keep the prior-run hold pending", p)
+			}
 		}
 	}
-	for _, p := range priorAcquisitionPlan.Progress {
-		if p.View().Stage != domain.Cancelled {
-			t.Fatal("restart left the orphaned prior-run acquisition hold open", p)
-		}
+	plans, err := db2.LoadPlans(ctx, 256)
+	if err != nil {
+		t.Fatal(err)
 	}
-
-	// The freshly re-admitted plans are held, not dispatched, and each
-	// family recognizes only its own new hold as existing work.
-	newSupplyPlan, err := db2.LoadPlan(ctx, supplyResult2.Plan)
-	if err != nil || len(newSupplyPlan.Progress) == 0 {
-		t.Fatal("re-admitted supply plan missing", err)
-	}
-	newAcquisitionPlan, err := db2.LoadPlan(ctx, acquisitionResult2.Plan)
-	if err != nil || len(newAcquisitionPlan.Progress) == 0 {
-		t.Fatal("re-admitted acquisition plan missing", err)
-	}
-	for _, p := range newSupplyPlan.Progress {
-		if p.View().Stage != domain.Pending {
-			t.Fatal("re-admitted supply plan was not left pending", p)
-		}
-	}
-	for _, p := range newAcquisitionPlan.Progress {
-		if p.View().Stage != domain.Pending {
-			t.Fatal("re-admitted acquisition plan was not left pending", p)
+	for _, plan := range plans {
+		if len(plan.Progress) != 0 && plan.Spec.ID() != supplyResult1.Plan && plan.Spec.ID() != acquisitionResult1.Plan && plan.Spec.ID() != submitted1.Spec.ID() && plan.Spec.ID() != submitted2.Spec.ID() {
+			t.Fatal("restart admitted a fresh plan beside the surviving hold", plan.Spec.ID())
 		}
 	}
 	if next, err := supplyPlanner2.Step(ctx); err != nil || next.Reason != BuildingMethodExistingWork {
 		t.Fatalf("post-restart supply hold: %+v %v", next, err)
 	}
-	if next, err := acquisitionPlanner2.Step(ctx); err != nil || next.Reason != BuildingMethodExistingWork {
+	if next, err := acquisitionPlanner2.Step(ctx); err != nil || next.Reason != BuildingMethodRefused && next.Reason != BuildingMethodExistingWork {
 		t.Fatalf("post-restart acquisition hold: %+v %v", next, err)
 	}
 }

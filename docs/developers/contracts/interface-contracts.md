@@ -110,26 +110,63 @@ viewer leases; headless sessions cannot supply video.
 
 ## Frame-bound transport
 
-Watch uses same-origin `/api/video/frames` WebSocket delivery when native
-`home/video_stream` is present. The connection requires the
-`rimgovernor-view-v1` subprotocol and current session identity. Up to four viewers share one
-native framebuffer. NVIDIA NVENC supplies independent H.264 frames to WebCodecs-capable
-browsers; unavailable hardware or decoding falls back to JPEG. Each packet carries its
-native source, frame sequence, dimensions, capture time and session. One unacknowledged
-frame per viewer bounds backpressure. Browser paint acknowledgement supplies display
-latency metrics. Windows uses a named mapping and nonblocking mutex;
-Linux uses a private `/dev/shm/RimGovernorVideo-<id>` mapping and nonblocking file locks.
-Readers accept only that buffer namespace and exact capacity. Native lease cleanup
-unlinks the Linux buffer; existing readers close their mappings independently.
-Unity captures the
-full framebuffer after rendering, at most 60 times per second and up to 3840×2160.
-Private Xvfb workers capture their process-owned presented window; optional
-`RIMGOVERNOR_VIDEO_READBACK=async` or `sync` selects GPU readback or ReadPixels for comparison.
-The capture ceiling is not a delivered-fps guarantee. Private display frame pacing
-uses 60 fps without virtual-display vsync while capture is leased, then restores the
-previous settings. Each consumer takes the latest frame instead of queuing
-obsolete frames. Encoding runs off the asyncio thread; native lease renewal and buffer
-sampling run separately from reviews.
+The dashboard leases capture (`POST /api/presentation/video-lease` with a
+`source` of `screen`, `pawn` + `pawnId` or `map`, plus optional size and frame
+rate; the reply echoes the resolved `source` and its `sourceId`), mints a
+short-lived single-use ticket bound to that `sourceId`
+(`POST /api/presentation/video-stream/ticket`, `{sourceId}`; absent means the
+screen) and opens the same-origin `/api/presentation/video-stream` WebSocket.
+One socket carries one source, so each dashboard tile (colony camera, a
+colonist feed, the map overview) owns its own lease, ticket and socket and
+stops only its own source (`leaseSeconds: 0` with `sourceId`; without it, every
+source ends). Each binary message is a 34-byte
+header (sequence, width, height, encoding, capture method, capture time,
+readback cost; little-endian) followed by raw pixels; the client drops stale or
+duplicate sequences and paints the latest frame.
+
+The Go relay reads frames from the native shared-memory buffer whenever it runs
+on the game's host: Windows uses a named mapping with a nonblocking mutex,
+Linux a private `/dev/shm/RimGovernorVideo-<id>` mapping with nonblocking file
+locks (`go/internal/videoshm`). The buffer name is the lease's `sourceId`, learned
+from the first `ReadFrame` reply, which also supplies the pixel format the buffer
+header does not carry. `ReadFrame` is then called about once a second only to
+confirm the lease and source; a new lease publishes under a new name with a
+restarted sequence. When the buffer cannot be opened (controller on another host,
+lease already released) every frame goes through `ReadFrame`'s base64 media
+envelope instead. Only `ReadFrame`-delivered frames are acknowledged;
+`AcknowledgeFrame` is telemetry, not backpressure.
+
+A lease names one source (`VideoStart.source`): the presented screen (the
+default), a colonist (`pawn_id`, a second camera following the pawn at ten
+cells of height) or the whole map. Each source has its own buffer, `sourceId`,
+sequence and cadence (`frames_per_second`: screen 60, pawn up to 30, map up to
+10; feeds default to 15 and 4), and `ReadFrame` selects a source by id. Feeds
+render right after the game's own draw pass, with the player camera's culling
+rect widened to cover them only on the frames they are due, and clip the
+silhouette and overlay altitudes so a far player zoom never blanks the pawns
+(their cached far-zoom sprites are still what the game submits). A lease for a
+pawn that is not spawned on the current map, or for any source with no map
+loaded, is refused as `supported: true, active: false` with an `unavailable`
+detail; a running pawn feed ends when its pawn leaves the map, and every
+rendered source ends when the current map changes (a load), so `ReadFrame` on
+the old `sourceId` fails `UNAVAILABLE` and the dashboard tile re-leases and
+follows the new id. Viewers of an identical spec share one source and hold
+it independently by `viewer_id` (the dashboard sends one per tile as
+`viewerId`): a stop or timeout by one viewer leaves the others' feed, and
+the source ends with its last hold. Stopping without `source_id` drops the
+viewer's hold on every source. The
+`videofeedsmatrix` harness measures the cost: on the reference machine five
+pawn feeds cost no ticks (60 TPS, p95 frame 33 ms either way) and five pawn
+feeds plus map plus screen held 55 TPS with a 50 ms p95 frame.
+
+Unity captures the full framebuffer after rendering, at most 60 times per second
+and up to 3840×2160. Private Xvfb workers capture their process-owned presented
+window; optional `RIMGOVERNOR_VIDEO_READBACK=async` or `sync` selects GPU readback
+or ReadPixels for comparison. The capture ceiling is not a delivered-fps
+guarantee. Private display frame pacing uses 60 fps without virtual-display vsync
+while capture is leased, then restores the previous settings. Native lease cleanup
+unlinks the Linux buffer; an open reader sees no further sequence and closes
+its mapping independently.
 
 ## Native gesture admission
 

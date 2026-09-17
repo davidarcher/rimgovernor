@@ -48,6 +48,26 @@ namespace HomeBridge.BridgeTools
         public NativeControlRevocationReason Reason { get; }
     }
 
+    /// <summary>
+    /// The final authority of a game that is exiting or has been unloaded.
+    /// The Game itself is gone (or going), so this keeps identity values
+    /// only, never Game or Map references, and is the one thing a status
+    /// read for that identity can still report once Current.Game is null.
+    /// </summary>
+    public sealed class NativeControlShutdown
+    {
+        internal NativeControlShutdown(NativeControlIdentity identity, long tick, ulong generation, NativeControlRevocationReason reason)
+        { ColonyId = identity.ColonyId; LoadToken = identity.LoadToken; MapId = identity.MapId; Tick = tick; Generation = generation; Reason = reason; }
+        public string ColonyId { get; }
+        public string LoadToken { get; }
+        public int MapId { get; }
+        public long Tick { get; }
+        public ulong Generation { get; }
+        public NativeControlRevocationReason Reason { get; }
+        public bool Matches(string colonyId, string loadToken, int mapId)
+            => ColonyId == colonyId && LoadToken == loadToken && MapId == mapId;
+    }
+
     public sealed class NativeControlResult
     {
         internal NativeControlResult(NativeControlError error, NativeControlSnapshot snapshot)
@@ -177,6 +197,29 @@ namespace HomeBridge.BridgeTools
             return Snapshot();
         }
 
+        /// <summary>
+        /// The last game to exit or unload, for reads after Current.Game is
+        /// gone. Null until a game with a valid context has shut down.
+        /// </summary>
+        public static NativeControlShutdown? LastShutdown { get; private set; }
+
+        /// <summary>
+        /// Orderly exit or game unload (#88): an Active authority is revoked as
+        /// Shutdown so a controller can tell it from a lease lapse (Disconnect);
+        /// an already inactive one keeps its reason. Either way the final state
+        /// is retained as <see cref="LastShutdown"/> at the given game tick.
+        /// </summary>
+        public NativeControlSnapshot RevokeShutdown(long tick)
+        {
+            Refresh();
+            if (contextValid)
+            {
+                if (active) Invalidate(NativeControlRevocationReason.Shutdown);
+                LastShutdown = new NativeControlShutdown(identity!, tick, generation, reason);
+            }
+            return Snapshot();
+        }
+
         /// <summary>Synchronous admitted work only; never carry this scope across await.</summary>
         public IDisposable Owned()
         {
@@ -250,8 +293,11 @@ namespace HomeBridge.BridgeTools
         private void Refresh()
         {
             RequireThread();
-            if (Interlocked.Exchange(ref pendingContextInvalidation, 0) != 0)
-                Invalidate(NativeControlRevocationReason.IdentityChanged);
+            // One view or game change is one generation: the queued
+            // invalidation and the identity comparison below observe the same
+            // transition, so the comparison is skipped once the queue fired.
+            var queued = Interlocked.Exchange(ref pendingContextInvalidation, 0) != 0;
+            if (queued) Invalidate(NativeControlRevocationReason.IdentityChanged);
             try
             {
                 var next = clock();
@@ -274,7 +320,7 @@ namespace HomeBridge.BridgeTools
                 contextLost = true;
                 return;
             }
-            if (identity != null && !identity.Same(current!)) Invalidate(NativeControlRevocationReason.IdentityChanged);
+            if (!queued && identity != null && !identity.Same(current!)) Invalidate(NativeControlRevocationReason.IdentityChanged);
             identity = current;
             contextLost = false;
         }

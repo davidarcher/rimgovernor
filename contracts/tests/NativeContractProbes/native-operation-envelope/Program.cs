@@ -19,10 +19,9 @@ internal static class NativeOperationEnvelopeProbe
     private static void Check(bool value, string name) { checks++; if (!value) throw new Exception(name); }
     private static readonly Common.Identity Identity = new Common.Identity { ColonyId = "colony", LoadToken = "load", MapId = 0 };
     private static readonly Common.ObservationContext Context = new Common.ObservationContext { Identity = Identity, Tick = 10, NativeGeneration = 2 };
-    private static readonly Authority.Owner Owner = new Authority.Owner { ControllerSessionId = "session", PlayerDirection = 1 };
     private static Operations.ExecuteRequest Request(ulong id) => new Operations.ExecuteRequest
     {
-        Precondition = new Authority.WritePrecondition { Identity = Identity, ExpectedGeneration = 2, LeaseId = "lease",
+        Precondition = new Authority.WritePrecondition { Identity = Identity, ExpectedGeneration = 2,
             Attempt = new Common.AttemptKey { ControllerSessionId = "session", ActionId = "action", AttemptId = id } },
         Operation = new Operations.Operation { PlaceBuilding = new Operations.PlaceBuilding() }
     };
@@ -46,25 +45,25 @@ internal static class NativeOperationEnvelopeProbe
         var oversized = new Receipts.EffectEvidence { Construction = new Receipts.ConstructionEffect() };
         for (int i = 0; i < 4096; i++) oversized.Construction.WipedThingIds.Add(new string('x', 256));
         var request = Request(1);
-        var admission = ledger.Admit("rimgovernor.operations.v1.Operations/Execute", request, Context, Owner);
-        var receipt = NativeOperationEnvelope.Applied(ledger, admission.Handle, request.Precondition.Attempt, Context, Owner, oversized);
+        var admission = ledger.Admit("rimgovernor.operations.v1.Operations/Execute", request, Context);
+        var receipt = NativeOperationEnvelope.Applied(ledger, admission.Handle, request.Precondition.Attempt, Context, oversized);
         Check(receipt.Uncertain != null && receipt.Uncertain.LastObserved == null, "oversized observed effects finalize uncertain without truncation");
-        Check(receipt.AdmittedContext.Equals(Context) && receipt.AuthorizingOwner.Equals(Owner), "uncertainty retains admission and owner");
+        Check(receipt.AdmittedContext.Equals(Context), "uncertainty retains admission context");
         var retry = ledger.Inspect("rimgovernor.operations.v1.Operations/Execute", request);
         Check(retry.Kind == NativeAttemptLedger.DecisionKind.Replay && retry.Reply.Receipt.Equals(receipt), "retry replays original uncertain receipt");
         Check(NativeOperationEnvelope.Fits(retry.Reply), "retry is encodable");
         var lookup = ledger.Lookup(request.Precondition.Attempt, Context);
         Check(lookup.Receipt.Equals(receipt) && NativeOperationEnvelope.Fits(lookup), "lookup is encodable with original receipt");
         var next = Request(2);
-        var admitted = ledger.Admit("rimgovernor.operations.v1.Operations/Execute", next, Context, Owner);
-        var failed = NativeOperationEnvelope.Uncertain(ledger, admitted.Handle, next.Precondition.Attempt, Context, Owner, oversized, "Partial write");
+        var admitted = ledger.Admit("rimgovernor.operations.v1.Operations/Execute", next, Context);
+        var failed = NativeOperationEnvelope.Uncertain(ledger, admitted.Handle, next.Precondition.Attempt, Context, oversized, "Partial write");
         Check(failed.Uncertain != null && failed.Uncertain.LastObserved == null && NativeOperationEnvelope.Fits(new Operations.ExecuteReply { Receipt = failed }), "exception path also bounds partial evidence");
         var small = new Receipts.EffectEvidence { Construction = new Receipts.ConstructionEffect { OriginThingId = "Wall1", CurrentThingId = "Wall1", Present = true } };
-        next = Request(3); admitted = ledger.Admit("rimgovernor.operations.v1.Operations/Execute", next, Context, Owner);
-        var applied = NativeOperationEnvelope.Applied(ledger, admitted.Handle, next.Precondition.Attempt, Context, Owner, small);
+        next = Request(3); admitted = ledger.Admit("rimgovernor.operations.v1.Operations/Execute", next, Context);
+        var applied = NativeOperationEnvelope.Applied(ledger, admitted.Handle, next.Precondition.Attempt, Context, small);
         Check(applied.Applied.Observed.Equals(small), "bounded applied evidence is preserved");
-        next = Request(4); admitted = ledger.Admit("rimgovernor.operations.v1.Operations/Execute", next, Context, Owner);
-        var uncertainSmall = NativeOperationEnvelope.Uncertain(ledger, admitted.Handle, next.Precondition.Attempt, Context, Owner, small, "Partial write, still observable");
+        next = Request(4); admitted = ledger.Admit("rimgovernor.operations.v1.Operations/Execute", next, Context);
+        var uncertainSmall = NativeOperationEnvelope.Uncertain(ledger, admitted.Handle, next.Precondition.Attempt, Context, small, "Partial write, still observable");
         Check(uncertainSmall.Uncertain.LastObserved != null && uncertainSmall.Uncertain.LastObserved.Equals(small) && uncertainSmall.Uncertain.Detail == "Partial write, still observable", "bounded uncertain evidence is preserved, not dropped like the oversized case");
         var progress = NativeOperationEnvelope.Progress(new Receipts.ProgressReply { Progress = new Receipts.Progress
             { Context = Context, Attempt = request.Precondition.Attempt, CompleteInspection = true, Completed = new Receipts.CompletedEffect { Evidence = oversized } } });

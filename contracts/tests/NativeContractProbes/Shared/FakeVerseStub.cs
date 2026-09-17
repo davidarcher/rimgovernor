@@ -22,7 +22,12 @@ namespace Verse
     public class Letter { public string Label, Id; public LetterDef def; public string GetUniqueLoadID() => Id; }
     public class LetterDef { public string defName; }
     public static class Current { public static Game Game; }
-    public static class Find { public static Map CurrentMap; public static TickManager TickManager; }
+    public static class Find
+    {
+        public static Map CurrentMap; public static TickManager TickManager;
+        // Real Verse exposes the game's loaded maps; the fixtures load one map, the current one (#35 M2).
+        public static List<Map> Maps => CurrentMap == null ? null : new List<Map> { CurrentMap };
+    }
     public enum TimeSpeed { Paused, Normal, Fast, Superfast, Ultrafast }
     public class TickManager
     {

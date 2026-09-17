@@ -10,10 +10,6 @@ import (
 
 const BuildingExistingFacility RoutineBuildingReason = "existing_facility_needs_bill_or_upkeep"
 
-func pendingCampfire(progress domain.Progress) bool {
-	return pendingFacility(progress, "Campfire")
-}
-
 func pendingFacility(progress domain.Progress, definition string) bool {
 	building, ok := progress.Action().Building()
 	return ok && building.Definition() == definition && domain.GoalWorkOpen([]domain.Progress{progress})

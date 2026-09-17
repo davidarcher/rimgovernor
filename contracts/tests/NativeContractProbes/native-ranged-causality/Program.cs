@@ -70,7 +70,7 @@ internal static class NativeRangedCausalityProgram
         internal readonly ThingWithComps Equipment=Raw<ThingWithComps>();internal readonly ThingDef BulletDef=Raw<ThingDef>();
         internal readonly Bullet Bullet=Raw<Bullet>();internal readonly object Control, Record;
         internal bool LaunchAllowed=true, ImpactAllowed=true;
-        readonly ulong generation;readonly string lease;
+        readonly ulong generation;
         internal Fixture()
         {
             nativeError=null;duringDamage=null;duringLaunch=null;damageResult=new DamageWorker.DamageResult{totalDamageDealt=3};
@@ -88,13 +88,15 @@ internal static class NativeRangedCausalityProgram
             Verb.verbProps=new VerbProperties{verbClass=typeof(Verb_Shoot),ai_IsWeapon=true,range=30,defaultProjectile=BulletDef};
             Bullet.def=BulletDef;Bullet.thingIDNumber=100;Set(Bullet,"mapIndexOrState",(sbyte)0);
             Control=Call(Authority,null,"ForGame",Game)!;var status=Call(Authority,Control,"SetHookHealth",true)!;
-            var acquired=Call(Authority,Control,"Acquire",Get(status,"Generation"),"test-controller",1UL,30000)!;
-            Check(Get(acquired,"Error")!.ToString()=="None","actual native authority acquired for fixture");
-            var snapshot=Get(acquired,"Snapshot")!;generation=(ulong)Get(snapshot,"Generation")!;lease=(string)Get(Get(snapshot,"Lease")!,"LeaseId")!;
+            // Owner leases were replaced by Mode+generation (#52): Auto activates and the returned generation is the CAS token.
+            var mode=Enum.Parse(runtime.GetType("HomeBridge.BridgeTools.NativeControlMode",true)!,"Auto");
+            var granted=Call(Authority,Control,"SetMode",Get(status,"Generation"),mode)!;
+            Check(Get(granted,"Error")!.ToString()=="None","actual native authority set to Auto for fixture");
+            generation=(ulong)Get(Get(granted,"Snapshot")!,"Generation")!;
             Check((bool)Call(Producer,null,"Supports",Verb,Attacker,Victim)!,"actual ordinary bullet verb is supported");
             Record=Call(Producer,null,"Track",Game,Attacker,Victim,Job,new Func<bool>(()=>LaunchAllowed&&Authorized()),new Func<bool>(()=>ImpactAllowed&&Authorized()))!;
         }
-        bool Authorized()=>Get(Call(Authority,Control,"Check",generation,lease,"test-controller")!,"Error")!.ToString()=="None";
+        bool Authorized()=>Get(Call(Authority,Control,"Check",generation)!,"Error")!.ToString()=="None";
         internal DamageInfo Info(Thing? instigator=null)=>new DamageInfo(null,3,instigator:instigator??Attacker);
         internal void Launch(Bullet? projectile=null,Thing? launcher=null,LocalTargetInfo? target=null,LocalTargetInfo? used=null)
         {

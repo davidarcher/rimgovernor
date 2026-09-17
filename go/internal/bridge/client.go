@@ -38,6 +38,10 @@ type ProcessConfig struct {
 	// including background reads.
 	// It is opt-in: a nil Recorder records nothing and costs nothing.
 	Recorder *FlightRecorder
+	// Spawned, when set, is told the PID of each GABS process this Client
+	// starts (Open and every Reconnect/Reattach). Acceptance harnesses use it
+	// to end exactly their own GABS and prove recovery; it grants nothing.
+	Spawned func(pid int)
 }
 
 // Result retains the complete MCP receipt at the transport boundary. Structured
@@ -106,9 +110,17 @@ type liveSession struct {
 	ctx       context.Context
 	cancel    context.CancelFunc
 	discovery Discovery
+	// described records the native methods whose games_tool_detail input
+	// schema this session has already fetched and validated. Tool schemas
+	// are static for the life of a GABS session (the companion registers
+	// them once at attach), so protoCall describes each method once per
+	// session instead of before every call; a Reconnect/Reattach starts a
+	// fresh liveSession and therefore a fresh set.
+	describeMu sync.Mutex
+	described  map[string]bool
 }
 
-// maxConcurrentCalls bounds how many native calls one Client may have in
+// MaxConcurrentCalls bounds how many native calls one Client may have in
 // flight at once. GABP only requires outbound frame writes to stay atomic
 // when responses/events are produced concurrently (github.com/pardeike/GABS
 // docs/releases/v1.1.1.md); the go-sdk transport already guarantees that
@@ -116,11 +128,15 @@ type liveSession struct {
 // (jsonrpc2.Connection.outgoingCalls), same as GABS's own GABP client
 // (pendingReqs). So calls need not be single-flight; this cap is only
 // backpressure against a caller bug flooding the native bridge at once.
-const maxConcurrentCalls = 8
+const MaxConcurrentCalls = 8
 
-// Client owns a single session. Up to maxConcurrentCalls calls may be in
+// Client owns a single session. Up to MaxConcurrentCalls calls may be in
 // flight at once; Close cancels in-flight and queued work. Reconnect is
-// explicit and never repeats a native call.
+// explicit and never repeats a native call. A session whose transport dies
+// (GABS exiting, its stdio closing) is dropped as soon as the SDK observes
+// it: calls then fail fast with ErrDisconnected instead of each discovering
+// the dead pipe, Disconnected reports the loss, and Reattach is the bounded
+// recovery a supervisor drives.
 type Client struct {
 	lifecycle  chan struct{}
 	mu         sync.Mutex
@@ -160,8 +176,24 @@ func Open(ctx context.Context, config ProcessConfig) (*Client, error) {
 	return open(ctx, config.GameID, config.Timeout, config.Recorder, func() mcp.Transport {
 		cmd := exec.Command(config.Executable, "server", "stdio", "--configDir", config.ConfigDir, "--log-level", config.LogLevel)
 		cmd.Stderr = config.Stderr
-		return &mcp.CommandTransport{Command: cmd, TerminateDuration: time.Second}
+		return &spawnedTransport{Transport: &mcp.CommandTransport{Command: cmd, TerminateDuration: time.Second}, cmd: cmd, spawned: config.Spawned}
 	})
+}
+
+// spawnedTransport reports the PID of the process a CommandTransport started
+// once its Connect has started it.
+type spawnedTransport struct {
+	mcp.Transport
+	cmd     *exec.Cmd
+	spawned func(pid int)
+}
+
+func (t *spawnedTransport) Connect(ctx context.Context) (mcp.Connection, error) {
+	connection, err := t.Transport.Connect(ctx)
+	if err == nil && t.spawned != nil && t.cmd.Process != nil {
+		t.spawned(t.cmd.Process.Pid)
+	}
+	return connection, err
 }
 
 func open(ctx context.Context, gameID string, timeout time.Duration, recorder *FlightRecorder, factory transportFactory) (*Client, error) {
@@ -174,7 +206,7 @@ func open(ctx context.Context, gameID string, timeout time.Duration, recorder *F
 	if timeout < time.Millisecond || timeout > 120*time.Second {
 		return nil, fmt.Errorf("%w: timeout outside 1ms..120s", ErrContract)
 	}
-	c := &Client{factory: factory, gameID: gameID, timeout: timeout, gate: make(chan struct{}, maxConcurrentCalls), lifecycle: make(chan struct{}, 1), recorder: recorder}
+	c := &Client{factory: factory, gameID: gameID, timeout: timeout, gate: make(chan struct{}, MaxConcurrentCalls), lifecycle: make(chan struct{}, 1), recorder: recorder}
 	if err := c.Reconnect(ctx); err != nil {
 		return nil, err
 	}
@@ -257,8 +289,59 @@ func (c *Client) Reconnect(ctx context.Context) error {
 		_ = session.Close()
 		return ErrClosed
 	}
-	c.live = &liveSession{sdk: session, owner: owner, ctx: liveCtx, cancel: liveCancel, discovery: discovery}
+	live := &liveSession{sdk: session, owner: owner, ctx: liveCtx, cancel: liveCancel, discovery: discovery}
+	c.live = live
 	c.mu.Unlock()
+	go c.watch(live)
+	return nil
+}
+
+// watch drops live once its transport has ended for any reason. Reconnect and
+// Close end sessions themselves, in which case live is already superseded or
+// nil and this is a no-op; a session GABS ended is what makes the Client
+// disconnected.
+func (c *Client) watch(live *liveSession) {
+	_ = live.sdk.Wait()
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	if c.live == live {
+		c.live = nil
+		live.cancel()
+	}
+}
+
+// Disconnected is closed once the current session has been lost or the
+// Client closed. Without a live session it is already closed. A successful
+// Reattach/Reconnect starts a fresh session with a fresh channel.
+func (c *Client) Disconnected() <-chan struct{} {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	if c.live == nil || c.closed {
+		return closedChannel
+	}
+	return c.live.ctx.Done()
+}
+
+var closedChannel = func() chan struct{} { ch := make(chan struct{}); close(ch); return ch }()
+
+// Reattach restores service after the GABS session was lost: a fresh GABS
+// process, then games_start and ConnectWithPoll against the game that kept
+// running, exactly as a restarted controller attaches. It is bounded by ctx
+// and the connect deadlines, never repeats a native call, and leaves the
+// Client disconnected when any step fails so the caller can retry.
+func (c *Client) Reattach(ctx context.Context) error {
+	if err := c.Reconnect(ctx); err != nil {
+		return err
+	}
+	started, err := c.GamesStart(ctx)
+	if err != nil {
+		_ = c.closeLive()
+		return fmt.Errorf("reattach: games_start: %w", err)
+	}
+	if _, err := c.ConnectWithPoll(ctx, started); err != nil {
+		_ = c.closeLive()
+		return fmt.Errorf("reattach: connect: %w", err)
+	}
 	return nil
 }
 
@@ -343,16 +426,18 @@ func (c *Client) operation(ctx context.Context, run func(context.Context, *liveS
 	}
 	stop := context.AfterFunc(live.ctx, cancel)
 	defer stop()
+	timing := &callTiming{began: time.Now()}
 	select {
 	case c.gate <- struct{}{}:
 		defer func() { <-c.gate }()
 	case <-ctx.Done():
 		return Result{}, ctx.Err()
 	}
+	timing.gateWait = time.Since(timing.began)
 	if err := ctx.Err(); err != nil {
 		return Result{}, err
 	}
-	return run(ctx, live)
+	return run(withCallTiming(ctx, timing), live)
 }
 
 // snapshotRecordingContext reads the installed recording-context callback (if
@@ -392,8 +477,30 @@ func (c *Client) core(ctx context.Context, live *liveSession, name string, argum
 		recordCtx = c.snapshotRecordingContext(ctx)
 		request, _ = c.recorder.Event("native_request", recordCtx, true, map[string]any{"tool": name, "arguments": arguments})
 	}
+	timing := callTimingFrom(ctx)
+	if timing != nil {
+		timing.request = request
+	}
 	waiter := make(chan receiptOutcome, 1)
+	callBegan := time.Now()
 	result, err := live.sdk.CallTool(withReceiptWaiter(ctx, waiter), &mcp.CallToolParams{Name: name, Arguments: arguments})
+	callElapsed := time.Since(callBegan)
+	// phases is attached to the response/error row so a timeline consumer can
+	// split the call without re-deriving it from wall clocks.
+	phases := func(decode time.Duration, bytes int) map[string]any {
+		out := map[string]any{"call_ms": millis(callElapsed), "decode_ms": millis(decode), "response_bytes": bytes}
+		if timing != nil {
+			out["gate_wait_ms"] = millis(timing.gateWait)
+			out["total_ms"] = millis(time.Since(timing.began))
+		}
+		return out
+	}
+	nativeTool := nativeToolOf(name, arguments)
+	if name == "games_call_tool" {
+		readTallyFrom(ctx).add(c, nativeTool)
+	} else {
+		readTallyFrom(ctx).add(c, name)
+	}
 	var raw json.RawMessage
 	var receiptErr error
 	select {
@@ -406,36 +513,32 @@ func (c *Client) core(ctx context.Context, live *liveSession, name string, argum
 	}
 	if receiptErr != nil {
 		if recording {
-			c.recorder.Event("native_error", recordCtx, true, map[string]any{"request": request, "tool": name, "error": receiptErr.Error()})
+			c.recorder.Event("native_error", recordCtx, true, map[string]any{"request": request, "tool": name, "native_tool": nativeTool, "error": receiptErr.Error(), "timing": phases(0, len(raw))})
 		}
 		return Result{}, receiptErr
 	}
 	if err != nil {
 		if recording {
-			c.recorder.Event("native_error", recordCtx, true, map[string]any{"request": request, "tool": name, "error": err.Error()})
+			c.recorder.Event("native_error", recordCtx, true, map[string]any{"request": request, "tool": name, "native_tool": nativeTool, "error": err.Error(), "timing": phases(0, len(raw))})
 		}
 		return Result{}, fmt.Errorf("%w: %s: %w", ErrTransport, name, err)
 	}
+	decodeBegan := time.Now()
 	decoded, decodeErr := decodeReceipt(name, raw, result)
+	decodeElapsed := time.Since(decodeBegan)
 	if recording {
 		if decodeErr != nil {
-			c.recorder.Event("native_error", recordCtx, true, map[string]any{"request": request, "tool": name, "error": decodeErr.Error()})
+			c.recorder.Event("native_error", recordCtx, true, map[string]any{"request": request, "tool": name, "native_tool": nativeTool, "error": decodeErr.Error(), "timing": phases(decodeElapsed, len(raw))})
 		} else {
-			c.recorder.Event("native_response", recordCtx, false, map[string]any{"request": request, "tool": name, "result": decoded.Structured})
+			timing := phases(decodeElapsed, len(raw))
+			if queueMs, executeMs, ok := nativeTiming(decoded.Structured); ok {
+				timing["native_queue_ms"] = queueMs
+				timing["native_execute_ms"] = executeMs
+			}
+			c.recorder.Event("native_response", recordCtx, false, map[string]any{"request": request, "tool": name, "native_tool": nativeTool, "result": decoded.Structured, "timing": timing})
 		}
 	}
 	return decoded, decodeErr
-}
-
-func decodeResult(name string, result *mcp.CallToolResult) (Result, error) {
-	if result == nil {
-		return Result{}, fmt.Errorf("%w: missing result", ErrContract)
-	}
-	envelope, err := json.Marshal(result)
-	if err != nil || len(envelope) > maxResponseBytes {
-		return Result{}, fmt.Errorf("%w: invalid or oversized result", ErrContract)
-	}
-	return decodeReceipt(name, envelope, result)
 }
 
 func decodeReceipt(name string, envelope json.RawMessage, result *mcp.CallToolResult) (Result, error) {

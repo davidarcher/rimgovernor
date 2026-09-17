@@ -66,7 +66,7 @@ namespace HomeBridge.BridgeTools
         // caravan identity/position token, and (for Move/Visit/ReturnHome) an
         // exact reachable target with a legal arrival action. Mirrors legacy
         // CaravanTools.Execute's move/visit/return/stop branch exactly.
-        private static bool Prepare(Operations.TravelCaravan command, out Caravan? caravan, out PlanetTile target,
+        private static bool Prepare(Operations.TravelCaravan command, Common.ObservationContext context, out Caravan? caravan, out PlanetTile target,
             out CaravanArrivalAction? arrival, out Common.Failure failure)
         {
             caravan = null; target = default; arrival = null;
@@ -80,7 +80,7 @@ namespace HomeBridge.BridgeTools
             if (CaravanToken(caravan.GetUniqueLoadID(), caravan.Tile.tileId, caravan.pather.Moving) != command.Caravan.ExpectedSnapshotToken)
             { failure = ProtoBoundary.Fail(Common.FailureCode.StaleIdentity, "Caravan position changed; observe before new travel order."); return false; }
             if (command.Kind == Operations.TravelKind.Stop) return true;
-            var map = Find.CurrentMap;
+            var map = ProtoBoundary.ResolveMap(context);
             target = command.Kind == Operations.TravelKind.ReturnHome ? (map != null ? map.Tile : default) : new PlanetTile(command.DestinationTile);
             if (command.Kind == Operations.TravelKind.ReturnHome && map == null)
             { failure = ProtoBoundary.Fail(Common.FailureCode.Unavailable, "A loaded current map is required to return home."); return false; }
@@ -107,7 +107,7 @@ namespace HomeBridge.BridgeTools
         {
             try
             {
-                if (!Prepare(command, out var caravan, out var target, out _, out var failure))
+                if (!Prepare(command, context, out var caravan, out var target, out _, out var failure))
                     return new Operations.PreviewReply { Failure = failure };
                 Operations.RoutePreparation? routePrep = null;
                 if (command.Kind != Operations.TravelKind.Stop)
@@ -144,7 +144,7 @@ namespace HomeBridge.BridgeTools
             NativeAttemptLedger.Admission? handle = null; Receipts.EffectEvidence? evidence = null;
             try
             {
-                if (!Prepare(command, out var caravan, out var target, out var arrival, out var failure))
+                if (!Prepare(command, context, out var caravan, out var target, out var arrival, out var failure))
                     return new Operations.ExecuteReply { Failure = failure };
                 if (!NativeControlAuthority.TryGetForGame(Current.Game, out var authority) || authority == null)
                     return Refuse(Common.FailureCode.AuthorityRequired, "Current native authority is required.");
@@ -158,7 +158,7 @@ namespace HomeBridge.BridgeTools
                 {
                     var current = authority.Check(pre.ExpectedGeneration);
                     if (!current.Success) throw new InvalidOperationException("Caravan travel authority changed before native effect.");
-                    if (!Prepare(command, out caravan, out target, out arrival, out failure) || caravan == null)
+                    if (!Prepare(command, context, out caravan, out target, out arrival, out failure) || caravan == null)
                         throw new InvalidOperationException("Caravan travel prerequisites changed after admission.");
                     var effect = new Receipts.CaravanEffect { CaravanId = caravan.GetUniqueLoadID() };
                     if (command.Kind == Operations.TravelKind.Stop)

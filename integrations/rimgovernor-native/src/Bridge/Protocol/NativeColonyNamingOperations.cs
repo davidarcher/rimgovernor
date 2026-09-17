@@ -50,7 +50,7 @@ namespace HomeBridge.BridgeTools
             if (pending == null || pending.ID != command.WindowId) return false;
             if (Field(pending, "curName") != command.FactionName || Field(pending, "curSecondName") != command.SettlementName) return false;
             var target = AccessTools.Field(typeof(Dialog_NamePlayerFactionAndSettlement), "settlement")?.GetValue(pending) as Settlement;
-            if (target == null || target.Map != Find.CurrentMap) return false;
+            if (target == null || !ProtoBoundary.IsLoaded(target.Map)) return false;
             dialog = pending; settlement = target;
             return true;
         }

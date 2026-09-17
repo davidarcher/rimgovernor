@@ -105,39 +105,6 @@ func buildingFields(raw []byte, keys ...string) (map[string]json.RawMessage, err
 	}
 	return fields, nil
 }
-
-// buildingOptionalFields is buildingFields for an object that carries a fixed
-// set of required keys plus a known set of optional ones. Required keys must be
-// present and non-null exactly as buildingFields demands; an optional key may be
-// absent, but a present one must be non-null, and no other key is tolerated. An
-// absent optional key is absent from the result, so callers distinguish "not
-// supplied" from "supplied empty" with the two-value map read.
-func buildingOptionalFields(raw []byte, required, optional []string) (map[string]json.RawMessage, error) {
-	var fields map[string]json.RawMessage
-	if err := json.Unmarshal(raw, &fields); err != nil {
-		return nil, err
-	}
-	known := make(map[string]bool, len(required)+len(optional))
-	for _, key := range required {
-		value, ok := fields[key]
-		if !ok || bytes.Equal(bytes.TrimSpace(value), []byte("null")) {
-			return nil, errors.New("required field missing or null")
-		}
-		known[key] = true
-	}
-	for _, key := range optional {
-		if value, ok := fields[key]; ok && bytes.Equal(bytes.TrimSpace(value), []byte("null")) {
-			return nil, errors.New("optional field present but null")
-		}
-		known[key] = true
-	}
-	for key := range fields {
-		if !known[key] {
-			return nil, errors.New("unexpected field")
-		}
-	}
-	return fields, nil
-}
 func buildingRequest(reader io.Reader, keys ...string) (map[string]json.RawMessage, error) {
 	data, err := io.ReadAll(io.LimitReader(reader, buildingRequestLimit+1))
 	if err != nil {

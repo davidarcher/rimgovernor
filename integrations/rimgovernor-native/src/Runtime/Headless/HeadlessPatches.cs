@@ -120,6 +120,6 @@ namespace HeadlessRim
         // Preserve native cleanup if any drawing resources do exist.
         public static bool DisposeMapPrefix(Section[,] ___sections, System.Collections.Generic.List<MapDrawLayer> ___global)
             => ___sections != null || ___global != null;
-        public static bool ReturnNullTexturePrefix(ref Texture __result) { __result = null; return false; }
+        public static bool ReturnNullTexturePrefix(ref Texture? __result) { __result = null; return false; }
     }
 }

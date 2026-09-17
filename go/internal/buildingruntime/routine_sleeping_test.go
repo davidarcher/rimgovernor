@@ -94,7 +94,7 @@ func TestRoutineSleepingAdmitsWholePendingMethodAndManualInvalidates(t *testing.
 		t.Fatal(err)
 	}
 	for _, progress := range p.Progress {
-		if progress.View().Stage != domain.Cancelled {
+		if progress.View().Stage != domain.Pending {
 			t.Fatal(progress)
 		}
 	}

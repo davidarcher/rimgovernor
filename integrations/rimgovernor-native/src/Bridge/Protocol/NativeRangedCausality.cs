@@ -140,7 +140,7 @@ namespace HomeBridge.BridgeTools
         internal static NativeCombatDamageRecord Track(Game game,Pawn attacker,Pawn target,Job job,Func<bool> launchGuard,Func<bool> impactGuard)
         {
             if (!UnityData.IsInMainThread || !IsReady || game!=Current.Game || !attacker.Spawned || !target.Spawned
-                || attacker.Map!=target.Map || target.Map!=Find.CurrentMap || job==null || job.def!=JobDefOf.AttackStatic
+                || attacker.Map!=target.Map || !ProtoBoundary.IsLoaded(target.Map) || job==null || job.def!=JobDefOf.AttackStatic
                 || job.targetA.Thing!=target || !Supports(job.verbToUse,attacker,target) || launchGuard==null || impactGuard==null
                 || !NativeControlAuthority.TryGetForGame(game,out var authority) || authority==null || authority.Status().Identity==null)
                 throw new InvalidOperationException("Exact native projectile tracking prerequisites are unavailable.");
@@ -154,7 +154,7 @@ namespace HomeBridge.BridgeTools
         }
         private static bool CurrentIdentity(Tracked record)
         {
-            return Current.Game==record.Identity.Game && Find.CurrentMap==record.Identity.Map
+            return Current.Game==record.Identity.Game && ProtoBoundary.IsLoaded(record.Identity.Map)
                 && NativeControlAuthority.TryGetForGame(Current.Game,out var authority) && authority!=null
                 && authority.Status().Identity is NativeControlIdentity identity && NativePawnFacts.SameIdentity(record.Identity,identity);
         }
@@ -178,7 +178,7 @@ namespace HomeBridge.BridgeTools
                 var e=record.Evidence;
                 if (!IsReady || exhausted || damageDepth!=0 || (projectile.GetType()!=typeof(Bullet) && projectile.GetType()!=typeof(Projectile_Explosive))
                     || launcher!=attacker || intendedTarget.Thing!=e.Target || !Supports(verb,attacker,e.Target)
-                    || equipment!=verb.EquipmentSource || projectile.def!=verb.Projectile || projectile.Map!=Find.CurrentMap
+                    || equipment!=verb.EquipmentSource || projectile.def!=verb.Projectile || projectile.Map!=record.Identity.Map
                     || state.Flights.Count>=FlightLimit || state.Flights.ContainsKey(projectile)
                     || e.JobId!=e.Job.loadID || e.Job.def!=JobDefOf.AttackStatic || e.Job.targetA.Thing!=e.Target || e.Job.verbToUse!=verb
                     || !CurrentIdentity(record) || !record.LaunchGuard()) record.TrackingLost=true;

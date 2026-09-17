@@ -1,4 +1,6 @@
-export type VideoState = {supported: boolean; active: boolean; sourceId: string; remainingLeaseMs: number; capturedFrames: number; framesPerSecond: number; pixelFormat: string; captureMethod: string};
+// What a lease captures: the presented screen, a colonist followed by a second camera, or the whole map.
+export type VideoSource = {kind: 'screen'} | {kind: 'pawn'; pawnId: string; width?: number; height?: number; framesPerSecond?: number} | {kind: 'map'; height?: number; framesPerSecond?: number};
+export type VideoState = {supported: boolean; active: boolean; sourceId: string; source: VideoSource; unavailable?: string; remainingLeaseMs: number; capturedFrames: number; framesPerSecond: number; pixelFormat: string; captureMethod: string};
 export type RenderStatus = {supported: boolean; suspended: boolean; windowVisible: boolean; remainingLeaseMs: number};
 export type VideoTicket = {ticket: string; expiresMs: number};
 
@@ -25,9 +27,20 @@ async function post<T>(path: string, token: string, body: unknown, read: (value:
   return read(value);
 }
 
+function optionalUint(value: unknown): number | undefined {
+  return value === undefined ? undefined : uint(value);
+}
+function readVideoSource(value: unknown): VideoSource {
+  const v = object(value, ['kind']);
+  const kind = text(v.kind);
+  if (kind === 'pawn') return {kind, pawnId: text(v.pawnId), width: optionalUint(v.width), height: optionalUint(v.height), framesPerSecond: optionalUint(v.framesPerSecond)};
+  if (kind === 'map') return {kind, height: optionalUint(v.height), framesPerSecond: optionalUint(v.framesPerSecond)};
+  if (kind === 'screen') return {kind};
+  throw Error('Invalid video source kind');
+}
 function readVideoState(value: unknown): VideoState {
-  const v = object(value, ['supported', 'active', 'sourceId', 'remainingLeaseMs', 'capturedFrames', 'framesPerSecond', 'pixelFormat', 'captureMethod']);
-  return {supported: bool(v.supported), active: bool(v.active), sourceId: text(v.sourceId), remainingLeaseMs: uint(v.remainingLeaseMs), capturedFrames: uint(v.capturedFrames), framesPerSecond: uint(v.framesPerSecond), pixelFormat: text(v.pixelFormat), captureMethod: text(v.captureMethod)};
+  const v = object(value, ['supported', 'active', 'sourceId', 'source', 'remainingLeaseMs', 'capturedFrames', 'framesPerSecond', 'pixelFormat', 'captureMethod']);
+  return {supported: bool(v.supported), active: bool(v.active), sourceId: text(v.sourceId), source: readVideoSource(v.source), unavailable: v.unavailable === undefined ? undefined : text(v.unavailable), remainingLeaseMs: uint(v.remainingLeaseMs), capturedFrames: uint(v.capturedFrames), framesPerSecond: uint(v.framesPerSecond), pixelFormat: text(v.pixelFormat), captureMethod: text(v.captureMethod)};
 }
 function readRenderStatus(value: unknown): RenderStatus {
   const v = object(value, ['supported', 'suspended', 'windowVisible', 'remainingLeaseMs']);
@@ -38,17 +51,26 @@ function readTicket(value: unknown): VideoTicket {
   return {ticket: text(v.ticket), expiresMs: uint(v.expiresMs)};
 }
 
-// leaseSeconds 0 stops an active lease; the server requires it on every call (0-15).
-export function leaseVideo(token: string, leaseSeconds: number, signal?: AbortSignal): Promise<VideoState> {
-  return post('/api/presentation/video-lease', token, {leaseSeconds}, readVideoState, signal);
+// leaseSeconds 0 stops a lease; the server requires it on every call (0-15). Each source is its own
+// lease and buffer; an identical source re-leased extends the same sourceId. A stop with sourceId
+// drops the viewer's hold on that source only; without it, every source.
+// viewerId names the tile holding the lease: viewers of one source hold it independently, so
+// one tile's stop or timeout leaves another's feed running.
+export function leaseVideo(token: string, leaseSeconds: number, source: VideoSource = {kind: 'screen'}, signal?: AbortSignal, sourceId?: string, viewerId?: string): Promise<VideoState> {
+  const body: Record<string, unknown> = {leaseSeconds};
+  if (leaseSeconds > 0) body.source = source;
+  else if (sourceId) body.sourceId = sourceId;
+  if (viewerId) body.viewerId = viewerId;
+  return post('/api/presentation/video-lease', token, body, readVideoState, signal);
 }
 // leaseSeconds is required on every call (0-30); forces the native window to render so frames are capturable.
 export function demandRendering(token: string, leaseSeconds: number, signal?: AbortSignal): Promise<RenderStatus> {
   return post('/api/presentation/render-demand', token, {leaseSeconds}, readRenderStatus, signal);
 }
 // A ticket is single-use and expires ~5s after minting; connect the WebSocket immediately after minting one.
-export function mintVideoTicket(token: string, signal?: AbortSignal): Promise<VideoTicket> {
-  return post('/api/presentation/video-stream/ticket', token, {}, readTicket, signal);
+// The ticket binds its stream to one leased sourceId (absent: the screen).
+export function mintVideoTicket(token: string, signal?: AbortSignal, sourceId?: string): Promise<VideoTicket> {
+  return post('/api/presentation/video-stream/ticket', token, sourceId ? {sourceId} : {}, readTicket, signal);
 }
 
 // Matches rimgovernor.presentation.v1.MediaEncoding.

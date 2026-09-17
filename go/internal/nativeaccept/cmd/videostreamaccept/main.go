@@ -23,6 +23,7 @@ import (
 	"time"
 
 	na "github.com/davidarcher/RimGovernor/go/internal/nativeaccept"
+	"github.com/davidarcher/RimGovernor/go/internal/videoshm"
 )
 
 func main() {
@@ -42,7 +43,7 @@ func main() {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(2)
 	}
-	report := na.NewReport("LeaseVideo start against a real rendered game, multiple ReadFrame polls proving strictly increasing sequence and updated frame bytes, AcknowledgeFrame success, and LeaseVideo stop reflected by a subsequent ReadFrame refusal. CaptureScreenshot and the whole PlayerPresentation service are out of scope. The WebSocket relay is verified separately with a fake bridge client.", false)
+	report := na.NewReport("LeaseVideo start against a real rendered game, multiple ReadFrame polls proving strictly increasing sequence and updated frame bytes, the same source read out of shared memory at a materially higher rate with matching geometry, AcknowledgeFrame success, and LeaseVideo stop reflected by a subsequent ReadFrame refusal and a quiet shared buffer. CaptureScreenshot and the whole PlayerPresentation service are out of scope. The WebSocket relay is verified separately with a fake bridge client.", false)
 	ctx, cancel := context.WithTimeout(context.Background(), *timeout)
 	defer cancel()
 	err := run(ctx, *root, *output, *game, report)
@@ -101,9 +102,7 @@ func run(ctx context.Context, root, output, gameID string, report na.Report) err
 			return fmt.Errorf("missing %s in discovery", tool)
 		}
 	}
-	if _, err := h.Call(ctx, "new-game", "rimworld/start_debug_game_ready", map[string]any{
-		"readiness": "visual", "pauseIfNeeded": true, "timeoutMs": 120000,
-	}); err != nil {
+	if _, err := na.StartDebugGame(ctx, h, names, na.QuietIfAvailable); err != nil {
 		return err
 	}
 	// Unpaused so successive captured frames are actually likely to differ
@@ -153,8 +152,9 @@ func run(ctx context.Context, root, output, gameID string, report na.Report) err
 	// Case 2: multiple ReadFrame polls prove a strictly increasing sequence
 	// and, given unpaused animation, updated pixel bytes.
 	type polledFrame struct {
-		sequence float64
-		data     []byte
+		sequence      float64
+		width, height any
+		data          []byte
 	}
 	var polls []polledFrame
 	deadline := time.Now().Add(3 * time.Second)
@@ -180,7 +180,7 @@ func run(ctx context.Context, root, output, gameID string, report na.Report) err
 			return fmt.Errorf("read-frame: invalid base64 frame data: %w", err)
 		}
 		if len(polls) == 0 || polls[len(polls)-1].sequence != sequence {
-			polls = append(polls, polledFrame{sequence, data})
+			polls = append(polls, polledFrame{sequence, frame["width"], frame["height"], data})
 		}
 		time.Sleep(150 * time.Millisecond)
 	}
@@ -208,6 +208,58 @@ func run(ctx context.Context, root, output, gameID string, report na.Report) err
 	report["case_read_frame_bytes_updated"] = differed
 	lastPoll := polls[len(polls)-1]
 
+	// Case 2b: the same source read straight out of shared memory, as the
+	// controller's video relay does on the game's host. Frames must keep the
+	// RPC frame's geometry and byte length, advance strictly, and arrive at a
+	// materially higher rate than the base64 ReadFrame polls above.
+	shared, err := videoshm.Open(sourceID)
+	if err != nil {
+		return fmt.Errorf("shared-memory-open %q: %w", sourceID, err)
+	}
+	defer shared.Close()
+	rpcWidth, rpcHeight := int(na.AsNumber(polls[0].width)), int(na.AsNumber(polls[0].height))
+	var sharedSequences []uint64
+	sharedStarted := time.Now()
+	sharedDeadline := sharedStarted.Add(2 * time.Second)
+	var previous uint64
+	for time.Now().Before(sharedDeadline) {
+		frame, ok, err := shared.Read(previous)
+		if err != nil {
+			return fmt.Errorf("shared-memory-read: %w", err)
+		}
+		if ok {
+			if frame.Sequence <= previous {
+				return fmt.Errorf("shared-memory-read: sequence did not strictly increase: %d then %d", previous, frame.Sequence)
+			}
+			if frame.Width != rpcWidth || frame.Height != rpcHeight || len(frame.Data) != len(polls[0].data) {
+				return fmt.Errorf("shared-memory-read: %dx%d/%d bytes does not match the ReadFrame frame %dx%d/%d bytes",
+					frame.Width, frame.Height, len(frame.Data), rpcWidth, rpcHeight, len(polls[0].data))
+			}
+			if frame.CapturedUnixMs <= 0 {
+				return fmt.Errorf("shared-memory-read: invalid capturedUnixMs %d", frame.CapturedUnixMs)
+			}
+			previous = frame.Sequence
+			sharedSequences = append(sharedSequences, frame.Sequence)
+		}
+		time.Sleep(5 * time.Millisecond)
+	}
+	sharedWindow := time.Since(sharedStarted)
+	if len(sharedSequences) < 2 {
+		return fmt.Errorf("shared-memory-read: expected at least two frames in %s, got %d", sharedWindow, len(sharedSequences))
+	}
+	if sharedSequences[0] < uint64(lastPoll.sequence) {
+		return fmt.Errorf("shared-memory-read: first shared sequence %d is behind the last ReadFrame sequence %v", sharedSequences[0], lastPoll.sequence)
+	}
+	sharedRate := float64(len(sharedSequences)) / sharedWindow.Seconds()
+	report["case_shared_memory_frames"] = len(sharedSequences)
+	report["case_shared_memory_frames_per_second"] = sharedRate
+	report["case_shared_memory_first_sequence"] = sharedSequences[0]
+	report["case_shared_memory_last_sequence"] = sharedSequences[len(sharedSequences)-1]
+	// ReadFrame polls at 150 ms plus a base64 round trip cannot exceed
+	// ~6 fps; shared memory must clear that comfortably to be worth having.
+	if sharedRate < 10 {
+		return fmt.Errorf("shared-memory-read: %.1f frames/s is no better than the ReadFrame poll", sharedRate)
+	}
 	// Case 3: AcknowledgeFrame for the most recently observed frame.
 	ackReply, err := h.Wire(ctx, "acknowledge-frame", "presentation_acknowledge_frame", map[string]any{
 		"viewer":          viewer,
@@ -259,6 +311,22 @@ func run(ctx context.Context, root, output, gameID string, report na.Report) err
 	} else {
 		report["case_read_frame_after_stop_failure_code"] = code
 	}
+
+	// Case 5b: the released buffer publishes nothing further; a reader that
+	// still holds the mapping sees no new sequence past the one current once
+	// the stop returned (frames kept landing between the window and the stop).
+	current, ok, err := shared.Read(0)
+	if err != nil || !ok {
+		return fmt.Errorf("shared-memory-read-after-stop: no current frame (%v)", err)
+	}
+	lastShared := current.Sequence
+	time.Sleep(300 * time.Millisecond)
+	if _, ok, err := shared.Read(lastShared); err != nil {
+		return fmt.Errorf("shared-memory-read-after-stop: %w", err)
+	} else if ok {
+		return fmt.Errorf("shared-memory-read-after-stop: a frame was published after the lease stopped")
+	}
+	report["case_shared_memory_quiet_after_stop"] = true
 
 	logData, err := os.ReadFile(cfg.StartupLogPath())
 	if err != nil {

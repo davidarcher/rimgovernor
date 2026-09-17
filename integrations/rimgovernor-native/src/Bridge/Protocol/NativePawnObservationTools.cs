@@ -24,8 +24,8 @@ namespace HomeBridge.BridgeTools
         {
             if (!ProtoBoundary.TryParse(ctx, "rimgovernor/observations_list_pawns", request!, Obs.ListPawnsRequest.Parser, out var parsed, out var failure)
                 || !Validate(parsed, out failure)) return ProtoBoundary.Encode(new Obs.ListPawnsReply { Failure = failure });
-            return await ctx.MainThread.InvokeAsync<object>(() => {
-                var map = Find.CurrentMap;
+            return await ProtoBoundary.OnMainThread(ctx, () => {
+                var map = ProtoBoundary.ResolveMap(parsed.Scope?.ExpectedIdentity!);
                 if (!ProtoBoundary.ValidateIdentity(parsed.Scope?.ExpectedIdentity!, map, out var context, out failure))
                     return ProtoBoundary.Encode(new Obs.ListPawnsReply { Failure = failure });
                 try {

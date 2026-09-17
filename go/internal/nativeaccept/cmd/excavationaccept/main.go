@@ -50,7 +50,9 @@ func main() {
 	game := flag.String("game", "rimgovernor-trial", "configured game ID")
 	rimgovernorBinary := flag.String("rimgovernor", "", "absolute path to a prebuilt rimgovernor binary (go build ./go/cmd/rimgovernor)")
 	timeout := flag.Duration("timeout", 90*time.Minute, "overall run timeout")
+	stall := flag.Duration("stall", na.StallBudget(), "fail a store wait once its progress signature (goal binding, stage method, plan stages) has not changed for this long; "+na.StallEnv+" sets the default")
 	flag.Parse()
+	stallBudget = *stall
 	if *root == "" || *rimgovernorBinary == "" || !filepath.IsAbs(*rimgovernorBinary) {
 		fmt.Fprintln(os.Stderr, "-root and an absolute -rimgovernor are required")
 		os.Exit(2)
@@ -161,9 +163,7 @@ func run(ctx context.Context, root, output, gameID string, headless bool, rimgov
 		stopGame(open)
 		_ = open.Close()
 	}()
-	if _, err := h.Call(ctx, "new-game", "rimworld/start_debug_game_ready", map[string]any{
-		"readiness": "visual", "pauseIfNeeded": true, "timeoutMs": 120000,
-	}); err != nil {
+	if _, err := na.StartDebugGame(ctx, h, nil, na.QuietRequired); err != nil {
 		return err
 	}
 	if _, err := h.Call(ctx, "pause", "rimworld/set_time_speed", map[string]any{"speed": "Paused", "ultraSpeedBoost": false}); err != nil {
@@ -368,11 +368,13 @@ func run(ctx context.Context, root, output, gameID string, headless bool, rimgov
 	var stages []map[string]any
 	restarted := false
 	stage := 0
-	// A world-changing review invalidates every routine goal (a resume
-	// alone keeps them). The next review then re-plans from the geometry
-	// the pawns actually opened: the same target is re-adopted with its
-	// cleared cells, and no cleared cell is ever re-designated. The
-	// harness follows that lineage whenever it happens.
+	// Only a world change (colony/load/map, tick rewind) invalidates a
+	// routine goal; letter pauses, the keep-alive's resumes and the paired
+	// restart suspend and reactivate the same goal (#65). If a successor
+	// goal does appear, the next review re-plans from the geometry the
+	// pawns actually opened (same target, cleared cells adopted, no cleared
+	// cell re-designated); the harness follows that lineage so the room
+	// still completes, then fails on the lineage at the end.
 	var lineage []map[string]any
 	followLineage := func() error {
 		var next domain.GoalID
@@ -521,6 +523,9 @@ func run(ctx context.Context, root, output, gameID string, headless bool, rimgov
 		return fmt.Errorf("door plan: %w", err)
 	}
 	report["door_plan"] = string(door.Plan)
+	if len(lineage) != 0 {
+		return fmt.Errorf("room needed %d successor goals; pause/resume must keep the routine goal (#65): %v", len(lineage), lineage)
+	}
 
 	// The shell alternative must never have been committed under this goal.
 	goal, err := verifyStore.LoadGoal(ctx, goalID)
@@ -625,25 +630,21 @@ func run(ctx context.Context, root, output, gameID string, headless bool, rimgov
 	if _, err := finalHarness.Call(ctx, "run-fast", "rimworld/set_time_speed", map[string]any{"speed": "Superfast", "ultraSpeedBoost": false}); err != nil {
 		return err
 	}
-	sleepDeadline := time.Now().Add(12 * time.Minute)
+	// Game time has to pass here, so the progress signature is the game tick
+	// (the inspect reply's tick): a clock held by a letter stalls the wait
+	// instead of running out the ceiling.
 	var slept map[string]any
-	for {
+	sleepWait := storeWait()
+	sleepWait.Ceiling, sleepWait.Interval = 12*time.Minute, 5*time.Second
+	if err := na.WaitProgress(ctx, sleepWait, func(ctx context.Context) (string, bool, error) {
 		row, err := inspect("sleepers", center)
 		if err != nil {
-			return err
+			return "", false, err
 		}
-		if len(na.AsSlice(row["sleepers"])) > 0 {
-			slept = row
-			break
-		}
-		if time.Now().After(sleepDeadline) {
-			return fmt.Errorf("no colonist slept in the excavated room: %#v", row)
-		}
-		select {
-		case <-ctx.Done():
-			return ctx.Err()
-		case <-time.After(5 * time.Second):
-		}
+		slept = row
+		return na.Signature(row["tick"], len(na.AsSlice(row["sleepers"]))), len(na.AsSlice(row["sleepers"])) > 0, nil
+	}); err != nil {
+		return fmt.Errorf("no colonist slept in the excavated room (%#v): %w", slept, err)
 	}
 	report["slept"] = slept
 	if _, err := finalHarness.Call(ctx, "pause-end", "rimworld/set_time_speed", map[string]any{"speed": "Paused", "ultraSpeedBoost": false}); err != nil {
@@ -986,11 +987,18 @@ func (k *authorityKeepAlive) run(ctx context.Context) {
 
 // waitMethod polls the routine review for the EnsureInitialShelter binding
 // and the named committed method under it.
+// stallBudget bounds every store wait below (the -stall flag).
+var stallBudget = na.StallBudget()
+
+func storeWait() na.Wait { return na.Wait{Stall: stallBudget, Interval: time.Second} }
+
 func waitMethod(ctx context.Context, s *store.Store, knownGoal domain.GoalID, method domain.MethodID) (domain.GoalID, domain.GoalMethod, error) {
-	for {
+	var foundGoal domain.GoalID
+	var found domain.GoalMethod
+	err := na.WaitProgress(ctx, storeWait(), func(ctx context.Context) (string, bool, error) {
 		review, err := s.LoadRoutineReview(ctx)
 		if err != nil {
-			return "", domain.GoalMethod{}, err
+			return "", false, err
 		}
 		var goalID domain.GoalID
 		for _, binding := range review.Goals {
@@ -999,28 +1007,31 @@ func waitMethod(ctx context.Context, s *store.Store, knownGoal domain.GoalID, me
 				break
 			}
 		}
-		if goalID != "" && (knownGoal == "" || goalID == knownGoal) {
-			goal, err := s.LoadGoal(ctx, goalID)
-			if err != nil && !errors.Is(err, store.ErrNotFound) {
-				return "", domain.GoalMethod{}, err
-			}
-			for _, m := range goal.Methods {
-				if m.Method == method {
-					return goalID, m, nil
-				}
-			}
-			if err == nil {
-				if m, err := s.LoadGoalMethod(ctx, goalID, goal.Goal.Epoch, method); err == nil {
-					return goalID, m, nil
-				}
+		if goalID == "" || knownGoal != "" && goalID != knownGoal {
+			return na.Signature("goal", goalID), false, nil
+		}
+		goal, err := s.LoadGoal(ctx, goalID)
+		if err != nil && !errors.Is(err, store.ErrNotFound) {
+			return "", false, err
+		}
+		for _, m := range goal.Methods {
+			if m.Method == method {
+				foundGoal, found = goalID, m
+				return "", true, nil
 			}
 		}
-		select {
-		case <-ctx.Done():
-			return "", domain.GoalMethod{}, ctx.Err()
-		case <-time.After(time.Second):
+		if err == nil {
+			if m, err := s.LoadGoalMethod(ctx, goalID, goal.Goal.Epoch, method); err == nil {
+				foundGoal, found = goalID, m
+				return "", true, nil
+			}
 		}
+		return na.Signature("goal", goalID, goal.Goal.Epoch, len(goal.Methods)), false, nil
+	})
+	if err != nil {
+		return "", domain.GoalMethod{}, fmt.Errorf("method %s: %w", method, err)
 	}
+	return foundGoal, found, nil
 }
 
 var errGoalInvalidated = errors.New("goal invalidated")
@@ -1028,31 +1039,33 @@ var errGoalInvalidated = errors.New("goal invalidated")
 // waitStageMethod waits until either stage n is committed or the door method
 // exists (nil: no more stages).
 func waitStageMethod(ctx context.Context, s *store.Store, goalID domain.GoalID, stage int) (*domain.GoalMethod, error) {
-	for {
+	var found *domain.GoalMethod
+	err := na.WaitProgress(ctx, storeWait(), func(ctx context.Context) (string, bool, error) {
 		goal, err := s.LoadGoal(ctx, goalID)
 		if err != nil {
-			return nil, err
+			return "", false, err
 		}
 		if goal.Goal.Status == domain.GoalInvalidated {
-			return nil, errGoalInvalidated
+			return "", false, errGoalInvalidated
 		}
 		if m, err := s.LoadGoalMethod(ctx, goalID, goal.Goal.Epoch, buildingruntime.ExcavationStageMethod(stage)); err == nil {
-			return &m, nil
+			found = &m
+			return "", true, nil
 		}
 		if _, err := s.LoadGoalMethod(ctx, goalID, goal.Goal.Epoch, buildingruntime.ExcavationDoorMethod()); err == nil {
-			return nil, nil
+			return "", true, nil
 		}
 		for _, m := range goal.Methods {
 			if !buildingruntime.IsExcavationPlan(m.Plan) {
-				return nil, fmt.Errorf("a non-excavation method %s was committed before the project finished", m.Plan)
+				return "", false, fmt.Errorf("a non-excavation method %s was committed before the project finished", m.Plan)
 			}
 		}
-		select {
-		case <-ctx.Done():
-			return nil, ctx.Err()
-		case <-time.After(time.Second):
-		}
+		return na.Signature(goal.Goal.Status, goal.Goal.Epoch, len(goal.Methods)), false, nil
+	})
+	if err != nil {
+		return nil, fmt.Errorf("stage %d method: %w", stage, err)
 	}
+	return found, nil
 }
 
 // waitStageCompleted polls one stage plan until every excavation action is
@@ -1079,31 +1092,33 @@ func waitStageCompleted(ctx context.Context, s *store.Store, planID domain.PlanI
 	return cells, nil
 }
 
+// waitPlanCompleted polls until every action is Completed; the progress
+// signature is each action's stage and attempt.
 func waitPlanCompleted(ctx context.Context, s *store.Store, planID domain.PlanID) error {
-	for {
+	err := na.WaitProgress(ctx, storeWait(), func(ctx context.Context) (string, bool, error) {
 		state, err := s.LoadPlan(ctx, planID)
 		if err != nil {
-			return err
+			return "", false, err
 		}
 		completed := len(state.Progress) > 0
+		var signature []any
 		for _, p := range state.Progress {
-			switch p.View().Stage {
+			v := p.View()
+			signature = append(signature, v.Stage, v.Attempt)
+			switch v.Stage {
 			case domain.Completed:
 			case domain.Unsuccessful, domain.Cancelled:
-				return fmt.Errorf("plan %s action %s reached %s instead of completed", planID, p.View().Action, p.View().Stage)
+				return "", false, fmt.Errorf("plan %s action %s reached %s instead of completed", planID, v.Action, v.Stage)
 			default:
 				completed = false
 			}
 		}
-		if completed {
-			return nil
-		}
-		select {
-		case <-ctx.Done():
-			return ctx.Err()
-		case <-time.After(time.Second):
-		}
+		return na.Signature(signature...), completed, nil
+	})
+	if err != nil {
+		return fmt.Errorf("plan %s: %w", planID, err)
 	}
+	return nil
 }
 
 // waitFurnishing waits for a committed non-excavation method under the goal
@@ -1112,10 +1127,11 @@ func waitFurnishing(ctx context.Context, s *store.Store, goalID domain.GoalID, i
 	inside := func(c domain.Cell) bool {
 		return c.X >= interior.X && c.Z >= interior.Z && c.X < interior.X+interior.Width && c.Z < interior.Z+interior.Height
 	}
-	for {
+	var found domain.GoalMethod
+	err := na.WaitProgress(ctx, storeWait(), func(ctx context.Context) (string, bool, error) {
 		review, err := s.LoadRoutineReview(ctx)
 		if err != nil {
-			return domain.GoalMethod{}, err
+			return "", false, err
 		}
 		// The furnishing satisfies the shelter goal, after which the review
 		// stops binding it; the goal that committed the door stays the one
@@ -1127,7 +1143,7 @@ func waitFurnishing(ctx context.Context, s *store.Store, goalID domain.GoalID, i
 		}
 		goal, err := s.LoadGoal(ctx, goalID)
 		if err != nil && !errors.Is(err, store.ErrNotFound) {
-			return domain.GoalMethod{}, err
+			return "", false, err
 		}
 		for _, m := range goal.Methods {
 			if buildingruntime.IsExcavationPlan(m.Plan) {
@@ -1135,25 +1151,26 @@ func waitFurnishing(ctx context.Context, s *store.Store, goalID domain.GoalID, i
 			}
 			state, err := s.LoadPlan(ctx, m.Plan)
 			if err != nil {
-				return domain.GoalMethod{}, err
+				return "", false, err
 			}
 			for _, action := range state.Spec.Actions() {
 				b, ok := action.Building()
 				if !ok || !inside(b.Cell()) {
-					return domain.GoalMethod{}, fmt.Errorf("post-door method %s places %s outside the excavated interior", m.Plan, action.ID())
+					return "", false, fmt.Errorf("post-door method %s places %s outside the excavated interior", m.Plan, action.ID())
 				}
 			}
 			if err := waitPlanCompleted(ctx, s, m.Plan); err != nil {
-				return domain.GoalMethod{}, err
+				return "", false, err
 			}
-			return m, nil
+			found = m
+			return "", true, nil
 		}
-		select {
-		case <-ctx.Done():
-			return domain.GoalMethod{}, ctx.Err()
-		case <-time.After(time.Second):
-		}
+		return na.Signature(goalID, goal.Goal.Epoch, len(goal.Methods)), false, nil
+	})
+	if err != nil {
+		return domain.GoalMethod{}, fmt.Errorf("furnishing: %w", err)
 	}
+	return found, nil
 }
 
 func containsCell(cells []domain.Cell, c domain.Cell) bool {

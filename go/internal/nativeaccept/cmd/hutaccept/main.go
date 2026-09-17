@@ -51,6 +51,7 @@ func main() {
 	families := flag.String("families", "shelter,sleeping,supply", "RIMGOVERNOR_ROUTINE_FAMILIES for the service (empty = every family): the shell needs the supply family to unforbid starting supplies; the work family is left out because its planner refuses the tribal8 baseline's work priorities and one failing planner cancels the whole step, and the acquisition family is left out because its food planner times out under load, so WoodLog comes from -designate-wood instead")
 	buildWait := flag.Duration("build-wait", 30*time.Minute, "wall-clock budget for each construction phase")
 	furnishWait := flag.Duration("furnish-wait", 15*time.Minute, "wall-clock budget for a bed to be completed inside the finished hut")
+	stall := flag.Duration("stall", na.StallBudget(), "fail a wait once its progress signature (shell lineage stages, shelter goal binding, bed plan stage) has not changed for this long; "+na.StallEnv+" sets the default")
 	timeout := flag.Duration("timeout", 100*time.Minute, "overall run timeout")
 	nativeTimeout := flag.Duration("native-timeout", 60*time.Second, "serve subprocess's own --timeout (the shelter planner previews the whole shell per cell natively; shorter budgets time out under load; serve caps this at 1m)")
 	clockSpeed := flag.String("clock-speed", "Fast", "serve's --clock-speed (Normal, Fast or Superfast; Superfast starves the bridge calls inside the worker's 8s step budget)")
@@ -91,7 +92,7 @@ func main() {
 			return designateTrees(ctx, h, identity, facts, *designateWood, report)
 		}
 	}
-	if err := run(ctx, cfg, *buildWait, *furnishWait, report); err != nil {
+	if err := run(ctx, cfg, waits{build: *buildWait, furnish: *furnishWait, stall: *stall}, report); err != nil {
 		report["error"] = err.Error()
 	} else {
 		report["passed"] = true
@@ -109,7 +110,15 @@ type shell struct {
 	seen      map[domain.PlanID]bool // every shell plan the store has listed
 }
 
-func run(ctx context.Context, cfg liveservice.Config, buildWait, furnishWait time.Duration, report na.Report) error {
+// waits are the run's wall-clock ceilings and its stall budget; each wait
+// is also ended by the service exiting on its own.
+type waits struct{ build, furnish, stall time.Duration }
+
+func (w waits) wait(ceiling time.Duration, service *liveservice.Service) na.Wait {
+	return na.Wait{Ceiling: ceiling, Stall: w.stall, Terminal: service.Exited}
+}
+
+func run(ctx context.Context, cfg liveservice.Config, w waits, report na.Report) error {
 	prepared, err := liveservice.Prepare(ctx, cfg, report)
 	if err != nil {
 		return err
@@ -125,7 +134,7 @@ func run(ctx context.Context, cfg liveservice.Config, buildWait, furnishWait tim
 		return err
 	}
 	defer st.Close()
-	sh, err := waitShell(ctx, st, buildWait)
+	sh, err := waitShell(ctx, st, w.wait(w.build, service))
 	if err != nil {
 		service.Stop()
 		return err
@@ -136,7 +145,7 @@ func run(ctx context.Context, cfg liveservice.Config, buildWait, furnishWait tim
 		"interior_cells": len(sh.footprint.Interior()), "wall_cells": len(sh.footprint.Walls()),
 		"roof_supported": sh.footprint.RoofSupported(), "bounds": sh.footprint.Bounds(),
 	}
-	if err := waitLineage(ctx, st, sh, buildWait, func(l lineage) bool {
+	if err := waitLineage(ctx, st, sh, w.wait(w.build, service), func(l lineage) bool {
 		return len(l.ordered) >= 4 && l.live != nil && !l.liveComplete()
 	}); err != nil {
 		service.Stop()
@@ -167,7 +176,7 @@ func run(ctx context.Context, cfg liveservice.Config, buildWait, furnishWait tim
 		return err
 	}
 	var adopted store.PlanState
-	if err := waitLineage(ctx, st, sh, buildWait, func(l lineage) bool {
+	if err := waitLineage(ctx, st, sh, w.wait(w.build, service), func(l lineage) bool {
 		if l.live == nil || before.plans[l.live.Spec.ID()] {
 			return false
 		}
@@ -200,7 +209,7 @@ func run(ctx context.Context, cfg liveservice.Config, buildWait, furnishWait tim
 	// Completion follows the live plan: a world interruption (a letter pause)
 	// invalidates the goal and the shell is adopted again from the game.
 	var final store.PlanState
-	if err := waitLineage(ctx, st, sh, buildWait, func(l lineage) bool {
+	if err := waitLineage(ctx, st, sh, w.wait(w.build, service), func(l lineage) bool {
 		if l.live == nil || !l.liveComplete() {
 			return false
 		}
@@ -235,7 +244,7 @@ func run(ctx context.Context, cfg liveservice.Config, buildWait, furnishWait tim
 	}
 	report["run1_goal_status_after_restart"] = string(old.Goal.Status)
 	// Furnishing: a bed completed inside the hut.
-	bedPlan, bedCells, err := waitBed(ctx, st, sh, furnishWait)
+	bedPlan, bedCells, err := waitBed(ctx, st, sh, w.wait(w.furnish, service))
 	report["run2_keepalive"] = service.Stop()
 	if err != nil {
 		return err
@@ -344,29 +353,33 @@ func shellLineage(ctx context.Context, st *store.Store, sh *shell) (lineage, err
 	return l, nil
 }
 
-func waitLineage(ctx context.Context, st *store.Store, sh *shell, wait time.Duration, done func(lineage) bool) error {
-	deadline := time.Now().Add(wait)
-	for {
+// waitLineage polls the shell lineage until done; the progress signature is
+// the live plan and its stage counts.
+func waitLineage(ctx context.Context, st *store.Store, sh *shell, w na.Wait, done func(lineage) bool) error {
+	var last lineage
+	err := na.WaitProgress(ctx, w, func(ctx context.Context) (string, bool, error) {
 		l, err := shellLineage(ctx, st, sh)
 		if err != nil {
-			return err
+			return "", false, err
 		}
+		last = l
 		if done(l) {
-			return nil
+			return "", true, nil
 		}
-		if time.Now().After(deadline) {
-			live := "none"
-			if l.live != nil {
-				live = fmt.Sprintf("%s %+v", l.live.Spec.ID(), stagesOf(ctx, st, l.live.Spec.ID()))
-			}
-			return fmt.Errorf("timed out: plans=%d ordered=%d live=%s", len(l.plans), len(l.ordered), live)
+		live := "none"
+		if l.live != nil {
+			live = fmt.Sprintf("%s %v", l.live.Spec.ID(), stagesOf(ctx, st, l.live.Spec.ID()))
 		}
-		select {
-		case <-ctx.Done():
-			return ctx.Err()
-		case <-time.After(2 * time.Second):
+		return na.Signature(len(l.plans), len(l.ordered), live), false, nil
+	})
+	if err != nil {
+		live := "none"
+		if last.live != nil {
+			live = fmt.Sprintf("%s %+v", last.live.Spec.ID(), stagesOf(ctx, st, last.live.Spec.ID()))
 		}
+		return fmt.Errorf("plans=%d ordered=%d live=%s: %w", len(last.plans), len(last.ordered), live, err)
 	}
+	return nil
 }
 
 func cellList(set map[domain.Cell]bool) []domain.Cell {
@@ -443,44 +456,45 @@ func isShellPlan(p store.PlanState) bool {
 }
 
 // waitShell polls the store until the shelter goal binds a shell plan and
-// reconstructs the footprint from its placements.
-func waitShell(ctx context.Context, st *store.Store, wait time.Duration) (*shell, error) {
-	deadline := time.Now().Add(wait)
-	for {
+// reconstructs the footprint from its placements. The progress signature is
+// the shelter goal's binding and how many methods it has tried.
+func waitShell(ctx context.Context, st *store.Store, w na.Wait) (*shell, error) {
+	var found *shell
+	err := na.WaitProgress(ctx, w, func(ctx context.Context) (string, bool, error) {
 		review, err := st.LoadRoutineReview(ctx)
-		if err == nil {
-			for _, binding := range review.Goals {
-				if binding.Need != policy.EnsureInitialShelter {
+		if err != nil {
+			return na.Signature("no-review", err), false, nil
+		}
+		for _, binding := range review.Goals {
+			if binding.Need != policy.EnsureInitialShelter {
+				continue
+			}
+			goal, err := st.LoadGoal(ctx, binding.Goal)
+			if err != nil && !errors.Is(err, store.ErrNotFound) {
+				return "", false, err
+			}
+			for _, m := range goal.Methods {
+				plan, err := st.LoadPlan(ctx, m.Plan)
+				if err != nil || plan.Retired || !isShellPlan(plan) {
 					continue
 				}
-				goal, err := st.LoadGoal(ctx, binding.Goal)
-				if err != nil && !errors.Is(err, store.ErrNotFound) {
-					return nil, err
+				sh, err := classify(plan)
+				if err != nil {
+					return "", false, err
 				}
-				for _, m := range goal.Methods {
-					plan, err := st.LoadPlan(ctx, m.Plan)
-					if err != nil || plan.Retired || !isShellPlan(plan) {
-						continue
-					}
-					sh, err := classify(plan)
-					if err != nil {
-						return nil, err
-					}
-					sh.planID, sh.goalID = m.Plan, binding.Goal
-					sh.seen = map[domain.PlanID]bool{m.Plan: true}
-					return sh, nil
-				}
+				sh.planID, sh.goalID = m.Plan, binding.Goal
+				sh.seen = map[domain.PlanID]bool{m.Plan: true}
+				found = sh
+				return "", true, nil
 			}
+			return na.Signature(binding.Goal, len(goal.Methods)), false, nil
 		}
-		if time.Now().After(deadline) {
-			return nil, errors.New("no shell plan admitted for EnsureInitialShelter in time")
-		}
-		select {
-		case <-ctx.Done():
-			return nil, ctx.Err()
-		case <-time.After(2 * time.Second):
-		}
+		return na.Signature("unbound", len(review.Goals)), false, nil
+	})
+	if err != nil {
+		return nil, fmt.Errorf("no shell plan admitted for EnsureInitialShelter: %w", err)
 	}
+	return found, nil
 }
 
 // classify recovers the interior as the cells the wall ring encloses and
@@ -635,18 +649,21 @@ func abs(v int32) int32 {
 // waitBed polls every plan for a completed sleeping placement inside the
 // hut: the initial-shelter routine furnishes with sleeping spots, later
 // comfort work with beds; native lists both as beds.
-func waitBed(ctx context.Context, st *store.Store, sh *shell, wait time.Duration) (domain.PlanID, []domain.Cell, error) {
+func waitBed(ctx context.Context, st *store.Store, sh *shell, w na.Wait) (domain.PlanID, []domain.Cell, error) {
 	inside := map[domain.Cell]bool{}
 	for _, c := range sh.footprint.Interior() {
 		inside[c] = true
 	}
-	deadline := time.Now().Add(wait)
 	var seen string
 	// Settled plans retire at the next review and leave the live catalog, so
 	// every sleeping plan listed, and every plan bound to a shelter goal, is
 	// remembered and reloaded by id.
 	known := map[domain.PlanID]bool{}
-	for {
+	var bedPlan domain.PlanID
+	var bedCells []domain.Cell
+	// The progress signature is the last sleeping placement's stage plus how
+	// many sleeping plans are known.
+	err := na.WaitProgress(ctx, w, func(ctx context.Context) (string, bool, error) {
 		if plans, err := st.LoadPlans(ctx, 256); err == nil {
 			for _, plan := range plans {
 				if strings.HasPrefix(string(plan.Spec.ID()), "routine-sleep-") {
@@ -691,18 +708,16 @@ func waitBed(ctx context.Context, st *store.Store, sh *shell, wait time.Duration
 				cells = append(cells, b.Cell())
 			}
 			if complete {
-				return plan.Spec.ID(), cells, nil
+				bedPlan, bedCells = plan.Spec.ID(), cells
+				return "", true, nil
 			}
 		}
-		if time.Now().After(deadline) {
-			return "", nil, fmt.Errorf("no completed sleeping plan inside the hut in time (last seen: %s)", seen)
-		}
-		select {
-		case <-ctx.Done():
-			return "", nil, ctx.Err()
-		case <-time.After(3 * time.Second):
-		}
+		return na.Signature(len(known), seen), false, nil
+	})
+	if err != nil {
+		return "", nil, fmt.Errorf("no completed sleeping plan inside the hut (last seen: %s): %w", seen, err)
 	}
+	return bedPlan, bedCells, nil
 }
 
 func verifyNative(ctx context.Context, h *na.Harness, p *liveservice.Prepared, sh *shell, bedCells []domain.Cell, report na.Report) error {

@@ -19,7 +19,6 @@ import (
 	k "github.com/davidarcher/RimGovernor/go/internal/wire/clockpb"
 	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
 	l "github.com/davidarcher/RimGovernor/go/internal/wire/lifecyclepb"
-	"golang.org/x/sync/errgroup"
 	"google.golang.org/protobuf/proto"
 )
 
@@ -36,6 +35,10 @@ type ClockSchedulerConfig struct {
 	Profile                                       string
 	Start                                         bridge.ClockStart
 	MaxAge                                        time.Duration
+	// CombatMaxTicks bounds each window admitted while the ActiveCombat goal
+	// holds an admitted plan and hostiles are alive; zero keeps Start.MaxTicks.
+	// Short windows let the raid be re-planned between them.
+	CombatMaxTicks uint32
 	// Routine is reviewed only after owned clock obligations have drained.
 	Routine                          *RoutineReviewer
 	FoodAcquisition, WoodAcquisition *RoutineAcquisitionPlanner
@@ -125,6 +128,13 @@ type ClockSchedulerResult struct {
 	MoodRelief                                    *RoutineMoodReliefResult
 	Naming                                        *RoutineNamingResult
 	Running, Reconciled, Cleaned                  bool
+	// Combat is set while a combat watch window was admitted or is running,
+	// so the worker keeps its short poll instead of backing off.
+	Combat bool
+	// PlannerFailures holds the errors of planners that failed this step, each
+	// wrapped with the planner's name. A failed planner does not abort the
+	// step: its peers still run and the clock window is still evaluated (#62).
+	PlannerFailures []error
 }
 type ClockScheduler struct {
 	player              *Player
@@ -297,6 +307,9 @@ func NewClockScheduler(player *Player, session *Session, native ClockWindowNativ
 	if p.GetMode() != k.WatchMode_WATCH_MODE_COLONY || len(p.AcknowledgedHostileIds)+len(p.AcknowledgedDownedColonistIds)+len(p.AcknowledgedInjuredColonistIds)+len(p.SurgicalRecoveryIds)+len(p.MedicalRestIds) != 0 || p.GetInjuryStopCooldownMs() != 0 {
 		return nil, ErrControl
 	}
+	if config.CombatMaxTicks > config.Start.MaxTicks {
+		return nil, ErrControl
+	}
 	// Validate command arguments through the canonical bridge validator; these
 	// fixed validation identities carry no runtime permission.
 	err := bridge.ValidateClockExpectation(bridge.ClockExpectation{Identity: &c.Identity{ColonyId: proto.String("validation"), LoadToken: proto.String("validation"), MapId: proto.Int32(0)}, Attempt: &c.AttemptKey{ControllerSessionId: proto.String("validation"), ActionId: proto.String("validation"), AttemptId: proto.Uint64(1)}, NativeGeneration: 1, Command: bridge.ClockCommand{Start: &config.Start}})
@@ -345,6 +358,27 @@ func (s *ClockScheduler) Step(ctx context.Context) (ClockSchedulerResult, error)
 		return out, err
 	}
 	defer done()
+	// Every native observation this step issues -- the identity and status
+	// reads below, the routine census and each planner's own reads -- goes
+	// through one cache that lives exactly as long as the step, so the
+	// facts the planners share are read from native once per tick. A write
+	// within the step discards it; see bridge.StepReadCache.
+	cache := bridge.NewStepReadCache()
+	call = bridge.WithStepReadCache(call, cache)
+	// The round trips that still cross the bridge (cache misses, the
+	// uncacheable reads, writes) are tallied by tool so the cost of the
+	// composition is visible per step: on stderr under
+	// RIMGOVERNOR_CLOCK_DEBUG=1 beside the cache's hit/miss counts, and as a
+	// clock_step row in the flight recorder, which `rimgovernor phases`
+	// reports as reads/step.
+	call, reads := bridge.WithReadTally(call)
+	stepBegan := time.Now()
+	defer func() {
+		elapsed := time.Since(stepBegan)
+		stats := cache.Stats()
+		clockSchedulerLog("step reads: %s cache hits=%d misses=%d coalesced=%d invalidations=%d running=%v elapsed=%s", reads, stats.Hits, stats.Misses, stats.Coalesced, stats.Invalidations, out.Running, elapsed.Round(time.Millisecond))
+		reads.Publish(call, map[string]any{"cache_hits": stats.Hits, "running": out.Running, "elapsed_ms": float64(elapsed) / float64(time.Millisecond)})
+	}()
 	attempts, err := s.player.journal.LoadClockAttempts(call, 4096)
 	if err != nil {
 		return out, err
@@ -436,6 +470,7 @@ func (s *ClockScheduler) Step(ctx context.Context) (ClockSchedulerResult, error)
 				for _, attempt := range attempts {
 					if attempt.Intent.RequestID == owned.StartRequestID && attempt.Intent.Snapshot == state.Snapshot {
 						ownedCurrent = true
+						out.Combat = attempt.Intent.Command.Start != nil && attempt.Intent.Command.Start.Policy.GetMode() == k.WatchMode_WATCH_MODE_COMBAT
 					}
 				}
 			}
@@ -445,6 +480,7 @@ func (s *ClockScheduler) Step(ctx context.Context) (ClockSchedulerResult, error)
 			return out, s.session.CleanupClock(call)
 		}
 		if !state.Enabled || !ownedCurrent {
+			out.Combat = false
 			return out, executor.ErrHeld
 		}
 		out.Running = true
@@ -464,12 +500,13 @@ func (s *ClockScheduler) Step(ctx context.Context) (ClockSchedulerResult, error)
 	}
 	clockSchedulerLog("reached stepPlanners")
 	arbiter := newStepArbiter()
-	g, gctx := errgroup.WithContext(call)
-	if err = s.stepPlanners(call, gctx, epoch, &out, g, arbiter); err != nil {
+	g := newPlannerGroup(call, plannerWidth)
+	gctx := call
+	if err = s.stepPlanners(call, epoch, &out, g, arbiter); err != nil {
 		return out, err
 	}
 	if s.config.SecureSupplies != nil {
-		g.Go(func() error {
+		g.Go(plannerFoothold, func() error {
 			method, err := s.config.SecureSupplies.step(gctx, epoch, arbiter)
 			if err != nil {
 				return fmt.Errorf("secureSupplies: %w", err)
@@ -479,7 +516,7 @@ func (s *ClockScheduler) Step(ctx context.Context) (ClockSchedulerResult, error)
 		})
 	}
 	if s.config.Repair != nil {
-		g.Go(func() error {
+		g.Go(plannerMaintenance, func() error {
 			method, err := s.config.Repair.step(gctx, epoch, arbiter)
 			if err != nil {
 				return fmt.Errorf("repair: %w", err)
@@ -489,7 +526,7 @@ func (s *ClockScheduler) Step(ctx context.Context) (ClockSchedulerResult, error)
 		})
 	}
 	if s.config.Clean != nil {
-		g.Go(func() error {
+		g.Go(plannerMaintenance, func() error {
 			method, err := s.config.Clean.step(gctx, epoch, arbiter)
 			if err != nil {
 				return fmt.Errorf("clean: %w", err)
@@ -499,7 +536,7 @@ func (s *ClockScheduler) Step(ctx context.Context) (ClockSchedulerResult, error)
 		})
 	}
 	if s.config.Waste != nil {
-		g.Go(func() error {
+		g.Go(plannerMaintenance, func() error {
 			method, err := s.config.Waste.step(gctx, epoch, arbiter)
 			if err != nil {
 				return fmt.Errorf("waste: %w", err)
@@ -509,7 +546,7 @@ func (s *ClockScheduler) Step(ctx context.Context) (ClockSchedulerResult, error)
 		})
 	}
 	if s.config.MoodRelief != nil {
-		g.Go(func() error {
+		g.Go(plannerMaintenance, func() error {
 			method, err := s.config.MoodRelief.step(gctx, epoch, arbiter)
 			if err != nil {
 				return fmt.Errorf("moodRelief: %w", err)
@@ -519,7 +556,7 @@ func (s *ClockScheduler) Step(ctx context.Context) (ClockSchedulerResult, error)
 		})
 	}
 	if s.config.Haul != nil {
-		g.Go(func() error {
+		g.Go(plannerMaintenance, func() error {
 			method, err := s.config.Haul.step(gctx, epoch, arbiter)
 			if err != nil {
 				return fmt.Errorf("haul: %w", err)
@@ -530,7 +567,7 @@ func (s *ClockScheduler) Step(ctx context.Context) (ClockSchedulerResult, error)
 		})
 	}
 	if s.config.Gear != nil {
-		g.Go(func() error {
+		g.Go(plannerMaintenance, func() error {
 			method, err := s.config.Gear.step(gctx, epoch, arbiter)
 			if err != nil {
 				return fmt.Errorf("gear: %w", err)
@@ -540,7 +577,7 @@ func (s *ClockScheduler) Step(ctx context.Context) (ClockSchedulerResult, error)
 		})
 	}
 	if s.config.Medical != nil {
-		g.Go(func() error {
+		g.Go(plannerCritical, func() error {
 			method, err := s.config.Medical.step(gctx, epoch, arbiter)
 			if err != nil {
 				return fmt.Errorf("medical: %w", err)
@@ -550,7 +587,7 @@ func (s *ClockScheduler) Step(ctx context.Context) (ClockSchedulerResult, error)
 		})
 	}
 	if s.config.FoodStorageUpkeep != nil {
-		g.Go(func() error {
+		g.Go(plannerFoothold, func() error {
 			method, err := s.config.FoodStorageUpkeep.step(gctx, epoch, arbiter)
 			if err != nil {
 				return fmt.Errorf("foodStorageUpkeep: %w", err)
@@ -560,7 +597,7 @@ func (s *ClockScheduler) Step(ctx context.Context) (ClockSchedulerResult, error)
 		})
 	}
 	if s.config.AnimalContainment != nil {
-		g.Go(func() error {
+		g.Go(plannerMaintenance, func() error {
 			method, err := s.config.AnimalContainment.step(gctx, epoch, arbiter)
 			if err != nil {
 				return fmt.Errorf("animalContainment: %w", err)
@@ -570,7 +607,7 @@ func (s *ClockScheduler) Step(ctx context.Context) (ClockSchedulerResult, error)
 		})
 	}
 	if s.config.Recovery != nil {
-		g.Go(func() error {
+		g.Go(plannerCritical, func() error {
 			method, err := s.config.Recovery.step(gctx, epoch, arbiter)
 			if err != nil {
 				return fmt.Errorf("recovery: %w", err)
@@ -580,7 +617,7 @@ func (s *ClockScheduler) Step(ctx context.Context) (ClockSchedulerResult, error)
 		})
 	}
 	if s.config.Husbandry != nil {
-		g.Go(func() error {
+		g.Go(plannerMaintenance, func() error {
 			method, err := s.config.Husbandry.step(gctx, epoch, arbiter)
 			if err != nil {
 				return fmt.Errorf("husbandry: %w", err)
@@ -590,7 +627,7 @@ func (s *ClockScheduler) Step(ctx context.Context) (ClockSchedulerResult, error)
 		})
 	}
 	if s.config.PrisonerInteraction != nil {
-		g.Go(func() error {
+		g.Go(plannerMaintenance, func() error {
 			method, err := s.config.PrisonerInteraction.step(gctx, epoch, arbiter)
 			if err != nil {
 				return fmt.Errorf("prisonerInteraction: %w", err)
@@ -600,7 +637,7 @@ func (s *ClockScheduler) Step(ctx context.Context) (ClockSchedulerResult, error)
 		})
 	}
 	if s.config.PopulationCustody != nil {
-		g.Go(func() error {
+		g.Go(plannerFoothold, func() error {
 			method, err := s.config.PopulationCustody.step(gctx, epoch, arbiter)
 			if err != nil {
 				return fmt.Errorf("populationCustody: %w", err)
@@ -610,7 +647,7 @@ func (s *ClockScheduler) Step(ctx context.Context) (ClockSchedulerResult, error)
 		})
 	}
 	if s.config.Research != nil {
-		g.Go(func() error {
+		g.Go(plannerMaintenance, func() error {
 			method, err := s.config.Research.step(gctx, epoch, arbiter)
 			if err != nil {
 				return fmt.Errorf("research: %w", err)
@@ -620,7 +657,7 @@ func (s *ClockScheduler) Step(ctx context.Context) (ClockSchedulerResult, error)
 		})
 	}
 	if s.config.Naming != nil {
-		g.Go(func() error {
+		g.Go(plannerPreempt, func() error {
 			method, err := s.config.Naming.step(gctx, epoch, arbiter)
 			if err != nil {
 				return fmt.Errorf("naming: %w", err)
@@ -630,7 +667,7 @@ func (s *ClockScheduler) Step(ctx context.Context) (ClockSchedulerResult, error)
 		})
 	}
 	if s.config.Resource != nil {
-		g.Go(func() error {
+		g.Go(plannerMaintenance, func() error {
 			method, err := s.config.Resource.step(gctx, epoch, arbiter)
 			if err != nil {
 				return fmt.Errorf("resource: %w", err)
@@ -640,7 +677,7 @@ func (s *ClockScheduler) Step(ctx context.Context) (ClockSchedulerResult, error)
 		})
 	}
 	if s.config.AnimalFeed != nil {
-		g.Go(func() error {
+		g.Go(plannerMaintenance, func() error {
 			method, err := s.config.AnimalFeed.step(gctx, epoch, arbiter)
 			if err != nil {
 				return fmt.Errorf("animalFeed: %w", err)
@@ -650,7 +687,7 @@ func (s *ClockScheduler) Step(ctx context.Context) (ClockSchedulerResult, error)
 		})
 	}
 	if s.config.ProductionPolicy != nil {
-		g.Go(func() error {
+		g.Go(plannerMaintenance, func() error {
 			method, err := s.config.ProductionPolicy.step(gctx, epoch, arbiter)
 			if err != nil {
 				return fmt.Errorf("productionPolicy: %w", err)
@@ -660,7 +697,7 @@ func (s *ClockScheduler) Step(ctx context.Context) (ClockSchedulerResult, error)
 		})
 	}
 	if s.config.CaravanJourney != nil {
-		g.Go(func() error {
+		g.Go(plannerMaintenance, func() error {
 			method, err := s.config.CaravanJourney.step(gctx, epoch, arbiter)
 			if err != nil {
 				return fmt.Errorf("caravanJourney: %w", err)
@@ -670,7 +707,7 @@ func (s *ClockScheduler) Step(ctx context.Context) (ClockSchedulerResult, error)
 		})
 	}
 	if s.config.HomeCoverage != nil {
-		g.Go(func() error {
+		g.Go(plannerComfort, func() error {
 			method, err := s.config.HomeCoverage.step(gctx, epoch, arbiter)
 			if err != nil {
 				return fmt.Errorf("homeCoverage: %w", err)
@@ -680,7 +717,7 @@ func (s *ClockScheduler) Step(ctx context.Context) (ClockSchedulerResult, error)
 		})
 	}
 	if s.config.StoneShell != nil {
-		g.Go(func() error {
+		g.Go(plannerComfort, func() error {
 			method, err := s.config.StoneShell.step(gctx, epoch, arbiter)
 			if err != nil {
 				return fmt.Errorf("stoneShell: %w", err)
@@ -690,7 +727,7 @@ func (s *ClockScheduler) Step(ctx context.Context) (ClockSchedulerResult, error)
 		})
 	}
 	if s.config.DefenseLayout != nil {
-		g.Go(func() error {
+		g.Go(plannerMaintenance, func() error {
 			method, err := s.config.DefenseLayout.step(gctx, epoch)
 			if err != nil {
 				return fmt.Errorf("defenseLayout: %w", err)
@@ -702,6 +739,13 @@ func (s *ClockScheduler) Step(ctx context.Context) (ClockSchedulerResult, error)
 	}
 	if err = g.Wait(); err != nil {
 		return out, err
+	}
+	// A failed planner is reported, not fatal: the step still evaluates the
+	// clock window on what the other planners committed, and the failed
+	// planner retries next step (#62).
+	out.PlannerFailures = g.Failures()
+	for _, failure := range out.PlannerFailures {
+		clockSchedulerLog("planner failed (isolated): %v", failure)
 	}
 	emergency, _, err := s.native.ReadEmergency(call, loaded.Context.Identity)
 	if err != nil {
@@ -748,6 +792,10 @@ func (s *ClockScheduler) Step(ctx context.Context) (ClockSchedulerResult, error)
 			fingerprint = append(fingerprint, items...)
 		}
 	}
+	combatPlan, err := clockSchedulerCombatPlan(call, s.player.journal, state.Snapshot)
+	if err != nil {
+		return out, err
+	}
 	clockState := policy.ClockWindowState("")
 	start := s.config.Start
 	var nativeWorkTicks uint32
@@ -769,21 +817,34 @@ func (s *ClockScheduler) Step(ctx context.Context) (ClockSchedulerResult, error)
 	if status.GetStopped() != nil {
 		clockState = policy.ClockStopped
 	}
-	facts := policy.ClockWindowFacts{Current: state.Snapshot, Tick: domain.Tick(status.Context.GetTick()), StartedAt: started, ObservedAt: s.clock.Now(), Emergency: emergencyFacts, Review: policy.ClockWindowReview{Revision: review.Revision, Captured: review.InboxCursor, Reviewed: review.ReviewedCursor, Acknowledged: review.AcknowledgedCursor, HasHolds: domain.Known(len(review.Holds) > 0)}, Status: policy.ClockWindowStatus{Snapshot: state.Snapshot, Tick: domain.Tick(status.Context.GetTick()), State: clockState, ActualPaused: boundary.FactBool(status.ActualPaused), NativeTickBoundary: boundary.FactBool(status.NativeTickBoundary), DurableEvents: boundary.FactBool(status.DurableEvents)}, Obligations: policy.ClockWindowObligations{Complete: domain.Known(true), OwnedEpochPending: domain.Known(false), UnknownStartPending: domain.Known(false)}, WorkRemaining: domain.Known(work)}
+	facts := policy.ClockWindowFacts{Current: state.Snapshot, Tick: domain.Tick(status.Context.GetTick()), StartedAt: started, ObservedAt: s.clock.Now(), Emergency: emergencyFacts, Review: policy.ClockWindowReview{Revision: review.Revision, Captured: review.InboxCursor, Reviewed: review.ReviewedCursor, Acknowledged: review.AcknowledgedCursor, HasHolds: domain.Known(len(review.Holds) > 0)}, Status: policy.ClockWindowStatus{Snapshot: state.Snapshot, Tick: domain.Tick(status.Context.GetTick()), State: clockState, ActualPaused: boundary.FactBool(status.ActualPaused), NativeTickBoundary: boundary.FactBool(status.NativeTickBoundary), DurableEvents: boundary.FactBool(status.DurableEvents)}, Obligations: policy.ClockWindowObligations{Complete: domain.Known(true), OwnedEpochPending: domain.Known(false), UnknownStartPending: domain.Known(false)}, WorkRemaining: domain.Known(work), CombatPlan: domain.Known(combatPlan)}
 	if status.NewestCursor != nil {
 		facts.Status.NewestCursor = domain.Known(status.GetNewestCursor())
 	}
-	out.Decision = policy.EvaluateClockWindow(facts, policy.ClockWindowLimits{Now: s.clock.Now(), MaxAge: s.config.MaxAge, MaxTicks: start.MaxTicks})
-	clockSchedulerLog("EvaluateClockWindow: work=%v admitted=%v refused=%v", work, out.Decision.Admitted, out.Decision.Refused)
+	combatMaxTicks := min(s.config.CombatMaxTicks, start.MaxTicks)
+	out.Decision = policy.EvaluateClockWindow(facts, policy.ClockWindowLimits{Now: s.clock.Now(), MaxAge: s.config.MaxAge, MaxTicks: start.MaxTicks, CombatMaxTicks: combatMaxTicks})
+	clockSchedulerLog("EvaluateClockWindow: work=%v combatPlan=%v admitted=%v mode=%s hostiles=%v refused=%v", work, combatPlan, out.Decision.Admitted, out.Decision.Mode, out.Decision.Hostiles, out.Decision.Refused)
 	if !out.Decision.Admitted {
 		return out, executor.ErrHeld
+	}
+	start.Policy = proto.Clone(start.Policy).(*k.WatchPolicy)
+	if out.Decision.Mode == policy.ClockWindowCombat {
+		// The native watcher stops on any unacknowledged hostile within
+		// HostileWithin; a combat window acknowledges exactly the live
+		// hostiles the policy admitted and runs under the combat budget.
+		out.Combat = true
+		start.Policy.Mode = k.WatchMode_WATCH_MODE_COMBAT.Enum()
+		start.Policy.AcknowledgedHostileIds = make([]string, 0, len(out.Decision.Hostiles))
+		for _, id := range out.Decision.Hostiles {
+			start.Policy.AcknowledgedHostileIds = append(start.Policy.AcknowledgedHostileIds, string(id))
+		}
+		start.MaxTicks = out.Decision.MaxTicks
 	}
 	admission := &store.ClockWindowAdmission{Profile: s.config.Profile, Snapshot: state.Snapshot, Tick: facts.Tick, ReviewRevision: review.Revision, CapturedCursor: review.InboxCursor, MaxTicks: start.MaxTicks}
 	key, err := clockSchedulerKey(admission, fingerprint, start)
 	if err != nil {
 		return out, err
 	}
-	start.Policy = proto.Clone(start.Policy).(*k.WatchPolicy)
 	intent := store.ClockIntent{Key: key, Snapshot: state.Snapshot, Command: bridge.ClockCommand{Start: &start}, Window: admission}
 	// The store returns sequence order. Retain the latest exact logical window,
 	// including terminal refusals, rather than allocating another native attempt.
@@ -814,7 +875,7 @@ func (s *ClockScheduler) Step(ctx context.Context) (ClockSchedulerResult, error)
 	if current := s.session.State(); !current.Enabled || !current.ObservationKnown || current.Snapshot != state.Snapshot {
 		return out, executor.ErrAuthority
 	}
-	attempt, err := s.session.CommandClockWindow(call, ClockWindowRequest{Intent: intent, Facts: facts, MaxAge: s.config.MaxAge})
+	attempt, err := s.session.CommandClockWindow(call, ClockWindowRequest{Intent: intent, Facts: facts, MaxAge: s.config.MaxAge, CombatMaxTicks: combatMaxTicks})
 	out.Attempt = &attempt
 	if errors.Is(err, store.ErrConflict) {
 		return out, errors.Join(executor.ErrHeld, err)
@@ -832,8 +893,10 @@ func (s *ClockScheduler) Step(ctx context.Context) (ClockSchedulerResult, error)
 // planner left nil in config is simply skipped, matching how Step selected
 // planners inline before this was extracted. Routine's own error (or a
 // mental-risk refusal from the reviewer) aborts before anything is queued;
-// an error from a queued planner surfaces later, from g.Wait().
-func (s *ClockScheduler) stepPlanners(call, gctx, epoch context.Context, out *ClockSchedulerResult, g *errgroup.Group, arbiter *stepArbiter) error {
+// an error from a queued planner is isolated by g and surfaces later, from
+// g.Failures(), without stopping the step.
+func (s *ClockScheduler) stepPlanners(call, epoch context.Context, out *ClockSchedulerResult, g *plannerGroup, arbiter *stepArbiter) error {
+	gctx := call
 	if s.config.Routine != nil {
 		review, err := s.config.Routine.step(call, epoch, arbiter)
 		if err != nil {
@@ -849,7 +912,7 @@ func (s *ClockScheduler) stepPlanners(call, gctx, epoch context.Context, out *Cl
 		}
 	}
 	if s.config.Work != nil {
-		g.Go(func() error {
+		g.Go(plannerFoothold, func() error {
 			method, err := s.config.Work.step(gctx, epoch, arbiter)
 			if err != nil {
 				return fmt.Errorf("work: %w", err)
@@ -859,7 +922,7 @@ func (s *ClockScheduler) stepPlanners(call, gctx, epoch context.Context, out *Cl
 		})
 	}
 	if s.config.Fields != nil {
-		g.Go(func() error {
+		g.Go(plannerFoothold, func() error {
 			started := time.Now()
 			method, err := s.config.Fields.step(gctx, epoch, arbiter)
 			if err != nil {
@@ -872,7 +935,7 @@ func (s *ClockScheduler) stepPlanners(call, gctx, epoch context.Context, out *Cl
 		})
 	}
 	if s.config.FoodStorage != nil {
-		g.Go(func() error {
+		g.Go(plannerFoothold, func() error {
 			method, err := s.config.FoodStorage.step(gctx, epoch, arbiter)
 			if err != nil {
 				return fmt.Errorf("foodStorage: %w", err)
@@ -882,7 +945,7 @@ func (s *ClockScheduler) stepPlanners(call, gctx, epoch context.Context, out *Cl
 		})
 	}
 	if s.config.FoodAcquisition != nil {
-		g.Go(func() error {
+		g.Go(plannerFoothold, func() error {
 			method, err := s.config.FoodAcquisition.step(gctx, epoch, arbiter)
 			if err != nil {
 				return fmt.Errorf("foodAcquisition: %w", err)
@@ -892,7 +955,7 @@ func (s *ClockScheduler) stepPlanners(call, gctx, epoch context.Context, out *Cl
 		})
 	}
 	if s.config.WoodAcquisition != nil {
-		g.Go(func() error {
+		g.Go(plannerMaintenance, func() error {
 			method, err := s.config.WoodAcquisition.step(gctx, epoch, arbiter)
 			if err != nil {
 				return fmt.Errorf("woodAcquisition: %w", err)
@@ -902,7 +965,7 @@ func (s *ClockScheduler) stepPlanners(call, gctx, epoch context.Context, out *Cl
 		})
 	}
 	if s.config.Supplies != nil {
-		g.Go(func() error {
+		g.Go(plannerFoothold, func() error {
 			method, err := s.config.Supplies.step(gctx, epoch, arbiter)
 			if err != nil {
 				return fmt.Errorf("supplies: %w", err)
@@ -912,7 +975,7 @@ func (s *ClockScheduler) stepPlanners(call, gctx, epoch context.Context, out *Cl
 		})
 	}
 	if s.config.Sleeping != nil {
-		g.Go(func() error {
+		g.Go(plannerFoothold, func() error {
 			method, err := s.config.Sleeping.step(gctx, epoch, arbiter)
 			if err != nil {
 				return fmt.Errorf("sleeping: %w", err)
@@ -923,7 +986,7 @@ func (s *ClockScheduler) stepPlanners(call, gctx, epoch context.Context, out *Cl
 		})
 	}
 	if s.config.Power != nil {
-		g.Go(func() error {
+		g.Go(plannerFoothold, func() error {
 			method, err := s.config.Power.step(gctx, epoch, arbiter)
 			if err != nil {
 				return fmt.Errorf("power: %w", err)
@@ -934,7 +997,7 @@ func (s *ClockScheduler) stepPlanners(call, gctx, epoch context.Context, out *Cl
 		})
 	}
 	if s.config.Temperature != nil {
-		g.Go(func() error {
+		g.Go(plannerFoothold, func() error {
 			method, err := s.config.Temperature.step(gctx, epoch, arbiter)
 			if err != nil {
 				return fmt.Errorf("temperature: %w", err)
@@ -944,7 +1007,7 @@ func (s *ClockScheduler) stepPlanners(call, gctx, epoch context.Context, out *Cl
 		})
 	}
 	if s.config.Refrigeration != nil {
-		g.Go(func() error {
+		g.Go(plannerMaintenance, func() error {
 			method, err := s.config.Refrigeration.step(gctx, epoch, arbiter)
 			if err != nil {
 				return fmt.Errorf("refrigeration: %w", err)
@@ -955,7 +1018,7 @@ func (s *ClockScheduler) stepPlanners(call, gctx, epoch context.Context, out *Cl
 		})
 	}
 	if s.config.Lighting != nil {
-		g.Go(func() error {
+		g.Go(plannerMaintenance, func() error {
 			method, err := s.config.Lighting.step(gctx, epoch, arbiter)
 			if err != nil {
 				return fmt.Errorf("lighting: %w", err)
@@ -966,7 +1029,7 @@ func (s *ClockScheduler) stepPlanners(call, gctx, epoch context.Context, out *Cl
 		})
 	}
 	if s.config.Cooking != nil {
-		g.Go(func() error {
+		g.Go(plannerFoothold, func() error {
 			method, err := s.config.Cooking.step(gctx, epoch, arbiter)
 			if err != nil {
 				return fmt.Errorf("cooking: %w", err)
@@ -976,7 +1039,7 @@ func (s *ClockScheduler) stepPlanners(call, gctx, epoch context.Context, out *Cl
 		})
 	}
 	if s.config.Butcher != nil {
-		g.Go(func() error {
+		g.Go(plannerMaintenance, func() error {
 			method, err := s.config.Butcher.step(gctx, epoch, arbiter)
 			if err != nil {
 				return fmt.Errorf("butcher: %w", err)
@@ -992,7 +1055,11 @@ func (s *ClockScheduler) stepPlanners(call, gctx, epoch context.Context, out *Cl
 	}{{"cookingBills", s.config.CookingBills, &out.CookingBills}, {"preservationBills", s.config.PreservationBills, &out.PreservationBills}, {"butcherBills", s.config.ButcherBills, &out.ButcherBills}} {
 		if entry.planner != nil {
 			entry := entry
-			g.Go(func() error {
+			priority := plannerFoothold
+			if entry.name == "butcherBills" {
+				priority = plannerMaintenance
+			}
+			g.Go(priority, func() error {
 				method, err := entry.planner.step(gctx, epoch, arbiter)
 				if err != nil {
 					return fmt.Errorf("%s: %w", entry.name, err)
@@ -1003,7 +1070,7 @@ func (s *ClockScheduler) stepPlanners(call, gctx, epoch context.Context, out *Cl
 		}
 	}
 	if s.config.Comfort != nil {
-		g.Go(func() error {
+		g.Go(plannerComfort, func() error {
 			method, err := s.config.Comfort.step(gctx, epoch, arbiter)
 			if err != nil {
 				return fmt.Errorf("comfort: %w", err)
@@ -1013,7 +1080,7 @@ func (s *ClockScheduler) stepPlanners(call, gctx, epoch context.Context, out *Cl
 		})
 	}
 	if s.config.Expansion != nil {
-		g.Go(func() error {
+		g.Go(plannerComfort, func() error {
 			method, err := s.config.Expansion.step(gctx, epoch, arbiter)
 			if err != nil {
 				return fmt.Errorf("expansion: %w", err)
@@ -1023,7 +1090,7 @@ func (s *ClockScheduler) stepPlanners(call, gctx, epoch context.Context, out *Cl
 		})
 	}
 	if s.config.Defense != nil {
-		g.Go(func() error {
+		g.Go(plannerPreempt, func() error {
 			method, err := s.config.Defense.step(gctx, epoch, arbiter)
 			if err != nil {
 				return fmt.Errorf("defense: %w", err)
@@ -1033,7 +1100,7 @@ func (s *ClockScheduler) stepPlanners(call, gctx, epoch context.Context, out *Cl
 		})
 	}
 	if s.config.Tend != nil {
-		g.Go(func() error {
+		g.Go(plannerCritical, func() error {
 			method, err := s.config.Tend.step(gctx, epoch, arbiter)
 			if err != nil {
 				return fmt.Errorf("tend: %w", err)
@@ -1043,7 +1110,7 @@ func (s *ClockScheduler) stepPlanners(call, gctx, epoch context.Context, out *Cl
 		})
 	}
 	if s.config.Rescue != nil {
-		g.Go(func() error {
+		g.Go(plannerCritical, func() error {
 			method, err := s.config.Rescue.step(gctx, epoch, arbiter)
 			if err != nil {
 				return fmt.Errorf("rescue: %w", err)
@@ -1053,7 +1120,7 @@ func (s *ClockScheduler) stepPlanners(call, gctx, epoch context.Context, out *Cl
 		})
 	}
 	if s.config.Equip != nil {
-		g.Go(func() error {
+		g.Go(plannerMaintenance, func() error {
 			method, err := s.config.Equip.step(gctx, epoch, arbiter)
 			if err != nil {
 				return fmt.Errorf("equip: %w", err)
@@ -1098,7 +1165,7 @@ func clockSchedulerWork(plan store.PlanState, current domain.GenerationSnapshot)
 			case domain.AcquisitionAction, domain.ProductionBillAction, domain.OwnedDraftAction,
 				domain.MeleeAttackAction, domain.RangedAttackAction, domain.TendAction, domain.RescueAction, domain.CaptureAction,
 				domain.HaulAction, domain.EquipAction, domain.GearReplaceAction, domain.RecoveryServiceAction,
-				domain.HusbandryAction, domain.PrisonerInteractionAction,
+				domain.MovementAction, domain.HusbandryAction, domain.PrisonerInteractionAction,
 				domain.RepairAction, domain.CleanAction, domain.WasteAction, domain.MineAcquisitionAction, domain.ProductionPolicyAction, domain.MoodReliefAction, domain.ExcavationAction:
 			default:
 				return false, nil, executor.ErrHeld
@@ -1107,6 +1174,45 @@ func clockSchedulerWork(plan store.PlanState, current domain.GenerationSnapshot)
 		work = true
 	}
 	return work, items, nil
+}
+
+// clockSchedulerCombatPlan reports whether the current routine review binds an
+// active ActiveCombat goal whose admitted plan still has open work: the only
+// evidence under which live hostiles are watched rather than refused.
+func clockSchedulerCombatPlan(ctx context.Context, journal *store.Store, current domain.GenerationSnapshot) (bool, error) {
+	review, err := journal.LoadRoutineReview(ctx)
+	if err != nil {
+		return false, err
+	}
+	if !review.Enabled || review.Snapshot != current {
+		return false, nil
+	}
+	for _, binding := range review.Goals {
+		if binding.Need != policy.ActiveCombat {
+			continue
+		}
+		goal, err := journal.LoadGoal(ctx, binding.Goal)
+		if errors.Is(err, store.ErrNotFound) {
+			return false, nil
+		}
+		if err != nil {
+			return false, err
+		}
+		if goal.Retired || goal.Goal.Status != domain.GoalActive || goal.Goal.Need != domain.NeedDeficit {
+			return false, nil
+		}
+		for _, method := range goal.Methods {
+			plan, err := journal.LoadPlan(ctx, method.Plan)
+			if err != nil {
+				return false, err
+			}
+			if domain.GoalWorkOpen(plan.Progress) {
+				return true, nil
+			}
+		}
+		return false, nil
+	}
+	return false, nil
 }
 func clockSchedulerKey(admission *store.ClockWindowAdmission, work []clockWorkItem, start bridge.ClockStart) (string, error) {
 	policyBytes, err := (proto.MarshalOptions{Deterministic: true}).Marshal(start.Policy)

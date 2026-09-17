@@ -14,11 +14,11 @@ import (
 // native side): a resource target enforced only while drilling, independent
 // of the persistent Floors/Stopped rows.
 type ProductionDrill struct {
-	DefName, Resource   string
-	X, Z                int32
-	StockTarget         int64
-	Recovered           int64
-	Missing             bool
+	DefName, Resource string
+	X, Z              int32
+	StockTarget       int64
+	Recovered         int64
+	Missing           bool
 }
 
 // ProductionPolicyRead is the map-scoped ProductionPolicyState

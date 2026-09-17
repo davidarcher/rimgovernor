@@ -26,9 +26,9 @@ namespace HomeBridge.BridgeTools
                 return ProtoBoundary.Encode(new Obs.ProductionPolicyReply { Failure = failure });
             if (parsed.Scope?.ExpectedIdentity == null)
                 return ProtoBoundary.Encode(new Obs.ProductionPolicyReply { Failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Expected identity is required.") });
-            return await ctx.MainThread.InvokeAsync<object>(() =>
+            return await ProtoBoundary.OnMainThread(ctx, () =>
             {
-                var map = Find.CurrentMap;
+                var map = ProtoBoundary.ResolveMap(parsed.Scope.ExpectedIdentity);
                 if (!ProtoBoundary.ValidateIdentity(parsed.Scope.ExpectedIdentity, map, out var context, out var invalid))
                     return ProtoBoundary.Encode(new Obs.ProductionPolicyReply { Failure = invalid });
                 try

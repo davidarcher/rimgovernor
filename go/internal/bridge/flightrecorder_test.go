@@ -63,7 +63,8 @@ func TestTruncatedReceiptKeepsRequestCorrelation(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Event: %v", err)
 	}
-	if _, err = r.Event("native_response", nil, false, map[string]any{"request": request, "result": map[string]any{"value": strings.Repeat("x", 2000)}}); err != nil {
+	timing := map[string]any{"gate_wait_ms": 0.5, "call_ms": 12.0, "decode_ms": 0.25, "total_ms": 13.0, "response_bytes": 2048}
+	if _, err = r.Event("native_response", nil, false, map[string]any{"request": request, "native_tool": "rimgovernor/x", "timing": timing, "result": map[string]any{"value": strings.Repeat("x", 2000)}}); err != nil {
 		t.Fatalf("Event: %v", err)
 	}
 	rows, err := ReadTimeline(path)
@@ -77,6 +78,12 @@ func TestTruncatedReceiptKeepsRequestCorrelation(t *testing.T) {
 	got, ok := last.Payload["request"].(float64)
 	if !ok || uint64(got) != request {
 		t.Fatalf("expected correlated request %d, got %+v", request, last.Payload["request"])
+	}
+	// Large receipts are exactly the calls whose phases matter, so the flat
+	// timing map and native tool survive truncation alongside the request id.
+	kept, _ := last.Payload["timing"].(map[string]any)
+	if last.Payload["native_tool"] != "rimgovernor/x" || kept["call_ms"] != 12.0 {
+		t.Fatalf("expected timing to survive truncation, got %+v", last.Payload)
 	}
 }
 
