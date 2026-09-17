@@ -442,42 +442,11 @@ func run(ctx context.Context, root, output, gameID string, headless bool, rimgov
 		if stage == 0 && !restarted {
 			restarted = true
 			verifyStore.Close()
-			// A player-issued manual release precedes the restart: native
-			// authority is a live grant that only its holder can revoke, so
-			// the old process must hand it back before the new one can
-			// acquire it. The keep-alive pauses across the restart so it
-			// does not race the release.
+			// The kill is ungraceful: the old process never hands native
+			// authority back, and the relaunch must reclaim the stale Auto
+			// grant itself (#67). The keep-alive pauses across the restart so
+			// it does not resume against a half-attached service.
 			keepAlive.pause(true)
-			// A letter pause may have revoked automation at the same
-			// moment, which makes the hand-back uncertain; automation
-			// already off is the state the release was after.
-			var released map[string]any
-			for attempt := 1; ; attempt++ {
-				state, stateStatus, err := svc.api("GET", "/api/state", nil, "")
-				if err == nil && stateStatus == 200 && na.AsString(state["mode"]) != "automate" {
-					released = map[string]any{"already_manual": true, "state": state}
-					break
-				}
-				var status int
-				released, status, err = svc.api("POST", "/api/player/control/pause", map[string]any{
-					"requestId": fmt.Sprintf("excavation-release-before-restart-%d", attempt), "expected": identity,
-				}, svc.token())
-				if err != nil {
-					return fmt.Errorf("release before restart: %w", err)
-				}
-				if status == 200 {
-					break
-				}
-				if attempt >= 10 {
-					return fmt.Errorf("release before restart status=%d body=%#v", status, released)
-				}
-				select {
-				case <-ctx.Done():
-					return ctx.Err()
-				case <-time.After(3 * time.Second):
-				}
-			}
-			report["released_before_restart"] = released
 			svc.stop()
 			if err := svc.launch(); err != nil {
 				return fmt.Errorf("relaunch service: %w", err)

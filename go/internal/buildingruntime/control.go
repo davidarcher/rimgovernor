@@ -158,7 +158,7 @@ func (control *Control) Acquire(ctx context.Context, requested domain.Generation
 		// is what a killed controller leaves behind. This process owns the
 		// profile lock, so it is the only author: reclaim by revoking at the
 		// observed generation and acquiring fresh, rather than staying
-		// unresumable until a local player interrupts the game. Once this
+		// unresumable until a local player interrupts the game (#67). Once this
 		// process has targeted the world, an unexpected Active is its own
 		// uncertain grant, which only Manual reconciles.
 		active := status.GetStatus().GetActive()
