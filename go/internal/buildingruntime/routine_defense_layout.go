@@ -49,7 +49,15 @@ type RoutineDefenseLayoutResult struct {
 	Reason RoutineBuildingReason
 	Plan   domain.PlanID
 	Tier   policy.DefenseTierName
+	// NativeWorkTicks asks for a clock window without a plan of its own: a
+	// tier's missing building already has a blueprint or frame on its cell
+	// (a sprung trap's auto-rearm), so native construction restores it.
+	NativeWorkTicks uint32
 }
+
+// defenseNativeWorkTicks is the window admitted while a tier waits on a
+// blueprint the game placed itself.
+const defenseNativeWorkTicks = 2500
 
 func NewRoutineDefenseLayoutPlanner(reviewer *RoutineReviewer, native RoutineDefenseLayoutSource) (*RoutineDefenseLayoutPlanner, error) {
 	if reviewer == nil || native == nil {
@@ -176,7 +184,11 @@ func (r *RoutineDefenseLayoutPlanner) step(call, epoch context.Context) (Routine
 			return RoutineDefenseLayoutResult{}, err
 		}
 	}
-	if stored && record.Complete {
+	combat, err := defenseCombatKey(call, p, review)
+	if err != nil {
+		return RoutineDefenseLayoutResult{}, err
+	}
+	if stored && record.Complete && !defenseReverifyDue(record, review.Tick, combat) {
 		return RoutineDefenseLayoutResult{Reason: BuildingMethodNoDeficit}, nil
 	}
 	identity, _, err := r.reviewer.native.Identity(call)
@@ -214,42 +226,110 @@ func (r *RoutineDefenseLayoutPlanner) step(call, epoch context.Context) (Routine
 			return RoutineDefenseLayoutResult{}, err
 		}
 	}
-	// A tier counts as built only once every one of its buildings is
+	// A tier counts as built only while every one of its buildings is
 	// observed standing; a cancelled or unsuccessful attempt leaves it
-	// pending for retry. Settled plans retire out of goal.Methods, so the
-	// census, not the journal, is the source of truth.
+	// pending for retry, and a building lost after the tier was built (a
+	// breached wall, a sprung trap) re-opens it. Settled plans retire out
+	// of goal.Methods, so the census, not the journal, is the source of
+	// truth.
 	if err = r.observeTiers(call, state, read, &record); err != nil {
 		return RoutineDefenseLayoutResult{}, err
 	}
+	tick := read.Projection.Identity.Tick
 	for _, name := range defenseTierOrder {
 		tier, buildings, ok := record.Tier(name)
 		if !ok || len(buildings) == 0 || tier.Built {
 			continue
 		}
 		if tier.Attempts >= maxDefenseTierAttempts {
+			// Verified as far as it goes: the tier is retried after the
+			// next combat or game hour, not on every step.
+			record.VerifiedTick, record.VerifiedCombat = tick, combat
+			if err = p.journal.SaveDefenseLayout(call, record); err != nil {
+				return RoutineDefenseLayoutResult{}, err
+			}
 			return RoutineDefenseLayoutResult{Reason: BuildingMethodExhausted, Tier: name}, nil
 		}
 		return r.admit(call, epoch, goal, state, read, record, tier, buildings, defenseTierMethodID(name, tier.Attempts))
 	}
-	record.Complete = true
+	record.Complete, record.VerifiedTick, record.VerifiedCombat = true, tick, combat
 	if err = p.journal.SaveDefenseLayout(call, record); err != nil {
 		return RoutineDefenseLayoutResult{}, err
 	}
 	return RoutineDefenseLayoutResult{Reason: BuildingMethodNoDeficit}, nil
 }
 
-// observeTiers reads the layout's census once and marks every tier whose
-// buildings all stand as Built, saving the record when anything changed.
-func (r *RoutineDefenseLayoutPlanner) observeTiers(call context.Context, state ControlState, read observation.RoutineReading, record *store.DefenseLayoutRecord) error {
-	pending := false
-	for _, tier := range record.Tiers {
-		pending = pending || !tier.Built && len(tier.Buildings) > 0
+// defenseReverifyTicks is how much simulation a Complete record's census
+// stays trusted without a combat: nothing on the map changes while the
+// clock is held, so the interval counts game ticks, not steps.
+const defenseReverifyTicks = 2500
+
+// defenseReverifyDue reports whether a Complete record's tiers must be
+// re-observed: after a combat the record has not seen the end of, or once
+// the reverify interval of simulation has passed since the last census.
+func defenseReverifyDue(record store.DefenseLayoutRecord, tick domain.Tick, combat string) bool {
+	return combat != record.VerifiedCombat || tick-record.VerifiedTick >= defenseReverifyTicks
+}
+
+// defenseCombatKey identifies the ActiveCombat goal epoch the review binds
+// (goal/epoch): each raid that follows a recovery advances the epoch, so a
+// changed key marks a combat whose aftermath the layout has not verified.
+// Empty when the review binds no combat goal.
+func defenseCombatKey(ctx context.Context, p *Player, review store.RoutineReview) (string, error) {
+	for _, binding := range review.Goals {
+		if binding.Need != policy.ActiveCombat {
+			continue
+		}
+		goal, err := p.journal.LoadGoal(ctx, binding.Goal)
+		if errors.Is(err, store.ErrNotFound) {
+			return "", nil
+		}
+		if err != nil {
+			return "", err
+		}
+		return fmt.Sprintf("%s/%d", goal.Goal.ID, goal.Goal.Epoch), nil
 	}
-	if !pending {
+	return "", nil
+}
+
+// defenseTierCensus applies one census to the record: a tier whose
+// buildings all stand is Built; a Built tier that lost a building is
+// re-opened with a fresh retry budget. It reports whether anything changed.
+func defenseTierCensus(record *store.DefenseLayoutRecord, edifice map[domain.Cell]string) bool {
+	changed := false
+	for _, tier := range record.Tiers {
+		if len(tier.Buildings) == 0 {
+			continue
+		}
+		standing := true
+		for _, b := range tier.Buildings {
+			standing = standing && edifice[b.Cell] == b.Definition
+		}
+		if standing == tier.Built {
+			continue
+		}
+		tier.Built = standing
+		if !standing {
+			tier.Attempts = 0
+		}
+		record.SetTier(tier)
+		changed = true
+	}
+	return changed
+}
+
+// observeTiers reads the layout's census once and applies it to every
+// tier's Built state, saving the record when anything changed.
+func (r *RoutineDefenseLayoutPlanner) observeTiers(call context.Context, state ControlState, read observation.RoutineReading, record *store.DefenseLayoutRecord) error {
+	placed := false
+	for _, tier := range record.Tiers {
+		placed = placed || len(tier.Buildings) > 0
+	}
+	if !placed {
 		return nil
 	}
 	projection := read.Projection
-	site, _, err := r.native.ReadDefenseSite(call, boundary.Identity(state.Snapshot), defenseRegion(projection.Center, projection.Bounds))
+	site, _, err := r.native.ReadDefenseSite(call, boundary.Identity(state.Snapshot), defenseRecordRegion(*record, projection.Bounds))
 	if err != nil {
 		return err
 	}
@@ -262,22 +342,7 @@ func (r *RoutineDefenseLayoutPlanner) observeTiers(call context.Context, state C
 			edifice[cell.Cell] = cell.EdificeDefName
 		}
 	}
-	changed := false
-	for _, tier := range record.Tiers {
-		if tier.Built || len(tier.Buildings) == 0 {
-			continue
-		}
-		standing := true
-		for _, b := range tier.Buildings {
-			standing = standing && edifice[b.Cell] == b.Definition
-		}
-		if standing {
-			tier.Built = true
-			record.SetTier(tier)
-			changed = true
-		}
-	}
-	if !changed {
+	if !defenseTierCensus(record, edifice) {
 		return nil
 	}
 	return r.reviewer.player.journal.SaveDefenseLayout(call, *record)
@@ -378,6 +443,9 @@ func (r *RoutineDefenseLayoutPlanner) admit(call, epoch context.Context, goal st
 		preview, ok, err := r.preview(call, action, snapshot, projection.Identity.Tick, building.Cell())
 		if err != nil {
 			return RoutineDefenseLayoutResult{}, err
+		}
+		if !ok && preview.NativeWorkPending {
+			return RoutineDefenseLayoutResult{Reason: BuildingMethodUnknown, Tier: tier.Name, NativeWorkTicks: defenseNativeWorkTicks}, nil
 		}
 		if !ok {
 			return RoutineDefenseLayoutResult{Reason: BuildingMethodUnknown, Tier: tier.Name}, nil
@@ -491,7 +559,9 @@ func (r *RoutineDefenseLayoutPlanner) preview(ctx context.Context, action domain
 		return bridge.BuildingPreview{}, false, nil
 	}
 	if len(footprint) != 1 || footprint[0] != cell || !legal || !safe {
-		return bridge.BuildingPreview{}, false, nil
+		// The refused preview is returned so the caller can tell a cell
+		// already under native construction from one it cannot place on.
+		return preview, false, nil
 	}
 	return preview, true, nil
 }
@@ -510,6 +580,23 @@ func defenseRegion(center domain.Cell, bounds policy.Bounds) bridge.CellRect {
 	}
 	return bridge.CellRect{Min: domain.Cell{X: clamp(center.X-defenseSiteHalfExtent, bounds.Width-1), Z: clamp(center.Z-defenseSiteHalfExtent, bounds.Height-1)},
 		Max: domain.Cell{X: clamp(center.X+defenseSiteHalfExtent, bounds.Width-1), Z: clamp(center.Z+defenseSiteHalfExtent, bounds.Height-1)}}
+}
+
+// defenseRecordRegion is the census rectangle that covers every building the
+// record placed, with a one-cell margin. The colonists' centre drifts as
+// they work and wander, so a census around it can leave the layout outside
+// the rectangle and count a standing tier as lost.
+func defenseRecordRegion(record store.DefenseLayoutRecord, bounds policy.Bounds) bridge.CellRect {
+	min, max := record.Chokepoint, record.Chokepoint
+	for _, tier := range record.Tiers {
+		for _, b := range tier.Buildings {
+			min.X, min.Z = minInt32(min.X, b.Cell.X), minInt32(min.Z, b.Cell.Z)
+			max.X, max.Z = maxInt32(max.X, b.Cell.X), maxInt32(max.Z, b.Cell.Z)
+		}
+	}
+	clamp := func(v, hi int32) int32 { return maxInt32(0, minInt32(v, hi)) }
+	return bridge.CellRect{Min: domain.Cell{X: clamp(min.X-1, bounds.Width-1), Z: clamp(min.Z-1, bounds.Height-1)},
+		Max: domain.Cell{X: clamp(max.X+1, bounds.Width-1), Z: clamp(max.Z+1, bounds.Height-1)}}
 }
 
 // defenseCellFacts leaves every fact of a fogged cell unknown.

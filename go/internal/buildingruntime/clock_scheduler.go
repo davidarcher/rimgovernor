@@ -764,7 +764,7 @@ func (s *ClockScheduler) Step(ctx context.Context) (ClockSchedulerResult, error)
 			if err != nil {
 				return fmt.Errorf("defenseLayout: %w", err)
 			}
-			clockSchedulerLog("defense-layout.step: reason=%s tier=%s plan=%s", method.Reason, method.Tier, method.Plan)
+			clockSchedulerLog("defense-layout.step: reason=%s tier=%s plan=%s nativeWorkTicks=%d", method.Reason, method.Tier, method.Plan, method.NativeWorkTicks)
 			out.DefenseLayout = &method
 			return nil
 		})
@@ -843,6 +843,11 @@ func (s *ClockScheduler) Step(ctx context.Context) (ClockSchedulerResult, error)
 	// order: the planner's only method is a short clock window.
 	if out.FireSafety != nil {
 		nativeWorkTicks = max(nativeWorkTicks, out.FireSafety.NativeWorkTicks)
+	}
+	// A layout tier waiting on the game's own rebuild blueprint (a sprung
+	// trap's auto-rearm) needs ticks, not a plan (#72).
+	if out.DefenseLayout != nil {
+		nativeWorkTicks = max(nativeWorkTicks, out.DefenseLayout.NativeWorkTicks)
 	}
 	if !work && s.config.RoutineMethods && nativeWorkTicks > 0 {
 		work = true

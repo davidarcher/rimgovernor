@@ -27,7 +27,9 @@ type DefenseTierRecord struct {
 	// Attempts counts admitted methods for the tier; settled routine plans
 	// retire out of the goal's method list, so the record keeps the count.
 	Attempts int
-	// Built records that every building of the tier was observed standing.
+	// Built records that every building of the tier was observed standing
+	// in the latest census; a building lost since (a raider's wall breach, a
+	// sprung spike trap) clears it so the planner re-admits the tier.
 	Built bool
 }
 
@@ -51,6 +53,14 @@ type DefenseLayoutRecord struct {
 	Entrances []domain.Cell
 	Tiers     []DefenseTierRecord
 	Complete  bool
+	// VerifiedTick is the tick of the last census that found every tier
+	// standing, and VerifiedCombat the ActiveCombat goal epoch (goal/epoch)
+	// whose aftermath that census covered. A Complete record is re-verified
+	// after each combat and once per game hour of simulation; Complete
+	// itself stays true while a lost building is being replaced, so combat
+	// keeps holding the line on the proven geometry.
+	VerifiedTick   domain.Tick `json:",omitempty"`
+	VerifiedCombat string      `json:",omitempty"`
 }
 
 const maxDefenseLayoutBytes = 256 * 1024
@@ -63,6 +73,9 @@ func (r DefenseLayoutRecord) Validate() error {
 	}
 	if len(r.Firing) == 0 || len(r.Tiers) == 0 || len(r.Tiers) > 8 || len(r.Firing) > 64 || len(r.TrapLane) > 64 || len(r.SafeLane) > 64 || len(r.Entrances) > 64 {
 		return errors.New("defense layout geometry out of bounds")
+	}
+	if r.VerifiedTick < 0 || len(r.VerifiedCombat) > 512 {
+		return errors.New("defense layout verification invalid")
 	}
 	seen := map[policy.DefenseTierName]bool{}
 	for _, tier := range r.Tiers {

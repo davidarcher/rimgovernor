@@ -15,7 +15,7 @@ namespace HomeBridge.BridgeTools
     // band around the colony with one straight corridor gap), stock (wood),
     // ranged (rifles for existing colonists), raid (a real RaidEnemy incident
     // with the chosen strategy/arrival), damage (one wall hit), inspect
-    // (colonists on trap cells, sprung traps, hostiles). No completed-work
+    // (colonists on trap cells, trap ids, sprung traps, hostiles). No completed-work
     // injection: construction, movement and combat stay native.
     public sealed class DefenseFixture
     {
@@ -23,7 +23,7 @@ namespace HomeBridge.BridgeTools
         private const int BandInner = 13;
         private const int GapHalfWidth = 1;
 
-        [Tool("test/defense_setup", Description = "UNSAFE FOR MODEL EXECUTION. Private disposable defensive-layout fixture: op=terrain|stock|ranged|raid|damage|inspect.")]
+        [Tool("test/defense_setup", Description = "UNSAFE FOR MODEL EXECUTION. Private disposable defensive-layout fixture: op=terrain|stock|ranged|raid|damage|heal|inspect|quiet.")]
         public async Task<object> Run(IRimBridgeContext ctx, CancellationToken cancellationToken, string op, string strategy = "ImmediateAttack", string arrival = "EdgeWalkIn", int points = 0, string wall = "", int rifles = 3)
         {
             return await ctx.MainThread.InvokeAsync<object>(() => {
@@ -40,9 +40,10 @@ namespace HomeBridge.BridgeTools
                     case "ranged": return Ranged(map, colonists, rifles);
                     case "raid": return Raid(map, strategy, arrival, points);
                     case "damage": return Damage(map, wall);
+                    case "heal": return Heal(map);
                     case "inspect": return Inspect(map, player);
                     case "quiet": return Quiet();
-                    default: return Refuse("Use terrain, stock, ranged, raid, damage, inspect or quiet.");
+                    default: return Refuse("Use terrain, stock, ranged, raid, damage, heal, inspect or quiet.");
                 }
             }, cancellationToken).ConfigureAwait(false);
         }
@@ -177,6 +178,23 @@ namespace HomeBridge.BridgeTools
             return new { success = !target.Destroyed && target.HitPoints < before, before, after = target.HitPoints, max = target.MaxHitPoints };
         }
 
+        // Heal stages the post-raid precondition for the repair scenario:
+        // every colonist's injury is removed so no CriticalMedical hold
+        // suspends the layout goal. The controller's own tend order has no
+        // native preview yet and the fixture colony has no beds, so the
+        // wounded would otherwise wander untended for the whole budget.
+        private static object Heal(Map map)
+        {
+            var healed = new List<object>();
+            foreach (var pawn in map.mapPawns.FreeColonistsSpawned.Where(p => !p.Dead))
+            {
+                var injuries = pawn.health.hediffSet.hediffs.Where(h => h is Hediff_Injury || h.TendableNow(true)).ToList();
+                foreach (var h in injuries) pawn.health.RemoveHediff(h);
+                healed.Add(new { id = pawn.GetUniqueLoadID(), removed = injuries.Count, downed = pawn.Downed, needsTend = pawn.health.HasHediffsNeedingTend() });
+            }
+            return new { success = true, healed };
+        }
+
         // The scenario stages its own raid; a storyteller incident or quest
         // letter meanwhile pauses the game and cancels the layout plans. The
         // comps are rebuilt from the storyteller def on every load, so a run
@@ -201,7 +219,10 @@ namespace HomeBridge.BridgeTools
                 .Select(b => new { id = b.GetUniqueLoadID(), x = b.Position.x, z = b.Position.z, hp = b.HitPoints, max = b.MaxHitPoints }).ToList();
             var colonists = map.mapPawns.FreeColonistsSpawned
                 .Select(p => new { id = p.GetUniqueLoadID(), x = p.Position.x, z = p.Position.z, drafted = p.Drafted, dead = p.Dead, downed = p.Downed }).ToList();
-            return new { success = true, traps = traps.Count, sprung, colonistsOnTraps, colonists, hostiles, walls, tick = Find.TickManager.TicksGame, paused = Find.TickManager.Paused };
+            // Trap ids let a later inspect tell a destroyed trap (its id is
+            // gone) from its replacement (a new id on the same cell).
+            var trapIds = traps.Select(t => t.GetUniqueLoadID()).OrderBy(id => id).ToList();
+            return new { success = true, traps = traps.Count, trapIds, sprung, colonistsOnTraps, colonists, hostiles, walls, tick = Find.TickManager.TicksGame, paused = Find.TickManager.Paused };
         }
 
         // Building_TrapRearmable keeps its armed state private; a trap whose

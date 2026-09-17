@@ -13,8 +13,13 @@
 // raid the service then holds the raid itself -- the scheduler admits
 // bounded combat watch windows acknowledging the live hostiles while the
 // ActiveCombat goal has an admitted plan (#69) -- and the run waits for the
-// goal to recover, then asserts natively that the raiders are dead or downed
-// and at least one trap sprung.
+// goal to recover, then for the aftermath (#72): the hold plan's drafts are
+// released and the layout planner re-admits every tier the raid degraded
+// (a sprung spike trap is destroyed; a breached wall is gone) until the
+// stored record is verified standing again within a bounded number of
+// ticks. Natively the run then asserts that the raiders are dead or downed,
+// at least one trap sprung, the trap and wall counts match the audited
+// layout and no colonist is left drafted.
 //
 // Like routinehaulaccept, only one GABP client may hold the game at a time:
 // the harness's fixture session and the service's session are used strictly
@@ -61,6 +66,8 @@ func main() {
 	bypass := flag.Bool("bypass", false, "the raid bypasses the line: expect squad defense, not hold-the-line, and skip the trap-trigger wait")
 	layoutTimeout := flag.Duration("layout-timeout", 20*time.Minute, "budget for the layout to be built natively")
 	raidTimeout := flag.Duration("raid-timeout", 8*time.Minute, "budget for the raid response and resolution")
+	repairTimeout := flag.Duration("repair-timeout", 15*time.Minute, "budget for the post-raid draft release and layout repair (raid injuries are tended first: CriticalMedical suspends the layout goal)")
+	repairTicks := flag.Int64("repair-ticks", 60000, "game ticks after the raid resolves within which the layout must be verified standing again (one day)")
 	timeout := flag.Duration("timeout", 45*time.Minute, "overall run timeout")
 	checkpoint := flag.String("checkpoint", "", "after the layout is built and audited, save the game under this name (root/profile/Saves/<name>.rws plus <name>.checkpoint.json) so later runs can start at the raid")
 	fromCheckpoint := flag.String("from-checkpoint", "", "load this checkpoint instead of building the layout: re-audits the saved layout, then stages the raid")
@@ -83,7 +90,8 @@ func main() {
 	}
 	report := na.NewReport("Native defensive layout vertical (#5 M4): the routine planner chooses the corridor chokepoint on a "+
 		"fixture-constrained site, builds every tier natively, the layout is re-verified by independent spatial-access and "+
-		"trap-cell reads, and a real RaidEnemy incident is answered with hold-the-line (edge assault) or squad defense (bypass).", !*rendered)
+		"trap-cell reads, a real RaidEnemy incident is answered with hold-the-line (edge assault) or squad defense (bypass), "+
+		"and after an edge raid the defenders are undrafted and the layout is repaired to its audited state (#72).", !*rendered)
 	ctx, cancel := context.WithTimeout(context.Background(), *timeout)
 	defer cancel()
 	if *checkpoint != "" && *fromCheckpoint != "" {
@@ -93,7 +101,7 @@ func main() {
 	if *fromCheckpoint != "" {
 		*save = *fromCheckpoint
 	}
-	opts := options{strategy: *strategy, arrival: *arrival, save: *save, bypass: *bypass, layoutTimeout: *layoutTimeout, raidTimeout: *raidTimeout, checkpoint: *checkpoint, fromCheckpoint: *fromCheckpoint, checkpoints: *checkpoints}
+	opts := options{strategy: *strategy, arrival: *arrival, save: *save, bypass: *bypass, layoutTimeout: *layoutTimeout, raidTimeout: *raidTimeout, repairTimeout: *repairTimeout, repairTicks: *repairTicks, checkpoint: *checkpoint, fromCheckpoint: *fromCheckpoint, checkpoints: *checkpoints}
 	if opts.fromCheckpoint != "" {
 		if err := stageCheckpoint(*root, opts.checkpoints, opts.fromCheckpoint); err != nil {
 			fmt.Fprintln(os.Stderr, err)
@@ -112,6 +120,10 @@ type options struct {
 	strategy, arrival, save    string
 	bypass                     bool
 	layoutTimeout, raidTimeout time.Duration
+	// repairTimeout bounds the post-raid wait in wall time; repairTicks
+	// bounds it in game ticks from the tick the ActiveCombat goal recovered.
+	repairTimeout time.Duration
+	repairTicks   int64
 	// checkpoint names the save written once the layout is built and
 	// audited; fromCheckpoint names one to resume from, skipping the
 	// fixture setup and the layout scenario (AGENTS.md: stage the slow
@@ -610,9 +622,54 @@ func run(ctx context.Context, root, output, gameID string, headless bool, rimgov
 		if err != nil {
 			return fmt.Errorf("raid resolution: %w", err)
 		}
+		// Scenario 4: retreat and repair. The recovered goal no longer
+		// authorizes the hold plan, so its drafts are released; the layout
+		// planner re-verifies the record after the combat epoch, re-opens
+		// every tier that lost a building and rebuilds it.
+		resolvedTick, _ := resolved["resolved_tick"].(int64)
+		released, err := waitDefendersReleased(ctx, svc.store, method.Plan, svc.wait(opts.repairTimeout))
+		report["defenders_released"] = released
+		if err != nil {
+			return fmt.Errorf("draft release after raid: %w", err)
+		}
+		// The wounded are staged healed before the repair phase: a
+		// CriticalMedical hold suspends every routine goal, the controller's
+		// tend order has no native preview yet, and the fixture colony has no
+		// bed for the game's own doctors to use. Fixture ops need the harness
+		// session, so the repair phase runs under a fresh service on the
+		// same journal.
+		svc.stop()
+		report["raid_authority"] = svc.keepAlive.snapshot()
+		client, h, err = reopenHarness()
+		if err != nil {
+			return err
+		}
+		open = client
+		healed, err := fixture("heal-after-raid", map[string]any{"op": "heal"})
+		if err != nil {
+			return err
+		}
+		report["healed_after_raid"] = healed
+		if err := closeClient(); err != nil {
+			return err
+		}
+		svc, err = launch("repair")
+		if err != nil {
+			return err
+		}
+		defer svc.stop()
+		repaired, err := waitLayoutRepaired(ctx, svc.store, world, resolvedTick, opts.repairTicks, svc.wait(opts.repairTimeout))
+		report["layout_repair"] = repaired
+		if err != nil {
+			return fmt.Errorf("layout repair after raid: %w", err)
+		}
 	}
 	svc.stop()
-	report["raid_authority"] = svc.keepAlive.snapshot()
+	if opts.bypass {
+		report["raid_authority"] = svc.keepAlive.snapshot()
+	} else {
+		report["repair_authority"] = svc.keepAlive.snapshot()
+	}
 
 	client, h, err = reopenHarness()
 	if err != nil {
@@ -628,17 +685,36 @@ func run(ctx context.Context, root, output, gameID string, headless bool, rimgov
 		return fmt.Errorf("colonists standing on trap cells after raid: %v", on)
 	}
 	if !opts.bypass {
-		// A spike trap is trapDestroyOnSpring: springing destroys it (its
-		// auto-rebuild blueprint is not a colonist building), so a trap
-		// missing since the layout audit is a sprung trap; the fixture's
-		// armed-state count only covers rearmable traps.
-		sprung := int(na.AsNumber(final["sprung"]))
-		if lost := int(na.AsNumber(after["traps"])) - int(na.AsNumber(final["traps"])); lost > 0 {
-			sprung += lost
-		}
-		report["traps_sprung"] = sprung
-		if sprung == 0 {
+		// A spike trap is trapDestroyOnSpring: springing destroys it, so a
+		// trap id from the layout audit that is gone now was sprung, and an
+		// id that is new now is its replacement (the game's own auto-rearm
+		// blueprint or the planner's re-admitted tier, whichever the census
+		// found first); the fixture's armed-state count only covers
+		// rearmable traps.
+		sprung, rebuilt := trapIDDelta(after, final)
+		report["traps_sprung"] = len(sprung) + int(na.AsNumber(final["sprung"]))
+		report["traps_sprung_ids"] = sprung
+		report["traps_rebuilt_ids"] = rebuilt
+		if len(sprung)+int(na.AsNumber(final["sprung"])) == 0 {
 			return fmt.Errorf("no trap sprung during the edge raid: %#v", final)
+		}
+		// The repaired layout matches the audited one natively (every
+		// sprung trap replaced, no wall missing), and nobody is left
+		// drafted once the raid is over.
+		if len(rebuilt) < len(sprung) {
+			return fmt.Errorf("%d traps sprung (%v) but %d rebuilt (%v)", len(sprung), sprung, len(rebuilt), rebuilt)
+		}
+		if traps, want := int(na.AsNumber(final["traps"])), int(na.AsNumber(after["traps"])); traps < want {
+			return fmt.Errorf("native trap count %d after repair, %d after the layout audit", traps, want)
+		}
+		if walls, want := len(na.AsSlice(final["walls"])), len(na.AsSlice(after["walls"])); walls < want {
+			return fmt.Errorf("native wall count %d after repair, %d after the layout audit", walls, want)
+		}
+		for _, raw := range na.AsSlice(final["colonists"]) {
+			row, _ := na.AsMap(raw)
+			if drafted, _ := na.AsBool(row["drafted"]); drafted {
+				return fmt.Errorf("colonist %s still drafted after the raid resolved", na.AsString(row["id"]))
+			}
 		}
 		neutralised := 0
 		for _, raw := range na.AsSlice(final["hostiles"]) {
@@ -741,7 +817,10 @@ func launchService(ctx context.Context, output, name, binary, gabs, config, game
 	argv := []string{"serve", "--profile", profileDir, "--gabs", gabs, "--config", config, "--game", gameID, "--state", statePath, "--listen", "127.0.0.1:0", "--refresh", "1s", "--timeout", "15s", "--flight-recorder", filepath.Join(serviceDir, "flight.jsonl")}
 	report["service_argv_"+name] = append([]string{binary}, argv...)
 	cmd := exec.CommandContext(ctx, binary, argv...)
-	cmd.Env = append(os.Environ(), "RIMGOVERNOR_CLOCK_DEBUG=1", "RIMGOVERNOR_ROUTINE_FAMILIES=defensive-layout,defense")
+	// Tend and rescue ride along for the aftermath: raid injuries hold
+	// CriticalMedical in deficit, which suspends every priority>=2 goal
+	// including the layout repair until the wounded are treated (#72).
+	cmd.Env = append(os.Environ(), "RIMGOVERNOR_CLOCK_DEBUG=1", "RIMGOVERNOR_ROUTINE_FAMILIES=defensive-layout,defense,tend,rescue")
 	stdoutPipe, err := cmd.StdoutPipe()
 	if err != nil {
 		return nil, err
@@ -1097,6 +1176,7 @@ func waitRaidResolved(ctx context.Context, s *store.Store, first domain.PlanID, 
 		out["defenders_on_firing_cells"] = line
 		out["combat_goal_bound"] = bound
 		out["combat_goal_need"] = need
+		out["resolved_tick"] = int64(review.Tick)
 		if combatWindows > 0 && (!bound || need == string(domain.NeedRecovered)) {
 			if len(line) == 0 {
 				return "", false, fmt.Errorf("no defender completed its move to a firing cell during the raid: %#v", out)
@@ -1107,6 +1187,190 @@ func waitRaidResolved(ctx context.Context, s *store.Store, first domain.PlanID, 
 	})
 	if err != nil {
 		return out, fmt.Errorf("raid not resolved under the service (%#v): %w", out, err)
+	}
+	return out, nil
+}
+
+// trapIDDelta compares the trap ids of two fixture inspects: ids only in
+// before were destroyed (sprung), ids only in after are replacements.
+func trapIDDelta(before, after map[string]any) (sprung, rebuilt []string) {
+	ids := func(m map[string]any) map[string]bool {
+		out := map[string]bool{}
+		for _, raw := range na.AsSlice(m["trapIds"]) {
+			out[na.AsString(raw)] = true
+		}
+		return out
+	}
+	was, is := ids(before), ids(after)
+	for id := range was {
+		if !is[id] {
+			sprung = append(sprung, id)
+		}
+	}
+	for id := range is {
+		if !was[id] {
+			rebuilt = append(rebuilt, id)
+		}
+	}
+	sort.Strings(sprung)
+	sort.Strings(rebuilt)
+	return sprung, rebuilt
+}
+
+// waitDefendersReleased waits until every draft the hold plans acquired is
+// released or superseded: the recovered ActiveCombat goal no longer
+// authorizes the plan, so the worker's draft cleanup returns each defender
+// to colony work. Drafts never dispatched have nothing to release.
+func waitDefendersReleased(ctx context.Context, s *store.Store, first domain.PlanID, w na.Wait) (map[string]any, error) {
+	out := map[string]any{}
+	err := na.WaitProgress(ctx, w, func(ctx context.Context) (string, bool, error) {
+		plans := map[domain.PlanID]bool{first: true}
+		review, err := s.LoadRoutineReview(ctx)
+		if err != nil {
+			return "", false, err
+		}
+		for _, binding := range review.Goals {
+			if binding.Need != policy.ActiveCombat {
+				continue
+			}
+			goal, err := s.LoadGoal(ctx, binding.Goal)
+			if err != nil && !errors.Is(err, store.ErrNotFound) {
+				return "", false, err
+			}
+			for _, m := range goal.Methods {
+				if strings.HasPrefix(string(m.Method), "hold-") {
+					plans[m.Plan] = true
+				}
+			}
+		}
+		drafts := map[string]string{}
+		pending := 0
+		for id := range plans {
+			state, err := s.LoadPlan(ctx, id)
+			if err != nil {
+				return "", false, err
+			}
+			for _, p := range state.Progress {
+				draft, ok := p.Action().OwnedDraft()
+				if !ok {
+					continue
+				}
+				v := p.View()
+				stage := "not-dispatched"
+				if v.Attempt > 0 {
+					cleanup, known := v.DraftCleanup.Value()
+					stage = "unknown"
+					if known {
+						stage = string(cleanup.Stage)
+					}
+					if !known || cleanup.Stage != domain.DraftReleased && cleanup.Stage != domain.DraftSuperseded {
+						pending++
+					}
+				}
+				drafts[string(id)+"/"+string(draft.Pawn())] = stage
+			}
+		}
+		out["drafts"] = drafts
+		out["hold_plans"] = len(plans)
+		if pending == 0 {
+			return "", true, nil
+		}
+		return na.Signature(drafts), false, nil
+	})
+	if err != nil {
+		return out, fmt.Errorf("defenders not released (%#v): %w", out, err)
+	}
+	return out, nil
+}
+
+// waitLayoutRepaired waits until the stored layout has been re-verified
+// after the raid's combat epoch with every tier standing: the planner
+// re-opens each tier that lost a building and admits a fresh tier method
+// ("defense-<tier>-<attempt>") to rebuild whatever the game's own
+// auto-rearm blueprint does not. At least one tier must have been observed
+// degraded (the edge raid springs at least one trap), and the verification
+// must land within repairTicks of the tick the goal recovered.
+func waitLayoutRepaired(ctx context.Context, s *store.Store, world store.World, resolvedTick, repairTicks int64, w na.Wait) (map[string]any, error) {
+	out := map[string]any{"resolved_tick": resolvedTick}
+	methods := map[string]any{}
+	reopened := map[string]bool{}
+	trapsRebuilt := 0
+	err := na.WaitProgress(ctx, w, func(ctx context.Context) (string, bool, error) {
+		review, err := s.LoadRoutineReview(ctx)
+		if err != nil {
+			return "", false, err
+		}
+		combat := ""
+		for _, binding := range review.Goals {
+			goal, err := s.LoadGoal(ctx, binding.Goal)
+			if err != nil && !errors.Is(err, store.ErrNotFound) {
+				return "", false, err
+			}
+			switch binding.Need {
+			case policy.ActiveCombat:
+				combat = fmt.Sprintf("%s/%d", goal.Goal.ID, goal.Goal.Epoch)
+			case policy.EnsureDefensiveLayout:
+				for _, m := range goal.Methods {
+					if _, seen := methods[string(m.Method)]; seen {
+						continue
+					}
+					plan, err := s.LoadPlan(ctx, m.Plan)
+					if err != nil {
+						return "", false, err
+					}
+					traps := 0
+					for _, a := range plan.Spec.Actions() {
+						if b, ok := a.Building(); ok && b.Definition() == "TrapSpike" {
+							traps++
+						}
+					}
+					trapsRebuilt += traps
+					methods[string(m.Method)] = map[string]any{"plan": string(m.Plan), "actions": len(plan.Spec.Actions()), "traps": traps}
+				}
+			}
+		}
+		record, ok, err := s.LoadDefenseLayout(ctx, world)
+		if err != nil {
+			return "", false, err
+		}
+		if !ok {
+			return "", false, fmt.Errorf("stored layout gone after the raid")
+		}
+		standing := true
+		for _, tier := range record.Tiers {
+			if len(tier.Buildings) > 0 && !tier.Built {
+				standing = false
+				reopened[string(tier.Name)] = true
+			}
+		}
+		names := make([]string, 0, len(reopened))
+		for name := range reopened {
+			names = append(names, name)
+		}
+		sort.Strings(names)
+		out["tiers_reopened"] = names
+		out["repair_methods"] = methods
+		out["traps_rebuilt"] = trapsRebuilt
+		out["verified_tick"] = int64(record.VerifiedTick)
+		out["verified_combat"] = record.VerifiedCombat
+		out["complete"] = record.Complete
+		// A checkpoint run re-observes the record under its new load
+		// (Complete is cleared on reload), so Complete is required only
+		// once the post-raid census has found every tier standing.
+		verified := standing && record.Complete && record.VerifiedCombat == combat && int64(record.VerifiedTick) >= resolvedTick
+		if verified && len(reopened) == 0 {
+			return "", false, fmt.Errorf("layout verified standing after the raid without any tier observed degraded: %#v", out)
+		}
+		if verified {
+			if elapsed := int64(record.VerifiedTick) - resolvedTick; elapsed > repairTicks {
+				return "", false, fmt.Errorf("layout repaired %d ticks after the raid resolved, budget %d", elapsed, repairTicks)
+			}
+			return "", true, nil
+		}
+		return na.Signature(standing, record.VerifiedCombat, record.VerifiedTick, len(methods), names), false, nil
+	})
+	if err != nil {
+		return out, fmt.Errorf("layout not repaired (%#v): %w", out, err)
 	}
 	return out, nil
 }

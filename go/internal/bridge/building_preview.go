@@ -15,6 +15,11 @@ import (
 type BuildingPreview struct {
 	Preview policy.Preview
 	Stock   policy.StockObservation
+	// NativeWorkPending reports a blueprint or frame already on the
+	// footprint: native construction, not a new placement, is what changes
+	// the cell next (the game's own auto-rebuild of a destroyed building,
+	// a trap's auto-rearm blueprint, an earlier order still in progress).
+	NativeWorkPending bool
 }
 
 // PreviewBuilding binds a single native evaluation to the exact immutable action
@@ -61,6 +66,7 @@ func (caller *Client) PreviewBuilding(ctx context.Context, action domain.Action,
 		if blocker.GetWouldBeWiped() || blocker.GetFrameWouldBeCancelled() || blocker.GetIsBlueprint() || blocker.GetIsFrame() {
 			safe = false
 		}
+		out.NativeWorkPending = out.NativeWorkPending || blocker.GetIsBlueprint() || blocker.GetIsFrame()
 	}
 	// Even a zero-cost evaluation cannot turn an unreadable material scan into
 	// authorization. The next complete preview can release this unknown hold.

@@ -109,3 +109,69 @@ func TestDefenseTierStateLivesInRecord(t *testing.T) {
 		t.Fatal(defenseTierMethodID(policy.TierFunnel, 1))
 	}
 }
+
+func TestDefenseTierCensusReopensLostBuildings(t *testing.T) {
+	t.Parallel()
+	// A raid that breaches a wall or springs a trap (trapDestroyOnSpring)
+	// leaves the tier's cell without its building: the tier drops out of
+	// Built with a fresh retry budget so the planner re-admits it, while a
+	// tier still standing keeps its attempt count (#72).
+	wall, trap := domain.Cell{X: 1, Z: 1}, domain.Cell{X: 2, Z: 2}
+	record := store.DefenseLayoutRecord{Complete: true, Tiers: []store.DefenseTierRecord{
+		{Name: policy.TierFunnel, Built: true, Attempts: 1, Buildings: []store.DefenseBuilding{{Definition: "Wall", Cell: wall}}},
+		{Name: policy.TierTrapCorridor, Built: true, Attempts: 2, Buildings: []store.DefenseBuilding{{Definition: "TrapSpike", Cell: trap}}},
+		{Name: policy.TierChokepoint, Built: false},
+	}}
+	if defenseTierCensus(&record, map[domain.Cell]string{wall: "Wall", trap: "TrapSpike"}) {
+		t.Fatal("unchanged census reported a change")
+	}
+	if !defenseTierCensus(&record, map[domain.Cell]string{wall: "Wall"}) {
+		t.Fatal("lost trap not observed")
+	}
+	if !record.Tiers[0].Built || record.Tiers[0].Attempts != 1 || record.Tiers[1].Built || record.Tiers[1].Attempts != 0 || record.Tiers[2].Built || !record.Complete {
+		t.Fatalf("%+v", record.Tiers)
+	}
+	// A rebuilt trap is standing again; a wall replaced by another edifice
+	// (a raider's own sandbag, a blueprint's parent) does not count.
+	if !defenseTierCensus(&record, map[domain.Cell]string{wall: "Sandbags", trap: "TrapSpike"}) {
+		t.Fatal("rebuilt trap not observed")
+	}
+	if record.Tiers[0].Built || record.Tiers[0].Attempts != 0 || !record.Tiers[1].Built {
+		t.Fatalf("%+v", record.Tiers)
+	}
+}
+
+func TestDefenseReverifyDueAfterCombatOrInterval(t *testing.T) {
+	t.Parallel()
+	record := store.DefenseLayoutRecord{Complete: true, VerifiedTick: 10000, VerifiedCombat: "routine-1-ActiveCombat/0"}
+	if defenseReverifyDue(record, 10000+defenseReverifyTicks-1, "routine-1-ActiveCombat/0") {
+		t.Fatal("re-verified before the interval with no new combat")
+	}
+	if !defenseReverifyDue(record, 10000+defenseReverifyTicks, "routine-1-ActiveCombat/0") {
+		t.Fatal("interval elapsed without re-verification")
+	}
+	if !defenseReverifyDue(record, 10001, "routine-1-ActiveCombat/1") {
+		t.Fatal("a new combat epoch did not trigger re-verification")
+	}
+	if !defenseReverifyDue(store.DefenseLayoutRecord{Complete: true}, 300000, "") {
+		// A record stored before verification was recorded is checked once
+		// on the next step: any live game is past the interval from tick 0.
+		t.Fatal("unverified record not due")
+	}
+}
+
+func TestDefenseRecordRegionCoversEveryTier(t *testing.T) {
+	record := store.DefenseLayoutRecord{Chokepoint: domain.Cell{X: 142, Z: 133}, Tiers: []store.DefenseTierRecord{
+		{Name: "funnel", Buildings: []store.DefenseBuilding{{Cell: domain.Cell{X: 141, Z: 128}, Definition: "Wall"}, {Cell: domain.Cell{X: 144, Z: 133}, Definition: "Wall"}}},
+		{Name: "firing_line", Buildings: []store.DefenseBuilding{{Cell: domain.Cell{X: 143, Z: 125}, Definition: "Barricade"}}},
+	}}
+	got := defenseRecordRegion(record, policy.Bounds{Width: 250, Height: 250})
+	want := bridge.CellRect{Min: domain.Cell{X: 140, Z: 124}, Max: domain.Cell{X: 145, Z: 134}}
+	if got != want {
+		t.Fatalf("region %+v, want %+v", got, want)
+	}
+	edge := defenseRecordRegion(store.DefenseLayoutRecord{Chokepoint: domain.Cell{X: 0, Z: 249}}, policy.Bounds{Width: 250, Height: 250})
+	if edge != (bridge.CellRect{Min: domain.Cell{X: 0, Z: 248}, Max: domain.Cell{X: 1, Z: 249}}) {
+		t.Fatalf("edge region %+v", edge)
+	}
+}

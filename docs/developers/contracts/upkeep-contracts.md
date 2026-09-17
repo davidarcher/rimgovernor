@@ -78,6 +78,19 @@ Site selection requires the support-check radius around every temporary wall to
 be visible and within the map, so fog cannot be deferred until cleanup. Execution
 still repeats the full support check against current native roofs and buildings.
 
+`EnsureDefensiveLayout` (opt-in) commits one stored corridor layout per colony
+and builds it tier by tier; a tier is `Built` only while every one of its
+buildings is observed standing in the defense-site census. A `Complete`
+record is re-verified after each ActiveCombat epoch and once per game hour of
+simulation: a tier that lost a building (a breached wall, a sprung spike trap,
+which is destroyed on springing) re-opens with a fresh retry budget and is
+re-admitted as a new tier method, while `Complete` stays true so combat keeps
+holding the line on the proven geometry. A missing building whose cell already
+carries a blueprint or frame (the game's own trap auto-rearm) is not placed
+again; the planner asks for a clock window so native construction finishes
+it. Defenders are undrafted by ordinary draft cleanup once the recovered
+ActiveCombat goal stops authorizing the hold plan.
+
 Corners instead require verified existing roof support and both neighboring walls,
 with clear exterior cardinal approaches reachable by enabled haulers. Only the
 permanent stone wall is reserved. Those approaches remain open so ordinary hauling

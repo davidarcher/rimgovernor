@@ -20,23 +20,26 @@ func TestBuildingPreviewProjection(t *testing.T) {
 	a, _ := domain.NewBuildingAction("wall", b)
 	snapshot := domain.GenerationSnapshot{Colony: "colony", Load: "load", Map: 0, Plan: "plan", Native: domain.NativeGeneration(^uint64(0))}
 	for _, test := range []struct {
-		name                       string
-		change                     func(*p.PlacementBatch)
-		knownSafe, safe, wantError bool
+		name                                string
+		change                              func(*p.PlacementBatch)
+		knownSafe, safe, wantError, pending bool
 	}{
-		{"complete", func(*p.PlacementBatch) {}, true, true, false},
+		{"complete", func(*p.PlacementBatch) {}, true, true, false, false},
 		{"destructive", func(v *p.PlacementBatch) {
 			v.Results[0].GetEvaluated().Rotations[0].BlockingThings = []*p.PlacementBlocker{{Category: proto.String("Building"), IsBlueprint: proto.Bool(false), IsFrame: proto.Bool(false), WouldBeWiped: proto.Bool(true), FrameWouldBeCancelled: proto.Bool(false)}}
-		}, true, false, false},
+		}, true, false, false, false},
+		{"blueprint already placed", func(v *p.PlacementBatch) {
+			v.Results[0].GetEvaluated().Rotations[0].BlockingThings = []*p.PlacementBlocker{{Category: proto.String("Building"), IsBlueprint: proto.Bool(true), IsFrame: proto.Bool(false), WouldBeWiped: proto.Bool(false), FrameWouldBeCancelled: proto.Bool(false)}}
+		}, true, false, false, true},
 		{"unavailable materials", func(v *p.PlacementBatch) {
 			v.Results[0].GetEvaluated().Materials = &p.PlacementMaterials{Availability: &p.PlacementMaterials_Unavailable{Unavailable: &c.Unavailable{Reason: c.UnavailableReason_UNAVAILABLE_REASON_NOT_OBSERVED.Enum()}}}
-		}, false, false, false},
+		}, false, false, false, false},
 		{"interaction cell claimed", func(v *p.PlacementBatch) {
 			v.Results[0].GetEvaluated().Rotations[0].InteractionCells = []*c.Cell{{X: proto.Int32(0), Z: proto.Int32(-1)}, {X: proto.Int32(0), Z: proto.Int32(0)}}
-		}, true, true, false},
-		{"new generation", func(v *p.PlacementBatch) { v.Context.NativeGeneration = proto.Uint64(3) }, false, false, true},
-		{"unknown generation", func(v *p.PlacementBatch) { v.Context.NativeGeneration = nil }, false, false, true},
-		{"changed world", func(v *p.PlacementBatch) { v.Context.Identity.LoadToken = proto.String("replacement") }, false, false, true},
+		}, true, true, false, false},
+		{"new generation", func(v *p.PlacementBatch) { v.Context.NativeGeneration = proto.Uint64(3) }, false, false, true, false},
+		{"unknown generation", func(v *p.PlacementBatch) { v.Context.NativeGeneration = nil }, false, false, true, false},
+		{"changed world", func(v *p.PlacementBatch) { v.Context.Identity.LoadToken = proto.String("replacement") }, false, false, true, false},
 	} {
 		t.Run(test.name, func(t *testing.T) {
 			reply := pbBatch()
@@ -73,8 +76,8 @@ func TestBuildingPreviewProjection(t *testing.T) {
 			if result.Stock.NativeConstruction != (reply.GetBatch().Results[0].GetEvaluated().Materials.GetKnown() != nil) {
 				t.Fatal("lost native construction accounting basis")
 			}
-			if safe != test.safe || known != test.knownSafe {
-				t.Fatalf("safe=%v known=%v", safe, known)
+			if safe != test.safe || known != test.knownSafe || result.NativeWorkPending != test.pending {
+				t.Fatalf("safe=%v known=%v pending=%v", safe, known, result.NativeWorkPending)
 			}
 			if result.Preview.Action != a || result.Preview.Snapshot != snapshot || result.Stock.Tick != result.Preview.Tick {
 				t.Fatal("projection lost exact identity/tick")
