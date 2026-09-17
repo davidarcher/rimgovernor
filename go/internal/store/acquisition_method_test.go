@@ -2,7 +2,6 @@ package store
 
 import (
 	"context"
-	"path/filepath"
 	"testing"
 
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
@@ -42,7 +41,7 @@ func acquisitionPlan(t *testing.T, id domain.PlanID, thing string) domain.PlanSp
 func TestCommitAcquisitionMethodExemptFromBillOpenWork(t *testing.T) {
 	t.Parallel()
 	ctx := context.Background()
-	s := open(t, filepath.Join(t.TempDir(), "routine.db"))
+	s := open(t, memoryPath(t))
 	r := foodDeficitRoutineRequest()
 	tick := r.Tick
 	out := reviewRoutine(t, s, &r)
@@ -91,7 +90,7 @@ func TestCommitAcquisitionMethodExemptFromBillOpenWork(t *testing.T) {
 func TestCommitAcquisitionMethodNotExemptFromNonBillOpenWork(t *testing.T) {
 	t.Parallel()
 	ctx := context.Background()
-	s := open(t, filepath.Join(t.TempDir(), "routine.db"))
+	s := open(t, memoryPath(t))
 	r := foodDeficitRoutineRequest()
 	tick := r.Tick
 	out := reviewRoutine(t, s, &r)

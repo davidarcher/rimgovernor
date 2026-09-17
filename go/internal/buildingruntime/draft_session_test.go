@@ -8,9 +8,9 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"github.com/davidarcher/RimGovernor/go/internal/executor"
 	"github.com/davidarcher/RimGovernor/go/internal/store"
+	"github.com/davidarcher/RimGovernor/go/internal/store/storetest"
 	o "github.com/davidarcher/RimGovernor/go/internal/wire/operationspb"
 	"google.golang.org/protobuf/proto"
-	"path/filepath"
 	"sync"
 	"testing"
 	"time"
@@ -20,7 +20,7 @@ func draftSessionFixture(t *testing.T, unknown bool) (*Session, *draft.Fixture, 
 	t.Helper()
 	ctx := context.Background()
 	dir := t.TempDir()
-	journal, err := store.Open(ctx, filepath.Join(dir, "state.sqlite"))
+	journal, err := store.Open(ctx, storetest.Path(t))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -149,7 +149,7 @@ func TestDraftSessionRejectsPartialCapabilitiesBeforeOwnership(t *testing.T) {
 	t.Parallel()
 	ctx := context.Background()
 	dir := t.TempDir()
-	journal, err := store.Open(ctx, filepath.Join(dir, "state.sqlite"))
+	journal, err := store.Open(ctx, storetest.Path(t))
 	if err != nil {
 		t.Fatal(err)
 	}

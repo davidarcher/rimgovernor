@@ -8,11 +8,11 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"github.com/davidarcher/RimGovernor/go/internal/executor"
 	"github.com/davidarcher/RimGovernor/go/internal/store"
+	"github.com/davidarcher/RimGovernor/go/internal/store/storetest"
 	a "github.com/davidarcher/RimGovernor/go/internal/wire/authoritypb"
 	k "github.com/davidarcher/RimGovernor/go/internal/wire/clockpb"
 	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
 	"google.golang.org/protobuf/proto"
-	"path/filepath"
 	"testing"
 	"time"
 )
@@ -76,7 +76,7 @@ type clockCoreLease struct {
 func (l clockCoreLease) Lease(s domain.GenerationSnapshot) (string, error) { return l.get(s) }
 func clockCoreFixture(t *testing.T) (*ClockCoordinator, *store.Store, *clockCoreFake, store.ClockIntent) {
 	t.Helper()
-	db, err := store.Open(context.Background(), filepath.Join(t.TempDir(), "clock.sqlite"))
+	db, err := store.Open(context.Background(), storetest.Path(t))
 	if err != nil {
 		t.Fatal(err)
 	}

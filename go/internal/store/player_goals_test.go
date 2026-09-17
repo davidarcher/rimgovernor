@@ -3,7 +3,6 @@ package store
 import (
 	"context"
 	"errors"
-	"path/filepath"
 	"testing"
 
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
@@ -16,7 +15,7 @@ func goalCreateRequest(id string, kind domain.GoalKind) GoalCreateSubmissionRequ
 func TestGoalCreateActivatesPlayerSourcedGoalAndReplays(t *testing.T) {
 	t.Parallel()
 	ctx := context.Background()
-	path := filepath.Join(t.TempDir(), "player-goals.db")
+	path := memoryPath(t)
 	s := open(t, path)
 	q := goalCreateRequest("create-food", domain.EnsureFoodSupplyGoal)
 	first, created, err := s.SubmitGoalCreate(ctx, q)
@@ -69,7 +68,7 @@ func TestGoalCreateActivatesPlayerSourcedGoalAndReplays(t *testing.T) {
 func TestGoalCreateRejectsUnsupportedKindAndInvalidScope(t *testing.T) {
 	t.Parallel()
 	ctx := context.Background()
-	s := open(t, filepath.Join(t.TempDir(), "player-goals-invalid.db"))
+	s := open(t, memoryPath(t))
 	for _, bad := range []GoalCreateSubmissionRequest{
 		{RequestID: "bad-kind", Kind: domain.GoalKind("EnsureComfort"), Snapshot: scope(), Tick: 1},
 		{RequestID: "bad-kind-empty", Snapshot: scope(), Tick: 1},
@@ -92,7 +91,7 @@ func TestGoalCreateRejectsUnsupportedKindAndInvalidScope(t *testing.T) {
 func TestGoalCreateReopensLiveGoalAndReplacesCancelledOne(t *testing.T) {
 	t.Parallel()
 	ctx := context.Background()
-	s := open(t, filepath.Join(t.TempDir(), "player-goals-reopen.db"))
+	s := open(t, memoryPath(t))
 	first, _, err := s.SubmitGoalCreate(ctx, goalCreateRequest("create", domain.MaintainWoodGoal))
 	if err != nil {
 		t.Fatal(err)
@@ -141,7 +140,7 @@ func TestGoalCreateReopensLiveGoalAndReplacesCancelledOne(t *testing.T) {
 func TestCancelPlayerGoalBoundsWorldAndRevision(t *testing.T) {
 	t.Parallel()
 	ctx := context.Background()
-	s := open(t, filepath.Join(t.TempDir(), "player-goals-cancel.db"))
+	s := open(t, memoryPath(t))
 	first, _, err := s.SubmitGoalCreate(ctx, goalCreateRequest("create", domain.EnsureBasicDefenseGoal))
 	if err != nil {
 		t.Fatal(err)
@@ -174,7 +173,7 @@ func TestCancelPlayerGoalBoundsWorldAndRevision(t *testing.T) {
 func TestCancelPlayerGoalCancelsAutopilotGoalInSameWorld(t *testing.T) {
 	t.Parallel()
 	ctx := context.Background()
-	s := open(t, filepath.Join(t.TempDir(), "player-goals-autopilot.db"))
+	s := open(t, memoryPath(t))
 	g, err := domain.NewGoal("routine-goal", domain.AutopilotGoal, 2, scope(), 10)
 	if err != nil {
 		t.Fatal(err)

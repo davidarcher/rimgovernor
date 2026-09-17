@@ -5,13 +5,13 @@ import (
 	"encoding/json"
 	"math"
 	"os"
-	"path/filepath"
 	"reflect"
 	"testing"
 
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
 	"github.com/davidarcher/RimGovernor/go/internal/store"
+	"github.com/davidarcher/RimGovernor/go/internal/store/storetest"
 	o "github.com/davidarcher/RimGovernor/go/internal/wire/observationspb"
 	"google.golang.org/protobuf/encoding/protojson"
 )
@@ -129,7 +129,7 @@ func TestNativeUpkeepReplay(t *testing.T) {
 		}
 	}
 	ctx := context.Background()
-	dbpath := filepath.Join(t.TempDir(), "native-upkeep.db")
+	dbpath := storetest.Path(t)
 	db, err := store.Open(ctx, dbpath)
 	if err != nil {
 		t.Fatal(err)

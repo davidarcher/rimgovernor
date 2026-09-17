@@ -7,7 +7,6 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
 	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
 	"google.golang.org/protobuf/proto"
-	"path/filepath"
 	"sync"
 	"sync/atomic"
 	"testing"
@@ -17,6 +16,7 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"github.com/davidarcher/RimGovernor/go/internal/executor"
 	"github.com/davidarcher/RimGovernor/go/internal/store"
+	"github.com/davidarcher/RimGovernor/go/internal/store/storetest"
 )
 
 type workerFake struct {
@@ -252,7 +252,7 @@ func TestWorkerRealSessionReopensUncertainAttemptWithoutAcquire(t *testing.T) {
 	t.Parallel()
 	ctx := context.Background()
 	dir := t.TempDir()
-	path := filepath.Join(dir, "worker.sqlite")
+	path := storetest.Path(t)
 	db, err := store.Open(ctx, path)
 	if err != nil {
 		t.Fatal(err)

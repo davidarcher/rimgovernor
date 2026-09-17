@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
-	"path/filepath"
 	"testing"
 )
 
@@ -33,7 +32,7 @@ func TestSupplyMethodRequiresOriginalCohortAndBoundedBatch(t *testing.T) {
 	t.Parallel()
 	for _, kind := range []string{"valid", "later", "oversized", "other-goal", "manual"} {
 		t.Run(kind, func(t *testing.T) {
-			s := open(t, filepath.Join(t.TempDir(), "s.db"))
+			s := open(t, memoryPath(t))
 			request := routineRequest()
 			request.Facts.StartingSupplyCells = domain.Known([]domain.Cell{{X: 1, Z: 2}})
 
@@ -70,7 +69,7 @@ func TestSupplyMethodRequiresOriginalCohortAndBoundedBatch(t *testing.T) {
 func TestSupplyClaimSurvivesCancellationRestartAndDirectionChange(t *testing.T) {
 	t.Parallel()
 	ctx := context.Background()
-	path := filepath.Join(t.TempDir(), "s.db")
+	path := memoryPath(t)
 	s := open(t, path)
 	request := routineRequest()
 	request.Facts.StartingSupplyCells = domain.Known([]domain.Cell{{X: 1, Z: 2}})

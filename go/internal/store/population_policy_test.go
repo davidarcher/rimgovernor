@@ -3,7 +3,6 @@ package store
 import (
 	"context"
 	"errors"
-	"path/filepath"
 	"testing"
 
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
@@ -21,7 +20,7 @@ func populationPolicyRequest(t *testing.T, id string, maximum int32, foodDays fl
 func TestPopulationPolicySubmissionReplayConflictAndOverwrite(t *testing.T) {
 	t.Parallel()
 	ctx := context.Background()
-	s := open(t, filepath.Join(t.TempDir(), "population-policy.db"))
+	s := open(t, memoryPath(t))
 	world := World{Colony: "colony", Load: "load", Map: 0}
 	if _, err := s.CurrentPopulationPolicy(ctx, world); !errors.Is(err, ErrNotFound) {
 		t.Fatal("unset world must report no policy", err)
@@ -85,7 +84,7 @@ func TestPopulationPolicySubmissionReplayConflictAndOverwrite(t *testing.T) {
 func TestPopulationPolicySubmissionRejectsInvalidRequests(t *testing.T) {
 	t.Parallel()
 	ctx := context.Background()
-	s := open(t, filepath.Join(t.TempDir(), "population-policy-invalid.db"))
+	s := open(t, memoryPath(t))
 	valid := populationPolicyRequest(t, "request", 12, 30)
 	for _, invalid := range []PopulationPolicySubmissionRequest{
 		{RequestID: "", World: valid.World, Policy: valid.Policy},

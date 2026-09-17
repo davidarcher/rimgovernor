@@ -3,7 +3,6 @@ package store
 import (
 	"context"
 	"os"
-	"path/filepath"
 	"sync"
 	"testing"
 	"time"
@@ -41,7 +40,7 @@ func TestConcurrentInitializationSharesIdentity(t *testing.T) {
 	t.Parallel()
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
-	path := filepath.Join(t.TempDir(), "concurrent.db")
+	path := memoryPath(t)
 	start := make(chan struct{})
 	ids := make(chan ControllerSessionID, 8)
 	errs := make(chan error, 8)
@@ -115,7 +114,7 @@ func TestIdentityCorruptionFailsWithoutRepair(t *testing.T) {
 }
 func TestCancelledIdentityInitializationCanReopen(t *testing.T) {
 	t.Parallel()
-	path := filepath.Join(t.TempDir(), "cancelled.db")
+	path := memoryPath(t)
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
 	if s, err := Open(ctx, path); err == nil {

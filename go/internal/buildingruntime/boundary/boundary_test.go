@@ -3,7 +3,6 @@ package boundary
 import (
 	"context"
 	"errors"
-	"path/filepath"
 	"testing"
 	"time"
 
@@ -12,6 +11,7 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/executor"
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
 	"github.com/davidarcher/RimGovernor/go/internal/store"
+	"github.com/davidarcher/RimGovernor/go/internal/store/storetest"
 	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
 	r "github.com/davidarcher/RimGovernor/go/internal/wire/receiptspb"
 	"google.golang.org/protobuf/proto"
@@ -72,7 +72,7 @@ func TestBoundaryEmergencyGatesBothAdmissionsWithoutWrites(t *testing.T) {
 			b, f := NewFixture(t)
 			clock := &boundaryAdvancingClock{now: time.Unix(100, 0)}
 			b.Clock = clock
-			db, err := store.Open(ctx, filepath.Join(t.TempDir(), "state.sqlite"))
+			db, err := store.Open(ctx, storetest.Path(t))
 			if err != nil {
 				t.Fatal(err)
 			}

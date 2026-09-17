@@ -3,7 +3,6 @@ package httpapi
 import (
 	"context"
 	"encoding/json"
-	"path/filepath"
 	"sync"
 	"testing"
 	"time"
@@ -12,6 +11,7 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"github.com/davidarcher/RimGovernor/go/internal/observation"
 	"github.com/davidarcher/RimGovernor/go/internal/store"
+	"github.com/davidarcher/RimGovernor/go/internal/store/storetest"
 	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
 	p "github.com/davidarcher/RimGovernor/go/internal/wire/presentationpb"
 	"google.golang.org/protobuf/proto"
@@ -92,7 +92,7 @@ func awaitAcks(t *testing.T, f *presentationMediaFake, n int) {
 }
 func presentationMediaAPI(t *testing.T) (*Server, *presentationMediaFake, string) {
 	t.Helper()
-	db, e := store.Open(context.Background(), filepath.Join(t.TempDir(), "media.db"))
+	db, e := store.Open(context.Background(), storetest.Path(t))
 	if e != nil {
 		t.Fatal(e)
 	}
@@ -202,7 +202,7 @@ func TestPresentationMediaMethodAndContentType(t *testing.T) {
 	}
 }
 func TestPresentationMediaUnavailableWithoutConfig(t *testing.T) {
-	db, e := store.Open(context.Background(), filepath.Join(t.TempDir(), "media2.db"))
+	db, e := store.Open(context.Background(), storetest.Path(t))
 	if e != nil {
 		t.Fatal(e)
 	}

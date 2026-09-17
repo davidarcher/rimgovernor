@@ -6,8 +6,8 @@ import (
 	"errors"
 	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime"
 	"github.com/davidarcher/RimGovernor/go/internal/store"
+	"github.com/davidarcher/RimGovernor/go/internal/store/storetest"
 	"net/http/httptest"
-	"path/filepath"
 	"strings"
 	"testing"
 	"time"
@@ -53,7 +53,7 @@ func (f *playerFixture) Pause(ctx context.Context, q store.ControlRequest) (stor
 func (f *playerFixture) State() buildingruntime.ControlState { return f.state }
 func playerAPI(t *testing.T) (*Server, *playerFixture) {
 	t.Helper()
-	db, e := store.Open(context.Background(), filepath.Join(t.TempDir(), "player.db"))
+	db, e := store.Open(context.Background(), storetest.Path(t))
 	if e != nil {
 		t.Fatal(e)
 	}

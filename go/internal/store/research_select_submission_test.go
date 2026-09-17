@@ -3,7 +3,6 @@ package store
 import (
 	"context"
 	"errors"
-	"path/filepath"
 	"testing"
 
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
@@ -21,7 +20,7 @@ func researchSelectSubmissionRequest(t *testing.T, id string) ResearchSelectSubm
 func TestResearchSelectSubmissionReplayConflictAndReopen(t *testing.T) {
 	t.Parallel()
 	ctx := context.Background()
-	path := filepath.Join(t.TempDir(), "research-select-submission.db")
+	path := memoryPath(t)
 	s := open(t, path)
 	request := researchSelectSubmissionRequest(t, "request")
 	first, created, err := s.SubmitResearchSelect(ctx, request)
@@ -64,7 +63,7 @@ func TestResearchSelectSubmissionReplayConflictAndReopen(t *testing.T) {
 
 func TestResearchSelectSubmissionAtomicFailure(t *testing.T) {
 	t.Parallel()
-	s := open(t, filepath.Join(t.TempDir(), "research-select-atomic.db"))
+	s := open(t, memoryPath(t))
 	ctx := context.Background()
 	if _, err := s.db.Exec("CREATE TRIGGER fail_research_select_submission BEFORE INSERT ON research_select_submissions BEGIN SELECT RAISE(ABORT,'fixture failure'); END"); err != nil {
 		t.Fatal(err)
@@ -88,7 +87,7 @@ func TestResearchSelectSubmissionAtomicFailure(t *testing.T) {
 
 func TestResearchSelectSubmissionValidationRejected(t *testing.T) {
 	t.Parallel()
-	s := open(t, filepath.Join(t.TempDir(), "research-select-validation.db"))
+	s := open(t, memoryPath(t))
 	ctx := context.Background()
 	for _, change := range []func(*ResearchSelectSubmissionRequest){
 		func(v *ResearchSelectSubmissionRequest) { v.RequestID = "bad\x00id" },
@@ -113,7 +112,7 @@ func TestResearchSelectSubmissionValidationRejected(t *testing.T) {
 func TestResearchSelectSubmissionSharesNamespaceWithBuilding(t *testing.T) {
 	t.Parallel()
 	ctx := context.Background()
-	s := open(t, filepath.Join(t.TempDir(), "research-select-namespace.db"))
+	s := open(t, memoryPath(t))
 	building := submissionRequest(t, "shared")
 	if _, _, err := s.SubmitBuilding(ctx, building); err != nil {
 		t.Fatal(err)

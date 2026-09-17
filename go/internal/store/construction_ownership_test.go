@@ -2,7 +2,6 @@ package store
 
 import (
 	"context"
-	"path/filepath"
 	"testing"
 
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
@@ -12,7 +11,7 @@ import (
 func TestAutonomousConstructionClaimsSurviveRetirementAndManual(t *testing.T) {
 	t.Parallel()
 	ctx := context.Background()
-	path := filepath.Join(t.TempDir(), "ownership.db")
+	path := memoryPath(t)
 	s := open(t, path)
 	request := routineRequest()
 	request.Facts.Colonists = domain.Known(int64(3))

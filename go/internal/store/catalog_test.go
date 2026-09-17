@@ -2,7 +2,6 @@ package store
 
 import (
 	"context"
-	"path/filepath"
 	"reflect"
 	"testing"
 	"time"
@@ -13,7 +12,7 @@ import (
 func TestCatalogEmptyBoundsCancellationAndOrderedRecords(t *testing.T) {
 	t.Parallel()
 	ctx := context.Background()
-	s := open(t, filepath.Join(t.TempDir(), "catalog.db"))
+	s := open(t, memoryPath(t))
 	empty, err := s.LoadPlans(ctx, 1)
 	if err != nil || empty == nil || len(empty) != 0 {
 		t.Fatal(empty, err)

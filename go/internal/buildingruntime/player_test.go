@@ -15,6 +15,7 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/executor"
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
 	"github.com/davidarcher/RimGovernor/go/internal/store"
+	"github.com/davidarcher/RimGovernor/go/internal/store/storetest"
 )
 
 type playerWorldSource struct {
@@ -79,7 +80,7 @@ func (s *playerFakeSession) Close(ctx context.Context) error {
 }
 func playerFixture(t *testing.T) (*Player, *store.Store, *playerFakeSession, *playerWorldSource) {
 	t.Helper()
-	db, err := store.Open(context.Background(), filepath.Join(t.TempDir(), "state.sqlite"))
+	db, err := store.Open(context.Background(), storetest.Path(t))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -327,7 +328,7 @@ func TestPlayerRestartHistoricalPendingAndGrantedNeverEnable(t *testing.T) {
 	for _, phase := range []store.ControlPhase{store.PendingControl, store.RunningControl} {
 		t.Run(string(phase), func(t *testing.T) {
 			ctx := context.Background()
-			path := filepath.Join(t.TempDir(), "state.sqlite")
+			path := storetest.Path(t)
 			db, err := store.Open(ctx, path)
 			if err != nil {
 				t.Fatal(err)
@@ -374,7 +375,7 @@ func TestPlayerActualSessionCleansPriorOwnedLeaseAndRejectsForeignOwner(t *testi
 	t.Parallel()
 	ctx := context.Background()
 	dir := t.TempDir()
-	db, err := store.Open(ctx, filepath.Join(dir, "state.sqlite"))
+	db, err := store.Open(ctx, storetest.Path(t))
 	if err != nil {
 		t.Fatal(err)
 	}

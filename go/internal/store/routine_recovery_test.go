@@ -3,7 +3,6 @@ package store
 import (
 	"context"
 	"encoding/json"
-	"path/filepath"
 	"reflect"
 	"testing"
 
@@ -23,7 +22,7 @@ func recoveryRequest() RoutineReviewRequest {
 func TestRoutineRecoveryProposalRestartManualAndCancellation(t *testing.T) {
 	t.Parallel()
 	ctx := context.Background()
-	path := filepath.Join(t.TempDir(), "recovery.db")
+	path := memoryPath(t)
 	s := open(t, path)
 	r := recoveryRequest()
 	out := reviewRoutine(t, s, &r)
@@ -81,7 +80,7 @@ func TestRoutineRecoveryProposalRestartManualAndCancellation(t *testing.T) {
 func TestRoutineRecoveryUnknownWorkerDoesNotBecomeAvailableAfterRestart(t *testing.T) {
 	t.Parallel()
 	ctx := context.Background()
-	path := filepath.Join(t.TempDir(), "unknown.db")
+	path := memoryPath(t)
 	s := open(t, path)
 	r := recoveryRequest()
 	workers, _ := r.Facts.RecoveryWorkers.Value()
@@ -103,7 +102,7 @@ func TestRoutineRecoveryRejectsCorruptProposalInputs(t *testing.T) {
 	t.Parallel()
 	for _, name := range []string{"target", "worker", "restriction", "epoch", "goal", "disabled", "used"} {
 		t.Run(name, func(t *testing.T) {
-			s := open(t, filepath.Join(t.TempDir(), "corrupt.db"))
+			s := open(t, memoryPath(t))
 			defer s.Close()
 			r := recoveryRequest()
 			out := reviewRoutine(t, s, &r)
@@ -143,7 +142,7 @@ func TestRoutineRecoveryRejectsCorruptProposalInputs(t *testing.T) {
 func TestRoutineRecoverySkipsSharedGoalMethodHistory(t *testing.T) {
 	t.Parallel()
 	ctx := context.Background()
-	s := open(t, filepath.Join(t.TempDir(), "methods.db"))
+	s := open(t, memoryPath(t))
 	defer s.Close()
 	r := recoveryRequest()
 	out := reviewRoutine(t, s, &r)
@@ -163,7 +162,7 @@ func TestRoutineRecoverySkipsSharedGoalMethodHistory(t *testing.T) {
 
 func TestRoutineRecoveryEmergencySuspendsCandidatesUntilObservedClearance(t *testing.T) {
 	t.Parallel()
-	s := open(t, filepath.Join(t.TempDir(), "emergency.db"))
+	s := open(t, memoryPath(t))
 	defer s.Close()
 	r := recoveryRequest()
 	r.Facts.Hostiles = domain.Known(int64(1))

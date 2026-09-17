@@ -2,7 +2,6 @@ package store
 
 import (
 	"context"
-	"path/filepath"
 	"testing"
 
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
@@ -56,7 +55,7 @@ func growingPlan(t *testing.T, id domain.PlanID, cells []domain.Cell) domain.Pla
 
 func TestCommitStockpileZoneMethodBindsToFoodStorageGoal(t *testing.T) {
 	ctx := context.Background()
-	s := open(t, filepath.Join(t.TempDir(), "routine.db"))
+	s := open(t, memoryPath(t))
 	r := foodStorageDeficitRoutineRequest()
 	out := reviewRoutine(t, s, &r)
 	g := routineGoal(t, out, policy.EnsureFoodStorage)
@@ -74,7 +73,7 @@ func TestCommitStockpileZoneMethodBindsToFoodStorageGoal(t *testing.T) {
 // growing-field plans which may batch many patches per method.
 func TestCommitStockpileZoneMethodCappedAtOneAction(t *testing.T) {
 	ctx := context.Background()
-	s := open(t, filepath.Join(t.TempDir(), "routine.db"))
+	s := open(t, memoryPath(t))
 	r := foodStorageDeficitRoutineRequest()
 	out := reviewRoutine(t, s, &r)
 	g := routineGoal(t, out, policy.EnsureFoodStorage)
@@ -89,7 +88,7 @@ func TestCommitStockpileZoneMethodCappedAtOneAction(t *testing.T) {
 // goal was actually bound under, not just any zone-create action family.
 func TestCommitZoneMethodRejectsKindGoalMismatch(t *testing.T) {
 	ctx := context.Background()
-	s := open(t, filepath.Join(t.TempDir(), "routine.db"))
+	s := open(t, memoryPath(t))
 	r := foodStorageDeficitRoutineRequest()
 	out := reviewRoutine(t, s, &r)
 	g := routineGoal(t, out, policy.EnsureFoodStorage)
@@ -105,7 +104,7 @@ func TestCommitZoneMethodRejectsKindGoalMismatch(t *testing.T) {
 // the rest of zonePayload.
 func TestCommitAllowListStockpileZoneMethodRoundTrips(t *testing.T) {
 	ctx := context.Background()
-	s := open(t, filepath.Join(t.TempDir(), "routine.db"))
+	s := open(t, memoryPath(t))
 	r := foodStorageDeficitRoutineRequest()
 	out := reviewRoutine(t, s, &r)
 	g := routineGoal(t, out, policy.EnsureFoodStorage)
@@ -139,7 +138,7 @@ func TestCommitAllowListStockpileZoneMethodRoundTrips(t *testing.T) {
 
 func TestCommitStockpileZoneMethodRejectsOverlappingCells(t *testing.T) {
 	ctx := context.Background()
-	s := open(t, filepath.Join(t.TempDir(), "routine.db"))
+	s := open(t, memoryPath(t))
 	r := foodStorageDeficitRoutineRequest()
 	out := reviewRoutine(t, s, &r)
 	g := routineGoal(t, out, policy.EnsureFoodStorage)
@@ -174,7 +173,7 @@ func TestCommitStockpileZoneMethodRejectsOverlappingCells(t *testing.T) {
 func TestCommitFieldMethodExemptFromAcquisitionOpenWork(t *testing.T) {
 	t.Parallel()
 	ctx := context.Background()
-	s := open(t, filepath.Join(t.TempDir(), "routine.db"))
+	s := open(t, memoryPath(t))
 	r := foodDeficitRoutineRequest()
 	tick := r.Tick
 	out := reviewRoutine(t, s, &r)
@@ -211,7 +210,7 @@ func TestCommitFieldMethodExemptFromAcquisitionOpenWork(t *testing.T) {
 func TestCommitFieldInfrastructureExemptFromAcquisitionOpenWork(t *testing.T) {
 	t.Parallel()
 	ctx := context.Background()
-	s := open(t, filepath.Join(t.TempDir(), "routine.db"))
+	s := open(t, memoryPath(t))
 	r := foodDeficitRoutineRequest()
 	tick := r.Tick
 	out := reviewRoutine(t, s, &r)

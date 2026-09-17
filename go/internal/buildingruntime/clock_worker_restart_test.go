@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/boundary"
-	"path/filepath"
 	"testing"
 	"time"
 
@@ -13,6 +12,7 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/executor"
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
 	"github.com/davidarcher/RimGovernor/go/internal/store"
+	"github.com/davidarcher/RimGovernor/go/internal/store/storetest"
 	k "github.com/davidarcher/RimGovernor/go/internal/wire/clockpb"
 	"google.golang.org/protobuf/proto"
 )
@@ -23,7 +23,7 @@ func TestClockWorkerDisabledRestart(t *testing.T) {
 		t.Run(scenario, func(t *testing.T) {
 			ctx := context.Background()
 			fixture, _, fake, intent := clockCoreFixture(t)
-			path := filepath.Join(t.TempDir(), "restart.sqlite")
+			path := storetest.Path(t)
 			db, err := store.Open(ctx, path)
 			if err != nil {
 				t.Fatal(err)

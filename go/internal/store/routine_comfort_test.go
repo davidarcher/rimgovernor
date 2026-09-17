@@ -3,7 +3,6 @@ package store
 import (
 	"context"
 	"encoding/json"
-	"path/filepath"
 	"testing"
 
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
@@ -23,7 +22,7 @@ func comfortCensus(using bool) policy.ComfortObservation {
 
 func TestRoutineComfortUseSurvivesRestartManualButNotReplacement(t *testing.T) {
 	t.Parallel()
-	path := filepath.Join(t.TempDir(), "comfort.db")
+	path := memoryPath(t)
 	s := open(t, path)
 	r := routineRequest()
 	r.Facts.Comfort = domain.Known(comfortCensus(true))
@@ -68,7 +67,7 @@ func TestRoutineComfortWorldResetAndInvalidDisabledHistory(t *testing.T) {
 	t.Parallel()
 	for _, change := range []string{"world", "rewind"} {
 		t.Run(change, func(t *testing.T) {
-			s := open(t, filepath.Join(t.TempDir(), "comfort.db"))
+			s := open(t, memoryPath(t))
 			r := routineRequest()
 			r.Facts.Comfort = domain.Known(comfortCensus(true))
 			reviewRoutine(t, s, &r)

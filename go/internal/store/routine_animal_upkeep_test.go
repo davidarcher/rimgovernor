@@ -3,7 +3,6 @@ package store
 import (
 	"context"
 	"encoding/json"
-	"path/filepath"
 	"testing"
 
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
@@ -12,7 +11,7 @@ import (
 
 func TestAnimalNeedsRetainRiskAcrossManualRestartAndUnknown(t *testing.T) {
 	t.Parallel()
-	path := filepath.Join(t.TempDir(), "animals.db")
+	path := memoryPath(t)
 	s := open(t, path)
 	r := routineRequest()
 	set := func(n float64, contained bool) {
@@ -77,7 +76,7 @@ func TestAnimalNeedsRetainRiskAcrossManualRestartAndUnknown(t *testing.T) {
 
 func TestDisabledRoutineRejectsInvalidAnimalHistory(t *testing.T) {
 	t.Parallel()
-	s := open(t, filepath.Join(t.TempDir(), "invalid-animals.db"))
+	s := open(t, memoryPath(t))
 	defer s.Close()
 	r := routineRequest()
 	reviewRoutine(t, s, &r)

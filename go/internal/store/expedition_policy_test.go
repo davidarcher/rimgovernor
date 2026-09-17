@@ -3,7 +3,6 @@ package store
 import (
 	"context"
 	"errors"
-	"path/filepath"
 	"testing"
 
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
@@ -16,7 +15,7 @@ func expeditionPolicyRequest(id string, patch domain.ExpeditionPolicyPatch) Expe
 func TestExpeditionPolicyPartialPatchMergeReplayAndConflict(t *testing.T) {
 	t.Parallel()
 	ctx := context.Background()
-	s := open(t, filepath.Join(t.TempDir(), "expedition-policy.db"))
+	s := open(t, memoryPath(t))
 	world := World{Colony: "colony", Load: "load", Map: 0}
 	// An unset world is governed by the contract defaults rather than by no
 	// policy, so the first partial patch has a base to merge onto.
@@ -100,7 +99,7 @@ func TestExpeditionPolicyPartialPatchMergeReplayAndConflict(t *testing.T) {
 func TestExpeditionPolicyStoresEveryField(t *testing.T) {
 	t.Parallel()
 	ctx := context.Background()
-	s := open(t, filepath.Join(t.TempDir(), "expedition-policy-round-trip.db"))
+	s := open(t, memoryPath(t))
 	patch := domain.ExpeditionPolicyPatch{
 		MinimumHomeColonists:          domain.Some(int32(6)),
 		MinimumHomeFoodDays:           domain.Some(12.25),
@@ -135,7 +134,7 @@ func TestExpeditionPolicyStoresEveryField(t *testing.T) {
 func TestExpeditionPolicySubmissionRejectsInvalidRequests(t *testing.T) {
 	t.Parallel()
 	ctx := context.Background()
-	s := open(t, filepath.Join(t.TempDir(), "expedition-policy-invalid.db"))
+	s := open(t, memoryPath(t))
 	valid := expeditionPolicyRequest("request", domain.ExpeditionPolicyPatch{MaximumCaravans: domain.Some(int32(3))})
 	for _, invalid := range []ExpeditionPolicySubmissionRequest{
 		{RequestID: "", World: valid.World, Patch: valid.Patch},

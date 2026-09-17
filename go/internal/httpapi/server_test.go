@@ -8,11 +8,11 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/observation"
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
 	"github.com/davidarcher/RimGovernor/go/internal/store"
+	"github.com/davidarcher/RimGovernor/go/internal/store/storetest"
 	"io"
 	"net"
 	"net/http"
 	"net/http/httptest"
-	"path/filepath"
 	"strings"
 	"testing"
 	"time"
@@ -144,7 +144,7 @@ func TestRoutinesRouteRejectsMutationAndUnknownReviewCursor(t *testing.T) {
 	}
 }
 func TestPlanReadsRealFreshStore(t *testing.T) {
-	database, err := store.Open(context.Background(), filepath.Join(t.TempDir(), "plans.db"))
+	database, err := store.Open(context.Background(), storetest.Path(t))
 	if err != nil {
 		t.Fatal(err)
 	}

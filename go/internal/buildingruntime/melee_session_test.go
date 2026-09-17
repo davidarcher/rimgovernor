@@ -2,7 +2,6 @@ package buildingruntime
 
 import (
 	"context"
-	"path/filepath"
 	"testing"
 	"time"
 
@@ -14,6 +13,7 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/executor"
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
 	"github.com/davidarcher/RimGovernor/go/internal/store"
+	"github.com/davidarcher/RimGovernor/go/internal/store/storetest"
 	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
 	o "github.com/davidarcher/RimGovernor/go/internal/wire/operationspb"
 	"google.golang.org/protobuf/proto"
@@ -29,7 +29,7 @@ func TestMeleeSessionCompositionAndWorkerDraftRetention(t *testing.T) {
 	t.Parallel()
 	ctx := context.Background()
 	dir := t.TempDir()
-	journal, err := store.Open(ctx, filepath.Join(dir, "state.db"))
+	journal, err := store.Open(ctx, storetest.Path(t))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -117,7 +117,7 @@ func TestMeleeSessionRejectsIncompleteCapabilitiesBeforeOwnership(t *testing.T) 
 	t.Parallel()
 	ctx := context.Background()
 	dir := t.TempDir()
-	journal, err := store.Open(ctx, filepath.Join(dir, "state.db"))
+	journal, err := store.Open(ctx, storetest.Path(t))
 	if err != nil {
 		t.Fatal(err)
 	}

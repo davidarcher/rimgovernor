@@ -4,13 +4,13 @@ import (
 	"context"
 	"errors"
 	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/boundary"
-	"path/filepath"
 	"testing"
 	"time"
 
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"github.com/davidarcher/RimGovernor/go/internal/executor"
 	"github.com/davidarcher/RimGovernor/go/internal/store"
+	"github.com/davidarcher/RimGovernor/go/internal/store/storetest"
 	a "github.com/davidarcher/RimGovernor/go/internal/wire/authoritypb"
 )
 
@@ -136,7 +136,7 @@ func TestSessionDisableSynchronouslyInvalidatesBlockedRun(t *testing.T) {
 	t.Parallel()
 	ctx := context.Background()
 	dir := t.TempDir()
-	journal, err := store.Open(ctx, filepath.Join(dir, "state.sqlite"))
+	journal, err := store.Open(ctx, storetest.Path(t))
 	if err != nil {
 		t.Fatal(err)
 	}

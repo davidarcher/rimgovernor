@@ -3,7 +3,6 @@ package store
 import (
 	"context"
 	"errors"
-	"path/filepath"
 	"reflect"
 	"testing"
 
@@ -14,7 +13,7 @@ import (
 func TestWorkPreferencesReplayCASRestartAndClear(t *testing.T) {
 	t.Parallel()
 	ctx := context.Background()
-	path := filepath.Join(t.TempDir(), "work.db")
+	path := memoryPath(t)
 	s := open(t, path)
 	sub, _, err := s.SubmitBuilding(ctx, submissionRequest(t, "building"))
 	if err != nil {
@@ -66,7 +65,7 @@ func TestWorkPreferencesReplayCASRestartAndClear(t *testing.T) {
 func TestWorkPreferencesInvalidateReviewAndRejectStaleInputs(t *testing.T) {
 	t.Parallel()
 	ctx := context.Background()
-	s := open(t, filepath.Join(t.TempDir(), "work.db"))
+	s := open(t, memoryPath(t))
 	sub, _, err := s.SubmitBuilding(ctx, submissionRequest(t, "building"))
 	if err != nil {
 		t.Fatal(err)
@@ -127,7 +126,7 @@ func TestWorkPreferencesRejectMalformedOverrides(t *testing.T) {
 func TestWorkPreferencesRollbackWhenReviewInvalidationFails(t *testing.T) {
 	t.Parallel()
 	ctx := context.Background()
-	s := open(t, filepath.Join(t.TempDir(), "work.db"))
+	s := open(t, memoryPath(t))
 	sub, _, err := s.SubmitBuilding(ctx, submissionRequest(t, "building"))
 	if err != nil {
 		t.Fatal(err)

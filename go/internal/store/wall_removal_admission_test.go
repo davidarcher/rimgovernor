@@ -65,7 +65,7 @@ func TestWallRemovalAdmissionRejectsTargetMismatch(t *testing.T) {
 func backupWallRemovalStoreFixture(t *testing.T) (*Store, domain.GenerationSnapshot) {
 	t.Helper()
 	ctx := context.Background()
-	path := filepath.Join(t.TempDir(), "backup_wall_removal.db")
+	path := memoryPath(t)
 	s := open(t, path)
 	backup, _ := domain.NewBuilding("Wall", domain.Cell{X: 2, Z: 1}, domain.North, "BlocksGranite")
 	backupAction, _ := domain.NewBuildingAction("backup", backup)

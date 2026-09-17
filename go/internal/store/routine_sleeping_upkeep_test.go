@@ -2,7 +2,6 @@ package store
 
 import (
 	"context"
-	"path/filepath"
 	"testing"
 
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
@@ -11,7 +10,7 @@ import (
 
 func TestSleepingUseSurvivesManualRestartAndResetsWithWorld(t *testing.T) {
 	t.Parallel()
-	path := filepath.Join(t.TempDir(), "sleep.db")
+	path := memoryPath(t)
 	s := open(t, path)
 	r := routineRequest()
 	v := policy.SleepingObservation{Colonists: 1, People: []policy.SleepingPerson{{ID: "pawn", OwnedBed: domain.Known("bed"), ComfortableMin: domain.Known(10.0), ComfortableMax: domain.Known(30.0)}}, Beds: []policy.SleepingBed{{ID: "bed", Definition: "Bed", Humanlike: domain.Known(true), Medical: domain.Known(false), Prisoners: domain.Known(false), Roofed: domain.Known(true), RestEffectiveness: domain.Known(1.0), Temperature: domain.Known(20.0), Owners: []policy.PawnID{"pawn"}, Users: []policy.PawnID{"pawn"}, AccessibleTo: []policy.PawnID{"pawn"}}}}

@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/boundary"
-	"path/filepath"
 	"testing"
 	"time"
 
@@ -12,6 +11,7 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"github.com/davidarcher/RimGovernor/go/internal/executor"
 	"github.com/davidarcher/RimGovernor/go/internal/store"
+	"github.com/davidarcher/RimGovernor/go/internal/store/storetest"
 	p "github.com/davidarcher/RimGovernor/go/internal/wire/placementpb"
 	r "github.com/davidarcher/RimGovernor/go/internal/wire/receiptspb"
 	"google.golang.org/protobuf/proto"
@@ -36,7 +36,7 @@ func TestSessionFailedRefreshCancelsDisabledReconciliationUntilFreshObservation(
 	t.Parallel()
 	ctx := context.Background()
 	dir := t.TempDir()
-	journal, err := store.Open(ctx, filepath.Join(dir, "state.sqlite"))
+	journal, err := store.Open(ctx, storetest.Path(t))
 	if err != nil {
 		t.Fatal(err)
 	}

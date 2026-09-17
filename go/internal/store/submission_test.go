@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
-	"path/filepath"
 	"sync"
 	"testing"
 )
@@ -21,7 +20,7 @@ func submissionRequest(t *testing.T, id string) SubmissionRequest {
 func TestSubmissionReplayConflictAndReopen(t *testing.T) {
 	t.Parallel()
 	ctx := context.Background()
-	path := filepath.Join(t.TempDir(), "submission.db")
+	path := memoryPath(t)
 	s := open(t, path)
 	request := submissionRequest(t, "request")
 	first, created, err := s.SubmitBuilding(ctx, request)
@@ -66,7 +65,7 @@ func TestSubmissionReplayConflictAndReopen(t *testing.T) {
 }
 func TestSubmissionAtomicFailure(t *testing.T) {
 	t.Parallel()
-	s := open(t, filepath.Join(t.TempDir(), "atomic.db"))
+	s := open(t, memoryPath(t))
 	ctx := context.Background()
 	if _, err := s.db.Exec("CREATE TRIGGER fail_submission BEFORE INSERT ON building_submissions BEGIN SELECT RAISE(ABORT,'fixture failure'); END"); err != nil {
 		t.Fatal(err)
@@ -89,7 +88,7 @@ func TestSubmissionAtomicFailure(t *testing.T) {
 }
 func TestConcurrentSubmissionAcrossConnections(t *testing.T) {
 	t.Parallel()
-	path := filepath.Join(t.TempDir(), "concurrent.db")
+	path := memoryPath(t)
 	one := open(t, path)
 	two := open(t, path)
 	request := submissionRequest(t, "same")
@@ -137,7 +136,7 @@ func TestConcurrentSubmissionAcrossConnections(t *testing.T) {
 func TestSubmissionCapacityPreservesReplay(t *testing.T) {
 	t.Parallel()
 	ctx := context.Background()
-	s := open(t, filepath.Join(t.TempDir(), "capacity.db"))
+	s := open(t, memoryPath(t))
 	request := submissionRequest(t, "retained")
 	first, _, err := s.SubmitBuilding(ctx, request)
 	if err != nil {
@@ -170,7 +169,7 @@ func TestSubmissionCapacityPreservesReplay(t *testing.T) {
 }
 func TestSubmissionValidationAndOldSchemaRejected(t *testing.T) {
 	t.Parallel()
-	s := open(t, filepath.Join(t.TempDir(), "validation.db"))
+	s := open(t, memoryPath(t))
 	ctx := context.Background()
 	for _, change := range []func(*SubmissionRequest){func(v *SubmissionRequest) { v.RequestID = "bad\x00id" }, func(v *SubmissionRequest) { v.World.Map = -1 }, func(v *SubmissionRequest) { v.World.Load = "" }, func(v *SubmissionRequest) { v.Building = domain.Building{} }} {
 		request := submissionRequest(t, "request")
@@ -182,7 +181,7 @@ func TestSubmissionValidationAndOldSchemaRejected(t *testing.T) {
 	if _, err := s.LookupSubmission(ctx, ""); err == nil {
 		t.Fatal("invalid lookup id accepted")
 	}
-	path := filepath.Join(t.TempDir(), "old.db")
+	path := memoryPath(t)
 	old := open(t, path)
 	if _, err := old.db.Exec("PRAGMA user_version=3"); err != nil {
 		t.Fatal(err)
