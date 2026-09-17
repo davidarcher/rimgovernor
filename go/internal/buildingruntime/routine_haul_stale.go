@@ -17,6 +17,18 @@ import (
 // goal's attempt count advances toward its fallbacks. It reports whether any
 // open work remains after the cancellations.
 func cancelStaleHaulMethods(ctx context.Context, journal *store.Store, goal store.GoalState, targets []string, now domain.Tick, stallTicks int64) (bool, error) {
+	return cancelHaulMethods(ctx, journal, goal, targets, now, stallTicks)
+}
+
+// cancelStalledHaulMethods is the stall-only half, run before the ranking
+// gate: a stalled haul counts as an existing commitment, so the ranking
+// never selects the goal again until the hold is settled here.
+func cancelStalledHaulMethods(ctx context.Context, journal *store.Store, goal store.GoalState, now domain.Tick, stallTicks int64) error {
+	_, err := cancelHaulMethods(ctx, journal, goal, nil, now, stallTicks)
+	return err
+}
+
+func cancelHaulMethods(ctx context.Context, journal *store.Store, goal store.GoalState, targets []string, now domain.Tick, stallTicks int64) (bool, error) {
 	current := map[string]bool{}
 	for _, id := range targets {
 		current[id] = true
@@ -43,7 +55,7 @@ func cancelStaleHaulMethods(ctx context.Context, journal *store.Store, goal stor
 			if !ok || v.Stage != domain.Pending && v.Stage != domain.Prepared {
 				continue
 			}
-			if current[haul.Thing()] && !haulStalled(v, now, stallTicks) {
+			if (targets == nil || current[haul.Thing()]) && !haulStalled(v, now, stallTicks) {
 				continue
 			}
 			if _, err = journal.Cancel(ctx, method.Plan, v.Action); err != nil {
@@ -75,4 +87,16 @@ func haulStalled(v domain.ProgressView, now domain.Tick, stallTicks int64) bool 
 		}
 	}
 	return false
+}
+
+// haulAttemptCount counts every method of the goal's current epoch with the
+// prefix, including retired ones: a cancelled haul retires at the next review
+// and drops out of GoalState.Methods, and counting only the live bindings
+// would re-derive the retired plan's ID and fail on the unique constraint.
+func haulAttemptCount(ctx context.Context, journal *store.Store, goal store.GoalState, prefix string) (int, error) {
+	history, err := journal.LoadGoalMethods(ctx, goal.Goal.ID, goal.Goal.Epoch)
+	if err != nil {
+		return 0, err
+	}
+	return medicalAttemptCount(history, goal.Goal.Epoch, prefix), nil
 }

@@ -102,6 +102,9 @@ func (r *RoutineHaulPlanner) step(call, epoch context.Context, arbiter *stepArbi
 	// would refuse a goal that already has a haul in flight on every review
 	// cycle after admission, instead of recognizing it as existing work --
 	// stalling completion and never letting the clock settle (issue #42).
+	if err = cancelStalledHaulMethods(call, p.journal, goal, review.Tick, r.reviewer.policy.HaulStallTicks); err != nil {
+		return RoutineHaulResult{}, err
+	}
 	selected := false
 	for _, row := range review.Development.Rows {
 		selected = selected || row.Goal == policy.MaintainStorage && row.Selected
@@ -230,7 +233,10 @@ func (r *RoutineHaulPlanner) step(call, epoch context.Context, arbiter *stepArbi
 	// Keyed by item and attempt count, not pawn: a fresh attempt after an
 	// interrupted or refused try picks whichever hauler is currently best.
 	prefix := fmt.Sprintf("haul-%s-", item.ID)
-	attempt := medicalAttemptCount(goal.Methods, goal.Goal.Epoch, prefix)
+	attempt, err := haulAttemptCount(call, p.journal, goal, prefix)
+	if err != nil {
+		return RoutineHaulResult{}, err
+	}
 	if attempt >= maxMedicalAttemptsPerPatient {
 		return RoutineHaulResult{Reason: BuildingMethodExhausted}, nil
 	}

@@ -104,6 +104,9 @@ func (r *RoutineSecureSuppliesPlanner) step(call, epoch context.Context, arbiter
 	// SecureSupplies competes for the same bounded concurrent-project capacity
 	// as comfort/expansion/other priority>=3 autopilot goals; only act while
 	// this review's arbitration actually selected it.
+	if err = cancelStalledHaulMethods(call, p.journal, goal, review.Tick, r.reviewer.policy.HaulStallTicks); err != nil {
+		return RoutineSecureSuppliesResult{}, err
+	}
 	selected := false
 	for _, row := range review.Development.Rows {
 		selected = selected || row.Goal == policy.SecureSupplies && row.Selected
@@ -232,7 +235,10 @@ func (r *RoutineSecureSuppliesPlanner) step(call, epoch context.Context, arbiter
 	// Keyed by item and attempt count, not pawn: a fresh attempt after an
 	// interrupted or refused try picks whichever hauler is currently best.
 	prefix := fmt.Sprintf("secure-supplies-%s-", item.ID)
-	attempt := medicalAttemptCount(goal.Methods, goal.Goal.Epoch, prefix)
+	attempt, err := haulAttemptCount(call, p.journal, goal, prefix)
+	if err != nil {
+		return RoutineSecureSuppliesResult{}, err
+	}
 	if attempt >= maxSecureSuppliesHaulAttempts {
 		fallback, err := r.coveredStorageFallback(call, epoch, state, goal, reading.Projection, item, started, arbiter)
 		if err != nil {
@@ -284,7 +290,10 @@ func (r *RoutineSecureSuppliesPlanner) step(call, epoch context.Context, arbiter
 // caller should try supplyRoomFallback next.
 func (r *RoutineSecureSuppliesPlanner) coveredStorageFallback(call, epoch context.Context, state ControlState, goal store.GoalState, projection observation.ColonyProjection, item policy.UpkeepItem, started time.Time, arbiter *stepArbiter) (RoutineSecureSuppliesResult, error) {
 	p := r.reviewer.player
-	zoneAttempts := medicalAttemptCount(goal.Methods, goal.Goal.Epoch, secureSuppliesZonePrefix)
+	zoneAttempts, err := haulAttemptCount(call, p.journal, goal, secureSuppliesZonePrefix)
+	if err != nil {
+		return RoutineSecureSuppliesResult{}, err
+	}
 	if zoneAttempts >= maxSecureSuppliesZoneMethods {
 		return RoutineSecureSuppliesResult{}, nil
 	}
@@ -401,7 +410,10 @@ func secureSuppliesRoomShellPlan(spec domain.PlanSpec) bool {
 // caller should report its own exhaustion reason instead.
 func (r *RoutineSecureSuppliesPlanner) supplyRoomFallback(call, epoch context.Context, state ControlState, goal store.GoalState, projection observation.ColonyProjection, started time.Time, arbiter *stepArbiter) (RoutineSecureSuppliesResult, error) {
 	p := r.reviewer.player
-	zoneAttempts := medicalAttemptCount(goal.Methods, goal.Goal.Epoch, secureSuppliesZonePrefix)
+	zoneAttempts, err := haulAttemptCount(call, p.journal, goal, secureSuppliesZonePrefix)
+	if err != nil {
+		return RoutineSecureSuppliesResult{}, err
+	}
 	if zoneAttempts >= maxSecureSuppliesZoneMethods {
 		return RoutineSecureSuppliesResult{}, nil
 	}

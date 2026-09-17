@@ -138,17 +138,41 @@ namespace HomeBridge.BridgeTools
                     && command.Growing != null && command.Growing.HasPlantDef && ProtoBoundary.IsIdentifier(command.Growing.PlantDef)
                     && command.Growing.HasAllowSow && command.Growing.AllowSow && command.Growing.HasAllowCut && command.Growing.AllowCut;
             if (command.Type == Operations.ZoneType.Stockpile)
-                return command.Label == "RimGovernor food storage" && command.Growing == null && !command.RequireCoveredEmpty
-                    && command.Stockpile != null && command.Stockpile.HasPriority && command.Stockpile.Priority == Operations.StoragePriority.Important
-                    && command.Stockpile.HasPreset && command.Stockpile.Preset == Operations.FilterPreset.Food && command.Stockpile.Filter == null;
+            {
+                if (command.Growing != null || command.RequireCoveredEmpty || command.Stockpile == null
+                    || !command.Stockpile.HasPriority || command.Stockpile.Priority != Operations.StoragePriority.Important || !command.Stockpile.HasPreset) return false;
+                if (command.Stockpile.Preset == Operations.FilterPreset.Food)
+                    return command.Label == "RimGovernor food storage" && command.Stockpile.Filter == null;
+                // SecureSupplies' covered-storage fallback: an empty preset plus
+                // an explicit allow-list of exact thing defs (the vulnerable
+                // item), nothing else.
+                if (command.Stockpile.Preset == Operations.FilterPreset.Nothing)
+                    return command.Label == "RimGovernor supplies storage" && AllowListDefs(command.Stockpile.Filter) != null;
+            }
             return false;
+        }
+        // AllowListDefs resolves a pure allow-list patch (no replace, no
+        // disallow, 1..64 distinct existing storable thing defs) or returns null.
+        private static List<ThingDef>? AllowListDefs(Operations.FilterPatch? filter)
+        {
+            if (filter == null || filter.Replace != null || filter.Disallow.Count != 0 || filter.Allow.Count == 0 || filter.Allow.Count > 64) return null;
+            var defs = new List<ThingDef>();
+            foreach (var selector in filter.Allow)
+            {
+                if (selector.DefinitionCase != Operations.FilterSelector.DefinitionOneofCase.ThingDef || !ProtoBoundary.IsIdentifier(selector.ThingDef)) return null;
+                var def = DefDatabase<ThingDef>.GetNamedSilentFail(selector.ThingDef);
+                if (def == null || !def.EverStorable(false) || defs.Contains(def)) return null;
+                defs.Add(def);
+            }
+            return defs;
         }
         private static bool Prepare(Operations.CreateZone command, Common.ObservationContext context, out ThingDef? crop, out Common.Failure failure)
         {
             crop = null; failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Zone creation requires fresh free ground, an available configuration and an exact map snapshot.");
             if (!Valid(command)) return false;
             var map = ProtoBoundary.ResolveMap(context);
-            if (MapSnapshot(map, context).Token != command.ExpectedMapSnapshotToken) return false;
+            if (MapSnapshot(map, context).Token != command.ExpectedMapSnapshotToken)
+            { failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Zone creation requires an exact map snapshot; the map changed since it was read."); return false; }
             var cells = command.Cells.ExplicitCells.Cells.Select(c => new IntVec3(c.X, 0, c.Z)).ToArray();
             var selected = new HashSet<IntVec3>(cells);
             var reached = new HashSet<IntVec3> { cells[0] };
@@ -171,10 +195,17 @@ namespace HomeBridge.BridgeTools
             // A protected food store needs a roof and clear, empty, walkable floor;
             // the caller (a verified room) is responsible for the roof already
             // existing -- this only refuses ground that is not actually safe.
-            return cells.All(c => c.InBounds(map) && !c.Fogged(map) && c.Walkable(map) && c.Roofed(map)
-                && c.GetEdifice(map) == null && c.GetThingList(map).Count == 0
-                && map.zoneManager.ZoneAt(c) == null && !map.zoneManager.AllZones.Any(z => z.Cells.Contains(c))
-                && !map.roofCollapseBuffer.IsMarkedToCollapse(c));
+            foreach (var c in cells)
+            {
+                var gate = !c.InBounds(map) ? "out of bounds" : c.Fogged(map) ? "fogged" : !c.Walkable(map) ? "not walkable" : !c.Roofed(map) ? "unroofed"
+                    : c.GetEdifice(map) != null ? "edifice" : c.GetThingList(map).Count != 0 ? "occupied by " + string.Join(",", c.GetThingList(map).Select(t => t.def.defName))
+                    : map.zoneManager.ZoneAt(c) != null || map.zoneManager.AllZones.Any(z => z.Cells.Contains(c)) ? "already zoned"
+                    : map.roofCollapseBuffer.IsMarkedToCollapse(c) ? "roof collapsing" : null;
+                if (gate == null) continue;
+                failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Stockpile cell (" + c.x + "," + c.z + ") is not safe free ground: " + gate + ".");
+                return false;
+            }
+            return true;
         }
         internal static Operations.PreviewReply Preview(Operations.CreateZone command, Common.ObservationContext context)
         {
@@ -212,7 +243,13 @@ namespace HomeBridge.BridgeTools
                         var priority = ToNativePriority(command.Stockpile.Priority);
                         if (priority.HasValue) stockpile.settings.Priority = priority.Value;
                         var universe = StockpileFilter.StorableDefs(stockpile);
-                        StockpileFilter.Apply(stockpile.settings.filter, "food", new StockpileFilter.Resolved(), new StockpileFilter.Resolved(), StockpileFilter.ParentFilter(stockpile), universe, null);
+                        if (command.Stockpile.Preset == Operations.FilterPreset.Nothing)
+                        {
+                            stockpile.settings.filter.SetDisallowAll();
+                            foreach (var def in AllowListDefs(command.Stockpile.Filter)!) stockpile.settings.filter.SetAllow(def, true);
+                        }
+                        else
+                            StockpileFilter.Apply(stockpile.settings.filter, "food", new StockpileFilter.Resolved(), new StockpileFilter.Resolved(), StockpileFilter.ParentFilter(stockpile), universe, null);
                     }
                     evidence = new Receipts.EffectEvidence { Zone = record.Evidence() };
                 }
