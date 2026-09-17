@@ -10,13 +10,27 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
-// PrisonerInteractionMode names the native prisoner interaction defName pair
-// PopulationTool.cs's legacy home/population write already exposed;
-// PopulationPerson.Interaction carries the exact same open string.
-const (
-	prisonerInteractionRecruitDefName  = "AttemptRecruit"
-	prisonerInteractionMaintainDefName = "MaintainOnly"
-)
+// prisonerInteractionDefNames maps the open native defName
+// PopulationPerson.Interaction carries to the mode SetPrisonerInteraction
+// writes it as; any other current interaction (Execution, DLC modes this
+// boundary does not expose) stays unknown rather than misread.
+var prisonerInteractionDefNames = map[string]PrisonerInteractionMode{
+	"AttemptRecruit":   PrisonerInteractionRecruit,
+	"MaintainOnly":     PrisonerInteractionMaintain,
+	"ReduceResistance": PrisonerInteractionReduceResistance,
+	"Release":          PrisonerInteractionRelease,
+	"Enslave":          PrisonerInteractionEnslave,
+	"Convert":          PrisonerInteractionConvert,
+}
+
+var prisonerInteractionDomain = map[PrisonerInteractionMode]domain.PrisonerInteractionMode{
+	PrisonerInteractionRecruit:          domain.PrisonerInteractionRecruit,
+	PrisonerInteractionMaintain:         domain.PrisonerInteractionMaintain,
+	PrisonerInteractionReduceResistance: domain.PrisonerInteractionReduceResistance,
+	PrisonerInteractionRelease:          domain.PrisonerInteractionRelease,
+	PrisonerInteractionEnslave:          domain.PrisonerInteractionEnslave,
+	PrisonerInteractionConvert:          domain.PrisonerInteractionConvert,
+}
 
 // PrisonerTarget is the fresh prisoner CAS evidence InspectPrisonerInteraction
 // needs immediately before preview: the per-pawn settings snapshot token
@@ -95,11 +109,8 @@ func (client *Client) ReadPrisonerInteractionTarget(ctx context.Context, identit
 		out.RecruitableKnown, out.Recruitable = true, row.GetRecruitable()
 	}
 	if row.Interaction != nil {
-		switch row.GetInteraction() {
-		case prisonerInteractionRecruitDefName:
-			out.CurrentInteractionKnown, out.CurrentInteraction = true, PrisonerInteractionRecruit
-		case prisonerInteractionMaintainDefName:
-			out.CurrentInteractionKnown, out.CurrentInteraction = true, PrisonerInteractionMaintain
+		if mode, ok := prisonerInteractionDefNames[row.GetInteraction()]; ok {
+			out.CurrentInteractionKnown, out.CurrentInteraction = true, mode
 		}
 	}
 	return out, raw, nil
@@ -193,11 +204,8 @@ func (client *Client) ReadRoutinePopulation(ctx context.Context, identity *c.Ide
 			f.Recruitable = domain.Known(person.GetRecruitable())
 		}
 		if person.Interaction != nil {
-			switch person.GetInteraction() {
-			case prisonerInteractionRecruitDefName:
-				f.CurrentInteraction = domain.Known(domain.PrisonerInteractionRecruit)
-			case prisonerInteractionMaintainDefName:
-				f.CurrentInteraction = domain.Known(domain.PrisonerInteractionMaintain)
+			if mode, ok := prisonerInteractionDefNames[person.GetInteraction()]; ok {
+				f.CurrentInteraction = domain.Known(prisonerInteractionDomain[mode])
 			}
 		}
 		rows = append(rows, f)

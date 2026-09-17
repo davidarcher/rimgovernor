@@ -126,6 +126,8 @@ func run(ctx context.Context, root, output, gameID string, headless bool, report
 		return fmt.Errorf("surgery_prepare: unexpected fixture identifiers: %#v", prepared)
 	}
 
+	// SetMode(Auto) at the current generation (#52): no lease, the granted
+	// body's context.nativeGeneration is what preconditions carry.
 	grant, err := na.GrantAuto(ctx, h.WireFunc(), "acquire", identity)
 	if err != nil {
 		return err
@@ -314,35 +316,11 @@ func run(ctx context.Context, root, output, gameID string, headless bool, report
 	// carries the practitioner through the queued bill and the hediff change
 	// is observed: the outcome must be observed separately; absence of a bill
 	// never proves completion by itself.
-	if _, err := h.Call(ctx, "resume", "rimworld/set_time_speed", map[string]any{"speed": "Fast", "ultraSpeedBoost": false}); err != nil {
+	completedAll, err := na.ObserveCompleted(ctx, h, "observe", 2*na.TicksPerDay, attempt)
+	if err != nil {
 		return err
 	}
-	var completedProgress map[string]any
-	deadline := time.Now().Add(10 * time.Minute)
-	for completedProgress == nil {
-		if time.Now().After(deadline) {
-			return fmt.Errorf("observe: surgery did not complete within the polling deadline")
-		}
-		progressReply, err := h.Wire(ctx, "observe-poll", "receipts_observe_progress", attempt)
-		if err != nil {
-			return err
-		}
-		_, progress, err := na.Outcome(progressReply, "progress")
-		if err != nil {
-			return err
-		}
-		if unsuccessful, ok := na.AsMap(progress["unsuccessful"]); ok {
-			return fmt.Errorf("observe: surgery became unsuccessful before completion: %#v", unsuccessful)
-		}
-		if completed, ok := na.AsMap(progress["completed"]); ok {
-			completedProgress = completed
-			break
-		}
-		time.Sleep(2 * time.Second)
-	}
-	if _, err := h.Call(ctx, "pause-after-complete", "rimworld/set_time_speed", map[string]any{"speed": "Paused", "ultraSpeedBoost": false}); err != nil {
-		return err
-	}
+	completedProgress := completedAll[0]
 	completedEvidence, _ := na.AsMap(completedProgress["evidence"])
 	completedSurgery, _ := na.AsMap(completedEvidence["surgery"])
 	if na.AsString(completedSurgery["patientId"]) != patientID || na.AsString(completedSurgery["recipeDef"]) != recipe {

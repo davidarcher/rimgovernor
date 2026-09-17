@@ -667,12 +667,20 @@ func (Need) EnumDescriptor() ([]byte, []int) {
 	return file_operations_proto_rawDescGZIP(), []int{11}
 }
 
+// Exclusive prisoner interaction modes. REDUCE_RESISTANCE and RELEASE are
+// Core; ENSLAVE and CONVERT resolve only while Ideology is active and are
+// refused as unsupported otherwise. Execution and non-exclusive modes stay
+// player-only.
 type PrisonerInteraction int32
 
 const (
-	PrisonerInteraction_PRISONER_INTERACTION_UNSPECIFIED     PrisonerInteraction = 0
-	PrisonerInteraction_PRISONER_INTERACTION_ATTEMPT_RECRUIT PrisonerInteraction = 1
-	PrisonerInteraction_PRISONER_INTERACTION_MAINTAIN_ONLY   PrisonerInteraction = 2
+	PrisonerInteraction_PRISONER_INTERACTION_UNSPECIFIED       PrisonerInteraction = 0
+	PrisonerInteraction_PRISONER_INTERACTION_ATTEMPT_RECRUIT   PrisonerInteraction = 1
+	PrisonerInteraction_PRISONER_INTERACTION_MAINTAIN_ONLY     PrisonerInteraction = 2
+	PrisonerInteraction_PRISONER_INTERACTION_REDUCE_RESISTANCE PrisonerInteraction = 3
+	PrisonerInteraction_PRISONER_INTERACTION_RELEASE           PrisonerInteraction = 4
+	PrisonerInteraction_PRISONER_INTERACTION_ENSLAVE           PrisonerInteraction = 5
+	PrisonerInteraction_PRISONER_INTERACTION_CONVERT           PrisonerInteraction = 6
 )
 
 // Enum value maps for PrisonerInteraction.
@@ -681,11 +689,19 @@ var (
 		0: "PRISONER_INTERACTION_UNSPECIFIED",
 		1: "PRISONER_INTERACTION_ATTEMPT_RECRUIT",
 		2: "PRISONER_INTERACTION_MAINTAIN_ONLY",
+		3: "PRISONER_INTERACTION_REDUCE_RESISTANCE",
+		4: "PRISONER_INTERACTION_RELEASE",
+		5: "PRISONER_INTERACTION_ENSLAVE",
+		6: "PRISONER_INTERACTION_CONVERT",
 	}
 	PrisonerInteraction_value = map[string]int32{
-		"PRISONER_INTERACTION_UNSPECIFIED":     0,
-		"PRISONER_INTERACTION_ATTEMPT_RECRUIT": 1,
-		"PRISONER_INTERACTION_MAINTAIN_ONLY":   2,
+		"PRISONER_INTERACTION_UNSPECIFIED":       0,
+		"PRISONER_INTERACTION_ATTEMPT_RECRUIT":   1,
+		"PRISONER_INTERACTION_MAINTAIN_ONLY":     2,
+		"PRISONER_INTERACTION_REDUCE_RESISTANCE": 3,
+		"PRISONER_INTERACTION_RELEASE":           4,
+		"PRISONER_INTERACTION_ENSLAVE":           5,
+		"PRISONER_INTERACTION_CONVERT":           6,
 	}
 )
 
@@ -8168,11 +8184,15 @@ const file_operations_proto_rawDesc = "" +
 	"\x10NEED_UNSPECIFIED\x10\x00\x12\r\n" +
 	"\tNEED_FOOD\x10\x01\x12\r\n" +
 	"\tNEED_REST\x10\x02\x12\f\n" +
-	"\bNEED_JOY\x10\x03*\x8d\x01\n" +
+	"\bNEED_JOY\x10\x03*\x9f\x02\n" +
 	"\x13PrisonerInteraction\x12$\n" +
 	" PRISONER_INTERACTION_UNSPECIFIED\x10\x00\x12(\n" +
 	"$PRISONER_INTERACTION_ATTEMPT_RECRUIT\x10\x01\x12&\n" +
-	"\"PRISONER_INTERACTION_MAINTAIN_ONLY\x10\x02*n\n" +
+	"\"PRISONER_INTERACTION_MAINTAIN_ONLY\x10\x02\x12*\n" +
+	"&PRISONER_INTERACTION_REDUCE_RESISTANCE\x10\x03\x12 \n" +
+	"\x1cPRISONER_INTERACTION_RELEASE\x10\x04\x12 \n" +
+	"\x1cPRISONER_INTERACTION_ENSLAVE\x10\x05\x12 \n" +
+	"\x1cPRISONER_INTERACTION_CONVERT\x10\x06*n\n" +
 	"\n" +
 	"AttackMode\x12\x1b\n" +
 	"\x17ATTACK_MODE_UNSPECIFIED\x10\x00\x12\x14\n" +

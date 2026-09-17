@@ -118,11 +118,10 @@ func run(ctx context.Context, root, output, gameID string, headless bool, report
 
 	// Fixture: clears a legal 6x6 room, spawns just enough WoodLog for the
 	// full shell, spawns the uncontained herd animal + non-pen pet, and
-	// enables one colonist's Construction/Handling. Run this BEFORE
-	// acquiring authority: the fixture spawns pawns/things directly outside
-	// any authority.Owned() scope, and NativeControlAuthority.RevokeExternal
-	// revokes any held lease for such external activity regardless of who
-	// holds it, mirroring populationcustodyaccept's own ordering.
+	// enables one colonist's Construction/Handling. Run this BEFORE granting
+	// Auto so the fixture's own direct spawning bumps the native generation
+	// before the first WritePrecondition reads it, mirroring
+	// populationcustodyaccept's own ordering.
 	prepared, err := h.Call(ctx, "prepare", "test/containment_construct_prepare", map[string]any{})
 	if err != nil {
 		return err
@@ -149,21 +148,18 @@ func run(ctx context.Context, root, output, gameID string, headless bool, report
 	}
 	report["fixture_room"] = room
 
-	// acquire grants the bot Auto authority (SetMode(Auto) at the current
-	// native generation, since #52 the only authority handshake -- there is no
-	// acquire/renew lease any more). Native activity outside an
-	// authority.Owned() scope (the fixture's own spawning above, or running
-	// ticks forward at Fast speed to observe construction/containment progress
-	// below) can revoke authority via NativeControlAuthority.RevokeExternal,
-	// and every grant advances the generation, so this must be called again
-	// before every fresh dispatch that follows such a window, not just once at
-	// the start. Callers thread the grant's generation into their own
-	// WritePrecondition.
-	acquire := func(label string) error {
+	// Authority is a single Auto/Manual mode switch (SIMP02): SetMode(Auto)
+	// grants outright at the current generation and there is no lease to
+	// renew or lose. Fixture spawning above and the Fast-speed observation
+	// windows below do not revoke anything; the per-write generation is simply
+	// re-read fresh before each dispatch. grantAuto is re-issued before the
+	// marker dispatch purely to mirror the production controller's own
+	// re-grant after a long observation window.
+	grantAuto := func(label string) error {
 		_, err := na.GrantAuto(ctx, h.WireFunc(), label, identity)
 		return err
 	}
-	if err := acquire("acquire"); err != nil {
+	if err := grantAuto("grant-auto"); err != nil {
 		return err
 	}
 
@@ -239,13 +235,8 @@ func run(ctx context.Context, root, output, gameID string, headless bool, report
 		return fmt.Errorf("preview-door: expected the FenceGate placement to be accepted, got %#v", previewEvaluated)
 	}
 
-	// A single acquire (above, before the preview) covers this whole run of
-	// dispatches: re-issuing Acquire here would be refused (native OwnerConflict
-	// -- Acquire is the explicit player-control takeover path and always fails
-	// while any lease, including this tool's own, is still active). Nothing
-	// between these dispatches runs a tick or touches native state outside
-	// authority.Owned() scope, so the lease from the single acquire above stays
-	// valid for the whole loop; only the per-cell generation is re-read fresh.
+	// The single SetMode(Auto) above covers this whole run of dispatches;
+	// only the per-cell generation is re-read fresh.
 	shellAttempts := make([]map[string]any, 0, len(perimeter))
 	for i, cell := range perimeter {
 		generation, err := currentGeneration(fmt.Sprintf("generation-shell-%d", i))
@@ -281,13 +272,7 @@ func run(ctx context.Context, root, output, gameID string, headless bool, report
 	// actually built by the fixture's prepared handler/builder, not just
 	// issued; absence of the blueprint stage never proves completion by
 	// itself.
-	if _, err := h.Call(ctx, "resume-shell", "rimworld/set_time_speed", map[string]any{"speed": "Fast", "ultraSpeedBoost": false}); err != nil {
-		return err
-	}
-	if err := pollAllCompleted(ctx, h, shellAttempts, "shell", 20*time.Minute); err != nil {
-		return fmt.Errorf("observe-shell: %w", err)
-	}
-	if _, err := h.Call(ctx, "pause-after-shell", "rimworld/set_time_speed", map[string]any{"speed": "Paused", "ultraSpeedBoost": false}); err != nil {
+	if _, err := na.ObserveCompleted(ctx, h, "observe-shell", 4*na.TicksPerDay, shellAttempts...); err != nil {
 		return err
 	}
 	report["shell_built"] = true
@@ -295,7 +280,7 @@ func run(ctx context.Context, root, output, gameID string, headless bool, report
 	// --- Place the PenMarker at the shell's interior, matching placeMarker's
 	// own nearest-northwest-interior-corner choice. ---
 	markerX, markerZ := roomX+1, roomZ+1
-	if err := acquire("marker-acquire"); err != nil {
+	if err := grantAuto("grant-auto-marker"); err != nil {
 		return err
 	}
 	markerGeneration, err := currentGeneration("generation-marker")
@@ -321,13 +306,7 @@ func run(ctx context.Context, root, output, gameID string, headless bool, report
 	}
 	markerAttempt := attemptRef(markerRequest)
 
-	if _, err := h.Call(ctx, "resume-marker", "rimworld/set_time_speed", map[string]any{"speed": "Fast", "ultraSpeedBoost": false}); err != nil {
-		return err
-	}
-	if err := pollAllCompleted(ctx, h, []map[string]any{markerAttempt}, "marker", 5*time.Minute); err != nil {
-		return fmt.Errorf("observe-marker: %w", err)
-	}
-	if _, err := h.Call(ctx, "pause-after-marker", "rimworld/set_time_speed", map[string]any{"speed": "Paused", "ultraSpeedBoost": false}); err != nil {
+	if _, err := na.ObserveCompleted(ctx, h, "observe-marker", na.TicksPerDay, markerAttempt); err != nil {
 		return err
 	}
 	report["marker_built"] = true
@@ -387,29 +366,21 @@ func run(ctx context.Context, root, output, gameID string, headless bool, report
 		return nil, fmt.Errorf("%s: animal %s not found in upkeep census", label, id)
 	}
 
-	if _, err := h.Call(ctx, "resume-contain", "rimworld/set_time_speed", map[string]any{"speed": "Fast", "ultraSpeedBoost": false}); err != nil {
-		return err
-	}
 	var animalContained map[string]any
-	deadline := time.Now().Add(15 * time.Minute)
-	for {
+	if _, err := na.RunUntil(ctx, h, "observe-contain", 3*na.TicksPerDay, na.Wait{Stall: na.StallBudget()}, func(ctx context.Context) (string, bool, error) {
 		row, err := animalRow("contain-poll", animalID)
 		if err != nil {
-			return err
+			return "", false, err
 		}
 		pawnState, _ := na.AsMap(row["pawn"])
 		animalState, _ := na.AsMap(pawnState["animalState"])
 		if contained, _ := na.AsBool(animalState["contained"]); contained && na.AsString(animalState["penId"]) != "" {
 			animalContained = row
-			break
+			return "", true, nil
 		}
-		if time.Now().After(deadline) {
-			return fmt.Errorf("observe-contain: animal did not become contained within the polling deadline, last row: %#v", row)
-		}
-		time.Sleep(2 * time.Second)
-	}
-	if _, err := h.Call(ctx, "pause-after-contain", "rimworld/set_time_speed", map[string]any{"speed": "Paused", "ultraSpeedBoost": false}); err != nil {
-		return err
+		return "", false, nil
+	}); err != nil {
+		return fmt.Errorf("observe-contain: animal did not become contained: %w", err)
 	}
 	animalPawnState, _ := na.AsMap(animalContained["pawn"])
 	animalState, _ := na.AsMap(animalPawnState["animalState"])
@@ -443,40 +414,4 @@ func run(ctx context.Context, root, output, gameID string, headless bool, report
 		return fmt.Errorf("read startup log: %w", err)
 	}
 	return na.CheckStartupLog(string(logData), headless)
-}
-
-// pollAllCompleted polls receipts_observe_progress for every attempt in
-// attempts until each independently reports Completed, mirroring
-// populationcustodyaccept's pollCompleted for a whole batch of attempts at
-// once. It fails fast if any attempt is instead observed Unsuccessful.
-func pollAllCompleted(ctx context.Context, h *na.Harness, attempts []map[string]any, label string, budget time.Duration) error {
-	remaining := append([]map[string]any(nil), attempts...)
-	deadline := time.Now().Add(budget)
-	for len(remaining) > 0 {
-		if time.Now().After(deadline) {
-			return fmt.Errorf("%d of %d %s attempts did not complete within the polling deadline", len(remaining), len(attempts), label)
-		}
-		var stillPending []map[string]any
-		for i, attempt := range remaining {
-			progressReply, err := h.Wire(ctx, fmt.Sprintf("%s-observe-%d", label, i), "receipts_observe_progress", attempt)
-			if err != nil {
-				return err
-			}
-			_, progress, err := na.Outcome(progressReply, "progress")
-			if err != nil {
-				return err
-			}
-			if unsuccessful, ok := na.AsMap(progress["unsuccessful"]); ok {
-				return fmt.Errorf("%s attempt became unsuccessful before completion: %#v", label, unsuccessful)
-			}
-			if _, ok := na.AsMap(progress["completed"]); !ok {
-				stillPending = append(stillPending, attempt)
-			}
-		}
-		remaining = stillPending
-		if len(remaining) > 0 {
-			time.Sleep(2 * time.Second)
-		}
-	}
-	return nil
 }

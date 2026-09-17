@@ -103,13 +103,12 @@ namespace HomeBridge.BridgeTools
                 var guard = authority.Check(pre.ExpectedGeneration); context.NativeGeneration = guard.Snapshot.Generation;
                 if (!guard.Success) return new Operations.ExecuteReply { Failure = NativeAuthorityControlTools.Refusal(guard.Error, context) };
                 var admitted = state.Ledger.Admit("rimgovernor.operations.v1.Operations/Execute", request, context);
-                if (admitted.Kind != NativeAttemptLedger.DecisionKind.Admitted) return admitted.Reply!; handle = admitted.AdmittedHandle;
+                if (admitted.Kind != NativeAttemptLedger.DecisionKind.Admitted) return admitted.DecidedReply; handle = admitted.AdmittedHandle;
                 using (authority.Owned())
                 {
                     if (!authority.Check(pre.ExpectedGeneration).Success || !Prepare(command, context, out zone, out resolved, out failure))
                         throw new InvalidOperationException("Zone scope changed before the stockpile patch.");
-                    var map = ProtoBoundary.LoadedMap(context);
-                    var record = new NativeStockpilePatchRecord(zone!, map, command.Zone.ExpectedSnapshotToken, resolved!);
+                    var record = new NativeStockpilePatchRecord(zone!, zone!.Map, command.Zone.ExpectedSnapshotToken, resolved!);
                     state.StockpilePatches.Add(pre.Attempt.Clone(), record);
                     if (resolved!.Priority.HasValue) zone!.settings.Priority = resolved.Priority.Value;
                     NativeStockpileSettings.Apply(zone!.settings.filter, resolved, StockpileFilter.ParentFilter(zone), StockpileFilter.StorableDefs(zone));
