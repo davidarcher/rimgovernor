@@ -16,26 +16,26 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
-var prisonerInteractionModes = map[domain.PrisonerInteractionMode]bridge.PrisonerInteractionMode{
-	domain.PrisonerInteractionRecruit:          bridge.PrisonerInteractionRecruit,
-	domain.PrisonerInteractionMaintain:         bridge.PrisonerInteractionMaintain,
-	domain.PrisonerInteractionReduceResistance: bridge.PrisonerInteractionReduceResistance,
-	domain.PrisonerInteractionRelease:          bridge.PrisonerInteractionRelease,
-	domain.PrisonerInteractionEnslave:          bridge.PrisonerInteractionEnslave,
-	domain.PrisonerInteractionConvert:          bridge.PrisonerInteractionConvert,
-}
-
 func prisonerInteractionModeWire(mode domain.PrisonerInteractionMode) bridge.PrisonerInteractionMode {
-	return prisonerInteractionModes[mode] // absent maps to Unspecified
+	switch mode {
+	case domain.PrisonerInteractionRecruit:
+		return bridge.PrisonerInteractionRecruit
+	case domain.PrisonerInteractionMaintain:
+		return bridge.PrisonerInteractionMaintain
+	default:
+		return bridge.PrisonerInteractionModeUnspecified
+	}
 }
 
 func prisonerInteractionModeDomain(mode bridge.PrisonerInteractionMode) (domain.PrisonerInteractionMode, bool) {
-	for d, w := range prisonerInteractionModes {
-		if w == mode {
-			return d, true
-		}
+	switch mode {
+	case bridge.PrisonerInteractionRecruit:
+		return domain.PrisonerInteractionRecruit, true
+	case bridge.PrisonerInteractionMaintain:
+		return domain.PrisonerInteractionMaintain, true
+	default:
+		return "", false
 	}
-	return "", false
 }
 
 // PrisonerInteractionNative reuses bridge.ReadPrisonerInteractionTarget for

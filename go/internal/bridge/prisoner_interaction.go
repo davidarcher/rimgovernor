@@ -11,8 +11,7 @@ import (
 )
 
 // PrisonerInteractionMode names Population-*'s direct-write prisoner custody
-// order: one exclusive interaction (Recruit, MaintainOnly, ReduceResistance,
-// Release, or Enslave/Convert while Ideology is active). The native
+// order: the normal Recruit or MaintainOnly exclusive interaction. The native
 // contract is NativePrisonerInteractionOperations.cs
 // (integrations/rimgovernor-native/src/Bridge/Protocol), wired onto
 // Operation_SetPrisonerInteraction in NativeOperationTools.cs's
@@ -26,23 +25,19 @@ const (
 	PrisonerInteractionModeUnspecified PrisonerInteractionMode = iota
 	PrisonerInteractionRecruit
 	PrisonerInteractionMaintain
-	PrisonerInteractionReduceResistance
-	PrisonerInteractionRelease
-	PrisonerInteractionEnslave
-	PrisonerInteractionConvert
 )
 
-var prisonerInteractionModeWire = map[PrisonerInteractionMode]o.PrisonerInteraction{
-	PrisonerInteractionRecruit:          o.PrisonerInteraction_PRISONER_INTERACTION_ATTEMPT_RECRUIT,
-	PrisonerInteractionMaintain:         o.PrisonerInteraction_PRISONER_INTERACTION_MAINTAIN_ONLY,
-	PrisonerInteractionReduceResistance: o.PrisonerInteraction_PRISONER_INTERACTION_REDUCE_RESISTANCE,
-	PrisonerInteractionRelease:          o.PrisonerInteraction_PRISONER_INTERACTION_RELEASE,
-	PrisonerInteractionEnslave:          o.PrisonerInteraction_PRISONER_INTERACTION_ENSLAVE,
-	PrisonerInteractionConvert:          o.PrisonerInteraction_PRISONER_INTERACTION_CONVERT,
-}
+var prisonerInteractionModeValid = map[PrisonerInteractionMode]bool{PrisonerInteractionRecruit: true, PrisonerInteractionMaintain: true}
 
 func prisonerInteractionWire(mode PrisonerInteractionMode) o.PrisonerInteraction {
-	return prisonerInteractionModeWire[mode] // absent maps to UNSPECIFIED
+	switch mode {
+	case PrisonerInteractionRecruit:
+		return o.PrisonerInteraction_PRISONER_INTERACTION_ATTEMPT_RECRUIT
+	case PrisonerInteractionMaintain:
+		return o.PrisonerInteraction_PRISONER_INTERACTION_MAINTAIN_ONLY
+	default:
+		return o.PrisonerInteraction_PRISONER_INTERACTION_UNSPECIFIED
+	}
 }
 
 type PrisonerInteractionAttempt struct {
@@ -64,7 +59,7 @@ func prisonerInteractionCommand(pawn, pawnToken string, interaction PrisonerInte
 	if validID(pawn) != nil || validID(pawnToken) != nil {
 		return contract("invalid prisoner interaction command")
 	}
-	if _, ok := prisonerInteractionModeWire[interaction]; !ok {
+	if !prisonerInteractionModeValid[interaction] {
 		return contract("invalid prisoner interaction mode")
 	}
 	return nil

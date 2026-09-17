@@ -13,19 +13,14 @@ using Receipts = RimGovernor.Protocol.Receipts;
 namespace HomeBridge.BridgeTools
 {
     // Typed dispatch for Population-*'s direct-write prisoner custody order:
-    // SetPrisonerInteraction (one exclusive interaction: Recruit, MaintainOnly,
-    // ReduceResistance, Release, or Enslave/Convert while Ideology is active).
+    // SetPrisonerInteraction (Recruit or MaintainOnly exclusive interaction).
     // Ports the legacy JSON home/population tool's (PopulationTools.Population)
     // eligibility checks behind the typed boundary. Like husbandry, this is an
-    // immediate settings write with no native job; progress observation reads
-    // the prisoner's actual custody state afterwards (see Outcome) so a
-    // completed or unsuccessful verdict rests on what happened to the pawn,
-    // not only on the setting readback.
+    // immediate settings write with no native job.
     internal sealed class NativePrisonerInteractionRecord
     {
         internal readonly string PawnId;
-        internal readonly string InteractionDef;
-        internal NativePrisonerInteractionRecord(string pawnId, string interactionDef) { PawnId = pawnId; InteractionDef = interactionDef; }
+        internal NativePrisonerInteractionRecord(string pawnId) { PawnId = pawnId; }
     }
 
     internal static class NativePrisonerInteractionOperations
@@ -36,51 +31,24 @@ namespace HomeBridge.BridgeTools
                 return BitConverter.ToString(hash.ComputeHash(Encoding.UTF8.GetBytes(text))).Replace("-", "").ToLowerInvariant();
         }
 
-        // Mirrors NativeHusbandryOperations.Settings: exact custody and
-        // interaction state, so a settings or custody change (including one
-        // this same order just made) invalidates a stale expected_snapshot_token.
-        // NativePopulationObservation publishes this same token as each
-        // person's PawnState.snapshot, the way ReadHusbandry publishes
-        // NativeHusbandryOperations.Settings, so a census read is the CAS
-        // evidence a write is admitted against.
+        // Mirrors NativeHusbandryOperations.Settings: exact prisoner custody
+        // interaction state, so a settings change (including one this same
+        // order just made) invalidates a stale expected_snapshot_token.
         internal static string Settings(Pawn pawn) => "prisoner-interaction-" + Hash(string.Join("|",
-            pawn.GetUniqueLoadID(), pawn.Dead.ToString(), pawn.IsPrisonerOfColony.ToString(), pawn.IsFreeColonist.ToString(),
-            (pawn.HostFaction == Faction.OfPlayerSilentFail).ToString(),
-            pawn.guest?.ExclusiveInteractionMode?.defName ?? "", pawn.guest?.Recruitable.ToString() ?? ""));
+            pawn.GetUniqueLoadID(), pawn.guest?.ExclusiveInteractionMode?.defName ?? "", pawn.guest?.Recruitable.ToString() ?? ""));
 
         internal static bool Eligible(Pawn? pawn) => pawn != null && !pawn.Destroyed && pawn.Spawned
             && ProtoBoundary.IsLoaded(pawn.Map) && !pawn.Dead && pawn.IsPrisonerOfColony && pawn.guest != null;
 
-        // Wire names map to installed defs by exact defName; a DLC mode whose
-        // def is absent (Ideology inactive) resolves null and is refused.
-        internal static string? DefName(Operations.PrisonerInteraction interaction)
+        private static PrisonerInteractionModeDef? Wire(Operations.PrisonerInteraction interaction)
         {
             switch (interaction)
             {
-                case Operations.PrisonerInteraction.AttemptRecruit: return "AttemptRecruit";
-                case Operations.PrisonerInteraction.MaintainOnly: return "MaintainOnly";
-                case Operations.PrisonerInteraction.ReduceResistance: return "ReduceResistance";
-                case Operations.PrisonerInteraction.Release: return "Release";
-                case Operations.PrisonerInteraction.Enslave: return "Enslave";
-                case Operations.PrisonerInteraction.Convert: return "Convert";
+                case Operations.PrisonerInteraction.AttemptRecruit: return PrisonerInteractionModeDefOf.AttemptRecruit;
+                case Operations.PrisonerInteraction.MaintainOnly: return PrisonerInteractionModeDefOf.MaintainOnly;
                 default: return null;
             }
         }
-
-        private static PrisonerInteractionModeDef? Wire(Operations.PrisonerInteraction interaction)
-        {
-            var name = DefName(interaction);
-            return name == null ? null : DefDatabase<PrisonerInteractionModeDef>.GetNamedSilentFail(name);
-        }
-
-        // Mirrors ITab_Pawn_Visitor's exclusive-row gates for the modes this
-        // boundary exposes: never a non-exclusive toggle, recruit-gated modes
-        // need a recruitable prisoner, wild men only take modes that allow
-        // them, and classic ideology mode hides the Ideology-only modes.
-        internal static bool Supported(Pawn pawn, PrisonerInteractionModeDef def) => !def.isNonExclusiveInteraction
-            && !(def.hideIfNotRecruitable && !pawn.guest!.Recruitable)
-            && !(pawn.IsWildMan() && !def.allowOnWildMan)
-            && (def.allowInClassicIdeoMode || Find.IdeoManager == null || !Find.IdeoManager.classicMode);
 
         private static bool ValidCommand(Operations.SetPrisonerInteraction? command) => command != null
             && NativeDraftProtocol.ValidEntity(command.Pawn) && command.HasInteraction;
@@ -95,7 +63,7 @@ namespace HomeBridge.BridgeTools
             if (Settings(pawn) != command.Pawn.ExpectedSnapshotToken)
             { failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Prisoner interaction settings changed; observe before new admission."); return false; }
             def = Wire(command.Interaction);
-            if (def == null || !Supported(pawn, def))
+            if (def == null || def.isNonExclusiveInteraction || (def.hideIfNotRecruitable && !pawn.guest!.Recruitable) || (pawn.IsWildMan() && !def.allowOnWildMan))
             { failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Unsupported or ineligible native prisoner interaction."); return false; }
             return true;
         }
@@ -105,53 +73,9 @@ namespace HomeBridge.BridgeTools
             Prisoner = new Receipts.PrisonerEffect
             {
                 Pawn = new Receipts.SnapshotEvidence { EntityId = command.Pawn.EntityId, BeforeToken = command.Pawn.ExpectedSnapshotToken, AfterToken = after },
-                InteractionDef = DefName(command.Interaction) ?? "", Outcome = OutcomeHeld,
+                InteractionDef = command.Interaction == Operations.PrisonerInteraction.AttemptRecruit ? "AttemptRecruit" : "MaintainOnly",
             }
         };
-
-        internal const string OutcomeHeld = "held", OutcomeRecruited = "recruited", OutcomeEnslaved = "enslaved", OutcomeConverted = "converted",
-            OutcomeReleased = "released", OutcomeEscaped = "escaped", OutcomeDied = "died";
-
-        // Locates the ordered pawn wherever native keeps it now: spawned or
-        // carried on the map, a corpse on the map, or a world pawn after
-        // release/escape. Null means the pawn is not observable at all.
-        private static Pawn? Locate(Map map, string pawnId)
-        {
-            var pawn = map.mapPawns.AllPawns.FirstOrDefault(p => p.GetUniqueLoadID() == pawnId);
-            if (pawn != null) return pawn;
-            foreach (var thing in map.listerThings.ThingsInGroup(ThingRequestGroup.Corpse))
-                if (thing is Corpse corpse && corpse.InnerPawn?.GetUniqueLoadID() == pawnId) return corpse.InnerPawn;
-            return Find.WorldPawns?.AllPawnsAliveOrDead.FirstOrDefault(p => p.GetUniqueLoadID() == pawnId);
-        }
-
-        // Actual custody outcome from native pawn state, independent of the
-        // interaction setting: the evidence the progress verdict rests on.
-        internal static string Outcome(Pawn pawn)
-        {
-            if (pawn.Dead) return OutcomeDied;
-            if (pawn.IsPrisonerOfColony)
-            {
-                var ideo = Faction.OfPlayerSilentFail?.ideos?.PrimaryIdeo;
-                return ideo != null && pawn.Ideo == ideo && pawn.guest?.ideoForConversion != null ? OutcomeConverted : OutcomeHeld;
-            }
-            if (pawn.IsSlaveOfColony) return OutcomeEnslaved;
-            if (pawn.IsFreeColonist && pawn.Faction == Faction.OfPlayerSilentFail) return OutcomeRecruited;
-            return pawn.guest?.Released == true ? OutcomeReleased : OutcomeEscaped;
-        }
-
-        // The terminal custody state each ordered mode is trying to reach;
-        // any other terminal state is that order's unsuccessful outcome.
-        private static string? Goal(string interactionDef)
-        {
-            switch (interactionDef)
-            {
-                case "AttemptRecruit": return OutcomeRecruited;
-                case "Release": return OutcomeReleased;
-                case "Enslave": return OutcomeEnslaved;
-                case "Convert": return OutcomeConverted;
-                default: return null;
-            }
-        }
 
         internal static Operations.PreviewReply Preview(Operations.SetPrisonerInteraction? command, Common.ObservationContext context)
         {
@@ -186,11 +110,9 @@ namespace HomeBridge.BridgeTools
                     if (!current.Success) throw new InvalidOperationException("Prisoner interaction authority changed before native effect.");
                     if (!Prepare(command, context, out pawn, out var def, out failure) || pawn == null || def == null)
                         throw new InvalidOperationException("Prisoner interaction prerequisites changed after admission.");
-                    if (def.defName == "Convert" && pawn.guest!.ideoForConversion == null)
-                        pawn.guest.ideoForConversion = Faction.OfPlayerSilentFail?.ideos?.PrimaryIdeo ?? throw new InvalidOperationException("Player ideo missing for conversion.");
                     pawn.guest!.SetExclusiveInteraction(def);
                     var after = Settings(pawn);
-                    state.PrisonerInteractions.Add(pre.Attempt.Clone(), new NativePrisonerInteractionRecord(pawn.GetUniqueLoadID(), def.defName));
+                    state.PrisonerInteractions.Add(pre.Attempt.Clone(), new NativePrisonerInteractionRecord(pawn.GetUniqueLoadID()));
                     evidence = Evidence(command, after);
                     if (pawn.guest.ExclusiveInteractionMode != def) throw new InvalidOperationException("Native prisoner interaction readback did not apply.");
                 }
@@ -209,31 +131,22 @@ namespace HomeBridge.BridgeTools
             var result = new Receipts.Progress { Attempt = attempt.Clone(), Context = context.Clone(), CompleteInspection = false };
             try
             {
-                var pawn = Locate(ProtoBoundary.LoadedMap(context), record.PawnId);
-                if (pawn == null)
+                var pawn = ProtoBoundary.LoadedMap(context).mapPawns.AllPawnsSpawned.SingleOrDefault(p => p.GetUniqueLoadID() == record.PawnId);
+                if (pawn == null || !Eligible(pawn))
                 {
                     result.Unknown = new Receipts.UnknownEffect { Reason = "The exact prisoner is no longer observable; absence does not prove the setting held." };
                     return result;
                 }
                 result.CompleteInspection = true;
-                var outcome = Outcome(pawn);
-                var interactionDef = pawn.guest?.ExclusiveInteractionMode?.defName;
+                var after = Settings(pawn);
+                var interactionDef = pawn.guest!.ExclusiveInteractionMode?.defName;
                 var evidence = new Receipts.EffectEvidence { Prisoner = new Receipts.PrisonerEffect {
-                    Pawn = new Receipts.SnapshotEvidence { EntityId = record.PawnId, AfterToken = Settings(pawn) }, InteractionDef = interactionDef ?? "", Outcome = outcome } };
-                if (outcome == OutcomeHeld)
-                {
-                    // Still in custody: the order holds while its setting does.
-                    if (interactionDef == record.InteractionDef)
-                        result.Completed = new Receipts.CompletedEffect { Evidence = evidence };
-                    else
-                        result.Unsuccessful = new Receipts.UnsuccessfulEffect { Reason = Receipts.UnsuccessfulReason.OutcomeNotAchieved, Evidence = evidence,
-                            Detail = "The prisoner interaction is no longer set; do not restore over player changes." };
-                }
-                else if (outcome == Goal(record.InteractionDef))
+                    Pawn = new Receipts.SnapshotEvidence { EntityId = record.PawnId, AfterToken = after }, InteractionDef = interactionDef ?? "" } };
+                if (interactionDef == PrisonerInteractionModeDefOf.AttemptRecruit.defName || interactionDef == PrisonerInteractionModeDefOf.MaintainOnly.defName)
                     result.Completed = new Receipts.CompletedEffect { Evidence = evidence };
                 else
                     result.Unsuccessful = new Receipts.UnsuccessfulEffect { Reason = Receipts.UnsuccessfulReason.OutcomeNotAchieved, Evidence = evidence,
-                        Detail = "The prisoner left colony custody (" + outcome + ") without the ordered interaction's outcome." };
+                        Detail = "The prisoner interaction is no longer set; do not restore over player changes." };
             }
             catch (Exception) { result.CompleteInspection = false; result.Unknown = new Receipts.UnknownEffect { Reason = "Prisoner interaction inspection unavailable." }; }
             return result;

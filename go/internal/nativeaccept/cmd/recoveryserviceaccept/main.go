@@ -149,15 +149,13 @@ func run(ctx context.Context, root, output, gameID string, headless bool, report
 	report["fixture_max_hit_points"] = maxHitPoints
 	report["fixture_damaged_hit_points"] = damagedHitPoints
 
-	// acquire takes a fresh authority lease: the explicit player-control
-	// takeover path. Only one dispatch happens in this tool (no Fast-speed
+	// acquire grants the bot Auto authority (SetMode(Auto), the only handshake
+	// since #52). Only one dispatch happens in this tool (no Fast-speed
 	// tick-advance window precedes it), so a single acquire before the whole
 	// stale-token/preview/execute sequence is enough -- unlike
 	// animalcontainmentaccept/populationcustodyaccept's multi-dispatch runs,
-	// there is no need for a renewOrAcquire fallback here.
+	// there is no need to re-grant before later dispatches here.
 	acquire := func(label string) error {
-		// SetMode(Auto) at the current generation (#52): no lease, the
-		// granted body's context.nativeGeneration is what preconditions carry.
 		_, err := na.GrantAuto(ctx, h.WireFunc(), label, identity)
 		return err
 	}
@@ -435,7 +433,13 @@ func run(ctx context.Context, root, output, gameID string, headless bool, report
 	// Observe: run real game time forward until the fixture's damaged wall
 	// is actually restored to full HitPoints by the real native repair job,
 	// not merely inferred from the issued-job receipt.
-	if _, err := na.ObserveCompleted(ctx, h, "observe-repair", 3*na.TicksPerDay, executeAttempt); err != nil {
+	if _, err := h.Call(ctx, "resume-repair", "rimworld/set_time_speed", map[string]any{"speed": "Fast", "ultraSpeedBoost": false}); err != nil {
+		return err
+	}
+	if err := pollCompleted(ctx, h, executeAttempt, 15*time.Minute); err != nil {
+		return fmt.Errorf("observe-repair: %w", err)
+	}
+	if _, err := h.Call(ctx, "pause-after-repair", "rimworld/set_time_speed", map[string]any{"speed": "Paused", "ultraSpeedBoost": false}); err != nil {
 		return err
 	}
 	afterHitPoints, afterMax, err := wallState("wall-after-complete")
@@ -477,4 +481,31 @@ func run(ctx context.Context, root, output, gameID string, headless bool, report
 		return fmt.Errorf("read startup log: %w", err)
 	}
 	return na.CheckStartupLog(string(logData), headless)
+}
+
+// pollCompleted polls receipts_observe_progress until the attempt is
+// observed Completed, matching populationcustodyaccept's own poll loop. It
+// fails fast if the attempt is instead observed Unsuccessful.
+func pollCompleted(ctx context.Context, h *na.Harness, attempt map[string]any, budget time.Duration) error {
+	deadline := time.Now().Add(budget)
+	for {
+		if time.Now().After(deadline) {
+			return fmt.Errorf("attempt did not complete within the polling deadline")
+		}
+		progressReply, err := h.Wire(ctx, "observe-poll", "receipts_observe_progress", attempt)
+		if err != nil {
+			return err
+		}
+		_, progress, err := na.Outcome(progressReply, "progress")
+		if err != nil {
+			return err
+		}
+		if unsuccessful, ok := na.AsMap(progress["unsuccessful"]); ok {
+			return fmt.Errorf("attempt became unsuccessful before completion: %#v", unsuccessful)
+		}
+		if _, ok := na.AsMap(progress["completed"]); ok {
+			return nil
+		}
+		time.Sleep(2 * time.Second)
+	}
 }

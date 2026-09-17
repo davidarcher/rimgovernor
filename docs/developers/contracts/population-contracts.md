@@ -16,24 +16,12 @@ Custody orders require the policy food reserve, spare colonist beds and availabl
 assigned doctors and wardens. Native capture/rescue previews separately require an
 eligible worker, reachable target and suitable available custody bed.
 
-`rimgovernor/observations_read_population` reads human pawn custody, recruitment
-eligibility, current exclusive interaction, resistance, food need, bed and owned bed,
-and lists the installed exclusive interactions `SetPrisonerInteraction` accepts:
-`AttemptRecruit`, `MaintainOnly`, `ReduceResistance`, `Release`, and `Enslave` and
-`Convert` while Ideology is active. Execution and non-exclusive toggles are player-only.
-A write requires the exact prior prisoner settings token and a living current-map
-colony prisoner; native gates (recruitable, wild man, classic ideology mode) refuse
-ineligible modes. Routine planning only ever proposes `AttemptRecruit`; every other
-mode is an explicit order. Native faction admission, resistance and recruitment
-probability are never written.
-
-Progress observation of a prisoner order reads the pawn's actual custody state, not
-only the setting: `PrisonerEffect.outcome` is `held`, `recruited`, `enslaved`,
-`converted`, `released`, `escaped` or `died`. While held, the order is complete as
-long as its setting is still set. Once the pawn leaves custody, the order is complete
-only when the outcome is the one its mode pursues (recruit→recruited,
-release→released, enslave→enslaved, convert→converted) and unsuccessful otherwise;
-a pawn that is no longer observable anywhere stays unknown.
+`home/population` reads human pawn custody, recruitment eligibility, current exclusive
+interaction, resistance, food need, tending need, bed and owned bed. Its only settings
+are the discovered native recruitment and maintain-only definitions. A write requires
+the exact prior exclusive interaction and a living current-map colony prisoner.
+Individual setting changes stop managed recruitment until new explicit direction.
+Native faction admission, resistance and recruitment probability are never written.
 
 `home/order` capture uses the installed game's capture eligibility, manipulation,
 reservation and bed checks, followed by its ordinary Capture job. Non-hostile capture

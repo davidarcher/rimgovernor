@@ -77,36 +77,3 @@ func TestWaitProgressProbeErrorAndContext(t *testing.T) {
 		t.Fatalf("got %v", err)
 	}
 }
-
-func TestWaitProgressTickBudget(t *testing.T) {
-	tick := uint64(1000)
-	n := 0
-	err := WaitProgress(context.Background(), Wait{Interval: time.Millisecond, Stall: 10 * time.Second, Ticks: 250, Tick: func(context.Context) (uint64, error) {
-		tick += 100
-		return tick, nil
-	}}, func(context.Context) (string, bool, error) {
-		n++
-		return Signature("round", n), false, nil
-	})
-	var w *WaitError
-	if !errors.As(err, &w) || w.Outcome != WaitTicks {
-		t.Fatalf("want ticks outcome, got %v", err)
-	}
-	// Budget 250 past the first probe's tick (1100): 1200, 1300 are within, 1400 is over.
-	if w.TicksElapsed != 300 || n != 4 {
-		t.Fatalf("bad detail: elapsed=%d rounds=%d %+v", w.TicksElapsed, n, w)
-	}
-}
-
-func TestWaitProgressTickBudgetDoneInTime(t *testing.T) {
-	tick := uint64(0)
-	err := WaitProgress(context.Background(), Wait{Interval: time.Millisecond, Ticks: 500, Tick: func(context.Context) (uint64, error) {
-		tick += 100
-		return tick, nil
-	}}, func(context.Context) (string, bool, error) {
-		return "", tick >= 300, nil
-	})
-	if err != nil {
-		t.Fatalf("unexpected: %v", err)
-	}
-}

@@ -147,8 +147,8 @@ func run(ctx context.Context, root, output, gameID string, headless bool, report
 	report["fixture_refuge"] = refugeID
 	report["fixture_outdoor"] = outdoorID
 
-	// acquire takes a fresh authority lease: the explicit player-control
-	// takeover path. Only one dispatch happens in this tool (no Fast-speed
+	// acquire grants the bot Auto authority (SetMode(Auto), the only handshake
+	// since #52). Only one dispatch happens in this tool (no Fast-speed
 	// tick-advance window precedes it, since the PatchPawn AllowedArea
 	// effect is synchronous), so a single acquire before the whole
 	// stale-token/preview/execute sequence is enough.

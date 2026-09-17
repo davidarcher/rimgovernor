@@ -3151,15 +3151,10 @@ func (x *AnimalEffect) GetSlaughterDesignated() bool {
 	return false
 }
 
-// outcome is the pawn's actual custody state read from native at observation:
-// held (still a colony prisoner), recruited, enslaved, converted, released,
-// escaped or died. It is the evidence a completed or unsuccessful progress
-// rests on; the interaction_def readback alone only proves the setting.
 type PrisonerEffect struct {
 	state          protoimpl.MessageState `protogen:"open.v1"`
 	Pawn           *SnapshotEvidence      `protobuf:"bytes,1,opt,name=pawn,proto3" json:"pawn,omitempty"`
 	InteractionDef *string                `protobuf:"bytes,2,opt,name=interaction_def,json=interactionDef,proto3,oneof" json:"interaction_def,omitempty"`
-	Outcome        *string                `protobuf:"bytes,3,opt,name=outcome,proto3,oneof" json:"outcome,omitempty"`
 	unknownFields  protoimpl.UnknownFields
 	sizeCache      protoimpl.SizeCache
 }
@@ -3204,13 +3199,6 @@ func (x *PrisonerEffect) GetPawn() *SnapshotEvidence {
 func (x *PrisonerEffect) GetInteractionDef() string {
 	if x != nil && x.InteractionDef != nil {
 		return *x.InteractionDef
-	}
-	return ""
-}
-
-func (x *PrisonerEffect) GetOutcome() string {
-	if x != nil && x.Outcome != nil {
-		return *x.Outcome
 	}
 	return ""
 }
@@ -4773,14 +4761,11 @@ const file_receipts_proto_rawDesc = "" +
 	"\r_census_tokenB\x10\n" +
 	"\x0e_trainable_defB\t\n" +
 	"\a_wantedB\x17\n" +
-	"\x15_slaughter_designated\"\xbc\x01\n" +
+	"\x15_slaughter_designated\"\x91\x01\n" +
 	"\x0ePrisonerEffect\x12=\n" +
 	"\x04pawn\x18\x01 \x01(\v2).rimgovernor.receipts.v1.SnapshotEvidenceR\x04pawn\x12,\n" +
-	"\x0finteraction_def\x18\x02 \x01(\tH\x00R\x0einteractionDef\x88\x01\x01\x12\x1d\n" +
-	"\aoutcome\x18\x03 \x01(\tH\x01R\aoutcome\x88\x01\x01B\x12\n" +
-	"\x10_interaction_defB\n" +
-	"\n" +
-	"\b_outcome\"\xaa\x01\n" +
+	"\x0finteraction_def\x18\x02 \x01(\tH\x00R\x0einteractionDef\x88\x01\x01B\x12\n" +
+	"\x10_interaction_def\"\xaa\x01\n" +
 	"\x0fTradeLineEffect\x12\x1c\n" +
 	"\aline_id\x18\x01 \x01(\tH\x00R\x06lineId\x88\x01\x01\x12&\n" +
 	"\fbefore_count\x18\x02 \x01(\x05H\x01R\vbeforeCount\x88\x01\x01\x12$\n" +

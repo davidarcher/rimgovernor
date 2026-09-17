@@ -157,31 +157,6 @@ func awaitStopped(ctx context.Context, client *bridge.Client) {
 	}
 }
 
-// StopGame stops whatever game root owns (games_stop through the root's own
-// GABS configuration, headless first) and waits for the process to be gone;
-// a root with nothing running is not an error. It is what ends a batch of
-// harnesses that kept the game (KeepGameEnv).
-func StopGame(ctx context.Context, root, gameID string) error {
-	configDir := filepath.Join(root, "config-headless")
-	if _, err := os.Stat(configDir); err != nil {
-		configDir = filepath.Join(root, "config")
-	}
-	gabs, err := GABSExecutable(root, configDir)
-	if err != nil {
-		return err
-	}
-	client, err := OpenSession(ctx, gabs, configDir, gameID, 60*time.Second)
-	if err != nil {
-		return err
-	}
-	defer client.Close()
-	if _, err := client.GamesStop(ctx); err != nil {
-		return err
-	}
-	awaitStopped(ctx, client)
-	return nil
-}
-
 // toMainMenu unloads whatever is loaded and waits until no game answers.
 func (g *Game) toMainMenu(ctx context.Context, label string) error {
 	if err := os.MkdirAll(g.output, 0755); err != nil {

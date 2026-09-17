@@ -169,14 +169,17 @@ func run(ctx context.Context, root, output, gameID string, headless bool, report
 	report["fixture_protected"] = protectedID
 	report["fixture_corpse"] = corpseID
 
-	// acquire takes a fresh authority lease: the explicit player-control
-	// takeover path, mirroring recoveryserviceaccept's own single-acquire
+	// acquire grants the bot Auto authority (SetMode(Auto), the only handshake
+	// since #52), mirroring recoveryserviceaccept's own single-acquire
 	// pattern (only one dispatch happens in this tool).
+	var grant map[string]any
 	acquire := func(label string) error {
-		// SetMode(Auto) at the current generation (#52): no lease, the
-		// granted body's context.nativeGeneration is what preconditions carry.
-		_, err := na.GrantAuto(ctx, h.WireFunc(), label, identity)
-		return err
+		newGrant, err := na.GrantAuto(ctx, h.WireFunc(), label, identity)
+		if err != nil {
+			return err
+		}
+		grant = newGrant
+		return nil
 	}
 	if err := acquire("acquire"); err != nil {
 		return err
@@ -342,11 +345,7 @@ func run(ctx context.Context, root, output, gameID string, headless bool, report
 	// Refusal 1: a genuinely forbidden (protected) item must be refused even
 	// with a fresh, correctly-discovered CAS token and its id listed as
 	// unwanted -- Protection() outranks Kind().
-	protectedGeneration, err := currentGeneration("generation-protected")
-	if err != nil {
-		return err
-	}
-	protectedRequest := buildRequest("waste-protected", protectedGeneration,
+	protectedRequest := buildRequest("waste-protected", grant["expectedGeneration"],
 		buildOperation(pawnID, token, protectedID, protectedToken, []string{protectedID}))
 	if code, err := failureCode("protected-item", protectedRequest); err != nil {
 		return err
@@ -444,7 +443,13 @@ func run(ctx context.Context, root, output, gameID string, headless bool, report
 	// Observe: run real game time forward until the fixture's unwanted item
 	// is actually hauled by the real native job, not merely inferred from the
 	// issued-job receipt.
-	if _, err := na.ObserveCompleted(ctx, h, "observe-haul", 3*na.TicksPerDay, executeAttempt); err != nil {
+	if _, err := h.Call(ctx, "resume-haul", "rimworld/set_time_speed", map[string]any{"speed": "Fast", "ultraSpeedBoost": false}); err != nil {
+		return err
+	}
+	if err := pollCompleted(ctx, h, executeAttempt, 15*time.Minute); err != nil {
+		return fmt.Errorf("observe-haul: %w", err)
+	}
+	if _, err := h.Call(ctx, "pause-after-haul", "rimworld/set_time_speed", map[string]any{"speed": "Paused", "ultraSpeedBoost": false}); err != nil {
 		return err
 	}
 
@@ -496,4 +501,31 @@ func run(ctx context.Context, root, output, gameID string, headless bool, report
 		return fmt.Errorf("read startup log: %w", err)
 	}
 	return na.CheckStartupLog(string(logData), headless)
+}
+
+// pollCompleted polls receipts_observe_progress until the attempt is
+// observed Completed, matching recoveryserviceaccept's own poll loop. It
+// fails fast if the attempt is instead observed Unsuccessful.
+func pollCompleted(ctx context.Context, h *na.Harness, attempt map[string]any, budget time.Duration) error {
+	deadline := time.Now().Add(budget)
+	for {
+		if time.Now().After(deadline) {
+			return fmt.Errorf("attempt did not complete within the polling deadline")
+		}
+		progressReply, err := h.Wire(ctx, "observe-poll", "receipts_observe_progress", attempt)
+		if err != nil {
+			return err
+		}
+		_, progress, err := na.Outcome(progressReply, "progress")
+		if err != nil {
+			return err
+		}
+		if unsuccessful, ok := na.AsMap(progress["unsuccessful"]); ok {
+			return fmt.Errorf("attempt became unsuccessful before completion: %#v", unsuccessful)
+		}
+		if _, ok := na.AsMap(progress["completed"]); ok {
+			return nil
+		}
+		time.Sleep(2 * time.Second)
+	}
 }

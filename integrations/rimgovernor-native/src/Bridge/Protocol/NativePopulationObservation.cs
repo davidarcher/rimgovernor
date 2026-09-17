@@ -71,20 +71,22 @@ namespace HomeBridge.BridgeTools
                 }
                 if (p.ownership?.OwnedBed != null) person.OwnedBed = new Obs.BuildingState { Building = NativePawnObservationTools.Entity(p.ownership.OwnedBed) };
                 if (p.needs?.food != null) person.NutritionPerDay = Number(p.needs.food.FoodFallPerTickAssumingCategory(HungerCategory.Fed, true) * 60000f);
-                // The prisoner-interaction settings token: what SetPrisonerInteraction
-                // compares expected_snapshot_token against.
-                row.Snapshot = new Obs.SnapshotRef { Context = context.Clone(), EntityId = row.Pawn.Id, Token = NativePrisonerInteractionOperations.Settings(p) };
+                row.Snapshot = PopulationSnapshotToken(row, person, context);
                 snapshot.Persons.Add(person);
             }
-            // The installed subset of the modes SetPrisonerInteraction accepts.
-            foreach (var name in new[] { "AttemptRecruit", "MaintainOnly", "ReduceResistance", "Release", "Enslave", "Convert" })
-            {
-                var def = DefDatabase<PrisonerInteractionModeDef>.GetNamedSilentFail(name);
+            var recruit = DefDatabase<PrisonerInteractionModeDef>.GetNamedSilentFail("AttemptRecruit");
+            var maintain = DefDatabase<PrisonerInteractionModeDef>.GetNamedSilentFail("MaintainOnly");
+            foreach (var def in new[] { recruit, maintain })
                 if (def != null) snapshot.SupportedInteractions.Add(new Obs.DefinitionRef { DefName = NativePawnObservationTools.Id(def.defName), Label = NativePawnObservationTools.Text(def.label) });
-            }
             snapshot.Completeness = Complete(snapshot.Persons.Count);
             return snapshot;
         }
+
+        private static Obs.SnapshotRef PopulationSnapshotToken(Obs.PawnState row, Obs.PopulationPerson person, Common.ObservationContext context)
+            => NativeObservationSnapshot.Snapshot("population-person", context, row.Pawn.Id, w => {
+                w.Write(row.Dead); w.Write(row.Prisoner); w.Write(person.Admitted); w.Write(person.Guest);
+                w.Write(person.Recruitable); w.Write(person.Interaction ?? "");
+            });
 
         private static double Number(double value) => double.IsNaN(value) || double.IsInfinity(value) ? throw new InvalidOperationException("Nonfinite native fact.") : value;
         private static Common.Unavailable Unavailable(Common.UnavailableReason reason, string detail) => new Common.Unavailable { Reason = reason, Detail = detail };

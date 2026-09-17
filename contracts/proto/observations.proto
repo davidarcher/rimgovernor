@@ -162,7 +162,12 @@ message PawnFilter {
   optional bool wild = 9; optional bool hostile = 10; optional bool downed = 11; optional bool drafted = 12;
   optional bool include_dead = 13; optional double within_colonist_distance = 14;
 }
-message PawnDetails { optional bool needs = 1; optional bool health = 2; optional bool equipment = 3; optional bool biography = 4; optional bool settings = 5; optional bool social = 6; optional bool animals = 7; optional bool visible_hediffs_only = 8; optional bool work = 9; }
+message PawnDetails {
+  optional bool needs = 1; optional bool health = 2; optional bool equipment = 3; optional bool biography = 4; optional bool settings = 5;
+  optional bool social = 6; optional bool animals = 7; optional bool visible_hediffs_only = 8; optional bool work = 9;
+  // schedule projects PawnSettings.schedule (the 24 TimetableSlot rows) on its own, independent of settings (care policy) and work (priorities).
+  optional bool schedule = 10;
+}
 message PawnSnapshot { rimgovernor.common.v1.ObservationContext context = 1; repeated PawnState pawns = 2; Completeness completeness = 3; }
 message ListPawnsRequest { ReadScope scope = 1; PawnFilter filter = 2; PawnDetails details = 3; rimgovernor.common.v1.PageRequest page = 4; }
 message ListPawnsReply { oneof outcome { PawnSnapshot observed = 1; rimgovernor.common.v1.Unavailable unavailable = 2; rimgovernor.common.v1.Failure failure = 3; } }

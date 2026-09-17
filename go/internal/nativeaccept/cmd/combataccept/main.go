@@ -622,8 +622,8 @@ func run(ctx context.Context, root, output, gameID string, headless, ranged, exp
 	return nil
 }
 
-// attackRequest builds an operations_execute attackTarget request at grant's
-// generation.
+// attackRequest builds an operations_execute attackTarget request under grant's
+// lease.
 func attackRequest(identity, grant, actor, victim map[string]any, number int, mode string) map[string]any {
 	request := na.ExecuteRequest(identity, grant, actor, number)
 	request["operation"] = map[string]any{"attackTarget": map[string]any{
