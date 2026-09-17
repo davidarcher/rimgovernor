@@ -153,10 +153,10 @@ func TestPhaseTimingRecordedAndSummarized(t *testing.T) {
 	// A reply without the companion split reads as absent, not zero.
 	for _, line := range strings.Split(report.String(), "\n") {
 		fields := strings.Fields(line)
-		if len(fields) < 9 || fields[1] != "call_tool" {
+		if len(fields) < 10 || fields[1] != "call_tool" {
 			continue
 		}
-		queue, execute := fields[7], fields[8]
+		queue, execute := fields[8], fields[9]
 		switch fields[0] {
 		case "rimgovernor/lifecycle_read_identity":
 			if queue != "-" || execute != "-" {

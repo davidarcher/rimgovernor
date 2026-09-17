@@ -53,7 +53,7 @@ func clockPollFixture(t *testing.T) (*ClockScheduler, *schedulerNative, *sql.DB)
 	if _, err = session.Acquire(context.Background(), intent.Snapshot); err != nil {
 		t.Fatal(err)
 	}
-	native := &schedulerNative{fake, policy.EmergencyFacts{ColonistsComplete: domain.Known(true), ThreatsComplete: domain.Known(true)}}
+	native := &schedulerNative{clockCoreFake: fake, emergency: policy.EmergencyFacts{ColonistsComplete: domain.Known(true), ThreatsComplete: domain.Known(true)}}
 	scheduler, err := NewClockScheduler(player, session, native, ClockSchedulerConfig{Profile: profile, Start: *intent.Command.Start, MaxAge: time.Second}, boundary.FixedClock{})
 	if err != nil {
 		t.Fatal(err)

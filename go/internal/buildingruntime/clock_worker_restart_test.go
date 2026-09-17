@@ -88,7 +88,7 @@ func TestClockWorkerDisabledRestart(t *testing.T) {
 				t.Fatal(err)
 			}
 			t.Cleanup(func() { _ = player.Close(context.Background()) })
-			source := &schedulerNative{fake, policy.EmergencyFacts{ColonistsComplete: domain.Known(true), ThreatsComplete: domain.Known(true)}}
+			source := &schedulerNative{clockCoreFake: fake, emergency: policy.EmergencyFacts{ColonistsComplete: domain.Known(true), ThreatsComplete: domain.Known(true)}}
 			native := &joinedClockNative{source: source, started: make(chan struct{}), paused: make(chan struct{}), captured: make(chan struct{})}
 			scheduler, err := NewClockScheduler(player, session, native, ClockSchedulerConfig{Profile: profile, Start: *intent.Command.Start, MaxAge: time.Second}, boundary.FixedClock{})
 			if err != nil {

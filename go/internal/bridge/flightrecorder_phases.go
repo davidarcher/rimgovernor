@@ -16,11 +16,14 @@ import (
 // which the report shows as absent rather than zero. NativeTool is the
 // inner rimgovernor/* method for games_call_tool and games_tool_detail rows,
 // so describe round trips for a method appear under the same name with
-// Wrapper "games_tool_detail".
+// Wrapper "games_tool_detail". CacheHits are reads of the method the
+// scheduler's per-step cache served without a round trip (bridge.StepReadCache);
+// they are not counted in Calls.
 type ToolPhases struct {
 	NativeTool      string  `json:"native_tool"`
 	Wrapper         string  `json:"wrapper"`
 	Calls           uint64  `json:"calls"`
+	CacheHits       uint64  `json:"cache_hits"`
 	Errors          uint64  `json:"errors"`
 	GateWaitMs      float64 `json:"gate_wait_ms"`
 	CallMs          float64 `json:"call_ms"`
@@ -62,7 +65,7 @@ type ClockSample struct {
 }
 
 // SummarizePhases aggregates rows produced by Client (native_response,
-// native_error, native_decode). Rows recorded before phase timing existed
+// native_error, native_decode, native_cache_hit). Rows recorded before phase timing existed
 // count as Untimed and contribute only to Calls.
 func SummarizePhases(records []TimelineRecord) PhaseSummary {
 	summary := PhaseSummary{}
@@ -131,6 +134,9 @@ func SummarizePhases(records []TimelineRecord) PhaseSummary {
 				}
 			}
 			lastTick, tickWall, haveTick = tick, row.WallTime, true
+		case "native_cache_hit":
+			_, entry := phaseEntry(tools, row)
+			entry.CacheHits++
 		case "native_decode":
 			request, ok := number(row.Payload["request"])
 			if !ok {
@@ -254,7 +260,7 @@ func WritePhaseReport(w io.Writer, summary PhaseSummary) {
 		}
 		fmt.Fprintln(w)
 	}
-	fmt.Fprintf(w, "%-52s %-17s %6s %4s %9s %9s %9s %9s %9s %9s %9s %9s\n", "native tool", "wrapper", "calls", "err", "total ms", "gate ms", "call ms", "queue ms", "exec ms", "decode ms", "proto ms", "avg KiB")
+	fmt.Fprintf(w, "%-52s %-17s %6s %6s %4s %9s %9s %9s %9s %9s %9s %9s %9s\n", "native tool", "wrapper", "calls", "cached", "err", "total ms", "gate ms", "call ms", "queue ms", "exec ms", "decode ms", "proto ms", "avg KiB")
 	for _, tool := range summary.Tools {
 		calls := float64(tool.Calls)
 		if calls == 0 {
@@ -269,7 +275,7 @@ func WritePhaseReport(w io.Writer, summary PhaseSummary) {
 			queue = fmt.Sprintf("%.1f", tool.NativeQueueMs/float64(tool.NativeTimed))
 			execute = fmt.Sprintf("%.1f", tool.NativeExecuteMs/float64(tool.NativeTimed))
 		}
-		fmt.Fprintf(w, "%-52s %-17s %6d %4d %9.1f %9.1f %9.1f %9s %9s %9.2f %9.2f %9.1f\n", tool.NativeTool, wrapper, tool.Calls, tool.Errors,
+		fmt.Fprintf(w, "%-52s %-17s %6d %6d %4d %9.1f %9.1f %9.1f %9s %9s %9.2f %9.2f %9.1f\n", tool.NativeTool, wrapper, tool.Calls, tool.CacheHits, tool.Errors,
 			tool.TotalMs/calls, tool.GateWaitMs/calls, tool.CallMs/calls, queue, execute, tool.DecodeMs/calls, tool.ProtoDecodeMs/calls, float64(tool.ResponseBytes)/calls/1024)
 	}
 }

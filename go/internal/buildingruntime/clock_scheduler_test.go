@@ -13,12 +13,20 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/store"
 	k "github.com/davidarcher/RimGovernor/go/internal/wire/clockpb"
 	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
+	l "github.com/davidarcher/RimGovernor/go/internal/wire/lifecyclepb"
 	"google.golang.org/protobuf/proto"
 )
 
 type schedulerNative struct {
 	*clockCoreFake
 	emergency policy.EmergencyFacts
+	// caches records the step read cache each identity read's context carried.
+	caches []*bridge.StepReadCache
+}
+
+func (f *schedulerNative) Identity(ctx context.Context) (*l.IdentityReply, bridge.Result, error) {
+	f.caches = append(f.caches, bridge.StepReadCacheFrom(ctx))
+	return f.clockCoreFake.Identity(ctx)
 }
 
 func (f *schedulerNative) ReadEmergency(ctx context.Context, id *c.Identity) (bridge.EmergencyObservation, bridge.Result, error) {
@@ -36,7 +44,7 @@ func schedulerFixture(t *testing.T) (*ClockScheduler, *schedulerNative) {
 	if _, err = s.Acquire(context.Background(), intent.Snapshot); err != nil {
 		t.Fatal(err)
 	}
-	native := &schedulerNative{f, policy.EmergencyFacts{ColonistsComplete: domain.Known(true), ThreatsComplete: domain.Known(true)}}
+	native := &schedulerNative{clockCoreFake: f, emergency: policy.EmergencyFacts{ColonistsComplete: domain.Known(true), ThreatsComplete: domain.Known(true)}}
 	scheduler, err := NewClockScheduler(p, s, native, ClockSchedulerConfig{Profile: profile, Start: *intent.Command.Start, MaxAge: time.Second}, boundary.FixedClock{})
 	if err != nil {
 		t.Fatal(err)
@@ -60,6 +68,22 @@ func TestClockSchedulerStartsOnceAndLeavesRunningEpoch(t *testing.T) {
 	cleanup, err := s.Step(context.Background())
 	if err != nil || !cleanup.Cleaned || f.pauses != 1 || f.writes != 1 {
 		t.Fatal(cleanup, err)
+	}
+}
+
+// TestClockSchedulerReadsThroughAFreshCachePerStep: every native read a
+// step issues carries the step's read cache (the planners' shared
+// same-tick memo, issue #74), and no cache outlives its step.
+func TestClockSchedulerReadsThroughAFreshCachePerStep(t *testing.T) {
+	t.Parallel()
+	s, f := schedulerFixture(t)
+	for i := 0; i < 2; i++ {
+		if _, err := s.Step(context.Background()); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if len(f.caches) != 2 || f.caches[0] == nil || f.caches[1] == nil || f.caches[0] == f.caches[1] {
+		t.Fatalf("identity reads carried caches %v", f.caches)
 	}
 }
 func TestClockSchedulerUnknownRecoversExactRequest(t *testing.T) {

@@ -358,6 +358,19 @@ func (s *ClockScheduler) Step(ctx context.Context) (ClockSchedulerResult, error)
 		return out, err
 	}
 	defer done()
+	// Every native observation this step issues -- the identity and status
+	// reads below, the routine census and each planner's own reads -- goes
+	// through one cache that lives exactly as long as the step, so the
+	// facts the planners share are read from native once per tick. A write
+	// within the step discards it; see bridge.StepReadCache.
+	reads := bridge.NewStepReadCache()
+	call = bridge.WithStepReadCache(call, reads)
+	if clockSchedulerDebug {
+		defer func() {
+			stats := reads.Stats()
+			clockSchedulerLog("step read cache: hits=%d misses=%d coalesced=%d invalidations=%d", stats.Hits, stats.Misses, stats.Coalesced, stats.Invalidations)
+		}()
+	}
 	attempts, err := s.player.journal.LoadClockAttempts(call, 4096)
 	if err != nil {
 		return out, err

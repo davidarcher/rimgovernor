@@ -232,6 +232,21 @@ still evaluated on what they committed, so one broken family cannot keep the
 clock from ever starting. Only the step's own context ending fails the wave.
 The step itself has no polling loop; autonomous play attaches ClockWorker.
 
+Every native observation a step issues (identity, the routine census and each
+composed planner's own reads) goes through one `bridge.StepReadCache` attached to
+the step's context and dropped at step exit. The first read of a
+`(method, request)` pair crosses the bridge; identical reads later in the step,
+or concurrent with the first, are served from it. Only `lifecycle_read_identity`
+and `observations_*` replies carrying an `ObservationContext` are memoized, keyed
+to that reply's (load token, tick, native generation): a reply from another
+scope, or any write through the step's context, discards every row. Clock,
+authority, presentation, receipt and preview reads are never cached, nor are
+refusals or unavailability. A hit is decoded into a fresh reply, so the typed
+adapters and the same-bracket identity guards validate it as they would a
+native reply. `RIMGOVERNOR_CLOCK_DEBUG=1` logs the step's hit/miss/coalesced/
+invalidation counts and the flight recorder reports hits per method (the
+`cached` column of `rimgovernor phases`). Nothing is cached across steps.
+
 ## Independent clock workers
 
 `ClockWorker` runs event polling, renewal and scheduling separately. Scheduling waits
