@@ -33,7 +33,8 @@ Routine goals are re-derived from observation every review. A world change
 (new load token, or a tick rewind in the same load) invalidates the previous
 bindings, cancels their pending work and starts a fresh review under the new
 world's root plan; only work already dispatched keeps its recovery
-requirement. Missing facts cannot recover goals, so nothing here needs a
+requirement. A pause in the same world suspends the bindings and leaves
+their work open; the next enabled review reactivates the same goals. Missing facts cannot recover goals, so nothing here needs a
 restore step.
 
 ## Bounded working set

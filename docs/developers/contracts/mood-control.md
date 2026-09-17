@@ -13,7 +13,7 @@ probability nor its timing.
 The Go routine reviewer keeps the same semantic name for ordinary native pawn IDs;
 IDs longer than 210 bytes use `EnsureMoodHash-<digest>` with the exact pawn retained
 in the review. Typed nullable storage fields preserve unknown, zero and false.
-Manual clears current method proposals and invalidates shared work while retaining
+Manual clears current method proposals and suspends shared work while retaining
 mood history; world replacement and tick rewind reset that history. Departed pawns
 with unresolved risk remain unknown, while departed recovered goals retire.
 

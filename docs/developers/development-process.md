@@ -38,7 +38,8 @@ A gameplay feature needs typed observations and actions, admission and resource
 checks, a registered Hands handler, observed postconditions, recovery and player
 feedback. Add these together or as explicitly gated prerequisites. A receipt
 cannot establish completed pawn work. Observe uncertain writes before retrying.
-Manual, player direction and colony/map/load changes invalidate pending work.
+Colony/map/load changes and tick rewinds invalidate pending work; Manual only
+suspends routine goals and their open work until control resumes.
 
 Give mutable state one owner. Keep domain logic independent of transport, database,
 web and model SDKs. Pass narrow typed inputs and interfaces; construct dependencies
