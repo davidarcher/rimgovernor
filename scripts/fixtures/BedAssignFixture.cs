@@ -82,10 +82,30 @@ namespace HomeBridge.BridgeTools
                 if (newBed.Medical || newBed.ForPrisoners) return Refuse("Fixture bed unexpectedly medical or prisoner-only.");
                 if (newBed.OwnersForReading.Any()) return Refuse("Fixture bed unexpectedly already owned.");
 
+                // The walls above were spawned directly, so the enclosure's
+                // room does not exist until regions are rebuilt; do that now
+                // (the game is paused) and pin the room's temperature to the
+                // middle of the colonist's comfy band. AssignBed refuses beds
+                // outside that band (and CanReach at Danger.None refuses
+                // extreme cells), and a fresh debug world's outdoor
+                // temperature is not guaranteed to be comfortable (#96).
+                map.regionAndRoomUpdater.RebuildAllRegionsAndRooms();
+                var room = newBed.GetRoom();
+                if (room == null || room.TouchesMapEdge || room.OpenRoofCount > 0)
+                    return Refuse("Fixture bedroom is not an enclosed roofed room.");
+                var comfyMin = pawn.GetStatValue(StatDefOf.ComfyTemperatureMin);
+                var comfyMax = pawn.GetStatValue(StatDefOf.ComfyTemperatureMax);
+                room.Temperature = (comfyMin + comfyMax) / 2f;
+                var ambient = newBed.AmbientTemperature;
+                if (ambient < comfyMin || ambient > comfyMax)
+                    return Refuse($"Fixture bed ambient temperature {ambient:F1} is outside the colonist's comfy band [{comfyMin:F1}, {comfyMax:F1}].");
+                if (!pawn.CanReach(newBed, Verse.AI.PathEndMode.OnCell, Danger.None))
+                    return Refuse("Fixture colonist cannot reach the target bed at Danger.None.");
+
                 var identity = Current.Game.GetComponent<ColonyIdentity>();
                 return new {
                     success = true, colonyId = identity?.ColonyId, loadToken = identity?.LoadToken, mapId = map.uniqueID,
-                    tick = Find.TickManager.TicksGame, pawn = pawn.GetUniqueLoadID(),
+                    tick = Find.TickManager.TicksGame, pawn = pawn.GetUniqueLoadID(), bedTemperature = ambient, comfyMin, comfyMax,
                     previousBed = previousBed.GetUniqueLoadID(), bed = newBed.GetUniqueLoadID(),
                     setup = "Test-only roofed two-room enclosure: one bed claimed as the fixture colonist's previous bed, one unclaimed compliant target bed, and cleared area restriction; native CompAssignableToPawn.TryAssignPawn dispatch remains native.",
                 };

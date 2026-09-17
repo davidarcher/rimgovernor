@@ -78,6 +78,27 @@ namespace HomeBridge.BridgeTools
         // requireTokens is false for Preview's unconstrained-establish-baseline
         // role (mirrors NativeRecoveryOperations.Prepare's own split); Execute
         // always requires both tokens.
+        /// <summary>Why bed cannot be assigned to pawn right now, or null when it can; each gate names itself so a harness can tell them apart.</summary>
+        private static string? BedRefusal(Building_Bed bed, Pawn pawn, Map map)
+        {
+            if (!bed.Spawned || bed.Faction != Faction.OfPlayerSilentFail || !bed.def.building.bed_humanlike)
+                return "Bed unavailable: not a spawned player-owned humanlike bed.";
+            if (bed.Medical || bed.ForPrisoners) return "Bed unavailable: medical or prisoner bed.";
+            if (bed.OwnersForReading.Any()) return "Bed unavailable: already assigned.";
+            if (bed.IsForbidden(pawn)) return "Bed unavailable: forbidden to the pawn.";
+            if (bed.IsBurning()) return "Bed unavailable: burning.";
+            if (!bed.OccupiedRect().All(c => c.Roofed(map))) return "Bed unavailable: not fully roofed.";
+            var restriction = pawn.playerSettings?.AreaRestrictionInPawnCurrentMap;
+            if (restriction != null && !bed.OccupiedRect().All(c => restriction[c])) return "Bed unavailable: outside the pawn's allowed area.";
+            if (!pawn.CanReach(bed, PathEndMode.OnCell, Danger.None)) return "Bed unavailable: pawn cannot reach it safely.";
+            var ambient = bed.AmbientTemperature;
+            var comfyMin = pawn.GetStatValue(StatDefOf.ComfyTemperatureMin);
+            var comfyMax = pawn.GetStatValue(StatDefOf.ComfyTemperatureMax);
+            if (ambient < comfyMin || ambient > comfyMax)
+                return $"Bed unavailable: ambient temperature {ambient:F1} is outside the pawn's comfy band [{comfyMin:F1}, {comfyMax:F1}].";
+            return null;
+        }
+
         private static bool Prepare(Operations.AssignBed command, Common.ObservationContext context, bool requireTokens,
             out Pawn? pawn, out Building_Bed? bed, out CompAssignableToPawn? assignable, out Common.Failure failure)
         {
@@ -102,17 +123,10 @@ namespace HomeBridge.BridgeTools
             var expectPrevious = command.ExpectedPreviousBed.ValueCase == Operations.Assignment.ValueOneofCase.EntityId ? command.ExpectedPreviousBed.EntityId : "";
             if (previousID != expectPrevious)
             { failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Previous bed assignment changed; observe before recovery."); pawn = null; return false; }
-            var thePawn = pawn;
             bed = map.listerThings.AllThings.OfType<Building_Bed>().SingleOrDefault(b => b.GetUniqueLoadID() == command.Bed.EntityId);
-            if (bed == null || !bed.Spawned || bed.Faction != Faction.OfPlayerSilentFail
-                || !bed.def.building.bed_humanlike || bed.Medical || bed.ForPrisoners
-                || bed.OwnersForReading.Any() || bed.IsForbidden(pawn) || bed.IsBurning()
-                || !bed.OccupiedRect().All(c => c.Roofed(map)
-                    && (thePawn.playerSettings?.AreaRestrictionInPawnCurrentMap == null || thePawn.playerSettings.AreaRestrictionInPawnCurrentMap[c]))
-                || !pawn.CanReach(bed, PathEndMode.OnCell, Danger.None)
-                || bed.AmbientTemperature < pawn.GetStatValue(StatDefOf.ComfyTemperatureMin)
-                || bed.AmbientTemperature > pawn.GetStatValue(StatDefOf.ComfyTemperatureMax))
-            { failure = ProtoBoundary.Fail(Common.FailureCode.NotFound, "Bed unavailable, assigned, restricted or thermally unsafe."); pawn = null; bed = null; return false; }
+            var refusal = bed == null ? "Bed unavailable: not found on the map." : BedRefusal(bed, pawn, map);
+            if (refusal != null || bed == null)
+            { failure = ProtoBoundary.Fail(Common.FailureCode.NotFound, refusal ?? "Bed unavailable."); pawn = null; bed = null; return false; }
             if (requireTokens)
             {
                 var bedToken = NativeBuildingObservationTools.Token(bed, context);
