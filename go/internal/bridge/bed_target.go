@@ -38,8 +38,13 @@ func (client *Client) ReadBedTarget(ctx context.Context, identity *c.Identity, b
 	if e == nil || e.GetId() != bed {
 		return BedTarget{}, raw, contract("bed target identity mismatch")
 	}
-	if e.Snapshot == nil {
+	// As for repair targets, the census carries the CAS ref on the
+	// BuildingState row (NativeBuildingObservationTools.Token, the same hash
+	// NativeBedAssignOperations compares the bed's expected token against),
+	// never on the EntityRef inside it.
+	snapshot := row.GetSnapshot()
+	if snapshot == nil || snapshot.GetEntityId() != bed || validID(snapshot.GetToken()) != nil {
 		return BedTarget{}, raw, contract("bed target CAS token unavailable")
 	}
-	return BedTarget{Context: v.Context, Bed: bed, Token: e.Snapshot.GetToken()}, raw, nil
+	return BedTarget{Context: v.Context, Bed: bed, Token: snapshot.GetToken()}, raw, nil
 }
