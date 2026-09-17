@@ -33,9 +33,12 @@
 //	                   a butcher spot and meat/hay stock outside its reach.
 //	                   MaintainAnimalFeed must produce reachable feed (a kibble
 //	                   bill) rather than counting stock the animal cannot eat.
-//	sleeping        -- test/sleeping_setup: a warm roofed room, wood and bed
-//	                   research. MaintainSleeping must build a bed and recover
-//	                   only once the colonist is observed sleeping in it.
+//	sleeping        -- test/sleeping_setup: a warm roofed room holding one bed
+//	                   fewer than colonists, wood and bed research.
+//	                   MaintainSleeping must build the missing bed, ownership
+//	                   must follow (the controller's AssignBed or the colonist's
+//	                   own claim), and the goal recovers only once every
+//	                   colonist is observed sleeping in an owned bed.
 //	cold            -- test/routine_sleeping_prepare + routine_temperature_prepare:
 //	                   sleeping spots in an enclosed room at a sub-12 C outdoor
 //	                   temperature with campfire materials. EnsureTemperatureSafety
@@ -146,7 +149,13 @@ func scenarios() map[string]*scenario {
 	s["sleeping"] = &scenario{name: "sleeping", fixture: "test/sleeping_setup",
 		families: []string{"sleeping", "work"},
 		prepare: func(ctx context.Context, h *na.Harness, identity map[string]any, report na.Report) (map[string]any, error) {
-			return callFixture(ctx, h, identity, "test/sleeping_setup", map[string]any{})
+			prepared, err := callFixture(ctx, h, identity, "test/sleeping_setup", map[string]any{})
+			if err != nil {
+				return nil, err
+			}
+			report["fixture_owned_beds"] = len(na.AsSlice(prepared["ownedBeds"]))
+			report["fixture_room_temperature_c"] = prepared["roomTemperatureC"]
+			return prepared, nil
 		},
 		watch:  watchSleeping,
 		verify: verifySleeping,
@@ -756,7 +765,13 @@ func waitNeed(ctx context.Context, journal *store.Store, need policy.GoalID, sta
 // <label>_recovered_by=ordinary_work instead of <label>_completed_tick. Either
 // way the scenario's verify step confirms the postcondition natively.
 func followMethods(ctx context.Context, journal *store.Store, need policy.GoalID, label string, accept func(domain.Action) error, report na.Report) (store.PlanState, error) {
-	seen := map[domain.PlanID]bool{}
+	return followMethodsExcluding(ctx, journal, need, label, map[domain.PlanID]bool{}, accept, report)
+}
+
+// followMethodsExcluding is followMethods over a caller-owned seen set, so a
+// goal whose deficit needs two successive methods (a bed built, then that
+// bed assigned) is followed method by method without revisiting the first.
+func followMethodsExcluding(ctx context.Context, journal *store.Store, need policy.GoalID, label string, seen map[domain.PlanID]bool, accept func(domain.Action) error, report na.Report) (store.PlanState, error) {
 	renewals, rejected := 0, 0
 	recovered := func() (bool, error) {
 		review, err := journal.LoadRoutineReview(ctx)
@@ -1481,14 +1496,35 @@ func watchSleeping(ctx context.Context, journal *store.Store, prepared map[strin
 	if _, err := waitNeed(deficitCtx, journal, policy.MaintainSleeping, domain.NeedDeficit); err != nil {
 		return err
 	}
-	if _, err := followMethods(ctx, journal, policy.MaintainSleeping, "bed", func(a domain.Action) error {
+	// The fixture leaves no vacant suitable bed, so the first method builds
+	// one (a Building action). Ownership then comes either from the
+	// controller's AssignBed (a bed_assign action, followed as its own
+	// method) or from the colonist claiming the new bed on their own; the
+	// goal recovers only on observed sleep in an owned suitable bed, which
+	// waitNeed below confirms and verifySleeping checks natively.
+	seen := map[domain.PlanID]bool{}
+	kinds := []string{}
+	if _, err := followMethodsExcluding(ctx, journal, policy.MaintainSleeping, "bed", seen, func(a domain.Action) error {
 		if _, ok := a.Building(); ok {
+			kinds = append(kinds, string(a.Kind()))
 			return nil
 		}
-		return fmt.Errorf("unexpected %s action", a.Kind())
+		return fmt.Errorf("unexpected %s action before a bed was built", a.Kind())
 	}, report); err != nil {
 		return err
 	}
+	if report["bed_recovered_by"] != "ordinary_work" {
+		if _, err := followMethodsExcluding(ctx, journal, policy.MaintainSleeping, "assign", seen, func(a domain.Action) error {
+			if _, ok := a.BedAssign(); ok {
+				kinds = append(kinds, string(a.Kind()))
+				return nil
+			}
+			return fmt.Errorf("unexpected %s action after the bed was built", a.Kind())
+		}, report); err != nil {
+			return err
+		}
+	}
+	report["sleeping_action_kinds"] = kinds
 	recoverCtx, recoverCancel := context.WithTimeout(ctx, 15*time.Minute)
 	defer recoverCancel()
 	goal, err := waitNeed(recoverCtx, journal, policy.MaintainSleeping, domain.NeedRecovered)
@@ -1511,16 +1547,26 @@ func verifySleeping(ctx context.Context, h *na.Harness, identity, prepared map[s
 	}
 	beds := na.AsSlice(upkeep["beds"])
 	report["beds_after"] = len(beds)
-	owned := 0
+	// Recovery needs an owned humanlike bed that is a real bed (a sleeping
+	// spot never satisfies ReviewSleeping) under a roof.
+	owned, suitable := 0, 0
 	for _, raw := range beds {
 		row, _ := na.AsMap(raw)
-		if len(na.AsSlice(row["owners"])) > 0 {
-			owned++
+		if len(na.AsSlice(row["owners"])) == 0 {
+			continue
+		}
+		owned++
+		ref, _ := na.AsMap(row["bed"])
+		if definition, _ := ref["defName"].(string); definition != "SleepingSpot" && row["roofed"] == true && row["humanlike"] == true {
+			suitable++
 		}
 	}
 	report["owned_beds_after"] = owned
-	if owned == 0 {
-		return errors.New("no natively owned bed after MaintainSleeping recovered")
+	report["owned_suitable_beds_after"] = suitable
+	colonists := int(na.AsNumber(observed["colonistCount"]))
+	report["colonists"] = colonists
+	if colonists == 0 || suitable < colonists {
+		return fmt.Errorf("%d of %d colonists own a roofed bed after MaintainSleeping recovered", suitable, colonists)
 	}
 	return nil
 }
