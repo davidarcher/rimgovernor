@@ -79,7 +79,7 @@ func TestRoutineReviewRestartUnknownRecoveryAndRenewal(t *testing.T) {
 	}
 }
 
-func TestRoutineReviewInvalidatesLinkedWorkAndPreservesCancellation(t *testing.T) {
+func TestRoutineReviewSuspendsOrInvalidatesLinkedWorkAndPreservesCancellation(t *testing.T) {
 	t.Parallel()
 	for _, change := range []string{"manual", "load", "map", "rewind"} {
 		t.Run(change, func(t *testing.T) {
@@ -115,18 +115,34 @@ func TestRoutineReviewInvalidatesLinkedWorkAndPreservesCancellation(t *testing.T
 			}
 			reviewRoutine(t, s, &r)
 			p, err := s.LoadPlan(ctx, "p")
-			if err != nil || p.Progress[0].View().Stage != domain.Cancelled || !p.Progress[0].View().Unresolved {
-				t.Fatal(p, err)
+			if err != nil {
+				t.Fatal(err)
 			}
 			old, err := s.LoadGoal(ctx, g.Goal.ID)
-			if err != nil || old.Goal.Status != domain.GoalInvalidated {
-				t.Fatal(old, err)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if change == "manual" {
+				// Manual suspends: dispatched work stays open for the resumed goal.
+				if p.Progress[0].View().Stage != domain.Dispatched || old.Goal.Status != domain.GoalSuspended {
+					t.Fatal(p.Progress[0].View().Stage, old.Goal.Status)
+				}
+				if _, err := s.Prepare(ctx, "p", "a", scope(), 10); err == nil {
+					t.Fatal("suspended goal admitted work")
+				}
+			} else if p.Progress[0].View().Stage != domain.Cancelled || !p.Progress[0].View().Unresolved || old.Goal.Status != domain.GoalInvalidated {
+				t.Fatal(p, old)
 			}
 			r.Enabled = true
 			r.Policy = policy.DefaultRoutinePolicy()
 			r.Facts.Wood = domain.Known(int64(100))
 			out = reviewRoutine(t, s, &r)
-			if routineGoal(t, out, policy.MaintainWood).Goal.ID == g.Goal.ID {
+			resumed := routineGoal(t, out, policy.MaintainWood)
+			if change == "manual" {
+				if resumed.Goal.ID != g.Goal.ID || resumed.Goal.Status != domain.GoalActive {
+					t.Fatal("resume replaced the suspended goal", resumed)
+				}
+			} else if resumed.Goal.ID == g.Goal.ID {
 				t.Fatal("reused invalidated goal")
 			}
 			if routineGoal(t, out, policy.EnsureCooking).Goal.Status != domain.GoalCancelled {

@@ -80,8 +80,9 @@ func TestSupplyPlannerBoundsPendingWorkAndManualCancels(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	// Pause suspends the goal; the pending method waits for the resume.
 	for _, p := range plan.Progress {
-		if p.View().Stage != domain.Cancelled {
+		if p.View().Stage != domain.Pending {
 			t.Fatal(p)
 		}
 	}

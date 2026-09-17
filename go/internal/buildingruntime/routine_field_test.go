@@ -166,8 +166,10 @@ func TestFieldPlannerReservationsCASAndManual(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	// Manual suspends the goal: the remaining patches stay pending for the
+	// resumed goal rather than being cancelled.
 	for _, p := range stored.Progress {
-		if p.Action().ID() != a.ID() && p.Action().ID() != second.ID() && p.View().Stage != domain.Cancelled {
+		if p.Action().ID() != a.ID() && p.Action().ID() != second.ID() && p.View().Stage != domain.Pending {
 			t.Fatal(p)
 		}
 	}

@@ -56,8 +56,9 @@ func TestRoutineRecoveryProposalRestartManualAndCancellation(t *testing.T) {
 	r.Enabled = true
 	r.Current.Native++
 	out = reviewRoutine(t, s, &r)
-	if out.Review.Recovery == nil || out.Review.Recovery.Goal == first.Goal {
-		t.Fatal("new direction reused prior executable identity")
+	// A resume of the same world keeps the goal; the proposal binds to it again.
+	if out.Review.Recovery == nil || out.Review.Recovery.Goal != first.Goal {
+		t.Fatal("resume replaced the recovery goal", out.Review.Recovery)
 	}
 	g = routineGoal(t, out, policy.RecoverDisasterServices)
 	if _, err = s.CancelGoal(ctx, g.Goal.ID, g.Revision); err != nil {

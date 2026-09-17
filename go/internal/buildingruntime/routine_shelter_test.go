@@ -256,7 +256,7 @@ func TestRoutineShelterManualCancelsWholePendingShell(t *testing.T) {
 		t.Fatal(plan, err)
 	}
 	for _, p := range plan.Progress {
-		if p.View().Stage != domain.Cancelled || p.View().Attempt != 0 {
+		if p.View().Stage != domain.Pending || p.View().Attempt != 0 {
 			t.Fatal(p)
 		}
 	}

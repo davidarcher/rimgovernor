@@ -42,7 +42,7 @@ func TestRoutineMoodDurableLifecycleAndRetirement(t *testing.T) {
 	}
 	r.Enabled = false
 	out = reviewRoutine(t, s, &r)
-	if routineGoal(t, out, id).Goal.Status != domain.GoalInvalidated || !out.Review.Mood.States[0].Active {
+	if routineGoal(t, out, id).Goal.Status != domain.GoalSuspended || !out.Review.Mood.States[0].Active {
 		t.Fatal(out)
 	}
 	s.Close()

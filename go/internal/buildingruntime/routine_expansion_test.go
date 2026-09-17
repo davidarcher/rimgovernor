@@ -58,7 +58,7 @@ func TestExpansionAdmitsSparePlaceAndManualCancels(t *testing.T) {
 		t.Fatal(err)
 	}
 	plan, err = db.LoadPlan(ctx, plan.Spec.ID())
-	if err != nil || plan.Progress[0].View().Stage != domain.Cancelled {
+	if err != nil || plan.Progress[0].View().Stage != domain.Pending {
 		t.Fatal(plan, err)
 	}
 }

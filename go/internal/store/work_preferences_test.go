@@ -81,17 +81,21 @@ func TestWorkPreferencesInvalidateReviewAndRejectStaleInputs(t *testing.T) {
 	if _, err := s.SetWorkPreferences(ctx, q); err != nil {
 		t.Fatal(err)
 	}
-	stopped, err := s.LoadRoutineReview(ctx)
-	if err != nil || stopped.Enabled || stopped.Revision != before.Review.Revision+1 {
-		t.Fatal(stopped, err)
+	// Only the work assignment is replaced; every other project keeps its goal.
+	current, err := s.LoadRoutineReview(ctx)
+	if err != nil || !current.Enabled || current.Revision != before.Review.Revision {
+		t.Fatal(current, err)
 	}
-	for _, b := range stopped.Goals {
+	for _, b := range current.Goals {
 		g, err := s.LoadGoal(ctx, b.Goal)
-		if err != nil || g.Goal.Status != domain.GoalInvalidated {
-			t.Fatal(g, err)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if invalidated := g.Goal.Status == domain.GoalInvalidated; invalidated != (b.Need == policy.EnsureWorkAssignments) {
+			t.Fatal(b.Need, g.Goal.Status)
 		}
 	}
-	r.Revision = stopped.Revision
+	r.Revision = current.Revision
 	if _, err := s.ReviewRoutine(ctx, r); !errors.Is(err, ErrConflict) {
 		t.Fatal("stale preference input accepted", err)
 	}

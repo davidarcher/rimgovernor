@@ -196,8 +196,11 @@ func (s *Store) LoadRoutineReview(ctx context.Context) (RoutineReview, error) {
 }
 
 // ReviewRoutine commits all need assessments and latch history atomically.
-// It selects no methods and grants no execution authority. Manual or changed
-// context invalidates linked work through the same cancellation journal as Hands.
+// It selects no methods and grants no execution authority. A disabled review
+// of the same world suspends routine goals and leaves their in-flight work
+// open for the next enabled review to resume; only world replacement or a
+// tick rewind invalidates linked work through the same cancellation journal
+// as Hands.
 func (s *Store) ReviewRoutine(ctx context.Context, request RoutineReviewRequest) (RoutineReviewResult, error) {
 	if request.Current.Validate() != nil || request.Tick < 0 {
 		return RoutineReviewResult{}, errors.New("invalid routine scope")
@@ -321,7 +324,7 @@ func reviewRoutineTx(ctx context.Context, tx *sql.Tx, request RoutineReviewReque
 		if err != nil {
 			return RoutineReviewResult{}, err
 		}
-		if changed || !request.Enabled || !assessed[binding.Need] {
+		if changed || (request.Enabled && !assessed[binding.Need]) {
 			if g.Goal.Status != domain.GoalCancelled && g.Goal.Status != domain.GoalInvalidated {
 				if err = cancelGoalMethods(ctx, tx, g); err != nil {
 					return RoutineReviewResult{}, err
@@ -332,6 +335,15 @@ func reviewRoutineTx(ctx context.Context, tx *sql.Tx, request RoutineReviewReque
 				if err != nil {
 					return RoutineReviewResult{}, err
 				}
+			}
+		} else if !request.Enabled && g.Goal.Status == domain.GoalActive {
+			// Paused control admits no new work; native designations already
+			// issued keep progressing and the resumed goal adopts the result.
+			next := g.Goal
+			next.Status = domain.GoalSuspended
+			g, err = saveGoal(ctx, tx, g, next)
+			if err != nil {
+				return RoutineReviewResult{}, err
 			}
 		}
 		old[binding.Need] = g

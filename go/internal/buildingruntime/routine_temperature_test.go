@@ -190,7 +190,7 @@ func TestTemperatureSharedMethodPlacementAndManual(t *testing.T) {
 				t.Fatal(err)
 			}
 			plan, err = db.LoadPlan(context.Background(), plan.Spec.ID())
-			if err != nil || plan.Progress[0].View().Stage != domain.Cancelled {
+			if err != nil || plan.Progress[0].View().Stage != domain.Pending {
 				t.Fatal(plan, err)
 			}
 			before := n.roomReads
