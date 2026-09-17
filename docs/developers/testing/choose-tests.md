@@ -88,7 +88,9 @@ were not. A reviewer holds a new harness to it.
    hoping it recovers.
 10. **Prefer reuse over boot.** When several cases share a save, run them
    through `sustainedmatrixaccept -reuse-game` ([below](#reusing-one-game-across-acceptance-cases)) rather
-   than booting RimWorld per case.
+   than booting RimWorld per case. Between harness binaries, set
+   `RIMGOVERNOR_ACCEPT_KEEP_GAME=1` so each leaves the process at the main
+   menu and the next attaches to it ([below](#keeping-the-process-between-harnesses)).
 
 ## Keep the game quiet and small
 
@@ -176,8 +178,8 @@ plan's stages, with `PlanSignature`), `WaitGoalMethod`, `WaitPlanTerminal`
 and `WaitRoutineReview` already do this
 with `na.StallBudget()` (10 minutes, `RIMGOVERNOR_ACCEPT_STALL` overrides);
 harnesses with their own loops take a `-stall` flag defaulting to the same.
-Issues #91 and #92 track the remaining speed and quiet work (pre-generated worlds,
-process reuse).
+Issues #91 and #92 track the remaining speed and quiet work (pre-generated
+worlds).
 
 Passing evidence follows relevant code, dependencies, inputs and environment,
 not the main HEAD hash. Unrelated main commits, clean cherry-picks and rebases
@@ -209,6 +211,29 @@ through `rimworld/load_game_ready`, not `lifecycle_load`. A case
 that fails, or that ends with authority or a draft still held, retires the
 game (`games_stop`) rather than handing it on. Each case gets its own output
 directory and, when it launches `rimgovernor serve`, its own SQLite state.
+
+### Keeping the process between harnesses
+
+Every harness opens its game through `na.OpenGame(ctx, cfg)` and ends it
+with `held.Close(report)`. By default that is a launch and a `games_stop`.
+With `RIMGOVERNOR_ACCEPT_KEEP_GAME=1` in the environment, `Close` instead
+returns the game to the main menu (`test/shutdown_unload`,
+`ShutdownFixture`, in every fixture build) and leaves the process running;
+the next `OpenGame` under the same root finds it (`games_status`
+`shared-running`), attaches through `games_start`, unloads whatever is
+loaded and starts from the menu like a fresh launch would. Measured on the
+headless profile: opening a fresh process takes about 5s, an attach about
+0.2s, and the harness still generates its own colony. The report records
+`game_reuse` (`reused`, `kept`, `openMs`). A batch sets the variable once
+and stops the game at the end with `gamesstop -root <root>`; a harness
+that fails still leaves the process at the menu, and a harness that dies
+without reaching `Close` leaves a game loaded, which the next `OpenGame`
+unloads.
+
+Process reuse carries the same static-state caveat as `-reuse-game`
+(next paragraph), and process-wide `Prefs` too: `letteraccept` sets the
+pause mode it needs and restores the one it found. Harnesses asserting on
+statics or prefs run without the variable.
 
 Reuse does **not** reset mod static state: process-scoped statics such as
 `OrderedWorkHistory`, `PlayerFrame`, the `Supervisor` journal and

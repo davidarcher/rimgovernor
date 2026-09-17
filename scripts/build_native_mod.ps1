@@ -19,7 +19,7 @@ $taskProject = Join-Path $taskSource 'src/Bridge/RimGovernor.Bridge.csproj'
 $taskFixtures = @($Fixture | Sort-Object -Unique)
 # Every fixture build carries test/quiet_storyteller: the acceptance harnesses
 # quiet the debug colony through it by default (issue #92).
-if ($taskFixtures.Count) { $taskFixtures = @(($taskFixtures + 'QuietStorytellerFixture' + 'DebugStartFixture' + 'LetterFixture' + 'FreezeNeedsFixture') | Sort-Object -Unique) }
+if ($taskFixtures.Count) { $taskFixtures = @(($taskFixtures + 'QuietStorytellerFixture' + 'DebugStartFixture' + 'LetterFixture' + 'FreezeNeedsFixture' + 'ShutdownFixture') | Sort-Object -Unique) }
 $taskRole = if ($taskFixtures.Count) { 'fixture' } else { 'production' }
 if (-not $OutputRoot) {
     $OutputRoot = Join-Path $taskRepo ('.rimgovernor/native-builds/' + $taskRole + '-' + [guid]::NewGuid().ToString('N'))
