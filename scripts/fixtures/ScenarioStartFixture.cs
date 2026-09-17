@@ -19,7 +19,8 @@ namespace HomeBridge.BridgeTools
         private static DifficultyDef requestedDifficulty;
         private static OverallTemperature requestedTemperature;
         private static float minimumTemperature, maximumTemperature;
-        private static bool patched;
+        private static bool requestedQuiet;
+        private static bool patched, quietPatched;
 
         [Tool("test/configure_start", Description = "Arm one ordinary scenario start from the main menu; test builds only. Does not edit saves or existing colonies.")]
         public async Task<object> Configure(IRimBridgeContext ctx, CancellationToken cancellationToken,
@@ -30,7 +31,8 @@ namespace HomeBridge.BridgeTools
             [ToolParameter(Description = "Native DifficultyDef, selected before colony generation.")] string difficulty = "Rough",
             [ToolParameter(Description = "Minimum native seasonal temperature for the selected settlement tile.")] float minTemperature = -100,
             [ToolParameter(Description = "Maximum native seasonal temperature for the selected settlement tile.")] float maxTemperature = 100,
-            [ToolParameter(Description = "Native OverallTemperature world generation setting.")] string worldTemperature = "Normal")
+            [ToolParameter(Description = "Native OverallTemperature world generation setting.")] string worldTemperature = "Normal",
+            [ToolParameter(Description = "Quiet the storyteller (as test/quiet_storyteller) once the colony exists: no threats, incidents or strangers. Interruption harnesses pass false.")] bool quiet = true)
         {
             return await ctx.MainThread.InvokeAsync<object>(() => {
                 if (Current.ProgramState != ProgramState.Entry || Find.CurrentMap != null || Current.Game != null)
@@ -64,8 +66,16 @@ namespace HomeBridge.BridgeTools
                 requestedDifficulty = difficultyDef;
                 requestedTemperature = temperature;
                 minimumTemperature = minTemperature; maximumTemperature = maxTemperature;
+                requestedQuiet = quiet;
+                if (quiet && !quietPatched)
+                {
+                    new Harmony("rimgovernor.test.scenario-start-quiet").Patch(
+                        AccessTools.Method(typeof(Game), nameof(Game.InitNewGame)),
+                        postfix: new HarmonyMethod(typeof(ScenarioStartFixture), nameof(Quiet)));
+                    quietPatched = true;
+                }
                 return new { success = true, armed = true, scenario, count, seed, biome,
-                    minTemperature, maxTemperature,
+                    minTemperature, maxTemperature, quiet,
                     storyteller = "Cassandra", difficulty, mapSize = 250,
                     cropYieldFactor = difficultyDef.cropYieldFactor,
                     rainfall = "Normal", temperature = temperature.ToString(), population = "Normal" };
@@ -117,6 +127,15 @@ namespace HomeBridge.BridgeTools
             Find.GameInitData.mapSize = 250;
             Find.Scenario.PostIdeoChosen();
             return false;
+        }
+
+        // Runs after the armed start has generated its map and colonists, so
+        // the quieting also clears the strangers spawned with the map.
+        private static void Quiet()
+        {
+            if (!requestedQuiet) return;
+            requestedQuiet = false;
+            QuietStoryteller.Apply(Find.CurrentMap);
         }
     }
 }

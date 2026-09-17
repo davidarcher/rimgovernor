@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -141,6 +142,106 @@ func TestPrepareNativeModConfig(t *testing.T) {
 	}
 	if len(root.find("knownExpansions").li()) != 1 {
 		t.Fatalf("knownExpansions element was mutated")
+	}
+}
+
+const expansionModsConfig = `<?xml version='1.0' encoding='utf8'?>
+<ModsConfigData>
+  <version>1.6.4871 rev591</version>
+  <activeMods>
+    <li>brrainz.harmony</li>
+    <li>ludeon.rimworld</li>
+    <li>ludeon.rimworld.royalty</li>
+    <li>ludeon.rimworld.ideology</li>
+    <li>ludeon.rimworld.biotech</li>
+    <li>ludeon.rimworld.odyssey</li>
+    <li>redeyedev.rimapi</li>
+  </activeMods>
+  <knownExpansions>
+    <li>ludeon.rimworld.royalty</li>
+    <li>ludeon.rimworld.ideology</li>
+    <li>ludeon.rimworld.biotech</li>
+    <li>ludeon.rimworld.odyssey</li>
+  </knownExpansions>
+</ModsConfigData>`
+
+func activeModsAfter(t *testing.T, expansions ...string) []string {
+	t.Helper()
+	path := filepath.Join(t.TempDir(), "ModsConfig.xml")
+	if err := os.WriteFile(path, []byte(expansionModsConfig), 0644); err != nil {
+		t.Fatal(err)
+	}
+	if err := PrepareNativeModConfig(path, expansions...); err != nil {
+		t.Fatalf("PrepareNativeModConfig failed: %v", err)
+	}
+	data, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, root, err := parseXML(data)
+	if err != nil {
+		t.Fatalf("rewritten ModsConfig.xml did not parse: %v", err)
+	}
+	if len(root.find("knownExpansions").li()) != 4 {
+		t.Fatalf("knownExpansions element was mutated")
+	}
+	return root.find("activeMods").li()
+}
+
+func TestPrepareNativeModConfigDropsExpansionsByDefault(t *testing.T) {
+	got := activeModsAfter(t)
+	want := []string{"ludeon.rimworld", "redeyedev.rimapi", "brrainz.harmony", "brrainz.rimbridgeserver", NativePackage}
+	if strings.Join(got, ",") != strings.Join(want, ",") {
+		t.Fatalf("activeMods = %v, want %v", got, want)
+	}
+}
+
+func TestPrepareNativeModConfigKeepsRequestedExpansions(t *testing.T) {
+	// Short names and full IDs both work, duplicates collapse, and the kept
+	// expansions load directly after the core game in request order even when
+	// the profile had them inactive.
+	got := activeModsAfter(t, "biotech", "ludeon.rimworld.royalty", "Biotech", "anomaly")
+	want := []string{"ludeon.rimworld", "ludeon.rimworld.biotech", "ludeon.rimworld.royalty", "ludeon.rimworld.anomaly", "redeyedev.rimapi", "brrainz.harmony", "brrainz.rimbridgeserver", NativePackage}
+	if strings.Join(got, ",") != strings.Join(want, ",") {
+		t.Fatalf("activeMods = %v, want %v", got, want)
+	}
+}
+
+func TestPrepareNativeModConfigRejectsBadExpansion(t *testing.T) {
+	for _, bad := range []string{"", "ludeon.rimworld", "royalty.extra", "roy alty"} {
+		path := filepath.Join(t.TempDir(), "ModsConfig.xml")
+		if err := os.WriteFile(path, []byte(expansionModsConfig), 0644); err != nil {
+			t.Fatal(err)
+		}
+		if err := PrepareNativeModConfig(path, bad); err == nil {
+			t.Fatalf("expected error for expansion %q", bad)
+		}
+	}
+}
+
+func TestPrepareNativeModConfigRequiresCore(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "ModsConfig.xml")
+	if err := os.WriteFile(path, []byte("<ModsConfigData><activeMods><li>brrainz.harmony</li></activeMods></ModsConfigData>"), 0644); err != nil {
+		t.Fatal(err)
+	}
+	if err := PrepareNativeModConfig(path); err == nil {
+		t.Fatal("expected error when ludeon.rimworld is inactive")
+	}
+}
+
+func TestExpansionsFromEnv(t *testing.T) {
+	t.Setenv(ExpansionsEnv, "")
+	if got, err := ExpansionsFromEnv(); err != nil || got != nil {
+		t.Fatalf("empty env: %v, %v", got, err)
+	}
+	t.Setenv(ExpansionsEnv, " royalty, ludeon.rimworld.biotech ,")
+	got, err := ExpansionsFromEnv()
+	if err != nil || strings.Join(got, ",") != "ludeon.rimworld.royalty,ludeon.rimworld.biotech" {
+		t.Fatalf("env parse: %v, %v", got, err)
+	}
+	t.Setenv(ExpansionsEnv, "ludeon.rimworld")
+	if _, err := ExpansionsFromEnv(); err == nil {
+		t.Fatal("expected error for the core package")
 	}
 }
 

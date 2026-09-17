@@ -90,17 +90,28 @@ type Config struct {
 	GameID        string
 	Timeout       time.Duration
 	Configuration string // resolved by Prepare/PrepareRendered
+	// Expansions are the official expansions to keep active (short names or
+	// package IDs); nil defers to ExpansionsEnv, and either way the default is
+	// Core-only. Harnesses that test DLC content set it explicitly.
+	Expansions []string
 }
 
 // PrepareConfig runs Prepare (headless) or PrepareRendered (windowed) against Root
 // and records the resolved configuration directory.
 func (c *Config) PrepareConfig() error {
+	expansions := c.Expansions
+	if expansions == nil {
+		var err error
+		if expansions, err = ExpansionsFromEnv(); err != nil {
+			return err
+		}
+	}
 	var configuration string
 	var err error
 	if c.Headless {
-		configuration, err = Prepare(c.Root)
+		configuration, err = Prepare(c.Root, expansions...)
 	} else {
-		configuration, err = PrepareRendered(c.Root)
+		configuration, err = PrepareRendered(c.Root, expansions...)
 	}
 	if err != nil {
 		return err

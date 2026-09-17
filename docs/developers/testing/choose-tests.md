@@ -38,6 +38,29 @@ Budget a targeted harness at minutes. If the precondition is the slow part,
 build the fixture before writing the assertion, and review the generated save
 once so later runs can trust it.
 
+## Keep the game quiet and small
+
+Acceptance profiles are Core-only: `nativeaccept.PrepareNativeModConfig`
+drops every `ludeon.rimworld.*` expansion from the headless/rendered
+`ModsConfig.xml` it generates, because each active expansion adds def loading
+and per-tick systems no harness needs unless it tests that DLC. A harness that
+does sets `Config.Expansions` (or the run sets
+`RIMGOVERNOR_ACCEPT_EXPANSIONS=royalty,biotech`); a committed `.rws` saved
+with an expansion active needs the same opt-in or a Core-only regeneration.
+
+Fixture games are also quiet by default: `test/configure_start` applies
+`test/quiet_storyteller` once the colony exists (pass `quiet=false` to keep
+the ordinary storyteller), and any harness that loads a save or a debug game
+can call `test/quiet_storyteller` itself. Quiet means a Custom difficulty at
+zero threat scale with no big/intro threats, violent quests or humanlike
+hunting, no queued incidents, no storyteller ticks, and every non-colony pawn
+removed from the map; because the Custom difficulty is what the save
+persists, a quiet save stays quiet after reload while a fixture build is
+installed. Interruption harnesses (combat, disconnect, `test/world_incident`
+users) must not quiet the game. Issues #91 and #92 track the remaining speed
+and quiet work (small maps, stall-based early exit, frozen needs, letter
+acknowledgement).
+
 Passing evidence follows relevant code, dependencies, inputs and environment,
 not the main HEAD hash. Unrelated main commits, clean cherry-picks and rebases
 do not invalidate it. Inspect the relevant diff and reuse applicable results
