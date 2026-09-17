@@ -20,7 +20,12 @@ remain in N01; schema compilation alone does not establish these behaviors.
 `Start` requires current authority and one ordinary speed, a complete watch policy,
 lease 1000–30000 ms and tick budget 1–1800000. Policy fractions must be finite in
 0.01–1, hostile distance finite in 1–250, cooldown 0–1800000 ms. Each exact
-pawn ID set has at most 256 entries without duplicates. Medical-rest exceptions
+pawn ID set has at most 256 entries without duplicates. `watched_attempts` has at
+most 16 distinct complete attempt keys, each resolving to a tracked construction
+operation under the requesting identity (the only watchable family so far); an
+attempt already terminal at start is reported once as `OperationOutcome` and not
+armed, and the first armed attempt to reach a terminal outcome stops the epoch
+at that tick boundary as `STOP_REASON_WATCH_LATCHED`. Medical-rest exceptions
 require a budget at most 600 ticks. Native eligibility is checked on every sweep;
 acknowledgements cannot disable death or severe-health checks. Unknown numeric
 enum values, omitted required fields and unsupported policies are refusals.
@@ -30,7 +35,8 @@ for the exact identity/session/epoch even after automation revocation so cleanup
 can stop owned play. It cannot affect a replacement epoch or another owner.
 Epochs are positive signed 64-bit values; cursor zero is the initial position.
 Cursor arithmetic must not overflow. `ReadEvents` limits are 1–128 and rows are
-strictly after the requested cursor. An invalid or regressed cursor is an explicit
+strictly after the requested cursor; `wait_ms` (0–5000) holds an empty read until
+a row lands or the wait lapses and never delays a page that has rows or loss. An invalid or regressed cursor is an explicit
 failure; missing history reports loss. A complete page never silently drops rows.
 
 `Running`, `Stopping`, `Stopped`, `NeverStarted` and `Unavailable` are exclusive.
@@ -47,8 +53,9 @@ no native acknowledge/delete/resume alias.
 
 Typed journal payloads cover started/speed, notification/alert, injury/health,
 hostile/downed/predator/hunting/medical-rest, hostiles-cleared, tick budget,
-pause-failure, external pause/speed, lease, unavailable/watcher/journal errors and
-force-pause waiting/cleared events. Source numeric pawn IDs must resolve to exact
+watch-latched with its operation outcome, authority changes (owner-less when
+observed outside an epoch), pause-failure, external pause/speed, lease,
+unavailable/watcher/journal errors and force-pause waiting/cleared events. Source numeric pawn IDs must resolve to exact
 canonical IDs, never suffix matching. Every event carries its original native
 context, not whichever map happens to be selected during later reads.
 

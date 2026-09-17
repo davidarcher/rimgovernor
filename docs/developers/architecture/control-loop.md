@@ -30,12 +30,24 @@ Reviews pause the game. Execution uses bounded native tick windows and a renewab
 wall-clock lease. Danger, injury and player input can stop a window early; lease
 expiry also stops a controller that becomes unresponsive.
 
-A notification-driven scheduler runs independently of dashboard refreshes. Direction
-changes and review completion wake it immediately. Hands yields at its operation
-budget and requests continuation. Only one review or execution task runs at a time.
-Idle/blocked work and autosave refusals use a two-second retry backoff. Native clock
-journal reads notify the scheduler; lease renewal and periodic observation remain
-independent of task completion.
+The scheduler runs independently of dashboard refreshes. Only one review or
+execution task runs at a time. Hands yields at its operation budget and requests
+continuation. Idle/blocked work and autosave refusals use a two-second retry
+backoff; lease renewal and periodic observation remain independent of task
+completion.
+
+Delivery from the native clock is a long poll on the event journal, not a push:
+the transport is request/response only, so `clock_read_events` holds an empty
+read for up to `wait_ms` (at most 5 s) and answers as soon as a row lands. Every
+captured page wakes the scheduler step and the routine worker through one shared
+wake signal, which also resets the step backoff; a page whose events carry
+attempt outcomes names those actions so the worker reconciles them first. A
+window can be armed with watched attempts: the native supervisor stops it at the
+tick boundary on which any of them reaches a terminal outcome
+(`STOP_REASON_WATCH_LATCHED`, a benign stop like the tick budget), so a completed
+wall does not play out the rest of a 600-tick budget before the controller
+notices. Authority changes observed while no epoch is running are journaled as
+owner-less `AuthorityChanged` rows so a waiting poll learns of them at once.
 
 ## Verify progress
 

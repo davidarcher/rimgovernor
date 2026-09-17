@@ -39,6 +39,10 @@ type ScenarioInterrupted struct{ Reason string }
 
 func (e *ScenarioInterrupted) Error() string { return "scenario interrupted: " + e.Reason }
 
+// ScenarioInteger decodes a ProtoJSON integer (number, uint64 or decimal string)
+// as a non-negative integer.
+func ScenarioInteger(value any) (uint64, error) { return scenarioInteger(value) }
+
 func scenarioInteger(value any) (uint64, error) {
 	switch v := value.(type) {
 	case float64:

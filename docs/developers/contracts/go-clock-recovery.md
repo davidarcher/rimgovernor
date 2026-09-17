@@ -138,6 +138,25 @@ events plus `lost_count`; `gap` is true exactly when loss is reported. Missing t
 files and entirely missing windows can advance `next_cursor` without a final event
 at that cursor. Returned events are strictly ordered within the scanned window.
 
+`EventsRequest.wait_ms` (0–5000) turns a read into a long poll: a page that
+already has rows or loss answers at once; an empty page holds the call until a
+row lands past the cursor or the wait lapses, then is read again without
+waiting. The native side registers the waiter under the same lock that found
+the page empty, so an append between the read and the wait cannot be missed,
+and keeps at most four waiters so waiting readers never starve other tools.
+`ClockWorkerConfig.PollWait` must leave one second of the poll call budget for
+the two main-thread hops (`serve` uses 4 s under the 7 s poll timeout). A poll
+that returns early with nothing (a native build ignoring `wait_ms`) falls back
+to the ordinary poll interval instead of spinning.
+
+`Event.owner` is required for every event except an `AuthorityChanged` observed
+outside an epoch, which the native supervisor publishes from the authority
+generation seam with `epoch = 0` and no owner. `OperationOutcome` rows carry an
+attempt key, the latching tick and exactly one receipts effect; an
+`OperationOutcome` immediately precedes its `STOP_REASON_WATCH_LATCHED` stop on
+the same tick, and the stop's `WatchLatched` evidence repeats the outcome with
+the window's tick deadline.
+
 An empty journal can report `oldest_cursor = 0` and `newest_cursor = 0`. An absent
 oldest cursor is also valid. A positive oldest cursor requires a nonempty journal;
 zero is not a valid oldest cursor for a nonempty journal.
@@ -164,8 +183,10 @@ reviewed history before ingesting another page.
 
 Captured and reviewed cursors are distinct. Review consumes only committed pages
 and derives interruption and gap holds from that evidence. Ordinary epoch starts,
-speed changes, requested pauses and tick-budget stops do not create interruption
-holds; notification, injury, failure and other stop events remain conservative holds.
+speed changes, hostiles-cleared, force-pause-cleared, operation outcomes,
+authority changes and the benign stops (`store/clock.BenignStop`: tick budget,
+requested pause, watch latched) do not create interruption holds; notification,
+injury, failure and other stop events remain conservative holds.
 Cleared conditions cannot erase an earlier unacknowledged event.
 
 Acknowledgements require an exact review revision and reviewed cursor. An exact
@@ -285,8 +306,19 @@ bounded only by the Player's call timeout: a step holds the Player gate, never
 `renewGate`, so a slow planner census cannot delay renewal (`serve` budgets 7s for
 poll/renew and 30s for the step, with the scheduler's `MaxAge` covering the whole
 step). Unchanged scheduling decisions back off, except while a combat window is
-admitted or running, which keeps the short poll. Autonomous play attaches the
+admitted or running, which keeps the short poll. A captured page wakes the step
+loop through the shared `WakeSignal` and resets that backoff; the same signal
+wakes the routine `Worker`, which reconciles the actions named by any
+`OperationOutcome` or `WatchLatched` evidence ahead of its rotation and without
+their retry backoff (at most 64 focused actions). Autonomous play attaches the
 worker; `--observe` does not.
+
+The scheduler arms `WatchPolicy.watched_attempts` with the dispatched or
+awaiting-observation building-action attempts of the planned wave (first 16,
+zone and allow designations are never armed). The policy is part of the window
+key, so a changed watch set is a new logical window. A verified
+`STOP_REASON_WATCH_LATCHED` stop is a finished window like a tick-budget stop
+except that its last tick may precede the deadline.
 
 A fresh worker over reopened state remains disabled while recovering original
 attempts and pausing retained ownership; it does not acquire authority or issue a
