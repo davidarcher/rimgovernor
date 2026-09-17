@@ -4,14 +4,13 @@ import (
 	"context"
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
-	"path/filepath"
 	"testing"
 )
 
 func TestExpansionDurableRenewalUnknownAndPlayerCapacity(t *testing.T) {
 	t.Parallel()
 	ctx := context.Background()
-	path := filepath.Join(t.TempDir(), "expansion.db")
+	path := memoryPath(t)
 	s := open(t, path)
 	r := routineRequest()
 	r.Policy.MaxDevelopmentProjects = 1
@@ -65,7 +64,7 @@ func TestExpansionDurableRenewalUnknownAndPlayerCapacity(t *testing.T) {
 func TestRoutineCapabilitiesPreserveCommittedExpansion(t *testing.T) {
 	t.Parallel()
 	ctx := context.Background()
-	s := open(t, filepath.Join(t.TempDir(), "capabilities.db"))
+	s := open(t, memoryPath(t))
 	defer s.Close()
 	r := routineRequest()
 	r.Policy.MaxDevelopmentProjects = 1

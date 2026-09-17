@@ -1,3 +1,5 @@
+#nullable enable
+
 using System;
 using System.Linq;
 using HarmonyLib;
@@ -40,14 +42,16 @@ namespace HomeBridge.BridgeTools
             .FirstOrDefault(r => r.MapId == map.uniqueID && r.X == cell.x && r.Z == cell.z && r.Finished < 0 && !r.Cancelled);
         private sealed class Sample
         {
-            internal MiningRecord Record;
-            internal ExcavationRecord Excavation;
-            internal Map Map;
-            internal int Stock;
+            internal Sample(Map map, ExcavationRecord excavation) { Map = map; Excavation = excavation; }
+            internal Sample(Map map, MiningRecord record, int stock) { Map = map; Record = record; Stock = stock; }
+            internal readonly MiningRecord? Record;
+            internal readonly ExcavationRecord? Excavation;
+            internal readonly Map Map;
+            internal readonly int Stock;
         }
         private static int Stock(Map map, string resource) => map.listerThings.AllThings
             .Where(t => t.def.defName == resource).Sum(t => t.stackCount);
-        private static bool Before(JobDriver_Mine __instance, Thing target, out Sample __state)
+        private static bool Before(JobDriver_Mine __instance, Thing target, out Sample? __state)
         {
             __state = null;
             if (target?.Map == null) return true;
@@ -60,7 +64,7 @@ namespace HomeBridge.BridgeTools
                 if (excavation.Blocker == null && ExcavationSafety.Check(target.Map, new[] { target.Position }, out _, out var support) != ExcavationSafety.Support.Supported)
                     excavation.Blocker = support;
                 if (excavation.Blocker != null) { __instance.EndJobWith(JobCondition.Incompletable); return false; }
-                __state = new Sample { Excavation = excavation, Map = target.Map };
+                __state = new Sample(target.Map, excavation);
                 return true;
             }
             var record = State().Records.FirstOrDefault(r => r.MapId == target.Map.uniqueID && r.ThingId == target.ThingID && r.Finished < 0 && !r.Cancelled);
@@ -71,16 +75,18 @@ namespace HomeBridge.BridgeTools
                 __instance.EndJobWith(JobCondition.Incompletable);
                 return false;
             }
-            __state = new Sample { Record = record, Map = target.Map, Stock = Stock(target.Map, record.Resource) };
+            __state = new Sample(target.Map, record, Stock(target.Map, record.Resource));
             return true;
         }
-        private static void After(Thing target, Sample __state)
+        private static void After(Thing target, Sample? __state)
         {
             if (__state == null || !target.Destroyed) return;
             if (__state.Excavation != null) { __state.Excavation.Finished = Find.TickManager.TicksGame; return; }
-            __state.Record.Finished = Find.TickManager.TicksGame;
-            __state.Record.Cancelled = false;
-            __state.Record.Recovered = Math.Max(0, Stock(__state.Map, __state.Record.Resource) - __state.Stock);
+            var record = __state.Record;
+            if (record == null) return;
+            record.Finished = Find.TickManager.TicksGame;
+            record.Cancelled = false;
+            record.Recovered = Math.Max(0, Stock(__state.Map, record.Resource) - __state.Stock);
         }
     }
 }

@@ -187,13 +187,13 @@ func (r *RoutineBuildingPlanner) step(call, epoch context.Context, arbiter *step
 		// Cooking and butcher placements read rooms too when the source can
 		// serve them, so kitchen/butcher separation protects each other's
 		// rooms (issue #6 slice 2); without a census nothing is protected.
-		full, readErr := observation.ObserveRoutineRooms(call, r.native.(observation.RoutineSource), r.reviewer.clock, expected, r.reviewer.maxAge, domain.Unknown[[]policy.ConstructionClaim](), definitions...)
+		full, readErr := r.reviewer.observeRooms(call, r.native.(observation.RoutineSource), expected, domain.Unknown[[]policy.ConstructionClaim](), definitions...)
 		reading, err = full.ColonyReading, readErr
 	} else if r.goal == policy.EnsureBasicPower {
-		full, readErr := observation.ObserveRoutine(call, r.native.(observation.RoutineSource), r.reviewer.clock, expected, r.reviewer.maxAge, definitions...)
+		full, readErr := r.reviewer.observeOwned(call, r.native.(observation.RoutineSource), expected, domain.Unknown[[]policy.ConstructionClaim](), definitions...)
 		reading, err = full.ColonyReading, readErr
 	} else {
-		reading, err = observation.ObserveColony(call, r.native, r.reviewer.clock, expected, r.reviewer.maxAge, true, definitions)
+		reading, err = r.reviewer.observeColony(call, r.native, expected, definitions)
 	}
 	if err != nil {
 		return RoutineBuildingResult{}, err

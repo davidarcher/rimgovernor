@@ -6,7 +6,6 @@ import (
 	"errors"
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
-	"path/filepath"
 	"reflect"
 	"testing"
 )
@@ -24,7 +23,7 @@ func developmentRow(t *testing.T, r RoutineReview, id domain.GoalID) RoutineDeve
 func TestRoutineDevelopmentPersistsAgeAndRechecksPlayerCapacity(t *testing.T) {
 	t.Parallel()
 	ctx := context.Background()
-	path := filepath.Join(t.TempDir(), "development.db")
+	path := memoryPath(t)
 	s := open(t, path)
 	r := routineRequest()
 	r.Policy.MaxDevelopmentProjects = 1
@@ -81,7 +80,7 @@ func TestRoutineDevelopmentPersistsAgeAndRechecksPlayerCapacity(t *testing.T) {
 
 func TestRoutineDevelopmentUnknownWorkersAndReloadReset(t *testing.T) {
 	t.Parallel()
-	s := open(t, filepath.Join(t.TempDir(), "development.db"))
+	s := open(t, memoryPath(t))
 	defer s.Close()
 	r := routineRequest()
 	first := reviewRoutine(t, s, &r)
@@ -105,7 +104,7 @@ func TestRoutineDevelopmentRejectsCorruptDurableSelections(t *testing.T) {
 	t.Parallel()
 	for _, fault := range []string{"workers", "capacity", "unknown-deficit", "goal", "scope"} {
 		t.Run(fault, func(t *testing.T) {
-			s := open(t, filepath.Join(t.TempDir(), "development.db"))
+			s := open(t, memoryPath(t))
 			defer s.Close()
 			r := routineRequest()
 			record := reviewRoutine(t, s, &r).Review
@@ -140,7 +139,7 @@ func TestRoutineDevelopmentRejectsCorruptDurableSelections(t *testing.T) {
 func TestRoutineDevelopmentCountsCancelledUncertainPlayerWork(t *testing.T) {
 	t.Parallel()
 	ctx := context.Background()
-	s := open(t, filepath.Join(t.TempDir(), "development.db"))
+	s := open(t, memoryPath(t))
 	defer s.Close()
 	r := routineRequest()
 	r.Policy.MaxDevelopmentProjects = 1
@@ -181,7 +180,7 @@ func TestRoutineDevelopmentCountsCancelledUncertainPlayerWork(t *testing.T) {
 func TestRoutineDevelopmentConfiguredTargetsAndExemptPush(t *testing.T) {
 	t.Parallel()
 	ctx := context.Background()
-	s := open(t, filepath.Join(t.TempDir(), "development-targets.db"))
+	s := open(t, memoryPath(t))
 	r := routineRequest()
 	r.Policy.MaxDevelopmentProjects = 1
 	r.Policy.ResearchTarget = "Stonecutting"
@@ -234,7 +233,7 @@ func TestRoutineDevelopmentConfiguredTargetsAndExemptPush(t *testing.T) {
 func TestRoutineDevelopmentLaborPersistsAndDefers(t *testing.T) {
 	t.Parallel()
 	ctx := context.Background()
-	path := filepath.Join(t.TempDir(), "development-labor.db")
+	path := memoryPath(t)
 	s := open(t, path)
 	r := routineRequest()
 	r.Policy.MaxDevelopmentProjects = 4

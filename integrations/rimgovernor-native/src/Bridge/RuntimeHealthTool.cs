@@ -1,3 +1,5 @@
+#nullable enable
+
 using System;
 using System.Linq;
 using System.Threading;
@@ -24,9 +26,9 @@ namespace HomeBridge.BridgeTools
             {
                 var hooks = NativeAuthorityHooks.Statuses;
                 var health = NativeAuthorityHooks.Health;
-                object authority = null;
+                object? authority = null;
                 var game = Current.Game;
-                NativeControlAuthority state;
+                NativeControlAuthority? state;
                 if (game != null && NativeControlAuthority.TryGetForGame(game, out state) && state != null)
                 {
                     var snapshot = state.Status();

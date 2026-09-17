@@ -182,9 +182,9 @@ namespace HomeBridge.BridgeTools
                 context.NativeGeneration = guard.Snapshot.Generation;
                 if (!guard.Success) return new Operations.ExecuteReply { Failure = NativeAuthorityControlTools.Refusal(guard.Error, context) };
                 var admitted = state.Ledger.Admit("rimgovernor.operations.v1.Operations/Execute", request, context);
-                if (admitted.Kind != NativeAttemptLedger.DecisionKind.Admitted) return admitted.Reply!;
-                handle = admitted.Handle;
-                var map = ProtoBoundary.ResolveMap(context); var chosen = candidate!;
+                if (admitted.Kind != NativeAttemptLedger.DecisionKind.Admitted) return admitted.DecidedReply;
+                handle = admitted.AdmittedHandle;
+                var map = ProtoBoundary.LoadedMap(context); var chosen = candidate!;
                 var record = new NativeWallRemovalRecord(map, chosen.Record, chosen.Record.Target, chosen.Site.Snapshot?.Token ?? "",
                     chosen.Workers.Select(p => p.GetUniqueLoadID()).ToList(), chosen.Reread);
                 state.WallRemovals.Add(pre.Attempt.Clone(), record);
@@ -200,7 +200,7 @@ namespace HomeBridge.BridgeTools
             }
             catch (Exception error)
             {
-                if (handle != null) return new Operations.ExecuteReply { Receipt = NativeOperationEnvelope.Uncertain(state.Ledger, handle, pre.Attempt, context, evidence!, "Wall removal write interrupted: " + error.GetType().Name) };
+                if (handle != null) return new Operations.ExecuteReply { Receipt = NativeOperationEnvelope.Uncertain(state.Ledger, handle, pre.Attempt, context, evidence, "Wall removal write interrupted: " + error.GetType().Name) };
                 return new Operations.ExecuteReply { Failure = ProtoBoundary.Fail(Common.FailureCode.NativeFailure, "Wall removal failed: " + error.GetType().Name) };
             }
         }
@@ -228,8 +228,8 @@ namespace HomeBridge.BridgeTools
                 context.NativeGeneration = guard.Snapshot.Generation;
                 if (!guard.Success) return new Operations.ExecuteReply { Failure = NativeAuthorityControlTools.Refusal(guard.Error, context) };
                 var admitted = state.Ledger.Admit("rimgovernor.operations.v1.Operations/Execute", request, context);
-                if (admitted.Kind != NativeAttemptLedger.DecisionKind.Admitted) return admitted.Reply!;
-                handle = admitted.Handle;
+                if (admitted.Kind != NativeAttemptLedger.DecisionKind.Admitted) return admitted.DecidedReply;
+                handle = admitted.AdmittedHandle;
                 int released;
                 using (authority.Owned()) released = WallUpgradeSafety.ReleaseAll();
                 var evidence = new Receipts.EffectEvidence { Wall = new Receipts.WallEffect { ReleasedCount = released, DemolitionObserved = false } };

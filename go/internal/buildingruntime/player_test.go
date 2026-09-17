@@ -15,6 +15,7 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/executor"
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
 	"github.com/davidarcher/RimGovernor/go/internal/store"
+	"github.com/davidarcher/RimGovernor/go/internal/store/storetest"
 )
 
 type playerWorldSource struct {
@@ -79,13 +80,16 @@ func (s *playerFakeSession) Close(ctx context.Context) error {
 }
 func playerFixture(t *testing.T) (*Player, *store.Store, *playerFakeSession, *playerWorldSource) {
 	t.Helper()
-	db, err := store.Open(context.Background(), filepath.Join(t.TempDir(), "state.sqlite"))
+	db, err := store.Open(context.Background(), storetest.Path(t))
 	if err != nil {
 		t.Fatal(err)
 	}
 	session := &playerFakeSession{}
 	worlds := &playerWorldSource{world: store.World{Colony: "colony", Load: "load", Map: 0}}
-	p, err := newPlayer(context.Background(), PlayerConfig{CallTimeout: time.Second, JournalTimeout: time.Second}, db, session, worlds)
+	// Upper bounds only: no test on this fixture waits for them to expire,
+	// and the routine planners' previews and journal writes ran past a 1s
+	// call budget under CPU contention.
+	p, err := newPlayer(context.Background(), PlayerConfig{CallTimeout: 10 * time.Second, JournalTimeout: 10 * time.Second}, db, session, worlds)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -324,7 +328,7 @@ func TestPlayerRestartHistoricalPendingAndGrantedNeverEnable(t *testing.T) {
 	for _, phase := range []store.ControlPhase{store.PendingControl, store.RunningControl} {
 		t.Run(string(phase), func(t *testing.T) {
 			ctx := context.Background()
-			path := filepath.Join(t.TempDir(), "state.sqlite")
+			path := storetest.Path(t)
 			db, err := store.Open(ctx, path)
 			if err != nil {
 				t.Fatal(err)
@@ -371,7 +375,7 @@ func TestPlayerActualSessionCleansPriorOwnedLeaseAndRejectsForeignOwner(t *testi
 	t.Parallel()
 	ctx := context.Background()
 	dir := t.TempDir()
-	db, err := store.Open(ctx, filepath.Join(dir, "state.sqlite"))
+	db, err := store.Open(ctx, storetest.Path(t))
 	if err != nil {
 		t.Fatal(err)
 	}

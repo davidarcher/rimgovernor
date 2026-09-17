@@ -3,7 +3,6 @@ package store
 import (
 	"context"
 	"errors"
-	"path/filepath"
 	"reflect"
 	"testing"
 
@@ -13,7 +12,7 @@ import (
 func TestDependencyPersistenceAndGuardedExecution(t *testing.T) {
 	t.Parallel()
 	ctx := context.Background()
-	path := filepath.Join(t.TempDir(), "dependencies.db")
+	path := memoryPath(t)
 	s := open(t, path)
 	base := plan(t, "p", "a", "b")
 	p, e := domain.NewPlan(base.ID(), base.Revision(), base.Actions(), domain.ActionDependency{Action: "b", Requires: "a"})

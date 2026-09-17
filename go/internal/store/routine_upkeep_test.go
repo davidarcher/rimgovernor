@@ -4,13 +4,12 @@ import (
 	"context"
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
-	"path/filepath"
 	"testing"
 )
 
 func TestRoutineUpkeepRetainsEmergencyAcrossUnknownManualAndRestart(t *testing.T) {
 	t.Parallel()
-	path := filepath.Join(t.TempDir(), "upkeep.db")
+	path := memoryPath(t)
 	db := open(t, path)
 	r := routineRequest()
 	out := reviewRoutine(t, db, &r)
@@ -57,7 +56,7 @@ func TestRoutineUpkeepRetainsEmergencyAcrossUnknownManualAndRestart(t *testing.T
 
 func TestRoutineUpkeepIssuedWorkCannotRecoverFromTargetDisappearance(t *testing.T) {
 	t.Parallel()
-	db := open(t, filepath.Join(t.TempDir(), "issued.db"))
+	db := open(t, memoryPath(t))
 	ctx := context.Background()
 	r := routineRequest()
 	r.Facts.Upkeep.Fires = domain.Known([]policy.UpkeepFire{{ID: "fire", Home: true, Size: domain.Known(.5)}})

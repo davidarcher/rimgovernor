@@ -1,3 +1,5 @@
+#nullable enable
+
 using System;
 using System.Collections.Generic;
 using System.Threading;
@@ -78,38 +80,38 @@ namespace HomeBridge.BridgeTools
 
         /// <summary>The one session that may be open. Opening a second closes
         /// this one first, so two write tools in a row never stack menus.</summary>
-        private static Session Current;
+        private static Session? Current;
 
         /// <summary>What was opened, so Finish can close exactly that.</summary>
         internal sealed class Session
         {
-            internal object Target;
-            internal Type InspectTab;
-            internal MainButtonDef MainTab;
+            internal object? Target;
+            internal Type? InspectTab;
+            internal MainButtonDef? MainTab;
             internal bool CameraMoved;
             internal bool Selected;
             internal bool TabOpened;
             internal bool AnythingShown;
-            internal string Note;
+            internal string? Note;
 
             /// <summary>The main tab this session actually switched TO. Null when
             /// the tab was already open, which is the case the close must not
             /// undo.</summary>
-            internal MainButtonDef OpenedMainTab;
+            internal MainButtonDef? OpenedMainTab;
 
             /// <summary>The ITab type actually showing on the inspect pane after
             /// Open, which is not always the one asked for: a pane whose target
             /// has no such tab opens nothing.</summary>
-            internal Type OpenedInspectTab;
+            internal Type? OpenedInspectTab;
 
             /// <summary>The main tab on screen once Open has run, whether this
             /// session switched to it or found it already there. What the reply
             /// reports; OpenedMainTab is what the close is allowed to undo.</summary>
-            internal MainButtonDef ShowingMainTab;
+            internal MainButtonDef? ShowingMainTab;
 
             /// <summary>Kept so the delayed close can hop back onto the main
             /// thread after the tool call has returned.</summary>
-            internal IRimBridgeMainThread MainThread;
+            internal IRimBridgeMainThread? MainThread;
 
             internal int Seconds;
             internal bool Closed;
@@ -124,7 +126,7 @@ namespace HomeBridge.BridgeTools
         /// to the target when `camera` is true. Never throws; a session that
         /// could show nothing has AnythingShown false and a Note saying why.
         /// </summary>
-        internal static Session Open(IRimBridgeContext ctx, object target, Type inspectTab, MainButtonDef mainTab, bool camera)
+        internal static Session Open(IRimBridgeContext ctx, object? target, Type? inspectTab, MainButtonDef? mainTab, bool camera)
         {
             return OpenCore(ctx, target, inspectTab, mainTab, camera, IntVec3.Invalid);
         }
@@ -141,7 +143,7 @@ namespace HomeBridge.BridgeTools
             return OpenCore(ctx, null, null, null, true, cell);
         }
 
-        private static Session OpenCore(IRimBridgeContext ctx, object target, Type inspectTab, MainButtonDef mainTab,
+        private static Session OpenCore(IRimBridgeContext ctx, object? target, Type? inspectTab, MainButtonDef? mainTab,
                                         bool camera, IntVec3 explicitCell)
         {
             var session = new Session
@@ -153,7 +155,7 @@ namespace HomeBridge.BridgeTools
             };
 
             PresentationLifecycle.EnsurePatched();
-            Session previous;
+            Session? previous;
             lock (Sync)
             {
                 previous = Current;
@@ -167,7 +169,7 @@ namespace HomeBridge.BridgeTools
                 if (target != null)
                     Select(session, target, notes);
 
-                var rootBefore = BridgeCommon.Try(() => Find.MainTabsRoot == null ? null : Find.MainTabsRoot.OpenTab, (MainButtonDef)null);
+                var rootBefore = BridgeCommon.Try(() => Find.MainTabsRoot == null ? null : Find.MainTabsRoot.OpenTab, (MainButtonDef?)null);
 
                 if (inspectTab != null)
                     OpenInspectTab(session, inspectTab, notes);
@@ -183,7 +185,7 @@ namespace HomeBridge.BridgeTools
                 // its own. Record that as ours so the close puts it back.
                 if (session.OpenedMainTab == null && inspectTab != null)
                 {
-                    var rootAfter = BridgeCommon.Try(() => Find.MainTabsRoot == null ? null : Find.MainTabsRoot.OpenTab, (MainButtonDef)null);
+                    var rootAfter = BridgeCommon.Try(() => Find.MainTabsRoot == null ? null : Find.MainTabsRoot.OpenTab, (MainButtonDef?)null);
                     if (rootAfter != null && !ReferenceEquals(rootAfter, rootBefore))
                         session.OpenedMainTab = rootAfter;
                 }
@@ -198,7 +200,7 @@ namespace HomeBridge.BridgeTools
 
             if (session.TabOpened)
                 session.ShowingMainTab = BridgeCommon.Try(
-                    () => Find.MainTabsRoot == null ? null : Find.MainTabsRoot.OpenTab, (MainButtonDef)null);
+                    () => Find.MainTabsRoot == null ? null : Find.MainTabsRoot.OpenTab, (MainButtonDef?)null);
 
             session.AnythingShown = session.Selected || session.TabOpened || session.CameraMoved;
             if (!session.AnythingShown && notes.Count == 0)
@@ -211,14 +213,14 @@ namespace HomeBridge.BridgeTools
         /// inside Selector.Select is a Log.Error.</summary>
         private static void Select(Session session, object target, List<string> notes)
         {
-            var selector = BridgeCommon.Try(() => Find.Selector, (Selector)null);
+            var selector = BridgeCommon.Try(() => Find.Selector, (Selector?)null);
             if (selector == null)
             {
                 notes.Add("Find.Selector was not readable, so nothing was selected.");
                 return;
             }
 
-            var currentMap = BridgeCommon.Try(() => Find.CurrentMap, (Map)null);
+            var currentMap = BridgeCommon.Try(() => Find.CurrentMap, (Map?)null);
             var thing = target as Thing;
             if (thing != null)
             {
@@ -238,7 +240,7 @@ namespace HomeBridge.BridgeTools
                     notes.Add("The target is a world pawn, which cannot be selected.");
                     return;
                 }
-                if (currentMap != null && !ReferenceEquals(BridgeCommon.Try(() => thing.Map, (Map)null), currentMap))
+                if (currentMap != null && !ReferenceEquals(BridgeCommon.Try(() => thing.Map, (Map?)null), currentMap))
                 {
                     notes.Add("The target is on another map; selecting it would switch the viewed map, so nothing was selected.");
                     return;
@@ -254,7 +256,7 @@ namespace HomeBridge.BridgeTools
                         notes.Add("The target zone has no cells, so nothing was selected.");
                         return;
                     }
-                    if (currentMap != null && !ReferenceEquals(BridgeCommon.Try(() => zone.Map, (Map)null), currentMap))
+                    if (currentMap != null && !ReferenceEquals(BridgeCommon.Try(() => zone.Map, (Map?)null), currentMap))
                     {
                         notes.Add("The target zone is on another map, so nothing was selected.");
                         return;
@@ -308,7 +310,7 @@ namespace HomeBridge.BridgeTools
         /// not recorded, so the close cannot take away a tab a person opened.</summary>
         private static void OpenMainTab(Session session, MainButtonDef mainTab, List<string> notes)
         {
-            var root = BridgeCommon.Try(() => Find.MainTabsRoot, (MainTabsRoot)null);
+            var root = BridgeCommon.Try(() => Find.MainTabsRoot, (MainTabsRoot?)null);
             if (root == null)
             {
                 notes.Add("Find.MainTabsRoot was not readable, so no main tab was opened.");
@@ -356,7 +358,7 @@ namespace HomeBridge.BridgeTools
                 notes.Add("No map cell could be read for the target, so the camera did not move.");
                 return;
             }
-            var driver = BridgeCommon.Try(() => Find.CameraDriver, (CameraDriver)null);
+            var driver = BridgeCommon.Try(() => Find.CameraDriver, (CameraDriver?)null);
             if (driver == null)
             {
                 notes.Add("Find.CameraDriver was not readable, so the camera did not move.");
@@ -381,7 +383,7 @@ namespace HomeBridge.BridgeTools
         /// Returns immediately for a null session or one that showed nothing.
         /// A cancelled wait is swallowed: the write behind it still has to run.
         /// </summary>
-        internal static async Task Lead(Session session, CancellationToken cancellationToken)
+        internal static async Task Lead(Session? session, CancellationToken cancellationToken)
         {
             if (session == null || !session.AnythingShown)
                 return;
@@ -402,7 +404,7 @@ namespace HomeBridge.BridgeTools
         /// the session opened after `seconds` (clamped 1..60), and returns the
         /// reply's `watch{}` block.
         /// </summary>
-        internal static Dictionary<string, object> Finish(Session session, int seconds)
+        internal static Dictionary<string, object?> Finish(Session session, int seconds)
         {
             if (session == null)
                 return Skipped("no session");
@@ -450,7 +452,7 @@ namespace HomeBridge.BridgeTools
         /// <summary>The `watch{}` block when nothing was shown: a dry run, a
         /// refusal, or watch:false. Same key set as Finish, so a caller reading
         /// watch.shown never has to ask which shape it got.</summary>
-        internal static Dictionary<string, object> Skipped(string reason)
+        internal static Dictionary<string, object?> Skipped(string? reason)
         {
             var block = Block();
             block["reason"] = reason;
@@ -458,9 +460,9 @@ namespace HomeBridge.BridgeTools
         }
 
         /// <summary>Every key, at their nothing-happened values.</summary>
-        private static Dictionary<string, object> Block()
+        private static Dictionary<string, object?> Block()
         {
-            return new Dictionary<string, object>(StringComparer.Ordinal)
+            return new Dictionary<string, object?>(StringComparer.Ordinal)
             {
                 { "shown", false },
                 { "selected", false },
@@ -500,11 +502,11 @@ namespace HomeBridge.BridgeTools
         /// Ideos — Work, Schedule, Assign, Animals and Wildlife are real defs
         /// with no DefOf field, so they are looked up by name. Main thread only.
         /// </summary>
-        internal static MainButtonDef Tab(string defName)
+        internal static MainButtonDef? Tab(string? defName)
         {
             if (string.IsNullOrEmpty(defName))
                 return null;
-            return BridgeCommon.Try(() => DefDatabase<MainButtonDef>.GetNamedSilentFail(defName), (MainButtonDef)null);
+            return BridgeCommon.Try(() => DefDatabase<MainButtonDef>.GetNamedSilentFail(defName), (MainButtonDef?)null);
         }
 
         // ================================================================ close
@@ -527,7 +529,7 @@ namespace HomeBridge.BridgeTools
         /// moment the tool call returns, which is before this is due.</summary>
         private static void ScheduleClose(Session session, int seconds)
         {
-            var mainThread = session.MainThread;
+            var mainThread = session.MainThread ?? throw new InvalidOperationException("Watch session has no main thread to close on.");
             Task.Delay(TimeSpan.FromSeconds(seconds)).ContinueWith(
                 delegate
                 {
@@ -548,7 +550,7 @@ namespace HomeBridge.BridgeTools
 
         /// <summary>Main thread. Undo exactly what this session did, and only
         /// while the game still shows it. Runs at most once per session.</summary>
-        private static void CloseNow(Session session)
+        private static void CloseNow(Session? session)
         {
             if (session == null)
                 return;
@@ -572,14 +574,14 @@ namespace HomeBridge.BridgeTools
 
                 if (session.OpenedMainTab != null)
                 {
-                    var root = BridgeCommon.Try(() => Find.MainTabsRoot, (MainTabsRoot)null);
+                    var root = BridgeCommon.Try(() => Find.MainTabsRoot, (MainTabsRoot?)null);
                     if (root != null && ReferenceEquals(root.OpenTab, session.OpenedMainTab))
                         root.EscapeCurrentTab(playSound: true);
                 }
 
                 if (session.Selected && session.Target != null)
                 {
-                    var selector = BridgeCommon.Try(() => Find.Selector, (Selector)null);
+                    var selector = BridgeCommon.Try(() => Find.Selector, (Selector?)null);
                     if (selector != null && selector.NumSelected == 1
                         && ReferenceEquals(selector.FirstSelectedObject, session.Target))
                         selector.ClearSelection();
@@ -595,16 +597,16 @@ namespace HomeBridge.BridgeTools
         // =============================================================== helpers
 
         /// <summary>The inspect pane instance, through the def that owns it.</summary>
-        private static MainTabWindow_Inspect InspectPane()
+        private static MainTabWindow_Inspect? InspectPane()
         {
             var def = Tab("Inspect");
             if (def == null)
                 return null;
-            return BridgeCommon.Try(() => def.TabWindow as MainTabWindow_Inspect, (MainTabWindow_Inspect)null);
+            return BridgeCommon.Try(() => def.TabWindow as MainTabWindow_Inspect, (MainTabWindow_Inspect?)null);
         }
 
         /// <summary>The cell the camera should jump to for a target.</summary>
-        private static IntVec3 CellOf(object target)
+        private static IntVec3 CellOf(object? target)
         {
             var thing = target as Thing;
             if (thing != null)
@@ -622,17 +624,17 @@ namespace HomeBridge.BridgeTools
         /// because this session opened a tab, whether it switched to it or found
         /// it there. Null when the session opened no tab at all - a camera-only
         /// session never claims a tab a person left open.</summary>
-        private static string OpenMainTabName(Session session)
+        private static string? OpenMainTabName(Session session)
         {
             return session.TabOpened ? DefNameOf(session.ShowingMainTab) : null;
         }
 
-        private static string DefNameOf(MainButtonDef def)
+        private static string? DefNameOf(MainButtonDef? def)
         {
             return def == null ? null : BridgeCommon.SafeString(() => def.defName);
         }
 
-        private static string Join(string existing, string addition)
+        private static string? Join(string? existing, string addition)
         {
             if (string.IsNullOrEmpty(existing))
                 return addition;

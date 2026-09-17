@@ -103,7 +103,7 @@ namespace HomeBridge.BridgeTools
             pawn = null;
             failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Work settings require an exact current work/area snapshot and only work priorities or an allowed-area assignment.");
             if (!Valid(command)) return false;
-            pawn = ProtoBoundary.ResolveMap(context).mapPawns.AllPawnsSpawned.SingleOrDefault(p => p.GetUniqueLoadID() == command.Pawn.EntityId);
+            pawn = ProtoBoundary.LoadedMap(context).mapPawns.AllPawnsSpawned.SingleOrDefault(p => p.GetUniqueLoadID() == command.Pawn.EntityId);
             if (pawn == null || Snapshot(pawn, context)?.Token != command.Pawn.ExpectedSnapshotToken) return false;
             var manual = PawnSettingsRead.ManualPriorities();
             if (!manual.HasValue) return false;
@@ -152,8 +152,8 @@ namespace HomeBridge.BridgeTools
                 context.NativeGeneration = guard.Snapshot.Generation;
                 if (!guard.Success) return new Operations.ExecuteReply { Failure = NativeAuthorityControlTools.Refusal(guard.Error, context) };
                 var admitted = state.Ledger.Admit("rimgovernor.operations.v1.Operations/Execute", request, context);
-                if (admitted.Kind != NativeAttemptLedger.DecisionKind.Admitted) return admitted.Reply!;
-                handle = admitted.Handle;
+                if (admitted.Kind != NativeAttemptLedger.DecisionKind.Admitted) return admitted.DecidedReply;
+                handle = admitted.AdmittedHandle;
                 // Track even partial application. A setter failure cannot erase a write.
                 state.WorkSettings.Add(pre.Attempt.Clone(), command.Clone());
                 using (authority.Owned())
@@ -174,7 +174,7 @@ namespace HomeBridge.BridgeTools
             catch (Exception error)
             {
                 return handle == null ? new Operations.ExecuteReply { Failure = ProtoBoundary.Fail(Common.FailureCode.NativeFailure, "Work admission failed: " + error.GetType().Name) }
-                    : new Operations.ExecuteReply { Receipt = NativeOperationEnvelope.Uncertain(state.Ledger, handle, pre.Attempt, context, evidence!, "Admitted work settings require observation: " + error.GetType().Name) };
+                    : new Operations.ExecuteReply { Receipt = NativeOperationEnvelope.Uncertain(state.Ledger, handle, pre.Attempt, context, evidence, "Admitted work settings require observation: " + error.GetType().Name) };
             }
         }
 
@@ -197,7 +197,7 @@ namespace HomeBridge.BridgeTools
                 Unknown = new Receipts.UnknownEffect { Reason = "Exact work settings are unavailable." } };
             try
             {
-                var pawn = ProtoBoundary.ResolveMap(context).mapPawns.AllPawnsSpawned.SingleOrDefault(p => p.GetUniqueLoadID() == command.Pawn.EntityId);
+                var pawn = ProtoBoundary.LoadedMap(context).mapPawns.AllPawnsSpawned.SingleOrDefault(p => p.GetUniqueLoadID() == command.Pawn.EntityId);
                 var snapshot = pawn == null ? null : Snapshot(pawn, context);
                 if (snapshot == null) return result;
                 var matches = Matches(pawn!, command); var evidence = Evidence(command, snapshot.Token, matches);

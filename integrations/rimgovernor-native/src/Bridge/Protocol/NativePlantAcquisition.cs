@@ -65,7 +65,7 @@ namespace HomeBridge.BridgeTools
         {
             plant = null; failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Acquisition requires an exact safe mature wild plant snapshot.");
             if (!Valid(command) || !NativeAcquisitionTracking.Ready) return false;
-            var map = ProtoBoundary.ResolveMap(context);
+            var map = ProtoBoundary.LoadedMap(context);
             if (map.AllCells.Any(c => map.roofCollapseBuffer.IsMarkedToCollapse(c))) return false;
             plant = map.listerThings.AllThings.OfType<Plant>().SingleOrDefault(p => p.GetUniqueLoadID() == command.Source.EntityId);
             return plant != null && Eligible(plant) && plant.Position.x == command.Cell.X && plant.Position.z == command.Cell.Z
@@ -98,8 +98,8 @@ namespace HomeBridge.BridgeTools
                 context.NativeGeneration = guard.Snapshot.Generation;
                 if (!guard.Success) return new Operations.ExecuteReply { Failure = NativeAuthorityControlTools.Refusal(guard.Error, context) };
                 var admitted = state.Ledger.Admit("rimgovernor.operations.v1.Operations/Execute", request, context);
-                if (admitted.Kind != NativeAttemptLedger.DecisionKind.Admitted) return admitted.Reply!;
-                handle = admitted.Handle;
+                if (admitted.Kind != NativeAttemptLedger.DecisionKind.Admitted) return admitted.DecidedReply;
+                handle = admitted.AdmittedHandle;
                 var record = new NativeAcquisitionRecord(plant!);
                 state.Acquisition.Add(pre.Attempt.Clone(), record);
                 using (authority.Owned())
@@ -116,7 +116,7 @@ namespace HomeBridge.BridgeTools
             catch (Exception error)
             {
                 return handle == null ? new Operations.ExecuteReply { Failure = ProtoBoundary.Fail(Common.FailureCode.NativeFailure, "Acquisition admission failed: " + error.GetType().Name) }
-                    : new Operations.ExecuteReply { Receipt = NativeOperationEnvelope.Uncertain(state.Ledger, handle, pre.Attempt, context, evidence!, "Admitted acquisition requires observation: " + error.GetType().Name) };
+                    : new Operations.ExecuteReply { Receipt = NativeOperationEnvelope.Uncertain(state.Ledger, handle, pre.Attempt, context, evidence, "Admitted acquisition requires observation: " + error.GetType().Name) };
             }
         }
     }

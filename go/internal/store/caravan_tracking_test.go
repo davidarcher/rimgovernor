@@ -3,7 +3,6 @@ package store
 import (
 	"context"
 	"errors"
-	"path/filepath"
 	"testing"
 
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
@@ -11,7 +10,7 @@ import (
 
 func caravanTrackingFixture(t *testing.T) *Store {
 	t.Helper()
-	db, err := Open(context.Background(), filepath.Join(t.TempDir(), "caravan-tracking.sqlite"))
+	db, err := Open(context.Background(), memoryPath(t))
 	if err != nil {
 		t.Fatal(err)
 	}

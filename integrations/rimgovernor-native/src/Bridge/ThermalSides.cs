@@ -1,4 +1,7 @@
+#nullable enable
+
 using System;
+using System.Diagnostics.CodeAnalysis;
 using System.Collections.Generic;
 using System.Linq;
 using RimWorld;
@@ -8,13 +11,13 @@ namespace HomeBridge.BridgeTools
 {
     internal static class ThermalSides
     {
-        internal static bool Applies(ThingDef definition)
+        internal static bool Applies([NotNullWhen(true)] ThingDef? definition)
         {
             return definition != null && (definition.thingClass == typeof(Building_Cooler)
                 || definition.thingClass == typeof(Building_Vent));
         }
 
-        internal static object Read(Map map, Thing thing, ThingDef definition)
+        internal static object? Read(Map? map, Thing thing, ThingDef? definition)
         {
             if (!Applies(definition)) return null;
             try
@@ -22,7 +25,7 @@ namespace HomeBridge.BridgeTools
                 bool cooler = definition.thingClass == typeof(Building_Cooler);
                 var cells = cooler ? new[] { thing.Position }
                     : GenAdj.OccupiedRect(thing.Position, thing.Rotation, definition.Size).ToArray();
-                return new Dictionary<string, object>
+                return new Dictionary<string, object?>
                 {
                     { "kind", cooler ? "cooler" : "vent" },
                     { "readable", true },
@@ -39,12 +42,12 @@ namespace HomeBridge.BridgeTools
             }
         }
 
-        private static object Cell(Map map, IntVec3 cell, string side)
+        private static object Cell(Map? map, IntVec3 cell, string side)
         {
             bool inBounds = cell.InBounds(map);
             bool? fogged = inBounds ? (bool?)cell.Fogged(map) : null;
             bool visible = inBounds && fogged == false;
-            return new Dictionary<string, object>
+            return new Dictionary<string, object?>
             {
                 { "side", side }, { "position", BridgeCommon.Pos(cell) },
                 { "inBounds", inBounds }, { "fogged", fogged },

@@ -1,4 +1,7 @@
+#nullable enable
+
 using System;
+using System.Diagnostics.CodeAnalysis;
 using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
@@ -129,7 +132,7 @@ namespace HomeBridge.BridgeTools
         /// only way to mirror the click; a null field is a refusal, never a
         /// silent write of the switch itself (which would flip the power with no
         /// colonist walking over).</summary>
-        private static readonly FieldInfo WantSwitchOnField =
+        private static readonly FieldInfo? WantSwitchOnField =
             BridgeCommon.PrivateInstanceField(typeof(CompFlickable), "wantSwitchOn");
 
         [Tool(
@@ -169,23 +172,23 @@ namespace HomeBridge.BridgeTools
         [ToolResponse("candidates", "array", "Only on an ambiguous selector: every colony building the name matched, with thingId, defName, label and position, so the next call can be exact. NULL on every other reply.", Nullable = true)]
         [ToolResponse("unknownArguments", "array", "Every argument key the caller sent that this tool does not declare, sorted, case-sensitively. Empty array = every key was recognised. On a WRITE tool this matters twice over: a misspelled dryRun is the difference between a plan and a changed building. The host's own _rimBridgeTimeoutMs is never listed.", Always = true)]
         [ToolResponse("unknownArgumentsWarning", "string", "Present only when unknownArguments is non-empty, or when the caller's raw keys could not be read at all - in which case the empty unknownArguments means 'not known', not 'nothing unknown'.", Nullable = true)]
-        public async Task<object> BuildingConfig(
+        public async Task<object?> BuildingConfig(
             IRimBridgeContext ctx,
             CancellationToken cancellationToken,
-            [ToolParameter(Description = "Which building: a ThingID (Bed1234, or Thing_Bed1234), the bare thingIDNumber build.py prints (1234), a bare x,z cell, a \"DefName@x,z\" pair (Bed@62,141), or a unique label/defName substring among colony buildings. A cell matches any cell the building OCCUPIES, not just its anchor. An ambiguous selector is REFUSED with candidates[].")] string thing = null,
+            [ToolParameter(Description = "Which building: a ThingID (Bed1234, or Thing_Bed1234), the bare thingIDNumber build.py prints (1234), a bare x,z cell, a \"DefName@x,z\" pair (Bed@62,141), or a unique label/defName substring among colony buildings. A cell matches any cell the building OCCUPIES, not just its anchor. An ambiguous selector is REFUSED with candidates[].")] string? thing = null,
             [ToolParameter(Description = "List the gizmos the game would draw on this thing's bar -- label, class name, disabled, disabledReason, and the current isActive of every toggle. Nothing is fired. Off by default.", DefaultValue = false)] bool gizmos = false,
             [ToolParameter(Description = "WRITE: forbid (true) or allow (false) this thing, the Allow/Forbid toggle. Omit to leave it alone. Refused on a thing with no CompForbiddable.")] bool? forbidden = null,
-            [ToolParameter(Description = "WRITE: \"on\" or \"off\" -- the power switch. This does what clicking it does: it sets the want-switch and places a FLICK DESIGNATION, and a colonist has to walk over and flick it. switchIsOn and powered do NOT change until then, and the reply reports all three honestly. Refused on a thing with no CompFlickable.")] string power = null,
+            [ToolParameter(Description = "WRITE: \"on\" or \"off\" -- the power switch. This does what clicking it does: it sets the want-switch and places a FLICK DESIGNATION, and a colonist has to walk over and flick it. switchIsOn and powered do NOT change until then, and the reply reports all three honestly. Refused on a thing with no CompFlickable.")] string? power = null,
             [ToolParameter(Description = "WRITE: target temperature in Celsius for a cooler, heater, or other building with CompTempControl. Omit to leave it alone. Refused outside the game's -273.15 to 1000 C interface range or on a thing without temperature controls.")] float? temperature = null,
             [ToolParameter(Description = "WRITE: make this bed a medical bed (true) or an ordinary one (false). Omit to leave it alone. Changing it in EITHER direction drops every owner the bed has (RimWorld's own setter does), and ownersDropped[] names them. Refused on a non-bed and on a bed whose def cannot be medical.")] bool? medical = null,
-            [ToolParameter(Description = "WRITE: assign or clear this thing's owner. A colonist name (or ThingID) assigns, \"none\" unassigns everyone. Mirrors the Set-owner dialog: a pawn the game would not list, one it would grey out, or one an ideoligion forbids is REFUSED with the reason. Assigning also unclaims the pawn's previous bed and, on a full bed, evicts its last owner -- both named in the field row. Refused on a medical or prisoner bed, where the game draws no such button.")] string owner = null,
+            [ToolParameter(Description = "WRITE: assign or clear this thing's owner. A colonist name (or ThingID) assigns, \"none\" unassigns everyone. Mirrors the Set-owner dialog: a pawn the game would not list, one it would grey out, or one an ideoligion forbids is REFUSED with the reason. Assigning also unclaims the pawn's previous bed and, on a full bed, evicts its last owner -- both named in the field row. Refused on a medical or prisoner bed, where the game draws no such button.")] string? owner = null,
             [ToolParameter(Description = "WRITE: make this bed a prisoner bed (true) or a colonist bed (false). Omit to leave it alone. Setting it true is refused when the room cannot be a prison cell, with the game's own reason; either direction drops the bed's owners. Refused on a non-humanlike bed, a crib, and a bed currently set for slaves (that would silently make it a colonist bed).")] bool? forPrisoners = null,
             [ToolParameter(Description = "TRUE by default. Resolve the thing, check every field and report what WOULD happen without touching the game. Pass false to actually apply it.", DefaultValue = true)] bool dryRun = true,
             [ToolParameter(Description = "On a real write, select the building and move the camera to it before the change lands, then clear the selection. Decorative only: the write is the same either way. Ignored on a dry run, a refusal and a gizmos-only read.", DefaultValue = true)] bool watch = true,
             [ToolParameter(Description = "How long the selection stays up after the write, in seconds.", DefaultValue = 8)] int watchSeconds = 8)
         {
             return BridgeCommon.WithUnknownArguments(
-                await BuildingConfigCore(ctx, cancellationToken, thing, gizmos, forbidden, power, temperature,
+                await BuildingConfigCore(ctx, cancellationToken, thing ?? string.Empty, gizmos, forbidden, power, temperature,
                                          medical, owner, forPrisoners, dryRun, watch, watchSeconds)
                     .ConfigureAwait(false),
                 ctx, typeof(HomeBuildingConfigTools), ToolName);
@@ -197,10 +200,10 @@ namespace HomeBridge.BridgeTools
             string thing,
             bool gizmos,
             bool? forbidden,
-            string power,
+            string? power,
             float? temperature,
             bool? medical,
-            string owner,
+            string? owner,
             bool? forPrisoners,
             bool dryRun,
             bool watch,
@@ -210,11 +213,11 @@ namespace HomeBridge.BridgeTools
                 return Failure("No RimBridge main-thread dispatcher is available for this invocation.");
 
             // Arguments are parsed out here, before the hop, per the house rule.
-            var spec = string.IsNullOrEmpty(thing) ? null : thing.Trim();
+            var spec = thing.Length == 0 ? null : thing.Trim();
             if (spec != null && spec.Length == 0)
                 spec = null;
-            var powerSpec = string.IsNullOrEmpty(power) ? null : power.Trim();
-            var ownerSpec = string.IsNullOrEmpty(owner) ? null : owner.Trim();
+            var powerSpec = power == null || power.Length == 0 ? null : power.Trim();
+            var ownerSpec = owner == null || owner.Length == 0 ? null : owner.Trim();
             var seconds = watchSeconds < 1 ? 1 : (watchSeconds > 60 ? 60 : watchSeconds);
 
             // Hop 1: resolve, read `before`, validate every field, and -- only
@@ -250,14 +253,14 @@ namespace HomeBridge.BridgeTools
         /// to write) or the target, its plans and the open watch session.</summary>
         private sealed class Stage2
         {
-            internal Dictionary<string, object> Payload;
-            internal Thing Target;
-            internal string ThingId;
-            internal Map Map;
-            internal List<FieldPlan> Plans;
-            internal List<object> Gizmos;
+            internal Dictionary<string, object?>? Payload;
+            internal Thing? Target;
+            internal string? ThingId;
+            internal Map? Map;
+            internal List<FieldPlan>? Plans;
+            internal List<object>? Gizmos;
             internal int? GizmoCount;
-            internal Watch.Session Session;
+            internal Watch.Session? Session;
             internal bool Watched;
         }
 
@@ -268,32 +271,32 @@ namespace HomeBridge.BridgeTools
         /// a real one.</summary>
         private sealed class FieldPlan
         {
-            internal string Field;
-            internal object Requested;
-            internal object Before;
-            internal object Predicted;
+            internal string? Field;
+            internal object? Requested;
+            internal object? Before;
+            internal object? Predicted;
             internal bool Refused;
-            internal string Reason;
-            internal string Note;
-            internal Dictionary<string, object> Extras = new Dictionary<string, object>(StringComparer.Ordinal);
+            internal string? Reason;
+            internal string? Note;
+            internal Dictionary<string, object?> Extras = new Dictionary<string, object?>(StringComparer.Ordinal);
             /// <summary>The whole config block as it stood when this field was
             /// planned, so `before{}` is the state the plan was made against
             /// rather than a second read taken after the writes.</summary>
-            internal Dictionary<string, object> Snapshot;
-            internal Action<Thing> Write;
-            internal Func<Thing, object> ReadBack;
+            internal Dictionary<string, object?>? Snapshot;
+            internal Action<Thing>? Write;
+            internal Func<Thing, object?>? ReadBack;
         }
 
         // ================================================================= hop 1
 
-        private static Stage2 Stage(IRimBridgeContext ctx, string spec, bool wantGizmos,
-                                    bool? forbidden, string powerSpec, float? temperature, bool? medical,
-                                    string ownerSpec, bool? forPrisoners,
+        private static Stage2 Stage(IRimBridgeContext ctx, string? spec, bool wantGizmos,
+                                    bool? forbidden, string? powerSpec, float? temperature, bool? medical,
+                                    string? ownerSpec, bool? forPrisoners,
                                     bool dryRun, bool watch)
         {
             var stage = new Stage2();
 
-            Map map;
+            Map? map;
             string mapError;
             if (!BridgeCommon.TryGetMap(ToolName, out map, out mapError))
             {
@@ -316,9 +319,9 @@ namespace HomeBridge.BridgeTools
             }
 
             var colony = ColonyBuildings(map, player);
-            Thing target;
+            Thing? target;
             string resolveError;
-            List<object> candidates;
+            List<object>? candidates;
             if (!TryResolveThing(colony, spec, out target, out resolveError, out candidates))
             {
                 var failure = Failure(resolveError);
@@ -392,9 +395,10 @@ namespace HomeBridge.BridgeTools
         {
             // Re-resolved rather than trusted across the gap. The game is
             // normally paused here, so a miss means something genuinely moved.
-            var map = stage.Map;
+            var map = stage.Map ?? throw new InvalidOperationException("Stage 1 handed over no map.");
+            var plans = stage.Plans ?? throw new InvalidOperationException("Stage 1 handed over no field plans.");
             var player = PawnSettingsRead.PlayerFactionSilent();
-            Thing target = null;
+            Thing? target = null;
             if (player != null)
             {
                 var colony = ColonyBuildings(map, player);
@@ -416,7 +420,7 @@ namespace HomeBridge.BridgeTools
             }
 
             var applied = false;
-            foreach (var plan in stage.Plans)
+            foreach (var plan in plans)
             {
                 if (plan.Refused || plan.Write == null)
                     continue;
@@ -432,16 +436,16 @@ namespace HomeBridge.BridgeTools
                 }
             }
 
-            return Payload(target, map, stage.Plans, applied, false, stage.Gizmos, stage.GizmoCount,
+            return Payload(target, map, plans, applied, false, stage.Gizmos, stage.GizmoCount,
                            watchBlock, null);
         }
 
         // =============================================================== payload
 
-        private static Dictionary<string, object> Payload(
+        private static Dictionary<string, object?> Payload(
             Thing target, Map map, List<FieldPlan> plans, bool applied, bool dryRun,
-            List<object> gizmos, int? gizmoCount, Dictionary<string, object> watchBlock,
-            List<object> candidates)
+            List<object>? gizmos, int? gizmoCount, Dictionary<string, object?> watchBlock,
+            List<object>? candidates)
         {
             // On a real run every `after` is a fresh read of the game; on a dry
             // run nothing moved, so `after` is `before` and each row carries its
@@ -454,7 +458,7 @@ namespace HomeBridge.BridgeTools
 
             foreach (var plan in plans)
             {
-                var row = new Dictionary<string, object>
+                var row = new Dictionary<string, object?>
                 {
                     { "field", plan.Field },
                     { "requested", plan.Requested },
@@ -479,7 +483,7 @@ namespace HomeBridge.BridgeTools
                     changed.Add(plan.Field + ": " + Show(row["before"]) + " -> " + Show(row["after"]));
             }
 
-            var payload = new Dictionary<string, object>
+            var payload = new Dictionary<string, object?>
             {
                 { "success", true },
                 { "tool", ToolName },
@@ -509,7 +513,7 @@ namespace HomeBridge.BridgeTools
         /// planned. It is captured once, at plan time, on the first plan that
         /// carries it; with no field asked for there was nothing to change and
         /// the current read is the honest answer for both sides.</summary>
-        private static Dictionary<string, object> BeforeBlock(List<FieldPlan> plans, Thing target)
+        private static Dictionary<string, object?> BeforeBlock(List<FieldPlan> plans, Thing target)
         {
             foreach (var plan in plans)
                 if (plan.Snapshot != null)
@@ -517,7 +521,7 @@ namespace HomeBridge.BridgeTools
             return Config(target);
         }
 
-        private static object ReadBack(FieldPlan plan, Thing target)
+        private static object? ReadBack(FieldPlan plan, Thing target)
         {
             if (plan.ReadBack == null)
                 return plan.Predicted;
@@ -525,9 +529,9 @@ namespace HomeBridge.BridgeTools
             catch { return null; }
         }
 
-        private static Dictionary<string, object> ThingRow(Thing thing)
+        private static Dictionary<string, object?> ThingRow(Thing thing)
         {
-            return new Dictionary<string, object>
+            return new Dictionary<string, object?>
             {
                 { "thingId", BridgeCommon.SafeString(() => thing.ThingID) },
                 { "defName", BridgeCommon.SafeString(() => thing.def.defName) },
@@ -538,9 +542,9 @@ namespace HomeBridge.BridgeTools
             };
         }
 
-        private static Dictionary<string, object> Notes(bool dryRun)
+        private static Dictionary<string, object?> Notes(bool dryRun)
         {
-            return new Dictionary<string, object>
+            return new Dictionary<string, object?>
             {
                 { "dryRunMeaning", dryRun
                     ? "NOTHING WAS WRITTEN. after{} is identical to before{}; each fields[] row carries the value the write WOULD produce. Run again with dryRun:false to apply."
@@ -554,9 +558,9 @@ namespace HomeBridge.BridgeTools
             };
         }
 
-        private static Dictionary<string, object> Options(Thing thing)
+        private static Dictionary<string, object?> Options(Thing? thing)
         {
-            var options = new Dictionary<string, object>();
+            var options = new Dictionary<string, object?>();
             var assign = Comp<CompAssignableToPawn>(thing);
 
             var candidates = new List<object>();
@@ -567,12 +571,12 @@ namespace HomeBridge.BridgeTools
             }
             options["assigningCandidates"] = candidates;
             options["assigningCandidateCount"] = candidates.Count;
-            options["maxAssignedPawns"] = assign == null ? (object)null : BridgeCommon.TryN(() => assign.MaxAssignedPawnsCount);
+            options["maxAssignedPawns"] = assign == null ? (object?)null : BridgeCommon.TryN(() => assign.MaxAssignedPawnsCount);
 
             var bed = thing as Building_Bed;
-            var room = bed == null ? null : BridgeCommon.Try<Room>(() => RegionAndRoomQuery.GetRoom(bed), null);
+            var room = bed == null ? null : BridgeCommon.Try<Room?>(() => RegionAndRoomQuery.GetRoom(bed), null);
             options["roomCanBePrisonCell"] = bed == null || room == null
-                ? (object)null
+                ? (object?)null
                 : BridgeCommon.TryN(() => Building_Bed.RoomCanBePrisonCell(room));
             options["roomNote"] = bed == null
                 ? "Not a bed, so no prison-cell question applies."
@@ -596,7 +600,7 @@ namespace HomeBridge.BridgeTools
             var rows = new List<object>();
             total = 0;
 
-            IEnumerator<Gizmo> walker;
+            IEnumerator<Gizmo>? walker;
             try
             {
                 var sequence = thing.GetGizmos();
@@ -604,7 +608,7 @@ namespace HomeBridge.BridgeTools
             }
             catch (Exception ex)
             {
-                rows.Add(new Dictionary<string, object>
+                rows.Add(new Dictionary<string, object?>
                 {
                     { "label", null },
                     { "type", null },
@@ -629,7 +633,7 @@ namespace HomeBridge.BridgeTools
                 }
                 catch (Exception ex)
                 {
-                    rows.Add(new Dictionary<string, object>
+                    rows.Add(new Dictionary<string, object?>
                     {
                         { "label", null },
                         { "type", null },
@@ -647,7 +651,7 @@ namespace HomeBridge.BridgeTools
 
                 var command = gizmo as Command;
                 var toggle = gizmo as Command_Toggle;
-                rows.Add(new Dictionary<string, object>
+                rows.Add(new Dictionary<string, object?>
                 {
                     { "label", command == null ? null : BridgeCommon.SafeString(() => command.Label) },
                     { "type", BridgeCommon.SafeString(() => gizmo.GetType().Name) },
@@ -657,7 +661,7 @@ namespace HomeBridge.BridgeTools
                     // is a Func<bool> the game evaluates every frame, so reading
                     // it here is what the bar itself does, not an activation.
                     { "isActive", toggle == null || toggle.isActive == null
-                        ? (object)null
+                        ? (object?)null
                         : BridgeCommon.TryN(() => toggle.isActive()) }
                 });
             }
@@ -701,7 +705,7 @@ namespace HomeBridge.BridgeTools
                 return Refuse(plan, null, "This thing has no CompFlickable, so it has no power switch to set. home/list_buildings' power{} block says whether it draws power at all.");
             if (WantSwitchOnField == null)
                 return Refuse(plan, null, "CompFlickable.wantSwitchOn was not found by reflection; it is private with no setter, so the click cannot be mirrored and nothing was written.");
-            if (!BridgeCommon.Try(() => thing.Spawned, false) || BridgeCommon.Try<Map>(() => thing.Map, null) == null)
+            if (!BridgeCommon.Try(() => thing.Spawned, false) || BridgeCommon.Try<Map?>(() => thing.Map, null) == null)
                 return Refuse(plan, null, "This thing is not spawned on a map, and the flick designation is placed on the map's designation manager.");
 
             var before = FlickState(thing, comp);
@@ -736,10 +740,10 @@ namespace HomeBridge.BridgeTools
             var before = BridgeCommon.TryN(() => comp.targetTemperature);
             plan.Before = before;
             plan.Predicted = wanted;
-            plan.ReadBack = t => BridgeCommon.TryN(() => Comp<CompTempControl>(t).targetTemperature);
+            plan.ReadBack = t => BridgeCommon.TryN(() => comp.targetTemperature);
             if (before != null && Math.Abs(before.Value - wanted) < 0.001f)
                 plan.Note = "The target temperature is already " + wanted + " C; nothing changes.";
-            plan.Write = t => { Comp<CompTempControl>(t).targetTemperature = wanted; };
+            plan.Write = t => { comp.targetTemperature = wanted; };
             return plan;
         }
 
@@ -797,7 +801,7 @@ namespace HomeBridge.BridgeTools
 
             if (wanted)
             {
-                var room = BridgeCommon.Try<Room>(() => RegionAndRoomQuery.GetRoom(bed), null);
+                var room = BridgeCommon.Try<Room?>(() => RegionAndRoomQuery.GetRoom(bed), null);
                 if (room == null)
                     return Refuse(plan, before, "This bed is in no room, so it cannot be a prison cell. " + PrisonerFailReason());
                 if (!BridgeCommon.Try(() => Building_Bed.RoomCanBePrisonCell(room), false))
@@ -858,7 +862,7 @@ namespace HomeBridge.BridgeTools
             }
 
             var candidates = Candidates(comp);
-            Pawn chosen;
+            Pawn? chosen;
             string error;
             if (!TryResolvePawn(candidates, spec, out chosen, out error))
                 return Refuse(plan, before, error);
@@ -889,7 +893,7 @@ namespace HomeBridge.BridgeTools
             predicted.Add(PawnRow(chosen));
             plan.Predicted = predicted;
 
-            var previous = BridgeCommon.Try<Building_Bed>(
+            var previous = BridgeCommon.Try<Building_Bed?>(
                 () => chosen.ownership == null ? null : chosen.ownership.OwnedBed, null);
             if (previous != null && !ReferenceEquals(previous, thing))
                 plan.Extras["unassignedFrom"] = ThingRow(previous);
@@ -925,7 +929,7 @@ namespace HomeBridge.BridgeTools
         /// <summary>The whole writable configuration of one thing. Every
         /// capability the thing does not have reads false with its values null,
         /// so an absent comp is never mistaken for a false setting.</summary>
-        private static Dictionary<string, object> Config(Thing thing)
+        private static Dictionary<string, object?> Config(Thing thing)
         {
             var forbiddable = Comp<CompForbiddable>(thing);
             var flick = Comp<CompFlickable>(thing);
@@ -934,41 +938,41 @@ namespace HomeBridge.BridgeTools
             var assign = Comp<CompAssignableToPawn>(thing);
             var bed = thing as Building_Bed;
 
-            var block = new Dictionary<string, object>();
+            var block = new Dictionary<string, object?>();
             block["forbiddable"] = forbiddable != null;
-            block["forbidden"] = forbiddable == null ? null : (object)BridgeCommon.TryN(() => forbiddable.Forbidden);
+            block["forbidden"] = forbiddable == null ? null : (object?)BridgeCommon.TryN(() => forbiddable.Forbidden);
 
             block["flickable"] = flick != null;
-            block["wantSwitchOn"] = flick == null ? null : (object)WantSwitchOn(flick);
-            block["switchIsOn"] = flick == null ? null : (object)BridgeCommon.TryN(() => flick.SwitchIsOn);
-            block["flickDesignated"] = flick == null ? null : (object)FlickDesignated(thing);
+            block["wantSwitchOn"] = flick == null ? null : (object?)WantSwitchOn(flick);
+            block["switchIsOn"] = flick == null ? null : (object?)BridgeCommon.TryN(() => flick.SwitchIsOn);
+            block["flickDesignated"] = flick == null ? null : (object?)FlickDesignated(thing);
 
             block["hasPower"] = power != null;
-            block["powered"] = power == null ? null : (object)BridgeCommon.TryN(() => power.PowerOn);
-            block["connected"] = power == null ? null : (object)BridgeCommon.TryN(() => power.PowerNet != null);
+            block["powered"] = power == null ? null : (object?)BridgeCommon.TryN(() => power.PowerOn);
+            block["connected"] = power == null ? null : (object?)BridgeCommon.TryN(() => power.PowerNet != null);
 
             block["temperatureControl"] = temperature != null;
-            block["targetTemperature"] = temperature == null ? null : (object)BridgeCommon.TryN(() => temperature.targetTemperature);
+            block["targetTemperature"] = temperature == null ? null : (object?)BridgeCommon.TryN(() => temperature.targetTemperature);
 
             block["isBed"] = bed != null;
-            block["medical"] = bed == null ? null : (object)BridgeCommon.TryN(() => bed.Medical);
-            block["canBeMedical"] = bed == null ? null : (object)BedFlag(bed, "bed_canBeMedical");
-            block["forPrisoners"] = bed == null ? null : (object)BridgeCommon.TryN(() => bed.ForPrisoners);
+            block["medical"] = bed == null ? null : (object?)BridgeCommon.TryN(() => bed.Medical);
+            block["canBeMedical"] = bed == null ? null : (object?)BedFlag(bed, "bed_canBeMedical");
+            block["forPrisoners"] = bed == null ? null : (object?)BridgeCommon.TryN(() => bed.ForPrisoners);
             block["bedOwnerType"] = bed == null ? null : BridgeCommon.SafeString(() => bed.ForOwnerType.ToString());
-            block["humanlikeBed"] = bed == null ? null : (object)BedFlag(bed, "bed_humanlike");
+            block["humanlikeBed"] = bed == null ? null : (object?)BedFlag(bed, "bed_humanlike");
 
             block["assignable"] = assign != null;
-            block["assignedPawns"] = assign == null ? null : (object)AssignedRows(assign);
-            block["maxAssignedPawns"] = assign == null ? null : (object)BridgeCommon.TryN(() => assign.MaxAssignedPawnsCount);
+            block["assignedPawns"] = assign == null ? null : (object?)AssignedRows(assign);
+            block["maxAssignedPawns"] = assign == null ? null : (object?)BridgeCommon.TryN(() => assign.MaxAssignedPawnsCount);
             return block;
         }
 
         /// <summary>The three numbers the power field owes a caller, together:
         /// what was asked of the switch, what the switch is, and whether a
         /// colonist has been told to go and change it.</summary>
-        private static Dictionary<string, object> FlickState(Thing thing, CompFlickable flick)
+        private static Dictionary<string, object?> FlickState(Thing thing, CompFlickable flick)
         {
-            return new Dictionary<string, object>
+            return new Dictionary<string, object?>
             {
                 { "wantSwitchOn", WantSwitchOn(flick) },
                 { "switchIsOn", BridgeCommon.TryN(() => flick.SwitchIsOn) },
@@ -976,14 +980,14 @@ namespace HomeBridge.BridgeTools
             };
         }
 
-        private static Dictionary<string, object> FlickPredicted(CompFlickable flick, bool wanted)
+        private static Dictionary<string, object?> FlickPredicted(CompFlickable flick, bool wanted)
         {
             var isOn = BridgeCommon.TryN(() => flick.SwitchIsOn);
-            return new Dictionary<string, object>
+            return new Dictionary<string, object?>
             {
                 { "wantSwitchOn", wanted },
                 { "switchIsOn", isOn },
-                { "flickDesignated", isOn == null ? (object)null : isOn.Value != wanted }
+                { "flickDesignated", isOn == null ? (object?)null : isOn.Value != wanted }
             };
         }
 
@@ -1085,7 +1089,7 @@ namespace HomeBridge.BridgeTools
             return list;
         }
 
-        private static List<object> AssignedRows(CompAssignableToPawn comp)
+        private static List<object> AssignedRows(CompAssignableToPawn? comp)
         {
             var rows = new List<object>();
             if (comp == null)
@@ -1095,9 +1099,9 @@ namespace HomeBridge.BridgeTools
             return rows;
         }
 
-        private static List<object> OwnerNames(Building_Bed bed)
+        private static List<object?> OwnerNames(Building_Bed bed)
         {
-            var names = new List<object>();
+            var names = new List<object?>();
             try
             {
                 var owners = bed.OwnersForReading;
@@ -1129,9 +1133,9 @@ namespace HomeBridge.BridgeTools
             return list;
         }
 
-        private static Dictionary<string, object> PawnRow(Pawn pawn)
+        private static Dictionary<string, object?> PawnRow(Pawn pawn)
         {
-            return new Dictionary<string, object>
+            return new Dictionary<string, object?>
             {
                 { "name", BridgeCommon.SafeString(() => pawn.LabelShortCap.ToString()) },
                 { "thingId", BridgeCommon.SafeString(() => pawn.ThingID) }
@@ -1165,7 +1169,7 @@ namespace HomeBridge.BridgeTools
                     var thing = found[i];
                     if (thing == null || !seen.Add(thing))
                         continue;
-                    var faction = BridgeCommon.Try<Faction>(() => thing.Faction, null);
+                    var faction = BridgeCommon.Try<Faction?>(() => thing.Faction, null);
                     if (faction != player)
                         continue;
                     list.Add(thing);
@@ -1180,8 +1184,8 @@ namespace HomeBridge.BridgeTools
         /// AMBIGUOUS name is refused with every match listed, never resolved to
         /// the first one: this tool writes.
         /// </summary>
-        private static bool TryResolveThing(List<Thing> colony, string spec, out Thing thing,
-                                            out string error, out List<object> candidates)
+        private static bool TryResolveThing(List<Thing> colony, string? spec, [NotNullWhen(true)] out Thing? thing,
+                                            out string error, out List<object>? candidates)
         {
             thing = null;
             error = string.Empty;
@@ -1358,7 +1362,7 @@ namespace HomeBridge.BridgeTools
         /// <summary>A pawn among a fixed candidate list, by exact ThingID, exact
         /// name, or a unique case-insensitive substring. Ambiguity is refused
         /// with the candidates named.</summary>
-        private static bool TryResolvePawn(List<Pawn> candidates, string spec, out Pawn pawn, out string error)
+        private static bool TryResolvePawn(List<Pawn> candidates, string spec, [NotNullWhen(true)] out Pawn? pawn, out string error)
         {
             pawn = null;
             error = string.Empty;
@@ -1420,7 +1424,7 @@ namespace HomeBridge.BridgeTools
 
         // ============================================================== helpers
 
-        private static T Comp<T>(Thing thing) where T : ThingComp
+        private static T? Comp<T>(Thing? thing) where T : ThingComp
         {
             try
             {
@@ -1440,7 +1444,7 @@ namespace HomeBridge.BridgeTools
             };
         }
 
-        private static FieldPlan Refuse(FieldPlan plan, object before, string reason)
+        private static FieldPlan Refuse(FieldPlan plan, object? before, string reason)
         {
             plan.Refused = true;
             plan.Reason = reason;
@@ -1460,7 +1464,7 @@ namespace HomeBridge.BridgeTools
             return false;
         }
 
-        private static string Show(object value)
+        private static string Show(object? value)
         {
             if (value == null)
                 return "(none)";
@@ -1473,10 +1477,10 @@ namespace HomeBridge.BridgeTools
                     return "(nobody)";
                 return string.Join(", ", list.Select(Show).ToArray());
             }
-            var row = value as Dictionary<string, object>;
+            var row = value as Dictionary<string, object?>;
             if (row != null)
             {
-                object name;
+                object? name;
                 if (row.TryGetValue("name", out name) && name != null)
                     return name.ToString();
                 return string.Join(" ", row.Select(pair => pair.Key + "=" + Show(pair.Value)).ToArray());
@@ -1484,7 +1488,7 @@ namespace HomeBridge.BridgeTools
             return value.ToString();
         }
 
-        private static Dictionary<string, object> Failure(string error)
+        private static Dictionary<string, object?> Failure(string error)
         {
             return BridgeCommon.Failure(ToolName, error);
         }

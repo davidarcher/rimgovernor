@@ -42,13 +42,12 @@ namespace HomeBridge.BridgeTools
         [Tool(ToolName, Title = "Read typed wall upgrade sites", Description = "Bounded stone-shell replacement geometry: with target_id, every admissible replacement normal of that colonist wall (enclosed roofed interior, exterior backup cells, colonist side supports, corner access) with stone material costs; without it, completed permanent walls whose backups remain, naming the next backup to clear. No designation or work is admitted.")]
         [ToolResponse("payload", "string", "Official ProtoJSON WallUpgradeSitesReply.", Always = true)]
         public async Task<object> ListSites(IRimBridgeContext ctx, CancellationToken cancellationToken,
-            [ToolParameter(Description = "Official ProtoJSON WallUpgradeSitesRequest string in raw transport value.")] object request = null!)
+            [ToolParameter(Description = "Official ProtoJSON WallUpgradeSitesRequest string in raw transport value.")] object? request = null)
         {
             if (!ProtoBoundary.TryParse(ctx, ToolName, request, Obs.WallUpgradeSitesRequest.Parser, out var parsed, out var failure)
                 || !Validate(parsed, out failure)) return ProtoBoundary.Encode(new Obs.WallUpgradeSitesReply { Failure = failure });
             return await ProtoBoundary.OnMainThread(ctx, () => {
-                var map = ProtoBoundary.ResolveMap(parsed.Scope.ExpectedIdentity);
-                if (!ProtoBoundary.ValidateIdentity(parsed.Scope.ExpectedIdentity, map, out var context, out var error))
+                if (!ProtoBoundary.ValidateIdentity(parsed.Scope?.ExpectedIdentity, out var map, out var context, out var error))
                     return ProtoBoundary.Encode(new Obs.WallUpgradeSitesReply { Failure = error });
                 try
                 {

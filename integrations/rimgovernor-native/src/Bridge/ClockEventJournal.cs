@@ -1,3 +1,5 @@
+#nullable enable
+
 using System;
 using System.Collections;
 using System.Collections.Generic;
@@ -25,7 +27,7 @@ namespace HomeBridge.BridgeTools
                 // A fully flushed row can outlive a crash before its rename.
                 // Partial or conflicting rows fail closed instead of disappearing.
                 var document = XElement.Load(pending);
-                var row = (Dictionary<string, object>)Decode(document);
+                var row = Decode(document) as Dictionary<string, object?> ?? throw new IOException("Native event row is not a record.");
                 var target = EventPath(Convert.ToInt64(row["cursor"]));
                 if (File.Exists(target))
                 {
@@ -45,7 +47,7 @@ namespace HomeBridge.BridgeTools
 
         private string EventPath(long cursor) { return Path.Combine(directory, cursor.ToString("D20", CultureInfo.InvariantCulture) + ".xml"); }
 
-        internal void Append(Dictionary<string, object> row)
+        internal void Append(Dictionary<string, object?> row)
         {
             var cursor = Convert.ToInt64(row["cursor"]);
             if (cursor != Newest + 1) throw new IOException("Native clock cursor is not consecutive.");
@@ -59,14 +61,14 @@ namespace HomeBridge.BridgeTools
             Newest = cursor;
         }
 
-        internal List<Dictionary<string, object>> Read(long after, int limit)
+        internal List<Dictionary<string, object?>> Read(long after, int limit)
         {
             if (after < 0 || after > Newest) throw new IOException("Native clock cursor is outside the retained journal.");
-            var rows = new List<Dictionary<string, object>>();
+            var rows = new List<Dictionary<string, object?>>();
             if (after == Newest) return rows;
             for (long cursor = after + 1; cursor <= Newest && rows.Count < limit; cursor++)
             {
-                var row = (Dictionary<string, object>)Decode(XElement.Load(EventPath(cursor)));
+                var row = Decode(XElement.Load(EventPath(cursor))) as Dictionary<string, object?> ?? throw new IOException("Native event row is not a record.");
                 if (Convert.ToInt64(row["cursor"]) != cursor) throw new IOException("Native event identity changed.");
                 rows.Add(row);
                 if (cursor == Newest) break;
@@ -76,7 +78,7 @@ namespace HomeBridge.BridgeTools
 
         internal sealed class Window
         {
-            internal readonly List<Dictionary<string, object>> Rows = new List<Dictionary<string, object>>();
+            internal readonly List<Dictionary<string, object?>> Rows = new List<Dictionary<string, object?>>();
             internal long Next;
             internal ulong Lost;
         }
@@ -93,7 +95,7 @@ namespace HomeBridge.BridgeTools
                 var cursor = checked(result.Next + 1);
                 try
                 {
-                    var row = (Dictionary<string, object>)Decode(XElement.Load(EventPath(cursor)));
+                    var row = Decode(XElement.Load(EventPath(cursor))) as Dictionary<string, object?> ?? throw new IOException("Native event row is not a record.");
                     if (Convert.ToInt64(row["cursor"]) != cursor) throw new IOException("Native event identity changed.");
                     result.Rows.Add(row);
                 }
@@ -103,11 +105,11 @@ namespace HomeBridge.BridgeTools
             return result;
         }
 
-        private static XElement Encode(object value)
+        private static XElement Encode(object? value)
         {
             if (value == null) return new XElement("null");
             if (value is string) return new XElement("text", value);
-            var map = value as IDictionary<string, object>;
+            var map = value as IDictionary<string, object?>;
             if (map != null) return new XElement("map", map.Select(p => new XElement("item", new XAttribute("key", p.Key), Encode(p.Value))));
             var list = value as IEnumerable;
             if (list != null) return new XElement("list", list.Cast<object>().Select(Encode));
@@ -119,7 +121,7 @@ namespace HomeBridge.BridgeTools
             throw new InvalidDataException("Unsupported native event value: " + value.GetType().FullName);
         }
 
-        private static object Decode(XElement node)
+        private static object? Decode(XElement node)
         {
             switch (node.Name.LocalName)
             {

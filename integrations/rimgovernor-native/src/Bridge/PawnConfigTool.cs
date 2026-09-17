@@ -1,4 +1,7 @@
+#nullable enable
+
 using System;
+using System.Diagnostics.CodeAnalysis;
 using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
@@ -132,7 +135,7 @@ namespace HomeBridge.BridgeTools
         /// than emitting a stored priority of 0 that would read as "never do
         /// this".
         /// </summary>
-        private static readonly FieldInfo PrioritiesField =
+        private static readonly FieldInfo? PrioritiesField =
             BridgeCommon.PrivateInstanceField(typeof(Pawn_WorkSettings), "priorities");
 
         /// <summary>
@@ -171,7 +174,7 @@ namespace HomeBridge.BridgeTools
 
         /// <summary>The raw cell of the private priority table, unmasked by
         /// simple mode. Null when the table or the field is unreadable.</summary>
-        internal static int? StoredPriority(Pawn_WorkSettings settings, WorkTypeDef def)
+        internal static int? StoredPriority(Pawn_WorkSettings? settings, WorkTypeDef def)
         {
             if (settings == null || def == null || PrioritiesField == null)
                 return null;
@@ -191,11 +194,11 @@ namespace HomeBridge.BridgeTools
         /// `applies: false`, because an absent work block read as "no jobs
         /// assigned" is the Lucas bug wearing a work tab.
         /// </summary>
-        internal static Dictionary<string, object> WorkBlock(Pawn pawn)
+        internal static Dictionary<string, object?> WorkBlock(Pawn pawn)
         {
-            var block = new Dictionary<string, object>();
+            var block = new Dictionary<string, object?>();
 
-            Pawn_WorkSettings settings = null;
+            Pawn_WorkSettings? settings = null;
             try { settings = pawn.workSettings; }
             catch { settings = null; }
 
@@ -213,13 +216,13 @@ namespace HomeBridge.BridgeTools
             block["priorityMax"] = 4;
 
             var rows = new List<object>();
-            var active = new List<object>();
-            var disabledNames = new List<object>();
+            var active = new List<object?>();
+            var disabledNames = new List<object?>();
             var storedReadable = true;
 
             foreach (var def in WorkTypesInTabOrder())
             {
-                var row = new Dictionary<string, object>();
+                var row = new Dictionary<string, object?>();
                 row["name"] = BridgeCommon.SafeString(() => def.defName);
                 row["label"] = BridgeCommon.SafeString(() => def.labelShort) ??
                                BridgeCommon.SafeString(() => def.label);
@@ -235,7 +238,7 @@ namespace HomeBridge.BridgeTools
                 // remarks. Null here means NOT READ, never 0.
                 int? effective = null;
                 if (everWork)
-                    effective = BridgeCommon.TryN(() => settings.GetPriority(def));
+                    effective = settings == null ? null : BridgeCommon.TryN(() => settings.GetPriority(def));
                 var stored = everWork ? StoredPriority(settings, def) : null;
                 if (everWork && stored == null)
                     storedReadable = false;
@@ -268,8 +271,8 @@ namespace HomeBridge.BridgeTools
         // ==================================================================
 
         private static readonly object LetterGate = new object();
-        private static Dictionary<string, TimeAssignmentDef> _byLetter;
-        private static Dictionary<TimeAssignmentDef, string> _letterOf;
+        private static Dictionary<string, TimeAssignmentDef>? _byLetter;
+        private static Dictionary<TimeAssignmentDef, string>? _letterOf;
 
         /// <summary>
         /// One letter per TimeAssignmentDef, assigned deterministically from the
@@ -279,12 +282,12 @@ namespace HomeBridge.BridgeTools
         /// M); a collision walks the rest of the name, then the alphabet. The key
         /// is returned in every reply, so a caller never has to know this rule.
         /// </summary>
-        private static void EnsureLetters()
+        private static (Dictionary<string, TimeAssignmentDef> ByLetter, Dictionary<TimeAssignmentDef, string> LetterOf) EnsureLetters()
         {
             lock (LetterGate)
             {
-                if (_byLetter != null)
-                    return;
+                if (_byLetter != null && _letterOf != null)
+                    return (_byLetter, _letterOf);
 
                 var byLetter = new Dictionary<string, TimeAssignmentDef>(StringComparer.OrdinalIgnoreCase);
                 var letterOf = new Dictionary<TimeAssignmentDef, string>();
@@ -300,7 +303,7 @@ namespace HomeBridge.BridgeTools
                 foreach (var def in defs)
                 {
                     var name = BridgeCommon.SafeString(() => def.defName) ?? "?";
-                    string chosen = null;
+                    string? chosen = null;
                     foreach (var c in name.ToUpperInvariant())
                     {
                         if (c < 'A' || c > 'Z')
@@ -332,6 +335,7 @@ namespace HomeBridge.BridgeTools
 
                 _byLetter = byLetter;
                 _letterOf = letterOf;
+                return (byLetter, letterOf);
             }
         }
 
@@ -339,27 +343,27 @@ namespace HomeBridge.BridgeTools
         {
             if (def == null)
                 return "?";
-            EnsureLetters();
+            var letterOf = EnsureLetters().LetterOf;
             string s;
-            return _letterOf.TryGetValue(def, out s) ? s : "?";
+            return letterOf.TryGetValue(def, out s) ? s : "?";
         }
 
-        internal static TimeAssignmentDef AssignmentForLetter(string letter)
+        internal static TimeAssignmentDef? AssignmentForLetter(string letter)
         {
-            if (string.IsNullOrEmpty(letter))
+            if (letter == null || letter.Length == 0)
                 return null;
-            EnsureLetters();
+            var byLetter = EnsureLetters().ByLetter;
             TimeAssignmentDef def;
-            return _byLetter.TryGetValue(letter, out def) ? def : null;
+            return byLetter.TryGetValue(letter, out def) ? def : null;
         }
 
         /// <summary>letter -> defName, emitted with every schedule so the
         /// 24-character string is self-describing.</summary>
-        internal static Dictionary<string, object> LetterKey()
+        internal static Dictionary<string, object?> LetterKey()
         {
-            EnsureLetters();
-            var key = new Dictionary<string, object>();
-            foreach (var pair in _byLetter)
+            var byLetter = EnsureLetters().ByLetter;
+            var key = new Dictionary<string, object?>();
+            foreach (var pair in byLetter)
                 key[pair.Key] = BridgeCommon.SafeString(() => pair.Value.defName);
             return key;
         }
@@ -369,11 +373,11 @@ namespace HomeBridge.BridgeTools
         /// null**: a pawn with no timetable says `applies: false` rather than
         /// being absent.
         /// </summary>
-        internal static Dictionary<string, object> ScheduleBlock(Pawn pawn)
+        internal static Dictionary<string, object?> ScheduleBlock(Pawn pawn)
         {
-            var block = new Dictionary<string, object>();
+            var block = new Dictionary<string, object?>();
 
-            Pawn_TimetableTracker timetable = null;
+            Pawn_TimetableTracker? timetable = null;
             try { timetable = pawn.timetable; }
             catch { timetable = null; }
 
@@ -381,14 +385,14 @@ namespace HomeBridge.BridgeTools
             block["hasTimetable"] = timetable != null;
             block["key"] = LetterKey();
 
-            List<TimeAssignmentDef> times = null;
+            List<TimeAssignmentDef>? times = null;
             if (timetable != null)
             {
                 try { times = timetable.times != null ? timetable.times.ToList() : null; }
                 catch { times = null; }
             }
 
-            block["hourCount"] = times == null ? (object)null : times.Count;
+            block["hourCount"] = times == null ? (object?)null : times.Count;
 
             if (times == null)
             {
@@ -403,7 +407,7 @@ namespace HomeBridge.BridgeTools
             }
 
             var letters = new System.Text.StringBuilder(times.Count);
-            var names = new List<object>();
+            var names = new List<object?>();
             foreach (var t in times)
             {
                 letters.Append(LetterFor(t));
@@ -412,7 +416,7 @@ namespace HomeBridge.BridgeTools
             block["hours"] = letters.ToString();
             block["assignments"] = names;
 
-            var current = BridgeCommon.Try<TimeAssignmentDef>(() => timetable.CurrentAssignment, null);
+            var current = timetable == null ? null : BridgeCommon.Try<TimeAssignmentDef?>(() => timetable.CurrentAssignment, null);
             block["current"] = current != null ? BridgeCommon.SafeString(() => current.defName) : null;
             block["currentLetter"] = current != null ? LetterFor(current) : null;
             block["currentHour"] = BridgeCommon.TryN(() => GenLocalDate.HourOfDay(pawn));
@@ -431,13 +435,13 @@ namespace HomeBridge.BridgeTools
         /// self-tend, the two follow toggles, the allowed area and the master.
         /// **Never null.**
         /// </summary>
-        internal static Dictionary<string, object> SettingsBlock(Pawn pawn)
+        internal static Dictionary<string, object?> SettingsBlock(Pawn pawn)
         {
-            var block = new Dictionary<string, object>();
+            var block = new Dictionary<string, object?>();
 
             block["thingId"] = BridgeCommon.SafeString(() => pawn.ThingID);
 
-            Pawn_PlayerSettings ps = null;
+            Pawn_PlayerSettings? ps = null;
             try { ps = pawn.playerSettings; }
             catch { ps = null; }
 
@@ -469,13 +473,13 @@ namespace HomeBridge.BridgeTools
             // The plain getter, not EffectiveAreaRestrictionInPawnCurrentMap:
             // the "effective" one routes through Faction.OfPlayer, which pauses
             // the colony on a map with no player faction. See the class remarks.
-            var area = BridgeCommon.Try<Area>(() => ps.AreaRestrictionInPawnCurrentMap, null);
+            var area = BridgeCommon.Try<Area?>(() => ps.AreaRestrictionInPawnCurrentMap, null);
             block["allowedArea"] = area != null ? BridgeCommon.SafeString(() => area.Label) : null;
             block["allowedAreaIsUnrestricted"] = area == null;
             block["allowedAreaCellCount"] = area != null ? BridgeCommon.TryN(() => area.TrueCount) : null;
             block["supportsAllowedAreas"] = BridgeCommon.TryN(() => ps.SupportsAllowedAreas);
 
-            var master = BridgeCommon.Try<Pawn>(() => ps.Master, null);
+            var master = BridgeCommon.Try<Pawn?>(() => ps.Master, null);
             block["master"] = master != null ? BridgeCommon.SafeString(() => master.LabelShortCap.ToString()) : null;
             block["masterThingId"] = master != null ? BridgeCommon.SafeString(() => master.ThingID) : null;
             block["note"] = "allowedArea null means UNRESTRICTED — the whole map — which is a real setting, not a missing read; allowedAreaIsUnrestricted says so as a bool. selfTend is OFF by default for every colonist including new joiners.";
@@ -487,9 +491,9 @@ namespace HomeBridge.BridgeTools
         /// rather than repeated inside every pawn row: the areas on this map that
         /// can be assigned, and the two enums spelled out.
         /// </summary>
-        internal static Dictionary<string, object> Options(Map map)
+        internal static Dictionary<string, object?> Options(Map? map)
         {
-            var options = new Dictionary<string, object>();
+            var options = new Dictionary<string, object?>();
 
             var areas = new List<object>();
             try
@@ -503,7 +507,7 @@ namespace HomeBridge.BridgeTools
                         var a = all[i];
                         if (a == null)
                             continue;
-                        var row = new Dictionary<string, object>();
+                        var row = new Dictionary<string, object?>();
                         row["label"] = BridgeCommon.SafeString(() => a.Label);
                         row["assignable"] = BridgeCommon.Try(() => a.AssignableAsAllowed(), false);
                         row["cellCount"] = BridgeCommon.TryN(() => a.TrueCount);
@@ -530,7 +534,7 @@ namespace HomeBridge.BridgeTools
         /// `Log.Error` calls `TickManager.Pause()`. Every "is this one of ours"
         /// test below goes through this.
         /// </summary>
-        internal static Faction PlayerFactionSilent()
+        internal static Faction? PlayerFactionSilent()
         {
             try { return Faction.OfPlayerSilentFail; }
             catch { return null; }
@@ -545,9 +549,9 @@ namespace HomeBridge.BridgeTools
         /// reply says `stepsReadable: false` and every `steps` is null -- never
         /// 0, which would read as "no progress at all".
         /// </summary>
-        private static readonly MethodInfo TrainingGetSteps = FindTrainingGetSteps();
+        private static readonly MethodInfo? TrainingGetSteps = FindTrainingGetSteps();
 
-        private static MethodInfo FindTrainingGetSteps()
+        private static MethodInfo? FindTrainingGetSteps()
         {
             try
             {
@@ -564,7 +568,7 @@ namespace HomeBridge.BridgeTools
         /// <summary>`CompEggLayer.eggProgress` is private and `CanLayNow` only
         /// says "full". Same contract as the steps above: null and a readable
         /// flag, never a 0 that means "not looked at".</summary>
-        private static readonly FieldInfo EggProgressField =
+        private static readonly FieldInfo? EggProgressField =
             BridgeCommon.PrivateInstanceField(typeof(CompEggLayer), "eggProgress");
 
         /// <summary>
@@ -597,14 +601,14 @@ namespace HomeBridge.BridgeTools
         internal static List<KeyValuePair<string, DesignationDef>> AnimalDesignationDefs()
         {
             var list = new List<KeyValuePair<string, DesignationDef>>();
-            AddDesignationDef(list, "Slaughter", BridgeCommon.Try<DesignationDef>(() => DesignationDefOf.Slaughter, null));
-            AddDesignationDef(list, "ReleaseAnimalToWild", BridgeCommon.Try<DesignationDef>(() => DesignationDefOf.ReleaseAnimalToWild, null));
-            AddDesignationDef(list, "Tame", BridgeCommon.Try<DesignationDef>(() => DesignationDefOf.Tame, null));
-            AddDesignationDef(list, "Hunt", BridgeCommon.Try<DesignationDef>(() => DesignationDefOf.Hunt, null));
+            AddDesignationDef(list, "Slaughter", BridgeCommon.Try<DesignationDef?>(() => DesignationDefOf.Slaughter, null));
+            AddDesignationDef(list, "ReleaseAnimalToWild", BridgeCommon.Try<DesignationDef?>(() => DesignationDefOf.ReleaseAnimalToWild, null));
+            AddDesignationDef(list, "Tame", BridgeCommon.Try<DesignationDef?>(() => DesignationDefOf.Tame, null));
+            AddDesignationDef(list, "Hunt", BridgeCommon.Try<DesignationDef?>(() => DesignationDefOf.Hunt, null));
             return list;
         }
 
-        private static void AddDesignationDef(List<KeyValuePair<string, DesignationDef>> list, string name, DesignationDef def)
+        private static void AddDesignationDef(List<KeyValuePair<string, DesignationDef>> list, string name, DesignationDef? def)
         {
             if (def != null)
                 list.Add(new KeyValuePair<string, DesignationDef>(name, def));
@@ -612,12 +616,12 @@ namespace HomeBridge.BridgeTools
 
         /// <summary>The payload key each of those four designations is reported
         /// under, on the read and in a write's field rows.</summary>
-        internal static string DesignationKey(string defName)
+        internal static string DesignationKey(string? defName)
         {
             if (string.Equals(defName, "ReleaseAnimalToWild", StringComparison.Ordinal))
                 return "releaseToWild";
-            if (string.IsNullOrEmpty(defName))
-                return defName;
+            if (defName == null || defName.Length == 0)
+                return string.Empty;
             return char.ToLowerInvariant(defName[0]) + defName.Substring(1);
         }
 
@@ -633,7 +637,7 @@ namespace HomeBridge.BridgeTools
         /// The list is READ ONLY here; `RemoveDesignation` mutates it, so the
         /// write side takes the reference first and removes afterwards.
         /// </summary>
-        internal static Designation DesignationOnSafe(Pawn pawn, DesignationDef def)
+        internal static Designation? DesignationOnSafe(Pawn pawn, DesignationDef def)
         {
             if (pawn == null || def == null)
                 return null;
@@ -700,9 +704,9 @@ namespace HomeBridge.BridgeTools
         ///     genes) and `ageTracker.CurLifeStage`. Both pure.
         ///   * `Hediff_Pregnant.GestationProgress` is `Severity`, a field.
         /// </summary>
-        internal static Dictionary<string, object> AnimalBlock(Pawn pawn)
+        internal static Dictionary<string, object?> AnimalBlock(Pawn pawn)
         {
-            var block = new Dictionary<string, object>();
+            var block = new Dictionary<string, object?>();
 
             var isAnimal = BridgeCommon.Try(() => pawn.RaceProps != null && pawn.RaceProps.Animal, false);
             block["isAnimal"] = isAnimal;
@@ -715,9 +719,9 @@ namespace HomeBridge.BridgeTools
                 return block;
             }
 
-            var race = BridgeCommon.Try<RaceProperties>(() => pawn.RaceProps, null);
+            var race = BridgeCommon.Try<RaceProperties?>(() => pawn.RaceProps, null);
             var player = PlayerFactionSilent();
-            var faction = BridgeCommon.Try<Faction>(() => pawn.Faction, null);
+            var faction = BridgeCommon.Try<Faction?>(() => pawn.Faction, null);
 
             // tame / wild are NOT complements: a visiting trader's muffalo is
             // neither ours nor wild, and calling it either would be a lie.
@@ -761,7 +765,7 @@ namespace HomeBridge.BridgeTools
             block["wildness"] = Round3(wildness);
             block["wildnessRead"] = wildness != null;
 
-            var trainability = BridgeCommon.Try<TrainabilityDef>(() => TrainableUtility.GetTrainability(pawn), null);
+            var trainability = BridgeCommon.Try<TrainabilityDef?>(() => TrainableUtility.GetTrainability(pawn), null);
             block["trainability"] = trainability != null
                 ? BridgeCommon.SafeString(() => trainability.defName)
                 : null;
@@ -773,7 +777,7 @@ namespace HomeBridge.BridgeTools
             // Bonds: the colonists this animal is BONDED to, which is a
             // different relationship from having a master and is the one the
             // slaughter warning is about.
-            var bonded = new List<object>();
+            var bonded = new List<object?>();
             try
             {
                 var bonds = TrainableUtility.GetAllColonistBondsFor(pawn);
@@ -825,11 +829,11 @@ namespace HomeBridge.BridgeTools
         ///     `NextTrainableToTrain` walks, so a `wanted` trainable with
         ///     `canBeTrainedNow:false` is the reason a handler is not working.
         /// </summary>
-        internal static Dictionary<string, object> TrainingSubBlock(Pawn pawn)
+        internal static Dictionary<string, object?> TrainingSubBlock(Pawn pawn)
         {
-            var block = new Dictionary<string, object>();
+            var block = new Dictionary<string, object?>();
 
-            Pawn_TrainingTracker training = null;
+            Pawn_TrainingTracker? training = null;
             try { training = pawn.training; }
             catch { training = null; }
 
@@ -860,7 +864,7 @@ namespace HomeBridge.BridgeTools
                 if (td == null)
                     continue;
 
-                var row = new Dictionary<string, object>();
+                var row = new Dictionary<string, object?>();
                 row["name"] = BridgeCommon.SafeString(() => td.defName);
                 row["label"] = BridgeCommon.SafeString(() => td.LabelCap.ToString());
                 row["indent"] = BridgeCommon.TryN(() => td.indent);
@@ -873,7 +877,7 @@ namespace HomeBridge.BridgeTools
                 if (learned) learnedCount++;
 
                 var visible = false;
-                string reason = null;
+                string? reason = null;
                 var canTrain = false;
                 try
                 {
@@ -929,7 +933,7 @@ namespace HomeBridge.BridgeTools
             block["wantedCount"] = wantedCount;
             block["learnedCount"] = learnedCount;
 
-            var next = BridgeCommon.Try<TrainableDef>(() => training.NextTrainableToTrain(), null);
+            var next = BridgeCommon.Try<TrainableDef?>(() => training.NextTrainableToTrain(), null);
             block["nextToTrain"] = next != null ? BridgeCommon.SafeString(() => next.defName) : null;
             block["note"] = "Rows are in TrainableUtility.TrainableDefsInListOrder -- the order the Animals tab draws and the order "
                           + "NextTrainableToTrain walks. wanted is the tick box; learned is HasLearned; canTrain is CanAssignToTrain "
@@ -945,14 +949,14 @@ namespace HomeBridge.BridgeTools
         /// and `all[]` carries every designation on the pawn including any this
         /// list does not name, so nothing is hidden by being unlisted.
         /// </summary>
-        internal static Dictionary<string, object> DesignationsSubBlock(Pawn pawn)
+        internal static Dictionary<string, object?> DesignationsSubBlock(Pawn pawn)
         {
-            var block = new Dictionary<string, object>();
+            var block = new Dictionary<string, object?>();
 
-            Map map = null;
+            Map? map = null;
             try { map = pawn.MapHeld; }
             catch { map = null; }
-            var manager = map != null ? BridgeCommon.Try<DesignationManager>(() => map.designationManager, null) : null;
+            var manager = map != null ? BridgeCommon.Try<DesignationManager?>(() => map.designationManager, null) : null;
 
             block["readable"] = manager != null;
             if (manager == null)
@@ -968,7 +972,7 @@ namespace HomeBridge.BridgeTools
                 return block;
             }
 
-            var all = new List<object>();
+            var all = new List<object?>();
             try
             {
                 var list = manager.AllDesignationsOn(pawn);
@@ -1015,12 +1019,12 @@ namespace HomeBridge.BridgeTools
         /// which is the kind of confident wrong answer this companion exists to
         /// stop. `activeAndFull` IS public and is emitted.
         /// </summary>
-        internal static Dictionary<string, object> ProduceSubBlock(Pawn pawn)
+        internal static Dictionary<string, object?> ProduceSubBlock(Pawn pawn)
         {
-            var block = new Dictionary<string, object>();
+            var block = new Dictionary<string, object?>();
             var comps = pawn as ThingWithComps;
 
-            var egg = comps != null ? BridgeCommon.Try<CompEggLayer>(() => comps.GetComp<CompEggLayer>(), null) : null;
+            var egg = comps != null ? BridgeCommon.Try<CompEggLayer?>(() => comps.GetComp<CompEggLayer>(), null) : null;
             block["hasEggLayer"] = egg != null;
             block["eggFullness"] = null;
             block["eggFullnessReadable"] = false;
@@ -1038,12 +1042,12 @@ namespace HomeBridge.BridgeTools
                 block["eggFullyFertilized"] = BridgeCommon.TryN(() => egg.FullyFertilized);
             }
 
-            var milk = comps != null ? BridgeCommon.Try<CompMilkable>(() => comps.GetComp<CompMilkable>(), null) : null;
+            var milk = comps != null ? BridgeCommon.Try<CompMilkable?>(() => comps.GetComp<CompMilkable>(), null) : null;
             block["hasMilkable"] = milk != null;
             block["milkFullness"] = milk != null ? Round3(BridgeCommon.TryN(() => milk.Fullness)) : null;
             block["milkFull"] = milk != null ? BridgeCommon.TryN(() => milk.ActiveAndFull) : null;
 
-            var wool = comps != null ? BridgeCommon.Try<CompShearable>(() => comps.GetComp<CompShearable>(), null) : null;
+            var wool = comps != null ? BridgeCommon.Try<CompShearable?>(() => comps.GetComp<CompShearable>(), null) : null;
             block["hasShearable"] = wool != null;
             block["woolFullness"] = wool != null ? Round3(BridgeCommon.TryN(() => wool.Fullness)) : null;
             block["woolFull"] = wool != null ? BridgeCommon.TryN(() => wool.ActiveAndFull) : null;
@@ -1092,7 +1096,7 @@ namespace HomeBridge.BridgeTools
             return Math.Round((double)v.Value, 3);
         }
 
-        private static object Round3(float? v)
+        private static object? Round3(float? v)
         {
             return RoundD(v);
         }
@@ -1104,15 +1108,15 @@ namespace HomeBridge.BridgeTools
         /// <summary>The private per-other-pawn social-thought cache. Read
         /// WITHOUT calling AppendSocialThoughts, which recalculates and can
         /// delete memories. See the class remarks.</summary>
-        private static readonly FieldInfo SocialCacheField =
+        private static readonly FieldInfo? SocialCacheField =
             BridgeCommon.PrivateInstanceField(typeof(SituationalThoughtHandler), "cachedSocialThoughts");
 
         /// <summary>The `activeThoughts` list inside a cache entry. The entry
         /// type is a private nested class; the list it holds is
         /// `List&lt;Thought_SituationalSocial&gt;`, which is public.</summary>
-        private static readonly FieldInfo SocialActiveField = FindSocialActiveField();
+        private static readonly FieldInfo? SocialActiveField = FindSocialActiveField();
 
-        private static FieldInfo FindSocialActiveField()
+        private static FieldInfo? FindSocialActiveField()
         {
             try
             {
@@ -1133,11 +1137,11 @@ namespace HomeBridge.BridgeTools
         /// passed in so the opinion pass is O(colonists) per pawn rather than a
         /// second traversal of `mapPawns`.
         /// </summary>
-        internal static Dictionary<string, object> RelationsBlock(Pawn pawn, List<Pawn> colonists)
+        internal static Dictionary<string, object?> RelationsBlock(Pawn pawn, List<Pawn> colonists)
         {
-            var block = new Dictionary<string, object>();
+            var block = new Dictionary<string, object?>();
 
-            Pawn_RelationsTracker tracker = null;
+            Pawn_RelationsTracker? tracker = null;
             try { tracker = pawn.relations; }
             catch { tracker = null; }
 
@@ -1163,7 +1167,7 @@ namespace HomeBridge.BridgeTools
                     if (r == null || r.def == null)
                         continue;
                     var other = r.otherPawn;
-                    var row = new Dictionary<string, object>();
+                    var row = new Dictionary<string, object?>();
                     row["defName"] = BridgeCommon.SafeString(() => r.def.defName);
                     // The label the social card draws, gendered on the OTHER
                     // pawn: "wife", not "spouse"; "daughter", not "child".
@@ -1176,7 +1180,7 @@ namespace HomeBridge.BridgeTools
                     row["otherThingId"] = other != null ? BridgeCommon.SafeString(() => other.ThingID) : null;
                     row["otherIsColonist"] = other != null && BridgeCommon.Try(() => other.IsColonist, false);
                     row["otherIsAnimal"] = other != null && BridgeCommon.Try(() => other.RaceProps != null && other.RaceProps.Animal, false);
-                    row["otherDead"] = other == null ? (object)null : BridgeCommon.Try(() => other.Dead, false);
+                    row["otherDead"] = other == null ? (object?)null : BridgeCommon.Try(() => other.Dead, false);
                     row["otherOnThisMap"] = other != null && BridgeCommon.Try(() => other.Spawned && other.Map == pawn.Map, false);
                     row["otherMissing"] = other == null;
                     row["startTicks"] = BridgeCommon.Try(() => r.startTicks, 0);
@@ -1222,10 +1226,10 @@ namespace HomeBridge.BridgeTools
                 try
                 {
                     opinions = opinions
-                        .Cast<Dictionary<string, object>>()
+                        .Cast<Dictionary<string, object?>>()
                         .OrderBy(r =>
                         {
-                            object v;
+                            object? v;
                             if (!r.TryGetValue("opinion", out v) || v == null)
                                 return 0.0;
                             try { return Convert.ToDouble(v); }
@@ -1246,11 +1250,11 @@ namespace HomeBridge.BridgeTools
             return block;
         }
 
-        private static Dictionary<string, object> OpinionRow(Pawn pawn, Pawn other, out bool situationalCached)
+        private static Dictionary<string, object?> OpinionRow(Pawn pawn, Pawn other, out bool situationalCached)
         {
             situationalCached = false;
 
-            var row = new Dictionary<string, object>();
+            var row = new Dictionary<string, object?>();
             row["name"] = BridgeCommon.SafeString(() => other.LabelShortCap.ToString());
             row["thingId"] = BridgeCommon.SafeString(() => other.ThingID);
 
@@ -1265,7 +1269,7 @@ namespace HomeBridge.BridgeTools
                         continue;
                     relationOffset += BridgeCommon.Try(() => def.opinionOffset, 0);
                     var label = BridgeCommon.SafeString(() => def.GetGenderSpecificLabelCap(other));
-                    if (!string.IsNullOrEmpty(label))
+                    if (label != null && label.Length > 0)
                         labels.Add(label);
                 }
             }
@@ -1275,7 +1279,7 @@ namespace HomeBridge.BridgeTools
             // ---- social memories. memories.Memories is `ldarg.0; ldfld; ret`.
             double memoryOffset = 0.0;
             var memoryRows = new List<object>();
-            ThoughtHandler handler = null;
+            ThoughtHandler? handler = null;
             try
             {
                 var mood = pawn.needs != null ? pawn.needs.mood : null;
@@ -1296,7 +1300,7 @@ namespace HomeBridge.BridgeTools
                             var st = memories[i] as ISocialThought;
                             if (st == null)
                                 continue;
-                            if (BridgeCommon.Try<Pawn>(() => st.OtherPawn(), null) != other)
+                            if (BridgeCommon.Try<Pawn?>(() => st.OtherPawn(), null) != other)
                                 continue;
                             social.Add(st);
                         }
@@ -1368,7 +1372,7 @@ namespace HomeBridge.BridgeTools
 
                 if (Math.Abs(offset) >= 0.5)
                 {
-                    var mr = new Dictionary<string, object>();
+                    var mr = new Dictionary<string, object?>();
                     var asThought = candidate as Thought;
                     mr["label"] = asThought != null ? BridgeCommon.SafeString(() => asThought.LabelCap) : null;
                     mr["opinionOffset"] = Math.Round((double)offset, 1);
@@ -1390,7 +1394,7 @@ namespace HomeBridge.BridgeTools
                     {
                         for (var i = 0; i < hediffs.Count; i++)
                         {
-                            var stage = BridgeCommon.Try<HediffStage>(() => hediffs[i].CurStage, null);
+                            var stage = BridgeCommon.Try<HediffStage?>(() => hediffs[i].CurStage, null);
                             if (stage != null)
                                 factor *= stage.opinionOfOthersFactor;
                         }
@@ -1407,7 +1411,7 @@ namespace HomeBridge.BridgeTools
             if (total < -100) total = -100;
 
             row["opinion"] = (int)total;
-            row["opinionParts"] = new Dictionary<string, object>
+            row["opinionParts"] = new Dictionary<string, object?>
             {
                 { "relations", Math.Round(relationOffset, 1) },
                 { "memories", Math.Round(memoryOffset, 1) },
@@ -1427,32 +1431,32 @@ namespace HomeBridge.BridgeTools
 
         // Same field/rationale as ListPawnsTool.cs's SituationalCacheField/SituationalDirtyField;
         // duplicated here (not shared) because both are private per-class reflection accessors.
-        private static readonly FieldInfo SituationalCacheField =
+        private static readonly FieldInfo? SituationalCacheField =
             BridgeCommon.PrivateInstanceField(typeof(SituationalThoughtHandler), "cachedThoughts");
-        private static readonly FieldInfo SituationalDirtyField =
+        private static readonly FieldInfo? SituationalDirtyField =
             BridgeCommon.PrivateInstanceField(typeof(SituationalThoughtHandler), "thoughtsDirty");
 
         /// <summary>Pure memories, never recalculated. Null only if the pawn has no ThoughtHandler.</summary>
-        internal static List<Thought> LiveMemories(Pawn pawn)
+        internal static List<Thought>? LiveMemories(Pawn pawn)
         {
-            Need_Mood mood; try { mood = pawn.needs?.mood; } catch { mood = null; }
-            ThoughtHandler handler; try { handler = mood?.thoughts; } catch { handler = null; }
+            Need_Mood? mood; try { mood = pawn.needs?.mood; } catch { mood = null; }
+            ThoughtHandler? handler; try { handler = mood?.thoughts; } catch { handler = null; }
             if (handler == null) return null;
-            MemoryThoughtHandler memHandler; try { memHandler = handler.memories; } catch { memHandler = null; }
+            MemoryThoughtHandler? memHandler; try { memHandler = handler.memories; } catch { memHandler = null; }
             if (memHandler == null) return new List<Thought>();
             try { var list = memHandler.Memories; return list != null ? list.Cast<Thought>().ToList() : new List<Thought>(); }
             catch { return new List<Thought>(); }
         }
 
         /// <summary>Active situational thoughts read from the cache without recalculating, plus the handler's own dirty flag. Null situational list means the cache field is unreadable (a RimWorld rename).</summary>
-        internal static (List<Thought> Situational, bool? Stale) LiveSituational(Pawn pawn)
+        internal static (List<Thought>? Situational, bool? Stale) LiveSituational(Pawn pawn)
         {
-            Need_Mood mood; try { mood = pawn.needs?.mood; } catch { mood = null; }
-            ThoughtHandler handler; try { handler = mood?.thoughts; } catch { handler = null; }
+            Need_Mood? mood; try { mood = pawn.needs?.mood; } catch { mood = null; }
+            ThoughtHandler? handler; try { handler = mood?.thoughts; } catch { handler = null; }
             if (handler == null) return (null, null);
-            SituationalThoughtHandler sitHandler; try { sitHandler = handler.situational; } catch { sitHandler = null; }
+            SituationalThoughtHandler? sitHandler; try { sitHandler = handler.situational; } catch { sitHandler = null; }
             if (sitHandler == null || SituationalCacheField == null) return (null, null);
-            List<Thought_Situational> cached;
+            List<Thought_Situational>? cached;
             try { cached = SituationalCacheField.GetValue(sitHandler) as List<Thought_Situational>; } catch { cached = null; }
             var live = new List<Thought>();
             if (cached != null) for (var i = 0; i < cached.Count; i++)
@@ -1465,9 +1469,9 @@ namespace HomeBridge.BridgeTools
         }
 
         /// <summary>Stack identical thoughts the way the Mood tab does. Returns (defName, label, count, moodOffsetEach, moodOffsetTotal) rows, worst first.</summary>
-        internal static List<(string DefName, string Label, int Count, double Each, double Total)> GroupThoughtRows(List<Thought> source)
+        internal static List<(string? DefName, string? Label, int Count, double Each, double Total)> GroupThoughtRows(List<Thought> source)
         {
-            var rows = new List<(string, string, int, double, double)>();
+            var rows = new List<(string?, string?, int, double, double)>();
             if (source == null || source.Count == 0) return rows;
             var used = new bool[source.Count];
             for (var i = 0; i < source.Count; i++)
@@ -1485,7 +1489,7 @@ namespace HomeBridge.BridgeTools
                     if (!BridgeCommon.Try(() => head.GroupsWith(other), false)) continue;
                     used[j] = true; count++; sum += MoodOffsetOf(other);
                 }
-                rows.Add((BridgeCommon.Try<string>(() => head.def?.defName, null), BridgeCommon.Try<string>(() => head.LabelCap, null), count, Math.Round(sum / count, 3), Math.Round(sum, 3)));
+                rows.Add((BridgeCommon.Try<string?>(() => head.def?.defName, null), BridgeCommon.Try<string?>(() => head.LabelCap, null), count, Math.Round(sum / count, 3), Math.Round(sum, 3)));
             }
             return rows.OrderBy(r => r.Item5).ToList();
         }
@@ -1493,7 +1497,7 @@ namespace HomeBridge.BridgeTools
         private static float MoodOffsetOf(Thought t)
         {
             if (t == null) return 0f;
-            var stage = BridgeCommon.Try<ThoughtStage>(() => t.CurStage, null);
+            var stage = BridgeCommon.Try<ThoughtStage?>(() => t.CurStage, null);
             if (stage == null) return 0f;
             var v = BridgeCommon.Try(() => t.MoodOffset(), 0f);
             return float.IsNaN(v) || float.IsInfinity(v) ? 0f : v;
@@ -1503,7 +1507,7 @@ namespace HomeBridge.BridgeTools
         internal static Dictionary<Pawn, string> DirectRelationTargets(Pawn pawn)
         {
             var result = new Dictionary<Pawn, string>();
-            Pawn_RelationsTracker tracker; try { tracker = pawn.relations; } catch { tracker = null; }
+            Pawn_RelationsTracker? tracker; try { tracker = pawn.relations; } catch { tracker = null; }
             if (tracker == null) return result;
             List<DirectPawnRelation> raw;
             try { var list = tracker.DirectRelations; raw = list != null ? list.ToList() : new List<DirectPawnRelation>(); }
@@ -1523,7 +1527,7 @@ namespace HomeBridge.BridgeTools
             double relationOffset = 0.0;
             try { foreach (var def in pawn.GetRelations(other)) if (def != null) relationOffset += BridgeCommon.Try(() => def.opinionOffset, 0); } catch { }
 
-            ThoughtHandler handler; try { handler = pawn.needs?.mood?.thoughts; } catch { handler = null; }
+            ThoughtHandler? handler; try { handler = pawn.needs?.mood?.thoughts; } catch { handler = null; }
             var social = new List<ISocialThought>();
             if (handler != null) try
             {
@@ -1531,7 +1535,7 @@ namespace HomeBridge.BridgeTools
                 if (memories != null) for (var i = 0; i < memories.Count; i++)
                 {
                     var st = memories[i] as ISocialThought;
-                    if (st != null && BridgeCommon.Try<Pawn>(() => st.OtherPawn(), null) == other) social.Add(st);
+                    if (st != null && BridgeCommon.Try<Pawn?>(() => st.OtherPawn(), null) == other) social.Add(st);
                 }
             } catch { }
 
@@ -1570,7 +1574,7 @@ namespace HomeBridge.BridgeTools
                     var hediffs = pawn.health?.hediffSet?.hediffs;
                     if (hediffs != null) for (var i = 0; i < hediffs.Count; i++)
                     {
-                        var stage = BridgeCommon.Try<HediffStage>(() => hediffs[i].CurStage, null);
+                        var stage = BridgeCommon.Try<HediffStage?>(() => hediffs[i].CurStage, null);
                         if (stage != null) factor *= stage.opinionOfOthersFactor;
                     }
                 } catch { }
@@ -1679,24 +1683,24 @@ namespace HomeBridge.BridgeTools
         [ToolResponse("unknownArguments", "array", "Every argument key the caller sent that this tool does not declare, sorted, case-sensitively. Empty array = every key was recognised. On a WRITE tool this matters twice over: a misspelled dryRun is the difference between a plan and a changed colonist. The host's own _rimBridgeTimeoutMs is never listed.", Always = true)]
         [ToolResponse("unknownArgumentsWarning", "string", "Present only when unknownArguments is non-empty, or when the caller's raw keys could not be read at all - in which case the empty unknownArguments means 'not known', not 'nothing unknown'.", Nullable = true)]
         [ToolResponse("watch", "object", "The decorative half of the write: shown (bool), selected, inspectTab (ITab class name), mainTab (MainButtonDef defName), cameraMoved, leadMs, closesAfterSeconds, note and reason. On a real write the tab a player would use for the fields being written is opened BEFORE they are written and closes itself afterwards; note says which tab and why. shown:false with a reason on a dry run, when every field was refused, or when watch:false.", Always = true)]
-        public async Task<object> PawnConfig(
+        public async Task<object?> PawnConfig(
             IRimBridgeContext ctx,
             CancellationToken cancellationToken,
             [ToolParameter(Description = "Which pawn: the exact top-level thingId from home/list_pawns (load ID), the exact ThingID from settings.thingId, or an unambiguous pawn name.", Required = true)] string pawn,
-            [ToolParameter(Description = "Work priorities as \"WorkTypeDefName=priority\" pairs, comma separated: \"Cooking=1,Hauling=3,Doctor=0\". 0 = never do this, 1 = most urgent, 4 = least. Names are the defNames work{} returns (Cooking, PlantCutting, Doctor...). A work type this pawn cannot do is REFUSED with the reason, never skipped.")] string work = null,
-            [ToolParameter(Description = "The whole 24-hour schedule as one letter per hour, hour 0 first, e.g. \"SSSSSSAAWWWWAAWWWWJJAASS\". The letters are the key{} that schedule{} returns (A Anything, W Work, J Joy, S Sleep, M Meditate). Must be exactly 24 characters; an unknown letter refuses the WHOLE schedule rather than writing half a day.")] string schedule = null,
-            [ToolParameter(Description = "Medical care: NoCare, NoMeds, HerbalOrWorse, NormalOrWorse or Best.")] string medCare = null,
-            [ToolParameter(Description = "Hostility response when attacked: Ignore, Attack or Flee.")] string hostilityResponse = null,
-            [ToolParameter(Description = "Self-tend: \"on\" or \"off\". Omit to leave it alone. It is OFF by default for every colonist, which in a colony of one is fatal.")] string selfTend = null,
-            [ToolParameter(Description = "Follow the drafted master: \"on\" or \"off\". Omit to leave it alone.")] string followDrafted = null,
-            [ToolParameter(Description = "Follow the master doing fieldwork: \"on\" or \"off\". Omit to leave it alone.")] string followFieldwork = null,
-            [ToolParameter(Description = "Allowed area by its exact label (case-insensitive), or \"none\"/\"unrestricted\" to clear the restriction. Omit to leave it alone. options.allowedAreas lists what this map has.")] string allowedArea = null,
-            [ToolParameter(Description = "Master, by name or ThingID, or \"none\" to clear. Only an animal that has learned Obedience can have one; anything else is refused rather than logged.")] string master = null,
-            [ToolParameter(Description = "Animal training, as \"TrainableDefName=on/off\" pairs, comma separated: \"Obedience=on,Release=off\". The names are the defNames home/list_pawns animals{}.training.trainables[].name returns (Tameness, Obedience, Release...). This is the Animals tab's tick box: it calls SetWantedRecursive, so turning one ON also turns its prerequisites on and turning one OFF turns everything depending on it off -- every def that will move is named in the field row's cascades[], on a dry run too. A trainable this animal cannot be assigned is REFUSED with RimWorld's own reason, in both directions, because that is the box the tab draws disabled. A pawn with no training tracker (every humanlike) is refused outright.")] string training = null,
-            [ToolParameter(Description = "Mark or unmark this animal for slaughter: \"on\" or \"off\". Omit to leave it alone. Does what Designator_Slaughter does minus the sound and the popup, INCLUDING clearing any release-to-wild designation on the same animal (the game never leaves both standing). Refused for a non-animal, an animal that is not ours, a dead one, one in an aggressive mental state, or a non-flesh race. Already-marked is a no-op row, not a second designation -- a double add is a Log.Error, which pauses the colony.")] string slaughter = null,
-            [ToolParameter(Description = "Mark or unmark this animal for release to the wild: \"on\" or \"off\". Omit to leave it alone. The mirror of slaughter, and clears a slaughter designation the same way. Additionally refused when RaceProps.canReleaseToWild is false for the race.")] string releaseToWild = null,
-            [ToolParameter(Description = "Drop ONE item this pawn is carrying -- worn apparel, the wielded weapon, or something in the pack -- named by a case-insensitive substring of its label or by its exact ThingID. The drop is direct, so it lands IMMEDIATELY even on a paused game, and the item is left UNFORBIDDEN. A substring matching more than one carried item is refused with every match named; the field row's carried[] lists everything the pawn holds. Refused for a pawn that is not ours, a dead one, locked apparel, a quest lodger's bonded gear and anything with destroyOnDrop.")] string drop = null,
-            [ToolParameter(Description = "Rename this pawn: the nickname the game shows. On a colonist with a first/nick/last name only the NICK is replaced, keeping the first and last name; an animal or a mech, which has a single name, is renamed outright. 1 to 32 characters, non-whitespace. Omit to leave the name alone. Refused for a pawn that is not ours.")] string nickname = null,
+            [ToolParameter(Description = "Work priorities as \"WorkTypeDefName=priority\" pairs, comma separated: \"Cooking=1,Hauling=3,Doctor=0\". 0 = never do this, 1 = most urgent, 4 = least. Names are the defNames work{} returns (Cooking, PlantCutting, Doctor...). A work type this pawn cannot do is REFUSED with the reason, never skipped.")] string? work = null,
+            [ToolParameter(Description = "The whole 24-hour schedule as one letter per hour, hour 0 first, e.g. \"SSSSSSAAWWWWAAWWWWJJAASS\". The letters are the key{} that schedule{} returns (A Anything, W Work, J Joy, S Sleep, M Meditate). Must be exactly 24 characters; an unknown letter refuses the WHOLE schedule rather than writing half a day.")] string? schedule = null,
+            [ToolParameter(Description = "Medical care: NoCare, NoMeds, HerbalOrWorse, NormalOrWorse or Best.")] string? medCare = null,
+            [ToolParameter(Description = "Hostility response when attacked: Ignore, Attack or Flee.")] string? hostilityResponse = null,
+            [ToolParameter(Description = "Self-tend: \"on\" or \"off\". Omit to leave it alone. It is OFF by default for every colonist, which in a colony of one is fatal.")] string? selfTend = null,
+            [ToolParameter(Description = "Follow the drafted master: \"on\" or \"off\". Omit to leave it alone.")] string? followDrafted = null,
+            [ToolParameter(Description = "Follow the master doing fieldwork: \"on\" or \"off\". Omit to leave it alone.")] string? followFieldwork = null,
+            [ToolParameter(Description = "Allowed area by its exact label (case-insensitive), or \"none\"/\"unrestricted\" to clear the restriction. Omit to leave it alone. options.allowedAreas lists what this map has.")] string? allowedArea = null,
+            [ToolParameter(Description = "Master, by name or ThingID, or \"none\" to clear. Only an animal that has learned Obedience can have one; anything else is refused rather than logged.")] string? master = null,
+            [ToolParameter(Description = "Animal training, as \"TrainableDefName=on/off\" pairs, comma separated: \"Obedience=on,Release=off\". The names are the defNames home/list_pawns animals{}.training.trainables[].name returns (Tameness, Obedience, Release...). This is the Animals tab's tick box: it calls SetWantedRecursive, so turning one ON also turns its prerequisites on and turning one OFF turns everything depending on it off -- every def that will move is named in the field row's cascades[], on a dry run too. A trainable this animal cannot be assigned is REFUSED with RimWorld's own reason, in both directions, because that is the box the tab draws disabled. A pawn with no training tracker (every humanlike) is refused outright.")] string? training = null,
+            [ToolParameter(Description = "Mark or unmark this animal for slaughter: \"on\" or \"off\". Omit to leave it alone. Does what Designator_Slaughter does minus the sound and the popup, INCLUDING clearing any release-to-wild designation on the same animal (the game never leaves both standing). Refused for a non-animal, an animal that is not ours, a dead one, one in an aggressive mental state, or a non-flesh race. Already-marked is a no-op row, not a second designation -- a double add is a Log.Error, which pauses the colony.")] string? slaughter = null,
+            [ToolParameter(Description = "Mark or unmark this animal for release to the wild: \"on\" or \"off\". Omit to leave it alone. The mirror of slaughter, and clears a slaughter designation the same way. Additionally refused when RaceProps.canReleaseToWild is false for the race.")] string? releaseToWild = null,
+            [ToolParameter(Description = "Drop ONE item this pawn is carrying -- worn apparel, the wielded weapon, or something in the pack -- named by a case-insensitive substring of its label or by its exact ThingID. The drop is direct, so it lands IMMEDIATELY even on a paused game, and the item is left UNFORBIDDEN. A substring matching more than one carried item is refused with every match named; the field row's carried[] lists everything the pawn holds. Refused for a pawn that is not ours, a dead one, locked apparel, a quest lodger's bonded gear and anything with destroyOnDrop.")] string? drop = null,
+            [ToolParameter(Description = "Rename this pawn: the nickname the game shows. On a colonist with a first/nick/last name only the NICK is replaced, keeping the first and last name; an animal or a mech, which has a single name, is renamed outright. 1 to 32 characters, non-whitespace. Omit to leave the name alone. Refused for a pawn that is not ours.")] string? nickname = null,
             [ToolParameter(Description = "TRUE by default. Read the before, plan every write and return it WITHOUT touching the game. Pass false to actually apply it.", DefaultValue = true)] bool dryRun = true,
             [ToolParameter(Description = "TRUE by default. On a real write, open the tab a player would use for these fields a moment BEFORE they are written - the Work, Schedule or Assign tab, or the pawn selected with its Health or Training tab - then close it again. Decorative only: it never changes what is written. Pass false to write with no UI.", DefaultValue = true)] bool watch = true,
             [ToolParameter(Description = "How long the tab stays open after the write, in seconds. Clamped 1..60. Ignored when watch is false or the write is a dry run.", DefaultValue = 8)] int watchSeconds = 8)
@@ -1713,20 +1717,20 @@ namespace HomeBridge.BridgeTools
             IRimBridgeContext ctx,
             CancellationToken cancellationToken,
             string pawn,
-            string work,
-            string schedule,
-            string medCare,
-            string hostilityResponse,
-            string selfTend,
-            string followDrafted,
-            string followFieldwork,
-            string allowedArea,
-            string master,
-            string training,
-            string slaughter,
-            string releaseToWild,
-            string drop,
-            string nickname,
+            string? work,
+            string? schedule,
+            string? medCare,
+            string? hostilityResponse,
+            string? selfTend,
+            string? followDrafted,
+            string? followFieldwork,
+            string? allowedArea,
+            string? master,
+            string? training,
+            string? slaughter,
+            string? releaseToWild,
+            string? drop,
+            string? nickname,
             bool dryRun,
             bool watch,
             int watchSeconds)
@@ -1790,9 +1794,9 @@ namespace HomeBridge.BridgeTools
 
         /// <summary>Put the watch block on a reply, so `watch` is present on a
         /// refusal and a tool failure too and never has to be tested for.</summary>
-        private static void Stamp(object reply, Dictionary<string, object> watch)
+        private static void Stamp(object reply, Dictionary<string, object?> watch)
         {
-            var payload = reply as Dictionary<string, object>;
+            var payload = reply as Dictionary<string, object?>;
             if (payload != null)
                 payload["watch"] = watch;
         }
@@ -1800,22 +1804,22 @@ namespace HomeBridge.BridgeTools
         /// <summary>What hop 1 hands to hop 2. Failure non-null means stop.</summary>
         private sealed class Pass1Result
         {
-            internal object Failure;
-            internal Watch.Session Session;
-            internal string SkipReason;
+            internal object? Failure;
+            internal Watch.Session? Session;
+            internal string? SkipReason;
         }
 
         /// <summary>Main thread. Resolve the pawn, plan every field as a dry run
         /// purely to learn whether anything will really be written, and open the
         /// tab that covers the most of those fields. Writes nothing.</summary>
-        private static Pass1Result Pass1(IRimBridgeContext ctx, string pawnSpec, string workSpec, string scheduleSpec,
-                                         string medCareSpec, string hostilitySpec, string selfTendSpec,
-                                         string followDraftedSpec, string followFieldworkSpec,
-                                         string areaSpec, string masterSpec,
-                                         string trainingSpec, string slaughterSpec, string releaseToWildSpec,
-                                         string dropSpec, string nicknameSpec, bool wantWatch)
+        private static Pass1Result Pass1(IRimBridgeContext ctx, string pawnSpec, string? workSpec, string? scheduleSpec,
+                                         string? medCareSpec, string? hostilitySpec, string? selfTendSpec,
+                                         string? followDraftedSpec, string? followFieldworkSpec,
+                                         string? areaSpec, string? masterSpec,
+                                         string? trainingSpec, string? slaughterSpec, string? releaseToWildSpec,
+                                         string? dropSpec, string? nicknameSpec, bool wantWatch)
         {
-            Map map;
+            Map? map;
             string mapError;
             if (!BridgeCommon.TryGetMap(ToolName, out map, out mapError))
                 return new Pass1Result { Failure = Failure(mapError) };
@@ -1824,7 +1828,7 @@ namespace HomeBridge.BridgeTools
             if (everyone == null)
                 return new Pass1Result { Failure = Failure("map.mapPawns.AllPawnsSpawned was not readable.") };
 
-            Pawn target;
+            Pawn? target;
             string resolveError;
             if (!TryResolvePawn(everyone, pawnSpec, out target, out resolveError))
                 return new Pass1Result { Failure = Failure(resolveError) };
@@ -1858,14 +1862,14 @@ namespace HomeBridge.BridgeTools
 
         // =================================================================== run
 
-        private static object Run(string pawnSpec, string workSpec, string scheduleSpec,
-                                  string medCareSpec, string hostilitySpec, string selfTendSpec,
-                                  string followDraftedSpec, string followFieldworkSpec,
-                                  string areaSpec, string masterSpec,
-                                  string trainingSpec, string slaughterSpec, string releaseToWildSpec,
-                                  string dropSpec, string nicknameSpec, bool dryRun)
+        private static object Run(string pawnSpec, string? workSpec, string? scheduleSpec,
+                                  string? medCareSpec, string? hostilitySpec, string? selfTendSpec,
+                                  string? followDraftedSpec, string? followFieldworkSpec,
+                                  string? areaSpec, string? masterSpec,
+                                  string? trainingSpec, string? slaughterSpec, string? releaseToWildSpec,
+                                  string? dropSpec, string? nicknameSpec, bool dryRun)
         {
-            Map map;
+            Map? map;
             string mapError;
             if (!BridgeCommon.TryGetMap(ToolName, out map, out mapError))
                 return Failure(mapError);
@@ -1874,7 +1878,7 @@ namespace HomeBridge.BridgeTools
             if (everyone == null)
                 return Failure("map.mapPawns.AllPawnsSpawned was not readable.");
 
-            Pawn target;
+            Pawn? target;
             string resolveError;
             if (!TryResolvePawn(everyone, pawnSpec, out target, out resolveError))
                 return Failure(resolveError);
@@ -1895,14 +1899,14 @@ namespace HomeBridge.BridgeTools
             // `before` and every field row carries its own predicted value.
             var after = Blocks(target);
 
-            var payload = new Dictionary<string, object>
+            var payload = new Dictionary<string, object?>
             {
                 { "success", true },
                 { "tool", ToolName },
                 { "dryRun", dryRun },
                 { "applied", applied },
                 { "afterIsPredicted", dryRun },
-                { "pawn", new Dictionary<string, object>
+                { "pawn", new Dictionary<string, object?>
                     {
                         { "name", BridgeCommon.SafeString(() => target.LabelShortCap.ToString()) },
                         { "thingId", BridgeCommon.SafeString(() => target.ThingID) },
@@ -1918,7 +1922,7 @@ namespace HomeBridge.BridgeTools
                 { "before", before },
                 { "after", after },
                 { "options", PawnSettingsRead.Options(map) },
-                { "notes", new Dictionary<string, object>
+                { "notes", new Dictionary<string, object?>
                     {
                         { "dryRunMeaning", dryRun
                             ? "NOTHING WAS WRITTEN. after{} is identical to before{}; each fields[] row carries the value the write WOULD produce. Run again with dryRun:false to apply."
@@ -1939,21 +1943,21 @@ namespace HomeBridge.BridgeTools
         /// Hop 1 calls it with dryRun true purely to learn what a real run would
         /// do; hop 2 calls it again for real.</summary>
         private static bool PlanAll(Pawn target, Map map, List<Pawn> everyone,
-                                    string workSpec, string scheduleSpec, string medCareSpec, string hostilitySpec,
-                                    string selfTendSpec, string followDraftedSpec, string followFieldworkSpec,
-                                    string areaSpec, string masterSpec, string trainingSpec,
-                                    string slaughterSpec, string releaseToWildSpec, string dropSpec,
-                                    string nicknameSpec, bool dryRun,
+                                    string? workSpec, string? scheduleSpec, string? medCareSpec, string? hostilitySpec,
+                                    string? selfTendSpec, string? followDraftedSpec, string? followFieldworkSpec,
+                                    string? areaSpec, string? masterSpec, string? trainingSpec,
+                                    string? slaughterSpec, string? releaseToWildSpec, string? dropSpec,
+                                    string? nicknameSpec, bool dryRun,
                                     List<object> fields, List<object> changes, List<object> refused)
         {
             var applied = false;
 
             // ---------------------------------------------------------- work
-            if (!string.IsNullOrEmpty(workSpec))
+            if (workSpec != null && workSpec.Length > 0)
                 applied |= PlanWork(target, workSpec, dryRun, fields, changes, refused);
 
             // ------------------------------------------------------ schedule
-            if (!string.IsNullOrEmpty(scheduleSpec))
+            if (scheduleSpec != null && scheduleSpec.Length > 0)
                 applied |= PlanSchedule(target, scheduleSpec, dryRun, fields, changes, refused);
 
             // -------------------------------------------------- playerSettings
@@ -1969,32 +1973,32 @@ namespace HomeBridge.BridgeTools
                 ps => ps.followFieldwork, (ps, v) => ps.followFieldwork = v);
 
             // --------------------------------------------------- allowed area
-            if (!string.IsNullOrEmpty(areaSpec))
+            if (areaSpec != null && areaSpec.Length > 0)
                 applied |= PlanArea(target, map, areaSpec, dryRun, fields, changes, refused);
 
             // --------------------------------------------------------- master
-            if (!string.IsNullOrEmpty(masterSpec))
+            if (masterSpec != null && masterSpec.Length > 0)
                 applied |= PlanMaster(target, everyone, masterSpec, dryRun, fields, changes, refused);
 
             // -------------------------------------------------------- animals
-            if (!string.IsNullOrEmpty(trainingSpec))
-                applied |= PlanTraining(target, trainingSpec, dryRun, fields, changes, refused);
+            if (trainingSpec != null && trainingSpec.Length > 0)
+                applied |= PlanTraining(target, trainingSpec ?? string.Empty, dryRun, fields, changes, refused);
 
-            var slaughterDef = BridgeCommon.Try<DesignationDef>(() => DesignationDefOf.Slaughter, null);
-            var releaseDef = BridgeCommon.Try<DesignationDef>(() => DesignationDefOf.ReleaseAnimalToWild, null);
-            if (!string.IsNullOrEmpty(slaughterSpec))
+            var slaughterDef = BridgeCommon.Try<DesignationDef?>(() => DesignationDefOf.Slaughter, null);
+            var releaseDef = BridgeCommon.Try<DesignationDef?>(() => DesignationDefOf.ReleaseAnimalToWild, null);
+            if (slaughterSpec != null && slaughterSpec.Length > 0)
                 applied |= PlanDesignation(target, "slaughter", slaughterDef, releaseDef, slaughterSpec, dryRun,
                                            fields, changes, refused);
-            if (!string.IsNullOrEmpty(releaseToWildSpec))
+            if (releaseToWildSpec != null && releaseToWildSpec.Length > 0)
                 applied |= PlanDesignation(target, "releaseToWild", releaseDef, slaughterDef, releaseToWildSpec, dryRun,
                                            fields, changes, refused);
 
             // ----------------------------------------------------------- gear
-            if (!string.IsNullOrEmpty(dropSpec))
-                applied |= PlanDrop(target, dropSpec, dryRun, fields, changes, refused);
+            if (dropSpec != null && dropSpec.Length > 0)
+                applied |= PlanDrop(target, dropSpec ?? string.Empty, dryRun, fields, changes, refused);
 
             // ----------------------------------------------------------- name
-            if (!string.IsNullOrEmpty(nicknameSpec))
+            if (nicknameSpec != null && nicknameSpec.Length > 0)
                 applied |= PlanNickname(target, nicknameSpec, dryRun, fields, changes, refused);
 
             return applied;
@@ -2005,11 +2009,11 @@ namespace HomeBridge.BridgeTools
         /// <summary>Which menu a player would have open to make these changes.</summary>
         private sealed class View
         {
-            internal object Target;
-            internal Type InspectTab;
-            internal string MainTabName;
+            internal object? Target;
+            internal Type? InspectTab;
+            internal string? MainTabName;
             internal bool Camera;
-            internal string Note;
+            internal string? Note;
         }
 
         /// <summary>
@@ -2029,16 +2033,16 @@ namespace HomeBridge.BridgeTools
         ///                  the only one of the five that needs the pawn selected
         ///                  along with the Health one.
         /// </summary>
-        private static View ChooseView(Pawn target, string workSpec, string scheduleSpec,
-                                       string medCareSpec, string hostilitySpec, string selfTendSpec,
-                                       string followDraftedSpec, string followFieldworkSpec,
-                                       string areaSpec, string masterSpec,
-                                       string trainingSpec, string slaughterSpec, string releaseToWildSpec,
-                                       string dropSpec, string nicknameSpec)
+        private static View? ChooseView(Pawn target, string? workSpec, string? scheduleSpec,
+                                       string? medCareSpec, string? hostilitySpec, string? selfTendSpec,
+                                       string? followDraftedSpec, string? followFieldworkSpec,
+                                       string? areaSpec, string? masterSpec,
+                                       string? trainingSpec, string? slaughterSpec, string? releaseToWildSpec,
+                                       string? dropSpec, string? nicknameSpec)
         {
             var work = Pairs(workSpec);
-            var schedule = string.IsNullOrEmpty(scheduleSpec) ? 0 : 1;
-            var assign = string.IsNullOrEmpty(areaSpec) ? 0 : 1;
+            var schedule = (scheduleSpec == null || scheduleSpec.Length == 0 ? 0 : 1);
+            var assign = (areaSpec == null || areaSpec.Length == 0 ? 0 : 1);
             var health = One(medCareSpec) + One(hostilitySpec) + One(selfTendSpec);
             var training = Pairs(trainingSpec) + One(slaughterSpec) + One(releaseToWildSpec)
                            + One(masterSpec) + One(followDraftedSpec) + One(followFieldworkSpec);
@@ -2112,24 +2116,24 @@ namespace HomeBridge.BridgeTools
         }
 
         /// <summary>Comma-separated NAME=VALUE pairs, counted.</summary>
-        private static int Pairs(string spec)
+        private static int Pairs(string? spec)
         {
-            if (string.IsNullOrEmpty(spec))
+            if (spec == null || spec.Length == 0)
                 return 0;
             return spec.Split(new[] { ',', ';' }, StringSplitOptions.RemoveEmptyEntries).Length;
         }
 
-        private static int One(string spec)
+        private static int One(string? spec)
         {
-            return string.IsNullOrEmpty(spec) ? 0 : 1;
+            return (spec == null || spec.Length == 0 ? 0 : 1);
         }
 
         /// <summary>The four writable blocks. relations{} is not here: nothing in
         /// it can be written, so it has no before and no after. animals{} IS
         /// here, and is `applies: false` on every humanlike rather than absent.</summary>
-        private static Dictionary<string, object> Blocks(Pawn pawn)
+        private static Dictionary<string, object?> Blocks(Pawn pawn)
         {
-            return new Dictionary<string, object>
+            return new Dictionary<string, object?>
             {
                 { "work", PawnSettingsRead.WorkBlock(pawn) },
                 { "schedule", PawnSettingsRead.ScheduleBlock(pawn) },
@@ -2140,10 +2144,10 @@ namespace HomeBridge.BridgeTools
 
         // ================================================================ work
 
-        private static bool PlanWork(Pawn pawn, string spec, bool dryRun,
+        private static bool PlanWork(Pawn pawn, string? spec, bool dryRun,
                                      List<object> fields, List<object> changes, List<object> refused)
         {
-            Pawn_WorkSettings settings = null;
+            Pawn_WorkSettings? settings = null;
             try { settings = pawn.workSettings; }
             catch { settings = null; }
 
@@ -2153,7 +2157,7 @@ namespace HomeBridge.BridgeTools
             foreach (var def in PawnSettingsRead.WorkTypesInTabOrder())
             {
                 var name = BridgeCommon.SafeString(() => def.defName);
-                if (!string.IsNullOrEmpty(name))
+                if (name != null && name.Length > 0)
                     byName[name] = def;
             }
 
@@ -2189,7 +2193,7 @@ namespace HomeBridge.BridgeTools
                     continue;
                 }
 
-                if (!everWork)
+                if (settings == null || !everWork)
                 {
                     Refuse(fields, refused, field, priority, null,
                         settings == null
@@ -2213,7 +2217,7 @@ namespace HomeBridge.BridgeTools
                 }
 
                 var want = priority;
-                string note = null;
+                string? note = null;
                 if (manual == false && want > 0 && want != 3)
                 {
                     want = 3;
@@ -2221,7 +2225,7 @@ namespace HomeBridge.BridgeTools
                 }
 
                 var beforeValue = BridgeCommon.TryN(() => settings.GetPriority(def2));
-                object afterValue = want;
+                object? afterValue = want;
                 if (!dryRun)
                 {
                     var wrote = false;
@@ -2254,14 +2258,14 @@ namespace HomeBridge.BridgeTools
 
         // ============================================================ schedule
 
-        private static bool PlanSchedule(Pawn pawn, string spec, bool dryRun,
+        private static bool PlanSchedule(Pawn pawn, string? spec, bool dryRun,
                                          List<object> fields, List<object> changes, List<object> refused)
         {
             var trimmed = (spec ?? string.Empty).Trim();
             var beforeBlock = PawnSettingsRead.ScheduleBlock(pawn);
             var beforeValue = beforeBlock.ContainsKey("hours") ? beforeBlock["hours"] : null;
 
-            Pawn_TimetableTracker timetable = null;
+            Pawn_TimetableTracker? timetable = null;
             try { timetable = pawn.timetable; }
             catch { timetable = null; }
 
@@ -2272,7 +2276,7 @@ namespace HomeBridge.BridgeTools
                 return false;
             }
 
-            List<TimeAssignmentDef> times;
+            List<TimeAssignmentDef>? times;
             try { times = timetable.times; }
             catch { times = null; }
             if (times == null || times.Count != 24)
@@ -2311,7 +2315,7 @@ namespace HomeBridge.BridgeTools
             }
 
             var predicted = string.Concat(wanted.Select(PawnSettingsRead.LetterFor).ToArray());
-            object afterValue = predicted;
+            object? afterValue = predicted;
             var applied = false;
             if (!dryRun)
             {
@@ -2340,15 +2344,15 @@ namespace HomeBridge.BridgeTools
 
         // ====================================================== playerSettings
 
-        private static bool PlanEnum<T>(Pawn pawn, string field, string spec, bool dryRun,
+        private static bool PlanEnum<T>(Pawn pawn, string field, string? spec, bool dryRun,
                                         List<object> fields, List<object> changes, List<object> refused,
                                         Func<Pawn_PlayerSettings, string> read,
                                         Action<Pawn_PlayerSettings, T> write) where T : struct
         {
-            if (string.IsNullOrEmpty(spec))
+            if (spec == null || spec.Length == 0)
                 return false;
 
-            Pawn_PlayerSettings ps;
+            Pawn_PlayerSettings? ps;
             if (!Settings(pawn, out ps))
             {
                 Refuse(fields, refused, field, spec, null,
@@ -2369,7 +2373,7 @@ namespace HomeBridge.BridgeTools
             value = (T)Enum.Parse(typeof(T), match);
 
             var beforeValue = BridgeCommon.SafeString(() => read(ps));
-            object afterValue = match;
+            object? afterValue = match;
             var applied = false;
             if (!dryRun)
             {
@@ -2389,15 +2393,15 @@ namespace HomeBridge.BridgeTools
             return applied;
         }
 
-        private static bool PlanBool(Pawn pawn, string field, string spec, bool dryRun,
+        private static bool PlanBool(Pawn pawn, string field, string? spec, bool dryRun,
                                      List<object> fields, List<object> changes, List<object> refused,
                                      Func<Pawn_PlayerSettings, bool> read,
                                      Action<Pawn_PlayerSettings, bool> write)
         {
-            if (string.IsNullOrEmpty(spec))
+            if (spec == null || spec.Length == 0)
                 return false;
 
-            Pawn_PlayerSettings ps;
+            Pawn_PlayerSettings? ps;
             if (!Settings(pawn, out ps))
             {
                 Refuse(fields, refused, field, spec, null,
@@ -2414,7 +2418,7 @@ namespace HomeBridge.BridgeTools
             }
 
             var beforeValue = BridgeCommon.TryN(() => read(ps));
-            object afterValue = wanted;
+            object? afterValue = wanted;
             var applied = false;
             if (!dryRun)
             {
@@ -2439,7 +2443,7 @@ namespace HomeBridge.BridgeTools
         {
             const string field = "allowedArea";
 
-            Pawn_PlayerSettings ps;
+            Pawn_PlayerSettings? ps;
             if (!Settings(pawn, out ps))
             {
                 Refuse(fields, refused, field, spec, null,
@@ -2447,14 +2451,14 @@ namespace HomeBridge.BridgeTools
                 return false;
             }
 
-            var beforeArea = BridgeCommon.Try<Area>(() => ps.AreaRestrictionInPawnCurrentMap, null);
+            var beforeArea = BridgeCommon.Try<Area?>(() => ps.AreaRestrictionInPawnCurrentMap, null);
             var beforeValue = beforeArea != null ? BridgeCommon.SafeString(() => beforeArea.Label) : null;
 
             var wanted = spec.Trim();
             var clearing = string.Equals(wanted, "none", StringComparison.OrdinalIgnoreCase)
                         || string.Equals(wanted, "unrestricted", StringComparison.OrdinalIgnoreCase);
 
-            Area area = null;
+            Area? area = null;
             if (!clearing)
             {
                 List<Area> all;
@@ -2490,14 +2494,14 @@ namespace HomeBridge.BridgeTools
                 return false;
             }
 
-            if (BridgeCommon.Try<Map>(() => pawn.MapHeld, null) == null)
+            if (BridgeCommon.Try<Map?>(() => pawn.MapHeld, null) == null)
             {
                 Refuse(fields, refused, field, wanted, beforeValue,
                     "This pawn is not held by any map, and the area setter keys off MapHeld -- the write would have gone nowhere silently.");
                 return false;
             }
 
-            object afterValue = clearing ? null : BridgeCommon.SafeString(() => area.Label);
+            object? afterValue = area == null ? null : BridgeCommon.SafeString(() => area.Label);
             var applied = false;
             if (!dryRun)
             {
@@ -2507,7 +2511,7 @@ namespace HomeBridge.BridgeTools
                     Refuse(fields, refused, field, wanted, beforeValue, "Setting the allowed area threw. Nothing changed.");
                     return false;
                 }
-                var reread = BridgeCommon.Try<Area>(() => ps.AreaRestrictionInPawnCurrentMap, null);
+                var reread = BridgeCommon.Try<Area?>(() => ps.AreaRestrictionInPawnCurrentMap, null);
                 afterValue = reread != null ? BridgeCommon.SafeString(() => reread.Label) : null;
             }
 
@@ -2524,7 +2528,7 @@ namespace HomeBridge.BridgeTools
         {
             const string field = "master";
 
-            Pawn_PlayerSettings ps;
+            Pawn_PlayerSettings? ps;
             if (!Settings(pawn, out ps))
             {
                 Refuse(fields, refused, field, spec, null,
@@ -2532,7 +2536,7 @@ namespace HomeBridge.BridgeTools
                 return false;
             }
 
-            var beforeMaster = BridgeCommon.Try<Pawn>(() => ps.Master, null);
+            var beforeMaster = BridgeCommon.Try<Pawn?>(() => ps.Master, null);
             var beforeValue = beforeMaster != null
                 ? BridgeCommon.SafeString(() => beforeMaster.LabelShortCap.ToString())
                 : null;
@@ -2540,7 +2544,7 @@ namespace HomeBridge.BridgeTools
             var wanted = spec.Trim();
             var clearing = string.Equals(wanted, "none", StringComparison.OrdinalIgnoreCase);
 
-            Pawn newMaster = null;
+            Pawn? newMaster = null;
             if (!clearing)
             {
                 // The Master SETTER calls pawn.training.HasLearned(Obedience).
@@ -2548,7 +2552,7 @@ namespace HomeBridge.BridgeTools
                 // NullReferenceException, and an untrained animal is a
                 // Log.ErrorOnce -- which pauses the colony. Both are checked
                 // before the setter is ever reached.
-                var training = BridgeCommon.Try<Pawn_TrainingTracker>(() => pawn.training, null);
+                var training = BridgeCommon.Try<Pawn_TrainingTracker?>(() => pawn.training, null);
                 if (training == null)
                 {
                     Refuse(fields, refused, field, wanted, beforeValue,
@@ -2576,7 +2580,7 @@ namespace HomeBridge.BridgeTools
                 }
             }
 
-            object afterValue = newMaster != null
+            object? afterValue = newMaster != null
                 ? BridgeCommon.SafeString(() => newMaster.LabelShortCap.ToString())
                 : null;
             var applied = false;
@@ -2588,7 +2592,7 @@ namespace HomeBridge.BridgeTools
                     Refuse(fields, refused, field, wanted, beforeValue, "Setting the master threw. Nothing changed.");
                     return false;
                 }
-                var reread = BridgeCommon.Try<Pawn>(() => ps.Master, null);
+                var reread = BridgeCommon.Try<Pawn?>(() => ps.Master, null);
                 afterValue = reread != null ? BridgeCommon.SafeString(() => reread.LabelShortCap.ToString()) : null;
             }
 
@@ -2637,7 +2641,7 @@ namespace HomeBridge.BridgeTools
         private static bool PlanTraining(Pawn pawn, string spec, bool dryRun,
                                          List<object> fields, List<object> changes, List<object> refused)
         {
-            Pawn_TrainingTracker training = null;
+            Pawn_TrainingTracker? training = null;
             try { training = pawn.training; }
             catch { training = null; }
 
@@ -2656,7 +2660,7 @@ namespace HomeBridge.BridgeTools
                 if (td == null)
                     continue;
                 var name = BridgeCommon.SafeString(() => td.defName);
-                if (!string.IsNullOrEmpty(name))
+                if (name != null && name.Length > 0)
                     byName[name] = td;
             }
 
@@ -2703,7 +2707,7 @@ namespace HomeBridge.BridgeTools
                 var beforeValue = BridgeCommon.TryN(() => training.GetWanted(td));
 
                 bool visible;
-                string reason;
+                string? reason;
                 if (!CanAssign(training, td, out visible, out reason))
                 {
                     Refuse(fields, refused, field, want, beforeValue,
@@ -2719,7 +2723,7 @@ namespace HomeBridge.BridgeTools
                 named.Add(BridgeCommon.SafeString(() => td.defName) ?? name);
 
                 var cascades = CascadeNames(defs, td, want);
-                string note = null;
+                string? note = null;
                 if (cascades.Count > 0)
                 {
                     note = "SetWantedRecursive also sets " + string.Join(", ", cascades.ToArray()) + " to "
@@ -2727,7 +2731,7 @@ namespace HomeBridge.BridgeTools
                          + "). That is RimWorld's own rule, not this tool's.";
                 }
 
-                object afterValue = want;
+                object? afterValue = want;
                 if (!dryRun)
                 {
                     var wrote = false;
@@ -2786,7 +2790,7 @@ namespace HomeBridge.BridgeTools
                 if (td == null)
                     continue;
                 var name = BridgeCommon.SafeString(() => td.defName);
-                if (string.IsNullOrEmpty(name))
+                if (name == null || name.Length == 0)
                     continue;
                 map[name] = BridgeCommon.Try(() => training.GetWanted(td), false);
             }
@@ -2841,7 +2845,7 @@ namespace HomeBridge.BridgeTools
             return found;
         }
 
-        private static bool CanAssign(Pawn_TrainingTracker training, TrainableDef td, out bool visible, out string reason)
+        private static bool CanAssign(Pawn_TrainingTracker training, TrainableDef td, out bool visible, out string? reason)
         {
             visible = false;
             reason = null;
@@ -2896,11 +2900,11 @@ namespace HomeBridge.BridgeTools
         /// a pawn with no `CompForbiddable` and cannot log with `warnOnFail`
         /// false; the second is the visual feedback a stream viewer should see.
         /// </summary>
-        private static bool PlanDesignation(Pawn pawn, string field, DesignationDef def, DesignationDef excludes,
-                                            string spec, bool dryRun,
+        private static bool PlanDesignation(Pawn pawn, string field, DesignationDef? def, DesignationDef? excludes,
+                                            string? spec, bool dryRun,
                                             List<object> fields, List<object> changes, List<object> refused)
         {
-            if (string.IsNullOrEmpty(spec))
+            if (spec == null || spec.Length == 0)
                 return false;
 
             if (def == null)
@@ -2920,10 +2924,10 @@ namespace HomeBridge.BridgeTools
 
             var beforeValue = PawnSettingsRead.DesignationOnSafe(pawn, def) != null;
 
-            Map map = null;
+            Map? map = null;
             try { map = pawn.MapHeld; }
             catch { map = null; }
-            var manager = map != null ? BridgeCommon.Try<DesignationManager>(() => map.designationManager, null) : null;
+            var manager = map != null ? BridgeCommon.Try<DesignationManager?>(() => map.designationManager, null) : null;
             if (manager == null)
             {
                 Refuse(fields, refused, field, want, beforeValue,
@@ -2942,7 +2946,7 @@ namespace HomeBridge.BridgeTools
                     return false;
                 }
                 var player = PawnSettingsRead.PlayerFactionSilent();
-                var faction = BridgeCommon.Try<Faction>(() => pawn.Faction, null);
+                var faction = BridgeCommon.Try<Faction?>(() => pawn.Faction, null);
                 if (player == null || faction == null || faction != player)
                 {
                     Refuse(fields, refused, field, want, beforeValue,
@@ -2962,7 +2966,7 @@ namespace HomeBridge.BridgeTools
                         + "and so does this.");
                     return false;
                 }
-                if (def == BridgeCommon.Try<DesignationDef>(() => DesignationDefOf.Slaughter, null)
+                if (def == BridgeCommon.Try<DesignationDef?>(() => DesignationDefOf.Slaughter, null)
                     && !BridgeCommon.Try(() => pawn.RaceProps.IsFlesh, false))
                 {
                     Refuse(fields, refused, field, want, beforeValue,
@@ -2970,7 +2974,7 @@ namespace HomeBridge.BridgeTools
                         + "requires RaceProps.IsFlesh).");
                     return false;
                 }
-                if (def == BridgeCommon.Try<DesignationDef>(() => DesignationDefOf.ReleaseAnimalToWild, null)
+                if (def == BridgeCommon.Try<DesignationDef?>(() => DesignationDefOf.ReleaseAnimalToWild, null)
                     && !BridgeCommon.Try(() => pawn.RaceProps.canReleaseToWild, false))
                 {
                     Refuse(fields, refused, field, want, beforeValue,
@@ -2979,7 +2983,7 @@ namespace HomeBridge.BridgeTools
                 }
             }
 
-            var alsoRemoved = new List<object>();
+            var alsoRemoved = new List<object?>();
             object afterValue = want;
             var applied = false;
 
@@ -3050,8 +3054,9 @@ namespace HomeBridge.BridgeTools
         /// it. The three slots are the three the Gear tab draws.</summary>
         private sealed class Carried
         {
-            internal Thing Thing;
-            internal string Slot;
+            internal Carried(Thing thing, string slot) { Thing = thing; Slot = slot; }
+            internal readonly Thing Thing;
+            internal readonly string Slot;
         }
 
         /// <summary>Worn apparel, wielded equipment and the pack, in the order
@@ -3069,7 +3074,7 @@ namespace HomeBridge.BridgeTools
                     for (var i = 0; i < worn.Count; i++)
                     {
                         if (worn[i] != null)
-                            list.Add(new Carried { Thing = worn[i], Slot = "apparel" });
+                            list.Add(new Carried(worn[i], "apparel"));
                     }
                 }
             }
@@ -3083,7 +3088,7 @@ namespace HomeBridge.BridgeTools
                     for (var i = 0; i < equipped.Count; i++)
                     {
                         if (equipped[i] != null)
-                            list.Add(new Carried { Thing = equipped[i], Slot = "equipment" });
+                            list.Add(new Carried(equipped[i], "equipment"));
                     }
                 }
             }
@@ -3097,7 +3102,7 @@ namespace HomeBridge.BridgeTools
                     for (var i = 0; i < pack.Count; i++)
                     {
                         if (pack[i] != null)
-                            list.Add(new Carried { Thing = pack[i], Slot = "inventory" });
+                            list.Add(new Carried(pack[i], "inventory"));
                     }
                 }
             }
@@ -3109,16 +3114,16 @@ namespace HomeBridge.BridgeTools
         /// <summary>The label a substring is matched against and the row a
         /// caller reads. LabelCap is what the Gear tab prints, quality and
         /// stuff included.</summary>
-        private static string ItemLabel(Thing thing)
+        private static string? ItemLabel(Thing thing)
         {
             return BridgeCommon.SafeString(() => thing.LabelCap.ToString())
                    ?? BridgeCommon.SafeString(() => thing.def != null ? thing.def.label : null);
         }
 
-        private static Dictionary<string, object> ItemRow(Carried carried)
+        private static Dictionary<string, object?> ItemRow(Carried carried)
         {
             var thing = carried.Thing;
-            return new Dictionary<string, object>
+            return new Dictionary<string, object?>
             {
                 { "slot", carried.Slot },
                 { "label", ItemLabel(thing) },
@@ -3139,7 +3144,7 @@ namespace HomeBridge.BridgeTools
         /// <summary>Where a thing is right now, read back after the write:
         /// "map" once it is lying on the ground, otherwise the slot still
         /// holding it, otherwise "gone".</summary>
-        private static string HolderNow(Pawn pawn, Thing thing)
+        private static string HolderNow(Pawn pawn, Thing? thing)
         {
             if (thing == null)
                 return "gone";
@@ -3184,7 +3189,7 @@ namespace HomeBridge.BridgeTools
             var carriedRows = carried.Select(c => (object)ItemRow(c)).ToList();
 
             var player = PawnSettingsRead.PlayerFactionSilent();
-            var faction = BridgeCommon.Try<Faction>(() => pawn.Faction, null);
+            var faction = BridgeCommon.Try<Faction?>(() => pawn.Faction, null);
             if (player == null || faction == null || faction != player)
             {
                 RefuseDrop(fields, refused, wanted, carriedRows,
@@ -3202,7 +3207,7 @@ namespace HomeBridge.BridgeTools
                 return false;
             }
 
-            var map = BridgeCommon.Try<Map>(() => pawn.MapHeld, null);
+            var map = BridgeCommon.Try<Map?>(() => pawn.MapHeld, null);
             var cell = BridgeCommon.Try(() => pawn.PositionHeld, IntVec3.Invalid);
             if (map == null || !cell.IsValid)
             {
@@ -3275,13 +3280,13 @@ namespace HomeBridge.BridgeTools
                 return false;
             }
 
-            object after = "map";
-            object droppedAt = BridgeCommon.Pos(cell);
+            object? after = "map";
+            object? droppedAt = BridgeCommon.Pos(cell);
             var applied = false;
 
             if (!dryRun)
             {
-                Thing landed = null;
+                Thing? landed = null;
                 var ok = false;
                 try
                 {
@@ -3294,7 +3299,7 @@ namespace HomeBridge.BridgeTools
                     else if (chosen.Slot == "equipment")
                     {
                         ThingWithComps resulting;
-                        ok = pawn.equipment.TryDropEquipment((ThingWithComps)thing, out resulting, cell, false);
+                        ok = pawn.equipment.TryDropEquipment((ThingWithComps?)thing, out resulting, cell, false);
                         landed = resulting;
                     }
                     else
@@ -3348,10 +3353,10 @@ namespace HomeBridge.BridgeTools
 
         private static string CellText(object pos)
         {
-            var d = pos as Dictionary<string, object>;
+            var d = pos as Dictionary<string, object?>;
             if (d == null)
                 return "?";
-            object x, z;
+            object? x, z;
             d.TryGetValue("x", out x);
             d.TryGetValue("z", out z);
             return "(" + Show(x) + ", " + Show(z) + ")";
@@ -3367,14 +3372,14 @@ namespace HomeBridge.BridgeTools
         }
 
         private static void RefuseDrop(List<object> fields, List<object> refused, string requested,
-                                       List<object> carried, Dictionary<string, object> item, string before,
+                                       List<object> carried, Dictionary<string, object?>? item, string? before,
                                        string reason)
         {
             var countBefore = refused.Count;
             Refuse(fields, refused, "drop", requested, before, reason);
             for (var i = countBefore; i < refused.Count; i++)
             {
-                var row = refused[i] as Dictionary<string, object>;
+                var row = refused[i] as Dictionary<string, object?>;
                 if (row == null)
                     continue;
                 row["item"] = item;
@@ -3394,7 +3399,7 @@ namespace HomeBridge.BridgeTools
         /// Name (an unnamed animal) become a NameSingle. `Pawn.Name` is a plain
         /// field setter, so the write lands immediately, paused or not.
         /// </summary>
-        private static bool PlanNickname(Pawn pawn, string spec, bool dryRun,
+        private static bool PlanNickname(Pawn pawn, string? spec, bool dryRun,
                                          List<object> fields, List<object> changes, List<object> refused)
         {
             const string field = "nickname";
@@ -3416,7 +3421,7 @@ namespace HomeBridge.BridgeTools
             }
 
             var player = PawnSettingsRead.PlayerFactionSilent();
-            var faction = BridgeCommon.Try<Faction>(() => pawn.Faction, null);
+            var faction = BridgeCommon.Try<Faction?>(() => pawn.Faction, null);
             if (player == null || faction == null || faction != player)
             {
                 Refuse(fields, refused, field, wanted, before,
@@ -3426,8 +3431,8 @@ namespace HomeBridge.BridgeTools
                 return false;
             }
 
-            var current = BridgeCommon.Try<Verse.Name>(() => pawn.Name, null);
-            Verse.Name renamed;
+            var current = BridgeCommon.Try<Verse.Name?>(() => pawn.Name, null);
+            Verse.Name? renamed;
             var triple = current as NameTriple;
             if (triple != null)
             {
@@ -3435,11 +3440,11 @@ namespace HomeBridge.BridgeTools
                 // either side would throw inside the game's own code.
                 var first = BridgeCommon.SafeString(() => triple.First) ?? string.Empty;
                 var last = BridgeCommon.SafeString(() => triple.Last) ?? string.Empty;
-                renamed = BridgeCommon.Try<Verse.Name>(() => new NameTriple(first, wanted, last), null);
+                renamed = BridgeCommon.Try<Verse.Name?>(() => new NameTriple(first, wanted, last), null);
             }
             else if (current == null || current is NameSingle)
             {
-                renamed = BridgeCommon.Try<Verse.Name>(() => new NameSingle(wanted), null);
+                renamed = BridgeCommon.Try<Verse.Name?>(() => new NameSingle(wanted), null);
             }
             else
             {
@@ -3486,24 +3491,24 @@ namespace HomeBridge.BridgeTools
 
         /// <summary>A name as the two strings the game itself prints: the full
         /// name, and the short one it labels the pawn with.</summary>
-        private static Dictionary<string, object> NameRow(Pawn pawn)
+        private static Dictionary<string, object?> NameRow(Pawn pawn)
         {
-            return NameRow(BridgeCommon.Try<Verse.Name>(() => pawn.Name, null));
+            return NameRow(BridgeCommon.Try<Verse.Name?>(() => pawn.Name, null));
         }
 
-        private static Dictionary<string, object> NameRow(Verse.Name name)
+        private static Dictionary<string, object?> NameRow(Verse.Name? name)
         {
-            return new Dictionary<string, object>
+            return new Dictionary<string, object?>
             {
                 { "name", name == null ? null : BridgeCommon.SafeString(() => name.ToStringFull) },
                 { "nick", name == null ? null : BridgeCommon.SafeString(() => name.ToStringShort) }
             };
         }
 
-        private static string Part(object row, string key)
+        private static string? Part(object row, string key)
         {
-            var d = row as Dictionary<string, object>;
-            object value;
+            var d = row as Dictionary<string, object?>;
+            object? value;
             if (d == null || !d.TryGetValue(key, out value))
                 return null;
             return value as string;
@@ -3512,7 +3517,7 @@ namespace HomeBridge.BridgeTools
         /// <summary>The tab a player renames from: the bio card on a humanlike,
         /// the training card on an animal. Null when the pawn's def draws
         /// neither, in which case the watch only selects the pawn.</summary>
-        private static Type NameTab(Pawn pawn)
+        private static Type? NameTab(Pawn pawn)
         {
             if (BridgeCommon.Try(() => pawn.RaceProps != null && pawn.RaceProps.Humanlike, false))
                 return typeof(ITab_Pawn_Character);
@@ -3521,7 +3526,7 @@ namespace HomeBridge.BridgeTools
 
         private static bool HasInspectTab(Pawn pawn, Type tab)
         {
-            var tabs = BridgeCommon.Try<List<InspectTabBase>>(
+            var tabs = BridgeCommon.Try<List<InspectTabBase>?>(
                 () => pawn.def == null ? null : pawn.def.inspectorTabsResolved, null);
             if (tabs == null)
                 return false;
@@ -3533,13 +3538,13 @@ namespace HomeBridge.BridgeTools
 
         // ============================================================= helpers
 
-        private static bool Settings(Pawn pawn, out Pawn_PlayerSettings ps)
+        private static bool Settings(Pawn pawn, [NotNullWhen(true)] out Pawn_PlayerSettings? ps)
         {
-            ps = BridgeCommon.Try<Pawn_PlayerSettings>(() => pawn.playerSettings, null);
+            ps = BridgeCommon.Try<Pawn_PlayerSettings?>(() => pawn.playerSettings, null);
             return ps != null;
         }
 
-        private static bool TryParseOnOff(string spec, out bool value)
+        private static bool TryParseOnOff(string? spec, out bool value)
         {
             value = false;
             var s = (spec ?? string.Empty).Trim().ToLowerInvariant();
@@ -3549,7 +3554,7 @@ namespace HomeBridge.BridgeTools
         }
 
         private static void Record(List<object> fields, string field, object requested,
-                                   object before, object after, bool changed, string note)
+                                   object? before, object? after, bool changed, string? note)
         {
             fields.Add(RecordRow(field, requested, before, after, changed, note));
         }
@@ -3557,10 +3562,10 @@ namespace HomeBridge.BridgeTools
         /// <summary>The same row, handed back instead of appended, for the two
         /// animal fields that carry an extra key (`cascades`, `alsoRemoved`).
         /// One builder, so no field row can grow a different shape.</summary>
-        private static Dictionary<string, object> RecordRow(string field, object requested,
-                                                            object before, object after, bool changed, string note)
+        private static Dictionary<string, object?> RecordRow(string field, object requested,
+                                                            object? before, object? after, bool changed, string? note)
         {
-            var row = new Dictionary<string, object>
+            var row = new Dictionary<string, object?>
             {
                 { "field", field },
                 { "requested", requested },
@@ -3576,9 +3581,9 @@ namespace HomeBridge.BridgeTools
         }
 
         private static void Refuse(List<object> fields, List<object> refused, string field,
-                                   object requested, object before, string reason)
+                                   object? requested, object? before, string reason)
         {
-            var row = new Dictionary<string, object>
+            var row = new Dictionary<string, object?>
             {
                 { "field", field },
                 { "requested", requested },
@@ -3594,7 +3599,7 @@ namespace HomeBridge.BridgeTools
             refused.Add(row);
         }
 
-        private static string Show(object v)
+        private static string Show(object? v)
         {
             if (v == null)
                 return "(none)";
@@ -3603,7 +3608,7 @@ namespace HomeBridge.BridgeTools
             return v.ToString();
         }
 
-        private static List<Pawn> SafeAllPawns(Map map)
+        private static List<Pawn>? SafeAllPawns(Map map)
         {
             try { return map.mapPawns?.AllPawnsSpawned?.ToList(); }
             catch { return null; }
@@ -3614,7 +3619,7 @@ namespace HomeBridge.BridgeTools
         /// substring of the name. An AMBIGUOUS name is refused with every match
         /// named, never resolved to the first one: this tool writes.
         /// </summary>
-        private static bool TryResolvePawn(List<Pawn> everyone, string spec, out Pawn pawn, out string error)
+        private static bool TryResolvePawn(List<Pawn> everyone, string spec, [NotNullWhen(true)] out Pawn? pawn, out string error)
         {
             pawn = null;
             error = string.Empty;

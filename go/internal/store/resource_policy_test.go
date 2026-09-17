@@ -3,7 +3,6 @@ package store
 import (
 	"context"
 	"errors"
-	"path/filepath"
 	"testing"
 
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
@@ -28,7 +27,7 @@ func resourceSpendingRequest(id, resource string, spending domain.ResourceSpendi
 func TestResourcePolicySubmissionReplayConflictAndReopen(t *testing.T) {
 	t.Parallel()
 	ctx := context.Background()
-	path := filepath.Join(t.TempDir(), "resource-policy-submission.db")
+	path := memoryPath(t)
 	s := open(t, path)
 	request := resourcePolicyRequest("request", "Steel", 250)
 	first, created, err := s.SubmitResourcePolicy(ctx, request)
@@ -82,7 +81,7 @@ func TestResourcePolicySubmissionReplayConflictAndReopen(t *testing.T) {
 func TestResourcePolicyMergesHalvesAndDispatchesWholeSet(t *testing.T) {
 	t.Parallel()
 	ctx := context.Background()
-	s := open(t, filepath.Join(t.TempDir(), "resource-policy-merge.db"))
+	s := open(t, memoryPath(t))
 	if _, _, err := s.SubmitResourcePolicy(ctx, resourcePolicyRequest("r1", "Steel", 250)); err != nil {
 		t.Fatal(err)
 	}
@@ -150,7 +149,7 @@ func TestResourcePolicyMergesHalvesAndDispatchesWholeSet(t *testing.T) {
 func TestResourcePolicyCoexistsWithAutopilotProductionPolicy(t *testing.T) {
 	t.Parallel()
 	ctx := context.Background()
-	s := open(t, filepath.Join(t.TempDir(), "resource-policy-coexist.db"))
+	s := open(t, memoryPath(t))
 	player, _, err := s.SubmitResourcePolicy(ctx, resourcePolicyRequest("player", "Steel", 250))
 	if err != nil {
 		t.Fatal(err)
@@ -214,7 +213,7 @@ func TestResourcePolicyCoexistsWithAutopilotProductionPolicy(t *testing.T) {
 
 func TestResourcePolicySubmissionAtomicFailure(t *testing.T) {
 	t.Parallel()
-	s := open(t, filepath.Join(t.TempDir(), "resource-policy-atomic.db"))
+	s := open(t, memoryPath(t))
 	ctx := context.Background()
 	if _, err := s.db.Exec("CREATE TRIGGER fail_resource_policy BEFORE INSERT ON resource_policy_submissions BEGIN SELECT RAISE(ABORT,'fixture failure'); END"); err != nil {
 		t.Fatal(err)
@@ -238,7 +237,7 @@ func TestResourcePolicySubmissionAtomicFailure(t *testing.T) {
 
 func TestResourcePolicySubmissionValidationRejected(t *testing.T) {
 	t.Parallel()
-	s := open(t, filepath.Join(t.TempDir(), "resource-policy-validation.db"))
+	s := open(t, memoryPath(t))
 	ctx := context.Background()
 	for _, change := range []func(*ResourcePolicySubmissionRequest){
 		func(v *ResourcePolicySubmissionRequest) { v.RequestID = "bad\x00id" },
@@ -267,7 +266,7 @@ func TestResourcePolicySubmissionValidationRejected(t *testing.T) {
 func TestResourcePolicySubmissionSharesNamespaceWithBuilding(t *testing.T) {
 	t.Parallel()
 	ctx := context.Background()
-	s := open(t, filepath.Join(t.TempDir(), "resource-policy-namespace.db"))
+	s := open(t, memoryPath(t))
 	if _, _, err := s.SubmitBuilding(ctx, submissionRequest(t, "shared")); err != nil {
 		t.Fatal(err)
 	}

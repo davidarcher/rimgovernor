@@ -105,5 +105,24 @@ namespace HomeBridge.BridgeTools
                     state = PopulationTools.Person(candidate) };
             }, cancellationToken).ConfigureAwait(false);
         }
+
+        // Forces the one native outcome a prisoner-interaction acceptance run
+        // needs to observe without playing days of recruitment: the game's
+        // own InteractionWorker_RecruitAttempt.DoRecruit path, exactly what a
+        // successful warden recruit interaction calls.
+        [Tool("test/population_recruit", Description = "Disposable population fixture, excluded from production and model access. Recruits the prepared candidate through the native recruit-success path so a later progress read observes an actual recruited outcome.")]
+        public async Task<object> Recruit(IRimBridgeContext ctx, CancellationToken cancellationToken)
+        {
+            return await ctx.MainThread.InvokeAsync<object>(() => {
+                if (candidate == null || Find.CurrentMap == null || !Find.TickManager.Paused)
+                    throw new InvalidOperationException("A prepared candidate on a paused disposable map is required");
+                if (!candidate.IsPrisonerOfColony) throw new InvalidOperationException("The candidate must be a colony prisoner before recruitment");
+                var recruiter = Find.CurrentMap.mapPawns.FreeColonistsSpawned.FirstOrDefault(p => p != candidate)
+                    ?? throw new InvalidOperationException("A free colonist recruiter is required");
+                InteractionWorker_RecruitAttempt.DoRecruit(recruiter, candidate, false);
+                return new { success = true, candidate = candidate.GetUniqueLoadID(), recruiter = recruiter.GetUniqueLoadID(),
+                    freeColonist = candidate.IsFreeColonist, prisoner = candidate.IsPrisonerOfColony };
+            }, cancellationToken).ConfigureAwait(false);
+        }
     }
 }

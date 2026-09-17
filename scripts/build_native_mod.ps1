@@ -9,7 +9,7 @@ param(
         'MoodFixture', 'PopulationFixture', 'HusbandryFixture', 'MedicalManagementFixture',
         'MiningFixture', 'FoodObservationFixture', 'UpkeepFixture', 'TradeFixture',
         'ScenarioStartFixture', 'ConstructionLedgerFixture', 'EmergencyDevelopmentFixture',
-        'InstallFixture', 'ForecastFixture', 'InspectorFixture', 'ModalFixture', 'CampaignMetricsFixture', 'DraftFaultFixture', 'RuntimeFaultFixture', 'MapScopeFixture', 'QuestFulfillFixture', 'BuildingTemperatureFixture', 'SurgeryFixture', 'CaravanControlFixture', 'CaravanDepartureFixture', 'RecoveryServiceFixture', 'QuestAcceptFixture', 'SettlementGiftFixture', 'RecoveryAreaFixture', 'BedAssignFixture', 'ZoneDeleteFixture', 'RefrigerationFixture', 'PowerFixture', 'CleanlinessFixture', 'DefenseFixture', 'LightingFixture', 'MountainFixture', 'QuietStorytellerFixture', 'DebugStartFixture', 'VideoSourceFixture', 'VideoMatrixFixture', 'WallUpgradeFixture', 'ShutdownFixture')]
+        'InstallFixture', 'ForecastFixture', 'InspectorFixture', 'ModalFixture', 'CampaignMetricsFixture', 'DraftFaultFixture', 'RuntimeFaultFixture', 'MapScopeFixture', 'QuestFulfillFixture', 'BuildingTemperatureFixture', 'SurgeryFixture', 'CaravanControlFixture', 'CaravanDepartureFixture', 'RecoveryServiceFixture', 'QuestAcceptFixture', 'SettlementGiftFixture', 'RecoveryAreaFixture', 'BedAssignFixture', 'ZoneDeleteFixture', 'RefrigerationFixture', 'PowerFixture', 'CleanlinessFixture', 'DefenseFixture', 'LightingFixture', 'MountainFixture', 'QuietStorytellerFixture', 'DebugStartFixture', 'LetterFixture', 'FreezeNeedsFixture', 'VideoSourceFixture', 'VideoMatrixFixture', 'WallUpgradeFixture', 'ShutdownFixture')]
     [string[]]$Fixture = @()
 )
 $ErrorActionPreference = 'Stop'
@@ -19,7 +19,7 @@ $taskProject = Join-Path $taskSource 'src/Bridge/RimGovernor.Bridge.csproj'
 $taskFixtures = @($Fixture | Sort-Object -Unique)
 # Every fixture build carries test/quiet_storyteller: the acceptance harnesses
 # quiet the debug colony through it by default (issue #92).
-if ($taskFixtures.Count) { $taskFixtures = @(($taskFixtures + 'QuietStorytellerFixture' + 'DebugStartFixture') | Sort-Object -Unique) }
+if ($taskFixtures.Count) { $taskFixtures = @(($taskFixtures + 'QuietStorytellerFixture' + 'DebugStartFixture' + 'LetterFixture' + 'FreezeNeedsFixture' + 'ShutdownFixture') | Sort-Object -Unique) }
 $taskRole = if ($taskFixtures.Count) { 'fixture' } else { 'production' }
 if (-not $OutputRoot) {
     $OutputRoot = Join-Path $taskRepo ('.rimgovernor/native-builds/' + $taskRole + '-' + [guid]::NewGuid().ToString('N'))

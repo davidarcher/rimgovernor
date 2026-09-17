@@ -2,7 +2,6 @@ package store
 
 import (
 	"context"
-	"path/filepath"
 	"testing"
 
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
@@ -10,7 +9,7 @@ import (
 )
 
 func TestDefenseLayoutRoundTripPerWorld(t *testing.T) {
-	db, err := Open(context.Background(), filepath.Join(t.TempDir(), "defense.sqlite"))
+	db, err := Open(context.Background(), memoryPath(t))
 	if err != nil {
 		t.Fatal(err)
 	}

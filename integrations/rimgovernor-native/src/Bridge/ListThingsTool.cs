@@ -1,5 +1,8 @@
+#nullable enable
+
 ﻿using System;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
 using System.Linq;
 using System.Threading;
@@ -164,10 +167,10 @@ namespace HomeBridge.BridgeTools
         [ToolResponse("corpsesSkipped", "array", "One entry per corpse DEF whose rot stage could not be given: defName, count, reason ('noRotComp' for mechanoid corpses, otherwise the exception). Empty array = every corpse's stage was read.", Always = true)]
         [ToolResponse("unknownArguments", "array", "Every argument key the caller sent that this tool does not declare, sorted, case-sensitively. Empty array = every key was recognised. The host's own _rimBridgeTimeoutMs is never listed.", Always = true)]
         [ToolResponse("unknownArgumentsWarning", "string", "Present only when unknownArguments is non-empty, or when the caller's raw keys could not be read at all - in which case the empty unknownArguments means 'not known', not 'nothing unknown'.", Nullable = true)]
-        public async Task<object> ListThings(
+        public async Task<object?> ListThings(
             IRimBridgeContext ctx,
             CancellationToken cancellationToken,
-            [ToolParameter(Description = "Only defs whose defName or label contains this text (case-insensitive).")] string match = null,
+            [ToolParameter(Description = "Only defs whose defName or label contains this text (case-insensitive).")] string? match = null,
             [ToolParameter(Description = "What to count: 'haulable' (default), 'food' (native nutrition-giving ingestibles), 'weapons' (native weapon defs; rows include weapon.ranged/melee), 'all', or 'buildings'. Unknown categories are refused.", DefaultValue = "haulable")] string category = "haulable",
             [ToolParameter(Description = "Whose things to report: 'ours' (the default — only defs the colony actually has some of, and only our stacks' positions) or 'all' (every def on the map, trader stock and ancient-ruin loot included). Either way every row carries the full ownership breakdown.", DefaultValue = "ours")] string ownership = "ours",
             [ToolParameter(Description = "Also walk pawn inventories, carry trackers, corpses and container things. Worn apparel and wielded weapons are never walked. False = spawned things only, the pre-2026-09-01 source.", DefaultValue = true)] bool includeHeld = true,
@@ -190,7 +193,7 @@ namespace HomeBridge.BridgeTools
         private async Task<object> ListThingsCore(
             IRimBridgeContext ctx,
             CancellationToken cancellationToken,
-            string match,
+            string? match,
             string category,
             string ownership,
             bool includeHeld,
@@ -220,7 +223,7 @@ namespace HomeBridge.BridgeTools
 
         // ------------------------------------------------------------- build ---
 
-        private static object Build(string match, string category, string ownership, bool includeHeld,
+        private static object Build(string? match, string category, string ownership, bool includeHeld,
                                     bool forbiddenOnly, bool excludeChunks, int cx, int cz, int radius,
                                     int maxPositions, bool corpsesOnly, int maxCorpsesPerRow)
         {
@@ -366,7 +369,7 @@ namespace HomeBridge.BridgeTools
                 if (c.OtherFaction) row.OtherFaction += units;
                 if (c.InContainer) row.InContainer += units;
                 if (c.Ours && reserved != null && reserved.Contains(thing)) row.Reserved += units;
-                if (!c.Ours && !string.IsNullOrEmpty(c.Holder))
+                if (!c.Ours && c.Holder != null && c.Holder.Length > 0)
                 {
                     row.Holders.TryGetValue(c.Holder, out var had);
                     row.Holders[c.Holder] = had + units;
@@ -402,12 +405,12 @@ namespace HomeBridge.BridgeTools
 
             var things = emitted
                 .OrderByDescending(r => oursOnly ? r.Ours : r.Total)
-                .Select(r => WithCorpses(new Dictionary<string, object>
+                .Select(r => WithCorpses(new Dictionary<string, object?>
                 {
                     { "defName", r.DefName },
                     { "label", r.Label },
                     { "food", r.Food },
-                    { "weapon", r.Weapon ? new Dictionary<string, object> { { "ranged", r.Ranged }, { "melee", r.Melee } } : null },
+                    { "weapon", r.Weapon ? new Dictionary<string, object?> { { "ranged", r.Ranged }, { "melee", r.Melee } } : null },
                     // Whole-map figures, both modes. `stacks`/`total` are every
                     // stack of this def anywhere; `oursStacks`/`ours` are the
                     // colony's share of them.
@@ -436,7 +439,7 @@ namespace HomeBridge.BridgeTools
 
             var all = rows.Values.ToList();
             var anyCorpse = all.Any(r => r.IsCorpse);
-            var payload = new Dictionary<string, object>
+            var payload = new Dictionary<string, object?>
             {
                 { "success", true },
                 { "tool", "home/list_things" },
@@ -470,7 +473,7 @@ namespace HomeBridge.BridgeTools
                     .ToList() },
                 // Every filter reports what it removed. An empty answer must never
                 // be ambiguous between "nothing there" and "nothing survived".
-                { "skipped", new Dictionary<string, object>
+                { "skipped", new Dictionary<string, object?>
                     {
                         { "byRadius", skippedRadius },
                         { "byChunkFilter", skippedChunks },
@@ -479,7 +482,7 @@ namespace HomeBridge.BridgeTools
                         { "byOwnership", skippedNotOurs },
                         { "byCorpsesOnly", skippedNotCorpse }
                     } },
-                { "filters", new Dictionary<string, object>
+                { "filters", new Dictionary<string, object?>
                     {
                         { "match", match },
                         { "category", cat },
@@ -495,7 +498,7 @@ namespace HomeBridge.BridgeTools
                         { "corpses", corpsesOnly },
                         { "maxCorpsesPerRow", maxCorpsesPerRow }
                     } },
-                { "notes", new Dictionary<string, object>
+                { "notes", new Dictionary<string, object?>
                     {
                         { "oursMeans", "spawned and unfogged with no other faction's claim, or held by a player pawn, or inside a player-owned container" },
                         { "oursIsNotTradeable", "the trade dialog's colony column counts only what is in range of the trade spot or beacons; read it before spending" },
@@ -514,7 +517,7 @@ namespace HomeBridge.BridgeTools
             // happened there.
             if (anyCorpse || corpsesOnly)
             {
-                var notes = (Dictionary<string, object>)payload["notes"];
+                var notes = payload["notes"] as Dictionary<string, object?> ?? throw new InvalidOperationException("Payload has no notes record.");
                 notes["corpseRowsAggregateByDef"] = "Corpses aggregate by def like everything else -- every human corpse is one Corpse_Human row -- because meat-or-skeleton is a per-BODY fact and a def row cannot carry it. corpses[] on the row is that per-body detail, one entry per corpse, and count/stacks/the ownership buckets are untouched. corpse:true|false is on every row; corpses[] exists on exactly the rows where it is true.";
                 notes["corpseStageSource"] = "CompRottable.Stage: Fresh below TicksToRotStart, Rotting below TicksToDessicated, Dessicated after. skeleton is Dessicated and nothing else. A mechanoid corpse has no CompRottable (ThingDefGenerator_Corpses adds it only for non-mechanoids), so its rotStage is null with reason 'noRotComp' and it is named in corpsesSkipped -- never guessed as fresh.";
                 notes["wasColonistIsAFactionTest"] = "wasColonist is InnerPawn.Faction == the player faction, so a dead colony ANIMAL is wasColonist:true too. Read humanlike beside it before calling anything a dead colonist.";
@@ -528,7 +531,7 @@ namespace HomeBridge.BridgeTools
         private struct Entry
         {
             public Thing Thing;
-            public HolderInfo Holder;
+            public HolderInfo? Holder;
         }
 
         private static IEnumerable<Entry> Everything(List<Thing> spawned, List<HeldThing> held)
@@ -545,10 +548,10 @@ namespace HomeBridge.BridgeTools
         /// </summary>
         private sealed class HolderInfo
         {
-            public string Kind;             // pawnInventory | carried | corpse | container
-            public string Label;            // "Muffalo (Tribe of X)", "ancient cryptosleep casket"
-            public Pawn Pawn;               // set for pawnInventory / carried / corpse
-            public Thing RootThing;         // the spawned thing the chain hangs off
+            public string? Kind;             // pawnInventory | carried | corpse | container
+            public string? Label;            // "Muffalo (Tribe of X)", "ancient cryptosleep casket"
+            public Pawn? Pawn;               // set for pawnInventory / carried / corpse
+            public Thing? RootThing;         // the spawned thing the chain hangs off
             public bool PlayerHeld;         // holder pawn or container belongs to us
             public bool TraderStock;        // non-player trade caravan Trader/Carrier
             public bool OtherFaction;       // holder belongs to a non-player faction
@@ -592,7 +595,7 @@ namespace HomeBridge.BridgeTools
         }
 
         private static void WalkHolder(Map map, string cat, Thing rootThing, Thing holderThing,
-                                       HolderInfo inherited, List<HeldThing> outThings,
+                                       HolderInfo? inherited, List<HeldThing> outThings,
                                        HashSet<ThingOwner> seenOwners, int depth)
         {
             if (depth > MaxHolderDepth || holderThing == null)
@@ -709,7 +712,7 @@ namespace HomeBridge.BridgeTools
             catch { return false; }
         }
 
-        private static HolderInfo DescribePawnHolder(Pawn pawn, Thing rootThing, HolderInfo inherited)
+        private static HolderInfo DescribePawnHolder(Pawn pawn, Thing rootThing, HolderInfo? inherited)
         {
             var faction = SafeFaction(pawn);
             var role = SafeTraderRole(pawn);
@@ -760,10 +763,10 @@ namespace HomeBridge.BridgeTools
             public bool TraderStock;
             public bool OtherFaction;
             public bool InContainer;
-            public string Holder;
+            public string? Holder;
         }
 
-        private static Ownership Classify(Map map, Thing thing, HolderInfo holder, IntVec3 pos)
+        private static Ownership Classify(Map map, Thing thing, HolderInfo? holder, IntVec3 pos)
         {
             var o = new Ownership();
             var inBounds = InBounds(map, pos);
@@ -811,7 +814,7 @@ namespace HomeBridge.BridgeTools
             if (spawned && !string.IsNullOrEmpty(defName))
                 ids.Add(defName + "@" + pos.x.ToString(CultureInfo.InvariantCulture)
                         + "," + pos.z.ToString(CultureInfo.InvariantCulture));
-            return new Dictionary<string, object>
+            return new Dictionary<string, object?>
             {
                 { "x", pos.x }, { "z", pos.z },
                 { "thingId", loadId }, { "idForms", ids },
@@ -829,8 +832,8 @@ namespace HomeBridge.BridgeTools
 
         private sealed class Row
         {
-            public string DefName;
-            public string Label;
+            public string? DefName;
+            public string? Label;
             public bool Food;
             public bool Weapon, Ranged, Melee;
             public int Stacks;
@@ -868,15 +871,15 @@ namespace HomeBridge.BridgeTools
         /// corpse row. `corpse` itself is on every row, false included, so the
         /// presence of this block is never the only way to tell.
         /// </summary>
-        private static Dictionary<string, object> WithCorpses(
-            Dictionary<string, object> row, Row r)
+        private static Dictionary<string, object?> WithCorpses(
+            Dictionary<string, object?> row, Row r)
         {
             row["corpse"] = r.IsCorpse;
             if (!r.IsCorpse)
                 return row;
             row["corpseCount"] = r.CorpseCount;
             row["skeletons"] = r.Skeletons;
-            row["rotStages"] = new Dictionary<string, object>
+            row["rotStages"] = new Dictionary<string, object?>
             {
                 { "fresh", r.Fresh },
                 { "rotting", r.Rotting },
@@ -895,13 +898,13 @@ namespace HomeBridge.BridgeTools
         /// <summary>One corpse def's worth of unreadable rot stages.</summary>
         private sealed class CorpseIssue
         {
-            public string DefName;
-            public string Reason;
+            public string? DefName;
+            public string? Reason;
             public int Count;
 
-            public Dictionary<string, object> ToPayload()
+            public Dictionary<string, object?> ToPayload()
             {
-                return new Dictionary<string, object>
+                return new Dictionary<string, object?>
                 {
                     { "defName", DefName },
                     { "count", Count },
@@ -917,13 +920,13 @@ namespace HomeBridge.BridgeTools
         /// live on the aggregate row: two human corpses in one row can be a
         /// fresh colonist and a raider's skeleton.
         /// </summary>
-        private static Dictionary<string, object> CorpseRow(
+        private static Dictionary<string, object?> CorpseRow(
             Corpse corpse, IntVec3 pos, Ownership c, bool? forbidden,
             Dictionary<string, CorpseIssue> issues, Row row)
         {
             var stage = CountCorpseStage(corpse, issues, row);
             var inner = SafePawn(() => corpse.InnerPawn);
-            return new Dictionary<string, object>
+            return new Dictionary<string, object?>
             {
                 { "race", inner != null ? SafeRaceDefName(inner) : null },
                 { "name", inner != null ? SafeGivenName(inner) : null },
@@ -950,7 +953,7 @@ namespace HomeBridge.BridgeTools
         /// CompRottable.Stage is a pure read: the getter compares the
         /// rotProgressInt field against two thresholds and stores nothing.
         /// </summary>
-        private static string CountCorpseStage(
+        private static string? CountCorpseStage(
             Corpse corpse, Dictionary<string, CorpseIssue> issues, Row row)
         {
             CompRottable rot;
@@ -1004,7 +1007,7 @@ namespace HomeBridge.BridgeTools
             issue.Count++;
         }
 
-        private static string SafeRaceDefName(Pawn p)
+        private static string? SafeRaceDefName(Pawn p)
         {
             try { return p.def != null ? p.def.defName : null; }
             catch { return null; }
@@ -1013,7 +1016,7 @@ namespace HomeBridge.BridgeTools
         /// <summary>The pawn's own name, or null if it never had one (most
         /// animals). NOT the label, which would read "dead muffalo" for
         /// everything and make "did this one have a name" unanswerable.</summary>
-        private static string SafeGivenName(Pawn p)
+        private static string? SafeGivenName(Pawn p)
         {
             try { return p.Name != null ? p.Name.ToStringFull : null; }
             catch { return null; }
@@ -1027,7 +1030,7 @@ namespace HomeBridge.BridgeTools
 
         private static object TopHolders(Dictionary<string, int> holders)
         {
-            var top = new Dictionary<string, object>();
+            var top = new Dictionary<string, object?>();
             foreach (var kv in holders.OrderByDescending(k => k.Value).Take(MaxHoldersPerRow))
                 top[kv.Key] = kv.Value;
             if (holders.Count > MaxHoldersPerRow)
@@ -1037,7 +1040,7 @@ namespace HomeBridge.BridgeTools
 
         // ------------------------------------------------------- safe game reads ---
 
-        private static Faction SafePlayerFaction()
+        private static Faction? SafePlayerFaction()
         {
             // NOT Faction.OfPlayer: its IL is
             //   get_OfPlayer -> get_OfPlayerSilentFail -> Log.Error
@@ -1047,7 +1050,7 @@ namespace HomeBridge.BridgeTools
             catch { return null; }
         }
 
-        private static bool IsPlayerFaction(Faction f)
+        private static bool IsPlayerFaction(Faction? f)
         {
             try
             {
@@ -1057,7 +1060,7 @@ namespace HomeBridge.BridgeTools
             catch { return false; }
         }
 
-        private static bool IsOtherFaction(Faction f)
+        private static bool IsOtherFaction(Faction? f)
         {
             try
             {
@@ -1068,7 +1071,7 @@ namespace HomeBridge.BridgeTools
             catch { return false; }
         }
 
-        private static Faction SafeFaction(Thing t)
+        private static Faction? SafeFaction(Thing t)
         {
             try { return t.Faction; }
             catch { return null; }
@@ -1088,7 +1091,7 @@ namespace HomeBridge.BridgeTools
             catch { return false; }
         }
 
-        private static string SafePawnName(Pawn p)
+        private static string? SafePawnName(Pawn p)
         {
             try { return p.LabelShortCap; }
             catch
@@ -1098,13 +1101,13 @@ namespace HomeBridge.BridgeTools
             }
         }
 
-        private static Pawn SafePawn(Func<Pawn> f)
+        private static Pawn? SafePawn(Func<Pawn> f)
         {
             try { return f(); }
             catch { return null; }
         }
 
-        private static ThingOwner SafeOwner(Func<ThingOwner> f)
+        private static ThingOwner? SafeOwner(Func<ThingOwner?> f)
         {
             try { return f(); }
             catch { return null; }
@@ -1120,7 +1123,7 @@ namespace HomeBridge.BridgeTools
             }
         }
 
-        private static HashSet<Thing> ReservedThings(Map map)
+        private static HashSet<Thing>? ReservedThings(Map map)
         {
             // AllReservedThings() is a Select over the reservation list — read
             // only, verified in IL. Materialised once so the per-thing test is a
@@ -1182,13 +1185,13 @@ namespace HomeBridge.BridgeTools
             }
         }
 
-        private static string SafeDefLabel(Thing thing)
+        private static string? SafeDefLabel(Thing thing)
         {
             try { return thing.def?.LabelCap.ToString() ?? thing.def?.label; }
             catch { return SafeLabel(thing); }
         }
 
-        private static string SafeLabel(Thing thing)
+        private static string? SafeLabel(Thing thing)
         {
             try { return thing.LabelCapNoCount.ToString(); }
             catch
@@ -1200,7 +1203,7 @@ namespace HomeBridge.BridgeTools
 
         /// <summary>The shared map gate; see BridgeCommon.TryGetMap. The error
         /// text names this tool.</summary>
-        private static bool TryGetMap(out Map map, out string error)
+        private static bool TryGetMap([NotNullWhen(true)] out Map? map, out string error)
         {
             return BridgeCommon.TryGetMap("home/list_things", out map, out error);
         }

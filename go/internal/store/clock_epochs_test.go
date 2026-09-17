@@ -72,7 +72,7 @@ func TestClockEpochAtomicCreationAndReopen(t *testing.T) {
 func TestClockEpochObligationInsertFailureRollsBackAppliedReceipt(t *testing.T) {
 	t.Parallel()
 	ctx := context.Background()
-	s := open(t, filepath.Join(t.TempDir(), "epoch.db"))
+	s := open(t, memoryPath(t))
 	attempt, _, err := s.PrepareClock(ctx, clockIntent(clockTestID(t, s, "start")))
 	if err != nil {
 		t.Fatal(err)
@@ -204,7 +204,7 @@ func TestClockEpochUnknownStatesNeverAcquireOrRetireOwnership(t *testing.T) {
 func TestClockEpochNeverAdoptsUncertainStatusAndMissingAppliedRowIsCorrupt(t *testing.T) {
 	t.Parallel()
 	ctx := context.Background()
-	s := open(t, filepath.Join(t.TempDir(), "epoch.db"))
+	s := open(t, memoryPath(t))
 	attempt, _, err := s.PrepareClock(ctx, clockIntent(clockTestID(t, s, "start")))
 	if err != nil {
 		t.Fatal(err)

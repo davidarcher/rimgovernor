@@ -1,3 +1,5 @@
+#nullable enable
+
 ﻿using System;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -55,7 +57,7 @@ namespace HomeBridge.BridgeTools
         // has never seen — stops the run, so a new notification kind fails loud.
         private const string DefaultIgnoredMessageTypes = "RejectInput,CautionInput,SilentInput,TaskCompletion";
 
-        private static readonly FieldInfo ActiveAlertsField =
+        private static readonly FieldInfo? ActiveAlertsField =
             BridgeCommon.PrivateInstanceField(typeof(AlertsReadout), "activeAlerts");
 
         // ------------------------------------------------------------------
@@ -99,10 +101,10 @@ namespace HomeBridge.BridgeTools
 
         // What the memo is about. A different Game object, or a tick that went
         // backwards, means a different loaded colony and a memo that is lying.
-        private static object _alertMemoGame;
+        private static object? _alertMemoGame;
         private static int _alertMemoTick = -1;
 
-        private static readonly FieldInfo LiveMessagesField =
+        private static readonly FieldInfo? LiveMessagesField =
             BridgeCommon.PrivateStaticField(typeof(Messages), "liveMessages");
 
         // Two of these loops at once would fight over the clock. One at a time.
@@ -134,7 +136,7 @@ namespace HomeBridge.BridgeTools
         [ToolResponse("pawnInjuries", "array", "Meaningful coalesced watched-pawn injury changes found in the stopping poll. Empty unless watchInjuries is enabled and fires.", Always = true)]
         [ToolResponse("injuryHookEvent", "object", "The first event-driven injury applied to a watched pawn. Null unless watchInjuryHook fires.", Always = true, Nullable = true)]
         [ToolResponse("combatCamera", "object", "Combat camera result including enabled, framesApplied, manualOverride and errors. Manual pan or zoom suppresses directing for combatCameraManualSuppressMs, renewed by further input; the camera never fails the call.", Always = true)]
-        public async Task<object> PlayUntilEvent(
+        public async Task<object?> PlayUntilEvent(
             IRimBridgeContext ctx,
             CancellationToken cancellationToken,
             [ToolParameter(Description = "Play speed to run at: Normal, Fast, Superfast, Ultrafast. Paused is rejected.", DefaultValue = "Superfast")] string speed = "Superfast",
@@ -272,7 +274,7 @@ namespace HomeBridge.BridgeTools
                     }
                     catch (Exception ex)
                     {
-                        var failure = (Dictionary<string, object>)Failure(
+                        var failure = (Dictionary<string, object?>)Failure(
                             "Injury hook could not be verified; refusing to run the clock: " + ex.Message, "error");
                         failure["injuryHookStatus"] = CombatInjuryHook.Status();
                         return failure;
@@ -479,7 +481,7 @@ namespace HomeBridge.BridgeTools
 
             // Start the clock. CurTimeSpeed is set directly and once: no
             // neverForceNormalSpeed, no UltraSpeedBoost, nothing to restore.
-            string startError = null;
+            string? startError = null;
             TimeSpeed startedAt = TimeSpeed.Paused;
             try
             {
@@ -508,8 +510,8 @@ namespace HomeBridge.BridgeTools
                     budgetMs, pollMs, alertMs, false, null, false, notes, startError);
             }
 
-            Probe last = baseline.EntryProbe;
-            Hit hit = null;
+            Probe? last = baseline.EntryProbe;
+            Hit? hit = null;
             string reason = "budget_elapsed";
             string detail = "Budget of " + budgetMs + " ms elapsed with nothing watched firing.";
             var lastAlertCheck = -1L;
@@ -535,7 +537,7 @@ namespace HomeBridge.BridgeTools
                 var checkAlerts = watch.Alerts
                                   && (alertMs <= 0 || lastAlertCheck < 0 || clock.ElapsedMilliseconds - lastAlertCheck >= alertMs);
 
-                Probe probe;
+                Probe? probe;
                 try
                 {
                     probe = await ctx.MainThread
@@ -667,7 +669,7 @@ namespace HomeBridge.BridgeTools
                 }
             }
 
-            Probe final;
+            Probe? final;
             try
             {
                 final = await ctx.MainThread
@@ -679,7 +681,7 @@ namespace HomeBridge.BridgeTools
                 final = last;
             }
 
-            string error = null;
+            string? error = null;
             var ok = true;
             if (wantPause && pauseVerified != true)
             {
@@ -703,7 +705,7 @@ namespace HomeBridge.BridgeTools
         {
             var b = new Baseline();
 
-            string why;
+            string? why;
             if (!Playable(out why))
             {
                 b.Unavailable = why;
@@ -783,7 +785,7 @@ namespace HomeBridge.BridgeTools
                         if (!watch.StopOnCurrentDowned
                             || watch.IgnoredDownedColonistIds.Contains(pawn.thingIDNumber))
                             b.DownedColonists.Add(pawn.thingIDNumber);
-                        b.DownedColonistNames.Add(SafeName(pawn));
+                        b.DownedColonistNames.Add(SafeName(pawn) ?? "");
                     }
                     continue;
                 }
@@ -815,12 +817,12 @@ namespace HomeBridge.BridgeTools
             return b;
         }
 
-        private static Probe Snapshot(Baseline baseline, Watch watch, bool checkAlerts, Timing timing)
+        private static Probe Snapshot(Baseline baseline, Watch watch, bool checkAlerts, Timing? timing)
         {
             var whole = Stopwatch.StartNew();
             var p = new Probe();
 
-            string why;
+            string? why;
             if (!Playable(out why))
             {
                 p.Available = false;
@@ -857,7 +859,7 @@ namespace HomeBridge.BridgeTools
                         continue;
                     var type = SafeMessageType(message);
                     var stops = type == null || !watch.IgnoredMessageTypes.Contains(type);
-                    var row = new Dictionary<string, object>
+                    var row = new Dictionary<string, object?>
                     {
                         { "id", id },
                         { "text", SafeMessageText(message) },
@@ -905,10 +907,10 @@ namespace HomeBridge.BridgeTools
                             // Suppressed, not dropped. The caller is told the
                             // key, the live label and how stale the memo is, so
                             // it can decide the debounce was set too wide.
-                            Dictionary<string, object> row;
+                            Dictionary<string, object?> row;
                             if (!baseline.DebouncedAlerts.TryGetValue(entry.Key, out row))
                             {
-                                row = new Dictionary<string, object>
+                                row = new Dictionary<string, object?>
                                 {
                                     { "alertKey", entry.Key },
                                     { "alertType", alertType },
@@ -921,7 +923,7 @@ namespace HomeBridge.BridgeTools
                             }
                             row["label"] = entry.Value;
                             row["msSinceLastCounted"] = ago.Value;
-                            row["pollsDebounced"] = (int)row["pollsDebounced"] + 1;
+                            row["pollsDebounced"] = BridgeCommon.Int(row, "pollsDebounced") + 1;
                             // Still standing, so the window rolls forward.
                             StampAlert(entry.Key);
                             continue;
@@ -929,7 +931,7 @@ namespace HomeBridge.BridgeTools
                         StampAlert(entry.Key);
                     }
 
-                    p.NewAlerts.Add(new Dictionary<string, object>
+                    p.NewAlerts.Add(new Dictionary<string, object?>
                     {
                         { "alertKey", entry.Key },
                         { "alertType", alertType },
@@ -989,7 +991,7 @@ namespace HomeBridge.BridgeTools
                         if (watch.Downed && (SafeDowned(pawn) || SafeDead(pawn))
                             && !baseline.DownedColonists.Contains(pawn.thingIDNumber))
                         {
-                            p.NewlyDowned.Add(new Dictionary<string, object>
+                            p.NewlyDowned.Add(new Dictionary<string, object?>
                             {
                                 { "name", SafeName(pawn) },
                                 { "dead", SafeDead(pawn) },
@@ -1002,7 +1004,7 @@ namespace HomeBridge.BridgeTools
                             var pct = SafeHealthPct(pawn);
                             if (pct != null && pct.Value * 100f < watch.HealthBelowPct)
                             {
-                                p.Hurt.Add(new Dictionary<string, object>
+                                p.Hurt.Add(new Dictionary<string, object?>
                                 {
                                     { "name", SafeName(pawn) },
                                     { "healthPct", Math.Round(pct.Value * 100f, 1) },
@@ -1053,7 +1055,7 @@ namespace HomeBridge.BridgeTools
         /// everything because the game auto-pauses on them; hostiles before
         /// health because a raid is the more urgent fact.
         /// </summary>
-        private static Hit FirstHit(Probe p, Watch watch)
+        private static Hit? FirstHit(Probe? p, Watch watch)
         {
             if (p == null)
                 return null;
@@ -1073,7 +1075,7 @@ namespace HomeBridge.BridgeTools
                 return new Hit("letter",
                     "New letter: " + Str(first, "label") + " (" + Str(first, "letterDef") + ")"
                     + (p.NewLetters.Count > 1 ? " and " + (p.NewLetters.Count - 1) + " more" : ""),
-                    new Dictionary<string, object> { { "kind", "letter" }, { "letters", p.NewLetters } });
+                    new Dictionary<string, object?> { { "kind", "letter" }, { "letters", p.NewLetters } });
             }
 
             if (watch.Messages && p.StoppingMessages.Count > 0)
@@ -1082,7 +1084,7 @@ namespace HomeBridge.BridgeTools
                 return new Hit("message",
                     "Message: " + Str(first, "text") + " [" + Str(first, "messageType") + "]"
                     + (p.StoppingMessages.Count > 1 ? " and " + (p.StoppingMessages.Count - 1) + " more" : ""),
-                    new Dictionary<string, object> { { "kind", "message" }, { "messages", p.StoppingMessages } });
+                    new Dictionary<string, object?> { { "kind", "message" }, { "messages", p.StoppingMessages } });
             }
 
             if (watch.Alerts && p.NewAlerts.Count > 0)
@@ -1091,7 +1093,7 @@ namespace HomeBridge.BridgeTools
                 return new Hit("alert",
                     "Alert became active: " + Str(first, "label") + " [" + Str(first, "priority") + "]"
                     + (p.NewAlerts.Count > 1 ? " and " + (p.NewAlerts.Count - 1) + " more" : ""),
-                    new Dictionary<string, object> { { "kind", "alert" }, { "alerts", p.NewAlerts } });
+                    new Dictionary<string, object?> { { "kind", "alert" }, { "alerts", p.NewAlerts } });
             }
 
             if (watch.Hostiles && p.Hostiles.Count > 0)
@@ -1100,7 +1102,7 @@ namespace HomeBridge.BridgeTools
                 return new Hit("hostile",
                     p.Hostiles.Count + " hostile pawn(s) on the map, nearest " + Str(first, "defName")
                     + " at " + Str(first, "nearestColonistDistance") + " cells (" + Str(first, "hostileReason") + ")",
-                    new Dictionary<string, object> { { "kind", "hostile" }, { "pawns", p.Hostiles } });
+                    new Dictionary<string, object?> { { "kind", "hostile" }, { "pawns", p.Hostiles } });
             }
 
             if (watch.HuntWithin > 0 && p.Hunters.Count > 0)
@@ -1109,7 +1111,7 @@ namespace HomeBridge.BridgeTools
                 return new Hit("predator_hunt",
                     Str(first, "defName") + " is hunting " + Str(first, "nearestColonistDistance")
                     + " cells from " + Str(first, "nearestColonist"),
-                    new Dictionary<string, object> { { "kind", "predator_hunt" }, { "pawns", p.Hunters } });
+                    new Dictionary<string, object?> { { "kind", "predator_hunt" }, { "pawns", p.Hunters } });
             }
 
             if (watch.MeleeThreats && p.MeleeThreats.Count > 0)
@@ -1118,7 +1120,7 @@ namespace HomeBridge.BridgeTools
                 return new Hit("melee_threat",
                     Str(first, "attackerName") + " started a melee attack on " + Str(first, "targetPawnName")
                     + " at distance " + Str(first, "distance"),
-                    new Dictionary<string, object> { { "kind", "melee_threat" }, { "meleeThreats", p.MeleeThreats } });
+                    new Dictionary<string, object?> { { "kind", "melee_threat" }, { "meleeThreats", p.MeleeThreats } });
             }
 
             if (watch.PawnOrders && p.PawnOrderChanges.Count > 0)
@@ -1126,7 +1128,7 @@ namespace HomeBridge.BridgeTools
                 var first = p.PawnOrderChanges[0];
                 return new Hit("pawn_order_changed",
                     Str(first, "pawnName") + " had its watched order replaced or completed",
-                    new Dictionary<string, object> { { "kind", "pawn_order_changed" }, { "pawnOrderChanges", p.PawnOrderChanges } });
+                    new Dictionary<string, object?> { { "kind", "pawn_order_changed" }, { "pawnOrderChanges", p.PawnOrderChanges } });
             }
 
             if (watch.Injuries && p.PawnInjuries.Count > 0)
@@ -1134,7 +1136,7 @@ namespace HomeBridge.BridgeTools
                 var first = p.PawnInjuries[0];
                 return new Hit("pawn_injury",
                     Str(first, "pawnName") + " sustained a meaningful injury change",
-                    new Dictionary<string, object> { { "kind", "pawn_injury" }, { "pawnInjuries", p.PawnInjuries } });
+                    new Dictionary<string, object?> { { "kind", "pawn_injury" }, { "pawnInjuries", p.PawnInjuries } });
             }
 
             if (watch.Downed && p.NewlyDowned.Count > 0)
@@ -1142,7 +1144,7 @@ namespace HomeBridge.BridgeTools
                 var first = p.NewlyDowned[0];
                 return new Hit("colonist_downed",
                     Str(first, "name") + " is " + (Str(first, "dead") == "True" ? "DEAD" : "down"),
-                    new Dictionary<string, object> { { "kind", "colonist_downed" }, { "colonists", p.NewlyDowned } });
+                    new Dictionary<string, object?> { { "kind", "colonist_downed" }, { "colonists", p.NewlyDowned } });
             }
 
             if (watch.HealthBelowPct > 0 && p.Hurt.Count > 0)
@@ -1151,7 +1153,7 @@ namespace HomeBridge.BridgeTools
                 return new Hit("colonist_health",
                     Str(first, "name") + " is at " + Str(first, "healthPct") + "% health, under the "
                     + watch.HealthBelowPct + "% threshold",
-                    new Dictionary<string, object> { { "kind", "colonist_health" }, { "colonists", p.Hurt } });
+                    new Dictionary<string, object?> { { "kind", "colonist_health" }, { "colonists", p.Hurt } });
             }
 
             return null;
@@ -1163,9 +1165,9 @@ namespace HomeBridge.BridgeTools
 
         // The shared map gate plus the two extra conditions this tool needs: it
         // is about to RUN the clock, not just read it.
-        private static bool Playable(out string why)
+        private static bool Playable(out string? why)
         {
-            Map map;
+            Map? map;
             if (!BridgeCommon.TryGetMap(ToolName, out map, out why))
                 return false;
 
@@ -1234,8 +1236,8 @@ namespace HomeBridge.BridgeTools
             catch { return "message-" + message.startingTick + "-" + (message.text ?? string.Empty).GetHashCode(); }
         }
 
-        internal static string SafeMessageText(Message message) { try { return message.text; } catch { return null; } }
-        internal static string SafeMessageType(Message message) { try { return message.def != null ? message.def.defName : null; } catch { return null; } }
+        internal static string? SafeMessageText(Message message) { try { return message.text; } catch { return null; } }
+        internal static string? SafeMessageType(Message message) { try { return message.def != null ? message.def.defName : null; } catch { return null; } }
         internal static int SafeMessageTick(Message message) { try { return message.startingTick; } catch { return 0; } }
 
         private static HashSet<string> ParseCsv(string csv)
@@ -1252,9 +1254,9 @@ namespace HomeBridge.BridgeTools
             return set;
         }
 
-        private static Dictionary<string, object> DescribeLetter(Letter letter, string id, int tick)
+        private static Dictionary<string, object?> DescribeLetter(Letter letter, string id, int tick)
         {
-            string label = null, def = null, pauseMode = null, type = null;
+            string? label = null, def = null, pauseMode = null, type = null;
             int arrival = 0;
             bool auto = false;
             try { label = letter.Label.ToString(); } catch { }
@@ -1264,7 +1266,7 @@ namespace HomeBridge.BridgeTools
             try { arrival = letter.arrivalTick; } catch { }
             try { auto = letter.ShouldAutomaticallyOpenLetter; } catch { }
 
-            return new Dictionary<string, object>
+            return new Dictionary<string, object?>
             {
                 // Same id as rimworld/list_letters, so this hands straight to
                 // rimworld/open_letter or letters.py.
@@ -1285,7 +1287,7 @@ namespace HomeBridge.BridgeTools
         /// current. Nothing here recalculates an alert.
         /// </summary>
         internal static IEnumerable<KeyValuePair<string, string>> ActiveAlertKeys(
-            AlertPriority min, List<KeyValuePair<string, string>> sink)
+            AlertPriority min, List<KeyValuePair<string, string>>? sink)
         {
             var result = sink ?? new List<KeyValuePair<string, string>>();
             if (ActiveAlertsField == null)
@@ -1297,7 +1299,7 @@ namespace HomeBridge.BridgeTools
             if (readout == null)
                 return result;
 
-            List<Alert> active;
+            List<Alert>? active;
             try { active = ActiveAlertsField.GetValue(readout) as List<Alert>; }
             catch { return result; }
             if (active == null)
@@ -1437,7 +1439,7 @@ namespace HomeBridge.BridgeTools
             try
             {
                 var mental = SafeMentalState(pawn);
-                if (!string.IsNullOrEmpty(mental)
+                if (mental != null && mental.Length > 0
                     && mental.IndexOf("Manhunter", StringComparison.OrdinalIgnoreCase) >= 0)
                 {
                     reason = "manhunter:" + mental;
@@ -1504,11 +1506,11 @@ namespace HomeBridge.BridgeTools
         /// </summary>
         private static void ClassifyHunter(Pawn pawn, int? nearest, Probe p)
         {
-            Dictionary<string, object> row;
+            Dictionary<string, object?> row;
             try { row = DescribePawn(pawn, "predatorHunt", nearest); }
             catch { return; }
 
-            Pawn prey;
+            Pawn? prey;
             var preyIsOurs = PreyBelongsToPlayer(pawn, out prey);
             var predatorIsOurs = IsPlayerFactionPawn(pawn);
 
@@ -1547,7 +1549,7 @@ namespace HomeBridge.BridgeTools
         /// with no player faction, asking who the player is would PAUSE the
         /// colony, and the harness would read that as a person pressing space.
         /// </summary>
-        private static Faction PlayerFaction()
+        private static Faction? PlayerFaction()
         {
             try { return Faction.OfPlayerSilentFail; }
             catch { return null; }
@@ -1566,7 +1568,7 @@ namespace HomeBridge.BridgeTools
         /// <summary>
         /// The prey of a `PredatorHunt` job, and whether the colony owns it.
         /// </summary>
-        private static bool PreyBelongsToPlayer(Pawn predator, out Pawn prey)
+        private static bool PreyBelongsToPlayer(Pawn predator, out Pawn? prey)
         {
             prey = null;
             try
@@ -1618,9 +1620,9 @@ namespace HomeBridge.BridgeTools
             return best;
         }
 
-        private static Dictionary<string, object> DescribePawn(Pawn pawn, string reason, int? nearest)
+        private static Dictionary<string, object?> DescribePawn(Pawn pawn, string reason, int? nearest)
         {
-            string nearestName = null;
+            string? nearestName = null;
             try
             {
                 var map = pawn.Map;
@@ -1642,7 +1644,7 @@ namespace HomeBridge.BridgeTools
             }
             catch { }
 
-            return new Dictionary<string, object>
+            return new Dictionary<string, object?>
             {
                 { "pawnId", pawn.thingIDNumber },
                 { "name", SafeName(pawn) },
@@ -1658,7 +1660,7 @@ namespace HomeBridge.BridgeTools
             };
         }
 
-        private static Dictionary<string, object> Pos(Pawn pawn)
+        private static Dictionary<string, object?>? Pos(Pawn pawn)
         {
             try
             {
@@ -1748,7 +1750,7 @@ namespace HomeBridge.BridgeTools
             catch { return null; }
         }
 
-        private static string SafeTargetKey(LocalTargetInfo target)
+        private static string? SafeTargetKey(LocalTargetInfo target)
         {
             try
             {
@@ -1760,7 +1762,7 @@ namespace HomeBridge.BridgeTools
             catch { return null; }
         }
 
-        private static Pawn SafeJobTargetPawn(Pawn attacker)
+        private static Pawn? SafeJobTargetPawn(Pawn attacker)
         {
             try
             {
@@ -1788,18 +1790,18 @@ namespace HomeBridge.BridgeTools
                        && after.BleedRate - before.BleedRate >= watch.InjuryMinBleedRateDelta);
         }
 
-        private static Dictionary<string, object> DescribeCombatBaseline(CombatPawnState s)
+        private static Dictionary<string, object?> DescribeCombatBaseline(CombatPawnState s)
         {
-            return new Dictionary<string, object>
+            return new Dictionary<string, object?>
             {
                 { "pawnId", s.PawnId }, { "pawnName", s.PawnName }, { "position", s.Position },
                 { "order", DescribeOrder(s) }, { "injuries", DescribeInjuries(s) }
             };
         }
 
-        private static Dictionary<string, object> DescribeOrder(CombatPawnState s)
+        private static Dictionary<string, object?> DescribeOrder(CombatPawnState s)
         {
-            return new Dictionary<string, object>
+            return new Dictionary<string, object?>
             {
                 { "job", s.Job }, { "targetAId", s.TargetAId },
                 { "targetBId", s.TargetBId }, { "targetCId", s.TargetCId },
@@ -1807,9 +1809,9 @@ namespace HomeBridge.BridgeTools
             };
         }
 
-        private static Dictionary<string, object> DescribeInjuries(CombatPawnState s)
+        private static Dictionary<string, object?> DescribeInjuries(CombatPawnState s)
         {
-            return new Dictionary<string, object>
+            return new Dictionary<string, object?>
             {
                 { "injuryCount", s.InjuryCount },
                 { "totalSeverity", Math.Round(s.TotalInjurySeverity, 4) },
@@ -1817,19 +1819,19 @@ namespace HomeBridge.BridgeTools
             };
         }
 
-        private static Dictionary<string, object> DescribeOrderChange(CombatPawnState before, CombatPawnState after)
+        private static Dictionary<string, object?> DescribeOrderChange(CombatPawnState before, CombatPawnState after)
         {
-            return new Dictionary<string, object>
+            return new Dictionary<string, object?>
             {
                 { "pawnId", after.PawnId }, { "pawnName", after.PawnName },
                 { "before", DescribeOrder(before) }, { "after", DescribeOrder(after) },
-                { "completed", string.IsNullOrEmpty(after.Job) || after.Job.StartsWith("Wait", StringComparison.OrdinalIgnoreCase) }
+                { "completed", after.Job == null || after.Job.Length == 0 || after.Job.StartsWith("Wait", StringComparison.OrdinalIgnoreCase) }
             };
         }
 
-        private static Dictionary<string, object> DescribeInjuryChange(CombatPawnState before, CombatPawnState after)
+        private static Dictionary<string, object?> DescribeInjuryChange(CombatPawnState before, CombatPawnState after)
         {
-            return new Dictionary<string, object>
+            return new Dictionary<string, object?>
             {
                 { "pawnId", after.PawnId }, { "pawnName", after.PawnName }, { "position", after.Position },
                 { "before", DescribeInjuries(before) }, { "after", DescribeInjuries(after) },
@@ -1839,10 +1841,10 @@ namespace HomeBridge.BridgeTools
             };
         }
 
-        private static Dictionary<string, object> DescribeMeleeThreat(Pawn attacker, Pawn target)
+        private static Dictionary<string, object?> DescribeMeleeThreat(Pawn attacker, Pawn target)
         {
             var distance = PawnDistance(attacker, target);
-            return new Dictionary<string, object>
+            return new Dictionary<string, object?>
             {
                 { "attackerId", attacker.thingIDNumber }, { "attackerName", SafeName(attacker) },
                 { "attackerDefName", attacker.def != null ? attacker.def.defName : null },
@@ -1868,7 +1870,7 @@ namespace HomeBridge.BridgeTools
             return attacker.thingIDNumber + ">" + target.thingIDNumber;
         }
 
-        internal static string SafeName(Pawn pawn)
+        internal static string? SafeName(Pawn pawn)
         {
             try { return pawn.LabelShortCap.ToString(); }
             catch
@@ -1878,7 +1880,7 @@ namespace HomeBridge.BridgeTools
             }
         }
 
-        private static string SafeFactionName(Pawn pawn) { try { return pawn.Faction != null ? pawn.Faction.Name : null; } catch { return null; } }
+        private static string? SafeFactionName(Pawn pawn) { try { return pawn.Faction != null ? pawn.Faction.Name : null; } catch { return null; } }
         internal static bool SafeIsColonist(Pawn pawn) { try { return pawn.IsColonist; } catch { return false; } }
         internal static bool SafeDowned(Pawn pawn) { try { return pawn.Downed; } catch { return false; } }
         internal static bool SafeDead(Pawn pawn) { try { return pawn.Dead; } catch { return false; } }
@@ -1887,14 +1889,14 @@ namespace HomeBridge.BridgeTools
         {
             get { return ActiveAlertsField != null && LiveMessagesField != null; }
         }
-        private static string SafeJob(Pawn pawn) { try { return pawn.CurJobDef != null ? pawn.CurJobDef.defName : null; } catch { return null; } }
-        private static string SafeMentalState(Pawn pawn) { try { return pawn.MentalStateDef != null ? pawn.MentalStateDef.defName : null; } catch { return null; } }
+        private static string? SafeJob(Pawn pawn) { try { return pawn.CurJobDef != null ? pawn.CurJobDef.defName : null; } catch { return null; } }
+        private static string? SafeMentalState(Pawn pawn) { try { return pawn.MentalStateDef != null ? pawn.MentalStateDef.defName : null; } catch { return null; } }
 
         // ------------------------------------------------------------------
         // Plumbing
         // ------------------------------------------------------------------
 
-        private static async Task<Probe> SafeProbe(IRimBridgeContext ctx, Baseline baseline, Watch watch,
+        private static async Task<Probe?> SafeProbe(IRimBridgeContext ctx, Baseline baseline, Watch watch,
             bool checkAlerts, Timing timing, CancellationToken token)
         {
             try
@@ -1911,7 +1913,7 @@ namespace HomeBridge.BridgeTools
 
         /// <summary>Keep the hit's own findings visible even though the final
         /// probe was taken after the pause, when they may already be gone.</summary>
-        private static Probe MergeHitInto(Probe final, Probe atHit, Hit hit)
+        private static Probe? MergeHitInto(Probe? final, Probe? atHit, Hit? hit)
         {
             if (final == null)
                 return atHit;
@@ -1935,9 +1937,9 @@ namespace HomeBridge.BridgeTools
         private static int Clamp(int v, int lo, int hi) { return v < lo ? lo : (v > hi ? hi : v); }
         private static float ClampFloat(float v, float lo, float hi) { return v < lo ? lo : (v > hi ? hi : v); }
 
-        private static string Str(Dictionary<string, object> d, string key)
+        private static string Str(Dictionary<string, object?> d, string key)
         {
-            object v;
+            object? v;
             if (d != null && d.TryGetValue(key, out v) && v != null)
                 return v.ToString();
             return "?";
@@ -1945,7 +1947,7 @@ namespace HomeBridge.BridgeTools
 
         private static object Failure(string error, string reason)
         {
-            return new Dictionary<string, object>
+            return new Dictionary<string, object?>
             {
                 { "success", false },
                 { "tool", ToolName },
@@ -1956,13 +1958,57 @@ namespace HomeBridge.BridgeTools
         }
 
         private static object Respond(
-            bool success, string reason, string detail, Dictionary<string, object> hitPayload,
-            Baseline baseline, Probe final, TimeSpeed requested, Stopwatch clock, Timing timing,
+            bool success, string reason, string detail, Dictionary<string, object?>? hitPayload,
+            Baseline baseline, Probe? final, TimeSpeed requested, Stopwatch clock, Timing timing,
             Watch watch, int budgetMs, int pollMs, int alertMs, bool pausedByTool, bool? pauseVerified,
-            bool hitAtEntry, List<string> notes, string error)
+            bool hitAtEntry, List<string> notes, string? error)
         {
             var endTick = final != null ? final.Tick : baseline.StartTick;
-            var payload = new Dictionary<string, object>
+            var watching = new Dictionary<string, object?>
+            {
+                { "letters", watch.Letters },
+                { "alerts", watch.Alerts },
+                { "stopOnCurrentAlerts", watch.StopOnCurrentAlerts },
+                { "ignoredAlertLabels", watch.IgnoredAlertLabels.OrderBy(x => x).ToList() },
+                { "minAlertPriority", watch.MinPriority.ToString() },
+                { "alertDebounceMs", watch.AlertDebounceMs },
+                { "messages", watch.Messages },
+                { "messageSinceTick", watch.MessageSinceTick },
+                { "messageTypesIgnored", new List<string>(watch.IgnoredMessageTypes) },
+                { "hostiles", watch.Hostiles },
+                { "ignoredHostileIds", watch.IgnoredHostileIds.OrderBy(x => x).ToList() },
+                { "huntWithin", watch.HuntWithin },
+                { "downedColonists", watch.Downed },
+                { "stopOnCurrentDownedColonists", watch.StopOnCurrentDowned },
+                { "ignoredDownedColonistIds", watch.IgnoredDownedColonistIds.OrderBy(x => x).ToList() },
+                { "healthBelowPct", watch.HealthBelowPct },
+                { "watchedPawnIds", watch.WatchedPawnIds.OrderBy(x => x).ToList() },
+                { "meleeThreatPawnIds", watch.MeleeThreatPawnIds.OrderBy(x => x).ToList() },
+                { "injuryPawnIds", watch.InjuryPawnIds.OrderBy(x => x).ToList() },
+                { "meleeThreats", watch.MeleeThreats },
+                { "meleeThreatWithin", watch.MeleeThreatWithin },
+                { "pawnOrders", watch.PawnOrders },
+                { "injuries", watch.Injuries },
+                { "injuryHook", watch.InjuryHook },
+                { "injuryHookAvailable", !watch.InjuryHook || CombatInjuryHook.IsInstalled() },
+                { "injuryStopOnNew", watch.InjuryStopOnNew },
+                { "injuryMinSeverityDelta", watch.InjuryMinSeverityDelta },
+                { "injuryMinBleedRateDelta", watch.InjuryMinBleedRateDelta },
+                { "combatCamera", watch.Camera != null && watch.Camera.Enabled },
+                { "pollIntervalMs", pollMs },
+                { "alertIntervalMs", alertMs }
+            };
+            var baselineBlock = new Dictionary<string, object?>
+            {
+                { "letterCount", baseline.LetterIds.Count },
+                { "alertCount", baseline.AlertKeys.Count },
+                { "alerts", baseline.AlertLabels },
+                { "liveMessageCount", baseline.MessageIds.Count },
+                { "downedColonists", baseline.DownedColonistNames },
+                { "ignoredHostiles", baseline.IgnoredHostileNames },
+                { "watchedPawns", baseline.WatchedPawnRows }
+            };
+            var payload = new Dictionary<string, object?>
             {
                 { "success", success },
                 { "tool", ToolName },
@@ -1986,53 +2032,11 @@ namespace HomeBridge.BridgeTools
                 { "pausedByThisTool", pausedByTool },
                 { "pauseVerified", pauseVerified },
 
-                { "watching", new Dictionary<string, object>
-                    {
-                        { "letters", watch.Letters },
-                        { "alerts", watch.Alerts },
-                        { "stopOnCurrentAlerts", watch.StopOnCurrentAlerts },
-                        { "ignoredAlertLabels", watch.IgnoredAlertLabels.OrderBy(x => x).ToList() },
-                        { "minAlertPriority", watch.MinPriority.ToString() },
-                        { "alertDebounceMs", watch.AlertDebounceMs },
-                        { "messages", watch.Messages },
-                        { "messageSinceTick", watch.MessageSinceTick },
-                        { "messageTypesIgnored", new List<string>(watch.IgnoredMessageTypes) },
-                        { "hostiles", watch.Hostiles },
-                        { "ignoredHostileIds", watch.IgnoredHostileIds.OrderBy(x => x).ToList() },
-                        { "huntWithin", watch.HuntWithin },
-                        { "downedColonists", watch.Downed },
-                        { "stopOnCurrentDownedColonists", watch.StopOnCurrentDowned },
-                        { "ignoredDownedColonistIds", watch.IgnoredDownedColonistIds.OrderBy(x => x).ToList() },
-                        { "healthBelowPct", watch.HealthBelowPct },
-                        { "watchedPawnIds", watch.WatchedPawnIds.OrderBy(x => x).ToList() },
-                        { "meleeThreatPawnIds", watch.MeleeThreatPawnIds.OrderBy(x => x).ToList() },
-                        { "injuryPawnIds", watch.InjuryPawnIds.OrderBy(x => x).ToList() },
-                        { "meleeThreats", watch.MeleeThreats },
-                        { "meleeThreatWithin", watch.MeleeThreatWithin },
-                        { "pawnOrders", watch.PawnOrders },
-                        { "injuries", watch.Injuries },
-                        { "injuryHook", watch.InjuryHook },
-                        { "injuryHookAvailable", !watch.InjuryHook || CombatInjuryHook.IsInstalled() },
-                        { "injuryStopOnNew", watch.InjuryStopOnNew },
-                        { "injuryMinSeverityDelta", watch.InjuryMinSeverityDelta },
-                        { "injuryMinBleedRateDelta", watch.InjuryMinBleedRateDelta },
-                        { "combatCamera", watch.Camera != null && watch.Camera.Enabled },
-                        { "pollIntervalMs", pollMs },
-                        { "alertIntervalMs", alertMs }
-                    } },
+                { "watching", watching },
 
                 // Every filter states itself: what was already true at entry
                 // and therefore can never fire.
-                { "baseline", new Dictionary<string, object>
-                    {
-                        { "letterCount", baseline.LetterIds.Count },
-                        { "alertCount", baseline.AlertKeys.Count },
-                        { "alerts", baseline.AlertLabels },
-                        { "liveMessageCount", baseline.MessageIds.Count },
-                        { "downedColonists", baseline.DownedColonistNames },
-                        { "ignoredHostiles", baseline.IgnoredHostileNames },
-                        { "watchedPawns", baseline.WatchedPawnRows }
-                    } },
+                { "baseline", baselineBlock },
 
                 { "timing", timing.ToPayload() },
 
@@ -2059,7 +2063,7 @@ namespace HomeBridge.BridgeTools
                 { "meleeThreats", final != null ? final.MeleeThreats : null },
                 { "pawnOrderChanges", final != null ? final.PawnOrderChanges : null },
                 { "pawnInjuries", final != null ? final.PawnInjuries : null },
-                { "injuryHookEvent", watch.InjuryHook && CombatInjuryHook.Peek() != null ? CombatInjuryHook.Peek().ToPayload() : null },
+                { "injuryHookEvent", watch.InjuryHook ? CombatInjuryHook.Peek()?.ToPayload() : null },
                 { "combatCamera", watch.Camera != null ? watch.Camera.ToPayload() : null },
 
                 { "notes", notes }
@@ -2069,8 +2073,8 @@ namespace HomeBridge.BridgeTools
                 payload["error"] = error;
             if (watch.InjuryHookDebug)
             {
-                ((Dictionary<string, object>)payload["watching"])["injuryHookStatus"] = CombatInjuryHook.Status();
-                ((Dictionary<string, object>)payload["baseline"])["injuryHookStatus"] = CombatInjuryHook.Status();
+                watching["injuryHookStatus"] = CombatInjuryHook.Status();
+                baselineBlock["injuryHookStatus"] = CombatInjuryHook.Status();
             }
             return payload;
         }
@@ -2079,7 +2083,7 @@ namespace HomeBridge.BridgeTools
         // Carriers
         // ------------------------------------------------------------------
 
-        private static void InitializeCombatCamera(CombatCameraState camera)
+        private static void InitializeCombatCamera(CombatCameraState? camera)
         {
             if (camera == null || !camera.Enabled || Find.CameraDriver == null) return;
             camera.ExpectedPosition = Find.CameraDriver.MapPosition;
@@ -2087,7 +2091,7 @@ namespace HomeBridge.BridgeTools
             camera.Initialized = true;
         }
 
-        private static void UpdateCombatCamera(CombatCameraState camera, long elapsedMs,
+        private static void UpdateCombatCamera(CombatCameraState? camera, long elapsedMs,
             bool forceFrame = false)
         {
             // The camera is a courtesy for whoever is watching, never a
@@ -2097,7 +2101,7 @@ namespace HomeBridge.BridgeTools
             catch (Exception) { if (camera != null) camera.Errors++; }
         }
 
-        private static void UpdateCombatCameraCore(CombatCameraState camera, long elapsedMs,
+        private static void UpdateCombatCameraCore(CombatCameraState? camera, long elapsedMs,
             bool forceFrame)
         {
             if (camera == null || !camera.Enabled || !camera.Initialized
@@ -2190,7 +2194,7 @@ namespace HomeBridge.BridgeTools
             public long LastFrameUnixMs; public int CooldownMs; public int CooldownSkips;
             public long ManualSuppressUntilUnixMs; public int ManualSuppressMs;
             public int Errors;
-            public object ToPayload() { return new Dictionary<string, object> {
+            public object ToPayload() { return new Dictionary<string, object?> {
                 { "enabled", Enabled }, { "manualOverride", ManualOverride },
                 { "framesApplied", FramesApplied }, { "intervalMs", IntervalMs },
                 { "errors", Errors },
@@ -2231,13 +2235,13 @@ namespace HomeBridge.BridgeTools
             public bool InjuryStopOnNew;
             public float InjuryMinSeverityDelta;
             public float InjuryMinBleedRateDelta;
-            public CombatCameraState Camera;
+            public CombatCameraState? Camera;
         }
 
         private sealed class Baseline
         {
-            public string Unavailable;
-            public object Session;
+            public string? Unavailable;
+            public object? Session;
             public int StartTick;
             public TimeSpeed StartSpeed;
             public bool StartPaused;
@@ -2246,28 +2250,28 @@ namespace HomeBridge.BridgeTools
             public readonly HashSet<string> LetterIds = new HashSet<string>(StringComparer.Ordinal);
             public readonly HashSet<string> MessageIds = new HashSet<string>(StringComparer.Ordinal);
             public readonly HashSet<string> NoticedMessageIds = new HashSet<string>(StringComparer.Ordinal);
-            public readonly List<Dictionary<string, object>> IgnoredMessages = new List<Dictionary<string, object>>();
+            public readonly List<Dictionary<string, object?>> IgnoredMessages = new List<Dictionary<string, object?>>();
             public readonly HashSet<string> AlertKeys = new HashSet<string>(StringComparer.Ordinal);
             public readonly List<string> AlertLabels = new List<string>();
             // Run-long and deduplicated by alert key: an alert suppressed on
             // forty polls is one row, not forty.
-            public readonly Dictionary<string, Dictionary<string, object>> DebouncedAlerts =
-                new Dictionary<string, Dictionary<string, object>>(StringComparer.Ordinal);
+            public readonly Dictionary<string, Dictionary<string, object?>> DebouncedAlerts =
+                new Dictionary<string, Dictionary<string, object?>>(StringComparer.Ordinal);
             public readonly HashSet<int> DownedColonists = new HashSet<int>();
             public readonly List<string> DownedColonistNames = new List<string>();
             public readonly HashSet<int> IgnoredHostiles = new HashSet<int>();
             public readonly List<string> IgnoredHostileNames = new List<string>();
             public readonly HashSet<string> MeleeIntentKeys = new HashSet<string>(StringComparer.Ordinal);
             public readonly Dictionary<int, CombatPawnState> WatchedPawns = new Dictionary<int, CombatPawnState>();
-            public readonly List<Dictionary<string, object>> WatchedPawnRows = new List<Dictionary<string, object>>();
-            public Probe EntryProbe;
+            public readonly List<Dictionary<string, object?>> WatchedPawnRows = new List<Dictionary<string, object?>>();
+            public Probe? EntryProbe;
         }
 
         private sealed class Probe
         {
             public bool Available = true;
-            public string Unavailable;
-            public object Session;
+            public string? Unavailable;
+            public object? Session;
             public int Tick;
             public TimeSpeed CurSpeed;
             public bool ForcePaused;
@@ -2275,32 +2279,32 @@ namespace HomeBridge.BridgeTools
             public int AlertsConsidered;
             public double AlertMs;
             public double ProbeMs;
-            public List<Dictionary<string, object>> NewLetters = new List<Dictionary<string, object>>();
-            public List<Dictionary<string, object>> NewMessages = new List<Dictionary<string, object>>();
-            public List<Dictionary<string, object>> StoppingMessages = new List<Dictionary<string, object>>();
-            public List<Dictionary<string, object>> NewAlerts = new List<Dictionary<string, object>>();
-            public List<Dictionary<string, object>> Hostiles = new List<Dictionary<string, object>>();
-            public List<Dictionary<string, object>> Hunters = new List<Dictionary<string, object>>();
-            public List<Dictionary<string, object>> HuntersIgnored = new List<Dictionary<string, object>>();
-            public List<Dictionary<string, object>> NewlyDowned = new List<Dictionary<string, object>>();
-            public List<Dictionary<string, object>> Hurt = new List<Dictionary<string, object>>();
-            public List<Dictionary<string, object>> MeleeThreats = new List<Dictionary<string, object>>();
-            public List<Dictionary<string, object>> PawnOrderChanges = new List<Dictionary<string, object>>();
-            public List<Dictionary<string, object>> PawnInjuries = new List<Dictionary<string, object>>();
+            public List<Dictionary<string, object?>> NewLetters = new List<Dictionary<string, object?>>();
+            public List<Dictionary<string, object?>> NewMessages = new List<Dictionary<string, object?>>();
+            public List<Dictionary<string, object?>> StoppingMessages = new List<Dictionary<string, object?>>();
+            public List<Dictionary<string, object?>> NewAlerts = new List<Dictionary<string, object?>>();
+            public List<Dictionary<string, object?>> Hostiles = new List<Dictionary<string, object?>>();
+            public List<Dictionary<string, object?>> Hunters = new List<Dictionary<string, object?>>();
+            public List<Dictionary<string, object?>> HuntersIgnored = new List<Dictionary<string, object?>>();
+            public List<Dictionary<string, object?>> NewlyDowned = new List<Dictionary<string, object?>>();
+            public List<Dictionary<string, object?>> Hurt = new List<Dictionary<string, object?>>();
+            public List<Dictionary<string, object?>> MeleeThreats = new List<Dictionary<string, object?>>();
+            public List<Dictionary<string, object?>> PawnOrderChanges = new List<Dictionary<string, object?>>();
+            public List<Dictionary<string, object?>> PawnInjuries = new List<Dictionary<string, object?>>();
         }
 
         private sealed class CombatPawnState
         {
             public int PawnId;
-            public string PawnName;
-            public Dictionary<string, object> Position;
-            public string Job;
+            public string? PawnName;
+            public Dictionary<string, object?>? Position;
+            public string? Job;
             public int? TargetAId;
             public int? TargetBId;
             public int? TargetCId;
-            public string TargetA;
-            public string TargetB;
-            public string TargetC;
+            public string? TargetA;
+            public string? TargetB;
+            public string? TargetC;
             public int InjuryCount;
             public float TotalInjurySeverity;
             public float BleedRate;
@@ -2310,9 +2314,9 @@ namespace HomeBridge.BridgeTools
         {
             public readonly string Reason;
             public readonly string Detail;
-            public readonly Dictionary<string, object> Payload;
+            public readonly Dictionary<string, object?> Payload;
 
-            public Hit(string reason, string detail, Dictionary<string, object> payload)
+            public Hit(string reason, string detail, Dictionary<string, object?> payload)
             {
                 Reason = reason;
                 Detail = detail;
@@ -2349,7 +2353,7 @@ namespace HomeBridge.BridgeTools
 
             public object ToPayload()
             {
-                return new Dictionary<string, object>
+                return new Dictionary<string, object?>
                 {
                     { "probes", _probes },
                     { "probeMsMean", _probes == 0 ? 0 : Math.Round(_probeTotal / _probes, 4) },

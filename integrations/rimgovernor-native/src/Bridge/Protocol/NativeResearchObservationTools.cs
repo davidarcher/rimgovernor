@@ -21,13 +21,12 @@ namespace HomeBridge.BridgeTools
         [Tool(ToolName, Title = "Read typed research", Description = "Bounded research projects, native requirement gates and optional bench/researcher capability. Reads existing progress and slots without initializing saved research state. No research selection or UI changes.")]
         [ToolResponse("payload", "string", "Official ProtoJSON ResearchReply; no invented CAS snapshot or frozen cursor.", Always = true)]
         public async Task<object> ReadResearch(IRimBridgeContext ctx, CancellationToken cancellationToken,
-            [ToolParameter(Description = "Official ProtoJSON ResearchRequest string.")] object request = null!)
+            [ToolParameter(Description = "Official ProtoJSON ResearchRequest string.")] object? request = null)
         {
             if (!ProtoBoundary.TryParse(ctx, ToolName, request, Obs.ResearchRequest.Parser, out var parsed, out var failure)
                 || !Validate(parsed, out failure)) return ProtoBoundary.Encode(new Obs.ResearchReply { Failure = failure });
             return await ProtoBoundary.OnMainThread(ctx, () => {
-                var map = ProtoBoundary.ResolveMap(parsed.Scope.ExpectedIdentity);
-                if (!ProtoBoundary.ValidateIdentity(parsed.Scope.ExpectedIdentity, map, out var context, out var error))
+                if (!ProtoBoundary.ValidateIdentity(parsed.Scope?.ExpectedIdentity, out var map, out var context, out var error))
                     return ProtoBoundary.Encode(new Obs.ResearchReply { Failure = error });
                 try
                 {

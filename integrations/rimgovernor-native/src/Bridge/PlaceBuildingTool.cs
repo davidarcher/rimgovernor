@@ -1,4 +1,7 @@
+#nullable enable
+
 using System;
+using System.Diagnostics.CodeAnalysis;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
@@ -121,23 +124,23 @@ namespace HomeBridge.BridgeTools
         [ToolResponse("unknownArguments", "array", "Every argument key the caller sent that this tool does not declare, sorted, case-sensitively. Empty array = every key was recognised. The host's own _rimBridgeTimeoutMs is never listed.", Always = true)]
         [ToolResponse("unknownArgumentsWarning", "string", "Present only when unknownArguments is non-empty, or when the caller's raw keys could not be read at all - in which case the empty unknownArguments means 'not known', not 'nothing unknown'. On a WRITE tool this matters twice over: a misspelled dryRun is the difference between a plan and a blueprint.", Nullable = true)]
         [ToolResponse("watch", "object", "The decorative half of the write: shown (bool), selected, inspectTab, mainTab, cameraMoved, leadMs, closesAfterSeconds, note and reason. On a real placement the camera jumps to the empty cell BEFORE the blueprint is made, then the new blueprint is selected and deselects itself. shown:false with a reason on a dry run, a refusal, or watch:false.", Always = true)]
-        public async Task<object> PlaceBuilding(
+        public async Task<object?> PlaceBuilding(
             IRimBridgeContext ctx,
             CancellationToken cancellationToken,
-            [ToolParameter(Description = "What to place: the defName or label (case-insensitive) of a buildable ThingDef or TerrainDef. ThingDefs are searched first. Legacy alias for defName; if both are sent they must agree.")] string def = null,
-            [ToolParameter(Description = "What to place: the defName (preferred) or label (case-insensitive) of a buildable ThingDef or TerrainDef. ThingDefs are searched first. If def is also sent, both must agree.")] string defName = null,
+            [ToolParameter(Description = "What to place: the defName or label (case-insensitive) of a buildable ThingDef or TerrainDef. ThingDefs are searched first. Legacy alias for defName; if both are sent they must agree.")] string? def = null,
+            [ToolParameter(Description = "What to place: the defName (preferred) or label (case-insensitive) of a buildable ThingDef or TerrainDef. ThingDefs are searched first. If def is also sent, both must agree.")] string? defName = null,
             [ToolParameter(Description = "Cell x (the building's anchor cell, the same one Thing.Position reports).", DefaultValue = -1)] int x = -1,
             [ToolParameter(Description = "Cell z.", DefaultValue = -1)] int z = -1,
             [ToolParameter(Description = "north / east / south / west, or 'all' to evaluate every rotation. Defaults to 'all' for previews; a real placement needs a single value.", DefaultValue = "all")] string rotation = "all",
-            [ToolParameter(Description = "Material defName or label. Defaults to GenStuff.DefaultStuffFor(def) when the def is made from stuff, and is ignored when it is not.")] string stuff = null,
+            [ToolParameter(Description = "Material defName or label. Defaults to GenStuff.DefaultStuffFor(def) when the def is made from stuff, and is ignored when it is not.")] string? stuff = null,
             [ToolParameter(Description = "Evaluate as though god mode were on, which skips the map-edge check. Does not enable god mode.", DefaultValue = false)] bool godMode = false,
             [ToolParameter(Description = "Required: true evaluates only; false actually places the blueprint.")] bool? dryRun = null,
             [ToolParameter(Description = "TRUE by default. On a real placement, jump the camera to the empty cell a moment BEFORE the blueprint is made, then select the new blueprint and let it deselect itself. Decorative only: it never changes what is placed. Pass false to place with no UI.", DefaultValue = true)] bool watch = true,
             [ToolParameter(Description = "How long the new blueprint stays selected, in seconds. Clamped 1..60. Ignored when watch is false or the run is a dry run.", DefaultValue = 8)] int watchSeconds = 8)
         {
-            if (string.IsNullOrWhiteSpace(def) && string.IsNullOrWhiteSpace(defName))
+            if ((def == null || def.Trim().Length == 0) && (defName == null || defName.Trim().Length == 0))
                 return BridgeCommon.WithUnknownArguments(Failure("defName is required (legacy alias: def)."), ctx, typeof(HomePlaceBuildingTools), ToolName);
-            if (!string.IsNullOrWhiteSpace(def) && !string.IsNullOrWhiteSpace(defName)
+            if (def != null && def.Trim().Length > 0 && defName != null && defName.Trim().Length > 0
                 && !string.Equals(def.Trim(), defName.Trim(), StringComparison.OrdinalIgnoreCase))
                 return BridgeCommon.WithUnknownArguments(Failure("def and defName were both supplied but do not match."), ctx, typeof(HomePlaceBuildingTools), ToolName);
             if (!dryRun.HasValue)
@@ -152,11 +155,11 @@ namespace HomeBridge.BridgeTools
         private async Task<object> PlaceBuildingCore(
             IRimBridgeContext ctx,
             CancellationToken cancellationToken,
-            string def,
+            string? def,
             int x,
             int z,
             string rotation,
-            string stuff,
+            string? stuff,
             bool godMode,
             bool dryRun,
             bool watch,
@@ -201,7 +204,7 @@ namespace HomeBridge.BridgeTools
             return await ctx.MainThread
                 .InvokeAsync(() =>
                 {
-                    Thing placedThing = null;
+                    Thing? placedThing = null;
                     var reply = Build(def, x, z, rotation, stuff, godMode, false, false, t => placedThing = t);
                     if (session == null)
                     {
@@ -219,16 +222,16 @@ namespace HomeBridge.BridgeTools
         }
 
         /// <summary>Put the watch block on a reply that is a payload.</summary>
-        internal static object Preview(string def, int x, int z, string rotation, string stuff, bool godMode = false)
+        internal static object Preview(string? def, int x, int z, string rotation, string? stuff, bool godMode = false)
         {
             var result = Build(def, x, z, rotation, stuff, godMode, true, false, null);
             Stamp(result, Watch.Skipped("dry run"));
             return result;
         }
 
-        private static void Stamp(object reply, Dictionary<string, object> watch)
+        private static void Stamp(object reply, Dictionary<string, object?> watch)
         {
-            var payload = reply as Dictionary<string, object>;
+            var payload = reply as Dictionary<string, object?>;
             if (payload != null)
                 payload["watch"] = watch;
         }
@@ -236,20 +239,20 @@ namespace HomeBridge.BridgeTools
         /// <summary>What hop 1 hands to hop 2. Failure non-null means stop.</summary>
         private sealed class Pass1Result
         {
-            internal object Failure;
-            internal Watch.Session Session;
-            internal string SkipReason;
+            internal object? Failure;
+            internal Watch.Session? Session;
+            internal string? SkipReason;
         }
 
         /// <summary>Main thread. Run the placement up to the point of no return
         /// and, when it would really place something, put the camera on the cell.
         /// Places nothing.</summary>
-        private static Pass1Result Pass1(IRimBridgeContext ctx, string defSpec, int x, int z, string rotationSpec,
-                                         string stuffSpec, bool godMode, bool wantWatch)
+        private static Pass1Result Pass1(IRimBridgeContext ctx, string? defSpec, int x, int z, string rotationSpec,
+                                         string? stuffSpec, bool godMode, bool wantWatch)
         {
             var planned = Build(defSpec, x, z, rotationSpec, stuffSpec, godMode, false, true, null);
 
-            var payload = planned as Dictionary<string, object>;
+            var payload = planned as Dictionary<string, object?>;
             if (payload == null || !BridgeCommon.Bool(payload, "success"))
             {
                 Stamp(planned, Watch.Skipped("refused"));
@@ -269,18 +272,18 @@ namespace HomeBridge.BridgeTools
         /// destructive step, so hop 1 can learn whether a real run would place
         /// anything without placing it. `onPlaced` hands the new blueprint back
         /// to the watch step inside the same hop it was made in.</summary>
-        private static object Build(string defSpec, int x, int z, string rotationSpec,
-                                    string stuffSpec, bool godMode, bool dryRun,
-                                    bool planOnly, Action<Thing> onPlaced)
+        private static object Build(string? defSpec, int x, int z, string rotationSpec,
+                                    string? stuffSpec, bool godMode, bool dryRun,
+                                    bool planOnly, Action<Thing>? onPlaced)
         {
             if (!TryGetMap(out var map, out var mapError))
                 return Failure(mapError);
 
-            if (string.IsNullOrEmpty(defSpec))
+            if (defSpec == null || defSpec.Length == 0)
                 return Failure("def is required: the defName or label of a buildable ThingDef or TerrainDef.");
 
-            BuildableDef entDef;
-            string kind;
+            BuildableDef? entDef;
+            string? kind;
             if (!TryResolveBuildable(defSpec, out entDef, out kind))
                 return Failure("No ThingDef or TerrainDef matches \"" + defSpec + "\" by defName or label.");
 
@@ -289,15 +292,15 @@ namespace HomeBridge.BridgeTools
                 return Failure("(" + x + "," + z + ") is not a cell on this map.");
 
             List<int> rotations;
-            string rotationError;
+            string? rotationError;
             if (!TryParseRotations(rotationSpec, out rotations, out rotationError))
                 return Failure(rotationError);
 
             // Stuff. GenStuff.DefaultStuffFor is what the architect menu itself
             // pre-selects, so defaulting to it makes a bridge call agree with what
             // a player clicking the same button would get.
-            ThingDef stuffDef = null;
-            string stuffNote = null;
+            ThingDef? stuffDef = null;
+            string? stuffNote = null;
             var madeFromStuff = SafeMadeFromStuff(entDef);
             if (!string.IsNullOrEmpty(stuffSpec))
             {
@@ -333,12 +336,12 @@ namespace HomeBridge.BridgeTools
                 rotationRows.Add(row);
             }
 
-            var payload = new Dictionary<string, object>
+            var payload = new Dictionary<string, object?>
             {
                 { "success", true },
                 { "tool", ToolName },
                 { "dryRun", dryRun },
-                { "def", new Dictionary<string, object>
+                { "def", new Dictionary<string, object?>
                     {
                         { "defName", entDef.defName },
                         { "label", entDef.label },
@@ -356,7 +359,7 @@ namespace HomeBridge.BridgeTools
                 { "buildableByPlayer", SafeBuildableByPlayer(entDef) },
                 { "hasBlueprintDef", SafeBlueprintDef(entDef) != null },
                 { "madeFromStuff", madeFromStuff },
-                { "stuff", stuffDef == null ? null : new Dictionary<string, object>
+                { "stuff", stuffDef == null ? null : new Dictionary<string, object?>
                     {
                         { "defName", stuffDef.defName },
                         { "label", stuffDef.label },
@@ -403,7 +406,7 @@ namespace HomeBridge.BridgeTools
             }
 
             var chosen = new Rot4(rotations[0]);
-            var chosenRow = (Dictionary<string, object>)rotationRows[0];
+            var chosenRow = (Dictionary<string, object?>)rotationRows[0];
 
             if (Equals(chosenRow["identicalBlueprintExists"], true))
             {
@@ -436,7 +439,7 @@ namespace HomeBridge.BridgeTools
 
             // NOT Faction.OfPlayer: its body is get_OfPlayerSilentFail followed by
             // Verse.Log.Error, and Log.Error calls TickManager.Pause().
-            Faction player;
+            Faction? player;
             try { player = Faction.OfPlayerSilentFail; }
             catch { player = null; }
             if (player == null)
@@ -529,7 +532,7 @@ namespace HomeBridge.BridgeTools
                 }
 
                 payload["constructionOrigin"] = ConstructionLineage.Register(blueprint, entDef);
-                payload["placed"] = new Dictionary<string, object>
+                payload["placed"] = new Dictionary<string, object?>
                 {
                     { "thingId", blueprint.GetUniqueLoadID() },
                     { "thingIDNumber", SafeInt(() => blueprint.thingIDNumber) },
@@ -563,11 +566,11 @@ namespace HomeBridge.BridgeTools
 
         // ============================================================= rotations
 
-        private static Dictionary<string, object> EvaluateRotation(
-            Map map, BuildableDef entDef, ThingDef blueprintDef, IntVec3 center, Rot4 rot,
-            ThingDef stuffDef, bool godMode, bool isCooler, bool isVent)
+        private static Dictionary<string, object?> EvaluateRotation(
+            Map map, BuildableDef entDef, ThingDef? blueprintDef, IntVec3 center, Rot4 rot,
+            ThingDef? stuffDef, bool godMode, bool isCooler, bool isVent)
         {
-            var row = new Dictionary<string, object>
+            var row = new Dictionary<string, object?>
             {
                 { "rotation", RotationNames[rot.AsInt & 3] },
                 { "rotationInt", rot.AsInt }
@@ -595,7 +598,7 @@ namespace HomeBridge.BridgeTools
             try
             {
                 rect = GenAdj.OccupiedRect(center, rot, entDef.Size);
-                row["occupiedRect"] = new Dictionary<string, object>
+                row["occupiedRect"] = new Dictionary<string, object?>
                 {
                     { "minX", rect.minX }, { "minZ", rect.minZ },
                     { "maxX", rect.maxX }, { "maxZ", rect.maxZ },
@@ -638,7 +641,7 @@ namespace HomeBridge.BridgeTools
                     {
                         if (t == null || t.def == null)
                             continue;
-                        if (blockers.Any(b => Equals(((Dictionary<string, object>)b)["thingIDNumber"], t.thingIDNumber)))
+                        if (blockers.Any(b => Equals(((Dictionary<string, object?>)b)["thingIDNumber"], t.thingIDNumber)))
                             continue;
 
                         // What the blueprint destroys the moment it is placed.
@@ -677,7 +680,7 @@ namespace HomeBridge.BridgeTools
                             (t.def == entDef || t.def.entityDefToBuild == entDef))
                             identical = true;
 
-                        blockers.Add(new Dictionary<string, object>
+                        blockers.Add(new Dictionary<string, object?>
                         {
                             { "defName", t.def.defName },
                             { "label", SafeThingLabel(t) },
@@ -723,14 +726,14 @@ namespace HomeBridge.BridgeTools
         /// sides are symmetric (EqualizeTemperaturesThroughBuilding averages the
         /// rooms at +/- Rotation.FacingCell), so they are named a and b.
         /// </summary>
-        private static Dictionary<string, object> Sides(Map map, IntVec3 center, Rot4 rot, bool isCooler)
+        private static Dictionary<string, object?> Sides(Map map, IntVec3 center, Rot4 rot, bool isCooler)
         {
             var south = center + IntVec3.South.RotatedBy(rot);
             var north = center + IntVec3.North.RotatedBy(rot);
 
             if (isCooler)
             {
-                return new Dictionary<string, object>
+                return new Dictionary<string, object?>
                 {
                     { "cold", CellFace(map, south, "the room this cooler would chill") },
                     { "hot", CellFace(map, north, "where this cooler would dump its heat") },
@@ -738,7 +741,7 @@ namespace HomeBridge.BridgeTools
                 };
             }
 
-            return new Dictionary<string, object>
+            return new Dictionary<string, object?>
             {
                 { "a", CellFace(map, north, "one side of the vent") },
                 { "b", CellFace(map, south, "the other side of the vent") },
@@ -746,9 +749,9 @@ namespace HomeBridge.BridgeTools
             };
         }
 
-        private static Dictionary<string, object> CellFace(Map map, IntVec3 c, string what)
+        private static Dictionary<string, object?> CellFace(Map map, IntVec3 c, string what)
         {
-            var face = new Dictionary<string, object>
+            var face = new Dictionary<string, object?>
             {
                 { "x", c.x }, { "z", c.z },
                 { "what", what },
@@ -793,7 +796,7 @@ namespace HomeBridge.BridgeTools
 
         // =============================================================== helpers
 
-        private static bool TryParseRotations(string spec, out List<int> rotations, out string error)
+        private static bool TryParseRotations(string spec, out List<int> rotations, [NotNullWhen(false)] out string? error)
         {
             rotations = new List<int>();
             error = null;
@@ -820,7 +823,7 @@ namespace HomeBridge.BridgeTools
             return false;
         }
 
-        private static bool TryResolveBuildable(string spec, out BuildableDef def, out string kind)
+        private static bool TryResolveBuildable(string spec, [NotNullWhen(true)] out BuildableDef? def, [NotNullWhen(true)] out string? kind)
         {
             def = null;
             kind = null;
@@ -854,7 +857,7 @@ namespace HomeBridge.BridgeTools
             return false;
         }
 
-        private static ThingDef ResolveThingDef(string spec)
+        private static ThingDef? ResolveThingDef(string? spec)
         {
             try
             {
@@ -882,12 +885,12 @@ namespace HomeBridge.BridgeTools
         /// or a Vent, which it explicitly allows and merely notes. So the stuff is
         /// dropped here rather than handed to a method that would log it.
         /// </summary>
-        private static ThingDef CostStuff(BuildableDef entDef, ThingDef stuffDef)
+        private static ThingDef? CostStuff(BuildableDef entDef, ThingDef? stuffDef)
         {
             return SafeMadeFromStuff(entDef) ? stuffDef : null;
         }
 
-        private static List<object> CostList(BuildableDef entDef, ThingDef stuffDef)
+        private static List<object> CostList(BuildableDef entDef, ThingDef? stuffDef)
         {
             var rows = new List<object>();
             try
@@ -909,7 +912,7 @@ namespace HomeBridge.BridgeTools
                 {
                     if (item == null || item.thingDef == null)
                         continue;
-                    rows.Add(new Dictionary<string, object>
+                    rows.Add(new Dictionary<string, object?>
                     {
                         { "defName", item.thingDef.defName },
                         { "label", item.thingDef.label },
@@ -936,12 +939,12 @@ namespace HomeBridge.BridgeTools
         /// `reservedByOtherBlueprints` genuinely means OTHER blueprints -- the
         /// one this call is about to create is not counted against itself.
         /// </summary>
-        private static Dictionary<string, object> Materials(Map map, BuildableDef entDef, ThingDef stuffDef)
+        private static Dictionary<string, object?> Materials(Map map, BuildableDef entDef, ThingDef? stuffDef)
         {
-            var block = new Dictionary<string, object>(StringComparer.Ordinal);
+            var block = new Dictionary<string, object?>(StringComparer.Ordinal);
             var rows = new List<object>();
 
-            List<ThingDefCountClass> cost = null;
+            List<ThingDefCountClass>? cost = null;
             try
             {
                 // errorOnNullStuff: false, and the stuff dropped for a def that
@@ -964,7 +967,7 @@ namespace HomeBridge.BridgeTools
 
             // Faction.OfPlayerSilentFail, never OfPlayer: OfPlayer ends in
             // Log.Error and Log.Error pauses the colony.
-            Faction player;
+            Faction? player;
             try { player = Faction.OfPlayerSilentFail; }
             catch { player = null; }
 
@@ -1008,7 +1011,7 @@ namespace HomeBridge.BridgeTools
                             // Ours or nobody's. A trader's crate of steel and a
                             // raider's dropped weapon are on the map and are not
                             // material this colony can spend.
-                            var owner = BridgeCommon.Try(() => t.Faction, (Faction)null);
+                            var owner = BridgeCommon.Try(() => t.Faction, (Faction?)null);
                             if (owner != null && owner != player)
                                 continue;
                             var count = Math.Max(1, BridgeCommon.Try(() => t.stackCount, 1));
@@ -1022,7 +1025,7 @@ namespace HomeBridge.BridgeTools
                             var withComps = t as ThingWithComps;
                             if (withComps != null)
                             {
-                                var comp = BridgeCommon.Try(() => withComps.GetComp<CompForbiddable>(), (CompForbiddable)null);
+                                var comp = BridgeCommon.Try(() => withComps.GetComp<CompForbiddable>(), (CompForbiddable?)null);
                                 if (comp != null && BridgeCommon.Try(() => comp.Forbidden, false))
                                     forbidden += count;
                             }
@@ -1055,7 +1058,7 @@ namespace HomeBridge.BridgeTools
                                    + " (" + string.Join(", ", why.ToArray()) + ")");
                 }
 
-                rows.Add(new Dictionary<string, object>(StringComparer.Ordinal)
+                rows.Add(new Dictionary<string, object?>(StringComparer.Ordinal)
                 {
                     { "defName", item.thingDef.defName },
                     { "label", item.thingDef.label },
@@ -1082,9 +1085,9 @@ namespace HomeBridge.BridgeTools
             return block;
         }
 
-        private static Dictionary<string, object> Notes()
+        private static Dictionary<string, object?> Notes()
         {
-            return new Dictionary<string, object>(StringComparer.Ordinal)
+            return new Dictionary<string, object?>(StringComparer.Ordinal)
             {
                 { "rotationSweep", "Designator_Build asks CanPlaceBlueprintAt with its protected placingRot field, so every bridge dry run through the architect menu answers for one fixed rotation. This tool takes the rotation as a parameter and reports all four by default." },
                 { "coolerSides", "Building_Cooler.TickRare cools Position + IntVec3.South.RotatedBy(Rotation) and pushes heat to Position + IntVec3.North.RotatedBy(Rotation). Rot4.North is the identity rotation, so an unrotated cooler chills the cell to its south." },
@@ -1106,7 +1109,7 @@ namespace HomeBridge.BridgeTools
         /// Written out by hand so a null or empty list on either side is simply
         /// "no overlap" rather than an exception.
         /// </summary>
-        private static bool TagsIntersect(ThingDef blueprintDef, ThingDef other)
+        private static bool TagsIntersect(ThingDef? blueprintDef, ThingDef other)
         {
             try
             {
@@ -1125,9 +1128,9 @@ namespace HomeBridge.BridgeTools
             catch { return false; }
         }
 
-        private static Dictionary<string, object> ThingRow(Thing thing)
+        private static Dictionary<string, object?> ThingRow(Thing thing)
         {
-            return new Dictionary<string, object>
+            return new Dictionary<string, object?>
             {
                 { "defName", thing.def != null ? thing.def.defName : null },
                 { "label", SafeThingLabel(thing) },
@@ -1150,14 +1153,14 @@ namespace HomeBridge.BridgeTools
             catch { return false; }
         }
 
-        private static Dictionary<string, object> SizeBlock(BuildableDef def)
+        private static Dictionary<string, object?>? SizeBlock(BuildableDef def)
         {
             try
             {
                 // A SIZE, not a cell: IntVec2, and the keys happen to match a
                 // position's. Not BridgeCommon.Pos.
                 var s = def.Size;
-                return new Dictionary<string, object> { { "x", s.x }, { "z", s.z } };
+                return new Dictionary<string, object?> { { "x", s.x }, { "z", s.z } };
             }
             catch { return null; }
         }
@@ -1168,7 +1171,7 @@ namespace HomeBridge.BridgeTools
             catch { return false; }
         }
 
-        private static ThingDef SafeDefaultStuff(BuildableDef def)
+        private static ThingDef? SafeDefaultStuff(BuildableDef? def)
         {
             try { return GenStuff.DefaultStuffFor(def); }
             catch { return null; }
@@ -1203,19 +1206,19 @@ namespace HomeBridge.BridgeTools
             catch { return false; }
         }
 
-        private static ThingDef SafeBlueprintDef(BuildableDef def)
+        private static ThingDef? SafeBlueprintDef(BuildableDef def)
         {
             try { return def.blueprintDef; }
             catch { return null; }
         }
 
-        private static string SafeRotationHuman(Thing thing)
+        private static string? SafeRotationHuman(Thing thing)
         {
             try { return thing.Rotation.ToStringHuman(); }
             catch { return null; }
         }
 
-        private static string SafeThingLabel(Thing thing)
+        private static string? SafeThingLabel(Thing thing)
         {
             try { return thing.LabelCapNoCount.ToString(); }
             catch
@@ -1225,14 +1228,14 @@ namespace HomeBridge.BridgeTools
             }
         }
 
-        private static string SafeFactionName(Faction faction)
+        private static string? SafeFactionName(Faction faction)
         {
             try { return faction == null ? null : faction.Name; }
             catch { return null; }
         }
 
         /// <summary>See BridgeCommon.PositionOf: {x, z}, or null if the getter throws.</summary>
-        private static Dictionary<string, object> PositionOf(Thing thing)
+        private static Dictionary<string, object?>? PositionOf(Thing thing)
         {
             return BridgeCommon.PositionOf(thing);
         }
@@ -1249,7 +1252,7 @@ namespace HomeBridge.BridgeTools
             return BridgeCommon.TryN(read);
         }
 
-        private static string SafeString(Func<string> read)
+        private static string? SafeString(Func<string?> read)
         {
             return BridgeCommon.SafeString(read);
         }
@@ -1268,13 +1271,13 @@ namespace HomeBridge.BridgeTools
 
         /// <summary>The shared map gate; see BridgeCommon.TryGetMap. The error
         /// text names this tool.</summary>
-        private static bool TryGetMap(out Map map, out string error)
+        private static bool TryGetMap([NotNullWhen(true)] out Map? map, out string error)
         {
             return BridgeCommon.TryGetMap(ToolName, out map, out error);
         }
 
         /// <summary>The shared refusal shape; see BridgeCommon.Failure.</summary>
-        private static object Failure(string error)
+        private static object Failure(string? error)
         {
             return BridgeCommon.Failure(ToolName, error);
         }

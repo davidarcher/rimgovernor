@@ -258,14 +258,22 @@ func TestClockRenewalOriginalDeadlineAndIndependentPlayerGate(t *testing.T) {
 // takes renewGate. The worker's step budget is independent of the lease
 // (issue #73), so the loop-level split is exercised against the real
 // scheduler here with a step blocked inside the Player gate.
+//
+// The renewals are not held to a wall-clock budget: a renewal that waited on
+// the Player gate would wait for the whole step, so the step's own timeout
+// is the bound and the test fails only if the step returns first. The renew
+// timeout is generous for the same reason a real one is lease-bound rather
+// than tiny: a renew whose deadline expires after dispatch is an uncertain
+// write that disables the session, which under CPU contention read as a stall.
 func TestClockRenewalContinuesDuringSlowStep(t *testing.T) {
 	t.Parallel()
 	s, _, w, _ := renewalFixture(t)
 	ctx, cancel := context.WithCancel(context.Background())
-	stepEntered, stepReleased := make(chan struct{}), make(chan struct{})
-	worker := &ClockWorker{ctx: ctx, cancel: cancel, config: ClockWorkerConfig{PollInterval: time.Hour, RenewInterval: 5 * time.Millisecond, StepInterval: time.Hour, MaxBackoff: time.Hour, PollTimeout: 50 * time.Millisecond, RenewTimeout: 50 * time.Millisecond, StepTimeout: 10 * time.Second}, done: make(chan struct{}), ready: make(chan struct{}), stopGate: make(chan struct{}, 1), disable: func() error { return nil }, cleanup: func(context.Context) error { return nil }, renew: s.RenewEpoch}
+	stepEntered, stepReleased, stepDone := make(chan struct{}), make(chan struct{}), make(chan struct{})
+	worker := &ClockWorker{ctx: ctx, cancel: cancel, config: ClockWorkerConfig{PollInterval: time.Hour, RenewInterval: 5 * time.Millisecond, StepInterval: time.Hour, MaxBackoff: time.Hour, PollTimeout: 2 * time.Second, RenewTimeout: 2 * time.Second, StepTimeout: 8 * time.Second}, done: make(chan struct{}), ready: make(chan struct{}), stopGate: make(chan struct{}, 1), disable: func() error { return nil }, cleanup: func(context.Context) error { return nil }, renew: s.RenewEpoch}
 	worker.poll = func(context.Context) (ClockPollResult, error) { return ClockPollResult{}, nil }
 	worker.step = func(ctx context.Context) (ClockSchedulerResult, error) {
+		defer close(stepDone)
 		_, _, done, err := s.player.enter(ctx, false)
 		if err != nil {
 			return ClockSchedulerResult{}, err
@@ -288,19 +296,18 @@ func TestClockRenewalContinuesDuringSlowStep(t *testing.T) {
 	})
 	select {
 	case <-stepEntered:
-	case <-time.After(time.Second):
+	case <-stepDone:
 		t.Fatal("step never entered the player gate")
 	}
-	deadline := time.After(2 * time.Second)
 	for w.observed.Load() < 3 {
 		select {
-		case <-deadline:
+		case <-stepDone:
 			t.Fatal("renewals stalled behind the slow step", w.observed.Load())
 		case <-time.After(5 * time.Millisecond):
 		}
 	}
 	select {
-	case <-worker.done:
+	case <-stepDone:
 		t.Fatal("step released before renewals were observed")
 	default:
 	}

@@ -1,3 +1,5 @@
+#nullable enable
+
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -14,14 +16,18 @@ namespace HomeBridge.BridgeTools
     internal static class WallUpgradeSafety
     {
         private static bool installed;
-        private static WallRemovalState State(bool create = false)
+        private static WallRemovalState? State()
         {
-            if (Current.Game == null) return null;
-            var state = Current.Game.GetComponent<WallRemovalState>();
-            if (state == null && create) { state = new WallRemovalState(Current.Game); Current.Game.components.Add(state); }
+            return Current.Game?.GetComponent<WallRemovalState>();
+        }
+        private static WallRemovalState Ledger()
+        {
+            var game = Current.Game ?? throw new InvalidOperationException("No loaded game holds the wall removal ledger.");
+            var state = game.GetComponent<WallRemovalState>();
+            if (state == null) { state = new WallRemovalState(game); game.components.Add(state); }
             return state;
         }
-        private static string Load => Current.Game?.GetComponent<ColonyIdentity>()?.LoadToken;
+        private static string? Load => Current.Game?.GetComponent<ColonyIdentity>()?.LoadToken;
         internal static void Install()
         {
             if (installed) return;
@@ -36,10 +42,10 @@ namespace HomeBridge.BridgeTools
                 postfix: new HarmonyMethod(typeof(WallUpgradeSafety), nameof(GuardJob)));
             installed = true;
         }
-        internal static Building Wall(Map map, string id) => map?.listerBuildings.allBuildingsColonist
+        internal static Building? Wall(Map map, string id) => map.listerBuildings.allBuildingsColonist
             .FirstOrDefault(b => b.def == ThingDefOf.Wall && b.GetUniqueLoadID() == id);
-        internal static bool Stone(Building b) => b?.Stuff?.stuffProps?.categories?.Contains(StuffCategoryDefOf.Stony) == true;
-        private static bool At(Building b, IntVec3 cell) => b != null && b.Spawned && b.Position == cell
+        internal static bool Stone(Building? b) => b?.Stuff?.stuffProps?.categories?.Contains(StuffCategoryDefOf.Stony) == true;
+        private static bool At(Building? b, IntVec3 cell) => b != null && b.Spawned && b.Position == cell
             && !b.IsForbidden(Faction.OfPlayerSilentFail) && !b.IsBurning();
         private static IntVec3 Origin(WallRemovalRecord r) => new IntVec3(r.X, 0, r.Z);
         internal static IEnumerable<IntVec3> Directions => GenAdj.CardinalDirections.Concat(new[] {
@@ -69,7 +75,7 @@ namespace HomeBridge.BridgeTools
                 yield return origin + normal - side; yield return origin + normal; yield return origin + normal + side;
             }
         }
-        internal static string Check(WallRemovalRecord r, bool ownership = true, bool requireDesignation = true)
+        internal static string? Check(WallRemovalRecord r, bool ownership = true, bool requireDesignation = true)
         {
             var map = Find.CurrentMap;
             if (map == null || map.uniqueID != r.MapId || ownership && r.Load != Load) return "Colony/load/map changed";
@@ -96,11 +102,11 @@ namespace HomeBridge.BridgeTools
                 for (int i = 0; i < cells.Count; i++) if (!At(Wall(map, r.Backup[i]), cells[i]) || !Stone(Wall(map, r.Backup[i])))
                     return "Completed stone backup enclosure is unavailable";
                 if (Corner(normal) && !CornerAccess(map, origin, normal)) return "Corner salvage and construction access is unavailable";
-                var stuff = Corner(normal) ? DefDatabase<ThingDef>.GetNamedSilentFail(r.Material ?? "") : Wall(map, r.Backup[0]).Stuff;
-                if (stuff?.stuffProps?.categories?.Contains(StuffCategoryDefOf.Stony) != true
+                var stuff = Corner(normal) ? DefDatabase<ThingDef>.GetNamedSilentFail(r.Material ?? "") : Wall(map, r.Backup[0])?.Stuff;
+                if (stuff == null || stuff.stuffProps?.categories?.Contains(StuffCategoryDefOf.Stony) != true
                     || !GenStuff.AllowedStuffsFor(ThingDefOf.Wall).Contains(stuff)
-                    || r.Backup.Any(id => Wall(map, id).Stuff != stuff)) return "Native stone replacement material changed";
-                var policy = ProductionPolicyGuard.State(); var key = ProductionPolicyGuard.Key(map, stuff.defName);
+                    || r.Backup.Any(id => Wall(map, id)?.Stuff != stuff)) return "Native stone replacement material changed";
+                var policy = ProductionPolicyGuard.LoadedState(); var key = ProductionPolicyGuard.Key(map, stuff.defName);
                 if (policy.Stopped.Contains(key)) return "Player resource policy prevents replacement";
                 var budgets = ProductionPolicyGuard.Budgets(map);
                 var required = ThingDefOf.Wall.CostListAdjusted(stuff).Where(c => c.thingDef == stuff).Sum(c => c.count);
@@ -115,10 +121,10 @@ namespace HomeBridge.BridgeTools
             }
             return RoofSupportSafety.Blocker(target, out _);
         }
-        private static WallRemovalRecord Claim(Thing t) => t == null ? null : State()?.Records.LastOrDefault(r =>
+        private static WallRemovalRecord? Claim(Thing t) => t == null ? null : State()?.Records.LastOrDefault(r =>
             r.Target == t.GetUniqueLoadID() && !r.Complete);
         /// <summary>The ledger's open removal of this exact wall, if any; read-only for the typed census.</summary>
-        internal static WallRemovalRecord Pending(Thing t) => Claim(t);
+        internal static WallRemovalRecord? Pending(Thing t) => Claim(t);
         private static void Eligible(Thing t, ref bool __result)
         {
             var r = Claim(t); if (r == null || !__result) return;
@@ -136,7 +142,7 @@ namespace HomeBridge.BridgeTools
                 return blocker != null || !Supervisor.IsActive;
             });
         }
-        private static bool BeforeRemoval(JobDriver_Deconstruct __instance, out WallRemovalRecord __state)
+        private static bool BeforeRemoval(JobDriver_Deconstruct __instance, out WallRemovalRecord? __state)
         {
             __state = Claim(__instance.job.targetA.Thing);
             if (__state == null) return true;
@@ -145,7 +151,7 @@ namespace HomeBridge.BridgeTools
             if (blocker != null) { __state.Blocker = blocker; return false; }
             return true;
         }
-        private static Exception AfterRemoval(JobDriver_Deconstruct __instance, WallRemovalRecord __state, Exception __exception)
+        private static Exception? AfterRemoval(JobDriver_Deconstruct __instance, WallRemovalRecord __state, Exception __exception)
         {
             if (__state == null || __state.Blocker != null) return __exception;
             if (__exception != null || __instance.job.targetA.Thing?.Destroyed != true)
@@ -177,7 +183,8 @@ namespace HomeBridge.BridgeTools
             foreach (var r in records) {
                 r.Blocker = "Automation stopped; pending demolition invalidated";
                 var map = Find.CurrentMap;
-                var target = map?.uniqueID == r.MapId ? Wall(map, r.Target) : null;
+                if (map == null || map.uniqueID != r.MapId) continue;
+                var target = Wall(map, r.Target);
                 if (target == null) continue;
                 // Keep the guard on an already-running job until it observes cancellation.
                 var designation = map.designationManager.DesignationOn(target, DesignationDefOf.Deconstruct);
@@ -192,12 +199,12 @@ namespace HomeBridge.BridgeTools
                 Backup = backup.ToList(), Permanent = string.IsNullOrEmpty(permanent) ? null : permanent, Material = material,
                 MapId = map.uniqueID, X = x, Z = z, Nx = nx, Nz = nz, Load = Load, UiRevision = PlayerFrame.CurrentUiRevision };
         /// <summary>Why this record cannot be admitted now, or null with the builders who could take the job. Changes nothing.</summary>
-        internal static string Prepare(WallRemovalRecord r, out List<Pawn> workers)
+        internal static string? Prepare(WallRemovalRecord r, out List<Pawn> workers)
         {
             Install();
             workers = new List<Pawn>();
             var map = Find.CurrentMap;
-            if (map == null || State(true).Records.Count >= 512) return "Native removal ledger unavailable";
+            if (map == null || Ledger().Records.Count >= 512) return "Native removal ledger unavailable";
             var wall = Wall(map, r.Target);
             if (wall == null) return "Exact native wall is unavailable";
             if (map.designationManager.DesignationOn(wall, DesignationDefOf.Deconstruct) != null)
@@ -212,10 +219,11 @@ namespace HomeBridge.BridgeTools
             return workers.Count == 0 ? "No enabled available builder with safe native access" : null;
         }
         /// <summary>Record the guarded removal and place its native deconstruct designation; null on success.</summary>
-        internal static string Commit(WallRemovalRecord r)
+        internal static string? Commit(WallRemovalRecord r)
         {
-            var map = Find.CurrentMap; var wall = Wall(map, r.Target);
-            State(true).Records.Add(r);
+            var map = Find.CurrentMap ?? throw new InvalidOperationException("No current map to commit a wall removal on.");
+            var wall = Wall(map, r.Target) ?? throw new InvalidOperationException("Exact native wall is unavailable.");
+            Ledger().Records.Add(r);
             try { new Designator_Deconstruct().DesignateThing(wall); }
             catch { r.Blocker = "Native designation outcome is uncertain"; throw; }
             return map.designationManager.DesignationOn(wall, DesignationDefOf.Deconstruct) == null
@@ -243,7 +251,8 @@ namespace HomeBridge.BridgeTools
         public async Task<object> Sites(IRimBridgeContext ctx, CancellationToken cancellationToken, string target)
             => await ctx.MainThread.InvokeAsync<object>(() => {
                 var map = Find.CurrentMap;
-                var wall = map?.listerBuildings.allBuildingsColonist.SingleOrDefault(b => b.GetUniqueLoadID() == target && b.def == ThingDefOf.Wall);
+                if (map == null) return new { success = false, error = "Exact wall unavailable" };
+                var wall = map.listerBuildings.allBuildingsColonist.SingleOrDefault(b => b.GetUniqueLoadID() == target && b.def == ThingDefOf.Wall);
                 if (wall == null) return new { success = false, error = "Exact wall unavailable" };
                 var sites = new List<object>();
                 foreach (var normal in WallUpgradeSafety.Directions) {

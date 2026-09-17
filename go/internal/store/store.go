@@ -91,19 +91,37 @@ type PlanState struct {
 }
 
 // Open accepts a filesystem path, never a caller-supplied SQLite connection URI.
+// MemoryPrefix names an in-memory database under `go test`: Open accepts
+// "file:<name>?mode=memory&cache=shared" only while testing, where the
+// per-fixture file creation, WAL/shm files and lock syscalls of a real
+// database are the dominant cost on Windows and the thing that balloons
+// when several suites compete for the disk. Production always takes a
+// path and always gets WAL.
+const MemoryPrefix = "file:"
+
 func Open(ctx context.Context, path string) (*Store, error) {
 	if path == "" {
 		return nil, errors.New("database path is empty")
 	}
-	abs, err := filepath.Abs(path)
-	if err != nil {
-		return nil, err
+	memory := testing.Testing() && strings.HasPrefix(path, MemoryPrefix)
+	var u *url.URL
+	if memory {
+		parsed, err := url.Parse(path)
+		if err != nil || parsed.Query().Get("mode") != "memory" || parsed.Query().Get("cache") != "shared" {
+			return nil, fmt.Errorf("in-memory database %q must be file:<name>?mode=memory&cache=shared", path)
+		}
+		u = parsed
+	} else {
+		abs, err := filepath.Abs(path)
+		if err != nil {
+			return nil, err
+		}
+		uriPath := filepath.ToSlash(abs)
+		if !strings.HasPrefix(uriPath, "/") {
+			uriPath = "/" + uriPath
+		}
+		u = &url.URL{Scheme: "file", Path: uriPath}
 	}
-	uriPath := filepath.ToSlash(abs)
-	if !strings.HasPrefix(uriPath, "/") {
-		uriPath = "/" + uriPath
-	}
-	u := url.URL{Scheme: "file", Path: uriPath}
 	q := u.Query()
 	q.Set("_txlock", "immediate")
 	q.Set("_busy_timeout", "25")
@@ -125,9 +143,12 @@ func Open(ctx context.Context, path string) (*Store, error) {
 		_ = db.Close()
 		return nil, err
 	}
-	if !strings.EqualFold(journal, "wal") {
+	// An in-memory database cannot be WAL and reports "memory": the single
+	// connection above is what keeps it alive, so it has no reopen semantics
+	// either. Tests that reopen by path or hold a second handle use a file.
+	if want := "wal"; !strings.EqualFold(journal, want) && !(memory && strings.EqualFold(journal, "memory")) {
 		_ = db.Close()
-		return nil, fmt.Errorf("journal mode %q, want wal", journal)
+		return nil, fmt.Errorf("journal mode %q, want %s", journal, want)
 	}
 	s := &Store{db: db}
 	if err = s.initialize(ctx); err != nil {

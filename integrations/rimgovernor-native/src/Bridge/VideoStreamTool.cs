@@ -1,3 +1,5 @@
+#nullable enable
+
 using System;
 using System.Collections;
 using System.Collections.Generic;
@@ -34,14 +36,14 @@ namespace HomeBridge.BridgeTools
     internal readonly struct VideoSourceSpec : IEquatable<VideoSourceSpec>
     {
         internal const int MinSide = 16, MaxWidth = 3840, MaxHeight = 2160;
-        internal VideoSourceSpec(VideoSourceKind kind, string pawnId, int width, int height, double framesPerSecond)
+        internal VideoSourceSpec(VideoSourceKind kind, string? pawnId, int width, int height, double framesPerSecond)
         {
             Kind = kind; PawnId = kind == VideoSourceKind.Pawn ? pawnId : null;
             Width = width; Height = height; FramesPerSecond = framesPerSecond;
         }
         internal static readonly VideoSourceSpec Screen = new VideoSourceSpec(VideoSourceKind.Screen, null, 0, 0, 60);
         internal VideoSourceKind Kind { get; }
-        internal string PawnId { get; }
+        internal string? PawnId { get; }
         internal int Width { get; }
         internal int Height { get; }
         internal double FramesPerSecond { get; }
@@ -52,8 +54,8 @@ namespace HomeBridge.BridgeTools
 
         // Normalizes a request: absent sizes and cadences take the kind's
         // defaults; anything out of range is a refusal with a reason.
-        internal static bool TryCreate(VideoSourceKind kind, string pawnId, int width, int height, double fps,
-            out VideoSourceSpec spec, out string reason)
+        internal static bool TryCreate(VideoSourceKind kind, string? pawnId, int width, int height, double fps,
+            out VideoSourceSpec spec, out string? reason)
         {
             spec = Screen; reason = null;
             if (kind == VideoSourceKind.Screen) return true;
@@ -109,8 +111,8 @@ namespace HomeBridge.BridgeTools
 
     internal readonly struct VideoLeaseStatus
     {
-        internal VideoLeaseStatus(bool supported, string unavailableDetail, bool active, string sourceId,
-            float remainingSeconds, long capturedFrames, bool topDown, bool bgra, string captureMethod,
+        internal VideoLeaseStatus(bool supported, string? unavailableDetail, bool active, string? sourceId,
+            float remainingSeconds, long capturedFrames, bool topDown, bool bgra, string? captureMethod,
             bool asyncReadbackSupported, string renderer, bool focused, int targetFrameRate, float frameSeconds,
             int vsyncCount, double refreshRate, ulong workingSetBytes, double processCpuSeconds, VideoSourceSpec source)
         {
@@ -122,14 +124,14 @@ namespace HomeBridge.BridgeTools
             ProcessCpuSeconds = processCpuSeconds; Source = source;
         }
         internal bool Supported { get; }
-        internal string UnavailableDetail { get; }
+        internal string? UnavailableDetail { get; }
         internal bool Active { get; }
-        internal string SourceId { get; }
+        internal string? SourceId { get; }
         internal float RemainingSeconds { get; }
         internal long CapturedFrames { get; }
         internal bool TopDown { get; }
         internal bool Bgra { get; }
-        internal string CaptureMethod { get; }
+        internal string? CaptureMethod { get; }
         internal bool AsyncReadbackSupported { get; }
         internal string Renderer { get; }
         internal bool Focused { get; }
@@ -154,20 +156,20 @@ namespace HomeBridge.BridgeTools
         internal readonly VideoSourceSpec Spec;
         internal readonly string Name;
         internal readonly Map Map;
-        MemoryMappedFile mapping;
-        MemoryMappedViewAccessor buffer;
-        Mutex gate;
-        FileStream file;
-        internal RenderTexture Target;
-        internal Texture2D Texture;
+        MemoryMappedFile? mapping;
+        MemoryMappedViewAccessor? buffer;
+        Mutex? gate;
+        FileStream? file;
+        internal RenderTexture? Target;
+        internal Texture2D? Texture;
         internal bool Pending;
-        internal Pawn FramePawn;
+        internal Pawn? FramePawn;
         // Each viewer's lease expiry; the source lives while any viewer holds
         // it, so one tab stopping or timing out does not end another's feed.
         internal readonly Dictionary<string, float> Holds = new Dictionary<string, float>();
         internal float Until, Next;
         internal long Sequence;
-        internal byte[] LatestFrame;
+        internal byte[]? LatestFrame;
         internal int LatestWidth, LatestHeight;
         internal double LatestCapturedUnixSeconds, LatestReadbackMs;
 
@@ -194,11 +196,12 @@ namespace HomeBridge.BridgeTools
         internal bool Open => mapping != null;
         internal double Interval => 1.0 / Spec.FramesPerSecond;
 
-        internal void Publish(int width, int height, double captured, double readbackMs, byte[] pixels, PlayerFrame view)
+        internal void Publish(int width, int height, double captured, double readbackMs, byte[] pixels, PlayerFrame? view)
         {
-            if (mapping == null) return;
+            var buffer = this.buffer;
+            if (mapping == null || buffer == null) return;
             bool held;
-            try { held = file != null ? flock(file.SafeFileHandle.DangerousGetHandle().ToInt32(), 2 | 4) == 0 : gate.WaitOne(0); }
+            try { held = file != null ? flock(file.SafeFileHandle.DangerousGetHandle().ToInt32(), 2 | 4) == 0 : gate != null && gate.WaitOne(0); }
             catch (AbandonedMutexException) { held = true; }
             if (!held) return;
             try
@@ -228,7 +231,7 @@ namespace HomeBridge.BridgeTools
             finally
             {
                 if (file != null) flock(file.SafeFileHandle.DangerousGetHandle().ToInt32(), 8);
-                else gate.ReleaseMutex();
+                else gate?.ReleaseMutex();
             }
         }
 
@@ -248,9 +251,9 @@ namespace HomeBridge.BridgeTools
     public sealed class VideoStreamDriver : MonoBehaviour
     {
         const int Capacity = VideoSource.Capacity;
-        static VideoStreamDriver instance;
+        static VideoStreamDriver? instance;
         static bool patched;
-        static Camera feedCamera;
+        static Camera? feedCamera;
         // Sources by buffer name; the screen source is the one whose spec is Screen.
         readonly Dictionary<string, VideoSource> sources = new Dictionary<string, VideoSource>();
         // Rendered sources due this frame, decided before the map draw so their
@@ -282,7 +285,7 @@ namespace HomeBridge.BridgeTools
 
         static bool Supported => !Application.isBatchMode && (Application.platform == RuntimePlatform.WindowsPlayer ||
             Application.platform == RuntimePlatform.LinuxPlayer);
-        VideoSource Screen => sources.Values.FirstOrDefault(s => !s.Spec.Rendered);
+        VideoSource? Screen => sources.Values.FirstOrDefault(s => !s.Spec.Rendered);
         string CaptureMethod(VideoSource source) => source.Spec.Rendered ? (UseAsync ? "async-gpu" : "read-pixels")
             : UsePresented ? "private-presented-window" : UseAsync ? "async-gpu" : "read-pixels";
         bool Bgra(VideoSource source) => !source.Spec.Rendered && UsePresented;
@@ -291,11 +294,13 @@ namespace HomeBridge.BridgeTools
         {
             if (!Supported) return new { supported = false, reason = "Raw video requires a rendered Windows or Linux player" };
             if (instance == null && seconds == 0) return new { supported = true, active = false };
-            var source = seconds > 0 ? Ensure().Begin(VideoSourceSpec.Screen, seconds, "") : null;
-            if (seconds == 0 && instance.Screen != null) instance.Stop(instance.Screen.Name, "");
+            var driver = Ensure();
+            var source = seconds > 0 ? driver.Begin(VideoSourceSpec.Screen, seconds, "") : null;
+            var screen = driver.Screen;
+            if (seconds == 0 && screen != null) driver.Stop(screen.Name, "");
             return new { supported = true, name = source?.Name, capacity = Capacity,
-                fps = 60, format = instance.UsePresented ? "bgra32-top-down" : "rgba32-bottom-up", error = instance.error,
-                capture = instance.UsePresented ? "private-presented-window" : instance.UseAsync ? "async-gpu" : "read-pixels",
+                fps = 60, format = driver.UsePresented ? "bgra32-top-down" : "rgba32-bottom-up", error = driver.error,
+                capture = driver.UsePresented ? "private-presented-window" : driver.UseAsync ? "async-gpu" : "read-pixels",
                 capturedFrames = source?.Sequence ?? 0,
                 cpuSeconds = System.Diagnostics.Process.GetCurrentProcess().TotalProcessorTime.TotalSeconds,
                 workingSetBytes = System.Diagnostics.Process.GetCurrentProcess().WorkingSet64,
@@ -311,11 +316,11 @@ namespace HomeBridge.BridgeTools
         // ends when its last hold is gone. viewer is the caller's viewer id
         // (empty when it sent none), so viewers with the same spec share a
         // source without ending each other's feed.
-        internal static VideoLeaseStatus LeaseTyped(int seconds, VideoSourceSpec spec, string sourceId, string viewer)
+        internal static VideoLeaseStatus LeaseTyped(int seconds, VideoSourceSpec spec, string? sourceId, string viewer)
         {
             if (!Supported)
                 return Status(null, "Raw video requires a rendered Windows or Linux player", spec, viewer);
-            VideoSource source = null;
+            VideoSource? source = null;
             if (seconds > 0)
             {
                 try { source = Ensure().Begin(spec, seconds, viewer); }
@@ -326,15 +331,17 @@ namespace HomeBridge.BridgeTools
             return Status(source, null, spec, viewer);
         }
 
-        static VideoLeaseStatus Status(VideoSource source, string unavailable, VideoSourceSpec spec, string viewer, bool supported = false)
+        static VideoLeaseStatus Status(VideoSource? source, string? unavailable, VideoSourceSpec spec, string viewer, bool supported = false)
         {
             supported = supported || unavailable == null;
-            bool active = source != null && source.Open;
-            float until = active && source.Holds.TryGetValue(viewer, out var held) ? held : source?.Until ?? 0;
-            return new VideoLeaseStatus(supported, unavailable, active, active ? source.Name : null,
+            var driver = instance;
+            var live = source != null && source.Open && driver != null ? source : null;
+            bool active = live != null;
+            float until = live != null && live.Holds.TryGetValue(viewer, out var held) ? held : source?.Until ?? 0;
+            return new VideoLeaseStatus(supported, unavailable, active, live?.Name,
                 active ? Mathf.Max(0, until - Time.realtimeSinceStartup) : 0,
-                source?.Sequence ?? 0, active && !instance.Bgra(source), active && instance.Bgra(source),
-                active ? instance.CaptureMethod(source) : null,
+                source?.Sequence ?? 0, live != null && driver != null && !driver.Bgra(live), live != null && driver != null && driver.Bgra(live),
+                live != null && driver != null ? driver.CaptureMethod(live) : null,
                 SystemInfo.supportsAsyncGPUReadback, SystemInfo.graphicsDeviceName, Application.isFocused,
                 Application.targetFrameRate, Time.unscaledDeltaTime, QualitySettings.vSyncCount,
                 UnityEngine.Screen.currentResolution.refreshRateRatio.value,
@@ -345,11 +352,11 @@ namespace HomeBridge.BridgeTools
         // Reads the same in-process bytes Publish() just captured; never touches
         // the shared buffer. A null sourceId means the screen source, or the only
         // source when no screen is leased.
-        internal static bool TryReadLatestFrame(string sourceId, out VideoFrameSnapshot frame)
+        internal static bool TryReadLatestFrame(string? sourceId, out VideoFrameSnapshot frame)
         {
             frame = default;
             if (instance == null) return false;
-            VideoSource source;
+            VideoSource? source;
             if (sourceId != null) instance.sources.TryGetValue(sourceId, out source);
             else source = instance.Screen ?? (instance.sources.Count == 1 ? instance.sources.Values.First() : null);
             if (source == null || !source.Open || source.LatestFrame == null) return false;
@@ -397,7 +404,7 @@ namespace HomeBridge.BridgeTools
 
         // Drops viewer's hold on sourceId (every source when null) and ends
         // the sources nobody holds any more; a null viewer ends them outright.
-        void Stop(string sourceId, string viewer)
+        void Stop(string? sourceId, string? viewer)
         {
             foreach (var name in sources.Keys.Where(k => sourceId == null || k == sourceId).ToArray())
             {
@@ -415,9 +422,9 @@ namespace HomeBridge.BridgeTools
 
         void RestoreDisplay()
         {
-            if (!savedVsync.HasValue) return;
-            QualitySettings.vSyncCount = savedVsync.Value;
-            Application.targetFrameRate = savedFrameRate.Value;
+            if (!(savedVsync is int vsync) || !(savedFrameRate is int frameRate)) return;
+            QualitySettings.vSyncCount = vsync;
+            Application.targetFrameRate = frameRate;
             savedVsync = savedFrameRate = null;
         }
 
@@ -503,7 +510,7 @@ namespace HomeBridge.BridgeTools
         // RenderTexture read back on a top-left-origin graphics API (D3D,
         // Metal) holds its rows top-first, for a camera render and for
         // ScreenCapture alike, so those rows are flipped before publishing.
-        void ReadbackAsync(VideoSource source, int width, int height, double captured, System.Diagnostics.Stopwatch clock, PlayerFrame view)
+        void ReadbackAsync(VideoSource source, int width, int height, double captured, System.Diagnostics.Stopwatch clock, PlayerFrame? view)
         {
             bool topDown = SystemInfo.graphicsUVStartsAtTop;
             source.Pending = true;
@@ -534,7 +541,7 @@ namespace HomeBridge.BridgeTools
             }
         }
 
-        void CapturePresented(VideoSource source, PlayerFrame view)
+        void CapturePresented(VideoSource source, PlayerFrame? view)
         {
             if (view == null || view.Width != UnityEngine.Screen.width || view.Height != UnityEngine.Screen.height) return;
             var clock = System.Diagnostics.Stopwatch.StartNew();
@@ -580,7 +587,7 @@ namespace HomeBridge.BridgeTools
 
         // The cells a feed shows: the pawn's neighbourhood at 10 cells of
         // height, or the whole map.
-        static CellRect? FeedRect(VideoSource source, Map map, Pawn pawn)
+        static CellRect? FeedRect(VideoSource source, Map map, Pawn? pawn)
         {
             if (source.Spec.Kind == VideoSourceKind.Map) return CellRect.WholeMap(map);
             if (pawn == null) return null;
@@ -593,9 +600,9 @@ namespace HomeBridge.BridgeTools
         // CameraDriver's minimum camera height; feeds always look down from there.
         const float FeedCameraAltitude = 15f;
 
-        static Pawn FeedPawn(VideoSource source, Map map) => FeedPawn(source.Spec.PawnId, map);
+        static Pawn? FeedPawn(VideoSource source, Map map) => FeedPawn(source.Spec.PawnId, map);
 
-        static Pawn FeedPawn(string pawnId, Map map)
+        static Pawn? FeedPawn(string? pawnId, Map map)
         {
             foreach (var pawn in map.mapPawns.AllPawnsSpawned)
                 if (pawn.GetUniqueLoadID() == pawnId) return pawn.Dead ? null : pawn;
@@ -610,7 +617,7 @@ namespace HomeBridge.BridgeTools
             var map = Find.CurrentMap;
             if (map == null || Find.Camera == null) return;
             var now = Time.realtimeSinceStartup;
-            List<VideoSource> gone = null;
+            List<VideoSource>? gone = null;
             foreach (var source in instance.sources.Values)
             {
                 if (!source.Spec.Rendered || !ReferenceEquals(source.Map, map) || source.Pending || now < source.Next) continue;
@@ -657,7 +664,7 @@ namespace HomeBridge.BridgeTools
             instance.dueRects.Clear();
         }
 
-        public static Exception DrawFinished(Exception __exception)
+        public static Exception? DrawFinished(Exception __exception)
         {
             if (instance != null) { instance.drawing = false; if (__exception != null) { instance.due.Clear(); instance.dueRects.Clear(); } }
             return __exception;
@@ -685,20 +692,22 @@ namespace HomeBridge.BridgeTools
             var clock = System.Diagnostics.Stopwatch.StartNew();
             EnsureTarget(source, width, height);
             var main = Find.Camera;
-            feedCamera.CopyFrom(main);
-            feedCamera.enabled = false;
-            feedCamera.targetTexture = source.Target;
-            feedCamera.aspect = (float)width / height;
-            feedCamera.orthographicSize = halfHeight;
-            feedCamera.transform.position = new Vector3(center.x, FeedCameraAltitude, center.z);
-            feedCamera.transform.rotation = main.transform.rotation;
+            var camera = feedCamera;
+            if (camera == null) return;
+            camera.CopyFrom(main);
+            camera.enabled = false;
+            camera.targetTexture = source.Target;
+            camera.aspect = (float)width / height;
+            camera.orthographicSize = halfHeight;
+            camera.transform.position = new Vector3(center.x, FeedCameraAltitude, center.z);
+            camera.transform.rotation = main.transform.rotation;
             // Silhouettes and the overlays above them are drawn at the player's
             // zoom for the player's camera; clipping their altitudes keeps the
             // feed showing the pawns themselves.
-            feedCamera.nearClipPlane = FeedCameraAltitude - AltitudeLayer.Silhouettes.AltitudeFor() + 0.005f;
-            feedCamera.farClipPlane = FeedCameraAltitude + 5f;
-            feedCamera.Render();
-            feedCamera.targetTexture = null;
+            camera.nearClipPlane = FeedCameraAltitude - AltitudeLayer.Silhouettes.AltitudeFor() + 0.005f;
+            camera.farClipPlane = FeedCameraAltitude + 5f;
+            camera.Render();
+            camera.targetTexture = null;
             if (UseAsync)
             {
                 ReadbackAsync(source, width, height, captured, clock, null);

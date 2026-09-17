@@ -1,3 +1,5 @@
+#nullable enable
+
 using System;
 using System.Reflection;
 using HarmonyLib;
@@ -11,9 +13,9 @@ namespace HomeBridge.BridgeTools
     {
         private static bool installed;
         private static int depth;
-        private static Letter current;
-        private static Game game;
-        private static string letterId;
+        private static Letter? current;
+        private static Game? game;
+        private static string? letterId;
 
         internal static void EnsurePatched()
         {
@@ -42,7 +44,7 @@ namespace HomeBridge.BridgeTools
             }
         }
 
-        internal static string Consume()
+        internal static string? Consume()
         {
             var result = ReferenceEquals(game, Current.Game) ? letterId : null;
             game = null; letterId = null;

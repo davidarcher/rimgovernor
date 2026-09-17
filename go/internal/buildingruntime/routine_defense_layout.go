@@ -185,7 +185,7 @@ func (r *RoutineDefenseLayoutPlanner) step(call, epoch context.Context) (Routine
 	if err != nil {
 		return RoutineDefenseLayoutResult{}, err
 	}
-	read, err := observation.ObserveRoutineOwned(call, r.reviewer.native, r.reviewer.clock, expected, r.reviewer.maxAge, claims)
+	read, err := r.reviewer.observeOwned(call, r.reviewer.native, expected, claims)
 	if err != nil {
 		return RoutineDefenseLayoutResult{}, err
 	}

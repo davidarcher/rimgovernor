@@ -3590,8 +3590,10 @@ type PawnDetails struct {
 	Animals            *bool                  `protobuf:"varint,7,opt,name=animals,proto3,oneof" json:"animals,omitempty"`
 	VisibleHediffsOnly *bool                  `protobuf:"varint,8,opt,name=visible_hediffs_only,json=visibleHediffsOnly,proto3,oneof" json:"visible_hediffs_only,omitempty"`
 	Work               *bool                  `protobuf:"varint,9,opt,name=work,proto3,oneof" json:"work,omitempty"`
-	unknownFields      protoimpl.UnknownFields
-	sizeCache          protoimpl.SizeCache
+	// schedule projects PawnSettings.schedule (the 24 TimetableSlot rows) on its own, independent of settings (care policy) and work (priorities).
+	Schedule      *bool `protobuf:"varint,10,opt,name=schedule,proto3,oneof" json:"schedule,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *PawnDetails) Reset() {
@@ -3683,6 +3685,13 @@ func (x *PawnDetails) GetVisibleHediffsOnly() bool {
 func (x *PawnDetails) GetWork() bool {
 	if x != nil && x.Work != nil {
 		return *x.Work
+	}
+	return false
+}
+
+func (x *PawnDetails) GetSchedule() bool {
+	if x != nil && x.Schedule != nil {
+		return *x.Schedule
 	}
 	return false
 }
@@ -27510,7 +27519,7 @@ const file_observations_proto_rawDesc = "" +
 	"\n" +
 	"\b_draftedB\x0f\n" +
 	"\r_include_deadB\x1b\n" +
-	"\x19_within_colonist_distance\"\xaf\x03\n" +
+	"\x19_within_colonist_distance\"\xdd\x03\n" +
 	"\vPawnDetails\x12\x19\n" +
 	"\x05needs\x18\x01 \x01(\bH\x00R\x05needs\x88\x01\x01\x12\x1b\n" +
 	"\x06health\x18\x02 \x01(\bH\x01R\x06health\x88\x01\x01\x12!\n" +
@@ -27520,7 +27529,9 @@ const file_observations_proto_rawDesc = "" +
 	"\x06social\x18\x06 \x01(\bH\x05R\x06social\x88\x01\x01\x12\x1d\n" +
 	"\aanimals\x18\a \x01(\bH\x06R\aanimals\x88\x01\x01\x125\n" +
 	"\x14visible_hediffs_only\x18\b \x01(\bH\aR\x12visibleHediffsOnly\x88\x01\x01\x12\x17\n" +
-	"\x04work\x18\t \x01(\bH\bR\x04work\x88\x01\x01B\b\n" +
+	"\x04work\x18\t \x01(\bH\bR\x04work\x88\x01\x01\x12\x1f\n" +
+	"\bschedule\x18\n" +
+	" \x01(\bH\tR\bschedule\x88\x01\x01B\b\n" +
 	"\x06_needsB\t\n" +
 	"\a_healthB\f\n" +
 	"\n" +
@@ -27532,7 +27543,8 @@ const file_observations_proto_rawDesc = "" +
 	"\n" +
 	"\b_animalsB\x17\n" +
 	"\x15_visible_hediffs_onlyB\a\n" +
-	"\x05_work\"\xe0\x01\n" +
+	"\x05_workB\v\n" +
+	"\t_schedule\"\xe0\x01\n" +
 	"\fPawnSnapshot\x12C\n" +
 	"\acontext\x18\x01 \x01(\v2).rimgovernor.common.v1.ObservationContextR\acontext\x12<\n" +
 	"\x05pawns\x18\x02 \x03(\v2&.rimgovernor.observations.v1.PawnStateR\x05pawns\x12M\n" +

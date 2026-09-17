@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/boundary"
-	"path/filepath"
 	"testing"
 	"time"
 
@@ -13,6 +12,7 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/executor"
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
 	"github.com/davidarcher/RimGovernor/go/internal/store"
+	"github.com/davidarcher/RimGovernor/go/internal/store/storetest"
 	k "github.com/davidarcher/RimGovernor/go/internal/wire/clockpb"
 	"google.golang.org/protobuf/proto"
 )
@@ -23,7 +23,7 @@ func TestClockWorkerDisabledRestart(t *testing.T) {
 		t.Run(scenario, func(t *testing.T) {
 			ctx := context.Background()
 			fixture, _, fake, intent := clockCoreFixture(t)
-			path := filepath.Join(t.TempDir(), "restart.sqlite")
+			path := storetest.Path(t)
 			db, err := store.Open(ctx, path)
 			if err != nil {
 				t.Fatal(err)
@@ -83,7 +83,7 @@ func TestClockWorkerDisabledRestart(t *testing.T) {
 			}
 
 			session, authority, profile := newClockSessionTest(t, db, fake)
-			player, err := NewPlayer(ctx, PlayerConfig{CallTimeout: time.Second, JournalTimeout: time.Second}, db, session, playerWorldFunc(func(context.Context) (store.World, error) { return playerWorld(intent.Snapshot), nil }))
+			player, err := NewPlayer(ctx, PlayerConfig{CallTimeout: 5 * time.Second, JournalTimeout: 5 * time.Second}, db, session, playerWorldFunc(func(context.Context) (store.World, error) { return playerWorld(intent.Snapshot), nil }))
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -99,7 +99,7 @@ func TestClockWorkerDisabledRestart(t *testing.T) {
 			if session.State().Enabled || authority.acquires.Load() != 0 {
 				t.Fatal("restart restored permission")
 			}
-			worker, err := NewClockWorker(ctx, scheduler, native, ClockWorkerConfig{PollInterval: 10 * time.Millisecond, RenewInterval: 10 * time.Millisecond, StepInterval: 10 * time.Millisecond, MaxBackoff: 100 * time.Millisecond, PollTimeout: 200 * time.Millisecond, RenewTimeout: 200 * time.Millisecond, StepTimeout: 200 * time.Millisecond, PageLimit: 128})
+			worker, err := NewClockWorker(ctx, scheduler, native, ClockWorkerConfig{PollInterval: 10 * time.Millisecond, RenewInterval: 10 * time.Millisecond, StepInterval: 10 * time.Millisecond, MaxBackoff: 100 * time.Millisecond, PollTimeout: 200 * time.Millisecond, RenewTimeout: 200 * time.Millisecond, StepTimeout: 5 * time.Second, PageLimit: 128})
 			if err != nil {
 				t.Fatal(err)
 			}

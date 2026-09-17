@@ -19,7 +19,7 @@ namespace HomeBridge.BridgeTools
             Settings=source==null || !source.HasSettings || source.Settings,
             Social=source==null || !source.HasSocial || source.Social,
             Animals=source==null || !source.HasAnimals || source.Animals,
-            VisibleHediffsOnly=source?.VisibleHediffsOnly==true, Work=source?.Work==true };
+            VisibleHediffsOnly=source?.VisibleHediffsOnly==true, Work=source?.Work==true, Schedule=source?.Schedule==true };
 
         internal static void Apply(Pawn pawn,System.Collections.Generic.List<Pawn> colonists,Obs.PawnState row,Obs.PawnDetails? requested,Common.ObservationContext context)
         {
@@ -39,19 +39,21 @@ namespace HomeBridge.BridgeTools
             }
             if(d.Equipment) row.Equipment=Equipment(pawn); else row.Issues.Add(Skipped("equipment"));
             if(d.Biography) row.Biography=Biography(pawn); else row.Issues.Add(Skipped("biography"));
-            if(d.Settings || d.Work) {
+            if(d.Settings || d.Work || d.Schedule) {
                 row.Settings=new Obs.PawnSettings();
                 // The bridge contract (go/internal/bridge/work_pawns.go's
                 // validateSettings) enforces that a PawnSettings reply carries
                 // ONLY the fields the request actually asked for: care policy
                 // (medical_care, self_tend) under d.Settings, work priorities
-                // under d.Work. Callers that request both (e.g. ReadTendPawns)
-                // must therefore get exactly their union, never the wider
-                // Assign-tab row (hostility_response, follow flags, master,
-                // allowed area, schedule) that home/pawn_config's own
-                // PawnSettingsRead.SettingsBlock/ScheduleBlock report instead.
+                // under d.Work, the 24 timetable slots under d.Schedule.
+                // Callers that request several (e.g. ReadTendPawns,
+                // ReadRoutinePawns) must therefore get exactly their union,
+                // never the wider Assign-tab row (hostility_response, follow
+                // flags, master, allowed area) that home/pawn_config's own
+                // PawnSettingsRead.SettingsBlock reports instead.
                 if(d.Settings) CarePolicy(pawn,row.Settings);
                 if(d.Work) Work(pawn,row.Settings);
+                if(d.Schedule) Schedule(pawn,row.Settings);
             } else row.Issues.Add(Skipped("settings"));
             if(d.Social) row.Social=Social(pawn,colonists);
             else row.Issues.Add(Skipped("social"));
@@ -255,6 +257,21 @@ namespace HomeBridge.BridgeTools
             if(pawn.workSettings?.Initialized!=true || !row.WorkApplies) { row.Issues.Add(Missing("work"));return; }
             var defs=DefDatabase<WorkTypeDef>.AllDefsListForReading;Require(defs.Count);
             foreach(var def in defs) row.Work.Add(new Obs.WorkSetting {DefName=Id(def.defName),Priority=pawn.workSettings.GetPriority(def),Disabled=pawn.WorkTypeIsDisabled(def)});
+        }
+
+        // Projects the pawn's 24-hour timetable as one TimetableSlot per hour
+        // (hour 0 first), the exact list RimWorld's Pawn_TimetableTracker
+        // resolves CurrentAssignment from, so the Go side can mirror the
+        // schedule fence NativeMoodReliefOperations applies
+        // (boundary.ExpectedScheduleDef). Pawns without a timetable tracker
+        // (animals, other factions) or with an unreadable/odd-length one
+        // report a "schedule" issue rather than a partial list.
+        private static void Schedule(Pawn pawn,Obs.PawnSettings row)
+        {
+            var times=pawn.timetable?.times;
+            if(times==null) { row.Issues.Add(Issue("schedule",Common.UnavailableReason.NotApplicable,"Pawn has no timetable tracker.")); return; }
+            if(times.Count!=24 || times.Any(t=>t==null)) { row.Issues.Add(Missing("schedule")); return; }
+            for(var hour=0;hour<times.Count;hour++) row.Schedule.Add(new Obs.TimetableSlot {Hour=(uint)hour,AssignmentDefName=Id(times[hour].defName)});
         }
 
         private static Obs.AnimalState Animal(Pawn pawn)

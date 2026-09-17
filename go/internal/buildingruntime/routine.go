@@ -23,6 +23,9 @@ type RoutineReviewer struct {
 	maxAge    time.Duration
 	rules     []policy.ResourceRule
 	longitude domain.Fact[float64]
+	// census retains the latest review reading for the planners of the same
+	// tick; see routineCensus.
+	census routineCensusStore
 }
 
 // RoutineCapabilities is the runtime's complete configured method set. Omitting
@@ -152,6 +155,7 @@ func (r *RoutineReviewer) step(ctx, epoch context.Context, arbiter *stepArbiter)
 		clockSchedulerLog("routine.step: observe err=%v", err)
 		return store.RoutineReviewResult{}, err
 	}
+	r.census.retain(reading, r.roomsEnabled(), claims)
 	emergency, err := policy.NewEmergencySnapshot(state.Snapshot, expected.Tick, reading.Emergency)
 	if err != nil {
 		clockSchedulerLog("routine.step: NewEmergencySnapshot err=%v", err)

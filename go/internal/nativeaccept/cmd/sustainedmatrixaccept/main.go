@@ -27,9 +27,12 @@
 //     mechanics as cmd/variantsavegen) before its watch window runs. This
 //     is the intended path for the matrix: the checked-in artifact is the
 //     JSON spec, not a multi-megabyte .rws binary, and running the matrix
-//     is what reproduces the fixture. -manifest mode needs a
+//     is what reproduces the fixture, and a save already there is the
+//     pre-generated world (issue #91): generation is a one-off,
+//     variantsavegen -manifest does it offline. -manifest mode needs a
 //     ScenarioStartFixture-built mod installed (see variantgen's doc
-//     comment); -saves mode does not.
+//     comment); -saves mode does not. Missing saves are generated before
+//     any variant runs, so -reuse-game works in both modes.
 //
 // manifests/issue-1-matrix.json is the checked-in variant list for issue
 // #1's own acceptance-bar dimensions. Baseline is Crashlanded/3 pawns --
@@ -78,7 +81,7 @@ func main() {
 	clockSpeed := flag.String("clock-speed", "Superfast", "serve's --clock-speed (Normal, Fast or Superfast); faster packs more simulated ticks into each variant's wall-clock -watch window")
 	startTimeout := flag.Duration("start-timeout", 180*time.Second, "in -manifest mode, rimworld/start_debug_game_ready timeout per generated variant")
 	stopOnError := flag.Bool("stop-on-error", false, "abort the remaining variants after the first harness error instead of continuing the matrix")
-	reuseGame := flag.Bool("reuse-game", false, "launch RimWorld once and reload each variant's save into the same process (issue #22); -saves mode only, and a variant failure retires the game and ends the matrix")
+	reuseGame := flag.Bool("reuse-game", false, "launch RimWorld once and reload each variant's save into the same process (issue #22); a variant failure retires the game and ends the matrix")
 	flag.Parse()
 	if *root == "" {
 		fmt.Fprintln(os.Stderr, "-root is required")
@@ -94,10 +97,6 @@ func main() {
 	}
 	if *saves != "" && *manifest != "" {
 		fmt.Fprintln(os.Stderr, "-saves and -manifest are mutually exclusive")
-		os.Exit(2)
-	}
-	if *reuseGame && *manifest != "" {
-		fmt.Fprintln(os.Stderr, "-reuse-game needs -saves: manifest variants are generated in their own fresh process")
 		os.Exit(2)
 	}
 
@@ -158,11 +157,60 @@ func main() {
 	report["variant_saves"] = saveNames
 	report["manifest_mode"] = *manifest != ""
 
+	// -manifest: every save the manifest names exists before any variant
+	// runs. A save already at profile/Saves is the pre-generated world and is
+	// loaded as-is; a missing one (or all of them, -regenerate) is generated
+	// now, each in its own main-menu session (variantgen.Generate), before
+	// the game the matrix runs in is opened.
+	rowFor := map[string]map[string]any{}
+	var rows []map[string]any
+	allHarnessOK := true
+	stoppedEarly := false
+	for i, v := range variants {
+		variantDir := filepath.Join(*output, sanitize(v.Save))
+		if err := os.MkdirAll(variantDir, 0755); err != nil {
+			fmt.Fprintln(os.Stderr, err)
+			os.Exit(2)
+		}
+		row := map[string]any{"save": v.Save, "output": variantDir}
+		rowFor[v.Save] = row
+		if *manifest == "" {
+			continue
+		}
+		row["variant_spec"] = v
+		if !*regenerate && variantgen.Exists(*root, v.Save) {
+			row["generated"] = "already existed at " + variantgen.SavePath(*root, v.Save)
+			continue
+		}
+		fmt.Fprintf(os.Stderr, "[%d/%d] generating variant save %q (scenario=%s seed=%s)\n", i+1, len(variants), v.Save, v.Scenario, v.Seed)
+		genDir := filepath.Join(variantDir, "generate")
+		if err := os.MkdirAll(genDir, 0755); err != nil {
+			fmt.Fprintln(os.Stderr, err)
+			os.Exit(2)
+		}
+		genCtx, genCancel := context.WithTimeout(context.Background(), *startTimeout+5*time.Minute)
+		genRow := map[string]any{}
+		genErr := variantgen.Generate(genCtx, *root, genDir, *game, !*rendered, *startTimeout, v, genRow)
+		genCancel()
+		row["generated"] = genRow
+		if genErr != nil {
+			row["generate_error"] = genErr.Error()
+			row["harness_ok"] = false
+			allHarnessOK = false
+			rows = append(rows, row)
+			if *stopOnError {
+				fmt.Fprintf(os.Stderr, "variant %q generation failed, stopping matrix early (-stop-on-error): %v\n", v.Save, genErr)
+				stoppedEarly = true
+				break
+			}
+		}
+	}
+
 	// -reuse-game: one launch for the whole matrix. Root/GameID/Headless are
 	// the same for every variant, so one prepared Config serves them all;
 	// each Run then loads its save as a case of this lifecycle.
 	var reuse *na.GameReuse
-	if *reuseGame {
+	if *reuseGame && !stoppedEarly {
 		reuseCfg := &na.Config{Root: *root, Output: *output, Headless: !*rendered, GameID: *game}
 		if err := reuseCfg.PrepareConfig(); err != nil {
 			fmt.Fprintln(os.Stderr, err)
@@ -182,46 +230,15 @@ func main() {
 		}
 	}
 
-	var rows []map[string]any
-	allHarnessOK := true
 	for i, v := range variants {
-		variantDir := filepath.Join(*output, sanitize(v.Save))
-		if err := os.MkdirAll(variantDir, 0755); err != nil {
-			fmt.Fprintln(os.Stderr, err)
-			os.Exit(2)
+		if stoppedEarly {
+			break
 		}
-		row := map[string]any{"save": v.Save, "output": variantDir}
-
-		if *manifest != "" {
-			needsGeneration := *regenerate || !variantgen.Exists(*root, v.Save)
-			row["variant_spec"] = v
-			if needsGeneration {
-				fmt.Fprintf(os.Stderr, "[%d/%d] generating variant save %q (scenario=%s seed=%s)\n", i+1, len(variants), v.Save, v.Scenario, v.Seed)
-				genDir := filepath.Join(variantDir, "generate")
-				if err := os.MkdirAll(genDir, 0755); err != nil {
-					fmt.Fprintln(os.Stderr, err)
-					os.Exit(2)
-				}
-				genCtx, genCancel := context.WithTimeout(context.Background(), *startTimeout+5*time.Minute)
-				genRow := map[string]any{}
-				genErr := variantgen.Generate(genCtx, *root, genDir, *game, !*rendered, *startTimeout, v, genRow)
-				genCancel()
-				row["generated"] = genRow
-				if genErr != nil {
-					row["generate_error"] = genErr.Error()
-					row["harness_ok"] = false
-					allHarnessOK = false
-					rows = append(rows, row)
-					if *stopOnError {
-						fmt.Fprintf(os.Stderr, "variant %q generation failed, stopping matrix early (-stop-on-error): %v\n", v.Save, genErr)
-						break
-					}
-					continue
-				}
-			} else {
-				row["generated"] = "already existed at " + variantgen.SavePath(*root, v.Save)
-			}
+		row := rowFor[v.Save]
+		if _, failed := row["generate_error"]; failed {
+			continue
 		}
+		variantDir := row["output"].(string)
 
 		fmt.Fprintf(os.Stderr, "[%d/%d] running sustained-food variant %q -> %s\n", i+1, len(variants), v.Save, variantDir)
 		variantReport := na.NewReport("variant: "+v.Save, !*rendered)

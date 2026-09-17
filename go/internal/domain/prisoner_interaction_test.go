@@ -32,8 +32,15 @@ func TestPrisonerInteractionIntentAndClosedVariants(t *testing.T) {
 	if _, err := NewPrisonerInteractionAction("prisoner-interaction-1", PrisonerInteraction{}); err == nil {
 		t.Fatal("zero intent accepted")
 	}
-	if _, err := NewPrisonerInteraction("prisoner", PrisonerInteractionMode("release")); err == nil {
-		t.Fatal("invalid interaction accepted")
+	for _, mode := range PrisonerInteractionModes {
+		if extra, err := NewPrisonerInteraction("prisoner", mode); err != nil || extra.Interaction() != mode {
+			t.Fatal(mode, err)
+		}
+	}
+	for _, invalid := range []PrisonerInteractionMode{"", "execution", "Release", "AttemptRecruit"} {
+		if _, err := NewPrisonerInteraction("prisoner", invalid); err == nil {
+			t.Fatal("invalid interaction accepted", invalid)
+		}
 	}
 	for _, invalid := range []string{"", " ", "x\x00y", strings.Repeat("x", 257), string([]byte{0xff})} {
 		if _, err := NewPrisonerInteraction(PawnID(invalid), PrisonerInteractionRecruit); err == nil {

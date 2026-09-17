@@ -30,9 +30,13 @@ namespace HomeBridge.BridgeTools
         {
             internal DecisionKind Kind { get; }
             internal Admission? Handle { get; }
+            /// <summary>The handle an Admitted decision carries; any other kind has none.</summary>
+            internal Admission AdmittedHandle => Handle ?? throw new InvalidOperationException("Decision was not admitted.");
             private readonly Operations.ExecuteReply? reply;
             private readonly Receipts.InFlight? inFlight;
             internal Operations.ExecuteReply? Reply => reply?.Clone();
+            /// <summary>The reply a Replay, InFlight or Refused decision carries; New and Admitted have none.</summary>
+            internal Operations.ExecuteReply DecidedReply => Reply ?? throw new InvalidOperationException("Decision carries no reply.");
             internal Receipts.InFlight? InFlight => inFlight?.Clone();
             internal Decision(DecisionKind kind, Admission? handle = null,
                 Operations.ExecuteReply? reply = null, Receipts.InFlight? inFlight = null)
@@ -45,8 +49,10 @@ namespace HomeBridge.BridgeTools
         {
             internal DecisionKind Kind { get; }
             internal Admission? Handle { get; }
+            internal Admission AdmittedHandle => Handle ?? throw new InvalidOperationException("Decision was not admitted.");
             private readonly Clock.ControlReply? reply;
             internal Clock.ControlReply? Reply => reply?.Clone();
+            internal Clock.ControlReply DecidedReply => Reply ?? throw new InvalidOperationException("Decision carries no reply.");
             internal ClockDecision(DecisionKind kind, Admission? handle = null, Clock.ControlReply? reply = null)
             { Kind = kind; Handle = handle; this.reply = reply; }
         }

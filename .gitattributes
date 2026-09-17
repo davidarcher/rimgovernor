@@ -4,3 +4,5 @@ go/go.mod text eol=lf
 go/go.sum text eol=lf
 go/.go-version text eol=lf
 contracts/generated/** text eol=lf
+*.sh text eol=lf
+containers/Dockerfile text eol=lf

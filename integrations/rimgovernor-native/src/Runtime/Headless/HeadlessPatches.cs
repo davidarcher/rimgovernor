@@ -33,7 +33,10 @@ namespace HeadlessRim
             Log.Message("[HeadlessRim] Applying RUNTIME patches (UI, Map, Audio)...");
 
             // UI LOOP & DRAWING
-            Patch(harmony, typeof(UIRoot_Play), "UIRootUpdate", nameof(SkipPrefix));
+            // The alert readout is the one piece of the UI loop that observation
+            // depends on (home/status, presentation_notifications, alert stop
+            // conditions); keep it running, skip the rest of the loop.
+            Patch(harmony, typeof(UIRoot_Play), "UIRootUpdate", nameof(AlertsOnlyUpdatePrefix));
             Patch(harmony, typeof(UIRoot_Entry), "UIRootOnGUI", nameof(SkipPrefix));
             Patch(harmony, typeof(UIRoot_Play), "UIRootOnGUI", nameof(SkipPrefix));
             Patch(harmony, typeof(MapInterface), "MapInterfaceOnGUI_BeforeMainTabs", nameof(SkipPrefix));
@@ -106,6 +109,19 @@ namespace HeadlessRim
         }
 
         public static bool SkipPrefix() => false;
+        private static bool alertsUpdateFaulted;
+        public static bool AlertsOnlyUpdatePrefix(AlertsReadout ___alerts)
+        {
+            if (alertsUpdateFaulted) return false;
+            try { if (Current.ProgramState == ProgramState.Playing) ___alerts?.AlertsReadoutUpdate(); }
+            catch (Exception error)
+            {
+                // Once is enough: a readout that throws headless stays off for this process.
+                alertsUpdateFaulted = true;
+                Log.Warning("[HeadlessRim] AlertsReadoutUpdate threw; alerts stay off: " + error.Message);
+            }
+            return false;
+        }
         public static bool EmptyWorldFloatMenuChoicesPrefix(ref List<FloatMenuOption> __result)
         {
             __result = new List<FloatMenuOption>();

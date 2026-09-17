@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"path/filepath"
 	"reflect"
 	"testing"
 
@@ -18,7 +17,7 @@ func moodPerson() policy.MoodPawn {
 func TestRoutineMoodDurableLifecycleAndRetirement(t *testing.T) {
 	t.Parallel()
 	ctx := context.Background()
-	path := filepath.Join(t.TempDir(), "mood.db")
+	path := memoryPath(t)
 	s := open(t, path)
 	r := routineRequest()
 	p := moodPerson()
@@ -93,7 +92,7 @@ func TestRoutineMoodDurableLifecycleAndRetirement(t *testing.T) {
 
 func TestRoutineMoodWorldResetWhileDisabled(t *testing.T) {
 	t.Parallel()
-	s := open(t, filepath.Join(t.TempDir(), "reset.db"))
+	s := open(t, memoryPath(t))
 	r := routineRequest()
 	r.Facts.MoodPawns = domain.Known([]policy.MoodPawn{moodPerson()})
 	reviewRoutine(t, s, &r)
@@ -116,7 +115,7 @@ func TestRoutineMoodWorldResetWhileDisabled(t *testing.T) {
 
 func TestRoutineMoodCompleteBoundedCohort(t *testing.T) {
 	t.Parallel()
-	s := open(t, filepath.Join(t.TempDir(), "cohort.db"))
+	s := open(t, memoryPath(t))
 	r := routineRequest()
 	rows := make([]policy.MoodPawn, 256)
 	for i := range rows {
@@ -137,7 +136,7 @@ func TestRoutineMoodRejectsCorruptHistoryAndProposals(t *testing.T) {
 	t.Parallel()
 	for _, change := range []string{"proposal", "duplicate", "inactive", "binding"} {
 		t.Run(change, func(t *testing.T) {
-			s := open(t, filepath.Join(t.TempDir(), "corrupt.db"))
+			s := open(t, memoryPath(t))
 			r := routineRequest()
 			r.Facts.MoodPawns = domain.Known([]policy.MoodPawn{moodPerson()})
 			out := reviewRoutine(t, s, &r)

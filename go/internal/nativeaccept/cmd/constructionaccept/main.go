@@ -70,29 +70,28 @@ func run(ctx context.Context, root, output, gameID string, headless bool, report
 		return err
 	}
 	report["package_files"] = files
-	gabsExecutable, err := na.GABSExecutable(root, cfg.Configuration)
+	held, err := na.OpenGame(ctx, cfg)
 	if err != nil {
 		return err
 	}
-	client, err := na.OpenSession(ctx, gabsExecutable, cfg.Configuration, gameID, 60*time.Second)
-	if err != nil {
-		return err
-	}
-	defer func() {
-		stopCtx, stopCancel := context.WithTimeout(context.Background(), 60*time.Second)
-		defer stopCancel()
-		if stopped, err := client.GamesStop(stopCtx); err == nil {
-			report["stop"] = string(stopped.Envelope)
-		} else {
-			report["stop_error"] = err.Error()
-		}
-		_ = client.Close()
-	}()
+	defer held.Close(report)
+	client := held.Client
 	h := na.NewHarness(client, output)
 
-	if _, err := na.StartDebugGame(ctx, h, nil, na.QuietRequired); err != nil {
+	names, err := h.Discovery(ctx)
+	if err != nil {
 		return err
 	}
+	if _, err := na.StartDebugGame(ctx, h, names, na.QuietRequired); err != nil {
+		return err
+	}
+	// Nothing here is about eating, sleeping or mood: the builder stays on
+	// the job for the whole run.
+	frozen, err := na.FreezeNeeds(ctx, h, names)
+	if err != nil {
+		return err
+	}
+	report["frozen_needs"] = frozen
 	if _, err := h.Call(ctx, "pause", "rimworld/set_time_speed", map[string]any{"speed": "Paused", "ultraSpeedBoost": false}); err != nil {
 		return err
 	}
@@ -110,11 +109,12 @@ func run(ctx context.Context, root, output, gameID string, headless bool, report
 	initialContext, _ := na.AsMap(initial["context"])
 	identity, _ := na.AsMap(initialContext["identity"])
 
-	// Authority is deliberately NOT acquired yet: construction-prepare and the
-	// candidate-cell/preview search below are read-only/fixture calls that need no
-	// lease at all, and the real-time-bounded lease (leaseMs is capped at 30000ms,
-	// not tick-bounded) must instead be acquired as late as possible, immediately
-	// before the first operations_execute that actually depends on it.
+	// Authority is deliberately NOT granted yet: construction-prepare and the
+	// candidate-cell/preview search below are read-only/fixture calls that need
+	// no authority at all, and fixture activity outside an authority.Owned()
+	// scope would revoke it anyway (NativeControlAuthority.RevokeExternal), so
+	// SetMode(Auto) is issued as late as possible, immediately before the first
+	// operations_execute that actually depends on it.
 	supervisor := &na.ScenarioClock{
 		Wire: func(ctx context.Context, label, method string, request map[string]any) (map[string]any, error) {
 			return h.Wire(ctx, label, method, request)
@@ -244,7 +244,7 @@ func run(ctx context.Context, root, output, gameID string, headless bool, report
 	if err := renewOrAcquire(ctx, supervisor, "frame-wait-start"); err != nil {
 		return err
 	}
-	rt := &na.ScenarioRuntime{Query: h.Call, Clock: supervisor, Report: report}
+	rt := &na.ScenarioRuntime{Query: h.Call, Clock: supervisor, Report: report, Tools: names}
 
 	// A lone prepared colonist with reachable wood finishes an ordinary Wall
 	// (small WorkToBuild, single stack of WoodLog) well inside a few hundred
@@ -436,15 +436,11 @@ func run(ctx context.Context, root, output, gameID string, headless bool, report
 }
 
 // renewOrAcquire refreshes supervisor's authority grant immediately before an
-// operations_execute that needs it. It prefers Renew (cheap, keeps the same
-// lease) but falls back to a fresh Acquire whenever the prior lease is no
-// longer renewable — most notably after NativeControlAuthority's own
-// wall-clock (not tick-bound) leaseMs deadline has already lapsed between
-// native round-trips, which unconditionally revokes the lease and advances
-// the generation (NativeControlAuthority.Invalidate/Advance), independent of
-// game-tick time. A lapsed lease is exactly the condition under which a
-// fresh Acquire is legal again (the server-side lease is already nil), so
-// this fallback is always safe to attempt after any Renew failure.
+// operations_execute that needs it. It prefers RenewAuthority (a generation
+// continuity check that keeps the existing grant) and falls back to a fresh
+// SetMode(Auto) whenever authority was revoked in between — most notably by
+// native activity outside an authority.Owned() scope
+// (NativeControlAuthority.RevokeExternal), which advances the generation.
 func renewOrAcquire(ctx context.Context, supervisor *na.ScenarioClock, label string) error {
 	if supervisor.Grant != nil {
 		if err := supervisor.RenewAuthority(ctx); err == nil {

@@ -35,8 +35,7 @@ namespace HomeBridge.BridgeTools
             if (!ProtoBoundary.TryParse(ctx, "rimgovernor/observations_read_defense_site", request!, Obs.DefenseSiteRequest.Parser, out var parsed, out var failure)
                 || !ValidateSite(parsed, out failure)) return ProtoBoundary.Encode(new Obs.DefenseSiteReply { Failure = failure });
             return await ProtoBoundary.OnMainThread(ctx, () => {
-                var map = ProtoBoundary.ResolveMap(parsed.Scope?.ExpectedIdentity!);
-                if (!ProtoBoundary.ValidateIdentity(parsed.Scope?.ExpectedIdentity!, map, out var context, out failure))
+                if (!ProtoBoundary.ValidateIdentity(parsed.Scope?.ExpectedIdentity, out var map, out var context, out failure))
                     return ProtoBoundary.Encode(new Obs.DefenseSiteReply { Failure = failure });
                 try {
                     var cells = Region(parsed.Region);
@@ -58,8 +57,7 @@ namespace HomeBridge.BridgeTools
             if (!ProtoBoundary.TryParse(ctx, "rimgovernor/observations_read_lines_of_fire", request!, Obs.LinesOfFireRequest.Parser, out var parsed, out var failure)
                 || !ValidateLines(parsed, out failure)) return ProtoBoundary.Encode(new Obs.LinesOfFireReply { Failure = failure });
             return await ProtoBoundary.OnMainThread(ctx, () => {
-                var map = ProtoBoundary.ResolveMap(parsed.Scope?.ExpectedIdentity!);
-                if (!ProtoBoundary.ValidateIdentity(parsed.Scope?.ExpectedIdentity!, map, out var context, out failure))
+                if (!ProtoBoundary.ValidateIdentity(parsed.Scope?.ExpectedIdentity, out var map, out var context, out failure))
                     return ProtoBoundary.Encode(new Obs.LinesOfFireReply { Failure = failure });
                 try {
                     var firing = parsed.FiringCells.Select(Native).ToList(); var approach = parsed.ApproachCells.Select(Native).ToList();

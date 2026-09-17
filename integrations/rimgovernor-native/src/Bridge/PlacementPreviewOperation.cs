@@ -1,5 +1,6 @@
 #nullable enable
 using System;
+using System.Diagnostics.CodeAnalysis;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -300,7 +301,7 @@ namespace HomeBridge.BridgeTools
             internal PlacementLimitException(string message) : base(message) { }
         }
 
-        internal static bool TryParseRotations(string spec, out List<int> rotations, out string? error)
+        internal static bool TryParseRotations(string spec, out List<int> rotations, [NotNullWhen(false)] out string? error)
         {
             rotations = new List<int>();
             error = null;
@@ -327,7 +328,7 @@ namespace HomeBridge.BridgeTools
             return false;
         }
 
-        internal static bool TryResolveBuildable(string spec, out BuildableDef? def, out string? kind)
+        internal static bool TryResolveBuildable(string spec, [NotNullWhen(true)] out BuildableDef? def, out string? kind)
         {
             // Exact native IDs only. Labels, trimming and case fallback are not identity.
             def = ResolveThingDef(spec);

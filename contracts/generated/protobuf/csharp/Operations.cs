@@ -234,11 +234,15 @@ namespace RimGovernor.Protocol.Operations {
             "CXRoaW5nX2RlZhgBIAEoCUgAEhYKDGNhdGVnb3J5X2RlZhgCIAEoCUgAEhwK",
             "EnNwZWNpYWxfZmlsdGVyX2RlZhgDIAEoCUgAQgwKCmRlZmluaXRpb24iTAoM",
             "U2VsZWN0b3JMaXN0EjwKCXNlbGVjdG9ycxgBIAMoCzIpLnJpbWdvdmVybm9y",
-            "Lm9wZXJhdGlvbnMudjEuRmlsdGVyU2VsZWN0b3IivgEKC0ZpbHRlclBhdGNo",
+            "Lm9wZXJhdGlvbnMudjEuRmlsdGVyU2VsZWN0b3Ii8gIKC0ZpbHRlclBhdGNo",
             "EjgKB3JlcGxhY2UYASABKAsyJy5yaW1nb3Zlcm5vci5vcGVyYXRpb25zLnYx",
             "LlNlbGVjdG9yTGlzdBI4CgVhbGxvdxgCIAMoCzIpLnJpbWdvdmVybm9yLm9w",
             "ZXJhdGlvbnMudjEuRmlsdGVyU2VsZWN0b3ISOwoIZGlzYWxsb3cYAyADKAsy",
-            "KS5yaW1nb3Zlcm5vci5vcGVyYXRpb25zLnYxLkZpbHRlclNlbGVjdG9yImMK",
+            "KS5yaW1nb3Zlcm5vci5vcGVyYXRpb25zLnYxLkZpbHRlclNlbGVjdG9yEhsK",
+            "DmhpdF9wb2ludHNfbWluGAQgASgBSACIAQESGwoOaGl0X3BvaW50c19tYXgY",
+            "BSABKAFIAYgBARIYCgtxdWFsaXR5X21pbhgGIAEoCUgCiAEBEhgKC3F1YWxp",
+            "dHlfbWF4GAcgASgJSAOIAQFCEQoPX2hpdF9wb2ludHNfbWluQhEKD19oaXRf",
+            "cG9pbnRzX21heEIOCgxfcXVhbGl0eV9taW5CDgoMX3F1YWxpdHlfbWF4ImMK",
             "CUJpbGxTdG9yZRI0CgRtb2RlGAEgASgOMiQucmltZ292ZXJub3Iub3BlcmF0",
             "aW9ucy52MS5TdG9yZU1vZGVIABIRCgd6b25lX2lkGAIgASgJSABCDQoLZGVz",
             "dGluYXRpb24iiAUKDEJpbGxTZXR0aW5ncxI/CgtyZXBlYXRfbW9kZRgBIAEo",
@@ -506,34 +510,37 @@ namespace RimGovernor.Protocol.Operations {
             "U0VSVklDRV9NRVRIT0RfUkVQQUlSEAESHAoYU0VSVklDRV9NRVRIT0RfQlJF",
             "QUtET1dOEAISGQoVU0VSVklDRV9NRVRIT0RfUkVGVUVMEAMqSAoETmVlZBIU",
             "ChBORUVEX1VOU1BFQ0lGSUVEEAASDQoJTkVFRF9GT09EEAESDQoJTkVFRF9S",
-            "RVNUEAISDAoITkVFRF9KT1kQAyqNAQoTUHJpc29uZXJJbnRlcmFjdGlvbhIk",
+            "RVNUEAISDAoITkVFRF9KT1kQAyqfAgoTUHJpc29uZXJJbnRlcmFjdGlvbhIk",
             "CiBQUklTT05FUl9JTlRFUkFDVElPTl9VTlNQRUNJRklFRBAAEigKJFBSSVNP",
             "TkVSX0lOVEVSQUNUSU9OX0FUVEVNUFRfUkVDUlVJVBABEiYKIlBSSVNPTkVS",
-            "X0lOVEVSQUNUSU9OX01BSU5UQUlOX09OTFkQAipuCgpBdHRhY2tNb2RlEhsK",
-            "F0FUVEFDS19NT0RFX1VOU1BFQ0lGSUVEEAASFAoQQVRUQUNLX01PREVfQVVU",
-            "TxABEhUKEUFUVEFDS19NT0RFX01FTEVFEAISFgoSQVRUQUNLX01PREVfUkFO",
-            "R0VEEAMqiQIKDVBhd25PcmRlcktpbmQSHwobUEFXTl9PUkRFUl9LSU5EX1VO",
-            "U1BFQ0lGSUVEEAASGQoVUEFXTl9PUkRFUl9LSU5EX0VRVUlQEAESGgoWUEFX",
-            "Tl9PUkRFUl9LSU5EX1JFU0NVRRACEhsKF1BBV05fT1JERVJfS0lORF9DQVBU",
-            "VVJFEAMSGAoUUEFXTl9PUkRFUl9LSU5EX1RFTkQQBBIYChRQQVdOX09SREVS",
-            "X0tJTkRfSEFVTBAFEhgKFFBBV05fT1JERVJfS0lORF9XT1JLEAYSGgoWUEFX",
-            "Tl9PUkRFUl9LSU5EX1JFUEFJUhAHEhkKFVBBV05fT1JERVJfS0lORF9DTEVB",
-            "ThAIKmoKDEVuZFRyYWRlS2luZBIeChpFTkRfVFJBREVfS0lORF9VTlNQRUNJ",
-            "RklFRBAAEhkKFUVORF9UUkFERV9LSU5EX0NBTkNFTBABEh8KG0VORF9UUkFE",
-            "RV9LSU5EX0NMT1NFX0RJQUxPRxACKokBCgpUcmF2ZWxLaW5kEhsKF1RSQVZF",
-            "TF9LSU5EX1VOU1BFQ0lGSUVEEAASFAoQVFJBVkVMX0tJTkRfTU9WRRABEhUK",
-            "EVRSQVZFTF9LSU5EX1ZJU0lUEAISGwoXVFJBVkVMX0tJTkRfUkVUVVJOX0hP",
-            "TUUQAxIUChBUUkFWRUxfS0lORF9TVE9QEAQyxwIKCk9wZXJhdGlvbnMSXQoH",
-            "UHJldmlldxIpLnJpbWdvdmVybm9yLm9wZXJhdGlvbnMudjEuUHJldmlld1Jl",
-            "cXVlc3QaJy5yaW1nb3Zlcm5vci5vcGVyYXRpb25zLnYxLlByZXZpZXdSZXBs",
-            "eRJdCgdFeGVjdXRlEikucmltZ292ZXJub3Iub3BlcmF0aW9ucy52MS5FeGVj",
-            "dXRlUmVxdWVzdBonLnJpbWdvdmVybm9yLm9wZXJhdGlvbnMudjEuRXhlY3V0",
-            "ZVJlcGx5EnsKEVJlbGVhc2VPd25lZERyYWZ0EjMucmltZ292ZXJub3Iub3Bl",
-            "cmF0aW9ucy52MS5SZWxlYXNlT3duZWREcmFmdFJlcXVlc3QaMS5yaW1nb3Zl",
-            "cm5vci5vcGVyYXRpb25zLnYxLlJlbGVhc2VPd25lZERyYWZ0UmVwbHlCcVpN",
-            "Z2l0aHViLmNvbS9kYXZpZGFyY2hlci9SaW1Hb3Zlcm5vci9nby9pbnRlcm5h",
-            "bC93aXJlL29wZXJhdGlvbnNwYjtvcGVyYXRpb25zcGKqAh9SaW1Hb3Zlcm5v",
-            "ci5Qcm90b2NvbC5PcGVyYXRpb25zYgZwcm90bzM="));
+            "X0lOVEVSQUNUSU9OX01BSU5UQUlOX09OTFkQAhIqCiZQUklTT05FUl9JTlRF",
+            "UkFDVElPTl9SRURVQ0VfUkVTSVNUQU5DRRADEiAKHFBSSVNPTkVSX0lOVEVS",
+            "QUNUSU9OX1JFTEVBU0UQBBIgChxQUklTT05FUl9JTlRFUkFDVElPTl9FTlNM",
+            "QVZFEAUSIAocUFJJU09ORVJfSU5URVJBQ1RJT05fQ09OVkVSVBAGKm4KCkF0",
+            "dGFja01vZGUSGwoXQVRUQUNLX01PREVfVU5TUEVDSUZJRUQQABIUChBBVFRB",
+            "Q0tfTU9ERV9BVVRPEAESFQoRQVRUQUNLX01PREVfTUVMRUUQAhIWChJBVFRB",
+            "Q0tfTU9ERV9SQU5HRUQQAyqJAgoNUGF3bk9yZGVyS2luZBIfChtQQVdOX09S",
+            "REVSX0tJTkRfVU5TUEVDSUZJRUQQABIZChVQQVdOX09SREVSX0tJTkRfRVFV",
+            "SVAQARIaChZQQVdOX09SREVSX0tJTkRfUkVTQ1VFEAISGwoXUEFXTl9PUkRF",
+            "Ul9LSU5EX0NBUFRVUkUQAxIYChRQQVdOX09SREVSX0tJTkRfVEVORBAEEhgK",
+            "FFBBV05fT1JERVJfS0lORF9IQVVMEAUSGAoUUEFXTl9PUkRFUl9LSU5EX1dP",
+            "UksQBhIaChZQQVdOX09SREVSX0tJTkRfUkVQQUlSEAcSGQoVUEFXTl9PUkRF",
+            "Ul9LSU5EX0NMRUFOEAgqagoMRW5kVHJhZGVLaW5kEh4KGkVORF9UUkFERV9L",
+            "SU5EX1VOU1BFQ0lGSUVEEAASGQoVRU5EX1RSQURFX0tJTkRfQ0FOQ0VMEAES",
+            "HwobRU5EX1RSQURFX0tJTkRfQ0xPU0VfRElBTE9HEAIqiQEKClRyYXZlbEtp",
+            "bmQSGwoXVFJBVkVMX0tJTkRfVU5TUEVDSUZJRUQQABIUChBUUkFWRUxfS0lO",
+            "RF9NT1ZFEAESFQoRVFJBVkVMX0tJTkRfVklTSVQQAhIbChdUUkFWRUxfS0lO",
+            "RF9SRVRVUk5fSE9NRRADEhQKEFRSQVZFTF9LSU5EX1NUT1AQBDLHAgoKT3Bl",
+            "cmF0aW9ucxJdCgdQcmV2aWV3EikucmltZ292ZXJub3Iub3BlcmF0aW9ucy52",
+            "MS5QcmV2aWV3UmVxdWVzdBonLnJpbWdvdmVybm9yLm9wZXJhdGlvbnMudjEu",
+            "UHJldmlld1JlcGx5El0KB0V4ZWN1dGUSKS5yaW1nb3Zlcm5vci5vcGVyYXRp",
+            "b25zLnYxLkV4ZWN1dGVSZXF1ZXN0GicucmltZ292ZXJub3Iub3BlcmF0aW9u",
+            "cy52MS5FeGVjdXRlUmVwbHkSewoRUmVsZWFzZU93bmVkRHJhZnQSMy5yaW1n",
+            "b3Zlcm5vci5vcGVyYXRpb25zLnYxLlJlbGVhc2VPd25lZERyYWZ0UmVxdWVz",
+            "dBoxLnJpbWdvdmVybm9yLm9wZXJhdGlvbnMudjEuUmVsZWFzZU93bmVkRHJh",
+            "ZnRSZXBseUJxWk1naXRodWIuY29tL2RhdmlkYXJjaGVyL1JpbUdvdmVybm9y",
+            "L2dvL2ludGVybmFsL3dpcmUvb3BlcmF0aW9uc3BiO29wZXJhdGlvbnNwYqoC",
+            "H1JpbUdvdmVybm9yLlByb3RvY29sLk9wZXJhdGlvbnNiBnByb3RvMw=="));
       descriptor = pbr::FileDescriptor.FromGeneratedCode(descriptorData,
           new pbr::FileDescriptor[] { global::RimGovernor.Protocol.Common.CommonReflection.Descriptor, global::RimGovernor.Protocol.Authority.AuthorityReflection.Descriptor, global::RimGovernor.Protocol.Placement.PlacementReflection.Descriptor, global::RimGovernor.Protocol.Receipts.ReceiptsReflection.Descriptor, },
           new pbr::GeneratedClrTypeInfo(new[] {typeof(global::RimGovernor.Protocol.Operations.ThingDesignation), typeof(global::RimGovernor.Protocol.Operations.PowerSetting), typeof(global::RimGovernor.Protocol.Operations.MedicalCare), typeof(global::RimGovernor.Protocol.Operations.HostilityResponse), typeof(global::RimGovernor.Protocol.Operations.RepeatMode), typeof(global::RimGovernor.Protocol.Operations.StoreMode), typeof(global::RimGovernor.Protocol.Operations.ZoneType), typeof(global::RimGovernor.Protocol.Operations.StoragePriority), typeof(global::RimGovernor.Protocol.Operations.FilterPreset), typeof(global::RimGovernor.Protocol.Operations.CellEdit), typeof(global::RimGovernor.Protocol.Operations.ServiceMethod), typeof(global::RimGovernor.Protocol.Operations.Need), typeof(global::RimGovernor.Protocol.Operations.PrisonerInteraction), typeof(global::RimGovernor.Protocol.Operations.AttackMode), typeof(global::RimGovernor.Protocol.Operations.PawnOrderKind), typeof(global::RimGovernor.Protocol.Operations.EndTradeKind), typeof(global::RimGovernor.Protocol.Operations.TravelKind), }, null, new pbr::GeneratedClrTypeInfo[] {
@@ -568,7 +575,7 @@ namespace RimGovernor.Protocol.Operations {
             new pbr::GeneratedClrTypeInfo(typeof(global::RimGovernor.Protocol.Operations.PatchPawn), global::RimGovernor.Protocol.Operations.PatchPawn.Parser, new[]{ "Pawn", "Work", "Schedule", "MedicalCare", "HostilityResponse", "SelfTend", "FollowDrafted", "FollowFieldwork", "AllowedArea", "Master", "Training", "Slaughter", "ReleaseToWild" }, new[]{ "MedicalCare", "HostilityResponse", "SelfTend", "FollowDrafted", "FollowFieldwork", "Slaughter", "ReleaseToWild" }, null, null, null),
             new pbr::GeneratedClrTypeInfo(typeof(global::RimGovernor.Protocol.Operations.FilterSelector), global::RimGovernor.Protocol.Operations.FilterSelector.Parser, new[]{ "ThingDef", "CategoryDef", "SpecialFilterDef" }, new[]{ "Definition" }, null, null, null),
             new pbr::GeneratedClrTypeInfo(typeof(global::RimGovernor.Protocol.Operations.SelectorList), global::RimGovernor.Protocol.Operations.SelectorList.Parser, new[]{ "Selectors" }, null, null, null, null),
-            new pbr::GeneratedClrTypeInfo(typeof(global::RimGovernor.Protocol.Operations.FilterPatch), global::RimGovernor.Protocol.Operations.FilterPatch.Parser, new[]{ "Replace", "Allow", "Disallow" }, null, null, null, null),
+            new pbr::GeneratedClrTypeInfo(typeof(global::RimGovernor.Protocol.Operations.FilterPatch), global::RimGovernor.Protocol.Operations.FilterPatch.Parser, new[]{ "Replace", "Allow", "Disallow", "HitPointsMin", "HitPointsMax", "QualityMin", "QualityMax" }, new[]{ "HitPointsMin", "HitPointsMax", "QualityMin", "QualityMax" }, null, null, null),
             new pbr::GeneratedClrTypeInfo(typeof(global::RimGovernor.Protocol.Operations.BillStore), global::RimGovernor.Protocol.Operations.BillStore.Parser, new[]{ "Mode", "ZoneId" }, new[]{ "Destination" }, null, null, null),
             new pbr::GeneratedClrTypeInfo(typeof(global::RimGovernor.Protocol.Operations.BillSettings), global::RimGovernor.Protocol.Operations.BillSettings.Parser, new[]{ "RepeatMode", "RepeatCount", "TargetCount", "UnpauseThreshold", "PauseWhenSatisfied", "Suspended", "IngredientSearchRadius", "SkillMin", "SkillMax", "Worker", "Store", "Ingredients" }, new[]{ "RepeatMode", "RepeatCount", "TargetCount", "UnpauseThreshold", "PauseWhenSatisfied", "Suspended", "IngredientSearchRadius", "SkillMin", "SkillMax" }, null, null, null),
             new pbr::GeneratedClrTypeInfo(typeof(global::RimGovernor.Protocol.Operations.AddBill), global::RimGovernor.Protocol.Operations.AddBill.Parser, new[]{ "Bench", "RecipeDef", "Settings" }, new[]{ "RecipeDef" }, null, null, null),
@@ -720,10 +727,20 @@ namespace RimGovernor.Protocol.Operations {
     [pbr::OriginalName("NEED_JOY")] Joy = 3,
   }
 
+  /// <summary>
+  /// Exclusive prisoner interaction modes. REDUCE_RESISTANCE and RELEASE are
+  /// Core; ENSLAVE and CONVERT resolve only while Ideology is active and are
+  /// refused as unsupported otherwise. Execution and non-exclusive modes stay
+  /// player-only.
+  /// </summary>
   public enum PrisonerInteraction {
     [pbr::OriginalName("PRISONER_INTERACTION_UNSPECIFIED")] Unspecified = 0,
     [pbr::OriginalName("PRISONER_INTERACTION_ATTEMPT_RECRUIT")] AttemptRecruit = 1,
     [pbr::OriginalName("PRISONER_INTERACTION_MAINTAIN_ONLY")] MaintainOnly = 2,
+    [pbr::OriginalName("PRISONER_INTERACTION_REDUCE_RESISTANCE")] ReduceResistance = 3,
+    [pbr::OriginalName("PRISONER_INTERACTION_RELEASE")] Release = 4,
+    [pbr::OriginalName("PRISONER_INTERACTION_ENSLAVE")] Enslave = 5,
+    [pbr::OriginalName("PRISONER_INTERACTION_CONVERT")] Convert = 6,
   }
 
   public enum AttackMode {
@@ -13776,6 +13793,7 @@ namespace RimGovernor.Protocol.Operations {
   {
     private static readonly pb::MessageParser<FilterPatch> _parser = new pb::MessageParser<FilterPatch>(() => new FilterPatch());
     private pb::UnknownFieldSet _unknownFields;
+    private int _hasBits0;
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
     public static pb::MessageParser<FilterPatch> Parser { get { return _parser; } }
@@ -13803,9 +13821,14 @@ namespace RimGovernor.Protocol.Operations {
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
     public FilterPatch(FilterPatch other) : this() {
+      _hasBits0 = other._hasBits0;
       replace_ = other.replace_ != null ? other.replace_.Clone() : null;
       allow_ = other.allow_.Clone();
       disallow_ = other.disallow_.Clone();
+      hitPointsMin_ = other.hitPointsMin_;
+      hitPointsMax_ = other.hitPointsMax_;
+      qualityMin_ = other.qualityMin_;
+      qualityMax_ = other.qualityMax_;
       _unknownFields = pb::UnknownFieldSet.Clone(other._unknownFields);
     }
 
@@ -13852,6 +13875,117 @@ namespace RimGovernor.Protocol.Operations {
       get { return disallow_; }
     }
 
+    /// <summary>Field number for the "hit_points_min" field.</summary>
+    public const int HitPointsMinFieldNumber = 4;
+    private readonly static double HitPointsMinDefaultValue = 0D;
+
+    private double hitPointsMin_;
+    /// <summary>
+    /// Hit-point range as fractions in [0, 1] (the storage tab's percent slider)
+    /// and quality range by QualityCategory name (Awful..Legendary); both ends
+    /// of a range are required together. Absent ranges are preserved.
+    /// </summary>
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public double HitPointsMin {
+      get { if ((_hasBits0 & 1) != 0) { return hitPointsMin_; } else { return HitPointsMinDefaultValue; } }
+      set {
+        _hasBits0 |= 1;
+        hitPointsMin_ = value;
+      }
+    }
+    /// <summary>Gets whether the "hit_points_min" field is set</summary>
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public bool HasHitPointsMin {
+      get { return (_hasBits0 & 1) != 0; }
+    }
+    /// <summary>Clears the value of the "hit_points_min" field</summary>
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public void ClearHitPointsMin() {
+      _hasBits0 &= ~1;
+    }
+
+    /// <summary>Field number for the "hit_points_max" field.</summary>
+    public const int HitPointsMaxFieldNumber = 5;
+    private readonly static double HitPointsMaxDefaultValue = 0D;
+
+    private double hitPointsMax_;
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public double HitPointsMax {
+      get { if ((_hasBits0 & 2) != 0) { return hitPointsMax_; } else { return HitPointsMaxDefaultValue; } }
+      set {
+        _hasBits0 |= 2;
+        hitPointsMax_ = value;
+      }
+    }
+    /// <summary>Gets whether the "hit_points_max" field is set</summary>
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public bool HasHitPointsMax {
+      get { return (_hasBits0 & 2) != 0; }
+    }
+    /// <summary>Clears the value of the "hit_points_max" field</summary>
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public void ClearHitPointsMax() {
+      _hasBits0 &= ~2;
+    }
+
+    /// <summary>Field number for the "quality_min" field.</summary>
+    public const int QualityMinFieldNumber = 6;
+    private readonly static string QualityMinDefaultValue = "";
+
+    private string qualityMin_;
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public string QualityMin {
+      get { return qualityMin_ ?? QualityMinDefaultValue; }
+      set {
+        qualityMin_ = pb::ProtoPreconditions.CheckNotNull(value, "value");
+      }
+    }
+    /// <summary>Gets whether the "quality_min" field is set</summary>
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public bool HasQualityMin {
+      get { return qualityMin_ != null; }
+    }
+    /// <summary>Clears the value of the "quality_min" field</summary>
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public void ClearQualityMin() {
+      qualityMin_ = null;
+    }
+
+    /// <summary>Field number for the "quality_max" field.</summary>
+    public const int QualityMaxFieldNumber = 7;
+    private readonly static string QualityMaxDefaultValue = "";
+
+    private string qualityMax_;
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public string QualityMax {
+      get { return qualityMax_ ?? QualityMaxDefaultValue; }
+      set {
+        qualityMax_ = pb::ProtoPreconditions.CheckNotNull(value, "value");
+      }
+    }
+    /// <summary>Gets whether the "quality_max" field is set</summary>
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public bool HasQualityMax {
+      get { return qualityMax_ != null; }
+    }
+    /// <summary>Clears the value of the "quality_max" field</summary>
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public void ClearQualityMax() {
+      qualityMax_ = null;
+    }
+
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
     public override bool Equals(object other) {
@@ -13870,6 +14004,10 @@ namespace RimGovernor.Protocol.Operations {
       if (!object.Equals(Replace, other.Replace)) return false;
       if(!allow_.Equals(other.allow_)) return false;
       if(!disallow_.Equals(other.disallow_)) return false;
+      if (!pbc::ProtobufEqualityComparers.BitwiseDoubleEqualityComparer.Equals(HitPointsMin, other.HitPointsMin)) return false;
+      if (!pbc::ProtobufEqualityComparers.BitwiseDoubleEqualityComparer.Equals(HitPointsMax, other.HitPointsMax)) return false;
+      if (QualityMin != other.QualityMin) return false;
+      if (QualityMax != other.QualityMax) return false;
       return Equals(_unknownFields, other._unknownFields);
     }
 
@@ -13880,6 +14018,10 @@ namespace RimGovernor.Protocol.Operations {
       if (replace_ != null) hash ^= Replace.GetHashCode();
       hash ^= allow_.GetHashCode();
       hash ^= disallow_.GetHashCode();
+      if (HasHitPointsMin) hash ^= pbc::ProtobufEqualityComparers.BitwiseDoubleEqualityComparer.GetHashCode(HitPointsMin);
+      if (HasHitPointsMax) hash ^= pbc::ProtobufEqualityComparers.BitwiseDoubleEqualityComparer.GetHashCode(HitPointsMax);
+      if (HasQualityMin) hash ^= QualityMin.GetHashCode();
+      if (HasQualityMax) hash ^= QualityMax.GetHashCode();
       if (_unknownFields != null) {
         hash ^= _unknownFields.GetHashCode();
       }
@@ -13904,6 +14046,22 @@ namespace RimGovernor.Protocol.Operations {
       }
       allow_.WriteTo(output, _repeated_allow_codec);
       disallow_.WriteTo(output, _repeated_disallow_codec);
+      if (HasHitPointsMin) {
+        output.WriteRawTag(33);
+        output.WriteDouble(HitPointsMin);
+      }
+      if (HasHitPointsMax) {
+        output.WriteRawTag(41);
+        output.WriteDouble(HitPointsMax);
+      }
+      if (HasQualityMin) {
+        output.WriteRawTag(50);
+        output.WriteString(QualityMin);
+      }
+      if (HasQualityMax) {
+        output.WriteRawTag(58);
+        output.WriteString(QualityMax);
+      }
       if (_unknownFields != null) {
         _unknownFields.WriteTo(output);
       }
@@ -13920,6 +14078,22 @@ namespace RimGovernor.Protocol.Operations {
       }
       allow_.WriteTo(ref output, _repeated_allow_codec);
       disallow_.WriteTo(ref output, _repeated_disallow_codec);
+      if (HasHitPointsMin) {
+        output.WriteRawTag(33);
+        output.WriteDouble(HitPointsMin);
+      }
+      if (HasHitPointsMax) {
+        output.WriteRawTag(41);
+        output.WriteDouble(HitPointsMax);
+      }
+      if (HasQualityMin) {
+        output.WriteRawTag(50);
+        output.WriteString(QualityMin);
+      }
+      if (HasQualityMax) {
+        output.WriteRawTag(58);
+        output.WriteString(QualityMax);
+      }
       if (_unknownFields != null) {
         _unknownFields.WriteTo(ref output);
       }
@@ -13935,6 +14109,18 @@ namespace RimGovernor.Protocol.Operations {
       }
       size += allow_.CalculateSize(_repeated_allow_codec);
       size += disallow_.CalculateSize(_repeated_disallow_codec);
+      if (HasHitPointsMin) {
+        size += 1 + 8;
+      }
+      if (HasHitPointsMax) {
+        size += 1 + 8;
+      }
+      if (HasQualityMin) {
+        size += 1 + pb::CodedOutputStream.ComputeStringSize(QualityMin);
+      }
+      if (HasQualityMax) {
+        size += 1 + pb::CodedOutputStream.ComputeStringSize(QualityMax);
+      }
       if (_unknownFields != null) {
         size += _unknownFields.CalculateSize();
       }
@@ -13955,6 +14141,18 @@ namespace RimGovernor.Protocol.Operations {
       }
       allow_.Add(other.allow_);
       disallow_.Add(other.disallow_);
+      if (other.HasHitPointsMin) {
+        HitPointsMin = other.HitPointsMin;
+      }
+      if (other.HasHitPointsMax) {
+        HitPointsMax = other.HitPointsMax;
+      }
+      if (other.HasQualityMin) {
+        QualityMin = other.QualityMin;
+      }
+      if (other.HasQualityMax) {
+        QualityMax = other.QualityMax;
+      }
       _unknownFields = pb::UnknownFieldSet.MergeFrom(_unknownFields, other._unknownFields);
     }
 
@@ -13989,6 +14187,22 @@ namespace RimGovernor.Protocol.Operations {
             disallow_.AddEntriesFrom(input, _repeated_disallow_codec);
             break;
           }
+          case 33: {
+            HitPointsMin = input.ReadDouble();
+            break;
+          }
+          case 41: {
+            HitPointsMax = input.ReadDouble();
+            break;
+          }
+          case 50: {
+            QualityMin = input.ReadString();
+            break;
+          }
+          case 58: {
+            QualityMax = input.ReadString();
+            break;
+          }
         }
       }
     #endif
@@ -14021,6 +14235,22 @@ namespace RimGovernor.Protocol.Operations {
           }
           case 26: {
             disallow_.AddEntriesFrom(ref input, _repeated_disallow_codec);
+            break;
+          }
+          case 33: {
+            HitPointsMin = input.ReadDouble();
+            break;
+          }
+          case 41: {
+            HitPointsMax = input.ReadDouble();
+            break;
+          }
+          case 50: {
+            QualityMin = input.ReadString();
+            break;
+          }
+          case 58: {
+            QualityMax = input.ReadString();
             break;
           }
         }

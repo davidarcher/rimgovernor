@@ -3,7 +3,6 @@ package buildingruntime
 import (
 	"context"
 	"errors"
-	"path/filepath"
 	"sync"
 	"sync/atomic"
 	"testing"
@@ -13,6 +12,7 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"github.com/davidarcher/RimGovernor/go/internal/executor"
 	"github.com/davidarcher/RimGovernor/go/internal/store"
+	"github.com/davidarcher/RimGovernor/go/internal/store/storetest"
 	a "github.com/davidarcher/RimGovernor/go/internal/wire/authoritypb"
 	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
 	"google.golang.org/protobuf/proto"
@@ -105,7 +105,7 @@ func (n *controlNative) Revoke(ctx context.Context, r *a.Revoke) (*a.ControlRepl
 func controlFixture(t *testing.T, stop func(context.Context) error) (*Control, *controlNative, *controlSink, string) {
 	t.Helper()
 	dir := t.TempDir()
-	db, err := store.Open(context.Background(), filepath.Join(dir, "state.db"))
+	db, err := store.Open(context.Background(), storetest.Path(t))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -115,7 +115,7 @@ func controlFixture(t *testing.T, stop func(context.Context) error) (*Control, *
 	if stop == nil {
 		stop = func(context.Context) error { return nil }
 	}
-	control, err := NewControl(context.Background(), ControlConfig{ProfileDirectory: dir, CallTimeout: time.Second, StopWrites: stop}, db, n, sink)
+	control, err := NewControl(context.Background(), ControlConfig{ProfileDirectory: dir, CallTimeout: 5 * time.Second, StopWrites: stop}, db, n, sink)
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -1,3 +1,5 @@
+#nullable enable
+
 using System.Linq;
 using HarmonyLib;
 using RimWorld;

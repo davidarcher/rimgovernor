@@ -44,12 +44,12 @@ namespace HomeBridge.BridgeTools
             if (pawn.drafter == null) return null;
             return States.TryGetValue(pawn.drafter, out var state) ? state.Exhausted ? (ulong?)null : state.Revision : 0;
         }
-        internal static string? Owner(Pawn pawn)
+        internal static string? Owner(Pawn? pawn)
         {
             Ensure();
             return pawn?.drafter != null && States.TryGetValue(pawn.drafter, out var state) ? state.Owner : null;
         }
-        internal static void Acquire(Pawn pawn, string owner)
+        internal static void Acquire(Pawn pawn, string? owner)
         {
             if (pawn?.drafter != null && pawn.Drafted && !string.IsNullOrEmpty(owner)) States.GetOrCreateValue(pawn.drafter).Owner = owner;
         }

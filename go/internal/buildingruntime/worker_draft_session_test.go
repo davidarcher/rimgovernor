@@ -14,7 +14,7 @@ import (
 // background game and intentionally has no independently synchronized mutation.
 func draftSessionWorker(t *testing.T, session *Session, journal *store.Store) *Worker {
 	t.Helper()
-	player, err := newPlayer(context.Background(), PlayerConfig{CallTimeout: time.Second, JournalTimeout: time.Second}, journal, session, session.control.config.Worlds)
+	player, err := newPlayer(context.Background(), PlayerConfig{CallTimeout: 5 * time.Second, JournalTimeout: 5 * time.Second}, journal, session, session.control.config.Worlds)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -23,7 +23,7 @@ func draftSessionWorker(t *testing.T, session *Session, journal *store.Store) *W
 			t.Error(err)
 		}
 	})
-	return &Worker{player: player, session: session, config: WorkerConfig{StepInterval: 10 * time.Millisecond, MaxBackoff: time.Second, StepTimeout: time.Second}, waits: make(map[domain.ActionID]workerWait)}
+	return &Worker{player: player, session: session, config: WorkerConfig{StepInterval: 10 * time.Millisecond, MaxBackoff: time.Second, StepTimeout: 5 * time.Second}, waits: make(map[domain.ActionID]workerWait)}
 }
 
 func TestWorkerActualDraftSessionReleasesDisabledStandalone(t *testing.T) {

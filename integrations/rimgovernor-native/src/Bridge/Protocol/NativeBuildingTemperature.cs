@@ -67,7 +67,7 @@ namespace HomeBridge.BridgeTools
                 "Building patch requires an exact current target-temperature snapshot and only target_temperature, "
                 + "in the game's -273.15 to 1000 C interface range. forbidden/power/medical/owner/forPrisoners are not implemented by this adapter.");
             if (!Valid(command)) return false;
-            thing = ProtoBoundary.ResolveMap(context).listerThings.AllThings.SingleOrDefault(t => t.GetUniqueLoadID() == command.Building.EntityId);
+            thing = ProtoBoundary.LoadedMap(context).listerThings.AllThings.SingleOrDefault(t => t.GetUniqueLoadID() == command.Building.EntityId);
             if (thing == null || !Eligible(thing))
             { failure = ProtoBoundary.Fail(Common.FailureCode.NotFound, "Exact building with CompTempControl is unavailable."); return false; }
             if (Snapshot(thing, context)?.Token != command.Building.ExpectedSnapshotToken)
@@ -106,8 +106,8 @@ namespace HomeBridge.BridgeTools
                 context.NativeGeneration = guard.Snapshot.Generation;
                 if (!guard.Success) return new Operations.ExecuteReply { Failure = NativeAuthorityControlTools.Refusal(guard.Error, context) };
                 var admitted = state.Ledger.Admit("rimgovernor.operations.v1.Operations/Execute", request, context);
-                if (admitted.Kind != NativeAttemptLedger.DecisionKind.Admitted) return admitted.Reply!;
-                handle = admitted.Handle;
+                if (admitted.Kind != NativeAttemptLedger.DecisionKind.Admitted) return admitted.DecidedReply;
+                handle = admitted.AdmittedHandle;
                 // Track even a readback failure. A setter cannot un-happen.
                 state.BuildingTemperatures.Add(pre.Attempt.Clone(), command.Clone());
                 using (authority.Owned())
@@ -126,7 +126,7 @@ namespace HomeBridge.BridgeTools
             catch (Exception error)
             {
                 return handle == null ? new Operations.ExecuteReply { Failure = ProtoBoundary.Fail(Common.FailureCode.NativeFailure, "Building temperature admission failed: " + error.GetType().Name) }
-                    : new Operations.ExecuteReply { Receipt = NativeOperationEnvelope.Uncertain(state.Ledger, handle, pre.Attempt, context, evidence!, "Admitted building temperature requires observation: " + error.GetType().Name) };
+                    : new Operations.ExecuteReply { Receipt = NativeOperationEnvelope.Uncertain(state.Ledger, handle, pre.Attempt, context, evidence, "Admitted building temperature requires observation: " + error.GetType().Name) };
             }
         }
 
@@ -142,7 +142,7 @@ namespace HomeBridge.BridgeTools
                 Unknown = new Receipts.UnknownEffect { Reason = "Exact building target temperature is unavailable." } };
             try
             {
-                var thing = ProtoBoundary.ResolveMap(context).listerThings.AllThings.SingleOrDefault(t => t.GetUniqueLoadID() == command.Building.EntityId);
+                var thing = ProtoBoundary.LoadedMap(context).listerThings.AllThings.SingleOrDefault(t => t.GetUniqueLoadID() == command.Building.EntityId);
                 var snapshot = thing == null ? null : Snapshot(thing, context);
                 if (snapshot == null) return result;
                 var matches = Matches(thing!, command); var evidence = Evidence(command, snapshot.Token, matches);

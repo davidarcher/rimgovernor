@@ -96,6 +96,13 @@ type HistoryCompaction struct {
 	Cursor                                      int64
 }
 
+// HistoryTail is the retained page/review count above which CompactHistory
+// compacts. A var (not const) for the same reason as ReviewCapacity: the
+// compaction-boundary test shrinks it rather than paying for 128 real
+// polls, each several transactions, which ran past the per-test budget
+// under CPU contention.
+var HistoryTail = 128
+
 // CompactHistory keeps a recent page tail and every unreviewed or
 // unacknowledged interruption/gap. Acknowledgement replies move to an indexed
 // archive; routine polling never loads that growing archive into memory.
@@ -114,7 +121,7 @@ func CompactHistory(ctx context.Context, tx *sql.Tx, profile string) (HistoryCom
 	if err = tx.QueryRowContext(ctx, "SELECT coalesce(sum(length(request)+length(page)),0) FROM clock_event_pages").Scan(&size); err != nil {
 		return out, err
 	}
-	if len(replay.entries) < 128 && len(replay.inbox.Pages) < 128 && replay.inbox.State.EventCount < 256 && size < clockInboxBytes/2 {
+	if len(replay.entries) < HistoryTail && len(replay.inbox.Pages) < HistoryTail && replay.inbox.State.EventCount < 2*HistoryTail && size < clockInboxBytes/2 {
 		return out, nil
 	}
 	checkpoint := replay.inbox.checkpoint

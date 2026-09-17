@@ -1,3 +1,5 @@
+#nullable enable
+
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -15,15 +17,16 @@ namespace HomeBridge.BridgeTools
         private static bool installed;
         private sealed class Completion
         {
-            internal ConstructionLineageRecord Record;
-            internal Frame Frame;
-            internal string Stage;
-            internal List<Thing> Spawned = new List<Thing>();
+            internal Completion(ConstructionLineageRecord record, Frame frame, string stage) { Record = record; Frame = frame; Stage = stage; }
+            internal readonly ConstructionLineageRecord Record;
+            internal readonly Frame Frame;
+            internal readonly string Stage;
+            internal readonly List<Thing> Spawned = new List<Thing>();
         }
         private static readonly List<Completion> completions = new List<Completion>();
-        private static string StuffOf(Thing thing) => thing is Blueprint_Build blueprint
+        private static string? StuffOf(Thing thing) => thing is Blueprint_Build blueprint
             ? blueprint.EntityToBuildStuff()?.defName : thing.Stuff?.defName;
-        private static ConstructionLineageState State(bool create = false)
+        private static ConstructionLineageState? State(bool create = false)
         {
             if (Current.Game == null) return null;
             var state = Current.Game.GetComponent<ConstructionLineageState>();
@@ -50,11 +53,11 @@ namespace HomeBridge.BridgeTools
                 postfix: new HarmonyMethod(typeof(ConstructionLineage), nameof(Spawned)));
             installed = true;
         }
-        internal static string Register(Thing placed, BuildableDef definition)
+        internal static string? Register(Thing placed, BuildableDef definition)
         {
             if (!(definition is ThingDef) || placed?.Map == null) return null;
             var state = State(true);
-            if (state.Records.Count >= 4096) return null;
+            if (state == null || state.Records.Count >= 4096) return null;
             var id = placed.GetUniqueLoadID();
             state.Records.Add(new ConstructionLineageRecord { Origin = id, Current = id,
                 Definition = definition.defName, Stuff = StuffOf(placed),
@@ -72,14 +75,14 @@ namespace HomeBridge.BridgeTools
                 record.Stage = "frame";
             } else record.Blocker = "Native blueprint transition was not a matching frame";
         }
-        private static void Begin(Frame __instance, MethodBase __originalMethod, out Completion __state)
+        private static void Begin(Frame __instance, MethodBase __originalMethod, out Completion? __state)
         {
             __state = null;
             var record = State()?.Records.FirstOrDefault(r => r.Current == __instance.GetUniqueLoadID()
                 && r.Stage == "frame" && r.Blocker == null);
             if (record == null) return;
-            __state = new Completion { Record = record, Frame = __instance,
-                Stage = __originalMethod.Name == nameof(Frame.FailConstruction) ? "blueprint" : "built" };
+            __state = new Completion(record, __instance,
+                __originalMethod.Name == nameof(Frame.FailConstruction) ? "blueprint" : "built");
             completions.Add(__state);
         }
         private static void Spawned(Thing __result)
@@ -95,7 +98,7 @@ namespace HomeBridge.BridgeTools
                     scope.Spawned.Add(__result);
             }
         }
-        private static void Finish(Completion __state, Exception __exception)
+        private static void Finish(Completion? __state, Exception? __exception)
         {
             if (__state == null) return;
             completions.Remove(__state);

@@ -28,12 +28,13 @@ func appendReviewedBenign(t *testing.T, s *Store, profile string) ClockReviewSta
 }
 
 // TestClockCompactionRepeatedWindowsAndAcknowledgementReplay exercises the
-// review-log wraparound at capacity, so it shrinks clockReviewCapacity to
-// keep the boundary coverage without paying for 4096 real transactions.
+// review-log wraparound at capacity, so it shrinks clock.ReviewCapacity to
+// keep the boundary coverage without paying for 4096 real transactions (64
+// still wraps; 256 ran past the per-test budget under CPU contention).
 // It must not run in parallel with any other test in this package: it
 // mutates shared package state for its duration and restores it on cleanup.
 func TestClockCompactionRepeatedWindowsAndAcknowledgementReplay(t *testing.T) {
-	const capacity = 256
+	const capacity = 64
 	const window = capacity / 64
 	original := clock.ReviewCapacity
 	clock.ReviewCapacity = capacity
@@ -66,7 +67,7 @@ func TestClockCompactionRepeatedWindowsAndAcknowledgementReplay(t *testing.T) {
 		t.Fatal(current, review, err)
 	}
 	state, err := s.ReadClockInbox(ctx, profile)
-	if err != nil || state.Cursor != int64(clock.ReviewCapacity)+19 || state.LostCount != 2 || !state.Gap || state.PageCount >= 128 {
+	if err != nil || state.Cursor != int64(clock.ReviewCapacity)+19 || state.LostCount != 2 || !state.Gap || state.PageCount >= clock.HistoryTail {
 		t.Fatal(state, err)
 	}
 	replayed, err := s.AcknowledgeClockEvents(ctx, profile, ack)
@@ -96,7 +97,8 @@ func TestClockCompactionPreservesUnreviewedAndUnacknowledged(t *testing.T) {
 		t.Run(kind, func(t *testing.T) {
 			ctx := context.Background()
 			s, _, profile := boundInbox(t)
-			for range 128 {
+			tail := clock.HistoryTail
+			for range tail {
 				appendReviewedBenign(t, s, profile)
 			}
 			before, err := s.ReadClockReview(ctx, profile)
@@ -125,7 +127,7 @@ func TestClockCompactionPreservesUnreviewedAndUnacknowledged(t *testing.T) {
 				t.Fatal(before, after, err)
 			}
 			inbox, err := s.LoadClockInbox(ctx, profile, 4096)
-			if err != nil || len(inbox.Pages) != 8 || inbox.Pages[7].Page.Events[0].GetCursor() != 129 {
+			if err != nil || len(inbox.Pages) != 8 || inbox.Pages[7].Page.Events[0].GetCursor() != int64(tail)+1 {
 				t.Fatal(inbox, err)
 			}
 			if kind == "unreviewed" {
@@ -146,7 +148,8 @@ func TestClockCompactionPinsEarlyHoldUntilExplicitAcknowledgement(t *testing.T) 
 	if _, err := s.ReviewClockEvents(ctx, profile, 0); err != nil {
 		t.Fatal(err)
 	}
-	for range 128 {
+	tail := clock.HistoryTail
+	for range tail {
 		appendReviewedBenign(t, s, profile)
 	}
 	before, err := s.ReadClockReview(ctx, profile)
@@ -154,7 +157,7 @@ func TestClockCompactionPinsEarlyHoldUntilExplicitAcknowledgement(t *testing.T) 
 		t.Fatal(err)
 	}
 	compacted, err := s.CompactClockHistory(ctx, profile)
-	if err != nil || compacted.RemovedPages != 0 || compacted.RemovedReviews != 129 {
+	if err != nil || compacted.RemovedPages != 0 || compacted.RemovedReviews != tail+1 {
 		t.Fatal(compacted, err)
 	}
 	after, err := s.ReadClockReview(ctx, profile)
@@ -167,7 +170,8 @@ func TestClockCompactionPinsEarlyHoldUntilExplicitAcknowledgement(t *testing.T) 
 		t.Fatal(err)
 	}
 	compacted, err = s.CompactClockHistory(ctx, profile)
-	if err != nil || compacted.RemovedPages != 121 {
+	// Every page but the retained eight-page tail.
+	if err != nil || compacted.RemovedPages != tail+1-8 {
 		t.Fatal(compacted, err)
 	}
 	replayed, err := s.AcknowledgeClockEvents(ctx, profile, ack)
@@ -180,7 +184,8 @@ func TestClockCompactionRollbackAndCheckpointValidation(t *testing.T) {
 	t.Parallel()
 	ctx := context.Background()
 	s, _, profile := boundInbox(t)
-	for range 128 {
+	tail := clock.HistoryTail
+	for range tail {
 		appendReviewedBenign(t, s, profile)
 	}
 	before, err := s.ReadClockReview(ctx, profile)
@@ -198,7 +203,7 @@ func TestClockCompactionRollbackAndCheckpointValidation(t *testing.T) {
 		t.Fatal(before, after, err)
 	}
 	inbox, err := s.ReadClockInbox(ctx, profile)
-	if err != nil || inbox.PageCount != 128 {
+	if err != nil || inbox.PageCount != tail {
 		t.Fatal(inbox, err)
 	}
 	if _, err = s.db.Exec("DROP TRIGGER fail_compact"); err != nil {

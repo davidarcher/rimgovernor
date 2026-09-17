@@ -33,6 +33,13 @@ the harness too slow to rerun after a fix. Reach for, in order of preference:
   the buildings, pawns, items and conditions the test needs in one call;
 - `variantsavegen` / `ScenarioStartFixture` for a programmatic scenario start
   when the stressor is map- or start-level (seed, biome, season, scarcity).
+  The checked-in artifact is the manifest (a JSON array of
+  `variantgen.Variant`), the generated `.rws` under `profile/Saves` is the
+  pre-generated world: `variantsavegen -manifest` writes it once offline
+  (about 5s a variant on a kept process, `RIMGOVERNOR_ACCEPT_KEEP_GAME=1`),
+  and `sustainedmatrixaccept -manifest` loads whatever already exists,
+  generating only what is missing before any variant runs (`-regenerate`
+  forces it). A load takes about 3s; nothing regenerates a world per run.
 
 Budget a targeted harness at minutes. If the precondition is the slow part,
 build the fixture before writing the assertion, and review the generated save
@@ -58,7 +65,10 @@ were not. A reviewer holds a new harness to it.
    and pick the mode deliberately: `QuietRequired` when the harness needs a
    fixture build anyway, `QuietIfAvailable` when it must also run on a
    production build, `Loud` only when the assertion is about an interruption.
-   `test/configure_start` is quiet unless told otherwise.
+   `test/configure_start` is quiet unless told otherwise. Freeze the needs
+   the scenario is not about with `na.FreezeNeeds`. Pass the discovered
+   names as `ScenarioRuntime.Tools` so `AdvanceGame` dismisses the letters it
+   acknowledges; reserve `WithExpectedLetters` for interruption windows.
 5. **Every wait is stall-bounded.** Poll through `na.WaitProgress` with a
    signature over the thing that must move and `Terminal: service.Exited`
    when a serve subprocess is involved; use the shared `WaitReview`,
@@ -72,9 +82,17 @@ were not. A reviewer holds a new harness to it.
    run plus margin, not the worst run seen. If the honest default exceeds
    ~15 minutes, the precondition is not staged well enough (item 1) or the
    assertion covers too much; split it.
-7. **Advance by ticks, at speed.** Run at `Fast` (or the clock's
-   `tickDeadline`) and bound game-time waits by ticks where the assertion
-   allows, so wall-clock is spent on the assertion, not on watching the game.
+7. **Advance by ticks, at speed.** A wait for something the game itself
+   must do (a haul, a surgery, a pen, a capture) is bounded in ticks, not
+   wall clock: `na.RunUntil` runs at `na.RunSpeed` (Superfast), polls under a
+   `na.Wait{Ticks: 2*na.TicksPerDay}` budget and pauses again;
+   `na.ObserveCompleted` is the receipt-observing form (`receipts_observe_progress`
+   until Completed). A tick budget means the same at every speed and on
+   every machine; the stall budget still catches a game that stops ticking
+   (a pausing letter) and the wall ceiling a run that never finishes. Serve-
+   driven harnesses keep `--clock-speed Fast`: at Superfast the worker's
+   step budget starves the bridge calls and the clock holds (refrigeration
+   held at tick 1225 under Superfast, passed in 74s at Fast).
 8. **One fixture call, not a script.** Spawn, forbid, damage, assign and
    settle in one `test/*_prepare` op rather than a sequence of production ops
    each paying a bridge round trip; production ops are for the behavior under
@@ -85,7 +103,9 @@ were not. A reviewer holds a new harness to it.
    hoping it recovers.
 10. **Prefer reuse over boot.** When several cases share a save, run them
    through `sustainedmatrixaccept -reuse-game` ([below](#reusing-one-game-across-acceptance-cases)) rather
-   than booting RimWorld per case.
+   than booting RimWorld per case. Between harness binaries, set
+   `RIMGOVERNOR_ACCEPT_KEEP_GAME=1` so each leaves the process at the main
+   menu and the next attaches to it ([below](#keeping-the-process-between-harnesses)).
 
 ## Keep the game quiet and small
 
@@ -117,6 +137,34 @@ installed. Interruption harnesses (`combataccept`, `defenselayoutaccept`,
 `movementaccept`, `disconnectaccept`, `test/world_incident` users) stay
 `Loud`.
 
+Needs are frozen when the assertion is not about them. `na.FreezeNeeds(ctx,
+h, names, keep...)` (`test/freeze_needs`, `FreezeNeedsFixture`, in every
+fixture build) pins every free colonist need at maximum after each needs
+interval except the NeedDefs in `keep` (`Food` for a cooking harness, `Rest`
+for a sleeping one, `Mood`/`Joy` for mood relief), for the current game
+only, and the reply names what was frozen: record it on the report so a
+pass cannot hide that nobody ever ate or slept. `needsaccept` proves the
+pin and the release. The construction harnesses freeze everything; a
+harness whose scenario needs a colonist to eat or break keeps that need.
+
+Letters are acknowledged, not fatal. `na.AdvanceGame` used to fail a window
+on any pausing letter outside its expected list; it now acknowledges the
+informational defs in `na.AcknowledgedLetterDefs` (Neutral/Positive/Negative
+events, quests, joiners, rituals, births), dismisses them through
+`test/dismiss_letter` (`LetterFixture`, in every fixture build) when the
+harness passes its discovered names as `ScenarioRuntime.Tools`, and records
+the acknowledgement under the window's interruption. Threat letters still
+need `WithExpectedLetters(pairs...)`, and that option also makes the window
+strict (no informational acknowledgement), which is what interruption
+harnesses want. Only letters whose def pauses under the profile's
+`automaticPauseMode` (MajorThreat in the headless profile: ThreatBig only)
+ever reach the loop; `letteraccept` covers both modes through
+`test/letter_pause_mode` and `test/deliver_letter`. Under the serve process
+a letter pause drops authority but only suspends routine goals (#65): the
+next enabled review reactivates the same goal with its plans still open, so
+a harness following a routine plan sees the same plan resume, not a
+successor.
+
 Starts are small by default. `test/configure_debug_start` (in every fixture
 build) arms the next quick start with a map size and planet coverage, and
 `na.StartDebugGame` uses it whenever it is discoverable: 200x200 on a 5%
@@ -145,8 +193,12 @@ plan's stages, with `PlanSignature`), `WaitGoalMethod`, `WaitPlanTerminal`
 and `WaitRoutineReview` already do this
 with `na.StallBudget()` (10 minutes, `RIMGOVERNOR_ACCEPT_STALL` overrides);
 harnesses with their own loops take a `-stall` flag defaulting to the same.
-Issues #91 and #92 track the remaining speed and quiet work (pre-generated worlds,
-process reuse, frozen needs, letter acknowledgement).
+The headless profile's `Prefs.xml` is the player's copy trimmed by
+`na.TrimPrefs` (`HeadlessPrefs`): autosaves effectively off (1000 days;
+the interval must stay under ~35791 days or the autosaver's int threshold
+overflows and it saves every tick), run in background, the smallest
+window, no eye candy, and no ModsConfig reset on crash. Pause preferences
+are left alone. That is the last of the #91 speed work.
 
 Passing evidence follows relevant code, dependencies, inputs and environment,
 not the main HEAD hash. Unrelated main commits, clean cherry-picks and rebases
@@ -179,13 +231,50 @@ that fails, or that ends with authority or a draft still held, retires the
 game (`games_stop`) rather than handing it on. Each case gets its own output
 directory and, when it launches `rimgovernor serve`, its own SQLite state.
 
+### Keeping the process between harnesses
+
+Every harness opens its game through `na.OpenGame(ctx, cfg)` and ends it
+with `held.Close(report)`. By default that is a launch and a `games_stop`.
+With `RIMGOVERNOR_ACCEPT_KEEP_GAME=1` in the environment, `Close` instead
+returns the game to the main menu (`test/shutdown_unload`,
+`ShutdownFixture`, in every fixture build) and leaves the process running;
+the next `OpenGame` under the same root finds it (`games_status`
+`shared-running`), attaches through `games_start`, unloads whatever is
+loaded and starts from the menu like a fresh launch would. Measured on the
+headless profile: opening a fresh process takes about 5s, an attach about
+0.2s, and the harness still generates its own colony. The report records
+`game_reuse` (`reused`, `kept`, `openMs`). A batch sets the variable once
+and stops the game at the end with `gamesstop -root <root>`; a harness
+that fails still leaves the process at the menu, and a harness that dies
+without reaching `Close` leaves a game loaded, which the next `OpenGame`
+unloads.
+
+### Running harnesses in parallel
+
+`suiteaccept -root <root> -output <out> -bin <bin> -workers N -harnesses a,b,c`
+(or `-suite file.json` with `[{"name", "binary", "args"}]`) clones the root
+into N worker roots (`na.IsolatedRoot`: own GABS state, config and profile,
+same game installation), gives each worker a queue of harnesses chained on
+one kept process, and stops every worker's game at the end. The suite's
+`result.json` lists each harness's exit, wall time, `game_reuse` and error;
+it passes only when every harness did. Measured: six short harnesses on
+two workers in 68s against about 125s in sequence. The installed mod build
+must carry every fixture the list needs, and each harness must fit the
+step budget with N-1 peer games running (#73 measured three).
+
+Process reuse carries the same static-state caveat as `-reuse-game`
+(next paragraph), and process-wide `Prefs` too: `letteraccept` sets the
+pause mode it needs and restores the one it found. Harnesses asserting on
+statics or prefs run without the variable.
+
 Reuse does **not** reset mod static state: process-scoped statics such as
 `OrderedWorkHistory`, `PlayerFrame`, the `Supervisor` journal and
 `PawnConfigTool`'s letter maps survive a reload (see
 [native-static-state.md](../../../contracts/native-static-state.md)). Any
 case whose assertion depends on one of those, and any case run as static-
 state or fresh-Go-session evidence, stays in fresh-process mode. Manifest
-variants (`-manifest`) are still generated in their own fresh process.
+variants (`-manifest`) that are missing are generated before the reused game
+opens, so `-reuse-game` works in both modes.
 
 ## Available checks
 
@@ -198,6 +287,7 @@ variants (`-manifest`) are still generated in their own fresh process.
 | Native colony/routine read parity against a retained capture | `go test ./internal/observation -run <TestName> -v` with the matching `RIMGOVERNOR_NATIVE_*_CAPTURE`/`RIMGOVERNOR_NATIVE_*_REFERENCE` environment variable (colony, food forecast, production, naming, power methods, temperature methods, mood — see [go/README.md](../../../go/README.md) for the exact test name and variable per family) | Retained native capture files; verifies decoding/replay parity, not a live game session. |
 | Where bridge call time goes (gate wait, GABS round trip, native main-thread queue wait, native tool execution, receipt decode, ProtoJSON decode) and wall TPS over a session | Run `serve` with `--flight-recorder <abs path>`, then `rimgovernor phases [--json] <abs path>` from `go/` (`go run ./cmd/rimgovernor phases ...`). Rows carry per-call `timing` phases and `native_decode` rows; the sampler aggregates per native tool, with describe (`games_tool_detail`) round trips listed separately (paid once per method per GABS session, not per call); the `cached` column counts reads the scheduler's per-step read cache served without a round trip (`native_cache_hit` rows). Each `ClockScheduler.Step` also publishes a `clock_step` row tallying the round trips it still issued by tool, which the report shows as reads/step (mean, max, per tool); `RIMGOVERNOR_CLOCK_DEBUG=1` prints the same tally with the cache's hit/miss counts per step on stderr (`[clock-scheduler] step reads: ...`) | Read-only over the recorder's retained segments; no game or authority access. The companion reports its own split beside the payload (`{"payload": ..., "timing": {"queueMs", "executeMs"}}`) for every `rimgovernor/*` tool whose single main-thread hop goes through `ProtoBoundary.OnMainThread`; the `queue ms`/`exec ms` columns are means over the calls that carried it and read `-` (absent, not zero) for an older companion or a multi-hop media capture. Sub-millisecond phases can read 0 on Windows' coarse monotonic clock. Wall TPS comes from reply ticks and includes paused time; tick decreases (load, rewind) are excluded as resets. |
 | Docker packaging of the Go controller | `docker build -f containers/Dockerfile --target go-controller`, `docker run --rm rimgovernor-go:local version`/`help` | Confirms the image builds and the binary starts without a licensed game; not gameplay evidence. See [go/README.md](../../../go/README.md#go-launch-and-packaging-the-production-default-g0111-g0112). |
+| The Go controller as a Linux worker container reaching a connected native session, and the worker storage contract (private volume, export after stop, database integrity, verified cleanup) | `go run ./internal/nativeaccept/docker/cmd/dockerworkeraccept` from `go/` with the Linux game/mods/profile/GABS inputs (`-storage bind` for the host-bind-mount comparison); `go test ./internal/nativeaccept/docker/` covers the stop/export/retain/release branches against a fake `docker` without an engine | Linux Docker engine, licensed Linux game build and prepared profile; one worker, no pawn work. A retained volume in `storage_evidence` is recovery evidence from a failed export, not a leak to sweep. |
 
 For agents: inspect the affected tests and choose the smallest relevant check, then
 run the full affected suite once before handoff. Go-only changes need the full Go

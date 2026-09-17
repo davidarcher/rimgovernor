@@ -667,12 +667,20 @@ func (Need) EnumDescriptor() ([]byte, []int) {
 	return file_operations_proto_rawDescGZIP(), []int{11}
 }
 
+// Exclusive prisoner interaction modes. REDUCE_RESISTANCE and RELEASE are
+// Core; ENSLAVE and CONVERT resolve only while Ideology is active and are
+// refused as unsupported otherwise. Execution and non-exclusive modes stay
+// player-only.
 type PrisonerInteraction int32
 
 const (
-	PrisonerInteraction_PRISONER_INTERACTION_UNSPECIFIED     PrisonerInteraction = 0
-	PrisonerInteraction_PRISONER_INTERACTION_ATTEMPT_RECRUIT PrisonerInteraction = 1
-	PrisonerInteraction_PRISONER_INTERACTION_MAINTAIN_ONLY   PrisonerInteraction = 2
+	PrisonerInteraction_PRISONER_INTERACTION_UNSPECIFIED       PrisonerInteraction = 0
+	PrisonerInteraction_PRISONER_INTERACTION_ATTEMPT_RECRUIT   PrisonerInteraction = 1
+	PrisonerInteraction_PRISONER_INTERACTION_MAINTAIN_ONLY     PrisonerInteraction = 2
+	PrisonerInteraction_PRISONER_INTERACTION_REDUCE_RESISTANCE PrisonerInteraction = 3
+	PrisonerInteraction_PRISONER_INTERACTION_RELEASE           PrisonerInteraction = 4
+	PrisonerInteraction_PRISONER_INTERACTION_ENSLAVE           PrisonerInteraction = 5
+	PrisonerInteraction_PRISONER_INTERACTION_CONVERT           PrisonerInteraction = 6
 )
 
 // Enum value maps for PrisonerInteraction.
@@ -681,11 +689,19 @@ var (
 		0: "PRISONER_INTERACTION_UNSPECIFIED",
 		1: "PRISONER_INTERACTION_ATTEMPT_RECRUIT",
 		2: "PRISONER_INTERACTION_MAINTAIN_ONLY",
+		3: "PRISONER_INTERACTION_REDUCE_RESISTANCE",
+		4: "PRISONER_INTERACTION_RELEASE",
+		5: "PRISONER_INTERACTION_ENSLAVE",
+		6: "PRISONER_INTERACTION_CONVERT",
 	}
 	PrisonerInteraction_value = map[string]int32{
-		"PRISONER_INTERACTION_UNSPECIFIED":     0,
-		"PRISONER_INTERACTION_ATTEMPT_RECRUIT": 1,
-		"PRISONER_INTERACTION_MAINTAIN_ONLY":   2,
+		"PRISONER_INTERACTION_UNSPECIFIED":       0,
+		"PRISONER_INTERACTION_ATTEMPT_RECRUIT":   1,
+		"PRISONER_INTERACTION_MAINTAIN_ONLY":     2,
+		"PRISONER_INTERACTION_REDUCE_RESISTANCE": 3,
+		"PRISONER_INTERACTION_RELEASE":           4,
+		"PRISONER_INTERACTION_ENSLAVE":           5,
+		"PRISONER_INTERACTION_CONVERT":           6,
 	}
 )
 
@@ -3913,9 +3929,16 @@ func (x *SelectorList) GetSelectors() []*FilterSelector {
 type FilterPatch struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Absent replacement preserves existing membership; present empty denies all.
-	Replace       *SelectorList     `protobuf:"bytes,1,opt,name=replace,proto3" json:"replace,omitempty"`
-	Allow         []*FilterSelector `protobuf:"bytes,2,rep,name=allow,proto3" json:"allow,omitempty"`
-	Disallow      []*FilterSelector `protobuf:"bytes,3,rep,name=disallow,proto3" json:"disallow,omitempty"`
+	Replace  *SelectorList     `protobuf:"bytes,1,opt,name=replace,proto3" json:"replace,omitempty"`
+	Allow    []*FilterSelector `protobuf:"bytes,2,rep,name=allow,proto3" json:"allow,omitempty"`
+	Disallow []*FilterSelector `protobuf:"bytes,3,rep,name=disallow,proto3" json:"disallow,omitempty"`
+	// Hit-point range as fractions in [0, 1] (the storage tab's percent slider)
+	// and quality range by QualityCategory name (Awful..Legendary); both ends
+	// of a range are required together. Absent ranges are preserved.
+	HitPointsMin  *float64 `protobuf:"fixed64,4,opt,name=hit_points_min,json=hitPointsMin,proto3,oneof" json:"hit_points_min,omitempty"`
+	HitPointsMax  *float64 `protobuf:"fixed64,5,opt,name=hit_points_max,json=hitPointsMax,proto3,oneof" json:"hit_points_max,omitempty"`
+	QualityMin    *string  `protobuf:"bytes,6,opt,name=quality_min,json=qualityMin,proto3,oneof" json:"quality_min,omitempty"`
+	QualityMax    *string  `protobuf:"bytes,7,opt,name=quality_max,json=qualityMax,proto3,oneof" json:"quality_max,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -3969,6 +3992,34 @@ func (x *FilterPatch) GetDisallow() []*FilterSelector {
 		return x.Disallow
 	}
 	return nil
+}
+
+func (x *FilterPatch) GetHitPointsMin() float64 {
+	if x != nil && x.HitPointsMin != nil {
+		return *x.HitPointsMin
+	}
+	return 0
+}
+
+func (x *FilterPatch) GetHitPointsMax() float64 {
+	if x != nil && x.HitPointsMax != nil {
+		return *x.HitPointsMax
+	}
+	return 0
+}
+
+func (x *FilterPatch) GetQualityMin() string {
+	if x != nil && x.QualityMin != nil {
+		return *x.QualityMin
+	}
+	return ""
+}
+
+func (x *FilterPatch) GetQualityMax() string {
+	if x != nil && x.QualityMax != nil {
+		return *x.QualityMax
+	}
+	return ""
 }
 
 type BillStore struct {
@@ -7716,11 +7767,21 @@ const file_operations_proto_rawDesc = "" +
 	"\n" +
 	"definition\"W\n" +
 	"\fSelectorList\x12G\n" +
-	"\tselectors\x18\x01 \x03(\v2).rimgovernor.operations.v1.FilterSelectorR\tselectors\"\xd8\x01\n" +
+	"\tselectors\x18\x01 \x03(\v2).rimgovernor.operations.v1.FilterSelectorR\tselectors\"\xc0\x03\n" +
 	"\vFilterPatch\x12A\n" +
 	"\areplace\x18\x01 \x01(\v2'.rimgovernor.operations.v1.SelectorListR\areplace\x12?\n" +
 	"\x05allow\x18\x02 \x03(\v2).rimgovernor.operations.v1.FilterSelectorR\x05allow\x12E\n" +
-	"\bdisallow\x18\x03 \x03(\v2).rimgovernor.operations.v1.FilterSelectorR\bdisallow\"q\n" +
+	"\bdisallow\x18\x03 \x03(\v2).rimgovernor.operations.v1.FilterSelectorR\bdisallow\x12)\n" +
+	"\x0ehit_points_min\x18\x04 \x01(\x01H\x00R\fhitPointsMin\x88\x01\x01\x12)\n" +
+	"\x0ehit_points_max\x18\x05 \x01(\x01H\x01R\fhitPointsMax\x88\x01\x01\x12$\n" +
+	"\vquality_min\x18\x06 \x01(\tH\x02R\n" +
+	"qualityMin\x88\x01\x01\x12$\n" +
+	"\vquality_max\x18\a \x01(\tH\x03R\n" +
+	"qualityMax\x88\x01\x01B\x11\n" +
+	"\x0f_hit_points_minB\x11\n" +
+	"\x0f_hit_points_maxB\x0e\n" +
+	"\f_quality_minB\x0e\n" +
+	"\f_quality_max\"q\n" +
 	"\tBillStore\x12:\n" +
 	"\x04mode\x18\x01 \x01(\x0e2$.rimgovernor.operations.v1.StoreModeH\x00R\x04mode\x12\x19\n" +
 	"\azone_id\x18\x02 \x01(\tH\x00R\x06zoneIdB\r\n" +
@@ -8123,11 +8184,15 @@ const file_operations_proto_rawDesc = "" +
 	"\x10NEED_UNSPECIFIED\x10\x00\x12\r\n" +
 	"\tNEED_FOOD\x10\x01\x12\r\n" +
 	"\tNEED_REST\x10\x02\x12\f\n" +
-	"\bNEED_JOY\x10\x03*\x8d\x01\n" +
+	"\bNEED_JOY\x10\x03*\x9f\x02\n" +
 	"\x13PrisonerInteraction\x12$\n" +
 	" PRISONER_INTERACTION_UNSPECIFIED\x10\x00\x12(\n" +
 	"$PRISONER_INTERACTION_ATTEMPT_RECRUIT\x10\x01\x12&\n" +
-	"\"PRISONER_INTERACTION_MAINTAIN_ONLY\x10\x02*n\n" +
+	"\"PRISONER_INTERACTION_MAINTAIN_ONLY\x10\x02\x12*\n" +
+	"&PRISONER_INTERACTION_REDUCE_RESISTANCE\x10\x03\x12 \n" +
+	"\x1cPRISONER_INTERACTION_RELEASE\x10\x04\x12 \n" +
+	"\x1cPRISONER_INTERACTION_ENSLAVE\x10\x05\x12 \n" +
+	"\x1cPRISONER_INTERACTION_CONVERT\x10\x06*n\n" +
 	"\n" +
 	"AttackMode\x12\x1b\n" +
 	"\x17ATTACK_MODE_UNSPECIFIED\x10\x00\x12\x14\n" +
@@ -8596,6 +8661,7 @@ func file_operations_proto_init() {
 		(*FilterSelector_CategoryDef)(nil),
 		(*FilterSelector_SpecialFilterDef)(nil),
 	}
+	file_operations_proto_msgTypes[31].OneofWrappers = []any{}
 	file_operations_proto_msgTypes[32].OneofWrappers = []any{
 		(*BillStore_Mode)(nil),
 		(*BillStore_ZoneId)(nil),

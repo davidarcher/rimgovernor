@@ -1,3 +1,5 @@
+#nullable enable
+
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -183,21 +185,21 @@ namespace HomeBridge.BridgeTools
         [ToolResponse("applied", "boolean", "True only when SetCurrentProject was actually called. False on every dry run, on every refusal, and on every read-only call.", Always = true)]
         [ToolResponse("unknownArguments", "array", "Every argument key the caller sent that this tool does not declare, sorted, case-sensitively. Empty array = every key was recognised. On a tool with a write side this matters twice over: a misspelled dryRun is the difference between a plan and a changed colony. The host's own _rimBridgeTimeoutMs is never listed.", Always = true)]
         [ToolResponse("unknownArgumentsWarning", "string", "Present only when unknownArguments is non-empty, or when the caller's raw keys could not be read at all - in which case the empty unknownArguments means 'not known', not 'nothing unknown'.", Nullable = true)]
-        public async Task<object> Research(
+        public async Task<object?> Research(
             IRimBridgeContext ctx,
             CancellationToken cancellationToken,
             [ToolParameter(Description = "Also list every project that cannot start yet, with what each one is still missing: unfinished prerequisites, the research building it needs, unlinked facilities, techprints not yet applied. Off by default; lockedCount is reported either way.", DefaultValue = false)] bool locked = false,
             [ToolParameter(Description = "Also list the defNames of every finished project. Cheap (names only). Off by default; finishedCount is reported either way.", DefaultValue = false)] bool finished = false,
             [ToolParameter(Description = "Add unlocks[] to every listed project: the buildings, recipes, plants, terrain and surgeries it makes available, from the game's own ResearchProjectDef.UnlockedDefs. Off by default because it roughly doubles the payload.", DefaultValue = false)] bool unlocks = false,
-            [ToolParameter(Description = "Case-insensitive substring on label or defName. Narrows available[], locked[] and finished[] together. The *Count fields stay unfiltered totals and the *Listed fields say how many survived, so a filter can never look like an empty database.")] string filter = null,
-            [ToolParameter(Description = "WRITE: make this the current research project. Takes an exact defName, an exact label (case-insensitive), or a unique substring of either; an ambiguous substring is REFUSED with the candidates listed. A finished project, or one that cannot start yet, is refused with the requirement that is missing. Omit for a read-only call.")] string set = null,
+            [ToolParameter(Description = "Case-insensitive substring on label or defName. Narrows available[], locked[] and finished[] together. The *Count fields stay unfiltered totals and the *Listed fields say how many survived, so a filter can never look like an empty database.")] string? filter = null,
+            [ToolParameter(Description = "WRITE: make this the current research project. Takes an exact defName, an exact label (case-insensitive), or a unique substring of either; an ambiguous substring is REFUSED with the candidates listed. A finished project, or one that cannot start yet, is refused with the requirement that is missing. Omit for a read-only call.")] string? set = null,
             [ToolParameter(Description = "TRUE by default. Resolve the `set` name, check every requirement and report what WOULD happen without touching the game. Pass false to actually select the project.", DefaultValue = true)] bool dryRun = true,
             [ToolParameter(Description = "TRUE by default. On a real `set`, open the Research tab a moment before the project is chosen so a viewer sees it land, then close it again. Decorative only: it never changes what is written. Pass false to write with no UI.", DefaultValue = true)] bool watch = true,
             [ToolParameter(Description = "How long the Research tab stays open after the write, in seconds. Clamped 1..60. Ignored when watch is false or the write is a dry run.", DefaultValue = 8)] int watchSeconds = 8,
-            [ToolParameter(Description = "Exact ThingDef or RecipeDef name whose research requirements should be read. Prefix with ThingDef: or RecipeDef: to disambiguate.")] string capability = null,
-            [ToolParameter(Description = "Guard ordinary research selection against player changes. Empty string requires no current project; omitted disables the guard.")] string expectedCurrent = null,
-            [ToolParameter(Description = "Exact colony identity required with expectedCurrent.")] string colonyId = null,
-            [ToolParameter(Description = "Exact load identity required with expectedCurrent.")] string loadToken = null,
+            [ToolParameter(Description = "Exact ThingDef or RecipeDef name whose research requirements should be read. Prefix with ThingDef: or RecipeDef: to disambiguate.")] string? capability = null,
+            [ToolParameter(Description = "Guard ordinary research selection against player changes. Empty string requires no current project; omitted disables the guard.")] string? expectedCurrent = null,
+            [ToolParameter(Description = "Exact colony identity required with expectedCurrent.")] string? colonyId = null,
+            [ToolParameter(Description = "Exact load identity required with expectedCurrent.")] string? loadToken = null,
             [ToolParameter(Description = "Exact map identity required with expectedCurrent.", DefaultValue = -1)] int mapId = -1)
         {
             return BridgeCommon.WithUnknownArguments(
@@ -212,20 +214,20 @@ namespace HomeBridge.BridgeTools
             bool locked,
             bool finished,
             bool unlocks,
-            string filter,
-            string set,
+            string? filter,
+            string? set,
             bool dryRun,
             bool watch,
-            int watchSeconds, string capability, string expectedCurrent, string colonyId, string loadToken, int mapId)
+            int watchSeconds, string? capability, string? expectedCurrent, string? colonyId, string? loadToken, int mapId)
         {
             if (ctx?.MainThread == null)
                 return Failure("No RimBridge main-thread dispatcher is available for this invocation.");
 
             // Arguments are parsed OUT here, before the hop, per the house rule.
-            var needle = string.IsNullOrEmpty(filter) ? null : filter.Trim();
+            var needle = filter == null || filter.Length == 0 ? null : filter.Trim();
             if (needle != null && needle.Length == 0)
                 needle = null;
-            var setSpec = string.IsNullOrEmpty(set) ? null : set.Trim();
+            var setSpec = set == null || set.Length == 0 ? null : set.Trim();
             if (setSpec != null && setSpec.Length == 0)
                 setSpec = null;
 
@@ -244,19 +246,22 @@ namespace HomeBridge.BridgeTools
 
             if (pass.Failure != null)
             {
-                var failed = pass.Failure as Dictionary<string, object>;
+                var failed = pass.Failure as Dictionary<string, object?>;
                 if (failed != null)
                     failed["watch"] = Watch.Skipped("refused");
                 return pass.Failure;
             }
+            var payload = pass.Payload ?? throw new InvalidOperationException("Pass 1 handed over neither a failure nor a payload.");
+            var manager = pass.Manager ?? throw new InvalidOperationException("Pass 1 handed over no research manager.");
+            var all = pass.All ?? throw new InvalidOperationException("Pass 1 handed over no project list.");
 
-            if (!string.IsNullOrEmpty(capability))
-                pass.Payload["capability"] = await ctx.MainThread.InvokeAsync(() => Capability(capability), cancellationToken).ConfigureAwait(false);
+            if (capability != null && capability.Length > 0)
+                payload["capability"] = await ctx.MainThread.InvokeAsync(() => Capability(capability), cancellationToken).ConfigureAwait(false);
 
             if (!pass.WriteWanted)
             {
-                pass.Payload["watch"] = Watch.Skipped(pass.SkipReason);
-                return pass.Payload;
+                payload["watch"] = Watch.Skipped(pass.SkipReason);
+                return payload;
             }
 
             // Off the main thread: a moment with the tab open and nothing
@@ -266,9 +271,6 @@ namespace HomeBridge.BridgeTools
             // Hop 2: the write, the read-back and the scheduled close. The name
             // is resolved again here rather than carried across the gap.
             var session = pass.Session;
-            var payload = pass.Payload;
-            var manager = pass.Manager;
-            var all = pass.All;
             var tech = pass.PlayerTech;
             return await ctx.MainThread
                 .InvokeAsync(() =>
@@ -303,6 +305,7 @@ namespace HomeBridge.BridgeTools
             try
             {
                 var requirements = thing != null ? (thing.researchPrerequisites ?? new List<ResearchProjectDef>())
+                    : recipe == null ? new List<ResearchProjectDef>()
                     : (recipe.researchPrerequisites ?? new List<ResearchProjectDef>()).ToList();
                 if (recipe?.researchPrerequisite != null && !requirements.Contains(recipe.researchPrerequisite))
                     requirements.Add(recipe.researchPrerequisite);
@@ -310,7 +313,7 @@ namespace HomeBridge.BridgeTools
                     prerequisites = requirements.Select(r => r.defName).ToArray(),
                     researchReady = requirements.All(r => r.IsFinished),
                     costs = thing == null ? null : thing.costList?.ToDictionary(c => c.thingDef.defName, c => c.count),
-                    availableNow = thing != null ? requirements.All(r => r.IsFinished) : recipe.AvailableNow };
+                    availableNow = thing != null ? requirements.All(r => r.IsFinished) : recipe != null && recipe.AvailableNow };
             }
             catch (Exception error) { return new { known = false, reason = error.GetType().Name }; }
         }
@@ -319,35 +322,41 @@ namespace HomeBridge.BridgeTools
         /// the write needs. Failure non-null means stop and return it.</summary>
         private sealed class Pass1Result
         {
-            internal object Failure;
-            internal Dictionary<string, object> Payload;
-            internal ResearchManager Manager;
-            internal List<ResearchProjectDef> All;
-            internal TechLevel? PlayerTech;
+            internal Pass1Result(object failure) { Failure = failure; }
+            internal Pass1Result(Dictionary<string, object?> payload, ResearchManager manager, List<ResearchProjectDef> all, TechLevel? playerTech)
+            {
+                Payload = payload; Manager = manager; All = all; PlayerTech = playerTech;
+            }
+            internal readonly object? Failure;
+            /// <summary>Set whenever Failure is null.</summary>
+            internal readonly Dictionary<string, object?>? Payload;
+            internal readonly ResearchManager? Manager;
+            internal readonly List<ResearchProjectDef>? All;
+            internal readonly TechLevel? PlayerTech;
             internal bool WriteWanted;
-            internal Watch.Session Session;
-            internal string SkipReason;
+            internal Watch.Session? Session;
+            internal string SkipReason = "read-only call";
         }
 
         // =================================================================== run
 
         private static Pass1Result Pass1(IRimBridgeContext ctx, bool wantLocked, bool wantFinished, bool wantUnlocks,
-                                         string needle, string setSpec, bool dryRun, bool wantWatch)
+                                         string? needle, string? setSpec, bool dryRun, bool wantWatch)
         {
-            Map map;
+            Map? map;
             string mapError;
             if (!BridgeCommon.TryGetMap(ToolName, out map, out mapError))
-                return new Pass1Result { Failure = Failure(mapError) };
+                return new Pass1Result(Failure(mapError));
 
             var manager = SafeManager();
             if (manager == null)
-                return new Pass1Result { Failure = Failure("Find.ResearchManager was not readable; there is no research state to report.") };
+                return new Pass1Result(Failure("Find.ResearchManager was not readable; there is no research state to report."));
 
-            List<ResearchProjectDef> all;
+            List<ResearchProjectDef>? all;
             try { all = DefDatabase<ResearchProjectDef>.AllDefsListForReading; }
             catch { all = null; }
             if (all == null)
-                return new Pass1Result { Failure = Failure("DefDatabase<ResearchProjectDef>.AllDefsListForReading was not readable.") };
+                return new Pass1Result(Failure("DefDatabase<ResearchProjectDef>.AllDefsListForReading was not readable."));
 
             var anomalyActive = BridgeCommon.Try(() => ModsConfig.AnomalyActive, false);
             var playerTech = PlayerTechLevel();
@@ -375,7 +384,7 @@ namespace HomeBridge.BridgeTools
                 bool? isFinished = BridgeCommon.TryN(() => def.IsFinished);
                 if (isFinished == null)
                 {
-                    unreadable.Add(new Dictionary<string, object>
+                    unreadable.Add(new Dictionary<string, object?>
                     {
                         { "defName", BridgeCommon.SafeString(() => def.defName) },
                         { "reason", "ResearchProjectDef.IsFinished threw; the project is in totalCount and in no bucket." }
@@ -389,7 +398,7 @@ namespace HomeBridge.BridgeTools
                 bool? canStart = BridgeCommon.TryN(() => def.CanStartNow);
                 if (canStart == null)
                 {
-                    unreadable.Add(new Dictionary<string, object>
+                    unreadable.Add(new Dictionary<string, object?>
                     {
                         { "defName", BridgeCommon.SafeString(() => def.defName) },
                         { "reason", "ResearchProjectDef.CanStartNow threw; the project is in totalCount and in no bucket." }
@@ -400,18 +409,18 @@ namespace HomeBridge.BridgeTools
             }
 
             // -------------------------------------------------------- current
-            var currentProj = BridgeCommon.Try(() => manager.GetProject(null), (ResearchProjectDef)null);
+            var currentProj = BridgeCommon.Try(() => manager.GetProject(null), (ResearchProjectDef?)null);
             var current = currentProj == null
                 ? null
                 : Row(manager, currentProj, playerTech, wantUnlocks, false);
 
-            var byCategory = new Dictionary<string, object>(StringComparer.Ordinal);
+            var byCategory = new Dictionary<string, object?>(StringComparer.Ordinal);
             var categoryNote = anomalyActive
                 ? "Anomaly is active, so each KnowledgeCategoryDef has its own current-project slot; GetProject(category) reads them. A category with nothing chosen is null."
                 : "The Anomaly DLC is not active, so no knowledge categories exist and ResearchManager.CurrentAnomalyKnowledgeProjects is null - it is NOT read here, because GetProject(category) would enumerate that null and throw. An empty object means 'no such thing on this install', not 'nothing selected'.";
             if (anomalyActive)
             {
-                List<KnowledgeCategoryDef> categories;
+                List<KnowledgeCategoryDef>? categories;
                 try { categories = DefDatabase<KnowledgeCategoryDef>.AllDefsListForReading.ToList(); }
                 catch { categories = null; }
                 if (categories == null)
@@ -425,7 +434,7 @@ namespace HomeBridge.BridgeTools
                         if (category == null)
                             continue;
                         var key = BridgeCommon.SafeString(() => category.defName) ?? "unnamed";
-                        var proj = BridgeCommon.Try(() => manager.GetProject(category), (ResearchProjectDef)null);
+                        var proj = BridgeCommon.Try(() => manager.GetProject(category), (ResearchProjectDef?)null);
                         byCategory[key] = proj == null ? null : Row(manager, proj, playerTech, wantUnlocks, false);
                     }
                 }
@@ -439,7 +448,7 @@ namespace HomeBridge.BridgeTools
                 .Select(d => (object)Row(manager, d, playerTech, wantUnlocks, false))
                 .ToList();
 
-            var payload = new Dictionary<string, object>(StringComparer.Ordinal)
+            var payload = new Dictionary<string, object?>(StringComparer.Ordinal)
             {
                 { "success", true },
                 { "tool", ToolName },
@@ -461,7 +470,7 @@ namespace HomeBridge.BridgeTools
                 { "hiddenCount", hiddenDefs.Count },
                 { "totalCount", all.Count },
                 { "unreadableProjects", unreadable },
-                { "blocks", new Dictionary<string, object>
+                { "blocks", new Dictionary<string, object?>
                     {
                         { "locked", wantLocked },
                         { "finished", wantFinished },
@@ -503,15 +512,8 @@ namespace HomeBridge.BridgeTools
             // tab can be opened in between and the change is seen landing
             // inside it. A dry run and a refusal stop at the plan.
             var applied = false;
-            object write = null;
-            var result = new Pass1Result
-            {
-                Payload = payload,
-                Manager = manager,
-                All = all,
-                PlayerTech = playerTech,
-                SkipReason = "read-only call"
-            };
+            object? write = null;
+            var result = new Pass1Result(payload, manager, all, playerTech);
 
             if (setSpec != null)
             {
@@ -546,10 +548,10 @@ namespace HomeBridge.BridgeTools
 
         /// <summary>One project. `lockDetail` adds the "what is still missing"
         /// fields, which are only meaningful for a project that cannot start.</summary>
-        private static Dictionary<string, object> Row(ResearchManager manager, ResearchProjectDef def,
+        private static Dictionary<string, object?> Row(ResearchManager manager, ResearchProjectDef def,
                                                       TechLevel? playerTech, bool wantUnlocks, bool lockDetail)
         {
-            var row = new Dictionary<string, object>(StringComparer.Ordinal);
+            var row = new Dictionary<string, object?>(StringComparer.Ordinal);
             row["defName"] = BridgeCommon.SafeString(() => def.defName);
             row["label"] = BridgeCommon.SafeString(() => def.label);
 
@@ -612,7 +614,7 @@ namespace HomeBridge.BridgeTools
 
             if (wantUnlocks)
             {
-                List<Def> unlocked;
+                List<Def>? unlocked;
                 try { unlocked = def.UnlockedDefs; }
                 catch { unlocked = null; }
                 if (unlocked == null)
@@ -629,7 +631,7 @@ namespace HomeBridge.BridgeTools
                         var u = unlocked[i];
                         if (u == null)
                             continue;
-                        rows.Add(new Dictionary<string, object>
+                        rows.Add(new Dictionary<string, object?>
                         {
                             { "defName", BridgeCommon.SafeString(() => u.defName) },
                             { "label", BridgeCommon.SafeString(() => u.label) },
@@ -649,7 +651,7 @@ namespace HomeBridge.BridgeTools
         /// <summary>Why this project cannot start, in the same order the Research
         /// tab's own locked-reason list builds them, and with the specific things
         /// that are missing rather than the tab's one-line translations.</summary>
-        private static void AddLockDetail(IDictionary<string, object> row, ResearchProjectDef def)
+        private static void AddLockDetail(IDictionary<string, object?> row, ResearchProjectDef def)
         {
             var reasons = new List<object>();
 
@@ -681,7 +683,7 @@ namespace HomeBridge.BridgeTools
             var buildingDef = BridgeCommon.SafeString(
                 () => def.requiredResearchBuilding == null ? null : def.requiredResearchBuilding.defName);
             var hasBench = BridgeCommon.Try(() => def.PlayerHasAnyAppropriateResearchBench, false);
-            row["missingBuilding"] = hasBench ? null : (object)(buildingDef ?? "ResearchBench");
+            row["missingBuilding"] = hasBench ? null : (object?)(buildingDef ?? "ResearchBench");
             if (!hasBench)
                 reasons.Add("no research bench the colony owns can host it"
                             + (buildingDef == null ? "" : " (needs " + buildingDef + ")"));
@@ -724,15 +726,15 @@ namespace HomeBridge.BridgeTools
 
         // =========================================================== benches
 
-        private static Dictionary<string, object> BenchBlock(Map map)
+        private static Dictionary<string, object?> BenchBlock(Map map)
         {
-            var block = new Dictionary<string, object>(StringComparer.Ordinal);
+            var block = new Dictionary<string, object?>(StringComparer.Ordinal);
             var benches = new List<object>();
             var facilityNames = new List<string>();
             var powered = 0;
             var skipped = new List<object>();
 
-            List<Building> buildings = null;
+            List<Building>? buildings = null;
             try { buildings = map.listerBuildings == null ? null : map.listerBuildings.allBuildingsColonist; }
             catch { buildings = null; }
 
@@ -753,7 +755,7 @@ namespace HomeBridge.BridgeTools
                     if (bench == null)
                         continue;
 
-                    var row = new Dictionary<string, object>(StringComparer.Ordinal);
+                    var row = new Dictionary<string, object?>(StringComparer.Ordinal);
                     row["defName"] = BridgeCommon.SafeString(() => bench.def == null ? null : bench.def.defName);
                     row["label"] = BridgeCommon.SafeString(() => bench.LabelCap.ToString());
                     row["pos"] = BridgeCommon.PositionOf(bench);
@@ -781,7 +783,7 @@ namespace HomeBridge.BridgeTools
                     var affected = SafeComp<CompAffectedByFacilities>(bench);
                     if (affected != null)
                     {
-                        List<Thing> facilities = null;
+                        List<Thing>? facilities = null;
                         try { facilities = affected.LinkedFacilitiesListForReading; }
                         catch { facilities = null; }
                         if (facilities != null)
@@ -792,7 +794,7 @@ namespace HomeBridge.BridgeTools
                                     continue;
                                 var name = BridgeCommon.SafeString(() => facility.def == null ? null : facility.def.defName);
                                 var active = BridgeCommon.Try(() => affected.IsFacilityActive(facility), false);
-                                linked.Add(new Dictionary<string, object>
+                                linked.Add(new Dictionary<string, object?>
                                 {
                                     { "defName", name },
                                     { "label", BridgeCommon.SafeString(() => facility.LabelCap.ToString()) },
@@ -813,8 +815,8 @@ namespace HomeBridge.BridgeTools
                 block["readable"] = true;
             }
 
-            block["poweredCount"] = buildings == null ? (object)null : powered;
-            block["anyPowered"] = buildings == null ? (object)null : powered > 0;
+            block["poweredCount"] = buildings == null ? (object?)null : powered;
+            block["anyPowered"] = buildings == null ? (object?)null : powered > 0;
             facilityNames.Sort(StringComparer.Ordinal);
             block["facilities"] = facilityNames.Cast<object>().ToList();
             block["colonistsHaveResearchBench"] = BridgeCommon.Try(
@@ -823,15 +825,15 @@ namespace HomeBridge.BridgeTools
             // ------------------------------------------------------ the people
             var researchers = new List<object>();
             var researcherCount = 0;
-            WorkTypeDef researchWork = null;
+            WorkTypeDef? researchWork = null;
             try { researchWork = WorkTypeDefOf.Research; }
             catch { researchWork = null; }
 
-            SkillDef intellectual = null;
+            SkillDef? intellectual = null;
             try { intellectual = SkillDefOf.Intellectual; }
             catch { intellectual = null; }
 
-            List<Pawn> colonists = null;
+            List<Pawn>? colonists = null;
             try { colonists = map.mapPawns == null ? null : map.mapPawns.FreeColonistsSpawned.ToList(); }
             catch { colonists = null; }
 
@@ -850,11 +852,11 @@ namespace HomeBridge.BridgeTools
                     if (pawn == null)
                         continue;
 
-                    var row = new Dictionary<string, object>(StringComparer.Ordinal);
+                    var row = new Dictionary<string, object?>(StringComparer.Ordinal);
                     row["name"] = BridgeCommon.SafeString(() => pawn.LabelShortCap.ToString());
                     row["thingId"] = BridgeCommon.SafeString(() => pawn.ThingID);
 
-                    Pawn_WorkSettings settings = null;
+                    Pawn_WorkSettings? settings = null;
                     try { settings = pawn.workSettings; }
                     catch { settings = null; }
 
@@ -868,7 +870,7 @@ namespace HomeBridge.BridgeTools
                     row["disabled"] = disabled;
 
                     int? priority = null;
-                    if (everWork && !disabled)
+                    if (settings != null && everWork && !disabled)
                         priority = BridgeCommon.TryN(() => settings.GetPriority(researchWork));
                     row["priority"] = priority;
                     var active = priority.HasValue && priority.Value > 0;
@@ -882,10 +884,10 @@ namespace HomeBridge.BridgeTools
                     // skills[0], i.e. pause the colony and answer with the wrong
                     // skill. Walk the list.
                     int? level = null;
-                    string passion = null;
+                    string? passion = null;
                     if (intellectual != null)
                     {
-                        List<SkillRecord> records = null;
+                        List<SkillRecord>? records = null;
                         try { records = pawn.skills == null ? null : pawn.skills.skills; }
                         catch { records = null; }
                         if (records != null)
@@ -927,15 +929,15 @@ namespace HomeBridge.BridgeTools
         /// <summary>Resolve the name, check the requirements, and on a real run
         /// do what the Research tab's Start button does minus the UI. Returns the
         /// write{} object; `applied` says whether the game was actually touched.</summary>
-        private static Dictionary<string, object> PlanSet(ResearchManager manager, List<ResearchProjectDef> all,
-                                                          string spec, bool dryRun, TechLevel? playerTech,
+        private static Dictionary<string, object?> PlanSet(ResearchManager manager, List<ResearchProjectDef> all,
+                                                          string? spec, bool dryRun, TechLevel? playerTech,
                                                           out bool applied)
         {
             applied = false;
-            var write = new Dictionary<string, object>(StringComparer.Ordinal);
+            var write = new Dictionary<string, object?>(StringComparer.Ordinal);
             write["requested"] = spec;
 
-            var beforeProj = BridgeCommon.Try(() => manager.GetProject(null), (ResearchProjectDef)null);
+            var beforeProj = BridgeCommon.Try(() => manager.GetProject(null), (ResearchProjectDef?)null);
             write["before"] = beforeProj == null ? null : Row(manager, beforeProj, playerTech, false, false);
 
             List<ResearchProjectDef> candidates;
@@ -945,7 +947,7 @@ namespace HomeBridge.BridgeTools
             {
                 var names = candidates
                     .Take(MaxCandidates)
-                    .Select(d => (object)new Dictionary<string, object>
+                    .Select(d => (object)new Dictionary<string, object?>
                     {
                         { "defName", BridgeCommon.SafeString(() => d.defName) },
                         { "label", BridgeCommon.SafeString(() => d.label) }
@@ -967,7 +969,7 @@ namespace HomeBridge.BridgeTools
                 return write;
             }
 
-            write["resolved"] = new Dictionary<string, object>
+            write["resolved"] = new Dictionary<string, object?>
             {
                 { "defName", BridgeCommon.SafeString(() => target.defName) },
                 { "label", BridgeCommon.SafeString(() => target.label) }
@@ -979,7 +981,7 @@ namespace HomeBridge.BridgeTools
             write["alreadyCurrent"] = alreadyCurrent;
 
             // The refusals, in the order the tab evaluates them.
-            string refusal = null;
+            string? refusal = null;
             if (BridgeCommon.Try(() => target.IsFinished, false))
             {
                 refusal = Label(target) + " is already FINISHED. A finished project cannot be selected; "
@@ -987,9 +989,9 @@ namespace HomeBridge.BridgeTools
             }
             else if (!alreadyCurrent && !BridgeCommon.Try(() => target.CanStartNow, false))
             {
-                var detail = new Dictionary<string, object>();
+                var detail = new Dictionary<string, object?>();
                 AddLockDetail(detail, target);
-                object reasons;
+                object? reasons;
                 detail.TryGetValue("lockReasons", out reasons);
                 var list = reasons as List<object>;
                 refusal = Label(target) + " CANNOT START YET: "
@@ -1030,7 +1032,7 @@ namespace HomeBridge.BridgeTools
             // What MainTabWindow_Research.DoBeginResearch does, minus the sound,
             // minus the no-bench Message, minus the Ideology confirmation dialog.
             var wrote = false;
-            string writeError = null;
+            string? writeError = null;
             try
             {
                 manager.SetCurrentProject(target);
@@ -1057,7 +1059,7 @@ namespace HomeBridge.BridgeTools
             // READ BACK. Never an echo of the request: if the game declined the
             // assignment (SetCurrentProject ignores a project with baseCost 0),
             // the mismatch shows here rather than being reported as success.
-            var afterProj = BridgeCommon.Try(() => manager.GetProject(null), (ResearchProjectDef)null);
+            var afterProj = BridgeCommon.Try(() => manager.GetProject(null), (ResearchProjectDef?)null);
             write["after"] = afterProj == null ? null : Row(manager, afterProj, playerTech, false, false);
             write["afterIsPredicted"] = false;
             write["changed"] = !SameDef(beforeProj, afterProj);
@@ -1123,11 +1125,11 @@ namespace HomeBridge.BridgeTools
         /// <summary>Exact defName, then exact label, then a unique substring.
         /// A null return with a non-empty candidate list is an ambiguous name;
         /// a null return with an empty one is no match at all.</summary>
-        private static ResearchProjectDef Resolve(List<ResearchProjectDef> all, string spec,
+        private static ResearchProjectDef? Resolve(List<ResearchProjectDef> all, string? spec,
                                                   out List<ResearchProjectDef> candidates)
         {
             candidates = new List<ResearchProjectDef>();
-            if (string.IsNullOrEmpty(spec))
+            if (spec == null || spec.Length == 0)
                 return null;
 
             foreach (var def in all)
@@ -1168,14 +1170,17 @@ namespace HomeBridge.BridgeTools
             if (!BridgeCommon.Try(() => ModsConfig.IdeologyActive, false))
                 return rows;
 
-            Faction player;
+            Faction? player;
             try { player = Faction.OfPlayerSilentFail; }
             catch { player = null; }
             if (player == null)
                 return rows;
 
-            Ideo primary;
-            try { primary = player.ideos == null ? null : player.ideos.PrimaryIdeo; }
+            var ideos = player.ideos;
+            if (ideos == null)
+                return rows;
+            Ideo? primary;
+            try { primary = ideos.PrimaryIdeo; }
             catch { primary = null; }
             if (primary == null)
                 return rows;
@@ -1198,7 +1203,7 @@ namespace HomeBridge.BridgeTools
                     {
                         if (meme == null)
                             continue;
-                        if (BridgeCommon.Try(() => player.ideos.HasAnyIdeoWithMeme(meme), true))
+                        if (BridgeCommon.Try(() => ideos.HasAnyIdeoWithMeme(meme), true))
                             continue;
                         if (!BridgeCommon.Try(() => meme.AllDesignatorBuildables.Contains(buildable), false))
                             continue;
@@ -1211,7 +1216,7 @@ namespace HomeBridge.BridgeTools
 
                 if (missing.Count > 0)
                 {
-                    rows.Add(new Dictionary<string, object>
+                    rows.Add(new Dictionary<string, object?>
                     {
                         { "defName", BridgeCommon.SafeString(() => buildable.defName) },
                         { "label", BridgeCommon.SafeString(() => buildable.label) },
@@ -1224,9 +1229,9 @@ namespace HomeBridge.BridgeTools
 
         // ============================================================= notes
 
-        private static Dictionary<string, object> Notes(bool dryRun, bool hadSet, string needle)
+        private static Dictionary<string, object?> Notes(bool dryRun, bool hadSet, string? needle)
         {
-            var notes = new Dictionary<string, object>(StringComparer.Ordinal)
+            var notes = new Dictionary<string, object?>(StringComparer.Ordinal)
             {
                 { "countsAreUnfiltered",
                     "availableCount, lockedCount, finishedCount, hiddenCount and totalCount are over the WHOLE ResearchProjectDef "
@@ -1285,10 +1290,10 @@ namespace HomeBridge.BridgeTools
         /// so the reported number does not itself insert a row. Null if RimWorld
         /// ever renames it, in which case the caller falls back to GetProgress and
         /// says so.</summary>
-        private static readonly FieldInfo ProgressField =
+        private static readonly FieldInfo? ProgressField =
             BridgeCommon.PrivateInstanceField(typeof(ResearchManager), "progress");
 
-        private static readonly FieldInfo AnomalyKnowledgeField =
+        private static readonly FieldInfo? AnomalyKnowledgeField =
             BridgeCommon.PrivateInstanceField(typeof(ResearchManager), "anomalyKnowledge");
 
         private static float? Progress(ResearchManager manager, ResearchProjectDef def, out string method)
@@ -1314,7 +1319,7 @@ namespace HomeBridge.BridgeTools
             return BridgeCommon.TryN(() => manager.GetProgress(def));
         }
 
-        private static ResearchManager SafeManager()
+        private static ResearchManager? SafeManager()
         {
             try { return Find.ResearchManager; }
             catch { return null; }
@@ -1344,13 +1349,13 @@ namespace HomeBridge.BridgeTools
             catch { return true; }
         }
 
-        private static T SafeComp<T>(Thing thing) where T : ThingComp
+        private static T? SafeComp<T>(Thing thing) where T : ThingComp
         {
             try { return thing.TryGetComp<T>(); }
             catch { return null; }
         }
 
-        private static bool Matches(ResearchProjectDef def, string needle)
+        private static bool Matches(ResearchProjectDef def, string? needle)
         {
             if (needle == null)
                 return true;
@@ -1360,7 +1365,7 @@ namespace HomeBridge.BridgeTools
                 || name.IndexOf(needle, StringComparison.OrdinalIgnoreCase) >= 0;
         }
 
-        private static bool SameDef(ResearchProjectDef a, ResearchProjectDef b)
+        private static bool SameDef(ResearchProjectDef? a, ResearchProjectDef? b)
         {
             if (a == null && b == null)
                 return true;
@@ -1378,7 +1383,7 @@ namespace HomeBridge.BridgeTools
             return name == null ? label : label + " (" + name + ")";
         }
 
-        private static List<object> Names(List<ResearchProjectDef> defs)
+        private static List<object> Names(List<ResearchProjectDef>? defs)
         {
             var rows = new List<object>();
             if (defs == null)
@@ -1394,7 +1399,7 @@ namespace HomeBridge.BridgeTools
             return rows;
         }
 
-        private static List<object> ThingNames(List<ThingDef> defs)
+        private static List<object> ThingNames(List<ThingDef>? defs)
         {
             var rows = new List<object>();
             if (defs == null)
@@ -1410,14 +1415,14 @@ namespace HomeBridge.BridgeTools
             return rows;
         }
 
-        private static object Round(float? value)
+        private static object? Round(float? value)
         {
             if (!value.HasValue)
                 return null;
             return Math.Round((double)value.Value, 3, MidpointRounding.AwayFromZero);
         }
 
-        private static string Quote(string s)
+        private static string Quote(string? s)
         {
             return "\"" + (s ?? string.Empty) + "\"";
         }

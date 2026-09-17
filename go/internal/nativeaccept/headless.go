@@ -410,7 +410,7 @@ func PrepareRendered(root string, expansions ...string) (string, error) {
 }
 
 // Prepare builds the headless-profile subdirectory (copying Prefs.xml/ModsConfig.xml
-// and every profile/Saves/*.rws save into it), rewrites config.json's args for batch
+// and every profile/Saves/*.rws save into it, Prefs.xml trimmed per HeadlessPrefs), rewrites config.json's args for batch
 // mode, writes config-headless/config.json, and returns that directory.
 func Prepare(root string, expansions ...string) (string, error) {
 	root = mustAbs(root)
@@ -442,6 +442,9 @@ func Prepare(root string, expansions ...string) (string, error) {
 		}
 	}
 	if err := PrepareNativeModConfig(filepath.Join(profile, "Config", "ModsConfig.xml"), expansions...); err != nil {
+		return "", err
+	}
+	if err := TrimPrefs(filepath.Join(profile, "Config", "Prefs.xml")); err != nil {
 		return "", err
 	}
 	// Every save under profile/Saves -- not just the tribal8 baseline -- so a

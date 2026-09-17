@@ -25,8 +25,7 @@ namespace HomeBridge.BridgeTools
             if (!ProtoBoundary.TryParse(ctx, "rimgovernor/observations_list_pawns", request!, Obs.ListPawnsRequest.Parser, out var parsed, out var failure)
                 || !Validate(parsed, out failure)) return ProtoBoundary.Encode(new Obs.ListPawnsReply { Failure = failure });
             return await ProtoBoundary.OnMainThread(ctx, () => {
-                var map = ProtoBoundary.ResolveMap(parsed.Scope?.ExpectedIdentity!);
-                if (!ProtoBoundary.ValidateIdentity(parsed.Scope?.ExpectedIdentity!, map, out var context, out failure))
+                if (!ProtoBoundary.ValidateIdentity(parsed.Scope?.ExpectedIdentity, out var map, out var context, out failure))
                     return ProtoBoundary.Encode(new Obs.ListPawnsReply { Failure = failure });
                 try {
                     var source = map.mapPawns.AllPawnsSpawned.ToList();
@@ -150,8 +149,9 @@ namespace HomeBridge.BridgeTools
             if(thing.MapHeld!=null) { row.MapId=thing.MapHeld.uniqueID;row.Position=Cell(thing.PositionHeld); } return row;
         }
         internal static Common.Cell Cell(IntVec3 value)=>new Common.Cell {X=value.x,Z=value.z};
-        internal static string Id(string value)=>ProtoBoundary.IsIdentifier(value)?value:throw new InvalidOperationException("Native ID unavailable.");
-        internal static string Text(string value) {
+        internal static string Id(string? value)=>ProtoBoundary.IsIdentifier(value)?value:throw new InvalidOperationException("Native ID unavailable.");
+        internal static string Text(string? value) {
+            if(value==null) throw new InvalidOperationException("Native pawn text unavailable.");
             if(value.Length>4096) throw new ReadLimit("Native pawn text exceeds the bounded field size.");
             return value;
         }

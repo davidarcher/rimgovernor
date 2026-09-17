@@ -11,6 +11,7 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
 	"github.com/davidarcher/RimGovernor/go/internal/store"
+	"github.com/davidarcher/RimGovernor/go/internal/store/storetest"
 	"github.com/davidarcher/RimGovernor/go/internal/testkit"
 )
 
@@ -94,9 +95,19 @@ type fixture struct {
 
 func newFixture(t *testing.T) *fixture {
 	t.Helper()
+	return newFixtureAt(t, storetest.Path(t))
+}
+
+// newFileFixture backs the fixture with a real file for a test that closes
+// and reopens the store by path.
+func newFileFixture(t *testing.T) *fixture {
+	t.Helper()
+	return newFixtureAt(t, filepath.Join(t.TempDir(), "state.sqlite"))
+}
+func newFixtureAt(t *testing.T, path string) *fixture {
+	t.Helper()
 	ctx := context.Background()
 	clock := testkit.NewManualClock(time.Date(2026, 9, 10, 12, 0, 0, 0, time.UTC))
-	path := filepath.Join(t.TempDir(), "state.sqlite")
 	journal, err := store.Open(ctx, path)
 	if err != nil {
 		t.Fatal(err)
@@ -118,7 +129,7 @@ func newFixture(t *testing.T) *fixture {
 		t.Fatal(err)
 	}
 	env := &environment{clock: clock, stock: 20, tick: 100}
-	executor, err := New(journal, env, clock, Limits{MaxAge: time.Second, RunTimeout: 2 * time.Second, JournalTimeout: time.Second})
+	executor, err := New(journal, env, clock, Limits{MaxAge: time.Second, RunTimeout: 2 * time.Second, JournalTimeout: 5 * time.Second})
 	if err != nil {
 		t.Fatal(err)
 	}

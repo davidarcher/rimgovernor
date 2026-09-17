@@ -1,3 +1,5 @@
+#nullable enable
+
 using System;
 using System.Diagnostics;
 using System.Linq;
@@ -40,9 +42,9 @@ namespace HomeBridge.BridgeTools
     // into their own reply shape; only one Harmony patch registration exists.
     internal sealed class PawnCaptureResult
     {
-        internal string PawnId, SessionId, View;
+        internal string? PawnId, SessionId, View;
         internal int Tick;
-        internal byte[] Png;
+        internal byte[]? Png;
         internal int Width, Height;
         internal double ReadbackMs;
     }
@@ -51,15 +53,15 @@ namespace HomeBridge.BridgeTools
     // temporary offscreen target is restored synchronously before Unity presents it.
     public sealed class PawnImageCapture : MonoBehaviour
     {
-        static PawnImageCapture instance;
-        static TaskCompletionSource<PawnCaptureResult> pending;
-        static string pawnId, sessionId, view;
-        static Pawn pawn;
+        static PawnImageCapture? instance;
+        static TaskCompletionSource<PawnCaptureResult>? pending;
+        static string? pawnId, sessionId, view;
+        static Pawn? pawn;
         static float deadline;
         static CellRect? extraView;
-        static Stopwatch stopwatch;
+        static Stopwatch? stopwatch;
 
-        static string Session()
+        static string? Session()
         {
             var identity = Current.Game?.GetComponent<ColonyIdentity>();
             return identity == null || Find.CurrentMap == null ? null :
@@ -147,7 +149,7 @@ namespace HomeBridge.BridgeTools
                 Math.Max(__result.maxZ, extra.maxZ));
         }
 
-        public static Exception DrawFinished(Exception __exception)
+        public static Exception? DrawFinished(Exception __exception)
         {
             extraView = null;
             if (__exception != null && pending != null) Fail("Native map rendering failed");
@@ -239,7 +241,7 @@ namespace HomeBridge.BridgeTools
         static byte[] Encode(RenderTexture source)
         {
             var previous = RenderTexture.active;
-            Texture2D pixels = null;
+            Texture2D? pixels = null;
             try
             {
                 RenderTexture.active = source;

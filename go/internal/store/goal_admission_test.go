@@ -3,7 +3,6 @@ package store
 import (
 	"context"
 	"errors"
-	"path/filepath"
 	"sync"
 	"testing"
 
@@ -254,7 +253,7 @@ func TestBuildingMethodAdmitsMixedCostedAndWallRemovalBundle(t *testing.T) {
 func TestMethodAdmissionReadAfterRestartHasCompleteReservations(t *testing.T) {
 	t.Parallel()
 	ctx := context.Background()
-	path := filepath.Join(t.TempDir(), "method.db")
+	path := memoryPath(t)
 	s := open(t, path)
 	g := anotherGoal(t, s, "goal")
 	r := methodRequest(t, g, "method", 80)

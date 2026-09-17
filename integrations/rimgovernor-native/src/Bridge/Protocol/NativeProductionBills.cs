@@ -44,12 +44,12 @@ namespace HomeBridge.BridgeTools {
   private static bool Prepare(Operations.AddBill command,Common.ObservationContext context,out Thing? bench,out IBillGiver? giver,out RecipeDef? recipe,out Common.Failure failure){
    bench=null;giver=null;recipe=null;failure=ProtoBoundary.Fail(Common.FailureCode.InvalidRequest,"Production bill requires unchanged native bench, available recipe and assigned skilled worker.");
    if(!Valid(command)||!NativeProductionTracking.Ready)return false;
-   bench=ProtoBoundary.ResolveMap(context).listerThings.AllThings.FirstOrDefault(t=>t.GetUniqueLoadID()==command.Bench.EntityId);giver=bench as IBillGiver;
+   bench=ProtoBoundary.LoadedMap(context).listerThings.AllThings.FirstOrDefault(t=>t.GetUniqueLoadID()==command.Bench.EntityId);giver=bench as IBillGiver;
    if(bench==null||giver==null||!Usable(bench)||giver.BillStack.Count>=15||Snapshot(bench,giver,context).Token!=command.Bench.ExpectedSnapshotToken||giver.BillStack.Bills.Any(b=>b.recipe.defName==command.RecipeDef))return false;
    recipe=DefDatabase<RecipeDef>.GetNamedSilentFail(command.RecipeDef);if(recipe==null||!Recipe(bench,recipe))return false;
    if(command.RecipeDef!="ButcherCorpseFlesh"&&(recipe.WorkerCounter.GetType()!=typeof(RecipeWorkerCounter)||recipe.specialProducts!=null||recipe.products.Count!=1))return false;
    var target=bench;var wanted=recipe;var cooking=DefDatabase<WorkTypeDef>.GetNamedSilentFail("Cooking");
-   return cooking!=null&&ProtoBoundary.ResolveMap(context).mapPawns.FreeColonistsSpawned.Any(p=>!p.Dead&&!p.Downed&&!p.Drafted&&!p.InMentalState&&p.workSettings?.Initialized==true&&p.workSettings.GetPriority(cooking)>0&&!p.WorkTypeIsDisabled(cooking)&&!target.IsForbidden(p)&&p.Position.DistanceTo(target.Position)<=40&&p.CanReach(target,PathEndMode.InteractionCell,Danger.None)&&(wanted.skillRequirements==null||wanted.skillRequirements.All(s=>p.skills?.GetSkill(s.skill)!=null&&!p.skills.GetSkill(s.skill).TotallyDisabled&&p.skills.GetSkill(s.skill).Level>=s.minLevel)));
+   return cooking!=null&&ProtoBoundary.LoadedMap(context).mapPawns.FreeColonistsSpawned.Any(p=>!p.Dead&&!p.Downed&&!p.Drafted&&!p.InMentalState&&p.workSettings?.Initialized==true&&p.workSettings.GetPriority(cooking)>0&&!p.WorkTypeIsDisabled(cooking)&&!target.IsForbidden(p)&&p.Position.DistanceTo(target.Position)<=40&&p.CanReach(target,PathEndMode.InteractionCell,Danger.None)&&(wanted.skillRequirements==null||wanted.skillRequirements.All(s=>p.skills?.GetSkill(s.skill)!=null&&!p.skills.GetSkill(s.skill).TotallyDisabled&&p.skills.GetSkill(s.skill).Level>=s.minLevel)));
   }
   internal static Operations.PreviewReply Preview(Operations.AddBill command,Common.ObservationContext context)=>Prepare(command,context,out _,out _,out _,out var failure)?new Operations.PreviewReply{Evaluated=new Operations.PreviewEvaluation{Context=context.Clone(),Accepted=true}}:new Operations.PreviewReply{Failure=failure};
   internal static Operations.ExecuteReply Execute(NativeOperationState state,Operations.ExecuteRequest request,Common.ObservationContext context){
@@ -58,7 +58,7 @@ namespace HomeBridge.BridgeTools {
     if(!Prepare(command,context,out var bench,out var giver,out var recipe,out var failure))return new Operations.ExecuteReply{Failure=failure};
     if(!NativeControlAuthority.TryGetForGame(Current.Game,out var authority)||authority==null)return new Operations.ExecuteReply{Failure=ProtoBoundary.Fail(Common.FailureCode.AuthorityRequired,"Native authority required.")};
     var guard=authority.Check(pre.ExpectedGeneration);context.NativeGeneration=guard.Snapshot.Generation;if(!guard.Success)return new Operations.ExecuteReply{Failure=NativeAuthorityControlTools.Refusal(guard.Error,context)};
-    var admitted=state.Ledger.Admit("rimgovernor.operations.v1.Operations/Execute",request,context);if(admitted.Kind!=NativeAttemptLedger.DecisionKind.Admitted)return admitted.Reply!;handle=admitted.Handle;
+    var admitted=state.Ledger.Admit("rimgovernor.operations.v1.Operations/Execute",request,context);if(admitted.Kind!=NativeAttemptLedger.DecisionKind.Admitted)return admitted.DecidedReply;handle=admitted.AdmittedHandle;
     using(authority.Owned()){
      if(!authority.Check(pre.ExpectedGeneration).Success||!Prepare(command,context,out bench,out giver,out recipe,out failure))throw new InvalidOperationException("Bill scope changed");
      var bill=recipe!.MakeNewBill(null) as Bill_Production;if(bill==null)throw new InvalidOperationException("Recipe is not ordinary production");
@@ -70,7 +70,7 @@ namespace HomeBridge.BridgeTools {
      evidence=new Receipts.EffectEvidence{Bill=record.Evidence(context)};
     }
     return new Operations.ExecuteReply{Receipt=NativeOperationEnvelope.Applied(state.Ledger,handle,pre.Attempt,context,evidence)};
-   }catch(Exception error){return handle==null?new Operations.ExecuteReply{Failure=ProtoBoundary.Fail(Common.FailureCode.NativeFailure,"Bill admission failed: "+error.GetType().Name)}:new Operations.ExecuteReply{Receipt=NativeOperationEnvelope.Uncertain(state.Ledger,handle,pre.Attempt,context,evidence!,"Production needs inspection: "+error.GetType().Name)};}
+   }catch(Exception error){return handle==null?new Operations.ExecuteReply{Failure=ProtoBoundary.Fail(Common.FailureCode.NativeFailure,"Bill admission failed: "+error.GetType().Name)}:new Operations.ExecuteReply{Receipt=NativeOperationEnvelope.Uncertain(state.Ledger,handle,pre.Attempt,context,evidence,"Production needs inspection: "+error.GetType().Name)};}
   }
  }
 }

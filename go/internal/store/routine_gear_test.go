@@ -5,13 +5,12 @@ import (
 	"errors"
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
-	"path/filepath"
 	"testing"
 )
 
 func TestRoutineGearNeedsPersistUnknownRecoveryRenewalAndManual(t *testing.T) {
 	t.Parallel()
-	path := filepath.Join(t.TempDir(), "gear.db")
+	path := memoryPath(t)
 	db := open(t, path)
 	r := routineRequest()
 	gear := policy.GearObservation{Pawns: []policy.GearPawn{{Pawn: "pawn", Loadout: "loadout", Deficit: domain.Known(true), Candidates: domain.Known([]policy.GearCandidate{})}}}

@@ -149,7 +149,7 @@ func BenchmarkExecutorScheduling(b *testing.B) {
 			scope := domain.GenerationSnapshot{Colony: "colony", Load: "load", Map: 0, Plan: plan.ID(), Revision: 1, Native: 1}
 			journal := &schedulingJournal{plan: plan, action: action, progress: pending, scope: scope}
 			env := &environment{clock: clock, stock: 20, tick: 100}
-			executor, err := New(journal, env, clock, Limits{MaxAge: time.Second, RunTimeout: 2 * time.Second, JournalTimeout: time.Second})
+			executor, err := New(journal, env, clock, Limits{MaxAge: time.Second, RunTimeout: 2 * time.Second, JournalTimeout: 5 * time.Second})
 			if err != nil {
 				b.Fatal(err)
 			}

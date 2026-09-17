@@ -1,3 +1,5 @@
+#nullable enable
+
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -16,17 +18,17 @@ namespace HomeBridge.BridgeTools
     internal static class CombatInjuryHook
     {
         private static readonly object Gate = new object();
-        private static ArmState _armed;
-        private static InjuryEvent _first;
+        private static ArmState? _armed;
+        private static InjuryEvent? _first;
         private static int _patched;
         private static int _prefixCalls;
         private static int _watchedCalls;
         private static int _injuryChanges;
         private static int _hookErrors;
-        private static MethodInfo _target;
-        private static string _patchError;
+        private static MethodInfo? _target;
+        private static string? _patchError;
 
-        internal static void Arm(IEnumerable<int> pawnIds)
+        internal static void Arm(IEnumerable<int>? pawnIds)
         {
             EnsurePatched();
             var ids = new HashSet<int>(pawnIds ?? Enumerable.Empty<int>());
@@ -46,17 +48,17 @@ namespace HomeBridge.BridgeTools
             }
         }
 
-        internal static InjuryEvent Peek()
+        internal static InjuryEvent? Peek()
         {
             lock (Gate) return _first;
         }
 
-        internal static Dictionary<string, object> Status()
+        internal static Dictionary<string, object?> Status()
         {
             var target = _target;
             var info = target != null ? Harmony.GetPatchInfo(target) : null;
             var owners = info == null ? new List<string>() : info.Owners.OrderBy(x => x).ToList();
-            return new Dictionary<string, object>
+            return new Dictionary<string, object?>
             {
                 { "armed", Volatile.Read(ref _armed) != null },
                 { "target", target != null ? target.DeclaringType.FullName + "." + target : null },
@@ -207,7 +209,7 @@ namespace HomeBridge.BridgeTools
         internal sealed class InjuryEvent
         {
             internal int PawnId;
-            internal string PawnName;
+            internal string? PawnName;
             internal int Tick;
             internal int InjuryCountBefore;
             internal int InjuryCountAfter;
@@ -215,12 +217,12 @@ namespace HomeBridge.BridgeTools
             internal float SeverityAfter;
             internal float BleedRateBefore;
             internal float BleedRateAfter;
-            internal string DamageDef;
+            internal string? DamageDef;
             internal float DamageAmount;
             internal int? InstigatorId;
-            internal string InstigatorName;
+            internal string? InstigatorName;
 
-            internal Dictionary<string, object> ToPayload() => new Dictionary<string, object>
+            internal Dictionary<string, object?> ToPayload() => new Dictionary<string, object?>
             {
                 { "kind", "pawn_injury_hook" }, { "pawnId", PawnId }, { "pawnName", PawnName }, { "tick", Tick },
                 { "injuryCountBefore", InjuryCountBefore }, { "injuryCountAfter", InjuryCountAfter },

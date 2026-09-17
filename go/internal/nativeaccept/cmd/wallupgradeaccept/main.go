@@ -62,24 +62,12 @@ func run(ctx context.Context, root, output, gameID, save, prepare string, maxWal
 	if err := cfg.PrepareConfig(); err != nil {
 		return fmt.Errorf("prepare profile: %w", err)
 	}
-	gabsExecutable, err := na.GABSExecutable(root, cfg.Configuration)
+	held, err := na.OpenGame(ctx, cfg)
 	if err != nil {
 		return err
 	}
-	client, err := na.OpenSession(ctx, gabsExecutable, cfg.Configuration, gameID, 60*time.Second)
-	if err != nil {
-		return err
-	}
-	defer func() {
-		stopCtx, stopCancel := context.WithTimeout(context.Background(), 60*time.Second)
-		defer stopCancel()
-		if stopped, err := client.GamesStop(stopCtx); err == nil {
-			report["stop"] = string(stopped.Envelope)
-		} else {
-			report["stop_error"] = err.Error()
-		}
-		_ = client.Close()
-	}()
+	defer held.Close(report)
+	client := held.Client
 	h := na.NewHarness(client, output)
 
 	names, err := h.Discovery(ctx)

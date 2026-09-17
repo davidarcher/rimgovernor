@@ -106,11 +106,11 @@ namespace HomeBridge.BridgeTools
         private static bool Prepare(Operations.MovePawn command,Common.ObservationContext context,out NativeControlIdentity identity,
             out Pawn? pawn,out NativePawnSnapshot? snapshot,out IntVec3 destination,out Common.Failure failure)
         {
-            identity=new NativeControlIdentity(Current.Game,ProtoBoundary.ResolveMap(context),context.Identity.ColonyId,context.Identity.LoadToken);
+            identity=new NativeControlIdentity(Current.Game, ProtoBoundary.LoadedMap(context),context.Identity.ColonyId,context.Identity.LoadToken);
             pawn=null;snapshot=null;destination=new IntVec3(command.Destination.X,0,command.Destination.Z);
             failure=ProtoBoundary.Fail(Common.FailureCode.Unavailable,"Live native pawn control hooks are required.");
             if(!NativePawnControlState.IsReady)return false;
-            pawn=ProtoBoundary.ResolveMap(context).mapPawns.AllPawnsSpawned.SingleOrDefault(p=>p.GetUniqueLoadID()==command.Pawn.EntityId);
+            pawn=ProtoBoundary.LoadedMap(context).mapPawns.AllPawnsSpawned.SingleOrDefault(p=>p.GetUniqueLoadID()==command.Pawn.EntityId);
             if(pawn==null){failure=ProtoBoundary.Fail(Common.FailureCode.NotFound,"Exact pawn is not spawned on this map.");return false;}
             var check=NativePawnControlState.Check(identity,pawn,command.Pawn.ExpectedSnapshotToken,out snapshot);
             if(check!=NativePawnControlResult.Ready){failure=NativeDraftProtocol.Failure(check,context);return false;}
@@ -139,8 +139,8 @@ namespace HomeBridge.BridgeTools
                 if(NativePawnControlState.Check(identity,pawn!,command.Pawn.ExpectedSnapshotToken,out snapshot)!=NativePawnControlResult.Ready || !Owns(snapshot!))
                     return Refuse(Common.FailureCode.OwnerConflict,"Pawn snapshot or owned claim changed before admission.");
                 var admission=state.Ledger.Admit("rimgovernor.operations.v1.Operations/Execute",request,context);
-                if(admission.Kind!=NativeAttemptLedger.DecisionKind.Admitted)return admission.Reply!;
-                handle=admission.Handle!;
+                if(admission.Kind!=NativeAttemptLedger.DecisionKind.Admitted)return admission.DecidedReply;
+                handle=admission.AdmittedHandle;
                 var record=new NativeMovementRecord(identity,pawn!,destination,job,snapshot!,context);
                 state.Movements.Add(pre.Attempt.Clone(),record);
                 bool accepted=false;Exception? effectError=null;
@@ -169,7 +169,7 @@ namespace HomeBridge.BridgeTools
                 return new Operations.ExecuteReply {Receipt=NativeOperationEnvelope.Applied(state.Ledger,handle,pre.Attempt,context,evidence)};
             } catch(Exception error) {
                 if(handle==null)return Refuse(Common.FailureCode.NativeFailure,"Movement validation failed: "+error.GetType().Name);
-                return new Operations.ExecuteReply {Receipt=NativeOperationEnvelope.Uncertain(state.Ledger,handle,pre.Attempt,context,evidence!,"Admitted movement requires observation: "+error.GetType().Name)};
+                return new Operations.ExecuteReply {Receipt=NativeOperationEnvelope.Uncertain(state.Ledger,handle,pre.Attempt,context,evidence,"Admitted movement requires observation: "+error.GetType().Name)};
             }
         }
         internal static Operations.PreviewReply Preview(Operations.MovePawn command,Common.ObservationContext context)

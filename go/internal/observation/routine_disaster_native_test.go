@@ -12,6 +12,7 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
 	"github.com/davidarcher/RimGovernor/go/internal/store"
+	"github.com/davidarcher/RimGovernor/go/internal/store/storetest"
 	o "github.com/davidarcher/RimGovernor/go/internal/wire/observationspb"
 	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/proto"
@@ -84,7 +85,7 @@ func TestNativeRoutineDisasterReplay(t *testing.T) {
 	if err != nil || !known || len(rows) == 0 || !reflect.DeepEqual(rows, reference.Reference.Work) {
 		t.Fatal(rows, known, err)
 	}
-	path := filepath.Join(t.TempDir(), "disaster.sqlite")
+	path := storetest.Path(t)
 	journal, err := store.Open(context.Background(), path)
 	if err != nil {
 		t.Fatal(err)

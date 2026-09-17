@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/boundary"
-	"path/filepath"
 	"testing"
 	"time"
 
@@ -12,6 +11,7 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/executor"
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
 	"github.com/davidarcher/RimGovernor/go/internal/store"
+	"github.com/davidarcher/RimGovernor/go/internal/store/storetest"
 	"google.golang.org/protobuf/proto"
 )
 
@@ -19,7 +19,7 @@ func TestSessionOtherStoredPlanHoldSurvivesManualAndRestart(t *testing.T) {
 	t.Parallel()
 	ctx := context.Background()
 	dir := t.TempDir()
-	path := filepath.Join(dir, "plans.sqlite")
+	path := storetest.Path(t)
 	journal, err := store.Open(ctx, path)
 	if err != nil {
 		t.Fatal(err)
@@ -49,7 +49,7 @@ func TestSessionOtherStoredPlanHoldSurvivesManualAndRestart(t *testing.T) {
 	}
 	native := sessionNative{fixture}
 	authority := &controlNative{generation: 1}
-	config := SessionConfig{Control: ControlConfig{ProfileDirectory: dir, CallTimeout: time.Second}, Executor: executor.Limits{MaxAge: time.Second, RunTimeout: time.Second, JournalTimeout: time.Second}}
+	config := SessionConfig{Control: ControlConfig{ProfileDirectory: dir, CallTimeout: 5 * time.Second}, Executor: executor.Limits{MaxAge: time.Second, RunTimeout: 5 * time.Second, JournalTimeout: 5 * time.Second}}
 	session, err := NewSession(ctx, config, journal, native, authority, native, boundary.FixedClock{})
 	if err != nil {
 		t.Fatal(err)

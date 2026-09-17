@@ -9,7 +9,6 @@ import (
 	k "github.com/davidarcher/RimGovernor/go/internal/wire/clockpb"
 	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
 	"google.golang.org/protobuf/proto"
-	"path/filepath"
 	"testing"
 	"time"
 )
@@ -37,7 +36,7 @@ func clockApplied(v ClockAttempt) *k.ControlReply {
 func TestClockJournalReopenAndImmutableEvidence(t *testing.T) {
 	t.Parallel()
 	ctx := context.Background()
-	path := filepath.Join(t.TempDir(), "clock.db")
+	path := memoryPath(t)
 	s := open(t, path)
 	input := clockIntent(clockTestID(t, s, "start"))
 	v, created, err := s.PrepareClock(ctx, input)
@@ -95,7 +94,7 @@ func TestClockJournalReopenAndImmutableEvidence(t *testing.T) {
 func TestClockReplyClassificationAndOriginalEpoch(t *testing.T) {
 	t.Parallel()
 	ctx := context.Background()
-	s := open(t, filepath.Join(t.TempDir(), "clock.db"))
+	s := open(t, memoryPath(t))
 	for _, test := range []struct {
 		id    string
 		reply *k.ControlReply

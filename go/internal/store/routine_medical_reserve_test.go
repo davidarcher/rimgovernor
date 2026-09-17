@@ -4,14 +4,13 @@ import (
 	"context"
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
-	"path/filepath"
 	"testing"
 )
 
 func TestMedicalReserveRetainsHistoryAcrossManualUnknownAndRestart(t *testing.T) {
 	t.Parallel()
 	ctx := context.Background()
-	path := filepath.Join(t.TempDir(), "medicine.db")
+	path := memoryPath(t)
 	s := open(t, path)
 	r := routineRequest()
 	r.Facts.Colonists = domain.Known(int64(3))

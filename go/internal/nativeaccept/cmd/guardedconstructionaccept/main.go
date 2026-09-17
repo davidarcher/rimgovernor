@@ -88,25 +88,28 @@ func run(ctx context.Context, root, output, gameID, buildingSmoke, expectedOutco
 	if err != nil {
 		return err
 	}
-	client, err := na.OpenSession(ctx, gabsExecutable, cfg.Configuration, gameID, 60*time.Second)
+	held, err := na.OpenGame(ctx, cfg)
 	if err != nil {
 		return err
 	}
-	defer func() {
-		stopCtx, stopCancel := context.WithTimeout(context.Background(), 60*time.Second)
-		defer stopCancel()
-		if stopped, err := client.GamesStop(stopCtx); err == nil {
-			report["stop"] = string(stopped.Envelope)
-		} else {
-			report["stop_error"] = err.Error()
-		}
-		_ = client.Close()
-	}()
+	defer held.Close(report)
+	client := held.Client
 	h := na.NewHarness(client, output)
 
-	if _, err := na.StartDebugGame(ctx, h, nil, na.QuietRequired); err != nil {
+	names, err := h.Discovery(ctx)
+	if err != nil {
 		return err
 	}
+	if _, err := na.StartDebugGame(ctx, h, names, na.QuietRequired); err != nil {
+		return err
+	}
+	// Nothing here is about eating, sleeping or mood: the builder stays on
+	// the job for the whole run.
+	frozen, err := na.FreezeNeeds(ctx, h, names)
+	if err != nil {
+		return err
+	}
+	report["frozen_needs"] = frozen
 	if _, err := h.Call(ctx, "pause", "rimworld/set_time_speed", map[string]any{"speed": "Paused", "ultraSpeedBoost": false}); err != nil {
 		return err
 	}
@@ -682,7 +685,7 @@ func run(ctx context.Context, root, output, gameID, buildingSmoke, expectedOutco
 	if err := renewOrAcquire(ctx, supervisor, "construction-wait"); err != nil {
 		return err
 	}
-	rt := &na.ScenarioRuntime{Query: h.Call, Clock: supervisor, Report: report}
+	rt := &na.ScenarioRuntime{Query: h.Call, Clock: supervisor, Report: report, Tools: names}
 	complete := expectedOutcome == "cancelled"
 	windows := 0
 	if expectedOutcome == "completed" {

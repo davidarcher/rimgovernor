@@ -4,13 +4,13 @@ import (
 	"context"
 	"fmt"
 	"os"
-	"path/filepath"
 	"testing"
 	"time"
 
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
 	"github.com/davidarcher/RimGovernor/go/internal/store"
+	"github.com/davidarcher/RimGovernor/go/internal/store/storetest"
 	"github.com/davidarcher/RimGovernor/go/internal/testkit"
 	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
 	o "github.com/davidarcher/RimGovernor/go/internal/wire/observationspb"
@@ -292,8 +292,7 @@ func composedNativeFixture(t *testing.T) *routineNative {
 func TestComposedRoutineFamiliesFreshStartReconciliationRecoversIndependently(t *testing.T) {
 	t.Parallel()
 	ctx := context.Background()
-	dir := t.TempDir()
-	path := filepath.Join(dir, "composed-restart.sqlite")
+	path := storetest.Path(t)
 
 	// --- prior run: admit a supply hold and an acquisition hold ---
 	db1, err := store.Open(ctx, path)
@@ -302,7 +301,7 @@ func TestComposedRoutineFamiliesFreshStartReconciliationRecoversIndependently(t 
 	}
 	session1 := &playerFakeSession{}
 	worlds1 := &playerWorldSource{world: store.World{Colony: "colony", Load: "load", Map: 0}}
-	p1, err := newPlayer(ctx, PlayerConfig{CallTimeout: time.Second, JournalTimeout: time.Second}, db1, session1, worlds1)
+	p1, err := newPlayer(ctx, PlayerConfig{CallTimeout: 5 * time.Second, JournalTimeout: 5 * time.Second}, db1, session1, worlds1)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -362,7 +361,7 @@ func TestComposedRoutineFamiliesFreshStartReconciliationRecoversIndependently(t 
 	defer func() { db2.Close() }()
 	session2 := &playerFakeSession{}
 	worlds2 := &playerWorldSource{world: store.World{Colony: "colony", Load: "load", Map: 0}}
-	p2, err := newPlayer(ctx, PlayerConfig{CallTimeout: time.Second, JournalTimeout: time.Second}, db2, session2, worlds2)
+	p2, err := newPlayer(ctx, PlayerConfig{CallTimeout: 5 * time.Second, JournalTimeout: 5 * time.Second}, db2, session2, worlds2)
 	if err != nil {
 		t.Fatal(err)
 	}

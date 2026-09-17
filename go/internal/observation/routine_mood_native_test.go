@@ -12,6 +12,7 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
 	"github.com/davidarcher/RimGovernor/go/internal/store"
+	"github.com/davidarcher/RimGovernor/go/internal/store/storetest"
 	o "github.com/davidarcher/RimGovernor/go/internal/wire/observationspb"
 	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/proto"
@@ -114,7 +115,7 @@ func TestNativeRoutineMoodReplay(t *testing.T) {
 		}
 	}
 	ctx := context.Background()
-	path := filepath.Join(t.TempDir(), "mood.sqlite")
+	path := storetest.Path(t)
 	db, err := store.Open(ctx, path)
 	if err != nil {
 		t.Fatal(err)

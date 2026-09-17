@@ -25,13 +25,28 @@ tasks:
       - go build -trimpath -o {{.EVIDENCE}}/go/rimgovernor{{exeExt}} ./cmd/rimgovernor
 
   test:
-    desc: Unit tests under a 10s per-test ceiling; race tests when a C compiler is present
+    desc: Unit tests under a 10s per-test ceiling, then race tests when a C compiler is present
+    # Sequential on purpose: the per-test ceiling is a wall-clock check and
+    # loses its headroom when the race pass competes for the same cores.
+    cmds:
+      - task: test:unit
+      - task: test:race
+
+  test:unit:
+    internal: true
     cmds:
       - go test -json ./... | go run ./internal/testkit/cmd/checktesttimes -max 10s
+
+  test:race:
+    internal: true
+    cmds:
       - |
         if command -v gcc >/dev/null 2>&1; then
           # Ownership tests exercise a one-second subprocess shutdown deadline.
-          CGO_ENABLED=1 GORACE=atexit_sleep_ms=0 go test -race ./...
+          # Race instrumentation is several times slower on Windows; capping
+          # in-package parallelism keeps CPU-bound tests inside their 5s call
+          # deadlines.
+          CGO_ENABLED=1 GORACE=atexit_sleep_ms=0 go test -race -parallel 8 ./...
         else
           echo "race: unavailable (no C compiler on PATH)"
         fi

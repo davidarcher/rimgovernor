@@ -76,24 +76,12 @@ func run(ctx context.Context, root, output, gameID string, headless bool, report
 		return err
 	}
 	report["package_files"] = files
-	gabsExecutable, err := na.GABSExecutable(root, cfg.Configuration)
+	held, err := na.OpenGame(ctx, cfg)
 	if err != nil {
 		return err
 	}
-	client, err := na.OpenSession(ctx, gabsExecutable, cfg.Configuration, gameID, 60*time.Second)
-	if err != nil {
-		return err
-	}
-	defer func() {
-		stopCtx, stopCancel := context.WithTimeout(context.Background(), 60*time.Second)
-		defer stopCancel()
-		if stopped, err := client.GamesStop(stopCtx); err == nil {
-			report["stop"] = string(stopped.Envelope)
-		} else {
-			report["stop_error"] = err.Error()
-		}
-		_ = client.Close()
-	}()
+	defer held.Close(report)
+	client := held.Client
 	h := na.NewHarness(client, output)
 
 	if _, err := na.StartDebugGame(ctx, h, nil, na.QuietRequired); err != nil {
@@ -122,23 +110,9 @@ func run(ctx context.Context, root, output, gameID string, headless bool, report
 		return fmt.Errorf("missing rimgovernor/operations_execute in discovery")
 	}
 
-	statusReply, err := h.Wire(ctx, "authority-status", "authority_read_status", map[string]any{"identity": identity})
-	if err != nil {
-		return err
-	}
-	_, status, err := na.Outcome(statusReply, "status")
-	if err != nil {
-		return err
-	}
-	statusContext, _ := na.AsMap(status["context"])
-	grantReply, err := h.Wire(ctx, "acquire", "authority_control", map[string]any{"acquire": map[string]any{
-		"identity": identity, "expectedGeneration": statusContext["nativeGeneration"],
-		"owner": map[string]any{"controllerSessionId": sessionOwner, "playerDirection": "1"}, "leaseMs": 30000,
-	}})
-	if err != nil {
-		return err
-	}
-	_, grant, err := na.Outcome(grantReply, "granted")
+	// SetMode(Auto) at the current generation (#52): no lease, the granted
+	// body's context.nativeGeneration is what preconditions carry.
+	grant, err := na.GrantAuto(ctx, h.WireFunc(), "acquire", identity)
 	if err != nil {
 		return err
 	}
@@ -153,7 +127,7 @@ func run(ctx context.Context, root, output, gameID string, headless bool, report
 		reply, err := h.Wire(ctx, label, "observations_list_pawns", map[string]any{
 			"scope":   map[string]any{"expectedIdentity": identity},
 			"filter":  map[string]any{"ids": []string{pawnID}, "includeDead": true},
-			"details": map[string]any{"needs": true, "settings": true},
+			"details": map[string]any{"needs": true, "schedule": true},
 			"page":    map[string]any{"limit": 1},
 		})
 		if err != nil {
@@ -232,7 +206,7 @@ func run(ctx context.Context, root, output, gameID string, headless bool, report
 	buildRequest := func(actionID, attemptID string, operation map[string]any) map[string]any {
 		return map[string]any{
 			"precondition": map[string]any{
-				"identity": identity, "expectedGeneration": grantContext["nativeGeneration"], "leaseId": grant["leaseId"],
+				"identity": identity, "expectedGeneration": grantContext["nativeGeneration"],
 				"attempt": map[string]any{"controllerSessionId": sessionOwner, "actionId": actionID, "attemptId": attemptID},
 			},
 			"operation": operation,
@@ -352,35 +326,11 @@ func run(ctx context.Context, root, output, gameID string, headless bool, report
 	// threshold, matching the doc contract ("Positive cases require actual
 	// rest, food and recreation recovery to at least 0.5"); absence of the
 	// original job never proves recovery by itself.
-	if _, err := h.Call(ctx, "resume", "rimworld/set_time_speed", map[string]any{"speed": "Fast", "ultraSpeedBoost": false}); err != nil {
+	completedAll, err := na.ObserveCompleted(ctx, h, "observe", 2*na.TicksPerDay, attempt)
+	if err != nil {
 		return err
 	}
-	var completedProgress map[string]any
-	deadline := time.Now().Add(10 * time.Minute)
-	for completedProgress == nil {
-		if time.Now().After(deadline) {
-			return fmt.Errorf("observe: joy need did not recover within the polling deadline")
-		}
-		progressReply, err := h.Wire(ctx, "observe-poll", "receipts_observe_progress", attempt)
-		if err != nil {
-			return err
-		}
-		_, progress, err := na.Outcome(progressReply, "progress")
-		if err != nil {
-			return err
-		}
-		if unsuccessful, ok := na.AsMap(progress["unsuccessful"]); ok {
-			return fmt.Errorf("observe: relief became unsuccessful before completion: %#v", unsuccessful)
-		}
-		if completed, ok := na.AsMap(progress["completed"]); ok {
-			completedProgress = completed
-			break
-		}
-		time.Sleep(2 * time.Second)
-	}
-	if _, err := h.Call(ctx, "pause-after-complete", "rimworld/set_time_speed", map[string]any{"speed": "Paused", "ultraSpeedBoost": false}); err != nil {
-		return err
-	}
+	completedProgress := completedAll[0]
 	completedEvidence, _ := na.AsMap(completedProgress["evidence"])
 	completedJob, _ := na.AsMap(completedEvidence["job"])
 	if na.AsString(completedJob["pawnId"]) != pawnID {

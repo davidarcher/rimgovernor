@@ -164,16 +164,16 @@ namespace HomeBridge.BridgeTools
         private static bool Prepare(Operations.PawnTargetOrder command, Common.ObservationContext context, out NativeControlIdentity identity,
             out Pawn? pawn, out Pawn? patient, out Building_Bed? bed, out NativePawnSnapshot? snapshot, out Common.Failure failure)
         {
-            identity = new NativeControlIdentity(Current.Game, ProtoBoundary.ResolveMap(context), context.Identity.ColonyId, context.Identity.LoadToken);
+            identity = new NativeControlIdentity(Current.Game, ProtoBoundary.LoadedMap(context), context.Identity.ColonyId, context.Identity.LoadToken);
             pawn = null; patient = null; bed = null; snapshot = null;
             failure = ProtoBoundary.Fail(Common.FailureCode.Unavailable, "Live native pawn control hooks are required.");
             if (!NativePawnControlState.IsReady) return false;
-            pawn = ProtoBoundary.ResolveMap(context).mapPawns.AllPawnsSpawned.SingleOrDefault(p => p.GetUniqueLoadID() == command.Pawn.EntityId);
+            pawn = ProtoBoundary.LoadedMap(context).mapPawns.AllPawnsSpawned.SingleOrDefault(p => p.GetUniqueLoadID() == command.Pawn.EntityId);
             if (pawn == null) { failure = ProtoBoundary.Fail(Common.FailureCode.NotFound, "Exact pawn is not spawned on this map."); return false; }
             var check = NativePawnControlState.Check(identity, pawn, command.Pawn.ExpectedSnapshotToken, out snapshot);
             if (check != NativePawnControlResult.Ready) { failure = NativeDraftProtocol.Failure(check, context); return false; }
             if (!snapshot!.Eligible) { failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Custody dispatch requires an eligible pawn."); return false; }
-            patient = ProtoBoundary.ResolveMap(context).mapPawns.AllPawnsSpawned.SingleOrDefault(p => p.GetUniqueLoadID() == command.Target.EntityId);
+            patient = ProtoBoundary.LoadedMap(context).mapPawns.AllPawnsSpawned.SingleOrDefault(p => p.GetUniqueLoadID() == command.Target.EntityId);
             if (patient == null) { failure = ProtoBoundary.Fail(Common.FailureCode.NotFound, "Exact patient pawn is not spawned on this map."); return false; }
             var patientCheck = NativePawnControlState.Check(identity, patient, command.Target.ExpectedSnapshotToken, out _);
             if (patientCheck != NativePawnControlResult.Ready) { failure = NativeDraftProtocol.Failure(patientCheck, context); return false; }
@@ -207,8 +207,8 @@ namespace HomeBridge.BridgeTools
                 if (!Recheck(identity, pawn!, command, patient!, context, out snapshot))
                     return Refuse(Common.FailureCode.OwnerConflict, "Pawn or patient snapshot changed before admission.");
                 var admission = state.Ledger.Admit("rimgovernor.operations.v1.Operations/Execute", request, context);
-                if (admission.Kind != NativeAttemptLedger.DecisionKind.Admitted) return admission.Reply!;
-                handle = admission.Handle!;
+                if (admission.Kind != NativeAttemptLedger.DecisionKind.Admitted) return admission.DecidedReply;
+                handle = admission.AdmittedHandle;
                 bool accepted = false; Exception? effectError = null;
                 using (authority.Owned())
                 {
@@ -237,7 +237,7 @@ namespace HomeBridge.BridgeTools
             {
                 return handle == null
                     ? Refuse(Common.FailureCode.NativeFailure, "Custody validation failed: " + error.GetType().Name)
-                    : new Operations.ExecuteReply { Receipt = NativeOperationEnvelope.Uncertain(state.Ledger, handle, pre.Attempt, context, evidence!, "Admitted custody order requires observation: " + error.GetType().Name) };
+                    : new Operations.ExecuteReply { Receipt = NativeOperationEnvelope.Uncertain(state.Ledger, handle, pre.Attempt, context, evidence, "Admitted custody order requires observation: " + error.GetType().Name) };
             }
         }
 

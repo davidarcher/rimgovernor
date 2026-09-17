@@ -1,3 +1,5 @@
+#nullable enable
+
 using System;
 using System.Linq;
 using System.Threading;
@@ -29,10 +31,10 @@ namespace HomeBridge.BridgeTools
         {
             return await ctx.MainThread.InvokeAsync<object>(() => {
                 var p = Find.CurrentMap?.mapPawns.FreeColonistsSpawned.SingleOrDefault(x => x.GetUniqueLoadID() == pawn);
-                string error = null;
                 if (p == null || p.Dead || p.Downed || p.Drafted || p.InMentalState || !p.IsColonistPlayerControlled)
-                    error = "Pawn unavailable, drafted or in an active mental break.";
-                else if (p.CurJob?.loadID != (expectedJob == -1 ? (int?)null : expectedJob)
+                    return new { success = false, error = "Pawn unavailable, drafted or in an active mental break." };
+                string? error = null;
+                if (p.CurJob?.loadID != (expectedJob == -1 ? (int?)null : expectedJob)
                     || p.CurJob?.playerForced == true || p.jobs.jobQueue.Count != 0)
                     error = "Current job changed or player work is protected.";
                 else if (p.timetable?.CurrentAssignment?.defName != expectedSchedule)
@@ -44,13 +46,13 @@ namespace HomeBridge.BridgeTools
                 if (error != null) return new { success = false, error };
                 ThinkNode_JobGiver giver;
                 float? level;
-                if (need == "rest") { giver = new JobGiver_GetRest(); level = p.needs.rest?.CurLevelPercentage; }
-                else if (need == "food") { giver = new JobGiver_GetFood(); level = p.needs.food?.CurLevelPercentage; }
-                else if (need == "joy") { giver = new Recreation(); level = p.needs.joy?.CurLevelPercentage; }
+                if (need == "rest") { giver = new JobGiver_GetRest(); level = p.needs?.rest?.CurLevelPercentage; }
+                else if (need == "food") { giver = new JobGiver_GetFood(); level = p.needs?.food?.CurLevelPercentage; }
+                else if (need == "joy") { giver = new Recreation(); level = p.needs?.joy?.CurLevelPercentage; }
                 else return new { success = false, error = "Unknown need." };
                 if (level == null || level >= 0.5f)
                     return new { success = false, error = "Need is absent or no longer deficient." };
-                var assignment = p.timetable.CurrentAssignment;
+                var assignment = p.timetable?.CurrentAssignment;
                 if (need == "joy" ? assignment != TimeAssignmentDefOf.Anything && assignment != TimeAssignmentDefOf.Joy
                                   : giver.GetPriority(p) <= 0)
                     return new { success = false, error = "Native need priority or player timetable prevents recovery now." };

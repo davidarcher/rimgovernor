@@ -1,3 +1,5 @@
+#nullable enable
+
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -20,13 +22,13 @@ namespace HomeBridge.BridgeTools
             Description = "Catalog native transfer groups, preview or start ordinary pawn assembly/loading, or route an existing player caravan. Requires a paused current map. dryRun defaults true. Never creates caravans instantly or moves cargo directly. Formation receipts certify only assembly started.")]
         public async Task<object> Run(IRimBridgeContext ctx, CancellationToken cancellationToken,
             [ToolParameter(Description = "catalog, form, move, visit, stop or return", DefaultValue = "catalog")] string action = "catalog",
-            [ToolParameter(Description = "Comma-separated exact current-map colonist load IDs for form")] string pawnIds = null,
-            [ToolParameter(Description = "Comma-separated catalog cargo group IDs; paired with counts")] string cargoIds = null,
-            [ToolParameter(Description = "Comma-separated positive integer counts for each cargo group")] string counts = null,
-            [ToolParameter(Description = "Exact player caravan load ID for move/visit/stop/return")] string caravanId = null,
+            [ToolParameter(Description = "Comma-separated exact current-map colonist load IDs for form")] string? pawnIds = null,
+            [ToolParameter(Description = "Comma-separated catalog cargo group IDs; paired with counts")] string? cargoIds = null,
+            [ToolParameter(Description = "Comma-separated positive integer counts for each cargo group")] string? counts = null,
+            [ToolParameter(Description = "Exact player caravan load ID for move/visit/stop/return")] string? caravanId = null,
             [ToolParameter(Description = "Observed surface destination tile", DefaultValue = -1)] int destination = -1,
-            [ToolParameter(Description = "Observed colony ID; required except catalog")] string colonyId = null,
-            [ToolParameter(Description = "Observed load token; required except catalog")] string loadToken = null,
+            [ToolParameter(Description = "Observed colony ID; required except catalog")] string? colonyId = null,
+            [ToolParameter(Description = "Observed load token; required except catalog")] string? loadToken = null,
             [ToolParameter(Description = "Observed map ID; required except catalog", DefaultValue = -1)] int mapId = -1,
             [ToolParameter(Description = "True previews without orders", DefaultValue = true)] bool dryRun = true)
         {
@@ -53,8 +55,8 @@ namespace HomeBridge.BridgeTools
         private static string GroupId(TransferableOneWay group) =>
             group.things.Select(t => t.ThingID).OrderBy(id => id, StringComparer.Ordinal).First();
 
-        private static object Execute(string action, string[] pawnIds, string[] cargoIds, int[] counts,
-            string caravanId, int destination, bool dryRun)
+        private static object Execute(string action, string[]? pawnIds, string[]? cargoIds, int[]? counts,
+            string? caravanId, int destination, bool dryRun)
         {
             var map = Find.CurrentMap;
             if (Current.Game == null || map == null || !Find.TickManager.Paused)
@@ -77,7 +79,7 @@ namespace HomeBridge.BridgeTools
                 PlanetTile target = action == "return" ? map.Tile : new PlanetTile(destination);
                 if (!target.Valid || target.tileId >= Find.WorldGrid.TilesCount || !caravan.CanReach(target))
                     return Refuse("Destination is invalid or unreachable");
-                CaravanArrivalAction arrival = null;
+                CaravanArrivalAction? arrival = null;
                 if (action == "return")
                 {
                     if (!map.IsPlayerHome || !CaravanArrivalAction_Enter.CanEnter(caravan, map.Parent))
@@ -129,7 +131,7 @@ namespace HomeBridge.BridgeTools
             {
                 var group = dialog.transferables.SingleOrDefault(g => g.AnyThing is Pawn p && p.GetUniqueLoadID() == id);
                 var pawn = group?.AnyThing as Pawn;
-                if (pawn == null || !pawn.IsFreeColonist || pawn.Downed || pawn.Dead || pawn.Drafted || pawn.InMentalState || pawn.GetLord() != null)
+                if (group == null || pawn == null || !pawn.IsFreeColonist || pawn.Downed || pawn.Dead || pawn.Drafted || pawn.InMentalState || pawn.GetLord() != null)
                     return Refuse("Colonist is unavailable, drafted or already assigned: " + id);
                 pawns.Add(pawn);
                 group.ForceToDestination(1);
@@ -177,7 +179,7 @@ namespace HomeBridge.BridgeTools
             return new { success = true, accepted, dryRun, observation = WorldProgressionTools.ReadNow() };
         }
 
-        private static object RouteFacts(PlanetTile from, PlanetTile to, int ticksPerMove, float foodDays, float foodRotDays, Caravan caravan)
+        private static object RouteFacts(PlanetTile from, PlanetTile to, int ticksPerMove, float foodDays, float foodRotDays, Caravan? caravan)
         {
             using (var path = from.Layer.Pather.FindPath(from, to, caravan))
             {
@@ -190,7 +192,7 @@ namespace HomeBridge.BridgeTools
                     temperature = GenTemperature.GetTemperatureFromSeasonAtTile(Find.TickManager.TicksAbs, to),
                     settlementId = settlement?.GetUniqueLoadID(), factionId = settlement?.Faction?.GetUniqueLoadID(),
                     hostile = settlement?.Faction?.HostileTo(Faction.OfPlayer) ?? false,
-                    canTrade = trade == null ? (bool?)null : settlement.CanTradeNow && !trade.Disabled,
+                    canTrade = trade == null || settlement == null ? (bool?)null : settlement.CanTradeNow && !trade.Disabled,
                     tradeReason = trade?.disabledReason,
                     goodwill = settlement?.Faction == null || settlement.Faction.IsPlayer ? (int?)null : settlement.Faction.PlayerGoodwill };
             }

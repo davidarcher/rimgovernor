@@ -1,3 +1,5 @@
+#nullable enable
+
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -53,14 +55,14 @@ namespace HomeBridge.BridgeTools
             return pawn.foodRestriction?.GetCurrentRespectedRestriction(pawn)?.filter.Allows(food) != false;
         }
 
-        private static StockFacts Stock(Thing thing, List<Pawn> eaters, string holder)
+        private static StockFacts Stock(Thing thing, List<Pawn> eaters, string? holder)
         {
             var rot = thing.TryGetComp<CompRottable>();
             var perishable = rot != null && rot.Active;
             return new StockFacts { id = thing.GetUniqueLoadID(), defName = thing.def.defName, count = thing.stackCount,
                 holder = holder, nutrition = thing.stackCount * eaters.Min(p => FoodUtility.NutritionForEater(p, thing)),
                 eaters = eaters.Select(p => p.GetUniqueLoadID()).ToList(),
-                perishable = perishable, rotTicks = perishable ? (int?)Math.Max(0, rot.TicksUntilRotAtCurrentTemp) : null,
+                perishable = perishable, rotTicks = rot != null && perishable ? (int?)Math.Max(0, rot.TicksUntilRotAtCurrentTemp) : null,
                 temperature = thing.AmbientTemperature,
                 roofed = thing.Spawned ? (bool?)thing.Position.Roofed(thing.Map) : null,
                 roomId = thing.Spawned ? thing.Position.GetRoom(thing.Map)?.ID.ToString(System.Globalization.CultureInfo.InvariantCulture) : null };
@@ -69,26 +71,26 @@ namespace HomeBridge.BridgeTools
         // Shared typed source for the compatibility JSON and protobuf projections.
         internal sealed class Snapshot {
             public bool readable { get; set; }
-            public List<ConsumerFacts> consumers { get; set; }
-            public List<StockFacts> stocks { get; set; }
-            public string[] assumptions { get; set; }
+            public List<ConsumerFacts> consumers { get; set; } = new List<ConsumerFacts>();
+            public List<StockFacts> stocks { get; set; } = new List<StockFacts>();
+            public string[] assumptions { get; set; } = Array.Empty<string>();
         }
         internal sealed class ConsumerFacts {
-            public string id { get; set; }
+            public string? id { get; set; }
             public float nutritionPerDay { get; set; }
         }
         internal sealed class StockFacts {
-            public string id { get; set; }
-            public string defName { get; set; }
+            public string? id { get; set; }
+            public string? defName { get; set; }
             public int count { get; set; }
-            public string holder { get; set; }
+            public string? holder { get; set; }
             public float nutrition { get; set; }
-            public List<string> eaters { get; set; }
+            public List<string>? eaters { get; set; }
             public bool perishable { get; set; }
             public int? rotTicks { get; set; }
             public float temperature { get; set; }
             public bool? roofed { get; set; }
-            public string roomId { get; set; }
+            public string? roomId { get; set; }
         }
     }
 }

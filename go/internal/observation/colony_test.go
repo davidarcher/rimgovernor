@@ -6,12 +6,12 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
 	"github.com/davidarcher/RimGovernor/go/internal/store"
+	"github.com/davidarcher/RimGovernor/go/internal/store/storetest"
 	o "github.com/davidarcher/RimGovernor/go/internal/wire/observationspb"
 	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/proto"
 	"math"
 	"os"
-	"path/filepath"
 	"testing"
 )
 
@@ -181,7 +181,7 @@ func TestColonyNativeCaptureReachesRoutineReview(t *testing.T) {
 		}
 		t.Logf("Native combined forecast reaches routine FoodDays: %.9g", days)
 	}
-	s, err := store.Open(context.Background(), filepath.Join(t.TempDir(), "native-review.db"))
+	s, err := store.Open(context.Background(), storetest.Path(t))
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -120,7 +120,7 @@ func (r *RoutineRecoveryPlanner) step(call, epoch context.Context, arbiter *step
 		return RoutineRecoveryResult{}, ErrControl
 	}
 	started := r.reviewer.clock.Now()
-	read, err := observation.ObserveRoutineOwned(call, r.reviewer.native, r.reviewer.clock, expected, r.reviewer.maxAge, domain.Unknown[[]policy.ConstructionClaim]())
+	read, err := r.reviewer.observeOwned(call, r.reviewer.native, expected, domain.Unknown[[]policy.ConstructionClaim]())
 	if err != nil {
 		return RoutineRecoveryResult{}, err
 	}

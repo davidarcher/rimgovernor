@@ -246,7 +246,7 @@ func (r *RoutineAnimalContainmentPlanner) step(call, epoch context.Context, arbi
 	if err != nil {
 		return RoutineAnimalContainmentResult{}, err
 	}
-	read, err := observation.ObserveRoutineOwned(call, r.reviewer.native, r.reviewer.clock, expected, r.reviewer.maxAge, claims, "Fence", "FenceGate", "PenMarker")
+	read, err := r.reviewer.observeOwned(call, r.reviewer.native, expected, claims, "Fence", "FenceGate", "PenMarker")
 	if err != nil {
 		return RoutineAnimalContainmentResult{}, err
 	}

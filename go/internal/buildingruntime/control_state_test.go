@@ -4,13 +4,13 @@ import (
 	"context"
 	"errors"
 	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/boundary"
-	"path/filepath"
 	"testing"
 	"time"
 
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"github.com/davidarcher/RimGovernor/go/internal/executor"
 	"github.com/davidarcher/RimGovernor/go/internal/store"
+	"github.com/davidarcher/RimGovernor/go/internal/store/storetest"
 	a "github.com/davidarcher/RimGovernor/go/internal/wire/authoritypb"
 )
 
@@ -136,7 +136,7 @@ func TestSessionDisableSynchronouslyInvalidatesBlockedRun(t *testing.T) {
 	t.Parallel()
 	ctx := context.Background()
 	dir := t.TempDir()
-	journal, err := store.Open(ctx, filepath.Join(dir, "state.sqlite"))
+	journal, err := store.Open(ctx, storetest.Path(t))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -150,12 +150,12 @@ func TestSessionDisableSynchronouslyInvalidatesBlockedRun(t *testing.T) {
 		t.Fatal(err)
 	}
 	blocked := stateBlockedInspection{entered: make(chan struct{})}
-	worker, err := executor.New(journal, blocked, boundary.FixedClock{}, executor.Limits{MaxAge: time.Second, RunTimeout: 5 * time.Second, JournalTimeout: time.Second})
+	worker, err := executor.New(journal, blocked, boundary.FixedClock{}, executor.Limits{MaxAge: time.Second, RunTimeout: 5 * time.Second, JournalTimeout: 5 * time.Second})
 	if err != nil {
 		t.Fatal(err)
 	}
 	native := &controlNative{generation: 1}
-	control, err := NewControl(ctx, ControlConfig{ProfileDirectory: dir, CallTimeout: time.Second, StopWrites: worker.Stop}, journal, native, worker)
+	control, err := NewControl(ctx, ControlConfig{ProfileDirectory: dir, CallTimeout: 5 * time.Second, StopWrites: worker.Stop}, journal, native, worker)
 	if err != nil {
 		t.Fatal(err)
 	}

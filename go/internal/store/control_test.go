@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"path/filepath"
 	"sync"
 	"testing"
 )
@@ -16,7 +15,7 @@ func controlRequest(t *testing.T, s *Store) ControlRequest {
 func TestControlReplayRestartAndHistoricalCompletion(t *testing.T) {
 	t.Parallel()
 	ctx := context.Background()
-	path := filepath.Join(t.TempDir(), "c.db")
+	path := memoryPath(t)
 	s := open(t, path)
 	if _, e := s.CurrentControl(ctx); !errors.Is(e, ErrNotFound) {
 		t.Fatal(e)
@@ -65,7 +64,7 @@ func TestControlReplayRestartAndHistoricalCompletion(t *testing.T) {
 func TestControlConcurrentBeginAndRollback(t *testing.T) {
 	t.Parallel()
 	ctx := context.Background()
-	path := filepath.Join(t.TempDir(), "c.db")
+	path := memoryPath(t)
 	a := open(t, path)
 	q := controlRequest(t, a)
 	b := open(t, path)
@@ -111,7 +110,7 @@ func TestControlConcurrentBeginAndRollback(t *testing.T) {
 func TestControlValidationCapacityOverflowAndCorruption(t *testing.T) {
 	t.Parallel()
 	ctx := context.Background()
-	s := open(t, filepath.Join(t.TempDir(), "c.db"))
+	s := open(t, memoryPath(t))
 	q := controlRequest(t, s)
 	for _, change := range []func(*ControlRequest){func(r *ControlRequest) { r.World.Colony = "" }, func(r *ControlRequest) { r.Kind = "bad" }, func(r *ControlRequest) { r.RequestID = "" }} {
 		bad := q
@@ -164,7 +163,7 @@ func TestControlValidationCapacityOverflowAndCorruption(t *testing.T) {
 }
 func TestControlRejectSchemaFour(t *testing.T) {
 	t.Parallel()
-	path := filepath.Join(t.TempDir(), "old.db")
+	path := memoryPath(t)
 	s := open(t, path)
 	if _, e := s.db.Exec("PRAGMA user_version=4"); e != nil {
 		t.Fatal(e)

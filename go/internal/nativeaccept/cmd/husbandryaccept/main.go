@@ -82,24 +82,12 @@ func run(ctx context.Context, root, output, gameID string, headless bool, report
 		return err
 	}
 	report["package_files"] = files
-	gabsExecutable, err := na.GABSExecutable(root, cfg.Configuration)
+	held, err := na.OpenGame(ctx, cfg)
 	if err != nil {
 		return err
 	}
-	client, err := na.OpenSession(ctx, gabsExecutable, cfg.Configuration, gameID, 60*time.Second)
-	if err != nil {
-		return err
-	}
-	defer func() {
-		stopCtx, stopCancel := context.WithTimeout(context.Background(), 60*time.Second)
-		defer stopCancel()
-		if stopped, err := client.GamesStop(stopCtx); err == nil {
-			report["stop"] = string(stopped.Envelope)
-		} else {
-			report["stop_error"] = err.Error()
-		}
-		_ = client.Close()
-	}()
+	defer held.Close(report)
+	client := held.Client
 	h := na.NewHarness(client, output)
 
 	if _, err := na.StartDebugGame(ctx, h, nil, na.QuietRequired); err != nil {
@@ -155,23 +143,7 @@ func run(ctx context.Context, root, output, gameID string, headless bool, report
 	report["fixture_cow"] = cowID
 	report["fixture_dog"] = dogID
 
-	grantReply, err := h.Wire(ctx, "acquire-status", "authority_read_status", map[string]any{"identity": identity})
-	if err != nil {
-		return err
-	}
-	_, status, err := na.Outcome(grantReply, "status")
-	if err != nil {
-		return err
-	}
-	statusContext, _ := na.AsMap(status["context"])
-	grantedReply, err := h.Wire(ctx, "acquire", "authority_control", map[string]any{"acquire": map[string]any{
-		"identity": identity, "expectedGeneration": statusContext["nativeGeneration"],
-		"owner": map[string]any{"controllerSessionId": sessionOwner, "playerDirection": "1"}, "leaseMs": 30000,
-	}})
-	if err != nil {
-		return err
-	}
-	_, grant, err := na.Outcome(grantedReply, "granted")
+	grant, err := na.GrantAuto(ctx, h.WireFunc(), "acquire", identity)
 	if err != nil {
 		return err
 	}
@@ -299,7 +271,7 @@ func run(ctx context.Context, root, output, gameID string, headless bool, report
 	buildRequest := func(actionID string, operation map[string]any) map[string]any {
 		return map[string]any{
 			"precondition": map[string]any{
-				"identity": identity, "expectedGeneration": grantContext["nativeGeneration"], "leaseId": grant["leaseId"],
+				"identity": identity, "expectedGeneration": grantContext["nativeGeneration"],
 				"attempt": map[string]any{"controllerSessionId": sessionOwner, "actionId": actionID, "attemptId": "1"},
 			},
 			"operation": operation,

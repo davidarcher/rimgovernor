@@ -63,7 +63,7 @@ namespace HomeBridge.BridgeTools
             if (command.HasDesignation && command.Designation != Operations.ThingDesignation.Allow)
             { failure = ProtoBoundary.Fail(Common.FailureCode.Unsupported, "Only the Allow designation is implemented by this adapter."); return false; }
             if (!Valid(command)) return false;
-            thing = ProtoBoundary.ResolveMap(context).listerThings.AllThings.SingleOrDefault(t => t.GetUniqueLoadID() == command.Target.EntityId);
+            thing = ProtoBoundary.LoadedMap(context).listerThings.AllThings.SingleOrDefault(t => t.GetUniqueLoadID() == command.Target.EntityId);
             if (thing == null || !Eligible(thing))
             { failure = ProtoBoundary.Fail(Common.FailureCode.NotFound, "Exact eligible loose supply is unavailable."); return false; }
             if (Snapshot(thing, context)?.Token != command.Target.ExpectedSnapshotToken)
@@ -105,8 +105,8 @@ namespace HomeBridge.BridgeTools
                 context.NativeGeneration = guard.Snapshot.Generation;
                 if (!guard.Success) return new Operations.ExecuteReply { Failure = NativeAuthorityControlTools.Refusal(guard.Error, context) };
                 var admitted = state.Ledger.Admit("rimgovernor.operations.v1.Operations/Execute", request, context);
-                if (admitted.Kind != NativeAttemptLedger.DecisionKind.Admitted) return admitted.Reply!;
-                handle = admitted.Handle;
+                if (admitted.Kind != NativeAttemptLedger.DecisionKind.Admitted) return admitted.DecidedReply;
+                handle = admitted.AdmittedHandle;
                 using (authority.Owned())
                 {
                     var current = authority.Check(pre.ExpectedGeneration);
@@ -123,7 +123,7 @@ namespace HomeBridge.BridgeTools
             {
                 return handle == null
                     ? new Operations.ExecuteReply { Failure = ProtoBoundary.Fail(Common.FailureCode.NativeFailure, "Supply admission failed: " + error.GetType().Name) }
-                    : new Operations.ExecuteReply { Receipt = NativeOperationEnvelope.Uncertain(state.Ledger, handle, pre.Attempt, context, evidence!, "Admitted Allow requires observation: " + error.GetType().Name) };
+                    : new Operations.ExecuteReply { Receipt = NativeOperationEnvelope.Uncertain(state.Ledger, handle, pre.Attempt, context, evidence, "Admitted Allow requires observation: " + error.GetType().Name) };
             }
         }
 
@@ -131,7 +131,7 @@ namespace HomeBridge.BridgeTools
         {
             try
             {
-                var thing = ProtoBoundary.ResolveMap(context).listerThings.AllThings.SingleOrDefault(t => t.GetUniqueLoadID() == original.ThingId);
+                var thing = ProtoBoundary.LoadedMap(context).listerThings.AllThings.SingleOrDefault(t => t.GetUniqueLoadID() == original.ThingId);
                 return ObservedProgress(attempt, context, original, thing != null && Eligible(thing) ? Evidence(thing).Designation : null);
             }
             catch (Exception) { return ObservedProgress(attempt, context, original, null); }

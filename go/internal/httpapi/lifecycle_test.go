@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"path/filepath"
 	"testing"
 	"time"
 
@@ -12,6 +11,7 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"github.com/davidarcher/RimGovernor/go/internal/observation"
 	"github.com/davidarcher/RimGovernor/go/internal/store"
+	"github.com/davidarcher/RimGovernor/go/internal/store/storetest"
 	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
 	l "github.com/davidarcher/RimGovernor/go/internal/wire/lifecyclepb"
 	"google.golang.org/protobuf/proto"
@@ -92,7 +92,7 @@ func lifecycleAPI(t *testing.T, mode string) (*Server, *lifecycleFake, string) {
 // AttentionAcknowledger to be wired in.
 func lifecycleAPIWithConfig(t *testing.T, mode string, knownIdentity bool, fa *fakeAttention) (*Server, *lifecycleFake, *fakeAttention, string) {
 	t.Helper()
-	db, e := store.Open(context.Background(), filepath.Join(t.TempDir(), "lifecycle.db"))
+	db, e := store.Open(context.Background(), storetest.Path(t))
 	if e != nil {
 		t.Fatal(e)
 	}
@@ -232,7 +232,7 @@ func TestLifecycleMethodNotAllowed(t *testing.T) {
 	}
 }
 func TestLifecycleUnavailableWithoutConfig(t *testing.T) {
-	db, e := store.Open(context.Background(), filepath.Join(t.TempDir(), "lifecycle2.db"))
+	db, e := store.Open(context.Background(), storetest.Path(t))
 	if e != nil {
 		t.Fatal(e)
 	}

@@ -3,7 +3,6 @@ package store
 import (
 	"context"
 	"errors"
-	"path/filepath"
 	"testing"
 
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
@@ -21,7 +20,7 @@ func populationDecisionRequest(t *testing.T, id, pawn string, decision domain.Po
 func TestPopulationDecisionReplayConflictAndOverwrite(t *testing.T) {
 	t.Parallel()
 	ctx := context.Background()
-	s := open(t, filepath.Join(t.TempDir(), "population-decision.db"))
+	s := open(t, memoryPath(t))
 	world := World{Colony: "colony", Load: "load", Map: 0}
 	if _, err := s.CurrentPopulationDecision(ctx, world, "Thing_Human1"); !errors.Is(err, ErrNotFound) {
 		t.Fatal("unnamed pawn must report no decision", err)
@@ -96,7 +95,7 @@ func TestPopulationDecisionReplayConflictAndOverwrite(t *testing.T) {
 func TestPopulationDecisionRequiresPolicyExceptIgnore(t *testing.T) {
 	t.Parallel()
 	ctx := context.Background()
-	s := open(t, filepath.Join(t.TempDir(), "population-decision-policy.db"))
+	s := open(t, memoryPath(t))
 	world := World{Colony: "colony", Load: "load", Map: 0}
 	for _, decision := range []domain.PopulationDecision{domain.PopulationRescue, domain.PopulationCapture, domain.PopulationRecruit} {
 		request := populationDecisionRequest(t, "request-"+string(decision), "Thing_Human1", decision)
@@ -125,7 +124,7 @@ func TestPopulationDecisionRequiresPolicyExceptIgnore(t *testing.T) {
 func TestPopulationDecisionRejectsInvalidRequests(t *testing.T) {
 	t.Parallel()
 	ctx := context.Background()
-	s := open(t, filepath.Join(t.TempDir(), "population-decision-invalid.db"))
+	s := open(t, memoryPath(t))
 	valid := populationDecisionRequest(t, "request", "Thing_Human1", domain.PopulationIgnore)
 	for _, invalid := range []PopulationDecisionSubmissionRequest{
 		{RequestID: "", World: valid.World, Directive: valid.Directive},

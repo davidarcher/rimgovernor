@@ -1,3 +1,5 @@
+#nullable enable
+
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -14,11 +16,12 @@ namespace HomeBridge.BridgeTools
         private static bool installed;
         private sealed class Transfer
         {
-            internal Thing Source, Destination;
-            internal int SourceCount, DestinationCount;
+            internal Transfer(Thing? source, Thing destination) { Source = source; Destination = destination; SourceCount = source?.stackCount ?? 0; DestinationCount = destination.stackCount; }
+            internal readonly Thing? Source; internal readonly Thing Destination;
+            internal readonly int SourceCount, DestinationCount;
         }
         private static readonly List<Transfer> merges = new List<Transfer>();
-        private static HaulTrackingState State(bool create = false)
+        private static HaulTrackingState? State(bool create = false)
         {
             if (Current.Game == null) return null;
             var state = Current.Game.GetComponent<HaulTrackingState>();
@@ -44,22 +47,22 @@ namespace HomeBridge.BridgeTools
         }
         private static IEnumerable<HaulRecord> Active() => State()?.Records.Where(r => !r.Complete && r.Blocker == null)
             ?? Enumerable.Empty<HaulRecord>();
-        private static HaulPortion Part(HaulRecord r, Thing t) => t == null ? null : r.Portions.FirstOrDefault(p => p.Id == t.GetUniqueLoadID());
+        private static HaulPortion? Part(HaulRecord r, Thing? t) => t == null ? null : r.Portions.FirstOrDefault(p => p.Id == t.GetUniqueLoadID());
         private static HaulPortion Portion(Thing t) => new HaulPortion { Id = t.GetUniqueLoadID(), Count = t.stackCount, Cached = t };
-        internal static string Begin(Thing source, Pawn pawn)
+        internal static string? Begin(Thing? source, Pawn pawn)
         {
             Install();
             if (source?.Map == null || source.stackCount <= 0) return null;
             var state = State(true);
-            if (state.Records.Count >= 512) return null;
+            if (state == null || state.Records.Count >= 512) return null;
             var record = new HaulRecord { Id = Guid.NewGuid().ToString("N"), Source = source.GetUniqueLoadID(),
                 Pawn = pawn.GetUniqueLoadID(), MapId = source.Map.uniqueID, Definition = source.def.defName,
                 OriginalCount = source.stackCount, RequiredCount = source.stackCount, Started = Find.TickManager.TicksGame };
             record.Portions.Add(Portion(source)); state.Records.Add(record);
             return record.Id;
         }
-        internal static HaulRecord Lookup(string id) => id == null ? null : State()?.Records.FirstOrDefault(r => r.Id == id);
-        internal static void Accept(string id, bool accepted)
+        internal static HaulRecord? Lookup(string id) => id == null ? null : State()?.Records.FirstOrDefault(r => r.Id == id);
+        internal static void Accept(string? id, bool accepted)
         {
             var record = State()?.Records.FirstOrDefault(r => r.Id == id);
             if (record == null) return;
@@ -94,16 +97,15 @@ namespace HomeBridge.BridgeTools
             }
             if (protectedAll) { r.Complete = true; r.CompletedTick = Find.TickManager.TicksGame; }
         }
-        private static void MergeBegin(Thing __instance, Thing other, out Transfer __state)
+        private static void MergeBegin(Thing __instance, Thing other, out Transfer? __state)
         {
             __state = null;
             if (!Active().Any(r => Part(r, other) != null || Part(r, __instance) != null)) return;
-            __state = new Transfer { Source = other, Destination = __instance,
-                SourceCount = other?.stackCount ?? 0, DestinationCount = __instance.stackCount };
+            __state = new Transfer(other, __instance);
             foreach (var r in Active().ToList()) if (Part(r, other) != null || Part(r, __instance) != null) Check(r);
             merges.Add(__state);
         }
-        private static Exception MergeEnd(Transfer __state, Exception __exception)
+        private static Exception? MergeEnd(Transfer? __state, Exception? __exception)
         {
             if (__state == null) return __exception;
             merges.Remove(__state);
@@ -133,7 +135,7 @@ namespace HomeBridge.BridgeTools
             foreach (var r in Active().ToList()) if (Part(r, __instance) != null) Check(r);
             __state = __instance.stackCount;
         }
-        private static Exception SplitEnd(Thing __instance, Thing __result, int __state, Exception __exception)
+        private static Exception? SplitEnd(Thing __instance, Thing __result, int __state, Exception __exception)
         {
             foreach (var r in Active().ToList()) {
                 var p = Part(r, __instance); if (p == null) continue;

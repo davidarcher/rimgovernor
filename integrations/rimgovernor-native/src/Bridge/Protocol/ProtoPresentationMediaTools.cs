@@ -1,5 +1,6 @@
 #nullable enable
 using System;
+using System.Diagnostics.CodeAnalysis;
 using System.Threading;
 using System.Threading.Tasks;
 using Google.Protobuf;
@@ -25,7 +26,7 @@ namespace HomeBridge.BridgeTools
         [Tool("rimgovernor/presentation_render_state", Title = "Read native rendering lease state", Description = "Zero-side-effect observation of the controller rendering lease. Never extends or shortens the lease; DemandRendering is the only RPC that changes it.")]
         [ToolResponse("payload", "string", "Official ProtoJSON RenderReply.", Always = true)]
         public async Task<object> RenderState(IRimBridgeContext ctx, CancellationToken cancellationToken,
-            [ToolParameter(Description = "Official ProtoJSON ReadRequest string in raw transport value.")] object request = null!)
+            [ToolParameter(Description = "Official ProtoJSON ReadRequest string in raw transport value.")] object? request = null)
         {
             if (!ProtoBoundary.TryParse(ctx, "rimgovernor/presentation_render_state", request, Presentation.ReadRequest.Parser, out var parsed, out var failure)
                 || !NativePresentationReadTools.ValidateRead(parsed, out failure)) return ProtoBoundary.Encode(new Presentation.RenderReply { Failure = failure });
@@ -39,7 +40,7 @@ namespace HomeBridge.BridgeTools
         [Tool("rimgovernor/presentation_render_demand", Title = "Demand native rendering", Description = "Controller rendering lease. No simulation or game-speed changes. Visible game window always renders. PlayerIdentity's direction/viewer fields are informational only; they authenticate nothing.")]
         [ToolResponse("payload", "string", "Official ProtoJSON RenderReply.", Always = true)]
         public async Task<object> DemandRendering(IRimBridgeContext ctx, CancellationToken cancellationToken,
-            [ToolParameter(Description = "Official ProtoJSON RenderDemand string in raw transport value.")] object request = null!)
+            [ToolParameter(Description = "Official ProtoJSON RenderDemand string in raw transport value.")] object? request = null)
         {
             if (!ProtoBoundary.TryParse(ctx, "rimgovernor/presentation_render_demand", request, Presentation.RenderDemand.Parser, out var parsed, out var failure)
                 || !ValidateDemand(parsed, out failure)) return ProtoBoundary.Encode(new Presentation.RenderReply { Failure = failure });
@@ -54,7 +55,7 @@ namespace HomeBridge.BridgeTools
         [Tool("rimgovernor/presentation_capture_pawn", Title = "Capture native colonist image", Description = "Read-only native colonist portrait or independent nearby map image. No selection, orders, clock or player camera navigation. Batch-mode or no-camera games return a typed failure, not an error.")]
         [ToolResponse("payload", "string", "Official ProtoJSON PawnImageReply.", Always = true)]
         public async Task<object> CapturePawn(IRimBridgeContext ctx, CancellationToken cancellationToken,
-            [ToolParameter(Description = "Official ProtoJSON PawnImageRequest string in raw transport value.")] object request = null!)
+            [ToolParameter(Description = "Official ProtoJSON PawnImageRequest string in raw transport value.")] object? request = null)
         {
             if (!ProtoBoundary.TryParse(ctx, "rimgovernor/presentation_capture_pawn", request, Presentation.PawnImageRequest.Parser, out var parsed, out var failure)
                 || !ValidateCapture(parsed, out failure)) return ProtoBoundary.Encode(new Presentation.PawnImageReply { Failure = failure });
@@ -105,7 +106,7 @@ namespace HomeBridge.BridgeTools
         [Tool("rimgovernor/presentation_lease_video", Title = "Lease native video capture", Description = "Starts or stops the shared in-process video capture ReadFrame reads from. No simulation or game-speed changes; PlayerIdentity's direction/viewer fields authenticate nothing.")]
         [ToolResponse("payload", "string", "Official ProtoJSON VideoReply.", Always = true)]
         public async Task<object> LeaseVideo(IRimBridgeContext ctx, CancellationToken cancellationToken,
-            [ToolParameter(Description = "Official ProtoJSON VideoLeaseRequest string in raw transport value.")] object request = null!)
+            [ToolParameter(Description = "Official ProtoJSON VideoLeaseRequest string in raw transport value.")] object? request = null)
         {
             if (!ProtoBoundary.TryParse(ctx, "rimgovernor/presentation_lease_video", request, Presentation.VideoLeaseRequest.Parser, out var parsed, out var failure)
                 || !ValidateVideoLease(parsed, out failure)) return ProtoBoundary.Encode(new Presentation.VideoReply { Failure = failure });
@@ -131,7 +132,7 @@ namespace HomeBridge.BridgeTools
         [Tool("rimgovernor/presentation_read_frame", Title = "Read latest captured video frame", Description = "Returns the most recently captured raw video frame for the current lease. Never extends or shortens the lease; LeaseVideo is the only RPC that changes it.")]
         [ToolResponse("payload", "string", "Official ProtoJSON FrameReply.", Always = true)]
         public async Task<object> ReadFrame(IRimBridgeContext ctx, CancellationToken cancellationToken,
-            [ToolParameter(Description = "Official ProtoJSON FrameRequest string in raw transport value.")] object request = null!)
+            [ToolParameter(Description = "Official ProtoJSON FrameRequest string in raw transport value.")] object? request = null)
         {
             if (!ProtoBoundary.TryParse(ctx, "rimgovernor/presentation_read_frame", request, Presentation.FrameRequest.Parser, out var parsed, out var failure)
                 || !ValidateFrameRequest(parsed, out failure)) return ProtoBoundary.Encode(new Presentation.FrameReply { Failure = failure });
@@ -163,7 +164,7 @@ namespace HomeBridge.BridgeTools
         [Tool("rimgovernor/presentation_acknowledge_frame", Title = "Acknowledge a displayed video frame", Description = "Records that a viewer displayed a given frame reference. Accept-and-record telemetry only; it does not yet throttle capture to acknowledged consumption.")]
         [ToolResponse("payload", "string", "Official ProtoJSON FrameAcknowledgementReply.", Always = true)]
         public async Task<object> AcknowledgeFrame(IRimBridgeContext ctx, CancellationToken cancellationToken,
-            [ToolParameter(Description = "Official ProtoJSON FrameAcknowledgement string in raw transport value.")] object request = null!)
+            [ToolParameter(Description = "Official ProtoJSON FrameAcknowledgement string in raw transport value.")] object? request = null)
         {
             if (!ProtoBoundary.TryParse(ctx, "rimgovernor/presentation_acknowledge_frame", request, Presentation.FrameAcknowledgement.Parser, out var parsed, out var failure)
                 || !ValidateFrameAcknowledgement(parsed, out failure)) return ProtoBoundary.Encode(new Presentation.FrameAcknowledgementReply { Refusal = failure });
@@ -178,7 +179,7 @@ namespace HomeBridge.BridgeTools
         }
 
         // Absent source means the presented screen, as before sources existed.
-        private static bool TryParseSource(Presentation.VideoSource? source, out VideoSourceSpec spec, out string? reason)
+        private static bool TryParseSource(Presentation.VideoSource? source, out VideoSourceSpec spec, [NotNullWhen(false)] out string? reason)
         {
             var kind = source?.Kind ?? Presentation.VideoSourceKind.Screen;
             VideoSourceKind native;

@@ -1,3 +1,5 @@
+#nullable enable
+
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -14,7 +16,7 @@ namespace HomeBridge.BridgeTools
     public sealed class ResourceAcquisitionTools
     {
         public ResourceAcquisitionTools() { MiningGuard.Install(); }
-        internal static ThingDef Product(Thing t) => t is Plant p ? p.def.plant.harvestedThingDef : t is Mineable ? t.def.building.mineableThing : null;
+        internal static ThingDef? Product(Thing t) => t is Plant p ? p.def.plant.harvestedThingDef : t is Mineable ? t.def.building.mineableThing : null;
         internal static bool Designated(Thing t) => t is Mineable
             ? t.Map.designationManager.DesignationAt(t.Position, DesignationDefOf.Mine) != null
             : t.Map.designationManager.DesignationOn(t, DesignationDefOf.HarvestPlant) != null
@@ -35,7 +37,7 @@ namespace HomeBridge.BridgeTools
 
         // Only surface excavation is certified. Never infer support from a partial
         // map read or remove a roof holder whose influence includes any roof.
-        internal static string MiningBlocker(Thing t, Map map)
+        internal static string? MiningBlocker(Thing t, Map map)
         {
             if (t.Faction != null) return "Faction-owned extraction target is protected";
             foreach (var cell in GenRadial.RadialCellsAround(t.Position, RoofCollapseUtility.RoofMaxSupportDistance, true))
@@ -106,8 +108,9 @@ namespace HomeBridge.BridgeTools
             var stored = map.haulDestinationManager.AllGroups.SelectMany(g => g.HeldThings
                 .Where(t => t.def == def && g.Settings.AllowedToAccept(t))).Distinct().Sum(t => t.stackCount);
             var border = typeof(AutoHomeAreaMaker).GetField("BorderWidth", BindingFlags.Static | BindingFlags.NonPublic)?.GetRawConstantValue();
-            var knownBorder = border is int width && width >= 0 && width <= 32;
-            var margin = knownBorder ? (int)border + 1 : 0;
+            var borderWidth = border is int width && width >= 0 && width <= 32 ? width : -1;
+            var knownBorder = borderWidth >= 0;
+            var margin = knownBorder ? borderWidth + 1 : 0;
             var candidates = haulers.Count == 0 || !knownBorder ? new List<IntVec3>() : GenRadial.RadialCellsAround(haulers[0].Position, 20, true)
                 .Where(c => c.InBounds(map) && Accessible(c) && Protected(c) && map.zoneManager.ZoneAt(c) == null
                     && !CellRect.CenteredOn(c, margin).Any(q => q.InBounds(map) && q.GetEdifice(map) is Mineable)

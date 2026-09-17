@@ -1,3 +1,5 @@
+#nullable enable
+
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -47,7 +49,7 @@ namespace HomeBridge.BridgeTools
             Func<Thing, bool> reachable = t => workers.Any(p =>
                 (p.playerSettings?.AreaRestrictionInPawnCurrentMap == null || p.playerSettings.AreaRestrictionInPawnCurrentMap[t.Position])
                 && p.CanReach(t, PathEndMode.Touch, Danger.None));
-            Func<ThingDef, bool> humanFood = d => d != null && d.IsNutritionGivingIngestible && !d.IsDrug
+            Func<ThingDef?, bool> humanFood = d => d != null && d.IsNutritionGivingIngestible && !d.IsDrug
                 && d.ingestible != null && (d.ingestible.foodType & (FoodTypeFlags.Corpse | FoodTypeFlags.Kibble)) == 0
                 && people.All(p => p.WillEat(d));
             var food = things.Where(t => t.def.category == ThingCategory.Item && humanFood(t.def)
@@ -57,7 +59,7 @@ namespace HomeBridge.BridgeTools
                 p.needs.food.FoodFallPerTickAssumingCategory(HungerCategory.Fed, true) * 60000f);
             var animals = map.mapPawns.AllPawnsSpawned.Where(p => !p.Dead && p.RaceProps.Animal
                 && p.Faction == Faction.OfPlayerSilentFail && p.needs?.food != null).ToList();
-            Func<ThingDef, float?> productionDemand = food => food == null ? (float?)null : demand +
+            Func<ThingDef?, float?> productionDemand = food => food == null ? (float?)null : demand +
                 animals.Where(p => p.RaceProps.CanEverEat(food)
                     && p.foodRestriction?.GetCurrentRespectedRestriction(p)?.filter.Allows(food) != false)
                 .Sum(p => p.needs.food.FoodFallPerTickAssumingCategory(HungerCategory.Fed, true) * 60000f);
@@ -84,7 +86,7 @@ namespace HomeBridge.BridgeTools
                     // A lower bound only: darkness, sowing/harvesting labor and weather can delay harvest.
                     harvestLowerBoundDays = plants.Count == 0 ? (float?)null : plants.Min(p =>
                         (1f - p.Growth) * p.def.plant.growDays / Math.Max(.01f, p.GrowthRateFactor_Fertility)),
-                    nutritionPerHarvestCell = humanFood(edible) ? crop.plant.harvestYield * edible.GetStatValueAbstract(StatDefOf.Nutrition) : 0f };
+                    nutritionPerHarvestCell = edible != null && crop?.plant != null && humanFood(edible) ? crop.plant.harvestYield * edible.GetStatValueAbstract(StatDefOf.Nutrition) : 0f };
             }).ToList();
             var cooking = things.OfType<Building_WorkTable>().Where(b => b.Faction != null && b.Faction.IsPlayer
                 && reachable(b) && b.def.AllRecipes.Any(r => r.products.Any(p => humanFood(p.thingDef))))
@@ -133,7 +135,7 @@ namespace HomeBridge.BridgeTools
                 .Concat(DefDatabase<RecipeDef>.AllDefsListForReading.SelectMany(r => r.products ?? new List<ThingDefCountClass>()).Select(p => p.thingDef))
                 .Where(d => d != null).Distinct().OrderBy(d => d.defName)
                 .ToDictionary(d => d.defName, d => d.label);
-            var result = new Dictionary<string, object> {
+            var result = new Dictionary<string, object?> {
                 ["success"] = true, ["tick"] = Find.TickManager.TicksGame, ["colonyNaming"] = ColonyNamingTools.Snapshot(),
                 ["colonists"] = people.Count, ["workers"] = workers.Count, ["center"] = new { x = center.x, z = center.z },
                 ["mapSize"] = new { width = map.Size.x, height = map.Size.z }, ["biome"] = map.Biome.defName,
@@ -151,8 +153,8 @@ namespace HomeBridge.BridgeTools
                     .Sum(p => p.YieldNow() * p.def.plant.harvestedThingDef.GetStatValueAbstract(StatDefOf.Nutrition)),
                 ["resources"] = supplies, ["policyResources"] = policyDefs, ["bedCapacity"] = beds.Sum(b => b.SleepingSlotsCount),
                 ["indoorSleepingCapacity"] = indoorBeds.Sum(b => b.SleepingSlotsCount),
-                ["sleepingTemperatureMin"] = temperatures.Count == 0 ? (object)null : temperatures.Min(),
-                ["sleepingTemperatureMax"] = temperatures.Count == 0 ? (object)null : temperatures.Max(),
+                ["sleepingTemperatureMin"] = temperatures.Count == 0 ? (object?)null : temperatures.Min(),
+                ["sleepingTemperatureMax"] = temperatures.Count == 0 ? (object?)null : temperatures.Max(),
                 ["outdoorTemperature"] = map.mapTemperature.OutdoorTemp,
                 ["environment"] = new {
                     conditions = conditions.Select(c => new {
@@ -182,7 +184,7 @@ namespace HomeBridge.BridgeTools
                     "Harvest ETA is an optimistic lower bound; it cannot clear food risk. foodClimate samples native seasonal temperature daily; weather and future harvest are not guaranteed." }
             };
             if (planning) {
-                var definitions = new Dictionary<string, object>();
+                var definitions = new Dictionary<string, object?>();
                 foreach (var name in new[] { "Wall", "Door", "Bed", "SleepingSpot", "Campfire", "ButcherSpot", "FueledStove", "Heater", "PassiveCooler", "Cooler", "WoodFiredGenerator", "PowerConduit", "Sandbags", "Barricade", "StandingLamp", "SimpleResearchBench", "Table1x2c", "DiningChair", "HorseshoesPin", "Plant_Rice", "Plant_Potato", "Plant_Corn", "TableStonecutter", "Fence", "FenceGate", "PenMarker" }) {
                     var def = DefDatabase<ThingDef>.GetNamedSilentFail(name);
                     if (def == null) continue;

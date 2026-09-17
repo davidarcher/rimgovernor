@@ -90,7 +90,7 @@ namespace HomeBridge.BridgeTools
         {
             rock = null; failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Mining requires an exact safe mineable snapshot, an eligible miner and safe excavation geometry.");
             if (!NativePlantAcquisition.Valid(command)) return false;
-            var map = ProtoBoundary.ResolveMap(context);
+            var map = ProtoBoundary.LoadedMap(context);
             if (map.AllCells.Any(c => map.roofCollapseBuffer.IsMarkedToCollapse(c))) return false;
             rock = map.listerThings.AllThings.OfType<Mineable>().SingleOrDefault(m => m.GetUniqueLoadID() == command.Source.EntityId);
             return rock != null && ResourceAcquisitionTools.Eligible(rock, map) && rock.Position.x == command.Cell.X && rock.Position.z == command.Cell.Z
@@ -115,8 +115,8 @@ namespace HomeBridge.BridgeTools
                 context.NativeGeneration = guard.Snapshot.Generation;
                 if (!guard.Success) return new Operations.ExecuteReply { Failure = NativeAuthorityControlTools.Refusal(guard.Error, context) };
                 var admitted = state.Ledger.Admit("rimgovernor.operations.v1.Operations/Execute", request, context);
-                if (admitted.Kind != NativeAttemptLedger.DecisionKind.Admitted) return admitted.Reply!;
-                handle = admitted.Handle;
+                if (admitted.Kind != NativeAttemptLedger.DecisionKind.Admitted) return admitted.DecidedReply;
+                handle = admitted.AdmittedHandle;
                 var record = new NativeMineRecord(rock!); state.Acquisition.Add(pre.Attempt.Clone(), record);
                 using (authority.Owned())
                 {
@@ -130,7 +130,7 @@ namespace HomeBridge.BridgeTools
             }
             catch (Exception error)
             {
-                if (handle != null) return new Operations.ExecuteReply { Receipt = NativeOperationEnvelope.Uncertain(state.Ledger, handle, pre.Attempt, context, evidence!, "Mining write interrupted: " + error.GetType().Name) };
+                if (handle != null) return new Operations.ExecuteReply { Receipt = NativeOperationEnvelope.Uncertain(state.Ledger, handle, pre.Attempt, context, evidence, "Mining write interrupted: " + error.GetType().Name) };
                 return new Operations.ExecuteReply { Failure = ProtoBoundary.Fail(Common.FailureCode.NativeFailure, "Mining failed: " + error.GetType().Name) };
             }
         }

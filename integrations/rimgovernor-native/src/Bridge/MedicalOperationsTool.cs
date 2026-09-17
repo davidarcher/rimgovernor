@@ -1,3 +1,5 @@
+#nullable enable
+
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -29,20 +31,20 @@ namespace HomeBridge.BridgeTools
                 if (identity == null || map == null || ((!dryRun || !string.IsNullOrEmpty(colonyId))
                     && (identity.ColonyId != colonyId || identity.LoadToken != loadToken || map.uniqueID != mapId)))
                     return new { success = false, error = "Colony, map or load changed; inspect before operating" };
-                var pawn = map?.mapPawns.FreeColonistsSpawned.SingleOrDefault(p => p.GetUniqueLoadID() == patient);
+                var pawn = map.mapPawns.FreeColonistsSpawned.SingleOrDefault(p => p.GetUniqueLoadID() == patient);
                 if (pawn == null || pawn.Dead) return new { success = false, error = "Living current-map player patient required" };
                 var health = string.Join(";", pawn.health.hediffSet.hediffs.OrderBy(h => h.loadID)
                     .Select(h => h.GetUniqueLoadID()+":"+h.def.defName+":"+(h.Part == null ? -1 : pawn.RaceProps.body.AllParts.IndexOf(h.Part))));
                 var care = pawn.playerSettings?.medCare.ToString();
-                var rows = new List<Dictionary<string, object>>();
-                RecipeDef selected = null;
-                BodyPartRecord selectedPart = null;
-                Dictionary<string, object> selection = null;
+                var rows = new List<Dictionary<string, object?>>();
+                RecipeDef? selected = null;
+                BodyPartRecord? selectedPart = null;
+                Dictionary<string, object?>? selection = null;
                 foreach (var def in pawn.def.AllRecipes.Where(r => r.AvailableNow)) {
                     var report = def.Worker.AvailableReport(pawn);
                     if (!report.Accepted) continue;
                     var parts = def.targetsBodyPart ? def.Worker.GetPartsToApplyOn(pawn, def).ToList()
-                        : new List<BodyPartRecord> { null };
+                        : new List<BodyPartRecord?> { null };
                     foreach (var bodyPart in parts) {
                         if (!def.AvailableOnNow(pawn, bodyPart)) continue;
                         var index = bodyPart == null ? -1 : pawn.RaceProps.body.AllParts.IndexOf(bodyPart);
@@ -63,7 +65,7 @@ namespace HomeBridge.BridgeTools
                         if (def.addsHediff != null && (!CompRoyalImplant.CheckForViolations(pawn, def.addsHediff, def.hediffLevelOffset).NullOrEmpty()
                             || pawn.health.hediffSet.hediffs.Any(h => h.def == def.addsHediff && h.Part == bodyPart))) supports = false;
                         if (def.removesHediff != null && !pawn.health.hediffSet.hediffs.Any(h => h.def == def.removesHediff && h.Part == bodyPart && h.Visible)) supports = false;
-                        var row = new Dictionary<string, object> {
+                        var row = new Dictionary<string, object?> {
                             ["recipe"] = def.defName, ["label"] = def.Worker.GetLabelWhenUsedOn(pawn, bodyPart),
                             ["part"] = index, ["partLabel"] = bodyPart?.Label, ["supported"] = supports,
                             ["addsHediff"] = def.addsHediff?.defName, ["removesHediff"] = def.removesHediff?.defName,
@@ -78,14 +80,14 @@ namespace HomeBridge.BridgeTools
                         if (def.defName == recipe && index == part) { selected = def; selectedPart = bodyPart; selection = row; }
                     }
                 }
-                string error = null;
-                Bill_Medical bill = null;
+                string? error = null;
+                Bill_Medical? bill = null;
                 if (!string.IsNullOrEmpty(recipe)) {
                     if (selection == null) error = "Recipe/body part is no longer eligible";
-                    else if (!(bool)selection["supported"]) error = "Recipe needs an unsupported confirmation or health postcondition";
-                    else if (((string[])selection["practitioners"]).Length == 0) error = "No available practitioner satisfies native skills";
-                    else if (((string[])selection["missingIngredients"]).Length != 0) error = "Required native ingredients are unavailable";
-                    else if (!(bool)selection["hasPermittedMedicine"]) error = "No observed medicine is permitted by the patient care policy and recipe";
+                    else if (!BridgeCommon.Flag(selection, "supported")) error = "Recipe needs an unsupported confirmation or health postcondition";
+                    else if (!(selection["practitioners"] is string[] practitioners) || practitioners.Length == 0) error = "No available practitioner satisfies native skills";
+                    else if (!(selection["missingIngredients"] is string[] missing) || missing.Length != 0) error = "Required native ingredients are unavailable";
+                    else if (!BridgeCommon.Flag(selection, "hasPermittedMedicine")) error = "No observed medicine is permitted by the patient care policy and recipe";
                     else if (pawn.playerSettings == null || pawn.playerSettings.medCare <= MedicalCareCategory.NoMeds)
                         error = "Patient medical care policy does not permit surgery medicine";
                     else if (pawn.BillStack.Bills.Any()) error = "Existing patient bills require player review before adding an operation";

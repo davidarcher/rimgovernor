@@ -28,13 +28,12 @@ namespace HomeBridge.BridgeTools
         [Tool(BillsToolName, Title = "Read typed bill census", Description = "Complete bounded bill stacks of every spawned bench (IBillGiver building) on the current map, with the CAS snapshot token AddBill checks. Defaults to player benches; no bill changes.")]
         [ToolResponse("payload", "string", "Official ProtoJSON BillsReply.", Always = true)]
         public async Task<object> ReadBills(IRimBridgeContext ctx, CancellationToken cancellationToken,
-            [ToolParameter(Description = "Official ProtoJSON BillsRequest string in raw transport value.")] object request = null!)
+            [ToolParameter(Description = "Official ProtoJSON BillsRequest string in raw transport value.")] object? request = null)
         {
             if (!ProtoBoundary.TryParse(ctx, BillsToolName, request, Obs.BillsRequest.Parser, out var parsed, out var failure)
                 || !Validate(parsed, out failure)) return ProtoBoundary.Encode(new Obs.BillsReply { Failure = failure });
             return await ProtoBoundary.OnMainThread(ctx, () => {
-                var map = ProtoBoundary.ResolveMap(parsed.Scope.ExpectedIdentity);
-                if (!ProtoBoundary.ValidateIdentity(parsed.Scope.ExpectedIdentity, map, out var context, out var error))
+                if (!ProtoBoundary.ValidateIdentity(parsed.Scope?.ExpectedIdentity, out var map, out var context, out var error))
                     return ProtoBoundary.Encode(new Obs.BillsReply { Failure = error });
                 try
                 {
@@ -69,13 +68,12 @@ namespace HomeBridge.BridgeTools
         [Tool(RecipesToolName, Title = "Read typed bench recipes", Description = "Complete bounded recipe catalog of one bench: availability, work, skill requirements, per-slot required ingredient counts and products. No stock scan; ingredient rows carry required amounts only.")]
         [ToolResponse("payload", "string", "Official ProtoJSON RecipesReply.", Always = true)]
         public async Task<object> ReadRecipes(IRimBridgeContext ctx, CancellationToken cancellationToken,
-            [ToolParameter(Description = "Official ProtoJSON RecipesRequest string in raw transport value.")] object request = null!)
+            [ToolParameter(Description = "Official ProtoJSON RecipesRequest string in raw transport value.")] object? request = null)
         {
             if (!ProtoBoundary.TryParse(ctx, RecipesToolName, request, Obs.RecipesRequest.Parser, out var parsed, out var failure)
                 || !Validate(parsed, out failure)) return ProtoBoundary.Encode(new Obs.RecipesReply { Failure = failure });
             return await ProtoBoundary.OnMainThread(ctx, () => {
-                var map = ProtoBoundary.ResolveMap(parsed.Scope.ExpectedIdentity);
-                if (!ProtoBoundary.ValidateIdentity(parsed.Scope.ExpectedIdentity, map, out var context, out var error))
+                if (!ProtoBoundary.ValidateIdentity(parsed.Scope?.ExpectedIdentity, out var map, out var context, out var error))
                     return ProtoBoundary.Encode(new Obs.RecipesReply { Failure = error });
                 try
                 {

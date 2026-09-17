@@ -9,7 +9,6 @@ import (
 	k "github.com/davidarcher/RimGovernor/go/internal/wire/clockpb"
 	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
 	"google.golang.org/protobuf/proto"
-	"path/filepath"
 	"testing"
 )
 
@@ -42,7 +41,7 @@ func retirementHead(t *testing.T, s *Store) ClockSequenceState {
 func TestClockRetirementSparseUnknownAndRestart(t *testing.T) {
 	t.Parallel()
 	ctx := context.Background()
-	path := filepath.Join(t.TempDir(), "retirement.db")
+	path := memoryPath(t)
 	s := open(t, path)
 	unknown := retirementPrepare(t, s)
 	if _, err := s.DispatchClock(ctx, unknown.Intent.RequestID); err != nil {
@@ -90,7 +89,7 @@ func TestClockRetirementSparseUnknownAndRestart(t *testing.T) {
 func TestClockRetirementStartProvenanceAndAtomicRollback(t *testing.T) {
 	t.Parallel()
 	ctx := context.Background()
-	s := open(t, filepath.Join(t.TempDir(), "epochs.db"))
+	s := open(t, memoryPath(t))
 	start := retirementPrepare(t, s)
 	if _, err := s.DispatchClock(ctx, start.Intent.RequestID); err != nil {
 		t.Fatal(err)
@@ -187,7 +186,7 @@ func TestClockRetirementKeepsLatestWindowAnchor(t *testing.T) {
 func TestClockRetirementPinnedCapacity(t *testing.T) {
 	t.Parallel()
 	ctx := context.Background()
-	s := open(t, filepath.Join(t.TempDir(), "capacity.db"))
+	s := open(t, memoryPath(t))
 	tx, err := s.begin(ctx)
 	if err != nil {
 		t.Fatal(err)

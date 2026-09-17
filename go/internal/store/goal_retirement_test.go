@@ -3,7 +3,6 @@ package store
 import (
 	"context"
 	"fmt"
-	"path/filepath"
 	"testing"
 
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
@@ -13,7 +12,7 @@ import (
 func TestRoutineGoalRetirementSurvivesRepeatedReloadsAndRestart(t *testing.T) {
 	t.Parallel()
 	ctx := context.Background()
-	path := filepath.Join(t.TempDir(), "routine.db")
+	path := memoryPath(t)
 	s := open(t, path)
 	r := routineRequest()
 	first := reviewRoutine(t, s, &r)
@@ -56,7 +55,7 @@ func TestRoutineGoalRetirementSurvivesRepeatedReloadsAndRestart(t *testing.T) {
 func TestRoutineGoalRetirementWaitsForObservedEffects(t *testing.T) {
 	t.Parallel()
 	ctx := context.Background()
-	s := open(t, filepath.Join(t.TempDir(), "routine.db"))
+	s := open(t, memoryPath(t))
 	r := routineRequest()
 	out := reviewRoutine(t, s, &r)
 	g := routineGoal(t, out, policy.MaintainWood)
@@ -105,7 +104,7 @@ func TestRoutineGoalRetirementWaitsForObservedEffects(t *testing.T) {
 func TestRoutineGoalRetirementRollsBackWithReview(t *testing.T) {
 	t.Parallel()
 	ctx := context.Background()
-	s := open(t, filepath.Join(t.TempDir(), "routine.db"))
+	s := open(t, memoryPath(t))
 	r := routineRequest()
 	out := reviewRoutine(t, s, &r)
 	if _, err := s.db.ExecContext(ctx, `CREATE TRIGGER fail_review BEFORE UPDATE ON routine_review BEGIN SELECT RAISE(ABORT,'review failure'); END`); err != nil {
@@ -126,7 +125,7 @@ func TestRoutineGoalRetirementRollsBackWithReview(t *testing.T) {
 func TestRoutineGoalRetirementRetainsCompletedOwnedDraft(t *testing.T) {
 	t.Parallel()
 	ctx := context.Background()
-	s := open(t, filepath.Join(t.TempDir(), "routine.db"))
+	s := open(t, memoryPath(t))
 	r := routineRequest()
 	out := reviewRoutine(t, s, &r)
 	g := routineGoal(t, out, policy.MaintainWood)

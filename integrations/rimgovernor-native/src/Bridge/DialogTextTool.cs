@@ -1,4 +1,7 @@
+#nullable enable
+
 using System;
+using System.Diagnostics.CodeAnalysis;
 using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
@@ -81,11 +84,11 @@ namespace HomeBridge.BridgeTools
         [ToolResponse("unknownArguments", "array", "Every argument key the caller sent that this tool does not declare, sorted, case-sensitively. Empty array = every key was recognised. The host's own _rimBridgeTimeoutMs is never listed.", Always = true)]
         [ToolResponse("unknownArgumentsWarning", "string", "Present only when unknownArguments is non-empty, or when the caller's raw keys could not be read at all - in which case the empty unknownArguments means 'not known', not 'nothing unknown'.", Nullable = true)]
         [ToolResponse("error", "string", "Why the call was refused. Null when it was not.", Nullable = true)]
-        public async Task<object> DialogText(
+        public async Task<object?> DialogText(
             IRimBridgeContext ctx,
             CancellationToken cancellationToken,
-            [ToolParameter(Description = "The text to put in the box. Required unless list is true. An empty string is accepted and clears the box.")] string text = null,
-            [ToolParameter(Description = "Exact field name returned by the current listing. Required for a write; partial names and default selection are not supported.")] string field = null,
+            [ToolParameter(Description = "The text to put in the box. Required unless list is true. An empty string is accepted and clears the box.")] string? text = null,
+            [ToolParameter(Description = "Exact field name returned by the current listing. Required for a write; partial names and default selection are not supported.")] string? field = null,
             [ToolParameter(Description = "List the dialog's string fields and their current values without writing anything. The same listing rides on every reply, so this is only a way to ask for it without passing text.", DefaultValue = false)] bool list = false,
             [ToolParameter(Description = "Unsupported confirmation shortcut: true is refused before writing. Confirm with a freshly captured OK/Accept UI control instead.", DefaultValue = false)] bool accept = false,
             [ToolParameter(Description = "TRUE by default. Read the dialog's fields and report what WOULD be written without touching it. Pass false to actually type.", DefaultValue = true)] bool dryRun = true,
@@ -99,8 +102,8 @@ namespace HomeBridge.BridgeTools
         private async Task<object> DialogTextCore(
             IRimBridgeContext ctx,
             CancellationToken cancellationToken,
-            string text,
-            string field,
+            string? text,
+            string? field,
             bool list,
             bool accept,
             bool dryRun, int windowId)
@@ -119,9 +122,9 @@ namespace HomeBridge.BridgeTools
 
         // ================================================================= run
 
-        private static object Run(string text, string field, bool list, bool accept, bool dryRun, int windowId)
+        private static object Run(string? text, string? field, bool list, bool accept, bool dryRun, int windowId)
         {
-            var stack = BridgeCommon.Try(() => Find.WindowStack, (WindowStack)null);
+            var stack = BridgeCommon.Try(() => Find.WindowStack, (WindowStack?)null);
             if (stack == null)
                 return Failure("Find.WindowStack is null, so there is no window to type into.");
 
@@ -161,8 +164,8 @@ namespace HomeBridge.BridgeTools
                 return Refused(typeName, "Text writes are reviewed only for naming dialogs; other dialogs are inspection-only.");
             if (!dryRun && accept)
                 return Refused(typeName, "Naming confirmation requires the exact OK/Accept control from get_ui_layout, then click_ui_target. The accept-key shortcut does not execute native naming validation; no text was written.");
-            Dictionary<string, object> Reply(List<object> fields, bool preview, bool applied,
-                Dictionary<string, object> set, bool accepted, string error)
+            Dictionary<string, object?> Reply(List<object> fields, bool preview, bool applied,
+                Dictionary<string, object?>? set, bool accepted, string? error)
             {
                 var reply = Payload(typeName, fields, preview, applied, set, accepted, error);
                 reply["windowId"] = window.ID;
@@ -181,7 +184,7 @@ namespace HomeBridge.BridgeTools
                     + "; nothing was written.");
             }
 
-            var rows = slots.Select(s => (object)new Dictionary<string, object>
+            var rows = slots.Select(s => (object)new Dictionary<string, object?>
             {
                 { "name", s.Name },
                 { "before", s.Read() },
@@ -200,8 +203,8 @@ namespace HomeBridge.BridgeTools
                 return Reply(rows, dryRun, false, null, false,
                     typeName + " declares no string field of its own, so there is nothing to type into.");
 
-            Slot chosen;
-            string why;
+            Slot? chosen;
+            string? why;
             if (!Choose(slots, field, out chosen, out why))
                 return Reply(rows, dryRun, false, null, false, why);
 
@@ -213,7 +216,7 @@ namespace HomeBridge.BridgeTools
                 return Reply(rows, dryRun, false, null, false, "Native input limit is unavailable; nothing was written.");
             if (text.Length > chosen.MaxLength.Value)
                 return Reply(rows, dryRun, false, null, false, "Text exceeds the native input limit of " + chosen.MaxLength.Value + " characters; nothing was written.");
-            object after = text;
+            object? after = text;
             var applied = false;
             var accepted = false;
 
@@ -241,7 +244,7 @@ namespace HomeBridge.BridgeTools
         /// named field must match a row; otherwise the four conventional names
         /// are tried in order and, failing all of that, the candidates are
         /// listed rather than one of them guessed at.</summary>
-        private static bool Choose(List<Slot> slots, string field, out Slot chosen, out string why)
+        private static bool Choose(List<Slot> slots, string? field, [NotNullWhen(true)] out Slot? chosen, [NotNullWhen(false)] out string? why)
         {
             chosen = null;
             why = null;
@@ -267,11 +270,19 @@ namespace HomeBridge.BridgeTools
         /// element's text field inside a name-context list.</summary>
         private sealed class Slot
         {
-            internal string Name;
-            internal string Label;
-            internal int? MaxLength;
-            internal Func<string> Read;
-            internal Action<string> Write;
+            internal Slot(string name, int? maxLength, Func<string?> read, Action<string> write)
+            {
+                Name = name;
+                MaxLength = maxLength;
+                Read = read;
+                Write = write;
+            }
+
+            internal readonly string Name;
+            internal string? Label;
+            internal readonly int? MaxLength;
+            internal readonly Func<string?> Read;
+            internal readonly Action<string> Write;
         }
 
         /// <summary>Every box the top window offers, list rows included.</summary>
@@ -308,18 +319,16 @@ namespace HomeBridge.BridgeTools
         {
             if (slots.Any(s => string.Equals(s.Name, info.Name, StringComparison.Ordinal)))
                 return;
-            slots.Add(new Slot
-            {
-                Name = info.Name,
-                MaxLength = PlainLimit(window, info.Name),
-                Read = () => BridgeCommon.SafeString(() => (string)info.GetValue(window)),
-                Write = value => info.SetValue(window, value)
-            });
+            slots.Add(new Slot(
+                info.Name,
+                PlainLimit(window, info.Name),
+                () => BridgeCommon.SafeString(() => (string?)info.GetValue(window)),
+                value => info.SetValue(window, value)));
         }
 
         private static int? PlainLimit(Window window, string field)
         {
-            string property = window is Dialog_GiveName
+            string? property = window is Dialog_GiveName
                 ? (field == "curName" ? "FirstCharLimit" : field == "curSecondName" ? "SecondCharLimit" : null)
                 : field == "curName" ? "MaxNameLength" : null;
             if (property == null) return null;
@@ -351,7 +360,7 @@ namespace HomeBridge.BridgeTools
             var editableField = element.GetField("editable",
                 BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance);
 
-            IList entries;
+            IList? entries;
             try { entries = info.GetValue(window) as IList; }
             catch { return; }
             if (entries == null)
@@ -367,22 +376,22 @@ namespace HomeBridge.BridgeTools
                     continue;
 
                 var target = entry;
-                slots.Add(new Slot
+                slots.Add(new Slot(
+                    info.Name + "[" + i + "]." + textField.Name,
+                    BridgeCommon.TryN(() => (int)element.GetField("maximumNameLength",
+                        BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance).GetValue(target)),
+                    () => BridgeCommon.SafeString(() => (string?)textField.GetValue(target)),
+                    value => textField.SetValue(target, value))
                 {
-                    Name = info.Name + "[" + i + "]." + textField.Name,
                     Label = labelField == null
                         ? null
-                        : BridgeCommon.SafeString(() => Text(labelField.GetValue(target))),
-                    MaxLength = BridgeCommon.TryN(() => (int)element.GetField("maximumNameLength",
-                        BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance).GetValue(target)),
-                    Read = () => BridgeCommon.SafeString(() => (string)textField.GetValue(target)),
-                    Write = value => textField.SetValue(target, value)
+                        : BridgeCommon.SafeString(() => Text(labelField.GetValue(target)))
                 });
             }
         }
 
         /// <summary>The first string field of `element` with one of these names.</summary>
-        private static FieldInfo Named(Type element, string[] names)
+        private static FieldInfo? Named(Type element, string[] names)
         {
             foreach (var name in names)
             {
@@ -395,16 +404,16 @@ namespace HomeBridge.BridgeTools
 
         /// <summary>A label field is a string on Dialog_NamePawn and a
         /// TaggedString elsewhere; both answer ToString().</summary>
-        private static string Text(object value)
+        private static string? Text(object value)
         {
             return value == null ? null : value.ToString();
         }
 
         // ============================================================== replies
 
-        private static Dictionary<string, object> Set(string field, string before, object after)
+        private static Dictionary<string, object?> Set(string field, string? before, object? after)
         {
-            return new Dictionary<string, object>
+            return new Dictionary<string, object?>
             {
                 { "field", field },
                 { "before", before },
@@ -412,11 +421,11 @@ namespace HomeBridge.BridgeTools
             };
         }
 
-        private static Dictionary<string, object> Payload(string window, List<object> fields, bool dryRun,
-                                                          bool applied, Dictionary<string, object> set,
-                                                          bool accepted, string error)
+        private static Dictionary<string, object?> Payload(string window, List<object> fields, bool dryRun,
+                                                          bool applied, Dictionary<string, object?>? set,
+                                                          bool accepted, string? error)
         {
-            return new Dictionary<string, object>
+            return new Dictionary<string, object?>
             {
                 { "success", true },
                 { "tool", ToolName },
@@ -436,7 +445,7 @@ namespace HomeBridge.BridgeTools
 
         /// <summary>A refusal that still names the window it looked at, so a
         /// caller can see what was on top.</summary>
-        private static Dictionary<string, object> Refused(string window, string error)
+        private static Dictionary<string, object?> Refused(string window, string error)
         {
             var payload = Failure(error);
             payload["window"] = window;
@@ -447,7 +456,7 @@ namespace HomeBridge.BridgeTools
             return payload;
         }
 
-        private static Dictionary<string, object> Failure(string error)
+        private static Dictionary<string, object?> Failure(string error)
         {
             var payload = BridgeCommon.Failure(ToolName, error);
             payload["dryRun"] = true;

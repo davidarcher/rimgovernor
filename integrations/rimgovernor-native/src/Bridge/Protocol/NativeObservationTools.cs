@@ -26,8 +26,7 @@ namespace HomeBridge.BridgeTools
             if (!ProtoBoundary.TryParse(ctx, "rimgovernor/observations_read_status", request!, Obs.StatusRequest.Parser, out var parsed, out var failure)
                 || !ValidateStatus(parsed, out failure)) return ProtoBoundary.Encode(new Obs.StatusReply { Failure = failure });
             return await ProtoBoundary.OnMainThread(ctx, () => {
-                var map = ProtoBoundary.ResolveMap(parsed.Scope?.ExpectedIdentity!);
-                if (!ProtoBoundary.ValidateIdentity(parsed.Scope?.ExpectedIdentity!, map, out var context, out failure))
+                if (!ProtoBoundary.ValidateIdentity(parsed.Scope?.ExpectedIdentity, out var map, out var context, out failure))
                     return ProtoBoundary.Encode(new Obs.StatusReply { Failure = failure });
                 try { return EncodeBounded(new Obs.StatusReply { Observed = Status(map, parsed, context) }); }
                 catch (ReadLimit error) { return ProtoBoundary.Encode(new Obs.StatusReply { Unavailable = Unavailable(Common.UnavailableReason.LimitExceeded, error.Message) }); }
@@ -44,8 +43,7 @@ namespace HomeBridge.BridgeTools
             if (!ProtoBoundary.TryParse(ctx, "rimgovernor/observations_get_cells", request!, Obs.GetCellsRequest.Parser, out var parsed, out var failure)
                 || !ValidateCells(parsed, out failure)) return ProtoBoundary.Encode(new Obs.GetCellsReply { Failure = failure });
             return await ProtoBoundary.OnMainThread(ctx, () => {
-                var map = ProtoBoundary.ResolveMap(parsed.Scope?.ExpectedIdentity!);
-                if (!ProtoBoundary.ValidateIdentity(parsed.Scope?.ExpectedIdentity!, map, out var context, out failure))
+                if (!ProtoBoundary.ValidateIdentity(parsed.Scope?.ExpectedIdentity, out var map, out var context, out failure))
                     return ProtoBoundary.Encode(new Obs.GetCellsReply { Failure = failure });
                 try {
                     var cells = Selection(parsed);
@@ -89,8 +87,7 @@ namespace HomeBridge.BridgeTools
             if (!ProtoBoundary.TryParse(ctx, "rimgovernor/observations_read_excavation_site", request!, Obs.ExcavationSiteRequest.Parser, out var parsed, out var failure)
                 || !NativeExcavationSite.Validate(parsed, out failure)) return ProtoBoundary.Encode(new Obs.ExcavationSiteReply { Failure = failure });
             return await ProtoBoundary.OnMainThread(ctx, () => {
-                var map = ProtoBoundary.ResolveMap(parsed.Scope?.ExpectedIdentity!);
-                if (!ProtoBoundary.ValidateIdentity(parsed.Scope?.ExpectedIdentity!, map, out var context, out failure))
+                if (!ProtoBoundary.ValidateIdentity(parsed.Scope?.ExpectedIdentity, out var map, out var context, out failure))
                     return ProtoBoundary.Encode(new Obs.ExcavationSiteReply { Failure = failure });
                 try { return EncodeBounded(new Obs.ExcavationSiteReply { Observed = NativeExcavationSite.Read(map, parsed, context) }); }
                 catch (ReadLimit error) { return ProtoBoundary.Encode(new Obs.ExcavationSiteReply { Unavailable = Unavailable(Common.UnavailableReason.LimitExceeded, error.Message) }); }

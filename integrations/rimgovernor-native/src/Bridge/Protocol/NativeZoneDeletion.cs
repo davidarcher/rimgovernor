@@ -83,7 +83,7 @@ namespace HomeBridge.BridgeTools
             zone = null;
             failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Zone deletion requires an exact zone identity, a matching CAS snapshot token, no phantom cells and a consistent haul grid.");
             if (!Valid(command)) return false;
-            var map = ProtoBoundary.ResolveMap(context);
+            var map = ProtoBoundary.LoadedMap(context);
             var candidate = map.zoneManager.AllZones.FirstOrDefault(z => z.GetUniqueLoadID() == command.Zone.EntityId);
             if (candidate == null || candidate.Cells.Count == 0) return false;
             if (NativeZoneObservationTools.Token(candidate, context).Token != command.Zone.ExpectedSnapshotToken) return false;
@@ -110,11 +110,11 @@ namespace HomeBridge.BridgeTools
                 var guard = authority.Check(pre.ExpectedGeneration); context.NativeGeneration = guard.Snapshot.Generation;
                 if (!guard.Success) return new Operations.ExecuteReply { Failure = NativeAuthorityControlTools.Refusal(guard.Error, context) };
                 var admitted = state.Ledger.Admit("rimgovernor.operations.v1.Operations/Execute", request, context);
-                if (admitted.Kind != NativeAttemptLedger.DecisionKind.Admitted) return admitted.Reply!; handle = admitted.Handle;
+                if (admitted.Kind != NativeAttemptLedger.DecisionKind.Admitted) return admitted.DecidedReply; handle = admitted.AdmittedHandle;
                 using (authority.Owned())
                 {
                     if (!authority.Check(pre.ExpectedGeneration).Success || !Prepare(command, context, out zone, out failure)) throw new InvalidOperationException("Zone scope changed before deletion.");
-                    var record = new NativeZoneEditRecord(zone!, ProtoBoundary.ResolveMap(context), command.Zone.ExpectedSnapshotToken);
+                    var record = new NativeZoneEditRecord(zone!, ProtoBoundary.LoadedMap(context), command.Zone.ExpectedSnapshotToken);
                     state.ZoneEdits.Add(pre.Attempt.Clone(), record);
                     zone!.Delete(false);
                     evidence = new Receipts.EffectEvidence { Zone = record.Evidence() };
@@ -124,7 +124,7 @@ namespace HomeBridge.BridgeTools
             catch (Exception error)
             {
                 return handle == null ? new Operations.ExecuteReply { Failure = ProtoBoundary.Fail(Common.FailureCode.NativeFailure, "Zone deletion admission failed: " + error.GetType().Name) }
-                    : new Operations.ExecuteReply { Receipt = NativeOperationEnvelope.Uncertain(state.Ledger, handle, pre.Attempt, context, evidence!, "Deleted zone requires inspection: " + error.GetType().Name) };
+                    : new Operations.ExecuteReply { Receipt = NativeOperationEnvelope.Uncertain(state.Ledger, handle, pre.Attempt, context, evidence, "Deleted zone requires inspection: " + error.GetType().Name) };
             }
         }
     }

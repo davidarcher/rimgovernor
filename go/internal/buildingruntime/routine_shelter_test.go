@@ -482,6 +482,9 @@ func TestRoutineShelterGrowsIrregularShellOverConstrainedTerrain(t *testing.T) {
 	// fits, so a concave connected footprint is grown and admitted whole.
 	lit := func(x, z int32) bool { return x >= 8 && x <= 12 && z >= 1 || z >= 8 && z <= 12 && x >= 8 }
 	hutCells(n, 21, lit)
+	// Growing the footprint is CPU-bound and runs several times slower under
+	// race detection alongside the rest of the package.
+	r.reviewer.player.config.CallTimeout = 20 * time.Second
 	result, err := r.Step(context.Background())
 	if err != nil || result.Reason != BuildingMethodAdmitted {
 		t.Fatal(result, err)

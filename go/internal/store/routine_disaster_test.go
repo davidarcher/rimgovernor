@@ -2,7 +2,6 @@ package store
 
 import (
 	"context"
-	"path/filepath"
 	"reflect"
 	"testing"
 
@@ -13,7 +12,7 @@ import (
 func TestRoutineDisasterDurableManualAndContext(t *testing.T) {
 	t.Parallel()
 	ctx := context.Background()
-	path := filepath.Join(t.TempDir(), "disaster.db")
+	path := memoryPath(t)
 	s := open(t, path)
 	r := routineRequest()
 	r.Facts.DisasterConditions = domain.Known([]policy.DisasterCondition{{ID: "1", Definition: "ColdSnap"}})

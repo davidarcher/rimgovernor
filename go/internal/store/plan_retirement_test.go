@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"path/filepath"
 	"testing"
 
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
@@ -14,7 +13,7 @@ import (
 func TestRoutinePlanRetirementRepeatedMethodsAndHistory(t *testing.T) {
 	t.Parallel()
 	ctx := context.Background()
-	path := filepath.Join(t.TempDir(), "history.db")
+	path := memoryPath(t)
 	s := open(t, path)
 	r := routineRequest()
 	g := routineGoal(t, reviewRoutine(t, s, &r), policy.MaintainWood)
@@ -75,7 +74,7 @@ func TestRoutinePlanRetirementTerminalFloorAndRestart(t *testing.T) {
 		for _, cancelled := range []bool{false, true} {
 			t.Run(fmt.Sprintf("%s/%v", effect, cancelled), func(t *testing.T) {
 				ctx := context.Background()
-				path := filepath.Join(t.TempDir(), "history.db")
+				path := memoryPath(t)
 				s := open(t, path)
 				r := routineRequest()
 				g := routineGoal(t, reviewRoutine(t, s, &r), policy.MaintainWood)
@@ -183,7 +182,7 @@ func TestRoutinePlanRetirementTerminalFloorAndRestart(t *testing.T) {
 func TestRoutinePlanRetirementPinsCurrentAndRollsBack(t *testing.T) {
 	t.Parallel()
 	ctx := context.Background()
-	s := open(t, filepath.Join(t.TempDir(), "history.db"))
+	s := open(t, memoryPath(t))
 	r := routineRequest()
 	g := routineGoal(t, reviewRoutine(t, s, &r), policy.MaintainWood)
 	if _, err := s.CommitGoalMethod(ctx, g.Goal.ID, g.Revision, "current", plan(t, "p", "a")); err != nil {
@@ -215,7 +214,7 @@ func TestRoutinePlanRetirementPinsUnfinishedAndPlayerMethods(t *testing.T) {
 	for _, kind := range []string{"dependency", "unknown", "player"} {
 		t.Run(kind, func(t *testing.T) {
 			ctx := context.Background()
-			s := open(t, filepath.Join(t.TempDir(), "history.db"))
+			s := open(t, memoryPath(t))
 			r := routineRequest()
 			g := routineGoal(t, reviewRoutine(t, s, &r), policy.MaintainWood)
 			if kind == "player" {

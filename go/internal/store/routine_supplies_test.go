@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
-	"path/filepath"
 	"reflect"
 	"testing"
 )
@@ -13,7 +12,7 @@ import (
 func TestRoutineSuppliesRestartManualAndLaterForbids(t *testing.T) {
 	t.Parallel()
 	ctx := context.Background()
-	path := filepath.Join(t.TempDir(), "supplies.db")
+	path := memoryPath(t)
 	s := open(t, path)
 	r := routineRequest()
 	a, b, later := domain.Cell{X: 1, Z: 1}, domain.Cell{X: 2, Z: 2}, domain.Cell{X: 3, Z: 3}
@@ -75,7 +74,7 @@ func TestRoutineSuppliesResetAndCorruptHistory(t *testing.T) {
 		{"rewind", func(r *RoutineReviewRequest) { r.Tick = 1 }},
 	} {
 		t.Run(test.name, func(t *testing.T) {
-			s := open(t, filepath.Join(t.TempDir(), "reset.db"))
+			s := open(t, memoryPath(t))
 			r := routineRequest()
 			r.Facts.StartingSupplyCells = domain.Known([]domain.Cell{})
 			reviewRoutine(t, s, &r)

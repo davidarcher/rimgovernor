@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net"
@@ -71,6 +72,8 @@ type WorkerConfig struct {
 	// fresh native package from Source -- only for callers that already
 	// know Inputs.Mods is current (e.g. a caller that just built it itself).
 	SkipNativeBuild bool
+	// Storage is where /worker lives; "" means StorageVolume. See Storage.
+	Storage Storage
 }
 
 // Worker is one running, --network host worker container. BaseURL is
@@ -92,6 +95,8 @@ type Worker struct {
 	Port    int
 	Root    string
 	BaseURL string
+	storage Storage
+	volume  string // private volume name under StorageVolume, else ""
 }
 
 // freeLoopbackPort probes an available host loopback port. It is
@@ -210,14 +215,20 @@ func copyFile(source, destination string) error {
 	return out.Close()
 }
 
-// StartWorker prepares cfg.Root, builds the `docker run` invocation and
-// starts one --network host worker container, then polls /api/health and
-// /api/state until the container reports a connected native session or
-// cfg.StartupTimeout elapses. On any failure it removes the container
-// before returning, so a caller never leaks a half-started worker.
+// StartWorker prepares cfg.Root, creates one --network host worker
+// container with its /worker tree on the configured Storage, seeds and
+// starts it, then polls /api/health and /api/state until the container
+// reports a connected native session or cfg.StartupTimeout elapses. On any
+// failure it runs the full Stop contract (export, retain-on-failure,
+// remove) before returning, so a caller never leaks a half-started worker
+// and still gets the evidence a failed startup left behind under cfg.Root.
 func StartWorker(ctx context.Context, cfg WorkerConfig) (*Worker, error) {
 	if cfg.Name == "" || cfg.Image == "" || cfg.Root == "" || cfg.GameID == "" {
 		return nil, fmt.Errorf("worker config requires name, image, root and game id")
+	}
+	storage, err := ParseStorage(string(cfg.Storage))
+	if err != nil {
+		return nil, err
 	}
 	if err := os.MkdirAll(cfg.Root, 0755); err != nil {
 		return nil, fmt.Errorf("create worker root: %w", err)
@@ -243,20 +254,32 @@ func StartWorker(ctx context.Context, cfg WorkerConfig) (*Worker, error) {
 	if err != nil {
 		return nil, fmt.Errorf("list game inputs: %w", err)
 	}
+	worker := &Worker{docker: cfg.Docker, Name: cfg.Name, Port: port, Root: cfg.Root, BaseURL: fmt.Sprintf("http://127.0.0.1:%d", port), storage: storage}
+	workerMount := "type=bind,source=" + cfg.Root + ",target=/worker"
+	if storage == StorageVolume {
+		volume, err := createVolume(ctx, cfg.Docker, cfg.Name)
+		if err != nil {
+			return nil, err
+		}
+		worker.volume = volume
+		workerMount = "type=volume,source=" + volume + ",target=/worker"
+	}
 	args := []string{
-		"run", "-d", "--name", cfg.Name, "--network", "host", "--init",
+		"create", "--name", cfg.Name, "--network", "host", "--init",
 		// Mono's Boehm GC installs SIGSEGV-based write-barrier/stack-scan
 		// handlers that Docker's default seccomp profile interferes with,
 		// crashing RimWorldLinux during early Verse.Root.Start() startup
 		// with signo:11 in GC_mark_from. This is the standard fix for
 		// Mono-in-Docker.
 		"--security-opt", "seccomp=unconfined",
+		// The writable /worker parent (bind or private volume, see Storage)
+		// that the per-entry game mounts nest under.
+		"--mount", workerMount,
 	}
 	args = append(args, gameMounts...)
 	args = append(args,
 		"-v", cfg.Inputs.Mods+":/worker/game/Mods:ro",
 		"-v", cfg.Inputs.Gabs+":/inputs/gabs:ro",
-		"-v", cfg.Root+":/worker",
 		// Consumed by containers/worker-merge-game.sh, which runs
 		// `gabs games start` before exec'ing rimgovernor -- see that
 		// script's comment for why this can't be a bridge.Client call
@@ -277,13 +300,24 @@ func StartWorker(ctx context.Context, cfg WorkerConfig) (*Worker, error) {
 		"--flight-recorder", "/worker/flight.jsonl",
 		"--timeout", "60s",
 	)
-	cmd := exec.CommandContext(ctx, cfg.Docker, args...)
-	if out, err := cmd.CombinedOutput(); err != nil {
-		return nil, fmt.Errorf("docker run: %w: %s", err, out)
+	if out, err := exec.CommandContext(ctx, cfg.Docker, args...).CombinedOutput(); err != nil {
+		if worker.volume != "" {
+			_ = removeVolume(context.Background(), cfg.Docker, worker.volume)
+		}
+		return nil, fmt.Errorf("docker create: %w: %s", err, out)
 	}
-	worker := &Worker{docker: cfg.Docker, Name: cfg.Name, Port: port, Root: cfg.Root, BaseURL: fmt.Sprintf("http://127.0.0.1:%d", port)}
+	if storage == StorageVolume {
+		if err := seedVolume(ctx, cfg.Docker, cfg.Name, cfg.Root); err != nil {
+			_, _ = worker.Stop(context.Background())
+			return nil, err
+		}
+	}
+	if out, err := exec.CommandContext(ctx, cfg.Docker, "start", cfg.Name).CombinedOutput(); err != nil {
+		_, _ = worker.Stop(context.Background())
+		return nil, fmt.Errorf("docker start: %w: %s", err, out)
+	}
 	if err := worker.waitReady(ctx, cfg.StartupTimeout); err != nil {
-		_ = worker.Stop(context.Background())
+		_, _ = worker.Stop(context.Background())
 		return nil, err
 	}
 	return worker, nil
@@ -450,15 +484,55 @@ func (w *Worker) waitReady(ctx context.Context, timeout time.Duration) error {
 	return fmt.Errorf("worker did not report a connected native session within %s: %w", timeout, lastErr)
 }
 
-// Stop saves the container's final combined logs to <root>/container.log
-// before removing it (no --rm: a container that exits or crashes during
-// startup must stay inspectable until this explicit cleanup runs) and
-// returns any removal error, so a caller can retain post-mortem evidence even
-// when cleanup itself fails.
-func (w *Worker) Stop(ctx context.Context) error {
+// Stop runs the storage contract's shutdown half and returns its evidence:
+// the container's final combined logs go to <root>/container.log, the
+// container is asked to stop (a clean rimgovernor exit closes its SQLite
+// database, so the export never races a live WAL), a volume-backed
+// /worker is exported to the host root and integrity-checked, and only then
+// is the container removed (no --rm: a container that exits or crashes
+// during startup must stay inspectable until this explicit cleanup runs).
+// The private volume is removed, and verified gone, only after a successful
+// export and container removal; any earlier failure retains it as recovery
+// evidence (StorageEvidence.Retained) and is reported through the error, so
+// a caller keeps post-mortem evidence even when cleanup itself fails.
+func (w *Worker) Stop(ctx context.Context) (StorageEvidence, error) {
+	evidence := StorageEvidence{Kind: w.storage, Volume: w.volume, Retained: w.volume != ""}
 	logs, _ := ContainerLogs(ctx, w.docker, w.Name)
-	if logPath := filepath.Join(w.Root, "container.log"); logPath != "" {
-		_ = os.WriteFile(logPath, []byte(logs), 0644)
+	_ = os.WriteFile(filepath.Join(w.Root, "container.log"), []byte(logs), 0644)
+
+	var errs []error
+	if err := stopContainer(ctx, w.docker, w.Name, 15*time.Second); err != nil {
+		errs = append(errs, err)
+	} else {
+		evidence.Stopped = true
 	}
-	return RemoveContainer(ctx, w.docker, w.Name)
+	switch {
+	case w.storage == StorageBind:
+		evidence.Exported = true
+	case !evidence.Stopped:
+		evidence.ExportError = "container stop was not confirmed; volume retained for recovery"
+	default:
+		databases, err := exportWorker(ctx, w.docker, w.Name, w.Root)
+		if err != nil {
+			evidence.ExportError = err.Error()
+			errs = append(errs, err)
+		} else {
+			evidence.Exported = true
+			evidence.Databases = databases
+		}
+	}
+	removed := true
+	if err := RemoveContainer(ctx, w.docker, w.Name); err != nil {
+		removed = false
+		errs = append(errs, err)
+	}
+	if w.volume != "" && evidence.Exported && removed {
+		if err := removeVolume(ctx, w.docker, w.volume); err != nil {
+			evidence.CleanupError = err.Error()
+			errs = append(errs, err)
+		} else {
+			evidence.Retained = false
+		}
+	}
+	return evidence, errors.Join(errs...)
 }

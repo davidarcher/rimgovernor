@@ -14,9 +14,7 @@ import (
 // mod does not yet implement, each tracked by an open issue. A name leaves
 // this set when its native tool lands; a new caller must not add to it
 // without an issue.
-var nativeToolGaps = map[string]string{
-	"rimgovernor/presentation_notifications": "https://github.com/davidarcher/rimgovernor/issues/79",
-}
+var nativeToolGaps = map[string]string{}
 
 // TestEveryBridgeToolExistsNatively guards the bridge's call sites against
 // the native tool table: a read the mod refuses fails every clock step of

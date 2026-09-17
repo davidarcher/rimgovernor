@@ -1,3 +1,5 @@
+#nullable enable
+
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -33,12 +35,12 @@ namespace HomeBridge.BridgeTools
 
     public sealed class PlayerFrame
     {
-        public Game Game;
-        public Map Map;
+        public Game? Game;
+        public Map? Map;
         public Matrix4x4 View, Projection;
         public int Width, Height;
         public double Captured;
-        public string Windows;
+        public string? Windows;
         public long UiRevision;
         public int Selection;
         static long uiRevision;
@@ -63,13 +65,13 @@ namespace HomeBridge.BridgeTools
         }
         public bool CurrentUi() => UiRevision == uiRevision;
         public static readonly Dictionary<long, PlayerFrame> Frames = new Dictionary<long, PlayerFrame>();
-        public static string Source;
+        public static string? Source;
 
         static string WindowState() => string.Join("|", Find.WindowStack.Windows
             .Where(w => !(w is ImmediateWindow))
             .Select(w => System.Runtime.CompilerServices.RuntimeHelpers.GetHashCode(w) + ":" + w.windowRect));
 
-        public static PlayerFrame Capture(double captured)
+        public static PlayerFrame? Capture(double captured)
         {
             if (Current.Game == null || Find.CurrentMap == null || Find.Camera == null) return null;
             return new PlayerFrame { Game = Current.Game, Map = Find.CurrentMap,
@@ -96,23 +98,23 @@ namespace HomeBridge.BridgeTools
 
     public sealed class PrivatePlayerInput : MonoBehaviour
     {
-        static PrivatePlayerInput instance;
+        static PrivatePlayerInput? instance;
         IntPtr display;
-        string owner;
+        string? owner;
         float until;
         long lastOrder;
-        Game game;
-        Map map;
+        Game? game;
+        Map? map;
         readonly HashSet<uint> buttons = new HashSet<uint>();
         readonly HashSet<uint> keys = new HashSet<uint>();
-        FileStream channelFile;
-        MemoryMappedFile channelMap;
-        MemoryMappedViewAccessor channel;
-        string channelName;
+        FileStream? channelFile;
+        MemoryMappedFile? channelMap;
+        MemoryMappedViewAccessor? channel;
+        string? channelName;
         long command;
         [DllImport("libc", SetLastError = true)] static extern int flock(int fd, int operation);
 
-        [DllImport("libX11.so.6")] static extern IntPtr XOpenDisplay(string name);
+        [DllImport("libX11.so.6")] static extern IntPtr XOpenDisplay(string? name);
         [DllImport("libX11.so.6")] static extern int XCloseDisplay(IntPtr d);
         [DllImport("libX11.so.6")] static extern int XFlush(IntPtr d);
         [DllImport("libX11.so.6")] static extern int XGetInputFocus(IntPtr d, out UIntPtr w, out int revert);
@@ -370,7 +372,7 @@ namespace HomeBridge.BridgeTools
         }
         void ReadChannel()
         {
-            if (channel == null) return;
+            if (channel == null || channelFile == null) return;
             int fd = channelFile.SafeFileHandle.DangerousGetHandle().ToInt32();
             if (flock(fd, 2 | 4) != 0) return;
             try

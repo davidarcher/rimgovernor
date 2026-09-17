@@ -1,3 +1,5 @@
+#nullable enable
+
 using System;
 using System.Linq;
 using System.Threading;
@@ -12,17 +14,17 @@ namespace HomeBridge.BridgeTools
 {
     public sealed class ColonyNamingTools
     {
-        internal static Dialog_NamePlayerFactionAndSettlement Pending()
+        internal static Dialog_NamePlayerFactionAndSettlement? Pending()
         {
             var windows = Find.WindowStack?.Windows.Where(w => w.forcePause).ToList();
             return windows != null && windows.Count == 1
                 ? windows[0] as Dialog_NamePlayerFactionAndSettlement : null;
         }
 
-        internal static string Name(Dialog_GiveName dialog, string field) =>
+        internal static string? Name(Dialog_GiveName dialog, string field) =>
             (AccessTools.Field(typeof(Dialog_GiveName), field)?.GetValue(dialog) as string)?.Trim();
 
-        internal static object Snapshot()
+        internal static object? Snapshot()
         {
             var dialog = Pending();
             return dialog == null ? null : new { windowId = dialog.ID,

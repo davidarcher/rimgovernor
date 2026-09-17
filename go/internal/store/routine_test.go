@@ -3,7 +3,6 @@ package store
 import (
 	"context"
 	"errors"
-	"path/filepath"
 	"reflect"
 	"testing"
 
@@ -38,7 +37,7 @@ func reviewRoutine(t *testing.T, s *Store, r *RoutineReviewRequest) RoutineRevie
 func TestRoutineReviewRestartUnknownRecoveryAndRenewal(t *testing.T) {
 	t.Parallel()
 	ctx := context.Background()
-	path := filepath.Join(t.TempDir(), "routine.db")
+	path := memoryPath(t)
 	s := open(t, path)
 	r := routineRequest()
 	out := reviewRoutine(t, s, &r)
@@ -84,7 +83,7 @@ func TestRoutineReviewSuspendsOrInvalidatesLinkedWorkAndPreservesCancellation(t 
 	for _, change := range []string{"manual", "load", "map", "rewind"} {
 		t.Run(change, func(t *testing.T) {
 			ctx := context.Background()
-			s := open(t, filepath.Join(t.TempDir(), "routine.db"))
+			s := open(t, memoryPath(t))
 			r := routineRequest()
 			out := reviewRoutine(t, s, &r)
 			g := routineGoal(t, out, policy.MaintainWood)
@@ -155,7 +154,7 @@ func TestRoutineReviewSuspendsOrInvalidatesLinkedWorkAndPreservesCancellation(t 
 func TestRoutineReviewTransactionRollbackAndStaleCursor(t *testing.T) {
 	t.Parallel()
 	ctx := context.Background()
-	s := open(t, filepath.Join(t.TempDir(), "routine.db"))
+	s := open(t, memoryPath(t))
 	r := routineRequest()
 	out := reviewRoutine(t, s, &r)
 	stale := r
@@ -185,7 +184,7 @@ func TestRoutineReviewTransactionRollbackAndStaleCursor(t *testing.T) {
 func TestRoutineEmergencyHoldsSharedMethodUntilObservedRecovery(t *testing.T) {
 	t.Parallel()
 	ctx := context.Background()
-	s := open(t, filepath.Join(t.TempDir(), "routine.db"))
+	s := open(t, memoryPath(t))
 	r := routineRequest()
 	out := reviewRoutine(t, s, &r)
 	g := routineGoal(t, out, policy.MaintainWood)
@@ -209,7 +208,7 @@ func TestRoutineEmergencyHoldsSharedMethodUntilObservedRecovery(t *testing.T) {
 
 func TestRoutineDirectionAndManualDoNotEraseRecoveryTarget(t *testing.T) {
 	t.Parallel()
-	s := open(t, filepath.Join(t.TempDir(), "routine.db"))
+	s := open(t, memoryPath(t))
 	r := routineRequest()
 	reviewRoutine(t, s, &r)
 	r.Facts.Wood = domain.Known(int64(200))

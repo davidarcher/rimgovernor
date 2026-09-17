@@ -1,5 +1,6 @@
 #nullable enable
 using System;
+using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using Verse;
 using Common = RimGovernor.Protocol.Common;
@@ -73,9 +74,9 @@ namespace HomeBridge.BridgeTools
                 if(check!=NativePawnControlResult.Ready) return new Operations.ExecuteReply {Failure=NativeDraftProtocol.Failure(check,context)};
                 var admissionContext=context.Clone();
                 var admission=state.Ledger.Admit("rimgovernor.operations.v1.Operations/Execute",request,admissionContext);
-                if(admission.Kind!=NativeAttemptLedger.DecisionKind.Admitted) return admission.Reply!;
-                admitted=admission.Handle;admittedContext=admissionContext;
-                return Apply(state,request,admission.Handle!,admissionContext,authority,identity!,pawn!,before!);
+                if(admission.Kind!=NativeAttemptLedger.DecisionKind.Admitted) return admission.DecidedReply;
+                admitted=admission.AdmittedHandle;admittedContext=admissionContext;
+                return Apply(state,request,admission.AdmittedHandle,admissionContext,authority,identity!,pawn!,before!);
             }
             catch(Exception error) {
                 return admitted==null ? Refuse(Common.FailureCode.NativeFailure,"Draft validation failed: "+error.GetType().Name)
@@ -162,8 +163,8 @@ namespace HomeBridge.BridgeTools
                 return new Operations.ReleaseOwnedDraftReply {Failure=failure};
             NativeDraftReleaseTicket? ticket=null;NativePawnSnapshot? observed=null;bool admitted=false;
             try {
-                var identity=new NativeControlIdentity(Current.Game,ProtoBoundary.ResolveMap(context),context.Identity.ColonyId,context.Identity.LoadToken);
-                var pawn=FindPawn(ProtoBoundary.ResolveMap(context),request.Pawn.EntityId);
+                var identity=new NativeControlIdentity(Current.Game, ProtoBoundary.LoadedMap(context),context.Identity.ColonyId,context.Identity.LoadToken);
+                var pawn=FindPawn(ProtoBoundary.LoadedMap(context),request.Pawn.EntityId);
                 if(pawn==null) return new Operations.ReleaseOwnedDraftReply {Failure=ProtoBoundary.Fail(Common.FailureCode.NotFound,"Exact pawn is not spawned on the current map.")};
                 var prepared=NativePawnControlState.PrepareRelease(identity,pawn,request.Pawn.ExpectedSnapshotToken,request.ExpectedClaimId,out ticket,out observed);
                 if(prepared==NativePawnControlResult.AlreadyReleased && observed!=null)
@@ -182,7 +183,7 @@ namespace HomeBridge.BridgeTools
                 catch(Exception error) {effectError=error;}
                 var completed=NativePawnControlState.CompleteRelease(ticket!,out observed);
                 var sameContext=ProtoBoundary.ValidateIdentity(request.Identity, out var afterContext,out _);
-                if(sameContext) context=afterContext;
+                if(afterContext!=null) context=afterContext;
                 if(effectError!=null || completed!=NativePawnControlResult.Ready || observed==null || !sameContext)
                     return ReleaseUncertain(request,context,"Admitted cleanup requires observation: "+(effectError?.GetType().Name??completed.ToString()));
                 return new Operations.ReleaseOwnedDraftReply {Released=Released(request,context,observed,true)};
@@ -204,14 +205,14 @@ namespace HomeBridge.BridgeTools
         private static Operations.ReleaseOwnedDraftReply ReleaseUncertain(Operations.ReleaseOwnedDraftRequest request,Common.ObservationContext context,string detail) =>
             new Operations.ReleaseOwnedDraftReply {Uncertain=new Operations.DraftReleaseUncertain {Request=request.Clone(),Context=context.Clone(),Detail=detail}};
 
-        private static bool Resolve(Operations.EntityPrecondition target,Common.ObservationContext context,out NativeControlIdentity? identity,
+        private static bool Resolve(Operations.EntityPrecondition target,Common.ObservationContext context,[NotNullWhen(true)] out NativeControlIdentity? identity,
             out Pawn? pawn,out NativePawnSnapshot? snapshot,out Common.Failure failure)
         {
             identity=null;pawn=null;snapshot=null;
             failure=ProtoBoundary.Fail(Common.FailureCode.Unavailable,"Native pawn control hooks are unavailable.");
             if(!NativePawnControlState.IsReady) return false;
-            identity=new NativeControlIdentity(Current.Game,ProtoBoundary.ResolveMap(context),context.Identity.ColonyId,context.Identity.LoadToken);
-            pawn=FindPawn(ProtoBoundary.ResolveMap(context),target.EntityId);
+            identity=new NativeControlIdentity(Current.Game, ProtoBoundary.LoadedMap(context),context.Identity.ColonyId,context.Identity.LoadToken);
+            pawn=FindPawn(ProtoBoundary.LoadedMap(context),target.EntityId);
             if(pawn==null) {failure=ProtoBoundary.Fail(Common.FailureCode.NotFound,"Exact pawn is not spawned on the current map.");return false;}
             var check=NativePawnControlState.Check(identity,pawn,target.ExpectedSnapshotToken,out snapshot);
             if(check!=NativePawnControlResult.Ready) {failure=NativeDraftProtocol.Failure(check,context);return false;}
@@ -239,6 +240,6 @@ namespace HomeBridge.BridgeTools
         private static Operations.ExecuteReply Refuse(Common.FailureCode code,string detail)=>new Operations.ExecuteReply {Failure=ProtoBoundary.Fail(code,detail)};
         private static Operations.ExecuteReply Uncertain(NativeOperationState state,NativeAttemptLedger.Admission admission,Common.AttemptKey attempt,
             Common.ObservationContext context,Receipts.EffectEvidence? evidence,string detail)=>new Operations.ExecuteReply {
-                Receipt=NativeOperationEnvelope.Uncertain(state.Ledger,admission,attempt,context,evidence!,detail)};
+                Receipt=NativeOperationEnvelope.Uncertain(state.Ledger,admission,attempt,context,evidence,detail)};
     }
 }

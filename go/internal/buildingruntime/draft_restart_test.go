@@ -4,13 +4,13 @@ import (
 	"context"
 	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/boundary"
 	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/draft"
-	"path/filepath"
 	"testing"
 	"time"
 
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"github.com/davidarcher/RimGovernor/go/internal/executor"
 	"github.com/davidarcher/RimGovernor/go/internal/store"
+	"github.com/davidarcher/RimGovernor/go/internal/store/storetest"
 	n "github.com/davidarcher/RimGovernor/go/internal/wire/observationspb"
 	r "github.com/davidarcher/RimGovernor/go/internal/wire/receiptspb"
 	"google.golang.org/protobuf/proto"
@@ -26,7 +26,7 @@ func TestDraftRestartPreservesPlayerReplacementThroughRealJournalAndExecutor(t *
 			}
 			t.Run(name, func(t *testing.T) {
 				ctx := context.Background()
-				path := filepath.Join(t.TempDir(), "draft.sqlite")
+				path := storetest.Path(t)
 				db, err := store.Open(ctx, path)
 				if err != nil {
 					t.Fatal(err)
@@ -87,7 +87,7 @@ func TestDraftRestartPreservesPlayerReplacementThroughRealJournalAndExecutor(t *
 					t.Fatal(err)
 				}
 				building, _ := boundary.NewFixture(t)
-				hands, err := executor.NewWithDraft(db, building, bound, boundary.FixedClock{}, executor.Limits{MaxAge: time.Second, RunTimeout: time.Second, JournalTimeout: time.Second})
+				hands, err := executor.NewWithDraft(db, building, bound, boundary.FixedClock{}, executor.Limits{MaxAge: time.Second, RunTimeout: 5 * time.Second, JournalTimeout: 5 * time.Second})
 				if err != nil {
 					t.Fatal(err)
 				}

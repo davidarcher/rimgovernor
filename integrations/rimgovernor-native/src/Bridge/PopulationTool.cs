@@ -1,3 +1,5 @@
+#nullable enable
+
 using System;
 using System.Linq;
 using System.Threading;
@@ -39,9 +41,9 @@ namespace HomeBridge.BridgeTools
         [Tool("home/population", Title = "Population and prisoner policy",
             Description = "Read current human population and custody. Optionally set a colony prisoner's normal Recruit or MaintainOnly interaction with exact prior-setting comparison. Does not recruit instantly or change custody. Other interactions are unsupported. dryRun defaults true.")]
         public async Task<object> Population(IRimBridgeContext ctx, CancellationToken cancellationToken,
-            [ToolParameter(Description = "Exact observed prisoner Thing ID, required for a setting change.")] string pawn = null,
-            [ToolParameter(Description = "Recruit or MaintainOnly; omit for observation.")] string interaction = null,
-            [ToolParameter(Description = "Exact observed prior exclusive interaction; refuses changed player settings.")] string expectedInteraction = null,
+            [ToolParameter(Description = "Exact observed prisoner Thing ID, required for a setting change.")] string? pawn = null,
+            [ToolParameter(Description = "Recruit or MaintainOnly; omit for observation.")] string? interaction = null,
+            [ToolParameter(Description = "Exact observed prior exclusive interaction; refuses changed player settings.")] string? expectedInteraction = null,
             [ToolParameter(Description = "Preview only.", DefaultValue = true)] bool dryRun = true)
         {
             return await ctx.MainThread.InvokeAsync<object>(() => {

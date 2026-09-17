@@ -162,6 +162,11 @@ message FilterPatch {
   SelectorList replace = 1;
   repeated FilterSelector allow = 2;
   repeated FilterSelector disallow = 3;
+  // Hit-point range as fractions in [0, 1] (the storage tab's percent slider)
+  // and quality range by QualityCategory name (Awful..Legendary); both ends
+  // of a range are required together. Absent ranges are preserved.
+  optional double hit_points_min = 4; optional double hit_points_max = 5;
+  optional string quality_min = 6; optional string quality_max = 7;
 }
 enum RepeatMode { REPEAT_MODE_UNSPECIFIED = 0; REPEAT_MODE_FOREVER = 1; REPEAT_MODE_COUNT = 2; REPEAT_MODE_TARGET = 3; }
 enum StoreMode { STORE_MODE_UNSPECIFIED = 0; STORE_MODE_BEST_STOCKPILE = 1; STORE_MODE_DROP_ON_FLOOR = 2; }
@@ -225,7 +230,14 @@ message ImproveGear { EntityPrecondition pawn = 1; EntityPrecondition target = 2
 message QueueSurgery { EntityPrecondition patient = 1; optional string recipe_def = 2; optional int32 part_index = 3; optional string expected_health_token = 4; optional MedicalCare expected_care = 5; }
 message SetAnimalTraining { EntityPrecondition animal = 1; optional string expected_census_token = 2; optional string trainable_def = 3; }
 message SlaughterAnimal { EntityPrecondition animal = 1; optional string expected_census_token = 2; }
-enum PrisonerInteraction { PRISONER_INTERACTION_UNSPECIFIED = 0; PRISONER_INTERACTION_ATTEMPT_RECRUIT = 1; PRISONER_INTERACTION_MAINTAIN_ONLY = 2; }
+// Exclusive prisoner interaction modes. REDUCE_RESISTANCE and RELEASE are
+// Core; ENSLAVE and CONVERT resolve only while Ideology is active and are
+// refused as unsupported otherwise. Execution and non-exclusive modes stay
+// player-only.
+enum PrisonerInteraction {
+  PRISONER_INTERACTION_UNSPECIFIED = 0; PRISONER_INTERACTION_ATTEMPT_RECRUIT = 1; PRISONER_INTERACTION_MAINTAIN_ONLY = 2;
+  PRISONER_INTERACTION_REDUCE_RESISTANCE = 3; PRISONER_INTERACTION_RELEASE = 4; PRISONER_INTERACTION_ENSLAVE = 5; PRISONER_INTERACTION_CONVERT = 6;
+}
 message SetPrisonerInteraction { EntityPrecondition pawn = 1; optional PrisonerInteraction interaction = 2; }
 message SetDrafted { EntityPrecondition pawn = 1; optional bool drafted = 2; optional string expected_draft_owner = 3; optional bool allow_persistent_draft = 4; }
 message MovePawn { EntityPrecondition pawn = 1; rimgovernor.common.v1.Cell destination = 2; }

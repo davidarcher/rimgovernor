@@ -3,7 +3,6 @@ package store
 import (
 	"context"
 	"encoding/json"
-	"path/filepath"
 	"reflect"
 	"testing"
 
@@ -18,7 +17,7 @@ func medicalPawn(bad bool) policy.CarePawn {
 func TestRoutineMedicalRestartRecoveryRenewalAndCancellation(t *testing.T) {
 	t.Parallel()
 	ctx := context.Background()
-	path := filepath.Join(t.TempDir(), "medical.db")
+	path := memoryPath(t)
 	s := open(t, path)
 	r := routineRequest()
 	r.Facts.MedicalPawns = domain.Known([]policy.CarePawn{medicalPawn(true)})
@@ -82,7 +81,7 @@ func TestRoutineMedicalWorldAndRewindResetHistory(t *testing.T) {
 		{"rewind", func(r *RoutineReviewRequest) { r.Tick = 1 }},
 	} {
 		t.Run(change.name, func(t *testing.T) {
-			s := open(t, filepath.Join(t.TempDir(), "reset.db"))
+			s := open(t, memoryPath(t))
 			r := routineRequest()
 			r.Facts.MedicalPawns = domain.Known([]policy.CarePawn{medicalPawn(true)})
 			reviewRoutine(t, s, &r)
@@ -98,7 +97,7 @@ func TestRoutineMedicalWorldAndRewindResetHistory(t *testing.T) {
 
 func TestRoutineMedicalCorruptHistoryRejectedWhileDisabled(t *testing.T) {
 	t.Parallel()
-	s := open(t, filepath.Join(t.TempDir(), "corrupt.db"))
+	s := open(t, memoryPath(t))
 	r := routineRequest()
 	r.Facts.MedicalPawns = domain.Known([]policy.CarePawn{medicalPawn(true)})
 	reviewRoutine(t, s, &r)

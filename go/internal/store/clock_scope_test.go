@@ -3,7 +3,6 @@ package store
 import (
 	"context"
 	"errors"
-	"path/filepath"
 	"testing"
 
 	"github.com/davidarcher/RimGovernor/go/internal/bridge"
@@ -21,7 +20,7 @@ func clockScopeProof(v ClockAttempt) *c.ObservationContext {
 func TestClockScopeRetirementPersistsWithoutChangingOutcome(t *testing.T) {
 	t.Parallel()
 	ctx := context.Background()
-	path := filepath.Join(t.TempDir(), "clock.db")
+	path := memoryPath(t)
 	s := open(t, path)
 	_, _, err := s.PrepareClock(ctx, clockIntent(clockTestID(t, s, "start")))
 	if err != nil {
@@ -78,7 +77,7 @@ func TestClockScopeRetirementPersistsWithoutChangingOutcome(t *testing.T) {
 func TestClockScopeRequiresPositiveReplacementAndUnresolvedStart(t *testing.T) {
 	t.Parallel()
 	ctx := context.Background()
-	s := open(t, filepath.Join(t.TempDir(), "clock.db"))
+	s := open(t, memoryPath(t))
 	v, _, err := s.PrepareClock(ctx, clockIntent(clockTestID(t, s, "start")))
 	if err != nil {
 		t.Fatal(err)
@@ -124,7 +123,7 @@ func TestClockScopeRequiresPositiveReplacementAndUnresolvedStart(t *testing.T) {
 func TestClockScopeRollbackAndCorruptEvidence(t *testing.T) {
 	t.Parallel()
 	ctx := context.Background()
-	s := open(t, filepath.Join(t.TempDir(), "clock.db"))
+	s := open(t, memoryPath(t))
 	v, _, err := s.PrepareClock(ctx, clockIntent(clockTestID(t, s, "start")))
 	if err != nil {
 		t.Fatal(err)

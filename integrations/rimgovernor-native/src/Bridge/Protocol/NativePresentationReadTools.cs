@@ -20,7 +20,7 @@ namespace HomeBridge.BridgeTools
         [Tool("rimgovernor/presentation_camera", Title = "Read native camera", Description = "Graphical camera facts only; no camera movement or rendering demand. Headless camera is unavailable.")]
         [ToolResponse("payload", "string", "Official ProtoJSON CameraReply.", Always = true)]
         public async Task<object> Camera(IRimBridgeContext ctx, CancellationToken cancellationToken,
-            [ToolParameter(Description = "Official ProtoJSON ReadRequest string in raw transport value.")] object request = null!)
+            [ToolParameter(Description = "Official ProtoJSON ReadRequest string in raw transport value.")] object? request = null)
         {
             if (!ProtoBoundary.TryParse(ctx, "rimgovernor/presentation_camera", request, Presentation.ReadRequest.Parser, out var parsed, out var failure)
                 || !ValidateRead(parsed, out failure)) return ProtoBoundary.Encode(new Presentation.CameraReply { Failure = failure });
@@ -55,7 +55,7 @@ namespace HomeBridge.BridgeTools
         [Tool("rimgovernor/presentation_selection", Title = "Read native selection", Description = "Complete bounded graphical selection IDs from native things, zones and plans. No inspect strings, gizmo enumeration, selection changes or capture authority.")]
         [ToolResponse("payload", "string", "Official ProtoJSON SelectionReply; unproven optional fingerprint/gizmo facts are omitted.", Always = true)]
         public async Task<object> Selection(IRimBridgeContext ctx, CancellationToken cancellationToken,
-            [ToolParameter(Description = "Official ProtoJSON ReadRequest string in raw transport value.")] object request = null!)
+            [ToolParameter(Description = "Official ProtoJSON ReadRequest string in raw transport value.")] object? request = null)
         {
             if (!ProtoBoundary.TryParse(ctx, "rimgovernor/presentation_selection", request, Presentation.ReadRequest.Parser, out var parsed, out var failure)
                 || !ValidateRead(parsed, out failure)) return ProtoBoundary.Encode(new Presentation.SelectionReply { Failure = failure });
@@ -82,7 +82,7 @@ namespace HomeBridge.BridgeTools
         [Tool("rimgovernor/presentation_colonists", Title = "Read native colonist roster", Description = "Complete bounded FreeColonistsSpawned roster. Default includes all loaded maps; currentMapOnly narrows it. No world caravan, prisoner, slave or unspawned-pawn claim.")]
         [ToolResponse("payload", "string", "Official ProtoJSON ColonistRosterReply; usable in headless and graphical games.", Always = true)]
         public async Task<object> Colonists(IRimBridgeContext ctx, CancellationToken cancellationToken,
-            [ToolParameter(Description = "Official ProtoJSON ColonistRosterRequest string in raw transport value.")] object request = null!)
+            [ToolParameter(Description = "Official ProtoJSON ColonistRosterRequest string in raw transport value.")] object? request = null)
         {
             if (!ProtoBoundary.TryParse(ctx, "rimgovernor/presentation_colonists", request, Presentation.ColonistRosterRequest.Parser, out var parsed, out var failure)
                 || !ValidateColonists(parsed, out failure)) return ProtoBoundary.Encode(new Presentation.ColonistRosterReply { Failure = failure });
@@ -91,7 +91,7 @@ namespace HomeBridge.BridgeTools
                     return ProtoBoundary.Encode(new Presentation.ColonistRosterReply { Failure = error });
                 try
                 {
-                    var maps = parsed.CurrentMapOnly ? new[] { ProtoBoundary.ResolveMap(context) } : Find.Maps.ToArray();
+                    var maps = parsed.CurrentMapOnly ? new[] { ProtoBoundary.LoadedMap(context) } : Find.Maps.ToArray();
                     var pawns = maps.SelectMany(m => m.mapPawns.FreeColonistsSpawned).Distinct().OrderBy(p => p.GetUniqueLoadID(), StringComparer.Ordinal).ToList();
                     Require(pawns.Count <= 256, "Colonist roster exceeds 256 objects.");
                     var roster = new Presentation.ColonistRoster { Context = context, Listing = Listing(pawns.Count) };
@@ -165,6 +165,6 @@ namespace HomeBridge.BridgeTools
             return ProtoBoundary.Encode(reply);
         }
         private static void Require(bool value, string detail) { if (!value) throw new ReadLimit(detail); }
-        private sealed class ReadLimit : Exception { internal ReadLimit(string message) : base(message) {} }
+        internal sealed class ReadLimit : Exception { internal ReadLimit(string message) : base(message) {} }
     }
 }

@@ -80,7 +80,14 @@ func clockTransportFixture(t *testing.T, blockStart bool) (*ClockScheduler, *blo
 	s.session.clock.native = native
 	s.session.clock.writer = native
 	s.session.control.config.Worlds = clockWorldSource{native}
-	worker, err := NewClockWorker(context.Background(), s, native, ClockWorkerConfig{PollInterval: 10 * time.Millisecond, RenewInterval: 50 * time.Millisecond, StepInterval: 10 * time.Millisecond, MaxBackoff: 100 * time.Millisecond, PollTimeout: 200 * time.Millisecond, RenewTimeout: 200 * time.Millisecond, StepTimeout: 200 * time.Millisecond, PageLimit: 128})
+	// The fake only echoes the lease, so a long lease costs nothing and lets
+	// the per-call timeouts run well past the journal writes a start or renew
+	// makes. A call whose timeout expires after dispatch is an uncertain
+	// write: the session pauses and disables, and the worker never reaches
+	// the blocked transport this test is about. Under CPU contention the
+	// original 200ms budgets (lease/4 of a 1s lease) expired that way.
+	s.config.Start.LeaseMS = 8000
+	worker, err := NewClockWorker(context.Background(), s, native, ClockWorkerConfig{PollInterval: 10 * time.Millisecond, RenewInterval: 50 * time.Millisecond, StepInterval: 10 * time.Millisecond, MaxBackoff: 100 * time.Millisecond, PollTimeout: 2 * time.Second, RenewTimeout: 2 * time.Second, StepTimeout: 2 * time.Second, PageLimit: 128})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -95,11 +102,9 @@ func clockTransportFixture(t *testing.T, blockStart bool) (*ClockScheduler, *blo
 	return s, native, worker
 }
 func TestClockWorkerTransportBlockedWriteRetainsOwner(t *testing.T) {
-	// Not t.Parallel(): this fixture's assertions depend on the worker's real
-	// RenewInterval/CallTimeout timers firing within clockTransportWait's bound.
-	// Running alongside the package's other parallel tests under CPU contention
-	// starved those timers and produced an intermittent "timed out: dispatched
-	// native renew" failure.
+	// Not t.Parallel(): the fixture's worker runs on real timers and the
+	// "manual"/"stop" cases race a short-lived caller against the blocked
+	// write, so this stays off the package's parallel pool.
 	for _, kind := range []string{"start", "renew"} {
 		for _, stop := range []string{"manual", "interruption", "stop"} {
 			t.Run(kind+"/"+stop, func(t *testing.T) {

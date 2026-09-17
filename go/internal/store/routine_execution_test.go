@@ -2,7 +2,6 @@ package store
 
 import (
 	"context"
-	"path/filepath"
 	"testing"
 
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
@@ -14,7 +13,7 @@ func TestRoutineExecutionRequiresCurrentReviewedMethod(t *testing.T) {
 	for _, change := range []string{"valid", "direction", "native", "load", "revision", "unbound", "disabled", "cancelled", "unknown"} {
 		t.Run(change, func(t *testing.T) {
 			ctx := context.Background()
-			s := open(t, filepath.Join(t.TempDir(), "routine.db"))
+			s := open(t, memoryPath(t))
 			r := routineRequest()
 			r.Current.Native = 2
 			g := routineGoal(t, reviewRoutine(t, s, &r), policy.MaintainWood)
@@ -61,7 +60,7 @@ func TestRoutineExecutionRequiresCurrentReviewedMethod(t *testing.T) {
 func TestRoutineExecutionRecoveredBillNeedPermitsPendingOutputOnly(t *testing.T) {
 	t.Parallel()
 	ctx := context.Background()
-	s := open(t, filepath.Join(t.TempDir(), "routine.db"))
+	s := open(t, memoryPath(t))
 	r := routineRequest()
 	r.Current.Native = 2
 	r.Facts.Cooking = domain.Known(false)
@@ -112,7 +111,7 @@ func TestRoutineExecutionRecoveredBillNeedPermitsPendingOutputOnly(t *testing.T)
 func TestRoutineExecutionRecoveredBillNeedRefusesOnceResolved(t *testing.T) {
 	t.Parallel()
 	ctx := context.Background()
-	s := open(t, filepath.Join(t.TempDir(), "routine.db"))
+	s := open(t, memoryPath(t))
 	r := routineRequest()
 	r.Current.Native = 2
 	r.Facts.Cooking = domain.Known(false)
@@ -167,7 +166,7 @@ func TestRoutineExecutionRecoveredBillNeedRefusesOnceResolved(t *testing.T) {
 func TestRoutineExecutionRecoveredBillNeedRefusesUndispatchedSibling(t *testing.T) {
 	t.Parallel()
 	ctx := context.Background()
-	s := open(t, filepath.Join(t.TempDir(), "routine.db"))
+	s := open(t, memoryPath(t))
 	r := routineRequest()
 	r.Current.Native = 2
 	r.Facts.Cooking = domain.Known(false)

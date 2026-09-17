@@ -294,7 +294,7 @@ func writeSourceRoot(t *testing.T) string {
 	if err := os.MkdirAll(filepath.Join(profile, "Saves"), 0755); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(filepath.Join(profile, "Config", "Prefs.xml"), []byte("<prefs/>"), 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(profile, "Config", "Prefs.xml"), []byte("<PrefsData>\n  <autosaveIntervalDays>1</autosaveIntervalDays>\n</PrefsData>"), 0644); err != nil {
 		t.Fatal(err)
 	}
 	if err := os.WriteFile(filepath.Join(profile, "Config", "ModsConfig.xml"), []byte(sampleModsConfig), 0644); err != nil {

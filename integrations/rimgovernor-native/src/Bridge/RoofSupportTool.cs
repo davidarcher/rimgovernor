@@ -1,3 +1,5 @@
+#nullable enable
+
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
@@ -15,7 +17,7 @@ namespace HomeBridge.BridgeTools
                 .All(c => c.InBounds(map) && !c.Fogged(map));
         // Counterfactual version of the installed RoofCollapseUtility's connected
         // roof/radius rule. The map is never edited to preview removal.
-        internal static string Blocker(Building wall, out int checkedRoofs)
+        internal static string? Blocker(Building wall, out int checkedRoofs)
         {
             checkedRoofs = 0;
             if (wall?.Map == null || wall.def != ThingDefOf.Wall || wall.OccupiedRect().Area != 1)
