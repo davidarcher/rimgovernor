@@ -20,6 +20,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
@@ -57,6 +58,7 @@ func main() {
 	nativeTimeout := flag.Duration("native-timeout", 15*time.Second, "serve subprocess's own --timeout")
 	clockSpeed := flag.String("clock-speed", "Superfast", "serve's --clock-speed (Normal, Fast or Superfast)")
 	families := flag.String("families", workshopFamilies, "RIMGOVERNOR_ROUTINE_FAMILIES composition for the run")
+	checkpoint := flag.String("checkpoint", "", "save name to write the first time a workshop bench plan completes (empty: no checkpoint); a later -save of it starts past the startup ladder")
 	flag.Parse()
 	if *root == "" || *rimgovernorBinary == "" || !filepath.IsAbs(*rimgovernorBinary) {
 		fmt.Fprintln(os.Stderr, "-root and an absolute -rimgovernor are required")
@@ -84,6 +86,9 @@ func main() {
 		RequestPrefix: "workshop", Families: *families, Goal: policy.MaintainResource,
 		ServeArgs: []string{"--routine-resource-target", fmt.Sprintf("%s:%d", resource, target)},
 		Until:     resourceRecovered,
+	}
+	if *checkpoint != "" {
+		cfg.Checkpoint = &sustainedfood.Checkpoint{Name: *checkpoint, When: workshopBenchCompleted}
 	}
 	cfg.Prepare = func(ctx context.Context, h *na.Harness, report na.Report) error {
 		count, err := itemCount(ctx, h, "baseline-colony-facts")
@@ -122,6 +127,22 @@ func resourceRecovered(sample map[string]any) bool {
 	need, _ := sample["need"].(string)
 	status, _ := sample["status"].(string)
 	return domain.NeedState(need) == domain.NeedRecovered && domain.GoalStatus(status) == domain.GoalSatisfied
+}
+
+// workshopBenchCompleted reports a sample whose MaintainResource goal holds
+// a workshop bench plan with every action completed: the bench stands and
+// the bill path is about to start, the point a checkpoint save is worth.
+func workshopBenchCompleted(sample map[string]any) bool {
+	plans, _ := sample["plans"].([]map[string]any)
+	for _, plan := range plans {
+		id, _ := plan["plan"].(string)
+		actions, _ := plan["actions"].(int)
+		stages, _ := plan["stages"].(map[string]int)
+		if strings.HasPrefix(id, "routine-workshop-") && actions > 0 && stages["completed"] == actions {
+			return true
+		}
+	}
+	return false
 }
 
 // itemCount reads the reachable, unforbidden player stock of the resource

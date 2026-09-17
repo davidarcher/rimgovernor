@@ -6,6 +6,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"strconv"
 
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
@@ -261,7 +262,7 @@ func commitGoalMethod(ctx context.Context, tx *sql.Tx, id domain.GoalID, revisio
 		return GoalState{}, err
 	}
 	if state.Revision != revision {
-		return GoalState{}, ErrConflict
+		return GoalState{}, fmt.Errorf("%w: goal %s is at revision %d, not %d", ErrConflict, id, state.Revision, revision)
 	}
 	g := state.Goal
 	if g.Status != domain.GoalActive || g.Need != domain.NeedDeficit || g.Source == domain.AdviserGoal {

@@ -3,6 +3,7 @@ package store
 import (
 	"context"
 	"database/sql"
+	"fmt"
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
 )
@@ -20,7 +21,7 @@ func admitBillMethod(ctx context.Context, tx *sql.Tx, goal GoalState, plan domai
 		return err
 	}
 	if !review.Enabled || review.Snapshot != goal.Goal.Snapshot || goal.Goal.Source != domain.AutopilotGoal || len(plan.Actions()) > 4 {
-		return ErrConflict
+		return fmt.Errorf("%w: bill method needs a current autopilot review and at most four actions", ErrConflict)
 	}
 	// Bills serve the cooking/food goals and the resource-target goals whose
 	// production path (RoutineResourcePlanner.dispatchResourceGoal) stages a
@@ -30,13 +31,13 @@ func admitBillMethod(ctx context.Context, tx *sql.Tx, goal GoalState, plan domai
 		bound = bound || b.Goal == goal.Goal.ID && (b.Need == policy.EnsureCooking || b.Need == policy.EnsureFoodSupply || b.Need == policy.MaintainResource || b.Need == policy.MaintainAnimalFeed)
 	}
 	if !bound {
-		return ErrConflict
+		return fmt.Errorf("%w: goal %s does not admit production bills", ErrConflict, goal.Goal.ID)
 	}
 	benches := map[string]bool{}
 	for _, a := range plan.Actions() {
 		b, ok := a.ProductionBill()
 		if !ok || benches[b.Bench()] {
-			return ErrConflict
+			return fmt.Errorf("%w: bill method mixes action kinds or repeats a bench", ErrConflict)
 		}
 		benches[b.Bench()] = true
 		var n int
@@ -44,7 +45,7 @@ func admitBillMethod(ctx context.Context, tx *sql.Tx, goal GoalState, plan domai
 			return err
 		}
 		if n != 0 {
-			return ErrConflict
+			return fmt.Errorf("%w: bench %s already has a claimed %s bill", ErrConflict, b.Bench(), b.Recipe())
 		}
 	}
 	return nil

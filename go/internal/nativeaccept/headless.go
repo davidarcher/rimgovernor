@@ -358,6 +358,9 @@ func IsolatedRoot(source, destination string) (string, error) {
 	return destination, nil
 }
 
+// CopyFile copies one regular file, creating or truncating destination.
+func CopyFile(source, destination string) error { return copyFile(source, destination) }
+
 func copyFile(source, destination string) error {
 	in, err := os.Open(source)
 	if err != nil {

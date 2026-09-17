@@ -22,6 +22,7 @@ import (
 	"path/filepath"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/davidarcher/RimGovernor/go/internal/bridge"
@@ -78,6 +79,19 @@ type RunConfig struct {
 	// Reuse.EndCase instead of games_stop. The caller owns the lifecycle and
 	// its final Retire. Root/GameID/Headless must match Reuse.Config.
 	Reuse *na.GameReuse
+	// Checkpoint, when set, saves the live game the first time a sample
+	// satisfies When: the clock is paused, the service's lifecycle save
+	// writes Name, the .rws is copied into root/profile/Saves (the durable
+	// location Prepare mirrors into the headless profile), and the clock
+	// resumes. A later run started with -save Name skips the startup ladder
+	// and begins where this run got interesting.
+	Checkpoint *Checkpoint
+}
+
+// Checkpoint names a save to take mid-run and the sample that triggers it.
+type Checkpoint struct {
+	Name string
+	When func(sample map[string]any) bool
 }
 
 // Run executes exactly one variant: it must be called with a fresh, empty
@@ -492,6 +506,7 @@ func Run(ctx context.Context, cfg RunConfig, report na.Report) (timeline []map[s
 		goalID = policy.EnsureFoodSupply
 	}
 	watchDeadline := time.Now().Add(cfg.Watch)
+	checkpointed := false
 	for time.Now().Before(watchDeadline) {
 		sample, err := SampleGoal(ctx, verifyStore, goalID)
 		if err != nil {
@@ -507,6 +522,15 @@ func Run(ctx context.Context, cfg RunConfig, report na.Report) (timeline []map[s
 		if cfg.Until != nil && err == nil && cfg.Until(sample) {
 			report["watch_ended_early"] = true
 			break
+		}
+		if cfg.Checkpoint != nil && !checkpointed && err == nil && cfg.Checkpoint.When(sample) {
+			checkpointed = true
+			saved, err := checkpoint(ctx, cfg, keepAlive, apiCall, identity, token, prefix)
+			if err != nil {
+				report["checkpoint"] = map[string]any{"name": cfg.Checkpoint.Name, "error": err.Error()}
+				return timeline, fmt.Errorf("checkpoint %s: %w", cfg.Checkpoint.Name, err)
+			}
+			report["checkpoint"] = saved
 		}
 		select {
 		case <-ctx.Done():
@@ -638,6 +662,10 @@ type authorityKeepAlive struct {
 	token    string
 	prefix   string
 
+	// hold, while set, stops the loop re-acquiring: a checkpoint pauses the
+	// clock on purpose and the save needs manual control to stay manual.
+	hold atomic.Bool
+
 	mu                sync.Mutex
 	attempts          int
 	reacquired        int
@@ -665,6 +693,9 @@ func (k *authorityKeepAlive) run(ctx context.Context) {
 		case <-ctx.Done():
 			return
 		case <-time.After(2 * time.Second):
+		}
+		if k.hold.Load() {
+			continue
 		}
 		state, status, err := k.apiCall("GET", "/api/state", nil, "")
 		if err != nil || status != 200 {
@@ -746,4 +777,67 @@ func openStoreWithRetry(ctx context.Context, path string) (*store.Store, error) 
 		case <-time.After(500 * time.Millisecond):
 		}
 	}
+}
+
+// checkpoint pauses the clock, saves through the service's lifecycle save
+// (which needs manual control), copies the save into root/profile/Saves and
+// resumes. The keep-alive is held for the duration so it does not re-acquire
+// under the save. The result is the report's checkpoint record.
+func checkpoint(ctx context.Context, cfg RunConfig, keepAlive *authorityKeepAlive, apiCall func(string, string, map[string]any, string) (map[string]any, int, error), identity map[string]any, token, prefix string) (map[string]any, error) {
+	name := cfg.Checkpoint.Name
+	keepAlive.hold.Store(true)
+	defer keepAlive.hold.Store(false)
+	stamp := time.Now().UnixNano()
+	paused, status, err := apiCall("POST", "/api/player/control/pause", map[string]any{"requestId": fmt.Sprintf("%s-checkpoint-pause-%d", prefix, stamp), "expected": identity}, token)
+	if err != nil {
+		return nil, fmt.Errorf("pause: %w", err)
+	}
+	if status != 200 {
+		return nil, fmt.Errorf("pause status=%d body=%#v", status, paused)
+	}
+	// The pause is acknowledged before the mode reads manual; wait for it.
+	manualDeadline := time.Now().Add(30 * time.Second)
+	for {
+		state, status, err := apiCall("GET", "/api/state", nil, "")
+		if err == nil && status == 200 && na.AsString(state["mode"]) == "manual" {
+			break
+		}
+		if time.Now().After(manualDeadline) {
+			return nil, fmt.Errorf("service did not reach manual control after pause: %#v", state)
+		}
+		select {
+		case <-ctx.Done():
+			return nil, ctx.Err()
+		case <-time.After(500 * time.Millisecond):
+		}
+	}
+	saved, status, err := apiCall("POST", "/api/lifecycle/save", map[string]any{"requestId": fmt.Sprintf("%s-checkpoint-save-%d", prefix, stamp), "saveName": name}, token)
+	if err != nil {
+		return nil, fmt.Errorf("save: %w", err)
+	}
+	if status != 201 {
+		return nil, fmt.Errorf("save status=%d body=%#v", status, saved)
+	}
+	profile := "profile"
+	if cfg.Headless {
+		profile = "headless-profile"
+	}
+	src := filepath.Join(cfg.Root, profile, "Saves", name+".rws")
+	if _, err := os.Stat(src); err != nil {
+		return nil, fmt.Errorf("save completed but %s is missing: %w", src, err)
+	}
+	dst := filepath.Join(cfg.Root, "profile", "Saves", name+".rws")
+	if src != dst {
+		if err := na.CopyFile(src, dst); err != nil {
+			return nil, err
+		}
+	}
+	resumed, status, err := apiCall("POST", "/api/player/control/resume", map[string]any{"requestId": fmt.Sprintf("%s-checkpoint-resume-%d", prefix, stamp), "expected": identity}, token)
+	if err != nil {
+		return nil, fmt.Errorf("resume: %w", err)
+	}
+	if status != 200 {
+		return nil, fmt.Errorf("resume status=%d body=%#v", status, resumed)
+	}
+	return map[string]any{"name": name, "path": dst, "saved": saved, "at": time.Now().UTC().Format(time.RFC3339)}, nil
 }
