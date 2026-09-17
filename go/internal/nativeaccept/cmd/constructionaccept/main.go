@@ -97,6 +97,13 @@ func run(ctx context.Context, root, output, gameID string, headless bool, report
 	if _, err := na.StartDebugGame(ctx, h, names, na.QuietRequired); err != nil {
 		return err
 	}
+	// Nothing here is about eating, sleeping or mood: the builder stays on
+	// the job for the whole run.
+	frozen, err := na.FreezeNeeds(ctx, h, names)
+	if err != nil {
+		return err
+	}
+	report["frozen_needs"] = frozen
 	if _, err := h.Call(ctx, "pause", "rimworld/set_time_speed", map[string]any{"speed": "Paused", "ultraSpeedBoost": false}); err != nil {
 		return err
 	}

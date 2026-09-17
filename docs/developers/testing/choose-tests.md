@@ -58,7 +58,8 @@ were not. A reviewer holds a new harness to it.
    and pick the mode deliberately: `QuietRequired` when the harness needs a
    fixture build anyway, `QuietIfAvailable` when it must also run on a
    production build, `Loud` only when the assertion is about an interruption.
-   `test/configure_start` is quiet unless told otherwise. Pass the discovered
+   `test/configure_start` is quiet unless told otherwise. Freeze the needs
+   the scenario is not about with `na.FreezeNeeds`. Pass the discovered
    names as `ScenarioRuntime.Tools` so `AdvanceGame` dismisses the letters it
    acknowledges; reserve `WithExpectedLetters` for interruption windows.
 5. **Every wait is stall-bounded.** Poll through `na.WaitProgress` with a
@@ -119,6 +120,16 @@ installed. Interruption harnesses (`combataccept`, `defenselayoutaccept`,
 `movementaccept`, `disconnectaccept`, `test/world_incident` users) stay
 `Loud`.
 
+Needs are frozen when the assertion is not about them. `na.FreezeNeeds(ctx,
+h, names, keep...)` (`test/freeze_needs`, `FreezeNeedsFixture`, in every
+fixture build) pins every free colonist need at maximum after each needs
+interval except the NeedDefs in `keep` (`Food` for a cooking harness, `Rest`
+for a sleeping one, `Mood`/`Joy` for mood relief), for the current game
+only, and the reply names what was frozen: record it on the report so a
+pass cannot hide that nobody ever ate or slept. `needsaccept` proves the
+pin and the release. The construction harnesses freeze everything; a
+harness whose scenario needs a colonist to eat or break keeps that need.
+
 Letters are acknowledged, not fatal. `na.AdvanceGame` used to fail a window
 on any pausing letter outside its expected list; it now acknowledges the
 informational defs in `na.AcknowledgedLetterDefs` (Neutral/Positive/Negative
@@ -164,7 +175,7 @@ and `WaitRoutineReview` already do this
 with `na.StallBudget()` (10 minutes, `RIMGOVERNOR_ACCEPT_STALL` overrides);
 harnesses with their own loops take a `-stall` flag defaulting to the same.
 Issues #91 and #92 track the remaining speed and quiet work (pre-generated worlds,
-process reuse, frozen needs).
+process reuse).
 
 Passing evidence follows relevant code, dependencies, inputs and environment,
 not the main HEAD hash. Unrelated main commits, clean cherry-picks and rebases
