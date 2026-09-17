@@ -39,7 +39,18 @@ type Variant struct {
 	MinTemperature   float64 `json:"minTemperature"`
 	MaxTemperature   float64 `json:"maxTemperature"`
 	WorldTemperature string  `json:"worldTemperature,omitempty"`
+	// MapSize and PlanetCoverage default to the small start (issue #91:
+	// na.DefaultMapSize, na.DefaultPlanetCoverage); a variant that picks a
+	// biome or a temperature band gets ConstrainedPlanetCoverage instead,
+	// since a 5% planet has no guaranteed tundra or extreme-desert tile. A
+	// variant whose stressor is map- or world-level sets them explicitly.
+	MapSize        int     `json:"mapSize,omitempty"`
+	PlanetCoverage float64 `json:"planetCoverage,omitempty"`
 }
+
+// ConstrainedPlanetCoverage is the planet a biome- or temperature-constrained
+// variant defaults to: large enough to hold every settleable biome.
+const ConstrainedPlanetCoverage = 0.3
 
 // WithDefaults fills in test/configure_start's own defaults for any field a
 // hand-written manifest entry left zero, so a minimal spec ({"save": ...,
@@ -54,6 +65,15 @@ func (v Variant) WithDefaults() Variant {
 	if v.MinTemperature == 0 && v.MaxTemperature == 0 {
 		v.MinTemperature, v.MaxTemperature = -100, 100
 	}
+	if v.MapSize == 0 {
+		v.MapSize = na.DefaultMapSize
+	}
+	if v.PlanetCoverage == 0 {
+		v.PlanetCoverage = na.DefaultPlanetCoverage
+		if v.Biome != "" || v.MinTemperature != -100 || v.MaxTemperature != 100 {
+			v.PlanetCoverage = ConstrainedPlanetCoverage
+		}
+	}
 	return v
 }
 
@@ -65,6 +85,9 @@ func (v Variant) Validate() error {
 	}
 	if v.Count < 1 || v.Count > 10 {
 		return fmt.Errorf("variant %q count must be 1..10, got %d", v.Save, v.Count)
+	}
+	if err := (na.DebugStart{MapSize: v.MapSize, PlanetCoverage: v.PlanetCoverage}).Validate(); err != nil {
+		return fmt.Errorf("variant %q: %w", v.Save, err)
 	}
 	return nil
 }
@@ -192,7 +215,7 @@ func Generate(ctx context.Context, root, output, gameID string, headless bool, s
 	configured, err := h.Call(ctx, "configure-start", "test/configure_start", map[string]any{
 		"scenario": v.Scenario, "count": v.Count, "seed": v.Seed, "biome": v.Biome,
 		"difficulty": v.Difficulty, "minTemperature": v.MinTemperature, "maxTemperature": v.MaxTemperature,
-		"worldTemperature": v.WorldTemperature,
+		"worldTemperature": v.WorldTemperature, "mapSize": v.MapSize, "planetCoverage": v.PlanetCoverage,
 	})
 	if err != nil {
 		return fmt.Errorf("configure-start: %w", err)

@@ -26,3 +26,24 @@ func TestQuietDecision(t *testing.T) {
 		}
 	}
 }
+
+func TestDebugStart(t *testing.T) {
+	t.Setenv(MapSizeEnv, "")
+	t.Setenv(PlanetCoverageEnv, "")
+	if d := DefaultDebugStart(); d.MapSize != DefaultMapSize || d.PlanetCoverage != DefaultPlanetCoverage {
+		t.Fatalf("default %+v", d)
+	}
+	t.Setenv(MapSizeEnv, "250")
+	t.Setenv(PlanetCoverageEnv, "0.3")
+	if d := DefaultDebugStart(); d.MapSize != 250 || d.PlanetCoverage != 0.3 {
+		t.Fatalf("env %+v", d)
+	}
+	for _, bad := range []DebugStart{{100, 0.05}, {500, 0.05}, {200, 0.01}, {200, 2}} {
+		if bad.Validate() == nil {
+			t.Fatalf("%+v validated", bad)
+		}
+	}
+	if err := (DebugStart{150, 1}).Validate(); err != nil {
+		t.Fatal(err)
+	}
+}

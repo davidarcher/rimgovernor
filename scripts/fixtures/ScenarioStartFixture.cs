@@ -20,6 +20,8 @@ namespace HomeBridge.BridgeTools
         private static OverallTemperature requestedTemperature;
         private static float minimumTemperature, maximumTemperature;
         private static bool requestedQuiet;
+        private static int requestedMapSize;
+        private static float requestedCoverage;
         private static bool patched, quietPatched;
 
         [Tool("test/configure_start", Description = "Arm one ordinary scenario start from the main menu; test builds only. Does not edit saves or existing colonies.")]
@@ -32,7 +34,9 @@ namespace HomeBridge.BridgeTools
             [ToolParameter(Description = "Minimum native seasonal temperature for the selected settlement tile.")] float minTemperature = -100,
             [ToolParameter(Description = "Maximum native seasonal temperature for the selected settlement tile.")] float maxTemperature = 100,
             [ToolParameter(Description = "Native OverallTemperature world generation setting.")] string worldTemperature = "Normal",
-            [ToolParameter(Description = "Quiet the storyteller (as test/quiet_storyteller) once the colony exists: no threats, incidents or strangers. Interruption harnesses pass false.")] bool quiet = true)
+            [ToolParameter(Description = "Quiet the storyteller (as test/quiet_storyteller) once the colony exists: no threats, incidents or strangers. Interruption harnesses pass false.")] bool quiet = true,
+            [ToolParameter(Description = "Map edge in cells, 150..400 (default 200).")] int mapSize = DebugStart.DefaultMapSize,
+            [ToolParameter(Description = "Planet coverage 0.05..1 (default 0.05); world generation is most of the start.")] float planetCoverage = DebugStart.DefaultPlanetCoverage)
         {
             return await ctx.MainThread.InvokeAsync<object>(() => {
                 if (Current.ProgramState != ProgramState.Entry || Find.CurrentMap != null || Current.Game != null)
@@ -44,6 +48,10 @@ namespace HomeBridge.BridgeTools
                     throw new ArgumentException("Require 1..10 pawns and a nonempty world seed.");
                 if (float.IsNaN(minTemperature) || float.IsNaN(maxTemperature) || minTemperature < -100 || maxTemperature > 100 || minTemperature > maxTemperature)
                     throw new ArgumentException("Require ordered finite seasonal temperatures within -100..100 C.");
+                if (mapSize < DebugStart.MinMapSize || mapSize > DebugStart.MaxMapSize)
+                    throw new ArgumentException($"mapSize must be within {DebugStart.MinMapSize}..{DebugStart.MaxMapSize}.");
+                if (float.IsNaN(planetCoverage) || planetCoverage < 0.05f || planetCoverage > 1f)
+                    throw new ArgumentException("planetCoverage must be within 0.05..1.");
                 var definition = DefDatabase<ScenarioDef>.GetNamedSilentFail(scenario);
                 if (definition == null) throw new ArgumentException("Unknown ScenarioDef.");
                 var difficultyDef = DefDatabase<DifficultyDef>.GetNamedSilentFail(difficulty);
@@ -67,6 +75,7 @@ namespace HomeBridge.BridgeTools
                 requestedTemperature = temperature;
                 minimumTemperature = minTemperature; maximumTemperature = maxTemperature;
                 requestedQuiet = quiet;
+                requestedMapSize = mapSize; requestedCoverage = planetCoverage;
                 if (quiet && !quietPatched)
                 {
                     new Harmony("rimgovernor.test.scenario-start-quiet").Patch(
@@ -76,7 +85,7 @@ namespace HomeBridge.BridgeTools
                 }
                 return new { success = true, armed = true, scenario, count, seed, biome,
                     minTemperature, maxTemperature, quiet,
-                    storyteller = "Cassandra", difficulty, mapSize = 250,
+                    storyteller = "Cassandra", difficulty, mapSize, planetCoverage,
                     cropYieldFactor = difficultyDef.cropYieldFactor,
                     rainfall = "Normal", temperature = temperature.ToString(), population = "Normal" };
             }, cancellationToken).ConfigureAwait(false);
@@ -109,7 +118,7 @@ namespace HomeBridge.BridgeTools
             Current.Game.Scenario = scenario;
             Find.Scenario.PreConfigure();
             Current.Game.storyteller = new Storyteller(StorytellerDefOf.Cassandra, requestedDifficulty);
-            Current.Game.World = WorldGenerator.GenerateWorld(0.3f, worldSeed,
+            Current.Game.World = WorldGenerator.GenerateWorld(requestedCoverage, worldSeed,
                 OverallRainfall.Normal, requestedTemperature, OverallPopulation.Normal, LandmarkDensity.Normal);
             Find.GameInitData.ChooseRandomStartingTile();
             if (!string.IsNullOrEmpty(requestedBiome) || minimumTemperature != -100 || maximumTemperature != 100)
@@ -124,7 +133,7 @@ namespace HomeBridge.BridgeTools
                 if (candidates.Count == 0) throw new InvalidOperationException("No native valid settlement tile meets requested biome and seasonal temperatures.");
                 Find.GameInitData.startingTile = candidates[0].tile;
             }
-            Find.GameInitData.mapSize = 250;
+            Find.GameInitData.mapSize = requestedMapSize;
             Find.Scenario.PostIdeoChosen();
             return false;
         }
