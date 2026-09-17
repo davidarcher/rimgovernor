@@ -64,6 +64,7 @@ func main() {
 	timeout := flag.Duration("timeout", 45*time.Minute, "overall run timeout")
 	checkpoint := flag.String("checkpoint", "", "after the layout is built and audited, save the game under this name (root/profile/Saves/<name>.rws plus <name>.checkpoint.json) so later runs can start at the raid")
 	fromCheckpoint := flag.String("from-checkpoint", "", "load this checkpoint instead of building the layout: re-audits the saved layout, then stages the raid")
+	checkpoints := flag.String("checkpoints", "scripts/fixtures/saves", "committed checkpoint directory: -checkpoint also writes the save and its .checkpoint.json here, -from-checkpoint stages them from here into root/profile/Saves when the root lacks them")
 	flag.Parse()
 	if *root == "" || *rimgovernorBinary == "" || !filepath.IsAbs(*rimgovernorBinary) {
 		fmt.Fprintln(os.Stderr, "-root and an absolute -rimgovernor are required")
@@ -92,7 +93,13 @@ func main() {
 	if *fromCheckpoint != "" {
 		*save = *fromCheckpoint
 	}
-	opts := options{strategy: *strategy, arrival: *arrival, save: *save, bypass: *bypass, layoutTimeout: *layoutTimeout, raidTimeout: *raidTimeout, checkpoint: *checkpoint, fromCheckpoint: *fromCheckpoint}
+	opts := options{strategy: *strategy, arrival: *arrival, save: *save, bypass: *bypass, layoutTimeout: *layoutTimeout, raidTimeout: *raidTimeout, checkpoint: *checkpoint, fromCheckpoint: *fromCheckpoint, checkpoints: *checkpoints}
+	if opts.fromCheckpoint != "" {
+		if err := stageCheckpoint(*root, opts.checkpoints, opts.fromCheckpoint); err != nil {
+			fmt.Fprintln(os.Stderr, err)
+			os.Exit(2)
+		}
+	}
 	if err := run(ctx, *root, *output, *game, !*rendered, *rimgovernorBinary, opts, report); err != nil {
 		report["error"] = err.Error()
 	} else {
@@ -110,6 +117,9 @@ type options struct {
 	// fixture setup and the layout scenario (AGENTS.md: stage the slow
 	// precondition, then advance only the ticks the assertion needs).
 	checkpoint, fromCheckpoint string
+	// checkpoints is the committed directory the checkpoint files also
+	// live in (scripts/fixtures/saves), so a fresh checkout can resume.
+	checkpoints string
 }
 
 // layoutCheckpoint is what a raid-only run needs besides the save itself:
@@ -124,6 +134,26 @@ type layoutCheckpoint struct {
 
 func checkpointPath(root, name string) string {
 	return filepath.Join(root, "profile", "Saves", name+".checkpoint.json")
+}
+
+// stageCheckpoint copies a committed checkpoint into root/profile/Saves when
+// the root does not already hold both files; Prepare then copies them into
+// the headless profile like any other save.
+func stageCheckpoint(root, checkpoints, name string) error {
+	for _, file := range []string{name + ".rws", name + ".checkpoint.json"} {
+		target := filepath.Join(root, "profile", "Saves", file)
+		if _, err := os.Stat(target); err == nil {
+			continue
+		}
+		source := filepath.Join(checkpoints, file)
+		if _, err := os.Stat(source); err != nil {
+			return fmt.Errorf("checkpoint %s: %s missing from both %s and %s (run once with -checkpoint %s)", name, file, filepath.Join(root, "profile", "Saves"), checkpoints, name)
+		}
+		if err := copyFile(source, target); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 type apiFunc func(method, path string, body map[string]any, token string) (map[string]any, int, error)
@@ -506,10 +536,10 @@ func run(ctx context.Context, root, output, gameID string, headless bool, rimgov
 		return fmt.Errorf("lines of fire after layout: %w", err)
 	}
 	if opts.checkpoint != "" {
-		if err := writeCheckpoint(ctx, h, root, opts.checkpoint, layoutCheckpoint{Layout: layout, SiteX: siteX, SiteZ: siteZ, SavedAtTick: int64(na.AsNumber(after["tick"]))}); err != nil {
+		if err := writeCheckpoint(ctx, h, root, opts.checkpoints, opts.checkpoint, layoutCheckpoint{Layout: layout, SiteX: siteX, SiteZ: siteZ, SavedAtTick: int64(na.AsNumber(after["tick"]))}); err != nil {
 			return fmt.Errorf("checkpoint: %w", err)
 		}
-		report["checkpoint"] = map[string]any{"name": opts.checkpoint, "path": checkpointPath(root, opts.checkpoint)}
+		report["checkpoint"] = map[string]any{"name": opts.checkpoint, "path": checkpointPath(root, opts.checkpoint), "committed": opts.checkpoints}
 	}
 
 	// Scenario 2/3: a real raid.
@@ -613,10 +643,11 @@ func run(ctx context.Context, root, output, gameID string, headless bool, rimgov
 // slot needs, acquires authority and keeps it alive, and opens the journal.
 // writeCheckpoint saves the running game and stages the save beside the
 // baseline under root/profile/Saves, where Prepare copies every save into the
-// headless profile, so a later -from-checkpoint run loads it like any other.
+// headless profile, so a later -from-checkpoint run loads it like any other;
+// the same two files go to the committed checkpoint directory when set.
 // The game writes into the active profile's Saves directory: headless runs
 // use root/headless-profile, rendered runs root/profile itself.
-func writeCheckpoint(ctx context.Context, h *na.Harness, root, name string, cp layoutCheckpoint) error {
+func writeCheckpoint(ctx context.Context, h *na.Harness, root, checkpoints, name string, cp layoutCheckpoint) error {
 	started := time.Now()
 	if _, err := h.Call(ctx, "save-checkpoint", "rimworld/save_game", map[string]any{"saveName": name}); err != nil {
 		return err
@@ -639,7 +670,19 @@ func writeCheckpoint(ctx context.Context, h *na.Harness, root, name string, cp l
 			if err != nil {
 				return err
 			}
-			return os.WriteFile(checkpointPath(root, name), data, 0644)
+			if err := os.WriteFile(checkpointPath(root, name), data, 0644); err != nil {
+				return err
+			}
+			if checkpoints == "" {
+				return nil
+			}
+			if err := os.MkdirAll(checkpoints, 0755); err != nil {
+				return err
+			}
+			if err := copyFile(staged, filepath.Join(checkpoints, name+".rws")); err != nil {
+				return err
+			}
+			return os.WriteFile(filepath.Join(checkpoints, name+".checkpoint.json"), data, 0644)
 		}
 		if time.Now().After(deadline) {
 			return fmt.Errorf("save %s.rws did not appear under root/headless-profile/Saves or root/profile/Saves", name)

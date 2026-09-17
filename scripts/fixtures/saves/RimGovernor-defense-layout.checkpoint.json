@@ -1,0 +1,485 @@
+{
+  "layout": {
+    "World": {
+      "Colony": "c456f65f0c11414992a32ebb58f4b48e",
+      "Load": "2653c63e6cfa498c8113fdb70772b47b",
+      "Map": 0
+    },
+    "Goal": "routine-f2cdcaf966a7efb8-EnsureDefensiveLayout",
+    "Epoch": 0,
+    "Chokepoint": {
+      "X": 142,
+      "Z": 133
+    },
+    "Entry": {
+      "X": 142,
+      "Z": 133
+    },
+    "Toward": "south",
+    "Width": 3,
+    "TrapLane": [
+      {
+        "X": 142,
+        "Z": 133
+      },
+      {
+        "X": 142,
+        "Z": 132
+      },
+      {
+        "X": 142,
+        "Z": 131
+      },
+      {
+        "X": 142,
+        "Z": 130
+      },
+      {
+        "X": 142,
+        "Z": 129
+      },
+      {
+        "X": 142,
+        "Z": 128
+      }
+    ],
+    "SafeLane": [
+      {
+        "X": 143,
+        "Z": 133
+      },
+      {
+        "X": 143,
+        "Z": 132
+      },
+      {
+        "X": 143,
+        "Z": 131
+      },
+      {
+        "X": 143,
+        "Z": 130
+      },
+      {
+        "X": 143,
+        "Z": 129
+      },
+      {
+        "X": 143,
+        "Z": 128
+      }
+    ],
+    "Firing": [
+      {
+        "X": 142,
+        "Z": 124
+      },
+      {
+        "X": 143,
+        "Z": 124
+      },
+      {
+        "X": 141,
+        "Z": 124
+      }
+    ],
+    "Entrances": [],
+    "Tiers": [
+      {
+        "Name": "chokepoint",
+        "Buildings": null,
+        "Reserved": [
+          {
+            "X": 142,
+            "Z": 133
+          },
+          {
+            "X": 142,
+            "Z": 132
+          },
+          {
+            "X": 142,
+            "Z": 131
+          },
+          {
+            "X": 142,
+            "Z": 130
+          },
+          {
+            "X": 142,
+            "Z": 129
+          },
+          {
+            "X": 142,
+            "Z": 128
+          },
+          {
+            "X": 143,
+            "Z": 133
+          },
+          {
+            "X": 143,
+            "Z": 132
+          },
+          {
+            "X": 143,
+            "Z": 131
+          },
+          {
+            "X": 143,
+            "Z": 130
+          },
+          {
+            "X": 143,
+            "Z": 129
+          },
+          {
+            "X": 143,
+            "Z": 128
+          }
+        ],
+        "Attempts": 0,
+        "Built": false
+      },
+      {
+        "Name": "firing_line",
+        "Buildings": [
+          {
+            "Definition": "Barricade",
+            "Cell": {
+              "X": 142,
+              "Z": 125
+            },
+            "Rotation": "north",
+            "Stuff": "WoodLog"
+          },
+          {
+            "Definition": "Barricade",
+            "Cell": {
+              "X": 143,
+              "Z": 125
+            },
+            "Rotation": "north",
+            "Stuff": "WoodLog"
+          },
+          {
+            "Definition": "Barricade",
+            "Cell": {
+              "X": 141,
+              "Z": 125
+            },
+            "Rotation": "north",
+            "Stuff": "WoodLog"
+          }
+        ],
+        "Reserved": [
+          {
+            "X": 142,
+            "Z": 125
+          },
+          {
+            "X": 142,
+            "Z": 124
+          },
+          {
+            "X": 142,
+            "Z": 123
+          },
+          {
+            "X": 143,
+            "Z": 125
+          },
+          {
+            "X": 143,
+            "Z": 124
+          },
+          {
+            "X": 143,
+            "Z": 123
+          },
+          {
+            "X": 141,
+            "Z": 125
+          },
+          {
+            "X": 141,
+            "Z": 124
+          },
+          {
+            "X": 141,
+            "Z": 123
+          }
+        ],
+        "Attempts": 1,
+        "Built": true
+      },
+      {
+        "Name": "funnel",
+        "Buildings": [
+          {
+            "Definition": "Wall",
+            "Cell": {
+              "X": 141,
+              "Z": 133
+            },
+            "Rotation": "north",
+            "Stuff": "WoodLog"
+          },
+          {
+            "Definition": "Wall",
+            "Cell": {
+              "X": 141,
+              "Z": 132
+            },
+            "Rotation": "north",
+            "Stuff": "WoodLog"
+          },
+          {
+            "Definition": "Wall",
+            "Cell": {
+              "X": 144,
+              "Z": 132
+            },
+            "Rotation": "north",
+            "Stuff": "WoodLog"
+          },
+          {
+            "Definition": "Wall",
+            "Cell": {
+              "X": 141,
+              "Z": 131
+            },
+            "Rotation": "north",
+            "Stuff": "WoodLog"
+          },
+          {
+            "Definition": "Wall",
+            "Cell": {
+              "X": 144,
+              "Z": 131
+            },
+            "Rotation": "north",
+            "Stuff": "WoodLog"
+          },
+          {
+            "Definition": "Wall",
+            "Cell": {
+              "X": 141,
+              "Z": 130
+            },
+            "Rotation": "north",
+            "Stuff": "WoodLog"
+          },
+          {
+            "Definition": "Wall",
+            "Cell": {
+              "X": 144,
+              "Z": 130
+            },
+            "Rotation": "north",
+            "Stuff": "WoodLog"
+          },
+          {
+            "Definition": "Wall",
+            "Cell": {
+              "X": 141,
+              "Z": 129
+            },
+            "Rotation": "north",
+            "Stuff": "WoodLog"
+          },
+          {
+            "Definition": "Wall",
+            "Cell": {
+              "X": 144,
+              "Z": 129
+            },
+            "Rotation": "north",
+            "Stuff": "WoodLog"
+          },
+          {
+            "Definition": "Wall",
+            "Cell": {
+              "X": 141,
+              "Z": 128
+            },
+            "Rotation": "north",
+            "Stuff": "WoodLog"
+          },
+          {
+            "Definition": "Wall",
+            "Cell": {
+              "X": 144,
+              "Z": 128
+            },
+            "Rotation": "north",
+            "Stuff": "WoodLog"
+          }
+        ],
+        "Reserved": [
+          {
+            "X": 141,
+            "Z": 133
+          },
+          {
+            "X": 141,
+            "Z": 132
+          },
+          {
+            "X": 144,
+            "Z": 132
+          },
+          {
+            "X": 141,
+            "Z": 131
+          },
+          {
+            "X": 144,
+            "Z": 131
+          },
+          {
+            "X": 141,
+            "Z": 130
+          },
+          {
+            "X": 144,
+            "Z": 130
+          },
+          {
+            "X": 141,
+            "Z": 129
+          },
+          {
+            "X": 144,
+            "Z": 129
+          },
+          {
+            "X": 141,
+            "Z": 128
+          },
+          {
+            "X": 144,
+            "Z": 128
+          }
+        ],
+        "Attempts": 1,
+        "Built": true
+      },
+      {
+        "Name": "trap_corridor",
+        "Buildings": [
+          {
+            "Definition": "TrapSpike",
+            "Cell": {
+              "X": 142,
+              "Z": 132
+            },
+            "Rotation": "north",
+            "Stuff": "WoodLog"
+          },
+          {
+            "Definition": "Fence",
+            "Cell": {
+              "X": 143,
+              "Z": 132
+            },
+            "Rotation": "north",
+            "Stuff": "WoodLog"
+          },
+          {
+            "Definition": "TrapSpike",
+            "Cell": {
+              "X": 142,
+              "Z": 130
+            },
+            "Rotation": "north",
+            "Stuff": "WoodLog"
+          },
+          {
+            "Definition": "Fence",
+            "Cell": {
+              "X": 143,
+              "Z": 130
+            },
+            "Rotation": "north",
+            "Stuff": "WoodLog"
+          },
+          {
+            "Definition": "TrapSpike",
+            "Cell": {
+              "X": 142,
+              "Z": 128
+            },
+            "Rotation": "north",
+            "Stuff": "WoodLog"
+          },
+          {
+            "Definition": "Fence",
+            "Cell": {
+              "X": 143,
+              "Z": 128
+            },
+            "Rotation": "north",
+            "Stuff": "WoodLog"
+          }
+        ],
+        "Reserved": [
+          {
+            "X": 142,
+            "Z": 133
+          },
+          {
+            "X": 142,
+            "Z": 132
+          },
+          {
+            "X": 142,
+            "Z": 131
+          },
+          {
+            "X": 142,
+            "Z": 130
+          },
+          {
+            "X": 142,
+            "Z": 129
+          },
+          {
+            "X": 142,
+            "Z": 128
+          },
+          {
+            "X": 143,
+            "Z": 133
+          },
+          {
+            "X": 143,
+            "Z": 132
+          },
+          {
+            "X": 143,
+            "Z": 131
+          },
+          {
+            "X": 143,
+            "Z": 130
+          },
+          {
+            "X": 143,
+            "Z": 129
+          },
+          {
+            "X": 143,
+            "Z": 128
+          }
+        ],
+        "Attempts": 1,
+        "Built": true
+      }
+    ],
+    "Complete": true
+  },
+  "siteX": 143,
+  "siteZ": 123,
+  "savedAtTick": 12609
+}

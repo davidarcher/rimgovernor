@@ -290,6 +290,20 @@ state or fresh-Go-session evidence, stays in fresh-process mode. Manifest
 variants (`-manifest`) that are missing are generated before the reused game
 opens, so `-reuse-game` works in both modes.
 
+## Checkpointing a slow precondition
+
+A harness whose late scenario depends on minutes of earlier play (the
+defense layout build before its raid) checkpoints the precondition as a
+prepared save instead of replaying it: `defenselayoutaccept -checkpoint
+<name>` saves the game once the layout is built and audited, writing
+`<name>.rws` and `<name>.checkpoint.json` (the layout record and site the
+raid assertions need) to `root/profile/Saves` and to the committed
+[scripts/fixtures/saves](../../../scripts/fixtures/saves/). A later
+`-from-checkpoint <name>` run stages those files into the root when it
+lacks them, loads the save, re-runs the cheap layout audits and goes
+straight to the raid; the checkpoint is fixture-mod state, so rebuild it
+after fixture or save-format changes.
+
 ## Available checks
 
 | What changed / what you need to establish | Available support | Requirements and limits |
