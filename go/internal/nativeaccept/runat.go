@@ -12,6 +12,9 @@ import (
 // the same at any speed, so nothing about the assertion depends on it.
 const RunSpeed = "Superfast"
 
+// RunInterval is RunUntil's default pause between probes.
+const RunInterval = 250 * time.Millisecond
+
 // Tick reads the current game tick through lifecycle_read_identity; an
 // unloaded game is an error.
 func (h *Harness) Tick(ctx context.Context) (uint64, error) {
@@ -38,6 +41,12 @@ func RunUntil(ctx context.Context, h *Harness, label string, ticks uint64, w Wai
 	}
 	if _, err := h.Call(ctx, label+"-run", "rimworld/set_time_speed", map[string]any{"speed": RunSpeed, "ultraSpeedBoost": false}); err != nil {
 		return 0, err
+	}
+	// A probe is a ~100ms round trip and the game runs ~360 ticks/s here,
+	// so WaitProgress's 2s default is ~700 ticks of overshoot per wait,
+	// most of a short harness's run; poll often instead.
+	if w.Interval <= 0 {
+		w.Interval = RunInterval
 	}
 	var latest uint64
 	w.Ticks = ticks

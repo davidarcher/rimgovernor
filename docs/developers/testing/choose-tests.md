@@ -85,7 +85,8 @@ were not. A reviewer holds a new harness to it.
 7. **Advance by ticks, at speed.** A wait for something the game itself
    must do (a haul, a surgery, a pen, a capture) is bounded in ticks, not
    wall clock: `na.RunUntil` runs at `na.RunSpeed` (Superfast), polls under a
-   `na.Wait{Ticks: 2*na.TicksPerDay}` budget and pauses again;
+   `na.Wait{Ticks: 2*na.TicksPerDay}` budget every 250ms (`na.RunInterval`;
+   the 2s default is ~700 ticks of overshoot at Superfast) and pauses again;
    `na.ObserveCompleted` is the receipt-observing form (`receipts_observe_progress`
    until Completed). A tick budget means the same at every speed and on
    every machine; the stall budget still catches a game that stops ticking
