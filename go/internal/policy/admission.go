@@ -62,6 +62,17 @@ type Preview struct {
 	WatchCellsAccessible                 domain.Fact[bool]
 	Footprint                            domain.Fact[[]domain.Cell]
 	Costs                                domain.Fact[[]Amount]
+	// Blockers lists what native reports the placement would disturb, so a
+	// method that replaces a building on purpose (a door cut into a wall,
+	// issue #6 slice 5) can tell that deliberate replacement from an
+	// accidental one. Admission itself still reads SafeToPlace.
+	Blockers []PlacementBlocker
+}
+
+// PlacementBlocker is one thing the previewed placement would disturb.
+type PlacementBlocker struct {
+	Category                           string
+	Wiped, Blueprint, Frame, Cancelled bool
 }
 type Candidate struct {
 	Action       domain.Action

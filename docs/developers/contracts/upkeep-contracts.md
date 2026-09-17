@@ -354,8 +354,60 @@ construction path lays a `TerrainDef` through the ordinary blueprint and
 frame, and completion is observed as the terrain grid reading the admitted
 floor at the cell rather than a successor thing. A build receipt never
 clears the deficit: the next measured census must read every cell of the
-room floored. Flooring of measured traffic bottlenecks is deferred to the
-routes slice, which supplies the travel evidence it needs.
+room floored. A third tier, traffic, joins the routes census (below): the
+busiest natural home cells outside any tiered room are deficient once the
+sampling window holds at least four times the per-cell minimum and the cell
+itself at least that minimum; a floor with any path cost never qualifies. A
+routes census that is unknown or unavailable leaves the whole flooring census
+unknown rather than silently dropping the tier; a native without the routes
+section measures the room tiers alone.
+
+`MaintainRoutes` (issue #6 slice 5) reasons only from observed reachability
+and travel, never from flood-fill connectivity or straight-line distance.
+Native reports (`UpkeepFacts.routes`) every facility a colonist must reach:
+player beds for humanlike non-prisoners, work benches at their interaction
+cell, storage buildings, dining surfaces, turrets and stockpile zones (an
+`EntityRef` `zone-<id>` of `Zone_Stockpile` at the zone's first standable
+cell), each with the room it stands in and one travel row per mobile
+colonist (spawned, not dead or downed, at most 32) carrying the game's own
+`CanReach` answer from that colonist's current position with its door
+permissions and `Danger.Some`, and, for the first 256 reachable pairs, the
+total cost and node count of the path `FindPathNow` returns. A facility no
+listed colonist reaches lists up to 16 breach cells: one-cell player walls
+(`isPlaceOverableWall`) on its proper room's border that a door would pass
+straight through (a room cell on one side, a standable outer neighbour some
+colonist can reach on the other, so a corner never qualifies), ordered by
+squared distance from the nearest such colonist, each naming the wall def and any door blueprint or
+frame already on it. A reachable facility instead lists, as pending
+breaches, every ordered door (blueprint or frame) a measured path crosses,
+because a frame is walkable before the door stands. The section also carries observed traffic: a map
+component samples, every 30 ticks, the cell under each free colonist whose
+pather is moving; the 64 busiest cells are listed with their terrain, home
+flag and any floor already ordered, with the window's total sample count and
+start tick (the window restarts on load). The decoder requires every travel
+row's reachability and every traffic cell's samples, terrain and home flag,
+else the census is unknown; the bridge refuses unlisted pawns, path numbers
+on an unreachable row, duplicate breach or traffic cells and out-of-map
+cells. A facility is deficient when the census lists at least one mobile
+colonist and none reaches it; it latches by ID and releases only on a
+measured census that reads it reachable with no door still ordered on its
+border (a latched facility reachable through its door frame waits for the
+door, proposing no second breach), with no hysteresis because reachability
+is the game's own answer. The goal ranks as an ordinary
+development project. Its method serves storage and stockpiles first, then
+benches, dining, beds and defence, and opens the facility's room with a
+`Door` of `WoodLog` on one breach cell: the policy's nearest breaches are
+previewed in order with north then east rotation, and the first native
+reports legal with a one-cell footprint on the wall cell is admitted as a
+single-action plan. Native marks a door over a wall unsafe because the wall
+would be wiped; the planner treats exactly one wiped building with no
+blueprint, frame or cancelled work at the cell as the deliberate replacement
+it is and marks the placement safe itself (`Preview.Blockers` carries the
+categories for this), leaving any other disturbance refused. A facility
+whose breaches are all ordered waits for them (`route_door_pending`); one
+with no breach at all is reported (`route_no_breach`) so the deficit stays
+visible; an unavailable door defers (`route_door_unavailable`). A build
+receipt never clears the deficit.
 
 `EnsureComfort` maintains dining and recreation after startup survival work.
 Its deficit remains visible during emergencies; admission waits rather than

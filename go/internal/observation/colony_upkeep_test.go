@@ -160,3 +160,91 @@ func TestUpkeepProjectionDecodesLighting(t *testing.T) {
 		t.Fatal("failed section became known")
 	}
 }
+
+func routesWireFacts() *o.RoutesFacts {
+	cell := func(x, z int32) *c.Cell { return &c.Cell{X: proto.Int32(x), Z: proto.Int32(z)} }
+	return &o.RoutesFacts{
+		PawnIds: []string{"a", "b"},
+		Facilities: []*o.RouteFacility{{
+			Facility: &o.EntityRef{Id: proto.String("zone-3"), DefName: proto.String("Zone_Stockpile"), MapId: proto.Int32(3), Position: cell(10, 10)},
+			Kind:     proto.String("stockpile"), Cell: cell(10, 10), RoomId: proto.String("7"),
+			Travel: []*o.RouteTravel{
+				{PawnId: proto.String("a"), Reachable: proto.Bool(false)},
+				{PawnId: proto.String("b"), Reachable: proto.Bool(true), PathCost: proto.Int32(120), PathCells: proto.Int32(9)},
+			},
+			Breaches: []*o.RouteBreach{{Cell: cell(9, 10), Edifice: proto.String("Wall"), Distance: proto.Int32(4), Pending: proto.String("Door")}},
+		}},
+		Traffic:          []*o.TrafficCell{{Cell: cell(5, 5), Samples: proto.Uint32(30), Terrain: proto.String("Soil"), Home: proto.Bool(true)}, {Cell: cell(6, 5), Samples: proto.Uint32(3), Terrain: proto.String("Lava"), Home: proto.Bool(false)}},
+		TrafficSamples:   proto.Uint32(200),
+		TrafficSinceTick: proto.Int32(400),
+	}
+}
+
+func TestUpkeepProjectionDecodesRoutes(t *testing.T) {
+	routes := routesWireFacts()
+	u := &o.UpkeepFacts{Routes: &o.RoutesSection{Outcome: &o.RoutesSection_Observed{Observed: routes}}}
+	v := &o.ColonyFactsSnapshot{Upkeep: &o.UpkeepSection{Outcome: &o.UpkeepSection_Observed{Observed: u}}}
+	r, known := colonyUpkeep(v).Routes.Value()
+	if !known || len(r.Pawns) != 2 || len(r.Facilities) != 1 || len(r.Traffic) != 2 || r.TrafficSamples != 200 || r.TrafficSince != domain.Known(domain.Tick(400)) {
+		t.Fatal(r, known)
+	}
+	f := r.Facilities[0]
+	if f.ID != "zone-3" || f.Definition != "Zone_Stockpile" || f.Kind != "stockpile" || f.Cell != (domain.Cell{X: 10, Z: 10}) || f.Room != domain.Known("7") || len(f.Travel) != 2 || len(f.Breaches) != 1 {
+		t.Fatal(f)
+	}
+	if f.Travel[0] != (policy.RouteTravel{Pawn: "a"}) || f.Travel[1] != (policy.RouteTravel{Pawn: "b", Reachable: true, Cost: domain.Known[int32](120), Cells: domain.Known[int32](9)}) {
+		t.Fatal(f.Travel)
+	}
+	if f.Breaches[0] != (policy.RouteBreach{Cell: domain.Cell{X: 9, Z: 10}, Edifice: "Wall", Pending: "Door", Distance: 4}) {
+		t.Fatal(f.Breaches)
+	}
+	if r.Traffic[0] != (policy.TrafficCell{Cell: domain.Cell{X: 5, Z: 5}, Samples: 30, Terrain: "Soil", Home: true}) {
+		t.Fatal(r.Traffic)
+	}
+	routes.Facilities[0].Travel[0].Reachable = nil
+	if _, known := colonyUpkeep(v).Routes.Value(); known {
+		t.Fatal("unmeasured reachability became known")
+	}
+	routes.Facilities[0].Travel[0].Reachable = proto.Bool(false)
+	routes.Traffic[0].Home = nil
+	if _, known := colonyUpkeep(v).Routes.Value(); known {
+		t.Fatal("unmeasured traffic cell became known")
+	}
+	u.Routes = nil
+	if _, known := colonyUpkeep(v).Routes.Value(); known {
+		t.Fatal("absent section became known")
+	}
+}
+
+func TestUpkeepProjectionJoinsTrafficIntoFlooring(t *testing.T) {
+	cell := func(x, z int32) *c.Cell { return &c.Cell{X: proto.Int32(x), Z: proto.Int32(z)} }
+	flooring := &o.FlooringFacts{
+		Rooms:    []*o.FloorRoom{{RoomId: proto.String("7"), Cells: []*o.FloorCell{{Cell: cell(10, 10), Terrain: proto.String("Soil")}}}},
+		Terrains: []*o.FloorTerrain{{DefName: proto.String("Soil"), Cleanliness: proto.Float64(-1), PathCost: proto.Int32(2), Beauty: proto.Float64(-3), Flammability: proto.Float64(0), Natural: proto.Bool(true)}},
+	}
+	routes := routesWireFacts()
+	u := &o.UpkeepFacts{Flooring: &o.FlooringSection{Outcome: &o.FlooringSection_Observed{Observed: flooring}}, Routes: &o.RoutesSection{Outcome: &o.RoutesSection_Observed{Observed: routes}}}
+	v := &o.ColonyFactsSnapshot{Upkeep: &o.UpkeepSection{Outcome: &o.UpkeepSection_Observed{Observed: u}}}
+	f, known := colonyUpkeep(v).Flooring.Value()
+	// The traffic cell on a terrain the table does not name is left out.
+	if !known || f.TrafficSamples != 200 || len(f.Traffic) != 1 || f.Traffic[0].Cell != (domain.Cell{X: 5, Z: 5}) {
+		t.Fatal(f, known)
+	}
+	// An unmeasured routes census leaves flooring unknown too, as does a
+	// routes read issue.
+	routes.Traffic[0].Samples = nil
+	if _, known := colonyUpkeep(v).Flooring.Value(); known {
+		t.Fatal("flooring known without its traffic evidence")
+	}
+	routes.Traffic[0].Samples = proto.Uint32(30)
+	u.Issues = []*o.ReadIssue{{Field: proto.String("routes")}}
+	u.Routes = nil
+	if _, known := colonyUpkeep(v).Flooring.Value(); known {
+		t.Fatal("flooring known under a routes issue")
+	}
+	// A native without the routes section (older mod) still measures floors.
+	u.Issues = nil
+	if f, known := colonyUpkeep(v).Flooring.Value(); !known || len(f.Traffic) != 0 {
+		t.Fatal(f, known)
+	}
+}

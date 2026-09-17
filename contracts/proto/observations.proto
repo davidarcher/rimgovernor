@@ -576,6 +576,20 @@ message FloorRoom { optional string room_id = 1; optional string role = 2; repea
 message FloorTerrain { optional string def_name = 1; optional double cleanliness = 2; optional int32 path_cost = 3; optional double beauty = 4; optional double flammability = 5; optional bool natural = 6; }
 message FlooringFacts { repeated FloorRoom rooms = 1; repeated FloorTerrain terrains = 2; Completeness completeness = 3; }
 message FlooringSection { oneof outcome { FlooringFacts observed = 1; rimgovernor.common.v1.Unavailable unavailable = 2; } }
+// Routes census (issue #6 slice 5): each colony facility a colonist must
+// reach (bed, work bench, storage, dining surface, defence emplacement) with
+// per-colonist native reachability from where that colonist stands and the
+// cost of the path the game itself would walk; a facility no colonist reaches
+// lists breach candidates: player wall cells of its room whose outer
+// neighbour a colonist can stand on. Traffic is sampled from actual colonist
+// movement (a cell each moving colonist occupies, every 30 ticks) and reports
+// the most-travelled cells with their terrain.
+message RouteTravel { optional string pawn_id = 1; optional bool reachable = 2; optional int32 path_cost = 3; optional int32 path_cells = 4; }
+message RouteBreach { rimgovernor.common.v1.Cell cell = 1; optional string edifice = 2; optional string pending = 3; optional int32 distance = 4; }
+message RouteFacility { EntityRef facility = 1; optional string kind = 2; rimgovernor.common.v1.Cell cell = 3; optional string room_id = 4; repeated RouteTravel travel = 5; repeated RouteBreach breaches = 6; }
+message TrafficCell { rimgovernor.common.v1.Cell cell = 1; optional uint32 samples = 2; optional string terrain = 3; optional bool home = 4; optional string pending = 5; }
+message RoutesFacts { repeated RouteFacility facilities = 1; repeated string pawn_ids = 2; repeated TrafficCell traffic = 3; optional uint32 traffic_samples = 4; optional int32 traffic_since_tick = 5; Completeness completeness = 6; }
+message RoutesSection { oneof outcome { RoutesFacts observed = 1; rimgovernor.common.v1.Unavailable unavailable = 2; } }
 message UpkeepFacts {
   ComfortSection comfort = 1; ConstructionSection construction = 2; repeated UpkeepItem items = 3;
   repeated UpkeepBed beds = 4; repeated StorageCell storage_cells = 5; repeated ItemStorageCapacity storage_capacity = 6;
@@ -583,7 +597,7 @@ message UpkeepFacts {
   repeated ProtectedCell protected_cells = 10; repeated UpkeepPerson people = 11; repeated FeedDefinition feed_definitions = 12;
   repeated AnimalFeed animals = 13; Completeness completeness = 14; repeated ReadIssue issues = 15;
   HaulingSection hauling = 16; WallRemovalSection wall_removal = 17; HomeCoverageSection home_coverage = 18; LightingSection lighting = 19;
-  repeated AnimalFeed wild_animals = 20; FlooringSection flooring = 21;
+  repeated AnimalFeed wild_animals = 20; FlooringSection flooring = 21; RoutesSection routes = 22;
 }
 message UpkeepSection { oneof outcome { UpkeepFacts observed = 1; rimgovernor.common.v1.Unavailable unavailable = 2; } }
 message ColonyFactsSnapshot {

@@ -175,12 +175,156 @@ namespace HomeBridge.BridgeTools
                     Require(cells, 4096);
                     facts.Rooms.Add(row);
                 }
+                // The traffic tier scores the routes census's most-travelled
+                // cells against the same table, so their terrains are named too.
+                var traffic = map.GetComponent<TrafficState>();
+                if (traffic != null)
+                    foreach (var pair in traffic.Samples.OrderByDescending(kv => kv.Value).ThenBy(kv => kv.Key.z).ThenBy(kv => kv.Key.x).Take(64)) {
+                        var terrain = pair.Key.GetTerrain(map);
+                        terrains[terrain.defName] = terrain;
+                    }
                 foreach (var terrain in terrains.Values)
                     facts.Terrains.Add(new Obs.FloorTerrain { DefName = Id(terrain.defName), Natural = terrain.natural, PathCost = terrain.pathCost,
                         Cleanliness = Number(terrain.GetStatValueAbstract(StatDefOf.Cleanliness)), Beauty = Number(terrain.GetStatValueAbstract(StatDefOf.Beauty)),
                         Flammability = Number(terrain.GetStatValueAbstract(StatDefOf.Flammability)) });
                 facts.Completeness = Complete(rooms.Count);
                 result.Flooring = new Obs.FlooringSection { Observed = facts };
+            });
+            Read("routes", result, () => {
+                // Every facility a colonist must reach, with each mobile
+                // colonist's native reachability from where they stand and
+                // the cost of the path the game itself would walk (bounded:
+                // the first 256 reachable pairs are measured, the rest
+                // report reachability only). A facility no colonist reaches
+                // lists breach candidates: player wall cells on its room's
+                // border whose outer neighbour some colonist can stand on.
+                var people = map.mapPawns.FreeColonistsSpawned.Where(p => !p.Dead && !p.Downed && p.Spawned).OrderBy(p => p.thingIDNumber).ToList();
+                Require(people.Count, 32);
+                var player = Faction.OfPlayerSilentFail;
+                var facilities = new System.Collections.Generic.List<(Thing thing, string kind, IntVec3 cell)>();
+                foreach (var b in things.OfType<Building_Bed>().Where(b => b.Faction == player && b.def.building.bed_humanlike && !b.ForPrisoners).OrderBy(b => b.thingIDNumber))
+                    facilities.Add((b, "bed", b.Position));
+                foreach (var b in things.OfType<Building_WorkTable>().Where(b => b.Faction == player).OrderBy(b => b.thingIDNumber))
+                    facilities.Add((b, "bench", b.InteractionCell));
+                foreach (var b in things.OfType<Building_Storage>().Where(b => b.Faction == player).OrderBy(b => b.thingIDNumber))
+                    facilities.Add((b, "storage", b.Position));
+                foreach (var b in things.OfType<Building>().Where(b => b.Faction == player && b.def.surfaceType == SurfaceType.Eat).OrderBy(b => b.thingIDNumber))
+                    facilities.Add((b, "dining", b.Position));
+                foreach (var b in things.OfType<Building_Turret>().Where(b => b.Faction == player).OrderBy(b => b.thingIDNumber))
+                    facilities.Add((b, "defense", b.Position));
+                Require(facilities.Count, 128);
+                var facts = new Obs.RoutesFacts();
+                facts.PawnIds.AddRange(people.Select(p => Id(p.GetUniqueLoadID())));
+                var measured = 0;
+                Obs.RouteFacility Facility(Obs.EntityRef reference, string kind, IntVec3 cell, Func<Pawn, bool> reaches, Func<Pawn, LocalTargetInfo> target, PathEndMode mode)
+                {
+                    var row = new Obs.RouteFacility { Facility = reference, Kind = kind, Cell = Cell(cell) };
+                    var room = cell.GetRoom(map);
+                    if (room != null && room.ProperRoom && !room.PsychologicallyOutdoors) row.RoomId = room.ID.ToString(System.Globalization.CultureInfo.InvariantCulture);
+                    // A door frame is walkable before the door stands, so a
+                    // measured path may cross an ordered door; those cells are
+                    // reported as pending breaches of a reachable facility so
+                    // the controller holds its latch until the door lands
+                    // instead of releasing on a half-built wall.
+                    Thing? PendingDoor(IntVec3 c) => c.GetThingList(map).FirstOrDefault(t => (t is Blueprint || t is Frame) && t.def.entityDefToBuild is ThingDef td && td.IsDoor);
+                    var crossed = new System.Collections.Generic.SortedDictionary<int, (IntVec3 cell, Thing door)>();
+                    var anyReach = false;
+                    foreach (var p in people)
+                    {
+                        var travel = new Obs.RouteTravel { PawnId = Id(p.GetUniqueLoadID()), Reachable = reaches(p) };
+                        if (travel.Reachable)
+                        {
+                            anyReach = true;
+                            if (measured < 256)
+                            {
+                                measured++;
+                                using (var path = map.pathFinder.FindPathNow(p.Position, target(p), TraverseParms.For(p, Danger.Some), peMode: mode))
+                                {
+                                    if (path.Found)
+                                    {
+                                        travel.PathCost = checked((int)Math.Min(path.TotalCost, int.MaxValue)); travel.PathCells = path.NodesLeftCount;
+                                        foreach (var node in path.NodesReversed)
+                                        {
+                                            var door = PendingDoor(node);
+                                            if (door != null) crossed[map.cellIndices.CellToIndex(node)] = (node, door);
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                        row.Travel.Add(travel);
+                    }
+                    if (anyReach)
+                    {
+                        foreach (var (bc, door) in crossed.Values.Take(16))
+                            row.Breaches.Add(new Obs.RouteBreach { Cell = Cell(bc), Edifice = Id(door.def.defName), Pending = Id(door.def.entityDefToBuild.defName), Distance = 0 });
+                    }
+                    else if (people.Count > 0 && room != null && room.ProperRoom && !room.TouchesMapEdge)
+                    {
+                        var breaches = new System.Collections.Generic.List<(IntVec3 cell, string edifice, string? pending, int distance)>();
+                        // BorderCells repeats a corner shared by two regions.
+                        foreach (var edge in room.BorderCells.Distinct())
+                        {
+                            var wall = edge.GetEdifice(map);
+                            var pendingDoor = PendingDoor(edge);
+                            var placeable = wall != null && wall.Faction == player && wall.def.building != null && wall.def.building.isPlaceOverableWall && wall.def.size.x == 1 && wall.def.size.z == 1;
+                            if (pendingDoor == null && !placeable) continue;
+                            var best = int.MaxValue;
+                            // A door passes straight through: the cell behind
+                            // it must be the room itself (a corner opens nothing).
+                            foreach (var neighbour in GenAdj.CardinalDirections)
+                            {
+                                var outside = edge + neighbour;
+                                var inside = edge - neighbour;
+                                if (!outside.InBounds(map) || room.Cells.Contains(outside) || !outside.Standable(map) || !room.Cells.Contains(inside)) continue;
+                                foreach (var p in people)
+                                {
+                                    if (!p.CanReach(outside, PathEndMode.OnCell, Danger.Some)) continue;
+                                    best = Math.Min(best, p.Position.DistanceToSquared(outside));
+                                }
+                            }
+                            if (pendingDoor == null && best == int.MaxValue) continue;
+                            var edifice = wall != null ? wall.def.defName : pendingDoor!.def.defName;
+                            breaches.Add((edge, edifice, pendingDoor?.def.entityDefToBuild.defName, best == int.MaxValue ? 0 : best));
+                        }
+                        foreach (var (bc, edifice, pending, distance) in breaches.OrderBy(b => b.distance).ThenBy(b => b.cell.z).ThenBy(b => b.cell.x).Take(16))
+                        {
+                            var breach = new Obs.RouteBreach { Cell = Cell(bc), Edifice = Id(edifice), Distance = distance };
+                            if (pending != null) breach.Pending = Id(pending);
+                            row.Breaches.Add(breach);
+                        }
+                    }
+                    return row;
+                }
+                foreach (var (thing, kind, cell) in facilities)
+                {
+                    var mode = thing.def.hasInteractionCell ? PathEndMode.InteractionCell : PathEndMode.Touch;
+                    facts.Facilities.Add(Facility(Ref(thing), kind, cell, p => !thing.IsForbidden(p) && p.CanReach(thing, mode, Danger.Some), p => thing, mode));
+                }
+                var stockpiles = map.zoneManager.AllZones.OfType<Zone_Stockpile>().OrderBy(z => z.ID).ToList();
+                Require(facilities.Count + stockpiles.Count, 128);
+                foreach (var zone in stockpiles)
+                {
+                    var cell = zone.Cells.OrderBy(c => c.z).ThenBy(c => c.x).FirstOrDefault(c => c.Standable(map));
+                    if (cell == default) continue;
+                    var reference = new Obs.EntityRef { Id = Id("zone-" + zone.ID.ToString(System.Globalization.CultureInfo.InvariantCulture)), DefName = Id("Zone_Stockpile"), MapId = map.uniqueID, Position = Cell(cell) };
+                    facts.Facilities.Add(Facility(reference, "stockpile", cell, p => p.CanReach(cell, PathEndMode.OnCell, Danger.Some), p => cell, PathEndMode.OnCell));
+                }
+                var traffic = map.GetComponent<TrafficState>();
+                if (traffic != null)
+                {
+                    facts.TrafficSamples = traffic.Total;
+                    if (traffic.SinceTick >= 0) facts.TrafficSinceTick = traffic.SinceTick;
+                    foreach (var pair in traffic.Samples.OrderByDescending(kv => kv.Value).ThenBy(kv => kv.Key.z).ThenBy(kv => kv.Key.x).Take(64))
+                    {
+                        var cell = new Obs.TrafficCell { Cell = Cell(pair.Key), Samples = pair.Value, Terrain = Id(pair.Key.GetTerrain(map).defName), Home = map.areaManager.Home[pair.Key] };
+                        var pending = pair.Key.GetThingList(map).FirstOrDefault(t => (t is Blueprint || t is Frame) && t.def.entityDefToBuild is TerrainDef);
+                        if (pending != null) cell.Pending = Id(pending.def.entityDefToBuild.defName);
+                        facts.Traffic.Add(cell);
+                    }
+                }
+                facts.Completeness = Complete(facts.Facilities.Count);
+                result.Routes = new Obs.RoutesSection { Observed = facts };
             });
             Read("people", result, () => {
                 var people = map.mapPawns.AllPawnsSpawned.Where(p => p.IsFreeColonist && !p.Dead).OrderBy(p => p.thingIDNumber).ToList();

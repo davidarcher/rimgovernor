@@ -17,6 +17,9 @@ func validateDirectUpkeep(v *o.UpkeepFacts, size *o.MapSize, mapID int32) error 
 	if v.Flooring != nil {
 		counts["flooring"] = 1
 	}
+	if v.Routes != nil {
+		counts["routes"] = 1
+	}
 	for _, n := range counts {
 		if n > 256 {
 			return contract("upkeep census exceeds bound")
@@ -163,6 +166,71 @@ func validateDirectUpkeep(v *o.UpkeepFacts, size *o.MapSize, mapID int32) error 
 		if err := validateFlooring(v.Flooring, size); err != nil {
 			return err
 		}
+	}
+	if v.Routes != nil {
+		if err := validateRoutes(v.Routes, size, mapID, entity); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// validateRoutes checks the routes section: unique facility refs at in-map
+// cells, each travel row naming a listed pawn once with non-negative path
+// numbers only when reachable, breach cells unique and in the map, traffic
+// cells unique and in the map.
+func validateRoutes(section *o.RoutesSection, size *o.MapSize, mapID int32, entity func(*o.EntityRef, map[string]bool) bool) error {
+	f := section.GetObserved()
+	if f == nil {
+		return validateUnavailable(section.GetUnavailable())
+	}
+	if colonyCounts(f.Completeness, len(f.Facilities), 256) != nil || len(f.PawnIds) > 32 || len(f.Traffic) > 256 {
+		return contract("invalid routes census")
+	}
+	if !proto.Equal(f, &o.RoutesFacts{Facilities: f.Facilities, PawnIds: f.PawnIds, Traffic: f.Traffic, TrafficSamples: f.TrafficSamples, TrafficSinceTick: f.TrafficSinceTick, Completeness: f.Completeness}) || f.TrafficSinceTick != nil && f.GetTrafficSinceTick() < 0 {
+		return contract("invalid routes facts")
+	}
+	pawns := map[string]bool{}
+	for _, id := range f.PawnIds {
+		if validID(id) != nil || pawns[id] {
+			return contract("invalid routes pawn")
+		}
+		pawns[id] = true
+	}
+	seen := map[string]bool{}
+	for _, row := range f.Facilities {
+		if row == nil || !entity(row.Facility, seen) || row.Kind == nil || validID(row.GetKind()) != nil || !colonyCell(row.Cell, size) || row.RoomId != nil && validID(row.GetRoomId()) != nil || len(row.Breaches) > 16 || !proto.Equal(row, &o.RouteFacility{Facility: row.Facility, Kind: row.Kind, Cell: row.Cell, RoomId: row.RoomId, Travel: row.Travel, Breaches: row.Breaches}) {
+			return contract("invalid routes facility")
+		}
+		travelled := map[string]bool{}
+		for _, t := range row.Travel {
+			if t == nil || !pawns[t.GetPawnId()] || travelled[t.GetPawnId()] || t.PathCost != nil && (t.GetPathCost() < 0 || !t.GetReachable()) || t.PathCells != nil && (t.GetPathCells() < 0 || !t.GetReachable()) || !proto.Equal(t, &o.RouteTravel{PawnId: t.PawnId, Reachable: t.Reachable, PathCost: t.PathCost, PathCells: t.PathCells}) {
+				return contract("invalid routes travel")
+			}
+			travelled[t.GetPawnId()] = true
+		}
+		cells := map[[2]int32]bool{}
+		for _, b := range row.Breaches {
+			if b == nil || !colonyCell(b.Cell, size) || b.Edifice == nil || validID(b.GetEdifice()) != nil || b.Pending != nil && validID(b.GetPending()) != nil || b.Distance != nil && b.GetDistance() < 0 || !proto.Equal(b, &o.RouteBreach{Cell: b.Cell, Edifice: b.Edifice, Pending: b.Pending, Distance: b.Distance}) {
+				return contract("invalid routes breach")
+			}
+			key := [2]int32{b.Cell.GetX(), b.Cell.GetZ()}
+			if cells[key] {
+				return contract("routes breaches overlap")
+			}
+			cells[key] = true
+		}
+	}
+	cells := map[[2]int32]bool{}
+	for _, t := range f.Traffic {
+		if t == nil || !colonyCell(t.Cell, size) || t.Terrain != nil && validID(t.GetTerrain()) != nil || t.Pending != nil && validID(t.GetPending()) != nil || !proto.Equal(t, &o.TrafficCell{Cell: t.Cell, Samples: t.Samples, Terrain: t.Terrain, Home: t.Home, Pending: t.Pending}) {
+			return contract("invalid traffic cell")
+		}
+		key := [2]int32{t.Cell.GetX(), t.Cell.GetZ()}
+		if cells[key] {
+			return contract("traffic cells overlap")
+		}
+		cells[key] = true
 	}
 	return nil
 }

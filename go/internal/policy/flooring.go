@@ -20,6 +20,9 @@ import (
 // is scored per tier from the native cleanliness, path cost, beauty,
 // flammability and cost list of every affordable floor definition, and the
 // latch releases only on a measured census with no deficient cell left.
+// The traffic tier floors the home cells colonists are observed to walk
+// most (the routes census samples actual movement) while they are still
+// natural ground; it never projects traffic from layout.
 const MaintainFlooring GoalID = "MaintainFlooring"
 
 // FloorTier is the role-driven requirement a room's floor is measured
@@ -34,7 +37,13 @@ const (
 	// FloorTierLiving covers the rooms colonists rest, eat and relax in:
 	// every cell needs a laid floor rather than natural ground.
 	FloorTierLiving FloorTier = "living"
+	// FloorTierTraffic covers the most-travelled home cells: every one
+	// needs a laid floor with no path cost.
+	FloorTierTraffic FloorTier = "traffic"
 )
+
+// trafficKey is the latch key of the single traffic deficit.
+const trafficKey = "traffic"
 
 type FlooringPolicy struct {
 	// Floors lists the floor definitions the planner may choose from; the
@@ -43,7 +52,11 @@ type FlooringPolicy struct {
 	// MaxCellsPerPlan bounds the cells one admitted plan floors.
 	MaxCellsPerPlan int
 	// Weights score a candidate floor for each tier.
-	Clean, Living FloorWeights
+	Clean, Living, Traffic FloorWeights
+	// TrafficMinSamples is how many observed samples a natural home cell
+	// needs before it counts as a bottleneck; the census must hold at least
+	// four times as many samples in all so a short window never judges.
+	TrafficMinSamples uint32
 }
 
 // FloorWeights price a floor's native stats: positive terms reward
@@ -55,10 +68,12 @@ type FloorWeights struct {
 
 func DefaultFlooringPolicy() FlooringPolicy {
 	return FlooringPolicy{
-		Floors:          []string{"SterileTile", "TileSandstone", "TileGranite", "TileLimestone", "TileSlate", "TileMarble", "PavedTile", "Concrete", "WoodPlankFloor"},
-		MaxCellsPerPlan: 24,
-		Clean:           FloorWeights{Cleanliness: 10, Beauty: 1, PathCost: 1, Flammability: 1, Cost: 0.2},
-		Living:          FloorWeights{Cleanliness: 1, Beauty: 3, PathCost: 1, Flammability: 3, Cost: 0.2},
+		Floors:            []string{"SterileTile", "TileSandstone", "TileGranite", "TileLimestone", "TileSlate", "TileMarble", "PavedTile", "Concrete", "WoodPlankFloor"},
+		MaxCellsPerPlan:   24,
+		Clean:             FloorWeights{Cleanliness: 10, Beauty: 1, PathCost: 1, Flammability: 1, Cost: 0.2},
+		Living:            FloorWeights{Cleanliness: 1, Beauty: 3, PathCost: 1, Flammability: 3, Cost: 0.2},
+		Traffic:           FloorWeights{Cleanliness: 1, Beauty: 1, PathCost: 5, Flammability: 1, Cost: 0.5},
+		TrafficMinSamples: 12,
 	}
 }
 
@@ -72,7 +87,7 @@ func (w FloorWeights) valid() bool {
 }
 
 func (p FlooringPolicy) valid() bool {
-	if len(p.Floors) == 0 || len(p.Floors) > 64 || p.MaxCellsPerPlan < 1 || p.MaxCellsPerPlan > 256 || !p.Clean.valid() || !p.Living.valid() {
+	if len(p.Floors) == 0 || len(p.Floors) > 64 || p.MaxCellsPerPlan < 1 || p.MaxCellsPerPlan > 256 || !p.Clean.valid() || !p.Living.valid() || !p.Traffic.valid() || p.TrafficMinSamples < 1 {
 		return false
 	}
 	seen := map[string]bool{}
@@ -91,6 +106,11 @@ func (p FlooringPolicy) valid() bool {
 type FlooringObservation struct {
 	Rooms    []FloorRoom
 	Terrains map[string]FloorTerrain
+	// Traffic lists the most-travelled cells the routes census observed,
+	// most samples first, out of TrafficSamples samples in all; each names
+	// a terrain in Terrains.
+	Traffic        []TrafficCell
+	TrafficSamples uint32
 }
 type FloorRoom struct {
 	ID    string
@@ -112,7 +132,7 @@ type FloorTerrain struct {
 }
 
 func (v FlooringObservation) Validate() error {
-	if len(v.Rooms) > 256 || len(v.Terrains) > 256 {
+	if len(v.Rooms) > 256 || len(v.Terrains) > 256 || len(v.Traffic) > 256 {
 		return errors.New("flooring census exceeds bound")
 	}
 	for name, t := range v.Terrains {
@@ -138,6 +158,13 @@ func (v FlooringObservation) Validate() error {
 			}
 			cells[c.Cell] = true
 		}
+	}
+	traffic := map[domain.Cell]bool{}
+	for _, t := range v.Traffic {
+		if _, ok := v.Terrains[t.Terrain]; !ok || traffic[t.Cell] || t.Pending != "" && !foodID(t.Pending) {
+			return errors.New("invalid traffic cell")
+		}
+		traffic[t.Cell] = true
 	}
 	return nil
 }
@@ -211,10 +238,31 @@ func floorDeficient(tier FloorTier, t FloorTerrain) bool {
 	switch tier {
 	case FloorTierClean:
 		return t.Cleanliness < 0
-	case FloorTierLiving:
+	case FloorTierLiving, FloorTierTraffic:
 		return t.Natural
 	}
 	return false
+}
+
+// trafficDeficit gathers the natural home cells observed busy enough to
+// count as bottlenecks, most samples first. Cells inside a tiered room are
+// that room's business.
+func trafficDeficit(v FlooringObservation, roomed map[domain.Cell]bool, p FlooringPolicy) (FloorDeficit, bool) {
+	d := FloorDeficit{Key: trafficKey, Tier: FloorTierTraffic}
+	if v.TrafficSamples < 4*p.TrafficMinSamples {
+		return d, false
+	}
+	for _, t := range v.Traffic {
+		if !t.Home || t.Samples < p.TrafficMinSamples || roomed[t.Cell] || !floorDeficient(FloorTierTraffic, v.Terrains[t.Terrain]) {
+			continue
+		}
+		if t.Pending != "" {
+			d.Pending++
+			continue
+		}
+		d.Cells = append(d.Cells, t.Cell)
+	}
+	return d, len(d.Cells) > 0 || d.Pending > 0
 }
 
 // ReviewFlooring measures every tiered room against its requirement. There
@@ -245,10 +293,14 @@ func ReviewFlooring(fact domain.Fact[FlooringObservation], rooms domain.Fact[Roo
 		}
 	}
 	r := FlooringReview{Known: true}
+	roomed := map[domain.Cell]bool{}
 	for _, room := range v.Rooms {
 		tier, ok := floorTier(room, census)
 		if !ok {
 			continue
+		}
+		for _, c := range room.Cells {
+			roomed[c.Cell] = true
 		}
 		d := FloorDeficit{Key: FloorRoomKey(room), Room: room.ID, Tier: tier}
 		for _, c := range room.Cells {
@@ -268,9 +320,13 @@ func ReviewFlooring(fact domain.Fact[FlooringObservation], rooms domain.Fact[Roo
 		r.Deficits = append(r.Deficits, d)
 		r.Latched = append(r.Latched, d.Key)
 	}
-	sort.Slice(r.Deficits, func(i, j int) bool {
+	if d, ok := trafficDeficit(v, roomed, p); ok {
+		r.Deficits = append(r.Deficits, d)
+		r.Latched = append(r.Latched, d.Key)
+	}
+	sort.SliceStable(r.Deficits, func(i, j int) bool {
 		if r.Deficits[i].Tier != r.Deficits[j].Tier {
-			return r.Deficits[i].Tier == FloorTierClean
+			return floorTierOrder[r.Deficits[i].Tier] < floorTierOrder[r.Deficits[j].Tier]
 		}
 		return r.Deficits[i].Key < r.Deficits[j].Key
 	})
@@ -278,6 +334,8 @@ func ReviewFlooring(fact domain.Fact[FlooringObservation], rooms domain.Fact[Roo
 	r.Active = len(r.Deficits) > 0
 	return r, nil
 }
+
+var floorTierOrder = map[FloorTier]int{FloorTierClean: 0, FloorTierLiving: 1, FloorTierTraffic: 2}
 
 type FlooringMethod string
 
@@ -329,7 +387,7 @@ func floorScore(tier FloorTier, d FloorDefinition, w FloorWeights) (float64, boo
 	beauty, _ := d.Beauty.Value()
 	flammability, _ := d.Flammability.Value()
 	pathCost, _ := d.PathCost.Value()
-	if tier == FloorTierClean && cleanliness < 0 || tier == FloorTierLiving && beauty < 0 {
+	if tier == FloorTierClean && cleanliness < 0 || tier == FloorTierLiving && beauty < 0 || tier == FloorTierTraffic && pathCost > 0 {
 		return 0, false
 	}
 	var cost float64
@@ -383,8 +441,11 @@ func SelectFlooringMethod(review FlooringReview, facts FlooringFacts, p Flooring
 		}
 		batch := min(len(d.Cells), p.MaxCellsPerPlan)
 		weights := p.Clean
-		if d.Tier == FloorTierLiving {
+		switch d.Tier {
+		case FloorTierLiving:
 			weights = p.Living
+		case FloorTierTraffic:
+			weights = p.Traffic
 		}
 		type candidate struct {
 			name  string

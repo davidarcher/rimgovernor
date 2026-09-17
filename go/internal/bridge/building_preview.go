@@ -67,6 +67,7 @@ func (caller *Client) PreviewBuilding(ctx context.Context, action domain.Action,
 			safe = false
 		}
 		out.NativeWorkPending = out.NativeWorkPending || blocker.GetIsBlueprint() || blocker.GetIsFrame()
+		out.Preview.Blockers = append(out.Preview.Blockers, policy.PlacementBlocker{Category: blocker.GetCategory(), Wiped: blocker.GetWouldBeWiped(), Blueprint: blocker.GetIsBlueprint(), Frame: blocker.GetIsFrame(), Cancelled: blocker.GetFrameWouldBeCancelled()})
 	}
 	// Even a zero-cost evaluation cannot turn an unreadable material scan into
 	// authorization. The next complete preview can release this unknown hold.

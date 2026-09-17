@@ -72,8 +72,18 @@ func colonyUpkeep(v *o.ColonyFactsSnapshot) policy.UpkeepObservation {
 	if !hasIssue(u.Issues, "lighting") {
 		r.Lighting = colonyLighting(u.Lighting)
 	}
+	if !hasIssue(u.Issues, "routes") {
+		r.Routes = colonyRoutes(u.Routes)
+	}
 	if !hasIssue(u.Issues, "flooring") {
-		r.Flooring = colonyFlooring(u.Flooring)
+		// The flooring census joins the routes census's traffic evidence, so a
+		// routes issue leaves flooring unknown too rather than judging the
+		// traffic tier from nothing.
+		routes := u.Routes
+		if hasIssue(u.Issues, "routes") {
+			routes = &o.RoutesSection{}
+		}
+		r.Flooring = colonyFlooring(u.Flooring, routes)
 	}
 	return r
 }
@@ -81,17 +91,38 @@ func colonyUpkeep(v *o.ColonyFactsSnapshot) policy.UpkeepObservation {
 // colonyFlooring decodes the flooring section; a terrain row missing any
 // stat or a cell missing its terrain leaves the whole census unknown so
 // MaintainFlooring keeps its previous latch.
-func colonyFlooring(section *o.FlooringSection) domain.Fact[policy.FlooringObservation] {
+func colonyFlooring(section *o.FlooringSection, routes *o.RoutesSection) domain.Fact[policy.FlooringObservation] {
 	f := section.GetObserved()
 	if f == nil {
 		return domain.Fact[policy.FlooringObservation]{}
 	}
 	r := policy.FlooringObservation{Rooms: []policy.FloorRoom{}, Terrains: map[string]policy.FloorTerrain{}}
+	// The traffic tier reads the routes census's observed travel; an
+	// unknown routes census leaves the whole flooring census unknown rather
+	// than silently dropping the tier. Traffic cells whose terrain the
+	// flooring table does not name are unmeasured and left out.
+	if routes != nil {
+		t, known := colonyRoutes(routes).Value()
+		if !known {
+			return domain.Fact[policy.FlooringObservation]{}
+		}
+		r.TrafficSamples = t.TrafficSamples
+		r.Traffic = t.Traffic
+	}
 	for _, row := range f.Terrains {
 		if row.Cleanliness == nil || row.Beauty == nil || row.Flammability == nil || row.PathCost == nil || row.Natural == nil {
 			return domain.Fact[policy.FlooringObservation]{}
 		}
 		r.Terrains[row.GetDefName()] = policy.FloorTerrain{Cleanliness: row.GetCleanliness(), Beauty: row.GetBeauty(), Flammability: row.GetFlammability(), PathCost: row.GetPathCost(), Natural: row.GetNatural()}
+	}
+	if len(r.Traffic) > 0 {
+		kept := r.Traffic[:0]
+		for _, t := range r.Traffic {
+			if _, ok := r.Terrains[t.Terrain]; ok {
+				kept = append(kept, t)
+			}
+		}
+		r.Traffic = kept
 	}
 	for _, room := range f.Rooms {
 		out := policy.FloorRoom{ID: room.GetRoomId(), Cells: []policy.FloorCell{}}
@@ -105,6 +136,50 @@ func colonyFlooring(section *o.FlooringSection) domain.Fact[policy.FlooringObser
 			out.Cells = append(out.Cells, policy.FloorCell{Cell: domain.Cell{X: cell.Cell.GetX(), Z: cell.Cell.GetZ()}, Terrain: cell.GetTerrain(), Pending: cell.GetPending()})
 		}
 		r.Rooms = append(r.Rooms, out)
+	}
+	return domain.Known(r)
+}
+
+// colonyRoutes decodes the routes section; a travel row missing its
+// reachability leaves the whole census unknown so MaintainRoutes keeps its
+// previous latch instead of declaring a facility reachable by omission.
+func colonyRoutes(section *o.RoutesSection) domain.Fact[policy.RoutesObservation] {
+	f := section.GetObserved()
+	if f == nil {
+		return domain.Fact[policy.RoutesObservation]{}
+	}
+	r := policy.RoutesObservation{Pawns: append([]string{}, f.PawnIds...), Facilities: []policy.RouteFacility{}, Traffic: []policy.TrafficCell{}, TrafficSamples: f.GetTrafficSamples()}
+	if f.TrafficSinceTick != nil {
+		r.TrafficSince = domain.Known(domain.Tick(f.GetTrafficSinceTick()))
+	}
+	for _, row := range f.Facilities {
+		out := policy.RouteFacility{ID: row.Facility.GetId(), Definition: row.Facility.GetDefName(), Kind: row.GetKind(), Cell: domain.Cell{X: row.Cell.GetX(), Z: row.Cell.GetZ()}, Travel: []policy.RouteTravel{}, Breaches: []policy.RouteBreach{}}
+		if row.RoomId != nil {
+			out.Room = domain.Known(row.GetRoomId())
+		}
+		for _, t := range row.Travel {
+			if t.Reachable == nil {
+				return domain.Fact[policy.RoutesObservation]{}
+			}
+			travel := policy.RouteTravel{Pawn: t.GetPawnId(), Reachable: t.GetReachable()}
+			if t.PathCost != nil {
+				travel.Cost = domain.Known(t.GetPathCost())
+			}
+			if t.PathCells != nil {
+				travel.Cells = domain.Known(t.GetPathCells())
+			}
+			out.Travel = append(out.Travel, travel)
+		}
+		for _, b := range row.Breaches {
+			out.Breaches = append(out.Breaches, policy.RouteBreach{Cell: domain.Cell{X: b.Cell.GetX(), Z: b.Cell.GetZ()}, Edifice: b.GetEdifice(), Pending: b.GetPending(), Distance: b.GetDistance()})
+		}
+		r.Facilities = append(r.Facilities, out)
+	}
+	for _, t := range f.Traffic {
+		if t.Samples == nil || t.Terrain == nil || t.Home == nil {
+			return domain.Fact[policy.RoutesObservation]{}
+		}
+		r.Traffic = append(r.Traffic, policy.TrafficCell{Cell: domain.Cell{X: t.Cell.GetX(), Z: t.Cell.GetZ()}, Samples: t.GetSamples(), Terrain: t.GetTerrain(), Home: t.GetHome(), Pending: t.GetPending()})
 	}
 	return domain.Known(r)
 }

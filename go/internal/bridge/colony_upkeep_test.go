@@ -139,3 +139,76 @@ func TestDirectUpkeepLightingBoundary(t *testing.T) {
 		t.Fatal("accepted rows under a failed lighting section")
 	}
 }
+
+func routesWire() *o.RoutesSection {
+	cell := func(x, z int32) *c.Cell { return &c.Cell{X: proto.Int32(x), Z: proto.Int32(z)} }
+	return &o.RoutesSection{Outcome: &o.RoutesSection_Observed{Observed: &o.RoutesFacts{
+		PawnIds: []string{"a", "b"},
+		Facilities: []*o.RouteFacility{
+			{
+				Facility: &o.EntityRef{Id: proto.String("zone-3"), DefName: proto.String("Zone_Stockpile"), MapId: proto.Int32(3), Position: cell(10, 10)},
+				Kind:     proto.String("stockpile"), Cell: cell(10, 10), RoomId: proto.String("7"),
+				Travel: []*o.RouteTravel{
+					{PawnId: proto.String("a"), Reachable: proto.Bool(false)},
+					{PawnId: proto.String("b"), Reachable: proto.Bool(false)},
+				},
+				Breaches: []*o.RouteBreach{{Cell: cell(9, 10), Edifice: proto.String("Wall"), Distance: proto.Int32(4)}, {Cell: cell(10, 9), Edifice: proto.String("Wall"), Distance: proto.Int32(9), Pending: proto.String("Door")}},
+			},
+			{
+				Facility: &o.EntityRef{Id: proto.String("Thing_Bed1"), DefName: proto.String("Bed"), MapId: proto.Int32(3), Position: cell(20, 20)},
+				Kind:     proto.String("bed"), Cell: cell(20, 20),
+				Travel: []*o.RouteTravel{{PawnId: proto.String("a"), Reachable: proto.Bool(true), PathCost: proto.Int32(120), PathCells: proto.Int32(9)}},
+			},
+		},
+		Traffic:          []*o.TrafficCell{{Cell: cell(5, 5), Samples: proto.Uint32(30), Terrain: proto.String("Soil"), Home: proto.Bool(true)}},
+		TrafficSamples:   proto.Uint32(200),
+		TrafficSinceTick: proto.Int32(400),
+		Completeness:     &o.Completeness{Page: &c.PageInfo{Complete: proto.Bool(true)}, Matched: proto.Uint64(2), Returned: proto.Uint64(2), Filtered: proto.Uint64(0), Unreadable: proto.Uint64(0)},
+	}}}
+}
+
+func TestDirectUpkeepRoutesBoundary(t *testing.T) {
+	size := &o.MapSize{Width: proto.Uint32(50), Height: proto.Uint32(50)}
+	v := upkeepWire()
+	v.Routes = routesWire()
+	if err := validateDirectUpkeep(v, size, 3); err != nil {
+		t.Fatal(err)
+	}
+	for _, mutate := range []func(*o.RoutesFacts){
+		func(f *o.RoutesFacts) { f.PawnIds = append(f.PawnIds, "a") },
+		func(f *o.RoutesFacts) { f.PawnIds = append(f.PawnIds, "") },
+		func(f *o.RoutesFacts) { f.Facilities[0].Facility.Id = proto.String("Thing_Bed1") },
+		func(f *o.RoutesFacts) { f.Facilities[0].Facility.MapId = proto.Int32(4) },
+		func(f *o.RoutesFacts) { f.Facilities[0].Kind = nil },
+		func(f *o.RoutesFacts) { f.Facilities[0].Cell.X = proto.Int32(50) },
+		func(f *o.RoutesFacts) { f.Facilities[0].RoomId = proto.String("") },
+		func(f *o.RoutesFacts) { f.Facilities[0].Travel[0].PawnId = proto.String("zed") },
+		func(f *o.RoutesFacts) { f.Facilities[0].Travel[1].PawnId = proto.String("a") },
+		func(f *o.RoutesFacts) { f.Facilities[0].Travel[0].PathCost = proto.Int32(3) },
+		func(f *o.RoutesFacts) { f.Facilities[1].Travel[0].PathCost = proto.Int32(-1) },
+		func(f *o.RoutesFacts) { f.Facilities[1].Travel[0].PathCells = proto.Int32(-1) },
+		func(f *o.RoutesFacts) { f.Facilities[0].Breaches[0].Cell.Z = proto.Int32(-1) },
+		func(f *o.RoutesFacts) { f.Facilities[0].Breaches[0].Edifice = nil },
+		func(f *o.RoutesFacts) { f.Facilities[0].Breaches[1].Pending = proto.String("") },
+		func(f *o.RoutesFacts) { f.Facilities[0].Breaches[0].Distance = proto.Int32(-1) },
+		func(f *o.RoutesFacts) { f.Facilities[0].Breaches[1].Cell = f.Facilities[0].Breaches[0].Cell },
+		func(f *o.RoutesFacts) { f.Traffic[0].Cell.X = proto.Int32(50) },
+		func(f *o.RoutesFacts) { f.Traffic[0].Terrain = proto.String("") },
+		func(f *o.RoutesFacts) { f.Traffic = append(f.Traffic, f.Traffic[0]) },
+		func(f *o.RoutesFacts) { f.TrafficSinceTick = proto.Int32(-1) },
+		func(f *o.RoutesFacts) { f.Completeness = nil },
+	} {
+		v := upkeepWire()
+		v.Routes = routesWire()
+		mutate(v.Routes.GetObserved())
+		if err := validateDirectUpkeep(v, size, 3); err == nil {
+			t.Fatal("accepted invalid routes section")
+		}
+	}
+	v = upkeepWire()
+	v.Routes = routesWire()
+	v.Issues = []*o.ReadIssue{{Field: proto.String("routes")}}
+	if err := validateDirectUpkeep(v, size, 3); err == nil {
+		t.Fatal("accepted rows under a failed routes section")
+	}
+}

@@ -43,6 +43,9 @@ type UpkeepObservation struct {
 	// Flooring is the measured room terrain census MaintainFlooring reviews
 	// (see flooring.go); unknown when native could not read it.
 	Flooring domain.Fact[FlooringObservation]
+	// Routes is the measured facility reachability and traffic census
+	// MaintainRoutes reviews (issue #6 slice 5).
+	Routes domain.Fact[RoutesObservation]
 }
 type UpkeepItem struct {
 	ID                           string

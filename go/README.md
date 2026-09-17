@@ -484,9 +484,41 @@ bounded batch (24), then the tier's score over native stats and cost list;
 Each cell is previewed as a one-cell placement and admitted as its own action
 of one plan; native lays it through the typed construction path, whose
 completion is the terrain grid reading the admitted floor. The latch releases
-on the next measured census, never on the receipt. Traffic-bottleneck
-flooring waits for slice 5's route evidence. Targeted acceptance is
-`flooraccept` against `FlooringFixture`.
+on the next measured census, never on the receipt. A third tier, traffic,
+floors the busiest natural home cells outside any tiered room using the
+routes census's observed travel samples (never a projected path): a cell
+counts once the census holds at least four times the per-cell minimum (12)
+and the cell itself at least that many, scored for path cost first. Targeted
+acceptance is `flooraccept` against `FlooringFixture`; the traffic tier is
+unit-tested against the same review.
+
+`MaintainRoutes` (`routes` family, issue #6 slice 5) keeps every facility
+reachable by the colonists who use it from observed reachability, never
+flood-fill connectivity or straight-line distance: `UpkeepFacts.routes`
+lists every player bed, work bench (its interaction cell), storage building,
+dining surface, turret and stockpile zone (`zone-<id>`) with, per mobile
+colonist, the game's own `CanReach` answer from where that colonist stands
+and, for a bounded number of reachable pairs, the cost and cell count of the
+path the game would walk. A facility no listed colonist reaches also lists
+breach candidates: one-cell player walls on its room's border whose outer
+neighbour some colonist can reach, nearest first, with any door already
+ordered there. The census also reports observed traffic: every 30 ticks each
+walking colonist adds a sample to the cell it stands on, and the top cells
+by samples are listed with terrain, home flag and any floor ordered, along
+with the window's total and start tick. A deficient facility latches by ID
+(`RoutineLatches.Routes`); an unknown census keeps the latch, and a colony
+with no mobile colonist can declare nothing unreachable. The planner serves
+storage and stockpiles first, then benches, dining, beds and defence, and
+previews a `Door` of `WoodLog` on the breach cells in order, admitting the
+first native reports legal with a one-cell footprint; a door over a wall is
+the one placement where the planner accepts native's "would wipe" verdict
+as the deliberate replacement it is (exactly one wiped building, no
+blueprint or frame). `route_door_pending`, `route_no_breach` and
+`route_door_unavailable` defer. The latch releases on the next measured
+census reading the facility reachable with no door still ordered on its
+border: a door frame is walkable before the door stands, so an ordered door
+holds the latch (and its plan) until it lands. Targeted acceptance is
+`routeaccept` against `RoutesFixture`.
 
 Routine reviews also read native pawn needs and thought targets. Per-pawn mood
 goals retain break-threshold and food/rest/recreation hysteresis through Manual and

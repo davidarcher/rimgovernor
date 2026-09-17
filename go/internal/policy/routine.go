@@ -51,6 +51,11 @@ const lightingPriority = 3
 // of floor; living-room flooring alone ranks one step lower.
 const flooringPriority = 3
 
+// routesPriority ranks MaintainRoutes with the other upkeep projects: an
+// unreachable facility idles whatever it serves, so it ranks with a dark
+// bench, never as an emergency.
+const routesPriority = 3
+
 type RoutinePolicy struct {
 	AnimalUpkeep                                  AnimalUpkeepPolicy
 	MedicalReserve                                MedicalReservePolicy
@@ -58,6 +63,7 @@ type RoutinePolicy struct {
 	Cleanliness                                   CleanlinessPolicy
 	Lighting                                      LightingPolicy
 	Flooring                                      FlooringPolicy
+	Routes                                        RoutesPolicy
 	MaxDevelopmentProjects                        int
 	FoodMinDays, FoodTargetDays, FootholdFoodDays float64
 	ColdEnter, ColdExit, HotExit, HotEnter        float64
@@ -147,7 +153,7 @@ type RoutinePolicy struct {
 }
 
 func DefaultRoutinePolicy() RoutinePolicy {
-	return RoutinePolicy{AnimalUpkeep: DefaultAnimalUpkeepPolicy(), MedicalReserve: DefaultMedicalReservePolicy(), FoodStorage: DefaultFoodStoragePolicy(), Cleanliness: DefaultCleanlinessPolicy(), Lighting: DefaultLightingPolicy(), Flooring: DefaultFlooringPolicy(), MaxDevelopmentProjects: 2, FoodMinDays: 3, FoodTargetDays: 7, FootholdFoodDays: 3,
+	return RoutinePolicy{AnimalUpkeep: DefaultAnimalUpkeepPolicy(), MedicalReserve: DefaultMedicalReservePolicy(), FoodStorage: DefaultFoodStoragePolicy(), Cleanliness: DefaultCleanlinessPolicy(), Lighting: DefaultLightingPolicy(), Flooring: DefaultFlooringPolicy(), Routes: DefaultRoutesPolicy(), MaxDevelopmentProjects: 2, FoodMinDays: 3, FoodTargetDays: 7, FootholdFoodDays: 3,
 		ColdEnter: 12, ColdExit: 16, HotExit: 28, HotEnter: 32, WoodMin: 120, WoodTarget: 350, WoodMax: 500, HuntStallTicks: 6000, HaulStallTicks: 2500}
 }
 
@@ -335,7 +341,9 @@ type RoutineLatches struct {
 	// Lighting holds the bench IDs MaintainLighting last measured dark.
 	Lighting []string
 	// Flooring holds the room keys MaintainFlooring last measured short.
-	Flooring              []string
+	Flooring []string
+	// Routes holds the facility IDs MaintainRoutes last measured unreachable.
+	Routes                []string
 	Food, Cold, Hot, Wood bool
 	Upkeep                UpkeepHistory
 }
@@ -453,6 +461,10 @@ func DetectRoutine(f RoutineFacts, previous RoutineLatches, p RoutinePolicy) (Ro
 	if err != nil {
 		return RoutineNeeds{}, err
 	}
+	routes, err := ReviewRoutes(f.Upkeep.Routes, previous.Routes, p.Routes)
+	if err != nil {
+		return RoutineNeeds{}, err
+	}
 	gear, err := ReviewGear(f.Gear)
 	if err != nil {
 		return RoutineNeeds{}, err
@@ -528,6 +540,7 @@ func DetectRoutine(f RoutineFacts, previous RoutineLatches, p RoutinePolicy) (Ro
 		Refrigeration:  refrigeration.Active,
 		Lighting:       lighting.Dark,
 		Flooring:       flooring.Latched,
+		Routes:         routes.Latched,
 		Upkeep:         upkeep.History,
 		Food:           latchValue(previous.Food, f.FoodDays, p.FoodMinDays, p.FoodTargetDays, false),
 		Cold:           latchValue(previous.Cold, fallback(f.SleepingMin, f.OutdoorTemperature), p.ColdEnter, p.ColdExit, false),
@@ -839,7 +852,7 @@ func DetectRoutine(f RoutineFacts, previous RoutineLatches, p RoutinePolicy) (Ro
 	if flooring.Known {
 		flooringRecovered = domain.Known(!flooring.Active)
 		if flooring.Active && flooring.Deficits[0].Tier != FloorTierClean {
-			flooringPriority++
+			flooringPriority += floorTierOrder[flooring.Deficits[0].Tier]
 		}
 	} else if !flooring.Active {
 		flooringPriority = 4
@@ -848,6 +861,22 @@ func DetectRoutine(f RoutineFacts, previous RoutineLatches, p RoutinePolicy) (Ro
 	if !positive(flooringRecovered) {
 		addGoal(MaintainFlooring, flooringPriority)
 		if flooring.Known {
+			r.Goals[len(r.Goals)-1].Deficit = domain.Known(1.0)
+		}
+	}
+	// Routes is likewise a ranked project: the deficit is the measured
+	// fraction of facilities no colonist reaches.
+	routesRecovered := domain.Unknown[bool]()
+	routesPriority := routesPriority
+	if routes.Known {
+		routesRecovered = domain.Known(!routes.Active)
+	} else if !routes.Active {
+		routesPriority = 4
+	}
+	addAssessment(MaintainRoutes, routesPriority, routesRecovered)
+	if !positive(routesRecovered) {
+		addGoal(MaintainRoutes, routesPriority)
+		if routes.Known {
 			r.Goals[len(r.Goals)-1].Deficit = domain.Known(1.0)
 		}
 	}
