@@ -20,7 +20,7 @@ namespace HomeBridge.BridgeTools
         [Tool(ToolName, Title = "Read typed production policy", Description = "Map-scoped resource floors, transient construction commitments, stopped inputs and owned bounded drilling facilities, with a CAS snapshot token for SetProductionPolicy. No settings changes.")]
         [ToolResponse("payload", "string", "Official ProtoJSON ProductionPolicyReply.", Always = true)]
         public async Task<object> ReadProductionPolicy(IRimBridgeContext ctx, CancellationToken cancellationToken,
-            [ToolParameter(Description = "Official ProtoJSON ProductionPolicyRequest string.")] object request = null!)
+            [ToolParameter(Description = "Official ProtoJSON ProductionPolicyRequest string.")] object? request = null)
         {
             if (!ProtoBoundary.TryParse(ctx, ToolName, request, Obs.ProductionPolicyRequest.Parser, out var parsed, out var failure))
                 return ProtoBoundary.Encode(new Obs.ProductionPolicyReply { Failure = failure });

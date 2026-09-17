@@ -1,3 +1,5 @@
+#nullable enable
+
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -24,7 +26,7 @@ namespace HomeBridge.BridgeTools
                 prefix: new HarmonyMethod(typeof(DrillingGuard), nameof(BeforeFrame)), postfix: new HarmonyMethod(typeof(DrillingGuard), nameof(AfterFrame)));
             patched = true;
         }
-        private static DrillingRecord Record(CompDeepDrill comp) => comp.parent.Spawned
+        private static DrillingRecord? Record(CompDeepDrill comp) => comp.parent.Spawned
             ? MiningGuard.State().Drills.FirstOrDefault(r => r.MapId == comp.parent.Map.uniqueID
                 && r.ThingId == comp.parent.ThingID && r.Definition == comp.parent.def.defName
                 && r.X == comp.parent.Position.x && r.Z == comp.parent.Position.z)
@@ -36,7 +38,7 @@ namespace HomeBridge.BridgeTools
                 && (t.Faction == null || t.Faction.IsPlayer) && !t.IsForbidden(Faction.OfPlayer)
                 && map.mapPawns.FreeColonistsSpawned.Any(p => !p.Downed && !p.Drafted && !p.InMentalState
                     && p.CanReach(t, PathEndMode.Touch, Danger.None))).Sum(t => t.stackCount);
-        private static bool Allowed(CompDeepDrill comp, DrillingRecord record)
+        private static bool Allowed(CompDeepDrill comp, DrillingRecord? record)
         {
             if (record == null || !Supervisor.IsActive) return true;
             var building = comp.parent;

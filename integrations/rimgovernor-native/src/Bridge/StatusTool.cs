@@ -1,3 +1,5 @@
+#nullable enable
+
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -114,20 +116,20 @@ namespace HomeBridge.BridgeTools
         private const int MaxWindows = 20;
         private const int MaxHostiles = 40;
 
-        private static readonly FieldInfo ActiveAlertsField =
+        private static readonly FieldInfo? ActiveAlertsField =
             BridgeCommon.PrivateInstanceField(typeof(AlertsReadout), "activeAlerts");
 
-        private static readonly FieldInfo LiveMessagesField =
+        private static readonly FieldInfo? LiveMessagesField =
             BridgeCommon.PrivateStaticField(typeof(Messages), "liveMessages");
 
         // Message.startingTime is the REAL-time stamp the 13-second lifespan is
         // measured from. Private, and the only path to a message's age in
         // seconds; ticks are useless here because the game is usually paused.
-        private static readonly FieldInfo MessageStartingTimeField =
+        private static readonly FieldInfo? MessageStartingTimeField =
             BridgeCommon.PrivateInstanceField(typeof(Message), "startingTime");
 
         // DiaOption.text is protected, so it needs the same non-public lookup.
-        private static readonly FieldInfo DiaOptionTextField =
+        private static readonly FieldInfo? DiaOptionTextField =
             BridgeCommon.PrivateInstanceField(typeof(DiaOption), "text");
 
         // Window types that are never the dialog eating map input: the letter
@@ -168,7 +170,7 @@ namespace HomeBridge.BridgeTools
         [ToolResponse("skipped", "array", "One entry per thing that could not be read, naming the field and the reason. Empty array = everything answered. A null anywhere above is accounted for here.", Always = true)]
         [ToolResponse("unknownArguments", "array", "Every argument key the caller sent that this tool does not declare, sorted, case-sensitively. Empty array = every key was recognised. The host's own _rimBridgeTimeoutMs is never listed.", Always = true)]
         [ToolResponse("unknownArgumentsWarning", "string", "Present only when unknownArguments is non-empty, or when the caller's raw keys could not be read at all - in which case the empty unknownArguments means 'not known', not 'nothing unknown'.", Nullable = true)]
-        public async Task<object> Status(
+        public async Task<object?> Status(
             IRimBridgeContext ctx,
             CancellationToken cancellationToken,
             [ToolParameter(Description = "Include colonists[]. TRUE by default. Pass false for the three-line poll: time, letters, messages, alerts and ui only.", DefaultValue = true)] bool colonists = true,
@@ -214,13 +216,13 @@ namespace HomeBridge.BridgeTools
         {
             var skipped = new List<object>();
 
-            var payload = new Dictionary<string, object>(StringComparer.Ordinal)
+            var payload = new Dictionary<string, object?>(StringComparer.Ordinal)
             {
                 ["success"] = true,
                 ["tool"] = ToolName
             };
 
-            var game = BridgeCommon.Try(() => Current.Game, (Game)null);
+            var game = BridgeCommon.Try(() => Current.Game, (Game?)null);
             var map = SafeMap();
 
             payload["status"] = game == null ? "no_game" : (map == null ? "no_map" : "game_loaded");
@@ -271,7 +273,7 @@ namespace HomeBridge.BridgeTools
 
             payload["counts"] = Counts(letters, messages, alerts, colonistRows, threatBlock);
 
-            payload["blocks"] = new Dictionary<string, object>(StringComparer.Ordinal)
+            payload["blocks"] = new Dictionary<string, object?>(StringComparer.Ordinal)
             {
                 { "colonists", wantColonists },
                 { "threats", wantThreats },
@@ -292,11 +294,11 @@ namespace HomeBridge.BridgeTools
         /// a caller can swap one for the other. Never null: with no game every
         /// field inside is null / 0 / false.
         /// </summary>
-        private static Dictionary<string, object> TimeBlock(Map map, List<object> skipped)
+        private static Dictionary<string, object?> TimeBlock(Map? map, List<object> skipped)
         {
-            var block = new Dictionary<string, object>(StringComparer.Ordinal);
+            var block = new Dictionary<string, object?>(StringComparer.Ordinal);
 
-            var tickManager = BridgeCommon.Try(() => Find.TickManager, (TickManager)null);
+            var tickManager = BridgeCommon.Try(() => Find.TickManager, (TickManager?)null);
             if (tickManager == null)
             {
                 block["ticksGame"] = 0;
@@ -352,7 +354,7 @@ namespace HomeBridge.BridgeTools
         /// The calendar is a function of (absolute ticks, longitude). Without
         /// both, every field is null rather than computed at longitude 0.
         /// </summary>
-        private static void WriteCalendar(IDictionary<string, object> block, int? absTicks, Map map)
+        private static void WriteCalendar(IDictionary<string, object?> block, int? absTicks, Map? map)
         {
             var longLat = default(Vector2);
             var haveLongLat = map != null && TryGetLongLat(map, out longLat);
@@ -452,11 +454,11 @@ namespace HomeBridge.BridgeTools
             return rows;
         }
 
-        private static Dictionary<string, object> LetterRow(Letter letter, int tick)
+        private static Dictionary<string, object?> LetterRow(Letter letter, int tick)
         {
             var arrival = BridgeCommon.TryN(() => letter.arrivalTick) ?? 0;
 
-            var row = new Dictionary<string, object>(StringComparer.Ordinal)
+            var row = new Dictionary<string, object?>(StringComparer.Ordinal)
             {
                 { "id", BridgeCommon.SafeString(() => letter.GetUniqueLoadID())
                         ?? ("letter-" + BridgeCommon.TryN(() => letter.ID)) },
@@ -467,7 +469,7 @@ namespace HomeBridge.BridgeTools
                 { "ageTicks", Math.Max(0, tick - arrival) },
                 { "shouldAutomaticallyOpenLetter", BridgeCommon.Try(() => letter.ShouldAutomaticallyOpenLetter, false) },
                 { "canDismissWithRightClick", BridgeCommon.Try(() => letter.CanDismissWithRightClick, false) },
-                { "lookTarget", PrimaryLookTarget(BridgeCommon.Try(() => letter.lookTargets, (LookTargets)null)) }
+                { "lookTarget", PrimaryLookTarget(BridgeCommon.Try(() => letter.lookTargets, (LookTargets?)null)) }
             };
 
             // Verse.ChoiceLetter, not RimWorld.ChoiceLetter — and note that
@@ -510,16 +512,16 @@ namespace HomeBridge.BridgeTools
             return row;
         }
 
-        private static Dictionary<string, object> ChoiceRow(DiaOption option, int index)
+        private static Dictionary<string, object?> ChoiceRow(DiaOption option, int index)
         {
-            string text = null;
+            string? text = null;
             if (DiaOptionTextField != null)
             {
                 try { text = DiaOptionTextField.GetValue(option) as string; }
                 catch { text = null; }
             }
 
-            return new Dictionary<string, object>(StringComparer.Ordinal)
+            return new Dictionary<string, object?>(StringComparer.Ordinal)
             {
                 { "index", index },
                 { "text", text == null ? null : text.Trim() },
@@ -578,7 +580,7 @@ namespace HomeBridge.BridgeTools
             return rows;
         }
 
-        private static Dictionary<string, object> MessageRow(Message message, int tick, float? now)
+        private static Dictionary<string, object?> MessageRow(Message message, int tick, float? now)
         {
             var startingTick = BridgeCommon.TryN(() => message.startingTick) ?? 0;
 
@@ -597,7 +599,7 @@ namespace HomeBridge.BridgeTools
                 catch { ageSeconds = null; }
             }
 
-            return new Dictionary<string, object>(StringComparer.Ordinal)
+            return new Dictionary<string, object?>(StringComparer.Ordinal)
             {
                 { "id", BridgeCommon.SafeString(() => message.GetUniqueLoadID()) },
                 { "text", BridgeCommon.SafeString(() => message.text) },
@@ -607,7 +609,7 @@ namespace HomeBridge.BridgeTools
                 { "startingFrame", BridgeCommon.TryN(() => message.startingFrame) ?? 0 },
                 { "ageSeconds", ageSeconds },
                 { "expired", BridgeCommon.Try(() => message.Expired, false) },
-                { "lookTarget", PrimaryLookTarget(BridgeCommon.Try(() => message.lookTargets, (LookTargets)null)) }
+                { "lookTarget", PrimaryLookTarget(BridgeCommon.Try(() => message.lookTargets, (LookTargets?)null)) }
             };
         }
 
@@ -630,7 +632,7 @@ namespace HomeBridge.BridgeTools
                 return rows;
             }
 
-            AlertsReadout readout;
+            AlertsReadout? readout;
             try { readout = Find.Alerts; }
             catch { readout = null; }
             if (readout == null)
@@ -639,7 +641,7 @@ namespace HomeBridge.BridgeTools
                 return rows;
             }
 
-            List<Alert> active;
+            List<Alert>? active;
             try { active = ActiveAlertsField.GetValue(readout) as List<Alert>; }
             catch { active = null; }
             if (active == null)
@@ -648,7 +650,7 @@ namespace HomeBridge.BridgeTools
                 return rows;
             }
 
-            var built = new List<Dictionary<string, object>>();
+            var built = new List<Dictionary<string, object?>>();
             for (var i = 0; i < active.Count; i++)
             {
                 var alert = active[i];
@@ -662,12 +664,12 @@ namespace HomeBridge.BridgeTools
             // order, which is what the player sees down the right-hand side.
             built.Sort((a, b) =>
             {
-                var pa = a.ContainsKey("prioritySortValue") && a["prioritySortValue"] is int ? (int)a["prioritySortValue"] : -1;
-                var pb = b.ContainsKey("prioritySortValue") && b["prioritySortValue"] is int ? (int)b["prioritySortValue"] : -1;
+                var pa = a.TryGetValue("prioritySortValue", out var pav) && pav is int pai ? pai : -1;
+                var pb = b.TryGetValue("prioritySortValue", out var pbv) && pbv is int pbi ? pbi : -1;
                 if (pa != pb)
                     return pb.CompareTo(pa);
-                var ia = a.ContainsKey("ordinal") && a["ordinal"] is int ? (int)a["ordinal"] : 0;
-                var ib = b.ContainsKey("ordinal") && b["ordinal"] is int ? (int)b["ordinal"] : 0;
+                var ia = a.TryGetValue("ordinal", out var oav) && oav is int oai ? oai : 0;
+                var ib = b.TryGetValue("ordinal", out var obv) && obv is int obi ? obi : 0;
                 return ia.CompareTo(ib);
             });
 
@@ -683,9 +685,9 @@ namespace HomeBridge.BridgeTools
             return rows;
         }
 
-        private static Dictionary<string, object> AlertRow(Alert alert, int ordinal, bool wantExplanations)
+        private static Dictionary<string, object?> AlertRow(Alert alert, int ordinal, bool wantExplanations)
         {
-            var row = new Dictionary<string, object>(StringComparer.Ordinal)
+            var row = new Dictionary<string, object?>(StringComparer.Ordinal)
             {
                 { "ordinal", ordinal },
                 { "type", BridgeCommon.SafeString(() => alert.GetType().FullName ?? alert.GetType().Name) },
@@ -746,9 +748,9 @@ namespace HomeBridge.BridgeTools
         /// property's body is `FreeHumanlikesSpawnedOfFaction(Faction.OfPlayer)`
         /// and Faction.OfPlayer's tail is Log.Error, which pauses the colony.
         /// </summary>
-        private static Dictionary<string, object> ColonistRow(Pawn pawn, bool detail)
+        private static Dictionary<string, object?> ColonistRow(Pawn pawn, bool detail)
         {
-            var row = new Dictionary<string, object>(StringComparer.Ordinal)
+            var row = new Dictionary<string, object?>(StringComparer.Ordinal)
             {
                 { "name", SafeName(pawn) },
                 { "thingId", BridgeCommon.SafeString(() => pawn.GetUniqueLoadID()) },
@@ -761,13 +763,13 @@ namespace HomeBridge.BridgeTools
                 { "mentalState", BridgeCommon.SafeString(() => pawn.MentalStateDef != null ? pawn.MentalStateDef.defName : null) }
             };
 
-            var needs = BridgeCommon.Try(() => pawn.needs, (Pawn_NeedsTracker)null);
+            var needs = BridgeCommon.Try(() => pawn.needs, (Pawn_NeedsTracker?)null);
             var mood = needs == null ? null : Round3(BridgeCommon.Try(
                 () => needs.mood != null ? (float?)needs.mood.CurLevelPercentage : null, (float?)null));
             row["mood"] = mood;
             row["breakRisk"] = BreakRisk(pawn, mood);
 
-            var health = BridgeCommon.Try(() => pawn.health, (Pawn_HealthTracker)null);
+            var health = BridgeCommon.Try(() => pawn.health, (Pawn_HealthTracker?)null);
             row["healthPct"] = health == null ? null : Round3(BridgeCommon.Try(
                 () => health.summaryHealth != null ? (float?)health.summaryHealth.SummaryHealthPercent : null, (float?)null));
             row["needsTend"] = health != null && BridgeCommon.Try(() => health.HasHediffsNeedingTend(false), false);
@@ -791,14 +793,14 @@ namespace HomeBridge.BridgeTools
         /// break; this is the number that lets a caller see one coming. Null for
         /// a pawn with no mood need at all.
         /// </summary>
-        private static string BreakRisk(Pawn pawn, double? mood)
+        private static string? BreakRisk(Pawn pawn, double? mood)
         {
             if (!mood.HasValue)
                 return null;
 
             double? minor = null, major = null, extreme = null;
             var breaker = BridgeCommon.Try(
-                () => pawn.mindState != null ? pawn.mindState.mentalBreaker : null, (MentalBreaker)null);
+                () => pawn.mindState != null ? pawn.mindState.mentalBreaker : null, (MentalBreaker?)null);
             if (breaker != null)
             {
                 minor = Round3(BridgeCommon.Try(() => (float?)breaker.BreakThresholdMinor, (float?)null));
@@ -812,10 +814,10 @@ namespace HomeBridge.BridgeTools
             return "none";
         }
 
-        private static Dictionary<string, object> NeedsDetail(Pawn pawn, Pawn_NeedsTracker needs)
+        private static Dictionary<string, object?> NeedsDetail(Pawn pawn, Pawn_NeedsTracker? needs)
         {
-            var block = new Dictionary<string, object>(StringComparer.Ordinal);
-            var all = new Dictionary<string, object>(StringComparer.Ordinal);
+            var block = new Dictionary<string, object?>(StringComparer.Ordinal);
+            var all = new Dictionary<string, object?>(StringComparer.Ordinal);
 
             if (needs != null)
             {
@@ -847,7 +849,7 @@ namespace HomeBridge.BridgeTools
                 () => needs.joy != null ? (float?)needs.joy.CurLevelPercentage : null, (float?)null));
 
             var breaker = BridgeCommon.Try(
-                () => pawn.mindState != null ? pawn.mindState.mentalBreaker : null, (MentalBreaker)null);
+                () => pawn.mindState != null ? pawn.mindState.mentalBreaker : null, (MentalBreaker?)null);
             block["breakThresholdMinor"] = breaker == null ? null : Round3(BridgeCommon.Try(() => (float?)breaker.BreakThresholdMinor, (float?)null));
             block["breakThresholdMajor"] = breaker == null ? null : Round3(BridgeCommon.Try(() => (float?)breaker.BreakThresholdMajor, (float?)null));
             block["breakThresholdExtreme"] = breaker == null ? null : Round3(BridgeCommon.Try(() => (float?)breaker.BreakThresholdExtreme, (float?)null));
@@ -859,7 +861,7 @@ namespace HomeBridge.BridgeTools
         /// list: the caller filters, because a curated list of interesting
         /// conditions is how "Food poisoning" gets dropped in silence.
         /// </summary>
-        private static List<object> HediffLabels(Pawn_HealthTracker health)
+        private static List<object> HediffLabels(Pawn_HealthTracker? health)
         {
             var rows = new List<object>();
             if (health == null)
@@ -877,7 +879,7 @@ namespace HomeBridge.BridgeTools
 
             foreach (var hediff in hediffs)
             {
-                rows.Add(new Dictionary<string, object>(StringComparer.Ordinal)
+                rows.Add(new Dictionary<string, object?>(StringComparer.Ordinal)
                 {
                     { "label", BridgeCommon.SafeString(() => hediff.LabelCap) },
                     { "severityLabel", BridgeCommon.SafeString(() => hediff.SeverityLabel) },
@@ -890,9 +892,9 @@ namespace HomeBridge.BridgeTools
 
         // ============================================================== threats
 
-        private static Dictionary<string, object> EmptyThreats()
+        private static Dictionary<string, object?> EmptyThreats()
         {
-            return new Dictionary<string, object>(StringComparer.Ordinal)
+            return new Dictionary<string, object?>(StringComparer.Ordinal)
             {
                 { "hostileCount", 0 },
                 { "hostiles", new List<object>() },
@@ -938,7 +940,7 @@ namespace HomeBridge.BridgeTools
         /// wild lynx eating a wild hare is wildlife, not a threat. Both are
         /// reported in huntersIgnored[] with the reason rather than dropped.
         /// </summary>
-        private static Dictionary<string, object> ThreatBlock(List<Pawn> spawned, List<Pawn> colonists, int predatorRadius)
+        private static Dictionary<string, object?> ThreatBlock(List<Pawn> spawned, List<Pawn> colonists, int predatorRadius)
         {
             var hostiles = new List<object>();
             var hunters = new List<object>();
@@ -997,7 +999,7 @@ namespace HomeBridge.BridgeTools
                 }
 
                 var row = DescribeThreatPawn(pawn, "predatorHunt", nearest);
-                Pawn prey;
+                Pawn? prey;
                 var preyIsOurs = PreyBelongsToPlayer(pawn, out prey);
                 var predatorIsOurs = IsPlayerFactionPawn(pawn);
 
@@ -1025,7 +1027,7 @@ namespace HomeBridge.BridgeTools
                 }
             }
 
-            return new Dictionary<string, object>(StringComparer.Ordinal)
+            return new Dictionary<string, object?>(StringComparer.Ordinal)
             {
                 { "hostileCount", hostileCount },
                 { "hostiles", hostiles },
@@ -1042,9 +1044,9 @@ namespace HomeBridge.BridgeTools
             };
         }
 
-        private static Dictionary<string, object> DescribeThreatPawn(Pawn pawn, string reason, int? nearest)
+        private static Dictionary<string, object?> DescribeThreatPawn(Pawn pawn, string reason, int? nearest)
         {
-            return new Dictionary<string, object>(StringComparer.Ordinal)
+            return new Dictionary<string, object?>(StringComparer.Ordinal)
             {
                 { "name", SafeName(pawn) },
                 { "thingId", BridgeCommon.SafeString(() => pawn.GetUniqueLoadID()) },
@@ -1074,7 +1076,7 @@ namespace HomeBridge.BridgeTools
 
             var mental = BridgeCommon.SafeString(
                 () => pawn.MentalStateDef != null ? pawn.MentalStateDef.defName : null);
-            if (!string.IsNullOrEmpty(mental)
+            if (mental != null && mental.Length > 0
                 && mental.IndexOf("Manhunter", StringComparison.OrdinalIgnoreCase) >= 0)
             {
                 reason = "manhunter:" + mental;
@@ -1106,7 +1108,7 @@ namespace HomeBridge.BridgeTools
         /// by Verse.Log.Error, and Log.Error calls TickManager.Pause(), so asking
         /// who the player is on a map with no player faction would pause the
         /// colony.</summary>
-        private static Faction PlayerFaction()
+        private static Faction? PlayerFaction()
         {
             try { return Faction.OfPlayerSilentFail; }
             catch { return null; }
@@ -1126,7 +1128,7 @@ namespace HomeBridge.BridgeTools
         /// it. job.targetA is the prey (JobDriver_PredatorHunt.PreyInd is
         /// TargetIndex.A); it holds the prey pawn during the chase and the prey's
         /// Corpse once the kill is made, so both are unwrapped.</summary>
-        internal static bool PreyBelongsToPlayer(Pawn predator, out Pawn prey)
+        internal static bool PreyBelongsToPlayer(Pawn predator, out Pawn? prey)
         {
             prey = null;
             try
@@ -1189,13 +1191,13 @@ namespace HomeBridge.BridgeTools
         /// force-pauses outranks one that merely sits on the Dialog layer, and
         /// among equals the last (topmost) wins.
         /// </summary>
-        private static Dictionary<string, object> UiBlock(List<object> skipped)
+        private static Dictionary<string, object?> UiBlock(List<object> skipped)
         {
-            var block = new Dictionary<string, object>(StringComparer.Ordinal);
+            var block = new Dictionary<string, object?>(StringComparer.Ordinal);
 
-            var stack = BridgeCommon.Try(() => Find.WindowStack, (WindowStack)null);
+            var stack = BridgeCommon.Try(() => Find.WindowStack, (WindowStack?)null);
             var windowRows = new List<object>();
-            string modalWindow = null;
+            string? modalWindow = null;
             var modalRank = -1;
 
             if (stack == null)
@@ -1227,7 +1229,7 @@ namespace HomeBridge.BridgeTools
 
                     if (windowRows.Count < MaxWindows)
                     {
-                        windowRows.Add(new Dictionary<string, object>(StringComparer.Ordinal)
+                        windowRows.Add(new Dictionary<string, object?>(StringComparer.Ordinal)
                         {
                             { "type", type },
                             { "layer", layer },
@@ -1273,7 +1275,7 @@ namespace HomeBridge.BridgeTools
             // MainTabsRoot.OpenTab is WindowStack.WindowOfType<MainTabWindow>()?.def
             // — a lookup, not a click.
             var openTab = BridgeCommon.Try(
-                () => Find.MainTabsRoot != null ? Find.MainTabsRoot.OpenTab : null, (MainButtonDef)null);
+                () => Find.MainTabsRoot != null ? Find.MainTabsRoot.OpenTab : null, (MainButtonDef?)null);
             block["mainTabOpen"] = openTab != null;
             block["mainTabDefName"] = openTab == null ? null : BridgeCommon.SafeString(() => openTab.defName);
             block["mainTabLabel"] = openTab == null ? null : BridgeCommon.SafeString(() => openTab.LabelCap);
@@ -1312,7 +1314,7 @@ namespace HomeBridge.BridgeTools
 
         /// <summary>A selected object's name. Zones are ISelectable but not
         /// Things, so both are tried before the type name.</summary>
-        private static string SelectableLabel(object selection)
+        private static string? SelectableLabel(object selection)
         {
             var thing = selection as Thing;
             if (thing != null)
@@ -1335,9 +1337,9 @@ namespace HomeBridge.BridgeTools
 
         // =============================================================== shared
 
-        private static Dictionary<string, object> Counts(
+        private static Dictionary<string, object?> Counts(
             List<object> letters, List<object> messages, List<object> alerts,
-            List<object> colonists, Dictionary<string, object> threats)
+            List<object> colonists, Dictionary<string, object?> threats)
         {
             var letterChoices = 0;
             var loud = 0;
@@ -1345,35 +1347,35 @@ namespace HomeBridge.BridgeTools
 
             foreach (var entry in letters)
             {
-                var row = entry as Dictionary<string, object>;
+                var row = entry as Dictionary<string, object?>;
                 if (row != null && row.ContainsKey("choiceCount") && row["choiceCount"] is int)
-                    letterChoices += (int)row["choiceCount"];
+                    letterChoices += BridgeCommon.Int(row, "choiceCount");
             }
 
             foreach (var entry in alerts)
             {
-                var row = entry as Dictionary<string, object>;
+                var row = entry as Dictionary<string, object?>;
                 if (row == null)
                     continue;
                 // AlertPriority is an ordered byte enum: Medium 0, High 1,
                 // Critical 2. The rank is compared, never one name matched, so
                 // a priority above the set still counts as loud.
                 if (row.ContainsKey("prioritySortValue") && row["prioritySortValue"] is int
-                    && (int)row["prioritySortValue"] >= (int)AlertPriority.High)
+                    && BridgeCommon.Int(row, "prioritySortValue") >= (int)AlertPriority.High)
                     loud++;
             }
 
             foreach (var entry in colonists)
             {
-                var row = entry as Dictionary<string, object>;
+                var row = entry as Dictionary<string, object?>;
                 if (row == null)
                     continue;
-                if ((row.ContainsKey("downed") && row["downed"] is bool && (bool)row["downed"])
-                    || (row.ContainsKey("dead") && row["dead"] is bool && (bool)row["dead"]))
+                if ((row.TryGetValue("downed", out var downedFlag) && downedFlag is true)
+                    || (row.TryGetValue("dead", out var deadFlag) && deadFlag is true))
                     downed++;
             }
 
-            return new Dictionary<string, object>(StringComparer.Ordinal)
+            return new Dictionary<string, object?>(StringComparer.Ordinal)
             {
                 { "letterCount", letters.Count },
                 { "letterChoiceCount", letterChoices },
@@ -1396,9 +1398,9 @@ namespace HomeBridge.BridgeTools
         /// on purpose: this is the between-turns call, and prose it already
         /// knows is the cheapest thing to cut.
         /// </summary>
-        private static Dictionary<string, object> Notes(bool wantExplanations)
+        private static Dictionary<string, object?> Notes(bool wantExplanations)
         {
-            var notes = new Dictionary<string, object>(StringComparer.Ordinal)
+            var notes = new Dictionary<string, object?>(StringComparer.Ordinal)
             {
                 ["messagesExpire"] = "messages[] dies 13 REAL seconds after it appears whatever the clock is doing. Read ageSeconds; ageTicks is 0 on a paused game.",
                 ["alertTargets"] = "Culprit names come from targets[], never from the prose. targetCount 0 with culpritsReadable true is map-wide; culpritsReadable false could not name anyone.",
@@ -1413,11 +1415,11 @@ namespace HomeBridge.BridgeTools
             return notes;
         }
 
-        private static Dictionary<string, object> DescribeTarget(GlobalTargetInfo target)
+        private static Dictionary<string, object?> DescribeTarget(GlobalTargetInfo target)
         {
-            var row = new Dictionary<string, object>(StringComparer.Ordinal);
+            var row = new Dictionary<string, object?>(StringComparer.Ordinal);
 
-            Thing thing = null;
+            Thing? thing = null;
             try { thing = target.Thing; }
             catch { thing = null; }
 
@@ -1432,7 +1434,7 @@ namespace HomeBridge.BridgeTools
                 return row;
             }
 
-            var worldObject = BridgeCommon.Try(() => target.WorldObject, (WorldObject)null);
+            var worldObject = BridgeCommon.Try(() => target.WorldObject, (WorldObject?)null);
             if (worldObject != null)
             {
                 row["kind"] = "worldObject";
@@ -1456,7 +1458,7 @@ namespace HomeBridge.BridgeTools
         /// {kind,name,thingId,defName,position}, or null when there is none.
         /// LookTargets.targets is dereferenced by both IsValid and Any, so the
         /// list is walked directly instead.</summary>
-        private static Dictionary<string, object> PrimaryLookTarget(LookTargets lookTargets)
+        private static Dictionary<string, object?>? PrimaryLookTarget(LookTargets? lookTargets)
         {
             if (lookTargets == null)
                 return null;
@@ -1489,7 +1491,7 @@ namespace HomeBridge.BridgeTools
 
         /// <summary>Find.CurrentMap, falling back to the first loaded map on the
         /// world view or mid-load, exactly as home/get_time does.</summary>
-        private static Map SafeMap()
+        private static Map? SafeMap()
         {
             try
             {
@@ -1513,15 +1515,15 @@ namespace HomeBridge.BridgeTools
             return BridgeCommon.Try(() => Find.TickManager != null ? Find.TickManager.TicksGame : 0, 0);
         }
 
-        private static string SafeName(Pawn pawn)
+        private static string? SafeName(Pawn pawn)
         {
             var name = BridgeCommon.SafeString(() => pawn.LabelShortCap);
             return name ?? BridgeCommon.SafeString(() => pawn.LabelCap);
         }
 
-        private static Dictionary<string, object> Skip(string field, string reason)
+        private static Dictionary<string, object?> Skip(string field, string reason)
         {
-            return new Dictionary<string, object>(StringComparer.Ordinal)
+            return new Dictionary<string, object?>(StringComparer.Ordinal)
             {
                 { "field", field },
                 { "reason", reason }

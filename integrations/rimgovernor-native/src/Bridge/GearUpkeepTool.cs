@@ -1,3 +1,5 @@
+#nullable enable
+
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -29,7 +31,7 @@ namespace HomeBridge.BridgeTools
                 parts.Add(filter.AllowedHitPointsPercents.max.ToString("R", System.Globalization.CultureInfo.InvariantCulture));
                 parts.Add(filter.AllowedQualityLevels.ToString());
             }
-            if (p.apparel != null)
+            if (p.apparel != null && p.outfits != null)
                 parts.AddRange(p.apparel.WornApparel.OrderBy(a => a.thingIDNumber).Select(a =>
                     a.GetUniqueLoadID() + ":" + p.outfits.forcedHandler.AllowedToAutomaticallyDrop(a) + ":" + p.apparel.IsLocked(a)));
             using (var hash = SHA256.Create())
@@ -46,7 +48,7 @@ namespace HomeBridge.BridgeTools
             insulationHeat = t.GetStatValue(StatDefOf.Insulation_Heat)
         };
 
-        internal static string Available(Pawn p)
+        internal static string? Available(Pawn p)
         {
             if (!p.IsFreeColonist || p.Dead || p.Downed || p.InMentalState || p.Drafted || p.IsQuestLodger())
                 return "Pawn unavailable or player controlled";
@@ -56,7 +58,7 @@ namespace HomeBridge.BridgeTools
             return null;
         }
 
-        internal static string Eligible(Pawn p, Apparel a)
+        internal static string? Eligible(Pawn p, Apparel a)
         {
             if (!a.Spawned || a.Map != p.Map || a.Position.Fogged(p.Map) || a.IsForbidden(p) || a.IsBurning())
                 return "Item unavailable or forbidden";
@@ -73,7 +75,7 @@ namespace HomeBridge.BridgeTools
             return null;
         }
 
-        internal static float Gain(Pawn p, Apparel a)
+        internal static float Gain(Pawn p, Apparel? a)
         {
             // Vanilla's scorer uses a static seasonal context. Restore it even if a mod throws.
             var field = AccessTools.Field(typeof(JobGiver_OptimizeApparel), "neededWarmth");
@@ -86,7 +88,7 @@ namespace HomeBridge.BridgeTools
             } finally { field.SetValue(null, prior); }
         }
 
-        internal static string WeaponEligible(Pawn p, ThingWithComps weapon)
+        internal static string? WeaponEligible(Pawn p, ThingWithComps weapon)
         {
             if (!weapon.def.IsWeapon || weapon.def.equipmentType != EquipmentType.Primary || weapon.GetComp<CompEquippable>() == null)
                 return "Definition is not a primary weapon";
@@ -118,9 +120,9 @@ namespace HomeBridge.BridgeTools
 
         internal sealed class ProductionNeed
         {
-            public string defName { get; set; }
-            public string stuff { get; set; }
-            public string reason { get; set; }
+            public string? defName { get; set; }
+            public string? stuff { get; set; }
+            public string? reason { get; set; }
         }
 
         internal static bool Deficit(Pawn p) => p.apparel != null &&
@@ -147,14 +149,14 @@ namespace HomeBridge.BridgeTools
             if (cold || hot) {
                 var stat = cold ? StatDefOf.Insulation_Cold : StatDefOf.Insulation_Heat;
                 var budgets = ProductionPolicyGuard.Budgets(p.Map, p);
-                var options = new List<Tuple<ThingDef, ThingDef, float>>();
+                var options = new List<Tuple<ThingDef, ThingDef?, float>>();
                 foreach (var def in p.outfits.CurrentApparelPolicy.filter.AllowedThingDefs.Where(d => d.IsApparel
                     && d.apparel.CorrectGenderForWearing(p.gender) && d.apparel.developmentalStageFilter.Has(p.DevelopmentalStage)
                     && ApparelUtility.HasPartsToWear(p, d))) {
                     var displaced = p.apparel.WornApparel.Where(a => !ApparelUtility.CanWearTogether(a.def, def, p.RaceProps.body)).ToList();
                     if (displaced.Any(a => !p.outfits.forcedHandler.AllowedToAutomaticallyDrop(a) || p.apparel.IsLocked(a))) continue;
-                    var stuffs = def.MadeFromStuff ? GenStuff.AllowedStuffsFor(def).Where(s => budgets.TryGetValue(s.defName, out var n) && n > 0)
-                        : new ThingDef[] { null };
+                    var stuffs = def.MadeFromStuff ? GenStuff.AllowedStuffsFor(def).Where(s => budgets.TryGetValue(s.defName, out var n) && n > 0).Cast<ThingDef?>()
+                        : new ThingDef?[] { null };
                     foreach (var stuff in stuffs) {
                         var gain = def.GetStatValueAbstract(stat, stuff) - displaced.Sum(a => a.GetStatValue(stat));
                         if (gain > 1f) options.Add(Tuple.Create(def, stuff, gain));
@@ -170,15 +172,15 @@ namespace HomeBridge.BridgeTools
         [Tool("home/gear_upkeep", Title = "Inspect or maintain gear",
             Description = "Inspect worn apparel, primary weapons and eligible replacements. Execution requires exact pawn, item and loadout signature; issues ordinary Wear or Equip work, preserves outfits, forced/locked apparel and player weapon assignments. A receipt is not a completed loadout.")]
         public async Task<object> Upkeep(IRimBridgeContext ctx, CancellationToken cancellationToken,
-            [ToolParameter(Description = "Exact current-map pawn Thing ID; omit for inspection of all colonists.")] string pawn = null,
-            [ToolParameter(Description = "Exact observed replacement apparel or weapon Thing ID.")] string target = null,
-            [ToolParameter(Description = "Loadout signature from inspection, required with target.")] string expectedLoadout = null,
+            [ToolParameter(Description = "Exact current-map pawn Thing ID; omit for inspection of all colonists.")] string? pawn = null,
+            [ToolParameter(Description = "Exact observed replacement apparel or weapon Thing ID.")] string? target = null,
+            [ToolParameter(Description = "Loadout signature from inspection, required with target.")] string? expectedLoadout = null,
             [ToolParameter(Description = "Inspect only.", DefaultValue = true)] bool dryRun = true)
         {
             return await ctx.MainThread.InvokeAsync<object>(() => Run(pawn, target, expectedLoadout, dryRun), cancellationToken).ConfigureAwait(false);
         }
 
-        internal static object Run(string pawn, string target, string expected, bool dryRun)
+        internal static object Run(string? pawn, string? target, string? expected, bool dryRun)
         {
             var map = Find.CurrentMap;
             if (map == null) return new { success = false, error = "No current map" };

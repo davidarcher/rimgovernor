@@ -1,3 +1,5 @@
+#nullable enable
+
 using System;
 using System.Linq;
 using System.Threading;
@@ -40,7 +42,7 @@ namespace HomeBridge.BridgeTools
             if (!inner.def.rotatable) rotation = 0;
             if (pending == null)
                 pending = installs.FirstOrDefault(b => b.ThingToInstall == inner);
-            object State(string state, bool accepted, string reason = null) => new
+            object State(string state, bool accepted, string? reason = null) => new
             {
                 success = true, state, accepted, reason, dryRun,
                 thingId = inner.GetUniqueLoadID(), packedThingId = mini?.GetUniqueLoadID(),

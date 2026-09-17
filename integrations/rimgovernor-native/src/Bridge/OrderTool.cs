@@ -1,4 +1,7 @@
+#nullable enable
+
 using System;
+using System.Diagnostics.CodeAnalysis;
 using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
@@ -155,18 +158,18 @@ namespace HomeBridge.BridgeTools
         [ToolResponse("errorKind", "string", "One of pawn_not_found, target_not_found, ambiguous, pawn_dead, pawn_downed, mental_state, incapable_of_violence, target_dead, not_reachable, draft_refused, draft_cleanup_required, job_refused, job_unverified, bad_arguments, work_disabled, missing_haul_designation, no_storage, no_bill. Null when there was no refusal.", Nullable = true)]
         [ToolResponse("unknownArguments", "array", "Every argument key the caller sent that this tool does not declare, sorted, case-sensitively. Empty array = every key was recognised.", Always = true)]
         [ToolResponse("unknownArgumentsWarning", "string", "Present only when unknownArguments is non-empty, or when the caller's raw keys could not be read at all - in which case the empty unknownArguments means 'not known', not 'nothing unknown'.", Nullable = true)]
-        public async Task<object> Order(
+        public async Task<object?> Order(
             IRimBridgeContext ctx,
             CancellationToken cancellationToken,
             [ToolParameter(Description = "resolve | draft | undraft | attack | goto | equip | rescue | capture | tend | haul | work | repair | clean. resolve reads and mutates nothing and is the safe way to learn a thing's id forms. haul is 'prioritize hauling X'; work is 'prioritize doing bills at X' - both go through the same WorkGiver path the float menu uses, so the job is the giver's own.", DefaultValue = "resolve")] string action = "resolve",
-            [ToolParameter(Description = "The colonist to order. Any of: the full thingId (Thing_Human123), the ThingID (Human123), the bare number (123), or a name/nickname case-insensitively. Required for every action except a resolve that names only a target.")] string pawn = null,
-            [ToolParameter(Description = "What to act on, for attack / rescue / tend / equip, and optional under resolve. Any spawned pawn or thing on the current map, in any of the same four id forms plus its label, plus the DefName@x,z form home/bills and home/building_config take (TableMachining@62,141) so a bench addressed by bills.py is addressable here. Hostility is never required.")] string target = null,
+            [ToolParameter(Description = "The colonist to order. Any of: the full thingId (Thing_Human123), the ThingID (Human123), the bare number (123), or a name/nickname case-insensitively. Required for every action except a resolve that names only a target.")] string? pawn = null,
+            [ToolParameter(Description = "What to act on, for attack / rescue / tend / equip, and optional under resolve. Any spawned pawn or thing on the current map, in any of the same four id forms plus its label, plus the DefName@x,z form home/bills and home/building_config take (TableMachining@62,141) so a bench addressed by bills.py is addressable here. Hostility is never required.")] string? target = null,
             [ToolParameter(Description = "Destination cell x, for goto. Also a fallback locator for equip - the weapon lying on that cell - when target is not given.", DefaultValue = int.MinValue)] int x = int.MinValue,
             [ToolParameter(Description = "Destination cell z, for goto. See x.", DefaultValue = int.MinValue)] int z = int.MinValue,
             [ToolParameter(Description = "attack only: auto | melee | ranged. auto melees when the pawn is unarmed or holds a melee weapon and shoots when it holds a ranged one, which is what vanilla's own float menu picks. melee and ranged force it.", DefaultValue = "auto")] string mode = "auto",
             [ToolParameter(Description = "Manage the draft state automatically. attack, goto and tend need a drafted pawn, so true drafts one that is not; haul and work are undrafted work orders unless the WorkGiver allows drafted work, so true undrafts. rescue and equip need no draft change at all. false refuses instead, so the caller can see the draft state was wrong.", DefaultValue = true)] bool draft = true,
-            [ToolParameter(Description = "Opaque controller claim for a newly auto-drafted pawn; never claims an existing draft.")] string draftOwner = null,
-            [ToolParameter(Description = "Undraft only if this native draft claim still matches; intervening draft changes refuse atomically.")] string releaseOwner = null,
+            [ToolParameter(Description = "Opaque controller claim for a newly auto-drafted pawn; never claims an existing draft.")] string? draftOwner = null,
+            [ToolParameter(Description = "Undraft only if this native draft claim still matches; intervening draft changes refuse atomically.")] string? releaseOwner = null,
             [ToolParameter(Description = "Permit a real ground-tend order to leave an auto-drafted doctor under caller-managed cleanup. False by default: raw calls otherwise have no reliable way to restore the doctor after the job completes. Dry runs do not require this flag.", DefaultValue = false)] bool allowPersistentDraft = false,
             [ToolParameter(Description = "Resolve everything, run every refusal check and report the job that WOULD be issued, without touching the game. Defaults to FALSE - this tool's job is to make orders land.", DefaultValue = false)] bool dryRun = false,
             [ToolParameter(Description = "Refuse a target that is not hostile to the player faction. Defaults to FALSE, because vanilla imposes no such rule and imposing it is what got a colonist killed.", DefaultValue = false)] bool requireHostile = false,
@@ -182,18 +185,18 @@ namespace HomeBridge.BridgeTools
                 ctx, typeof(HomeOrderTools), ToolName);
         }
 
-        private async Task<object> OrderCore(
+        private async Task<object?> OrderCore(
             IRimBridgeContext ctx,
             CancellationToken cancellationToken,
             string action,
-            string pawnArg,
-            string targetArg,
+            string? pawnArg,
+            string? targetArg,
             int x,
             int z,
             string mode,
             bool draft,
-            string draftOwner,
-            string releaseOwner,
+            string? draftOwner,
+            string? releaseOwner,
             bool allowPersistentDraft,
             bool dryRun,
             bool requireHostile,
@@ -255,8 +258,8 @@ namespace HomeBridge.BridgeTools
 
         private sealed class FirstHop
         {
-            internal object Reply;
-            internal Watch.Session Session;
+            internal object? Reply;
+            internal Watch.Session? Session;
         }
 
         private static FirstHop HopOne(IRimBridgeContext ctx, Request request, bool watch)
@@ -341,15 +344,15 @@ namespace HomeBridge.BridgeTools
 
         private sealed class Request
         {
-            internal string Action;
-            internal string PawnArg;
-            internal string TargetArg;
+            internal string? Action;
+            internal string? PawnArg;
+            internal string? TargetArg;
             internal int X;
             internal int Z;
-            internal string Mode;
+            internal string? Mode;
             internal bool Draft;
-            internal string DraftOwner;
-            internal string ReleaseOwner;
+            internal string? DraftOwner;
+            internal string? ReleaseOwner;
             internal bool AllowPersistentDraft;
             internal bool DryRun;
             internal bool RequireHostile;
@@ -364,16 +367,25 @@ namespace HomeBridge.BridgeTools
         /// method in this file that writes.</summary>
         private sealed class Plan
         {
-            internal string HaulTrackingId;
-            internal Request Request;
-            internal Map Map;
+            internal Plan(Request request) { Request = request; }
 
-            internal Pawn Pawn;
-            internal Thing Target;
-            internal Pawn TargetPawn;
+            internal string? HaulTrackingId;
+            internal readonly Request Request;
+            internal Map? Map;
+
+            internal Pawn? Pawn;
+            internal Thing? Target;
+            internal Pawn? TargetPawn;
+
+            /// <summary>The resolved map, pawn and target once Prepare has refused every
+            /// plan that lacks one; a throw here is a Prepare bug, not a game state.</summary>
+            internal Map LoadedMap => Map ?? throw new InvalidOperationException("The order plan has no map.");
+            internal Pawn OrderedPawn => Pawn ?? throw new InvalidOperationException("The order plan has no pawn.");
+            internal Thing OrderTarget => Target ?? throw new InvalidOperationException("The order plan has no target.");
+            internal Pawn TargetedPawn => TargetPawn ?? throw new InvalidOperationException("The order plan has no target pawn.");
             internal IntVec3 Cell = IntVec3.Invalid;
 
-            internal string TargetMatchedBy;
+            internal string? TargetMatchedBy;
             internal List<Thing> Candidates = new List<Thing>();
 
             /// <summary>Keep at most MaxCandidates of a tie, so a one-letter
@@ -385,8 +397,8 @@ namespace HomeBridge.BridgeTools
                     : (found.Count > MaxCandidates ? found.GetRange(0, MaxCandidates) : found);
             }
 
-            internal string Error;
-            internal string ErrorKind;
+            internal string? Error;
+            internal string? ErrorKind;
 
             // What Apply will do.
             internal bool NeedsDraft;
@@ -394,13 +406,13 @@ namespace HomeBridge.BridgeTools
             internal bool AutoDrafted;
             internal bool AutoUndrafted;
 
-            internal JobDef JobDef;
+            internal JobDef? JobDef;
             internal LocalTargetInfo TargetA = LocalTargetInfo.Invalid;
             internal LocalTargetInfo TargetB = LocalTargetInfo.Invalid;
             internal bool KillIncappedTarget;
             internal int ExpiryInterval = -1;
-            internal Verb Verb;
-            internal string ResolvedMode;
+            internal Verb? Verb;
+            internal string? ResolvedMode;
             internal int Count = -1;
             internal bool DraftedTend;
             internal bool UnforbidTarget;
@@ -410,20 +422,20 @@ namespace HomeBridge.BridgeTools
             /// this is set, Apply issues THIS object rather than building one:
             /// a work job carries queues, counts and a bill that only the
             /// giver knows how to fill in.</summary>
-            internal Job PreparedJob;
-            internal WorkGiver_Scanner Scanner;
-            internal WorkGiverDef GiverDef;
-            internal WorkTypeDef WorkType;
-            internal string BillLabel;
-            internal string TendPath;
+            internal Job? PreparedJob;
+            internal WorkGiver_Scanner? Scanner;
+            internal WorkGiverDef? GiverDef;
+            internal WorkTypeDef? WorkType;
+            internal string? BillLabel;
+            internal string? TendPath;
             internal int? HaulGlobalCandidateCount;
             internal bool? HaulTargetInGlobalList;
-            internal Dictionary<string, object> HaulChecks;
-            internal string RescuePath;
+            internal Dictionary<string, object?>? HaulChecks;
+            internal string? RescuePath;
 
             internal bool Issued;
             internal bool Verified;
-            internal string VerifiedReason;
+            internal string? VerifiedReason;
             internal bool Applied;
 
             internal void Refuse(string kind, string message)
@@ -441,7 +453,7 @@ namespace HomeBridge.BridgeTools
 
         private static Plan Prepare(Request request)
         {
-            var plan = new Plan { Request = request };
+            var plan = new Plan(request);
 
             if (Array.IndexOf(Actions, request.Action) < 0)
             {
@@ -456,7 +468,7 @@ namespace HomeBridge.BridgeTools
                 return plan;
             }
 
-            Map map;
+            Map? map;
             string mapError;
             if (!BridgeCommon.TryGetMap(ToolName, out map, out mapError))
             {
@@ -485,7 +497,7 @@ namespace HomeBridge.BridgeTools
             if (pawnWanted)
             {
                 List<Thing> pawnCandidates;
-                string matchedBy;
+                string? matchedBy;
                 var found = Resolve(map, request.PawnArg, true, out pawnCandidates, out matchedBy);
                 if (found == null)
                 {
@@ -515,7 +527,7 @@ namespace HomeBridge.BridgeTools
             if (targetWanted)
             {
                 List<Thing> targetCandidates;
-                string matchedBy;
+                string? matchedBy;
                 var found = Resolve(map, request.TargetArg, false, out targetCandidates, out matchedBy);
                 if (found == null)
                 {
@@ -543,13 +555,13 @@ namespace HomeBridge.BridgeTools
                 return plan;
 
             // ------------------------------------------- pawn-wide refusals
-            if (BridgeCommon.Try(() => plan.Pawn.Dead, false))
+            if (BridgeCommon.Try(() => plan.OrderedPawn.Dead, false))
             {
                 plan.Refuse("pawn_dead", NameOf(plan.Pawn) + " is dead and cannot be given an order.");
                 return plan;
             }
 
-            var mentalState = MentalStateOf(plan.Pawn);
+            var mentalState = MentalStateOf(plan.OrderedPawn);
             if (mentalState != null && request.Action != "undraft")
             {
                 plan.Refuse("mental_state",
@@ -563,7 +575,7 @@ namespace HomeBridge.BridgeTools
                 return plan;
             }
 
-            if (BridgeCommon.Try(() => plan.Pawn.Downed, false)
+            if (BridgeCommon.Try(() => plan.OrderedPawn.Downed, false)
                 && request.Action != "undraft")
             {
                 plan.Refuse("pawn_downed", NameOf(plan.Pawn) + " is downed and cannot act.");
@@ -592,7 +604,7 @@ namespace HomeBridge.BridgeTools
                     if (plan.Error == null && request.RequireSafeStorage) {
                         var destination = plan.PreparedJob?.targetB.Cell ?? IntVec3.Invalid;
                         if (!destination.IsValid || !destination.InBounds(plan.Map) || !destination.Roofed(plan.Map)
-                            || destination.GetSlotGroup(plan.Map) == null || plan.Pawn.Drafted
+                            || destination.GetSlotGroup(plan.LoadedMap) == null || plan.OrderedPawn.Drafted
                             || !plan.Pawn.CanReach(plan.Target, PathEndMode.Touch, Danger.None)
                             || !plan.Pawn.CanReach(destination, PathEndMode.OnCell, Danger.None))
                             plan.Refuse("job_refused", "Safe hauling requires reachable covered storage at dispatch.");
@@ -609,14 +621,14 @@ namespace HomeBridge.BridgeTools
 
         private static void PrepareDraft(Plan plan, bool wanted)
         {
-            var drafted = BridgeCommon.Try(() => plan.Pawn.Drafted, false);
+            var drafted = BridgeCommon.Try(() => plan.OrderedPawn.Drafted, false);
 
             if (!wanted)
             {
                 // Undrafting is unguarded in Pawn_DraftController's setter and is
                 // never the dangerous direction, so it is allowed on a downed or
                 // mentally broken pawn where drafting is not.
-                if (BridgeCommon.Try(() => plan.Pawn.drafter, (Pawn_DraftController)null) == null)
+                if (BridgeCommon.Try(() => plan.OrderedPawn.drafter, (Pawn_DraftController?)null) == null)
                     plan.Refuse("draft_refused",
                         NameOf(plan.Pawn) + " has no Pawn_DraftController, so it can be neither drafted nor undrafted.");
                 else if (drafted)
@@ -624,7 +636,7 @@ namespace HomeBridge.BridgeTools
                 return;
             }
 
-            string why;
+            string? why;
             if (!CanBeDrafted(plan.Pawn, out why))
             {
                 plan.Refuse("draft_refused", NameOf(plan.Pawn) + " cannot be drafted: " + why);
@@ -638,7 +650,7 @@ namespace HomeBridge.BridgeTools
         /// according to the caller's `draft` flag.</summary>
         private static bool EnsureDraft(Plan plan, bool wantDrafted)
         {
-            var drafted = BridgeCommon.Try(() => plan.Pawn.Drafted, false);
+            var drafted = BridgeCommon.Try(() => plan.OrderedPawn.Drafted, false);
             if (drafted == wantDrafted)
                 return true;
 
@@ -654,7 +666,7 @@ namespace HomeBridge.BridgeTools
 
             if (wantDrafted)
             {
-                string why;
+                string? why;
                 if (!CanBeDrafted(plan.Pawn, out why))
                 {
                     plan.Refuse("draft_refused",
@@ -703,7 +715,7 @@ namespace HomeBridge.BridgeTools
 
             // WorkTags.Violent is the ONE thing that stops an attack, and it
             // does not stop a draft: see CanBeDrafted.
-            if (IncapableOfViolence(plan.Pawn))
+            if (IncapableOfViolence(plan.OrderedPawn))
             {
                 plan.Refuse("incapable_of_violence",
                     NameOf(plan.Pawn) + " has WorkTags.Violent disabled and cannot be ordered to attack anything. "
@@ -711,12 +723,13 @@ namespace HomeBridge.BridgeTools
                 return;
             }
 
-            if (plan.Request.RequireStandingTarget && BridgeCommon.Try(() => plan.TargetPawn.Downed, true))
+            var standingTarget = plan.TargetPawn;
+            if (plan.Request.RequireStandingTarget && (standingTarget == null || BridgeCommon.Try(() => standingTarget.Downed, true)))
             {
                 plan.Refuse("target_downed", "Target is no longer standing; attack was not issued.");
                 return;
             }
-            if (plan.Request.RequireHostile && !HostileToPlayer(plan.Target))
+            if (plan.Request.RequireHostile && !HostileToPlayer(plan.OrderTarget))
             {
                 plan.Refuse("job_refused",
                     "requireHostile:true was passed and " + Describe(plan.Target)
@@ -801,7 +814,7 @@ namespace HomeBridge.BridgeTools
             var weapon = plan.Target;
             if (weapon == null && plan.Cell.IsValid)
             {
-                weapon = WeaponOnCell(plan.Map, plan.Cell);
+                weapon = WeaponOnCell(plan.LoadedMap, plan.Cell);
                 if (weapon == null)
                 {
                     plan.Refuse("target_not_found",
@@ -824,7 +837,7 @@ namespace HomeBridge.BridgeTools
             }
 
             // FloatMenuOptionProvider_Equip's own gates, in its own order.
-            if (BridgeCommon.Try(() => plan.Pawn.equipment, (Pawn_EquipmentTracker)null) == null)
+            if (BridgeCommon.Try(() => plan.OrderedPawn.equipment, (Pawn_EquipmentTracker?)null) == null)
             {
                 plan.Refuse("job_refused", NameOf(plan.Pawn) + " has no equipment tracker and can carry no weapon.");
                 return;
@@ -837,14 +850,14 @@ namespace HomeBridge.BridgeTools
                     Describe(weapon) + " is not an equippable weapon (no CompEquippable).");
                 return;
             }
-            if (IncapableOfViolence(plan.Pawn))
+            if (IncapableOfViolence(plan.OrderedPawn))
             {
                 plan.Refuse("incapable_of_violence",
                     NameOf(plan.Pawn) + " has WorkTags.Violent disabled and cannot equip a weapon.");
                 return;
             }
             if (BridgeCommon.Try(() => weapon.def.IsRangedWeapon, false)
-                && BridgeCommon.Try(() => plan.Pawn.WorkTagIsDisabled(WorkTags.Shooting), false))
+                && BridgeCommon.Try(() => plan.OrderedPawn.WorkTagIsDisabled(WorkTags.Shooting), false))
             {
                 plan.Refuse("job_refused", NameOf(plan.Pawn) + " has WorkTags.Shooting disabled and cannot equip a ranged weapon.");
                 return;
@@ -855,7 +868,7 @@ namespace HomeBridge.BridgeTools
                 return;
             }
             if (!BridgeCommon.Try(
-                    () => plan.Pawn.health.capacities.CapableOf(PawnCapacityDefOf.Manipulation), false))
+                    () => plan.OrderedPawn.health.capacities.CapableOf(PawnCapacityDefOf.Manipulation), false))
             {
                 plan.Refuse("job_refused", NameOf(plan.Pawn) + " is incapable of manipulation and cannot pick anything up.");
                 return;
@@ -865,7 +878,7 @@ namespace HomeBridge.BridgeTools
                 plan.Refuse("job_refused", Describe(weapon) + " is on fire.");
                 return;
             }
-            string cantReason = null;
+            string? cantReason = null;
             if (!BridgeCommon.Try(() => EquipmentUtility.CanEquip(weapon, plan.Pawn, out cantReason, false), false))
             {
                 plan.Refuse("job_refused",
@@ -884,7 +897,7 @@ namespace HomeBridge.BridgeTools
             var target = plan.TargetPawn;
             if (target == null || target.Dead || !target.Spawned || !target.CanBeCaptured()
                 || !HealthAIUtility.CanRescueNow(plan.Pawn, target, true)
-                || !plan.Pawn.health.capacities.CapableOf(PawnCapacityDefOf.Manipulation))
+                || !plan.OrderedPawn.health.capacities.CapableOf(PawnCapacityDefOf.Manipulation))
             {
                 plan.Refuse("capture_ineligible", "Native capture eligibility or worker manipulation refused.");
                 return;
@@ -944,7 +957,7 @@ namespace HomeBridge.BridgeTools
             // through WorkGiver_RescueDowned on the same prioritize route.
             // Preferred because it is what a player's undrafted right-click
             // does and it needs no draft change.
-            string rescueFail;
+            string? rescueFail;
             if (TryWorkGiverJob(plan,
                     def => BridgeCommon.Try(
                         () => def.giverClass != null && typeof(WorkGiver_RescueDowned).IsAssignableFrom(def.giverClass), false),
@@ -966,7 +979,7 @@ namespace HomeBridge.BridgeTools
                     + "downed, is already being carried, or cannot be reached.");
                 return;
             }
-            if (HostileToPlayer(plan.Target))
+            if (HostileToPlayer(plan.OrderTarget))
             {
                 plan.Refuse("job_refused",
                     Describe(plan.Target) + " belongs to a faction hostile to the colony; vanilla offers no rescue for one, "
@@ -1003,7 +1016,7 @@ namespace HomeBridge.BridgeTools
                 plan.Refuse("target_not_found", Describe(plan.Target) + " is not spawned on the map.");
                 return;
             }
-            if (BridgeCommon.Try(() => plan.Pawn.WorkTypeIsDisabled(WorkTypeDefOf.Doctor), false))
+            if (BridgeCommon.Try(() => plan.OrderedPawn.WorkTypeIsDisabled(WorkTypeDefOf.Doctor), false))
             {
                 plan.Refuse("work_disabled",
                     NameOf(plan.Pawn) + " has the Doctor work type disabled and cannot tend anyone. "
@@ -1017,7 +1030,7 @@ namespace HomeBridge.BridgeTools
             // in a bed, which is the overwhelmingly common case, and it needs
             // no draft. Only when it yields nothing AND the patient is lying on
             // the ground does the drafted provider get a turn.
-            string tendFail;
+            string? tendFail;
             if (TryWorkGiverJob(plan,
                     def => BridgeCommon.Try(
                         () => def.giverClass != null && typeof(WorkGiver_Tend).IsAssignableFrom(def.giverClass), false),
@@ -1118,15 +1131,15 @@ namespace HomeBridge.BridgeTools
                 return;
             }
 
-            var globalHaulables = BridgeCommon.Try<List<Thing>>(
-                () => plan.Map.listerHaulables.ThingsPotentiallyNeedingHauling().ToList(), null);
+            var globalHaulables = BridgeCommon.Try<List<Thing>?>(
+                () => plan.LoadedMap.listerHaulables.ThingsPotentiallyNeedingHauling().ToList(), null);
             plan.HaulGlobalCandidateCount = globalHaulables == null ? (int?)null : globalHaulables.Count;
             plan.HaulTargetInGlobalList = globalHaulables == null
                 ? (bool?)null : globalHaulables.Contains(plan.Target);
             plan.HaulChecks = HaulCheckBlock(plan);
-            var alwaysHaulable = (bool)plan.HaulChecks["alwaysHaulable"];
-            var designated = (bool)plan.HaulChecks["haulDesignation"];
-            var inStorage = (bool)plan.HaulChecks["inValidStorage"];
+            var alwaysHaulable = BridgeCommon.Flag(plan.HaulChecks, "alwaysHaulable");
+            var designated = BridgeCommon.Flag(plan.HaulChecks, "haulDesignation");
+            var inStorage = BridgeCommon.Flag(plan.HaulChecks, "inValidStorage");
             if (!alwaysHaulable && !designated && !inStorage)
             {
                 plan.Refuse("missing_haul_designation",
@@ -1138,8 +1151,8 @@ namespace HomeBridge.BridgeTools
                 return;
             }
 
-            var hauling = BridgeCommon.Try<WorkTypeDef>(() => WorkTypeDefOf.Hauling, null);
-            if (hauling != null && BridgeCommon.Try(() => plan.Pawn.WorkTypeIsDisabled(hauling), false))
+            var hauling = BridgeCommon.Try<WorkTypeDef?>(() => WorkTypeDefOf.Hauling, null);
+            if (hauling != null && BridgeCommon.Try(() => plan.OrderedPawn.WorkTypeIsDisabled(hauling), false))
             {
                 plan.Refuse("work_disabled",
                     NameOf(plan.Pawn) + " is incapable of Hauling, so no haul order can be given. This is a capability, "
@@ -1150,7 +1163,7 @@ namespace HomeBridge.BridgeTools
             // NOT Thing.IsForbidden(pawn): it reaches Faction.OfPlayer. The
             // comp is the same answer with no getter that can pause the game.
             var comps = plan.Target as ThingWithComps;
-            var forbiddable = comps == null ? null : BridgeCommon.Try<CompForbiddable>(() => comps.GetComp<CompForbiddable>(), null);
+            var forbiddable = comps == null ? null : BridgeCommon.Try<CompForbiddable?>(() => comps.GetComp<CompForbiddable>(), null);
             if (forbiddable != null && BridgeCommon.Try(() => forbiddable.Forbidden, false))
             {
                 plan.Refuse("job_refused",
@@ -1159,8 +1172,8 @@ namespace HomeBridge.BridgeTools
                 return;
             }
 
-            string failReason;
-            if (!TryWorkGiverJob(plan, def => ReferenceEquals(BridgeCommon.Try<WorkTypeDef>(() => def.workType, null), hauling),
+            string? failReason;
+            if (!TryWorkGiverJob(plan, def => ReferenceEquals(BridgeCommon.Try<WorkTypeDef?>(() => def.workType, null), hauling),
                                  out failReason))
             {
                 if (!HasSomewhereToPut(plan))
@@ -1174,7 +1187,7 @@ namespace HomeBridge.BridgeTools
                         // are reach, forbidden and reservation, in that order
                         // of likelihood.
                         var reachesCell = BridgeCommon.Try(
-                            () => plan.Map.reachability.CanReach(
+                            () => plan.LoadedMap.reachability.CanReach(
                                 plan.Target.Position, elsewhere, PathEndMode.ClosestTouch,
                                 TraverseParms.For(plan.Pawn)), true);
                         plan.Refuse("unreachable_storage",
@@ -1222,14 +1235,14 @@ namespace HomeBridge.BridgeTools
         private static void PrepareUpkeep(Plan plan)
         {
             var t = plan.Target;
-            if (t == null || !t.Spawned || !plan.Map.areaManager.Home[t.Position])
+            if (t == null || !t.Spawned || !plan.LoadedMap.areaManager.Home[t.Position])
             {
                 plan.Refuse("job_refused", "Upkeep requires an exact spawned target inside the current home area.");
                 return;
             }
             if (t.IsForbidden(plan.Pawn)
                 || !plan.Pawn.CanReach(t, PathEndMode.Touch, Danger.None)
-                || plan.Pawn.Drafted || plan.Pawn.health.HasHediffsNeedingTend())
+                || plan.OrderedPawn.Drafted || plan.OrderedPawn.health.HasHediffsNeedingTend())
             {
                 plan.Refuse("job_refused", "Upkeep requires safe access and an undrafted worker who needs no tending.");
                 return;
@@ -1248,7 +1261,7 @@ namespace HomeBridge.BridgeTools
                 plan.Refuse("work_disabled", "Upkeep work type is unavailable.");
                 return;
             }
-            string failure;
+            string? failure;
             var giverType = action == "repair" ? typeof(WorkGiver_Repair) : typeof(WorkGiver_CleanFilth);
             if (!TryWorkGiverJob(plan, def => def.giverClass != null && giverType.IsAssignableFrom(def.giverClass), out failure))
             {
@@ -1279,7 +1292,7 @@ namespace HomeBridge.BridgeTools
                 return;
             }
 
-            string failReason;
+            string? failReason;
             if (!TryWorkGiverJob(plan,
                     def => BridgeCommon.Try(
                         () => def.giverClass != null && typeof(WorkGiver_DoBill).IsAssignableFrom(def.giverClass), false),
@@ -1312,10 +1325,10 @@ namespace HomeBridge.BridgeTools
         /// </summary>
         private static void FinishWorkGiverPlan(Plan plan)
         {
-            var scanner = plan.Scanner;
-            var giver = plan.GiverDef;
+            var scanner = plan.Scanner ?? throw new InvalidOperationException("Work-giver plan has no scanner.");
+            var giver = plan.GiverDef ?? throw new InvalidOperationException("Work-giver plan has no giver def.");
 
-            var missing = BridgeCommon.Try<PawnCapacityDef>(() => scanner.MissingRequiredCapacity(plan.Pawn), null);
+            var missing = BridgeCommon.Try<PawnCapacityDef?>(() => scanner.MissingRequiredCapacity(plan.OrderedPawn), null);
             if (missing != null)
             {
                 plan.Refuse("work_disabled",
@@ -1323,13 +1336,13 @@ namespace HomeBridge.BridgeTools
                     + (BridgeCommon.SafeString(() => missing.LabelCap.ToString()) ?? DefNameOf(missing)) + ").");
                 return;
             }
-            if (BridgeCommon.Try(() => plan.Pawn.WorkTagIsDisabled(giver.workTags), false))
+            if (BridgeCommon.Try(() => plan.OrderedPawn.WorkTagIsDisabled(giver.workTags), false))
             {
                 plan.Refuse("work_disabled",
-                    NameOf(plan.Pawn) + " has the work tags this job needs disabled (" + giver.workTags + ").");
+                    NameOf(plan.OrderedPawn) + " has the work tags this job needs disabled (" + giver.workTags + ").");
                 return;
             }
-            if (plan.WorkType != null && BridgeCommon.Try(() => plan.Pawn.WorkTypeIsDisabled(plan.WorkType), false))
+            if (plan.WorkType != null && BridgeCommon.Try(() => plan.OrderedPawn.WorkTypeIsDisabled(plan.WorkType), false))
             {
                 plan.Refuse("work_disabled",
                     NameOf(plan.Pawn) + " is incapable of " + DefNameOf(plan.WorkType)
@@ -1339,15 +1352,15 @@ namespace HomeBridge.BridgeTools
 
             // Vanilla's own per-giver rule: a drafted pawn is offered the
             // option only when the giver says it may be done while drafted.
-            if (BridgeCommon.Try(() => plan.Pawn.Drafted, false)
+            if (BridgeCommon.Try(() => plan.OrderedPawn.Drafted, false)
                 && !BridgeCommon.Try(() => giver.canBeDoneWhileDrafted, false))
             {
                 if (!EnsureDraft(plan, false))
                     return;
             }
 
-            var job = plan.PreparedJob;
-            plan.JobDef = BridgeCommon.Try<JobDef>(() => job.def, null);
+            var job = plan.PreparedJob ?? throw new InvalidOperationException("Work-giver plan has no prepared job.");
+            plan.JobDef = BridgeCommon.Try<JobDef?>(() => job.def, null);
             plan.TargetA = BridgeCommon.Try(() => job.targetA, LocalTargetInfo.Invalid);
             plan.TargetB = BridgeCommon.Try(() => job.targetB, LocalTargetInfo.Invalid);
             plan.Count = BridgeCommon.Try(() => job.count, -1);
@@ -1373,7 +1386,7 @@ namespace HomeBridge.BridgeTools
         ///     no reason at all. It is restored in a `finally`, to whatever it
         ///     held before -- normally null.
         /// </summary>
-        private static bool TryWorkGiverJob(Plan plan, Func<WorkGiverDef, bool> accept, out string failReason)
+        private static bool TryWorkGiverJob(Plan plan, Func<WorkGiverDef, bool> accept, out string? failReason)
         {
             var result = WorkGiverDispatch.TryJob(plan.Pawn, plan.Target, accept, out failReason);
             if (result == null)
@@ -1398,7 +1411,7 @@ namespace HomeBridge.BridgeTools
                 IHaulDestination destination;
                 var current = StoreUtility.CurrentStoragePriorityOf(plan.Target, true);
                 return StoreUtility.TryFindBestBetterStorageFor(
-                    plan.Target, plan.Pawn, plan.Map, current, plan.Pawn.Faction, out cell, out destination);
+                    plan.OrderTarget, plan.OrderedPawn, plan.LoadedMap, current, plan.OrderedPawn.Faction, out cell, out destination);
             }
             catch { return true; }
         }
@@ -1427,7 +1440,7 @@ namespace HomeBridge.BridgeTools
                 IHaulDestination destination;
                 var current = StoreUtility.CurrentStoragePriorityOf(plan.Target, true);
                 var found = StoreUtility.TryFindBestBetterStorageFor(
-                    plan.Target, null, plan.Map, current, plan.Pawn.Faction, out cell, out destination);
+                    plan.OrderTarget, null, plan.LoadedMap, current, plan.OrderedPawn.Faction, out cell, out destination);
                 if (found)
                     foundCell = cell;
                 return found;
@@ -1438,11 +1451,11 @@ namespace HomeBridge.BridgeTools
         /// <summary>Every silent gate in PawnCanAutomaticallyHaulFast_NewTemp,
         /// plus the storage search. Pure reads, emitted on success and refusal
         /// so a null JobOnThing is diagnosable without changing the colony.</summary>
-        private static Dictionary<string, object> HaulCheckBlock(Plan plan)
+        private static Dictionary<string, object?> HaulCheckBlock(Plan plan)
         {
-            var p = plan.Pawn;
-            var t = plan.Target;
-            var checks = new Dictionary<string, object>();
+            var p = plan.OrderedPawn;
+            var t = plan.OrderTarget;
+            var checks = new Dictionary<string, object?>();
             checks["everHaulable"] = BridgeCommon.Try(() => t.def != null && t.def.EverHaulable, false);
             checks["alwaysHaulable"] = BridgeCommon.Try(() => t.def != null && t.def.alwaysHaulable, false);
             checks["fogged"] = BridgeCommon.Try(() => t.Fogged(), false);
@@ -1461,7 +1474,7 @@ namespace HomeBridge.BridgeTools
                 IHaulDestination destination;
                 var priority = StoreUtility.CurrentStoragePriorityOf(t, true);
                 var found = StoreUtility.TryFindBestBetterStorageFor(
-                    t, p, plan.Map, priority, p.Faction, out cell, out destination);
+                    t, p, plan.LoadedMap, priority, p.Faction, out cell, out destination);
                 checks["currentStoragePriority"] = priority.ToString();
                 checks["betterStorageFound"] = found;
                 checks["storageCell"] = found ? BridgeCommon.Pos(cell) : null;
@@ -1623,7 +1636,7 @@ namespace HomeBridge.BridgeTools
                     }
                 }
                 plan.Issued = plan.Scanner != null
-                    ? jobs.TryTakeOrderedJobPrioritizedWork(job, plan.Scanner, BridgeCommon.Try(() => plan.Target.Position, IntVec3.Invalid))
+                    ? jobs.TryTakeOrderedJobPrioritizedWork(job, plan.Scanner, BridgeCommon.Try(() => plan.OrderTarget.Position, IntVec3.Invalid))
                     : jobs.TryTakeOrderedJob(job, JobTag.Misc);
             }
             catch (Exception ex)
@@ -1641,7 +1654,7 @@ namespace HomeBridge.BridgeTools
             // state or a higher-priority job giver can replace it in the same
             // frame. Equipping a weapon at the pawn's feet can also complete
             // immediately; exact equipped identity verifies that outcome.
-            var current = BridgeCommon.Try<Job>(() => plan.Pawn.CurJob, null);
+            var current = BridgeCommon.Try<Job?>(() => plan.Pawn.CurJob, null);
             if (plan.JobDef == JobDefOf.Equip && plan.TargetA.HasThing
                 && ReferenceEquals(plan.Pawn.equipment?.Primary, plan.TargetA.Thing))
             {
@@ -1711,7 +1724,7 @@ namespace HomeBridge.BridgeTools
         /// </summary>
         private static void BuildMeleeJob(Plan plan)
         {
-            plan.JobDef = BridgeCommon.Try<JobDef>(() => JobDefOf.AttackMelee, null);
+            plan.JobDef = BridgeCommon.Try<JobDef?>(() => JobDefOf.AttackMelee, null);
             if (plan.JobDef == null)
             {
                 plan.Refuse("job_refused", "JobDefOf.AttackMelee was not found in this build.");
@@ -1729,7 +1742,7 @@ namespace HomeBridge.BridgeTools
 
             // Pawn_MeleeVerbs.TryGetMeleeVerb memoises curMeleeVerb; it is the
             // call the float menu itself makes, so it is safe here.
-            if (BridgeCommon.Try<Verb>(() => plan.Pawn.meleeVerbs.TryGetMeleeVerb(plan.Target), null) == null)
+            if (BridgeCommon.Try<Verb?>(() => plan.OrderedPawn.meleeVerbs.TryGetMeleeVerb(plan.OrderTarget), null) == null)
             {
                 plan.Refuse("job_refused",
                     NameOf(plan.Pawn) + " has no melee verb that can strike " + Describe(plan.Target)
@@ -1739,7 +1752,7 @@ namespace HomeBridge.BridgeTools
 
             plan.TargetA = plan.Target;
             plan.KillIncappedTarget = plan.TargetPawn != null && BridgeCommon.Try(() => plan.TargetPawn.Downed, false);
-            plan.Verb = BridgeCommon.Try<Verb>(() => plan.Pawn.meleeVerbs.TryGetMeleeVerb(plan.Target), null);
+            plan.Verb = BridgeCommon.Try<Verb?>(() => plan.OrderedPawn.meleeVerbs.TryGetMeleeVerb(plan.OrderTarget), null);
         }
 
         /// <summary>
@@ -1761,7 +1774,7 @@ namespace HomeBridge.BridgeTools
         /// </summary>
         private static void BuildRangedJob(Plan plan)
         {
-            plan.JobDef = BridgeCommon.Try<JobDef>(() => JobDefOf.AttackStatic, null);
+            plan.JobDef = BridgeCommon.Try<JobDef?>(() => JobDefOf.AttackStatic, null);
             if (plan.JobDef == null)
             {
                 plan.Refuse("job_refused", "JobDefOf.AttackStatic was not found in this build.");
@@ -1776,8 +1789,8 @@ namespace HomeBridge.BridgeTools
                 return;
             }
 
-            var primary = BridgeCommon.Try<Verb>(
-                () => plan.Pawn.equipment.PrimaryEq.PrimaryVerb, null);
+            var primary = BridgeCommon.Try<Verb?>(
+                () => plan.OrderedPawn.equipment.PrimaryEq.PrimaryVerb, null);
             if (primary == null)
             {
                 plan.Refuse("job_refused",
@@ -1796,8 +1809,8 @@ namespace HomeBridge.BridgeTools
             plan.TargetA = plan.Target;
             // Reported, never written onto the job: this is the verb
             // JobDriver_AttackStatic will pick for itself.
-            plan.Verb = BridgeCommon.Try<Verb>(
-                () => plan.Pawn.TryGetAttackVerb(plan.Target, !plan.Pawn.IsColonist), null);
+            plan.Verb = BridgeCommon.Try<Verb?>(
+                () => plan.OrderedPawn.TryGetAttackVerb(plan.OrderTarget, !plan.OrderedPawn.IsColonist), null);
         }
 
         /// <summary>
@@ -1815,7 +1828,7 @@ namespace HomeBridge.BridgeTools
         /// </summary>
         private static void BuildGotoJob(Plan plan)
         {
-            plan.JobDef = BridgeCommon.Try<JobDef>(() => JobDefOf.Goto, null);
+            plan.JobDef = BridgeCommon.Try<JobDef?>(() => JobDefOf.Goto, null);
             if (plan.JobDef == null)
             {
                 plan.Refuse("job_refused", "JobDefOf.Goto was not found in this build.");
@@ -1834,7 +1847,7 @@ namespace HomeBridge.BridgeTools
         /// </summary>
         private static void BuildEquipJob(Plan plan)
         {
-            plan.JobDef = BridgeCommon.Try<JobDef>(() => JobDefOf.Equip, null);
+            plan.JobDef = BridgeCommon.Try<JobDef?>(() => JobDefOf.Equip, null);
             if (plan.JobDef == null)
             {
                 plan.Refuse("job_refused", "JobDefOf.Equip was not found in this build.");
@@ -1854,18 +1867,18 @@ namespace HomeBridge.BridgeTools
         /// </summary>
         private static void BuildRescueJob(Plan plan)
         {
-            plan.JobDef = BridgeCommon.Try<JobDef>(() => JobDefOf.Rescue, null);
+            plan.JobDef = BridgeCommon.Try<JobDef?>(() => JobDefOf.Rescue, null);
             if (plan.JobDef == null)
             {
                 plan.Refuse("job_refused", "JobDefOf.Rescue was not found in this build.");
                 return;
             }
 
-            var bed = BridgeCommon.Try<Building_Bed>(
+            var bed = BridgeCommon.Try<Building_Bed?>(
                 () => RestUtility.FindBedFor(plan.TargetPawn, plan.Pawn, checkSocialProperness: false), null);
             if (bed == null)
             {
-                bed = BridgeCommon.Try<Building_Bed>(
+                bed = BridgeCommon.Try<Building_Bed?>(
                     () => RestUtility.FindBedFor(plan.TargetPawn, plan.Pawn, false, ignoreOtherReservations: true), null);
             }
             if (bed == null)
@@ -1908,14 +1921,14 @@ namespace HomeBridge.BridgeTools
         /// </summary>
         private static void BuildTendJob(Plan plan)
         {
-            plan.JobDef = BridgeCommon.Try<JobDef>(() => JobDefOf.TendPatient, null);
+            plan.JobDef = BridgeCommon.Try<JobDef?>(() => JobDefOf.TendPatient, null);
             if (plan.JobDef == null)
             {
                 plan.Refuse("job_refused", "JobDefOf.TendPatient was not found in this build.");
                 return;
             }
             plan.TargetA = plan.Target;
-            plan.TargetB = BridgeCommon.Try<Thing>(
+            plan.TargetB = BridgeCommon.Try<Thing?>(
                 () => HealthAIUtility.FindBestMedicine(plan.Pawn, plan.TargetPawn, onlyUseInventory: true), null);
             plan.Count = 1;
             plan.DraftedTend = true;
@@ -1940,7 +1953,7 @@ namespace HomeBridge.BridgeTools
         /// vanishing, and the caller gets `dead: true` instead of
         /// "target_not_found".
         /// </summary>
-        private static Thing Resolve(Map map, string query, bool pawnsOnly, out List<Thing> candidates, out string matchedBy)
+        private static Thing? Resolve(Map map, string? query, bool pawnsOnly, out List<Thing> candidates, out string? matchedBy)
         {
             candidates = new List<Thing>();
             matchedBy = null;
@@ -2065,7 +2078,7 @@ namespace HomeBridge.BridgeTools
                 var corpse = thing as Corpse;
                 if (corpse == null)
                     continue;
-                var inner = BridgeCommon.Try<Pawn>(() => corpse.InnerPawn, null);
+                var inner = BridgeCommon.Try<Pawn?>(() => corpse.InnerPawn, null);
                 if (inner != null && seen.Add(inner))
                     pool.Add(inner);
             }
@@ -2077,7 +2090,7 @@ namespace HomeBridge.BridgeTools
         /// Nulls are dropped rather than matched against.</summary>
         private static IEnumerable<string> Names(Thing thing)
         {
-            var names = new List<string>();
+            var names = new List<string?>();
             var pawn = thing as Pawn;
             if (pawn != null)
             {
@@ -2091,7 +2104,7 @@ namespace HomeBridge.BridgeTools
             names.Add(BridgeCommon.SafeString(() => thing.Label));
             names.Add(BridgeCommon.SafeString(() => thing.def == null ? null : thing.def.label));
             names.Add(BridgeCommon.SafeString(() => thing.def == null ? null : thing.def.defName));
-            return names.Where(n => !string.IsNullOrEmpty(n));
+            return names.OfType<string>().Where(n => n.Length > 0);
         }
 
         /// <summary>Does a thing stand on this cell? `GenAdj.OccupiedRect`
@@ -2112,7 +2125,7 @@ namespace HomeBridge.BridgeTools
                 : string.Empty;
         }
 
-        private static bool Eq(string a, string b)
+        private static bool Eq(string? a, string b)
         {
             return a != null && string.Equals(a, b, StringComparison.OrdinalIgnoreCase);
         }
@@ -2134,12 +2147,12 @@ namespace HomeBridge.BridgeTools
         /// ORDERS are refused. A fork that skipped drafting everyone on that
         /// belief is what left two colonists standing still.
         /// </summary>
-        private static bool CanBeDrafted(Pawn pawn, out string reason)
+        private static bool CanBeDrafted(Pawn? pawn, out string? reason)
         {
             reason = null;
             if (pawn == null) { reason = "there is no pawn."; return false; }
 
-            if (BridgeCommon.Try(() => pawn.drafter, (Pawn_DraftController)null) == null)
+            if (BridgeCommon.Try(() => pawn.drafter, (Pawn_DraftController?)null) == null)
             {
                 reason = "it has no Pawn_DraftController -- animals, prisoners and other factions' pawns have none.";
                 return false;
@@ -2162,15 +2175,15 @@ namespace HomeBridge.BridgeTools
             return BridgeCommon.Try(() => pawn.WorkTagIsDisabled(WorkTags.Violent), false);
         }
 
-        private static string MentalStateOf(Pawn pawn)
+        private static string? MentalStateOf(Pawn pawn)
         {
             return BridgeCommon.SafeString(
                 () => pawn.MentalStateDef == null ? null : pawn.MentalStateDef.defName);
         }
 
-        private static ThingWithComps PrimaryWeapon(Pawn pawn)
+        private static ThingWithComps? PrimaryWeapon(Pawn pawn)
         {
-            return BridgeCommon.Try<ThingWithComps>(
+            return BridgeCommon.Try<ThingWithComps?>(
                 () => pawn.equipment == null ? null : pawn.equipment.Primary, null);
         }
 
@@ -2179,7 +2192,7 @@ namespace HomeBridge.BridgeTools
             return BridgeCommon.Try(() => weapon.def != null && weapon.def.IsRangedWeapon, false);
         }
 
-        private static Thing WeaponOnCell(Map map, IntVec3 cell)
+        private static Thing? WeaponOnCell(Map map, IntVec3 cell)
         {
             try
             {
@@ -2203,7 +2216,7 @@ namespace HomeBridge.BridgeTools
             {
                 var pawn = thing as Pawn;
                 var mental = pawn == null ? null : MentalStateOf(pawn);
-                if (!string.IsNullOrEmpty(mental)
+                if (mental != null && mental.Length > 0
                     && mental.IndexOf("Manhunter", StringComparison.OrdinalIgnoreCase) >= 0)
                     return true;
 
@@ -2220,9 +2233,9 @@ namespace HomeBridge.BridgeTools
         // The reply
         // =================================================================
 
-        private static object Reply(Plan plan, Dictionary<string, object> watch, bool applied)
+        private static object Reply(Plan plan, Dictionary<string, object?> watch, bool applied)
         {
-            var payload = new Dictionary<string, object>(StringComparer.Ordinal)
+            var payload = new Dictionary<string, object?>(StringComparer.Ordinal)
             {
                 { "success", plan.Error == null },
                 { "tool", ToolName },
@@ -2249,26 +2262,26 @@ namespace HomeBridge.BridgeTools
         private static object DiagnosticsBlock(Plan plan)
         {
             if (plan.Request.Action != "haul")
-                return new Dictionary<string, object>();
-            return new Dictionary<string, object>
+                return new Dictionary<string, object?>();
+            return new Dictionary<string, object?>
             {
                 { "globalHaulCandidateCount", plan.HaulGlobalCandidateCount },
                 { "targetInGlobalHaulList", plan.HaulTargetInGlobalList },
-                { "checks", plan.HaulChecks ?? new Dictionary<string, object>() }
+                { "checks", plan.HaulChecks ?? new Dictionary<string, object?>() }
             };
         }
 
-        private static object PawnBlock(Plan plan)
+        private static object? PawnBlock(Plan plan)
         {
             var pawn = plan.Pawn;
             if (pawn == null)
                 return null;
 
             var weapon = PrimaryWeapon(pawn);
-            string draftReason;
+            string? draftReason;
             var canDraft = CanBeDrafted(pawn, out draftReason);
 
-            return new Dictionary<string, object>(StringComparer.Ordinal)
+            return new Dictionary<string, object?>(StringComparer.Ordinal)
             {
                 { "thingId", BridgeCommon.SafeString(() => pawn.GetUniqueLoadID()) },
                 { "idForms", IdForms(pawn) },
@@ -2288,7 +2301,7 @@ namespace HomeBridge.BridgeTools
                 { "canBeDrafted", canDraft },
                 { "canBeDraftedReason", draftReason },
                 {
-                    "weapon", weapon == null ? null : new Dictionary<string, object>(StringComparer.Ordinal)
+                    "weapon", weapon == null ? null : new Dictionary<string, object?>(StringComparer.Ordinal)
                     {
                         { "thingId", BridgeCommon.SafeString(() => weapon.GetUniqueLoadID()) },
                         { "label", BridgeCommon.SafeString(() => weapon.LabelCap.ToString()) },
@@ -2300,7 +2313,7 @@ namespace HomeBridge.BridgeTools
             };
         }
 
-        private static object TargetBlock(Plan plan)
+        private static object? TargetBlock(Plan plan)
         {
             var target = plan.Target;
             if (target == null)
@@ -2317,7 +2330,7 @@ namespace HomeBridge.BridgeTools
                 reachable = BridgeCommon.TryN(() => plan.Pawn.CanReach(target, PathEndMode.Touch, Danger.Deadly));
             }
 
-            return new Dictionary<string, object>(StringComparer.Ordinal)
+            return new Dictionary<string, object?>(StringComparer.Ordinal)
             {
                 { "thingId", BridgeCommon.SafeString(() => target.GetUniqueLoadID()) },
                 { "idForms", IdForms(target) },
@@ -2330,9 +2343,9 @@ namespace HomeBridge.BridgeTools
                 { "spawned", BridgeCommon.Try(() => target.Spawned, false) },
                 { "hostileToPlayer", HostileToPlayer(target) },
                 { "mentalState", pawn == null ? null : MentalStateOf(pawn) },
-                { "downed", pawn == null ? (object)null : BridgeCommon.Try(() => pawn.Downed, false) },
-                { "dead", pawn == null ? (object)null : BridgeCommon.Try(() => pawn.Dead, false) },
-                { "predator", pawn == null ? (object)null : BridgeCommon.Try(() => pawn.RaceProps != null && pawn.RaceProps.predator, false) },
+                { "downed", pawn == null ? (object?)null : BridgeCommon.Try(() => pawn.Downed, false) },
+                { "dead", pawn == null ? (object?)null : BridgeCommon.Try(() => pawn.Dead, false) },
+                { "predator", pawn == null ? (object?)null : BridgeCommon.Try(() => pawn.RaceProps != null && pawn.RaceProps.predator, false) },
                 { "position", BridgeCommon.PositionOf(target) },
                 { "distance", distance },
                 { "reachable", reachable },
@@ -2342,7 +2355,7 @@ namespace HomeBridge.BridgeTools
 
         private static object JobBlock(Plan plan, bool real)
         {
-            return new Dictionary<string, object>(StringComparer.Ordinal)
+            return new Dictionary<string, object?>(StringComparer.Ordinal)
             {
                 { "def", DefNameOf(plan.JobDef) },
                 { "targetA", TargetInfoBlock(plan.TargetA) },
@@ -2390,7 +2403,7 @@ namespace HomeBridge.BridgeTools
             return note;
         }
 
-        private static object TargetInfoBlock(LocalTargetInfo info)
+        private static object? TargetInfoBlock(LocalTargetInfo info)
         {
             try
             {
@@ -2398,14 +2411,14 @@ namespace HomeBridge.BridgeTools
                     return null;
                 if (info.HasThing)
                 {
-                    return new Dictionary<string, object>(StringComparer.Ordinal)
+                    return new Dictionary<string, object?>(StringComparer.Ordinal)
                     {
                         { "thingId", BridgeCommon.SafeString(() => info.Thing.GetUniqueLoadID()) },
                         { "label", BridgeCommon.SafeString(() => info.Thing.LabelCap.ToString()) },
                         { "position", BridgeCommon.PositionOf(info.Thing) }
                     };
                 }
-                return new Dictionary<string, object>(StringComparer.Ordinal)
+                return new Dictionary<string, object?>(StringComparer.Ordinal)
                 {
                     { "thingId", null },
                     { "label", null },
@@ -2429,7 +2442,7 @@ namespace HomeBridge.BridgeTools
                     distance = BridgeCommon.TryN(() =>
                         (int)Math.Round(Math.Sqrt(plan.Pawn.Position.DistanceToSquared(thing.Position))));
                 }
-                rows.Add(new Dictionary<string, object>(StringComparer.Ordinal)
+                rows.Add(new Dictionary<string, object?>(StringComparer.Ordinal)
                 {
                     { "thingId", BridgeCommon.SafeString(() => thing.GetUniqueLoadID()) },
                     { "idForms", IdForms(thing) },
@@ -2442,17 +2455,17 @@ namespace HomeBridge.BridgeTools
             return rows;
         }
 
-        private static object AfterBlock(Plan plan)
+        private static object? AfterBlock(Plan plan)
         {
             if (plan.Pawn == null)
                 return null;
-            var job = BridgeCommon.Try<Job>(() => plan.Pawn.CurJob, null);
-            return new Dictionary<string, object>(StringComparer.Ordinal)
+            var job = BridgeCommon.Try<Job?>(() => plan.Pawn.CurJob, null);
+            return new Dictionary<string, object?>(StringComparer.Ordinal)
             {
                 { "drafted", BridgeCommon.Try(() => plan.Pawn.Drafted, false) },
                 { "jobDef", job == null ? null : DefNameOf(job.def) },
                 { "jobTarget", job == null ? null : TargetInfoBlock(job.targetA) },
-                { "mentalState", MentalStateOf(plan.Pawn) }
+                { "mentalState", MentalStateOf(plan.OrderedPawn) }
             };
         }
 
@@ -2480,11 +2493,11 @@ namespace HomeBridge.BridgeTools
                     forms.Add(defName + "@" + pos.x.ToString(CultureInfo.InvariantCulture)
                               + "," + pos.z.ToString(CultureInfo.InvariantCulture));
             }
-            if (!string.IsNullOrEmpty(label)) forms.Add(label);
+            if (label != null && label.Length > 0) forms.Add(label);
             return forms;
         }
 
-        private static string NameOf(Pawn pawn)
+        private static string? NameOf(Pawn? pawn)
         {
             if (pawn == null)
                 return null;
@@ -2494,7 +2507,7 @@ namespace HomeBridge.BridgeTools
             return BridgeCommon.SafeString(() => pawn.LabelShortCap.ToString());
         }
 
-        private static string Describe(Thing thing)
+        private static string Describe(Thing? thing)
         {
             if (thing == null)
                 return "nothing";
@@ -2503,19 +2516,19 @@ namespace HomeBridge.BridgeTools
             return id == null ? label : label + " (" + id + ")";
         }
 
-        private static string DefNameOf(Def def)
+        private static string? DefNameOf(Def? def)
         {
             return def == null ? null : BridgeCommon.SafeString(() => def.defName);
         }
 
-        private static string Normalise(string s)
+        private static string? Normalise(string s)
         {
             return s == null ? null : s.Trim().ToLowerInvariant();
         }
 
         private static object Failure(string message, string kind, string action)
         {
-            return new Dictionary<string, object>(StringComparer.Ordinal)
+            return new Dictionary<string, object?>(StringComparer.Ordinal)
             {
                 { "success", false },
                 { "tool", ToolName },

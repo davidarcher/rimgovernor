@@ -1,5 +1,6 @@
 #nullable enable
 using System;
+using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using Verse;
 using Common = RimGovernor.Protocol.Common;
@@ -204,7 +205,7 @@ namespace HomeBridge.BridgeTools
         private static Operations.ReleaseOwnedDraftReply ReleaseUncertain(Operations.ReleaseOwnedDraftRequest request,Common.ObservationContext context,string detail) =>
             new Operations.ReleaseOwnedDraftReply {Uncertain=new Operations.DraftReleaseUncertain {Request=request.Clone(),Context=context.Clone(),Detail=detail}};
 
-        private static bool Resolve(Operations.EntityPrecondition target,Common.ObservationContext context,out NativeControlIdentity? identity,
+        private static bool Resolve(Operations.EntityPrecondition target,Common.ObservationContext context,[NotNullWhen(true)] out NativeControlIdentity? identity,
             out Pawn? pawn,out NativePawnSnapshot? snapshot,out Common.Failure failure)
         {
             identity=null;pawn=null;snapshot=null;

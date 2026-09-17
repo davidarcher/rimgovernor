@@ -30,7 +30,7 @@ namespace HomeBridge.BridgeTools
     /// </summary>
     internal static class WorkGiverDispatch
     {
-        internal static WorkGiverJobResult? TryJob(Pawn pawn, Thing thing, Func<WorkGiverDef, bool> accept, out string? failReason)
+        internal static WorkGiverJobResult? TryJob(Pawn? pawn, Thing? thing, Func<WorkGiverDef, bool> accept, out string? failReason)
         {
             failReason = null;
             List<WorkTypeDef> types;
@@ -104,7 +104,7 @@ namespace HomeBridge.BridgeTools
         /// <summary>`FloatMenuOptionProvider_WorkGivers.ScannerShouldSkip`,
         /// verbatim: a giver that does not even claim the thing is skipped
         /// before it is asked for a job.</summary>
-        private static bool ScannerShouldSkip(Pawn pawn, WorkGiver_Scanner scanner, Thing t)
+        private static bool ScannerShouldSkip(Pawn? pawn, WorkGiver_Scanner scanner, Thing? t)
         {
             return !BridgeCommon.Try(() =>
             {

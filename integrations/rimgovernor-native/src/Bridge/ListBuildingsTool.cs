@@ -1,5 +1,8 @@
+#nullable enable
+
 ﻿using System;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using System.Text;
 using System.Threading;
@@ -201,10 +204,10 @@ namespace HomeBridge.BridgeTools
         [ToolResponse("inspectSkipped", "array", "Present only when inspect=true. One entry per DEF whose GetInspectString() threw: defName, count, error. An empty array with inspect=true means every row's string was read; the key's ABSENCE means inspect was off and nothing was attempted. filters.inspect says which.", Nullable = true)]
         [ToolResponse("unknownArguments", "array", "Every argument key the caller sent that this tool does not declare, sorted, case-sensitively. Empty array = every key was recognised. The host's own _rimBridgeTimeoutMs is never listed.", Always = true)]
         [ToolResponse("unknownArgumentsWarning", "string", "Present only when unknownArguments is non-empty, or when the caller's raw keys could not be read at all - in which case the empty unknownArguments means 'not known', not 'nothing unknown'.", Nullable = true)]
-        public async Task<object> ListBuildings(
+        public async Task<object?> ListBuildings(
             IRimBridgeContext ctx,
             CancellationToken cancellationToken,
-            [ToolParameter(Description = "Only rows whose defName, label, or the def they will become contains this text (case-insensitive).")] string match = null,
+            [ToolParameter(Description = "Only rows whose defName, label, or the def they will become contains this text (case-insensitive).")] string? match = null,
             [ToolParameter(Description = "Which statuses to return: 'all' (default), 'built', 'blueprint', 'frame', or 'pending' (blueprints and frames together).", DefaultValue = "all")] string status = "all",
             [ToolParameter(Description = "Which built things count as buildings: 'artificial' (default; RimWorld's own BuildingArtificial group, which excludes natural rock) or 'all' (adds natural and resource rock).", DefaultValue = "artificial")] string category = "artificial",
             [ToolParameter(Description = "Only buildings belonging to the player faction.", DefaultValue = false)] bool playerOnly = false,
@@ -233,7 +236,7 @@ namespace HomeBridge.BridgeTools
         private async Task<object> ListBuildingsCore(
             IRimBridgeContext ctx,
             CancellationToken cancellationToken,
-            string match,
+            string? match,
             string status,
             string category,
             bool playerOnly,
@@ -263,7 +266,7 @@ namespace HomeBridge.BridgeTools
                 .ConfigureAwait(false);
         }
 
-        private static object Build(string match, string status, string category, bool playerOnly,
+        private static object Build(string? match, string status, string category, bool playerOnly,
                                     bool aggregate, int damagedBelowPct, int cx, int cz, int radius,
                                     int maxPositions, int maxDetailed, bool inspect,
                                     bool billIngredients)
@@ -454,7 +457,7 @@ namespace HomeBridge.BridgeTools
             // healthy grid three turns running while an orphaned battery pocket
             // sat cut off, and a check that cannot see the failure it is used to
             // rule out is worse than no check.
-            Dictionary<string, object> powerSummary;
+            Dictionary<string, object?> powerSummary;
             var powerNets = PowerNets(map, SafePlayerFaction(), MaxPowerNetBuildings, out powerSummary);
 
             var deficitRows = deficit.Values
@@ -462,11 +465,11 @@ namespace HomeBridge.BridgeTools
                 .Select(d => d.ToPayload(map))
                 .ToList();
 
-            var payload = new Dictionary<string, object>
+            var payload = new Dictionary<string, object?>
             {
                 { "success", true },
                 { "tool", "home/list_buildings" },
-                { "counts", new Dictionary<string, object>
+                { "counts", new Dictionary<string, object?>
                     {
                         { "scanned", scanned },
                         { "detailed", detailed.Count },
@@ -485,7 +488,7 @@ namespace HomeBridge.BridgeTools
                 { "resourceDeficit", deficitRows },
                 // Every filter reports what it removed. An empty answer must never
                 // be ambiguous between "nothing there" and "nothing survived".
-                { "skipped", new Dictionary<string, object>
+                { "skipped", new Dictionary<string, object?>
                     {
                         { "byMatch", skippedMatch },
                         { "byStatus", skippedStatus },
@@ -493,7 +496,7 @@ namespace HomeBridge.BridgeTools
                         { "byPlayerOnly", skippedFaction },
                         { "byMaxDetailed", detailTruncated }
                     } },
-                { "notes", new Dictionary<string, object>
+                { "notes", new Dictionary<string, object?>
                     {
                         // Not a filter over enumerated things -- a source choice --
                         // so it gets a stated flag rather than a fabricated count.
@@ -515,7 +518,7 @@ namespace HomeBridge.BridgeTools
                         { "powerNetsSeeWhatPerBuildingPowerCannot", "powerNets[] is the whole-map grid topology, one row per PowerNet, and it is the ONLY thing here that can see an orphaned battery: a battery is a CompPowerBattery, not a CompPowerTrader, so it has no powered flag to be false and attention.notConnectedToPower can read 0 while a whole pocket of the base is cut off. flags[] are noProducer, noConsumer, isolatedBattery and isolatedTransmitter; a net with no player-faction building on it is never flagged, and a flagged net names its buildings (capped at " + MaxPowerNetBuildings + ", buildingsNotListed says how many were cut)." },
                         { "billIngredientsAreOptIn", "A bills[] row carries ingredients[], canRunNow and blockedBy[] only under billIngredients:true; with it off, an active-looking queue is NOT evidence that a bill can run. home/bills is the same verdict plus the whole bill configuration, and is the tool for changing one." }
                     } },
-                { "filters", new Dictionary<string, object>
+                { "filters", new Dictionary<string, object?>
                     {
                         { "match", match },
                         { "status", wantStatus },
@@ -545,7 +548,7 @@ namespace HomeBridge.BridgeTools
                 // These three notes describe the inspect option, so they ride
                 // WITH it. On a default call the whole feature costs the payload
                 // one boolean -- filters.inspect -- and not a page of prose.
-                var notes = (Dictionary<string, object>)payload["notes"];
+                var notes = payload["notes"] as Dictionary<string, object?> ?? throw new InvalidOperationException("Payload has no notes record.");
                 notes["inspectOnDetailRowsOnly"] = "inspectString is added by inspect:true to buildings[] rows ONLY. An aggregated[] row is a def, not a thing, and there is no one inspect string for eleven conduits; pass aggregate:false to get one per building. With inspect:false no row carries the key at all -- read filters.inspect, not the absence.";
                 notes["inspectIsNotTheWholePane"] = "Thing.GetInspectString() only. GetInspectStringLowPriority() is deliberately never called: Verse.Building overrides it and its first act is DeconstructibleBy(Faction.OfPlayer), whose body reaches Log.Error, whose call path contains TickManager.Pause(). The deterioration and 'attack to destroy' lines are the only text this loses.";
                 notes["billIngredientShortfallIsNotInHere"] = "A worktable's inspect string does NOT contain its bills' ingredient shortfall: Building_WorkTable does not override GetInspectString and Bill has no inspect text at all, so a bench's string is quest lines plus comp lines (power, fuel, broken down). The 'Component: 0 / 3' text lives on Frame.GetInspectString() -- a CONSTRUCTION site's delivered resources -- and this tool already reports that structurally as resources[] have/need/stillNeeded on every blueprint and frame row.";
@@ -604,15 +607,15 @@ namespace HomeBridge.BridgeTools
             return reasons;
         }
 
-        private static Dictionary<string, object> DetailRow(
+        private static Dictionary<string, object?> DetailRow(
             Map map, Thing thing, string status, bool isBlueprint, bool isFrame,
-            BuildableDef buildDef, List<object> reasons,
+            BuildableDef? buildDef, List<object> reasons,
             Dictionary<string, Deficit> deficit, Attention att,
             bool inspect, Dictionary<string, InspectFailure> inspectFailures,
-            BillCommon.MapItems billItems)
+            BillCommon.MapItems? billItems)
         {
             var pos = thing.Position;
-            var row = new Dictionary<string, object>
+            var row = new Dictionary<string, object?>
             {
                 { "thingId", BridgeCommon.SafeString(() => thing.ThingID) },
                 { "defName", thing.def.defName },
@@ -641,7 +644,7 @@ namespace HomeBridge.BridgeTools
             var rect = SafeRect(thing);
             if (rect != null && (rect.Value.Width > 1 || rect.Value.Height > 1))
             {
-                row["occupies"] = new Dictionary<string, object>
+                row["occupies"] = new Dictionary<string, object?>
                 {
                     { "minX", rect.Value.minX }, { "minZ", rect.Value.minZ },
                     { "maxX", rect.Value.maxX }, { "maxZ", rect.Value.maxZ },
@@ -682,7 +685,7 @@ namespace HomeBridge.BridgeTools
             {
                 var hasFuel = SafeHasFuel(fuel);
                 if (!hasFuel) att.OutOfFuel++;
-                row["fuel"] = new Dictionary<string, object>
+                row["fuel"] = new Dictionary<string, object?>
                 {
                     { "hasFuel", hasFuel },
                     { "fuel", SafeFuel(fuel) },
@@ -724,8 +727,8 @@ namespace HomeBridge.BridgeTools
         /// subclass them and would otherwise be a silently missing case.
         /// </summary>
         private static void AddConstructionDeficit(
-            Dictionary<string, object> row, Thing thing, bool isFrame,
-            BuildableDef buildDef, Dictionary<string, Deficit> deficit, Attention att)
+            Dictionary<string, object?> row, Thing thing, bool isFrame,
+            BuildableDef? buildDef, Dictionary<string, Deficit> deficit, Attention att)
         {
             var constructible = thing as IConstructible;
             var frame = thing as Frame;
@@ -757,7 +760,7 @@ namespace HomeBridge.BridgeTools
 
             var resources = new List<object>();
             var short_ = false;
-            List<ThingDefCountClass> cost = null;
+            List<ThingDefCountClass>? cost = null;
             // NOT on a Blueprint_Install. Its TotalMaterialCost() body is, in
             // full, Log.Error("Called MaterialsNeededTotal on a
             // Blueprint_Install.") + an empty list -- and Verse.Log.Error calls
@@ -814,7 +817,7 @@ namespace HomeBridge.BridgeTools
                         d.Sites++;
                     }
 
-                    resources.Add(new Dictionary<string, object>
+                    resources.Add(new Dictionary<string, object?>
                     {
                         { "defName", item.thingDef.defName },
                         { "label", item.thingDef.label },
@@ -851,12 +854,12 @@ namespace HomeBridge.BridgeTools
 
         // --------------------------------------------------------------- bills
 
-        private static void AddBills(Dictionary<string, object> row, Thing bench,
+        private static void AddBills(Dictionary<string, object?> row, Thing bench,
                                      IBillGiver giver, Attention att,
-                                     BillCommon.MapItems billItems)
+                                     BillCommon.MapItems? billItems)
         {
             var bills = new List<object>();
-            BillStack stack = null;
+            BillStack? stack = null;
             try { stack = giver.BillStack; }
             catch { stack = null; }
 
@@ -864,7 +867,7 @@ namespace HomeBridge.BridgeTools
 
             if (stack != null)
             {
-                List<Bill> list = null;
+                List<Bill>? list = null;
                 try { list = stack.Bills; }
                 catch { list = null; }
 
@@ -900,7 +903,7 @@ namespace HomeBridge.BridgeTools
                         if (finished) att.FinishedBills++;
                         if (suspended) att.SuspendedBills++;
 
-                        var billRow = new Dictionary<string, object>
+                        var billRow = new Dictionary<string, object?>
                         {
                             { "index", i },
                             { "label", SafeBillLabel(bill) },
@@ -938,21 +941,21 @@ namespace HomeBridge.BridgeTools
             row["bills"] = bills;
             row["billCount"] = bills.Count;
             row["billStackUnreadable"] = billStackUnreadable;
-            row["activeBillCount"] = bills.Count(b => Equals(((Dictionary<string, object>)b)["active"], true));
+            row["activeBillCount"] = bills.Count(b => Equals(((Dictionary<string, object?>)b)["active"], true));
             // M's item 3 by name: "the butcher spot has no queued tasks".
             // An empty queue is a finding, not an absence.
-            row["billStackEmpty"] = billStackUnreadable ? null : (object)(bills.Count == 0);
+            row["billStackEmpty"] = billStackUnreadable ? null : (object?)(bills.Count == 0);
             if (!billStackUnreadable)
             {
                 if (bills.Count == 0) att.BillGiversWithNoBills++;
-                else if (!bills.Any(b => Equals(((Dictionary<string, object>)b)["active"], true)))
+                else if (!bills.Any(b => Equals(((Dictionary<string, object?>)b)["active"], true)))
                     att.BillGiversWithNoActiveBill++;
             }
         }
 
         // ---------------------------------------------------------------- power
 
-        private static Dictionary<string, object> PowerBlock(CompPowerTrader power, Thing thing, Attention att)
+        private static Dictionary<string, object?> PowerBlock(CompPowerTrader power, Thing thing, Attention att)
         {
             var powered = SafePowerOn(power);
             var connected = SafeConnected(power);
@@ -966,7 +969,7 @@ namespace HomeBridge.BridgeTools
             if (!switchedOn) att.SwitchedOff++;
             if (brokenDown) att.BrokenDown++;
 
-            return new Dictionary<string, object>
+            return new Dictionary<string, object?>
             {
                 // The Aug 31 mini-turret: powered false, connected false, switch on,
                 // not broken -- "there is no power source", which is exactly what
@@ -999,21 +1002,21 @@ namespace HomeBridge.BridgeTools
         /// only; `CompPowerTrader.PowerOutput` and `CompPowerBattery.StoredEnergy`
         /// are plain getters.
         /// </summary>
-        private static List<object> PowerNets(Map map, Faction player, int maxNamed,
-                                              out Dictionary<string, object> summary)
+        private static List<object> PowerNets(Map map, Faction? player, int maxNamed,
+                                              out Dictionary<string, object?> summary)
         {
             var nets = new List<object>();
             var flagged = 0;
-            var flagCounts = new Dictionary<string, object>(StringComparer.Ordinal) {
+            var flagCounts = new Dictionary<string, object?>(StringComparer.Ordinal) {
                 { "noProducer", 0 }, { "noConsumer", 0 },
                 { "isolatedBattery", 0 }, { "isolatedTransmitter", 0 } };
-            List<PowerNet> all = null;
-            string readError = null;
+            List<PowerNet>? all = null;
+            string? readError = null;
             try { all = map.powerNetManager == null ? null : map.powerNetManager.AllNetsListForReading; }
             catch (Exception e) { readError = e.GetType().Name + ": " + e.Message; }
             if (all == null)
             {
-                summary = new Dictionary<string, object> {
+                summary = new Dictionary<string, object?> {
                     { "netCount", 0 }, { "flaggedNetCount", 0 }, { "readable", false },
                     { "error", readError ?? "map.powerNetManager returned no net list" },
                     { "flags", flagCounts } };
@@ -1076,7 +1079,7 @@ namespace HomeBridge.BridgeTools
                     for (var j = 0; j < flags.Count; j++)
                     {
                         var key = Convert.ToString(flags[j]);
-                        object had;
+                        object? had;
                         flagCounts[key] = (flagCounts.TryGetValue(key, out had)
                             ? Convert.ToInt32(had) : 0) + 1;
                     }
@@ -1086,7 +1089,7 @@ namespace HomeBridge.BridgeTools
                 if (flags.Count > 0)
                     for (var j = 0; j < members.Count && j < maxNamed; j++) named.Add(members[j].Row);
 
-                nets.Add(new Dictionary<string, object>
+                nets.Add(new Dictionary<string, object?>
                 {
                     { "index", i },
                     { "transmitterCount", transmitters.Count },
@@ -1111,7 +1114,7 @@ namespace HomeBridge.BridgeTools
                     { "buildingsNotListed", flags.Count == 0 ? 0 : Math.Max(0, members.Count - named.Count) }
                 });
             }
-            summary = new Dictionary<string, object> {
+            summary = new Dictionary<string, object?> {
                 { "netCount", nets.Count }, { "flaggedNetCount", flagged },
                 { "readable", true }, { "error", null }, { "flags", flagCounts } };
             return nets;
@@ -1127,12 +1130,13 @@ namespace HomeBridge.BridgeTools
 
         private sealed class NetMember
         {
-            public bool Player;
-            public Dictionary<string, object> Row;
+            public NetMember(bool player, Dictionary<string, object?> row) { Player = player; Row = row; }
+            public readonly bool Player;
+            public readonly Dictionary<string, object?> Row;
         }
 
         /// Every distinct building on one net, with the role it plays there.
-        private static List<NetMember> NetMembers(PowerNet net, Faction player)
+        private static List<NetMember> NetMembers(PowerNet net, Faction? player)
         {
             var seen = new HashSet<Thing>();
             var rows = new List<NetMember>();
@@ -1144,7 +1148,7 @@ namespace HomeBridge.BridgeTools
         }
 
         private static void AddNetMembers<T>(List<NetMember> rows, HashSet<Thing> seen,
-                                             Faction player, List<T> comps, string role)
+                                             Faction? player, List<T> comps, string? role)
             where T : CompPower
         {
             if (comps == null) return;
@@ -1160,18 +1164,16 @@ namespace HomeBridge.BridgeTools
                 var thisRole = role ?? (trader != null && IsProducerDef(trader) ? "producer" : "consumer");
                 var isPlayer = false;
                 try { isPlayer = parent.Faction == player; } catch { }
-                rows.Add(new NetMember {
-                    Player = isPlayer,
-                    Row = new Dictionary<string, object> {
+                rows.Add(new NetMember(isPlayer, new Dictionary<string, object?> {
                         { "thingId", BridgeCommon.SafeString(() => parent.ThingID) },
                         { "defName", parent.def.defName },
                         { "label", SafeLabel(parent) },
                         { "position", BridgeCommon.Pos(parent.Position) },
                         { "role", thisRole },
                         { "faction", SafeFactionName(parent) },
-                        { "powerOutputW", trader == null ? (object)null : SafeFloat(() => trader.PowerOutput) },
-                        { "storedWd", battery == null ? (object)null : SafeFloat(() => battery.StoredEnergy) }
-                    } });
+                        { "powerOutputW", trader == null ? (object?)null : SafeFloat(() => trader.PowerOutput) },
+                        { "storedWd", battery == null ? (object?)null : SafeFloat(() => battery.StoredEnergy) }
+                    }));
             }
         }
 
@@ -1223,9 +1225,9 @@ namespace HomeBridge.BridgeTools
 
         private sealed class AggRow
         {
-            public string DefName;
-            public string Label;
-            public string Stuff;
+            public string? DefName;
+            public string? Label;
+            public string? Stuff;
             public bool StuffVaried;
             public int Damaged;
             public float? WorstHitPointsPct;
@@ -1247,7 +1249,7 @@ namespace HomeBridge.BridgeTools
 
             public int Count { get { return Cells.Count; } }
 
-            public Dictionary<string, object> ToPayload(int maxPositions)
+            public Dictionary<string, object?> ToPayload(int maxPositions)
             {
                 var positions = new List<object>();
                 var distinct = new HashSet<IntVec3>();
@@ -1264,7 +1266,7 @@ namespace HomeBridge.BridgeTools
                         positions.Add(BridgeCommon.Pos(c));
                 }
 
-                return new Dictionary<string, object>
+                return new Dictionary<string, object?>
                 {
                     { "defName", DefName },
                     { "label", Label },
@@ -1309,15 +1311,15 @@ namespace HomeBridge.BridgeTools
 
         private sealed class Deficit
         {
-            public string DefName;
-            public string Label;
-            public ThingDef Def;
+            public string? DefName;
+            public string? Label;
+            public ThingDef? Def;
             public int StillNeeded;
             public int Sites;
 
-            public Dictionary<string, object> ToPayload(Map map)
+            public Dictionary<string, object?> ToPayload(Map map)
             {
-                return new Dictionary<string, object>
+                return new Dictionary<string, object?>
                 {
                     { "defName", DefName },
                     { "label", Label },
@@ -1415,9 +1417,9 @@ namespace HomeBridge.BridgeTools
             /// "every bill can run", which is the opposite of what it means.</summary>
             public bool ReportBillIngredients;
 
-            public Dictionary<string, object> ToPayload()
+            public Dictionary<string, object?> ToPayload()
             {
-                var payload = new Dictionary<string, object>
+                var payload = new Dictionary<string, object?>
                 {
                     { "blueprints", Blueprints },
                     { "frames", Frames },
@@ -1447,13 +1449,13 @@ namespace HomeBridge.BridgeTools
         /// </summary>
         private sealed class InspectFailure
         {
-            public string DefName;
-            public string Error;
+            public string? DefName;
+            public string? Error;
             public int Count;
 
-            public Dictionary<string, object> ToPayload()
+            public Dictionary<string, object?> ToPayload()
             {
-                return new Dictionary<string, object>
+                return new Dictionary<string, object?>
                 {
                     { "defName", DefName },
                     { "count", Count },
@@ -1472,7 +1474,7 @@ namespace HomeBridge.BridgeTools
         /// Verse.Building overrides it and calls DeconstructibleBy(Faction.OfPlayer),
         /// which reaches Log.Error, whose call path pauses the game.
         /// </summary>
-        private static string InspectString(Thing thing, Dictionary<string, InspectFailure> failures)
+        private static string? InspectString(Thing thing, Dictionary<string, InspectFailure> failures)
         {
             string raw;
             try
@@ -1593,7 +1595,7 @@ namespace HomeBridge.BridgeTools
         /// Never touches TotalMaterialCost, which Log.Errors on an install
         /// blueprint and so pauses the game.
         /// </summary>
-        private static Thing InstallTarget(Thing thing)
+        private static Thing? InstallTarget(Thing thing)
         {
             try
             {
@@ -1607,13 +1609,13 @@ namespace HomeBridge.BridgeTools
             catch { return null; }
         }
 
-        private static BuildableDef SafeEntityToBuild(Thing thing)
+        private static BuildableDef? SafeEntityToBuild(Thing thing)
         {
             try { return thing.def != null ? thing.def.entityDefToBuild : null; }
             catch { return null; }
         }
 
-        private static ThingDef SafeStuffDef(Thing thing, bool pending)
+        private static ThingDef? SafeStuffDef(Thing thing, bool pending)
         {
             try
             {
@@ -1631,13 +1633,13 @@ namespace HomeBridge.BridgeTools
             catch { return null; }
         }
 
-        private static string SafeStuffName(Thing thing, bool pending)
+        private static string? SafeStuffName(Thing thing, bool pending)
         {
             var s = SafeStuffDef(thing, pending);
             return s != null ? s.defName : null;
         }
 
-        private static T SafeComp<T>(Thing thing) where T : ThingComp
+        private static T? SafeComp<T>(Thing thing) where T : ThingComp
         {
             try
             {
@@ -1731,7 +1733,7 @@ namespace HomeBridge.BridgeTools
             catch { return -1; }
         }
 
-        private static string SafeLabel(Thing thing)
+        private static string? SafeLabel(Thing thing)
         {
             try { return thing.LabelCapNoCount.ToString(); }
             catch
@@ -1741,7 +1743,7 @@ namespace HomeBridge.BridgeTools
             }
         }
 
-        private static string SafeFactionName(Thing thing)
+        private static string? SafeFactionName(Thing thing)
         {
             try { return thing.Faction != null ? thing.Faction.Name : null; }
             catch { return null; }
@@ -1753,7 +1755,7 @@ namespace HomeBridge.BridgeTools
         /// simply never emitted, so a caller reading a blueprint's facing got None
         /// and could not tell that from a thing with no facing at all.
         /// </summary>
-        private static string SafeRotationHuman(Thing thing)
+        private static string? SafeRotationHuman(Thing thing)
         {
             try { return thing.Rotation.ToStringHuman(); }
             catch { return null; }
@@ -1772,7 +1774,7 @@ namespace HomeBridge.BridgeTools
         // person pressing space.
         /// The player faction, or null. Faction.OfPlayer is banned everywhere in
         /// this DLL (its failure path reaches Log.Error, which pauses the game).
-        private static Faction SafePlayerFaction()
+        private static Faction? SafePlayerFaction()
         {
             try { return Faction.OfPlayerSilentFail; }
             catch { return null; }
@@ -1797,7 +1799,7 @@ namespace HomeBridge.BridgeTools
                 if (owners != null)
                     foreach (var p in owners)
                         if (p != null)
-                            names.Add(SafePawnName(p));
+                            { var name = SafePawnName(p); if (name != null) names.Add(name); }
             }
             catch
             {
@@ -1807,7 +1809,7 @@ namespace HomeBridge.BridgeTools
             return names;
         }
 
-        private static string SafePawnName(Pawn pawn)
+        private static string? SafePawnName(Pawn pawn)
         {
             try { return pawn.LabelShortCap.ToString(); }
             catch { return null; }
@@ -1819,7 +1821,7 @@ namespace HomeBridge.BridgeTools
             catch { return false; }
         }
 
-        private static string SafeBillLabel(Bill bill)
+        private static string? SafeBillLabel(Bill bill)
         {
             try { return bill.LabelCap; }
             catch
@@ -1829,7 +1831,7 @@ namespace HomeBridge.BridgeTools
             }
         }
 
-        private static string SafeRepeatInfo(Bill_Production prod)
+        private static string? SafeRepeatInfo(Bill_Production? prod)
         {
             if (prod == null)
                 return null;
@@ -1846,7 +1848,7 @@ namespace HomeBridge.BridgeTools
 
         /// <summary>The shared map gate; see BridgeCommon.TryGetMap. The error
         /// text names this tool.</summary>
-        private static bool TryGetMap(out Map map, out string error)
+        private static bool TryGetMap([NotNullWhen(true)] out Map? map, out string error)
         {
             return BridgeCommon.TryGetMap("home/list_buildings", out map, out error);
         }

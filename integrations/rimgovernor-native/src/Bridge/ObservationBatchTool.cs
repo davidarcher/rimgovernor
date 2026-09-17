@@ -1,3 +1,5 @@
+#nullable enable
+
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -14,20 +16,20 @@ namespace HomeBridge.BridgeTools
             Description = "Read the standard colony observation sections in one request. No orders, selection or clock changes. Retains section diagnostics and before/after ticks; rejects game/map changes. Sections run sequentially, not as an atomic snapshot.")]
         public async Task<object> Observe(IRimBridgeContext ctx, CancellationToken cancellationToken)
         {
-            Game game = null;
-            Map map = null;
+            Game? game = null;
+            Map? map = null;
             int tick = 0;
             var queue = Stopwatch.StartNew();
-            await ctx.MainThread.InvokeAsync<object>(() => {
+            await ctx.MainThread.InvokeAsync<object?>(() => {
                 game = Current.Game; map = Find.CurrentMap;
                 tick = Find.TickManager?.TicksGame ?? 0;
                 return null;
             }, cancellationToken).ConfigureAwait(false);
             var initialQueueMs = queue.Elapsed.TotalMilliseconds;
             if (game == null || map == null) return new { success = false, error = "Load a colony first" };
-            var sections = new Dictionary<string, object>();
+            var sections = new Dictionary<string, object?>();
             var timings = new Dictionary<string, double>();
-            async Task Read(string name, Func<Task<object>> read)
+            async Task Read(string name, Func<Task<object?>> read)
             {
                 var watch = Stopwatch.StartNew();
                 sections[name] = await read().ConfigureAwait(false);

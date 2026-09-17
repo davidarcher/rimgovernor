@@ -1,3 +1,5 @@
+#nullable enable
+
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -83,7 +85,7 @@ namespace HomeBridge.BridgeTools
         [ToolResponse("dryRun", "boolean", "True = the planet view was not toggled. Defaults to TRUE; show:true needs dryRun:false to actually run.", Always = true)]
         [ToolResponse("unknownArguments", "array", "Every argument key the caller sent that this tool does not declare, sorted, case-sensitively. Empty array = the call was clean. The host's own _rimBridgeTimeoutMs is never listed.", Always = true)]
         [ToolResponse("unknownArgumentsWarning", "string", "Present only when unknownArguments is non-empty, or when the caller's raw keys could not be read at all - in which case the empty unknownArguments means 'not known', not 'nothing unknown'.", Nullable = true)]
-        public async Task<object> World(
+        public async Task<object?> World(
             IRimBridgeContext ctx,
             CancellationToken cancellationToken,
             [ToolParameter(Description = "Planet tile id to read. Omit (or -1) for the current map's own tile.", DefaultValue = -1)] int tile = -1,
@@ -159,18 +161,18 @@ namespace HomeBridge.BridgeTools
         // the readout
         // ------------------------------------------------------------------
 
-        private static Dictionary<string, object> BuildResponse(int wantTile, int settlementRadius, bool dryRun)
+        private static Dictionary<string, object?> BuildResponse(int wantTile, int settlementRadius, bool dryRun)
         {
             // Every key is written unconditionally, including the nulls, so a
             // caller can never mistake "the tool did not look" for a real zero.
-            var payload = new Dictionary<string, object>(StringComparer.Ordinal)
+            var payload = new Dictionary<string, object?>(StringComparer.Ordinal)
             {
                 ["success"] = true,
                 ["tool"] = ToolName,
                 ["dryRun"] = dryRun
             };
 
-            if (BridgeCommon.Try(() => Current.Game, (Game)null) == null)
+            if (BridgeCommon.Try(() => Current.Game, (Game?)null) == null)
             {
                 payload["status"] = "no_game";
                 WriteEmpty(payload, settlementRadius);
@@ -204,9 +206,9 @@ namespace HomeBridge.BridgeTools
             return payload;
         }
 
-        private static void WriteEmpty(IDictionary<string, object> payload, int settlementRadius)
+        private static void WriteEmpty(IDictionary<string, object?> payload, int settlementRadius)
         {
-            payload["hasMap"] = payload.ContainsKey("hasMap") && (bool)payload["hasMap"];
+            payload["hasMap"] = payload.ContainsKey("hasMap") && BridgeCommon.Flag(payload, "hasMap");
             payload["tile"] = null;
             payload["tileValid"] = false;
             WriteLongLat(payload, null);
@@ -218,7 +220,7 @@ namespace HomeBridge.BridgeTools
             payload["settlementsNotListed"] = 0;
         }
 
-        private static void WriteLongLat(IDictionary<string, object> payload, PlanetTile? tile)
+        private static void WriteLongLat(IDictionary<string, object?> payload, PlanetTile? tile)
         {
             Vector2 longLat;
             if (tile.HasValue && TryLongLat(tile.Value, out longLat))
@@ -233,7 +235,7 @@ namespace HomeBridge.BridgeTools
             }
         }
 
-        private static void WriteTerrain(IDictionary<string, object> payload, PlanetTile? planetTile)
+        private static void WriteTerrain(IDictionary<string, object?> payload, PlanetTile? planetTile)
         {
             var row = planetTile.HasValue ? SafeTile(planetTile.Value) : null;
             if (row == null)
@@ -251,7 +253,7 @@ namespace HomeBridge.BridgeTools
 
             // PrimaryBiome, not the private `biome` field: a 1.6 tile can carry
             // more than one biome and the property is the game's own answer.
-            var biome = BridgeCommon.Try(() => row.PrimaryBiome, (BiomeDef)null);
+            var biome = BridgeCommon.Try(() => row.PrimaryBiome, (BiomeDef?)null);
             payload["biome"] = biome == null ? null : BridgeCommon.SafeString(() => biome.LabelCap.ToString());
             payload["biomeDefName"] = biome == null ? null : BridgeCommon.SafeString(() => biome.defName);
             payload["hilliness"] = BridgeCommon.SafeString(() => row.hilliness.ToString());
@@ -262,7 +264,7 @@ namespace HomeBridge.BridgeTools
             payload["coastal"] = BridgeCommon.TryN(() => row.IsCoastal);
         }
 
-        private static void WriteTemperature(IDictionary<string, object> payload, PlanetTile? planetTile)
+        private static void WriteTemperature(IDictionary<string, object?> payload, PlanetTile? planetTile)
         {
             if (!planetTile.HasValue)
             {
@@ -286,9 +288,9 @@ namespace HomeBridge.BridgeTools
             payload["maxTemperature"] = row == null ? null : RoundN(BridgeCommon.TryN(() => row.MaxTemperature));
         }
 
-        private static void WriteGrowing(IDictionary<string, object> payload, PlanetTile? planetTile)
+        private static void WriteGrowing(IDictionary<string, object?> payload, PlanetTile? planetTile)
         {
-            payload["growingRangeC"] = new Dictionary<string, object>(StringComparer.Ordinal)
+            payload["growingRangeC"] = new Dictionary<string, object?>(StringComparer.Ordinal)
             {
                 { "min", GrowMin() },
                 { "max", GrowMax() }
@@ -303,7 +305,7 @@ namespace HomeBridge.BridgeTools
             }
 
             var tile = planetTile.Value;
-            List<Twelfth> twelfths = null;
+            List<Twelfth>? twelfths = null;
             try
             {
                 twelfths = GenTemperature.TwelfthsInAverageTemperatureRange(tile, GrowMin(), GrowMax());
@@ -334,7 +336,7 @@ namespace HomeBridge.BridgeTools
                 : days + " days";
         }
 
-        private static void WriteSettlements(IDictionary<string, object> payload, PlanetTile tile, int radius)
+        private static void WriteSettlements(IDictionary<string, object?> payload, PlanetTile tile, int radius)
         {
             payload["settlementRadius"] = radius;
             var rows = new List<object>();
@@ -395,8 +397,8 @@ namespace HomeBridge.BridgeTools
 
         private static object Describe(Settlement settlement, PlanetTile at, float distance)
         {
-            var faction = BridgeCommon.Try(() => settlement.Faction, (Faction)null);
-            return new Dictionary<string, object>(StringComparer.Ordinal)
+            var faction = BridgeCommon.Try(() => settlement.Faction, (Faction?)null);
+            return new Dictionary<string, object?>(StringComparer.Ordinal)
             {
                 { "label", BridgeCommon.SafeString(() => settlement.Label) },
                 { "tile", BridgeCommon.Try(() => at.tileId, -1) },
@@ -404,7 +406,7 @@ namespace HomeBridge.BridgeTools
                 { "faction", faction == null ? null : BridgeCommon.SafeString(() => faction.Name) },
                 { "factionDef", faction == null ? null : BridgeCommon.SafeString(() => faction.def.defName) },
                 { "relation", faction == null || faction.IsPlayer ? null : BridgeCommon.SafeString(() => faction.PlayerRelationKind.ToString()) },
-                { "goodwill", faction == null || faction.IsPlayer ? null : (object)BridgeCommon.TryN(() => faction.PlayerGoodwill) },
+                { "goodwill", faction == null || faction.IsPlayer ? null : (object?)BridgeCommon.TryN(() => faction.PlayerGoodwill) },
                 { "isPlayer", faction != null && BridgeCommon.Try(() => faction.IsPlayer, false) }
             };
         }
@@ -416,8 +418,8 @@ namespace HomeBridge.BridgeTools
         private sealed class Toggle
         {
             internal bool Ok;
-            internal string Mode;
-            internal string Error;
+            internal string? Mode;
+            internal string? Error;
         }
 
         private static Toggle ShowWorld()
@@ -454,9 +456,9 @@ namespace HomeBridge.BridgeTools
             }
         }
 
-        private static Dictionary<string, object> ViewBlock(bool shown, string mode, int seconds, bool hidden, string reason)
+        private static Dictionary<string, object?> ViewBlock(bool shown, string? mode, int seconds, bool hidden, string? reason)
         {
-            return new Dictionary<string, object>(StringComparer.Ordinal)
+            return new Dictionary<string, object?>(StringComparer.Ordinal)
             {
                 { "shown", shown },
                 { "wantedMode", mode },
@@ -470,7 +472,7 @@ namespace HomeBridge.BridgeTools
         // safe accessors
         // ------------------------------------------------------------------
 
-        private static Map SafeMap()
+        private static Map? SafeMap()
         {
             try
             {
@@ -488,7 +490,7 @@ namespace HomeBridge.BridgeTools
             }
         }
 
-        private static bool TryTile(int wantTile, Map map, out PlanetTile tile)
+        private static bool TryTile(int wantTile, Map? map, out PlanetTile tile)
         {
             tile = default(PlanetTile);
             try
@@ -520,7 +522,7 @@ namespace HomeBridge.BridgeTools
             }
         }
 
-        private static Tile SafeTile(PlanetTile tile)
+        private static Tile? SafeTile(PlanetTile tile)
         {
             try
             {
@@ -583,9 +585,9 @@ namespace HomeBridge.BridgeTools
             return BridgeCommon.Try(() => Plant.DefaultMaxOptimalGrowthTemperature, GrowMaxDefault);
         }
 
-        private static Dictionary<string, object> Notes(string statusNote)
+        private static Dictionary<string, object?> Notes(string? statusNote)
         {
-            var notes = new Dictionary<string, object>(StringComparer.Ordinal)
+            var notes = new Dictionary<string, object?>(StringComparer.Ordinal)
             {
                 ["whyThisToolExists"] = "The World main tab is a MainButtonDef toggle, not a tab window: list_main_tabs reports type \"\" for it, open_main_tab has no tab window to open, and click_ui_target has no ui-element id. This reads the same facts off the world grid instead.",
                 ["readOnly"] = "Every field above is a read. The only write in this tool is show:true with dryRun:false, which toggles the planet view and hides it again.",
@@ -604,7 +606,7 @@ namespace HomeBridge.BridgeTools
             return Math.Round((double)value, 3, MidpointRounding.AwayFromZero);
         }
 
-        private static object RoundN(float? value)
+        private static object? RoundN(float? value)
         {
             return value.HasValue ? (object)Round(value.Value) : null;
         }

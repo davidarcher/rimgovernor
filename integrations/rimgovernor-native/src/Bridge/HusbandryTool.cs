@@ -1,3 +1,5 @@
+#nullable enable
+
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -20,9 +22,9 @@ namespace HomeBridge.BridgeTools
         private static bool Designated(Pawn p, DesignationDef def) => p.Map.designationManager.DesignationOn(p, def) != null;
         private static string Settings(Pawn p)
         {
-            var values = new List<string> { p.GetUniqueLoadID(), p.Faction?.GetUniqueLoadID(),
-                p.playerSettings?.Master?.GetUniqueLoadID(), p.playerSettings?.AreaRestrictionInPawnCurrentMap?.GetUniqueLoadID(),
-                p.playerSettings?.followDrafted.ToString(), p.playerSettings?.followFieldwork.ToString(),
+            var values = new List<string> { p.GetUniqueLoadID(), p.Faction?.GetUniqueLoadID() ?? "",
+                p.playerSettings?.Master?.GetUniqueLoadID() ?? "", p.playerSettings?.AreaRestrictionInPawnCurrentMap?.GetUniqueLoadID() ?? "",
+                p.playerSettings?.followDrafted.ToString() ?? "", p.playerSettings?.followFieldwork.ToString() ?? "",
                 Designated(p, DesignationDefOf.Slaughter).ToString(),
                 Designated(p, DesignationDefOf.ReleaseAnimalToWild).ToString() };
             values.AddRange(TrainableUtility.GetAllColonistBondsFor(p).Select(b => b.GetUniqueLoadID()).OrderBy(x => x));
@@ -43,8 +45,8 @@ namespace HomeBridge.BridgeTools
         private static object Animal(Pawn p)
         {
             var animal = PawnSettingsRead.AnimalBlock(p);
-            var produce = (Dictionary<string, object>)animal["produce"];
-            var training = (Dictionary<string, object>)animal["training"];
+            var produce = animal["produce"] as Dictionary<string, object?> ?? throw new InvalidOperationException("Animal block has no produce record.");
+            var training = animal["training"] as Dictionary<string, object?> ?? throw new InvalidOperationException("Animal block has no training record.");
             var penned = AnimalPenUtility.NeedsToBeManagedByRope(p);
             var pen = penned ? AnimalPenUtility.GetCurrentPenOf(p, false) : null;
             return new { id = p.GetUniqueLoadID(), race = p.def.defName, label = p.LabelShort,
@@ -96,7 +98,7 @@ namespace HomeBridge.BridgeTools
             [ToolParameter(Description = "Exact observed animal load ID")] string animal,
             [ToolParameter(Description = "Exact observed settingsToken")] string expected,
             [ToolParameter(Description = "Exact observed censusToken; population changes invalidate this request")] string census,
-            [ToolParameter(Description = "Native TrainableDef to request; omit for slaughter")] string trainable = null,
+            [ToolParameter(Description = "Native TrainableDef to request; omit for slaughter")] string? trainable = null,
             [ToolParameter(Description = "Designate eligible surplus animal; explicit player policy required")] bool slaughter = false,
             [ToolParameter(Description = "Preview only", DefaultValue = true)] bool dryRun = true)
         {

@@ -1,4 +1,7 @@
+#nullable enable
+
 using System;
+using System.Diagnostics.CodeAnalysis;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
@@ -142,23 +145,23 @@ namespace HomeBridge.BridgeTools
         [ToolResponse("changes", "array", "Every mutation as an English sentence, in the order it was (or would be) applied.", Always = true)]
         [ToolResponse("unknownArguments", "array", "Every argument key the caller sent that this tool does not declare, sorted, case-sensitively. Empty array = every key was recognised. The host's own _rimBridgeTimeoutMs is never listed.", Always = true)]
         [ToolResponse("unknownArgumentsWarning", "string", "Present only when unknownArguments is non-empty, or when the caller's raw keys could not be read at all - in which case the empty unknownArguments means 'not known', not 'nothing unknown'. On a WRITE tool this matters twice over: a misspelled dryRun is the difference between a plan and a changed map.", Nullable = true)]
-        public async Task<object> ZoneCells(
+        public async Task<object?> ZoneCells(
             IRimBridgeContext ctx,
             CancellationToken cancellationToken,
-            [ToolParameter(Description = "What to do: add, remove, create, delete, repair, filter, crop, settings (growing-zone sow/cut toggles).")] string op = null,
-            [ToolParameter(Description = "Target zone: its exact label (case-insensitive), or its numeric id as a string. Optional for op=repair (repairs every zone) and required for everything else except op=create.")] string zone = null,
+            [ToolParameter(Description = "What to do: add, remove, create, delete, repair, filter, crop, settings (growing-zone sow/cut toggles).")] string? op = null,
+            [ToolParameter(Description = "Target zone: its exact label (case-insensitive), or its numeric id as a string. Optional for op=repair (repairs every zone) and required for everything else except op=create.")] string? zone = null,
             [ToolParameter(Description = "Rect origin x. Combined with z/width/height to name a block of cells.", DefaultValue = -1)] int x = -1,
             [ToolParameter(Description = "Rect origin z.", DefaultValue = -1)] int z = -1,
             [ToolParameter(Description = "Rect width in cells.", DefaultValue = 1)] int width = 1,
             [ToolParameter(Description = "Rect height in cells.", DefaultValue = 1)] int height = 1,
-            [ToolParameter(Description = "Explicit cell list, e.g. \"113,145;113,144\". Combined with the rect if both are given; duplicates are collapsed.")] string cells = null,
+            [ToolParameter(Description = "Explicit cell list, e.g. \"113,145;113,144\". Combined with the rect if both are given; duplicates are collapsed.")] string? cells = null,
             [ToolParameter(Description = "For op=create: stockpile, dumping, or growing.", DefaultValue = "stockpile")] string zoneType = "stockpile",
-            [ToolParameter(Description = "For op=create: the label for the new zone. Null = the game's own auto-generated name.")] string label = null,
-            [ToolParameter(Description = "Storage priority for a stockpile (Low, Normal, Preferred, Important, Critical). Applies to op=create, op=filter and, when given, to op=add on an existing stockpile.")] string priority = null,
-            [ToolParameter(Description = "For op=filter and op=create: a prebuilt filter to start from. One of everything, nothing, food, perishables, nonperishables, outdoorSafe. The reply's presetDefinition says exactly what each covers.")] string preset = null,
-            [ToolParameter(Description = "For op=filter and op=create: extra ThingCategoryDef or ThingDef names to allow, comma-separated, applied after the preset. Use special:DEFNAME for a configurable SpecialThingFilterDef discovered in the filter summary. Unknown or nonconfigurable names refuse the whole call.")] string allow = null,
-            [ToolParameter(Description = "For op=filter and op=create: ThingCategoryDef or ThingDef names to disallow, comma-separated, applied last. Same matching and the same refusal.")] string disallow = null,
-            [ToolParameter(Description = "For op=crop or op=create with zoneType=growing: the plant to grow, as a ThingDef defName (Plant_Potato) or label (potato plant), case-insensitive. A name that matches no sowable plant refuses and lists what the zone will take.")] string plant = null,
+            [ToolParameter(Description = "For op=create: the label for the new zone. Null = the game's own auto-generated name.")] string? label = null,
+            [ToolParameter(Description = "Storage priority for a stockpile (Low, Normal, Preferred, Important, Critical). Applies to op=create, op=filter and, when given, to op=add on an existing stockpile.")] string? priority = null,
+            [ToolParameter(Description = "For op=filter and op=create: a prebuilt filter to start from. One of everything, nothing, food, perishables, nonperishables, outdoorSafe. The reply's presetDefinition says exactly what each covers.")] string? preset = null,
+            [ToolParameter(Description = "For op=filter and op=create: extra ThingCategoryDef or ThingDef names to allow, comma-separated, applied after the preset. Use special:DEFNAME for a configurable SpecialThingFilterDef discovered in the filter summary. Unknown or nonconfigurable names refuse the whole call.")] string? allow = null,
+            [ToolParameter(Description = "For op=filter and op=create: ThingCategoryDef or ThingDef names to disallow, comma-separated, applied last. Same matching and the same refusal.")] string? disallow = null,
+            [ToolParameter(Description = "For op=crop or op=create with zoneType=growing: the plant to grow, as a ThingDef defName (Plant_Potato) or label (potato plant), case-insensitive. A name that matches no sowable plant refuses and lists what the zone will take.")] string? plant = null,
             [ToolParameter(Description = "After op=add, call Zone.CheckContiguous() when the zone has become non-contiguous. CheckContiguous DELETES the cells it cannot reach, so this is off by default: the tool reports contiguous:false and leaves the zone alone.", DefaultValue = false)] bool allowSplit = false,
             [ToolParameter(Description = "Show the write happening: select the zone, open the tab a player would use, then close it again. Decorative only.", DefaultValue = true)] bool watch = true,
             [ToolParameter(Description = "How long the menu stays open after the write, in seconds.", DefaultValue = Watch.DefaultSeconds)] int watchSeconds = Watch.DefaultSeconds,
@@ -175,23 +178,23 @@ namespace HomeBridge.BridgeTools
                 ctx, typeof(HomeZoneCellTools), ToolName);
         }
 
-        private async Task<object> ZoneCellsCore(
+        private async Task<object?> ZoneCellsCore(
             IRimBridgeContext ctx,
             CancellationToken cancellationToken,
-            string op,
-            string zone,
+            string? op,
+            string? zone,
             int x,
             int z,
             int width,
             int height,
-            string cells,
+            string? cells,
             string zoneType,
-            string label,
-            string priority,
-            string preset,
-            string allow,
-            string disallow,
-            string plant,
+            string? label,
+            string? priority,
+            string? preset,
+            string? allow,
+            string? disallow,
+            string? plant,
             bool allowSplit,
             bool watch,
             int watchSeconds,
@@ -204,7 +207,7 @@ namespace HomeBridge.BridgeTools
             // written, so a viewer sees the change land inside it. Nothing here
             // decides the call: it resolves the zone only to aim the camera, and a
             // dry run or watch:false never gets here at all.
-            Watch.Session session = null;
+            Watch.Session? session = null;
             var watchBlock = Watch.Skipped(!watch ? "watch:false" : "dry run");
             if (watch && !dryRun)
             {
@@ -233,7 +236,7 @@ namespace HomeBridge.BridgeTools
                         if (op != "create" || zoneType != "stockpile")
                             return new Hop2 { Reply = Failure("Covered empty cells require stockpile creation.") };
                         List<IntVec3> requested;
-                        string cellError;
+                        string? cellError;
                         if (!TryParseCells(x, z, width, height, cells, out requested, out cellError))
                             return new Hop2 { Reply = Failure(cellError) };
                         var map = Find.CurrentMap;
@@ -279,8 +282,8 @@ namespace HomeBridge.BridgeTools
         /// could only be built on the main thread beside it.</summary>
         private sealed class Hop2
         {
-            internal object Reply;
-            internal Dictionary<string, object> Watch;
+            internal object? Reply;
+            internal Dictionary<string, object?>? Watch;
         }
 
         /// <summary>
@@ -288,30 +291,30 @@ namespace HomeBridge.BridgeTools
         /// id in its own reply rather than by holding a reference, or null for
         /// every other case. Never throws.
         /// </summary>
-        private static Zone CreatedZone(object reply)
+        private static Zone? CreatedZone(object reply)
         {
             try
             {
                 var payload = BridgeCommon.AsDictionary(reply);
                 if (payload == null || !BridgeCommon.Bool(payload, "success"))
                     return null;
-                object opValue;
+                object? opValue;
                 if (!payload.TryGetValue("op", out opValue) || !"create".Equals(opValue as string))
                     return null;
                 if (BridgeCommon.Bool(payload, "dryRun"))
                     return null;
 
-                object zoneValue;
+                object? zoneValue;
                 if (!payload.TryGetValue("zone", out zoneValue))
                     return null;
-                var zoneBlock = zoneValue as Dictionary<string, object>;
+                var zoneBlock = zoneValue as Dictionary<string, object?>;
                 if (zoneBlock == null)
                     return null;
-                object idValue;
+                object? idValue;
                 if (!zoneBlock.TryGetValue("id", out idValue) || !(idValue is int))
                     return null;
 
-                Map map;
+                Map? map;
                 string mapError;
                 if (!TryGetMap(out map, out mapError) || map.zoneManager == null)
                     return null;
@@ -324,8 +327,8 @@ namespace HomeBridge.BridgeTools
         /// none.</summary>
         private sealed class Preflight
         {
-            internal Watch.Session Session;
-            internal string Skipped;
+            internal Watch.Session? Session;
+            internal string? Skipped;
         }
 
         /// <summary>
@@ -334,11 +337,11 @@ namespace HomeBridge.BridgeTools
         /// otherwise. Never throws and never refuses the call — a watch that
         /// cannot find its target is a skipped watch, not a failure.
         /// </summary>
-        private static Preflight OpenWatch(IRimBridgeContext ctx, string op, string zoneSpec)
+        private static Preflight OpenWatch(IRimBridgeContext ctx, string? op, string? zoneSpec)
         {
             try
             {
-                Map map;
+                Map? map;
                 string mapError;
                 if (!TryGetMap(out map, out mapError))
                     return new Preflight { Skipped = "no map to show it on" };
@@ -355,8 +358,8 @@ namespace HomeBridge.BridgeTools
                 if (wantOp == "repair" && string.IsNullOrEmpty(zoneSpec))
                     return new Preflight { Skipped = "a whole-map repair has no single zone to select" };
 
-                Zone target;
-                string resolveError;
+                Zone? target;
+                string? resolveError;
                 if (!TryResolveZone(map.zoneManager, zoneSpec, out target, out resolveError))
                     return new Preflight { Skipped = "the zone could not be resolved: " + resolveError };
 
@@ -371,9 +374,9 @@ namespace HomeBridge.BridgeTools
 
         // =================================================================== run
 
-        private static object Run(string op, string zoneSpec, int x, int z, int width, int height,
-                                  string cellSpec, string zoneType, string newLabel, string priority,
-                                  string preset, string allowSpec, string disallowSpec, string plantSpec,
+        private static object Run(string? op, string? zoneSpec, int x, int z, int width, int height,
+                                  string? cellSpec, string zoneType, string? newLabel, string? priority,
+                                  string? preset, string? allowSpec, string? disallowSpec, string? plantSpec,
                                   bool allowSplit, bool dryRun, bool? sow, bool? cut)
         {
             if (!TryGetMap(out var map, out var mapError))
@@ -428,16 +431,16 @@ namespace HomeBridge.BridgeTools
                     return Delete(map, sim, zoneSpec, dryRun);
                 case "filter":
                 {
-                    Zone target;
-                    string resolveError;
+                    Zone? target;
+                    string? resolveError;
                     if (!TryResolveZone(zoneManager, zoneSpec, out target, out resolveError))
                         return Failure(resolveError);
                     return Filter(target, preset, allowSpec, disallowSpec, priority, dryRun);
                 }
                 case "crop":
                 {
-                    Zone target;
-                    string resolveError;
+                    Zone? target;
+                    string? resolveError;
                     if (!TryResolveZone(zoneManager, zoneSpec, out target, out resolveError))
                         return Failure(resolveError);
                     return Crop(target, plantSpec, dryRun);
@@ -448,8 +451,8 @@ namespace HomeBridge.BridgeTools
                                        x, z, width, height, cellSpec, allowSplit, dryRun, true);
                 case "add":
                 {
-                    Zone target;
-                    string resolveError;
+                    Zone? target;
+                    string? resolveError;
                     if (!TryResolveZone(zoneManager, zoneSpec, out target, out resolveError))
                         return Failure(resolveError);
                     return AddOrCreate(map, sim, target, zoneType, newLabel, priority,
@@ -458,8 +461,8 @@ namespace HomeBridge.BridgeTools
                 }
                 default:
                 {
-                    Zone target;
-                    string resolveError;
+                    Zone? target;
+                    string? resolveError;
                     if (!TryResolveZone(zoneManager, zoneSpec, out target, out resolveError))
                         return Failure(resolveError);
                     return Remove(map, sim, target, x, z, width, height, cellSpec, dryRun);
@@ -473,11 +476,11 @@ namespace HomeBridge.BridgeTools
         /// refusal that stopped it before anything was written.</summary>
         private sealed class FilterRequest
         {
-            internal string Preset;
+            internal string? Preset;
             internal StockpileFilter.Resolved Allow = new StockpileFilter.Resolved();
             internal StockpileFilter.Resolved Disallow = new StockpileFilter.Resolved();
             internal StoragePriority? Priority;
-            internal string Error;
+            internal string? Error;
 
             internal bool Any
             {
@@ -491,8 +494,8 @@ namespace HomeBridge.BridgeTools
         /// thing-category tree is down (SetAllow on a ThingCategoryDef calls
         /// Log.Error there, and Log.Error pauses the colony).
         /// </summary>
-        private static FilterRequest ParseFilterRequest(string preset, string allowSpec,
-                                                        string disallowSpec, string priority)
+        private static FilterRequest ParseFilterRequest(string? preset, string? allowSpec,
+                                                        string? disallowSpec, string? priority)
         {
             var request = new FilterRequest();
 
@@ -547,15 +550,15 @@ namespace HomeBridge.BridgeTools
         /// is computed from; a real run then replays the identical calls against
         /// the live filter and reads the result back off it.
         /// </summary>
-        private static object Filter(Zone zone, string preset, string allowSpec, string disallowSpec,
-                                     string priority, bool dryRun)
+        private static object Filter(Zone zone, string? preset, string? allowSpec, string? disallowSpec,
+                                     string? priority, bool dryRun)
         {
             var stockpile = zone as Zone_Stockpile;
             if (stockpile == null)
                 return Failure("op=filter needs a stockpile. \"" + SafeLabel(zone) + "\" is a "
                                + SafeTypeName(zone) + ", which has no storage settings.");
 
-            var settings = BridgeCommon.Try(() => stockpile.settings, (StorageSettings)null);
+            var settings = BridgeCommon.Try(() => stockpile.settings, (StorageSettings?)null);
             if (settings == null || settings.filter == null)
                 return Failure("\"" + SafeLabel(zone) + "\" has no storage settings to filter.");
 
@@ -574,8 +577,8 @@ namespace HomeBridge.BridgeTools
             var specialBefore = StockpileFilter.SpecialSignature(settings.filter);
 
             var changes = new List<object>();
-            string applyError = null;
-            Dictionary<string, object> after;
+            string? applyError = null;
+            Dictionary<string, object?> after;
             HashSet<ThingDef> allowedAfter;
 
             // The scratch copy carries no settingsChangedCallback, so planning on
@@ -623,14 +626,14 @@ namespace HomeBridge.BridgeTools
             if (!changed)
                 changes.Add("Nothing changed: the stockpile already had exactly this filter and priority.");
 
-            return new Dictionary<string, object>
+            return new Dictionary<string, object?>
             {
                 { "success", applyError == null },
                 { "tool", ToolName },
                 { "op", "filter" },
                 { "dryRun", dryRun },
                 { "changed", changed },
-                { "zone", new Dictionary<string, object>
+                { "zone", new Dictionary<string, object?>
                     {
                         { "label", SafeLabel(zone) },
                         { "id", SafeId(zone) },
@@ -658,7 +661,7 @@ namespace HomeBridge.BridgeTools
         /// The before/after read is the private field, never the property whose
         /// getter writes.
         /// </summary>
-        private static object Crop(Zone zone, string plantSpec, bool dryRun)
+        private static object Crop(Zone zone, string? plantSpec, bool dryRun)
         {
             var growing = zone as Zone_Growing;
             if (growing == null)
@@ -668,8 +671,8 @@ namespace HomeBridge.BridgeTools
             if (string.IsNullOrWhiteSpace(plantSpec))
                 return Failure("op=crop needs a plant: a ThingDef defName (Plant_Potato) or label (potato plant).");
 
-            ThingDef wanted;
-            string plantError;
+            ThingDef? wanted;
+            string? plantError;
             if (!TryResolvePlant(growing, plantSpec, out wanted, out plantError))
                 return Failure(plantError);
 
@@ -684,8 +687,8 @@ namespace HomeBridge.BridgeTools
             else
                 changes.Add("Nothing changed: the zone already grows " + wanted.defName + ".");
 
-            string applyError = null;
-            Dictionary<string, object> after;
+            string? applyError = null;
+            Dictionary<string, object?> after;
             if (!dryRun && changed)
             {
                 try
@@ -704,7 +707,7 @@ namespace HomeBridge.BridgeTools
             }
             else
             {
-                after = new Dictionary<string, object>(StringComparer.Ordinal)
+                after = new Dictionary<string, object?>(StringComparer.Ordinal)
                 {
                     { "plantDef", wanted.defName },
                     { "plantLabel", BridgeCommon.SafeString(() => wanted.label) },
@@ -713,14 +716,14 @@ namespace HomeBridge.BridgeTools
                 };
             }
 
-            return new Dictionary<string, object>
+            return new Dictionary<string, object?>
             {
                 { "success", applyError == null },
                 { "tool", ToolName },
                 { "op", "crop" },
                 { "dryRun", dryRun },
                 { "changed", changed },
-                { "zone", new Dictionary<string, object>
+                { "zone", new Dictionary<string, object?>
                     {
                         { "label", SafeLabel(zone) },
                         { "id", SafeId(zone) },
@@ -728,7 +731,7 @@ namespace HomeBridge.BridgeTools
                     } },
                 { "before", before },
                 { "after", after },
-                { "presetDefinition", new Dictionary<string, object>() },
+                { "presetDefinition", new Dictionary<string, object?>() },
                 { "filter", null },
                 { "cells", new List<object>() },
                 { "cellsAccepted", 0 },
@@ -743,7 +746,7 @@ namespace HomeBridge.BridgeTools
         /// <summary>The private plantDefToGrow field. The PlantDefToGrow property
         /// assigns it when null, so reading the property to report the crop would
         /// set one.</summary>
-        private static ThingDef ReadPlantDef(Zone_Growing growing)
+        private static ThingDef? ReadPlantDef(Zone_Growing? growing)
         {
             try
             {
@@ -756,10 +759,10 @@ namespace HomeBridge.BridgeTools
             }
         }
 
-        private static Dictionary<string, object> CropSummary(Zone_Growing growing)
+        private static Dictionary<string, object?> CropSummary(Zone_Growing growing)
         {
             var plant = ReadPlantDef(growing);
-            return new Dictionary<string, object>(StringComparer.Ordinal)
+            return new Dictionary<string, object?>(StringComparer.Ordinal)
             {
                 { "plantDef", plant == null ? null : plant.defName },
                 { "plantLabel", plant == null ? null : BridgeCommon.SafeString(() => plant.label) },
@@ -772,7 +775,7 @@ namespace HomeBridge.BridgeTools
         /// A sowable plant this zone will actually take, matched on defName then
         /// label. A miss lists what the zone accepts rather than refusing blankly.
         /// </summary>
-        private static bool TryResolvePlant(Zone_Growing growing, string spec, out ThingDef plant, out string error)
+        private static bool TryResolvePlant(Zone_Growing growing, string? spec, [NotNullWhen(true)] out ThingDef? plant, [NotNullWhen(false)] out string? error)
         {
             plant = null;
             error = null;
@@ -814,13 +817,13 @@ namespace HomeBridge.BridgeTools
 
         // =============================================================== add/create
 
-        private static object AddOrCreate(Map map, Sim sim, Zone target, string zoneType, string newLabel,
-                                          string priority, string filterPreset, string allowSpec, string disallowSpec, string plantSpec,
+        private static object AddOrCreate(Map map, Sim sim, Zone? target, string zoneType, string? newLabel,
+                                          string? priority, string? filterPreset, string? allowSpec, string? disallowSpec, string? plantSpec,
                                           int x, int z, int width, int height,
-                                          string cellSpec, bool allowSplit, bool dryRun, bool creating)
+                                          string? cellSpec, bool allowSplit, bool dryRun, bool creating)
         {
             List<IntVec3> requested;
-            string cellError;
+            string? cellError;
             if (!TryParseCells(x, z, width, height, cellSpec, out requested, out cellError))
                 return Failure(cellError);
             if (requested.Count == 0)
@@ -838,7 +841,7 @@ namespace HomeBridge.BridgeTools
             }
 
             // Resolve a new zone's crop before consuming an ID or changing cells.
-            ThingDef wantedPlant = null;
+            ThingDef? wantedPlant = null;
             if (!string.IsNullOrEmpty(plantSpec))
             {
                 if (!creating || !makeGrowing) return Failure("plant needs a new growing zone.");
@@ -863,7 +866,7 @@ namespace HomeBridge.BridgeTools
             // The target key: either the real zone, or the sentinel standing in for
             // the zone op=create has not made yet (a dry run must not consume a
             // zone ID or a generated name).
-            var targetKey = creating ? NewZoneKey : (object)target;
+            var targetKey = creating ? NewZoneKey : (object?)target;
             var targetIsStockpile = creating ? !makeGrowing : target is Zone_Stockpile;
             var targetSlotGroup = creating ? null : SlotGroupOf(target);
 
@@ -877,7 +880,7 @@ namespace HomeBridge.BridgeTools
             foreach (var c in requested)
             {
                 string reason;
-                string takenFrom = null;
+                string? takenFrom = null;
 
                 if (!c.InBounds(map))
                 {
@@ -948,7 +951,7 @@ namespace HomeBridge.BridgeTools
                         // a separate action -- the game does it for us -- but the
                         // caller must be told the zone is gone.
                         sim.MarkDeregistered(owner);
-                        zonesRemoved.Add(new Dictionary<string, object>
+                        zonesRemoved.Add(new Dictionary<string, object?>
                         {
                             { "label", OwnerLabel(owner) },
                             { "id", owner is Zone oz ? SafeId(oz) : -1 },
@@ -1005,17 +1008,17 @@ namespace HomeBridge.BridgeTools
             {
                 // Match PollutionUtility.CanPlantAt over the accepted cells,
                 // without constructing a Zone (which allocates an ID in previews).
-                var acceptedCells = results.OfType<Dictionary<string, object>>()
+                var acceptedCells = results.OfType<Dictionary<string, object?>>()
                     .Where(r => r.ContainsKey("accepted") && r["accepted"] is bool ok && ok)
-                    .Select(r => new IntVec3((int)r["x"], 0, (int)r["z"])).ToList();
+                    .Select(r => new IntVec3(BridgeCommon.Int(r, "x"), 0, BridgeCommon.Int(r, "z"))).ToList();
                 if ((wantedPlant.plant.RequiresNoPollution && !acceptedCells.Any(c => !c.IsPolluted(map)))
                     || (wantedPlant.plant.RequiresPollution && !acceptedCells.Any(c => c.IsPolluted(map))))
                     return Failure("The requested crop cannot grow under this zone's pollution conditions.");
             }
 
-            Zone created = null;
-            string applyError = null;
-            Dictionary<string, object> filterSummary = null;
+            Zone? created = null;
+            string? applyError = null;
+            Dictionary<string, object?>? filterSummary = null;
             if (!dryRun)
             {
                 if (creating)
@@ -1044,7 +1047,7 @@ namespace HomeBridge.BridgeTools
                             }
                         }
                         filterSummary = StockpileFilter.Summary(
-                            BridgeCommon.Try(() => newStockpile.settings.filter, (ThingFilter)null),
+                            BridgeCommon.Try(() => newStockpile.settings.filter, (ThingFilter?)null),
                             CurrentPriority(newStockpile), universe);
                     }
                 }
@@ -1057,7 +1060,7 @@ namespace HomeBridge.BridgeTools
                 applyError = Apply(map, actions, target);
                 if (wantedPlant != null && applyError == null)
                 {
-                    try { ((Zone_Growing)target).SetPlantDefToGrow(wantedPlant); }
+                    try { (target as Zone_Growing ?? throw new InvalidOperationException("The created zone is not a growing zone.")).SetPlantDefToGrow(wantedPlant); }
                     catch (Exception e) { applyError = "Crop assignment failed: " + e.Message; }
                 }
 
@@ -1099,13 +1102,13 @@ namespace HomeBridge.BridgeTools
                 changes.Add("Set " + OwnerLabel(target) + " priority to " + wantPriority.Value + ".");
             }
 
-            Dictionary<string, object> after;
+            Dictionary<string, object?> after;
             if (dryRun && creating)
             {
                 // There is no zone object to summarize -- deliberately, because a
                 // dry run must not consume a zone ID or an auto-generated name --
                 // so the after block is read straight off the simulation.
-                after = new Dictionary<string, object>
+                after = new Dictionary<string, object?>
                 {
                     { "listedCellCount", accepted },
                     { "gridCellCount", accepted },
@@ -1130,7 +1133,7 @@ namespace HomeBridge.BridgeTools
             payload["presetDefinition"] = StockpileFilter.Definition(filterRequest.Preset);
             if (creating && target == null)
             {
-                payload["zone"] = new Dictionary<string, object>
+                payload["zone"] = new Dictionary<string, object?>
                 {
                     { "label", newLabel },
                     { "id", null },
@@ -1144,10 +1147,10 @@ namespace HomeBridge.BridgeTools
         // ================================================================ remove
 
         private static object Remove(Map map, Sim sim, Zone target, int x, int z, int width, int height,
-                                     string cellSpec, bool dryRun)
+                                     string? cellSpec, bool dryRun)
         {
             List<IntVec3> requested;
-            string cellError;
+            string? cellError;
             if (!TryParseCells(x, z, width, height, cellSpec, out requested, out cellError))
                 return Failure(cellError);
             if (requested.Count == 0)
@@ -1212,7 +1215,7 @@ namespace HomeBridge.BridgeTools
             var emptied = sim.Listed(targetKey).Count == 0 && accepted > 0;
             if (emptied)
             {
-                zonesRemoved.Add(new Dictionary<string, object>
+                zonesRemoved.Add(new Dictionary<string, object?>
                 {
                     { "label", OwnerLabel(targetKey) },
                     { "id", SafeId(target) },
@@ -1221,7 +1224,7 @@ namespace HomeBridge.BridgeTools
                 changes.Add(OwnerLabel(targetKey) + " is deregistered: its last cell was removed.");
             }
 
-            string applyError = null;
+            string? applyError = null;
             if (!dryRun)
                 applyError = Apply(map, actions, target);
 
@@ -1235,15 +1238,15 @@ namespace HomeBridge.BridgeTools
 
         // ================================================================ delete
 
-        private static object Delete(Map map, Sim sim, string zoneSpec, bool dryRun)
+        private static object Delete(Map map, Sim sim, string? zoneSpec, bool dryRun)
         {
-            Zone target;
-            string resolveError;
+            Zone? target;
+            string? resolveError;
             if (!TryResolveZone(map.zoneManager, zoneSpec, out target, out resolveError))
                 return Failure(resolveError);
 
             var before = Summarize(map, sim, target);
-            var phantomCount = (int)before["phantomCellCount"];
+            var phantomCount = BridgeCommon.Int(before, "phantomCellCount");
             var changes = new List<object>();
 
             if (phantomCount > 0)
@@ -1270,7 +1273,7 @@ namespace HomeBridge.BridgeTools
 
             changes.Add("Delete " + OwnerLabel(target) + " (" + before["listedCellCount"] + " cells), releasing every cell.");
 
-            string applyError = null;
+            string? applyError = null;
             if (!dryRun)
             {
                 try
@@ -1287,7 +1290,7 @@ namespace HomeBridge.BridgeTools
             }
 
             var after = dryRun
-                ? new Dictionary<string, object>
+                ? new Dictionary<string, object?>
                     {
                         { "listedCellCount", 0 }, { "gridCellCount", 0 }, { "phantomCellCount", 0 },
                         { "orphanGridCellCount", 0 }, { "exists", false }
@@ -1297,7 +1300,7 @@ namespace HomeBridge.BridgeTools
             var payload = Payload("delete", dryRun, target, new List<object>(), before, after,
                                   changes, new List<object>
                                   {
-                                      new Dictionary<string, object>
+                                      new Dictionary<string, object?>
                                       {
                                           { "label", OwnerLabel(target) },
                                           { "id", SafeId(target) },
@@ -1310,7 +1313,7 @@ namespace HomeBridge.BridgeTools
 
         // ================================================================ repair
 
-        private static object Repair(Map map, Sim sim, string zoneSpec, bool dryRun)
+        private static object Repair(Map map, Sim sim, string? zoneSpec, bool dryRun)
         {
             var zoneManager = map.zoneManager;
             List<Zone> targets;
@@ -1320,8 +1323,8 @@ namespace HomeBridge.BridgeTools
             }
             else
             {
-                Zone one;
-                string resolveError;
+                Zone? one;
+                string? resolveError;
                 if (!TryResolveZone(zoneManager, zoneSpec, out one, out resolveError))
                     return Failure(resolveError);
                 targets = new List<Zone> { one };
@@ -1358,7 +1361,7 @@ namespace HomeBridge.BridgeTools
                         notify = sim.HaulOwner(c) == slotGroup;
                         if (!notify)
                         {
-                            skippedNotifies.Add(new Dictionary<string, object>
+                            skippedNotifies.Add(new Dictionary<string, object?>
                             {
                                 { "zone", SafeLabel(zone) },
                                 { "x", c.x }, { "z", c.z },
@@ -1382,7 +1385,7 @@ namespace HomeBridge.BridgeTools
                 {
                     actions.Add(PlannedAction.Deregister(zone));
                     sim.MarkDeregistered(key);
-                    zonesRemoved.Add(new Dictionary<string, object>
+                    zonesRemoved.Add(new Dictionary<string, object?>
                     {
                         { "label", SafeLabel(zone) },
                         { "id", SafeId(zone) },
@@ -1411,7 +1414,7 @@ namespace HomeBridge.BridgeTools
                         notify = sim.HaulOwner(c) == null;
                         if (!notify && sim.HaulOwner(c) != slotGroup)
                         {
-                            skippedNotifies.Add(new Dictionary<string, object>
+                            skippedNotifies.Add(new Dictionary<string, object?>
                             {
                                 { "zone", SafeLabel(zone) },
                                 { "x", c.x }, { "z", c.z },
@@ -1432,7 +1435,7 @@ namespace HomeBridge.BridgeTools
                 }
             }
 
-            string applyError = null;
+            string? applyError = null;
             if (!dryRun && actions.Count > 0)
                 applyError = Apply(map, actions, null);
 
@@ -1444,7 +1447,7 @@ namespace HomeBridge.BridgeTools
             var afterTargets = targets.Where(zz => !sim.IsDeregistered(zz)).ToList();
             var afterTotals = Totals(map, afterSim, afterTargets);
 
-            var perZone = targets.Select(zz => (object)new Dictionary<string, object>
+            var perZone = targets.Select(zz => (object)new Dictionary<string, object?>
             {
                 { "label", SafeLabel(zz) },
                 { "id", SafeId(zz) },
@@ -1454,14 +1457,14 @@ namespace HomeBridge.BridgeTools
                 { "contiguous", sim.IsDeregistered(zz) || IsContiguous(afterSim.Listed(zz).ToList()) }
             }).ToList();
 
-            return new Dictionary<string, object>
+            return new Dictionary<string, object?>
             {
                 { "success", applyError == null },
                 { "tool", ToolName },
                 { "op", "repair" },
                 { "dryRun", dryRun },
                 { "changed", changes.Count > 0 },
-                { "presetDefinition", new Dictionary<string, object>(StringComparer.Ordinal) },
+                { "presetDefinition", new Dictionary<string, object?>(StringComparer.Ordinal) },
                 { "filter", null },
                 { "zonesExamined", targets.Count },
                 { "phantomCellsFixed", phantomFixed },
@@ -1486,7 +1489,7 @@ namespace HomeBridge.BridgeTools
         /// nothing between the two can have changed: planning and applying happen
         /// inside the same main-thread hop.
         /// </summary>
-        private static string Apply(Map map, List<PlannedAction> actions, Zone createdTarget)
+        private static string? Apply(Map map, List<PlannedAction> actions, Zone? createdTarget)
         {
             var errors = new List<string>();
             foreach (var a in actions)
@@ -1554,8 +1557,8 @@ namespace HomeBridge.BridgeTools
             catch { }
         }
 
-        private static Zone CreateZone(Map map, bool growing, StorageSettingsPreset preset,
-                                       string label, StoragePriority? priority, out string error)
+        private static Zone? CreateZone(Map map, bool growing, StorageSettingsPreset preset,
+                                       string? label, StoragePriority? priority, out string? error)
         {
             error = null;
             try
@@ -1580,7 +1583,7 @@ namespace HomeBridge.BridgeTools
             }
         }
 
-        private static bool SetPriority(Zone zone, StoragePriority priority)
+        private static bool SetPriority(Zone? zone, StoragePriority priority)
         {
             try
             {
@@ -1607,10 +1610,10 @@ namespace HomeBridge.BridgeTools
             private readonly ZoneManager zoneManager;
             private readonly Dictionary<object, HashSet<IntVec3>> listed = new Dictionary<object, HashSet<IntVec3>>();
             private readonly Dictionary<object, int> originalCount = new Dictionary<object, int>();
-            private readonly Dictionary<IntVec3, object> gridOverride = new Dictionary<IntVec3, object>();
-            private readonly Dictionary<IntVec3, SlotGroup> haulOverride = new Dictionary<IntVec3, SlotGroup>();
+            private readonly Dictionary<IntVec3, object?> gridOverride = new Dictionary<IntVec3, object?>();
+            private readonly Dictionary<IntVec3, SlotGroup?> haulOverride = new Dictionary<IntVec3, SlotGroup?>();
             private readonly HashSet<object> deregistered = new HashSet<object>();
-            private Dictionary<object, List<IntVec3>> gridIndex;
+            private Dictionary<object, List<IntVec3>>? gridIndex;
 
             public Sim(Map map, ZoneManager zoneManager)
             {
@@ -1618,7 +1621,7 @@ namespace HomeBridge.BridgeTools
                 this.zoneManager = zoneManager;
             }
 
-            public HashSet<IntVec3> Listed(object key)
+            public HashSet<IntVec3> Listed(object? key)
             {
                 if (key == null)
                     return new HashSet<IntVec3>();
@@ -1651,25 +1654,23 @@ namespace HomeBridge.BridgeTools
                 return originalCount.TryGetValue(key, out n) && n > 0;
             }
 
-            public object GridOwner(IntVec3 c)
+            public object? GridOwner(IntVec3 c)
             {
-                object o;
-                if (gridOverride.TryGetValue(c, out o))
+                if (gridOverride.TryGetValue(c, out var o))
                     return o;
                 try { return zoneManager.ZoneAt(c); }
                 catch { return null; }
             }
 
-            public void SetGridOwner(IntVec3 c, object owner)
+            public void SetGridOwner(IntVec3 c, object? owner)
             {
                 gridOverride[c] = owner;
                 gridIndex = null;
             }
 
-            public SlotGroup HaulOwner(IntVec3 c)
+            public SlotGroup? HaulOwner(IntVec3 c)
             {
-                SlotGroup g;
-                if (haulOverride.TryGetValue(c, out g))
+                if (haulOverride.TryGetValue(c, out var g))
                     return g;
                 try
                 {
@@ -1678,10 +1679,10 @@ namespace HomeBridge.BridgeTools
                 catch { return null; }
             }
 
-            public void SetHaulOwner(IntVec3 c, SlotGroup g) { haulOverride[c] = g; }
+            public void SetHaulOwner(IntVec3 c, SlotGroup? g) { haulOverride[c] = g; }
 
-            public void AddToList(object key, IntVec3 c) { Listed(key).Add(c); }
-            public void RemoveFromList(object key, IntVec3 c) { Listed(key).Remove(c); }
+            public void AddToList(object? key, IntVec3 c) { Listed(key).Add(c); }
+            public void RemoveFromList(object? key, IntVec3 c) { Listed(key).Remove(c); }
 
             public bool IsDeregistered(object key) { return key != null && deregistered.Contains(key); }
             public void MarkDeregistered(object key) { if (key != null) deregistered.Add(key); }
@@ -1697,16 +1698,16 @@ namespace HomeBridge.BridgeTools
                 var zone = key as Zone;
                 if (zone == null)
                     return new List<IntVec3>();
-                EnsureGridIndex();
-                List<IntVec3> result;
-                return gridIndex.TryGetValue(key, out result) ? result : new List<IntVec3>();
+                var index = EnsureGridIndex();
+                return index.TryGetValue(key, out var result) ? result : new List<IntVec3>();
             }
 
-            private void EnsureGridIndex()
+            private Dictionary<object, List<IntVec3>> EnsureGridIndex()
             {
                 if (gridIndex != null)
-                    return;
-                gridIndex = new Dictionary<object, List<IntVec3>>();
+                    return gridIndex;
+                var index = new Dictionary<object, List<IntVec3>>();
+                gridIndex = index;
                 try
                 {
                     foreach (var c in map.AllCells)
@@ -1714,16 +1715,16 @@ namespace HomeBridge.BridgeTools
                         var owner = GridOwner(c);
                         if (owner == null)
                             continue;
-                        List<IntVec3> list;
-                        if (!gridIndex.TryGetValue(owner, out list))
+                        if (!index.TryGetValue(owner, out var list))
                         {
                             list = new List<IntVec3>();
-                            gridIndex[owner] = list;
+                            index[owner] = list;
                         }
                         list.Add(c);
                     }
                 }
                 catch { }
+                return index;
             }
         }
 
@@ -1734,15 +1735,15 @@ namespace HomeBridge.BridgeTools
         private sealed class PlannedAction
         {
             public ActionKind Kind;
-            public Zone Zone;
+            public Zone? Zone;
             public IntVec3 Cell;
             public bool Notify;
 
-            public static PlannedAction AddCell(Zone zone, IntVec3 c, bool deferredZone)
+            public static PlannedAction AddCell(Zone? zone, IntVec3 c, bool deferredZone)
             {
                 return new PlannedAction { Kind = ActionKind.AddCell, Zone = deferredZone ? null : zone, Cell = c };
             }
-            public static PlannedAction RemoveCell(Zone zone, IntVec3 c)
+            public static PlannedAction RemoveCell(Zone? zone, IntVec3 c)
             {
                 return new PlannedAction { Kind = ActionKind.RemoveCell, Zone = zone, Cell = c };
             }
@@ -1758,7 +1759,7 @@ namespace HomeBridge.BridgeTools
             {
                 return new PlannedAction { Kind = ActionKind.Deregister, Zone = zone };
             }
-            public static PlannedAction CheckContiguous(Zone zone)
+            public static PlannedAction CheckContiguous(Zone? zone)
             {
                 return new PlannedAction { Kind = ActionKind.CheckContiguous, Zone = zone };
             }
@@ -1766,13 +1767,13 @@ namespace HomeBridge.BridgeTools
 
         // ============================================================== payloads
 
-        private static Dictionary<string, object> Payload(
-            string op, bool dryRun, Zone target, List<object> cellRows,
-            Dictionary<string, object> before, Dictionary<string, object> after,
+        private static Dictionary<string, object?> Payload(
+            string op, bool dryRun, Zone? target, List<object> cellRows,
+            Dictionary<string, object?> before, Dictionary<string, object?> after,
             List<object> changes, List<object> zonesRemoved,
-            bool contiguous, bool splitApplied, int accepted, string error)
+            bool contiguous, bool splitApplied, int accepted, string? error)
         {
-            return new Dictionary<string, object>
+            return new Dictionary<string, object?>
             {
                 { "success", error == null },
                 { "tool", ToolName },
@@ -1781,11 +1782,11 @@ namespace HomeBridge.BridgeTools
                 // One recorded mutation is one change. A run that accepted no
                 // cell and deregistered nothing says so in one field.
                 { "changed", changes.Count > 0 },
-                { "presetDefinition", new Dictionary<string, object>(StringComparer.Ordinal) },
+                { "presetDefinition", new Dictionary<string, object?>(StringComparer.Ordinal) },
                 { "filter", null },
                 { "zone", target == null
                     ? null
-                    : new Dictionary<string, object>
+                    : new Dictionary<string, object?>
                         {
                             { "label", SafeLabel(target) },
                             { "id", SafeId(target) },
@@ -1805,10 +1806,10 @@ namespace HomeBridge.BridgeTools
             };
         }
 
-        private static object Refusal(string op, bool dryRun, Zone target,
-                                      Dictionary<string, object> before, string why)
+        private static object Refusal(string op, bool dryRun, Zone? target,
+                                      Dictionary<string, object?> before, string why)
         {
-            return new Dictionary<string, object>
+            return new Dictionary<string, object?>
             {
                 { "success", false },
                 { "tool", ToolName },
@@ -1816,10 +1817,10 @@ namespace HomeBridge.BridgeTools
                 { "dryRun", dryRun },
                 { "refused", true },
                 { "changed", false },
-                { "presetDefinition", new Dictionary<string, object>(StringComparer.Ordinal) },
+                { "presetDefinition", new Dictionary<string, object?>(StringComparer.Ordinal) },
                 { "filter", null },
                 { "error", why },
-                { "zone", target == null ? null : new Dictionary<string, object>
+                { "zone", target == null ? null : new Dictionary<string, object?>
                     {
                         { "label", SafeLabel(target) },
                         { "id", SafeId(target) },
@@ -1834,9 +1835,9 @@ namespace HomeBridge.BridgeTools
             };
         }
 
-        private static Dictionary<string, object> CellRow(IntVec3 c, bool accepted, string reason, string takenFrom)
+        private static Dictionary<string, object?> CellRow(IntVec3 c, bool accepted, string reason, string? takenFrom)
         {
-            return new Dictionary<string, object>
+            return new Dictionary<string, object?>
             {
                 { "x", c.x }, { "z", c.z },
                 // All four keys on every row, including the empty reason on an
@@ -1848,11 +1849,11 @@ namespace HomeBridge.BridgeTools
             };
         }
 
-        private static Dictionary<string, object> Summarize(Map map, Sim sim, Zone zone)
+        private static Dictionary<string, object?> Summarize(Map map, Sim sim, Zone? zone)
         {
             if (zone == null)
             {
-                return new Dictionary<string, object>
+                return new Dictionary<string, object?>
                 {
                     { "listedCellCount", 0 }, { "gridCellCount", 0 },
                     { "phantomCellCount", 0 }, { "orphanGridCellCount", 0 }, { "exists", false }
@@ -1865,7 +1866,7 @@ namespace HomeBridge.BridgeTools
             var phantom = listed.Count(c => !ReferenceEquals(sim.GridOwner(c), key));
             var orphan = gridCells.Count(c => !listed.Contains(c));
 
-            return new Dictionary<string, object>
+            return new Dictionary<string, object?>
             {
                 { "listedCellCount", listed.Count },
                 { "gridCellCount", gridCells.Count },
@@ -1875,7 +1876,7 @@ namespace HomeBridge.BridgeTools
             };
         }
 
-        private static Dictionary<string, object> Totals(Map map, Sim sim, List<Zone> zones)
+        private static Dictionary<string, object?> Totals(Map map, Sim sim, List<Zone> zones)
         {
             long listed = 0, grid = 0;
             var phantom = 0;
@@ -1883,12 +1884,12 @@ namespace HomeBridge.BridgeTools
             foreach (var zone in zones)
             {
                 var s = Summarize(map, sim, zone);
-                listed += (int)s["listedCellCount"];
-                grid += (int)s["gridCellCount"];
-                phantom += (int)s["phantomCellCount"];
-                orphan += (int)s["orphanGridCellCount"];
+                listed += BridgeCommon.Int(s, "listedCellCount");
+                grid += BridgeCommon.Int(s, "gridCellCount");
+                phantom += BridgeCommon.Int(s, "phantomCellCount");
+                orphan += BridgeCommon.Int(s, "orphanGridCellCount");
             }
-            return new Dictionary<string, object>
+            return new Dictionary<string, object?>
             {
                 { "zones", zones.Count },
                 { "listedCells", listed },
@@ -1899,9 +1900,9 @@ namespace HomeBridge.BridgeTools
             };
         }
 
-        private static Dictionary<string, object> Notes()
+        private static Dictionary<string, object?> Notes()
         {
-            return new Dictionary<string, object>(StringComparer.Ordinal)
+            return new Dictionary<string, object?>(StringComparer.Ordinal)
             {
                 { "dryRunDefault", "dryRun is TRUE unless the caller passes false. A dry run plans the whole operation against an in-memory copy of the cell lists, the zone grid and the haul group grid, and returns exactly what a real run would do." },
                 { "addRemovesFirst", "op=add calls owner.RemoveCell(c) before target.AddCell(c). Zone.AddCell only overwrites the grid pointer and leaves the cell in the old zone's list, which is how a zone ends up claiming cells the grid gives to somebody else." },
@@ -1942,12 +1943,12 @@ namespace HomeBridge.BridgeTools
             }
         }
 
-        private static bool TryResolveZone(ZoneManager zoneManager, string spec, out Zone zone, out string error)
+        private static bool TryResolveZone(ZoneManager zoneManager, string? spec, [NotNullWhen(true)] out Zone? zone, [NotNullWhen(false)] out string? error)
         {
             zone = null;
             error = null;
 
-            if (string.IsNullOrEmpty(spec))
+            if (spec == null || spec.Length == 0)
             {
                 error = "A zone is required for this op. Pass its exact label or its numeric id as a string.";
                 return false;
@@ -1991,8 +1992,8 @@ namespace HomeBridge.BridgeTools
             return false;
         }
 
-        private static bool TryParseCells(int x, int z, int width, int height, string cellSpec,
-                                          out List<IntVec3> cells, out string error)
+        private static bool TryParseCells(int x, int z, int width, int height, string? cellSpec,
+                                          out List<IntVec3> cells, out string? error)
         {
             cells = new List<IntVec3>();
             error = null;
@@ -2015,7 +2016,7 @@ namespace HomeBridge.BridgeTools
                     }
             }
 
-            if (!string.IsNullOrEmpty(cellSpec))
+            if (cellSpec != null && cellSpec.Length > 0)
             {
                 foreach (var part in cellSpec.Split(new[] { ';', '|', '\n', '\r' }, StringSplitOptions.RemoveEmptyEntries))
                 {
@@ -2039,10 +2040,10 @@ namespace HomeBridge.BridgeTools
             return true;
         }
 
-        private static bool TryParsePriority(string text, out StoragePriority priority)
+        private static bool TryParsePriority(string? text, out StoragePriority priority)
         {
             priority = StoragePriority.Normal;
-            if (string.IsNullOrEmpty(text))
+            if (text == null || text.Length == 0)
                 return false;
             foreach (StoragePriority candidate in Enum.GetValues(typeof(StoragePriority)))
             {
@@ -2090,7 +2091,7 @@ namespace HomeBridge.BridgeTools
             return found >= total;
         }
 
-        private static SlotGroup SlotGroupOf(Zone zone)
+        private static SlotGroup? SlotGroupOf(Zone? zone)
         {
             try
             {
@@ -2100,7 +2101,7 @@ namespace HomeBridge.BridgeTools
             catch { return null; }
         }
 
-        private static string SafeSlotGroupName(SlotGroup group)
+        private static string SafeSlotGroupName(SlotGroup? group)
         {
             if (group == null)
                 return "nothing";
@@ -2108,7 +2109,7 @@ namespace HomeBridge.BridgeTools
             catch { return "an unnamed slot group"; }
         }
 
-        private static string OwnerLabel(object key)
+        private static string OwnerLabel(object? key)
         {
             if (key == null) return "no zone";
             if (ReferenceEquals(key, NewZoneKey)) return "the new zone";
@@ -2116,11 +2117,11 @@ namespace HomeBridge.BridgeTools
             return zone == null ? "an unknown zone" : (SafeLabel(zone) ?? "an unnamed zone");
         }
 
-        private static string SafeLabel(Zone zone)
+        private static string? SafeLabel(Zone zone)
         {
             try
             {
-                if (!string.IsNullOrEmpty(zone.label))
+                if (zone.label != null && zone.label.Length > 0)
                     return zone.label;
                 return zone.BaseLabel;
             }
@@ -2133,7 +2134,7 @@ namespace HomeBridge.BridgeTools
             catch { return -1; }
         }
 
-        private static string SafeTypeName(Zone zone)
+        private static string? SafeTypeName(Zone zone)
         {
             try { return zone.GetType().Name; }
             catch { return null; }
@@ -2141,13 +2142,13 @@ namespace HomeBridge.BridgeTools
 
         /// <summary>The shared map gate; see BridgeCommon.TryGetMap. The error
         /// text names this tool.</summary>
-        private static bool TryGetMap(out Map map, out string error)
+        private static bool TryGetMap([NotNullWhen(true)] out Map? map, out string error)
         {
             return BridgeCommon.TryGetMap(ToolName, out map, out error);
         }
 
         /// <summary>The shared refusal shape; see BridgeCommon.Failure.</summary>
-        private static object Failure(string error)
+        private static object Failure(string? error)
         {
             return BridgeCommon.Failure(ToolName, error);
         }
@@ -2189,7 +2190,7 @@ namespace HomeBridge.BridgeTools
         /// Zone_Stockpile.GetParentStoreSettings() returns the shared
         /// EverStorableFixedSettings singleton; null when the read throws.
         /// </summary>
-        internal static ThingFilter ParentFilter(Zone_Stockpile stockpile)
+        internal static ThingFilter? ParentFilter(Zone_Stockpile? stockpile)
         {
             try
             {
@@ -2206,7 +2207,7 @@ namespace HomeBridge.BridgeTools
         /// stable between calls. Falls back to the DefDatabase sweep the parent
         /// filter itself performs if the parent cannot be read.
         /// </summary>
-        internal static List<ThingDef> StorableDefs(Zone_Stockpile stockpile)
+        internal static List<ThingDef> StorableDefs(Zone_Stockpile? stockpile)
         {
             var universe = new List<ThingDef>();
             var parent = ParentFilter(stockpile);
@@ -2244,9 +2245,9 @@ namespace HomeBridge.BridgeTools
         // ------------------------------------------------------------- presets
 
         /// <summary>The canonical preset name, or null when the text names none.</summary>
-        internal static string NormalizePreset(string text)
+        internal static string? NormalizePreset(string? text)
         {
-            if (string.IsNullOrEmpty(text))
+            if (text == null || text.Length == 0)
                 return null;
             var trimmed = text.Trim();
             foreach (var name in PresetNames)
@@ -2284,7 +2285,7 @@ namespace HomeBridge.BridgeTools
 
         /// <summary>The defs a computed preset allows. Null for the two presets
         /// that are the game's own buttons rather than a def set.</summary>
-        internal static List<ThingDef> PresetDefs(string preset, List<ThingDef> universe)
+        internal static List<ThingDef>? PresetDefs(string preset, List<ThingDef> universe)
         {
             if (preset == "food")
                 return universe.Where(IsFood).ToList();
@@ -2299,9 +2300,9 @@ namespace HomeBridge.BridgeTools
 
         /// <summary>One sentence per preset the call used, so the reply defines
         /// what it did rather than leaving a caller to guess.</summary>
-        internal static Dictionary<string, object> Definition(string preset)
+        internal static Dictionary<string, object?> Definition(string? preset)
         {
-            var d = new Dictionary<string, object>(StringComparer.Ordinal);
+            var d = new Dictionary<string, object?>(StringComparer.Ordinal);
             if (preset == null)
                 return d;
             switch (preset)
@@ -2347,10 +2348,10 @@ namespace HomeBridge.BridgeTools
         /// always resolves to the same def: category defName, thing defName,
         /// category label, thing label.
         /// </summary>
-        internal static Resolved Resolve(string spec)
+        internal static Resolved Resolve(string? spec)
         {
             var result = new Resolved();
-            if (string.IsNullOrEmpty(spec))
+            if (spec == null || spec.Length == 0)
                 return result;
 
             foreach (var raw in spec.Split(new[] { ',', ';', '\n', '\r' }, StringSplitOptions.RemoveEmptyEntries))
@@ -2385,7 +2386,7 @@ namespace HomeBridge.BridgeTools
             return result;
         }
 
-        private static ThingCategoryDef FindCategory(string name, bool byDefName)
+        private static ThingCategoryDef? FindCategory(string name, bool byDefName)
         {
             try
             {
@@ -2402,7 +2403,7 @@ namespace HomeBridge.BridgeTools
             return null;
         }
 
-        private static ThingDef FindThing(string name, bool byDefName)
+        private static ThingDef? FindThing(string name, bool byDefName)
         {
             try
             {
@@ -2435,8 +2436,8 @@ namespace HomeBridge.BridgeTools
         /// may be null. The filter is either the live one or a scratch copy; this
         /// method cannot tell and does not need to.
         /// </summary>
-        internal static void Apply(ThingFilter filter, string preset, Resolved allow, Resolved disallow,
-                                   ThingFilter parent, List<ThingDef> universe, List<object> changes)
+        internal static void Apply(ThingFilter filter, string? preset, Resolved allow, Resolved disallow,
+                                   ThingFilter? parent, List<ThingDef> universe, List<object>? changes)
         {
             if (preset == "everything")
             {
@@ -2452,7 +2453,7 @@ namespace HomeBridge.BridgeTools
             }
             else if (preset != null)
             {
-                var defs = PresetDefs(preset, universe);
+                var defs = PresetDefs(preset, universe) ?? throw new InvalidOperationException("Unknown stockpile preset " + preset + ".");
                 filter.SetDisallowAll();
                 foreach (var def in defs)
                     filter.SetAllow(def, true);
@@ -2528,10 +2529,10 @@ namespace HomeBridge.BridgeTools
         /// allowedDefCount and storableDefCount are directly comparable and
         /// perishables + nonperishables sum to storableDefCount exactly.
         /// </summary>
-        internal static Dictionary<string, object> Summary(ThingFilter filter, StoragePriority? priority,
+        internal static Dictionary<string, object?> Summary(ThingFilter? filter, StoragePriority? priority,
                                                            List<ThingDef> universe)
         {
-            var summary = new Dictionary<string, object>(StringComparer.Ordinal)
+            var summary = new Dictionary<string, object?>(StringComparer.Ordinal)
             {
                 { "contract", ZoneSettingsContract.Read(filter) },
                 { "allowedDefCount", null },
@@ -2549,7 +2550,7 @@ namespace HomeBridge.BridgeTools
 
             var allowed = AllowedSet(filter);
             summary["specialFilters"] = DefDatabase<SpecialThingFilterDef>.AllDefsListForReading
-                .Where(d => d.configurable).Select(d => new Dictionary<string, object> {
+                .Where(d => d.configurable).Select(d => new Dictionary<string, object?> {
                     { "defName", d.defName }, { "label", d.label },
                     { "argument", "special:" + d.defName }, { "allowed", filter.Allows(d) }
                 }).ToList();
@@ -2614,10 +2615,8 @@ namespace HomeBridge.BridgeTools
 
         internal static string Label(Def def)
         {
-            if (def == null)
-                return "(null)";
             var label = BridgeCommon.SafeString(() => def.label);
-            if (!string.IsNullOrEmpty(label))
+            if (label != null && label.Length > 0)
                 return label;
             return BridgeCommon.SafeString(() => def.defName) ?? "(unnamed)";
         }

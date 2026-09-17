@@ -1,3 +1,5 @@
+#nullable enable
+
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -9,8 +11,8 @@ namespace HomeBridge.BridgeTools
 {
     internal static class ExtractionDevelopment
     {
-        internal static WorkTypeDef FlickWork => DefDatabase<WorkGiverDef>.AllDefs.FirstOrDefault(d => d.giverClass == typeof(WorkGiver_Flick))?.workType;
-        internal static bool Worker(Pawn p, WorkTypeDef work) => work != null && !p.Downed && !p.Drafted && !p.InMentalState
+        internal static WorkTypeDef? FlickWork => DefDatabase<WorkGiverDef>.AllDefs.FirstOrDefault(d => d.giverClass == typeof(WorkGiver_Flick))?.workType;
+        internal static bool Worker(Pawn p, WorkTypeDef? work) => work != null && !p.Downed && !p.Drafted && !p.InMentalState
             && !p.WorkTypeIsDisabled(work) && p.health.capacities.CapableOf(PawnCapacityDefOf.Manipulation);
 
         internal static List<object> Sites(Map map, string resource)

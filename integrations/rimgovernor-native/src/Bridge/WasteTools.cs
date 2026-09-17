@@ -1,3 +1,5 @@
+#nullable enable
+
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -25,7 +27,7 @@ namespace HomeBridge.BridgeTools
             .Select(s => s.Trim()).Where(s => s.Length > 0), StringComparer.Ordinal);
         private static string Id(Thing thing) => thing.GetUniqueLoadID();
 
-        private static string Protection(Thing thing, bool burialAllowed = false)
+        private static string? Protection(Thing thing, bool burialAllowed = false)
         {
             if (!thing.Spawned || thing.Position.Fogged(thing.Map)) return "held_or_unobserved";
             if (thing.IsForbidden(Faction.OfPlayer)) return "player_forbidden";
@@ -44,7 +46,7 @@ namespace HomeBridge.BridgeTools
             return null;
         }
 
-        private static string Kind(Thing thing, HashSet<string> unwanted)
+        private static string? Kind(Thing thing, HashSet<string> unwanted)
         {
             var rot = thing.TryGetComp<CompRottable>();
             if (thing is Corpse && rot != null && rot.Stage != RotStage.Fresh) return "corpse";

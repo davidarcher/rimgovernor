@@ -1,3 +1,5 @@
+#nullable enable
+
 using System;
 using System.Collections.Generic;
 using System.Reflection;
@@ -12,7 +14,7 @@ namespace HomeBridge.BridgeTools
     // The game/load identity scopes this evidence; it is never a saved authority.
     internal static class OrderedWorkHistory
     {
-        private static object game;
+        private static object? game;
         private static readonly Dictionary<int, long> generations = new Dictionary<int, long>();
         private static bool installed;
         [ThreadStatic] private static int owned;
@@ -22,7 +24,7 @@ namespace HomeBridge.BridgeTools
             return new Scope();
         }
         private sealed class Scope : IDisposable { public void Dispose() { owned--; } }
-        internal static long? Read(Pawn pawn)
+        internal static long? Read(Pawn? pawn)
         {
             if (!installed)
             {

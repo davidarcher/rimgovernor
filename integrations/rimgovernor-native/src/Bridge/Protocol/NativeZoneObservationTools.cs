@@ -27,7 +27,7 @@ namespace HomeBridge.BridgeTools
         [Tool(ToolName, Title = "Read typed zones", Description = "Read exact zone identity, type, bounds and per-zone CAS snapshot tokens. Cells are included only when requested. No filter contents, stored resources, anomalies or crop-plant counts yet.")]
         [ToolResponse("payload", "string", "Official ProtoJSON ListZonesReply. Unavailable replaces oversized collections; unsupported facts are explicit.", Always = true)]
         public async Task<object> ListZones(IRimBridgeContext ctx, CancellationToken cancellationToken,
-            [ToolParameter(Description = "Official ProtoJSON ListZonesRequest string in raw transport value.")] object request = null!)
+            [ToolParameter(Description = "Official ProtoJSON ListZonesRequest string in raw transport value.")] object? request = null)
         {
             if (!ProtoBoundary.TryParse(ctx, ToolName, request, Obs.ListZonesRequest.Parser, out var parsed, out var failure)
                 || !Validate(parsed, out failure)) return ProtoBoundary.Encode(new Obs.ListZonesReply { Failure = failure });
@@ -96,7 +96,7 @@ namespace HomeBridge.BridgeTools
                 w.Write(zone.label ?? "");
                 if (zone is Zone_Growing growing)
                 {
-                    var crop = BridgeCommon.PrivateInstanceField(typeof(Zone_Growing), "plantDefToGrow").GetValue(growing) as ThingDef;
+                    var crop = (BridgeCommon.PrivateInstanceField(typeof(Zone_Growing), "plantDefToGrow") ?? throw new InvalidOperationException("Zone_Growing.plantDefToGrow is unavailable.")).GetValue(growing) as ThingDef;
                     w.Write(crop?.defName ?? ""); w.Write(growing.allowSow); w.Write(growing.allowCut);
                 }
                 else if (zone is Zone_Stockpile stockpile)
@@ -132,7 +132,7 @@ namespace HomeBridge.BridgeTools
 
             if (zone is Zone_Growing growing)
             {
-                var crop = BridgeCommon.PrivateInstanceField(typeof(Zone_Growing), "plantDefToGrow").GetValue(growing) as ThingDef;
+                var crop = (BridgeCommon.PrivateInstanceField(typeof(Zone_Growing), "plantDefToGrow") ?? throw new InvalidOperationException("Zone_Growing.plantDefToGrow is unavailable.")).GetValue(growing) as ThingDef;
                 if (crop != null) row.CropDefName = Id(crop.defName);
                 row.ExplicitlySetCrop = crop != null; row.AllowSow = growing.allowSow; row.AllowCut = growing.allowCut;
                 row.Issues.Add(Issue("priority", Common.UnavailableReason.NotApplicable, "Growing zones have no storage priority."));

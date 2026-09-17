@@ -1,3 +1,5 @@
+#nullable enable
+
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -13,7 +15,7 @@ namespace HomeBridge.BridgeTools
         internal static object Read(Map map, List<Pawn> people, List<Thing> things)
         {
             var errors = new Dictionary<string, string>();
-            Func<string, Func<object>, object> read = (key, query) => {
+            Func<string, Func<object>, object?> read = (key, query) => {
                 try { return query(); }
                 catch (Exception error) { errors[key] = error.GetType().Name + ": " + error.Message; return null; }
             };

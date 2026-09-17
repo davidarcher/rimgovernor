@@ -78,7 +78,7 @@ namespace HomeBridge.BridgeTools
 
         internal static Obs.ProductionPolicySnapshot Snapshot(Map map, Common.ObservationContext context)
         {
-            var state = ProductionPolicyGuard.State();
+            var state = ProductionPolicyGuard.LoadedState();
             var prefix = Prefix(map.uniqueID);
             var snapshot = new Obs.ProductionPolicySnapshot { CommitmentsActive = Supervisor.IsActive };
             foreach (var floor in state.Floors.Where(p => p.Key.StartsWith(prefix)).OrderBy(p => p.Key, StringComparer.Ordinal))
@@ -136,7 +136,7 @@ namespace HomeBridge.BridgeTools
         {
             if (!ValidCounts(command.Floors, out var floors) || !ValidCounts(command.Commitments, out var commitments)
                 || !ValidStopped(command.StoppedDefs, out var stopped)) return false;
-            var state = ProductionPolicyGuard.State(); var prefix = Prefix(map.uniqueID);
+            var state = ProductionPolicyGuard.LoadedState(); var prefix = Prefix(map.uniqueID);
             var curFloors = state.Floors.Where(p => p.Key.StartsWith(prefix)).ToDictionary(p => p.Key.Substring(prefix.Length), p => p.Value);
             var curHolds = state.Commitments.Where(p => p.Key.StartsWith(prefix)).ToDictionary(p => p.Key.Substring(prefix.Length), p => p.Value);
             var curStops = state.Stopped.Where(p => p.StartsWith(prefix)).Select(p => p.Substring(prefix.Length)).OrderBy(p => p, StringComparer.Ordinal);
@@ -158,7 +158,7 @@ namespace HomeBridge.BridgeTools
         private static (List<string> Interrupted, bool Changed) Apply(Map map,
             Dictionary<string, int> floors, Dictionary<string, int> commitments, List<string> stopped, List<DrillingRecord> drills)
         {
-            var state = ProductionPolicyGuard.State(); var prefix = Prefix(map.uniqueID);
+            var state = ProductionPolicyGuard.LoadedState(); var prefix = Prefix(map.uniqueID);
             var priorFloors = state.Floors.Where(p => p.Key.StartsWith(prefix)).ToDictionary(p => p.Key.Substring(prefix.Length), p => p.Value);
             var priorStops = state.Stopped.Where(p => p.StartsWith(prefix)).Select(p => p.Substring(prefix.Length)).OrderBy(p => p, StringComparer.Ordinal);
             var priorHolds = state.Commitments.Where(p => p.Key.StartsWith(prefix)).ToDictionary(p => p.Key.Substring(prefix.Length), p => p.Value);

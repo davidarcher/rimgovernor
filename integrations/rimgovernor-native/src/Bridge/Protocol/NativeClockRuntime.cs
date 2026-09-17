@@ -31,6 +31,7 @@ namespace HomeBridge.BridgeTools
         private static TypedEpoch? pendingTyped;
         private static bool typedSpeedCall;
         private static readonly Stopwatch TypedClock = Stopwatch.StartNew();
+        private static TypedEpoch TypedOf(State s) => s.Typed ?? throw new InvalidOperationException("Clock epoch is not typed.");
         private static long LeaseNow(State s) => s.Typed == null ? NowMs() : TypedClock.ElapsedMilliseconds;
         private static void AttachTypedEpoch(State s)
         {
@@ -144,7 +145,7 @@ namespace HomeBridge.BridgeTools
             lock (Gate)
             {
                 if (ValidateTypedGrant(request.Authority) != null) throw new InvalidOperationException("Clock epoch authority grant changed");
-                var s = _state;
+                var s = ActiveState;
                 s.LeaseExpiresMs = checked(LeaseNow(s) + request.LeaseMs);
                 return TypedStatus(context);
             }
@@ -160,7 +161,7 @@ namespace HomeBridge.BridgeTools
                     Speed(request.Epoch.Owner.ControllerSessionId, request.Epoch.Owner.Epoch, NativeSpeed(request.Speed));
                 }
                 finally { typedSpeedCall = false; }
-                if (_state.RequestedSpeed != NativeSpeed(request.Speed) || Find.TickManager.CurTimeSpeed != NativeSpeed(request.Speed))
+                if (ActiveState.RequestedSpeed != NativeSpeed(request.Speed) || Find.TickManager.CurTimeSpeed != NativeSpeed(request.Speed))
                     throw new InvalidOperationException("Native speed did not match admitted change");
                 return TypedStatus(context);
             }
@@ -194,10 +195,11 @@ namespace HomeBridge.BridgeTools
         {
             lock (Gate)
             {
-                if (_state.Active)
+                var s = _state;
+                if (s != null && s.Active)
                 {
-                    _state.Typed.PauseRequested = true;
-                    Stop(_state, "requested_pause", "Paused by the canonical epoch owner.", true, null);
+                    TypedOf(s).PauseRequested = true;
+                    Stop(s, "requested_pause", "Paused by the canonical epoch owner.", true, null);
                 }
                 return TypedStatus(context);
             }
@@ -224,7 +226,7 @@ namespace HomeBridge.BridgeTools
                     else
                     {
                         result.Stopped = new Clock.Stopped { Epoch = epoch, Reason = StopReason(s.StopReason), Detail = Text(s.StopDetail),
-                            ActualPaused = Find.TickManager.Paused, PauseRequested = s.Typed.PauseRequested, PauseVerified = s.Typed.StopPauseVerified };
+                            ActualPaused = Find.TickManager.Paused, PauseRequested = TypedOf(s).PauseRequested, PauseVerified = TypedOf(s).StopPauseVerified };
                         if (s.StopAtMs.HasValue) result.Stopped.StoppedAtUnixMs = s.StopAtMs.Value;
                     }
                     result.MaxProbeTickGap = s.MaxProbeTickGap; result.ProbeCount = checked((ulong)s.ProbeCount);
@@ -240,8 +242,8 @@ namespace HomeBridge.BridgeTools
         }
         // Typed starts always carry a tick budget, so a typed epoch always has a deadline.
         private static long Deadline(State s) => s.TickDeadline ?? throw new InvalidOperationException("Typed epoch has no tick deadline.");
-        private static Clock.Epoch Epoch(State s) => new Clock.Epoch { Owner = s.Typed.Owner.Clone(), Origin = s.Typed.Origin.Clone(),
-            RequestedSpeed = WireSpeed(s.RequestedSpeed), Policy = s.Typed.Policy.Clone(), StartTick = s.StartTick,
+        private static Clock.Epoch Epoch(State s) => new Clock.Epoch { Owner = TypedOf(s).Owner.Clone(), Origin = TypedOf(s).Origin.Clone(),
+            RequestedSpeed = WireSpeed(s.RequestedSpeed), Policy = TypedOf(s).Policy.Clone(), StartTick = s.StartTick,
             TickDeadline = Deadline(s), LastTick = s.LastTick, LeaseRemainingMs = s.Active ? (uint)Math.Min(30000, Math.Max(0, s.LeaseExpiresMs - LeaseNow(s))) : 0 };
 
         internal static Clock.EventsReply TypedEvents(Clock.EventsRequest request, Common.ObservationContext context)
@@ -250,15 +252,15 @@ namespace HomeBridge.BridgeTools
             {
                 try
                 {
-                    EnsureJournal();
-                    if (request.AfterCursor > Journal.Newest) return new Clock.EventsReply { Failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Cursor exceeds the retained native journal.") };
-                    var window = Journal.ReadWindow(request.AfterCursor, (int)request.Limit);
-                    var page = new Clock.EventsPage { Context = context.Clone(), NewestCursor = Journal.Newest,
+                    var journal = EnsureJournal();
+                    if (request.AfterCursor > journal.Newest) return new Clock.EventsReply { Failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Cursor exceeds the retained native journal.") };
+                    var window = journal.ReadWindow(request.AfterCursor, (int)request.Limit);
+                    var page = new Clock.EventsPage { Context = context.Clone(), NewestCursor = journal.Newest,
                         NextCursor = window.Next, Gap = window.Lost != 0, LostCount = window.Lost };
                     long previous = request.AfterCursor;
                     foreach (var row in window.Rows)
                     {
-                        object encoded;
+                        object? encoded;
                         if (!row.TryGetValue("canonicalClockEvent", out encoded) || !(encoded is string))
                             return new Clock.EventsReply { Failure = ProtoBoundary.Fail(Common.FailureCode.Unavailable, "Retained legacy event lacks canonical ownership and original observation context.") };
                         var observed = Clock.Event.Parser.ParseJson((string)encoded);
@@ -268,32 +270,33 @@ namespace HomeBridge.BridgeTools
                     }
                     // Only a read beginning at zero establishes the earliest retained row.
                     if (request.AfterCursor == 0 && page.Events.Count != 0) page.OldestCursor = page.Events[0].Cursor;
-                    else if (Journal.Newest == 0) page.OldestCursor = 0;
+                    else if (journal.Newest == 0) page.OldestCursor = 0;
                     return new Clock.EventsReply { Page = page };
                 }
                 catch (Exception) { return new Clock.EventsReply { Failure = ProtoBoundary.Fail(Common.FailureCode.Unavailable, "Clock event journal could not establish complete cursor continuity.") }; }
             }
         }
-        private static void AttachTypedEvent(Dictionary<string, object> row, string kind, string detail, State s, Dictionary<string, object> payload)
+        private static void AttachTypedEvent(Dictionary<string, object?> row, string kind, string? detail, State s, Dictionary<string, object?>? payload)
         {
-            if (s.Typed == null) return;
-            var observed = s.Typed.LastObservation.Clone();
+            var typed = s.Typed;
+            if (typed == null) return;
+            var observed = typed.LastObservation.Clone();
             // The old epoch's last observed tick stays attached to its old identity during replacement.
             if (ReferenceEquals(Current.Game, s.Session) && ReferenceEquals(Find.CurrentMap, s.Map))
             {
                 if (!ProtoBoundary.TryReadContext(s.Map, out var current, out _)) throw new InvalidOperationException("Clock event context unavailable");
                 observed = current;
             }
-            s.Typed.LastObservation = observed.Clone();
-            var result = NativeClockEventProjection.Event(kind, detail, payload, observed, s.Typed.Owner, checked(_cursor + 1), NowMs(),
+            typed.LastObservation = observed.Clone();
+            var result = NativeClockEventProjection.Event(kind, detail, payload, observed, typed.Owner, checked(_cursor + 1), NowMs(),
                 kind == "started" ? Epoch(s) : null, number => s.Map.mapPawns.AllPawns.Single(p => p.thingIDNumber == number).GetUniqueLoadID());
             if (kind == "pause_failed") result.PauseFailed.Pending.Reason = StopReason(s.PendingKind);
             if (kind == "tick_budget") result.Stopped.Budget = new Clock.BudgetReached { StartTick = s.StartTick, TickDeadline = Deadline(s), ActualTick = s.LastTick };
             if (result.Stopped != null && result.Stopped.EvidenceCase == Clock.StopEvent.EvidenceOneofCase.Unavailable
                 && ReferenceEquals(Current.Game, s.Session) && ReferenceEquals(Find.CurrentMap, s.Map))
             {
-                result.Stopped.Pause = new Clock.PauseEvidence { ActualPaused = Find.TickManager.Paused, PauseRequested = s.Typed.PauseRequested,
-                    PauseVerified = s.Typed.StopPauseVerified, RequestedSpeed = WireSpeed(s.RequestedSpeed), ActualSpeed = ObservedSpeed(Find.TickManager.CurTimeSpeed),
+                result.Stopped.Pause = new Clock.PauseEvidence { ActualPaused = Find.TickManager.Paused, PauseRequested = typed.PauseRequested,
+                    PauseVerified = typed.StopPauseVerified, RequestedSpeed = WireSpeed(s.RequestedSpeed), ActualSpeed = ObservedSpeed(Find.TickManager.CurTimeSpeed),
                     LongEventPending = LongEventHandler.AnyEventNowOrWaiting };
                 var windows = ForcePausingWindows();
                 if (windows.Count > 256) throw new InvalidOperationException("Clock pause evidence exceeds window bound");
@@ -301,7 +304,7 @@ namespace HomeBridge.BridgeTools
                 result.Stopped.Pause.ForcePausingWindowIds.Add(windows);
                 if (kind == "letter_pause")
                 {
-                    object source, id;
+                    object? source, id;
                     if (payload == null || !payload.TryGetValue("source", out source) || !Equals(source, "LetterStack.ReceiveLetter")
                         || !payload.TryGetValue("letterId", out id) || !(id is string) || !ProtoBoundary.IsIdentifier((string)id))
                         throw new InvalidOperationException("Letter pause lacks exact native callback attribution");
@@ -367,7 +370,7 @@ namespace HomeBridge.BridgeTools
         }
         private static bool Fraction(float value) => !float.IsNaN(value) && value >= 0.01f && value <= 1;
         private static Common.Unavailable Unavailable(string detail) => new Common.Unavailable { Reason = Common.UnavailableReason.NotObserved, Detail = detail };
-        private static string Text(string text) => NativeClockEventProjection.Text(text ?? "");
-        private static Clock.StopReason StopReason(string kind) => NativeClockEventProjection.StopReason(kind);
+        private static string Text(string? text) => NativeClockEventProjection.Text(text ?? "");
+        private static Clock.StopReason StopReason(string? kind) => NativeClockEventProjection.StopReason(kind);
     }
 }

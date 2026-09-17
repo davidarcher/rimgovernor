@@ -21,7 +21,7 @@ namespace HomeBridge.BridgeTools
         [Tool(ToolName, Title = "Read typed rooms", Description = "Complete bounded room census and exact footprint intersection filters. Defaults exclude psychologically outdoor rooms and doorways. Contents count buildings, optionally including boundary buildings. IDs are ephemeral within the current room graph; no CAS or frozen cursor.")]
         [ToolResponse("payload", "string", "Official ProtoJSON ListRoomsReply with explicit unknown stats and unrequested cells.", Always = true)]
         public async Task<object> ListRooms(IRimBridgeContext ctx, CancellationToken cancellationToken,
-            [ToolParameter(Description = "Official ProtoJSON ListRoomsRequest string.")] object request = null!)
+            [ToolParameter(Description = "Official ProtoJSON ListRoomsRequest string.")] object? request = null)
         {
             if (!ProtoBoundary.TryParse(ctx, ToolName, request, Obs.ListRoomsRequest.Parser, out var parsed, out var failure)
                 || !Validate(parsed, out failure)) return ProtoBoundary.Encode(new Obs.ListRoomsReply { Failure = failure });

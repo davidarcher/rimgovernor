@@ -149,8 +149,9 @@ namespace HomeBridge.BridgeTools
             if(thing.MapHeld!=null) { row.MapId=thing.MapHeld.uniqueID;row.Position=Cell(thing.PositionHeld); } return row;
         }
         internal static Common.Cell Cell(IntVec3 value)=>new Common.Cell {X=value.x,Z=value.z};
-        internal static string Id(string value)=>ProtoBoundary.IsIdentifier(value)?value:throw new InvalidOperationException("Native ID unavailable.");
-        internal static string Text(string value) {
+        internal static string Id(string? value)=>ProtoBoundary.IsIdentifier(value)?value:throw new InvalidOperationException("Native ID unavailable.");
+        internal static string Text(string? value) {
+            if(value==null) throw new InvalidOperationException("Native pawn text unavailable.");
             if(value.Length>4096) throw new ReadLimit("Native pawn text exceeds the bounded field size.");
             return value;
         }

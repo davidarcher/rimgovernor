@@ -1,3 +1,5 @@
+#nullable enable
+
 using System.Collections.Generic;
 using System.Linq;
 using RimWorld;
@@ -18,7 +20,7 @@ namespace HomeBridge.BridgeTools
         // following the installed RoofCollapseUtility's connected-roof/radius
         // rule. Fogged cells are unknown: they can neither support nor be
         // assumed safe. Pending collapse anywhere near the set blocks.
-        internal static Support Check(Map map, ICollection<IntVec3> removed, out int checkedRoofs, out string blocker)
+        internal static Support Check(Map map, ICollection<IntVec3> removed, out int checkedRoofs, out string? blocker)
         {
             checkedRoofs = 0; blocker = null;
             var radius = RoofCollapseUtility.RoofMaxSupportDistance;
@@ -62,12 +64,12 @@ namespace HomeBridge.BridgeTools
 
     internal static class ExcavationTools
     {
-        internal static Mineable RockAt(IntVec3 cell, Map map) => cell.InBounds(map) ? cell.GetEdifice(map) as Mineable : null;
+        internal static Mineable? RockAt(IntVec3 cell, Map map) => cell.InBounds(map) ? cell.GetEdifice(map) as Mineable : null;
 
         // Per-cell excavation eligibility. Roof, home area, zones and adjacent
         // structures are deliberately not blockers here; those belong to the
         // surface-mining rule. Support is a site-level counterfactual check.
-        internal static string CellBlocker(IntVec3 cell, Map map)
+        internal static string? CellBlocker(IntVec3 cell, Map map)
         {
             if (!cell.InBounds(map)) return "Cell is outside the map";
             if (cell.Fogged(map)) return "Unknown excavation geometry";

@@ -1,3 +1,5 @@
+#nullable enable
+
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -14,13 +16,15 @@ namespace HomeBridge.BridgeTools
     internal static class ProductionPolicyGuard
     {
         private static bool patched;
-        internal static ProductionPolicyState State()
+        internal static ProductionPolicyState? State()
         {
             if (Current.Game == null) return null;
             var state = Current.Game.GetComponent<ProductionPolicyState>();
             if (state == null) { state = new ProductionPolicyState(Current.Game); Current.Game.components.Add(state); }
             return state;
         }
+        // Callers that hold a Map are inside a loaded game, where the component always exists.
+        internal static ProductionPolicyState LoadedState() => State() ?? throw new InvalidOperationException("No loaded game holds production policy.");
         internal static void EnsurePatched()
         {
             if (patched) return;
@@ -38,9 +42,9 @@ namespace HomeBridge.BridgeTools
         internal static Dictionary<string, int> Stock(Map map) => map.listerThings
             .ThingsInGroup(ThingRequestGroup.HaulableEver).Where(t => t.Spawned && !t.IsForbidden(Faction.OfPlayer))
             .GroupBy(t => t.def.defName).ToDictionary(g => g.Key, g => g.Sum(t => t.stackCount));
-        internal static Dictionary<string, int> Budgets(Map map, Pawn worker = null)
+        internal static Dictionary<string, int> Budgets(Map map, Pawn? worker = null)
         {
-            var state = State(); var stock = Stock(map); var prefix = map.uniqueID + ":";
+            var state = LoadedState(); var stock = Stock(map); var prefix = map.uniqueID + ":";
             Action<string, int> subtract = (name, count) => { stock.TryGetValue(name, out var current); stock[name] = current - count; };
             foreach (var floor in state.Floors.Where(p => p.Key.StartsWith(prefix))) subtract(floor.Key.Substring(prefix.Length), floor.Value);
             if (Supervisor.IsActive) foreach (var held in state.Commitments.Where(p => p.Key.StartsWith(prefix)))
@@ -67,7 +71,7 @@ namespace HomeBridge.BridgeTools
         }
         private static int Budget(Dictionary<string, int> budgets, ThingDef def) =>
             budgets.TryGetValue(def.defName, out var n) ? Math.Max(0, n) : 0;
-        private static void BeforeSelection(Bill bill, Pawn pawn, Thing billGiver, out ThingFilter __state)
+        private static void BeforeSelection(Bill bill, Pawn pawn, Thing billGiver, out ThingFilter? __state)
         {
             __state = null;
             if (!(bill is Bill_Production) || billGiver.Map == null || !Active(billGiver.Map)) return;
@@ -107,7 +111,7 @@ namespace HomeBridge.BridgeTools
                     var budgets = Budgets(actor.Map, actor);
                     foreach (var group in chosen.GroupBy(t => t.Thing.def))
                     {
-                        var stopped = State().Stopped.Contains(Key(actor.Map, group.Key.defName));
+                        var stopped = LoadedState().Stopped.Contains(Key(actor.Map, group.Key.defName));
                         var held = group.Where(t => !t.Thing.Spawned).Sum(t => t.Count);
                         if (stopped || group.Sum(t => t.Count) > (budgets.TryGetValue(group.Key.defName, out var free) ? free : 0) + held)
                         { actor.jobs.EndCurrentJob(JobCondition.InterruptForced); return; }
@@ -170,7 +174,7 @@ namespace HomeBridge.BridgeTools
                     stops.Add(resource);
                 }
                 ProductionPolicyGuard.EnsurePatched();
-                var state = ProductionPolicyGuard.State(); var prefix = mapId + ":";
+                var state = ProductionPolicyGuard.LoadedState(); var prefix = mapId + ":";
                 var current = state.Floors.Where(p => p.Key.StartsWith(prefix)).ToDictionary(p => p.Key.Substring(prefix.Length), p => p.Value);
                 var currentStops = state.Stopped.Where(p => p.StartsWith(prefix)).Select(p => p.Substring(prefix.Length)).OrderBy(p => p);
                 var priorHolds = state.Commitments.Where(p => p.Key.StartsWith(prefix)).ToDictionary(p => p.Key.Substring(prefix.Length), p => p.Value);

@@ -1,5 +1,8 @@
+#nullable enable
+
 ﻿using System;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using System.Runtime.CompilerServices;
 using System.Threading;
@@ -245,7 +248,7 @@ namespace HomeBridge.BridgeTools
         [ToolResponse("areas", "object", "Area id -> area descriptor, for every area referenced by any returned cell. Empty when `areas` is not selected, and empty under summary (see summary.areas).", Always = true)]
         [ToolResponse("unknownArguments", "array", "Every argument key the caller sent that this tool does not declare, sorted, case-sensitively. Empty array = every key was recognised. The host's own _rimBridgeTimeoutMs is never listed.", Always = true)]
         [ToolResponse("unknownArgumentsWarning", "string", "Present only when unknownArguments is non-empty, or when the caller's raw keys could not be read at all - in which case the empty unknownArguments means 'not known', not 'nothing unknown'.", Nullable = true)]
-        public async Task<object> GetCellsPlus(
+        public async Task<object?> GetCellsPlus(
             IRimBridgeContext ctx,
             CancellationToken cancellationToken,
             [ToolParameter(Description = "Origin (top-left) cell x. Alias of x0 — send either, not both with different values.")] int x = Unset,
@@ -260,8 +263,8 @@ namespace HomeBridge.BridgeTools
             [ToolParameter(Description = "Alias of z0 used by rectangle APIs.")] int minZ = Unset,
             [ToolParameter(Description = "Alias of x1, INCLUSIVE.")] int maxX = Unset,
             [ToolParameter(Description = "Alias of z1, INCLUSIVE.")] int maxZ = Unset,
-            [ToolParameter(Description = "Which per-cell keys to emit, comma separated, case-insensitive, spaces ignored: terrain, roof, fogged, walkable, passable, zone, areas, things, designations. Omit (or send \"all\") for every one of them, which is byte-for-byte the payload this tool has always returned. x and z are always emitted. An unrecognised name is REFUSED, not ignored. fieldsApplied[] in the reply says what was actually emitted.")] string fields = null,
-            [ToolParameter(Description = "Which per-thing keys to emit inside things[], comma separated, case-insensitive: label, className, stackCount, stuff, hitPoints, forbidden, owner (ownerName/ownerNames/medical), plant (growth/harvestableNow), build (isBlueprint/blueprintBuildDefName/isFrame/frameBuildDefName). defName is always emitted whatever you send. Omit (or \"all\") for all of them. Only takes effect when `things` is selected. An unrecognised name is REFUSED.")] string thingFields = null,
+            [ToolParameter(Description = "Which per-cell keys to emit, comma separated, case-insensitive, spaces ignored: terrain, roof, fogged, walkable, passable, zone, areas, things, designations. Omit (or send \"all\") for every one of them, which is byte-for-byte the payload this tool has always returned. x and z are always emitted. An unrecognised name is REFUSED, not ignored. fieldsApplied[] in the reply says what was actually emitted.")] string? fields = null,
+            [ToolParameter(Description = "Which per-thing keys to emit inside things[], comma separated, case-insensitive: label, className, stackCount, stuff, hitPoints, forbidden, owner (ownerName/ownerNames/medical), plant (growth/harvestableNow), build (isBlueprint/blueprintBuildDefName/isFrame/frameBuildDefName). defName is always emitted whatever you send. Omit (or \"all\") for all of them. Only takes effect when `things` is selected. An unrecognised name is REFUSED.")] string? thingFields = null,
             [ToolParameter(Description = "Omit cells that carry none of the SELECTED optional content — no things, no designations, no zone, no areas. A cell whose only keys would be x, z and the scalars (terrain/roof/walkable/passable/fogged) is dropped and counted in cellsOmitted. FOG IS NOT CONTENT: an empty fogged cell is dropped like any other empty cell, so a caller that needs the fog shape must not use this. Default false.")] bool sparse = false,
             [ToolParameter(Description = "Return aggregates instead of cells: cells[] comes back EMPTY and summary{} carries counts over the whole rectangle. The reply is a few KB whatever the rectangle, so this mode LIFTS the 1024-cell cap to the whole map -- send {x:0, z:0, width:mapSize.x, height:mapSize.z} for a whole-map census in one call. `fields` still governs which sections are computed, so {summary:true, fields:\"things\"} is the cheapest 'what is in this rectangle' read. Things and designations are de-duplicated by identity here, unlike cells[]. Default false.")] bool summary = false)
         {
@@ -275,7 +278,7 @@ namespace HomeBridge.BridgeTools
                 await GetCellsPlusCore(ctx, cancellationToken, x, z, width, height,
                                        x0 != Unset ? x0 : minX, z0 != Unset ? z0 : minZ,
                                        x1 != Unset ? x1 : maxX, z1 != Unset ? z1 : maxZ,
-                                       fields, thingFields, sparse, summary).ConfigureAwait(false),
+                                       fields ?? string.Empty, thingFields ?? string.Empty, sparse, summary).ConfigureAwait(false),
                 ctx, typeof(HomeMapTools), "home/get_cells_plus");
         }
 
@@ -302,15 +305,15 @@ namespace HomeBridge.BridgeTools
             // eight ints and two strings and touches no game state, so an argument
             // mistake should not cost RimWorld a frame, and should not be able to
             // reach the map sweep at all.
-            RectSpec parsed;
-            var argError = ParseRect(x, z, width, height, x0, z0, x1, z1,
-                                     summary ? MaxSummaryAxis : MaxCells, summary, out parsed);
-            if (argError != null)
+            RectSpec? parsed;
+            object? argError;
+            if (!TryParseRect(x, z, width, height, x0, z0, x1, z1,
+                                     summary ? MaxSummaryAxis : MaxCells, summary, out parsed, out argError))
                 return argError;
 
-            Selection selection;
-            var fieldError = ParseSelection(fields, thingFields, sparse, summary, out selection);
-            if (fieldError != null)
+            Selection? selection;
+            object? fieldError;
+            if (!TryParseSelection(fields, thingFields, sparse, summary, out selection, out fieldError))
                 return fieldError;
 
             // Copied out of the `out` locals before the closure: an out variable
@@ -342,7 +345,7 @@ namespace HomeBridge.BridgeTools
             public int Width;
             public int Height;
             public bool CornersSwapped;
-            public string Shape;
+            public string? Shape;
         }
 
         /// <summary>
@@ -350,13 +353,14 @@ namespace HomeBridge.BridgeTools
         /// failure payload. Never returns a rectangle of zero cells: that state
         /// is the 2026-09-02 defect and there is no longer a code path to it.
         /// </summary>
-        private static object ParseRect(
+        private static bool TryParseRect(
             int x, int z, int width, int height,
             int x0, int z0, int x1, int z1,
             int axisCap, bool summary,
-            out RectSpec spec)
+            [NotNullWhen(true)] out RectSpec? spec, [NotNullWhen(false)] out object? error)
         {
             spec = null;
+            error = null;
 
             // Recorded before anything is derived, so the failure text can quote
             // what the caller sent rather than what we made of it.
@@ -372,23 +376,23 @@ namespace HomeBridge.BridgeTools
 
             if (seen.Count == 0)
             {
-                return ArgFailure(
+                { error = ArgFailure(
                     "no rectangle arguments at all were supplied. Note that this is also what a request "
                     + "made entirely of MISSPELLED or unsupported argument names looks like from in here.",
-                    seen);
+                    seen); return false; }
             }
 
             int originX, sizeX, originZ, sizeZ;
             bool swappedX, swappedZ;
-            string axisError;
+            string? axisError;
 
             if (!TryAxis("x", x, "x0", x0, "width", width, "x1", x1, axisCap, summary,
                          out originX, out sizeX, out swappedX, out axisError))
-                return ArgFailure(axisError, seen);
+                { error = ArgFailure(axisError, seen); return false; }
 
             if (!TryAxis("z", z, "z0", z0, "height", height, "z1", z1, axisCap, summary,
                          out originZ, out sizeZ, out swappedZ, out axisError))
-                return ArgFailure(axisError, seen);
+                { error = ArgFailure(axisError, seen); return false; }
 
             spec = new RectSpec
             {
@@ -403,7 +407,7 @@ namespace HomeBridge.BridgeTools
                 // dropped on the floor.
                 Shape = "{" + string.Join(",", seen.Select(NameOf).ToArray()) + "}"
             };
-            return null;
+            return true;
         }
 
         /// <summary>
@@ -420,7 +424,7 @@ namespace HomeBridge.BridgeTools
             string extentName, int extentArg,
             string farName, int farArg,
             int axisCap, bool summary,
-            out int origin, out int size, out bool swapped, out string error)
+            out int origin, out int size, out bool swapped, out string? error)
         {
             origin = 0;
             size = 0;
@@ -524,9 +528,9 @@ namespace HomeBridge.BridgeTools
         /// replaced here gave a caller a successful-looking answer about the wrong
         /// cell, and the cure for that is a refusal nobody can misread.
         /// </summary>
-        private static object ArgFailure(string detail, IList<string> seen)
+        private static object ArgFailure(string? detail, IList<string> seen)
         {
-            return new Dictionary<string, object>(StringComparer.Ordinal)
+            return new Dictionary<string, object?>(StringComparer.Ordinal)
             {
                 ["success"] = false,
                 ["tool"] = "home/get_cells_plus",
@@ -556,10 +560,10 @@ namespace HomeBridge.BridgeTools
         /// </summary>
         private sealed class Selection
         {
-            public HashSet<string> Cell;
-            public HashSet<string> Thing;
-            public List<string> CellApplied;
-            public List<string> ThingApplied;
+            public HashSet<string> Cell = new HashSet<string>(StringComparer.Ordinal);
+            public HashSet<string> Thing = new HashSet<string>(StringComparer.Ordinal);
+            public List<string>? CellApplied;
+            public List<string>? ThingApplied;
             public bool Sparse;
             public bool Summary;
 
@@ -580,24 +584,25 @@ namespace HomeBridge.BridgeTools
         /// that you get three fields, and a typo that silently widens or narrows
         /// the answer is the same class of bug as the 2026-09-02 silent zero.
         /// </summary>
-        private static object ParseSelection(
-            string fields, string thingFields, bool sparse, bool summary, out Selection selection)
+        private static bool TryParseSelection(
+            string fields, string thingFields, bool sparse, bool summary,
+            [NotNullWhen(true)] out Selection? selection, [NotNullWhen(false)] out object? error)
         {
             selection = null;
 
             HashSet<string> cellSet;
-            List<string> cellApplied;
-            var error = ParseFieldSpec("fields", fields, CellFieldNames, null,
+            List<string>? cellApplied;
+            error = ParseFieldSpec("fields", fields, CellFieldNames, null,
                                        "per-cell field", out cellSet, out cellApplied);
             if (error != null)
-                return error;
+                return false;
 
             HashSet<string> thingSet;
-            List<string> thingApplied;
+            List<string>? thingApplied;
             error = ParseFieldSpec("thingFields", thingFields, ThingFieldNames, ThingDefName,
                                    "per-thing field", out thingSet, out thingApplied);
             if (error != null)
-                return error;
+                return false;
 
             selection = new Selection
             {
@@ -608,7 +613,7 @@ namespace HomeBridge.BridgeTools
                 Sparse = sparse,
                 Summary = summary
             };
-            return null;
+            return true;
         }
 
         /// <summary>
@@ -620,14 +625,14 @@ namespace HomeBridge.BridgeTools
         /// sent (defName: a thing with no defName is not identifiable at all, and
         /// no caller has ever wanted one).
         /// </summary>
-        private static object ParseFieldSpec(
+        private static object? ParseFieldSpec(
             string parameterName,
             string spec,
             string[] accepted,
-            string alwaysOn,
+            string? alwaysOn,
             string whatItIs,
             out HashSet<string> selected,
-            out List<string> applied)
+            out List<string>? applied)
         {
             selected = new HashSet<string>(StringComparer.Ordinal);
             applied = null;
@@ -679,7 +684,7 @@ namespace HomeBridge.BridgeTools
         /// that would have worked. Nothing is narrowed on the way out.
         /// </summary>
         private static object FieldFailure(
-            string parameterName, string spec, string badName, string[] accepted,
+            string parameterName, string? spec, string? badName, string[] accepted,
             string whatItIs, bool empty)
         {
             var detail = empty
@@ -694,7 +699,7 @@ namespace HomeBridge.BridgeTools
                     + "caller who believes they asked for something and did not get it.",
                     parameterName, spec, badName, whatItIs);
 
-            return new Dictionary<string, object>(StringComparer.Ordinal)
+            return new Dictionary<string, object?>(StringComparer.Ordinal)
             {
                 ["success"] = false,
                 ["tool"] = "home/get_cells_plus",
@@ -716,7 +721,7 @@ namespace HomeBridge.BridgeTools
 
         private static object BuildResponse(RectSpec spec, Selection sel)
         {
-            Map map;
+            Map? map;
             string mapError;
             if (!TryGetMap(out map, out mapError))
                 return Failure(mapError);
@@ -782,10 +787,10 @@ namespace HomeBridge.BridgeTools
             }
 
             var totalCells = (int)requestedCellCount;
-            var zoneLookup = new Dictionary<string, object>(StringComparer.Ordinal);
-            var areaLookup = new Dictionary<string, object>(StringComparer.Ordinal);
+            var zoneLookup = new Dictionary<string, object?>(StringComparer.Ordinal);
+            var areaLookup = new Dictionary<string, object?>(StringComparer.Ordinal);
             var aggregate = sel.Summary ? new SummaryBuilder(sel) : null;
-            var payloads = new List<Dictionary<string, object>>(aggregate != null ? 0 : totalCells);
+            var payloads = new List<Dictionary<string, object?>>(aggregate != null ? 0 : totalCells);
             var omitted = 0;
 
             foreach (var cell in EnumerateCells(spec))
@@ -817,7 +822,7 @@ namespace HomeBridge.BridgeTools
             // width/height can read those back; `argumentShape` says which set of
             // names actually arrived, which is the one thing the old silent zero
             // never told anybody.
-            var rect = new Dictionary<string, object>(StringComparer.Ordinal)
+            var rect = new Dictionary<string, object?>(StringComparer.Ordinal)
             {
                 ["x"] = spec.X,
                 ["z"] = spec.Z,
@@ -832,7 +837,7 @@ namespace HomeBridge.BridgeTools
             if (spec.CornersSwapped)
                 rect["cornersSwapped"] = true;
 
-            var reply = new Dictionary<string, object>(StringComparer.Ordinal)
+            var reply = new Dictionary<string, object?>(StringComparer.Ordinal)
             {
                 ["success"] = true,
                 ["tool"] = "home/get_cells_plus",
@@ -840,7 +845,7 @@ namespace HomeBridge.BridgeTools
                 ["rect"] = rect,
                 // So a caller can ask for the whole map in one call without a
                 // second tool: {x:0, z:0, width:mapSize.x, height:mapSize.z}.
-                ["mapSize"] = new Dictionary<string, object>(StringComparer.Ordinal)
+                ["mapSize"] = new Dictionary<string, object?>(StringComparer.Ordinal)
                 {
                     ["x"] = map.Size.x,
                     ["z"] = map.Size.z,
@@ -867,17 +872,17 @@ namespace HomeBridge.BridgeTools
         /// content (a thing, a designation, a zone, an area). Fog is not content
         /// — see the 2026-09-03 block at the top of this file.
         /// </summary>
-        private static Dictionary<string, object> DescribeCell(
+        private static Dictionary<string, object?> DescribeCell(
             Map map,
             IntVec3 cell,
             Selection sel,
-            IDictionary<string, object> zoneLookup,
-            IDictionary<string, object> areaLookup,
+            IDictionary<string, object?> zoneLookup,
+            IDictionary<string, object?> areaLookup,
             out bool hasContent)
         {
             hasContent = false;
 
-            var payload = new Dictionary<string, object>(StringComparer.Ordinal)
+            var payload = new Dictionary<string, object?>(StringComparer.Ordinal)
             {
                 ["x"] = cell.x,
                 ["z"] = cell.z
@@ -984,9 +989,9 @@ namespace HomeBridge.BridgeTools
             return payload;
         }
 
-        private static Dictionary<string, object> DescribeThing(Thing thing, Selection sel)
+        private static Dictionary<string, object?> DescribeThing(Thing thing, Selection sel)
         {
-            var payload = new Dictionary<string, object>(StringComparer.Ordinal)
+            var payload = new Dictionary<string, object?>(StringComparer.Ordinal)
             {
                 ["defName"] = thing.def?.defName
             };
@@ -1019,6 +1024,7 @@ namespace HomeBridge.BridgeTools
                     .Where(pawn => pawn != null)
                     .Select(SafePawnName)
                     .Where(name => !string.IsNullOrEmpty(name))
+                    .Cast<string>()
                     .ToList() ?? new List<string>();
 
                 // Always emitted for a bed, explicitly null when unassigned, so
@@ -1054,9 +1060,9 @@ namespace HomeBridge.BridgeTools
             return payload;
         }
 
-        private static Dictionary<string, object> DescribeDesignation(Designation designation)
+        private static Dictionary<string, object?> DescribeDesignation(Designation designation)
         {
-            var payload = new Dictionary<string, object>(StringComparer.Ordinal)
+            var payload = new Dictionary<string, object?>(StringComparer.Ordinal)
             {
                 ["defName"] = designation.def?.defName
             };
@@ -1069,9 +1075,9 @@ namespace HomeBridge.BridgeTools
             return payload;
         }
 
-        private static Dictionary<string, object> DescribeZone(Zone zone, string id)
+        private static Dictionary<string, object?> DescribeZone(Zone zone, string id)
         {
-            return new Dictionary<string, object>(StringComparer.Ordinal)
+            return new Dictionary<string, object?>(StringComparer.Ordinal)
             {
                 ["id"] = id,
                 ["label"] = BridgeCommon.SafeString(() => zone.RenamableLabel),
@@ -1082,9 +1088,9 @@ namespace HomeBridge.BridgeTools
             };
         }
 
-        private static Dictionary<string, object> DescribeArea(Area area, string id)
+        private static Dictionary<string, object?> DescribeArea(Area area, string id)
         {
-            return new Dictionary<string, object>(StringComparer.Ordinal)
+            return new Dictionary<string, object?>(StringComparer.Ordinal)
             {
                 ["id"] = id,
                 ["label"] = BridgeCommon.SafeString(() => area.Label),
@@ -1121,7 +1127,7 @@ namespace HomeBridge.BridgeTools
             public long Count;      // total stackCount
             public int Stacks;      // thing entries
             public int Forbidden;   // entries whose CompForbiddable says true
-            public string Label;    // WITHOUT the stack count; see Build()
+            public string? Label;    // WITHOUT the stack count; see Build()
         }
 
         /// <summary>
@@ -1153,12 +1159,12 @@ namespace HomeBridge.BridgeTools
             private readonly Dictionary<string, int> _designations =
                 new Dictionary<string, int>(StringComparer.Ordinal);
 
-            private readonly Dictionary<string, Dictionary<string, object>> _zones =
-                new Dictionary<string, Dictionary<string, object>>(StringComparer.Ordinal);
+            private readonly Dictionary<string, Dictionary<string, object?>> _zones =
+                new Dictionary<string, Dictionary<string, object?>>(StringComparer.Ordinal);
             private readonly Dictionary<string, int> _zoneCells =
                 new Dictionary<string, int>(StringComparer.Ordinal);
-            private readonly Dictionary<string, Dictionary<string, object>> _areas =
-                new Dictionary<string, Dictionary<string, object>>(StringComparer.Ordinal);
+            private readonly Dictionary<string, Dictionary<string, object?>> _areas =
+                new Dictionary<string, Dictionary<string, object?>>(StringComparer.Ordinal);
             private readonly Dictionary<string, int> _areaCells =
                 new Dictionary<string, int>(StringComparer.Ordinal);
 
@@ -1175,7 +1181,7 @@ namespace HomeBridge.BridgeTools
                     // "(none)" and not a dropped cell: a terrain that could not be
                     // read is a fact about the rectangle, and the counts have to
                     // add up to cellCount.
-                    Bump(_terrain, string.IsNullOrEmpty(terrain) ? "(none)" : terrain);
+                    Bump(_terrain, terrain == null || terrain.Length == 0 ? "(none)" : terrain);
                 }
 
                 if (_sel.Want(FieldRoof))
@@ -1183,7 +1189,7 @@ namespace HomeBridge.BridgeTools
                     var roof = map.roofGrid?.RoofAt(cell)?.defName;
                     // "unroofed" cannot collide with a RoofDef defName
                     // (RoofConstructed, RoofRockThin, RoofRockThick).
-                    Bump(_roof, string.IsNullOrEmpty(roof) ? "unroofed" : roof);
+                    Bump(_roof, roof == null || roof.Length == 0 ? "unroofed" : roof);
                 }
 
                 if (_sel.Want(FieldFogged) && cell.Fogged(map))
@@ -1279,9 +1285,9 @@ namespace HomeBridge.BridgeTools
                     _pawns.Add(SafePawnName(pawn) ?? defName);
             }
 
-            internal Dictionary<string, object> Build()
+            internal Dictionary<string, object?> Build()
             {
-                var summary = new Dictionary<string, object>(StringComparer.Ordinal);
+                var summary = new Dictionary<string, object?>(StringComparer.Ordinal);
 
                 if (_sel.Want(FieldTerrain))
                     summary["terrain"] = _terrain;
@@ -1296,10 +1302,10 @@ namespace HomeBridge.BridgeTools
 
                 if (_sel.Want(FieldThings))
                 {
-                    var things = new Dictionary<string, object>(StringComparer.Ordinal);
+                    var things = new Dictionary<string, object?>(StringComparer.Ordinal);
                     foreach (var entry in _things.OrderBy(e => e.Key, StringComparer.Ordinal))
                     {
-                        things[entry.Key] = new Dictionary<string, object>(StringComparer.Ordinal)
+                        things[entry.Key] = new Dictionary<string, object?>(StringComparer.Ordinal)
                         {
                             ["count"] = entry.Value.Count,
                             ["stacks"] = entry.Value.Stacks,
@@ -1324,11 +1330,11 @@ namespace HomeBridge.BridgeTools
                 return summary;
             }
 
-            private static Dictionary<string, object> WithCellsInRect(
-                Dictionary<string, Dictionary<string, object>> descriptors,
+            private static Dictionary<string, object?> WithCellsInRect(
+                Dictionary<string, Dictionary<string, object?>> descriptors,
                 Dictionary<string, int> cellCounts)
             {
-                var built = new Dictionary<string, object>(StringComparer.Ordinal);
+                var built = new Dictionary<string, object?>(StringComparer.Ordinal);
                 foreach (var entry in descriptors)
                 {
                     int n;
@@ -1339,9 +1345,9 @@ namespace HomeBridge.BridgeTools
                 return built;
             }
 
-            private static Dictionary<string, object> Counts(int yes, int no, int unknown)
+            private static Dictionary<string, object?> Counts(int yes, int no, int unknown)
             {
-                return new Dictionary<string, object>(StringComparer.Ordinal)
+                return new Dictionary<string, object?>(StringComparer.Ordinal)
                 {
                     ["true"] = yes,
                     ["false"] = no,
@@ -1372,7 +1378,7 @@ namespace HomeBridge.BridgeTools
             }
         }
 
-        private static void AddIfPresent(IDictionary<string, object> payload, string key, string value)
+        private static void AddIfPresent(IDictionary<string, object?> payload, string key, string? value)
         {
             if (!string.IsNullOrEmpty(value))
                 payload[key] = value;
@@ -1427,7 +1433,7 @@ namespace HomeBridge.BridgeTools
             }
         }
 
-        private static string SafePawnName(Pawn pawn)
+        private static string? SafePawnName(Pawn pawn)
         {
             try
             {
@@ -1446,7 +1452,7 @@ namespace HomeBridge.BridgeTools
             }
         }
 
-        private static string SafeLoadId(ILoadReferenceable referenceable)
+        private static string? SafeLoadId(ILoadReferenceable referenceable)
         {
             try
             {
@@ -1469,7 +1475,7 @@ namespace HomeBridge.BridgeTools
 
         /// <summary>The shared map gate; see BridgeCommon.TryGetMap. The error
         /// text names this tool.</summary>
-        private static bool TryGetMap(out Map map, out string error)
+        private static bool TryGetMap([NotNullWhen(true)] out Map? map, out string error)
         {
             return BridgeCommon.TryGetMap("home/get_cells_plus", out map, out error);
         }

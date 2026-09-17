@@ -1,3 +1,5 @@
+#nullable enable
+
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -48,7 +50,7 @@ namespace HomeBridge.BridgeTools
         }
         internal static IEnumerable<string> Targets(Map map) => map.listerBuildings.allBuildingsColonist
             .Select(b => b.GetUniqueLoadID()).Concat(map.zoneManager.AllZones.OfType<Zone_Stockpile>().Select(z => "stockpile:" + z.ID));
-        internal static List<IntVec3> Scope(Map map, string target)
+        internal static List<IntVec3>? Scope(Map map, string target)
         {
             var cells = new HashSet<IntVec3>();
             var building = map.listerBuildings.allBuildingsColonist.SingleOrDefault(b => b.GetUniqueLoadID() == target);

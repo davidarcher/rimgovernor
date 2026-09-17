@@ -101,12 +101,12 @@ namespace HomeBridge.BridgeTools
             }
         }
 
-        internal static Dictionary<string, object> Encode(IMessage reply, bool compact = false)
+        internal static Dictionary<string, object?> Encode(IMessage reply, bool compact = false)
         {
             var payload = Format(reply, compact);
             if (Utf8.GetByteCount(payload) > MaximumEnvelopeBytes)
                 throw new InvalidOperationException("Reply exceeds the one MiB control envelope limit.");
-            return new Dictionary<string, object>(StringComparer.Ordinal) { ["payload"] = payload };
+            return new Dictionary<string, object?>(StringComparer.Ordinal) { ["payload"] = payload };
         }
 
         // MediaFrame replies (base64 PNG bytes) do not fit the one MiB control
@@ -115,12 +115,12 @@ namespace HomeBridge.BridgeTools
         // using Encode() above so their bound stays at one MiB.
         internal const int MaximumMediaEnvelopeBytes = 48 * 1024 * 1024;
 
-        internal static Dictionary<string, object> EncodeMedia(IMessage reply, bool compact = false)
+        internal static Dictionary<string, object?> EncodeMedia(IMessage reply, bool compact = false)
         {
             var payload = Format(reply, compact);
             if (Utf8.GetByteCount(payload) > MaximumMediaEnvelopeBytes)
                 throw new InvalidOperationException("Media reply exceeds the 48 MiB media envelope limit.");
-            return new Dictionary<string, object>(StringComparer.Ordinal) { ["payload"] = payload };
+            return new Dictionary<string, object?>(StringComparer.Ordinal) { ["payload"] = payload };
         }
 
         // Timing is reported beside the payload so the Go sampler can split
@@ -147,9 +147,9 @@ namespace HomeBridge.BridgeTools
 
         internal static object WithTiming(object reply, long queued, long started, long finished)
         {
-            var envelope = reply as Dictionary<string, object>;
+            var envelope = reply as Dictionary<string, object?>;
             if (envelope == null || !envelope.ContainsKey("payload") || envelope.ContainsKey(TimingField)) return reply;
-            envelope[TimingField] = new Dictionary<string, object>(StringComparer.Ordinal)
+            envelope[TimingField] = new Dictionary<string, object?>(StringComparer.Ordinal)
             {
                 ["queueMs"] = Millis(started - queued),
                 ["executeMs"] = Millis(finished - started),
@@ -165,9 +165,9 @@ namespace HomeBridge.BridgeTools
             return new Common.Failure { Code = code, Detail = detail };
         }
 
-        internal static bool IsIdentifier(string value)
+        internal static bool IsIdentifier([NotNullWhen(true)] string? value)
         {
-            if (string.IsNullOrWhiteSpace(value) || value.IndexOf('\0') >= 0) return false;
+            if (value == null || string.IsNullOrWhiteSpace(value) || value.IndexOf('\0') >= 0) return false;
             try { return Utf8.GetByteCount(value) <= 256; }
             catch (EncoderFallbackException) { return false; }
         }

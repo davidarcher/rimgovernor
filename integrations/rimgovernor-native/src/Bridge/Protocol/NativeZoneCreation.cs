@@ -34,7 +34,7 @@ namespace HomeBridge.BridgeTools
             foreach (var c in cells) result.Cells.Add(new Receipts.CellResult { Cell = new Common.Cell { X = c.x, Z = c.z }, Accepted = Map.zoneManager.ZoneAt(c) == Zone });
             if (Zone is Zone_Growing growing)
             {
-                var crop = BridgeCommon.PrivateInstanceField(typeof(Zone_Growing), "plantDefToGrow").GetValue(growing) as ThingDef;
+                var crop = (BridgeCommon.PrivateInstanceField(typeof(Zone_Growing), "plantDefToGrow") ?? throw new InvalidOperationException("Zone_Growing.plantDefToGrow is unavailable.")).GetValue(growing) as ThingDef;
                 if (crop != null) result.Snapshot.AfterToken = NativeZoneCreation.ConfigurationToken(new Operations.CreateZone {
                     Type = Operations.ZoneType.Growing, Label = Zone.label, Cells = new Operations.Cells { ExplicitCells = new Operations.CellList() },
                     Growing = new Operations.GrowingSettings { PlantDef = crop.defName, AllowSow = growing.allowSow, AllowCut = growing.allowCut } }, cells);

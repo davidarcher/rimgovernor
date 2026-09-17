@@ -38,7 +38,7 @@ namespace HomeBridge.BridgeTools
         [Tool("rimgovernor/presentation_notifications", Title = "Read native notifications", Description = "Letter stack, live transient messages and active alerts as independently available sections, newest/loudest first with exact counts. Read-only: no open, dismiss, choice or acknowledgement.")]
         [ToolResponse("payload", "string", "Official ProtoJSON NotificationsReply; usable in headless and graphical games.", Always = true)]
         public async Task<object> Notifications(IRimBridgeContext ctx, CancellationToken cancellationToken,
-            [ToolParameter(Description = "Official ProtoJSON NotificationsRequest string in raw transport value.")] object request = null!)
+            [ToolParameter(Description = "Official ProtoJSON NotificationsRequest string in raw transport value.")] object? request = null)
         {
             if (!ProtoBoundary.TryParse(ctx, "rimgovernor/presentation_notifications", request, Presentation.NotificationsRequest.Parser, out var parsed, out var failure)
                 || !Validate(parsed, out failure)) return ProtoBoundary.Encode(new Presentation.NotificationsReply { Failure = failure });

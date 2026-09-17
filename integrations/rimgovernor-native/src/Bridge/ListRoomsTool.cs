@@ -1,4 +1,7 @@
+#nullable enable
+
 using System;
+using System.Diagnostics.CodeAnalysis;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
@@ -145,7 +148,7 @@ namespace HomeBridge.BridgeTools
         [ToolResponse("cell", "object", "Only when x and z were given without a rectangle: which room covers that cell. Carries found (bool), x, z and roomIndex - the index into rooms[], or null when the cell has no room or its room was not listed.", Nullable = true)]
         [ToolResponse("unknownArguments", "array", "Every argument key the caller sent that this tool does not declare, sorted, case-sensitively. Empty array = every key was recognised. The host's own _rimBridgeTimeoutMs is never listed.", Always = true)]
         [ToolResponse("unknownArgumentsWarning", "string", "Present only when unknownArguments is non-empty, or when the caller's raw keys could not be read at all - in which case the empty unknownArguments means 'not known', not 'nothing unknown'.", Nullable = true)]
-        public async Task<object> ListRooms(
+        public async Task<object?> ListRooms(
             IRimBridgeContext ctx,
             CancellationToken cancellationToken,
             [ToolParameter(Description = "Cell x. Alone with z: answer which room covers that cell. With width and height: the left edge of the rectangle a roomGrid is built over. -1 = not asked.", DefaultValue = -1)] int x = -1,
@@ -207,7 +210,7 @@ namespace HomeBridge.BridgeTools
             if ((width > 0) != (height > 0))
                 return Failure("width and height must be given together: both > 0 for a rectangle, or neither.");
 
-            IReadOnlyList<Room> allRooms;
+            IReadOnlyList<Room>? allRooms;
             try
             {
                 var regionGrid = map.regionGrid;
@@ -250,7 +253,7 @@ namespace HomeBridge.BridgeTools
                 var doorway = BridgeCommon.Try(() => room.IsDoorway, false);
                 var outdoors = BridgeCommon.Try(() => room.PsychologicallyOutdoors, false);
 
-                string reason = null;
+                string? reason = null;
                 if (dereferenced)
                 {
                     reason = "dereferenced: the room has no regions left, so it is a corpse of a room the game has not collected yet";
@@ -273,11 +276,11 @@ namespace HomeBridge.BridgeTools
                     continue;
                 }
 
-                omitted.Add(new Dictionary<string, object>(StringComparer.Ordinal)
+                omitted.Add(new Dictionary<string, object?>(StringComparer.Ordinal)
                 {
                     ["id"] = RoomWalk.RoomId(room),
                     ["name"] = SafeName(room, null),
-                    ["cellCount"] = BridgeCommon.Try<object>(() => room.CellCount, null),
+                    ["cellCount"] = BridgeCommon.Try<object?>(() => room.CellCount, null),
                     ["reason"] = reason
                 });
             }
@@ -295,7 +298,7 @@ namespace HomeBridge.BridgeTools
                 rows.Add(RoomRow(map, room, i, id, wantCells, includeBoundary, pawnsByRoomId));
             }
 
-            var payload = new Dictionary<string, object>(StringComparer.Ordinal)
+            var payload = new Dictionary<string, object?>(StringComparer.Ordinal)
             {
                 ["success"] = true,
                 ["tool"] = ToolName,
@@ -377,7 +380,7 @@ namespace HomeBridge.BridgeTools
             var owners = SafeOwners(room, skipped);
             var roleLabel = SafeRoleLabel(room);
 
-            var row = new Dictionary<string, object>(StringComparer.Ordinal)
+            var row = new Dictionary<string, object?>(StringComparer.Ordinal)
             {
                 ["index"] = index,
                 ["id"] = id,
@@ -385,7 +388,7 @@ namespace HomeBridge.BridgeTools
                 ["gameLabel"] = BridgeCommon.SafeString(() => room.GetRoomRoleLabel()),
                 ["role"] = BridgeCommon.SafeString(() => room.Role == null ? null : room.Role.defName),
                 ["roleLabel"] = roleLabel,
-                ["extents"] = extents == null ? null : new Dictionary<string, object>(StringComparer.Ordinal)
+                ["extents"] = extents == null ? null : new Dictionary<string, object?>(StringComparer.Ordinal)
                 {
                     ["x"] = extents.Value.minX,
                     ["z"] = extents.Value.minZ,
@@ -393,21 +396,21 @@ namespace HomeBridge.BridgeTools
                     ["height"] = extents.Value.Height
                 },
                 ["center"] = walk.Center == null ? null : BridgeCommon.Pos(walk.Center.Value),
-                ["cellCount"] = BridgeCommon.Try<object>(() => room.CellCount, null),
+                ["cellCount"] = BridgeCommon.Try<object?>(() => room.CellCount, null),
                 ["cellsWalked"] = walk.Walked,
-                ["properRoom"] = BridgeCommon.Try<object>(() => room.ProperRoom, null),
-                ["psychologicallyOutdoors"] = BridgeCommon.Try<object>(() => room.PsychologicallyOutdoors, null),
-                ["outdoors"] = BridgeCommon.Try<object>(() => room.UsesOutdoorTemperature, null),
-                ["fogged"] = BridgeCommon.Try<object>(() => room.Fogged, null),
-                ["isDoorway"] = BridgeCommon.Try<object>(() => room.IsDoorway, null),
+                ["properRoom"] = BridgeCommon.Try<object?>(() => room.ProperRoom, null),
+                ["psychologicallyOutdoors"] = BridgeCommon.Try<object?>(() => room.PsychologicallyOutdoors, null),
+                ["outdoors"] = BridgeCommon.Try<object?>(() => room.UsesOutdoorTemperature, null),
+                ["fogged"] = BridgeCommon.Try<object?>(() => room.Fogged, null),
+                ["isDoorway"] = BridgeCommon.Try<object?>(() => room.IsDoorway, null),
                 ["doorDef"] = BridgeCommon.SafeString(() =>
                 {
                     var door = room.Door;
                     return door == null || door.def == null ? null : door.def.defName;
                 }),
-                ["touchesMapEdge"] = BridgeCommon.Try<object>(() => room.TouchesMapEdge, null),
-                ["openRoofCount"] = BridgeCommon.Try<object>(() => room.OpenRoofCount, null),
-                ["temperature"] = BridgeCommon.Try<object>(() => Round(room.Temperature), null),
+                ["touchesMapEdge"] = BridgeCommon.Try<object?>(() => room.TouchesMapEdge, null),
+                ["openRoofCount"] = BridgeCommon.Try<object?>(() => room.OpenRoofCount, null),
+                ["temperature"] = BridgeCommon.Try<object?>(() => Round(room.Temperature), null),
                 ["stats"] = Stats(room, skipped),
                 ["owners"] = owners ?? new List<string>(),
                 ["ownersRead"] = owners != null
@@ -416,7 +419,7 @@ namespace HomeBridge.BridgeTools
             AddBeds(row, contained, room, includeBoundary, skipped);
             AddContents(row, contained, room, includeBoundary, skipped);
 
-            List<object> pawns = null;
+            List<object>? pawns = null;
             if (id != null)
                 pawnsByRoomId.TryGetValue(id.Value, out pawns);
             row["pawns"] = pawns ?? new List<object>();
@@ -449,9 +452,9 @@ namespace HomeBridge.BridgeTools
         {
             internal int Walked;
             internal IntVec3? Center;
-            internal List<object> Cells;
+            internal List<object>? Cells;
             internal int CellsNotListed;
-            internal string CellsFailed;
+            internal string? CellsFailed;
             internal List<object> Stockpiles = new List<object>();
             internal int StockpileCellsTotal;
         }
@@ -476,7 +479,7 @@ namespace HomeBridge.BridgeTools
             long sumX = 0, sumZ = 0;
             var snapshot = new List<IntVec3>();
 
-            ZoneManager zones = null;
+            ZoneManager? zones = null;
             try { zones = map.zoneManager; }
             catch { skipped.Add("stockpiles (map.zoneManager could not be read)"); }
 
@@ -525,12 +528,12 @@ namespace HomeBridge.BridgeTools
 
             foreach (var zone in order)
             {
-                result.Stockpiles.Add(new Dictionary<string, object>(StringComparer.Ordinal)
+                result.Stockpiles.Add(new Dictionary<string, object?>(StringComparer.Ordinal)
                 {
                     ["label"] = BridgeCommon.SafeString(() => zone.label),
-                    ["id"] = BridgeCommon.Try<object>(() => zone.ID, null),
+                    ["id"] = BridgeCommon.Try<object?>(() => zone.ID, null),
                     ["cellsInRoom"] = zoneCells[zone],
-                    ["zoneCellCount"] = BridgeCommon.Try<object>(() => zone.cells == null ? 0 : zone.cells.Count, null)
+                    ["zoneCellCount"] = BridgeCommon.Try<object?>(() => zone.cells == null ? 0 : zone.cells.Count, null)
                 });
             }
 
@@ -569,7 +572,7 @@ namespace HomeBridge.BridgeTools
 
         /// <summary>The cached buffer, copied on the spot. Never hand the property
         /// itself anywhere: the next read of it clears the list.</summary>
-        private static List<Thing> SnapshotContainedThings(Room room, List<string> skipped)
+        private static List<Thing>? SnapshotContainedThings(Room room, List<string> skipped)
         {
             try
             {
@@ -601,7 +604,7 @@ namespace HomeBridge.BridgeTools
             catch { return false; }
         }
 
-        private static void AddBeds(IDictionary<string, object> row, List<Thing> contained,
+        private static void AddBeds(IDictionary<string, object?> row, List<Thing>? contained,
                                     Room room, bool includeBoundary, List<string> skipped)
         {
             var beds = new List<object>();
@@ -629,7 +632,7 @@ namespace HomeBridge.BridgeTools
                         for (var j = 0; j < assigned.Count; j++)
                         {
                             var name = PawnName(assigned[j]);
-                            if (!string.IsNullOrEmpty(name))
+                            if (name != null && name.Length > 0)
                                 owners.Add(name);
                         }
                     }
@@ -639,14 +642,14 @@ namespace HomeBridge.BridgeTools
                     skipped.Add("bed owners (Building_Bed.OwnersForReading threw)");
                 }
 
-                beds.Add(new Dictionary<string, object>(StringComparer.Ordinal)
+                beds.Add(new Dictionary<string, object?>(StringComparer.Ordinal)
                 {
                     ["defName"] = BridgeCommon.SafeString(() => bed.def == null ? null : bed.def.defName),
                     ["label"] = BridgeCommon.SafeString(() => bed.def == null ? null : bed.def.label),
                     ["position"] = BridgeCommon.PositionOf(bed),
                     ["owners"] = owners,
-                    ["medical"] = BridgeCommon.Try<object>(() => bed.Medical, null),
-                    ["forPrisoners"] = BridgeCommon.Try<object>(() => bed.ForPrisoners, null)
+                    ["medical"] = BridgeCommon.Try<object?>(() => bed.Medical, null),
+                    ["forPrisoners"] = BridgeCommon.Try<object?>(() => bed.ForPrisoners, null)
                 });
             }
 
@@ -654,7 +657,7 @@ namespace HomeBridge.BridgeTools
             row["bedCount"] = beds.Count;
         }
 
-        private static void AddContents(IDictionary<string, object> row, List<Thing> contained,
+        private static void AddContents(IDictionary<string, object?> row, List<Thing>? contained,
                                         Room room, bool includeBoundary, List<string> skipped)
         {
             if (contained == null)
@@ -667,7 +670,7 @@ namespace HomeBridge.BridgeTools
             }
 
             var counts = new Dictionary<string, int>(StringComparer.Ordinal);
-            var labels = new Dictionary<string, string>(StringComparer.Ordinal);
+            var labels = new Dictionary<string, string?>(StringComparer.Ordinal);
             var order = new List<string>();
             var loose = 0;
             var boundary = 0;
@@ -722,7 +725,7 @@ namespace HomeBridge.BridgeTools
                     continue;
                 }
                 var defName = order[i];
-                contents.Add(new Dictionary<string, object>(StringComparer.Ordinal)
+                contents.Add(new Dictionary<string, object?>(StringComparer.Ordinal)
                 {
                     ["defName"] = defName,
                     ["label"] = labels[defName],
@@ -740,7 +743,7 @@ namespace HomeBridge.BridgeTools
         /// It is read to COMPLETION here before anything else touches the room,
         /// because its enumerator re-reads ContainedAndAdjacentThings lazily.
         /// Null (not empty) means the read failed.</summary>
-        private static List<string> SafeOwners(Room room, List<string> skipped)
+        private static List<string>? SafeOwners(Room room, List<string> skipped)
         {
             try
             {
@@ -748,7 +751,7 @@ namespace HomeBridge.BridgeTools
                 foreach (var pawn in room.Owners)
                 {
                     var name = PawnName(pawn);
-                    if (!string.IsNullOrEmpty(name))
+                    if (name != null && name.Length > 0)
                         names.Add(name);
                 }
                 return names;
@@ -766,7 +769,7 @@ namespace HomeBridge.BridgeTools
         /// rather than losing the whole block.</summary>
         private static object Stats(Room room, List<string> skipped)
         {
-            var stats = new Dictionary<string, object>(StringComparer.Ordinal);
+            var stats = new Dictionary<string, object?>(StringComparer.Ordinal);
             AddStat(stats, room, "cleanliness", TryStatDef(() => RoomStatDefOf.Cleanliness), skipped);
             AddStat(stats, room, "wealth", TryStatDef(() => RoomStatDefOf.Wealth), skipped);
             AddStat(stats, room, "space", TryStatDef(() => RoomStatDefOf.Space), skipped);
@@ -775,14 +778,14 @@ namespace HomeBridge.BridgeTools
             return stats;
         }
 
-        private static RoomStatDef TryStatDef(Func<RoomStatDef> read)
+        private static RoomStatDef? TryStatDef(Func<RoomStatDef> read)
         {
             try { return read(); }
             catch { return null; }
         }
 
-        private static void AddStat(IDictionary<string, object> stats, Room room, string key,
-                                    RoomStatDef def, List<string> skipped)
+        private static void AddStat(IDictionary<string, object?> stats, Room room, string key,
+                                    RoomStatDef? def, List<string> skipped)
         {
             if (def == null)
             {
@@ -800,7 +803,7 @@ namespace HomeBridge.BridgeTools
                 return;
             }
 
-            string label = null;
+            string? label = null;
             try
             {
                 var stage = def.GetScoreStage(score);
@@ -813,7 +816,7 @@ namespace HomeBridge.BridgeTools
                 // than inventing one.
             }
 
-            stats[key] = new Dictionary<string, object>(StringComparer.Ordinal)
+            stats[key] = new Dictionary<string, object?>(StringComparer.Ordinal)
             {
                 ["value"] = Math.Round((double)score, 2, MidpointRounding.AwayFromZero),
                 ["label"] = label,
@@ -828,7 +831,7 @@ namespace HomeBridge.BridgeTools
         /// player cannot name one. `gameLabel` on the row carries RimWorld's own
         /// phrasing of the same thing ("Lucas' bedroom") for anyone who wants it.
         /// </summary>
-        private static string SafeName(Room room, List<string> owners)
+        private static string? SafeName(Room room, List<string>? owners)
         {
             var role = SafeRoleLabel(room);
             if (string.IsNullOrEmpty(role))
@@ -842,7 +845,7 @@ namespace HomeBridge.BridgeTools
                     foreach (var pawn in room.Owners)
                     {
                         var name = PawnName(pawn);
-                        if (!string.IsNullOrEmpty(name))
+                        if (name != null && name.Length > 0)
                             names.Add(name);
                     }
                     return names;
@@ -854,7 +857,7 @@ namespace HomeBridge.BridgeTools
             return role + " (" + string.Join(", ", owners.ToArray()) + ")";
         }
 
-        private static string SafeRoleLabel(Room room)
+        private static string? SafeRoleLabel(Room room)
         {
             return BridgeCommon.SafeString(() =>
             {
@@ -870,7 +873,7 @@ namespace HomeBridge.BridgeTools
         // pawns
         // ------------------------------------------------------------------
 
-        private static Dictionary<int, List<object>> BuildPawnIndex(Map map, out string failure)
+        private static Dictionary<int, List<object>> BuildPawnIndex(Map map, out string? failure)
         {
             failure = null;
             var byRoom = new Dictionary<int, List<object>>();
@@ -903,10 +906,10 @@ namespace HomeBridge.BridgeTools
                         byRoom[id.Value] = list;
                     }
 
-                    list.Add(new Dictionary<string, object>(StringComparer.Ordinal)
+                    list.Add(new Dictionary<string, object?>(StringComparer.Ordinal)
                     {
                         ["name"] = PawnName(pawn),
-                        ["isColonist"] = BridgeCommon.Try<object>(() => pawn.IsColonist, null),
+                        ["isColonist"] = BridgeCommon.Try<object?>(() => pawn.IsColonist, null),
                         ["position"] = BridgeCommon.PositionOf(pawn)
                     });
                 }
@@ -919,7 +922,7 @@ namespace HomeBridge.BridgeTools
             return byRoom;
         }
 
-        private static string PawnName(Pawn pawn)
+        private static string? PawnName(Pawn pawn)
         {
             if (pawn == null)
                 return null;
@@ -939,7 +942,7 @@ namespace HomeBridge.BridgeTools
         {
             var cell = new IntVec3(x, 0, z);
             var inBounds = BridgeCommon.Try(() => cell.InBounds(map), false);
-            var answer = new Dictionary<string, object>(StringComparer.Ordinal)
+            var answer = new Dictionary<string, object?>(StringComparer.Ordinal)
             {
                 ["x"] = x,
                 ["z"] = z,
@@ -977,11 +980,11 @@ namespace HomeBridge.BridgeTools
             return answer;
         }
 
-        private static void AddRoomGrid(IDictionary<string, object> payload, Map map,
+        private static void AddRoomGrid(IDictionary<string, object?> payload, Map map,
                                         int x, int z, int width, int height,
                                         Dictionary<int, int> indexByRoomId)
         {
-            payload["rect"] = new Dictionary<string, object>(StringComparer.Ordinal)
+            payload["rect"] = new Dictionary<string, object?>(StringComparer.Ordinal)
             {
                 ["x"] = x,
                 ["z"] = z,
@@ -996,7 +999,7 @@ namespace HomeBridge.BridgeTools
             // filtered out reads null, and every non-null value is a valid index
             // into rooms[].
             var walk = RoomWalk.OverRect(map, x, z, width, height);
-            var remap = new Dictionary<int, object>();
+            var remap = new Dictionary<int, object?>();
             var unlisted = 0;
             foreach (var entry in walk.Rooms)
             {
@@ -1006,11 +1009,11 @@ namespace HomeBridge.BridgeTools
                     : null;
             }
 
-            var rows = new List<List<object>>(walk.Grid.Count);
+            var rows = new List<List<object?>>(walk.Grid.Count);
             var outOfBounds = 0;
             foreach (var sourceRow in walk.Grid)
             {
-                var row = new List<object>(sourceRow.Count);
+                var row = new List<object?>(sourceRow.Count);
                 foreach (var value in sourceRow)
                 {
                     if (value == null)
@@ -1054,7 +1057,7 @@ namespace HomeBridge.BridgeTools
 
         private static object Notes(bool wantRect, bool wantCell)
         {
-            var notes = new Dictionary<string, object>(StringComparer.Ordinal)
+            var notes = new Dictionary<string, object?>(StringComparer.Ordinal)
             {
                 ["naming"] = "Rooms have no player-given name. `name` is the game's own role label plus the owners any bed inside assigns it, recomputed on every call — \"Bedroom (Lucas)\". `gameLabel` is RimWorld's own phrasing of the same thing. `role` is the RoomRoleDef defName.",
                 ["ids"] = "`id` is Room.ID, a counter handed out by the game. It is NOT stable across a wall change: RimWorld destroys and remakes a room whenever its shape changes, so an id recorded in a file will point at nothing. `index` is response-local: it is the index into rooms[] for THIS reply and means nothing in the next one.",
@@ -1108,7 +1111,7 @@ namespace HomeBridge.BridgeTools
         }
 
         /// <summary>The shared map gate; see BridgeCommon.TryGetMap.</summary>
-        private static bool TryGetMap(out Map map, out string error)
+        private static bool TryGetMap([NotNullWhen(true)] out Map? map, out string error)
         {
             return BridgeCommon.TryGetMap(ToolName, out map, out error);
         }

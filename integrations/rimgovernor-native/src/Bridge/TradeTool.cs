@@ -1,4 +1,7 @@
+#nullable enable
+
 using System;
+using System.Diagnostics.CodeAnalysis;
 using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
@@ -30,20 +33,20 @@ namespace HomeBridge.BridgeTools
         // survive across bridge calls for free. These fields only record what
         // THIS tool did, so a session opened by the vanilla dialog can be told
         // apart from one we opened.
-        private static string _sessionTraderId;
-        private static string _sessionTraderName;
-        private static string _sessionNegotiatorName;
+        private static string? _sessionTraderId;
+        private static string? _sessionTraderName;
+        private static string? _sessionNegotiatorName;
         private static int _sessionOpenedTick;
         private static bool _sessionOpenedByUs;
-        private static string _sessionId;
-        private static Map _sessionMap;
-        private static ColonyIdentity _sessionIdentity;
-        private static TradeDeal _sessionDeal;
-        private static ITrader _sessionTrader;
-        private static Pawn _sessionNegotiator;
+        private static string? _sessionId;
+        private static Map? _sessionMap;
+        private static ColonyIdentity? _sessionIdentity;
+        private static TradeDeal? _sessionDeal;
+        private static ITrader? _sessionTrader;
+        private static Pawn? _sessionNegotiator;
         private static bool _requireAdjacent;
 
-        private static readonly FieldInfo LiveMessagesField =
+        private static readonly FieldInfo? LiveMessagesField =
             BridgeCommon.PrivateStaticField(typeof(Messages), "liveMessages");
 
         [Tool(
@@ -66,19 +69,19 @@ namespace HomeBridge.BridgeTools
         [ToolResponse("omittedUntradeable", "integer", "On 'sheet' and 'open': how many rows were dropped because this trader REFUSES to trade them (Tradeable.TraderWillTrade false). Present on those two actions only. 0 with includeUntradeable:true, which keeps them. rowCount is the trader's WHOLE sheet and COUNTS these rows; rowsReturned is what came back, and rowCount - rowsReturned = omittedUntradeable + omittedByFilter + omittedByRowCap. Row indices stay absolute either way.")]
         [ToolResponse("rows", "array", "On 'sheet' and 'open': index (ABSOLUTE, unaffected by any filter), label, defName, stuff, category, colonyCount, traderCount, buyPrice, sellPrice, buyPriceType, sellPriceType, baseMarketValue, traderWillTrade, isCurrency, isPawn, pawnDescription, countToTransfer, actionToDo, minCount, maxCount. traderWillTrade is on EVERY emitted row; by default rows where it is false are not emitted at all and are counted in omittedUntradeable, because a row the trader refuses read as 'staged' until the sell bounced.")]
         [ToolResponse("watch", "object", "What a person watching actually saw. The nine standard keys - shown (bool), selected, inspectTab, mainTab, cameraMoved, leadMs, closesAfterSeconds, note, reason - plus TWO that only this tool has: dialogShown (bool) and secondsShown (int). On a real accept the trader is selected and the camera jumps to them, then the REAL Dialog_Trade opens showing the staged rows, is held for secondsShown, the deal executes while it is on screen, and the window closes. dialogShown:false with secondsShown:0 on every other action, on a refusal, when watch:false, and when a person already had a trade window open. A trade that nobody could see happen was the whole reason this exists.", Always = true)]
-        public async Task<object> Trade(
+        public async Task<object?> Trade(
             IRimBridgeContext ctx,
             CancellationToken cancellationToken,
             [ToolParameter(Description = "list_traders | open | sheet | set | preview | accept | cancel | close_dialog | status", DefaultValue = "list_traders")] string action = "list_traders",
-            [ToolParameter(Description = "For 'open': the trader's id from list_traders, or a unique substring of its name. Required for open.")] string traderId = null,
-            [ToolParameter(Description = "For 'open': the negotiating colonist's name or stable pawn id. Omit to pick the best available colonist by TradePriceImprovement, then Social skill.")] string negotiator = null,
+            [ToolParameter(Description = "For 'open': the trader's id from list_traders, or a unique substring of its name. Required for open.")] string? traderId = null,
+            [ToolParameter(Description = "For 'open': the negotiating colonist's name or stable pawn id. Omit to pick the best available colonist by TradePriceImprovement, then Social skill.")] string? negotiator = null,
             [ToolParameter(Description = "For 'open': set up a GIFT session instead of a trade. Gifts flip the sign convention (positive then means the colony gives) and buy nothing.", DefaultValue = false)] bool giftMode = false,
-            [ToolParameter(Description = "For 'set': one row, addressed by defName, exact label, unique label substring, or '#N' where N is the row index from the sheet.")] string item = null,
+            [ToolParameter(Description = "For 'set': one row, addressed by defName, exact label, unique label substring, or '#N' where N is the row index from the sheet.")] string? item = null,
             [ToolParameter(Description = "For 'set' with 'item': the signed count. POSITIVE = the colony BUYS that many. NEGATIVE = the colony SELLS that many. 0 clears the row.", DefaultValue = 0)] int count = 0,
-            [ToolParameter(Description = "For 'set': several rows at once. Entries separated by ';' or newline, each 'name:count' or 'name=count' (split at the LAST separator), e.g. 'Pemmican:180; MedicineHerbal:19; MeleeWeapon_Club:-3'. The silver row is computed, never set.")] string lines = null,
+            [ToolParameter(Description = "For 'set': several rows at once. Entries separated by ';' or newline, each 'name:count' or 'name=count' (split at the LAST separator), e.g. 'Pemmican:180; MedicineHerbal:19; MeleeWeapon_Club:-3'. The silver row is computed, never set.")] string? lines = null,
             [ToolParameter(Description = "For 'set': add to the row's current count instead of replacing it.", DefaultValue = false)] bool relative = false,
             [ToolParameter(Description = "For 'set': permit SELLING a pawn — a colonist, prisoner or colony animal. Without it any line that would hand a pawn over is refused by name and nothing is staged. BUYING a pawn from a trader is always allowed and never needs this.", DefaultValue = false)] bool allowPawns = false,
-            [ToolParameter(Description = "For 'sheet': only rows whose label or defName contains this text, case-insensitive. Row indices stay absolute.")] string match = null,
+            [ToolParameter(Description = "For 'sheet': only rows whose label or defName contains this text, case-insensitive. Row indices stay absolute.")] string? match = null,
             [ToolParameter(Description = "For 'sheet': only rows with a non-zero staged count.", DefaultValue = false)] bool onlyChanged = false,
             [ToolParameter(Description = "For 'sheet': maximum rows to return. The payload always reports how many were omitted.", DefaultValue = 500)] int maxRows = 500,
             [ToolParameter(Description = "For 'sheet' and 'open': keep rows this trader REFUSES to trade (Tradeable.TraderWillTrade false). FALSE by default, because a refused row cannot be bought or sold and a caller that stages one gets the line rejected. The count dropped is always reported as omittedUntradeable, never a silent drop.", DefaultValue = false)] bool includeUntradeable = false,
@@ -87,9 +90,9 @@ namespace HomeBridge.BridgeTools
             [ToolParameter(Description = "For 'accept', 'cancel' and 'close_dialog': mirror the vanilla dialog by handing over a trader's quest (TradeUtility.ReceiveQuestFromTrader) when the trader has one.", DefaultValue = true)] bool receiveQuest = true,
             [ToolParameter(Description = "TRUE by default. For 'accept' only: select the trader, put the camera on them, then OPEN THE REAL TRADE WINDOW showing the staged rows, hold it watchSeconds, execute the deal while it is on screen, and close it. It never changes what is traded - the deal is verified against the preview before and after the window goes up, and a change refuses with restage_mismatch rather than trading something else. Pass false to accept headlessly, with no window and no camera move.", DefaultValue = true)] bool watch = true,
             [ToolParameter(Description = "How long the REAL trade window is held on screen before the deal executes, and how long the trader stays selected after it. Clamped 1..60. The tool call blocks for this long and the bridge runs one call at a time, so an accept occupies the bridge for about this many seconds - that is the price of the trade being visible. Ignored on every action but 'accept', and when watch is false.", DefaultValue = 8)] int watchSeconds = 8,
-            [ToolParameter(Description = "Exact sessionId returned by open; required for set, accept and cancel.")] string sessionId = null,
-            [ToolParameter(Description = "Exact dealSignature from preview; required for accept.")] string dealSignature = null,
-            [ToolParameter(Description = "For policy accept: semicolon-separated exact Def=nonnegative stock floors, including Silver. Atomically protects post-deal stock and prohibits exporting weapons, apparel, medicine, food and pawns.")] string economicFloors = null)
+            [ToolParameter(Description = "Exact sessionId returned by open; required for set, accept and cancel.")] string? sessionId = null,
+            [ToolParameter(Description = "Exact dealSignature from preview; required for accept.")] string? dealSignature = null,
+            [ToolParameter(Description = "For policy accept: semicolon-separated exact Def=nonnegative stock floors, including Silver. Atomically protects post-deal stock and prohibits exporting weapons, apparel, medicine, food and pawns.")] string? economicFloors = null)
         {
             return BridgeCommon.WithUnknownArguments(
                 await TradeCore(
@@ -103,15 +106,15 @@ namespace HomeBridge.BridgeTools
             IRimBridgeContext ctx,
             CancellationToken cancellationToken,
             string action,
-            string traderId,
-            string negotiator,
+            string? traderId,
+            string? negotiator,
             bool giftMode,
-            string item,
+            string? item,
             int count,
-            string lines,
+            string? lines,
             bool relative,
             bool allowPawns,
-            string match,
+            string? match,
             bool onlyChanged,
             int maxRows,
             bool includeUntradeable,
@@ -119,7 +122,7 @@ namespace HomeBridge.BridgeTools
             bool allowEmpty,
             bool receiveQuest,
             bool watch,
-            int watchSeconds, string sessionId, string dealSignature, string economicFloors)
+            int watchSeconds, string? sessionId, string? dealSignature, string? economicFloors)
         {
             if (ctx?.MainThread == null)
                 return Failure("No RimBridge main-thread dispatcher is available for this invocation.", "no_dispatcher", action);
@@ -170,7 +173,7 @@ namespace HomeBridge.BridgeTools
                 // selects the trader and puts the camera on them; hop 2 executes
                 // the deal, so the goods move while they are on screen.
                 var preflight = await ctx.MainThread.InvokeAsync(() => {
-                    string why;
+                    string? why;
                     if (!RequireSession(out why)) return Failure(why, "stale_session", "accept");
                     if (string.IsNullOrEmpty(args.SessionId) || args.SessionId != _sessionId
                         || string.IsNullOrEmpty(args.DealSignature) || args.DealSignature != StageSignature())
@@ -278,17 +281,17 @@ namespace HomeBridge.BridgeTools
 
         /// <summary>Put the watch block on a reply, so `watch` is present on
         /// every action and every refusal and never has to be tested for.</summary>
-        private static void Stamp(object reply, Dictionary<string, object> watch)
+        private static void Stamp(object reply, Dictionary<string, object?> watch)
         {
-            var payload = reply as Dictionary<string, object>;
+            var payload = reply as Dictionary<string, object?>;
             if (payload != null)
                 payload["watch"] = watch;
         }
 
         private sealed class WatchPass
         {
-            internal Watch.Session Session;
-            internal string SkipReason;
+            internal Watch.Session? Session;
+            internal string? SkipReason;
         }
 
         /// <summary>Main thread. Select the trader this session is with, if it is
@@ -300,7 +303,7 @@ namespace HomeBridge.BridgeTools
             if (!wantWatch)
                 return new WatchPass { SkipReason = "watch:false" };
 
-            string why;
+            string? why;
             if (!RequireSession(out why))
                 return new WatchPass { SkipReason = "refused" };
             if (OpenTradeDialog() != null)
@@ -313,7 +316,7 @@ namespace HomeBridge.BridgeTools
             return new WatchPass { Session = Watch.Open(ctx, traderPawn, null, null, true) };
         }
 
-        private static Pawn SafeTraderPawn()
+        private static Pawn? SafeTraderPawn()
         {
             try { return TradeSession.trader as Pawn; }
             catch { return null; }
@@ -368,12 +371,12 @@ namespace HomeBridge.BridgeTools
         /// <summary>The Dialog_Trade this tool put on screen, so `accept` can
         /// tell its own window from one a person opened -- which it still
         /// refuses to execute over.</summary>
-        private static Window _ourTradeDialog;
+        private static Window? _ourTradeDialog;
 
         /// <summary>The staged signature at the moment the window went up. The
         /// deal is checked against this again before it executes, so a change
         /// during the hold refuses instead of trading something else.</summary>
-        private static string _ourDialogSignature;
+        private static string? _ourDialogSignature;
 
         /// <summary>Same 1..60 clamp Watch applies to closesAfterSeconds, so the
         /// window is held for exactly as long as watch{} says it was.</summary>
@@ -385,11 +388,11 @@ namespace HomeBridge.BridgeTools
         /// <summary>Add the two trade-only keys to a watch block, so every
         /// accept reply carries them and a caller never has to test for
         /// presence.</summary>
-        private static Dictionary<string, object> WithDialog(
-            Dictionary<string, object> block, bool shown, int seconds)
+        private static Dictionary<string, object?> WithDialog(
+            Dictionary<string, object?> block, bool shown, int seconds)
         {
             if (block == null)
-                block = new Dictionary<string, object>();
+                block = new Dictionary<string, object?>();
             block["dialogShown"] = shown;
             block["secondsShown"] = seconds;
             return block;
@@ -398,12 +401,12 @@ namespace HomeBridge.BridgeTools
         private sealed class DialogPass
         {
             internal bool Shown;
-            internal string SkipReason;
+            internal string? SkipReason;
             /// <summary>Set when the deal did not survive the swap. The call
             /// refuses and executes nothing.</summary>
-            internal string Mismatch;
-            internal string Expected;
-            internal string Actual;
+            internal string? Mismatch;
+            internal string? Expected;
+            internal string? Actual;
         }
 
         /// <summary>
@@ -427,10 +430,10 @@ namespace HomeBridge.BridgeTools
                 }
             foreach (var row in StagedLines())
             {
-                var d = row as Dictionary<string, object>;
+                var d = row as Dictionary<string, object?>;
                 if (d == null)
                     continue;
-                object defName, count;
+                object? defName, count;
                 d.TryGetValue("defName", out defName);
                 d.TryGetValue("count", out count);
                 parts.Add((defName ?? "?") + "=" + (count ?? "?"));
@@ -441,7 +444,7 @@ namespace HomeBridge.BridgeTools
             var balance = Balance();
             if (balance != null)
             {
-                object n;
+                object? n;
                 if (balance.TryGetValue("netSilverToColony", out n) && n != null)
                     net = n.ToString();
             }
@@ -462,7 +465,7 @@ namespace HomeBridge.BridgeTools
             if (!wantWatch)
                 return new DialogPass { SkipReason = "watch:false" };
 
-            string why;
+            string? why;
             if (!RequireSession(out why))
                 return new DialogPass { SkipReason = "refused" };
             if (OpenTradeDialog() != null)
@@ -666,19 +669,19 @@ namespace HomeBridge.BridgeTools
 
         private sealed class Args
         {
-            public string SessionId;
-            public string DealSignature;
-            public string EconomicFloors;
-            public string Action;
-            public string TraderId;
-            public string Negotiator;
+            public string? SessionId;
+            public string? DealSignature;
+            public string? EconomicFloors;
+            public string? Action;
+            public string? TraderId;
+            public string? Negotiator;
             public bool GiftMode;
-            public string Item;
+            public string? Item;
             public int Count;
-            public string Lines;
+            public string? Lines;
             public bool Relative;
             public bool AllowPawns;
-            public string Match;
+            public string? Match;
             public bool OnlyChanged;
             public int MaxRows;
             public bool IncludeUntradeable;
@@ -733,7 +736,7 @@ namespace HomeBridge.BridgeTools
 
         private static object ListTraders()
         {
-            Map map;
+            Map? map;
             string mapError;
             if (!TryGetMap(out map, out mapError))
                 return Failure(mapError, "no_map", "list_traders");
@@ -748,7 +751,7 @@ namespace HomeBridge.BridgeTools
             {
                 if (pawn == null)
                     continue;
-                Pawn_TraderTracker tracker;
+                Pawn_TraderTracker? tracker;
                 try { tracker = pawn.trader; }
                 catch { tracker = null; }
                 if (tracker == null || tracker.traderKind == null)
@@ -777,7 +780,7 @@ namespace HomeBridge.BridgeTools
             }
             catch (Exception e)
             {
-                ships.Add(new Dictionary<string, object> { { "error", "passingShipManager unreadable: " + e.Message } });
+                ships.Add(new Dictionary<string, object?> { { "error", "passingShipManager unreadable: " + e.Message } });
             }
 
             int consoles, usableConsoles;
@@ -800,9 +803,9 @@ namespace HomeBridge.BridgeTools
             return payload;
         }
 
-        private static Dictionary<string, object> DescribeMapTrader(Pawn pawn, Pawn_TraderTracker tracker, Pawn negotiator)
+        private static Dictionary<string, object?> DescribeMapTrader(Pawn pawn, Pawn_TraderTracker tracker, Pawn? negotiator)
         {
-            var row = new Dictionary<string, object>();
+            var row = new Dictionary<string, object?>();
             row["id"] = SafeId(pawn);
             row["kind"] = "caravan";
             row["name"] = SafeTraderName(pawn);
@@ -834,9 +837,9 @@ namespace HomeBridge.BridgeTools
             return row;
         }
 
-        private static Dictionary<string, object> DescribeShip(TradeShip ship, Pawn negotiator)
+        private static Dictionary<string, object?> DescribeShip(TradeShip ship, Pawn? negotiator)
         {
-            var row = new Dictionary<string, object>();
+            var row = new Dictionary<string, object?>();
             row["id"] = SafeString(ship.GetUniqueLoadID);
             row["kind"] = "orbital";
             row["name"] = SafeString(() => ship.TraderName);
@@ -858,7 +861,7 @@ namespace HomeBridge.BridgeTools
 
         private static object Open(Args a)
         {
-            Map map;
+            Map? map;
             string mapError;
             if (!TryGetMap(out map, out mapError))
                 return Failure(mapError, "no_map", "open");
@@ -880,12 +883,12 @@ namespace HomeBridge.BridgeTools
                     + "'. Finish it with action:'accept' or drop it with action:'cancel' before opening another.",
                     "session_open", "open");
 
-            if (string.IsNullOrEmpty(a.TraderId))
+            if (a.TraderId == null || a.TraderId.Length == 0)
                 return Failure("open needs a traderId (from action:'list_traders'), or a unique substring of the trader's name.", "no_trader_id", "open");
 
-            ITrader trader;
-            Pawn traderPawn;
-            string traderError;
+            ITrader? trader;
+            Pawn? traderPawn;
+            string? traderError;
             if (!ResolveTrader(map, a.TraderId, out trader, out traderPawn, out traderError))
                 return Failure(traderError, "trader_not_found", "open");
 
@@ -905,8 +908,8 @@ namespace HomeBridge.BridgeTools
                 return f;
             }
 
-            Pawn chosen;
-            string negotiatorError;
+            Pawn? chosen;
+            string? negotiatorError;
             if (!ResolveNegotiator(map, a.Negotiator, out chosen, out negotiatorError))
                 return Failure(negotiatorError, "no_negotiator", "open");
             if (traderPawn.mindState.traderDismissed || !chosen.CanTradeWith(trader.Faction, trader.TraderKind).Accepted
@@ -958,7 +961,7 @@ namespace HomeBridge.BridgeTools
             _sessionNegotiator = chosen;
             _requireAdjacent = a.RequireAdjacent;
 
-            var payload = (Dictionary<string, object>)Sheet(a);
+            var payload = (Dictionary<string, object?>)Sheet(a);
             payload["action"] = "open";
             payload["negotiatorDistance"] = distance;
             payload["negotiatorAdjacent"] = distance.HasValue ? (bool?)(distance.Value <= 1) : null;
@@ -973,7 +976,7 @@ namespace HomeBridge.BridgeTools
 
         private static object Sheet(Args a)
         {
-            string why;
+            string? why;
             if (!RequireSession(out why))
                 return Failure(why, "no_session", "sheet");
 
@@ -984,7 +987,7 @@ namespace HomeBridge.BridgeTools
             var omittedByFilter = 0;
             var omittedByCap = 0;
             var omittedUntradeable = 0;
-            var needle = string.IsNullOrEmpty(a.Match) ? null : a.Match.Trim();
+            var needle = a.Match == null || a.Match.Length == 0 ? null : a.Match.Trim();
 
             for (var i = 0; i < all.Count; i++)
             {
@@ -1031,7 +1034,7 @@ namespace HomeBridge.BridgeTools
             payload["omittedByFilter"] = omittedByFilter;
             payload["omittedByRowCap"] = omittedByCap;
             payload["omittedUntradeable"] = omittedUntradeable;
-            payload["filters"] = new Dictionary<string, object>
+            payload["filters"] = new Dictionary<string, object?>
             {
                 { "match", a.Match },
                 { "onlyChanged", a.OnlyChanged },
@@ -1046,9 +1049,9 @@ namespace HomeBridge.BridgeTools
             return payload;
         }
 
-        private static Dictionary<string, object> DescribeTradeable(Tradeable t, int index)
+        private static Dictionary<string, object?> DescribeTradeable(Tradeable t, int index)
         {
-            var row = new Dictionary<string, object>();
+            var row = new Dictionary<string, object?>();
             row["index"] = index;
             row["label"] = SafeString(() => t.Label);
             var def = SafeDef(t);
@@ -1086,7 +1089,7 @@ namespace HomeBridge.BridgeTools
 
         private static object Set(Args a)
         {
-            string why;
+            string? why;
             if (!RequireSession(out why))
                 return Failure(why, "no_session", "set");
             if (OpenTradeDialog() != null)
@@ -1095,7 +1098,7 @@ namespace HomeBridge.BridgeTools
                     "dialog_open", "set");
 
             List<Req> reqs;
-            string parseError;
+            string? parseError;
             if (!ParseRequests(a, out reqs, out parseError))
                 return Failure(parseError, "bad_lines", "set");
             if (reqs.Count == 0)
@@ -1108,7 +1111,7 @@ namespace HomeBridge.BridgeTools
 
             foreach (var req in reqs)
             {
-                var line = new Dictionary<string, object>();
+                var line = new Dictionary<string, object?>();
                 line["request"] = req.Name;
                 line["requestedCount"] = req.Count;
 
@@ -1119,11 +1122,11 @@ namespace HomeBridge.BridgeTools
                     line["ok"] = false;
                     line["error"] = resolveError;
                     if (hits != null && hits.Count > 1)
-                        line["candidates"] = hits.Take(8).Select(i => (object)(new Dictionary<string, object>
+                        line["candidates"] = hits.Take(8).Select(i => (object)(new Dictionary<string, object?>
                         {
                             { "index", i },
                             { "label", SafeString(() => all[i].Label) },
-                            { "defName", SafeDef(all[i]) != null ? SafeDef(all[i]).defName : null }
+                            { "defName", SafeDef(all[i])?.defName }
                         })).ToList();
                     results.Add(line);
                     continue;
@@ -1133,7 +1136,7 @@ namespace HomeBridge.BridgeTools
                 var t = all[idx];
                 line["index"] = idx;
                 line["label"] = SafeString(() => t.Label);
-                line["defName"] = SafeDef(t) != null ? SafeDef(t).defName : null;
+                line["defName"] = SafeDef(t)?.defName;
 
                 var current = SafeInt(() => t.CountToTransfer);
                 var target = a.Relative ? current + req.Count : req.Count;
@@ -1150,7 +1153,7 @@ namespace HomeBridge.BridgeTools
                     // be told which row bounced and why it was not on the sheet.
                     line["error"] =
                         "'" + SafeString(() => t.Label) + "' (row #" + idx + ", "
-                        + (SafeDef(t) != null ? SafeDef(t).defName : "unknown defName")
+                        + (SafeDef(t)?.defName ?? "unknown defName")
                         + "): this trader will not trade that thing (Tradeable.TraderWillTrade is false, from "
                         + "TraderKindDef.WillTrade). Nothing was staged for it. It is omitted from the sheet unless "
                         + "includeUntradeable:true.";
@@ -1261,7 +1264,7 @@ namespace HomeBridge.BridgeTools
 
         private static object Preview()
         {
-            string why;
+            string? why;
             if (!RequireSession(out why))
                 return Failure(why, "no_session", "preview");
 
@@ -1282,7 +1285,7 @@ namespace HomeBridge.BridgeTools
 
         private static object Accept(Args a)
         {
-            string why;
+            string? why;
             if (!RequireSession(out why))
                 return Failure(why, "no_session", "accept");
             // A window this tool opened is expected and is executed over; the
@@ -1327,8 +1330,12 @@ namespace HomeBridge.BridgeTools
                         return Failure("Economic export is protected.", "economic_protected", "accept");
                 }
             }
-            var colonyGoods = new HashSet<Thing>(_sessionTrader.ColonyThingsWillingToBuy(_sessionNegotiator));
-            var traderGoods = new HashSet<Thing>(((Pawn)_sessionTrader).trader.Goods);
+            var sessionTrader = _sessionTrader;
+            var sessionNegotiator = _sessionNegotiator;
+            if (sessionTrader == null || sessionNegotiator == null)
+                return Failure("No TradeSession is open.", "no_session", "accept");
+            var colonyGoods = new HashSet<Thing>(sessionTrader.ColonyThingsWillingToBuy(sessionNegotiator));
+            var traderGoods = new HashSet<Thing>(((Pawn)sessionTrader).trader.Goods);
             foreach (var row in deal.AllTradeables.Where(t => t.CountToTransfer != 0))
             {
                 var source = row.ActionToDo == TradeAction.PlayerBuys ? row.thingsTrader : row.thingsColony;
@@ -1400,7 +1407,7 @@ namespace HomeBridge.BridgeTools
 
             bool actuallyTraded;
             bool executed;
-            string executeError = null;
+            string? executeError = null;
             try
             {
                 executed = deal.TryExecute(out actuallyTraded);
@@ -1439,7 +1446,7 @@ namespace HomeBridge.BridgeTools
 
         private static object Cancel(Args a)
         {
-            string why;
+            string? why;
             if (!RequireSession(out why))
                 return Failure(why, "stale_session", "cancel");
             var wasActive = TradeSession.Active;
@@ -1481,7 +1488,7 @@ namespace HomeBridge.BridgeTools
             var closed = new List<object>();
             foreach (var w in targets)
             {
-                var entry = new Dictionary<string, object>
+                var entry = new Dictionary<string, object?>
                 {
                     { "type", w.GetType().FullName ?? w.GetType().Name },
                     { "id", SafeInt(() => w.ID) }
@@ -1547,15 +1554,15 @@ namespace HomeBridge.BridgeTools
             public int Count;
         }
 
-        private static bool ParseRequests(Args a, out List<Req> reqs, out string error)
+        private static bool ParseRequests(Args a, out List<Req> reqs, [NotNullWhen(false)] out string? error)
         {
             reqs = new List<Req>();
             error = null;
 
-            if (!string.IsNullOrEmpty(a.Item))
+            if (a.Item != null && a.Item.Length > 0)
                 reqs.Add(new Req { Name = a.Item.Trim(), Count = a.Count });
 
-            if (!string.IsNullOrEmpty(a.Lines))
+            if (a.Lines != null && a.Lines.Length > 0)
             {
                 var entries = a.Lines.Split(new[] { ';', '\n', '\r' }, StringSplitOptions.RemoveEmptyEntries);
                 foreach (var raw in entries)
@@ -1591,7 +1598,7 @@ namespace HomeBridge.BridgeTools
         }
 
         /// <summary>Returns null on success, with `hits[0]` the row. Otherwise an error string.</summary>
-        private static string ResolveRow(List<Tradeable> all, string name, out List<int> hits)
+        private static string? ResolveRow(List<Tradeable> all, string name, out List<int> hits)
         {
             hits = new List<int>();
             if (string.IsNullOrEmpty(name))
@@ -1653,9 +1660,9 @@ namespace HomeBridge.BridgeTools
                 && def.defName.IndexOf(needle, StringComparison.OrdinalIgnoreCase) >= 0;
         }
 
-        private static Dictionary<string, object> Balance()
+        private static Dictionary<string, object?> Balance()
         {
-            var b = new Dictionary<string, object>();
+            var b = new Dictionary<string, object?>();
             var deal = TradeSession.deal;
             if (deal == null)
                 return b;
@@ -1739,7 +1746,7 @@ namespace HomeBridge.BridgeTools
                 if (n == 0)
                     continue;
                 var def = SafeDef(t);
-                outp.Add(new Dictionary<string, object>
+                outp.Add(new Dictionary<string, object?>
                 {
                     { "index", i },
                     { "label", SafeString(() => t.Label) },
@@ -1754,7 +1761,7 @@ namespace HomeBridge.BridgeTools
             return outp;
         }
 
-        private static bool RequireSession(out string error)
+        private static bool RequireSession([NotNullWhen(false)] out string? error)
         {
             error = null;
             if (!TradeSession.Active)
@@ -1767,7 +1774,9 @@ namespace HomeBridge.BridgeTools
                 error = "TradeSession is active but its deal is null; the session is unusable. Run action:'cancel'.";
                 return false;
             }
-            if (!_sessionOpenedByUs || _sessionIdentity == null
+            var sessionTrader = _sessionTrader;
+            var sessionNegotiator = _sessionNegotiator;
+            if (!_sessionOpenedByUs || _sessionIdentity == null || sessionTrader == null || sessionNegotiator == null
                 || !ReferenceEquals(Current.Game?.GetComponent<ColonyIdentity>(), _sessionIdentity)
                 || !ReferenceEquals(Find.CurrentMap, _sessionMap)
                 || !ReferenceEquals(TradeSession.deal, _sessionDeal)
@@ -1777,12 +1786,12 @@ namespace HomeBridge.BridgeTools
                 error = "Trade session, colony, map or load changed; do not reuse staged orders.";
                 return false;
             }
-            var pawn = _sessionTrader as Pawn;
-            if (pawn == null || !pawn.Spawned || pawn.Map != _sessionMap || !SafeBool(() => _sessionTrader.CanTradeNow)
+            var pawn = sessionTrader as Pawn;
+            if (pawn == null || !pawn.Spawned || pawn.Map != _sessionMap || !SafeBool(() => sessionTrader.CanTradeNow)
                 || Find.TickManager == null || !Find.TickManager.Paused || pawn.mindState.traderDismissed
-                || !_sessionNegotiator.CanTradeWith(pawn.Faction, pawn.TraderKind).Accepted
-                || !NegotiatorCandidates(_sessionMap).Contains(_sessionNegotiator)
-                || (_requireAdjacent && Chebyshev(pawn.Position, _sessionNegotiator.Position) > 1))
+                || !sessionNegotiator.CanTradeWith(pawn.Faction, pawn.TraderKind).Accepted
+                || !NegotiatorCandidates(pawn.Map).Contains(sessionNegotiator)
+                || (_requireAdjacent && Chebyshev(pawn.Position, sessionNegotiator.Position) > 1))
             {
                 error = "Trader or negotiator departed, became unavailable or moved out of adjacency.";
                 return false;
@@ -1790,7 +1799,7 @@ namespace HomeBridge.BridgeTools
             return true;
         }
 
-        private static void AddSessionBlock(Dictionary<string, object> payload)
+        private static void AddSessionBlock(Dictionary<string, object?> payload)
         {
             payload["sessionActive"] = TradeSession.Active;
             payload["sessionId"] = _sessionId;
@@ -1805,7 +1814,7 @@ namespace HomeBridge.BridgeTools
             payload["openedAtTick"] = _sessionOpenedByUs && TradeSession.Active ? (int?)_sessionOpenedTick : null;
         }
 
-        private static bool CloseSession(Pawn traderPawn, bool receiveQuest)
+        private static bool CloseSession(Pawn? traderPawn, bool receiveQuest)
         {
             var quest = false;
             if (receiveQuest && traderPawn != null)
@@ -1855,7 +1864,7 @@ namespace HomeBridge.BridgeTools
             catch { return new List<object>(); }
         }
 
-        private static Tradeable SafeCurrencyTradeable(TradeDeal deal)
+        private static Tradeable? SafeCurrencyTradeable(TradeDeal deal)
         {
             try { return deal.CurrencyTradeable; }
             catch { return null; }
@@ -1863,30 +1872,30 @@ namespace HomeBridge.BridgeTools
 
         // --------------------------------------------------- trader resolution
 
-        private static bool ResolveTrader(Map map, string key, out ITrader trader, out Pawn traderPawn, out string error)
+        private static bool ResolveTrader(Map map, string key, [NotNullWhen(true)] out ITrader? trader, out Pawn? traderPawn, [NotNullWhen(false)] out string? error)
         {
             trader = null;
             traderPawn = null;
             error = null;
             var needle = key.Trim();
 
-            var byId = new List<KeyValuePair<ITrader, Pawn>>();
-            var byName = new List<KeyValuePair<ITrader, Pawn>>();
+            var byId = new List<KeyValuePair<ITrader, Pawn?>>();
+            var byName = new List<KeyValuePair<ITrader, Pawn?>>();
 
             foreach (var pawn in SafeSpawnedPawns(map))
             {
                 if (pawn == null)
                     continue;
-                Pawn_TraderTracker tracker;
+                Pawn_TraderTracker? tracker;
                 try { tracker = pawn.trader; }
                 catch { tracker = null; }
                 if (tracker == null || tracker.traderKind == null)
                     continue;
 
                 if (string.Equals(SafeId(pawn), needle, StringComparison.OrdinalIgnoreCase))
-                    byId.Add(new KeyValuePair<ITrader, Pawn>(pawn, pawn));
+                    byId.Add(new KeyValuePair<ITrader, Pawn?>(pawn, pawn));
                 else if (NameContains(SafeTraderName(pawn), needle) || NameContains(SafeName(pawn), needle))
-                    byName.Add(new KeyValuePair<ITrader, Pawn>(pawn, pawn));
+                    byName.Add(new KeyValuePair<ITrader, Pawn?>(pawn, pawn));
             }
 
             try
@@ -1901,9 +1910,9 @@ namespace HomeBridge.BridgeTools
                         if (ts == null)
                             continue;
                         if (string.Equals(SafeString(ts.GetUniqueLoadID), needle, StringComparison.OrdinalIgnoreCase))
-                            byId.Add(new KeyValuePair<ITrader, Pawn>(ts, null));
+                            byId.Add(new KeyValuePair<ITrader, Pawn?>(ts, null));
                         else if (NameContains(SafeString(() => ts.TraderName), needle) || NameContains(SafeString(() => ts.FullTitle), needle))
-                            byName.Add(new KeyValuePair<ITrader, Pawn>(ts, null));
+                            byName.Add(new KeyValuePair<ITrader, Pawn?>(ts, null));
                     }
                 }
             }
@@ -1928,20 +1937,20 @@ namespace HomeBridge.BridgeTools
             return true;
         }
 
-        private static bool NameContains(string haystack, string needle)
+        private static bool NameContains(string? haystack, string needle)
         {
             return haystack != null && haystack.IndexOf(needle, StringComparison.OrdinalIgnoreCase) >= 0;
         }
 
         // ----------------------------------------------- negotiator resolution
 
-        private static bool ResolveNegotiator(Map map, string key, out Pawn chosen, out string error)
+        private static bool ResolveNegotiator(Map map, string? key, [NotNullWhen(true)] out Pawn? chosen, [NotNullWhen(false)] out string? error)
         {
             chosen = null;
             error = null;
             var candidates = NegotiatorCandidates(map);
 
-            if (string.IsNullOrEmpty(key))
+            if (key == null || key.Length == 0)
             {
                 if (candidates.Count == 0)
                 {
@@ -2014,9 +2023,9 @@ namespace HomeBridge.BridgeTools
             return outp;
         }
 
-        private static Dictionary<string, object> DescribeNegotiator(Pawn p)
+        private static Dictionary<string, object?> DescribeNegotiator(Pawn p)
         {
-            return new Dictionary<string, object>
+            return new Dictionary<string, object?>
             {
                 { "name", SafeName(p) },
                 { "id", SafeId(p) },
@@ -2165,7 +2174,7 @@ namespace HomeBridge.BridgeTools
             return false;
         }
 
-        private static Window OpenTradeDialog()
+        private static Window? OpenTradeDialog()
         {
             try
             {
@@ -2186,7 +2195,7 @@ namespace HomeBridge.BridgeTools
                     return outp;
                 foreach (var w in stack.Windows.OfType<Window>())
                 {
-                    outp.Add(new Dictionary<string, object>
+                    outp.Add(new Dictionary<string, object?>
                     {
                         { "type", w.GetType().FullName ?? w.GetType().Name },
                         { "id", SafeInt(() => w.ID) },
@@ -2219,7 +2228,7 @@ namespace HomeBridge.BridgeTools
                 var key = MessageKey(m);
                 if (before.Contains(key))
                     continue;
-                outp.Add(new Dictionary<string, object>
+                outp.Add(new Dictionary<string, object?>
                 {
                     { "text", SafeString(() => m.text) },
                     { "type", SafeString(() => m.def != null ? m.def.defName : null) },
@@ -2252,7 +2261,7 @@ namespace HomeBridge.BridgeTools
 
         /// <summary>The shared map gate; see BridgeCommon.TryGetMap. The error
         /// text names this tool.</summary>
-        private static bool TryGetMap(out Map map, out string error)
+        private static bool TryGetMap([NotNullWhen(true)] out Map? map, out string error)
         {
             return BridgeCommon.TryGetMap(ToolName, out map, out error);
         }
@@ -2263,7 +2272,7 @@ namespace HomeBridge.BridgeTools
             catch { return 0; }
         }
 
-        private static Dictionary<string, object> Pos(IntVec3 c)
+        private static Dictionary<string, object?> Pos(IntVec3 c)
         {
             return BridgeCommon.Pos(c);
         }
@@ -2297,7 +2306,7 @@ namespace HomeBridge.BridgeTools
         /// when the row is not a pawn. This is the string the refusal quotes back,
         /// so it has to name the individual, not the def.
         /// </summary>
-        private static string PawnRowDescription(Tradeable t)
+        private static string? PawnRowDescription(Tradeable t)
         {
             try
             {
@@ -2337,25 +2346,25 @@ namespace HomeBridge.BridgeTools
             return gift ? target > 0 : target < 0;
         }
 
-        private static ThingDef SafeDef(Tradeable t)
+        private static ThingDef? SafeDef(Tradeable t)
         {
             try { return t.ThingDef; }
             catch { return null; }
         }
 
-        private static Faction SafeFaction(ITrader trader)
+        private static Faction? SafeFaction(ITrader trader)
         {
             try { return trader != null ? trader.Faction : null; }
             catch { return null; }
         }
 
-        private static string SafeFactionName(Faction f)
+        private static string? SafeFactionName(Faction? f)
         {
             try { return f != null ? f.Name : null; }
             catch { return null; }
         }
 
-        private static string SafeName(Pawn p)
+        private static string? SafeName(Pawn? p)
         {
             if (p == null)
                 return null;
@@ -2367,13 +2376,13 @@ namespace HomeBridge.BridgeTools
             }
         }
 
-        private static string SafeId(Thing t)
+        private static string? SafeId(Thing t)
         {
             try { return t != null ? t.GetUniqueLoadID() : null; }
             catch { return null; }
         }
 
-        private static string SafeTraderName(Pawn p)
+        private static string? SafeTraderName(Pawn p)
         {
             try { return p.TraderName; }
             catch { return SafeName(p); }
@@ -2403,7 +2412,7 @@ namespace HomeBridge.BridgeTools
             return BridgeCommon.Try(f, 0f);
         }
 
-        private static string SafeString(Func<string> f)
+        private static string? SafeString(Func<string?> f)
         {
             return BridgeCommon.SafeString(f);
         }
@@ -2415,9 +2424,9 @@ namespace HomeBridge.BridgeTools
             return Math.Round((double)v, 2);
         }
 
-        private static Dictionary<string, object> Ok(string action)
+        private static Dictionary<string, object?> Ok(string action)
         {
-            return new Dictionary<string, object>
+            return new Dictionary<string, object?>
             {
                 { "success", true },
                 { "tool", ToolName },
@@ -2426,9 +2435,9 @@ namespace HomeBridge.BridgeTools
             };
         }
 
-        private static Dictionary<string, object> Failure(string error, string kind, string action)
+        private static Dictionary<string, object?> Failure(string? error, string kind, string? action)
         {
-            var d = new Dictionary<string, object>
+            var d = new Dictionary<string, object?>
             {
                 { "success", false },
                 { "tool", ToolName },

@@ -1,4 +1,7 @@
+#nullable enable
+
 using System;
+using System.Diagnostics.CodeAnalysis;
 using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
@@ -22,7 +25,7 @@ namespace HomeBridge.BridgeTools
             Description = "Start, pause, renew or inspect a persistent in-game safety watcher. Start returns immediately; the watcher pauses independently on danger or lease expiry.")]
         [ToolResponse("unknownArguments", "array", "Every argument key the caller sent that this tool does not declare, sorted case-sensitively. Empty means the call was clean.", Always = true)]
         [ToolResponse("unknownArgumentsWarning", "string", "Present when unknown arguments were supplied or raw argument inspection was unavailable.", Nullable = true)]
-        public async Task<object> SupervisedPlay(
+        public async Task<object?> SupervisedPlay(
             IRimBridgeContext ctx,
             CancellationToken cancellationToken,
             [ToolParameter(Description = "start, pause, speed, status, heartbeat, or events.")] string op,
@@ -102,7 +105,7 @@ namespace HomeBridge.BridgeTools
             return Fail("Unknown op '" + op + "'. Use start, pause, speed, status, heartbeat or events.");
         }
 
-        private static object Fail(string message) { return new Dictionary<string, object> {
+        private static object Fail(string message) { return new Dictionary<string, object?> {
             { "success", false }, { "tool", ToolName }, { "message", message } }; }
     }
 
@@ -116,24 +119,26 @@ namespace HomeBridge.BridgeTools
         // far short of anything a person would sit through.
         private const int ForcePauseGraceMs = 20000;
         private static readonly object Gate = new object();
-        private static ClockEventJournal Journal;
-        private static void EnsureJournal()
+        private static ClockEventJournal? Journal;
+        private static ClockEventJournal EnsureJournal()
         {
-            if (Journal != null) return;
-            Journal = new ClockEventJournal();
-            _cursor = Journal.Newest;
+            if (Journal != null) return Journal;
+            var journal = Journal = new ClockEventJournal();
+            _cursor = journal.Newest;
             _epoch = Math.Max(_epoch, _cursor);
+            return journal;
         }
-        private static State _state;
+        private static State? _state;
+        private static State ActiveState => _state ?? throw new InvalidOperationException("No supervised clock epoch.");
         private static long _epoch;
         private static long _cursor;
         private static int _patched;
-        private static string _patchError;
+        private static string? _patchError;
         // Injury stops are remembered across epochs on purpose. Restarting the
         // clock re-baselines injuries, so without this a wound that keeps
         // arriving reads as brand new every epoch and stops play forever.
         private static readonly Dictionary<int, InjuryStop> InjuryStops = new Dictionary<int, InjuryStop>();
-        private static object _injuryStopsSession;
+        private static object? _injuryStopsSession;
         // Conscious-hostile count at the last probe of the previous epoch. Like
         // the injury-stop memory this survives Start on purpose: a guard stop
         // and restart across the last kill must still raise the reminder.
@@ -205,9 +210,8 @@ namespace HomeBridge.BridgeTools
                 var profile = (mode ?? "colony").Trim().ToLowerInvariant();
                 if (profile != "colony" && profile != "combat")
                     return Failure("Unknown mode; use colony or combat.");
-                var s = new State {
-                    Active = true, Epoch = ++_epoch, Owner = owner ?? "agent",
-                    Session = Current.Game, Map = Find.CurrentMap, RequestedSpeed = speed,
+                var s = new State(Current.Game, Find.CurrentMap) {
+                    Active = true, Epoch = ++_epoch, Owner = owner ?? "agent", RequestedSpeed = speed,
                     Mode = profile, HostileWithin = ClampFloat(hostileWithin, 1f, 250f),
                     HealthDropFraction = ClampFloat(healthDropFraction, 0.01f, 1f),
                     MinHealthFraction = ClampFloat(minHealthFraction, 0.01f, 1f),
@@ -241,7 +245,7 @@ namespace HomeBridge.BridgeTools
                     var owed = InjuryCooldownRemainingMs(p.thingIDNumber, s.InjuryStopCooldownMs);
                     var acked = s.IgnoredInjured.Contains(p.thingIDNumber);
                     if (owed <= 0 && !acked) continue;
-                    s.SuppressedInjuries.Add(new Dictionary<string, object> {
+                    s.SuppressedInjuries.Add(new Dictionary<string, object?> {
                         { "pawnId", p.thingIDNumber },
                         { "pawnName", HomePlayUntilEventTools.SafeName(p) },
                         { "reason", owed > 0 ? "cooldown" : "acknowledged" },
@@ -306,7 +310,7 @@ namespace HomeBridge.BridgeTools
                     return Failure("The requested speed did not take; supervision remains active.");
                 }
                 Add("speed_changed", "Supervisor owner changed speed to " + speed + ".", s,
-                    new Dictionary<string, object> { { "speed", speed.ToString() } });
+                    new Dictionary<string, object?> { { "speed", speed.ToString() } });
                 return Snapshot(s, true);
             }
         }
@@ -333,11 +337,11 @@ namespace HomeBridge.BridgeTools
             lock (Gate)
             {
                 var take = Clamp(limit, 1, Capacity);
-                EnsureJournal();
+                var journal = EnsureJournal();
                 var oldest = 1L;
                 var gap = false;
-                var rows = Journal.Read(after, take);
-                return new Dictionary<string, object> {
+                var rows = journal.Read(after, take);
+                return new Dictionary<string, object?> {
                     { "success", true }, { "events", rows }, { "gap", gap },
                     { "lostCount", gap ? oldest - after - 1 : 0 },
                     { "oldestCursor", oldest }, { "newestCursor", _cursor },
@@ -372,7 +376,7 @@ namespace HomeBridge.BridgeTools
                 if (tm.CurTimeSpeed != s.RequestedSpeed) return;
                 if (tm.TicksGame >= s.TickDeadline.Value)
                     Stop(s, "tick_budget", "Native execution tick budget reached.", true,
-                        new Dictionary<string, object> { { "startTick", s.StartTick },
+                        new Dictionary<string, object?> { { "startTick", s.StartTick },
                             { "tickDeadline", s.TickDeadline.Value }, { "tick", tm.TicksGame } });
             }
         }
@@ -407,11 +411,11 @@ namespace HomeBridge.BridgeTools
                     if (tm.CurTimeSpeed == TimeSpeed.Paused) {
                         var letter = LetterPauseHook.Consume();
                         Stop(s, letter == null ? "external_pause" : "letter_pause", ExternalPauseDetail(), false,
-                            letter == null ? null : new Dictionary<string, object> { { "letterId", letter }, { "source", "LetterStack.ReceiveLetter" } });
+                            letter == null ? null : new Dictionary<string, object?> { { "letterId", letter }, { "source", "LetterStack.ReceiveLetter" } });
                         return;
                     }
                     if (tm.CurTimeSpeed != s.RequestedSpeed) { Stop(s, "external_speed_changed", "Speed changed outside the supervisor.", true,
-                        new Dictionary<string, object> { { "expectedSpeed", s.RequestedSpeed.ToString() },
+                        new Dictionary<string, object?> { { "expectedSpeed", s.RequestedSpeed.ToString() },
                             { "actualSpeed", tm.CurTimeSpeed.ToString() } }); return; }
                     if (LeaseNow(s) >= s.LeaseExpiresMs) { Stop(s, "lease_expired", "Heartbeat lease expired.", true, null); return; }
                     if (NowMs() - s.LastProbeMs < 100
@@ -462,7 +466,7 @@ namespace HomeBridge.BridgeTools
                     + "; waiting up to " + (ForcePauseGraceMs / 1000)
                     + " s for it to clear. Play is NOT stopped and nothing needs dismissing. "
                     + ClockState() + ".", s,
-                    new Dictionary<string, object> {
+                    new Dictionary<string, object?> {
                         { "longEvent", LongEventHandler.AnyEventNowOrWaiting },
                         { "graceMs", ForcePauseGraceMs },
                         { "requestedSpeed", s.RequestedSpeed.ToString() } });
@@ -491,7 +495,7 @@ namespace HomeBridge.BridgeTools
                 + " cleared after " + (waited / 1000) + "." + ((waited % 1000) / 100) + " s; speed "
                 + (restored ? "restored to " + s.RequestedSpeed : "could NOT be restored to " + s.RequestedSpeed)
                 + ". Play was never stopped.", s,
-                new Dictionary<string, object> { { "waitedMs", waited },
+                new Dictionary<string, object?> { { "waitedMs", waited },
                     { "forcePauseKind", kind }, { "speedRestored", restored } });
             if (restored) return true;
             Stop(s, "start_refused", "The requested speed did not take after a force pause cleared.", true, null);
@@ -552,9 +556,9 @@ namespace HomeBridge.BridgeTools
         private static readonly HashSet<string> NonStoppingMessageTypes = new HashSet<string>(StringComparer.Ordinal) {
             "NeutralEvent", "PositiveEvent", "HistoricalEvent", "NegativeEvent", "NegativeHealthEvent", "SituationResolved" };
 
-        private static Hit Probe(State s)
+        private static Hit? Probe(State s)
         {
-            var newLetters = new List<Dictionary<string, object>>();
+            var newLetters = new List<Dictionary<string, object?>>();
             foreach (var l in HomePlayUntilEventTools.Letters())
             {
                 var id = HomePlayUntilEventTools.SafeLetterId(l);
@@ -569,22 +573,22 @@ namespace HomeBridge.BridgeTools
                 if (l.GetType() == typeof(StandardLetter) && !l.ShouldAutomaticallyOpenLetter && l.def != null
                     && NonStoppingLetterDefs.Contains(l.def.defName))
                 {
-                    Add("notification_new", label, s, new Dictionary<string, object> {
+                    Add("notification_new", label, s, new Dictionary<string, object?> {
                         { "id", id }, { "label", label }, { "letterDef", l.def.defName },
                         { "negative", l.def.defName == "NegativeEvent" } });
                     continue;
                 }
-                newLetters.Add(new Dictionary<string, object> { { "id", id }, { "label", label },
+                newLetters.Add(new Dictionary<string, object?> { { "id", id }, { "label", label },
                     { "letterDef", l.def != null ? l.def.defName : null } });
             }
-            var newMessages = new List<Dictionary<string, object>>();
+            var newMessages = new List<Dictionary<string, object?>>();
             foreach (var m in HomePlayUntilEventTools.LiveMessages())
             {
                 var id = HomePlayUntilEventTools.SafeMessageId(m);
                 if (!s.Messages.Add(id)) continue;
                 var type = HomePlayUntilEventTools.SafeMessageType(m);
                 var text = HomePlayUntilEventTools.SafeMessageText(m) ?? "Transient message";
-                var payload = new Dictionary<string, object> { { "id", id }, { "messageType", type },
+                var payload = new Dictionary<string, object?> { { "id", id }, { "messageType", type },
                     { "text", text }, { "startingTick", HomePlayUntilEventTools.SafeMessageTick(m) } };
                 // Same rule for the transient top-left messages: only
                 // ThreatBig, ThreatSmall, PawnDeath and an unknown type stop.
@@ -603,7 +607,7 @@ namespace HomeBridge.BridgeTools
                     .Concat(newMessages.Select(x => Convert.ToString(x["text"]))).ToList();
                 return new Hit("notification_batch",
                     names.Count + " new notification(s): " + string.Join("; ", names),
-                    new Dictionary<string, object> { { "letters", newLetters },
+                    new Dictionary<string, object?> { { "letters", newLetters },
                         { "messages", newMessages }, { "letterCount", newLetters.Count },
                         { "messageCount", newMessages.Count } });
             }
@@ -618,7 +622,7 @@ namespace HomeBridge.BridgeTools
                 var patient = colonists.FirstOrDefault(p => p.thingIDNumber == identity);
                 if (patient == null || !MedicalRestSafety.Eligible(patient))
                     return new Hit("medical_rest_changed", "Resting patient requires a fresh medical review",
-                        new Dictionary<string, object> { { "pawnId", identity } });
+                        new Dictionary<string, object?> { { "pawnId", identity } });
             }
             CheckHostilesCleared(s, pawns);
             foreach (var p in pawns)
@@ -664,7 +668,7 @@ namespace HomeBridge.BridgeTools
                             || before.Health - after.Health >= s.HealthDropFraction))
                         return new Hit("colonist_health", HomePlayUntilEventTools.SafeName(p)
                             + " crossed a combat health threshold.",
-                            new Dictionary<string, object> { { "pawnId", p.thingIDNumber },
+                            new Dictionary<string, object?> { { "pawnId", p.thingIDNumber },
                                 { "pawnName", HomePlayUntilEventTools.SafeName(p) },
                                 { "position", Position(p) }, { "healthAtStart", before.Health },
                                 { "healthNow", after.Health }, { "minHealthFraction", s.MinHealthFraction },
@@ -675,7 +679,7 @@ namespace HomeBridge.BridgeTools
                             || after.BleedRate > before.BleedRate + 0.001f
                             || after.BloodLoss > before.BloodLoss + 0.001f))
                     {
-                        var payload = new Dictionary<string, object> { { "pawnId", p.thingIDNumber },
+                        var payload = new Dictionary<string, object?> { { "pawnId", p.thingIDNumber },
                                 { "pawnName", HomePlayUntilEventTools.SafeName(p) },
                                 { "position", Position(p) }, { "injuryCountBefore", before.Count },
                                 { "injuryCountAfter", after.Count }, { "severityBefore", before.Severity },
@@ -783,11 +787,11 @@ namespace HomeBridge.BridgeTools
             Add("hostiles_cleared", "No conscious hostiles remain: "
                 + (parts.Count > 0 ? string.Join("; ", parts.ToArray())
                     : "nothing downed and nobody drafted") + ".", s,
-                new Dictionary<string, object> {
-                    { "downedHostiles", downed.Select(p => (object)new Dictionary<string, object> {
+                new Dictionary<string, object?> {
+                    { "downedHostiles", downed.Select(p => (object)new Dictionary<string, object?> {
                         { "thingId", p.thingIDNumber }, { "name", HomePlayUntilEventTools.SafeName(p) },
                         { "x", p.Position.x }, { "z", p.Position.z } }).ToList() },
-                    { "draftedColonists", drafted.Select(p => (object)new Dictionary<string, object> {
+                    { "draftedColonists", drafted.Select(p => (object)new Dictionary<string, object?> {
                         { "thingId", p.thingIDNumber }, { "name", HomePlayUntilEventTools.SafeName(p) } }).ToList() },
                     { "consciousHostilesBefore", before },
                     { "acrossRestart", first } });
@@ -841,19 +845,19 @@ namespace HomeBridge.BridgeTools
         private static Hit PawnHit(string kind, Pawn pawn, string reason)
         {
             return new Hit(kind, HomePlayUntilEventTools.SafeName(pawn) + " (" + reason + ")",
-                new Dictionary<string, object> { { "pawnId", pawn.thingIDNumber },
+                new Dictionary<string, object?> { { "pawnId", pawn.thingIDNumber },
                     { "pawnName", HomePlayUntilEventTools.SafeName(pawn) }, { "position", Position(pawn) },
                     { "reason", reason } });
         }
         /// One alert row; the key is type|priority|normalized-label.
-        private static Dictionary<string, object> AlertRow(KeyValuePair<string, string> a)
+        private static Dictionary<string, object?> AlertRow(KeyValuePair<string, string> a)
         {
             var parts = a.Key.Split('|');
-            return new Dictionary<string, object> { { "alertKey", a.Key }, { "label", a.Value },
+            return new Dictionary<string, object?> { { "alertKey", a.Key }, { "label", a.Value },
                 { "priority", parts.Length > 1 ? parts[1] : null } };
         }
 
-        private static object Position(Pawn pawn) { return new Dictionary<string, object> {
+        private static object Position(Pawn pawn) { return new Dictionary<string, object?> {
             { "x", pawn.Position.x }, { "z", pawn.Position.z } }; }
 
         private static List<string> ForcePausingWindows()
@@ -889,18 +893,18 @@ namespace HomeBridge.BridgeTools
         private static bool ThreateningPredatorHunt(Pawn p)
         {
             if (!PredatorHunting(p) || p.Faction == Faction.OfPlayer) return false;
-            Pawn prey;
+            Pawn? prey;
             var ours = HomeStatusTools.PreyBelongsToPlayer(p, out prey);
             // Share the status reader's native ownership test. Re-evaluate each
             // probe, so a predator changing targets never gets a lasting exemption.
             return ours || prey == null;
         }
         private static int Distance(Pawn a, Pawn b) { return Math.Max(Math.Abs(a.Position.x - b.Position.x), Math.Abs(a.Position.z - b.Position.z)); }
-        private static bool Owns(State s, string owner, long epoch) { return s != null && s.Active && s.Epoch == epoch && string.Equals(s.Owner, owner ?? "agent", StringComparison.Ordinal); }
-        private static void Stop(State s, string kind, string detail, bool pause,
-            Dictionary<string, object> payload)
+        private static bool Owns([NotNullWhen(true)] State? s, string? owner, long epoch) { return s != null && s.Active && s.Epoch == epoch && string.Equals(s.Owner, owner ?? "agent", StringComparison.Ordinal); }
+        private static void Stop(State? s, string kind, string? detail, bool pause,
+            Dictionary<string, object?>? payload)
         {
-            if (!ReferenceEquals(s, _state) || !s.Active) return;
+            if (s == null || !ReferenceEquals(s, _state) || !s.Active) return;
             if (s.Typed != null) s.Typed.PauseRequested = pause;
             if (pause && Find.TickManager != null && Find.TickManager.CurTimeSpeed != TimeSpeed.Paused) Find.TickManager.Pause();
             s.PausedAtStop = Find.TickManager != null && Find.TickManager.CurTimeSpeed == TimeSpeed.Paused;
@@ -932,15 +936,15 @@ namespace HomeBridge.BridgeTools
             BoostField.SetValue(null, s.PriorBoost);
             s.BoostOwned = false;
         }
-        private static void Add(string kind, string detail, State s, Dictionary<string, object> payload)
+        private static void Add(string kind, string? detail, State s, Dictionary<string, object?>? payload)
         {
-            EnsureJournal();
+            var journal = EnsureJournal();
             var identity = (s.Session as Game)?.GetComponent<ColonyIdentity>();
-            var row = new Dictionary<string, object> { { "cursor", _cursor + 1 }, { "epoch", s.Epoch },
+            var row = new Dictionary<string, object?> { { "cursor", _cursor + 1 }, { "epoch", s.Epoch },
                 { "kind", kind }, { "detail", detail }, { "event", payload },
                 { "colonyId", identity?.ColonyId }, { "loadToken", identity?.LoadToken }, { "mapId", s.Map.uniqueID },
                 { "tick", Find.TickManager != null ? Find.TickManager.TicksGame : s.LastTick }, { "atMs", NowMs() } };
-            try { AttachTypedEvent(row, kind, detail, s, payload); Journal.Append(row); _cursor = Journal.Newest; }
+            try { AttachTypedEvent(row, kind, detail, s, payload); journal.Append(row); _cursor = journal.Newest; }
             catch
             {
                 var sameContext = ReferenceEquals(Current.Game, s.Session) && ReferenceEquals(Find.CurrentMap, s.Map);
@@ -960,10 +964,10 @@ namespace HomeBridge.BridgeTools
                 throw;
             }
         }
-        private static object Snapshot(State s, bool success)
+        private static object Snapshot(State? s, bool success)
         {
             EnsureJournal();
-            return new Dictionary<string, object> { { "success", success }, { "active", s != null && s.Active },
+            return new Dictionary<string, object?> { { "success", success }, { "active", s != null && s.Active },
                 { "durableEvents", true },
                 { "epoch", s != null ? s.Epoch : 0 }, { "owner", s != null ? s.Owner : null },
                 { "requestedSpeed", s != null ? s.RequestedSpeed.ToString() : null },
@@ -978,26 +982,26 @@ namespace HomeBridge.BridgeTools
                 { "boostOwned", s != null && s.BoostOwned },
                 { "maxProbeTickGap", s != null ? s.MaxProbeTickGap : 0 },
                 { "probeCount", s != null ? s.ProbeCount : 0 },
-                { "stopAtMs", s != null ? (object)s.StopAtMs : null },
+                { "stopAtMs", s != null ? (object?)s.StopAtMs : null },
                 { "probeTickLimit", s != null && s.TestAcceleration ? (object)AcceleratedProbeTicks : null },
                 { "startTick", s != null ? (object)s.StartTick : null },
-                { "tickDeadline", s != null ? (object)s.TickDeadline : null },
+                { "tickDeadline", s != null ? (object?)s.TickDeadline : null },
                 { "injuryStopCooldownMs", s != null ? s.InjuryStopCooldownMs : 0 },
                 { "suppressedInjuryPawns", s != null ? (object)s.SuppressedInjuries : null },
                 { "baselineAlerts", s != null ? (object)s.BaselineAlerts : null },
                 { "paused", s != null ? (object)s.PausedAtStop : null },
                 { "forcePauseWaitingMs", s != null && s.ForcePauseSinceMs != 0 ? (object)(NowMs() - s.ForcePauseSinceMs) : null },
                 { "forcePauseKind", s != null ? s.ForcePauseKind : null },
-                { "pauseVerified", s != null ? (object)s.PauseVerified : null },
+                { "pauseVerified", s != null ? (object?)s.PauseVerified : null },
                 { "sessionChanged", s != null && s.StopReason == "session_changed" },
                 { "leaseExpiresAtMs", s != null ? NowMs() + Math.Max(0, s.LeaseExpiresMs - LeaseNow(s)) : 0 }, { "leaseRemainingMs", s != null ? Math.Max(0, s.LeaseExpiresMs - LeaseNow(s)) : 0 },
                 { "stopReason", s != null ? s.StopReason : null }, { "stopDetail", s != null ? s.StopDetail : null },
                 { "newestCursor", _cursor }, { "patchError", _patchError } };
         }
-        private static object Failure(string message) { return new Dictionary<string, object> { { "success", false }, { "message", message }, { "retryable", false }, { "refusal", null }, { "newestCursor", _cursor } }; }
+        private static object Failure(string message) { return new Dictionary<string, object?> { { "success", false }, { "message", message }, { "retryable", false }, { "refusal", null }, { "newestCursor", _cursor } }; }
         /// A refusal the caller should retry rather than report: the condition
         /// clears on its own within a second or two.
-        private static object Retryable(string message, string refusal) { return new Dictionary<string, object> { { "success", false }, { "message", message }, { "retryable", true }, { "refusal", refusal }, { "newestCursor", _cursor } }; }
+        private static object Retryable(string message, string refusal) { return new Dictionary<string, object?> { { "success", false }, { "message", message }, { "retryable", true }, { "refusal", refusal }, { "newestCursor", _cursor } }; }
         private static HashSet<string> Csv(string value) { return new HashSet<string>((value ?? "").Split(',').Select(x => x.Trim()).Where(x => x.Length > 0), StringComparer.OrdinalIgnoreCase); }
         private static HashSet<int> PawnIds(string value) { var r = new HashSet<int>(); foreach (var x in Csv(value)) { int n; var digits = new string(x.Reverse().TakeWhile(char.IsDigit).Reverse().ToArray()); if (int.TryParse(digits, out n)) r.Add(n); } return r; }
         private static int Clamp(int x, int lo, int hi) { return Math.Max(lo, Math.Min(hi, x)); }
@@ -1007,8 +1011,8 @@ namespace HomeBridge.BridgeTools
         private sealed class Hit
         {
             public readonly string Kind; public readonly string Detail;
-            public readonly Dictionary<string, object> Payload;
-            public Hit(string kind, string detail, Dictionary<string, object> payload)
+            public readonly Dictionary<string, object?> Payload;
+            public Hit(string kind, string detail, Dictionary<string, object?> payload)
             { Kind = kind; Detail = detail; Payload = payload; }
         }
 
@@ -1036,36 +1040,37 @@ namespace HomeBridge.BridgeTools
 
         private sealed class State
         {
-            public TypedEpoch Typed;
-            public bool Active; public long Epoch; public string Owner; public object Session; public Map Map; public TimeSpeed RequestedSpeed;
-            public string Mode; public float HostileWithin; public float HealthDropFraction; public float MinHealthFraction;
+            public TypedEpoch? Typed;
+            public State(object session, Map map) { Session = session; Map = map; }
+            public bool Active; public long Epoch; public string? Owner; public readonly object Session; public readonly Map Map; public TimeSpeed RequestedSpeed;
+            public string? Mode; public float HostileWithin; public float HealthDropFraction; public float MinHealthFraction;
             public long LeaseExpiresMs; public long LastProbeMs; public int LastTick; public bool PausedAtStop;
             public int StartTick; public long? TickDeadline;
             public bool TestAcceleration; public bool PriorBoost; public bool BoostOwned;
             public int LastProbeTick; public int MaxProbeTickGap; public int ProbeCount;
             public long? StopAtMs;
             public bool? PauseVerified; public bool PauseFailureReported;
-            public string StopReason; public string StopDetail;
-            public string PendingKind; public string PendingDetail;
+            public string? StopReason; public string? StopDetail;
+            public string? PendingKind; public string? PendingDetail;
             // Wall-clock ms at which a windowless force pause began, 0 when none.
-            public long ForcePauseSinceMs; public string ForcePauseKind;
-            public Dictionary<string, object> PendingPayload;
+            public long ForcePauseSinceMs; public string? ForcePauseKind;
+            public Dictionary<string, object?>? PendingPayload;
             public readonly HashSet<string> Letters = new HashSet<string>(StringComparer.Ordinal);
             public readonly HashSet<string> Messages = new HashSet<string>(StringComparer.Ordinal);
             public readonly Dictionary<int, InjurySnapshot> Injuries = new Dictionary<int, InjurySnapshot>();
             // Grows only: an alert that clears and returns is not news again.
             public readonly HashSet<string> AlertKeys = new HashSet<string>(StringComparer.Ordinal);
-            public readonly List<Dictionary<string, object>> BaselineAlerts = new List<Dictionary<string, object>>();
+            public readonly List<Dictionary<string, object?>> BaselineAlerts = new List<Dictionary<string, object?>>();
             // null until the first probe of this epoch has counted.
             public int? ConsciousHostiles; public bool HostilesCleared;
-            public HashSet<int> IgnoredHostiles; public HashSet<int> IgnoredDowned; public HashSet<int> SurgicalRecovery; public HashSet<int> MedicalRest;
-            public HashSet<int> IgnoredInjured; public int InjuryStopCooldownMs;
-            public readonly List<Dictionary<string, object>> SuppressedInjuries = new List<Dictionary<string, object>>();
+            public HashSet<int> IgnoredHostiles = new HashSet<int>(); public HashSet<int> IgnoredDowned = new HashSet<int>(); public HashSet<int> SurgicalRecovery = new HashSet<int>(); public HashSet<int> MedicalRest = new HashSet<int>();
+            public HashSet<int> IgnoredInjured = new HashSet<int>(); public int InjuryStopCooldownMs;
+            public readonly List<Dictionary<string, object?>> SuppressedInjuries = new List<Dictionary<string, object?>>();
         }
 
         private sealed class InjuryStop
         {
-            public long AtMs; public int Tick; public string Name;
+            public long AtMs; public int Tick; public string? Name;
         }
     }
 }

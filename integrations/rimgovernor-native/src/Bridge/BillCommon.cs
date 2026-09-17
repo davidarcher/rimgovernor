@@ -1,3 +1,5 @@
+#nullable enable
+
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -109,7 +111,7 @@ namespace HomeBridge.BridgeTools
             internal readonly Dictionary<ThingDef, List<Item>> ByDef =
                 new Dictionary<ThingDef, List<Item>>();
             internal int Scanned;
-            internal string Error;
+            internal string? Error;
 
             internal static MapItems Build(Map map)
             {
@@ -164,7 +166,7 @@ namespace HomeBridge.BridgeTools
                 return index;
             }
 
-            internal List<Item> Of(ThingDef def)
+            internal List<Item>? Of(ThingDef def)
             {
                 List<Item> bucket;
                 return def != null && ByDef.TryGetValue(def, out bucket) ? bucket : null;
@@ -202,7 +204,7 @@ namespace HomeBridge.BridgeTools
         /// fails becomes a blockedBy entry naming what could not be read, so an
         /// unreadable bill is never reported as a runnable one.
         /// </summary>
-        internal static Verdict Judge(Thing bench, IBillGiver giver, Bill bill, MapItems items)
+        internal static Verdict Judge(Thing? bench, IBillGiver? giver, Bill bill, MapItems items)
         {
             var verdict = new Verdict();
             if (bill == null)
@@ -211,7 +213,7 @@ namespace HomeBridge.BridgeTools
                 return verdict;
             }
 
-            var recipe = BridgeCommon.Try(() => bill.recipe, (RecipeDef)null);
+            var recipe = BridgeCommon.Try(() => bill.recipe, (RecipeDef?)null);
             if (recipe == null)
             {
                 verdict.BlockedBy.Add("recipe unreadable");
@@ -233,7 +235,7 @@ namespace HomeBridge.BridgeTools
             // taken directly. CountProducts stores nothing; CanCountProducts is
             // asked first because CountProducts opens on products[0].
             var stocked = ProductCount(production);
-            if (stocked != null)
+            if (production != null && stocked != null)
             {
                 var target = BridgeCommon.TryN(() => production.targetCount);
                 if (target != null && stocked.Value >= target.Value)
@@ -257,8 +259,8 @@ namespace HomeBridge.BridgeTools
                 verdict.BlockedBy.Add("recipe availability unreadable (no player faction)");
 
             // ------------------------------------------------------ ingredients
-            List<IngredientCount> ingredients;
-            try { ingredients = recipe.ingredients; }
+            List<IngredientCount>? ingredients;
+            try { ingredients = recipe?.ingredients; }
             catch { ingredients = null; }
 
             if (ingredients == null)
@@ -275,7 +277,7 @@ namespace HomeBridge.BridgeTools
             else
             {
                 var radius = BridgeCommon.Try(() => bill.ingredientSearchRadius, UnlimitedRadius);
-                var filter = BridgeCommon.Try(() => bill.ingredientFilter, (ThingFilter)null);
+                var filter = BridgeCommon.Try(() => bill.ingredientFilter, (ThingFilter?)null);
                 bool allSatisfied;
                 int excluded;
                 List<object> missing;
@@ -299,7 +301,7 @@ namespace HomeBridge.BridgeTools
         /// attached to a bench (bill.Map), so a clone or an unadded bill answers
         /// null rather than a wrong number.
         /// </summary>
-        internal static int? ProductCount(Bill_Production production)
+        internal static int? ProductCount(Bill_Production? production)
         {
             if (production == null)
                 return null;
@@ -319,7 +321,7 @@ namespace HomeBridge.BridgeTools
         /// no product, or several, has no one number to widen, and guessing one
         /// would be worse than the null.
         /// </summary>
-        private static ThingDef ProductDef(Bill_Production production)
+        private static ThingDef? ProductDef(Bill_Production? production)
         {
             try
             {
@@ -333,30 +335,30 @@ namespace HomeBridge.BridgeTools
             catch { return null; }
         }
 
-        private static string ProductDefName(Bill_Production production)
+        private static string? ProductDefName(Bill_Production? production)
         {
             var def = ProductDef(production);
             return def == null ? null : BridgeCommon.SafeString(() => def.defName);
         }
 
         /// <summary>The product sitting in any storage, bill zone or not.</summary>
-        private static int? ProductCountStored(Bill_Production production)
+        private static int? ProductCountStored(Bill_Production? production)
         {
             return ProductTotal(production, storedOnly: true);
         }
 
         /// <summary>Every spawned stack of the product on the map.</summary>
-        private static int? ProductCountOnMap(Bill_Production production)
+        private static int? ProductCountOnMap(Bill_Production? production)
         {
             return ProductTotal(production, storedOnly: false);
         }
 
-        private static int? ProductTotal(Bill_Production production, bool storedOnly)
+        private static int? ProductTotal(Bill_Production? production, bool storedOnly)
         {
             try
             {
                 var def = ProductDef(production);
-                if (def == null)
+                if (production == null || def == null)
                     return null;
                 var map = production.Map;
                 if (map == null || map.listerThings == null)
@@ -381,7 +383,7 @@ namespace HomeBridge.BridgeTools
 
         /// <summary>Which of power, fuel or breakdown stopped the bench. Only ever
         /// reached when the game already said the bench is unusable.</summary>
-        private static string BenchBlockReason(Thing bench)
+        private static string BenchBlockReason(Thing? bench)
         {
             var power = SafeComp<CompPowerTrader>(bench);
             if (power != null && !BridgeCommon.Try(() => power.PowerOn, false))
@@ -395,7 +397,7 @@ namespace HomeBridge.BridgeTools
             return "bench not usable for bills";
         }
 
-        private static T SafeComp<T>(Thing thing) where T : ThingComp
+        private static T? SafeComp<T>(Thing? thing) where T : ThingComp
         {
             try { return (thing as ThingWithComps)?.GetComp<T>(); }
             catch { return null; }
@@ -410,7 +412,7 @@ namespace HomeBridge.BridgeTools
         /// RecipeWorker.GetIngredientCount returns anyway.
         /// </summary>
         internal static List<object> IngredientRows(
-            RecipeDef recipe, ThingFilter billFilter, Bill bill, Thing bench,
+            RecipeDef? recipe, ThingFilter? billFilter, Bill? bill, Thing? bench,
             float radius, MapItems items,
             out bool allSatisfied, out int excludedByFilter, out List<object> missing)
         {
@@ -419,8 +421,8 @@ namespace HomeBridge.BridgeTools
             excludedByFilter = 0;
             missing = new List<object>();
 
-            List<IngredientCount> ingredients;
-            try { ingredients = recipe.ingredients; }
+            List<IngredientCount>? ingredients;
+            try { ingredients = recipe?.ingredients; }
             catch { ingredients = null; }
             if (ingredients == null)
             {
@@ -445,11 +447,11 @@ namespace HomeBridge.BridgeTools
             return rows;
         }
 
-        private static Dictionary<string, object> IngredientRow(
-            RecipeDef recipe, IngredientCount ing, ThingFilter billFilter, Bill bill,
+        private static Dictionary<string, object?> IngredientRow(
+            RecipeDef? recipe, IngredientCount ing, ThingFilter? billFilter, Bill? bill,
             MapItems items, float radius, IntVec3? benchCell)
         {
-            var row = new Dictionary<string, object>(StringComparer.Ordinal);
+            var row = new Dictionary<string, object?>(StringComparer.Ordinal);
             if (ing == null)
             {
                 row["summary"] = null;
@@ -472,12 +474,13 @@ namespace HomeBridge.BridgeTools
             }
 
             var isFixed = BridgeCommon.Try(() => ing.IsFixedIngredient, false);
-            var mixing = BridgeCommon.Try(() => recipe.allowMixingIngredients, false);
-            var wholeStacks = BridgeCommon.Try(() => recipe.ignoreIngredientCountTakeEntireStacks, false);
-            var unlimited = radius >= UnlimitedRadius || benchCell == null || !benchCell.Value.IsValid;
+            var mixing = recipe != null && BridgeCommon.Try(() => recipe.allowMixingIngredients, false);
+            var wholeStacks = recipe != null && BridgeCommon.Try(() => recipe.ignoreIngredientCountTakeEntireStacks, false);
+            var anchor = benchCell ?? IntVec3.Invalid;
+            var unlimited = radius >= UnlimitedRadius || !anchor.IsValid;
             var radiusSq = (double)radius * radius;
 
-            List<ThingDef> allowedDefs;
+            List<ThingDef>? allowedDefs;
             try { allowedDefs = ing.filter.AllowedThingDefs.ToList(); }
             catch { allowedDefs = null; }
             if (allowedDefs == null)
@@ -546,8 +549,8 @@ namespace HomeBridge.BridgeTools
 
                     if (!unlimited)
                     {
-                        double dx = item.X - benchCell.Value.x;
-                        double dz = item.Z - benchCell.Value.z;
+                        double dx = item.X - anchor.x;
+                        double dz = item.Z - anchor.z;
                         if (dx * dx + dz * dz >= radiusSq)
                         {
                             excludedOutOfRadius += item.Stack;
@@ -568,7 +571,7 @@ namespace HomeBridge.BridgeTools
             // Defs do not mix, so "available" is one def's count. The reference
             // is the def closest to satisfying the slot; with nothing on the map
             // it is the def the game itself would name (CountFor's rule).
-            ThingDef best = null;
+            ThingDef? best = null;
             var bestSatisfied = false;
             long bestMargin = long.MinValue;
             foreach (var pair in haveByDef)
@@ -626,7 +629,7 @@ namespace HomeBridge.BridgeTools
             var listed = haveByDef
                 .OrderByDescending(p => p.Value)
                 .Take(MaxAvailableDefs)
-                .Select(p => (object)new Dictionary<string, object>
+                .Select(p => (object)new Dictionary<string, object?>
                 {
                     { "defName", BridgeCommon.SafeString(() => p.Key.defName) },
                     { "label", BridgeCommon.SafeString(() => p.Key.label) },
@@ -637,7 +640,7 @@ namespace HomeBridge.BridgeTools
 
             try {
                 row["costOptions"] = allowedDefs.Where(d => d != null && (isFixed || (FixedAllows(recipe, d) && FilterAllows(billFilter, d))))
-                    .OrderBy(d => d.defName).Select(d => (object)new Dictionary<string, object> {
+                    .OrderBy(d => d.defName).Select(d => (object)new Dictionary<string, object?> {
                         { "defName", d.defName }, { "needed", ing.CountRequiredOfFor(d, recipe, bill) },
                         { "available", haveByDef.TryGetValue(d, out var n) ? n : 0 }
                     }).ToList();
@@ -671,7 +674,7 @@ namespace HomeBridge.BridgeTools
 
         /// <summary>The noun a blockedBy line names: the reference def's label
         /// when there is one, otherwise the filter's own summary.</summary>
-        private static string IngredientLabel(IngredientCount ing, ThingDef best)
+        private static string? IngredientLabel(IngredientCount ing, ThingDef? best)
         {
             if (best != null)
             {
@@ -685,7 +688,7 @@ namespace HomeBridge.BridgeTools
         /// <summary>The noun for a slot nothing on the map matched: the
         /// ingredient filter's own summary ("corpses"), never one representative
         /// def ("human corpse") the bill may not even accept.</summary>
-        private static string GenericLabel(IngredientCount ing, ThingDef best)
+        private static string? GenericLabel(IngredientCount ing, ThingDef? best)
         {
             var summary = BridgeCommon.SafeString(() => ing.filter.Summary);
             return string.IsNullOrEmpty(summary) ? IngredientLabel(ing, best) : summary;
@@ -696,10 +699,10 @@ namespace HomeBridge.BridgeTools
         /// fixed filter admits, preferring one that is not smallVolume — narrowed
         /// to what THIS bill's filter would take, since a def the bill turns away
         /// is not what it is short of.</summary>
-        private static ThingDef DisplayDef(RecipeDef recipe, ThingFilter billFilter, List<ThingDef> allowedDefs)
+        private static ThingDef DisplayDef(RecipeDef? recipe, ThingFilter? billFilter, List<ThingDef> allowedDefs)
         {
-            ThingDef fallback = null;
-            ThingDef outsideBill = null;
+            ThingDef? fallback = null;
+            ThingDef? outsideBill = null;
             foreach (var def in allowedDefs)
             {
                 if (def == null || !FixedAllows(recipe, def))
@@ -718,7 +721,7 @@ namespace HomeBridge.BridgeTools
             return fallback ?? outsideBill ?? allowedDefs.FirstOrDefault(d => d != null);
         }
 
-        private static int RequiredOf(IngredientCount ing, RecipeDef recipe, Bill bill, ThingDef def)
+        private static int RequiredOf(IngredientCount ing, RecipeDef? recipe, Bill? bill, ThingDef def)
         {
             // CountRequiredOfFor = ceil(recipe.Worker.GetIngredientCount(ing, bill)
             //                           / IngredientValueGetter.ValuePerUnitOf(def)).
@@ -728,9 +731,9 @@ namespace HomeBridge.BridgeTools
             return (int)Math.Ceiling(BridgeCommon.Try(() => (double)ing.GetBaseCount(), 0.0));
         }
 
-        private static double ValuePerUnit(RecipeDef recipe, ThingDef def)
+        private static double ValuePerUnit(RecipeDef? recipe, ThingDef def)
         {
-            return BridgeCommon.Try(() => (double)recipe.IngredientValueGetter.ValuePerUnitOf(def), 1.0);
+            return recipe == null ? 1.0 : BridgeCommon.Try(() => (double)recipe.IngredientValueGetter.ValuePerUnitOf(def), 1.0);
         }
 
         /// <summary>
@@ -751,24 +754,24 @@ namespace HomeBridge.BridgeTools
             }, false);
         }
 
-        private static bool FixedAllows(RecipeDef recipe, ThingDef def)
+        private static bool FixedAllows(RecipeDef? recipe, ThingDef def)
         {
-            return BridgeCommon.Try(() => recipe.fixedIngredientFilter == null
+            return recipe == null || BridgeCommon.Try(() => recipe.fixedIngredientFilter == null
                                           || recipe.fixedIngredientFilter.Allows(def), true);
         }
 
-        private static bool FixedAllows(RecipeDef recipe, Thing thing)
+        private static bool FixedAllows(RecipeDef? recipe, Thing thing)
         {
-            return BridgeCommon.Try(() => recipe.fixedIngredientFilter == null
+            return recipe == null || BridgeCommon.Try(() => recipe.fixedIngredientFilter == null
                                           || recipe.fixedIngredientFilter.Allows(thing), true);
         }
 
-        private static bool FilterAllows(ThingFilter filter, ThingDef def)
+        private static bool FilterAllows(ThingFilter? filter, ThingDef def)
         {
             return BridgeCommon.Try(() => filter == null || filter.Allows(def), true);
         }
 
-        private static bool FilterAllows(ThingFilter filter, Thing thing)
+        private static bool FilterAllows(ThingFilter? filter, Thing thing)
         {
             return BridgeCommon.Try(() => filter == null || filter.Allows(thing), true);
         }
@@ -781,19 +784,19 @@ namespace HomeBridge.BridgeTools
         /// NULL when the recipe's fixed filter could never admit that meat — the
         /// question does not apply to a steel bill — and a bool when it could.
         /// </summary>
-        internal static Dictionary<string, object> FilterBlock(Bill bill)
+        internal static Dictionary<string, object?> FilterBlock(Bill bill)
         {
             if (bill == null)
                 return FilterBlock(null, null);
-            return FilterBlock(BridgeCommon.Try(() => bill.recipe, (RecipeDef)null),
-                               BridgeCommon.Try(() => bill.ingredientFilter, (ThingFilter)null));
+            return FilterBlock(BridgeCommon.Try(() => bill.recipe, (RecipeDef?)null),
+                               BridgeCommon.Try(() => bill.ingredientFilter, (ThingFilter?)null));
         }
 
         /// <summary>The same block for a recipe being previewed, whose filter is
         /// whatever a new bill would start with.</summary>
-        internal static Dictionary<string, object> FilterBlock(RecipeDef recipe, ThingFilter filter)
+        internal static Dictionary<string, object?> FilterBlock(RecipeDef? recipe, ThingFilter? filter)
         {
-            var block = new Dictionary<string, object>(StringComparer.Ordinal)
+            var block = new Dictionary<string, object?>(StringComparer.Ordinal)
             {
                 { "allowedDefCount", null },
                 { "allowedDefNames", new List<object>() },
@@ -813,8 +816,8 @@ namespace HomeBridge.BridgeTools
             // the recipe's own fixed filter. This is the population the bill's
             // filter is a subset of.
             var candidates = new HashSet<ThingDef>();
-            List<IngredientCount> ingredients;
-            try { ingredients = recipe.ingredients; }
+            List<IngredientCount>? ingredients;
+            try { ingredients = recipe?.ingredients; }
             catch { ingredients = null; }
             if (ingredients != null)
             {
@@ -848,7 +851,7 @@ namespace HomeBridge.BridgeTools
                 if (IsHumanCorpse(def)) { humanCorpseTotal++; if (allowed) humanCorpseAllowed++; }
                 if (IsInsectCorpse(def)) { insectCorpseTotal++; if (allowed) insectCorpseAllowed++; }
 
-                List<ThingCategoryDef> cats;
+                List<ThingCategoryDef>? cats;
                 try { cats = def.thingCategories; }
                 catch { cats = null; }
                 if (cats == null)
@@ -955,15 +958,15 @@ namespace HomeBridge.BridgeTools
         /// that only exists on Bill_Production is null on any other bill kind
         /// rather than absent.
         /// </summary>
-        internal static Dictionary<string, object> ConfigBlock(Bill bill)
+        internal static Dictionary<string, object?> ConfigBlock(Bill bill)
         {
             var production = bill as Bill_Production;
             var skill = BridgeCommon.TryN(() => bill.allowedSkillRange);
             var hp = production == null ? null : BridgeCommon.TryN(() => production.hpRange);
             var quality = production == null ? null : BridgeCommon.TryN(() => production.qualityRange);
-            var restriction = BridgeCommon.Try(() => bill.PawnRestriction, (Pawn)null);
+            var restriction = BridgeCommon.Try(() => bill.PawnRestriction, (Pawn?)null);
 
-            return new Dictionary<string, object>(StringComparer.Ordinal)
+            return new Dictionary<string, object?>(StringComparer.Ordinal)
             {
                 { "repeatMode", production == null ? null
                     : BridgeCommon.SafeString(() => production.repeatMode == null ? null : production.repeatMode.defName) },
@@ -979,12 +982,12 @@ namespace HomeBridge.BridgeTools
                 { "productDefName", ProductDefName(production) },
                 { "productCountStored", ProductCountStored(production) },
                 { "productCountOnMap", ProductCountOnMap(production) },
-                { "pauseWhenSatisfied", production == null ? null : (object)BridgeCommon.Try(() => production.pauseWhenSatisfied, false) },
+                { "pauseWhenSatisfied", production == null ? null : (object?)BridgeCommon.Try(() => production.pauseWhenSatisfied, false) },
                 { "unpauseWhenYouHave", production == null ? null : BridgeCommon.TryN(() => production.unpauseWhenYouHave) },
                 { "ingredientSearchRadius", BridgeCommon.TryN(() => bill.ingredientSearchRadius) },
                 { "ingredientSearchRadiusUnlimited",
                     BridgeCommon.Try(() => bill.ingredientSearchRadius >= UnlimitedRadius, false) },
-                { "skillRange", skill == null ? null : new Dictionary<string, object>
+                { "skillRange", skill == null ? null : new Dictionary<string, object?>
                     { { "min", skill.Value.min }, { "max", skill.Value.max } } },
                 { "pawnRestriction", restriction == null ? null : BridgeCommon.SafeString(() => restriction.LabelShortCap) },
                 { "slavesOnly", BridgeCommon.Try(() => bill.SlavesOnly, false) },
@@ -992,17 +995,17 @@ namespace HomeBridge.BridgeTools
                 { "nonMechsOnly", BridgeCommon.Try(() => bill.NonMechsOnly, false) },
                 { "storeMode", StoreModeName(bill) },
                 { "storeZone", StoreZoneName(bill) },
-                { "hpRange", hp == null ? null : new Dictionary<string, object>
+                { "hpRange", hp == null ? null : new Dictionary<string, object?>
                     { { "min", hp.Value.min }, { "max", hp.Value.max } } },
-                { "qualityRange", quality == null ? null : new Dictionary<string, object>
+                { "qualityRange", quality == null ? null : new Dictionary<string, object?>
                     { { "min", quality.Value.min.ToString() }, { "max", quality.Value.max.ToString() } } },
-                { "limitToAllowedStuff", production == null ? null : (object)BridgeCommon.Try(() => production.limitToAllowedStuff, false) },
-                { "includeEquipped", production == null ? null : (object)BridgeCommon.Try(() => production.includeEquipped, false) },
-                { "includeTainted", production == null ? null : (object)BridgeCommon.Try(() => production.includeTainted, false) }
+                { "limitToAllowedStuff", production == null ? null : (object?)BridgeCommon.Try(() => production.limitToAllowedStuff, false) },
+                { "includeEquipped", production == null ? null : (object?)BridgeCommon.Try(() => production.includeEquipped, false) },
+                { "includeTainted", production == null ? null : (object?)BridgeCommon.Try(() => production.includeTainted, false) }
             };
         }
 
-        internal static string StoreModeName(Bill bill)
+        internal static string? StoreModeName(Bill bill)
         {
             return BridgeCommon.SafeString(() =>
             {
@@ -1011,7 +1014,7 @@ namespace HomeBridge.BridgeTools
             });
         }
 
-        internal static string StoreZoneName(Bill bill)
+        internal static string? StoreZoneName(Bill bill)
         {
             return BridgeCommon.SafeString(() =>
             {
@@ -1029,7 +1032,7 @@ namespace HomeBridge.BridgeTools
 
         /// <summary>A "Do X times" bill whose remaining count has reached zero.
         /// Derived from the fields; ShouldDoNow() would write `paused`.</summary>
-        internal static bool IsFinished(Bill_Production production)
+        internal static bool IsFinished(Bill_Production? production)
         {
             if (production == null)
                 return false;
@@ -1046,14 +1049,16 @@ namespace HomeBridge.BridgeTools
                    && !IsFinished(production);
         }
 
-        internal static string Label(Bill bill)
+        internal static string? Label(Bill? bill)
         {
+            if (bill == null)
+                return null;
             return BridgeCommon.SafeString(() => bill.LabelCap)
                    ?? BridgeCommon.SafeString(() => bill.Label)
                    ?? BridgeCommon.SafeString(() => bill.recipe == null ? null : bill.recipe.defName);
         }
 
-        internal static string RepeatInfo(Bill_Production production)
+        internal static string? RepeatInfo(Bill_Production? production)
         {
             return production == null ? null : BridgeCommon.SafeString(() => production.RepeatInfoText);
         }
@@ -1065,7 +1070,7 @@ namespace HomeBridge.BridgeTools
         /// fromIdeoBuildingPreceptOnly. With a player faction present the getter
         /// is safe; without one it is only safe when all three are absent.
         /// </summary>
-        internal static bool? RecipeAvailableNow(RecipeDef recipe)
+        internal static bool? RecipeAvailableNow(RecipeDef? recipe)
         {
             if (recipe == null)
                 return null;
@@ -1087,7 +1092,7 @@ namespace HomeBridge.BridgeTools
         /// <summary>RecipeDef.AvailableOnNow(thing) — the second half of the Bills
         /// tab's own filter. Its default worker returns true; a surgery worker
         /// looks at the pawn.</summary>
-        internal static bool? RecipeAvailableOnNow(RecipeDef recipe, Thing bench)
+        internal static bool? RecipeAvailableOnNow(RecipeDef recipe, Thing? bench)
         {
             if (recipe == null || bench == null)
                 return null;

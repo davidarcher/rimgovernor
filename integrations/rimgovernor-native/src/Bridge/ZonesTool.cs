@@ -1,4 +1,7 @@
+#nullable enable
+
 using System;
+using System.Diagnostics.CodeAnalysis;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
@@ -109,10 +112,10 @@ namespace HomeBridge.BridgeTools
         [ToolResponse("totals", "object", "listedCells and gridCells summed over every zone, plus phantomCells and orphanGridCells. When listedCells != gridCells something is wrong.", Always = true)]
         [ToolResponse("unknownArguments", "array", "Every argument key the caller sent that this tool does not declare, sorted, case-sensitively. Empty array = every key was recognised. The host's own _rimBridgeTimeoutMs is never listed.", Always = true)]
         [ToolResponse("unknownArgumentsWarning", "string", "Present only when unknownArguments is non-empty, or when the caller's raw keys could not be read at all - in which case the empty unknownArguments means 'not known', not 'nothing unknown'.", Nullable = true)]
-        public async Task<object> ListZones(
+        public async Task<object?> ListZones(
             IRimBridgeContext ctx,
             CancellationToken cancellationToken,
-            [ToolParameter(Description = "Only zones whose label contains this text (case-insensitive). Null or empty = every zone.")] string match = null,
+            [ToolParameter(Description = "Only zones whose label contains this text (case-insensitive). Null or empty = every zone.")] string? match = null,
             [ToolParameter(Description = "Centre cell x for a radius filter. Requires z and radius.", DefaultValue = -1)] int x = -1,
             [ToolParameter(Description = "Centre cell z for a radius filter. Requires x and radius.", DefaultValue = -1)] int z = -1,
             [ToolParameter(Description = "Keep a zone when ANY of its cells is within this many cells (Chebyshev) of x,z. 0 = whole map.", DefaultValue = 0)] int radius = 0,
@@ -132,7 +135,7 @@ namespace HomeBridge.BridgeTools
         private async Task<object> ListZonesCore(
             IRimBridgeContext ctx,
             CancellationToken cancellationToken,
-            string match,
+            string? match,
             int x,
             int z,
             int radius,
@@ -158,7 +161,7 @@ namespace HomeBridge.BridgeTools
                 .ConfigureAwait(false);
         }
 
-        private static object Build(string match, int cx, int cz, int radius, bool includeCells,
+        private static object Build(string? match, int cx, int cz, int radius, bool includeCells,
                                     bool includeContents, int maxContentRows, int maxCellsPerZone,
                                     bool includeFilter)
         {
@@ -170,7 +173,7 @@ namespace HomeBridge.BridgeTools
             var useRadius = radius > 0 && cx >= 0 && cz >= 0;
 
             ZoneManager zoneManager;
-            List<Zone> allZones;
+            List<Zone>? allZones;
             try
             {
                 zoneManager = map.zoneManager;
@@ -247,7 +250,7 @@ namespace HomeBridge.BridgeTools
                     if (owner == zone)
                         continue;
                     phantomCount++;
-                    phantoms.Add(new Dictionary<string, object>
+                    phantoms.Add(new Dictionary<string, object?>
                     {
                         { "x", c.x }, { "z", c.z },
                         { "gridOwner", owner == null ? null : SafeLabel(owner) },
@@ -286,7 +289,7 @@ namespace HomeBridge.BridgeTools
                     continue;
                 }
 
-                var row = new Dictionary<string, object>
+                var row = new Dictionary<string, object?>
                 {
                     { "label", SafeLabel(zone) },
                     { "id", SafeId(zone) },
@@ -337,14 +340,14 @@ namespace HomeBridge.BridgeTools
                 rows.Add(row);
             }
 
-            return new Dictionary<string, object>
+            return new Dictionary<string, object?>
             {
                 { "success", true },
                 { "tool", ToolName },
                 { "mapName", SafeMapName(map) },
                 { "zoneCount", rows.Count },
                 { "zoneCountOnMap", allZones.Count },
-                { "totals", new Dictionary<string, object>
+                { "totals", new Dictionary<string, object?>
                     {
                         // Summed over EVERY zone on the map, filters or no filters.
                         // listedCells != gridCells is the headline symptom.
@@ -356,12 +359,12 @@ namespace HomeBridge.BridgeTools
                         { "gridSweepFailed", gridSweepFailed }
                     } },
                 { "anomalies", anomalies },
-                { "skipped", new Dictionary<string, object>
+                { "skipped", new Dictionary<string, object?>
                     {
                         { "byMatch", skippedMatch },
                         { "byRadius", skippedRadius }
                     } },
-                { "filters", new Dictionary<string, object>
+                { "filters", new Dictionary<string, object?>
                     {
                         { "match", match },
                         { "x", cx }, { "z", cz }, { "radius", radius },
@@ -378,7 +381,7 @@ namespace HomeBridge.BridgeTools
 
         // ------------------------------------------------------------ stockpile
 
-        private static void AddStockpileBlock(Dictionary<string, object> row, Map map,
+        private static void AddStockpileBlock(Dictionary<string, object?> row, Map map,
                                               Zone_Stockpile stockpile, List<IntVec3> listed,
                                               bool includeContents, int maxContentRows, bool includeFilter)
         {
@@ -389,7 +392,7 @@ namespace HomeBridge.BridgeTools
                 // The same block home/zone_cells op=filter reports as before/after,
                 // built by the same code, so the two tools cannot describe one
                 // filter differently.
-                var settings = BridgeCommon.Try(() => stockpile.settings, (StorageSettings)null);
+                var settings = BridgeCommon.Try(() => stockpile.settings, (StorageSettings?)null);
                 row["filter"] = StockpileFilter.Summary(
                     settings == null ? null : settings.filter,
                     BridgeCommon.TryN(() => stockpile.settings.Priority),
@@ -476,7 +479,7 @@ namespace HomeBridge.BridgeTools
             var contentRows = contents.Values
                 .OrderByDescending(r => r.Count)
                 .Take(maxContentRows)
-                .Select(r => (object)new Dictionary<string, object>
+                .Select(r => (object)new Dictionary<string, object?>
                 {
                     { "defName", r.DefName },
                     { "label", r.Label },
@@ -490,7 +493,7 @@ namespace HomeBridge.BridgeTools
 
             row["blockingBuildings"] = blockers
                 .OrderByDescending(kv => kv.Value)
-                .Select(kv => (object)new Dictionary<string, object>
+                .Select(kv => (object)new Dictionary<string, object?>
                 {
                     { "defName", kv.Key.def != null ? kv.Key.def.defName : null },
                     { "label", SafeThingLabel(kv.Key) },
@@ -503,8 +506,8 @@ namespace HomeBridge.BridgeTools
 
         private sealed class ContentRow
         {
-            public string DefName;
-            public string Label;
+            public string? DefName;
+            public string? Label;
             public int Count;
             public int Stacks;
         }
@@ -534,7 +537,7 @@ namespace HomeBridge.BridgeTools
         /// fix. Counting over the union rather than either set alone means no
         /// plant standing in a disputed cell is missed by both.
         /// </summary>
-        private static void AddGrowingBlock(Dictionary<string, object> row, Map map,
+        private static void AddGrowingBlock(Dictionary<string, object?> row, Map map,
                                             Zone_Growing growing, List<IntVec3> listed,
                                             List<IntVec3> grid, bool includeContents,
                                             int maxPlantRows)
@@ -544,7 +547,7 @@ namespace HomeBridge.BridgeTools
             // reading it from a listing tool would set the colony's crop as a side
             // effect of looking. The private field is read instead and a zone that
             // has never been told what to grow reports null.
-            ThingDef plant = null;
+            ThingDef? plant = null;
             var explicitlySet = false;
             try
             {
@@ -678,7 +681,7 @@ namespace HomeBridge.BridgeTools
             var plantRows = plants.Values
                 .OrderByDescending(p => p.InEither)
                 .Take(maxPlantRows)
-                .Select(p => (object)new Dictionary<string, object>
+                .Select(p => (object)new Dictionary<string, object?>
                 {
                     { "defName", p.DefName },
                     { "label", p.Label },
@@ -695,8 +698,8 @@ namespace HomeBridge.BridgeTools
 
         private sealed class PlantRow
         {
-            public string DefName;
-            public string Label;
+            public string? DefName;
+            public string? Label;
             public bool IsSetCrop;
             public int InListed;
             public int InGrid;
@@ -743,7 +746,7 @@ namespace HomeBridge.BridgeTools
             return found >= new HashSet<IntVec3>(cells).Count;
         }
 
-        private static Dictionary<string, object> Bounds(List<IntVec3> cells)
+        private static Dictionary<string, object?>? Bounds(List<IntVec3> cells)
         {
             if (cells == null || cells.Count == 0)
                 return null;
@@ -755,7 +758,7 @@ namespace HomeBridge.BridgeTools
                 if (c.z < minZ) minZ = c.z;
                 if (c.z > maxZ) maxZ = c.z;
             }
-            return new Dictionary<string, object>
+            return new Dictionary<string, object?>
             {
                 { "minX", minX }, { "minZ", minZ },
                 { "maxX", maxX }, { "maxZ", maxZ },
@@ -763,9 +766,9 @@ namespace HomeBridge.BridgeTools
             };
         }
 
-        private static Dictionary<string, object> Notes()
+        private static Dictionary<string, object?> Notes()
         {
-            return new Dictionary<string, object>(StringComparer.Ordinal)
+            return new Dictionary<string, object?>(StringComparer.Ordinal)
             {
                 { "listedVsGrid", "listedCellCount is Zone.cells.Count (the zone's own list, which is also SlotGroup.CellsList for a stockpile, so hauling follows it). gridCellCount is how many map cells ZoneManager.ZoneAt() actually returns this zone for. They must be equal; when they are not, phantomCells and orphanGridCells name every cell involved and home/zone_cells op=repair fixes it." },
                 { "cellsPropertyShuffles", "Zone.Cells (capital C) shuffles the underlying list on first read. This tool reads the `cells` field, so calling it does not reorder anything." },
@@ -790,7 +793,7 @@ namespace HomeBridge.BridgeTools
             catch { return new List<IntVec3>(); }
         }
 
-        private static string SafeLabel(Zone zone)
+        private static string? SafeLabel(Zone zone)
         {
             try
             {
@@ -807,7 +810,7 @@ namespace HomeBridge.BridgeTools
             catch { return -1; }
         }
 
-        private static string SafeTypeName(Zone zone)
+        private static string? SafeTypeName(Zone zone)
         {
             try { return zone.GetType().Name; }
             catch { return null; }
@@ -819,15 +822,15 @@ namespace HomeBridge.BridgeTools
             catch { return false; }
         }
 
-        private static string SafePriority(Zone_Stockpile stockpile)
+        private static string? SafePriority(Zone_Stockpile stockpile)
         {
             try { return stockpile.settings == null ? null : stockpile.settings.Priority.ToString(); }
             catch { return null; }
         }
 
-        private static Dictionary<string, object> FilterSummary(Zone_Stockpile stockpile)
+        private static Dictionary<string, object?> FilterSummary(Zone_Stockpile stockpile)
         {
-            var summary = new Dictionary<string, object>(StringComparer.Ordinal)
+            var summary = new Dictionary<string, object?>(StringComparer.Ordinal)
             {
                 { "allowedDefCount", null },
                 { "allowedSample", new List<object>() },
@@ -905,7 +908,7 @@ namespace HomeBridge.BridgeTools
             catch { return null; }
         }
 
-        private static string SafeThingLabel(Thing thing)
+        private static string? SafeThingLabel(Thing thing)
         {
             try { return thing.LabelCapNoCount.ToString(); }
             catch
@@ -916,12 +919,12 @@ namespace HomeBridge.BridgeTools
         }
 
         /// <summary>See BridgeCommon.PositionOf: {x, z}, or null if the getter throws.</summary>
-        private static Dictionary<string, object> PositionOf(Thing thing)
+        private static Dictionary<string, object?>? PositionOf(Thing thing)
         {
             return BridgeCommon.PositionOf(thing);
         }
 
-        private static string SafeMapName(Map map)
+        private static string? SafeMapName(Map map)
         {
             try { return map.Parent == null ? null : map.Parent.Label; }
             catch { return null; }
@@ -929,7 +932,7 @@ namespace HomeBridge.BridgeTools
 
         /// <summary>The shared map gate; see BridgeCommon.TryGetMap. The error
         /// text names this tool.</summary>
-        private static bool TryGetMap(out Map map, out string error)
+        private static bool TryGetMap([NotNullWhen(true)] out Map? map, out string error)
         {
             return BridgeCommon.TryGetMap(ToolName, out map, out error);
         }

@@ -1,3 +1,5 @@
+#nullable enable
+
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -8,12 +10,12 @@ namespace HomeBridge.BridgeTools
 {
     internal static class ZoneSettingsContract
     {
-        internal static object Read(ThingFilter filter)
+        internal static object? Read(ThingFilter? filter)
         {
             if (filter == null) return null;
             try
             {
-                return new Dictionary<string, object>
+                return new Dictionary<string, object?>
                 {
                     { "version", 1 },
                     { "allowedDefs", filter.AllowedThingDefs.Select(d => d.defName).OrderBy(d => d, StringComparer.Ordinal).ToArray() },

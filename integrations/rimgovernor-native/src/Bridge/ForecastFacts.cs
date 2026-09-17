@@ -1,3 +1,5 @@
+#nullable enable
+
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -65,25 +67,25 @@ namespace HomeBridge.BridgeTools
         internal sealed class Snapshot {
             public bool readable { get; set; }
             public int tick { get; set; }
-            public List<string> animalIds { get; set; }
-            public FoodSupplyFacts.Snapshot combinedFoodSupply { get; set; }
-            public List<Crop> crops { get; set; }
-            public List<Patient> patients { get; set; }
-            public string[] assumptions { get; set; }
+            public List<string> animalIds { get; set; } = new List<string>();
+            public FoodSupplyFacts.Snapshot combinedFoodSupply { get; set; } = new FoodSupplyFacts.Snapshot();
+            public List<Crop> crops { get; set; } = new List<Crop>();
+            public List<Patient> patients { get; set; } = new List<Patient>();
+            public string[] assumptions { get; set; } = Array.Empty<string>();
         }
         internal sealed class Crop {
             public int id { get; set; }
-            public string crop { get; set; }
+            public string? crop { get; set; }
             public float? sowWork { get; set; }
             public float? harvestWork { get; set; }
             public int? maturePlants { get; set; }
             public int? stalledPlants { get; set; }
             public float? standingYield { get; set; }
-            public string product { get; set; }
-            public string reason { get; set; }
+            public string? product { get; set; }
+            public string? reason { get; set; }
         }
         internal sealed class Patient {
-            public string id { get; set; }
+            public string? id { get; set; }
             public float? bleedRatePerDay { get; set; }
             public float? hoursUntilDeathFromBloodLoss { get; set; }
             public float? mood { get; set; }

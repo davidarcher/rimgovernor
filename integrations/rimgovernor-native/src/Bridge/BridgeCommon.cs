@@ -1,4 +1,7 @@
+#nullable enable
+
 using System;
+using System.Diagnostics.CodeAnalysis;
 using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
@@ -47,14 +50,14 @@ namespace HomeBridge.BridgeTools
         internal sealed class ArgumentReport
         {
             internal List<string> Unknown = new List<string>();
-            internal string Unavailable;
+            internal string? Unavailable;
         }
 
         private static readonly object CacheGate = new object();
         private static readonly Dictionary<string, string[]> DeclaredByToolName =
             new Dictionary<string, string[]>(StringComparer.Ordinal);
 
-        private static PropertyInfo _journalProperty;
+        private static PropertyInfo? _journalProperty;
 
         /// <summary>
         /// The names a tool actually declares as [ToolParameter]s, found by
@@ -116,11 +119,11 @@ namespace HomeBridge.BridgeTools
         /// on an internal type) -> OperationJournal.GetOperation(id, false) ->
         /// OperationEnvelope.Metadata["arguments"].
         /// </summary>
-        internal static IDictionary<string, object> RawArguments(IRimBridgeContext ctx, out string unavailable)
+        internal static IDictionary<string, object?>? RawArguments(IRimBridgeContext ctx, out string? unavailable)
         {
             unavailable = null;
 
-            string operationId;
+            string? operationId;
             try
             {
                 operationId = ctx == null ? null : ctx.OperationId;
@@ -131,7 +134,7 @@ namespace HomeBridge.BridgeTools
                 return null;
             }
 
-            if (string.IsNullOrEmpty(operationId))
+            if (operationId == null || operationId.Length == 0)
             {
                 unavailable = "this invocation carries no operation id";
                 return null;
@@ -175,21 +178,21 @@ namespace HomeBridge.BridgeTools
                 var metadataProperty = envelope.GetType().GetProperty("Metadata", BindingFlags.Public | BindingFlags.Instance);
                 var metadata = metadataProperty == null
                     ? null
-                    : metadataProperty.GetValue(envelope, null) as IDictionary<string, object>;
+                    : metadataProperty.GetValue(envelope, null) as IDictionary<string, object?>;
                 if (metadata == null)
                 {
                     unavailable = "the journalled operation carried no metadata dictionary";
                     return null;
                 }
 
-                object raw;
+                object? raw;
                 if (!metadata.TryGetValue("arguments", out raw))
                 {
                     unavailable = "the journalled operation carried no arguments entry";
                     return null;
                 }
 
-                var arguments = raw as IDictionary<string, object>;
+                var arguments = raw as IDictionary<string, object?>;
                 if (arguments == null)
                 {
                     unavailable = "the journalled arguments were not a string-keyed dictionary";
@@ -205,7 +208,7 @@ namespace HomeBridge.BridgeTools
             }
         }
 
-        private static PropertyInfo JournalProperty()
+        private static PropertyInfo? JournalProperty()
         {
             lock (CacheGate)
             {
@@ -244,7 +247,7 @@ namespace HomeBridge.BridgeTools
         {
             var report = new ArgumentReport();
 
-            string unavailable;
+            string? unavailable;
             var arguments = RawArguments(ctx, out unavailable);
             if (arguments == null)
             {
@@ -276,9 +279,9 @@ namespace HomeBridge.BridgeTools
         /// case-sensitive in the binder, so "MaxRows" really is an unknown key
         /// and saying so is the point.
         /// </summary>
-        internal static object WithUnknownArguments(object reply, IRimBridgeContext ctx, Type toolClass, string toolName)
+        internal static object? WithUnknownArguments(object? reply, IRimBridgeContext ctx, Type toolClass, string toolName)
         {
-            Dictionary<string, object> payload;
+            Dictionary<string, object?>? payload;
             try
             {
                 payload = AsDictionary(reply);
@@ -329,19 +332,19 @@ namespace HomeBridge.BridgeTools
         /// which is exactly what RimBridgeServer.LegacyToolExecution does to it
         /// one layer up, so the JSON on the wire is unchanged.
         /// </summary>
-        internal static Dictionary<string, object> AsDictionary(object reply)
+        internal static Dictionary<string, object?>? AsDictionary(object? reply)
         {
             if (reply == null)
                 return null;
 
-            var already = reply as Dictionary<string, object>;
+            var already = reply as Dictionary<string, object?>;
             if (already != null)
                 return already;
 
-            var typed = reply as IDictionary<string, object>;
+            var typed = reply as IDictionary<string, object?>;
             if (typed != null)
             {
-                var copy = new Dictionary<string, object>(StringComparer.Ordinal);
+                var copy = new Dictionary<string, object?>(StringComparer.Ordinal);
                 foreach (var pair in typed)
                     copy[pair.Key] = pair.Value;
                 return copy;
@@ -355,7 +358,7 @@ namespace HomeBridge.BridgeTools
                 return null;
             }
 
-            var flattened = new Dictionary<string, object>(StringComparer.Ordinal);
+            var flattened = new Dictionary<string, object?>(StringComparer.Ordinal);
             foreach (var property in type.GetProperties(BindingFlags.Instance | BindingFlags.Public))
             {
                 if (!property.CanRead || property.GetIndexParameters().Length != 0)
@@ -374,9 +377,9 @@ namespace HomeBridge.BridgeTools
 
         /// <summary>The refusal shape every tool returns: success false, which
         /// tool refused, and why. Not an exception: a refusal is an answer.</summary>
-        internal static Dictionary<string, object> Failure(string toolName, string error)
+        internal static Dictionary<string, object?> Failure(string toolName, string? error)
         {
-            return new Dictionary<string, object>
+            return new Dictionary<string, object?>
             {
                 { "success", false },
                 { "tool", toolName },
@@ -385,26 +388,27 @@ namespace HomeBridge.BridgeTools
         }
 
         /// <summary>A cell as {x, z}. The only position shape any tool emits.</summary>
-        internal static Dictionary<string, object> Pos(IntVec3 cell)
+        internal static Dictionary<string, object?> Pos(IntVec3 cell)
         {
-            return new Dictionary<string, object> { { "x", cell.x }, { "z", cell.z } };
+            return new Dictionary<string, object?> { { "x", cell.x }, { "z", cell.z } };
         }
 
         /// <summary>A thing's cell as {x, z}, or null if the getter throws (an
         /// unspawned or despawning thing does).</summary>
-        internal static Dictionary<string, object> PositionOf(Thing thing)
+        internal static Dictionary<string, object?>? PositionOf(Thing? thing)
         {
+            if (thing == null) return null;
             try
             {
                 var p = thing.Position;
-                return new Dictionary<string, object> { { "x", p.x }, { "z", p.z } };
+                return new Dictionary<string, object?> { { "x", p.x }, { "z", p.z } };
             }
             catch { return null; }
         }
 
         /// <summary>The standard "is there a map to read" gate. The error text is
         /// the caller's, not an exception's, and names the tool that refused.</summary>
-        internal static bool TryGetMap(string toolName, out Map map, out string error)
+        internal static bool TryGetMap(string toolName, [NotNullWhen(true)] out Map? map, out string error)
         {
             map = null;
             error = string.Empty;
@@ -450,7 +454,7 @@ namespace HomeBridge.BridgeTools
         }
 
         /// <summary>A string read that becomes null rather than throwing.</summary>
-        internal static string SafeString(Func<string> read)
+        internal static string? SafeString(Func<string?> read)
         {
             try { return read(); }
             catch { return null; }
@@ -463,21 +467,21 @@ namespace HomeBridge.BridgeTools
         /// <summary>A private instance field, or null if the game renamed it.
         /// Callers report the null rather than emitting an empty result that
         /// would read as "nothing there".</summary>
-        internal static FieldInfo PrivateInstanceField(Type type, string name)
+        internal static FieldInfo? PrivateInstanceField(Type type, string name)
         {
             try { return type == null ? null : type.GetField(name, BindingFlags.NonPublic | BindingFlags.Instance); }
             catch { return null; }
         }
 
         /// <summary>A private static field, same contract.</summary>
-        internal static FieldInfo PrivateStaticField(Type type, string name)
+        internal static FieldInfo? PrivateStaticField(Type type, string name)
         {
             try { return type == null ? null : type.GetField(name, BindingFlags.NonPublic | BindingFlags.Static); }
             catch { return null; }
         }
 
         /// <summary>A private instance property, same contract.</summary>
-        internal static PropertyInfo PrivateInstanceProperty(Type type, string name)
+        internal static PropertyInfo? PrivateInstanceProperty(Type type, string name)
         {
             try { return type == null ? null : type.GetProperty(name, BindingFlags.NonPublic | BindingFlags.Instance); }
             catch { return null; }
@@ -489,17 +493,31 @@ namespace HomeBridge.BridgeTools
 
         /// <summary>A bool out of a payload dictionary; absent or another type
         /// reads as false.</summary>
-        internal static bool Bool(Dictionary<string, object> d, string key)
+        internal static bool Bool(Dictionary<string, object?> d, string key)
         {
-            object v;
+            object? v;
             return d != null && d.TryGetValue(key, out v) && v is bool && (bool)v;
+        }
+
+        /// <summary>A boxed int this companion wrote into the payload itself; a
+        /// missing or differently typed value is a programming error, not an
+        /// unobserved fact.</summary>
+        internal static int Int(IDictionary<string, object?> d, string key)
+        {
+            return d[key] is int value ? value : throw new InvalidOperationException(key + " is not a boxed int.");
+        }
+
+        /// <summary>The bool counterpart of Int.</summary>
+        internal static bool Flag(IDictionary<string, object?> d, string key)
+        {
+            return d[key] is bool value ? value : throw new InvalidOperationException(key + " is not a boxed bool.");
         }
 
         /// <summary>A double out of a payload dictionary; absent or another type
         /// reads as 0.</summary>
-        internal static double Num(Dictionary<string, object> d, string key)
+        internal static double Num(Dictionary<string, object?> d, string key)
         {
-            object v;
+            object? v;
             if (d != null && d.TryGetValue(key, out v) && v is double)
                 return (double)v;
             return 0.0;
@@ -526,7 +544,7 @@ namespace HomeBridge.BridgeTools
         /// A throwing read falls back to the full <paramref name="need"/> — the
         /// pessimistic answer, never a confident zero.
         /// </summary>
-        internal static int ConstructibleStillNeeded(RimWorld.IConstructible constructible, ThingDef def, int need)
+        internal static int ConstructibleStillNeeded(RimWorld.IConstructible? constructible, ThingDef def, int need)
         {
             var stillNeeded = need;
             try
@@ -566,13 +584,13 @@ namespace HomeBridge.BridgeTools
         /// A reinstall costs nothing anyway — it moves a minified thing that
         /// already exists — so skipping it loses no information.
         /// </summary>
-        internal static bool IsInstallBlueprint(object constructible)
+        internal static bool IsInstallBlueprint(object? constructible)
         {
             try { return constructible is RimWorld.Blueprint_Install; }
             catch { return false; }
         }
 
-        internal static Dictionary<ThingDef, int> OutstandingConstructionDeficit(Map map)
+        internal static Dictionary<ThingDef, int> OutstandingConstructionDeficit(Map? map)
         {
             var totals = new Dictionary<ThingDef, int>();
             if (map == null)
@@ -724,10 +742,10 @@ namespace HomeBridge.BridgeTools
             }
         }
 
-        private RoomWalk() { }
+        private RoomWalk() { Rooms = new List<Entry>(); Grid = new List<List<object?>>(); }
 
         internal List<Entry> Rooms { get; private set; }
-        internal List<List<object>> Grid { get; private set; }
+        internal List<List<object?>> Grid { get; private set; }
         internal int CellsWithNoRoom { get; private set; }
 
         /// <summary>Walk the rectangle row-major, bottom row (rect.z) first, the
@@ -737,7 +755,7 @@ namespace HomeBridge.BridgeTools
             var walk = new RoomWalk
             {
                 Rooms = new List<Entry>(),
-                Grid = new List<List<object>>(height < 0 ? 0 : height)
+                Grid = new List<List<object?>>(height < 0 ? 0 : height)
             };
 
             // Response-local index per distinct room, assigned in raster order so
@@ -746,7 +764,7 @@ namespace HomeBridge.BridgeTools
 
             for (var offsetZ = 0; offsetZ < height; offsetZ++)
             {
-                var row = new List<object>(width < 0 ? 0 : width);
+                var row = new List<object?>(width < 0 ? 0 : width);
                 for (var offsetX = 0; offsetX < width; offsetX++)
                 {
                     var cell = new IntVec3(x + offsetX, 0, z + offsetZ);
@@ -786,7 +804,7 @@ namespace HomeBridge.BridgeTools
         /// <summary>The room covering a cell, or null. GridsUtility.GetRoom takes
         /// (IntVec3, Map) in 1.6 — there is no RegionType overload — and forwards
         /// to RegionAndRoomQuery.RoomAt, so this is that call.</summary>
-        internal static Room RoomAt(Map map, IntVec3 cell)
+        internal static Room? RoomAt(Map map, IntVec3 cell)
         {
             try { return cell.GetRoom(map); }
             catch { return null; }

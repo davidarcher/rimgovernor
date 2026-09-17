@@ -1,3 +1,5 @@
+#nullable enable
+
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -31,14 +33,14 @@ namespace HomeBridge.BridgeTools
     {
         internal readonly bool Supported, Suspended, WindowVisible;
         internal readonly float RemainingSeconds;
-        internal readonly string UnavailableDetail;
-        internal RenderDemandStatus(bool supported, bool suspended, bool windowVisible, float remainingSeconds, string unavailableDetail)
+        internal readonly string? UnavailableDetail;
+        internal RenderDemandStatus(bool supported, bool suspended, bool windowVisible, float remainingSeconds, string? unavailableDetail)
         { Supported = supported; Suspended = suspended; WindowVisible = windowVisible; RemainingSeconds = remainingSeconds; UnavailableDetail = unavailableDetail; }
     }
 
     public sealed class RenderDemandDriver : MonoBehaviour
     {
-        static RenderDemandDriver instance;
+        static RenderDemandDriver? instance;
         static float until;
         public static bool Suspended;
 #if THROUGHPUT_FIXTURE
