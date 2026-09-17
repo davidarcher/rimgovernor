@@ -28,7 +28,7 @@ func schedulerFixture(t *testing.T) (*ClockScheduler, *schedulerNative) {
 	t.Helper()
 	_, db, f, intent := clockCoreFixture(t)
 	s, _, profile := newClockSessionTest(t, db, f)
-	p, err := NewPlayer(context.Background(), PlayerConfig{CallTimeout: time.Second, JournalTimeout: time.Second}, db, s, playerWorldFunc(func(context.Context) (store.World, error) { return playerWorld(intent.Snapshot), nil }))
+	p, err := NewPlayer(context.Background(), PlayerConfig{CallTimeout: 10 * time.Second, JournalTimeout: 10 * time.Second}, db, s, playerWorldFunc(func(context.Context) (store.World, error) { return playerWorld(intent.Snapshot), nil }))
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -40,6 +40,9 @@ type Player struct {
 	stopLifetime    func() bool
 	closing, closed bool
 	workerAttached  bool
+	// queued, when set, runs after a call has read its epoch and before it
+	// waits on the gate. Tests use it to order a queued call against Manual.
+	queued func()
 }
 
 func NewPlayer(ctx context.Context, config PlayerConfig, journal *store.Store, session *Session, worlds WorldSource) (*Player, error) {
@@ -93,6 +96,9 @@ func (p *Player) enter(ctx context.Context, manual bool) (context.Context, conte
 	call, cancel := context.WithTimeout(ctx, p.config.CallTimeout)
 	stop := context.AfterFunc(epoch, cancel)
 	cleanup := func() { stop(); cancel() }
+	if p.queued != nil {
+		p.queued()
+	}
 	select {
 	case p.gate <- struct{}{}:
 	case <-call.Done():

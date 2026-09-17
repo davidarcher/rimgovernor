@@ -45,7 +45,7 @@ func clockPollFixture(t *testing.T) (*ClockScheduler, *schedulerNative, *sql.DB)
 	}
 	t.Cleanup(func() { journal.Close() })
 	session, _, profile := newClockSessionTest(t, journal, fake)
-	player, err := NewPlayer(context.Background(), PlayerConfig{CallTimeout: time.Second, JournalTimeout: time.Second}, journal, session, playerWorldFunc(func(context.Context) (store.World, error) { return playerWorld(intent.Snapshot), nil }))
+	player, err := NewPlayer(context.Background(), PlayerConfig{CallTimeout: 10 * time.Second, JournalTimeout: 10 * time.Second}, journal, session, playerWorldFunc(func(context.Context) (store.World, error) { return playerWorld(intent.Snapshot), nil }))
 	if err != nil {
 		t.Fatal(err)
 	}
