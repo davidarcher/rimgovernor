@@ -192,10 +192,10 @@ func (w *Worker) step(ctx context.Context, now time.Time) error {
 		if scope.Enabled && scope.ObservationKnown && plan.Spec.ID() != scope.Snapshot.Plan {
 			target := scope.Snapshot
 			target.Plan, target.Revision = plan.Spec.ID(), plan.Spec.Revision()
-			if (planAuthorizer{w.player.journal, w.config.RoutineMethods}).AuthorizeRoutinePlan(call, scope.Snapshot, target) == nil {
+			if authErr := (planAuthorizer{w.player.journal, w.config.RoutineMethods}).AuthorizeRoutinePlan(call, scope.Snapshot, target); authErr == nil {
 				planScope.Snapshot = target
 			} else if clockSchedulerDebug {
-				clockSchedulerLog("worker: authorize plan=%s root=%+v err=%v", plan.Spec.ID(), scope.Snapshot, err)
+				clockSchedulerLog("worker: authorize plan=%s root=%+v err=%v", plan.Spec.ID(), scope.Snapshot, authErr)
 			}
 		}
 		for _, progress := range plan.Progress {

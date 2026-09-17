@@ -433,9 +433,11 @@ func serveBuildingWithBridge(ctx context.Context, config serveConfig, out io.Wri
 		billCapabilities = client.bills
 	}
 	var zoneCapabilities *zone.ZoneCapabilities
-	if config.routineFieldPlans || config.routineFoodStoragePlans {
+	// SecureSupplies' covered-storage fallback places a stockpile zone too
+	// (routine_secure_supplies.go), so its family needs the zone executor.
+	if config.routineFieldPlans || config.routineFoodStoragePlans || config.routineSecureSuppliesPlans {
 		if client.zones == nil {
-			return errors.New("field and food storage plans require typed capabilities")
+			return errors.New("field, food storage and secure-supplies plans require typed capabilities")
 		}
 		zoneCapabilities = client.zones
 	}

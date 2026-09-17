@@ -590,6 +590,18 @@ func PlanSignature(state store.PlanState) string {
 // The wait stalls (StallBudget) when the binding and its method count stop
 // changing.
 func WaitGoalMethod(ctx context.Context, s *store.Store, need policy.GoalID, previous *domain.GoalMethod) (domain.GoalID, domain.GoalMethod, error) {
+	var seen map[domain.PlanID]bool
+	if previous != nil {
+		seen = map[domain.PlanID]bool{previous.Plan: true}
+	}
+	return WaitGoalMethodExcluding(ctx, s, need, seen)
+}
+
+// WaitGoalMethodExcluding is WaitGoalMethod over a set of already-followed
+// plans: a goal whose history holds several settled methods (retired attempts
+// stay in LoadGoalMethods) would otherwise hand the same old plan back on
+// every call that names only the last one.
+func WaitGoalMethodExcluding(ctx context.Context, s *store.Store, need policy.GoalID, seen map[domain.PlanID]bool) (domain.GoalID, domain.GoalMethod, error) {
 	var foundGoal domain.GoalID
 	var found domain.GoalMethod
 	err := WaitProgress(ctx, Wait{Stall: StallBudget(), Interval: time.Second}, func(ctx context.Context) (string, bool, error) {
@@ -618,7 +630,7 @@ func WaitGoalMethod(ctx context.Context, s *store.Store, need policy.GoalID, pre
 			}
 		}
 		for _, method := range methods {
-			if previous == nil || method.Method != previous.Method || method.Plan != previous.Plan {
+			if !seen[method.Plan] {
 				foundGoal, found = goalID, method
 				return "", true, nil
 			}

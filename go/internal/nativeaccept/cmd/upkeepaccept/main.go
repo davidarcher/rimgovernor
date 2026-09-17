@@ -332,7 +332,11 @@ func run(ctx context.Context, root, output, gameID string, headless bool, binary
 	}
 	cfg := &na.Config{Root: root, Output: output, Headless: headless, GameID: gameID}
 	if reuse != nil {
-		cfg = reuse.Config
+		// The shared lifecycle's profile, but this case's own output: the
+		// service journal and profile must not leak into the next case.
+		shared := *reuse.Config
+		shared.Output = output
+		cfg = &shared
 	} else if err := cfg.PrepareConfig(); err != nil {
 		return fmt.Errorf("prepare profile: %w", err)
 	}
@@ -371,7 +375,10 @@ func run(ctx context.Context, root, output, gameID string, headless bool, binary
 	var reacquireSession func() (*na.Harness, error)
 	stopped := false
 	if reuse != nil {
-		reuseCase, err := reuse.BeginCase(ctx, sc.name, reuseSave, output)
+		// Assigned, not declared: the deferred EndCase reads the named
+		// return to decide whether the case failed.
+		var reuseCase *na.ReuseCase
+		reuseCase, err = reuse.BeginCase(ctx, sc.name, reuseSave, output)
 		if err != nil {
 			return err
 		}
@@ -759,7 +766,7 @@ func waitNeed(ctx context.Context, journal *store.Store, need policy.GoalID, sta
 // <label>_recovered_by=ordinary_work instead of <label>_completed_tick. Either
 // way the scenario's verify step confirms the postcondition natively.
 func followMethods(ctx context.Context, journal *store.Store, need policy.GoalID, label string, accept func(domain.Action) error, report na.Report) (store.PlanState, error) {
-	var previous *domain.GoalMethod
+	seen := map[domain.PlanID]bool{}
 	renewals, rejected := 0, 0
 	recovered := func() (bool, error) {
 		review, err := journal.LoadRoutineReview(ctx)
@@ -793,7 +800,7 @@ func followMethods(ctx context.Context, journal *store.Store, need policy.GoalID
 			}
 			methodCtx, methodCancel := context.WithTimeout(ctx, 15*time.Second)
 			var err error
-			goalID, method, err = na.WaitGoalMethod(methodCtx, journal, need, previous)
+			goalID, method, err = na.WaitGoalMethodExcluding(methodCtx, journal, need, seen)
 			methodCancel()
 			if err == nil {
 				break
@@ -808,7 +815,7 @@ func followMethods(ctx context.Context, journal *store.Store, need policy.GoalID
 				return store.PlanState{}, nil
 			}
 		}
-		previous = &method
+		seen[method.Plan] = true
 		plan, err := journal.LoadPlan(ctx, method.Plan)
 		if err != nil {
 			return store.PlanState{}, err
@@ -828,11 +835,19 @@ func followMethods(ctx context.Context, journal *store.Store, need policy.GoalID
 		report[label+"_goal_id"] = string(goalID)
 		report[label+"_method"] = string(method.Method)
 		report[label+"_plan"] = string(method.Plan)
-		doneCtx, doneCancel := context.WithTimeout(ctx, 10*time.Minute)
-		state, incidental, err := na.WaitPlanTerminal(doneCtx, journal, method.Plan)
-		doneCancel()
+		// The plan is followed to a terminal stage, but a need that recovers
+		// on its own while the plan is still undispatched ends the follow:
+		// a recovered routine goal never authorizes that write again
+		// (store.AuthorizeRoutinePlan), it merely keeps the plan for a
+		// returning deficit, so no terminal stage is coming.
+		state, incidental, undispatched, err := waitPlanOrRecovery(ctx, journal, method.Plan, recovered)
 		if err != nil {
 			return state, fmt.Errorf("%s plan %s: %w", label, method.Plan, err)
+		}
+		if undispatched {
+			report[label+"_recovered_by"] = "ordinary_work"
+			report[label+"_plan_undispatched"] = true
+			return state, nil
 		}
 		if incidental {
 			if done, rerr := recovered(); rerr != nil {
@@ -852,6 +867,53 @@ func followMethods(ctx context.Context, journal *store.Store, need policy.GoalID
 		report[label+"_completed_tick"] = int64(state.Progress[0].View().Tick)
 		report[label+"_recovered_by"] = "controller_order"
 		return state, nil
+	}
+}
+
+// waitPlanOrRecovery waits up to ten minutes for plan to reach a terminal
+// stage (na.WaitPlanTerminal), returning undispatched=true instead when the
+// goal recovers while every action of the plan is still at attempt 0.
+func waitPlanOrRecovery(ctx context.Context, journal *store.Store, planID domain.PlanID, recovered func() (bool, error)) (state store.PlanState, incidental, undispatched bool, err error) {
+	doneCtx, doneCancel := context.WithTimeout(ctx, 10*time.Minute)
+	defer doneCancel()
+	type outcome struct {
+		state      store.PlanState
+		incidental bool
+		err        error
+	}
+	done := make(chan outcome, 1)
+	go func() {
+		s, i, e := na.WaitPlanTerminal(doneCtx, journal, planID)
+		done <- outcome{s, i, e}
+	}()
+	ticker := time.NewTicker(5 * time.Second)
+	defer ticker.Stop()
+	for {
+		select {
+		case o := <-done:
+			return o.state, o.incidental, false, o.err
+		case <-ticker.C:
+			ok, rerr := recovered()
+			if rerr != nil || !ok {
+				continue
+			}
+			current, lerr := journal.LoadPlan(ctx, planID)
+			if lerr != nil {
+				continue
+			}
+			pending := len(current.Progress) > 0
+			for _, progress := range current.Progress {
+				v := progress.View()
+				if v.Attempt != 0 || v.Stage != domain.Pending && v.Stage != domain.Prepared {
+					pending = false
+				}
+			}
+			if pending {
+				doneCancel()
+				<-done
+				return current, false, true, nil
+			}
+		}
 	}
 }
 
@@ -975,16 +1037,16 @@ func watchStorageMissing(ctx context.Context, journal *store.Store, prepared map
 	}
 	// Ordinary hauls are refused natively (no storage accepts the medicine)
 	// until the covered-storage fallback proposes a filtered stockpile.
-	var previous *domain.GoalMethod
+	seen := map[domain.PlanID]bool{}
 	refused := 0
 	for {
 		methodCtx, methodCancel := context.WithTimeout(ctx, 12*time.Minute)
-		_, method, err := na.WaitGoalMethod(methodCtx, journal, policy.SecureSupplies, previous)
+		_, method, err := na.WaitGoalMethodExcluding(methodCtx, journal, policy.SecureSupplies, seen)
 		methodCancel()
 		if err != nil {
 			return fmt.Errorf("secure-supplies method: %w", err)
 		}
-		previous = &method
+		seen[method.Plan] = true
 		plan, err := journal.LoadPlan(ctx, method.Plan)
 		if err != nil {
 			return err
