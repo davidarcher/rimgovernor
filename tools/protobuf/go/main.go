@@ -83,7 +83,7 @@ func run(output, cross string, checkEcho bool) error {
 	if cross != "" {
 		// Independently produced C# fixtures are preserved. Go echoes receive separate
 		// names and are never substituted for the originating C# coverage.
-		origin := map[string]proto.Message{"request": &p.PlacementRequest{}, "reply": &p.PlacementReply{}, "u64": &wrapperspb.UInt64Value{}, "context": &c.ObservationContext{}, "authority-inactive": &a.Status{}, "authority-active": &a.Status{}, "authority-acquire": &a.ControlRequest{}}
+		origin := map[string]proto.Message{"request": &p.PlacementRequest{}, "reply": &p.PlacementReply{}, "u64": &wrapperspb.UInt64Value{}, "context": &c.ObservationContext{}, "authority-inactive": &a.Status{}, "authority-active": &a.Status{}, "authority-set-mode": &a.ControlRequest{}}
 		for name, model := range origin {
 			message, err := decodePair(cross, "csharp-"+name, model)
 			if err != nil {

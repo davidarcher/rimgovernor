@@ -10,6 +10,10 @@ using Verse;
 using Common = RimGovernor.Protocol.Common;
 using Wire = RimGovernor.Protocol.Authority;
 
+// Drives the production authority_control adapter end to end (parser, identity,
+// hook initialization, state). Control is SetMode(Auto|Manual) or Revoke under
+// an exact generation (#52): Auto grants outright, Manual/Revoke revoke, and
+// every accepted operation advances the generation by exactly one.
 internal static class NativeAuthorityControlProbe
 {
     private static int checks;
@@ -28,7 +32,8 @@ internal static class NativeAuthorityControlProbe
     private static Wire.ControlReply Decode(object value)
     {
         var envelope = (Dictionary<string, object>)value;
-        Check(envelope.Count == 1 && envelope["payload"] is string, "payload envelope");
+        // payload plus, from a main-thread hop, the companion's timing split (#81); nothing else.
+        Check(envelope["payload"] is string && envelope.Count == (envelope.ContainsKey(ProtoBoundary.TimingField) ? 2 : 1), "payload envelope");
         var reply = Wire.ControlReply.Parser.ParseJson((string)envelope["payload"]);
         Check(reply.Equals(Wire.ControlReply.Parser.ParseFrom(reply.ToByteArray())), "binary preserves reply");
         return reply;
@@ -41,15 +46,13 @@ internal static class NativeAuthorityControlProbe
         Check(ctx.Invocations == 1, "valid JSON must dispatch once");
         return reply;
     }
-    private static Wire.ControlRequest Acquire(ulong? generation = null) => new() { Acquire = new Wire.Acquire
+    private static Wire.ControlRequest SetMode(Wire.Mode mode, ulong? generation = null) => new() { SetMode = new Wire.SetMode
     {
-        Identity = Identity.Clone(), ExpectedGeneration = generation ?? state.Status().Generation,
-        Owner = new Wire.Owner { ControllerSessionId = "controller/α", PlayerDirection = ulong.MaxValue }, LeaseMs = 1000
+        Identity = Identity.Clone(), ExpectedGeneration = generation ?? state.Status().Generation, Mode = mode
     } };
-    private static Wire.ControlRequest Renew(Wire.Granted grant) => new() { Renew = new Wire.Renew
+    private static Wire.ControlRequest Revoke(Wire.RevocationReason reason, ulong? generation = null) => new() { Revoke = new Wire.Revoke
     {
-        Identity = Identity.Clone(), ExpectedGeneration = grant.Context.NativeGeneration,
-        ControllerSessionId = "controller/α", LeaseId = grant.LeaseId, LeaseMs = 30000
+        Identity = Identity.Clone(), ExpectedGeneration = generation ?? state.Status().Generation, Reason = reason
     } };
     private static void Failure(Wire.ControlReply reply, Common.FailureCode code)
     { Check(reply.OutcomeCase == Wire.ControlReply.OutcomeOneofCase.Failure && reply.Failure.Code == code, "expected " + code + ": " + reply); }
@@ -68,7 +71,8 @@ internal static class NativeAuthorityControlProbe
         Failure(Decode(endpoint.Control(ctx, CancellationToken.None).GetAwaiter().GetResult()), Common.FailureCode.InvalidRequest);
         ctx.Arguments!["request"] = 5;
         Failure(Decode(endpoint.Control(ctx, CancellationToken.None, 5).GetAwaiter().GetResult()), Common.FailureCode.InvalidRequest);
-        foreach (var json in new[] { "null", "{", "{\"unknown\":true}", "{\"acquire\":{\"expectedGeneration\":\"-1\"}}" })
+        foreach (var json in new[] { "null", "{", "{\"unknown\":true}", "{\"setMode\":{\"expectedGeneration\":\"-1\"}}",
+            "{\"acquire\":{\"expectedGeneration\":\"1\"}}", "{\"renew\":{\"expectedGeneration\":\"1\"}}" })
         {
             ctx.Arguments["request"] = json;
             Failure(Decode(endpoint.Control(ctx, CancellationToken.None, json).GetAwaiter().GetResult()), Common.FailureCode.InvalidRequest);
@@ -83,88 +87,90 @@ internal static class NativeAuthorityControlProbe
     private static void InvalidFields()
     {
         Reset(); var generation = state.Status().Generation;
-        foreach (Action<Wire.Acquire> mutate in new Action<Wire.Acquire>[] {
-            a => a.ClearExpectedGeneration(), a => a.ExpectedGeneration = 0,
-            a => a.Owner = null, a => a.Owner.ClearControllerSessionId(), a => a.Owner.ControllerSessionId = "",
-            a => a.Owner.ControllerSessionId = " ", a => a.Owner.ControllerSessionId = "bad\0id",
-            a => a.Owner.ControllerSessionId = new string('é', 129),
-            a => a.Owner.ClearPlayerDirection(), a => a.Owner.PlayerDirection = 0,
-            a => a.ClearLeaseMs(), a => a.LeaseMs = 999, a => a.LeaseMs = 30001, a => a.LeaseMs = uint.MaxValue,
-            a => a.Identity = null, a => a.Identity.ClearMapId() })
+        foreach (Action<Wire.SetMode> mutate in new Action<Wire.SetMode>[] {
+            s => s.ClearExpectedGeneration(), s => s.ExpectedGeneration = 0,
+            s => s.ClearMode(), s => s.Mode = Wire.Mode.Unspecified, s => s.Mode = (Wire.Mode)999,
+            s => s.Identity = null, s => s.Identity.ClearMapId() })
         {
-            var request = Acquire(); mutate(request.Acquire); Failure(Call(request), Common.FailureCode.InvalidRequest);
-            Check(state.Status().Generation == generation && !state.Status().Active, "invalid acquire mutated state");
+            var request = SetMode(Wire.Mode.Auto); mutate(request.SetMode); Failure(Call(request), Common.FailureCode.InvalidRequest);
+            Check(state.Status().Generation == generation && !state.Status().Active, "invalid set_mode mutated state");
         }
-        var stale = Acquire(); stale.Acquire.Identity.LoadToken = "old";
+        var stale = SetMode(Wire.Mode.Auto); stale.SetMode.Identity.LoadToken = "old";
         Failure(Call(stale), Common.FailureCode.StaleIdentity);
-        Failure(Call(Acquire(generation + 1)), Common.FailureCode.StaleGeneration);
+        Failure(Call(SetMode(Wire.Mode.Auto, generation + 1)), Common.FailureCode.StaleGeneration);
+        Check(state.Status().Generation == generation && !state.Status().Active, "refused set_mode mutated state");
     }
     private static void EagerInitialization()
     {
         Current.Game = new Game(); Find.CurrentMap = new Map(); Find.TickManager = new TickManager();
         NativeAuthorityHooks.Ready = true;
         var initializations = NativeAuthorityHooks.Initializations;
-        var request = Acquire(1);
-        request.Acquire.Identity.LoadToken = "stale";
+        var request = SetMode(Wire.Mode.Auto, 1);
+        request.SetMode.Identity.LoadToken = "stale";
         Failure(Call(request), Common.FailureCode.StaleIdentity);
-        Check(NativeAuthorityHooks.Initializations == initializations && !NativeControlAuthority.TryGetForGame(Current.Game, out _), "stale acquire initialized hooks");
-        request.Acquire.Identity = Identity.Clone();
+        Check(NativeAuthorityHooks.Initializations == initializations && !NativeControlAuthority.TryGetForGame(Current.Game, out _), "stale set_mode initialized hooks");
+        request.SetMode.Identity = Identity.Clone();
+        // Manual before any Auto must not initialize hooks or allocate state: it has nothing to revoke.
+        Failure(Call(SetMode(Wire.Mode.Manual, 1)), Common.FailureCode.Unavailable);
+        Failure(Call(Revoke(Wire.RevocationReason.Manual, 1)), Common.FailureCode.Unavailable);
+        Check(NativeAuthorityHooks.Initializations == initializations && !NativeControlAuthority.TryGetForGame(Current.Game, out _), "Manual/Revoke initialized hooks");
         var reply = Call(request);
-        Check(reply.Granted != null && NativeAuthorityHooks.Initializations == initializations + 1, "validated acquire did not eagerly initialize hooks");
-        Check(NativeControlAuthority.TryGetForGame(Current.Game, out var existing) && existing!.Status().Active, "eager acquire missing registered authority");
+        Check(reply.Granted != null && NativeAuthorityHooks.Initializations == initializations + 1, "validated Auto did not eagerly initialize hooks");
+        Check(NativeControlAuthority.TryGetForGame(Current.Game, out var existing) && existing!.Status().Active, "eager Auto missing registered authority");
         Current.Game = new Game(); NativeAuthorityHooks.Ready = false;
         Failure(Call(request), Common.FailureCode.Unavailable);
-        Check(NativeControlAuthority.TryGetForGame(Current.Game, out existing) && !existing!.Status().Active && !existing.Status().Available, "unverified eager acquire granted authority");
+        Check(NativeControlAuthority.TryGetForGame(Current.Game, out existing) && !existing!.Status().Active && !existing.Status().Available, "unverified eager Auto granted authority");
     }
     private static void GrantsAndRevocations()
     {
-        Reset(); var before = state.Status().Generation; var granted = Call(Acquire());
-        Check(granted.Granted != null && granted.Granted.Context.NativeGeneration == before + 1, "acquire exact increment");
+        Reset(); var before = state.Status().Generation; var granted = Call(SetMode(Wire.Mode.Auto));
+        Check(granted.Granted != null && granted.Granted.Context.NativeGeneration == before + 1, "Auto exact increment");
         var grant = granted.Granted!;
-        Check(grant.Authority.Owner.PlayerDirection == ulong.MaxValue && grant.Authority.Owner.ControllerSessionId == "controller/α"
-            && grant.LeaseId.Length > 0 && grant.Authority.RemainingLeaseMs == 1000, "grant retained owner/lease/direction/duration");
-        Failure(Call(Acquire()), Common.FailureCode.OwnerConflict);
-        var renewed = Call(Renew(grant));
-        Check(renewed.Granted.Context.NativeGeneration == grant.Context.NativeGeneration && renewed.Granted.LeaseId == grant.LeaseId
-            && renewed.Granted.Authority.RemainingLeaseMs == 30000, "renew changed generation or lease");
-        var generationBeforeInvalid = state.Status().Generation;
-        foreach (Action<Wire.Renew> mutate in new Action<Wire.Renew>[] {
-            r => r.ClearExpectedGeneration(), r => r.ExpectedGeneration = 0,
-            r => r.ClearControllerSessionId(), r => r.ControllerSessionId = " ",
-            r => r.ClearLeaseId(), r => r.LeaseId = "", r => r.LeaseId = "bad\0id",
-            r => r.ClearLeaseMs(), r => r.LeaseMs = 0, r => r.LeaseMs = 30001,
-            r => r.Identity = null })
+        Check(grant.Authority.HasMode && grant.Authority.Mode == Wire.Mode.Auto, "grant reports Auto mode");
+        Check(state.Status().Active && state.Status().Generation == before + 1, "grant did not activate state");
+        // Repeating Auto is not a conflict: the single bot re-advances its own generation.
+        var again = Call(SetMode(Wire.Mode.Auto));
+        Check(again.Granted != null && again.Granted.Context.NativeGeneration == before + 2, "repeated Auto must advance");
+        Failure(Call(SetMode(Wire.Mode.Auto, before + 1)), Common.FailureCode.StaleGeneration);
+        Check(state.Status().Active && state.Status().Generation == before + 2, "stale Auto mutated authority");
+        time = 1000;
+        Check(state.Status().Active && state.Status().Generation == before + 2, "time alone revoked: there is no lease");
+        var manual = Call(SetMode(Wire.Mode.Manual));
+        Check(manual.Revoked != null && manual.Revoked.Context.NativeGeneration == before + 3
+            && manual.Revoked.Authority.Reason == Wire.RevocationReason.Manual, "Manual mode exact generation/reason");
+        Check(!state.Status().Active, "Manual mode left authority active");
+        var manualAgain = Call(SetMode(Wire.Mode.Manual));
+        Check(manualAgain.Revoked != null && manualAgain.Revoked.Context.NativeGeneration == before + 4, "repeated Manual must still advance");
+        foreach (var reason in new[] { Wire.RevocationReason.Manual, Wire.RevocationReason.Disconnect, Wire.RevocationReason.Shutdown })
         {
-            var invalid = Renew(grant); mutate(invalid.Renew);
-            Failure(Call(invalid), Common.FailureCode.InvalidRequest);
-            Check(state.Status().Active && state.Status().Generation == generationBeforeInvalid, "invalid renewal mutated authority");
-        }
-        var wrong = Renew(grant); wrong.Renew.ControllerSessionId = "other"; Failure(Call(wrong), Common.FailureCode.OwnerConflict);
-        wrong = Renew(grant); wrong.Renew.LeaseId = "wrong"; Failure(Call(wrong), Common.FailureCode.AuthorityRequired);
-        wrong = Renew(grant); wrong.Renew.ExpectedGeneration++; Failure(Call(wrong), Common.FailureCode.StaleGeneration);
-        foreach (var reason in new[] { Wire.RevocationReason.Manual, Wire.RevocationReason.PlayerDirection, Wire.RevocationReason.Disconnect, Wire.RevocationReason.Shutdown })
-        {
-            if (!state.Status().Active) grant = Call(Acquire()).Granted;
+            if (!state.Status().Active) Check(Call(SetMode(Wire.Mode.Auto)).Granted != null, "re-grant before revoke");
             var generation = state.Status().Generation;
-            var reply = Call(new Wire.ControlRequest { Revoke = new Wire.Revoke { Identity = Identity.Clone(), ExpectedGeneration = generation, Reason = reason } });
+            var reply = Call(Revoke(reason));
             Check(reply.Revoked != null && reply.Revoked.Context.NativeGeneration == generation + 1 && reply.Revoked.Authority.Reason == reason, "revoke exact generation/reason");
-            Failure(Call(Renew(grant)), Common.FailureCode.StaleGeneration);
-            Check(!state.Status().Active, "renew reacquired after revoke");
+            Failure(Call(SetMode(Wire.Mode.Auto, generation)), Common.FailureCode.StaleGeneration);
+            Check(!state.Status().Active, "stale Auto reacquired after revoke");
         }
-        foreach (var reason in new[] { Wire.RevocationReason.Unspecified, Wire.RevocationReason.LeaseExpired, (Wire.RevocationReason)999 })
-            Failure(Call(new Wire.ControlRequest { Revoke = new Wire.Revoke { Identity = Identity.Clone(), ExpectedGeneration = state.Status().Generation, Reason = reason } }), Common.FailureCode.InvalidRequest);
+        // Wire reasons the host may not assert itself: player detection, identity, hooks, exhaustion, terminal unavailability.
+        foreach (var reason in new[] { Wire.RevocationReason.Unspecified, Wire.RevocationReason.None, Wire.RevocationReason.PlayerControl,
+            Wire.RevocationReason.ExternalOrder, Wire.RevocationReason.IdentityChanged, Wire.RevocationReason.HooksUnavailable,
+            Wire.RevocationReason.GenerationExhausted, Wire.RevocationReason.Unavailable, (Wire.RevocationReason)999 })
+            Failure(Call(Revoke(reason)), Common.FailureCode.InvalidRequest);
         foreach (Action<Wire.Revoke> mutate in new Action<Wire.Revoke>[] {
             r => r.ClearExpectedGeneration(), r => r.ExpectedGeneration = 0, r => r.ClearReason(), r => r.Identity = null })
         {
-            var invalid = new Wire.Revoke { Identity = Identity.Clone(), ExpectedGeneration = state.Status().Generation, Reason = Wire.RevocationReason.Manual };
-            mutate(invalid); Failure(Call(new Wire.ControlRequest { Revoke = invalid }), Common.FailureCode.InvalidRequest);
+            var invalid = Revoke(Wire.RevocationReason.Manual); mutate(invalid.Revoke);
+            Failure(Call(invalid), Common.FailureCode.InvalidRequest);
         }
-        Reset(); grant = Call(Acquire()).Granted; time = 1000;
-        Failure(Call(Renew(grant)), Common.FailureCode.StaleGeneration);
-        Check(!state.Status().Active && state.Status().Reason == NativeControlRevocationReason.LeaseExpired, "expired renew restored authority");
+        Failure(Call(Revoke(Wire.RevocationReason.Manual, state.Status().Generation + 1)), Common.FailureCode.StaleGeneration);
+        Reset(); Check(Call(SetMode(Wire.Mode.Auto)).Granted != null, "grant");
         NativeAuthorityHooks.Ready = false; state.SetHookHealth(false);
-        Failure(Call(Acquire()), Common.FailureCode.Unavailable);
+        Check(!state.Status().Active && state.Status().Reason == NativeControlRevocationReason.HooksUnavailable, "hook loss did not revoke");
+        Failure(Call(SetMode(Wire.Mode.Auto)), Common.FailureCode.Unavailable);
         Check(!state.Status().Active, "unverified hooks granted");
+        Reset(); Check(Call(SetMode(Wire.Mode.Auto)).Granted != null, "grant");
+        time = -1;
+        Failure(Call(SetMode(Wire.Mode.Auto)), Common.FailureCode.Unavailable);
+        Check(!state.Status().Active && !state.Status().Available, "clock fault granted");
     }
     internal static void Invoke()
     {

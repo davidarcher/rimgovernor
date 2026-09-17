@@ -45,7 +45,9 @@ internal static class NativeAuthorityStatusProbe
     private static Wire.StatusReply Decode(object envelope)
     {
         var fields = (Dictionary<string, object>)envelope;
-        Check(fields.Count == 1 && fields["payload"] is string, "Exact typed payload envelope");
+        // The envelope carries the payload plus, from a main-thread hop, the
+        // companion's own timing split (#81); nothing else.
+        Check(fields["payload"] is string && fields.Count == (fields.ContainsKey(ProtoBoundary.TimingField) ? 2 : 1), "Exact typed payload envelope");
         return Wire.StatusReply.Parser.ParseJson((string)fields["payload"]);
     }
     private static void EndpointAdmission()
@@ -100,31 +102,36 @@ internal static class NativeAuthorityStatusProbe
         Check(initial.Unavailable.Reason == Common.UnavailableReason.NotObserved, "Unverified hooks reason");
         Check(!state.Status().Active && !state.Status().Available, "Status mapping enabled authority");
         state.SetHookHealth(true);
-        var acquired = state.Acquire(state.Status().Generation, "controller/α", ulong.MaxValue, 1000);
-        Check(acquired.Success, "State fixture grant");
-        var active = Project(acquired.Snapshot);
+        var granted = state.SetMode(state.Status().Generation, NativeControlMode.Auto);
+        Check(granted.Success, "State fixture grant");
+        var active = Project(granted.Snapshot);
         Check(active.StateCase == Wire.Status.StateOneofCase.Active, "Active branch");
-        Check(active.Active.Owner.PlayerDirection == ulong.MaxValue && active.Active.Owner.ControllerSessionId == "controller/α", "Exact owner/direction");
-        Check(active.Active.RemainingLeaseMs == 1000, "Exact lease remaining");
-        Check(!JsonFormatter.Default.Format(active).Contains(acquired.Snapshot.Lease!.LeaseId), "Read status disclosed lease secret");
+        Check(active.Active.HasMode && active.Active.Mode == Wire.Mode.Auto, "Active authority is the bot's Auto mode");
+        Check(active.Context.NativeGeneration == 2, "Active projection carries the granted generation");
         time = 1000;
-        var expired = Project(state.Status());
-        Check(expired.StateCase == Wire.Status.StateOneofCase.Inactive && expired.Inactive.Reason == Wire.RevocationReason.LeaseExpired,
-            "Exact deadline maps inactive expiry");
+        var still = Project(state.Status());
+        Check(still.StateCase == Wire.Status.StateOneofCase.Active && still.Context.NativeGeneration == 2, "Time alone must not expire Auto mode");
+        var manual = state.SetMode(2, NativeControlMode.Manual);
+        var inactive = Project(manual.Snapshot);
+        Check(inactive.StateCase == Wire.Status.StateOneofCase.Inactive && inactive.Inactive.Reason == Wire.RevocationReason.Manual
+            && inactive.Context.NativeGeneration == 3, "Manual mode maps to inactive with its generation");
         foreach (NativeControlRevocationReason reason in Enum.GetValues(typeof(NativeControlRevocationReason)))
         {
             if (reason == NativeControlRevocationReason.ClockUnavailable) continue;
-            var wire = Project(new NativeControlSnapshot(identity, ulong.MaxValue, true, null, 0, reason));
+            var wire = Project(new NativeControlSnapshot(identity, ulong.MaxValue, true, false, reason));
             Check(wire.StateCase == Wire.Status.StateOneofCase.Inactive, "Known reason inactive: " + reason);
             Check(wire.Inactive.Reason.ToString() == reason.ToString(), "Explicit semantic reason mapping: " + reason);
         }
-        var missing = Project(new NativeControlSnapshot(null, 5, false, null, 0, NativeControlRevocationReason.IdentityChanged));
+        var missing = Project(new NativeControlSnapshot(null, 5, false, false, NativeControlRevocationReason.IdentityChanged));
         Check(missing.Unavailable.Reason == Common.UnavailableReason.NotLoaded, "Missing identity unavailable");
-        var clock = Project(new NativeControlSnapshot(identity, 6, false, null, 0, NativeControlRevocationReason.ClockUnavailable));
+        var clock = Project(new NativeControlSnapshot(identity, 6, false, false, NativeControlRevocationReason.ClockUnavailable));
         Check(clock.Unavailable.Reason == Common.UnavailableReason.ReadFailed, "Clock failure is unavailable, not invented wire enum");
-        var exhausted = Project(new NativeControlSnapshot(identity, ulong.MaxValue, false, null, 0, NativeControlRevocationReason.GenerationExhausted));
+        var clockReason = Project(new NativeControlSnapshot(identity, 6, true, false, NativeControlRevocationReason.ClockUnavailable));
+        Check(clockReason.StateCase == Wire.Status.StateOneofCase.Inactive && clockReason.Inactive.Reason == Wire.RevocationReason.Unavailable,
+            "Clock revocation maps to the wire's terminal Unavailable reason");
+        var exhausted = Project(new NativeControlSnapshot(identity, ulong.MaxValue, false, false, NativeControlRevocationReason.GenerationExhausted));
         Check(exhausted.Unavailable.Reason == Common.UnavailableReason.LimitExceeded, "Generation exhaustion unavailable");
-        var unknown = Project(new NativeControlSnapshot(identity, 7, true, null, 0, (NativeControlRevocationReason)999));
+        var unknown = Project(new NativeControlSnapshot(identity, 7, true, false, (NativeControlRevocationReason)999));
         Check(unknown.StateCase == Wire.Status.StateOneofCase.Unavailable, "Unknown internal enum leaked onto wire");
         EndpointAdmission();
         Console.WriteLine("Native authority status passed " + checks + " projection and endpoint-boundary assertions; SDK transport/native gameplay remain separate.");

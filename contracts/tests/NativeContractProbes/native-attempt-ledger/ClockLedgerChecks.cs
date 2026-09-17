@@ -23,9 +23,8 @@ internal static class ClockLedgerChecks
     { bool threw = false; try { action(); } catch (ArgumentException) { threw = true; } catch (InvalidOperationException) { threw = true; } Check(threw, detail); }
     private static Common.Identity Identity() => new Common.Identity { ColonyId = "colony", LoadToken = "load", MapId = 0 };
     private static Common.ObservationContext Context() => new Common.ObservationContext { Identity = Identity(), Tick = 10, NativeGeneration = 3 };
-    private static Authority.Owner Owner() => new Authority.Owner { ControllerSessionId = "controller", PlayerDirection = 4 };
     private static Authority.WritePrecondition Pre(ulong id = 1) => new Authority.WritePrecondition
-        { Identity = Identity(), ExpectedGeneration = 3, LeaseId = "lease", Attempt = new Common.AttemptKey { ControllerSessionId = "controller", ActionId = "action", AttemptId = id } };
+        { Identity = Identity(), ExpectedGeneration = 3, Attempt = new Common.AttemptKey { ControllerSessionId = "controller", ActionId = "action", AttemptId = id } };
     private static Clock.StartRequest Request(ulong id = 1) => new Clock.StartRequest
         { Authority = Pre(id), Speed = Clock.Speed.Normal, LeaseMs = 1000, MaxTicks = 100, Policy = new Clock.WatchPolicy { Mode = Clock.WatchMode.Colony, HealthDropFraction = 0 } };
     private static Clock.Status Status() => new Clock.Status { Context = Context(), NeverStarted = new Clock.NeverStarted(), ActualPaused = true };
@@ -37,17 +36,18 @@ internal static class ClockLedgerChecks
         var request = Request();
         var fresh = ledger.InspectClock(Start, request);
         Check(fresh.Kind == Kind.New && fresh.Reply == null && fresh.Handle == null && ledger.Count == 0, "clock inspection never admits");
-        var badOwner = Owner(); badOwner.ControllerSessionId = "different";
-        Check(ledger.AdmitClock(Start, request, Context(), badOwner).Kind == Kind.Refused && ledger.Count == 0, "clock owner guard consumes no capacity");
+        // Owner guard removed by #52: the admission context identity is the remaining guard.
+        var badIdentity = Context(); badIdentity.Identity.LoadToken = "different";
+        Check(ledger.AdmitClock(Start, request, badIdentity).Kind == Kind.Refused && ledger.Count == 0, "clock identity guard consumes no capacity");
         var badContext = Context(); badContext.NativeGeneration++;
-        Check(ledger.AdmitClock(Start, request, badContext, Owner()).Kind == Kind.Refused && ledger.Count == 0, "clock admission requires exact generation");
-        var original = request.Clone(); var admissionContext = Context(); var owner = Owner();
-        var admission = ledger.AdmitClock(Start, request, admissionContext, owner);
+        Check(ledger.AdmitClock(Start, request, badContext).Kind == Kind.Refused && ledger.Count == 0, "clock admission requires exact generation");
+        var original = request.Clone(); var admissionContext = Context();
+        var admission = ledger.AdmitClock(Start, request, admissionContext);
         Check(admission.Kind == Kind.Admitted && admission.Handle != null && admission.Reply == null && ledger.Count == 1, "clock reservation shares real ledger");
-        request.MaxTicks = 999; admissionContext.Tick = 900; owner.PlayerDirection = 20;
+        request.MaxTicks = 999; admissionContext.Tick = 900;
         var pending = ledger.InspectClock(Start, original);
         Check(pending.Kind == Kind.InFlight && pending.Reply!.Receipt.Uncertain != null && pending.Reply.Receipt.AdmittedContext.Tick == 10, "clock request and context are detached");
-        Check(ledger.AdmitClock(Start, original, Context(), Owner()).Kind == Kind.InFlight && ledger.Count == 1, "reentrant clock admission does not reserve twice");
+        Check(ledger.AdmitClock(Start, original, Context()).Kind == Kind.InFlight && ledger.Count == 1, "reentrant clock admission does not reserve twice");
         Check(ledger.LookupClock(original.Authority.Attempt, Context()).Receipt.Uncertain != null, "in-flight clock lookup remains correlated uncertainty");
         Check(ledger.Lookup(original.Authority.Attempt, Context()).Failure.Code == Common.FailureCode.AttemptConflict, "operation lookup cannot mistake clock attempt for missing work");
         Check(ledger.Inspect(Execute, Operation()).Reply!.Failure.Code == Common.FailureCode.AttemptConflict, "operation and clock share attempt key namespace");
@@ -59,17 +59,17 @@ internal static class ClockLedgerChecks
         Throws(() => ledger.FinishClockUncertain(admission.Handle!, staleStatus, "wrong map"), "clock evidence cannot cross maps");
         var observed = Status();
         var receipt = ledger.FinishClockApplied(admission.Handle!, observed);
-        Check(receipt.Applied.Status.Equals(observed) && receipt.AuthorizingOwner.Equals(Owner()), "clock applied retains actual status and original owner");
-        observed.ActualPaused = false; receipt.AuthorizingOwner.PlayerDirection = 99;
+        Check(receipt.Applied.Status.Equals(observed) && receipt.AdmittedContext.Equals(Context()), "clock applied retains actual status and admitted context");
+        observed.ActualPaused = false; receipt.AdmittedContext.Tick = 99;
         var replay = ledger.InspectClock(Start, original);
-        Check(replay.Kind == Kind.Replay && replay.Reply!.Receipt.Applied.Status.ActualPaused && replay.Reply.Receipt.AuthorizingOwner.PlayerDirection == 4, "clock result and receipt mutations cannot change replay");
+        Check(replay.Kind == Kind.Replay && replay.Reply!.Receipt.Applied.Status.ActualPaused && replay.Reply.Receipt.AdmittedContext.Tick == 10, "clock result and receipt mutations cannot change replay");
         replay.Reply!.Receipt.Attempt.AttemptId = 999;
         Check(replay.Reply!.Receipt.Attempt.AttemptId == 1, "clock decision replies are defensive clones");
         var later = Context(); later.Tick = 100; later.NativeGeneration = 999;
         Check(ledger.LookupClock(original.Authority.Attempt, later).Receipt.Equals(replay.Reply!.Receipt), "clock receipt survives later generation changes");
         Throws(() => ledger.FinishClockUncertain(admission.Handle!, null, "late"), "clock terminal result is immutable");
         Throws(() => new NativeAttemptLedger(Identity()).FinishClockApplied(admission.Handle!, Status()), "clock foreign handle refused");
-        var op = Operation(2); var opAdmission = ledger.Admit(Execute, op, Context(), Owner());
+        var op = Operation(2); var opAdmission = ledger.Admit(Execute, op, Context());
         Throws(() => ledger.FinishClockApplied(opAdmission.Handle!, Status()), "clock finalizer rejects operation admission");
         Check(ledger.InspectClock(Start, Request(2)).Reply!.Failure.Code == Common.FailureCode.AttemptConflict, "clock cannot reuse operation attempt key");
         Check(ledger.LookupClock(op.Precondition.Attempt, Context()).Failure.Code == Common.FailureCode.AttemptConflict, "clock lookup reports wrong-family conflict");
@@ -90,7 +90,7 @@ internal static class ClockLedgerChecks
     private static void Equality(NativeAttemptLedger ledger, Clock.StartRequest original)
     {
         foreach (var change in new Action<Clock.StartRequest>[] {
-            r => r.Authority.ExpectedGeneration++, r => r.Authority.LeaseId = "replacement", r => r.Authority.Identity.MapId = 1,
+            r => r.Authority.ExpectedGeneration++, r => r.Authority.Identity.MapId = 1,
             r => r.Speed = Clock.Speed.Fast, r => r.LeaseMs++, r => r.MaxTicks++, r => r.Policy.ClearHealthDropFraction(),
             r => r.Policy.AcknowledgedHostileIds.Add("hostile") })
         {
@@ -101,7 +101,7 @@ internal static class ClockLedgerChecks
         Check(ledger.InspectClock(Start, json).Kind == Kind.Replay, "official JSON roundtrip preserves clock retry identity");
         foreach (var change in new Action<Clock.StartRequest>[] {
             r => r.Authority.Attempt.AttemptId = 0, r => r.Authority.Attempt.ClearActionId(), r => r.Authority.Identity.ClearMapId(),
-            r => r.Authority.ExpectedGeneration = 0, r => r.Authority.LeaseId = "\ud800" })
+            r => r.Authority.ExpectedGeneration = 0, r => r.Authority.Identity.ColonyId = "\ud800" })
         {
             var changed = original.Clone(); change(changed);
             Check(ledger.InspectClock(Start, changed).Reply!.Failure.Code == Common.FailureCode.InvalidRequest, "invalid clock envelope refused");
@@ -116,7 +116,7 @@ internal static class ClockLedgerChecks
         Check(ledger.InspectClock(Start, new Clock.OwnedRequest()).Reply!.Failure.Code == Common.FailureCode.InvalidRequest, "unguarded pause is outside admitted request union");
         Check(ledger.InspectClock(Start, Operation()).Reply!.Failure.Code == Common.FailureCode.InvalidRequest, "operation messages cannot be smuggled as clock requests");
         var repeated = Request(10); repeated.Policy.AcknowledgedHostileIds.Add(new[] { "first", "second" });
-        ledger.AdmitClock(Start, repeated, Context(), Owner());
+        ledger.AdmitClock(Start, repeated, Context());
         repeated.Policy.AcknowledgedHostileIds.Clear(); repeated.Policy.AcknowledgedHostileIds.Add(new[] { "second", "first" });
         Check(ledger.InspectClock(Start, repeated).Reply!.Failure.Code == Common.FailureCode.AttemptConflict, "clock repeated order is retained");
     }
@@ -124,14 +124,14 @@ internal static class ClockLedgerChecks
     {
         var epoch = new Clock.OwnedRequest { Identity = Identity(), Owner = new Clock.EpochOwner { ControllerSessionId = "controller", Epoch = 1 } };
         var renew = new Clock.RenewRequest { Authority = Pre(3), Epoch = epoch, LeaseMs = 1000 };
-        var admission = ledger.AdmitClock(Renew, renew, Context(), Owner());
+        var admission = ledger.AdmitClock(Renew, renew, Context());
         Check(admission.Kind == Kind.Admitted, "typed renew admitted");
         var uncertain = ledger.FinishClockUncertain(admission.Handle!, null, "unknown native result");
         Check(uncertain.Uncertain.LastObserved == null && ledger.InspectClock(Renew, renew).Kind == Kind.Replay, "renew uncertainty is retained");
         var changedRenew = renew.Clone(); changedRenew.Epoch.Owner.Epoch++;
         Check(ledger.InspectClock(Renew, changedRenew).Reply!.Failure.Code == Common.FailureCode.AttemptConflict, "original epoch ownership participates in retry equality");
         var speed = new Clock.SpeedRequest { Authority = Pre(4), Epoch = epoch, Speed = Clock.Speed.Superfast };
-        admission = ledger.AdmitClock(Speed, speed, Context(), Owner());
+        admission = ledger.AdmitClock(Speed, speed, Context());
         Check(admission.Kind == Kind.Admitted, "typed speed change admitted");
         var evidence = Status();
         var receipt = ledger.FinishClockUncertain(admission.Handle!, evidence, "partially observed");
@@ -140,7 +140,7 @@ internal static class ClockLedgerChecks
         var conflictingSpeed = speed.Clone(); conflictingSpeed.Authority = renew.Authority.Clone();
         Check(ledger.InspectClock(Speed, conflictingSpeed).Reply!.Failure.Code == Common.FailureCode.AttemptConflict, "clock methods share attempt namespace");
         var max = Request(ulong.MaxValue);
-        Check(ledger.AdmitClock(Start, max, Context(), Owner()).Kind == Kind.Admitted, "clock uint64 maximum attempt is preserved");
+        Check(ledger.AdmitClock(Start, max, Context()).Kind == Kind.Admitted, "clock uint64 maximum attempt is preserved");
     }
     private static void Capacity()
     {
@@ -149,13 +149,13 @@ internal static class ClockLedgerChecks
         {
             if (i % 2 == 0)
             {
-                var admitted = ledger.AdmitClock(Start, Request(i), Context(), Owner());
+                var admitted = ledger.AdmitClock(Start, Request(i), Context());
                 if (admitted.Kind != Kind.Admitted) throw new Exception("mixed clock capacity admission failed");
                 ledger.FinishClockUncertain(admitted.Handle!, null, "not dispatched in test");
             }
             else
             {
-                var admitted = ledger.Admit(Execute, Operation(i), Context(), Owner());
+                var admitted = ledger.Admit(Execute, Operation(i), Context());
                 if (admitted.Kind != Kind.Admitted) throw new Exception("mixed operation capacity admission failed");
                 ledger.FinishUncertain(admitted.Handle!, null, "not dispatched in test");
             }

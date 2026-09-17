@@ -24,17 +24,16 @@ internal static class NativeMovementOperationsProbe
         foreach(var invalid in new[]{"{}","{"+pawn+"}","{"+pawn+",\"destination\":{\"x\":0}}","{\"pawn\":{\"entityId\":\"Human1\"},\"destination\":{\"x\":0,\"z\":0}}"})
             Check(!(bool)Call("NativeMovementOperations","Valid",Wire("Operations.MovePawn",invalid)),"Missing explicit coordinates/CAS refused");
         Check((bool)Call("NativeMovementOperations","Valid",Wire("Operations.MovePawn","{"+pawn+",\"destination\":{\"x\":0,\"z\":0}}")),"Explicit origin accepted as shape");
-        var owner=Wire("Authority.Owner","{\"controllerSessionId\":\"owner\",\"playerDirection\":\"1\"}");
-        var other=Wire("Authority.Owner","{\"controllerSessionId\":\"owner\",\"playerDirection\":\"2\"}");
+        // Authority.Owner was removed by #52: a claim is held by the single bot process or not at all,
+        // so Owns() is claim presence plus eligibility, with no owner comparison.
         var facts=New("NativePawnFacts");Field(facts,"Spawned",true);Field(facts,"PlayerControlled",true);Field(facts,"Drafted",true);
         Field(facts,"Drafter",System.Runtime.Serialization.FormatterServices.GetUninitializedObject(
             AppDomain.CurrentDomain.GetAssemblies().Single(a=>a.GetName().Name=="Assembly-CSharp").GetType("RimWorld.Pawn_DraftController",true)!));
-        var claim=New("NativeDraftClaim","claim",owner);var snapshot=New("NativePawnSnapshot","token",facts,claim);
-        Check((bool)Call("NativeMovementOperations","Owns",snapshot,owner),"Exact eligible owner accepted");
-        Check(!(bool)Call("NativeMovementOperations","Owns",snapshot,other),"New direction cannot adopt prior claim");
-        Check(!(bool)Call("NativeMovementOperations","Owns",New("NativePawnSnapshot","token",facts,null),owner),"Unowned player draft refused");
-        foreach(var field in new[]{"Dead","Downed","Mental"}){Field(facts,field,true);Check(!(bool)Call("NativeMovementOperations","Owns",snapshot,owner),field+" cannot move");Field(facts,field,false);}
-        Field(facts,"Drafted",false);Check(!(bool)Call("NativeMovementOperations","Owns",snapshot,owner),"Move cannot auto-draft");
+        var claim=New("NativeDraftClaim","claim");var snapshot=New("NativePawnSnapshot","token",facts,claim);
+        Check((bool)Call("NativeMovementOperations","Owns",snapshot),"Eligible drafted pawn with a native claim accepted");
+        Check(!(bool)Call("NativeMovementOperations","Owns",New("NativePawnSnapshot","token",facts,null)),"Unclaimed player draft refused");
+        foreach(var field in new[]{"Dead","Downed","Mental"}){Field(facts,field,true);Check(!(bool)Call("NativeMovementOperations","Owns",snapshot),field+" cannot move");Field(facts,field,false);}
+        Field(facts,"Drafted",false);Check(!(bool)Call("NativeMovementOperations","Owns",snapshot),"Move cannot auto-draft");
         var cases=new[] {
             ("uncorrelated arrival",false,true,false,false,false,true,"Unknown"),
             ("revoked after arrival",true,false,false,false,true,true,"Interrupted"),

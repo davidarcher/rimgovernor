@@ -181,7 +181,7 @@ internal static class Program
     private static void FamilyExamples(Dictionary<string, MessageDescriptor> descriptors, string output)
     {
         Example(descriptors, "rimgovernor.authority.v1.ControlRequest",
-            @"{""acquire"":{""identity"":{""colonyId"":""colony"",""loadToken"":""load"",""mapId"":0},""expectedGeneration"":""18446744073709551615"",""owner"":{""controllerSessionId"":""session"",""playerDirection"":""9007199254740993""},""leaseMs"":1000}}",
+            @"{""setMode"":{""identity"":{""colonyId"":""colony"",""loadToken"":""load"",""mapId"":0},""expectedGeneration"":""18446744073709551615"",""mode"":""MODE_AUTO""}}",
             "csharp-authority-boundary", output);
         Example(descriptors, "rimgovernor.clock.v1.ControlReceipt",
             @"{""attempt"":{""controllerSessionId"":""session"",""actionId"":""clock"",""attemptId"":""1""},""admittedContext"":{""identity"":{""colonyId"":""colony"",""loadToken"":""load"",""mapId"":0},""tick"":""0"",""nativeGeneration"":""1""},""uncertain"":{""detail"":""Clock effect requires fresh inspection""}}",
@@ -190,10 +190,10 @@ internal static class Program
             @"{""pending"":{""requestId"":""load-request"",""saveName"":""save"",""processConnected"":true,""mapReady"":false,""visualReady"":false}}",
             "csharp-load-pending", output);
         Example(descriptors, "rimgovernor.operations.v1.ExecuteRequest",
-            @"{""precondition"":{""identity"":{""colonyId"":""colony"",""loadToken"":""load"",""mapId"":0},""expectedGeneration"":""1"",""leaseId"":""lease"",""attempt"":{""controllerSessionId"":""session"",""actionId"":""settings"",""attemptId"":""1""}},""operation"":{""patchPawn"":{""pawn"":{""entityId"":""Thing_Pawn1"",""expectedSnapshotToken"":""snapshot""},""selfTend"":false}}}",
+            @"{""precondition"":{""identity"":{""colonyId"":""colony"",""loadToken"":""load"",""mapId"":0},""expectedGeneration"":""1"",""attempt"":{""controllerSessionId"":""session"",""actionId"":""settings"",""attemptId"":""1""}},""operation"":{""patchPawn"":{""pawn"":{""entityId"":""Thing_Pawn1"",""expectedSnapshotToken"":""snapshot""},""selfTend"":false}}}",
             "csharp-operation-present-false", output);
         Example(descriptors, "rimgovernor.receipts.v1.Receipt",
-            @"{""attempt"":{""controllerSessionId"":""session"",""actionId"":""settings"",""attemptId"":""1""},""admittedContext"":{""identity"":{""colonyId"":""colony"",""loadToken"":""load"",""mapId"":0},""tick"":""42"",""nativeGeneration"":""1""},""authorizingOwner"":{""controllerSessionId"":""session"",""playerDirection"":""1""},""applied"":{""observed"":{""settings"":{""snapshot"":{""entityId"":""Thing_Pawn1"",""beforeToken"":""before"",""afterToken"":""after""}}}}}",
+            @"{""attempt"":{""controllerSessionId"":""session"",""actionId"":""settings"",""attemptId"":""1""},""admittedContext"":{""identity"":{""colonyId"":""colony"",""loadToken"":""load"",""mapId"":0},""tick"":""42"",""nativeGeneration"":""1""},""applied"":{""observed"":{""settings"":{""snapshot"":{""entityId"":""Thing_Pawn1"",""beforeToken"":""before"",""afterToken"":""after""}}}}}",
             "csharp-attributed-settings", output);
         Refuse(() => Shared.AttemptKey.Parser.ParseJson(@"{""attemptId"":""18446744073709551616""}"), "Overflow uint64 accepted");
         Refuse(() => Shared.AttemptKey.Parser.ParseJson(@"{""attemptId"":""-1""}"), "Negative uint64 accepted");
@@ -201,7 +201,8 @@ internal static class Program
         Refuse(() => Shared.Identity.Parser.ParseFrom(new byte[] { 10, 1, 255 }), "Invalid binary UTF8 accepted");
         Refuse(() => Shared.Identity.Parser.ParseJson(@"{""mapId"":1.5}"), "Fractional integer accepted");
         Refuse(() => Shared.Identity.Parser.ParseJson(@"{""mapId"":""NaN""}"), "NaN integer accepted");
-        Refuse(() => Control.ControlRequest.Parser.ParseJson(@"{""acquire"":{},""renew"":{}}"), "Multiple real oneof arms accepted");
+        Refuse(() => Control.ControlRequest.Parser.ParseJson(@"{""setMode"":{},""revoke"":{}}"), "Multiple real oneof arms accepted");
+        Refuse(() => Control.ControlRequest.Parser.ParseJson(@"{""acquire"":{}}"), "Removed owner-lease acquire arm accepted");
         var nullMap = Shared.Identity.Parser.ParseJson(@"{""mapId"":null}");
         Require(!nullMap.HasMapId, "ProtoJSON null leaves optional scalar absent");
         var numeric = Shared.AttemptKey.Parser.ParseJson(@"{""attemptId"":""1e2""}");
@@ -375,15 +376,13 @@ internal static class Program
         var authority = new Control.Status { Context = context,
             Inactive = new Control.InactiveAuthority { Reason = Control.RevocationReason.Manual } };
         RoundTrip(authority, Control.Status.Parser, "csharp-authority-inactive", output);
-        authority.Active = new Control.ActiveAuthority {
-            Owner = new Control.Owner { ControllerSessionId = "controller", PlayerDirection = 1 },
-            RemainingLeaseMs = 1000 };
+        authority.Active = new Control.ActiveAuthority { Mode = Control.Mode.Auto };
         Require(authority.Inactive == null && authority.StateCase == Control.Status.StateOneofCase.Active,
             "Authority state cannot retain active and inactive variants together");
         RoundTrip(authority, Control.Status.Parser, "csharp-authority-active", output);
-        var acquire = new Control.ControlRequest { Acquire = new Control.Acquire {
-            Identity = context.Identity, ExpectedGeneration = 1, Owner = authority.Active.Owner, LeaseMs = 1000 } };
-        RoundTrip(acquire, Control.ControlRequest.Parser, "csharp-authority-acquire", output);
+        var setMode = new Control.ControlRequest { SetMode = new Control.SetMode {
+            Identity = context.Identity, ExpectedGeneration = 1, Mode = authority.Active.Mode } };
+        RoundTrip(setMode, Control.ControlRequest.Parser, "csharp-authority-set-mode", output);
         var descriptors = CanonicalMessages();
         FullPackage(descriptors, output);
         FamilyExamples(descriptors, output);

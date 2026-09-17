@@ -24,10 +24,9 @@ internal static class NativeAttemptLedgerProbe
     }
     private static Common.Identity Identity(int map=0) => new Common.Identity { ColonyId="colony",LoadToken="load",MapId=map };
     private static Common.ObservationContext Context(int map=0) => new Common.ObservationContext { Identity=Identity(map),Tick=0,NativeGeneration=3 };
-    private static Authority.Owner Owner() => new Authority.Owner { ControllerSessionId="controller",PlayerDirection=4 };
     private static Operations.ExecuteRequest Request(ulong attempt=1, int map=0) => new Operations.ExecuteRequest
     {
-        Precondition=new Authority.WritePrecondition { Identity=Identity(map),ExpectedGeneration=3,LeaseId="lease",Attempt=new Common.AttemptKey
+        Precondition=new Authority.WritePrecondition { Identity=Identity(map),ExpectedGeneration=3,Attempt=new Common.AttemptKey
             { ControllerSessionId="controller",ActionId="action",AttemptId=attempt } },
         Operation=new Operations.Operation { PlaceBuilding=new Operations.PlaceBuilding { Placement=new Placement.PlacementCandidate
             { DefName="Wall",X=0,Z=0,Rotation=Placement.Rotation.North } } }
@@ -45,22 +44,23 @@ internal static class NativeAttemptLedgerProbe
         var ledger=new NativeAttemptLedger(Identity());
         var request=Request();
         Check(ledger.Inspect(Method,request).Kind==Kind.New && ledger.Count==0,"inspection is not admission");
-        var invalidOwner=Owner(); invalidOwner.ControllerSessionId="other";
-        Check(ledger.Admit(Method,request,Context(),invalidOwner).Reply!.Failure.Code==Common.FailureCode.InvalidRequest && ledger.Count==0,"guard failure consumes no slot");
+        // Owner guard removed by #52: the admission context now carries the whole guard (identity + generation).
+        var invalidIdentity=Context(); invalidIdentity.Identity.LoadToken="other";
+        Check(ledger.Admit(Method,request,invalidIdentity).Reply!.Failure.Code==Common.FailureCode.InvalidRequest && ledger.Count==0,"guard failure consumes no slot");
         var invalidContext=Context(); invalidContext.NativeGeneration=8;
-        Check(ledger.Admit(Method,request,invalidContext,Owner()).Kind==Kind.Refused && ledger.Count==0,"admission generation must match request");
-        var admission=ledger.Admit(Method,request,Context(),Owner());
+        Check(ledger.Admit(Method,request,invalidContext).Kind==Kind.Refused && ledger.Count==0,"admission generation must match request");
+        var admission=ledger.Admit(Method,request,Context());
         Check(admission.Kind==Kind.Admitted && admission.Handle!=null && ledger.Count==1,"record before dispatch");
         var inFlight=ledger.Inspect(Method,request);
         Check(inFlight.Kind==Kind.InFlight && inFlight.Reply!.Receipt.Uncertain!=null && inFlight.Reply.Failure==null,"duplicate in-flight reports uncertainty, not preadmission failure");
-        Check(inFlight.Reply!.Receipt.Attempt.Equals(request.Precondition.Attempt) && inFlight.Reply.Receipt.AuthorizingOwner.Equals(Owner()),"transient uncertainty correlated");
-        Check(ledger.Admit(Method,request,Context(),Owner()).Kind==Kind.InFlight && ledger.Count==1,"atomic admission repeats lookup");
+        Check(inFlight.Reply!.Receipt.Attempt.Equals(request.Precondition.Attempt) && inFlight.Reply.Receipt.AdmittedContext.Equals(Context()),"transient uncertainty correlated");
+        Check(ledger.Admit(Method,request,Context()).Kind==Kind.InFlight && ledger.Count==1,"atomic admission repeats lookup");
         Check(ledger.Lookup(request.Precondition.Attempt,Context()).OutcomeCase==Receipts.LookupReply.OutcomeOneofCase.InFlight,"lookup records in-flight");
         var changed=request.Clone(); changed.Operation.PlaceBuilding.Placement.DefName="Bed";
         Refuses(ledger,changed,Common.FailureCode.AttemptConflict,"changed operation conflicts");
         changed=request.Clone(); changed.Precondition.ExpectedGeneration++;
         Refuses(ledger,changed,Common.FailureCode.AttemptConflict,"changed original generation conflicts");
-        changed=request.Clone(); changed.Precondition.LeaseId="new-lease";
+        changed=request.Clone(); changed.Precondition.ExpectedGeneration++;
         Refuses(ledger,changed,Common.FailureCode.AttemptConflict,"changed original lease conflicts");
         changed=request.Clone(); changed.Operation.PlaceBuilding.Placement.ClearX();
         Refuses(ledger,changed,Common.FailureCode.AttemptConflict,"zero versus absent conflicts");
@@ -69,10 +69,10 @@ internal static class NativeAttemptLedgerProbe
         Refuses(ledger,unknown,Common.FailureCode.InvalidRequest,"binary unknown field rejected");
         var effect=Evidence();
         var receipt=ledger.FinishApplied(admission.Handle!,effect);
-        Check(receipt.Applied!=null && receipt.Attempt.Equals(request.Precondition.Attempt) && receipt.AdmittedContext.Equals(Context()) && receipt.AuthorizingOwner.Equals(Owner()),"correlated immutable receipt");
-        receipt.AuthorizingOwner.PlayerDirection=99; effect.Construction.CurrentThingId="mutated";
+        Check(receipt.Applied!=null && receipt.Attempt.Equals(request.Precondition.Attempt) && receipt.AdmittedContext.Equals(Context()),"correlated immutable receipt");
+        receipt.AdmittedContext.Tick=99; effect.Construction.CurrentThingId="mutated";
         var replay=ledger.Inspect(Method,request);
-        Check(replay.Kind==Kind.Replay && replay.Reply!.Receipt.AuthorizingOwner.PlayerDirection==4 && replay.Reply.Receipt.Applied.Observed.Construction.CurrentThingId=="blueprint","caller mutations do not alter retained receipt");
+        Check(replay.Kind==Kind.Replay && replay.Reply!.Receipt.AdmittedContext.Tick==0 && replay.Reply.Receipt.Applied.Observed.Construction.CurrentThingId=="blueprint","caller mutations do not alter retained receipt");
         var exposed=replay.Reply!; exposed.Receipt.Attempt.AttemptId=999;
         Check(replay.Reply!.Receipt.Attempt.AttemptId==1,"decision returns detached reply");
         var later=Context(); later.Tick=500; later.NativeGeneration=100;
@@ -81,21 +81,21 @@ internal static class NativeAttemptLedgerProbe
         Throws(()=>new NativeAttemptLedger(Identity()).FinishApplied(admission.Handle!,Evidence()),"foreign handle refused");
         Throws(()=>ledger.FinishApplied(new NativeAttemptLedger.Admission(),Evidence()),"fabricated handle refused");
 
-        var mutable=Request(2); var saved=mutable.Clone(); var admittedContext=Context(); var authorizingOwner=Owner();
-        var pending=ledger.Admit(Method,mutable,admittedContext,authorizingOwner).Handle!;
-        mutable.Precondition.LeaseId="mutated"; mutable.Operation.PlaceBuilding.Placement.DefName="mutated";
-        admittedContext.Tick=999; authorizingOwner.PlayerDirection=999;
+        var mutable=Request(2); var saved=mutable.Clone(); var admittedContext=Context();
+        var pending=ledger.Admit(Method,mutable,admittedContext).Handle!;
+        mutable.Precondition.ExpectedGeneration=99; mutable.Operation.PlaceBuilding.Placement.DefName="mutated";
+        admittedContext.Tick=999;
         Check(ledger.Inspect(Method,saved).Kind==Kind.InFlight,"admission stores detached request");
         var uncertain=ledger.FinishUncertain(pending,null,string.Concat(Enumerable.Repeat("\ud83d\ude00",4097)));
         Check(uncertain.Uncertain.LastObserved==null && uncertain.Uncertain.Detail.Length==8192,"uncertainty preserves unknown evidence and scalar-bound diagnostics");
-        Check(uncertain.AdmittedContext.Tick==0 && uncertain.AuthorizingOwner.PlayerDirection==4,"admission context and owner detached");
+        Check(uncertain.AdmittedContext.Tick==0,"admission context detached");
         Check(ledger.Inspect(Method,saved).Reply!.Receipt.Uncertain!=null,"uncertain replay never grants new dispatch");
-        var third=Request(3); var handle=ledger.Admit(Method,third,Context(),Owner()).Handle!;
+        var third=Request(3); var handle=ledger.Admit(Method,third,Context()).Handle!;
         Throws(()=>ledger.FinishApplied(handle,new Receipts.EffectEvidence()),"empty evidence is not observed effect");
         Check(ledger.Lookup(third.Precondition.Attempt,Context()).InFlight!=null,"bad completion retains admitted entry");
         Check(ledger.FinishNoChange(handle,Evidence(),"unchanged").NoChange!=null,"no-change requires explicit evidence");
         var mapRequest=Request(4,1);
-        Check(ledger.Admit(Method,mapRequest,Context(1),Owner()).Kind==Kind.Admitted,"other map shares same per-load ledger");
+        Check(ledger.Admit(Method,mapRequest,Context(1)).Kind==Kind.Admitted,"other map shares same per-load ledger");
         Check(ledger.Lookup(request.Precondition.Attempt,Context(1)).Failure.Code==Common.FailureCode.StaleIdentity,"receipt cannot replay across current map");
         var newLoad=Context(); newLoad.Identity.LoadToken="other-load";
         Check(ledger.Lookup(request.Precondition.Attempt,newLoad).Failure.Code==Common.FailureCode.StaleIdentity,"receipt cannot cross loads");
@@ -106,10 +106,10 @@ internal static class NativeAttemptLedgerProbe
         foreach(var mutate in new Action<Operations.ExecuteRequest>[] {
             r=>r.Precondition.Attempt.AttemptId=0, r=>r.Precondition.Attempt.ClearActionId(),
             r=>r.Precondition.Identity.MapId=-1, r=>r.Precondition.ExpectedGeneration=0,
-            r=>r.Precondition.LeaseId="\ud800", r=>r.Operation.ClearCommand() })
+            r=>r.Precondition.Identity.ColonyId="\ud800", r=>r.Operation.ClearCommand() })
         { var bad=Request(100); mutate(bad); Refuses(ledger,bad,Common.FailureCode.InvalidRequest,"invalid envelope refused"); }
         var max=Request(ulong.MaxValue);
-        Check(ledger.Admit(Method,max,Context(),Owner()).Kind==Kind.Admitted,"uint64 maximum preserved");
+        Check(ledger.Admit(Method,max,Context()).Kind==Kind.Admitted,"uint64 maximum preserved");
         Exception? threadFailure=null;
         var otherThread=new Thread(()=>{try {ledger.Inspect(Method,request);}catch(Exception e){threadFailure=e;}});
         otherThread.Start(); otherThread.Join(); Check(threadFailure is InvalidOperationException,"cross-thread use refused");
@@ -126,7 +126,7 @@ internal static class NativeAttemptLedgerProbe
             { Session=new Operations.EntityPrecondition { EntityId="trade",ExpectedSnapshotToken="snapshot" },AllowPawns=false } };
         request.Operation.SetTradeLines.Lines.Add(new Operations.TradeLine { LineId="a",AbsoluteCount=0 });
         request.Operation.SetTradeLines.Lines.Add(new Operations.TradeLine { LineId="b",AbsoluteCount=1 });
-        ledger.Admit(Method,request,Context(),Owner());
+        ledger.Admit(Method,request,Context());
         var reordered=Operations.ExecuteRequest.Parser.ParseJson("{\"operation\":"+JsonFormatter.Default.Format(request.Operation)
             +",\"precondition\":"+JsonFormatter.Default.Format(request.Precondition)+"}");
         Check(ledger.Inspect(Method,reordered).Kind==Kind.InFlight,"field wire order does not alter typed identity");
@@ -154,14 +154,14 @@ internal static class NativeAttemptLedgerProbe
     {
         var ledger=new NativeAttemptLedger(Identity());
         for(ulong i=1;i<=NativeAttemptLedger.Capacity;i++) {
-            var decision=ledger.Admit(Method,Request(i),Context(),Owner());
+            var decision=ledger.Admit(Method,Request(i),Context());
             Check(decision.Kind==Kind.Admitted,"capacity admission");
             ledger.FinishUncertain(decision.Handle!,null,"not dispatched in test");
         }
         Check(ledger.Count==4096,"fixed capacity");
         Refuses(ledger,Request(4097),Common.FailureCode.CapacityExhausted,"full ledger refuses new admission");
         Check(ledger.Inspect(Method,Request(1)).Kind==Kind.Replay,"oldest attempt retained at capacity");
-        var conflict=Request(1); conflict.Precondition.LeaseId="different";
+        var conflict=Request(1); conflict.Precondition.ExpectedGeneration=4;
         Refuses(ledger,conflict,Common.FailureCode.AttemptConflict,"conflict still classified at capacity");
         Check(ledger.Count==4096,"no eviction after refusal");
     }
