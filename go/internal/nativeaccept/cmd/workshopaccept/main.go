@@ -5,8 +5,9 @@
 // audited against live native facts rather than the journal alone: the
 // reachable club count must have risen above the baseline recorded before
 // the service started, a CraftingSpot must stand inside a room whose native
-// Room.Role is Workshop, and that bench must carry the Make_MeleeWeapon_Club
-// bill. A bill receipt, a blueprint or a journal proof alone never passes.
+// Room.Role hosts the Workshop facility (Workshop, or a shared Room/Barracks
+// per policy.FacilityCatalog), and that bench must carry the
+// Make_MeleeWeapon_Club bill. A bill receipt, a blueprint or a journal proof alone never passes.
 //
 // The default save is the tribal8 baseline the other facility harnesses
 // use; -save selects another existing save. Like facilityaccept this runs
@@ -76,7 +77,7 @@ func main() {
 		fmt.Fprintln(os.Stderr, "-output must be a fresh, empty directory")
 		os.Exit(2)
 	}
-	report := na.NewReport(fmt.Sprintf("MaintainResource %s:%d recovers through a bill on a %s staged in a native Workshop room; the live item count must rise above the pre-service baseline (issue #4, M2).", resource, target, bench), !*rendered)
+	report := na.NewReport(fmt.Sprintf("MaintainResource %s:%d recovers through a bill on a %s staged in a room whose native role hosts the Workshop facility; the live item count must rise above the pre-service baseline (issue #4, M2).", resource, target, bench), !*rendered)
 	report["require_recovered"] = *recovered
 	ctx, cancel := context.WithTimeout(context.Background(), *timeout)
 	defer cancel()
@@ -226,6 +227,10 @@ func audit(ctx context.Context, h *na.Harness, journal *store.Store, report na.R
 	if success, _ := na.AsBool(rooms["success"]); !success {
 		return fmt.Errorf("home/list_rooms refused")
 	}
+	workshop, err := policy.Facility(policy.RoomRoleWorkshop)
+	if err != nil {
+		return err
+	}
 	type cell struct{ x, z float64 }
 	workshopCells := map[cell]string{}
 	roleByRoom := map[string]string{}
@@ -233,7 +238,7 @@ func audit(ctx context.Context, h *na.Harness, journal *store.Store, report na.R
 		row, _ := na.AsMap(raw)
 		id, role := fmt.Sprint(row["id"]), na.AsString(row["role"])
 		roleByRoom[id] = role
-		if policy.RoomRole(role) != policy.RoomRoleWorkshop {
+		if !workshop.Hosts(policy.RoomRole(role)) {
 			continue
 		}
 		for _, c := range na.AsSlice(row["cells"]) {
@@ -261,13 +266,13 @@ func audit(ctx context.Context, h *na.Harness, journal *store.Store, report na.R
 		for _, b := range na.AsSlice(row["bills"]) {
 			billRow, _ := na.AsMap(b)
 			if na.AsString(billRow["recipe"]) == recipe {
-				hosted = append(hosted, map[string]any{"bench": na.AsString(row["thingId"]), "room": room, "bill": billRow})
+				hosted = append(hosted, map[string]any{"bench": na.AsString(row["thingId"]), "room": room, "room_role": roleByRoom[room], "bill": billRow})
 			}
 		}
 	}
 	report["hosted_bills"] = hosted
 	if len(hosted) == 0 {
-		return fmt.Errorf("no %s inside a native Workshop room carries a %s bill", bench, recipe)
+		return fmt.Errorf("no %s inside a room hosting the Workshop facility carries a %s bill", bench, recipe)
 	}
 	return nil
 }

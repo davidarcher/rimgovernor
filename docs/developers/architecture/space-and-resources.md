@@ -62,8 +62,10 @@ The workshop row is the first production facility on that ladder. A
 from the native recipe catalog, which player-buildable bench definitions host a
 research-available recipe for the resource; the first candidate the planning
 census reports available, unpowered and buildable without construction skill is
-furnished into a Workshop-hosting room, or a starter shell is staged when no such
-room exists. Powered and research-gated benches are reported as an explicit
+furnished into a Workshop-hosting room (a Workshop, a generic Room, or the
+starter shell once the sleeping spots have made it a Barracks — the bench keeps
+working there and a second ring would split the same builders), or a starter
+shell is staged when no such room exists. Powered and research-gated benches are reported as an explicit
 `workshop_bench_unavailable` prerequisite rather than staged. Once a bench with
 the recipe exists the workshop planner steps aside and the resource goal's bill
 path, worker coverage for the bench's own work type, and native readback of the

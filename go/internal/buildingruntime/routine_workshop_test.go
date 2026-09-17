@@ -138,15 +138,17 @@ func TestWorkshopFurnishingOnlyPreviewsHostingRoomsAndFallsBackToShell(t *testin
 		}
 		return rows
 	}
-	barracks, hosting := domain.Cell{X: 2, Z: 2}, domain.Cell{X: 3, Z: 2}
+	// A tomb never hosts a bench; a barracks does (the shared starter shell).
+	tomb, hosting := domain.Cell{X: 2, Z: 2}, domain.Cell{X: 3, Z: 2}
 	for _, test := range []struct {
 		name   string
 		rooms  domain.Fact[policy.RoomObservation]
 		reason RoutineBuildingReason
 		cell   domain.Cell
 	}{
-		{"hosting room only", domain.Known(policy.RoomObservation{Rooms: []policy.Room{{ID: "b", Role: domain.Known(policy.RoomRoleBarracks), Cells: []domain.Cell{barracks}}, {ID: "r", Role: domain.Known(policy.RoomRoleRoom), Cells: []domain.Cell{hosting}}}}), "", hosting},
-		{"no hosting room", domain.Known(policy.RoomObservation{Rooms: []policy.Room{{ID: "b", Role: domain.Known(policy.RoomRoleBarracks), Cells: []domain.Cell{barracks, hosting}}}}), BuildingMethodNoSpace, domain.Cell{}},
+		{"hosting room only", domain.Known(policy.RoomObservation{Rooms: []policy.Room{{ID: "t", Role: domain.Known(policy.RoomRoleTomb), Cells: []domain.Cell{tomb}}, {ID: "r", Role: domain.Known(policy.RoomRoleRoom), Cells: []domain.Cell{hosting}}}}), "", hosting},
+		{"shared barracks", domain.Known(policy.RoomObservation{Rooms: []policy.Room{{ID: "t", Role: domain.Known(policy.RoomRoleTomb), Cells: []domain.Cell{tomb}}, {ID: "b", Role: domain.Known(policy.RoomRoleBarracks), Cells: []domain.Cell{hosting}}}}), "", hosting},
+		{"no hosting room", domain.Known(policy.RoomObservation{Rooms: []policy.Room{{ID: "t", Role: domain.Known(policy.RoomRoleTomb), Cells: []domain.Cell{tomb, hosting}}}}), BuildingMethodNoSpace, domain.Cell{}},
 		{"census unknown", domain.Unknown[policy.RoomObservation](), BuildingMethodUnknown, domain.Cell{}},
 	} {
 		t.Run(test.name, func(t *testing.T) {
@@ -156,7 +158,7 @@ func TestWorkshopFurnishingOnlyPreviewsHostingRoomsAndFallsBackToShell(t *testin
 				b, _ := p.Preview.Action.Building()
 				p.Preview.Footprint = domain.Known([]domain.Cell{b.Cell()})
 			}
-			facts := observation.ColonyProjection{Bounds: policy.Bounds{Width: 10, Height: 10}, Center: domain.Cell{X: 2, Z: 2}, Identity: observation.Identity{Tick: domain.Tick(native.reply.GetObserved().Context.GetTick())}, Cells: site(barracks, hosting), Rooms: test.rooms}
+			facts := observation.ColonyProjection{Bounds: policy.Bounds{Width: 10, Height: 10}, Center: domain.Cell{X: 2, Z: 2}, Identity: observation.Identity{Tick: domain.Tick(native.reply.GetObserved().Context.GetTick())}, Cells: site(tomb, hosting), Rooms: test.rooms}
 			selected, _, reason, err := planner.previewMethod(context.Background(), session.State().Snapshot, facts, nil, 1, func() error { return nil })
 			if err != nil || reason != test.reason {
 				t.Fatal(selected, reason, err)

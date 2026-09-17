@@ -133,7 +133,11 @@ func FacilityCatalog() []FacilityRequirement {
 		{Role: RoomRolePrisonBarracks, Status: FacilityPending},
 		{Role: RoomRoleHospital, Status: FacilityPending},
 		{Role: RoomRoleLaboratory, Status: FacilityPending},
-		{Role: RoomRoleWorkshop, Status: FacilityImplemented, Compatible: generic, Furniture: []string{"CraftingSpot", "TableStonecutter"}},
+		// A workshop shares the starter shell: the ladder furnishes the first
+		// enclosed room rather than siting a second ring (routine_sleeping.go),
+		// and once the sleeping spots move indoors the game scores that room a
+		// Barracks while the bench keeps working (issue #4 M2 runs 24-25).
+		{Role: RoomRoleWorkshop, Status: FacilityImplemented, Compatible: append([]RoomRole{RoomRoleBarracks}, generic...), Furniture: []string{"CraftingSpot", "TableStonecutter"}},
 		{Role: RoomRoleStoreroom, Status: FacilityPending},
 		{Role: RoomRoleKitchen, Status: FacilityPending},
 		{Role: RoomRoleTomb, Status: FacilityPending},
