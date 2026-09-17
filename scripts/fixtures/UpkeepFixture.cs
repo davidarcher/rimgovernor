@@ -16,7 +16,7 @@ namespace HomeBridge.BridgeTools
             [ToolParameter(Description = "Optional disposable fire size; zero omits fire.", DefaultValue = 0f)] float fireSize = 0f,
             [ToolParameter(Description = "Include a pen animal, pet and stored feed.", DefaultValue = false)] bool animals = false,
             [ToolParameter(Description = "Leave covered space unzoned for the storage method.", DefaultValue = false)] bool storageMissing = false,
-            [ToolParameter(Description = "Exclude fixture targets from workers' allowed area.", DefaultValue = false)] bool restrictWorkers = false,
+            [ToolParameter(Description = "Wall off the fixture site so no worker can reach its targets.", DefaultValue = false)] bool restrictWorkers = false,
             [ToolParameter(Description = "Include a more damaged cosmetic repair target.", DefaultValue = false)] bool repairCompetition = false,
             [ToolParameter(Description = "Clear disposable loose items and filth before preparing bounded read censuses. Use only after gameplay assertions.", DefaultValue = false)] bool boundedCensus = false)
         {
@@ -132,16 +132,35 @@ namespace HomeBridge.BridgeTools
                     feed.SetForbidden(false, false);
                     map.regionAndRoomUpdater.RebuildAllRegionsAndRooms();
                 }
+                int ringWalls = 0;
                 if (restrictWorkers) {
-                    Area_Allowed area;
-                    if (!map.areaManager.TryMakeNewAllowed(out area)) throw new InvalidOperationException("No fixture allowed-area slot");
-                    foreach (var pawn in people) {
-                        area[pawn.Position] = true;
-                        pawn.playerSettings.AreaRestrictionInPawnCurrentMap = area;
+                    // An allowed-area restriction is no blocker: the controller's
+                    // orders are player-forced, and forced jobs ignore the area
+                    // like a right-click order does. Only pathing stops them, so
+                    // ring the site with walls and move any colonist standing
+                    // inside it out, leaving every target unreachable.
+                    var site = CellRect.FromLimits(origin, origin + new IntVec3(8, 0, 8));
+                    var ring = site.ExpandedBy(1);
+                    foreach (var cell in ring.EdgeCells) {
+                        // An existing edifice (rock, wall) already blocks; a
+                        // tree only slows pawns down, so it is felled first.
+                        if (!cell.InBounds(map) || cell.GetEdifice(map) != null) continue;
+                        foreach (var plant in cell.GetThingList(map).Where(t => t is Plant).ToList()) plant.Destroy();
+                        var brick = ThingMaker.MakeThing(ThingDefOf.Wall, ThingDefOf.WoodLog);
+                        brick.SetFaction(Faction.OfPlayerSilentFail);
+                        GenSpawn.Spawn(brick, cell, map);
+                        ringWalls++;
                     }
-                    foreach (var cell in new[] { medicine.Position, wall.Position, dirt.Position, storage }) area[cell] = false;
+                    foreach (var pawn in map.mapPawns.AllPawnsSpawned.Where(p => ring.Contains(p.Position)).ToList()) {
+                        var outside = GenRadial.RadialCellsAround(ring.CenterCell, 40, true).FirstOrDefault(c =>
+                            c.InBounds(map) && !ring.Contains(c) && c.Standable(map) && !c.Fogged(map));
+                        if (!outside.IsValid) throw new InvalidOperationException("No standable cell outside the walled fixture site");
+                        pawn.Position = outside;
+                        pawn.Notify_Teleported();
+                    }
+                    map.regionAndRoomUpdater.RebuildAllRegionsAndRooms();
                 }
-                return new { success = true, clearedItems, clearedFilth, medicine = medicine.GetUniqueLoadID(), wall = wall.GetUniqueLoadID(),
+                return new { success = true, clearedItems, clearedFilth, ringWalls, medicine = medicine.GetUniqueLoadID(), wall = wall.GetUniqueLoadID(),
                     cosmetic = cosmetic?.GetUniqueLoadID(),
                     filth = dirt.GetUniqueLoadID(), fire = fire?.GetUniqueLoadID(), storage = new { x = storage.x, z = storage.z },
                     penAnimal = penAnimal?.GetUniqueLoadID(), looseAnimal = looseAnimal?.GetUniqueLoadID(),

@@ -5,6 +5,7 @@ import (
 	"crypto/sha256"
 	"errors"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/davidarcher/RimGovernor/go/internal/bridge"
@@ -63,6 +64,7 @@ func (r *RoutineSecureSuppliesPlanner) Step(ctx context.Context) (RoutineSecureS
 	defer done()
 	return r.step(call, epoch, newStepArbiter())
 }
+
 // maxSecureSuppliesHaulAttempts bounds direct hauls of one item per goal
 // episode before SecureSupplies tries its covered-storage fallbacks. Two is
 // enough: a haul that native refuses for a whole stall grace (no storage
@@ -239,7 +241,11 @@ func (r *RoutineSecureSuppliesPlanner) step(call, epoch context.Context, arbiter
 	if err != nil {
 		return RoutineSecureSuppliesResult{}, err
 	}
-	if attempt >= maxSecureSuppliesHaulAttempts {
+	zonesCompleted, err := completedSecureSuppliesZones(call, p.journal, goal)
+	if err != nil {
+		return RoutineSecureSuppliesResult{}, err
+	}
+	if attempt >= secureSuppliesHaulBudget(zonesCompleted) {
 		fallback, err := r.coveredStorageFallback(call, epoch, state, goal, reading.Projection, item, started, arbiter)
 		if err != nil {
 			return RoutineSecureSuppliesResult{}, err
@@ -278,6 +284,48 @@ func (r *RoutineSecureSuppliesPlanner) step(call, epoch context.Context, arbiter
 		return RoutineSecureSuppliesResult{}, err
 	}
 	return RoutineSecureSuppliesResult{Reason: BuildingMethodAdmitted, Plan: id}, nil
+}
+
+// secureSuppliesHaulBudget is how many direct hauls of one item the goal
+// episode may issue: the base bound, plus another round for every
+// covered-storage zone the fallback has completed. Before the zone exists
+// native refuses the haul ("no empty, accessible spot"); the zone is what
+// makes a retry worth spending, so each completed zone earns one.
+func secureSuppliesHaulBudget(zonesCompleted int) int {
+	if zonesCompleted < 0 {
+		zonesCompleted = 0
+	}
+	return maxSecureSuppliesHaulAttempts * (1 + zonesCompleted)
+}
+
+// completedSecureSuppliesZones counts the goal episode's covered-storage zone
+// methods whose every action completed. Pending, cancelled or unsuccessful
+// zones earn no haul retries.
+func completedSecureSuppliesZones(ctx context.Context, journal *store.Store, goal store.GoalState) (int, error) {
+	history, err := journal.LoadGoalMethods(ctx, goal.Goal.ID, goal.Goal.Epoch)
+	if err != nil {
+		return 0, err
+	}
+	count := 0
+	for _, m := range history {
+		if m.Epoch != goal.Goal.Epoch || !strings.HasPrefix(string(m.Method), secureSuppliesZonePrefix) {
+			continue
+		}
+		plan, err := journal.LoadPlan(ctx, m.Plan)
+		if err != nil {
+			return 0, err
+		}
+		done := len(plan.Progress) > 0
+		for _, progress := range plan.Progress {
+			if progress.View().Stage != domain.Completed {
+				done = false
+			}
+		}
+		if done {
+			count++
+		}
+	}
+	return count, nil
 }
 
 // coveredStorageFallback is the covered_storage step: once

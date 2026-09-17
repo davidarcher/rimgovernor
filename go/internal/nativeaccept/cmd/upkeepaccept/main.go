@@ -16,8 +16,9 @@
 //	                   storage accepts the medicine, so ordinary hauling is
 //	                   refused and SecureSupplies falls back to creating one
 //	                   filtered stockpile on the covered cells before hauling.
-//	blocked         -- the same fixture with every worker's allowed area
-//	                   excluding the targets: no haul or repair may complete,
+//	blocked         -- the same fixture walled off from every worker (forced
+//	                   orders ignore allowed areas, so only pathing blocks
+//	                   them): no haul or repair may complete,
 //	                   the medicine must stay where it is, and the deficits
 //	                   remain visible rather than silently dropped.
 //	fire            -- the same fixture with one small home fire: the fire goal
@@ -1129,7 +1130,7 @@ func verifyStorageMissing(ctx context.Context, h *na.Harness, identity, prepared
 	if !item.Roofed || !item.InStorage {
 		return fmt.Errorf("medicine %s is not in covered storage natively: %+v", medicine, item)
 	}
-	zones, err := readStockpiles(ctx, h, identity)
+	zones, err := readStockpiles(ctx, h, identity, item.X, item.Z)
 	if err != nil {
 		return err
 	}
@@ -1154,9 +1155,13 @@ func (s stockpile) MarshalJSON() ([]byte, error) {
 	return json.Marshal(map[string]any{"id": s.id, "cells": s.cells})
 }
 
-func readStockpiles(ctx context.Context, h *na.Harness, identity map[string]any) ([]stockpile, error) {
+// readStockpiles lists the stockpile zones covering one cell: the tool
+// is bounded (page limit 16), so it is asked for that cell's region only.
+func readStockpiles(ctx context.Context, h *na.Harness, identity map[string]any, x, z int) ([]stockpile, error) {
+	cell := map[string]any{"x": x, "z": z}
 	reply, err := h.Wire(ctx, "zones-after", "observations_list_zones", map[string]any{
-		"scope": map[string]any{"expectedIdentity": identity}, "includeCells": true, "page": map[string]any{"limit": 256},
+		"scope": map[string]any{"expectedIdentity": identity}, "includeCells": true,
+		"region": map[string]any{"minimum": cell, "maximum": cell}, "page": map[string]any{"limit": 16},
 	})
 	if err != nil {
 		return nil, err
@@ -1172,7 +1177,11 @@ func readStockpiles(ctx context.Context, h *na.Harness, identity map[string]any)
 			continue
 		}
 		z := stockpile{id: na.AsString(row["id"])}
-		for _, rawCell := range na.AsSlice(row["cells"]) {
+		cells := na.AsSlice(row["listedCells"])
+		if len(cells) == 0 {
+			cells = na.AsSlice(row["gridCells"])
+		}
+		for _, rawCell := range cells {
 			cell, _ := na.AsMap(rawCell)
 			z.cells = append(z.cells, [2]int{int(na.AsNumber(cell["x"])), int(na.AsNumber(cell["z"]))})
 		}
@@ -1252,7 +1261,7 @@ func watchBlocked(ctx context.Context, journal *store.Store, prepared map[string
 				for _, p := range plan.Progress {
 					if p.View().Stage == domain.Completed {
 						completed[string(method.Plan)]++
-						return fmt.Errorf("%s plan %s completed although every worker is restricted away from its target", binding.Need, method.Plan)
+						return fmt.Errorf("%s plan %s completed although its target is walled off from every worker", binding.Need, method.Plan)
 					}
 				}
 			}

@@ -42,3 +42,17 @@ func TestMaxMedicalAttemptsPerPatientIsPositiveAndBounded(t *testing.T) {
 		t.Fatal(maxMedicalAttemptsPerPatient)
 	}
 }
+
+// Each completed covered-storage zone earns SecureSupplies another round of
+// direct hauls: before the zone exists native refuses every haul, so the base
+// bound alone would send the goal straight back to its fallbacks once the
+// zone was placed.
+func TestSecureSuppliesHaulBudgetGrowsWithCompletedZones(t *testing.T) {
+	t.Parallel()
+	if secureSuppliesHaulBudget(0) != maxSecureSuppliesHaulAttempts || secureSuppliesHaulBudget(-1) != maxSecureSuppliesHaulAttempts {
+		t.Fatal("base budget", secureSuppliesHaulBudget(0))
+	}
+	if secureSuppliesHaulBudget(1) != 2*maxSecureSuppliesHaulAttempts || secureSuppliesHaulBudget(maxSecureSuppliesZoneMethods) != (1+maxSecureSuppliesZoneMethods)*maxSecureSuppliesHaulAttempts {
+		t.Fatal("zones", secureSuppliesHaulBudget(1))
+	}
+}
