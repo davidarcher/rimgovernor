@@ -1,11 +1,16 @@
 package policy
 
 import (
-	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"math"
+	"sort"
+
+	"github.com/davidarcher/RimGovernor/go/internal/domain"
 )
 
-// EvaluateClockWindow admits only a finite healthy-colony window. The returned
+// EvaluateClockWindow admits a finite window. Live hostiles refuse it unless
+// the ActiveCombat goal holds an admitted plan; then the window is a combat
+// watch acknowledging exactly those hostiles under the combat budget, and it
+// returns to colony mode once every hostile is dead or downed. The returned
 // snapshot and review revision must still match at runtime dispatch.
 func EvaluateClockWindow(f ClockWindowFacts, limits ClockWindowLimits) ClockWindowDecision {
 	result := ClockWindowDecision{Refused: []ClockWindowReason{}}
@@ -17,7 +22,7 @@ func EvaluateClockWindow(f ClockWindowFacts, limits ClockWindowLimits) ClockWind
 		}
 		result.Refused = append(result.Refused, reason)
 	}
-	if limits.Now.IsZero() || limits.MaxAge <= 0 || limits.MaxTicks == 0 || limits.MaxTicks > 1800000 || f.Tick >= 0 && int64(f.Tick) > math.MaxInt64-int64(limits.MaxTicks) {
+	if limits.Now.IsZero() || limits.MaxAge <= 0 || limits.MaxTicks == 0 || limits.MaxTicks > 1800000 || limits.CombatMaxTicks > limits.MaxTicks || f.Tick >= 0 && int64(f.Tick) > math.MaxInt64-int64(limits.MaxTicks) {
 		hold(ClockWindowInvalidLimits)
 	}
 	if f.Current.Validate() != nil || f.Current.Revision == 0 || f.Current.Native == 0 || f.Tick < 0 {
@@ -29,6 +34,8 @@ func EvaluateClockWindow(f ClockWindowFacts, limits ClockWindowLimits) ClockWind
 	if f.StartedAt.IsZero() || f.ObservedAt.IsZero() || f.ObservedAt.Before(f.StartedAt) || f.ObservedAt.After(limits.Now) || f.StartedAt.After(limits.Now) || limits.Now.Sub(f.StartedAt) > limits.MaxAge || limits.Now.Sub(f.ObservedAt) > limits.MaxAge {
 		hold(ClockWindowStale)
 	}
+	combatPlan, combatKnown := f.CombatPlan.Value()
+	var hostiles []PawnID
 	emergency := EvaluateEmergency(f.Emergency, f.Current, f.Tick)
 	for _, h := range emergency.Holds {
 		switch h.Reason {
@@ -36,6 +43,18 @@ func EvaluateClockWindow(f ClockWindowFacts, limits ClockWindowLimits) ClockWind
 			hold(ClockWindowStale)
 		case EmergencyUnknownFacts:
 			hold(ClockWindowUnknown)
+		case EmergencyUnsafeThreat:
+			// An admitted combat plan needs ticks for defenders to fight; the
+			// native watcher only lets them pass with every live hostile
+			// acknowledged. Without a plan a raid must not auto-advance.
+			switch {
+			case !combatKnown:
+				hold(ClockWindowUnknown)
+			case combatPlan && h.Pawn != "":
+				hostiles = append(hostiles, h.Pawn)
+			default:
+				hold(ClockWindowUnsafe)
+			}
 		case EmergencyCriticalMedical:
 			// Must NOT refuse the window here: RoutineTendPlanner dispatches the
 			// tend order regardless of window admission, but the native side can
@@ -93,5 +112,14 @@ func EvaluateClockWindow(f ClockWindowFacts, limits ClockWindowLimits) ClockWind
 	result.ReviewRevision = review.Revision
 	result.CapturedCursor = review.Captured
 	result.MaxTicks = limits.MaxTicks
+	result.Mode = ClockWindowColony
+	if len(hostiles) > 0 {
+		sort.Slice(hostiles, func(i, j int) bool { return hostiles[i] < hostiles[j] })
+		result.Mode = ClockWindowCombat
+		result.Hostiles = hostiles
+		if limits.CombatMaxTicks != 0 {
+			result.MaxTicks = limits.CombatMaxTicks
+		}
+	}
 	return result
 }

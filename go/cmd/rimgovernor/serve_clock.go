@@ -84,6 +84,9 @@ func serviceClockConfig(profile string, speed k.Speed) buildingruntime.ClockSche
 		// ever attempted. Not tied to ClockWorkerConfig.CallTimeout's
 		// lease/4 ceiling (serve_building.go) -- validated up to 1 minute.
 		Profile: profile, MaxAge: 10 * time.Second,
+		// A raid runs in 300-tick combat windows so the defense planner can
+		// re-target between them; colony windows keep the 600-tick budget.
+		CombatMaxTicks: 300,
 		Start: bridge.ClockStart{Speed: speed, LeaseMS: 30000, MaxTicks: 600,
 			Policy: &k.WatchPolicy{Mode: k.WatchMode_WATCH_MODE_COLONY.Enum(),
 				HealthDropFraction: proto.Float32(.1), MinHealthFraction: proto.Float32(.5),

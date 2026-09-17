@@ -3,6 +3,7 @@ package buildingruntime
 import (
 	"context"
 	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/boundary"
+	"reflect"
 	"testing"
 	"time"
 
@@ -196,5 +197,118 @@ func TestClockSchedulerUnknownStartWorldReplacement(t *testing.T) {
 	old, err := s.player.journal.LookupClockAttempt(context.Background(), first.Attempt.Intent.RequestID)
 	if err != nil || old.SupersededAt == nil || old.Phase != store.ClockUncertain {
 		t.Fatal(old, err)
+	}
+}
+
+// combatGoalPlan binds an ActiveCombat goal to the scheduler's current review
+// and commits a squad plan (draft plus ranged attack) whose work stays open.
+func combatGoalPlan(t *testing.T, s *ClockScheduler) domain.PlanID {
+	t.Helper()
+	ctx := context.Background()
+	state := s.session.State()
+	facts := policy.RoutineFacts{Workers: domain.Known(1), Wood: domain.Known(int64(100)), Hostiles: domain.Known(int64(1)), CriticalPatients: domain.Known(int64(0)), CleanupPawns: domain.Known(false), ColonyNaming: domain.Known(false)}
+	review, err := s.player.journal.ReviewRoutine(ctx, store.RoutineReviewRequest{Current: state.Snapshot, Tick: 12, Enabled: true, Policy: policy.DefaultRoutinePolicy(), Facts: facts})
+	if err != nil {
+		t.Fatal(err)
+	}
+	var goal store.GoalState
+	for i, binding := range review.Review.Goals {
+		if binding.Need == policy.ActiveCombat {
+			goal = review.Goals[i]
+		}
+	}
+	if goal.Goal.ID == "" || goal.Goal.Need != domain.NeedDeficit {
+		t.Fatal(review.Review.Goals)
+	}
+	draft, err := domain.NewOwnedDraft("pawn")
+	if err != nil {
+		t.Fatal(err)
+	}
+	draftAction, err := domain.NewOwnedDraftAction("combat-draft", draft)
+	if err != nil {
+		t.Fatal(err)
+	}
+	attack, err := domain.NewRangedAttack("pawn", "raider", "combat-draft")
+	if err != nil {
+		t.Fatal(err)
+	}
+	attackAction, err := domain.NewRangedAttackAction("combat-attack", attack)
+	if err != nil {
+		t.Fatal(err)
+	}
+	plan, err := domain.NewPlan("routine-defense-test", 1, []domain.Action{draftAction, attackAction})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err = s.player.journal.CommitGoalMethod(ctx, goal.Goal.ID, goal.Revision, "squad-test", plan); err != nil {
+		t.Fatal(err)
+	}
+	return plan.ID()
+}
+
+func TestClockSchedulerCombatPlanAdmitsBoundedCombatWindow(t *testing.T) {
+	t.Parallel()
+	s, f := schedulerFixture(t)
+	ctx := context.Background()
+	config := s.config
+	config.CombatMaxTicks = 30
+	var err error
+	if s, err = NewClockScheduler(s.player, s.session, s.native, config, s.clock); err != nil {
+		t.Fatal(err)
+	}
+	f.emergency.Threats = []policy.EmergencyThreat{
+		{ID: "raider", Kind: policy.Hostile, Dead: domain.Known(false), Downed: domain.Known(false)},
+		{ID: "archer", Kind: policy.Hostile, Dead: domain.Known(false), Downed: domain.Known(false)},
+		{ID: "fallen", Kind: policy.Hostile, Dead: domain.Known(false), Downed: domain.Known(true)},
+	}
+	// Live hostiles without an admitted combat plan still refuse the window.
+	if got, err := s.Step(ctx); err == nil || got.Combat || f.writes != 0 {
+		t.Fatal(got, err)
+	}
+	combatGoalPlan(t, s)
+	got, err := s.Step(ctx)
+	if err != nil || got.Attempt == nil || got.Attempt.Phase != store.ClockApplied || !got.Combat || got.Decision.Mode != policy.ClockWindowCombat || f.writes != 1 {
+		t.Fatal(got, err, f.writes)
+	}
+	start := got.Attempt.Intent.Command.Start
+	if start.MaxTicks != 30 || got.Attempt.Intent.Window.MaxTicks != 30 || start.Policy.GetMode() != k.WatchMode_WATCH_MODE_COMBAT || !reflect.DeepEqual(start.Policy.AcknowledgedHostileIds, []string{"archer", "raider"}) || len(start.Policy.AcknowledgedDownedColonistIds)+len(start.Policy.MedicalRestIds) != 0 {
+		t.Fatal(start)
+	}
+	if s.config.Start.Policy.GetMode() != k.WatchMode_WATCH_MODE_COLONY || len(s.config.Start.Policy.AcknowledgedHostileIds) != 0 {
+		t.Fatal("combat window mutated the configured colony policy")
+	}
+	// The running combat epoch keeps the worker on its short poll.
+	running, err := s.Step(ctx)
+	if err != nil || !running.Running || !running.Combat || f.writes != 1 {
+		t.Fatal(running, err)
+	}
+}
+
+func TestClockSchedulerCombatEndsWithLastLiveHostile(t *testing.T) {
+	t.Parallel()
+	s, f := schedulerFixture(t)
+	ctx := context.Background()
+	combatGoalPlan(t, s)
+	f.emergency.Threats = []policy.EmergencyThreat{
+		{ID: "raider", Kind: policy.Hostile, Dead: domain.Known(true), Downed: domain.Known(false)},
+		{ID: "archer", Kind: policy.Hostile, Dead: domain.Known(false), Downed: domain.Known(true)},
+	}
+	got, err := s.Step(ctx)
+	if err != nil || got.Attempt == nil || got.Combat || got.Decision.Mode != policy.ClockWindowColony || f.writes != 1 {
+		t.Fatal(got, err)
+	}
+	start := got.Attempt.Intent.Command.Start
+	if start.Policy.GetMode() != k.WatchMode_WATCH_MODE_COLONY || len(start.Policy.AcknowledgedHostileIds) != 0 || start.MaxTicks != s.config.Start.MaxTicks {
+		t.Fatal(start)
+	}
+}
+
+func TestClockSchedulerRejectsCombatBudgetAboveColonyBudget(t *testing.T) {
+	t.Parallel()
+	s, _ := schedulerFixture(t)
+	config := s.config
+	config.CombatMaxTicks = config.Start.MaxTicks + 1
+	if _, err := NewClockScheduler(s.player, s.session, s.native, config, s.clock); err == nil {
+		t.Fatal("combat budget above colony budget")
 	}
 }

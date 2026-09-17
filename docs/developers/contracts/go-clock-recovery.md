@@ -189,6 +189,14 @@ boundaries and durable events must be known; a never-started clock may report
 durability as false. The admitted budget is finite and cannot overflow its tick
 deadline. Admission carries its snapshot and review revision for dispatch binding.
 
+A live, undowned hostile or hunting predator refuses the window (`unsafe_colony`)
+unless the facts say the ActiveCombat goal holds an admitted plan with open work;
+unknown plan evidence refuses as `unknown_facts`. With such a plan the decision
+is a combat watch: it names, sorted, every live hostile the window acknowledges
+and uses the combat budget (never above the colony budget). Once every hostile
+is dead or downed the decision is back in colony mode, acknowledging nothing.
+Colonist status, unknown threat status and every other hold apply in both modes.
+
 Window starts retain their exact profile, snapshot, tick, review revision, captured
 cursor and budget with the immutable clock intent. Durable dispatch checks the
 current review in the same transaction: its revision and captured/reviewed cursors
@@ -197,14 +205,20 @@ admission needed for receipt recovery.
 
 `CommandClockWindow` carries the policy facts through the serialized coordinator.
 It checks age and authority after waiting and before dispatch and native execution;
-the fresh native status must still describe the admitted paused tick and cursor.
+the fresh native status must still describe the admitted paused tick and cursor,
+and the start policy must watch in the admitted mode with exactly the admitted
+hostiles acknowledged: colony mode acknowledges no pawn, combat mode acknowledges
+only the decision's hostiles, and medical suppression lists are never accepted.
 The ordinary command entry point cannot dispatch a window-bearing intent without
 these checks. A dispatched attempt with uncertain effects is recovered by its
 original key, never by issuing a replacement start.
 
 The internal `ClockScheduler.Step` uses the player's cancellation and serialization
-scope for one decision. Its explicit start configuration permits colony watch mode
-without acknowledgement or medical suppression lists. It checks the shared profile,
+scope for one decision. Its explicit start configuration is colony watch mode
+without acknowledgement or medical suppression lists; the step derives a combat
+start (mode, acknowledged hostiles, combat budget) from the window decision when
+the current routine review binds an active ActiveCombat goal whose plan has open
+work, so a raid runs in short windows re-planned between them. It checks the shared profile,
 current plan work and complete attempt/epoch catalogs before collecting fresh native
 facts. Unchanged decision inputs retain the same request ID across repeated calls;
 an undispatched stale preparation cannot prevent a fresh decision. Disabled sessions
@@ -237,7 +251,8 @@ joins the loops and their cancellation handler before releasing native handles,
 the journal or profile owner. Concurrent Stop calls serialize, successful cleanup
 is cached, and failed cleanup remains retryable. Worker intervals and call budgets
 are bounded below the native lease duration; unchanged scheduling decisions back
-off. Autonomous play attaches the worker; `--observe` does not.
+off, except while a combat window is admitted or running, which keeps the short
+poll. Autonomous play attaches the worker; `--observe` does not.
 
 A fresh worker over reopened state remains disabled while recovering original
 attempts and pausing retained ownership; it does not acquire authority or issue a

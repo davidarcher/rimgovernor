@@ -10,8 +10,11 @@
 // must respond with hold-the-line (method "hold-…") for an ordinary edge
 // assault, or with squad defense ("squad-…") when the raid bypasses the line
 // (-strategy ImmediateAttackSappers or -arrival CenterDrop). For the edge
-// raid the run also waits for the raid to resolve and asserts natively that
-// at least one trap sprung.
+// raid the service then holds the raid itself -- the scheduler admits
+// bounded combat watch windows acknowledging the live hostiles while the
+// ActiveCombat goal has an admitted plan (#69) -- and the run waits for the
+// goal to recover, then asserts natively that the raiders are dead or downed
+// and at least one trap sprung.
 //
 // Like routinehaulaccept, only one GABP client may hold the game at a time:
 // the harness's fixture session and the service's session are used strictly
@@ -33,7 +36,6 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"sort"
 	"strings"
 	"sync"
 	"time"
@@ -43,6 +45,7 @@ import (
 	na "github.com/davidarcher/RimGovernor/go/internal/nativeaccept"
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
 	"github.com/davidarcher/RimGovernor/go/internal/store"
+	k "github.com/davidarcher/RimGovernor/go/internal/wire/clockpb"
 )
 
 func main() {
@@ -107,12 +110,8 @@ type service struct {
 	url       string
 	keepAlive *authorityKeepAlive
 	stopKeep  context.CancelFunc
-	// keepAuthority leaves native authority (and every owned draft) in
-	// place when the service is killed, so drafted defenders keep their
-	// orders while the harness drives the raid natively.
-	keepAuthority bool
-	keepWG        sync.WaitGroup
-	store         *store.Store
+	keepWG    sync.WaitGroup
+	store     *store.Store
 }
 
 func (s *service) stop() {
@@ -127,7 +126,7 @@ func (s *service) stop() {
 	// Hand native authority back to manual before the kill: a killed
 	// service leaves the native side in auto mode under its dead session,
 	// and the next service's acquire would resolve uncertain against it.
-	if s.keepAlive != nil && s.api != nil && !s.keepAuthority {
+	if s.keepAlive != nil && s.api != nil {
 		_, _, _ = s.api("POST", "/api/player/control/manual", map[string]any{
 			"requestId": fmt.Sprintf("defense-%s-manual-%d", s.keepAlive.name, time.Now().UnixNano()), "expected": s.keepAlive.identity,
 		}, s.token)
@@ -461,20 +460,17 @@ func run(ctx context.Context, root, output, gameID string, headless bool, rimgov
 	} else if err := assertNoLinePosition(plan.Spec, layout); err != nil {
 		return err
 	}
-	var dispatched map[string]any
 	if !opts.bypass {
-		// The service never runs the clock while a hostile is on the map
-		// (EvaluateClockWindow holds unsafe_colony), so under it the hold
-		// plan can only get as far as native dispatch: every defender
-		// drafted and every movement order accepted. Ticks are then driven
-		// by the harness below, with the service gone but the drafts and
-		// orders left in place.
-		dispatched, err = waitHoldDispatched(ctx, svc.store, method.Plan, opts.raidTimeout/2)
+		// The service holds the raid: with the hold plan admitted the
+		// scheduler runs bounded combat windows that acknowledge the live
+		// hostiles, re-planning between them, until the ActiveCombat goal
+		// recovers. The fixture can only inspect from the harness session,
+		// so the outcome is read natively once the service is gone.
+		resolved, err := waitRaidResolved(ctx, svc.store, opts.raidTimeout)
+		report["raid_resolution"] = resolved
 		if err != nil {
-			return fmt.Errorf("hold dispatch: %w", err)
+			return fmt.Errorf("raid resolution: %w", err)
 		}
-		report["hold_plan_dispatch"] = dispatched
-		svc.keepAuthority = true
 	}
 	svc.stop()
 	report["raid_authority"] = svc.keepAlive.snapshot()
@@ -487,12 +483,6 @@ func run(ctx context.Context, root, output, gameID string, headless bool, rimgov
 	final, err := fixture("inspect-after-raid", map[string]any{"op": "inspect"})
 	if err != nil {
 		return err
-	}
-	if !opts.bypass {
-		final, err = resolveRaid(ctx, h, fixture, layout, opts.raidTimeout, report)
-		if err != nil {
-			return err
-		}
 	}
 	report["inspect_after_raid"] = final
 	if on := na.AsSlice(final["colonistsOnTraps"]); len(on) != 0 {
@@ -780,107 +770,70 @@ func waitCombatMethod(ctx context.Context, s *store.Store, budget time.Duration,
 	}
 }
 
-// waitHoldDispatched waits until every draft in the hold plan is completed:
-// the furthest the plan can get while the game is paused.
-func waitHoldDispatched(ctx context.Context, s *store.Store, id domain.PlanID, budget time.Duration) (map[string]any, error) {
+// waitRaidResolved polls the journal while the service fights the raid: it
+// counts the combat watch windows the scheduler applied and returns once the
+// ActiveCombat goal has recovered (no live hostile) or is no longer bound.
+// At least one combat window must have run; the harness never steps the
+// clock natively.
+func waitRaidResolved(ctx context.Context, s *store.Store, budget time.Duration) (map[string]any, error) {
 	deadline := time.Now().Add(budget)
+	out := map[string]any{}
 	for {
-		state, err := s.LoadPlan(ctx, id)
+		attempts, err := s.LoadClockAttempts(ctx, 4096)
 		if err != nil {
-			return nil, err
+			return out, err
 		}
-		st := stages(state.Progress)
-		drafts, attacks, ready := 0, 0, true
-		for _, p := range state.Progress {
-			v := p.View()
-			switch p.Action().Kind() {
-			case domain.OwnedDraftAction:
-				drafts++
-				ready = ready && v.Stage == domain.Completed
-			case domain.RangedAttackAction:
-				attacks++
+		combatWindows, colonyWindows := 0, 0
+		var lastPhase string
+		var acknowledged []string
+		for _, a := range attempts {
+			start := a.Intent.Command.Start
+			if start == nil || a.Phase != store.ClockApplied {
+				continue
+			}
+			lastPhase = string(a.Phase)
+			if start.Policy.GetMode() == k.WatchMode_WATCH_MODE_COMBAT {
+				combatWindows++
+				acknowledged = start.Policy.AcknowledgedHostileIds
+			} else {
+				colonyWindows++
 			}
 		}
-		if drafts == 0 || attacks == 0 {
-			return map[string]any{"stages": st}, fmt.Errorf("hold plan has no draft or attack actions: %v", st)
+		out["combat_windows"] = combatWindows
+		out["colony_windows"] = colonyWindows
+		out["last_acknowledged_hostiles"] = acknowledged
+		out["last_applied_phase"] = lastPhase
+		review, err := s.LoadRoutineReview(ctx)
+		if err != nil {
+			return out, err
 		}
-		if ready {
-			return map[string]any{"stages": st, "drafts": drafts, "attacks": attacks}, nil
+		bound := false
+		need := ""
+		for _, binding := range review.Goals {
+			if binding.Need != policy.ActiveCombat {
+				continue
+			}
+			bound = true
+			goal, err := s.LoadGoal(ctx, binding.Goal)
+			if err != nil && !errors.Is(err, store.ErrNotFound) {
+				return out, err
+			}
+			need = string(goal.Goal.Need)
 		}
-		if !domain.GoalWorkOpen(state.Progress) {
-			return map[string]any{"stages": st}, fmt.Errorf("hold plan settled before dispatch: %v", st)
+		out["combat_goal_bound"] = bound
+		out["combat_goal_need"] = need
+		if combatWindows > 0 && (!bound || need == string(domain.NeedRecovered)) {
+			return out, nil
 		}
 		if time.Now().After(deadline) {
-			return map[string]any{"stages": st}, fmt.Errorf("hold plan not dispatched after %s: %v", budget, st)
+			return out, fmt.Errorf("raid not resolved under the service within %s: %#v", budget, out)
 		}
 		select {
 		case <-ctx.Done():
-			return nil, ctx.Err()
+			return out, ctx.Err()
 		case <-time.After(2 * time.Second):
 		}
 	}
-}
-
-// resolveRaid drives the raid natively from the harness session: run the
-// game, pause, inspect, repeat until every raider is dead or downed or the
-// budget ends. The fixture inspects only while paused. It also records
-// whether a drafted defender was ever seen standing on a firing cell.
-func resolveRaid(ctx context.Context, h *na.Harness, fixture func(string, map[string]any) (map[string]any, error), layout store.DefenseLayoutRecord, budget time.Duration, report na.Report) (map[string]any, error) {
-	firing := map[domain.Cell]bool{}
-	for _, c := range layout.Firing {
-		firing[c] = true
-	}
-	deadline := time.Now().Add(budget)
-	onLine := map[string]bool{}
-	var final map[string]any
-	for round := 0; ; round++ {
-		if _, err := h.Call(ctx, fmt.Sprintf("raid-run-%d", round), "rimworld/set_time_speed", map[string]any{"speed": "Fast", "ultraSpeedBoost": false}); err != nil {
-			return nil, err
-		}
-		select {
-		case <-ctx.Done():
-			return nil, ctx.Err()
-		case <-time.After(8 * time.Second):
-		}
-		if _, err := h.Call(ctx, fmt.Sprintf("raid-pause-%d", round), "rimworld/set_time_speed", map[string]any{"speed": "Paused", "ultraSpeedBoost": false}); err != nil {
-			return nil, err
-		}
-		out, err := fixture(fmt.Sprintf("raid-inspect-%d", round), map[string]any{"op": "inspect"})
-		if err != nil {
-			return nil, err
-		}
-		final = out
-		for _, raw := range na.AsSlice(out["colonists"]) {
-			row, _ := na.AsMap(raw)
-			drafted, _ := na.AsBool(row["drafted"])
-			if drafted && firing[domain.Cell{X: int32(na.AsNumber(row["x"])), Z: int32(na.AsNumber(row["z"]))}] {
-				onLine[na.AsString(row["id"])] = true
-			}
-		}
-		active := 0
-		for _, raw := range na.AsSlice(out["hostiles"]) {
-			row, _ := na.AsMap(raw)
-			dead, _ := na.AsBool(row["dead"])
-			downed, _ := na.AsBool(row["downed"])
-			if !dead && !downed {
-				active++
-			}
-		}
-		report["raid_rounds"] = round + 1
-		if active == 0 || time.Now().After(deadline) {
-			break
-		}
-	}
-	line := make([]string, 0, len(onLine))
-	for id := range onLine {
-		line = append(line, id)
-	}
-	sort.Strings(line)
-	report["defenders_on_firing_cells"] = line
-	if len(line) == 0 {
-		return final, fmt.Errorf("no drafted defender was seen on a firing cell during the raid: %#v", final)
-	}
-	return final, nil
 }
 
 func stages(progress []domain.Progress) []string {

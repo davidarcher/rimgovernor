@@ -36,6 +36,10 @@ type ClockSchedulerConfig struct {
 	Profile                                       string
 	Start                                         bridge.ClockStart
 	MaxAge                                        time.Duration
+	// CombatMaxTicks bounds each window admitted while the ActiveCombat goal
+	// holds an admitted plan and hostiles are alive; zero keeps Start.MaxTicks.
+	// Short windows let the raid be re-planned between them.
+	CombatMaxTicks uint32
 	// Routine is reviewed only after owned clock obligations have drained.
 	Routine                          *RoutineReviewer
 	FoodAcquisition, WoodAcquisition *RoutineAcquisitionPlanner
@@ -125,6 +129,9 @@ type ClockSchedulerResult struct {
 	MoodRelief                                    *RoutineMoodReliefResult
 	Naming                                        *RoutineNamingResult
 	Running, Reconciled, Cleaned                  bool
+	// Combat is set while a combat watch window was admitted or is running,
+	// so the worker keeps its short poll instead of backing off.
+	Combat bool
 }
 type ClockScheduler struct {
 	player              *Player
@@ -297,6 +304,9 @@ func NewClockScheduler(player *Player, session *Session, native ClockWindowNativ
 	if p.GetMode() != k.WatchMode_WATCH_MODE_COLONY || len(p.AcknowledgedHostileIds)+len(p.AcknowledgedDownedColonistIds)+len(p.AcknowledgedInjuredColonistIds)+len(p.SurgicalRecoveryIds)+len(p.MedicalRestIds) != 0 || p.GetInjuryStopCooldownMs() != 0 {
 		return nil, ErrControl
 	}
+	if config.CombatMaxTicks > config.Start.MaxTicks {
+		return nil, ErrControl
+	}
 	// Validate command arguments through the canonical bridge validator; these
 	// fixed validation identities carry no runtime permission.
 	err := bridge.ValidateClockExpectation(bridge.ClockExpectation{Identity: &c.Identity{ColonyId: proto.String("validation"), LoadToken: proto.String("validation"), MapId: proto.Int32(0)}, Attempt: &c.AttemptKey{ControllerSessionId: proto.String("validation"), ActionId: proto.String("validation"), AttemptId: proto.Uint64(1)}, NativeGeneration: 1, Command: bridge.ClockCommand{Start: &config.Start}})
@@ -436,6 +446,7 @@ func (s *ClockScheduler) Step(ctx context.Context) (ClockSchedulerResult, error)
 				for _, attempt := range attempts {
 					if attempt.Intent.RequestID == owned.StartRequestID && attempt.Intent.Snapshot == state.Snapshot {
 						ownedCurrent = true
+						out.Combat = attempt.Intent.Command.Start != nil && attempt.Intent.Command.Start.Policy.GetMode() == k.WatchMode_WATCH_MODE_COMBAT
 					}
 				}
 			}
@@ -445,6 +456,7 @@ func (s *ClockScheduler) Step(ctx context.Context) (ClockSchedulerResult, error)
 			return out, s.session.CleanupClock(call)
 		}
 		if !state.Enabled || !ownedCurrent {
+			out.Combat = false
 			return out, executor.ErrHeld
 		}
 		out.Running = true
@@ -748,6 +760,10 @@ func (s *ClockScheduler) Step(ctx context.Context) (ClockSchedulerResult, error)
 			fingerprint = append(fingerprint, items...)
 		}
 	}
+	combatPlan, err := clockSchedulerCombatPlan(call, s.player.journal, state.Snapshot)
+	if err != nil {
+		return out, err
+	}
 	clockState := policy.ClockWindowState("")
 	start := s.config.Start
 	var nativeWorkTicks uint32
@@ -769,21 +785,34 @@ func (s *ClockScheduler) Step(ctx context.Context) (ClockSchedulerResult, error)
 	if status.GetStopped() != nil {
 		clockState = policy.ClockStopped
 	}
-	facts := policy.ClockWindowFacts{Current: state.Snapshot, Tick: domain.Tick(status.Context.GetTick()), StartedAt: started, ObservedAt: s.clock.Now(), Emergency: emergencyFacts, Review: policy.ClockWindowReview{Revision: review.Revision, Captured: review.InboxCursor, Reviewed: review.ReviewedCursor, Acknowledged: review.AcknowledgedCursor, HasHolds: domain.Known(len(review.Holds) > 0)}, Status: policy.ClockWindowStatus{Snapshot: state.Snapshot, Tick: domain.Tick(status.Context.GetTick()), State: clockState, ActualPaused: boundary.FactBool(status.ActualPaused), NativeTickBoundary: boundary.FactBool(status.NativeTickBoundary), DurableEvents: boundary.FactBool(status.DurableEvents)}, Obligations: policy.ClockWindowObligations{Complete: domain.Known(true), OwnedEpochPending: domain.Known(false), UnknownStartPending: domain.Known(false)}, WorkRemaining: domain.Known(work)}
+	facts := policy.ClockWindowFacts{Current: state.Snapshot, Tick: domain.Tick(status.Context.GetTick()), StartedAt: started, ObservedAt: s.clock.Now(), Emergency: emergencyFacts, Review: policy.ClockWindowReview{Revision: review.Revision, Captured: review.InboxCursor, Reviewed: review.ReviewedCursor, Acknowledged: review.AcknowledgedCursor, HasHolds: domain.Known(len(review.Holds) > 0)}, Status: policy.ClockWindowStatus{Snapshot: state.Snapshot, Tick: domain.Tick(status.Context.GetTick()), State: clockState, ActualPaused: boundary.FactBool(status.ActualPaused), NativeTickBoundary: boundary.FactBool(status.NativeTickBoundary), DurableEvents: boundary.FactBool(status.DurableEvents)}, Obligations: policy.ClockWindowObligations{Complete: domain.Known(true), OwnedEpochPending: domain.Known(false), UnknownStartPending: domain.Known(false)}, WorkRemaining: domain.Known(work), CombatPlan: domain.Known(combatPlan)}
 	if status.NewestCursor != nil {
 		facts.Status.NewestCursor = domain.Known(status.GetNewestCursor())
 	}
-	out.Decision = policy.EvaluateClockWindow(facts, policy.ClockWindowLimits{Now: s.clock.Now(), MaxAge: s.config.MaxAge, MaxTicks: start.MaxTicks})
-	clockSchedulerLog("EvaluateClockWindow: work=%v admitted=%v refused=%v", work, out.Decision.Admitted, out.Decision.Refused)
+	combatMaxTicks := min(s.config.CombatMaxTicks, start.MaxTicks)
+	out.Decision = policy.EvaluateClockWindow(facts, policy.ClockWindowLimits{Now: s.clock.Now(), MaxAge: s.config.MaxAge, MaxTicks: start.MaxTicks, CombatMaxTicks: combatMaxTicks})
+	clockSchedulerLog("EvaluateClockWindow: work=%v combatPlan=%v admitted=%v mode=%s hostiles=%v refused=%v", work, combatPlan, out.Decision.Admitted, out.Decision.Mode, out.Decision.Hostiles, out.Decision.Refused)
 	if !out.Decision.Admitted {
 		return out, executor.ErrHeld
+	}
+	start.Policy = proto.Clone(start.Policy).(*k.WatchPolicy)
+	if out.Decision.Mode == policy.ClockWindowCombat {
+		// The native watcher stops on any unacknowledged hostile within
+		// HostileWithin; a combat window acknowledges exactly the live
+		// hostiles the policy admitted and runs under the combat budget.
+		out.Combat = true
+		start.Policy.Mode = k.WatchMode_WATCH_MODE_COMBAT.Enum()
+		start.Policy.AcknowledgedHostileIds = make([]string, 0, len(out.Decision.Hostiles))
+		for _, id := range out.Decision.Hostiles {
+			start.Policy.AcknowledgedHostileIds = append(start.Policy.AcknowledgedHostileIds, string(id))
+		}
+		start.MaxTicks = out.Decision.MaxTicks
 	}
 	admission := &store.ClockWindowAdmission{Profile: s.config.Profile, Snapshot: state.Snapshot, Tick: facts.Tick, ReviewRevision: review.Revision, CapturedCursor: review.InboxCursor, MaxTicks: start.MaxTicks}
 	key, err := clockSchedulerKey(admission, fingerprint, start)
 	if err != nil {
 		return out, err
 	}
-	start.Policy = proto.Clone(start.Policy).(*k.WatchPolicy)
 	intent := store.ClockIntent{Key: key, Snapshot: state.Snapshot, Command: bridge.ClockCommand{Start: &start}, Window: admission}
 	// The store returns sequence order. Retain the latest exact logical window,
 	// including terminal refusals, rather than allocating another native attempt.
@@ -814,7 +843,7 @@ func (s *ClockScheduler) Step(ctx context.Context) (ClockSchedulerResult, error)
 	if current := s.session.State(); !current.Enabled || !current.ObservationKnown || current.Snapshot != state.Snapshot {
 		return out, executor.ErrAuthority
 	}
-	attempt, err := s.session.CommandClockWindow(call, ClockWindowRequest{Intent: intent, Facts: facts, MaxAge: s.config.MaxAge})
+	attempt, err := s.session.CommandClockWindow(call, ClockWindowRequest{Intent: intent, Facts: facts, MaxAge: s.config.MaxAge, CombatMaxTicks: combatMaxTicks})
 	out.Attempt = &attempt
 	if errors.Is(err, store.ErrConflict) {
 		return out, errors.Join(executor.ErrHeld, err)
@@ -1107,6 +1136,45 @@ func clockSchedulerWork(plan store.PlanState, current domain.GenerationSnapshot)
 		work = true
 	}
 	return work, items, nil
+}
+
+// clockSchedulerCombatPlan reports whether the current routine review binds an
+// active ActiveCombat goal whose admitted plan still has open work: the only
+// evidence under which live hostiles are watched rather than refused.
+func clockSchedulerCombatPlan(ctx context.Context, journal *store.Store, current domain.GenerationSnapshot) (bool, error) {
+	review, err := journal.LoadRoutineReview(ctx)
+	if err != nil {
+		return false, err
+	}
+	if !review.Enabled || review.Snapshot != current {
+		return false, nil
+	}
+	for _, binding := range review.Goals {
+		if binding.Need != policy.ActiveCombat {
+			continue
+		}
+		goal, err := journal.LoadGoal(ctx, binding.Goal)
+		if errors.Is(err, store.ErrNotFound) {
+			return false, nil
+		}
+		if err != nil {
+			return false, err
+		}
+		if goal.Retired || goal.Goal.Status != domain.GoalActive || goal.Goal.Need != domain.NeedDeficit {
+			return false, nil
+		}
+		for _, method := range goal.Methods {
+			plan, err := journal.LoadPlan(ctx, method.Plan)
+			if err != nil {
+				return false, err
+			}
+			if domain.GoalWorkOpen(plan.Progress) {
+				return true, nil
+			}
+		}
+		return false, nil
+	}
+	return false, nil
 }
 func clockSchedulerKey(admission *store.ClockWindowAdmission, work []clockWorkItem, start bridge.ClockStart) (string, error) {
 	policyBytes, err := (proto.MarshalOptions{Deterministic: true}).Marshal(start.Policy)

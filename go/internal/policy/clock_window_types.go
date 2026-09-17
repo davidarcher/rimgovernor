@@ -41,13 +41,28 @@ type ClockWindowFacts struct {
 	Status                ClockWindowStatus
 	Obligations           ClockWindowObligations
 	WorkRemaining         domain.Fact[bool]
+	// CombatPlan is whether the ActiveCombat goal holds an admitted plan with
+	// open work. Only then may live hostiles be watched instead of refused.
+	CombatPlan domain.Fact[bool]
 }
 
+// CombatMaxTicks bounds a combat window; zero means the colony budget. A raid
+// is re-planned between short windows, so the combat budget never exceeds
+// MaxTicks.
 type ClockWindowLimits struct {
-	Now      time.Time
-	MaxAge   time.Duration
-	MaxTicks uint32
+	Now            time.Time
+	MaxAge         time.Duration
+	MaxTicks       uint32
+	CombatMaxTicks uint32
 }
+
+type ClockWindowMode string
+
+const (
+	ClockWindowColony ClockWindowMode = "colony"
+	ClockWindowCombat ClockWindowMode = "combat"
+)
+
 type ClockWindowReason string
 
 const (
@@ -62,6 +77,8 @@ const (
 	ClockWindowInvalidLimits ClockWindowReason = "invalid_limits"
 )
 
+// Hostiles lists, sorted, the live undowned threats a combat window
+// acknowledges; it is empty in colony mode.
 type ClockWindowDecision struct {
 	Admitted       bool
 	Refused        []ClockWindowReason
@@ -70,4 +87,6 @@ type ClockWindowDecision struct {
 	ReviewRevision uint64
 	CapturedCursor int64
 	MaxTicks       uint32
+	Mode           ClockWindowMode
+	Hostiles       []PawnID
 }

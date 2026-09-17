@@ -183,7 +183,9 @@ func (w *ClockWorker) stepLoop() {
 		if err != nil && (!havePrevious || key != previous || clockSchedulerDebug) {
 			fmt.Fprintf(os.Stderr, "[clock-worker] step failed: %v\n", err)
 		}
-		if havePrevious && key == previous {
+		// A combat window is short by design and the raid is re-planned
+		// between windows, so an unchanged decision does not back off.
+		if havePrevious && key == previous && !result.Combat {
 			delay = min(w.config.MaxBackoff, delay*2)
 		} else {
 			delay = w.config.StepInterval

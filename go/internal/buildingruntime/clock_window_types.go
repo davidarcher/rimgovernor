@@ -8,7 +8,8 @@ import (
 
 // ClockWindowRequest carries fresh policy facts through the serialized command.
 type ClockWindowRequest struct {
-	Intent store.ClockIntent
-	Facts  policy.ClockWindowFacts
-	MaxAge time.Duration
+	Intent         store.ClockIntent
+	Facts          policy.ClockWindowFacts
+	MaxAge         time.Duration
+	CombatMaxTicks uint32
 }
