@@ -431,8 +431,13 @@ func workerEligible(plan store.PlanState, v domain.ProgressView, scope ControlSt
 	if v.Stage != domain.Pending && v.Stage != domain.Prepared {
 		return false
 	}
+	// A Prepared action has no write outstanding (dispatch is journaled before
+	// the native call), so one whose snapshot went stale -- the step budget
+	// cancelled its dispatch and the native generation then moved -- is
+	// re-prepared under the current scope by the next run rather than
+	// stranded behind an authority it can never dispatch against (#101).
 	if v.Attempt == 0 {
-		return v.Stage != domain.Prepared || v.Snapshot == scope.Snapshot
+		return true
 	}
 	// A trusted refusal is a no-effect proof. Only a later resume (a newer
 	// native generation) authorizes another attempt; an unknown receipt always
@@ -440,10 +445,12 @@ func workerEligible(plan store.PlanState, v domain.ProgressView, scope ControlSt
 	// nothing, so the same generation may retry it.
 	receipt, known := v.Receipt.Value()
 	effect, effectKnown := v.Effect.Value()
-	if v.Stage != domain.Pending || !known || !effectKnown || effect != domain.EffectAbsent || playerWorld(v.Snapshot) != world {
+	if !known || !effectKnown || effect != domain.EffectAbsent || playerWorld(v.Snapshot) != world {
 		return false
 	}
-	return receipt == domain.ReceiptUnsent || receipt == domain.ReceiptRefused && scope.Snapshot.Native > v.Snapshot.Native
+	// A refused attempt already re-prepared carries the newer generation that
+	// authorized it, so it stays eligible until it dispatches.
+	return receipt == domain.ReceiptUnsent || receipt == domain.ReceiptRefused && (v.Stage == domain.Prepared || scope.Snapshot.Native > v.Snapshot.Native)
 }
 
 // Read reconciliation may rotate plan targets without changing world authority.

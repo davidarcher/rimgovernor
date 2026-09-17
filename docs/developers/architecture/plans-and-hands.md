@@ -40,7 +40,11 @@ completed buildings and neighboring or replacement objects remain protected.
 
 Manual stops routine automation but permits current explicit player work through
 Hands while paused. It does not resume simulation. Direction and colony/map/load
-changes invalidate work prepared under the previous context.
+changes invalidate work prepared under the previous context. Dispatch is
+journaled before any native write, so a prepared but undispatched action has no
+write outstanding: when the native generation moves under it (a cancelled
+dispatch, a re-acquired lease) it is prepared again under the current authority
+rather than left stranded.
 
 Implementation: [go/internal/domain](../../../go/internal/domain) (plans/goals),
 [go/internal/store](../../../go/internal/store) and

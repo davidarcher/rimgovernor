@@ -85,15 +85,17 @@ func (s *Store) PrepareMovement(ctx context.Context, plan domain.PlanID, action 
 	if before.Unresolved || v.Tick < before.Tick {
 		return domain.Progress{}, errors.New("movement admission cannot replace unresolved or newer progress")
 	}
+	// A prepared action has no write outstanding (dispatch is recorded before
+	// any native write), so authority that moved since its preparation
+	// re-prepares it under the current snapshot instead of stranding it.
+	prepare := before.Stage == domain.Pending || before.Stage == domain.Prepared && !before.Snapshot.Matches(v.Snapshot)
 	switch before.Stage {
-	case domain.Pending:
-		p, err = p.Prepare(v.Snapshot, v.Tick)
-		if err != nil {
-			return domain.Progress{}, err
-		}
-	case domain.Prepared:
-		if before.Snapshot != v.Snapshot {
-			return domain.Progress{}, errors.New("prepared movement authority changed")
+	case domain.Pending, domain.Prepared:
+		if prepare {
+			p, err = p.Prepare(v.Snapshot, v.Tick)
+			if err != nil {
+				return domain.Progress{}, err
+			}
 		}
 	default:
 		return domain.Progress{}, errors.New("movement admission requires pending or prepared work")
@@ -106,7 +108,7 @@ func (s *Store) PrepareMovement(ctx context.Context, plan domain.PlanID, action 
 	if err = movement.Insert(ctx, tx, action, v); err != nil {
 		return domain.Progress{}, err
 	}
-	if before.Stage == domain.Pending {
+	if prepare {
 		event, err := json.Marshal(transition{Kind: "prepare", Snapshot: v.Snapshot, Tick: v.Tick})
 		if err != nil {
 			return domain.Progress{}, err

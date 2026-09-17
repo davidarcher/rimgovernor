@@ -250,8 +250,15 @@ func NewProgress(plan PlanSpec, action ActionID) (Progress, error) {
 }
 func (p Progress) View() ProgressView { return p.view }
 func (p Progress) Action() Action     { return p.action }
+
+// Prepare binds a not-yet-dispatched action to the authority snapshot it will
+// dispatch under. Dispatch is recorded durably before any native write, so a
+// Prepared action never has a write outstanding: when its authority moves (a
+// native generation advance after a cancelled dispatch) it is prepared again
+// under the current snapshot rather than left behind with one it can never
+// dispatch against.
 func (p Progress) Prepare(snapshot GenerationSnapshot, tick Tick) (Progress, error) {
-	if p.view.Stage != Pending || p.view.Unresolved || p.draftCleanupOutstanding() {
+	if p.view.Stage != Pending && p.view.Stage != Prepared || p.view.Unresolved || p.draftCleanupOutstanding() {
 		return p, errors.New("action is not ready")
 	}
 	if err := snapshot.Validate(); err != nil {

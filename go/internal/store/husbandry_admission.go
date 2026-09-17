@@ -79,15 +79,17 @@ func (s *Store) PrepareHusbandry(ctx context.Context, plan domain.PlanID, action
 	if v.Unresolved || admission.Tick < v.Tick {
 		return domain.Progress{}, errors.New("admission cannot replace unresolved or newer progress")
 	}
+	// A prepared action has no write outstanding (dispatch is recorded before
+	// any native write), so authority that moved since its preparation
+	// re-prepares it under the current snapshot instead of stranding it.
+	prepare := v.Stage == domain.Pending || v.Stage == domain.Prepared && !v.Snapshot.Matches(admission.Snapshot)
 	switch v.Stage {
-	case domain.Pending:
-		p, err = p.Prepare(admission.Snapshot, admission.Tick)
-		if err != nil {
-			return domain.Progress{}, err
-		}
-	case domain.Prepared:
-		if !v.Snapshot.Matches(admission.Snapshot) {
-			return domain.Progress{}, errors.New("prepared admission authority changed")
+	case domain.Pending, domain.Prepared:
+		if prepare {
+			p, err = p.Prepare(admission.Snapshot, admission.Tick)
+			if err != nil {
+				return domain.Progress{}, err
+			}
 		}
 	default:
 		return domain.Progress{}, errors.New("admission replacement requires pending or prepared work")
@@ -104,7 +106,7 @@ func (s *Store) PrepareHusbandry(ctx context.Context, plan domain.PlanID, action
 	if _, err = tx.ExecContext(ctx, "INSERT INTO husbandry_admissions(action_id,payload) VALUES(?,?) ON CONFLICT(action_id) DO UPDATE SET payload=excluded.payload", action, data); err != nil {
 		return domain.Progress{}, err
 	}
-	if v.Stage == domain.Pending {
+	if prepare {
 		event, err := json.Marshal(transition{Kind: "prepare", Snapshot: admission.Snapshot, Tick: admission.Tick})
 		if err != nil {
 			return domain.Progress{}, err

@@ -247,28 +247,34 @@ func TestDraftPreparedAdmissionRefreshAndCancellation(t *testing.T) {
 	if _, e := s.PrepareDraft(ctx, v.Plan, v.Action, fresh); e != nil {
 		t.Fatal(e)
 	}
-	wrong := fresh
-	wrong.Snapshot.Native++
-	if _, e := s.PrepareDraft(ctx, v.Plan, v.Action, wrong); e == nil {
-		t.Fatal("changed authority")
+	// Moved authority re-prepares the undispatched draft under the current
+	// snapshot; the superseded preparation can no longer dispatch (#101).
+	moved := fresh
+	moved.Snapshot.Native++
+	moved.Tick++
+	if p, e := s.PrepareDraft(ctx, v.Plan, v.Action, moved); e != nil || p.View().Stage != domain.Prepared || p.View().Snapshot != moved.Snapshot || p.View().Tick != moved.Tick {
+		t.Fatal("moved authority did not re-prepare", e, p.View())
 	}
-	if _, e := s.Dispatch(ctx, v.Plan, v.Action, a.Snapshot, a.Tick); e == nil {
+	if _, e := s.Dispatch(ctx, v.Plan, v.Action, fresh.Snapshot, fresh.Tick); e == nil {
+		t.Fatal("superseded preparation dispatched")
+	}
+	if _, e := s.Dispatch(ctx, v.Plan, v.Action, moved.Snapshot, fresh.Tick); e == nil {
 		t.Fatal("old admission tick")
 	}
-	if _, e := s.Dispatch(ctx, v.Plan, v.Action, fresh.Snapshot, fresh.Tick); e != nil {
+	if _, e := s.Dispatch(ctx, v.Plan, v.Action, moved.Snapshot, moved.Tick); e != nil {
 		t.Fatal(e)
 	}
 	id, _ := s.Identity(ctx)
-	claim := domain.DraftClaim{Action: v.Action, Attempt: 1, Pawn: a.Pawn, Claim: "claim", Session: domain.ControllerSessionID(id), Origin: a.Snapshot}
+	claim := domain.DraftClaim{Action: v.Action, Attempt: 1, Pawn: a.Pawn, Claim: "claim", Session: domain.ControllerSessionID(id), Origin: moved.Snapshot}
 	if _, e := s.Cancel(ctx, v.Plan, v.Action); e != nil {
 		t.Fatal(e)
 	}
 	if _, e := s.RecordDraftReceipt(ctx, v.Plan, v.Action, 1, domain.ReceiptAccepted, domain.Known(claim)); e != nil {
 		t.Fatal(e)
 	}
-	current := a.Snapshot
+	current := moved.Snapshot
 	current.Native++
-	if _, e := s.ObserveDraftCleanup(ctx, v.Plan, v.Action, domain.DraftCleanupObservation{Claim: claim, Observed: current, Tick: fresh.Tick, Outcome: domain.DraftReleaseSuperseded}); e != nil {
+	if _, e := s.ObserveDraftCleanup(ctx, v.Plan, v.Action, domain.DraftCleanupObservation{Claim: claim, Observed: current, Tick: moved.Tick, Outcome: domain.DraftReleaseSuperseded}); e != nil {
 		t.Fatal(e)
 	}
 	s.Close()

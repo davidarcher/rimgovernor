@@ -60,7 +60,7 @@ func TestAdmissionReopenAndDefensiveRecords(t *testing.T) {
 func TestAdmissionAtomicRollbackAndPreparedReplacement(t *testing.T) {
 	t.Parallel()
 	ctx := context.Background()
-	s, _ := fixture(t)
+	s, path := fixture(t)
 	if _, err := s.db.Exec(`CREATE TRIGGER fail_prepare BEFORE INSERT ON transitions BEGIN SELECT RAISE(ABORT,'prepare failed'); END`); err != nil {
 		t.Fatal(err)
 	}
@@ -94,10 +94,34 @@ func TestAdmissionAtomicRollbackAndPreparedReplacement(t *testing.T) {
 	if _, err = s.ReserveAndPrepare(ctx, "p", "a", evidence(19, 30)); err == nil {
 		t.Fatal("admission tick moved backwards")
 	}
-	changed := evidence(20, 60)
+	// Moved authority re-prepares the undispatched action under the current
+	// snapshot and journals the new preparation (#101).
+	changed := evidence(21, 60)
 	changed.Snapshot.Native++
-	if _, err = s.ReserveAndPrepare(ctx, "p", "a", changed); err == nil {
-		t.Fatal("revalidation changed authority")
+	moved, err := s.ReserveAndPrepare(ctx, "p", "a", changed)
+	if err != nil || moved.View().Stage != domain.Prepared || moved.View().Snapshot != changed.Snapshot || moved.View().Tick != 21 {
+		t.Fatal("moved authority did not re-prepare", err, moved.View())
+	}
+	if _, err = s.Dispatch(ctx, "p", "a", scope(), 21); err == nil {
+		t.Fatal("superseded preparation dispatched")
+	}
+	s.Close()
+	s = open(t, path)
+	if state, err = s.LoadPlan(ctx, "p"); err != nil || state.Progress[0].View().Snapshot != changed.Snapshot {
+		t.Fatal("re-preparation not replayed", err)
+	}
+	if _, err = s.Dispatch(ctx, "p", "a", changed.Snapshot, 21); err != nil {
+		t.Fatal(err)
+	}
+	if _, err = s.RecordReceipt(ctx, "p", "a", 1, domain.ReceiptUnsent); err != nil {
+		t.Fatal(err)
+	}
+	if _, err = s.ReserveAndPrepare(ctx, "p", "a", changed); err != nil {
+		t.Fatal(err)
+	}
+	state, err = s.LoadPlan(ctx, "p")
+	if err != nil {
+		t.Fatal(err)
 	}
 	if _, err = s.db.Exec(`CREATE TRIGGER fail_replace BEFORE UPDATE ON admissions BEGIN SELECT RAISE(ABORT,'replacement failed'); END`); err != nil {
 		t.Fatal(err)

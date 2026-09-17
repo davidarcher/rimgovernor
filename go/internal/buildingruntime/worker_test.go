@@ -152,6 +152,43 @@ func TestWorkerActualPermissionAndWrongWorld(t *testing.T) {
 		t.Fatal("wrong world dispatched")
 	}
 }
+
+// A step-budget cancel between durable preparation and dispatch leaves an
+// Attempt-0 Prepared action with no receipt. Once the native generation moves
+// it must stay eligible so the next run re-prepares it under the current
+// authority instead of stranding the plan (#101).
+func TestWorkerStalePreparedIsReDriven(t *testing.T) {
+	t.Parallel()
+	w, _, db := workerFixture(t)
+	v := workerPending(t, w, "orphan", false)
+	prepared, err := db.ReserveAndPrepare(context.Background(), v.Plan, v.Action, store.Admission{Snapshot: v.Snapshot, Tick: 1, Costs: []store.MaterialCost{}, Footprint: []domain.Cell{playerSubmission().Building.Cell()}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	plan, err := db.LoadPlan(context.Background(), v.Plan)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if view := prepared.View(); view.Stage != domain.Prepared || view.Attempt != 0 || view.Unresolved {
+		t.Fatalf("fixture is not an undispatched preparation: %+v", view)
+	}
+	scope := ControlState{Snapshot: v.Snapshot, ObservationKnown: true, Enabled: true}
+	if !workerEligible(plan, prepared.View(), scope, playerWorld(v.Snapshot)) {
+		t.Fatal("current preparation ineligible")
+	}
+	scope.Snapshot.Native++
+	if !workerEligible(plan, prepared.View(), scope, playerWorld(v.Snapshot)) {
+		t.Fatal("prepared action orphaned by a moved native generation")
+	}
+	moved := store.Admission{Snapshot: scope.Snapshot, Tick: 2, Costs: []store.MaterialCost{}, Footprint: []domain.Cell{playerSubmission().Building.Cell()}}
+	again, err := db.ReserveAndPrepare(context.Background(), v.Plan, v.Action, moved)
+	if err != nil || again.View().Snapshot != scope.Snapshot {
+		t.Fatal("re-preparation under current authority refused", err)
+	}
+	if _, err = db.Dispatch(context.Background(), v.Plan, v.Action, scope.Snapshot, 2); err != nil {
+		t.Fatal(err)
+	}
+}
 func TestWorkerRefusalRequiresNewExplicitDirection(t *testing.T) {
 	t.Parallel()
 	w, _, db := workerFixture(t)
