@@ -34,10 +34,16 @@ namespace HomeBridge.BridgeTools
                         foreach (var owner in bed.OwnersForReading.ToList()) owner.ownership.UnclaimBed();
                     var center = new IntVec3((int)people.Average(x => x.Position.x), 0, (int)people.Average(x => x.Position.z));
                     const int size = 9;
-                    var origin = GenRadial.RadialCellsAround(center, 18, true).Where(c => c.DistanceToSquared(center) >= 36).First(c =>
-                        new CellRect(c.x, c.z, size, size).Cells.All(v => v.InBounds(map)
-                            && !v.Fogged(map) && v.Standable(map) && v.GetEdifice(map) == null
+                    // Plants (trees included) are cleared below, so only
+                    // edifices, zones, pawns and terrain disqualify a site;
+                    // the radius covers a wooded or rocky landing.
+                    var site = GenRadial.RadialCellsAround(center, 45, true).Where(c => c.DistanceToSquared(center) >= 36).Cast<IntVec3?>().FirstOrDefault(c =>
+                        new CellRect(c.Value.x, c.Value.z, size, size).Cells.All(v => v.InBounds(map)
+                            && !v.Fogged(map) && v.GetEdifice(map) == null
+                            && v.GetThingList(map).All(t => t is Plant || t.def.category == ThingCategory.Item)
                             && map.zoneManager.ZoneAt(v) == null && v.GetTerrain(map).affordances.Contains(TerrainAffordanceDefOf.Heavy)));
+                    if (site == null) throw new InvalidOperationException("No clear 9x9 site within 45 cells of the colonists.");
+                    var origin = site.Value;
                     var rect = new CellRect(origin.x, origin.z, size, size);
                     foreach (var cell in rect) {
                         foreach (var thing in cell.GetThingList(map).Where(t => t is Plant || t.def.category == ThingCategory.Item).ToList()) thing.Destroy();
