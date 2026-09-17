@@ -22,9 +22,12 @@ func admitBillMethod(ctx context.Context, tx *sql.Tx, goal GoalState, plan domai
 	if !review.Enabled || review.Snapshot != goal.Goal.Snapshot || goal.Goal.Source != domain.AutopilotGoal || len(plan.Actions()) > 4 {
 		return ErrConflict
 	}
+	// Bills serve the cooking/food goals and the resource-target goals whose
+	// production path (RoutineResourcePlanner.dispatchResourceGoal) stages a
+	// bench and then a StockTarget bill on it.
 	bound := false
 	for _, b := range review.Goals {
-		bound = bound || b.Goal == goal.Goal.ID && (b.Need == policy.EnsureCooking || b.Need == policy.EnsureFoodSupply)
+		bound = bound || b.Goal == goal.Goal.ID && (b.Need == policy.EnsureCooking || b.Need == policy.EnsureFoodSupply || b.Need == policy.MaintainResource || b.Need == policy.MaintainAnimalFeed)
 	}
 	if !bound {
 		return ErrConflict

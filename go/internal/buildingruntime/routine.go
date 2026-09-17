@@ -177,6 +177,21 @@ func (r *RoutineReviewer) step(ctx, epoch context.Context, arbiter *stepArbiter)
 		reading.Projection.Facts.Labor = policy.RoutineLabor(pawns)
 		required, known := routineProjectWork(definitions, reading.Projection.Definitions).Value()
 		if known {
+			// Bench work (open bills, a deficit's standing benches) counts
+			// toward coverage here so the work goal assesses a deficit the
+			// planner then covers; a failed census leaves coverage unknown.
+			benches, _ := r.native.(RoutineWorkBenchSource)
+			recovered, _ := policy.ResourceTargetNeed(r.policy.ResourceTargets, reading.Projection.Facts.Resources)
+			deficit, deficitKnown := recovered.Value()
+			benchWork, err := routineBenchWork(ctx, benches, state.Snapshot, plans, playerPlans, r.policy.ResourceTargets, deficitKnown && !deficit)
+			if err != nil {
+				clockSchedulerLog("routine.step: bench work err=%v", err)
+			}
+			var rows []policy.WorkRequirement
+			rows, known = benchWork.Value()
+			required = mergeWorkRequirements(required, rows)
+		}
+		if known {
 			work, err := policy.AssignWork(pawns, required, preferences.Overrides)
 			if err == nil {
 				reading.Projection.Facts.WorkCoverage = work.Matches

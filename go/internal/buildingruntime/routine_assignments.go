@@ -8,7 +8,6 @@ import (
 	"fmt"
 
 	"github.com/davidarcher/RimGovernor/go/internal/bridge"
-	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/boundary"
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"github.com/davidarcher/RimGovernor/go/internal/observation"
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
@@ -64,14 +63,21 @@ func (r *RoutineWorkPlanner) step(call, epoch context.Context, arbiter *stepArbi
 		return RoutineWorkResult{Reason: BuildingMethodNoReview}, nil
 	}
 	var goal store.GoalState
+	deficit := false
 	for _, binding := range review.Goals {
-		if binding.Need == policy.EnsureWorkAssignments {
+		switch binding.Need {
+		case policy.EnsureWorkAssignments:
 			goal, err = p.journal.LoadGoal(call, binding.Goal)
-			break
+		case policy.MaintainResource:
+			// A resource deficit needs its bench work type covered before
+			// the bill can be admitted natively (routineDeficitWork).
+			var resource store.GoalState
+			resource, err = p.journal.LoadGoal(call, binding.Goal)
+			deficit = err == nil && resource.Goal.Status == domain.GoalActive && resource.Goal.Need == domain.NeedDeficit
 		}
-	}
-	if err != nil {
-		return RoutineWorkResult{}, err
+		if err != nil {
+			return RoutineWorkResult{}, err
+		}
 	}
 	if goal.Goal.Status != domain.GoalActive || goal.Goal.Need != domain.NeedDeficit {
 		return RoutineWorkResult{Reason: BuildingMethodNoDeficit}, nil
@@ -105,10 +111,6 @@ func (r *RoutineWorkPlanner) step(call, epoch context.Context, arbiter *stepArbi
 		return RoutineWorkResult{}, err
 	}
 	definitions := routineProjectDefinitions(plans, state.Snapshot, playerPlans)
-	var bills []routineProjectBill
-	if r.benches != nil {
-		bills = routineProjectBills(plans, state.Snapshot, playerPlans)
-	}
 	identity, _, err := r.reviewer.native.Identity(call)
 	if err != nil {
 		return RoutineWorkResult{}, err
@@ -136,16 +138,14 @@ func (r *RoutineWorkPlanner) step(call, epoch context.Context, arbiter *stepArbi
 	if !known {
 		return RoutineWorkResult{Reason: BuildingMethodUnknown}, nil
 	}
-	if len(bills) > 0 {
-		census, _, err := r.benches.ReadGearBenches(call, boundary.Identity(state.Snapshot))
-		if err != nil {
-			return RoutineWorkResult{}, err
-		}
-		billWork, known := routineBillWork(bills, census).Value()
-		if !known {
-			return RoutineWorkResult{Reason: BuildingMethodUnknown}, nil
-		}
-		required = mergeWorkRequirements(required, billWork)
+	benchWork, err := routineBenchWork(call, r.benches, state.Snapshot, plans, playerPlans, r.reviewer.policy.ResourceTargets, deficit)
+	if err != nil {
+		return RoutineWorkResult{}, err
+	}
+	if rows, known := benchWork.Value(); !known {
+		return RoutineWorkResult{Reason: BuildingMethodUnknown}, nil
+	} else {
+		required = mergeWorkRequirements(required, rows)
 	}
 	decision, err := policy.AssignWork(pawns, required, preferences.Overrides)
 	if err != nil {

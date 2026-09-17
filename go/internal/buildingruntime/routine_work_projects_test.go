@@ -150,3 +150,29 @@ func TestRoutineBillWorkResolvesBenchWorkTypeAndMergesWithConstruction(t *testin
 		t.Fatal("no bills should require nothing", work, known)
 	}
 }
+
+func TestRoutineDeficitWorkCoversStandingBenchesBeforeAnyBill(t *testing.T) {
+	t.Parallel()
+	crafting := policy.WorkRequirement{Work: "Crafting", Skill: "Crafting", Minimum: 0}
+	club := policy.GearRecipe{Definition: "Make_MeleeWeapon_Club", Products: []policy.Resource{"MeleeWeapon_Club"}, AvailableOn: domain.Known(true), RequiredWork: domain.Known([]policy.WorkRequirement{crafting})}
+	bow := policy.GearRecipe{Definition: "Make_Bow_Short", Products: []policy.Resource{"Bow_Short"}, AvailableOn: domain.Known(true), RequiredWork: domain.Known([]policy.WorkRequirement{{Work: "Crafting", Skill: "Crafting", Minimum: 3}})}
+	gated := policy.GearRecipe{Definition: "Make_Gun", Products: []policy.Resource{"MeleeWeapon_Club"}, AvailableOn: domain.Known(false)}
+	cooking := policy.GearRecipe{Definition: "CookMealSimple", Products: []policy.Resource{"MealSimple"}, AvailableOn: domain.Known(true), RequiredWork: domain.Known([]policy.WorkRequirement{{Work: "Cooking", Skill: "Cooking"}})}
+	targets := map[policy.Resource]int64{"MeleeWeapon_Club": 3}
+	census := []bridge.GearBenchRead{
+		{Bench: policy.GearBench{ID: "spot", Recipes: domain.Known([]policy.GearRecipe{club, bow, gated})}},
+		{Bench: policy.GearBench{ID: "fire", Recipes: domain.Known([]policy.GearRecipe{cooking})}},
+		{Bench: policy.GearBench{ID: "unread"}},
+	}
+	work, known := routineDeficitWork(targets, census).Value()
+	if !known || !reflect.DeepEqual(work, []policy.WorkRequirement{crafting}) {
+		t.Fatal("only the producing, available recipe counts", work, known)
+	}
+	if work, known := routineDeficitWork(targets, nil).Value(); !known || len(work) != 0 {
+		t.Fatal("no bench requires nothing", work, known)
+	}
+	unread := policy.GearRecipe{Definition: "Make_MeleeWeapon_Club", Products: []policy.Resource{"MeleeWeapon_Club"}, AvailableOn: domain.Known(true)}
+	if _, known := routineDeficitWork(targets, []bridge.GearBenchRead{{Bench: policy.GearBench{ID: "spot", Recipes: domain.Known([]policy.GearRecipe{unread})}}}).Value(); known {
+		t.Fatal("a producing recipe with unobserved work is unknown")
+	}
+}

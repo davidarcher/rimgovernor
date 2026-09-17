@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
+	"github.com/davidarcher/RimGovernor/go/internal/policy"
 )
 
 func billStoreFixture(t *testing.T) (*Store, string, BillAdmission) {
@@ -188,5 +189,37 @@ func TestBillClaimReclaimAfterUncertainThenAbsentDoesNotConflict(t *testing.T) {
 	}
 	if !claimed {
 		t.Fatal("second attempt did not claim the bench and recipe")
+	}
+}
+
+// A resource-target goal admits the StockTarget bill its production path
+// stages on a workshop bench; bills were once bound to the food goals only.
+func TestBillAdmissionAcceptsResourceTargetGoal(t *testing.T) {
+	t.Parallel()
+	ctx := context.Background()
+	s := open(t, memoryPath(t))
+	r := routineRequest()
+	r.Current.Native = 2
+	r.Policy.ResourceTargets = map[policy.Resource]int64{"MeleeWeapon_Club": 3}
+	r.Facts.Resources = domain.Known([]policy.Amount{})
+	out := reviewRoutine(t, s, &r)
+	g := routineGoal(t, out, policy.MaintainResource)
+	if g.Goal.Need != domain.NeedDeficit {
+		t.Fatal(g)
+	}
+	bill, err := domain.NewProductionBill("spot", "Make_MeleeWeapon_Club", "bench-cas", domain.StockTarget, 3)
+	if err != nil {
+		t.Fatal(err)
+	}
+	a, err := domain.NewProductionBillAction("bill", bill)
+	if err != nil {
+		t.Fatal(err)
+	}
+	plan, err := domain.NewPlan("club-plan", 1, []domain.Action{a})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err = s.CommitGoalMethod(ctx, g.Goal.ID, g.Revision, "resource-club", plan); err != nil {
+		t.Fatal(err)
 	}
 }

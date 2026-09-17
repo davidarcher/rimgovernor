@@ -1,9 +1,11 @@
 package buildingruntime
 
 import (
+	"context"
 	"sort"
 
 	"github.com/davidarcher/RimGovernor/go/internal/bridge"
+	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/boundary"
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"github.com/davidarcher/RimGovernor/go/internal/observation"
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
@@ -160,4 +162,78 @@ func routineProjectWork(names []string, definitions []observation.PlanningDefini
 		return domain.Known([]policy.WorkRequirement{})
 	}
 	return domain.Known([]policy.WorkRequirement{{Work: "Construction", Skill: "Construction", Minimum: minimum}})
+}
+
+// routineDeficitWork covers the work a pending resource deficit will need
+// before its bill exists: native bill admission refuses a bill until some
+// colonist has the bench's work type enabled, and routineBillWork only sees
+// bills already open, so a freshly built workshop bench would never get a
+// worker. Every standing bench recipe that is available on its bench and
+// produces a targeted resource contributes its work requirement; a bench
+// whose recipes are unread is skipped (it cannot host a bill yet either),
+// but a producing recipe with unobserved work makes the whole requirement
+// Unknown so the planner waits rather than assigning against a guess.
+func routineDeficitWork(targets map[policy.Resource]int64, census []bridge.GearBenchRead) domain.Fact[[]policy.WorkRequirement] {
+	var out []policy.WorkRequirement
+	for _, row := range census {
+		recipes, known := row.Bench.Recipes.Value()
+		if !known {
+			continue
+		}
+		for _, recipe := range recipes {
+			if available, known := recipe.AvailableOn.Value(); !known || !available {
+				continue
+			}
+			produces := false
+			for _, product := range recipe.Products {
+				if _, wanted := targets[product]; wanted {
+					produces = true
+					break
+				}
+			}
+			if !produces {
+				continue
+			}
+			work, known := recipe.RequiredWork.Value()
+			if !known {
+				return domain.Unknown[[]policy.WorkRequirement]()
+			}
+			out = mergeWorkRequirements(out, work)
+		}
+	}
+	return domain.Known(out)
+}
+
+// routineBenchWork is the bench-hosted work the review and the work planner
+// both fold into the construction requirement: open bills (routineBillWork)
+// and, while a resource target is in deficit, the standing benches that
+// could produce it (routineDeficitWork). One census read serves both; no
+// bill and no deficit reads nothing. The review needs the same rows so
+// EnsureWorkAssignments assesses a deficit the planner will then cover.
+func routineBenchWork(ctx context.Context, benches RoutineWorkBenchSource, snapshot domain.GenerationSnapshot, plans []store.PlanState, player map[domain.PlanID]uint64, targets map[policy.Resource]int64, deficit bool) (domain.Fact[[]policy.WorkRequirement], error) {
+	none := domain.Known([]policy.WorkRequirement{})
+	if benches == nil {
+		return none, nil
+	}
+	bills := routineProjectBills(plans, snapshot, player)
+	deficit = deficit && len(targets) > 0
+	if len(bills) == 0 && !deficit {
+		return none, nil
+	}
+	census, _, err := benches.ReadGearBenches(ctx, boundary.Identity(snapshot))
+	if err != nil {
+		return domain.Unknown[[]policy.WorkRequirement](), err
+	}
+	out, known := routineBillWork(bills, census).Value()
+	if !known {
+		return domain.Unknown[[]policy.WorkRequirement](), nil
+	}
+	if deficit {
+		work, known := routineDeficitWork(targets, census).Value()
+		if !known {
+			return domain.Unknown[[]policy.WorkRequirement](), nil
+		}
+		out = mergeWorkRequirements(out, work)
+	}
+	return domain.Known(out), nil
 }
