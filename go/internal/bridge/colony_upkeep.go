@@ -95,7 +95,7 @@ func validateDirectUpkeep(v *o.UpkeepFacts, size *o.MapSize, mapID int32) error 
 		}
 		p := row.Pawn
 		a := p.AnimalState
-		if !proto.Equal(p, &o.PawnState{Pawn: p.Pawn, AnimalState: a}) || !proto.Equal(a, &o.AnimalState{Contained: a.Contained, PenId: a.PenId, Release: a.Release, Slaughter: a.Slaughter}) || a.PenId != nil && (validID(a.GetPenId()) != nil || a.Contained != nil && !a.GetContained()) || row.RequiresPen != nil && !row.GetRequiresPen() && (a.Contained != nil || a.PenId != nil || row.SuitablePenId != nil) || !proto.Equal(row, &o.AnimalFeed{Pawn: p, Diet: row.Diet, RequiresPen: row.RequiresPen, SuitablePenId: row.SuitablePenId, ReachableStoredFeed: row.ReachableStoredFeed}) {
+		if !proto.Equal(p, &o.PawnState{Pawn: p.Pawn, AnimalState: a}) || !proto.Equal(a, &o.AnimalState{Contained: a.Contained, PenId: a.PenId, Release: a.Release, Slaughter: a.Slaughter, SafeToRelease: a.SafeToRelease}) || a.PenId != nil && (validID(a.GetPenId()) != nil || a.Contained != nil && !a.GetContained()) || row.RequiresPen != nil && !row.GetRequiresPen() && (a.Contained != nil || a.PenId != nil || row.SuitablePenId != nil) || !proto.Equal(row, &o.AnimalFeed{Pawn: p, Diet: row.Diet, RequiresPen: row.RequiresPen, SuitablePenId: row.SuitablePenId, ReachableStoredFeed: row.ReachableStoredFeed}) {
 			return contract("conflicting upkeep animal fields")
 		}
 		stocks := map[string]bool{}
@@ -103,6 +103,19 @@ func validateDirectUpkeep(v *o.UpkeepFacts, size *o.MapSize, mapID int32) error 
 			if stock == nil || !entity(stock.Item, stocks) || !number(stock.Nutrition) || stock.Count != nil && stock.GetCount() < 0 || stock.RotTicks != nil && stock.GetRotTicks() < 0 || stock.HolderId != nil && stock.GetHolderId() != "" || len(stock.EaterIds) != 1 || stock.EaterIds[0] != p.Pawn.GetId() || !proto.Equal(stock, &o.FoodStock{Item: stock.Item, Count: stock.Count, HolderId: stock.HolderId, Nutrition: stock.Nutrition, EaterIds: stock.EaterIds, Perishable: stock.Perishable, RotTicks: stock.RotTicks, Roofed: stock.Roofed}) {
 				return contract("invalid reachable animal feed")
 			}
+		}
+	}
+	// A wild row is the factionless tame census: native tame eligibility
+	// and the tame designation only, never feed, pen or ownership facts.
+	seen = map[string]bool{}
+	for _, row := range v.WildAnimals {
+		if row == nil || row.Pawn == nil || !entity(row.Pawn.Pawn, seen) || row.Pawn.AnimalState == nil || !row.Pawn.GetWild() || row.Diet != nil && validID(row.GetDiet()) != nil || row.RequiresPen != nil && row.GetRequiresPen() {
+			return contract("invalid wild animal")
+		}
+		p := row.Pawn
+		a := p.AnimalState
+		if !proto.Equal(p, &o.PawnState{Pawn: p.Pawn, Wild: p.Wild, AnimalState: a}) || !proto.Equal(a, &o.AnimalState{Tameable: a.Tameable, Tame: a.Tame, MinimumHandlingSkill: a.MinimumHandlingSkill}) || a.MinimumHandlingSkill != nil && a.GetMinimumHandlingSkill() < 0 || !proto.Equal(row, &o.AnimalFeed{Pawn: p, Diet: row.Diet, RequiresPen: row.RequiresPen}) {
+			return contract("conflicting wild animal fields")
 		}
 	}
 	if v.HomeCoverage != nil {

@@ -47,4 +47,42 @@ func TestAnimalUpkeepBoundary(t *testing.T) {
 	if err := validateDirectUpkeep(v, size, 3); err != nil {
 		t.Fatal("pet rejected", err)
 	}
+	v.Animals[0].Pawn.AnimalState.SafeToRelease = proto.Bool(true)
+	if err := validateDirectUpkeep(v, size, 3); err != nil {
+		t.Fatal("release eligibility rejected", err)
+	}
+}
+
+func wildWire() *o.UpkeepFacts {
+	v := upkeepWire()
+	pawn := proto.Clone(v.Items[0].Item).(*o.EntityRef)
+	pawn.Id = proto.String("wild")
+	v.WildAnimals = []*o.AnimalFeed{{Pawn: &o.PawnState{Pawn: pawn, Wild: proto.Bool(true), AnimalState: &o.AnimalState{Tameable: proto.Bool(true), Tame: proto.Bool(false), MinimumHandlingSkill: proto.Int32(3)}}, Diet: proto.String("OmnivoreAnimal"), RequiresPen: proto.Bool(false)}}
+	return v
+}
+
+func TestWildAnimalUpkeepBoundary(t *testing.T) {
+	size := &o.MapSize{Width: proto.Uint32(50), Height: proto.Uint32(50)}
+	if err := validateDirectUpkeep(wildWire(), size, 3); err != nil {
+		t.Fatal(err)
+	}
+	for _, mutate := range []func(*o.UpkeepFacts){
+		func(v *o.UpkeepFacts) { v.WildAnimals = append(v.WildAnimals, v.WildAnimals[0]) },
+		func(v *o.UpkeepFacts) { v.WildAnimals[0].Pawn.Wild = proto.Bool(false) },
+		func(v *o.UpkeepFacts) { v.WildAnimals[0].Pawn.AnimalState = nil },
+		func(v *o.UpkeepFacts) { v.WildAnimals[0].Pawn.AnimalState.Release = proto.Bool(false) },
+		func(v *o.UpkeepFacts) { v.WildAnimals[0].Pawn.AnimalState.PenId = proto.String("pen") },
+		func(v *o.UpkeepFacts) { v.WildAnimals[0].Pawn.AnimalState.MinimumHandlingSkill = proto.Int32(-1) },
+		func(v *o.UpkeepFacts) { v.WildAnimals[0].RequiresPen = proto.Bool(true) },
+		func(v *o.UpkeepFacts) { v.WildAnimals[0].SuitablePenId = proto.String("pen") },
+		func(v *o.UpkeepFacts) {
+			v.WildAnimals[0].ReachableStoredFeed = animalWire().Animals[0].ReachableStoredFeed
+		},
+	} {
+		v := wildWire()
+		mutate(v)
+		if err := validateDirectUpkeep(v, size, 3); err == nil {
+			t.Fatal("invalid wild census accepted", v)
+		}
+	}
 }
