@@ -3,10 +3,12 @@
 [Documentation](../../README.md) · [Controller contracts](controller-contracts.md)
 
 `MaintainHerd` creates a persistent, player-owned `MaintainHerd-<race>` goal in
-ColonyPlan. It accepts an observed native race, population minimum/maximum, stored
-feed reserve days, optional feed resource, native training targets, protected animal
-IDs, breeder-pair reserve and explicit permission to slaughter surplus. Slaughter
-defaults off. A population target alone does not authorize killing animals.
+ColonyPlan. It accepts an observed native race, an optional population maximum
+(`HerdPopulationMax`), native training targets and explicit permission to
+slaughter surplus (`RoutinePolicy.AllowSlaughter`). Slaughter defaults off. A
+population target alone does not authorize killing animals. There is no
+per-race protected-ID list, breeder-pair reserve or feed-reserve bookkeeping:
+surplus eligibility relies on native's own `SafeToSlaughter` fact.
 
 ## Ownership and population
 
@@ -16,12 +18,14 @@ Hands previews and dispatches through the normal writer lock and direction guard
 The native callback requires a paused matching context and rejects changed settings
 or population. Unconfirmed requests remain blocked for inspection, without retry.
 
-Surplus selection subtracts existing slaughter/release designations and preserves
-the requested number of fertile adult males and females. Native slaughter eligibility
-is checked again at dispatch; bonded, mastered, pregnant, downed, released and
-explicitly protected animals are excluded. The controller preserves native masters,
-areas, following, sterilization and player breeding separation. It never forces
-mating or removes those restrictions to meet a population target.
+Surplus selection subtracts existing slaughter/release designations. Native
+slaughter eligibility is checked again at dispatch; bonded, mastered, pregnant,
+downed and released animals are excluded by RimWorld's own rules. Masters,
+allowed areas, following, sterilization and breeding separation are ordinary
+game settings: while native authority reads Auto the controller may change any
+of them, including ones the player just set (see the working agreement). Today
+the husbandry methods are only `train` and `slaughter`, so it does not yet
+write them; that is missing coverage, not a hands-off rule.
 
 Below-minimum populations wait for ordinary births when a pregnancy or fertile pair
 is observed. Otherwise the goal reports a missing breeding prerequisite. Pregnancy
@@ -32,10 +36,12 @@ place, following the shared goal cancellation contract.
 ## Training and products
 
 Training requests use native `CanAssignToTrain` and `SetWantedRecursive`; native
-`learned` and step counts track progress separately from settings receipts. Once the
-controller changes a setting, it retains the returned settings token. Later player
-changes require explicit target renewal before the controller can change that animal
-again. Protected or removal-designated animals receive no training changes.
+`learned` and step counts track progress separately from settings receipts. The
+per-animal settings token and herd census token are compare-and-swap guards
+against stale in-flight snapshots: they are re-read immediately before preview
+and dispatch, and a mismatch (player edit, birth, death) fails that attempt so
+the next cycle plans from fresh state. They never block the controller from
+changing an animal again. Removal-designated animals receive no training changes.
 
 Handling joins shared deterministic work allocation with the observed native minimum
 skill. Player work overrides remain authoritative. The herd observation retains safe
