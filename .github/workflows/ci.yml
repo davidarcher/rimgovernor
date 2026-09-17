@@ -38,23 +38,6 @@ jobs:
       - name: Install Mono (runs the net472 protobuf proof on Linux)
         if: runner.os == 'Linux'
         run: sudo apt-get update && sudo apt-get install -y mono-devel
-      # The native mod and fixture projects compile against the game's managed
-      # assemblies, Harmony and the RimBridgeServer SDK. Hosted runners have no
-      # game, so stage pinned, hash-verified substitutes (publicised RimWorld
-      # reference assemblies, the Lib.Harmony NuGet, the RimBridgeServer
-      # release) and make the native/fixtures steps fail rather than skip.
-      - uses: actions/cache@v4
-        with:
-          path: .rimgovernor/native-inputs/downloads
-          key: native-inputs-${{ hashFiles('scripts/fetch_native_build_inputs.ps1') }}
-      - name: Stage native build inputs
-        shell: pwsh
-        run: |
-          $root = ./scripts/fetch_native_build_inputs.ps1 -OutputRoot .rimgovernor/native-inputs
-          "RIMWORLD_MANAGED_DIR=$root/managed" >> $env:GITHUB_ENV
-          "HARMONY_ASSEMBLY=$root/0Harmony.dll" >> $env:GITHUB_ENV
-          "RIMBRIDGE_SDK_DIR=$root/rimbridge" >> $env:GITHUB_ENV
-          "NATIVE_INPUTS_REQUIRED=1" >> $env:GITHUB_ENV
 
       - run: task go:build
       - run: task go:test

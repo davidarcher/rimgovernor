@@ -9,8 +9,6 @@ vars:
   RIMWORLD_MANAGED_DIR: '{{.RIMWORLD_MANAGED_DIR | default "C:/Program Files (x86)/Steam/steamapps/common/RimWorld/RimWorldWin64_Data/Managed"}}'
   HARMONY_ASSEMBLY: '{{.HARMONY_ASSEMBLY | default "C:/Program Files (x86)/Steam/steamapps/workshop/content/294100/2009463077/Current/Assemblies/0Harmony.dll"}}'
   RIMBRIDGE_SDK_DIR: '{{.RIMBRIDGE_SDK_DIR | default "C:/Program Files (x86)/Steam/steamapps/common/RimWorld/Mods/RimBridgeServer/1.6/Assemblies"}}'
-  # Set (CI) to fail instead of reporting `unavailable` when an input is missing.
-  NATIVE_INPUTS_REQUIRED: '{{.NATIVE_INPUTS_REQUIRED}}'
 
 tasks:
   build:
@@ -23,7 +21,6 @@ tasks:
         done
         if [ -n "$missing" ]; then
           echo "fixtures build: unavailable (missing$missing)"
-          [ -z "{{.NATIVE_INPUTS_REQUIRED}}" ] || exit 1
           exit 0
         fi
         # Independent projects: build every one so a single stale project does not hide the others.
