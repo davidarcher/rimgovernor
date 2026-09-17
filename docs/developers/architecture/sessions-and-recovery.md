@@ -56,7 +56,14 @@ See [save and resume](../../players/save-and-resume.md).
 Workers own their controller, private profile, database and GABS process. Cleanup
 stops owned processes only. Windows workers share installed DLLs, so all games must
 stop before replacing them. Docker workers stage private binary snapshots and
-retain output after container removal.
+keep their writable `/worker` tree (SQLite state, flight recorder, game log,
+profile) on a private Docker volume so no synchronous write crosses a host bind
+mount; the tree is exported to the host output directory only after the
+container has stopped, every exported database must pass `integrity_check`, and
+the volume is removed (and verified gone) only after a successful export --
+otherwise it is retained as recovery evidence and named in the report
+(`go/internal/nativeaccept/docker.Storage`). `-storage bind` keeps the
+host-bind-mount comparison mode.
 
 ## Uncertain writes and read retries
 
