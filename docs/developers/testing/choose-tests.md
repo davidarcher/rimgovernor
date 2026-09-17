@@ -193,8 +193,7 @@ plan's stages, with `PlanSignature`), `WaitGoalMethod`, `WaitPlanTerminal`
 and `WaitRoutineReview` already do this
 with `na.StallBudget()` (10 minutes, `RIMGOVERNOR_ACCEPT_STALL` overrides);
 harnesses with their own loops take a `-stall` flag defaulting to the same.
-Issue #91 tracks the remaining speed work (a parallel suite driver, a
-trimmed headless `Prefs.xml`).
+Issue #91 tracks the remaining speed work (a trimmed headless `Prefs.xml`).
 
 Passing evidence follows relevant code, dependencies, inputs and environment,
 not the main HEAD hash. Unrelated main commits, clean cherry-picks and rebases
@@ -244,6 +243,19 @@ and stops the game at the end with `gamesstop -root <root>`; a harness
 that fails still leaves the process at the menu, and a harness that dies
 without reaching `Close` leaves a game loaded, which the next `OpenGame`
 unloads.
+
+### Running harnesses in parallel
+
+`suiteaccept -root <root> -output <out> -bin <bin> -workers N -harnesses a,b,c`
+(or `-suite file.json` with `[{"name", "binary", "args"}]`) clones the root
+into N worker roots (`na.IsolatedRoot`: own GABS state, config and profile,
+same game installation), gives each worker a queue of harnesses chained on
+one kept process, and stops every worker's game at the end. The suite's
+`result.json` lists each harness's exit, wall time, `game_reuse` and error;
+it passes only when every harness did. Measured: six short harnesses on
+two workers in 68s against about 125s in sequence. The installed mod build
+must carry every fixture the list needs, and each harness must fit the
+step budget with N-1 peer games running (#73 measured three).
 
 Process reuse carries the same static-state caveat as `-reuse-game`
 (next paragraph), and process-wide `Prefs` too: `letteraccept` sets the
