@@ -61,10 +61,17 @@ type RunConfig struct {
 	// against a fresh bridge session after the service has stopped and
 	// before the game is stopped, so a harness can compare the durable
 	// journal against live native facts.
-	Families string
-	Goal     policy.GoalID
-	Until    func(sample map[string]any) bool
-	Audit    func(ctx context.Context, h *na.Harness, report na.Report) error
+	// ServeArgs are appended to the serve argv verbatim (for example a
+	// --routine-resource-target); Prepare, when set, runs against the
+	// fixture-prep bridge session after the save is loaded and the naming
+	// dialog dismissed, before the service starts, so a harness can record
+	// the live baseline its audit later compares against.
+	Families  string
+	Goal      policy.GoalID
+	ServeArgs []string
+	Prepare   func(ctx context.Context, h *na.Harness, report na.Report) error
+	Until     func(sample map[string]any) bool
+	Audit     func(ctx context.Context, h *na.Harness, report na.Report) error
 	// Reuse, when set, runs this variant as one case of an already-launched
 	// game (issue #22): the save is loaded through Reuse.BeginCase into the
 	// running process instead of a fresh games_start, and the run ends with
@@ -212,6 +219,12 @@ func Run(ctx context.Context, cfg RunConfig, report na.Report) (timeline []map[s
 			na.AsNumber(v["mapId"]) == na.AsNumber(identity["mapId"])
 	}
 
+	if cfg.Prepare != nil {
+		if err := cfg.Prepare(ctx, h, report); err != nil {
+			return nil, fmt.Errorf("prepare: %w", err)
+		}
+	}
+
 	// Free the sole GABP slot before the service starts its own bridge
 	// session; this does NOT call games_stop, so the loaded save survives.
 	if reuseCase != nil {
@@ -249,6 +262,7 @@ func Run(ctx context.Context, cfg RunConfig, report na.Report) (timeline []map[s
 		"--refresh", "1s",
 		"--timeout", cfg.NativeTimeout.String(),
 	}
+	argv = append(argv, cfg.ServeArgs...)
 	report["service_argv"] = append([]string{cfg.RimgovernorBinary}, argv...)
 	cmd := exec.CommandContext(ctx, cfg.RimgovernorBinary, argv...)
 	// production-policy is composed only so the executor's ProductionPolicy

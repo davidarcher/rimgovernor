@@ -52,9 +52,22 @@ installed RoomRoleDef: which roles a planner pursues, which other roles may host
 the same function as a shared room, and the furniture that gives the room its
 role. Each implemented role follows one ladder — reuse a room the game already
 scores as hosting the function, then furnish an existing hosting room, then stage
-a starter shell and furnish it once roofed. Dining and recreation are the first
-implemented rows; every other role is an explicit pending row, and content-gated
-roles are pursued only when their definitions exist in the planning census.
+a starter shell and furnish it once roofed. Dining, recreation and workshop are
+the implemented rows; every other role is an explicit pending row, and
+content-gated roles are pursued only when their definitions exist in the
+planning census.
+
+The workshop row is the first production facility on that ladder. A
+`MaintainResource` deficit that no existing bench can produce first discovers,
+from the native recipe catalog, which player-buildable bench definitions host a
+research-available recipe for the resource; the first candidate the planning
+census reports available, unpowered and buildable without construction skill is
+furnished into a Workshop-hosting room, or a starter shell is staged when no such
+room exists. Powered and research-gated benches are reported as an explicit
+`workshop_bench_unavailable` prerequisite rather than staged. Once a bench with
+the recipe exists the workshop planner steps aside and the resource goal's bill
+path, worker coverage for the bench's own work type, and native readback of the
+rising item count carry the deficit to recovery.
 
 The first shelter's shape is chosen from the native player-faction tech level:
 Neolithic colonies raise a circular or oval hut, others a 9x9 rectangle, and
@@ -90,7 +103,12 @@ a different permitted ingredient.
 ## Production capacity is not current stock
 
 A resource goal may designate mining or harvest work, or configure an ordinary
-production bill. Existing bills count as continuing capacity only when their settings
+production bill. Any ordinary recipe whose products are all items may carry such a
+bill, not only food; the pawn work type a bill needs is the type of the
+`WorkGiver_DoBill` giver serving that bench (`RecipeState.work_type`), and native
+admission requires an assigned pawn with that type enabled and the recipe's skill
+floors. Open bills contribute that work type to deterministic work coverage alongside
+construction. Existing bills count as continuing capacity only when their settings
 cover the requested target. Player edits remain authoritative.
 
 Material development follows the same distinction. Safe surface deposits lead to
@@ -102,7 +120,8 @@ or removed facility requires renewed player direction. See the
 [extraction contracts](../contracts/mining-contracts.md).
 
 These plans do not create resources. Actual output, material consumption and remaining
-stock need native readback. This is why production acceptance tests wait for pawn work
+stock need native readback; a bill on an ordinary item recipe completes only when the
+native placement observation counts the produced items. This is why production acceptance tests wait for pawn work
 rather than declaring success when a bill is accepted.
 
 The relevant source is [go/internal/policy](../../../go/internal/policy) and

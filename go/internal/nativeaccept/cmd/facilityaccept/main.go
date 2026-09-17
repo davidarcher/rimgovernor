@@ -36,11 +36,11 @@ const baselineSave = "RimGovernor-tribal8-baseline"
 // plus comfort itself: RankDevelopment only grants a comfort slot once every
 // priority-0..2 need (starting supplies, work assignments, food, shelter,
 // temperature, cooking, storage) has recovered, so those families must be
-// able to act. The full autonomous composition is not used: with every
-// family on, the parallel planner step exceeds its call timeout on a shared
-// machine, so the clock never starts. (A single failing planner no longer
-// blocks the step since #62, so that is not a reason to trim families.)
-const facilityFamilies = "sleeping,shelter,temperature,comfort,work,supply,field,food-storage,acquisition,cooking,production-policy"
+// able to act. gear rides along now that its bill/recipe reads have native
+// handlers (issue #62). The full autonomous composition is still not used:
+// with every family on, the parallel planner step exceeds its call timeout
+// on a shared machine, so the clock never starts.
+const facilityFamilies = "sleeping,shelter,temperature,comfort,work,supply,field,food-storage,acquisition,cooking,production-policy,gear"
 
 func main() {
 	root := flag.String("root", "", "absolute disposable worker root (e.g. .rimgovernor/bridge)")

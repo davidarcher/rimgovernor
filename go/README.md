@@ -592,7 +592,16 @@ facility-specific dining/recreation use through Manual and restart; replacement
 facilities require new use. After observed construction, at most 10,000 ticks in
 the same load permit ordinary use, observed in windows of at most 120 ticks.
 Skilled furniture requires a qualified assigned builder from the same native
-observation bracket, honoring saved player work preferences.
+observation bracket, honoring saved player work preferences. The `workshop`
+family (issue #4 M2) applies the same ladder to production: when a
+`--routine-resource-target` deficit has no reachable bench hosting an available
+recipe, it reads the native recipe catalog for the product, previews the first
+research-available, unpowered, unskilled bench definition (`CraftingSpot` on the
+tribal baseline; `TableStonecutter` once stonecutting is researched) inside a
+Workshop-hosting room (method `workshop-<definition>`), or stages the starter
+shell first (`workshop-shell`). Research-gated or powered benches stop at
+`workshop_bench_unavailable`. The `resource` family then places the bill on the
+new bench and the `work` family covers the bench's own DoBill work type.
 Unknown access, existing inaccessible
 facilities and exhausted waits cannot certify recovery or create duplicate furniture.
 The shared Hands worker executes reviewed building and starting-supply methods
@@ -616,7 +625,13 @@ service stops it audits the journal's dining/recreation use proofs against live
 whose native role hosts it, and every eligible colonist needs an accessible
 hosted facility of each kind. Blueprints and labels prove nothing there.
 Recreation previews require native playing-cell access, separate from placement
-legality. Replay a captured `upkeep-replay.json` through the Go
+legality. `go run ./internal/nativeaccept/cmd/workshopaccept -root <abs
+.rimgovernor/bridge> -rimgovernor <abs binary> -output <fresh dir>` runs the same
+composition plus `resource,workshop,gear` with `--routine-resource-target
+MeleeWeapon_Club:3` and watches `MaintainResource`; the audit requires the live
+club count from `home/colony_facts` to exceed the pre-service baseline and a
+`CraftingSpot` inside a native `Workshop` room to carry the
+`Make_MeleeWeapon_Club` bill. Replay a captured `upkeep-replay.json` through the Go
 boundary and durable journal with `RIMBOT_NATIVE_UPKEEP_REPLAY=<absolute-path>`
 and `go test ./internal/observation -run TestNativeUpkeepReplay -count=1` from `go/`.
 The replay checks target ordering and metrics, all five direct upkeep needs,
