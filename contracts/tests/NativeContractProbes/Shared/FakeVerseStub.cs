@@ -94,7 +94,10 @@ namespace HomeBridge.BridgeTools
         private static long NowMs() => WallTime;
         private static void EnsurePatched() { HarmonyLib.Harmony.Installed = true; }
         private static List<string> ForcePausingWindows() => new List<string>();
-        private static void EnsureJournal() { if (Journal == null) { Journal = new ClockEventJournal(); _cursor = Journal.Newest; } }
+        // Same contract as the production partial: the journal is created on first
+        // use and returned so callers can read it under the Gate.
+        private static ClockEventJournal EnsureJournal() { if (Journal == null) { Journal = new ClockEventJournal(); _cursor = Journal.Newest; } return Journal; }
+        private static State ActiveState => _state ?? throw new InvalidOperationException("No supervised clock epoch.");
         private static object Start(string owner, Verse.TimeSpeed speed, int leaseMs, string mode, float healthDrop, float minHealth, float hostileWithin,
             string ignoredHostiles, string ignoredDowned, string ignoredInjured, int cooldown, int maxTicks, string surgical, bool acceleration, string rest)
         {

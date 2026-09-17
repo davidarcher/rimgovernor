@@ -11,6 +11,7 @@ using Verse;
 using Common = RimGovernor.Protocol.Common;
 using Authority = RimGovernor.Protocol.Authority;
 using Clock = RimGovernor.Protocol.Clock;
+using Receipts = RimGovernor.Protocol.Receipts;
 
 internal static class NativeClockProbe
 {
@@ -25,13 +26,28 @@ internal static class NativeClockProbe
         public Dictionary<string, object> Arguments { get; set; } = new();
         public RimBridgeServer.Sdk.IMainThread MainThread => this;
         public int Invocations;
-        public Task<T> InvokeAsync<T>(Func<T> apply, CancellationToken token) { token.ThrowIfCancellationRequested(); Invocations++; return Task.FromResult(apply()); }
+        // The probe thread is the game's main thread: a hop requested from it runs
+        // inline; one requested from a continuation off that thread queues until the
+        // probe pumps it, as the production adapter's main-thread hops would.
+        private readonly Thread owner = Thread.CurrentThread;
+        private readonly System.Collections.Concurrent.ConcurrentQueue<Action> queued = new();
+        public Task<T> InvokeAsync<T>(Func<T> apply, CancellationToken token)
+        {
+            token.ThrowIfCancellationRequested();
+            if (Thread.CurrentThread == owner) { Invocations++; return Task.FromResult(apply()); }
+            var source = new TaskCompletionSource<T>(TaskCreationOptions.RunContinuationsAsynchronously);
+            queued.Enqueue(() => { try { Invocations++; source.SetResult(apply()); } catch (Exception error) { source.SetException(error); } });
+            return source.Task;
+        }
+        public void Pump() { while (queued.TryDequeue(out var hop)) hop(); }
     }
-    private static T Call<T>(IMessage request, Func<Context, string, Task<object>> call, MessageParser<T> parser) where T : IMessage<T>
+    // `dispatches` is the number of main-thread hops the request must take:
+    // a shape refusal never reaches the main thread; a long poll takes two.
+    private static T Call<T>(IMessage request, Func<Context, string, Task<object>> call, MessageParser<T> parser, int dispatches = 1) where T : IMessage<T>
     {
         var ctx = new Context(); var text = JsonFormatter.Default.Format(request); ctx.Arguments["request"] = text;
         var reply = parser.ParseJson((string)((Dictionary<string, object>)call(ctx, text).GetAwaiter().GetResult())["payload"]);
-        Check(ctx.Invocations == 1, "typed request dispatch count"); Check(reply.Equals(parser.ParseFrom(reply.ToByteArray())), "official binary echo");
+        Check(ctx.Invocations == dispatches, "typed request dispatch count"); Check(reply.Equals(parser.ParseFrom(reply.ToByteArray())), "official binary echo");
         return reply;
     }
     private static Clock.ControlReply Start(Clock.StartRequest request) => Call(request, (ctx, json) => Tools.Start(ctx, default, json), Clock.ControlReply.Parser);
@@ -39,7 +55,7 @@ internal static class NativeClockProbe
     private static Clock.ControlReply Speed(Clock.SpeedRequest request) => Call(request, (ctx, json) => Tools.ChangeSpeed(ctx, default, json), Clock.ControlReply.Parser);
     private static Clock.StatusReply Status() => Call(new Clock.StatusRequest { Identity = Identity }, (ctx, json) => Tools.ReadStatus(ctx, default, json), Clock.StatusReply.Parser);
     private static Clock.StatusReply Pause(Clock.OwnedRequest request) => Call(request, (ctx, json) => Tools.Pause(ctx, default, json), Clock.StatusReply.Parser);
-    private static Clock.EventsReply Events(long after = 0, uint limit = 128) => Call(new Clock.EventsRequest { Identity = Identity, AfterCursor = after, Limit = limit }, (ctx, json) => Tools.ReadEvents(ctx, default, json), Clock.EventsReply.Parser);
+    private static Clock.EventsReply Events(long after = 0, uint limit = 128, int dispatches = 1) => Call(new Clock.EventsRequest { Identity = Identity, AfterCursor = after, Limit = limit }, (ctx, json) => Tools.ReadEvents(ctx, default, json), Clock.EventsReply.Parser, dispatches);
     private static Authority.WritePrecondition Pre() => new() { Identity = Identity, ExpectedGeneration = grant.Generation,
         Attempt = new Common.AttemptKey { ControllerSessionId = "controller", ActionId = "clock/" + ++nextAttempt, AttemptId = 1 } };
     private static Clock.StartRequest Request() => new() { Authority = Pre(), Speed = Clock.Speed.Normal, LeaseMs = 1000, MaxTicks = 10,
@@ -68,7 +84,9 @@ internal static class NativeClockProbe
         var initial = Events();
         Check(initial.Page != null && initial.Page.NewestCursor == 0 && initial.Page.Events.Count == 0, "initial event read requires clock start");
         Check(Status().Status.NeverStarted != null && Find.TickManager.Paused && authority.Status().Generation == grant.Generation, "initial event read changed clock or authority");
-        foreach (var pair in new[] { (-1L, 1u), (0L, 0u), (0L, 129u), (long.MaxValue, 128u) }) Check(Events(pair.Item1, pair.Item2).Failure != null, "invalid/unavailable cursor admitted");
+        foreach (var pair in new[] { (-1L, 1u), (0L, 0u), (0L, 129u) }) Check(Events(pair.Item1, pair.Item2, 0).Failure?.Code == Common.FailureCode.InvalidRequest, "malformed cursor/limit dispatched");
+        Check(Events(long.MaxValue, 128).Failure != null, "cursor past the journal admitted");
+        Check(Call(new Clock.EventsRequest { Identity = Identity, AfterCursor = 0, Limit = 1, WaitMs = NativeClockTools.MaxWaitMs + 1 }, (ctx, json) => Tools.ReadEvents(ctx, default, json), Clock.EventsReply.Parser, 0).Failure?.Code == Common.FailureCode.InvalidRequest, "over-long wait dispatched");
         foreach (Action<Clock.StartRequest> mutation in new Action<Clock.StartRequest>[] { r => r.Speed = Clock.Speed.Unspecified, r => r.LeaseMs = 999,
             r => r.LeaseMs = 30001, r => r.MaxTicks = 0, r => r.Policy = null, r => r.Policy.HealthDropFraction = float.NaN,
             r => r.Policy.ClearHostileWithin(), r => r.Policy.Mode = (Clock.WatchMode)99, r => r.Policy.InjuryStopCooldownMs = 1800001 })
@@ -241,9 +259,68 @@ internal static class NativeClockProbe
         Check(Status().Status.NeverStarted != null && Find.TickManager.Paused && authority.Status().Generation == grant.Generation,
             "history recovery changed clock or authority");
     }
+    private static bool PumpUntilAnswered(Context ctx, Task<object> poll)
+    {
+        var deadline = DateTime.UtcNow.AddSeconds(5);
+        while (!poll.IsCompleted && DateTime.UtcNow < deadline) { ctx.Pump(); Thread.Yield(); }
+        return poll.Status == TaskStatus.RanToCompletion;
+    }
+    // A watched construction attempt latches the epoch at the tick boundary on
+    // which the record turns terminal: the operation_outcome row precedes the
+    // watch_latched stop on the same tick, and a long poll parked past the
+    // started row wakes with both rows in one page.
+    private static void WatchedAttemptLatches()
+    {
+        Reset();
+        var key = new Common.AttemptKey { ControllerSessionId = "controller", ActionId = "construction/1", AttemptId = 1 };
+        var record = new NativeConstructionRecord();
+        NativeOperationState.ForAdmission(Identity).Construction[key] = record;
+        var unknown = Request(); unknown.Policy.WatchedAttempts.Add(new Common.AttemptKey { ControllerSessionId = "controller", ActionId = "construction/9", AttemptId = 1 });
+        Check(Start(unknown).Failure?.Code == Common.FailureCode.InvalidRequest && !Supervisor.IsActiveForFixture(), "untracked watched attempt admitted");
+        var request = Request(); request.Policy.WatchedAttempts.Add(key);
+        var reply = Start(request);
+        Check(reply.Receipt?.Applied?.Status?.Running != null && reply.Receipt.Applied.Status.Running.Epoch.Policy.WatchedAttempts.Single().Equals(key), "watched start not running with its policy");
+        var started = Events().Page;
+        Check(started.Events.Count == 1 && started.Events[0].Started != null, "pending watch produced rows at start");
+        // Park a long poll past the started row; the wait runs off the probe thread.
+        var ctx = new Context(); var text = JsonFormatter.Default.Format(new Clock.EventsRequest { Identity = Identity, AfterCursor = started.NextCursor, Limit = 128, WaitMs = NativeClockTools.MaxWaitMs });
+        ctx.Arguments["request"] = text;
+        var poll = Tools.ReadEvents(ctx, default, text);
+        Check(ctx.Invocations == 1 && !poll.Wait(100), "long poll answered an empty page without waiting");
+        // A tick that leaves the record pending neither latches nor wakes.
+        Find.TickManager.TicksGame = 1; Supervisor.OnUpdate();
+        Check(Supervisor.IsActiveForFixture() && !poll.Wait(50) && ctx.Invocations == 1, "pending watch latched or woke the poll");
+        record.Next = new Receipts.Progress { Completed = new Receipts.CompletedEffect { Evidence = record.Next.Pending.Evidence.Clone() } };
+        Find.TickManager.TicksGame = 2; Supervisor.OnUpdate();
+        // The woken poll's second hop queues for the main thread; pump until it answers.
+        Check(PumpUntilAnswered(ctx, poll) && ctx.Invocations == 2, "latch did not wake the parked long poll for exactly one more hop");
+        var woken = Clock.EventsReply.Parser.ParseJson((string)((Dictionary<string, object>)poll.Result)["payload"]).Page;
+        Check(woken != null && woken.Events.Count == 2 && woken.Events[0].OperationOutcome != null && woken.Events[1].Stopped?.Watch != null, "woken page lacks outcome then latched stop");
+        var outcome = woken.Events[0].OperationOutcome;
+        Check(outcome.Attempt.Equals(key) && outcome.LatchedTick == 2 && outcome.Completed != null && outcome.Completed.Evidence.Construction.DefName == "Wall", "operation_outcome lost the attempt's terminal evidence");
+        var stop = woken.Events[1].Stopped;
+        Check(stop.Reason == Clock.StopReason.WatchLatched && stop.Watch.Outcome.Equals(outcome) && stop.Watch.TickDeadline == 10, "watch_latched stop lacks its outcome or deadline");
+        Check(Status().Status.Stopped?.Reason == Clock.StopReason.WatchLatched && Status().Status.Stopped.PauseVerified && Find.TickManager.Paused, "latched epoch kept playing");
+        // A poll that times out answers the empty page after its second hop.
+        ctx = new Context(); text = JsonFormatter.Default.Format(new Clock.EventsRequest { Identity = Identity, AfterCursor = woken.NextCursor, Limit = 128, WaitMs = 50 });
+        ctx.Arguments["request"] = text; poll = Tools.ReadEvents(ctx, default, text);
+        Check(PumpUntilAnswered(ctx, poll), "timed-out poll never answered");
+        var empty = Clock.EventsReply.Parser.ParseJson((string)((Dictionary<string, object>)poll.Result)["payload"]).Page;
+        Check(ctx.Invocations == 2 && empty != null && empty.Events.Count == 0 && empty.NewestCursor == woken.NewestCursor, "timed-out poll fabricated rows or skipped its final read");
+        // An attempt already terminal at start is reported once and the epoch keeps its budget.
+        Reset();
+        var done = new NativeConstructionRecord { Next = new Receipts.Progress { Completed = new Receipts.CompletedEffect { Evidence = new Receipts.EffectEvidence { Construction = new Receipts.ConstructionEffect { DefName = "Wall", Stage = Receipts.ConstructionStage.Building, Present = true, Started = true } } } } };
+        NativeOperationState.ForAdmission(Identity).Construction[key] = done;
+        request = Request(); request.Policy.WatchedAttempts.Add(key);
+        Check(Start(request).Receipt?.Applied?.Status?.Running != null, "already-terminal watch stopped the start");
+        var early = Events().Page.Events;
+        Check(early.Count == 2 && early[0].Started != null && early[1].OperationOutcome?.Completed != null, "already-terminal watch not reported once at start");
+        Find.TickManager.TicksGame = 3; Supervisor.OnUpdate();
+        Check(Supervisor.IsActiveForFixture() && Events().Page.Events.Count == 2, "already-terminal watch reported again or latched later");
+    }
     internal static void Invoke()
     {
-        Boundaries(); OwnedLifecycle(); StopsAndContext(); EventProjection(); ReplacementGrantCannotAdoptEpoch(); LostHooksCannotExtendEpoch(); CorruptStoredEvents(); ReadRecoveredHistoryBeforeStart();
+        Boundaries(); OwnedLifecycle(); StopsAndContext(); EventProjection(); ReplacementGrantCannotAdoptEpoch(); LostHooksCannotExtendEpoch(); CorruptStoredEvents(); ReadRecoveredHistoryBeforeStart(); WatchedAttemptLatches();
         Console.WriteLine($"Native clock: {checks} checks; production typed runtime/adapter/ledger/journal, controlled native watcher and SDK seams.");
     }
 }

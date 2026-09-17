@@ -282,10 +282,9 @@ namespace HomeBridge.BridgeTools
                     long previous = request.AfterCursor;
                     foreach (var row in window.Rows)
                     {
-                        object? encoded;
-                        if (!row.TryGetValue("canonicalClockEvent", out encoded) || !(encoded is string))
+                        if (!row.TryGetValue("canonicalClockEvent", out var encoded) || !(encoded is string canonical))
                             return new Clock.EventsReply { Failure = ProtoBoundary.Fail(Common.FailureCode.Unavailable, "Retained legacy event lacks canonical ownership and original observation context.") };
-                        var observed = Clock.Event.Parser.ParseJson((string)encoded);
+                        var observed = Clock.Event.Parser.ParseJson(canonical);
                         if (!ValidStoredEvent(observed) || observed.Cursor <= previous
                             || observed.Cursor != Convert.ToInt64(row["cursor"])) throw new InvalidOperationException("Event identity mismatch");
                         page.Events.Add(observed); previous = observed.Cursor;
