@@ -1103,9 +1103,11 @@ func assertCover(reply map[string]any, layout store.DefenseLayoutRecord) error {
 	return nil
 }
 
-// authorityKeepAlive re-acquires bounded native player authority whenever the
-// service drops out of automate mode (a letter hold, generation exhaustion),
-// acknowledging clock holds first; see routinehaulaccept for the rationale.
+// authorityKeepAlive resumes player control whenever the service has actually
+// dropped it (a letter hold, generation exhaustion), acknowledging clock holds
+// first. A stale observation alone leaves automate mode without disabling
+// control; resuming then would bump the native generation and invalidate the
+// in-flight routine goals (#65), so it is not a trigger.
 type authorityKeepAlive struct {
 	apiCall  apiFunc
 	identity map[string]any
@@ -1176,6 +1178,13 @@ func (k *authorityKeepAlive) run(ctx context.Context) {
 					k.acknowledged++
 				}
 				k.mu.Unlock()
+			}
+		}
+		control, controlStatus, controlErr := k.apiCall("GET", "/api/player/control", nil, "")
+		if controlErr == nil && controlStatus == 200 {
+			live, _ := na.AsMap(control["state"])
+			if enabled, _ := na.AsBool(live["enabled"]); enabled {
+				continue
 			}
 		}
 		k.mu.Lock()
