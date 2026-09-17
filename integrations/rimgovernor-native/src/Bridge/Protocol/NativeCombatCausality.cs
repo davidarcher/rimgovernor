@@ -119,7 +119,7 @@ namespace HomeBridge.BridgeTools
         internal static NativeCombatDamageRecord Track(Game game,Pawn attacker,Pawn target,Job job,Func<bool> guard)
         {
             if (!UnityData.IsInMainThread || !IsReady || game!=Current.Game || attacker==null || target==null
-                || !attacker.Spawned || !target.Spawned || attacker.Map!=target.Map || target.Map!=Find.CurrentMap
+                || !attacker.Spawned || !target.Spawned || attacker.Map!=target.Map || !ProtoBoundary.IsLoaded(target.Map)
                 || job==null || job.def!=JobDefOf.AttackMelee || job.targetA.Thing!=target || guard==null)
                 throw new InvalidOperationException("Exact live melee damage tracking prerequisites are unavailable.");
             var state=Games.GetOrCreateValue(game);
@@ -175,7 +175,7 @@ namespace HomeBridge.BridgeTools
                 var scope=meleeScope;
                 if (__state==null || __state.PreviousDepth!=0 || scope==null || scope.Caster==null || scope.Victim!=victim || !IsReady || victim.Dead) return;
                 foreach (var record in target.Records) {
-                    if (scope.Caster!=record.Attacker || scope.Job!=record.Job || scope.JobId!=record.JobId || record.CausedDeath || record.Game!=Current.Game || record.Map!=Find.CurrentMap
+                    if (scope.Caster!=record.Attacker || scope.Job!=record.Job || scope.JobId!=record.JobId || record.CausedDeath || record.Game!=Current.Game || !ProtoBoundary.IsLoaded(record.Map)
                         || record.Map!=victim.Map || dinfo.Instigator!=record.Attacker || record.Attacker.CurJob!=record.Job
                         || record.Job.loadID!=record.JobId || record.Job.def!=JobDefOf.AttackMelee || record.Job.targetA.Thing!=victim) continue;
                     if (!record.Guard()) continue;
@@ -192,7 +192,7 @@ namespace HomeBridge.BridgeTools
                     // Nested damage to this target makes the outer outcome ambiguous;
                     // nested calls never acquire their own melee attribution.
                     if (pending.Target.Exhausted || pending.Target.Sequence!=pending.Sequence || !IsReady
-                        || dinfo.Instigator!=record.Attacker || record.Game!=Current.Game || record.Map!=Find.CurrentMap || Find.TickManager==null) continue;
+                        || dinfo.Instigator!=record.Attacker || record.Game!=Current.Game || !ProtoBoundary.IsLoaded(record.Map) || Find.TickManager==null) continue;
                     record.Record(__result.totalDamageDealt,pending.WasDead,pending.WasDowned,
                         record.Target.Dead,record.Target.Downed,Find.TickManager.TicksGame);
                 }

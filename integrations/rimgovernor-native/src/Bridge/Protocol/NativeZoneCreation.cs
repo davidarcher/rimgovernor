@@ -55,7 +55,7 @@ namespace HomeBridge.BridgeTools
         {
             var result = new Receipts.Progress { Attempt = attempt.Clone(), Context = context.Clone(), CompleteInspection = true };
             var evidence = Evidence();
-            if (Map != Find.CurrentMap || !evidence.Present) { result.CompleteInspection = false; result.Unknown = new Receipts.UnknownEffect { Reason = "Created zone is unavailable." }; return result; }
+            if (Map != ProtoBoundary.ResolveMap(context) || !evidence.Present) { result.CompleteInspection = false; result.Unknown = new Receipts.UnknownEffect { Reason = "Created zone is unavailable." }; return result; }
             var matches = evidence.PhantomCellCount == 0 && evidence.GridCellCount == evidence.ListedCellCount
                 && evidence.Snapshot.AfterToken == NativeZoneCreation.ConfigurationToken(Desired);
             if (matches) result.Completed = new Receipts.CompletedEffect { Evidence = new Receipts.EffectEvidence { Zone = evidence } };
@@ -147,7 +147,7 @@ namespace HomeBridge.BridgeTools
         {
             crop = null; failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Zone creation requires fresh free ground, an available configuration and an exact map snapshot.");
             if (!Valid(command)) return false;
-            var map = Find.CurrentMap;
+            var map = ProtoBoundary.ResolveMap(context);
             if (MapSnapshot(map, context).Token != command.ExpectedMapSnapshotToken) return false;
             var cells = command.Cells.ExplicitCells.Cells.Select(c => new IntVec3(c.X, 0, c.Z)).ToArray();
             var selected = new HashSet<IntVec3>(cells);
@@ -194,7 +194,7 @@ namespace HomeBridge.BridgeTools
                 if (admitted.Kind != NativeAttemptLedger.DecisionKind.Admitted) return admitted.Reply!; handle = admitted.Handle;
                 using (authority.Owned()) {
                     if (!authority.Check(pre.ExpectedGeneration).Success || !Prepare(command, context, out crop, out failure)) throw new InvalidOperationException("Zone scope changed before creation.");
-                    var map = Find.CurrentMap;
+                    var map = ProtoBoundary.ResolveMap(context);
                     NativeZoneRecord record;
                     if (command.Type == Operations.ZoneType.Growing) {
                         var growing = new Zone_Growing(map.zoneManager);

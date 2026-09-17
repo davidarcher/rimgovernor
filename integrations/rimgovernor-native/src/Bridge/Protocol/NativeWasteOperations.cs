@@ -190,19 +190,19 @@ namespace HomeBridge.BridgeTools
         private static bool Prepare(Operations.ManageWaste command, Common.ObservationContext context, out NativeControlIdentity identity,
             out Pawn? pawn, out Thing? thing, out NativePawnSnapshot? snapshot, out Common.Failure failure)
         {
-            identity = new NativeControlIdentity(Current.Game, Find.CurrentMap, context.Identity.ColonyId, context.Identity.LoadToken);
+            identity = new NativeControlIdentity(Current.Game, ProtoBoundary.ResolveMap(context), context.Identity.ColonyId, context.Identity.LoadToken);
             pawn = null; thing = null; snapshot = null;
             failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Waste order requires an exact pawn, exact target and bounded unwanted/bury lists.");
             if (!Valid(command)) return false;
             failure = ProtoBoundary.Fail(Common.FailureCode.Unavailable, "Live native pawn control hooks are required.");
             if (!NativePawnControlState.IsReady) return false;
-            pawn = Find.CurrentMap.mapPawns.FreeColonistsSpawned.SingleOrDefault(p => p.GetUniqueLoadID() == command.Pawn.EntityId);
+            pawn = ProtoBoundary.ResolveMap(context).mapPawns.FreeColonistsSpawned.SingleOrDefault(p => p.GetUniqueLoadID() == command.Pawn.EntityId);
             if (pawn == null) { failure = ProtoBoundary.Fail(Common.FailureCode.NotFound, "Exact colonist is not spawned on this map."); return false; }
             var check = NativePawnControlState.Check(identity, pawn, command.Pawn.ExpectedSnapshotToken, out snapshot);
             if (check != NativePawnControlResult.Ready) { failure = NativeDraftProtocol.Failure(check, context); return false; }
             if (snapshot!.Drafted || !snapshot.Eligible)
             { failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Waste haul requires an eligible undrafted pawn."); return false; }
-            thing = Find.CurrentMap.listerThings.AllThings.SingleOrDefault(t => t.GetUniqueLoadID() == command.Target.EntityId);
+            thing = ProtoBoundary.ResolveMap(context).listerThings.AllThings.SingleOrDefault(t => t.GetUniqueLoadID() == command.Target.EntityId);
             if (thing == null) { failure = ProtoBoundary.Fail(Common.FailureCode.NotFound, "Exact waste item is unavailable."); return false; }
             if (Token(context.Identity, thing) != command.Target.ExpectedSnapshotToken)
             { failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Waste target snapshot changed; observe before new admission."); return false; }

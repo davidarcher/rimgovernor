@@ -135,7 +135,7 @@ namespace HomeBridge.BridgeTools
         internal Receipts.Progress Observe(Common.AttemptKey attempt, Common.ObservationContext context)
         {
             var progress = new Receipts.Progress { Attempt = attempt.Clone(), Context = context.Clone(), CompleteInspection = false };
-            if (!ReferenceEquals(Game, Verse.Current.Game) || !ReferenceEquals(Map, Find.CurrentMap) || Uncertain != null)
+            if (!ReferenceEquals(Game, Verse.Current.Game) || !ReferenceEquals(Map, ProtoBoundary.ResolveMap(context)) || Uncertain != null)
             {
                 progress.Unknown = new Receipts.UnknownEffect { Reason = Uncertain ?? "Construction context changed." };
                 return progress;

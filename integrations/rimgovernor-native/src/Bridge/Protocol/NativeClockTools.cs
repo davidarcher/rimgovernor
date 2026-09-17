@@ -20,7 +20,7 @@ namespace HomeBridge.BridgeTools
             => Dispatch(ctx, cancellationToken, "rimgovernor/clock_read_status", request, Clock.StatusRequest.Parser,
                 failure => new Clock.StatusReply { Failure = failure }, parsed => {
                     Common.ObservationContext context; Common.Failure failure;
-                    if (!ProtoBoundary.ValidateIdentity(parsed.Identity, Find.CurrentMap, out context, out failure)) return new Clock.StatusReply { Failure = failure };
+                    if (!ProtoBoundary.ValidateIdentity(parsed.Identity, out context, out failure)) return new Clock.StatusReply { Failure = failure };
                     return new Clock.StatusReply { Status = Read(context) };
                 });
 
@@ -33,7 +33,7 @@ namespace HomeBridge.BridgeTools
                     if (!parsed.HasAfterCursor || parsed.AfterCursor < 0 || !parsed.HasLimit || parsed.Limit < 1 || parsed.Limit > 128)
                         return new Clock.EventsReply { Failure = Invalid("Event reads require explicit cursor>=0 and limit1..128.") };
                     Common.ObservationContext context; Common.Failure failure;
-                    if (!ProtoBoundary.ValidateIdentity(parsed.Identity, Find.CurrentMap, out context, out failure)) return new Clock.EventsReply { Failure = failure };
+                    if (!ProtoBoundary.ValidateIdentity(parsed.Identity, out context, out failure)) return new Clock.EventsReply { Failure = failure };
                     return Supervisor.TypedEvents(parsed, context);
                 });
 
@@ -70,7 +70,7 @@ namespace HomeBridge.BridgeTools
             => Dispatch(ctx, cancellationToken, "rimgovernor/clock_pause", request, Clock.OwnedRequest.Parser,
                 failure => new Clock.StatusReply { Failure = failure }, parsed => {
                     Common.ObservationContext context; Common.Failure failure;
-                    if (!ProtoBoundary.ValidateIdentity(parsed.Identity, Find.CurrentMap, out context, out failure)) return new Clock.StatusReply { Failure = failure };
+                    if (!ProtoBoundary.ValidateIdentity(parsed.Identity, out context, out failure)) return new Clock.StatusReply { Failure = failure };
                     failure = Supervisor.ValidateTypedOwner(parsed, false);
                     if (failure != null) return new Clock.StatusReply { Failure = failure };
                     try { Supervisor.TypedPause(context); return new Clock.StatusReply { Status = Read(context) }; }
@@ -85,7 +85,7 @@ namespace HomeBridge.BridgeTools
                 failure => new Clock.AttemptReply { Failure = failure }, parsed => {
                     if (!ValidAttempt(parsed.Attempt)) return new Clock.AttemptReply { Failure = Invalid("A complete positive attempt key is required.") };
                     Common.ObservationContext context; Common.Failure failure;
-                    if (!ProtoBoundary.ValidateIdentity(parsed.Identity, Find.CurrentMap, out context, out failure)) return new Clock.AttemptReply { Failure = failure };
+                    if (!ProtoBoundary.ValidateIdentity(parsed.Identity, out context, out failure)) return new Clock.AttemptReply { Failure = failure };
                     NativeOperationState state;
                     return NativeOperationState.TryGet(context.Identity, out state) ? state.Ledger.LookupClock(parsed.Attempt, context)
                         : new Clock.AttemptReply { Unknown = new Clock.AttemptUnknown() };
@@ -107,7 +107,7 @@ namespace HomeBridge.BridgeTools
             if (pre == null || !pre.HasExpectedGeneration || pre.ExpectedGeneration == 0
                 || !ValidAttempt(pre.Attempt)) return Refused(Invalid("A complete current authority and attempt precondition is required."));
             Common.ObservationContext context; Common.Failure failure;
-            if (!ProtoBoundary.ValidateIdentity(pre.Identity, Find.CurrentMap, out context, out failure)) return Refused(failure);
+            if (!ProtoBoundary.ValidateIdentity(pre.Identity, out context, out failure)) return Refused(failure);
             var state = NativeOperationState.ForAdmission(context.Identity);
             var fullMethod = "rimgovernor.clock.v1.Clock/" + method;
             var prior = state.Ledger.InspectClock(fullMethod, request);

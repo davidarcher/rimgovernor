@@ -43,7 +43,7 @@ namespace HomeBridge.BridgeTools
     internal static class NativeHuntAcquisition
     {
         internal static bool Designated(Pawn prey) => prey.Spawned && prey.Map.designationManager.DesignationOn(prey, DesignationDefOf.Hunt) != null;
-        internal static bool IsHunt(Operations.AcquireResource command) => Find.CurrentMap?.mapPawns.AllPawnsSpawned.Any(p => p.GetUniqueLoadID() == command.Source?.EntityId) == true;
+        internal static bool IsHunt(Operations.AcquireResource command, Common.ObservationContext context) => ProtoBoundary.ResolveMap(context)?.mapPawns.AllPawnsSpawned.Any(p => p.GetUniqueLoadID() == command.Source?.EntityId) == true;
         private static int Pending(Map map) => map.mapPawns.AllPawnsSpawned.Count(Designated);
         private static bool OrdinaryWeapon(Pawn pawn)
         {
@@ -99,7 +99,7 @@ namespace HomeBridge.BridgeTools
         {
             prey = null; failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Hunting requires an exact safe prey snapshot, enabled hunter, butcher bill and fewer than two outstanding hunts.");
             if (!NativePlantAcquisition.Valid(command)) return false;
-            var map = Find.CurrentMap;
+            var map = ProtoBoundary.ResolveMap(context);
             if (Pending(map) >= 2 || map.AllCells.Any(c => map.roofCollapseBuffer.IsMarkedToCollapse(c))) return false;
             prey = map.mapPawns.AllPawnsSpawned.SingleOrDefault(p => p.GetUniqueLoadID() == command.Source.EntityId);
             return prey != null && Eligible(prey) && !Designated(prey) && prey.Position.x == command.Cell.X && prey.Position.z == command.Cell.Z

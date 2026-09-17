@@ -35,7 +35,7 @@ namespace HomeBridge.BridgeTools
             && command.Owner == null && !command.HasForPrisoners;
 
         internal static bool Eligible(Thing thing) => thing != null && !thing.Destroyed
-            && thing.Spawned && thing.Map == Find.CurrentMap && thing.TryGetComp<CompTempControl>() != null;
+            && thing.Spawned && ProtoBoundary.IsLoaded(thing.Map) && thing.TryGetComp<CompTempControl>() != null;
 
         internal static string Token(Common.Identity identity, string id, float target)
         {
@@ -67,7 +67,7 @@ namespace HomeBridge.BridgeTools
                 "Building patch requires an exact current target-temperature snapshot and only target_temperature, "
                 + "in the game's -273.15 to 1000 C interface range. forbidden/power/medical/owner/forPrisoners are not implemented by this adapter.");
             if (!Valid(command)) return false;
-            thing = Find.CurrentMap.listerThings.AllThings.SingleOrDefault(t => t.GetUniqueLoadID() == command.Building.EntityId);
+            thing = ProtoBoundary.ResolveMap(context).listerThings.AllThings.SingleOrDefault(t => t.GetUniqueLoadID() == command.Building.EntityId);
             if (thing == null || !Eligible(thing))
             { failure = ProtoBoundary.Fail(Common.FailureCode.NotFound, "Exact building with CompTempControl is unavailable."); return false; }
             if (Snapshot(thing, context)?.Token != command.Building.ExpectedSnapshotToken)
@@ -142,7 +142,7 @@ namespace HomeBridge.BridgeTools
                 Unknown = new Receipts.UnknownEffect { Reason = "Exact building target temperature is unavailable." } };
             try
             {
-                var thing = Find.CurrentMap.listerThings.AllThings.SingleOrDefault(t => t.GetUniqueLoadID() == command.Building.EntityId);
+                var thing = ProtoBoundary.ResolveMap(context).listerThings.AllThings.SingleOrDefault(t => t.GetUniqueLoadID() == command.Building.EntityId);
                 var snapshot = thing == null ? null : Snapshot(thing, context);
                 if (snapshot == null) return result;
                 var matches = Matches(thing!, command); var evidence = Evidence(command, snapshot.Token, matches);

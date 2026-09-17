@@ -93,7 +93,7 @@ namespace HomeBridge.BridgeTools
                     if (!TypedHooksReady()) return ProtoBoundary.Fail(Common.FailureCode.Unavailable, "Exact native clock hooks are unavailable.");
                     EnsureJournal();
                     if (_epoch == long.MaxValue || _cursor == long.MaxValue) return ProtoBoundary.Fail(Common.FailureCode.CapacityExhausted, "Native clock epoch or cursor is exhausted.");
-                    foreach (var ids in PolicyIds(request.Policy)) ResolveIds(ids);
+                    foreach (var ids in PolicyIds(request.Policy)) ResolveIds(ProtoBoundary.ResolveMap(request.Authority.Identity), ids);
                 }
                 catch (Exception) { return ProtoBoundary.Fail(Common.FailureCode.Unavailable, "Native watcher, journal or exact policy pawn identity is unavailable."); }
                 return null;
@@ -113,9 +113,9 @@ namespace HomeBridge.BridgeTools
                 {
                     Start(metadata.Owner.ControllerSessionId, NativeSpeed(request.Speed), (int)request.LeaseMs,
                         policy.Mode == Clock.WatchMode.Colony ? "colony" : "combat", policy.HealthDropFraction,
-                        policy.MinHealthFraction, policy.HostileWithin, ResolveIds(policy.AcknowledgedHostileIds),
-                        ResolveIds(policy.AcknowledgedDownedColonistIds), ResolveIds(policy.AcknowledgedInjuredColonistIds),
-                        (int)policy.InjuryStopCooldownMs, (int)request.MaxTicks, ResolveIds(policy.SurgicalRecoveryIds), false, ResolveIds(policy.MedicalRestIds));
+                        policy.MinHealthFraction, policy.HostileWithin, ResolveIds(ProtoBoundary.ResolveMap(context), policy.AcknowledgedHostileIds),
+                        ResolveIds(ProtoBoundary.ResolveMap(context), policy.AcknowledgedDownedColonistIds), ResolveIds(ProtoBoundary.ResolveMap(context), policy.AcknowledgedInjuredColonistIds),
+                        (int)policy.InjuryStopCooldownMs, (int)request.MaxTicks, ResolveIds(ProtoBoundary.ResolveMap(context), policy.SurgicalRecoveryIds), false, ResolveIds(ProtoBoundary.ResolveMap(context), policy.MedicalRestIds));
                     if (_state == null || !ReferenceEquals(_state.Typed, metadata)) throw new InvalidOperationException("Native start did not create the admitted epoch");
                     return TypedStatus(context);
                 }
@@ -353,7 +353,7 @@ namespace HomeBridge.BridgeTools
         }
         private static IEnumerable<IEnumerable<string>> PolicyIds(Clock.WatchPolicy policy)
         { yield return policy.AcknowledgedHostileIds; yield return policy.AcknowledgedDownedColonistIds; yield return policy.AcknowledgedInjuredColonistIds; yield return policy.SurgicalRecoveryIds; yield return policy.MedicalRestIds; }
-        private static string ResolveIds(IEnumerable<string> ids) => string.Join(",", ids.Select(id => Find.CurrentMap.mapPawns.AllPawns.Single(p => p.GetUniqueLoadID() == id).thingIDNumber.ToString(System.Globalization.CultureInfo.InvariantCulture)));
+        private static string ResolveIds(Map map, IEnumerable<string> ids) => string.Join(",", ids.Select(id => map.mapPawns.AllPawns.Single(p => p.GetUniqueLoadID() == id).thingIDNumber.ToString(System.Globalization.CultureInfo.InvariantCulture)));
         private static bool ValidPolicy(Clock.WatchPolicy policy, uint maxTicks)
         {
             return policy != null && policy.HasMode && (policy.Mode == Clock.WatchMode.Colony || policy.Mode == Clock.WatchMode.Combat)

@@ -61,7 +61,7 @@ namespace HomeBridge.BridgeTools
         // be inferred from a completion event -- there is no native hook for
         // one here -- so this polls exact roster/status the way a live tick
         // loop would.
-        private bool Succeeded() => !patient.Destroyed && patient.Spawned && patient.Map == Find.CurrentMap
+        private bool Succeeded() => !patient.Destroyed && patient.Spawned && patient.Map == identity.Map
             && (capture ? patient.IsPrisonerOfColony : patient.CurrentBed() != null);
 
         internal Receipts.Progress Observe(Common.AttemptKey attempt, Common.ObservationContext context)
@@ -125,7 +125,7 @@ namespace HomeBridge.BridgeTools
 
         // Ports OrderTool.PrepareCapture's eligibility gate exactly.
         private static bool CaptureEligible(Pawn pawn, Pawn patient) => patient != null && !patient.Dead && patient.Spawned
-            && patient.Map == Find.CurrentMap && patient.CanBeCaptured() && HealthAIUtility.CanRescueNow(pawn, patient, true)
+            && patient.Map == pawn.Map && patient.CanBeCaptured() && HealthAIUtility.CanRescueNow(pawn, patient, true)
             && pawn.health.capacities.CapableOf(PawnCapacityDefOf.Manipulation) && patient.HostileTo(Faction.OfPlayerSilentFail);
 
         // Ports OrderTool.PrepareRescue's drafted-or-undrafted fallback path
@@ -133,7 +133,7 @@ namespace HomeBridge.BridgeTools
         // either way and is a complete, self-contained mechanism independent
         // of the WorkGiver-priority optimization PrepareRescue tries first.
         private static bool RescueEligible(Pawn pawn, Pawn patient) => patient != null && !patient.Dead && patient.Spawned
-            && patient.Map == Find.CurrentMap && !ReferenceEquals(patient, pawn)
+            && patient.Map == pawn.Map && !ReferenceEquals(patient, pawn)
             && HealthAIUtility.CanRescueNow(pawn, patient, true) && !HostileToPlayer(patient);
 
         private static bool Eligible(Operations.PawnOrderKind kind, Pawn pawn, Pawn patient) =>
@@ -164,16 +164,16 @@ namespace HomeBridge.BridgeTools
         private static bool Prepare(Operations.PawnTargetOrder command, Common.ObservationContext context, out NativeControlIdentity identity,
             out Pawn? pawn, out Pawn? patient, out Building_Bed? bed, out NativePawnSnapshot? snapshot, out Common.Failure failure)
         {
-            identity = new NativeControlIdentity(Current.Game, Find.CurrentMap, context.Identity.ColonyId, context.Identity.LoadToken);
+            identity = new NativeControlIdentity(Current.Game, ProtoBoundary.ResolveMap(context), context.Identity.ColonyId, context.Identity.LoadToken);
             pawn = null; patient = null; bed = null; snapshot = null;
             failure = ProtoBoundary.Fail(Common.FailureCode.Unavailable, "Live native pawn control hooks are required.");
             if (!NativePawnControlState.IsReady) return false;
-            pawn = Find.CurrentMap.mapPawns.AllPawnsSpawned.SingleOrDefault(p => p.GetUniqueLoadID() == command.Pawn.EntityId);
+            pawn = ProtoBoundary.ResolveMap(context).mapPawns.AllPawnsSpawned.SingleOrDefault(p => p.GetUniqueLoadID() == command.Pawn.EntityId);
             if (pawn == null) { failure = ProtoBoundary.Fail(Common.FailureCode.NotFound, "Exact pawn is not spawned on this map."); return false; }
             var check = NativePawnControlState.Check(identity, pawn, command.Pawn.ExpectedSnapshotToken, out snapshot);
             if (check != NativePawnControlResult.Ready) { failure = NativeDraftProtocol.Failure(check, context); return false; }
             if (!snapshot!.Eligible) { failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Custody dispatch requires an eligible pawn."); return false; }
-            patient = Find.CurrentMap.mapPawns.AllPawnsSpawned.SingleOrDefault(p => p.GetUniqueLoadID() == command.Target.EntityId);
+            patient = ProtoBoundary.ResolveMap(context).mapPawns.AllPawnsSpawned.SingleOrDefault(p => p.GetUniqueLoadID() == command.Target.EntityId);
             if (patient == null) { failure = ProtoBoundary.Fail(Common.FailureCode.NotFound, "Exact patient pawn is not spawned on this map."); return false; }
             var patientCheck = NativePawnControlState.Check(identity, patient, command.Target.ExpectedSnapshotToken, out _);
             if (patientCheck != NativePawnControlResult.Ready) { failure = NativeDraftProtocol.Failure(patientCheck, context); return false; }

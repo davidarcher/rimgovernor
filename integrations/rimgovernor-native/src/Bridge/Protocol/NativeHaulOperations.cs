@@ -97,7 +97,7 @@ namespace HomeBridge.BridgeTools
             && command.HasRequireSafeStorage && command.RequireSafeStorage;
 
         internal static bool Eligible(Thing? thing) => thing != null && !thing.Destroyed && thing.Spawned
-            && thing.Map == Find.CurrentMap && thing.def.EverHaulable && thing.def.category == ThingCategory.Item
+            && ProtoBoundary.IsLoaded(thing.Map) && thing.def.EverHaulable && thing.def.category == ThingCategory.Item
             && !thing.Position.Fogged(thing.Map);
 
         private static bool Recheck(NativeControlIdentity identity, Pawn pawn, Operations.PawnTargetOrder command, Thing thing,
@@ -112,17 +112,17 @@ namespace HomeBridge.BridgeTools
         private static bool Prepare(Operations.PawnTargetOrder command, Common.ObservationContext context, out NativeControlIdentity identity,
             out Pawn? pawn, out Thing? thing, out NativePawnSnapshot? snapshot, out Common.Failure failure)
         {
-            identity = new NativeControlIdentity(Current.Game, Find.CurrentMap, context.Identity.ColonyId, context.Identity.LoadToken);
+            identity = new NativeControlIdentity(Current.Game, ProtoBoundary.ResolveMap(context), context.Identity.ColonyId, context.Identity.LoadToken);
             pawn = null; thing = null; snapshot = null;
             failure = ProtoBoundary.Fail(Common.FailureCode.Unavailable, "Live native pawn control hooks are required.");
             if (!NativePawnControlState.IsReady) return false;
-            pawn = Find.CurrentMap.mapPawns.AllPawnsSpawned.SingleOrDefault(p => p.GetUniqueLoadID() == command.Pawn.EntityId);
+            pawn = ProtoBoundary.ResolveMap(context).mapPawns.AllPawnsSpawned.SingleOrDefault(p => p.GetUniqueLoadID() == command.Pawn.EntityId);
             if (pawn == null) { failure = ProtoBoundary.Fail(Common.FailureCode.NotFound, "Exact pawn is not spawned on this map."); return false; }
             var check = NativePawnControlState.Check(identity, pawn, command.Pawn.ExpectedSnapshotToken, out snapshot);
             if (check != NativePawnControlResult.Ready) { failure = NativeDraftProtocol.Failure(check, context); return false; }
             if (snapshot!.Drafted || !snapshot.Eligible)
             { failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Haul requires an eligible undrafted pawn."); return false; }
-            thing = Find.CurrentMap.listerThings.AllThings.SingleOrDefault(t => t.GetUniqueLoadID() == command.Target.EntityId);
+            thing = ProtoBoundary.ResolveMap(context).listerThings.AllThings.SingleOrDefault(t => t.GetUniqueLoadID() == command.Target.EntityId);
             if (thing == null || !Eligible(thing)) { failure = ProtoBoundary.Fail(Common.FailureCode.NotFound, "Exact haulable thing is unavailable."); return false; }
             if (NativeSupplyAllow.Snapshot(thing, context)?.Token != command.Target.ExpectedSnapshotToken)
             { failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Haul target snapshot changed; observe before new admission."); return false; }

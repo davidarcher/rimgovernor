@@ -23,7 +23,7 @@ namespace HomeBridge.BridgeTools
             && command.Designation == Operations.ThingDesignation.Allow;
 
         internal static bool Eligible(Thing thing) => thing != null && !thing.Destroyed
-            && thing.Spawned && thing.Map == Find.CurrentMap && thing.def.EverHaulable
+            && thing.Spawned && ProtoBoundary.IsLoaded(thing.Map) && thing.def.EverHaulable
             && thing.def.category == ThingCategory.Item && !thing.Position.Fogged(thing.Map)
             && Faction.OfPlayerSilentFail != null
             && (thing.Faction == null || thing.Faction == Faction.OfPlayerSilentFail)
@@ -63,7 +63,7 @@ namespace HomeBridge.BridgeTools
             if (command.HasDesignation && command.Designation != Operations.ThingDesignation.Allow)
             { failure = ProtoBoundary.Fail(Common.FailureCode.Unsupported, "Only the Allow designation is implemented by this adapter."); return false; }
             if (!Valid(command)) return false;
-            thing = Find.CurrentMap.listerThings.AllThings.SingleOrDefault(t => t.GetUniqueLoadID() == command.Target.EntityId);
+            thing = ProtoBoundary.ResolveMap(context).listerThings.AllThings.SingleOrDefault(t => t.GetUniqueLoadID() == command.Target.EntityId);
             if (thing == null || !Eligible(thing))
             { failure = ProtoBoundary.Fail(Common.FailureCode.NotFound, "Exact eligible loose supply is unavailable."); return false; }
             if (Snapshot(thing, context)?.Token != command.Target.ExpectedSnapshotToken)
@@ -131,7 +131,7 @@ namespace HomeBridge.BridgeTools
         {
             try
             {
-                var thing = Find.CurrentMap.listerThings.AllThings.SingleOrDefault(t => t.GetUniqueLoadID() == original.ThingId);
+                var thing = ProtoBoundary.ResolveMap(context).listerThings.AllThings.SingleOrDefault(t => t.GetUniqueLoadID() == original.ThingId);
                 return ObservedProgress(attempt, context, original, thing != null && Eligible(thing) ? Evidence(thing).Designation : null);
             }
             catch (Exception) { return ObservedProgress(attempt, context, original, null); }

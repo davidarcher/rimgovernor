@@ -94,7 +94,7 @@ namespace HomeBridge.BridgeTools
                 || !Validate(parsed, out failure)) return ProtoBoundary.Encode(new Obs.WorldReply { Failure = failure });
             return await ProtoBoundary.OnMainThread(ctx, () =>
             {
-                var map = Find.CurrentMap;
+                var map = ProtoBoundary.ResolveMap(parsed.Scope?.ExpectedIdentity!);
                 if (!ProtoBoundary.ValidateIdentity(parsed.Scope?.ExpectedIdentity!, map, out var context, out failure))
                     return ProtoBoundary.Encode(new Obs.WorldReply { Failure = failure });
                 try

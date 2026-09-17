@@ -52,7 +52,7 @@ namespace HomeBridge.BridgeTools
             try
             {
                 if (!context.Identity.Equals(admitted.Identity) || context.Tick < admitted.Tick
-                    || pawn.Destroyed || pawn.Dead || !pawn.Spawned || pawn.Map != Find.CurrentMap)
+                    || pawn.Destroyed || pawn.Dead || !pawn.Spawned || pawn.Map != ProtoBoundary.ResolveMap(context))
                     throw new InvalidOperationException("Current surgery patient context cannot be inspected.");
                 result.CompleteInspection = true;
                 var health = NativeSurgeryOperations.HealthSignature(pawn);
@@ -157,11 +157,11 @@ namespace HomeBridge.BridgeTools
             out NativeControlIdentity identity, out Pawn? pawn, out RecipeDef? recipe, out BodyPartRecord? part,
             out string health, out MedicalCareCategory care, out Common.Failure failure)
         {
-            identity = new NativeControlIdentity(Current.Game, Find.CurrentMap, context.Identity.ColonyId, context.Identity.LoadToken);
+            identity = new NativeControlIdentity(Current.Game, ProtoBoundary.ResolveMap(context), context.Identity.ColonyId, context.Identity.LoadToken);
             pawn = null; recipe = null; part = null; health = ""; care = MedicalCareCategory.NoCare;
             failure = ProtoBoundary.Fail(Common.FailureCode.Unavailable, "Live native pawn control hooks are required.");
             if (!NativePawnControlState.IsReady) return false;
-            var map = Find.CurrentMap;
+            var map = ProtoBoundary.ResolveMap(context);
             // Matches MedicalOperationsTool.Inspect's own patient scope exactly
             // (a free player colonist), not the broader AllPawnsSpawned an
             // acting pawn like NativeRecoveryOperations resolves. A downed or
@@ -195,7 +195,7 @@ namespace HomeBridge.BridgeTools
             {
                 if (!Prepare(command, context, true, out var identity, out var pawn, out var recipe, out var part, out var health, out var care, out var failure))
                     return new Operations.ExecuteReply { Failure = failure };
-                if (!Eligible(pawn!, recipe!, part, Find.CurrentMap, out var reason))
+                if (!Eligible(pawn!, recipe!, part, ProtoBoundary.ResolveMap(context), out var reason))
                     return Refuse(Common.FailureCode.InvalidRequest, reason);
                 if (!NativeControlAuthority.TryGetForGame(Current.Game, out var authority) || authority == null)
                     return Refuse(Common.FailureCode.AuthorityRequired, "Current native authority is required.");
@@ -205,7 +205,7 @@ namespace HomeBridge.BridgeTools
                 guard = authority.Check(pre.ExpectedGeneration);
                 if (!guard.Success) return new Operations.ExecuteReply { Failure = NativeAuthorityControlTools.Refusal(guard.Error, context) };
                 if (!Prepare(command, context, true, out identity, out pawn, out recipe, out part, out health, out care, out failure)
-                    || !Eligible(pawn!, recipe!, part, Find.CurrentMap, out reason))
+                    || !Eligible(pawn!, recipe!, part, ProtoBoundary.ResolveMap(context), out reason))
                     return new Operations.ExecuteReply { Failure = failure ?? ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, reason) };
                 var admission = state.Ledger.Admit("rimgovernor.operations.v1.Operations/Execute", request, context);
                 if (admission.Kind != NativeAttemptLedger.DecisionKind.Admitted) return admission.Reply!;
@@ -214,7 +214,7 @@ namespace HomeBridge.BridgeTools
                 {
                     if (!NativePawnControlState.IsReady
                         || !Prepare(command, context, true, out identity, out pawn, out recipe, out part, out health, out care, out failure)
-                        || !Eligible(pawn!, recipe!, part, Find.CurrentMap, out reason))
+                        || !Eligible(pawn!, recipe!, part, ProtoBoundary.ResolveMap(context), out reason))
                         throw new InvalidOperationException("Surgery prerequisites changed after admission.");
                     guard = authority.Check(pre.ExpectedGeneration);
                     if (!guard.Success) throw new InvalidOperationException("Surgery authority changed before native effect.");
@@ -248,7 +248,7 @@ namespace HomeBridge.BridgeTools
                 var requireExpected = command.HasExpectedHealthToken || command.HasExpectedCare;
                 if (!Prepare(command, context, requireExpected, out _, out var pawn, out var recipe, out var part, out var health, out _, out var failure))
                     return new Operations.PreviewReply { Failure = failure };
-                var accepted = Eligible(pawn!, recipe!, part, Find.CurrentMap, out var reason);
+                var accepted = Eligible(pawn!, recipe!, part, ProtoBoundary.ResolveMap(context), out var reason);
                 return NativeOperationEnvelope.Preview(new Operations.PreviewReply
                 {
                     Evaluated = new Operations.PreviewEvaluation

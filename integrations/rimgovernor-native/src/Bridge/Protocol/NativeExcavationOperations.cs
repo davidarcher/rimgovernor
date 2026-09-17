@@ -129,7 +129,7 @@ namespace HomeBridge.BridgeTools
         internal Receipts.Progress Observe(Common.AttemptKey attempt, Common.ObservationContext context)
         {
             var result = new Receipts.Progress { Attempt = attempt.Clone(), Context = context.Clone(), CompleteInspection = true };
-            if (map != Find.CurrentMap) { result.CompleteInspection = false; result.Unknown = new Receipts.UnknownEffect { Reason = "Excavation map is not the current map." }; return result; }
+            if (map != ProtoBoundary.ResolveMap(context)) { result.CompleteInspection = false; result.Unknown = new Receipts.UnknownEffect { Reason = "Excavation map is not the current map." }; return result; }
             var observed = Evidence();
             var evidence = new Receipts.EffectEvidence { Excavation = observed };
             if (observed.Cleared) result.Completed = new Receipts.CompletedEffect { Evidence = evidence };
@@ -150,7 +150,7 @@ namespace HomeBridge.BridgeTools
         {
             rock = null; cleared = false; failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Excavation requires an exact visible rock cell snapshot, supported roof geometry and an eligible miner.");
             if (!Valid(command)) return false;
-            var map = Find.CurrentMap;
+            var map = ProtoBoundary.ResolveMap(context);
             if (map == null || Find.TickManager.CurTimeSpeed != TimeSpeed.Paused) { failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Paused current map required."); return false; }
             if (map.roofCollapseBuffer.CellsMarkedToCollapse.Count > 0) { failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Roof collapse is pending on this map."); return false; }
             var cell = new IntVec3(command.Cell.X, 0, command.Cell.Z);
@@ -196,7 +196,7 @@ namespace HomeBridge.BridgeTools
                 var admitted = state.Ledger.Admit("rimgovernor.operations.v1.Operations/Execute", request, context);
                 if (admitted.Kind != NativeAttemptLedger.DecisionKind.Admitted) return admitted.Reply!;
                 handle = admitted.Handle;
-                var map = Find.CurrentMap; var cell = new IntVec3(command.Cell.X, 0, command.Cell.Z);
+                var map = ProtoBoundary.ResolveMap(context); var cell = new IntVec3(command.Cell.X, 0, command.Cell.Z);
                 if (cleared)
                 {
                     // Nothing to designate: the receipt carries the cleared

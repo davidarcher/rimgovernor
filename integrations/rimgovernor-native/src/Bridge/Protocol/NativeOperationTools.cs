@@ -88,7 +88,7 @@ namespace HomeBridge.BridgeTools
                 || !ValidAttempt(precondition.Attempt))
                 return Refuse(Common.FailureCode.InvalidRequest, "A complete authority precondition and positive attempt are required.");
             Common.ObservationContext context; Common.Failure failure;
-            if (!ProtoBoundary.ValidateIdentity(precondition.Identity, Find.CurrentMap, out context, out failure))
+            if (!ProtoBoundary.ValidateIdentity(precondition.Identity, out context, out failure))
                 return new Operations.ExecuteReply { Failure = failure };
             if (request.Operation == null || request.Operation.CommandCase == Operations.Operation.CommandOneofCase.None)
                 return Refuse(Common.FailureCode.InvalidRequest, "An operation is required.");
@@ -176,7 +176,7 @@ namespace HomeBridge.BridgeTools
             NativeConstructionPlan plan; RimGovernor.Protocol.Placement.PlacementEvaluated preview;
             try
             {
-                if (!NativeConstructionPlan.Prepare(Find.CurrentMap, request.Operation.PlaceBuilding.Placement, context, out plan, out preview, out failure))
+                if (!NativeConstructionPlan.Prepare(ProtoBoundary.ResolveMap(context), request.Operation.PlaceBuilding.Placement, context, out plan, out preview, out failure))
                     return new Operations.ExecuteReply { Failure = failure };
             }
             catch (Exception error) { return Refuse(Common.FailureCode.NativeFailure, "Construction validation failed: " + error.GetType().Name); }
@@ -224,7 +224,7 @@ namespace HomeBridge.BridgeTools
             return await ProtoBoundary.OnMainThread(ctx, () =>
             {
                 Common.ObservationContext context; Common.Failure invalid;
-                if (!ProtoBoundary.ValidateIdentity(parsed.Identity, Find.CurrentMap, out context, out invalid))
+                if (!ProtoBoundary.ValidateIdentity(parsed.Identity, out context, out invalid))
                     return ProtoBoundary.Encode(new Operations.PreviewReply { Failure = invalid });
                 if (parsed.Operation?.CommandCase == Operations.Operation.CommandOneofCase.SetDrafted)
                     return ProtoBoundary.Encode(NativeDraftOperations.Preview(parsed.Operation.SetDrafted, context));
@@ -297,7 +297,7 @@ namespace HomeBridge.BridgeTools
                 if (parsed.Operation == null || parsed.Operation.CommandCase != Operations.Operation.CommandOneofCase.PlaceBuilding)
                     return ProtoBoundary.Encode(new Operations.PreviewReply { Failure = ProtoBoundary.Fail(Common.FailureCode.Unsupported, "Preview implements PlaceBuilding, temporary SetDrafted, exact owned MovePawn and melee, direct-bullet or supported injury-only explosive AttackTarget.") });
                 NativeConstructionPlan plan; RimGovernor.Protocol.Placement.PlacementEvaluated preview;
-                var accepted = NativeConstructionPlan.Prepare(Find.CurrentMap, parsed.Operation.PlaceBuilding.Placement, context, out plan, out preview, out invalid);
+                var accepted = NativeConstructionPlan.Prepare(ProtoBoundary.ResolveMap(context), parsed.Operation.PlaceBuilding.Placement, context, out plan, out preview, out invalid);
                 if (preview == null) return ProtoBoundary.Encode(new Operations.PreviewReply { Failure = invalid });
                 return ProtoBoundary.Encode(NativeOperationEnvelope.Preview(new Operations.PreviewReply { Evaluated = new Operations.PreviewEvaluation
                 {
@@ -318,7 +318,7 @@ namespace HomeBridge.BridgeTools
             {
                 Common.ObservationContext context; Common.Failure invalid;
                 if (!ValidAttempt(parsed.Attempt)) return ProtoBoundary.Encode(new Receipts.LookupReply { Failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "A complete attempt is required.") });
-                if (!ProtoBoundary.ValidateIdentity(parsed.Identity, Find.CurrentMap, out context, out invalid))
+                if (!ProtoBoundary.ValidateIdentity(parsed.Identity, out context, out invalid))
                     return ProtoBoundary.Encode(new Receipts.LookupReply { Failure = invalid });
                 NativeOperationState state;
                 return ProtoBoundary.Encode(NativeOperationState.TryGet(context.Identity, out state)
@@ -339,7 +339,7 @@ namespace HomeBridge.BridgeTools
             {
                 Common.ObservationContext context; Common.Failure invalid;
                 if (!ValidAttempt(parsed.Attempt)) return ProtoBoundary.Encode(new Receipts.ProgressReply { Failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "A complete attempt is required.") });
-                if (!ProtoBoundary.ValidateIdentity(parsed.Identity, Find.CurrentMap, out context, out invalid))
+                if (!ProtoBoundary.ValidateIdentity(parsed.Identity, out context, out invalid))
                     return ProtoBoundary.Encode(new Receipts.ProgressReply { Failure = invalid });
                 NativeOperationState state; NativeConstructionRecord record;
                 if (NativeOperationState.TryGet(context.Identity, out state))

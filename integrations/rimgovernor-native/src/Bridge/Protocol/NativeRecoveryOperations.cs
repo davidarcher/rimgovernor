@@ -64,7 +64,7 @@ namespace HomeBridge.BridgeTools
                 if (!context.Identity.Equals(admitted.Identity) || context.Tick < admitted.Tick
                     || NativePawnControlState.Observe(identity, pawn, out var snapshot) != NativePawnControlResult.Ready || snapshot == null)
                     throw new InvalidOperationException("Current service pawn context cannot be inspected.");
-                if (target.Destroyed || !target.Spawned || target.Map != Find.CurrentMap)
+                if (target.Destroyed || !target.Spawned || target.Map != ProtoBoundary.ResolveMap(context))
                 {
                     result.Unknown = new Receipts.UnknownEffect { Reason = "The exact service target is no longer observable; absence does not prove completion." };
                     return result;
@@ -94,7 +94,7 @@ namespace HomeBridge.BridgeTools
             && command.HasMethod && command.Method != Operations.ServiceMethod.Unspecified;
 
         internal static bool Eligible(Building? building) => building != null && !building.Destroyed && building.Spawned
-            && building.Map == Find.CurrentMap && !building.Position.Fogged(building.Map)
+            && ProtoBoundary.IsLoaded(building.Map) && !building.Position.Fogged(building.Map)
             && !building.IsForbidden(Faction.OfPlayer) && !building.IsBurning();
 
         // Mirrors RecoveryTools.Order's "observed service no longer needs this
@@ -157,17 +157,17 @@ namespace HomeBridge.BridgeTools
         private static bool Prepare(Operations.RecoverService command, Common.ObservationContext context, bool requireExpected, out NativeControlIdentity identity,
             out Pawn? pawn, out Building? building, out NativePawnSnapshot? snapshot, out string token, out Common.Failure failure)
         {
-            identity = new NativeControlIdentity(Current.Game, Find.CurrentMap, context.Identity.ColonyId, context.Identity.LoadToken);
+            identity = new NativeControlIdentity(Current.Game, ProtoBoundary.ResolveMap(context), context.Identity.ColonyId, context.Identity.LoadToken);
             pawn = null; building = null; snapshot = null; token = "";
             failure = ProtoBoundary.Fail(Common.FailureCode.Unavailable, "Live native pawn control hooks are required.");
             if (!NativePawnControlState.IsReady) return false;
-            pawn = Find.CurrentMap.mapPawns.AllPawnsSpawned.SingleOrDefault(p => p.GetUniqueLoadID() == command.Pawn.EntityId);
+            pawn = ProtoBoundary.ResolveMap(context).mapPawns.AllPawnsSpawned.SingleOrDefault(p => p.GetUniqueLoadID() == command.Pawn.EntityId);
             if (pawn == null) { failure = ProtoBoundary.Fail(Common.FailureCode.NotFound, "Exact pawn is not spawned on this map."); return false; }
             var check = NativePawnControlState.Check(identity, pawn, command.Pawn.ExpectedSnapshotToken, out snapshot);
             if (check != NativePawnControlResult.Ready) { failure = NativeDraftProtocol.Failure(check, context); return false; }
             if (snapshot!.Drafted || !snapshot.Eligible)
             { failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Service order requires an eligible undrafted pawn."); return false; }
-            building = Find.CurrentMap.listerBuildings.allBuildingsColonist.SingleOrDefault(b => b.GetUniqueLoadID() == command.Target.EntityId);
+            building = ProtoBoundary.ResolveMap(context).listerBuildings.allBuildingsColonist.SingleOrDefault(b => b.GetUniqueLoadID() == command.Target.EntityId);
             if (building == null || !Eligible(building)) { failure = ProtoBoundary.Fail(Common.FailureCode.NotFound, "Exact serviceable building is unavailable."); return false; }
             token = Token(context.Identity, building);
             if (requireExpected && (!command.HasExpectedTargetSnapshotToken || token != command.ExpectedTargetSnapshotToken))

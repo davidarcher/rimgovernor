@@ -38,7 +38,7 @@ namespace HomeBridge.BridgeTools
             pawn.GetUniqueLoadID(), pawn.guest?.ExclusiveInteractionMode?.defName ?? "", pawn.guest?.Recruitable.ToString() ?? ""));
 
         internal static bool Eligible(Pawn? pawn) => pawn != null && !pawn.Destroyed && pawn.Spawned
-            && pawn.Map == Find.CurrentMap && !pawn.Dead && pawn.IsPrisonerOfColony && pawn.guest != null;
+            && ProtoBoundary.IsLoaded(pawn.Map) && !pawn.Dead && pawn.IsPrisonerOfColony && pawn.guest != null;
 
         private static PrisonerInteractionModeDef? Wire(Operations.PrisonerInteraction interaction)
         {
@@ -53,12 +53,12 @@ namespace HomeBridge.BridgeTools
         private static bool ValidCommand(Operations.SetPrisonerInteraction? command) => command != null
             && NativeDraftProtocol.ValidEntity(command.Pawn) && command.HasInteraction;
 
-        private static bool Prepare(Operations.SetPrisonerInteraction command, out Pawn? pawn, out PrisonerInteractionModeDef? def, out Common.Failure failure)
+        private static bool Prepare(Operations.SetPrisonerInteraction command, Common.ObservationContext context, out Pawn? pawn, out PrisonerInteractionModeDef? def, out Common.Failure failure)
         {
             pawn = null; def = null;
             failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Prisoner interaction requires an exact current prisoner settings snapshot and a supported interaction.");
             if (!ValidCommand(command)) return false;
-            pawn = Find.CurrentMap.mapPawns.AllPawnsSpawned.SingleOrDefault(p => p.GetUniqueLoadID() == command.Pawn.EntityId);
+            pawn = ProtoBoundary.ResolveMap(context).mapPawns.AllPawnsSpawned.SingleOrDefault(p => p.GetUniqueLoadID() == command.Pawn.EntityId);
             if (pawn == null || !Eligible(pawn)) { failure = ProtoBoundary.Fail(Common.FailureCode.NotFound, "Exact eligible current-map colony prisoner is unavailable."); return false; }
             if (Settings(pawn) != command.Pawn.ExpectedSnapshotToken)
             { failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Prisoner interaction settings changed; observe before new admission."); return false; }
@@ -81,7 +81,7 @@ namespace HomeBridge.BridgeTools
         {
             try
             {
-                if (!Prepare(command!, out var pawn, out _, out var failure))
+                if (!Prepare(command!, context, out var pawn, out _, out var failure))
                     return new Operations.PreviewReply { Failure = failure };
                 return NativeOperationEnvelope.Preview(new Operations.PreviewReply { Evaluated = new Operations.PreviewEvaluation {
                     Context = context.Clone(), Accepted = true, Projected = Evidence(command!, Settings(pawn!)) } });
@@ -95,7 +95,7 @@ namespace HomeBridge.BridgeTools
             NativeAttemptLedger.Admission? handle = null; Receipts.EffectEvidence? evidence = null;
             try
             {
-                if (!Prepare(command, out var pawn, out _, out var failure)) return new Operations.ExecuteReply { Failure = failure };
+                if (!Prepare(command, context, out var pawn, out _, out var failure)) return new Operations.ExecuteReply { Failure = failure };
                 if (!NativeControlAuthority.TryGetForGame(Current.Game, out var authority) || authority == null)
                     return Refuse(Common.FailureCode.AuthorityRequired, "Current native authority is required.");
                 var guard = authority.Check(pre.ExpectedGeneration);
@@ -108,7 +108,7 @@ namespace HomeBridge.BridgeTools
                 {
                     var current = authority.Check(pre.ExpectedGeneration);
                     if (!current.Success) throw new InvalidOperationException("Prisoner interaction authority changed before native effect.");
-                    if (!Prepare(command, out pawn, out var def, out failure) || pawn == null || def == null)
+                    if (!Prepare(command, context, out pawn, out var def, out failure) || pawn == null || def == null)
                         throw new InvalidOperationException("Prisoner interaction prerequisites changed after admission.");
                     pawn.guest!.SetExclusiveInteraction(def);
                     var after = Settings(pawn);
@@ -131,7 +131,7 @@ namespace HomeBridge.BridgeTools
             var result = new Receipts.Progress { Attempt = attempt.Clone(), Context = context.Clone(), CompleteInspection = false };
             try
             {
-                var pawn = Find.CurrentMap.mapPawns.AllPawnsSpawned.SingleOrDefault(p => p.GetUniqueLoadID() == record.PawnId);
+                var pawn = ProtoBoundary.ResolveMap(context).mapPawns.AllPawnsSpawned.SingleOrDefault(p => p.GetUniqueLoadID() == record.PawnId);
                 if (pawn == null || !Eligible(pawn))
                 {
                     result.Unknown = new Receipts.UnknownEffect { Reason = "The exact prisoner is no longer observable; absence does not prove the setting held." };

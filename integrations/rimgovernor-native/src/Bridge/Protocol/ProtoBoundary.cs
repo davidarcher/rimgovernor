@@ -172,17 +172,64 @@ namespace HomeBridge.BridgeTools
             catch (EncoderFallbackException) { return false; }
         }
 
+        private static bool Complete(Common.Identity expected) => expected != null && expected.HasColonyId && expected.HasLoadToken
+            && expected.HasMapId && IsIdentifier(expected.ColonyId) && IsIdentifier(expected.LoadToken) && expected.MapId >= 0;
+
+        /// <summary>
+        /// The loaded map the identity names, or null. Every typed read and
+        /// operation is scoped to this map, never to whichever map the player
+        /// happens to be viewing. Call only on the game thread.
+        /// </summary>
+        internal static Map ResolveMap(Common.Identity expected)
+        {
+            if (!Complete(expected) || Current.Game == null || Find.Maps == null) return null;
+            foreach (var map in Find.Maps)
+                if (map != null && map.uniqueID == expected.MapId) return map;
+            return null;
+        }
+
+        internal static Map ResolveMap(Common.ObservationContext context) => ResolveMap(context?.Identity);
+
+        /// <summary>True while the map is one of the game's loaded maps.</summary>
+        internal static bool IsLoaded(Map map)
+        {
+            if (map == null || Current.Game == null || Find.Maps == null) return false;
+            foreach (var loaded in Find.Maps) if (ReferenceEquals(loaded, map)) return true;
+            return false;
+        }
+
+        internal static bool ValidateIdentity(Common.Identity expected,
+            out Common.ObservationContext context, out Common.Failure failure)
+            => ValidateIdentity(expected, ResolveMap(expected), out context, out failure);
+
+        /// <summary>
+        /// For presentation state that lives on the viewed map (selection,
+        /// camera, capture): the identity must name the map the player is
+        /// looking at, otherwise StaleIdentity carrying the viewed context.
+        /// </summary>
+        internal static bool ValidateViewedIdentity(Common.Identity expected,
+            out Common.ObservationContext context, out Common.Failure failure)
+            => ValidateIdentity(expected, Find.CurrentMap, out context, out failure);
+
         internal static bool ValidateIdentity(Common.Identity expected, Map map,
             out Common.ObservationContext context, out Common.Failure failure)
         {
             context = null;
-            if (expected == null || !expected.HasColonyId || !expected.HasLoadToken || !expected.HasMapId
-                || !IsIdentifier(expected.ColonyId) || !IsIdentifier(expected.LoadToken) || expected.MapId < 0)
+            if (!Complete(expected))
             {
                 failure = Fail(Common.FailureCode.InvalidRequest, "A complete valid colony, load and map identity is required.");
                 return false;
             }
             Common.Unavailable unavailable;
+            if (map == null && Current.Game != null && TryReadContext(Find.CurrentMap, out context, out unavailable))
+            {
+                // The named map is no longer loaded but the game is: stale, with
+                // the viewed map's context so the caller can re-anchor.
+                failure = Fail(Common.FailureCode.StaleIdentity, "The map this identity names is no longer loaded.");
+                failure.ObservedContext = context;
+                context = null;
+                return false;
+            }
             if (!TryReadContext(map, out context, out unavailable))
             {
                 failure = Fail(Common.FailureCode.Unavailable, unavailable.Detail);
@@ -199,11 +246,12 @@ namespace HomeBridge.BridgeTools
         }
 
         // Call only on the game thread. Reading never attaches or repairs game components.
+        // Any loaded map is a valid context; the viewed map is not special here.
         internal static bool TryReadContext(Map map, out Common.ObservationContext context,
             out Common.Unavailable unavailable)
         {
             context = null;
-            if (Current.Game == null || map == null || !ReferenceEquals(map, Find.CurrentMap) || Find.TickManager == null)
+            if (Current.Game == null || map == null || !IsLoaded(map) || Find.TickManager == null)
             {
                 unavailable = new Common.Unavailable { Reason = Common.UnavailableReason.NotLoaded, Detail = "No current colony map is loaded." };
                 return false;

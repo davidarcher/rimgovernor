@@ -96,11 +96,11 @@ namespace HomeBridge.BridgeTools
         private static bool Prepare(Operations.MovePawn command,Common.ObservationContext context,out NativeControlIdentity identity,
             out Pawn? pawn,out NativePawnSnapshot? snapshot,out IntVec3 destination,out Common.Failure failure)
         {
-            identity=new NativeControlIdentity(Current.Game,Find.CurrentMap,context.Identity.ColonyId,context.Identity.LoadToken);
+            identity=new NativeControlIdentity(Current.Game,ProtoBoundary.ResolveMap(context),context.Identity.ColonyId,context.Identity.LoadToken);
             pawn=null;snapshot=null;destination=new IntVec3(command.Destination.X,0,command.Destination.Z);
             failure=ProtoBoundary.Fail(Common.FailureCode.Unavailable,"Live native pawn control hooks are required.");
             if(!NativePawnControlState.IsReady)return false;
-            pawn=Find.CurrentMap.mapPawns.AllPawnsSpawned.SingleOrDefault(p=>p.GetUniqueLoadID()==command.Pawn.EntityId);
+            pawn=ProtoBoundary.ResolveMap(context).mapPawns.AllPawnsSpawned.SingleOrDefault(p=>p.GetUniqueLoadID()==command.Pawn.EntityId);
             if(pawn==null){failure=ProtoBoundary.Fail(Common.FailureCode.NotFound,"Exact pawn is not spawned on this map.");return false;}
             var check=NativePawnControlState.Check(identity,pawn,command.Pawn.ExpectedSnapshotToken,out snapshot);
             if(check!=NativePawnControlResult.Ready){failure=NativeDraftProtocol.Failure(check,context);return false;}

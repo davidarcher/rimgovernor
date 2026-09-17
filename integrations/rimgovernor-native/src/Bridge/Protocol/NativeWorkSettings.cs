@@ -41,7 +41,7 @@ namespace HomeBridge.BridgeTools
             && !command.HasFollowDrafted && !command.HasFollowFieldwork && ValidArea(command.AllowedArea) && command.Master == null
             && command.Training.Count == 0 && !command.HasSlaughter && !command.HasReleaseToWild;
 
-        private static bool Eligible(Pawn pawn) => pawn != null && !pawn.Destroyed && pawn.Spawned && pawn.Map == Find.CurrentMap
+        private static bool Eligible(Pawn pawn) => pawn != null && !pawn.Destroyed && pawn.Spawned && ProtoBoundary.IsLoaded(pawn.Map)
             && pawn.IsFreeColonist && !pawn.Dead && !pawn.Downed && !pawn.Drafted && !pawn.InMentalState
             && pawn.workSettings?.Initialized == true && pawn.workSettings.EverWork;
 
@@ -103,7 +103,7 @@ namespace HomeBridge.BridgeTools
             pawn = null;
             failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Work settings require an exact current work/area snapshot and only work priorities or an allowed-area assignment.");
             if (!Valid(command)) return false;
-            pawn = Find.CurrentMap.mapPawns.AllPawnsSpawned.SingleOrDefault(p => p.GetUniqueLoadID() == command.Pawn.EntityId);
+            pawn = ProtoBoundary.ResolveMap(context).mapPawns.AllPawnsSpawned.SingleOrDefault(p => p.GetUniqueLoadID() == command.Pawn.EntityId);
             if (pawn == null || Snapshot(pawn, context)?.Token != command.Pawn.ExpectedSnapshotToken) return false;
             var manual = PawnSettingsRead.ManualPriorities();
             if (!manual.HasValue) return false;
@@ -197,7 +197,7 @@ namespace HomeBridge.BridgeTools
                 Unknown = new Receipts.UnknownEffect { Reason = "Exact work settings are unavailable." } };
             try
             {
-                var pawn = Find.CurrentMap.mapPawns.AllPawnsSpawned.SingleOrDefault(p => p.GetUniqueLoadID() == command.Pawn.EntityId);
+                var pawn = ProtoBoundary.ResolveMap(context).mapPawns.AllPawnsSpawned.SingleOrDefault(p => p.GetUniqueLoadID() == command.Pawn.EntityId);
                 var snapshot = pawn == null ? null : Snapshot(pawn, context);
                 if (snapshot == null) return result;
                 var matches = Matches(pawn!, command); var evidence = Evidence(command, snapshot.Token, matches);

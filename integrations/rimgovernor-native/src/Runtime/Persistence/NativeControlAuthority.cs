@@ -250,8 +250,11 @@ namespace HomeBridge.BridgeTools
         private void Refresh()
         {
             RequireThread();
-            if (Interlocked.Exchange(ref pendingContextInvalidation, 0) != 0)
-                Invalidate(NativeControlRevocationReason.IdentityChanged);
+            // One view or game change is one generation: the queued
+            // invalidation and the identity comparison below observe the same
+            // transition, so the comparison is skipped once the queue fired.
+            var queued = Interlocked.Exchange(ref pendingContextInvalidation, 0) != 0;
+            if (queued) Invalidate(NativeControlRevocationReason.IdentityChanged);
             try
             {
                 var next = clock();
@@ -274,7 +277,7 @@ namespace HomeBridge.BridgeTools
                 contextLost = true;
                 return;
             }
-            if (identity != null && !identity.Same(current!)) Invalidate(NativeControlRevocationReason.IdentityChanged);
+            if (!queued && identity != null && !identity.Same(current!)) Invalidate(NativeControlRevocationReason.IdentityChanged);
             identity = current;
             contextLost = false;
         }

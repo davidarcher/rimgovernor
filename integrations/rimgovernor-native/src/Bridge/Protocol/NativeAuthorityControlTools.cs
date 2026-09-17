@@ -46,7 +46,7 @@ namespace HomeBridge.BridgeTools
             }
             Common.ObservationContext context;
             Common.Failure failure;
-            if (!ProtoBoundary.ValidateIdentity(identity, Find.CurrentMap, out context, out failure))
+            if (!ProtoBoundary.ValidateIdentity(identity, out context, out failure))
                 return new Authority.ControlReply { Failure = failure };
             bool settingAuto = request.OperationCase == Authority.ControlRequest.OperationOneofCase.SetMode
                 && request.SetMode.Mode == Authority.Mode.Auto;

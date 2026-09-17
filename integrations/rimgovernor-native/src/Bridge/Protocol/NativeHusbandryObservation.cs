@@ -34,7 +34,7 @@ namespace HomeBridge.BridgeTools
             if (!ProtoBoundary.TryParse(ctx, "rimgovernor/observations_read_husbandry", request!, Obs.HusbandryRequest.Parser, out var parsed, out var failure)
                 || !ValidateHusbandry(parsed, out failure)) return ProtoBoundary.Encode(new Obs.HusbandryReply { Failure = failure });
             return await ProtoBoundary.OnMainThread(ctx, () => {
-                var map = Find.CurrentMap;
+                var map = ProtoBoundary.ResolveMap(parsed.Scope?.ExpectedIdentity!);
                 if (!ProtoBoundary.ValidateIdentity(parsed.Scope?.ExpectedIdentity!, map, out var context, out failure))
                     return ProtoBoundary.Encode(new Obs.HusbandryReply { Failure = failure });
                 try { return Encode(new Obs.HusbandryReply { Observed = Husbandry(map, parsed, context) }); }

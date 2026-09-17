@@ -26,7 +26,7 @@ namespace HomeBridge.BridgeTools
             if (!ProtoBoundary.TryParse(ctx, ToolName, request, Obs.ResearchRequest.Parser, out var parsed, out var failure)
                 || !Validate(parsed, out failure)) return ProtoBoundary.Encode(new Obs.ResearchReply { Failure = failure });
             return await ProtoBoundary.OnMainThread(ctx, () => {
-                var map = Find.CurrentMap;
+                var map = ProtoBoundary.ResolveMap(parsed.Scope.ExpectedIdentity);
                 if (!ProtoBoundary.ValidateIdentity(parsed.Scope.ExpectedIdentity, map, out var context, out var error))
                     return ProtoBoundary.Encode(new Obs.ResearchReply { Failure = error });
                 try

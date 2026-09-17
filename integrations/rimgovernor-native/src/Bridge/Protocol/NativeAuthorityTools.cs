@@ -24,7 +24,7 @@ namespace HomeBridge.BridgeTools
 
             return await ProtoBoundary.OnMainThread(ctx, () =>
             {
-                if (!ProtoBoundary.ValidateIdentity(parsed.Identity, Find.CurrentMap, out var context, out var invalid))
+                if (!ProtoBoundary.ValidateIdentity(parsed.Identity, out var context, out var invalid))
                     return ProtoBoundary.Encode(new Authority.StatusReply { Failure = invalid });
                 var game = Current.Game;
                 if (game == null)

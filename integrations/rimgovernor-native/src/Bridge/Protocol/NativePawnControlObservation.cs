@@ -11,14 +11,14 @@ namespace HomeBridge.BridgeTools
         {
             var reason = Common.UnavailableReason.NativeComponentMissing;
             var detail = "Native pawn control snapshot is unavailable.";
-            if (!pawn.Spawned || pawn.Map != Find.CurrentMap)
+            if (!pawn.Spawned || pawn.Map != ProtoBoundary.ResolveMap(context))
             {
                 reason = Common.UnavailableReason.NotApplicable;
                 detail = "Pawn is not spawned on the current map.";
             }
             else
             {
-                var identity = new NativeControlIdentity(Current.Game, Find.CurrentMap, context.Identity.ColonyId, context.Identity.LoadToken);
+                var identity = new NativeControlIdentity(Current.Game, ProtoBoundary.ResolveMap(context), context.Identity.ColonyId, context.Identity.LoadToken);
                 var result = NativePawnControlState.Observe(identity, pawn, out var snapshot);
                 if (result == NativePawnControlResult.Ready && snapshot != null)
                 {
