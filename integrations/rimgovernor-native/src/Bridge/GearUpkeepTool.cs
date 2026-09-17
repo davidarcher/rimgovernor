@@ -195,7 +195,6 @@ namespace HomeBridge.BridgeTools
                     if (dryRun) return new { success = true, pawn, target, expectedLoadout = expected };
                     var equip = JobMaker.MakeJob(JobDefOf.Equip, weapon);
                     p.jobs.StartJob(equip, JobCondition.InterruptForced);
-                    if (p.CurJob == equip) GearOwnership.State().Weapons[pawn] = target;
                     return new { success = p.CurJob == equip, pawn, target, job = p.CurJob?.def.defName, outcome = "ordered" };
                 }
                 var a = map.listerThings.ThingsInGroup(ThingRequestGroup.Apparel).OfType<Apparel>().SingleOrDefault(v => v.GetUniqueLoadID() == target);
