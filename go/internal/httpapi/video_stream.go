@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/coder/websocket"
+	"github.com/davidarcher/RimGovernor/go/internal/videoshm"
 	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
 	p "github.com/davidarcher/RimGovernor/go/internal/wire/presentationpb"
 	"google.golang.org/protobuf/proto"
@@ -246,51 +247,132 @@ func isHex(v string) bool {
 	return true
 }
 
-// runVideoStream polls ReadFrame at a fixed interval and forwards each
-// genuinely-new frame (by strictly increasing sequence) as one binary
-// WebSocket message: a 34-byte header (sequence uint64, width/height uint32,
-// encoding/captureMethod uint8, capturedUnixMs int64, readbackMs float64, all
-// little-endian) followed by the raw pixel bytes. It stops cleanly when the
-// context is done (client disconnect or handler shutdown), the lease ends, or
-// a write fails.
+// runVideoStream forwards each genuinely-new frame (by strictly increasing
+// sequence) as one binary WebSocket message: a 34-byte header (sequence
+// uint64, width/height uint32, encoding/captureMethod uint8, capturedUnixMs
+// int64, readbackMs float64, all little-endian) followed by the raw pixel
+// bytes. It stops cleanly when the context is done (client disconnect or
+// handler shutdown), the lease ends, or a write fails.
+//
+// Frames come from ReadFrame until the first reply names the source; when
+// Config.VideoFrames can open that source's shared-memory buffer, later
+// frames are read from it directly and ReadFrame is only called once per
+// videoSharedReconcile to confirm the lease is still alive and the source
+// unchanged (a new lease publishes under a new name). Frames read from the
+// buffer inherit the encoding and capture method of that ReadFrame reply,
+// which the buffer header does not carry. AcknowledgeFrame is telemetry
+// only, so only ReadFrame-delivered frames are acknowledged; shared-memory
+// frames never cost a round trip.
 func (s *Server) runVideoStream(ctx context.Context, conn *websocket.Conn, viewer *p.PlayerIdentity) {
 	interval := s.config.VideoStreamPollInterval
 	if interval <= 0 {
 		interval = defaultVideoPollInterval
 	}
-	ticker := time.NewTicker(interval)
+	// The buffer is cheap to poll, so it is sampled faster than the RPC; the
+	// native driver publishes at most 60 frames per second.
+	sharedInterval := max(interval/4, time.Millisecond)
+	ticker := time.NewTicker(sharedInterval)
 	defer ticker.Stop()
+	var sourceID string
 	var lastSequence uint64
+	var shared videoshm.Reader
+	var template *p.MediaFrame
+	var lastRPC time.Time
+	defer func() {
+		if shared != nil {
+			_ = shared.Close()
+		}
+	}()
 	for {
 		select {
 		case <-ctx.Done():
 			return
 		case <-ticker.C:
 		}
-		readCtx, cancel := context.WithTimeout(ctx, s.config.ReadTimeout)
-		reply, _, err := s.config.PresentationMedia.ReadFrame(readCtx, &p.FrameRequest{Viewer: viewer})
-		cancel()
-		if err != nil {
-			_ = conn.Close(websocket.StatusNormalClosure, "video lease ended")
-			return
+		var frame *p.MediaFrame
+		fromRPC := false
+		if shared != nil && time.Since(lastRPC) < videoSharedReconcile {
+			raw, ok, err := shared.Read(lastSequence)
+			if err != nil {
+				// A torn or foreign buffer: drop it and let the next RPC decide.
+				_ = shared.Close()
+				shared = nil
+				continue
+			}
+			if !ok {
+				continue
+			}
+			frame = sharedVideoFrame(template, raw)
+		} else {
+			if shared == nil && time.Since(lastRPC) < interval {
+				continue
+			}
+			readCtx, cancel := context.WithTimeout(ctx, s.config.ReadTimeout)
+			reply, _, err := s.config.PresentationMedia.ReadFrame(readCtx, &p.FrameRequest{Viewer: viewer})
+			cancel()
+			if err != nil {
+				_ = conn.Close(websocket.StatusNormalClosure, "video lease ended")
+				return
+			}
+			lastRPC = time.Now()
+			frame = reply.GetFrame()
+			ref := frame.GetFrame()
+			if ref == nil {
+				continue
+			}
+			// Sequences restart with each lease's new source.
+			if ref.GetSourceId() != sourceID {
+				sourceID, lastSequence = ref.GetSourceId(), 0
+				if shared != nil {
+					_ = shared.Close()
+					shared = nil
+				}
+			}
+			if shared == nil && s.config.VideoFrames != nil {
+				if reader, err := s.config.VideoFrames(sourceID); err == nil {
+					shared, template = reader, frame
+				}
+			}
+			// The buffer may already be ahead of this reply.
+			if ref.GetSequence() <= lastSequence {
+				continue
+			}
+			fromRPC = true
 		}
-		frame := reply.GetFrame()
-		ref := frame.GetFrame()
-		if ref == nil || ref.GetSequence() == lastSequence {
-			continue
-		}
-		lastSequence = ref.GetSequence()
+		lastSequence = frame.GetFrame().GetSequence()
 		writeCtx, cancelWrite := context.WithTimeout(ctx, s.config.ReadTimeout)
-		err = conn.Write(writeCtx, websocket.MessageBinary, encodeVideoFrameMessage(frame))
+		err := conn.Write(writeCtx, websocket.MessageBinary, encodeVideoFrameMessage(frame))
 		cancelWrite()
 		if err != nil {
 			return
 		}
+		if !fromRPC {
+			continue
+		}
 		ackCtx, cancelAck := context.WithTimeout(ctx, s.config.ReadTimeout)
 		_, _, _ = s.config.PresentationMedia.AcknowledgeFrame(ackCtx, &p.FrameAcknowledgement{
-			Viewer: viewer, Frame: ref, DisplayedUnixMs: proto.Int64(time.Now().UnixMilli()),
+			Viewer: viewer, Frame: frame.GetFrame(), DisplayedUnixMs: proto.Int64(time.Now().UnixMilli()),
 		})
 		cancelAck()
+	}
+}
+
+// videoSharedReconcile bounds how long the relay trusts the shared buffer
+// before confirming the lease through ReadFrame again.
+const videoSharedReconcile = time.Second
+
+// sharedVideoFrame projects a buffer frame onto the wire shape, taking the
+// source, encoding and capture method from the ReadFrame reply that opened it.
+func sharedVideoFrame(template *p.MediaFrame, raw videoshm.Frame) *p.MediaFrame {
+	return &p.MediaFrame{
+		Frame:          &p.FrameReference{SourceId: proto.String(template.GetFrame().GetSourceId()), Sequence: proto.Uint64(raw.Sequence)},
+		Width:          proto.Uint32(uint32(raw.Width)),
+		Height:         proto.Uint32(uint32(raw.Height)),
+		Encoding:       template.GetEncoding().Enum(),
+		CaptureMethod:  template.GetCaptureMethod().Enum(),
+		CapturedUnixMs: proto.Int64(raw.CapturedUnixMs),
+		ReadbackMs:     proto.Float64(raw.ReadbackMs),
+		Data:           raw.Data,
 	}
 }
 

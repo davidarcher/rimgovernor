@@ -110,26 +110,33 @@ viewer leases; headless sessions cannot supply video.
 
 ## Frame-bound transport
 
-Watch uses same-origin `/api/video/frames` WebSocket delivery when native
-`home/video_stream` is present. The connection requires the
-`rimgovernor-view-v1` subprotocol and current session identity. Up to four viewers share one
-native framebuffer. NVIDIA NVENC supplies independent H.264 frames to WebCodecs-capable
-browsers; unavailable hardware or decoding falls back to JPEG. Each packet carries its
-native source, frame sequence, dimensions, capture time and session. One unacknowledged
-frame per viewer bounds backpressure. Browser paint acknowledgement supplies display
-latency metrics. Windows uses a named mapping and nonblocking mutex;
-Linux uses a private `/dev/shm/RimGovernorVideo-<id>` mapping and nonblocking file locks.
-Readers accept only that buffer namespace and exact capacity. Native lease cleanup
-unlinks the Linux buffer; existing readers close their mappings independently.
-Unity captures the
-full framebuffer after rendering, at most 60 times per second and up to 3840×2160.
-Private Xvfb workers capture their process-owned presented window; optional
-`RIMGOVERNOR_VIDEO_READBACK=async` or `sync` selects GPU readback or ReadPixels for comparison.
-The capture ceiling is not a delivered-fps guarantee. Private display frame pacing
-uses 60 fps without virtual-display vsync while capture is leased, then restores the
-previous settings. Each consumer takes the latest frame instead of queuing
-obsolete frames. Encoding runs off the asyncio thread; native lease renewal and buffer
-sampling run separately from reviews.
+The dashboard leases capture (`POST /api/presentation/video-lease`), mints a
+short-lived single-use ticket and opens the same-origin
+`/api/presentation/video-stream` WebSocket. Each binary message is a 34-byte
+header (sequence, width, height, encoding, capture method, capture time,
+readback cost; little-endian) followed by raw pixels; the client drops stale or
+duplicate sequences and paints the latest frame.
+
+The Go relay reads frames from the native shared-memory buffer whenever it runs
+on the game's host: Windows uses a named mapping with a nonblocking mutex,
+Linux a private `/dev/shm/RimGovernorVideo-<id>` mapping with nonblocking file
+locks (`go/internal/videoshm`). The buffer name is the lease's `sourceId`, learned
+from the first `ReadFrame` reply, which also supplies the pixel format the buffer
+header does not carry. `ReadFrame` is then called about once a second only to
+confirm the lease and source; a new lease publishes under a new name with a
+restarted sequence. When the buffer cannot be opened (controller on another host,
+lease already released) every frame goes through `ReadFrame`'s base64 media
+envelope instead. Only `ReadFrame`-delivered frames are acknowledged;
+`AcknowledgeFrame` is telemetry, not backpressure.
+
+Unity captures the full framebuffer after rendering, at most 60 times per second
+and up to 3840×2160. Private Xvfb workers capture their process-owned presented
+window; optional `RIMGOVERNOR_VIDEO_READBACK=async` or `sync` selects GPU readback
+or ReadPixels for comparison. The capture ceiling is not a delivered-fps
+guarantee. Private display frame pacing uses 60 fps without virtual-display vsync
+while capture is leased, then restores the previous settings. Native lease cleanup
+unlinks the Linux buffer; an open reader sees no further sequence and closes
+its mapping independently.
 
 ## Native gesture admission
 
