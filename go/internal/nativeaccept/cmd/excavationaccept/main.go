@@ -368,11 +368,13 @@ func run(ctx context.Context, root, output, gameID string, headless bool, rimgov
 	var stages []map[string]any
 	restarted := false
 	stage := 0
-	// A world-changing review invalidates every routine goal (a resume
-	// alone keeps them). The next review then re-plans from the geometry
-	// the pawns actually opened: the same target is re-adopted with its
-	// cleared cells, and no cleared cell is ever re-designated. The
-	// harness follows that lineage whenever it happens.
+	// Only a world change (colony/load/map, tick rewind) invalidates a
+	// routine goal; letter pauses, the keep-alive's resumes and the paired
+	// restart suspend and reactivate the same goal (#65). If a successor
+	// goal does appear, the next review re-plans from the geometry the
+	// pawns actually opened (same target, cleared cells adopted, no cleared
+	// cell re-designated); the harness follows that lineage so the room
+	// still completes, then fails on the lineage at the end.
 	var lineage []map[string]any
 	followLineage := func() error {
 		var next domain.GoalID
@@ -521,6 +523,9 @@ func run(ctx context.Context, root, output, gameID string, headless bool, rimgov
 		return fmt.Errorf("door plan: %w", err)
 	}
 	report["door_plan"] = string(door.Plan)
+	if len(lineage) != 0 {
+		return fmt.Errorf("room needed %d successor goals; pause/resume must keep the routine goal (#65): %v", len(lineage), lineage)
+	}
 
 	// The shell alternative must never have been committed under this goal.
 	goal, err := verifyStore.LoadGoal(ctx, goalID)
