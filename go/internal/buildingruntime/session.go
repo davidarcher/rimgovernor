@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/acquisition"
+	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/bedassign"
 	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/bedmedical"
 	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/bill"
 	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/boundary"
@@ -66,7 +67,10 @@ type SessionConfig struct {
 	BedMedical *bedmedical.Capabilities
 	// GrowerCrop backs the field family's basin re-crop, the same one-shot
 	// CAS write shape as BedMedical.
-	GrowerCrop          *growercrop.Capabilities
+	GrowerCrop *growercrop.Capabilities
+	// BedAssign backs the sleeping family's bed ownership transfer, the
+	// same one-shot CAS write shape as BedMedical.
+	BedAssign           *bedassign.Capabilities
 	ResearchSelect      *ResearchSelectCapabilities
 	ConfirmColonyNames  *ConfirmColonyNamesCapabilities
 	Husbandry           *HusbandryCapabilities
@@ -350,6 +354,9 @@ func NewSession(ctx context.Context, config SessionConfig, journal *store.Store,
 	if config.GrowerCrop != nil && (config.GrowerCrop.Native == nil || config.GrowerCrop.Writer == nil) {
 		return cleanup(ErrControl)
 	}
+	if config.BedAssign != nil && (config.BedAssign.Native == nil || config.BedAssign.Writer == nil) {
+		return cleanup(ErrControl)
+	}
 	if config.ResearchSelect != nil && (config.ResearchSelect.Native == nil || config.ResearchSelect.Writer == nil) {
 		return cleanup(ErrControl)
 	}
@@ -419,6 +426,11 @@ func NewSession(ctx context.Context, config SessionConfig, journal *store.Store,
 	}
 	if config.GrowerCrop != nil {
 		if err := worker.EnableGrowerCrop(growercrop.NewBoundary(place, *config.GrowerCrop)); err != nil {
+			return cleanup(err)
+		}
+	}
+	if config.BedAssign != nil {
+		if err := worker.EnableBedAssign(bedassign.NewBoundary(place, *config.BedAssign)); err != nil {
 			return cleanup(err)
 		}
 	}

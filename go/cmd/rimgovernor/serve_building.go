@@ -13,6 +13,7 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/bridge"
 	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime"
 	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/acquisition"
+	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/bedassign"
 	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/bedmedical"
 	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/bill"
 	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/boundary"
@@ -137,6 +138,7 @@ type buildingServiceBridge struct {
 	buildingTemperature *buildingtemperature.Capabilities
 	bedMedical          *bedmedical.Capabilities
 	growerCrop          *growercrop.Capabilities
+	bedAssign           *bedassign.Capabilities
 	presentationMedia   *bridge.PresentationMedia
 	lifecycle           lifecycleCapability
 }
@@ -271,6 +273,10 @@ func openBuildingService(ctx context.Context, config bridge.ProcessConfig) (buil
 	if err != nil {
 		return buildingServiceBridge{}, errors.Join(err, client.Close())
 	}
+	bedAssignWriter, err := bridge.NewBedAssignWriter(client)
+	if err != nil {
+		return buildingServiceBridge{}, errors.Join(err, client.Close())
+	}
 	presentationMedia, err := bridge.NewPresentationMedia(client)
 	if err != nil {
 		return buildingServiceBridge{}, errors.Join(err, client.Close())
@@ -315,6 +321,7 @@ func openBuildingService(ctx context.Context, config bridge.ProcessConfig) (buil
 		buildingTemperature: &buildingtemperature.Capabilities{Native: client, Writer: buildingTemperatureControl},
 		bedMedical:          &bedmedical.Capabilities{Native: client, Writer: bedMedicalControl},
 		growerCrop:          &growercrop.Capabilities{Native: client, Writer: growerCropControl},
+		bedAssign:           &bedassign.Capabilities{Native: client, Writer: bedAssignWriter},
 		presentationMedia:   presentationMedia,
 		lifecycle:           lifecycleCapability{lifecycleSave, lifecycleLoad}}, nil
 }
@@ -638,6 +645,14 @@ func serveBuildingWithBridge(ctx context.Context, config serveConfig, out io.Wri
 		}
 		growerCropCapabilities = client.growerCrop
 	}
+	// The sleeping family transfers bed ownership through the shared executor.
+	var bedAssignCapabilities *bedassign.Capabilities
+	if config.routineSleepingPlans {
+		if client.bedAssign == nil {
+			return errors.New("sleeping plans require typed capabilities")
+		}
+		bedAssignCapabilities = client.bedAssign
+	}
 	session, err := buildingruntime.NewSession(lifetime, buildingruntime.SessionConfig{RoutineMethods: config.routineMethods,
 		Rules:               config.resourceRules,
 		Control:             buildingruntime.ControlConfig{ProfileDirectory: config.profile, CallTimeout: callTimeout, Worlds: buildingWorldSource{client.reads}},
@@ -673,6 +688,7 @@ func serveBuildingWithBridge(ctx context.Context, config serveConfig, out io.Wri
 		BuildingTemperature: buildingTemperatureCapabilities,
 		BedMedical:          bedMedicalCapabilities,
 		GrowerCrop:          growerCropCapabilities,
+		BedAssign:           bedAssignCapabilities,
 	}, database, client.native, client.authority, client.writes, wallClock{})
 	if err != nil {
 		return err

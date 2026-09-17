@@ -17,7 +17,7 @@ var inlinePlannerSet = []struct {
 	{"temperature", plannerFoothold}, {"refrigeration", plannerMaintenance}, {"lighting", plannerMaintenance}, {"flooring", plannerMaintenance},
 	{"routes", plannerMaintenance}, {"cooking", plannerFoothold}, {"butcher", plannerMaintenance}, {"cookingBills", plannerFoothold},
 	{"preservationBills", plannerFoothold}, {"butcherBills", plannerMaintenance}, {"comfort", plannerComfort}, {"workshop", plannerMaintenance},
-	{"hospital", plannerCritical}, {"expansion", plannerComfort}, {"defense", plannerPreempt}, {"tend", plannerCritical},
+	{"hospital", plannerCritical}, {"sleepingUpkeep", plannerCritical}, {"expansion", plannerComfort}, {"defense", plannerPreempt}, {"tend", plannerCritical},
 	{"rescue", plannerCritical}, {"equip", plannerMaintenance}, {"secureSupplies", plannerFoothold}, {"repair", plannerMaintenance},
 	{"fireSafety", plannerFoothold}, {"clean", plannerMaintenance}, {"waste", plannerMaintenance}, {"moodRelief", plannerMaintenance},
 	{"haul", plannerMaintenance}, {"gear", plannerMaintenance}, {"medical", plannerCritical}, {"foodStorageUpkeep", plannerFoothold},

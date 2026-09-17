@@ -533,6 +533,12 @@ func startServiceClock(ctx context.Context, player *buildingruntime.Player, sess
 					return err
 				}
 			}
+			if sleeping {
+				config.SleepingUpkeep, err = buildingruntime.NewRoutineSleepingUpkeepPlanner(reviewer, source)
+				if err != nil {
+					return err
+				}
+			}
 			if temperature {
 				config.Temperature, err = buildingruntime.NewRoutineTemperaturePlanner(reviewer, source)
 				if err != nil {
@@ -654,6 +660,9 @@ func routineCapabilities(sc serveConfig) (policy.RoutinePolicy, buildingruntime.
 	}
 	if sc.routineComfortPlans {
 		capabilities.Methods = append(capabilities.Methods, policy.EnsureComfort)
+	}
+	if sc.routineSleepingPlans {
+		capabilities.Methods = append(capabilities.Methods, policy.MaintainSleeping)
 	}
 	if sc.routineExpansionPlans {
 		capabilities.Methods = append(capabilities.Methods, policy.EnsureExpansion)

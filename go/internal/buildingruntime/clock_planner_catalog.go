@@ -264,6 +264,17 @@ var plannerCatalog = []plannerEntry{
 			out.Hospital = &method
 			return nil
 		}},
+	{name: "sleepingUpkeep", priority: plannerCritical, kinds: []domain.ActionKind{domain.BuildingAction, domain.BedAssignAction}, families: factsBuilding,
+		configured: func(c *ClockSchedulerConfig) bool { return c.SleepingUpkeep != nil },
+		run: func(s *ClockScheduler, ctx, epoch context.Context, out *ClockSchedulerResult, arbiter *stepArbiter) error {
+			method, err := s.config.SleepingUpkeep.step(ctx, epoch, arbiter)
+			if err != nil {
+				return err
+			}
+			clockSchedulerLog("SleepingUpkeep.step result: reason=%v admitted=%v refused=%v", method.Reason, method.Decision.Admitted, method.Decision.Refused)
+			out.SleepingUpkeep = &method
+			return nil
+		}},
 	{name: "expansion", priority: plannerComfort, kinds: []domain.ActionKind{domain.BuildingAction, domain.ExcavationAction}, families: factsBuilding,
 		configured: func(c *ClockSchedulerConfig) bool { return c.Expansion != nil },
 		run: func(s *ClockScheduler, ctx, epoch context.Context, out *ClockSchedulerResult, arbiter *stepArbiter) error {

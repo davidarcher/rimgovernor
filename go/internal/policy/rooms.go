@@ -127,7 +127,10 @@ func FacilityCatalog() []FacilityRequirement {
 	return []FacilityRequirement{
 		{Role: RoomRoleDiningRoom, Status: FacilityImplemented, Compatible: append([]RoomRole{RoomRoleRecRoom}, generic...), Furniture: []string{"Table1x2c", "DiningChair"}},
 		{Role: RoomRoleRecRoom, Status: FacilityImplemented, Compatible: append([]RoomRole{RoomRoleDiningRoom}, generic...), Furniture: []string{"HorseshoesPin"}},
-		{Role: RoomRoleBedroom, Status: FacilityPending},
+		// A bedroom is a hosted colonist bed: MaintainSleeping stages one in
+		// any room that already sleeps colonists or in a generic room, then
+		// assigns it; the game scores the room Bedroom or Barracks by count.
+		{Role: RoomRoleBedroom, Status: FacilityImplemented, Compatible: append([]RoomRole{RoomRoleBarracks}, generic...), Furniture: SleepingBedDefinitions},
 		{Role: RoomRoleBarracks, Status: FacilityPending},
 		{Role: RoomRolePrisonCell, Status: FacilityPending},
 		{Role: RoomRolePrisonBarracks, Status: FacilityPending},

@@ -45,6 +45,13 @@ func (f *clockServiceFake) ReadRoutinePopulation(context.Context, *c.Identity) (
 	return bridge.PrisonerCensus{}, bridge.Result{}, errors.New("population read unavailable")
 }
 
+// ReadTemperatureRooms satisfies the sleeping upkeep planner's
+// TemperatureSource check; the census read above fails first, so it never
+// runs.
+func (f *clockServiceFake) ReadTemperatureRooms(context.Context, *c.Identity) (*o.ListRoomsReply, bridge.Result, error) {
+	return nil, bridge.Result{}, errors.New("temperature read unavailable")
+}
+
 func (f *clockServiceFake) Identity(ctx context.Context) (*l.IdentityReply, bridge.Result, error) {
 	return f.reads.Identity(ctx)
 }
@@ -73,7 +80,7 @@ func TestClockServiceDisabledStartupPollsAndJoins(t *testing.T) {
 	done := make(chan error, 1)
 	go func() {
 		done <- serveBuildingWithBridge(ctx, config, addresses, func(context.Context, bridge.ProcessConfig) (buildingServiceBridge, error) {
-			return buildingServiceBridge{reads: reads, native: caps, authority: caps, writes: caps, draft: unusedDrafts(), clock: &buildingruntime.ClockCapabilities{Native: clock, Writer: clock}, clockReads: clock}, nil
+			return buildingServiceBridge{reads: reads, native: caps, authority: caps, writes: caps, draft: unusedDrafts(), bedAssign: unusedBedAssign(), clock: &buildingruntime.ClockCapabilities{Native: clock, Writer: clock}, clockReads: clock}, nil
 		})
 	}()
 	select {

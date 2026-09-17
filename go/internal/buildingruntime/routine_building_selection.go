@@ -114,6 +114,16 @@ func (r *RoutineBuildingPlanner) selection(facts observation.ColonyProjection) (
 			return 32, "hospital-shell", ""
 		}
 		return 1, domain.MethodID("hospital-" + r.definition), ""
+	case policy.MaintainSleeping:
+		if r.shelter {
+			return 32, "sleeping-shell", ""
+		}
+		// One method per bed still owed: the count falls once a staged bed
+		// is assigned, so the next bed is a new method in the same epoch.
+		if r.sleeping == nil {
+			return 0, "", BuildingMethodUnknown
+		}
+		return 1, domain.MethodID(fmt.Sprintf("sleeping-%s-%d", r.definition, r.sleeping.Unhoused)), ""
 	case policy.EnsureInitialShelter, policy.EnsureExpansion:
 		capacity, known := facts.Facts.IndoorCapacity.Value()
 		if !known {

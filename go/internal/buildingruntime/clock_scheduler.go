@@ -55,6 +55,7 @@ type ClockSchedulerConfig struct {
 	Comfort                          *RoutineBuildingPlanner
 	Workshop                         *RoutineBuildingPlanner
 	Hospital                         *RoutineHospitalPlanner
+	SleepingUpkeep                   *RoutineSleepingUpkeepPlanner
 	Expansion                        *RoutineBuildingPlanner
 	Power                            *RoutineBuildingPlanner
 	Temperature                      *RoutineBuildingPlanner
@@ -108,6 +109,7 @@ type ClockSchedulerResult struct {
 	Comfort                                       *RoutineBuildingResult
 	Workshop                                      *RoutineBuildingResult
 	Hospital                                      *RoutineBuildingResult
+	SleepingUpkeep                                *RoutineBuildingResult
 	Expansion                                     *RoutineBuildingResult
 	Power                                         *RoutineBuildingResult
 	Temperature                                   *RoutineBuildingResult
@@ -242,6 +244,9 @@ func NewClockScheduler(player *Player, session *Session, native ClockWindowNativ
 		return nil, ErrControl
 	}
 	if config.Hospital != nil && (config.Routine == nil || config.Hospital.reviewer != config.Routine) {
+		return nil, ErrControl
+	}
+	if config.SleepingUpkeep != nil && (config.Routine == nil || config.SleepingUpkeep.reviewer != config.Routine) {
 		return nil, ErrControl
 	}
 	if config.Expansion != nil && (config.Routine == nil || config.Expansion.reviewer != config.Routine || config.Expansion.goal != policy.EnsureExpansion) {
@@ -649,7 +654,7 @@ func (s *ClockScheduler) StepWithReason(ctx context.Context, reason StepReason) 
 	if out.Fields != nil {
 		nativeWorkTicks = out.Fields.NativeWorkTicks
 	}
-	for _, result := range []*RoutineBuildingResult{out.Sleeping, out.Cooking, out.Butcher, out.Comfort, out.Workshop, out.Hospital, out.Expansion, out.Power, out.Temperature, out.Refrigeration, out.Lighting, out.Flooring, out.Routes} {
+	for _, result := range []*RoutineBuildingResult{out.Sleeping, out.Cooking, out.Butcher, out.Comfort, out.Workshop, out.Hospital, out.SleepingUpkeep, out.Expansion, out.Power, out.Temperature, out.Refrigeration, out.Lighting, out.Flooring, out.Routes} {
 		if result != nil {
 			nativeWorkTicks = max(nativeWorkTicks, result.NativeWorkTicks)
 		}
@@ -843,9 +848,9 @@ func clockSchedulerWork(plan store.PlanState, current domain.GenerationSnapshot)
 			continue
 		}
 		// Allow, work settings, zones, a building's temperature target, a
-		// bed's medical flag and a grower's crop are immediate designations
-		// and need no simulation window.
-		if p.Action().Kind() == domain.SupplyAllowAction || p.Action().Kind() == domain.WorkAssignmentAction || p.Action().Kind() == domain.ZoneCreateAction || p.Action().Kind() == domain.BuildingTemperatureAction || p.Action().Kind() == domain.BedMedicalAction || p.Action().Kind() == domain.GrowerCropAction {
+		// bed's medical flag, a bed's owner and a grower's crop are immediate
+		// designations and need no simulation window.
+		if p.Action().Kind() == domain.SupplyAllowAction || p.Action().Kind() == domain.WorkAssignmentAction || p.Action().Kind() == domain.ZoneCreateAction || p.Action().Kind() == domain.BuildingTemperatureAction || p.Action().Kind() == domain.BedMedicalAction || p.Action().Kind() == domain.BedAssignAction || p.Action().Kind() == domain.GrowerCropAction {
 			continue
 		}
 		// Construction, native plant labor, and the routine-dispatched action

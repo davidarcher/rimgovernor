@@ -780,7 +780,13 @@ func DetectRoutine(f RoutineFacts, previous RoutineLatches, p RoutinePolicy) (Ro
 	addAssessment(MaintainSleeping, sleepingPriority, sleepingRecovered)
 	if !positive(sleepingRecovered) {
 		addGoal(MaintainSleeping, sleepingPriority)
-		r.Goals[len(r.Goals)-1].MethodUnavailable = true
+		// Binary need: a confirmed deficit ranks at Known(1.0); an unknown
+		// census stays DevelopmentUnknown. Method availability follows the
+		// composed capability list (AvailableMethods below), since the
+		// sleeping family dispatches bed construction and ownership.
+		if _, known := sleepingRecovered.Value(); known {
+			r.Goals[len(r.Goals)-1].Deficit = domain.Known(1.0)
+		}
 	}
 	medicalReserveActive := medicine.Active || f.UpkeepIssued[MaintainMedicalReserves]
 	medicalReserveRecovered := domain.Unknown[bool]()
