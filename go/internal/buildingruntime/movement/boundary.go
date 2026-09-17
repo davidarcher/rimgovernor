@@ -18,7 +18,10 @@ import (
 )
 
 type MovementNative interface {
-	ReadPawns(context.Context, *c.Identity, []string) (*n.ListPawnsReply, bridge.Result, error)
+	// ReadCombatPawns carries the health detail (bleeding, needs tend) the
+	// movement policy requires; the bare pawn read leaves it unknown and
+	// every move is refused unknown_facts (issue #70).
+	ReadCombatPawns(context.Context, *c.Identity, []string) (*n.ListPawnsReply, bridge.Result, error)
 	ReadEmergency(context.Context, *c.Identity) (bridge.EmergencyObservation, bridge.Result, error)
 	PreviewMovement(context.Context, *c.Identity, *o.MovePawn) (*o.PreviewReply, bridge.Result, error)
 	LookupMovementAttempt(context.Context, bridge.MovementAttempt) (*r.LookupReply, bridge.Result, error)
@@ -59,7 +62,7 @@ func movementClaim(action domain.Action, snapshot domain.GenerationSnapshot, cla
 }
 
 func (b *MovementBoundary) pawnRead(ctx context.Context, pawn string, current domain.GenerationSnapshot) (*n.PawnState, *c.ObservationContext, error) {
-	reply, _, err := b.native.ReadPawns(ctx, boundary.Identity(current), []string{pawn})
+	reply, _, err := b.native.ReadCombatPawns(ctx, boundary.Identity(current), []string{pawn})
 	if err != nil {
 		return nil, nil, err
 	}
