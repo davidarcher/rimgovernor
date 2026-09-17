@@ -2,6 +2,7 @@ package videoshm
 
 import (
 	"fmt"
+	"runtime"
 	"unsafe"
 
 	"golang.org/x/sys/windows"
@@ -50,14 +51,25 @@ func Open(name string) (Reader, error) {
 
 func (m *windowsMapping) bytes() []byte { return m.view }
 
+// A Windows mutex is owned by the OS thread that acquired it, so the
+// goroutine must stay on that thread until it releases; otherwise the
+// release fails and the producer is locked out for good.
 func (m *windowsMapping) lock() bool {
+	runtime.LockOSThread()
 	event, err := windows.WaitForSingleObject(m.mutex, uint32(lockWait.Milliseconds()))
 	// An abandoned mutex (producer died mid-publish) still grants ownership;
 	// the header check in parseFrame bounds what a torn write can do.
-	return err == nil && (event == windows.WAIT_OBJECT_0 || event == windows.WAIT_ABANDONED)
+	if err == nil && (event == windows.WAIT_OBJECT_0 || event == windows.WAIT_ABANDONED) {
+		return true
+	}
+	runtime.UnlockOSThread()
+	return false
 }
 
-func (m *windowsMapping) unlock() { _ = windows.ReleaseMutex(m.mutex) }
+func (m *windowsMapping) unlock() {
+	_ = windows.ReleaseMutex(m.mutex)
+	runtime.UnlockOSThread()
+}
 
 func (m *windowsMapping) close() error {
 	var first error

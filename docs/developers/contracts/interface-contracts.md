@@ -129,6 +129,18 @@ lease already released) every frame goes through `ReadFrame`'s base64 media
 envelope instead. Only `ReadFrame`-delivered frames are acknowledged;
 `AcknowledgeFrame` is telemetry, not backpressure.
 
+A lease names one source (`VideoStart.source`): the presented screen (the
+default), a colonist (`pawn_id`, a second camera following the pawn at ten
+cells of height) or the whole map. Each source has its own buffer, `sourceId`,
+sequence and cadence (`frames_per_second`: screen 60, pawn up to 30, map up to
+10; feeds default to 15 and 4), and `ReadFrame` selects a source by id. Feeds
+render right after the game's own draw pass, with the player camera's culling
+rect widened to cover them only on the frames they are due, and clip the
+silhouette and overlay altitudes so a far player zoom never blanks the pawns
+(their cached far-zoom sprites are still what the game submits). A pawn that is
+not spawned on the viewed map, or a map that is not the viewed one, yields no
+frames until it is again. Stopping without `source_id` ends every source.
+
 Unity captures the full framebuffer after rendering, at most 60 times per second
 and up to 3840×2160. Private Xvfb workers capture their process-owned presented
 window; optional `RIMGOVERNOR_VIDEO_READBACK=async` or `sync` selects GPU readback

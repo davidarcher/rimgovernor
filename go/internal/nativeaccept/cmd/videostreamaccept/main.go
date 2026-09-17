@@ -317,7 +317,13 @@ func run(ctx context.Context, root, output, gameID string, report na.Report) err
 	}
 
 	// Case 5b: the released buffer publishes nothing further; a reader that
-	// still holds the mapping sees no new sequence past the last one.
+	// still holds the mapping sees no new sequence past the one current once
+	// the stop returned (frames kept landing between the window and the stop).
+	if current, ok, err := shared.Read(0); err != nil || !ok {
+		return fmt.Errorf("shared-memory-read-after-stop: no current frame (%v)", err)
+	} else {
+		lastShared = current.Sequence
+	}
 	time.Sleep(300 * time.Millisecond)
 	if _, ok, err := shared.Read(lastShared); err != nil {
 		return fmt.Errorf("shared-memory-read-after-stop: %w", err)

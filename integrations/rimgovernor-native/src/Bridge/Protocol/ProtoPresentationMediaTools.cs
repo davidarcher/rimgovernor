@@ -113,8 +113,17 @@ namespace HomeBridge.BridgeTools
                 var viewer = parsed.OperationCase == Presentation.VideoLeaseRequest.OperationOneofCase.Start ? parsed.Start.Viewer : parsed.Stop.Viewer;
                 if (!ProtoBoundary.ValidateViewedIdentity(viewer.Identity, out var context, out var error))
                     return ProtoBoundary.Encode(new Presentation.VideoReply { Failure = error });
-                int seconds = parsed.OperationCase == Presentation.VideoLeaseRequest.OperationOneofCase.Start ? (int)parsed.Start.LeaseSeconds : 0;
-                var status = VideoStreamDriver.LeaseTyped(seconds);
+                var spec = VideoSourceSpec.Screen;
+                int seconds = 0;
+                string? stopSource = null;
+                if (parsed.OperationCase == Presentation.VideoLeaseRequest.OperationOneofCase.Start)
+                {
+                    seconds = (int)parsed.Start.LeaseSeconds;
+                    if (!TryParseSource(parsed.Start.Source, out spec, out var reason))
+                        return ProtoBoundary.Encode(new Presentation.VideoReply { Failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, reason) });
+                }
+                else stopSource = parsed.Stop.HasSourceId ? parsed.Stop.SourceId : null;
+                var status = VideoStreamDriver.LeaseTyped(seconds, spec, stopSource);
                 return ProtoBoundary.Encode(new Presentation.VideoReply { State = VideoStatus(context, status) });
             }, cancellationToken).ConfigureAwait(false);
         }
@@ -168,9 +177,42 @@ namespace HomeBridge.BridgeTools
             }, cancellationToken).ConfigureAwait(false);
         }
 
+        // Absent source means the presented screen, as before sources existed.
+        private static bool TryParseSource(Presentation.VideoSource? source, out VideoSourceSpec spec, out string? reason)
+        {
+            var kind = source?.Kind ?? Presentation.VideoSourceKind.Screen;
+            VideoSourceKind native;
+            switch (kind)
+            {
+                case Presentation.VideoSourceKind.Unspecified:
+                case Presentation.VideoSourceKind.Screen: native = VideoSourceKind.Screen; break;
+                case Presentation.VideoSourceKind.Pawn: native = VideoSourceKind.Pawn; break;
+                case Presentation.VideoSourceKind.Map: native = VideoSourceKind.Map; break;
+                default: spec = VideoSourceSpec.Screen; reason = "Unsupported video source kind."; return false;
+            }
+            if (native == VideoSourceKind.Pawn && (source == null || !source.HasPawnId || !ProtoBoundary.IsIdentifier(source.PawnId)))
+            { spec = VideoSourceSpec.Screen; reason = "A pawn source requires a valid pawn_id."; return false; }
+            return VideoSourceSpec.TryCreate(native, source?.PawnId, (int)(source?.Width ?? 0), (int)(source?.Height ?? 0),
+                source?.FramesPerSecond ?? 0, out spec, out reason);
+        }
+
+        private static Presentation.VideoSource WireSource(VideoSourceSpec spec)
+        {
+            var result = new Presentation.VideoSource
+            {
+                Kind = spec.Kind == VideoSourceKind.Map ? Presentation.VideoSourceKind.Map
+                    : spec.Kind == VideoSourceKind.Pawn ? Presentation.VideoSourceKind.Pawn : Presentation.VideoSourceKind.Screen,
+                FramesPerSecond = spec.FramesPerSecond,
+            };
+            if (spec.PawnId != null) result.PawnId = spec.PawnId;
+            if (spec.Width > 0) result.Width = (uint)spec.Width;
+            if (spec.Height > 0) result.Height = (uint)spec.Height;
+            return result;
+        }
+
         private static Presentation.VideoState VideoStatus(Common.ObservationContext context, VideoLeaseStatus status)
         {
-            var result = new Presentation.VideoState { Context = context, Supported = status.Supported };
+            var result = new Presentation.VideoState { Context = context, Supported = status.Supported, Source = WireSource(status.Source) };
             if (!status.Supported)
             {
                 result.Unavailable = new Common.Unavailable { Reason = Common.UnavailableReason.Unsupported,
@@ -183,7 +225,7 @@ namespace HomeBridge.BridgeTools
                 result.SourceId = status.SourceId;
                 result.RemainingLeaseMs = (uint)Math.Max(0, Mathf.RoundToInt(status.RemainingSeconds * 1000f));
                 result.CapturedFrames = (ulong)Math.Max(0, status.CapturedFrames);
-                result.FramesPerSecond = 60;
+                result.FramesPerSecond = status.Source.FramesPerSecond;
                 result.PixelFormat = status.Bgra ? Presentation.MediaEncoding.Bgra32TopDown : Presentation.MediaEncoding.Rgba32BottomUp;
                 result.CaptureMethod = status.CaptureMethod switch
                 {
